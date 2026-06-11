@@ -1,5 +1,23 @@
 # @secondlayer/api
 
+## 1.20.1
+
+### Patch Changes
+
+- Updated dependencies [6fcd653]
+- Updated dependencies [6fcd653]
+- Updated dependencies [0449af7]
+- Updated dependencies [408e8b7]
+- Updated dependencies [70004c0]
+- Updated dependencies [5dc8fb3]
+- Updated dependencies [3def7d4]
+- Updated dependencies [38dad1c]
+- Updated dependencies [38dad1c]
+  - @secondlayer/sdk@6.21.0
+  - @secondlayer/shared@6.30.0
+  - @secondlayer/subgraphs@3.11.0
+  - @secondlayer/platform@0.0.28
+
 ## 1.20.0
 
 ### Minor Changes

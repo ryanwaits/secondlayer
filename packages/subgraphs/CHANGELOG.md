@@ -1,5 +1,20 @@
 # @secondlayer/subgraphs
 
+## 3.11.0
+
+### Minor Changes
+
+- 5dc8fb3: sparse reindex: empty-match batches probe the next matchable height (contract-scoped) and leap there; boot-time sweep re-enqueues reindexes stranded by a processor restart; IndexHttpClient.firstEventHeight probe
+
+### Patch Changes
+
+- Updated dependencies [6fcd653]
+- Updated dependencies [0449af7]
+- Updated dependencies [5dc8fb3]
+- Updated dependencies [3def7d4]
+- Updated dependencies [38dad1c]
+  - @secondlayer/shared@6.30.0
+
 ## 3.10.0
 
 ### Minor Changes

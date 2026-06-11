@@ -1,5 +1,27 @@
 # @secondlayer/mcp
 
+## 3.10.0
+
+### Minor Changes
+
+- 408e8b7: batch_query tool — up to 10 public /v1 reads in one round trip
+- 9716a66: x402 auto-pay: set X402_PRIVATE_KEY and paid 402 challenges on Index/Streams settle automatically (sponsored transfers, receipts logged); capabilities advertise the pay-per-call rail
+
+### Patch Changes
+
+- Updated dependencies [6fcd653]
+- Updated dependencies [6fcd653]
+- Updated dependencies [0449af7]
+- Updated dependencies [408e8b7]
+- Updated dependencies [70004c0]
+- Updated dependencies [5dc8fb3]
+- Updated dependencies [3def7d4]
+- Updated dependencies [38dad1c]
+- Updated dependencies [38dad1c]
+  - @secondlayer/sdk@6.21.0
+  - @secondlayer/shared@6.30.0
+  - @secondlayer/subgraphs@3.11.0
+
 ## 3.9.0
 
 ### Minor Changes

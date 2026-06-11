@@ -1,5 +1,15 @@
 # @secondlayer/shared
 
+## 6.30.0
+
+### Minor Changes
+
+- 6fcd653: GENESIS_BACKFILL_REQUIRES_PLAN error code; deploy response carries start_block + start_block_clamped
+- 0449af7: wallet_principal on accounts + expires_at on subgraphs (x402-paid deploys), updateSubgraphExpiry query
+- 5dc8fb3: sparse reindex: empty-match batches probe the next matchable height (contract-scoped) and leap there; boot-time sweep re-enqueues reindexes stranded by a processor restart; IndexHttpClient.firstEventHeight probe
+- 3def7d4: x402_payments.account_id (wallet→account continuity) + month-bucketed spend counters on x402_balances
+- 38dad1c: x402_balances table + x402_payments.kind (prepaid credit)
+
 ## 6.29.0
 
 ### Minor Changes

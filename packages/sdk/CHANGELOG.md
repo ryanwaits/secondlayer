@@ -1,5 +1,24 @@
 # @secondlayer/sdk
 
+## 6.21.0
+
+### Minor Changes
+
+- 408e8b7: sl.batch() — up to 10 public /v1 reads in one round trip via POST /v1/batch
+- 70004c0: withX402 caches PAYMENT-SESSION vouchers per origin — session-priced surfaces (Streams) settle once per session instead of per call
+- 38dad1c: withX402 prepaid credit: balanceToken drawdowns (PAYMENT-BALANCE) and autonomous topUp policy
+
+### Patch Changes
+
+- 6fcd653: Deploy response types include start_block + start_block_clamped
+- Updated dependencies [6fcd653]
+- Updated dependencies [0449af7]
+- Updated dependencies [5dc8fb3]
+- Updated dependencies [3def7d4]
+- Updated dependencies [38dad1c]
+  - @secondlayer/shared@6.30.0
+  - @secondlayer/subgraphs@3.11.0
+
 ## 6.20.0
 
 ### Minor Changes

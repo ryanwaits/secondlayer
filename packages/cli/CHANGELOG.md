@@ -1,5 +1,23 @@
 # @secondlayer/cli
 
+## 8.7.1
+
+### Patch Changes
+
+- 6fcd653: Print forward-only notice when a free-tier deploy's start block is clamped
+- Updated dependencies [6fcd653]
+- Updated dependencies [6fcd653]
+- Updated dependencies [0449af7]
+- Updated dependencies [408e8b7]
+- Updated dependencies [70004c0]
+- Updated dependencies [5dc8fb3]
+- Updated dependencies [3def7d4]
+- Updated dependencies [38dad1c]
+- Updated dependencies [38dad1c]
+  - @secondlayer/sdk@6.21.0
+  - @secondlayer/shared@6.30.0
+  - @secondlayer/subgraphs@3.11.0
+
 ## 8.7.0
 
 ### Minor Changes
