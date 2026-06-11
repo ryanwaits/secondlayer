@@ -77,6 +77,45 @@ const receipt = readX402Receipt(res);
 // }
 ```
 
+## Free vs. paid: how the API decides
+
+There's no per-call "this read must pay" flag. Whether a request gets a free `200` or a `402` quote is decided per-request, in this order:
+
+1. **Holding an API key bypasses x402.** A request with a valid `sk-sl_` key is an account-backed caller — it never sees a 402; usage bills against your [plan](/pricing) via Stripe. Keyless = the pay-per-call rail; keyed = your plan.
+2. **The rail has to be on.** Pay-per-call is gated on a funded sponsor wallet (`X402_SPONSOR_KEY`). While it's off, keyless Index reads stay free and Streams stays key-mandatory — the pre-rail behavior. Check `GET /.well-known/x402` (`enabled: true|false`) to see the live state.
+3. **Index keeps a free anon allowance.** With the rail on, the first **1,000 keyless reads per IP per day** on `/v1/index` still return `200` — the keyless-reads promise survives the flip. The 402 only starts once that daily budget is spent.
+4. **Streams has no free quota.** With the rail on, `/v1/streams` quotes from the first keyless call (one payment then opens a 500-poll session — see below).
+
+So the same endpoint answers three ways for the same agent:
+
+```bash
+# A) Keyed → free (billed to your plan, never a 402)
+curl https://api.secondlayer.tools/v1/index/events?event_type=ft_transfer \
+  -H "Authorization: Bearer sk-sl_…"
+# HTTP/1.1 200 OK   — x402 bypassed, usage counts against your plan
+```
+
+```bash
+# B) Keyless, under the daily free allowance → free
+curl https://api.secondlayer.tools/v1/index/events?event_type=ft_transfer
+# HTTP/1.1 200 OK   — one of your first 1,000 anon reads/IP today
+```
+
+```bash
+# C) Keyless, allowance spent (rail on) → pay
+curl https://api.secondlayer.tools/v1/index/events?event_type=ft_transfer
+# HTTP/1.1 402 Payment Required
+# {
+#   "x402Version": 2,
+#   "accepts": [{ "scheme": "exact", "network": "stacks:1",
+#     "asset": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+#     "amount": "21", "payTo": "SP2X…8KQ",
+#     "maxTimeoutSeconds": 60, "extra": { "nonce": "…" } }]
+# }
+```
+
+The quote also rides back base64-encoded in a `PAYMENT-REQUIRED` response header, so any x402 client can read it without parsing the body.
+
 ## Discovery and sessions
 
 Standard x402 v2 wire — works with any x402 client. Sponsored means we pay the STX gas. Discovery: `GET /.well-known/x402` and the `x-x402` block in [the OpenAPI spec](https://api.secondlayer.tools/v1/openapi.json). Steady consumers can hold a session (one payment covers up to 500 polls an hour) or a prepaid tab (deposit once, calls debit it instantly).
