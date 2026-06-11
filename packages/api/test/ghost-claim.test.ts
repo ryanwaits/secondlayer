@@ -43,7 +43,7 @@ async function seedMagicLink(email: string): Promise<string> {
 	const code = String(
 		crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000,
 	).padStart(6, "0");
-	const token = crypto.randomUUID().replaceAll("-", "");
+	const token = crypto.randomUUID().replace(/-/g, "");
 	await createMagicLink(db, email, token, code);
 	return code;
 }

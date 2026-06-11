@@ -104,6 +104,7 @@ describe.skipIf(SKIP)("x402-paid subgraph writes", () => {
 		const initialExpiry = new Date(Date.now() + 60_000);
 		await registerSubgraph(db, {
 			name: SUBGRAPH,
+			version: "1.0.0",
 			accountId,
 			schemaName: `sg_paid_${accountId.slice(0, 8)}`.replace(/-/g, "_"),
 			definition: { name: SUBGRAPH, sources: {}, schema: {}, handlers: {} },

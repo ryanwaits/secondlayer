@@ -138,6 +138,7 @@ describe.skipIf(SKIP)("genesis policy (DB + routes)", () => {
 			.execute();
 		await registerSubgraph(db, {
 			name: SUBGRAPH,
+			version: "1.0.0",
 			accountId: FREE_ACCOUNT,
 			schemaName: `sg_genesis_clamp_${FREE_ACCOUNT.slice(0, 8)}`.replace(/-/g, "_"),
 			definition: { name: SUBGRAPH, sources: {}, schema: {}, handlers: {} },

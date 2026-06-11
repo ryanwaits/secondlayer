@@ -4,7 +4,7 @@ import { registerSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
 import { privateKeyToAccount } from "@secondlayer/stacks/accounts";
 import { Hono } from "hono";
 import { errorHandler } from "../src/middleware/error.ts";
-import { createWalletRouter, linkMessageFor } from "../src/routes/wallet.ts";
+import { createWalletRouter } from "../src/routes/wallet.ts";
 import { resolveWalletAccount } from "../src/subgraphs/wallet-account.ts";
 import {
 	getMonthlySpend,

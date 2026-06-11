@@ -17,7 +17,7 @@ function buildApp() {
 	app.onError(errorHandler);
 	app.route(
 		"/v1/batch",
-		createBatchRouter((path, init) => inner.request(path, init)),
+		createBatchRouter(async (path, init) => inner.request(path, init)),
 	);
 	return app;
 }
