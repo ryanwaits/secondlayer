@@ -44,6 +44,7 @@ import { SubgraphRegistryCache } from "../subgraphs/cache.ts";
 import {
 	clampDeployStartBlock,
 	resolveGenesisPolicy,
+	resolvePrivateVisibilityPolicy,
 } from "../subgraphs/plan-limits.ts";
 import {
 	SubgraphNotFoundError,
@@ -409,6 +410,26 @@ export async function runSubgraphDeploy(
 	const desiredVisibility =
 		parsed.data.visibility ??
 		(existing ? undefined : byoUrl ? "private" : "public");
+	// Private visibility is a Pro feature. Gate transitions to private only —
+	// already-private subgraphs are grandfathered and unchanged redeploys pass.
+	if (desiredVisibility === "private" && existing?.visibility !== "private") {
+		const privacy = await resolvePrivateVisibilityPolicy(
+			db,
+			accountId ?? undefined,
+		);
+		if (!privacy.privateAllowed) {
+			return c.json(
+				{
+					error:
+						"Private subgraphs require a paid plan. Free-tier deploys are public; upgrade to make this subgraph private.",
+					code: "PLAN_REQUIRED",
+					required_plan: "launch",
+					upgrade_url: "https://secondlayer.tools/platform/billing",
+				},
+				403,
+			);
+		}
+	}
 	if (desiredVisibility === "public" && existing?.visibility !== "public") {
 		const claimed = await findPublicSubgraphByName(db, name);
 		if (claimed && claimed.account_id !== (accountId ?? "")) {
@@ -709,8 +730,25 @@ app.post("/:subgraphName/unpublish", async (c) => {
 	const subgraph = getOwnedSubgraph(subgraphName, accountId);
 
 	if (subgraph.visibility !== "private") {
+		const db = getDb();
+		const privacy = await resolvePrivateVisibilityPolicy(
+			db,
+			subgraph.account_id,
+		);
+		if (!privacy.privateAllowed) {
+			return c.json(
+				{
+					error:
+						"Private subgraphs require a paid plan. Upgrade to unpublish this subgraph.",
+					code: "PLAN_REQUIRED",
+					required_plan: "launch",
+					upgrade_url: "https://secondlayer.tools/platform/billing",
+				},
+				403,
+			);
+		}
 		await updateSubgraphVisibility(
-			getDb(),
+			db,
 			subgraphName,
 			subgraph.account_id,
 			"private",

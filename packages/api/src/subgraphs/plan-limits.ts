@@ -54,6 +54,70 @@ export async function resolveGenesisPolicy(
 	return { genesisAllowed: false };
 }
 
+export type PrivateVisibilityPolicy = {
+	privateAllowed: boolean;
+	reason?: "non-platform" | "paid-plan" | "exempt-account";
+};
+
+/**
+ * Private-subgraph policy. Free tier (plan 'none', incl. ghosts) deploys
+ * public only — private visibility is what the Pro plan sells. Gate
+ * TRANSITIONS only: subgraphs that are already private stay private
+ * (grandfathered), and redeploys that don't change visibility never hit
+ * this check. Shares the genesis exempt-account allowlist.
+ */
+export async function resolvePrivateVisibilityPolicy(
+	db: Kysely<Database>,
+	accountId: string | undefined,
+	env: NodeJS.ProcessEnv = process.env,
+): Promise<PrivateVisibilityPolicy> {
+	if (!isPlatformMode()) return { privateAllowed: true, reason: "non-platform" };
+	if (accountId && genesisExemptAccountIds(env).has(accountId)) {
+		return { privateAllowed: true, reason: "exempt-account" };
+	}
+	if (!accountId) return { privateAllowed: false };
+	const row = await db
+		.selectFrom("accounts")
+		.select("plan")
+		.where("id", "=", accountId)
+		.executeTakeFirst();
+	const plan = row?.plan ?? "none";
+	if (plan !== "none") return { privateAllowed: true, reason: "paid-plan" };
+	return { privateAllowed: false };
+}
+
+/**
+ * Webhook-subscription quota by plan. null = unlimited. Free gets enough
+ * to evaluate the feature; "25 webhook subscriptions" is a Pro card claim,
+ * so the number here and the pricing page must move together.
+ */
+export const SUBSCRIPTION_QUOTA_BY_PLAN: Record<string, number | null> = {
+	none: 3,
+	launch: 25,
+	scale: null,
+	enterprise: null,
+};
+
+export async function resolveSubscriptionQuota(
+	db: Kysely<Database>,
+	accountId: string | undefined,
+	env: NodeJS.ProcessEnv = process.env,
+): Promise<number | null> {
+	if (!isPlatformMode()) return null;
+	if (accountId && genesisExemptAccountIds(env).has(accountId)) return null;
+	if (!accountId) return SUBSCRIPTION_QUOTA_BY_PLAN.none;
+	const row = await db
+		.selectFrom("accounts")
+		.select("plan")
+		.where("id", "=", accountId)
+		.executeTakeFirst();
+	const plan = row?.plan ?? "none";
+	// `??` would turn an intentional null (unlimited) into the free quota.
+	return plan in SUBSCRIPTION_QUOTA_BY_PLAN
+		? SUBSCRIPTION_QUOTA_BY_PLAN[plan]
+		: SUBSCRIPTION_QUOTA_BY_PLAN.none;
+}
+
 /**
  * Effective start block for a deploy under the policy.
  *

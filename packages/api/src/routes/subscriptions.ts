@@ -27,6 +27,7 @@ import { replaySubscription } from "@secondlayer/subgraphs/runtime/replay";
 import { Hono } from "hono";
 import { getTenantScopedAccountId } from "../lib/request-scope.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
+import { resolveSubscriptionQuota } from "../subgraphs/plan-limits.ts";
 
 /**
  * Subscription CRUD routes. Platform mode scopes by accountId from auth.
@@ -161,6 +162,24 @@ app.post("/", async (c) => {
 			{ error: `Subscription "${input.name}" already exists` },
 			409,
 		);
+	}
+
+	// Plan quota: free 3 / Pro 25 / Scale+ unlimited. Counts existing rows at
+	// create time only — pausing or deleting frees a slot.
+	const quota = await resolveSubscriptionQuota(getDb(), accountId || undefined);
+	if (quota !== null) {
+		const rows = await listSubscriptions(getDb(), accountId);
+		if (rows.length >= quota) {
+			return c.json(
+				{
+					error: `Subscription limit reached (${quota} on your plan). Upgrade for more.`,
+					code: "PLAN_REQUIRED",
+					limit: quota,
+					upgrade_url: "https://secondlayer.tools/platform/billing",
+				},
+				403,
+			);
+		}
 	}
 
 	try {
