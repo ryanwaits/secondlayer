@@ -23,16 +23,32 @@ primary label + mono sub (path/principal) + right meta (badge/count/kbd).
 Existing action registry (Home, Subgraphs, API Keys, Billing, Resources,
 Settings, Team, Docs ↗, sign out). Fuzzy-matched, instant, local.
 
-### 2b. Quick actions (verb-first)
+### 2b. Actions & copy artifacts
+
+**Platform principle (founder ruling 2026-06-11): the dash is
+management/observability/docs/telemetry. Reads happen here. Product writes
+(deploy subgraph, create webhook) do NOT happen on the dash — the palette
+generates the artifact and you run it in your own tools (terminal, agent
+harness via MCP).**
+
+Real dash actions (account-plane only):
 | Action | Behavior on ↵ |
 |---|---|
-| Create subgraph from template… | second-level list in palette (the 4+ templates w/ descriptions) → ↵ routes to a prefilled create page/flow |
 | Mint API key | routes to /api-keys with the create form open |
-| Create webhook subscription… | second-level list of own subgraphs (+ "raw chain event") → routes to prefilled subscription form |
+| Open billing portal | existing portal redirect |
 
-Rule: the palette **starts** flows and prefills; it never hosts multi-field
-forms. One level of drill-down max (template picker, subgraph picker). Inline
-confirm is allowed only for zero-input actions.
+Copy artifacts (product-plane creation — ↵ copies to clipboard):
+| Artifact | Drill-down (one level: format) |
+|---|---|
+| Create a subgraph from template X… | `sl` commands (default) · agent prompt · curl |
+| Scaffold a subgraph for contract Y… | agent prompt (default, uses MCP scaffold) · `sl` commands |
+| Create a webhook on table/event… | `sl` command · agent prompt · curl |
+| Query recipe for current view | curl (default) · sl · agent prompt |
+
+↵ copies the default format and the footer confirms: `copied — paste into
+your agent or terminal`. ⌘↵ opens the format picker. Artifacts are generated
+from the same single-sourced vocab the CLI/MCP use; they are always complete
+and runnable (no <placeholders> the user must hunt for, beyond their own URL).
 
 ### 2c. Entity search
 | Entity | Source | Freshness |
@@ -47,25 +63,27 @@ Own subgraphs rank above public on equal match. Subgraph rows show the live
 (⌘C while selected).
 
 ### 2d. Smart detection (chain-native; runs before search)
-Pure client-side rules on the raw query, zero network to detect:
+Pure client-side rules on the raw query, zero network to detect. Detection
+serves the same split as 2b: **reads open, writes copy.**
 
-| Pattern | Detected as | Result rows |
-|---|---|---|
-| `S[PM][A-Z0-9]{38,}` (no dot) | principal | Token transfers (`/v1/index/ft-transfers?recipient=`), Transactions sent (`?sender=`), Balance in each live `*-balances` subgraph, "Watch this address…" (prefilled chain subscription) |
-| principal + `.name` | contract id | Events for contract (`/v1/index/events?contract_id=`), Contract ABI, "Scaffold subgraph from this contract" |
-| `(0x)?[0-9a-f]{64}` | txid | Transaction lookup (`/v1/index/transactions/:txid`) |
-| `^[0-9]{4,}$` | block height | Block lookup (`/v1/index/blocks/:height`) |
+| Pattern | Detected as | Read rows (↵ opens) | Artifact rows (↵ copies) |
+|---|---|---|---|
+| `S[PM][A-Z0-9]{38,}` (no dot) | principal | Token transfers GET, Transactions GET, Balance in live `*-balances` subgraphs | "Watch this address" → `sl subscriptions create` / agent prompt |
+| principal + `.name` | contract id | Events GET, Contract ABI | "Index this contract" → agent prompt (MCP scaffold_from_contract) / `sl` commands |
+| `(0x)?[0-9a-f]{64}` | txid | Transaction GET | curl for the lookup |
+| `^[0-9]{4,}$` | block height | Block GET | curl for the lookup |
 
-Detection flips the scope chip (e.g. `address`), suppresses fuzzy noise, and
-the footer states `detected in 0ms · no request sent yet`. ↵ opens the
-in-console view where one exists, else opens the GET URL in a new tab.
-Invalid-but-close inputs (right shape, bad checksum) still render the rows;
-the API's 400 is the validator, not the palette.
+Detection flips the scope chip, suppresses fuzzy noise, and the footer states
+`detected in 0ms · no request sent yet`. Read rows open the in-console view
+where one exists, else the GET URL in a new tab; every read row also offers
+⌘C copy-as-curl. Invalid-but-close inputs (right shape, bad checksum) still
+render; the API's 400 is the validator, not the palette.
 
 ## 3. Result model & ranking
 
-- Group order is fixed: detection > actions > own subgraphs > public
-  subgraphs > contracts > docs > escape hatches. Empty groups collapse.
+- Group order is fixed: detection > dash actions > copy artifacts > own
+  subgraphs > public subgraphs > contracts > docs > escape hatches. Empty
+  groups collapse.
 - Cap 4 rows per group + a "More in <group>…" row that applies the scope.
 - Ranking within a group: exact prefix > word-boundary fuzzy > substring;
   tie-break by recency (frecency, §6) then row count (subgraphs) / docs order.
@@ -77,7 +95,7 @@ the API's 400 is the validator, not the palette.
 | Key | Behavior |
 |---|---|
 | ↑ ↓ | move selection across groups |
-| ↵ | open / run / drill in |
+| ↵ | open (reads/nav) · copy (artifacts) · drill in |
 | ⌘↵ | secondary: open in new tab; on the docs escape row, run docs search |
 | tab | cycle scope: all → subgraphs → contracts → docs (chip updates; detection overrides) |
 | ⌘C | copy the selected row's curl/path when it has one |
@@ -116,6 +134,9 @@ the API's 400 is the validator, not the palette.
 ## 8. Non-goals (v1)
 
 - No LLM/agent/ask mode in any form (just removed; stays removed).
+- **No product-plane POSTs from the dash** — no deploy, no webhook create,
+  no reindex buttons in the palette. Artifacts only. (Account-plane writes —
+  keys, billing — are the exception.)
 - No in-palette forms beyond one-level pickers; no in-palette data tables or
   query previews (v2 candidate below).
 - No www/marketing-site palette; no team/keys/billing entity search.
@@ -131,14 +152,18 @@ the API's 400 is the validator, not the palette.
   (`name.btc` → resolve → principal flows).
 - Selection telemetry to tune ranking.
 
+## Resolved (founder, 2026-06-11)
+
+- Dash = management/observability/docs/telemetry. Product creation is
+  off-platform; the palette generates copyable artifacts (curl / sl / agent
+  prompt) instead of hosting flows. API key creation stays a real dash action.
+- Smart detection kept, reframed: reads open, writes copy.
+
 ## Open questions
 
-1. Quick-action landing: prefilled *pages* (spec'd) vs an in-palette
-   "create key" inline confirm that mints and shows the key in place. Inline
-   mint is one fewer hop but breaks the "palette never hosts forms" rule.
+1. Artifact default format: agent prompt vs `sl` commands as the ↵ default
+   (spec currently varies by artifact — confirm).
 2. Should public-subgraph hits open the console detail view or the public
    Explore page? (Spec assumes console detail when authed.)
-3. ⌘C copy affordance: curl of the read path vs bare URL. Curl matches the
-   homepage hero; bare URL is friendlier in a browser bar.
-4. Docs index granularity: page-level (cheap, good enough?) vs heading-level
+3. Docs index granularity: page-level (cheap, good enough?) vs heading-level
    (better hits, larger bundle).

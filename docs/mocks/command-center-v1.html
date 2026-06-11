@@ -89,6 +89,8 @@ main{display:none} main.on{display:block}
     <g id="i-contract"><rect x="3" y="3" width="10" height="10" rx="2"/><path d="M6 7h4M6 10h2"/></g>
     <g id="i-nav"><path d="M3 8h10M9 4l4 4-4 4"/></g>
     <g id="i-addr"><circle cx="8" cy="8" r="6"/><path d="M5.5 8.5l2 2 3.5-4"/></g>
+    <g id="i-copy"><rect x="5" y="5" width="8" height="8" rx="1.5"/><path d="M3 10V4a1 1 0 0 1 1-1h6"/></g>
+    <g id="i-term"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M5 7l2 2-2 2M8.5 11H11"/></g>
   </defs>
 </svg>
 
@@ -109,10 +111,11 @@ main{display:none} main.on{display:block}
       <div class="grp">your subgraphs</div>
       <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-sub"/></svg><span class="k">alex-balances</span><span class="meta"><span class="badge sync">syncing</span> 412,008 rows</span></div>
       <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-sub"/></svg><span class="k">sbtc-flows</span><span class="meta"><span class="badge live">live</span> 1,208,114 rows</span></div>
-      <div class="grp">quick actions</div>
-      <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-sub"/></svg><span class="k">Create subgraph from template…</span></div>
+      <div class="grp">actions</div>
       <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-key"/></svg><span class="k">Mint API key</span></div>
-      <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-hook"/></svg><span class="k">Create webhook subscription…</span></div>
+      <div class="grp">copy for your agent</div>
+      <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-copy"/></svg><span class="k">Create a subgraph…</span><span class="sub">agent prompt · sl · curl</span><span class="meta"><span class="kbd">↵ copy</span></span></div>
+      <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-copy"/></svg><span class="k">Create a webhook…</span><span class="sub">agent prompt · sl · curl</span><span class="meta"><span class="kbd">↵ copy</span></span></div>
     </div>
     <div class="pal-foot"><span><b>↑↓</b> navigate</span><span><b>↵</b> open</span><span><b>tab</b> scope</span><span class="r"><b>esc</b> close</span></div>
   </div>
@@ -151,13 +154,15 @@ main{display:none} main.on{display:block}
     </div>
     <div class="pal-body">
       <div class="grp">actions</div>
-      <div class="row sel"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-sub"/></svg><span class="k"><b>Create</b> subgraph from template…</span><span class="sub">sip-010-balances · sbtc-flows · bns-names</span><span class="meta"><span class="kbd">↵</span></span></div>
-      <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-key"/></svg><span class="k"><b>Create</b> API key</span><span class="sub">sk-sl_ scoped to this project</span></div>
-      <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-hook"/></svg><span class="k"><b>Create</b> webhook subscription…</span><span class="sub">on a subgraph table or raw chain event</span></div>
+      <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-key"/></svg><span class="k"><b>Create</b> API key</span><span class="sub">the one write that lives on the dash</span></div>
+      <div class="grp">copy for your agent</div>
+      <div class="row sel"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-copy"/></svg><span class="k"><b>Create</b> a subgraph from template…</span><span class="sub">agent prompt: scaffold + deploy via MCP, sip-010-balances</span><span class="meta"><span class="kbd">↵ copy</span></span></div>
+      <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-term"/></svg><span class="k"><b>Create</b> a subgraph from template…</span><span class="sub">sl subgraphs create my-balances --template sip-010-balances</span><span class="meta"><span class="kbd">↵ copy</span></span></div>
+      <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-copy"/></svg><span class="k"><b>Create</b> a webhook subscription…</span><span class="sub">agent prompt: subscriptions_create on a table or chain event</span><span class="meta"><span class="kbd">↵ copy</span></span></div>
       <div class="grp">docs</div>
       <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-doc"/></svg><span class="k">Quickstart: create → deploy → query</span><span class="meta"><span class="ext">↗</span></span></div>
     </div>
-    <div class="pal-foot"><span><b>↑↓</b> navigate</span><span><b>↵</b> run</span><span class="r">4 results · 2ms</span></div>
+    <div class="pal-foot"><span style="color:var(--green)"><b style="color:var(--green)">✓ copied</b> · paste into your agent or terminal</span><span class="r">5 results · 2ms</span></div>
   </div>
 </main>
 
@@ -170,14 +175,15 @@ main{display:none} main.on{display:block}
       <span class="scope">address</span>
     </div>
     <div class="pal-body">
-      <div class="grp">detected · stacks principal</div>
-      <div class="row sel"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-addr"/></svg><span class="k">Token transfers for this address</span><span class="sub">/v1/index/ft-transfers?recipient=SP3PEH…X44J</span><span class="meta">GET</span></div>
+      <div class="grp">detected · stacks principal · open</div>
+      <div class="row sel"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-addr"/></svg><span class="k">Token transfers for this address</span><span class="sub">/v1/index/ft-transfers?recipient=SP3PEH…X44J</span><span class="meta">GET · <span class="kbd">⌘C curl</span></span></div>
       <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-addr"/></svg><span class="k">Transactions sent by this address</span><span class="sub">/v1/index/transactions?sender=SP3PEH…X44J</span><span class="meta">GET</span></div>
       <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-sub"/></svg><span class="k">Balance in <b>sbtc-balances</b></span><span class="sub">/v1/subgraphs/sbtc-balances/balances?address=…</span><span class="meta"><span class="badge live">live</span></span></div>
-      <div class="grp">actions</div>
-      <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-hook"/></svg><span class="k">Watch this address…</span><span class="sub">webhook on stx_transfer · ft_transfer events</span></div>
+      <div class="grp">copy for your agent</div>
+      <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-copy"/></svg><span class="k">Watch this address…</span><span class="sub">agent prompt: webhook on stx_transfer · ft_transfer for SP3PEH…X44J</span><span class="meta"><span class="kbd">↵ copy</span></span></div>
+      <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-term"/></svg><span class="k">Watch this address…</span><span class="sub">sl subscriptions create watch-sp3peh --triggers ft_transfer…</span><span class="meta"><span class="kbd">↵ copy</span></span></div>
     </div>
-    <div class="pal-foot"><span><b>↑↓</b> navigate</span><span><b>↵</b> open</span><span class="r">detected in 0ms · no request sent yet</span></div>
+    <div class="pal-foot"><span><b>↵</b> open reads</span><span><b>↵</b> copy artifacts</span><span class="r">detected in 0ms · no request sent yet</span></div>
   </div>
 </main>
 
