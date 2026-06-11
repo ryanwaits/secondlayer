@@ -23,7 +23,7 @@ verify_asset() { # contract_id — abort if the Index has never seen it
 
 verify_asset "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token"
 verify_asset "SP120SBRBQJ00MCWS7TM5R8WJNTTKD5K0HFRC2CNE.usdcx"
-verify_asset "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.age000-governance-token"
+verify_asset "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.age000-governance-token"
 
 for f in scripts/seed-balances/*.ts; do
   name=$(basename "$f" .ts)
