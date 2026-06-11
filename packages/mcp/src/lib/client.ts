@@ -28,7 +28,21 @@ function buildFetchImpl(): typeof fetch | undefined {
 	const key = process.env.X402_PRIVATE_KEY;
 	if (!key) return undefined;
 	const account = privateKeyToAccount(key);
-	const paid = withX402(fetch, { account });
+	// Optional treasury policy: deposit X402_TOPUP_USD whenever the prepaid
+	// tab drops below X402_TOPUP_WHEN_BELOW (defaults $0.50). Without it,
+	// every paid call settles individually.
+	const topUpUsd = Number(process.env.X402_TOPUP_USD ?? "");
+	const paid = withX402(fetch, {
+		account,
+		...(Number.isFinite(topUpUsd) && topUpUsd > 0
+			? {
+					topUp: {
+						usd: topUpUsd,
+						whenBelow: Number(process.env.X402_TOPUP_WHEN_BELOW ?? "0.5"),
+					},
+				}
+			: {}),
+	});
 	const wrapped = async (input: string | URL, init?: RequestInit) => {
 		const res = await paid(input, init);
 		const receipt = readX402Receipt(res);

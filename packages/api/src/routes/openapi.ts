@@ -13,7 +13,8 @@ const OPENAPI_SPEC = {
 		paymentHeader: "PAYMENT-SIGNATURE",
 		receiptHeader: "PAYMENT-RESPONSE",
 		sessionHeader: "PAYMENT-SESSION",
-		note: "When the pay-per-call rail is enabled, accountless requests on paid surfaces receive HTTP 402 with an accepts[] quote (x402 v2, network stacks:1). Sponsored transfers: the payer holds tokens, never gas. Index grants 1,000 free reads/day/IP before the 402; a paid Streams call opens a 500-call/1h session; a paid POST /v1/subgraphs deploys a wallet-owned subgraph (7-day TTL, renewable).",
+		balanceHeader: "PAYMENT-BALANCE",
+		note: "When the pay-per-call rail is enabled, accountless requests on paid surfaces receive HTTP 402 with an accepts[] quote (x402 v2, network stacks:1). Sponsored transfers: the payer holds tokens, never gas. Index grants 1,000 free reads/day/IP before the 402; a paid Streams call opens a 500-call/1h session; a paid POST /v1/subgraphs deploys a wallet-owned subgraph (7-day TTL, renewable); POST /v1/x402/deposit loads a prepaid tab whose PAYMENT-BALANCE token debits per call with no on-chain round trip.",
 	},
 	info: {
 		title: "Secondlayer Public API",
@@ -115,10 +116,22 @@ const OPENAPI_SPEC = {
 		},
 		"/v1/subgraphs/deploy-paid": {
 			post: {
-				summary:
-					"x402-paid subgraph deploy (actual path: POST /v1/subgraphs)",
+				summary: "x402-paid subgraph deploy (actual path: POST /v1/subgraphs)",
 				description:
 					"Accountless deploy: pay the subgraph-deploy quote via x402 and the subgraph is owned by the paying wallet principal — live indexing from deploy (forward-only), expires in 7 days unless renewed (POST /v1/subgraphs/{name}/renew, subgraph-renew quote) or the account is claimed. Managed plane only.",
+			},
+		},
+		"/v1/x402/deposit": {
+			post: {
+				summary: "Load a prepaid x402 tab",
+				description:
+					"Pay once on-chain (?usd=<amount>, $0.25–$100, confirmed tier) and receive a PAYMENT-BALANCE token; subsequent Index/Streams calls carrying it debit the tab instantly. Responses report X-BALANCE-REMAINING-USD.",
+			},
+		},
+		"/v1/x402/balance": {
+			get: {
+				summary: "Read a prepaid tab",
+				description: "Current balance for the PAYMENT-BALANCE token presented.",
 			},
 		},
 		"/v1/openapi.json": {
