@@ -5422,16 +5422,18 @@ a.dataset-shelf-name:hover {
 	align-self: start;
 	height: 100vh;
 	overflow-y: auto;
-	padding: 26px 18px 60px 22px;
+	/* top padding matches .docs-content (40px) so the sidebar wordmark sits on
+	   the same row as the page's first heading */
+	padding: 40px 18px 60px 22px;
 	border-right: 1px solid var(--border);
 }
 /* brand/home link at the top of the docs sidebar */
 .docs-nav-brand {
-	/* same Public Sans as marketing; bold is reserved for the wordmark.
-	   Layout + logo fills come from the .page-title-with-logo class. */
+	/* match the marketing wordmark exactly: Sora (heading stack), weight 600,
+	   same size/tracking. Layout + logo fills come from .page-title-with-logo. */
+	font-family: var(--font-heading-stack);
 	font-weight: 600;
 	font-size: 0.9375rem;
-	letter-spacing: -0.015em;
 	color: var(--text-main);
 	text-decoration: none;
 	margin: 0 0 26px 8px;
@@ -7291,6 +7293,13 @@ a.dataset-shelf-name:hover {
 	align-items: center;
 	text-align: center;
 	padding: 7rem 1.5rem 4.5rem;
+	/* same subtle dot texture as the platform onboarding section — hero only */
+	background-image: radial-gradient(
+		circle,
+		var(--dot-color) 0.5px,
+		transparent 0.5px
+	);
+	background-size: 8px 8px;
 }
 .home-pill {
 	display: inline-flex;
@@ -7963,9 +7972,7 @@ a.dataset-shelf-name:hover {
 }
 .home-marquee-track {
 	display: flex;
-	gap: 0.75rem;
 	width: max-content;
-	padding: 0 1rem;
 }
 @media (prefers-reduced-motion: no-preference) {
 	.home-marquee-track {
@@ -7986,6 +7993,9 @@ a.dataset-shelf-name:hover {
 	border-radius: 8px;
 	background: var(--bg-elevated, var(--bg));
 	padding: 12px 16px;
+	/* spacing lives on the tile (not the track) so both duplicated copies are
+	   exactly equal width — translateX(-50%) then loops with no jump/gap */
+	margin-right: 0.75rem;
 }
 .home-proto .n {
 	font-family: var(--font-heading-stack);
@@ -8018,7 +8028,6 @@ a.dataset-shelf-name:hover {
 }
 .home-gs.home-gs-single {
 	grid-template-columns: 1fr;
-	max-width: 760px;
 }
 @media (max-width: 900px) {
 	.home-gs {
