@@ -4,7 +4,7 @@ Moves the **control plane** (accounts, api keys, sessions, usage, subscriptions,
 subgraphs/tenant schemas) off the shared Postgres onto a dedicated
 `postgres-platform` instance, isolating it from the chain plane. The chain data
 **never moves** — it stays on the existing instance, which becomes SOURCE. See
-`docker/SCHEMA_SPLIT.md` for the table split and `ARCHITECTURE.md` for why.
+`docker/SCHEMA_SPLIT.md` for the table split and `STRATEGY.md` for why.
 
 **Manual, founder-driven.** Touches prod auth/billing data; do it deliberately
 with a snapshot in hand. All supporting code is already merged and is a no-op

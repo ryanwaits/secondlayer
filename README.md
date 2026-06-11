@@ -2,9 +2,14 @@
 
 [![Status](https://img.shields.io/badge/status-public-111111)](https://secondlayer.tools/status)
 
-The agent-native data plane for Stacks. Dedicated indexing, real-time subgraphs,
-and a viem-style chain SDK behind one API — usable from the CLI, SDK, or MCP.
-Indexed once, free to read.
+The hosted indexer for Stacks. Curl decoded chain data keyless in ten seconds
+(**Index**), or deploy a one-file TypeScript indexer and get hosted Postgres
+tables behind a public REST API (**Subgraphs**) — no node, no infra. Webhooks,
+raw signed dumps, and an MCP server included. See [STRATEGY.md](STRATEGY.md).
+
+```bash
+curl "https://api.secondlayer.tools/v1/index/events?event_type=ft_transfer&limit=5"
+```
 
 - **Hosted** — managed platform, free during open beta. Reads are public; a key
   gates writes.
@@ -75,6 +80,10 @@ for direction.
 enable writes (deploy/manage). See [MCP README](packages/mcp/README.md).
 
 ## Packages
+
+Two TypeScript SDKs, one chooser: **`@secondlayer/sdk`** talks to the platform
+(query subgraphs, manage webhooks/keys); **`@secondlayer/stacks`** is low-level
+chain primitives (Clarity decoding, reads). Most apps only need `sdk`.
 
 | Package | Description |
 |---|---|

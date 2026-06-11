@@ -3,7 +3,7 @@
 Isolates the chain plane (write-heavy, reconstructable, hundreds of GB) from the
 control plane (small, must-never-lose) into two Postgres instances, so neither
 can starve or take down the other. **Not** a scaling mechanism — that's read
-replicas. See `ARCHITECTURE.md`.
+replicas. See `STRATEGY.md`.
 
 Resolution (already wired in `@secondlayer/shared/db`):
 - `getSourceDb()` → `SOURCE_DATABASE_URL || DATABASE_URL`
