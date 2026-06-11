@@ -208,53 +208,8 @@ check_status "index nft transfers free" "403" "/v1/index/nft-transfers?limit=1" 
 check_status "index nft transfers wrong scope" "403" "/v1/index/nft-transfers?limit=1" "$INDEX_WRONG_SCOPE_KEY"
 check_json_field "index nft transfers envelope" "/v1/index/nft-transfers?limit=1" "$INDEX_KEY" "reorgs"
 
-# Phase 2: Datasets + bulk dumps
-check_status "datasets stx-transfers public" "200" "/v1/datasets/stx-transfers?limit=1"
-check_json_field "datasets stx-transfers envelope" "/v1/datasets/stx-transfers?limit=1" "" "tip"
-check_json_field "datasets stx-transfers events" "/v1/datasets/stx-transfers?limit=1" "" "events"
-
-check_status "datasets network-health public" "200" "/v1/datasets/network-health/summary?days=7"
-check_json_field "datasets network-health days" "/v1/datasets/network-health/summary?days=7" "" "days"
-
-check_status "datasets sbtc events public" "200" "/v1/datasets/sbtc/events?limit=1"
-check_json_field "datasets sbtc events envelope" "/v1/datasets/sbtc/events?limit=1" "" "tip"
-check_json_field "datasets sbtc events array" "/v1/datasets/sbtc/events?limit=1" "" "events"
-check_status "datasets sbtc token-events public" "200" "/v1/datasets/sbtc/token-events?limit=1"
-check_json_field "datasets sbtc token-events array" "/v1/datasets/sbtc/token-events?limit=1" "" "events"
-
-check_json_field "public status datasets" "/public/status" "" "datasets"
+# Phase 2: bulk dumps (datasets product removed 2026-06-11)
 check_json_field "public status streams dumps" "/public/status" "" "streams.dumps"
-
-check_public_status_datasets_registered() {
-	local url="${API_URL%/}/public/status"
-	local body
-	body="$(curl --silent --show-error --fail --max-time "$TIMEOUT_SECONDS" "$url" || true)"
-	if ! SMOKE_BODY="$body" python3 <<'PY'
-import json, os, sys
-try:
-    body = json.loads(os.environ["SMOKE_BODY"])
-except json.JSONDecodeError:
-    print("invalid public status JSON")
-    sys.exit(1)
-datasets = body.get("datasets")
-if not isinstance(datasets, list):
-    print("datasets is not a list")
-    sys.exit(1)
-slugs = {entry.get("slug") for entry in datasets if isinstance(entry, dict)}
-required = {"stx-transfers", "sbtc-events", "sbtc-token-events"}
-missing = required - slugs
-if missing:
-    print(f"missing dataset slugs: {sorted(missing)}")
-    sys.exit(1)
-PY
-	then
-		echo "public status datasets registered: missing slugs"
-		failures=$((failures + 1))
-		return
-	fi
-	echo "public status datasets registered: ok"
-}
-check_public_status_datasets_registered
 
 # Streams dumps manifest is 200 when STREAMS_BULK_PUBLIC_BASE_URL is set, else 503.
 # Either is acceptable; we just check the route exists.
