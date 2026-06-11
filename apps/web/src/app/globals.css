@@ -6537,10 +6537,25 @@ a.dataset-shelf-name:hover {
 	margin: 0 auto;
 	padding: 0 1.5rem 6rem;
 }
-/* marketing product pages: header spans the wrap; body keeps the original
-   readable column, left-aligned to the same gutter */
+/* marketing product pages: header spans the wrap; body children default to
+   a readable text column while structural blocks (diagrams, sandboxes, code,
+   prompts) stretch toward the Explore-width gutter */
 .mk-body {
-	max-width: 36.375rem;
+	max-width: none;
+}
+.mk-body > * {
+	max-width: 70ch;
+}
+.mk-body > .section-heading-wrap,
+.mk-body > .sl-diagram-figure,
+.mk-body > .dataset-sandbox,
+.mk-body > .tabbed-code,
+.mk-body > .agent-prompt,
+.mk-body > .callout,
+.mk-body > .code-block-wrapper,
+.mk-body > .dataset-shelf,
+.mk-body > ul.dataset-shelf {
+	max-width: 56rem;
 }
 .explore-crumb {
 	font-family: var(--font-mono-stack);
