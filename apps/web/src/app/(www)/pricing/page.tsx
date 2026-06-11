@@ -12,13 +12,15 @@ export const metadata: Metadata = {
 const FREE_INCLUDES = [
 	"Public reads on Index (no key needed) and Streams (with a free ghost key) — rate-limited either way",
 	"Ghost keys: curl -X POST /v1/keys, no signup, claim with an email within 30 days",
-	"2 public subgraphs — live indexing from the moment you deploy",
-	"3 webhook subscriptions, 24h delivery log",
+	"Public subgraphs — live indexing forward from the moment you deploy",
+	"3 webhook subscriptions",
 	"Signed Streams bulk dumps for cold-lane replay",
 	"MCP server + agent skills",
 	"Community support",
 ];
 
+// Every claim below maps to an enforced limit — if code doesn't enforce it,
+// it doesn't go on a card.
 const PAID_TIERS = [
 	{
 		name: "Pro",
@@ -26,15 +28,7 @@ const PAID_TIERS = [
 		per: "/mo",
 		hot: true,
 		summary:
-			"100 req/s · 10 subgraphs incl. private · genesis backfills · 25 subscriptions, 7d log + replay · usage budgets · email support",
-	},
-	{
-		name: "Scale",
-		price: "$499",
-		per: "/mo",
-		hot: false,
-		summary:
-			"500 req/s · 50 subgraphs incl. private · genesis backfills, dedicated lane · unlimited subscriptions, 30d log · team roles + shared projects · Slack support, 99.9% target",
+			"250 req/s on Index and Streams · private subgraphs · genesis backfills (full history) · 25 webhook subscriptions + replay · usage budgets · email support",
 	},
 	{
 		name: "Enterprise",
@@ -42,7 +36,7 @@ const PAID_TIERS = [
 		per: "",
 		hot: false,
 		summary:
-			"Custom rates + dedicated capacity · priority indexing for your contracts · BYO database plane · SLA + incident channel · invoicing + security review",
+			"Custom rates + dedicated capacity · priority indexing for your contracts · SLA + incident channel · invoicing + security review",
 	},
 ];
 

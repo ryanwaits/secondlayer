@@ -30,6 +30,7 @@ const SETTINGS_CHILDREN = [
 	{ href: "/api-keys", label: "API Keys" },
 	{ href: "/team", label: "Team" },
 	{ href: "/usage", label: "Resources" },
+	{ href: "/billing", label: "Billing" },
 ];
 
 const ICONS: Record<string, React.ReactNode> = {
