@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pricing tiers — Field Notebook variants</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@520;560;600&family=Public+Sans:wght@400;460;560&family=Fira+Code:wght@400;560&family=Caveat:wght@600&display=swap" rel="stylesheet" />
+<style>
+:root { --bg:#fafafa; --elev:#fff; --chrome:#f1f1f0; --ink:#111210; --muted:#6f7066; --dim:#a3a49b;
+  --border:#e4e4df; --accent:#2563eb; --accent-bg:#eff4ff; --accent-border:#c7d8fd; --green:#147d42; --green-bg:#e9f6ee; --pink:#ff00aa;
+  --display:"Sora",sans-serif; --sans:"Public Sans",sans-serif; --mono:"Fira Code",monospace; }
+*{margin:0;padding:0;box-sizing:border-box} body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55}
+.wrap{max-width:calc(1100px + 3rem);margin:0 auto;padding:3rem 1.5rem 7rem}
+.note-h{font-family:var(--mono);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem}
+h2.vt{font-family:var(--display);font-weight:560;font-size:1.25rem;margin-bottom:.25rem}
+p.vw{font-size:.8125rem;color:var(--muted);max-width:64ch;margin-bottom:2rem}
+main{display:none} main.on{display:block}
+.switch{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:60;display:flex;gap:4px;background:var(--ink);border-radius:999px;padding:4px}
+.switch button{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:#c9cac1;background:none;border:none;border-radius:999px;padding:7px 14px;cursor:pointer}
+.switch button.on{background:#fff;color:var(--ink)}
+.mono{font-family:var(--mono)}
+
+/* shared: pane head strip (the live-pane/machine-access voice) */
+.strip{display:flex;align-items:baseline;gap:10px;padding:.85rem 1.2rem;border-bottom:1px solid var(--border)}
+.strip .k{font-family:var(--mono);font-size:.625rem;font-weight:560;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.strip .r{margin-left:auto;font-family:var(--mono);font-size:.62rem;color:var(--green)}
+
+/* ── A · Ledger split ── */
+.a-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:2.5rem;align-items:start}
+.a-free{border:1px solid var(--border);border-radius:10px;background:var(--elev);overflow:hidden;position:relative}
+.a-stamp{position:absolute;top:-12px;right:16px;font-family:"Caveat",cursive;font-size:1.25rem;color:var(--pink);transform:rotate(3deg)}
+.a-free .price-row{display:flex;align-items:baseline;gap:14px;padding:1.4rem 1.2rem .9rem}
+.a-free .price-row .n{font-family:var(--display);font-size:1.25rem;font-weight:560}
+.a-free .price-row .p{margin-left:auto;font-family:var(--display);font-size:2.25rem;font-weight:560}
+.a-free .erow{display:flex;justify-content:space-between;gap:1.5rem;padding:.6rem 1.2rem;border-top:1px dashed var(--border);font-size:.84rem}
+.a-free .erow .v{font-family:var(--mono);font-size:.7rem;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.a-free .foot{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.2rem;border-top:1px solid var(--border)}
+.a-free .foot .hint{font-family:var(--mono);font-size:.62rem;color:var(--dim)}
+.mint{display:inline-flex;align-items:center;gap:10px;height:38px;padding:0 16px;font-family:var(--mono);font-size:.74rem;
+  background:var(--chrome);border:1px solid var(--border);border-radius:999px;cursor:pointer}
+.mint .d{color:var(--dim)}
+.a-paid{padding-top:.4rem}
+.a-paid .lrow{display:grid;grid-template-columns:7.5rem 1fr auto;gap:1.5rem;align-items:baseline;padding:1.05rem 0;border-bottom:1px dotted var(--border);text-decoration:none;color:inherit}
+.a-paid .lrow:first-child{border-top:1px dotted var(--border)}
+.a-paid .n{font-family:var(--display);font-weight:560;font-size:1rem}
+.a-paid .n small{display:block;font-family:var(--sans);font-weight:400;font-size:.7rem;color:var(--dim);margin-top:2px}
+.a-paid .d{font-size:.8125rem;color:var(--muted)}
+.a-paid .pr{font-family:var(--display);font-weight:560;font-size:1.25rem;white-space:nowrap;font-variant-numeric:tabular-nums}
+.a-paid .pr small{font-family:var(--mono);font-size:.58rem;color:var(--muted)}
+.a-x{display:flex;gap:10px;align-items:baseline;padding:1rem 0 0;font-size:.8125rem;color:var(--muted)}
+.a-x .zap{font-family:var(--mono);font-size:.7rem;color:var(--accent)}
+.a-x a{color:var(--accent);text-decoration:none}
+
+/* ── B · One ledger ── */
+.b-ledger{border-top:2px solid var(--ink)}
+.b-row{display:grid;grid-template-columns:8.5rem 1fr auto;gap:2rem;align-items:baseline;padding:1.4rem 0;border-bottom:1px dotted var(--border)}
+.b-row .n{font-family:var(--display);font-weight:560;font-size:1.125rem;position:relative}
+.b-row .for{font-size:.72rem;color:var(--dim);font-family:var(--sans);margin-top:2px}
+.b-row .d{font-size:.875rem;color:var(--muted);max-width:56ch}
+.b-row .d .m{font-family:var(--mono);font-size:.74rem;color:var(--ink)}
+.b-row .pr{font-family:var(--display);font-weight:560;font-size:1.5rem;white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right}
+.b-row .pr small{font-family:var(--mono);font-size:.6rem;color:var(--muted);font-weight:400}
+.b-row.free .pr{color:var(--green)}
+.b-stamp{position:absolute;top:-1.5rem;left:0;font-family:"Caveat",cursive;font-size:1.2rem;color:var(--pink);transform:rotate(-2deg);white-space:nowrap}
+.b-x{display:flex;gap:10px;align-items:baseline;padding:1.1rem 0;border-bottom:1px dotted var(--border);font-size:.8125rem;color:var(--muted)}
+.b-x .zap{font-family:var(--mono);font-size:.7rem;color:var(--accent);min-width:8.5rem}
+
+/* ── C · Head-strip cards ── */
+.c-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:1.5rem;align-items:start}
+.c-card{border:1px solid var(--border);border-radius:10px;background:var(--elev);overflow:hidden;position:relative}
+.c-card .erow{display:flex;justify-content:space-between;gap:1.5rem;padding:.55rem 1.2rem;border-top:1px dashed var(--border);font-size:.84rem}
+.c-card .erow:nth-child(2){border-top:none}
+.c-card .erow .v{font-family:var(--mono);font-size:.7rem;color:var(--muted);white-space:nowrap}
+.c-paid{display:flex;flex-direction:column;gap:.9rem}
+.c-tier{border:1px solid var(--border);border-radius:10px;background:var(--elev);overflow:hidden}
+.c-tier .strip .n{font-family:var(--display);font-size:.9375rem;font-weight:560;color:var(--ink);text-transform:none;letter-spacing:0}
+.c-tier .strip .pr{margin-left:auto;font-family:var(--display);font-weight:560;font-size:1.0625rem;color:var(--ink)}
+.c-tier .strip .pr small{font-family:var(--mono);font-size:.56rem;color:var(--muted)}
+.c-tier .body{padding:.7rem 1.2rem .9rem;font-family:var(--mono);font-size:.68rem;line-height:2;color:var(--muted)}
+.c-tier .body b{color:var(--ink);font-weight:560}
+</style></head><body>
+
+<div class="switch">
+  <button class="on" data-v="a">A · Ledger split</button>
+  <button data-v="b">B · One ledger</button>
+  <button data-v="c">C · Head-strip cards</button>
+</div>
+
+<main id="v-a" class="on"><div class="wrap">
+  <div class="note-h">Variant A — recommended</div>
+  <h2 class="vt">Ledger split</h2>
+  <p class="vw">Free keeps the hero box but speaks machine-access: mono head strip, dashed entitlement
+  ledger with right-aligned mono values (no checkmarks), mint pill instead of a solid button. Paid tiers
+  lose their boxes entirely — dotted ledger rows like the homepage index, price as the right column.</p>
+
+  <div class="a-grid">
+    <div class="a-free">
+      <span class="a-stamp">forever!</span>
+      <div class="strip"><span class="k">The free tier</span><span class="r">permanent</span></div>
+      <div class="price-row"><span class="n">Free</span><span class="p">$0</span></div>
+      <div class="erow"><span>Public reads on Index</span><span class="v">anon · rate-limited</span></div>
+      <div class="erow"><span>Public reads on Streams</span><span class="v">ghost key · rate-limited</span></div>
+      <div class="erow"><span>Ghost keys</span><span class="v">POST /v1/keys · no signup</span></div>
+      <div class="erow"><span>Public subgraphs</span><span class="v">2 · live from deploy</span></div>
+      <div class="erow"><span>Webhook subscriptions</span><span class="v">3 · 24h log</span></div>
+      <div class="erow"><span>Parquet archive</span><span class="v">full history · free</span></div>
+      <div class="erow"><span>MCP server + agent skills</span><span class="v">included</span></div>
+      <div class="foot"><span class="hint">no card · no signup</span>
+        <button class="mint"><span class="d">$</span>curl -X POST …/v1/keys<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+      </div>
+    </div>
+    <div class="a-paid">
+      <a class="lrow" href="#"><span class="n">Pro<small>a production app</small></span>
+        <span class="d">100 req/s, 10 subgraphs incl. private, genesis backfills, 25 subscriptions with 7-day replay, email support.</span>
+        <span class="pr">$99<small>/mo</small></span></a>
+      <a class="lrow" href="#"><span class="n">Scale<small>indexing as backbone</small></span>
+        <span class="d">500 req/s, 50 subgraphs, dedicated backfill lane, unlimited subscriptions, team roles, Slack support at 99.9%.</span>
+        <span class="pr">$499<small>/mo</small></span></a>
+      <a class="lrow" href="#"><span class="n">Enterprise<small>infra teams</small></span>
+        <span class="d">Custom capacity, priority indexing for your contracts, BYO database plane, SLA and incident channel.</span>
+        <span class="pr" style="font-size:1rem">Contact us</span></a>
+      <p class="a-x"><span class="zap">x402 ⚡</span>Agents skip plans entirely — 402 quote, sponsored transfer, receipt. $0.001 floor. <a href="#">See how it works ↓</a></p>
+    </div>
+  </div>
+</div></main>
+
+<main id="v-b"><div class="wrap">
+  <div class="note-h">Variant B</div>
+  <h2 class="vt">One ledger</h2>
+  <p class="vw">The whole price list as a single ruled ledger — free is just the first row (price in green,
+  Caveat stamp above the name). Most editorial, zero chrome; tiers read like entries in the notebook.</p>
+
+  <div class="b-ledger" style="margin-top:2.5rem">
+    <div class="b-row free"><span class="n"><span class="b-stamp">forever!</span>Free<div class="for">hobby + exploration</div></span>
+      <span class="d">Rate-limited public reads (<span class="m">anon on Index, ghost key on Streams</span>), <span class="m">2</span> public subgraphs live from deploy, <span class="m">3</span> subscriptions, the full parquet archive, MCP + agent skills.</span>
+      <span class="pr">$0</span></div>
+    <div class="b-row"><span class="n">Pro<div class="for">a production app</div></span>
+      <span class="d"><span class="m">100 req/s</span> · <span class="m">10</span> subgraphs incl. private · genesis backfills · <span class="m">25</span> subscriptions, 7d replay · email support.</span>
+      <span class="pr">$99<small>/mo</small></span></div>
+    <div class="b-row"><span class="n">Scale<div class="for">indexing as backbone</div></span>
+      <span class="d"><span class="m">500 req/s</span> · <span class="m">50</span> subgraphs · dedicated backfill lane · unlimited subscriptions, 30d log · team roles · Slack, 99.9%.</span>
+      <span class="pr">$499<small>/mo</small></span></div>
+    <div class="b-row"><span class="n">Enterprise<div class="for">infra teams</div></span>
+      <span class="d">Custom capacity · priority indexing for your contracts · BYO database plane · SLA + incident channel.</span>
+      <span class="pr" style="font-size:1.05rem">Contact us</span></div>
+    <div class="b-x"><span class="zap">x402 ⚡</span><span>No account? Pay per call — 402 quote, sponsored transfer, receipt. $0.001 floor. <a href="#" style="color:var(--accent);text-decoration:none">How it works ↓</a></span></div>
+  </div>
+</div></main>
+
+<main id="v-c"><div class="wrap">
+  <div class="note-h">Variant C</div>
+  <h2 class="vt">Head-strip cards</h2>
+  <p class="vw">Closest to the current layout, restyled: every box becomes a pane with the mono head strip
+  (name left, price right), hairline borders, dashed body rows — the live-pane / machine-access component
+  language applied to pricing.</p>
+
+  <div class="c-grid">
+    <div class="c-card">
+      <span class="a-stamp">forever!</span>
+      <div class="strip"><span class="k">Free — $0</span><span class="r">permanent</span></div>
+      <div class="erow"><span>Public reads on Index + Streams</span><span class="v">rate-limited</span></div>
+      <div class="erow"><span>Ghost keys, no signup</span><span class="v">POST /v1/keys</span></div>
+      <div class="erow"><span>Public subgraphs</span><span class="v">2 · from deploy</span></div>
+      <div class="erow"><span>Subscriptions</span><span class="v">3 · 24h log</span></div>
+      <div class="erow"><span>Parquet archive</span><span class="v">full history</span></div>
+      <div class="erow"><span>MCP + agent skills</span><span class="v">included</span></div>
+      <div class="foot" style="display:flex;justify-content:space-between;align-items:center;padding:.9rem 1.2rem;border-top:1px solid var(--border)">
+        <span style="font-family:var(--mono);font-size:.62rem;color:var(--dim)">no card · no signup</span>
+        <button class="mint"><span class="d">$</span>mint a key</button></div>
+    </div>
+    <div class="c-paid">
+      <div class="c-tier"><div class="strip"><span class="n">Pro</span><span class="pr">$99<small>/mo</small></span></div>
+        <div class="body"><b>100 req/s</b> · <b>10</b> subgraphs incl. private · genesis backfills<br/><b>25</b> subscriptions, 7d replay · usage budgets · email support</div></div>
+      <div class="c-tier"><div class="strip"><span class="n">Scale</span><span class="pr">$499<small>/mo</small></span></div>
+        <div class="body"><b>500 req/s</b> · <b>50</b> subgraphs · dedicated backfill lane<br/>unlimited subscriptions, 30d log · team roles · Slack, 99.9%</div></div>
+      <div class="c-tier"><div class="strip"><span class="n">Enterprise</span><span class="pr" style="font-size:.9rem">Contact us</span></div>
+        <div class="body">custom capacity · priority indexing · BYO database plane<br/>SLA + incident channel · invoicing + security review</div></div>
+      <p class="a-x"><span class="zap">x402 ⚡</span>Agents pay per call — $0.001 floor. <a href="#">How it works ↓</a></p>
+    </div>
+  </div>
+</div></main>
+
+<script>
+const tabs=document.querySelectorAll(".switch button");
+for(const b of tabs) b.addEventListener("click",()=>{for(const x of tabs)x.classList.toggle("on",x===b);
+  for(const m of document.querySelectorAll("main"))m.classList.toggle("on",m.id==="v-"+b.dataset.v);window.scrollTo(0,0);});
+</script>
+</body></html>
