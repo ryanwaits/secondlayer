@@ -829,6 +829,11 @@ Examples:
 									);
 								}
 								info(`  Watch:     sl subgraphs status ${effectiveDef.name}`);
+								if (firstTable) {
+									info(
+										`  Webhook:   sl subscriptions create ${effectiveDef.name}-hook --subgraph ${effectiveDef.name} --table ${firstTable} --url <your-endpoint>`,
+									);
+								}
 							} catch {
 								// Footer is decorative — never block deploy on URL derivation
 							}
