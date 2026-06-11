@@ -26,9 +26,6 @@ export function AuthBar() {
 	);
 	const inputRef = useRef<HTMLInputElement>(null);
 
-	// Docs keep their own chrome: sidebar + content only, no top-right bar.
-	if (pathname.startsWith("/docs")) return null;
-
 	const isPlatform =
 		pathname === "/" && account
 			? true
@@ -99,6 +96,9 @@ export function AuthBar() {
 	);
 
 	if (loading) return null;
+
+	// Docs keep their own chrome: sidebar + content only, no top-right bar.
+	if (pathname.startsWith("/docs")) return null;
 
 	// Platform pages — sidebar handles logout, never show auth bar
 	// If session expired (no account but cookie exists), the /api/auth/me route
