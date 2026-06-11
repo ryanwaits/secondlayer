@@ -60,7 +60,19 @@ async function deriveTiles(): Promise<{ name: string; detail: string }[]> {
 /** Protocols-we-index marquee, derived from the live public directory. */
 export async function ProtocolMarquee() {
 	const tiles = await deriveTiles();
-	const doubled = [...tiles, ...tiles]; // seamless loop
+	// translateX(-50%) only loops gaplessly when ONE copy is wider than the
+	// viewport. Short tile sets (few public subgraphs) or wide monitors leave
+	// the right edge empty at the seam, so repeat the base set to a safe minimum
+	// before doubling — both halves stay equal-width for the seamless loop.
+	const MIN_PER_COPY = 16;
+	const copy = Array.from(
+		{ length: Math.ceil(MIN_PER_COPY / tiles.length) },
+		() => tiles,
+	).flat();
+	const doubled = [...copy, ...copy];
+	// Keep the visual scroll speed constant regardless of how many tiles the
+	// directory yields (~4.8s per tile across one copy, matching the original).
+	const durationSeconds = copy.length * 4.8;
 
 	return (
 		<div className="home-marquee-zone">
@@ -68,7 +80,10 @@ export async function ProtocolMarquee() {
 				className="home-marquee"
 				aria-label="Protocols indexed on Secondlayer"
 			>
-				<div className="home-marquee-track">
+				<div
+					className="home-marquee-track"
+					style={{ animationDuration: `${durationSeconds}s` }}
+				>
 					{doubled.map((t, i) => (
 						<div className="home-proto" key={`${t.name}-${i}`}>
 							<span className="n">{t.name}</span>
