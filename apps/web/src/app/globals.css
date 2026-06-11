@@ -15,6 +15,12 @@
 	--accent-bg: rgba(37, 99, 235, 0.06);
 	--accent-border: rgba(37, 99, 235, 0.2);
 	--accent-glow: rgba(37, 99, 235, 0.06);
+	/* Pro pricing panel inverts against the page: dark block on a light page */
+	--pro-bg: #111;
+	--pro-fg: #fafafa;
+	--pro-accent: #8aa7f8;
+	--pro-muted: rgba(255, 255, 255, 0.62);
+	--pro-border: rgba(255, 255, 255, 0.14);
 	--dot-color: rgba(0, 0, 0, 0.1);
 	--code-bg: rgba(0, 0, 0, 0.04);
 	--code-block-bg: #f0f0f0;
@@ -73,6 +79,12 @@
 		--accent-bg: rgba(138, 167, 248, 0.1);
 		--accent-border: rgba(138, 167, 248, 0.26);
 		--accent-glow: rgba(138, 167, 248, 0.07);
+		/* Pro pricing panel inverts: light block on a dark page */
+		--pro-bg: #fafafa;
+		--pro-fg: #111;
+		--pro-accent: #2563eb;
+		--pro-muted: rgba(0, 0, 0, 0.6);
+		--pro-border: rgba(0, 0, 0, 0.1);
 		--dot-color: rgba(255, 255, 255, 0.07);
 		--code-bg: rgba(255, 255, 255, 0.08);
 		--code-block-bg: #1c1c1c;
@@ -117,6 +129,12 @@ html.force-dark {
 	--accent-bg: rgba(138, 167, 248, 0.1);
 	--accent-border: rgba(138, 167, 248, 0.26);
 	--accent-glow: rgba(138, 167, 248, 0.07);
+	/* Pro pricing panel inverts: light block on a dark page */
+	--pro-bg: #fafafa;
+	--pro-fg: #111;
+	--pro-accent: #2563eb;
+	--pro-muted: rgba(0, 0, 0, 0.6);
+	--pro-border: rgba(0, 0, 0, 0.1);
 	--dot-color: rgba(255, 255, 255, 0.07);
 	--code-bg: rgba(255, 255, 255, 0.08);
 	--code-block-bg: #1c1c1c;
@@ -159,6 +177,12 @@ html.force-light {
 	--accent-bg: rgba(37, 99, 235, 0.06);
 	--accent-border: rgba(37, 99, 235, 0.2);
 	--accent-glow: rgba(37, 99, 235, 0.06);
+	/* Pro pricing panel inverts against the page: dark block on a light page */
+	--pro-bg: #111;
+	--pro-fg: #fafafa;
+	--pro-accent: #8aa7f8;
+	--pro-muted: rgba(255, 255, 255, 0.62);
+	--pro-border: rgba(255, 255, 255, 0.14);
 	--dot-color: rgba(0, 0, 0, 0.1);
 	--code-bg: rgba(0, 0, 0, 0.04);
 	--code-block-bg: #f0f0f0;
@@ -8286,154 +8310,235 @@ a.dataset-shelf-name:hover {
 
 /* ── Pricing page (free-first) ─────────────────────────────────────── */
 
-.prc-beta {
-	margin-top: 1rem;
+/* signup CTA band — the page's primary conversion surface, sits up high */
+.prc-cta-band {
+	margin-top: 1.5rem;
 	display: flex;
-	align-items: baseline;
-	gap: 12px;
-	border: 1px solid var(--green);
-	background: var(--green-bg);
-	border-radius: 10px;
-	padding: 0.9rem 1.2rem;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1.25rem 2rem;
+	border: 1px solid var(--border);
+	border-radius: 14px;
+	background: var(--bg-elevated, var(--bg));
+	padding: 1.5rem 1.75rem;
 }
-.prc-beta .b {
-	font-family: var(--font-mono-stack);
-	font-size: 0.62rem;
+.prc-cta-band-copy {
+	max-width: 42ch;
+}
+.prc-cta-band-title {
+	font-family: var(--font-heading-stack);
+	font-size: 1.25rem;
 	font-weight: 560;
-	letter-spacing: 0.06em;
-	text-transform: uppercase;
-	color: var(--green);
-	white-space: nowrap;
+	letter-spacing: -0.01em;
+	color: var(--text-main);
 }
-.prc-beta p {
+.prc-cta-band-sub {
+	margin-top: 0.35rem;
 	font-size: 0.875rem;
+	color: var(--text-muted);
 }
 
+/* ── plans: Free follows the theme; Pro is an inverted block ──────── */
 .prc-split {
-	margin-top: 2.5rem;
+	margin-top: 1.25rem;
 	display: grid;
-	grid-template-columns: 1.05fr 0.95fr;
-	gap: 1.5rem;
-	align-items: start;
+	grid-template-columns: 1fr 1fr;
+	gap: 1.1rem;
+	align-items: stretch;
 }
-@media (max-width: 900px) {
+@media (max-width: 820px) {
 	.prc-split {
 		grid-template-columns: 1fr;
 	}
 }
-.prc-free {
-	position: relative;
-	border: 2px solid var(--text-main);
+.prc-plan {
+	display: flex;
+	flex-direction: column;
 	border-radius: 14px;
-	padding: 1.75rem;
+	padding: 1.4rem 1.5rem;
+}
+.prc-free {
 	background: var(--bg-elevated, var(--bg));
+	border: 1px solid var(--border);
 }
-.prc-stamp {
-	position: absolute;
-	top: -14px;
-	right: 18px;
-	font-family: var(--font-cursive);
-	font-size: 1.3rem;
-	color: var(--marker-pink, #ff00aa);
-	transform: rotate(3deg);
+/* Pro inverts against the page: dark block on light, light block on dark */
+.prc-pro {
+	background: var(--pro-bg);
+	color: var(--pro-fg);
 }
-.prc-free h3 {
-	font-family: var(--font-heading-stack);
-	font-size: 1.5rem;
+.prc-plan-eyebrow {
+	font-family: var(--font-mono-stack);
+	font-size: 0.64rem;
 	font-weight: 560;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--text-muted);
 }
-.prc-free-price {
+.prc-pro .prc-plan-eyebrow {
+	color: var(--pro-accent);
+}
+.prc-plan-price {
 	font-family: var(--font-heading-stack);
-	font-size: 3rem;
-	font-weight: 560;
+	font-size: 2.75rem;
+	font-weight: 600;
+	letter-spacing: -0.03em;
+	line-height: 0.9;
 	margin-top: 0.5rem;
 }
-.prc-free ul {
+.prc-plan-price small {
+	font-family: var(--font-mono-stack);
+	font-size: 0.78rem;
+	font-weight: 460;
+	color: var(--text-muted);
+	margin-left: 2px;
+}
+.prc-pro .prc-plan-price small {
+	color: var(--pro-muted);
+}
+.prc-plan ul {
 	list-style: none;
 	padding: 0;
-	margin: 1.25rem 0 0;
-	display: flex;
-	flex-direction: column;
-	gap: 0.6rem;
+	margin: 1rem 0 1.25rem;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 0.4rem 1.25rem;
 }
-.prc-free li {
-	display: flex;
-	gap: 10px;
-	font-size: 0.875rem;
+@media (max-width: 480px) {
+	.prc-plan ul {
+		grid-template-columns: 1fr;
+	}
 }
-.prc-free li::before {
-	content: "✓";
-	color: var(--green);
-	font-weight: 600;
+.prc-plan li {
+	position: relative;
+	padding-left: 1.2rem;
+	font-size: 0.82rem;
 }
-.prc-free-cta {
+.prc-plan li::before {
+	content: "—";
+	position: absolute;
+	left: 0;
+	color: var(--text-muted);
+}
+.prc-pro li::before {
+	color: var(--pro-accent);
+}
+.prc-plan-cta {
 	display: inline-flex;
 	align-items: center;
-	margin-top: 1.5rem;
-	height: 38px;
-	padding: 0 18px;
+	justify-content: center;
+	margin-top: auto;
+	align-self: flex-start;
+	height: 44px;
+	padding: 0 20px;
+	border-radius: 6px;
+	font-family: var(--font-sans-stack);
+	font-size: 13px;
+	font-weight: 560;
 	text-decoration: none;
+	cursor: pointer;
+	transition: opacity 0.2s var(--ease-smooth), background 0.2s
+		var(--ease-smooth);
 }
-.prc-paid {
-	display: flex;
-	flex-direction: column;
-	gap: 0.75rem;
+.prc-plan-cta:hover {
+	opacity: 0.9;
 }
-.prc-tier {
+/* Free CTA is the quiet ghost; the Pro CTA is the inverse of its panel,
+   so it flips with the theme alongside the block. */
+.prc-cta-ghost {
+	background: transparent;
+	border: 1px solid var(--text-main);
+	color: var(--text-main);
+}
+.prc-cta-ghost:hover {
+	opacity: 1;
+	background: var(--code-bg);
+}
+.prc-cta-pro {
+	background: var(--pro-fg);
+	color: var(--pro-bg);
+	border: 1px solid var(--pro-fg);
+}
+
+/* ── Enterprise + x402: two columns on one row (x402 left | ent right) ── */
+.prc-below {
 	display: grid;
-	grid-template-columns: 1fr auto;
+	grid-template-columns: 1fr 1fr;
+	gap: 1.5rem 2.5rem;
+	margin-top: 2rem;
+	border-top: 1px solid var(--border);
+	padding-top: 1.3rem;
+}
+@media (max-width: 700px) {
+	.prc-below {
+		grid-template-columns: 1fr;
+		gap: 1.25rem;
+	}
+}
+.prc-ent-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
 	gap: 1rem;
-	align-items: center;
-	border: 1px solid var(--border);
-	border-radius: 10px;
-	background: var(--bg-elevated, var(--bg));
-	padding: 1rem 1.25rem;
 }
-.prc-tier.hot {
-	border-color: var(--accent-border);
-	box-shadow: 0 0 0 1px var(--accent-border);
-}
-.prc-tier .n {
+.prc-ent-n {
 	font-family: var(--font-heading-stack);
 	font-weight: 560;
-	font-size: 0.9375rem;
+	font-size: 1rem;
 }
-.prc-tier .d {
+.prc-ent-cta {
 	font-family: var(--font-mono-stack);
-	font-size: 0.65rem;
-	color: var(--text-muted);
-	margin-top: 2px;
-}
-.prc-tier .pr {
-	font-family: var(--font-heading-stack);
+	font-size: 0.72rem;
 	font-weight: 560;
-	font-size: 1.25rem;
+	letter-spacing: 0.03em;
+	color: var(--text-main);
+	text-decoration: none;
 	white-space: nowrap;
 }
-.prc-tier .pr small {
-	font-family: var(--font-mono-stack);
-	font-size: 0.6rem;
-	color: var(--text-muted);
+.prc-ent-cta:hover {
+	color: var(--accent);
 }
-.prc-xjump {
-	display: flex;
-	gap: 1rem;
-	align-items: baseline;
-	border: 1px solid var(--accent-border);
-	background: var(--accent-bg);
-	border-radius: 10px;
-	padding: 1rem 1.25rem;
+.prc-ent-d {
+	margin-top: 0.5rem;
+	font-size: 0.84rem;
+	color: var(--text-muted);
+	max-width: 46ch;
+}
+.prc-xfoot {
+	display: block;
 	text-decoration: none;
 	color: inherit;
 }
-.prc-xjump span {
-	font-family: var(--font-heading-stack);
+.prc-xfoot-row {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+}
+.prc-xfoot-tag {
+	font-family: var(--font-mono-stack);
+	font-size: 0.58rem;
 	font-weight: 560;
-	font-size: 0.9375rem;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	padding: 2px 8px;
 	white-space: nowrap;
 }
-.prc-xjump p {
-	font-size: 0.8125rem;
+.prc-xfoot-title {
+	font-family: var(--font-heading-stack);
+	font-weight: 560;
+	font-size: 1rem;
+}
+.prc-xfoot p {
+	margin-top: 0.5rem;
+	font-size: 0.84rem;
+	color: var(--text-muted);
+	max-width: 46ch;
+}
+.prc-xfoot:hover .prc-xfoot-title {
+	color: var(--accent);
 }
 
 .prc-h2 {
@@ -8449,152 +8554,6 @@ a.dataset-shelf-name:hover {
 	color: var(--text-muted);
 	font-size: 0.9375rem;
 	max-width: 62ch;
-}
-
-.prc-x {
-	margin-top: 1.5rem;
-	border: 1px solid var(--border);
-	border-radius: 14px;
-	background: var(--bg-elevated, var(--bg));
-	overflow: hidden;
-}
-.prc-x-head {
-	display: flex;
-	align-items: baseline;
-	gap: 12px;
-	padding: 1.2rem 1.4rem;
-	border-bottom: 1px solid var(--border);
-}
-.prc-x-head .t {
-	font-family: var(--font-heading-stack);
-	font-size: 1.0625rem;
-	font-weight: 560;
-}
-.prc-x-head .chips {
-	margin-left: auto;
-	display: flex;
-	gap: 6px;
-}
-.prc-x-head .chips span {
-	font-family: var(--font-mono-stack);
-	font-size: 0.6rem;
-	letter-spacing: 0.05em;
-	text-transform: uppercase;
-	border: 1px solid var(--border);
-	border-radius: 999px;
-	padding: 3px 9px;
-	color: var(--text-muted);
-}
-.prc-x-grid {
-	display: grid;
-	grid-template-columns: 1.05fr 0.95fr;
-}
-@media (max-width: 900px) {
-	.prc-x-grid {
-		grid-template-columns: 1fr;
-	}
-}
-.prc-x-steps {
-	padding: 1rem 0.8rem;
-	display: flex;
-	flex-direction: column;
-}
-.prc-x-step {
-	all: unset;
-	box-sizing: border-box;
-	display: flex;
-	gap: 14px;
-	padding: 0.8rem 0.6rem;
-	border-top: 1px dashed var(--border);
-	cursor: pointer;
-	border-radius: 8px;
-}
-.prc-x-step:first-child {
-	border-top: none;
-}
-.prc-x-step.on {
-	background: var(--accent-bg);
-}
-.prc-x-step:focus-visible {
-	outline: 2px solid var(--accent);
-}
-.prc-x-step .no {
-	flex: none;
-	width: 22px;
-	height: 22px;
-	border-radius: 999px;
-	border: 1px solid var(--accent-border);
-	background: var(--accent-bg);
-	color: var(--accent);
-	font-family: var(--font-mono-stack);
-	font-size: 0.65rem;
-	display: grid;
-	place-items: center;
-}
-.prc-x-step.on .no {
-	background: var(--accent);
-	color: #fff;
-	border-color: var(--accent);
-}
-.prc-x-step h5 {
-	font-family: var(--font-heading-stack);
-	font-size: 0.875rem;
-	font-weight: 560;
-}
-.prc-x-step p {
-	margin-top: 0.15rem;
-	font-size: 0.78rem;
-	color: var(--text-muted);
-}
-.prc-x-step p code {
-	font-family: var(--font-mono-stack);
-	font-size: 0.85em;
-	background: var(--bg-chrome);
-	border-radius: 4px;
-	padding: 0 5px;
-}
-.prc-x-pane {
-	border-left: 1px solid var(--border);
-	background: var(--bg);
-	min-width: 0;
-	display: grid;
-}
-/* all panes share one grid cell: the tallest reserves the height, so
-   switching steps never reflows the container */
-.prc-x-slide {
-	grid-area: 1 / 1;
-	visibility: hidden;
-}
-.prc-x-slide.on {
-	visibility: visible;
-}
-@media (max-width: 900px) {
-	.prc-x-pane {
-		border-left: none;
-		border-top: 1px solid var(--border);
-	}
-}
-.prc-x-pane .code-block-wrapper {
-	margin: 0;
-}
-.prc-x-pane .code-block-wrapper pre {
-	background: transparent !important;
-	border: none;
-	border-radius: 0;
-	padding: 1.3rem 1.4rem;
-	font-size: 0.7rem;
-	line-height: 1.8;
-}
-.prc-x-foot {
-	padding: 0.9rem 1.4rem;
-	border-top: 1px solid var(--border);
-	display: flex;
-	justify-content: space-between;
-	gap: 1rem;
-	flex-wrap: wrap;
-	font-family: var(--font-mono-stack);
-	font-size: 0.65rem;
-	color: var(--text-muted);
 }
 
 .prc-faq {

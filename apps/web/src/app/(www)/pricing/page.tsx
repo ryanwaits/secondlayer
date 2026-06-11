@@ -21,24 +21,17 @@ const FREE_INCLUDES = [
 
 // Every claim below maps to an enforced limit — if code doesn't enforce it,
 // it doesn't go on a card.
-const PAID_TIERS = [
-	{
-		name: "Pro",
-		price: "$99",
-		per: "/mo",
-		hot: true,
-		summary:
-			"250 req/s on Index and Streams · private subgraphs · genesis backfills (full history) · 25 webhook subscriptions + replay · usage budgets · email support",
-	},
-	{
-		name: "Enterprise",
-		price: "Contact us",
-		per: "",
-		hot: false,
-		summary:
-			"Custom rates + dedicated capacity · priority indexing for your contracts · SLA + incident channel · invoicing + security review",
-	},
+const PRO_INCLUDES = [
+	"250 req/s on Index and Streams",
+	"Private subgraphs",
+	"Genesis backfills — full history, not forward-only",
+	"25 webhook subscriptions + replay",
+	"Usage budgets",
+	"Email support",
 ];
+
+const ENTERPRISE_SUMMARY =
+	"Custom rates + dedicated capacity · priority indexing for your contracts · SLA + incident channel · invoicing + security review";
 
 const FAQ = [
 	{
@@ -75,51 +68,64 @@ export default function PricingPage() {
 				public data.
 			</MarketingPageHeader>
 
-			<div className="prc-beta">
-				<span className="b">Open beta</span>
-				<p>
-					Nothing is charged today — everything below is{" "}
-					<strong>$0 until beta ends</strong>. Plans show what billing will look
-					like.
-				</p>
+			<div className="prc-cta-band">
+				<div className="prc-cta-band-copy">
+					<p className="prc-cta-band-title">Start free — no signup, no card.</p>
+					<p className="prc-cta-band-sub">
+						Mint a key from your terminal and you're querying in seconds.
+					</p>
+				</div>
+				<CtaPill />
 			</div>
 
 			<div className="prc-split">
-				<div className="prc-free">
-					<span className="prc-stamp" aria-hidden="true">
-						forever!
-					</span>
-					<h3>Free</h3>
-					<p className="prc-free-price">$0</p>
+				<div className="prc-plan prc-free">
+					<span className="prc-plan-eyebrow">Free · forever</span>
+					<p className="prc-plan-price">$0</p>
 					<ul>
 						{FREE_INCLUDES.map((f) => (
 							<li key={f}>{f}</li>
 						))}
 					</ul>
-					<Link href="/" className="auth-bar-cta prc-free-cta">
+					<Link href="/login" className="prc-plan-cta prc-cta-ghost">
 						Mint a key
 					</Link>
 				</div>
-				<div className="prc-paid">
-					{PAID_TIERS.map((t) => (
-						<div className={`prc-tier${t.hot ? " hot" : ""}`} key={t.name}>
-							<div>
-								<p className="n">{t.name}</p>
-								<p className="d">{t.summary}</p>
-							</div>
-							<p className="pr">
-								{t.price}
-								{t.per && <small>{t.per}</small>}
-							</p>
-						</div>
-					))}
-					<Link className="prc-xjump" href="/docs/x402">
-						<span>Experimental</span>
-						<p>
-							Agents can pay per call with x402 — no account, settled on Stacks.
-							Beta, deliberately quiet. Read how it works →
-						</p>
+				<div className="prc-plan prc-pro">
+					<span className="prc-plan-eyebrow">Pro · most teams pick this</span>
+					<p className="prc-plan-price">
+						$99<small>/mo</small>
+					</p>
+					<ul>
+						{PRO_INCLUDES.map((f) => (
+							<li key={f}>{f}</li>
+						))}
+					</ul>
+					<Link href="/login" className="prc-plan-cta prc-cta-pro">
+						Start Pro
 					</Link>
+				</div>
+			</div>
+
+			<div className="prc-below">
+				<Link className="prc-xfoot" href="/docs/x402">
+					<span className="prc-xfoot-row">
+						<span className="prc-xfoot-tag">Experimental</span>
+						<span className="prc-xfoot-title">x402 pay-per-call</span>
+					</span>
+					<p>
+						Agents can pay per call with x402 — no account, settled on Stacks.
+						Read how it works →
+					</p>
+				</Link>
+				<div className="prc-ent-col">
+					<div className="prc-ent-head">
+						<span className="prc-ent-n">Enterprise</span>
+						<a className="prc-ent-cta" href="mailto:hello@secondlayer.tools">
+							Contact us →
+						</a>
+					</div>
+					<p className="prc-ent-d">{ENTERPRISE_SUMMARY}</p>
 				</div>
 			</div>
 
