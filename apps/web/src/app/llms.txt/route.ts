@@ -11,7 +11,7 @@ const LLMS_TXT = `# Secondlayer — the indexing layer for Stacks
 - MCP server (40+ tools): npx -y @secondlayer/mcp  (reads need zero setup)
 - Mint a free API key, no signup: POST https://api.secondlayer.tools/v1/keys
 
-## Pay per call (x402, for agents without accounts)
+## Pay per call (x402 — experimental beta, for agents without accounts)
 - Capability advertisement: https://api.secondlayer.tools/v1/x402/supported
 - Paid reads: /v1/index/* and /v1/streams/* (x402 v2, network stacks:1,
   sponsored transfers — you hold sBTC/STX/USDCx, never gas; $0.001/call floor).

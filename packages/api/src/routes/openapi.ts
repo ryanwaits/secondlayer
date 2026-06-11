@@ -14,7 +14,8 @@ const OPENAPI_SPEC = {
 		receiptHeader: "PAYMENT-RESPONSE",
 		sessionHeader: "PAYMENT-SESSION",
 		balanceHeader: "PAYMENT-BALANCE",
-		note: "When the pay-per-call rail is enabled, accountless requests on paid surfaces receive HTTP 402 with an accepts[] quote (x402 v2, network stacks:1). Sponsored transfers: the payer holds tokens, never gas. Index grants 1,000 free reads/day/IP before the 402; a paid Streams call opens a 500-call/1h session; a paid POST /v1/subgraphs deploys a wallet-owned subgraph (7-day TTL, renewable); POST /v1/x402/deposit loads a prepaid tab whose PAYMENT-BALANCE token debits per call with no on-chain round trip.",
+		status: "experimental",
+		note: "Experimental beta — surfaces and prices may change. When the pay-per-call rail is enabled, accountless requests on paid surfaces receive HTTP 402 with an accepts[] quote (x402 v2, network stacks:1). Sponsored transfers: the payer holds tokens, never gas. Index grants 1,000 free reads/day/IP before the 402; a paid Streams call opens a 500-call/1h session; a paid POST /v1/subgraphs deploys a wallet-owned subgraph (7-day TTL, renewable); POST /v1/x402/deposit loads a prepaid tab whose PAYMENT-BALANCE token debits per call with no on-chain round trip.",
 	},
 	info: {
 		title: "Secondlayer Public API",
