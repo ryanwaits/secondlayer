@@ -11,7 +11,6 @@ const ROUTES = [
 	"/sdk",
 	"/cli",
 	"/mcp",
-	"/migration/v1-to-v2",
 	"/status",
 ] as const;
 
