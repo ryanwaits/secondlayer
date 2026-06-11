@@ -1,17 +1,17 @@
-import { getDb } from "@secondlayer/shared/db";
 import { getCaps } from "@secondlayer/platform/db/queries/account-spend-caps";
-import { getProductUsage } from "@secondlayer/platform/db/queries/usage";
 import {
 	getAccountById,
 	isSlugTaken,
 	updateAccountProfile,
 } from "@secondlayer/platform/db/queries/accounts";
-import { AuthenticationError } from "@secondlayer/shared/errors";
+import { getProductUsage } from "@secondlayer/platform/db/queries/usage";
 import {
 	getBasePriceCents,
 	getPlanDisplayName,
 } from "@secondlayer/platform/pricing";
 import { UpdateProfileRequestSchema } from "@secondlayer/platform/schemas/accounts";
+import { getDb } from "@secondlayer/shared/db";
+import { AuthenticationError } from "@secondlayer/shared/errors";
 import { type Context, Hono } from "hono";
 import { accountPlanToProductTier } from "../auth/product-token-store.ts";
 import { INDEX_TIER_CONFIG } from "../index/tiers.ts";

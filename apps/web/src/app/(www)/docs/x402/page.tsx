@@ -66,8 +66,8 @@ export default function X402DocsPage() {
 					fontSize: "0.85em",
 				}}
 			>
-				<strong>Experimental.</strong> The pay-per-call rail is a beta — surfaces,
-				prices, and headers may change. Plans on the{" "}
+				<strong>Experimental.</strong> The pay-per-call rail is a beta —
+				surfaces, prices, and headers may change. Plans on the{" "}
 				<Link href="/pricing">pricing page</Link> are the stable way to pay.
 			</p>
 
@@ -95,8 +95,8 @@ export default function X402DocsPage() {
 
 			<p>
 				Standard x402 v2 wire — works with any x402 client. Sponsored means we
-				pay the STX gas. Discovery:{" "}
-				<code>GET /.well-known/x402</code> and the <code>x-x402</code> block in{" "}
+				pay the STX gas. Discovery: <code>GET /.well-known/x402</code> and the{" "}
+				<code>x-x402</code> block in{" "}
 				<a href="https://api.secondlayer.tools/v1/openapi.json">
 					the OpenAPI spec
 				</a>

@@ -39,7 +39,8 @@ export async function resolveGenesisPolicy(
 	accountId: string | undefined,
 	env: NodeJS.ProcessEnv = process.env,
 ): Promise<GenesisPolicy> {
-	if (!isPlatformMode()) return { genesisAllowed: true, reason: "non-platform" };
+	if (!isPlatformMode())
+		return { genesisAllowed: true, reason: "non-platform" };
 	if (accountId && genesisExemptAccountIds(env).has(accountId)) {
 		return { genesisAllowed: true, reason: "exempt-account" };
 	}
@@ -71,7 +72,8 @@ export async function resolvePrivateVisibilityPolicy(
 	accountId: string | undefined,
 	env: NodeJS.ProcessEnv = process.env,
 ): Promise<PrivateVisibilityPolicy> {
-	if (!isPlatformMode()) return { privateAllowed: true, reason: "non-platform" };
+	if (!isPlatformMode())
+		return { privateAllowed: true, reason: "non-platform" };
 	if (accountId && genesisExemptAccountIds(env).has(accountId)) {
 		return { privateAllowed: true, reason: "exempt-account" };
 	}
@@ -137,7 +139,9 @@ export function clampDeployStartBlock(input: {
 	const { genesisAllowed, requested, existingStartBlock, chainTip } = input;
 	if (genesisAllowed) return { startBlock: requested, clamped: false };
 	const floor =
-		existingStartBlock !== undefined ? existingStartBlock : Math.max(chainTip, 1);
+		existingStartBlock !== undefined
+			? existingStartBlock
+			: Math.max(chainTip, 1);
 	const effective = Math.max(requested ?? floor, floor);
 	const wouldHaveUsed = requested ?? existingStartBlock ?? 1;
 	return { startBlock: effective, clamped: effective !== wouldHaveUsed };

@@ -116,8 +116,8 @@ export default function PricingPage() {
 					<Link className="prc-xjump" href="/docs/x402">
 						<span>Experimental</span>
 						<p>
-							Agents can pay per call with x402 — no account, settled on
-							Stacks. Beta, deliberately quiet. Read how it works →
+							Agents can pay per call with x402 — no account, settled on Stacks.
+							Beta, deliberately quiet. Read how it works →
 						</p>
 					</Link>
 				</div>
