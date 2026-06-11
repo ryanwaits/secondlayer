@@ -8475,35 +8475,6 @@ a.dataset-shelf-name:hover {
 		gap: 1.25rem;
 	}
 }
-.prc-ent-head {
-	display: flex;
-	align-items: baseline;
-	justify-content: space-between;
-	gap: 1rem;
-}
-.prc-ent-n {
-	font-family: var(--font-heading-stack);
-	font-weight: 560;
-	font-size: 1rem;
-}
-.prc-ent-cta {
-	font-family: var(--font-mono-stack);
-	font-size: 0.72rem;
-	font-weight: 560;
-	letter-spacing: 0.03em;
-	color: var(--text-main);
-	text-decoration: none;
-	white-space: nowrap;
-}
-.prc-ent-cta:hover {
-	color: var(--accent);
-}
-.prc-ent-d {
-	margin-top: 0.5rem;
-	font-size: 0.84rem;
-	color: var(--text-muted);
-	max-width: 46ch;
-}
 .prc-xfoot {
 	display: block;
 	text-decoration: none;
@@ -8512,6 +8483,7 @@ a.dataset-shelf-name:hover {
 .prc-xfoot-row {
 	display: flex;
 	align-items: center;
+	justify-content: space-between;
 	gap: 0.6rem;
 }
 .prc-xfoot-tag {

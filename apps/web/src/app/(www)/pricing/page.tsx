@@ -110,23 +110,21 @@ export default function PricingPage() {
 			<div className="prc-below">
 				<Link className="prc-xfoot" href="/docs/x402">
 					<span className="prc-xfoot-row">
-						<span className="prc-xfoot-tag">Experimental</span>
 						<span className="prc-xfoot-title">x402 pay-per-call</span>
+						<span className="prc-xfoot-tag">Experimental</span>
 					</span>
 					<p>
 						Agents can pay per call with x402 — no account, settled on Stacks.
 						Read how it works →
 					</p>
 				</Link>
-				<div className="prc-ent-col">
-					<div className="prc-ent-head">
-						<span className="prc-ent-n">Enterprise</span>
-						<a className="prc-ent-cta" href="mailto:hello@secondlayer.tools">
-							Contact us →
-						</a>
-					</div>
-					<p className="prc-ent-d">{ENTERPRISE_SUMMARY}</p>
-				</div>
+				<a className="prc-xfoot" href="mailto:hello@secondlayer.tools">
+					<span className="prc-xfoot-row">
+						<span className="prc-xfoot-title">Contact Us</span>
+						<span className="prc-xfoot-tag">Enterprise</span>
+					</span>
+					<p>{ENTERPRISE_SUMMARY} →</p>
+				</a>
 			</div>
 
 			<h2 className="prc-h2">The fine print, up front.</h2>
