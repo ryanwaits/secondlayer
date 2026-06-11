@@ -3,7 +3,6 @@ import { ApiKeys } from "./api-keys/client.ts";
 import { BaseClient } from "./base.ts";
 import type { SecondLayerOptions } from "./base.ts";
 import { Contracts } from "./contracts/client.ts";
-import { Datasets } from "./datasets/client.ts";
 import { Index } from "./index-api/client.ts";
 import type { IndexTip } from "./index-api/client.ts";
 import { Projects } from "./projects/client.ts";
@@ -63,7 +62,6 @@ export interface ContextSnapshot {
 export class SecondLayer extends BaseClient {
 	readonly streams: StreamsClient;
 	readonly index: Index;
-	readonly datasets: Datasets;
 	readonly contracts: Contracts;
 	readonly subgraphs: Subgraphs;
 	readonly subscriptions: Subscriptions;
@@ -79,7 +77,6 @@ export class SecondLayer extends BaseClient {
 			dumpsBaseUrl: options.dumpsBaseUrl,
 		});
 		this.index = new Index(options);
-		this.datasets = new Datasets(options);
 		this.contracts = new Contracts(options);
 		this.subgraphs = new Subgraphs(options);
 		this.subscriptions = new Subscriptions(options);

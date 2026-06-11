@@ -60,8 +60,7 @@ export function latestCompleteFinalizedRange(params: {
 
 /**
  * Latest complete range whose end is at or below an already-finalized Stacks
- * height. Unlike `latestCompleteFinalizedRange` (Stacks-block lag, used by the
- * datasets exporters), the streams-bulk path derives `finalizedHeight` from the
+ * height. The streams-bulk path derives `finalizedHeight` from the
  * burn-confirmation boundary (`@secondlayer/shared` `finalizedBurnHeight` →
  * `getFinalizedStacksHeight`) so it matches the Streams read path.
  */

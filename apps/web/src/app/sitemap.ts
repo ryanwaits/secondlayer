@@ -8,12 +8,6 @@ const ROUTES = [
 	"/index-api",
 	"/subgraphs",
 	"/subscriptions",
-	"/datasets",
-	"/datasets/stx-transfers",
-	"/datasets/sbtc",
-	"/datasets/pox-4",
-	"/datasets/bns",
-	"/datasets/network-health",
 	"/sdk",
 	"/cli",
 	"/mcp",
@@ -27,6 +21,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
 		url: `${BASE}${path}`,
 		lastModified,
 		changeFrequency: path === "/" ? "weekly" : "monthly",
-		priority: path === "/" ? 1 : path.startsWith("/datasets/") ? 0.8 : 0.6,
+		priority: path === "/" ? 1 : 0.6,
 	}));
 }

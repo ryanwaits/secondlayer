@@ -11,7 +11,11 @@ import {
  * constants (`@secondlayer/shared/x402`).
  */
 
-export type X402Surface = "streams" | "index";
+export type X402Surface =
+	| "streams"
+	| "index"
+	| "subgraph-deploy"
+	| "subgraph-renew";
 
 export type X402Finality = "optimistic" | "confirmed";
 
@@ -56,6 +60,20 @@ export const X402_PRICE_CATALOG: Record<X402Surface, X402PriceConfig> = {
 		assets: X402_TOKEN_SYMBOLS,
 		maxTimeoutSeconds: 60,
 		finality: "optimistic",
+	},
+	// Paid writes settle confirmed-tier only: a deploy allocates compute, so
+	// there is no optimistic fraud window. Longer timeout = await-canonical.
+	"subgraph-deploy": {
+		priceUsd: 2,
+		assets: X402_TOKEN_SYMBOLS,
+		maxTimeoutSeconds: 120,
+		finality: "confirmed",
+	},
+	"subgraph-renew": {
+		priceUsd: 0.5,
+		assets: X402_TOKEN_SYMBOLS,
+		maxTimeoutSeconds: 120,
+		finality: "confirmed",
 	},
 };
 

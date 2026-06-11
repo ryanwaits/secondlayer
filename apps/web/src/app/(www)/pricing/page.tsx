@@ -16,7 +16,7 @@ const FREE_INCLUDES = [
 	"Ghost keys: curl -X POST /v1/keys, no signup, claim with an email within 30 days",
 	"2 public subgraphs — live indexing from the moment you deploy",
 	"3 webhook subscriptions, 24h delivery log",
-	"The full parquet archive with signed manifests",
+	"Signed Streams bulk dumps for cold-lane replay",
 	"MCP server + agent skills",
 	"Community support",
 ];
@@ -51,7 +51,7 @@ const PAID_TIERS = [
 const FAQ = [
 	{
 		q: "What stays free forever?",
-		a: "Rate-limited public reads — anonymous on Index, with a free key on Streams — plus the full parquet dataset archive and the free tier above. Public data stays public.",
+		a: "Rate-limited public reads — anonymous on Index, with a free key on Streams — plus signed bulk dumps and the free tier above. Public data stays public.",
 	},
 	{
 		q: "What does a paid plan actually buy?",

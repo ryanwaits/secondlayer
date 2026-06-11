@@ -28,11 +28,7 @@ export default function NotFound() {
 							<Link href="/sdk">SDK</Link> · <Link href="/cli">CLI</Link> ·{" "}
 							<Link href="/mcp">MCP</Link> · clients for every layer.
 						</p>
-						<p>
-							<Link href="/datasets">Datasets</Link> · STX transfers, sBTC,
-							PoX-4, BNS, network health.
-						</p>
-					</div>
+						</div>
 				</div>
 			</section>
 		</div>

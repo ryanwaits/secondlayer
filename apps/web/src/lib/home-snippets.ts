@@ -14,14 +14,6 @@ export const SBTC_CONTRACT_ID =
 export const SBTC_ASSET_IDENTIFIER =
 	"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token";
 
-/** Public R2 host for bulk parquet datasets (manifest paths are bucket-relative). */
-export const DATASETS_HOST =
-	"https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev";
-
-/** Public R2 bucket root for bulk parquet datasets. */
-export const DATASETS_BASE_URL =
-	"https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev/stacks-datasets/mainnet/v0";
-
 export const STREAMS_SNIPPET = `// resume the firehose from your cursor
 for await (const batch of sl.streams.consume({ cursor })) {
   await handle(batch.events); // ordered, reorg-aware
@@ -77,14 +69,6 @@ sl subgraphs status sbtc-flows
 
 # query from the shell, pipe to jq
 sl subgraphs query sbtc-flows transfers --limit 3 --json`;
-
-export const DUCKDB_SNIPPET = `-- DuckDB, zero setup
-SET VARIABLE files = (SELECT list_transform(files,
-  lambda f: '${DATASETS_HOST}/' || f.path)
-FROM read_json_auto('${DATASETS_BASE_URL}/sbtc/token-events/latest.json'));
-SELECT sender, sum(CAST(amount AS HUGEINT)) AS total
-FROM read_parquet(getvariable('files'))
-GROUP BY 1 ORDER BY 2 DESC LIMIT 3;`;
 
 export const SHELL_GETSTARTED_SNIPPET = `npm install @secondlayer/sdk
 

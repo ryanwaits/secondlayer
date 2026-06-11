@@ -3,7 +3,6 @@ import { AgentPromptBlock } from "@/components/console/agent-prompt";
 import { MARKETING_HOME_PROMPT } from "@/lib/agent-prompts";
 import {
 	CLI_SNIPPET,
-	DUCKDB_SNIPPET,
 	INDEX_SNIPPET,
 	STREAMS_SNIPPET,
 	SUBGRAPHS_SNIPPET,
@@ -12,7 +11,6 @@ import {
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { CliTerminalPane } from "./panes/cli-terminal-pane";
-import { DuckdbGridPane } from "./panes/duckdb-grid-pane";
 import { IndexResultsPane } from "./panes/index-results-pane";
 import { StreamsBlocksPane } from "./panes/streams-blocks-pane";
 import { SubgraphSchemaPane } from "./panes/subgraph-schema-pane";
@@ -54,7 +52,7 @@ function Feature({
 	);
 }
 
-/** The six capability sections (Streams → Index → Subgraphs → Subscriptions → CLI → Datasets). */
+/** The five capability sections (Streams → Index → Subgraphs → Subscriptions → CLI). */
 export function HomeFeatures() {
 	return (
 		<section className="home-block">
@@ -113,18 +111,6 @@ export function HomeFeatures() {
 				>
 					Every surface is also a command. Scaffold, deploy, query, tail —
 					pipeable, scriptable, JSON when you ask for it. Local devnet included.
-				</Feature>
-
-				<Feature
-					title="Bulk history, straight into DuckDB"
-					docsHref="/docs/datasets"
-					code={DUCKDB_SNIPPET}
-					lang="sql"
-					pane={<DuckdbGridPane />}
-				>
-					Curated datasets ship as partitioned parquet with checksummed
-					manifests — point a warehouse, a notebook, or one SQL line at the
-					whole history. Free forever.
 				</Feature>
 			</div>
 		</section>

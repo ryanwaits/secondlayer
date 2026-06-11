@@ -88,7 +88,6 @@ export const COLUMN_TYPES: Array<Record<string, unknown>> = [
 // generated from the live tool registry (see buildCapabilities) so it can't
 // drift behind the actual surface.
 const PRODUCT_BLURBS: Record<string, string> = {
-	datasets: "public foundation datasets",
 	index:
 		"decoded L2 events, contract calls, blocks, transactions, stacking, mempool",
 	streams: "raw canonical chain event firehose",
@@ -101,7 +100,6 @@ const PRODUCT_BLURBS: Record<string, string> = {
 };
 
 const PRODUCT_ORDER = [
-	"datasets",
 	"index",
 	"streams",
 	"contracts",
@@ -140,7 +138,7 @@ export function buildCapabilities() {
 	return {
 		products,
 		discoverFirst:
-			"Call datasets_list / index_discover / contracts_find to learn what exists (and which filters each surface accepts) before querying.",
+			"Call index_discover / contracts_find to learn what exists (and which filters each surface accepts) before querying.",
 	};
 }
 
@@ -155,7 +153,6 @@ const X402_CAPABILITY = {
 
 /** Per-product read-auth tiers — what an agent must know before reading. */
 const READ_AUTH_TIERS = {
-	datasets: "open — no API key required",
 	index:
 		"anonymous reads allowed; free-tier API keys are rejected (Build+ required)",
 	streams: "API key required (SL_API_KEY) — keyless calls return 401",

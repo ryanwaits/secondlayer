@@ -221,8 +221,7 @@ function sbtcFlows(name: string): string {
 
 /**
  * Track sBTC protocol flows: deposits, withdrawals, signer rotations,
- * governance updates. Mirrors the shape of the Foundation Datasets
- * \`/v1/datasets/sbtc/events\` surface but in your own subgraph.
+ * governance updates — your own indexed view of the sbtc-registry contract.
  *
  * Source contract: sbtc-registry (mainnet).
  *
@@ -292,13 +291,10 @@ function poxStacking(name: string): string {
 
 /**
  * Track Stacking lifecycle calls on PoX-4 — solo stacking, delegation,
- * extension, increase, aggregation, signer-key authorizations. Mirrors
- * the shape of the Foundation Datasets \`/v1/datasets/pox-4/calls\`
- * surface as your own subgraph.
+ * extension, increase, aggregation, signer-key authorizations.
  *
  * Note: PoX-4 emits zero print events; this subgraph captures contract
- * calls. Decoding function args + raw_result is left to your handler —
- * the dataset shows one possible shape.
+ * calls. Decoding function args + raw_result is left to your handler.
  *
  * Query examples once deployed:
  *   GET /v1/subgraphs/${name}/calls?function_name=stack-stx
@@ -349,8 +345,7 @@ function bnsNames(name: string): string {
 
 /**
  * Track BNS-V2 name lifecycle events — registrations, transfers,
- * renewals, burns, airdrops. Mirrors the Foundation Datasets
- * \`/v1/datasets/bns/name-events\` surface as your own subgraph.
+ * renewals, burns, airdrops.
  *
  * Source: BNS-V2 print events (topic-discriminated payloads).
  *

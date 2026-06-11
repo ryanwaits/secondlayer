@@ -1,6 +1,5 @@
 import { Callout } from "@/components/callout";
 import { CodeBlock } from "@/components/code-block";
-import { DatasetSandbox } from "@/components/dataset-sandbox";
 import { IndexDiagram } from "@/components/diagrams/index-diagram";
 import { InlineKey, KeyTrigger } from "@/components/inline-key";
 import { MarketingPageHeader } from "@/components/marketing-page-header";
@@ -101,43 +100,7 @@ for await (const call of index.contractCalls.walk({ contractId })) {
 					</p>
 				</Callout>
 
-				<SectionHeading id="try-it">Try it</SectionHeading>
 
-				<DatasetSandbox
-					endpoint="/v1/index/ft-transfers"
-					title="Try /v1/index/ft-transfers"
-					sample={{
-						events: [
-							{
-								event_type: "ft_transfer",
-								block_height: 7869999,
-								tx_id: "0xabc…",
-								tx_index: 3,
-								event_index: 12,
-								cursor: "7869999:12",
-								contract_id: "SP2…token-usda",
-								asset_identifier: "SP2…token-usda::usda",
-								sender: "SP3…",
-								recipient: "SP1…",
-								amount: "1000000",
-							},
-						],
-						next_cursor: "7870001:7",
-						tip: { block_height: 7870042, lag_seconds: 12 },
-						reorgs: [],
-					}}
-					filters={[
-						{
-							name: "contract_id",
-							type: "string",
-							placeholder: "SP2...token-usda",
-						},
-						{ name: "sender", type: "string", placeholder: "SP3..." },
-						{ name: "recipient", type: "string", placeholder: "SP1..." },
-						{ name: "from_height", type: "number" },
-						{ name: "limit", type: "number", default: "5", placeholder: "5" },
-					]}
-				/>
 			</div>
 		</main>
 	);

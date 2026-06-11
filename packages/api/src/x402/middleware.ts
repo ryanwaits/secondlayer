@@ -351,6 +351,9 @@ export function x402PaymentRequired(
 				network: settlement.network,
 			}),
 		);
+		// Downstream handlers (paid writes) need the settled payer identity.
+		c.set("x402Payer" as never, verdict.payer as never);
+
 		// Session surfaces: this payment opens a bounded session — hand the
 		// voucher back so the client's next polls skip the 402 cycle.
 		const mintCfg = options.session;

@@ -150,6 +150,8 @@ export interface SubgraphsTable {
 	// 'public' = anon-readable via /v1/subgraphs (global name namespace,
 	// claim-on-publish); 'private' = reads require the owning account's key.
 	visibility: Generated<string>;
+	/** Paid (wallet-ghost) deploys expire unless renewed or claimed; NULL = no expiry. */
+	expires_at: Date | null;
 	// BYO data plane: AES-GCM envelope (iv‖tag‖ciphertext) of the user-owned
 	// Postgres connection string. Null = managed (writes/serving use the target
 	// DB). Encrypted via crypto/secrets.ts; never returned in API responses.
@@ -244,6 +246,8 @@ export interface AccountsTable {
 	email: string | null;
 	/** True for anonymous self-serve accounts until claimed via magic link. */
 	ghost: Generated<boolean>;
+	/** Stacks principal owning a wallet-ghost account (x402-paid deploys). */
+	wallet_principal: string | null;
 	plan: Generated<string>;
 	display_name: string | null;
 	bio: string | null;
@@ -477,7 +481,7 @@ export interface ChainReorgsTable {
 	created_at: Generated<Date>;
 }
 
-// ── Phase 2 datasets: PoX-4 / sBTC / BNS ─────────────────────────────
+// ── L2 decoded tables: PoX-4 / sBTC / BNS ────────────────────────────
 
 export type Pox4FunctionName =
 	| "stack-stx"

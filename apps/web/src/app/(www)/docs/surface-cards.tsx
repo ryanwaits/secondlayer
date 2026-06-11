@@ -10,19 +10,11 @@ interface Surface {
 	wide?: boolean;
 }
 
-/** The five product surfaces, mirroring the "Core surfaces" nav + their REST
+/** The four product surfaces, mirroring the "Core surfaces" nav + their REST
  *  entrypoints. Streams spans the full row. */
 const SURFACES: Surface[] = [
 	{
 		n: "01",
-		name: "Datasets",
-		href: "/docs/datasets",
-		desc: "Curated, public-good tables with stable APIs and parquet exports.",
-		verb: "GET",
-		ep: "/v1/datasets",
-	},
-	{
-		n: "02",
 		name: "Index",
 		href: "/docs/index",
 		desc: "Query decoded blocks, transactions, and events through one endpoint.",
@@ -30,7 +22,7 @@ const SURFACES: Surface[] = [
 		ep: "/v1/index/events",
 	},
 	{
-		n: "03",
+		n: "02",
 		name: "Subgraphs",
 		href: "/docs/subgraphs",
 		desc: "Define app-specific materialized tables from contract events.",
@@ -38,7 +30,7 @@ const SURFACES: Surface[] = [
 		ep: "/v1/subgraphs",
 	},
 	{
-		n: "04",
+		n: "03",
 		name: "Subscriptions",
 		href: "/docs/subscriptions",
 		desc: "Push matched rows to your webhook as signed POSTs.",
@@ -46,7 +38,7 @@ const SURFACES: Surface[] = [
 		ep: "→ your webhook",
 	},
 	{
-		n: "05",
+		n: "04",
 		name: "Streams",
 		href: "/docs/streams",
 		desc: "The raw chain-event firehose — cursor-paginated and replayable.",

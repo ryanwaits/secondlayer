@@ -7,7 +7,6 @@ const PRODUCTS = [
 	{ label: "Index", href: "/index-api" },
 	{ label: "Subgraphs", href: "/subgraphs" },
 	{ label: "Streams", href: "/streams" },
-	{ label: "Datasets", href: "/datasets" },
 	{ label: "Explore", href: "/subgraphs/explore" },
 ];
 

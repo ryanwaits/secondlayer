@@ -7,7 +7,6 @@ import {
 } from "@secondlayer/sdk";
 import {
 	CLI_SNIPPET,
-	DUCKDB_SNIPPET,
 	INDEX_SNIPPET,
 	SBTC_ASSET_IDENTIFIER,
 	SBTC_CONTRACT_ID,
@@ -95,13 +94,11 @@ describe("home snippets", () => {
 		expect(SUBSCRIPTIONS_SNIPPET).toContain("sl.subscriptions.create({");
 		expect(SUBSCRIPTIONS_SNIPPET).toContain("trigger.ftTransfer({");
 		expect(CLI_SNIPPET).toContain("sl subgraphs query sbtc-flows transfers");
-		expect(DUCKDB_SNIPPET).toContain("read_parquet");
 		expect(SHELL_GETSTARTED_SNIPPET).toContain("new SecondLayer()");
 	});
 
 	test("snippets use the real mainnet sBTC identifiers", () => {
 		expect(INDEX_SNIPPET).toContain(SBTC_CONTRACT_ID);
 		expect(SUBSCRIPTIONS_SNIPPET).toContain(SBTC_ASSET_IDENTIFIER);
-		expect(DUCKDB_SNIPPET).toContain("r2.dev/stacks-datasets/mainnet/v0");
 	});
 });

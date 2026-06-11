@@ -1,7 +1,7 @@
 const LLMS_TXT = `# Secondlayer — the indexing layer for Stacks
 
 > Raw chain events (Streams), decoded events (Index), your own indexed views
-> (Subgraphs), webhooks (Subscriptions), and curated parquet (Datasets).
+> (Subgraphs), and webhooks (Subscriptions).
 > One REST surface at https://api.secondlayer.tools. Public reads need no key.
 
 ## Start here
@@ -18,7 +18,7 @@ const LLMS_TXT = `# Secondlayer — the indexing layer for Stacks
 - SDK: withX402(fetch, { account }) from @secondlayer/sdk auto-pays 402s.
 
 ## Auth model
-- Anonymous: rate-limited public reads (Index, Datasets, public Subgraphs).
+- Anonymous: rate-limited public reads (Index, public Subgraphs).
 - sk-sl_ API key: raises limits, unlocks Streams reads; writes need a claimed
   account. Ghost keys (POST /v1/keys) are read-only until claimed by email.
 

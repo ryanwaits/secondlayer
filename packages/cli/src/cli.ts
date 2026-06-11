@@ -5,7 +5,6 @@ import {
 	registerAccountCommand,
 	registerConfigCommand,
 	registerContextCommand,
-	registerDatasetsCommand,
 	registerDevnetCommand,
 	registerDoctorCommand,
 	registerIndexCommand,
@@ -74,7 +73,6 @@ program.commandsGroup("Data products:");
 registerSubgraphsCommand(program);
 registerSubscriptionsCommand(program);
 registerStreamsCommand(program);
-registerDatasetsCommand(program);
 registerIndexCommand(program);
 
 // Project & codegen

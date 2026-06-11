@@ -18,34 +18,6 @@ import {
 	startContractRegistry,
 } from "./contracts/scheduler.ts";
 import {
-	bnsMarketplaceEventsPublisherState,
-	startBnsMarketplaceEventsPublisher,
-} from "./datasets/bns/marketplace-events/scheduler.ts";
-import {
-	bnsNameEventsPublisherState,
-	startBnsNameEventsPublisher,
-} from "./datasets/bns/name-events/scheduler.ts";
-import {
-	bnsNamespaceEventsPublisherState,
-	startBnsNamespaceEventsPublisher,
-} from "./datasets/bns/namespace-events/scheduler.ts";
-import {
-	pox4CallsPublisherState,
-	startPox4CallsPublisher,
-} from "./datasets/pox-4/calls/scheduler.ts";
-import {
-	sbtcEventsPublisherState,
-	startSbtcEventsPublisher,
-} from "./datasets/sbtc/events/scheduler.ts";
-import {
-	sbtcTokenEventsPublisherState,
-	startSbtcTokenEventsPublisher,
-} from "./datasets/sbtc/token-events/scheduler.ts";
-import {
-	startStxTransfersPublisher,
-	stxTransfersPublisherState,
-} from "./datasets/stx-transfers/scheduler.ts";
-import {
 	getIngestTelemetry,
 	ingestNewBlock,
 	initIngestState,
@@ -156,27 +128,6 @@ await runStartupIntegrityCheck();
 assertDbSplit();
 logger.info("Starting indexer service", { port: PORT });
 
-type PublisherStateShape = {
-	enabled: boolean;
-	publishedTotal: number;
-	lastPublishedRange: unknown;
-	lastPublishedAt: number;
-	lastError: string | null;
-};
-
-function publisherStatus(state: PublisherStateShape) {
-	return {
-		enabled: state.enabled,
-		publishedTotal: state.publishedTotal,
-		lastPublishedRange: state.lastPublishedRange,
-		lastPublishedSecondsAgo:
-			state.lastPublishedAt > 0
-				? Math.round((Date.now() - state.lastPublishedAt) / 1000)
-				: null,
-		lastError: state.lastError,
-	};
-}
-
 const server = Bun.serve({
 	port: PORT,
 
@@ -206,43 +157,6 @@ const server = Bun.serve({
 							: null,
 					lastError: streamsBulkPublisherState.lastError,
 				},
-				stxTransfersPublisher: {
-					enabled: stxTransfersPublisherState.enabled,
-					publishedTotal: stxTransfersPublisherState.publishedTotal,
-					lastPublishedRange: stxTransfersPublisherState.lastPublishedRange,
-					lastPublishedSecondsAgo:
-						stxTransfersPublisherState.lastPublishedAt > 0
-							? Math.round(
-									(Date.now() - stxTransfersPublisherState.lastPublishedAt) /
-										1000,
-								)
-							: null,
-					lastError: stxTransfersPublisherState.lastError,
-				},
-				sbtcEventsPublisher: {
-					enabled: sbtcEventsPublisherState.enabled,
-					publishedTotal: sbtcEventsPublisherState.publishedTotal,
-					lastPublishedRange: sbtcEventsPublisherState.lastPublishedRange,
-					lastPublishedSecondsAgo:
-						sbtcEventsPublisherState.lastPublishedAt > 0
-							? Math.round(
-									(Date.now() - sbtcEventsPublisherState.lastPublishedAt) /
-										1000,
-								)
-							: null,
-					lastError: sbtcEventsPublisherState.lastError,
-				},
-				sbtcTokenEventsPublisher: publisherStatus(
-					sbtcTokenEventsPublisherState,
-				),
-				pox4CallsPublisher: publisherStatus(pox4CallsPublisherState),
-				bnsNameEventsPublisher: publisherStatus(bnsNameEventsPublisherState),
-				bnsNamespaceEventsPublisher: publisherStatus(
-					bnsNamespaceEventsPublisherState,
-				),
-				bnsMarketplaceEventsPublisher: publisherStatus(
-					bnsMarketplaceEventsPublisherState,
-				),
 				contractRegistry: {
 					enabled: contractRegistryState.enabled,
 					discoveredTotal: contractRegistryState.discoveredTotal,
@@ -432,15 +346,7 @@ function startLeaderLoops(): StopFn {
 		startIntegrityLoop(),
 		// tip follower (auto-fallback when the node stops pushing blocks)
 		startTipFollower(),
-		// dataset publishers (each gated on its own *_PUBLISHER_ENABLED flag)
 		startStreamsBulkPublisher(),
-		startStxTransfersPublisher(),
-		startSbtcEventsPublisher(),
-		startSbtcTokenEventsPublisher(),
-		startPox4CallsPublisher(),
-		startBnsNameEventsPublisher(),
-		startBnsNamespaceEventsPublisher(),
-		startBnsMarketplaceEventsPublisher(),
 		// contract registry (gated on CONTRACT_REGISTRY_ENABLED)
 		startContractRegistry(),
 		// mempool retention sweep (clears stuck pending txs)

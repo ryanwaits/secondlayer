@@ -33,12 +33,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Get oriented",
 			"Pick the right surface for what you're building.",
-			"/secondlayer I'm new to Secondlayer. Explain the surfaces — Datasets, Index, Subgraphs, Subscriptions, Streams — and recommend which one fits my use case. Ask what I'm building, then point me at the next step.",
-		),
-		card(
-			"Pull data fast",
-			"Query a Foundation Dataset for recent rows.",
-			"/secondlayer Help me pull Stacks data quickly. Query a Foundation Dataset (sBTC, STX transfers, PoX-4, or BNS) for recent rows, show the response shape, and explain cursor pagination.",
+			"/secondlayer I'm new to Secondlayer. Explain the surfaces — Index, Subgraphs, Subscriptions, Streams — and recommend which one fits my use case. Ask what I'm building, then point me at the next step.",
 		),
 	],
 
@@ -61,19 +56,6 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 			"Rotate a key",
 			"Rotate and re-wire an API key safely.",
 			"/secondlayer Rotate my Secondlayer API key in the platform console dashboard (https://secondlayer.tools/platform/api-keys), then help me update everywhere the old key was used.",
-		),
-	],
-
-	"/docs/datasets": [
-		card(
-			"Query a dataset",
-			"Cursor-paginate a Foundation Dataset.",
-			"/secondlayer Help me query a Foundation Dataset (sBTC, STX transfers, PoX-4, BNS, or network health). Ask which one and what I'm after, build the cursor-paginated request against `/v1/datasets`, and explain the data/meta envelope.",
-		),
-		card(
-			"Bulk export to parquet",
-			"Download full history for analytics.",
-			"/secondlayer Help me bulk-download a Foundation Dataset as parquet, then show me how to load it into DuckDB or pandas for analysis.",
 		),
 	],
 
@@ -115,7 +97,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Explore the REST API",
 			"Envelope, cursor, and filter grammar.",
-			"/secondlayer Walk me through the Secondlayer REST API: the data/meta envelope, `_limit`/`_order`/`_cursor` pagination, and the filter/sort grammar. Then build a sample request for a surface I name (datasets, index, streams, or a subgraph table).",
+			"/secondlayer Walk me through the Secondlayer REST API: the data/meta envelope, `_limit`/`_order`/`_cursor` pagination, and the filter/sort grammar. Then build a sample request for a surface I name (index, streams, or a subgraph table).",
 		),
 		variant("sdk-wire"),
 	],

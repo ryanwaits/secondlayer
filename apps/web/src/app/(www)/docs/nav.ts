@@ -20,7 +20,6 @@ export const DOCS_NAV: DocsNavGroup[] = [
 	{
 		label: "Core surfaces",
 		items: [
-			{ title: "Datasets", href: "/docs/datasets" },
 			{ title: "Index", href: "/docs/index" },
 			{ title: "Subgraphs", href: "/docs/subgraphs" },
 			{ title: "Subscriptions", href: "/docs/subscriptions" },

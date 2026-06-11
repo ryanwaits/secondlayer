@@ -1,10 +1,10 @@
 # REST API
 
-The shared envelope and cursor grammar across the read surfaces — datasets, index, streams, and subgraph tables — with per-surface filter params.
+The shared envelope and cursor grammar across the read surfaces — index, streams, and subgraph tables — with per-surface filter params.
 
 ## Response envelope
 
-Datasets and index reads return rows under a named key (`events`, `calls`, `names`, …) plus a top-level resumable `next_cursor` and the indexing `tip`; index reads also include `reorgs`.
+Index reads return rows under a named key (`events`, `calls`, …) plus a top-level resumable `next_cursor` and the indexing `tip`, including `reorgs`.
 
 ```json
 {
@@ -32,17 +32,17 @@ The cursor format is `<block_height>:<event_index>`.
 Page-size and ordering params are per-surface:
 
 - Subgraph tables — `_limit` (default 50, max 1000) and `_order=asc|desc`; bare `limit`/`order` are rejected with `400`.
-- Datasets and index — `limit` (default 200, max 1000); ordering is fixed by the keyset cursor (no order param).
+- Index — `limit` (default 200, max 1000); ordering is fixed by the keyset cursor (no order param).
 - Streams — `limit` (default 100, max 1000).
 
 Cursors:
 
-- `cursor` — pass the previous response's top-level `next_cursor` to resume (datasets, index, and `/v1/subgraphs`).
+- `cursor` — pass the previous response's top-level `next_cursor` to resume (index and `/v1/subgraphs`).
 - Index also accepts `from_cursor` (exclusive-start alias, mutually exclusive with `cursor`) and `from_height`/`to_height` height-range params.
 
 ## Filtering
 
-On subgraph table reads, filter on any column by passing it as a query param — columns are validated against the table's schema. Datasets, index, and streams endpoints instead accept a fixed set of documented filter params per endpoint (e.g. `sender`/`recipient` + range keys on `stx-transfers`; `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier` on `/v1/streams/events`); unknown query params are rejected with `400` (the error suggests the closest valid param). The value grammar — comma lists, ranges, cursor + `_limit`/`_order` — is shared across surfaces.
+On subgraph table reads, filter on any column by passing it as a query param — columns are validated against the table's schema. Index and streams endpoints instead accept a fixed set of documented filter params per endpoint (e.g. `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier` on `/v1/streams/events`); unknown query params are rejected with `400` (the error suggests the closest valid param). The value grammar — comma lists, ranges, cursor + `_limit`/`_order` — is shared across surfaces.
 
 ```bash
 curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers \

@@ -140,12 +140,10 @@ services:
       STREAMS_INTERNAL_API_KEY: ${STREAMS_INTERNAL_API_KEY:-}
       STREAMS_SIGNING_PRIVATE_KEY: ${STREAMS_SIGNING_PRIVATE_KEY:-}
       STREAMS_BULK_PUBLIC_BASE_URL: ${STREAMS_BULK_PUBLIC_BASE_URL:-}
-      DATASETS_PUBLIC_BASE_URL: ${DATASETS_PUBLIC_BASE_URL:-}
       # Signed-header source for transaction proofs (GET /v1/index/transactions/:id/proof).
       # Unset → the proof endpoint returns a clean 503 PROOF_NODE_UNAVAILABLE. Set to a
       # Nakamoto node reachable from this container to enable proofs in prod.
       STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-}
-      DATASETS_IP_RATE_LIMIT: ${DATASETS_IP_RATE_LIMIT:-60}
       # L2 decoder enable flags — read by api/src/routes/status.ts
       # (via getEnabledL2DecoderNames) so /public/status reports every
       # enabled decoder, not just ft+nft. Mirror the values set on the
@@ -203,25 +201,9 @@ services:
       PORT: 3700
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
-      # Streams bulk dump publisher + STX transfers dataset publisher.
-      # Both are gated on the *_PUBLISHER_ENABLED flags; R2 creds are
-      # required when either is true.
+      # Streams bulk dump publisher. Gated on STREAMS_BULK_PUBLISHER_ENABLED; R2 creds required.
       STREAMS_BULK_PUBLISHER_ENABLED: ${STREAMS_BULK_PUBLISHER_ENABLED:-false}
       STREAMS_BULK_PUBLISHER_INTERVAL_MS: ${STREAMS_BULK_PUBLISHER_INTERVAL_MS:-60000}
-      STX_TRANSFERS_PUBLISHER_ENABLED: ${STX_TRANSFERS_PUBLISHER_ENABLED:-false}
-      STX_TRANSFERS_PUBLISHER_INTERVAL_MS: ${STX_TRANSFERS_PUBLISHER_INTERVAL_MS:-60000}
-      # sBTC dataset publishers (events + token-events). Single flag gates both.
-      SBTC_PUBLISHER_ENABLED: ${SBTC_PUBLISHER_ENABLED:-false}
-      SBTC_PUBLISHER_INTERVAL_MS: ${SBTC_PUBLISHER_INTERVAL_MS:-60000}
-      # PoX-4 + BNS dataset publishers (per-family flags).
-      POX4_CALLS_PUBLISHER_ENABLED: ${POX4_CALLS_PUBLISHER_ENABLED:-false}
-      POX4_CALLS_PUBLISHER_INTERVAL_MS: ${POX4_CALLS_PUBLISHER_INTERVAL_MS:-60000}
-      BNS_NAME_EVENTS_PUBLISHER_ENABLED: ${BNS_NAME_EVENTS_PUBLISHER_ENABLED:-false}
-      BNS_NAME_EVENTS_PUBLISHER_INTERVAL_MS: ${BNS_NAME_EVENTS_PUBLISHER_INTERVAL_MS:-60000}
-      BNS_NAMESPACE_EVENTS_PUBLISHER_ENABLED: ${BNS_NAMESPACE_EVENTS_PUBLISHER_ENABLED:-false}
-      BNS_NAMESPACE_EVENTS_PUBLISHER_INTERVAL_MS: ${BNS_NAMESPACE_EVENTS_PUBLISHER_INTERVAL_MS:-60000}
-      BNS_MARKETPLACE_EVENTS_PUBLISHER_ENABLED: ${BNS_MARKETPLACE_EVENTS_PUBLISHER_ENABLED:-false}
-      BNS_MARKETPLACE_EVENTS_PUBLISHER_INTERVAL_MS: ${BNS_MARKETPLACE_EVENTS_PUBLISHER_INTERVAL_MS:-60000}
       # Contract registry worker — classifies deployed contracts vs SIP-009/010/013
       # to power trait discovery (/v1/contracts) + trait-scoped subgraph sources.
       # Defaults on; set CONTRACT_REGISTRY_ENABLED=false in the host env to disable.
@@ -240,8 +222,6 @@ services:
       # key the api signs live responses with) so the cold lane carries the same
       # ed25519 authenticity proof. Unset → manifests export unsigned (legacy).
       STREAMS_SIGNING_PRIVATE_KEY: ${STREAMS_SIGNING_PRIVATE_KEY:-}
-      DATASETS_PREFIX: ${DATASETS_PREFIX:-stacks-datasets/mainnet/v0}
-      DATASETS_OUTPUT_DIR: ${DATASETS_OUTPUT_DIR:-tmp/datasets}
     ports:
       - "${INDEXER_PORT:-3700}:3700"
     depends_on:

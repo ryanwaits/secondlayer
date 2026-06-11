@@ -13,9 +13,9 @@ const STREAMS_EVENT_TYPES = DECODED_EVENT_TYPES;
 
 /**
  * Streams is key-mandatory — a keyless call rejects with the SDK's `AuthError`
- * (HTTP 401), unlike the public datasets/index reads. Decorate that one case
- * with the key hint so the agent learns it must set SL_API_KEY; rethrow so
- * defineTool surfaces it as a structured `unauthorized` error.
+ * (HTTP 401), unlike the public Index reads. Decorate that one case with the
+ * key hint so the agent learns it must set SL_API_KEY; rethrow so defineTool
+ * surfaces it as a structured `unauthorized` error.
  */
 async function withStreamsAuthHint<T>(fn: () => Promise<T>): Promise<T> {
 	try {

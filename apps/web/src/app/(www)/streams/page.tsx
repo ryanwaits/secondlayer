@@ -1,6 +1,5 @@
 import { Callout } from "@/components/callout";
 import { CodeBlock } from "@/components/code-block";
-import { DatasetSandbox } from "@/components/dataset-sandbox";
 import { StreamsDiagram } from "@/components/diagrams/streams-diagram";
 import { InlineKey, KeyTrigger } from "@/components/inline-key";
 import { MarketingPageHeader } from "@/components/marketing-page-header";
@@ -113,66 +112,7 @@ await streams.events.consume({
 					</p>
 				</Callout>
 
-				<SectionHeading id="try-it">Try it</SectionHeading>
 
-				<DatasetSandbox
-					endpoint="/v1/streams/events"
-					title="Try /v1/streams/events"
-					sample={{
-						events: [
-							{
-								event_type: "ft_transfer",
-								block_height: 7869999,
-								block_hash: "0xdef…",
-								tx_id: "0xabc…",
-								event_index: 12,
-								cursor: "7869999:12",
-								contract_id: "SP2…BNS-V2",
-								payload: {
-									sender: "SP3…",
-									recipient: "SP1…",
-									amount: "1000000",
-								},
-							},
-						],
-						next_cursor: "7870001:7",
-						tip: {
-							block_height: 7870001,
-							block_hash: "0x9ab…",
-							burn_block_height: 904512,
-							finalized_height: 7869995,
-							lag_seconds: 12,
-						},
-						reorgs: [],
-					}}
-					requiresApiKey
-					filters={[
-						{
-							name: "types",
-							type: "enum",
-							options: [
-								"stx_transfer",
-								"ft_transfer",
-								"nft_transfer",
-								"print",
-								"stx_mint",
-								"stx_burn",
-								"ft_mint",
-								"ft_burn",
-								"nft_mint",
-								"nft_burn",
-								"stx_lock",
-							],
-						},
-						{
-							name: "contract_id",
-							type: "string",
-							placeholder: "SP2...BNS-V2",
-						},
-						{ name: "from_height", type: "number" },
-						{ name: "limit", type: "number", default: "5", placeholder: "5" },
-					]}
-				/>
 			</div>
 		</main>
 	);

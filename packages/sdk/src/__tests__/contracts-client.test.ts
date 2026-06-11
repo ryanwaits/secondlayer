@@ -15,9 +15,8 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 describe("SecondLayer root client wiring", () => {
-	test("exposes datasets and contracts clients", () => {
+	test("exposes contracts client", () => {
 		const sl = new SecondLayer();
-		expect(typeof sl.datasets.listDatasets).toBe("function");
 		expect(typeof sl.contracts.list).toBe("function");
 	});
 });

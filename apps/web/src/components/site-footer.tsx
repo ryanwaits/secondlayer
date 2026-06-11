@@ -11,7 +11,6 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
 			{ label: "Subgraphs", href: "/subgraphs" },
 			{ label: "Streams", href: "/streams" },
 			{ label: "Subscriptions", href: "/subscriptions" },
-			{ label: "Datasets", href: "/datasets" },
 		],
 	},
 	{
