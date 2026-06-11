@@ -58,12 +58,16 @@ const FAQ = [
 		a: "Capacity and guarantees: a bigger request budget under your own key, more subgraphs (including private ones), full genesis backfills instead of forward-only indexing, longer webhook retention, support and SLAs. Never access to public data.",
 	},
 	{
+		q: "Can an agent deploy without an account?",
+		a: "Yes, when the pay-per-call rail is on: POST /v1/subgraphs with an x402 payment ($2) deploys a subgraph owned by the paying wallet — live indexing from deploy, renewable for $0.50 a week, expiring if abandoned. Claiming the account later makes it permanent.",
+	},
+	{
 		q: "When does billing start?",
 		a: "When open beta ends, with notice. Usage dashboards ship first, so you can see exactly where you'd land before a card is ever involved.",
 	},
 	{
 		q: "x402 or a subscription?",
-		a: "x402 suits agents and spiky, accountless workloads: pay exactly per call. Plans suit sustained workloads. They mix freely; a keyed app can still let its agents pay per call.",
+		a: "x402 suits agents and spiky, accountless workloads: pay exactly per call, with Streams sessions (one payment covers up to 500 polls an hour) keeping steady consumers cheap. Plans suit sustained workloads. They mix freely; a keyed app can still let its agents pay per call.",
 	},
 ];
 
@@ -188,8 +192,9 @@ export default function PricingPage() {
 			<p className="prc-sub">
 				Built for agents. Index and Streams reads (/v1/index, /v1/streams) can
 				be paid with <strong>x402</strong>, the HTTP 402 payment standard,
-				settled on Stacks. No card, no signup, no gas: transfers are sponsored,
-				you only hold the token.
+				settled on Stacks — and a paid <strong>POST /v1/subgraphs</strong>{" "}
+				deploys an indexer owned by your wallet. No card, no signup, no gas:
+				transfers are sponsored, you only hold the token.
 			</p>
 			<div className="prc-x">
 				<div className="prc-x-head">

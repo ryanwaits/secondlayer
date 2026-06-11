@@ -27,7 +27,9 @@ const STEPS = [
 		body: (
 			<>
 				Same request plus a <code>PAYMENT-SIGNATURE</code> header. The response
-				streams immediately; settlement confirms on-chain behind it.
+				streams immediately; settlement confirms on-chain behind it. On
+				Streams, one payment opens a session — up to 500 polls in the next
+				hour ride free on a <code>PAYMENT-SESSION</code> voucher.
 			</>
 		),
 	},

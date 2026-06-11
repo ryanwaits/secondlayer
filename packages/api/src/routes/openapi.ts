@@ -4,10 +4,16 @@ const OPENAPI_SPEC = {
 	openapi: "3.1.0",
 	"x-x402": {
 		supported: "/v1/x402/supported",
-		paidSurfaces: ["/v1/index/*", "/v1/streams/*"],
+		paidSurfaces: [
+			"/v1/index/*",
+			"/v1/streams/*",
+			"POST /v1/subgraphs",
+			"POST /v1/subgraphs/{name}/renew",
+		],
 		paymentHeader: "PAYMENT-SIGNATURE",
 		receiptHeader: "PAYMENT-RESPONSE",
-		note: "When the pay-per-call rail is enabled, accountless requests on paid surfaces receive HTTP 402 with an accepts[] quote (x402 v2, network stacks:1). Sponsored transfers: the payer holds tokens, never gas.",
+		sessionHeader: "PAYMENT-SESSION",
+		note: "When the pay-per-call rail is enabled, accountless requests on paid surfaces receive HTTP 402 with an accepts[] quote (x402 v2, network stacks:1). Sponsored transfers: the payer holds tokens, never gas. Index grants 1,000 free reads/day/IP before the 402; a paid Streams call opens a 500-call/1h session; a paid POST /v1/subgraphs deploys a wallet-owned subgraph (7-day TTL, renewable).",
 	},
 	info: {
 		title: "Secondlayer Public API",
@@ -104,7 +110,15 @@ const OPENAPI_SPEC = {
 			get: {
 				summary: "x402 pay-per-call capability advertisement",
 				description:
-					"Scheme, network (CAIP-2), priced surfaces, accepted assets, and the per-call USD floor for the pay-per-call rail. Public, no auth.",
+					"Scheme, network (CAIP-2), priced surfaces, accepted assets, free-quota/session metadata, and the per-call USD floor for the pay-per-call rail. Public, no auth.",
+			},
+		},
+		"/v1/subgraphs/deploy-paid": {
+			post: {
+				summary:
+					"x402-paid subgraph deploy (actual path: POST /v1/subgraphs)",
+				description:
+					"Accountless deploy: pay the subgraph-deploy quote via x402 and the subgraph is owned by the paying wallet principal — live indexing from deploy (forward-only), expires in 7 days unless renewed (POST /v1/subgraphs/{name}/renew, subgraph-renew quote) or the account is claimed. Managed plane only.",
 			},
 		},
 		"/v1/openapi.json": {

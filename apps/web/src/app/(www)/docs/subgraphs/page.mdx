@@ -85,6 +85,8 @@ export default defineSubgraph({
 
 Deploy from the CLI. On paid plans, the first deploy backfills history from `startBlock`; free-tier subgraphs index forward from the chain tip at deploy time (historical backfill returns `GENESIS_BACKFILL_REQUIRES_PLAN`). Subsequent blocks stream in automatically.
 
+**No account?** When the x402 pay-per-call rail is enabled, `POST /v1/subgraphs` accepts an x402 payment ($2) in place of an API key: the subgraph is owned by the paying wallet, indexes forward from deploy, and expires after 7 days unless renewed (`POST /v1/subgraphs/{name}/renew`, $0.50) or the account is claimed.
+
 ```bash
 sl subgraphs deploy ./subgraph.config.ts
 ```

@@ -13,9 +13,15 @@ const LLMS_TXT = `# Secondlayer — the indexing layer for Stacks
 
 ## Pay per call (x402, for agents without accounts)
 - Capability advertisement: https://api.secondlayer.tools/v1/x402/supported
-- Paid surfaces: /v1/index/* and /v1/streams/* (x402 v2, network stacks:1,
-  sponsored transfers — you hold sBTC/STX/USDCx, never gas; $0.001/call floor)
-- SDK: withX402(fetch, { account }) from @secondlayer/sdk auto-pays 402s.
+- Paid reads: /v1/index/* and /v1/streams/* (x402 v2, network stacks:1,
+  sponsored transfers — you hold sBTC/STX/USDCx, never gas; $0.001/call floor).
+  Index: first 1,000 reads/day/IP free before any 402. Streams: one payment
+  opens a session (PAYMENT-SESSION voucher, up to 500 calls / 1h).
+- Paid writes: POST /v1/subgraphs ($2) deploys a subgraph owned by the paying
+  wallet (live indexing from deploy, 7-day TTL); POST /v1/subgraphs/{name}/renew
+  ($0.50) extends it a week. Claiming the account clears the expiry.
+- SDK: withX402(fetch, { account }) from @secondlayer/sdk auto-pays 402s and
+  replays session vouchers automatically.
 
 ## Auth model
 - Anonymous: rate-limited public reads (Index, public Subgraphs).

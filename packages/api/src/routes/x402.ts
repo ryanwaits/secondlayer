@@ -21,6 +21,15 @@ router.get("/supported", (c) =>
 		floorUsd: X402_MIN_FLOOR_USD,
 		paymentHeader: "PAYMENT-SIGNATURE",
 		receiptHeader: "PAYMENT-RESPONSE",
+		// Advisory metadata so agents can budget before calling.
+		freeQuota: { index: { limit: 1000, window: "1d", per: "ip" } },
+		sessions: {
+			streams: { header: "PAYMENT-SESSION", maxCalls: 500, ttlSeconds: 3600 },
+		},
+		paidWrites: {
+			"subgraph-deploy": "POST /v1/subgraphs",
+			"subgraph-renew": "POST /v1/subgraphs/{name}/renew",
+		},
 		docs: "https://secondlayer.tools/pricing#pay-per-call",
 	}),
 );
