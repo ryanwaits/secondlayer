@@ -16,7 +16,7 @@
  * What it creates:
  *   - Product "Secondlayer" (single product, per-tier prices attach here)
  *   - Tier prices: Launch $99/mo or $990/yr, Scale $299/mo or $2,990/yr
- *   - Meters: storage_gb_months, ai_evals (metered usage)
+ *   - Meters: ai_evals (metered usage)
  *   - Metered prices: storage overage ($2/GB-month), AI eval overage ($0.01/unit)
  *
  * Hobby is intentionally not in Stripe — free tier means no subscription.
@@ -100,11 +100,6 @@ interface MeterDef {
 }
 
 const METERS: MeterDef[] = [
-	{
-		eventName: "storage_gb_months",
-		displayName: "Storage GB-months",
-		aggregation: "sum",
-	},
 	{
 		eventName: "ai_evals",
 		displayName: "AI evaluations",
@@ -208,13 +203,6 @@ async function main() {
 	}
 
 	console.log("→ Upserting metered prices…");
-	const storagePrice = await upsertMeteredPrice(
-		product.id,
-		"secondlayer_storage_overage",
-		meters.storage_gb_months.id,
-		200, // $2.00/GB-month
-		"Storage overage",
-	);
 	const aiEvalPrice = await upsertMeteredPrice(
 		product.id,
 		"secondlayer_ai_eval_overage",
@@ -222,7 +210,6 @@ async function main() {
 		1, // $0.01/unit (1 unit = 1 input+output token)
 		"AI eval overage",
 	);
-	console.log(`  price(storage)=${storagePrice.id}`);
 	console.log(`  price(ai_eval)=${aiEvalPrice.id}`);
 
 	console.log("\n─── Paste into .env ───");
@@ -230,9 +217,7 @@ async function main() {
 	console.log(`STRIPE_PRICE_LAUNCH_YEARLY=${launchYearlyPrice.id}`);
 	console.log(`STRIPE_PRICE_SCALE=${scalePrice.id}`);
 	console.log(`STRIPE_PRICE_SCALE_YEARLY=${scaleYearlyPrice.id}`);
-	console.log(`STRIPE_METER_STORAGE=${meters.storage_gb_months.id}`);
 	console.log(`STRIPE_METER_AI_EVAL=${meters.ai_evals.id}`);
-	console.log(`STRIPE_PRICE_STORAGE_OVERAGE=${storagePrice.id}`);
 	console.log(`STRIPE_PRICE_AI_EVAL_OVERAGE=${aiEvalPrice.id}`);
 }
 

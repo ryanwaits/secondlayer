@@ -1,10 +1,5 @@
 import { getDb } from "@secondlayer/shared/db";
 import { getCaps } from "@secondlayer/platform/db/queries/account-spend-caps";
-import {
-	getComputeUsage,
-	getProjectBreakdown,
-	getStorageUsage,
-} from "@secondlayer/platform/account-usage";
 import { getProductUsage } from "@secondlayer/platform/db/queries/usage";
 import {
 	getAccountById,
@@ -15,11 +10,13 @@ import { AuthenticationError } from "@secondlayer/shared/errors";
 import {
 	getBasePriceCents,
 	getPlanDisplayName,
-	hasStorageOverage,
 } from "@secondlayer/platform/pricing";
 import { UpdateProfileRequestSchema } from "@secondlayer/platform/schemas/accounts";
 import { type Context, Hono } from "hono";
+import { accountPlanToProductTier } from "../auth/product-token-store.ts";
+import { INDEX_TIER_CONFIG } from "../index/tiers.ts";
 import { emitMeterEvent } from "../lib/stripe-meter.ts";
+import { STREAMS_TIER_CONFIG } from "../streams/tiers.ts";
 
 const app = new Hono();
 
@@ -49,7 +46,11 @@ app.get("/me", async (c) => {
 	});
 });
 
-// ── /usage — compute/storage usage model ─────────────────────────
+// ── /usage — plan + spend model ──────────────────────────────────
+//
+// Per-tenant compute/storage rollups died with dedicated provisioning
+// (the tenants table is dormant); usage that exists today is plan price
+// plus the monthly spend cap. Product read counts live on /usage/products.
 
 app.get("/usage", async (c) => {
 	const accountId = requireAccountId(c);
@@ -76,26 +77,10 @@ app.get("/usage", async (c) => {
 
 	const plan = account.plan;
 
-	const [compute, storage, projects, caps] = await Promise.all([
-		getComputeUsage(db, accountId, plan, periodStart, now),
-		getStorageUsage(db, accountId, plan, now),
-		getProjectBreakdown(db, accountId, plan, periodStart, now),
-		getCaps(db, accountId),
-	]);
+	const caps = await getCaps(db, accountId);
 
-	// Crude spend approximation — matches what Stripe metering will bill.
-	// Compute is hard-capped by Docker, so no compute overage. Storage
-	// overage is $2/GB (200¢/GB). Hobby has hard caps so overage is 0.
-	const storageOverageBytes = Math.max(
-		0,
-		storage.usedBytes - storage.allowanceBytes,
-	);
-	const bytesPerGb = 1024 ** 3;
-	const storageOverageCents = hasStorageOverage(plan)
-		? Math.round((storageOverageBytes / bytesPerGb) * 200)
-		: 0;
 	const basePriceCents = getBasePriceCents(plan);
-	const currentCents = basePriceCents + storageOverageCents;
+	const currentCents = basePriceCents;
 
 	// Project EOM spend. Clamp day 1-2 (tiny denominator → false positives).
 	const projectedCents =
@@ -134,51 +119,13 @@ app.get("/usage", async (c) => {
 			thresholdHit,
 			frozen,
 		},
-		compute,
-		storage,
-		projects,
 	});
 });
 
 // ── /usage/products — Streams + Index event counts ───────────────
-
-const STREAMS_TIER_LIMITS: Record<
-	"free" | "build" | "scale" | "enterprise",
-	{ rateLimitPerSecond: number | null; retentionDays: number | null }
-> = {
-	free: { rateLimitPerSecond: 10, retentionDays: 7 },
-	build: { rateLimitPerSecond: 50, retentionDays: 30 },
-	scale: { rateLimitPerSecond: 250, retentionDays: 90 },
-	enterprise: { rateLimitPerSecond: null, retentionDays: null },
-};
-
-const INDEX_TIER_LIMITS: Record<
-	"free" | "build" | "scale" | "enterprise",
-	{ rateLimitPerSecond: number | null }
-> = {
-	free: { rateLimitPerSecond: 0 },
-	build: { rateLimitPerSecond: 50 },
-	scale: { rateLimitPerSecond: 250 },
-	enterprise: { rateLimitPerSecond: null },
-};
-
-function planToTier(
-	plan: string,
-): "free" | "build" | "scale" | "enterprise" {
-	switch (plan.toLowerCase()) {
-		case "enterprise":
-			return "enterprise";
-		case "scale":
-			return "scale";
-		case "build":
-		case "launch":
-		case "pro":
-		case "builder":
-			return "build";
-		default:
-			return "free";
-	}
-}
+//
+// Tier limits are read from the enforcing configs so this display
+// surface can never drift from what the rate limiter actually does.
 
 app.get("/usage/products", async (c) => {
 	const accountId = requireAccountId(c);
@@ -186,20 +133,20 @@ app.get("/usage/products", async (c) => {
 	const account = await getAccountById(db, accountId);
 	if (!account) throw new AuthenticationError("Account not found");
 
-	const tier = planToTier(account.plan);
+	const tier = accountPlanToProductTier(account.plan);
 	const usage = await getProductUsage(db, accountId);
 
 	return c.json({
 		streams: {
 			tier,
-			rateLimitPerSecond: STREAMS_TIER_LIMITS[tier].rateLimitPerSecond,
-			retentionDays: STREAMS_TIER_LIMITS[tier].retentionDays,
+			rateLimitPerSecond: STREAMS_TIER_CONFIG[tier].rateLimitPerSecond,
+			retentionDays: STREAMS_TIER_CONFIG[tier].retentionDays,
 			eventsToday: usage.streamsEventsToday,
 			eventsThisMonth: usage.streamsEventsThisMonth,
 		},
 		index: {
 			tier,
-			rateLimitPerSecond: INDEX_TIER_LIMITS[tier].rateLimitPerSecond,
+			rateLimitPerSecond: INDEX_TIER_CONFIG[tier].rateLimitPerSecond,
 			decodedEventsToday: usage.indexDecodedEventsToday,
 			decodedEventsThisMonth: usage.indexDecodedEventsThisMonth,
 		},
@@ -248,7 +195,7 @@ app.patch("/me", async (c) => {
 // (Hobby tenants who never upgraded — they accrue zero charges, the
 // meter call is a no-op).
 
-const ALLOWED_METER_EVENTS = new Set(["ai_evals", "storage_gb_months"]);
+const ALLOWED_METER_EVENTS = new Set(["ai_evals"]);
 
 // Per-call ceiling on metered values. Defensive — even though the caller
 // can only inflate their *own* bill, capping protects against bugs in
@@ -256,9 +203,9 @@ const ALLOWED_METER_EVENTS = new Set(["ai_evals", "storage_gb_months"]);
 // reachable to any authenticated session; the chat/title routes are the
 // only intended callers but the surface is open).
 //
-// Units after `aiEvalUnits` conversion: 1 unit = 1k tokens for `ai_evals`,
-// 1 unit = 1 GB-month for storage. 50,000 units is 50M tokens or 25,000
-// GB-months in a single emission — well above any legitimate single call.
+// Units after `aiEvalUnits` conversion: 1 unit = 1k tokens for `ai_evals`.
+// 50,000 units is 50M tokens in a single emission — well above any
+// legitimate single call.
 const METER_VALUE_MAX = 50_000;
 
 app.post("/me/meter", async (c) => {
@@ -283,11 +230,7 @@ app.post("/me/meter", async (c) => {
 			400,
 		);
 	}
-	await emitMeterEvent(
-		accountId,
-		body.eventName as "ai_evals" | "storage_gb_months",
-		body.value,
-	);
+	await emitMeterEvent(accountId, body.eventName as "ai_evals", body.value);
 	return c.body(null, 204);
 });
 

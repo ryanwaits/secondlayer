@@ -1,16 +1,10 @@
-import { AxisCard } from "@/components/console/axis-card";
 import {
 	OverviewTopbar,
 	SettingsCrumb,
 } from "@/components/console/overview-topbar";
-import { ProjectUsageTable } from "@/components/console/project-usage-table";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
-import {
-	type UsageResponse,
-	formatBytes,
-	formatHours,
-	formatNum,
-} from "@/lib/usage";
+import { type UsageResponse, formatNum } from "@/lib/usage";
+import Link from "next/link";
 
 type ProductUsageResponse = {
 	streams: {
@@ -65,7 +59,7 @@ export default async function ResourcesPage() {
 		);
 	}
 
-	const { period, compute, storage, projects } = usage;
+	const { period, plan } = usage;
 	const periodLabel = formatPeriod(period.startIso, period.endIso);
 
 	return (
@@ -89,36 +83,7 @@ export default async function ResourcesPage() {
 						</span>
 					</p>
 
-					<div className="axis-grid">
-						<AxisCard
-							label="Compute"
-							value={formatHours(compute.usedHours)}
-							unit="h"
-							of="unmetered"
-							pct={compute.pct}
-							sparkData={compute.sparkline}
-							color="accent"
-							hidePct
-						/>
-						<AxisCard
-							label="Storage"
-							value={formatBytes(storage.usedBytes)}
-							of="unmetered"
-							pct={storage.pct}
-							sparkData={storage.sparkline}
-							color="accent"
-							hidePct
-						/>
-					</div>
-
 					{productUsage && <ProductUsageSection usage={productUsage} />}
-
-					<div className="settings-section">
-						<div className="settings-section-title">
-							Projects ({projects.length})
-						</div>
-						<ProjectUsageTable projects={projects} />
-					</div>
 
 					<div className="settings-divider" />
 
@@ -127,12 +92,13 @@ export default async function ResourcesPage() {
 						<div className="plan-card">
 							<div>
 								<div className="plan-card-name">
-									Open beta <span className="tier-badge">free</span>
+									{plan.name} <span className="tier-badge">{plan.tier}</span>
 								</div>
 								<div className="plan-card-sub">
-									Everything is free while Secondlayer is in beta — no limits,
-									no charges. Paid plans with higher dedicated resources are
-									coming later.
+									{plan.basePriceUsd > 0
+										? `$${plan.basePriceUsd}/mo · manage on the billing page.`
+										: "Free during open beta — nothing is charged today."}{" "}
+									<Link href="/platform/billing">Billing →</Link>
 								</div>
 							</div>
 						</div>
@@ -160,8 +126,7 @@ function ProductUsageSection({ usage }: { usage: ProductUsageResponse }) {
 			>
 				<div className="plan-card" style={{ display: "block", padding: 14 }}>
 					<div className="plan-card-name">
-						Stacks Streams{" "}
-						<span className="tier-badge">{usage.streams.tier}</span>
+						Streams <span className="tier-badge">{usage.streams.tier}</span>
 					</div>
 					<div
 						className="plan-card-sub"
@@ -188,7 +153,7 @@ function ProductUsageSection({ usage }: { usage: ProductUsageResponse }) {
 				</div>
 				<div className="plan-card" style={{ display: "block", padding: 14 }}>
 					<div className="plan-card-name">
-						Stacks Index <span className="tier-badge">{usage.index.tier}</span>
+						Index <span className="tier-badge">{usage.index.tier}</span>
 					</div>
 					<div
 						className="plan-card-sub"
@@ -197,9 +162,7 @@ function ProductUsageSection({ usage }: { usage: ProductUsageResponse }) {
 						<div>
 							{indexRate === null
 								? "Unlimited req/s"
-								: indexRate === 0
-									? "API access requires Build+"
-									: `${formatNum(indexRate)} req/s`}
+								: `${formatNum(indexRate)} req/s`}
 						</div>
 						<div>
 							<strong>{formatNum(usage.index.decodedEventsToday)}</strong>{" "}

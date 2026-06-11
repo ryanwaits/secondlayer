@@ -9,19 +9,17 @@ import { getStripeOrNull } from "./stripe.ts";
  * by `packages/api/scripts/stripe-setup.ts`.
  *
  * Unit semantics:
- *   - `ai_evals`         → 1 unit = 1,000 tokens (input + output combined).
- *                          Stripe price is $0.01/unit ⇒ $0.01 per 1k tokens.
- *                          Anthropic Sonnet blended rate is ~$0.009/1k, so
- *                          we bill near-cost with a small buffer.
- *   - `storage_gb_months`→ 1 unit = 1 GB-month over plan allowance, $2/unit.
+ *   - `ai_evals` → 1 unit = 1,000 tokens (input + output combined).
+ *                  Stripe price is $0.01/unit ⇒ $0.01 per 1k tokens.
+ *                  Anthropic Sonnet blended rate is ~$0.009/1k, so
+ *                  we bill near-cost with a small buffer.
  */
-export type MeterEventName = "ai_evals" | "storage_gb_months";
+export type MeterEventName = "ai_evals";
 
 /**
  * Per-call ceiling on values we'll emit. Even a single 200k-token Sonnet
- * call is 200 units; 50k units is 50M tokens or 25,000 GB-months — well
- * above any legitimate single emission. Anything bigger is almost
- * certainly an upstream bug.
+ * call is 200 units; 50k units is 50M tokens — well above any legitimate
+ * single emission. Anything bigger is almost certainly an upstream bug.
  */
 const PER_CALL_MAX_UNITS = 50_000;
 

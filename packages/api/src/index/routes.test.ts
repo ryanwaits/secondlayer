@@ -8,6 +8,10 @@ import type { StreamsTokenStore } from "../streams/auth.ts";
 import { STREAMS_READ_SCOPE } from "../streams/auth.ts";
 import type { StreamsTip } from "../streams/tip.ts";
 import { INDEX_READ_SCOPE, type IndexTokenStore } from "./auth.ts";
+import {
+	INDEX_ANON_RATE_LIMIT_PER_SECOND,
+	INDEX_TIER_CONFIG,
+} from "./tiers.ts";
 import type { FtTransfersReader } from "./ft-transfers.ts";
 import type { NftTransfersReader } from "./nft-transfers.ts";
 import type { IndexTip } from "./tip.ts";
@@ -131,14 +135,20 @@ describe("Stacks Index gateway middleware", () => {
 		expect(res.status).toBe(200);
 	});
 
-	test("free tier is rejected for Index", async () => {
+	test("free-tier key reads Index at the free rate limit", async () => {
 		const res = await createApp().request("/v1/index/ft-transfers", {
 			headers: authHeaders(FREE_KEY),
 		});
-		expect(res.status).toBe(403);
-		const body = (await res.json()) as { code: string; error: string };
-		expect(body.code).toBe("AUTHORIZATION_ERROR");
-		expect(body.error).toContain("free tier");
+		expect(res.status).toBe(200);
+	});
+
+	test("tier ladder: paid is never slower than anonymous", () => {
+		expect(
+			INDEX_TIER_CONFIG.free.rateLimitPerSecond ?? Infinity,
+		).toBeGreaterThanOrEqual(INDEX_ANON_RATE_LIMIT_PER_SECOND);
+		expect(INDEX_TIER_CONFIG.build.rateLimitPerSecond).toBe(250);
+		expect(INDEX_TIER_CONFIG.scale.rateLimitPerSecond).toBe(500);
+		expect(INDEX_TIER_CONFIG.enterprise.rateLimitPerSecond).toBeNull();
 	});
 
 	test("wrong scope is rejected", async () => {
@@ -160,9 +170,9 @@ describe("Stacks Index gateway middleware", () => {
 		expect(body.reorgs).toEqual([]);
 	});
 
-	test("build tier gets 50 req/s on Index", async () => {
+	test("build tier gets 250 req/s on Index", async () => {
 		const app = createApp();
-		for (let i = 0; i < 50; i++) {
+		for (let i = 0; i < 250; i++) {
 			const res = await app.request("/v1/index/ft-transfers", {
 				headers: authHeaders(BUILD_KEY),
 			});
@@ -173,7 +183,7 @@ describe("Stacks Index gateway middleware", () => {
 			headers: authHeaders(BUILD_KEY),
 		});
 		expect(res.status).toBe(429);
-		expect(res.headers.get("X-RateLimit-Limit")).toBe("50");
+		expect(res.headers.get("X-RateLimit-Limit")).toBe("250");
 	});
 
 	test("Index bucket is separate from Streams bucket", async () => {

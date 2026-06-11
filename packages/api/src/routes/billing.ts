@@ -26,7 +26,6 @@ import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { getAccountId } from "../lib/ownership.ts";
 import { getStripeOrNull } from "../lib/stripe.ts";
-import { syncTenantToPaidPlan } from "../lib/tenant-plan-sync.ts";
 import {
 	type BillingInterval,
 	UPGRADEABLE_TIERS,
@@ -179,21 +178,7 @@ app.post("/resolve", async (c) => {
 				to: tier,
 			});
 		}
-		const tenantSync = await syncTenantToPaidPlan({
-			accountId: account.id,
-			targetPlan: tier,
-			actor: `account:${account.id}`,
-			reason: "billing_resolve",
-		}).catch((err) => {
-			logger.error("billing.resolve.tenant_sync_failed", {
-				accountId: account.id,
-				tier,
-				error: err instanceof Error ? err.message : String(err),
-			});
-			return { status: "noop" as const, reason: "tenant_sync_failed" };
-		});
-
-		return c.json({ plan: tier, resolved: true, tenantSync });
+		return c.json({ plan: tier, resolved: true });
 	} catch (err) {
 		logger.warn("billing.resolve.stripe_failed", {
 			accountId: account.id,
@@ -320,8 +305,6 @@ app.get("/caps", async (c) => {
 	const caps = await getCaps(getDb(), accountId);
 	return c.json({
 		monthlyCapCents: caps?.monthly_cap_cents ?? null,
-		computeCapCents: caps?.compute_cap_cents ?? null,
-		storageCapCents: caps?.storage_cap_cents ?? null,
 		alertThresholdPct: caps?.alert_threshold_pct ?? 80,
 		frozenAt: caps?.frozen_at ?? null,
 		alertSentAt: caps?.alert_sent_at ?? null,
@@ -336,8 +319,6 @@ app.patch("/caps", async (c) => {
 		throw new InvalidJSONError();
 	})) as {
 		monthlyCapCents?: number | null;
-		computeCapCents?: number | null;
-		storageCapCents?: number | null;
 		alertThresholdPct?: number;
 	};
 
@@ -346,10 +327,6 @@ app.patch("/caps", async (c) => {
 	const patch: Parameters<typeof upsertCaps>[2] = {};
 	if (body.monthlyCapCents !== undefined)
 		patch.monthly_cap_cents = body.monthlyCapCents;
-	if (body.computeCapCents !== undefined)
-		patch.compute_cap_cents = body.computeCapCents;
-	if (body.storageCapCents !== undefined)
-		patch.storage_cap_cents = body.storageCapCents;
 	if (body.alertThresholdPct !== undefined) {
 		if (body.alertThresholdPct < 1 || body.alertThresholdPct > 100) {
 			return c.json(
@@ -377,8 +354,6 @@ app.patch("/caps", async (c) => {
 	const updated = await upsertCaps(getDb(), accountId, patch);
 	return c.json({
 		monthlyCapCents: updated.monthly_cap_cents,
-		computeCapCents: updated.compute_cap_cents,
-		storageCapCents: updated.storage_cap_cents,
 		alertThresholdPct: updated.alert_threshold_pct,
 		frozenAt: updated.frozen_at,
 		alertSentAt: updated.alert_sent_at,

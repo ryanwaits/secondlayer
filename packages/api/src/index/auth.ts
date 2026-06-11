@@ -134,12 +134,8 @@ export function indexBearerAuth(opts?: {
 			throw new AuthorizationError(`Missing required scope: ${requiredScope}`);
 		}
 
-		if (tenant.tier === "free") {
-			throw new AuthorizationError(
-				"free tier can evaluate Stacks Index in docs only. Use Build or higher for API access",
-			);
-		}
-
+		// Free keyed reads are allowed at the free-tier rate limit — a minted
+		// key must never be slower than anonymous access.
 		c.set("indexTenant", tenant);
 		await next();
 	};

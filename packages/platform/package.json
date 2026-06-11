@@ -8,10 +8,6 @@
 			"types": "./dist/pricing.d.ts",
 			"import": "./dist/pricing.js"
 		},
-		"./account-usage": {
-			"types": "./dist/account-usage.d.ts",
-			"import": "./dist/account-usage.js"
-		},
 		"./db/queries/accounts": {
 			"types": "./dist/db/queries/accounts.d.ts",
 			"import": "./dist/db/queries/accounts.js"

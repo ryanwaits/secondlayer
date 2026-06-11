@@ -33,8 +33,8 @@ export const STREAMS_ANON_RATE_LIMIT_PER_SECOND = 50;
 
 export const STREAMS_TIER_CONFIG: Record<StreamsTier, StreamsTierConfig> = {
 	free: { rateLimitPerSecond: 10, retentionDays: 7 },
-	build: { rateLimitPerSecond: 50, retentionDays: 30 },
-	scale: { rateLimitPerSecond: 250, retentionDays: 90 },
+	build: { rateLimitPerSecond: 250, retentionDays: 30 },
+	scale: { rateLimitPerSecond: 500, retentionDays: 90 },
 	enterprise: { rateLimitPerSecond: null, retentionDays: null },
 };
 

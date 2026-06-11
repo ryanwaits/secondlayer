@@ -1,10 +1,7 @@
 import { getEnv, logger } from "@secondlayer/shared";
 import { assertDbSplit } from "@secondlayer/shared/db";
-import { startComputeMeteringCron } from "./jobs/compute-metering.ts";
 import { startGhostSweepCron } from "./jobs/ghost-sweep.ts";
-import { startStorageMeasurement } from "./jobs/measure-storage.ts";
 import { startSpendCapAlertCron } from "./jobs/spend-cap-alert.ts";
-import { startStorageMeteringCron } from "./jobs/storage-metering.ts";
 import { startSubgraphExpirySweepCron } from "./jobs/subgraph-expiry-sweep.ts";
 import { startX402ReconcileCron } from "./jobs/x402-reconcile.ts";
 
@@ -16,9 +13,6 @@ async function runWorker() {
 	logger.info("Starting worker", { networks: env.enabledNetworks });
 
 	const stops = [
-		startStorageMeasurement(),
-		startComputeMeteringCron(),
-		startStorageMeteringCron(),
 		startSpendCapAlertCron(),
 		startX402ReconcileCron(),
 		startGhostSweepCron(),

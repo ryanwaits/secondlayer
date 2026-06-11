@@ -9,6 +9,7 @@ import type { StreamsEventsReader } from "./events.ts";
 import {
 	STREAMS_BLOCKS_PER_DAY,
 	STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS,
+	STREAMS_TIER_CONFIG,
 } from "./tiers.ts";
 import type { StreamsTip } from "./tip.ts";
 
@@ -137,15 +138,21 @@ describe("Stacks Streams gateway middleware", () => {
 		expect(res.headers.get("X-RateLimit-Limit")).toBe("10");
 	});
 
-	test("Build-tier key passes through at 50 req/s", async () => {
+	test("Build-tier key passes through at 250 req/s", async () => {
 		const app = createApp();
 
-		for (let i = 0; i < 50; i++) {
+		for (let i = 0; i < 250; i++) {
 			const res = await app.request("/v1/streams/events", {
 				headers: authHeaders(BUILD_KEY),
 			});
 			expect(res.status).toBe(200);
 		}
+	});
+
+	test("tier ladder values are the published offer", () => {
+		expect(STREAMS_TIER_CONFIG.build.rateLimitPerSecond).toBe(250);
+		expect(STREAMS_TIER_CONFIG.scale.rateLimitPerSecond).toBe(500);
+		expect(STREAMS_TIER_CONFIG.enterprise.rateLimitPerSecond).toBeNull();
 	});
 
 	test("finalized closed range is cacheable as immutable", async () => {
