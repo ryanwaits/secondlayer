@@ -10,7 +10,8 @@ import { defineSubgraph } from "@secondlayer/subgraphs";
  *   GET /v1/subgraphs/alex-balances/balances/aggregate?_sum=balance&_count=true
  */
 
-const ASSET = "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.age000-governance-token::alex";
+const ASSET =
+	"SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.age000-governance-token::alex";
 
 type BalanceRow = { balance?: string | number | bigint };
 
