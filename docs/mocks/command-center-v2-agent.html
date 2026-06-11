@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Command center v2 — inline agent states</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@520;560&family=Public+Sans:wght@400;460;560&family=Fira+Code:wght@400;560&family=Caveat:wght@600&display=swap" rel="stylesheet" />
+<style>
+:root { --bg:#fafafa; --elev:#fff; --chrome:#f1f1f0; --ink:#111210; --muted:#6f7066; --dim:#a3a49b;
+  --border:#e4e4df; --accent:#2563eb; --accent-bg:#eff4ff; --accent-border:#c7d8fd;
+  --green:#147d42; --green-bg:#e9f6ee; --yellow:#a16207; --yellow-bg:#fdf6e3; --red:#b91c1c; --red-bg:#fdecec; --pink:#ff00aa;
+  --display:"Sora",sans-serif; --sans:"Public Sans",sans-serif; --mono:"Fira Code",monospace; }
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5;min-height:100vh}
+.stage{position:fixed;inset:0;padding:2rem 2.5rem;filter:saturate(.92)}
+.stage .bar{height:40px;border-bottom:1px solid var(--border)}
+.stage .blocks{display:grid;grid-template-columns:200px 1fr 280px;gap:2rem;margin-top:2rem}
+.stage .b{background:var(--chrome);border-radius:6px;opacity:.7}
+.scrim{position:fixed;inset:0;background:rgba(17,18,16,.22)}
+
+.pal{position:fixed;left:50%;top:12vh;transform:translateX(-50%);width:min(640px,calc(100vw - 2rem));
+  background:rgba(255,255,255,.92);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:12px;
+  box-shadow:0 18px 44px rgba(0,0,0,.14), 0 2px 8px rgba(0,0,0,.08);overflow:hidden}
+.pal-in{display:flex;align-items:center;gap:12px;padding:1rem 1.15rem}
+.pal-in svg{flex:none;color:var(--dim)}
+.pal-in .q{font-size:15px;font-weight:460;white-space:pre}
+.pal-in .caret{display:inline-block;width:1.5px;height:18px;background:var(--accent);vertical-align:-3px;animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.pal-in .scope{margin-left:auto;font-family:var(--mono);font-size:.62rem;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--muted);background:var(--chrome);border:1px solid var(--border);border-radius:999px;padding:3px 9px;white-space:nowrap}
+.pal-body{border-top:1px solid var(--border);max-height:58vh;overflow:auto;padding-bottom:.35rem}
+.grp{font-family:var(--mono);font-size:.625rem;font-weight:560;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:.85rem 1.15rem .35rem}
+.row{display:flex;align-items:center;gap:11px;padding:.52rem 1.15rem;cursor:pointer;font-size:.875rem}
+.row:hover{background:rgba(0,0,0,.025)}
+.row.sel{background:var(--accent-bg)}
+.row.sel .k{color:var(--accent)}
+.row svg{flex:none;color:var(--muted)}
+.row.sel svg{color:var(--accent)}
+.row .k{font-weight:460}
+.row .k b{font-weight:560}
+.row .sub{font-family:var(--mono);font-size:.66rem;color:var(--dim);margin-left:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .meta{margin-left:auto;display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:.66rem;color:var(--muted);white-space:nowrap}
+.kbd{font-family:var(--mono);font-size:.6rem;color:var(--muted);background:var(--chrome);border:1px solid var(--border);border-radius:4px;padding:1px 5px}
+.badge{font-size:.6rem;font-weight:560;letter-spacing:.04em;text-transform:uppercase;border-radius:3px;padding:1px 5px;font-family:var(--mono)}
+.badge.dead{color:var(--red);background:var(--red-bg)}
+.badge.live{color:var(--green);background:var(--green-bg)}
+.pal-foot{display:flex;align-items:center;gap:14px;border-top:1px solid var(--border);padding:.55rem 1.15rem;font-family:var(--mono);font-size:.62rem;color:var(--dim)}
+.pal-foot b{color:var(--muted);font-weight:560}
+.pal-foot .r{margin-left:auto}
+
+/* ── the agent cell: One-Cell rule — query strip shaded, result lifted ── */
+.cell{margin:.75rem 1.15rem 1rem;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.cell-q{display:flex;align-items:center;gap:9px;background:var(--chrome);padding:.6rem .9rem;border-bottom:1px dashed var(--border)}
+.cell-q .lbl{font-family:var(--mono);font-size:.6rem;font-weight:560;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.cell-q .qq{font-size:.84rem;font-weight:460}
+.trace{padding:.55rem .9rem;border-bottom:1px dashed var(--border);font-family:var(--mono);font-size:.66rem;color:var(--muted);display:grid;gap:5px}
+.trace .t{display:flex;gap:8px;align-items:center}
+.trace .ok{color:var(--green)}
+.trace .run{color:var(--accent);animation:blink 1.2s steps(1) infinite}
+.trace .ms{margin-left:auto;color:var(--dim);font-variant-numeric:tabular-nums}
+.cell-a{background:var(--elev);padding:.8rem .9rem}
+.cell-a .ans{font-size:.875rem;max-width:60ch}
+.cell-a .ans b{font-weight:560}
+.acts{margin-top:.7rem;display:grid;gap:6px}
+.act{display:flex;align-items:center;gap:10px;border:1px solid var(--border);border-radius:6px;padding:.5rem .7rem;font-size:.84rem;cursor:pointer}
+.act:hover{border-color:var(--muted)}
+.act.sel{background:var(--accent-bg);border-color:var(--accent-border)}
+.act .sub{font-family:var(--mono);font-size:.64rem;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.act .go{margin-left:auto;font-family:var(--mono);font-size:.62rem;font-weight:560;color:var(--accent);background:#2563eb0f;border:1px solid var(--accent-border);border-radius:5px;padding:2px 9px;white-space:nowrap}
+.act.danger .go{color:var(--red);background:var(--red-bg);border-color:#f3c2c2}
+.skel{height:10px;border-radius:3px;background:linear-gradient(90deg,var(--chrome) 25%,#e9e9e7 50%,var(--chrome) 75%);background-size:200% 100%;animation:sh 1.2s linear infinite}
+@keyframes sh{to{background-position:-200% 0}}
+
+.anno{position:fixed;left:50%;top:calc(12vh - 2.3rem);transform:translateX(110px) rotate(-2deg);font-family:"Caveat",cursive;font-size:1.2rem;color:var(--pink);white-space:nowrap}
+main{display:none} main.on{display:block}
+.switch{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:60;display:flex;gap:4px;background:var(--ink);border-radius:999px;padding:4px}
+.switch button{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:#c9cac1;background:none;border:none;border-radius:999px;padding:7px 14px;cursor:pointer}
+.switch button.on{background:#fff;color:var(--ink)}
+</style></head><body>
+
+<div class="stage" aria-hidden="true"><div class="bar"></div><div class="blocks">
+  <div><div class="b" style="height:280px"></div></div>
+  <div><div class="b" style="height:120px;margin-bottom:1.5rem"></div><div class="b" style="height:220px"></div></div>
+  <div><div class="b" style="height:160px"></div></div>
+</div></div>
+<div class="scrim"></div>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <g id="i-search"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></g>
+  <g id="i-spark"><path d="M8 2l1.2 3.8L13 7l-3.8 1.2L8 12l-1.2-3.8L3 7l3.8-1.2z"/></g>
+  <g id="i-hook"><path d="M8 2v6m0 0l3-3M8 8L5 5"/><path d="M2 11c2 3 10 3 12 0"/></g>
+  <g id="i-copy"><rect x="5" y="5" width="8" height="8" rx="1.5"/><path d="M3 10V4a1 1 0 0 1 1-1h6"/></g>
+  <g id="i-doc"><path d="M4 2h6l3 3v9H4z"/><path d="M10 2v3h3"/></g>
+  <g id="i-pause"><rect x="4" y="3" width="3" height="10" rx="1"/><rect x="9" y="3" width="3" height="10" rx="1"/></g>
+  <g id="i-trash"><path d="M3 4.5h10M6 4.5V3h4v1.5M5 4.5l.7 8.5h4.6l.7-8.5"/></g>
+</defs></svg>
+
+<!-- ════ 1 · NO MATCH → the agent escape hatch ════ -->
+<main id="s-escape" class="on">
+  <div class="anno">nothing matched? ask becomes the floor, not a dead end</div>
+  <div class="pal" role="dialog">
+    <div class="pal-in">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-search"/></svg>
+      <span class="q">which of my webhooks are failing<span class="caret"></span></span>
+      <span class="scope">all</span>
+    </div>
+    <div class="pal-body">
+      <div class="grp">no matches · ask instead</div>
+      <div class="row sel"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-spark"/></svg><span class="k">Ask: <b>“which of my webhooks are failing”</b></span><span class="meta"><span class="kbd">↵</span> one-shot · ~1¢</span></div>
+      <div class="grp">or</div>
+      <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-doc"/></svg><span class="k">Search docs for “webhooks failing”</span><span class="meta"><span class="kbd">⌘↵</span></span></div>
+      <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-copy"/></svg><span class="k">Copy as prompt for your own agent</span><span class="sub">includes MCP setup if not connected</span><span class="meta"><span class="kbd">↵ copy</span></span></div>
+    </div>
+    <div class="pal-foot"><span><b>↵</b> ask</span><span><b>esc</b> close</span><span class="r">0 matches · agent reads only, every write asks first</span></div>
+  </div>
+</main>
+
+<!-- ════ 2 · RUNNING (tool trace, visible work) ════ -->
+<main id="s-running">
+  <div class="pal" role="dialog">
+    <div class="pal-in">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-spark"/></svg>
+      <span class="q" style="color:var(--muted)">which of my webhooks are failing</span>
+      <span class="scope" style="color:var(--accent);border-color:var(--accent-border)">asking</span>
+    </div>
+    <div class="pal-body">
+      <div class="cell">
+        <div class="cell-q"><span class="lbl">ask</span><span class="qq">which of my webhooks are failing</span></div>
+        <div class="trace">
+          <div class="t"><span class="ok">✓</span> GET /api/subscriptions <span class="ms">38ms · 4 subscriptions</span></div>
+          <div class="t"><span class="ok">✓</span> GET /api/subscriptions/whale-alerts/deliveries <span class="ms">61ms · 2 dead</span></div>
+          <div class="t"><span class="run">●</span> GET /api/subscriptions/mint-feed/deliveries <span class="ms">…</span></div>
+        </div>
+        <div class="cell-a">
+          <div class="skel" style="width:75%"></div>
+          <div class="skel" style="width:52%;margin-top:8px"></div>
+        </div>
+      </div>
+    </div>
+    <div class="pal-foot"><span><b>esc</b> cancel</span><span class="r">haiku · 0.9s · reads only so far</span></div>
+  </div>
+</main>
+
+<!-- ════ 3 · RESULT (generative UI: answer + runnable management + artifact) ════ -->
+<main id="s-result">
+  <div class="pal" role="dialog">
+    <div class="pal-in">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-spark"/></svg>
+      <span class="q" style="color:var(--muted)">which of my webhooks are failing</span>
+      <span class="scope">answered</span>
+    </div>
+    <div class="pal-body">
+      <div class="cell">
+        <div class="cell-q"><span class="lbl">ask</span><span class="qq">which of my webhooks are failing</span></div>
+        <div class="trace"><div class="t"><span class="ok">✓</span> 3 reads · subscriptions, deliveries ×2 <span class="ms">total 142ms</span></div></div>
+        <div class="cell-a">
+          <p class="ans"><b>whale-alerts</b> has 2 dead deliveries (your endpoint returned 530, last retry 14 min ago). <b>mint-feed</b> and 2 others are healthy.</p>
+          <div class="acts">
+            <div class="act sel"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-hook"/></svg><span>Requeue 2 dead deliveries</span><span class="sub">POST …/whale-alerts/requeue-dead</span><span class="go">↵ run</span></div>
+            <div class="act"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-pause"/></svg><span>Pause <b>whale-alerts</b> while you fix the endpoint</span><span class="sub">POST …/whale-alerts/pause</span><span class="go">run</span></div>
+            <div class="act"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-copy"/></svg><span>Copy prompt: debug this in your own agent</span><span class="sub">delivery log + endpoint, MCP setup included</span><span class="go">copy</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pal-foot"><span>every action runs the same API you'd curl · nothing auto-executes</span><span class="r">haiku · $0.004 · 1.9s</span></div>
+  </div>
+</main>
+
+<!-- ════ 4 · DIRECT MANAGE (no LLM: fuzzy hits an existing resource verb) ════ -->
+<main id="s-manage">
+  <div class="pal" role="dialog">
+    <div class="pal-in">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-search"/></svg>
+      <span class="q">pause whale<span class="caret"></span></span>
+      <span class="scope">all</span>
+    </div>
+    <div class="pal-body">
+      <div class="grp">manage · your subscriptions</div>
+      <div class="row sel"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-pause"/></svg><span class="k"><b>Pause</b> whale-alerts</span><span class="sub">2 dead deliveries · last fired 14 min ago</span><span class="meta"><span class="badge dead">failing</span> <span class="kbd">↵ then confirm</span></span></div>
+      <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-pause"/></svg><span class="k"><b>Pause</b> mint-feed</span><span class="sub">healthy · 1,208 delivered this week</span><span class="meta"><span class="badge live">live</span></span></div>
+      <div class="grp">danger</div>
+      <div class="row"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><use href="#i-trash"/></svg><span class="k"><b>Delete</b> whale-alerts</span><span class="sub">type the name to confirm · delivery log kept 7d</span><span class="meta"><span class="kbd">↵</span></span></div>
+    </div>
+    <div class="pal-foot"><span>no llm involved: verb + resource matched directly</span><span class="r">3 results · 4ms</span></div>
+  </div>
+</main>
+
+<div class="switch">
+  <button data-t="s-escape" class="on">no match → ask</button>
+  <button data-t="s-running">running</button>
+  <button data-t="s-result">result</button>
+  <button data-t="s-manage">direct manage</button>
+</div>
+<script>
+document.querySelectorAll('.switch button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('main').forEach(m=>m.classList.remove('on'));
+  document.querySelectorAll('.switch button').forEach(x=>x.classList.remove('on'));
+  document.getElementById(b.dataset.t).classList.add('on'); b.classList.add('on');
+}));
+</script>
+</body></html>
