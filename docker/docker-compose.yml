@@ -25,7 +25,7 @@ services:
       # class) can never pass the floor check, so dependents refuse to start
       # against an empty "chain". CHAIN_MIN_BLOCK=0 (default) skips for fresh
       # local/OSS installs; prod pins a high floor in .env.
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-secondlayer} && { [ \"${CHAIN_MIN_BLOCK:-0}\" = \"0\" ] || psql -U ${POSTGRES_USER:-secondlayer} -d ${POSTGRES_DB:-secondlayer} -tAc \"SELECT 1 FROM blocks WHERE height >= ${CHAIN_MIN_BLOCK:-0} LIMIT 1\" | grep -q 1; }"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-secondlayer} -d ${POSTGRES_DB:-secondlayer} && { [ \"${CHAIN_MIN_BLOCK:-0}\" = \"0\" ] || psql -U ${POSTGRES_USER:-secondlayer} -d ${POSTGRES_DB:-secondlayer} -tAc \"SELECT 1 FROM blocks WHERE height >= ${CHAIN_MIN_BLOCK:-0} LIMIT 1\" | grep -q 1; }"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -49,7 +49,7 @@ services:
       - postgres_platform_data:/var/lib/postgresql/data
     healthcheck:
       # Same husk canary for the control plane: PLATFORM_MIN_ACCOUNTS=0 skips.
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-secondlayer} && { [ \"${PLATFORM_MIN_ACCOUNTS:-0}\" = \"0\" ] || psql -U ${POSTGRES_USER:-secondlayer} -d ${POSTGRES_PLATFORM_DB:-secondlayer_platform} -tAc \"SELECT 1 FROM accounts LIMIT 1\" | grep -q 1; }"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-secondlayer} -d ${POSTGRES_PLATFORM_DB:-secondlayer_platform} && { [ \"${PLATFORM_MIN_ACCOUNTS:-0}\" = \"0\" ] || psql -U ${POSTGRES_USER:-secondlayer} -d ${POSTGRES_PLATFORM_DB:-secondlayer_platform} -tAc \"SELECT 1 FROM accounts LIMIT 1\" | grep -q 1; }"]
       interval: 10s
       timeout: 5s
       retries: 5
