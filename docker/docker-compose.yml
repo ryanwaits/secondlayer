@@ -12,7 +12,10 @@ services:
       # and can surface a wrong/empty data dir. Use `docker exec` on the running
       # container (or direct psql) for one-off DB tasks. Backstop: the indexer's
       # startup guard + /public/status `chainIntegrity` alarm on an empty volume.
-      - postgres_data:/var/lib/postgresql/data
+      # Real prod data is a bind mount (same story as postgres-platform): a
+      # named volume here attached an empty runt and silently served 1,032
+      # blocks as "the chain". Never point this anywhere but the live dir.
+      - ${POSTGRES_DATA_DIR:-/opt/secondlayer/data/postgres}:/var/lib/postgresql/data
     ports:
       - "${POSTGRES_PORT:-127.0.0.1:5432}:5432"
     healthcheck:
@@ -422,4 +425,3 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
