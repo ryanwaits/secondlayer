@@ -15,6 +15,7 @@ describe.skipIf(SKIP)("subgraph expiry sweep", () => {
 		const db = getDb();
 		await registerSubgraph(db, {
 			name,
+			version: "1",
 			accountId: ACCOUNT,
 			schemaName: `sg_sweep_${name.replace(/-/g, "_")}`,
 			definition: { name, sources: {}, schema: {}, handlers: {} },
