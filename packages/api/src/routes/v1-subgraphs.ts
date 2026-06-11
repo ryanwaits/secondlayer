@@ -17,6 +17,9 @@ import {
 	handleTableStream,
 	querySubgraph,
 } from "../subgraphs/read-core.ts";
+import { resolveWalletAccount } from "../subgraphs/wallet-account.ts";
+import { isX402Enabled } from "../x402/facilitator.ts";
+import { x402PaymentRequired } from "../x402/middleware.ts";
 import {
 	InvalidColumnError,
 	buildWhereConditions,
@@ -31,6 +34,7 @@ import {
 	cache,
 	getChainTip,
 	readSpecOptions,
+	runSubgraphDeploy,
 } from "./subgraphs.ts";
 
 /**
@@ -52,6 +56,108 @@ type V1SubgraphsEnv = {
 };
 
 const app = new Hono<V1SubgraphsEnv>();
+
+// ── x402-paid writes (accountless agents) ───────────────────────────────
+//
+// POST /v1/subgraphs        — pay $2, deploy a subgraph you own by wallet.
+// POST /v1/subgraphs/:name/renew — pay $0.50, extend its expiry a week.
+//
+// Identity is the settled payer principal → one wallet-ghost account per
+// principal. Plan 'none' means the genesis clamp keeps these forward-only;
+// the 7-day TTL (renewable, cleared on claim) bounds abandoned tables.
+// Managed plane only — BYO needs a claimed account.
+
+export const PAID_DEPLOY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+type PaidDeps = {
+	x402DeployMiddleware?: ReturnType<typeof x402PaymentRequired>;
+	x402RenewMiddleware?: ReturnType<typeof x402PaymentRequired>;
+	deploy?: typeof runSubgraphDeploy;
+};
+
+export function registerPaidWriteRoutes(
+	router: Hono<V1SubgraphsEnv>,
+	deps: PaidDeps = {},
+) {
+	if (!deps.x402DeployMiddleware && !isX402Enabled()) {
+		const body = {
+			error:
+				"Paid deploys need the x402 rail, which is not enabled on this host. Claim an account to deploy with an API key.",
+			code: "PAYMENT_RAIL_UNAVAILABLE",
+		};
+		router.post("/", (c) => c.json(body, 503));
+		router.post("/:subgraphName/renew", (c) => c.json(body, 503));
+		return;
+	}
+
+	const deployMw =
+		deps.x402DeployMiddleware ??
+		x402PaymentRequired({ surface: "subgraph-deploy" });
+	const renewMw =
+		deps.x402RenewMiddleware ??
+		x402PaymentRequired({ surface: "subgraph-renew" });
+	const deploy = deps.deploy ?? runSubgraphDeploy;
+
+	router.post("/", deployMw, async (c) => {
+		const payer = c.get("x402Payer" as never) as string | undefined;
+		if (!payer) {
+			throw new AuthenticationError("Paid deploy requires a settled payment");
+		}
+		// Peek the body for BYO — paid deploys are managed-plane only.
+		const body = await c.req.raw
+			.clone()
+			.json()
+			.catch(() => ({}));
+		if (
+			body &&
+			typeof body === "object" &&
+			"databaseUrl" in body &&
+			body.databaseUrl
+		) {
+			throw new ValidationError(
+				"BYO databases need a claimed account — paid deploys run on the managed plane",
+			);
+		}
+		const account = await resolveWalletAccount(getDb(), payer);
+		return deploy(c, { accountId: account.id, paidTtlMs: PAID_DEPLOY_TTL_MS });
+	});
+
+	router.post("/:subgraphName/renew", renewMw, async (c) => {
+		const payer = c.get("x402Payer" as never) as string | undefined;
+		if (!payer) {
+			throw new AuthenticationError("Renewal requires a settled payment");
+		}
+		const db = getDb();
+		const account = await db
+			.selectFrom("accounts")
+			.select("id")
+			.where("wallet_principal", "=", payer)
+			.executeTakeFirst();
+		const name = c.req.param("subgraphName");
+		const row = account
+			? await db
+					.selectFrom("subgraphs")
+					.select(["name", "expires_at"])
+					.where("name", "=", name)
+					.where("account_id", "=", account.id)
+					.executeTakeFirst()
+			: undefined;
+		if (!account || !row) {
+			throw new SubgraphNotFoundError(name);
+		}
+		const base = row.expires_at
+			? Math.max(new Date(row.expires_at).getTime(), Date.now())
+			: Date.now();
+		const expiresAt = new Date(base + PAID_DEPLOY_TTL_MS);
+		const { updateSubgraphExpiry } = await import(
+			"@secondlayer/shared/db/queries/subgraphs"
+		);
+		await updateSubgraphExpiry(db, name, account.id, expiresAt);
+		return c.json({ name, expires_at: expiresAt.toISOString() });
+	});
+}
+
+registerPaidWriteRoutes(app);
 
 // ── Auth (optional bearer) ──────────────────────────────────────────────
 

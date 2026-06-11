@@ -290,3 +290,18 @@ export async function deleteSubgraph(
 
 	return subgraph;
 }
+
+/** Set or clear a paid subgraph's expiry (NULL = no expiry, e.g. on claim). */
+export async function updateSubgraphExpiry(
+	db: Kysely<Database>,
+	name: string,
+	accountId: string,
+	expiresAt: Date | null,
+): Promise<void> {
+	await db
+		.updateTable("subgraphs")
+		.set({ expires_at: expiresAt })
+		.where("name", "=", name)
+		.where("account_id", "=", accountId)
+		.execute();
+}

@@ -25,24 +25,26 @@ import {
 	getSubgraph,
 	listSubgraphs,
 	pgSchemaNameFor,
+	updateSubgraphExpiry,
 	updateSubgraphStatus,
 	updateSubgraphVisibility,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { isPlatformMode } from "@secondlayer/shared/mode";
-import {
-	clampDeployStartBlock,
-	resolveGenesisPolicy,
-} from "../subgraphs/plan-limits.ts";
 import {
 	DeploySubgraphRequestSchema,
 	type SubgraphDetail,
 } from "@secondlayer/shared/schemas/subgraphs";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { sql } from "kysely";
 import { getAccountId, getApiKeyId } from "../lib/ownership.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import { SubgraphRegistryCache } from "../subgraphs/cache.ts";
+import {
+	clampDeployStartBlock,
+	resolveGenesisPolicy,
+} from "../subgraphs/plan-limits.ts";
 import {
 	SubgraphNotFoundError,
 	handleRowById,
@@ -254,7 +256,17 @@ export function hasDeployStartBlockChanged(input: {
 	);
 }
 
-app.post("/", async (c) => {
+app.post("/", (c) => runSubgraphDeploy(c));
+
+/**
+ * Deploy handler, shared by the authed `/api/subgraphs` POST and the x402-paid
+ * `/v1/subgraphs` POST. `identity` overrides the request-resolved account for
+ * paid deploys (wallet-ghost owner) and `paidTtlMs` stamps `expires_at`.
+ */
+export async function runSubgraphDeploy(
+	c: Context,
+	identity?: { accountId: string; paidTtlMs?: number },
+): Promise<Response> {
 	const body = await c.req.json().catch(() => {
 		throw new InvalidJSONError();
 	});
@@ -324,8 +336,8 @@ app.post("/", async (c) => {
 		);
 	}
 
-	const apiKeyId = getApiKeyId(c);
-	const accountId = getAccountId(c);
+	const apiKeyId = identity ? undefined : getApiKeyId(c);
+	const accountId = identity?.accountId ?? getAccountId(c);
 
 	const schemaName = pgSchemaNameFor(accountId ?? "", name);
 
@@ -422,7 +434,9 @@ app.post("/", async (c) => {
 			genesisAllowed: false,
 			requested: def.startBlock,
 			existingStartBlock:
-				existing != null ? (toBlockNumber(existing.start_block) ?? 0) : undefined,
+				existing != null
+					? (toBlockNumber(existing.start_block) ?? 0)
+					: undefined,
 			chainTip,
 		});
 		startBlockClamped = clampRes.clamped;
@@ -494,6 +508,13 @@ app.post("/", async (c) => {
 		}
 	}
 
+	// Paid (wallet-ghost) deploys expire unless renewed or claimed.
+	let expiresAt: Date | undefined;
+	if (identity?.paidTtlMs) {
+		expiresAt = new Date(Date.now() + identity.paidTtlMs);
+		await updateSubgraphExpiry(db, name, accountId ?? "", expiresAt);
+	}
+
 	await cache.refresh();
 
 	// Auto-trigger initial population for new deploys and breaking schema changes.
@@ -540,6 +561,7 @@ app.post("/", async (c) => {
 			visibility: desiredVisibility ?? existing?.visibility ?? "private",
 			start_block: deployStartBlock,
 			...(startBlockClamped ? { start_block_clamped: true } : {}),
+			...(expiresAt ? { expires_at: expiresAt.toISOString() } : {}),
 			message: `Subgraph "${name}" ${result.action}`,
 			...(result.diff ? { diff: result.diff } : {}),
 			...(result.action === "created" || result.action === "reindexed"
@@ -548,7 +570,7 @@ app.post("/", async (c) => {
 		},
 		status,
 	);
-});
+}
 
 // ── Bundle (server-side esbuild for chat authoring loop) ─────────────────
 //
