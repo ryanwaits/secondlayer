@@ -1,5 +1,14 @@
 # @secondlayer/sdk
 
+## 6.21.1
+
+### Patch Changes
+
+- 2132e2e: Scrub remaining references to the removed Datasets surface from READMEs, templates, and code comments.
+- Updated dependencies [2132e2e]
+- Updated dependencies [7a9a0d2]
+  - @secondlayer/stacks@2.5.1
+
 ## 6.21.0
 
 ### Minor Changes

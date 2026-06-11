@@ -1,5 +1,20 @@
 # @secondlayer/api
 
+## 1.21.0
+
+### Minor Changes
+
+- 2132e2e: Pro plan enforced end-to-end: tier ladder free 100 / Pro 250 / Scale 500 req/s on Index and Streams; free keyed Index reads unblocked (a minted key is never slower than anonymous); private subgraphs and webhook-subscription quotas (3/25/unlimited) gate on plan with existing private rows grandfathered; plans sell rate-tier limits — per-tenant container vocabulary, dead compute/storage metering crons, and tenant-plan-sync removed; usage surfaces read tier limits from the enforcing configs; x402 marked experimental beta in the OpenAPI x-x402 block.
+
+### Patch Changes
+
+- Updated dependencies [2132e2e]
+- Updated dependencies [2132e2e]
+- Updated dependencies [7a9a0d2]
+  - @secondlayer/sdk@6.21.1
+  - @secondlayer/stacks@2.5.1
+  - @secondlayer/platform@0.1.0
+
 ## 1.20.1
 
 ### Patch Changes

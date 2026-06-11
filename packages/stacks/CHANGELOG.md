@@ -1,5 +1,12 @@
 # @secondlayer/stacks
 
+## 2.5.1
+
+### Patch Changes
+
+- 2132e2e: Scrub remaining references to the removed Datasets surface from READMEs, templates, and code comments.
+- 7a9a0d2: README marks the wallet half (connect, walletconnect, subscriptions, bns, pox, stackingdao) as frozen — shipped and working, no further investment, removal possible in a future major. The data-path modules (clarity, actions, transactions, utils) are unaffected.
+
 ## 2.5.0
 
 ### Minor Changes

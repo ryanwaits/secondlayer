@@ -1,5 +1,19 @@
 # @secondlayer/cli
 
+## 8.8.0
+
+### Minor Changes
+
+- 7a9a0d2: Freeze local-dev command groups (`sl local`, `sl devnet`): hidden from `sl --help` and every invocation now prints a one-line deprecation notice to stderr. Functionality unchanged; the hosted dev loop (`sl subgraphs create/deploy`) is the supported path.
+
+### Patch Changes
+
+- 2132e2e: Scrub remaining references to the removed Datasets surface from READMEs, templates, and code comments.
+- Updated dependencies [2132e2e]
+- Updated dependencies [7a9a0d2]
+  - @secondlayer/sdk@6.21.1
+  - @secondlayer/stacks@2.5.1
+
 ## 8.7.1
 
 ### Patch Changes
