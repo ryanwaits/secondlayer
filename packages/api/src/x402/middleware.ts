@@ -22,6 +22,11 @@ import {
 	type OptimisticGate,
 	getX402OptimisticGate,
 } from "./optimistic-gate.ts";
+import {
+	getSessionSecret,
+	mintSessionVoucher,
+	verifySessionVoucher,
+} from "./session.ts";
 import { spotUsd } from "./spot.ts";
 
 /**
@@ -72,6 +77,10 @@ export type X402MiddlewareOptions = {
 			windowMs: number,
 		): Promise<{ allowed: boolean }>;
 	};
+	/** Session pricing: one settled payment mints a `PAYMENT-SESSION` voucher
+	 *  good for `maxCalls` further requests within `ttlMs` — the per-call 402
+	 *  cycle only restarts when the session is exhausted or expired. */
+	session?: { ttlMs: number; maxCalls: number; secret?: string };
 	// Injectables (wiring + tests):
 	facilitator?: X402Facilitator | null;
 	nonceStore?: NonceStore;
@@ -186,6 +195,25 @@ export function x402PaymentRequired(
 
 		// ── Challenge step: no payment yet → 402 + PAYMENT-REQUIRED ──
 		if (!sigHeader) {
+			// Session voucher: a prior payment on this surface bought a bounded
+			// session — verify the signature + TTL statelessly, then spend one
+			// unit of the session's call budget. Checked before the free quota
+			// so paid sessions never burn the free allowance.
+			const sessionCfg = options.session;
+			const sessionSecret = sessionCfg?.secret ?? getSessionSecret();
+			const sessionToken = c.req.header("PAYMENT-SESSION");
+			if (sessionCfg && sessionSecret && sessionToken) {
+				const voucher = verifySessionVoucher(sessionToken, sessionSecret);
+				if (voucher && voucher.surface === options.surface) {
+					const store = options.quotaStore ?? getRateLimitStore();
+					const budget = await store.check(
+						`x402sess:${voucher.id}`,
+						sessionCfg.maxCalls,
+						sessionCfg.ttlMs,
+					);
+					if (budget.allowed) return next();
+				}
+			}
 			// Free-quota ladder: the first N anonymous calls per IP per window
 			// stay free (normal anon rate limits still apply downstream); the
 			// 402 only starts once the daily budget is spent.
@@ -323,6 +351,25 @@ export function x402PaymentRequired(
 				network: settlement.network,
 			}),
 		);
+		// Session surfaces: this payment opens a bounded session — hand the
+		// voucher back so the client's next polls skip the 402 cycle.
+		const mintCfg = options.session;
+		const mintSecret = mintCfg?.secret ?? getSessionSecret();
+		if (mintCfg && mintSecret) {
+			c.header(
+				"PAYMENT-SESSION",
+				mintSessionVoucher(
+					{
+						v: 1,
+						id: nonce,
+						surface: options.surface,
+						payer: verdict.payer,
+						exp: Date.now() + mintCfg.ttlMs,
+					},
+					mintSecret,
+				),
+			);
+		}
 		return next();
 	};
 }

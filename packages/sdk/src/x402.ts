@@ -232,16 +232,38 @@ export function withX402(
 	baseFetch: typeof fetch,
 	opts: WithX402Options,
 ): X402Fetch {
+	// Session vouchers (PAYMENT-SESSION): surfaces with session pricing hand
+	// back a voucher on settle — replaying it lets subsequent calls ride the
+	// paid session instead of re-paying per request. Cached per origin; the
+	// server is authoritative (a 402 despite a voucher just restarts the
+	// payment cycle and refreshes the cache).
+	const sessions = new Map<string, string>();
+	const originOf = (input: Parameters<X402Fetch>[0]) => {
+		try {
+			return new URL(String(input)).origin;
+		} catch {
+			return "";
+		}
+	};
+
 	return async (input, init) => {
+		const origin = originOf(input);
 		const run = (extra: Record<string, string>, signal?: AbortSignal) =>
 			baseFetch(input, {
 				...init,
 				headers: { ...(init?.headers as Record<string, string>), ...extra },
 				...(signal ? { signal } : {}),
 			});
+		const remember = (res: Response) => {
+			const voucher = res.headers.get("PAYMENT-SESSION");
+			if (voucher && origin) sessions.set(origin, voucher);
+			return res;
+		};
 
-		const first = await run({});
-		if (first.status !== 402) return first;
+		const cached = origin ? sessions.get(origin) : undefined;
+		const first = await run(cached ? { "PAYMENT-SESSION": cached } : {});
+		if (first.status !== 402) return remember(first);
+		if (cached && origin) sessions.delete(origin);
 
 		const challenge = await readX402Challenge(first);
 		if (!challenge) return first;
@@ -262,7 +284,7 @@ export function withX402(
 		const signal = opts.timeoutMs
 			? AbortSignal.timeout(opts.timeoutMs)
 			: undefined;
-		return run({ "PAYMENT-SIGNATURE": header }, signal);
+		return remember(await run({ "PAYMENT-SIGNATURE": header }, signal));
 	};
 }
 
@@ -284,7 +306,10 @@ export type X402Client = {
 		path: string,
 		o?: { query?: Record<string, string> },
 	): Promise<X402Result<T>>;
-	post<T = unknown>(path: string, o?: { body?: unknown }): Promise<X402Result<T>>;
+	post<T = unknown>(
+		path: string,
+		o?: { body?: unknown },
+	): Promise<X402Result<T>>;
 };
 
 /**

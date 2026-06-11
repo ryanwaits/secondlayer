@@ -297,3 +297,76 @@ describe("free-quota ladder", () => {
 		expect((await app.request("/x")).status).toBe(402);
 	});
 });
+
+describe("session pricing (streams-style)", () => {
+	const SECRET = "session-test-secret";
+
+	function buildSessionApp(opts: {
+		facilitator: X402Facilitator;
+		nonceStore: InProcNonceStore;
+		maxCalls: number;
+	}) {
+		let used = 0;
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.use(
+			"*",
+			x402PaymentRequired({
+				surface: "index",
+				payTo: PAY_TO,
+				facilitator: opts.facilitator,
+				nonceStore: opts.nonceStore,
+				optimisticGate: new InProcOptimisticGate(),
+				isAccountBacked: () => false,
+				insertPayment: async () => {},
+				session: { ttlMs: 60_000, maxCalls: opts.maxCalls, secret: SECRET },
+				quotaStore: {
+					check: async (_key, limit) => ({ allowed: ++used <= limit }),
+				},
+			}),
+		);
+		app.get("/x", (c) => c.json({ data: "ok" }));
+		return app;
+	}
+
+	test("settle mints a PAYMENT-SESSION voucher; voucher rides free until exhausted", async () => {
+		const app = buildSessionApp({
+			facilitator: fakeFacilitator(),
+			nonceStore: new InProcNonceStore(),
+			maxCalls: 2,
+		});
+		const offer = await challengeOffer(app);
+		const sig = await usdcxPayment(offer.amount, offer.extra.nonce);
+		const paid = await app.request("/x", {
+			headers: { "PAYMENT-SIGNATURE": sig },
+		});
+		expect(paid.status).toBe(200);
+		const voucher = paid.headers.get("PAYMENT-SESSION");
+		expect(voucher).toBeTruthy();
+
+		// two free rides on the session budget…
+		for (let i = 0; i < 2; i++) {
+			const res = await app.request("/x", {
+				headers: { "PAYMENT-SESSION": voucher as string },
+			});
+			expect(res.status).toBe(200);
+		}
+		// …then the 402 cycle restarts
+		const exhausted = await app.request("/x", {
+			headers: { "PAYMENT-SESSION": voucher as string },
+		});
+		expect(exhausted.status).toBe(402);
+	});
+
+	test("forged voucher is ignored (402)", async () => {
+		const app = buildSessionApp({
+			facilitator: fakeFacilitator(),
+			nonceStore: new InProcNonceStore(),
+			maxCalls: 5,
+		});
+		const res = await app.request("/x", {
+			headers: { "PAYMENT-SESSION": "ZmFrZQ.ZmFrZQ" },
+		});
+		expect(res.status).toBe(402);
+	});
+});

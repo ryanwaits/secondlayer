@@ -501,6 +501,11 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 // Composition root: decide x402 from env here, keeping the route factory pure.
 export default createStreamsRouter({
 	x402Middleware: isX402Enabled()
-		? x402PaymentRequired({ surface: "streams" })
+		? x402PaymentRequired({
+				surface: "streams",
+				// One payment buys a polling session: tip-followers settle once
+				// per ~500 polls/hour instead of every request.
+				session: { ttlMs: 60 * 60 * 1000, maxCalls: 500 },
+			})
 		: undefined,
 });
