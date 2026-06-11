@@ -25,19 +25,21 @@ export default function StreamsPage() {
 			<div className="mk-body">
 				<div className="prose">
 					<p>
-						Streams is the raw event firehose for Stacks. One service captures
-						every event a Stacks node emits — STX, FT and NFT transfers,
-						contract prints, locks — and saves them as an immutable, ordered
-						log. You read that log over a cursor-paginated REST API.
+						Streams is the raw event firehose for Stacks — the feature for
+						teams <strong>building their own indexer</strong>. One service
+						captures every event a Stacks node emits — STX, FT and NFT
+						transfers, contract prints, locks — and saves them as an immutable,
+						ordered log. You read that log over a cursor-paginated REST API, or
+						pull signed parquet dumps for bulk work.
 					</p>
 					<p>
-						Because the data is append-only and never changes, it's heavily
-						cacheable and trivially replayable: sync, stop, and pick up exactly
-						where you left off. The point is what you <em>don't</em> do — you
-						never run a Stacks node. We shoulder data availability so you can
-						build higher-level APIs and indexers on top. It's the same firehose
-						every Foundation Dataset decoder reads internally. For push
-						delivery, see <Link href="/subscriptions">Subscriptions</Link>.
+						If you just want decoded, queryable chain data, use{" "}
+						<Link href="/index-api">Index</Link> — we run the indexer for you.
+						Streams hands you the inputs instead: append-only, heavily
+						cacheable, trivially replayable — sync, stop, and pick up exactly
+						where you left off, without ever running a Stacks node. It's the
+						same firehose our own decoders read internally. For push delivery,
+						see <Link href="/subscriptions">Subscriptions</Link>.
 					</p>
 				</div>
 

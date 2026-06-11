@@ -9,15 +9,20 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
 		links: [
 			{ label: "Index", href: "/index-api" },
 			{ label: "Subgraphs", href: "/subgraphs" },
-			{ label: "Streams", href: "/streams" },
+			{ label: "Explore", href: "/subgraphs/explore" },
+		],
+	},
+	{
+		title: "Features",
+		links: [
 			{ label: "Subscriptions", href: "/subscriptions" },
+			{ label: "Streams", href: "/streams" },
 		],
 	},
 	{
 		title: "Developers",
 		links: [
 			{ label: "Docs", href: "/docs" },
-			{ label: "Explore", href: "/subgraphs/explore" },
 			{
 				label: "OpenAPI",
 				href: "https://api.secondlayer.tools/v1/openapi.json",

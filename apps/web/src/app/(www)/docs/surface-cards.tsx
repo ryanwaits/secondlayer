@@ -10,14 +10,14 @@ interface Surface {
 	wide?: boolean;
 }
 
-/** The four product surfaces, mirroring the "Core surfaces" nav + their REST
- *  entrypoints. Streams spans the full row. */
+/** Two products, then their features — mirrors STRATEGY.md's taxonomy.
+ *  Streams spans the full row. */
 const SURFACES: Surface[] = [
 	{
 		n: "01",
 		name: "Index",
 		href: "/docs/index",
-		desc: "Query decoded blocks, transactions, and events through one endpoint.",
+		desc: "Decoded blocks, transactions, and events — we run the indexer, you query.",
 		verb: "GET",
 		ep: "/v1/index/events",
 	},
@@ -25,7 +25,7 @@ const SURFACES: Surface[] = [
 		n: "02",
 		name: "Subgraphs",
 		href: "/docs/subgraphs",
-		desc: "Define app-specific materialized tables from contract events.",
+		desc: "Your schema on our indexer — one TypeScript file, hosted tables, public API.",
 		verb: "GET",
 		ep: "/v1/subgraphs",
 	},
@@ -33,7 +33,7 @@ const SURFACES: Surface[] = [
 		n: "03",
 		name: "Subscriptions",
 		href: "/docs/subscriptions",
-		desc: "Push matched rows to your webhook as signed POSTs.",
+		desc: "The push channel — matched rows or chain events to your webhook, signed.",
 		verb: "POST",
 		ep: "→ your webhook",
 	},
@@ -41,7 +41,7 @@ const SURFACES: Surface[] = [
 		n: "04",
 		name: "Streams",
 		href: "/docs/streams",
-		desc: "The raw chain-event firehose — cursor-paginated and replayable.",
+		desc: "Raw signed event firehose + dumps — for building your own indexer.",
 		verb: "GET",
 		ep: "/v1/streams",
 		wide: true,

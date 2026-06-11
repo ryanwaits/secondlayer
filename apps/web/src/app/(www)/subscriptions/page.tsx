@@ -24,11 +24,13 @@ export default function SubscriptionsPage() {
 			<div className="mk-body">
 				<div className="prose">
 					<p>
-						Push instead of poll. A subscription fires a signed, retried webhook
-						— point it at Discord, Slack, Trigger.dev, or your own backend,
-						anything that speaks HTTP. Two kinds: bind to a{" "}
-						<Link href="/subgraphs">subgraph</Link> table and fire on the rows
-						your handler writes, or skip the subgraph entirely and fire on{" "}
+						Push instead of poll. Subscriptions is the delivery channel for{" "}
+						<Link href="/index-api">Index</Link> and{" "}
+						<Link href="/subgraphs">Subgraphs</Link>: a subscription fires a
+						signed, retried webhook — point it at Discord, Slack, Trigger.dev,
+						or your own backend, anything that speaks HTTP. Two kinds: bind to
+						a <Link href="/subgraphs">subgraph</Link> table and fire on the
+						rows your handler writes, or skip the subgraph entirely and fire on{" "}
 						<a href="#chain-subscriptions">raw chain events</a>.
 					</p>
 					<p>

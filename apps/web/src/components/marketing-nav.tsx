@@ -6,8 +6,8 @@ import { usePathname } from "next/navigation";
 const PRODUCTS = [
 	{ label: "Index", href: "/index-api" },
 	{ label: "Subgraphs", href: "/subgraphs" },
-	{ label: "Streams", href: "/streams" },
 	{ label: "Explore", href: "/subgraphs/explore" },
+	{ label: "Pricing", href: "/pricing" },
 ];
 
 /**

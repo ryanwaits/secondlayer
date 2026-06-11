@@ -1,9 +1,13 @@
 import { SurfaceCards } from "./surface-cards";
 import { QuickstartPanel } from "./quickstart-panel";
 
-# The agent-native data plane for Stacks
+# The hosted indexer for Stacks
 
-Pull with Streams, index with Subgraphs, push with Subscriptions, and query Foundation Datasets directly — all behind one auth and one REST surface.
+Curl `/v1` for decoded Stacks data right now; deploy a one-file subgraph for your own tables with the same public API; attach a webhook to either.
+
+## Which API?
+
+**Querying chain data?** Use **Index** — we run the indexer, you read decoded events, transfers, blocks, and transactions over REST. Keyless. **Want your own schema?** Use **Subgraphs** — one TypeScript file deploys to hosted Postgres tables behind the same public `/v1` API. **Building your own indexer?** Use **Streams** — the raw signed event firehose with parquet dumps and replay, for data engineers who want the inputs, not our decoding.
 
 ## Pick your surface
 
@@ -15,5 +19,5 @@ Pull with Streams, index with Subgraphs, push with Subscriptions, and query Foun
 
 export const metadata = {
 	title: "Docs — Secondlayer",
-	description: "The agent-native data plane for Stacks.",
+	description: "The hosted indexer for Stacks.",
 };
