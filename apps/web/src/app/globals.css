@@ -6555,7 +6555,7 @@ a.dataset-shelf-name:hover {
 .mk-body > .code-block-wrapper,
 .mk-body > .dataset-shelf,
 .mk-body > ul.dataset-shelf {
-	max-width: 56rem;
+	max-width: none;
 }
 .explore-crumb {
 	font-family: var(--font-mono-stack);
