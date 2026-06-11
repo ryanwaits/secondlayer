@@ -144,11 +144,15 @@ export function buildCapabilities() {
 
 /** Pay-per-call rail — how an accountless agent buys reads past the limits. */
 const X402_CAPABILITY = {
-	what: "Index and Streams reads (/v1/index/*, /v1/streams/*) accept x402 v2 pay-per-call (network stacks:1, sponsored transfers — the payer holds sBTC/STX/USDCx, never gas).",
+	what: "Index and Streams reads (/v1/index/*, /v1/streams/*) accept x402 v2 pay-per-call (network stacks:1, sponsored transfers — the payer holds sBTC/STX/USDCx, never gas). Index grants 1,000 free reads/day/IP before any 402; a paid Streams call opens a 500-call/1h PAYMENT-SESSION.",
+	paidWrites:
+		"POST /v1/subgraphs (x402 $2) deploys a subgraph owned by the paying wallet — live from deploy, 7-day TTL, renewable via POST /v1/subgraphs/{name}/renew ($0.50/wk); claiming the account clears the expiry.",
+	prepaid:
+		"POST /v1/x402/deposit?usd=N loads a prepaid tab (PAYMENT-BALANCE token, $0.25 min) — calls debit it instantly, no per-call on-chain settle. GET /v1/x402/balance reads it.",
 	discovery:
-		"GET /v1/x402/supported on the API host for scheme, assets, and per-call prices.",
+		"GET /v1/x402/supported on the API host for scheme, assets, prices, quotas, sessions, and prepaid metadata.",
 	autopay:
-		"Set X402_PRIVATE_KEY (a Stacks private key holding an accepted token) and this MCP server pays 402 challenges automatically; receipts are logged per paid call.",
+		"Set X402_PRIVATE_KEY (a Stacks private key holding an accepted token) and this MCP server pays 402 challenges automatically (sessions replayed). Add X402_TOPUP_USD (and optionally X402_TOPUP_WHEN_BELOW) for an autonomous prepaid tab that refills itself. Receipts are logged per paid call.",
 };
 
 /** Per-product read-auth tiers — what an agent must know before reading. */
