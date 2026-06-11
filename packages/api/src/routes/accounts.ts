@@ -15,7 +15,6 @@ import { AuthenticationError } from "@secondlayer/shared/errors";
 import { type Context, Hono } from "hono";
 import { accountPlanToProductTier } from "../auth/product-token-store.ts";
 import { INDEX_TIER_CONFIG } from "../index/tiers.ts";
-import { emitMeterEvent } from "../lib/stripe-meter.ts";
 import { STREAMS_TIER_CONFIG } from "../streams/tiers.ts";
 
 const app = new Hono();
@@ -184,54 +183,6 @@ app.patch("/me", async (c) => {
 		slug: updated.slug,
 		avatarUrl: updated.avatar_url,
 	});
-});
-
-// ── POST /me/meter — emit a Stripe billing meter event ───────────
-//
-// Called by user-facing surfaces (the AI session chat + title routes)
-// to record usage that gets billed via overage prices. Fire-and-forget
-// from the caller's perspective: this endpoint always returns 204 even
-// when Stripe is unconfigured or the account has no customer record
-// (Hobby tenants who never upgraded — they accrue zero charges, the
-// meter call is a no-op).
-
-const ALLOWED_METER_EVENTS = new Set(["ai_evals"]);
-
-// Per-call ceiling on metered values. Defensive — even though the caller
-// can only inflate their *own* bill, capping protects against bugs in
-// upstream emitters and against direct curl shenanigans (the endpoint is
-// reachable to any authenticated session; the chat/title routes are the
-// only intended callers but the surface is open).
-//
-// Units after `aiEvalUnits` conversion: 1 unit = 1k tokens for `ai_evals`.
-// 50,000 units is 50M tokens in a single emission — well above any
-// legitimate single call.
-const METER_VALUE_MAX = 50_000;
-
-app.post("/me/meter", async (c) => {
-	const accountId = requireAccountId(c);
-	const body = (await c.req.json().catch(() => ({}))) as {
-		eventName?: unknown;
-		value?: unknown;
-	};
-	if (
-		typeof body.eventName !== "string" ||
-		!ALLOWED_METER_EVENTS.has(body.eventName) ||
-		typeof body.value !== "number" ||
-		!Number.isFinite(body.value) ||
-		body.value < 0 ||
-		body.value > METER_VALUE_MAX
-	) {
-		return c.json(
-			{
-				error:
-					"invalid eventName or value (value must be 0..50_000 units; ai_evals = 1 unit per 1k tokens)",
-			},
-			400,
-		);
-	}
-	await emitMeterEvent(accountId, body.eventName as "ai_evals", body.value);
-	return c.body(null, 204);
 });
 
 export default app;

@@ -37,7 +37,6 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
 			{ label: "CLI", href: "/cli" },
 			{ label: "SDK", href: "/sdk" },
 			{ label: "Pricing", href: "/pricing" },
-			{ label: "Migration", href: "/migration" },
 		],
 	},
 ];
@@ -72,8 +71,15 @@ export function SiteFooter() {
 							<span>secondlayer</span>
 						</p>
 						<p>
-							The indexing layer for Stacks, run as a utility. Born from Project
-							Kourier.
+							The indexing layer for Stacks, run as a utility. Born from{" "}
+							<a
+								href="https://paragraph.com/@aulneau/project-kourier"
+								target="_blank"
+								rel="noopener noreferrer"
+							>
+								Project Kourier
+							</a>
+							.
 						</p>
 					</div>
 					<div className="site-footer-cols">
@@ -101,7 +107,6 @@ export function SiteFooter() {
 				</div>
 				<div className="site-footer-base">
 					<span>© {new Date().getFullYear()} Secondlayer</span>
-					<span className="m">stacks mainnet</span>
 				</div>
 			</div>
 		</footer>

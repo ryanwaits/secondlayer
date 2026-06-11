@@ -10,14 +10,12 @@
  * Usage:
  *   STRIPE_SECRET_KEY=rk_test_... bun run packages/api/scripts/stripe-setup.ts
  *
- * Prints the IDs at the end — copy the ones with `STRIPE_PRICE_*` and
- * `STRIPE_METER_*` prefixes into your .env.
+ * Prints the IDs at the end — copy the ones with `STRIPE_PRICE_*`
+ * prefixes into your .env.
  *
  * What it creates:
  *   - Product "Secondlayer" (single product, per-tier prices attach here)
  *   - Tier prices: Launch $99/mo or $990/yr, Scale $299/mo or $2,990/yr
- *   - Meters: ai_evals (metered usage)
- *   - Metered prices: storage overage ($2/GB-month), AI eval overage ($0.01/unit)
  *
  * Hobby is intentionally not in Stripe — free tier means no subscription.
  * Enterprise is not in this script — custom-quoted per deal; operator
@@ -88,71 +86,6 @@ async function upsertTierPrice(
 	});
 }
 
-// ── Meters ────────────────────────────────────────────────────────────
-//
-// A Stripe billing meter defines the event name (`event_name`) and how
-// events aggregate. Its id is referenced by meter-metered prices.
-
-interface MeterDef {
-	eventName: string;
-	displayName: string;
-	aggregation: "sum" | "count" | "last";
-}
-
-const METERS: MeterDef[] = [
-	{
-		eventName: "ai_evals",
-		displayName: "AI evaluations",
-		aggregation: "sum",
-	},
-];
-
-async function upsertMeter(def: MeterDef): Promise<Stripe.Billing.Meter> {
-	const existing = await stripe.billing.meters.list({ limit: 100 });
-	const found = existing.data.find((m) => m.event_name === def.eventName);
-	if (found && found.status === "active") return found;
-
-	return stripe.billing.meters.create({
-		display_name: def.displayName,
-		event_name: def.eventName,
-		default_aggregation: { formula: def.aggregation },
-		customer_mapping: {
-			event_payload_key: "stripe_customer_id",
-			type: "by_id",
-		},
-		value_settings: { event_payload_key: "value" },
-	});
-}
-
-// Metered prices — attached to a meter, billed per-unit overage.
-async function upsertMeteredPrice(
-	productId: string,
-	lookupKey: string,
-	meterId: string,
-	perUnitCents: number,
-	nickname: string,
-): Promise<Stripe.Price> {
-	const existing = await stripe.prices.list({ lookup_keys: [lookupKey] });
-	if (existing.data[0]) return existing.data[0];
-
-	return stripe.prices.create({
-		product: productId,
-		nickname,
-		currency: "usd",
-		recurring: {
-			interval: "month",
-			usage_type: "metered",
-			meter: meterId,
-		},
-		// SDK types `unit_amount_decimal` as a branded Decimal, but the
-		// runtime accepts a plain string. Cast narrows the compiler while
-		// keeping the original intent.
-		// biome-ignore lint/suspicious/noExplicitAny: Stripe Decimal branded type.
-		unit_amount_decimal: perUnitCents.toString() as any,
-		lookup_key: lookupKey,
-	});
-}
-
 // ── Main ──────────────────────────────────────────────────────────────
 
 async function main() {
@@ -194,31 +127,11 @@ async function main() {
 	console.log(`  price(scale monthly)=${scalePrice.id}`);
 	console.log(`  price(scale yearly)=${scaleYearlyPrice.id}`);
 
-	console.log("→ Upserting meters…");
-	const meters: Record<string, Stripe.Billing.Meter> = {};
-	for (const def of METERS) {
-		const meter = await upsertMeter(def);
-		meters[def.eventName] = meter;
-		console.log(`  meter(${def.eventName})=${meter.id}`);
-	}
-
-	console.log("→ Upserting metered prices…");
-	const aiEvalPrice = await upsertMeteredPrice(
-		product.id,
-		"secondlayer_ai_eval_overage",
-		meters.ai_evals.id,
-		1, // $0.01/unit (1 unit = 1 input+output token)
-		"AI eval overage",
-	);
-	console.log(`  price(ai_eval)=${aiEvalPrice.id}`);
-
 	console.log("\n─── Paste into .env ───");
 	console.log(`STRIPE_PRICE_LAUNCH=${launchPrice.id}`);
 	console.log(`STRIPE_PRICE_LAUNCH_YEARLY=${launchYearlyPrice.id}`);
 	console.log(`STRIPE_PRICE_SCALE=${scalePrice.id}`);
 	console.log(`STRIPE_PRICE_SCALE_YEARLY=${scaleYearlyPrice.id}`);
-	console.log(`STRIPE_METER_AI_EVAL=${meters.ai_evals.id}`);
-	console.log(`STRIPE_PRICE_AI_EVAL_OVERAGE=${aiEvalPrice.id}`);
 }
 
 main().catch((err) => {

@@ -67,8 +67,6 @@ export const TABLE_TO_DB = {
 	projects: "target",
 	team_members: "target",
 	team_invitations: "target",
-	chat_sessions: "target",
-	chat_messages: "target",
 	// ── TARGET: subscriptions ──
 	subscriptions: "target",
 	subscription_outbox: "target",

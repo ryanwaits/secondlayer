@@ -129,9 +129,7 @@ services:
       STRIPE_PRICE_SCALE: ${STRIPE_PRICE_SCALE:-}
       STRIPE_PRICE_SCALE_YEARLY: ${STRIPE_PRICE_SCALE_YEARLY:-}
       STRIPE_METER_STORAGE: ${STRIPE_METER_STORAGE:-}
-      STRIPE_METER_AI_EVAL: ${STRIPE_METER_AI_EVAL:-}
       STRIPE_PRICE_STORAGE_OVERAGE: ${STRIPE_PRICE_STORAGE_OVERAGE:-}
-      STRIPE_PRICE_AI_EVAL_OVERAGE: ${STRIPE_PRICE_AI_EVAL_OVERAGE:-}
       # x402 pay-per-request rail. Setting X402_SPONSOR_KEY (a funded mainnet
       # sponsor wallet) is what turns the rail ON — unset → no x402 (Streams stays
       # key-mandatory, Index anon stays free). X402_PAY_TO = revenue recipient.
@@ -418,7 +416,6 @@ services:
       NETWORKS: ${NETWORKS:-mainnet}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_METER_STORAGE: ${STRIPE_METER_STORAGE:-}
-      STRIPE_METER_AI_EVAL: ${STRIPE_METER_AI_EVAL:-}
       SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}
     depends_on:
       migrate:

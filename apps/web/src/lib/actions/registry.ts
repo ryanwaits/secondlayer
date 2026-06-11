@@ -17,13 +17,6 @@ export const actions: Action[] = [
 		href: "/",
 	},
 	{
-		id: "sessions",
-		label: "Sessions",
-		keywords: ["chat", "agent", "ai"],
-		category: "Platform",
-		href: "/sessions",
-	},
-	{
 		id: "subgraphs",
 		label: "Subgraphs",
 		keywords: ["tables", "indexes", "data"],

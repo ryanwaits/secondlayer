@@ -178,7 +178,7 @@ export function DetailBody({
 					<p className="fine">
 						Scaffolds a subgraph over the same contract — deploy under your own
 						name and it lands on Explore.{" "}
-						<em>View source · remix in chat arrives when owners opt in.</em>
+						<em>View source · fork it with `sl subgraphs create`.</em>
 					</p>
 				</div>
 			</div>

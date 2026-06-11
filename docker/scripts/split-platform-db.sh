@@ -69,8 +69,6 @@ CONTROL_TABLES=(
   subscription_outbox
   subscription_deliveries
   trigger_evaluator_state
-  chat_sessions
-  chat_messages
   subgraphs
   subgraph_operations
   subgraph_health_snapshots

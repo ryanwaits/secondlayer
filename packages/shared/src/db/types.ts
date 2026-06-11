@@ -413,24 +413,6 @@ export interface TeamInvitationsTable {
 	created_at: Generated<Date>;
 }
 
-export interface ChatSessionsTable {
-	id: Generated<string>;
-	account_id: string;
-	title: string | null;
-	summary: unknown | null;
-	created_at: Generated<Date>;
-	updated_at: Generated<Date>;
-}
-
-export interface ChatMessagesTable {
-	id: Generated<string>;
-	chat_session_id: string;
-	role: string;
-	parts: unknown;
-	metadata: unknown | null;
-	created_at: Generated<Date>;
-}
-
 export interface ProcessedStripeEventsTable {
 	event_id: string;
 	event_type: string;
@@ -791,8 +773,6 @@ export interface Database {
 	projects: ProjectsTable;
 	team_members: TeamMembersTable;
 	team_invitations: TeamInvitationsTable;
-	chat_sessions: ChatSessionsTable;
-	chat_messages: ChatMessagesTable;
 	processed_stripe_events: ProcessedStripeEventsTable;
 	tenants: TenantsTable;
 	tenant_usage_monthly: TenantUsageMonthlyTable;
@@ -1073,13 +1053,6 @@ export type InsertTeamMember = Insertable<TeamMembersTable>;
 
 export type TeamInvitation = Selectable<TeamInvitationsTable>;
 export type InsertTeamInvitation = Insertable<TeamInvitationsTable>;
-
-export type ChatSession = Selectable<ChatSessionsTable>;
-export type InsertChatSession = Insertable<ChatSessionsTable>;
-export type UpdateChatSession = Updateable<ChatSessionsTable>;
-
-export type ChatMessage = Selectable<ChatMessagesTable>;
-export type InsertChatMessage = Insertable<ChatMessagesTable>;
 
 // ── Subscriptions (subgraph event subscriptions) ─────────────────────
 

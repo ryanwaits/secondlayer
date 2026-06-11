@@ -214,8 +214,8 @@ export default async function SubscriptionDetailPage({
 
 					<DetailSection title="Agent tools">
 						<p className="detail-desc">
-							Use chat to generate safe operational steps from the current
-							subscription state.
+							Copy a prompt into your own agent (MCP) to generate safe
+							operational steps from the current subscription state.
 						</p>
 						{(sub.status === "paused" || sub.status === "error") && (
 							<PromptActions
@@ -223,7 +223,7 @@ export default async function SubscriptionDetailPage({
 									subscriptionId: sub.id,
 									subscriptionName: sub.name,
 								})}
-								openLabel="Run doctor in chat"
+								copyLabel="Copy doctor prompt"
 							/>
 						)}
 						<PromptActions
@@ -231,7 +231,7 @@ export default async function SubscriptionDetailPage({
 								subscriptionId: sub.id,
 								subscriptionName: sub.name,
 							})}
-							openLabel="Generate signed test fixture"
+							copyLabel="Copy test-fixture prompt"
 						/>
 						{deadRows.length > 0 && (
 							<PromptActions
@@ -241,7 +241,7 @@ export default async function SubscriptionDetailPage({
 								})}
 
 There are ${deadRows.length} dead-letter rows. Inspect them and propose requeueing one selected row only after I confirm the outbox id.`}
-								openLabel="Inspect dead letters"
+								copyLabel="Copy dead-letter prompt"
 							/>
 						)}
 					</DetailSection>

@@ -19,7 +19,6 @@ import adminRouter from "./routes/admin.ts";
 import authRouter from "./routes/auth.ts";
 import { createBatchRouter } from "./routes/batch.ts";
 import billingRouter from "./routes/billing.ts";
-import chatSessionsRouter from "./routes/chat-sessions.ts";
 import contractsRouter from "./routes/contracts.ts";
 import indexRouter from "./routes/index.ts";
 import insightsRouter from "./routes/insights.ts";
@@ -174,8 +173,6 @@ const PLATFORM_PATHS = [
 	"/api/insights/*",
 	"/api/projects",
 	"/api/projects/*",
-	"/api/chat-sessions",
-	"/api/chat-sessions/*",
 	"/api/tenants",
 	"/api/tenants/*",
 	"/api/auth/logout",
@@ -209,7 +206,6 @@ if (mode === "platform") {
 	app.route("/api/wallet", walletRouter);
 	app.route("/api/insights", insightsRouter);
 	app.route("/api/projects", projectsRouter);
-	app.route("/api/chat-sessions", chatSessionsRouter);
 }
 app.route("/", statusRouter);
 app.route("/v1", v1IndexRouter);

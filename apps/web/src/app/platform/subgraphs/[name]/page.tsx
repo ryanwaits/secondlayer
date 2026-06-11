@@ -12,7 +12,6 @@ import { getDisplayStatus } from "@/lib/intelligence/subgraphs";
 import type { SubgraphDetail, SubgraphSummary } from "@/lib/types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { OpenInChat } from "./open-in-chat";
 import { VisibilityToggle } from "./visibility-toggle";
 
 interface SubscriptionSummary {
@@ -173,7 +172,6 @@ export default async function SubgraphDetailPage({
 							>
 								Subscriptions
 							</Link>
-							<OpenInChat subgraphName={name} />
 						</div>
 					</div>
 
