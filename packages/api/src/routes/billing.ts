@@ -156,12 +156,17 @@ app.post("/resolve", async (c) => {
 		if (!stripe) {
 			return c.json({ plan: account.plan, resolved: false });
 		}
+		// status:"all" + explicit pick — a fresh trial checkout is `trialing`,
+		// which a status:"active" filter silently misses (resolve would no-op
+		// for every new trial signup and leave the plan to the webhook race).
 		const subs = await stripe.subscriptions.list({
 			customer: account.stripe_customer_id,
-			status: "active",
-			limit: 1,
+			status: "all",
+			limit: 5,
 		});
-		const sub = subs.data[0];
+		const sub = subs.data.find(
+			(s) => s.status === "active" || s.status === "trialing",
+		);
 		if (!sub) return c.json({ plan: account.plan, resolved: false });
 
 		const priceId = sub.items.data[0]?.price.id;
