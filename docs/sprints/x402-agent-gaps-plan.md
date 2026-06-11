@@ -1,0 +1,81 @@
+# x402 agent-economy gaps — sequenced plan
+
+Source: x402/agent scenario analysis 2026-06-10 (AIBTC archetype, S1–S5). Nine gaps + one BD track, ordered for one-at-a-time execution. Strategy: visibility first (be findable by agents that exist now), then economics correctness, then the two strategic builds, then surface expansion. Gap #9 added to cover the funnel leg of "the honest read" (wallet→account continuity); the AIBTC integration is a BD motion, tracked here but not a code gap.
+
+Grounded structural facts (explored 2026-06-10):
+- x402 middleware is METHOD-AGNOSTIC (only looks at PAYMENT-SIGNATURE) — paid POSTs need no middleware surgery, just a new `X402Surface` union member + `X402_PRICE_CATALOG` entry (packages/api/src/x402/catalog.ts:14,47-60) + per-route mount.
+- Ledger `x402_payments` (migration 0091) records payer principal per receipt; NO balance concept today — credit = new table + drawdown path.
+- Optimistic gate: per-principal velocity 120/min + Redis strikes; confirmed tier blocks until canonical. Paid WRITES should use confirmed-tier finality (no fraud window on something that allocates compute).
+- MCP client builds SecondLayer with optional `fetchImpl` (packages/mcp/src/lib/client.ts:20-32) — `withX402` wraps there cleanly.
+- No llms.txt anywhere; OpenAPI (routes/openapi.ts) never mentions x402.
+- Subscriptions ownership = `account_id` FK + `getTenantScopedAccountId` (routes/subscriptions.ts:107-122) — decoupling = parallel owner column + lookup branch.
+- TTL sweeper precedent: ghost-sweep.ts (daily cron, cutoff + EXISTS conditions, FK cascade). Ephemeral subgraphs reuse the pattern with `expires_at`.
+- Genesis clamp (plan-limits.ts) already bounds accountless deploy compute to forward-only.
+
+## Wave 1 — be findable (days, ship first)
+
+### G4 · x402 discovery  (S)
+- [ ] T1 `GET /v1/x402/prices` (public, no auth): per-surface price catalog as JSON — surface, priceUsd, assets w/ contract ids, finality tier, floor; derived from `X402_PRICE_CATALOG`, 200 even when rail off (`enabled: false` flag). → validates: route test + curl
+- [ ] T2 Advertise in OpenAPI: `x-payment` extension on index/streams paths + a top-level `x402` info block in routes/openapi.ts. → validates: spec snapshot test
+- [ ] T3 `apps/web` serves `/llms.txt` (and `/.well-known/x402` pointing at the prices endpoint): surfaces, auth model, x402 rail, MCP install, per-subgraph docs.md pattern. → validates: fetch + content check
+- [ ] T4 MCP CAPABILITIES mentions the pay-per-call rail + prices endpoint. → validates: capabilities resource test
+
+### G5 · MCP auto-pay  (S)
+- [ ] T5 `X402_PRIVATE_KEY` env in MCP: when set, wrap the SDK client `fetchImpl` with `withX402(fetch, { account })` (packages/sdk/src/x402.ts withX402; client seam at mcp lib/client.ts). Log per-payment receipts at info. → validates: unit test w/ mocked 402 server; README + CAPABILITIES note
+- [ ] T6 Surface receipts to the agent: tool responses append `x402_receipt` metadata when a call was paid (readX402Receipt). → validates: tool test
+- changesets: mcp minor, docs touchpoints
+
+## Wave 2 — economics correctness
+
+### G6 · free-quota-then-402 ladder on Index  (M)
+Today rail-on sends anonymous Index straight to 402, silently killing the keyless-reads story. Decision needed (founder): per-IP free quota size (suggest: reuse anon rate bucket, e.g. first N req/day/IP free, then 402 instead of 429).
+- [ ] T7 Middleware order change on index mount only: anon limiter first; on exhaustion AND rail on → fall through to 402 challenge (else 429 as today). Streams unchanged (key-mandatory surface). → validates: route tests (under quota free, over quota 402 w/ rail, 429 w/o rail); pricing/docs copy already says "past the free limits" — becomes true
+
+### G3 · Streams session pricing  (M/L)
+Per-poll billing punishes politeness (~$43/day for a 2s poll loop). Bill per block-range consumed instead.
+- [ ] T8 Design note: price per N blocks of events delivered (e.g. $0.001 per 100 blocks per filter), implemented as: paid request returns a `session` voucher (signed, TTL ~1h, block-range entitlement) honored by subsequent polls via header — only re-402s when the range is exhausted. Reuses nonce-store for voucher replay protection. Founder decision: price point + range size.
+- [ ] T9 Implement voucher issue/verify in x402 middleware (streams surface only) + SDK consume() integration (transparent). → validates: integration test — 1 payment covers M polls within range; second payment on range exhaustion
+
+## Wave 3 — the strategic builds
+
+### G1 · x402-paid subgraph deploys  (L) — the S3 unlock
+Accountless agent pays to deploy; forward-only (clamp already enforces); table expires unless renewed or claimed.
+- [ ] T10 New surface `subgraph-deploy` in X402Surface + catalog (price: founder decision, suggest $2 flat; finality: CONFIRMED tier — writes get no optimistic window). Mount on POST /api/subgraphs for unauthenticated callers only (authed path unchanged).
+- [ ] T11 Paid-deploy identity: subgraph owned by a synthetic wallet-account keyed on payer principal (reuse ghost-account machinery: ghost=true, no email, `wallet_principal` column) so cache/scoping/visibility all keep working. Migration: `wallet_principal` nullable unique on accounts + `expires_at` on subgraphs.
+- [ ] T12 TTL: paid deploys get `expires_at = now()+7d`; renewal = paid `subgraph-renew` surface ($0.50/wk, same wire); claim (ghost claim flow extended to wallet-ghosts via signed message proving principal) clears expiry. Sweeper job mirrors ghost-sweep (drop schema + row on expiry).
+- [ ] T13 SDK/CLI: `sl subgraphs deploy --pay` (uses withX402); deploy response carries expires_at + renewal price. MCP tool param `pay: true`.
+- [ ] T14 The demo: scripted "agent pays 21 sats, ships an indexer, queries its own table" — marketing asset + docs page. → validates end-to-end on testnet rail first, then prod smoke with founder wallet
+
+### G2 · prepaid x402 credit  (L)
+- [ ] T15 `x402_balances` table (principal pk, balance_usd_micros, updated_at) + `deposit` surface (pay any amount ≥ $0.25 → credited at spot, confirmed-tier only). Ledger rows gain `kind: payment|deposit|drawdown`.
+- [ ] T16 Drawdown path in middleware: `PAYMENT-BALANCE: <principal+sig>` header (signed challenge, no on-chain tx) debits balance instead of 402 round-trip; falls back to 402 when balance < price. Kills per-call signing latency.
+- [ ] T17 Balance endpoint `GET /v1/x402/balance` (signed query). SDK: `withX402(..., { mode: "balance" })`.
+- [ ] T18 Unlocks subscriptions-for-wallets: subscriptions gain `payer_principal` owner alongside account_id (routes ownership branch per grounding); delivery metered from balance daily. Founder decision: subscription pricing for wallet owners.
+
+### G9 · wallet→account continuity (the funnel)  (M)
+- [ ] T19 Link on claim: when a ghost/wallet account claims (email attach), associate historical `x402_payments` by payer principal (one-time backfill query + `account_id` column on ledger rows, nullable). Spend history visible in console usage.
+- [ ] T20 Upgrade nudge: usage page + 402 challenge `extra` field carry "spent $X this month via x402 — Pro removes the meter" when monthly drawdown > threshold. → validates: ledger aggregation test + console render
+
+## Wave 4 — surface expansion
+
+### G7 · holder/balance snapshots  (M)
+AIBTC tool parity (holder lists, token inventories). Cheapest correct path: first-party curated subgraphs (balances tables per major token, seeded under the exempt account w/ genesis) exposed via Explore — NOT a new index surface. Decision: which tokens (sBTC + top SIP-010s).
+- [ ] T21 Seed `sbtc-balances` (+2-3 token balance subgraphs) w/ holder-rank table; add to Explore FEATURED; document as the holders endpoint in docs + llms.txt.
+
+### G8 · batch query endpoint  (M)
+- [ ] T22 `POST /v1/batch`: array of ≤10 read descriptors (surface+params), executed concurrently, single envelope; x402 price = sum of members (one payment). → validates: route test + MCP tool `batch_query`
+
+## BD track (parallel, founder-led, not code)
+- AIBTC integration: PR/partnership making Secondlayer a configurable data backend in aibtc-mcp-server (their Hiro dependency + rate-limit pain is explicit in their README). Best timed after Wave 1 (discovery live) so their x402 discovery tool finds us. Artifact: integration branch + a joint demo (their agent paying our rail).
+
+## Sequencing & gates
+1. Wave 1 ships immediately (no founder decisions needed) — G4 then G5.
+2. G6 needs one decision (free quota size); G3 needs price/range decision.
+3. G1 before G2 (one-shot paid deploy doesn't require credit; credit amplifies it). G9 after G2's ledger changes land (shares the `kind` column work) or independently against current ledger.
+4. Rail must be ON in prod (X402_SPONSOR_KEY funded) before Wave 1 has anything to discover — currently dormant. Founder gate: fund sponsor wallet + flip.
+
+## Open decisions (founder)
+1. Flip the rail on in prod (sponsor wallet funding) — prerequisite for everything observable.
+2. G6 free quota size; G3 streams session price/range; G1 deploy price + TTL; G2 minimum deposit; G18 wallet-subscription pricing.
+3. G7 token list for balance subgraphs.
+4. BD: initiate AIBTC contact now or after Wave 1 ships?
