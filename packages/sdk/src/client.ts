@@ -89,6 +89,22 @@ export class SecondLayer extends BaseClient {
 	 * from `secondlayer://context`, but available to any SDK/CLI consumer. Reads
 	 * run concurrently and degrade to `null` per field on failure.
 	 */
+	/**
+	 * Up to 10 public reads in one round trip (`POST /v1/batch`). Each item
+	 * keeps its own auth/quota/x402 semantics; forwarded credentials (API key,
+	 * PAYMENT-BALANCE/SESSION) apply to every item.
+	 */
+	async batch(
+		requests: Array<{
+			path: string;
+			params?: Record<string, string | number | boolean>;
+		}>,
+	): Promise<{
+		results: Array<{ path: string | null; status: number; body: unknown }>;
+	}> {
+		return this.request("POST", "/v1/batch", { requests });
+	}
+
 	async context(): Promise<ContextSnapshot> {
 		const safe = <T>(p: Promise<T>): Promise<T | null> =>
 			p.then((v) => v).catch(() => null);

@@ -52,4 +52,8 @@ export const FEATURED = [
 	"pox-stacking",
 	"bns-names",
 	"sip10-balances",
+	// Balance ledgers (G7) — listed once seeded; missing names are filtered.
+	"sbtc-balances",
+	"usdcx-balances",
+	"alex-balances",
 ];

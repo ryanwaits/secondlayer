@@ -17,6 +17,7 @@ import { countApiRequests } from "./middleware/usage.ts";
 import accountsRouter from "./routes/accounts.ts";
 import adminRouter from "./routes/admin.ts";
 import authRouter from "./routes/auth.ts";
+import { createBatchRouter } from "./routes/batch.ts";
 import billingRouter from "./routes/billing.ts";
 import chatSessionsRouter from "./routes/chat-sessions.ts";
 import contractsRouter from "./routes/contracts.ts";
@@ -221,6 +222,12 @@ app.route("/x402", x402Router);
 // /v1 alias so agents probing the public namespace find the rail; .well-known
 // gives off-the-shelf x402 discovery tooling a stable pointer.
 app.route("/v1/x402", x402Router);
+// Batch reads re-dispatch through the full pipeline (closure over `app`),
+// so every item keeps its own auth/quota/x402 semantics.
+app.route(
+	"/v1/batch",
+	createBatchRouter((path, init) => Promise.resolve(app.request(path, init))),
+);
 app.get("/.well-known/x402", (c) =>
 	c.json({
 		x402Version: 2,

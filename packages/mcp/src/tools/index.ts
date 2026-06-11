@@ -361,4 +361,26 @@ export function registerIndexTools(
 			return { content: [{ type: "text", text: out }] };
 		},
 	);
+
+	defineTool<{
+		requests: Array<{ path: string; params?: Record<string, string> }>;
+	}>(
+		server,
+		"batch_query",
+		"Run up to 10 public /v1 reads in one round trip (POST /v1/batch). Each item keeps its own auth/quota/pay-per-call semantics; results return in order with per-item status. Paths must start with /v1/index, /v1/subgraphs, /v1/streams, or /v1/contracts.",
+		{
+			requests: z
+				.array(
+					z.object({
+						path: z.string().describe("Public /v1 read path"),
+						params: z.record(z.string(), z.string()).optional(),
+					}),
+				)
+				.min(1)
+				.max(10)
+				.describe("Read descriptors, executed concurrently"),
+		},
+		async (params) =>
+			jsonResponse(await clientProvider().batch(params.requests)),
+	);
 }

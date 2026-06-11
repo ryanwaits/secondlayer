@@ -36,6 +36,12 @@ const LLMS_TXT = `# Secondlayer — the indexing layer for Stacks
   (POST /api/wallet/link, signed message) — x402 spend history attaches and
   any wallet-owned subgraphs become permanent.
 
+## Batch
+- POST /v1/batch — up to 10 public /v1 reads in one round trip
+  ({"requests":[{"path":"/v1/index/events","params":{...}}, ...]}); results
+  return in order with per-item status. Credentials (API key, PAYMENT-BALANCE,
+  PAYMENT-SESSION) forward to every item.
+
 ## Docs
 - https://secondlayer.tools/docs (append ?mode=agent for the agent view)
 `;

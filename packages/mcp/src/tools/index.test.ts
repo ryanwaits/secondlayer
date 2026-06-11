@@ -55,6 +55,7 @@ describe("index MCP tools", () => {
 		);
 
 		expect(tools.map((t) => t.name).sort()).toEqual([
+			"batch_query",
 			"index_block",
 			"index_blocks",
 			"index_canonical",

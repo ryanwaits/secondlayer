@@ -121,6 +121,13 @@ const OPENAPI_SPEC = {
 					"Accountless deploy: pay the subgraph-deploy quote via x402 and the subgraph is owned by the paying wallet principal — live indexing from deploy (forward-only), expires in 7 days unless renewed (POST /v1/subgraphs/{name}/renew, subgraph-renew quote) or the account is claimed. Managed plane only.",
 			},
 		},
+		"/v1/batch": {
+			post: {
+				summary: "Batch public reads",
+				description:
+					"Up to 10 public /v1 reads in one round trip. Body: { requests: [{ path, params? }] }. Each item keeps its own auth/quota/pay-per-call semantics; forwarded credentials apply to every item; results return in order with per-item status.",
+			},
+		},
 		"/v1/x402/deposit": {
 			post: {
 				summary: "Load a prepaid x402 tab",
