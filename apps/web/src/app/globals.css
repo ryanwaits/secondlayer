@@ -2209,6 +2209,74 @@ a.dataset-shelf-name:hover {
 	flex-shrink: 0;
 }
 
+/* Command-center result anatomy: label · mono context · right meta */
+.palette-item-label {
+	flex: 0 1 auto;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.palette-item-sub {
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	color: var(--text-dim);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.palette-item-meta {
+	margin-left: auto;
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.palette-badge {
+	font-family: var(--font-mono-stack);
+	font-size: 9.5px;
+	font-weight: 560;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	border-radius: 3px;
+	padding: 1px 5px;
+}
+
+.palette-badge.live {
+	color: var(--green);
+	background: var(--green-bg);
+}
+
+.palette-badge.warn {
+	color: var(--yellow);
+	background: var(--yellow-bg);
+}
+
+.palette-badge.muted {
+	color: var(--text-muted);
+	background: var(--code-bg);
+}
+
+.palette-item-ext {
+	color: var(--text-dim);
+	font-size: 11px;
+}
+
+.palette-footer-right {
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	color: var(--text-dim);
+	font-variant-numeric: tabular-nums;
+}
+
 .palette-empty {
 	padding: 24px 18px;
 	text-align: center;
