@@ -26,6 +26,9 @@ export function AuthBar() {
 	);
 	const inputRef = useRef<HTMLInputElement>(null);
 
+	// Docs keep their own chrome: sidebar + content only, no top-right bar.
+	if (pathname.startsWith("/docs")) return null;
+
 	const isPlatform =
 		pathname === "/" && account
 			? true

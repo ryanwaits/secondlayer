@@ -68,9 +68,9 @@ export function X402Steps({ panes }: { panes: ReactNode[] }) {
 			<div className="prc-x-pane">
 				{panes.map((pane, i) => (
 					<div
-						// eslint-disable-next-line react/no-array-index-key
 						key={STEPS[i]?.title ?? i}
-						hidden={i !== active}
+						className={i === active ? "prc-x-slide on" : "prc-x-slide"}
+						aria-hidden={i !== active}
 					>
 						{pane}
 					</div>
