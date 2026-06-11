@@ -1926,29 +1926,34 @@ a.dataset-shelf-name:hover {
 	position: relative;
 }
 
-.login-back {
-	position: absolute;
-	top: 24px;
-	left: 24px;
-	display: inline-flex;
-	align-items: center;
+.login-card {
+	position: relative;
+	width: 100%;
+	max-width: 400px;
+	border: 1px solid var(--border);
+	border-radius: 14px;
+	background: var(--bg-elevated, var(--bg));
+	padding: 2rem;
+}
+
+.login-eyebrow {
+	display: block;
 	font-family: var(--font-mono-stack);
 	font-size: 11px;
+	font-weight: 560;
+	letter-spacing: 0.06em;
 	text-transform: uppercase;
-	letter-spacing: 0.05em;
 	color: var(--text-muted);
-	text-decoration: none;
-	padding: 2px 8px;
-	transition: color 0.15s;
+	margin-bottom: 0.4rem;
 }
 
-.login-back:hover {
-	color: var(--text-primary);
-}
-
-.login-card {
-	width: 100%;
-	max-width: 380px;
+.login-title {
+	font-family: var(--font-heading-stack);
+	font-size: 1.5rem;
+	font-weight: 560;
+	letter-spacing: -0.01em;
+	margin: 0 0 1.5rem;
+	color: var(--text-main);
 }
 
 .login-label {

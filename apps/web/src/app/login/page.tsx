@@ -1,7 +1,7 @@
 "use client";
 
+import { MarketingNav } from "@/components/marketing-nav";
 import { useAuth } from "@/lib/auth";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -37,9 +37,7 @@ export default function LoginPage() {
 				e.target instanceof HTMLTextAreaElement
 			)
 				return;
-			if (e.key === "s" || e.key === "S" || e.key === "Escape") {
-				router.push("/");
-			}
+			if (e.key === "Escape") router.push("/");
 		}
 		window.addEventListener("keydown", onKeyDown);
 		return () => window.removeEventListener("keydown", onKeyDown);
@@ -80,10 +78,7 @@ export default function LoginPage() {
 
 	return (
 		<div className="login-page">
-			<Link href="/" className="login-back">
-				<span className="auth-bar-nav-key">[S]</span>
-				<span className="auth-bar-nav-label">Secondlayer</span>
-			</Link>
+			<MarketingNav />
 			<div className="login-card">
 				{status === "sent" ? (
 					<div className="login-sent">
@@ -131,6 +126,8 @@ export default function LoginPage() {
 					</div>
 				) : (
 					<form onSubmit={handleSubmit}>
+						<span className="login-eyebrow">Account</span>
+						<h1 className="login-title">Sign in</h1>
 						<label className="login-label" htmlFor="email">
 							Email
 						</label>
