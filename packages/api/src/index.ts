@@ -216,6 +216,16 @@ app.route("/v1/datasets", datasetsRouter);
 app.route("/v1/subgraphs", v1SubgraphsRouter);
 app.route("/v1/contracts", contractsRouter);
 app.route("/x402", x402Router);
+// /v1 alias so agents probing the public namespace find the rail; .well-known
+// gives off-the-shelf x402 discovery tooling a stable pointer.
+app.route("/v1/x402", x402Router);
+app.get("/.well-known/x402", (c) =>
+	c.json({
+		x402Version: 2,
+		supported: "/v1/x402/supported",
+		docs: "https://secondlayer.tools/pricing#pay-per-call",
+	}),
+);
 // Agent-reachable scoped key mint — platform-only (OSS uses a static key).
 if (mode === "platform") {
 	app.route("/v1/api-keys", v1ApiKeysRouter);

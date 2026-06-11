@@ -144,6 +144,15 @@ export function buildCapabilities() {
 	};
 }
 
+/** Pay-per-call rail — how an accountless agent buys reads past the limits. */
+const X402_CAPABILITY = {
+	what: "Index and Streams reads (/v1/index/*, /v1/streams/*) accept x402 v2 pay-per-call (network stacks:1, sponsored transfers — the payer holds sBTC/STX/USDCx, never gas).",
+	discovery:
+		"GET /v1/x402/supported on the API host for scheme, assets, and per-call prices.",
+	autopay:
+		"Set X402_PRIVATE_KEY (a Stacks private key holding an accepted token) and this MCP server pays 402 challenges automatically; receipts are logged per paid call.",
+};
+
 /** Per-product read-auth tiers — what an agent must know before reading. */
 const READ_AUTH_TIERS = {
 	datasets: "open — no API key required",
@@ -178,7 +187,10 @@ export async function buildContext(
 		.catch(() => null);
 
 	return {
-		authState: { apiKeySet: Boolean(process.env.SL_API_KEY) },
+		authState: {
+			apiKeySet: Boolean(process.env.SL_API_KEY),
+			x402WalletSet: Boolean(process.env.X402_PRIVATE_KEY),
+		},
 		whatExists: {
 			account: orNull(snap?.account),
 			streamsTip: orNull(snap?.streamsTip),
@@ -193,6 +205,7 @@ export async function buildContext(
 		},
 		whatYouCanDo: buildCapabilities(),
 		readAuthTiers: READ_AUTH_TIERS,
+		payPerCall: X402_CAPABILITY,
 	};
 }
 

@@ -2,6 +2,13 @@ import { Hono } from "hono";
 
 const OPENAPI_SPEC = {
 	openapi: "3.1.0",
+	"x-x402": {
+		supported: "/v1/x402/supported",
+		paidSurfaces: ["/v1/index/*", "/v1/streams/*"],
+		paymentHeader: "PAYMENT-SIGNATURE",
+		receiptHeader: "PAYMENT-RESPONSE",
+		note: "When the pay-per-call rail is enabled, accountless requests on paid surfaces receive HTTP 402 with an accepts[] quote (x402 v2, network stacks:1). Sponsored transfers: the payer holds tokens, never gas.",
+	},
 	info: {
 		title: "Secondlayer Public API",
 		version: "1.0.0",
@@ -94,6 +101,13 @@ const OPENAPI_SPEC = {
 	},
 	paths: {
 		"/v1": { get: { summary: "Surface discovery", responses: ok() } },
+		"/v1/x402/supported": {
+			get: {
+				summary: "x402 pay-per-call capability advertisement",
+				description:
+					"Scheme, network (CAIP-2), priced surfaces, accepted assets, and the per-call USD floor for the pay-per-call rail. Public, no auth.",
+			},
+		},
 		"/v1/openapi.json": {
 			get: { summary: "This document", responses: ok() },
 		},

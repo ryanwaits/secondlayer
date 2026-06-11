@@ -74,8 +74,11 @@ AIBTC tool parity (holder lists, token inventories). Cheapest correct path: firs
 3. G1 before G2 (one-shot paid deploy doesn't require credit; credit amplifies it). G9 after G2's ledger changes land (shares the `kind` column work) or independently against current ledger.
 4. Rail must be ON in prod (X402_SPONSOR_KEY funded) before Wave 1 has anything to discover — currently dormant. Founder gate: fund sponsor wallet + flip.
 
-## Open decisions (founder)
-1. Flip the rail on in prod (sponsor wallet funding) — prerequisite for everything observable.
-2. G6 free quota size; G3 streams session price/range; G1 deploy price + TTL; G2 minimum deposit; G18 wallet-subscription pricing.
-3. G7 token list for balance subgraphs.
-4. BD: initiate AIBTC contact now or after Wave 1 ships?
+## Decisions
+1. Rail stays DORMANT in prod intentionally (founder); flip = sponsor wallet funding, founder-owned.
+2. Price points LOCKED (delegated 2026-06-10): G6 free quota = 1,000 req/day/IP on Index then 402 (rail on) / 429 (rail off); G3 streams session = $0.001 per 100-block range per filter, voucher TTL 1h; G1 deploy = $2.00 flat (confirmed tier), 7-day TTL, $0.50/week renewal, claim clears TTL; G2 minimum deposit = $0.25, balances swept after 12 months of inactivity; wallet-owned subscriptions = metered from balance at $0.10/day per active subscription.
+3. G7 token list: sbtc-balances, usdcx-balances, alex-balances (3 curated balance subgraphs to start).
+4. BD timing: after Wave 1 ships (so AIBTC discovery tooling finds a live advertisement).
+
+## Status
+- Wave 1 SHIPPED 2026-06-10: G4 (/v1/x402/supported alias + enriched payload w/ floor + headers, /.well-known/x402, OpenAPI x-x402 block + path entry, web /llms.txt, MCP capabilities payPerCall block) + G5 (X402_PRIVATE_KEY → withX402-wrapped fetchImpl in MCP w/ stderr receipt logging, authState.x402WalletSet). T6 receipt-in-tool-response deferred (logging suffices for v1). Note: discovery returns enabled:false until the rail flips — intentional.

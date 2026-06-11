@@ -1,6 +1,6 @@
 import { X402_NETWORK, X402_TOKENS } from "@secondlayer/shared/x402";
 import { Hono } from "hono";
-import { X402_PRICE_CATALOG } from "../x402/catalog.ts";
+import { X402_MIN_FLOOR_USD, X402_PRICE_CATALOG } from "../x402/catalog.ts";
 import { isX402Enabled } from "../x402/facilitator.ts";
 
 /**
@@ -18,6 +18,10 @@ router.get("/supported", (c) =>
 		kinds: [{ x402Version: 2, scheme: "exact", network: X402_NETWORK.mainnet }],
 		catalog: X402_PRICE_CATALOG,
 		assets: X402_TOKENS,
+		floorUsd: X402_MIN_FLOOR_USD,
+		paymentHeader: "PAYMENT-SIGNATURE",
+		receiptHeader: "PAYMENT-RESPONSE",
+		docs: "https://secondlayer.tools/pricing#pay-per-call",
 	}),
 );
 
