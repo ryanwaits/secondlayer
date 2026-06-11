@@ -9,7 +9,12 @@ import {
 import type { Context, MiddlewareHandler } from "hono";
 import { getClientIp } from "../auth/http.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
-import { debitBalance, usdToMicros, verifyBalanceToken } from "./balance.ts";
+import {
+	debitBalance,
+	recordSpend,
+	usdToMicros,
+	verifyBalanceToken,
+} from "./balance.ts";
 import { type X402Surface, getX402Price } from "./catalog.ts";
 import {
 	type SettlementResponse,
@@ -231,6 +236,7 @@ export function x402PaymentRequired(
 						usdToMicros(cfg.priceUsd),
 					);
 					if (debit.ok) {
+						await recordSpend(getDb(), principal, usdToMicros(cfg.priceUsd));
 						c.set("x402Payer" as never, principal as never);
 						c.header(
 							"X-BALANCE-REMAINING-USD",
@@ -388,6 +394,10 @@ export function x402PaymentRequired(
 			state: settlement.state === "confirmed" ? "confirmed" : "pending",
 			kind: options.ledgerKind ?? "payment",
 		});
+		// Consumption (not deposits) feeds the monthly-spend funnel counter.
+		if ((options.ledgerKind ?? "payment") === "payment") {
+			await recordSpend(getDb(), verdict.payer, usdToMicros(cfg.priceUsd));
+		}
 
 		c.header(
 			"PAYMENT-RESPONSE",

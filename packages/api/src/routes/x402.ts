@@ -7,7 +7,9 @@ import {
 	MIN_DEPOSIT_USD,
 	creditBalance,
 	getBalance,
+	getMonthlySpend,
 	mintBalanceToken,
+	upgradeHint,
 	usdToMicros,
 	verifyBalanceToken,
 } from "../x402/balance.ts";
@@ -100,11 +102,14 @@ export function createX402Router(deps: X402RouterDeps = {}) {
 				);
 			}
 			const balance = await creditBalance(getDb(), payer, usdToMicros(paidUsd));
+			const spent = await getMonthlySpend(getDb(), payer);
 			return c.json({
 				credited_usd: paidUsd,
 				balance_usd: Number(balance) / 1_000_000,
 				balance_token: mintBalanceToken(payer, secret),
 				balance_header: "PAYMENT-BALANCE",
+				spent_this_month_usd: Number(spent) / 1_000_000,
+				...(upgradeHint(spent) ? { upgrade_hint: upgradeHint(spent) } : {}),
 			});
 		});
 	} else {
@@ -132,9 +137,12 @@ export function createX402Router(deps: X402RouterDeps = {}) {
 			);
 		}
 		const balance = await getBalance(getDb(), principal);
+		const spent = await getMonthlySpend(getDb(), principal);
 		return c.json({
 			principal,
 			balance_usd: Number(balance) / 1_000_000,
+			spent_this_month_usd: Number(spent) / 1_000_000,
+			...(upgradeHint(spent) ? { upgrade_hint: upgradeHint(spent) } : {}),
 		});
 	});
 

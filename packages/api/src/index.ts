@@ -36,6 +36,7 @@ import v1ApiKeysRouter from "./routes/v1-api-keys.ts";
 import v1IndexRouter from "./routes/v1-index.ts";
 import v1KeysRouter from "./routes/v1-keys.ts";
 import v1SubgraphsRouter from "./routes/v1-subgraphs.ts";
+import walletRouter from "./routes/wallet.ts";
 import webhooksStripeRouter from "./routes/webhooks-stripe.ts";
 import x402Router from "./routes/x402.ts";
 import { apiTelemetry } from "./telemetry/api.ts";
@@ -166,6 +167,8 @@ const PLATFORM_PATHS = [
 	"/api/accounts/*",
 	"/api/billing",
 	"/api/billing/*",
+	"/api/wallet",
+	"/api/wallet/*",
 	"/api/insights",
 	"/api/insights/*",
 	"/api/projects",
@@ -202,6 +205,7 @@ if (mode !== "platform") {
 if (mode === "platform") {
 	app.route("/api/accounts", accountsRouter);
 	app.route("/api/billing", billingRouter);
+	app.route("/api/wallet", walletRouter);
 	app.route("/api/insights", insightsRouter);
 	app.route("/api/projects", projectsRouter);
 	app.route("/api/chat-sessions", chatSessionsRouter);

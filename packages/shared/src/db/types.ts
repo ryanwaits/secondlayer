@@ -828,6 +828,9 @@ export interface Database {
 export interface X402BalancesTable {
 	principal: string;
 	balance_usd_micros: Generated<string | number | bigint>;
+	/** Month bucket ("YYYY-MM") the spend counter applies to. */
+	spent_month: string | null;
+	spent_month_usd_micros: Generated<string | number | bigint>;
 	updated_at: Generated<Date>;
 }
 
@@ -852,6 +855,8 @@ export interface X402PaymentsTable {
 	updated_at: Generated<Date>;
 	/** "payment" = per-call settle; "deposit" = prepaid balance top-up. */
 	kind: Generated<string>;
+	/** Linked claimed account once the paying wallet is attached (continuity). */
+	account_id: string | null;
 }
 
 // --- Tenants (dedicated hosting) ---

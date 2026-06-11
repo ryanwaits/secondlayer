@@ -32,6 +32,9 @@ const LLMS_TXT = `# Secondlayer — the indexing layer for Stacks
 - Anonymous: rate-limited public reads (Index, public Subgraphs).
 - sk-sl_ API key: raises limits, unlocks Streams reads; writes need a claimed
   account. Ghost keys (POST /v1/keys) are read-only until claimed by email.
+- Wallet continuity: a claimed account can link its paying wallet
+  (POST /api/wallet/link, signed message) — x402 spend history attaches and
+  any wallet-owned subgraphs become permanent.
 
 ## Docs
 - https://secondlayer.tools/docs (append ?mode=agent for the agent view)
