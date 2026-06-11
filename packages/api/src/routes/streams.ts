@@ -506,6 +506,7 @@ export default createStreamsRouter({
 				// One payment buys a polling session: tip-followers settle once
 				// per ~500 polls/hour instead of every request.
 				session: { ttlMs: 60 * 60 * 1000, maxCalls: 500 },
+				balanceDrawdown: true,
 			})
 		: undefined,
 });

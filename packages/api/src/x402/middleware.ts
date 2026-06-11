@@ -1,3 +1,4 @@
+import { getDb } from "@secondlayer/shared/db";
 import { PaymentRequiredError } from "@secondlayer/shared/errors";
 import {
 	type X402Network,
@@ -8,6 +9,7 @@ import {
 import type { Context, MiddlewareHandler } from "hono";
 import { getClientIp } from "../auth/http.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
+import { debitBalance, usdToMicros, verifyBalanceToken } from "./balance.ts";
 import { type X402Surface, getX402Price } from "./catalog.ts";
 import {
 	type SettlementResponse,
@@ -81,6 +83,15 @@ export type X402MiddlewareOptions = {
 	 *  good for `maxCalls` further requests within `ttlMs` — the per-call 402
 	 *  cycle only restarts when the session is exhausted or expired. */
 	session?: { ttlMs: number; maxCalls: number; secret?: string };
+	/** Accept PAYMENT-BALANCE drawdowns: debit the prepaid balance instead of
+	 *  a per-call on-chain settle. Falls through to the 402 cycle when the
+	 *  token is invalid or the balance can't cover the price. */
+	balanceDrawdown?: boolean;
+	/** Variable-amount surfaces (deposits): resolve the USD price per request;
+	 *  the surface's catalog price acts as the floor. */
+	priceUsdOverride?: (c: Context) => number;
+	/** Ledger row kind for settles on this surface (default "payment"). */
+	ledgerKind?: "payment" | "deposit";
 	// Injectables (wiring + tests):
 	facilitator?: X402Facilitator | null;
 	nonceStore?: NonceStore;
@@ -123,8 +134,13 @@ export function buildAccepts(opts: {
 	nonce: string;
 	network: X402Network;
 	spot?: SpotResolver;
+	/** Price override (variable-amount surfaces like deposits). */
+	priceUsd?: number;
 }): X402Accept[] {
-	const cfg = getX402Price(opts.surface);
+	const cfg = {
+		...getX402Price(opts.surface),
+		...(opts.priceUsd ? { priceUsd: opts.priceUsd } : {}),
+	};
 	const accepts: X402Accept[] = [];
 	for (const symbol of cfg.assets) {
 		const token = X402_TOKENS[symbol];
@@ -190,11 +206,40 @@ export function x402PaymentRequired(
 		}
 
 		const nonceStore = options.nonceStore ?? getX402NonceStore();
-		const cfg = getX402Price(options.surface);
+		const baseCfg = getX402Price(options.surface);
+		const cfg = options.priceUsdOverride
+			? {
+					...baseCfg,
+					priceUsd: Math.max(baseCfg.priceUsd, options.priceUsdOverride(c)),
+				}
+			: baseCfg;
 		const sigHeader = c.req.header("PAYMENT-SIGNATURE");
 
 		// ── Challenge step: no payment yet → 402 + PAYMENT-REQUIRED ──
 		if (!sigHeader) {
+			// Prepaid balance: a valid PAYMENT-BALANCE token debits the payer's
+			// credit atomically — no on-chain round trip, no signing latency.
+			if (options.balanceDrawdown) {
+				const balToken = c.req.header("PAYMENT-BALANCE");
+				const principal = balToken
+					? verifyBalanceToken(balToken, options.session?.secret)
+					: null;
+				if (principal) {
+					const debit = await debitBalance(
+						getDb(),
+						principal,
+						usdToMicros(cfg.priceUsd),
+					);
+					if (debit.ok) {
+						c.set("x402Payer" as never, principal as never);
+						c.header(
+							"X-BALANCE-REMAINING-USD",
+							(Number(debit.remaining) / 1_000_000).toFixed(6),
+						);
+						return next();
+					}
+				}
+			}
 			// Session voucher: a prior payment on this surface bought a bounded
 			// session — verify the signature + TTL statelessly, then spend one
 			// unit of the session's call budget. Checked before the free quota
@@ -235,6 +280,7 @@ export function x402PaymentRequired(
 					nonce,
 					network: facilitator.network,
 					spot,
+					priceUsd: cfg.priceUsd,
 				}),
 			};
 			c.header("PAYMENT-REQUIRED", b64encode(challenge));
@@ -261,6 +307,7 @@ export function x402PaymentRequired(
 			nonce: payment.extra?.nonce ?? "",
 			network: facilitator.network,
 			spot,
+			priceUsd: cfg.priceUsd,
 		});
 		const offer = accepts.find((a) => a.asset === payment.asset);
 		if (!offer) {
@@ -339,6 +386,7 @@ export function x402PaymentRequired(
 			payer: verdict.payer,
 			surface: options.surface,
 			state: settlement.state === "confirmed" ? "confirmed" : "pending",
+			kind: options.ledgerKind ?? "payment",
 		});
 
 		c.header(
@@ -351,8 +399,10 @@ export function x402PaymentRequired(
 				network: settlement.network,
 			}),
 		);
-		// Downstream handlers (paid writes) need the settled payer identity.
+		// Downstream handlers (paid writes) need the settled payer identity and,
+		// for variable-amount surfaces, the USD value that was actually settled.
 		c.set("x402Payer" as never, verdict.payer as never);
+		c.set("x402PaidUsd" as never, cfg.priceUsd as never);
 
 		// Session surfaces: this payment opens a bounded session — hand the
 		// voucher back so the client's next polls skip the 402 cycle.

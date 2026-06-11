@@ -635,6 +635,7 @@ export default createIndexRouter({
 				// First 1,000 anonymous reads per IP per day stay free even with
 				// the rail on — the keyless-reads promise survives the flip.
 				freeQuota: { limit: 1_000, windowMs: 24 * 60 * 60 * 1000 },
+				balanceDrawdown: true,
 			})
 		: undefined,
 });

@@ -821,6 +821,14 @@ export interface Database {
 	bns_namespaces: BnsNamespacesTable;
 	service_heartbeats: ServiceHeartbeatsTable;
 	x402_payments: X402PaymentsTable;
+	x402_balances: X402BalancesTable;
+}
+
+/** Prepaid x402 credit — one running USD-micros balance per payer principal. */
+export interface X402BalancesTable {
+	principal: string;
+	balance_usd_micros: Generated<string | number | bigint>;
+	updated_at: Generated<Date>;
 }
 
 export interface ServiceHeartbeatsTable {
@@ -842,6 +850,8 @@ export interface X402PaymentsTable {
 	state: Generated<"pending" | "confirmed" | "reverted">;
 	created_at: Generated<Date>;
 	updated_at: Generated<Date>;
+	/** "payment" = per-call settle; "deposit" = prepaid balance top-up. */
+	kind: Generated<string>;
 }
 
 // --- Tenants (dedicated hosting) ---

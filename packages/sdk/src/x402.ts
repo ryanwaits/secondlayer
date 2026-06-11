@@ -201,6 +201,13 @@ export async function buildSignedX402Payment(
 
 export type WithX402Options = SelectOfferOptions & {
 	account: LocalAccount;
+	/** Prepaid-credit token (PAYMENT-BALANCE) from a prior deposit — calls
+	 *  debit the tab server-side instead of settling on-chain per call. */
+	balanceToken?: string;
+	/** Autonomous treasury policy: when the tab's remaining balance (read from
+	 *  X-BALANCE-REMAINING-USD) drops below `whenBelow`, deposit `usd` more in
+	 *  the background (one on-chain payment) and adopt the fresh token. */
+	topUp?: { usd: number; whenBelow: number };
 	/** Override the payer nonce; auto-resolved from `nodeUrl` when omitted. */
 	accountNonce?: bigint | number | string;
 	/** Node for auto-nonce lookup. Defaults to {@link DEFAULT_NONCE_NODE_URL}. */
@@ -238,6 +245,8 @@ export function withX402(
 	// server is authoritative (a 402 despite a voucher just restarts the
 	// payment cycle and refreshes the cache).
 	const sessions = new Map<string, string>();
+	let balanceToken = opts.balanceToken ?? null;
+	let toppingUp = false;
 	const originOf = (input: Parameters<X402Fetch>[0]) => {
 		try {
 			return new URL(String(input)).origin;
@@ -246,7 +255,7 @@ export function withX402(
 		}
 	};
 
-	return async (input, init) => {
+	const wrapped: X402Fetch = async (input, init) => {
 		const origin = originOf(input);
 		const run = (extra: Record<string, string>, signal?: AbortSignal) =>
 			baseFetch(input, {
@@ -254,14 +263,46 @@ export function withX402(
 				headers: { ...(init?.headers as Record<string, string>), ...extra },
 				...(signal ? { signal } : {}),
 			});
+
+		// Treasury policy: refill the tab in the background before it empties.
+		// The deposit goes through this same wrapper (402 → pay → credited);
+		// its response carries the fresh PAYMENT-BALANCE token.
+		const maybeTopUp = (res: Response) => {
+			const policy = opts.topUp;
+			if (!policy || toppingUp || !origin) return;
+			const remaining = res.headers.get("X-BALANCE-REMAINING-USD");
+			if (remaining === null || Number(remaining) >= policy.whenBelow) return;
+			toppingUp = true;
+			void (async () => {
+				try {
+					const dep = await wrapped(
+						`${origin}/v1/x402/deposit?usd=${policy.usd}`,
+						{ method: "POST" },
+					);
+					if (dep.ok) {
+						const body = (await dep.json()) as { balance_token?: string };
+						if (body.balance_token) balanceToken = body.balance_token;
+					}
+				} catch {
+					// next sub-threshold response retries the top-up
+				} finally {
+					toppingUp = false;
+				}
+			})();
+		};
+
 		const remember = (res: Response) => {
 			const voucher = res.headers.get("PAYMENT-SESSION");
 			if (voucher && origin) sessions.set(origin, voucher);
+			maybeTopUp(res);
 			return res;
 		};
 
 		const cached = origin ? sessions.get(origin) : undefined;
-		const first = await run(cached ? { "PAYMENT-SESSION": cached } : {});
+		const first = await run({
+			...(cached ? { "PAYMENT-SESSION": cached } : {}),
+			...(balanceToken ? { "PAYMENT-BALANCE": balanceToken } : {}),
+		});
 		if (first.status !== 402) return remember(first);
 		if (cached && origin) sessions.delete(origin);
 
@@ -286,6 +327,7 @@ export function withX402(
 			: undefined;
 		return remember(await run({ "PAYMENT-SIGNATURE": header }, signal));
 	};
+	return wrapped;
 }
 
 export type X402ClientOptions = WithX402Options & {

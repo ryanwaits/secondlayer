@@ -15,7 +15,8 @@ export type X402Surface =
 	| "streams"
 	| "index"
 	| "subgraph-deploy"
-	| "subgraph-renew";
+	| "subgraph-renew"
+	| "deposit";
 
 export type X402Finality = "optimistic" | "confirmed";
 
@@ -71,6 +72,14 @@ export const X402_PRICE_CATALOG: Record<X402Surface, X402PriceConfig> = {
 	},
 	"subgraph-renew": {
 		priceUsd: 0.5,
+		assets: X402_TOKEN_SYMBOLS,
+		maxTimeoutSeconds: 120,
+		finality: "confirmed",
+	},
+	// Prepaid top-ups: variable amount (route overrides upward from this
+	// floor), confirmed-tier only — credit is minted off canonical settles.
+	deposit: {
+		priceUsd: 0.25,
 		assets: X402_TOKEN_SYMBOLS,
 		maxTimeoutSeconds: 120,
 		finality: "confirmed",

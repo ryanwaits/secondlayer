@@ -18,6 +18,8 @@ export type X402PaymentRecord = {
 	payer: string;
 	surface: string;
 	state: X402PaymentState;
+	/** "payment" (per-call settle, default) or "deposit" (prepaid top-up). */
+	kind?: "payment" | "deposit";
 };
 
 export async function insertX402Payment(

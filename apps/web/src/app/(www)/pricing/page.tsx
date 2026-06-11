@@ -67,7 +67,7 @@ const FAQ = [
 	},
 	{
 		q: "x402 or a subscription?",
-		a: "x402 suits agents and spiky, accountless workloads: pay exactly per call, with Streams sessions (one payment covers up to 500 polls an hour) keeping steady consumers cheap. Plans suit sustained workloads. They mix freely; a keyed app can still let its agents pay per call.",
+		a: "x402 suits agents and spiky, accountless workloads: pay exactly per call, with Streams sessions (one payment covers up to 500 polls an hour) and a prepaid tab (deposit once, calls debit it instantly — agents can even top themselves up) keeping steady consumers cheap and fast. Plans suit sustained workloads. They mix freely; a keyed app can still let its agents pay per call.",
 	},
 ];
 

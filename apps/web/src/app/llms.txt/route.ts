@@ -20,8 +20,13 @@ const LLMS_TXT = `# Secondlayer — the indexing layer for Stacks
 - Paid writes: POST /v1/subgraphs ($2) deploys a subgraph owned by the paying
   wallet (live indexing from deploy, 7-day TTL); POST /v1/subgraphs/{name}/renew
   ($0.50) extends it a week. Claiming the account clears the expiry.
-- SDK: withX402(fetch, { account }) from @secondlayer/sdk auto-pays 402s and
-  replays session vouchers automatically.
+- Prepaid credit: POST /v1/x402/deposit?usd=N (min $0.25, max $100/deposit)
+  loads a tab with one on-chain payment and returns a PAYMENT-BALANCE token;
+  calls carrying it debit the tab (X-BALANCE-REMAINING-USD on responses).
+  GET /v1/x402/balance reads the tab.
+- SDK: withX402(fetch, { account, balanceToken?, topUp? }) auto-pays 402s,
+  replays session vouchers, spends the prepaid tab, and can top itself up
+  autonomously (topUp: { usd, whenBelow }).
 
 ## Auth model
 - Anonymous: rate-limited public reads (Index, public Subgraphs).
