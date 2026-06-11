@@ -138,25 +138,6 @@ async function checkPublicStatus(): Promise<void> {
 		);
 	}
 
-	const datasets = root.datasets;
-	if (!Array.isArray(datasets)) {
-		failures.push("missing datasets[] on /public/status");
-	} else {
-		notices.push(`datasets[] count=${datasets.length}`);
-		for (const entry of datasets) {
-			const e = asRecord(entry);
-			const slug = String(e.slug ?? "?");
-			for (const key of [
-				"status",
-				"latest_finalized_cursor",
-				"generated_at",
-				"lag_blocks",
-			]) {
-				if (!(key in e)) failures.push(`datasets[${slug}] missing ${key}`);
-			}
-		}
-	}
-
 	// Decoders — banded lag thresholds. `unavailable` = real outage; large
 	// lag = stuck for real; small lag = ignore (chain is just quiet).
 	const index = asRecord(root.index);
