@@ -5,7 +5,7 @@
  * `sl subgraphs create <name> --template <slug>` — emits a Foundation
  * Dataset–shaped starter that compiles + runs zero-config.
  *
- * Each template mirrors one of the public Foundation Datasets so that the
+ * Each template mirrors a curated public view so that the
  * "I just used the dataset, now I want to write my own" path is a 1-line
  * scaffold + minor edits.
  */
@@ -141,7 +141,7 @@ function sip010Balances(name: string): string {
 
 /**
  * Track SIP-010 token balances per (asset_identifier, holder).
- * Mirrors the shape of the Foundation Datasets sBTC token-events
+ * Mirrors the shape of the curated sBTC token-events view
  * surface — but works for ANY SIP-010 token. Constrain to a single
  * token by adding \`assetIdentifier: "SP...token::token-name"\` to each
  * source filter.

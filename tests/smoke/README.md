@@ -40,4 +40,4 @@ Override with `DATABASE_URL`.
 
 The deploy workflow runs `scripts/ci/post-deploy-smoke.sh` after deploy.
 
-It checks `/v1/streams/events`, `/v1/index/ft-transfers`, `/v1/index/nft-transfers`, `/v1/streams/tip`, `/v1/datasets/stx-transfers`, `/v1/datasets/network-health/summary`, `/public/streams/dumps/manifest`, plus auth variants and `/public/status` shape (`streams.dumps`, `datasets[]`).
+It checks `/v1/streams/events`, `/v1/index/ft-transfers`, `/v1/index/nft-transfers`, `/v1/streams/tip`, `/public/streams/dumps/manifest`, plus auth variants and `/public/status` shape (`streams.dumps`).

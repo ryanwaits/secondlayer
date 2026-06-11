@@ -22,11 +22,9 @@ Deploys happen via GH Actions → `appleboy/ssh-action` → `docker compose recr
 ## Pre-launch (T-24h)
 
 ```bash
-# 1. Datasets returning data
-for path in stx-transfers sbtc/events sbtc/token-events pox-4/calls bns/names; do
-  curl -s "https://api.secondlayer.tools/v1/datasets/$path?limit=1" \
-    | jq -r --arg p "$path" '. as $r | "\($p): \((.events // .calls // .names // []) | length) row(s)"'
-done
+# 1. Index returning data
+curl -s "https://api.secondlayer.tools/v1/index/events?event_type=ft_transfer&limit=1" \
+  | jq -r '"index events: \((.events // []) | length) row(s)"'
 
 # 2. Streams live
 curl -s -H "Authorization: Bearer sk-sl_streams_status_public" \

@@ -16,7 +16,6 @@ Override with `SL_API_URL` env var or `baseUrl` SDK option.
 
 | Endpoint family | Auth required for reads? | Auth required for writes? | Header |
 |---|---|---|---|
-| `/v1/datasets/*` | No (open) | n/a (read-only) | none |
 | `/v1/contracts` | No (open) | n/a (read-only) | none |
 | `/v1/streams/*` | **Yes** (Streams API key) | n/a (read-only) | `Authorization: Bearer <SL_API_KEY>` |
 | `/v1/index/*` | No (anonymous OK) — but **free-tier keys are rejected** (Build+ for keyed access) | n/a (read-only) | `Authorization: Bearer <key>` if you have one |

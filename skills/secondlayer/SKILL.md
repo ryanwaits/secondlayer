@@ -44,7 +44,7 @@ These are small enough to keep in the router. Everything else is in a reference 
 - **Default platform API:** `https://api.secondlayer.tools`. Override with `SL_API_URL`.
 - **CLI auth:** `sl login` → magic-link → session in `~/.secondlayer/session.json` (90-day sliding). Tenant-scoped commands auto-mint 5-minute service JWTs per invocation; no long-lived key on disk.
 - **Streams auth:** `SL_API_KEY` env var (issued from the dashboard). **`/v1/streams/*` reads REQUIRE a bearer token** and resolve a per-tier tenant (free/build/scale/enterprise) — a publicly-known free-tier token exists but a bearer is always required. (The public `/public/streams/*` dump/signing-key endpoints need no auth.)
-- **Open beta:** Datasets (`/v1/datasets/*`) and Index (`/v1/index/*`) reads are anonymous (no auth); Streams reads need a bearer (above); writes (deploy, create, delete, rotate, replay) require auth. Don't fabricate auth steps for the anonymous read-only queries.
+- **Open beta:** Index (`/v1/index/*`) reads are anonymous (no auth); Streams reads need a bearer (above); writes (deploy, create, delete, rotate, replay) require auth. Don't fabricate auth steps for the anonymous read-only queries.
 - **Package manager:** prefer `bun` and `bunx`. Most package.json files in user projects declare `bun` as `packageManager`.
 - **Network inference:** addresses starting `SP`/`SM` → mainnet, `ST`/`SN` → testnet. CLI infers this automatically when scaffolding.
 
@@ -54,7 +54,6 @@ Reads are not uniformly open — know the tier before querying:
 
 | Surface | Auth |
 | --- | --- |
-| Datasets (`/v1/datasets`, `sl.datasets`, `sl datasets`) | **Open** — no key |
 | Contracts (`/v1/contracts`, `sl.contracts`) | **Open** — no key |
 | Index (`/v1/index`, `sl.index`, `sl index`) | Anonymous reads OK; **free-tier API keys are rejected** (Build+ required) |
 | Streams (`/v1/streams`, `sl.streams`, `sl streams`) | **API key required** (`SL_API_KEY`) — keyless 401 |
@@ -62,8 +61,8 @@ Reads are not uniformly open — know the tier before querying:
 
 ## Default working loop
 
-0. **Discover what exists.** Don't assume — enumerate at runtime: `sl datasets list` / `sl.datasets.listDatasets()` for dataset slugs + freshness, `sl.contracts.list({ trait })` for contracts implementing a trait, and (over MCP) read `secondlayer://context` for your subgraphs/subscriptions/account + capabilities.
-1. **Identify the layer.** Is this a subgraph (custom indexer)? A pre-built dataset (`sl.index` / `sl.datasets`)? A raw stream consumer? A direct contract call? Pick the right tool — don't reach for a subgraph when `sl.index.ftTransfers.list({ recipient })` does the job in one HTTP call.
+0. **Discover what exists.** Don't assume — enumerate at runtime: `sl.contracts.list({ trait })` for contracts implementing a trait, and (over MCP) read `secondlayer://context` for your subgraphs/subscriptions/account + capabilities.
+1. **Identify the layer.** Is this a subgraph (custom indexer)? A decoded-events query (`sl.index`)? A raw stream consumer? A direct contract call? Pick the right tool — don't reach for a subgraph when `sl.index.ftTransfers.list({ recipient })` does the job in one HTTP call.
 2. **Inspect first.** Before changing anything tenant-scoped, run a read (`sl subgraphs list`, `sl subscriptions get …`). Confirms auth + state, prevents accidental overwrites.
 3. **Scaffold the smallest correct thing.** Use `sl subgraphs scaffold <contract>` or `sl subscriptions create <name>` rather than hand-writing boilerplate. Both generate code that's already 1:1 with current package APIs.
 4. **Validate locally.** For subgraphs: `sl subgraphs spec <file>` to preview generated schema and API without deploying. For SDK code: type-check.

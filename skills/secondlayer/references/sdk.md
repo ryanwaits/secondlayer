@@ -2,7 +2,7 @@
 
 Source of truth: `packages/sdk/src/`. Function signatures below are copied verbatim — match them exactly when generating code.
 
-**Auth model:** `sl.datasets.*`, `sl.contracts.*`, `sl.index.*` are **anonymous** — no API key required. `sl.subgraphs.rows()` (the open /v1 read) is anonymous for **public** subgraphs only; **private** subgraphs (incl. all pre-existing ones — migrated private) need the owner's `sk-sl_` key, anon → 404. The /api-backed read methods (list/get/openapi/schema/markdown/queryTable/queryTableCount/gaps/getSource) sit on the authed control plane (note: `sl.index.*` rejects free-tier keys — Build+ for keyed access). **`sl.streams.*` reads REQUIRE a bearer token** and resolve a per-tier tenant (free/build/scale/enterprise); a publicly-known free-tier token exists but a bearer is always required. Write paths (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) **require `apiKey`**. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no key.
+**Auth model:** `sl.contracts.*`, `sl.index.*` are **anonymous** — no API key required. `sl.subgraphs.rows()` (the open /v1 read) is anonymous for **public** subgraphs only; **private** subgraphs (incl. all pre-existing ones — migrated private) need the owner's `sk-sl_` key, anon → 404. The /api-backed read methods (list/get/openapi/schema/markdown/queryTable/queryTableCount/gaps/getSource) sit on the authed control plane (note: `sl.index.*` rejects free-tier keys — Build+ for keyed access). **`sl.streams.*` reads REQUIRE a bearer token** and resolve a per-tier tenant (free/build/scale/enterprise); a publicly-known free-tier token exists but a bearer is always required. Write paths (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) **require `apiKey`**. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no key.
 
 **Key products & scope:** every `sk-sl_` key (set as `SL_API_KEY`) has a `product` that scopes it. An **`account`** key is the owner key — it grants BOTH `streams:read` and `index:read`, and is the **only** key allowed to mint new keys. A **`streams`** or **`index`** key is a scoped single-product read key and **cannot mint** (403). Dashboard keys default to `account`. Mint scoped keys programmatically with `sl.apiKeys.create({ product })` (requires an account/owner key); minted keys are always scoped and inherit your account plan's tier (never escalatable):
 
@@ -59,20 +59,18 @@ const sl = new SecondLayer({
 });
 ```
 
-`SecondLayer` exposes six resource clients:
+`SecondLayer` exposes five resource clients:
 
 ```ts
 sl.streams        // StreamsClient
 sl.index          // Index
-sl.datasets       // Datasets — Foundation Datasets, incl. listDatasets() catalog
 sl.contracts      // Contracts — trait-based contract discovery
 sl.subgraphs      // Subgraphs
 sl.subscriptions  // Subscriptions
 ```
 
-Discover what exists at runtime: `sl.datasets.listDatasets()` returns the dataset
-catalog + freshness, and `sl.contracts.list({ trait: "sip-010" })` finds deployed
-contracts conforming to a trait.
+Discover what exists at runtime: `sl.contracts.list({ trait: "sip-010" })` finds
+deployed contracts conforming to a trait.
 
 ---
 
@@ -681,40 +679,7 @@ Note `.walk()` defaults `fromHeight: 0` when neither `cursor` nor `fromCursor` i
 
 ---
 
-## 5b. `Datasets` — Foundation Datasets
-
-Typed client for `/v1/datasets/*` (public reads, no key). Cursor-paginated event
-datasets share a `list`/`walk` shape; offset/single-object ones have bespoke methods.
-
-Also on the root client as `sl.datasets` (no separate import needed).
-
-```ts
-import { Datasets } from "@secondlayer/sdk";
-const ds = new Datasets({ baseUrl: "https://api.secondlayer.tools" });
-
-// discovery: catalog + freshness — call this first to learn what exists
-const catalog = await ds.listDatasets();
-
-// cursor datasets: pox4Calls, sbtcEvents, sbtcTokenEvents, stxTransfers,
-// bnsEvents, bnsNamespaceEvents, bnsMarketplaceEvents,
-// burnchainRewards, burnchainRewardSlots
-const { rows, next_cursor } = await ds.pox4Calls.list({ address: "SP…", limit: 20 });
-for await (const row of ds.sbtcEvents.walk({ batchSize: 500 })) { /* … */ }
-
-// Bitcoin PoX reward payouts (go-forward), filter by reward address:
-await ds.burnchainRewards.list({ recipient: "bc1q…", limit: 20 });
-
-// bespoke
-await ds.bnsResolve("alice.btc");      // single record
-await ds.bnsNames({ namespace: "btc", offset: 0 });  // offset-paginated
-await ds.networkHealth();              // summary
-```
-
-Rows are `DatasetRow` (JSON) in v1; query params are typed per dataset.
-
----
-
-## 5c. `sl.contracts` — contract discovery
+## 5b. `sl.contracts` — contract discovery
 
 Typed client for `GET /v1/contracts` (public reads, no key). "Find all contracts
 conforming to a trait" — `trait` is required.

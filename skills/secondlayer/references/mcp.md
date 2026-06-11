@@ -62,11 +62,6 @@ Subscriptions:
 - `subscriptions_requeue_dead`
 - `subscriptions_recent_deliveries`
 
-Datasets (public reads):
-
-- `datasets_list` — catalog + freshness (discover slugs first)
-- `datasets_query` — query a cursor dataset by slug
-
 Index (decoded L2 — anonymous reads; free-tier keys rejected):
 
 - `index_ft_transfers`

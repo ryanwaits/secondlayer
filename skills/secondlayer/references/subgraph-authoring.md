@@ -943,7 +943,7 @@ const client = getSubgraph(mySubgraph, { apiKey: "sl_..." });
 
 ### 9.1 SIP-010 transfer indexer with per-holder balance upsert
 
-Adapted from `tmp/preflight-cli/subgraphs/preflight-sbtc.ts`. Mirrors the Foundation Datasets sBTC token-events shape but works for any SIP-010 token.
+Adapted from `tmp/preflight-cli/subgraphs/preflight-sbtc.ts`. Works for any SIP-010 token.
 
 ```ts
 import { defineSubgraph } from "@secondlayer/subgraphs";
