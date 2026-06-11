@@ -36,7 +36,10 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secondlayer}
       POSTGRES_DB: ${POSTGRES_PLATFORM_DB:-secondlayer_platform}
     volumes:
-      - postgres_platform_data:/var/lib/postgresql/data
+      # Real prod data is a bind mount (split-cutover provisioning). A named
+      # volume here once recreated the container EMPTY when compose re-upped —
+      # never point this anywhere but the live data dir.
+      - ${POSTGRES_PLATFORM_DATA_DIR:-/opt/secondlayer/data/postgres-platform}:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-secondlayer}"]
       interval: 10s
@@ -420,4 +423,3 @@ services:
 
 volumes:
   postgres_data:
-  postgres_platform_data:
