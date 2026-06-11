@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import { requireLocalNetwork } from "../lib/config.ts";
 import { DEFAULT_IMAGE_TAG } from "../lib/devnet-compose.ts";
+import { markFrozen } from "../lib/frozen.ts";
 import { addDbCommand } from "./db.ts";
 import { connect as devnetConnect, down as devnetDown } from "./devnet.ts";
 import { stackStart, stackStop } from "./stack.ts";
@@ -71,9 +72,13 @@ async function stopStack(options: StackLifecycleOptions): Promise<void> {
 }
 
 export function registerLocalCommand(program: Command): void {
-	const local = program
-		.command("local")
-		.description("Manage local development environment and Stacks node")
+	const local = markFrozen(
+		program
+			.command("local", { hidden: true })
+			.description("Manage local development environment and Stacks node"),
+	)
+		// Frozen-notice hook is registered first so it prints before any
+		// network-guard errors below.
 		.hook("preAction", async (_thisCommand, actionCommand) => {
 			// Skip preAction for help commands
 			if (actionCommand.name() === "help") return;

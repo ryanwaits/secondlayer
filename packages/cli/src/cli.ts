@@ -113,7 +113,8 @@ Examples:
   $ sl contracts generate --config secondlayer.config.ts --watch`,
 );
 
-// Local development
+// Local development — frozen periphery: both groups register hidden and print
+// a deprecation notice on use (see lib/frozen.ts), so this group never renders.
 program.commandsGroup("Local development:");
 registerLocalCommand(program);
 registerDevnetCommand(program);

@@ -35,10 +35,19 @@ const balance = await client.getBalance({
 | `@secondlayer/stacks/actions` | `readContract`, `callContract`, `transferStx`, `getContract`, `multicall` |
 | `@secondlayer/stacks/transactions` | Build, sign, serialize transactions, multi-sig |
 | `@secondlayer/stacks/postconditions` | `Pc` fluent builder for post-conditions |
+| `@secondlayer/stacks/utils` | Encoding, hashing, addresses, unit formatting |
+
+### Frozen modules
+
+These ship and work but get no further investment — they may be removed in a
+future major. Prefer Hiro's maintained `@stacks/*` ecosystem for wallet-side
+work; Secondlayer is a data-infrastructure company, not a wallet SDK vendor.
+
+| Module | Description |
+|---|---|
 | `@secondlayer/stacks/connect` | Wallet connection — browser extensions + `setProvider` |
 | `@secondlayer/stacks/connect/walletconnect` | WalletConnect v2 — native relay, QR, modal |
 | `@secondlayer/stacks/subscriptions` | `watchBlocks`, `watchMempool`, `watchTransaction` |
-| `@secondlayer/stacks/utils` | Encoding, hashing, addresses, unit formatting |
 | `@secondlayer/stacks/bns` | BNS name registration, resolution, zonefiles |
 | `@secondlayer/stacks/pox` | PoX stacking — solo and delegated |
 | `@secondlayer/stacks/stackingdao` | StackingDAO liquid staking (STX/stSTX) |

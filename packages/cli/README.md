@@ -135,16 +135,6 @@ trait — via the SDK, REST, or MCP with a `triggers` array. Every other
 `sl subscriptions` command (list/get/update/pause/resume/delete/doctor/test/
 deliveries/...) operates on both kinds.
 
-### Local dev & OSS
-
-| Command | What it does |
-|---|---|
-| `sl local up [--devnet]` / `sl local down [--devnet]` | Start/stop the full local stack (Stacks node + dev services), or a Clarinet devnet |
-| `sl local start/stop/restart/status/logs` | Manage just the local dev services |
-| `sl local node setup/start/stop/...` | Manage the local Stacks node |
-| `sl local db blocks/txs/events/gaps/truncate/resync` | Inspect the local source DB |
-| `sl devnet connect/down/status/logs` | Clarinet devnet integration |
-
 ### Other
 
 | Command | What it does |
@@ -218,6 +208,17 @@ const balance = await token.read.getBalance({ account: "SP..." })
 await token.write.transfer({ amount: 100n, recipient: "SP..." })
 const supply = await token.vars.totalSupply.get()
 ```
+
+## Frozen commands
+
+Local-dev periphery: still functional, hidden from `sl --help`, no further
+investment — may be removed in a future major. The hosted dev loop
+(`sl subgraphs create/deploy`) is the supported path.
+
+- `sl local up/down/start/stop/restart/status/logs` — local stack + dev services
+- `sl local node ...` — local Stacks node management
+- `sl local db ...` — local source DB inspection
+- `sl devnet connect/down/status/logs` — Clarinet devnet integration
 
 ## Docs
 

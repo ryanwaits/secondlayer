@@ -32,63 +32,19 @@ sl context               # headless orientation snapshot
 
 `sl subscriptions create` wires a webhook to a subgraph table. [Direct chain subscriptions](/docs/subscriptions#direct-chain-subscriptions-no-subgraph) — webhooks on raw chain events with no subgraph — are created over the SDK, REST, or MCP instead (they take a `triggers` array rather than a table).
 
-## ORM codegen
+## ORM codegen (frozen)
 
-Generate a typed ORM schema for a subgraph's tables — pair it with `--database-url` to query your own Postgres with Prisma, Drizzle, or Kysely (joins, relations, transactions):
+`sl subgraphs codegen --target prisma|drizzle|kysely` generates a typed ORM
+schema for a subgraph's tables, for BYO-database setups. Works, frozen — see
+[Subgraphs](/docs/subgraphs#use-your-own-database--orm) if you need it.
 
-```bash
-sl subgraphs codegen ./subgraph.config.ts --target prisma -o prisma/schema.prisma
-sl subgraphs codegen ./subgraph.config.ts --target drizzle -o db/schema.ts
-sl subgraphs codegen ./subgraph.config.ts --target kysely -o db/types.ts
-```
+## Local devnet (frozen)
 
-See [Subgraphs](/docs/subgraphs#use-your-own-database--orm) for wiring each ORM to your BYO database.
+`sl devnet` / `sl local` run the pipeline against a local Clarinet devnet. They
+work but are frozen — no further investment; the supported dev loop is hosted
+(`sl subgraphs create` → `deploy` against a recent block). Run `sl devnet --help`
+if you need them.
 
-## Local devnet
-
-Run the full pipeline against a local [Clarinet](https://docs.hiro.so/stacks/clarinet) devnet — write Clarity, `clarinet devnet start`, and index it locally with subgraphs and subscriptions.
-
-```bash
-cd my-clarinet-project
-sl devnet connect        # patches Devnet.toml + starts the Secondlayer stack
-clarinet devnet start    # your normal command — events now stream to the indexer
-
-SL_API_URL=http://localhost:3800 SL_API_KEY=dummy \
-  sl subgraphs deploy ./subgraph.ts
-```
-
-`connect` pulls the published OSS images (Docker required) — no repo checkout needed. Stop with `sl devnet down` (add `--purge` to wipe the local index when restarting your devnet from scratch).
-
-To populate rows you need a real contract-call transaction (`clarinet console` is simnet-only and won't broadcast on-chain). Fire one with `@stacks/transactions`:
-
-```ts
-import {
-  broadcastTransaction,
-  getAddressFromPrivateKey,
-  makeContractCall,
-} from "@stacks/transactions";
-
-const key =
-  "753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601"; // devnet deployer
-const sender = getAddressFromPrivateKey(key, "testnet");
-const { nonce } = await fetch(
-  `http://localhost:3999/v2/accounts/${sender}?proof=0`,
-).then((r) => r.json());
-
-const tx = await makeContractCall({
-  contractAddress: "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM",
-  contractName: "counter",
-  functionName: "increment",
-  functionArgs: [],
-  senderKey: key,
-  network: "devnet",
-  fee: 3000n,
-  nonce: BigInt(nonce),
-});
-console.log(await broadcastTransaction({ transaction: tx, network: "devnet" }));
-```
-
-The row appears at `/v1/subgraphs/<name>/<table>` within ~5s.
 
 export const metadata = {
 	title: "CLI — Secondlayer Docs",
