@@ -163,26 +163,3 @@ HEALTHCHECK NONE
 
 CMD ["bun", "run", "packages/subgraphs/src/subscription-service.ts"]
 
-# =============================================================================
-# Agent service - AI DevOps monitoring
-# =============================================================================
-FROM base AS agent
-
-WORKDIR /app
-
-# Install docker CLI for container management + bash for Agent SDK
-RUN apk add --no-cache docker-cli bash
-
-# Copy dependencies and agent code
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/package.json ./
-COPY tools/ops/agent ./tools/ops/agent
-
-ENV NODE_ENV=production
-
-EXPOSE 3900
-
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:3900/health || exit 1
-
-CMD ["bun", "run", "tools/ops/agent/src/index.ts"]

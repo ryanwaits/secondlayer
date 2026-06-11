@@ -20,7 +20,7 @@ if [ -f .env ]; then
 	set +a
 fi
 
-APP_SERVICES="api indexer l2-decoder subgraph-processor subscription-processor worker agent caddy"
+APP_SERVICES="api indexer l2-decoder subgraph-processor subscription-processor worker caddy"
 PLATFORM_SERVICES="provisioner"
 TENANT_API_DIGEST_LABEL="org.opencontainers.image.secondlayer.api-source-digest"
 DEPLOY_STATE_DIR="${DEPLOY_STATE_DIR:-/opt/secondlayer/data/deploy}"
@@ -51,7 +51,7 @@ echo "Rollback is image-only. Migrations will not run."
 
 # Optional single-service rollback. Pin ONE dedicated-image service to
 # ROLLBACK_IMAGE_TAG via its per-service tag var and recreate only it — the
-# independent-rollback payoff of the per-service images. api/indexer/worker/agent
+# independent-rollback payoff of the per-service images. api/indexer/worker
 # share images via DEPLOY_IMAGE_TAG and are not targetable here.
 ROLLBACK_SERVICE="${ROLLBACK_SERVICE:-}"
 if [ -n "$ROLLBACK_SERVICE" ]; then
@@ -84,7 +84,7 @@ if [ -n "$ROLLBACK_SERVICE" ]; then
 fi
 
 # Pull exact images before changing any running containers.
-$COMPOSE pull api indexer l2-decoder subgraph-processor subscription-processor worker agent migrate
+$COMPOSE pull api indexer l2-decoder subgraph-processor subscription-processor worker migrate
 $COMPOSE --profile platform pull provisioner
 
 # Recreate only runtime services. --no-deps prevents compose from starting the

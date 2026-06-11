@@ -1,13 +1,14 @@
 name: OSS Images
 
 # Publish OSS Docker images to GitHub Container Registry.
-# - Every push to `main` publishes `:latest` + the short SHA.
-# - Git tags matching `v*` publish `:<tag>` (e.g. v1.0.0).
-# Images: ghcr.io/<owner>/secondlayer-{api,indexer,worker,agent,l2-decoder,subgraph-processor,subscription-processor}
+# - Git tags matching `v*` publish `:<tag>` (e.g. v1.0.0) + `:latest`.
+# - Manual runs via workflow_dispatch.
+# Not built on every push — the deploy workflow covers prod; these exist for
+# self-hosters, who only need tagged releases.
+# Images: ghcr.io/<owner>/secondlayer-{api,indexer,worker,l2-decoder,subgraph-processor,subscription-processor}
 
 on:
   push:
-    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -25,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api, indexer, worker, agent, l2-decoder, subgraph-processor, subscription-processor]
+        service: [api, indexer, worker, l2-decoder, subgraph-processor, subscription-processor]
         # Thin targets (FROM api / FROM indexer) reuse the base build cache scope.
         include:
           - service: l2-decoder

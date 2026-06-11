@@ -1,6 +1,6 @@
 [Unit]
 Description=Secondlayer backup upload to Storage Box
-After=secondlayer-backup-prune.service network-online.target
+After=network-online.target
 Wants=network-online.target
 
 [Service]

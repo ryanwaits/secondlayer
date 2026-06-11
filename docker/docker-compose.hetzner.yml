@@ -159,41 +159,7 @@ services:
       # chain-reorg rewind (a standby acquires the lock within pollMs if the leader
       # dies). The evaluator itself stays single-leader, so this is throughput +
       # availability, not faster evaluation.
-      replicas: ${SUBSCRIPTION_PROCESSOR_REPLICAS:-2}
-
-  agent:
-    container_name: secondlayer-agent
-    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-agent:${DEPLOY_IMAGE_TAG:-latest}
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-      target: agent
-    environment:
-      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
-      SLACK_API_TOKEN: ${SLACK_API_TOKEN:-}
-      SLACK_CHANNEL_ID: ${SLACK_CHANNEL_ID:-}
-      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:-}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      AGENT_DATA_DIR: /data/agent
-      AGENT_DRY_RUN: ${AGENT_DRY_RUN:-false}
-      AGENT_AI_ENABLED: ${AGENT_AI_ENABLED:-true}
-      AGENT_POLL_INTERVAL_MS: ${AGENT_POLL_INTERVAL_MS:-300000}
-      AGENT_BUDGET_CAP_DAILY_USD: ${AGENT_BUDGET_CAP_DAILY_USD:-5}
-      COMPOSE_DIR: /opt/secondlayer/docker
-      NODE_SERVER_URL: ${NODE_SERVER_URL}
-    volumes:
-      - ${DATA_DIR:-/opt/secondlayer/data}/agent:/data/agent
-      - /var/run/docker.sock:/var/run/docker.sock
-    depends_on:
-      api:
-        condition: service_healthy
-      indexer:
-        condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-    restart: unless-stopped
+      replicas: ${SUBSCRIPTION_PROCESSOR_REPLICAS:-1}
 
 volumes:
   caddy_data:

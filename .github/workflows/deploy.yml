@@ -75,7 +75,6 @@ jobs:
           - api
           - indexer
           - worker
-          - agent
           - l2-decoder
           - subgraph-processor
           - subscription-processor

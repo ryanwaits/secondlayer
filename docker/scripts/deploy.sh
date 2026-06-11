@@ -55,11 +55,11 @@ fi
 [ -n "$_DEPLOY_SHA_OVERRIDE" ] && DEPLOY_SHA="$_DEPLOY_SHA_OVERRIDE"
 unset _DEPLOY_IMAGE_OWNER_OVERRIDE _DEPLOY_IMAGE_TAG_OVERRIDE _DEPLOY_SHA_OVERRIDE
 
-APP_SERVICES="api indexer l2-decoder subgraph-processor subscription-processor worker agent caddy"
+APP_SERVICES="api indexer l2-decoder subgraph-processor subscription-processor worker caddy"
 # api recreates separately (rolling, replica-by-replica behind Caddy) so its
 # cached read plane never goes fully dark on a code-only deploy. Everything else
 # recreates in bulk.
-APP_SERVICES_NO_API="indexer l2-decoder subgraph-processor subscription-processor worker agent caddy"
+APP_SERVICES_NO_API="indexer l2-decoder subgraph-processor subscription-processor worker caddy"
 DEPLOY_IMAGE_OWNER="${DEPLOY_IMAGE_OWNER:-secondlayer-labs}"
 DEPLOY_IMAGE_TAG="${DEPLOY_IMAGE_TAG:-${DEPLOY_SHA:-latest}}"
 DEPLOY_STATE_DIR="${DEPLOY_STATE_DIR:-/opt/secondlayer/data/deploy}"
@@ -69,7 +69,7 @@ export DEPLOY_IMAGE_OWNER DEPLOY_IMAGE_TAG
 
 # Services that hold locks on tables migrations mutate. Indexer and l2-decoder
 # write L1/L2 tables, so migrations must complete before they restart on new code.
-MIGRATION_LOCK_HOLDERS="api indexer l2-decoder agent worker"
+MIGRATION_LOCK_HOLDERS="api indexer l2-decoder worker"
 
 echo "Deploy image owner: ${DEPLOY_IMAGE_OWNER}"
 echo "Deploy image tag: ${DEPLOY_IMAGE_TAG}"
@@ -78,7 +78,7 @@ echo "Deploy image tag: ${DEPLOY_IMAGE_TAG}"
 # image for this SHA, fail while the current deployment is still running.
 # Skip the pull entirely when every required image is already cached locally
 # (no-op re-deploys, rollbacks to a recent SHA, CI pre-pull from build-images).
-_pull_services=(api indexer l2-decoder subgraph-processor subscription-processor worker agent migrate)
+_pull_services=(api indexer l2-decoder subgraph-processor subscription-processor worker migrate)
 _expected_images=$($COMPOSE config --images "${_pull_services[@]}" 2>/dev/null | sort -u)
 _missing_images=()
 while IFS= read -r _img; do
