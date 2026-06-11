@@ -2,18 +2,19 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import s from "./billing.module.css";
 
 /**
- * Client half of /platform/billing: the upgrade + portal buttons, and the
- * post-checkout resolve call. Landing with ?upgrade=success fires one
+ * Client half of /platform/billing: state-dependent actions plus the
+ * post-checkout resolve. Landing with ?upgrade=success fires one
  * POST /api/billing/resolve (a direct Stripe read that syncs the plan
- * immediately instead of waiting on the webhook), then refreshes the page.
+ * immediately instead of waiting on the webhook), then refreshes.
  */
 export function BillingActions({
-	plan,
+	state,
 	hasSubscription,
 }: {
-	plan: string;
+	state: "free" | "trialing" | "active" | "ending";
 	hasSubscription: boolean;
 }) {
 	const router = useRouter();
@@ -64,32 +65,54 @@ export function BillingActions({
 	}
 
 	return (
-		<div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-			{plan === "none" && (
-				<button
-					type="button"
-					className="auth-bar-cta"
-					onClick={upgrade}
-					disabled={busy !== null}
-				>
-					{busy === "upgrade" ? "Redirecting…" : "Upgrade to Pro — $99/mo"}
-				</button>
-			)}
+		<>
+			<div className={s.actions}>
+				{state === "free" && (
+					<>
+						<button
+							type="button"
+							className={s.btnInk}
+							onClick={upgrade}
+							disabled={busy !== null}
+						>
+							{busy === "upgrade" ? "Redirecting…" : "Upgrade to Pro · $99/mo"}
+						</button>
+						<span className={s.actHint}>
+							30-day trial · card up front · $0 today
+						</span>
+					</>
+				)}
+				{state === "ending" && (
+					<button
+						type="button"
+						className={s.btnInk}
+						onClick={openPortal}
+						disabled={busy !== null}
+					>
+						{busy === "portal" ? "Redirecting…" : "Resume Pro"}
+					</button>
+				)}
+				{hasSubscription && (
+					<button
+						type="button"
+						className={s.btnGhost}
+						onClick={openPortal}
+						disabled={busy !== null}
+					>
+						{busy === "portal" ? "Redirecting…" : "Manage subscription"}{" "}
+						<span className={s.ext}>↗</span>
+					</button>
+				)}
+				{error && <span className={s.actErr}>{error}</span>}
+			</div>
 			{hasSubscription && (
-				<button
-					type="button"
-					className="auth-bar-cta"
-					onClick={openPortal}
-					disabled={busy !== null}
-				>
-					{busy === "portal" ? "Redirecting…" : "Manage subscription"}
-				</button>
+				<p className={s.portalNote}>
+					{state === "ending"
+						? "resume re-opens the same subscription in the Stripe portal. No new checkout, no new trial."
+						: "opens the Stripe customer portal: invoices, card, cancel."}{" "}
+					<code>billing.stripe.com</code>
+				</p>
 			)}
-			{error && (
-				<span style={{ color: "var(--danger, #c00)", fontSize: "0.85em" }}>
-					{error}
-				</span>
-			)}
-		</div>
+		</>
 	);
 }
