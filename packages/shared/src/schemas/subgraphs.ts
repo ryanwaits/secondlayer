@@ -69,6 +69,10 @@ export interface DeploySubgraphResponse {
 	version: string;
 	visibility?: "public" | "private";
 	message: string;
+	/** Effective indexing start height after plan policy. */
+	start_block?: number;
+	/** True when the free-tier forward-only policy adjusted the start. */
+	start_block_clamped?: boolean;
 	operationId?: string;
 	reindexStarted?: boolean;
 	diff?: {

@@ -89,7 +89,8 @@ export function HomeFeatures() {
 				>
 					Define sources, schema, and handlers in one TypeScript file. Deploy it
 					and get typed Postgres tables, a public read API, and a page on
-					Explore — synced from genesis without running anything.
+					Explore — live from the moment you deploy, full genesis history on
+					paid plans.
 				</Feature>
 
 				<Feature

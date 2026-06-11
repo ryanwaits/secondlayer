@@ -183,6 +183,7 @@ export const CODE_TO_STATUS: Record<
 	BYO_BREAKING_CHANGE: 422,
 	PUBLIC_NAME_TAKEN: 409,
 	GHOST_KEY_READ_ONLY: 403,
+	GENESIS_BACKFILL_REQUIRES_PLAN: 403,
 } as const;
 
 export function getErrorMessage(err: unknown): string {

@@ -30,6 +30,10 @@ import {
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import {
+	clampDeployStartBlock,
+	resolveGenesisPolicy,
+} from "../subgraphs/plan-limits.ts";
+import {
 	DeploySubgraphRequestSchema,
 	type SubgraphDetail,
 } from "@secondlayer/shared/schemas/subgraphs";
@@ -406,6 +410,25 @@ app.post("/", async (c) => {
 		}
 	}
 
+	// Free-tier (plan 'none', incl. ghosts) indexes forward from deploy-time
+	// tip only — genesis backfill is paid. The clamp rewrites the definition
+	// itself: both the registered start_block and the stored definition JSON
+	// come from def.startBlock (deployer regData), so this is the one spot
+	// that is authoritative for every deploy surface.
+	const genesisPolicy = await resolveGenesisPolicy(db, accountId ?? undefined);
+	let startBlockClamped = false;
+	if (!genesisPolicy.genesisAllowed) {
+		const clampRes = clampDeployStartBlock({
+			genesisAllowed: false,
+			requested: def.startBlock,
+			existingStartBlock:
+				existing != null ? (toBlockNumber(existing.start_block) ?? 0) : undefined,
+			chainTip,
+		});
+		startBlockClamped = clampRes.clamped;
+		def = { ...def, startBlock: clampRes.startBlock };
+	}
+
 	const deployStartBlock = resolveDeployStartBlock(def);
 	if (chainTip > 0 && deployStartBlock > chainTip) {
 		return c.json(
@@ -425,6 +448,13 @@ app.post("/", async (c) => {
 			existingStartBlock,
 			definitionStartBlock: def.startBlock,
 		});
+	// Clamped redeploy that lands exactly on the registered start is a no-op
+	// for history — suppress the explicit-startBlock force-reindex signal.
+	const clampPreservedExisting =
+		startBlockClamped === false &&
+		!genesisPolicy.genesisAllowed &&
+		existing != null &&
+		def.startBlock === existingStartBlock;
 	const result = await deploySchema(db, def, handlerPath, {
 		apiKeyId,
 		accountId,
@@ -432,7 +462,9 @@ app.post("/", async (c) => {
 		version: parsed.data.version,
 		handlerCode: parsed.data.handlerCode,
 		sourceCode: parsed.data.sourceCode,
-		forceReindex: parsed.data.startBlock !== undefined || startBlockChanged,
+		forceReindex:
+			(parsed.data.startBlock !== undefined && !clampPreservedExisting) ||
+			startBlockChanged,
 		dataDb: byoDataDb,
 		databaseUrlEnc,
 	});
@@ -506,6 +538,8 @@ app.post("/", async (c) => {
 			subgraphId: result.subgraphId,
 			version: result.version,
 			visibility: desiredVisibility ?? existing?.visibility ?? "private",
+			start_block: deployStartBlock,
+			...(startBlockClamped ? { start_block_clamped: true } : {}),
 			message: `Subgraph "${name}" ${result.action}`,
 			...(result.diff ? { diff: result.diff } : {}),
 			...(result.action === "created" || result.action === "reindexed"
@@ -673,12 +707,22 @@ app.post("/:subgraphName/reindex", async (c) => {
 	const subgraph = getOwnedSubgraph(subgraphName, accountId);
 
 	const body = await c.req.json().catch(() => ({}));
-	const fromBlock =
+	const requestedFrom =
 		typeof body.fromBlock === "number" ? body.fromBlock : undefined;
 	const toBlock = typeof body.toBlock === "number" ? body.toBlock : undefined;
 	const db = getDb();
 	const chainTip = await getChainTip();
 	void chainTip;
+
+	// Free tier may reprocess its own indexed range, never below it. The
+	// fromBlock is materialized (never null) so the runtime's
+	// definition.startBlock-genesis fallback can't fire for clamped accounts.
+	const reindexPolicy = await resolveGenesisPolicy(db, accountId ?? undefined);
+	let fromBlock = requestedFrom;
+	if (!reindexPolicy.genesisAllowed) {
+		const registeredStart = toBlockNumber(subgraph.start_block) ?? 0;
+		fromBlock = Math.max(requestedFrom ?? registeredStart, registeredStart);
+	}
 
 	try {
 		const operation = await createSubgraphOperation(db, {
@@ -760,6 +804,19 @@ app.post("/:subgraphName/backfill", async (c) => {
 		);
 	}
 	const db = getDb();
+
+	// Backfill is inherently historical — free tier indexes forward only.
+	const backfillPolicy = await resolveGenesisPolicy(db, accountId ?? undefined);
+	if (!backfillPolicy.genesisAllowed) {
+		return c.json(
+			{
+				error:
+					"Historical backfill requires a paid plan — free-tier subgraphs index forward from deploy. Upgrade to backfill history.",
+				code: "GENESIS_BACKFILL_REQUIRES_PLAN",
+			},
+			403,
+		);
+	}
 
 	try {
 		const operation = await createSubgraphOperation(db, {

@@ -798,6 +798,12 @@ Examples:
 							...(visibility ? { visibility } : {}),
 						});
 
+						if (result.start_block_clamped) {
+							info(
+								`  Free tier indexes forward from deploy (start block ${result.start_block}) — upgrade for genesis backfill.`,
+							);
+						}
+
 						const printDeployFooter = async () => {
 							try {
 								const { apiUrl } = await resolveAuth();

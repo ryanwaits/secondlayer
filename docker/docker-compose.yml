@@ -133,6 +133,8 @@ services:
       X402_SPOT_STX_USD: ${X402_SPOT_STX_USD:-}
       # Ghost-key claim URLs (POST /v1/keys) point at the marketing site.
       PLATFORM_BASE_URL: ${PLATFORM_BASE_URL:-https://secondlayer.tools}
+      # Accounts allowed genesis backfill regardless of plan (curated Explore seeds).
+      SUBGRAPH_GENESIS_EXEMPT_ACCOUNT_IDS: ${SUBGRAPH_GENESIS_EXEMPT_ACCOUNT_IDS:-}
       SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}
       INDEXER_URL: ${INDEXER_URL:-http://indexer:3700}
       STREAMS_INTERNAL_API_KEY: ${STREAMS_INTERNAL_API_KEY:-}

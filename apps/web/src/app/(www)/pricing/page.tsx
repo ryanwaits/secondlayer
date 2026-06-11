@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 const FREE_INCLUDES = [
 	"Public reads on Index + Streams — anonymous or with a key, rate-limited either way",
 	"Ghost keys: curl -X POST /v1/keys, no signup, claim with an email anytime",
-	"2 public subgraphs — live indexing + the last 30 days of history",
+	"2 public subgraphs — live indexing from the moment you deploy",
 	"3 webhook subscriptions, 24h delivery log",
 	"The full parquet archive with signed manifests",
 	"MCP server + agent skills",
@@ -55,7 +55,7 @@ const FAQ = [
 	},
 	{
 		q: "What does a paid plan actually buy?",
-		a: "Capacity and guarantees: a bigger request budget under your own key, more subgraphs (including private ones), full genesis backfills instead of the 30-day window, longer webhook retention, support and SLAs. Never access to public data.",
+		a: "Capacity and guarantees: a bigger request budget under your own key, more subgraphs (including private ones), full genesis backfills instead of forward-only indexing, longer webhook retention, support and SLAs. Never access to public data.",
 	},
 	{
 		q: "When does billing start?",
