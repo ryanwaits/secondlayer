@@ -10,10 +10,6 @@ import { getGapSummaryBySubgraph } from "@secondlayer/shared/db/queries/subgraph
 import { Hono } from "hono";
 import { sql } from "kysely";
 import {
-	type DatasetFreshness,
-	getDatasetsFreshness,
-} from "../datasets/manifests.ts";
-import {
 	type StreamsDumpsFreshness,
 	getStreamsBulkManifest,
 	streamsDumpsFreshness,
@@ -247,11 +243,6 @@ app.get("/public/status", async (c) => {
 				: null,
 		chainTip,
 	});
-	const datasetsResult = await Promise.allSettled([
-		getDatasetsFreshness({ chainTip }),
-	]);
-	const datasets: DatasetFreshness[] =
-		datasetsResult[0].status === "fulfilled" ? datasetsResult[0].value : [];
 	const services: PublicServiceHealth[] = [
 		{ name: "api", status: "ok" },
 		{
@@ -296,7 +287,6 @@ app.get("/public/status", async (c) => {
 			dumps,
 		},
 		index,
-		datasets,
 		api: getApiTelemetrySnapshot(),
 		node: {
 			status: nodeStatusFromStreamsTip(streamsTip),

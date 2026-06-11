@@ -107,6 +107,35 @@ function buildApp(opts: {
 	return app;
 }
 
+/** App with the free-quota ladder: first `limit` anonymous calls pass through. */
+function buildQuotaApp(opts: {
+	facilitator: X402Facilitator;
+	nonceStore: InProcNonceStore;
+	limit: number;
+}) {
+	let used = 0;
+	const app = new Hono();
+	app.onError(errorHandler);
+	app.use(
+		"*",
+		x402PaymentRequired({
+			surface: "index",
+			payTo: PAY_TO,
+			facilitator: opts.facilitator,
+			nonceStore: opts.nonceStore,
+			optimisticGate: new InProcOptimisticGate(),
+			isAccountBacked: () => false,
+			insertPayment: async () => {},
+			freeQuota: { limit: opts.limit, windowMs: 60_000 },
+			quotaStore: {
+				check: async (_key, limit) => ({ allowed: ++used <= limit }),
+			},
+		}),
+	);
+	app.get("/x", (c) => c.json({ data: "ok" }));
+	return app;
+}
+
 async function challengeOffer(app: ReturnType<typeof buildApp>) {
 	const challenge = b64decode<X402Challenge>(
 		(await app.request("/x")).headers.get("PAYMENT-REQUIRED") as string,
@@ -233,5 +262,38 @@ describe("x402PaymentRequired", () => {
 			reason: "awaiting_confirmation",
 			txid: "0xsettled",
 		});
+	});
+});
+
+describe("free-quota ladder", () => {
+	test("anonymous calls under the quota fall through (no 402)", async () => {
+		const app = buildQuotaApp({
+			facilitator: fakeFacilitator(),
+			nonceStore: new InProcNonceStore(),
+			limit: 2,
+		});
+		expect((await app.request("/x")).status).toBe(200);
+		expect((await app.request("/x")).status).toBe(200);
+	});
+
+	test("quota exhaustion starts the 402 challenge", async () => {
+		const app = buildQuotaApp({
+			facilitator: fakeFacilitator(),
+			nonceStore: new InProcNonceStore(),
+			limit: 1,
+		});
+		expect((await app.request("/x")).status).toBe(200);
+		const res = await app.request("/x");
+		expect(res.status).toBe(402);
+		expect(res.headers.get("PAYMENT-REQUIRED")).toBeTruthy();
+	});
+
+	test("without freeQuota the first call still 402s (default unchanged)", async () => {
+		const app = buildApp({
+			facilitator: fakeFacilitator(),
+			nonceStore: new InProcNonceStore(),
+			ledger: [],
+		});
+		expect((await app.request("/x")).status).toBe(402);
 	});
 });

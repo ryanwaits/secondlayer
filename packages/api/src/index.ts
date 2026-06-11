@@ -20,7 +20,6 @@ import authRouter from "./routes/auth.ts";
 import billingRouter from "./routes/billing.ts";
 import chatSessionsRouter from "./routes/chat-sessions.ts";
 import contractsRouter from "./routes/contracts.ts";
-import datasetsRouter from "./routes/datasets.ts";
 import indexRouter from "./routes/index.ts";
 import insightsRouter from "./routes/insights.ts";
 import nodeRouter from "./routes/node.ts";
@@ -63,7 +62,7 @@ const app = new Hono();
 //    Wildcard here would let any page invoke billing/keys/auth from a
 //    victim's browser.
 //  - Public read surfaces (`/v1/*`, `/health`, `/public/*`): wildcard origin,
-//    no credentials. Anyone should be able to fetch sBTC/BNS datasets or
+//    no credentials. Anyone should be able to fetch sBTC/BNS events or
 //    paginate Streams from a third-party app. Rate-limit headers are exposed
 //    so clients can read them.
 const dashboardOrigins = (
@@ -212,7 +211,6 @@ app.route("/v1", v1IndexRouter);
 app.route("/v1/openapi.json", openApiRouter);
 app.route("/v1/streams", streamsRouter);
 app.route("/v1/index", indexRouter);
-app.route("/v1/datasets", datasetsRouter);
 app.route("/v1/subgraphs", v1SubgraphsRouter);
 app.route("/v1/contracts", contractsRouter);
 app.route("/x402", x402Router);

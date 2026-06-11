@@ -9,13 +9,6 @@ export function createV1IndexRouter() {
 		c.json({
 			surfaces: [
 				{
-					name: "datasets",
-					path: "/v1/datasets",
-					description:
-						"Curated, anon-readable datasets covering common chain questions.",
-					auth: "none",
-				},
-				{
 					name: "index",
 					path: "/v1/index",
 					description:

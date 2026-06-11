@@ -630,6 +630,11 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 // Composition root: decide x402 from env here, keeping the route factory pure.
 export default createIndexRouter({
 	x402Middleware: isX402Enabled()
-		? x402PaymentRequired({ surface: "index" })
+		? x402PaymentRequired({
+				surface: "index",
+				// First 1,000 anonymous reads per IP per day stay free even with
+				// the rail on — the keyless-reads promise survives the flip.
+				freeQuota: { limit: 1_000, windowMs: 24 * 60 * 60 * 1000 },
+			})
 		: undefined,
 });

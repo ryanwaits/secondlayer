@@ -6,6 +6,8 @@ import {
 	findX402TokenByAsset,
 } from "@secondlayer/shared/x402";
 import type { Context, MiddlewareHandler } from "hono";
+import { getClientIp } from "../auth/http.ts";
+import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import { type X402Surface, getX402Price } from "./catalog.ts";
 import {
 	type SettlementResponse,
@@ -57,6 +59,19 @@ export type X402MiddlewareOptions = {
 	surface: X402Surface;
 	/** Recipient principal — defaults to the facilitator's `X402_PAY_TO`. */
 	payTo?: string;
+	/** Free-quota ladder: accountless requests under `limit` per `windowMs`
+	 *  (keyed per client IP) fall through to the normal anonymous path instead
+	 *  of a 402 challenge. Quota is only consulted when the rail is live, so
+	 *  rail-off behavior is untouched. */
+	freeQuota?: { limit: number; windowMs: number };
+	/** Injectable quota store (tests); defaults to the shared rate-limit store. */
+	quotaStore?: {
+		check(
+			key: string,
+			limit: number,
+			windowMs: number,
+		): Promise<{ allowed: boolean }>;
+	};
 	// Injectables (wiring + tests):
 	facilitator?: X402Facilitator | null;
 	nonceStore?: NonceStore;
@@ -171,6 +186,18 @@ export function x402PaymentRequired(
 
 		// ── Challenge step: no payment yet → 402 + PAYMENT-REQUIRED ──
 		if (!sigHeader) {
+			// Free-quota ladder: the first N anonymous calls per IP per window
+			// stay free (normal anon rate limits still apply downstream); the
+			// 402 only starts once the daily budget is spent.
+			if (options.freeQuota) {
+				const store = options.quotaStore ?? getRateLimitStore();
+				const quota = await store.check(
+					`x402free:${options.surface}:${getClientIp(c)}`,
+					options.freeQuota.limit,
+					options.freeQuota.windowMs,
+				);
+				if (quota.allowed) return next();
+			}
 			const nonce = generateNonce();
 			const challenge: X402Challenge = {
 				x402Version: X402_VERSION,

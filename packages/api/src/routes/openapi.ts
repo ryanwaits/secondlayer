@@ -13,13 +13,12 @@ const OPENAPI_SPEC = {
 		title: "Secondlayer Public API",
 		version: "1.0.0",
 		description:
-			"Public surfaces: Datasets (curated, anon), Index (semantic FT/NFT, anon-readable), Streams (raw firehose, bearer), Subgraphs (public subgraphs anon-readable, private with the owning account's bearer; `{ rows, next_cursor, tip }` envelope with `_id` keyset cursor). Cursor format is `<block_height>:<event_index>` on Datasets/Index/Streams.",
+			"Public surfaces: Index (semantic FT/NFT, anon-readable), Streams (raw firehose, bearer), Subgraphs (public subgraphs anon-readable, private with the owning account's bearer; `{ rows, next_cursor, tip }` envelope with `_id` keyset cursor). Cursor format is `<block_height>:<event_index>` on Index/Streams.",
 	},
 	servers: [
 		{ url: "https://api.secondlayer.tools", description: "Production" },
 	],
 	tags: [
-		{ name: "datasets", description: "Curated datasets, anon" },
 		{ name: "index", description: "Semantic indexes (FT/NFT transfers)" },
 		{ name: "streams", description: "Raw firehose, bearer" },
 		{
@@ -111,13 +110,6 @@ const OPENAPI_SPEC = {
 		"/v1/openapi.json": {
 			get: { summary: "This document", responses: ok() },
 		},
-		"/v1/datasets": {
-			get: {
-				tags: ["datasets"],
-				summary: "Datasets discovery",
-				responses: ok(),
-			},
-		},
 		"/v1/subgraphs": {
 			get: {
 				tags: ["subgraphs"],
@@ -200,125 +192,6 @@ const OPENAPI_SPEC = {
 				tags: ["subgraphs"],
 				summary: "SSE tail of new rows (?since=<block> to replay)",
 				parameters: [pp("name"), pp("table")],
-				responses: ok(),
-			},
-		},
-		"/v1/datasets/stx-transfers": {
-			get: {
-				tags: ["datasets"],
-				summary: "STX transfer events",
-				parameters: [
-					{ $ref: "#/components/parameters/Limit" },
-					{ $ref: "#/components/parameters/Cursor" },
-					qp("from_block", "integer"),
-					qp("to_block", "integer"),
-					qp("sender", "string"),
-					qp("recipient", "string"),
-				],
-				responses: envelope(),
-			},
-		},
-		"/v1/datasets/sbtc/events": {
-			get: {
-				tags: ["datasets"],
-				summary: "sBTC bridge events",
-				parameters: [
-					{ $ref: "#/components/parameters/Limit" },
-					{ $ref: "#/components/parameters/Cursor" },
-					qp("from_block", "integer"),
-					qp("to_block", "integer"),
-					qp("topic", "string"),
-					qp("bitcoin_txid", "string"),
-					qp("request_id", "string"),
-					qp("sender", "string"),
-				],
-				responses: envelope(),
-			},
-		},
-		"/v1/datasets/sbtc/token-events": {
-			get: {
-				tags: ["datasets"],
-				summary: "sBTC SIP-010 token events",
-				parameters: [
-					{ $ref: "#/components/parameters/Limit" },
-					{ $ref: "#/components/parameters/Cursor" },
-					qp("from_block", "integer"),
-					qp("to_block", "integer"),
-					qp("event_type", "string"),
-					qp("sender", "string"),
-					qp("recipient", "string"),
-				],
-				responses: envelope(),
-			},
-		},
-		"/v1/datasets/pox-4/calls": {
-			get: {
-				tags: ["datasets"],
-				summary: "PoX-4 contract calls",
-				parameters: [
-					{ $ref: "#/components/parameters/Limit" },
-					{ $ref: "#/components/parameters/Cursor" },
-					qp("from_block", "integer"),
-					qp("to_block", "integer"),
-					qp("function_name", "string"),
-					qp("stacker", "string"),
-					qp("delegate_to", "string"),
-					qp("signer_key", "string"),
-					qp("reward_cycle", "integer"),
-				],
-				responses: envelope("calls"),
-			},
-		},
-		"/v1/datasets/bns/events": {
-			get: {
-				tags: ["datasets"],
-				summary: "BNS-V2 name lifecycle events",
-				parameters: [
-					{ $ref: "#/components/parameters/Limit" },
-					{ $ref: "#/components/parameters/Cursor" },
-					qp("from_block", "integer"),
-					qp("to_block", "integer"),
-					qp("topic", "string"),
-					qp("namespace", "string"),
-					qp("name", "string"),
-					qp("owner", "string"),
-				],
-				responses: envelope(),
-			},
-		},
-		"/v1/datasets/bns/namespace-events": {
-			get: {
-				tags: ["datasets"],
-				summary: "BNS-V2 namespace lifecycle events",
-				responses: envelope(),
-			},
-		},
-		"/v1/datasets/bns/marketplace-events": {
-			get: {
-				tags: ["datasets"],
-				summary: "BNS-V2 marketplace events",
-				responses: envelope(),
-			},
-		},
-		"/v1/datasets/bns/names": {
-			get: {
-				tags: ["datasets"],
-				summary: "BNS-V2 names snapshot",
-				responses: ok(),
-			},
-		},
-		"/v1/datasets/bns/namespaces": {
-			get: {
-				tags: ["datasets"],
-				summary: "BNS-V2 namespaces list",
-				responses: ok(),
-			},
-		},
-		"/v1/datasets/bns/resolve": {
-			get: {
-				tags: ["datasets"],
-				summary: "Resolve a fully-qualified BNS-V2 name",
-				parameters: [qp("fqn", "string", true)],
 				responses: ok(),
 			},
 		},
