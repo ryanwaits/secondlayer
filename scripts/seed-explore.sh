@@ -12,15 +12,23 @@ set -euo pipefail
 API_URL="${SL_API_URL:-https://api.secondlayer.tools}"
 MONTHS="${MONTHS:-6}"
 OUT_DIR="$(mktemp -d /tmp/seed-explore.XXXXXX)"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# Absolute path: `bunx sl` from a tmp dir resolves the unrelated npm package `sl`.
+SL="${SL_BIN:-$REPO_ROOT/node_modules/.bin/sl}"
 
-# name → template slug. Names are the public Explore identities (global
-# namespace, claimed on first publish — first-party claims these four).
-declare -A SEEDS=(
-  ["sbtc-flows"]="sbtc-flows"
-  ["pox-stacking"]="pox-stacking"
-  ["bns-names"]="bns-names"
-  ["sip10-balances"]="sip-010-balances"
+# name:template-slug pairs (plain list — macOS bash 3.2 lacks declare -A).
+# Names are the public Explore identities (global namespace, claimed on
+# first publish — first-party claims these four).
+SEEDS=(
+  "sbtc-flows:sbtc-flows"
+  "pox-stacking:pox-stacking"
+  "bns-names:bns-names"
+  "sip10-balances:sip-010-balances"
 )
+
+# Definitions import @secondlayer/subgraphs; install once so deploy
+# doesn't hit an interactive install prompt in the bare tmp project.
+(cd "$OUT_DIR" && bun add @secondlayer/subgraphs >/dev/null 2>&1)
 
 tip=$(curl -sf "$API_URL/v1/subgraphs" | python3 -c "import json,sys; print(json.load(sys.stdin)['tip']['block_height'])")
 if [ -z "$tip" ] || [ "$tip" -le 0 ]; then
@@ -33,13 +41,14 @@ blocks_back=$(( MONTHS * 30 * 17280 ))
 start_block=$(( tip > blocks_back ? tip - blocks_back : 1 ))
 echo "chain tip $tip → start_block $start_block (~${MONTHS}mo)"
 
-for name in "${!SEEDS[@]}"; do
-  slug="${SEEDS[$name]}"
-  file="$OUT_DIR/$name.ts"
+for pair in "${SEEDS[@]}"; do
+  name="${pair%%:*}"
+  slug="${pair#*:}"
+  file="$OUT_DIR/subgraphs/$name.ts"   # `create` writes under subgraphs/
   echo "── $name (template: $slug)"
-  (cd "$OUT_DIR" && bunx sl subgraphs create "$name" --template "$slug" >/dev/null)
+  (cd "$OUT_DIR" && "$SL" subgraphs create "$name" --template "$slug" >/dev/null)
   # Managed deploys default public — deploy alone lists it on Explore.
-  bunx sl subgraphs deploy "$file" --start-block "$start_block" -y
+  "$SL" subgraphs deploy "$file" --start-block "$start_block" -y
 done
 
 echo

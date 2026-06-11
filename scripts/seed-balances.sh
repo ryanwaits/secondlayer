@@ -8,6 +8,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 API="${SL_API_URL:-https://api.secondlayer.tools}"
+SL="${SL_BIN:-node_modules/.bin/sl}"
 
 verify_asset() { # contract_id — abort if the Index has never seen it
   local contract="$1"
@@ -28,8 +29,8 @@ verify_asset "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.age000-governance-token"
 for f in scripts/seed-balances/*.ts; do
   name=$(basename "$f" .ts)
   echo "── deploying $name (genesis backfill — expect a long initial sync)"
-  bunx sl subgraphs deploy "$f" --start-block 1
-  bunx sl subgraphs publish "$name" || true   # public by default; belt+braces
+  "$SL" subgraphs deploy "$f" --start-block 1
+  "$SL" subgraphs publish "$name" || true   # public by default; belt+braces
 done
 
 echo "Done. Listings appear on /subgraphs/explore once synced."
