@@ -268,6 +268,50 @@ export async function startSubgraphOperationRunner(opts?: {
 
 	logger.info("Starting subgraph operation runner", { concurrency, lockedBy });
 
+	// Boot-time resume sweep: a processor restart strands any reindex that was
+	// started inline (deploy-time genesis) or whose op died with the old
+	// instance — the subgraph sits at status='reindexing' with resume metadata
+	// and nothing ever picks it up. Re-enqueue a reindex op for each; the
+	// run path sees the metadata and resumes from last_processed_block + 1.
+	// The active-op partial-unique constraint makes double-enqueue a no-op.
+	try {
+		const stranded = await db
+			.selectFrom("subgraphs")
+			.select(["id", "name", "account_id"])
+			.where("status", "=", "reindexing")
+			.where("reindex_from_block", "is not", null)
+			.where("reindex_to_block", "is not", null)
+			.where(({ not, exists, selectFrom }) =>
+				not(
+					exists(
+						selectFrom("subgraph_operations")
+							.select("id")
+							.whereRef("subgraph_id", "=", "subgraphs.id")
+							.where("status", "in", ["queued", "running"]),
+					),
+				),
+			)
+			.execute();
+		for (const row of stranded) {
+			try {
+				await createSubgraphOperation(db, {
+					subgraphId: row.id,
+					subgraphName: row.name,
+					accountId: row.account_id,
+					kind: "reindex",
+				});
+				logger.info("Re-enqueued stranded reindex", { subgraph: row.name });
+			} catch (err) {
+				if (!isActiveSubgraphOperationConflict(err)) throw err;
+			}
+		}
+	} catch (err) {
+		// The sweep is best-effort — a failure must not stop the runner.
+		logger.warn("Stranded-reindex sweep failed", {
+			error: getErrorMessage(err),
+		});
+	}
+
 	const startOperation = (operation: SubgraphOperation) => {
 		const controller = new AbortController();
 		active.set(operation.id, controller);

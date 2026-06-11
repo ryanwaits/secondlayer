@@ -262,6 +262,29 @@ export class IndexHttpClient {
 		);
 	}
 
+	/** Lowest block height in [fromHeight, toHeight] with a matching event, or
+	 *  null. One page, limit 1 — built for sparse-scan probes. */
+	async firstEventHeight(
+		eventType: string,
+		fromHeight: number,
+		toHeight: number,
+		contractId?: string,
+	): Promise<number | null> {
+		const params = new URLSearchParams({
+			event_type: eventType,
+			from_height: String(fromHeight),
+			to_height: String(toHeight),
+			limit: "1",
+			...(contractId ? { contract_id: contractId } : {}),
+		});
+		const { items } = await this.getPage<"events", IndexEventRow>(
+			"/v1/index/events",
+			"events",
+			params,
+		);
+		return items[0]?.block_height ?? null;
+	}
+
 	walkEvents(
 		eventType: string,
 		fromHeight: number,

@@ -24,6 +24,46 @@ export interface BlockSource {
 		fromHeight: number,
 		toHeight: number,
 	): Promise<Map<number, BlockData>>;
+	/** Sparse-scan probe: lowest height in (afterHeight, untilHeight] holding
+	 *  an event this source's subgraph could match, or null when the rest of
+	 *  the range is empty. Optional — only event-scoped sources support it. */
+	nextDataHeight?(
+		afterHeight: number,
+		untilHeight: number,
+	): Promise<number | null>;
+}
+
+/** A (decoded event type, optional contract scope) pair the sparse probe
+ *  checks. Contract scoping is what makes token-subgraph reindexes leap over
+ *  everything that isn't their token. */
+export type SparseProbeTarget = { eventType: string; contractId?: string };
+
+/** Sparse scanning is sound only when EVERY source is an event-type filter —
+ *  a contract_call/contract_deploy source matches transactions, which the
+ *  event probe can't see. */
+export function canSparseScan(subgraph: SubgraphDefinition): boolean {
+	if (Array.isArray(subgraph.sources)) return false;
+	const filters = sourceFilters(subgraph);
+	if (filters.length === 0) return false;
+	return filters.every((f) => Boolean(EVENT_FILTER_TO_INDEX_TYPE[f.type]));
+}
+
+/** Probe targets for a subgraph's filters: decoded type + contract scope when
+ *  the filter pins one (assetIdentifier "SP….contract::asset" or contractId). */
+export function sparseProbeTargets(
+	subgraph: SubgraphDefinition,
+): SparseProbeTarget[] {
+	const targets = new Map<string, SparseProbeTarget>();
+	for (const f of sourceFilters(subgraph)) {
+		const eventType = EVENT_FILTER_TO_INDEX_TYPE[f.type];
+		if (!eventType) continue;
+		const scoped = f as { assetIdentifier?: string; contractId?: string };
+		const contractId =
+			scoped.contractId ?? scoped.assetIdentifier?.split("::")[0];
+		const key = `${eventType}|${contractId ?? ""}`;
+		targets.set(key, { eventType, ...(contractId ? { contractId } : {}) });
+	}
+	return [...targets.values()];
 }
 
 /** Reads directly from the shared indexer Postgres (the original behavior). */
@@ -124,7 +164,29 @@ export class PublicApiBlockSource implements BlockSource {
 	constructor(
 		private readonly http: IndexHttpClient,
 		private readonly eventTypes: string[],
+		/** When set, enables the sparse-scan probe (event-scoped subgraphs). */
+		private readonly probeTargets?: SparseProbeTarget[],
 	) {}
+
+	/** Lowest height in (after, until] any probe target hits, or null. */
+	async nextDataHeight(
+		afterHeight: number,
+		untilHeight: number,
+	): Promise<number | null> {
+		if (!this.probeTargets?.length) return afterHeight + 1;
+		const hits = await Promise.all(
+			this.probeTargets.map((t) =>
+				this.http.firstEventHeight(
+					t.eventType,
+					afterHeight + 1,
+					untilHeight,
+					t.contractId,
+				),
+			),
+		);
+		const found = hits.filter((h): h is number => h !== null);
+		return found.length ? Math.min(...found) : null;
+	}
 
 	getTip(): Promise<number> {
 		// Bound advancement to what the Index data plane can serve — never
@@ -214,6 +276,20 @@ export class FallbackBlockSource implements BlockSource {
 			return this.fallback.loadBlockRange(fromHeight, toHeight);
 		}
 	}
+
+	/** Probe via the primary only; a probe failure just means "no skip" —
+	 *  the caller falls back to plain batch advancement. */
+	async nextDataHeight(
+		afterHeight: number,
+		untilHeight: number,
+	): Promise<number | null> {
+		if (!this.primary.nextDataHeight) return afterHeight + 1;
+		try {
+			return await this.primary.nextDataHeight(afterHeight, untilHeight);
+		} catch {
+			return afterHeight + 1;
+		}
+	}
 }
 
 const postgresBlockSource = new PostgresBlockSource();
@@ -260,6 +336,7 @@ export function resolveBlockSource(subgraph?: SubgraphDefinition): BlockSource {
 			new PublicApiBlockSource(
 				buildHttpClient(),
 				referencedIndexEventTypes(subgraph),
+				canSparseScan(subgraph) ? sparseProbeTargets(subgraph) : undefined,
 			),
 			postgresBlockSource,
 		);

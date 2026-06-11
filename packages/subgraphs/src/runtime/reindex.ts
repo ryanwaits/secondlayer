@@ -15,7 +15,11 @@ import { pgSchemaName } from "../schema/utils.ts";
 import type { SubgraphDefinition } from "../types.ts";
 import { avgEventsPerBlock } from "./batch-loader.ts";
 import { type ProcessBlockResult, processBlock } from "./block-processor.ts";
-import { type BlockSource, resolveBlockSource } from "./block-source.ts";
+import {
+	type BlockSource,
+	canSparseScan,
+	resolveBlockSource,
+} from "./block-source.ts";
 import { StatsAccumulator } from "./stats.ts";
 
 const LOG_INTERVAL = 1000;
@@ -166,6 +170,10 @@ async function processBlockRange(
 	let batchSize = batchConfig.defaultBatchSize;
 	let currentHeight = fromBlock;
 	let aborted = false;
+	// Sparse scan: when a whole batch matches nothing, ask the source for the
+	// next height that could match and leap there — token-scoped genesis
+	// reindexes skip the (often vast) majority of chain history.
+	const sparse = Boolean(source.nextDataHeight && canSparseScan(def));
 
 	const flushHealth = async () => {
 		if (pendingEventsProcessed === 0 && pendingErrors === 0) return;
@@ -212,6 +220,7 @@ async function processBlockRange(
 		}
 
 		const batchFailedBlocks: { height: number; reason: string }[] = [];
+		let batchMatched = 0;
 
 		for (let height = currentHeight; height <= batchEnd; height++) {
 			const blockData = batch.get(height);
@@ -249,6 +258,7 @@ async function processBlockRange(
 			}
 
 			blocksProcessed++;
+			batchMatched += result.matched;
 			totalEventsProcessed += result.processed;
 			totalErrors += result.errors;
 			pendingEventsProcessed += result.processed;
@@ -309,6 +319,36 @@ async function processBlockRange(
 					});
 				},
 			);
+		}
+
+		// Sparse skip: nothing in this batch could match → probe for the next
+		// height that can, and jump the cursor there. The in-flight prefetch is
+		// discarded (one wasted fetch buys skipping arbitrarily many).
+		if (
+			sparse &&
+			batchMatched === 0 &&
+			batchEnd < toBlock &&
+			source.nextDataHeight
+		) {
+			const next = await source.nextDataHeight(batchEnd, toBlock);
+			const jumpTo = next === null ? toBlock + 1 : Math.max(next, batchEnd + 1);
+			if (jumpTo > batchEnd + 1) {
+				const skipped = Math.min(jumpTo, toBlock + 1) - (batchEnd + 1);
+				blocksProcessed += skipped;
+				await updateSubgraphStatus(targetDb, subgraphName, status, jumpTo - 1);
+				logger.info("Sparse skip", {
+					subgraph: subgraphName,
+					from: batchEnd + 1,
+					to: jumpTo - 1,
+					skipped,
+				});
+				currentHeight = jumpTo;
+				if (currentHeight <= toBlock) {
+					nextBatchEnd = Math.min(currentHeight + batchSize - 1, toBlock);
+					nextBatchPromise = source.loadBlockRange(currentHeight, nextBatchEnd);
+				}
+				continue;
+			}
 		}
 
 		// Adaptive batch sizing
