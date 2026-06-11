@@ -24,7 +24,7 @@ function fakeServer(tools: RegisteredTool[]): McpServer {
 }
 
 describe("subscription MCP tools", () => {
-	it("registers full SDK parity and invokes lifecycle methods", async () => {
+	it("registers the golden-path lifecycle and invokes SDK methods", async () => {
 		const tools: RegisteredTool[] = [];
 		const calls: string[] = [];
 		const subscription = {
@@ -44,37 +44,17 @@ describe("subscription MCP tools", () => {
 					calls.push(`update:${id}`);
 					return subscription;
 				},
-				pause: async (id: string) => {
-					calls.push(`pause:${id}`);
-					return { ...subscription, status: "paused" };
-				},
-				resume: async (id: string) => {
-					calls.push(`resume:${id}`);
-					return subscription;
-				},
 				delete: async (id: string) => {
 					calls.push(`delete:${id}`);
 					return { ok: true };
 				},
-				rotateSecret: async (id: string) => {
-					calls.push(`rotate:${id}`);
-					return { subscription, signingSecret: "next-secret" };
+				test: async (id: string) => {
+					calls.push(`test:${id}`);
+					return { ok: true, statusCode: 200 };
 				},
 				replay: async (id: string) => {
 					calls.push(`replay:${id}`);
 					return { replayId: "replay-1", enqueuedCount: 1, scannedCount: 1 };
-				},
-				dead: async (id: string) => {
-					calls.push(`dead:${id}`);
-					return { data: [{ id: "out-1" }] };
-				},
-				requeueDead: async (id: string, outboxId: string) => {
-					calls.push(`requeue:${id}:${outboxId}`);
-					return { ok: true };
-				},
-				recentDeliveries: async (id: string) => {
-					calls.push(`deliveries:${id}`);
-					return { data: [{ id: "del-1" }] };
 				},
 			},
 		};
@@ -86,36 +66,19 @@ describe("subscription MCP tools", () => {
 			"subscriptions_get",
 			"subscriptions_create",
 			"subscriptions_update",
-			"subscriptions_pause",
-			"subscriptions_resume",
 			"subscriptions_delete",
-			"subscriptions_rotate_secret",
 			"subscriptions_test",
 			"subscriptions_replay",
-			"subscriptions_dead",
-			"subscriptions_requeue_dead",
-			"subscriptions_recent_deliveries",
 		]);
 
 		const byName = Object.fromEntries(
 			tools.map((tool) => [tool.name, tool.handler]),
 		);
-		await byName.subscriptions_pause?.({ id: "sub-1" });
-		await byName.subscriptions_resume?.({ id: "sub-1" });
-		await byName.subscriptions_rotate_secret?.({ id: "sub-1" });
-		await byName.subscriptions_dead?.({ id: "sub-1" });
-		await byName.subscriptions_requeue_dead?.({
-			id: "sub-1",
-			outboxId: "out-1",
-		});
+		await byName.subscriptions_get?.({ id: "sub-1" });
+		await byName.subscriptions_test?.({ id: "sub-1" });
+		await byName.subscriptions_delete?.({ id: "sub-1" });
 
-		expect(calls).toEqual([
-			"pause:sub-1",
-			"resume:sub-1",
-			"rotate:sub-1",
-			"dead:sub-1",
-			"requeue:sub-1:out-1",
-		]);
+		expect(calls).toEqual(["get:sub-1", "test:sub-1", "delete:sub-1"]);
 	});
 
 	it("forwards authConfig, name (rename), and replay force", async () => {

@@ -1,6 +1,10 @@
 # @secondlayer/mcp
 
-MCP server for Secondlayer's agent-native subgraph platform.
+MCP server for Secondlayer's agent-native subgraph platform. Exposes the
+golden-path tools only — Index reads, the subgraph lifecycle, subscriptions,
+contract discovery/scaffolding, and key self-provisioning. Everything else
+(single-record lookups, mempool, stacking, proofs, codegen, billing, projects,
+live Streams reads) is available over REST `/v1` + OpenAPI.
 
 ## Install
 
@@ -10,7 +14,7 @@ bun add @secondlayer/mcp
 
 ## Auth
 
-Most reads are public — `datasets_*`, `index_*`, and `contracts_find` work with no key. Subgraph tools need an `SL_API_KEY`; separately, **public** subgraphs are anon-readable over HTTP at `GET /v1/subgraphs/<name>/<table>` (`{ rows, next_cursor, tip }` cursor envelope), while private ones need the owning account's key (anon → 404). **`streams_*` requires an `SL_API_KEY`** (and the Index tools reject free-tier keys — Build+ for keyed access). Writes (deploy, publish/unpublish, reindex, delete, subscriptions) and account tools need a key: create one (prefixed `sk-sl_`) in the platform console at https://secondlayer.tools/platform/api-keys and set it as `SL_API_KEY`. Read `secondlayer://context` first — it reports auth state and read-auth tiers.
+Most reads are public — `index_*` and `contracts_find` work with no key. Subgraph tools need an `SL_API_KEY`; separately, **public** subgraphs are anon-readable over HTTP at `GET /v1/subgraphs/<name>/<table>` (`{ rows, next_cursor, tip }` cursor envelope), while private ones need the owning account's key (anon → 404). **`streams_dumps` requires an `SL_API_KEY`** (and the Index tools reject free-tier keys — Build+ for keyed access). Writes (deploy, publish/unpublish, reindex, delete, subscriptions) and account tools need a key: create one (prefixed `sk-sl_`) in the platform console at https://secondlayer.tools/platform/api-keys and set it as `SL_API_KEY`. Read `secondlayer://context` first — it reports auth state and read-auth tiers.
 
 ## Quick Start — Stdio (IDE)
 
@@ -52,14 +56,17 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 
 | Domain | Tools |
 | --- | --- |
-| **Subgraphs** (16) | `subgraphs_list`, `subgraphs_get`, `subgraphs_spec`, `subgraphs_query`, `subgraphs_aggregate`, `subgraphs_reindex`, `subgraphs_operation`, `subgraphs_backfill`, `subgraphs_stop`, `subgraphs_gaps`, `subgraphs_delete`, `subgraphs_deploy`, `subgraphs_publish`, `subgraphs_unpublish`, `subgraphs_read_source`, `subgraphs_codegen` |
-| **Subscriptions** (12) | `subscriptions_list`, `subscriptions_get`, `subscriptions_create`, `subscriptions_update`, `subscriptions_pause`, `subscriptions_resume`, `subscriptions_delete`, `subscriptions_rotate_secret`, `subscriptions_replay`, `subscriptions_recent_deliveries`, `subscriptions_dead`, `subscriptions_requeue_dead` |
-| **Datasets** (2) | `datasets_list`, `datasets_query` |
-| **Index** (4) | `index_ft_transfers`, `index_nft_transfers`, `index_events`, `index_contract_calls` |
-| **Streams** (2) | `streams_tip`, `streams_events` |
-| **Contracts** (1) | `contracts_find` |
-| **Scaffold** (2) | `scaffold_from_contract`, `scaffold_from_abi` |
-| **Account** (4) | `account_whoami`, `account_update`, `account_billing`, `account_create_key` |
+| **Index** (8) | `index_events`, `index_ft_transfers`, `index_nft_transfers`, `index_contract_calls`, `index_blocks`, `index_transactions`, `index_discover`, `batch_query` |
+| **Subgraphs** (11) | `subgraphs_list`, `subgraphs_get`, `subgraphs_deploy`, `subgraphs_publish`, `subgraphs_unpublish`, `subgraphs_delete`, `subgraphs_query`, `subgraphs_backfill`, `subgraphs_reindex`, `subgraphs_stop`, `subgraphs_gaps` |
+| **Subscriptions** (7) | `subscriptions_create`, `subscriptions_list`, `subscriptions_get`, `subscriptions_update`, `subscriptions_delete`, `subscriptions_test`, `subscriptions_replay` |
+| **Streams** (1) | `streams_dumps` |
+| **Contracts** (2) | `contracts_find`, `get_contract_abi` |
+| **Scaffold** (1) | `scaffold_from_contract` |
+| **Account** (2) | `account_whoami`, `account_create_key` |
+
+Periphery surfaces (single block/tx lookups, mempool, stacking, proofs, usage,
+codegen, billing/caps, projects, live Streams reads, delivery forensics) are
+REST-only: see the OpenAPI spec at the API host.
 
 `account_create_key` mints a scoped `streams`/`index` read key — requires an
 account/owner key and returns the `sk-sl_` key **once**. **Key products:** an
@@ -86,22 +93,15 @@ subgraph (e.g. `[{ "type": "contract_call", "contractId": "SP....amm",
 - Filter operators: `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `like`
 - Max limit: 200
 
-### `subgraphs_aggregate`
-
-Scalar aggregates over the same filtered set as `subgraphs_query`:
-
-- `count` — `COUNT(*)` of matching rows
-- `countDistinct` — columns to count distinct values of
-- `sum` / `min` / `max` — numeric columns only (`uint`/`int` + system `_block_height`); returned as lossless strings
-- No aggregate requested → returns the row count.
-
 ## Resources
 
 | URI | Description |
 | --- | --- |
 | `secondlayer://context` | Live state — what exists (your subgraphs, subscriptions, account), what you can do, and read-auth tiers. Read first. |
-| `secondlayer://filters` | Filter types reference |
+| `secondlayer://filters` | Subgraph source filter types and their fields |
 | `secondlayer://column-types` | Column type mappings and options |
+| `secondlayer://traits` | SIP trait standards (valid `trait` values) |
+| `secondlayer://chain-triggers` | Chain-subscription trigger types and fields |
 
 ## Error Handling
 

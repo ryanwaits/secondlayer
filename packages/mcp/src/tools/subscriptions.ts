@@ -199,32 +199,6 @@ export function registerSubscriptionTools(
 
 	defineTool<{ id: string }>(
 		server,
-		"subscriptions_pause",
-		"Pause a subscription. Pending rows remain queued until resumed.",
-		{ id: z.string() },
-		async ({ id }) => {
-			const res = await clientProvider().subscriptions.pause(id);
-			return {
-				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
-			};
-		},
-	);
-
-	defineTool<{ id: string }>(
-		server,
-		"subscriptions_resume",
-		"Resume a paused or circuit-open subscription and reset circuit failures.",
-		{ id: z.string() },
-		async ({ id }) => {
-			const res = await clientProvider().subscriptions.resume(id);
-			return {
-				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
-			};
-		},
-	);
-
-	defineTool<{ id: string }>(
-		server,
 		"subscriptions_delete",
 		"Delete a subscription. Pending outbox rows are cascade-deleted.",
 		{ id: z.string() },
@@ -238,21 +212,8 @@ export function registerSubscriptionTools(
 
 	defineTool<{ id: string }>(
 		server,
-		"subscriptions_rotate_secret",
-		"Rotate a subscription signing secret. Returns the new plaintext secret once.",
-		{ id: z.string() },
-		async ({ id }) => {
-			const res = await clientProvider().subscriptions.rotateSecret(id);
-			return {
-				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
-			};
-		},
-	);
-
-	defineTool<{ id: string }>(
-		server,
 		"subscriptions_test",
-		"Send a one-off test webhook to a subscription's URL (built for its format, SSRF-guarded). Logged as a delivery row — check subscriptions_recent_deliveries. Returns {ok, statusCode, error, durationMs, deliveryId}.",
+		"Send a one-off test webhook to a subscription's URL (built for its format, SSRF-guarded). Logged as a delivery row. Returns {ok, statusCode, error, durationMs, deliveryId}.",
 		{ id: z.string().describe("Subscription id") },
 		async ({ id }) => {
 			const res = await clientProvider().subscriptions.test(id);
@@ -290,52 +251,6 @@ export function registerSubscriptionTools(
 			});
 			return {
 				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
-			};
-		},
-	);
-
-	defineTool<{ id: string }>(
-		server,
-		"subscriptions_dead",
-		"Return the last 100 dead-letter outbox rows for a subscription.",
-		{ id: z.string() },
-		async ({ id }) => {
-			const { data } = await clientProvider().subscriptions.dead(id);
-			return {
-				content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
-			};
-		},
-	);
-
-	defineTool<{ id: string; outboxId: string }>(
-		server,
-		"subscriptions_requeue_dead",
-		"Requeue one dead-letter outbox row for delivery retry.",
-		{
-			id: z.string(),
-			outboxId: z.string(),
-		},
-		async ({ id, outboxId }) => {
-			const res = await clientProvider().subscriptions.requeueDead(
-				id,
-				outboxId,
-			);
-			return {
-				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
-			};
-		},
-	);
-
-	defineTool<{ id: string }>(
-		server,
-		"subscriptions_recent_deliveries",
-		"Return the last 100 delivery attempts (attempt #, status code, duration, truncated response).",
-		{ id: z.string() },
-		async ({ id }) => {
-			const { data } =
-				await clientProvider().subscriptions.recentDeliveries(id);
-			return {
-				content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
 			};
 		},
 	);

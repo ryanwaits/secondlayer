@@ -29,69 +29,34 @@ afterEach(() => {
 });
 
 describe("account MCP tools", () => {
-	it("registers identity, keys, usage, and caps tools", () => {
+	it("registers only identity + key self-provisioning", () => {
 		const tools: RegisteredTool[] = [];
 		registerAccountTools(fakeServer(tools));
 		expect(tools.map((t) => t.name).sort()).toEqual([
-			"account_billing",
 			"account_create_key",
-			"account_get_caps",
-			"account_list_keys",
-			"account_revoke_key",
-			"account_set_caps",
-			"account_update",
-			"account_usage",
 			"account_whoami",
 		]);
 	});
 
-	it("set_caps PATCHes /api/billing/caps with only provided fields", async () => {
+	it("whoami GETs /api/accounts/me", async () => {
 		const tools: RegisteredTool[] = [];
 		registerAccountTools(fakeServer(tools));
-		const requests: { method?: string; url?: string; body?: unknown }[] = [];
+		const requests: { method?: string; url?: string }[] = [];
 		globalThis.fetch = (async (input, init) => {
 			const request =
 				input instanceof Request ? input : new Request(input.toString(), init);
-			requests.push({
-				method: request.method,
-				url: request.url,
-				body: JSON.parse(await request.text()),
-			});
-			return new Response(JSON.stringify({ monthlyCapCents: 5000 }), {
-				status: 200,
-				headers: { "Content-Type": "application/json" },
-			});
+			requests.push({ method: request.method, url: request.url });
+			return new Response(
+				JSON.stringify({ email: "a@b.com", plan: "build" }),
+				{ status: 200, headers: { "Content-Type": "application/json" } },
+			);
 		}) as typeof fetch;
 
-		const setCaps = tools.find((t) => t.name === "account_set_caps");
-		await setCaps?.handler({ monthlyCapCents: 5000 });
+		const whoami = tools.find((t) => t.name === "account_whoami");
+		const res = await whoami?.handler({});
 
-		expect(requests[0]?.method).toBe("PATCH");
-		expect(requests[0]?.url).toContain("/api/billing/caps");
-		expect(requests[0]?.body).toEqual({ monthlyCapCents: 5000 });
-	});
-
-	it("update PATCHes the profile with snake_case fields", async () => {
-		const tools: RegisteredTool[] = [];
-		registerAccountTools(fakeServer(tools));
-		const requests: { method?: string; body?: unknown }[] = [];
-		globalThis.fetch = (async (input, init) => {
-			const request =
-				input instanceof Request ? input : new Request(input.toString(), init);
-			requests.push({
-				method: request.method,
-				body: JSON.parse(await request.text()),
-			});
-			return new Response(JSON.stringify({ ok: true }), {
-				status: 200,
-				headers: { "Content-Type": "application/json" },
-			});
-		}) as typeof fetch;
-
-		const update = tools.find((t) => t.name === "account_update");
-		await update?.handler({ displayName: "Ada", bio: "hi" });
-
-		expect(requests[0]?.method).toBe("PATCH");
-		expect(requests[0]?.body).toEqual({ display_name: "Ada", bio: "hi" });
+		expect(requests[0]?.method).toBe("GET");
+		expect(requests[0]?.url).toContain("/api/accounts/me");
+		expect(res?.content[0]?.text).toContain("a@b.com");
 	});
 });

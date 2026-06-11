@@ -1,20 +1,19 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import {
-	generateSubgraphCode,
-	generateTraitSubgraph,
-} from "@secondlayer/scaffold";
+import { generateSubgraphCode } from "@secondlayer/scaffold";
 import type { AbiFunction, AbiMap } from "@secondlayer/scaffold";
-import { TRAIT_STANDARDS } from "@secondlayer/stacks/clarity";
 import { z } from "zod/v4";
 import { getClient } from "../lib/client.ts";
 import { defineTool } from "../lib/tool.ts";
 
+type ClientProvider = typeof getClient;
+
 // Source ABIs from the platform contract registry (prod-safe). The old
 // `/api/node/contracts/:id/abi` proxy is OSS/dedicated-only and 404s in prod.
 async function fetchAbi(
+	clientProvider: ClientProvider,
 	contractId: string,
 ): Promise<{ functions: AbiFunction[]; maps: AbiMap[] }> {
-	const contract = await getClient().contracts.get(contractId, {
+	const contract = await clientProvider().contracts.get(contractId, {
 		includeAbi: true,
 	});
 	if (!contract) throw new Error(`Contract not found: ${contractId}`);
@@ -30,29 +29,10 @@ async function fetchAbi(
 	return { functions: abi.functions ?? [], maps: abi.maps ?? [] };
 }
 
-export function registerScaffoldTools(server: McpServer) {
-	defineTool<{
-		trait: (typeof TRAIT_STANDARDS)[number];
-		subgraphName?: string;
-	}>(
-		server,
-		"scaffold_from_trait",
-		"Generate a deploy-ready subgraph scaffold that indexes EVERY contract conforming to a SIP trait (no specific contract needed) — sip-009 → an nft_transfer source, sip-010/sip-013 → ft_transfer. Use scaffold_from_contract/abi instead when targeting one contract. See the secondlayer://traits resource for valid trait ids.",
-		{
-			trait: z
-				.enum(TRAIT_STANDARDS)
-				.describe("SIP standard to index (sip-009 | sip-010 | sip-013)"),
-			subgraphName: z
-				.string()
-				.optional()
-				.describe("Override the subgraph name (defaults to <trait>-transfers)"),
-		},
-		async ({ trait, subgraphName }) => {
-			const code = generateTraitSubgraph({ trait, name: subgraphName });
-			return { content: [{ type: "text", text: code }] };
-		},
-	);
-
+export function registerScaffoldTools(
+	server: McpServer,
+	clientProvider: ClientProvider = getClient,
+) {
 	defineTool<{ contractId: string; subgraphName?: string }>(
 		server,
 		"scaffold_from_contract",
@@ -69,46 +49,12 @@ export function registerScaffoldTools(server: McpServer) {
 				.describe("Override the subgraph name (defaults to contract name)"),
 		},
 		async ({ contractId, subgraphName }) => {
-			const { functions, maps } = await fetchAbi(contractId);
+			const { functions, maps } = await fetchAbi(clientProvider, contractId);
 			const code = generateSubgraphCode(
 				contractId,
 				functions,
 				subgraphName,
 				maps,
-			);
-			return { content: [{ type: "text", text: code }] };
-		},
-	);
-
-	defineTool<{ abi: string; contractId: string; subgraphName?: string }>(
-		server,
-		"scaffold_from_abi",
-		"Generate a subgraph scaffold from a provided ABI JSON. Use when you already have the ABI.",
-		{
-			abi: z
-				.string()
-				.describe("ABI JSON string (the full contract ABI object)"),
-			contractId: z.string().describe("Fully qualified contract ID"),
-			subgraphName: z
-				.string()
-				.optional()
-				.describe("Override the subgraph name"),
-		},
-		async ({ abi, contractId, subgraphName }) => {
-			let parsed: { functions?: AbiFunction[]; maps?: AbiMap[] };
-			try {
-				parsed = JSON.parse(abi);
-			} catch {
-				return {
-					content: [{ type: "text", text: "Invalid ABI JSON" }],
-					isError: true,
-				};
-			}
-			const code = generateSubgraphCode(
-				contractId,
-				parsed.functions ?? [],
-				subgraphName,
-				parsed.maps ?? [],
 			);
 			return { content: [{ type: "text", text: code }] };
 		},

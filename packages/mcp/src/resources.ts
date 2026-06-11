@@ -1,5 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { CHAIN_TRIGGER_FIELDS, DECODED_EVENT_TYPES } from "@secondlayer/shared";
+import { CHAIN_TRIGGER_FIELDS } from "@secondlayer/shared";
 import { TRAIT_STANDARDS } from "@secondlayer/stacks/clarity";
 import { TYPE_MAP } from "@secondlayer/subgraphs/schema";
 import type { ColumnType } from "@secondlayer/subgraphs/types";
@@ -88,15 +88,13 @@ export const COLUMN_TYPES: Array<Record<string, unknown>> = [
 // generated from the live tool registry (see buildCapabilities) so it can't
 // drift behind the actual surface.
 const PRODUCT_BLURBS: Record<string, string> = {
-	index:
-		"decoded L2 events, contract calls, blocks, transactions, stacking, mempool",
-	streams: "raw canonical chain event firehose",
-	contracts: "trait-based contract discovery",
+	index: "decoded L2 events, transfers, contract calls, blocks, transactions",
+	streams: "bulk parquet dumps of the raw chain event firehose",
+	contracts: "trait-based contract discovery and ABIs",
 	subgraphs: "author/deploy/query custom indexes",
 	subscriptions: "webhook delivery on subgraph rows or raw chain events",
-	account: "identity, plan, billing, usage, spend caps, and API keys",
-	project: "create/manage projects and view their team",
-	scaffold: "generate typed contract clients from a deployment or ABI",
+	account: "identity and self-provisioned API keys",
+	scaffold: "generate deploy-ready subgraph code from a deployed contract",
 };
 
 const PRODUCT_ORDER = [
@@ -106,7 +104,6 @@ const PRODUCT_ORDER = [
 	"subgraphs",
 	"subscriptions",
 	"account",
-	"project",
 	"scaffold",
 ];
 
@@ -277,40 +274,6 @@ export function registerResources(server: McpServer) {
 								id,
 								description: TRAIT_BLURBS[id],
 							})),
-						},
-						null,
-						2,
-					),
-				},
-			],
-		}),
-	);
-
-	server.resource(
-		"streams-filters",
-		"secondlayer://streams-filters",
-		{
-			description:
-				"Streams firehose vocabulary — the decoded event types and the filter fields accepted by streams_events / streams_consume.",
-		},
-		async () => ({
-			contents: [
-				{
-					uri: "secondlayer://streams-filters",
-					mimeType: "application/json",
-					text: JSON.stringify(
-						{
-							eventTypes: [...DECODED_EVENT_TYPES],
-							filters: {
-								types: "include only these event types (array)",
-								notTypes: "exclude these event types (array)",
-								contractId: "match a contract id",
-								sender: "match the sender principal",
-								recipient: "match the recipient principal",
-								assetIdentifier: "match the asset identifier (contract::asset)",
-								fromHeight: "start block height (inclusive)",
-								toHeight: "end block height (inclusive)",
-							},
 						},
 						null,
 						2,

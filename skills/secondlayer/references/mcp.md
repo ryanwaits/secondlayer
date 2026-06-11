@@ -1,7 +1,10 @@
 # MCP
 
-`@secondlayer/mcp` exposes Secondlayer account, subgraph, scaffold, and
-subscription tools to MCP-capable agents.
+`@secondlayer/mcp` exposes the golden-path Secondlayer tools to MCP-capable
+agents: Index reads, the subgraph lifecycle, subscriptions, contract
+discovery/scaffolding, and key self-provisioning. Periphery surfaces (single
+block/tx lookups, mempool, stacking, proofs, codegen, billing, projects, live
+Streams reads, delivery forensics) are REST-only — see the `/v1` OpenAPI spec.
 
 ## Stdio Setup
 
@@ -35,59 +38,53 @@ Auth: `Authorization: Bearer <SECONDLAYER_MCP_SECRET>`.
 
 ## Tools
 
+Index (decoded L2 — anonymous reads; free-tier keys rejected):
+
+- `index_events` — generic by event type; supports `trait` scoping
+- `index_ft_transfers`
+- `index_nft_transfers`
+- `index_contract_calls`
+- `index_blocks`
+- `index_transactions`
+- `index_discover` — the Index vocabulary (event types, filters); read before querying
+- `batch_query` — up to 10 public `/v1` reads in one round trip
+
 Subgraphs:
 
 - `subgraphs_list`
 - `subgraphs_get`
-- `subgraphs_query`
-- `subgraphs_spec`
 - `subgraphs_deploy` — accepts a `visibility` param (`public` | `private`; managed default public, BYO default private)
 - `subgraphs_publish` / `subgraphs_unpublish` — flip visibility; publish claims the global public name (409 `PUBLIC_NAME_TAKEN`)
+- `subgraphs_query`
+- `subgraphs_backfill`
 - `subgraphs_reindex`
+- `subgraphs_stop`
+- `subgraphs_gaps`
 - `subgraphs_delete`
-- `subgraphs_read_source`
 
 Subscriptions:
 
+- `subscriptions_create` — creates either a subgraph subscription (`subgraphName` + `tableName`) or a **chain subscription** by passing `triggers` (array, 1..50) instead. Chain subs fire on raw chain events with no subgraph; see `references/sdk.md` for the trigger shapes (`contractCall`, `ftTransfer`, etc.).
 - `subscriptions_list`
 - `subscriptions_get`
-- `subscriptions_create` — creates either a subgraph subscription (`subgraphName` + `tableName`) or a **chain subscription** by passing `triggers` (array, 1..50) instead. Chain subs fire on raw chain events with no subgraph; see `references/sdk.md` for the trigger shapes (`contractCall`, `ftTransfer`, etc.).
 - `subscriptions_update`
-- `subscriptions_pause`
-- `subscriptions_resume`
 - `subscriptions_delete`
-- `subscriptions_rotate_secret`
+- `subscriptions_test`
 - `subscriptions_replay`
-- `subscriptions_dead`
-- `subscriptions_requeue_dead`
-- `subscriptions_recent_deliveries`
 
-Index (decoded L2 — anonymous reads; free-tier keys rejected):
+Streams (requires SL_API_KEY):
 
-- `index_ft_transfers`
-- `index_nft_transfers`
-- `index_events` — generic by event type
-- `index_contract_calls`
+- `streams_dumps` — bulk parquet dumps manifest (cold backfill path); live Streams reads are REST-only
 
-Streams (firehose — requires SL_API_KEY):
-
-- `streams_tip`
-- `streams_events`
-
-Contracts:
+Contracts / Scaffold:
 
 - `contracts_find` — discover contracts conforming to a trait
-
-Scaffold:
-
-- `scaffold_from_contract`
-- `scaffold_from_abi`
+- `get_contract_abi` — fetch one contract's metadata + full ABI
+- `scaffold_from_contract` — generate a deploy-ready subgraph from a deployed contract
 
 Account:
 
 - `account_whoami`
-- `account_update` — update profile (display_name, bio, slug)
-- `account_billing` — plan + subscription status
 - `account_create_key` — mint a scoped `streams`/`index` read key; requires an account/owner key; returns the `sk-sl_…` key **once**
 
 **Key products:** an `account` key (dashboard default, the `SL_API_KEY` you configure) grants both `streams:read` and `index:read` and is the only key that can mint; `streams`/`index` keys are scoped reads and cannot mint (403). Minted keys are always scoped and inherit your plan's tier.
@@ -97,11 +94,12 @@ Resources:
 - `secondlayer://context` — live state: what exists, what you can do, read-auth tiers (read first)
 - `secondlayer://filters`
 - `secondlayer://column-types`
+- `secondlayer://traits`
+- `secondlayer://chain-triggers`
 
 ## Agent Rules
 
 - Inspect before mutating.
-- Human-confirm delete, reindex, replay, requeue, and rotate-secret.
-- Treat returned `signingSecret` values as one-time secrets.
-- Use `subscriptions_recent_deliveries` and `subscriptions_dead` before replay.
-- Use `subgraphs_read_source` before editing a deployed subgraph.
+- Human-confirm delete, reindex, and replay.
+- Treat returned `signingSecret` and `key` values as one-time secrets.
+- Use `index_discover` / `contracts_find` to learn the vocabulary before querying.

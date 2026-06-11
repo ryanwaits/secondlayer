@@ -198,6 +198,50 @@ describe("filters ↔ subgraphs SubgraphFilter validator", () => {
 	});
 });
 
+// The golden-path tool surface (STRATEGY.md: the MCP server is a distribution
+// channel exposing golden-path tools only; the periphery lives behind REST /v1
+// + OpenAPI). Adding or removing a tool must update this list deliberately.
+const GOLDEN_PATH_TOOLS = [
+	// account
+	"account_create_key",
+	"account_whoami",
+	// index reads
+	"batch_query",
+	"index_blocks",
+	"index_contract_calls",
+	"index_discover",
+	"index_events",
+	"index_ft_transfers",
+	"index_nft_transfers",
+	"index_transactions",
+	// contracts / scaffold
+	"contracts_find",
+	"get_contract_abi",
+	"scaffold_from_contract",
+	// streams
+	"streams_dumps",
+	// subgraphs lifecycle
+	"subgraphs_backfill",
+	"subgraphs_delete",
+	"subgraphs_deploy",
+	"subgraphs_gaps",
+	"subgraphs_get",
+	"subgraphs_list",
+	"subgraphs_publish",
+	"subgraphs_query",
+	"subgraphs_reindex",
+	"subgraphs_stop",
+	"subgraphs_unpublish",
+	// subscriptions
+	"subscriptions_create",
+	"subscriptions_delete",
+	"subscriptions_get",
+	"subscriptions_list",
+	"subscriptions_replay",
+	"subscriptions_test",
+	"subscriptions_update",
+];
+
 describe("capabilities ↔ tool registry", () => {
 	// Guards against CAPABILITIES drifting behind the tool surface: every tool
 	// registered via defineTool must appear in the generated capability list. If
@@ -210,15 +254,22 @@ describe("capabilities ↔ tool registry", () => {
 		const missing = names.filter((n) => !listed.includes(n));
 		expect(missing).toEqual([]);
 	});
+
+	it("registers exactly the golden-path tool set", () => {
+		expect([...getRegisteredToolNames()].sort()).toEqual(
+			[...GOLDEN_PATH_TOOLS].sort(),
+		);
+	});
 });
 
 describe("discovery resources", () => {
-	it("registers the traits, streams-filters, and chain-triggers resources", async () => {
+	it("registers the traits and chain-triggers resources", async () => {
 		const resources = captureResources();
 		const uris = resources.map((r) => r.uri);
 		expect(uris).toContain("secondlayer://traits");
-		expect(uris).toContain("secondlayer://streams-filters");
 		expect(uris).toContain("secondlayer://chain-triggers");
+		// streams-filters was removed with the live Streams tools (golden-path prune)
+		expect(uris).not.toContain("secondlayer://streams-filters");
 	});
 
 	it("traits resource lists the SIP standards", async () => {

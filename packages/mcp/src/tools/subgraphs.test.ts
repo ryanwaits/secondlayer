@@ -49,83 +49,6 @@ describe("subgraph MCP tools", () => {
 		expect(startBlock.safeParse(1.5).success).toBe(false);
 	});
 
-	it("subgraphs_codegen generates an ORM schema from code", async () => {
-		const tools: RegisteredTool[] = [];
-		registerSubgraphTools(fakeServer(tools), () => ({}) as never);
-		const codegen = tools.find((tool) => tool.name === "subgraphs_codegen");
-		expect(codegen).toBeDefined();
-		if (!codegen) throw new Error("subgraphs_codegen not registered");
-
-		const code = `import { defineSubgraph } from "@secondlayer/subgraphs";
-export default defineSubgraph({
-  name: "dex",
-  sources: { calls: { type: "contract_call", contractId: "SP.dex" } },
-  schema: { swaps: { columns: { amount: { type: "uint" } } } },
-  handlers: { calls: async () => {} },
-});`;
-		const result = await codegen.handler({ code, target: "kysely" });
-		expect(result.isError).toBeUndefined();
-		expect(result.content[0]?.text).toContain("export interface DB");
-		expect(result.content[0]?.text).toContain("amount: string;");
-	});
-
-	it("subgraphs_codegen rejects code+name together", async () => {
-		const tools: RegisteredTool[] = [];
-		registerSubgraphTools(fakeServer(tools), () => ({}) as never);
-		const codegen = tools.find((tool) => tool.name === "subgraphs_codegen");
-		const result = await codegen?.handler({ code: "x", name: "y" });
-		expect(result?.isError).toBe(true);
-		expect(result?.content[0]?.text).toContain("exactly one");
-	});
-
-	it("subgraphs_aggregate delegates to queryTableAggregate", async () => {
-		const tools: RegisteredTool[] = [];
-		let captured: { name: string; table: string; params: unknown } | undefined;
-		registerSubgraphTools(
-			fakeServer(tools),
-			() =>
-				({
-					subgraphs: {
-						queryTableAggregate: async (
-							name: string,
-							table: string,
-							params: unknown,
-						) => {
-							captured = { name, table, params };
-							return { count: 4, sum: { amount: "6500000" } };
-						},
-					},
-				}) as never,
-		);
-
-		const agg = tools.find((tool) => tool.name === "subgraphs_aggregate");
-		expect(agg).toBeDefined();
-		if (!agg) throw new Error("subgraphs_aggregate not registered");
-
-		const result = await agg.handler({
-			name: "dex",
-			table: "swaps",
-			filters: { status: "active" },
-			count: true,
-			sum: ["amount"],
-		});
-		expect(result.isError).toBeUndefined();
-		expect(captured).toEqual({
-			name: "dex",
-			table: "swaps",
-			params: {
-				filters: { status: "active" },
-				count: true,
-				countDistinct: undefined,
-				sum: ["amount"],
-				min: undefined,
-				max: undefined,
-			},
-		});
-		expect(result.content[0]?.text).toContain('"count": 4');
-		expect(result.content[0]?.text).toContain('"amount": "6500000"');
-	});
-
 	it("subgraphs_backfill forwards the block range and returns the operation", async () => {
 		const tools: RegisteredTool[] = [];
 		let captured: { name: string; options: unknown } | undefined;
@@ -322,24 +245,5 @@ export default defineSubgraph({
 		expect(result.content[0]?.text).toContain(
 			"DROP SCHEMA subgraph_dex CASCADE;",
 		);
-	});
-
-	it("registers subgraphs_spec with agent default format", async () => {
-		const tools: RegisteredTool[] = [];
-		registerSubgraphTools(
-			fakeServer(tools),
-			() =>
-				({
-					subgraphs: {
-						schema: async () => ({ name: "test-subgraph" }),
-					},
-				}) as never,
-		);
-
-		const spec = tools.find((tool) => tool.name === "subgraphs_spec");
-		expect(spec).toBeDefined();
-		if (!spec) throw new Error("subgraphs_spec tool not registered");
-		const result = await spec.handler({ name: "test-subgraph" });
-		expect(result.content[0]?.text).toContain("test-subgraph");
 	});
 });

@@ -1,12 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { bundleSubgraphCode } from "@secondlayer/bundler";
 import { ByoBreakingChangeError } from "@secondlayer/sdk";
-import {
-	type SubgraphDefinition,
-	generateDrizzleSchema,
-	generateKyselySchema,
-	generatePrismaSchema,
-} from "@secondlayer/subgraphs";
 import { z } from "zod/v4";
 import { getClient } from "../lib/client.ts";
 import { formatSubgraphSummary, withCap } from "../lib/format.ts";
@@ -45,45 +39,6 @@ export function registerSubgraphTools(
 			const detail = await clientProvider().subgraphs.get(name);
 			return {
 				content: [{ type: "text", text: JSON.stringify(detail, null, 2) }],
-			};
-		},
-	);
-
-	defineTool<{
-		name: string;
-		format?: "agent" | "openapi" | "markdown";
-		serverUrl?: string;
-	}>(
-		server,
-		"subgraphs_spec",
-		"Get generated API documentation for a subgraph. Defaults to compact agent schema; supports OpenAPI JSON and Markdown.",
-		{
-			name: z.string().describe("Subgraph name"),
-			format: z
-				.enum(["agent", "openapi", "markdown"])
-				.optional()
-				.describe("Spec format to return. Defaults to agent."),
-			serverUrl: z
-				.string()
-				.optional()
-				.describe("Override the server URL embedded in generated docs."),
-		},
-		async ({ name, format = "agent", serverUrl }) => {
-			const options = serverUrl ? { serverUrl } : undefined;
-			const spec =
-				format === "openapi"
-					? await clientProvider().subgraphs.openapi(name, options)
-					: format === "markdown"
-						? await clientProvider().subgraphs.markdown(name, options)
-						: await clientProvider().subgraphs.schema(name, options);
-			return {
-				content: [
-					{
-						type: "text",
-						text:
-							typeof spec === "string" ? spec : JSON.stringify(spec, null, 2),
-					},
-				],
 			};
 		},
 	);
@@ -170,65 +125,10 @@ export function registerSubgraphTools(
 		},
 	);
 
-	defineTool<{
-		name: string;
-		table: string;
-		filters?: Record<string, string>;
-		count?: boolean;
-		countDistinct?: string[];
-		sum?: string[];
-		min?: string[];
-		max?: string[];
-	}>(
-		server,
-		"subgraphs_aggregate",
-		'Compute scalar aggregates over a subgraph table\'s filtered rows. Supports count, countDistinct, and sum/min/max (numeric columns only — uint/int plus the system _block_height). Filters use the same grammar as subgraphs_query (e.g. {"amount.gte": "1000"}). sum/min/max come back as lossless strings; counts as numbers. With no aggregate requested, returns the row count.',
-		{
-			name: z.string().describe("Subgraph name"),
-			table: z.string().describe("Table name"),
-			filters: z
-				.record(z.string(), z.string())
-				.optional()
-				.describe(
-					'Column filters — plain values or with operators (e.g. {"amount.gte": "1000", "sender": "SP..."})',
-				),
-			count: z
-				.boolean()
-				.optional()
-				.describe("Include COUNT(*) of matching rows"),
-			countDistinct: z
-				.array(z.string())
-				.optional()
-				.describe("Columns to count distinct values of"),
-			sum: z
-				.array(z.string())
-				.optional()
-				.describe("Numeric columns to sum (lossless string result)"),
-			min: z
-				.array(z.string())
-				.optional()
-				.describe("Numeric columns to take the minimum of"),
-			max: z
-				.array(z.string())
-				.optional()
-				.describe("Numeric columns to take the maximum of"),
-		},
-		async ({ name, table, filters, count, countDistinct, sum, min, max }) => {
-			const result = await clientProvider().subgraphs.queryTableAggregate(
-				name,
-				table,
-				{ filters, count, countDistinct, sum, min, max },
-			);
-			return {
-				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-			};
-		},
-	);
-
 	defineTool<{ name: string; fromBlock?: number; toBlock?: number }>(
 		server,
 		"subgraphs_reindex",
-		"Reindex a subgraph from a specific block range. Returns an operationId — poll subgraphs_operation to track progress to completion.",
+		"Reindex a subgraph from a specific block range. Returns an operationId — check subgraphs_get (health) or the REST operations endpoint to track progress to completion.",
 		{
 			name: z.string().describe("Subgraph name"),
 			fromBlock: z
@@ -248,33 +148,10 @@ export function registerSubgraphTools(
 		},
 	);
 
-	defineTool<{ name: string; operationId?: string }>(
-		server,
-		"subgraphs_operation",
-		"Check reindex/backfill progress. With operationId, returns that operation's status (poll until status is completed/failed/cancelled); without it, lists recent operations for the subgraph.",
-		{
-			name: z.string().describe("Subgraph name"),
-			operationId: z
-				.string()
-				.optional()
-				.describe(
-					"Operation id from reindex/backfill/stop; omit to list recent operations",
-				),
-		},
-		async ({ name, operationId }) => {
-			const result = operationId
-				? await clientProvider().subgraphs.getOperation(name, operationId)
-				: await clientProvider().subgraphs.operations(name);
-			return {
-				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-			};
-		},
-	);
-
 	defineTool<{ name: string; fromBlock: number; toBlock: number }>(
 		server,
 		"subgraphs_backfill",
-		"Backfill a subgraph over a block range. Non-destructive forward fill (does not drop existing data) — unlike subgraphs_reindex, and the only data-fill path for BYO subgraphs (reindex is blocked there). Both blocks required. Returns an operationId — poll subgraphs_operation to track progress.",
+		"Backfill a subgraph over a block range. Non-destructive forward fill (does not drop existing data) — unlike subgraphs_reindex, and the only data-fill path for BYO subgraphs (reindex is blocked there). Both blocks required. Returns an operationId — check subgraphs_get (health) or the REST operations endpoint to track progress.",
 		{
 			name: z.string().describe("Subgraph name"),
 			fromBlock: z
@@ -298,7 +175,7 @@ export function registerSubgraphTools(
 	defineTool<{ name: string }>(
 		server,
 		"subgraphs_stop",
-		"Cancel an in-flight reindex or backfill operation for a subgraph. Returns the stop request status; poll subgraphs_operation to confirm it reaches a terminal state.",
+		"Cancel an in-flight reindex or backfill operation for a subgraph. Returns the stop request status; check subgraphs_get (health) or the REST operations endpoint to confirm it reaches a terminal state.",
 		{ name: z.string().describe("Subgraph name") },
 		async ({ name }) => {
 			const result = await clientProvider().subgraphs.stop(name);
@@ -466,76 +343,4 @@ export function registerSubgraphTools(
 		},
 	);
 
-	defineTool<{ name: string }>(
-		server,
-		"subgraphs_read_source",
-		"Fetch the deployed TypeScript source of a subgraph (plus its stored version). Returns a readOnly payload for subgraphs deployed before source capture — in that case the caller should redeploy via CLI before editing.",
-		{ name: z.string().describe("Subgraph name") },
-		async ({ name }) => {
-			const source = await clientProvider().subgraphs.getSource(name);
-			return {
-				content: [{ type: "text", text: JSON.stringify(source, null, 2) }],
-			};
-		},
-	);
-
-	defineTool<{
-		code?: string;
-		name?: string;
-		target?: "prisma" | "drizzle" | "kysely";
-		schemaName?: string;
-	}>(
-		server,
-		"subgraphs_codegen",
-		"Generate a typed ORM schema (Prisma, Drizzle, or Kysely) for a subgraph's tables so they can be queried from a BYO database. Pass either `code` (defineSubgraph source) or `name` (a deployed subgraph — its captured source is used). Returns the schema as text.",
-		{
-			code: z
-				.string()
-				.optional()
-				.describe("defineSubgraph() source (mutually exclusive with name)"),
-			name: z
-				.string()
-				.optional()
-				.describe("Deployed subgraph name (mutually exclusive with code)"),
-			target: z
-				.enum(["prisma", "drizzle", "kysely"])
-				.optional()
-				.describe("ORM target (default prisma)"),
-			schemaName: z
-				.string()
-				.optional()
-				.describe("Postgres schema name (defaults to subgraph_<name>)"),
-		},
-		async ({ code, name, target = "prisma", schemaName }) => {
-			if ((code && name) || (!code && !name)) {
-				throw new Error("Provide exactly one of `code` or `name`.");
-			}
-			let source = code;
-			if (name) {
-				const stored = await clientProvider().subgraphs.getSource(name);
-				if (!stored.sourceCode) {
-					throw new Error(
-						`Subgraph "${name}" has no captured source (deployed before source capture). Redeploy it, or pass its source as \`code\`.`,
-					);
-				}
-				source = stored.sourceCode;
-			}
-			const bundled = await bundleSubgraphCode(source as string);
-			const def: SubgraphDefinition = {
-				name: bundled.name,
-				version: bundled.version,
-				description: bundled.description,
-				sources: bundled.sources as unknown as SubgraphDefinition["sources"],
-				schema: bundled.schema as SubgraphDefinition["schema"],
-				handlers: {},
-			};
-			const out =
-				target === "drizzle"
-					? generateDrizzleSchema(def, { schemaName })
-					: target === "kysely"
-						? generateKyselySchema(def, { schemaName })
-						: generatePrismaSchema(def, { schemaName });
-			return { content: [{ type: "text", text: out }] };
-		},
-	);
 }
