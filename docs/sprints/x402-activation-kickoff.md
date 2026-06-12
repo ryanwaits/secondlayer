@@ -39,36 +39,53 @@ live code in prod, waiting on env vars:
 
 ## Phase 1 — Wallets & policy (FOUNDER, with agent advising)
 
-- [ ] **W1 Sponsor hot wallet** (pays STX gas on every settle): create a FRESH mainnet
+- [x] **W1 Sponsor hot wallet** (pays STX gas on every settle): create a FRESH mainnet
       wallet, never used elsewhere. Fund with **~200 STX** to start (sponsored transfer
       gas ≈ 0.003–0.01 STX → tens of thousands of settles; top up later, don't park more
-      on a hot key). Record the principal here: `SP_________________`
-- [ ] **W2 Pay-to treasury** (receives all x402 revenue): SEPARATE wallet from W1 —
+      on a hot key). Record the principal here: `SP1BZXJWQ81N8M4AHKCHR2FNF4JPPFKB1DRWC0ZHP`
+- [x] **W2 Pay-to treasury** (receives all x402 revenue): SEPARATE wallet from W1 —
       revenue must not sit on the hot key. Hardware-backed or multisig preferred; it
-      only ever RECEIVES, so cold is fine. Principal: `SP_________________`
-- [ ] **W3 Custody decisions** (write answers inline):
-      - Where does W1's private key live besides the server .env? (password manager entry name: ______)
-      - Sweep policy: treasury untouched / swept to ___ at what threshold? ______
-      - Sponsor refill trigger: alert when W1 < ___ STX (suggest 25)? ______
-- [ ] **W4 Test payer wallet**: a third wallet holding small amounts of all three tokens
+      only ever RECEIVES, so cold is fine. Principal: `SP143YHR805B8S834BWJTMZVFR1WP5FFC03WZE4BF`
+- [x] **W3 Custody decisions** (write answers inline):
+      - Where does W1's private key live besides the server .env? **Offline, written down (paper).**
+      - Sweep policy: **Untouched for now** (accumulate); revisit once operational + properly set up.
+      - Sponsor refill trigger: **Alert when W1 < 25 STX** → becomes the M1 threshold.
+- [x] **W4 Test payer wallet**: a third wallet holding small amounts of all three tokens
       (~$5 USDCx, ~$5 sBTC, ~20 STX) for smoke tests. AGENT can generate the keypair
-      (`privateKeyToAccount` via bun script); FOUNDER funds it. Principal: `SP_________________`
+      (`privateKeyToAccount` via bun script); FOUNDER funds it. Principal: `SP39Z29ZPN65Q9Z2CJX8PRFR5V36PMSMQ607HHF5W`
+      (key in gitignored `tmp/x402-w4-testpayer.secret.txt`; agent reads it at Phase 3, never prints it)
 
 ## Phase 2 — Env + flip (AGENT executes, FOUNDER supplies secrets out-of-band)
 
-- [ ] **E1** FOUNDER adds to `/opt/secondlayer/docker/.env` (paste key directly on the
-      server, never through chat): `X402_SPONSOR_KEY=<W1 key>`, `X402_PAY_TO=<W2 principal>`,
-      `X402_SPOT_SBTC_USD=<current>`, `X402_SPOT_STX_USD=<current>` (static fallbacks;
-      live feed default is CoinGecko via X402_SPOT_URL unset).
-- [ ] **E2** AGENT: verify env reaches containers after restart — `docker restart` both
-      api replicas + worker (reconciler), one at a time (rolling; never both api at once).
-      `printenv X402_SPONSOR_KEY` inside a replica must be non-empty. REMINDER: per-service
-      `environment:` blocks only pass listed vars — already wired for api + worker.
-- [ ] **E3** AGENT: confirm the flip — `GET /v1/x402/supported` → `enabled: true`, all 5
-      catalog surfaces priced, accepts[] quotes present for all three tokens (sBTC/STX
-      appear ONLY if spot resolves — verify, don't assume).
+- [x] **E1** FOUNDER added to `/opt/secondlayer/docker/.env` (server-side): `X402_SPONSOR_KEY`,
+      `X402_PAY_TO=SP143YHR…`, `X402_SPOT_STX_USD=0.218876` (sBTC fallback omitted — not testing sBTC).
+      ⚠️ `0.218876` looks like a typo for live ~`0.178876` (see E3 finding — fallback is the
+      *de-facto* STX price in prod, so fix it).
+- [x] **E2** AGENT done via full `deploy.sh` run (new replicas api-134/135). ⚠️ DOC WAS WRONG:
+      `docker restart` does NOT pick up new env (baked at container-CREATE) — containers must be
+      RECREATED. Verified env in api-134/135 (`X402_SPONSOR_KEY` len 66, `X402_PAY_TO`, spot set).
+      Worker x402 env MISSING but HARMLESS: the reconciler cron is read-only (decoded_events +
+      Redis), does NOT gate on `isX402Enabled()` or need the sponsor key. Enable switch lives on
+      the api, which has it. (compose does NOT forward x402 vars to worker — doc's "wired for
+      worker" was false, but it doesn't matter.)
+- [x] **E3** AGENT: flip confirmed — `GET /v1/x402/supported` → `enabled:true`, all 5 surfaces
+      priced. Live 402 on `/v1/streams/stx-transfers`: `accepts[]` = STX (amount 4569µ) + USDCx
+      (1000µ=$0.001), `payTo`=W2 ✓, nonce issued. **FINDING (non-blocking): live CoinGecko spot
+      does NOT resolve in prod** — in-process cache never warms (same replica, repeated probes,
+      all pinned to env fallback) though curl+Bun-fetch to CoinGecko from the container both 200.
+      → STX prices off env fallback (0.218876, ~22% over live 0.179); sBTC dropped from offer (no
+      fallback set). Likely cause: `spot.ts refresh()` silent-catches + never bumps `fetchedAt` on
+      failure → every request re-fires refresh → self-inflicted CoinGecko rate-limiting. FOLLOW-UP
+      (separate fix, not activation): (a) throttle/log refresh failures, (b) set sBTC fallback,
+      (c) correct STX fallback to live. Does NOT block STX smoke ladder.
 
 ## Phase 3 — Smoke ladder (AGENT executes with W4 key; FOUNDER watches)
+
+> ⛔ **BLOCKED on the spot-feed fix** (founder ruling 2026-06-12): live CoinGecko spot
+> doesn't resolve in prod (E3 finding) → STX mispriced + sBTC unpriceable. Resolve via
+> `docs/sprints/x402-spot-feed-fix-kickoff.md` BEFORE starting S1. Root cause confirmed:
+> CoinGecko 429s after ~5 rapid calls + `spot.ts refresh()` never advances `fetchedAt` on
+> failure → permanent retry storm. Un-pause at that doc's T9.
 
 Run in order; each step gates the next. Use the existing mainnet smoke script where it
 fits; otherwise SDK calls (`withX402`, `readX402Receipt`, `balanceToken`).
@@ -95,8 +112,10 @@ fits; otherwise SDK calls (`withX402`, `readX402Receipt`, `balanceToken`).
 
 ## Phase 4 — Monitoring & ops (AGENT builds, FOUNDER approves)
 
-- [ ] **M1** Sponsor-balance watch: extend the secondlayer-agent (or worker cron) to
-      alert Slack when W1 < 25 STX. (This is the rail's single point of failure.)
+- [ ] **M1** Sponsor-balance watch: new worker cron `sponsor-balance-alert.ts` modeled on
+      `spend-cap-alert.ts` (interval tick; check W1 balance; alert when < 25 STX). DECISION:
+      reuse the existing **email** alert path (no Slack/Discord infra exists today). W1 =
+      `SP1BZXJWQ81N8M4AHKCHR2FNF4JPPFKB1DRWC0ZHP`. (This is the rail's single point of failure.)
 - [ ] **M2** prod-smoke skill: update Phase 3 x402 note (enabled:true now expected; add
       "sponsor balance ≥ floor" + "reconciler: 0 stuck pending > 1h" checks).
 - [ ] **M3** PRODUCTION.md: add x402 section — kill switch procedure, key rotation
