@@ -22,7 +22,7 @@ function ctxAt(height: number) {
 		getDb(),
 		SCHEMA,
 		SUBGRAPH_SCHEMA,
-		{ height, hash: "0x0", time: 0 },
+		{ height, hash: "0x0", timestamp: 0, burnBlockHeight: 0 },
 		// biome-ignore lint/suspicious/noExplicitAny: minimal tx meta
 		{ tx_id: `0xtest${height}` } as any,
 		false,
