@@ -71,13 +71,6 @@ export function AuthBar() {
 		return () => window.removeEventListener("keydown", onKeyDown);
 	}, [router]);
 
-	const docsLink = (
-		<Link href="/docs" className="auth-bar-nav-link">
-			<span className="auth-bar-nav-key">[D]</span>
-			<span className="auth-bar-nav-label">Docs</span>
-		</Link>
-	);
-
 	const handleSubmit = useCallback(
 		async (e: React.FormEvent) => {
 			e.preventDefault();
@@ -96,9 +89,6 @@ export function AuthBar() {
 
 	if (loading) return null;
 
-	// Docs keep their own chrome: sidebar + content only, no top-right bar.
-	if (pathname.startsWith("/docs")) return null;
-
 	// Platform pages — sidebar handles logout, never show auth bar
 	// If session expired (no account but cookie exists), the /api/auth/me route
 	// already cleared the cookie server-side — reload so middleware routes to marketing
@@ -114,7 +104,6 @@ export function AuthBar() {
 				<Link href="/site" className="auth-bar-nav-link">
 					Home
 				</Link>
-				{docsLink}
 				<span className="auth-bar-sep" aria-hidden="true" />
 				<button
 					type="button"
@@ -133,7 +122,6 @@ export function AuthBar() {
 	// Unauthenticated
 	return (
 		<div className="auth-bar">
-			{docsLink}
 			<Link href="/login" className="auth-bar-nav-link">
 				<span className="auth-bar-nav-key">[L]</span>
 				<span className="auth-bar-nav-label">Login</span>

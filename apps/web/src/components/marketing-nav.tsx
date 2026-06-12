@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const PRODUCTS = [
+export const PRODUCTS = [
 	{ label: "Index", href: "/index-api" },
 	{ label: "Subgraphs", href: "/subgraphs" },
 	{ label: "Streams", href: "/streams" },
 	{ label: "Explore", href: "/subgraphs/explore" },
+	{ label: "Docs", href: "/docs" },
 	{ label: "Pricing", href: "/pricing" },
 ];
 
