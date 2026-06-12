@@ -9,15 +9,13 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
 		links: [
 			{ label: "Index", href: "/index-api" },
 			{ label: "Subgraphs", href: "/subgraphs" },
+			{ label: "Streams", href: "/streams" },
 			{ label: "Explore", href: "/subgraphs/explore" },
 		],
 	},
 	{
 		title: "Features",
-		links: [
-			{ label: "Subscriptions", href: "/subscriptions" },
-			{ label: "Streams", href: "/streams" },
-		],
+		links: [{ label: "Subscriptions", href: "/docs/subscriptions" }],
 	},
 	{
 		title: "Developers",
@@ -34,8 +32,8 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
 	{
 		title: "Resources",
 		links: [
-			{ label: "CLI", href: "/cli" },
-			{ label: "SDK", href: "/sdk" },
+			{ label: "CLI", href: "/docs/cli" },
+			{ label: "SDK", href: "/docs/sdk" },
 			{ label: "Pricing", href: "/pricing" },
 		],
 	},
@@ -71,11 +69,12 @@ export function SiteFooter() {
 							<span>secondlayer</span>
 						</p>
 						<p>
-							The indexing layer for Stacks, run as a utility. Born from{" "}
+							The indexing layer for Stacks. Inspired by the ideas behind{" "}
 							<a
 								href="https://paragraph.com/@aulneau/project-kourier"
 								target="_blank"
 								rel="noopener noreferrer"
+								className="footer-kourier"
 							>
 								Project Kourier
 							</a>
