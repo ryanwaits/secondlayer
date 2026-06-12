@@ -8605,14 +8605,14 @@ a.dataset-shelf-name:hover {
 	border: 1px solid var(--border);
 	border-radius: 14px;
 	background: var(--bg-elevated, var(--bg));
-	padding: 1.5rem 1.75rem;
+	padding: 1.2rem 1.6rem;
 }
 .prc-cta-band-copy {
 	max-width: 42ch;
 }
 .prc-cta-band-title {
 	font-family: var(--font-heading-stack);
-	font-size: 1.25rem;
+	font-size: 1.1rem;
 	font-weight: 560;
 	letter-spacing: -0.01em;
 	color: var(--text-main);
@@ -8625,7 +8625,7 @@ a.dataset-shelf-name:hover {
 
 /* ── plans: Free follows the theme; Pro is an inverted block ──────── */
 .prc-split {
-	margin-top: 1.25rem;
+	margin-top: 1rem;
 	display: grid;
 	grid-template-columns: 1fr 1fr;
 	gap: 1.1rem;
@@ -8640,16 +8640,23 @@ a.dataset-shelf-name:hover {
 	display: flex;
 	flex-direction: column;
 	border-radius: 14px;
-	padding: 1.4rem 1.5rem;
+	padding: 1.15rem 1.4rem;
 }
 .prc-free {
 	background: var(--bg-elevated, var(--bg));
 	border: 1px solid var(--border);
 }
-/* Pro inverts against the page: dark block on light, light block on dark */
+/* Pro keeps the page theme (light stays light, dark stays dark). It's set
+   apart by a subtle dot texture and the blue CTA, not by inverting the block. */
 .prc-pro {
-	background: var(--pro-bg);
-	color: var(--pro-fg);
+	background-color: var(--bg-elevated, var(--bg));
+	background-image: radial-gradient(
+		circle,
+		var(--dot-color) 0.5px,
+		transparent 0.5px
+	);
+	background-size: 8px 8px;
+	border: 1px solid var(--border);
 }
 .prc-plan-eyebrow {
 	font-family: var(--font-mono-stack);
@@ -8660,15 +8667,15 @@ a.dataset-shelf-name:hover {
 	color: var(--text-muted);
 }
 .prc-pro .prc-plan-eyebrow {
-	color: var(--pro-accent);
+	color: var(--accent);
 }
 .prc-plan-price {
 	font-family: var(--font-heading-stack);
-	font-size: 2.75rem;
+	font-size: 2.4rem;
 	font-weight: 600;
 	letter-spacing: -0.03em;
 	line-height: 0.9;
-	margin-top: 0.5rem;
+	margin-top: 0.35rem;
 }
 .prc-plan-price small {
 	font-family: var(--font-mono-stack);
@@ -8677,16 +8684,23 @@ a.dataset-shelf-name:hover {
 	color: var(--text-muted);
 	margin-left: 2px;
 }
-.prc-pro .prc-plan-price small {
-	color: var(--pro-muted);
+/* "builds on Free" lead on the Pro card — a sentence, not a dashed bullet */
+.prc-plan-cont {
+	margin-top: 0.9rem;
+	font-size: 0.8rem;
+	font-weight: 540;
+	color: var(--text-main);
 }
 .prc-plan ul {
 	list-style: none;
 	padding: 0;
-	margin: 1rem 0 1.25rem;
+	margin: 0.9rem 0 1.1rem;
 	display: grid;
 	grid-template-columns: 1fr 1fr;
-	gap: 0.4rem 1.25rem;
+	gap: 0.5rem 1.5rem;
+}
+.prc-plan-cont + ul {
+	margin-top: 0.55rem;
 }
 @media (max-width: 480px) {
 	.prc-plan ul {
@@ -8696,7 +8710,8 @@ a.dataset-shelf-name:hover {
 .prc-plan li {
 	position: relative;
 	padding-left: 1.2rem;
-	font-size: 0.82rem;
+	font-size: 0.8rem;
+	line-height: 1.35;
 }
 .prc-plan li::before {
 	content: "—";
@@ -8704,17 +8719,14 @@ a.dataset-shelf-name:hover {
 	left: 0;
 	color: var(--text-muted);
 }
-.prc-pro li::before {
-	color: var(--pro-accent);
-}
 .prc-plan-cta {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 	margin-top: auto;
 	align-self: flex-start;
-	height: 44px;
-	padding: 0 20px;
+	height: 38px;
+	padding: 0 18px;
 	border-radius: 6px;
 	font-family: var(--font-sans-stack);
 	font-size: 13px;
@@ -8739,9 +8751,9 @@ a.dataset-shelf-name:hover {
 	background: var(--code-bg);
 }
 .prc-cta-pro {
-	background: var(--pro-fg);
-	color: var(--pro-bg);
-	border: 1px solid var(--pro-fg);
+	background: var(--accent);
+	color: var(--accent-contrast);
+	border: 1px solid var(--accent);
 }
 
 /* ── Enterprise + x402: two columns on one row (x402 left | ent right) ── */

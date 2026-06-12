@@ -10,28 +10,27 @@ export const metadata: Metadata = {
 };
 
 const FREE_INCLUDES = [
-	"Public reads on Index (no key needed) and Streams (with a free ghost key) — rate-limited either way",
-	"Ghost keys: curl -X POST /v1/keys, no signup, claim with an email within 30 days",
-	"Public subgraphs — live indexing forward from the moment you deploy",
+	"Rate-limited public reads on Index and Streams",
+	"Ghost keys from your terminal, no signup",
+	"Public subgraphs, live from deploy",
 	"3 webhook subscriptions",
-	"Signed Streams bulk dumps for cold-lane replay",
+	"Signed Streams bulk dumps",
 	"MCP server + agent skills",
-	"Community support",
 ];
 
-// Every claim below maps to an enforced limit — if code doesn't enforce it,
+// Every claim below maps to an enforced limit. If code doesn't enforce it,
 // it doesn't go on a card.
 const PRO_INCLUDES = [
 	"250 req/s on Index and Streams",
 	"Private subgraphs",
-	"Genesis backfills — full history, not forward-only",
+	"Genesis backfills (full history)",
 	"25 webhook subscriptions + replay",
 	"Usage budgets",
 	"Email support",
 ];
 
 const ENTERPRISE_SUMMARY =
-	"Custom rates + dedicated capacity · priority indexing for your contracts · SLA + incident channel · invoicing + security review";
+	"Custom rates + dedicated resources. Priority indexing for your contracts + incident channels.";
 
 const FAQ = [
 	{
@@ -57,9 +56,9 @@ export default function PricingPage() {
 				here="Pricing"
 				title={
 					<>
-						Free is the product.
+						Reads are free.
 						<br />
-						Paid is the headroom.
+						Pay for headroom.
 					</>
 				}
 			>
@@ -96,6 +95,7 @@ export default function PricingPage() {
 					<p className="prc-plan-price">
 						$99<small>/mo</small>
 					</p>
+					<p className="prc-plan-cont">Everything in Free, plus</p>
 					<ul>
 						{PRO_INCLUDES.map((f) => (
 							<li key={f}>{f}</li>
