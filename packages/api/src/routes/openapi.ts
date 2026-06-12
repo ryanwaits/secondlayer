@@ -473,6 +473,15 @@ const OPENAPI_SPEC = {
 				responses: ok(),
 			},
 		},
+		"/v1/index/contracts/{contract_id}/print-schema": {
+			get: {
+				tags: ["index"],
+				summary: "Empirical per-topic print payload schemas for a contract",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [pp("contract_id")],
+				responses: ok(),
+			},
+		},
 		"/v1/streams": {
 			get: { tags: ["streams"], summary: "Streams discovery", responses: ok() },
 		},

@@ -56,6 +56,12 @@ import {
 	type NftTransfersReader,
 	getNftTransfersResponse,
 } from "../index/nft-transfers.ts";
+import {
+	type PrintSchemaCache,
+	type PrintSchemaReader,
+	getPrintSchemaResponse,
+	parsePrintSchemaContractId,
+} from "../index/print-schema.ts";
 import { indexRateLimit } from "../index/rate-limit.ts";
 import {
 	STACKING_FILTERS,
@@ -118,6 +124,9 @@ export type IndexRouterOptions = {
 	readMempool?: MempoolReader;
 	readMempoolByTxId?: MempoolByIdReader;
 	readReorgs?: StreamsReorgsReader;
+	readPrintSchema?: PrintSchemaReader;
+	/** Injectable so tests don't share the process-wide schema memo. */
+	printSchemaCache?: PrintSchemaCache;
 	recordDecodedEventsReturned?: (
 		accountId: string,
 		quantity: number,
@@ -272,6 +281,12 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					method: "GET",
 					description:
 						"A single pending transaction by tx_id. 404 when absent (confirmed/dropped txs leave the mempool).",
+				},
+				{
+					path: "/v1/index/contracts/:contract_id/print-schema",
+					method: "GET",
+					description:
+						"Empirical per-topic print payload schemas for a contract, inferred from sampled canonical print events. Returns contract_id, topics[] ({topic, count, first_height, last_height, non_tuple, fields[] with name/camel_name/clarity_type/ts_type/column_type/always_present}), sample, tip. Anon ok, unmetered.",
 				},
 				{
 					path: "/v1/index/usage",
@@ -574,6 +589,32 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		}
 		c.header("Cache-Control", MUTABLE_CACHE_CONTROL);
 		return c.json({ transaction, tip });
+	});
+
+	// Empirical print-payload schema for a contract. Cheap reference data —
+	// served but not metered (point-get precedent). The body is memoized
+	// in-process per contract; tip is attached fresh, so the ETag covers only
+	// the stable slice and survives tip movement.
+	router.get("/contracts/:contract_id/print-schema", async (c) => {
+		// No query params accepted — but reject unknowns like sibling endpoints.
+		validateQueryParams(new URL(c.req.url).searchParams, []);
+		const contractId = parsePrintSchemaContractId(c.req.param("contract_id"));
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		const response = await getPrintSchemaResponse({
+			contractId,
+			tip,
+			read: opts.readPrintSchema,
+			cache: opts.printSchemaCache,
+		});
+		c.header("Cache-Control", "public, max-age=300");
+		const { tip: _tip, ...stableSlice } = response;
+		const tag = etag(JSON.stringify(stableSlice));
+		c.header("ETag", tag);
+		if (matchesIfNoneMatch(c.req.header("If-None-Match"), tag)) {
+			return c.body(null, 304);
+		}
+		return c.json(response);
 	});
 
 	router.get("/ft-transfers", async (c) => {
