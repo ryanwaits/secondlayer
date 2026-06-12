@@ -92,10 +92,6 @@ export async function ProtocolMarquee() {
 					))}
 				</div>
 			</div>
-			<p className="home-marquee-more">
-				every contract, every event —{" "}
-				<a href="/subgraphs/explore">explore public subgraphs →</a>
-			</p>
 		</div>
 	);
 }
