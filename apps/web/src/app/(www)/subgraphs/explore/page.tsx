@@ -108,9 +108,6 @@ export default async function ExplorePage() {
 
 			<section className="explore-hero">
 				<h1>Explore</h1>
-				<span className="explore-hero-note" aria-hidden="true">
-					live views, <em>no key needed</em>
-				</span>
 				<p>
 					Public subgraphs deployed on Secondlayer — custom indexed views of
 					Stacks, readable by anyone. Every card is a live API. Copy the
@@ -119,23 +116,20 @@ export default async function ExplorePage() {
 			</section>
 
 			{featured.length > 0 && (
-				<>
-					<section className="explore-sect">
-						<h2>Pinned</h2>
-						<span className="explore-count">curated</span>
-					</section>
-					<div className="explore-grid featured">
-						{featured.map((sg) => (
-							<Card key={sg.name} sg={sg} wide featured />
-						))}
-					</div>
-				</>
+				<div className="explore-grid featured">
+					{featured.map((sg) => (
+						<Card key={sg.name} sg={sg} wide featured />
+					))}
+				</div>
 			)}
 
 			{rest.length > 0 && (
 				<>
 					<section className="explore-sect">
 						<h2>All public subgraphs</h2>
+						<span className="explore-note" aria-hidden="true">
+							live views, <em>no key needed</em>
+						</span>
 						<span className="explore-count">{all.length} listed</span>
 					</section>
 					<div className="explore-grid">
@@ -146,33 +140,58 @@ export default async function ExplorePage() {
 				</>
 			)}
 
-			{all.length === 0 && (
-				<p className="explore-desc" style={{ marginTop: "2rem" }}>
-					Nothing public yet — be the first:{" "}
-					<code>sl subgraphs deploy my-view.ts</code>
-				</p>
+			{all.length === 0 ? (
+				<section className="explore-empty">
+					<div className="explore-skel" aria-hidden="true">
+						{[0, 1, 2].map((i) => (
+							<div key={i} className="explore-skel-card">
+								<span className="explore-skel-line w1" />
+								<span className="explore-skel-line w2" />
+								<span className="explore-skel-line w3" />
+							</div>
+						))}
+					</div>
+					<div className="explore-empty-card">
+						<h2>No public subgraphs yet</h2>
+						<p>
+							Public subgraphs are live, custom-indexed views of Stacks —
+							readable by anyone, no key needed. Be the first to publish one.
+						</p>
+						<div className="explore-empty-cmd">
+							<code>sl subgraphs deploy my-view.ts</code>
+							<CopyButton code="sl subgraphs deploy my-view.ts" />
+						</div>
+						<Link href="/docs/subgraphs" className="explore-empty-link">
+							Read the subgraphs guide →
+						</Link>
+					</div>
+				</section>
+			) : (
+				<>
+					<div className="explore-machine">
+						<div className="explore-machine-head">
+							<span className="t">machine access</span>
+							<CopyButton code={`curl ${PLATFORM_API_URL}/v1/subgraphs`} />
+						</div>
+						<pre>
+							<span className="c">
+								# all public subgraphs, as JSON — no key
+							</span>
+							{"\n"}
+							<span className="m">curl</span> {PLATFORM_API_URL}/v1/subgraphs
+						</pre>
+					</div>
+
+					<div className="explore-listed">
+						<span className="lead">Get listed.</span>
+						<code>sl subgraphs publish &lt;name&gt;</code>
+						<span className="fine">
+							Managed deploys are public by default — publishing claims your
+							name globally and adds it here.
+						</span>
+					</div>
+				</>
 			)}
-
-			<div className="explore-machine">
-				<div className="explore-machine-head">
-					<span className="t">machine access</span>
-					<CopyButton code={`curl ${PLATFORM_API_URL}/v1/subgraphs`} />
-				</div>
-				<pre>
-					<span className="c"># all public subgraphs, as JSON — no key</span>
-					{"\n"}
-					<span className="m">curl</span> {PLATFORM_API_URL}/v1/subgraphs
-				</pre>
-			</div>
-
-			<div className="explore-listed">
-				<span className="lead">Get listed.</span>
-				<code>sl subgraphs publish &lt;name&gt;</code>
-				<span className="fine">
-					Managed deploys are public by default — publishing claims your name
-					globally and adds it here.
-				</span>
-			</div>
 		</main>
 	);
 }
