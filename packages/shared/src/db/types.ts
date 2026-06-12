@@ -152,6 +152,8 @@ export interface SubgraphsTable {
 	visibility: Generated<string>;
 	/** Paid (wallet-ghost) deploys expire unless renewed or claimed; NULL = no expiry. */
 	expires_at: Date | null;
+	/** (event type, contract) probe pairs persisted at deploy for weight classification. */
+	sparse_probe_targets: unknown | null;
 	// BYO data plane: AES-GCM envelope (iv‖tag‖ciphertext) of the user-owned
 	// Postgres connection string. Null = managed (writes/serving use the target
 	// DB). Encrypted via crypto/secrets.ts; never returned in API responses.
@@ -222,6 +224,12 @@ export interface SubgraphOperationsTable {
 	error: string | null;
 	created_at: Generated<Date>;
 	updated_at: Generated<Date>;
+	/** 'light' (contract-scoped sparse) | 'heavy' (broad). Claim budgets heavy. */
+	weight: Generated<string>;
+	/** Candidate-event denominator computed at enqueue (sparse ops only). */
+	estimated_events: string | number | bigint | null;
+	/** Events processed so far — written by the progress flush. */
+	processed_events: string | number | bigint | null;
 }
 
 export interface ApiKeysTable {

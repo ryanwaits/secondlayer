@@ -81,6 +81,11 @@ export {
 	backfillSubgraph,
 	type ReindexOptions,
 } from "./runtime/reindex.ts";
+export {
+	canSparseScan,
+	sparseProbeTargets,
+	type SparseProbeTarget,
+} from "./runtime/block-source.ts";
 export type {
 	TableDiff,
 	ColumnDiff,

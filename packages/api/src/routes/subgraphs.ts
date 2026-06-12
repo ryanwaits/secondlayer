@@ -35,12 +35,14 @@ import {
 	type SubgraphDetail,
 } from "@secondlayer/shared/schemas/subgraphs";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
+import { canSparseScan, sparseProbeTargets } from "@secondlayer/subgraphs";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { sql } from "kysely";
 import { getAccountId, getApiKeyId } from "../lib/ownership.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import { SubgraphRegistryCache } from "../subgraphs/cache.ts";
+import { classifyOperationWeight } from "../subgraphs/operation-weight.ts";
 import {
 	clampDeployStartBlock,
 	resolveGenesisPolicy,
@@ -184,6 +186,15 @@ export async function getChainTip(): Promise<number> {
 		(await selectTip(getSourceDb()).catch(() => null)) ??
 		(await selectTip(getDb()).catch(() => null));
 	return progressRow?.highest_seen_block ?? 0;
+}
+
+/** Persisted (event type, contract) probe pairs — null when not sparse-eligible. */
+function parseProbeTargets(
+	raw: unknown,
+): { eventType: string; contractId?: string }[] | null {
+	if (raw == null) return null;
+	const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+	return Array.isArray(parsed) ? parsed : null;
 }
 
 /** Look up a subgraph from cache with account-level ownership check */
@@ -547,8 +558,21 @@ export async function runSubgraphDeploy(
 	const needsPopulation =
 		result.action === "created" || result.action === "reindexed";
 	const startByoBackfill = byoUrl && needsPopulation && chainTip > 0;
+	// Persist the sparse probe pairs so reindex/backfill routes and the
+	// boot-resume sweep can classify op weight without re-importing handlers.
+	const probeTargets = canSparseScan(def) ? sparseProbeTargets(def) : null;
+	await db
+		.updateTable("subgraphs")
+		.set({ sparse_probe_targets: JSON.stringify(probeTargets) })
+		.where("id", "=", result.subgraphId)
+		.execute();
 	if ((needsPopulation && !byoUrl) || startByoBackfill) {
 		try {
+			const populationWeight = await classifyOperationWeight(
+				probeTargets,
+				deployStartBlock ?? 1,
+				chainTip > 0 ? chainTip : Number.MAX_SAFE_INTEGER,
+			);
 			const operation = await createSubgraphOperation(db, {
 				subgraphId: result.subgraphId,
 				subgraphName: name,
@@ -556,6 +580,8 @@ export async function runSubgraphDeploy(
 				kind: byoUrl ? "backfill" : "reindex",
 				fromBlock: deployStartBlock,
 				toBlock: chainTip > 0 ? chainTip : undefined,
+				weight: populationWeight.weight,
+				estimatedEvents: populationWeight.estimatedEvents,
 			});
 			operationId = operation.id;
 			await updateSubgraphStatus(db, name, "reindexing");
@@ -785,6 +811,11 @@ app.post("/:subgraphName/reindex", async (c) => {
 	}
 
 	try {
+		const reindexWeight = await classifyOperationWeight(
+			parseProbeTargets(subgraph.sparse_probe_targets),
+			fromBlock ?? 1,
+			toBlock ?? (await getChainTip()),
+		);
 		const operation = await createSubgraphOperation(db, {
 			subgraphId: subgraph.id,
 			subgraphName,
@@ -792,6 +823,8 @@ app.post("/:subgraphName/reindex", async (c) => {
 			kind: "reindex",
 			fromBlock,
 			toBlock,
+			weight: reindexWeight.weight,
+			estimatedEvents: reindexWeight.estimatedEvents,
 		});
 		await updateSubgraphStatus(db, subgraphName, "reindexing");
 
@@ -879,6 +912,11 @@ app.post("/:subgraphName/backfill", async (c) => {
 	}
 
 	try {
+		const backfillWeight = await classifyOperationWeight(
+			parseProbeTargets(subgraph.sparse_probe_targets),
+			fromBlock ?? 1,
+			toBlock ?? (await getChainTip()),
+		);
 		const operation = await createSubgraphOperation(db, {
 			subgraphId: subgraph.id,
 			subgraphName,
@@ -886,6 +924,8 @@ app.post("/:subgraphName/backfill", async (c) => {
 			kind: "backfill",
 			fromBlock,
 			toBlock,
+			weight: backfillWeight.weight,
+			estimatedEvents: backfillWeight.estimatedEvents,
 		});
 
 		return c.json({

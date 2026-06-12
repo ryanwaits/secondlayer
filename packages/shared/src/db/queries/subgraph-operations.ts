@@ -31,6 +31,9 @@ export async function createSubgraphOperation(
 		kind: SubgraphOperationKind;
 		fromBlock?: number;
 		toBlock?: number;
+		/** 'light' | 'heavy' — claim budgets heavy ops. DB default 'heavy'. */
+		weight?: "light" | "heavy";
+		estimatedEvents?: number | null;
 	},
 ): Promise<SubgraphOperation> {
 	return await db
@@ -42,6 +45,8 @@ export async function createSubgraphOperation(
 			kind: data.kind,
 			from_block: data.fromBlock ?? null,
 			to_block: data.toBlock ?? null,
+			...(data.weight ? { weight: data.weight } : {}),
+			estimated_events: data.estimatedEvents ?? null,
 		})
 		.returningAll()
 		.executeTakeFirstOrThrow();
@@ -120,6 +125,15 @@ export async function waitForSubgraphOperationsClear(
 	return false;
 }
 
+/** Max concurrently-running 'heavy' ops (broad/non-sparse syncs). */
+function resolveHeavyOpBudget(): number {
+	const parsed = Number.parseInt(
+		process.env.SUBGRAPH_HEAVY_OP_BUDGET ?? "2",
+		10,
+	);
+	return Number.isFinite(parsed) && parsed > 0 ? parsed : 2;
+}
+
 export async function claimSubgraphOperation(
 	db: Kysely<Database>,
 	lockedBy: string,
@@ -127,6 +141,7 @@ export async function claimSubgraphOperation(
 	// Fair queue: accounts with fewer currently-running operations are served first,
 	// breaking ties by creation time. Prevents one user's long reindex from
 	// starving other accounts when SUBGRAPH_OPERATION_CONCURRENCY > 1.
+	const heavyBudget = resolveHeavyOpBudget();
 	const result = await sql<SubgraphOperation>`
 		UPDATE subgraph_operations
 		SET
@@ -144,14 +159,40 @@ export async function claimSubgraphOperation(
 				WHERE status = 'running'
 				GROUP BY account_id
 			) rc ON so.account_id = rc.account_id
+			LEFT JOIN accounts a ON a.id::text = so.account_id
 			WHERE
-				so.status = 'queued'
-				OR (
-					so.status = 'running'
-					AND (so.locked_until IS NULL OR so.locked_until < now())
+				(
+					so.status = 'queued'
+					OR (
+						so.status = 'running'
+						AND (so.locked_until IS NULL OR so.locked_until < now())
+					)
+				)
+				-- Heavy budget as an eligibility FILTER (not a post-claim refusal):
+				-- a budget-blocked heavy op at the head must not starve the light
+				-- ops behind it. Live-lock condition (locked_until > now()) keeps a
+				-- STALE heavy op from blocking its own reclaim. Soft across
+				-- concurrent claimers (can overshoot by one with multiple runners) —
+				-- acceptable for the single-runner deployment.
+				AND (
+					so.weight = 'light'
+					OR (
+						SELECT COUNT(*)
+						FROM subgraph_operations h
+						WHERE h.status = 'running'
+							AND h.weight = 'heavy'
+							AND h.locked_until > now()
+							AND h.id != so.id
+					) < ${heavyBudget}
 				)
 			ORDER BY
 				COALESCE(rc.cnt, 0) ASC,
+				CASE COALESCE(a.plan, 'none')
+					WHEN 'enterprise' THEN 0
+					WHEN 'scale' THEN 1
+					WHEN 'launch' THEN 2
+					ELSE 3
+				END,
 				CASE WHEN so.status = 'queued' THEN 0 ELSE 1 END,
 				so.created_at ASC
 			FOR UPDATE OF so SKIP LOCKED
