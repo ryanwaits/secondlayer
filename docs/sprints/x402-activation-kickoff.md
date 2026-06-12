@@ -89,9 +89,9 @@ live code in prod, waiting on env vars:
 > CoinGecko ($0.179, was $0.219 fallback), sBTC now present in accepts[]. CI post-deploy-smoke
 > updated for keyless-streams→402. Phase 3 smoke is UNBLOCKED on the CoinGecko v1 feed.
 > (Optional: the decentralized-oracle replacement is a separate track —
-> `docs/sprints/x402-decentralized-oracle-kickoff.md`.) Remaining nit: prod
-> `X402_SPOT_STX_USD=0.218876` fallback is still a typo — harmless while live feed works, but
-> fix for resilience + add `X402_SPOT_SBTC_USD`.
+> `docs/sprints/x402-decentralized-oracle-kickoff.md`.) Env fallbacks corrected 2026-06-12:
+> `X402_SPOT_STX_USD=0.178815` + added `X402_SPOT_SBTC_USD=63591` (api rolling-recreated;
+> dormant while live feed works).
 
 Run in order; each step gates the next. Use the existing mainnet smoke script where it
 fits; otherwise SDK calls (`withX402`, `readX402Receipt`, `balanceToken`).
