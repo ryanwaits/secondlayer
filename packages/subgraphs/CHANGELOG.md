@@ -1,5 +1,13 @@
 # @secondlayer/subgraphs
 
+## 3.14.2
+
+### Patch Changes
+
+- e27d752: live walk promotes status toward active but never overwrites a "reindexing" park — per-block status stamping let catch-up flap a parked subgraph back into its own path, fighting the queued reindex op
+- Updated dependencies [e27d752]
+  - @secondlayer/shared@6.33.0
+
 ## 3.14.1
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 6.33.0
+
+### Minor Changes
+
+- e27d752: live walk promotes status toward active but never overwrites a "reindexing" park — per-block status stamping let catch-up flap a parked subgraph back into its own path, fighting the queued reindex op
+
 ## 6.32.0
 
 ### Minor Changes
