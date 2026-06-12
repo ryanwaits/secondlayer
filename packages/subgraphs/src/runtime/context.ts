@@ -773,22 +773,6 @@ export class SubgraphContext {
 				"_tx_id",
 				"_created_at",
 			];
-			const valuesList = Array.from(batch.rows.values())
-				.map((r) => {
-					const vals = [
-						...batch.keyCols.map((k) => escapeLiteral(r.keys[k])),
-						...batch.deltaCols.map((c) => String(r.deltas[c] ?? 0n)),
-						escapeLiteral(r.meta.blockHeight),
-						escapeLiteral(r.meta.txId),
-						"NOW()",
-					];
-					return `(${vals.join(", ")})`;
-				})
-				.join(", ");
-			const setClauses = batch.deltaCols.map(
-				(c) =>
-					`"${c}" = COALESCE("${batch.table}"."${c}", 0) + EXCLUDED."${c}"`,
-			);
 			if (this.journal) {
 				statements.push(
 					this.journalCaptureSQL(
@@ -800,10 +784,40 @@ export class SubgraphContext {
 					),
 				);
 			}
-			statements.push(
-				`INSERT INTO ${qualifiedTable} (${cols.map((c) => `"${c}"`).join(", ")}) VALUES ${valuesList} ` +
-					`ON CONFLICT (${batch.keyCols.map((k) => `"${k}"`).join(", ")}) DO UPDATE SET ${setClauses.join(", ")}`,
-			);
+			// NOT insert-on-conflict: Postgres validates the PROPOSED insert
+			// tuple against CHECK constraints BEFORE conflict arbitration, so a
+			// negative delta against an EXISTING row (every debit on a uint
+			// balance) errors even though DO UPDATE would produce a legal value
+			// (prod halts at sbtc 341445 / usdcx 5269728; empirically verified).
+			// UPDATE-first lets the CHECK see the FINAL value; the guarded
+			// INSERT covers missing rows — where a negative delta is a GENUINE
+			// violation and must still fail loudly.
+			for (const r of batch.rows.values()) {
+				const keyPred = batch.keyCols
+					.map((k) => `"${k}" = ${escapeLiteral(r.keys[k])}`)
+					.join(" AND ");
+				const updSet = batch.deltaCols
+					.map(
+						(c) =>
+							`"${c}" = COALESCE("${c}", 0) + (${String(r.deltas[c] ?? 0n)})`,
+					)
+					.join(", ");
+				statements.push(
+					`UPDATE ${qualifiedTable} SET ${updSet} WHERE ${keyPred}`,
+				);
+				const insertVals = [
+					...batch.keyCols.map((k) => escapeLiteral(r.keys[k])),
+					...batch.deltaCols.map((c) => String(r.deltas[c] ?? 0n)),
+					escapeLiteral(r.meta.blockHeight),
+					escapeLiteral(r.meta.txId),
+					"NOW()",
+				];
+				statements.push(
+					`INSERT INTO ${qualifiedTable} (${cols.map((c) => `"${c}"`).join(", ")}) ` +
+						`SELECT ${insertVals.join(", ")} ` +
+						`WHERE NOT EXISTS (SELECT 1 FROM ${qualifiedTable} WHERE ${keyPred})`,
+				);
+			}
 			incBatch = null;
 			incBatchKey = "";
 		};
