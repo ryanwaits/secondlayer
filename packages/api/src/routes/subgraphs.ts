@@ -425,13 +425,13 @@ export async function runSubgraphDeploy(
 	let byoDataDb: ReturnType<typeof getDb> | undefined;
 	if (byoUrl) {
 		const code = `${parsed.data.sourceCode ?? ""}\n${handlerCode}`;
-		if (/\bctx\.(update|patchOrInsert)\s*\(/.test(code)) {
+		if (/\bctx\.(update|patchOrInsert|increment)\s*\(/.test(code)) {
 			return c.json(
 				{
 					error:
-						"BYO subgraphs require idempotent handlers: ctx.update / ctx.patchOrInsert " +
-						"can double-apply on block replay (no cross-DB transaction). Use ctx.insert " +
-						"or ctx.upsert with a unique key instead.",
+						"BYO subgraphs require idempotent handlers: ctx.update / ctx.patchOrInsert / " +
+						"ctx.increment can double-apply on block replay (no cross-DB transaction). " +
+						"Use ctx.insert or ctx.upsert with a unique key instead.",
 					code: "BYO_NON_IDEMPOTENT_HANDLER",
 				},
 				400,
