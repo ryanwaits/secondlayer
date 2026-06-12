@@ -1,121 +1,281 @@
-import { Callout } from "@/components/callout";
 import { CodeBlock } from "@/components/code-block";
-import { StreamsDiagram } from "@/components/diagrams/streams-diagram";
-import { InlineKey, KeyTrigger } from "@/components/inline-key";
-import { MarketingPageHeader } from "@/components/marketing-page-header";
-import { SectionHeading } from "@/components/section-heading";
+import { getHighlights } from "@/lib/changelog";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
 	title: "Streams | secondlayer",
 	description:
-		"The raw event firehose for Stacks — an immutable, replayable, cursor-paginated log. No node required.",
+		"The raw event firehose for Stacks — ordered, cursor-paginated, reorg-aware. Consume over SSE, REST, or signed parquet dumps. x402-compatible.",
 };
 
-export default function StreamsPage() {
-	return (
-		<main className="explore-wrap">
-			<MarketingPageHeader
-				crumb="Home"
-				crumbHref="/"
-				here="Streams"
-				title={<>Streams</>}
-			/>
-			<div className="mk-body">
-				<div className="prose">
-					<p>
-						Streams is the raw event firehose for Stacks — the feature for
-						teams <strong>building their own indexer</strong>. One service
-						captures every event a Stacks node emits — STX, FT and NFT
-						transfers, contract prints, locks — and saves them as an immutable,
-						ordered log. You read that log over a cursor-paginated REST API, or
-						pull signed parquet dumps for bulk work.
-					</p>
-					<p>
-						If you just want decoded, queryable chain data, use{" "}
-						<Link href="/index-api">Index</Link> — we run the indexer for you.
-						Streams hands you the inputs instead: append-only, heavily
-						cacheable, trivially replayable — sync, stop, and pick up exactly
-						where you left off, without ever running a Stacks node. It's the
-						same firehose our own decoders read internally. For push delivery,
-						see <Link href="/subscriptions">Subscriptions</Link>.
-					</p>
-				</div>
+const CONSUME_CODE = `import { createStreamsClient } from "@secondlayer/sdk";
 
-				<SectionHeading id="how-it-works">How it works</SectionHeading>
+const streams = createStreamsClient({ apiKey: process.env.SL_API_KEY });
 
-				<StreamsDiagram />
-
-				<div className="prose">
-					<p>
-						An indexer faces the Stacks node and writes raw, canonical events;
-						the Streams API serves them to your consumer over a cursor. Stop and
-						resume anytime — the cursor is just <code>height:event_index</code>.
-					</p>
-				</div>
-
-				<SectionHeading id="auth">Auth</SectionHeading>
-
-				<div className="prose">
-					<InlineKey product="streams">
-						Streams is read-only but keyed — every request needs an{" "}
-						<KeyTrigger>API key</KeyTrigger>, including during open beta.
-					</InlineKey>
-				</div>
-
-				<CodeBlock
-					code={`curl -H "Authorization: Bearer sk-sl_..." \\
-  https://api.secondlayer.tools/v1/streams/tip`}
-					lang="bash"
-				/>
-
-				<SectionHeading id="reading-the-log">Reading the log</SectionHeading>
-
-				<div className="prose">
-					<p>
-						Every event carries a cursor — <code>height:event_index</code>. Page
-						forward from a cursor and the stream is fully{" "}
-						<strong>idempotent</strong>: persist the last cursor you saw and a
-						restarted job resumes from exactly that point, no duplicates.
-						Because the log is append-only it's also reorg-aware — when a fork
-						resolves, <code>/v1/streams/reorgs</code> tells you which cursors to
-						roll back, so your derived state stays consistent.
-					</p>
-					<p>The SDK wraps this into a consume loop with checkpointing:</p>
-				</div>
-
-				<CodeBlock
-					code={`import { createStreamsClient } from "@secondlayer/sdk";
-
-const streams = createStreamsClient({ apiKey: process.env.SL_API_KEY! });
-
+// Every event the chain emits, in order — resume from any
+// cursor, reorg-aware, no node to run.
 await streams.events.consume({
   fromCursor: lastCheckpoint,
   types: ["print"],
-  contractId: "SP2QEZ06AGJ3RKJPBV14SY1V5BBFNAW33D96YPGZF.BNS-V2",
+  contractId: "SP2QEZ…BNS-V2",
   batchSize: 500,
   onBatch: async (events, _envelope, { cursor }) => {
-    for (const e of events) await handle(e); // key rows by e.cursor
+    for (const e of events) await handle(e);
     await saveCheckpoint(cursor);
   },
   onReorg: async (reorg, { cursor }) => {
-    await rollbackAbove(reorg.fork_point_height); // SDK rewinds + re-reads
+    await rollbackAbove(reorg.fork_point_height);
     await saveCheckpoint(cursor);
   },
-});`}
-				/>
+});`;
 
-				<Callout label="Full reference">
+const SDK_CARD_CODE = `await streams.events.consume({
+  types: ["print"],
+  onBatch: (events, _e, { cursor }) =>
+    save(events, cursor),
+});`;
+
+export default function StreamsPage() {
+	const highlights = getHighlights("streams");
+	return (
+		<main className="pp">
+			<header className="pp-hero">
+				<Link href="/docs/x402" className="pp-pill">
+					<span className="dot" /> x402-compatible — accountless pay-per-call{" "}
+					<span className="arr">→</span>
+				</Link>
+				<h1>
+					The raw event firehose.
+					<br />
+					Every event, in order.
+				</h1>
+				<p className="pp-sub">
+					Streams is the immutable, replayable log of everything the chain emits
+					— ordered, cursor-paginated, and reorg-aware. Tail the tip over SSE,
+					page it over REST, or pull signed parquet dumps. This is the layer
+					you'd run a node for.
+				</p>
+				<div className="pp-ctas">
+					<Link href="/docs/streams" className="pp-btn pp-btn-ink">
+						Start streaming
+					</Link>
+					<Link href="/docs/streams" className="pp-btn pp-btn-ghost">
+						Read the docs →
+					</Link>
+				</div>
+			</header>
+
+			{/* PRODUCT WINDOW DEMO: consume loop + live cursor */}
+			<section className="pp-wrap">
+				<div className="pp-stage">
+					<div className="pp-stage-inner">
+						<div className="pp-window pp-win-lg">
+							<div className="pp-bar">
+								<div className="pp-dots">
+									<i />
+									<i />
+									<i />
+								</div>
+								<div className="pp-title">firehose.ts</div>
+							</div>
+							<div className="pp-editor">
+								<CodeBlock code={CONSUME_CODE} lang="typescript" />
+							</div>
+						</div>
+
+						<div className="pp-window pp-win-sm">
+							<div className="pp-bar">
+								<div className="pp-dots">
+									<i />
+									<i />
+									<i />
+								</div>
+								<div className="pp-title">curl — streams</div>
+							</div>
+							<div className="pp-term">
+								<div>
+									<span className="pfx">$</span> curl
+									…/v1/streams/events?from_cursor=8249712:0
+								</div>
+								<div>
+									&#123; <span className="mut">"events"</span>: [ …500 ],
+								</div>
+								<div>
+									&nbsp;&nbsp;<span className="mut">"next_cursor"</span>:{" "}
+									<span className="pp-s">"8249713:6"</span>,
+								</div>
+								<div>
+									&nbsp;&nbsp;<span className="mut">"tip"</span>: &#123;
+									"block_height": <span className="pp-s">8249743</span> &#125;
+									&#125;
+								</div>
+								<div>
+									<span className="pfx">$</span> <span className="cur" />
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			{/* SURFACES — distinct treatment per surface */}
+			<section className="pp-section pp-wrap">
+				<div className="pp-section-head">
+					<h2>
+						One firehose, four ways in.
+						<br />
+						<span className="dim">SSE, REST, bulk dumps, or x402.</span>
+					</h2>
 					<p>
-						Every endpoint, the rate and retention tiers, and the full SDK
-						surface live in the docs →{" "}
-						<Link href="/docs/streams">/docs/streams</Link>.
+						Consume live over the SDK, page it over plain REST, backfill cold
+						history from signed parquet, or pay per call with x402 — no account
+						required.
 					</p>
-				</Callout>
+					<Link href="/docs/streams" className="pp-docs-link">
+						Read the Streams docs <span className="ar">→</span>
+					</Link>
+				</div>
+				<div className="pp-surfaces">
+					{/* SDK — consume loop */}
+					<div className="pp-surface">
+						<h4>SDK</h4>
+						<p>A checkpointed consume loop with reorg handling built in.</p>
+						<div className="pp-codeview">
+							<div className="pp-bar">
+								<div className="pp-dots">
+									<i />
+									<i />
+									<i />
+								</div>
+							</div>
+							<CodeBlock code={SDK_CARD_CODE} lang="typescript" />
+						</div>
+					</div>
 
+					{/* REST — cursor pagination */}
+					<div className="pp-surface">
+						<h4>REST</h4>
+						<p>Idempotent cursor pagination — persist it, resume exactly.</p>
+						<div className="pp-vis">
+							<div className="pp-req">
+								<div>
+									<span className="verb">GET</span> /v1/streams/events
+								</div>
+								<div>&nbsp;&nbsp;?from_cursor=8249712:0</div>
+								<div className="res">
+									<span className="status">200</span> &#123;{" "}
+									<span className="key">events</span>: [ … ],
+								</div>
+								<div
+									className="res"
+									style={{ marginTop: 0, borderTop: "none" }}
+								>
+									&nbsp;&nbsp;<span className="key">next_cursor</span>:
+									"8249713:6" &#125;
+								</div>
+							</div>
+						</div>
+					</div>
 
-			</div>
+					{/* Bulk — signed parquet dumps */}
+					<div className="pp-surface">
+						<h4>Bulk</h4>
+						<p>Backfill cold history from signed parquet, then tail live.</p>
+						<div className="pp-vis">
+							<div className="pp-cli">
+								<div>
+									<span className="mut">// replay genesis → tip, no gap</span>
+								</div>
+								<div>
+									<span className="pp-k">await</span> streams.events
+								</div>
+								<div>
+									&nbsp;&nbsp;.<span className="pp-fn">replay</span>(&#123;
+									from: <span className="pp-s">"genesis"</span> &#125;);
+								</div>
+								<div className="mut">→ signed parquet dumps</div>
+							</div>
+						</div>
+					</div>
+
+					{/* x402 — accountless pay-per-call */}
+					<div className="pp-surface">
+						<h4>x402</h4>
+						<p>No account, no key — an agent pays per call over HTTP 402.</p>
+						<div className="pp-vis">
+							<div className="pp-req">
+								<div>
+									<span className="verb">GET</span> /v1/streams/events
+								</div>
+								<div
+									className="res"
+									style={{ borderTop: "none", marginTop: 4 }}
+								>
+									<span style={{ color: "var(--yellow, #eab308)" }}>402</span>{" "}
+									Payment Required
+								</div>
+								<div
+									className="res"
+									style={{ marginTop: 0, borderTop: "none" }}
+								>
+									→ x402 · pay <span className="key">0.001 STX</span>
+								</div>
+								<div
+									className="res"
+									style={{ marginTop: 0, borderTop: "none" }}
+								>
+									<span className="status">200</span> &#123;{" "}
+									<span className="key">events</span>: [ … ] &#125;
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			{/* RECENT HIGHLIGHTS — derived from /docs/changelog */}
+			<section className="pp-band">
+				<div className="pp-wrap pp-highlights">
+					<span className="pp-hl-label">Recent highlights</span>
+					<div className="pp-posts">
+						{highlights.map((h) => (
+							<Link key={h.slug} href={h.href} className="pp-post">
+								<h4>{h.title}</h4>
+								<p>{h.summary}</p>
+								<span className="meta">
+									{h.productLabel} · {h.date}
+								</span>
+							</Link>
+						))}
+						<Link href="/docs/changelog" className="pp-more">
+							View the changelog →
+						</Link>
+					</div>
+				</div>
+			</section>
+
+			<section className="pp-final">
+				<div className="pp-wrap">
+					<h2>
+						Stop running a node.
+						<br />
+						Tap the firehose.
+					</h2>
+					<p>
+						Every event the chain emits, ordered and replayable — over SSE,
+						REST, or signed parquet.
+					</p>
+					<div className="pp-ctas">
+						<Link href="/docs/streams" className="pp-btn pp-btn-ink">
+							Start streaming
+						</Link>
+						<Link href="/docs/x402" className="pp-btn pp-btn-ghost">
+							x402 pay-per-call →
+						</Link>
+					</div>
+				</div>
+			</section>
 		</main>
 	);
 }
