@@ -104,8 +104,8 @@ scoped reads and cannot mint (403). Minted keys inherit your plan's tier.
 
 | Command | What it does |
 |---|---|
-| `sl index ft-transfers` / `nft-transfers` / `events --event-type <t>` / `contract-calls` | Decoded L2 layer. Anonymous reads OK; free-tier keys rejected (Build+ for keyed) |
-| `sl streams tip` / `events` / `consume` / `reorgs` / `canonical <h>` / `pull` | Raw L1 event firehose. **Requires `SL_API_KEY`** |
+| `sl index ft-transfers` / `nft-transfers` / `events --event-type <t>` / `contract-calls` | Decoded Index layer. Anonymous reads OK; free-tier keys rejected (Build+ for keyed) |
+| `sl streams tip` / `events` / `consume` / `reorgs` / `canonical <h>` / `pull` | Raw chain event firehose. **Requires `SL_API_KEY`** |
 
 Reads emit JSON to stdout (`--json` accepted across all read commands); `-o/--output` is a file path, not a format.
 

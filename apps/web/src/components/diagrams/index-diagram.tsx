@@ -1,8 +1,8 @@
 import { Notation } from "@/components/notation";
 
 /**
- * Index (L2 decoded) data-flow diagram.
- * The L2 decoder consumes Streams → decoded events → Index API → your app.
+ * Index (decoded) data-flow diagram.
+ * The decoder consumes Streams → decoded events → Index API → your app.
  */
 export function IndexDiagram() {
 	return (
@@ -13,7 +13,7 @@ export function IndexDiagram() {
 						className="sl-diagram"
 						viewBox="0 0 690 150"
 						role="img"
-						aria-label="The L2 decoder consumes the Streams firehose into normalized decoded events, served by the Index API to your app."
+						aria-label="The decoder consumes the Streams firehose into normalized decoded events, served by the Index API to your app."
 					>
 						<defs>
 							<marker
@@ -55,7 +55,7 @@ export function IndexDiagram() {
 						<g className="node">
 							<rect x="14" y="48" width="150" height="54" rx="9" />
 							<text className="nt" x="89" y="72" textAnchor="middle">
-								L2 decoder
+								Decoder
 							</text>
 							<text className="ns" x="89" y="88" textAnchor="middle">
 								reads Streams

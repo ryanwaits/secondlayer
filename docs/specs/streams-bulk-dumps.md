@@ -2,7 +2,7 @@
 
 Status: private/staging v0 contract draft.
 
-Stacks Streams bulk dumps are the cold backfill path for L1 events. They are parquet files generated from canonical Stacks Streams events, published with a machine-readable manifest. Public URLs are not launched until the manifest, partition, URL, and finality contracts are explicitly approved.
+Stacks Streams bulk dumps are the cold backfill path for raw chain events. They are parquet files generated from canonical Stacks Streams events, published with a machine-readable manifest. Public URLs are not launched until the manifest, partition, URL, and finality contracts are explicitly approved.
 
 For consumer walkthrough, see [`docs/guides/streams-bulk-dumps.md`](../guides/streams-bulk-dumps.md).
 

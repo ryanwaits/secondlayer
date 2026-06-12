@@ -2,11 +2,11 @@
  * Subgraph scaffold templates.
  *
  * `sl subgraphs create <name>` — emits the basic blank.
- * `sl subgraphs create <name> --template <slug>` — emits a Foundation
- * Dataset–shaped starter that compiles + runs zero-config.
+ * `sl subgraphs create <name> --template <slug>` — emits a starter that
+ * compiles + runs zero-config.
  *
- * Each template mirrors a curated public view so that the
- * "I just used the dataset, now I want to write my own" path is a 1-line
+ * Each template mirrors a curated public subgraph so that the
+ * "I just queried it, now I want my own schema" path is a 1-line
  * scaffold + minor edits.
  */
 

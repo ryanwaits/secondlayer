@@ -1,6 +1,6 @@
 # Authentication
 
-Reads are public during the open beta. API keys gate writes — and scope which products a key can read.
+Reads are public during the open beta. API keys gate writes — and scope which surfaces a key can read.
 
 Most reads need no key: contracts are fully open, and the Index is anonymous-readable (free-tier keys are rejected — Build+ for keyed access). **Public subgraphs** are anon-readable on `/v1/subgraphs` (managed deploys default public); **private** subgraphs (the BYO default) need the owning account's `sk-sl_` key — anon requests `404`. The `/api/subgraphs` dashboard surface always requires a session or key. The **Streams** firehose and every **write** (deploying subgraphs, publishing/unpublishing them, managing subscriptions) require a key — with one exception: when the x402 pay-per-call rail is enabled, `POST /v1/subgraphs` accepts an x402 payment instead, deploying a subgraph owned by the paying wallet (7-day expiry unless renewed or the account is claimed).
 
@@ -23,7 +23,7 @@ An API key looks like `sk-sl_…`. Set it as `SL_API_KEY` — the CLI and MCP se
 | `streams` | Streams only | No (`403`) | a scoped key |
 | `index` | Index only | No (`403`) | a scoped key |
 
-The `account` key is the owner credential — it reads both products and is the only key allowed to create more keys. A scoped `streams`/`index` key can read just its product and cannot mint, so a leaked scoped key can't escalate.
+The `account` key is the owner credential — it reads both surfaces and is the only key allowed to create more keys. A scoped `streams`/`index` key can read just its surface and cannot mint, so a leaked scoped key can't escalate.
 
 Keep keys server-side. Rotate or revoke them anytime in the [platform console](https://secondlayer.tools/platform/api-keys).
 

@@ -1,9 +1,9 @@
 import { Notation } from "@/components/notation";
 
 /**
- * Subgraphs (L3) data-flow diagram.
- * Your config + raw L1 (+ decoded) events → your handlers → your typed tables
- * → /api/subgraphs → your app.
+ * Subgraphs data-flow diagram.
+ * Your config + raw (+ decoded) chain events → your handlers → your typed
+ * tables → /v1/subgraphs → your app.
  */
 export function SubgraphsDiagram() {
 	return (
@@ -14,7 +14,7 @@ export function SubgraphsDiagram() {
 						className="sl-diagram"
 						viewBox="0 0 690 132"
 						role="img"
-						aria-label="A config and raw L1 (plus decoded) events feed your subgraph handlers, which write your typed tables served at /api/subgraphs to your app."
+						aria-label="A config and raw (plus decoded) chain events feed your subgraph handlers, which write your typed tables served at /v1/subgraphs to your app."
 					>
 						<defs>
 							<marker
@@ -83,7 +83,7 @@ export function SubgraphsDiagram() {
 								Raw events
 							</text>
 							<text className="ns" x="100" y="104" textAnchor="middle">
-								L1 (+ decoded)
+								raw (+ decoded)
 							</text>
 						</g>
 						<g className="node">
@@ -101,7 +101,7 @@ export function SubgraphsDiagram() {
 								Your tables
 							</text>
 							<text className="ns" x="495" y="104" textAnchor="middle">
-								/api/subgraphs · typed
+								/v1/subgraphs · typed
 							</text>
 						</g>
 						<g className="node">

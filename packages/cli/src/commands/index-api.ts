@@ -95,7 +95,7 @@ function emitOne(doc: unknown, label: string, json?: boolean): void {
 export function registerIndexCommand(program: Command): void {
 	const index = program
 		.command("index")
-		.description("Query the decoded Index layer (L2 events + contract calls)");
+		.description("Query the decoded Index layer (events + contract calls)");
 
 	// Codegen needs no API call — it emits from the static read-column registry.
 	index

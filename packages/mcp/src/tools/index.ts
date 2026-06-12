@@ -44,7 +44,7 @@ export function registerIndexTools(
 	}>(
 		server,
 		"index_ft_transfers",
-		"List decoded SIP-010 fungible-token transfers from the Index (L2 decoded layer). Anonymous reads allowed (free-tier API keys are rejected — Build+ required).",
+		"List decoded SIP-010 fungible-token transfers from the Index (decoded layer). Anonymous reads allowed (free-tier API keys are rejected — Build+ required).",
 		{
 			...rangeFilters,
 			sender: z.string().optional().describe("Filter by sender principal"),

@@ -52,7 +52,8 @@ first maintenance touch. Unfreeze requires a named external request.
 - Reads are open in beta: keyless on `/v1`, keys gate writes. Don't add read auth.
 - Cursor format and public `/v1` envelope are 1.0 contracts; reorg/cursor tests
   are sacred.
-- The L2 decoder reads from Streams in production — dogfooding, do not break it.
+- The decoder service (`packages/indexer` l2 module) reads from Streams in production — dogfooding, do not break it.
+- Never describe product surfaces as L1/L2/L3 layers in docs or comms — Stacks is itself a Bitcoin L2, so the terms confuse users. Say raw (Streams), decoded (Index), your schema (Subgraphs). Internal code identifiers (`l2-decoder`, `l2_*`) stay as-is.
 - No EVM/multi-chain. No wallet-side primitives beyond what's already frozen.
 
 ### Process

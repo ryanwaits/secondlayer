@@ -1,6 +1,6 @@
 # Subgraphs
 
-Stacks Subgraphs are the L3 surface for app-specific materialized tables. Declare the contract events you care about, write a handler that shapes each event into rows, and Secondlayer backfills history (on paid plans) and keeps the table live as new blocks arrive.
+Subgraphs are your schema on our indexer: one TypeScript file declares the contract events you care about and a handler that shapes each event into rows, and a deploy gives you hosted Postgres tables behind the same public `/v1` read API as Index. Secondlayer backfills history (on paid plans) and keeps the tables live as new blocks arrive.
 
 ## How it works
 

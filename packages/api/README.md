@@ -25,7 +25,7 @@ Get a session token via the CLI: `sl login`
 
 ## Stacks Streams
 
-Read-only L1 event feed. Cursors use `<block_height>:<event_index>`.
+Read-only raw chain event feed. Cursors use `<block_height>:<event_index>`.
 
 ```
 GET /v1/streams/events                         # cursor-paginated raw events
@@ -41,11 +41,15 @@ responses also include `next_cursor`.
 
 ## Stacks Index
 
-L2 decoded events. v1 is intentionally limited to transfer endpoints.
+Decoded read layer — events, contract calls, transfers, blocks, transactions.
 
 ```
+GET /v1/index/events
+GET /v1/index/contract-calls
 GET /v1/index/ft-transfers
 GET /v1/index/nft-transfers
+GET /v1/index/blocks
+GET /v1/index/transactions
 ```
 
 Both endpoints support `cursor`, `from_cursor`, `limit`, `from_height`,

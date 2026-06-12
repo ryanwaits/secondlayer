@@ -80,7 +80,7 @@ describe("status page helpers", () => {
 		expect(serviceStatusColor("ok")).toBe("green");
 		expect(serviceStatusColor("degraded")).toBe("yellow");
 		expect(serviceStatusColor("unavailable")).toBe("muted");
-		expect(serviceDisplayName("l2_decoder")).toBe("L2 decoder");
+		expect(serviceDisplayName("l2_decoder")).toBe("Decoder");
 	});
 
 	test("reads the incident heading from markdown", () => {

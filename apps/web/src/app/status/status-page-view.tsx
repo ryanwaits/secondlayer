@@ -13,7 +13,7 @@ export function StatusPageView({
 					<p className="status-eyebrow">Public status</p>
 					<h1>secondlayer</h1>
 					<p className="status-intro">
-						Live health for the API, Index decoders, and L2 decoder health.
+						Live health for the API, the indexer, and the Index decoders.
 						Refreshes every 30 seconds.
 					</p>
 				</div>

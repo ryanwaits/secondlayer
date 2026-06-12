@@ -88,7 +88,7 @@ export const COLUMN_TYPES: Array<Record<string, unknown>> = [
 // generated from the live tool registry (see buildCapabilities) so it can't
 // drift behind the actual surface.
 const PRODUCT_BLURBS: Record<string, string> = {
-	index: "decoded L2 events, transfers, contract calls, blocks, transactions",
+	index: "decoded events, transfers, contract calls, blocks, transactions",
 	streams: "bulk parquet dumps of the raw chain event firehose",
 	contracts: "trait-based contract discovery and ABIs",
 	subgraphs: "author/deploy/query custom indexes",

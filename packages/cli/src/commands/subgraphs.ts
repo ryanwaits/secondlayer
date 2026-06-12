@@ -527,7 +527,7 @@ export function registerSubgraphsCommand(program: Command): void {
 		.description("Create a new subgraph definition file")
 		.option(
 			"--template <slug>",
-			`Foundation Dataset starter (one of: ${SUBGRAPH_TEMPLATE_SLUGS.join(", ")})`,
+			`Starter template (one of: ${SUBGRAPH_TEMPLATE_SLUGS.join(", ")})`,
 		)
 		.addHelpText(
 			"after",

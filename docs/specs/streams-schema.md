@@ -1,10 +1,10 @@
 # Stacks Streams Schema
 
-Stacks Streams is L1: confirmed, canonical, chain-emitted events only.
+Stacks Streams is the raw plane: confirmed, canonical, chain-emitted events only.
 
-## What Is An L1 Event
+## What Is A Raw Event
 
-L1 event types are exactly those the chain natively emits. Platform-level signals such as reorg notifications, tip updates, and ingestion lag are response-envelope metadata, not events. Contract calls are transactions, not emitted events. If you need decoded contract calls — function name, arguments, ABI applied — use Stacks Index (L2). The clean separation is intentional: L1 is a faithful messenger; L2 adds semantics.
+Raw event types are exactly those the chain natively emits. Platform-level signals such as reorg notifications, tip updates, and ingestion lag are response-envelope metadata, not events. Contract calls are transactions, not emitted events. If you need decoded contract calls — function name, arguments, ABI applied — use Stacks Index. The clean separation is intentional: Streams is a faithful messenger; Index adds semantics.
 
 ## Event Shape
 

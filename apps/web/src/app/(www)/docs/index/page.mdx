@@ -1,6 +1,6 @@
 # Index
 
-The decoded read layer for Stacks. One REST surface over decoded events, contract calls, the canonical block map, blocks, full transaction documents, PoX-4 stacking, and the pending mempool. No decoders to write, no node to run. Open beta: reads need no key (free-tier keys are rejected; Build+ for keyed access).
+The decoded read layer for Stacks — we run the indexer, you query. One REST surface over decoded events, contract calls, the canonical block map, blocks, full transaction documents, PoX-4 stacking, and the pending mempool. No decoders to write, no node to run. Open beta: reads need no key (free-tier keys are rejected; Build+ for keyed access).
 
 Every list response uses the same cursor envelope — the collection, a `next_cursor`, the chain `tip`, and `reorgs` where applicable. Cursors are opaque `<block_height>:<index>` resume tokens; pass them back unchanged to continue.
 

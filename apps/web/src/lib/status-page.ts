@@ -163,7 +163,7 @@ export function serviceDisplayName(name: string): string {
 		case "indexer":
 			return "Indexer service";
 		case "l2_decoder":
-			return "L2 decoder";
+			return "Decoder";
 		default:
 			return name.replace(/_/g, " ");
 	}

@@ -1,7 +1,7 @@
 import { Notation } from "@/components/notation";
 
 /**
- * Streams (L1) data-flow diagram — ported from the marketing mock.
+ * Streams (raw events) data-flow diagram — ported from the marketing mock.
  * Indexer (faces the node) → raw canonical events → Streams API → your consumer.
  */
 export function StreamsDiagram() {

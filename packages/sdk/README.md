@@ -36,14 +36,14 @@ plan's tier.
 
 ## Mental model
 
-- `sl.streams` reads raw ordered L1 events from Stacks Streams.
-- `sl.index` reads the decoded L2 layer from Stacks Index — FT/NFT transfers, all event types (`events`), and `contractCalls`.
+- `sl.streams` reads raw ordered chain events from Stacks Streams.
+- `sl.index` reads the decoded layer from Stacks Index — FT/NFT transfers, all event types (`events`), and `contractCalls`.
 - `sl.contracts` finds deployed contracts by trait (SIP-009/010/013).
-- `sl.subgraphs` reads app-specific L3 tables from Stacks Subgraphs.
+- `sl.subgraphs` reads app-specific tables from Stacks Subgraphs.
 
 ## Stacks Streams
 
-Typed L1 HTTP client. Reads require a bearer token (`apiKey`).
+Typed HTTP client for the raw event firehose. Reads require a bearer token (`apiKey`).
 
 ```typescript
 const tip = await sl.streams.tip();
@@ -219,7 +219,7 @@ helpers beside `src/streams/ft-transfer.ts` and export them through
 
 ## Stacks Index
 
-Decoded L2 transfer events.
+Decoded transfer events.
 
 ```typescript
 const ftPage = await sl.index.ftTransfers.list({
@@ -316,7 +316,7 @@ Exported types: `TransactionProof`, `TransactionProofVerifyResult`, `RewardSet`.
 
 ## Stacks Subgraphs
 
-Deploy and query app-specific L3 tables.
+Deploy and query app-specific tables.
 
 Subgraphs and subscriptions live on the platform API alongside Streams and Index. Deploying and managing them needs your `sk-sl_` key — no extra setup, no tenant URL.
 
