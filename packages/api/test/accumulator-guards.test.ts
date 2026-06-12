@@ -62,7 +62,7 @@ describe.skipIf(SKIP)("accumulator backfill guards", () => {
 			.where("name", "in", [ACC_SG, SAFE_SG])
 			.execute();
 		await db.deleteFrom("accounts").where("id", "=", ACCOUNT).execute();
-		delete process.env.INSTANCE_MODE;
+		process.env.INSTANCE_MODE = undefined;
 	});
 
 	test("backfill on an increment subgraph → 422 BACKFILL_NON_REPLAYABLE_HANDLER", async () => {
