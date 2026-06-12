@@ -25,10 +25,11 @@ export default function NotFound() {
 							<Link href="/">Home</Link> · the manifest and the five layers.
 						</p>
 						<p>
-							<Link href="/sdk">SDK</Link> · <Link href="/cli">CLI</Link> ·{" "}
-							<Link href="/mcp">MCP</Link> · clients for every layer.
+							<Link href="/docs/sdk">SDK</Link> ·{" "}
+							<Link href="/docs/cli">CLI</Link> ·{" "}
+							<Link href="/docs/mcp">MCP</Link> · clients for every layer.
 						</p>
-						</div>
+					</div>
 				</div>
 			</section>
 		</div>
