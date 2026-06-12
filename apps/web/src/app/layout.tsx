@@ -34,22 +34,26 @@ const caveat = Caveat({
 });
 
 export const metadata: Metadata = {
-	// Without this, per-page `openGraph.images` like "/og/sbtc.png" resolve
+	// Without this, per-page `openGraph.images` like "/og/home.png" resolve
 	// relative to the request URL, which breaks Twitter/Slack/iMessage card
 	// previews on shared links.
 	metadataBase: new URL("https://www.secondlayer.tools"),
 	title: "secondlayer",
-	description: "Developer tools for Stacks",
+	description: "The indexing layer for Stacks",
 	openGraph: {
 		title: "secondlayer",
-		description: "Developer tools for Stacks",
-		images: [{ url: "/og.png", width: 1200, height: 630 }],
+		description: "The indexing layer for Stacks",
+		siteName: "secondlayer",
+		type: "website",
+		images: [
+			{ url: "/og/home.png", width: 1200, height: 630, alt: "secondlayer" },
+		],
 	},
 	twitter: {
 		card: "summary_large_image",
 		title: "secondlayer",
-		description: "Developer tools for Stacks",
-		images: ["/og.png"],
+		description: "The indexing layer for Stacks",
+		images: ["/og/home.png"],
 	},
 };
 

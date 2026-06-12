@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1200">
+<title>OG — Streams</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;460;560&family=Sora:wght@500;600&family=Fira+Code:wght@460;560&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+	/* consume loop + raw payload, staggered docs-style in the right corner */
+	.streams-bg {
+		position: absolute;
+		transform: scale(1.15);
+		transform-origin: top right;
+		left: 740px;
+		top: 128px;
+		right: -80px;
+		bottom: 44px;
+		font-family: var(--mono);
+		-webkit-mask-image: linear-gradient(to bottom, black 52%, transparent 96%);
+		mask-image: linear-gradient(to bottom, black 52%, transparent 96%);
+	}
+
+	.snippet {
+		position: absolute;
+		background: var(--paper-elevated);
+		border: 1.5px solid var(--hairline);
+		border-radius: 8px;
+		padding: 16px 20px;
+		font-size: 15.5px;
+		line-height: 1.6;
+		color: rgba(17, 17, 17, 0.42);
+		white-space: pre;
+		overflow: hidden;
+	}
+
+	.snippet.chrome { background: var(--chrome); }
+	.snippet .fn { color: rgba(37, 99, 235, 0.75); }
+	.snippet .kw { color: rgba(17, 17, 17, 0.6); }
+	.snippet .str { color: rgba(17, 17, 17, 0.58); }
+	.snippet .dim { color: rgba(17, 17, 17, 0.28); }
+
+	.s-code { left: 0; top: 0; width: 560px; }
+	.s-payload { left: 70px; top: 218px; width: 560px; }
+
+	.headline { max-width: 600px; font-size: 64px; }
+</style>
+</head>
+<body>
+	<div class="plate">
+		<header class="plate-top">
+			<div class="brand">
+				<svg viewBox="6 9 36 24" width="36" height="24" aria-hidden="true">
+					<polygon points="8,23 28,15 40,23 20,31" class="logo-echo"/>
+					<polygon points="8,19 28,11 40,19 20,27" class="logo-primary"/>
+				</svg>
+				secondlayer
+			</div>
+			<div class="route-label">streams</div>
+		</header>
+
+		<main class="plate-main">
+			<h1 class="headline">All raw events,<br><span class="quiet">without the node.</span></h1>
+		</main>
+
+		<div class="streams-bg" aria-hidden="true">
+			<div class="snippet s-code"><span class="kw">await</span> streams.events.<span class="fn">consume</span><span class="dim">({</span>
+  fromCursor: lastCheckpoint<span class="dim">,</span>
+  onBatch: <span class="kw">async</span> <span class="dim">(</span>events<span class="dim">,</span> <span class="dim">{</span> cursor <span class="dim">}) =&gt; {</span>
+    <span class="kw">for</span> <span class="dim">(</span><span class="kw">const</span> e <span class="kw">of</span> events<span class="dim">)</span> <span class="kw">await</span> <span class="fn">handle</span><span class="dim">(</span>e<span class="dim">);</span>
+  <span class="dim">},</span>
+  onReorg: <span class="kw">async</span> <span class="dim">(</span>reorg<span class="dim">) =&gt;</span> <span class="fn">rollbackAbove</span><span class="dim">(</span>reorg.fork_point_height<span class="dim">),</span>
+<span class="dim">});</span></div>
+			<div class="snippet chrome s-payload"><span class="dim">{</span>
+  <span class="kw">"block_height"</span>: 3412887<span class="dim">,</span>
+  <span class="kw">"tx_id"</span>: <span class="str">"0x9f3c41&hellip;"</span><span class="dim">,</span>
+  <span class="kw">"event_index"</span>: 3<span class="dim">,</span>
+  <span class="kw">"type"</span>: <span class="str">"contract_event"</span><span class="dim">,</span>
+  <span class="kw">"raw_value"</span>: <span class="str">"0x0c0000000308616d6f756e74&hellip;"</span>
+<span class="dim">}</span></div>
+		</div>
+	</div>
+</body>
+</html>

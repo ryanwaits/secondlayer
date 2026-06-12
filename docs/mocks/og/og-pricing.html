@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1200">
+<title>OG — Pricing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;460;560&family=Sora:wght@500;600&family=Fira+Code:wght@460;560&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+	/* the site's actual plan cards, staggered as bg texture on the right */
+	.plans-bg {
+		position: absolute;
+		transform: scale(1.15);
+		transform-origin: top right;
+		left: 690px;
+		top: 130px;
+		right: -60px;
+		bottom: 44px;
+		-webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 96%);
+		mask-image: linear-gradient(to bottom, black 50%, transparent 96%);
+	}
+
+	.prc-plan {
+		position: absolute;
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		border-radius: 14px;
+		padding: 24px 28px;
+		background: var(--paper-elevated);
+		border: 1.5px solid var(--hairline);
+	}
+
+	.prc-free {
+		left: 0;
+		top: 16px;
+		width: 310px;
+	}
+
+	.prc-pro {
+		left: 250px;
+		top: 186px;
+		width: 340px;
+		background-image: radial-gradient(
+			circle,
+			rgba(17, 17, 17, 0.09) 0.75px,
+			transparent 0.75px
+		);
+		background-size: 8px 8px;
+	}
+
+	.prc-plan-eyebrow {
+		font-family: var(--mono);
+		font-size: 14px;
+		font-weight: 560;
+		letter-spacing: 0.07em;
+		text-transform: uppercase;
+		color: var(--text-muted);
+	}
+
+	.prc-plan-price {
+		font-family: var(--heading);
+		font-size: 52px;
+		font-weight: 600;
+		letter-spacing: -0.03em;
+		line-height: 0.9;
+		color: var(--ink);
+	}
+
+	.prc-plan-price small {
+		font-size: 22px;
+		font-weight: 460;
+		color: var(--text-muted);
+		letter-spacing: 0;
+	}
+
+	.prc-plan ul {
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		font-family: var(--sans);
+		font-size: 17px;
+		font-weight: 460;
+		color: var(--text-muted);
+	}
+
+	.prc-plan li::before {
+		content: "— ";
+		color: var(--text-dim);
+	}
+
+	.headline { max-width: 620px; }
+</style>
+</head>
+<body>
+	<div class="plate">
+		<header class="plate-top">
+			<div class="brand">
+				<svg viewBox="6 9 36 24" width="36" height="24" aria-hidden="true">
+					<polygon points="8,23 28,15 40,23 20,31" class="logo-echo"/>
+					<polygon points="8,19 28,11 40,19 20,27" class="logo-primary"/>
+				</svg>
+				secondlayer
+			</div>
+			<div class="route-label">pricing</div>
+		</header>
+
+		<main class="plate-main">
+			<h1 class="headline">The fine print,<br><span class="quiet">up front.</span></h1>
+		</main>
+
+		<div class="plans-bg" aria-hidden="true">
+			<div class="prc-plan prc-free">
+				<span class="prc-plan-eyebrow">Free &middot; forever</span>
+				<p class="prc-plan-price">$0</p>
+				<ul>
+					<li>Rate-limited public reads</li>
+					<li>Public subgraphs</li>
+					<li>3 webhook subscriptions</li>
+				</ul>
+			</div>
+			<div class="prc-plan prc-pro">
+				<span class="prc-plan-eyebrow">Pro &middot; most teams pick this</span>
+				<p class="prc-plan-price">$99<small>/mo</small></p>
+				<ul>
+					<li>250 req/s</li>
+					<li>Private subgraphs</li>
+					<li>Genesis backfills</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OG image mockups — review sheet</title>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@460;560&family=Sora:wght@600&display=swap" rel="stylesheet">
+<style>
+	* { margin: 0; padding: 0; box-sizing: border-box; }
+	:root { --scale: 0.5; }
+	body { background: #fafafa; color: #111; font-family: "Sora", sans-serif; padding: 48px; }
+	h1 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+	p.lede { font-family: "Fira Code", monospace; font-size: 12px; color: rgba(0,0,0,0.65); margin-bottom: 12px; }
+	p.hint { font-family: "Fira Code", monospace; font-size: 11px; color: rgba(0,0,0,0.45); margin-bottom: 36px; }
+	.sheet { display: grid; grid-template-columns: repeat(auto-fill, calc(1200px * var(--scale))); gap: 40px 32px; }
+	figure { display: flex; flex-direction: column; gap: 10px; }
+	.card {
+		width: calc(1200px * var(--scale));
+		height: calc(630px * var(--scale));
+		border: 1px solid #e5e5e5;
+		border-radius: 8px;
+		overflow: hidden;
+		background: #fff;
+	}
+	.card iframe {
+		width: 1200px;
+		height: 630px;
+		border: 0;
+		transform: scale(var(--scale));
+		transform-origin: top left;
+		pointer-events: none;
+	}
+	figcaption { font-family: "Fira Code", monospace; font-size: 12px; color: rgba(0,0,0,0.65); display: flex; justify-content: space-between; }
+	figcaption .route { color: #2563eb; font-weight: 560; }
+	figcaption a { color: inherit; text-decoration: none; border-bottom: 1px solid #e5e5e5; }
+</style>
+</head>
+<body>
+	<h1>Per-route OG images</h1>
+	<p class="lede">1200&times;630 &middot; the Field Notebook plate system &middot; live embeds of docs/mocks/og/og-*.html</p>
+	<p class="hint">edit any og-*.html and refresh this page &middot; click a filename to open the card full-size</p>
+	<div class="sheet">
+		<figure>
+			<div class="card"><iframe src="og-home.html" loading="lazy" title="home"></iframe></div>
+			<figcaption><span class="route">/</span><a href="og-home.html">og-home.html</a></figcaption>
+		</figure>
+		<figure>
+			<div class="card"><iframe src="og-index.html" loading="lazy" title="index"></iframe></div>
+			<figcaption><span class="route">/index-api</span><a href="og-index.html">og-index.html</a></figcaption>
+		</figure>
+		<figure>
+			<div class="card"><iframe src="og-subgraphs.html" loading="lazy" title="subgraphs"></iframe></div>
+			<figcaption><span class="route">/subgraphs</span><a href="og-subgraphs.html">og-subgraphs.html</a></figcaption>
+		</figure>
+		<figure>
+			<div class="card"><iframe src="og-streams.html" loading="lazy" title="streams"></iframe></div>
+			<figcaption><span class="route">/streams</span><a href="og-streams.html">og-streams.html</a></figcaption>
+		</figure>
+		<figure>
+			<div class="card"><iframe src="og-pricing.html" loading="lazy" title="pricing"></iframe></div>
+			<figcaption><span class="route">/pricing</span><a href="og-pricing.html">og-pricing.html</a></figcaption>
+		</figure>
+		<figure>
+			<div class="card"><iframe src="og-docs.html" loading="lazy" title="docs"></iframe></div>
+			<figcaption><span class="route">/docs</span><a href="og-docs.html">og-docs.html</a></figcaption>
+		</figure>
+		<figure>
+			<div class="card"><iframe src="og-explore.html" loading="lazy" title="explore"></iframe></div>
+			<figcaption><span class="route">/subgraphs/explore/[name] (dynamic)</span><a href="og-explore.html">og-explore.html</a></figcaption>
+		</figure>
+	</div>
+</body>
+</html>

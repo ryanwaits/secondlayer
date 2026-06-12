@@ -2,15 +2,18 @@ import { CtaPill } from "@/components/home/cta-pill";
 import { HomeFeatures, HomeGetStarted } from "@/components/home/home-sections";
 import { ProtocolMarquee } from "@/components/home/protocol-marquee";
 import { HomeStatusBadge } from "@/components/status/home-status-badge";
+import { socialMeta } from "@/lib/og";
 import type { SystemStatus } from "@/lib/types";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = socialMeta({
 	title: "secondlayer — index the chain, own your API",
 	description:
 		"The indexing layer for Stacks: we capture and decode every event, you define the tables and ship the API. No node, no infra, readable by anyone.",
-};
+	image: "/og/home.png",
+	path: "/",
+});
 
 const STATUS_API_URL =
 	process.env.SL_API_URL || "https://api.secondlayer.tools";

@@ -2,14 +2,17 @@ import { CodeBlock } from "@/components/code-block";
 import { Notation } from "@/components/notation";
 import { CodeWalkthrough } from "@/components/product/code-walkthrough";
 import { getHighlights } from "@/lib/changelog";
+import { socialMeta } from "@/lib/og";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = socialMeta({
 	title: "Stacks Subgraphs | secondlayer",
 	description:
 		"Your own indexer, minus the node. Write handlers in one TypeScript file, get typed Postgres tables shaped exactly for your app.",
-};
+	image: "/og/subgraphs.png",
+	path: "/subgraphs",
+});
 
 const SUBGRAPH_CODE = `export default defineSubgraph({
   name: "stx-transfers",

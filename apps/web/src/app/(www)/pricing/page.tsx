@@ -1,13 +1,16 @@
 import { CtaPill } from "@/components/home/cta-pill";
 import { MarketingPageHeader } from "@/components/marketing-page-header";
+import { socialMeta } from "@/lib/og";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = socialMeta({
 	title: "Pricing · secondlayer",
 	description:
 		"Free is the product, paid is the headroom. Rate-limited public reads for everyone and a permanent free tier.",
-};
+	image: "/og/pricing.png",
+	path: "/pricing",
+});
 
 const FREE_INCLUDES = [
 	"Rate-limited public reads on Index and Streams",

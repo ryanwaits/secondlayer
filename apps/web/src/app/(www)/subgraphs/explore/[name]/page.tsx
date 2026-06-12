@@ -26,9 +26,25 @@ export async function generateMetadata({
 	params: Promise<{ name: string }>;
 }): Promise<Metadata> {
 	const { name } = await params;
+	const title = `${name} — Explore Subgraphs | secondlayer`;
+	const description = `Live public subgraph "${name}" on Secondlayer — query it at /v1/subgraphs/${name}, no key needed.`;
+	// og:image and twitter:image come from the opengraph-image.tsx /
+	// twitter-image.tsx file conventions in this segment.
 	return {
-		title: `${name} — Explore Subgraphs | secondlayer`,
-		description: `Live public subgraph "${name}" on Secondlayer — query it at /v1/subgraphs/${name}, no key needed.`,
+		title,
+		description,
+		openGraph: {
+			title,
+			description,
+			url: `/subgraphs/explore/${name}`,
+			siteName: "secondlayer",
+			type: "website",
+		},
+		twitter: {
+			card: "summary_large_image",
+			title,
+			description,
+		},
 	};
 }
 

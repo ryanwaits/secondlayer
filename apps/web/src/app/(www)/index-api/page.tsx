@@ -1,14 +1,17 @@
 import { CodeBlock } from "@/components/code-block";
 import { CodeTabs } from "@/components/product/code-tabs";
 import { getHighlights } from "@/lib/changelog";
+import { socialMeta } from "@/lib/og";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = socialMeta({
 	title: "Index | secondlayer",
 	description:
 		"Decoded Stacks events and contract calls — normalized, filterable, cursor-paginated. Build an indexer for any contract without running a node.",
-};
+	image: "/og/index.png",
+	path: "/index-api",
+});
 
 const INDEXER_CODE = `import { Index } from "@secondlayer/sdk";
 import { db } from "./index-db";

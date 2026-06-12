@@ -1,15 +1,18 @@
 import { CopyButton } from "@/components/copy-button";
 import { PLATFORM_API_URL } from "@/lib/api";
+import { socialMeta } from "@/lib/og";
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ExploreList, ExploreSummary } from "./types";
 import { FEATURED } from "./types";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = socialMeta({
 	title: "Explore Subgraphs | secondlayer",
 	description:
 		"Public subgraphs deployed on Secondlayer — live, custom indexed views of Stacks, readable by anyone. No key needed.",
-};
+	image: "/og/explore.png",
+	path: "/subgraphs/explore",
+});
 
 export const revalidate = 30;
 

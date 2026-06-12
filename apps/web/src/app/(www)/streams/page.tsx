@@ -1,13 +1,16 @@
 import { CodeBlock } from "@/components/code-block";
 import { getHighlights } from "@/lib/changelog";
+import { socialMeta } from "@/lib/og";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = socialMeta({
 	title: "Streams | secondlayer",
 	description:
 		"The raw event firehose for Stacks — ordered, cursor-paginated, reorg-aware. Consume over SSE, REST, or signed bulk dumps. x402-compatible.",
-};
+	image: "/og/streams.png",
+	path: "/streams",
+});
 
 const CONSUME_CODE = `import { createStreamsClient } from "@secondlayer/sdk";
 
