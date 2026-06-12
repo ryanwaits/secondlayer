@@ -17,7 +17,7 @@ import type {
 } from "@secondlayer/shared/subgraphs/spec";
 import { CliHttpError, httpPlatform } from "./http.ts";
 import { printError } from "./output.ts";
-import { resolveAuth } from "./resolve-auth.ts";
+import { resolveApiUrl, resolveAuth } from "./resolve-auth.ts";
 
 export { ApiError };
 export type { SubgraphQueryParams } from "@secondlayer/shared/schemas";
@@ -215,7 +215,15 @@ export async function getSubgraphGaps(
 export async function getContractPrintSchema(
 	contractId: string,
 ): Promise<PrintSchemaResponse | null> {
-	return (await getPlatformClient()).index.printSchema(contractId);
+	// Open read — when no session/key resolves, fall back to an anonymous
+	// client instead of demanding `sl login`.
+	let client: SecondLayer;
+	try {
+		client = await getPlatformClient();
+	} catch {
+		client = new SecondLayer({ baseUrl: resolveApiUrl() });
+	}
+	return client.index.printSchema(contractId);
 }
 
 // ── Account (platform-scoped, session-authed) ──────────────────────────
