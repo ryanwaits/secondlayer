@@ -1,4 +1,5 @@
 import { ApiError, SecondLayer } from "@secondlayer/sdk";
+import type { PrintSchemaResponse } from "@secondlayer/sdk";
 import type {
 	ReindexResponse,
 	SubgraphDetail,
@@ -206,6 +207,15 @@ export async function getSubgraphGaps(
 	opts?: { limit?: number; offset?: number; resolved?: boolean },
 ): Promise<SubgraphGapsResponse> {
 	return (await getPlatformClient()).subgraphs.gaps(name, opts);
+}
+
+// ── Index ───────────────────────────────────────────────────────────────
+
+/** Empirical per-topic print schema for a contract (anon-ok read; 404 → null). */
+export async function getContractPrintSchema(
+	contractId: string,
+): Promise<PrintSchemaResponse | null> {
+	return (await getPlatformClient()).index.printSchema(contractId);
 }
 
 // ── Account (platform-scoped, session-authed) ──────────────────────────

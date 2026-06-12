@@ -6,9 +6,13 @@ import {
 	watch,
 	writeFileSync,
 } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { confirm } from "@inquirer/prompts";
+import {
+	generatePrintPayloadTypes,
+	generatePrintSchemaSubgraph,
+} from "@secondlayer/scaffold";
 import type { ByoBreakingChangeDetails } from "@secondlayer/sdk";
 import { ByoBreakingChangeError } from "@secondlayer/sdk";
 import type { SubgraphDetail } from "@secondlayer/shared/schemas";
@@ -21,6 +25,7 @@ import {
 	backfillSubgraphApi,
 	deleteSubgraphApi,
 	deploySubgraphApi,
+	getContractPrintSchema,
 	getSubgraphAgentSchema,
 	getSubgraphApi,
 	getSubgraphGaps,
@@ -62,6 +67,7 @@ import {
 	generateSubgraphTemplate,
 } from "../templates/subgraph.ts";
 import { StacksApiClient } from "../utils/api.ts";
+import { formatCode } from "../utils/format.ts";
 import { inferNetwork } from "../utils/network.ts";
 import { deriveBaseUrl } from "../utils/urls.ts";
 
@@ -142,6 +148,137 @@ export function parseVisibilityOption(
 	if (value === undefined) return undefined;
 	if (value === "public" || value === "private") return value;
 	throw new Error('--visibility must be "public" or "private"');
+}
+
+export interface PinnedPrintSource {
+	sourceName: string;
+	contractId: string;
+	/** Set when the source pins a single topic. */
+	topic?: string;
+}
+
+/** print_event sources with a contract pin and no trait — the only ones whose
+ *  payloads can be typed from the contract's print schema. */
+export function collectPinnedPrintSources(
+	sources: Record<string, unknown>,
+): PinnedPrintSource[] {
+	const out: PinnedPrintSource[] = [];
+	for (const [sourceName, raw] of Object.entries(sources ?? {})) {
+		const s = raw as {
+			type?: unknown;
+			contractId?: unknown;
+			topic?: unknown;
+			trait?: unknown;
+		} | null;
+		if (s?.type !== "print_event") continue;
+		if (typeof s.contractId !== "string" || s.contractId.length === 0) continue;
+		if (s.trait) continue;
+		out.push({
+			sourceName,
+			contractId: s.contractId,
+			...(typeof s.topic === "string" ? { topic: s.topic } : {}),
+		});
+	}
+	return out;
+}
+
+/** codegen flags that only apply to ORM targets — rejected with --payloads. */
+const ORM_ONLY_CODEGEN_FLAGS: Record<string, string> = {
+	target: "--target",
+	schema: "--schema",
+	env: "--env",
+	modelsOnly: "--models-only",
+};
+
+/** ORM-only flags the user explicitly passed (source "cli") — --payloads must
+ *  not silently ignore them, so the caller errors when any are returned. */
+export function ormFlagsConflictingWithPayloads(
+	getOptionValueSource: (key: string) => string | undefined,
+): string[] {
+	return Object.entries(ORM_ONLY_CODEGEN_FLAGS)
+		.filter(([key]) => getOptionValueSource(key) === "cli")
+		.map(([, flag]) => flag);
+}
+
+/** `codegen --payloads`: bundle the def, fetch each pinned contract's print
+ *  schema, and emit per-source payload .d.ts types. */
+async function runPayloadsCodegen(
+	file: string,
+	output: string | undefined,
+): Promise<void> {
+	const absPath = resolve(file);
+	if (!existsSync(absPath)) {
+		error(`File not found: ${absPath}`);
+		process.exit(1);
+	}
+	const { readFile } = await import("node:fs/promises");
+	const { bundleSubgraphCode } = await import("@secondlayer/bundler");
+	const source = await readFile(absPath, "utf8");
+	const bundled = await bundleSubgraphCode(source);
+	const pinned = collectPinnedPrintSources(
+		(bundled.sources ?? {}) as Record<string, unknown>,
+	);
+	if (pinned.length === 0) {
+		error(
+			"No pinned print_event sources (contractId set, no trait) — nothing to generate payload types for.",
+		);
+		process.exit(1);
+	}
+
+	const schemas = new Map<
+		string,
+		Awaited<ReturnType<typeof getContractPrintSchema>>
+	>();
+	for (const contractId of new Set(pinned.map((p) => p.contractId))) {
+		info(`Fetching print schema for ${contractId}...`);
+		try {
+			schemas.set(contractId, await getContractPrintSchema(contractId));
+		} catch (err) {
+			handleApiError(err, "fetch contract print schema");
+		}
+	}
+
+	const sources = [];
+	for (const p of pinned) {
+		const schema = schemas.get(p.contractId);
+		if (!schema || schema.topics.length === 0) {
+			warn(
+				`No print events observed for ${p.contractId} — skipping source "${p.sourceName}"`,
+			);
+			continue;
+		}
+		const topics = p.topic
+			? schema.topics.filter((t) => t.topic === p.topic)
+			: schema.topics;
+		if (topics.length === 0) {
+			warn(
+				`Topic "${p.topic}" never observed on ${p.contractId} — skipping source "${p.sourceName}"`,
+			);
+			continue;
+		}
+		sources.push({
+			sourceName: p.sourceName,
+			contractId: p.contractId,
+			topics,
+		});
+	}
+	if (sources.length === 0) {
+		error(
+			"No print schemas available for any pinned source. Check the contract ids and that the contracts have emitted print events.",
+		);
+		process.exit(1);
+	}
+
+	const out = generatePrintPayloadTypes({ sources });
+	const outPath = resolve(
+		output ??
+			join(
+				dirname(absPath),
+				`${basename(absPath, extname(absPath))}.payloads.d.ts`,
+			),
+	);
+	await writeTextFile(outPath, out);
+	success(`Wrote print payload types to ${outPath}`);
 }
 
 export function parseSubgraphSpecFormat(value?: string): SubgraphSpecFormat {
@@ -583,45 +720,103 @@ export function registerSubgraphsCommand(program: Command): void {
 			"--template <slug>",
 			`Starter template (one of: ${SUBGRAPH_TEMPLATE_SLUGS.join(", ")})`,
 		)
+		.option(
+			"--from-contract <contractId>",
+			"Generate sources/schema/handlers from the contract's observed print events (requires network)",
+		)
+		.option(
+			"--table-per-topic",
+			"With --from-contract: one table per print topic instead of a single wide table",
+		)
 		.addHelpText(
 			"after",
 			`
 Examples:
   $ sl subgraphs create my-graph
-  $ sl subgraphs create token-balances --template sip-010-balances`,
+  $ sl subgraphs create token-balances --template sip-010-balances
+  $ sl subgraphs create sbtc-flows --from-contract SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry
+  $ sl subgraphs create sbtc-flows --from-contract SM3....sbtc-registry --table-per-topic`,
 		)
-		.action(async (name: string, opts: { template?: string }) => {
-			const slug = (opts.template ?? "basic") as SubgraphTemplateSlug;
-			if (!SUBGRAPH_TEMPLATE_SLUGS.includes(slug)) {
-				error(
-					`Unknown template "${opts.template}". Available templates:\n${SUBGRAPH_TEMPLATE_SLUGS.map(
-						(s) => `  ${s.padEnd(20)} ${SUBGRAPH_TEMPLATE_DESCRIPTIONS[s]}`,
-					).join("\n")}`,
-				);
-				process.exit(1);
-			}
+		.action(
+			async (
+				name: string,
+				opts: {
+					template?: string;
+					fromContract?: string;
+					tablePerTopic?: boolean;
+				},
+			) => {
+				if (opts.fromContract && opts.template) {
+					error("--from-contract and --template are mutually exclusive");
+					process.exit(1);
+				}
+				if (opts.tablePerTopic && !opts.fromContract) {
+					error("--table-per-topic requires --from-contract");
+					process.exit(1);
+				}
 
-			const dir = resolve("subgraphs");
-			const filePath = resolve(dir, `${name}.ts`);
+				const slug = (opts.template ?? "basic") as SubgraphTemplateSlug;
+				if (!opts.fromContract && !SUBGRAPH_TEMPLATE_SLUGS.includes(slug)) {
+					error(
+						`Unknown template "${opts.template}". Available templates:\n${SUBGRAPH_TEMPLATE_SLUGS.map(
+							(s) => `  ${s.padEnd(20)} ${SUBGRAPH_TEMPLATE_DESCRIPTIONS[s]}`,
+						).join("\n")}`,
+					);
+					process.exit(1);
+				}
 
-			if (existsSync(filePath)) {
-				error(`File already exists: ${filePath}`);
-				process.exit(1);
-			}
+				const dir = resolve("subgraphs");
+				const filePath = resolve(dir, `${name}.ts`);
 
-			if (!existsSync(dir)) {
-				mkdirSync(dir, { recursive: true });
-			}
+				if (existsSync(filePath)) {
+					error(`File already exists: ${filePath}`);
+					process.exit(1);
+				}
 
-			const content = generateSubgraphTemplate(name, slug);
-			await writeTextFile(filePath, content);
+				let content: string;
+				if (opts.fromContract) {
+					info(`Fetching print schema for ${opts.fromContract}...`);
+					let schema: Awaited<ReturnType<typeof getContractPrintSchema>>;
+					try {
+						schema = await getContractPrintSchema(opts.fromContract);
+					} catch (err) {
+						handleApiError(err, "fetch contract print schema");
+					}
+					if (!schema || schema.topics.length === 0) {
+						error(
+							`No print events observed for ${opts.fromContract}.\nCheck the contract id, and that the contract has emitted print events (schemas are inferred from indexed on-chain events).`,
+						);
+						process.exit(1);
+					}
+					content = await formatCode(
+						generatePrintSchemaSubgraph({
+							contractId: opts.fromContract,
+							name,
+							topics: schema.topics,
+							tablePerTopic: opts.tablePerTopic,
+						}),
+					);
+				} else {
+					content = generateSubgraphTemplate(name, slug);
+				}
 
-			success(`Created ${filePath}`);
-			if (slug !== "basic") {
-				info(`Template: ${slug} — ${SUBGRAPH_TEMPLATE_DESCRIPTIONS[slug]}`);
-			}
-			info(`Next: sl subgraphs deploy subgraphs/${name}.ts`);
-		});
+				if (!existsSync(dir)) {
+					mkdirSync(dir, { recursive: true });
+				}
+
+				await writeTextFile(filePath, content);
+
+				success(`Created ${filePath}`);
+				if (opts.fromContract) {
+					info(
+						`Schema inferred from ${opts.fromContract} print events (${opts.tablePerTopic ? "table per topic" : "single wide table"})`,
+					);
+				} else if (slug !== "basic") {
+					info(`Template: ${slug} — ${SUBGRAPH_TEMPLATE_DESCRIPTIONS[slug]}`);
+				}
+				info(`Next: sl subgraphs deploy subgraphs/${name}.ts`);
+			},
+		);
 
 	// --- dev ---
 	subgraphs
@@ -866,6 +1061,10 @@ Examples:
 								`  Free tier indexes forward from deploy (start block ${result.start_block}) — upgrade for genesis backfill.`,
 							);
 						}
+
+						// Advisory deploy lints (e.g. handler reads a print field never
+						// observed on-chain) — surface but never block.
+						for (const w of result.warnings ?? []) warn(w);
 
 						const printDeployFooter = async () => {
 							try {
@@ -1254,6 +1453,10 @@ Examples:
 			"--models-only",
 			"Emit only Prisma models (compose via prismaSchemaFolder)",
 		)
+		.option(
+			"--payloads",
+			"Emit a .d.ts of print payload types for pinned print_event sources, inferred from observed on-chain events (requires network)",
+		)
 		.option("-o, --output <path>", "Write to a file (defaults to stdout)")
 		.action(
 			async (
@@ -1264,8 +1467,23 @@ Examples:
 					env?: string;
 					output?: string;
 					modelsOnly?: boolean;
+					payloads?: boolean;
 				},
+				command: Command,
 			) => {
+				if (options.payloads) {
+					const conflicts = ormFlagsConflictingWithPayloads((key) =>
+						command.getOptionValueSource(key),
+					);
+					if (conflicts.length > 0) {
+						error(
+							`--payloads cannot be combined with ${conflicts.join(", ")} — those flags apply to ORM targets only.`,
+						);
+						process.exit(1);
+					}
+					await runPayloadsCodegen(file, options.output);
+					return;
+				}
 				try {
 					const target = options.target ?? "prisma";
 					if (

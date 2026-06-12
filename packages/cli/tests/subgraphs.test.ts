@@ -10,9 +10,11 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+	collectPinnedPrintSources,
 	createSubgraphDeployPreview,
 	ensureScaffoldPackageJson,
 	installScaffoldDependencies,
+	ormFlagsConflictingWithPayloads,
 	parseStartBlockOption,
 	parseSubgraphSpecFormat,
 	parseVisibilityOption,
@@ -175,6 +177,49 @@ exit 42
 			rmSync(dir, { recursive: true, force: true });
 			rmSync(binDir, { recursive: true, force: true });
 		}
+	});
+
+	it("collects pinned print_event sources for payload codegen", () => {
+		const pinned = collectPinnedPrintSources({
+			deposits: {
+				type: "print_event",
+				contractId: "SP1.registry",
+				topic: "completed-deposit",
+			},
+			allPrints: { type: "print_event", contractId: "SP1.registry" },
+			traitPrints: {
+				type: "print_event",
+				contractId: "SP1.registry",
+				trait: "sip-010",
+			},
+			wildcard: { type: "print_event" },
+			calls: { type: "contract_call", contractId: "SP1.registry" },
+		});
+		expect(pinned).toEqual([
+			{
+				sourceName: "deposits",
+				contractId: "SP1.registry",
+				topic: "completed-deposit",
+			},
+			{ sourceName: "allPrints", contractId: "SP1.registry" },
+		]);
+	});
+
+	it("rejects ORM-only codegen flags explicitly combined with --payloads", () => {
+		// Commander fills --target/--env defaults, so only "cli"-sourced values conflict.
+		const cliSourced = (...keys: string[]) =>
+			ormFlagsConflictingWithPayloads((key) =>
+				keys.includes(key) ? "cli" : "default",
+			);
+		expect(cliSourced()).toEqual([]);
+		expect(cliSourced("target")).toEqual(["--target"]);
+		expect(cliSourced("schema", "env", "modelsOnly")).toEqual([
+			"--schema",
+			"--env",
+			"--models-only",
+		]);
+		// Flags outside the ORM set (e.g. --output) never conflict.
+		expect(cliSourced("output", "payloads")).toEqual([]);
 	});
 
 	it("can skip scaffold dependency installation", async () => {

@@ -8,6 +8,19 @@ export {
 	generateClarityArgs,
 	generateMapKeyConversion,
 } from "./generator-helpers.ts";
+export {
+	generatePrintPayloadTypes,
+	type PrintPayloadField,
+	type PrintPayloadSource,
+	type PrintPayloadTopic,
+	type PrintPayloadTypesInput,
+} from "./print-payload-types.ts";
+export {
+	generatePrintSchemaSubgraph,
+	type PrintScaffoldField,
+	type PrintScaffoldInput,
+	type PrintScaffoldTopic,
+} from "./print-scaffold.ts";
 export { generateSubgraphCode } from "./subgraph.ts";
 export type { AbiFunction, AbiMap } from "./subgraph.ts";
 export {
