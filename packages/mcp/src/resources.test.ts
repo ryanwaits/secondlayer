@@ -213,6 +213,7 @@ const GOLDEN_PATH_TOOLS = [
 	"index_events",
 	"index_ft_transfers",
 	"index_nft_transfers",
+	"index_print_schema",
 	"index_transactions",
 	// contracts / scaffold
 	"contracts_find",

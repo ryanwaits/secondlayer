@@ -192,6 +192,19 @@ export function registerIndexTools(
 			jsonResponse(await clientProvider().index.transactions.list(params)),
 	);
 
+	defineTool<{ contractId: string }>(
+		server,
+		"index_print_schema",
+		"Empirical per-topic print payload schemas for a contract, inferred from sampled on-chain events: each topic's fields with observed Clarity types, decoded TS types, subgraph column types, and presence rates. Use before writing print_event subgraph handlers to learn what's on e.data. Anonymous read.",
+		{
+			contractId: z
+				.string()
+				.describe("Contract id (SP….name) whose print events to profile"),
+		},
+		async (params) =>
+			jsonResponse(await clientProvider().index.printSchema(params.contractId)),
+	);
+
 	defineTool<Record<string, never>>(
 		server,
 		"index_discover",

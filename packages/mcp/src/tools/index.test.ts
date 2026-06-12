@@ -44,6 +44,10 @@ describe("index MCP tools", () => {
 					discovered = true;
 					return { event_type_filters: { ft_transfer: {} } };
 				},
+				printSchema: async (contractId: string) => {
+					calls.printSchema = contractId;
+					return { contract_id: contractId, topics: [] };
+				},
 			},
 		};
 		registerIndexTools(
@@ -62,6 +66,7 @@ describe("index MCP tools", () => {
 			"index_events",
 			"index_ft_transfers",
 			"index_nft_transfers",
+			"index_print_schema",
 			"index_transactions",
 		]);
 
@@ -89,5 +94,11 @@ describe("index MCP tools", () => {
 			?.handler({});
 		expect(discovered).toBe(true);
 		expect(disc?.content[0]?.text).toContain("event_type_filters");
+
+		const schema = await tools
+			.find((t) => t.name === "index_print_schema")
+			?.handler({ contractId: "SP1.registry" });
+		expect(calls.printSchema).toBe("SP1.registry");
+		expect(schema?.content[0]?.text).toContain("SP1.registry");
 	});
 });
