@@ -8775,7 +8775,6 @@ html.force-dark .pp {
 .pp-stage {
 	position: relative;
 	border: 1px solid var(--border);
-	border-bottom: none;
 	border-radius: 10px;
 	background-color: var(--bg);
 	background-image: radial-gradient(
