@@ -5,6 +5,10 @@ import { defineSubgraph } from "@secondlayer/subgraphs";
  * mint, and burn. Correct ONLY when indexed from genesis (a balance is the
  * sum of all history), so deploy under the genesis-exempt account.
  *
+ * Uses ctx.increment — SQL-atomic deltas that commute, so same-block
+ * receive-then-forward cycles, replays, and concurrency are all safe
+ * (fix-f040).
+ *
  * Reads (no key):
  *   GET /v1/subgraphs/sbtc-balances/balances?address=SP...
  *   GET /v1/subgraphs/sbtc-balances/balances/aggregate?_sum=balance&_count=true
@@ -12,10 +16,6 @@ import { defineSubgraph } from "@secondlayer/subgraphs";
 
 const ASSET =
 	"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token";
-
-type BalanceRow = { balance?: string | number | bigint };
-
-const toBig = (v: string | number | bigint | undefined) => BigInt(v ?? 0);
 
 export default defineSubgraph({
 	name: "sbtc-balances",
@@ -38,45 +38,29 @@ export default defineSubgraph({
 	},
 	handlers: {
 		transfer: async (e, ctx) => {
-			await ctx.patchOrInsert(
+			ctx.increment(
 				"balances",
 				{ address: e.sender },
-				{
-					address: e.sender,
-					balance: (existing: BalanceRow | null) =>
-						toBig(existing?.balance) - BigInt(e.amount),
-				},
+				{ balance: -BigInt(e.amount) },
 			);
-			await ctx.patchOrInsert(
+			ctx.increment(
 				"balances",
 				{ address: e.recipient },
-				{
-					address: e.recipient,
-					balance: (existing: BalanceRow | null) =>
-						toBig(existing?.balance) + BigInt(e.amount),
-				},
+				{ balance: BigInt(e.amount) },
 			);
 		},
 		mint: async (e, ctx) => {
-			await ctx.patchOrInsert(
+			ctx.increment(
 				"balances",
 				{ address: e.recipient },
-				{
-					address: e.recipient,
-					balance: (existing: BalanceRow | null) =>
-						toBig(existing?.balance) + BigInt(e.amount),
-				},
+				{ balance: BigInt(e.amount) },
 			);
 		},
 		burn: async (e, ctx) => {
-			await ctx.patchOrInsert(
+			ctx.increment(
 				"balances",
 				{ address: e.sender },
-				{
-					address: e.sender,
-					balance: (existing: BalanceRow | null) =>
-						toBig(existing?.balance) - BigInt(e.amount),
-				},
+				{ balance: -BigInt(e.amount) },
 			);
 		},
 	},
