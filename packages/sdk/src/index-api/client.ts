@@ -1,3 +1,4 @@
+import type { InferredTopicSchema } from "@secondlayer/subgraphs";
 import { BaseClient, buildQuery } from "../base.ts";
 import type { SecondLayerOptions } from "../base.ts";
 import { ApiError } from "../errors.ts";
@@ -551,6 +552,28 @@ export type MempoolWalkParams = Omit<MempoolListParams, "limit"> & {
 	signal?: AbortSignal;
 };
 
+// ── Print schema (/v1/index/contracts/:contract_id/print-schema) ───
+
+/**
+ * Empirical per-topic print payload schema for a contract, inferred from
+ * sampled on-chain events. `topics` is sorted by count desc; `sampled` is true
+ * when the contract has more print events than the windows examined.
+ */
+export type PrintSchemaResponse = {
+	contract_id: string;
+	topics: InferredTopicSchema[];
+	sampled: boolean;
+	total_events: number;
+	/** True when the count hit the server-side cap (total_events is the cap). */
+	total_events_capped: boolean;
+	sample: {
+		size: number;
+		newest_height: number | null;
+		oldest_height: number | null;
+	};
+	tip: IndexTip;
+};
+
 function firstWalkFromHeight(params: {
 	cursor?: string | null;
 	fromCursor?: string | null;
@@ -621,6 +644,23 @@ export class Index extends BaseClient {
 	 */
 	discover(): Promise<IndexDiscovery> {
 		return this.request<IndexDiscovery>("GET", "/v1/index");
+	}
+
+	/**
+	 * Empirical per-topic print payload schema for a contract — what topics it
+	 * emits and each field's observed Clarity/TS/column types. Anonymous read;
+	 * 404 → null.
+	 */
+	async printSchema(contractId: string): Promise<PrintSchemaResponse | null> {
+		try {
+			return await this.request<PrintSchemaResponse>(
+				"GET",
+				`/v1/index/contracts/${encodeURIComponent(contractId)}/print-schema`,
+			);
+		} catch (err) {
+			if (err instanceof ApiError && err.status === 404) return null;
+			throw err;
+		}
 	}
 
 	/** Callable: `index.ftTransfers(params)` ≡ `index.ftTransfers.list(params)`. */

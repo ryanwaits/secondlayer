@@ -74,6 +74,39 @@ describe("Index trait filter + discover", () => {
 		expect(proof).not.toBeNull();
 	});
 
+	test("printSchema hits the contract print-schema path", async () => {
+		const urls = recorder({
+			contract_id: "SP1.registry",
+			topics: [],
+			sampled: false,
+			total_events: 0,
+			total_events_capped: false,
+			sample: { size: 0, newest_height: null, oldest_height: null },
+			tip: {},
+		});
+		const schema = await new Index({ baseUrl: BASE_URL }).printSchema(
+			"SP1.registry",
+		);
+		expect(urls[0]).toContain("/v1/index/contracts/SP1.registry/print-schema");
+		expect(schema?.topics).toEqual([]);
+	});
+
+	test("printSchema resolves null on 404", async () => {
+		globalThis.fetch = mock(() =>
+			Promise.resolve({
+				ok: false,
+				status: 404,
+				headers: new Headers(),
+				json: () => Promise.resolve({ error: "not found" }),
+				text: () => Promise.resolve('{"error":"not found"}'),
+			} as Response),
+		) as unknown as typeof fetch;
+		const schema = await new Index({ baseUrl: BASE_URL }).printSchema(
+			"SP1.missing",
+		);
+		expect(schema).toBeNull();
+	});
+
 	test("transactions.getProof resolves null on 404", async () => {
 		globalThis.fetch = mock(() =>
 			Promise.resolve({

@@ -42,6 +42,7 @@ export type {
 	NftTransfersListParams,
 	NftTransfersResource,
 	NftTransfersWalkParams,
+	PrintSchemaResponse,
 	StackingEnvelope,
 	StackingListParams,
 	StackingWalkParams,
