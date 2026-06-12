@@ -83,6 +83,8 @@ plans/
 /.claude/*
 !/.claude/sprints/
 !/.claude/sprints/current-sprint.md
+!/.claude/skills/
+!/.claude/skills/**
 
 .scaffold-test-*
 packages/subgraphs/test/fixtures/

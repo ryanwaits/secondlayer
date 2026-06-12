@@ -1,0 +1,149 @@
+---
+name: prod-smoke
+description: Run a production smoke sweep against secondlayer prod — container health, husk canaries, decoder lags, op queue budgets, public subgraph reads, balance conservation, known-bug regression probes. Use when the user runs "/prod-smoke", asks to "smoke test prod", "check prod health", "is everything running smoothly", or "verify the subgraphs".
+---
+
+# Prod Smoke — secondlayer production sweep
+
+Read-only sweep; report a single scorecard. NEVER restart, trigger, or mutate.
+SSH: `ssh ryan@claude-mini "ssh app-server '<cmd>'"`. API: https://api.secondlayer.tools.
+Topology + runbooks: `docker/PRODUCTION.md`. CI's deploy-time twin: `scripts/ci/post-deploy-smoke.sh`
+(this skill is the anytime + deeper version — don't duplicate its envelope checks, go past them).
+
+**Before flagging API failures**: `gh run list --workflow deploy.yml --limit 1` — every push
+to main deploys with a 1–2 min 502 window. A deploy `in_progress` explains transient 502s.
+
+## Phase 1 — infrastructure
+
+```bash
+docker ps -a --format '{{.Names}} {{.Status}}'
+```
+Expected inventory (see PRODUCTION.md): exactly **2 api replicas** (`secondlayer-api-<N>`,
+N increments per deploy — the suffix value is meaningless), all others singletons,
+`migrate` as `Exited (0)`. Anything else exited/restarting = flag.
+
+```bash
+# Husk canaries — count(*), NEVER min/max (a husk shows plausible ranges).
+# Chain: ≥ 8,250,000 blocks and max(height) within ~100 of now (5s blocks).
+docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer -tAc 'SELECT count(*), max(height) FROM blocks'
+# Platform: accounts ≥ 6, api_keys ≥ 13 (floors as of 2026-06; growth-only).
+docker exec secondlayer-postgres-platform-1 psql -U secondlayer -d secondlayer_platform -tAc 'SELECT (SELECT count(*) FROM accounts), (SELECT count(*) FROM api_keys)'
+# Connections: limit 200; flag > 150. FATALs last 30m: expect 0 on both DBs.
+docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer -tAc 'SELECT count(*) FROM pg_stat_activity'
+docker logs secondlayer-postgres-1 --since 30m 2>&1 | grep -c FATAL
+docker logs secondlayer-postgres-platform-1 --since 30m 2>&1 | grep -c FATAL
+```
+FATAL flavors and their meanings (all previously seen in prod):
+`too many clients` → connection storm; `database "X" does not exist` → a client with
+crossed host/dbname (check for swapped container IPs after a dual postgres recreate);
+husk symptoms → see PRODUCTION.md rules 2–5.
+
+## Phase 2 — data planes
+
+```bash
+docker exec secondlayer-l2-decoder-1 curl -s localhost:3710/health | \
+  python3 -c "import sys,json; d=json.load(sys.stdin); print('overall:', d['status']); [print(f\"  {x['decoder']:22} lag={x['lag_seconds']}s cp={x['checkpoint'].split(':')[0]}\") for x in d['decoders'] if x['lag_seconds'] > 120]"
+```
+15 decoders total. Lag in tens of seconds = at tip. Large lag is OK ONLY during a
+deliberate backfill (`packages/indexer/src/l2/BACKFILL.md`). Known quirk: `l2.pox4.v1`
+shadows the slowest replaying decoder's checkpoint — not independently broken.
+
+```bash
+# Op queue + scheduler invariants
+docker exec secondlayer-postgres-platform-1 psql -U secondlayer -d secondlayer_platform -tAc \
+  "SELECT subgraph_name||'|'||kind||'|'||status||'|'||weight||'|'||COALESCE(cursor_block::text,'-') FROM subgraph_operations WHERE status IN ('queued','running') ORDER BY created_at"
+```
+Invariants: running `heavy` ops ≤ **SUBGRAPH_HEAVY_OP_BUDGET (2)** — 3+ = scheduler bug.
+A `running` op whose cursor (subgraph `last_processed_block` for reindex, op `cursor_block`
+for backfill) is frozen across two checks ~15m apart = stuck → check processor logs for
+`halted at block` / `cursor race lost` floods (zombie runner — see PRODUCTION.md runbook).
+
+## Phase 3 — public API surfaces (no SSH; anon unless SL_API_KEY provided)
+
+```bash
+curl -s -o /dev/null -w '%{http_code}' https://api.secondlayer.tools/v1/subgraphs        # 200
+curl -s 'https://api.secondlayer.tools/v1/index/events?event_type=ft_transfer&limit=1'   # events[0].block_height near tip
+curl -s https://api.secondlayer.tools/v1/x402/supported   # x402Version:2; enabled:false is CORRECT while the rail is dormant — do NOT flag; DO flag missing freeQuota/sessions/prepaid/paidWrites keys or a catalog without 5 surfaces (streams,index,subgraph-deploy,subgraph-renew,deposit)
+curl -s https://api.secondlayer.tools/.well-known/x402                                   # points at /v1/x402/supported
+curl -s -o /dev/null -w '%{http_code}' https://www.secondlayer.tools/llms.txt            # 200
+curl -s -o /dev/null -w '%{http_code}' https://www.secondlayer.tools/subgraphs/explore   # 200
+
+# Every PUBLIC subgraph: detail + first-table read. blocks_behind > 60 (~5 min) = flag
+# UNLESS sync.queue/sync.integrity says a reindex/backfill is in flight.
+curl -s https://api.secondlayer.tools/v1/subgraphs | python3 -c "
+import sys, json, urllib.request
+for sg in json.load(sys.stdin).get('subgraphs', []):
+    name = sg['name']
+    d = json.load(urllib.request.urlopen(f'https://api.secondlayer.tools/v1/subgraphs/{name}'))
+    behind = d.get('tip', {}).get('blocks_behind', '?')
+    tables = list((d.get('tables') or {}).keys())
+    row = '-'
+    if tables:
+        t = json.load(urllib.request.urlopen(f'https://api.secondlayer.tools/v1/subgraphs/{name}/{tables[0]}?limit=1'))
+        row = 'rows' if any(isinstance(v, list) and v for v in t.values()) else 'EMPTY'
+    print(f\"{name}: status={d.get('status')} behind={behind} first_table={row}\")"
+```
+Curated seeds that should be public once verified: `sbtc-flows`, `pox-stacking`,
+`bns-names`, `sip10-balances`, `sbtc-balances`, `usdcx-balances`, `alex-balances`.
+A FEATURED seed missing from the public list = flag (unpublished pending verification
+is a known state — check the op queue before calling it a bug).
+
+## Phase 4 — balance conservation (the gate that has caught four real bugs)
+
+For each balance subgraph that is public AND synced (skip mid-reindex):
+`sum(balances) == mints − burns` **EXACTLY**, plus holder-count sanity bands.
+
+| subgraph | contract_id | holders ballpark |
+|---|---|---|
+| sbtc-balances | `SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token` | ~5–6k |
+| usdcx-balances | `SP120SBRBQJ00MCWS7TM5R8WJNTTKD5K0HFRC2CNE.usdcx` | ~300–500 |
+| alex-balances | `SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.age000-governance-token` | ~24k+ |
+
+```bash
+curl -s 'https://api.secondlayer.tools/v1/subgraphs/<name>/balances/aggregate?_sum=balance&_count=true'
+# ledger side (SSH; amount is a COLUMN, not payload JSON; filter canonical):
+docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer -tAc \
+  "SELECT (SELECT COALESCE(sum(amount::numeric),0) FROM decoded_events WHERE event_type='ft_mint' AND contract_id='<cid>' AND canonical)
+        - (SELECT COALESCE(sum(amount::numeric),0) FROM decoded_events WHERE event_type='ft_burn' AND contract_id='<cid>' AND canonical)"
+# negative balances (uint CHECK makes this impossible; nonzero = constraint regression):
+docker exec secondlayer-postgres-platform-1 psql -U secondlayer -d secondlayer_platform -tAc \
+  "SELECT count(*) FROM <schema_name>.balances WHERE balance < 0"
+```
+ANY inequality: STOP, top-line finding, touch nothing.
+
+## Phase 5 — known-bug regression probes (each one a past prod incident)
+
+```bash
+# 1. Accumulator guard holds (422, NOT a queued op — needs SL_API_KEY w/ owner rights):
+curl -s -X POST -H "Authorization: Bearer $SL_API_KEY" -H 'Content-Type: application/json' \
+  -d '{"fromBlock":100,"toBlock":200}' https://api.secondlayer.tools/api/subgraphs/sbtc-balances/backfill
+# expect code BACKFILL_NON_REPLAYABLE_HANDLER. Skip if no key provided.
+
+# 2. Increment/CHECK regression marker: any balance reindex halted at exactly
+#    341445 (sbtc), 5269728 (usdcx), or 45563 (alex) = the ON CONFLICT footgun is back.
+docker exec secondlayer-postgres-platform-1 psql -U secondlayer -d secondlayer_platform -tAc \
+  "SELECT subgraph_name, left(error,80) FROM subgraph_operations WHERE status='failed' AND error LIKE '%balance_check%' AND finished_at > now() - interval '24 hours'"
+
+# 3. Slack watcher quiet:
+docker logs secondlayer-agent --since 2h 2>&1 | grep -iE 'Pattern:|alert' | tail -5
+```
+
+## Report format
+
+```
+## Prod Smoke — <date>
+
+Infra:        ✓/✗ (containers / canaries / connections / FATALs)
+Data planes:  ✓/✗ (decoder lags / queue budget / stuck ops)
+Public API:   ✓/✗ (N public subgraphs read; surfaces)
+Conservation: ✓/✗ per token (exact deltas on ✗)
+Regressions:  ✓/✗ (guard 422 / kill-block markers / watcher)
+
+Flags: <ambiguous, slow, or trending-wrong items + the exact command to dig deeper>
+```
+
+## Rules
+- Read-only. Report and stop — remediation is a separate, human-approved step.
+- Conservation or husk-canary failure is ALWAYS the top-line finding.
+- Distinguish "broken" from "mid-backfill/mid-deploy" before flagging (op queue + gh run list).
+- Holder counts shrinking vs the bands, or a previously-public seed going 404, are findings even if everything else is green.
