@@ -10,12 +10,16 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
 			{ label: "Index", href: "/index-api" },
 			{ label: "Subgraphs", href: "/subgraphs" },
 			{ label: "Streams", href: "/streams" },
-			{ label: "Explore", href: "/subgraphs/explore" },
 		],
 	},
 	{
 		title: "Features",
-		links: [{ label: "Subscriptions", href: "/docs/subscriptions" }],
+		links: [
+			{ label: "Subscriptions", href: "/docs/subscriptions" },
+			{ label: "Explore", href: "/subgraphs/explore" },
+			{ label: "Contract discovery", href: "/docs/contracts" },
+			{ label: "Verification", href: "/docs/verification" },
+		],
 	},
 	{
 		title: "Developers",
@@ -25,7 +29,7 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
 				label: "OpenAPI",
 				href: "https://api.secondlayer.tools/v1/openapi.json",
 			},
-			{ label: "MCP", href: "/mcp" },
+			{ label: "MCP", href: "/docs/mcp" },
 			{ label: "Status", href: "/status" },
 		],
 	},

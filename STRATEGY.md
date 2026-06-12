@@ -34,8 +34,16 @@ internal data plane the decoders and subgraphs ride.
   push channel for the products. Keeps its name; never a nav-level product.
 - **Explore** — the public directory of subgraphs. Social proof + distribution;
   every card is a live API.
-- **MCP server** — distribution channel for agents, not a product noun. Golden-path
-  tools only.
+- **Contract discovery** — `/v1/contracts`: find deployed contracts by trait
+  (SIP-009/010/013), pull ABIs. Connective tissue: feeds scaffold and Index queries.
+- **Verification** — everything we hand you is signed: dump manifests (SDK
+  verifies by default) and dual-signed webhooks. The trust counterpart to
+  "build your own" — replay and check us.
+
+### Channels (not features)
+
+How you reach the products, never product nouns: REST + OpenAPI (the contract),
+CLI, SDK, MCP server (distribution for agents; golden-path tools only).
 
 ## Index vs Streams — who uses which
 
