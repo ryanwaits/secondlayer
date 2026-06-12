@@ -44,6 +44,7 @@ import { sql } from "kysely";
 import { getAccountId, getApiKeyId } from "../lib/ownership.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import { SubgraphRegistryCache } from "../subgraphs/cache.ts";
+import { hasNonReplayableWrites } from "../subgraphs/handler-replay-safety.ts";
 import { classifyOperationWeight } from "../subgraphs/operation-weight.ts";
 import {
 	clampDeployStartBlock,
@@ -424,8 +425,7 @@ export async function runSubgraphDeploy(
 	let databaseUrlEnc: Buffer | undefined;
 	let byoDataDb: ReturnType<typeof getDb> | undefined;
 	if (byoUrl) {
-		const code = `${parsed.data.sourceCode ?? ""}\n${handlerCode}`;
-		if (/\bctx\.(update|patchOrInsert|increment)\s*\(/.test(code)) {
+		if (hasNonReplayableWrites(handlerCode, parsed.data.sourceCode)) {
 			return c.json(
 				{
 					error:
@@ -561,6 +561,19 @@ export async function runSubgraphDeploy(
 	// Tip-first redeploys must refuse breaking changes BEFORE any DDL runs —
 	// deploySchema applies the new schema as a side effect of detecting it.
 	const tipFirst = def.backfillMode === "concurrent" && !byoUrl;
+	// Tip-first history fills are backfill walks over already-live heights —
+	// delta handlers would double-apply (no op-scoped cursor yet). Covers new
+	// deploys, redeploys adding deltas, and blocking→concurrent flips.
+	if (tipFirst && hasNonReplayableWrites(handlerCode, parsed.data.sourceCode)) {
+		return c.json(
+			{
+				error:
+					"Tip-first (backfillMode: concurrent) requires replay-safe handlers: ctx.update / ctx.patchOrInsert / ctx.increment apply deltas that double-count when the history fill revisits blocks. Deploy with the default blocking mode instead.",
+				code: "TIP_FIRST_NON_REPLAYABLE_HANDLER",
+			},
+			422,
+		);
+	}
 	if (tipFirst && existing) {
 		const { diffSchema, hasBreakingChanges } = await import(
 			"@secondlayer/subgraphs"
@@ -1031,6 +1044,19 @@ app.post("/:subgraphName/backfill", async (c) => {
 		);
 	}
 	const db = getDb();
+
+	// Backfill re-runs blocks the live walk already processed; delta handlers
+	// (ctx.increment / patchOrInsert / update) double-apply on those heights.
+	if (hasNonReplayableWrites(subgraph.handler_code)) {
+		return c.json(
+			{
+				error:
+					"This subgraph's handlers apply deltas (ctx.increment / ctx.patchOrInsert / ctx.update); a backfill would re-run processed blocks and double-count. Use reindex for a clean rebuild instead.",
+				code: "BACKFILL_NON_REPLAYABLE_HANDLER",
+			},
+			422,
+		);
+	}
 
 	// Backfill is inherently historical — free tier indexes forward only.
 	const backfillPolicy = await resolveGenesisPolicy(db, accountId ?? undefined);
