@@ -69,12 +69,65 @@ export async function handleSubgraphReorg(
 				if (rows.length > 0) revertedByTable[tableName] = rows;
 			}
 
-			// Delete rows at-or-above the reorg root from all tables.
-			for (const tableName of tableNames) {
-				await client.unsafe(
-					`DELETE FROM "${schemaName}"."${tableName}" WHERE "_block_height" >= $1`,
-					[blockHeight],
+			// Revert table state. With a journal: restore each touched row to its
+			// pre-fork state (accumulators keep their history — fix-f040 B2), then
+			// sweep append-only rows created at/after the fork. Without one
+			// (pre-journal deploy), fall back to the height sweep alone — correct
+			// only for append-only tables.
+			const hasJournal = (
+				await client.unsafe<{ r: unknown }[]>(
+					`SELECT to_regclass('"${schemaName}"."_journal"') AS r`,
+				)
+			)[0]?.r;
+			if (hasJournal) {
+				await client.begin(async (tx) => {
+					for (const tableName of tableNames) {
+						// Pre-fork state per row = prev_row of the EARLIEST journal
+						// entry at/after the fork (pre-images compose: the first one
+						// captured is the state before any fork-era op touched it).
+						// prev_row NULL = the row was created in the fork era.
+						const earliest = `
+							SELECT DISTINCT ON (row_key) row_key, prev_row
+							FROM "${schemaName}"."_journal"
+							WHERE block_height >= $1 AND table_name = $2
+							ORDER BY row_key, _jid ASC`;
+						// 1. Drop the current (orphaned) versions of journaled rows.
+						await tx.unsafe(
+							`DELETE FROM "${schemaName}"."${tableName}" t USING (${earliest}) e WHERE to_jsonb(t.*) @> e.row_key`,
+							[blockHeight, tableName],
+						);
+						// 2. Sweep append-only rows born at/after the fork.
+						await tx.unsafe(
+							`DELETE FROM "${schemaName}"."${tableName}" WHERE "_block_height" >= $1`,
+							[blockHeight],
+						);
+						// 3. Restore pre-fork row states (pure SQL — NUMERIC precision
+						// never round-trips through JS). Restored rows were created
+						// pre-fork, so step 2 cannot have matched them.
+						await tx.unsafe(
+							`INSERT INTO "${schemaName}"."${tableName}"
+							 SELECT r.* FROM (${earliest}) e
+							 CROSS JOIN LATERAL jsonb_populate_record(NULL::"${schemaName}"."${tableName}", e.prev_row) r
+							 WHERE e.prev_row IS NOT NULL`,
+							[blockHeight, tableName],
+						);
+					}
+					await tx.unsafe(
+						`DELETE FROM "${schemaName}"."_journal" WHERE block_height >= $1`,
+						[blockHeight],
+					);
+				});
+			} else {
+				logger.warn(
+					"Subgraph has no revert journal — falling back to height delete (accumulator rows may lose history)",
+					{ subgraph: sg.name, blockHeight },
 				);
+				for (const tableName of tableNames) {
+					await client.unsafe(
+						`DELETE FROM "${schemaName}"."${tableName}" WHERE "_block_height" >= $1`,
+						[blockHeight],
+					);
+				}
 			}
 
 			// Emit revert events to dependent subscriptions so receivers
