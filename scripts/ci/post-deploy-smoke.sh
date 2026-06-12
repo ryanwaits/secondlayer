@@ -188,12 +188,14 @@ check_json_field "public status service health" "/public/status" "" "services"
 check_public_status_services_ok
 
 check_status "streams events build" "200" "/v1/streams/events?limit=1" "$STREAMS_KEY"
-check_status "streams events missing auth" "401" "/v1/streams/events?limit=1"
+# x402 rail live: a keyless paid surface answers 402 (payment offer), not 401.
+check_status "streams events keyless → 402" "402" "/v1/streams/events?limit=1"
 check_status "streams events wrong scope" "403" "/v1/streams/events?limit=1" "$STREAMS_WRONG_SCOPE_KEY"
 check_json_field "streams events envelope" "/v1/streams/events?limit=1" "$STREAMS_KEY" "reorgs"
 
 check_status "streams tip public" "200" "/v1/streams/tip" "$STREAMS_STATUS_KEY"
-check_status "streams tip missing auth" "401" "/v1/streams/tip"
+# x402 rail live: keyless → 402 (payment offer), not 401.
+check_status "streams tip keyless → 402" "402" "/v1/streams/tip"
 check_json_field "streams tip shape" "/v1/streams/tip" "$STREAMS_STATUS_KEY" "lag_seconds"
 
 check_status "index ft transfers build" "200" "/v1/index/ft-transfers?limit=1" "$INDEX_KEY"
