@@ -58,17 +58,6 @@ export function HomeFeatures() {
 		<section className="home-block">
 			<div className="home-wrap">
 				<Feature
-					title="Consume the raw firehose"
-					docsHref="/docs/streams"
-					code={STREAMS_SNIPPET}
-					pane={<StreamsBlocksPane />}
-				>
-					Every event the chain emits — ordered, cursor-paginated, reorg-aware.
-					Resume from any cursor, replay history from signed parquet dumps, or
-					hold the tip. This is the layer you&apos;d run a node for.
-				</Feature>
-
-				<Feature
 					title="Decoded events, no key required"
 					docsHref="/docs/index"
 					code={INDEX_SNIPPET}
@@ -89,6 +78,17 @@ export function HomeFeatures() {
 					and get typed Postgres tables, a public read API, and a page on
 					Explore — live from the moment you deploy, full genesis history on
 					paid plans.
+				</Feature>
+
+				<Feature
+					title="Consume the raw firehose"
+					docsHref="/docs/streams"
+					code={STREAMS_SNIPPET}
+					pane={<StreamsBlocksPane />}
+				>
+					Every event the chain emits — ordered, cursor-paginated, reorg-aware.
+					Resume from any cursor, replay history from signed parquet dumps, or
+					hold the tip. This is the layer you&apos;d run a node for.
 				</Feature>
 
 				<Feature
