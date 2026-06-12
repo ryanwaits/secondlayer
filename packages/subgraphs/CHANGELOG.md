@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 3.13.0
+
+### Minor Changes
+
+- Accumulator correctness (fix-f040): handler reads are read-your-writes (pending same-block ops overlay DB state — patchOrInsert functional updaters no longer lose all but the last same-block delta per row); new ctx.increment(table, key, deltas) compiles to SQL-atomic ON CONFLICT delta upserts; a throwing handler contributes no partial writes; dispatch runs in chain order (tx_index, event_index); written blocks checkpoint atomically in the same transaction and replays are skipped; persistent block failures halt the walk (status=error, cursor stays before the failed block) instead of record-gap-and-skip; reorgs restore per-row journaled pre-images instead of deleting rows by \_block_height; uint columns get CHECK (>= 0); degraded block sources (consecutive empty batches) halt instead of minting false block_missing gaps.
+
 ## 3.12.0
 
 ### Minor Changes
