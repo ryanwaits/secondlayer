@@ -23,16 +23,24 @@ const nextConfig: NextConfig = {
 		// inbound traffic lands on Subscriptions or the migration guide.
 		// (The former /docs → / collapse was reverted: /docs is now the docs site.)
 		return [
-			{ source: "/workflows", destination: "/subscriptions", permanent: true },
 			{
-				source: "/workflows/:path*",
-				destination: "/subscriptions",
+				source: "/workflows",
+				destination: "/docs/subscriptions",
 				permanent: true,
 			},
-			{ source: "/sentries", destination: "/subscriptions", permanent: true },
+			{
+				source: "/workflows/:path*",
+				destination: "/docs/subscriptions",
+				permanent: true,
+			},
+			{
+				source: "/sentries",
+				destination: "/docs/subscriptions",
+				permanent: true,
+			},
 			{
 				source: "/sentries/:path*",
-				destination: "/subscriptions",
+				destination: "/docs/subscriptions",
 				permanent: true,
 			},
 			{
