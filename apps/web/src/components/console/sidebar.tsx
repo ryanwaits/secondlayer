@@ -22,7 +22,6 @@ const NAV_ITEMS: NavItem[] = [
 		icon: "subgraph",
 		badgeKey: "subgraphs",
 	},
-	{ href: "/sessions", label: "Sessions", icon: "sessions" },
 ];
 
 const SETTINGS_CHILDREN = [
@@ -62,24 +61,6 @@ const ICONS: Record<string, React.ReactNode> = {
 			strokeLinecap="round"
 		>
 			<path d="M9 2L5 14M3 5l-2 3 2 3M13 5l2 3-2 3" />
-		</svg>
-	),
-	sessions: (
-		<svg
-			width="16"
-			height="16"
-			viewBox="0 0 16 16"
-			fill="none"
-			aria-hidden="true"
-			stroke="currentColor"
-			strokeWidth="1.5"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-		>
-			<rect x="2" y="2" width="5" height="5" rx="1" />
-			<rect x="9" y="2" width="5" height="5" rx="1" />
-			<rect x="2" y="9" width="5" height="5" rx="1" />
-			<rect x="9" y="9" width="5" height="5" rx="1" />
 		</svg>
 	),
 	settings: (
