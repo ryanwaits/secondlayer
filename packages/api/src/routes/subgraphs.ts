@@ -12,6 +12,8 @@ import {
 } from "@secondlayer/shared/db/queries/subgraph-gaps";
 import {
 	createSubgraphOperation,
+	getOperationQueuePosition,
+	getRecentOperationMedianDuration,
 	getSubgraphOperation,
 	isActiveSubgraphOperationConflict,
 	listSubgraphOperations,
@@ -114,7 +116,7 @@ function toBlockNumber(
 	return Number.isFinite(n) ? n : null;
 }
 
-function buildSyncInfo(
+export function buildSyncInfo(
 	live: SubgraphSyncSource,
 	chainTip: number,
 	gaps: {
@@ -128,6 +130,14 @@ function buildSyncInfo(
 		}>;
 	},
 	integrity: "complete" | "gaps_detected",
+	opInfo?: {
+		status: "queued" | "running";
+		estimatedEvents: number | null;
+		processedEvents: number | null;
+		startedAt: Date | null;
+		queuePosition: number | null;
+		medianDurationSeconds?: number | null;
+	},
 ) {
 	const status = live.status;
 	const lastProcessedBlock = toBlockNumber(live.last_processed_block) ?? 0;
@@ -153,7 +163,54 @@ function buildSyncInfo(
 	else if (blocksRemaining > 0) syncStatus = "catching_up";
 	else syncStatus = "synced";
 
+	// Honest event-based progress/ETA when the active op carries an
+	// enqueue-time estimate (sparse syncs): the block fraction is meaningless
+	// when most heights are skipped. ETA needs ≥30s of rate signal.
+	let queue:
+		| {
+				position: number | null;
+				estimatedEvents: number | null;
+				estimatedStartSeconds: number | null;
+		  }
+		| undefined;
+	let estimatedEvents: number | undefined;
+	let processedEvents: number | undefined;
+	let etaSeconds: number | null | undefined;
+	if (opInfo?.status === "queued") {
+		queue = {
+			position: opInfo.queuePosition ?? null,
+			estimatedEvents: opInfo.estimatedEvents ?? null,
+			estimatedStartSeconds:
+				opInfo.queuePosition != null && opInfo.medianDurationSeconds != null
+					? Math.round(opInfo.queuePosition * opInfo.medianDurationSeconds)
+					: null,
+		};
+	} else if (opInfo?.status === "running") {
+		estimatedEvents = opInfo.estimatedEvents ?? undefined;
+		processedEvents = opInfo.processedEvents ?? undefined;
+		const elapsedMs = opInfo.startedAt
+			? Date.now() - opInfo.startedAt.getTime()
+			: 0;
+		if (
+			estimatedEvents != null &&
+			processedEvents != null &&
+			processedEvents > 0 &&
+			elapsedMs >= 30_000
+		) {
+			const rate = processedEvents / (elapsedMs / 1000);
+			etaSeconds = Math.round(
+				Math.max(0, estimatedEvents - processedEvents) / rate,
+			);
+		} else {
+			etaSeconds = null;
+		}
+	}
+
 	return {
+		...(queue ? { queue } : {}),
+		...(estimatedEvents != null ? { estimatedEvents } : {}),
+		...(processedEvents != null ? { processedEvents } : {}),
+		...(etaSeconds !== undefined ? { etaSeconds } : {}),
 		status: syncStatus,
 		mode: isReindexing ? "reindex" : "sync",
 		startBlock,
@@ -1185,6 +1242,35 @@ export async function buildSubgraphDetailFromRow(
 	const errorRate = totalProcessed > 0 ? totalErrors / totalProcessed : 0;
 	const totalMissingBlocks = gapResult.gaps.reduce((sum, g) => sum + g.size, 0);
 	const hasGaps = gapResult.total > 0;
+	const recentOps = await listSubgraphOperations(db, subgraph.id);
+	const activeOp = recentOps.find(
+		(o) => o.status === "queued" || o.status === "running",
+	);
+	const opInfo = activeOp
+		? {
+				status: activeOp.status as "queued" | "running",
+				estimatedEvents:
+					activeOp.estimated_events == null
+						? null
+						: Number(activeOp.estimated_events),
+				processedEvents:
+					activeOp.processed_events == null
+						? null
+						: Number(activeOp.processed_events),
+				startedAt: activeOp.started_at,
+				queuePosition:
+					activeOp.status === "queued"
+						? await getOperationQueuePosition(db, activeOp.id)
+						: null,
+				medianDurationSeconds:
+					activeOp.status === "queued"
+						? await getRecentOperationMedianDuration(
+								db,
+								(activeOp.weight as "light" | "heavy") ?? "heavy",
+							)
+						: null,
+			}
+		: undefined;
 	const sync = buildSyncInfo(
 		live,
 		chainTip,
@@ -1199,6 +1285,7 @@ export async function buildSubgraphDetailFromRow(
 			})),
 		},
 		hasGaps ? "gaps_detected" : "complete",
+		opInfo,
 	) as SubgraphDetail["sync"];
 
 	const def = subgraph.definition as Record<string, unknown> | null;
@@ -1506,25 +1593,41 @@ app.get("/:subgraphName/gaps", async (c) => {
 // ── Operation status (poll reindex/backfill/stop progress) ───────────────
 
 /** Map a tracked operation to the public status shape (+ derived progress). */
-function toOperationResponse(op: SubgraphOperation, chainTip: number) {
+function toOperationResponse(
+	op: SubgraphOperation,
+	chainTip: number,
+	queuePosition?: number | null,
+) {
 	const from = op.from_block ?? 1;
 	const to = op.to_block ?? chainTip;
 	const total = to - from + 1;
+	const estimated =
+		op.estimated_events == null ? null : Number(op.estimated_events);
+	const processedEvents =
+		op.processed_events == null ? null : Number(op.processed_events);
+	// Event-based progress when the enqueue-time estimate exists (sparse ops) —
+	// the block fraction is meaningless when most blocks are skipped.
 	const progress =
 		op.status === "completed"
 			? 1
-			: op.processed_blocks != null && total > 0
-				? Math.min(1, Math.max(0, op.processed_blocks / total))
-				: null;
+			: estimated != null && estimated > 0 && processedEvents != null
+				? Math.min(1, processedEvents / estimated)
+				: op.processed_blocks != null && total > 0
+					? Math.min(1, Math.max(0, op.processed_blocks / total))
+					: null;
 	return {
 		id: op.id,
 		subgraphName: op.subgraph_name,
 		kind: op.kind,
 		status: op.status,
+		weight: op.weight,
 		fromBlock: op.from_block,
 		toBlock: op.to_block,
 		processedBlocks: op.processed_blocks,
+		estimatedEvents: estimated,
+		processedEvents,
 		progress,
+		...(queuePosition != null ? { queuePosition } : {}),
 		error: op.error,
 		startedAt: op.started_at?.toISOString() ?? null,
 		finishedAt: op.finished_at?.toISOString() ?? null,
@@ -1542,8 +1645,16 @@ app.get("/:subgraphName/operations", async (c) => {
 		listSubgraphOperations(db, subgraph.id),
 		getChainTip(),
 	]);
+	const positions = new Map<string, number | null>();
+	for (const op of ops) {
+		if (op.status === "queued") {
+			positions.set(op.id, await getOperationQueuePosition(db, op.id));
+		}
+	}
 	return c.json({
-		operations: ops.map((op) => toOperationResponse(op, chainTip)),
+		operations: ops.map((op) =>
+			toOperationResponse(op, chainTip, positions.get(op.id)),
+		),
 	});
 });
 
@@ -1564,7 +1675,9 @@ app.get("/:subgraphName/operations/:operationId", async (c) => {
 		);
 	}
 	const chainTip = await getChainTip();
-	return c.json(toOperationResponse(op, chainTip));
+	const position =
+		op.status === "queued" ? await getOperationQueuePosition(db, op.id) : null;
+	return c.json(toOperationResponse(op, chainTip, position));
 });
 
 // ── Count rows ──────────────────────────────────────────────────────────

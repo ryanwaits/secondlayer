@@ -219,6 +219,7 @@ async function runSubgraphOperation(
 			fromBlock: Number(operation.from_block),
 			toBlock: Number(operation.to_block),
 			schemaName,
+			operationId: operation.id,
 			signal,
 		});
 		return result.processed;
@@ -240,7 +241,11 @@ async function runSubgraphOperation(
 		subgraph.reindex_to_block != null;
 
 	if (hasResumeMetadata) {
-		const result = await resumeReindex(def, { schemaName, signal });
+		const result = await resumeReindex(def, {
+			schemaName,
+			operationId: operation.id,
+			signal,
+		});
 		return result.processed;
 	}
 
@@ -250,6 +255,7 @@ async function runSubgraphOperation(
 		toBlock:
 			operation.to_block == null ? undefined : Number(operation.to_block),
 		schemaName,
+		operationId: operation.id,
 		signal,
 	});
 	return result.processed;

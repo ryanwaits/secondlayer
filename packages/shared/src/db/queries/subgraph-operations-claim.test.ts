@@ -3,6 +3,7 @@ import { getDb } from "../index.ts";
 import {
 	claimSubgraphOperation,
 	createSubgraphOperation,
+	getOperationQueuePosition,
 } from "./subgraph-operations.ts";
 import { registerSubgraph } from "./subgraphs.ts";
 
@@ -144,5 +145,47 @@ describe.skipIf(SKIP)("claimSubgraphOperation budget + ordering", () => {
 		});
 		const claimed = await claimSubgraphOperation(db, RUNNER);
 		expect(claimed?.account_id).toBe(accEnterprise);
+	});
+
+	test("queue positions mirror claim order across accounts", async () => {
+		const db = getDb();
+		await db
+			.updateTable("subgraph_operations")
+			.set({ status: "completed", finished_at: new Date() })
+			.where("subgraph_name", "like", "claim-test-%")
+			.execute();
+		const a = await subgraphFor(accFree);
+		const b = await subgraphFor(accEnterprise);
+		const c2 = await subgraphFor(accFree);
+		const opA = await createSubgraphOperation(db, {
+			subgraphId: a,
+			subgraphName: names[names.length - 3] as string,
+			accountId: accFree,
+			kind: "reindex",
+			weight: "light",
+		});
+		const opB = await createSubgraphOperation(db, {
+			subgraphId: b,
+			subgraphName: names[names.length - 2] as string,
+			accountId: accEnterprise,
+			kind: "reindex",
+			weight: "light",
+		});
+		const opC = await createSubgraphOperation(db, {
+			subgraphId: c2,
+			subgraphName: names[names.length - 1] as string,
+			accountId: accFree,
+			kind: "reindex",
+			weight: "light",
+		});
+		// plan rank: enterprise first; then free FIFO
+		expect(await getOperationQueuePosition(db, opB.id)).toBe(1);
+		expect(await getOperationQueuePosition(db, opA.id)).toBe(2);
+		expect(await getOperationQueuePosition(db, opC.id)).toBe(3);
+		// claim order matches the advertised positions
+		const first = await claimSubgraphOperation(db, RUNNER);
+		expect(first?.id).toBe(opB.id);
+		// running op no longer has a position
+		expect(await getOperationQueuePosition(db, opB.id)).toBeNull();
 	});
 });

@@ -5,6 +5,7 @@ import {
 	recordGapBatch,
 	resolveGaps,
 } from "@secondlayer/shared/db/queries/subgraph-gaps";
+import { updateOperationProcessedEvents } from "@secondlayer/shared/db/queries/subgraph-operations";
 import {
 	recordSubgraphProcessed,
 	updateSubgraphStatus,
@@ -125,6 +126,8 @@ export interface ReindexOptions {
 	fromBlock?: number;
 	toBlock?: number;
 	schemaName?: string;
+	/** Op row to receive processed_events on each progress flush. */
+	operationId?: string;
 	signal?: AbortSignal;
 }
 
@@ -142,6 +145,9 @@ async function processBlockRange(
 		isCatchup: boolean;
 		apiKeyId: string | null;
 		subgraphId?: string;
+		/** When set, the progress flush writes processed_events onto the op row
+		 *  — the honest numerator for event-based progress/ETA. */
+		operationId?: string;
 		signal?: AbortSignal;
 	},
 ): Promise<{
@@ -280,6 +286,13 @@ async function processBlockRange(
 				now - lastProgressFlushAt >= PROGRESS_FLUSH_INTERVAL_MS;
 			if (shouldFlushProgress) {
 				await updateSubgraphStatus(targetDb, subgraphName, status, height);
+				if (opts.operationId) {
+					await updateOperationProcessedEvents(
+						targetDb,
+						opts.operationId,
+						totalEventsProcessed,
+					).catch(() => {});
+				}
 				lastProgressFlushAt = now;
 			}
 
@@ -479,6 +492,7 @@ export async function reindexSubgraph(
 			isCatchup: false,
 			apiKeyId: null,
 			subgraphId: subgraphRow?.id,
+			operationId: opts?.operationId,
 			signal: opts?.signal,
 		});
 
@@ -525,6 +539,7 @@ export async function resumeReindex(
 	def: SubgraphDefinition,
 	opts: {
 		schemaName: string;
+		operationId?: string;
 		signal?: AbortSignal;
 	},
 ): Promise<{ processed: number }> {
@@ -580,6 +595,7 @@ export async function resumeReindex(
 			isCatchup: false,
 			apiKeyId: null,
 			subgraphId: row.id,
+			operationId: opts.operationId,
 			signal: opts.signal,
 		});
 
@@ -625,6 +641,7 @@ export async function backfillSubgraph(
 		fromBlock: number;
 		toBlock: number;
 		schemaName?: string;
+		operationId?: string;
 		signal?: AbortSignal;
 	},
 ): Promise<{ processed: number }> {
@@ -651,6 +668,7 @@ export async function backfillSubgraph(
 			isCatchup: false,
 			apiKeyId: null,
 			subgraphId: subgraphRow?.id,
+			operationId: opts.operationId,
 			signal: opts.signal,
 		});
 

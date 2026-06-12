@@ -312,3 +312,83 @@ export async function failSubgraphOperation(
 		.where("locked_by", "=", lockedBy)
 		.execute();
 }
+
+/**
+ * 1-based position of a queued operation under the claim ordering (fairness →
+ * plan rank → queued-first → FIFO). The heavy-budget admission filter is NOT
+ * applied — a heavy op's eligibility depends on runtime budget state — so the
+ * position is approximate; render it as "~N". Returns null unless queued.
+ */
+export async function getOperationQueuePosition(
+	db: Kysely<Database>,
+	operationId: string,
+): Promise<number | null> {
+	const result = await sql<{ rn: string | number }>`
+		WITH candidates AS (
+			SELECT
+				so.id,
+				ROW_NUMBER() OVER (
+					ORDER BY
+						COALESCE(rc.cnt, 0) ASC,
+						CASE COALESCE(a.plan, 'none')
+							WHEN 'enterprise' THEN 0
+							WHEN 'scale' THEN 1
+							WHEN 'launch' THEN 2
+							ELSE 3
+						END,
+						CASE WHEN so.status = 'queued' THEN 0 ELSE 1 END,
+						so.created_at ASC
+				) AS rn
+			FROM subgraph_operations so
+			LEFT JOIN (
+				SELECT account_id, COUNT(*) AS cnt
+				FROM subgraph_operations
+				WHERE status = 'running'
+				GROUP BY account_id
+			) rc ON so.account_id = rc.account_id
+			LEFT JOIN accounts a ON a.id::text = so.account_id
+			WHERE so.status = 'queued'
+		)
+		SELECT rn FROM candidates WHERE id = ${operationId}
+	`.execute(db);
+	const rn = result.rows[0]?.rn;
+	return rn == null ? null : Number(rn);
+}
+
+/** Median duration (seconds) of the last 20 completed ops of a weight class —
+ *  the "est. start" multiplier for queued positions. Null with no history. */
+export async function getRecentOperationMedianDuration(
+	db: Kysely<Database>,
+	weight: "light" | "heavy",
+): Promise<number | null> {
+	const result = await sql<{ median: string | number | null }>`
+		SELECT percentile_cont(0.5) WITHIN GROUP (
+			ORDER BY EXTRACT(EPOCH FROM (finished_at - started_at))
+		) AS median
+		FROM (
+			SELECT started_at, finished_at
+			FROM subgraph_operations
+			WHERE status = 'completed'
+				AND weight = ${weight}
+				AND started_at IS NOT NULL
+				AND finished_at IS NOT NULL
+			ORDER BY finished_at DESC
+			LIMIT 20
+		) recent
+	`.execute(db);
+	const median = result.rows[0]?.median;
+	return median == null ? null : Number(median);
+}
+
+/** Progress-flush hook: events processed so far on a running operation. */
+export async function updateOperationProcessedEvents(
+	db: Kysely<Database>,
+	operationId: string,
+	processedEvents: number,
+): Promise<void> {
+	await db
+		.updateTable("subgraph_operations")
+		.set({ processed_events: processedEvents, updated_at: new Date() })
+		.where("id", "=", operationId)
+		.execute();
+}

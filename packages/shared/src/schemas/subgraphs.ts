@@ -129,6 +129,18 @@ export interface SubgraphSyncInfo {
 	processedBlocks?: number;
 	totalBlocks?: number;
 	progress: number;
+	/** Present while the populating operation is queued: approximate claim
+	 *  position + honest event denominator + naive start estimate. */
+	queue?: {
+		position: number | null;
+		estimatedEvents: number | null;
+		estimatedStartSeconds: number | null;
+	};
+	/** Event-based progress for sparse syncs (block pct is meaningless when
+	 *  most heights are skipped). */
+	estimatedEvents?: number;
+	processedEvents?: number;
+	etaSeconds?: number | null;
 	resourceWarning?: SubgraphResourceWarning;
 	gaps: {
 		count: number;

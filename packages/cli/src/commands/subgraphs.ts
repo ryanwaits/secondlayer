@@ -473,6 +473,12 @@ function printByoBreakingPlan(details: ByoBreakingChangeDetails): void {
 	);
 }
 
+function formatDuration(seconds: number): string {
+	if (seconds < 90) return `${Math.max(1, Math.round(seconds))}s`;
+	if (seconds < 5400) return `${Math.round(seconds / 60)}m`;
+	return `${(seconds / 3600).toFixed(1)}h`;
+}
+
 function formatSubgraphSync(sync: {
 	status: string;
 	mode?: "sync" | "reindex";
@@ -484,11 +490,59 @@ function formatSubgraphSync(sync: {
 	processedBlocks?: number;
 	totalBlocks?: number;
 	progress: number;
+	queue?: {
+		position: number | null;
+		estimatedEvents: number | null;
+		estimatedStartSeconds: number | null;
+	};
+	estimatedEvents?: number;
+	processedEvents?: number;
+	etaSeconds?: number | null;
 }): { line: string; remainingLabel: string; remaining: string } {
 	const targetBlock = sync.targetBlock ?? sync.chainTip;
 	const totalBlocks = sync.totalBlocks;
 	const processedBlocks = sync.processedBlocks;
 	const progress = `${(sync.progress * 100).toFixed(1)}%`;
+
+	// Queued: position + estimated start beat a meaningless 0%.
+	if (sync.queue) {
+		const pos =
+			sync.queue.position != null
+				? `position ~${sync.queue.position}`
+				: "queued";
+		const est =
+			sync.queue.estimatedStartSeconds != null
+				? `, est. start ~${formatDuration(sync.queue.estimatedStartSeconds)}`
+				: "";
+		const denom =
+			sync.queue.estimatedEvents != null
+				? ` · ~${sync.queue.estimatedEvents.toLocaleString()} events to sync`
+				: "";
+		return {
+			line: `queued — ${pos}${est}${denom}`,
+			remainingLabel: "Queue",
+			remaining:
+				sync.queue.position != null ? `~${sync.queue.position} ahead` : "N/A",
+		};
+	}
+
+	// Event-based progress for sparse syncs: "41% of ~38k events · est 6m".
+	if (
+		sync.estimatedEvents != null &&
+		sync.estimatedEvents > 0 &&
+		sync.processedEvents != null
+	) {
+		const pct = `${((sync.processedEvents / sync.estimatedEvents) * 100).toFixed(1)}%`;
+		const eta =
+			sync.etaSeconds != null
+				? ` · est ${formatDuration(sync.etaSeconds)}`
+				: "";
+		return {
+			line: `${sync.status} — ${pct} of ~${sync.estimatedEvents.toLocaleString()} events${eta}`,
+			remainingLabel: "Events Remaining",
+			remaining: `${Math.max(0, sync.estimatedEvents - sync.processedEvents).toLocaleString()}`,
+		};
+	}
 
 	if (sync.status === "reindexing" || sync.mode === "reindex") {
 		if (targetBlock <= 0) {
