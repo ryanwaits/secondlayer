@@ -116,58 +116,23 @@ export default function IndexPage() {
 					<h2>
 						Read it your way.
 						<br />
-						<span className="dim">SDK, REST, CLI, or agent.</span>
+						<span className="dim">SDK, CLI, or agent.</span>
 					</h2>
 					<p>
-						One decoded layer, four ways in. Filter, paginate, and walk the same
-						rows over the typed SDK, plain REST, your shell, or an MCP harness.
+						One decoded layer, three ways in. Filter, paginate, and walk the
+						same rows over the typed SDK, your shell, or an MCP harness.
 					</p>
 					<Link href="/docs/index" className="pp-docs-link">
 						Read the Index docs <span className="ar">→</span>
 					</Link>
 				</div>
-				<div className="pp-surfaces">
+				<div className="pp-surfaces three">
 					{/* SDK — a typed code snippet */}
 					<div className="pp-surface">
 						<h4>SDK</h4>
 						<p>Typed list and cursor-walking in TypeScript, fully inferred.</p>
 						<div className="pp-codeview">
-							<div className="pp-bar">
-								<div className="pp-dots">
-									<i />
-									<i />
-									<i />
-								</div>
-							</div>
 							<CodeBlock code={SDK_CARD_CODE} lang="typescript" />
-						</div>
-					</div>
-
-					{/* REST — request → response */}
-					<div className="pp-surface">
-						<h4>REST</h4>
-						<p>
-							Anonymous reads, wildcard CORS, opaque cursors. No SDK needed.
-						</p>
-						<div className="pp-vis">
-							<div className="pp-req">
-								<div>
-									<span className="verb">GET</span> /v1/index/events
-								</div>
-								<div>&nbsp;&nbsp;?event_type=ft_transfer</div>
-								<div>&nbsp;&nbsp;&amp;sender=SP3F…</div>
-								<div className="res">
-									<span className="status">200</span> &#123;{" "}
-									<span className="key">events</span>: [ … ],
-								</div>
-								<div
-									className="res"
-									style={{ marginTop: 0, borderTop: "none" }}
-								>
-									&nbsp;&nbsp;<span className="key">next_cursor</span>:
-									"8249712:14" &#125;
-								</div>
-							</div>
 						</div>
 					</div>
 

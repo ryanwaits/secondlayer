@@ -9185,7 +9185,7 @@ html.force-dark .pp {
 	background: var(--bg-elevated);
 	border: 1px solid var(--border);
 	border-radius: 12px;
-	padding: 1.5rem 1.5rem 0;
+	padding: 1.5rem;
 	overflow: hidden;
 	display: flex;
 	flex-direction: column;
@@ -9253,7 +9253,8 @@ html.force-dark .pp {
 	display: grid;
 	grid-template-columns: 220px 1fr;
 	gap: 2rem;
-	padding: clamp(3rem, 7vw, 5rem) 0;
+	padding-top: clamp(3rem, 7vw, 5rem);
+	padding-bottom: clamp(3rem, 7vw, 5rem);
 }
 @media (max-width: 760px) {
 	.pp-highlights {
@@ -9301,6 +9302,11 @@ html.force-dark .pp {
 	color: var(--text-muted);
 	max-width: 62ch;
 	margin-bottom: 1.125rem;
+	/* clamp long changelog summaries to 3 lines (ellipsis only when over) */
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 3;
+	overflow: hidden;
 }
 .pp-post .meta {
 	font-family: var(--font-mono-stack);
@@ -9385,20 +9391,19 @@ html.force-dark .pp {
 }
 
 /* ---- real CodeBlock dropped into a card ("code view") ------ */
-.pp-codeview {
-	margin-top: auto;
+/* inner code panel — light bg + border gives it shape, no window chrome */
+.pp-codeview,
+.pp-vis {
+	flex: 1;
+	margin-top: 0.25rem;
+	background: var(--bg-chrome);
+	border: 1px solid var(--border);
 	border-radius: 8px;
 	overflow: hidden;
-	background: var(--bg-elevated);
-	box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06), 0 0 0 1px var(--border);
 }
-.pp-codeview .pp-bar {
-	height: 26px;
-	background: var(--bg-chrome);
-}
-.pp-codeview .pp-dots i {
-	width: 7px;
-	height: 7px;
+.pp-vis {
+	display: flex;
+	flex-direction: column;
 }
 .pp-codeview .code-block-wrapper {
 	margin: 0;
@@ -9406,34 +9411,27 @@ html.force-dark .pp {
 .pp-codeview .code-block-wrapper pre {
 	background: transparent !important;
 	margin: 0;
-	padding: 13px 15px;
-	font-size: 0.72rem;
-	line-height: 1.7;
-	overflow-x: auto;
+	padding: 12px 14px;
+	font-size: 0.8rem;
+	line-height: 1.8;
+	overflow: hidden;
 }
 .pp-codeview .copy-button {
 	display: none;
 }
-.pp-surface.code {
-	min-height: 0;
-	padding-bottom: 1.5rem;
+
+/* fade the overflowing code/bash text at the right edge */
+.pp-codeview .code-block-wrapper pre,
+.pp-req,
+.pp-cli {
+	-webkit-mask-image: linear-gradient(to right, #000 84%, transparent);
+	mask-image: linear-gradient(to right, #000 84%, transparent);
 }
 
-/* ---- bespoke surface visuals (unique per Index surface) ---- */
-.pp-vis {
-	margin-top: auto;
-	border-radius: 8px;
-	overflow: hidden;
-	background: var(--bg-elevated);
-	box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06), 0 0 0 1px var(--border);
-	min-height: 150px;
-	display: flex;
-	flex-direction: column;
-}
 .pp-req {
 	font-family: var(--font-mono-stack);
-	font-size: 0.66rem;
-	line-height: 1.7;
+	font-size: 0.76rem;
+	line-height: 1.85;
 	padding: 12px 14px;
 	color: var(--ppc-fg);
 }
@@ -9445,9 +9443,6 @@ html.force-dark .pp {
 	color: var(--green);
 }
 .pp-req .res {
-	margin-top: 8px;
-	padding-top: 10px;
-	border-top: 1px solid var(--border);
 	color: var(--text-muted);
 }
 .pp-req .res .key {
@@ -9456,8 +9451,8 @@ html.force-dark .pp {
 .pp-cli {
 	flex: 1;
 	font-family: var(--font-mono-stack);
-	font-size: 0.66rem;
-	line-height: 1.75;
+	font-size: 0.76rem;
+	line-height: 1.9;
 	padding: 12px 14px;
 	color: var(--ppc-fg);
 }
@@ -9472,12 +9467,12 @@ html.force-dark .pp {
 }
 .pp-agent {
 	flex: 1;
-	padding: 13px 14px;
+	padding: 12px 14px;
 	display: flex;
 	flex-direction: column;
 	gap: 9px;
 	font-family: var(--font-sans-stack);
-	font-size: 0.72rem;
+	font-size: 0.76rem;
 }
 .pp-bubble {
 	align-self: flex-start;
@@ -9577,5 +9572,10 @@ html.force-dark .pp {
 .pp-walk-code .shiki .line {
 	display: inline-block;
 	width: 100%;
-	transition: opacity 0.28s ease;
+	transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+/* active step: light cover + accent bar (CodeHike-style), rest stays readable */
+.pp-walk-code .shiki .line.pp-line-on {
+	background: var(--accent-bg);
+	box-shadow: inset 2px 0 0 var(--accent);
 }

@@ -1,4 +1,5 @@
 import { CodeBlock } from "@/components/code-block";
+import { Notation } from "@/components/notation";
 import { CodeWalkthrough } from "@/components/product/code-walkthrough";
 import { getHighlights } from "@/lib/changelog";
 import type { Metadata } from "next";
@@ -265,7 +266,15 @@ export default function SubgraphsPage() {
 						We run the indexer.
 					</h2>
 					<p>
-						One file, one deploy. <span className="pp-marker">Free to try</span>
+						One file, one deploy.{" "}
+						<Notation
+							type="underline"
+							color="var(--accent)"
+							strokeWidth={2}
+							padding={2}
+						>
+							Free to try
+						</Notation>
 						, full genesis backfill on paid plans.
 					</p>
 					<div className="pp-ctas">

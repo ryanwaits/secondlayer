@@ -22,23 +22,32 @@ export function CodeWalkthrough({
 	steps: Step[];
 	children: ReactNode;
 }) {
-	const [active, setActive] = useState(0);
+	// No step is active by default — hover/focus highlights a range,
+	// leaving the list clears it back to plain (readable) code.
+	const [active, setActive] = useState<number | null>(null);
 	const codeRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
 		const lines =
 			codeRef.current?.querySelectorAll<HTMLElement>(".shiki .line");
 		if (!lines) return;
-		const step = steps[active];
+		const step = active === null ? null : steps[active];
 		lines.forEach((el, i) => {
 			const n = i + 1;
-			el.style.opacity = step && n >= step.from && n <= step.to ? "1" : "0.26";
+			el.classList.toggle(
+				"pp-line-on",
+				Boolean(step && n >= step.from && n <= step.to),
+			);
 		});
 	}, [active, steps]);
 
 	return (
 		<div className="pp-walk">
-			<div className="pp-walk-steps" role="tablist">
+			<div
+				className="pp-walk-steps"
+				role="tablist"
+				onMouseLeave={() => setActive(null)}
+			>
 				{steps.map((step, i) => (
 					<button
 						key={step.label}
@@ -49,6 +58,7 @@ export function CodeWalkthrough({
 						onClick={() => setActive(i)}
 						onMouseEnter={() => setActive(i)}
 						onFocus={() => setActive(i)}
+						onBlur={() => setActive(null)}
 					>
 						<h4>{step.label}</h4>
 						<p>{step.desc}</p>

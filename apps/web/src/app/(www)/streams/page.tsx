@@ -30,12 +30,6 @@ await streams.events.consume({
   },
 });`;
 
-const SDK_CARD_CODE = `await streams.events.consume({
-  types: ["print"],
-  onBatch: (events, _e, { cursor }) =>
-    save(events, cursor),
-});`;
-
 export default function StreamsPage() {
 	const highlights = getHighlights("streams");
 	return (
@@ -123,78 +117,64 @@ export default function StreamsPage() {
 			<section className="pp-section pp-wrap">
 				<div className="pp-section-head">
 					<h2>
-						One firehose, four ways in.
+						One firehose, three ways in.
 						<br />
-						<span className="dim">SSE, REST, bulk dumps, or x402.</span>
+						<span className="dim">Live SSE, bulk parquet, or x402.</span>
 					</h2>
 					<p>
-						Consume live over the SDK, page it over plain REST, backfill cold
-						history from signed parquet, or pay per call with x402 — no account
+						Tail the tip live over a single connection, backfill cold history
+						from signed parquet, or pay per call with x402 — no account
 						required.
 					</p>
 					<Link href="/docs/streams" className="pp-docs-link">
 						Read the Streams docs <span className="ar">→</span>
 					</Link>
 				</div>
-				<div className="pp-surfaces">
-					{/* SDK — consume loop */}
+				<div className="pp-surfaces three">
+					{/* Live (SSE) — events landing in real time */}
 					<div className="pp-surface">
-						<h4>SDK</h4>
-						<p>A checkpointed consume loop with reorg handling built in.</p>
-						<div className="pp-codeview">
-							<div className="pp-bar">
-								<div className="pp-dots">
-									<i />
-									<i />
-									<i />
-								</div>
-							</div>
-							<CodeBlock code={SDK_CARD_CODE} lang="typescript" />
-						</div>
-					</div>
-
-					{/* REST — cursor pagination */}
-					<div className="pp-surface">
-						<h4>REST</h4>
-						<p>Idempotent cursor pagination — persist it, resume exactly.</p>
-						<div className="pp-vis">
-							<div className="pp-req">
-								<div>
-									<span className="verb">GET</span> /v1/streams/events
-								</div>
-								<div>&nbsp;&nbsp;?from_cursor=8249712:0</div>
-								<div className="res">
-									<span className="status">200</span> &#123;{" "}
-									<span className="key">events</span>: [ … ],
-								</div>
-								<div
-									className="res"
-									style={{ marginTop: 0, borderTop: "none" }}
-								>
-									&nbsp;&nbsp;<span className="key">next_cursor</span>:
-									"8249713:6" &#125;
-								</div>
-							</div>
-						</div>
-					</div>
-
-					{/* Bulk — signed parquet dumps */}
-					<div className="pp-surface">
-						<h4>Bulk</h4>
-						<p>Backfill cold history from signed parquet, then tail live.</p>
+						<h4>Live (SSE)</h4>
+						<p>
+							Tail the tip over a single connection — events arrive as they
+							land.
+						</p>
 						<div className="pp-vis">
 							<div className="pp-cli">
 								<div>
-									<span className="mut">// replay genesis → tip, no gap</span>
+									<span className="ok">●</span> live ·{" "}
+									<span className="mut">cursor 8,249,714:0</span>
 								</div>
 								<div>
-									<span className="pp-k">await</span> streams.events
+									#8,249,712 <span className="mut">· 11 events · +2.4s</span>
 								</div>
 								<div>
-									&nbsp;&nbsp;.<span className="pp-fn">replay</span>(&#123;
-									from: <span className="pp-s">"genesis"</span> &#125;);
+									#8,249,713 <span className="mut">· 6 events · +4.9s</span>
 								</div>
-								<div className="mut">→ signed parquet dumps</div>
+								<div>
+									#8,249,714 <span className="mut">· 12 events · +7.3s</span>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					{/* Bulk — signed parquet manifest */}
+					<div className="pp-surface">
+						<h4>Bulk</h4>
+						<p>
+							Backfill cold history from signed parquet, then tail live with no
+							gap.
+						</p>
+						<div className="pp-vis">
+							<div className="pp-cli">
+								<div className="mut">signed parquet dumps</div>
+								<div>
+									<span className="ok">✓</span> 0008240000-0008249999.parquet
+								</div>
+								<div className="mut">&nbsp;&nbsp;&nbsp;102 MB · 1.33M rows</div>
+								<div>
+									<span className="ok">✓</span> 0008230000-0008239999.parquet
+								</div>
+								<div className="mut">&nbsp;&nbsp;&nbsp;98 MB · 1.29M rows</div>
 							</div>
 						</div>
 					</div>
@@ -208,23 +188,14 @@ export default function StreamsPage() {
 								<div>
 									<span className="verb">GET</span> /v1/streams/events
 								</div>
-								<div
-									className="res"
-									style={{ borderTop: "none", marginTop: 4 }}
-								>
+								<div>
 									<span style={{ color: "var(--yellow, #eab308)" }}>402</span>{" "}
 									Payment Required
 								</div>
-								<div
-									className="res"
-									style={{ marginTop: 0, borderTop: "none" }}
-								>
+								<div>
 									→ x402 · pay <span className="key">0.001 STX</span>
 								</div>
-								<div
-									className="res"
-									style={{ marginTop: 0, borderTop: "none" }}
-								>
+								<div>
 									<span className="status">200</span> &#123;{" "}
 									<span className="key">events</span>: [ … ] &#125;
 								</div>
