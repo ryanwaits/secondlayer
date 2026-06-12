@@ -29,12 +29,18 @@ const MAX_STALE_MS = 30 * 60_000; // keep serving last-known up to 30m if the fe
 const FETCH_TIMEOUT_MS = 3_000;
 const WARN_DEBOUNCE_MS = 60_000; // at most one feed-failure warn per minute
 
+const DEFAULT_SPOT_URL =
+	"https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,blockstack&vs_currencies=usd";
+
 // CoinGecko simple-price (STX is `blockstack`). Override the URL via env for a
 // different feed (must return `{ bitcoin: { usd }, blockstack: { usd } }`) — e.g.
-// an authenticated CoinGecko Pro endpoint to dodge the free-tier rate limit.
-const SPOT_URL =
-	process.env.X402_SPOT_URL ??
-	"https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,blockstack&vs_currencies=usd";
+// an authenticated CoinGecko Pro endpoint. Read at call-time, not module load.
+// NOTE: `||` not `??` — compose injects `X402_SPOT_URL: ${X402_SPOT_URL:-}`, so an
+// unset var arrives as an EMPTY STRING (not undefined). `??` would keep "" and
+// `fetch("")` throws "URL must not be a blank string", silently wedging the feed.
+function getSpotUrl(): string {
+	return process.env.X402_SPOT_URL || DEFAULT_SPOT_URL;
+}
 
 type SpotCache = {
 	btcUsd: number | null;
@@ -60,7 +66,7 @@ async function refresh(): Promise<void> {
 	// backoff so a failing feed can't be re-fired on every request.
 	nextAttemptAt = Date.now() + RETRY_MS;
 	try {
-		const res = await fetch(SPOT_URL, {
+		const res = await fetch(getSpotUrl(), {
 			signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
 		});
 		if (res.status === 429) {

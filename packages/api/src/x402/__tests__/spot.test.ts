@@ -69,6 +69,27 @@ describe("spotUsd", () => {
 		spotUsd("sBTC");
 		expect(calls).toBe(1); // no second feed hit — throttled
 	});
+
+	test('blank X402_SPOT_URL falls back to the default feed (not fetch(""))', async () => {
+		// Compose injects `X402_SPOT_URL: ${X402_SPOT_URL:-}` → an EMPTY STRING when
+		// unset. With `??` this reached `fetch("")` ("URL must not be a blank string")
+		// and silently wedged the feed in prod. The resolver must use `||`.
+		process.env.X402_SPOT_URL = "";
+		let seenUrl: string | undefined;
+		globalThis.fetch = (async (url: string) => {
+			seenUrl = url;
+			return new Response(
+				JSON.stringify({ bitcoin: { usd: 64000 }, blockstack: { usd: 1.85 } }),
+				{ status: 200 },
+			);
+		}) as unknown as typeof fetch;
+
+		await _refreshX402SpotForTests();
+		expect(seenUrl).toContain("api.coingecko.com");
+		expect(spotUsd("STX")).toBe(1.85); // feed resolved, not wedged
+		// biome-ignore lint/performance/noDelete: tests need the env truly absent
+		delete process.env.X402_SPOT_URL;
+	});
 });
 
 describe("buildAccepts degrades to USDCx-only when sBTC/STX can't be priced", () => {
