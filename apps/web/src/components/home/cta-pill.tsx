@@ -5,7 +5,7 @@ import { useState } from "react";
 const GHOST_KEYS_ENABLED = process.env.NEXT_PUBLIC_GHOST_KEYS === "1";
 const API_BASE =
 	process.env.NEXT_PUBLIC_API_URL ?? "https://api.secondlayer.tools";
-const INSTALL_CMD = "npm install @secondlayer/sdk";
+const INSTALL_CMD = "bun add @secondlayer/sdk";
 
 type MintState =
 	| { phase: "idle" }

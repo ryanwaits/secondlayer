@@ -5554,6 +5554,51 @@ a.dataset-shelf-name:hover {
 	color: var(--text-main);
 	font-weight: 500;
 }
+
+/* Subtle entrance when arriving at docs: the top nav fades in and the sidebar
+   groups stagger in from the left, while the wordmark stays as the anchor.
+   Plays once on docs-layout mount (not on page-to-page docs nav). */
+@keyframes docs-chrome-in {
+	from {
+		opacity: 0;
+		transform: translateY(-4px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+@keyframes docs-rail-in {
+	from {
+		opacity: 0;
+		transform: translateX(-8px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+.docs-topnav {
+	animation: docs-chrome-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.docs-nav-group {
+	animation: docs-rail-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.docs-nav-group:nth-child(2) {
+	animation-delay: 0.03s;
+}
+.docs-nav-group:nth-child(3) {
+	animation-delay: 0.08s;
+}
+.docs-nav-group:nth-child(4) {
+	animation-delay: 0.13s;
+}
+@media (prefers-reduced-motion: reduce) {
+	.docs-topnav,
+	.docs-nav-group {
+		animation: none;
+	}
+}
 .docs-nav {
 	/* fixed on the left — does not scroll or rubber-band with the content */
 	position: fixed;
@@ -6845,7 +6890,7 @@ a.dataset-shelf-name:hover {
 }
 @media (hover: hover) {
 	.explore-card-link:hover .explore-card {
-		border-color: var(--text-muted);
+		border-color: var(--border-hover);
 	}
 }
 .explore-card-top {
@@ -7357,7 +7402,7 @@ a.dataset-shelf-name:hover {
 }
 @media (hover: hover) {
 	.explore-agents .links a:hover {
-		border-color: var(--text-muted);
+		border-color: var(--border-hover);
 	}
 }
 
@@ -7381,7 +7426,7 @@ a.dataset-shelf-name:hover {
 	.explore-machine-head .copy-button:hover,
 	.explore-res-meta .copy-button:hover {
 		color: var(--text-main);
-		border-color: var(--text-muted);
+		border-color: var(--border-hover);
 	}
 }
 .explore-ep .copy-button:focus-visible,
@@ -7519,7 +7564,7 @@ a.dataset-shelf-name:hover {
 }
 @media (hover: hover) {
 	.home-cmd:hover {
-		border-color: var(--text-muted);
+		border-color: var(--border-hover);
 	}
 }
 .home-cmd .p {
@@ -7636,6 +7681,10 @@ a.dataset-shelf-name:hover {
 	margin-top: 0.5rem;
 	font-size: 0.8125rem;
 	color: var(--text-muted);
+}
+.footer-kourier:hover {
+	text-decoration: underline;
+	text-underline-offset: 2px;
 }
 .site-footer-cols {
 	display: flex;
