@@ -8775,6 +8775,7 @@ html.force-dark .pp {
 .pp-stage {
 	position: relative;
 	border: 1px solid var(--border);
+	border-bottom: none;
 	border-radius: 10px;
 	background-color: var(--bg);
 	background-image: radial-gradient(
@@ -9355,7 +9356,6 @@ html.force-dark .pp {
 .pp-win-solo {
 	position: relative;
 	z-index: 2;
-	max-width: 760px;
 	margin: 0 auto;
 }
 .pp-tabrow {
@@ -9511,4 +9511,72 @@ html.force-dark .pp {
 .pp-agent .done b {
 	color: var(--green);
 	font-weight: 600;
+}
+
+/* ---- code walkthrough (steps fade the full code) ----------- */
+.pp-walk {
+	display: grid;
+	grid-template-columns: 0.85fr 1.15fr;
+	gap: 1.5rem;
+	align-items: start;
+}
+@media (max-width: 860px) {
+	.pp-walk {
+		grid-template-columns: 1fr;
+	}
+}
+.pp-walk-steps {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+.pp-walk-step {
+	text-align: left;
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 10px;
+	padding: 1rem 1.125rem;
+	cursor: pointer;
+	transition: background 0.2s ease, border-color 0.2s ease;
+}
+.pp-walk-step:hover {
+	background: var(--bg-elevated);
+}
+.pp-walk-step.on {
+	background: var(--bg-elevated);
+	border-color: var(--border);
+}
+.pp-walk-step h4 {
+	font-family: var(--font-heading-stack);
+	font-weight: 540;
+	font-size: 1.05rem;
+	letter-spacing: -0.01em;
+	margin-bottom: 0.3rem;
+	color: var(--text-main);
+	transition: color 0.2s ease;
+}
+.pp-walk-step.on h4 {
+	color: var(--accent);
+}
+.pp-walk-step p {
+	font-size: 0.85rem;
+	line-height: 1.5;
+	color: var(--text-muted);
+}
+.pp-walk-code {
+	position: relative;
+	border-radius: 11px;
+	overflow: hidden;
+	background: var(--bg-elevated);
+	display: flex;
+	flex-direction: column;
+	box-shadow: 0 8px 28px rgba(0, 0, 0, 0.07), 0 0 0 1px var(--border);
+}
+.pp-walk-code .pp-bar {
+	background: var(--bg-chrome);
+}
+.pp-walk-code .shiki .line {
+	display: inline-block;
+	width: 100%;
+	transition: opacity 0.28s ease;
 }

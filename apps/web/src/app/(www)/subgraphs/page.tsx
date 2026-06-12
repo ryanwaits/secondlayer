@@ -1,4 +1,5 @@
 import { CodeBlock } from "@/components/code-block";
+import { CodeWalkthrough } from "@/components/product/code-walkthrough";
 import { getHighlights } from "@/lib/changelog";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -9,50 +10,49 @@ export const metadata: Metadata = {
 		"Your own indexer, minus the node. Write handlers in one TypeScript file, get typed Postgres tables shaped exactly for your app.",
 };
 
-const SOURCES_CODE = `sources: {
-  transfer: {
-    type: "stx_transfer",
+const SUBGRAPH_CODE = `export default defineSubgraph({
+  name: "stx-transfers",
+  sources: {
+    transfer: { type: "stx_transfer" },
   },
-},`;
-
-const SCHEMA_CODE = `schema: {
-  transfers: {
-    columns: {
-      sender: { type: "principal", indexed: true },
-      recipient: { type: "principal", indexed: true },
-      amount: { type: "uint" },
+  schema: {
+    transfers: {
+      columns: {
+        sender: { type: "principal", indexed: true },
+        recipient: { type: "principal", indexed: true },
+        amount: { type: "uint" },
+      },
     },
   },
-},`;
-
-const HANDLERS_CODE = `handlers: {
-  transfer: (event, ctx) => {
-    ctx.insert("transfers", {
-      sender: event.sender,
-      recipient: event.recipient,
-      amount: event.amount,
-    });
+  handlers: {
+    transfer: (event, ctx) => {
+      ctx.insert("transfers", {
+        sender: event.sender,
+        recipient: event.recipient,
+        amount: event.amount,
+      });
+    },
   },
-},`;
+});`;
 
-const PARTS = [
+const WALK_STEPS = [
 	{
-		title: "Sources",
+		label: "Sources",
 		desc: "Name the on-chain events your subgraph listens for — by type, contract, or trait.",
-		file: "sources.ts",
-		code: SOURCES_CODE,
+		from: 3,
+		to: 5,
 	},
 	{
-		title: "Schema",
+		label: "Schema",
 		desc: "Declare the Postgres tables and columns you want. principal, uint, text, jsonb, and more.",
-		file: "schema.ts",
-		code: SCHEMA_CODE,
+		from: 6,
+		to: 14,
 	},
 	{
-		title: "Handlers",
+		label: "Handlers",
 		desc: "Turn each event into rows with the write context — insert, upsert, findOne.",
-		file: "handlers.ts",
-		code: HANDLERS_CODE,
+		from: 15,
+		to: 23,
 	},
 ];
 
@@ -221,25 +221,19 @@ export default function SubgraphsPage() {
 						Read the Subgraphs docs <span className="ar">→</span>
 					</Link>
 				</div>
-				<div className="pp-surfaces three">
-					{PARTS.map((part) => (
-						<div key={part.title} className="pp-surface code">
-							<h4>{part.title}</h4>
-							<p>{part.desc}</p>
-							<div className="pp-codeview">
-								<div className="pp-bar">
-									<div className="pp-dots">
-										<i />
-										<i />
-										<i />
-									</div>
-									<div className="pp-title">{part.file}</div>
-								</div>
-								<CodeBlock code={part.code} lang="typescript" />
-							</div>
+				<CodeWalkthrough steps={WALK_STEPS}>
+					<div className="pp-bar">
+						<div className="pp-dots">
+							<i />
+							<i />
+							<i />
 						</div>
-					))}
-				</div>
+						<div className="pp-title">stx-transfers.ts</div>
+					</div>
+					<div className="pp-editor">
+						<CodeBlock code={SUBGRAPH_CODE} lang="typescript" />
+					</div>
+				</CodeWalkthrough>
 			</section>
 
 			{/* RECENT HIGHLIGHTS — derived from /docs/changelog */}
