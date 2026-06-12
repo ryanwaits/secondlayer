@@ -3,6 +3,7 @@ import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contract
 import { advanceOperationCursor } from "@secondlayer/shared/db/queries/subgraph-operations";
 import {
 	isByoSubgraph,
+	recordLiveProgress,
 	recordSubgraphProcessed,
 	resolveSubgraphDb,
 	updateSubgraphStatus,
@@ -269,7 +270,11 @@ export async function processBlock(
 
 	if (matched.length === 0) {
 		if (!opts?.skipProgressUpdate) {
-			await updateSubgraphStatus(targetDb, subgraphName, "active", blockHeight);
+			// Promote-but-never-unpark: unconditional "active" stamping let the
+			// live walk overwrite "reindexing" set by a queued reindex op,
+			// flapping the subgraph back into catch-up (and into collision with
+			// the op's schema drop).
+			await recordLiveProgress(targetDb, subgraphName, blockHeight);
 		}
 		return result;
 	}
@@ -301,8 +306,12 @@ export async function processBlock(
 		rr: { processed: number; errors: number },
 	) => {
 		if (opts?.skipProgressUpdate) return;
-		const status = rr.errors > 0 && rr.processed === 0 ? "error" : "active";
-		await updateSubgraphStatus(tx, subgraphName, status, blockHeight);
+		if (rr.errors > 0 && rr.processed === 0) {
+			await updateSubgraphStatus(tx, subgraphName, "error", blockHeight);
+		} else {
+			// Promote-but-never-unpark (see matched-0 note).
+			await recordLiveProgress(tx, subgraphName, blockHeight);
+		}
 		if (rr.processed > 0 || rr.errors > 0) {
 			const lastError =
 				rr.errors > 0

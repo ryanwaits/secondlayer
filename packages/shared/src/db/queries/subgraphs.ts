@@ -305,3 +305,24 @@ export async function updateSubgraphExpiry(
 		.where("account_id", "=", accountId)
 		.execute();
 }
+
+/** Live-walk progress write: advances the cursor and PROMOTES toward
+ *  'active' (deploying/error → active keeps reorg eligibility, reorg.ts gates
+ *  on it) but never overwrites an explicit 'reindexing' park — unconditional
+ *  status stamping let catch-up flap a parked subgraph back into its own path
+ *  per block, fighting the queued reindex op. */
+export async function recordLiveProgress(
+	db: Kysely<Database>,
+	name: string,
+	lastProcessedBlock: number,
+): Promise<void> {
+	await db
+		.updateTable("subgraphs")
+		.set({
+			last_processed_block: lastProcessedBlock,
+			status: sql`CASE WHEN status = 'reindexing' THEN status ELSE 'active' END`,
+			updated_at: new Date(),
+		})
+		.where("name", "=", name)
+		.execute();
+}

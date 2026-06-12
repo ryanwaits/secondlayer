@@ -603,6 +603,17 @@ describe("reorg reverts orphaned deltas without destroying balances", () => {
 		});
 		expect(replay.skipped).toBe(true);
 
+		// Lifecycle transition the harness bypasses: in production,
+		// reindexSubgraph completion flips reindexing → active before any live
+		// processing. The live walk itself only promotes (deploying/error →
+		// active) and never unparks an explicit "reindexing" — so model the
+		// completion here.
+		await getDb()
+			.updateTable("subgraphs")
+			.set({ status: "active" })
+			.where("name", "=", def.name)
+			.execute();
+
 		// Live phase (journaled): B pays C, C burns part of it.
 		await processBlock(def, def.name, 1002, {
 			preloaded: makeBlock(1002, [
