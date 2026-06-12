@@ -129,7 +129,7 @@ export function buildSyncInfo(
 			reason: string;
 		}>;
 	},
-	integrity: "complete" | "gaps_detected",
+	integrity: "complete" | "gaps_detected" | "history_filling",
 	opInfo?: {
 		status: "queued" | "running";
 		estimatedEvents: number | null;
@@ -558,6 +558,31 @@ export async function runSubgraphDeploy(
 		!genesisPolicy.genesisAllowed &&
 		existing != null &&
 		def.startBlock === existingStartBlock;
+	// Tip-first redeploys must refuse breaking changes BEFORE any DDL runs —
+	// deploySchema applies the new schema as a side effect of detecting it.
+	const tipFirst = def.backfillMode === "concurrent" && !byoUrl;
+	if (tipFirst && existing) {
+		const { diffSchema, hasBreakingChanges } = await import(
+			"@secondlayer/subgraphs"
+		);
+		const existingSchema = (existing.definition as { schema?: unknown })
+			?.schema;
+		const verdict = hasBreakingChanges(
+			diffSchema(
+				(existingSchema ?? {}) as Parameters<typeof diffSchema>[0],
+				def.schema as Parameters<typeof diffSchema>[1],
+			),
+		);
+		if (verdict.breaking) {
+			return c.json(
+				{
+					error: `Tip-first deploy refused: breaking schema change (${verdict.reasons.join("; ")}). Redeploy without --tip-first for a destructive rebuild.`,
+					code: "TIP_FIRST_BREAKING_CHANGE",
+				},
+				422,
+			);
+		}
+	}
 	const result = await deploySchema(db, def, handlerPath, {
 		apiKeyId,
 		accountId,
@@ -623,7 +648,56 @@ export async function runSubgraphDeploy(
 		.set({ sparse_probe_targets: JSON.stringify(probeTargets) })
 		.where("id", "=", result.subgraphId)
 		.execute();
-	if ((needsPopulation && !byoUrl) || startByoBackfill) {
+	// Tip-first: go live at tip NOW; history fills via a non-destructive
+	// backfill op. The load-bearing write is the cursor — catch-up advances
+	// from last_processed_block + 1, so without it the follower would walk
+	// all of history forward and double-process against the backfill.
+	let tipFirstHistory:
+		| { from: number; to: number; operationId: string }
+		| undefined;
+	if (
+		tipFirst &&
+		needsPopulation &&
+		genesisPolicy.genesisAllowed &&
+		chainTip > 0 &&
+		(deployStartBlock ?? 1) < chainTip
+	) {
+		await updateSubgraphStatus(db, name, "active", chainTip);
+		try {
+			const historyWeight = await classifyOperationWeight(
+				probeTargets,
+				deployStartBlock ?? 1,
+				chainTip,
+			);
+			const op = await createSubgraphOperation(db, {
+				subgraphId: result.subgraphId,
+				subgraphName: name,
+				accountId,
+				kind: "backfill",
+				fromBlock: deployStartBlock ?? 1,
+				toBlock: chainTip,
+				weight: historyWeight.weight,
+				estimatedEvents: historyWeight.estimatedEvents,
+			});
+			operationId = op.id;
+			tipFirstHistory = {
+				from: deployStartBlock ?? 1,
+				to: chainTip,
+				operationId: op.id,
+			};
+		} catch (err) {
+			if (isActiveSubgraphOperationConflict(err)) {
+				return c.json(
+					{
+						error: `A reindex or backfill is already running for "${name}". Wait for it to complete.`,
+						code: "OPERATION_IN_PROGRESS",
+					},
+					409,
+				);
+			}
+			throw err;
+		}
+	} else if ((needsPopulation && !byoUrl) || startByoBackfill) {
 		try {
 			const populationWeight = await classifyOperationWeight(
 				probeTargets,
@@ -665,6 +739,9 @@ export async function runSubgraphDeploy(
 			visibility: desiredVisibility ?? existing?.visibility ?? "private",
 			start_block: deployStartBlock,
 			...(startBlockClamped ? { start_block_clamped: true } : {}),
+			...(tipFirstHistory
+				? { live_from: chainTip, history: tipFirstHistory }
+				: {}),
 			...(expiresAt ? { expires_at: expiresAt.toISOString() } : {}),
 			message: `Subgraph "${name}" ${result.action}`,
 			...(result.diff ? { diff: result.diff } : {}),
@@ -1284,7 +1361,11 @@ export async function buildSubgraphDetailFromRow(
 				reason: g.reason,
 			})),
 		},
-		hasGaps ? "gaps_detected" : "complete",
+		hasGaps
+			? activeOp?.kind === "backfill"
+				? "history_filling"
+				: "gaps_detected"
+			: "complete",
 		opInfo,
 	) as SubgraphDetail["sync"];
 

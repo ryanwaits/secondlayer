@@ -101,7 +101,8 @@ export interface SubgraphSummary {
 	syncMode?: "sync" | "reindex";
 	resourceWarning?: SubgraphResourceWarning;
 	gapCount: number;
-	integrity: "complete" | "gaps_detected";
+	/** history_filling = expected gaps while a tip-first backfill op runs. */
+	integrity: "complete" | "gaps_detected" | "history_filling";
 	visibility?: "public" | "private";
 	createdAt: string;
 }
@@ -147,7 +148,8 @@ export interface SubgraphSyncInfo {
 		totalMissingBlocks: number;
 		ranges: SubgraphGapRange[];
 	};
-	integrity: "complete" | "gaps_detected";
+	/** history_filling = expected gaps while a tip-first backfill op runs. */
+	integrity: "complete" | "gaps_detected" | "history_filling";
 }
 
 export interface SubgraphResourceWarning {

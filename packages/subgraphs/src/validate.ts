@@ -105,6 +105,10 @@ export const SubgraphDefinitionSchema: z.ZodType<SubgraphDefinition> = z.object(
 		version: z.string().optional(),
 		description: z.string().optional(),
 		startBlock: z.number().int().nonnegative().optional(),
+		// 'concurrent' = tip-first deploy: go live at tip immediately, fill
+		// history via a background backfill. Only safe for order-tolerant
+		// handlers (commutative or insert-only writes).
+		backfillMode: z.enum(["blocking", "concurrent"]).optional(),
 		sources: z
 			.record(z.string(), SubgraphFilterSchema)
 			.refine(

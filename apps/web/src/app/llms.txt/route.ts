@@ -32,6 +32,10 @@ const LLMS_TXT = `# Secondlayer — the indexing layer for Stacks
 - Anonymous: rate-limited public reads (Index, public Subgraphs).
 - sk-sl_ API key: raises limits, unlocks Streams reads; writes need a claimed
   account. Ghost keys (POST /v1/keys) are read-only until claimed by email.
+- Tip-first deploys: pass backfillMode "concurrent" (CLI --tip-first) and a
+  subgraph serves live rows in seconds while history backfills behind it
+  (order-tolerant handlers only). Status reports queue position + event-based
+  progress + ETA while syncing.
 - Wallet continuity: a claimed account can link its paying wallet
   (POST /api/wallet/link, signed message) — x402 spend history attaches and
   any wallet-owned subgraphs become permanent.

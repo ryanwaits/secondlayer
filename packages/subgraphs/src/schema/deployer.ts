@@ -87,7 +87,7 @@ export function diffSchema(
  * Returns true if the diff contains any breaking changes
  * (removed tables, removed columns, or changed column types).
  */
-function hasBreakingChanges(diff: TableDiff): {
+export function hasBreakingChanges(diff: TableDiff): {
 	breaking: boolean;
 	reasons: string[];
 } {

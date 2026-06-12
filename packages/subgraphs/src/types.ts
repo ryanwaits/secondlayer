@@ -328,6 +328,9 @@ export interface SubgraphDefinition {
 	description?: string;
 	/** Block height to start indexing from (default: 1) */
 	startBlock?: number;
+	/** 'concurrent' = tip-first: live at tip now, history backfills behind.
+	 *  Requires order-tolerant handlers. Default 'blocking'. */
+	backfillMode?: "blocking" | "concurrent";
 	/** Named source filters — keys become handler keys */
 	sources: Record<string, SubgraphFilter>;
 	/** Tables in this subgraph */

@@ -73,6 +73,7 @@ export {
 	ByoBreakingChangeError,
 	deploySchema,
 	diffSchema,
+	hasBreakingChanges,
 	renderDeployPlan,
 } from "./schema/deployer.ts";
 export {

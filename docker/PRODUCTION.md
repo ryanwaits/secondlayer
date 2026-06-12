@@ -51,6 +51,10 @@ Compose project lives at `/opt/secondlayer/docker` on app-server.
    min/max ranges.
 6. Per-service `environment:` blocks only pass listed vars — adding a key to
    `.env` does nothing until the compose file forwards it.
+7. Subgraph op queue: `SUBGRAPH_OPERATION_CONCURRENCY` (8) total slots;
+   `SUBGRAPH_HEAVY_OP_BUDGET` (2) caps concurrently-running broad/non-sparse
+   syncs so whale genesis jobs can't hold every slot. Both on the
+   subgraph-processor in the hetzner overlay.
 
 ## Quick checks
 

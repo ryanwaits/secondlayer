@@ -723,6 +723,10 @@ Examples:
 			"--start-block <n>",
 			"Override the subgraph definition startBlock for this deploy",
 		)
+		.option(
+			"--tip-first",
+			"Go live at chain tip immediately; history backfills in the background (requires order-tolerant handlers — commutative or insert-only writes)",
+		)
 		.option("--dry-run", "Validate and preview deploy without writing changes")
 		.option("-y, --yes", "Skip the reindex confirmation prompt")
 		.option(
@@ -742,6 +746,7 @@ Examples:
 				file: string,
 				options: {
 					startBlock?: string;
+					tipFirst?: boolean;
 					dryRun?: boolean;
 					yes?: boolean;
 					strict?: boolean;
@@ -785,8 +790,12 @@ Examples:
 					info(`Loading subgraph from ${absPath}`);
 					const mod = await loadSubgraphWithDepCheck(absPath);
 					const def = mod.default ?? mod;
-					const effectiveDef =
-						startBlock === undefined ? def : { ...def, startBlock };
+					const effectiveDef = {
+						...(startBlock === undefined ? def : { ...def, startBlock }),
+						...(options.tipFirst
+							? { backfillMode: "concurrent" as const }
+							: {}),
+					};
 					const { validateSubgraphDefinition } = await import(
 						"@secondlayer/subgraphs/validate"
 					);
