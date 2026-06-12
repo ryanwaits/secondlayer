@@ -8281,10 +8281,16 @@ a.dataset-shelf-name:hover {
 .home-marquee-track {
 	display: flex;
 	width: max-content;
+	/* it's a passive ribbon, not interactive — keep the arrow cursor */
+	cursor: default;
 }
 @media (prefers-reduced-motion: no-preference) {
 	.home-marquee-track {
 		animation: home-marquee-scroll 48s linear infinite;
+	}
+	/* ease off ~50% on hover so the logos are readable, without stopping dead */
+	.home-marquee:hover .home-marquee-track {
+		animation-duration: 96s;
 	}
 	@keyframes home-marquee-scroll {
 		to {
