@@ -1,0 +1,129 @@
+# MCP
+
+The whole Secondlayer surface as Model Context Protocol tools. Point an agent at the server and it can query decoded chain data, deploy and manage subgraphs, wire up webhooks, and discover contracts — over one connection, with the same auth as the SDK and CLI.
+
+## Connect
+
+The server ships as `@secondlayer/mcp` and speaks **stdio**. Add it to any MCP client (Claude Code, Cursor, Claude Desktop, or any MCP host):
+
+```json
+{
+  "mcpServers": {
+    "secondlayer": {
+      "command": "npx",
+      "args": ["-y", "@secondlayer/mcp"],
+      "env": { "SL_API_KEY": "sk-sl_..." }
+    }
+  }
+}
+```
+
+`SL_API_KEY` is optional — leave it out for anonymous reads (see [Authentication](#authentication)). There's also an HTTP transport (`@secondlayer/mcp-http`) with session management and optional `SECONDLAYER_MCP_SECRET` bearer auth, for hosting the server behind a URL.
+
+### Pay-per-call (x402)
+
+For accountless usage, set a Stacks key and the server auto-pays HTTP 402 challenges per call:
+
+```bash
+X402_PRIVATE_KEY=...          # signs x402 payments
+X402_TOPUP_USD=5.00           # optional: auto top-up the prepaid balance
+X402_TOPUP_WHEN_BELOW=$0.50   # optional: top-up threshold
+```
+
+## Authentication
+
+| Surface | Reads | Writes |
+| --- | --- | --- |
+| Index | Anonymous (free-tier keys rejected; Build+ for keyed access) | — |
+| Contracts, Scaffold | Public, no key | — |
+| Subgraphs | Public subgraphs keyless; private need your key | Need your key |
+| Streams, Subscriptions, Account | Need your key | Need your key |
+
+An agent holding an account-level key can mint its own scoped read keys with `account_create_key`. Keys and signing secrets are returned **once** — capture and forward them to the user.
+
+## Start here
+
+The server exposes MCP **resources** for orientation — read these before calling tools so the agent knows what exists and what filters are valid:
+
+| Resource | What it returns |
+| --- | --- |
+| `secondlayer://context` | Live snapshot — your subgraphs, subscriptions, account, chain tips, auth state, and what you can do. **Read first.** |
+| `secondlayer://filters` | Event filter types and the fields each accepts |
+| `secondlayer://column-types` | Subgraph column types, SQL mappings, and options |
+| `secondlayer://traits` | SIP standards you can classify and scaffold against (sip-009/010/013) |
+| `secondlayer://chain-triggers` | Chain-subscription trigger types and their filter fields |
+
+For Index specifically, call `index_discover` to learn every event type, its columns, and the filters it accepts before building queries.
+
+## Tools
+
+Thirty-two tools across seven domains. Reads are cursor-paginated; writes that kick off work (reindex, backfill, replay, deploy) return an `operationId` you can poll.
+
+### Index — decoded reads
+
+| Tool | What it does |
+| --- | --- |
+| `index_events` | Decoded events by `eventType` (stx/ft/nft mint·burn, print, …), with `trait` scoping |
+| `index_ft_transfers` | Decoded SIP-010 fungible-token transfers |
+| `index_nft_transfers` | Decoded SIP-009 non-fungible-token transfers |
+| `index_contract_calls` | Decoded contract calls — function, args, result |
+| `index_transactions` | Decoded transactions, filterable by type/sender/contract |
+| `index_blocks` | Decoded blocks |
+| `index_discover` | The Index vocabulary: event types, columns, allowed filters |
+| `batch_query` | Up to 10 public `/v1` reads in one round trip |
+
+### Subgraphs — your own indexer
+
+| Tool | What it does |
+| --- | --- |
+| `subgraphs_deploy` | Deploy from `defineSubgraph()` source (managed or BYO Postgres; `dryRun` previews DDL) |
+| `subgraphs_list` | List your deployed subgraphs |
+| `subgraphs_get` | Full detail — schema, health, table columns |
+| `subgraphs_query` | Query a table with operator filters (`amount.gte`, `name.like`, …) |
+| `subgraphs_gaps` | List missing block ranges |
+| `subgraphs_backfill` | Non-destructive forward fill of a block range |
+| `subgraphs_reindex` | Drop + reprocess a block range |
+| `subgraphs_stop` | Cancel an in-flight reindex/backfill |
+| `subgraphs_publish` | Claim the global public name; anon-readable at `/v1/subgraphs/<name>` |
+| `subgraphs_unpublish` | Make it private again |
+| `subgraphs_delete` | Delete a subgraph and its data |
+
+### Streams — raw firehose
+
+| Tool | What it does |
+| --- | --- |
+| `streams_dumps` | List the signed parquet dumps manifest (cold backfill). Live Streams reads are REST-only at `/v1/streams/*`. |
+
+### Subscriptions — webhooks
+
+| Tool | What it does |
+| --- | --- |
+| `subscriptions_create` | Create a subgraph- or chain-triggered webhook (returns `signingSecret` once) |
+| `subscriptions_list` | List subscriptions |
+| `subscriptions_get` | Full detail — filter, auth, retry, circuit state |
+| `subscriptions_update` | Patch url, filter, auth, retry, timeout, concurrency |
+| `subscriptions_test` | Send a one-off SSRF-guarded test delivery |
+| `subscriptions_replay` | Replay a block range |
+| `subscriptions_delete` | Delete a subscription |
+
+### Contracts & scaffold
+
+| Tool | What it does |
+| --- | --- |
+| `contracts_find` | Discover deployed contracts conforming to a trait (sip-010/009/013) |
+| `get_contract_abi` | Fetch a deployed contract's full ABI from the registry |
+| `scaffold_from_contract` | Generate a subgraph scaffold from a contract's ABI |
+
+### Account
+
+| Tool | What it does |
+| --- | --- |
+| `account_whoami` | The authenticated account's email and plan |
+| `account_create_key` | Mint a scoped streams/index read key (returned once) |
+
+## Notes
+
+- **One-time secrets.** `account_create_key` and `subscriptions_create` return a key/secret exactly once — forward it to the user.
+- **Cursors are opaque** and per-keyspace: contract-call cursors are not interchangeable with event cursors.
+- **Tail without streaming.** For subgraph tables, sort `_id` desc for the latest, then poll forward with `{"_id.gt": "<last id>"}`, order asc.
+- Every surface shares one session — sign in once and the SDK, CLI, and MCP server all inherit it. See the [REST API](/docs/rest-api) for the underlying endpoints.
