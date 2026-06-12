@@ -551,7 +551,22 @@ export async function reindexSubgraph(
 		for (const stmt of statements) {
 			await client.unsafe(stmt);
 		}
-		logger.info("Schema recreated for reindex", { subgraph: subgraphName });
+		// The schema drop just invalidated everything the cursor claims was
+		// applied. Reset it BELOW the walk's start or the atomicProgress replay
+		// guard treats a stale cursor (prior halted/cancelled run) as "already
+		// applied" and silently skips the entire prefix — empty tables, then a
+		// CHECK violation at the first real delta (the sbtc-balances halt at
+		// block 1913668: 1.9M credit blocks skipped against a 1913667 cursor).
+		await updateSubgraphStatus(
+			targetDb,
+			subgraphName,
+			"reindexing",
+			Math.max(0, fromBlock - 1),
+		);
+		logger.info("Schema recreated for reindex", {
+			subgraph: subgraphName,
+			cursorResetTo: Math.max(0, fromBlock - 1),
+		});
 
 		// Store reindex range after DDL is ready. A crash before this point falls
 		// back to a fresh reindex, which safely drops/recreates the schema again.
