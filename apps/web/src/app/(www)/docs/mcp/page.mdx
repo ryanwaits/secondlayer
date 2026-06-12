@@ -57,7 +57,7 @@ For Index specifically, call `index_discover` to learn every event type, its col
 
 ## Tools
 
-Thirty-two tools across seven domains. Reads are cursor-paginated; writes that kick off work (reindex, backfill, replay, deploy) return an `operationId` you can poll.
+Thirty-three tools across seven domains. Reads are cursor-paginated; writes that kick off work (reindex, backfill, replay, deploy) return an `operationId` you can poll.
 
 ### Index — decoded reads
 
@@ -70,6 +70,7 @@ Thirty-two tools across seven domains. Reads are cursor-paginated; writes that k
 | `index_transactions` | Decoded transactions, filterable by type/sender/contract |
 | `index_blocks` | Decoded blocks |
 | `index_discover` | The Index vocabulary: event types, columns, allowed filters |
+| `index_print_schema` | Per-topic print payload schemas for a contract, inferred from on-chain history — read before writing `print_event` handlers |
 | `batch_query` | Up to 10 public `/v1` reads in one round trip |
 
 ### Subgraphs — your own indexer

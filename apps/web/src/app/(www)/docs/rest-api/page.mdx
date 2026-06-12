@@ -112,6 +112,18 @@ The [SDK](/docs/sdk) exposes this as a typed `client.aggregate(spec)` whose resu
 
 The `/api/subgraphs/*` equivalents of these endpoints remain as the authed dashboard/control-plane surface (session or key).
 
+## Print-event schemas
+
+`GET /v1/index/contracts/:contract_id/print-schema` returns per-topic print payload schemas inferred empirically from the contract's indexed history — exact Clarity types per field, the TypeScript type, and a subgraph `column_type`. See [Index](/docs/index#print-schemas) for the response shape.
+
+```bash
+curl "https://api.secondlayer.tools/v1/index/contracts/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry/print-schema"
+```
+
+- Anonymous and unmetered, like the other read endpoints.
+- Cached: `Cache-Control: public, max-age=300` with a weak `ETag`; send `If-None-Match` for `304`.
+- Takes **no query params** — any param is rejected with `400 VALIDATION_ERROR`.
+
 ## Transaction-inclusion proof
 
 `GET /v1/index/transactions/:tx_id/proof` returns a trustless inclusion proof: the raw transaction, raw header, and merkle path needed to verify, client-side, that a transaction is in a Stacks (Nakamoto) block — plus the reward set, when resolvable, to confirm the signers attested to it.

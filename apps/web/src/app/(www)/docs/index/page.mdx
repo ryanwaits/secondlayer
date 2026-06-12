@@ -10,6 +10,7 @@ Every list response uses the same cursor envelope — the collection, a `next_cu
 | --- | --- |
 | `/v1/index/events` | Decoded events for a chosen `event_type` (+ `ft-transfers` / `nft-transfers` aliases) |
 | `/v1/index/contract-calls` | Decoded contract-call transactions with `args` and `result` |
+| `/v1/index/contracts/{contract_id}/print-schema` | Per-topic print payload schemas, inferred empirically from indexed history |
 | `/v1/index/transactions` · `/{tx_id}` | Full transaction documents (fee, nonce, post-conditions, decoded payload) |
 | `/v1/index/blocks` · `/{height_or_hash}` | Decoded blocks, list or single |
 | `/v1/index/canonical` | Canonical block-hash map — one row per height, for chain sync |
@@ -24,6 +25,50 @@ curl "https://api.secondlayer.tools/v1/index/events?event_type=stx_transfer&limi
 ```
 
 Allowed filters vary by `event_type`: `stx_*` have no `contract_id`, `nft_*` accept `asset_identifier`, and `print` filters by `contract_id` and carries a `payload` with the Clarity value decoded to JSON. `ft-transfers` and `nft-transfers` are typed aliases for the two most common types.
+
+## Print schemas
+
+Clarity ABIs don't describe `print` payloads, and the shape varies **per topic** within one contract — sbtc-registry's `withdrawal-create` has no `bitcoin-txid`, `completed-deposit` has no `sender`. Guess a field and it silently nulls forever. `/print-schema` derives the real shape empirically: it samples the contract's indexed print events (newest 1500 + oldest 500), deserializes the raw Clarity hex — exact types, not JSON guesses — and unifies a schema per topic.
+
+```bash
+curl "https://api.secondlayer.tools/v1/index/contracts/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry/print-schema"
+```
+
+```json
+{
+  "contract_id": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry",
+  "topics": [
+    {
+      "topic": "completed-deposit",
+      "count": 1342,
+      "fields": [
+        {
+          "name": "bitcoin-txid",
+          "camel_name": "bitcoinTxid",
+          "clarity_type": "(buff 32)",
+          "ts_type": "string",
+          "column_type": "text",
+          "always_present": true
+        },
+        {
+          "name": "amount",
+          "camel_name": "amount",
+          "clarity_type": "uint",
+          "ts_type": "bigint",
+          "column_type": "uint",
+          "always_present": true
+        }
+      ]
+    }
+  ],
+  "sampled": true,
+  "sample": { "size": 2000, "newest_height": 8054704, "oldest_height": 591820 }
+}
+```
+
+Each field carries the exact Clarity type, the TypeScript type, and a `column_type` in the subgraph column vocabulary; `camel_name` is what a handler sees on `event.data`. Optional fields report an `optional_some_rate`. Payloads with no `topic` string (or that aren't tuples) land under the `"*"` pseudo-topic with `non_tuple` set. Anonymous and unmetered like the other reads, cached five minutes (`max-age=300` + weak ETag); the endpoint takes no query params (`400` otherwise).
+
+This is the schema behind `sl subgraphs create <name> --from-contract <contract_id>` — see [Subgraphs](/docs/subgraphs#typed-print-payloads).
 
 ## Contract calls
 

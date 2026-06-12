@@ -81,6 +81,40 @@ export default defineSubgraph({
 });
 ```
 
+## Typed print payloads
+
+Clarity ABIs don't describe `print` payloads, so `event.data` on a `print_event` source is untyped by default. Declare a `prints` map — per-topic field → column type — and `event.data` becomes fully typed, discriminated on `event.topic`:
+
+```ts
+sources: {
+  registry: {
+    type: "print_event",
+    contractId: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry",
+    topic: "completed-deposit",
+    prints: {
+      "completed-deposit": { bitcoinTxid: "text", amount: "uint" },
+    },
+  },
+},
+handlers: {
+  registry: (event, ctx) => {
+    event.data.bitcoinTxid; // string — typed, no casting
+    event.data.amount;      // bigint
+  },
+},
+```
+
+Don't guess the fields — payload shape varies per topic within one contract, and a guessed field silently nulls forever. Scaffold the whole definition from the contract's **observed** history instead:
+
+```bash
+sl subgraphs create sbtc-registry \
+  --from-contract SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry
+```
+
+This calls the [print-schema endpoint](/docs/index#print-schemas) — per-topic schemas inferred empirically from indexed print events — and writes one `print_event` source per topic with its `prints` map, plus a single wide table with per-column "null except on topics: …" comments (`--table-per-topic` for a table per topic). No login needed. `sl subgraphs codegen <file> --payloads` emits a `.d.ts` of the per-topic payload types next to the definition.
+
+As a safety net, deploys return advisory `warnings` when a handler reads an `event.data` field never observed on-chain for its source's topic (pinned `contractId` sources only — wildcard and trait sources are skipped). Warn-only, never blocks; the CLI prints them.
+
 ## Deploy
 
 Deploy from the CLI. On paid plans, the first deploy backfills history from `startBlock`; free-tier subgraphs index forward from the chain tip at deploy time (historical backfill returns `GENESIS_BACKFILL_REQUIRES_PLAN`). Subsequent blocks stream in automatically.
