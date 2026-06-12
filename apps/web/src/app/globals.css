@@ -5572,14 +5572,11 @@ a.dataset-shelf-name:hover {
 }
 /* brand/home link at the top of the docs sidebar */
 .docs-nav-brand {
-	/* a 48px band that lines up with the top nav row; bottom border bleeds to
-	   the sidebar edges so it continues the nav's line into one top bar. */
+	/* a 48px band that lines up with the top nav row */
 	display: flex;
 	align-items: center;
 	height: 48px;
-	margin: 0 -18px 22px -22px;
-	padding: 0 22px;
-	border-bottom: 1px solid var(--border);
+	margin: 0 0 22px 8px;
 	font-family: var(--font-heading-stack);
 	font-weight: 600;
 	font-size: 0.9375rem;
