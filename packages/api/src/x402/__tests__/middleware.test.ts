@@ -101,6 +101,7 @@ function buildApp(opts: {
 			insertPayment: async (rec) => {
 				opts.ledger.push(rec);
 			},
+			recordSpend: async () => {}, // no-op: spend funnel isn't under test (no DB)
 		}),
 	);
 	app.get("/x", (c) => c.json({ data: "ok" }));
@@ -126,6 +127,7 @@ function buildQuotaApp(opts: {
 			optimisticGate: new InProcOptimisticGate(),
 			isAccountBacked: () => false,
 			insertPayment: async () => {},
+			recordSpend: async () => {}, // no-op: spend funnel isn't under test (no DB)
 			freeQuota: { limit: opts.limit, windowMs: 60_000 },
 			quotaStore: {
 				check: async (_key, limit) => ({ allowed: ++used <= limit }),
@@ -319,6 +321,7 @@ describe("session pricing (streams-style)", () => {
 				optimisticGate: new InProcOptimisticGate(),
 				isAccountBacked: () => false,
 				insertPayment: async () => {},
+				recordSpend: async () => {}, // no-op: spend funnel isn't under test (no DB)
 				session: { ttlMs: 60_000, maxCalls: opts.maxCalls, secret: SECRET },
 				quotaStore: {
 					check: async (_key, limit) => ({ allowed: ++used <= limit }),

@@ -105,6 +105,9 @@ export type X402MiddlewareOptions = {
 	/** Override account-backed detection (default: a resolved tenant on ctx). */
 	isAccountBacked?: (c: Context) => boolean;
 	insertPayment?: typeof insertX402Payment;
+	/** Record the monthly-spend funnel counter (default: real DB). Injectable so
+	 *  the settle/drawdown paths can be tested without a Postgres connection. */
+	recordSpend?: (principal: string, usdMicros: bigint) => Promise<void>;
 	generateNonce?: () => string;
 };
 
@@ -180,6 +183,10 @@ export function x402PaymentRequired(
 ): MiddlewareHandler {
 	const isAccountBacked = options.isAccountBacked ?? defaultIsAccountBacked;
 	const spot = options.spot ?? spotUsd;
+	const recordSpendFn =
+		options.recordSpend ??
+		((principal: string, usdMicros: bigint) =>
+			recordSpend(getDb(), principal, usdMicros));
 	// 32 hex chars (32 bytes) — fits the 34-byte on-chain memo the nonce rides in.
 	const generateNonce =
 		options.generateNonce ?? (() => crypto.randomUUID().replace(/-/g, ""));
@@ -236,7 +243,7 @@ export function x402PaymentRequired(
 						usdToMicros(cfg.priceUsd),
 					);
 					if (debit.ok) {
-						await recordSpend(getDb(), principal, usdToMicros(cfg.priceUsd));
+						await recordSpendFn(principal, usdToMicros(cfg.priceUsd));
 						c.set("x402Payer" as never, principal as never);
 						c.header(
 							"X-BALANCE-REMAINING-USD",
@@ -396,7 +403,7 @@ export function x402PaymentRequired(
 		});
 		// Consumption (not deposits) feeds the monthly-spend funnel counter.
 		if ((options.ledgerKind ?? "payment") === "payment") {
-			await recordSpend(getDb(), verdict.payer, usdToMicros(cfg.priceUsd));
+			await recordSpendFn(verdict.payer, usdToMicros(cfg.priceUsd));
 		}
 
 		c.header(
