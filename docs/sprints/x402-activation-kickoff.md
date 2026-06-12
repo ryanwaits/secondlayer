@@ -137,7 +137,7 @@ fits; otherwise SDK calls (`withX402`, `readX402Receipt`, `balanceToken`).
       principals' last-4, policies from W3) + marks the focus-audit "dormant" ruling
       superseded by founder decision.
 - [ ] **A3** Optional: AIBTC outreach (the discovery surfaces are what their tooling
-      crawls — this was the original Wave-1 BD trigger).
+      discovers/reads — this was the original Wave-1 BD trigger).
 
 ## Hard rules for the session
 - Private keys NEVER pass through chat, files, or commits — founder pastes server-side.
