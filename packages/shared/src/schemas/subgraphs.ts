@@ -75,6 +75,8 @@ export interface DeploySubgraphResponse {
 	start_block_clamped?: boolean;
 	operationId?: string;
 	reindexStarted?: boolean;
+	/** Non-blocking deploy lints (e.g. handler reads a print field never observed on-chain). */
+	warnings?: string[];
 	diff?: {
 		addedTables: string[];
 		removedTables: string[];

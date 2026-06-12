@@ -41,6 +41,7 @@ import { canSparseScan, sparseProbeTargets } from "@secondlayer/subgraphs";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { sql } from "kysely";
+import { getPrintSchemaBody } from "../index/print-schema.ts";
 import { getAccountId, getApiKeyId } from "../lib/ownership.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import { SubgraphRegistryCache } from "../subgraphs/cache.ts";
@@ -51,6 +52,7 @@ import {
 	resolveGenesisPolicy,
 	resolvePrivateVisibilityPolicy,
 } from "../subgraphs/plan-limits.ts";
+import { lintPrintFields } from "../subgraphs/print-lint.ts";
 import {
 	SubgraphNotFoundError,
 	handleRowById,
@@ -411,6 +413,20 @@ export async function runSubgraphDeploy(
 		);
 	}
 
+	// Best-effort print-field lint: flag `.data.<field>` reads in pinned
+	// print_event handlers that were never observed on-chain for that
+	// contract/topic. Advisory only — lookup failures skip the lint entirely.
+	// (Runs before the dryRun returns so plans carry the warnings too; the
+	// genesis clamp below only moves startBlock and can't change the lint.)
+	let printFieldWarnings: string[] = [];
+	try {
+		printFieldWarnings = await lintPrintFields(def, (contractId) =>
+			getPrintSchemaBody({ contractId }),
+		);
+	} catch {
+		// Non-blocking by contract.
+	}
+
 	const apiKeyId = identity ? undefined : getApiKeyId(c);
 	const accountId = identity?.accountId ?? getAccountId(c);
 
@@ -461,6 +477,9 @@ export async function runSubgraphDeploy(
 				schemaName: plan.schemaName,
 				statements: plan.statements,
 				grantScript: plan.grantScript,
+				...(printFieldWarnings.length > 0
+					? { warnings: printFieldWarnings }
+					: {}),
 			});
 		}
 		databaseUrlEnc = encryptDatabaseUrl(byoUrl);
@@ -471,6 +490,9 @@ export async function runSubgraphDeploy(
 			dryRun: true,
 			schemaName: plan.schemaName,
 			statements: plan.statements,
+			...(printFieldWarnings.length > 0
+				? { warnings: printFieldWarnings }
+				: {}),
 		});
 	}
 
@@ -766,6 +788,9 @@ export async function runSubgraphDeploy(
 				: {}),
 			...(expiresAt ? { expires_at: expiresAt.toISOString() } : {}),
 			message: `Subgraph "${name}" ${result.action}`,
+			...(printFieldWarnings.length > 0
+				? { warnings: printFieldWarnings }
+				: {}),
 			...(result.diff ? { diff: result.diff } : {}),
 			...(result.action === "created" || result.action === "reindexed"
 				? { reindexStarted: true, operationId }

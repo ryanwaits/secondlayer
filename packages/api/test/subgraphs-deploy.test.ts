@@ -1,13 +1,20 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { getDb } from "@secondlayer/shared/db";
+import { pgSchemaNameFor } from "@secondlayer/shared/db/queries/subgraphs";
 import { ByoBreakingChangeError } from "@secondlayer/subgraphs";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
 import { Hono } from "hono";
-import { errorHandler } from "../src/middleware/error.ts";
+import { sql } from "kysely";
 import {
+	type PrintSchemaBody,
+	printSchemaCache,
+} from "../src/index/print-schema.ts";
+import { errorHandler } from "../src/middleware/error.ts";
+import subgraphsRouter, {
 	applyDeployStartBlockOverride,
 	hasDeployStartBlockChanged,
 	pruneSubgraphHandlerFiles,
@@ -152,5 +159,192 @@ describe("subgraph deploy helpers", () => {
 		const m2 = await import(pathToFileURL(p2).href);
 		expect(m1.v).toBe(1);
 		expect(m2.v).toBe(2);
+	});
+});
+
+// ── deploy-time print-field lint (route) ─────────────────────────────────
+//
+// The fake schema is injected by priming the shared print-schema LRU — the
+// deploy lint reads through getPrintSchemaBody, which hits the cache before
+// any decoded_events query. DB-gated only because the deploy route touches
+// getChainTip / deploySchema, not because the lint needs chain data.
+
+const HAS_DB = !!process.env.DATABASE_URL;
+
+describe.skipIf(!HAS_DB)("deploy print-field lint (route)", () => {
+	const LINT_CONTRACT = "SP123.print-lint-demo";
+	const LIVE_SUBGRAPH = "print-lint-live-sg";
+
+	const app = new Hono();
+	app.onError(errorHandler);
+	app.route("/subgraphs", subgraphsRouter);
+
+	beforeAll(() => {
+		const body: PrintSchemaBody = {
+			contract_id: LINT_CONTRACT,
+			topics: [
+				{
+					topic: "completed-deposit",
+					count: 5,
+					first_height: 1,
+					last_height: 2,
+					non_tuple: false,
+					fields: [
+						{
+							name: "amount",
+							camel_name: "amount",
+							clarity_type: "uint",
+							ts_type: "bigint",
+							column_type: "uint",
+							always_present: true,
+						},
+					],
+				},
+			],
+			sampled: false,
+			total_events: 5,
+			total_events_capped: false,
+			sample: { size: 5, newest_height: 2, oldest_height: 1 },
+		};
+		printSchemaCache.set(LINT_CONTRACT, body);
+	});
+
+	afterAll(async () => {
+		printSchemaCache.clear();
+		// The deploy route persists each handler under DATA_DIR — drop ours so
+		// test runs don't accumulate untracked files.
+		for (const name of [
+			"print-lint-dryrun-sg",
+			"print-lint-clean-sg",
+			"print-lint-trait-sg",
+			LIVE_SUBGRAPH,
+		]) {
+			pruneSubgraphHandlerFiles(
+				join(process.env.DATA_DIR ?? "./data", "subgraphs"),
+				name,
+			);
+		}
+		const db = getDb();
+		await db
+			.deleteFrom("subgraph_operations")
+			.where("subgraph_name", "=", LIVE_SUBGRAPH)
+			.execute();
+		await db
+			.deleteFrom("subgraphs")
+			.where("name", "=", LIVE_SUBGRAPH)
+			.execute();
+		await sql`DROP SCHEMA IF EXISTS ${sql.id(
+			pgSchemaNameFor("", LIVE_SUBGRAPH),
+		)} CASCADE`.execute(db);
+	});
+
+	function deployBody(input: {
+		name: string;
+		source: Record<string, unknown>;
+		handlerExpr: string;
+		dryRun?: boolean;
+	}) {
+		const schema = { rows: { columns: { amount: { type: "uint" } } } };
+		const handlerCode = [
+			"export default {",
+			`  name: ${JSON.stringify(input.name)},`,
+			`  sources: { prints: ${JSON.stringify(input.source)} },`,
+			`  schema: ${JSON.stringify(schema)},`,
+			"  handlers: {",
+			"    prints: async (event, ctx) => {",
+			`      return ${input.handlerExpr};`,
+			"    },",
+			"  },",
+			"};",
+		].join("\n");
+		return {
+			name: input.name,
+			sources: { prints: input.source },
+			schema,
+			handlerCode,
+			...(input.dryRun ? { dryRun: true } : {}),
+		};
+	}
+
+	async function deploy(body: Record<string, unknown>) {
+		return app.request("/subgraphs", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(body),
+		});
+	}
+
+	const pinnedSource = {
+		type: "print_event",
+		contractId: LINT_CONTRACT,
+		topic: "completed-deposit",
+	};
+
+	test("dry-run deploy surfaces unknown-field warnings", async () => {
+		const res = await deploy(
+			deployBody({
+				name: "print-lint-dryrun-sg",
+				source: pinnedSource,
+				handlerExpr: "event.data.amount && event.data.bogusField",
+				dryRun: true,
+			}),
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { dryRun: boolean; warnings?: string[] };
+		expect(body.dryRun).toBe(true);
+		expect(body.warnings).toEqual([
+			`print_event source "prints": field "bogusField" never observed on topic(s) completed-deposit of ${LINT_CONTRACT}`,
+		]);
+	});
+
+	test("dry-run deploy with only observed fields has no warnings", async () => {
+		const res = await deploy(
+			deployBody({
+				name: "print-lint-clean-sg",
+				source: pinnedSource,
+				handlerExpr: "event.data.amount && event.data.topic",
+				dryRun: true,
+			}),
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { warnings?: string[] };
+		expect(body.warnings).toBeUndefined();
+	});
+
+	test("trait-scoped print source skips the lint entirely", async () => {
+		const res = await deploy(
+			deployBody({
+				name: "print-lint-trait-sg",
+				source: {
+					type: "print_event",
+					contractId: LINT_CONTRACT,
+					trait: "SP2X.some-trait.some-trait",
+				},
+				handlerExpr: "event.data.totallyBogus",
+				dryRun: true,
+			}),
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { warnings?: string[] };
+		expect(body.warnings).toBeUndefined();
+	});
+
+	test("real deploy carries warnings on the success body", async () => {
+		const res = await deploy(
+			deployBody({
+				name: LIVE_SUBGRAPH,
+				source: pinnedSource,
+				handlerExpr: "event.data.bogusField",
+			}),
+		);
+		expect(res.status).toBe(201);
+		const body = (await res.json()) as {
+			action: string;
+			warnings?: string[];
+		};
+		expect(body.action).toBe("created");
+		expect(body.warnings).toEqual([
+			`print_event source "prints": field "bogusField" never observed on topic(s) completed-deposit of ${LINT_CONTRACT}`,
+		]);
 	});
 });
