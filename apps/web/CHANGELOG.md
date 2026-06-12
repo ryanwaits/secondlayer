@@ -1,5 +1,19 @@
 # @secondlayer/web
 
+## 0.2.0
+
+### Minor Changes
+
+- cf5a3f7: Command center v1: the palette adds fuzzy discovery across your subgraphs, your subscriptions, public subgraphs, and docs pages — all local after one prefetch (no remote search, no loading states), with status badges, row counts, frecency-boosted recents, cmd-enter new-tab, and a measured results-per-ms footer. Navigation and discovery only; selecting a result opens its page.
+
+### Patch Changes
+
+- d6d7f60: Billing page implements the Field Notebook plan ledger: enforced-limit rows, four account states (free, trialing, active, cancels-at-period-end), pro-unlocks delta strip, and the Stripe portal affordance.
+- aef3e54: Hosted LLM surfaces removed (Sessions + command-palette agent). Bring your own agent harness via MCP/skills/prompts instead. `chat_sessions`/`chat_messages` tables dropped (migration 0097); `POST /me/meter` endpoint and the `ai_evals` Stripe meter removed.
+- Updated dependencies [5333c43]
+  - @secondlayer/sdk@6.21.2
+  - @secondlayer/platform@0.1.1
+
 ## 0.1.66
 
 ### Patch Changes

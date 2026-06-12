@@ -1,5 +1,25 @@
 # @secondlayer/api
 
+## 1.22.0
+
+### Minor Changes
+
+- aef3e54: Hosted LLM surfaces removed (Sessions + command-palette agent). Bring your own agent harness via MCP/skills/prompts instead. `chat_sessions`/`chat_messages` tables dropped (migration 0097); `POST /me/meter` endpoint and the `ai_evals` Stripe meter removed.
+
+### Patch Changes
+
+- 5333c43: Remove L1/L2/L3 layer terminology from user-facing descriptions and READMEs (Stacks is itself a Bitcoin L2 — the terms were confusing); describe surfaces as raw (Streams), decoded (Index), and your schema (Subgraphs). Also drop the stale "Foundation Dataset" template wording and refresh the api README Index endpoint list.
+- 0a1ff0f: Billing resolve now recognizes trialing subscriptions — the post-checkout fast-resolve filtered on status "active", silently no-opping for every 30-day-trial signup and leaving the plan flip to the webhook race.
+- Updated dependencies [5333c43]
+- Updated dependencies [db40071]
+- Updated dependencies [8ac70d7]
+- Updated dependencies [aef3e54]
+- Updated dependencies [9ee7879]
+  - @secondlayer/sdk@6.21.2
+  - @secondlayer/shared@6.31.0
+  - @secondlayer/subgraphs@3.12.0
+  - @secondlayer/platform@0.1.1
+
 ## 1.21.0
 
 ### Minor Changes

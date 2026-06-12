@@ -1,5 +1,19 @@
 # @secondlayer/mcp
 
+## 4.0.1
+
+### Patch Changes
+
+- 5333c43: Remove L1/L2/L3 layer terminology from user-facing descriptions and READMEs (Stacks is itself a Bitcoin L2 — the terms were confusing); describe surfaces as raw (Streams), decoded (Index), and your schema (Subgraphs). Also drop the stale "Foundation Dataset" template wording and refresh the api README Index endpoint list.
+- Updated dependencies [5333c43]
+- Updated dependencies [db40071]
+- Updated dependencies [8ac70d7]
+- Updated dependencies [aef3e54]
+- Updated dependencies [9ee7879]
+  - @secondlayer/sdk@6.21.2
+  - @secondlayer/shared@6.31.0
+  - @secondlayer/subgraphs@3.12.0
+
 ## 4.0.0
 
 ### Major Changes

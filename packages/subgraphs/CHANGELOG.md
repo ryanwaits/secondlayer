@@ -1,5 +1,21 @@
 # @secondlayer/subgraphs
 
+## 3.12.0
+
+### Minor Changes
+
+- 9ee7879: tip-first deploys: backfillMode "concurrent" (CLI --tip-first) goes live at chain tip immediately and backfills history via a non-destructive background op; breaking redeploys refused pre-mutation; sync integrity reports history_filling while the op runs
+
+### Patch Changes
+
+- db40071: operation weight classes: claim query budgets heavy (broad) syncs and rank-orders by plan after per-account fairness; light contract-scoped syncs flow past queued whales; sparse helpers exported
+- 8ac70d7: queue visibility: approximate queue position + event-based progress denominators + ETA on subgraph status (API sync block + CLI rendering); progress flush writes processed_events per operation
+- Updated dependencies [db40071]
+- Updated dependencies [8ac70d7]
+- Updated dependencies [aef3e54]
+- Updated dependencies [9ee7879]
+  - @secondlayer/shared@6.31.0
+
 ## 3.11.0
 
 ### Minor Changes

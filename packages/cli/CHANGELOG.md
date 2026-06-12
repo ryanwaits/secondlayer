@@ -1,5 +1,24 @@
 # @secondlayer/cli
 
+## 8.9.0
+
+### Minor Changes
+
+- 8ac70d7: queue visibility: approximate queue position + event-based progress denominators + ETA on subgraph status (API sync block + CLI rendering); progress flush writes processed_events per operation
+- 9ee7879: tip-first deploys: backfillMode "concurrent" (CLI --tip-first) goes live at chain tip immediately and backfills history via a non-destructive background op; breaking redeploys refused pre-mutation; sync integrity reports history_filling while the op runs
+
+### Patch Changes
+
+- 5333c43: Remove L1/L2/L3 layer terminology from user-facing descriptions and READMEs (Stacks is itself a Bitcoin L2 — the terms were confusing); describe surfaces as raw (Streams), decoded (Index), and your schema (Subgraphs). Also drop the stale "Foundation Dataset" template wording and refresh the api README Index endpoint list.
+- Updated dependencies [5333c43]
+- Updated dependencies [db40071]
+- Updated dependencies [8ac70d7]
+- Updated dependencies [aef3e54]
+- Updated dependencies [9ee7879]
+  - @secondlayer/sdk@6.21.2
+  - @secondlayer/shared@6.31.0
+  - @secondlayer/subgraphs@3.12.0
+
 ## 8.8.0
 
 ### Minor Changes

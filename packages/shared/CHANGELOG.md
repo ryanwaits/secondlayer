@@ -1,5 +1,17 @@
 # @secondlayer/shared
 
+## 6.31.0
+
+### Minor Changes
+
+- db40071: operation weight classes: claim query budgets heavy (broad) syncs and rank-orders by plan after per-account fairness; light contract-scoped syncs flow past queued whales; sparse helpers exported
+- 8ac70d7: queue visibility: approximate queue position + event-based progress denominators + ETA on subgraph status (API sync block + CLI rendering); progress flush writes processed_events per operation
+- aef3e54: Hosted LLM surfaces removed (Sessions + command-palette agent). Bring your own agent harness via MCP/skills/prompts instead. `chat_sessions`/`chat_messages` tables dropped (migration 0097); `POST /me/meter` endpoint and the `ai_evals` Stripe meter removed.
+
+### Patch Changes
+
+- 9ee7879: tip-first deploys: backfillMode "concurrent" (CLI --tip-first) goes live at chain tip immediately and backfills history via a non-destructive background op; breaking redeploys refused pre-mutation; sync integrity reports history_filling while the op runs
+
 ## 6.30.0
 
 ### Minor Changes
