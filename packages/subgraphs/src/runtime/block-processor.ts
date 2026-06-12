@@ -137,7 +137,7 @@ export interface ProcessBlockOptions {
 }
 
 /** Default per-block retry schedule before a failure counts as persistent. */
-export const BLOCK_RETRY_DELAYS_MS = [500, 2_000, 5_000];
+export const BLOCK_RETRY_DELAYS_MS: number[] = [500, 2_000, 5_000];
 
 /**
  * Journal pre-images on the live path only. Deep reindex/backfill heights
