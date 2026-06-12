@@ -271,6 +271,11 @@ function getOwnedSubgraph(
 
 const DATA_DIR = process.env.DATA_DIR ?? "./data";
 
+// Tip-first deploys anchor live-follow + history-fill behind this margin so
+// the backfill range is entirely final (its blocks are processed with the
+// reorg journal off). Mirrors the streams tip reorg margin.
+const TIP_FIRST_REORG_MARGIN = 2;
+
 // Bun's import() ignores the ?query cache-buster for file: URLs (Node honors
 // it), so reusing a stable per-name path re-runs the stale cached module on
 // every redeploy — silently dropping schema/handler changes. Give each deploy
@@ -668,19 +673,23 @@ export async function runSubgraphDeploy(
 	let tipFirstHistory:
 		| { from: number; to: number; operationId: string }
 		| undefined;
+	// Anchor at a FINALIZED tip: the history fill runs with journaling off
+	// (backfill ranges are assumed reorg-proof), so its top must sit behind
+	// the reorg margin; the live plane owns the unsafe head.
+	const tipFirstAnchor = Math.max(0, chainTip - TIP_FIRST_REORG_MARGIN);
 	if (
 		tipFirst &&
 		needsPopulation &&
 		genesisPolicy.genesisAllowed &&
-		chainTip > 0 &&
-		(deployStartBlock ?? 1) < chainTip
+		tipFirstAnchor > 0 &&
+		(deployStartBlock ?? 1) < tipFirstAnchor
 	) {
-		await updateSubgraphStatus(db, name, "active", chainTip);
+		await updateSubgraphStatus(db, name, "active", tipFirstAnchor);
 		try {
 			const historyWeight = await classifyOperationWeight(
 				probeTargets,
 				deployStartBlock ?? 1,
-				chainTip,
+				tipFirstAnchor,
 			);
 			const op = await createSubgraphOperation(db, {
 				subgraphId: result.subgraphId,
@@ -688,14 +697,14 @@ export async function runSubgraphDeploy(
 				accountId,
 				kind: "backfill",
 				fromBlock: deployStartBlock ?? 1,
-				toBlock: chainTip,
+				toBlock: tipFirstAnchor,
 				weight: historyWeight.weight,
 				estimatedEvents: historyWeight.estimatedEvents,
 			});
 			operationId = op.id;
 			tipFirstHistory = {
 				from: deployStartBlock ?? 1,
-				to: chainTip,
+				to: tipFirstAnchor,
 				operationId: op.id,
 			};
 		} catch (err) {
@@ -753,7 +762,7 @@ export async function runSubgraphDeploy(
 			start_block: deployStartBlock,
 			...(startBlockClamped ? { start_block_clamped: true } : {}),
 			...(tipFirstHistory
-				? { live_from: chainTip, history: tipFirstHistory }
+				? { live_from: tipFirstAnchor, history: tipFirstHistory }
 				: {}),
 			...(expiresAt ? { expires_at: expiresAt.toISOString() } : {}),
 			message: `Subgraph "${name}" ${result.action}`,
@@ -1387,11 +1396,13 @@ export async function buildSubgraphDetailFromRow(
 				reason: g.reason,
 			})),
 		},
-		hasGaps
-			? activeOp?.kind === "backfill"
-				? "history_filling"
-				: "gaps_detected"
-			: "complete",
+		// An active history fill ALWAYS reads as history_filling — a clean
+		// tip-first fill records no gap rows, but the history is still absent.
+		activeOp?.kind === "backfill"
+			? "history_filling"
+			: hasGaps
+				? "gaps_detected"
+				: "complete",
 		opInfo,
 	) as SubgraphDetail["sync"];
 
@@ -1731,6 +1742,7 @@ function toOperationResponse(
 		fromBlock: op.from_block,
 		toBlock: op.to_block,
 		processedBlocks: op.processed_blocks,
+		cursorBlock: op.cursor_block == null ? null : Number(op.cursor_block),
 		estimatedEvents: estimated,
 		processedEvents,
 		progress,

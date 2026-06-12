@@ -36,6 +36,25 @@ export async function createSubgraphOperation(
 		estimatedEvents?: number | null;
 	},
 ): Promise<SubgraphOperation> {
+	// Requeued backfills inherit the committed prefix of prior attempts over an
+	// overlapping range — cancel/fail + requeue can't replay applied deltas.
+	let seededCursor: string | number | bigint | null = null;
+	if (
+		data.kind === "backfill" &&
+		data.fromBlock != null &&
+		data.toBlock != null
+	) {
+		const prior = await db
+			.selectFrom("subgraph_operations")
+			.select((eb) => eb.fn.max("cursor_block").as("max_cursor"))
+			.where("subgraph_id", "=", data.subgraphId)
+			.where("kind", "=", "backfill")
+			.where("status", "in", ["failed", "cancelled"])
+			.where("from_block", "<=", data.toBlock)
+			.where("to_block", ">=", data.fromBlock)
+			.executeTakeFirst();
+		seededCursor = prior?.max_cursor ?? null;
+	}
 	return await db
 		.insertInto("subgraph_operations")
 		.values({
@@ -47,6 +66,7 @@ export async function createSubgraphOperation(
 			to_block: data.toBlock ?? null,
 			...(data.weight ? { weight: data.weight } : {}),
 			estimated_events: data.estimatedEvents ?? null,
+			cursor_block: seededCursor,
 		})
 		.returningAll()
 		.executeTakeFirstOrThrow();
@@ -386,9 +406,39 @@ export async function updateOperationProcessedEvents(
 	operationId: string,
 	processedEvents: number,
 ): Promise<void> {
+	// Monotonic: a crash-resumed run restarts its in-memory counter from 0 —
+	// never let that regress the op's ETA surfaces.
 	await db
 		.updateTable("subgraph_operations")
-		.set({ processed_events: processedEvents, updated_at: new Date() })
+		.set({
+			processed_events: sql`GREATEST(COALESCE(processed_events, 0), ${processedEvents})`,
+			updated_at: new Date(),
+		})
 		.where("id", "=", operationId)
 		.execute();
+}
+
+/**
+ * Conditionally advance a backfill operation's crash checkpoint. Monotonic by
+ * construction: the WHERE clause makes concurrent writers serialize — exactly
+ * one advance wins per height, regardless of lease/zombie timing. Returns
+ * whether THIS caller advanced (false = a racing writer already covered h).
+ */
+export async function advanceOperationCursor(
+	db: Kysely<Database>,
+	operationId: string,
+	height: number,
+): Promise<boolean> {
+	const result = await db
+		.updateTable("subgraph_operations")
+		.set({ cursor_block: height, updated_at: new Date() })
+		.where("id", "=", operationId)
+		.where((eb) =>
+			eb.or([
+				eb("cursor_block", "is", null),
+				eb("cursor_block", "<", String(height)),
+			]),
+		)
+		.executeTakeFirst();
+	return Number(result.numUpdatedRows ?? 0n) > 0;
 }

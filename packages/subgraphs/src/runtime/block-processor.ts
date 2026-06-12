@@ -1,5 +1,6 @@
 import { type Database, getTargetDb } from "@secondlayer/shared/db";
 import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
+import { advanceOperationCursor } from "@secondlayer/shared/db/queries/subgraph-operations";
 import {
 	isByoSubgraph,
 	recordSubgraphProcessed,
@@ -122,18 +123,45 @@ export interface ProcessBlockOptions {
 	/** Pre-loaded block data — skips DB reads when provided (used by batch catch-up). */
 	preloaded?: PreloadedBlockData;
 	/**
-	 * Crash-safe sequential processing (the reindex path). When set:
-	 * - a block whose writes flush commits `last_processed_block = blockHeight`
-	 *   (with this status) in the SAME transaction, so a crash can never leave
-	 *   committed writes ahead of the checkpoint;
-	 * - a block at or below the checkpoint is skipped entirely, so a replay
-	 *   (crash-resume overshoot, duplicate dispatch) can never double-apply
-	 *   deltas.
-	 * Only valid for strictly ascending block walks over the subgraph's own
-	 * cursor — backfill/reorg paths that legitimately revisit heights below
-	 * the cursor must not set this.
+	 * Crash-safe sequential processing. Two checkpoint scopes:
+	 * - `{ status }` (reindex): a written block commits
+	 *   `subgraphs.last_processed_block = blockHeight` in the SAME transaction
+	 *   as its writes; replays skip at/below the cursor. Only for strictly
+	 *   ascending walks over the subgraph's own cursor.
+	 * - `{ operationId }` (backfill): same guarantee against the OPERATION's
+	 *   own `cursor_block` — backfills legitimately revisit heights below the
+	 *   live cursor, so they must never checkpoint (or read) the subgraph
+	 *   cursor. The advance is a CONDITIONAL monotonic UPDATE: concurrent
+	 *   writers serialize on it, and the loser's whole block tx rolls back
+	 *   (surfaced as `skipped`, never an error/gap).
+	 * Either way: a crash can never leave committed deltas ahead of the
+	 * relevant checkpoint.
 	 */
-	atomicProgress?: { status: string };
+	atomicProgress?: { status: string } | { operationId: string };
+}
+
+/** Thrown inside the block tx when a racing writer already covered this
+ *  height — rolls the tx back; processBlock converts it to `skipped`. The
+ *  winner committed the block, so this is success-shaped, never a gap. */
+class CursorRaceLostError extends Error {
+	constructor(operationId: string, height: number) {
+		super(`op ${operationId} lost cursor race at block ${height}`);
+		this.name = "CursorRaceLostError";
+	}
+}
+
+function opCursorMode(
+	opts?: ProcessBlockOptions,
+): { operationId: string } | undefined {
+	const ap = opts?.atomicProgress;
+	return ap && "operationId" in ap ? ap : undefined;
+}
+
+function statusMode(
+	opts?: ProcessBlockOptions,
+): { status: string } | undefined {
+	const ap = opts?.atomicProgress;
+	return ap && "status" in ap ? ap : undefined;
 }
 
 /** Default per-block retry schedule before a failure counts as persistent. */
@@ -298,13 +326,30 @@ export async function processBlock(
 		// atomicProgress: the checkpoint lands in phase B (post-commit), so it
 		// can lag phase A but never lead it; the replay window that leaves is
 		// covered by replace-per-height + the deploy-time handler restrictions.
-		if (opts?.atomicProgress) {
+		// Op-cursor mode is ADVISORY here for the same reason: phase-A user-DB
+		// writes can never roll back on a lost race, so the guards
+		// (BYO_NON_IDEMPOTENT_HANDLER) are the load-bearing protection.
+		if (statusMode(opts)) {
 			const row = await targetDb
 				.selectFrom("subgraphs")
 				.select("last_processed_block")
 				.where("name", "=", subgraphName)
 				.executeTakeFirst();
 			if (row && Number(row.last_processed_block) >= blockHeight) {
+				result.skipped = true;
+				return result;
+			}
+		} else if (opCursorMode(opts)) {
+			const om = opCursorMode(opts) as { operationId: string };
+			const row = await targetDb
+				.selectFrom("subgraph_operations")
+				.select("cursor_block")
+				.where("id", "=", om.operationId)
+				.executeTakeFirst();
+			if (
+				row?.cursor_block != null &&
+				Number(row.cursor_block) >= blockHeight
+			) {
 				result.skipped = true;
 				return result;
 			}
@@ -346,81 +391,127 @@ export async function processBlock(
 					block.height,
 				);
 			}
-			if (opts?.atomicProgress && manifest && manifest.count > 0) {
-				await updateSubgraphStatus(
-					tx,
-					subgraphName,
-					opts.atomicProgress.status,
-					blockHeight,
-				);
+			const byoSm = statusMode(opts);
+			const byoOm = opCursorMode(opts);
+			if (byoSm && manifest && manifest.count > 0) {
+				await updateSubgraphStatus(tx, subgraphName, byoSm.status, blockHeight);
+			} else if (byoOm && manifest && manifest.count > 0) {
+				// Advisory: phase A already committed; a lost race here just means
+				// the cursor was covered by another writer — nothing to undo.
+				await advanceOperationCursor(tx, byoOm.operationId, blockHeight);
 			}
 			await applyProgress(tx, runResult);
 		});
 	} else {
 		// Managed: a single atomic transaction on the target DB.
-		await targetDb.transaction().execute(async (tx: Transaction<Database>) => {
-			// Replay guard (sequential walks only): committed writes always carry
-			// their checkpoint (below), so a block at/below the cursor has already
-			// been applied — running it again would double-apply deltas.
-			if (opts?.atomicProgress) {
-				const row = await tx
-					.selectFrom("subgraphs")
-					.select("last_processed_block")
-					.where("name", "=", subgraphName)
-					.executeTakeFirst();
-				if (row && Number(row.last_processed_block) >= blockHeight) {
-					result.skipped = true;
-					return;
-				}
-			}
+		try {
+			await targetDb
+				.transaction()
+				.execute(async (tx: Transaction<Database>) => {
+					// Replay guard (sequential walks only): committed writes always carry
+					// their checkpoint (below), so a block at/below the cursor has already
+					// been applied — running it again would double-apply deltas.
+					const opMode = opCursorMode(opts);
+					if (statusMode(opts)) {
+						const row = await tx
+							.selectFrom("subgraphs")
+							.select("last_processed_block")
+							.where("name", "=", subgraphName)
+							.executeTakeFirst();
+						if (row && Number(row.last_processed_block) >= blockHeight) {
+							result.skipped = true;
+							return;
+						}
+					} else if (opMode) {
+						// Fast path only — the conditional advance below is the guarantee.
+						const row = await tx
+							.selectFrom("subgraph_operations")
+							.select("cursor_block")
+							.where("id", "=", opMode.operationId)
+							.executeTakeFirst();
+						if (
+							row?.cursor_block != null &&
+							Number(row.cursor_block) >= blockHeight
+						) {
+							result.skipped = true;
+							return;
+						}
+					}
 
-			const ctx = new SubgraphContext(
-				tx,
-				schemaName,
-				subgraph.schema,
-				blockMeta,
-				initialTx,
-				false,
-				journalEnabled(opts),
-			);
-
-			const handlerStart = performance.now();
-			const runResult = await runHandlers(subgraph, matched, ctx);
-			handlerMs = performance.now() - handlerStart;
-
-			result.processed = runResult.processed;
-			result.errors = runResult.errors;
-
-			let flushedWrites = false;
-			if (ctx.pendingOps > 0) {
-				const flushStart = performance.now();
-				const manifest = await ctx.flush();
-				flushedWrites = manifest.count > 0;
-				if (manifest.count > 0) {
-					await emitSubscriptionOutbox(
+					const ctx = new SubgraphContext(
 						tx,
-						subgraphName,
-						manifest,
-						matcher,
-						block.height,
+						schemaName,
+						subgraph.schema,
+						blockMeta,
+						initialTx,
+						false,
+						journalEnabled(opts),
 					);
-				}
-				flushMs = performance.now() - flushStart;
-			}
 
-			// Checkpoint travels with the writes it covers — a crash can never
-			// leave committed deltas ahead of last_processed_block (fix-f040 B3).
-			if (opts?.atomicProgress && flushedWrites) {
-				await updateSubgraphStatus(
-					tx,
-					subgraphName,
-					opts.atomicProgress.status,
+					const handlerStart = performance.now();
+					const runResult = await runHandlers(subgraph, matched, ctx);
+					handlerMs = performance.now() - handlerStart;
+
+					result.processed = runResult.processed;
+					result.errors = runResult.errors;
+
+					let flushedWrites = false;
+					if (ctx.pendingOps > 0) {
+						const flushStart = performance.now();
+						const manifest = await ctx.flush();
+						flushedWrites = manifest.count > 0;
+						if (manifest.count > 0) {
+							await emitSubscriptionOutbox(
+								tx,
+								subgraphName,
+								manifest,
+								matcher,
+								block.height,
+							);
+						}
+						flushMs = performance.now() - flushStart;
+					}
+
+					// Checkpoint travels with the writes it covers — a crash can never
+					// leave committed deltas ahead of the checkpoint (fix-f040 B3).
+					const sm = statusMode(opts);
+					if (sm && flushedWrites) {
+						await updateSubgraphStatus(
+							tx,
+							subgraphName,
+							sm.status,
+							blockHeight,
+						);
+					} else if (opMode && flushedWrites) {
+						const advanced = await advanceOperationCursor(
+							tx,
+							opMode.operationId,
+							blockHeight,
+						);
+						if (!advanced) {
+							// A racing writer (zombie/claimer) already covered this height —
+							// abort OUR writes; the winner's commit stands.
+							throw new CursorRaceLostError(opMode.operationId, blockHeight);
+						}
+					}
+
+					await applyProgress(tx, runResult);
+				});
+		} catch (err) {
+			if (err instanceof CursorRaceLostError) {
+				// Success-shaped: the block IS committed (by the winner). Surfacing
+				// this as an error would mint a false gap row and re-invite the
+				// double-apply through gap repair.
+				logger.warn("cursor race lost — block already covered", {
+					subgraph: subgraphName,
 					blockHeight,
-				);
+					error: err.message,
+				});
+				result.skipped = true;
+				return result;
 			}
-
-			await applyProgress(tx, runResult);
-		});
+			throw err;
+		}
 	}
 
 	const totalMs = performance.now() - blockStart;

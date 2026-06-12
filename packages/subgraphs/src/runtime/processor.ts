@@ -215,8 +215,16 @@ async function runSubgraphOperation(
 		if (operation.from_block == null || operation.to_block == null) {
 			throw new Error("Backfill operation is missing from_block or to_block");
 		}
+		// Resume from the op's own checkpoint: committed blocks never replay.
+		const resumeFrom =
+			operation.cursor_block != null
+				? Math.max(
+						Number(operation.from_block),
+						Number(operation.cursor_block) + 1,
+					)
+				: Number(operation.from_block);
 		const result = await backfillSubgraph(def, {
-			fromBlock: Number(operation.from_block),
+			fromBlock: resumeFrom,
 			toBlock: Number(operation.to_block),
 			schemaName,
 			operationId: operation.id,

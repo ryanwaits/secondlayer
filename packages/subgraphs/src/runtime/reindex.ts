@@ -5,7 +5,10 @@ import {
 	recordGapBatch,
 	resolveGaps,
 } from "@secondlayer/shared/db/queries/subgraph-gaps";
-import { updateOperationProcessedEvents } from "@secondlayer/shared/db/queries/subgraph-operations";
+import {
+	advanceOperationCursor,
+	updateOperationProcessedEvents,
+} from "@secondlayer/shared/db/queries/subgraph-operations";
 import {
 	recordSubgraphProcessed,
 	updateSubgraphStatus,
@@ -169,6 +172,7 @@ async function processBlockRange(
 
 	const stats = new StatsAccumulator(subgraphName, opts.isCatchup);
 	let blocksProcessed = 0;
+	let blocksSkippedByCursor = 0;
 	let totalEventsProcessed = 0;
 	let totalErrors = 0;
 	let pendingEventsProcessed = 0;
@@ -271,7 +275,15 @@ async function processBlockRange(
 		// Reindex is a strictly ascending walk over the subgraph's own cursor, so
 		// written blocks checkpoint atomically and replays skip (fix-f040 B3).
 		// Backfill revisits heights below the live cursor — must stay batched.
-		const atomicProgress = status === "reindexing" ? { status } : undefined;
+		// Reindex checkpoints on the subgraph cursor; backfill (status 'active')
+		// revisits heights BELOW the live cursor, so it checkpoints on its own
+		// op row instead — and must NEVER write the live cursor (an unconditional
+		// historical SET would regress it and make catch-up re-walk + double-apply).
+		const opCursor =
+			status === "active" && opts.operationId
+				? { operationId: opts.operationId }
+				: undefined;
+		const atomicProgress = status === "reindexing" ? { status } : opCursor;
 
 		for (let height = currentHeight; height <= batchEnd; height++) {
 			let blockData = batch.get(height);
@@ -327,6 +339,7 @@ async function processBlockRange(
 			}
 
 			blocksProcessed++;
+			if (result.skipped) blocksSkippedByCursor++;
 			batchMatched += result.matched;
 			totalEventsProcessed += result.processed;
 			totalErrors += result.errors;
@@ -348,7 +361,13 @@ async function processBlockRange(
 				blocksProcessed % 100 === 0 ||
 				now - lastProgressFlushAt >= PROGRESS_FLUSH_INTERVAL_MS;
 			if (shouldFlushProgress) {
-				await updateSubgraphStatus(targetDb, subgraphName, status, height);
+				if (opCursor) {
+					// Covers write-less stretches; conditional → can't regress the
+					// in-tx advances written by processed blocks.
+					await advanceOperationCursor(targetDb, opCursor.operationId, height);
+				} else {
+					await updateSubgraphStatus(targetDb, subgraphName, status, height);
+				}
 				if (opts.operationId) {
 					await updateOperationProcessedEvents(
 						targetDb,
@@ -368,6 +387,9 @@ async function processBlockRange(
 						total: totalBlocks,
 						currentBlock: height,
 						pct: Math.round((blocksProcessed / totalBlocks) * 100),
+						...(blocksSkippedByCursor > 0
+							? { skippedByCursor: blocksSkippedByCursor }
+							: {}),
 					},
 				);
 			}
@@ -411,7 +433,20 @@ async function processBlockRange(
 			if (jumpTo > batchEnd + 1) {
 				const skipped = Math.min(jumpTo, toBlock + 1) - (batchEnd + 1);
 				blocksProcessed += skipped;
-				await updateSubgraphStatus(targetDb, subgraphName, status, jumpTo - 1);
+				if (opCursor) {
+					await advanceOperationCursor(
+						targetDb,
+						opCursor.operationId,
+						jumpTo - 1,
+					);
+				} else {
+					await updateSubgraphStatus(
+						targetDb,
+						subgraphName,
+						status,
+						jumpTo - 1,
+					);
+				}
 				logger.info("Sparse skip", {
 					subgraph: subgraphName,
 					from: batchEnd + 1,

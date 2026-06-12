@@ -74,3 +74,24 @@ docker exec secondlayer-l2-decoder-1 curl -s localhost:3710/health | \
 docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
   -tAc 'SELECT count(*) FROM pg_stat_activity'
 ```
+
+## Backfill checkpoint runbook (op-scoped cursor)
+
+Backfill operations (`kind: backfill` — tip-first history fills, gap repair)
+checkpoint on their OWN row (`subgraph_operations.cursor_block`), never on the
+live subgraph cursor. Written blocks advance it conditionally inside the same
+transaction as their rows; a resumed/requeued op starts at `cursor_block + 1`.
+
+- **Stuck backfill**: `status = running` with `cursor_block` frozen across
+  minutes → check processor logs for repeated block errors (it halts rather
+  than skips on missing source blocks).
+- **"cursor race lost" warnings**: one writer lost a conditional advance —
+  benign in isolation (the winner committed the block). A FLOOD of them means
+  a zombie runner is replaying a claimed op: check for two processor
+  containers / a stale lease.
+- **Accumulator subgraphs (`ctx.increment`/`patchOrInsert`)**: backfill and
+  tip-first are REJECTED at the API for these (`*_NON_REPLAYABLE_HANDLER`).
+  Genuine gaps below a backfill cursor on an accumulator cannot be repaired in
+  place — the safe re-run is a full `reindex` (schema-dropping, exactly-once).
+- `skippedByCursor` in reindex progress logs counts replay-guard skips — a
+  nonzero value after a crash-resume is the system working as intended.

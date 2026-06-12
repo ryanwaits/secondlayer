@@ -230,6 +230,10 @@ export interface SubgraphOperationsTable {
 	estimated_events: string | number | bigint | null;
 	/** Events processed so far — written by the progress flush. */
 	processed_events: string | number | bigint | null;
+	/** Backfill ops' own crash checkpoint — advanced conditionally in-tx with
+	 *  each written block; replays skip at/below it. NULL for reindex ops
+	 *  (those checkpoint on subgraphs.last_processed_block). */
+	cursor_block: string | number | bigint | null;
 }
 
 export interface ApiKeysTable {
