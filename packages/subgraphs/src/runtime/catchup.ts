@@ -1,13 +1,12 @@
 import { getTargetDb } from "@secondlayer/shared/db";
-import {
-	type GapRange,
-	recordGapBatch,
-} from "@secondlayer/shared/db/queries/subgraph-gaps";
 import { getSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
 import { logger } from "@secondlayer/shared/logger";
 import type { SubgraphDefinition } from "../types.ts";
 import { type BlockData, avgEventsPerBlock } from "./batch-loader.ts";
-import { type ProcessBlockResult, processBlock } from "./block-processor.ts";
+import {
+	type ProcessBlockResult,
+	processBlockWithRetry,
+} from "./block-processor.ts";
 import { resolveBlockSource } from "./block-source.ts";
 import { StatsAccumulator } from "./stats.ts";
 
@@ -69,35 +68,6 @@ export function resolveCatchupBatchConfig(
 		),
 		prefetch: parseBoolean(env.SUBGRAPH_CATCHUP_PREFETCH) ?? base.prefetch,
 	};
-}
-
-/**
- * Coalesce individual block heights + reasons into contiguous gap ranges.
- */
-function coalesceGaps(
-	blocks: { height: number; reason: string }[],
-): GapRange[] {
-	if (blocks.length === 0) return [];
-	blocks.sort((a, b) => a.height - b.height);
-
-	const ranges: GapRange[] = [];
-	let start = blocks[0].height;
-	let end = blocks[0].height;
-	let reason = blocks[0].reason;
-
-	for (let i = 1; i < blocks.length; i++) {
-		const b = blocks[i];
-		if (b.height === end + 1 && b.reason === reason) {
-			end = b.height;
-		} else {
-			ranges.push({ start, end, reason });
-			start = b.height;
-			end = b.height;
-			reason = b.reason;
-		}
-	}
-	ranges.push({ start, end, reason });
-	return ranges;
 }
 
 /**
@@ -203,41 +173,57 @@ export async function catchUpSubgraph(
 			}
 
 			// Process each block from pre-loaded data
-			const batchFailedBlocks: { height: number; reason: string }[] = [];
+			let stopCatchup = false;
 
 			for (let height = currentHeight; height <= batchEnd; height++) {
-				const blockData = batch.get(height);
+				let blockData = batch.get(height);
 				if (!blockData) {
-					// Block missing (gap) — skip
-					batchFailedBlocks.push({ height, reason: "block_missing" });
-					processed++;
-					continue;
+					// Refetch once — distinguishes a transient source hiccup from a
+					// genuinely absent block.
+					blockData = (await source.loadBlockRange(height, height)).get(height);
+				}
+				if (!blockData) {
+					// Near the tip this is usually a reorg race (the height briefly
+					// has no canonical block). Stop the tick with the cursor BEFORE
+					// this height — the next catch-up re-attempts it. Skipping it
+					// instead would silently drop its events (fix-f040 B5).
+					logger.warn("Block missing during catch-up, deferring to next tick", {
+						subgraph: subgraphName,
+						blockHeight: height,
+					});
+					stopCatchup = true;
+					break;
 				}
 
 				let result: ProcessBlockResult;
 				try {
-					result = await processBlock(subgraph, subgraphName, height, {
+					result = await processBlockWithRetry(subgraph, subgraphName, height, {
 						preloaded: blockData,
 					});
 				} catch (err) {
-					logger.error("Block processing error during catch-up", {
+					// Persistent failure: halt with the cursor before this block.
+					// Advancing past it would bake the missing events into every
+					// downstream row (fix-f040 B5).
+					const errorMsg = err instanceof Error ? err.message : String(err);
+					logger.error("Block processing failed persistently during catch-up", {
 						subgraph: subgraphName,
 						blockHeight: height,
-						error: err instanceof Error ? err.message : String(err),
+						error: errorMsg,
 					});
-					batchFailedBlocks.push({ height, reason: "processing_error" });
-					// Update progress past this block so we don't retry it forever
-					const { updateSubgraphStatus } = await import(
-						"@secondlayer/shared/db/queries/subgraphs"
-					);
-					await updateSubgraphStatus(
+					const { updateSubgraphStatus, recordSubgraphProcessed } =
+						await import("@secondlayer/shared/db/queries/subgraphs");
+					await recordSubgraphProcessed(
 						targetDb,
 						subgraphName,
-						"active",
-						height,
+						0,
+						1,
+						`catch-up halted at block ${height}: ${errorMsg}`,
 					).catch(() => {});
-					processed++;
-					continue;
+					await updateSubgraphStatus(targetDb, subgraphName, "error").catch(
+						() => {},
+					);
+					stopCatchup = true;
+					break;
 				}
 				processed++;
 
@@ -259,21 +245,9 @@ export async function catchUpSubgraph(
 				}
 			}
 
-			// Record any gaps from this batch
-			if (batchFailedBlocks.length > 0) {
-				const gaps = coalesceGaps(batchFailedBlocks);
-				await recordGapBatch(
-					targetDb,
-					subgraphRow.id,
-					subgraphName,
-					gaps,
-				).catch((err: unknown) => {
-					logger.warn("Failed to record subgraph gaps", {
-						subgraph: subgraphName,
-						error: err instanceof Error ? err.message : String(err),
-					});
-				});
-			}
+			// A missing block or persistent failure stops the walk with the
+			// cursor before the problem height — never record-and-skip.
+			if (stopCatchup) break;
 
 			// Adaptive batch sizing based on event density
 			const avg = avgEventsPerBlock(batch);

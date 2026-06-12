@@ -15,7 +15,10 @@ import { generateSubgraphSQL } from "../schema/generator.ts";
 import { pgSchemaName } from "../schema/utils.ts";
 import type { SubgraphDefinition } from "../types.ts";
 import { avgEventsPerBlock } from "./batch-loader.ts";
-import { type ProcessBlockResult, processBlock } from "./block-processor.ts";
+import {
+	type ProcessBlockResult,
+	processBlockWithRetry,
+} from "./block-processor.ts";
 import {
 	type BlockSource,
 	canSparseScan,
@@ -26,6 +29,8 @@ import { StatsAccumulator } from "./stats.ts";
 const LOG_INTERVAL = 1000;
 const HEALTH_FLUSH_INTERVAL = 1000;
 const PROGRESS_FLUSH_INTERVAL_MS = 5_000;
+/** Consecutive fully-empty batches before the walk halts as source-degraded. */
+const EMPTY_BATCH_HALT_THRESHOLD = 3;
 const STANDARD_REINDEX_BATCH_CONFIG = {
 	defaultBatchSize: 500,
 	minBatchSize: 100,
@@ -176,6 +181,7 @@ async function processBlockRange(
 	let batchSize = batchConfig.defaultBatchSize;
 	let currentHeight = fromBlock;
 	let aborted = false;
+	let consecutiveEmptyBatches = 0;
 	// Sparse scan: when a whole batch matches nothing, ask the source for the
 	// next height that could match and leap there — token-scoped genesis
 	// reindexes skip the (often vast) majority of chain history.
@@ -195,6 +201,23 @@ async function processBlockRange(
 		pendingLastError = undefined;
 		lastHealthFlushBlock = blocksProcessed;
 		lastHealthFlushAt = Date.now();
+	};
+
+	/**
+	 * Stop the walk at an unprocessable block: surface the error, mark the
+	 * subgraph errored, and throw. Deliberately does NOT touch
+	 * last_processed_block — the cursor stays before the failed block so a
+	 * restart re-attempts it instead of silently skipping its events.
+	 */
+	const haltRange = async (
+		errorMsg: string,
+		height: number,
+	): Promise<never> => {
+		pendingErrors++;
+		pendingLastError = errorMsg;
+		await flushHealth().catch(() => {});
+		await updateSubgraphStatus(targetDb, subgraphName, "error").catch(() => {});
+		throw new Error(`${subgraphName}: halted at block ${height}: ${errorMsg}`);
 	};
 
 	// Pipeline: start loading first batch and track the prefetched range.
@@ -218,6 +241,24 @@ async function processBlockRange(
 		const batch = await nextBatchPromise;
 		const batchEnd = nextBatchEnd;
 
+		// Source-health guard (fix-f040 B7): the source seeds every canonical
+		// height in range (including empty blocks), so consecutive fully-empty
+		// batches mean the SOURCE is degraded — not that thousands of blocks
+		// are absent. The old behavior filed every height as a block_missing
+		// gap and kept walking; one degraded source minted thousands of false
+		// gap rows in minutes.
+		if (batch.size === 0 && batchEnd >= currentHeight) {
+			consecutiveEmptyBatches++;
+			if (consecutiveEmptyBatches >= EMPTY_BATCH_HALT_THRESHOLD) {
+				await haltRange(
+					`block source returned ${consecutiveEmptyBatches} consecutive empty batches (ending ${currentHeight}..${batchEnd}) — source degraded`,
+					currentHeight,
+				);
+			}
+		} else {
+			consecutiveEmptyBatches = 0;
+		}
+
 		// Prefetch next batch (uses current batchSize, which may have been adapted)
 		const nextStart = batchEnd + 1;
 		if (nextStart <= toBlock) {
@@ -227,10 +268,27 @@ async function processBlockRange(
 
 		const batchFailedBlocks: { height: number; reason: string }[] = [];
 		let batchMatched = 0;
+		// Reindex is a strictly ascending walk over the subgraph's own cursor, so
+		// written blocks checkpoint atomically and replays skip (fix-f040 B3).
+		// Backfill revisits heights below the live cursor — must stay batched.
+		const atomicProgress = status === "reindexing" ? { status } : undefined;
 
 		for (let height = currentHeight; height <= batchEnd; height++) {
-			const blockData = batch.get(height);
+			let blockData = batch.get(height);
 			if (!blockData) {
+				// Could be a transient source hiccup — refetch the single height
+				// before concluding the block is genuinely absent.
+				blockData = (await source.loadBlockRange(height, height)).get(height);
+			}
+			if (!blockData) {
+				if (status === "reindexing") {
+					// Strict: a missing source block means every downstream value is
+					// wrong, not approximately right. Halt; do not advance past it.
+					const errorMsg = `block ${height} missing from source — halting reindex (cursor stays at ${height - 1})`;
+					await haltRange(errorMsg, height);
+				}
+				// Backfill: the range IS the gap-repair pass; record what's still
+				// missing and keep going.
 				batchFailedBlocks.push({ height, reason: "block_missing" });
 				blocksProcessed++;
 				continue;
@@ -238,24 +296,29 @@ async function processBlockRange(
 
 			let result: ProcessBlockResult;
 			try {
-				result = await processBlock(def, subgraphName, height, {
+				result = await processBlockWithRetry(def, subgraphName, height, {
 					skipProgressUpdate: true,
+					atomicProgress,
 					preloaded: blockData,
 				});
 			} catch (err) {
-				const errorMsg = err instanceof Error ? err.message : String(err);
-				logger.error("Block processing error", {
+				const errorMsg = getErrorMessage(err);
+				logger.error("Block processing failed persistently", {
 					subgraph: subgraphName,
 					blockHeight: height,
 					error: errorMsg,
 				});
+				if (status === "reindexing") {
+					// Strict: skipping a block of events silently corrupts every
+					// accumulator downstream. Halt with the cursor still BEFORE the
+					// failed block so a restart re-attempts it (fix-f040 B5).
+					await haltRange(
+						`block ${height} failed persistently: ${errorMsg}`,
+						height,
+					);
+				}
+				// Backfill: record and continue — the gap row keeps it repairable.
 				batchFailedBlocks.push({ height, reason: "processing_error" });
-				await updateSubgraphStatus(
-					targetDb,
-					subgraphName,
-					status,
-					height,
-				).catch(() => {});
 				blocksProcessed++;
 				totalErrors++;
 				pendingErrors++;

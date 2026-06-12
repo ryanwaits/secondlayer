@@ -11,7 +11,12 @@ import { type Kysely, type Transaction, sql } from "kysely";
 import { pgSchemaName } from "../schema/utils.ts";
 import type { SubgraphDefinition } from "../types.ts";
 import { resolveBlockSource } from "./block-source.ts";
-import { type BlockMeta, SubgraphContext, type TxMeta } from "./context.ts";
+import {
+	type BlockMeta,
+	JOURNAL_RETENTION_BLOCKS,
+	SubgraphContext,
+	type TxMeta,
+} from "./context.ts";
 import { emitSubscriptionOutbox } from "./outbox-emit.ts";
 import { runHandlers } from "./runner.ts";
 import { matchSources } from "./source-matcher.ts";
@@ -116,6 +121,64 @@ export interface ProcessBlockOptions {
 	skipProgressUpdate?: boolean;
 	/** Pre-loaded block data — skips DB reads when provided (used by batch catch-up). */
 	preloaded?: PreloadedBlockData;
+	/**
+	 * Crash-safe sequential processing (the reindex path). When set:
+	 * - a block whose writes flush commits `last_processed_block = blockHeight`
+	 *   (with this status) in the SAME transaction, so a crash can never leave
+	 *   committed writes ahead of the checkpoint;
+	 * - a block at or below the checkpoint is skipped entirely, so a replay
+	 *   (crash-resume overshoot, duplicate dispatch) can never double-apply
+	 *   deltas.
+	 * Only valid for strictly ascending block walks over the subgraph's own
+	 * cursor — backfill/reorg paths that legitimately revisit heights below
+	 * the cursor must not set this.
+	 */
+	atomicProgress?: { status: string };
+}
+
+/** Default per-block retry schedule before a failure counts as persistent. */
+export const BLOCK_RETRY_DELAYS_MS = [500, 2_000, 5_000];
+
+/**
+ * Journal pre-images on the live path only. Deep reindex/backfill heights
+ * (skipProgressUpdate) are past finality — a reorg can't reach them, so
+ * journaling would be pure churn for the pruner.
+ */
+function journalEnabled(opts?: ProcessBlockOptions): boolean {
+	return !opts?.skipProgressUpdate;
+}
+
+/**
+ * processBlock with bounded retries. Throws the last error once the schedule
+ * is exhausted — callers decide whether that halts the walk (strict paths) or
+ * records a gap (backfill). Never advances any cursor on failure.
+ */
+export async function processBlockWithRetry(
+	subgraph: SubgraphDefinition,
+	subgraphName: string,
+	blockHeight: number,
+	opts?: ProcessBlockOptions,
+	retryDelaysMs: number[] = BLOCK_RETRY_DELAYS_MS,
+): Promise<ProcessBlockResult> {
+	let lastError: unknown;
+	for (let attempt = 0; attempt <= retryDelaysMs.length; attempt++) {
+		try {
+			return await processBlock(subgraph, subgraphName, blockHeight, opts);
+		} catch (err) {
+			lastError = err;
+			const delay = retryDelaysMs[attempt];
+			if (delay === undefined) break;
+			logger.warn("Block processing failed, retrying", {
+				subgraph: subgraphName,
+				blockHeight,
+				attempt: attempt + 1,
+				retryInMs: delay,
+				error: err instanceof Error ? err.message : String(err),
+			});
+			await new Promise((r) => setTimeout(r, delay));
+		}
+	}
+	throw lastError;
 }
 
 export async function processBlock(
@@ -232,6 +295,20 @@ export async function processBlock(
 		// the user DB first (replace-per-height makes a replay idempotent); phase
 		// B then records outbox + progress on the managed DB. If phase A throws,
 		// progress never advances and the block replays — safe by construction.
+		// atomicProgress: the checkpoint lands in phase B (post-commit), so it
+		// can lag phase A but never lead it; the replay window that leaves is
+		// covered by replace-per-height + the deploy-time handler restrictions.
+		if (opts?.atomicProgress) {
+			const row = await targetDb
+				.selectFrom("subgraphs")
+				.select("last_processed_block")
+				.where("name", "=", subgraphName)
+				.executeTakeFirst();
+			if (row && Number(row.last_processed_block) >= blockHeight) {
+				result.skipped = true;
+				return result;
+			}
+		}
 		let runResult = { processed: 0, errors: 0 };
 		let manifest: Awaited<ReturnType<SubgraphContext["flush"]>> | undefined;
 		await route.dataDb
@@ -244,6 +321,7 @@ export async function processBlock(
 					blockMeta,
 					initialTx,
 					true,
+					journalEnabled(opts),
 				);
 				const handlerStart = performance.now();
 				runResult = await runHandlers(subgraph, matched, ctx);
@@ -268,17 +346,42 @@ export async function processBlock(
 					block.height,
 				);
 			}
+			if (opts?.atomicProgress && manifest && manifest.count > 0) {
+				await updateSubgraphStatus(
+					tx,
+					subgraphName,
+					opts.atomicProgress.status,
+					blockHeight,
+				);
+			}
 			await applyProgress(tx, runResult);
 		});
 	} else {
-		// Managed: a single atomic transaction on the target DB — unchanged.
+		// Managed: a single atomic transaction on the target DB.
 		await targetDb.transaction().execute(async (tx: Transaction<Database>) => {
+			// Replay guard (sequential walks only): committed writes always carry
+			// their checkpoint (below), so a block at/below the cursor has already
+			// been applied — running it again would double-apply deltas.
+			if (opts?.atomicProgress) {
+				const row = await tx
+					.selectFrom("subgraphs")
+					.select("last_processed_block")
+					.where("name", "=", subgraphName)
+					.executeTakeFirst();
+				if (row && Number(row.last_processed_block) >= blockHeight) {
+					result.skipped = true;
+					return;
+				}
+			}
+
 			const ctx = new SubgraphContext(
 				tx,
 				schemaName,
 				subgraph.schema,
 				blockMeta,
 				initialTx,
+				false,
+				journalEnabled(opts),
 			);
 
 			const handlerStart = performance.now();
@@ -288,9 +391,11 @@ export async function processBlock(
 			result.processed = runResult.processed;
 			result.errors = runResult.errors;
 
+			let flushedWrites = false;
 			if (ctx.pendingOps > 0) {
 				const flushStart = performance.now();
 				const manifest = await ctx.flush();
+				flushedWrites = manifest.count > 0;
 				if (manifest.count > 0) {
 					await emitSubscriptionOutbox(
 						tx,
@@ -301,6 +406,17 @@ export async function processBlock(
 					);
 				}
 				flushMs = performance.now() - flushStart;
+			}
+
+			// Checkpoint travels with the writes it covers — a crash can never
+			// leave committed deltas ahead of last_processed_block (fix-f040 B3).
+			if (opts?.atomicProgress && flushedWrites) {
+				await updateSubgraphStatus(
+					tx,
+					subgraphName,
+					opts.atomicProgress.status,
+					blockHeight,
+				);
 			}
 
 			await applyProgress(tx, runResult);
@@ -341,6 +457,19 @@ export async function processBlock(
 				subgraph: subgraphName,
 				error: err instanceof Error ? err.message : String(err),
 			});
+		}
+
+		// Prune reorg-journal entries past finality (fix-f040 B2). Same cadence
+		// as the row sample; retention is generous vs observed reorg depth.
+		if (journalEnabled(opts)) {
+			await sql
+				.raw(
+					`DELETE FROM "${schemaName}"."_journal" WHERE "block_height" < ${blockHeight - JOURNAL_RETENTION_BLOCKS}`,
+				)
+				.execute(route.dataDb)
+				.catch(() => {
+					// Journal may not exist yet (pre-journal deploy, no writes since).
+				});
 		}
 	}
 
