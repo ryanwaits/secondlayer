@@ -81,11 +81,17 @@ live code in prod, waiting on env vars:
 
 ## Phase 3 — Smoke ladder (AGENT executes with W4 key; FOUNDER watches)
 
-> ⛔ **BLOCKED on the spot-feed fix** (founder ruling 2026-06-12): live CoinGecko spot
-> doesn't resolve in prod (E3 finding) → STX mispriced + sBTC unpriceable. Resolve via
-> `docs/sprints/x402-spot-feed-fix-kickoff.md` BEFORE starting S1. Root cause confirmed:
-> CoinGecko 429s after ~5 rapid calls + `spot.ts refresh()` never advances `fetchedAt` on
-> failure → permanent retry storm. Un-pause at that doc's T9.
+> ✅ **Spot-feed blocker RESOLVED + PROD-LIVE 2026-06-12** (api@1.22.4, SHA 82d66885). Real
+> root cause was NOT rate-limiting: `spot.ts` used `??` for `X402_SPOT_URL`, but compose
+> injects it as an EMPTY STRING when unset → `fetch("")` threw every time → silent fallback.
+> Fixed with `||` + call-time resolution (the throttle/backoff/debounced-logging from the
+> first patch is what surfaced the blank-URL error). Verified in prod: STX prices off live
+> CoinGecko ($0.179, was $0.219 fallback), sBTC now present in accepts[]. CI post-deploy-smoke
+> updated for keyless-streams→402. Phase 3 smoke is UNBLOCKED on the CoinGecko v1 feed.
+> (Optional: the decentralized-oracle replacement is a separate track —
+> `docs/sprints/x402-decentralized-oracle-kickoff.md`.) Remaining nit: prod
+> `X402_SPOT_STX_USD=0.218876` fallback is still a typo — harmless while live feed works, but
+> fix for resilience + add `X402_SPOT_SBTC_USD`.
 
 Run in order; each step gates the next. Use the existing mainnet smoke script where it
 fits; otherwise SDK calls (`withX402`, `readX402Receipt`, `balanceToken`).
