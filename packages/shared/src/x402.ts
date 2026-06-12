@@ -79,6 +79,19 @@ export function x402StrikeKey(principal: string): string {
 	return `x402:strikes:${principal}`;
 }
 
+/**
+ * Normalize an x402 payment txid to the form stored in `decoded_events`.
+ * Broadcast/ledger txids are bare lowercase hex; the index stores them
+ * `0x`-prefixed. Querying `decoded_events` with the bare form silently never
+ * matches — which wedged the rail's confirmation layer (optimistic payments
+ * reverted + struck the payer; confirmed-tier never confirmed). Idempotent and
+ * case-normalizing, so it's safe to apply at every index query site.
+ */
+export function toIndexTxId(txid: string): string {
+	const hex = txid.startsWith("0x") ? txid.slice(2) : txid;
+	return `0x${hex.toLowerCase()}`;
+}
+
 /** Resolve a token by its x402 `asset` string (the value carried in `accepts[].asset`). */
 export function findX402TokenByAsset(asset: string): X402Token | undefined {
 	for (const symbol of X402_TOKEN_SYMBOLS) {

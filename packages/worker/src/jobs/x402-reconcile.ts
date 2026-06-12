@@ -17,6 +17,7 @@ import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import {
 	X402_STRIKE_TTL_SECONDS,
+	toIndexTxId,
 	x402StrikeKey,
 } from "@secondlayer/shared/x402";
 import { RedisClient } from "bun";
@@ -86,7 +87,7 @@ async function defaultIsCanonical(txid: string): Promise<boolean> {
 	const { rows } = await sql<{ one: number }>`
 		SELECT 1 AS one
 		FROM decoded_events
-		WHERE tx_id = ${txid}
+		WHERE tx_id = ${toIndexTxId(txid)}
 			AND canonical = true
 			AND event_type IN ('stx_transfer', 'ft_transfer')
 		LIMIT 1

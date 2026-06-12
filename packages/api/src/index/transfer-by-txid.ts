@@ -1,5 +1,6 @@
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
+import { toIndexTxId } from "@secondlayer/shared/x402";
 import type { Kysely } from "kysely";
 
 /**
@@ -61,7 +62,7 @@ export async function verifyTransferByTxId(
 
 	const predicates = [
 		sql`canonical = true`,
-		sql`tx_id = ${params.txid}`,
+		sql`tx_id = ${toIndexTxId(params.txid)}`,
 		sql`event_type = ${eventType}`,
 		sql`recipient = ${params.recipient}`,
 		sql`amount = ${amount}`,
