@@ -2,6 +2,26 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## Index — June 2026
+
+### PoX-4 stacking decoded
+
+Index now decodes PoX-4 stacking. `stack-stx`, `delegate-stx`, and reward
+actions are normalized into typed rows at `/v1/index/stacking` — filter by
+stacker, caller, or PoX function with no node and no decoders of your own.
+
+### Keyless reads in open beta
+
+Index reads need no API key during open beta. Anonymous requests work with
+wildcard CORS; a key only raises your rate limit. Public chain data stays
+public.
+
+### Trait-filtered event queries
+
+Restrict any decoded event type or contract call to a SIP standard with
+`?trait=`. `sip-010`, `sip-009`, and `sip-013` scope results to conforming
+contracts without enumerating every contract id.
+
 ## Subgraphs — June 2026
 
 ### Aggregates
