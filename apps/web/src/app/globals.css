@@ -3203,12 +3203,23 @@ a.dataset-shelf-name:hover {
 }
 
 /* ── Dark mode: Shiki dual-theme swap ────────────────────────────── */
+/* Background goes on the root only (not every span) so line-level highlight
+   covers like .pp-line-on aren't clobbered by a forced span background. The
+   .force-dark mirror is required: the OS media query alone misses the explicit
+   theme toggle, leaving the light (near-black) token palette on a dark page. */
 @media (prefers-color-scheme: dark) {
-	.shiki,
-	.shiki span {
-		color: var(--shiki-dark) !important;
+	.shiki {
 		background-color: var(--shiki-dark-bg) !important;
 	}
+	.shiki span {
+		color: var(--shiki-dark) !important;
+	}
+}
+html.force-dark .shiki {
+	background-color: var(--shiki-dark-bg) !important;
+}
+html.force-dark .shiki span {
+	color: var(--shiki-dark) !important;
 }
 
 /* ── Intelligence: Insight / Hint / Banner ────────────────────────── */
@@ -6862,6 +6873,8 @@ a.dataset-shelf-name:hover {
 	gap: 1rem;
 }
 .explore-grid.featured {
+	/* match the pricing page's header→first-component gap (hero pad + 1.5rem) */
+	margin-top: 1.5rem;
 	grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
 }
 @media (max-width: 540px) {
@@ -7102,7 +7115,7 @@ a.dataset-shelf-name:hover {
 
 .explore-empty {
 	position: relative;
-	margin-top: 2rem;
+	margin-top: 1.5rem;
 	min-height: 340px;
 }
 /* faint placeholder cards hint where real subgraphs will land */
@@ -9806,4 +9819,15 @@ html.force-dark .pp {
 .pp-walk-code .shiki .line.pp-line-on {
 	background: var(--accent-bg);
 	box-shadow: inset 2px 0 0 var(--accent);
+}
+/* on dark, the 10%-alpha cover is too faint over the near-black code bg, so the
+   per-line accent bars read as disjoint segments. Use a stronger tint there so
+   the active span reads as one continuous block (matching the light treatment). */
+@media (prefers-color-scheme: dark) {
+	.pp-walk-code .shiki .line.pp-line-on {
+		background: rgba(138, 167, 248, 0.16);
+	}
+}
+html.force-dark .pp-walk-code .shiki .line.pp-line-on {
+	background: rgba(138, 167, 248, 0.16);
 }
