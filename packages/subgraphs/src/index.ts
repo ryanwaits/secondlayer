@@ -49,6 +49,13 @@ export type {
 	ContractDeployPayload,
 } from "./events.ts";
 export { validateSubgraphDefinition } from "./validate.ts";
+export {
+	camelizeDataKey,
+	inferPrintTopics,
+	type InferredPrintField,
+	type InferredTopicSchema,
+	type PrintSample,
+} from "./print-schema.ts";
 export { generateSubgraphSQL } from "./schema/generator.ts";
 export {
 	generatePrismaSchema,
