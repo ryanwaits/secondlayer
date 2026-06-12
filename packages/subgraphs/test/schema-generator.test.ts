@@ -56,8 +56,8 @@ test("maps column types correctly", () => {
 test("generates indexes for indexed columns", () => {
 	const { statements } = generateSubgraphSQL(baseDef);
 	const indexStatements = statements.filter((s) => s.includes("CREATE INDEX"));
-	// 2 auto (block_height, tx_id) + 2 user (recipient, amount)
-	expect(indexStatements.length).toBe(4);
+	// 2 auto (block_height, tx_id) + 2 user (recipient, amount) + 1 journal height
+	expect(indexStatements.length).toBe(5);
 	expect(indexStatements.some((s) => s.includes("recipient"))).toBe(true);
 	expect(indexStatements.some((s) => s.includes("amount"))).toBe(true);
 });
@@ -137,9 +137,11 @@ test("generates multiple tables", () => {
 	};
 	const { statements } = generateSubgraphSQL(def);
 	const creates = statements.filter((s) => s.startsWith("CREATE TABLE"));
-	expect(creates.length).toBe(2);
+	// 2 user tables + the per-schema _journal
+	expect(creates.length).toBe(3);
 	expect(creates[0]).toContain("subgraph_marketplace.listings");
 	expect(creates[1]).toContain("subgraph_marketplace.sales");
+	expect(creates[2]).toContain("subgraph_marketplace._journal");
 });
 
 // emitTableDDL is the SINGLE per-table emitter shared by the full generator and
@@ -158,7 +160,7 @@ test("emitTableDDL includes unique constraints, composite indexes, and defaults"
 	});
 	const joined = stmts.join("\n");
 	expect(joined).toContain(
-		'ADD CONSTRAINT uq_subgraph_x_rows_key UNIQUE (key)',
+		"ADD CONSTRAINT uq_subgraph_x_rows_key UNIQUE (key)",
 	);
 	expect(joined).toContain("composite_0");
 	expect(joined).toContain("(seller, status)");

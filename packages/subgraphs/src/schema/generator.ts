@@ -63,6 +63,12 @@ export function emitTableDDL(
 		if (col.default !== undefined) {
 			colDef += ` DEFAULT ${escapeLiteralDefault(col.default)}`;
 		}
+		// uint is unsigned by definition — fail loudly instead of silently
+		// storing a negative (fix-f040 B4). Handlers run in chain order, so a
+		// legitimate same-block receive-then-spend never trips this.
+		if (col.type === "uint") {
+			colDef += ` CHECK (${colName} >= 0)`;
+		}
 		columnDefs.push(colDef);
 	}
 	statements.push(
@@ -122,6 +128,27 @@ export function emitTableDDL(
 	return statements;
 }
 
+/**
+ * Per-schema revert journal. Before every keyed mutation (upsert / increment /
+ * update / delete) the flush records the row's prior state; a reorg restores
+ * those states instead of deleting whole rows by `_block_height` — which is
+ * only correct for append-only tables, not accumulators (fix-f040 B2).
+ * `prev_row IS NULL` marks a row first created by the journaled op.
+ */
+export function emitJournalDDL(schemaName: string): string[] {
+	return [
+		`CREATE TABLE IF NOT EXISTS ${schemaName}._journal (
+  _jid BIGSERIAL PRIMARY KEY,
+  block_height BIGINT NOT NULL,
+  table_name TEXT NOT NULL,
+  row_key JSONB NOT NULL,
+  prev_row JSONB,
+  _created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+)`,
+		`CREATE INDEX IF NOT EXISTS idx_${schemaName}_journal_height ON ${schemaName}._journal (block_height)`,
+	];
+}
+
 /** Foreign-key DDL for one table's relations. Emit AFTER every referenced table
  *  exists; references require the target columns to be a UNIQUE key. */
 export function emitForeignKeyDDL(
@@ -167,6 +194,9 @@ export function generateSubgraphSQL(
 	for (const [tableName, tableDef] of Object.entries(def.schema)) {
 		statements.push(...emitTableDDL(schemaName, tableName, tableDef));
 	}
+
+	// Revert journal (one per schema) — see emitJournalDDL.
+	statements.push(...emitJournalDDL(schemaName));
 
 	// Foreign keys are added in a second pass so every referenced table exists.
 	// These mirror the ORM relations emitted by the codegen (no drift) and require
