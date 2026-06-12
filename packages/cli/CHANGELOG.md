@@ -1,5 +1,13 @@
 # @secondlayer/cli
 
+## 8.10.1
+
+### Patch Changes
+
+- bcc16bf: create --from-contract / codegen --payloads no longer demand `sl login` — print-schema is an open read, falls back to an anonymous client when no session/key resolves
+- Updated dependencies [a285bbb]
+  - @secondlayer/subgraphs@3.14.1
+
 ## 8.10.0
 
 ### Minor Changes
