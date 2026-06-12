@@ -40,6 +40,8 @@ import walletRouter from "./routes/wallet.ts";
 import webhooksStripeRouter from "./routes/webhooks-stripe.ts";
 import x402Router from "./routes/x402.ts";
 import { apiTelemetry } from "./telemetry/api.ts";
+import { isX402Enabled } from "./x402/facilitator.ts";
+import { primeSpot } from "./x402/spot.ts";
 
 const mode = getInstanceMode();
 
@@ -271,6 +273,12 @@ const server = Bun.serve({
 	// reverted in commit 9a4c8d35 after first landing in 0650816b — keep it.
 	idleTimeout: 90,
 });
+
+// Warm the x402 spot cache at boot so the first 402s carry live prices, not the
+// env fallback. Best-effort + non-blocking (failures are logged + backed off).
+if (isX402Enabled()) {
+	void primeSpot();
+}
 
 const shutdown = async () => {
 	logger.info("Shutting down API service...");

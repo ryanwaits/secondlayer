@@ -48,6 +48,27 @@ describe("spotUsd", () => {
 		expect(spotUsd("sBTC")).toBe(64000);
 		expect(spotUsd("STX")).toBe(1.85);
 	});
+
+	test("a failed refresh is throttled — price reads don't re-fire the feed (retry-storm guard)", async () => {
+		// Reproduces the prod outage: CoinGecko 429s, and every request used to
+		// re-fire a refresh (fetchedAt never advanced on failure) → permanent
+		// 429 storm → cache never populated. After one failed attempt, further
+		// `spotUsd()` reads must NOT hit the feed again until the backoff elapses.
+		let calls = 0;
+		globalThis.fetch = (async () => {
+			calls++;
+			return new Response("", { status: 429 });
+		}) as unknown as typeof fetch;
+
+		await _refreshX402SpotForTests(); // attempt #1 → 429
+		expect(calls).toBe(1);
+
+		// These reads happen well inside the post-failure backoff window.
+		spotUsd("STX");
+		spotUsd("STX");
+		spotUsd("sBTC");
+		expect(calls).toBe(1); // no second feed hit — throttled
+	});
 });
 
 describe("buildAccepts degrades to USDCx-only when sBTC/STX can't be priced", () => {
