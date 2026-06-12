@@ -6,7 +6,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
 	title: "Streams | secondlayer",
 	description:
-		"The raw event firehose for Stacks — ordered, cursor-paginated, reorg-aware. Consume over SSE, REST, or signed parquet dumps. x402-compatible.",
+		"The raw event firehose for Stacks — ordered, cursor-paginated, reorg-aware. Consume over SSE, REST, or signed bulk dumps. x402-compatible.",
 };
 
 const CONSUME_CODE = `import { createStreamsClient } from "@secondlayer/sdk";
@@ -47,8 +47,8 @@ export default function StreamsPage() {
 				<p className="pp-sub">
 					Streams is the immutable, replayable log of everything the chain emits
 					— ordered, cursor-paginated, and reorg-aware. Tail the tip over SSE,
-					page it over REST, or pull signed parquet dumps. This is the layer
-					you'd run a node for.
+					page it over REST, or pull signed bulk dumps. This is the layer you'd
+					run a node for.
 				</p>
 				<div className="pp-ctas">
 					<Link href="/docs/streams" className="pp-btn pp-btn-ink">
@@ -119,12 +119,11 @@ export default function StreamsPage() {
 					<h2>
 						One firehose, three ways in.
 						<br />
-						<span className="dim">Live SSE, bulk parquet, or x402.</span>
+						<span className="dim">Stream it, pull it, or pay per call.</span>
 					</h2>
 					<p>
-						Tail the tip live over a single connection, backfill cold history
-						from signed parquet, or pay per call with x402 — no account
-						required.
+						Tail the tip over SSE, backfill cold history from signed dumps, or
+						let an agent pay per call with x402, no account required.
 					</p>
 					<Link href="/docs/streams" className="pp-docs-link">
 						Read the Streams docs <span className="ar">→</span>
@@ -157,16 +156,16 @@ export default function StreamsPage() {
 						</div>
 					</div>
 
-					{/* Bulk — signed parquet manifest */}
+					{/* Bulk — signed dumps manifest */}
 					<div className="pp-surface">
 						<h4>Bulk</h4>
 						<p>
-							Backfill cold history from signed parquet, then tail live with no
+							Backfill cold history from signed dumps, then tail live with no
 							gap.
 						</p>
 						<div className="pp-vis">
 							<div className="pp-cli">
-								<div className="mut">signed parquet dumps</div>
+								<div className="mut">signed bulk dumps</div>
 								<div>
 									<span className="ok">✓</span> 0008240000-0008249999.parquet
 								</div>
@@ -235,7 +234,7 @@ export default function StreamsPage() {
 					</h2>
 					<p>
 						Every event the chain emits, ordered and replayable — over SSE,
-						REST, or signed parquet.
+						REST, or signed dumps.
 					</p>
 					<div className="pp-ctas">
 						<Link href="/docs/streams" className="pp-btn pp-btn-ink">

@@ -114,13 +114,13 @@ export default function IndexPage() {
 			<section className="pp-section pp-wrap">
 				<div className="pp-section-head">
 					<h2>
-						Read it your way.
+						One layer.
 						<br />
-						<span className="dim">SDK, CLI, or agent.</span>
+						<span className="dim">Three ways in.</span>
 					</h2>
 					<p>
-						One decoded layer, three ways in. Filter, paginate, and walk the
-						same rows over the typed SDK, your shell, or an MCP harness.
+						Filter, paginate, and cursor-walk the same decoded rows from the
+						typed SDK, your terminal, or an agent.
 					</p>
 					<Link href="/docs/index" className="pp-docs-link">
 						Read the Index docs <span className="ar">→</span>
