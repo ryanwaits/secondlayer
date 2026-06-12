@@ -1,5 +1,17 @@
 # @secondlayer/scaffold
 
+## 1.3.0
+
+### Minor Changes
+
+- 05b1b12: empirical print-event schema inference: GET /v1/index/contracts/:id/print-schema derives per-topic payload schemas (exact Clarity types from raw_value, presence rates) from indexed history; `sl subgraphs create --from-contract` scaffolds typed defs with prints maps + nullability comments (--table-per-topic for normalized layout); `sl subgraphs codegen --payloads` emits per-topic .d.ts; deploys warn on handler fields never observed for a source's topics; SDK index.printSchema + MCP index_print_schema; prints accepted by filter validation
+
+### Patch Changes
+
+- Updated dependencies [ab8360d]
+- Updated dependencies [05b1b12]
+  - @secondlayer/subgraphs@3.14.0
+
 ## 1.2.0
 
 ### Minor Changes
