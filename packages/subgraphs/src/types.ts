@@ -262,6 +262,17 @@ export interface SubgraphContext {
 		row: Record<string, unknown>,
 	): void;
 	delete(table: string, where: Record<string, unknown>): void;
+	/**
+	 * Atomic counter update — the blessed accumulator primitive. Applies
+	 * `col = COALESCE(col, 0) + delta` per column (insert-or-add); deltas may
+	 * be negative. Requires a uniqueKeys constraint matching `key`. Prefer
+	 * this over patchOrInsert with functional updaters for running totals.
+	 */
+	increment(
+		table: string,
+		key: Record<string, unknown>,
+		deltas: Record<string, bigint | number>,
+	): void;
 	/** Partial update — sets only specified fields, preserves others */
 	patch(
 		table: string,

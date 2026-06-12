@@ -12,6 +12,8 @@ type TxRecord = {
 	type: string;
 	sender: string;
 	status: string;
+	/** Position within the block — the runner sorts dispatch into chain order. */
+	tx_index?: number;
 	contract_id?: string | null;
 	function_name?: string | null;
 	function_args?: unknown | null;

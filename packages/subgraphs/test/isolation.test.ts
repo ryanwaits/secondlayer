@@ -26,6 +26,12 @@ function mockCtx() {
 			calls.push({ method: "delete", args: [table, where] });
 		},
 		pendingOps: 0,
+		opsCheckpoint() {
+			return calls.length;
+		},
+		rollbackTo(checkpoint: number) {
+			calls.length = checkpoint;
+		},
 		async flush() {
 			return 0;
 		},

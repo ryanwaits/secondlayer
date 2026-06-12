@@ -380,7 +380,44 @@ export async function runHandlers(
 		}
 	}
 
+	// Flatten matches to per-event dispatch units and sort into CHAIN order
+	// (tx_index, then event_index; tx-level matches first within their tx).
+	// The matcher groups results by source, so without this a block's mints
+	// all run before (or after) its transfers — a debit could apply before
+	// the same block's funding credit, which on-chain ordering forbids. Chain
+	// order makes per-statement invariants (e.g. uint CHECK >= 0) sound.
+	type DispatchUnit = {
+		tx: MatchedTx["tx"];
+		sourceName: string;
+		event: MatchedTx["events"][0] | null;
+	};
+	const units: DispatchUnit[] = [];
 	for (const { tx, events, sourceName } of matched) {
+		if (events.length === 0) {
+			units.push({ tx, sourceName, event: null });
+		} else {
+			for (const event of events) units.push({ tx, sourceName, event });
+		}
+	}
+	units.sort(
+		(a, b) =>
+			(a.tx.tx_index ?? 0) - (b.tx.tx_index ?? 0) ||
+			(a.event?.event_index ?? -1) - (b.event?.event_index ?? -1),
+	);
+
+	for (const { tx, event, sourceName } of units) {
+		if (errors >= threshold) {
+			logger.error(
+				"Subgraph error threshold reached, skipping remaining events",
+				{
+					subgraph: subgraph.name,
+					errors,
+					threshold,
+				},
+			);
+			return { processed, errors };
+		}
+
 		const handler =
 			subgraph.handlers[sourceName] ?? subgraph.handlers["*"] ?? null;
 		if (!handler) {
@@ -403,10 +440,15 @@ export async function runHandlers(
 
 		const filter = filterLookup.get(sourceName);
 
-		// If no events but tx matched, call handler with tx-level data
-		if (events.length === 0) {
-			try {
-				const payload = filter
+		// Checkpoint the ops queue: a handler that throws mid-way must
+		// contribute nothing — a partial flush (e.g. a debit without its
+		// credit) silently corrupts accumulator tables (fix-f040 B6).
+		const checkpoint = ctx.opsCheckpoint();
+		try {
+			let payload: Record<string, unknown>;
+			if (event === null) {
+				// Tx-level match (contract_call / contract_deploy)
+				payload = filter
 					? buildEventPayload(filter, tx, null)
 					: {
 							tx: {
@@ -418,80 +460,49 @@ export async function runHandlers(
 								functionName: tx.function_name,
 							},
 						};
-				await handler(payload, ctx);
-				processed++;
-			} catch (err) {
-				errors++;
-				logger.error("Subgraph handler error", {
-					subgraph: subgraph.name,
-					sourceName,
-					txId: tx.tx_id,
-					error: getErrorMessage(err),
-				});
-			}
-			continue;
-		}
-
-		for (const event of events) {
-			if (errors >= threshold) {
-				logger.error(
-					"Subgraph error threshold reached, skipping remaining events",
-					{
-						subgraph: subgraph.name,
-						errors,
-						threshold,
+			} else if (filter) {
+				payload = buildEventPayload(filter, tx, event);
+			} else {
+				const decoded = decodeEventData(event.data) as Record<string, unknown>;
+				payload = {
+					...decoded,
+					_eventId: event.id,
+					_eventType: event.type,
+					_eventIndex: event.event_index,
+					tx: {
+						txId: tx.tx_id,
+						sender: tx.sender,
+						type: tx.type,
+						status: tx.status,
+						contractId: tx.contract_id,
+						functionName: tx.function_name,
 					},
-				);
-				return { processed, errors };
+				};
 			}
 
-			try {
-				const payload = filter
-					? buildEventPayload(filter, tx, event)
-					: (() => {
-							const decoded = decodeEventData(event.data) as Record<
-								string,
-								unknown
-							>;
-							return {
-								...decoded,
-								_eventId: event.id,
-								_eventType: event.type,
-								_eventIndex: event.event_index,
-								tx: {
-									txId: tx.tx_id,
-									sender: tx.sender,
-									type: tx.type,
-									status: tx.status,
-									contractId: tx.contract_id,
-									functionName: tx.function_name,
-								},
-							};
-						})();
-
-				// Post-decode topic filter for print_event — source-matcher defers this
-				// because data.value is raw hex at match time; apply it now after decode.
-				if (
-					filter?.type === "print_event" &&
-					filter.topic &&
-					(payload as Record<string, unknown>).topic !== filter.topic
-				) {
-					continue;
-				}
-
-				await handler(payload, ctx);
-				processed++;
-			} catch (err) {
-				errors++;
-				logger.error("Subgraph handler error", {
-					subgraph: subgraph.name,
-					sourceName,
-					txId: tx.tx_id,
-					eventId: event.id,
-					eventType: event.type,
-					error: getErrorMessage(err),
-				});
+			// Post-decode topic filter for print_event — source-matcher defers this
+			// because data.value is raw hex at match time; apply it now after decode.
+			if (
+				event !== null &&
+				filter?.type === "print_event" &&
+				filter.topic &&
+				payload.topic !== filter.topic
+			) {
+				continue;
 			}
+
+			await handler(payload, ctx);
+			processed++;
+		} catch (err) {
+			ctx.rollbackTo(checkpoint);
+			errors++;
+			logger.error("Subgraph handler error", {
+				subgraph: subgraph.name,
+				sourceName,
+				txId: tx.tx_id,
+				...(event !== null ? { eventId: event.id, eventType: event.type } : {}),
+				error: getErrorMessage(err),
+			});
 		}
 	}
 
