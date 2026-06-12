@@ -9350,3 +9350,165 @@ html.force-dark .pp {
 		animation: none;
 	}
 }
+
+/* ---- file tabs (interactive editor) ------------------------ */
+.pp-win-solo {
+	position: relative;
+	z-index: 2;
+	max-width: 760px;
+	margin: 0 auto;
+}
+.pp-tabrow {
+	display: flex;
+	height: 32px;
+	border-bottom: 1px solid var(--border);
+	background: var(--bg-chrome);
+}
+.pp-tab {
+	display: inline-flex;
+	align-items: center;
+	padding: 0 14px;
+	font-family: var(--font-mono-stack);
+	font-size: 0.7rem;
+	color: var(--text-muted);
+	background: transparent;
+	border: 0;
+	border-right: 1px solid var(--border);
+	cursor: pointer;
+	white-space: nowrap;
+}
+.pp-tab:hover {
+	color: var(--text-main);
+}
+.pp-tab.on {
+	background: var(--bg-elevated);
+	color: var(--text-main);
+}
+
+/* ---- real CodeBlock dropped into a card ("code view") ------ */
+.pp-codeview {
+	margin-top: auto;
+	border-radius: 8px;
+	overflow: hidden;
+	background: var(--bg-elevated);
+	box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06), 0 0 0 1px var(--border);
+}
+.pp-codeview .pp-bar {
+	height: 26px;
+	background: var(--bg-chrome);
+}
+.pp-codeview .pp-dots i {
+	width: 7px;
+	height: 7px;
+}
+.pp-codeview .code-block-wrapper {
+	margin: 0;
+}
+.pp-codeview .code-block-wrapper pre {
+	background: transparent !important;
+	margin: 0;
+	padding: 13px 15px;
+	font-size: 0.72rem;
+	line-height: 1.7;
+	overflow-x: auto;
+}
+.pp-codeview .copy-button {
+	display: none;
+}
+.pp-surface.code {
+	min-height: 0;
+	padding-bottom: 1.5rem;
+}
+
+/* ---- bespoke surface visuals (unique per Index surface) ---- */
+.pp-vis {
+	margin-top: auto;
+	border-radius: 8px;
+	overflow: hidden;
+	background: var(--bg-elevated);
+	box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06), 0 0 0 1px var(--border);
+	min-height: 150px;
+	display: flex;
+	flex-direction: column;
+}
+.pp-req {
+	font-family: var(--font-mono-stack);
+	font-size: 0.66rem;
+	line-height: 1.7;
+	padding: 12px 14px;
+	color: var(--ppc-fg);
+}
+.pp-req .verb {
+	color: var(--accent);
+	font-weight: 600;
+}
+.pp-req .status {
+	color: var(--green);
+}
+.pp-req .res {
+	margin-top: 8px;
+	padding-top: 10px;
+	border-top: 1px solid var(--border);
+	color: var(--text-muted);
+}
+.pp-req .res .key {
+	color: var(--ppc-fg);
+}
+.pp-cli {
+	flex: 1;
+	font-family: var(--font-mono-stack);
+	font-size: 0.66rem;
+	line-height: 1.75;
+	padding: 12px 14px;
+	color: var(--ppc-fg);
+}
+.pp-cli .pfx {
+	color: var(--accent);
+}
+.pp-cli .ok {
+	color: var(--green);
+}
+.pp-cli .mut {
+	color: var(--text-muted);
+}
+.pp-agent {
+	flex: 1;
+	padding: 13px 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 9px;
+	font-family: var(--font-sans-stack);
+	font-size: 0.72rem;
+}
+.pp-bubble {
+	align-self: flex-start;
+	max-width: 92%;
+	background: var(--bg-chrome);
+	border: 1px solid var(--border);
+	border-radius: 10px 10px 10px 3px;
+	padding: 7px 11px;
+	color: var(--text-main);
+	line-height: 1.4;
+}
+.pp-toolchip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	align-self: flex-start;
+	font-family: var(--font-mono-stack);
+	font-size: 0.64rem;
+	color: var(--accent);
+	background: var(--accent-bg);
+	border: 1px solid var(--accent-border);
+	border-radius: 6px;
+	padding: 3px 8px;
+}
+.pp-agent .done {
+	font-family: var(--font-mono-stack);
+	font-size: 0.66rem;
+	color: var(--text-muted);
+}
+.pp-agent .done b {
+	color: var(--green);
+	font-weight: 600;
+}

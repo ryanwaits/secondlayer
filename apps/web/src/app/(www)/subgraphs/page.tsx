@@ -1,3 +1,5 @@
+import { CodeBlock } from "@/components/code-block";
+import { getHighlights } from "@/lib/changelog";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -7,35 +9,55 @@ export const metadata: Metadata = {
 		"Your own indexer, minus the node. Write handlers in one TypeScript file, get typed Postgres tables shaped exactly for your app.",
 };
 
-const HIGHLIGHTS = [
+const SOURCES_CODE = `sources: {
+  transfer: {
+    type: "stx_transfer",
+  },
+},`;
+
+const SCHEMA_CODE = `schema: {
+  transfers: {
+    columns: {
+      sender: { type: "principal", indexed: true },
+      recipient: { type: "principal", indexed: true },
+      amount: { type: "uint" },
+    },
+  },
+},`;
+
+const HANDLERS_CODE = `handlers: {
+  transfer: (event, ctx) => {
+    ctx.insert("transfers", {
+      sender: event.sender,
+      recipient: event.recipient,
+      amount: event.amount,
+    });
+  },
+},`;
+
+const PARTS = [
 	{
-		title: "Explore is live",
-		body: (
-			<>
-				Every public subgraph now gets a live, anon-readable page at{" "}
-				<code>/subgraphs/explore</code> — fork any one to scaffold your own.
-			</>
-		),
-		meta: "Product · Jun 9, 2026",
+		title: "Sources",
+		desc: "Name the on-chain events your subgraph listens for — by type, contract, or trait.",
+		file: "sources.ts",
+		code: SOURCES_CODE,
 	},
 	{
-		title: "Safe BYO deploys",
-		body: "Breaking-change deploys return a migration plan before any destructive rebuild. Nothing drops without your say-so.",
-		meta: "Changelog · Jun 6, 2026",
+		title: "Schema",
+		desc: "Declare the Postgres tables and columns you want. principal, uint, text, jsonb, and more.",
+		file: "schema.ts",
+		code: SCHEMA_CODE,
 	},
 	{
-		title: "Generated typed clients",
-		body: (
-			<>
-				<code>sl subgraphs client</code> emits table types and autocompletion
-				shaped to your schema. Query with full inference.
-			</>
-		),
-		meta: "Product · May 20, 2026",
+		title: "Handlers",
+		desc: "Turn each event into rows with the write context — insert, upsert, findOne.",
+		file: "handlers.ts",
+		code: HANDLERS_CODE,
 	},
 ];
 
 export default function SubgraphsPage() {
+	const highlights = getHighlights("subgraphs");
 	return (
 		<main className="pp">
 			<header className="pp-hero">
@@ -183,7 +205,7 @@ export default function SubgraphsPage() {
 				</div>
 			</section>
 
-			{/* THREE PARTS: source / schema / handler */}
+			{/* THREE PARTS: source / schema / handler — real code views */}
 			<section className="pp-section pp-wrap">
 				<div className="pp-section-head">
 					<h2>
@@ -200,112 +222,38 @@ export default function SubgraphsPage() {
 					</Link>
 				</div>
 				<div className="pp-surfaces three">
-					<div className="pp-surface">
-						<h4>Sources</h4>
-						<p>Name the on-chain events your subgraph listens for.</p>
-						<Link href="/docs/subgraphs" className="pp-go">
-							by type, contract, or trait →
-						</Link>
-						<div className="pp-mini">
-							<div className="pp-bar">
-								<div className="pp-dots">
-									<i />
-									<i />
-									<i />
+					{PARTS.map((part) => (
+						<div key={part.title} className="pp-surface code">
+							<h4>{part.title}</h4>
+							<p>{part.desc}</p>
+							<div className="pp-codeview">
+								<div className="pp-bar">
+									<div className="pp-dots">
+										<i />
+										<i />
+										<i />
+									</div>
+									<div className="pp-title">{part.file}</div>
 								</div>
-							</div>
-							<div className="pp-mini-body">
-								<div>sources: &#123;</div>
-								<div>
-									&nbsp;&nbsp;<span className="pp-fn">transfer</span>: &#123;
-								</div>
-								<div>
-									&nbsp;&nbsp;&nbsp;&nbsp;type:{" "}
-									<span className="pp-s">"stx_transfer"</span>
-								</div>
-								<div>&nbsp;&nbsp;&#125;,</div>
-								<div>&#125;,</div>
+								<CodeBlock code={part.code} lang="typescript" />
 							</div>
 						</div>
-					</div>
-					<div className="pp-surface">
-						<h4>Schema</h4>
-						<p>Declare the Postgres tables and columns you want.</p>
-						<Link href="/docs/subgraphs" className="pp-go">
-							principal · uint · text · jsonb →
-						</Link>
-						<div className="pp-mini">
-							<div className="pp-bar">
-								<div className="pp-dots">
-									<i />
-									<i />
-									<i />
-								</div>
-							</div>
-							<div className="pp-mini-body">
-								<div>schema: &#123;</div>
-								<div>
-									&nbsp;&nbsp;<span className="pp-fn">transfers</span>: &#123;
-								</div>
-								<div>&nbsp;&nbsp;&nbsp;&nbsp;columns: &#123;</div>
-								<div>
-									&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sender: &#123; type:{" "}
-									<span className="pp-s">"principal"</span>,
-								</div>
-								<div>
-									&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;indexed:{" "}
-									<span className="pp-k">true</span> &#125;,
-								</div>
-								<div>
-									&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;amount: &#123; type:{" "}
-									<span className="pp-s">"uint"</span> &#125;,
-								</div>
-							</div>
-						</div>
-					</div>
-					<div className="pp-surface">
-						<h4>Handlers</h4>
-						<p>Turn each event into rows with the write context.</p>
-						<Link href="/docs/subgraphs" className="pp-go">
-							ctx.insert · upsert · findOne →
-						</Link>
-						<div className="pp-mini">
-							<div className="pp-bar">
-								<div className="pp-dots">
-									<i />
-									<i />
-									<i />
-								</div>
-							</div>
-							<div className="pp-mini-body">
-								<div>
-									<span className="pp-fn">transfer</span>: (event, ctx) =&gt;
-									&#123;
-								</div>
-								<div>
-									&nbsp;&nbsp;ctx.<span className="pp-fn">insert</span>(
-									<span className="pp-s">"transfers"</span>, &#123;
-								</div>
-								<div>&nbsp;&nbsp;&nbsp;&nbsp;sender: event.sender,</div>
-								<div>&nbsp;&nbsp;&nbsp;&nbsp;recipient: event.recipient,</div>
-								<div>&nbsp;&nbsp;&nbsp;&nbsp;amount: event.amount,</div>
-								<div>&nbsp;&nbsp;&#125;);</div>
-							</div>
-						</div>
-					</div>
+					))}
 				</div>
 			</section>
 
-			{/* RECENT HIGHLIGHTS */}
+			{/* RECENT HIGHLIGHTS — derived from /docs/changelog */}
 			<section className="pp-band">
 				<div className="pp-wrap pp-highlights">
 					<span className="pp-hl-label">Recent highlights</span>
 					<div className="pp-posts">
-						{HIGHLIGHTS.map((h) => (
-							<Link key={h.title} href="/docs/changelog" className="pp-post">
+						{highlights.map((h) => (
+							<Link key={h.slug} href={h.href} className="pp-post">
 								<h4>{h.title}</h4>
-								<p>{h.body}</p>
-								<span className="meta">{h.meta}</span>
+								<p>{h.summary}</p>
+								<span className="meta">
+									{h.productLabel} · {h.date}
+								</span>
 							</Link>
 						))}
 						<Link href="/docs/changelog" className="pp-more">
