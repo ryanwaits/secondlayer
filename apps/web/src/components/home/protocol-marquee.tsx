@@ -1,4 +1,6 @@
 import { PLATFORM_API_URL } from "@/lib/api";
+import type { CSSProperties } from "react";
+import { MarqueeZone } from "./marquee-zone";
 
 type ExploreListLite = {
 	subgraphs: { sources?: string[]; visibility: string }[];
@@ -75,14 +77,14 @@ export async function ProtocolMarquee() {
 	const durationSeconds = copy.length * 4.8;
 
 	return (
-		<div className="home-marquee-zone">
+		<MarqueeZone>
 			<div
 				className="home-marquee"
 				aria-label="Protocols indexed on Secondlayer"
 			>
 				<div
 					className="home-marquee-track"
-					style={{ animationDuration: `${durationSeconds}s` }}
+					style={{ "--marq-dur": `${durationSeconds}s` } as CSSProperties}
 				>
 					{doubled.map((t, i) => (
 						<div className="home-proto" key={`${t.name}-${i}`}>
@@ -92,6 +94,6 @@ export async function ProtocolMarquee() {
 					))}
 				</div>
 			</div>
-		</div>
+		</MarqueeZone>
 	);
 }

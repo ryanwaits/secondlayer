@@ -8286,11 +8286,10 @@ a.dataset-shelf-name:hover {
 }
 @media (prefers-reduced-motion: no-preference) {
 	.home-marquee-track {
-		animation: home-marquee-scroll 48s linear infinite;
-	}
-	/* ease off ~50% on hover so the logos are readable, without stopping dead */
-	.home-marquee:hover .home-marquee-track {
-		animation-duration: 96s;
+		/* duration comes from a count-derived custom prop set inline. Hover
+		   slowdown is handled in JS via the Web Animations API playbackRate
+		   (see MarqueeZone) — changing animation-duration here would jump. */
+		animation: home-marquee-scroll var(--marq-dur, 48s) linear infinite;
 	}
 	@keyframes home-marquee-scroll {
 		to {
