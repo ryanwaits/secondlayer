@@ -11,9 +11,9 @@ Secondlayer is the hosted indexer for Stacks: curl decoded chain data keyless in
 ten seconds, or deploy a one-file TypeScript indexer and get your own hosted
 Postgres tables behind a public REST API — no node, no infra.
 
-## Two products
+## Three products
 
-Everything we market is one of these two. Everything else is a feature of them.
+Everything we market is one of these three. Everything else is a feature of them.
 
 **Index** — indexer-as-a-service. We run the indexer; you query decoded Stacks
 data (events, transfers, blocks, transactions) over REST with a cursor envelope.
@@ -23,12 +23,15 @@ Keyless. For app devs and agents who want answers tonight, not infrastructure.
 file → deploy → hosted Postgres tables behind the same public `/v1` read API.
 The monetization core: private subgraphs, genesis backfill, and scale live here.
 
+**Streams** — the raw signed event firehose + parquet dumps. The inputs, not our
+decoding: cursor-paginated REST, SSE tail, signed manifests, replay from any
+height. For data/infra engineers building their own indexer or ETL. Also the
+internal data plane the decoders and subgraphs ride.
+
 ### Features (not products)
 
 - **Subscriptions** — webhooks on any subgraph table or raw chain event. The
-  push channel for both products. Keeps its name; never a nav-level product.
-- **Streams / Dumps** — the raw signed event firehose + parquet dumps. Internal
-  data plane first; externally a feature for the dev *building their own indexer*.
+  push channel for the products. Keeps its name; never a nav-level product.
 - **Explore** — the public directory of subgraphs. Social proof + distribution;
   every card is a live API.
 - **MCP server** — distribution channel for agents, not a product noun. Golden-path

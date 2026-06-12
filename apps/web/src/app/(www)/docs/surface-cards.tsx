@@ -10,8 +10,8 @@ interface Surface {
 	wide?: boolean;
 }
 
-/** Two products, then their features — mirrors STRATEGY.md's taxonomy.
- *  Streams spans the full row. */
+/** Three products, then their features — mirrors STRATEGY.md's taxonomy.
+ *  Subscriptions spans the full row. */
 const SURFACES: Surface[] = [
 	{
 		n: "01",
@@ -31,19 +31,19 @@ const SURFACES: Surface[] = [
 	},
 	{
 		n: "03",
-		name: "Subscriptions",
-		href: "/docs/subscriptions",
-		desc: "The push channel — matched rows or chain events to your webhook, signed.",
-		verb: "POST",
-		ep: "→ your webhook",
-	},
-	{
-		n: "04",
 		name: "Streams",
 		href: "/docs/streams",
 		desc: "Raw signed event firehose + dumps — for building your own indexer.",
 		verb: "GET",
 		ep: "/v1/streams",
+	},
+	{
+		n: "04",
+		name: "Subscriptions",
+		href: "/docs/subscriptions",
+		desc: "The push channel — matched rows or chain events to your webhook, signed.",
+		verb: "POST",
+		ep: "→ your webhook",
 		wide: true,
 	},
 ];

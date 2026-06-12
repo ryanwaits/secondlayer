@@ -3,9 +3,10 @@
 [![Status](https://img.shields.io/badge/status-public-111111)](https://secondlayer.tools/status)
 
 The hosted indexer for Stacks. Curl decoded chain data keyless in ten seconds
-(**Index**), or deploy a one-file TypeScript indexer and get hosted Postgres
-tables behind a public REST API (**Subgraphs**) — no node, no infra. Webhooks,
-raw signed dumps, and an MCP server included. See [STRATEGY.md](STRATEGY.md).
+(**Index**), deploy a one-file TypeScript indexer and get hosted Postgres
+tables behind a public REST API (**Subgraphs**), or consume the raw signed
+event firehose + parquet dumps to build your own (**Streams**) — no node, no
+infra. Webhooks and an MCP server included. See [STRATEGY.md](STRATEGY.md).
 
 ```bash
 curl "https://api.secondlayer.tools/v1/index/events?event_type=ft_transfer&limit=5"
