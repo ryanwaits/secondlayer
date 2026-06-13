@@ -46,10 +46,10 @@ describe("account MCP tools", () => {
 			const request =
 				input instanceof Request ? input : new Request(input.toString(), init);
 			requests.push({ method: request.method, url: request.url });
-			return new Response(
-				JSON.stringify({ email: "a@b.com", plan: "build" }),
-				{ status: 200, headers: { "Content-Type": "application/json" } },
-			);
+			return new Response(JSON.stringify({ email: "a@b.com", plan: "build" }), {
+				status: 200,
+				headers: { "Content-Type": "application/json" },
+			});
 		}) as typeof fetch;
 
 		const whoami = tools.find((t) => t.name === "account_whoami");

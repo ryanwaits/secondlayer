@@ -238,7 +238,12 @@ export const SOURCE_READ_COLUMNS = {
 };
 
 /** Portable column type for the Index read domain (a lean, ORM-agnostic vocab). */
-export type IndexColumnType = "text" | "int" | "boolean" | "timestamp" | "jsonb";
+export type IndexColumnType =
+	| "text"
+	| "int"
+	| "boolean"
+	| "timestamp"
+	| "jsonb";
 
 export interface IndexColumn {
 	type: IndexColumnType;

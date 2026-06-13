@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { FallbackBlockSource } from "../src/runtime/block-source.ts";
 import type { BlockData } from "../src/runtime/batch-loader.ts";
+import { FallbackBlockSource } from "../src/runtime/block-source.ts";
 import type { BlockSource } from "../src/runtime/block-source.ts";
 
 const RANGE: Map<number, BlockData> = new Map();

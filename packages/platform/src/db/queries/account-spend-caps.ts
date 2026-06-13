@@ -1,10 +1,10 @@
-import type { Kysely } from "kysely";
 import type {
 	AccountSpendCap,
 	Database,
 	InsertAccountSpendCap,
 	UpdateAccountSpendCap,
 } from "@secondlayer/shared/db";
+import type { Kysely } from "kysely";
 
 /**
  * Spend-cap state for an account. Both the metering crons (check + set

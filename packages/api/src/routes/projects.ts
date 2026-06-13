@@ -1,11 +1,11 @@
 import crypto from "node:crypto";
-import { getDb } from "@secondlayer/shared/db";
 import {
 	getProjectBySlug,
 	getProjectsByAccount,
 	getTeamInvitations,
 	getTeamMembers,
 } from "@secondlayer/platform/db/queries/projects";
+import { getDb } from "@secondlayer/shared/db";
 import { AuthenticationError } from "@secondlayer/shared/errors";
 import { type Context, Hono } from "hono";
 

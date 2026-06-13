@@ -62,7 +62,10 @@ describe("Index /events query parsing", () => {
 
 	test("trait is rejected for STX event types (no contract_id)", () => {
 		expect(() =>
-			parseIndexEventsQuery(params("?event_type=stx_transfer&trait=sip-010"), TIP),
+			parseIndexEventsQuery(
+				params("?event_type=stx_transfer&trait=sip-010"),
+				TIP,
+			),
 		).toThrow(/unknown query param: trait|not supported/);
 	});
 

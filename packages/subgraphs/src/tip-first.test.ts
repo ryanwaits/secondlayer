@@ -52,14 +52,11 @@ describe("tip-first deploy plumbing", () => {
 			},
 		};
 		// biome-ignore lint/suspicious/noExplicitAny: schema shapes for diff
-		expect(
-			hasBreakingChanges(diffSchema(oldSchema as any, additive as any))
-				.breaking,
-		).toBe(false);
+		const diff1 = diffSchema(oldSchema as any, additive as any);
+		expect(hasBreakingChanges(diff1).breaking).toBe(false);
 		// biome-ignore lint/suspicious/noExplicitAny: schema shapes for diff
-		const verdict = hasBreakingChanges(
-			diffSchema(oldSchema as any, breaking as any),
-		);
+		const diff2 = diffSchema(oldSchema as any, breaking as any);
+		const verdict = hasBreakingChanges(diff2);
 		expect(verdict.breaking).toBe(true);
 		expect(verdict.reasons.join(" ")).toContain("balance");
 	});

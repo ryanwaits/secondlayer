@@ -75,7 +75,8 @@ export function generateKyselySchema(
 
 	// Selectable row aliases for ergonomic typed reads.
 	const rowExports = Object.keys(def.schema).map(
-		(name) => `export type ${pascalCase(name)}Row = Selectable<${pascalCase(name)}>;`,
+		(name) =>
+			`export type ${pascalCase(name)}Row = Selectable<${pascalCase(name)}>;`,
 	);
 
 	return [

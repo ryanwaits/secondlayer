@@ -54,8 +54,8 @@ export function generateTraitSubgraph(input: TraitScaffoldInput): string {
         token_id: { type: 'text' },
         asset_identifier: { type: 'principal', indexed: true }`;
 	const insert = isFt
-		? `{ sender: event.sender, recipient: event.recipient, amount: event.amount, asset_identifier: event.assetIdentifier }`
-		: `{ sender: event.sender, recipient: event.recipient, token_id: String(event.tokenId), asset_identifier: event.assetIdentifier }`;
+		? "{ sender: event.sender, recipient: event.recipient, amount: event.amount, asset_identifier: event.assetIdentifier }"
+		: "{ sender: event.sender, recipient: event.recipient, token_id: String(event.tokenId), asset_identifier: event.assetIdentifier }";
 	return wrap(
 		name,
 		`    transfers: { type: '${type}', trait: '${input.trait}' }`,

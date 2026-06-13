@@ -18,10 +18,7 @@
 import { type Tool, tool } from "ai";
 import { z } from "zod";
 
-// biome-ignore lint/suspicious/noExplicitAny: Tool's input-schema generic is too
-// precise for isolated-declarations output — we pass tools through to AI SDK
-// which validates at runtime.
-// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
+// biome-ignore lint/suspicious/noExplicitAny: Tool's input-schema generic too precise for isolated-declarations; AI SDK validates at runtime
 type LooseTool = Tool<any, any>;
 
 function baseUrl(): string {

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
-	generateIndexSchema,
 	INDEX_CODEGEN_TABLES,
+	generateIndexSchema,
 } from "../src/schema/index-codegen.ts";
 
 describe("generateIndexSchema", () => {
@@ -28,7 +28,9 @@ describe("generateIndexSchema", () => {
 	test("drizzle: pgTable defs + lossless types + $inferSelect", () => {
 		const out = generateIndexSchema("drizzle", { tables: ["decoded_events"] });
 		expect(out).toContain('from "drizzle-orm/pg-core"');
-		expect(out).toContain('export const decodedEvents = pgTable("decoded_events"');
+		expect(out).toContain(
+			'export const decodedEvents = pgTable("decoded_events"',
+		);
 		expect(out).toContain('amount: text("amount"),'); // nullable → no .notNull()
 		expect(out).toContain('blockHeight: integer("block_height").notNull()');
 		expect(out).toContain('payload: jsonb("payload"),');
@@ -64,7 +66,7 @@ describe("generateIndexSchema", () => {
 		expect(out).toContain("datasource db {");
 		expect(out).toContain("model Blocks {");
 		expect(out).toContain("height Int @id");
-		expect(out).toContain("burnBlockHash String? @map(\"burn_block_hash\")");
+		expect(out).toContain('burnBlockHash String? @map("burn_block_hash")');
 		expect(out).toContain('@@map("blocks")');
 	});
 

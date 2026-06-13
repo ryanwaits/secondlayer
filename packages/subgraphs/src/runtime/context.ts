@@ -374,9 +374,9 @@ export class SubgraphContext {
 						)
 					: -1;
 				if (idx >= 0) {
-					// biome-ignore lint/style/noNonNullAssertion: idx bounds-checked
-					result[idx] =
-						this.applyOpToRow(op, result[idx]!, where) ?? result[idx]!;
+					// biome-ignore lint/style/noNonNullAssertion: idx bounds-checked above
+					const existing = result[idx]!;
+					result[idx] = this.applyOpToRow(op, existing, where) ?? existing;
 				} else {
 					const created = this.applyOpToRow(op, null, where);
 					if (created) result.push(created);

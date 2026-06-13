@@ -1,10 +1,10 @@
+import type { ChainApplyEnvelope } from "@secondlayer/shared";
 import type {
 	Database,
 	InsertSubscriptionOutbox,
 	Subscription,
 } from "@secondlayer/shared/db";
 import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
-import type { ChainApplyEnvelope } from "@secondlayer/shared";
 import type { ChainTrigger } from "@secondlayer/shared/schemas/subscriptions";
 import type { Kysely } from "kysely";
 import type { SubgraphFilter } from "../types.ts";

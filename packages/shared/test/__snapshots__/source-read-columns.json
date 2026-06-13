@@ -217,14 +217,6 @@
 		"holder_btc",
 		"slot_index"
 	],
-	"events": [
-		"block_height",
-		"data",
-		"event_index",
-		"tx_id",
-		"type"
-	],
-	"chain_reorgs": [
-		"detected_at"
-	]
+	"events": ["block_height", "data", "event_index", "tx_id", "type"],
+	"chain_reorgs": ["detected_at"]
 }

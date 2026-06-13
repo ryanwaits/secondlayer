@@ -33,7 +33,10 @@ describe("Stacks Streams cursor fixtures", () => {
 		const cases = [
 			{ block_height: 0, event_index: 0 },
 			{ block_height: 9_007_199_254_740_991, event_index: 0 },
-			{ block_height: 9_007_199_254_740_991, event_index: 9_007_199_254_740_991 },
+			{
+				block_height: 9_007_199_254_740_991,
+				event_index: 9_007_199_254_740_991,
+			},
 		];
 
 		for (const cursor of cases) {

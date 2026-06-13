@@ -5,7 +5,12 @@ describe("jsonSafeBigInt", () => {
 	test("deep-converts BigInt → string so JSON.stringify succeeds", () => {
 		// cvToValue yields bigint for Clarity uint/int — leaks into decoded
 		// contract-call args/result and throws in c.json + the ETag.
-		const decoded: unknown = { a: 223n, b: [1n, "x", { c: 5n }], d: "ok", e: 7 };
+		const decoded: unknown = {
+			a: 223n,
+			b: [1n, "x", { c: 5n }],
+			d: "ok",
+			e: 7,
+		};
 		const safe = jsonSafeBigInt(decoded);
 		expect(safe).toEqual({
 			a: "223",

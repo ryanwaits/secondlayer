@@ -342,5 +342,4 @@ export function registerSubgraphTools(
 			};
 		},
 	);
-
 }

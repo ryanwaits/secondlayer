@@ -122,7 +122,7 @@ export function createWalletRouter(deps: WalletDeps = {}) {
 		await db.transaction().execute(async (trx) => {
 			// Adopt the wallet-ghost: its subgraphs become the account's, paid
 			// TTLs clear (claiming makes them permanent), the shell is removed.
-			if (holder && holder.ghost && holder.id !== accountId) {
+			if (holder?.ghost && holder.id !== accountId) {
 				const moved = await trx
 					.updateTable("subgraphs")
 					.set({ account_id: accountId, expires_at: null })

@@ -1,5 +1,5 @@
-import type { Kysely } from "kysely";
 import type { Database, Project, TeamInvitation } from "@secondlayer/shared/db";
+import type { Kysely } from "kysely";
 
 export async function getProjectsByAccount(
 	db: Kysely<Database>,

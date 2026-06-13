@@ -1,5 +1,5 @@
-import { type Kysely, sql } from "kysely";
 import type { Account, Database } from "@secondlayer/shared/db";
+import { type Kysely, sql } from "kysely";
 
 export async function upsertAccount(
 	db: Kysely<Database>,

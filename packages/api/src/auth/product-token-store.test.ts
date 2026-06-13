@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { generateApiKey, hashToken } from "./keys.ts";
 import {
+	type ProductTenant,
 	accountPlanToProductTier,
 	createRuntimeProductTokenStore,
-	type ProductTenant,
 } from "./product-token-store.ts";
-import { generateApiKey, hashToken } from "./keys.ts";
 
 const REQUIRED_SCOPE = "index:read";
 

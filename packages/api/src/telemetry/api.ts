@@ -40,8 +40,7 @@ const samples = new Map<ApiTelemetryGroup, Sample[]>(
 );
 
 export function classifyApiTelemetryPath(pathname: string): ApiTelemetryGroup {
-	if (pathname === "/health" || pathname === "/status")
-		return "status";
+	if (pathname === "/health" || pathname === "/status") return "status";
 	if (pathname === "/public/status") return "status";
 	if (pathname.startsWith("/v1/streams")) return "streams";
 	if (pathname.startsWith("/v1/index")) return "index";
@@ -57,7 +56,9 @@ function statusFromError(error: unknown): number {
 		"code" in error &&
 		typeof error.code === "string"
 	) {
-		return (CODE_TO_STATUS as Record<string, number | undefined>)[error.code] ?? 500;
+		return (
+			(CODE_TO_STATUS as Record<string, number | undefined>)[error.code] ?? 500
+		);
 	}
 	return 500;
 }
@@ -110,7 +111,9 @@ function statsFor(groupSamples: Sample[], now: number): ApiTelemetryStats {
 	};
 }
 
-export function getApiTelemetrySnapshot(now = Date.now()): ApiTelemetrySnapshot {
+export function getApiTelemetrySnapshot(
+	now = Date.now(),
+): ApiTelemetrySnapshot {
 	const groups = Object.fromEntries(
 		GROUPS.map((group) => {
 			const fresh = prune(samples.get(group) ?? [], now);

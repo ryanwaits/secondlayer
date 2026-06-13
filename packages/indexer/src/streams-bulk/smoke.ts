@@ -1,5 +1,5 @@
-import { closeDb } from "@secondlayer/shared/db";
 import { ParquetReader } from "@dsnp/parquetjs";
+import { closeDb } from "@secondlayer/shared/db";
 import { getStreamsBulkRuntimeConfigFromEnv } from "./config.ts";
 import { readJsonFile, sha256Buffer } from "./file.ts";
 import type { StreamsBulkManifest } from "./manifest.ts";
@@ -67,7 +67,9 @@ async function main() {
 		JSON.stringify(
 			{
 				ok: true,
-				manifest: args.localManifest ?? streamsBulkLatestManifestObjectPath(config.prefix),
+				manifest:
+					args.localManifest ??
+					streamsBulkLatestManifestObjectPath(config.prefix),
 				parquet: args.localParquet ?? file.path,
 				row_count: file.row_count,
 				sha256: actualSha256,

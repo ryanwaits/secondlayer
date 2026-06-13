@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import { Index } from "@secondlayer/sdk";
 import type { Command } from "commander";
+import { writeTextFile } from "../lib/fs.ts";
 import {
 	error as logError,
 	note,
@@ -8,7 +9,6 @@ import {
 	success,
 	writeData,
 } from "../lib/output.ts";
-import { writeTextFile } from "../lib/fs.ts";
 import { resolveEnvKey } from "../lib/resolve-auth.ts";
 
 const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
@@ -136,7 +136,9 @@ export function registerIndexCommand(program: Command): void {
 						);
 						process.exit(1);
 					}
-					const { generateIndexSchema } = await import("@secondlayer/subgraphs");
+					const { generateIndexSchema } = await import(
+						"@secondlayer/subgraphs"
+					);
 					const tables = o.tables
 						? o.tables
 								.split(",")

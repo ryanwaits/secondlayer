@@ -29,9 +29,7 @@
 			"import": "./dist/schemas/accounts.js"
 		}
 	},
-	"files": [
-		"dist"
-	],
+	"files": ["dist"],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",

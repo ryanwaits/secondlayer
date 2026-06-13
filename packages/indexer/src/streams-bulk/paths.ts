@@ -1,7 +1,4 @@
-import {
-	type StreamsBulkBlockRange,
-	formatBlockRangeLabel,
-} from "./range.ts";
+import { type StreamsBulkBlockRange, formatBlockRangeLabel } from "./range.ts";
 
 export const DEFAULT_STREAMS_BULK_PREFIX = "stacks-streams/mainnet/v0";
 

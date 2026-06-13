@@ -926,7 +926,10 @@ Examples:
 		.description(
 			"Inspect a webhook fixture; --post sends a logged test delivery via the server (--local POSTs client-side instead)",
 		)
-		.option("--signing-secret <secret>", "Signing secret override (--local only)")
+		.option(
+			"--signing-secret <secret>",
+			"Signing secret override (--local only)",
+		)
 		.option(
 			"--post",
 			"Send a test delivery via the server (logged, all formats)",

@@ -196,7 +196,7 @@ export function renderDeployPlan(
 		"-- Run once on YOUR database as an owner/superuser, replacing <role>",
 		"-- with the role whose credentials you give Secondlayer.",
 		"-- Secondlayer then creates and owns only this one schema:",
-		`GRANT CREATE ON DATABASE current_database() TO <role>;`,
+		"GRANT CREATE ON DATABASE current_database() TO <role>;",
 		`-- (after first deploy <role> owns "${schema}"; no further grants needed)`,
 	].join("\n");
 	return { schemaName: schema, dropStatement, statements, grantScript };

@@ -41,4 +41,3 @@ export function staticKeyAuth(): MiddlewareHandler {
 		await next();
 	};
 }
-

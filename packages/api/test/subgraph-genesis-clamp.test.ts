@@ -132,7 +132,11 @@ describe.skipIf(SKIP)("genesis policy (DB + routes)", () => {
 			.insertInto("accounts")
 			.values([
 				{ id: FREE_ACCOUNT, email: `${FREE_ACCOUNT}@test.local`, plan: "none" },
-				{ id: PAID_ACCOUNT, email: `${PAID_ACCOUNT}@test.local`, plan: "scale" },
+				{
+					id: PAID_ACCOUNT,
+					email: `${PAID_ACCOUNT}@test.local`,
+					plan: "scale",
+				},
 			])
 			.onConflict((oc) => oc.column("id").doNothing())
 			.execute();
@@ -140,7 +144,10 @@ describe.skipIf(SKIP)("genesis policy (DB + routes)", () => {
 			name: SUBGRAPH,
 			version: "1.0.0",
 			accountId: FREE_ACCOUNT,
-			schemaName: `sg_genesis_clamp_${FREE_ACCOUNT.slice(0, 8)}`.replace(/-/g, "_"),
+			schemaName: `sg_genesis_clamp_${FREE_ACCOUNT.slice(0, 8)}`.replace(
+				/-/g,
+				"_",
+			),
 			definition: { name: SUBGRAPH, sources: {}, schema: {}, handlers: {} },
 			schemaHash: "genesis-clamp-test-hash",
 			handlerPath: "/tmp/genesis-clamp-test-handler.ts",
@@ -178,9 +185,9 @@ describe.skipIf(SKIP)("genesis policy (DB + routes)", () => {
 
 	test("plan none → clamped; paid → allowed; exempt env → allowed", async () => {
 		const db = getDb();
-		expect(
-			(await resolveGenesisPolicy(db, FREE_ACCOUNT)).genesisAllowed,
-		).toBe(false);
+		expect((await resolveGenesisPolicy(db, FREE_ACCOUNT)).genesisAllowed).toBe(
+			false,
+		);
 		expect((await resolveGenesisPolicy(db, PAID_ACCOUNT)).genesisAllowed).toBe(
 			true,
 		);

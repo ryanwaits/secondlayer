@@ -317,7 +317,11 @@ export async function readIndexEvents(
 	// Trait scope: resolve "all contracts of standard X (as-of toHeight)" to a
 	// contract-id set and filter on it. No matches → empty page (skip the read).
 	if (params.trait) {
-		const ids = await resolveTraitContractIds(db, params.trait, params.toHeight);
+		const ids = await resolveTraitContractIds(
+			db,
+			params.trait,
+			params.toHeight,
+		);
 		if (ids.length === 0) return { events: [], next_cursor: null };
 		predicates.push(
 			sql`contract_id IN (${sql.join(
@@ -412,7 +416,9 @@ export function parseIndexEventsQuery(
 	const trait = parseFilter(query.get("trait") ?? undefined, "trait");
 	if (trait !== undefined) {
 		if (!traitSupported) {
-			throw new ValidationError(`trait filter is not supported for ${eventTypeRaw}`);
+			throw new ValidationError(
+				`trait filter is not supported for ${eventTypeRaw}`,
+			);
 		}
 		if (filters.contract_id !== undefined) {
 			throw new ValidationError("trait and contract_id are mutually exclusive");

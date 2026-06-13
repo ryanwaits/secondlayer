@@ -164,7 +164,10 @@ export function parseContractCallsQuery(
 			"function_name",
 		),
 		sender: parseFilter(query.get("sender") ?? undefined, "sender"),
-		trait: parseTrait(query, parseFilter(query.get("contract_id") ?? undefined, "contract_id")),
+		trait: parseTrait(
+			query,
+			parseFilter(query.get("contract_id") ?? undefined, "contract_id"),
+		),
 		cursorPastTip: cursor ? cursor.block_height > tip.block_height : false,
 	};
 }
@@ -258,7 +261,11 @@ export async function readContractCalls(
 		predicates.push(sql`t.sender = ${params.sender}`);
 	}
 	if (params.trait) {
-		const ids = await resolveTraitContractIds(db, params.trait, params.toHeight);
+		const ids = await resolveTraitContractIds(
+			db,
+			params.trait,
+			params.toHeight,
+		);
 		if (ids.length === 0) return { contract_calls: [], next_cursor: null };
 		predicates.push(
 			sql`t.contract_id IN (${sql.join(

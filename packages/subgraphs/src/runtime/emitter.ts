@@ -7,8 +7,8 @@ import {
 } from "@secondlayer/shared/db";
 import { getSubscriptionSigningSecret } from "@secondlayer/shared/db/queries/subscriptions";
 import { logger } from "@secondlayer/shared/logger";
-import type { SubscriptionTestResult } from "@secondlayer/shared/schemas/subscriptions";
 import { listen, targetListenerUrl } from "@secondlayer/shared/queue/listener";
+import type { SubscriptionTestResult } from "@secondlayer/shared/schemas/subscriptions";
 import { type Kysely, sql } from "kysely";
 import { buildForFormat } from "./formats/index.ts";
 import { refreshMatcher } from "./subscription-state.ts";
