@@ -1,5 +1,18 @@
 # @secondlayer/web
 
+## 0.3.0
+
+### Minor Changes
+
+- 0446845: Mobile nav + responsive fixes across (www): marketing pages get a hamburger-triggered full-screen "notebook index" sheet (numbered product list, auth-aware CTA pinned at the bottom) replacing the link row that vanished below 800px; docs replaces the scrolling topnav strip and floating burger with a unified mobile bar (burger · wordmark · CTA) and a Products group at the top of the drawer; the floating status pill becomes a live status item in the site footer on phones; explore list/detail no longer horizontally scroll on mobile (bare 1fr grid tracks min-sized to nowrap endpoint paths).
+- 556f46f: Per-route OG share cards: static 1200x630 images for home, index, subgraphs, streams, pricing, docs, and explore, full Open Graph + Twitter metadata on every marketing route, and a dynamic per-subgraph card on explore detail pages rendered from live data. Stale purple og.png and logo SVGs recolored to Signal Blue.
+
+### Patch Changes
+
+- Updated dependencies [258b05e]
+- Updated dependencies [f9c1f2a]
+  - @secondlayer/sdk@6.23.0
+
 ## 0.2.3
 
 ### Patch Changes

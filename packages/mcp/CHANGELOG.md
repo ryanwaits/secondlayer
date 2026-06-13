@@ -1,5 +1,14 @@
 # @secondlayer/mcp
 
+## 4.1.1
+
+### Patch Changes
+
+- f9c1f2a: README positioning: indexing-first mental model, correct public dumps auth, unified product naming
+- Updated dependencies [258b05e]
+- Updated dependencies [f9c1f2a]
+  - @secondlayer/sdk@6.23.0
+
 ## 4.1.0
 
 ### Minor Changes

@@ -1,5 +1,15 @@
 # @secondlayer/sdk
 
+## 6.23.0
+
+### Minor Changes
+
+- 258b05e: Index checkpointed consumer: `index.events.consume()` and `index.contractCalls.consume()` — onBatch cursor commit, automatic reorg rewind to the fork point, `finalizedOnly` gated by `tip.finalized_height`, `fromHeight` backfill start; `IndexTip` now carries `finalized_height`
+
+### Patch Changes
+
+- f9c1f2a: README positioning: indexing-first mental model, correct public dumps auth, unified product naming
+
 ## 6.22.0
 
 ### Minor Changes
