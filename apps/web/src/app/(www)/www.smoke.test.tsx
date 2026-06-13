@@ -33,7 +33,7 @@ describe("www marketing routes", () => {
 		expect(html).toContain("Explore subgraphs is live");
 		expect(html).toContain("Index the chain.");
 		expect(html).toContain("Own your API.");
-		expect(html).toContain("indexing layer for Stacks");
+		expect(html).toContain("hosted indexer for Stacks");
 		// CTA pair: install/mint pill (client component renders install mode in
 		// static markup) + docs ghost link.
 		expect(html).toContain("npm install @secondlayer/sdk");

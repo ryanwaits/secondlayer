@@ -50,7 +50,7 @@ export default function StreamsPage() {
 				<p className="pp-sub">
 					Streams is the immutable, replayable log of everything the chain emits
 					— ordered, cursor-paginated, and reorg-aware. Tail the tip over SSE,
-					page it over REST, or pull signed bulk dumps. This is the layer you'd
+					page it over REST, or pull signed bulk dumps. This is what you'd
 					run a node for.
 				</p>
 				<div className="pp-ctas">

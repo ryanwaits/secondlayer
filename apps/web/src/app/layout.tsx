@@ -39,10 +39,10 @@ export const metadata: Metadata = {
 	// previews on shared links.
 	metadataBase: new URL("https://www.secondlayer.tools"),
 	title: "secondlayer",
-	description: "The indexing layer for Stacks",
+	description: "The hosted indexer for Stacks",
 	openGraph: {
 		title: "secondlayer",
-		description: "The indexing layer for Stacks",
+		description: "The hosted indexer for Stacks",
 		siteName: "secondlayer",
 		type: "website",
 		images: [
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
 	twitter: {
 		card: "summary_large_image",
 		title: "secondlayer",
-		description: "The indexing layer for Stacks",
+		description: "The hosted indexer for Stacks",
 		images: ["/og/home.png"],
 	},
 };

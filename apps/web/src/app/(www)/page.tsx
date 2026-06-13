@@ -11,7 +11,7 @@ import Link from "next/link";
 export const metadata: Metadata = socialMeta({
 	title: "secondlayer — index the chain, own your API",
 	description:
-		"The indexing layer for Stacks: we capture and decode every event, you define the tables and ship the API. No node, no infra, readable by anyone.",
+		"The hosted indexer for Stacks: we capture and decode every event, you define the tables and ship the API. No node, no infra, readable by anyone.",
 	image: "/og/home.png",
 	path: "/",
 });
@@ -60,7 +60,7 @@ export function HomeView({ status }: { status: SystemStatus | null }) {
 					Own your API.
 				</h1>
 				<p className="home-sub">
-					Secondlayer is the indexing layer for Stacks: we capture and decode
+					Secondlayer is the hosted indexer for Stacks: we capture and decode
 					every event, you define the tables and ship the API. No node, no
 					infra, readable by anyone.
 				</p>

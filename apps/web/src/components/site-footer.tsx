@@ -77,7 +77,7 @@ export function SiteFooter({ status }: { status?: SystemStatus | null }) {
 							<span>secondlayer</span>
 						</p>
 						<p>
-							The indexing layer for Stacks. Inspired by the ideas behind{" "}
+							The hosted indexer for Stacks. Inspired by the ideas behind{" "}
 							<a
 								href="https://paragraph.com/@aulneau/project-kourier"
 								target="_blank"

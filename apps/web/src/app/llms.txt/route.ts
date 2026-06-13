@@ -1,4 +1,4 @@
-const LLMS_TXT = `# Secondlayer — the indexing layer for Stacks
+const LLMS_TXT = `# Secondlayer — the hosted indexer for Stacks
 
 > Raw chain events (Streams), decoded events (Index), your own indexed views
 > (Subgraphs), and webhooks (Subscriptions).
