@@ -15,9 +15,13 @@ Postgres tables behind a public REST API — no node, no infra.
 
 Everything we market is one of these three. Everything else is a feature of them.
 
-**Index** — indexer-as-a-service. We run the indexer; you query decoded Stacks
-data (events, transfers, blocks, transactions) over REST with a cursor envelope.
-Keyless. For app devs and agents who want answers tonight, not infrastructure.
+**Index** — indexer-as-a-service. We run the chain indexer; you query decoded
+Stacks data (events, transfers, blocks, transactions) over REST with a cursor
+envelope — keyless — or build your own app index on the same rows: `walk()`
+sweeps, `from_height=0` backfill, `reorgs[]` on every page, `/canonical`,
+`sl index codegen` for your mirror schema. Built on Streams (our decoder is a
+Streams consumer). For app devs and agents: answers tonight, or an app index
+without writing decoders.
 
 **Subgraphs** — your schema on our indexer. `defineSubgraph()` in one TypeScript
 file → deploy → hosted Postgres tables behind the same public `/v1` read API.
@@ -51,14 +55,20 @@ This distinction is load-bearing; keep it crisp everywhere:
 
 | | Index | Streams |
 |---|---|---|
-| What | Decoded, queryable chain data | Raw signed event firehose + dumps |
-| We do | Run the indexer for you | Hand you the inputs |
-| You do | Query over REST | Build and run your own indexer/ETL |
+| What | Decoded chain data, kept indexed | Raw signed event firehose + dumps |
+| We do | Run the chain indexer and decoder | Hand you the inputs |
+| You do | Query over REST — or build your app index on the rows | Build and run your own indexer/ETL from raw |
 | Who | App devs, agents, dashboards | Data/infra engineers, indexer builders |
-| Verify | Trust our decoding | Signed manifests, replay from any height |
+| Verify | Trust our decoding (+ inclusion proofs) | Signed manifests, replay from any height |
 
-One line for docs: *querying? Index. Building your own indexer? Streams. Want
-your own schema without building anything? Subgraphs.*
+Both are indexer products at different levels: Streams is raw, low-level
+indexing — Index is app-level indexing on decoded rows. Streams powers Index:
+our decoder is itself a Streams consumer. Subgraphs is the Index loop, hosted.
+We sell the primitives we build on.
+
+One line for docs: *Reading decoded data? Index. Building your own app index on
+decoded rows? Also Index — walk + cursors + reorgs[]. Your schema hosted?
+Subgraphs. Raw inputs? Streams.*
 
 ## The golden path
 
