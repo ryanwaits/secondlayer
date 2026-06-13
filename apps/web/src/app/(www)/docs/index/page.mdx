@@ -1,6 +1,6 @@
 # Index
 
-The decoded read layer for Stacks — we run the indexer, you query. One REST surface over decoded events, contract calls, the canonical block map, blocks, full transaction documents, PoX-4 stacking, and the pending mempool. No decoders to write, no node to run. Open beta: reads need no key (free-tier keys are rejected; Build+ for keyed access).
+Decoded Stacks data, kept indexed. We run the chain indexer and the decoder; you get one REST surface over decoded events, contract calls, the canonical block map, blocks, full transaction documents, PoX-4 stacking, and the pending mempool. Read it keyless — or [build your app's own index on it](#build-your-index-on-it): the same rows are made to be swept, rolled back, and mirrored. No decoders to write, no node to run. Open beta: reads need no key (free-tier keys are rejected; Build+ for keyed access). Index itself is built on [Streams](/docs/streams) — our decoder consumes the same raw firehose you can.
 
 Every list response uses the same cursor envelope — the collection, a `next_cursor`, the chain `tip`, and `reorgs` where applicable. Cursors are opaque `<block_height>:<index>` resume tokens; pass them back unchanged to continue.
 
@@ -23,6 +23,8 @@ Every list response uses the same cursor envelope — the collection, a `next_cu
 ```bash
 curl "https://api.secondlayer.tools/v1/index/events?event_type=stx_transfer&limit=20"
 ```
+
+Without a `cursor` or `from_height`, list reads default to roughly the last day of blocks. Pass `from_height=0` (or any range) to reach full history — backfills are explicit, never accidental.
 
 Allowed filters vary by `event_type`: `stx_*` have no `contract_id`, `nft_*` accept `asset_identifier`, and `print` filters by `contract_id` and carries a `payload` with the Clarity value decoded to JSON. `ft-transfers` and `nft-transfers` are typed aliases for the two most common types.
 
@@ -142,7 +144,69 @@ Read envelopes (e.g. `/v1/index/stacking`, `/transactions`, `/contract-calls`) c
 }
 ```
 
-To reconcile: roll back any rows whose cursor falls inside `orphaned_range`, then re-fetch from `new_canonical_tip`. Both bounds are `<block_height>:<event_index>` cursors (reorg cursors track decoded-event positions; on transaction-keyed feeds like `/transactions` and `/contract-calls`, compare by the block-height component). The SDK exports the `IndexReorg` type from `@secondlayer/sdk` for typing these elements.
+To reconcile: roll back any rows whose cursor falls inside `orphaned_range`, then re-fetch from `new_canonical_tip`. Both bounds are `<block_height>:<event_index>` cursors (reorg cursors track decoded-event positions; on transaction-keyed feeds like `/transactions` and `/contract-calls`, compare by the block-height component). The SDK exports the `IndexReorg` type from `@secondlayer/sdk` for typing these elements. The [ingest loop below](#build-your-index-on-it) shows the reconcile in code.
+
+## Build your index on it
+
+Everything above is also the substrate for your own app index: every list envelope carries a resume cursor, the tip, and overlapping `reorgs[]`; `from_height=0` reaches genesis; pages below finality are served with immutable caching, so re-sweeps are cheap. You bring the database and run the loop — we keep the decoded data flowing.
+
+`sl index codegen` emits the mirror schema so your tables can't drift from the API:
+
+```bash
+sl index codegen --target kysely   # also: prisma, drizzle, json-schema
+```
+
+The loop, spelled out — backfill from genesis, checkpoint every page, roll back on reorg:
+
+```ts
+import { createClient } from "@secondlayer/sdk";
+
+const sl = createClient();
+let cursor = await db.loadCheckpoint(); // null on first run
+
+while (true) {
+	const page = await sl.index.ftTransfers.list(
+		cursor ? { cursor } : { fromHeight: 0 },
+	);
+
+	// Reorg first: delete mirrored rows in the orphaned range, resume earlier.
+	for (const reorg of page.reorgs) {
+		await db.deleteWhereCursorBetween(
+			reorg.orphaned_range.from,
+			reorg.orphaned_range.to,
+		);
+		cursor = reorg.new_canonical_tip;
+	}
+
+	// Upsert the page and commit the cursor in the same transaction —
+	// crash anywhere and the next run resumes exactly here.
+	await db.transaction(async (tx) => {
+		for (const t of page.events) {
+			await tx.upsertTransfer(t); // t.cursor, t.sender, t.recipient, t.amount…
+		}
+		await tx.saveCheckpoint(page.next_cursor ?? cursor);
+	});
+
+	if (page.next_cursor === null) await sleep(2_000); // at tip — poll on
+	else cursor = page.next_cursor;
+}
+```
+
+On startup (or any time), verify your mirror followed the canonical chain with `/v1/index/canonical` — one row per height, orphans excluded:
+
+```ts
+const { canonical } = await sl.index.canonical({ fromHeight: myLowestHeight });
+for (const block of canonical) {
+	if (myHashAt(block.block_height) !== block.block_hash) {
+		await db.deleteFromHeight(block.block_height); // diverged — re-sweep from here
+		break;
+	}
+}
+```
+
+For contract-specific indexes, [`/print-schema`](#print-schemas) tells you the real shape of a contract's `print` payloads before you design tables — then walk `event_type=print&contract_id=…` into them. Transaction [inclusion proofs](#proofs) let you verify anything you mirrored without trusting us.
+
+This loop is what [Subgraphs](/docs/subgraphs) runs for you: the same decoded rows, your schema, our backfill and reorg handling — one TypeScript file, zero ops.
 
 ## Beyond REST
 
@@ -151,8 +215,9 @@ The Index is the same data through every surface, not just REST. Pick the one th
 ```ts
 // SDK — typed client, cursor walking built in
 const block = await sl.index.blocks.get(892100);
+let locked = 0n;
 for await (const action of sl.index.stacking.walk({ functionName: "stack-stx" })) {
-	// …
+	locked += BigInt(action.amount_ustx ?? 0); // walk() follows next_cursor for you
 }
 ```
 
@@ -178,5 +243,5 @@ Also `sl.index.usage()` (SDK) and `index_usage` (MCP). See the [REST API](/docs/
 export const metadata = {
 	title: "Index — Secondlayer Docs",
 	description:
-		"The decoded read layer for Stacks: events, contract calls, transactions, blocks, canonical map, PoX-4 stacking, and mempool through one REST surface, SDK, CLI, and MCP.",
+		"Decoded Stacks data, kept indexed: query events, contract calls, transactions, and blocks keyless — or build your own app index on the same rows with cursors, reorgs[], and codegen.",
 };
