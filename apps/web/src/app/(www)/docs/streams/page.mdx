@@ -1,8 +1,8 @@
 # Streams
 
-Raw chain event firehose — cursor-paginated REST, idempotent, replayable.
+Raw chain event firehose — cursor-paginated REST, idempotent, replayable. The lowest level of indexing on Secondlayer: the inputs, not our decoding, for building an indexer from zero.
 
-Streams expose the same event surface every Foundation Dataset decoder consumes internally. Page forward with a cursor, replay from any point, and never miss an event. Stream live over SSE in-process (see below), or fan out to your backend with [Subscriptions](/docs/subscriptions).
+This is the exact surface [Index](/docs/index) is built on — our decoder is itself a Streams consumer. Page forward with a cursor, replay from any point, and — with a committed checkpoint, within your tier's retention — never miss an event. Stream live over SSE in-process (see below), or fan out to your backend with [Subscriptions](/docs/subscriptions).
 
 Streams reads require an API key — send it as `Authorization: Bearer`.
 
@@ -27,6 +27,40 @@ Narrow the firehose by event type, contract, or principal — `types`, `contract
 ```bash
 curl -H "Authorization: Bearer $SL_API_KEY" \
   "https://api.secondlayer.tools/v1/streams/events?types=ft_transfer&sender=SP...&limit=50"
+```
+
+## Build an indexer on it
+
+The SDK ships the loop: `events.consume` is a checkpointed consumer with automatic reorg rewind. Write your rows inside `onBatch`, return the cursor you committed — crash anywhere and the next run resumes from your checkpoint. Reorgs rewind the cursor to the fork point and re-deliver (at-least-once; your writes should be idempotent).
+
+```ts
+await streams.events.consume({
+	types: ["ft_transfer"],
+	fromCursor: await db.loadCheckpoint(),
+	onBatch: async (events, envelope) => {
+		await db.insertEvents(events);
+		return envelope.next_cursor; // the checkpoint you committed
+	},
+	onReorg: async (reorg) => {
+		await db.rollbackAbove(reorg.fork_point_height);
+	},
+});
+```
+
+For cold history, `events.replay` backfills from the signed parquet dumps, then tails live from the manifest's `latest_finalized_cursor` — no gap or dupe at the seam:
+
+```ts
+await streams.events.replay({
+	from: "genesis",
+	async onDumpFile(file) {
+		const bytes = await streams.dumps.download(file); // sha256-verified
+		await ingestParquet(bytes);
+	},
+	async onBatch(events, envelope) {
+		await db.insertEvents(events);
+		return envelope.next_cursor;
+	},
+});
 ```
 
 ## Real-time firehose (SSE)
