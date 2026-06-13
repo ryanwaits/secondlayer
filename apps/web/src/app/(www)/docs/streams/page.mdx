@@ -63,6 +63,32 @@ await streams.events.replay({
 });
 ```
 
+### Dumps + DuckDB
+
+The dumps are plain parquet — pull a verified range and query it locally, no indexer required:
+
+```bash
+sl streams pull --to ./dump   # sha256-verified against the signed manifest
+
+duckdb -c "SELECT event_type, count(*) AS events
+           FROM read_parquet('./dump/*.parquet')
+           GROUP BY 1 ORDER BY 2 DESC;"
+```
+
+```text
+┌──────────────┬────────┐
+│  event_type  │ events │
+├──────────────┼────────┤
+│ print        │ 610417 │
+│ nft_mint     │ 107479 │
+│ stx_transfer │ 104690 │
+│ ft_transfer  │  40294 │
+│ …            │      … │
+└──────────────┴────────┘
+```
+
+The complete runnable indexer — dumps backfill, live seam, checkpointed tail — is the [`indexer-from-zero` example](https://github.com/ryanwaits/secondlayer/tree/main/examples/indexer-from-zero).
+
 ## Real-time firehose (SSE)
 
 `GET /v1/streams/events/stream` streams events as Server-Sent Events over a single long-lived connection — the native push surface inside Streams. Authenticate with `Authorization: Bearer`, and apply the same filters as `/events`: `types`, `not_types`, `contract_id`, `sender`, `recipient`, and `asset_identifier`.

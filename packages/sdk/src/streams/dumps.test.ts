@@ -89,3 +89,43 @@ describe("createStreamsDumps manifest verification", () => {
 		await expect(dumps.list()).rejects.toBeInstanceOf(StreamsSignatureError);
 	});
 });
+
+describe("fileUrl prefix handling", () => {
+	const noopFetch = fetchServing(BASE_MANIFEST);
+
+	test("relative path joins onto the base URL", () => {
+		const dumps = createStreamsDumps({
+			baseUrl: "https://dumps.example/stacks-streams/mainnet/v0",
+			fetchImpl: noopFetch,
+		});
+		expect(dumps.fileUrl({ ...BASE_MANIFEST.files[0] })).toBe(
+			"https://dumps.example/stacks-streams/mainnet/v0/events/a.parquet",
+		);
+	});
+
+	test("bucket-root-absolute path strips the base URL's prefix", () => {
+		const dumps = createStreamsDumps({
+			baseUrl: "https://dumps.example/stacks-streams/mainnet/v0",
+			fetchImpl: noopFetch,
+		});
+		expect(
+			dumps.fileUrl({
+				...BASE_MANIFEST.files[0],
+				path: "stacks-streams/mainnet/v0/events/a.parquet",
+			}),
+		).toBe("https://dumps.example/stacks-streams/mainnet/v0/events/a.parquet");
+	});
+
+	test("prefixless base URL keeps absolute paths as-is", () => {
+		const dumps = createStreamsDumps({
+			baseUrl: "https://dumps.example",
+			fetchImpl: noopFetch,
+		});
+		expect(
+			dumps.fileUrl({
+				...BASE_MANIFEST.files[0],
+				path: "stacks-streams/mainnet/v0/events/a.parquet",
+			}),
+		).toBe("https://dumps.example/stacks-streams/mainnet/v0/events/a.parquet");
+	});
+});

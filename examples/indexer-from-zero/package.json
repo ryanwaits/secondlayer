@@ -1,0 +1,12 @@
+{
+	"name": "indexer-from-zero",
+	"private": true,
+	"type": "module",
+	"description": "Build an indexer from raw Secondlayer Streams: signed parquet dumps for cold history, then a checkpointed live tail with automatic reorg rewind.",
+	"scripts": {
+		"start": "bun run indexer.ts"
+	},
+	"dependencies": {
+		"@secondlayer/sdk": "^6.23.0"
+	}
+}

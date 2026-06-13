@@ -38,7 +38,20 @@ export function createStreamsDumps(opts: {
 	}
 
 	function fileUrl(file: StreamsDumpFile): string {
-		return `${requireBaseUrl()}/${file.path.replace(/^\/+/, "")}`;
+		const base = requireBaseUrl();
+		const path = file.path.replace(/^\/+/, "");
+		// Manifest file paths are bucket-root-absolute (they embed the dataset
+		// prefix), while `baseUrl` already ends with that prefix — strip the
+		// overlap so both the manifest and its files resolve from one base URL.
+		try {
+			const basePath = new URL(base).pathname.replace(/^\/+|\/+$/g, "");
+			if (basePath && path.startsWith(`${basePath}/`)) {
+				return `${base}/${path.slice(basePath.length + 1)}`;
+			}
+		} catch {
+			// Non-URL base (tests, relative proxies): fall through to plain join.
+		}
+		return `${base}/${path}`;
 	}
 
 	async function list(): Promise<StreamsDumpsManifest> {
