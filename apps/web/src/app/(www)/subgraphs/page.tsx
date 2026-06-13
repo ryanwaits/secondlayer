@@ -76,8 +76,9 @@ export default function SubgraphsPage() {
 				</h1>
 				<p className="pp-sub">
 					One TypeScript file: pick your events, write handlers, deploy. You get
-					typed Postgres tables shaped for your app, a public read API, and a
-					page on Explore. No node, no backfill scripts.
+					typed Postgres tables shaped for your app, a public REST API (REST,
+					not GraphQL), and a page on Explore. It&apos;s the Index ingest loop,
+					hosted — same decoded rows, our backfill and reorg handling.
 				</p>
 				<div className="pp-ctas">
 					<Link href="/docs/subgraphs" className="pp-btn pp-btn-ink">
@@ -219,7 +220,9 @@ export default function SubgraphsPage() {
 					</h2>
 					<p>
 						The whole subgraph is one TypeScript file. Writes batch and flush
-						atomically per block — redeploy and it reindexes for you.
+						atomically per block — on compatible redeploys it reindexes for
+						you (breaking schema changes get a migration plan, never a silent
+						drop).
 					</p>
 					<Link href="/docs/subgraphs" className="pp-docs-link">
 						Read the Subgraphs docs <span className="ar">→</span>
