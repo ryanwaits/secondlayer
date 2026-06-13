@@ -7,10 +7,12 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { BillingActions } from "./billing-actions";
 import s from "./billing.module.css";
+import { CreditsTopup } from "./credits-topup";
 
 type BillingStatus = {
 	plan: string;
 	stripeCustomerId: string | null;
+	creditsUsdMicros: string;
 	subscription: {
 		id: string;
 		status: string;
@@ -38,9 +40,9 @@ function fmtDate(iso: string | null | undefined): string | null {
 /** Ledger rows show only limits the API actually enforces. */
 const ROWS: Record<string, [string, string][]> = {
 	none: [
-		["Index + Streams reads", "100 req/s"],
-		["Subgraphs", "public · forward-only"],
-		["Webhook subscriptions", "3"],
+		["Index + Streams reads", "10 req/s · last 24h"],
+		["Subgraphs", "trial to deploy"],
+		["Webhook subscriptions", "trial to create"],
 	],
 	launch: [
 		["Index + Streams reads", "250 req/s"],
@@ -109,7 +111,7 @@ export default async function BillingPage() {
 	const rows = ROWS[status.plan] ?? ROWS.none;
 	const planName = PLAN_NAME[status.plan] ?? status.plan;
 	const priceUsd =
-		sub?.amountCents != null ? Math.round(sub.amountCents / 100) : 99;
+		sub?.amountCents != null ? Math.round(sub.amountCents / 100) : 79;
 	const trialEnds = fmtDate(sub?.trialEnd);
 	const renews = fmtDate(sub?.currentPeriodEnd);
 	const cancelDate = fmtDate(sub?.cancelAt ?? sub?.currentPeriodEnd);
@@ -129,7 +131,7 @@ export default async function BillingPage() {
 
 	const footMeta =
 		state === "free" ? (
-			<span className={s.meta}>free forever · no card on file</span>
+			<span className={s.meta}>keyless reads free · hosting is paid</span>
 		) : state === "trialing" ? (
 			<span className={s.meta}>
 				trial ends <b>{trialEnds ?? "soon"}</b> · then ${priceUsd}.00/
@@ -205,7 +207,7 @@ export default async function BillingPage() {
 								<div className={s.erow}>
 									<span>Reads</span>
 									<span className={s.val}>
-										100 <span className={s.arr}>→</span> <b>250 req/s</b>
+										10 <span className={s.arr}>→</span> <b>250 req/s</b>
 									</span>
 								</div>
 								<div className={s.erow}>
@@ -217,14 +219,14 @@ export default async function BillingPage() {
 								<div className={s.erow}>
 									<span>History</span>
 									<span className={s.val}>
-										forward-only <span className={s.arr}>→</span>{" "}
+										last 24h <span className={s.arr}>→</span>{" "}
 										<b>genesis backfill</b>
 									</span>
 								</div>
 								<div className={s.erow}>
 									<span>Webhook subscriptions</span>
 									<span className={s.val}>
-										3 <span className={s.arr}>→</span> <b>25</b>
+										0 <span className={s.arr}>→</span> <b>25</b>
 									</span>
 								</div>
 							</div>
@@ -233,6 +235,10 @@ export default async function BillingPage() {
 
 					<Suspense fallback={null}>
 						<BillingActions state={state} hasSubscription={sub !== null} />
+					</Suspense>
+
+					<Suspense fallback={null}>
+						<CreditsTopup balanceUsdMicros={status.creditsUsdMicros} />
 					</Suspense>
 
 					<div className={s.sec}>

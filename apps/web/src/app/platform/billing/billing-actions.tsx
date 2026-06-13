@@ -75,7 +75,7 @@ export function BillingActions({
 							onClick={upgrade}
 							disabled={busy !== null}
 						>
-							{busy === "upgrade" ? "Redirecting…" : "Upgrade to Pro · $99/mo"}
+							{busy === "upgrade" ? "Redirecting…" : "Upgrade to Pro · $79/mo"}
 						</button>
 						<span className={s.actHint}>
 							14-day trial · card up front · $0 today

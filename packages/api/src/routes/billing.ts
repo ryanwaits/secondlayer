@@ -12,6 +12,7 @@
  * Both are session-authed upstream via `requireAuth`.
  */
 
+import { getCredits } from "@secondlayer/platform/db/queries/account-credits";
 import {
 	getCaps,
 	upsertCaps,
@@ -290,6 +291,7 @@ app.get("/status", async (c) => {
 	const base = {
 		plan: account.plan,
 		stripeCustomerId: account.stripe_customer_id ?? null,
+		creditsUsdMicros: (await getCredits(db, accountId)).toString(),
 	};
 
 	if (!account.stripe_customer_id) {

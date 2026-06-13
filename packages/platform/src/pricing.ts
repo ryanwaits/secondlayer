@@ -41,8 +41,8 @@ export const PLANS: Record<PlanId, Plan> = {
 		// user-facing surface says "Pro".
 		id: "launch",
 		displayName: "Pro",
-		monthlyPriceCents: 9_900, // $99
-		annualPriceCents: 99_000, // 2 months free
+		monthlyPriceCents: 7_900, // $79
+		annualPriceCents: 79_000, // 2 months free
 		tagline: "Real product",
 		features: [
 			"250 req/s on Index and Streams",
