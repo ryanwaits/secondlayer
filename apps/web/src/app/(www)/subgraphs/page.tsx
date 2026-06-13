@@ -220,9 +220,8 @@ export default function SubgraphsPage() {
 					</h2>
 					<p>
 						The whole subgraph is one TypeScript file. Writes batch and flush
-						atomically per block — on compatible redeploys it reindexes for
-						you (breaking schema changes get a migration plan, never a silent
-						drop).
+						atomically per block — on compatible redeploys it reindexes for you
+						(breaking schema changes get a migration plan, never a silent drop).
 					</p>
 					<Link href="/docs/subgraphs" className="pp-docs-link">
 						Read the Subgraphs docs <span className="ar">→</span>

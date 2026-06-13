@@ -50,9 +50,9 @@ export default function StreamsPage() {
 				<p className="pp-sub">
 					Streams is the immutable, replayable log of everything the chain emits
 					— ordered, cursor-paginated, and reorg-aware. Tail the tip over SSE,
-					page it over REST, or pull signed bulk dumps. This is what you'd
-					run a node for — and what Index itself is built on: our decoder is a
-					Streams consumer.
+					page it over REST, or pull signed bulk dumps. This is what you'd run a
+					node for — and what Index itself is built on: our decoder is a Streams
+					consumer.
 				</p>
 				<div className="pp-ctas">
 					<Link href="/docs/streams" className="pp-btn pp-btn-ink">

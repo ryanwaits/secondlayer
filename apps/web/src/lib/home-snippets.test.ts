@@ -37,7 +37,11 @@ async function streamsTwin(
 // INDEX_SNIPPET
 async function indexTwin(
 	sl: SecondLayer,
-	save: (t: { sender: string; recipient: string; amount: string }) => Promise<void>,
+	save: (t: {
+		sender: string;
+		recipient: string;
+		amount: string;
+	}) => Promise<void>,
 ) {
 	for await (const t of sl.index.ftTransfers.walk({
 		contractId: SBTC_CONTRACT_ID,
