@@ -40,7 +40,8 @@ Everything is indexing — the question is how much of the indexer you run:
 
 - `sl.index` — decoded rows we keep indexed: query FT/NFT transfers, all event
   types (`events`), and `contractCalls` — or build your own app index on them
-  with `walk()`, resumable cursors, and `reorgs[]` on every page.
+  with the checkpointed `consume()` loop (automatic reorg rewind), `walk()`
+  sweeps, and resumable cursors on every page.
 - `sl.subgraphs` — deploy your own indexer (one `defineSubgraph()` file via the
   CLI), then read your hosted tables here. We run the loop.
 - `sl.streams` — the raw ordered event firehose Index itself is built on, with

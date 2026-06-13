@@ -102,7 +102,7 @@ export default function IndexPage() {
 				<h1>
 					Decoded chain data.
 					<br />
-					No decoders to write.
+					Build your app index.
 				</h1>
 				<p className="pp-sub">
 					Every transfer, contract call, and print event on Stacks, normalized
