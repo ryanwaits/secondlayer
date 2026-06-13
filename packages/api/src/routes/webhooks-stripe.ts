@@ -10,6 +10,7 @@
  * with the SDK, which re-parses internally.
  */
 
+import { creditCredits } from "@secondlayer/platform/db/queries/account-credits";
 import { clearFreeze } from "@secondlayer/platform/db/queries/account-spend-caps";
 import {
 	getAccountByStripeCustomerId,
@@ -102,6 +103,11 @@ app.post("/", async (c) => {
 		} else if (event.type === "customer.subscription.deleted") {
 			await onSubscriptionDeleted(
 				event.data.object as Stripe.Subscription,
+				event.id,
+			);
+		} else if (event.type === "checkout.session.completed") {
+			await onCheckoutCompleted(
+				event.data.object as Stripe.Checkout.Session,
 				event.id,
 			);
 		}
@@ -231,6 +237,44 @@ async function onSubscriptionDeleted(
 	logger.info("stripe.webhook.subscription.deleted", {
 		eventId,
 		accountId: account.id,
+	});
+}
+
+/**
+ * checkout.session.completed — credit a prepaid dev-credits top-up.
+ *
+ * Only one-time payment sessions tagged `kind: "credits_topup"` (mode=payment,
+ * payment_status=paid); subscription checkouts flow through the events above.
+ * Idempotent via `processed_stripe_events`. `amount_total` (what the card
+ * actually paid) is the source of truth, cents → USD micros (1¢ = 10,000µ$).
+ */
+async function onCheckoutCompleted(
+	session: Stripe.Checkout.Session,
+	eventId: string,
+): Promise<void> {
+	if (
+		session.mode !== "payment" ||
+		session.metadata?.kind !== "credits_topup"
+	) {
+		return;
+	}
+	if (session.payment_status !== "paid") return;
+	const accountId = session.metadata?.secondlayer_account_id;
+	if (!accountId) {
+		logger.warn("credits topup: no account_id in session metadata", {
+			eventId,
+		});
+		return;
+	}
+	const cents = session.amount_total ?? 0;
+	if (cents <= 0) return;
+	const usdMicros = BigInt(cents) * 10_000n;
+	const balance = await creditCredits(getDb(), accountId, usdMicros);
+	logger.info("Credited account from top-up", {
+		eventId,
+		accountId,
+		cents,
+		balanceUsdMicros: balance.toString(),
 	});
 }
 

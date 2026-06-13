@@ -6,6 +6,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/db/queries/accounts.ts",
 		"src/db/queries/usage.ts",
 		"src/db/queries/account-spend-caps.ts",
+		"src/db/queries/account-credits.ts",
 		"src/db/queries/projects.ts",
 		"src/schemas/accounts.ts",
 	],

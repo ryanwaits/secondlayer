@@ -20,6 +20,10 @@
 			"types": "./dist/db/queries/account-spend-caps.d.ts",
 			"import": "./dist/db/queries/account-spend-caps.js"
 		},
+		"./db/queries/account-credits": {
+			"types": "./dist/db/queries/account-credits.d.ts",
+			"import": "./dist/db/queries/account-credits.js"
+		},
 		"./db/queries/projects": {
 			"types": "./dist/db/queries/projects.d.ts",
 			"import": "./dist/db/queries/projects.js"

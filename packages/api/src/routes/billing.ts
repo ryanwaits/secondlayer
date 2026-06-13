@@ -37,8 +37,35 @@ import { InvalidJSONError } from "../middleware/error.ts";
 
 const app = new Hono();
 
+/** Prepaid dev-credit top-up packs (USD). Min $10 — card fees make sub-$10 lossy. */
+const CREDIT_PACKS_USD = [10, 25, 50, 100] as const;
+
 function dashboardBaseUrl(): string {
 	return process.env.DASHBOARD_URL ?? "https://secondlayer.tools";
+}
+
+type StripeClient = NonNullable<ReturnType<typeof getStripeOrNull>>;
+type AccountRow = NonNullable<Awaited<ReturnType<typeof getAccountById>>>;
+
+/** Lazy Stripe customer — first billing action materializes + persists it. */
+async function ensureStripeCustomer(
+	stripe: StripeClient,
+	db: ReturnType<typeof getDb>,
+	account: AccountRow,
+): Promise<string> {
+	if (account.stripe_customer_id) return account.stripe_customer_id;
+	const customer = await stripe.customers.create({
+		// NULL for ghost accounts (unreachable here in practice — billing is
+		// session-gated and ghosts can't log in until claimed).
+		email: account.email ?? undefined,
+		metadata: { secondlayer_account_id: account.id },
+	});
+	await setStripeCustomerId(db, account.id, customer.id);
+	logger.info("Created Stripe customer", {
+		accountId: account.id,
+		stripeCustomerId: customer.id,
+	});
+	return customer.id;
 }
 
 app.post("/upgrade", async (c) => {
@@ -81,23 +108,7 @@ app.post("/upgrade", async (c) => {
 	const account = await getAccountById(db, accountId);
 	if (!account) return c.json({ error: "Account not found" }, 404);
 
-	// Lazy customer creation — first upgrade materializes the Stripe
-	// Customer and persists the id. Returning users already have one.
-	let stripeCustomerId = account.stripe_customer_id;
-	if (!stripeCustomerId) {
-		const customer = await stripe.customers.create({
-			// NULL for ghost accounts (unreachable here in practice — billing
-			// is session-gated and ghosts can't log in until claimed).
-			email: account.email ?? undefined,
-			metadata: { secondlayer_account_id: account.id },
-		});
-		stripeCustomerId = customer.id;
-		await setStripeCustomerId(db, account.id, stripeCustomerId);
-		logger.info("Created Stripe customer", {
-			accountId: account.id,
-			stripeCustomerId,
-		});
-	}
+	const stripeCustomerId = await ensureStripeCustomer(stripe, db, account);
 
 	// Stripe-hosted redirects bypass our Next middleware, so the return
 	// URLs must use the raw filesystem path (/platform/billing) rather
@@ -118,6 +129,68 @@ app.post("/upgrade", async (c) => {
 				tier: body.tier,
 				interval,
 			},
+		},
+	});
+
+	return c.json({ url: session.url });
+});
+
+/**
+ * POST /api/billing/topup   body: { amount: 10 | 25 | 50 | 100 }
+ *
+ * One-time prepaid dev-credit top-up. Returns a Stripe Checkout Session URL in
+ * `mode: "payment"` (not a subscription) with an inline price for the chosen
+ * pack. The balance is credited by the `checkout.session.completed` webhook —
+ * never here — so credit only lands on confirmed payment.
+ */
+app.post("/topup", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+
+	const body = (await c.req.json().catch(() => {
+		throw new InvalidJSONError();
+	})) as { amount?: unknown };
+
+	const usd = typeof body.amount === "number" ? body.amount : Number.NaN;
+	if (!(CREDIT_PACKS_USD as readonly number[]).includes(usd)) {
+		return c.json(
+			{ error: `amount must be one of ${CREDIT_PACKS_USD.join(", ")} (USD)` },
+			400,
+		);
+	}
+
+	const stripe = getStripeOrNull();
+	if (!stripe) {
+		logger.info("Topup called but Stripe not configured");
+		return c.json({ error: "billing_not_configured" }, 503);
+	}
+
+	const db = getDb();
+	const account = await getAccountById(db, accountId);
+	if (!account) return c.json({ error: "Account not found" }, 404);
+
+	const stripeCustomerId = await ensureStripeCustomer(stripe, db, account);
+
+	const session = await stripe.checkout.sessions.create({
+		mode: "payment",
+		customer: stripeCustomerId,
+		line_items: [
+			{
+				price_data: {
+					currency: "usd",
+					unit_amount: usd * 100,
+					product_data: { name: `Secondlayer usage credits — $${usd}` },
+				},
+				quantity: 1,
+			},
+		],
+		success_url: `${dashboardBaseUrl()}/platform/billing?topup=success`,
+		cancel_url: `${dashboardBaseUrl()}/platform/billing?topup=cancelled`,
+		// The webhook reads these to credit the right account. Mirror onto the
+		// PaymentIntent so the credit survives if we ever switch event source.
+		metadata: { secondlayer_account_id: account.id, kind: "credits_topup" },
+		payment_intent_data: {
+			metadata: { secondlayer_account_id: account.id, kind: "credits_topup" },
 		},
 	});
 
