@@ -9,9 +9,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = socialMeta({
-	title: "secondlayer — index the chain, own your API",
+	title: "secondlayer — the chain, decoded",
 	description:
-		"The hosted indexer for Stacks: we capture and decode every event, you define the tables and ship the API. No node, no infra, readable by anyone.",
+		"Every transfer, contract call, and sBTC peg event on Stacks — decoded into typed JSON. Read it keyless over REST, the SDK, or your agent. No node required.",
 	image: "/og/home.png",
 	path: "/",
 });
@@ -55,14 +55,14 @@ export function HomeView({ status }: { status: SystemStatus | null }) {
 					<span className="home-pill-arr">→</span>
 				</Link>
 				<h1>
-					Index the chain.
+					The chain, decoded.
 					<br />
-					Own your API.
+					No node required.
 				</h1>
 				<p className="home-sub">
-					Secondlayer is the hosted indexer for Stacks: we capture and decode
-					every event, you define the tables and ship the API. No node, no
-					infra, readable by anyone.
+					Every transfer, contract call, and sBTC peg event on Stacks — decoded
+					into typed JSON. Read it keyless over REST, the SDK, or your agent.
+					Outgrow the read? Deploy your own indexer in one file.
 				</p>
 				<div className="home-ctas">
 					<CtaPill />

@@ -31,9 +31,9 @@ describe("www marketing routes", () => {
 		expect(html).toContain('class="home"');
 		// Hero: release pill + headline + sub.
 		expect(html).toContain("Explore subgraphs is live");
-		expect(html).toContain("Index the chain.");
-		expect(html).toContain("Own your API.");
-		expect(html).toContain("hosted indexer for Stacks");
+		expect(html).toContain("The chain, decoded.");
+		expect(html).toContain("No node required.");
+		expect(html).toContain("sBTC peg event");
 		// CTA pair: install/mint pill (client component renders install mode in
 		// static markup) + docs ghost link.
 		expect(html).toContain("npm install @secondlayer/sdk");
@@ -46,16 +46,16 @@ describe("www marketing routes", () => {
 
 	test("/pricing renders the free-first billing page", () => {
 		const html = renderToStaticMarkup(<PricingPage />);
-		// free-first framing + beta honesty
+		// reads-free / hosting-paid framing + self-host honesty
 		expect(html).toContain("Reads are free.");
-		expect(html).toContain("Pay for headroom.");
-		expect(html).toContain("When open beta ends");
-		// honest free promise
+		expect(html).toContain("Hosting is paid.");
+		expect(html).toContain("14-day trial");
+		// honest free promise: keyless reads, no account
 		expect(html).toContain("$0");
-		expect(html).toContain("Rate-limited public reads");
+		expect(html).toContain("Keyless decoded reads");
 		// paid ladder is Free/Pro only; enterprise has no number
 		expect(html).toContain("$99");
-		expect(html).toContain("Private subgraphs");
+		expect(html).toContain("public and private");
 		expect(html).toContain("Contact Us");
 		expect(html).not.toContain("$499");
 		expect(html).not.toContain("$1.5k");

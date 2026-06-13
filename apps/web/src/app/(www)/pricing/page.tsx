@@ -7,16 +7,14 @@ import Link from "next/link";
 export const metadata: Metadata = socialMeta({
 	title: "Pricing · secondlayer",
 	description:
-		"Free is the product, paid is the headroom. Rate-limited public reads for everyone and a permanent free tier.",
+		"Reads are keyless and free for everyone. Pay when you want it hosted — your tables, webhooks, and backfills on our infra. The whole stack is also MIT to self-host.",
 	image: "/og/pricing.png",
 	path: "/pricing",
 });
 
 const FREE_INCLUDES = [
-	"Rate-limited public reads on Index and Streams",
+	"Keyless decoded reads on Index and Streams",
 	"Ghost keys from your terminal, no signup",
-	"Public subgraphs, live from deploy",
-	"3 webhook subscriptions",
 	"Signed Streams bulk dumps",
 	"MCP server + agent skills",
 ];
@@ -24,7 +22,7 @@ const FREE_INCLUDES = [
 // Every claim below maps to an enforced limit. If code doesn't enforce it,
 // it doesn't go on a card.
 const PRO_INCLUDES = [
-	"Private subgraphs",
+	"Deploy subgraphs — public and private",
 	"Genesis backfills (full history)",
 	"25 webhook subscriptions + replay",
 	"250 req/s on Index and Streams",
@@ -38,15 +36,19 @@ const ENTERPRISE_SUMMARY =
 const FAQ = [
 	{
 		q: "What stays free forever?",
-		a: "Rate-limited public reads — anonymous on Index, with a free key on Streams — plus signed bulk dumps and the free tier above. Public data stays public.",
+		a: "Keyless public reads — anonymous on Index, with a free key on Streams — plus signed bulk dumps. No account, no card. Public data stays public.",
 	},
 	{
 		q: "What does a paid plan actually buy?",
-		a: "Capacity and guarantees: a bigger request budget under your own key, more subgraphs (including private ones), full genesis backfills instead of forward-only indexing, longer webhook retention, support and SLAs. Never access to public data.",
+		a: "We host it for you: deploy public and private subgraphs, full genesis backfills, webhooks with replay, a bigger request budget, usage budgets, and support — provisioned and on-call on our infra. Never access to public data; reads are free either way.",
 	},
 	{
-		q: "When does billing start?",
-		a: "When open beta ends, with notice. Usage dashboards ship first, so you can see exactly where you'd land before a card is ever involved.",
+		q: "How does the trial work?",
+		a: "Every paid plan opens with a 14-day trial — card on file, cancel anytime. Usage dashboards show exactly where you'd land before anything bills.",
+	},
+	{
+		q: "Can I run it myself?",
+		a: "Yes — the whole stack is MIT-licensed. docker compose up runs the indexer, API, and processor on your own hardware. Paid plans are for when you'd rather we run it.",
 	},
 ];
 
@@ -61,20 +63,21 @@ export default function PricingPage() {
 					<>
 						Reads are free.
 						<br />
-						Pay for headroom.
+						Hosting is paid.
 					</>
 				}
 			>
-				Public reads are rate-limited for everyone and the free tier is
-				permanent. Paid plans buy capacity and guarantees, never access to
-				public data.
+				Keyless decoded reads are free for everyone — no account, no card. When
+				you want it run for you — your tables, webhooks, and backfills on our
+				infra — that's Pro at $99/mo. The whole stack is MIT, so self-hosting is
+				always an option.
 			</MarketingPageHeader>
 
 			<div className="prc-cta-band">
 				<div className="prc-cta-band-copy">
-					<p className="prc-cta-band-title">Start free — no signup, no card.</p>
+					<p className="prc-cta-band-title">Read free — no signup, no card.</p>
 					<p className="prc-cta-band-sub">
-						Mint a key from your terminal and you're indexing in minutes.
+						Curl decoded data in ten seconds, or grab the SDK.
 					</p>
 				</div>
 				<CtaPill />
@@ -82,15 +85,15 @@ export default function PricingPage() {
 
 			<div className="prc-split">
 				<div className="prc-plan prc-free">
-					<span className="prc-plan-eyebrow">Free · forever</span>
+					<span className="prc-plan-eyebrow">Free · no account</span>
 					<p className="prc-plan-price">$0</p>
 					<ul>
 						{FREE_INCLUDES.map((f) => (
 							<li key={f}>{f}</li>
 						))}
 					</ul>
-					<Link href="/login" className="prc-plan-cta prc-cta-ghost">
-						Mint a key
+					<Link href="/docs" className="prc-plan-cta prc-cta-ghost">
+						Start reading
 					</Link>
 				</div>
 				<div className="prc-plan prc-pro">
@@ -98,14 +101,14 @@ export default function PricingPage() {
 					<p className="prc-plan-price">
 						$99<small>/mo</small>
 					</p>
-					<p className="prc-plan-cont">Everything in Free, plus</p>
+					<p className="prc-plan-cont">We host it. You ship.</p>
 					<ul>
 						{PRO_INCLUDES.map((f) => (
 							<li key={f}>{f}</li>
 						))}
 					</ul>
 					<Link href="/login" className="prc-plan-cta prc-cta-pro">
-						Start Pro
+						Start 14-day trial
 					</Link>
 				</div>
 			</div>
