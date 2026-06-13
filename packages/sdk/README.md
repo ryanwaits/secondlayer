@@ -1,6 +1,6 @@
 # @secondlayer/sdk
 
-TypeScript SDK for the Second Layer API.
+TypeScript SDK for the Secondlayer API.
 
 ## Install
 
@@ -36,12 +36,18 @@ plan's tier.
 
 ## Mental model
 
-- `sl.streams` reads raw ordered chain events from Stacks Streams.
-- `sl.index` reads the decoded layer from Stacks Index — FT/NFT transfers, all event types (`events`), and `contractCalls`.
-- `sl.contracts` finds deployed contracts by trait (SIP-009/010/013).
-- `sl.subgraphs` reads app-specific tables from Stacks Subgraphs.
+Everything is indexing — the question is how much of the indexer you run:
 
-## Stacks Streams
+- `sl.index` — decoded rows we keep indexed: query FT/NFT transfers, all event
+  types (`events`), and `contractCalls` — or build your own app index on them
+  with `walk()`, resumable cursors, and `reorgs[]` on every page.
+- `sl.subgraphs` — deploy your own indexer (one `defineSubgraph()` file via the
+  CLI), then read your hosted tables here. We run the loop.
+- `sl.streams` — the raw ordered event firehose Index itself is built on, with
+  a checkpointed `consume()` and dumps `replay()` for building from zero.
+- `sl.contracts` — find deployed contracts by trait (SIP-009/010/013).
+
+## Streams
 
 Typed HTTP client for the raw event firehose. Reads require a bearer token (`apiKey`).
 
@@ -217,7 +223,7 @@ the decoder. Decoders throw when the event type or payload is malformed. Add new
 helpers beside `src/streams/ft-transfer.ts` and export them through
 `src/streams/index.ts`.
 
-## Stacks Index
+## Index
 
 Decoded transfer events.
 
@@ -247,7 +253,7 @@ for await (const transfer of sl.index.ftTransfers.walk({
 
 ## Transaction-inclusion proofs
 
-Verify — **without trusting Second Layer** — that a transaction is included in a
+Verify — **without trusting Secondlayer** — that a transaction is included in a
 Stacks (Nakamoto) block, and that ≥70% of the reward cycle's signer weight
 attested to that block. `verifyTransactionProof` recomputes everything
 client-side and trusts nothing the API returned.
@@ -314,7 +320,7 @@ fetchRewardSet(opts: {
 
 Exported types: `TransactionProof`, `TransactionProofVerifyResult`, `RewardSet`.
 
-## Stacks Subgraphs
+## Subgraphs
 
 Deploy and query app-specific tables.
 

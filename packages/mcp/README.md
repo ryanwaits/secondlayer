@@ -1,6 +1,7 @@
 # @secondlayer/mcp
 
-MCP server for Secondlayer's agent-native subgraph platform. Exposes the
+MCP server for Secondlayer, the hosted indexer for Stacks — Index (decoded
+rows), Subgraphs (your schema, hosted), and Streams (raw inputs). Exposes the
 golden-path tools only — Index reads, the subgraph lifecycle, subscriptions,
 contract discovery/scaffolding, and key self-provisioning. Everything else
 (single-record lookups, mempool, stacking, proofs, codegen, billing, projects,
@@ -14,7 +15,7 @@ bun add @secondlayer/mcp
 
 ## Auth
 
-Most reads are public — `index_*` and `contracts_find` work with no key. Subgraph tools need an `SL_API_KEY`; separately, **public** subgraphs are anon-readable over HTTP at `GET /v1/subgraphs/<name>/<table>` (`{ rows, next_cursor, tip }` cursor envelope), while private ones need the owning account's key (anon → 404). **`streams_dumps` requires an `SL_API_KEY`** (and the Index tools reject free-tier keys — Build+ for keyed access). Writes (deploy, publish/unpublish, reindex, delete, subscriptions) and account tools need a key: create one (prefixed `sk-sl_`) in the platform console at https://secondlayer.tools/platform/api-keys and set it as `SL_API_KEY`. Read `secondlayer://context` first — it reports auth state and read-auth tiers.
+Most reads are public — `index_*` and `contracts_find` work with no key. Subgraph tools need an `SL_API_KEY`; separately, **public** subgraphs are anon-readable over HTTP at `GET /v1/subgraphs/<name>/<table>` (`{ rows, next_cursor, tip }` cursor envelope), while private ones need the owning account's key (anon → 404). `streams_dumps` needs no key — the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. (Index tools reject free-tier keys — Build+ for keyed access.) Writes (deploy, publish/unpublish, reindex, delete, subscriptions) and account tools need a key: create one (prefixed `sk-sl_`) in the platform console at https://secondlayer.tools/platform/api-keys and set it as `SL_API_KEY`. Read `secondlayer://context` first — it reports auth state and read-auth tiers.
 
 ## Quick Start — Stdio (IDE)
 
