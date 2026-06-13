@@ -79,13 +79,14 @@ export default function IndexPage() {
 					No decoders to write.
 				</h1>
 				<p className="pp-sub">
-					Index is the decoded read layer for Stacks. Every transfer, contract
-					call, and print event, normalized into typed rows you can filter and
-					page. We run the decoder, you query.
+					Every transfer, contract call, and print event on Stacks, normalized
+					into typed rows. We run the chain indexer and the decoder — read the
+					rows keyless, or build your app&apos;s own index on them: cursors,
+					reorgs, and backfill on every page.
 				</p>
 				<div className="pp-ctas">
 					<Link href="/docs/index" className="pp-btn pp-btn-ink">
-						Start querying
+						Start indexing
 					</Link>
 					<Link href="/docs/index" className="pp-btn pp-btn-ghost">
 						Read the docs →
@@ -117,7 +118,7 @@ export default function IndexPage() {
 			<section className="pp-section pp-wrap">
 				<div className="pp-section-head">
 					<h2>
-						One layer.
+						One surface.
 						<br />
 						<span className="dim">Three ways in.</span>
 					</h2>
@@ -204,9 +205,13 @@ export default function IndexPage() {
 					<h2>
 						Stop writing decoders.
 						<br />
-						Start reading the chain.
+						Start indexing.
 					</h2>
-					<p>Reads are open during beta. No node, no key, no infra.</p>
+					<p>
+						Reads are open during beta. No node, no key, no infra — and the
+						firehose underneath is <Link href="/streams">Streams</Link>, the
+						same one our decoder runs on.
+					</p>
 					<div className="pp-ctas">
 						<Link href="/docs/index" className="pp-btn pp-btn-ink">
 							Get started
