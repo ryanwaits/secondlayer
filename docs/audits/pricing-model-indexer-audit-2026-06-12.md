@@ -2,7 +2,7 @@
 
 ## 1. Verdict
 
-**Partially yes — and we already knew.** The live ladder (Free/Pro $99/Scale $299) headlines req/s, which is the Alchemy/QuickNode RPC convention applied to a business whose marginal request cost is ~$0 (two fixed Hetzner boxes, free R2 egress, ~99% margin per `docs/pricing-scalability-analysis.md`). Our real costs — per-tenant subgraph materialization + storage, backfill compute storms, concurrent SSE connections pinning Postgres, sponsor gas — are either binary feature gates, counted-but-unbilled, or completely unlimited.
+**Partially yes — and we already knew.** The live ladder (Free / Pro $99 / Enterprise custom; a `scale` plan id exists in code at $299 for manual deals only, per STRATEGY.md — it is NOT a public tier) headlines req/s, which is the Alchemy/QuickNode RPC convention applied to a business whose marginal request cost is ~$0 (two fixed Hetzner boxes, free R2 egress, ~99% margin per `docs/pricing-scalability-analysis.md`). Our real costs — per-tenant subgraph materialization + storage, backfill compute storms, concurrent SSE connections pinning Postgres, sponsor gas — are either binary feature gates, counted-but-unbilled, or completely unlimited.
 
 Three honesty caveats before the indictment:
 
@@ -32,7 +32,7 @@ The inversions, plainly:
 - **Streams pricing is upside-down.** Retention gates the live API while the same history is free via public parquet. The expensive thing (live tip + SSE) has no concurrency or duration cap at any tier; the cheap thing (history) is the gate. Caveat: Streams reads are key-mandatory (keyless = 402 now that x402 is live), so the exposure is Free-KEYED tails, not anon — account-attributable, which makes a per-tier cap enforceable. A Free-keyed user holding a multi-hour SSE tail costs more than a Pro user doing 250 rps of keyset reads.
 - **Subgraphs — the declared monetizable core — has the thinnest monetization.** Two binary gates. No limit on subgraph count, rows, storage GB, or handler compute. A free account can run unlimited public forward-only subgraphs consuming processor + disk 24/7 for $0. Goldsky would charge ~$36.50/mo per always-on subgraph + ~$4/100k entities for the same thing.
 - **We meter some things we never bill.** `usage_daily` counts Index/Streams rows-returned (counters emit: routes/index.ts:171, routes/streams.ts:134); documented overage prices ($4/100K index rows, $1/100K webhook events) exist in docs — no Stripe meter. But webhook deliveries are NOT counted at all (dead column, zero increments) — flipping that meter needs counter wiring + emit, not just a Stripe meter.
-- **Tier-vocabulary drift, three sources of truth:** product tiers free/build/scale ≠ plan ids none/launch/scale/enterprise ≠ display Pro/Scale; founder ladder says $499 Scale, `pricing.ts` says $299.
+- **Tier-vocabulary drift:** rate-tier configs say free/build/scale ≠ plan ids none/launch/scale/enterprise ≠ public ladder Free/Pro/Enterprise. (Corrected: there is no $499 anywhere — that was the superseded June-9 roadmap proposal; STRATEGY.md's Free/Pro $99/Enterprise is canon, with `scale` $299 as a code-only manual-deal vehicle.)
 - **Free keyed ≈ free anon on Index, but not identical:** anon = one SHARED global 100 rps bucket across all anon callers (`INDEX_ANON_RATE_LIMIT_PER_SECOND`); keyed free = 100 rps PER TENANT. Keying up buys a private bucket — still a thin reason to create an account.
 - **x402 vs free-tier arbitrage unpriced:** why would an agent pay $0.001/call when keyless Index reads are free at the shared-bucket rate on the same routes? And Pro at $99 undercuts x402 above ~99k calls/mo. The two rails' coherence is unanalyzed.
 
@@ -81,10 +81,10 @@ Two holes in this story as written: (a) **BYO-database subgraphs are shipped pro
 
 Concrete, ranked by evidence strength:
 
-1. **Per-tier SSE/stream concurrency caps** (e.g. Free 2, Pro 10, Scale 25 concurrent). Our own analysis calls it the single most important lever; caps the one resource that takes prod down. Not even a billing change — a capacity gate that makes Pro mean something real. Build cost is DAYS, not ~$0: no connection tracking exists in the SSE path or rate-limit store today. Feasible — Redis is deployed and already backs the rate-limit store (solves the 2-replica counting problem) — but needs connect/disconnect lifecycle, stale-counter GC (replica crash leaks counters → false lockout), and a policy for x402 accountless tails (no tenant key).
-2. **Subgraph slots per tier** (e.g. Free 3 active, Pro 10, Scale 25). Ghost-style counts, Goldsky-style "I need a 4th always-on subgraph" upgrade moment. Today: unlimited at every tier including $0.
+1. **Per-tier SSE/stream concurrency caps** (e.g. Free 2, Pro 10, Enterprise custom). Our own analysis calls it the single most important lever; caps the one resource that takes prod down. Not even a billing change — a capacity gate that makes Pro mean something real. Build cost is DAYS, not ~$0: no connection tracking exists in the SSE path or rate-limit store today. Feasible — Redis is deployed and already backs the rate-limit store (solves the 2-replica counting problem) — but needs connect/disconnect lifecycle, stale-counter GC (replica crash leaks counters → false lockout), and a policy for x402 accountless tails (no tenant key).
+2. **Subgraph slots per tier** (e.g. Free 3 active, Pro 10, Enterprise custom). Ghost-style counts, Goldsky-style "I need a 4th always-on subgraph" upgrade moment. Today: unlimited at every tier including $0.
 3. **Entities/rows-stored allowance + overage** (e.g. Pro includes 5M rows across subgraphs, then $X/1M-mo; BYO deploys carved out — rows on customer Postgres are uncountable). The industry-proven indexing meter (Goldsky ~$39/M-mo entry / $10/M at 10M+ volume; Ghost $25–50/M overage; OnFinality ladders; defunct-Alchemy $25/M as historical anchor). Stock-like, predictable, user-visible — the meter family Tinybird/PlanetScale retreats say is safe.
-4. **Backfill as paid compute** — genesis/full-history as a one-time priced job (blocks × rate, QuickNode-style) or a Scale entitlement with N included. Today our most expensive single operation is a Pro checkbox capturing $0 marginal revenue.
+4. **Backfill as paid compute** — genesis/full-history as a one-time priced job (blocks × rate, QuickNode-style) or an Enterprise/manual-deal entitlement with N included. Today our most expensive single operation is a Pro checkbox capturing $0 marginal revenue.
 5. **Flip on the overage meters** (index rows returned $4/100K — counter exists and emits, only Stripe meter missing; webhook deliveries $1/100K — counter does NOT exist, `usage_daily.deliveries` is never written, so this one needs counter wiring + emit too) once ≥10 paying accounts exist per roadmap ruling.
 6. **Monthly request volume as the second Index axis** (soft cap, Hiro-style) so paid tiers sell volume headroom, not just instantaneous rate. Enforcement gap: per founder ruling open beta = no read auth, so per-account volume caps bind keyed traffic only — the anon shared bucket stays volume-unbounded.
 7. **Free-tier subgraph hygiene: auto-recycle deployments, Envio-style — but copy the actual mechanism: AGE/usage-based, not idle-based.** Envio's Development plan: 30-day max deployment lifespan + soft limits (100k events processed / 5GB storage) → 7-day notification grace → 3 days read-only → delete; 20GB = hard auto-delete. Note an IDLE-based variant isn't measurable today anyway — no per-subgraph read/last-access tracking exists (usage counters are per-account; `subgraph-expiry-sweep` is x402-TTL teardown, not idle detection); enforcement side is real (`paused` status exists). Hygiene, not revenue.
@@ -115,24 +115,24 @@ Dimensions considered nowhere above, named for completeness: **Index history-dep
 
 ## 7. Recommendation
 
-Tiers are LOCKED ($99 Pro / Scale / Enterprise skeleton per founder ruling — and reconcile the $299-in-code vs $499-on-paper drift while touching this). The change is what the tiers CONTAIN. Principle: **rate tiers stay for Index reads (shared-cost — they're honest there); resource caps move to the front for Subgraphs/Streams/Subscriptions (per-tenant cost); meters stay off until ≥10 paying accounts, then flip the two that are already counted.**
+Tiers are LOCKED (Free / Pro $99 / Enterprise custom per STRATEGY.md; `scale` $299 stays a code-only manual-deal vehicle, not a public tier). The change is what the tiers CONTAIN. Principle: **rate tiers stay for Index reads (shared-cost — they're honest there); resource caps move to the front for Subgraphs/Streams/Subscriptions (per-tenant cost); meters stay off until ≥10 paying accounts, then flip the two that are already counted.**
 
 **Phase 1 — capacity gates, no billing changes (build now, ~$0 each):**
 
-| Dimension | Free | Pro $99 | Scale | Enterprise |
-|---|---|---|---|---|
-| Index req/s (keep) | 100 | 250 | 500 | custom |
-| Streams req/s (keep — note 10, not 100: `streams/tiers.ts:35`) | 10 | 250 | 500 | custom |
-| **Concurrent SSE/stream tails (NEW)** | 2 | 10 | 25 | custom |
-| **Active subgraph slots (NEW)** | 3 | 10 | 25 | custom |
-| **Stored rows across subgraphs (NEW, soft cap → pause; BYO deploys excluded — rows on customer Postgres)** | 250k | 5M | 25M | custom |
-| Genesis/full-history backfill (keep) | — | ✓ | ✓ + priority | ✓ |
-| Private subgraphs (keep) | — | ✓ | ✓ | ✓ |
-| Webhook subscriptions (keep) | 3 | 25 | ∞ | ∞ |
-| Streams retention (keep, demote from headline) | 7d | 30d | 90d | ∞ |
-| **Free-subgraph auto-recycle (NEW hygiene, age/usage-based per Envio mechanism)** | ✓ | — | — | — |
+| Dimension | Free | Pro $99 | Enterprise (incl. manual-deal `scale`) |
+|---|---|---|---|
+| Index req/s (keep) | 100 | 250 | custom (scale plan: 500) |
+| Streams req/s (keep — note 10, not 100: `streams/tiers.ts:35`) | 10 | 250 | custom (scale plan: 500) |
+| **Concurrent SSE/stream tails (NEW)** | 2 | 10 | custom |
+| **Active subgraph slots (NEW)** | 3 | 10 | custom |
+| **Stored rows across subgraphs (NEW, soft cap → pause; BYO deploys excluded — rows on customer Postgres)** | 250k | 5M | custom |
+| Genesis/full-history backfill (keep) | — | ✓ | ✓ + priority |
+| Private subgraphs (keep) | — | ✓ | ✓ |
+| Webhook subscriptions (keep) | 3 | 25 | ∞ |
+| Streams retention (keep, demote from headline) | 7d | 30d | 90d+/∞ |
+| **Free-subgraph auto-recycle (NEW hygiene, age/usage-based per Envio mechanism)** | ✓ | — | — |
 
-(Column names Free/Pro/Scale match no code enum — plan ids are none/launch/scale/enterprise, streams tiers free/build/scale; §2 diagnoses this drift and this table reproduces it. Phase 1 implementation must pick the mapping explicitly.)
+(Plan-id mapping: Free=`none`, Pro=`launch`, Enterprise=`enterprise` with `scale` as the manual-deal stepping stone; streams tier configs separately say free/build/scale — Phase 1 implementation must pick the mapping explicitly.)
 
 Numbers are illustrative AND ungrounded — first pull actual prod usage (subgraphs/account, rows/tenant schema, peak SSE tails, delivery volumes; all queryable today), then calibrate so real usage fits Free and Pro is ~10x. Build-cost honesty per dimension: subgraph slots fit the existing `plan-limits.ts` pattern (genesis/private/sub-quota + exempt allowlist) — genuinely cheap; rows-returned meters already emit. But the SSE cap is days of work (no connection tracking; see §5 #1), the stored-rows cap needs a NEW measurement job (`measureStorage()` is dead code — zero callers, measures bytes not rows, writes `usage_snapshots` nothing populates; "row counts queryable per tenant schema" is true in principle only) plus a soft-cap/pause trigger, and auto-recycle needs per-subgraph read instrumentation if any usage signal is wanted (none exists; `paused` status does). Also unhandled here: **sybil** (free caps trivially multiplied via new accounts — no identity/abuse control proposed) and **grandfathering** (no migration/comms plan for existing deployments exceeding new caps beyond "calibrate to fit").
 
@@ -148,13 +148,13 @@ Numbers are illustrative AND ungrounded — first pull actual prod usage (subgra
 
 **Explicitly do NOT:** change price points; meter query compute or GB-scanned (Tinybird/PlanetScale retreat); charge for dumps (R2 $0 egress = moat, raw data is funnel); sell freshness tiers (no market norm); add a per-subgraph base fee on Free (The Graph/Goldsky funnel lesson — slots cap is enough); per-request price Subgraphs reads.
 
-One sentence for the pricing page when this lands: Free = try everything small; Pro = your real app (private, history, 10 subgraphs, 5M rows); Scale = your heavy app; Enterprise = your own lane.
+One sentence for the pricing page when this lands: Free = try everything small; Pro = your real app (private, history, 10 subgraphs, 5M rows); Enterprise = your own lane.
 
 ## 8. Open questions for the founder
 
 1. **Are capacity caps (slots/SSE/rows) inside or outside the "no metered billing until 10 paying accounts" ruling?** This audit treats them as tier definitions (outside). If you read them as metering, Phase 1 collapses to hygiene only.
 2. **Slot/row numbers:** is Free = 3 subgraphs / 250k rows generous enough for the Explore seeding + grant-demo story? (Exempt-account allowlist already bypasses gates for first-party.)
-3. **Scale price reconciliation:** code says $299, ruling says $499, page says $299 non-self-serve. Which number is canon, and does Scale stay contact-sales?
+3. **`scale` plan disposition:** it's a code-only manual-deal vehicle at $299 (STRATEGY.md confirms not public). Keep it as the named stepping stone between Pro and Enterprise for design-partner deals, or delete the plan id and do those deals as custom Enterprise? (No price drift exists — the $499 in earlier drafts was the superseded June-9 roadmap proposal.)
 4. **Free-tier auto-recycle:** comfortable recycling free subgraphs Envio-style (age/usage-based: 30d max lifespan + soft event/storage limits → notify → read-only → delete)? It's the cheapest standing-cost control but it's also deleting user work.
 5. **Does the $1.5k Enterprise slot become a real productized dedicated/SLA SKU this year** (the anchor-partner shape), or stay pure contact-sales?
 6. **Backfill monetization appetite:** keep genesis as a binary Pro gate, or price heavy backfills as one-time jobs when someone actually asks for a 5-year backfill?
@@ -171,10 +171,10 @@ One sentence for the pricing page when this lands: Free = try everything small; 
 
 **Market (all fetched 2026-06-12 unless noted):**
 - The Graph: thegraph.com/studio-pricing, /docs/en/subgraphs/billing, /docs/en/resources/tokenomics, GIP-0081 (Indexing Payments, live w/ Horizon 2025-12-11), Messari State of The Graph Q4 2025 (40:1 subsidy:query-fee ratio)
-- Goldsky: goldsky.com/pricing, docs.goldsky.com/pricing/summary, Mirror GA post
+- Goldsky: goldsky.com/pricing, docs.goldsky.com/pricing/summary, Mirror GA post — entity storage $0.0053/hourly-unit per 100k entities at 100k–10M tier (≈$3.87/100k-mo ≈ ~$39/M-mo entry); $0.0014/unit (≈$10/M-mo) is the 10M+ volume tier only
 - SQD: docs.sqd.dev/cloud/pricing (post-2026-04-01 +20%), sqd.ai/cloud, network FAQ
-- Envio: envio.dev/pricing (tier data from live JS bundle), docs.envio.dev hosted-service-billing
-- Alchemy: alchemy.com/pricing, compute-unit-costs, subgraphs deprecation notice (sunset 2025-12-08), PAYG FAQ ($20/M queries + $25/M entities)
+- Envio: envio.dev/pricing (tier data from live JS bundle — UNVERIFIED: no numbers server-side on pricing page or docs; confirmed only indexing-hour unit ~730 hrs = 1 deployment-month, free dev tier, and Development-plan hygiene = 30d max lifespan + 100k events/5GB soft limits → 7d notify + 3d read-only → delete, 20GB hard delete), docs.envio.dev hosted-service-billing
+- Alchemy: alchemy.com/pricing, compute-unit-costs, subgraphs deprecation notice (sunset 2025-12-08), PAYG FAQ ($20/M queries + $25/M entities — DEFUNCT-PRODUCT pricing: Alchemy Subgraphs no longer exists; historical anchor only. Live Alchemy PAYG = $0.40–0.45 per 1M CU)
 - QuickNode: quicknode.com/pricing, docs streams/cost-estimation (credits-per-block; STALE flag: 2024 per-GB GA model superseded)
 - OnFinality/SubQuery: documentation.onfinality.io/support/pricing, network flex-plan docs (STALE flag: 2023 Medium pricing superseded)
 - Ghost: tryghost.xyz/pricing
@@ -185,7 +185,7 @@ One sentence for the pricing page when this lands: Free = try everything small; 
 - Allium: allium.so datashares ("we don't meter queries"; $ ranges third-party hearsay); Coin Metrics community-data docs
 - Flipside: sold data biz to SonarX, platform sunsets 2026-06-17 (cautionary tale)
 - AWS Public Blockchain (requester-pays parquet); BigQuery public datasets (~$6.25/TiB on-demand; STALE flag on older $5/TB cites)
-- Hiro: platform.hiro.so/pricing + Apr-2025 rate-limits blog (900 RPM free, unauth deprecation; 2023 post STALE)
+- Hiro: platform.hiro.so/pricing + Apr-2025 rate-limits blog (900 RPM free, unauth deprecation; 2023 post STALE). RENDER flag: pricing page server-side HTML shows "undefined requests / month" — numbers require headless render; confirmed exactly (free 900 RPM + 150K req/mo; $99 Build 3K RPM + 15M req/mo; also Scale $599 = 7K RPM + 75M req/mo, not used above)
 - Maestro: gomaestro.org/pricing (compute credits, published overage, x402 + stablecoin subscriptions live)
 - mempool.space/enterprise (Silver $1,499 / Gold $2,999 / Platinum $5,999 flat dedicated)
 - Non-crypto analogues: algolia.com/pricing (records+searches), fivetran.com/pricing + MAR-backlash coverage, tinybird.co pricing + Jan-2025 model-change post, clickhouse.com cloud billing, elastic.co serverless pricing, supabase.com/pricing, planetscale.com/pricing (no row metering), inngest.com/pricing, trigger.dev/pricing
