@@ -26,7 +26,6 @@ beforeEach(() => {
 afterEach(async () => {
 	for (const k of ENV_KEYS) {
 		if (saved[k] === undefined) {
-			// biome-ignore lint/performance/noDelete: env vars must be truly removed
 			delete process.env[k];
 		} else {
 			process.env[k] = saved[k];
@@ -41,7 +40,6 @@ afterEach(async () => {
 });
 
 function unsetEnv(key: string): void {
-	// biome-ignore lint/performance/noDelete: env vars must be truly removed (setting to undefined coerces to "undefined" string)
 	delete process.env[key];
 }
 

@@ -450,7 +450,6 @@ describe("Index stacking route", () => {
 			expect(body.stacking[0]?.function_name).toBe("stack-stx");
 			expect(body.notes).toContain("POX4_DECODER_ENABLED");
 		} finally {
-			// biome-ignore lint/performance/noDelete: deleting restores the env var to truly-unset
 			if (prev === undefined) delete process.env.POX4_DECODER_ENABLED;
 			else process.env.POX4_DECODER_ENABLED = prev;
 		}

@@ -12,9 +12,7 @@ const realFetch = globalThis.fetch;
 describe("spotUsd", () => {
 	beforeEach(() => {
 		_resetX402SpotForTests();
-		// biome-ignore lint/performance/noDelete: tests need the env truly absent
 		delete process.env.X402_SPOT_SBTC_USD;
-		// biome-ignore lint/performance/noDelete: tests need the env truly absent
 		delete process.env.X402_SPOT_STX_USD;
 	});
 	afterEach(() => {
@@ -87,7 +85,6 @@ describe("spotUsd", () => {
 		await _refreshX402SpotForTests();
 		expect(seenUrl).toContain("api.coingecko.com");
 		expect(spotUsd("STX")).toBe(1.85); // feed resolved, not wedged
-		// biome-ignore lint/performance/noDelete: tests need the env truly absent
 		delete process.env.X402_SPOT_URL;
 	});
 });

@@ -235,7 +235,6 @@ describe("settlePayment", () => {
 describe("getX402FacilitatorOrNull", () => {
 	test("returns null when no sponsor key is configured (→ 503 at the route)", () => {
 		const prev = process.env.X402_SPONSOR_KEY;
-		// biome-ignore lint/performance/noDelete: test needs the env var truly absent
 		delete process.env.X402_SPONSOR_KEY;
 		_resetX402FacilitatorForTests();
 		expect(getX402FacilitatorOrNull()).toBeNull();

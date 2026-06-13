@@ -1,7 +1,13 @@
 {
 	"$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
 	"files": {
-		"ignore": ["**/dist/**", "**/node_modules/**", "**/.next/**", "**/build/**"]
+		"ignore": [
+			"**/dist/**",
+			"**/node_modules/**",
+			"**/.next/**",
+			"**/build/**",
+			"packages/subgraphs/test/fixtures/blockdata-8100000-8100100.json"
+		]
 	},
 	"formatter": {
 		"enabled": true,
@@ -17,5 +23,17 @@
 	},
 	"organizeImports": {
 		"enabled": true
-	}
+	},
+	"overrides": [
+		{
+			"include": ["**/*.test.ts", "**/test/**/*.ts"],
+			"linter": {
+				"rules": {
+					"performance": {
+						"noDelete": "off"
+					}
+				}
+			}
+		}
+	]
 }
