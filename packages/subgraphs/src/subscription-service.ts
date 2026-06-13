@@ -4,8 +4,9 @@
 // Boots ONLY the real-time subscription delivery plane (chain-trigger evaluator,
 // outbox emitter, chain-reorg rewind) — isolated from subgraph indexing, so a
 // crash-looping or CPU-hot subgraph can't stall webhook delivery, and the plane
-// scales out on its own. The subgraph-processor still boots the same plane until
-// the two-deploy cutover removes it there.
+// scales out on its own. This is the SOLE booter of the plane (the two-deploy
+// cutover is complete; subgraph-processor no longer boots it).
+import { assertWebhookSigningConfigured } from "@secondlayer/shared/crypto/secondlayer-webhook";
 import { assertDbSplit, getDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import { sql } from "kysely";
@@ -31,6 +32,10 @@ async function writeHeartbeat(): Promise<void> {
 }
 
 assertDbSplit();
+// Fail loud before delivering anything: this plane's whole job is signed webhook
+// delivery, so refuse to boot in prod if no signing key is configured (else every
+// delivery ships unsigned). Override with ALLOW_UNSIGNED_WEBHOOKS=true.
+assertWebhookSigningConfigured();
 
 const stopPlane = await startSubscriptionPlane();
 

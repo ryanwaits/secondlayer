@@ -15,8 +15,8 @@ import {
  *
  * Extracted so it can run in its own `subscription-processor` service, isolated
  * from subgraph indexing (a crash-looping or CPU-hot subgraph no longer stalls
- * webhook delivery). For now `startSubgraphProcessor` also boots it — the
- * two-deploy cutover removes that call once the dedicated service is verified.
+ * webhook delivery). The two-deploy cutover is complete: `subscription-service.ts`
+ * is the sole booter; `startSubgraphProcessor` no longer boots the plane.
  */
 export async function startSubscriptionPlane(): Promise<() => Promise<void>> {
 	const streamsIndex = process.env.SUBGRAPH_SOURCE === "streams-index";

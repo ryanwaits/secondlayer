@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { generateEd25519KeyPair } from "./ed25519.ts";
 import {
+	assertWebhookSigningConfigured,
 	getSecondlayerWebhookSigner,
 	resetSecondlayerWebhookSignerForTest,
 	signSecondlayerWebhook,
@@ -96,5 +97,51 @@ describe("secondlayer webhook signing", () => {
 		resetSecondlayerWebhookSignerForTest();
 		expect(getSecondlayerWebhookSigner()).toBeNull();
 		expect(signSecondlayerWebhook("evt", "body")).toBeNull();
+	});
+});
+
+describe("assertWebhookSigningConfigured (boot guard)", () => {
+	const { privateKeyPem } = generateEd25519KeyPair();
+	const savedWebhookKey = process.env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY;
+	const savedStreamsKey = process.env.STREAMS_SIGNING_PRIVATE_KEY;
+	const savedNodeEnv = process.env.NODE_ENV;
+	const savedAllow = process.env.ALLOW_UNSIGNED_WEBHOOKS;
+
+	beforeEach(() => {
+		process.env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY = undefined;
+		process.env.STREAMS_SIGNING_PRIVATE_KEY = undefined;
+		process.env.ALLOW_UNSIGNED_WEBHOOKS = undefined;
+		resetSecondlayerWebhookSignerForTest();
+	});
+
+	afterEach(() => {
+		process.env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY = savedWebhookKey;
+		process.env.STREAMS_SIGNING_PRIVATE_KEY = savedStreamsKey;
+		process.env.NODE_ENV = savedNodeEnv;
+		process.env.ALLOW_UNSIGNED_WEBHOOKS = savedAllow;
+		resetSecondlayerWebhookSignerForTest();
+	});
+
+	test("prod + no key + no opt-out → throws (refuses to boot)", () => {
+		process.env.NODE_ENV = "production";
+		expect(() => assertWebhookSigningConfigured()).toThrow(/UNSIGNED/);
+	});
+
+	test("prod + opt-out → does not throw", () => {
+		process.env.NODE_ENV = "production";
+		process.env.ALLOW_UNSIGNED_WEBHOOKS = "true";
+		expect(() => assertWebhookSigningConfigured()).not.toThrow();
+	});
+
+	test("non-prod + no key → warns, does not throw", () => {
+		process.env.NODE_ENV = "development";
+		expect(() => assertWebhookSigningConfigured()).not.toThrow();
+	});
+
+	test("key set → does not throw even in prod", () => {
+		process.env.NODE_ENV = "production";
+		process.env.STREAMS_SIGNING_PRIVATE_KEY = privateKeyPem;
+		resetSecondlayerWebhookSignerForTest();
+		expect(() => assertWebhookSigningConfigured()).not.toThrow();
 	});
 });

@@ -1,3 +1,4 @@
+import { isProductionEnv } from "../env.ts";
 import {
 	ed25519KeyId,
 	loadEd25519PrivateKey,
@@ -69,6 +70,42 @@ export function getSecondlayerWebhookSigner(): SecondlayerWebhookSigner | null {
 /** Reset the memoized signer. Tests only. */
 export function resetSecondlayerWebhookSignerForTest(): void {
 	cached = undefined;
+}
+
+/**
+ * Boot-time guard for any service whose job is to DELIVER signed webhooks (the
+ * subscription-processor). We market every delivery as carrying a verifiable
+ * ed25519 signature; if no signing key is configured the signer is a silent
+ * no-op and deliveries ship UNSIGNED. That's worse than a missing feature — a
+ * partner's verify step fails on data we told them was signed.
+ *
+ * Unlike `assertDbSplit` (fail-soft: only ever logs), this is fail-HARD in prod:
+ * refuse to boot so the misconfig surfaces as a crash-loop instead of unsigned
+ * traffic. Keep the throw — don't "soften" it back to a warning. Set
+ * `ALLOW_UNSIGNED_WEBHOOKS=true` to opt out (self-host / intentional unsigned),
+ * which logs the posture loudly in every env so it's never silent.
+ */
+export function assertWebhookSigningConfigured(): void {
+	if (getSecondlayerWebhookSigner()) return;
+
+	const optedOut = process.env.ALLOW_UNSIGNED_WEBHOOKS === "true";
+	// isProductionEnv() reads NODE_ENV at runtime; do NOT inline a
+	// `process.env.NODE_ENV` check — the bundler constant-folds it and the prod
+	// throw would silently die in the shipped dist. See env.ts for the why.
+	const isProd = isProductionEnv();
+	const msg =
+		"No webhook signing key (SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY / STREAMS_SIGNING_PRIVATE_KEY) — deliveries would ship UNSIGNED while we market signed webhooks";
+
+	if (optedOut) {
+		console.warn(`⚠️  ${msg}; continuing because ALLOW_UNSIGNED_WEBHOOKS=true`);
+		return;
+	}
+	if (isProd) {
+		throw new Error(
+			`${msg}. Refusing to boot. Set the signing key, or ALLOW_UNSIGNED_WEBHOOKS=true to override.`,
+		);
+	}
+	console.warn(`⚠️  ${msg} (non-prod: continuing)`);
 }
 
 /**
