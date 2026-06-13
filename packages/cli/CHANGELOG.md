@@ -1,5 +1,13 @@
 # @secondlayer/cli
 
+## 8.10.2
+
+### Patch Changes
+
+- 8b7cf33: Fix dumps file downloads 404ing: manifest file paths are bucket-root-absolute while dumpsBaseUrl ends with the dataset prefix — fileUrl now strips the overlap so list() and download() resolve from one base URL (fixes `sl streams pull` and `events.replay` against prod dumps)
+- Updated dependencies [8b7cf33]
+  - @secondlayer/sdk@6.23.1
+
 ## 8.10.1
 
 ### Patch Changes
