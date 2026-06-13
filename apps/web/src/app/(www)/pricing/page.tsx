@@ -24,10 +24,10 @@ const FREE_INCLUDES = [
 // Every claim below maps to an enforced limit. If code doesn't enforce it,
 // it doesn't go on a card.
 const PRO_INCLUDES = [
-	"250 req/s on Index and Streams",
 	"Private subgraphs",
 	"Genesis backfills (full history)",
 	"25 webhook subscriptions + replay",
+	"250 req/s on Index and Streams",
 	"Usage budgets",
 	"Email support",
 ];
@@ -74,7 +74,7 @@ export default function PricingPage() {
 				<div className="prc-cta-band-copy">
 					<p className="prc-cta-band-title">Start free — no signup, no card.</p>
 					<p className="prc-cta-band-sub">
-						Mint a key from your terminal and you're querying in seconds.
+						Mint a key from your terminal and you're indexing in minutes.
 					</p>
 				</div>
 				<CtaPill />
