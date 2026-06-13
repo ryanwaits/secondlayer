@@ -22,12 +22,14 @@ for await (const batch of sl.streams.consume({ cursor })) {
 // or bulk history from signed parquet dumps
 const dumps = await sl.streams.dumps.list();`;
 
-export const INDEX_SNIPPET = `// decoded sBTC transfers, typed
-const { events, next_cursor } = await sl.index.ftTransfers({
+export const INDEX_SNIPPET = `// sweep decoded sBTC transfers into your own table
+for await (const t of sl.index.ftTransfers.walk({
   contractId: "${SBTC_CONTRACT_ID}",
-});
+})) {
+  await save(t); // typed: sender, recipient, amount
+}
 
-// or every SIP-010 transfer at once, by trait
+// or just read — keyless, by contract or trait
 await sl.index.events({ eventType: "ft_transfer", trait: "sip-010" });`;
 
 export const SUBGRAPHS_SNIPPET = `export default defineSubgraph({

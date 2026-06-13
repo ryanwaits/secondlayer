@@ -35,12 +35,16 @@ async function streamsTwin(
 }
 
 // INDEX_SNIPPET
-async function indexTwin(sl: SecondLayer) {
-	const { events, next_cursor } = await sl.index.ftTransfers({
+async function indexTwin(
+	sl: SecondLayer,
+	save: (t: { sender: string; recipient: string; amount: string }) => Promise<void>,
+) {
+	for await (const t of sl.index.ftTransfers.walk({
 		contractId: SBTC_CONTRACT_ID,
-	});
-	await sl.index.events({ eventType: "ft_transfer", trait: "sip-010" });
-	return { events, next_cursor };
+	})) {
+		await save(t); // typed: sender, recipient, amount
+	}
+	return sl.index.events({ eventType: "ft_transfer", trait: "sip-010" });
 }
 
 // SUBGRAPHS_SNIPPET (the SDK read; the defineSubgraph() half is type-checked
@@ -69,7 +73,7 @@ async function subscriptionsTwin(sl: SecondLayer) {
 // SHELL_GETSTARTED_SNIPPET (the TypeScript lines)
 function getStartedTwin() {
 	const sl = new SecondLayerClient(); // anonymous, default base URL
-	return indexTwin(sl);
+	return sl.index.ftTransfers({ contractId: SBTC_CONTRACT_ID });
 }
 
 describe("home snippets", () => {
@@ -84,7 +88,7 @@ describe("home snippets", () => {
 	test("snippet strings reference the real method names", () => {
 		expect(STREAMS_SNIPPET).toContain("sl.streams.consume({ cursor })");
 		expect(STREAMS_SNIPPET).toContain("sl.streams.dumps.list()");
-		expect(INDEX_SNIPPET).toContain("sl.index.ftTransfers({");
+		expect(INDEX_SNIPPET).toContain("sl.index.ftTransfers.walk({");
 		expect(INDEX_SNIPPET).toContain(
 			'sl.index.events({ eventType: "ft_transfer", trait: "sip-010" })',
 		);

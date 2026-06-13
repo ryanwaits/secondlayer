@@ -58,14 +58,14 @@ export function HomeFeatures() {
 		<section className="home-block">
 			<div className="home-wrap">
 				<Feature
-					title="Decoded events, no key required"
+					title="Decoded chain data, kept indexed"
 					docsHref="/docs/index"
 					code={INDEX_SNIPPET}
 					pane={<IndexResultsPane />}
 				>
 					Every FT and NFT transfer, contract call, and print event — decoded,
-					typed, and cursor-paginated. Filter by contract, principal, or trait.
-					Anonymous reads, wildcard CORS.
+					typed, and cursor-paginated. Read it keyless, or sweep it into your
+					own app index: backfill from genesis, reorgs flagged on every page.
 				</Feature>
 
 				<Feature
@@ -98,7 +98,7 @@ export function HomeFeatures() {
 					pane={<WebhookLatencyPane />}
 				>
 					Subscribe to chain events or your subgraph rows and get signed
-					deliveries with retries and circuit breakers. The delivery layer of
+					deliveries with retries and circuit breakers. The push channel for
 					Index and Subgraphs — no polling loop to babysit.
 				</Feature>
 
