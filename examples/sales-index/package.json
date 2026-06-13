@@ -1,0 +1,17 @@
+{
+	"name": "sales-index",
+	"private": true,
+	"type": "module",
+	"description": "A complete app index on Secondlayer Index: every Gamma marketplace sale, in your own Postgres, ~50 lines.",
+	"scripts": {
+		"start": "bun run indexer.ts"
+	},
+	"dependencies": {
+		"@secondlayer/sdk": "^6.23.0",
+		"kysely": "^0.28.15",
+		"pg": "^8.16.0"
+	},
+	"devDependencies": {
+		"@types/pg": "^8.15.0"
+	}
+}

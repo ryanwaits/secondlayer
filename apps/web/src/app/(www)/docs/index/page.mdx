@@ -156,41 +156,32 @@ Everything above is also the substrate for your own app index: every list envelo
 sl index codegen --target kysely   # also: prisma, drizzle, json-schema
 ```
 
-The loop, spelled out — backfill from genesis, checkpoint every page, roll back on reorg:
+The loop is built in — `consume()` is a checkpointed consumer with automatic reorg rewind (the same contract as the Streams consumer). Write your rows in `onBatch`, return the cursor you committed; crash anywhere and the next run resumes from your checkpoint:
 
 ```ts
-import { createClient } from "@secondlayer/sdk";
+import { Index } from "@secondlayer/sdk";
 
-const sl = createClient();
-let cursor = await db.loadCheckpoint(); // null on first run
-
-while (true) {
-	const page = await sl.index.ftTransfers.list(
-		cursor ? { cursor } : { fromHeight: 0 },
-	);
-
-	// Reorg first: delete mirrored rows in the orphaned range, resume earlier.
-	for (const reorg of page.reorgs) {
-		await db.deleteWhereCursorBetween(
-			reorg.orphaned_range.from,
-			reorg.orphaned_range.to,
-		);
-		cursor = reorg.new_canonical_tip;
-	}
-
-	// Upsert the page and commit the cursor in the same transaction —
-	// crash anywhere and the next run resumes exactly here.
-	await db.transaction(async (tx) => {
-		for (const t of page.events) {
-			await tx.upsertTransfer(t); // t.cursor, t.sender, t.recipient, t.amount…
-		}
-		await tx.saveCheckpoint(page.next_cursor ?? cursor);
-	});
-
-	if (page.next_cursor === null) await sleep(2_000); // at tip — poll on
-	else cursor = page.next_cursor;
-}
+const index = new Index();
+await index.events.consume({
+	eventType: "ft_transfer",
+	fromCursor: await db.loadCheckpoint(), // null on first run
+	fromHeight: 0, // first run: backfill from genesis
+	onBatch: async (events, envelope, ctx) => {
+		await db.transaction(async (tx) => {
+			for (const t of events) await tx.upsertTransfer(t);
+			await tx.saveCheckpoint(ctx.cursor); // commits with the rows
+		});
+		return ctx.cursor;
+	},
+	onReorg: async (reorg) => {
+		// rows above the fork point are no longer canonical; the consumer
+		// rewinds the cursor and re-reads the canonical run for you
+		await db.deleteAboveHeight(reorg.fork_point_height);
+	},
+});
 ```
+
+`index.contractCalls.consume()` does the same for decoded calls, and `finalizedOnly: true` holds delivery to rows at or below `tip.finalized_height` — finalized data never reorgs, so `onReorg` becomes unnecessary. The complete runnable version — every Gamma marketplace sale in your own Postgres, ~50 lines — is the [`sales-index` example](https://github.com/ryanwaits/secondlayer/tree/main/examples/sales-index).
 
 On startup (or any time), verify your mirror followed the canonical chain with `/v1/index/canonical` — one row per height, orphans excluded:
 

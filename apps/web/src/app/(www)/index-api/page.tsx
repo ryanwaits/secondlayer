@@ -17,40 +17,66 @@ const INDEXER_CODE = `import { Index } from "@secondlayer/sdk";
 import { db } from "./index-db";
 
 const index = new Index();
-const CONTRACT = "SP2H8…marketplace-v2";
+const MARKETPLACE = "SPNWZ…E0VQ0S.marketplace-v4";
 
-// Tail every decoded call to your contract —
+// Tail every decoded call to a contract —
 // no node to run, no Clarity to parse.
 for await (const call of index.contractCalls.walk({
-  contractId: CONTRACT,
-  functionName: "buy-asset",
+  contractId: MARKETPLACE,
+  functionName: "purchase-asset",
 })) {
-  const [assetId, price] = call.args;
+  const [collection, tokenId] = call.args;
 
   await db
     .insertInto("sales")
     .values({
       tx_id: call.tx_id,
       buyer: call.sender,
-      asset_id: String(assetId),
-      price: String(price),
+      collection: String(collection),
+      token_id: String(tokenId),
       block_height: call.block_height,
     })
     .execute();
 }`;
 
+const CHECKPOINT_CODE = `// The production loop: checkpointed, reorg-safe.
+// Kill it anywhere — it resumes from your cursor.
+await index.contractCalls.consume({
+  contractId: MARKETPLACE,
+  functionName: "purchase-asset",
+  fromCursor: await loadCheckpoint(),
+  fromHeight: 0, // first run: backfill from genesis
+
+  onBatch: async (calls, envelope, ctx) => {
+    await db.transaction().execute(async (tx) => {
+      for (const call of calls) await insertSale(tx, call);
+      await saveCheckpoint(tx, ctx.cursor); // commits with the rows
+    });
+    return ctx.cursor;
+  },
+
+  onReorg: async (reorg) => {
+    // consumer rewinds + re-reads the canonical run for you
+    await db.deleteFrom("sales")
+      .where("block_height", ">", reorg.fork_point_height)
+      .execute();
+  },
+});`;
+
 const DB_CODE = `import { Kysely, PostgresDialect } from "kysely";
 import { Pool } from "pg";
 
-// The rows your indexer writes — one per decoded buy-asset call.
+// The rows your indexer writes — one per decoded purchase-asset call —
+// plus the checkpoint that makes the loop resumable.
 export interface Database {
   sales: {
     tx_id: string;
     buyer: string;
-    asset_id: string;
-    price: string;
+    collection: string;
+    token_id: string;
     block_height: number;
   };
+  checkpoints: { id: string; cursor: string };
 }
 
 export const db = new Kysely<Database>({
@@ -103,6 +129,12 @@ export default function IndexPage() {
 								{
 									label: "track-sales.ts",
 									content: <CodeBlock code={INDEXER_CODE} lang="typescript" />,
+								},
+								{
+									label: "checkpoint.ts",
+									content: (
+										<CodeBlock code={CHECKPOINT_CODE} lang="typescript" />
+									),
 								},
 								{
 									label: "index-db.ts",

@@ -251,6 +251,30 @@ for await (const transfer of sl.index.ftTransfers.walk({
 }
 ```
 
+Checkpointed consumer — build your app index.
+
+`index.events.consume` / `index.contractCalls.consume` is the same contract as
+the Streams consumer: write your rows inside `onBatch`, return the cursor you
+committed, and reorgs rewind automatically to the fork point. `finalizedOnly`
+holds delivery to rows at or below `tip.finalized_height` (Index rows carry no
+per-event flag). Full runnable example: `examples/sales-index/`.
+
+```typescript
+await sl.index.contractCalls.consume({
+  contractId: "SP...marketplace-v4",
+  functionName: "purchase-asset",
+  fromCursor: await loadCheckpoint(), // null on first run
+  fromHeight: 0,                      // first run: backfill from genesis
+  onBatch: async (calls, envelope, ctx) => {
+    await commitRowsAndCheckpoint(calls, ctx.cursor);
+    return ctx.cursor;
+  },
+  onReorg: async (reorg) => {
+    await rollbackAboveHeight(reorg.fork_point_height);
+  },
+});
+```
+
 ## Transaction-inclusion proofs
 
 Verify — **without trusting Secondlayer** — that a transaction is included in a
