@@ -92,6 +92,23 @@ export function getEnv(): Env {
 }
 
 /**
+ * True when `NODE_ENV=production`, read at RUNTIME — the single source of truth
+ * for prod-vs-dev branching in this package.
+ *
+ * Why a helper instead of inlining `process.env.NODE_ENV === "production"`:
+ * bunup/esbuild constant-folds the dot-access `process.env.NODE_ENV` to its
+ * BUILD-time value. `@secondlayer/shared` is consumed by other services as its
+ * built `dist`, so an inlined check freezes to a literal in the shipped bundle
+ * (e.g. `const isProd = false`) and silently ignores the container's real
+ * NODE_ENV. The bracket access below is NOT folded, so it stays a runtime read.
+ * Route every prod check through here so the footgun lives in exactly one place.
+ */
+export function isProductionEnv(): boolean {
+	// biome-ignore lint/complexity/useLiteralKeys: bracket access is deliberate — dot-access gets constant-folded by the bundler, freezing this to a build-time literal in the shipped dist.
+	return process.env["NODE_ENV"] === "production";
+}
+
+/**
  * PoX-4 stacking decoder is ON by default — `/v1/index/stacking` is part of the
  * public surface, so the decoder that fills `pox4_calls` runs unless explicitly
  * opted out with `POX4_DECODER_ENABLED=false` (mirrors the sBTC decoder policy).

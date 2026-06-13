@@ -1,6 +1,7 @@
 import { Kysely } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
+import { isProductionEnv } from "../env.ts";
 import { logger } from "../logger.ts";
 import type { Database } from "./types.ts";
 
@@ -133,7 +134,9 @@ export function getDbSplitStatus(): DbSplitStatus {
  *     Postgres failure domain. Not an error, but no longer silent.
  */
 export function assertDbSplit(): void {
-	const isProd = process.env.NODE_ENV === "production";
+	// Runtime read — inlining `process.env.NODE_ENV` gets constant-folded in the
+	// shipped dist (this prod branch would die silently). See env.ts.
+	const isProd = isProductionEnv();
 	const wantsSplit = !!(
 		process.env.SOURCE_DATABASE_URL || process.env.TARGET_DATABASE_URL
 	);
