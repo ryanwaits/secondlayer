@@ -38,6 +38,17 @@ describe.skipIf(SKIP)("Subscriptions API validation", () => {
 			.deleteFrom("subgraphs")
 			.where("name", "=", SUBGRAPH_NAME)
 			.execute();
+		// Webhook subscriptions are a paid hosted-tenant action (free quota = 0),
+		// so the test account needs a plan to create them.
+		await db
+			.insertInto("accounts")
+			.values({
+				id: ACCOUNT_ID,
+				email: `${ACCOUNT_ID}@test.local`,
+				plan: "launch",
+			})
+			.onConflict((oc) => oc.column("id").doUpdateSet({ plan: "launch" }))
+			.execute();
 		await registerSubgraph(db, {
 			name: SUBGRAPH_NAME,
 			version: "1.0.0",
@@ -74,6 +85,7 @@ describe.skipIf(SKIP)("Subscriptions API validation", () => {
 			.deleteFrom("subgraphs")
 			.where("name", "=", SUBGRAPH_NAME)
 			.execute();
+		await db.deleteFrom("accounts").where("id", "=", ACCOUNT_ID).execute();
 	});
 
 	test("create rejects unknown table and filter fields", async () => {

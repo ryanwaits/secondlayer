@@ -88,13 +88,49 @@ export async function resolvePrivateVisibilityPolicy(
 	return { privateAllowed: false };
 }
 
+export type DeployPolicy = {
+	deployAllowed: boolean;
+	reason?: "non-platform" | "paid-plan" | "exempt-account";
+};
+
 /**
- * Webhook-subscription quota by plan. null = unlimited. Free gets enough
- * to evaluate the feature; "25 webhook subscriptions" is a Pro card claim,
- * so the number here and the pricing page must move together.
+ * Deploy policy. Deploying a subgraph provisions a hosted tenant (index +
+ * storage + compute), so it's a paid action: free tier (plan 'none', incl.
+ * ghosts) must start a trial first — `trialing` accounts carry a real tier in
+ * `accounts.plan`, so they pass. Callers gate NEW deploys only; redeploys of an
+ * already-owned subgraph are grandfathered upstream so existing free tenants
+ * don't brick. Shares the genesis exempt-account allowlist so seeded Explore
+ * subgraphs deploy regardless of plan.
+ */
+export async function resolveDeployPolicy(
+	db: Kysely<Database>,
+	accountId: string | undefined,
+	env: NodeJS.ProcessEnv = process.env,
+): Promise<DeployPolicy> {
+	if (!isPlatformMode()) return { deployAllowed: true, reason: "non-platform" };
+	if (accountId && genesisExemptAccountIds(env).has(accountId)) {
+		return { deployAllowed: true, reason: "exempt-account" };
+	}
+	if (!accountId) return { deployAllowed: false };
+	const row = await db
+		.selectFrom("accounts")
+		.select("plan")
+		.where("id", "=", accountId)
+		.executeTakeFirst();
+	const plan = row?.plan ?? "none";
+	if (plan !== "none") return { deployAllowed: true, reason: "paid-plan" };
+	return { deployAllowed: false };
+}
+
+/**
+ * Webhook-subscription quota by plan. null = unlimited. Webhooks provision a
+ * hosted-tenant push channel, so they're a paid action: free tier (plan 'none',
+ * incl. ghosts) gets 0 — create a subscription requires a trial/plan. "25
+ * webhook subscriptions" is a Pro card claim, so the numbers here and the
+ * pricing page must move together.
  */
 export const SUBSCRIPTION_QUOTA_BY_PLAN: Record<string, number | null> = {
-	none: 3,
+	none: 0,
 	launch: 25,
 	scale: null,
 	enterprise: null,

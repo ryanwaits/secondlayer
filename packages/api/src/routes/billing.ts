@@ -112,7 +112,7 @@ app.post("/upgrade", async (c) => {
 		success_url: `${dashboardBaseUrl()}/platform/billing?upgrade=success`,
 		cancel_url: `${dashboardBaseUrl()}/platform/billing?upgrade=cancelled`,
 		subscription_data: {
-			trial_period_days: 30,
+			trial_period_days: 14,
 			metadata: {
 				secondlayer_account_id: account.id,
 				tier: body.tier,

@@ -49,6 +49,7 @@ import { hasNonReplayableWrites } from "../subgraphs/handler-replay-safety.ts";
 import { classifyOperationWeight } from "../subgraphs/operation-weight.ts";
 import {
 	clampDeployStartBlock,
+	resolveDeployPolicy,
 	resolveGenesisPolicy,
 	resolvePrivateVisibilityPolicy,
 } from "../subgraphs/plan-limits.ts";
@@ -497,6 +498,30 @@ export async function runSubgraphDeploy(
 	}
 
 	const existing = await getSubgraph(db, name, accountId);
+
+	// Deploying provisions a hosted tenant (index + storage + compute), so it's
+	// a paid action: a free (plan 'none') account must start a 14-day trial
+	// first. Gate NEW deploys only — redeploys of an already-owned subgraph are
+	// grandfathered so existing free tenants don't brick. dryRun returned above,
+	// so authoring/preview stays free. x402-paid deploys (identity set) already
+	// paid at the rail, so they skip the gate. Shares the exempt-account
+	// allowlist (seeded Explore subgraphs).
+	if (!existing && !identity) {
+		const deployPolicy = await resolveDeployPolicy(db, accountId ?? undefined);
+		if (!deployPolicy.deployAllowed) {
+			return c.json(
+				{
+					error:
+						"Deploying a subgraph runs it on our infrastructure — start a 14-day trial (card required, cancel anytime) to deploy. Keyless reads stay free.",
+					code: "PLAN_REQUIRED",
+					required_plan: "launch",
+					trial: true,
+					upgrade_url: "https://secondlayer.tools/platform/billing",
+				},
+				403,
+			);
+		}
+	}
 
 	// Visibility: explicit wins; otherwise redeploys keep what they have, new
 	// managed deploys are public (shareable /v1 URL), new BYO deploys are

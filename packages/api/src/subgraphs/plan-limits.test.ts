@@ -3,6 +3,7 @@ import type { Database } from "@secondlayer/shared";
 import type { Kysely } from "kysely";
 import {
 	clampDeployStartBlock,
+	resolveDeployPolicy,
 	resolveGenesisPolicy,
 	resolvePrivateVisibilityPolicy,
 	resolveSubscriptionQuota,
@@ -91,6 +92,36 @@ describe("plan-limit policies (platform mode)", () => {
 				.genesisAllowed,
 		).toBe(true);
 	});
+
+	test("free plan (none) cannot deploy — trial required", async () => {
+		const policy = await resolveDeployPolicy(dbWithPlan("none"), "acct_free");
+		expect(policy.deployAllowed).toBe(false);
+	});
+
+	test("missing account row (ghosts) cannot deploy", async () => {
+		const policy = await resolveDeployPolicy(
+			dbWithPlan(undefined),
+			"acct_ghost",
+		);
+		expect(policy.deployAllowed).toBe(false);
+	});
+
+	test("paid/trialing plan can deploy", async () => {
+		const policy = await resolveDeployPolicy(dbWithPlan("launch"), "acct_pro");
+		expect(policy).toEqual({ deployAllowed: true, reason: "paid-plan" });
+	});
+
+	test("exempt account can deploy regardless of plan", async () => {
+		process.env.SUBGRAPH_GENESIS_EXEMPT_ACCOUNT_IDS = "acct_seed";
+		const policy = await resolveDeployPolicy(dbWithPlan("none"), "acct_seed");
+		expect(policy).toEqual({ deployAllowed: true, reason: "exempt-account" });
+	});
+
+	test("non-platform mode never gates deploys", async () => {
+		process.env.INSTANCE_MODE = "oss";
+		const policy = await resolveDeployPolicy(dbWithPlan("none"), "anyone");
+		expect(policy).toEqual({ deployAllowed: true, reason: "non-platform" });
+	});
 });
 
 describe("clampDeployStartBlock", () => {
@@ -139,8 +170,8 @@ describe("resolveSubscriptionQuota", () => {
 		else process.env.INSTANCE_MODE = prevMode;
 	});
 
-	test("free plan gets 3, pro gets 25, scale unlimited", async () => {
-		expect(await resolveSubscriptionQuota(dbWithPlan("none"), "a")).toBe(3);
+	test("free plan gets 0 (trial required), pro gets 25, scale unlimited", async () => {
+		expect(await resolveSubscriptionQuota(dbWithPlan("none"), "a")).toBe(0);
 		expect(await resolveSubscriptionQuota(dbWithPlan("launch"), "a")).toBe(25);
 		expect(await resolveSubscriptionQuota(dbWithPlan("scale"), "a")).toBeNull();
 		expect(
