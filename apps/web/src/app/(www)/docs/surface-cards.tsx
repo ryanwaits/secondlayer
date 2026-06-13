@@ -17,7 +17,7 @@ const SURFACES: Surface[] = [
 		n: "01",
 		name: "Index",
 		href: "/docs/index",
-		desc: "Decoded blocks, transactions, and events — we run the indexer, you query.",
+		desc: "Decoded blocks, transactions, and events — read them keyless, or build your index on them.",
 		verb: "GET",
 		ep: "/v1/index/events",
 	},
