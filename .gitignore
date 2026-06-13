@@ -50,23 +50,13 @@ coverage/
 *.tmp
 *.temp
 tmp/
+# Internal working docs (audits, plans, mocks, specs, runbooks, …) live under
+# docs/internal/ and are NOT checked in. Only the roadmap and the public status
+# page's incident log are tracked.
 docs/*
-!docs/prds/
-!docs/prds/**
-!docs/audits/
-!docs/audits/**
-!docs/adr/
-!docs/adr/**
-!docs/sprints/
-!docs/sprints/**
-!docs/mocks/
-!docs/mocks/**
-!docs/marketing/
-!docs/marketing/**
-!docs/runbook/
-!docs/runbook/**
-!docs/design/
-!docs/design/**
+!docs/ROADMAP.md
+!docs/incidents/
+!docs/incidents/**
 !docker/docs/
 
 # Config files (users should create their own)

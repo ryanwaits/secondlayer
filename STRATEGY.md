@@ -3,7 +3,7 @@
 > Single source of truth for what we build and why. Supersedes the former
 > VISION / PRODUCT / PRODUCTS / ROADMAP / ARCHITECTURE docs (deleted 2026-06-11;
 > see git history). If marketing, docs, or code contradict this file, this file wins.
-> Grounding analysis: `docs/audits/focus-audit-2026-06-10.md`.
+> Grounding analysis: `docs/internal/audits/focus-audit-2026-06-10.md` (internal, untracked).
 
 ## The product, one sentence
 
