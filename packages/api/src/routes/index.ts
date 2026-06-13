@@ -41,6 +41,7 @@ import {
 	type IndexEventsReader,
 	getIndexEventsResponse,
 } from "../index/events.ts";
+import { indexFreeWindow } from "../index/free-window.ts";
 import {
 	type FtTransfersReader,
 	getFtTransfersResponse,
@@ -313,6 +314,11 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 	// Whether it's enabled is decided at the app root, not here.
 	if (opts.x402Middleware) router.use("*", opts.x402Middleware);
 	router.use("*", indexRateLimit());
+	// Free + keyless reads are windowed to the recent 24h; deeper history is a
+	// paid action. Runs after auth (needs the resolved tier) + x402 (a paid
+	// accountless caller is no longer "free"). Mounted before the routes, so it
+	// never gates the open `/` info endpoint registered above.
+	router.use("*", indexFreeWindow({ getTip }));
 
 	// An agent's own Index consumption + tier limits. Index reads allow anon, but
 	// usage needs an identity — a keyed (Build+) request. Anon → 401.

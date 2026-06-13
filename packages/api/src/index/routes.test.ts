@@ -8,12 +8,12 @@ import type { StreamsTokenStore } from "../streams/auth.ts";
 import { STREAMS_READ_SCOPE } from "../streams/auth.ts";
 import type { StreamsTip } from "../streams/tip.ts";
 import { INDEX_READ_SCOPE, type IndexTokenStore } from "./auth.ts";
+import type { FtTransfersReader } from "./ft-transfers.ts";
+import type { NftTransfersReader } from "./nft-transfers.ts";
 import {
 	INDEX_ANON_RATE_LIMIT_PER_SECOND,
 	INDEX_TIER_CONFIG,
 } from "./tiers.ts";
-import type { FtTransfersReader } from "./ft-transfers.ts";
-import type { NftTransfersReader } from "./nft-transfers.ts";
 import type { IndexTip } from "./tip.ts";
 
 const BUILD_KEY = "sk-sl_index_build_test";
@@ -126,7 +126,7 @@ describe("Stacks Index gateway middleware", () => {
 		expect(body.events).toEqual([]);
 		// Open beta: anon reads aren't auth-gated but are bounded by a shared
 		// global limit, so they always carry X-RateLimit-* headers.
-		expect(res.headers.get("X-RateLimit-Limit")).toBe("100");
+		expect(res.headers.get("X-RateLimit-Limit")).toBe("10");
 		expect(res.headers.get("X-RateLimit-Remaining")).not.toBeNull();
 	});
 
@@ -144,7 +144,7 @@ describe("Stacks Index gateway middleware", () => {
 
 	test("tier ladder: paid is never slower than anonymous", () => {
 		expect(
-			INDEX_TIER_CONFIG.free.rateLimitPerSecond ?? Infinity,
+			INDEX_TIER_CONFIG.free.rateLimitPerSecond ?? Number.POSITIVE_INFINITY,
 		).toBeGreaterThanOrEqual(INDEX_ANON_RATE_LIMIT_PER_SECOND);
 		expect(INDEX_TIER_CONFIG.build.rateLimitPerSecond).toBe(250);
 		expect(INDEX_TIER_CONFIG.scale.rateLimitPerSecond).toBe(500);

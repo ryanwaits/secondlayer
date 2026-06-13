@@ -32,7 +32,7 @@ export const STREAMS_TIP_REORG_MARGIN_BLOCKS = 2;
 export const STREAMS_ANON_RATE_LIMIT_PER_SECOND = 50;
 
 export const STREAMS_TIER_CONFIG: Record<StreamsTier, StreamsTierConfig> = {
-	free: { rateLimitPerSecond: 10, retentionDays: 7 },
+	free: { rateLimitPerSecond: 10, retentionDays: 1 },
 	build: { rateLimitPerSecond: 250, retentionDays: 30 },
 	scale: { rateLimitPerSecond: 500, retentionDays: 90 },
 	enterprise: { rateLimitPerSecond: null, retentionDays: null },

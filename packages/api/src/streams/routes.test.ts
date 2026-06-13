@@ -201,9 +201,9 @@ describe("Stacks Streams gateway middleware", () => {
 		expect(res.headers.get("Cache-Control")).toBe("private, max-age=2");
 	});
 
-	test("Free-tier key requesting from_height older than 7 days gets 403", async () => {
+	test("Free-tier key requesting from_height older than 1 day gets 403", async () => {
 		const app = createApp();
-		const oldBlock = TEST_TIP.block_height - 7 * STREAMS_BLOCKS_PER_DAY - 1;
+		const oldBlock = TEST_TIP.block_height - 1 * STREAMS_BLOCKS_PER_DAY - 1;
 		const res = await app.request(
 			`/v1/streams/events?from_height=${oldBlock}`,
 			{
@@ -223,10 +223,10 @@ describe("Stacks Streams gateway middleware", () => {
 			};
 		};
 		expect(body.error).toContain("free tier");
-		expect(body.error).toContain("last 7 days");
+		expect(body.error).toContain("last 1 days");
 		// Enriched 403: machine-readable retention reason + a pointer to the cold lane.
 		expect(body.details?.reason).toBe("RETENTION");
-		const oldest = TEST_TIP.block_height - 7 * STREAMS_BLOCKS_PER_DAY;
+		const oldest = TEST_TIP.block_height - 1 * STREAMS_BLOCKS_PER_DAY;
 		expect(body.details?.oldest_seekable_height).toBe(oldest);
 		expect(body.details?.oldest_cursor).toBe(`${oldest}:0`);
 		expect("dumps_manifest_url" in (body.details ?? {})).toBe(true);
@@ -253,7 +253,7 @@ describe("Stacks Streams gateway middleware", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const oldest = TEST_TIP.block_height - 7 * STREAMS_BLOCKS_PER_DAY;
+		const oldest = TEST_TIP.block_height - 1 * STREAMS_BLOCKS_PER_DAY;
 		await expect(res.json()).resolves.toEqual({
 			...TEST_TIP,
 			oldest_seekable_height: oldest,
@@ -410,7 +410,7 @@ describe("Stacks Streams gateway middleware", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const oldest = TEST_TIP.block_height - 7 * STREAMS_BLOCKS_PER_DAY;
+		const oldest = TEST_TIP.block_height - 1 * STREAMS_BLOCKS_PER_DAY;
 		await expect(res.json()).resolves.toEqual({
 			...TEST_TIP,
 			oldest_seekable_height: oldest,
