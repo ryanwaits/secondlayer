@@ -21,7 +21,7 @@ export {
 	type ContractSummary,
 	type ContractsEnvelope,
 } from "./contracts/client.ts";
-export { Index } from "./index-api/index.ts";
+export { Index, consumeIndexFeed } from "./index-api/index.ts";
 export type {
 	BlockEnvelope,
 	BlocksEnvelope,
@@ -30,9 +30,11 @@ export type {
 	CanonicalEnvelope,
 	CanonicalListParams,
 	CanonicalWalkParams,
+	ContractCallsConsumeParams,
 	ContractCallsEnvelope,
 	ContractCallsListParams,
 	ContractCallsWalkParams,
+	EventsConsumeParams,
 	EventsEnvelope,
 	EventsListParams,
 	EventsWalkParams,
@@ -43,6 +45,7 @@ export type {
 	FtTransfersWalkParams,
 	IndexBlock,
 	IndexCanonicalBlock,
+	IndexConsumeOptions,
 	IndexContractCall,
 	IndexDiscovery,
 	IndexEvent,

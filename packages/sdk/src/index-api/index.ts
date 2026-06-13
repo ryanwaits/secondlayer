@@ -1,4 +1,11 @@
 export { Index } from "./client.ts";
+export { consumeIndexFeed } from "./consumer.ts";
+export type {
+	IndexConsumeOptions,
+	IndexFeedEnvelope,
+	IndexFeedFetcher,
+	IndexFeedItem,
+} from "./consumer.ts";
 export type {
 	BlockEnvelope,
 	BlocksEnvelope,
@@ -7,9 +14,11 @@ export type {
 	CanonicalEnvelope,
 	CanonicalListParams,
 	CanonicalWalkParams,
+	ContractCallsConsumeParams,
 	ContractCallsEnvelope,
 	ContractCallsListParams,
 	ContractCallsWalkParams,
+	EventsConsumeParams,
 	EventsEnvelope,
 	EventsListParams,
 	EventsWalkParams,

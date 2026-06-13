@@ -3,9 +3,14 @@ import { BaseClient, buildQuery } from "../base.ts";
 import type { SecondLayerOptions } from "../base.ts";
 import { ApiError } from "../errors.ts";
 import type { TransactionProof } from "../proofs.ts";
+import { type IndexConsumeOptions, consumeIndexFeed } from "./consumer.ts";
 
 export type IndexTip = {
 	block_height: number;
+	/** Highest height treated as immutable (past the burn-confirmation
+	 *  finality boundary). Rows at or below it never reorg — `finalizedOnly`
+	 *  consumers gate on this, since Index rows carry no per-event flag. */
+	finalized_height: number;
 	lag_seconds: number;
 };
 
@@ -236,6 +241,12 @@ export type EventsWalkParams = Omit<EventsListParams, "limit"> & {
 	signal?: AbortSignal;
 };
 
+export type EventsConsumeParams = Omit<
+	EventsListParams,
+	"cursor" | "fromCursor" | "limit"
+> &
+	IndexConsumeOptions<IndexEvent, EventsEnvelope>;
+
 // ── Contract calls (/v1/index/contract-calls) ──────────────────────
 
 export type IndexContractCall = {
@@ -279,6 +290,12 @@ export type ContractCallsWalkParams = Omit<ContractCallsListParams, "limit"> & {
 	batchSize?: number;
 	signal?: AbortSignal;
 };
+
+export type ContractCallsConsumeParams = Omit<
+	ContractCallsListParams,
+	"cursor" | "fromCursor" | "limit"
+> &
+	IndexConsumeOptions<IndexContractCall, ContractCallsEnvelope>;
 
 // ── Canonical block-hash map (/v1/index/canonical) ─────────────────
 
@@ -609,6 +626,9 @@ export interface IndexEventsResource {
 	(params: EventsListParams): Promise<EventsEnvelope>;
 	list(params: EventsListParams): Promise<EventsEnvelope>;
 	walk(params: EventsWalkParams): AsyncIterable<IndexEvent>;
+	consume(
+		params: EventsConsumeParams,
+	): Promise<{ cursor: string | null; pages: number; emptyPolls: number }>;
 }
 
 /** Per-event-type filter vocabulary in the {@link IndexDiscovery} doc. */
@@ -699,6 +719,24 @@ export class Index extends BaseClient {
 				this.listEvents(params),
 			walk: (params: EventsWalkParams): AsyncIterable<IndexEvent> =>
 				this.walkEvents(params),
+			consume: (params: EventsConsumeParams) =>
+				consumeIndexFeed<IndexEvent, EventsEnvelope>({
+					...params,
+					fetchPage: ({ cursor, fromHeight, limit }) =>
+						this.listEvents({
+							eventType: params.eventType,
+							contractId: params.contractId,
+							assetIdentifier: params.assetIdentifier,
+							sender: params.sender,
+							recipient: params.recipient,
+							trait: params.trait,
+							toHeight: params.toHeight,
+							cursor,
+							fromHeight,
+							limit,
+						}),
+					itemsOf: (envelope) => envelope.events,
+				}),
 		},
 	);
 
@@ -707,6 +745,9 @@ export class Index extends BaseClient {
 		walk: (
 			params?: ContractCallsWalkParams,
 		) => AsyncIterable<IndexContractCall>;
+		consume: (
+			params: ContractCallsConsumeParams,
+		) => Promise<{ cursor: string | null; pages: number; emptyPolls: number }>;
 	} = {
 		list: (
 			params: ContractCallsListParams = {},
@@ -714,6 +755,22 @@ export class Index extends BaseClient {
 		walk: (
 			params: ContractCallsWalkParams = {},
 		): AsyncIterable<IndexContractCall> => this.walkContractCalls(params),
+		consume: (params: ContractCallsConsumeParams) =>
+			consumeIndexFeed<IndexContractCall, ContractCallsEnvelope>({
+				...params,
+				fetchPage: ({ cursor, fromHeight, limit }) =>
+					this.listContractCalls({
+						contractId: params.contractId,
+						functionName: params.functionName,
+						sender: params.sender,
+						trait: params.trait,
+						toHeight: params.toHeight,
+						cursor,
+						fromHeight,
+						limit,
+					}),
+				itemsOf: (envelope) => envelope.contract_calls,
+			}),
 	};
 
 	/** Canonical block-hash map — sync only the current canonical chain. */
