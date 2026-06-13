@@ -50,6 +50,12 @@ export function streamsRetentionWindow(opts: {
 		const tip = await opts.getTip();
 		c.set("streamsTip", tip);
 
+		// Pay-as-you-go: a credited free account reads any history, debited per row.
+		if (c.get("credited")) {
+			await next();
+			return;
+		}
+
 		const cursor = c.req.query("from_cursor") ?? c.req.query("cursor");
 		// Only `from_height`/cursor seed a seek position. The legacy `from_block`
 		// alias was half-honored (retention checked it, but the events route rejects

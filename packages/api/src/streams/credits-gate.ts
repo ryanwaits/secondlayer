@@ -3,7 +3,7 @@ import {
 	debitCreditedRows,
 	resolveCreditedAccount,
 } from "../lib/read-credits.ts";
-import type { IndexEnv } from "./auth.ts";
+import type { StreamsEnv } from "./auth.ts";
 
 export {
 	CREDIT_USD_MICROS_PER_ROW,
@@ -11,14 +11,15 @@ export {
 } from "../lib/read-credits.ts";
 
 /**
- * Credits gate (Index): a free-tier account that topped up prepaid credits goes
- * pay-as-you-go — it bypasses the free 24h window + the free rate limit, and
- * pays per row read (debited after the response). Sets `credited` on the context
- * for the rate limiter, the free-window gate, and the post-read debit to read.
+ * Credits gate (Streams): a free-tier account that topped up prepaid credits
+ * goes pay-as-you-go — it bypasses the free retention window + the free rate
+ * limit, and pays per row read. Shares one `account_credits` balance with the
+ * Index surface. Sets `credited` for the rate limiter, the retention gate, and
+ * the post-read debit to read.
  */
-export function indexCreditsGate(): MiddlewareHandler<IndexEnv> {
+export function streamsCreditsGate(): MiddlewareHandler<StreamsEnv> {
 	return async (c, next) => {
-		const tenant = c.get("indexTenant");
+		const tenant = c.get("streamsTenant");
 		const credited = await resolveCreditedAccount(
 			tenant?.account_id,
 			tenant?.tier,
@@ -29,8 +30,8 @@ export function indexCreditsGate(): MiddlewareHandler<IndexEnv> {
 }
 
 /** Post-read debit for a credited caller — no-op when not credited. */
-export async function debitCreditedRead(
-	c: Context<IndexEnv>,
+export async function debitStreamsCreditedRead(
+	c: Context<StreamsEnv>,
 	rows: number,
 ): Promise<void> {
 	await debitCreditedRows(c.get("credited"), rows);

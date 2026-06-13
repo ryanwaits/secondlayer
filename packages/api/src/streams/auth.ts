@@ -24,6 +24,9 @@ export type StreamsEnv = {
 	Variables: {
 		streamsTenant: StreamsTenant;
 		streamsTip: StreamsTip;
+		/** Set by the credits gate when a free account is on pay-as-you-go:
+		 *  bypasses retention + rate limit, debited per row read. */
+		credited?: { accountId: string; balance: bigint };
 	};
 };
 

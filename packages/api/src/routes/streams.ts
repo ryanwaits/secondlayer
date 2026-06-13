@@ -34,6 +34,10 @@ import {
 	readCanonicalStreamsBlock,
 } from "../streams/canonical.ts";
 import {
+	debitStreamsCreditedRead,
+	streamsCreditsGate,
+} from "../streams/credits-gate.ts";
+import {
 	type StreamsEventsReader,
 	getClampedStreamsTipHeight,
 	getStreamsEventsResponse,
@@ -210,6 +214,10 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		}),
 	);
 	if (opts.x402Middleware) router.use("*", opts.x402Middleware);
+	// Credits gate: a free account with a prepaid balance goes pay-as-you-go —
+	// flags the request so the rate limiter + retention gate let it through and
+	// the post-read step debits per row. Runs after auth + x402, before both.
+	router.use("*", streamsCreditsGate());
 	router.use("*", streamsRateLimit());
 	router.use("/events", streamsRetentionWindow({ getTip }));
 
@@ -286,6 +294,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		const accountId = c.get("streamsTenant")?.account_id;
 		if (accountId && response.events.length > 0) {
 			await recordEventsReturned(accountId, response.events.length);
+			await debitStreamsCreditedRead(c, response.events.length);
 		}
 		return respondSignedJson(c, response);
 	});

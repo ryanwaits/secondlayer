@@ -11,6 +11,11 @@ const WINDOW_MS = 1_000;
 
 export function streamsRateLimit(): MiddlewareHandler<StreamsEnv> {
 	return async (c, next) => {
+		// Pay-as-you-go: a credited free account is unthrottled (it pays per row).
+		if (c.get("credited")) {
+			await next();
+			return;
+		}
 		const tenant = c.get("streamsTenant");
 		if (!tenant) {
 			// x402-paid accountless reads: shared global bucket so every caller gets

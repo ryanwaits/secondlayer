@@ -1,0 +1,58 @@
+import {
+	debitCredits,
+	getCredits,
+	recordCreditsSpend,
+} from "@secondlayer/platform/db/queries/account-credits";
+import { getDb } from "@secondlayer/shared/db";
+import { isPlatformMode } from "@secondlayer/shared/mode";
+
+/**
+ * Shared pay-as-you-go read metering for Index + Streams. A free-tier account
+ * that topped up prepaid credits reads beyond the free window, unthrottled, and
+ * pays per row. One `account_credits` balance covers both surfaces.
+ */
+
+/** $5 per 1M rows read = 5 USD-micros per row. */
+export const CREDIT_USD_MICROS_PER_ROW = 5n;
+
+/**
+ * Minimum balance to go pay-as-you-go: one full page (1000 rows × 5µ$ = 5000µ$
+ * = $0.005). Gating at the max single-page cost guarantees the post-read debit
+ * always covers the rows served (cost ≤ this ≤ balance), so there's no
+ * dust-balance loophole where an under-a-page balance serves free forever.
+ */
+export const MIN_CREDITED_USD_MICROS = 5_000n;
+
+export type Credited = { accountId: string; balance: bigint };
+
+/**
+ * A free-tier account with enough prepaid balance → pay-as-you-go, else
+ * undefined. Only free-tier account-backed callers qualify: paid tiers already
+ * have full history + headroom; anon / x402 callers have no account credits.
+ */
+export async function resolveCreditedAccount(
+	accountId: string | undefined,
+	tier: string | undefined,
+): Promise<Credited | undefined> {
+	if (!isPlatformMode() || !accountId || tier !== "free") return undefined;
+	const balance = await getCredits(getDb(), accountId);
+	return balance >= MIN_CREDITED_USD_MICROS
+		? { accountId, balance }
+		: undefined;
+}
+
+/**
+ * Debit a credited caller per row read. The gate guaranteed `balance ≥
+ * max-page-cost`, so the atomic `balance >= cost` debit always covers a single
+ * page. No-op when not credited; records the spend on success.
+ */
+export async function debitCreditedRows(
+	credited: Credited | undefined,
+	rows: number,
+): Promise<void> {
+	if (!credited || rows <= 0) return;
+	const cost = BigInt(rows) * CREDIT_USD_MICROS_PER_ROW;
+	const db = getDb();
+	const res = await debitCredits(db, credited.accountId, cost);
+	if (res.ok) await recordCreditsSpend(db, credited.accountId, cost);
+}
