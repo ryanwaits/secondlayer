@@ -17,7 +17,9 @@ const streams = createStreamsClient({
 // (sha256 of every file checked against the signed manifest), then seam to
 // the live firehose strictly after the dumped coverage — no gap, no dupe.
 await streams.events.replay({
-	from: "genesis", // or a committed cursor to resume
+	from: "genesis", // every window the dumps cover (see manifest.coverage),
+	// or a committed cursor to resume. Dumps start where the program began,
+	// not necessarily chain block 1 — for full decoded history, use Index.
 
 	async onDumpFile(file) {
 		const bytes = await streams.dumps.download(file); // sha256-verified

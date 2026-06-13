@@ -63,6 +63,8 @@ await streams.events.replay({
 });
 ```
 
+`from: "genesis"` replays every window the dumps cover — the manifest's `coverage` reports that range, which starts where the dump program began (not necessarily chain block 1). To start a partial backfill, pass a cursor instead. Need decoded history all the way back? Use [Index](/docs/index), which serves the full decoded chain from `from_height=0`.
+
 ### Dumps + DuckDB
 
 The dumps are plain parquet — pull a verified range and query it locally, no indexer required:
