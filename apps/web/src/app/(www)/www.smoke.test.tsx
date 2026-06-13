@@ -47,21 +47,21 @@ describe("www marketing routes", () => {
 	test("/pricing renders the free-first billing page", () => {
 		const html = renderToStaticMarkup(<PricingPage />);
 		// free-first framing + beta honesty
-		expect(html).toContain("Free is the product.");
-		expect(html).toContain("Open beta");
-		expect(html).toContain("until beta ends");
+		expect(html).toContain("Reads are free.");
+		expect(html).toContain("Pay for headroom.");
+		expect(html).toContain("When open beta ends");
 		// honest free promise
-		expect(html).toContain("2 public subgraphs");
-		expect(html).toContain("rate-limited either way");
-		// paid ladder + enterprise has no number
+		expect(html).toContain("$0");
+		expect(html).toContain("Rate-limited public reads");
+		// paid ladder is Free/Pro only; enterprise has no number
 		expect(html).toContain("$99");
-		expect(html).toContain("$499");
-		expect(html).toContain("Contact us");
+		expect(html).toContain("Private subgraphs");
+		expect(html).toContain("Contact Us");
+		expect(html).not.toContain("$499");
 		expect(html).not.toContain("$1.5k");
-		// x402 walkthrough grounded in the real wire
-		expect(html).toContain("Pay per call");
-		expect(html).toContain("PAYMENT-SIGNATURE");
-		expect(html).toContain("withX402");
+		// x402 demoted to an experimental footnote, not a plan
+		expect(html).toContain("x402 pay-per-call");
+		expect(html).toContain("Experimental");
 	});
 
 	test("/pricing carries the marketing-page chrome", () => {
