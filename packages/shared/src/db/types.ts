@@ -790,6 +790,7 @@ export interface Database {
 	tenant_usage_monthly: TenantUsageMonthlyTable;
 	tenant_compute_addons: TenantComputeAddonsTable;
 	account_spend_caps: AccountSpendCapsTable;
+	account_credits: AccountCreditsTable;
 	provisioning_audit_log: ProvisioningAuditLogTable;
 	subscriptions: SubscriptionsTable;
 	subscription_outbox: SubscriptionOutboxTable;
@@ -955,6 +956,20 @@ export interface AccountSpendCapsTable {
 export type AccountSpendCap = Selectable<AccountSpendCapsTable>;
 export type InsertAccountSpendCap = Insertable<AccountSpendCapsTable>;
 export type UpdateAccountSpendCap = Updateable<AccountSpendCapsTable>;
+
+/** Prepaid dev credits — card-funded balance per account (peer to x402_balances). */
+export interface AccountCreditsTable {
+	account_id: string;
+	balance_usd_micros: Generated<string | number | bigint>;
+	/** Month bucket ("YYYY-MM") the spend counter applies to. */
+	spent_month: string | null;
+	spent_month_usd_micros: Generated<string | number | bigint>;
+	updated_at: Generated<Date>;
+}
+
+export type AccountCredits = Selectable<AccountCreditsTable>;
+export type InsertAccountCredits = Insertable<AccountCreditsTable>;
+export type UpdateAccountCredits = Updateable<AccountCreditsTable>;
 
 // --- Provisioning audit log ---
 

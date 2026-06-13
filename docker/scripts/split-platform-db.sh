@@ -78,6 +78,7 @@ CONTROL_TABLES=(
   subgraph_table_snapshots
   x402_payments
   x402_balances
+  account_credits
 )
 
 src_count() { psql "$SRC" -tAc "SELECT count(*) FROM $1" 2>/dev/null || echo "ERR"; }
