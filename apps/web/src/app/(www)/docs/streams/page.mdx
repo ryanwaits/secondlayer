@@ -71,7 +71,7 @@ The dumps are plain parquet — pull a verified range and query it locally, no i
 sl streams pull --to ./dump   # sha256-verified against the signed manifest
 
 duckdb -c "SELECT event_type, count(*) AS events
-           FROM read_parquet('./dump/*.parquet')
+           FROM read_parquet('./dump/**/*.parquet')
            GROUP BY 1 ORDER BY 2 DESC;"
 ```
 
