@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 6.33.2
+
+### Patch Changes
+
+- fd06663: Fail loud on boot when the webhook signing key is absent — the subscription-processor now refuses to start in prod (unless `ALLOW_UNSIGNED_WEBHOOKS=true`) rather than silently shipping unsigned deliveries
+
 ## 6.33.1
 
 ### Patch Changes
