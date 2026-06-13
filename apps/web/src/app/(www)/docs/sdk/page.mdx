@@ -1,6 +1,6 @@
 # SDK
 
-`@secondlayer/sdk` — a typed TypeScript client for every Secondlayer surface: Streams, Index, Subgraphs, and Subscriptions, plus webhook verification and a checkpointed consumer for indexers.
+`@secondlayer/sdk` — a typed TypeScript client for every Secondlayer surface: Streams, Index, Subgraphs, and Subscriptions, plus webhook verification and checkpointed consumers (raw or decoded) for building your own index.
 
 ## Install
 
@@ -132,9 +132,10 @@ Verification uses Node's crypto (via `@secondlayer/shared`), so it is intended f
 
 ## Checkpointed consumer
 
-For indexers and ETL jobs, `consume` polls and commits a cursor so you never miss or double-process events — return the cursor you committed inside `onBatch`.
+For indexers and ETL jobs, `consume` polls and commits a cursor so you never miss or double-process events — return the cursor you committed inside `onBatch`. It's available on raw Streams events **and** on decoded Index rows, so you can build your app index at either level with the same contract.
 
 ```ts
+// Raw events from Streams
 await sl.streams.events.consume({
   types: ["ft_transfer"],
   onBatch: async (events) => {
@@ -143,6 +144,27 @@ await sl.streams.events.consume({
   },
 });
 ```
+
+On Index, `consume` works over decoded events and contract calls. Reorgs rewind the cursor to the fork point automatically (`onReorg` fires so you can roll back committed rows); `fromHeight: 0` backfills from genesis; `finalizedOnly` holds delivery to rows at or below `tip.finalized_height`.
+
+```ts
+// Decoded contract calls from Index
+await sl.index.contractCalls.consume({
+  contractId: "SP...marketplace-v4",
+  functionName: "purchase-asset",
+  fromCursor: await loadCheckpoint(), // null on first run
+  fromHeight: 0,                      // first run: backfill from genesis
+  onBatch: async (calls, envelope, ctx) => {
+    await commitRowsAndCheckpoint(calls, ctx.cursor);
+    return ctx.cursor;
+  },
+  onReorg: async (reorg) => {
+    await rollbackAboveHeight(reorg.fork_point_height);
+  },
+});
+```
+
+`sl.index.events.consume(...)` is the same for decoded events (takes `eventType`). See [Index → Build your index on it](/docs/index#build-your-index-on-it) and the runnable [`sales-index` example](https://github.com/ryanwaits/secondlayer/tree/main/examples/sales-index).
 
 ## Subscribe to the live stream (SSE)
 

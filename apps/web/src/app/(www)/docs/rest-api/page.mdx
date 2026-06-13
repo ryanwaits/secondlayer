@@ -10,12 +10,12 @@ Index reads return rows under a named key (`events`, `calls`, …) plus a top-le
 {
   "events": [{ "block_height": 8054704, "event_index": 12 }],
   "next_cursor": "8054704:12",
-  "tip": { "block_height": 8054704 },
+  "tip": { "block_height": 8054704, "finalized_height": 8054262 },
   "reorgs": []
 }
 ```
 
-The cursor format is `<block_height>:<event_index>`.
+The cursor format is `<block_height>:<event_index>`. `tip.finalized_height` is the highest height past the burn-confirmation finality boundary — rows at or below it never reorg, which is what a `finalizedOnly` consumer gates on.
 
 `/v1/subgraphs` speaks a cursor envelope instead — `rows`, a resumable `next_cursor`, and the indexing `tip`:
 

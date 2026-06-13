@@ -4,6 +4,20 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## Index — June 2026
 
+### Build your app index with `consume()`
+
+Index now ships the loop, not just the reads. `index.events.consume()` and
+`index.contractCalls.consume()` are checkpointed consumers — write your rows
+inside `onBatch`, return the cursor you committed, and crash-restart resumes
+exactly there. Reorgs rewind the cursor to the fork point automatically;
+`finalizedOnly` holds delivery to rows at or below `tip.finalized_height`
+(which the Index tip now reports), and `fromHeight: 0` backfills from genesis.
+The same contract as the Streams consumer, over decoded rows — no node, no
+decoders, no sync loop to hand-roll. Full runnable example:
+[`sales-index`](https://github.com/ryanwaits/secondlayer/tree/main/examples/sales-index)
+indexes every Gamma marketplace sale into your own Postgres in ~50 lines, then
+graduates to the same table as a one-file Subgraph.
+
 ### Empirical print-event schemas
 
 Clarity ABIs don't describe `print` payloads, and the shape varies per topic
