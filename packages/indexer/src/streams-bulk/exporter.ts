@@ -7,6 +7,7 @@ import {
 	type StreamsBulkManifest,
 	type StreamsBulkManifestFile,
 	createStreamsBulkManifest,
+	mergeStreamsBulkManifestFiles,
 } from "./manifest.ts";
 import {
 	streamsBulkHistoryManifestObjectPath,
@@ -26,6 +27,7 @@ import {
 } from "./schema.ts";
 import {
 	createStreamsBulkS3Client,
+	getJsonObject,
 	getStreamsBulkR2ConfigFromEnv,
 	objectExists,
 	putFileObject,
@@ -116,29 +118,51 @@ export async function exportStreamsBulkRange(
 		maxCursor: rows.at(-1)?.cursor ?? null,
 		createdAt: generatedAt,
 	});
-	const unsignedManifest = createStreamsBulkManifest({
-		network: options.network,
-		generatedAt,
-		producerVersion: options.producerVersion,
-		finalityLagBlocks: options.finalityLagBlocks,
-		files: [manifestFile],
-	});
-	// Sign the manifest with the platform Streams key so the cold lane carries the
-	// same authenticity proof as the live lane. Unsigned (legacy shape) when no
-	// key is configured, so export still works before the key is provisioned.
+	// Sign with the platform Streams key so the cold lane carries the same
+	// authenticity proof as the live lane. Unsigned (legacy shape) when no key
+	// is configured, so export still works before the key is provisioned.
 	const signingKey = process.env.STREAMS_SIGNING_PRIVATE_KEY;
-	const manifest: StreamsBulkManifest = signingKey
-		? signStreamsBulkManifest(unsignedManifest, signingKey)
-		: unsignedManifest;
+	const sign = (m: StreamsBulkManifest): StreamsBulkManifest =>
+		signingKey ? signStreamsBulkManifest(m, signingKey) : m;
+	const buildManifest = (files: StreamsBulkManifestFile[]) =>
+		sign(
+			createStreamsBulkManifest({
+				network: options.network,
+				generatedAt,
+				producerVersion: options.producerVersion,
+				finalityLagBlocks: options.finalityLagBlocks,
+				files,
+			}),
+		);
+
+	// The per-run history manifest is a single-window audit record; latest.json
+	// is the cumulative catalog of every window, so `replay` can backfill the
+	// full dump history rather than only the newest window.
+	const historyManifest = buildManifest([manifestFile]);
+
+	let r2Config: ReturnType<typeof getStreamsBulkR2ConfigFromEnv> | undefined;
+	let client: ReturnType<typeof createStreamsBulkS3Client> | undefined;
+	let priorFiles: StreamsBulkManifestFile[] = [];
+	if (options.upload) {
+		r2Config = getStreamsBulkR2ConfigFromEnv();
+		client = createStreamsBulkS3Client(r2Config);
+		const priorLatest = await getJsonObject<StreamsBulkManifest>({
+			client,
+			bucket: r2Config.bucket,
+			key: latestManifestObjectPath,
+		});
+		priorFiles = priorLatest?.files ?? [];
+	}
+	const latestManifest = buildManifest(
+		mergeStreamsBulkManifestFiles(priorFiles, [manifestFile]),
+	);
 	const schemaDocument = createStreamsBulkSchemaDocument(options.network);
 
 	await writeJsonFile(localSchemaPath, schemaDocument);
-	await writeJsonFile(localHistoryManifestPath, manifest);
-	await writeJsonFile(localLatestManifestPath, manifest);
+	await writeJsonFile(localHistoryManifestPath, historyManifest);
+	await writeJsonFile(localLatestManifestPath, latestManifest);
 
-	if (options.upload) {
-		const r2Config = getStreamsBulkR2ConfigFromEnv();
-		const client = createStreamsBulkS3Client(r2Config);
+	if (options.upload && r2Config && client) {
 		if (
 			!options.force &&
 			(await objectExists({
@@ -169,13 +193,13 @@ export async function exportStreamsBulkRange(
 			client,
 			bucket: r2Config.bucket,
 			key: historyManifestObjectPath,
-			value: manifest,
+			value: historyManifest,
 		});
 		await putJsonObject({
 			client,
 			bucket: r2Config.bucket,
 			key: latestManifestObjectPath,
-			value: manifest,
+			value: latestManifest,
 		});
 	}
 
@@ -190,7 +214,7 @@ export async function exportStreamsBulkRange(
 		localSchemaPath,
 		localLatestManifestPath,
 		localHistoryManifestPath,
-		manifest,
+		manifest: latestManifest,
 		uploaded: options.upload ?? false,
 	};
 }

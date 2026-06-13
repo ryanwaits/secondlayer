@@ -370,6 +370,7 @@ export function createStreamsClient(
 					batchSize: params.batchSize ?? 100,
 					fetchEvents,
 					onBatch: params.onBatch,
+					onReorg: params.onReorg,
 					emptyBackoffMs: params.emptyBackoffMs,
 					maxPages: params.maxPages,
 					maxEmptyPolls: params.maxEmptyPolls,

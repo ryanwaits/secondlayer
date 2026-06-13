@@ -92,6 +92,60 @@ describe("events.replay", () => {
 		expect(liveCursors[0]).toBe("19999:2");
 	});
 
+	test("forwards onReorg through the live-tail seam", async () => {
+		const reorgForks: number[] = [];
+		let livePages = 0;
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			dumpsBaseUrl: DUMPS_BASE,
+			verifyDumpsManifest: false,
+			fetchImpl: (async (input: string | URL | Request) => {
+				const url = String(input);
+				if (url.endsWith("/manifest/latest.json")) {
+					return new Response(JSON.stringify(manifest), { status: 200 });
+				}
+				const tip = {
+					block_height: 20000,
+					block_hash: "0x01",
+					burn_block_height: 30000,
+					finalized_height: 19999,
+					lag_seconds: 0,
+				};
+				// First live page after the seam carries a reorg; second is empty
+				// (post-rewind) so bounded mode exits.
+				livePages++;
+				const reorgs =
+					livePages === 1
+						? [
+								{
+									detected_at: "2026-05-29T01:00:00.000Z",
+									fork_point_height: 19998,
+									orphaned_range: { from: "19998:0", to: "19999:2" },
+									new_canonical_tip: "19998:0",
+								},
+							]
+						: [];
+				return new Response(
+					JSON.stringify({ events: [], next_cursor: null, tip, reorgs }),
+					{ status: 200 },
+				);
+			}) as never,
+		});
+
+		await client.events.replay({
+			from: "genesis",
+			mode: "bounded",
+			onDumpFile: () => undefined,
+			onBatch: () => undefined,
+			onReorg: (reorg) => {
+				reorgForks.push(reorg.fork_point_height);
+			},
+		});
+
+		expect(reorgForks).toEqual([19998]);
+	});
+
 	test("rejects a malformed `from` cursor instead of silently dropping dumps", async () => {
 		const client = createStreamsClient({
 			apiKey: "sk-test",

@@ -351,6 +351,16 @@ export type StreamsEventsReplayParams = {
 		events: StreamsEvent[],
 		envelope: StreamsEventsEnvelope,
 	) => Promise<string | null | undefined> | string | null | undefined;
+	/**
+	 * Called when the live-tail phase (after the dump backfill) crosses a reorg,
+	 * before the cursor rewinds and re-reads the now-canonical events — same
+	 * contract as `consume`. The dump-backfill phase is finalized and never
+	 * reorgs; omit this to leave stale rows from an orphaned fork in place.
+	 */
+	onReorg?: (
+		reorg: StreamsReorg,
+		ctx: StreamsReorgContext,
+	) => Promise<void> | void;
 	mode?: "tail" | "bounded";
 	batchSize?: number;
 	emptyBackoffMs?: number;

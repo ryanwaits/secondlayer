@@ -38,6 +38,21 @@ export type StreamsBulkManifest = {
 	key_id?: string;
 };
 
+/**
+ * Union two file lists into one cumulative catalog, deduped by `path`
+ * (incoming wins on conflict — a re-export of a range replaces the old entry).
+ * Order is irrelevant; {@link createStreamsBulkManifest} sorts by block range.
+ */
+export function mergeStreamsBulkManifestFiles(
+	existing: StreamsBulkManifestFile[],
+	incoming: StreamsBulkManifestFile[],
+): StreamsBulkManifestFile[] {
+	const byPath = new Map<string, StreamsBulkManifestFile>();
+	for (const file of existing) byPath.set(file.path, file);
+	for (const file of incoming) byPath.set(file.path, file);
+	return [...byPath.values()];
+}
+
 export function createStreamsBulkManifest(params: {
 	network: string;
 	generatedAt: string;

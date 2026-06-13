@@ -35,10 +35,7 @@ export function getStreamsBulkR2ConfigFromEnv(): StreamsBulkR2Config {
 
 	return {
 		endpoint: required(endpoint, "STREAMS_BULK_R2_ENDPOINT"),
-		accessKeyId: required(
-			accessKeyId,
-			"STREAMS_BULK_R2_ACCESS_KEY_ID",
-		),
+		accessKeyId: required(accessKeyId, "STREAMS_BULK_R2_ACCESS_KEY_ID"),
 		secretAccessKey: required(
 			secretAccessKey,
 			"STREAMS_BULK_R2_SECRET_ACCESS_KEY",
@@ -47,7 +44,9 @@ export function getStreamsBulkR2ConfigFromEnv(): StreamsBulkR2Config {
 	};
 }
 
-export function createStreamsBulkS3Client(config: StreamsBulkR2Config): S3Client {
+export function createStreamsBulkS3Client(
+	config: StreamsBulkR2Config,
+): S3Client {
 	return new S3Client({
 		region: "auto",
 		endpoint: config.endpoint,
@@ -71,6 +70,27 @@ export async function objectExists(params: {
 		return true;
 	} catch (error) {
 		if (error instanceof NotFound || hasHttpStatus(error, 404)) return false;
+		throw error;
+	}
+}
+
+/** Fetch and parse a JSON object, or null when the key doesn't exist. */
+export async function getJsonObject<T>(params: {
+	client: S3Client;
+	bucket: string;
+	key: string;
+}): Promise<T | null> {
+	try {
+		const buffer = await getObjectBuffer(params);
+		return JSON.parse(buffer.toString("utf8")) as T;
+	} catch (error) {
+		if (
+			error instanceof NotFound ||
+			hasHttpStatus(error, 404) ||
+			(error as { name?: string })?.name === "NoSuchKey"
+		) {
+			return null;
+		}
 		throw error;
 	}
 }
@@ -127,11 +147,7 @@ export async function getObjectBuffer(params: {
 
 async function streamBodyToBuffer(body: unknown): Promise<Buffer> {
 	if (body instanceof Uint8Array) return Buffer.from(body);
-	if (
-		body &&
-		typeof body === "object" &&
-		Symbol.asyncIterator in body
-	) {
+	if (body && typeof body === "object" && Symbol.asyncIterator in body) {
 		const chunks: Uint8Array[] = [];
 		for await (const chunk of body as AsyncIterable<Uint8Array>) {
 			chunks.push(chunk);
