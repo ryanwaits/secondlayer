@@ -1,5 +1,11 @@
 # @secondlayer/sdk
 
+## 6.24.0
+
+### Minor Changes
+
+- 1ef678a: `events.replay()` now forwards an optional `onReorg` to its live-tail seam — long-lived replay tails handle reorgs with the same contract as `consume()` (the dump-backfill phase is finalized and never reorgs)
+
 ## 6.23.1
 
 ### Patch Changes
