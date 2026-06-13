@@ -37,14 +37,14 @@ Each task = its own single-line conventional commit; `/check` green is the sprin
 
 Guardrail: no copy stronger than "you bring the loop" ships in this sprint.
 
-## Sprint 2 — Make it true: `sl.index` checkpointed consumer (demoable: kill/restart an Index tail, it resumes + survives a reorg)
+## Sprint 2 — Make it true: `sl.index` checkpointed consumer — DONE 2026-06-12 (258b05e8 + 45ad9693, sdk@6.23.0 published; live prod check: resume zero-overlap, finalizedOnly clean)
 
 Dep: none on Sprint 1 (can run parallel); Sprint 3 depends on this.
 
-- [ ] T11: `packages/sdk/src/index-api/consumer.ts` — port `consumeStreamsEvents` contract (`packages/sdk/src/streams/consumer.ts` = spec): `consumeIndexEvents` + `consumeIndexContractCalls` with fetcher abstraction, `onBatch(events, envelope, {cursor})` returning committed cursor, `onReorg(reorg, {cursor})` auto-rewind to fork-point cursor, default sleep/backoff. Respect per-resource cursor keyspaces; support `fromHeight: 0` start. NOT a straight port — `finalizedOnly` diverges: Streams gates on per-event `finalized` flag (consumer.ts:138-143); Index events have no flag, gate by height vs tip `finalized_height` instead. Prereq subtask: extend SDK `IndexTip` (`index-api/client.ts:7-10`, currently `{block_height, lag_seconds}`) with `finalized_height` — API already returns it (`packages/api/src/index/tip.ts:15-24`) → validates: `bunx tsc` clean
-- [ ] T12: wire `sl.index.events.consume()` / `sl.index.contractCalls.consume()` onto client via the streams pattern (standalone fn + thin `consume()` wiring, cf. client.ts:277,:299; resources already `Object.assign` callable `.list`/`.walk`); export types → validates: tsc + API-surface review
-- [ ] T13: unit tests mirroring streams consumer suite: checkpoint advance, onBatch cursor override, reorg rewind to lowest fork point, finalizedOnly holds back to finalized_height, dedup of handled reorgs → validates: `bun test packages/sdk` green + live check (tail prod ft_transfer N batches, kill, restart from persisted cursor, no gap beyond at-least-once)
-- [ ] T15: changeset (sdk minor) + release via bun release workflow → validates: `npm view --prefer-online`
+- [x] T11: `packages/sdk/src/index-api/consumer.ts` — port `consumeStreamsEvents` contract (`packages/sdk/src/streams/consumer.ts` = spec): `consumeIndexEvents` + `consumeIndexContractCalls` with fetcher abstraction, `onBatch(events, envelope, {cursor})` returning committed cursor, `onReorg(reorg, {cursor})` auto-rewind to fork-point cursor, default sleep/backoff. Respect per-resource cursor keyspaces; support `fromHeight: 0` start. NOT a straight port — `finalizedOnly` diverges: Streams gates on per-event `finalized` flag (consumer.ts:138-143); Index events have no flag, gate by height vs tip `finalized_height` instead. Prereq subtask: extend SDK `IndexTip` (`index-api/client.ts:7-10`, currently `{block_height, lag_seconds}`) with `finalized_height` — API already returns it (`packages/api/src/index/tip.ts:15-24`) → validates: `bunx tsc` clean
+- [x] T12: wire `sl.index.events.consume()` / `sl.index.contractCalls.consume()` onto client via the streams pattern (standalone fn + thin `consume()` wiring, cf. client.ts:277,:299; resources already `Object.assign` callable `.list`/`.walk`); export types → validates: tsc + API-surface review
+- [x] T13: unit tests mirroring streams consumer suite: checkpoint advance, onBatch cursor override, reorg rewind to lowest fork point, finalizedOnly holds back to finalized_height, dedup of handled reorgs → validates: `bun test packages/sdk` green + live check (tail prod ft_transfer N batches, kill, restart from persisted cursor, no gap beyond at-least-once)
+- [x] T15: changeset (sdk minor) + release via bun release workflow → validates: `npm view --prefer-online`
 
 ## Sprint 3 — Flagship examples + strong claims (demoable: every service has one runnable artifact carrying its positioning)
 
