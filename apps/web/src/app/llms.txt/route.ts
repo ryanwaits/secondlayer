@@ -1,7 +1,9 @@
 const LLMS_TXT = `# Secondlayer — the hosted indexer for Stacks
 
-> Raw chain events (Streams), decoded events (Index), your own indexed views
-> (Subgraphs), and webhooks (Subscriptions).
+> Everything is indexing: raw chain events (Streams), decoded rows you can
+> query or build your own app index on (Index), your own hosted indexed views
+> (Subgraphs), and webhooks (Subscriptions). Streams powers Index — our decoder
+> is itself a Streams consumer.
 > One REST surface at https://api.secondlayer.tools. Public reads need no key.
 
 ## Start here
@@ -10,6 +12,8 @@ const LLMS_TXT = `# Secondlayer — the hosted indexer for Stacks
 - Per-subgraph agent docs: https://api.secondlayer.tools/v1/subgraphs/{name}/docs.md
 - MCP server (40+ tools): npx -y @secondlayer/mcp  (reads need zero setup)
 - Mint a free API key, no signup: POST https://api.secondlayer.tools/v1/keys
+- Deploy your own indexer (keyed): npm i -g @secondlayer/cli, then
+  sl subgraphs scaffold <contract_id> -o my-view.ts && sl subgraphs deploy my-view.ts
 
 ## Pay per call (x402 — experimental beta, for agents without accounts)
 - Capability advertisement: https://api.secondlayer.tools/v1/x402/supported
