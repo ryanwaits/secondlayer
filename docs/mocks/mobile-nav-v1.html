@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mobile nav — v1 mocks</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;520;560;600&family=Public+Sans:wght@400;460;500;600&family=Fira+Code:wght@400;500;560;600&family=Caveat:wght@460;500&display=swap');
+
+:root {
+	--ink: #111111;
+	--paper: #fafafa;
+	--paper-el: #ffffff;
+	--chrome: #f0f0f0;
+	--hairline: #e5e5e5;
+	--muted: rgba(0, 0, 0, 0.65);
+	--dim: rgba(0, 0, 0, 0.32);
+	--blue: #2563eb;
+	--blue-bg: #2563eb0f;
+	--blue-border: #2563eb33;
+	--green: #147d42;
+	--sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+	--head: "Sora", ui-sans-serif, system-ui, sans-serif;
+	--mono: "Fira Code", SFMono-Regular, Consolas, monospace;
+	--cursive: "Caveat", cursive;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+	font-family: var(--sans);
+	font-size: 14px;
+	font-weight: 460;
+	color: var(--ink);
+	background: var(--paper);
+	padding: 56px 48px 120px;
+}
+.sheet { max-width: 1240px; margin: 0 auto; }
+
+/* ── sheet header ── */
+.kicker {
+	font-family: var(--mono);
+	font-size: 11px;
+	font-weight: 560;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--muted);
+}
+h1 {
+	font-family: var(--head);
+	font-weight: 520;
+	font-size: 2.25rem;
+	letter-spacing: -0.01em;
+	margin: 10px 0 12px;
+}
+.lede { max-width: 64ch; color: var(--muted); font-size: 0.9375rem; line-height: 1.5; }
+
+section { margin-top: 72px; }
+.sect {
+	position: relative;
+	margin-bottom: 6px;
+}
+.sect::before {
+	content: "";
+	position: absolute;
+	left: 0; right: 0; top: 50%;
+	height: 1px;
+	background: var(--hairline);
+}
+.sect h2 {
+	position: relative;
+	display: inline-block;
+	background: var(--paper);
+	padding-right: 1rem;
+	font-family: var(--head);
+	font-size: 0.9375rem;
+	font-weight: 560;
+}
+.sect .tag {
+	position: relative;
+	float: right;
+	background: var(--paper);
+	padding-left: 1rem;
+	font-family: var(--mono);
+	font-size: 11px;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--muted);
+	line-height: 1.6;
+}
+.why { max-width: 70ch; color: var(--muted); margin: 10px 0 28px; line-height: 1.5; }
+.why b { color: var(--ink); font-weight: 600; }
+
+.frames { display: flex; gap: 40px; flex-wrap: wrap; align-items: flex-start; }
+.frame-wrap { position: relative; }
+.frame-label {
+	font-family: var(--mono);
+	font-size: 10px;
+	font-weight: 560;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--dim);
+	margin-bottom: 10px;
+}
+.phone {
+	position: relative;
+	width: 375px;
+	height: 700px;
+	background: var(--paper);
+	border: 1px solid var(--hairline);
+	border-radius: 14px;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+.note {
+	font-family: var(--cursive);
+	font-size: 20px;
+	font-weight: 460;
+	color: var(--blue);
+	transform: rotate(-2deg);
+	position: absolute;
+}
+
+/* ── shared phone chrome ── */
+.bar {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	height: 48px;
+	padding: 0 14px;
+	background: color-mix(in srgb, var(--paper) 88%, transparent);
+	backdrop-filter: blur(8px);
+	border-bottom: 1px solid var(--hairline);
+	position: relative;
+	z-index: 5;
+}
+.brand {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-family: var(--head);
+	font-weight: 600;
+	font-size: 0.9375rem;
+}
+.brand svg { display: block; }
+.spacer { flex: 1; }
+.menu-btn {
+	font-family: var(--mono);
+	font-size: 11px;
+	font-weight: 560;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--muted);
+	background: none;
+	border: none;
+	padding: 8px 10px;
+}
+.cta {
+	font-family: var(--sans);
+	font-size: 12px;
+	font-weight: 560;
+	color: #fff;
+	background: var(--blue);
+	border: none;
+	border-radius: 6px;
+	padding: 6px 12px;
+	white-space: nowrap;
+}
+.burger {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 34px;
+	height: 34px;
+	margin-left: -8px;
+	border: none;
+	background: none;
+	color: var(--ink);
+	font-size: 15px;
+}
+
+/* fake page content behind the nav */
+.page { padding: 56px 24px 0; }
+.page.dimmed { opacity: 0.35; }
+.hero-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	color: var(--muted);
+	border: 1px solid var(--hairline);
+	border-radius: 999px;
+	padding: 4px 12px;
+	margin-bottom: 20px;
+}
+.hero-pill .d { width: 6px; height: 6px; border-radius: 99px; background: var(--blue); }
+.page h3 {
+	font-family: var(--head);
+	font-weight: 520;
+	font-size: 2.1rem;
+	line-height: 1;
+	letter-spacing: -0.01em;
+}
+.page .sub { margin-top: 14px; color: var(--muted); font-size: 0.9375rem; line-height: 1.5; }
+
+/* ── A: ruled dropdown ── */
+.panel {
+	position: absolute;
+	top: 48px; left: 0; right: 0;
+	z-index: 4;
+	background: var(--paper);
+	border-bottom: 1px solid var(--hairline);
+}
+.panel-row {
+	display: flex;
+	align-items: baseline;
+	gap: 12px;
+	padding: 15px 24px;
+	border-top: 1px solid var(--hairline);
+	text-decoration: none;
+	color: inherit;
+}
+.panel-row:first-child { border-top: none; }
+.panel-row .nm { font-family: var(--head); font-weight: 560; font-size: 15px; letter-spacing: -0.015em; }
+.panel-row .tg {
+	margin-left: auto;
+	font-family: var(--mono);
+	font-size: 9px;
+	font-weight: 560;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--dim);
+}
+.panel-row.active .nm { color: var(--blue); }
+.panel-row.active .nm::after { content: " →"; }
+.panel-foot {
+	display: flex;
+	align-items: center;
+	padding: 13px 24px;
+	border-top: 1px dashed var(--hairline);
+	background: var(--chrome);
+}
+.panel-foot .login {
+	font-family: var(--mono);
+	font-size: 11px;
+	font-weight: 560;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--muted);
+}
+.panel-foot .status {
+	margin-left: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	font-family: var(--mono);
+	font-size: 10px;
+	letter-spacing: 0.04em;
+	color: var(--muted);
+}
+.panel-foot .status .d { width: 6px; height: 6px; border-radius: 99px; background: var(--green); }
+.scrim {
+	position: absolute;
+	inset: 48px 0 0;
+	z-index: 3;
+	background: rgba(0, 0, 0, 0.18);
+}
+
+/* ── B: full-screen notebook index ── */
+.fullsheet {
+	position: absolute;
+	inset: 0;
+	z-index: 6;
+	background: var(--paper);
+	display: flex;
+	flex-direction: column;
+}
+.fullsheet .bar { border-bottom-color: transparent; }
+.fs-list { flex: 1; padding: 18px 28px 0; }
+.fs-row {
+	display: flex;
+	align-items: baseline;
+	gap: 16px;
+	padding: 17px 0;
+	border-bottom: 1px solid var(--hairline);
+	position: relative;
+}
+.fs-row:last-child { border-bottom: none; }
+.fs-row .no {
+	font-family: var(--mono);
+	font-size: 10px;
+	font-weight: 560;
+	color: var(--dim);
+	width: 18px;
+}
+.fs-row .nm { font-family: var(--head); font-weight: 520; font-size: 26px; letter-spacing: -0.01em; }
+.fs-row.active .nm { color: var(--blue); }
+.fs-foot { flex: none; padding: 18px 28px 26px; }
+.fs-foot .cta { display: block; width: 100%; text-align: center; padding: 12px; font-size: 13px; }
+.fs-foot .login {
+	display: block;
+	text-align: center;
+	margin-top: 14px;
+	font-family: var(--mono);
+	font-size: 11px;
+	font-weight: 560;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--muted);
+}
+
+/* ── C: bottom bar + sheet ── */
+.bottombar {
+	position: absolute;
+	left: 0; right: 0; bottom: 0;
+	z-index: 5;
+	display: flex;
+	align-items: center;
+	gap: 20px;
+	height: 50px;
+	padding: 0 22px;
+	background: color-mix(in srgb, var(--paper) 88%, transparent);
+	backdrop-filter: blur(8px);
+	border-top: 1px solid var(--hairline);
+	font-family: var(--mono);
+	font-size: 11px;
+	font-weight: 560;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--muted);
+}
+.bottombar .on { color: var(--ink); }
+.bottombar .status { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; }
+.bottombar .status .d { width: 6px; height: 6px; border-radius: 99px; background: var(--green); }
+.bsheet {
+	position: absolute;
+	left: 0; right: 0; bottom: 0;
+	z-index: 7;
+	background: var(--paper-el);
+	border-top: 1px solid var(--hairline);
+	border-radius: 12px 12px 0 0;
+	box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.12);
+	padding-bottom: 8px;
+}
+.bsheet .handle {
+	width: 36px; height: 4px;
+	border-radius: 99px;
+	background: var(--hairline);
+	margin: 10px auto 4px;
+}
+.bscrim { position: absolute; inset: 0; z-index: 6; background: rgba(0, 0, 0, 0.25); }
+
+/* ── docs frames ── */
+.docs-body { padding: 22px 22px 0; }
+.crumbline { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.crumb {
+	font-family: var(--mono);
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--muted);
+	line-height: 1.6;
+}
+.crumb .sep { color: var(--dim); margin: 0 2px; }
+.copypage {
+	font-family: var(--mono);
+	font-size: 10px;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--muted);
+	border: 1px solid var(--hairline);
+	border-radius: 8px;
+	background: var(--paper-el);
+	padding: 7px 10px;
+	white-space: nowrap;
+}
+.docs-body h4 { font-family: var(--head); font-weight: 560; font-size: 19px; margin: 18px 0 12px; letter-spacing: -0.01em; }
+.docs-body p { color: var(--ink); font-size: 15px; line-height: 1.55; margin-bottom: 12px; }
+.docs-body code {
+	font-family: var(--mono);
+	font-size: 12.5px;
+	background: var(--chrome);
+	border-radius: 4px;
+	padding: 1px 5px;
+}
+.drawer {
+	position: absolute;
+	top: 0; left: 0; bottom: 0;
+	z-index: 8;
+	width: 84%;
+	max-width: 300px;
+	background: var(--paper);
+	border-right: 1px solid var(--hairline);
+	box-shadow: 0 0 40px rgba(0, 0, 0, 0.18);
+	padding: 0 16px 20px 20px;
+	overflow: hidden;
+}
+.drawer .brand { height: 48px; display: flex; align-items: center; margin-bottom: 14px; }
+.d-group { margin-bottom: 20px; }
+.d-label {
+	font-family: var(--mono);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--dim);
+	margin: 0 0 7px 8px;
+}
+.d-item {
+	display: block;
+	font-size: 13.5px;
+	color: var(--muted);
+	text-decoration: none;
+	padding: 5px 8px;
+	border-radius: 6px;
+}
+.d-item.active { color: var(--blue); background: var(--blue-bg); font-weight: 500; }
+.d-products { border-bottom: 1px dashed var(--hairline); padding-bottom: 16px; }
+.d-products .d-item { display: inline-block; width: 47%; }
+.drawer-scrim { position: absolute; inset: 0; z-index: 7; background: rgba(0, 0, 0, 0.4); }
+
+.footnote { margin-top: 80px; padding-top: 18px; border-top: 1px dotted var(--hairline); color: var(--muted); font-size: 13px; max-width: 72ch; line-height: 1.55; }
+</style>
+</head>
+<body>
+<div class="sheet">
+	<div class="kicker">mock · mobile nav · v1 · 2026-06-12</div>
+	<h1>Mobile nav</h1>
+	<p class="lede">Today the marketing pages hide every product link below 800px (only the wordmark survives) and docs squeezes a scrolling strip of six links between a floating hamburger and the API-key button. Three directions for (www), one aligned treatment for docs. All variants keep the 48px bar, hairlines-not-shadows, and the mono-uppercase label voice.</p>
+
+	<!-- ════════ A ════════ -->
+	<section>
+		<div class="sect"><h2>A · Ruled dropdown</h2><span class="tag">least ceremony</span></div>
+		<p class="why"><b>Menu is a word, not an icon.</b> Tapping it drops a ruled panel under the bar — each product is a row with its role in mono on the right, the page you're on gets the Signal Blue →. Login and live status sit in a chrome footer (same status item that now lives in the site footer). Content stays visible below a light scrim; one tap anywhere dismisses.</p>
+		<div class="frames">
+			<div class="frame-wrap">
+				<div class="frame-label">closed</div>
+				<div class="phone">
+					<div class="bar">
+						<span class="brand"><svg viewBox="4 7 40 28" width="22" height="15" fill="none"><polygon points="8,25 28,17 42,25 22,33" fill="#2563eb33"/><polygon points="8,19 28,11 42,19 22,27" fill="#2563eb"/></svg>secondlayer</span>
+						<span class="spacer"></span>
+						<button class="menu-btn">Menu</button>
+						<button class="cta">Get an API key</button>
+					</div>
+					<div class="page">
+						<span class="hero-pill"><span class="d"></span>Latest — Explore subgraphs is live</span>
+						<h3>Index the chain.<br/>Own your API.</h3>
+						<p class="sub">Secondlayer is the indexing layer for Stacks: we capture and decode every event, you define the tables and ship the API.</p>
+					</div>
+				</div>
+			</div>
+			<div class="frame-wrap">
+				<div class="frame-label">open</div>
+				<div class="phone">
+					<div class="bar">
+						<span class="brand"><svg viewBox="4 7 40 28" width="22" height="15" fill="none"><polygon points="8,25 28,17 42,25 22,33" fill="#2563eb33"/><polygon points="8,19 28,11 42,19 22,27" fill="#2563eb"/></svg>secondlayer</span>
+						<span class="spacer"></span>
+						<button class="menu-btn" style="color:#111">Close</button>
+						<button class="cta">Get an API key</button>
+					</div>
+					<div class="scrim"></div>
+					<div class="panel">
+						<a class="panel-row"><span class="nm">Index</span><span class="tg">decoded api</span></a>
+						<a class="panel-row"><span class="nm">Subgraphs</span><span class="tg">your schema</span></a>
+						<a class="panel-row"><span class="nm">Streams</span><span class="tg">raw firehose</span></a>
+						<a class="panel-row active"><span class="nm">Explore</span><span class="tg">public subgraphs</span></a>
+						<a class="panel-row"><span class="nm">Docs</span><span class="tg">guides + reference</span></a>
+						<a class="panel-row"><span class="nm">Pricing</span><span class="tg">free → pro</span></a>
+						<div class="panel-foot">
+							<span class="login">[L] Login</span>
+							<span class="status"><span class="d"></span>All systems operational</span>
+						</div>
+					</div>
+					<div class="page dimmed">
+						<span class="hero-pill"><span class="d"></span>Latest — Explore subgraphs is live</span>
+						<h3>Index the chain.<br/>Own your API.</h3>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- ════════ B ════════ -->
+	<section>
+		<div class="sect"><h2>B · Notebook index page</h2><span class="tag">most editorial</span></div>
+		<p class="why"><b>The menu is a page, not a panel.</b> Tapping Menu turns the whole screen into the notebook's table of contents: numbered mono margins, big Sora entries, one Caveat aside. The CTA pins to the bottom where thumbs are. Closed state is identical to A — the difference is entirely what opening feels like.</p>
+		<div class="frames">
+			<div class="frame-wrap">
+				<div class="frame-label">open (closed = same bar as A)</div>
+				<div class="phone">
+					<div class="fullsheet">
+						<div class="bar">
+							<span class="brand"><svg viewBox="4 7 40 28" width="22" height="15" fill="none"><polygon points="8,25 28,17 42,25 22,33" fill="#2563eb33"/><polygon points="8,19 28,11 42,19 22,27" fill="#2563eb"/></svg>secondlayer</span>
+							<span class="spacer"></span>
+							<button class="menu-btn" style="color:#111">Close ✕</button>
+						</div>
+						<div class="fs-list">
+							<div class="fs-row"><span class="no">01</span><span class="nm">Index</span></div>
+							<div class="fs-row"><span class="no">02</span><span class="nm">Subgraphs</span></div>
+							<div class="fs-row"><span class="no">03</span><span class="nm">Streams</span></div>
+							<div class="fs-row active"><span class="no">04</span><span class="nm">Explore</span>
+								<span class="note" style="right:8px; top:14px;">live, no key needed</span>
+							</div>
+							<div class="fs-row"><span class="no">05</span><span class="nm">Docs</span></div>
+							<div class="fs-row"><span class="no">06</span><span class="nm">Pricing</span></div>
+						</div>
+						<div class="fs-foot">
+							<button class="cta">Get an API key</button>
+							<span class="login">[L] Login</span>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- ════════ C ════════ -->
+	<section>
+		<div class="sect"><h2>C · Bottom bar + sheet</h2><span class="tag">thumb-first</span></div>
+		<p class="why"><b>Navigation lives where thumbs live.</b> The top bar slims to brand + CTA; a mono bottom bar carries Menu, the two most-tapped links, and the status dot. Menu raises a sheet with the same ruled rows as A. The sheet is the one shadowed element (floating + dismissible). Most app-like — possibly too console for the marketing register.</p>
+		<div class="frames">
+			<div class="frame-wrap">
+				<div class="frame-label">closed</div>
+				<div class="phone">
+					<div class="bar">
+						<span class="brand"><svg viewBox="4 7 40 28" width="22" height="15" fill="none"><polygon points="8,25 28,17 42,25 22,33" fill="#2563eb33"/><polygon points="8,19 28,11 42,19 22,27" fill="#2563eb"/></svg>secondlayer</span>
+						<span class="spacer"></span>
+						<button class="cta">Get an API key</button>
+					</div>
+					<div class="page">
+						<span class="hero-pill"><span class="d"></span>Latest — Explore subgraphs is live</span>
+						<h3>Index the chain.<br/>Own your API.</h3>
+						<p class="sub">Secondlayer is the indexing layer for Stacks: we capture and decode every event, you define the tables and ship the API.</p>
+					</div>
+					<div class="bottombar">
+						<span class="on">Menu</span><span>Docs</span><span>Pricing</span>
+						<span class="status"><span class="d"></span></span>
+					</div>
+				</div>
+			</div>
+			<div class="frame-wrap">
+				<div class="frame-label">open</div>
+				<div class="phone">
+					<div class="bar">
+						<span class="brand"><svg viewBox="4 7 40 28" width="22" height="15" fill="none"><polygon points="8,25 28,17 42,25 22,33" fill="#2563eb33"/><polygon points="8,19 28,11 42,19 22,27" fill="#2563eb"/></svg>secondlayer</span>
+						<span class="spacer"></span>
+						<button class="cta">Get an API key</button>
+					</div>
+					<div class="page">
+						<span class="hero-pill"><span class="d"></span>Latest — Explore subgraphs is live</span>
+						<h3>Index the chain.<br/>Own your API.</h3>
+					</div>
+					<div class="bscrim"></div>
+					<div class="bsheet">
+						<div class="handle"></div>
+						<a class="panel-row"><span class="nm">Index</span><span class="tg">decoded api</span></a>
+						<a class="panel-row"><span class="nm">Subgraphs</span><span class="tg">your schema</span></a>
+						<a class="panel-row"><span class="nm">Streams</span><span class="tg">raw firehose</span></a>
+						<a class="panel-row active"><span class="nm">Explore</span><span class="tg">public subgraphs</span></a>
+						<a class="panel-row"><span class="nm">Docs</span><span class="tg">guides + reference</span></a>
+						<a class="panel-row"><span class="nm">Pricing</span><span class="tg">free → pro</span></a>
+						<div class="panel-foot">
+							<span class="login">[L] Login</span>
+							<span class="status"><span class="d"></span>All systems operational</span>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- ════════ docs ════════ -->
+	<section>
+		<div class="sect"><h2>Docs · aligned</h2><span class="tag">applies to any of a/b/c</span></div>
+		<p class="why"><b>Kill the scrolling strip.</b> The six product links leave the top bar entirely and become a "Products" group at the top of the existing drawer (which already works). The hamburger stops floating in a white box and sits inside the bar. Right side keeps only the CTA — no more overlap. The bar reads: burger · wordmark · key.</p>
+		<div class="frames">
+			<div class="frame-wrap">
+				<div class="frame-label">closed — strip gone, burger in the bar</div>
+				<div class="phone">
+					<div class="bar">
+						<button class="burger">☰</button>
+						<span class="brand"><svg viewBox="4 7 40 28" width="22" height="15" fill="none"><polygon points="8,25 28,17 42,25 22,33" fill="#2563eb33"/><polygon points="8,19 28,11 42,19 22,27" fill="#2563eb"/></svg>secondlayer</span>
+						<span class="spacer"></span>
+						<button class="cta">Get an API key</button>
+					</div>
+					<div class="docs-body">
+						<div class="crumbline">
+							<span class="crumb">Getting started <span class="sep">/</span> Introduction</span>
+							<button class="copypage">⧉ Copy page</button>
+						</div>
+						<h4>The hosted indexer for Stacks</h4>
+						<p>Curl <code>/v1</code> for decoded Stacks data right now; deploy a one-file subgraph for your own tables with the same public API; attach a webhook to either.</p>
+					</div>
+				</div>
+			</div>
+			<div class="frame-wrap">
+				<div class="frame-label">drawer open — products group on top</div>
+				<div class="phone">
+					<div class="bar">
+						<button class="burger">☰</button>
+						<span class="brand"><svg viewBox="4 7 40 28" width="22" height="15" fill="none"><polygon points="8,25 28,17 42,25 22,33" fill="#2563eb33"/><polygon points="8,19 28,11 42,19 22,27" fill="#2563eb"/></svg>secondlayer</span>
+						<span class="spacer"></span>
+						<button class="cta">Get an API key</button>
+					</div>
+					<div class="docs-body">
+						<div class="crumbline">
+							<span class="crumb">Getting started <span class="sep">/</span> Introduction</span>
+						</div>
+					</div>
+					<div class="drawer-scrim"></div>
+					<div class="drawer">
+						<span class="brand"><svg viewBox="4 7 40 28" width="22" height="15" fill="none"><polygon points="8,25 28,17 42,25 22,33" fill="#2563eb33"/><polygon points="8,19 28,11 42,19 22,27" fill="#2563eb"/></svg>secondlayer</span>
+						<div class="d-group d-products">
+							<div class="d-label">Products</div>
+							<a class="d-item">Index</a><a class="d-item">Subgraphs</a>
+							<a class="d-item">Streams</a><a class="d-item">Explore</a>
+							<a class="d-item">Pricing</a>
+						</div>
+						<div class="d-group">
+							<div class="d-label">Getting started</div>
+							<a class="d-item active">Introduction</a>
+							<a class="d-item">Quickstart</a>
+							<a class="d-item">Auth &amp; keys</a>
+						</div>
+						<div class="d-group">
+							<div class="d-label">Core surfaces</div>
+							<a class="d-item">Index</a>
+							<a class="d-item">Subgraphs</a>
+							<a class="d-item">Streams</a>
+							<a class="d-item">Subscriptions</a>
+						</div>
+						<div class="d-group">
+							<div class="d-label">Reference</div>
+							<a class="d-item">CLI</a>
+							<a class="d-item">SDK</a>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<p class="footnote">Recommendation: <b style="color:#111">A for (www)</b> — it's the same bar that already exists, just with a Menu word where the links used to be, and it inherits the footer-status item we just shipped. B is the better story but more ceremony than six links earn. C trades brand register for reach. The docs treatment is independent and works under any choice; it deletes the strip, the floating box, and the overlap in one move.</p>
+</div>
+</body>
+</html>

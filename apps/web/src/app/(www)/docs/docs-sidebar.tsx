@@ -1,6 +1,8 @@
 "use client";
 
 import { Logo } from "@/components/console/logo";
+import { PRODUCTS } from "@/components/marketing-nav";
+import { MobileNavCta } from "@/components/mobile-nav-cta";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -28,15 +30,37 @@ export function DocsSidebar() {
 
 	return (
 		<>
-			<button
-				type="button"
-				className="docs-burger"
-				aria-label="Open navigation"
-				aria-expanded={open}
-				onClick={() => setOpen(true)}
-			>
-				☰
-			</button>
+			{/* Mobile bar: burger · wordmark · CTA. Replaces the topnav strip and
+			    the floating AuthBar below 768px; hidden on desktop. */}
+			<div className="docs-mobilebar">
+				<Link href="/" className="docs-mobilebar-brand">
+					<Logo size={22} />
+					<span>secondlayer</span>
+				</Link>
+				<MobileNavCta className="auth-bar-cta docs-mobilebar-cta" />
+				<button
+					type="button"
+					className="docs-burger"
+					aria-label="Open navigation"
+					aria-expanded={open}
+					onClick={() => setOpen(true)}
+				>
+					<svg
+						width="16"
+						height="16"
+						viewBox="0 0 16 16"
+						fill="none"
+						aria-hidden="true"
+					>
+						<path
+							d="M2.5 5.5h11M2.5 10.5h11"
+							stroke="currentColor"
+							strokeWidth="1.5"
+							strokeLinecap="round"
+						/>
+					</svg>
+				</button>
+			</div>
 			{open && (
 				<button
 					type="button"
@@ -50,6 +74,18 @@ export function DocsSidebar() {
 					<Logo size={22} />
 					<span>secondlayer</span>
 				</Link>
+				{/* Product links live up here on mobile (the topnav strip is gone);
+				    desktop keeps them in the fixed top nav, so this group hides. */}
+				<div className="docs-nav-group docs-nav-products">
+					<div className="docs-nav-grouplabel">Products</div>
+					<div className="docs-nav-products-grid">
+						{PRODUCTS.filter((p) => p.href !== "/docs").map((p) => (
+							<Link key={p.href} href={p.href} className="docs-nav-item">
+								{p.label}
+							</Link>
+						))}
+					</div>
+				</div>
 				{DOCS_NAV.map((group) => (
 					<div className="docs-nav-group" key={group.label}>
 						<div className="docs-nav-grouplabel">{group.label}</div>

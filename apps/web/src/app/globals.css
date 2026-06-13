@@ -471,11 +471,13 @@ a {
 }
 .page-title-with-logo .logo-primary,
 .marketing-nav-brand .logo-primary,
+.docs-mobilebar-brand .logo-primary,
 .site-footer-brand .logo-primary {
 	fill: var(--accent);
 }
 .page-title-with-logo .logo-echo,
 .marketing-nav-brand .logo-echo,
+.docs-mobilebar-brand .logo-echo,
 .site-footer-brand .logo-echo {
 	fill: var(--accent);
 	opacity: 0.24;
@@ -5871,11 +5873,13 @@ html.force-dark .shiki span {
 		display: none;
 	}
 }
-/* mobile drawer: hamburger toggles the sidebar (both hidden on desktop) */
-.docs-burger {
-	display: none;
-}
-.docs-nav-overlay {
+/* mobile drawer: the bar's hamburger toggles the sidebar. The mobile bar
+   (burger · wordmark · CTA) replaces the topnav strip and the floating
+   AuthBar below 768px; all of it hidden on desktop. */
+.docs-mobilebar,
+.docs-burger,
+.docs-nav-overlay,
+.docs-nav-products {
 	display: none;
 }
 @media (max-width: 768px) {
@@ -5885,31 +5889,70 @@ html.force-dark .shiki span {
 		padding-top: 48px;
 	}
 	.docs-topnav {
-		left: 0;
-		padding: 0 16px 0 56px;
-		gap: 1rem;
-		overflow-x: auto;
+		display: none;
+	}
+	body:has(.docs-shell) .auth-bar {
+		display: none;
 	}
 	.docs-content {
 		grid-column: 1;
 		padding: 24px 20px 100px;
 	}
+	.docs-mobilebar {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		z-index: 55;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		height: 48px;
+		padding: 0 14px;
+		background: color-mix(in srgb, var(--bg) 88%, transparent);
+		-webkit-backdrop-filter: blur(8px);
+		backdrop-filter: blur(8px);
+		border-bottom: 1px solid var(--border);
+		animation: docs-chrome-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+	}
+	.docs-mobilebar-brand {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		font-family: var(--font-heading-stack);
+		font-weight: 600;
+		font-size: 0.9375rem;
+		color: var(--text-main);
+		text-decoration: none;
+	}
+	.docs-mobilebar-cta {
+		margin-left: auto;
+		text-decoration: none;
+	}
 	.docs-burger {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		position: fixed;
-		top: 10px;
-		left: 12px;
-		z-index: 60;
-		width: 38px;
-		height: 38px;
-		border-radius: 8px;
-		background: var(--bg-elevated);
+		width: 32px;
+		height: 32px;
+		flex: none;
+		/* bar gap is 8px — this brings the CTA→burger gap to ~12px */
+		margin-left: 4px;
 		border: 1px solid var(--border);
+		background: var(--bg-elevated);
+		border-radius: 6px;
 		color: var(--text-main);
-		font-size: 16px;
 		cursor: pointer;
+	}
+	/* product links live at the top of the drawer (the strip is gone) */
+	.docs-nav-products {
+		display: block;
+		border-bottom: 1px dashed var(--border);
+		padding-bottom: 16px;
+	}
+	.docs-nav-products-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
 	}
 	.docs-nav {
 		position: fixed;
@@ -6856,13 +6899,16 @@ html.force-dark .shiki span {
 @media (max-width: 540px) {
 	.explore-grid,
 	.explore-grid.featured {
-		grid-template-columns: 1fr;
+		/* minmax(0,1fr), not 1fr: a bare 1fr track has min auto, and the
+		   cards' nowrap endpoint paths push it past the viewport */
+		grid-template-columns: minmax(0, 1fr);
 	}
 }
 .explore-card-link {
 	text-decoration: none;
 	color: inherit;
 	display: block;
+	min-width: 0;
 	border-radius: 8px;
 }
 .explore-card-link:focus-visible {
@@ -7203,7 +7249,8 @@ html.force-dark .shiki span {
 }
 @media (max-width: 980px) {
 	.explore-ref {
-		grid-template-columns: 1fr;
+		/* see .explore-grid: bare 1fr min-sizes to the nowrap endpoint paths */
+		grid-template-columns: minmax(0, 1fr);
 	}
 	.explore-rail {
 		position: static;
@@ -7248,6 +7295,11 @@ html.force-dark .shiki span {
 	max-width: 58ch;
 	color: var(--text-muted);
 	font-size: 0.9375rem;
+}
+/* in the detail header the byline runs long ("· indexing <contract> since
+   block N") — the card-row nowrap would force horizontal scroll */
+.explore-head .explore-desc-p .explore-by {
+	white-space: normal;
 }
 .explore-head-meta {
 	display: flex;
@@ -7568,9 +7620,193 @@ html.force-dark .shiki span {
 .marketing-nav-link[aria-current="page"] {
 	color: var(--text-main);
 }
+.marketing-nav-spacer {
+	flex: 1;
+}
+/* burger + bar CTA are the mobile chrome — desktop shows the link row */
+.mnav-burger,
+.mnav-bar-cta {
+	display: none;
+}
 @media (max-width: 800px) {
 	.marketing-nav .marketing-nav-link {
 		display: none;
+	}
+	/* the floating AuthBar is replaced by the bar CTA + sheet on phones */
+	body:has(.marketing-nav) .auth-bar {
+		display: none;
+	}
+	.mnav-burger {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		flex: none;
+		/* bar gap is 2px — this brings the CTA→burger gap to ~12px */
+		margin-left: 10px;
+		border: 1px solid var(--border);
+		background: var(--bg-elevated);
+		color: var(--text-main);
+		cursor: pointer;
+		border-radius: 6px;
+	}
+	.mnav-bar-cta {
+		display: inline-flex;
+		text-decoration: none;
+	}
+}
+
+/* full-screen "notebook index" sheet (mobile only — opened via .mnav-burger) */
+.mnav-sheet {
+	position: fixed;
+	inset: 0;
+	z-index: 220;
+	background: var(--bg);
+	display: flex;
+	flex-direction: column;
+	animation: mnav-in 0.2s var(--ease-smooth) both;
+}
+.mnav-sheet-bar {
+	flex: none;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	height: 48px;
+	padding: 0 var(--spacing-xs);
+}
+.mnav-close {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	font-weight: 560;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--text-main);
+	background: none;
+	border: none;
+	padding: 8px;
+	cursor: pointer;
+}
+.mnav-list {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	padding: 18px 28px 0;
+}
+.mnav-row {
+	position: relative;
+	display: flex;
+	align-items: baseline;
+	gap: 16px;
+	padding: 17px 0;
+	border-bottom: 1px solid var(--border);
+	text-decoration: none;
+	color: inherit;
+	animation: mnav-row-in 0.3s var(--ease-smooth) both;
+}
+.mnav-row:last-child {
+	border-bottom: none;
+}
+.mnav-row:nth-child(2) {
+	animation-delay: 0.03s;
+}
+.mnav-row:nth-child(3) {
+	animation-delay: 0.06s;
+}
+.mnav-row:nth-child(4) {
+	animation-delay: 0.09s;
+}
+.mnav-row:nth-child(5) {
+	animation-delay: 0.12s;
+}
+.mnav-row:nth-child(6) {
+	animation-delay: 0.15s;
+}
+.mnav-row:nth-child(7) {
+	animation-delay: 0.18s;
+}
+.mnav-row .no {
+	flex: none;
+	width: 22px;
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	font-weight: 560;
+	color: color-mix(in srgb, var(--text-muted) 55%, transparent);
+}
+.mnav-row .nm {
+	font-family: var(--font-heading-stack);
+	font-weight: 520;
+	font-size: 26px;
+	letter-spacing: -0.01em;
+}
+.mnav-row.active .nm {
+	color: var(--accent);
+}
+.mnav-note {
+	position: absolute;
+	right: 4px;
+	top: 50%;
+	transform: translateY(-50%) rotate(-2deg);
+	font-family: var(--font-cursive), cursive;
+	font-size: 19px;
+	color: var(--accent);
+}
+.mnav-foot {
+	flex: none;
+	padding: 18px 28px calc(24px + env(safe-area-inset-bottom));
+}
+.mnav-cta {
+	display: block;
+	width: 100%;
+	text-align: center;
+	font-size: 13px;
+	font-weight: 560;
+	color: var(--accent-contrast);
+	background: var(--accent);
+	border: none;
+	border-radius: 6px;
+	padding: 12px;
+	text-decoration: none;
+}
+.mnav-login {
+	display: block;
+	width: 100%;
+	margin-top: 14px;
+	text-align: center;
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	font-weight: 560;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	background: none;
+	border: none;
+	padding: 6px;
+	cursor: pointer;
+	text-decoration: none;
+}
+@keyframes mnav-in {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+@keyframes mnav-row-in {
+	from {
+		opacity: 0;
+		transform: translateY(6px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.mnav-sheet,
+	.mnav-row {
+		animation: none;
 	}
 }
 
@@ -7825,6 +8061,43 @@ html.force-dark .shiki span {
 }
 .site-footer-base .m {
 	font-family: var(--font-mono-stack);
+}
+/* On phones the floating status pill ate scarce space; it lives here in the
+   footer base row instead. Desktop keeps the pill, so this stays hidden. */
+.footer-status {
+	display: none;
+	align-items: center;
+	gap: 7px;
+	font-family: var(--font-mono-stack);
+	font-size: 0.6875rem;
+	letter-spacing: 0.04em;
+	font-variant-numeric: tabular-nums;
+	color: var(--text-muted);
+	text-decoration: none;
+}
+.footer-status-dot {
+	width: 6px;
+	height: 6px;
+	flex: 0 0 6px;
+	border-radius: 999px;
+	background: var(--text-muted);
+	opacity: 0.45;
+}
+.footer-status[data-state="green"] .footer-status-dot {
+	background: #147d42;
+	opacity: 1;
+}
+.footer-status[data-state="red"] .footer-status-dot {
+	background: var(--red);
+	opacity: 1;
+}
+@media (max-width: 640px) {
+	.home-status-shell {
+		display: none;
+	}
+	.footer-status {
+		display: inline-flex;
+	}
 }
 
 /* ── Homepage rewrite: demo-pane system ────────────────────────────── */
@@ -8908,7 +9181,10 @@ html.force-dark .pp {
 /* ---- hero (center) ----------------------------------------- */
 .pp-hero {
 	text-align: center;
-	padding: clamp(3.5rem, 9vw, 6.5rem) 0 clamp(2.5rem, 6vw, 4rem);
+	/* same horizontal gutter as .pp-wrap — without it the hero text runs
+	   edge to edge on phones (820px max-width only insets on desktop) */
+	padding: clamp(3.5rem, 9vw, 6.5rem) clamp(1.25rem, 4vw, 2.5rem)
+		clamp(2.5rem, 6vw, 4rem);
 	max-width: 820px;
 	margin: 0 auto;
 }
