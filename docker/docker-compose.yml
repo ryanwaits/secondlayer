@@ -378,6 +378,14 @@ services:
       # Decrypts per-subscription auth_config (bearer tokens for trigger/cloudflare
       # webhook formats) in the emitter.
       SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}
+      # ed25519 key that makes the universal x-secondlayer-signature on EVERY
+      # delivery real (same key the api signs live responses + the indexer signs
+      # dump manifests with). Without it the signer is a silent no-op and webhooks
+      # ship UNSIGNED — so the boot guard (assertWebhookSigningConfigured) REFUSES
+      # to start in prod unless one is set, or ALLOW_UNSIGNED_WEBHOOKS=true.
+      STREAMS_SIGNING_PRIVATE_KEY: ${STREAMS_SIGNING_PRIVATE_KEY:-}
+      # Optional dedicated webhook-only key; falls back to the streams key above.
+      SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY: ${SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
