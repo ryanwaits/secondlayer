@@ -30,6 +30,8 @@ export function indexFreeWindow(opts: {
 		// paid for this read — let it through. The x402 middleware runs first and
 		// sets `x402Payer` only on a paid call, never on the free-quota path.
 		if (c.get("x402Payer" as never)) return next();
+		// A credited free account is pay-as-you-go: read history, debited per row.
+		if (c.get("credited")) return next();
 
 		const cursorRaw =
 			c.req.query("from_cursor") ?? c.req.query("cursor") ?? undefined;

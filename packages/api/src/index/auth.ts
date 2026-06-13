@@ -24,6 +24,9 @@ export type IndexEnv = {
 	Variables: {
 		indexTenant?: IndexTenant;
 		indexTip: IndexTip;
+		/** Set by the credits gate when a free account is on pay-as-you-go:
+		 *  bypasses the free window + rate limit, debited per row read. */
+		credited?: { accountId: string; balance: bigint };
 	};
 };
 

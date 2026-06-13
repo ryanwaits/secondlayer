@@ -12,6 +12,11 @@ const WINDOW_MS = 1_000;
 export function indexRateLimit(): MiddlewareHandler<IndexEnv> {
 	// biome-ignore lint/suspicious/noConfusingVoidType: hono middleware returns Response | void (pre-existing)
 	return async (c, next): Promise<Response | void> => {
+		// Pay-as-you-go: a credited free account is unthrottled (it pays per row).
+		if (c.get("credited")) {
+			await next();
+			return;
+		}
 		const tenant = c.get("indexTenant");
 		if (!tenant) {
 			// Open-beta anon reads: enforce a shared global limit so clients

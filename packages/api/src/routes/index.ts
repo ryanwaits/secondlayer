@@ -35,6 +35,7 @@ import {
 	type ContractCallsReader,
 	getContractCallsResponse,
 } from "../index/contract-calls.ts";
+import { debitCreditedRead, indexCreditsGate } from "../index/credits-gate.ts";
 import {
 	INDEX_EVENT_CONFIG,
 	INDEX_EVENT_TYPES,
@@ -309,6 +310,10 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		"*",
 		indexBearerAuth({ tokens: opts.tokens ?? DEFAULT_INDEX_TOKEN_STORE }),
 	);
+	// Credits gate: a free account with a prepaid balance goes pay-as-you-go —
+	// flags the request so the rate limiter + free-window gate let it through and
+	// the post-read step debits per row. Runs after auth, before both.
+	router.use("*", indexCreditsGate());
 	// x402 rail: mount the injected middleware if present (accountless callers pay
 	// per call; keyed callers + the open-beta anon path are unaffected when off).
 	// Whether it's enabled is decided at the app root, not here.
@@ -364,6 +369,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		const accountId = c.get("indexTenant")?.account_id;
 		if (accountId && response.events.length > 0) {
 			await recordDecodedEventsReturned(accountId, response.events.length);
+			await debitCreditedRead(c, response.events.length);
 		}
 		return c.json(response);
 	});
@@ -391,6 +397,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 				accountId,
 				response.contract_calls.length,
 			);
+			await debitCreditedRead(c, response.contract_calls.length);
 		}
 		return c.json(response);
 	});
@@ -433,6 +440,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		const accountId = c.get("indexTenant")?.account_id;
 		if (accountId && response.blocks.length > 0) {
 			await recordDecodedEventsReturned(accountId, response.blocks.length);
+			await debitCreditedRead(c, response.blocks.length);
 		}
 		return c.json(response);
 	});
@@ -481,6 +489,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 				accountId,
 				response.transactions.length,
 			);
+			await debitCreditedRead(c, response.transactions.length);
 		}
 		return c.json(response);
 	});
@@ -561,6 +570,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		const accountId = c.get("indexTenant")?.account_id;
 		if (accountId && response.stacking.length > 0) {
 			await recordDecodedEventsReturned(accountId, response.stacking.length);
+			await debitCreditedRead(c, response.stacking.length);
 		}
 		return c.json(response);
 	});
@@ -581,6 +591,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		const accountId = c.get("indexTenant")?.account_id;
 		if (accountId && response.mempool.length > 0) {
 			await recordDecodedEventsReturned(accountId, response.mempool.length);
+			await debitCreditedRead(c, response.mempool.length);
 		}
 		return c.json(response);
 	});
@@ -643,6 +654,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		const accountId = c.get("indexTenant")?.account_id;
 		if (accountId && response.events.length > 0) {
 			await recordDecodedEventsReturned(accountId, response.events.length);
+			await debitCreditedRead(c, response.events.length);
 		}
 		return c.json(response);
 	});
@@ -667,6 +679,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		const accountId = c.get("indexTenant")?.account_id;
 		if (accountId && response.events.length > 0) {
 			await recordDecodedEventsReturned(accountId, response.events.length);
+			await debitCreditedRead(c, response.events.length);
 		}
 		return c.json(response);
 	});

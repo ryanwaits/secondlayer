@@ -13,8 +13,8 @@ const TIP: IndexTip = {
 };
 const CUTOFF = TIP_HEIGHT - INDEX_FREE_WINDOW_BLOCKS;
 
-/** Mount the gate behind an optional tier/x402 seed, with a stub /events route. */
-function app(seed?: { tier?: string; x402Payer?: string }) {
+/** Mount the gate behind an optional tier/x402/credited seed, with a stub /events route. */
+function app(seed?: { tier?: string; x402Payer?: string; credited?: boolean }) {
 	const a = new Hono<IndexEnv>();
 	a.onError(errorHandler);
 	a.use("*", async (c, next) => {
@@ -26,6 +26,8 @@ function app(seed?: { tier?: string; x402Payer?: string }) {
 			});
 		}
 		if (seed?.x402Payer) c.set("x402Payer" as never, seed.x402Payer as never);
+		if (seed?.credited)
+			c.set("credited", { accountId: "acct", balance: 10_000n });
 		await next();
 	});
 	a.use("*", indexFreeWindow({ getTip: async () => TIP }));
@@ -56,6 +58,13 @@ describe("indexFreeWindow", () => {
 			`/events?cursor=${CUTOFF - 5000}:0`,
 		);
 		expect(res.status).toBe(402);
+	});
+
+	test("credited free account: deep read passes (pay-as-you-go)", async () => {
+		const res = await app({ tier: "free", credited: true }).request(
+			`/events?from_height=1`,
+		);
+		expect(res.status).toBe(200);
 	});
 
 	test("paid tier (build): deep from_height passes", async () => {
