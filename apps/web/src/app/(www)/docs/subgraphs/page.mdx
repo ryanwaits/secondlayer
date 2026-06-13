@@ -127,6 +127,29 @@ Deploy from the CLI. On paid plans, the first deploy backfills history from `sta
 sl subgraphs deploy ./subgraph.config.ts
 ```
 
+Real output — the deploy ends with your table's public URL:
+
+```text
+✓ Subgraph "gamma-sales" created → v1.0.0
+    Dashboard: https://secondlayer.tools/platform/subgraphs/gamma-sales
+    Read:      https://api.secondlayer.tools/v1/subgraphs/gamma-sales/sales
+    Share:     https://api.secondlayer.tools/v1/subgraphs/gamma-sales (public — no key needed)
+    Watch:     sl subgraphs status gamma-sales
+```
+
+`sl subgraphs status` shows a genesis backfill draining while the table is already serving reads (real output, the public `sbtc-balances` subgraph mid-backfill):
+
+```text
+Status             reindexing
+Sync               reindexing — 14.2% (1174885 / 8263594 blocks, target #8263594)
+Reindex Remaining  7088709
+Gaps               none
+Rows Indexed       4,874
+Table Rows         balances: 4874
+```
+
+`gamma-sales` above is the [`sales-index` example](https://github.com/ryanwaits/secondlayer/tree/main/examples/sales-index)'s graduation: the same sales table its hand-run loop builds with `index.contractCalls.consume()`, expressed as one `defineSubgraph()` file — we run the loop instead.
+
 ## Visibility & publishing
 
 Every subgraph has a **visibility**. Managed deploys default **public** — anon-readable on `/v1`. Deploys to your own database (`--database-url`) default **private**, and existing subgraphs were migrated private.
