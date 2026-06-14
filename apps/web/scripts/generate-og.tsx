@@ -38,6 +38,11 @@ const CARD_BG = "rgba(255,255,255,0.62)";
 const CARD_BORDER = "rgba(17,17,17,0.06)";
 const CARD_SHADOW = "0 16px 36px rgba(17,17,17,0.05)";
 
+// Non-breaking space: satori collapses regular spaces at span boundaries, so
+// inter-token whitespace ("await streams") would vanish. Fira Code is
+// monospace, so nbsp keeps the same advance width.
+const NB = " ";
+
 // A line of monospace code/data: tokens are [text, color]; indent is preserved
 // with a transparent leading span (Fira Code is monospace, so it aligns).
 function Line({
@@ -50,12 +55,12 @@ function Line({
 	return (
 		<div style={{ display: "flex", fontFamily: "Fira Code", lineHeight: 1.6 }}>
 			{indent > 0 ? (
-				<span style={{ color: "transparent" }}>{" ".repeat(indent)}</span>
+				<span style={{ color: "transparent" }}>{NB.repeat(indent)}</span>
 			) : null}
 			{tokens.map((t, i) => (
 				// biome-ignore lint/suspicious/noArrayIndexKey: static render
 				<span key={i} style={{ color: t[1] }}>
-					{t[0]}
+					{t[0].replace(/ /g, NB)}
 				</span>
 			))}
 		</div>
@@ -102,7 +107,7 @@ function ArtStreams() {
 				display: "flex",
 			}}
 		>
-			<Card style={{ position: "absolute", top: 130, left: 770, width: 700 }}>
+			<Card style={{ position: "absolute", top: 130, left: 815, width: 700 }}>
 				<Line
 					tokens={[
 						["await ", BASE],
@@ -143,7 +148,7 @@ function ArtStreams() {
 				/>
 				<Line tokens={[["});", BASE]]} />
 			</Card>
-			<Card style={{ position: "absolute", top: 388, left: 850, width: 640 }}>
+			<Card style={{ position: "absolute", top: 388, left: 895, width: 640 }}>
 				<Line tokens={[["{", BASE]]} />
 				<Line
 					indent={2}
@@ -201,7 +206,16 @@ function ArtIndex() {
 		["#3,412,887", "nft_transfer", [["bns · name-tran…", BASE]]],
 	];
 	return (
-		<div style={{ position: "absolute", top: 150, left: 770, display: "flex", flexDirection: "column", width: 800 }}>
+		<div
+			style={{
+				position: "absolute",
+				top: 150,
+				left: 770,
+				display: "flex",
+				flexDirection: "column",
+				width: 800,
+			}}
+		>
 			{rows.map((r, i) => (
 				<div
 					// biome-ignore lint/suspicious/noArrayIndexKey: static render
@@ -233,7 +247,16 @@ function ArtIndex() {
 
 function ArtSubgraphs() {
 	return (
-		<div style={{ position: "absolute", top: 128, left: 740, right: 0, bottom: 0, display: "flex" }}>
+		<div
+			style={{
+				position: "absolute",
+				top: 128,
+				left: 740,
+				right: 0,
+				bottom: 0,
+				display: "flex",
+			}}
+		>
 			<div style={{ display: "flex", flexDirection: "column", fontSize: 27 }}>
 				<Line
 					tokens={[
@@ -242,16 +265,53 @@ function ArtSubgraphs() {
 						["({", BASE],
 					]}
 				/>
-				<Line indent={2} tokens={[["name: ", BASE], ['"stx-transfers",', STR]]} />
+				<Line
+					indent={2}
+					tokens={[
+						["name: ", BASE],
+						['"stx-transfers",', STR],
+					]}
+				/>
 				<Line indent={2} tokens={[["sources: {", BASE]]} />
-				<Line indent={4} tokens={[["transfer: { type: ", BASE], ['"stx_transfer"', STR], [" },", BASE]]} />
+				<Line
+					indent={4}
+					tokens={[
+						["transfer: { type: ", BASE],
+						['"stx_transfer"', STR],
+						[" },", BASE],
+					]}
+				/>
 				<Line indent={2} tokens={[["},", BASE]]} />
 				<Line indent={2} tokens={[["schema: {", BASE]]} />
 				<Line indent={4} tokens={[["transfers: {", BASE]]} />
 				<Line indent={6} tokens={[["columns: {", BASE]]} />
-				<Line indent={8} tokens={[["sender: { type: ", BASE], ['"principal"', STR], [", indexed: ", BASE], ["true", KW], [" }", BASE]]} />
-				<Line indent={8} tokens={[["recipient: { type: ", BASE], ['"principal"', STR], [", indexed: ", BASE], ["tru…", KW]]} />
-				<Line indent={8} tokens={[["amount: { type: ", BASE], ['"uint"', STR], [" },", BASE]]} />
+				<Line
+					indent={8}
+					tokens={[
+						["sender: { type: ", BASE],
+						['"principal"', STR],
+						[", indexed: ", BASE],
+						["true", KW],
+						[" }", BASE],
+					]}
+				/>
+				<Line
+					indent={8}
+					tokens={[
+						["recipient: { type: ", BASE],
+						['"principal"', STR],
+						[", indexed: ", BASE],
+						["tru…", KW],
+					]}
+				/>
+				<Line
+					indent={8}
+					tokens={[
+						["amount: { type: ", BASE],
+						['"uint"', STR],
+						[" },", BASE],
+					]}
+				/>
 				<Line indent={6} tokens={[["},", DIM]]} />
 				<Line indent={4} tokens={[["},", DIM]]} />
 				<Line indent={2} tokens={[["},", DIM]]} />
@@ -279,7 +339,15 @@ function PlanCard({
 	const text = faded ? "rgba(17,17,17,0.4)" : "rgba(17,17,17,0.62)";
 	const ink = faded ? "rgba(17,17,17,0.62)" : INK;
 	return (
-		<Card style={{ position: "absolute", width: 380, padding: "28px 34px", gap: 4, ...style }}>
+		<Card
+			style={{
+				position: "absolute",
+				width: 380,
+				padding: "28px 34px",
+				gap: 4,
+				...style,
+			}}
+		>
 			<span
 				style={{
 					fontFamily: "Sora",
@@ -291,17 +359,40 @@ function PlanCard({
 				{eyebrow}
 			</span>
 			<div style={{ display: "flex", alignItems: "flex-end" }}>
-				<span style={{ fontFamily: "Sora", fontSize: 62, color: ink }}>{price}</span>
+				<span style={{ fontFamily: "Sora", fontSize: 62, color: ink }}>
+					{price}
+				</span>
 				{per ? (
-					<span style={{ fontFamily: "Sora", fontSize: 26, color: text, paddingBottom: 12 }}>{per}</span>
+					<span
+						style={{
+							fontFamily: "Sora",
+							fontSize: 26,
+							color: text,
+							paddingBottom: 12,
+						}}
+					>
+						{per}
+					</span>
 				) : null}
 			</div>
-			<div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
+			<div
+				style={{
+					display: "flex",
+					flexDirection: "column",
+					gap: 10,
+					marginTop: 10,
+				}}
+			>
 				{bullets.map((b, i) => (
 					<span
 						// biome-ignore lint/suspicious/noArrayIndexKey: static render
 						key={i}
-						style={{ display: "flex", fontFamily: "Sora", fontSize: 23, color: text }}
+						style={{
+							display: "flex",
+							fontFamily: "Sora",
+							fontSize: 23,
+							color: text,
+						}}
 					>
 						{`—  ${b}`}
 					</span>
@@ -313,7 +404,16 @@ function PlanCard({
 
 function ArtPricing() {
 	return (
-		<div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, display: "flex" }}>
+		<div
+			style={{
+				position: "absolute",
+				top: 0,
+				left: 0,
+				right: 0,
+				bottom: 0,
+				display: "flex",
+			}}
+		>
 			<PlanCard
 				eyebrow="SELF-HOST · MIT"
 				price="$0"
@@ -324,7 +424,11 @@ function ArtPricing() {
 				eyebrow="PRO · MOST TEAMS"
 				price="$79"
 				per="/mo"
-				bullets={["250 req/s", "Public + private subgraphs", "Genesis backfills"]}
+				bullets={[
+					"250 req/s",
+					"Public + private subgraphs",
+					"Genesis backfills",
+				]}
 				faded
 				style={{ top: 372, left: 1010 }}
 			/>
@@ -334,8 +438,25 @@ function ArtPricing() {
 
 function ArtHome() {
 	return (
-		<div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, display: "flex" }}>
-			<Card style={{ position: "absolute", top: 130, left: 730, width: 820, padding: "0 28px" }}>
+		<div
+			style={{
+				position: "absolute",
+				top: 0,
+				left: 0,
+				right: 0,
+				bottom: 0,
+				display: "flex",
+			}}
+		>
+			<Card
+				style={{
+					position: "absolute",
+					top: 130,
+					left: 730,
+					width: 820,
+					padding: "0 28px",
+				}}
+			>
 				<div
 					style={{
 						display: "flex",
@@ -364,9 +485,28 @@ function ArtHome() {
 					<span style={{ color: KW }}>"sale"</span>
 				</div>
 			</Card>
-			<Card style={{ position: "absolute", top: 358, left: 870, width: 700, fontSize: 27 }}>
-				<Line tokens={[["defineSubgraph", KW], ["({", BASE]]} />
-				<Line indent={2} tokens={[["name: ", BASE], ['"stx-transfers",', STR]]} />
+			<Card
+				style={{
+					position: "absolute",
+					top: 344,
+					left: 870,
+					width: 700,
+					fontSize: 27,
+				}}
+			>
+				<Line
+					tokens={[
+						["defineSubgraph", KW],
+						["({", BASE],
+					]}
+				/>
+				<Line
+					indent={2}
+					tokens={[
+						["name: ", BASE],
+						['"stx-transfers",', STR],
+					]}
+				/>
 				<Line indent={2} tokens={[["schema: { transfers: { … } },", BASE]]} />
 				<Line indent={2} tokens={[["handlers: { … },", BASE]]} />
 				<Line tokens={[["});", BASE]]} />
@@ -374,8 +514,8 @@ function ArtHome() {
 			<div
 				style={{
 					position: "absolute",
-					top: 566,
-					left: 900,
+					top: 596,
+					left: 1010,
 					display: "flex",
 					fontFamily: "Fira Code",
 					fontSize: 24,
@@ -460,11 +600,28 @@ function Frame(spec: CardSpec) {
 				}}
 			>
 				<div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-					<svg viewBox="6 9 36 24" width="40" height="27" role="img" aria-label="secondlayer">
-						<polygon points="8,23 28,15 40,23 20,31" fill={ACCENT} opacity={0.24} />
+					<svg
+						viewBox="6 9 36 24"
+						width="40"
+						height="27"
+						role="img"
+						aria-label="secondlayer"
+					>
+						<polygon
+							points="8,23 28,15 40,23 20,31"
+							fill={ACCENT}
+							opacity={0.24}
+						/>
 						<polygon points="8,19 28,11 40,19 20,27" fill={ACCENT} />
 					</svg>
-					<span style={{ fontFamily: "Sora", fontSize: 30, color: INK, letterSpacing: -0.5 }}>
+					<span
+						style={{
+							fontFamily: "Sora",
+							fontSize: 30,
+							color: INK,
+							letterSpacing: -0.5,
+						}}
+					>
 						secondlayer
 					</span>
 				</div>
@@ -566,8 +723,18 @@ const CARDS: CardSpec[] = [
 
 const fonts = [
 	{ name: "Sora", data: sora, weight: 600 as const, style: "normal" as const },
-	{ name: "Fira Code", data: fira, weight: 400 as const, style: "normal" as const },
-	{ name: "Fira Code", data: firaMed, weight: 500 as const, style: "normal" as const },
+	{
+		name: "Fira Code",
+		data: fira,
+		weight: 400 as const,
+		style: "normal" as const,
+	},
+	{
+		name: "Fira Code",
+		data: firaMed,
+		weight: 500 as const,
+		style: "normal" as const,
+	},
 ];
 
 for (const spec of CARDS) {
