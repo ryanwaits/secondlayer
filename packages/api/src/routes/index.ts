@@ -77,10 +77,12 @@ import {
 	type SbtcDepositByTxidReader,
 	type SbtcDepositsReader,
 	type SbtcEventsReader,
+	type SbtcSummaryReader,
 	type SbtcWithdrawalByIdReader,
 	type SbtcWithdrawalsReader,
 	getSbtcDepositsResponse,
 	getSbtcEventsResponse,
+	getSbtcSummaryResponse,
 	getSbtcWithdrawalsResponse,
 	readSbtcDepositByBitcoinTxid,
 	readSbtcWithdrawalById,
@@ -148,6 +150,7 @@ export type IndexRouterOptions = {
 	readSbtcWithdrawals?: SbtcWithdrawalsReader;
 	readSbtcWithdrawalById?: SbtcWithdrawalByIdReader;
 	readSbtcDepositByTxid?: SbtcDepositByTxidReader;
+	readSbtcSummary?: SbtcSummaryReader;
 	readMempool?: MempoolReader;
 	readMempoolByTxId?: MempoolByIdReader;
 	readReorgs?: StreamsReorgsReader;
@@ -341,6 +344,12 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					method: "GET",
 					description:
 						"A single completed peg-in by its Bitcoin txid (deposits carry no request_id). 404 when absent.",
+				},
+				{
+					path: "/v1/index/sbtc/summary",
+					method: "GET",
+					description:
+						"sBTC peg scoreboard — one scalar aggregate over the whole bridge: total_deposits, total_withdrawals_{requested,accepted,rejected}, net_peg_flow_sats, total_locked_sats, and circulating sbtc_supply_sats (mints − burns, null if no token events). All-time canonical totals, no params. Short-cached. Returns summary, tip.",
 				},
 				{
 					path: "/v1/index/mempool",
@@ -758,6 +767,21 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			await recordDecodedEventsReturned(accountId, response.withdrawals.length);
 			await debitCreditedRead(c, response.withdrawals.length);
 		}
+		return c.json(response);
+	});
+
+	// Peg scoreboard — a single scalar aggregate (lifecycle counts, net peg flow,
+	// locked sats, circulating supply) capping the sBTC read surface. Reference
+	// data: served but not metered, like the point-gets. Short-cached — every new
+	// peg event moves the totals.
+	router.get("/sbtc/summary", async (c) => {
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		const response = await getSbtcSummaryResponse({
+			tip,
+			readSbtcSummary: opts.readSbtcSummary,
+		});
+		c.header("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
 		return c.json(response);
 	});
 

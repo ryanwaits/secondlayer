@@ -5,13 +5,16 @@ import {
 	type ReadSbtcEventsParams,
 	type SbtcDepositsReader,
 	type SbtcEventsReader,
+	type SbtcSummaryReader,
 	type SbtcWithdrawalsReader,
 	getSbtcDepositsResponse,
 	getSbtcEventsResponse,
+	getSbtcSummaryResponse,
 	getSbtcWithdrawalsResponse,
 	readSbtcDepositByBitcoinTxid,
 	readSbtcDeposits,
 	readSbtcEvents,
+	readSbtcSummary,
 	readSbtcWithdrawalById,
 	readSbtcWithdrawals,
 } from "./sbtc-peg.ts";
@@ -104,6 +107,34 @@ describe("sBTC peg helpers", () => {
 				readSbtcDeposits: EMPTY_DEPOSITS,
 			}),
 		).rejects.toThrow(/confirmed must be/);
+	});
+
+	test("summary: passes the reader through; notes only when decoder disabled", async () => {
+		const SUMMARY = {
+			total_deposits: 2,
+			total_withdrawals_requested: 1,
+			total_withdrawals_accepted: 1,
+			total_withdrawals_rejected: 0,
+			net_peg_flow_sats: "900",
+			total_locked_sats: "900",
+			sbtc_supply_sats: "900",
+		};
+		const reader: SbtcSummaryReader = async () => SUMMARY;
+		const enabled = await getSbtcSummaryResponse({
+			tip: TIP,
+			readSbtcSummary: reader,
+			decoderEnabled: true,
+		});
+		expect(enabled.summary).toEqual(SUMMARY);
+		expect(enabled.tip).toBe(TIP);
+		expect(enabled.notes).toBeUndefined();
+
+		const disabled = await getSbtcSummaryResponse({
+			tip: TIP,
+			readSbtcSummary: reader,
+			decoderEnabled: false,
+		});
+		expect(disabled.notes).toContain("SBTC_DECODER_ENABLED");
 	});
 
 	test("?confirmed=true clamps to_height to finalized_height", async () => {
@@ -256,12 +287,38 @@ function seed(row: SeedRow) {
 	};
 }
 
+type TokenSeedRow = {
+	cursor: string;
+	event_type: "transfer" | "mint" | "burn";
+	amount: string;
+	canonical?: boolean;
+};
+
+function tokenSeed(row: TokenSeedRow) {
+	return {
+		cursor: row.cursor,
+		block_height: 100,
+		block_time: new Date("2026-05-01T00:00:00.000Z"),
+		tx_id: `0x${row.cursor}`,
+		tx_index: 0,
+		event_index: 0,
+		event_type: row.event_type,
+		sender: null,
+		recipient: null,
+		amount: row.amount,
+		memo: null,
+		canonical: row.canonical ?? true,
+		source_cursor: row.cursor,
+	};
+}
+
 describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 	const db = HAS_DB ? getDb() : null;
 
 	beforeEach(async () => {
 		if (!db) return;
 		await sql`DELETE FROM sbtc_events`.execute(db);
+		await sql`DELETE FROM sbtc_token_events`.execute(db);
 	});
 
 	test("events: returns only canonical rows, ordered, across topics", async () => {
@@ -520,5 +577,125 @@ describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 		expect(deposit?.status).toBe("COMPLETED");
 		expect(deposit?.amount).toBe("1234");
 		expect(await readSbtcDepositByBitcoinTxid("0xnope", { db })).toBeNull();
+	});
+
+	test("summary: counts, net flow, and circulating supply over canonical rows", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("sbtc_events")
+			.values([
+				// two deposits → 1000 + 500 in
+				seed({
+					cursor: "100:0",
+					block_height: 100,
+					tx_id: "0xd1",
+					tx_index: 0,
+					event_index: 0,
+					topic: "completed-deposit",
+					bitcoin_txid: "0xb1",
+					amount: "1000",
+				}),
+				seed({
+					cursor: "101:0",
+					block_height: 101,
+					tx_id: "0xd2",
+					tx_index: 0,
+					event_index: 0,
+					topic: "completed-deposit",
+					bitcoin_txid: "0xb2",
+					amount: "500",
+				}),
+				// withdrawal req 1: created (700) then accepted (300 out)
+				seed({
+					cursor: "102:0",
+					block_height: 102,
+					tx_id: "0xw1",
+					tx_index: 0,
+					event_index: 0,
+					topic: "withdrawal-create",
+					request_id: 1,
+					amount: "700",
+				}),
+				seed({
+					cursor: "103:0",
+					block_height: 103,
+					tx_id: "0xw1a",
+					tx_index: 0,
+					event_index: 0,
+					topic: "withdrawal-accept",
+					request_id: 1,
+					amount: "300",
+				}),
+				// withdrawal req 2: rejected (counts, no flow)
+				seed({
+					cursor: "104:0",
+					block_height: 104,
+					tx_id: "0xw2",
+					tx_index: 0,
+					event_index: 0,
+					topic: "withdrawal-create",
+					request_id: 2,
+					amount: "200",
+				}),
+				seed({
+					cursor: "105:0",
+					block_height: 105,
+					tx_id: "0xw2r",
+					tx_index: 0,
+					event_index: 0,
+					topic: "withdrawal-reject",
+					request_id: 2,
+				}),
+				// non-canonical deposit must not count
+				seed({
+					cursor: "106:0",
+					block_height: 106,
+					tx_id: "0xorphan",
+					tx_index: 0,
+					event_index: 0,
+					topic: "completed-deposit",
+					bitcoin_txid: "0xb3",
+					amount: "9999",
+					canonical: false,
+				}),
+			])
+			.execute();
+
+		// Supply = mint − burn; transfers and non-canonical rows excluded.
+		await db
+			.insertInto("sbtc_token_events")
+			.values([
+				tokenSeed({ cursor: "t1", event_type: "mint", amount: "1000" }),
+				tokenSeed({ cursor: "t2", event_type: "burn", amount: "300" }),
+				tokenSeed({ cursor: "t3", event_type: "transfer", amount: "50" }),
+				tokenSeed({
+					cursor: "t4",
+					event_type: "mint",
+					amount: "9999",
+					canonical: false,
+				}),
+			])
+			.execute();
+
+		const summary = await readSbtcSummary({ db });
+		expect(summary).toEqual({
+			total_deposits: 2,
+			total_withdrawals_requested: 2,
+			total_withdrawals_accepted: 1,
+			total_withdrawals_rejected: 1,
+			// (1000 + 500) deposits − 300 accepted out
+			net_peg_flow_sats: "1200",
+			total_locked_sats: "1200",
+			// 1000 mint − 300 burn
+			sbtc_supply_sats: "700",
+		});
+	});
+
+	test("summary: supply is null when no token events recorded", async () => {
+		if (!db) throw new Error("missing db");
+		const summary = await readSbtcSummary({ db });
+		expect(summary.total_deposits).toBe(0);
+		expect(summary.net_peg_flow_sats).toBe("0");
+		expect(summary.sbtc_supply_sats).toBeNull();
 	});
 });

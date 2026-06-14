@@ -543,6 +543,17 @@ const OPENAPI_SPEC = {
 				responses: ok(),
 			},
 		},
+		"/v1/index/sbtc/summary": {
+			get: {
+				tags: ["index"],
+				summary: "sBTC peg summary scoreboard",
+				description:
+					"One scalar aggregate over the whole bridge: lifecycle counts, net peg flow, locked sats, and circulating sBTC supply (mints − burns). All-time canonical totals; no params.",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [],
+				responses: ok(),
+			},
+		},
 		"/v1/index/mempool": {
 			get: {
 				tags: ["index"],

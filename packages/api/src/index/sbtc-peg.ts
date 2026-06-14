@@ -928,3 +928,119 @@ export async function readSbtcDepositByBitcoinTxid(
 export type SbtcDepositByTxidReader = (
 	bitcoinTxid: string,
 ) => Promise<SbtcDepositDetail | null>;
+
+// --- summary scoreboard (T7) ----------------------------------------------
+
+/** The peg "scoreboard" cap — a single scalar row summarizing the whole bridge:
+ *  lifecycle counts, net peg flow, locked sats, and circulating sBTC supply.
+ *  No window/cursor — it's an all-time canonical aggregate. */
+export type SbtcSummary = {
+	total_deposits: number;
+	total_withdrawals_requested: number;
+	total_withdrawals_accepted: number;
+	total_withdrawals_rejected: number;
+	/** SUM(completed-deposit amount) − SUM(withdrawal-accept amount), bigint-safe string. */
+	net_peg_flow_sats: string;
+	/** Same figure as net_peg_flow_sats: sats deposited minus sats withdrawn-out. */
+	total_locked_sats: string;
+	/** Circulating sBTC = SUM(mint) − SUM(burn) over canonical token events,
+	 *  in sats (sBTC is 8-decimal); null when no token events are recorded (table
+	 *  empty). Transfers don't move supply, so they're excluded. */
+	sbtc_supply_sats: string | null;
+};
+
+export type SbtcSummaryResponse = {
+	summary: SbtcSummary;
+	tip: IndexTip;
+	notes?: string;
+};
+
+export type SbtcSummaryReader = (opts?: {
+	db?: Kysely<Database>;
+}) => Promise<SbtcSummary>;
+
+type SbtcSummaryDbRow = {
+	total_deposits: string | number;
+	total_withdrawals_requested: string | number;
+	total_withdrawals_accepted: string | number;
+	total_withdrawals_rejected: string | number;
+	sum_deposits_sats: string;
+	sum_accepted_sats: string;
+};
+
+type SbtcSupplyDbRow = {
+	event_count: string | number;
+	minted_sats: string;
+	burned_sats: string;
+};
+
+export async function readSbtcSummary(opts?: {
+	db?: Kysely<Database>;
+}): Promise<SbtcSummary> {
+	const db = opts?.db ?? getSourceDb();
+
+	// Counts + flow in one pass over canonical peg events. amount is text; cast to
+	// numeric for SUM and return as text. withdrawal-accept rows occasionally lack
+	// an amount → COALESCE to 0 so the SUM doesn't go null mid-aggregate.
+	const { rows } = await sql<SbtcSummaryDbRow>`
+		SELECT
+			COUNT(*) FILTER (WHERE topic = 'completed-deposit')::int AS total_deposits,
+			COUNT(*) FILTER (WHERE topic = 'withdrawal-create')::int AS total_withdrawals_requested,
+			COUNT(*) FILTER (WHERE topic = 'withdrawal-accept')::int AS total_withdrawals_accepted,
+			COUNT(*) FILTER (WHERE topic = 'withdrawal-reject')::int AS total_withdrawals_rejected,
+			COALESCE(SUM(COALESCE(amount, '0')::numeric) FILTER (WHERE topic = 'completed-deposit'), 0)::text AS sum_deposits_sats,
+			COALESCE(SUM(COALESCE(amount, '0')::numeric) FILTER (WHERE topic = 'withdrawal-accept'), 0)::text AS sum_accepted_sats
+		FROM sbtc_events
+		WHERE canonical = true
+	`.execute(db);
+	// Single-row aggregate over zero rows still returns one all-zero row.
+	const row = rows[0] as SbtcSummaryDbRow;
+
+	// Circulating supply = mints − burns (transfers don't change supply). null when
+	// no token events recorded, distinguishing "0 supply" from "unknown".
+	const { rows: supplyRows } = await sql<SbtcSupplyDbRow>`
+		SELECT
+			COUNT(*)::int AS event_count,
+			COALESCE(SUM(amount::numeric) FILTER (WHERE event_type = 'mint'), 0)::text AS minted_sats,
+			COALESCE(SUM(amount::numeric) FILTER (WHERE event_type = 'burn'), 0)::text AS burned_sats
+		FROM sbtc_token_events
+		WHERE canonical = true
+	`.execute(db);
+	const supplyRow = supplyRows[0] as SbtcSupplyDbRow;
+
+	const netFlow = BigInt(row.sum_deposits_sats) - BigInt(row.sum_accepted_sats);
+	const sbtcSupply =
+		Number(supplyRow.event_count) === 0
+			? null
+			: (
+					BigInt(supplyRow.minted_sats) - BigInt(supplyRow.burned_sats)
+				).toString();
+
+	return {
+		total_deposits: Number(row.total_deposits),
+		total_withdrawals_requested: Number(row.total_withdrawals_requested),
+		total_withdrawals_accepted: Number(row.total_withdrawals_accepted),
+		total_withdrawals_rejected: Number(row.total_withdrawals_rejected),
+		net_peg_flow_sats: netFlow.toString(),
+		total_locked_sats: netFlow.toString(),
+		sbtc_supply_sats: sbtcSupply,
+	};
+}
+
+export async function getSbtcSummaryResponse(opts: {
+	tip: IndexTip;
+	readSbtcSummary?: SbtcSummaryReader;
+	decoderEnabled?: boolean;
+}): Promise<SbtcSummaryResponse> {
+	const note =
+		(opts.decoderEnabled ?? isSbtcDecoderEnabled())
+			? undefined
+			: SBTC_DISABLED_NOTE;
+	const reader = opts.readSbtcSummary ?? readSbtcSummary;
+	const summary = await reader();
+	return {
+		summary,
+		tip: opts.tip,
+		...(note ? { notes: note } : {}),
+	};
+}
