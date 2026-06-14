@@ -597,9 +597,12 @@ Example: `SIGNING_SECRET=whsec_… sl subscriptions test my-sub --post`
 
 ## Index
 
-Query the decoded L2 layer (`/v1/index`). Anonymous reads are allowed; **free-tier
-API keys are rejected** (Build+ required for keyed access). The key is optional —
-passed through from `SL_API_KEY` when present.
+Query the decoded L2 layer (`/v1/index`). Anonymous reads are allowed, and a
+**free-tier key works too** (free-tier rate limit; a minted free key is never
+slower than anonymous). The key is optional — passed through from `SL_API_KEY`
+when present. Free/anonymous reads cover the recent 24h window; older history
+needs pay-as-you-go credits (`POST /api/billing/topup`) or a paid plan, else a
+read below the window returns `402 UPGRADE_REQUIRED`.
 
 - `sl index ft-transfers [--contract-id] [--sender] [--recipient] [--from-height] [--to-height] [--cursor] [--limit] [--json]`
 - `sl index nft-transfers [… --asset-identifier]`

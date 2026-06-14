@@ -21,7 +21,7 @@ bun add @secondlayer/sdk
 # or: npm i @secondlayer/sdk
 ```
 
-**Auth** — reads are anonymous in open beta. An API key is optional and only raises your rate-limit tier.
+**Auth** — reads are anonymous, or use any key incl. free-tier (free-tier rate limit; a minted free key is never slower than anonymous). Free/anonymous reads cover the **recent 24-hour window**; reaching older history is pay-as-you-go credits (`POST /api/billing/topup`) or a paid plan — a read below the window returns `402 UPGRADE_REQUIRED`.
 
 ```ts
 import { SecondLayer } from "@secondlayer/sdk";
@@ -51,7 +51,7 @@ curl -s -H "Authorization: Bearer $SL_API_KEY" \
 | `limit` | `200` | max `1000` |
 | `cursor` / `from_cursor` | — | resume from a `next_cursor` you got back |
 | `from_height` / `to_height` | — | inclusive block-height range |
-| (none) | — | with no cursor/`from_height`, you get the last ~1 day |
+| (none) | — | with no cursor/`from_height`, you get the last ~1 day. Free/anon reads are capped to this 24h window; older history needs credits or a plan (else `402 UPGRADE_REQUIRED`) |
 
 ### The response envelope
 

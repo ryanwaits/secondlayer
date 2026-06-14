@@ -18,7 +18,7 @@ Override with `SL_API_URL` env var or `baseUrl` SDK option.
 |---|---|---|---|
 | `/v1/contracts` | No (open) | n/a (read-only) | none |
 | `/v1/streams/*` | **Yes** (Streams API key) | n/a (read-only) | `Authorization: Bearer <SL_API_KEY>` |
-| `/v1/index/*` | No (anonymous OK) — but **free-tier keys are rejected** (Build+ for keyed access) | n/a (read-only) | `Authorization: Bearer <key>` if you have one |
+| `/v1/index/*` | No (anonymous OK) — **free-tier keys allowed** (free-tier rate limit, 10 req/s; a minted free key is never slower than anonymous). Free/anon reads cover the recent 24h window — older history → `402 UPGRADE_REQUIRED` (pay-as-you-go credits or a plan) | n/a (read-only) | `Authorization: Bearer <key>` if you have one |
 | `/v1/subgraphs/*` | No for **public** subgraphs (anon, wildcard CORS; anon 100 rps / keyed 50 rps); **private** subgraphs need the owner's `sk-sl_` key — anon → 404 | n/a (read-only) | `Authorization: Bearer <apiKey>` for private |
 | `/api/subgraphs/*` | **Yes** (session or key — control plane) | Yes | `Authorization: Bearer <apiKey>` |
 | `/api/subscriptions/*` | Yes | Yes | `Authorization: Bearer <apiKey>` |
@@ -83,7 +83,7 @@ Cursor-paginated firehose of decoded events.
 | `asset_identifier` | string | Exact FT/NFT asset identifier |
 | `limit` | number | 1-1000, default 100 |
 
-Each event includes `finalized` (true when its block is past the finality boundary). `contract_id`/`sender`/`recipient`/`asset_identifier` are inclusion payload filters (a comma list matches any value); event types lacking the field simply don't match.
+Each event includes `finalized` (true when its block is past the finality boundary). `contract_id`/`sender`/`recipient`/`asset_identifier` are inclusion payload filters (a comma list matches any value); event types lacking the field simply don't match. Free keys read the recent 24h window (free retention 1 day); a read below it returns `402 UPGRADE_REQUIRED` — see [Pay-as-you-go credits](#pay-as-you-go-credits).
 
 ```bash
 curl -H "Authorization: Bearer $SL_API_KEY" \
@@ -137,7 +137,7 @@ Your own Streams consumption + tier limits: `{ product, tier, limits: { rate_lim
 
 ## `/v1/index` — decoded chain layer (events, contract calls, blocks, transactions, stacking, mempool)
 
-The decoded read layer over Stacks: events + contract calls, plus the canonical block-hash map, blocks, full transaction documents, PoX-4 stacking, and mempool (pending txs). `GET /v1/index` returns route discovery — including `event_types` and a machine-readable `event_type_filters` map (per type: `columns`, `allowed_filters`, `equality_filters`, `required_non_null`), so an agent can learn what each event type accepts at runtime. `GET /v1/streams` similarly lists `event_types` + structured `filters`. Open-beta read (no key required). Query params are snake_case; the list envelope is the standard cursor shape (`<data>`, `next_cursor`, `tip`, and `reorgs` where applicable).
+The decoded read layer over Stacks: events + contract calls, plus the canonical block-hash map, blocks, full transaction documents, PoX-4 stacking, and mempool (pending txs). `GET /v1/index` returns route discovery — including `event_types` and a machine-readable `event_type_filters` map (per type: `columns`, `allowed_filters`, `equality_filters`, `required_non_null`), so an agent can learn what each event type accepts at runtime. `GET /v1/streams` similarly lists `event_types` + structured `filters`. Read with no key, or any key incl. free-tier (free/anon reads cover the recent 24h window — older history → `402 UPGRADE_REQUIRED`, see [Pay-as-you-go credits](#pay-as-you-go-credits)). Query params are snake_case; the list envelope is the standard cursor shape (`<data>`, `next_cursor`, `tip`, and `reorgs` where applicable).
 
 ### `GET /v1/index/events`
 
@@ -203,7 +203,7 @@ Pending (unconfirmed) transactions. Same `raw_tx`-decoded enrichment as `/transa
 
 ### `GET /v1/index/usage` *(auth)*
 
-Your own Index consumption + tier limits: `{ product, tier, limits: { rate_limit_per_second }, usage: { decoded_events_today, decoded_events_this_month } }`. Requires a Build+ key — anonymous reads return 401. SDK: `sl.index.usage()`. MCP: `index_usage`.
+Your own Index consumption + tier limits: `{ product, tier, limits: { rate_limit_per_second }, usage: { decoded_events_today, decoded_events_this_month } }`. Requires a key (any tier incl. free) — anonymous reads return 401. SDK: `sl.index.usage()`. MCP: `index_usage`.
 
 ### Caching
 
@@ -224,6 +224,21 @@ curl -X POST "https://api.secondlayer.tools/v1/api-keys" \
 ```
 
 `product` defaults to `streams` (or `index`). The plaintext `key` is returned **once** — store it immediately. SDK: `sl.apiKeys.create({ product })`. CLI: `sl keys create --product streams`. MCP: `account_create_key`.
+
+---
+
+## Pay-as-you-go credits
+
+Free and anonymous reads cover only the **recent 24-hour window** (~last 17,280 blocks); a read whose `from_height`/`cursor` falls below it returns `402 UPGRADE_REQUIRED`. To read older history without a plan, top up **prepaid credits with a card**:
+
+```bash
+curl -X POST "https://api.secondlayer.tools/api/billing/topup" \
+  -H "Authorization: Bearer <key>" \
+  -H "Content-Type: application/json" \
+  -d '{"amount_usd": 25}'   # packs: 10 / 25 / 50 / 100
+```
+
+With a positive balance the account goes pay-as-you-go: it reads **beyond the 24h window, unthrottled, debited $5 per 1,000,000 rows** (5 USD-micros/row), across **both Index and Streams** from one shared balance. The prepaid balance is the **hard cap** — when it runs out, reads fall back to the free window (no surprise bills). This is the card-funded peer to the x402 agent rail. Credits cover reads only — deploying a subgraph or creating a webhook still needs a paid plan or 14-day trial (free → `403 PLAN_REQUIRED`).
 
 ---
 

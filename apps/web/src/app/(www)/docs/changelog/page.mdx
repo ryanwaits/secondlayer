@@ -37,11 +37,16 @@ Index now decodes PoX-4 stacking. `stack-stx`, `delegate-stx`, and reward
 actions are normalized into typed rows at `/v1/index/stacking` — filter by
 stacker, caller, or PoX function with no node and no decoders of your own.
 
-### Keyless reads in open beta
+### Keyless reads, plus pay-as-you-go credits
 
-Index reads need no API key during open beta. Anonymous requests work with
-wildcard CORS; a key only raises your rate limit. Public chain data stays
-public.
+Index reads need no API key. Anonymous requests work with wildcard CORS, and a
+free-tier key reads Index too (never slower than anonymous). Free and anonymous
+reads cover the recent 24-hour window — a read into older history returns
+`402 UPGRADE_REQUIRED`. To read older history without a plan, top up prepaid
+credits with a card (`POST /api/billing/topup`, packs $10–$100): with a positive
+balance the account reads beyond the window, unthrottled, debited $5 per
+1,000,000 rows across both Index and Streams from one shared balance, with the
+prepaid balance as a hard cap. Public chain data stays public.
 
 ### Trait-filtered event queries
 

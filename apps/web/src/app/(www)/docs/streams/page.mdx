@@ -4,7 +4,7 @@ Raw chain event firehose — cursor-paginated REST, idempotent, replayable. The 
 
 This is the exact surface [Index](/docs/index) is built on — our decoder is itself a Streams consumer. Page forward with a cursor, replay from any point, and — with a committed checkpoint, within your tier's retention — never miss an event. Stream live over SSE in-process (see below), or fan out to your backend with [Subscriptions](/docs/subscriptions).
 
-Streams reads require an API key — send it as `Authorization: Bearer`.
+Streams reads require an API key — send it as `Authorization: Bearer`. Free keys read the recent 24-hour window (free retention is 1 day); reaching older history is [pay-as-you-go credits](/docs/authentication#pay-as-you-go-credits) or a paid plan. A read below the free window returns `402 UPGRADE_REQUIRED`.
 
 ## Read the stream
 

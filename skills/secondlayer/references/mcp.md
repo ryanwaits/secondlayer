@@ -38,7 +38,7 @@ Auth: `Authorization: Bearer <SECONDLAYER_MCP_SECRET>`.
 
 ## Tools
 
-Index (decoded L2 — anonymous reads; free-tier keys rejected):
+Index (decoded L2 — anonymous reads, or any key incl. free-tier; free/anon reads cover the recent 24h window, older history needs pay-as-you-go credits or a plan):
 
 - `index_events` — generic by event type; supports `trait` scoping
 - `index_ft_transfers`

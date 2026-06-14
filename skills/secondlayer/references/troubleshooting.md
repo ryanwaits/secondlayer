@@ -88,6 +88,7 @@ sl streams tip                      # baseline reachability
 | Symptom | Cause | Action |
 |---|---|---|
 | `401 Unauthorized` | Missing `SL_API_KEY` | Export it; or pass via `createStreamsClient({ apiKey })`. |
+| `402 UPGRADE_REQUIRED` on Index or Streams | Read reached past the free 24h window (free Streams retention 1 day) | Top up pay-as-you-go credits (`POST /api/billing/topup`, packs $10–$100 — reads beyond the window at $5/1M rows, hard-capped by balance), or start a paid plan. |
 | `429 Too Many Requests` | Hit rate limit | SDK throws `RateLimitError` with `retryAfter`. Back off; use `events.consume` instead of polling `events.list`. |
 | Consumer stops processing | Aborted by signal OR `mode: "bounded"` reached end | Restart with last saved cursor. |
 | `next_cursor: null` reached | Caught up to tip (with `mode: "bounded"`) | Switch to `mode: "tail"` to keep polling. |
@@ -126,6 +127,8 @@ CLI returns typed errors with action hints:
 | `NO_ACTIVE_PROJECT` | `sl projects use <slug>` |
 | `NO_TENANT_FOR_PROJECT` | `sl projects create <name>` (no project provisioned yet) |
 | `TENANT_SUSPENDED` | Contact support (`sl account billing` to check plan state) |
+| `PLAN_REQUIRED` | Deploying a subgraph or creating a webhook needs a paid plan or 14-day trial — start one (`sl account billing` / dashboard). |
+| `UPGRADE_REQUIRED` | Read reached past the free 24h window — top up pay-as-you-go credits or start a plan. |
 | `KEY_ROTATED` | Handled transparently (CLI re-mints + retries once) |
 
 ## Stacks SDK: contract calls failing

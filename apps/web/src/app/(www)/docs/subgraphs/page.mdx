@@ -1,12 +1,12 @@
 # Subgraphs
 
-Subgraphs are your schema on our indexer: one TypeScript file declares the contract events you care about and a handler that shapes each event into rows, and a deploy gives you hosted Postgres tables behind the same public `/v1` read API as Index. Secondlayer backfills history (on paid plans) and keeps the tables live as new blocks arrive.
+Subgraphs are your schema on our indexer: one TypeScript file declares the contract events you care about and a handler that shapes each event into rows, and a deploy gives you hosted Postgres tables behind the same public `/v1` read API as Index. Secondlayer backfills history and keeps the tables live as new blocks arrive. Deploying a subgraph requires a paid plan or a 14-day trial — a free account gets `403 PLAN_REQUIRED`.
 
 ## How it works
 
 - **Declare sources** — the contracts and events you want to track.
 - **Write a handler** — turn each matched event into one or more rows.
-- **Deploy** — Secondlayer backfills history (paid plans) or indexes forward from the current tip (free tier), then streams new blocks into your table in real time.
+- **Deploy** — a paid plan or 14-day trial is required (free accounts get `403 PLAN_REQUIRED`); Secondlayer backfills history from `startBlock`, then streams new blocks into your table in real time.
 
 ## Define a subgraph
 
@@ -117,7 +117,7 @@ As a safety net, deploys return advisory `warnings` when a handler reads an `eve
 
 ## Deploy
 
-Deploy from the CLI. On paid plans, the first deploy backfills history from `startBlock`; free-tier subgraphs index forward from the chain tip at deploy time (historical backfill returns `GENESIS_BACKFILL_REQUIRES_PLAN`). Subsequent blocks stream in automatically.
+Deploy from the CLI. Deploying requires a paid plan or a 14-day trial — a free account gets `403 PLAN_REQUIRED` and must start a trial or plan first. On a plan or trial, the first deploy backfills history from `startBlock`; subsequent blocks stream in automatically.
 
 **Tip-first deploys.** Add `--tip-first` (or `backfillMode: "concurrent"` in the definition) and your subgraph goes live at the chain tip immediately — rows are queryable in seconds while history backfills in the background. Only use it when your handlers tolerate out-of-order processing (commutative writes like balances and counters, or insert-only tables); "latest-value-wins" handlers should keep the default blocking backfill.
 
@@ -217,7 +217,7 @@ sources: {
 },
 ```
 
-Supported traits: `sip-009`, `sip-010`, `sip-013`. On paid plans, a reindex backfills each contract's full history from its deploy block, even if it was classified later (free-tier reindexes are clamped to the subgraph's registered start). See [Contract discovery](/docs/contracts) to query the matching set directly.
+Supported traits: `sip-009`, `sip-010`, `sip-013`. On paid plans, a reindex backfills each contract's full history from its deploy block, even if it was classified later (without a plan, reindexes are clamped to the subgraph's registered start). See [Contract discovery](/docs/contracts) to query the matching set directly.
 
 ## Stream rows in real time
 

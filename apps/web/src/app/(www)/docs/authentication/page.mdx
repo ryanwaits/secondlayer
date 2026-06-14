@@ -2,7 +2,7 @@
 
 Reads are public during the open beta. API keys gate writes — and scope which surfaces a key can read.
 
-Most reads need no key: contracts are fully open, and the Index is anonymous-readable (free-tier keys are rejected — Build+ for keyed access). **Public subgraphs** are anon-readable on `/v1/subgraphs` (managed deploys default public); **private** subgraphs (the BYO default) need the owning account's `sk-sl_` key — anon requests `404`. The `/api/subgraphs` dashboard surface always requires a session or key. The **Streams** firehose and every **write** (deploying subgraphs, publishing/unpublishing them, managing subscriptions) require a key — with one exception: when the x402 pay-per-call rail is enabled, `POST /v1/subgraphs` accepts an x402 payment instead, deploying a subgraph owned by the paying wallet (7-day expiry unless renewed or the account is claimed).
+Most reads need no key: contracts are fully open, and the Index is anonymous-readable. A free-tier key reads Index too, at the free-tier rate limit (a minted free key is never slower than anonymous). Free and anonymous reads cover the recent 24-hour window; reading older history is [pay-as-you-go credits](#pay-as-you-go-credits) or a paid plan (a read below the window returns `402 UPGRADE_REQUIRED`). **Public subgraphs** are anon-readable on `/v1/subgraphs` (managed deploys default public); **private** subgraphs (the BYO default) need the owning account's `sk-sl_` key — anon requests `404`. The `/api/subgraphs` dashboard surface always requires a session or key. The **Streams** firehose and every **write** (deploying subgraphs, publishing/unpublishing them, managing subscriptions) require a key — with one exception: when the x402 pay-per-call rail is enabled, `POST /v1/subgraphs` accepts an x402 payment instead, deploying a subgraph owned by the paying wallet (7-day expiry unless renewed or the account is claimed).
 
 ```bash
 # Public read — no key
@@ -49,7 +49,13 @@ The plaintext `key` is returned **once** — store it immediately. The same mint
 
 ## Tiers
 
-A key's tier (`free` · `build` · `scale` · `enterprise`) sets its rate limit and, for Streams, its history retention. The Index rejects `free`-tier keys (Build+ required); Streams accepts any valid key. A minted key has no pinned tier and inherits your account plan.
+A key's tier (`free` · `build` · `scale` · `enterprise`) sets its rate limit and, for Streams, its history retention (free retention is 1 day). The free tier rate-limits Index and Streams reads at 10 req/s; both Index and Streams accept a free-tier key (a minted free key is never slower than anonymous). A minted key has no pinned tier and inherits your account plan. Free reads cover the recent 24-hour window — see [pay-as-you-go credits](#pay-as-you-go-credits) to read older history without a plan.
+
+## Pay-as-you-go credits
+
+Free and anonymous reads cover the recent 24-hour window. To read older history without committing to a plan, top up **prepaid credits with a card** — packs of $10, $25, $50, or $100 via `POST /api/billing/topup`. With a positive balance the account goes pay-as-you-go: it reads beyond the free window, unthrottled, debited **$5 per 1,000,000 rows** (5 USD-micros per row) across **both Index and Streams** from one shared balance. The prepaid balance is the hard cap — when it runs out, reads fall back to the free window, so there are no surprise bills. This is the card-funded peer to the x402 agent rail (which settles per call on Stacks).
+
+Deploying a subgraph or creating a webhook still needs a paid plan or a 14-day trial — credits cover reads, not write surfaces.
 
 ## Session tokens
 

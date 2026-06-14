@@ -1,6 +1,6 @@
 # Index
 
-Decoded Stacks data, kept indexed. We run the chain indexer and the decoder; you get one REST surface over decoded events, contract calls, the canonical block map, blocks, full transaction documents, PoX-4 stacking, and the pending mempool. Read it keyless — or [build your app's own index on it](#build-your-index-on-it): the same rows are made to be swept, rolled back, and mirrored. No decoders to write, no node to run. Open beta: reads need no key (free-tier keys are rejected; Build+ for keyed access). Index itself is built on [Streams](/docs/streams) — our decoder consumes the same raw firehose you can.
+Decoded Stacks data, kept indexed. We run the chain indexer and the decoder; you get one REST surface over decoded events, contract calls, the canonical block map, blocks, full transaction documents, PoX-4 stacking, and the pending mempool. Read it keyless — or [build your app's own index on it](#build-your-index-on-it): the same rows are made to be swept, rolled back, and mirrored. No decoders to write, no node to run. Reads need no key, and a minted free-tier key reads Index too (at the free-tier rate limit, never slower than anonymous). Free reads cover the recent 24-hour window; reaching older history is [pay-as-you-go](/docs/authentication#pay-as-you-go-credits) (prepaid credits) or a paid plan. Index itself is built on [Streams](/docs/streams) — our decoder consumes the same raw firehose you can.
 
 Every list response uses the same cursor envelope — the collection, a `next_cursor`, the chain `tip`, and `reorgs` where applicable. Cursors are opaque `<block_height>:<index>` resume tokens; pass them back unchanged to continue.
 
@@ -24,7 +24,7 @@ Every list response uses the same cursor envelope — the collection, a `next_cu
 curl "https://api.secondlayer.tools/v1/index/events?event_type=stx_transfer&limit=20"
 ```
 
-Without a `cursor` or `from_height`, list reads default to roughly the last day of blocks. Pass `from_height=0` (or any range) to reach full history — backfills are explicit, never accidental.
+Without a `cursor` or `from_height`, list reads default to roughly the last day of blocks. Pass `from_height=0` (or any range) to reach full history — backfills are explicit, never accidental. Free and anonymous reads are limited to that recent 24-hour window: a `from_height`/`cursor` below it returns `402 UPGRADE_REQUIRED`. Top up [pay-as-you-go credits](/docs/authentication#pay-as-you-go-credits) (or start a plan) to read older history.
 
 Allowed filters vary by `event_type`: `stx_*` have no `contract_id`, `nft_*` accept `asset_identifier`, and `print` filters by `contract_id` and carries a `payload` with the Clarity value decoded to JSON. `ft-transfers` and `nft-transfers` are typed aliases for the two most common types.
 

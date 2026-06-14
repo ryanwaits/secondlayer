@@ -100,7 +100,7 @@ const tip = await sl.streams.tip();
 const { data } = await sl.subgraphs.list();
 ```
 
-Open-beta auth: **`sl.index` reads are anonymous** (`sl.index.ftTransfers.list`). Subgraph reads are anonymous only for **public** subgraphs on /v1 (`sl.subgraphs.rows`); **private** subgraphs — including all pre-existing ones after the migration — require the owner's `sk-sl_` key. **`sl.streams.*` reads require an apiKey** (per-tier tenant; a publicly-known free-tier token exists but a bearer is always required) — public Streams bulk dumps (`client.dumps`, `events.replay`) need no key. **Writes need an apiKey** (`sl.subgraphs.deploy`, `sl.subscriptions.create`, `sl.subgraphs.delete`, `sl.subscriptions.rotateSecret`). Don't fabricate auth steps for the anonymous read calls.
+Read auth: **`sl.index` reads are anonymous** (`sl.index.ftTransfers.list`), or use any key incl. free-tier (free-tier rate limit). Free/anonymous reads cover the **recent 24h window**; older history is pay-as-you-go credits (`POST /api/billing/topup`) or a paid plan, else a read below the window errors `UPGRADE_REQUIRED`. Subgraph reads are anonymous only for **public** subgraphs on /v1 (`sl.subgraphs.rows`); **private** subgraphs — including all pre-existing ones after the migration — require the owner's `sk-sl_` key. **`sl.streams.*` reads require an apiKey** (per-tier tenant; a publicly-known free-tier token exists but a bearer is always required) — public Streams bulk dumps (`client.dumps`, `events.replay`) need no key. **Writes need an apiKey** (`sl.subgraphs.deploy`, `sl.subscriptions.create`, `sl.subgraphs.delete`, `sl.subscriptions.rotateSecret`). Don't fabricate auth steps for the anonymous read calls.
 
 ## Stacks client quickstart
 

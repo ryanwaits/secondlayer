@@ -44,7 +44,8 @@ These are small enough to keep in the router. Everything else is in a reference 
 - **Default platform API:** `https://api.secondlayer.tools`. Override with `SL_API_URL`.
 - **CLI auth:** `sl login` → magic-link → session in `~/.secondlayer/session.json` (90-day sliding). Tenant-scoped commands auto-mint 5-minute service JWTs per invocation; no long-lived key on disk.
 - **Streams auth:** `SL_API_KEY` env var (issued from the dashboard). **`/v1/streams/*` reads REQUIRE a bearer token** and resolve a per-tier tenant (free/build/scale/enterprise) — a publicly-known free-tier token exists but a bearer is always required. (The public `/public/streams/*` dump/signing-key endpoints need no auth.)
-- **Open beta:** Index (`/v1/index/*`) reads are anonymous (no auth); Streams reads need a bearer (above); writes (deploy, create, delete, rotate, replay) require auth. Don't fabricate auth steps for the anonymous read-only queries.
+- **Reads + write gates:** Index (`/v1/index/*`) reads are anonymous (no auth) or with any key incl. free-tier; Streams reads need a bearer (above). Free/anonymous reads cover the **recent 24-hour window** — a read into older history returns `402 UPGRADE_REQUIRED`; reach older history via pay-as-you-go credits or a paid plan. **Deploying a subgraph or creating a webhook requires a paid plan or a 14-day trial** (free → `403 PLAN_REQUIRED`). Other writes (delete, rotate, replay) require auth. Don't fabricate auth steps for the anonymous read-only queries.
+- **Pay-as-you-go credits:** a free account can top up prepaid credits with a card (packs $10/$25/$50/$100, `POST /api/billing/topup`). With a positive balance the account reads beyond the 24h window, unthrottled, debited $5 per 1,000,000 rows across both Index and Streams from one shared balance; the prepaid balance is the hard cap. Card-funded peer to the x402 agent rail.
 - **Package manager:** prefer `bun` and `bunx`. Most package.json files in user projects declare `bun` as `packageManager`.
 - **Network inference:** addresses starting `SP`/`SM` → mainnet, `ST`/`SN` → testnet. CLI infers this automatically when scaffolding.
 
@@ -55,8 +56,8 @@ Reads are not uniformly open — know the tier before querying:
 | Surface | Auth |
 | --- | --- |
 | Contracts (`/v1/contracts`, `sl.contracts`) | **Open** — no key |
-| Index (`/v1/index`, `sl.index`, `sl index`) | Anonymous reads OK; **free-tier API keys are rejected** (Build+ required) |
-| Streams (`/v1/streams`, `sl.streams`, `sl streams`) | **API key required** (`SL_API_KEY`) — keyless 401 |
+| Index (`/v1/index`, `sl.index`, `sl index`) | Anonymous reads OK; **free-tier keys allowed** (free-tier rate limit; a minted free key is never slower than anonymous). Free/anon reads cover the recent 24h window — older history → `402 UPGRADE_REQUIRED` (pay-as-you-go credits or a plan) |
+| Streams (`/v1/streams`, `sl.streams`, `sl streams`) | **API key required** (`SL_API_KEY`) — keyless 401. Free retention 1 day; older history → credits or plan |
 | Subgraphs reads | **Public** subgraphs open on `/v1/subgraphs/*` (anon, wildcard CORS); **private** subgraphs need the owner's `sk-sl_` key on /v1 (anon → 404). Pre-existing subgraphs were migrated **private** — no longer anon-readable. Writes + `publish`/`unpublish` require a key |
 
 ## Default working loop
