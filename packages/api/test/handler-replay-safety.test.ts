@@ -21,6 +21,29 @@ describe("non-replayable handler detection", () => {
 		).toBe(false);
 	});
 
+	test("catches the alias/destructure/bracket regex defeats", () => {
+		// Previously dodged the `ctx.method(` regex by not calling inline.
+		expect(
+			hasNonReplayableWrites("const u = ctx.update; await u('t', a, b);"),
+		).toBe(true);
+		expect(
+			hasNonReplayableWrites("const { increment } = ctx; increment(x);"),
+		).toBe(true);
+		expect(
+			hasNonReplayableWrites('await ctx["patchOrInsert"]("t", row);'),
+		).toBe(true);
+		expect(hasNonReplayableWrites("await ctx?.update('t', a, b);")).toBe(true);
+	});
+
+	test("does not flag unrelated identifiers or insert destructuring", () => {
+		// `update` as a column/var name unrelated to ctx must not trip the guard.
+		expect(hasNonReplayableWrites("const update = row.updatedAt;")).toBe(false);
+		// Destructuring insert/upsert (replay-safe) off ctx is fine.
+		expect(hasNonReplayableWrites("const { insert, upsert } = ctx;")).toBe(
+			false,
+		);
+	});
+
 	test("sourceCode is scanned too; null-safe", () => {
 		expect(hasNonReplayableWrites(null, "ctx.increment('t', k, 'b', 1n)")).toBe(
 			true,
