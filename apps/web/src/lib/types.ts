@@ -98,6 +98,7 @@ export interface SystemStatus {
 			block_height: number;
 			block_hash: string;
 			burn_block_height: number;
+			finalized_height?: number;
 			lag_seconds: number;
 		} | null;
 	};

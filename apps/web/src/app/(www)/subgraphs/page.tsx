@@ -3,6 +3,7 @@ import { Notation } from "@/components/notation";
 import { CodeWalkthrough } from "@/components/product/code-walkthrough";
 import { getHighlights } from "@/lib/changelog";
 import { socialMeta } from "@/lib/og";
+import { readStatusSnapshot } from "@/lib/status-snapshot";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -60,8 +61,24 @@ const WALK_STEPS = [
 	},
 ];
 
-export default function SubgraphsPage() {
+export default async function SubgraphsPage() {
 	const highlights = getHighlights("subgraphs");
+	// Live platform metrics for the preview card — real values from the public
+	// status snapshot (ISR-cached ~30s), never fabricated. Missing fields render
+	// "—" rather than a made-up number.
+	const status = await readStatusSnapshot();
+	const tip = status?.streams?.tip;
+	const height = (n: number | null | undefined) =>
+		typeof n === "number" ? `#${n.toLocaleString("en-US")}` : "—";
+	const stat = {
+		chainTip: height(status?.chainTip ?? tip?.block_height),
+		finalized: height(tip?.finalized_height),
+		lag: typeof tip?.lag_seconds === "number" ? `${tip.lag_seconds}s` : "—",
+		p50:
+			typeof status?.api?.latency.p50_ms === "number"
+				? `${status.api.latency.p50_ms}ms`
+				: "—",
+	};
 	return (
 		<main className="pp">
 			<header className="pp-hero">
@@ -123,28 +140,24 @@ export default function SubgraphsPage() {
 									</div>
 									<div className="pp-cards">
 										<div className="pp-mcard">
-											<span className="ml">Uptime</span>
-											<span className="mv">
-												99.9<span className="u">%</span>
-											</span>
+											<span className="ml">Tip lag</span>
+											<span className="mv">{stat.lag}</span>
 										</div>
 										<div className="pp-mcard">
 											<span className="ml">Block sync</span>
 											<span className="mv" style={{ fontSize: "1.1rem" }}>
-												#8,249,712
+												{stat.chainTip}
 											</span>
 										</div>
 										<div className="pp-mcard">
-											<span className="ml">Rows indexed</span>
-											<span className="mv">
-												2.14<span className="u">M</span>
+											<span className="ml">Finalized</span>
+											<span className="mv" style={{ fontSize: "1.1rem" }}>
+												{stat.finalized}
 											</span>
 										</div>
 										<div className="pp-mcard">
-											<span className="ml">Latency</span>
-											<span className="mv">
-												1.2<span className="u">s</span>
-											</span>
+											<span className="ml">API p50</span>
+											<span className="mv">{stat.p50}</span>
 										</div>
 									</div>
 									<div className="pp-tcard">
