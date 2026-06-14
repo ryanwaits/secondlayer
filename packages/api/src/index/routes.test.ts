@@ -464,3 +464,93 @@ describe("Stacks Index gateway middleware", () => {
 		expect(metered).toEqual([]);
 	});
 });
+
+describe("Index sBTC peg routes", () => {
+	function sbtcApp() {
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readSbtcEvents: async () => ({
+					events: [
+						{
+							cursor: "9000:0",
+							block_height: 9000,
+							block_time: null,
+							tx_id: "0x9000",
+							tx_index: 0,
+							event_index: 0,
+							topic: "completed-deposit",
+							request_id: null,
+							amount: "1000",
+							sender: "SP1",
+							recipient_btc_version: 1,
+							recipient_btc_hashbytes: "0xab",
+							bitcoin_txid: "0xbtc",
+							output_index: 0,
+							sweep_txid: null,
+							burn_hash: null,
+							burn_height: null,
+							signer_bitmap: null,
+							max_fee: null,
+							fee: null,
+							governance_contract_type: null,
+							governance_new_contract: null,
+							signer_aggregate_pubkey: null,
+							signer_threshold: null,
+							signer_address: null,
+							signer_keys_count: null,
+						},
+					],
+					next_cursor: "9000:0",
+				}),
+				readSbtcDeposits: async () => ({ deposits: [], next_cursor: null }),
+				readSbtcWithdrawals: async () => ({
+					withdrawals: [
+						{
+							cursor: "9000:0",
+							request_id: 7,
+							status: "ACCEPTED",
+							amount: "500",
+							sender: "SP1",
+							recipient_btc_version: 1,
+							recipient_btc_hashbytes: "0xab",
+							sweep_txid: "0xsweep",
+							requested_at: null,
+							resolved_at: null,
+						},
+					],
+					next_cursor: "9000:0",
+				}),
+			}),
+		);
+		return app;
+	}
+
+	test("events returns the envelope, keyless", async () => {
+		const res = await sbtcApp().request("/v1/index/sbtc/events");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { events: unknown[]; tip: unknown };
+		expect(body.events).toHaveLength(1);
+		expect(body.tip).toBeDefined();
+	});
+
+	test("withdrawals rollup is never immutably cached", async () => {
+		const res = await sbtcApp().request("/v1/index/sbtc/withdrawals");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Cache-Control")).toBe("private, max-age=2");
+		expect(res.headers.get("ETag")).toBeNull();
+		const body = (await res.json()) as {
+			withdrawals: Array<{ status: string }>;
+		};
+		expect(body.withdrawals[0]?.status).toBe("ACCEPTED");
+	});
+
+	test("rejects an unknown query filter", async () => {
+		const res = await sbtcApp().request("/v1/index/sbtc/events?bogus=1");
+		expect(res.status).toBe(400);
+	});
+});

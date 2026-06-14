@@ -438,6 +438,79 @@ const OPENAPI_SPEC = {
 				responses: envelope("stacking"),
 			},
 		},
+		"/v1/index/sbtc/events": {
+			get: {
+				tags: ["index"],
+				summary: "sBTC peg events (decoded)",
+				description:
+					"Decoded sBTC peg protocol-state events Hiro declined to filter (SBA #1709): completed-deposit, withdrawal-create/accept/reject, key-rotation, update-protocol-contract.",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [
+					{ $ref: "#/components/parameters/Limit" },
+					{
+						name: "cursor",
+						in: "query",
+						schema: { type: "string", example: "7960000:3" },
+					},
+					qp("from_cursor", "string"),
+					qp("from_height", "integer"),
+					qp("to_height", "integer"),
+					qp("confirmed", "boolean"),
+					qp("topic", "string"),
+					qp("sender", "string"),
+					qp("request_id", "integer"),
+					qp("bitcoin_txid", "string"),
+				],
+				responses: envelope("events"),
+			},
+		},
+		"/v1/index/sbtc/deposits": {
+			get: {
+				tags: ["index"],
+				summary: "sBTC peg-ins (completed deposits)",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [
+					{ $ref: "#/components/parameters/Limit" },
+					{
+						name: "cursor",
+						in: "query",
+						schema: { type: "string", example: "7960000:3" },
+					},
+					qp("from_cursor", "string"),
+					qp("from_height", "integer"),
+					qp("to_height", "integer"),
+					qp("confirmed", "boolean"),
+					qp("sender", "string"),
+					qp("bitcoin_txid", "string"),
+				],
+				responses: envelope("deposits"),
+			},
+		},
+		"/v1/index/sbtc/withdrawals": {
+			get: {
+				tags: ["index"],
+				summary: "sBTC peg-outs (lifecycle, one per request_id)",
+				description:
+					"Peg-outs rolled up per request_id with derived status (REQUESTED→ACCEPTED|REJECTED) and the committed BTC sweep_txid. Never immutably cached (status mutates as later events land).",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [
+					{ $ref: "#/components/parameters/Limit" },
+					{
+						name: "cursor",
+						in: "query",
+						schema: { type: "string", example: "7960000:3" },
+					},
+					qp("from_cursor", "string"),
+					qp("from_height", "integer"),
+					qp("to_height", "integer"),
+					qp("confirmed", "boolean"),
+					qp("status", "string"),
+					qp("sender", "string"),
+					qp("request_id", "integer"),
+				],
+				responses: envelope("withdrawals"),
+			},
+		},
 		"/v1/index/mempool": {
 			get: {
 				tags: ["index"],
