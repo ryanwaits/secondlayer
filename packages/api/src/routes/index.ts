@@ -66,6 +66,17 @@ import {
 } from "../index/print-schema.ts";
 import { indexRateLimit } from "../index/rate-limit.ts";
 import {
+	SBTC_DEPOSIT_FILTERS,
+	SBTC_EVENTS_FILTERS,
+	SBTC_WITHDRAWAL_FILTERS,
+	type SbtcDepositsReader,
+	type SbtcEventsReader,
+	type SbtcWithdrawalsReader,
+	getSbtcDepositsResponse,
+	getSbtcEventsResponse,
+	getSbtcWithdrawalsResponse,
+} from "../index/sbtc-peg.ts";
+import {
 	STACKING_FILTERS,
 	type StackingReader,
 	getStackingResponse,
@@ -123,6 +134,9 @@ export type IndexRouterOptions = {
 	readTransactions?: TransactionsReader;
 	readTransactionById?: TransactionByIdReader;
 	readStacking?: StackingReader;
+	readSbtcEvents?: SbtcEventsReader;
+	readSbtcDeposits?: SbtcDepositsReader;
+	readSbtcWithdrawals?: SbtcWithdrawalsReader;
 	readMempool?: MempoolReader;
 	readMempoolByTxId?: MempoolByIdReader;
 	readReorgs?: StreamsReorgsReader;
@@ -270,6 +284,39 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					description:
 						"Decoded PoX-4 stacking actions (stack-stx, delegate-stx, …), filterable by function_name/stacker/caller + cursor-paginated. Returns stacking[], next_cursor, tip. Cursor: <block_height>:<tx_index>.",
 					filters: STACKING_FILTERS,
+				},
+				{
+					path: "/v1/index/sbtc/events",
+					method: "GET",
+					description:
+						"Decoded sBTC peg protocol-state events (completed-deposit, withdrawal-create/accept/reject, key-rotation, update-protocol-contract) — the data Hiro declined (SBA #1709). Filterable by topic/sender/request_id/bitcoin_txid + cursor-paginated; ?confirmed=true returns only rows past the reorg margin. Returns events[], next_cursor, tip, reorgs[]. Cursor: <block_height>:<event_index>.",
+					filters: SBTC_EVENTS_FILTERS,
+				},
+				{
+					path: "/v1/index/sbtc/deposits",
+					method: "GET",
+					description:
+						"Completed sBTC peg-ins (topic completed-deposit), filterable by sender/bitcoin_txid + cursor-paginated. ?confirmed=true gates to finalized. Returns deposits[], next_cursor, tip, reorgs[]. Cursor: <block_height>:<event_index>.",
+					filters: SBTC_DEPOSIT_FILTERS,
+				},
+				{
+					path: "/v1/index/sbtc/withdrawals",
+					method: "GET",
+					description:
+						"sBTC peg-outs rolled up to one row per request_id with derived lifecycle status (REQUESTED→ACCEPTED|REJECTED) + the committed BTC sweep_txid. Filterable by status/sender/request_id + cursor-paginated. Status can change as later events land, so responses are never immutably cached. Returns withdrawals[], next_cursor, tip, reorgs[]. Cursor: the create event's <block_height>:<event_index>.",
+					filters: SBTC_WITHDRAWAL_FILTERS,
+				},
+				{
+					path: "/v1/index/sbtc/withdrawals/:request_id",
+					method: "GET",
+					description:
+						"A single peg-out's full assembled lifecycle by request_id (requested/accepted/rejected events + settlement placeholder). 404 when absent.",
+				},
+				{
+					path: "/v1/index/sbtc/deposits/:bitcoin_txid",
+					method: "GET",
+					description:
+						"A single completed peg-in by its Bitcoin txid (deposits carry no request_id). 404 when absent.",
 				},
 				{
 					path: "/v1/index/mempool",
@@ -571,6 +618,83 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		if (accountId && response.stacking.length > 0) {
 			await recordDecodedEventsReturned(accountId, response.stacking.length);
 			await debitCreditedRead(c, response.stacking.length);
+		}
+		return c.json(response);
+	});
+
+	// sBTC peg feed — the sharpest data-plane moat (decoded peg events Hiro
+	// declined, SBA #1709). Raw events + typed deposits use the standard
+	// finality cache; the withdrawals rollup never does (its derived status can
+	// change as later accept/reject events land — see the route).
+	router.get("/sbtc/events", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, SBTC_EVENTS_FILTERS);
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		const response = await getSbtcEventsResponse({
+			query,
+			tip,
+			readSbtcEvents: opts.readSbtcEvents,
+			readReorgs,
+		});
+		const notModified = applyIndexCache(c, query, tip, {
+			events: response.events,
+			next_cursor: response.next_cursor,
+			reorgs: response.reorgs,
+		});
+		if (notModified) return notModified;
+		const accountId = c.get("indexTenant")?.account_id;
+		if (accountId && response.events.length > 0) {
+			await recordDecodedEventsReturned(accountId, response.events.length);
+			await debitCreditedRead(c, response.events.length);
+		}
+		return c.json(response);
+	});
+
+	router.get("/sbtc/deposits", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, SBTC_DEPOSIT_FILTERS);
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		const response = await getSbtcDepositsResponse({
+			query,
+			tip,
+			readSbtcDeposits: opts.readSbtcDeposits,
+			readReorgs,
+		});
+		const notModified = applyIndexCache(c, query, tip, {
+			deposits: response.deposits,
+			next_cursor: response.next_cursor,
+			reorgs: response.reorgs,
+		});
+		if (notModified) return notModified;
+		const accountId = c.get("indexTenant")?.account_id;
+		if (accountId && response.deposits.length > 0) {
+			await recordDecodedEventsReturned(accountId, response.deposits.length);
+			await debitCreditedRead(c, response.deposits.length);
+		}
+		return c.json(response);
+	});
+
+	router.get("/sbtc/withdrawals", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, SBTC_WITHDRAWAL_FILTERS);
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		const response = await getSbtcWithdrawalsResponse({
+			query,
+			tip,
+			readSbtcWithdrawals: opts.readSbtcWithdrawals,
+			readReorgs,
+		});
+		// The rolled-up status is mutable: a withdrawal created at/below to_height
+		// can be accepted at a *later* height, so a row is never safely immutable
+		// even when finalized. Short private TTL only — no ETag/304.
+		c.header("Cache-Control", MUTABLE_CACHE_CONTROL);
+		const accountId = c.get("indexTenant")?.account_id;
+		if (accountId && response.withdrawals.length > 0) {
+			await recordDecodedEventsReturned(accountId, response.withdrawals.length);
+			await debitCreditedRead(c, response.withdrawals.length);
 		}
 		return c.json(response);
 	});

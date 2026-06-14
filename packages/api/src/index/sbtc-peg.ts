@@ -41,11 +41,6 @@ const SBTC_DISABLED_NOTE =
 	"sBTC decoding is disabled (SBTC_DECODER_ENABLED=false); the sBTC peg feed is empty until re-enabled.";
 
 const DEPOSIT_TOPIC: SbtcEventTopic = "completed-deposit";
-const WITHDRAWAL_TOPICS: SbtcEventTopic[] = [
-	"withdrawal-create",
-	"withdrawal-accept",
-	"withdrawal-reject",
-];
 
 export const SBTC_EVENTS_FILTERS = [
 	"limit",
