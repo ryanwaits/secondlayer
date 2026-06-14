@@ -100,6 +100,10 @@ export const CHAIN_TRIGGER_TYPES = [
 	"contract_call",
 	"contract_deploy",
 	"print_event",
+	"sbtc_deposit",
+	"sbtc_withdrawal_create",
+	"sbtc_withdrawal_accept",
+	"sbtc_withdrawal_reject",
 ] as const;
 
 const triggerAmount = z.union([
@@ -219,6 +223,39 @@ export const ChainTriggerSchema: z.ZodType<ChainTrigger> = z.discriminatedUnion(
 				contractId: triggerPattern.optional(),
 				topic: triggerPattern.optional(),
 				trait: trait.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("sbtc_deposit"),
+				sender: triggerPattern.optional(),
+				recipientStacks: triggerPattern.optional(),
+				minAmount: triggerAmount.optional(),
+				maxAmount: triggerAmount.optional(),
+				bitcoinTxid: triggerPattern.optional(),
+				requestId: z.number().int().nonnegative().optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("sbtc_withdrawal_create"),
+				sender: triggerPattern.optional(),
+				minAmount: triggerAmount.optional(),
+				maxAmount: triggerAmount.optional(),
+				requestId: z.number().int().nonnegative().optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("sbtc_withdrawal_accept"),
+				requestId: z.number().int().nonnegative().optional(),
+				sweepTxid: triggerPattern.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("sbtc_withdrawal_reject"),
+				requestId: z.number().int().nonnegative().optional(),
 			})
 			.strict(),
 	],
@@ -402,7 +439,29 @@ export type ChainTrigger =
 			type: "print_event";
 			contractId?: string;
 			topic?: string;
-	  } & TraitScoped);
+	  } & TraitScoped)
+	| {
+			type: "sbtc_deposit";
+			sender?: string;
+			recipientStacks?: string;
+			minAmount?: ChainTriggerAmount;
+			maxAmount?: ChainTriggerAmount;
+			bitcoinTxid?: string;
+			requestId?: number;
+	  }
+	| {
+			type: "sbtc_withdrawal_create";
+			sender?: string;
+			minAmount?: ChainTriggerAmount;
+			maxAmount?: ChainTriggerAmount;
+			requestId?: number;
+	  }
+	| {
+			type: "sbtc_withdrawal_accept";
+			requestId?: number;
+			sweepTxid?: string;
+	  }
+	| { type: "sbtc_withdrawal_reject"; requestId?: number };
 
 /** Args for a chain-trigger builder — every field of a variant except `type`. */
 type TriggerArgs<T extends ChainTrigger["type"]> = Omit<
@@ -472,6 +531,28 @@ export const trigger = {
 	}),
 	printEvent: (f: TriggerArgs<"print_event"> = {}): ChainTrigger => ({
 		type: "print_event",
+		...f,
+	}),
+	sbtcDeposit: (f: TriggerArgs<"sbtc_deposit"> = {}): ChainTrigger => ({
+		type: "sbtc_deposit",
+		...f,
+	}),
+	sbtcWithdrawalCreate: (
+		f: TriggerArgs<"sbtc_withdrawal_create"> = {},
+	): ChainTrigger => ({
+		type: "sbtc_withdrawal_create",
+		...f,
+	}),
+	sbtcWithdrawalAccept: (
+		f: TriggerArgs<"sbtc_withdrawal_accept"> = {},
+	): ChainTrigger => ({
+		type: "sbtc_withdrawal_accept",
+		...f,
+	}),
+	sbtcWithdrawalReject: (
+		f: TriggerArgs<"sbtc_withdrawal_reject"> = {},
+	): ChainTrigger => ({
+		type: "sbtc_withdrawal_reject",
 		...f,
 	}),
 } as const;

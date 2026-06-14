@@ -5,6 +5,33 @@ import type { ChainTrigger } from "../schemas/subscriptions.ts";
 // (SDK webhook verify) share one definition and can't drift. The delivered body is
 // the envelope; `event` is the matched chain event (decoded shape varies by trigger).
 
+// ── sBTC typed event payloads ─────────────────────────────────────────────────
+
+/** Payload for `sbtc_deposit` (topic: completed-deposit). */
+export interface SbtcDepositEvent {
+	topic: "completed-deposit";
+	request_id: number;
+	sender: string | null;
+	recipient_stacks: string | null;
+	amount: string;
+	bitcoin_txid: string | null;
+	block_height: number;
+	tx_id: string;
+}
+
+/** Payload for `sbtc_withdrawal_create`, `sbtc_withdrawal_accept`, `sbtc_withdrawal_reject`. */
+export interface SbtcWithdrawalEvent {
+	topic: "withdrawal-create" | "withdrawal-accept" | "withdrawal-reject";
+	request_id: number;
+	sender: string | null;
+	amount: string | null;
+	sweep_txid: string | null;
+	/** Always false until the BTC L1 confirmer ships. */
+	settlement_confirmed: false;
+	block_height: number;
+	tx_id: string;
+}
+
 /**
  * Delivered when a matched chain event lands in a canonical block
  * (`event_type: "chain.<trigger>.apply"`). Tx-level triggers (contract_call /
@@ -20,7 +47,7 @@ export interface ChainApplyEnvelope {
 	canonical: true;
 	/** The chain-trigger type that matched. */
 	trigger: ChainTrigger["type"];
-	event: Record<string, unknown>;
+	event: SbtcDepositEvent | SbtcWithdrawalEvent | Record<string, unknown>;
 }
 
 /** One orphaned delivery recalled by a reorg rollback. */
