@@ -39,4 +39,8 @@ export const DOCS_NAV: DocsNavGroup[] = [
 			{ title: "Changelog", href: "/docs/changelog" },
 		],
 	},
+	{
+		label: "Self-host",
+		items: [{ title: "Self-host guide", href: "/docs/self-host" }],
+	},
 ];

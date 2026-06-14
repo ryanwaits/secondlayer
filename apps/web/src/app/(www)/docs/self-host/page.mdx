@@ -1,0 +1,211 @@
+# Self-host
+
+The whole Secondlayer stack is MIT-licensed — `docker compose up` runs the indexer, API, and subgraph processor on your own hardware. You get every surface: Index, Streams, Subgraphs, Subscriptions. What you skip: the managed SLA, billing/credits, multi-tenant key management, and the public Explore directory. Those are platform-only; the core is entirely open.
+
+Support is community / best-effort. For fully managed hosting with uptime SLAs and priority support, see [pricing](/pricing).
+
+---
+
+## Prerequisites
+
+**Docker + Docker Compose** (v2) is the only hard requirement for the app services. Beyond that, you need a Stacks node for the event feed — either run one yourself or point the indexer at an existing node's event observer.
+
+**Hardware — app services only** (external Stacks node):
+- 8 GB RAM, 100 GB SSD, any modern CPU
+- The database grows ~1 GB per 100K blocks; mainnet at ~7M+ blocks is 70+ GB today
+
+**Hardware — full stack** (bitcoind + stacks-node bundled):
+- 128 GB RAM (bitcoind 32 GB, stacks-node 64 GB, headroom for PG/indexer)
+- 2 TB NVMe SSD (Bitcoin IBD ~700 GB, Stacks ~200 GB, plus subgraph data)
+- 8+ cores, 1 Gbps network recommended (IBD downloads 700+ GB)
+
+There is no light mode that fetches from Hiro's REST API — it's too slow to index anything useful. Run the full chain, point at an external node, or use [hosted](https://secondlayer.tools).
+
+For **local contract development**, `sl devnet connect` wires up a [Clarinet devnet](https://docs.hiro.so/stacks/clarinet) in one step — no mainnet node required.
+
+---
+
+## Quick start (app services)
+
+Clone the repo, copy the env template, and bring up the five core services:
+
+```bash
+git clone https://github.com/ryanwaits/secondlayer.git
+cd secondlayer/docker/oss
+
+cp .env.example .env
+# Edit .env — set POSTGRES_PASSWORD at minimum.
+
+docker compose up -d postgres migrate api indexer subgraph-processor
+```
+
+The API is now at `http://localhost:3800`. Health check:
+
+```bash
+curl http://localhost:3800/health
+```
+
+By default the API is open (no auth). To require a Bearer token on every request, set `API_KEY` in `.env` and uncomment the matching line in `docker-compose.yml`.
+
+**Point an existing Stacks node at the indexer** by adding this to its `Config.toml`:
+
+```toml
+[[events_observer]]
+endpoint = "your-server:3700"
+events_keys = ["*"]
+timeout_ms = 30000
+```
+
+---
+
+## Full stack (with chain nodes)
+
+To bundle bitcoind + stacks-node:
+
+```bash
+cp .env.example .env
+# Set POSTGRES_PASSWORD and BITCOIN_RPC_PASSWORD (strong random).
+# Update bitcoin.conf and Config.toml to match the RPC password.
+
+# Stage bitcoin.conf before first start:
+mkdir -p ./data/bitcoin
+cp bitcoin.conf ./data/bitcoin/bitcoin.conf
+sudo chown -R 1000:1000 ./data/bitcoin
+
+# 1. Start bitcoind — IBD takes 1–3 days.
+docker compose --profile node up -d bitcoind
+
+# 2. Wait for IBD past Stacks genesis (~block 666050):
+docker compose exec bitcoind bitcoin-cli \
+  -rpcuser=stacks -rpcpassword=$BITCOIN_RPC_PASSWORD getblockcount
+
+# 3. Start stacks-node once bitcoind is past 666050:
+docker compose --profile node up -d stacks-node
+
+# 4. Start app services:
+docker compose up -d postgres migrate api indexer subgraph-processor
+```
+
+---
+
+## Configuration
+
+OSS mode sets `INSTANCE_MODE=oss` — this disables the platform-only layer (magic-link auth, API keys, billing/credits, x402 pay-per-call, multi-tenant). Single-tenant; the operator owns access control.
+
+Core env vars (`.env`):
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `POSTGRES_PASSWORD` | `changeme_postgres_password` | **Change before exposing publicly** |
+| `POSTGRES_USER` / `POSTGRES_DB` | `secondlayer` | |
+| `POSTGRES_PORT` | `127.0.0.1:5432` | Remove `127.0.0.1:` prefix to expose |
+| `API_PORT` | `3800` | |
+| `API_KEY` | _(unset)_ | Set to require a Bearer token on every request |
+| `INDEXER_PORT` | `127.0.0.1:3700` | Localhost-only; stacks-node uses docker network |
+| `NETWORKS` | `mainnet` | `testnet` or comma-separated for multi-network |
+| `LOG_LEVEL` | `info` | |
+
+Indexer-specific (for advanced tuning):
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `TIP_FOLLOWER_ENABLED` | `true` | Disable during genesis sync (see below) |
+| `TIP_FOLLOWER_TIMEOUT` | `60` | Seconds of node silence before polling |
+| `HIRO_API_URL` | `https://api.mainnet.hiro.so` | Gap-fill fallback only |
+| `HIRO_API_KEY` | _(unset)_ | Optional — improves gap-fill rate limits |
+
+---
+
+## Run from published images
+
+Instead of building from source, pull the tagged images published on every `v*` git tag:
+
+```bash
+# ghcr.io/ryanwaits/secondlayer-{api,indexer,worker,l2-decoder,subgraph-processor,subscription-processor}
+
+docker pull ghcr.io/ryanwaits/secondlayer-api:latest
+docker pull ghcr.io/ryanwaits/secondlayer-indexer:latest
+docker pull ghcr.io/ryanwaits/secondlayer-subgraph-processor:latest
+```
+
+Pin a specific tag (`v1.2.3`) in production rather than `:latest`. The compose file's `build:` block builds from source by default — swap in `image:` to use the pulled images instead. Make sure the tag was cut **after** commit `169b0967` (the OSS read-parity fix); older images returned `402 UPGRADE_REQUIRED` on reads.
+
+---
+
+## Genesis sync
+
+Syncing from genesis to chain tip takes time. During sync, disable the tip follower so it doesn't interfere with IBD:
+
+```bash
+# Start with tip follower off:
+TIP_FOLLOWER_ENABLED=false docker compose up -d postgres migrate api indexer subgraph-processor
+
+# Check sync progress (compare to chain tip):
+curl http://localhost:3700/health | jq .block_height
+
+# Once caught up, re-enable:
+TIP_FOLLOWER_ENABLED=true docker compose up -d --force-recreate indexer
+```
+
+The indexer integrity loop runs every 5 min and auto-fills gaps from the local DB or Hiro's API as a fallback.
+
+---
+
+## Data plane
+
+OSS runs on a **single Postgres instance**. The source/target DB split described in `docker/SCHEMA_SPLIT.md` is a hosted-scale concern for high-throughput multi-tenant deployments — you don't need it for self-hosting.
+
+Database sizing: ~10 KB per block compressed, ~1 GB per 100K blocks. Mainnet is 70+ GB today and growing. Start with at least 100 GB.
+
+---
+
+## Operations
+
+**Upgrade:**
+```bash
+git pull
+docker compose build
+docker compose up -d
+```
+
+The `migrate` service runs automatically on `up -d` and applies any new migrations.
+
+**Health checks:**
+```bash
+curl http://localhost:3800/health | jq   # API
+curl http://localhost:3700/health | jq   # Indexer
+```
+
+**Security checklist:**
+- Change `POSTGRES_PASSWORD` and `BITCOIN_RPC_PASSWORD` before any public exposure
+- `POSTGRES_PORT` and `INDEXER_PORT` default to `127.0.0.1:...` — keep it that way unless you know what you're opening
+- Set `API_KEY` if the API is reachable from untrusted networks
+- Never publish port 8332 (bitcoind RPC) to the internet
+
+**Deploy a subgraph against your local instance:**
+```bash
+export SL_API_URL=http://localhost:3800
+export SL_API_KEY=<your-key>   # only if API_KEY is set
+
+sl subgraphs deploy ./my-subgraph.ts
+```
+
+---
+
+## What's not included
+
+OSS disables the platform-only layer. Specifically, you won't have:
+
+- **Managed SLA / uptime** — you operate it
+- **Magic-link auth and API key management** — use `API_KEY` env for a single shared bearer token; layer your own reverse proxy for finer control
+- **Billing, prepaid credits, x402 pay-per-call** — no metering; reads are unbounded single-tenant
+- **Multi-tenant** — one operator, one Postgres, one set of subgraphs
+- **Public Explore directory** — [secondlayer.tools/subgraphs/explore](https://secondlayer.tools/subgraphs/explore) is managed-only
+
+Support is **community / best-effort**. File issues at [github.com/ryanwaits/secondlayer](https://github.com/ryanwaits/secondlayer). For managed hosting with SLAs and dedicated support, see [pricing](/pricing).
+
+export const metadata = {
+	title: "Self-host — Secondlayer Docs",
+	description:
+		"Run the full Secondlayer stack on your own hardware — indexer, API, subgraphs, and subscriptions — with Docker Compose.",
+};
