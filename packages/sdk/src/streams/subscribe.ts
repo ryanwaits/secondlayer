@@ -23,7 +23,13 @@ export function subscribeStreamsEvents(opts: {
 	baseUrl: string;
 	apiKey: string;
 	fetchImpl: FetchLike;
-	verify: boolean;
+	/**
+	 * `off` skips verification; `lenient` (default) verifies a frame when it
+	 * carries a `sig` and delivers it unverified when it doesn't (unsigned
+	 * self-host); `strict` requires every frame to be signed. An invalid `sig`
+	 * always throws regardless of mode.
+	 */
+	verify: "off" | "lenient" | "strict";
 	loadKey: () => Promise<VerificationKey>;
 	reconnectDelayMs?: number;
 	params: StreamsEventsSubscribeParams;
@@ -78,19 +84,30 @@ export function subscribeStreamsEvents(opts: {
 						continue; // ignore non-JSON frames
 					}
 					if (!parsed.event) continue;
-					if (opts.verify) {
-						const key = await opts.loadKey();
-						if (
-							!parsed.sig ||
-							!ed25519.verifyEd25519(
-								JSON.stringify(parsed.event),
-								parsed.sig,
-								key.publicKey,
-							)
-						) {
-							throw new StreamsSignatureError(
-								"Streams SSE frame signature is missing or invalid.",
-							);
+					if (opts.verify !== "off") {
+						if (!parsed.sig) {
+							// Strict requires a signed frame; lenient (default) delivers an
+							// unsigned frame (e.g. self-host with no signing key).
+							if (opts.verify === "strict") {
+								throw new StreamsSignatureError(
+									"Streams SSE frame signature is missing.",
+								);
+							}
+						} else {
+							const key = await opts.loadKey();
+							// A signature is present, so verify it in either mode — an
+							// invalid signature always fails closed.
+							if (
+								!ed25519.verifyEd25519(
+									JSON.stringify(parsed.event),
+									parsed.sig,
+									key.publicKey,
+								)
+							) {
+								throw new StreamsSignatureError(
+									"Streams SSE frame signature is invalid.",
+								);
+							}
 						}
 					}
 					cursor = (parsed.event as { cursor?: string }).cursor ?? cursor;

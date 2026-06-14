@@ -74,7 +74,7 @@ describe("subscribeStreamsEvents", () => {
 				baseUrl: "https://streams.example",
 				apiKey: "sk-sl_test",
 				fetchImpl: sseFetch(["event: ping\ndata: \n\n", signedFrame(EVENT)]),
-				verify: false,
+				verify: "off",
 				loadKey,
 				params: {
 					onEvent: (e) => {
@@ -97,7 +97,7 @@ describe("subscribeStreamsEvents", () => {
 				baseUrl: "https://streams.example",
 				apiKey: "sk-sl_test",
 				fetchImpl: sseFetch([signedFrame(EVENT)]),
-				verify: true,
+				verify: "strict",
 				loadKey,
 				params: {
 					onEvent: (e) => {
@@ -112,14 +112,58 @@ describe("subscribeStreamsEvents", () => {
 		expect((got[0] as { cursor: string }).cursor).toBe("100:0");
 	});
 
-	test("verify on: a bad signature triggers onError, not onEvent", async () => {
+	test("lenient: an unsigned frame is delivered (self-host without a key)", async () => {
+		const got: StreamsEvent[] = [];
+		let unsub = () => {};
+		// Frame carries no `sig` — what an unsigned self-host instance emits.
+		const unsignedFrame = `data: ${JSON.stringify({ event: EVENT })}\n\n`;
+		await new Promise<void>((resolve) => {
+			unsub = subscribeStreamsEvents({
+				baseUrl: "https://streams.example",
+				apiKey: "sk-sl_test",
+				fetchImpl: sseFetch([unsignedFrame]),
+				verify: "lenient",
+				loadKey,
+				params: {
+					onEvent: (e) => {
+						got.push(e);
+						resolve();
+					},
+				},
+			});
+		});
+		unsub();
+		expect(got).toHaveLength(1);
+	});
+
+	test("lenient: a present-but-invalid signature still triggers onError", async () => {
 		let unsub = () => {};
 		const err = await new Promise<unknown>((resolve) => {
 			unsub = subscribeStreamsEvents({
 				baseUrl: "https://streams.example",
 				apiKey: "sk-sl_test",
 				fetchImpl: sseFetch([signedFrame(EVENT, "not-a-real-signature")]),
-				verify: true,
+				verify: "lenient",
+				loadKey,
+				reconnectDelayMs: 50,
+				params: {
+					onEvent: () => resolve(new Error("onEvent should not fire")),
+					onError: (e) => resolve(e),
+				},
+			});
+		});
+		unsub();
+		expect(err).toBeInstanceOf(StreamsSignatureError);
+	});
+
+	test("strict: a bad signature triggers onError, not onEvent", async () => {
+		let unsub = () => {};
+		const err = await new Promise<unknown>((resolve) => {
+			unsub = subscribeStreamsEvents({
+				baseUrl: "https://streams.example",
+				apiKey: "sk-sl_test",
+				fetchImpl: sseFetch([signedFrame(EVENT, "not-a-real-signature")]),
+				verify: "strict",
 				loadKey,
 				reconnectDelayMs: 50,
 				params: {

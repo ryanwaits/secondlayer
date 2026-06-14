@@ -70,10 +70,21 @@ export type CreateStreamsClientOptions = {
 	 */
 	dumpsBaseUrl?: string;
 	/**
-	 * Verify the ed25519 `X-Signature` on every response (default off). Pass
-	 * `true` to fetch the server's public key from
-	 * `/public/streams/signing-key`, or `{ publicKey }` to pin a known PEM. A
-	 * failed or missing signature throws `StreamsSignatureError`.
+	 * Verify the ed25519 `X-Signature` on every REST response and per-frame SSE
+	 * signature. Three states:
+	 * - **default (omitted)** — *lenient*: verify when the server signs (the
+	 *   hosted API signs every response), and pass through when no signature is
+	 *   present (e.g. a self-hosted instance with no `STREAMS_SIGNING_PRIVATE_KEY`).
+	 *   So verification is on by default against the hosted API without breaking
+	 *   unsigned self-host deployments. An *invalid* signature always throws.
+	 * - **`true`** (or `{ publicKey }` to pin a known PEM) — *strict*: a missing
+	 *   OR invalid signature throws `StreamsSignatureError`. Use this when you
+	 *   require a portable, non-repudiable attestation and won't accept unsigned
+	 *   data (it also closes the lenient mode's strip-the-header downgrade).
+	 * - **`false`** — off.
+	 *
+	 * The key is fetched once from `/public/streams/signing-key` (cached; a
+	 * rotated `X-Signature-KeyId` triggers one refresh) unless a PEM is pinned.
 	 */
 	verify?: boolean | { publicKey: string };
 	/**
@@ -145,7 +156,15 @@ export function createStreamsClient(
 ): StreamsClient {
 	const baseUrl = normalizeBaseUrl(options.baseUrl ?? DEFAULT_STREAMS_BASE_URL);
 	const fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
-	const verify = options.verify ?? false;
+	const verify = options.verify;
+	// On by default, but lenient: the hosted API signs every response, while a
+	// self-hosted instance without STREAMS_SIGNING_PRIVATE_KEY serves none.
+	// Lenient verifies when a signature is present and passes through when it is
+	// absent — so the default neither skips hosted verification nor breaks OSS.
+	// `verify: true` / `{ publicKey }` is strict (missing signature throws);
+	// `verify: false` is off. An invalid signature always throws.
+	const verifyMode: "off" | "lenient" | "strict" =
+		verify === false ? "off" : verify === undefined ? "lenient" : "strict";
 
 	// Lazily resolve and cache the verification key alongside its id, so a
 	// rotation (signalled by a changed `X-Signature-KeyId`) can be detected.
@@ -200,33 +219,40 @@ export function createStreamsClient(
 		});
 		if (!response.ok) await mapStreamsError(response);
 		const text = await response.text();
-		if (verify) {
+		if (verifyMode !== "off") {
 			const signature = response.headers.get("X-Signature");
 			if (!signature) {
-				throw new StreamsSignatureError("Response is missing X-Signature.");
-			}
-			const responseKeyId = response.headers.get("X-Signature-KeyId");
-			let key = await loadKey();
-			// The server rotated to a key we haven't seen.
-			if (responseKeyId && responseKeyId !== key.keyId) {
-				if (typeof verify === "object") {
-					// Pinned key: a different id is never the pinned key — fail closed.
-					throw new StreamsSignatureError(
-						`Response signed with key '${responseKeyId}', expected pinned key '${key.keyId}'.`,
-					);
+				// Strict requires a signature; lenient (default) lets an unsigned
+				// response through — e.g. self-host with no signing key configured.
+				if (verifyMode === "strict") {
+					throw new StreamsSignatureError("Response is missing X-Signature.");
 				}
-				// Fetched key: refresh once. A still-mismatched id (no re-loop)
-				// means the endpoint doesn't serve the signing key — fail closed.
-				keyPromise = null;
-				key = await loadKey();
-				if (responseKeyId !== key.keyId) {
-					throw new StreamsSignatureError(
-						`Response signed with key '${responseKeyId}' not served by the signing-key endpoint.`,
-					);
+			} else {
+				const responseKeyId = response.headers.get("X-Signature-KeyId");
+				let key = await loadKey();
+				// The server rotated to a key we haven't seen.
+				if (responseKeyId && responseKeyId !== key.keyId) {
+					if (typeof verify === "object") {
+						// Pinned key: a different id is never the pinned key — fail closed.
+						throw new StreamsSignatureError(
+							`Response signed with key '${responseKeyId}', expected pinned key '${key.keyId}'.`,
+						);
+					}
+					// Fetched key: refresh once. A still-mismatched id (no re-loop)
+					// means the endpoint doesn't serve the signing key — fail closed.
+					keyPromise = null;
+					key = await loadKey();
+					if (responseKeyId !== key.keyId) {
+						throw new StreamsSignatureError(
+							`Response signed with key '${responseKeyId}' not served by the signing-key endpoint.`,
+						);
+					}
 				}
-			}
-			if (!ed25519.verifyEd25519(text, signature, key.publicKey)) {
-				throw new StreamsSignatureError();
+				// A signature is present, so verify it regardless of strict/lenient —
+				// an invalid signature always fails closed.
+				if (!ed25519.verifyEd25519(text, signature, key.publicKey)) {
+					throw new StreamsSignatureError();
+				}
 			}
 		}
 		return JSON.parse(text) as T;
@@ -339,7 +365,7 @@ export function createStreamsClient(
 					baseUrl,
 					apiKey: options.apiKey,
 					fetchImpl,
-					verify: Boolean(verify),
+					verify: verifyMode,
 					loadKey,
 					params,
 				});

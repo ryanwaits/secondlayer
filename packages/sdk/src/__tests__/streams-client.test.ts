@@ -385,7 +385,24 @@ describe("createStreamsClient verify", () => {
 		);
 	});
 
-	test("does not verify when disabled (default)", async () => {
+	test("does not verify when explicitly disabled (verify: false)", async () => {
+		const body = JSON.stringify(envelope);
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			verify: false,
+			// Tampered signature present, but verification is off → still resolves.
+			fetchImpl: async () => signedResponse(body, "not-a-real-signature"),
+		});
+		await expect(client.events.list()).resolves.toMatchObject({
+			next_cursor: null,
+		});
+	});
+
+	// Default (verify omitted) is LENIENT: verify when the server signs, pass
+	// through when it doesn't — so the hosted API is verified by default without
+	// breaking unsigned self-host deployments.
+	test("default lenient: passes through an unsigned response", async () => {
 		const client = createStreamsClient({
 			apiKey: "sk-test",
 			baseUrl: "http://secondlayer.test",
@@ -398,6 +415,61 @@ describe("createStreamsClient verify", () => {
 		await expect(client.events.list()).resolves.toMatchObject({
 			next_cursor: null,
 		});
+	});
+
+	test("default lenient: verifies a signed response via the key endpoint", async () => {
+		const body = JSON.stringify(envelope);
+		const keyId = ed25519.ed25519KeyId(publicKeyPem);
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			// no `verify` → lenient default
+			fetchImpl: async (input) =>
+				String(input).endsWith("/public/streams/signing-key")
+					? new Response(
+							JSON.stringify({
+								algorithm: "ed25519",
+								key_id: keyId,
+								public_key_pem: publicKeyPem,
+							}),
+							{ status: 200, headers: { "Content-Type": "application/json" } },
+						)
+					: new Response(body, {
+							status: 200,
+							headers: {
+								"Content-Type": "application/json",
+								"X-Signature": ed25519.signEd25519(body, priv),
+								"X-Signature-KeyId": keyId,
+							},
+						}),
+		});
+		await expect(client.events.list()).resolves.toMatchObject({
+			next_cursor: null,
+		});
+	});
+
+	test("default lenient: rejects a present-but-invalid signature", async () => {
+		const body = JSON.stringify(envelope);
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			// no `verify` → lenient, but a present signature must still verify.
+			fetchImpl: async (input) =>
+				String(input).endsWith("/public/streams/signing-key")
+					? new Response(
+							JSON.stringify({
+								algorithm: "ed25519",
+								key_id: ed25519.ed25519KeyId(publicKeyPem),
+								public_key_pem: publicKeyPem,
+							}),
+							{ status: 200, headers: { "Content-Type": "application/json" } },
+						)
+					: // Signature over a different body than what's returned → invalid.
+						signedResponse(body, ed25519.signEd25519(`${body} `, priv)),
+		});
+		await expect(client.events.list()).rejects.toBeInstanceOf(
+			StreamsSignatureError,
+		);
 	});
 });
 
