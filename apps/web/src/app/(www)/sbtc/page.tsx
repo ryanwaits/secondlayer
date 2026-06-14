@@ -3,6 +3,17 @@ import { PLATFORM_API_URL } from "@/lib/api";
 import { socialMeta } from "@/lib/og";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LivePegTables } from "./live-peg-tables";
+import {
+	type Deposit,
+	PUBLIC_SBTC,
+	type SummaryEnvelope,
+	type Tip,
+	type Withdrawal,
+	btc,
+	fetchWindow,
+	num,
+} from "./shared";
 
 export const metadata: Metadata = socialMeta({
 	title: "sBTC Peg Explorer | secondlayer",
@@ -14,177 +25,43 @@ export const metadata: Metadata = socialMeta({
 
 export const revalidate = 30;
 
-const API = PLATFORM_API_URL;
-const SBTC = `${API}/v1/index/sbtc`;
+const SBTC = `${PLATFORM_API_URL}/v1/index/sbtc`;
+const MAX_ROWS = 25;
 
-// ── Wire shapes (real /v1/index/sbtc/* responses) ──────────────────────
-
-interface Tip {
-	block_height: number;
-	finalized_height: number;
-	lag_seconds: number;
-}
-
-interface Deposit {
-	cursor: string;
-	block_height: number;
-	block_time: string;
-	tx_id: string;
-	amount: string; // sats
-	bitcoin_txid: string; // 0x-prefixed
-}
-
-interface Withdrawal {
-	cursor: string;
-	request_id: number;
-	status: "REQUESTED" | "ACCEPTED" | "REJECTED";
-	amount: string; // sats
-	sender: string;
-	sweep_txid: string | null; // 0x-prefixed, present once accepted
-	requested_at: string;
-	resolved_at: string | null;
-}
-
-interface DepositEnvelope {
-	deposits: Deposit[];
-	next_cursor: string | null;
-	tip: Tip;
-}
-
-interface WithdrawalEnvelope {
-	withdrawals: Withdrawal[];
-	next_cursor: string | null;
-	tip: Tip;
-}
-
-// ── Fetch helpers — paginate the full feed (it's small) server-side ─────
-
-const PAGE_CAP = 20; // safety bound; the indexed peg feed is a few hundred rows
-
-async function fetchAll<T extends DepositEnvelope | WithdrawalEnvelope>(
-	path: "deposits" | "withdrawals",
-): Promise<{
-	rows: (Deposit | Withdrawal)[];
-	tip: Tip | null;
-	partial: boolean;
-}> {
-	const rows: (Deposit | Withdrawal)[] = [];
-	let cursor: string | null = null;
-	let tip: Tip | null = null;
-	let pages = 0;
-	const seen = new Set<string>();
+async function fetchSummary(): Promise<SummaryEnvelope | null> {
 	try {
-		while (pages < PAGE_CAP) {
-			const url = `${SBTC}/${path}?limit=200${cursor ? `&cursor=${cursor}` : ""}`;
-			const res = await fetch(url, { next: { revalidate: 30 } });
-			if (!res.ok) break;
-			const body = (await res.json()) as T;
-			tip = body.tip;
-			const arr =
-				path === "deposits"
-					? (body as DepositEnvelope).deposits
-					: (body as WithdrawalEnvelope).withdrawals;
-			rows.push(...arr);
-			pages += 1;
-			const nc = body.next_cursor;
-			if (!nc || arr.length === 0 || seen.has(nc)) {
-				return { rows, tip, partial: false };
-			}
-			seen.add(nc);
-			cursor = nc;
-		}
-		// Hit the page cap with more to fetch — totals are a floor, not exact.
-		return { rows, tip, partial: true };
+		const res = await fetch(`${SBTC}/summary`, { next: { revalidate: 30 } });
+		if (!res.ok) return null;
+		return (await res.json()) as SummaryEnvelope;
 	} catch {
-		return { rows, tip, partial: false };
+		return null;
 	}
 }
 
-// ── Formatting ─────────────────────────────────────────────────────────
-
-const num = new Intl.NumberFormat("en-US");
-
-/** sats (string) → BTC, up to 8 dp, trailing zeros trimmed. */
-function btc(sats: string | number, dp = 8): string {
-	const n = Number(sats) / 1e8;
-	return n.toLocaleString("en-US", {
-		minimumFractionDigits: 2,
-		maximumFractionDigits: dp,
-	});
-}
-
-function trunc(hex: string, head = 8, tail = 6): string {
-	const h = hex.startsWith("0x") ? hex.slice(2) : hex;
-	if (h.length <= head + tail) return hex;
-	return `${hex.startsWith("0x") ? "0x" : ""}${h.slice(0, head)}…${h.slice(-tail)}`;
-}
-
-function truncAddr(addr: string): string {
-	if (addr.length <= 14) return addr;
-	return `${addr.slice(0, 6)}…${addr.slice(-5)}`;
-}
-
-/** mempool.space wants raw hex, no 0x prefix. */
-const mempoolTx = (txid: string) =>
-	`https://mempool.space/tx/${txid.startsWith("0x") ? txid.slice(2) : txid}`;
-const stacksTx = (txid: string) => `https://explorer.hiro.so/txid/${txid}`;
-
-function ago(iso: string): string {
-	const then = new Date(iso).getTime();
-	const secs = Math.max(0, Math.round((Date.now() - then) / 1000));
-	if (secs < 90) return `${secs}s ago`;
-	const mins = Math.round(secs / 60);
-	if (mins < 90) return `${mins}m ago`;
-	const hrs = Math.round(mins / 60);
-	if (hrs < 36) return `${hrs}h ago`;
-	return `${Math.round(hrs / 24)}d ago`;
-}
-
-function StatusBadge({ status }: { status: string }) {
-	const k = status.toLowerCase();
-	return <span className={`peg-badge peg-badge-${k}`}>{status}</span>;
-}
-
-// ── Page ───────────────────────────────────────────────────────────────
-
 export default async function SbtcPegPage() {
-	const [dep, wd] = await Promise.all([
-		fetchAll<DepositEnvelope>("deposits"),
-		fetchAll<WithdrawalEnvelope>("withdrawals"),
+	const [summaryEnv, dep, wd] = await Promise.all([
+		fetchSummary(),
+		fetchWindow(SBTC, "deposits", { next: { revalidate: 30 } }),
+		fetchWindow(SBTC, "withdrawals", { next: { revalidate: 30 } }),
 	]);
 
-	const deposits = dep.rows as Deposit[];
-	const withdrawals = wd.rows as Withdrawal[];
-	const tip = dep.tip ?? wd.tip;
+	const summary = summaryEnv?.summary ?? null;
+	const tip: Tip | null = summaryEnv?.tip ?? dep.tip ?? wd.tip;
 
-	const depSats = deposits.reduce((s, d) => s + Number(d.amount), 0);
-	const acceptedSats = withdrawals
-		.filter((w) => w.status === "ACCEPTED")
-		.reduce((s, w) => s + Number(w.amount), 0);
-	const netSats = depSats - acceptedSats;
+	const initialDeposits = (dep.rows as Deposit[]).slice(0, MAX_ROWS);
+	const initialWithdrawals = (wd.rows as Withdrawal[]).slice(0, MAX_ROWS);
+	const empty = initialDeposits.length === 0 && initialWithdrawals.length === 0;
 
-	const statusCounts = withdrawals.reduce<Record<string, number>>((m, w) => {
-		m[w.status] = (m[w.status] ?? 0) + 1;
-		return m;
-	}, {});
-
-	// Freshness = how far our index trails realtime (lag_seconds), NOT the
-	// tip↔finalized gap (that's the protocol's ~24h finalization depth, normal).
+	// Freshness from lag_seconds (index vs realtime), NOT the tip↔finalized gap
+	// (that's the protocol's ~24h finalization depth, normal).
 	const lag = tip?.lag_seconds ?? null;
 	const fresh = lag !== null && lag < 180;
 
-	// Most-recent-first for the tables.
-	const recentDeposits = [...deposits]
-		.sort((a, b) => b.block_height - a.block_height)
-		.slice(0, 25);
-	const recentWithdrawals = [...withdrawals]
-		.sort(
-			(a, b) =>
-				new Date(b.requested_at).getTime() - new Date(a.requested_at).getTime(),
-		)
-		.slice(0, 25);
-
-	const empty = deposits.length === 0 && withdrawals.length === 0;
+	const wOpen = summary
+		? summary.total_withdrawals_requested -
+			summary.total_withdrawals_accepted -
+			summary.total_withdrawals_rejected
+		: 0;
 
 	return (
 		<main className="explore-wrap peg-wrap">
@@ -203,25 +80,32 @@ export default async function SbtcPegPage() {
 				</p>
 			</section>
 
-			{/* 1 — SUMMARY STRIP */}
+			{/* 1 — SUMMARY STRIP (all-time, from /summary) */}
 			<section className="peg-stats" aria-label="Peg scoreboard">
 				<div className="peg-stat">
 					<span className="peg-stat-label">Peg-in deposits</span>
-					<span className="peg-stat-val">{num.format(deposits.length)}</span>
-					<span className="peg-stat-sub">{btc(depSats, 4)} BTC in</span>
+					<span className="peg-stat-val">
+						{summary ? num.format(summary.total_deposits) : "—"}
+					</span>
+					<span className="peg-stat-sub">all-time</span>
 				</div>
 				<div className="peg-stat">
 					<span className="peg-stat-label">Peg-out withdrawals</span>
-					<span className="peg-stat-val">{num.format(withdrawals.length)}</span>
+					<span className="peg-stat-val">
+						{summary ? num.format(summary.total_withdrawals_requested) : "—"}
+					</span>
 					<span className="peg-stat-sub">
-						{statusCounts.ACCEPTED ?? 0} accepted · {statusCounts.REJECTED ?? 0}{" "}
-						rejected · {statusCounts.REQUESTED ?? 0} open
+						{summary
+							? `${summary.total_withdrawals_accepted} accepted · ${summary.total_withdrawals_rejected} rejected · ${wOpen} open`
+							: "all-time"}
 					</span>
 				</div>
 				<div className="peg-stat">
 					<span className="peg-stat-label">Net peg flow</span>
-					<span className="peg-stat-val">{btc(netSats, 4)}</span>
-					<span className="peg-stat-sub">BTC in − accepted out</span>
+					<span className="peg-stat-val">
+						{summary ? btc(summary.net_peg_flow_sats, 4) : "—"}
+					</span>
+					<span className="peg-stat-sub">BTC locked (in − out)</span>
 				</div>
 				<div className="peg-stat">
 					<span className="peg-stat-label">Chain tip</span>
@@ -242,24 +126,18 @@ export default async function SbtcPegPage() {
 				</div>
 			</section>
 
-			{(dep.partial || wd.partial) && (
-				<p className="peg-note">
-					Totals reflect the most recent {PAGE_CAP * 200}+ indexed peg events.
-				</p>
-			)}
-
 			{/* keyless proof */}
 			<div className="explore-machine peg-machine">
 				<div className="explore-machine-head">
 					<span className="t">No API key required — try it</span>
-					<CopyButton code={`curl ${SBTC}/deposits`} />
+					<CopyButton code={`curl ${PUBLIC_SBTC}/deposits`} />
 				</div>
 				<pre>
 					<span className="c">
 						# every sBTC peg-in, decoded — no key, no account
 					</span>
 					{"\n"}
-					<span className="m">curl</span> {SBTC}/deposits
+					<span className="m">curl</span> {PUBLIC_SBTC}/deposits
 				</pre>
 			</div>
 
@@ -267,125 +145,17 @@ export default async function SbtcPegPage() {
 				<section className="peg-empty">
 					<h2>No peg activity indexed yet</h2>
 					<p>
-						The feed is live but no deposits or withdrawals are in range right
-						now. This page renders straight from the keyless API the moment rows
-						land.
+						The feed is live but no deposits or withdrawals are in the recent
+						window right now. This page renders straight from the keyless API
+						the moment rows land.
 					</p>
 				</section>
 			) : (
-				<>
-					{/* 2 — DEPOSITS */}
-					<section className="peg-sect">
-						<h2>Recent deposits</h2>
-						<span className="peg-sect-meta">
-							peg-in · BTC&nbsp;→&nbsp;sBTC · all confirmed
-						</span>
-					</section>
-					<div className="peg-tbl-wrap">
-						<table className="peg-tbl">
-							<thead>
-								<tr>
-									<th>Amount</th>
-									<th>Bitcoin tx</th>
-									<th>Stacks tx</th>
-									<th className="peg-num">Block</th>
-									<th>Status</th>
-									<th className="peg-when">When</th>
-								</tr>
-							</thead>
-							<tbody>
-								{recentDeposits.map((d) => (
-									<tr key={d.cursor}>
-										<td className="peg-amt">{btc(d.amount)} BTC</td>
-										<td>
-											<a
-												className="peg-link"
-												href={mempoolTx(d.bitcoin_txid)}
-												target="_blank"
-												rel="noreferrer"
-											>
-												{trunc(d.bitcoin_txid)}
-											</a>
-										</td>
-										<td>
-											<a
-												className="peg-link peg-link-dim"
-												href={stacksTx(d.tx_id)}
-												target="_blank"
-												rel="noreferrer"
-											>
-												{trunc(d.tx_id)}
-											</a>
-										</td>
-										<td className="peg-num">{num.format(d.block_height)}</td>
-										<td>
-											<StatusBadge status="COMPLETED" />
-										</td>
-										<td className="peg-when">{ago(d.block_time)}</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
-					</div>
-
-					{/* 3 — WITHDRAWALS */}
-					<section className="peg-sect">
-						<h2>Recent withdrawals</h2>
-						<span className="peg-sect-meta">
-							peg-out · sBTC&nbsp;→&nbsp;BTC · lifecycle tracked
-						</span>
-					</section>
-					<div className="peg-tbl-wrap">
-						<table className="peg-tbl">
-							<thead>
-								<tr>
-									<th>Request</th>
-									<th>Sender</th>
-									<th>Amount</th>
-									<th>Status</th>
-									<th>BTC sweep</th>
-									<th className="peg-when">When</th>
-								</tr>
-							</thead>
-							<tbody>
-								{recentWithdrawals.map((w) => (
-									<tr key={w.cursor}>
-										<td className="peg-req">#{w.request_id}</td>
-										<td>
-											<a
-												className="peg-link peg-link-dim"
-												href={`https://explorer.hiro.so/address/${w.sender}`}
-												target="_blank"
-												rel="noreferrer"
-											>
-												{truncAddr(w.sender)}
-											</a>
-										</td>
-										<td className="peg-amt">{btc(w.amount)} BTC</td>
-										<td>
-											<StatusBadge status={w.status} />
-										</td>
-										<td>
-											{w.sweep_txid ? (
-												<a
-													className="peg-link"
-													href={mempoolTx(w.sweep_txid)}
-													target="_blank"
-													rel="noreferrer"
-												>
-													{trunc(w.sweep_txid)}
-												</a>
-											) : (
-												<span className="peg-dash">—</span>
-											)}
-										</td>
-										<td className="peg-when">{ago(w.requested_at)}</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
-					</div>
-				</>
+				<LivePegTables
+					initialDeposits={initialDeposits}
+					initialWithdrawals={initialWithdrawals}
+					serverNow={Date.now()}
+				/>
 			)}
 
 			{/* machine access / story footer */}
@@ -399,10 +169,10 @@ export default async function SbtcPegPage() {
 				</p>
 				<div className="peg-foot-eps">
 					{[
+						"GET /v1/index/sbtc/summary",
 						"GET /v1/index/sbtc/deposits",
 						"GET /v1/index/sbtc/withdrawals",
 						"GET /v1/index/sbtc/withdrawals/:request_id",
-						"GET /v1/index/sbtc/events",
 					].map((ep) => (
 						<code key={ep} className="peg-foot-ep">
 							{ep}

@@ -7355,6 +7355,54 @@ html.force-dark .shiki span {
 	letter-spacing: 0.03em;
 	color: var(--text-muted);
 }
+.peg-live {
+	margin-left: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-family: var(--font-mono-stack);
+	font-size: 0.625rem;
+	font-weight: 560;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--green);
+}
+.peg-live-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 999px;
+	background: var(--green);
+	animation: pegPulse 2s var(--ease-smooth) infinite;
+}
+@keyframes pegPulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.3;
+	}
+}
+/* newly-polled rows flash in */
+.peg-row-new td {
+	animation: pegRowIn 1.4s var(--ease-smooth);
+}
+@keyframes pegRowIn {
+	0% {
+		background: var(--accent-bg);
+	}
+	100% {
+		background: transparent;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.peg-live-dot {
+		animation: none;
+	}
+	.peg-row-new td {
+		animation: none;
+	}
+}
 
 /* tables */
 .peg-tbl-wrap {
