@@ -17,9 +17,12 @@ export type IndexTip = {
 /**
  * A chain reorg overlapping a returned page's height range. Height-keyed feeds
  * (`/transactions`, `/contract-calls`, `/stacking`) populate this so a consumer
- * can reconcile: roll back the rows whose `block_height:tx_index` cursor falls in
- * `orphaned_range`, then re-fetch from `new_canonical_tip`. Empty when the page
- * spans no reorg.
+ * can reconcile: roll back every row at `block_height >= fork_point_height`
+ * (the whole fork block is replaced, so the rollback is inclusive of the fork
+ * height), then re-read the canonical run from the foot of `fork_point_height`.
+ * The SDK consumers do exactly this — they rewind to `Cursor.atHeight(
+ * fork_point_height)`, an exclusive cursor that re-reads from `fork:0`
+ * inclusive. Empty when the page spans no reorg.
  */
 export type IndexReorg = {
 	id: string;
@@ -29,7 +32,12 @@ export type IndexReorg = {
 	new_index_block_hash: string | null;
 	/** Orphaned cursor span `<block_height>:<tx_index>`, inclusive. */
 	orphaned_range: { from: string; to: string };
-	/** New canonical tip cursor to resume from. */
+	/**
+	 * First position of the new canonical chain at the fork, `fork:0`
+	 * (INCLUSIVE). Not an exclusive resume token — resuming a `(bh,ei) > cursor`
+	 * read directly from it would skip `fork:0`. To re-read the new run, rewind
+	 * to the foot of `fork_point_height` (`Cursor.atHeight`), not to this value.
+	 */
 	new_canonical_tip: string;
 };
 

@@ -181,8 +181,12 @@ describe("index.events.consume", () => {
 		expect(ctxCursor).toBe("2:0");
 	});
 
-	test("rolls back a reorg, rewinds the cursor, and dedups re-reported reorgs", async () => {
+	test("rolls back a reorg, rewinds to the fork foot (re-reading fork:0), and dedups re-reported reorgs", async () => {
 		const r = reorg({ fork_point_height: 5 });
+		// Rewind cursor is the FOOT of the fork point (exclusive of 4:MAX), so the
+		// re-read re-includes the fork block's first event (5:0) — the boundary row
+		// the earlier `5:0` rewind silently dropped.
+		const rewind = "4:2147483647";
 		const byCursor: Record<string, EventsEnvelope> = {
 			null: {
 				events: [event("6:0", 0, 6)],
@@ -190,8 +194,8 @@ describe("index.events.consume", () => {
 				tip: TIP,
 				reorgs: [r],
 			},
-			"5:0": {
-				events: [event("6:0", 0, 6), event("7:0", 1, 7)],
+			[rewind]: {
+				events: [event("5:0", 0, 5), event("6:0", 1, 6), event("7:0", 2, 7)],
 				next_cursor: "7:0",
 				tip: TIP,
 				reorgs: [r], // re-reported on the re-read; must not re-trigger
@@ -225,11 +229,12 @@ describe("index.events.consume", () => {
 			},
 		});
 
-		// Handled once (not on the re-reported page), rewound to "<fork>:0".
-		expect(rollbacks).toEqual([{ fork: 5, cursor: "5:0" }]);
-		// Page that carried the fresh reorg is skipped; the re-read is applied.
-		expect(applied).toEqual(["6:0", "7:0"]);
-		expect(requested.cursors).toEqual([null, "5:0", "7:0"]);
+		// Handled once (not on the re-reported page), rewound to the fork foot.
+		expect(rollbacks).toEqual([{ fork: 5, cursor: rewind }]);
+		// Page that carried the fresh reorg is skipped; the re-read is applied —
+		// and it INCLUDES the fork-point's first event (5:0).
+		expect(applied).toEqual(["5:0", "6:0", "7:0"]);
+		expect(requested.cursors).toEqual([null, rewind, "7:0"]);
 		expect(result.cursor).toBe("7:0");
 	});
 

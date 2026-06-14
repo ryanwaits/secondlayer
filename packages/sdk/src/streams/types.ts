@@ -160,6 +160,12 @@ export type StreamsReorg = {
 	detected_at: string;
 	fork_point_height: number;
 	orphaned_range: { from: string; to: string };
+	/**
+	 * First position of the new canonical chain at the fork, `fork:0`
+	 * (INCLUSIVE). Not an exclusive resume token — resuming directly from it
+	 * skips `fork:0`. The consumer rewinds to the foot of `fork_point_height`
+	 * (`Cursor.atHeight`) to re-read the new run from `fork:0` inclusive.
+	 */
 	new_canonical_tip: string;
 };
 
