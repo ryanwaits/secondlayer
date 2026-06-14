@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/platform",
-	"version": "0.1.5",
+	"version": "0.1.6",
 	"private": true,
 	"type": "module",
 	"exports": {
@@ -33,7 +33,9 @@
 			"import": "./dist/schemas/accounts.js"
 		}
 	},
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",

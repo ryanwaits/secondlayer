@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 6.33.3
+
+### Patch Changes
+
+- add account_credits migration and table types
+
 ## 6.33.2
 
 ### Patch Changes
