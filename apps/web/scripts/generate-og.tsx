@@ -335,7 +335,7 @@ function ArtPricing() {
 function ArtHome() {
 	return (
 		<div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, display: "flex" }}>
-			<Card style={{ position: "absolute", top: 132, left: 560, width: 820, padding: "0 28px" }}>
+			<Card style={{ position: "absolute", top: 130, left: 730, width: 820, padding: "0 28px" }}>
 				<div
 					style={{
 						display: "flex",
@@ -364,7 +364,7 @@ function ArtHome() {
 					<span style={{ color: KW }}>"sale"</span>
 				</div>
 			</Card>
-			<Card style={{ position: "absolute", top: 330, left: 680, width: 700, fontSize: 27 }}>
+			<Card style={{ position: "absolute", top: 358, left: 870, width: 700, fontSize: 27 }}>
 				<Line tokens={[["defineSubgraph", KW], ["({", BASE]]} />
 				<Line indent={2} tokens={[["name: ", BASE], ['"stx-transfers",', STR]]} />
 				<Line indent={2} tokens={[["schema: { transfers: { … } },", BASE]]} />
@@ -374,8 +374,8 @@ function ArtHome() {
 			<div
 				style={{
 					position: "absolute",
-					top: 558,
-					left: 700,
+					top: 566,
+					left: 900,
 					display: "flex",
 					fontFamily: "Fira Code",
 					fontSize: 24,
@@ -396,12 +396,19 @@ type CardSpec = {
 	eyebrow: string | null;
 	line1: string;
 	line2: string;
-	size: number;
 	mutedLine2: boolean;
 	artifact: React.ReactNode;
 };
 
+// Size the headline so the longest beat fits the left column (~640px) before
+// the artifact begins — shorter beats render bigger, longer ones step down.
+function headlineSize(line1: string, line2: string) {
+	const max = Math.max(line1.length, line2.length);
+	return Math.max(62, Math.min(112, Math.floor(640 / (max * 0.48))));
+}
+
 function Frame(spec: CardSpec) {
+	const size = headlineSize(spec.line1, spec.line2);
 	return (
 		<div
 			style={{
@@ -489,10 +496,10 @@ function Frame(spec: CardSpec) {
 					<span
 						style={{
 							fontFamily: "Sora",
-							fontSize: spec.size,
+							fontSize: size,
 							color: INK,
-							lineHeight: 1.02,
-							letterSpacing: -spec.size * 0.03,
+							lineHeight: 1.04,
+							letterSpacing: -size * 0.03,
 						}}
 					>
 						{spec.line1}
@@ -500,10 +507,10 @@ function Frame(spec: CardSpec) {
 					<span
 						style={{
 							fontFamily: "Sora",
-							fontSize: spec.size,
+							fontSize: size,
 							color: spec.mutedLine2 ? MUTED2 : INK,
-							lineHeight: 1.02,
-							letterSpacing: -spec.size * 0.03,
+							lineHeight: 1.04,
+							letterSpacing: -size * 0.03,
 						}}
 					>
 						{spec.line2}
@@ -520,7 +527,6 @@ const CARDS: CardSpec[] = [
 		eyebrow: null,
 		line1: "Every layer of the chain.",
 		line2: "None of the infra.",
-		size: 86,
 		mutedLine2: false,
 		artifact: <ArtHome />,
 	},
@@ -529,7 +535,6 @@ const CARDS: CardSpec[] = [
 		eyebrow: "STREAMS",
 		line1: "Every raw event.",
 		line2: "No node required.",
-		size: 104,
 		mutedLine2: true,
 		artifact: <ArtStreams />,
 	},
@@ -538,7 +543,6 @@ const CARDS: CardSpec[] = [
 		eyebrow: "INDEX",
 		line1: "We decode the chain.",
 		line2: "You build the index.",
-		size: 92,
 		mutedLine2: true,
 		artifact: <ArtIndex />,
 	},
@@ -547,7 +551,6 @@ const CARDS: CardSpec[] = [
 		eyebrow: "SUBGRAPHS",
 		line1: "You shape it.",
 		line2: "We run it.",
-		size: 118,
 		mutedLine2: true,
 		artifact: <ArtSubgraphs />,
 	},
@@ -556,7 +559,6 @@ const CARDS: CardSpec[] = [
 		eyebrow: "PRICING",
 		line1: "Host it yourself.",
 		line2: "Or don't.",
-		size: 104,
 		mutedLine2: true,
 		artifact: <ArtPricing />,
 	},
