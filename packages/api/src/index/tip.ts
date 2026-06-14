@@ -10,6 +10,7 @@ import {
 } from "@secondlayer/shared";
 import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
+import { isOssMode } from "@secondlayer/shared/mode";
 import type { Kysely } from "kysely";
 
 export type IndexTip = {
@@ -22,6 +23,13 @@ export type IndexTip = {
 	 */
 	finalized_height: number;
 	lag_seconds: number;
+};
+
+/** Zero tip served when no canonical block exists yet (oss/self-host only). */
+const EMPTY_INDEX_TIP: IndexTip = {
+	block_height: 0,
+	finalized_height: 0,
+	lag_seconds: 0,
 };
 
 export type IndexFinalizedHeightReader = (
@@ -102,6 +110,13 @@ export function createIndexTipProvider(opts?: {
 	btcConfirmations?: number;
 	now?: () => number;
 	cacheTtlMs?: number;
+	/**
+	 * Serve a zero tip instead of throwing when no canonical block exists.
+	 * Defaults to oss mode: a self-hoster with an unindexed DB gets empty
+	 * result envelopes rather than a 500, while platform keeps throwing so a
+	 * genuinely missing canonical tip surfaces as an incident.
+	 */
+	allowEmptyTip?: boolean;
 }): IndexTipProvider {
 	const readSourceTip = opts?.readSourceTip ?? getCurrentCanonicalTip;
 	const readDecodedTip =
@@ -115,6 +130,7 @@ export function createIndexTipProvider(opts?: {
 	const btcConfirmations = opts?.btcConfirmations ?? DEFAULT_BTC_CONFIRMATIONS;
 	const now = opts?.now ?? Date.now;
 	const cacheTtlMs = opts?.cacheTtlMs ?? 500;
+	const allowEmptyTip = opts?.allowEmptyTip ?? isOssMode();
 	let cache: { expiresAt: number; value: IndexTip } | null = null;
 
 	return async () => {
@@ -123,6 +139,9 @@ export function createIndexTipProvider(opts?: {
 
 		const sourceTip = await readSourceTip();
 		if (!sourceTip) {
+			// Self-host with an unindexed DB: empty tip → empty result envelopes,
+			// not a 500. Not cached — the tip should appear as soon as a block lands.
+			if (allowEmptyTip) return EMPTY_INDEX_TIP;
 			throw new Error("Index tip unavailable: no canonical block found");
 		}
 

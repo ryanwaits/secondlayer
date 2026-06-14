@@ -67,6 +67,26 @@ describe("Index tip provider", () => {
 		expect(tip.finalized_height).toBe(29_994);
 	});
 
+	test("throws when no canonical block and empty tip is disallowed (platform)", async () => {
+		const provider = createIndexTipProvider({
+			readSourceTip: async () => null,
+			allowEmptyTip: false,
+		});
+		await expect(provider()).rejects.toThrow("Index tip unavailable");
+	});
+
+	test("serves a zero tip when no canonical block and empty tip is allowed (oss)", async () => {
+		const provider = createIndexTipProvider({
+			readSourceTip: async () => null,
+			allowEmptyTip: true,
+		});
+		await expect(provider()).resolves.toEqual({
+			block_height: 0,
+			finalized_height: 0,
+			lag_seconds: 0,
+		});
+	});
+
 	test("lag_seconds clamps to 0 on negative clock skew", () => {
 		expect(getIndexLagSeconds(new Date(2000), 1000)).toBe(0);
 	});
