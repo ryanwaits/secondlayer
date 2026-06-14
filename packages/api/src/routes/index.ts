@@ -59,6 +59,11 @@ import {
 	getNftTransfersResponse,
 } from "../index/nft-transfers.ts";
 import {
+	POX_CYCLES_FILTERS,
+	getPoxCycleResponse,
+	getPoxCyclesResponse,
+} from "../index/pox-cycles.ts";
+import {
 	type PrintSchemaCache,
 	type PrintSchemaReader,
 	getPrintSchemaResponse,
@@ -290,6 +295,19 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					description:
 						"Decoded PoX-4 stacking actions (stack-stx, delegate-stx, …), filterable by function_name/stacker/caller + cursor-paginated. Returns stacking[], next_cursor, tip. Cursor: <block_height>:<tx_index>.",
 					filters: STACKING_FILTERS,
+				},
+				{
+					path: "/v1/index/pox/cycles",
+					method: "GET",
+					description:
+						"PoX reward-cycle aggregates — per-cycle totals every stacking dashboard hand-rolls: total_stacked_ustx, unique_stackers, unique_delegators, action_count, block range, is_current flag, and per-function breakdown. Newest cycle first. Cursor-paginated by reward_cycle. Completed cycles are immutably cached; the current cycle is short-cached (still accumulating).",
+					filters: POX_CYCLES_FILTERS,
+				},
+				{
+					path: "/v1/index/pox/cycles/:reward_cycle",
+					method: "GET",
+					description:
+						"Single PoX reward cycle aggregate by cycle number. Same shape as the list item. 404 when the cycle has no recorded actions.",
 				},
 				{
 					path: "/v1/index/sbtc/events",
@@ -625,6 +643,44 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			await recordDecodedEventsReturned(accountId, response.stacking.length);
 			await debitCreditedRead(c, response.stacking.length);
 		}
+		return c.json(response);
+	});
+
+	// PoX cycle aggregates — per-cycle rollup every stacking dashboard hand-builds.
+	// Completed cycles are immutably cached (no new actions land); the current cycle
+	// is short-cached (still accumulating). Cache control is per-item in the list
+	// based on is_current; the single-cycle route caches the same way.
+	router.get("/pox/cycles", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, POX_CYCLES_FILTERS);
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		const response = await getPoxCyclesResponse({ query, tip });
+		// Short-cache: current cycle may still accumulate; history is immutable but
+		// we can't know which cycles the page contains without inspecting is_current.
+		c.header("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
+		return c.json(response);
+	});
+
+	router.get("/pox/cycles/:reward_cycle", async (c) => {
+		const raw = c.req.param("reward_cycle");
+		const rewardCycle = Number(raw);
+		if (!Number.isInteger(rewardCycle) || rewardCycle < 0) {
+			return c.json(
+				{ error: "reward_cycle must be a non-negative integer" },
+				400,
+			);
+		}
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		const response = await getPoxCycleResponse({ rewardCycle, tip });
+		if (!response) return c.json({ error: "not_found" }, 404);
+		// Immutable cache for completed cycles; short for the current one.
+		const maxAge = response.cycle.is_current ? 30 : 3600;
+		c.header(
+			"Cache-Control",
+			`public, max-age=${maxAge}, stale-while-revalidate=120`,
+		);
 		return c.json(response);
 	});
 

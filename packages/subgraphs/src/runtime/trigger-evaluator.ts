@@ -480,7 +480,7 @@ export async function emitSbtcOutbox(
 						blockHash,
 						row.tx_id,
 						row.event_index,
-						event as Record<string, unknown>,
+						event as unknown as Record<string, unknown>,
 						replayId,
 					),
 				);
