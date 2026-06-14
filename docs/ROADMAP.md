@@ -90,6 +90,17 @@
 
 ## Pricing & packaging — evolution plan
 
+> ✅ **SUPERSEDED + SHIPPED 2026-06-13** by the usage-based model
+> (`docs/internal/audits/usage-pricing-model-2026-06-13.md` + the rollout plan
+> `docs/internal/sprints/usage-based-pricing-plan.md`). LIVE in prod: free = keyless reads of
+> the recent 24h window (10 req/s) → **prepaid credits pay-as-you-go** ($5/1M rows, both Index +
+> Streams) → **flat Pro repriced $99 → $79** → Enterprise. Trial gate (deploy/webhooks) + credits
+> top-up UI + the Stripe $79 reprice all shipped. The "flat unmetered, predictability is the edge"
+> stance below is OUTDATED — reads beyond the tip are now metered via opt-in prepaid credits
+> (bill-shock handled by prepaid balance = hard cap, not a meter). STILL DEFERRED from this
+> section: surface $299 Studio, reprice Enterprise to $3-8k. The pre-2026-06-13 text below is
+> kept for history.
+>
 > Source: `docs/audits/pricing-model-indexer-audit-2026-06-12.md` + founder review
 > 2026-06-13. Tiers stay **Free / Pro $99 / Enterprise**; what changes is what each tier
 > *contains*, plus one surfaced middle rung. Price points are the only locked part.
