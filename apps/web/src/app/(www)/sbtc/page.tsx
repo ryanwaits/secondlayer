@@ -339,7 +339,7 @@ export default async function SbtcPegPage() {
 						<table className="peg-tbl">
 							<thead>
 								<tr>
-									<th className="peg-num">Request</th>
+									<th>Request</th>
 									<th>Sender</th>
 									<th>Amount</th>
 									<th>Status</th>
@@ -350,7 +350,7 @@ export default async function SbtcPegPage() {
 							<tbody>
 								{recentWithdrawals.map((w) => (
 									<tr key={w.cursor}>
-										<td className="peg-num peg-req">#{w.request_id}</td>
+										<td className="peg-req">#{w.request_id}</td>
 										<td>
 											<a
 												className="peg-link peg-link-dim"
