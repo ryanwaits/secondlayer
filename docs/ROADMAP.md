@@ -382,15 +382,15 @@ a revenue line.
   trial/plan; `SUBSCRIPTION_QUOTA_BY_PLAN.none = 0` (webhooks require trial);
   `genesisExemptAccountIds` allowlist preserves Explore seeds.
 
-- **Per-plan subgraph slot caps — public subgraphs can't be unlimited.** Even after the trial
-  gate, a trial/Pro account can deploy infinitely many subgraphs (each = real index + storage +
-  compute cost), and public ones also pile onto Explore. Need a per-account slot quota by plan,
-  enforced at CREATE (not redeploy), mirroring `SUBSCRIPTION_QUOTA_BY_PLAN` — a new
-  `SUBGRAPH_SLOT_QUOTA_BY_PLAN` consulted inside `resolveDeployPolicy`, with the
-  `genesisExemptAccountIds` allowlist exempt (Explore seeds). **Open: per-plan numbers are a
-  founder pricing call** (roadmap Pricing §3 floated slots 3/10; revisit for trial/Pro/Studio/
-  Enterprise) + whether public & private both count against the same cap. Effort: **S** once
-  numbers are set. Files: `packages/api/src/subgraphs/plan-limits.ts`, `routes/subgraphs.ts`.
+- **Per-plan subgraph slot caps — subgraphs can't be unlimited.** A trial/Pro account can
+  deploy infinitely many subgraphs (each = real index + storage + compute cost), and public ones
+  pile onto Explore. Need a per-account slot quota by plan, enforced at CREATE (not redeploy),
+  mirroring `SUBSCRIPTION_QUOTA_BY_PLAN` — a new `SUBGRAPH_SLOT_QUOTA_BY_PLAN` inside
+  `resolveDeployPolicy`, with `genesisExemptAccountIds` exempt (Explore seeds). **Open: per-plan
+  numbers are a founder pricing call** (tiers are now Trial / Pro $79 / Scale $299 / Enterprise;
+  no persistent free plan) + whether public & private both count against the same cap. Effort:
+  **S** once numbers are set. Files: `packages/api/src/subgraphs/plan-limits.ts`,
+  `routes/subgraphs.ts`.
 
 ## P2 — should do
 
