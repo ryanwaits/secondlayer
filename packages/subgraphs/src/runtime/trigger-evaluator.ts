@@ -1,12 +1,18 @@
-import type { ChainApplyEnvelope } from "@secondlayer/shared";
+import type {
+	ChainApplyEnvelope,
+	SbtcDepositEvent,
+	SbtcWithdrawalEvent,
+} from "@secondlayer/shared";
 import type {
 	Database,
 	InsertSubscriptionOutbox,
+	SbtcEventTopic,
+	SbtcEventsTable,
 	Subscription,
 } from "@secondlayer/shared/db";
 import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
 import type { ChainTrigger } from "@secondlayer/shared/schemas/subscriptions";
-import type { Kysely } from "kysely";
+import type { Kysely, Selectable } from "kysely";
 import type { SubgraphFilter } from "../types.ts";
 import type { BlockData } from "./batch-loader.ts";
 import { indexEventTypesForFilterTypes } from "./block-source.ts";
@@ -18,6 +24,30 @@ import {
 
 /** Trigger types that match a whole transaction (not an individual event). */
 const TX_LEVEL_TRIGGER_TYPES = new Set(["contract_call", "contract_deploy"]);
+
+/**
+ * sBTC trigger types — matched via the `sbtc_events` table, NOT via
+ * `decoded_events`. Excluded from the chain-event sources map so the
+ * `matchSources` engine never sees them; `emitSbtcOutbox` handles them
+ * with a dedicated query + match loop.
+ */
+const SBTC_TRIGGER_TYPES = new Set([
+	"sbtc_deposit",
+	"sbtc_withdrawal_create",
+	"sbtc_withdrawal_accept",
+	"sbtc_withdrawal_reject",
+]);
+
+function isSbtcTriggerType(type: string): boolean {
+	return SBTC_TRIGGER_TYPES.has(type);
+}
+
+const SBTC_TRIGGER_TO_TOPIC: Record<string, SbtcEventTopic> = {
+	sbtc_deposit: "completed-deposit",
+	sbtc_withdrawal_create: "withdrawal-create",
+	sbtc_withdrawal_accept: "withdrawal-accept",
+	sbtc_withdrawal_reject: "withdrawal-reject",
+};
 
 /**
  * Pure matching core for direct chain-level subscriptions. A single evaluator
@@ -83,6 +113,9 @@ export function buildSourcesMap(chainSubs: Subscription[]): ChainSourcesMap {
 	const keyMeta = new Map<string, TriggerKeyMeta>();
 	for (const sub of chainSubs) {
 		triggersOf(sub).forEach((trigger, triggerIndex) => {
+			// sBTC triggers are handled by emitSbtcOutbox — skip them here so
+			// matchSources never tries to find sbtc_events in decoded_events.
+			if (isSbtcTriggerType(trigger.type)) return;
 			const key = sourceKey(sub.id, triggerIndex);
 			sources[key] = chainTriggerToFilter(trigger);
 			keyMeta.set(key, {
@@ -99,7 +132,10 @@ export function buildSourcesMap(chainSubs: Subscription[]): ChainSourcesMap {
 export function referencedEventTypes(chainSubs: Subscription[]): string[] {
 	const filterTypes = new Set<string>();
 	for (const sub of chainSubs) {
-		for (const trigger of triggersOf(sub)) filterTypes.add(trigger.type);
+		for (const trigger of triggersOf(sub)) {
+			// sBTC events live in sbtc_events, not in the Index event stream.
+			if (!isSbtcTriggerType(trigger.type)) filterTypes.add(trigger.type);
+		}
 	}
 	return indexEventTypesForFilterTypes([...filterTypes]);
 }
@@ -280,6 +316,182 @@ export async function emitChainOutbox(
 	const result = await db
 		.insertInto("subscription_outbox")
 		.values(rows)
+		.onConflict((oc) =>
+			oc.columns(["subscription_id", "dedup_key"]).doNothing(),
+		)
+		.executeTakeFirst();
+	return Number(result.numInsertedOrUpdatedRows ?? 0);
+}
+
+// ── sBTC event matching ──────────────────────────────────────────────────────
+
+type SbtcRow = Selectable<SbtcEventsTable>;
+
+async function loadSbtcEventsForBlock(
+	db: Kysely<Database>,
+	blockHeight: number,
+	topics: SbtcEventTopic[],
+): Promise<SbtcRow[]> {
+	if (topics.length === 0) return [];
+	return db
+		.selectFrom("sbtc_events")
+		.selectAll()
+		.where("block_height", "=", blockHeight)
+		.where("canonical", "=", true)
+		.where("topic", "in", topics)
+		.execute();
+}
+
+function toAmountBigInt(v: string | number | undefined): bigint | undefined {
+	return v === undefined ? undefined : BigInt(v);
+}
+
+function matchSbtcTrigger(trigger: ChainTrigger, row: SbtcRow): boolean {
+	const expectedTopic = SBTC_TRIGGER_TO_TOPIC[trigger.type];
+	if (!expectedTopic || row.topic !== expectedTopic) return false;
+
+	if (trigger.type === "sbtc_deposit") {
+		if (trigger.sender && row.sender !== trigger.sender) return false;
+		if (trigger.bitcoinTxid && row.bitcoin_txid !== trigger.bitcoinTxid)
+			return false;
+		if (trigger.requestId !== undefined && row.request_id !== trigger.requestId)
+			return false;
+		const min = toAmountBigInt(trigger.minAmount);
+		const max = toAmountBigInt(trigger.maxAmount);
+		if (min !== undefined || max !== undefined) {
+			if (row.amount === null) return false;
+			const amt = BigInt(row.amount);
+			if (min !== undefined && amt < min) return false;
+			if (max !== undefined && amt > max) return false;
+		}
+		return true;
+	}
+
+	if (trigger.type === "sbtc_withdrawal_create") {
+		if (trigger.sender && row.sender !== trigger.sender) return false;
+		if (trigger.requestId !== undefined && row.request_id !== trigger.requestId)
+			return false;
+		const min = toAmountBigInt(trigger.minAmount);
+		const max = toAmountBigInt(trigger.maxAmount);
+		if (min !== undefined || max !== undefined) {
+			if (row.amount === null) return false;
+			const amt = BigInt(row.amount);
+			if (min !== undefined && amt < min) return false;
+			if (max !== undefined && amt > max) return false;
+		}
+		return true;
+	}
+
+	if (trigger.type === "sbtc_withdrawal_accept") {
+		if (trigger.requestId !== undefined && row.request_id !== trigger.requestId)
+			return false;
+		if (trigger.sweepTxid && row.sweep_txid !== trigger.sweepTxid) return false;
+		return true;
+	}
+
+	if (trigger.type === "sbtc_withdrawal_reject") {
+		if (trigger.requestId !== undefined && row.request_id !== trigger.requestId)
+			return false;
+		return true;
+	}
+
+	return false;
+}
+
+function buildSbtcEventPayload(
+	triggerType: ChainTrigger["type"],
+	row: SbtcRow,
+): SbtcDepositEvent | SbtcWithdrawalEvent {
+	if (triggerType === "sbtc_deposit") {
+		return {
+			topic: "completed-deposit",
+			request_id: row.request_id ?? 0,
+			sender: row.sender,
+			amount: row.amount ?? "0",
+			bitcoin_txid: row.bitcoin_txid,
+			block_height: row.block_height,
+			tx_id: row.tx_id,
+		} satisfies SbtcDepositEvent;
+	}
+	return {
+		topic: row.topic as
+			| "withdrawal-create"
+			| "withdrawal-accept"
+			| "withdrawal-reject",
+		request_id: row.request_id ?? 0,
+		sender: row.sender,
+		amount: row.amount,
+		sweep_txid: row.sweep_txid,
+		settlement_confirmed: false,
+		block_height: row.block_height,
+		tx_id: row.tx_id,
+	} satisfies SbtcWithdrawalEvent;
+}
+
+/**
+ * Match active sBTC chain subscriptions against `sbtc_events` for one block
+ * and write apply-envelope rows to `subscription_outbox`. Runs alongside
+ * `emitChainOutbox` (which handles decoded_events). Same dedup-key scheme —
+ * re-processing the same block is idempotent.
+ */
+export async function emitSbtcOutbox(
+	db: Kysely<Database>,
+	chainSubs: Subscription[],
+	blockHeight: number,
+	blockHash: string,
+	opts?: { replayId?: string },
+): Promise<number> {
+	const sbtcSubs = chainSubs.filter((sub) =>
+		triggersOf(sub).some((t) => isSbtcTriggerType(t.type)),
+	);
+	if (sbtcSubs.length === 0) return 0;
+
+	const neededTopics = new Set<SbtcEventTopic>();
+	for (const sub of sbtcSubs) {
+		for (const trigger of triggersOf(sub)) {
+			const topic = SBTC_TRIGGER_TO_TOPIC[trigger.type];
+			if (topic) neededTopics.add(topic);
+		}
+	}
+
+	const sbtcRows = await loadSbtcEventsForBlock(db, blockHeight, [
+		...neededTopics,
+	]);
+	if (sbtcRows.length === 0) return 0;
+
+	const replayId = opts?.replayId;
+	const outboxRows: InsertSubscriptionOutbox[] = [];
+
+	for (const sub of sbtcSubs) {
+		triggersOf(sub).forEach((trigger, triggerIndex) => {
+			if (!isSbtcTriggerType(trigger.type)) return;
+			const meta: TriggerKeyMeta = {
+				subscriptionId: sub.id,
+				triggerIndex,
+				triggerType: trigger.type,
+			};
+			for (const row of sbtcRows) {
+				if (!matchSbtcTrigger(trigger, row)) continue;
+				const event = buildSbtcEventPayload(trigger.type, row);
+				outboxRows.push(
+					applyRow(
+						meta,
+						blockHeight,
+						blockHash,
+						row.tx_id,
+						row.event_index,
+						event as Record<string, unknown>,
+						replayId,
+					),
+				);
+			}
+		});
+	}
+
+	if (outboxRows.length === 0) return 0;
+	const result = await db
+		.insertInto("subscription_outbox")
+		.values(outboxRows)
 		.onConflict((oc) =>
 			oc.columns(["subscription_id", "dedup_key"]).doNothing(),
 		)

@@ -229,7 +229,6 @@ export const ChainTriggerSchema: z.ZodType<ChainTrigger> = z.discriminatedUnion(
 			.object({
 				type: z.literal("sbtc_deposit"),
 				sender: triggerPattern.optional(),
-				recipientStacks: triggerPattern.optional(),
 				minAmount: triggerAmount.optional(),
 				maxAmount: triggerAmount.optional(),
 				bitcoinTxid: triggerPattern.optional(),
@@ -443,7 +442,6 @@ export type ChainTrigger =
 	| {
 			type: "sbtc_deposit";
 			sender?: string;
-			recipientStacks?: string;
 			minAmount?: ChainTriggerAmount;
 			maxAmount?: ChainTriggerAmount;
 			bitcoinTxid?: string;

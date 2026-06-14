@@ -9,6 +9,7 @@ import {
 	buildSourcesMap,
 	buildTraitContracts,
 	emitChainOutbox,
+	emitSbtcOutbox,
 	evaluateBlock,
 	referencedEventTypes,
 } from "./trigger-evaluator.ts";
@@ -99,8 +100,16 @@ export async function runEvaluatorOnce(
 			const bd = blocks.get(h);
 			if (!bd) continue;
 			const matches = evaluateBlock(bd, sources, traitContracts);
-			if (matches.length === 0) continue;
-			emitted += await emitChainOutbox(db, matches, keyMeta, h, bd.block.hash);
+			if (matches.length > 0) {
+				emitted += await emitChainOutbox(
+					db,
+					matches,
+					keyMeta,
+					h,
+					bd.block.hash,
+				);
+			}
+			emitted += await emitSbtcOutbox(db, chainSubs, h, bd.block.hash);
 		}
 		await advanceCursor(db, to);
 	}

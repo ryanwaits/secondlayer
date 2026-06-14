@@ -7,12 +7,14 @@ import type { ChainTrigger } from "../schemas/subscriptions.ts";
 
 // ── sBTC typed event payloads ─────────────────────────────────────────────────
 
-/** Payload for `sbtc_deposit` (topic: completed-deposit). */
+/**
+ * Payload for `sbtc_deposit` (topic: completed-deposit).
+ * `sender` is the Stacks address that initiated the deposit and receives the sBTC.
+ */
 export interface SbtcDepositEvent {
 	topic: "completed-deposit";
 	request_id: number;
 	sender: string | null;
-	recipient_stacks: string | null;
 	amount: string;
 	bitcoin_txid: string | null;
 	block_height: number;
