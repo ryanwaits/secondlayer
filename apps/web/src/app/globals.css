@@ -6826,6 +6826,38 @@ html.force-dark .shiki span {
 	color: var(--text-muted);
 	font-size: 0.9375rem;
 }
+.explore-feature-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.6rem;
+	margin-top: 1.25rem;
+	padding: 0.5rem 0.85rem;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	background: var(--bg-elevated);
+	font-size: 0.8125rem;
+	color: var(--text-main);
+	text-decoration: none;
+	transition: border-color 180ms var(--ease-smooth);
+}
+.explore-feature-link b {
+	font-weight: 560;
+}
+.explore-pill-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 999px;
+	background: var(--green);
+	flex: none;
+}
+.explore-feature-arr {
+	color: var(--accent);
+}
+@media (hover: hover) {
+	.explore-feature-link:hover {
+		border-color: var(--border-hover);
+	}
+}
 /* Handwritten aside anchored to the right of the cards section header — only
    rendered when public subgraphs exist (it sits in the "All public" rule). */
 .explore-sect .explore-note {
@@ -7233,6 +7265,265 @@ html.force-dark .shiki span {
 	}
 	.explore-empty-card {
 		padding: 1.5rem 1.35rem 1.35rem;
+	}
+}
+
+/* ── sBTC Peg Explorer ─────────────────────────────────────────────── */
+
+.peg-wrap .peg-code {
+	font-family: var(--font-mono-stack);
+	font-size: 0.85em;
+	background: var(--code-bg);
+	border-radius: 4px;
+	padding: 1px 5px;
+}
+
+/* summary scoreboard */
+.peg-stats {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 1rem;
+	margin-top: 0.5rem;
+}
+@media (max-width: 720px) {
+	.peg-stats {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+.peg-stat {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 1rem 1.1rem;
+}
+.peg-stat-label {
+	font-family: var(--font-mono-stack);
+	font-size: 0.6875rem;
+	font-weight: 560;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+.peg-stat-val {
+	font-family: var(--font-heading-stack);
+	font-size: clamp(1.5rem, 3.5vw, 2rem);
+	font-weight: 540;
+	letter-spacing: -0.02em;
+	line-height: 1;
+	font-variant-numeric: tabular-nums;
+}
+.peg-stat-sub {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-family: var(--font-mono-stack);
+	font-size: 0.71rem;
+	font-variant-numeric: tabular-nums;
+	color: var(--text-muted);
+}
+
+.peg-note {
+	margin-top: 0.85rem;
+	font-family: var(--font-mono-stack);
+	font-size: 0.71rem;
+	color: var(--text-muted);
+}
+
+.peg-machine {
+	margin-top: 1.5rem;
+}
+
+/* section rule */
+.peg-sect {
+	position: relative;
+	margin: 2.5rem 0 1rem;
+	display: flex;
+	align-items: baseline;
+	gap: 0.75rem;
+}
+.peg-sect h2 {
+	font-family: var(--font-heading-stack);
+	font-size: 0.9375rem;
+	font-weight: 560;
+}
+.peg-sect-meta {
+	font-family: var(--font-mono-stack);
+	font-size: 0.6875rem;
+	letter-spacing: 0.03em;
+	color: var(--text-muted);
+}
+
+/* tables */
+.peg-tbl-wrap {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--bg-elevated);
+	overflow-x: auto;
+}
+.peg-tbl {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.8125rem;
+}
+.peg-tbl thead th {
+	text-align: left;
+	font-family: var(--font-mono-stack);
+	font-size: 0.625rem;
+	font-weight: 560;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	padding: 0.7rem 0.9rem;
+	border-bottom: 1px solid var(--border);
+	white-space: nowrap;
+}
+.peg-tbl tbody td {
+	padding: 0.7rem 0.9rem;
+	border-bottom: 1px solid var(--border);
+	white-space: nowrap;
+	vertical-align: middle;
+}
+.peg-tbl tbody tr:last-child td {
+	border-bottom: none;
+}
+@media (hover: hover) {
+	.peg-tbl tbody tr:hover td {
+		background: var(--nudge-bg);
+	}
+}
+.peg-tbl .peg-num {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+.peg-tbl .peg-amt {
+	font-family: var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
+	font-weight: 560;
+}
+.peg-tbl .peg-req {
+	font-family: var(--font-mono-stack);
+	color: var(--text-muted);
+}
+.peg-tbl .peg-when {
+	text-align: right;
+	font-family: var(--font-mono-stack);
+	font-size: 0.71rem;
+	color: var(--text-muted);
+}
+.peg-link {
+	font-family: var(--font-mono-stack);
+	font-size: 0.75rem;
+	color: var(--accent);
+	text-decoration: none;
+}
+.peg-link.peg-link-dim {
+	color: var(--text-muted);
+}
+@media (hover: hover) {
+	.peg-link:hover {
+		text-decoration: underline;
+		text-underline-offset: 2px;
+	}
+}
+.peg-dash {
+	color: var(--text-dim);
+}
+
+/* status badges */
+.peg-badge {
+	display: inline-block;
+	font-family: var(--font-mono-stack);
+	font-size: 0.625rem;
+	font-weight: 560;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	border-radius: 3px;
+	padding: 2px 7px;
+	border: 1px solid;
+}
+.peg-badge-completed,
+.peg-badge-accepted {
+	color: var(--green);
+	background: var(--green-bg);
+	border-color: var(--green-bg);
+}
+.peg-badge-requested {
+	color: var(--yellow);
+	background: var(--yellow-bg);
+	border-color: var(--yellow-bg);
+}
+.peg-badge-rejected {
+	color: var(--red);
+	background: var(--red-bg);
+	border-color: var(--red-bg);
+}
+
+/* empty + footer */
+.peg-empty {
+	margin-top: 2rem;
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	background: var(--bg-elevated);
+	padding: 2rem;
+	text-align: center;
+}
+.peg-empty h2 {
+	font-family: var(--font-heading-stack);
+	font-size: 1.125rem;
+	font-weight: 560;
+}
+.peg-empty p {
+	margin: 0.6rem auto 0;
+	max-width: 44ch;
+	color: var(--text-muted);
+	font-size: 0.9375rem;
+}
+.peg-foot {
+	margin-top: 3rem;
+	padding-top: 2rem;
+	border-top: 1px solid var(--border);
+}
+.peg-foot-lead {
+	font-family: var(--font-heading-stack);
+	font-size: 1rem;
+	font-weight: 560;
+}
+.peg-foot p {
+	margin-top: 0.6rem;
+	max-width: 64ch;
+	color: var(--text-muted);
+	font-size: 0.9375rem;
+}
+.peg-foot-eps {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin-top: 1.1rem;
+}
+.peg-foot-ep {
+	font-family: var(--font-mono-stack);
+	font-size: 0.71rem;
+	color: var(--text-muted);
+	background: var(--bg-chrome);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	padding: 4px 9px;
+}
+.peg-foot-link {
+	display: inline-block;
+	margin-top: 1.25rem;
+	font-family: var(--font-mono-stack);
+	font-size: 0.78rem;
+	color: var(--accent);
+	text-decoration: none;
+}
+@media (hover: hover) {
+	.peg-foot-link:hover {
+		text-decoration: underline;
+		text-underline-offset: 2px;
 	}
 }
 

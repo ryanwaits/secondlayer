@@ -116,6 +116,13 @@ export default async function ExplorePage() {
 					Stacks, readable by anyone. Every card is a live API. Copy the
 					endpoint and you&apos;re querying.
 				</p>
+				<Link href="/sbtc" className="explore-feature-link">
+					<span className="explore-pill-dot" />
+					<span>
+						<b>sBTC Peg Explorer</b> — live peg-in/peg-out feed, keyless
+					</span>
+					<span className="explore-feature-arr">→</span>
+				</Link>
 			</section>
 
 			{featured.length > 0 && (

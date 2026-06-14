@@ -243,13 +243,15 @@ export default function IndexPage() {
 						No node, no key, no infra to run. Just decoded rows — cursors,
 						reorgs, and backfill — over the same{" "}
 						<Link href="/streams">Streams</Link> firehose our decoder runs on.
+						See it live in the <Link href="/sbtc">sBTC Peg Explorer</Link> — a
+						full page built on nothing but the keyless API.
 					</p>
 					<div className="pp-ctas">
 						<Link href="/docs/index" className="pp-btn pp-btn-ink">
 							Get started
 						</Link>
-						<Link href="/docs/index" className="pp-btn pp-btn-ghost">
-							/docs/index →
+						<Link href="/sbtc" className="pp-btn pp-btn-ghost">
+							See the sBTC peg feed →
 						</Link>
 					</div>
 				</div>
