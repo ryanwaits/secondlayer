@@ -15,6 +15,7 @@ import {
 	readSbtcDeposits,
 	readSbtcEvents,
 	readSbtcSummary,
+	readSbtcTokenSupply,
 	readSbtcWithdrawalById,
 	readSbtcWithdrawals,
 } from "./sbtc-peg.ts";
@@ -109,7 +110,53 @@ describe("sBTC peg helpers", () => {
 		).rejects.toThrow(/confirmed must be/);
 	});
 
-	test("summary: passes the reader through; notes only when decoder disabled", async () => {
+	test("readSbtcTokenSupply: decodes get-total-supply (ok uint) from the node", async () => {
+		// (ok u295470281030) serialized: 0x07 01 <16-byte BE uint>
+		const okUint = "0x0701000000000000000000000044cb66b146";
+		const calls: string[] = [];
+		const fetchImpl = (async (url: string) => {
+			calls.push(String(url));
+			return new Response(JSON.stringify({ okay: true, result: okUint }), {
+				status: 200,
+			});
+		}) as unknown as typeof fetch;
+
+		const supply = await readSbtcTokenSupply({
+			rpcUrl: "http://node:20443/",
+			fetchImpl,
+		});
+		expect(supply).toBe("295470281030");
+		expect(calls[0]).toContain(
+			"/v2/contracts/call-read/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4/sbtc-token/get-total-supply",
+		);
+	});
+
+	test("readSbtcTokenSupply: returns null when node unset, errors, or non-ok", async () => {
+		expect(await readSbtcTokenSupply({ rpcUrl: "" })).toBeNull();
+
+		const throwing = (async () => {
+			throw new Error("ECONNREFUSED");
+		}) as unknown as typeof fetch;
+		expect(
+			await readSbtcTokenSupply({
+				rpcUrl: "http://node:20443",
+				fetchImpl: throwing,
+			}),
+		).toBeNull();
+
+		const errResp = (async () =>
+			new Response(JSON.stringify({ okay: false, cause: "boom" }), {
+				status: 200,
+			})) as unknown as typeof fetch;
+		expect(
+			await readSbtcTokenSupply({
+				rpcUrl: "http://node:20443",
+				fetchImpl: errResp,
+			}),
+		).toBeNull();
+	});
+
+	test("summary: fills supply from the supply reader; notes only when decoder disabled", async () => {
 		const SUMMARY = {
 			total_deposits: 2,
 			total_withdrawals_requested: 1,
@@ -117,21 +164,34 @@ describe("sBTC peg helpers", () => {
 			total_withdrawals_rejected: 0,
 			net_peg_flow_sats: "900",
 			total_locked_sats: "900",
-			sbtc_supply_sats: "900",
+			sbtc_supply_sats: null, // readSbtcSummary never sets this; the response does
 		};
 		const reader: SbtcSummaryReader = async () => SUMMARY;
 		const enabled = await getSbtcSummaryResponse({
 			tip: TIP,
 			readSbtcSummary: reader,
+			readSbtcSupply: async () => "295470281030",
 			decoderEnabled: true,
 		});
-		expect(enabled.summary).toEqual(SUMMARY);
+		// Authoritative supply comes from the node reader, not the DB summary.
+		expect(enabled.summary.sbtc_supply_sats).toBe("295470281030");
+		expect(enabled.summary.net_peg_flow_sats).toBe("900");
 		expect(enabled.tip).toBe(TIP);
 		expect(enabled.notes).toBeUndefined();
+
+		// A node hiccup degrades supply to null, never a throw.
+		const noNode = await getSbtcSummaryResponse({
+			tip: TIP,
+			readSbtcSummary: reader,
+			readSbtcSupply: async () => null,
+			decoderEnabled: true,
+		});
+		expect(noNode.summary.sbtc_supply_sats).toBeNull();
 
 		const disabled = await getSbtcSummaryResponse({
 			tip: TIP,
 			readSbtcSummary: reader,
+			readSbtcSupply: async () => null,
 			decoderEnabled: false,
 		});
 		expect(disabled.notes).toContain("SBTC_DECODER_ENABLED");
@@ -282,31 +342,6 @@ function seed(row: SeedRow) {
 		signer_threshold: null,
 		signer_address: null,
 		signer_keys_count: null,
-		canonical: row.canonical ?? true,
-		source_cursor: row.cursor,
-	};
-}
-
-type TokenSeedRow = {
-	cursor: string;
-	event_type: "transfer" | "mint" | "burn";
-	amount: string;
-	canonical?: boolean;
-};
-
-function tokenSeed(row: TokenSeedRow) {
-	return {
-		cursor: row.cursor,
-		block_height: 100,
-		block_time: new Date("2026-05-01T00:00:00.000Z"),
-		tx_id: `0x${row.cursor}`,
-		tx_index: 0,
-		event_index: 0,
-		event_type: row.event_type,
-		sender: null,
-		recipient: null,
-		amount: row.amount,
-		memo: null,
 		canonical: row.canonical ?? true,
 		source_cursor: row.cursor,
 	};
@@ -661,22 +696,6 @@ describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 			])
 			.execute();
 
-		// Supply = mint − burn; transfers and non-canonical rows excluded.
-		await db
-			.insertInto("sbtc_token_events")
-			.values([
-				tokenSeed({ cursor: "t1", event_type: "mint", amount: "1000" }),
-				tokenSeed({ cursor: "t2", event_type: "burn", amount: "300" }),
-				tokenSeed({ cursor: "t3", event_type: "transfer", amount: "50" }),
-				tokenSeed({
-					cursor: "t4",
-					event_type: "mint",
-					amount: "9999",
-					canonical: false,
-				}),
-			])
-			.execute();
-
 		const summary = await readSbtcSummary({ db });
 		expect(summary).toEqual({
 			total_deposits: 2,
@@ -686,28 +705,12 @@ describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 			// (1000 + 500) deposits − 300 accepted out
 			net_peg_flow_sats: "1200",
 			total_locked_sats: "1200",
-			// 1000 mint − 300 burn
-			sbtc_supply_sats: "700",
+			// supply is sourced from the node by getSbtcSummaryResponse, not the DB
+			sbtc_supply_sats: null,
 		});
 	});
 
-	test("summary: supply is null when burns exceed mints (decode anomaly)", async () => {
-		if (!db) throw new Error("missing db");
-		// Burns can never exceed mints; if they do, the token decode is broken —
-		// report unknown rather than a negative (false) supply.
-		await db
-			.insertInto("sbtc_token_events")
-			.values([
-				tokenSeed({ cursor: "n1", event_type: "mint", amount: "100" }),
-				tokenSeed({ cursor: "n2", event_type: "burn", amount: "500" }),
-			])
-			.execute();
-
-		const summary = await readSbtcSummary({ db });
-		expect(summary.sbtc_supply_sats).toBeNull();
-	});
-
-	test("summary: supply is null when no token events recorded", async () => {
+	test("summary: counts are zero and supply null over an empty table", async () => {
 		if (!db) throw new Error("missing db");
 		const summary = await readSbtcSummary({ db });
 		expect(summary.total_deposits).toBe(0);

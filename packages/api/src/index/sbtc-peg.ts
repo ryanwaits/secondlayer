@@ -2,6 +2,7 @@ import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { SbtcEventTopic } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { ValidationError } from "@secondlayer/shared/errors";
+import { deserializeCVBytes } from "@secondlayer/stacks/clarity";
 import type { Kysely, RawBuilder } from "kysely";
 import type { StreamsReorg, StreamsReorgsReader } from "../streams/reorgs.ts";
 import {
@@ -943,9 +944,9 @@ export type SbtcSummary = {
 	net_peg_flow_sats: string;
 	/** Same figure as net_peg_flow_sats: sats deposited minus sats withdrawn-out. */
 	total_locked_sats: string;
-	/** Circulating sBTC = SUM(mint) − SUM(burn) over canonical token events,
-	 *  in sats (sBTC is 8-decimal); null when no token events are recorded (table
-	 *  empty). Transfers don't move supply, so they're excluded. */
+	/** Circulating sBTC supply in sats, read authoritatively from the sbtc-token
+	 *  `get-total-supply` contract function via our own node; null when the node is
+	 *  unset/unreachable. Never reconstructed from decoded event deltas. */
 	sbtc_supply_sats: string | null;
 };
 
@@ -968,11 +969,49 @@ type SbtcSummaryDbRow = {
 	sum_accepted_sats: string;
 };
 
-type SbtcSupplyDbRow = {
-	event_count: string | number;
-	minted_sats: string;
-	burned_sats: string;
-};
+/** Reads authoritative circulating sBTC supply (sats) or null when unavailable. */
+export type SbtcSupplyReader = () => Promise<string | null>;
+
+const SBTC_TOKEN_CONTRACT =
+	"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token";
+
+/**
+ * Authoritative circulating sBTC supply (sats), read from sbtc-token
+ * `get-total-supply` on our own Stacks node (`STACKS_NODE_RPC_URL`). Returns null
+ * — never throws and never a wrong number — when the node is unset/unreachable or
+ * the response is unexpected, so a node hiccup degrades to "unknown", not a 500.
+ */
+export async function readSbtcTokenSupply(opts?: {
+	rpcUrl?: string;
+	fetchImpl?: typeof fetch;
+}): Promise<string | null> {
+	const rpcUrl = opts?.rpcUrl ?? process.env.STACKS_NODE_RPC_URL;
+	if (!rpcUrl) return null;
+	const [address, name] = SBTC_TOKEN_CONTRACT.split(".");
+	const doFetch = opts?.fetchImpl ?? fetch;
+	try {
+		const res = await doFetch(
+			`${rpcUrl.replace(/\/+$/, "")}/v2/contracts/call-read/${address}/${name}/get-total-supply`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ sender: address, arguments: [] }),
+				signal: AbortSignal.timeout(5000),
+			},
+		);
+		if (!res.ok) return null;
+		const data = (await res.json()) as { okay?: boolean; result?: string };
+		if (!data.okay || !data.result) return null;
+		// (response (ok uint) (err …)) → { type: "ok", value: { type: "uint", value: bigint } }
+		const cv = deserializeCVBytes(data.result);
+		if (cv.type === "ok" && cv.value.type === "uint") {
+			return cv.value.value.toString();
+		}
+		return null;
+	} catch {
+		return null;
+	}
+}
 
 export async function readSbtcSummary(opts?: {
 	db?: Kysely<Database>;
@@ -996,30 +1035,7 @@ export async function readSbtcSummary(opts?: {
 	// Single-row aggregate over zero rows still returns one all-zero row.
 	const row = rows[0] as SbtcSummaryDbRow;
 
-	// Circulating supply = mints − burns (transfers don't change supply). null when
-	// no token events recorded, distinguishing "0 supply" from "unknown".
-	const { rows: supplyRows } = await sql<SbtcSupplyDbRow>`
-		SELECT
-			COUNT(*)::int AS event_count,
-			COALESCE(SUM(amount::numeric) FILTER (WHERE event_type = 'mint'), 0)::text AS minted_sats,
-			COALESCE(SUM(amount::numeric) FILTER (WHERE event_type = 'burn'), 0)::text AS burned_sats
-		FROM sbtc_token_events
-		WHERE canonical = true
-	`.execute(db);
-	const supplyRow = supplyRows[0] as SbtcSupplyDbRow;
-
 	const netFlow = BigInt(row.sum_deposits_sats) - BigInt(row.sum_accepted_sats);
-	// Circulating supply = mints − burns. Report null (unknown) rather than a
-	// wrong number when there are no token events OR the result is negative:
-	// burns can never exceed mints, so a negative supply means the token
-	// mint/burn decode is inconsistent (observed 2026-06: inflated burn amounts
-	// in sbtc_token_events). Better to surface "unknown" than a false figure.
-	const rawSupply =
-		BigInt(supplyRow.minted_sats) - BigInt(supplyRow.burned_sats);
-	const sbtcSupply =
-		Number(supplyRow.event_count) === 0 || rawSupply < 0n
-			? null
-			: rawSupply.toString();
 
 	return {
 		total_deposits: Number(row.total_deposits),
@@ -1028,13 +1044,18 @@ export async function readSbtcSummary(opts?: {
 		total_withdrawals_rejected: Number(row.total_withdrawals_rejected),
 		net_peg_flow_sats: netFlow.toString(),
 		total_locked_sats: netFlow.toString(),
-		sbtc_supply_sats: sbtcSupply,
+		// Circulating supply is authoritative on-chain, not reconstructed from
+		// decoded event deltas (token mint/burn coverage is incomplete + the
+		// withdrawal-request burn/mint pairing inflates burns). getSbtcSummaryResponse
+		// fills this from the sbtc-token get-total-supply node read.
+		sbtc_supply_sats: null,
 	};
 }
 
 export async function getSbtcSummaryResponse(opts: {
 	tip: IndexTip;
 	readSbtcSummary?: SbtcSummaryReader;
+	readSbtcSupply?: SbtcSupplyReader;
 	decoderEnabled?: boolean;
 }): Promise<SbtcSummaryResponse> {
 	const note =
@@ -1042,9 +1063,10 @@ export async function getSbtcSummaryResponse(opts: {
 			? undefined
 			: SBTC_DISABLED_NOTE;
 	const reader = opts.readSbtcSummary ?? readSbtcSummary;
-	const summary = await reader();
+	const readSupply = opts.readSbtcSupply ?? readSbtcTokenSupply;
+	const [summary, sbtcSupply] = await Promise.all([reader(), readSupply()]);
 	return {
-		summary,
+		summary: { ...summary, sbtc_supply_sats: sbtcSupply },
 		tip: opts.tip,
 		...(note ? { notes: note } : {}),
 	};
