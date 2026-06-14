@@ -346,8 +346,16 @@ describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 			])
 			.execute();
 
-		const all = await readSbtcDeposits({ db, fromHeight: 0, toHeight: 200, limit: 50 });
-		expect(all.deposits.map((d) => d.bitcoin_txid)).toEqual(["0xbtc1", "0xbtc2"]);
+		const all = await readSbtcDeposits({
+			db,
+			fromHeight: 0,
+			toHeight: 200,
+			limit: 50,
+		});
+		expect(all.deposits.map((d) => d.bitcoin_txid)).toEqual([
+			"0xbtc1",
+			"0xbtc2",
+		]);
 
 		const filtered = await readSbtcDeposits({
 			db,

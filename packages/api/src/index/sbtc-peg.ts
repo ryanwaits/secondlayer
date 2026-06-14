@@ -185,7 +185,10 @@ type SbtcBaseQuery = {
 /** Base window/cursor parse + the `?confirmed=true` hard "settled" filter:
  *  clamp `to_height` to `tip.finalized_height` so only rows past the reorg
  *  margin are returned — the safety-critical view a settlement consumer wants. */
-function parseSbtcBaseQuery(query: URLSearchParams, tip: IndexTip): SbtcBaseQuery {
+function parseSbtcBaseQuery(
+	query: URLSearchParams,
+	tip: IndexTip,
+): SbtcBaseQuery {
 	const base = parseIndexBaseQuery(query, tip);
 	const confirmed = query.get("confirmed");
 	if (confirmed !== null && confirmed !== "true" && confirmed !== "false") {
@@ -390,9 +393,10 @@ export async function getSbtcEventsResponse(opts: {
 	decoderEnabled?: boolean;
 }): Promise<SbtcEventsResponse> {
 	const base = parseSbtcBaseQuery(opts.query, opts.tip);
-	const note = (opts.decoderEnabled ?? isSbtcDecoderEnabled())
-		? undefined
-		: SBTC_DISABLED_NOTE;
+	const note =
+		(opts.decoderEnabled ?? isSbtcDecoderEnabled())
+			? undefined
+			: SBTC_DISABLED_NOTE;
 
 	const topicRaw = opts.query.get("topic") ?? undefined;
 	if (topicRaw !== undefined && !isSbtcTopic(topicRaw)) {
@@ -519,9 +523,10 @@ export async function getSbtcDepositsResponse(opts: {
 	decoderEnabled?: boolean;
 }): Promise<SbtcDepositsResponse> {
 	const base = parseSbtcBaseQuery(opts.query, opts.tip);
-	const note = (opts.decoderEnabled ?? isSbtcDecoderEnabled())
-		? undefined
-		: SBTC_DISABLED_NOTE;
+	const note =
+		(opts.decoderEnabled ?? isSbtcDecoderEnabled())
+			? undefined
+			: SBTC_DISABLED_NOTE;
 
 	if (base.cursorPastTip) {
 		return {
@@ -724,9 +729,10 @@ export async function getSbtcWithdrawalsResponse(opts: {
 	decoderEnabled?: boolean;
 }): Promise<SbtcWithdrawalsResponse> {
 	const base = parseSbtcBaseQuery(opts.query, opts.tip);
-	const note = (opts.decoderEnabled ?? isSbtcDecoderEnabled())
-		? undefined
-		: SBTC_DISABLED_NOTE;
+	const note =
+		(opts.decoderEnabled ?? isSbtcDecoderEnabled())
+			? undefined
+			: SBTC_DISABLED_NOTE;
 
 	if (base.cursorPastTip) {
 		return {
