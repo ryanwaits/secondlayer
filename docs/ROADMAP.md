@@ -314,6 +314,20 @@ a revenue line.
   nice-to-have). Serious integrations (Xverse, Asigna, Dune) expect JWKS. Effort: **M**.
   Files: `packages/api/src/streams/signing.ts`, `packages/api/src/routes/status.ts`.
 
+- **Sign Index live reads (full build — demand-gated).** *Context: Streams live reads are
+  already ed25519-signed and the SDK now verifies by default (lenient); Index REST reads carry
+  NO response signature.* To extend the signed-attestation story to Index: add a server signing
+  path (mirror `respondSignedJson` from `streams/signing.ts`) so `/v1/index/*` responses carry
+  `X-Signature` + `X-Signature-KeyId`, then add the SDK verify path to the Index client
+  (`packages/sdk/src/index-api/client.ts` — today has none) reusing the streams key-fetch/rotation
+  logic. **Why deferred:** for a generic app dev hitting a live read, the signature adds ~nothing
+  over TLS — almost nobody verifies live reads. The real value is a *portable, non-repudiable
+  attestation* for a **custody / sBTC-peg "second source of truth" buyer** (the data-plane wedge)
+  who needs to prove to a third party "Secondlayer asserted this row." Build it for the first such
+  named buyer, not speculatively (demand-before-supply). Until then the doc scoping is honest:
+  Index reads are explicitly *not* signed yet. Pairs with the correctness-canary + JWKS items.
+  Effort: **M**. Files: `packages/api/src/index/*` (response signing), `packages/sdk/src/index-api`.
+
 - **Account/address read surface** — STX/FT balances, NFT/FT holdings, nonces, `stx_inbound`.
   Verified absent (no `/balances` route in `routes/index.ts`; decoded EVENTS only). The
   number-one wallet dependency — Xverse/Ryder/D'CENT/Leather can't cut Hiro without it, and the
@@ -438,6 +452,21 @@ a revenue line.
   positioning arc by founder call; fix on next skill touch.
 
 ## P3 — nice to have / pending a decision
+
+- **Replace the BYO replay-safety heuristic with a real AST / runtime guard.**
+  *Context: `handler-replay-safety.ts` now uses a broadened regex set that catches the
+  common defeats — method-alias (`const u = ctx.update`), destructure (`const {update} = ctx`),
+  bracket (`ctx["update"]`), optional-chain (`ctx?.update`) — parser-free.* Residual gaps a
+  regex can't close safely: aliasing the **context object** itself (`const c = ctx; c.update()`)
+  and computed keys (`ctx[name]`). A full fix is either (a) an AST/data-flow pass (parse the
+  handler with the TS compiler API — already a dep — and track `ctx` references through scope),
+  or (b) a **runtime guard** that wraps `ctx` so the delta methods (`update`/`patchOrInsert`/
+  `increment`) throw during a replay window (parser-free, bulletproof, but a behavior change).
+  **Why deferred:** BYO is a *frozen periphery* surface (STRATEGY: zero further investment); the
+  corruption is *self-inflicted into the customer's own DB*; and the remaining defeats require
+  *deliberately* aliasing past a visible guard. Over-investment until BYO unfreezes on a named
+  request. Effort: **M** (AST) / **S-M** (runtime wrap). Files:
+  `packages/api/src/subgraphs/handler-replay-safety.ts`, `packages/subgraphs/src/runtime/context.ts`.
 
 - **`SUBGRAPH_HEAVY_OP_BUDGET` tuning (env, no deploy).** Heavy (genesis-scale) subgraph
   reindexes are capped at 2 in flight to protect the target plane; fresh genesis deploys

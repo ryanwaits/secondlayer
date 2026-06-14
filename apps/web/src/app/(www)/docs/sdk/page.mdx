@@ -189,7 +189,9 @@ const unsubscribe = sl.streams.events.subscribe({
 unsubscribe();
 ```
 
-`subscribe({ fromCursor?, types?, notTypes?, contractId?, sender?, recipient?, assetIdentifier?, signal?, onEvent, onError? }): () => void`. For signed-frame verification, build a standalone streams client with `createStreamsClient({ apiKey, verify: true })` (or `verify: { publicKey }` to pin a PEM) — each frame's ed25519 signature is then verified before `onEvent` runs. `new SecondLayer()` does not accept `verify`.
+`subscribe({ fromCursor?, types?, notTypes?, contractId?, sender?, recipient?, assetIdentifier?, signal?, onEvent, onError? }): () => void`.
+
+**Signature verification** — a standalone streams client (`createStreamsClient({ apiKey })`) verifies both REST reads (`X-Signature`) and SSE frames **by default**. The default is *lenient*: the hosted API signs everything (so it's verified), while an unsigned response from a self-hosted instance with no signing key passes through — an *invalid* signature always throws. Pass `verify: true` for strict (a missing signature throws too), `verify: { publicKey }` to pin a known PEM, or `verify: false` to disable. The key is fetched once from `/public/streams/signing-key` (a rotated `X-Signature-KeyId` triggers a single refresh). `new SecondLayer()` does not accept `verify`; use `createStreamsClient` when you need it.
 
 ## Read subgraph rows (open /v1)
 

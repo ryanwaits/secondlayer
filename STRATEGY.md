@@ -40,11 +40,13 @@ internal data plane the decoders and subgraphs ride.
   every card is a live API.
 - **Contract discovery** — `/v1/contracts`: find deployed contracts by trait
   (SIP-009/010/013), pull ABIs. Connective tissue: feeds scaffold and Index queries.
-- **Verification** — what we hand you for replay is signed: dump manifests (SDK
-  verifies by default) and webhooks (universal ed25519 on every format; the
-  default `standard-webhooks` format adds a per-subscription HMAC). Live
-  Index/Streams REST reads are not response-signed yet — the trust path there is
-  to replay from signed dumps and check us. The counterpart to "build your own."
+- **Verification** — what we hand you is signed and the SDK verifies by default:
+  dump manifests, **live Streams reads** (ed25519 `X-Signature` on REST + per-frame
+  SSE; lenient by default so unsigned self-host still works, `verify: true` for
+  strict), and webhooks (universal ed25519 on every format; the default
+  `standard-webhooks` format adds a per-subscription HMAC). Index REST reads are
+  not response-signed yet (deferred — see ROADMAP). The counterpart to "build
+  your own" — replay and check us.
 
 ### Channels (not features)
 
