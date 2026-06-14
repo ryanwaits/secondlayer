@@ -1,4 +1,5 @@
 import { PaymentRequiredError } from "@secondlayer/shared/errors";
+import { isPlatformMode } from "@secondlayer/shared/mode";
 import type { MiddlewareHandler } from "hono";
 import { STREAMS_BLOCKS_PER_DAY } from "../streams/tiers.ts";
 import { parseCursor, parseNonNegativeInteger } from "./_shared.ts";
@@ -23,6 +24,9 @@ export function indexFreeWindow(opts: {
 	getTip: IndexTipProvider;
 }): MiddlewareHandler<IndexEnv> {
 	return async (c, next) => {
+		// Self-hosted (oss/dedicated) instances are single-tenant — no free tier,
+		// no window. The 24h gate is a platform/multi-tenant concept only.
+		if (!isPlatformMode()) return next();
 		const tier = c.get("indexTenant")?.tier; // undefined = anonymous / keyless
 		// Paid tiers read all history; only free + anon are windowed.
 		if (tier !== undefined && tier !== "free") return next();

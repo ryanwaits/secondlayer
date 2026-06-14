@@ -1,4 +1,11 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import {
+	afterAll,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	test,
+} from "bun:test";
 import type { StreamsEvent } from "@secondlayer/indexer/streams-events";
 import { Hono } from "hono";
 import { _resetRateLimitStoreForTests } from "../auth/rate-limit-store.ts";
@@ -116,6 +123,16 @@ function streamsEvent(overrides: Partial<StreamsEvent> = {}): StreamsEvent {
 }
 
 describe("Stacks Streams gateway middleware", () => {
+	// Rate limit is platform-only (self-host is single-tenant, unthrottled).
+	let prevMode: string | undefined;
+	beforeAll(() => {
+		prevMode = process.env.INSTANCE_MODE;
+		process.env.INSTANCE_MODE = "platform";
+	});
+	afterAll(() => {
+		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
+		else process.env.INSTANCE_MODE = prevMode;
+	});
 	beforeEach(async () => {
 		await _resetRateLimitStoreForTests();
 	});

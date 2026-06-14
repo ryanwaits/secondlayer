@@ -1,4 +1,11 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import {
+	afterAll,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	test,
+} from "bun:test";
 import { Hono } from "hono";
 import { _resetRateLimitStoreForTests } from "../auth/rate-limit-store.ts";
 import { errorHandler } from "../middleware/error.ts";
@@ -114,6 +121,16 @@ function createMeteredIndexApp(opts: {
 }
 
 describe("Stacks Index gateway middleware", () => {
+	// Rate limit + free-window gates are platform-only (self-host is single-tenant).
+	let prevMode: string | undefined;
+	beforeAll(() => {
+		prevMode = process.env.INSTANCE_MODE;
+		process.env.INSTANCE_MODE = "platform";
+	});
+	afterAll(() => {
+		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
+		else process.env.INSTANCE_MODE = prevMode;
+	});
 	beforeEach(async () => {
 		await _resetRateLimitStoreForTests();
 	});

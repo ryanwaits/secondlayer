@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import { errorHandler } from "../middleware/error.ts";
 import type { IndexEnv } from "./auth.ts";
@@ -36,6 +36,24 @@ function app(seed?: { tier?: string; x402Payer?: string; credited?: boolean }) {
 }
 
 describe("indexFreeWindow", () => {
+	// The gate is platform-only (self-host has no free tier / window).
+	let prevMode: string | undefined;
+	beforeAll(() => {
+		prevMode = process.env.INSTANCE_MODE;
+		process.env.INSTANCE_MODE = "platform";
+	});
+	afterAll(() => {
+		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
+		else process.env.INSTANCE_MODE = prevMode;
+	});
+
+	test("oss/self-host: deep read passes (no free window)", async () => {
+		process.env.INSTANCE_MODE = "oss";
+		const res = await app().request(`/events?from_height=1`);
+		expect(res.status).toBe(200);
+		process.env.INSTANCE_MODE = "platform";
+	});
+
 	test("free: cursor-less read passes (route serves its default 24h window)", async () => {
 		const res = await app({ tier: "free" }).request("/events");
 		expect(res.status).toBe(200);
