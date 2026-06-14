@@ -62,9 +62,26 @@ export type DecodedRow = {
 	recipient: string | null;
 	amount: string | null;
 	memo: string | null;
-	payload: Record<string, unknown> | null;
+	// jsonb may arrive parsed (object) or raw (string) depending on the driver path.
+	payload: Record<string, unknown> | string | null;
 	block_ts: string | number; // unix seconds from blocks.timestamp
 };
+
+/** decoded_events.payload can come back as a JSON string over the raw-sql path. */
+function asPayloadObject(
+	payload: Record<string, unknown> | string | null,
+): Record<string, unknown> {
+	if (payload && typeof payload === "object") return payload;
+	if (typeof payload === "string") {
+		try {
+			const parsed = JSON.parse(payload);
+			return parsed && typeof parsed === "object" ? parsed : {};
+		} catch {
+			return {};
+		}
+	}
+	return {};
+}
 
 /** Reconstruct the StreamsEvent the decoders expect from a decoded_events row. */
 export function toStreamsEvent(row: DecodedRow): StreamsEvent {
@@ -80,7 +97,7 @@ export function toStreamsEvent(row: DecodedRow): StreamsEvent {
 				recipient: row.recipient,
 				memo: row.memo,
 			}
-		: (row.payload ?? {});
+		: asPayloadObject(row.payload);
 	return {
 		cursor: row.cursor,
 		block_height: Number(row.block_height),

@@ -75,6 +75,17 @@ describe("backfill decoded_events → sbtc rows", () => {
 		expect(row?.cursor).toBe("8116923:2");
 	});
 
+	test("decodes a print row whose jsonb payload arrives as a JSON string", () => {
+		// The raw-sql read path can return jsonb as a string; the mapper must parse it.
+		const asString: DecodedRow = {
+			...DEPOSIT_PRINT,
+			payload: JSON.stringify(DEPOSIT_PRINT.payload),
+		};
+		const row = decodeRegistryPrint(toStreamsEvent(asString));
+		expect(row?.topic).toBe("completed-deposit");
+		expect(row?.amount).toBe("14740");
+	});
+
 	test("block_ts maps to an ISO block_time", () => {
 		const ev = toStreamsEvent(DEPOSIT_PRINT);
 		expect(ev.ts).toBe(new Date(1_749_000_000 * 1000).toISOString());
