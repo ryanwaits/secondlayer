@@ -9,9 +9,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = socialMeta({
-	title: "secondlayer — the chain, decoded",
+	title: "secondlayer — every layer of the chain, none of the infra",
 	description:
-		"Every transfer, contract call, and sBTC peg event on Stacks — decoded into typed JSON. Read it keyless over REST, the SDK, or your agent. No node required.",
+		"Build a custom indexer at any level — the raw event firehose, decoded queryable rows, or a hosted one-file subgraph. All on decoded Stacks data, no node to run.",
 	image: "/og/home.png",
 	path: "/",
 });
@@ -26,13 +26,13 @@ export default async function Home() {
 			<HomeGetStarted />
 			<section className="home-final">
 				<h2>
-					Stop running nodes.
+					Stop rebuilding the indexer.
 					<br />
-					Ship your own API.
+					Start shipping features.
 				</h2>
 				<p className="home-sub">
-					Open data, open SDKs, honest infrastructure. The indexing every Stacks
-					team rebuilds — run as a utility.
+					Open data, open SDKs, honest infrastructure — decoded sBTC, PoX, and
+					Clarity calls included.
 				</p>
 				<div className="home-ctas">
 					<CtaPill />
@@ -55,14 +55,15 @@ export function HomeView({ status }: { status: SystemStatus | null }) {
 					<span className="home-pill-arr">→</span>
 				</Link>
 				<h1>
-					The chain, decoded.
+					Every layer of the chain.
 					<br />
-					No node required.
+					None of the infra.
 				</h1>
 				<p className="home-sub">
-					Every transfer, contract call, and sBTC peg event on Stacks — decoded
-					into typed JSON. Read it keyless over REST, the SDK, or your agent.
-					Outgrow the read? Deploy your own indexer in one file.
+					Build a custom indexer at any altitude — tail the raw event firehose,
+					query decoded rows, or deploy a hosted one-file subgraph. It&apos;s
+					all decoded Stacks data — transfers, contract calls, sBTC peg events,
+					typed into JSON — with no node to run.
 				</p>
 				<div className="home-ctas">
 					<CtaPill />

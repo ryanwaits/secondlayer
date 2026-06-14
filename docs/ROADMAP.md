@@ -7,7 +7,10 @@
 > Labs/Foundation Track A/B grant framing, Zest 3-layer co-build scope, correctness
 > Emily/canary ladder, sBTC peg reference-impl shelf + BTC L1 settlement confirmer;
 > indexer-positioning arc + the three replay/queue findings; x402 Phase 3 smoke ladder
-> S2–S7).
+> S2–S7). **sBTC peg read + lifecycle SKU SHIPPED 2026-06-13** (typed `/v1/index/sbtc/*`
+> endpoints + confirmed-finality gating); remaining peg work = webhook topics + aggregates +
+> the BTC settlement confirmer + the Peg Explorer reference impl. Both the sBTC peg and Zest
+> items now carry an explicit product-surface + definition-of-done.
 
 ## Positioning & marketing — viral-principles audit (2026-06-13)
 
@@ -205,28 +208,46 @@ a revenue line.
   ship, count it as a grant. Recurring anchors that DO count as MRR: Zest, a Dune license, and
   wallet/custody Enterprise.
 
-- **Productize decoded sBTC peg-in/peg-out** — named typed endpoint + webhook topic
-  (deposit/withdraw/signer-lifecycle/settlement-status). The single sharpest moat: Hiro
-  declined it (stacks-blockchain-api #1709 "not planned"), only Emily (bridge-operator-run) has
-  it. **Substrate already decoded (~80% — verified):** `sbtc-storage.ts` row carries topics
+- **Productize decoded sBTC peg-in/peg-out** — the single sharpest moat: Hiro declined it
+  (stacks-blockchain-api #1709 "not planned"), only Emily (bridge-operator-run) has it.
+  **Substrate already decoded (~80% — verified):** `sbtc-storage.ts` row carries topics
   `completed-deposit / withdrawal-create / withdrawal-accept / withdrawal-reject / key-rotation`
   plus the correlation keys `request_id`, `bitcoin_txid`, `sweep_txid`, `recipient_btc_*`,
-  `amount`, `signer_*`. **The SKU adds** (packaging, not ingestion): (a) lifecycle state machine
-  joining rows by `request_id` (deposit `BTC-seen→COMPLETED`; withdrawal
-  `REQUESTED→ACCEPTED|REJECTED→SWEPT`), (b) typed endpoints `/v1/index/sbtc/deposits`,
-  `/sbtc/withdrawals/:id`, (c) webhook topics `sbtc.deposit.completed` /
-  `sbtc.withdrawal.{requested,accepted,rejected,swept}`, (d) confirmed-finality gating past the
-  reorg margin, (e) aggregates (net peg flow, total locked sats, supply). Effort: **M**.
-  Files: `packages/api/src/index/` (new peg module), `packages/indexer/src/l2/decoders/sbtc.ts`,
-  `packages/indexer/src/l2/sbtc-storage.ts`, `packages/shared/src/schemas/subscriptions.ts`,
-  `packages/api/src/routes/index.ts`.
+  `amount`, `signer_*`.
 
-  **Reference-implementation shelf (build ON the feed once the SKU ships — proof artifacts + dogfood):**
-  - **(1) sBTC Peg Explorer** *(flagship; public, in Explore)* — "Etherscan for the sBTC bridge":
-    live deposits/withdrawals with lifecycle status, BTC↔Stacks tx correlation, time-to-settle,
-    net-flow charts. The single best proof artifact for the whole data-plane pitch — what goes in
-    front of Zest, the Foundation "Agentic readability" grant ("here's the public good, live"),
-    and the wallets. Doubles as the canonical reference dataset. Effort: **S-M** on the feed.
+  **Product surface =** the keyless `/v1/index/sbtc/*` read API + named webhook topics + the
+  Peg Explorer proof artifact. **Definition of done =** the only productized decoded sBTC peg
+  feed on Stacks — curl-able with no key, signed, reorg-correct — that a wallet/Zest/Foundation
+  can integrate against; webhooks fire on lifecycle transitions; a public Explorer renders it.
+
+  **SHIPPED 2026-06-13 — read + lifecycle SKU** (`fbb42c96`+`1481f1ec`; api is private):
+  (a) lifecycle state machine joining rows by `request_id` (withdrawal
+  `REQUESTED→ACCEPTED|REJECTED`; deposit single-event `COMPLETED`); (b) typed endpoints —
+  `/v1/index/sbtc/events` (raw, all topics incl. signer/governance), `/sbtc/deposits`,
+  `/sbtc/withdrawals` (rolled-up one row per request_id), `/sbtc/withdrawals/:request_id` (full
+  assembled lifecycle), `/sbtc/deposits/:bitcoin_txid` — all with the cursor+tip+reorgs envelope,
+  OpenAPI entries, unit + route tests; (d) confirmed-finality gating (`?confirmed=true` clamps
+  `to_height` to `finalized_height`). The withdrawal lifecycle already exposes a
+  `settlement.{sweep_txid, btc_confirmations:null, settlement_confirmed:null}` placeholder the BTC
+  confirmer fills. File: `packages/api/src/index/sbtc-peg.ts`.
+
+  **REMAINING for "done":** (c) **named webhook topics** `sbtc.deposit.completed` /
+  `sbtc.withdrawal.{requested,accepted,rejected,swept}` — `sbtc_events` is a separate decoded
+  table NOT in the trigger-evaluator's stream today, so this needs evaluator wiring (effort **M**;
+  `trigger-evaluator.ts` + `schemas/subscriptions.ts`); (e) **aggregates** `/v1/index/sbtc/summary`
+  (net peg flow, total locked sats, sBTC supply, counts) — SUM queries over `sbtc_events` /
+  `sbtc_token_events`, effort **S-M**. (The BTC L1 settlement confirmer that fills the settlement
+  placeholder + emits `sbtc.withdrawal.swept.confirmed` is the separate bullet below.)
+
+  **Reference-implementation shelf (build ON the now-live feed — proof artifacts + dogfood):**
+  - **(1) sBTC Peg Explorer** *(flagship — THE reference implementation for the SKU; public, in
+    Explore)* — "Etherscan for the sBTC bridge": live deposits/withdrawals with lifecycle status,
+    BTC↔Stacks tx correlation, time-to-settle, net-flow charts, **built only on the keyless
+    `/v1/index/sbtc/*` API** (the feed now exists). **Done =** a public page (`/sbtc` or an Explore
+    entry) consuming the feed with no key, linked from the data-plane pitch — the single best proof
+    artifact for Zest, the Foundation "Agentic readability" grant ("here's the public good, live"),
+    and the wallets. Doubles as the canonical reference dataset. Effort: **S-M** (frontend on the
+    live feed).
   - **(2) Wallet deposit-status widget** — drop-in SDK example ("track your BTC→sBTC deposit",
     webhook → status UI). The wallet-wedge demo (Xverse/Leather/Ryder).
   - **(3) Peg reconciliation / supply-health dashboard** — net BTC locked vs sBTC supply over
@@ -315,6 +336,15 @@ a revenue line.
   trying to shed (Hiro archived it Feb 2026). Effort: **M**.
   Files: `packages/subgraphs/src/runtime/trigger-evaluator.ts`,
   `packages/shared/src/schemas/subscriptions.ts`.
+
+  **Product surface =** a PORTABLE "collateral-breach" webhook product (not an `if(zest)` script).
+  **Reference implementation =** the public Zest-v2 position-tracking subgraph in Explore (the
+  data isn't the moat, so it ships as social proof). **Definition of done =** (1) that subgraph
+  live in Explore computing per-position health factors; (2) a confirmed-finality threshold trigger
+  firing a *signed* webhook when a position crosses liquidation, configurable so Granite/Velar adopt
+  it without a rewrite; (3) optional x402-metered reads for keeper bots — and Zest running their
+  liquidation monitoring on it under a signed paid pilot. The portability is the de-risk: the sunk
+  build becomes a lending-liquidation PRODUCT Zest is merely customer #1 of, surviving Zest churn.
 
 - **x402 sponsor-spend guardrails.** Gas paid from a hot sponsor key (~200 STX) is an unbounded
   outflow / griefing surface at agent scale — add per-caller spend caps + a sponsor-balance

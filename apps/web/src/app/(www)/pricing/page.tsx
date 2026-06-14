@@ -7,16 +7,16 @@ import Link from "next/link";
 export const metadata: Metadata = socialMeta({
 	title: "Pricing · secondlayer",
 	description:
-		"Keyless reads of the recent chain are free. Pull history pay-as-you-go with prepaid credits ($5/1M rows), or go flat with Pro at $79/mo. The whole stack is MIT to self-host.",
+		"Self-host the whole stack for $0 — it's MIT. Or let us host it: managed subgraphs, genesis backfills, and history on flat plans ($79/mo) or pay-as-you-go ($5/1M rows).",
 	image: "/og/pricing.png",
 	path: "/pricing",
 });
 
-const FREE_INCLUDES = [
-	"Keyless decoded reads — recent 24h window",
-	"10 req/s on Index and Streams",
-	"Signed bulk dumps + MCP server",
-	"Self-host the whole stack (MIT)",
+const SELFHOST_INCLUDES = [
+	"docker compose up — indexer, API, processor",
+	"The whole stack, MIT-licensed",
+	"Single-tenant, no rate limits",
+	"Your hardware, your data",
 ];
 
 // Every claim below maps to an enforced limit. If code doesn't enforce it,
@@ -42,12 +42,12 @@ const ENTERPRISE_SUMMARY =
 
 const FAQ = [
 	{
-		q: "What stays free?",
-		a: "Keyless reads of the recent 24h window — anonymous on Index, with a free key on Streams — plus signed bulk dumps, no account. And the whole stack is MIT, so self-hosting is free. Reading deeper history is pay-as-you-go or a plan.",
+		q: "Can I run it myself?",
+		a: "Yes — the whole stack is MIT-licensed. docker compose up runs the indexer, API, and processor on your own hardware, single-tenant, with no rate limits. Hosting is for when you'd rather we run it.",
 	},
 	{
 		q: "What's pay-as-you-go?",
-		a: "Top up prepaid credits with a card. Reads beyond the free 24h window draw down at $5 per 1M rows — unthrottled, no subscription, across Index and Streams. The prepaid balance is the cap, so you never get a surprise bill.",
+		a: "Top up prepaid credits with a card. Pulling history draws down at $5 per 1M rows — unthrottled, no subscription, across Index and Streams. The prepaid balance is the cap, so you never get a surprise bill.",
 	},
 	{
 		q: "Do rates drop at volume?",
@@ -55,15 +55,11 @@ const FAQ = [
 	},
 	{
 		q: "What does flat Pro buy over pay-as-you-go?",
-		a: "A predictable bill instead of metering: deploy public and private subgraphs, full genesis backfills, 250 req/s, 25 webhooks with replay, usage budgets, and support. Go credits if you'd rather only pay for what you read; go Pro if you'd rather a fixed number.",
+		a: "A predictable bill instead of metering: deploy public and private subgraphs, full genesis backfills, 250 req/s, 25 webhooks with replay, usage budgets, and support. Go credits if you'd rather only pay for what you pull; go Pro if you'd rather a fixed number.",
 	},
 	{
 		q: "How does the trial work?",
-		a: "Flat Pro opens with a 14-day trial — card on file, cancel anytime. Usage dashboards show exactly where you'd land before anything bills.",
-	},
-	{
-		q: "Can I run it myself?",
-		a: "Yes — the whole stack is MIT-licensed. docker compose up runs the indexer, API, and processor on your own hardware. Paid is for when you'd rather we run it.",
+		a: "Hosted Pro opens with a 14-day trial — card on file, cancel anytime. Usage dashboards show exactly where you'd land before anything bills.",
 	},
 ];
 
@@ -76,23 +72,22 @@ export default function PricingPage() {
 				here="Pricing"
 				title={
 					<>
-						Reads are free.
+						Host it yourself.
 						<br />
-						Hosting is paid.
+						Or don&apos;t.
 					</>
 				}
 			>
-				Keyless reads of the recent chain are free, no account. Pull full
-				history pay-as-you-go with prepaid credits ($5 per 1M rows), or go flat
-				with Pro at $79/mo. The whole stack is MIT, so self-hosting is always an
-				option.
+				The whole stack is MIT — run the indexer, API, and processor on your own
+				hardware, $0 forever. Or let us run it: managed subgraphs, genesis
+				backfills, webhooks, and deep history, on flat plans or pay-as-you-go.
 			</MarketingPageHeader>
 
 			<div className="prc-cta-band">
 				<div className="prc-cta-band-copy">
-					<p className="prc-cta-band-title">Read free — no signup, no card.</p>
+					<p className="prc-cta-band-title">Let us run it.</p>
 					<p className="prc-cta-band-sub">
-						Curl decoded data in ten seconds, or grab the SDK.
+						14-day Pro trial — we host the indexer, you ship. Cancel anytime.
 					</p>
 				</div>
 				<CtaPill />
@@ -100,15 +95,16 @@ export default function PricingPage() {
 
 			<div className="prc-split">
 				<div className="prc-plan prc-free">
-					<span className="prc-plan-eyebrow">Free · no account</span>
+					<span className="prc-plan-eyebrow">Self-host · MIT</span>
 					<p className="prc-plan-price">$0</p>
+					<p className="prc-plan-cont">Run it yourself.</p>
 					<ul>
-						{FREE_INCLUDES.map((f) => (
+						{SELFHOST_INCLUDES.map((f) => (
 							<li key={f}>{f}</li>
 						))}
 					</ul>
 					<Link href="/docs" className="prc-plan-cta prc-cta-ghost">
-						Start reading
+						Self-host guide
 					</Link>
 				</div>
 				<div className="prc-plan prc-pro">
@@ -150,9 +146,8 @@ export default function PricingPage() {
 				<div className="prc-cta-band-copy">
 					<p className="prc-cta-band-title">Or pay as you go.</p>
 					<p className="prc-cta-band-sub">
-						Need the full chain or more throughput? Top up credits and read
-						history unthrottled — $5 per 1M rows, no subscription. Reads stay
-						free at the tip either way.
+						Need the full chain or more throughput? Top up prepaid credits and
+						pull history unthrottled — $5 per 1M rows, no subscription.
 					</p>
 				</div>
 				<Link href="/login" className="prc-plan-cta prc-cta-ghost">
@@ -192,7 +187,7 @@ export default function PricingPage() {
 
 			<div className="prc-fin">
 				<h2 className="prc-h2" style={{ marginTop: 0 }}>
-					Start free. Decide later.
+					Self-host or hosted. Your call.
 				</h2>
 				<div className="home-ctas">
 					<CtaPill />

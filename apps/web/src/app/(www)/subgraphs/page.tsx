@@ -9,7 +9,7 @@ import Link from "next/link";
 export const metadata: Metadata = socialMeta({
 	title: "Stacks Subgraphs | secondlayer",
 	description:
-		"Your own indexer, minus the node. Write handlers in one TypeScript file, get typed Postgres tables shaped exactly for your app.",
+		"You shape it, we run it. Pick events and write handlers in one TypeScript file — get typed Postgres tables, a public REST API, and genesis backfill, hosted or bring your own database.",
 	image: "/og/subgraphs.png",
 	path: "/subgraphs",
 });
@@ -70,15 +70,16 @@ export default function SubgraphsPage() {
 					<span className="arr">→</span>
 				</Link>
 				<h1>
-					Your own indexer.
+					You shape it.
 					<br />
-					Minus the node.
+					We run it.
 				</h1>
 				<p className="pp-sub">
-					One TypeScript file: pick your events, write handlers, deploy. You get
-					typed Postgres tables shaped for your app, a public REST API (REST,
-					not GraphQL), and a page on Explore. It&apos;s the Index ingest loop,
-					hosted — same decoded rows, our backfill and reorg handling.
+					Pick your events, write handlers, deploy — one TypeScript file. Out
+					comes typed Postgres tables shaped for your app, a public REST API
+					(REST, not GraphQL), and a page on Explore: backfilled from genesis,
+					reorg-safe, and never silently dropped on a schema change. We host it,
+					or bring your own database.
 				</p>
 				<div className="pp-ctas">
 					<Link href="/docs/subgraphs" className="pp-btn pp-btn-ink">
@@ -266,9 +267,9 @@ export default function SubgraphsPage() {
 			<section className="pp-final">
 				<div className="pp-wrap">
 					<h2>
-						Define the tables.
+						Your schema. Our uptime.
 						<br />
-						We run the indexer.
+						Your data, never silently dropped.
 					</h2>
 					<p>
 						One file, one deploy.{" "}
@@ -278,7 +279,7 @@ export default function SubgraphsPage() {
 							strokeWidth={2}
 							padding={2}
 						>
-							Free to try
+							Hosted or BYO database
 						</Notation>
 						, full genesis backfill on paid plans.
 					</p>

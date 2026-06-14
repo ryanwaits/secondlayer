@@ -43,9 +43,9 @@ export default function StreamsPage() {
 					<span className="arr">→</span>
 				</Link>
 				<h1>
-					The raw event firehose.
+					Every raw event.
 					<br />
-					Every event, in order.
+					No node required.
 				</h1>
 				<p className="pp-sub">
 					Streams is the immutable, replayable log of everything the chain emits
@@ -232,9 +232,9 @@ export default function StreamsPage() {
 			<section className="pp-final">
 				<div className="pp-wrap">
 					<h2>
-						Stop running a node.
+						Point your cursor at genesis.
 						<br />
-						Tap the firehose.
+						Press play.
 					</h2>
 					<p>
 						Every event the chain emits, ordered and replayable — over SSE,

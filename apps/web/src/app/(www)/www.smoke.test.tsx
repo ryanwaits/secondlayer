@@ -31,8 +31,8 @@ describe("www marketing routes", () => {
 		expect(html).toContain('class="home"');
 		// Hero: release pill + headline + sub.
 		expect(html).toContain("Explore subgraphs is live");
-		expect(html).toContain("The chain, decoded.");
-		expect(html).toContain("No node required.");
+		expect(html).toContain("Every layer of the chain.");
+		expect(html).toContain("None of the infra.");
 		expect(html).toContain("sBTC peg event");
 		// CTA pair: install/mint pill (client component renders install mode in
 		// static markup) + docs ghost link.
@@ -44,16 +44,20 @@ describe("www marketing routes", () => {
 		expect(html).not.toContain('class="index-list"');
 	});
 
-	test("/pricing renders the free-first billing page", () => {
+	test("/pricing renders the self-host-or-hosted billing page", () => {
 		const html = renderToStaticMarkup(<PricingPage />);
-		// reads-free / hosting-paid framing + self-host honesty
-		expect(html).toContain("Reads are free.");
-		expect(html).toContain("Hosting is paid.");
+		// self-host vs hosted framing — no "free reads" angle
+		expect(html).toContain("Host it yourself.");
+		expect(html).toContain("Self-host · MIT");
+		expect(html).toContain("Run it yourself.");
 		expect(html).toContain("14-day trial");
-		// honest free promise: keyless reads, no account
+		// $0 column = self-host, not free hosted reads
 		expect(html).toContain("$0");
-		expect(html).toContain("Keyless decoded reads");
-		// paid ladder: Free / Pro $79 / Scale $299 / Enterprise (no Stripe number)
+		expect(html).toContain("MIT-licensed");
+		// the "free reads" angle is gone
+		expect(html).not.toContain("Reads are free");
+		expect(html).not.toContain("Keyless decoded reads");
+		// paid ladder: Pro $79 / Scale $299 / Enterprise (no Stripe number)
 		expect(html).toContain("$79");
 		expect(html).toContain("public and private");
 		expect(html).toContain("$299");

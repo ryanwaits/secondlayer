@@ -69,7 +69,7 @@ export function HomeFeatures() {
 				</Feature>
 
 				<Feature
-					title="Your own indexer, minus the node"
+					title="You shape it. We run it."
 					docsHref="/docs/subgraphs"
 					code={SUBGRAPHS_SNIPPET}
 					pane={<SubgraphSchemaPane />}

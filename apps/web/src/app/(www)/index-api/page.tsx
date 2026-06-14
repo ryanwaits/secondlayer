@@ -100,15 +100,15 @@ export default function IndexPage() {
 					<span className="arr">→</span>
 				</Link>
 				<h1>
-					Decoded chain data.
+					We decode the chain.
 					<br />
-					Build your app index.
+					You build the index.
 				</h1>
 				<p className="pp-sub">
-					Every transfer, contract call, and print event on Stacks, normalized
-					into typed rows. We run the chain indexer and the decoder — read the
-					rows keyless, or build your app&apos;s own index on them: cursors,
-					reorgs, and backfill on every page.
+					Every event on Stacks, decoded into typed rows — then yours to index
+					your way. Read them keyless, or build your app&apos;s own index on
+					top: cursors, reorgs, and backfill on every page, in a database you
+					own.
 				</p>
 				<div className="pp-ctas">
 					<Link href="/docs/index" className="pp-btn pp-btn-ink">
@@ -150,9 +150,9 @@ export default function IndexPage() {
 			<section className="pp-section pp-wrap">
 				<div className="pp-section-head">
 					<h2>
-						One surface.
+						One decoded row set.
 						<br />
-						<span className="dim">Three ways in.</span>
+						<span className="dim">Three ways in: SDK, CLI, Agent.</span>
 					</h2>
 					<p>
 						Filter, paginate, and cursor-walk the same decoded rows from the
@@ -235,14 +235,14 @@ export default function IndexPage() {
 			<section className="pp-final">
 				<div className="pp-wrap">
 					<h2>
-						Stop writing decoders.
+						Build your index.
 						<br />
-						Start indexing.
+						We run the rest.
 					</h2>
 					<p>
-						Reads are open during beta. No node, no key, no infra — and the
-						firehose underneath is <Link href="/streams">Streams</Link>, the
-						same one our decoder runs on.
+						No node, no key, no infra to run. Just decoded rows — cursors,
+						reorgs, and backfill — over the same{" "}
+						<Link href="/streams">Streams</Link> firehose our decoder runs on.
 					</p>
 					<div className="pp-ctas">
 						<Link href="/docs/index" className="pp-btn pp-btn-ink">
