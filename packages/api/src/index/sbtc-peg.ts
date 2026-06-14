@@ -1009,12 +1009,17 @@ export async function readSbtcSummary(opts?: {
 	const supplyRow = supplyRows[0] as SbtcSupplyDbRow;
 
 	const netFlow = BigInt(row.sum_deposits_sats) - BigInt(row.sum_accepted_sats);
+	// Circulating supply = mints − burns. Report null (unknown) rather than a
+	// wrong number when there are no token events OR the result is negative:
+	// burns can never exceed mints, so a negative supply means the token
+	// mint/burn decode is inconsistent (observed 2026-06: inflated burn amounts
+	// in sbtc_token_events). Better to surface "unknown" than a false figure.
+	const rawSupply =
+		BigInt(supplyRow.minted_sats) - BigInt(supplyRow.burned_sats);
 	const sbtcSupply =
-		Number(supplyRow.event_count) === 0
+		Number(supplyRow.event_count) === 0 || rawSupply < 0n
 			? null
-			: (
-					BigInt(supplyRow.minted_sats) - BigInt(supplyRow.burned_sats)
-				).toString();
+			: rawSupply.toString();
 
 	return {
 		total_deposits: Number(row.total_deposits),

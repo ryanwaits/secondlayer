@@ -691,6 +691,22 @@ describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 		});
 	});
 
+	test("summary: supply is null when burns exceed mints (decode anomaly)", async () => {
+		if (!db) throw new Error("missing db");
+		// Burns can never exceed mints; if they do, the token decode is broken —
+		// report unknown rather than a negative (false) supply.
+		await db
+			.insertInto("sbtc_token_events")
+			.values([
+				tokenSeed({ cursor: "n1", event_type: "mint", amount: "100" }),
+				tokenSeed({ cursor: "n2", event_type: "burn", amount: "500" }),
+			])
+			.execute();
+
+		const summary = await readSbtcSummary({ db });
+		expect(summary.sbtc_supply_sats).toBeNull();
+	});
+
 	test("summary: supply is null when no token events recorded", async () => {
 		if (!db) throw new Error("missing db");
 		const summary = await readSbtcSummary({ db });
