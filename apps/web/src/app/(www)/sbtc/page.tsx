@@ -80,14 +80,14 @@ export default async function SbtcPegPage() {
 				</p>
 			</section>
 
-			{/* 1 — SUMMARY STRIP (indexed window — genesis backfill pending) */}
+			{/* 1 — SUMMARY STRIP (all-time — sbtc_events backfilled genesis→tip) */}
 			<section className="peg-stats" aria-label="Peg scoreboard">
 				<div className="peg-stat">
 					<span className="peg-stat-label">Peg-in deposits</span>
 					<span className="peg-stat-val">
 						{summary ? num.format(summary.total_deposits) : "—"}
 					</span>
-					<span className="peg-stat-sub">indexed</span>
+					<span className="peg-stat-sub">all-time</span>
 				</div>
 				<div className="peg-stat">
 					<span className="peg-stat-label">Peg-out withdrawals</span>
@@ -97,15 +97,13 @@ export default async function SbtcPegPage() {
 					<span className="peg-stat-sub">
 						{summary
 							? `${summary.total_withdrawals_accepted} accepted · ${summary.total_withdrawals_rejected} rejected · ${wOpen} open`
-							: "indexed"}
+							: "all-time"}
 					</span>
 				</div>
 				<div className="peg-stat">
 					<span className="peg-stat-label">sBTC supply</span>
 					<span className="peg-stat-val">
-						{summary?.sbtc_supply_sats
-							? btc(summary.sbtc_supply_sats, 4)
-							: "—"}
+						{summary?.sbtc_supply_sats ? btc(summary.sbtc_supply_sats, 4) : "—"}
 					</span>
 					<span className="peg-stat-sub">BTC circulating, on-chain</span>
 				</div>
@@ -129,9 +127,9 @@ export default async function SbtcPegPage() {
 			</section>
 
 			<p className="peg-note">
-				Totals cover the currently indexed window — genesis backfill in
-				progress. sBTC circulating supply is authoritative on-chain via the
-				sbtc-token contract.
+				Totals are all-time, decoded from genesis to chain tip. sBTC circulating
+				supply is authoritative on-chain via the sbtc-token contract. The tables
+				below show the most recent activity.
 			</p>
 
 			{/* keyless proof */}
