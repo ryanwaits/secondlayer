@@ -45,7 +45,7 @@ await index.contractCalls.consume({
   contractId: MARKETPLACE,
   functionName: "purchase-asset",
   fromCursor: await loadCheckpoint(),
-  fromHeight: 0, // first run: backfill from genesis
+  fromHeight: 0, // first run: backfill from genesis (paid/credits; free reads = last 24h)
 
   onBatch: async (calls, envelope, ctx) => {
     await db.transaction().execute(async (tx) => {
@@ -56,9 +56,10 @@ await index.contractCalls.consume({
   },
 
   onReorg: async (reorg) => {
-    // consumer rewinds + re-reads the canonical run for you
+    // delete from the fork block up (inclusive); the consumer then rewinds
+    // and re-reads the canonical run for you
     await db.deleteFrom("sales")
-      .where("block_height", ">", reorg.fork_point_height)
+      .where("block_height", ">=", reorg.fork_point_height)
       .execute();
   },
 });`;

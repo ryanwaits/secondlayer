@@ -28,7 +28,7 @@ await streams.events.consume({
     await saveCheckpoint(cursor);
   },
   onReorg: async (reorg, { cursor }) => {
-    await rollbackAbove(reorg.fork_point_height);
+    await rollbackFrom(reorg.fork_point_height); // inclusive of the fork block
     await saveCheckpoint(cursor);
   },
 });`;

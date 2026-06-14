@@ -18,7 +18,7 @@ Omit `--no-scaffold` to also scaffold a local receiver project (`-r inngest | tr
 
 ## Verify the signature
 
-Every delivery carries a per-subscription HMAC. Verify it against your subscription secret before trusting the payload — pass the **raw body first**, then the headers and secret.
+On the default `standard-webhooks` format, every delivery carries a per-subscription HMAC. Verify it against your subscription secret before trusting the payload — pass the **raw body first**, then the headers and secret. (The other formats — `raw`, `cloudevents`, `trigger`, `cloudflare`, `inngest` — don't carry this HMAC; they're authenticated by the universal ed25519 signature in [Universal webhook signature](#universal-webhook-signature) below, which rides on **every** delivery regardless of format.)
 
 ```ts
 import { verifyWebhookSignature } from "@secondlayer/sdk";

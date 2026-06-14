@@ -174,9 +174,10 @@ await index.events.consume({
 		return ctx.cursor;
 	},
 	onReorg: async (reorg) => {
-		// rows above the fork point are no longer canonical; the consumer
-		// rewinds the cursor and re-reads the canonical run for you
-		await db.deleteAboveHeight(reorg.fork_point_height);
+		// the fork block and everything above it is no longer canonical (delete
+		// is inclusive of the fork height); the consumer then rewinds the cursor
+		// and re-reads the canonical run for you
+		await db.deleteFromHeight(reorg.fork_point_height);
 	},
 });
 ```

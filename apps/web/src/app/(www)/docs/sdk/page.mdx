@@ -145,7 +145,7 @@ await sl.streams.events.consume({
 });
 ```
 
-On Index, `consume` works over decoded events and contract calls. Reorgs rewind the cursor to the fork point automatically (`onReorg` fires so you can roll back committed rows); `fromHeight: 0` backfills from genesis; `finalizedOnly` holds delivery to rows at or below `tip.finalized_height`.
+On Index, `consume` works over decoded events and contract calls. Reorgs rewind the cursor to the fork point automatically (`onReorg` fires so you roll back committed rows from `fork_point_height` up — inclusive of the fork block); `fromHeight: 0` backfills from genesis (hosted: paid plan or pay-as-you-go credits; free/keyless reads cover the last 24h); `finalizedOnly` holds delivery to rows at or below `tip.finalized_height`.
 
 ```ts
 // Decoded contract calls from Index
@@ -159,7 +159,7 @@ await sl.index.contractCalls.consume({
     return ctx.cursor;
   },
   onReorg: async (reorg) => {
-    await rollbackAboveHeight(reorg.fork_point_height);
+    await rollbackFromHeight(reorg.fork_point_height); // inclusive of the fork block
   },
 });
 ```

@@ -54,6 +54,6 @@ await streams.events.replay({
 //     return envelope.next_cursor;
 //   },
 //   onReorg: async (reorg) => {
-//     await rollbackAbove(reorg.fork_point_height);
+//     await rollbackFrom(reorg.fork_point_height); // inclusive of the fork block
 //   },
 // });

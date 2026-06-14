@@ -42,7 +42,7 @@ await streams.events.consume({
 		return envelope.next_cursor; // the checkpoint you committed
 	},
 	onReorg: async (reorg) => {
-		await db.rollbackAbove(reorg.fork_point_height);
+		await db.rollbackFrom(reorg.fork_point_height); // inclusive of the fork block
 	},
 });
 ```
@@ -101,6 +101,8 @@ curl -N -H "Authorization: Bearer $SL_API_KEY" \
 ```
 
 Choose a start position with `cursor` (or `from_cursor`), or `from_height`. With no start position the connection live-tails from the reorg-clamped tip. A `ping` keepalive frame is sent every 20s so idle connections stay open.
+
+Delivery is **near-real-time**, not instant: the server polls for new events roughly every 1.5s and serves from a tip held a couple of blocks back for reorg safety, so an event lands seconds — occasionally tens of seconds — after it first appears on chain. SSE is the low-latency push surface (vs. polling `/events` yourself), not a zero-latency one.
 
 The SDK's `client.events.subscribe(...)` is the ergonomic way to consume this — it carries your Bearer key, auto-reconnects from the last delivered cursor, and verifies per-frame signatures. See the [SDK docs](/docs/sdk).
 

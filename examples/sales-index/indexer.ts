@@ -4,6 +4,11 @@ import { db, loadCheckpoint, migrate } from "./schema.ts";
 // Every sale on Gamma's marketplace, swept into your own Postgres.
 // First run backfills from genesis; restarts resume from the committed
 // checkpoint; reorgs roll back automatically. Kill it anywhere — it's safe.
+//
+// Hosted note: genesis backfill (`fromHeight: 0`) reaches full history on a
+// paid plan or with pay-as-you-go credits. Free/keyless reads cover the last
+// 24h, so an uncredited free run gets `402 UPGRADE_REQUIRED` below that window.
+// Self-hosted instances are unbounded.
 const MARKETPLACE = "SPNWZ5V2TPWGQGVDR6T7B6RQ4XMGZ4PXTEE0VQ0S.marketplace-v4";
 
 await migrate();
@@ -51,11 +56,13 @@ await index.contractCalls.consume({
 	},
 
 	onReorg: async (reorg) => {
-		// Everything above the fork point is no longer canonical; the consumer
-		// rewinds the cursor and re-reads the canonical run for us.
+		// The fork block and everything above it is no longer canonical, so the
+		// delete is INCLUSIVE of `fork_point_height` (`>=`) — the new chain
+		// re-supplies that block too. The consumer then rewinds and re-reads the
+		// canonical run for us, starting at the fork block's first event.
 		await db
 			.deleteFrom("sales")
-			.where("block_height", ">", reorg.fork_point_height)
+			.where("block_height", ">=", reorg.fork_point_height)
 			.execute();
 	},
 });
