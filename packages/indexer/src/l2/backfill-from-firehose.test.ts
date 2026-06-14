@@ -72,6 +72,23 @@ describe("backfill-from-firehose", () => {
 		expect(calls[0]?.contractId).toContain("sbtc-registry");
 	});
 
+	test("dedupes duplicate-cursor events within a page (reorg join doubling)", async () => {
+		// Same event delivered twice in one page (a tx present in two blocks). The
+		// batch upsert would otherwise throw ON CONFLICT; dedupe keeps one.
+		const { read } = onePageReader([DEPOSIT_EVENT, { ...DEPOSIT_EVENT }]);
+		const [stats] = await backfillFromFirehose({
+			target: "sbtc",
+			apply: false,
+			fromHeight: 0,
+			toHeight: 8_300_000,
+			limit: 500,
+			maxBatches: 10,
+			deps: { read, net: "mainnet" },
+		});
+		expect(stats.written).toBe(1); // not 2
+		expect(stats.topics["completed-deposit"]).toBe(1);
+	});
+
 	test("token target filters the firehose by ft types + token contract", async () => {
 		const { read, calls } = onePageReader([]);
 		await backfillFromFirehose({

@@ -160,7 +160,18 @@ export async function runEntry(
 		batches += 1;
 		scanned += page.events.length;
 
-		const result = await entry.process(page.events as StreamsEvent[], {
+		// Dedupe by cursor within the page: a historical reorg can leave a tx in
+		// two blocks, so the events⨝transactions join can emit the same event
+		// twice. Same cursor ⇒ same decoded row, so last-wins is lossless — and it
+		// avoids "ON CONFLICT cannot affect row a second time" on the batch upsert.
+		const seen = new Set<string>();
+		const uniqueEvents = (page.events as StreamsEvent[]).filter((e) => {
+			if (seen.has(e.cursor)) return false;
+			seen.add(e.cursor);
+			return true;
+		});
+
+		const result = await entry.process(uniqueEvents, {
 			apply: opts.apply,
 			db: opts.db,
 		});
