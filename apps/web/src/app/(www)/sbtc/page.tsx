@@ -101,11 +101,13 @@ export default async function SbtcPegPage() {
 					</span>
 				</div>
 				<div className="peg-stat">
-					<span className="peg-stat-label">Net peg flow</span>
+					<span className="peg-stat-label">sBTC supply</span>
 					<span className="peg-stat-val">
-						{summary ? btc(summary.net_peg_flow_sats, 4) : "—"}
+						{summary?.sbtc_supply_sats
+							? btc(summary.sbtc_supply_sats, 4)
+							: "—"}
 					</span>
-					<span className="peg-stat-sub">BTC, in − out (indexed)</span>
+					<span className="peg-stat-sub">BTC circulating, on-chain</span>
 				</div>
 				<div className="peg-stat">
 					<span className="peg-stat-label">Chain tip</span>
