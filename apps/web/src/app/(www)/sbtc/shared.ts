@@ -89,13 +89,17 @@ export const stacksTx = (txid: string) =>
 export const stacksAddr = (addr: string) =>
 	`https://explorer.hiro.so/address/${addr}`;
 
-/** Relative time. `nowMs` is passed in so SSR and first client render agree. */
+/**
+ * Relative time. `nowMs` is passed in so SSR and first client render agree.
+ * Sub-minute ages collapse to "< 1m ago": the feed polls on a delay, so a
+ * precise "29s ago" would sit frozen and read as stale/inaccurate.
+ */
 export function ago(iso: string, nowMs: number): string {
 	const secs = Math.max(
 		0,
 		Math.round((nowMs - new Date(iso).getTime()) / 1000),
 	);
-	if (secs < 90) return `${secs}s ago`;
+	if (secs < 60) return "< 1m ago";
 	const mins = Math.round(secs / 60);
 	if (mins < 90) return `${mins}m ago`;
 	const hrs = Math.round(mins / 60);
