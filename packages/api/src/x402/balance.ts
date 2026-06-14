@@ -169,7 +169,7 @@ export async function getMonthlySpend(
 export function upgradeHint(spentUsdMicros: bigint): string | undefined {
 	const spentUsd = Number(spentUsdMicros) / 1_000_000;
 	if (spentUsd < UPGRADE_HINT_THRESHOLD_USD) return undefined;
-	return `You have spent $${spentUsd.toFixed(2)} via x402 this month — the Pro plan ($99/mo) removes the meter entirely.`;
+	return `You have spent $${spentUsd.toFixed(2)} via x402 this month — the Pro plan ($79/mo) removes the meter entirely.`;
 }
 
 /** Attach a wallet's historical on-chain payments to a claimed account. */

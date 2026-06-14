@@ -54,7 +54,7 @@ describe("www marketing routes", () => {
 		expect(html).toContain("$0");
 		expect(html).toContain("Keyless decoded reads");
 		// paid ladder is Free/Pro only; enterprise has no number
-		expect(html).toContain("$99");
+		expect(html).toContain("$79");
 		expect(html).toContain("public and private");
 		expect(html).toContain("Contact Us");
 		expect(html).not.toContain("$499");

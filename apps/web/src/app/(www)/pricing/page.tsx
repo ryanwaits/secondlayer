@@ -7,16 +7,16 @@ import Link from "next/link";
 export const metadata: Metadata = socialMeta({
 	title: "Pricing · secondlayer",
 	description:
-		"Reads are keyless and free for everyone. Pay when you want it hosted — your tables, webhooks, and backfills on our infra. The whole stack is also MIT to self-host.",
+		"Keyless reads of the recent chain are free. Pull history pay-as-you-go with prepaid credits ($5/1M rows), or go flat with Pro at $79/mo. The whole stack is MIT to self-host.",
 	image: "/og/pricing.png",
 	path: "/pricing",
 });
 
 const FREE_INCLUDES = [
-	"Keyless decoded reads on Index and Streams",
-	"Ghost keys from your terminal, no signup",
-	"Signed Streams bulk dumps",
-	"MCP server + agent skills",
+	"Keyless decoded reads — recent 24h window",
+	"10 req/s on Index and Streams",
+	"Signed bulk dumps + MCP server",
+	"Self-host the whole stack (MIT)",
 ];
 
 // Every claim below maps to an enforced limit. If code doesn't enforce it,
@@ -35,20 +35,24 @@ const ENTERPRISE_SUMMARY =
 
 const FAQ = [
 	{
-		q: "What stays free forever?",
-		a: "Keyless public reads — anonymous on Index, with a free key on Streams — plus signed bulk dumps. No account, no card. Public data stays public.",
+		q: "What stays free?",
+		a: "Keyless reads of the recent 24h window — anonymous on Index, with a free key on Streams — plus signed bulk dumps, no account. And the whole stack is MIT, so self-hosting is free. Reading deeper history is pay-as-you-go or a plan.",
 	},
 	{
-		q: "What does a paid plan actually buy?",
-		a: "We host it for you: deploy public and private subgraphs, full genesis backfills, webhooks with replay, a bigger request budget, usage budgets, and support — provisioned and on-call on our infra. Never access to public data; reads are free either way.",
+		q: "What's pay-as-you-go?",
+		a: "Top up prepaid credits with a card. Reads beyond the free 24h window draw down at $5 per 1M rows — unthrottled, no subscription, across Index and Streams. The prepaid balance is the cap, so you never get a surprise bill.",
+	},
+	{
+		q: "What does flat Pro buy over pay-as-you-go?",
+		a: "A predictable bill instead of metering: deploy public and private subgraphs, full genesis backfills, 250 req/s, 25 webhooks with replay, usage budgets, and support. Go credits if you'd rather only pay for what you read; go Pro if you'd rather a fixed number.",
 	},
 	{
 		q: "How does the trial work?",
-		a: "Every paid plan opens with a 14-day trial — card on file, cancel anytime. Usage dashboards show exactly where you'd land before anything bills.",
+		a: "Flat Pro opens with a 14-day trial — card on file, cancel anytime. Usage dashboards show exactly where you'd land before anything bills.",
 	},
 	{
 		q: "Can I run it myself?",
-		a: "Yes — the whole stack is MIT-licensed. docker compose up runs the indexer, API, and processor on your own hardware. Paid plans are for when you'd rather we run it.",
+		a: "Yes — the whole stack is MIT-licensed. docker compose up runs the indexer, API, and processor on your own hardware. Paid is for when you'd rather we run it.",
 	},
 ];
 
@@ -67,10 +71,10 @@ export default function PricingPage() {
 					</>
 				}
 			>
-				Keyless decoded reads are free for everyone — no account, no card. When
-				you want it run for you — your tables, webhooks, and backfills on our
-				infra — that's Pro at $99/mo. The whole stack is MIT, so self-hosting is
-				always an option.
+				Keyless reads of the recent chain are free, no account. Pull full
+				history pay-as-you-go with prepaid credits ($5 per 1M rows), or go flat
+				with Pro at $79/mo. The whole stack is MIT, so self-hosting is always an
+				option.
 			</MarketingPageHeader>
 
 			<div className="prc-cta-band">
@@ -99,7 +103,7 @@ export default function PricingPage() {
 				<div className="prc-plan prc-pro">
 					<span className="prc-plan-eyebrow">Pro · most teams pick this</span>
 					<p className="prc-plan-price">
-						$99<small>/mo</small>
+						$79<small>/mo</small>
 					</p>
 					<p className="prc-plan-cont">We host it. You ship.</p>
 					<ul>
@@ -111,6 +115,20 @@ export default function PricingPage() {
 						Start 14-day trial
 					</Link>
 				</div>
+			</div>
+
+			<div className="prc-cta-band">
+				<div className="prc-cta-band-copy">
+					<p className="prc-cta-band-title">Or pay as you go.</p>
+					<p className="prc-cta-band-sub">
+						Need the full chain or more throughput? Top up credits and read
+						history unthrottled — $5 per 1M rows, no subscription. Reads stay
+						free at the tip either way.
+					</p>
+				</div>
+				<Link href="/login" className="prc-plan-cta prc-cta-ghost">
+					Top up credits
+				</Link>
 			</div>
 
 			<div className="prc-below">

@@ -248,8 +248,9 @@ export default async function BillingPage() {
 					</div>
 					{state === "ending" ? (
 						<p className={s.more}>
-							You drop to Free: keyless reads, public subgraphs, forward-only
-							indexing. Your data and public subgraphs are untouched.
+							You drop to Free: keyless reads of the recent 24h window, 10
+							req/s. Your subgraphs keep serving; deploying new ones or pulling
+							history needs credits or a plan again.
 						</p>
 					) : (
 						<p className={s.more}>
