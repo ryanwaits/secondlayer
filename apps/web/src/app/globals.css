@@ -8889,9 +8889,14 @@ html.force-dark .shiki span {
 .prc-split {
 	margin-top: 1rem;
 	display: grid;
-	grid-template-columns: 1fr 1fr;
+	grid-template-columns: 1fr 1fr 1fr;
 	gap: 1.1rem;
 	align-items: stretch;
+}
+@media (max-width: 960px) {
+	.prc-split {
+		grid-template-columns: 1fr 1fr;
+	}
 }
 @media (max-width: 820px) {
 	.prc-split {
@@ -8907,6 +8912,14 @@ html.force-dark .shiki span {
 .prc-free {
 	background: var(--bg-elevated, var(--bg));
 	border: 1px solid var(--border);
+}
+.prc-scale {
+	background: var(--bg-elevated, var(--bg));
+	border: 1px solid var(--border);
+	opacity: 0.9;
+}
+.prc-scale .prc-plan-eyebrow {
+	color: var(--text-muted);
 }
 /* Pro keeps the page theme (light stays light, dark stays dark). It's set
    apart by a subtle dot texture and the blue CTA, not by inverting the block. */

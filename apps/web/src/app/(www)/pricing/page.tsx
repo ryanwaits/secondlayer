@@ -30,8 +30,15 @@ const PRO_INCLUDES = [
 	"Email support",
 ];
 
+const SCALE_INCLUDES = [
+	"500 req/s on Index and Streams",
+	"Heavy history + replay",
+	"$2 / 1M rows at ≥10M rows/mo",
+	"24h SLA · priority support",
+];
+
 const ENTERPRISE_SUMMARY =
-	"Custom rates + dedicated resources. Priority indexing for your contracts + incident channels.";
+	"$3–8k/mo, custom. Dedicated capacity, SLAs, regions, SSO, and a success engineer.";
 
 const FAQ = [
 	{
@@ -41,6 +48,10 @@ const FAQ = [
 	{
 		q: "What's pay-as-you-go?",
 		a: "Top up prepaid credits with a card. Reads beyond the free 24h window draw down at $5 per 1M rows — unthrottled, no subscription, across Index and Streams. The prepaid balance is the cap, so you never get a surprise bill.",
+	},
+	{
+		q: "Do rates drop at volume?",
+		a: "Yes. Once your monthly spend crosses $50 (≈ 10M rows), the per-row rate drops to $2 per 1M rows automatically — no new plan, no action needed. The lower rate applies for the rest of that month.",
 	},
 	{
 		q: "What does flat Pro buy over pay-as-you-go?",
@@ -115,6 +126,24 @@ export default function PricingPage() {
 						Start 14-day trial
 					</Link>
 				</div>
+				<div className="prc-plan prc-scale">
+					<span className="prc-plan-eyebrow">Scale · high-volume teams</span>
+					<p className="prc-plan-price">
+						$299<small>/mo</small>
+					</p>
+					<p className="prc-plan-cont">Talk to us — not self-serve.</p>
+					<ul>
+						{SCALE_INCLUDES.map((f) => (
+							<li key={f}>{f}</li>
+						))}
+					</ul>
+					<a
+						href="mailto:hello@secondlayer.tools"
+						className="prc-plan-cta prc-cta-ghost"
+					>
+						Contact us
+					</a>
+				</div>
 			</div>
 
 			<div className="prc-cta-band">
@@ -145,7 +174,7 @@ export default function PricingPage() {
 				<a className="prc-xfoot" href="mailto:hello@secondlayer.tools">
 					<span className="prc-xfoot-row">
 						<span className="prc-xfoot-title">Contact Us</span>
-						<span className="prc-xfoot-tag">Enterprise</span>
+						<span className="prc-xfoot-tag">Scale · Enterprise</span>
 					</span>
 					<p>{ENTERPRISE_SUMMARY} →</p>
 				</a>

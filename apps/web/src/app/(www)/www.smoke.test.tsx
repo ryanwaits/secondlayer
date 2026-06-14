@@ -53,10 +53,13 @@ describe("www marketing routes", () => {
 		// honest free promise: keyless reads, no account
 		expect(html).toContain("$0");
 		expect(html).toContain("Keyless decoded reads");
-		// paid ladder is Free/Pro only; enterprise has no number
+		// paid ladder: Free / Pro $79 / Scale $299 / Enterprise (no Stripe number)
 		expect(html).toContain("$79");
 		expect(html).toContain("public and private");
-		expect(html).toContain("Contact Us");
+		expect(html).toContain("$299");
+		expect(html).toContain("Scale");
+		expect(html).toContain("Contact us");
+		expect(html).toContain("$3–8k");
 		expect(html).not.toContain("$499");
 		expect(html).not.toContain("$1.5k");
 		// x402 demoted to an experimental footnote, not a plan
