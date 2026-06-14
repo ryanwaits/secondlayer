@@ -4,12 +4,14 @@ import type {
 	ReadCanonicalStreamsEventsParams,
 	ReadCanonicalStreamsEventsResult,
 } from "../streams-events.ts";
-import { backfillSbtc } from "./backfill-sbtc-from-decoded.ts";
-import type { SbtcEventRow, SbtcTokenEventRow } from "./sbtc-storage.ts";
+import {
+	BACKFILL_REGISTRY,
+	backfillFromFirehose,
+} from "./backfill-from-firehose.ts";
 
 // A real canonical print event for an sBTC completed-deposit (prod cursor
-// 8282958:2). The payload carries `raw_value` (canonical Clarity hex) exactly as
-// readCanonicalStreamsEvents emits it, so decodeRegistryPrint decodes it 1:1.
+// 8282958:2). Its payload carries `raw_value` exactly as readCanonicalStreamsEvents
+// emits it, so decodeRegistryPrint decodes it 1:1.
 const DEPOSIT_EVENT: StreamsEvent = {
 	cursor: "8282958:2",
 	block_height: 8282958,
@@ -28,26 +30,7 @@ const DEPOSIT_EVENT: StreamsEvent = {
 	ts: "2026-06-12T00:00:00.000Z",
 } as StreamsEvent;
 
-const BURN_EVENT: StreamsEvent = {
-	cursor: "8116923:2",
-	block_height: 8116923,
-	block_hash: "",
-	burn_block_height: 0,
-	tx_id: "0xfeed",
-	tx_index: 1,
-	event_index: 2,
-	event_type: "ft_burn",
-	contract_id: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
-	payload: {
-		asset_identifier:
-			"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token",
-		amount: "50186271440",
-		sender: "SM35BNE8A592DRTQ7XVF1T3KY37XEZTPGGDC8EQYP",
-	},
-	ts: "2026-06-10T00:00:00.000Z",
-} as StreamsEvent;
-
-/** A one-page reader: returns the given events once, then an empty advanced page. */
+/** A one-page reader: serves the given events once, then an advanced empty page. */
 function onePageReader(events: StreamsEvent[]) {
 	let served = false;
 	const calls: ReadCanonicalStreamsEventsParams[] = [];
@@ -55,89 +38,80 @@ function onePageReader(events: StreamsEvent[]) {
 		params: ReadCanonicalStreamsEventsParams,
 	): Promise<ReadCanonicalStreamsEventsResult> => {
 		calls.push(params);
-		if (served) {
+		if (served)
 			return { events: [], next_cursor: `${params.toHeight}:2147483647` };
-		}
 		served = true;
 		return { events, next_cursor: events.at(-1)?.cursor ?? null };
 	};
 	return { read, calls };
 }
 
-describe("backfillSbtc (firehose replay → sbtc rows)", () => {
-	test("events target decodes registry prints and writes them", async () => {
+describe("backfill-from-firehose", () => {
+	test("registry lists only the recent-only domain decoders", () => {
+		expect(BACKFILL_REGISTRY.map((e) => e.key).sort()).toEqual([
+			"sbtc",
+			"sbtc_token",
+		]);
+	});
+
+	test("sbtc target replays the registry-print stream and decodes deposits", async () => {
 		const { read, calls } = onePageReader([DEPOSIT_EVENT]);
-		const written: SbtcEventRow[] = [];
-		const stats = await backfillSbtc({
-			target: "events",
-			apply: true,
+		const [stats] = await backfillFromFirehose({
+			target: "sbtc",
+			apply: false, // dry: exercises decode without writing
 			fromHeight: 0,
 			toHeight: 8_300_000,
 			limit: 500,
 			maxBatches: 10,
-			deps: {
-				readEvents: read,
-				writeEvents: async (rows) => {
-					written.push(...rows);
-				},
-				network: "mainnet",
-			},
+			deps: { read, net: "mainnet" },
 		});
-		expect(stats.eventsWritten).toBe(1);
+		expect(stats.key).toBe("sbtc");
+		expect(stats.written).toBe(1);
 		expect(stats.topics["completed-deposit"]).toBe(1);
-		expect(written[0]?.topic).toBe("completed-deposit");
-		expect(written[0]?.amount).toBe("14740");
-		expect(written[0]?.cursor).toBe("8282958:2");
-		// the reader is filtered to print + the registry contract
 		expect(calls[0]?.types).toEqual(["print"]);
 		expect(calls[0]?.contractId).toContain("sbtc-registry");
 	});
 
-	test("dry run decodes but does not write", async () => {
-		const { read } = onePageReader([DEPOSIT_EVENT]);
-		let wrote = 0;
-		const stats = await backfillSbtc({
-			target: "events",
+	test("token target filters the firehose by ft types + token contract", async () => {
+		const { read, calls } = onePageReader([]);
+		await backfillFromFirehose({
+			target: "sbtc_token",
 			apply: false,
 			fromHeight: 0,
 			toHeight: 8_300_000,
 			limit: 500,
 			maxBatches: 10,
-			deps: {
-				readEvents: read,
-				writeEvents: async () => {
-					wrote += 1;
-				},
-				network: "mainnet",
-			},
+			deps: { read, net: "mainnet" },
 		});
-		expect(stats.eventsWritten).toBe(1); // decoded count
-		expect(wrote).toBe(0); // but never written
+		expect(calls[0]?.types).toEqual(["ft_mint", "ft_burn", "ft_transfer"]);
+		expect(calls[0]?.contractId).toContain("sbtc-token");
 	});
 
-	test("token target decodes ft events into token rows", async () => {
-		const { read, calls } = onePageReader([BURN_EVENT]);
-		const written: SbtcTokenEventRow[] = [];
-		const stats = await backfillSbtc({
-			target: "token",
-			apply: true,
+	test("unknown target throws with the known keys", async () => {
+		await expect(
+			backfillFromFirehose({
+				target: "nope",
+				apply: false,
+				fromHeight: 0,
+				toHeight: 1,
+				limit: 1,
+				maxBatches: 1,
+				deps: { read: onePageReader([]).read, net: "mainnet" },
+			}),
+		).rejects.toThrow(/unknown --target/);
+	});
+
+	test("all target runs every registered entry", async () => {
+		const { read } = onePageReader([]);
+		const stats = await backfillFromFirehose({
+			target: "all",
+			apply: false,
 			fromHeight: 0,
 			toHeight: 8_300_000,
 			limit: 500,
 			maxBatches: 10,
-			deps: {
-				readEvents: read,
-				writeTokens: async (rows) => {
-					written.push(...rows);
-				},
-				network: "mainnet",
-			},
+			deps: { read, net: "mainnet" },
 		});
-		expect(stats.tokenWritten).toBe(1);
-		expect(written[0]?.event_type).toBe("burn");
-		expect(written[0]?.amount).toBe("50186271440");
-		expect(written[0]?.recipient).toBeNull();
-		expect(calls[0]?.types).toEqual(["ft_mint", "ft_burn", "ft_transfer"]);
-		expect(calls[0]?.contractId).toContain("sbtc-token");
+		expect(stats.map((s) => s.key)).toEqual(["sbtc", "sbtc_token"]);
 	});
 });

@@ -1,28 +1,29 @@
 /**
- * One-time backfill of sBTC decoded rows from the canonical event firehose —
- * in-process, NOT over the Streams HTTP API.
+ * Universal genesis backfill for L2 decoder tables — replays the full-genesis
+ * indexer firehose through the SAME decode functions the live decoders use.
  *
- * Why: the live sBTC L2 decoders (l2.sbtc.v1 / l2.sbtc_token.v1) consume Streams
- * over HTTP, which is retention-gated and refuses ranges older than the caller's
- * tier — so a fresh decoder checkpoint floors at the recent window (~block 7.9M).
- * The same canonical reader the HTTP route wraps (`readCanonicalStreamsEvents`)
- * has no retention gate when called directly against the source DB, and it emits
- * the SAME computed stream cursors the live path uses. So we replay the firehose
- * from our ingestion floor (~7.44M) through the exact same decode functions,
- * producing rows with cursors identical to the live decoder's — idempotent
- * (upsert on cursor) and safe to overlap. NB: our `events` table itself only
- * holds sBTC back to ~7.44M; reaching true chain genesis (~328k) needs a separate
- * node replay. This extends coverage to the full extent of what we ingested.
+ * Architecture: indexer DB (full genesis: blocks/transactions/events) → Streams →
+ * Index → Subgraphs. Some Index-layer domain decoders were added AFTER Streams
+ * and only ran from a recent checkpoint (~7.9M), so their tables are recent-only
+ * even though the firehose holds the data from genesis. (The bulk dumps are a
+ * separate analytics export — no product reads them, and this tool never touches
+ * them.) `readCanonicalStreamsEvents` reads the indexer DB in-process with no
+ * retention gate and emits live-identical cursors, so replaying it genesis→tip
+ * fills each lagging table with no gaps, idempotently (upsert on cursor).
  *
- * It does NOT touch the live decoder checkpoints — the live consumer keeps owning
- * the tip and writes the same rows identically where ranges overlap.
+ * Decoders are registered EXPLICITLY (no auto-discovery) so each backfill is a
+ * deliberate, reviewed entry. Already-genesis decoders (pox4, bns name/namespace,
+ * and the general ft/nft/stx/print → decoded_events) are intentionally absent.
+ *
+ * It does NOT touch live decoder checkpoints — the live consumer keeps owning the
+ * tip; overlapping ranges re-write identical rows.
  *
  * Usage:
- *   bun run packages/indexer/src/l2/backfill-sbtc-from-decoded.ts \
- *     --target events            # events | token | both  (default: events)
+ *   bun run packages/indexer/src/l2/backfill-from-firehose.ts \
+ *     --target sbtc            # a registry key, or "all"
  *     [--from-height N] [--to-height N] [--limit 500] [--apply]
  *
- * Default is a DRY RUN (decode + count + sample, no writes). Pass --apply to write.
+ * Default is a DRY RUN (decode + count, no writes). Pass --apply to write.
  */
 
 import type { StreamsEvent, StreamsEventType } from "@secondlayer/sdk";
@@ -46,26 +47,69 @@ import {
 	writeSbtcTokenEvents,
 } from "./sbtc-storage.ts";
 
-type Target = "events" | "token" | "both";
+type Network = "mainnet" | "testnet";
 
-type EventsReader = (
+export type EventsReader = (
 	params: ReadCanonicalStreamsEventsParams,
 ) => Promise<ReadCanonicalStreamsEventsResult>;
 
-export type BackfillDeps = {
-	readEvents?: EventsReader;
-	writeEvents?: typeof writeSbtcEvents;
-	writeTokens?: typeof writeSbtcTokenEvents;
-	db?: Kysely<Database>;
-	network?: "mainnet" | "testnet";
+type ProcessCtx = { apply: boolean; db: Kysely<Database> };
+type ProcessResult = { written: number; topics?: Record<string, number> };
+
+/** An explicitly-registered decoder backfill: a firehose filter + decode/write. */
+export type BackfillEntry = {
+	key: string;
+	decoderName: string;
+	types: readonly StreamsEventType[];
+	contractId: (net: Network) => string;
+	/** Decode a page of firehose events and (when apply) write the rows. */
+	process: (events: StreamsEvent[], ctx: ProcessCtx) => Promise<ProcessResult>;
 };
 
-export type BackfillStats = {
-	scanned: number;
-	eventsWritten: number;
-	tokenWritten: number;
-	topics: Record<string, number>;
+const sbtcEntry: BackfillEntry = {
+	key: "sbtc",
+	decoderName: SBTC_DECODER_NAME,
+	types: ["print"],
+	contractId: (net) =>
+		`${SBTC_CONTRACTS[net].address}.${SBTC_CONTRACTS[net].registry}`,
+	process: async (events, ctx) => {
+		const rows: SbtcEventRow[] = [];
+		const topics: Record<string, number> = {};
+		for (const event of events) {
+			const row = decodeRegistryPrint(event);
+			if (row) {
+				rows.push(row);
+				topics[row.topic] = (topics[row.topic] ?? 0) + 1;
+			}
+		}
+		if (ctx.apply && rows.length) await writeSbtcEvents(rows, { db: ctx.db });
+		return { written: rows.length, topics };
+	},
 };
+
+const sbtcTokenEntry: BackfillEntry = {
+	key: "sbtc_token",
+	decoderName: SBTC_TOKEN_DECODER_NAME,
+	types: ["ft_mint", "ft_burn", "ft_transfer"],
+	contractId: (net) =>
+		`${SBTC_CONTRACTS[net].address}.${SBTC_CONTRACTS[net].token}`,
+	process: async (events, ctx) => {
+		const rows: SbtcTokenEventRow[] = [];
+		for (const event of events) {
+			const row = decodeTokenEvent(event);
+			if (row) rows.push(row);
+		}
+		if (ctx.apply && rows.length)
+			await writeSbtcTokenEvents(rows, { db: ctx.db });
+		return { written: rows.length };
+	},
+};
+
+/** The explicit registry — only decoders whose tables are recent-only. */
+export const BACKFILL_REGISTRY: readonly BackfillEntry[] = [
+	sbtcEntry,
+	sbtcTokenEntry,
+];
 
 function parseCursor(cursor: string): {
 	block_height: number;
@@ -75,129 +119,117 @@ function parseCursor(cursor: string): {
 	return { block_height: Number(bh), event_index: Number(ei) };
 }
 
-/**
- * Replay one firehose stream (a type set + contract filter) through a decode fn,
- * writing decoded rows. Generic over registry-prints and token-ft so both share
- * the cursor-walk + idempotent-write loop.
- */
-async function runStream<Row extends { cursor: string }>(opts: {
-	read: EventsReader;
-	types: readonly StreamsEventType[];
-	contractId: string;
-	fromHeight: number;
-	toHeight: number;
-	limit: number;
-	maxBatches: number;
-	decode: (event: StreamsEvent) => Row | null;
-	write: (rows: Row[]) => Promise<void>;
-	apply: boolean;
-	onDecoded?: (row: Row) => void;
-}): Promise<{ scanned: number; written: number }> {
+export type RunEntryStats = {
+	key: string;
+	scanned: number;
+	written: number;
+	topics: Record<string, number>;
+};
+
+/** Cursor-walk the firehose for one registry entry, decoding + writing per page. */
+export async function runEntry(
+	entry: BackfillEntry,
+	opts: {
+		read: EventsReader;
+		db: Kysely<Database>;
+		net: Network;
+		fromHeight: number;
+		toHeight: number;
+		limit: number;
+		maxBatches: number;
+		apply: boolean;
+	},
+): Promise<RunEntryStats> {
 	let after: { block_height: number; event_index: number } | undefined;
 	let scanned = 0;
 	let written = 0;
 	let batches = 0;
+	const topics: Record<string, number> = {};
+	const contractId = entry.contractId(opts.net);
+
 	for (;;) {
 		if (batches >= opts.maxBatches) break;
 		const page = await opts.read({
 			after,
 			fromHeight: after ? undefined : opts.fromHeight,
 			toHeight: opts.toHeight,
-			types: opts.types,
-			contractId: opts.contractId,
+			types: entry.types,
+			contractId,
 			limit: opts.limit,
 		});
 		batches += 1;
 		scanned += page.events.length;
 
-		const rows: Row[] = [];
-		for (const event of page.events) {
-			// The canonical reader emits the indexer's StreamsEvent; the decoders
-			// take the SDK's structurally-identical StreamsEvent. Bridge the nominal
-			// type gap — every field the decoders read is present at runtime.
-			const row = opts.decode(event as unknown as StreamsEvent);
-			if (row) {
-				rows.push(row);
-				opts.onDecoded?.(row);
-			}
+		const result = await entry.process(page.events as StreamsEvent[], {
+			apply: opts.apply,
+			db: opts.db,
+		});
+		written += result.written;
+		for (const [topic, n] of Object.entries(result.topics ?? {})) {
+			topics[topic] = (topics[topic] ?? 0) + n;
 		}
-		if (opts.apply && rows.length) await opts.write(rows);
-		written += rows.length;
+
+		if (batches % 50 === 0) {
+			logger.info("backfill.progress", {
+				key: entry.key,
+				batches,
+				scanned,
+				written,
+				atHeight: after?.block_height ?? opts.fromHeight,
+			});
+		}
 
 		if (!page.next_cursor) break;
 		const next = parseCursor(page.next_cursor);
-		// Empty page whose cursor has advanced to/past the ceiling = end of range.
 		if (page.events.length === 0 && next.block_height >= opts.toHeight) break;
 		after = next;
 	}
-	return { scanned, written };
+	return { key: entry.key, scanned, written, topics };
 }
 
-export async function backfillSbtc(opts: {
-	target: Target;
+export async function backfillFromFirehose(opts: {
+	target: string; // a registry key or "all"
 	apply: boolean;
 	fromHeight: number;
 	toHeight: number;
 	limit: number;
 	maxBatches: number;
-	deps?: BackfillDeps;
-}): Promise<BackfillStats> {
-	const deps = opts.deps ?? {};
-	const db = deps.db ?? getSourceDb();
+	deps?: { read?: EventsReader; db?: Kysely<Database>; net?: Network };
+}): Promise<RunEntryStats[]> {
+	const db = opts.deps?.db ?? getSourceDb();
 	const read: EventsReader =
-		deps.readEvents ??
+		opts.deps?.read ??
 		((params) => readCanonicalStreamsEvents({ ...params, db }));
-	const writeEvents = deps.writeEvents ?? writeSbtcEvents;
-	const writeTokens = deps.writeTokens ?? writeSbtcTokenEvents;
 	const net =
-		deps.network ??
+		opts.deps?.net ??
 		(process.env.STACKS_NETWORK === "testnet" ? "testnet" : "mainnet");
-	const registry = `${SBTC_CONTRACTS[net].address}.${SBTC_CONTRACTS[net].registry}`;
-	const token = `${SBTC_CONTRACTS[net].address}.${SBTC_CONTRACTS[net].token}`;
 
-	const topics: Record<string, number> = {};
-	let eventsWritten = 0;
-	let tokenWritten = 0;
-	let scanned = 0;
-
-	if (opts.target === "events" || opts.target === "both") {
-		const r = await runStream<SbtcEventRow>({
-			read,
-			types: ["print"],
-			contractId: registry,
-			fromHeight: opts.fromHeight,
-			toHeight: opts.toHeight,
-			limit: opts.limit,
-			maxBatches: opts.maxBatches,
-			decode: decodeRegistryPrint,
-			write: (rows) => writeEvents(rows, { db }),
-			apply: opts.apply,
-			onDecoded: (row) => {
-				topics[row.topic] = (topics[row.topic] ?? 0) + 1;
-			},
-		});
-		scanned += r.scanned;
-		eventsWritten += r.written;
+	const entries =
+		opts.target === "all"
+			? BACKFILL_REGISTRY
+			: BACKFILL_REGISTRY.filter((e) => e.key === opts.target);
+	if (entries.length === 0) {
+		throw new Error(
+			`unknown --target ${opts.target}; known: ${BACKFILL_REGISTRY.map((e) => e.key).join(", ")}, all`,
+		);
 	}
 
-	if (opts.target === "token" || opts.target === "both") {
-		const r = await runStream<SbtcTokenEventRow>({
-			read,
-			types: ["ft_mint", "ft_burn", "ft_transfer"],
-			contractId: token,
-			fromHeight: opts.fromHeight,
-			toHeight: opts.toHeight,
-			limit: opts.limit,
-			maxBatches: opts.maxBatches,
-			decode: decodeTokenEvent,
-			write: (rows) => writeTokens(rows, { db }),
-			apply: opts.apply,
-		});
-		scanned += r.scanned;
-		tokenWritten += r.written;
+	const stats: RunEntryStats[] = [];
+	for (const entry of entries) {
+		stats.push(
+			await runEntry(entry, {
+				read,
+				db,
+				net,
+				fromHeight: opts.fromHeight,
+				toHeight: opts.toHeight,
+				limit: opts.limit,
+				maxBatches: opts.maxBatches,
+				apply: opts.apply,
+			}),
+		);
 	}
-
-	return { scanned, eventsWritten, tokenWritten, topics };
+	return stats;
 }
 
 async function resolveTip(db: Kysely<Database>): Promise<number> {
@@ -213,27 +245,17 @@ async function main() {
 		const i = args.indexOf(name);
 		return i >= 0 ? args[i + 1] : undefined;
 	};
-	const target = (flag("--target") ?? "events") as Target;
+	const target = flag("--target") ?? "sbtc";
 	const apply = args.includes("--apply");
 	const fromHeight = Number(flag("--from-height") ?? 0);
 	const limit = Number(flag("--limit") ?? 500);
 	const maxBatches = Number(flag("--max-batches") ?? Number.MAX_SAFE_INTEGER);
 
-	if (!["events", "token", "both"].includes(target)) {
-		throw new Error(`--target must be events|token|both, got ${target}`);
-	}
-
 	const db = getSourceDb();
 	const toHeight = Number(flag("--to-height") ?? (await resolveTip(db)));
-	logger.info("sbtc_backfill.start", {
-		target,
-		apply,
-		fromHeight,
-		toHeight,
-		limit,
-	});
+	logger.info("backfill.start", { target, apply, fromHeight, toHeight, limit });
 
-	const stats = await backfillSbtc({
+	const stats = await backfillFromFirehose({
 		target,
 		apply,
 		fromHeight,
@@ -243,24 +265,19 @@ async function main() {
 		deps: { db },
 	});
 
-	logger.info("sbtc_backfill.done", {
+	logger.info("backfill.done", {
 		target,
 		apply,
-		...stats,
+		stats,
 		note: apply ? "rows upserted" : "DRY RUN — no writes (pass --apply)",
 	});
-
-	// The live decoders keep their own checkpoints; we never advance/reset them
-	// here. Reference the names so the dependency is explicit for future edits.
-	void SBTC_DECODER_NAME;
-	void SBTC_TOKEN_DECODER_NAME;
 
 	await db.destroy();
 }
 
 if (import.meta.main) {
 	main().catch((err) => {
-		logger.error("sbtc_backfill.failed", { error: String(err) });
+		logger.error("backfill.failed", { error: String(err) });
 		process.exit(1);
 	});
 }
