@@ -69,12 +69,16 @@ import {
 	SBTC_DEPOSIT_FILTERS,
 	SBTC_EVENTS_FILTERS,
 	SBTC_WITHDRAWAL_FILTERS,
+	type SbtcDepositByTxidReader,
 	type SbtcDepositsReader,
 	type SbtcEventsReader,
+	type SbtcWithdrawalByIdReader,
 	type SbtcWithdrawalsReader,
 	getSbtcDepositsResponse,
 	getSbtcEventsResponse,
 	getSbtcWithdrawalsResponse,
+	readSbtcDepositByBitcoinTxid,
+	readSbtcWithdrawalById,
 } from "../index/sbtc-peg.ts";
 import {
 	STACKING_FILTERS,
@@ -137,6 +141,8 @@ export type IndexRouterOptions = {
 	readSbtcEvents?: SbtcEventsReader;
 	readSbtcDeposits?: SbtcDepositsReader;
 	readSbtcWithdrawals?: SbtcWithdrawalsReader;
+	readSbtcWithdrawalById?: SbtcWithdrawalByIdReader;
+	readSbtcDepositByTxid?: SbtcDepositByTxidReader;
 	readMempool?: MempoolReader;
 	readMempoolByTxId?: MempoolByIdReader;
 	readReorgs?: StreamsReorgsReader;
@@ -697,6 +703,58 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			await debitCreditedRead(c, response.withdrawals.length);
 		}
 		return c.json(response);
+	});
+
+	// Point-gets (registered after the static list routes so they don't shadow
+	// them). Cheap reference data — served but not metered, like blocks/:id.
+	router.get("/sbtc/withdrawals/:request_id", async (c) => {
+		const raw = c.req.param("request_id");
+		if (!/^(0|[1-9]\d*)$/.test(raw)) {
+			return c.json(
+				{ error: "request_id must be a non-negative integer" },
+				400,
+			);
+		}
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		const read = opts.readSbtcWithdrawalById ?? readSbtcWithdrawalById;
+		const lifecycle = await read(Number(raw));
+		if (!lifecycle) return c.json({ error: "Withdrawal not found" }, 404);
+		// Immutable only once terminal AND past finality — a still-REQUESTED
+		// withdrawal can still be accepted/rejected later, even if its create event
+		// is finalized.
+		const { latest_height, ...withdrawal } = lifecycle;
+		const finalized =
+			lifecycle.status !== "REQUESTED" && latest_height <= tip.finalized_height;
+		const body = { withdrawal: { ...withdrawal, finalized }, tip };
+		c.header("Cache-Control", cacheControl(finalized));
+		if (finalized) {
+			const tag = etag(JSON.stringify(body.withdrawal));
+			c.header("ETag", tag);
+			if (matchesIfNoneMatch(c.req.header("If-None-Match"), tag)) {
+				return c.body(null, 304);
+			}
+		}
+		return c.json(body);
+	});
+
+	router.get("/sbtc/deposits/:bitcoin_txid", async (c) => {
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		const read = opts.readSbtcDepositByTxid ?? readSbtcDepositByBitcoinTxid;
+		const deposit = await read(c.req.param("bitcoin_txid"));
+		if (!deposit) return c.json({ error: "Deposit not found" }, 404);
+		// Deposits are terminal (completed-deposit only); immutable once finalized.
+		const finalized = deposit.block_height <= tip.finalized_height;
+		c.header("Cache-Control", cacheControl(finalized));
+		if (finalized) {
+			const tag = etag(JSON.stringify(deposit));
+			c.header("ETag", tag);
+			if (matchesIfNoneMatch(c.req.header("If-None-Match"), tag)) {
+				return c.body(null, 304);
+			}
+		}
+		return c.json({ deposit, tip });
 	});
 
 	router.get("/mempool", async (c) => {

@@ -525,6 +525,54 @@ describe("Index sBTC peg routes", () => {
 					],
 					next_cursor: "9000:0",
 				}),
+				readSbtcWithdrawalById: async (requestId) =>
+					requestId === 7
+						? {
+								request_id: 7,
+								status: "ACCEPTED",
+								amount: "500",
+								sender: "SP1",
+								recipient_btc_version: 1,
+								recipient_btc_hashbytes: "0xab",
+								requested: {
+									block_height: 9000,
+									block_time: null,
+									tx_id: "0xreq",
+								},
+								accepted: {
+									block_height: 9001,
+									block_time: null,
+									tx_id: "0xacc",
+									sweep_txid: "0xsweep",
+									signer_bitmap: null,
+								},
+								rejected: null,
+								settlement: {
+									sweep_txid: "0xsweep",
+									btc_confirmations: null,
+									settlement_confirmed: null,
+								},
+								latest_height: 9001,
+							}
+						: null,
+				readSbtcDepositByTxid: async (txid) =>
+					txid === "0xbtc"
+						? {
+								cursor: "9000:0",
+								block_height: 9000,
+								block_time: null,
+								tx_id: "0x9000",
+								tx_index: 0,
+								event_index: 0,
+								amount: "1000",
+								sender: "SP1",
+								bitcoin_txid: "0xbtc",
+								output_index: 0,
+								recipient_btc_version: 1,
+								recipient_btc_hashbytes: "0xab",
+								status: "COMPLETED",
+							}
+						: null,
 			}),
 		);
 		return app;
@@ -552,5 +600,34 @@ describe("Index sBTC peg routes", () => {
 	test("rejects an unknown query filter", async () => {
 		const res = await sbtcApp().request("/v1/index/sbtc/events?bogus=1");
 		expect(res.status).toBe(400);
+	});
+
+	test("withdrawal by request_id returns the assembled lifecycle, immutable when terminal+finalized", async () => {
+		const res = await sbtcApp().request("/v1/index/sbtc/withdrawals/7");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			withdrawal: { status: string; finalized: boolean; accepted: unknown };
+		};
+		expect(body.withdrawal.status).toBe("ACCEPTED");
+		// latest_height 9001 ≤ finalized_height 9994 and terminal → immutable.
+		expect(body.withdrawal.finalized).toBe(true);
+		expect(res.headers.get("ETag")).not.toBeNull();
+	});
+
+	test("unknown withdrawal request_id → 404", async () => {
+		const res = await sbtcApp().request("/v1/index/sbtc/withdrawals/999");
+		expect(res.status).toBe(404);
+	});
+
+	test("malformed request_id → 400", async () => {
+		const res = await sbtcApp().request("/v1/index/sbtc/withdrawals/abc");
+		expect(res.status).toBe(400);
+	});
+
+	test("deposit by bitcoin_txid returns the typed object", async () => {
+		const res = await sbtcApp().request("/v1/index/sbtc/deposits/0xbtc");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { deposit: { status: string } };
+		expect(body.deposit.status).toBe("COMPLETED");
 	});
 });

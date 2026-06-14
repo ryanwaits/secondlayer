@@ -9,8 +9,10 @@ import {
 	getSbtcDepositsResponse,
 	getSbtcEventsResponse,
 	getSbtcWithdrawalsResponse,
+	readSbtcDepositByBitcoinTxid,
 	readSbtcDeposits,
 	readSbtcEvents,
+	readSbtcWithdrawalById,
 	readSbtcWithdrawals,
 } from "./sbtc-peg.ts";
 import type { IndexTip } from "./tip.ts";
@@ -450,5 +452,73 @@ describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 			status: "ACCEPTED",
 		});
 		expect(accepted.withdrawals.map((w) => w.request_id)).toEqual([2]);
+	});
+
+	test("withdrawal by id assembles the full lifecycle; null when absent", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("sbtc_events")
+			.values([
+				seed({
+					cursor: "100:0",
+					block_height: 100,
+					tx_id: "0xreq",
+					tx_index: 0,
+					event_index: 0,
+					topic: "withdrawal-create",
+					request_id: 42,
+					amount: "777",
+					sender: "SP9",
+				}),
+				seed({
+					cursor: "110:0",
+					block_height: 110,
+					tx_id: "0xacc",
+					tx_index: 0,
+					event_index: 0,
+					topic: "withdrawal-accept",
+					request_id: 42,
+					sweep_txid: "0xsweep42",
+				}),
+			])
+			.execute();
+
+		const lifecycle = await readSbtcWithdrawalById(42, { db });
+		expect(lifecycle?.status).toBe("ACCEPTED");
+		expect(lifecycle?.requested.tx_id).toBe("0xreq");
+		expect(lifecycle?.accepted?.sweep_txid).toBe("0xsweep42");
+		expect(lifecycle?.rejected).toBeNull();
+		expect(lifecycle?.settlement).toEqual({
+			sweep_txid: "0xsweep42",
+			btc_confirmations: null,
+			settlement_confirmed: null,
+		});
+		expect(lifecycle?.latest_height).toBe(110);
+
+		expect(await readSbtcWithdrawalById(999, { db })).toBeNull();
+	});
+
+	test("deposit by bitcoin_txid returns the typed object; null when absent", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("sbtc_events")
+			.values([
+				seed({
+					cursor: "100:0",
+					block_height: 100,
+					tx_id: "0xa",
+					tx_index: 0,
+					event_index: 0,
+					topic: "completed-deposit",
+					bitcoin_txid: "0xbtcZ",
+					amount: "1234",
+				}),
+			])
+			.execute();
+
+		const deposit = await readSbtcDepositByBitcoinTxid("0xbtcZ", { db });
+		expect(deposit?.status).toBe("COMPLETED");
+		expect(deposit?.amount).toBe("1234");
+		expect(await readSbtcDepositByBitcoinTxid("0xnope", { db })).toBeNull();
 	});
 });

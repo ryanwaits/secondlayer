@@ -769,3 +769,162 @@ export async function getSbtcWithdrawalsResponse(opts: {
 		...(note ? { notes: note } : {}),
 	};
 }
+
+// --- by-id lifecycle detail (T6) ------------------------------------------
+
+/** One phase of a withdrawal's lifecycle (the on-Stacks event that drove it). */
+export type SbtcWithdrawalPhase = {
+	block_height: number;
+	block_time: string | null;
+	tx_id: string;
+};
+
+/** A single peg-out's full assembled lifecycle, joined by request_id. The
+ *  settlement block is a placeholder until the BTC L1 confirmer fills
+ *  btc_confirmations + settlement_confirmed for the committed sweep. */
+export type SbtcWithdrawalLifecycle = {
+	request_id: number;
+	status: SbtcWithdrawalStatus;
+	amount: string | null;
+	sender: string | null;
+	recipient_btc_version: number | null;
+	recipient_btc_hashbytes: string | null;
+	requested: SbtcWithdrawalPhase;
+	accepted:
+		| (SbtcWithdrawalPhase & {
+				sweep_txid: string | null;
+				signer_bitmap: string | null;
+		  })
+		| null;
+	rejected: SbtcWithdrawalPhase | null;
+	settlement: {
+		sweep_txid: string | null;
+		btc_confirmations: number | null;
+		settlement_confirmed: boolean | null;
+	};
+	/** The highest block_height across the lifecycle's events — the route uses it
+	 *  to decide finality (and whether the row is immutably cacheable). */
+	latest_height: number;
+};
+
+/** A completed peg-in fetched by its Bitcoin txid (deposits carry no request_id).
+ *  Single terminal event, so status is always COMPLETED. */
+export type SbtcDepositDetail = SbtcDeposit & { status: "COMPLETED" };
+
+type SbtcLifecycleDbRow = {
+	block_height: string | number;
+	block_time: Date | string | null;
+	event_index: string | number;
+	tx_id: string;
+	topic: SbtcEventTopic;
+	amount: string | null;
+	sender: string | null;
+	recipient_btc_version: number | null;
+	recipient_btc_hashbytes: string | null;
+	sweep_txid: string | null;
+	signer_bitmap: string | null;
+};
+
+function phaseOf(row: SbtcLifecycleDbRow): SbtcWithdrawalPhase {
+	return {
+		block_height: Number(row.block_height),
+		block_time: toIsoOrNull(row.block_time),
+		tx_id: row.tx_id,
+	};
+}
+
+export async function readSbtcWithdrawalById(
+	requestId: number,
+	opts?: { db?: Kysely<Database> },
+): Promise<SbtcWithdrawalLifecycle | null> {
+	const db = opts?.db ?? getSourceDb();
+	const { rows } = await sql<SbtcLifecycleDbRow>`
+		SELECT
+			block_height, block_time, event_index, tx_id, topic,
+			amount, sender, recipient_btc_version, recipient_btc_hashbytes,
+			sweep_txid, signer_bitmap
+		FROM sbtc_events
+		WHERE canonical = true
+			AND request_id = ${requestId}
+			AND topic IN ('withdrawal-create', 'withdrawal-accept', 'withdrawal-reject')
+		ORDER BY block_height ASC, event_index ASC
+	`.execute(db);
+
+	const createRow = rows.find((r) => r.topic === "withdrawal-create");
+	// Without a create event there is no withdrawal to report (orphan accept/reject).
+	if (!createRow) return null;
+
+	// Latest resolution wins (canonical chain yields at most one, but be defensive).
+	const acceptRow = rows.filter((r) => r.topic === "withdrawal-accept").at(-1);
+	const rejectRow = rows.filter((r) => r.topic === "withdrawal-reject").at(-1);
+	const resolution =
+		acceptRow && rejectRow
+			? Number(acceptRow.block_height) >= Number(rejectRow.block_height)
+				? acceptRow
+				: rejectRow
+			: (acceptRow ?? rejectRow);
+
+	const status: SbtcWithdrawalStatus =
+		resolution?.topic === "withdrawal-accept"
+			? "ACCEPTED"
+			: resolution?.topic === "withdrawal-reject"
+				? "REJECTED"
+				: "REQUESTED";
+
+	const latestHeight = rows.reduce(
+		(max, r) => Math.max(max, Number(r.block_height)),
+		0,
+	);
+
+	return {
+		request_id: requestId,
+		status,
+		amount: createRow.amount,
+		sender: createRow.sender,
+		recipient_btc_version: createRow.recipient_btc_version,
+		recipient_btc_hashbytes: createRow.recipient_btc_hashbytes,
+		requested: phaseOf(createRow),
+		accepted: acceptRow
+			? {
+					...phaseOf(acceptRow),
+					sweep_txid: acceptRow.sweep_txid,
+					signer_bitmap: acceptRow.signer_bitmap,
+				}
+			: null,
+		rejected: rejectRow ? phaseOf(rejectRow) : null,
+		settlement: {
+			sweep_txid: acceptRow?.sweep_txid ?? null,
+			btc_confirmations: null,
+			settlement_confirmed: null,
+		},
+		latest_height: latestHeight,
+	};
+}
+
+export type SbtcWithdrawalByIdReader = (
+	requestId: number,
+) => Promise<SbtcWithdrawalLifecycle | null>;
+
+export async function readSbtcDepositByBitcoinTxid(
+	bitcoinTxid: string,
+	opts?: { db?: Kysely<Database> },
+): Promise<SbtcDepositDetail | null> {
+	const db = opts?.db ?? getSourceDb();
+	const { rows } = await sql<SbtcEventDbRow>`
+		SELECT ${SBTC_EVENT_COLUMNS}
+		FROM sbtc_events
+		WHERE canonical = true
+			AND topic = ${DEPOSIT_TOPIC}
+			AND bitcoin_txid = ${bitcoinTxid}
+		ORDER BY block_height ASC, event_index ASC
+		LIMIT 1
+	`.execute(db);
+
+	const row = rows[0];
+	if (!row) return null;
+	return { ...normalizeSbtcDeposit(row), status: "COMPLETED" };
+}
+
+export type SbtcDepositByTxidReader = (
+	bitcoinTxid: string,
+) => Promise<SbtcDepositDetail | null>;

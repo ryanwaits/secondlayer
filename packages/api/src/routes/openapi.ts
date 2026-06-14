@@ -511,6 +511,38 @@ const OPENAPI_SPEC = {
 				responses: envelope("withdrawals"),
 			},
 		},
+		"/v1/index/sbtc/withdrawals/{request_id}": {
+			get: {
+				tags: ["index"],
+				summary: "sBTC peg-out lifecycle by request_id",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [
+					{
+						name: "request_id",
+						in: "path",
+						required: true,
+						schema: { type: "integer", example: 42 },
+					},
+				],
+				responses: ok(),
+			},
+		},
+		"/v1/index/sbtc/deposits/{bitcoin_txid}": {
+			get: {
+				tags: ["index"],
+				summary: "sBTC peg-in by Bitcoin txid",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [
+					{
+						name: "bitcoin_txid",
+						in: "path",
+						required: true,
+						schema: { type: "string" },
+					},
+				],
+				responses: ok(),
+			},
+		},
 		"/v1/index/mempool": {
 			get: {
 				tags: ["index"],
