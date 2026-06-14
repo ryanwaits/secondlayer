@@ -3,14 +3,14 @@
 > Canonical prioritized backlog of work we've consciously deferred, so it isn't lost.
 > `STRATEGY.md` holds strategic direction and wins on positioning conflicts; this is the
 > tactical TODO that hangs off it. Add items when you defer something; delete when shipped.
-> Last updated 2026-06-13 (data-plane / anchor wedge section + founder rulings: Stacks
-> Labs/Foundation Track A/B grant framing, Zest 3-layer co-build scope, correctness
-> Emily/canary ladder, sBTC peg reference-impl shelf + BTC L1 settlement confirmer;
-> indexer-positioning arc + the three replay/queue findings; x402 Phase 3 smoke ladder
-> S2–S7). **sBTC peg read + lifecycle SKU SHIPPED 2026-06-13** (typed `/v1/index/sbtc/*`
-> endpoints + confirmed-finality gating); remaining peg work = webhook topics + aggregates +
-> the BTC settlement confirmer + the Peg Explorer reference impl. Both the sBTC peg and Zest
-> items now carry an explicit product-surface + definition-of-done.
+> Last updated 2026-06-14. **sBTC peg read + lifecycle SKU SHIPPED 2026-06-13**
+> (typed `/v1/index/sbtc/*` endpoints + confirmed-finality gating). **sBTC webhook topics
+> SHIPPED 2026-06-14** (`shared@6.34.0` / `subgraphs@3.15.0`: 4 `ChainTrigger` types +
+> `emitSbtcOutbox` evaluator path). **PoX reward-cycle aggregates SHIPPED 2026-06-14**
+> (`/v1/index/pox/cycles` + `/v1/index/pox/cycles/:reward_cycle`). **P1 webhook signing +
+> trial enforcement SHIPPED** (signing key wired `d9b5d342`; trial gate + 14d + quota=0
+> `ffc2c0ed`). Remaining peg work = `/sbtc/summary` aggregate + BTC settlement confirmer +
+> Peg Explorer. Slot caps still open (blocked on founder per-plan numbers).
 
 ## Positioning & marketing — viral-principles audit (2026-06-13)
 
@@ -231,13 +231,13 @@ a revenue line.
   `settlement.{sweep_txid, btc_confirmations:null, settlement_confirmed:null}` placeholder the BTC
   confirmer fills. File: `packages/api/src/index/sbtc-peg.ts`.
 
-  **REMAINING for "done":** (c) **named webhook topics** `sbtc.deposit.completed` /
-  `sbtc.withdrawal.{requested,accepted,rejected,swept}` — `sbtc_events` is a separate decoded
-  table NOT in the trigger-evaluator's stream today, so this needs evaluator wiring (effort **M**;
-  `trigger-evaluator.ts` + `schemas/subscriptions.ts`); (e) **aggregates** `/v1/index/sbtc/summary`
-  (net peg flow, total locked sats, sBTC supply, counts) — SUM queries over `sbtc_events` /
-  `sbtc_token_events`, effort **S-M**. (The BTC L1 settlement confirmer that fills the settlement
-  placeholder + emits `sbtc.withdrawal.swept.confirmed` is the separate bullet below.)
+  **REMAINING for "done":** (c) ~~named webhook topics~~ **SHIPPED 2026-06-14** —
+  `sbtc_deposit` / `sbtc_withdrawal_create` / `sbtc_withdrawal_accept` / `sbtc_withdrawal_reject`
+  `ChainTrigger` types + `emitSbtcOutbox` evaluator path (`shared@6.34.0` / `subgraphs@3.15.0`);
+  (e) **aggregates** `/v1/index/sbtc/summary` (net peg flow, total locked sats, sBTC supply,
+  counts) — SUM queries over `sbtc_events` / `sbtc_token_events`, effort **S-M**. (The BTC L1
+  settlement confirmer that fills the settlement placeholder + emits
+  `sbtc.withdrawal.swept.confirmed` is the separate bullet below.)
 
   **Reference-implementation shelf (build ON the now-live feed — proof artifacts + dogfood):**
   - **(1) sBTC Peg Explorer** *(flagship — THE reference implementation for the SKU; public, in
@@ -278,10 +278,11 @@ a revenue line.
   become a Bitcoin API. Effort: **M**. Files: `packages/indexer/src/l2/` (new btc-confirmer),
   `docker/node-server/` (RPC exposure).
 
-- **Productize PoX-cycle / reward-set aggregate endpoints** — per-cycle reward-set semantics
-  every stacking product hand-rolls; raw `pox-4` exists, the cycle-aggregate shape doesn't.
-  Second-sharpest unproductized moat (StackingDAO, Xverse stacking pool, Stacks Labs, Dune).
-  Effort: **M**. Files: `packages/api/src/index/stacking.ts`, `packages/api/src/decoders/pox-4`.
+- ~~**Productize PoX-cycle / reward-set aggregate endpoints**~~ **SHIPPED 2026-06-14** —
+  `/v1/index/pox/cycles` (paginated, `limit`/`cursor`) + `/v1/index/pox/cycles/:reward_cycle`;
+  fields: `total_stacked_ustx`, `unique_stackers`, `unique_delegators`, `action_count`,
+  `start/end_block_height`, `is_current`, `function_breakdown`. Cache 30s current / 3600s
+  completed. File: `packages/api/src/index/pox-cycles.ts`.
 
 - **SLA-enabling redundancy (scope as 3-4 builds, not one).** SLA-criticality is the only
   validated true-anchor lever; the two biggest revenue lines (Zest, Dune) need a *signable*
@@ -372,33 +373,14 @@ a revenue line.
 
 ## P1 — correctness, do next
 
-- **Webhook ed25519 signature is a silent no-op in prod.** The signer
-  (`packages/shared/src/crypto/secondlayer-webhook.ts`) returns null when
-  `STREAMS_SIGNING_PRIVATE_KEY` is absent, and the `subscription-processor` compose block
-  (`docker/docker-compose.yml` ~L370-380) injects only `SECONDLAYER_SECRETS_KEY` — so every
-  "signed" webhook delivery ships UNSIGNED while we market dual-signed webhooks as the trust
-  story. Wire the key into the processor env + add a boot-time fail-loud assert. Same footgun
-  bit Streams once. Trust-credibility prerequisite for every anchor (Fordefi/Asigna/Zest verify
-  against our published key). Effort: **S** (hours).
+- ~~**Webhook ed25519 signature is a silent no-op in prod.**~~ **SHIPPED** (`d9b5d342`) —
+  `STREAMS_SIGNING_PRIVATE_KEY` wired into `subscription-processor` compose env; boot-time
+  `assertWebhookSigningConfigured()` fails loud on missing key.
 
-- **Trial enforcement: copy promises a paywall the product doesn't enforce.** The /pricing
-  reframe (2026-06-13) now says deploying opens a "14-day trial · card required," but a
-  `none`-plan account today can still deploy unlimited **public** subgraphs and create webhooks
-  for free — no plan/trial check. (Private subgraphs + genesis backfills already 403
-  `PLAN_REQUIRED`; trial machinery exists end-to-end but runs 30 days, not 14.) Founder
-  decisions (2026-06-13): webhooks → **require trial (free `none` quota = 0)**; trial-lapse →
-  **block new actions only, no tenant-suspend** (Stripe webhook already demotes lapsed → `none`).
-  No DB migration. Atomic plan:
-  1. `packages/api/src/routes/billing.ts:115` — `trial_period_days: 30 → 14`.
-  2. Add `resolveDeployPolicy(db, accountId, env)` to `packages/api/src/subgraphs/plan-limits.ts`
-     (mirror `resolvePrivateVisibilityPolicy`; **reuse `genesisExemptAccountIds`** so seeded
-     Explore subgraphs survive). Call in `runSubgraphDeploy` (`routes/subgraphs.ts:343`) before
-     any DDL → 403 `PLAN_REQUIRED {trial:true}`. **Skip on `dryRun` + redeploys of an
-     already-owned subgraph** so existing free public tenants don't brick.
-  3. `plan-limits.ts:97` — `SUBSCRIPTION_QUOTA_BY_PLAN.none = 0`.
-  Pre-flight: `SELECT count(*) FROM subgraphs s JOIN accounts a ON s.account_id=a.id WHERE
-  a.plan='none'` to size the grandfathered set + announce free-webhook removal. x402-paid ghost
-  deploys (`subgraphs.ts:344`) already-paid → exempt. Effort: **S**.
+- ~~**Trial enforcement: copy promises a paywall the product doesn't enforce.**~~ **SHIPPED**
+  (`ffc2c0ed`) — `trial_period_days: 14`; `resolveDeployPolicy` gates public deploys behind
+  trial/plan; `SUBSCRIPTION_QUOTA_BY_PLAN.none = 0` (webhooks require trial);
+  `genesisExemptAccountIds` allowlist preserves Explore seeds.
 
 - **Per-plan subgraph slot caps — public subgraphs can't be unlimited.** Even after the trial
   gate, a trial/Pro account can deploy infinitely many subgraphs (each = real index + storage +
