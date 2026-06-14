@@ -1,6 +1,7 @@
 import {
 	debitCredits,
 	getCredits,
+	getMonthlyCreditsSpend,
 	recordCreditsSpend,
 } from "@secondlayer/platform/db/queries/account-credits";
 import { getDb } from "@secondlayer/shared/db";
@@ -14,6 +15,12 @@ import { isPlatformMode } from "@secondlayer/shared/mode";
 
 /** $5 per 1M rows read = 5 USD-micros per row. */
 export const CREDIT_USD_MICROS_PER_ROW = 5n;
+
+/** $2 per 1M rows — commit-tier rate for accounts spending ≥$50/mo (≈10M rows). */
+const CREDIT_USD_MICROS_PER_ROW_VOLUME = 2n;
+
+/** Monthly-spend threshold for the commit-tier rate: $50 = 50M µ$. */
+const COMMIT_TIER_MONTHLY_USD_MICROS = 50_000_000n;
 
 /**
  * Minimum balance to go pay-as-you-go: one full page (1000 rows × 5µ$ = 5000µ$
@@ -51,8 +58,13 @@ export async function debitCreditedRows(
 	rows: number,
 ): Promise<void> {
 	if (!credited || rows <= 0) return;
-	const cost = BigInt(rows) * CREDIT_USD_MICROS_PER_ROW;
 	const db = getDb();
+	const monthlySpend = await getMonthlyCreditsSpend(db, credited.accountId);
+	const rate =
+		monthlySpend >= COMMIT_TIER_MONTHLY_USD_MICROS
+			? CREDIT_USD_MICROS_PER_ROW_VOLUME
+			: CREDIT_USD_MICROS_PER_ROW;
+	const cost = BigInt(rows) * rate;
 	const res = await debitCredits(db, credited.accountId, cost);
 	if (res.ok) await recordCreditsSpend(db, credited.accountId, cost);
 }
