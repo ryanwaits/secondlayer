@@ -46,18 +46,18 @@ const ROWS: Record<string, [string, string][]> = {
 	],
 	launch: [
 		["Index + Streams reads", "250 req/s"],
-		["Subgraphs", "private + genesis backfill"],
+		["Subgraphs", "up to 15"],
 		["Webhook subscriptions", "25 + replay"],
 		["Usage budgets", "monthly cap + alerts"],
 	],
 	scale: [
 		["Index + Streams reads", "500 req/s"],
-		["Subgraphs", "private + genesis backfill"],
+		["Subgraphs", "up to 50"],
 		["Webhook subscriptions", "unlimited"],
 	],
 	enterprise: [
 		["Index + Streams reads", "custom"],
-		["Subgraphs", "private + genesis backfill"],
+		["Subgraphs", "unlimited"],
 		["Webhook subscriptions", "unlimited"],
 	],
 };

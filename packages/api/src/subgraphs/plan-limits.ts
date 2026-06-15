@@ -123,6 +123,60 @@ export async function resolveDeployPolicy(
 }
 
 /**
+ * Subgraph slot quota by plan. null = unlimited. Each slot = one deployed
+ * subgraph (schema + processor thread). Trial accounts carry plan='launch'
+ * so they get the full Pro quota for 14 days; un-trialed 'none' accounts
+ * are blocked by resolveDeployPolicy before reaching this check. Numbers
+ * here and the pricing page must move together.
+ */
+export const SUBGRAPH_SLOT_QUOTA_BY_PLAN: Record<string, number | null> = {
+	none: 0,
+	launch: 15,
+	scale: 50,
+	enterprise: null,
+};
+
+export type SlotQuota = {
+	allowed: boolean;
+	current: number;
+	limit: number | null;
+};
+
+export async function resolveSlotQuota(
+	db: Kysely<Database>,
+	accountId: string | undefined,
+	env: NodeJS.ProcessEnv = process.env,
+): Promise<SlotQuota> {
+	if (!isPlatformMode()) return { allowed: true, current: 0, limit: null };
+	if (accountId && genesisExemptAccountIds(env).has(accountId))
+		return { allowed: true, current: 0, limit: null };
+	if (!accountId) return { allowed: false, current: 0, limit: 0 };
+
+	const [accountRow, countRow] = await Promise.all([
+		db
+			.selectFrom("accounts")
+			.select("plan")
+			.where("id", "=", accountId)
+			.executeTakeFirst(),
+		db
+			.selectFrom("subgraphs")
+			.select((eb) => eb.fn.countAll<number>().as("count"))
+			.where("account_id", "=", accountId)
+			.where("status", "!=", "deleted")
+			.executeTakeFirst(),
+	]);
+
+	const plan = accountRow?.plan ?? "none";
+	const current = Number(countRow?.count ?? 0);
+	const limit =
+		plan in SUBGRAPH_SLOT_QUOTA_BY_PLAN
+			? SUBGRAPH_SLOT_QUOTA_BY_PLAN[plan]
+			: SUBGRAPH_SLOT_QUOTA_BY_PLAN.none;
+
+	return { allowed: limit === null || current < limit, current, limit };
+}
+
+/**
  * Webhook-subscription quota by plan. null = unlimited. Webhooks provision a
  * hosted-tenant push channel, so they're a paid action: free tier (plan 'none',
  * incl. ghosts) gets 0 — create a subscription requires a trial/plan. "25

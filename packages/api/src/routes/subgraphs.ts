@@ -52,6 +52,7 @@ import {
 	resolveDeployPolicy,
 	resolveGenesisPolicy,
 	resolvePrivateVisibilityPolicy,
+	resolveSlotQuota,
 } from "../subgraphs/plan-limits.ts";
 import { lintPrintFields } from "../subgraphs/print-lint.ts";
 import {
@@ -516,6 +517,19 @@ export async function runSubgraphDeploy(
 					code: "PLAN_REQUIRED",
 					required_plan: "launch",
 					trial: true,
+					upgrade_url: "https://secondlayer.tools/platform/billing",
+				},
+				403,
+			);
+		}
+		const slotQuota = await resolveSlotQuota(db, accountId ?? undefined);
+		if (!slotQuota.allowed) {
+			return c.json(
+				{
+					error: `You've reached your subgraph limit (${slotQuota.current}/${slotQuota.limit}). Upgrade your plan to deploy more.`,
+					code: "SUBGRAPH_SLOT_LIMIT",
+					current: slotQuota.current,
+					limit: slotQuota.limit,
 					upgrade_url: "https://secondlayer.tools/platform/billing",
 				},
 				403,

@@ -21,13 +21,14 @@ const SELFHOST_INCLUDES = [
 // Every claim below maps to an enforced limit. If code doesn't enforce it,
 // it doesn't go on a card.
 const PRO_INCLUDES = [
-	"Deploy subgraphs — public and private",
+	"Up to 15 subgraphs — public and private",
 	"Genesis backfills (full history)",
 	"25 webhook subscriptions + replay",
 	"250 req/s on Index and Streams",
 ];
 
 const SCALE_INCLUDES = [
+	"Up to 50 subgraphs — public and private",
 	"500 req/s on Index and Streams",
 	"Heavy history + replay",
 	"$2 / 1M rows at ≥10M rows/mo",
