@@ -148,7 +148,7 @@ function ArtStreams() {
 				/>
 				<Line tokens={[["});", BASE]]} />
 			</Card>
-			<Card style={{ position: "absolute", top: 388, left: 895, width: 640 }}>
+			<Card style={{ position: "absolute", top: 492, left: 895, width: 640 }}>
 				<Line tokens={[["{", BASE]]} />
 				<Line
 					indent={2}
@@ -210,7 +210,7 @@ function ArtIndex() {
 			style={{
 				position: "absolute",
 				top: 150,
-				left: 770,
+				left: 838,
 				display: "flex",
 				flexDirection: "column",
 				width: 800,
@@ -488,7 +488,7 @@ function ArtHome() {
 			<Card
 				style={{
 					position: "absolute",
-					top: 344,
+					top: 312,
 					left: 870,
 					width: 700,
 					fontSize: 27,
