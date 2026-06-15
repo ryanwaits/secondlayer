@@ -480,6 +480,40 @@ a revenue line.
   checkpoint table for Index (turns the parts kit into a 1-command start). Deferred
   behind the CLI local-dev freeze; `sl index codegen` already covers the schema half.
 
+- **Credits billing architecture review + TX sales-tax flag (logged 2026-06-14).**
+  *Verdict: keep the current design — own-ledger prepaid, not Stripe metered.* Why it's
+  right for us: (1) credits fund **two ways** — card (Stripe) + x402 crypto wallet — and
+  only a self-owned `account_credits` ledger unifies them into one balance; Stripe-native
+  credits can't absorb a crypto top-up. (2) **Sub-cent metering precision** — we debit per
+  row in USD-micros ($5/1M rows); Stripe meters are coarser and add ingestion latency, our
+  atomic SQL debit is exact + synchronous. (3) **Hard prepaid cap, no overdraft** —
+  `balance >= cost` atomic debit = clean bill-shock ceiling, awkward to guarantee through
+  Stripe metering. So Stripe stays the card-charge rail; consumption lives in our DB. The
+  alternative (Stripe Billing Credits + meters) would couple us to metering we deliberately
+  avoid, lose the crypto unification, and lose micro-precision — wrong fit.
+
+  **The one real tradeoff** of the current inline `price_data` + `product_data` top-up
+  (`packages/api/src/routes/billing.ts` `/topup`): no catalog Product, so Stripe's product
+  analytics won't roll up "credits revenue" and there's no stable tax code on the line item
+  (you can filter by the `kind: credits_topup` metadata, but it's manual).
+
+  **Optional refinement (not a rearchitecture):** create one catalog Product `Secondlayer
+  Usage Credits` and reference it with a still-dynamic price —
+  `price_data: { currency: "usd", unit_amount: usd*100, product: CREDITS_PRODUCT_ID }`
+  instead of `product_data: { name: ... }`. Keeps amount flexibility, adds clean revenue
+  rollup + a consistent tax code. Costs one more catalog object; worth it only if we want
+  Stripe-native credit revenue reporting or need a fixed tax code.
+
+  **TX sales-tax flag (the actual reason to revisit — tax-advisor question, not code).**
+  We're a TX entity; Texas taxes SaaS / data-processing services (80% taxable). Prepaid
+  usage credits for a data API *may* be taxable on sale or on consumption depending on
+  characterization. **Revisit when:** confirming with a tax advisor before/around the live
+  Stripe flip. **If we owe sales tax:** do the refinement above (real Credits Product w/
+  proper tax code) + enable **Stripe Tax** — makes compliance much easier than ad-hoc line
+  items. Until a tax advisor says otherwise, leave the architecture as-is. Effort: **S**
+  (refinement) once decided. Files: `packages/api/src/routes/billing.ts`,
+  `packages/api/scripts/stripe-setup.ts`.
+
 ## P4 — watch / cleanup
 
 - **`latest.json` size ceiling.** The cumulative dump manifest grows ~1 file entry per
