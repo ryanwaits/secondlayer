@@ -176,14 +176,14 @@ Inspect the account state first. If the subgraph and table are already clear, as
 	{
 		id: "sdk-wire",
 		title: "Wire SDK into an app",
-		audience: "App developers using typed queries and webhooks",
+		audience: "App developers using typed reads and webhooks",
 		surface: "marketing",
 		description:
-			"Use the TypeScript SDK for typed subgraph queries and subscriptions.",
+			"One client for typed subgraph reads and webhook verification.",
 		tags: ["sdk", "subgraphs", "subscriptions"],
 		build: () =>
 			withSetup(
-				"/secondlayer Wire `@secondlayer/sdk` into my app. Show typed subgraph queries with `getSubgraph`, then wire subscription creation and lifecycle calls: create, list, pause, resume, rotateSecret, recentDeliveries, dead, requeueDead, replay, and delete. Use concrete names from my project when available.",
+				"/secondlayer Wire `@secondlayer/sdk` into my app: create a `SecondLayer({ apiKey })` client, read public subgraph rows with `sl.subgraphs.rows(name, table, opts)` → `{ rows, next_cursor, tip }`, get a typed table client via `sl.subgraphs.typed(def)`, and verify webhook deliveries with `verifyWebhookSignature` before trusting them. Use concrete names from my project when available.",
 			),
 	},
 ];
