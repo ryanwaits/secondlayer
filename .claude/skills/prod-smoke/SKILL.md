@@ -174,25 +174,40 @@ docker logs secondlayer-agent --since 2h 2>&1 | grep -iE 'Pattern:|alert' | tail
 
 # 4. Reorg reconciliation — no stale old-fork rows survive in decoded_events.
 #    A reorg hard-DELETEs decoded_events >= fork (handleDecodedEventsReorg, storage.ts);
-#    before that fix a flag-only mark + later re-derive resurrected orphans on SHIFTED
-#    dense cursors (the 2026-05-26 reorg left 57 stale rows + a +152,062-sat sBTC
-#    over-count). Probe: decoded rows inside a recorded reorg window whose tx no longer
-#    exists at that height = old-fork orphans. MUST be 0. The CROSS JOIN LATERAL drives
-#    off chain_reorgs (2 rows) so each window is an index range scan over ~10 blocks —
-#    a bare `JOIN ... BETWEEN` seq-scans all 57M rows, do NOT use it. The supply side of
-#    the same residue (extra ft_mint) is already gated by Phase 4b decoded_net vs chain.
+#    before that fix a flag-only mark + later re-derive resurrected residue on SHIFTED
+#    dense cursors (the 2026-05-26 reorg left 57 tx-absent orphans + a +152,062-sat sBTC
+#    over-count; the 2026-05-07 reorg left 75 dup-on-shifted-cursor rows whose tx WAS
+#    still canonical). Probe both shapes at once: per (block,tx) in a recorded reorg
+#    window, decoded-row count must be ≤ raw streams-event count (excess = stale, covers
+#    orphans AND dups; ≤ never false-positives on disabled decoders or decode-skips).
+#    MUST be 0. Drives off chain_reorgs (2 rows) → index range scans over ~10 blocks; a
+#    bare `JOIN ... BETWEEN` over the 57M table seq-scans, do NOT use it. The supply side
+#    of the same residue is also gated by Phase 4b decoded_net vs chain.
+RAW="'stx_transfer_event','stx_mint_event','stx_burn_event','stx_lock_event','ft_transfer_event','ft_mint_event','ft_burn_event','nft_transfer_event','nft_mint_event','nft_burn_event','smart_contract_event','contract_event'"
 printf '%s\n' "
-SELECT coalesce(sum(stale),0) AS stale_orphans
-FROM chain_reorgs r CROSS JOIN LATERAL (
-  SELECT count(*) FILTER (
-    WHERE NOT EXISTS (SELECT 1 FROM events e WHERE e.block_height=de.block_height AND e.tx_id=de.tx_id)
-  ) AS stale
-  FROM decoded_events de
-  WHERE de.block_height BETWEEN r.fork_point_height AND r.orphaned_to_height
-) x;" | ssh ryan@claude-mini "ssh app-server 'docker exec -i secondlayer-postgres-1 psql -U secondlayer -d secondlayer -tA'"
-# Nonzero ⇒ a reorg left residue (the UPSERT-without-delete bug is back, or a new reorg
-# hit a decoder running pre-fix code). Realign the offending window with
-# rederive-decoded-events.ts (--types from a `GROUP BY event_type` over the range first).
+SELECT coalesce(sum(greatest(d.cnt - coalesce(r.cnt,0),0)),0) AS stale_excess
+FROM (
+  SELECT de.block_height, de.tx_id, count(*) cnt
+  FROM chain_reorgs cr CROSS JOIN LATERAL (
+    SELECT block_height, tx_id FROM decoded_events
+    WHERE block_height BETWEEN cr.fork_point_height AND cr.orphaned_to_height
+  ) de GROUP BY 1,2
+) d
+LEFT JOIN LATERAL (
+  SELECT count(*) cnt FROM events e
+  WHERE e.block_height=d.block_height AND e.tx_id=d.tx_id AND e.type IN ($RAW)
+) r ON true;" | ssh ryan@claude-mini "ssh app-server 'docker exec -i secondlayer-postgres-1 psql -U secondlayer -d secondlayer -tA'"
+# Nonzero ⇒ a reorg left residue (UPSERT-without-delete bug back, or a new reorg hit a
+# pre-fix decoder). Realign the window with rederive-decoded-events.ts (--types from a
+# `GROUP BY event_type` over the range first), then re-run this + Phase 4b.
+#
+# LIMITATION + DEEP SCAN: this is bounded to chain_reorgs (handleReorg-recorded reorgs).
+# Older reorgs predating that table left supply-NEUTRAL misattributions (a decoded row at
+# a stale height; cancels in net, untouched by Phase 4 / 4b). To sweep them, run the same
+# d>r check unbounded over a height range (minutes — NOT part of the fast gate, prepend
+# `SET statement_timeout=0;`): replace the `chain_reorgs cr CROSS JOIN LATERAL (… WHERE
+# block_height BETWEEN cr.fork_point_height AND cr.orphaned_to_height)` driver with
+# `decoded_events WHERE block_height BETWEEN <lo> AND <hi>`, bucket by 100k.
 ```
 
 ## Report format
