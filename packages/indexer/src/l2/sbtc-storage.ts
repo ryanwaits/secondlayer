@@ -5,6 +5,7 @@ import type {
 } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
+import { writeDecoderCheckpoint } from "./storage.ts";
 
 export const SBTC_DECODER_NAME = "l2.sbtc.v1";
 export const SBTC_TOKEN_DECODER_NAME = "l2.sbtc_token.v1";
@@ -130,44 +131,76 @@ export async function writeSbtcTokenEvents(
 }
 
 /**
- * Mark sBTC rows non-canonical when a reorg invalidates a height range.
- * Mirrors `handleDecodedEventsReorg` in storage.ts but scoped to the two
- * sBTC tables.
+ * Reconcile the sBTC planes on reorg. Mirrors `handleDecodedEventsReorg`
+ * (storage.ts): hard-DELETE at/above the fork, NOT a canonical=false flag.
+ *
+ * Both tables key on `cursor` = block_height:stream_event_index, a DENSE
+ * per-block ordinal recomputed by readCanonicalStreamsEvents, and their writers
+ * upsert on `cursor` with `canonical=true` hard-coded. So a post-reorg re-decode
+ * lands on SHIFTED cursors and inserts ALONGSIDE the old-fork rows; a flag-only
+ * mark gets resurrected by a later range re-derive (the 2026-05-26 reorg left 5
+ * stale sBTC rows exactly this way). The sBTC decoders own these tables, so an
+ * unscoped delete-by-height is correct. Runs inside the leader-gated reorg tx;
+ * each decoder's checkpoint is rewound to the last source event it processed
+ * before the fork so it re-derives the new fork from a clean slate.
  */
 export async function handleSbtcReorg(
 	blockHeight: number,
 	opts?: { db?: Kysely<Database> },
-): Promise<{ markedNonCanonical: number; checkpoint: string | null }> {
+): Promise<{ deleted: number; checkpoints: Record<string, string | null> }> {
 	const client = db(opts?.db);
 
 	const eventsResult = await client
-		.updateTable("sbtc_events")
-		.set({ canonical: false })
+		.deleteFrom("sbtc_events")
 		.where("block_height", ">=", blockHeight)
-		.where("canonical", "=", true)
 		.executeTakeFirst();
 
 	const tokenResult = await client
-		.updateTable("sbtc_token_events")
-		.set({ canonical: false })
+		.deleteFrom("sbtc_token_events")
 		.where("block_height", ">=", blockHeight)
-		.where("canonical", "=", true)
 		.executeTakeFirst();
 
-	const checkpointRow = await client
-		.selectFrom("sbtc_events")
-		.select("source_cursor")
-		.where("block_height", "<", blockHeight)
-		.where("canonical", "=", true)
-		.orderBy("block_height", "desc")
-		.orderBy("event_index", "desc")
-		.limit(1)
-		.executeTakeFirst();
+	// Each table maps to its own decoder/checkpoint; rewind both.
+	const registryCheckpoint =
+		(
+			await client
+				.selectFrom("sbtc_events")
+				.select("source_cursor")
+				.where("block_height", "<", blockHeight)
+				.orderBy("block_height", "desc")
+				.orderBy("event_index", "desc")
+				.limit(1)
+				.executeTakeFirst()
+		)?.source_cursor ?? null;
+	const tokenCheckpoint =
+		(
+			await client
+				.selectFrom("sbtc_token_events")
+				.select("source_cursor")
+				.where("block_height", "<", blockHeight)
+				.orderBy("block_height", "desc")
+				.orderBy("event_index", "desc")
+				.limit(1)
+				.executeTakeFirst()
+		)?.source_cursor ?? null;
+	await writeDecoderCheckpoint({
+		cursor: registryCheckpoint,
+		db: opts?.db,
+		decoderName: SBTC_DECODER_NAME,
+	});
+	await writeDecoderCheckpoint({
+		cursor: tokenCheckpoint,
+		db: opts?.db,
+		decoderName: SBTC_TOKEN_DECODER_NAME,
+	});
 
 	return {
-		markedNonCanonical:
-			Number(eventsResult.numUpdatedRows ?? 0) +
-			Number(tokenResult.numUpdatedRows ?? 0),
-		checkpoint: checkpointRow?.source_cursor ?? null,
+		deleted:
+			Number(eventsResult.numDeletedRows ?? 0) +
+			Number(tokenResult.numDeletedRows ?? 0),
+		checkpoints: {
+			[SBTC_DECODER_NAME]: registryCheckpoint,
+			[SBTC_TOKEN_DECODER_NAME]: tokenCheckpoint,
+		},
 	};
 }

@@ -2,6 +2,7 @@ import { getSourceDb } from "@secondlayer/shared/db";
 import type { Pox4FunctionName } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
+import { writeDecoderCheckpoint } from "./storage.ts";
 
 export const POX4_DECODER_NAME = "l2.pox4.v1";
 
@@ -88,36 +89,43 @@ export async function writePox4Calls(
 }
 
 /**
- * Mark pox4_calls rows non-canonical when a reorg invalidates a height range.
- * Returns checkpoint = max canonical cursor < blockHeight, used to roll the
- * decoder back so it re-decodes any tx that landed in the new canonical
- * fork.
+ * Reconcile pox4_calls on reorg. Mirrors `handleDecodedEventsReorg` (storage.ts):
+ * hard-DELETE at/above the fork, NOT a canonical=false flag. pox4's `cursor` =
+ * block_height:tx_index is a stable per-block key, so an in-place re-decode
+ * overwrites — but a new fork with FEWER txs at a height leaves the old
+ * higher-tx_index rows orphaned, which only a delete clears. Rewinds the decoder
+ * checkpoint to re-derive the new fork.
  */
 export async function handlePox4Reorg(
 	blockHeight: number,
 	opts?: { db?: Kysely<Database> },
-): Promise<{ markedNonCanonical: number; checkpoint: string | null }> {
+): Promise<{ deleted: number; checkpoint: string | null }> {
 	const client = db(opts?.db);
 
 	const result = await client
-		.updateTable("pox4_calls")
-		.set({ canonical: false })
+		.deleteFrom("pox4_calls")
 		.where("block_height", ">=", blockHeight)
-		.where("canonical", "=", true)
 		.executeTakeFirst();
 
-	const checkpointRow = await client
-		.selectFrom("pox4_calls")
-		.select("source_cursor")
-		.where("block_height", "<", blockHeight)
-		.where("canonical", "=", true)
-		.orderBy("block_height", "desc")
-		.orderBy("tx_index", "desc")
-		.limit(1)
-		.executeTakeFirst();
+	const checkpoint =
+		(
+			await client
+				.selectFrom("pox4_calls")
+				.select("source_cursor")
+				.where("block_height", "<", blockHeight)
+				.orderBy("block_height", "desc")
+				.orderBy("tx_index", "desc")
+				.limit(1)
+				.executeTakeFirst()
+		)?.source_cursor ?? null;
+	await writeDecoderCheckpoint({
+		cursor: checkpoint,
+		db: opts?.db,
+		decoderName: POX4_DECODER_NAME,
+	});
 
 	return {
-		markedNonCanonical: Number(result.numUpdatedRows ?? 0),
-		checkpoint: checkpointRow?.source_cursor ?? null,
+		deleted: Number(result.numDeletedRows ?? 0),
+		checkpoint,
 	};
 }

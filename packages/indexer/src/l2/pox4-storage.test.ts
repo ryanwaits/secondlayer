@@ -11,11 +11,17 @@ describe.skipIf(!HAS_DB)("pox4-storage", () => {
 	beforeEach(async () => {
 		if (!db) return;
 		await sql`DELETE FROM pox4_calls`.execute(db);
+		await sql`DELETE FROM l2_decoder_checkpoints WHERE decoder_name = 'l2.pox4.v1'`.execute(
+			db,
+		);
 	});
 
 	afterEach(async () => {
 		if (!db) return;
 		await sql`DELETE FROM pox4_calls`.execute(db);
+		await sql`DELETE FROM l2_decoder_checkpoints WHERE decoder_name = 'l2.pox4.v1'`.execute(
+			db,
+		);
 	});
 
 	test("writePox4Calls upserts on cursor", async () => {
@@ -36,7 +42,7 @@ describe.skipIf(!HAS_DB)("pox4-storage", () => {
 		expect(row?.amount_ustx).toBe("2000");
 	});
 
-	test("handlePox4Reorg marks rows >= height non-canonical and returns checkpoint", async () => {
+	test("handlePox4Reorg hard-deletes rows >= height, rewinds checkpoint", async () => {
 		if (!db) throw new Error("missing test db");
 		await writePox4Calls(
 			[
@@ -49,7 +55,7 @@ describe.skipIf(!HAS_DB)("pox4-storage", () => {
 
 		const result = await handlePox4Reorg(101, { db });
 
-		expect(result.markedNonCanonical).toBe(2);
+		expect(result.deleted).toBe(2);
 		expect(result.checkpoint).toBe("100:0");
 
 		const survivors = await db
@@ -57,11 +63,15 @@ describe.skipIf(!HAS_DB)("pox4-storage", () => {
 			.select(["cursor", "canonical"])
 			.orderBy("cursor")
 			.execute();
-		expect(survivors).toEqual([
-			{ cursor: "100:0", canonical: true },
-			{ cursor: "101:0", canonical: false },
-			{ cursor: "102:0", canonical: false },
-		]);
+		expect(survivors).toEqual([{ cursor: "100:0", canonical: true }]);
+
+		// Checkpoint rewound so the decoder re-derives the new fork from < 101.
+		const checkpoint = await db
+			.selectFrom("l2_decoder_checkpoints")
+			.select("last_cursor")
+			.where("decoder_name", "=", "l2.pox4.v1")
+			.executeTakeFirst();
+		expect(checkpoint?.last_cursor).toBe("100:0");
 	});
 });
 

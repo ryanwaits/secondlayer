@@ -6,6 +6,7 @@ import type {
 } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
+import { writeDecoderCheckpoint } from "./storage.ts";
 
 export const BNS_DECODER_NAME = "l2.bns.v1";
 
@@ -252,56 +253,65 @@ export async function upsertBnsNamespace(
 // ── Reorg handling ──────────────────────────────────────────────────────────
 
 /**
- * Mark BNS event rows non-canonical when a reorg invalidates a height range.
+ * Reconcile the BNS event planes on reorg. Mirrors `handleDecodedEventsReorg`
+ * (storage.ts): hard-DELETE at/above the fork, NOT a canonical=false flag — the
+ * three tables key on `cursor` = block_height:stream_event_index (a dense
+ * per-block ordinal) and their writers upsert with `canonical=true` hard-coded,
+ * so a post-reorg re-decode lands on SHIFTED cursors and a flag is resurrected by
+ * a later re-derive. The single BNS decoder owns all three tables; one
+ * checkpoint rewind re-derives the new fork.
  *
- * NOTE: projections (bns_names, bns_namespaces) are NOT rolled back here —
- * doing so requires replaying the surviving canonical events from before the
- * reorg, which is expensive. The decoder will re-converge the projection on
- * the next forward pass through the new canonical events. Acceptable because
- * BNS reads from the projection via API are eventually-consistent.
+ * NOTE: projections (bns_names, bns_namespaces) are NOT rolled back here — the
+ * decoder re-converges them on the forward pass over the new canonical events,
+ * and API reads from the projection are eventually-consistent.
  */
 export async function handleBnsReorg(
 	blockHeight: number,
 	opts?: { db?: Kysely<Database> },
-): Promise<{ markedNonCanonical: number; checkpoint: string | null }> {
+): Promise<{ deleted: number; checkpoint: string | null }> {
 	const client = db(opts?.db);
 
 	const nameResult = await client
-		.updateTable("bns_name_events")
-		.set({ canonical: false })
+		.deleteFrom("bns_name_events")
 		.where("block_height", ">=", blockHeight)
-		.where("canonical", "=", true)
 		.executeTakeFirst();
 
 	const namespaceResult = await client
-		.updateTable("bns_namespace_events")
-		.set({ canonical: false })
+		.deleteFrom("bns_namespace_events")
 		.where("block_height", ">=", blockHeight)
-		.where("canonical", "=", true)
 		.executeTakeFirst();
 
 	const marketplaceResult = await client
-		.updateTable("bns_marketplace_events")
-		.set({ canonical: false })
+		.deleteFrom("bns_marketplace_events")
 		.where("block_height", ">=", blockHeight)
-		.where("canonical", "=", true)
 		.executeTakeFirst();
 
-	const checkpointRow = await client
-		.selectFrom("bns_name_events")
-		.select("source_cursor")
-		.where("block_height", "<", blockHeight)
-		.where("canonical", "=", true)
-		.orderBy("block_height", "desc")
-		.orderBy("event_index", "desc")
-		.limit(1)
-		.executeTakeFirst();
+	// One decoder feeds all three tables. Rewind to the last source event before
+	// the fork; names span all history, so bns_name_events is the safe anchor
+	// (rewinding slightly early only re-upserts surviving < H rows idempotently,
+	// never skips a >= H event).
+	const checkpoint =
+		(
+			await client
+				.selectFrom("bns_name_events")
+				.select("source_cursor")
+				.where("block_height", "<", blockHeight)
+				.orderBy("block_height", "desc")
+				.orderBy("event_index", "desc")
+				.limit(1)
+				.executeTakeFirst()
+		)?.source_cursor ?? null;
+	await writeDecoderCheckpoint({
+		cursor: checkpoint,
+		db: opts?.db,
+		decoderName: BNS_DECODER_NAME,
+	});
 
 	return {
-		markedNonCanonical:
-			Number(nameResult.numUpdatedRows ?? 0) +
-			Number(namespaceResult.numUpdatedRows ?? 0) +
-			Number(marketplaceResult.numUpdatedRows ?? 0),
-		checkpoint: checkpointRow?.source_cursor ?? null,
+		deleted:
+			Number(nameResult.numDeletedRows ?? 0) +
+			Number(namespaceResult.numDeletedRows ?? 0) +
+			Number(marketplaceResult.numDeletedRows ?? 0),
+		checkpoint,
 	};
 }

@@ -4,6 +4,9 @@ import type { Database } from "@secondlayer/shared/db";
 import { insertChainReorg } from "@secondlayer/shared/db/queries/chain-reorgs";
 import { logger } from "@secondlayer/shared/logger";
 import type { Transaction } from "kysely";
+import { handleBnsReorg } from "./l2/bns-storage.ts";
+import { handlePox4Reorg } from "./l2/pox4-storage.ts";
+import { handleSbtcReorg } from "./l2/sbtc-storage.ts";
 import { handleDecodedEventsReorg } from "./l2/storage.ts";
 
 export async function handleReorg(
@@ -67,7 +70,16 @@ export async function handleReorg(
 			tx,
 		);
 
+		// Reconcile every decoded plane in the same tx: the generic decoded_events
+		// table plus the per-asset projections (sBTC, pox4, BNS), which share the
+		// same dense-cursor reorg hazard and were previously left un-reconciled
+		// (their handlers existed but were never called). Each hard-DELETEs >= H
+		// and rewinds its decoder checkpoint. Safe when a plane is disabled/empty
+		// (deletes 0 rows). See decoded-events-reorg-reconciliation audit.
 		const l2Reorg = await handleDecodedEventsReorg(blockHeight, { db: tx });
+		const sbtcReorg = await handleSbtcReorg(blockHeight, { db: tx });
+		const pox4Reorg = await handlePox4Reorg(blockHeight, { db: tx });
+		const bnsReorg = await handleBnsReorg(blockHeight, { db: tx });
 		const reorg = await insertChainReorg({
 			db: tx,
 			forkPointHeight: blockHeight,
@@ -81,7 +93,14 @@ export async function handleReorg(
 			newCanonicalTip: { block_height: blockHeight, event_index: 0 },
 		});
 
-		logger.info("Reorganization handled", { blockHeight, l2Reorg, reorg });
+		logger.info("Reorganization handled", {
+			blockHeight,
+			l2Reorg,
+			sbtcReorg,
+			pox4Reorg,
+			bnsReorg,
+			reorg,
+		});
 	});
 }
 
