@@ -118,6 +118,52 @@ describe("backfill-from-firehose", () => {
 		).rejects.toThrow(/unknown --target/);
 	});
 
+	test("resumes from a persisted checkpoint instead of genesis", async () => {
+		const { read, calls } = onePageReader([]);
+		const writes: Array<[string, string]> = [];
+		await backfillFromFirehose({
+			target: "sbtc",
+			apply: true,
+			fromHeight: 0,
+			toHeight: 8_300_000,
+			limit: 500,
+			maxBatches: 10,
+			deps: {
+				read,
+				net: "mainnet",
+				readCheckpoint: async (name) =>
+					name === "backfill.sbtc" ? "7000000:3" : null,
+				writeCheckpoint: async (name, cursor) => {
+					writes.push([name, cursor]);
+				},
+			},
+		});
+		// First read resumes at the checkpoint cursor, not fromHeight=0.
+		expect(calls[0]?.after).toEqual({ block_height: 7000000, event_index: 3 });
+		expect(calls[0]?.fromHeight).toBeUndefined();
+	});
+
+	test("--restart (resume:false) ignores the checkpoint", async () => {
+		const { read, calls } = onePageReader([]);
+		await backfillFromFirehose({
+			target: "sbtc",
+			apply: true,
+			fromHeight: 0,
+			toHeight: 8_300_000,
+			limit: 500,
+			maxBatches: 10,
+			resume: false,
+			deps: {
+				read,
+				net: "mainnet",
+				readCheckpoint: async () => "7000000:3",
+				writeCheckpoint: async () => {},
+			},
+		});
+		expect(calls[0]?.after).toBeUndefined();
+		expect(calls[0]?.fromHeight).toBe(0);
+	});
+
 	test("all target runs every registered entry", async () => {
 		const { read } = onePageReader([]);
 		const stats = await backfillFromFirehose({

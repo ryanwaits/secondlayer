@@ -46,6 +46,15 @@ import {
 	writeSbtcEvents,
 	writeSbtcTokenEvents,
 } from "./sbtc-storage.ts";
+import { readDecoderCheckpoint, writeDecoderCheckpoint } from "./storage.ts";
+
+/** Backfill progress is checkpointed under its own namespace so it survives an
+ *  interruption (deploy/recreate, OOM, reboot) and resumes instead of restarting
+ *  from genesis — and never collides with the live decoder's checkpoint. */
+const checkpointName = (key: string) => `backfill.${key}`;
+
+export type CheckpointReader = (name: string) => Promise<string | null>;
+export type CheckpointWriter = (name: string, cursor: string) => Promise<void>;
 
 type Network = "mainnet" | "testnet";
 
@@ -138,6 +147,10 @@ export async function runEntry(
 		limit: number;
 		maxBatches: number;
 		apply: boolean;
+		/** Resume from a persisted checkpoint if present (default true). */
+		resume?: boolean;
+		readCheckpoint?: CheckpointReader;
+		writeCheckpoint?: CheckpointWriter;
 	},
 ): Promise<RunEntryStats> {
 	let after: { block_height: number; event_index: number } | undefined;
@@ -146,6 +159,24 @@ export async function runEntry(
 	let batches = 0;
 	const topics: Record<string, number> = {};
 	const contractId = entry.contractId(opts.net);
+	const cpName = checkpointName(entry.key);
+	const readCp =
+		opts.readCheckpoint ??
+		((name) => readDecoderCheckpoint({ db: opts.db, decoderName: name }));
+	const writeCp =
+		opts.writeCheckpoint ??
+		((name, cursor) =>
+			writeDecoderCheckpoint({ db: opts.db, decoderName: name, cursor }));
+
+	// Resume: pick up where a prior (possibly killed) run left off, not genesis.
+	// Only for real (apply) runs — a dry-run previews the requested range fresh.
+	if (opts.resume !== false && opts.apply) {
+		const cp = await readCp(cpName);
+		if (cp) {
+			after = parseCursor(cp);
+			logger.info("backfill.resume", { key: entry.key, fromCursor: cp });
+		}
+	}
 
 	for (;;) {
 		if (batches >= opts.maxBatches) break;
@@ -191,6 +222,9 @@ export async function runEntry(
 		}
 
 		if (!page.next_cursor) break;
+		// Checkpoint only after the batch is durably written, recording the cursor
+		// we've completed through — a resume re-fetches strictly after it.
+		if (opts.apply) await writeCp(cpName, page.next_cursor);
 		const next = parseCursor(page.next_cursor);
 		if (page.events.length === 0 && next.block_height >= opts.toHeight) break;
 		after = next;
@@ -205,7 +239,15 @@ export async function backfillFromFirehose(opts: {
 	toHeight: number;
 	limit: number;
 	maxBatches: number;
-	deps?: { read?: EventsReader; db?: Kysely<Database>; net?: Network };
+	/** Resume from the persisted checkpoint if present (default true). */
+	resume?: boolean;
+	deps?: {
+		read?: EventsReader;
+		db?: Kysely<Database>;
+		net?: Network;
+		readCheckpoint?: CheckpointReader;
+		writeCheckpoint?: CheckpointWriter;
+	};
 }): Promise<RunEntryStats[]> {
 	const db = opts.deps?.db ?? getSourceDb();
 	const read: EventsReader =
@@ -237,6 +279,9 @@ export async function backfillFromFirehose(opts: {
 				limit: opts.limit,
 				maxBatches: opts.maxBatches,
 				apply: opts.apply,
+				resume: opts.resume,
+				readCheckpoint: opts.deps?.readCheckpoint,
+				writeCheckpoint: opts.deps?.writeCheckpoint,
 			}),
 		);
 	}
@@ -258,13 +303,23 @@ async function main() {
 	};
 	const target = flag("--target") ?? "sbtc";
 	const apply = args.includes("--apply");
+	// Resume from the persisted checkpoint by default; --restart ignores it and
+	// re-walks from --from-height (idempotent, but redoes completed work).
+	const resume = !args.includes("--restart");
 	const fromHeight = Number(flag("--from-height") ?? 0);
 	const limit = Number(flag("--limit") ?? 500);
 	const maxBatches = Number(flag("--max-batches") ?? Number.MAX_SAFE_INTEGER);
 
 	const db = getSourceDb();
 	const toHeight = Number(flag("--to-height") ?? (await resolveTip(db)));
-	logger.info("backfill.start", { target, apply, fromHeight, toHeight, limit });
+	logger.info("backfill.start", {
+		target,
+		apply,
+		resume,
+		fromHeight,
+		toHeight,
+		limit,
+	});
 
 	const stats = await backfillFromFirehose({
 		target,
@@ -273,6 +328,7 @@ async function main() {
 		toHeight,
 		limit,
 		maxBatches,
+		resume,
 		deps: { db },
 	});
 
