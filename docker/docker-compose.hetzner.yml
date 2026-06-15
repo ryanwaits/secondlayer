@@ -165,7 +165,40 @@ services:
       # availability, not faster evaluation.
       replicas: ${SUBSCRIPTION_PROCESSOR_REPLICAS:-1}
 
+  # Web analytics plane (Umami). Self-hosted, MIT, owns its own Postgres so it
+  # never touches the chain/platform clusters. Prod-only (defined in this overlay,
+  # not the base file) and intentionally absent from deploy.sh's APP_SERVICES, so
+  # deploys never recreate it — start it once with `compose up -d umami umami-db`.
+  # Caddy reverse-proxies umami.secondlayer.tools → umami:3000 over the shared
+  # compose network. Requires UMAMI_DB_PASSWORD + UMAMI_APP_SECRET in the server .env.
+  umami:
+    image: ghcr.io/umami-software/umami:postgresql-latest
+    environment:
+      DATABASE_URL: postgresql://umami:${UMAMI_DB_PASSWORD}@umami-db:5432/umami
+      DATABASE_TYPE: postgresql
+      APP_SECRET: ${UMAMI_APP_SECRET}
+    depends_on:
+      umami-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  umami-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: umami
+      POSTGRES_USER: umami
+      POSTGRES_PASSWORD: ${UMAMI_DB_PASSWORD}
+    volumes:
+      - umami_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umami -d umami"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
 volumes:
   caddy_data:
   caddy_config:
   caddy_logs:
+  umami_db_data:
