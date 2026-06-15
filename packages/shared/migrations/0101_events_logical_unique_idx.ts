@@ -26,12 +26,19 @@ import { onChainPlane } from "../src/db/migration-role.ts";
  *     delete-by-heights before insert, so it never collides; `bulk-backfill`'s
  *     conflict now fires → DO NOTHING → idempotent.
  *
- * ORDERING — this migration creates a UNIQUE index and therefore REQUIRES the
- * table to already be duplicate-free. On a fresh/dev DB that is trivially true.
- * On prod the historical duplicates (blocks 2,021,105–4,327,077) MUST be deleted
- * FIRST and the index pre-created `CONCURRENTLY` (matching this name exactly), so
- * this migration is a lock-free no-op there via `IF NOT EXISTS`. See the
- * remediation runbook `docs/internal/audits/decoded-events-supply-shortfall-2026-06-15.md`.
+ * ORDERING — a UNIQUE index cannot be built while the table still holds
+ * duplicates, and CREATE UNIQUE INDEX would ABORT the migrate run (and the
+ * deploy) if it did. So this migration is DEPLOY-SAFE: it probes for a duplicate
+ * logical key first and, if any exist, RAISES A NOTICE and skips — the migrate
+ * step still succeeds, the live indexer keeps running (its inserts use a
+ * target-less ON CONFLICT DO NOTHING that needs no index), and nothing breaks.
+ * On a clean DB (fresh/dev, or prod AFTER the dedupe) it builds the index inline.
+ *
+ * On prod the historical duplicates (blocks 2,021,105–4,327,077, ~8.25M excess)
+ * must be removed FIRST via `dedupe-events.ts --apply`, then the index
+ * pre-created `CONCURRENTLY` (matching this name exactly) so this migration —
+ * whether it skipped earlier or re-runs — is a lock-free no-op via IF NOT EXISTS.
+ * See the runbook `docs/internal/audits/decoded-events-supply-shortfall-2026-06-15.md`.
  * A blocking build over the full mainnet `events` table would also exceed the
  * default statement_timeout, so lift it for this tx (mirrors 0090).
  *
@@ -39,6 +46,21 @@ import { onChainPlane } from "../src/db/migration-role.ts";
  */
 export async function up(db: Kysely<unknown>): Promise<void> {
 	await onChainPlane(async () => {
+		// Skip (don't abort) if duplicates remain — see header. EXISTS over a
+		// grouped probe short-circuits on the first dup, so it's cheap.
+		const probe = await sql<{ has_dupes: boolean }>`
+			SELECT EXISTS (
+				SELECT 1 FROM events
+				GROUP BY block_height, tx_id, event_index
+				HAVING count(*) > 1
+			) AS has_dupes
+		`.execute(db);
+		if (probe.rows[0]?.has_dupes) {
+			await sql`
+				DO $$ BEGIN RAISE NOTICE 'events_logical_id_uniq SKIPPED: duplicate (block_height, tx_id, event_index) rows present — run dedupe-events.ts then create the index CONCURRENTLY (see migration 0101 header).'; END $$
+			`.execute(db);
+			return;
+		}
 		await sql`SET LOCAL statement_timeout = 0`.execute(db);
 		await sql`
 			CREATE UNIQUE INDEX IF NOT EXISTS events_logical_id_uniq
