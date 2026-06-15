@@ -129,8 +129,16 @@ export async function persistBlock(
 			await tx
 				.insertInto("events")
 				.values(evts.slice(i, i + EVT_CHUNK_SIZE))
+				// Conflict target is the logical identity (block_height, tx_id,
+				// event_index), backed by events_logical_id_uniq (migration 0101).
+				// The bare doNothing() never fired before — events had no unique key —
+				// so re-ingest double-inserted. The delete-by-height above already
+				// makes this path idempotent for reorg replays; this is
+				// belt-and-suspenders on redelivery of the same height.
 				// biome-ignore lint/suspicious/noExplicitAny: kysely onConflict builder
-				.onConflict((oc: any) => oc.doNothing())
+				.onConflict((oc: any) =>
+					oc.columns(["block_height", "tx_id", "event_index"]).doNothing(),
+				)
 				.execute();
 		}
 

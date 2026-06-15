@@ -167,13 +167,21 @@ async function insertBatch(
 				.execute();
 		}
 
-		// Insert events in chunks
+		// Insert events in chunks. Conflict target is the logical identity
+		// (block_height, tx_id, event_index) backed by events_logical_id_uniq
+		// (migration 0101). This is THE fix for the whole-block duplication bug:
+		// bulk-backfill has no delete-before-insert, so before the unique index
+		// existed the bare doNothing() degraded to a plain INSERT and a re-run over
+		// an already-ingested window double-inserted every event (fresh uuid PK).
+		// With the constraint the conflict fires → DO NOTHING → idempotent re-runs.
 		for (let i = 0; i < allEvts.length; i += EVT_CHUNK_SIZE) {
 			await tx
 				.insertInto("events")
 				.values(allEvts.slice(i, i + EVT_CHUNK_SIZE))
 				// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-				.onConflict((oc: any) => oc.doNothing())
+				.onConflict((oc: any) =>
+					oc.columns(["block_height", "tx_id", "event_index"]).doNothing(),
+				)
 				.execute();
 		}
 
