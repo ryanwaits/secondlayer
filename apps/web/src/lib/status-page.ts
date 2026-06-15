@@ -62,6 +62,24 @@ export function determineApiHealth(probe: TipProbe): ApiHealth {
 	};
 }
 
+/** Map a raw SystemStatus into the page snapshot. Shared by the server
+ *  (initial paint, no loading flash) and the client poll. */
+export function snapshotFromSystemStatus(
+	status: SystemStatus,
+	checkedAt: Date,
+): StatusSnapshot {
+	return {
+		health: determinePublicStatusHealth(status),
+		tip: status.streams?.tip ?? null,
+		index: status.index ?? null,
+		api: status.api ?? null,
+		node: status.node ?? null,
+		services: status.services ?? [],
+		lastChecked: checkedAt,
+		error: null,
+	};
+}
+
 export function determinePublicStatusHealth(
 	status: SystemStatus | null,
 ): ApiHealth {

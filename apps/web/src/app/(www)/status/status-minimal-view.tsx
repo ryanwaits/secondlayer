@@ -16,8 +16,12 @@ import {
  */
 export function StatusMinimalView({
 	snapshot,
+	isRefreshing,
 }: {
 	snapshot: StatusSnapshot;
+	/** Drives the bottom-right loading/live toolbar instead of flashing a
+	 *  loading state into the headline. */
+	isRefreshing?: boolean;
 }) {
 	const surfaces = deriveSurfaces(snapshot);
 	const overall = overallStatus(snapshot, surfaces);
@@ -43,50 +47,60 @@ export function StatusMinimalView({
 	];
 
 	return (
-		<section className="status-min" aria-label="Service status">
-			<span className={`status-min-pill status-min-${overall.state}`}>
-				<span className="status-min-dot" aria-hidden="true" />
-				{overall.pill}
-			</span>
+		<>
+			<section className="status-min" aria-label="Service status">
+				<span className={`status-min-pill status-min-${overall.state}`}>
+					<span className="status-min-dot" aria-hidden="true" />
+					{overall.pill}
+				</span>
 
-			<h1 className="status-min-head">{overall.headline}</h1>
-			<p className="status-min-sub">{snapshot.error ?? overall.sub}</p>
+				<h1 className="status-min-head">{overall.headline}</h1>
+				<p className="status-min-sub">{snapshot.error ?? overall.sub}</p>
 
-			<div className="status-min-metrics">
-				{metrics.map((m) => (
-					<div className="status-min-metric" key={m.label}>
-						<span className="status-min-metric-label">{m.label}</span>
-						<span className="status-min-metric-value">{m.value}</span>
-					</div>
-				))}
-			</div>
+				<div className="status-min-metrics">
+					{metrics.map((m) => (
+						<div className="status-min-metric" key={m.label}>
+							<span className="status-min-metric-label">{m.label}</span>
+							<span className="status-min-metric-value">{m.value}</span>
+						</div>
+					))}
+				</div>
 
-			<div className="status-min-surfaces">
-				{surfaces.map((s) => (
-					<span
-						className={`status-min-surface status-min-${s.state}`}
-						key={s.key}
-					>
-						<span className="status-min-dot" aria-hidden="true" />
-						{s.label}
-					</span>
-				))}
-			</div>
-
-			<hr className="status-min-rule" />
-
-			<p className={`status-min-foot status-min-${overall.state}`}>
-				<span className="status-min-dot" aria-hidden="true" />
-				{incidentLabel}
-				{snapshot.lastChecked ? (
-					<>
-						{" · Last checked "}
-						<span className="status-min-when">
-							{formatRelative(snapshot.lastChecked)}
+				<div className="status-min-surfaces">
+					{surfaces.map((s) => (
+						<span
+							className={`status-min-surface status-min-${s.state}`}
+							key={s.key}
+						>
+							<span className="status-min-dot" aria-hidden="true" />
+							{s.label}
 						</span>
-					</>
-				) : null}
-			</p>
-		</section>
+					))}
+				</div>
+
+				<hr className="status-min-rule" />
+
+				<p className={`status-min-foot status-min-${overall.state}`}>
+					<span className="status-min-dot" aria-hidden="true" />
+					{incidentLabel}
+					{snapshot.lastChecked ? (
+						<>
+							{" · Last checked "}
+							<span className="status-min-when">
+								{formatRelative(snapshot.lastChecked)}
+							</span>
+						</>
+					) : null}
+				</p>
+			</section>
+
+			<div
+				className={`status-min-live${isRefreshing ? " busy" : ""}`}
+				aria-live="polite"
+			>
+				<span className="status-min-live-dot" aria-hidden="true" />
+				{isRefreshing ? "Refreshing…" : "Live"}
+			</div>
+		</>
 	);
 }

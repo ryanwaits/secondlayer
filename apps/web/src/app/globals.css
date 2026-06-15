@@ -924,6 +924,41 @@ a.dataset-shelf-name:hover {
 	color: var(--text-main);
 }
 
+/* Loading/loaded indicator lives in a fixed bottom-right toolbar so the
+   headline never flashes a "Checking…" state on poll. */
+.status-min-live {
+	position: fixed;
+	right: 1.25rem;
+	bottom: 1.25rem;
+	z-index: 40;
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	padding: 6px 12px 6px 10px;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	background: var(--bg-elevated);
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+	font-family: var(--font-mono-stack);
+	font-size: 0.72rem;
+	color: var(--text-muted);
+}
+.status-min-live-dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	flex: none;
+	background: var(--green);
+}
+.status-min-live.busy .status-min-live-dot {
+	background: var(--border-hover);
+}
+@media (prefers-reduced-motion: no-preference) {
+	.status-min-live.busy .status-min-live-dot {
+		animation: home-pulse 1.2s ease-in-out infinite;
+	}
+}
+
 /* ── Code blocks ─────────────────────────────────────────────────── */
 .code-block {
 	background: var(--code-block-bg);

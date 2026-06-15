@@ -3,6 +3,7 @@
 import {
 	type StatusSnapshot,
 	determinePublicStatusHealth,
+	snapshotFromSystemStatus,
 } from "@/lib/status-page";
 import type { SystemStatus } from "@/lib/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -12,7 +13,7 @@ const STATUS_API_URL =
 	process.env.NEXT_PUBLIC_STREAMS_API_URL ?? "https://api.secondlayer.tools";
 const REFRESH_MS = 30_000;
 
-const initialSnapshot: StatusSnapshot = {
+const checkingSnapshot: StatusSnapshot = {
 	health: {
 		state: "checking",
 		label: "Checking",
@@ -27,12 +28,22 @@ const initialSnapshot: StatusSnapshot = {
 	error: null,
 };
 
-export function StatusClient() {
+export function StatusClient({
+	initialSnapshot,
+}: {
+	/** Server-rendered first paint — avoids a "Checking…" flash in the header.
+	 *  Null when the server probe failed; the client poll fills it in. */
+	initialSnapshot?: StatusSnapshot | null;
+}) {
 	const statusUrl = useMemo(() => `${STATUS_API_URL}/public/status`, []);
-	const [snapshot, setSnapshot] = useState<StatusSnapshot>(initialSnapshot);
+	const [snapshot, setSnapshot] = useState<StatusSnapshot>(
+		initialSnapshot ?? checkingSnapshot,
+	);
+	const [isRefreshing, setIsRefreshing] = useState(false);
 
 	const refresh = useCallback(async () => {
 		const checkedAt = new Date();
+		setIsRefreshing(true);
 		try {
 			const response = await fetch(statusUrl, { cache: "no-store" });
 			if (!response.ok) {
@@ -40,17 +51,7 @@ export function StatusClient() {
 			}
 
 			const status = (await response.json()) as SystemStatus;
-			const tip = status.streams?.tip ?? null;
-			setSnapshot({
-				health: determinePublicStatusHealth(status),
-				tip,
-				index: status.index ?? null,
-				api: status.api ?? null,
-				node: status.node ?? null,
-				services: status.services ?? [],
-				lastChecked: checkedAt,
-				error: null,
-			});
+			setSnapshot(snapshotFromSystemStatus(status, checkedAt));
 		} catch (error) {
 			setSnapshot({
 				health: determinePublicStatusHealth(null),
@@ -63,6 +64,8 @@ export function StatusClient() {
 				error:
 					error instanceof Error ? error.message : "Status request failed.",
 			});
+		} finally {
+			setIsRefreshing(false);
 		}
 	}, [statusUrl]);
 
@@ -72,5 +75,5 @@ export function StatusClient() {
 		return () => window.clearInterval(timer);
 	}, [refresh]);
 
-	return <StatusMinimalView snapshot={snapshot} />;
+	return <StatusMinimalView snapshot={snapshot} isRefreshing={isRefreshing} />;
 }
