@@ -238,18 +238,31 @@ export async function handleDecodedEventsReorg(
 	blockHeight: number,
 	opts?: { db?: Kysely<Database>; decoderNames?: readonly L2DecoderName[] },
 ): Promise<{
-	markedNonCanonical: number;
+	deleted: number;
 	checkpoints: Record<L2DecoderName, string | null>;
 	checkpoint: string | null;
 }> {
 	const db = l2Db(opts?.db);
 	const decoderNames = opts?.decoderNames ?? L2_DECODER_NAMES;
 
+	// Hard-DELETE every decoded row at/above the fork, mirroring persistBlock's
+	// delete-before-insert of the raw events at a reorged height. A flag is not
+	// enough: `cursor` (block_height:stream_event_index) carries a DENSE per-block
+	// ordinal recomputed by readCanonicalStreamsEvents over the surviving event
+	// set, so the new fork's re-decode lands on SHIFTED cursors and inserts
+	// alongside the old-fork rows instead of overwriting them (writeDecodedEvents
+	// upserts on `cursor` only, never by tx). Marking the orphans canonical=false
+	// also can't survive — writeDecodedEvents hard-codes canonical=true on every
+	// upsert, so a later range re-derive resurrects them (the 2026-05-26 reorg left
+	// 57 stale rows + a +152,062-sat sBTC over-count exactly this way; see
+	// docs/internal/audits/decoded-events-reorg-reconciliation-2026-06-15.md). The
+	// L2 handler owns the whole table, so an unscoped delete-by-height is correct.
+	// Safe against the live decoder: this runs inside the leader-gated reorg tx and
+	// the checkpoints are rewound to < blockHeight in the same tx, so the next
+	// decode re-derives the new fork from a clean slate at the now-sole cursors.
 	const result = await db
-		.updateTable("decoded_events")
-		.set({ canonical: false })
+		.deleteFrom("decoded_events")
 		.where("block_height", ">=", blockHeight)
-		.where("canonical", "=", true)
 		.executeTakeFirst();
 
 	const checkpoints = {} as Record<L2DecoderName, string | null>;
@@ -269,7 +282,7 @@ export async function handleDecodedEventsReorg(
 	}
 
 	return {
-		markedNonCanonical: Number(result.numUpdatedRows ?? 0),
+		deleted: Number(result.numDeletedRows ?? 0),
 		checkpoints,
 		checkpoint: checkpoints[FT_TRANSFER_DECODER_NAME] ?? null,
 	};

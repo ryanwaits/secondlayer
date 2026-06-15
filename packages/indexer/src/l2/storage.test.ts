@@ -79,14 +79,18 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 		await sql`DELETE FROM l2_decoder_checkpoints`.execute(db);
 	});
 
-	test("reorg marks affected rows non-canonical and rewinds checkpoint", async () => {
+	test("reorg deletes affected rows and rewinds checkpoint", async () => {
 		if (!db) throw new Error("missing db");
+		// Seed an old-fork row at 11 on a cursor (11:3) the new fork will NOT
+		// reproduce — a flag-only reconciliation would strand it; the delete must
+		// remove every row at/above the fork regardless of cursor.
 		await db
 			.insertInto("decoded_events")
 			.values([
 				row("9:0", 9, true),
 				row("10:0", 10, true),
 				row("11:0", 11, true),
+				row("11:3", 11, true),
 			])
 			.execute();
 
@@ -108,7 +112,7 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 			.executeTakeFirst();
 
 		expect(result).toEqual({
-			markedNonCanonical: 2,
+			deleted: 3,
 			checkpoint: "9:0",
 			checkpoints: {
 				"l2.ft_transfer.v1": "9:0",
@@ -124,11 +128,7 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 				"l2.print.v1": null,
 			},
 		});
-		expect(rows).toEqual([
-			{ cursor: "10:0", canonical: false },
-			{ cursor: "11:0", canonical: false },
-			{ cursor: "9:0", canonical: true },
-		]);
+		expect(rows).toEqual([{ cursor: "9:0", canonical: true }]);
 		expect(checkpoint?.last_cursor).toBe("9:0");
 		expect(nftCheckpoint?.last_cursor).toBeNull();
 	});
