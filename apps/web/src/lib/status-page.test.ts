@@ -15,17 +15,17 @@ import {
 } from "./status-page";
 
 describe("status page helpers", () => {
-	test("marks tip responses under 60 seconds as OK", () => {
+	test("marks tip responses under the degraded threshold as OK", () => {
 		expect(determineApiHealth({ ok: true, tip: { lag_seconds: 12 } })).toEqual({
 			state: "ok",
 			label: "OK",
-			description: "The API is reachable and ingest lag is under 60 seconds.",
+			description: "The API is reachable and ingest lag is under 180s.",
 		});
 	});
 
-	test("marks tip responses at or above 60 seconds as degraded", () => {
+	test("marks tip responses at or above the degraded threshold as degraded", () => {
 		expect(
-			determineApiHealth({ ok: true, tip: { lag_seconds: 60 } }).state,
+			determineApiHealth({ ok: true, tip: { lag_seconds: 180 } }).state,
 		).toBe("degraded");
 	});
 
@@ -106,7 +106,7 @@ describe("status page helpers", () => {
 					decoder: "l2.nft_transfer.v1",
 					eventType: "nft_transfer" as const,
 					status: "degraded" as const,
-					lagSeconds: 60,
+					lagSeconds: 180,
 					checkpointBlockHeight: 99,
 					tipBlockHeight: 101,
 					lastDecodedAt: "2026-05-11T12:00:01.000Z",
@@ -115,7 +115,7 @@ describe("status page helpers", () => {
 		};
 
 		expect(indexFreshnessLabel("ft_transfer", index)).toBe("FT 12s");
-		expect(indexFreshnessLabel("nft_transfer", index)).toBe("NFT 1m");
+		expect(indexFreshnessLabel("nft_transfer", index)).toBe("NFT 3m");
 		expect(indexFreshnessColor(index.decoders[0])).toBe("green");
 		expect(indexFreshnessColor(index.decoders[1])).toBe("yellow");
 		expect(indexFreshnessLabel("ft_transfer", null)).toBe("FT unavailable");

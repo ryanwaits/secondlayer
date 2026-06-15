@@ -1,9 +1,12 @@
 "use client";
 
-import { determinePublicStatusHealth } from "@/lib/status-page";
+import {
+	type StatusSnapshot,
+	determinePublicStatusHealth,
+} from "@/lib/status-page";
 import type { SystemStatus } from "@/lib/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { StatusGridView, type StatusSnapshot } from "./status-grid-view";
+import { StatusMinimalView } from "./status-minimal-view";
 
 const STATUS_API_URL =
 	process.env.NEXT_PUBLIC_STREAMS_API_URL ?? "https://api.secondlayer.tools";
@@ -24,7 +27,7 @@ const initialSnapshot: StatusSnapshot = {
 	error: null,
 };
 
-export function StatusClient({ incidentHeading }: { incidentHeading: string }) {
+export function StatusClient() {
 	const statusUrl = useMemo(() => `${STATUS_API_URL}/public/status`, []);
 	const [snapshot, setSnapshot] = useState<StatusSnapshot>(initialSnapshot);
 
@@ -69,7 +72,5 @@ export function StatusClient({ incidentHeading }: { incidentHeading: string }) {
 		return () => window.clearInterval(timer);
 	}, [refresh]);
 
-	return (
-		<StatusGridView snapshot={snapshot} incidentHeading={incidentHeading} />
-	);
+	return <StatusMinimalView snapshot={snapshot} />;
 }

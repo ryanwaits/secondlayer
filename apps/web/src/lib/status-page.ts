@@ -3,6 +3,7 @@ import type {
 	ApiTelemetryStatus,
 	IndexDecoderFreshness,
 	IndexFreshnessStatus,
+	ServiceHealth,
 	ServiceHealthStatus,
 	SystemStatus,
 } from "./types";
@@ -10,10 +11,27 @@ import type {
 export type StatusState = "checking" | "ok" | "degraded" | "down";
 export type FreshnessColor = "green" | "yellow" | "muted";
 
+/** Lag (seconds) at which a surface/decoder is considered degraded. Normal
+ *  ingest lag sits ~45s, so this is set well above that to avoid flapping the
+ *  public status to "degraded" on routine block-spacing variance. */
+export const LAG_DEGRADED_SECONDS = 180;
+
 export type ApiHealth = {
 	state: StatusState;
 	label: string;
 	description: string;
+};
+
+/** The live status snapshot the page polls each 30s. */
+export type StatusSnapshot = {
+	health: ApiHealth;
+	tip: StreamsTip | null;
+	index: IndexFreshnessStatus | null;
+	api: ApiTelemetryStatus | null;
+	node: { status: "ok" | "degraded" | "unavailable" } | null;
+	services: ServiceHealth[];
+	lastChecked: Date | null;
+	error: string | null;
 };
 
 export type TipProbe =
@@ -29,7 +47,7 @@ export function determineApiHealth(probe: TipProbe): ApiHealth {
 		};
 	}
 
-	if (probe.tip.lag_seconds >= 60) {
+	if (probe.tip.lag_seconds >= LAG_DEGRADED_SECONDS) {
 		return {
 			state: "degraded",
 			label: "Degraded",
@@ -40,7 +58,7 @@ export function determineApiHealth(probe: TipProbe): ApiHealth {
 	return {
 		state: "ok",
 		label: "OK",
-		description: "The API is reachable and ingest lag is under 60 seconds.",
+		description: `The API is reachable and ingest lag is under ${LAG_DEGRADED_SECONDS}s.`,
 	};
 }
 
@@ -92,7 +110,7 @@ export function indexFreshnessColor(
 	if (decoder.lagSeconds == null || !Number.isFinite(decoder.lagSeconds)) {
 		return "muted";
 	}
-	return decoder.lagSeconds >= 60 ? "yellow" : "green";
+	return decoder.lagSeconds >= LAG_DEGRADED_SECONDS ? "yellow" : "green";
 }
 
 const DECODER_SHORT_NAME: Record<string, string> = {
@@ -179,6 +197,139 @@ export function apiTelemetryOrEmpty(
 			requests: 0,
 		}
 	);
+}
+
+// ── High-level surface status (for the minimal status page) ──────────
+// Each surface maps to a REAL signal in the snapshot. Where no signal is
+// available, the surface is "unknown" (muted) — never fabricated as "ok".
+
+export type SurfaceState = "ok" | "degraded" | "down" | "unknown";
+export type Surface = { key: string; label: string; state: SurfaceState };
+
+const STATE_RANK: Record<SurfaceState, number> = {
+	unknown: 0,
+	ok: 1,
+	degraded: 2,
+	down: 3,
+};
+
+function healthToState(state: StatusState): SurfaceState {
+	if (state === "ok") return "ok";
+	if (state === "degraded") return "degraded";
+	if (state === "down") return "down";
+	return "unknown";
+}
+
+function serviceState(services: ServiceHealth[], match: RegExp): SurfaceState {
+	const svc = services.find((s) => match.test(s.name));
+	if (!svc) return "unknown";
+	if (svc.status === "ok") return "ok";
+	if (svc.status === "degraded") return "degraded";
+	return "unknown"; // "unavailable" = we can't observe it, not a confirmed down
+}
+
+function indexOverallState(index: IndexFreshnessStatus | null): SurfaceState {
+	const decoders = index?.decoders ?? [];
+	if (!decoders.length) return "unknown";
+	const colors = decoders.map((d) => indexFreshnessColor(d));
+	if (colors.every((c) => c === "muted")) return "unknown";
+	if (colors.some((c) => c === "yellow")) return "degraded";
+	return "ok";
+}
+
+function streamsState(tip: StreamsTip | null): SurfaceState {
+	const lag = tip?.lag_seconds;
+	if (lag == null || !Number.isFinite(lag)) return "unknown";
+	return lag >= LAG_DEGRADED_SECONDS ? "degraded" : "ok";
+}
+
+function nodeState(
+	node: { status: "ok" | "degraded" | "unavailable" } | null,
+): SurfaceState {
+	if (node?.status === "ok") return "ok";
+	if (node?.status === "degraded") return "degraded";
+	return "unknown";
+}
+
+/** The six high-level product surfaces, each from a real snapshot signal. */
+export function deriveSurfaces(snapshot: StatusSnapshot): Surface[] {
+	return [
+		{ key: "index", label: "Index", state: indexOverallState(snapshot.index) },
+		{
+			key: "subgraphs",
+			label: "Subgraphs",
+			state: serviceState(snapshot.services, /subgraph/i),
+		},
+		{ key: "streams", label: "Streams", state: streamsState(snapshot.tip) },
+		{
+			key: "webhooks",
+			label: "Webhooks",
+			state: serviceState(snapshot.services, /subscription|webhook/i),
+		},
+		{ key: "api", label: "API", state: healthToState(snapshot.health.state) },
+		{ key: "node", label: "Stacks node", state: nodeState(snapshot.node) },
+	];
+}
+
+export type OverallStatus = {
+	state: SurfaceState;
+	pill: string;
+	headline: string;
+	sub: string;
+};
+
+/** Headline verdict = the worst of the API health + every known surface. */
+export function overallStatus(
+	snapshot: StatusSnapshot,
+	surfaces: Surface[],
+): OverallStatus {
+	if (snapshot.health.state === "checking") {
+		return {
+			state: "unknown",
+			pill: "Checking",
+			headline: "Checking status…",
+			sub: "Fetching the latest health snapshot.",
+		};
+	}
+
+	let worst = healthToState(snapshot.health.state);
+	for (const s of surfaces) {
+		if (STATE_RANK[s.state] > STATE_RANK[worst]) worst = s.state;
+	}
+
+	if (worst === "down") {
+		return {
+			state: "down",
+			pill: "Down",
+			headline: "Service disruption.",
+			sub: snapshot.health.description,
+		};
+	}
+	if (worst === "degraded") {
+		return {
+			state: "degraded",
+			pill: "Degraded",
+			headline: "Some systems degraded.",
+			sub: snapshot.health.description,
+		};
+	}
+	return {
+		state: "ok",
+		pill: "Operational",
+		headline: "All systems operational.",
+		sub: "Decoded Stacks data, indexing, and delivery — running normally.",
+	};
+}
+
+/** Compact "30s ago" / "just now" relative time for the last-checked line. */
+export function formatRelative(date: Date | null): string {
+	if (!date) return "—";
+	const seconds = Math.round((Date.now() - date.getTime()) / 1000);
+	if (seconds < 5) return "just now";
+	if (seconds < 60) return `${seconds}s ago`;
+	const minutes = Math.floor(seconds / 60);
+	if (minutes < 60) return `${minutes}m ago`;
+	return `${Math.floor(minutes / 60)}h ago`;
 }
 
 export function readIncidentHeading(markdown: string): string {

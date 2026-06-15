@@ -1,12 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { StatusGridView } from "./status-grid-view";
+import { StatusMinimalView } from "./status-minimal-view";
 
 describe("status page visual smoke", () => {
-	test("renders public Streams and Index signals", () => {
+	test("renders the high-level surface verdict + metrics", () => {
 		const html = renderToStaticMarkup(
-			<StatusGridView
-				incidentHeading="No active incidents"
+			<StatusMinimalView
 				snapshot={{
 					health: {
 						state: "ok",
@@ -36,7 +35,7 @@ describe("status page visual smoke", () => {
 								decoder: "l2.nft_transfer.v1",
 								eventType: "nft_transfer",
 								status: "degraded",
-								lagSeconds: 60,
+								lagSeconds: 200,
 								checkpointBlockHeight: 182445,
 								tipBlockHeight: 182447,
 								lastDecodedAt: "2026-05-11T12:00:01.000Z",
@@ -64,20 +63,20 @@ describe("status page visual smoke", () => {
 			/>,
 		);
 
-		expect(html).toContain("API health");
-		expect(html).toContain("Current chain tip");
-		expect(html).toContain("API telemetry");
-		expect(html).toContain("Stacks Index freshness");
-		expect(html).toContain("Node and services");
-		expect(html).toContain("FT 12s");
-		expect(html).toContain("NFT 1m");
+		// One Index decoder is degraded → the overall verdict degrades.
+		expect(html).toContain("Some systems degraded.");
+		expect(html).toContain("Degraded");
+		// Metrics strip from real fields.
+		expect(html).toContain("#182,447");
 		expect(html).toContain("24ms");
-		expect(html).toContain("91ms");
 		expect(html).toContain("0.25%");
+		// All six surface pills are present.
+		expect(html).toContain("Index");
+		expect(html).toContain("Subgraphs");
+		expect(html).toContain("Streams");
+		expect(html).toContain("Webhooks");
 		expect(html).toContain("Stacks node");
-		expect(html).toContain("Incident note");
-		expect(html).toContain("No active incidents");
-		expect(html).toContain("182,447");
-		expect(html).toContain("0x12345678...abcdef");
+		// Incident line is derived live: a degraded verdict → active-incident copy.
+		expect(html).toContain("Investigating an active incident");
 	});
 });
