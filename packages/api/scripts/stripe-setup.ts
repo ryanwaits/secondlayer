@@ -15,7 +15,7 @@
  *
  * What it creates:
  *   - Product "Secondlayer" (single product, per-tier prices attach here)
- *   - Tier prices: Launch $99/mo or $990/yr, Scale $299/mo or $2,990/yr
+ *   - Tier prices: Launch $79/mo or $790/yr, Scale $299/mo or $2,990/yr
  *
  * Hobby is intentionally not in Stripe — free tier means no subscription.
  * Enterprise is not in this script — custom-quoted per deal; operator
@@ -97,14 +97,14 @@ async function main() {
 	const launchPrice = await upsertTierPrice(
 		product.id,
 		"secondlayer_launch_monthly",
-		9900, // $99.00
+		7900, // $79.00
 		"Launch monthly",
 		"month",
 	);
 	const launchYearlyPrice = await upsertTierPrice(
 		product.id,
 		"secondlayer_launch_yearly",
-		99000, // $990.00, 2 months free
+		79000, // $790.00, 2 months free
 		"Launch yearly",
 		"year",
 	);
