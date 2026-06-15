@@ -1032,6 +1032,14 @@ a.dataset-shelf-name:hover {
 	padding: 0;
 }
 
+/* Docs code blocks use the white/elevated surface with a hairline border —
+   matching the marketing product windows — instead of the flat gray fill. */
+.docs-content .code-block,
+.docs-content .code-block-wrapper pre {
+	background: var(--bg-elevated) !important;
+	border: 1px solid var(--border);
+}
+
 /* ── Index list (writing, packages) ──────────────────────────────── */
 .index-year-group {
 	display: flex;
