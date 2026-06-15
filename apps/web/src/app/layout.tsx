@@ -5,6 +5,7 @@ import { PreferencesProvider } from "@/lib/preferences";
 import { QueryProvider } from "@/lib/queries/provider";
 import type { Metadata, Viewport } from "next";
 import { Caveat, Fira_Code, Public_Sans, Sora } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -76,6 +77,12 @@ export default function RootLayout({
 						</PreferencesProvider>
 					</AuthProvider>
 				</QueryProvider>
+				{/* Self-hosted Umami web analytics (umami.secondlayer.tools). */}
+				<Script
+					src="https://umami.secondlayer.tools/script.js"
+					data-website-id="c97d8770-49d6-4a55-adae-07310f3d8d5e"
+					strategy="afterInteractive"
+				/>
 			</body>
 		</html>
 	);
