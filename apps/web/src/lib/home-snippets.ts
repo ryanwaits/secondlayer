@@ -19,7 +19,7 @@ for await (const batch of sl.streams.consume({ cursor })) {
   await handle(batch.events); // ordered, reorg-aware
 }
 
-// or bulk history from signed parquet dumps
+// or bulk history from signed dumps
 const dumps = await sl.streams.dumps.list();`;
 
 export const INDEX_SNIPPET = `// sweep decoded sBTC transfers into your own table

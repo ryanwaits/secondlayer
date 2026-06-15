@@ -53,7 +53,7 @@ await streams.events.consume({
 });
 ```
 
-For cold history, `events.replay` backfills from the signed parquet dumps, then tails live from the manifest's `latest_finalized_cursor` — no gap or dupe at the seam:
+For cold history, `events.replay` backfills from the signed bulk dumps, then tails live from the manifest's `latest_finalized_cursor` — no gap or dupe at the seam:
 
 ```ts
 await streams.events.replay({
@@ -135,7 +135,7 @@ This is the streaming counterpart to the signed `X-Signature` on REST reads: tru
 - **Finality** — `tip.finalized_height` plus a `finalized` flag on every event, anchored to Bitcoin (burn-block) confirmations. A `finalized` event won't reorg.
 - **Caching** — fully-finalized pages are served `Cache-Control: public, immutable` with an `ETag` (and `304` on `If-None-Match`); the moving tip stays short-lived.
 - **Signed responses** — every hosted read carries an ed25519 `X-Signature`, **verified by default** (lenient: hosted reads checked against `/public/streams/signing-key`; unsigned self-host responses pass through; invalid signatures throw). Pass `verify: true` for strict, `verify: false` to skip, or `verify: { publicKey }` to pin a key.
-- **Bulk + replay** — download finalized history as parquet (`sl streams pull`, or the SDK `dumps` namespace) and `events.replay({ from: "genesis" })` to backfill cold history then tail live with no gap at the seam.
+- **Bulk + replay** — download finalized history as signed bulk dumps (`sl streams pull`, or the SDK `dumps` namespace) and `events.replay({ from: "genesis" })` to backfill cold history then tail live with no gap at the seam.
 
 <Callout type="note" title="Manifest signature is the root of trust">
 

@@ -91,8 +91,8 @@ export function HomeFeatures() {
 					pane={<StreamsBlocksPane />}
 				>
 					Every event the chain emits — ordered, cursor-paginated, reorg-aware.
-					Resume from any cursor, replay history from signed parquet dumps, or
-					hold the tip. This is what you&apos;d run a node for — and what Index
+					Resume from any cursor, replay history from signed bulk dumps, or hold
+					the tip. This is what you&apos;d run a node for — and what Index
 					itself is built on.
 				</Feature>
 

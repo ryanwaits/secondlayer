@@ -133,8 +133,8 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		),
 		card(
 			"Pull dumps for DuckDB",
-			"Query verified parquet locally, no indexer.",
-			"/secondlayer Help me pull Streams parquet dumps with `sl streams pull` (sha256-verified against the signed manifest) and query them locally in DuckDB with `read_parquet('./**/*.parquet')` — no indexer required.",
+			"Query verified dumps locally, no indexer.",
+			"/secondlayer Help me pull Streams bulk dumps with `sl streams pull` (sha256-verified against the signed manifest) and query them locally in DuckDB with `read_parquet('./**/*.parquet')` — no indexer required.",
 		),
 	],
 

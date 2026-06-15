@@ -165,7 +165,7 @@ const streams = createStreamsClient({ apiKey, verify: true });
 
 ### Bulk & backfill
 
-Download all of it. Finalized history is published as parquet with an
+Download all of it. Finalized history is published as bulk dumps with an
 ed25519-signed manifest — the SDK verifies that signature by default
 (`verifyDumpsManifest`) before trusting any per-file sha256 it lists:
 
