@@ -1,5 +1,6 @@
 import { CodeBlock } from "@/components/code-block";
 import { AgentPromptBlock } from "@/components/console/agent-prompt";
+import { CopyButton } from "@/components/copy-button";
 import { MARKETING_HOME_PROMPT } from "@/lib/agent-prompts";
 import {
 	CLI_SNIPPET,
@@ -59,7 +60,8 @@ export function HomeFeatures() {
 			<div className="home-wrap">
 				<Feature
 					title="Decoded chain data, kept indexed"
-					docsHref="/docs/index"
+					docsHref="/index-api"
+					docsLabel="Explore Index"
 					code={INDEX_SNIPPET}
 					pane={<IndexResultsPane />}
 				>
@@ -70,7 +72,8 @@ export function HomeFeatures() {
 
 				<Feature
 					title="You shape it. We run it."
-					docsHref="/docs/subgraphs"
+					docsHref="/subgraphs"
+					docsLabel="Explore Subgraphs"
 					code={SUBGRAPHS_SNIPPET}
 					pane={<SubgraphSchemaPane />}
 				>
@@ -82,7 +85,8 @@ export function HomeFeatures() {
 
 				<Feature
 					title="Consume the raw firehose"
-					docsHref="/docs/streams"
+					docsHref="/streams"
+					docsLabel="Explore Streams"
 					code={STREAMS_SNIPPET}
 					pane={<StreamsBlocksPane />}
 				>
@@ -134,7 +138,7 @@ export function HomeGetStarted() {
 					<div className="home-gs-card">
 						<div className="home-gs-head">
 							<span className="t">In your agent&apos;s harness</span>
-							<span className="h">one paste</span>
+							<CopyButton code={MARKETING_HOME_PROMPT} inline />
 						</div>
 						<div className="home-harness-row" aria-label="Works with">
 							<span className="home-harness">Claude Code</span>
@@ -142,12 +146,7 @@ export function HomeGetStarted() {
 							<span className="home-harness">Codex</span>
 							<span className="home-harness">any MCP client</span>
 						</div>
-						<div className="home-gs-agent">
-							<AgentPromptBlock
-								title="Set up Secondlayer with your agent."
-								code={MARKETING_HOME_PROMPT}
-							/>
-						</div>
+						<AgentPromptBlock code={MARKETING_HOME_PROMPT} showCopy={false} />
 					</div>
 				</div>
 			</div>

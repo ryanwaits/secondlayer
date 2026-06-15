@@ -1,77 +1,74 @@
 "use client";
 
-import { LivePane, PaneChip } from "../live-pane";
-import { everyMs, useInViewOnce, useStagedCycle } from "../use-demo";
+import { LivePane } from "../live-pane";
 
-const DELIVERIES = [
-	{ ev: "1.20 sBTC · SP2J6…", ms: 84 },
-	{ ev: "3.07 sBTC · SPN2K…", ms: 91 },
-	{ ev: "1.51 sBTC · SP1Q4…", ms: 0, retry: true },
-	{ ev: "2.84 sBTC · SP3K8…", ms: 77 },
-	{ ev: "1.09 sBTC · SM2X9…", ms: 102 },
-] as const;
-
-// 5 delivery marks, retry-resolve mark, p50 settle mark
-const ROW_MARKS = everyMs(500, 1100, 5);
-const RETRY_RESOLVE = ROW_MARKS[2] + 1600;
-const SETTLE = ROW_MARKS[4] + 900;
-const MARKS = [...ROW_MARKS, RETRY_RESOLVE, SETTLE].sort((a, b) => a - b);
-// after sorting: indexes of the retry-resolve + settle stages
-const RETRY_STAGE = MARKS.indexOf(RETRY_RESOLVE);
-const SETTLE_STAGE = MARKS.indexOf(SETTLE);
-
-/** Subscriptions demo: deliveries land as latency bars; one retries and
- *  resolves; p50 settles at the end of the run. */
+/**
+ * Subscriptions demo: an on-chain event fires → a signed payload is pushed to
+ * your endpoint → 200, signature verified. The wire animates (CSS-only) so the
+ * push reads as live. Mirrors the other home panes' LivePane shell + tokens.
+ */
 export function WebhookLatencyPane() {
-	const { ref, inView } = useInViewOnce<HTMLDivElement>();
-	const { stage, cycle } = useStagedCycle(inView, MARKS, 13_000);
-
-	const rowsVisible = MARKS.slice(0, stage + 1).filter((m) =>
-		(ROW_MARKS as number[]).includes(m),
-	).length;
-	const retryResolved = stage >= RETRY_STAGE;
-	const settled = stage >= SETTLE_STAGE;
-
 	return (
-		<div ref={ref}>
-			<LivePane
-				dot="green"
-				title="whale-alerts · active"
-				right={settled ? "p50 88ms" : "p50 —"}
-			>
-				<div className="home-latrows" key={cycle}>
-					{DELIVERIES.slice(0, rowsVisible).map((d) => {
-						const isRetry = "retry" in d && d.retry;
-						const resolved = isRetry && retryResolved;
-						return (
-							<div className="home-latrow home-row-in" key={d.ev}>
-								<span className="ev">{d.ev}</span>
-								<span className="track">
-									<span
-										className={`lat${isRetry && !resolved ? " warn" : ""}`}
-										style={{
-											width: isRetry
-												? resolved
-													? "46%"
-													: "100%"
-												: `${d.ms / 2}%`,
-										}}
-									/>
-								</span>
-								<span className="ms">
-									{isRetry ? (
-										resolved ? (
-											"200 · retry 1"
-										) : (
-											<PaneChip state="wait">retrying…</PaneChip>
-										)
-									) : (
-										`200 · ${d.ms}ms`
-									)}
-								</span>
+		<div>
+			<LivePane dot="green" title="whale-alerts" right="1 trigger matched">
+				<div className="home-hook">
+					<div className="home-hook-flow">
+						<div className="home-hook-node home-hook-event">
+							<span className="home-hook-kicker">
+								<span className="home-hook-glyph" /> On-chain event
+							</span>
+							<div className="home-hook-line">
+								<span className="k">event</span>{" "}
+								<span className="v">ft_transfer</span>
 							</div>
-						);
-					})}
+							<div className="home-hook-line">
+								<span className="amt">1.20 sBTC</span>
+							</div>
+							<div className="home-hook-line">
+								<span className="k">from</span>{" "}
+								<span className="v">SP2J6…X0G</span>
+							</div>
+							<div className="home-hook-line">
+								<span className="k">tx</span>{" "}
+								<span className="v">0x9f3c41…</span>
+							</div>
+						</div>
+
+						<div className="home-hook-wire">
+							<svg
+								viewBox="0 0 86 56"
+								preserveAspectRatio="none"
+								aria-hidden="true"
+							>
+								<path className="home-hook-track" d="M2 28 H84" />
+								<path className="home-hook-dash" d="M2 28 H84" />
+								<g className="home-hook-packet">
+									<rect x="2" y="23" width="10" height="10" rx="2" />
+								</g>
+							</svg>
+							<span className="home-hook-tag">POST · signed</span>
+						</div>
+
+						<div className="home-hook-node home-hook-endpoint">
+							<span className="home-hook-kicker">Your endpoint</span>
+							<div className="home-hook-url">hooks.example.com/sbtc</div>
+							<div className="home-hook-row">
+								<span className="lbl">status</span>
+								<span className="ok">200 OK</span>
+							</div>
+							<div className="home-hook-row">
+								<span className="lbl">verified</span>
+								<span className="ok chk">✓ signature</span>
+							</div>
+						</div>
+					</div>
+
+					<div className="home-hook-foot">
+						<span>
+							<span className="sig">webhook-signature</span> t=1718…,v1=k38f…
+						</span>
+						<span>delivered · 84ms</span>
+					</div>
 				</div>
 			</LivePane>
 		</div>

@@ -682,7 +682,7 @@ const CARDS: CardSpec[] = [
 	{
 		file: "home.png",
 		eyebrow: null,
-		line1: "Every layer of the chain.",
+		line1: "Every chain event.",
 		line2: "None of the infra.",
 		mutedLine2: false,
 		artifact: <ArtHome />,

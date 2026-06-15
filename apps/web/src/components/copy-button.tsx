@@ -2,7 +2,18 @@
 
 import { useCallback, useState } from "react";
 
-export function CopyButton({ code }: { code: string }) {
+export function CopyButton({
+	code,
+	label,
+	inline,
+}: {
+	code: string;
+	/** Optional text label rendered before the icon (toggles to "copied"). */
+	label?: string;
+	/** Render statically in-flow (header/toolbar) instead of the default
+	 *  absolute, hover-revealed icon used inside code blocks. Implied by `label`. */
+	inline?: boolean;
+}) {
 	const [copied, setCopied] = useState(false);
 
 	const handleCopy = useCallback(async () => {
@@ -15,9 +26,14 @@ export function CopyButton({ code }: { code: string }) {
 		<button
 			type="button"
 			onClick={handleCopy}
-			className="copy-button"
+			className={
+				label || inline ? "copy-button copy-button-labeled" : "copy-button"
+			}
 			aria-label="Copy code"
 		>
+			{label && (
+				<span className="copy-button-label">{copied ? "copied" : label}</span>
+			)}
 			{copied ? (
 				<svg
 					aria-hidden="true"

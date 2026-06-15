@@ -11,11 +11,13 @@ export function AgentPromptBlock({
 	code,
 	lang = "markdown",
 	collapsible = true,
+	showCopy = true,
 }: {
-	title: string;
+	title?: string;
 	code: string;
 	lang?: string;
 	collapsible?: boolean;
+	showCopy?: boolean;
 }) {
 	const [html, setHtml] = useState<string | null>(null);
 	const [expanded, setExpanded] = useState(false);
@@ -35,12 +37,14 @@ export function AgentPromptBlock({
 
 	return (
 		<div className="agent-prompt">
-			<div className="agent-prompt-header">
-				{title && <span className="agent-prompt-title">{title}</span>}
-			</div>
+			{title && (
+				<div className="agent-prompt-header">
+					<span className="agent-prompt-title">{title}</span>
+				</div>
+			)}
 
 			<div className="agent-prompt-code code-block-wrapper">
-				<CopyButton code={code} />
+				{showCopy && <CopyButton code={code} />}
 				<div
 					className={`agent-prompt-scroll ${isCollapsed ? "agent-prompt-collapsed" : ""}`}
 					style={isCollapsed ? { maxHeight: CODE_PREVIEW_HEIGHT } : undefined}

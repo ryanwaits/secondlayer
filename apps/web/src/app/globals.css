@@ -2,6 +2,7 @@
 	--bg: #fafafa;
 	--text-main: #111;
 	--text-prose: #111;
+	--docs-prose: rgba(0, 0, 0, 0.72);
 	--text-muted: rgba(0, 0, 0, 0.6);
 	--text-dim: rgba(0, 0, 0, 0.12);
 	--border: #e5e5e5;
@@ -27,7 +28,7 @@
 	--copy-btn: rgba(0, 0, 0, 0.25);
 	--copy-btn-hover: rgba(0, 0, 0, 0.5);
 	--copy-btn-hover-bg: rgba(0, 0, 0, 0.04);
-	--focus-ring: rgba(0, 122, 255, 0.5);
+	--focus-ring: rgba(0, 0, 0, 0.22);
 
 	--green: #22c55e;
 	--green-bg: rgba(34, 197, 94, 0.08);
@@ -63,6 +64,7 @@
 		--bg: #111111;
 		--text-main: #ececec;
 		--text-prose: #ececec;
+		--docs-prose: rgba(255, 255, 255, 0.74);
 		--text-muted: rgba(255, 255, 255, 0.6);
 		--text-dim: rgba(255, 255, 255, 0.1);
 		--border: #2e2e2e;
@@ -87,7 +89,7 @@
 		--copy-btn-hover-bg: rgba(255, 255, 255, 0.06);
 		--accent: #8aa7f8;
 		--accent-contrast: #0a0f1f;
-		--focus-ring: rgba(60, 160, 255, 0.5);
+		--focus-ring: rgba(255, 255, 255, 0.26);
 
 		--green: #22c55e;
 		--green-bg: rgba(34, 197, 94, 0.08);
@@ -107,6 +109,7 @@ html.force-dark {
 	--bg: #111111;
 	--text-main: #ececec;
 	--text-prose: #ececec;
+	--docs-prose: rgba(255, 255, 255, 0.74);
 	--text-muted: rgba(255, 255, 255, 0.6);
 	--text-dim: rgba(255, 255, 255, 0.1);
 	--border: #2e2e2e;
@@ -131,7 +134,7 @@ html.force-dark {
 	--copy-btn-hover-bg: rgba(255, 255, 255, 0.06);
 	--accent: #8aa7f8;
 	--accent-contrast: #0a0f1f;
-	--focus-ring: rgba(60, 160, 255, 0.5);
+	--focus-ring: rgba(255, 255, 255, 0.26);
 	--green: #22c55e;
 	--green-bg: rgba(34, 197, 94, 0.08);
 	--yellow: #eab308;
@@ -149,6 +152,7 @@ html.force-light {
 	--bg: #fafafa;
 	--text-main: #111;
 	--text-prose: #111;
+	--docs-prose: rgba(0, 0, 0, 0.72);
 	--text-muted: rgba(0, 0, 0, 0.6);
 	--text-dim: rgba(0, 0, 0, 0.12);
 	--border: #e5e5e5;
@@ -173,7 +177,7 @@ html.force-light {
 	--copy-btn-hover-bg: rgba(0, 0, 0, 0.04);
 	--accent: #2563eb;
 	--accent-contrast: #fff;
-	--focus-ring: rgba(0, 122, 255, 0.5);
+	--focus-ring: rgba(0, 0, 0, 0.22);
 	--green: #22c55e;
 	--green-bg: rgba(34, 197, 94, 0.08);
 	--yellow: #eab308;
@@ -773,226 +777,151 @@ a.dataset-shelf-name:hover {
 }
 
 /* ── Public status page ──────────────────────────────────────────── */
+/* Sits inside the marketing .explore-wrap; nav + footer come from the (www)
+   layout, so this only adds the top spacing below the nav. */
 .status-page {
-	width: min(100%, 64rem);
-	margin: 0 auto;
-	padding: 72px 16px 40px;
+	padding-top: clamp(2.5rem, 6vw, 4.5rem);
 	letter-spacing: 0;
 }
 
-.status-header {
-	display: grid;
-	grid-template-columns: minmax(0, 10rem) minmax(0, 1fr);
-	gap: var(--spacing-lg);
-	align-items: start;
-	padding-bottom: var(--spacing-md);
-	border-bottom: 1px solid var(--border);
+/* ── Minimal status view (single column) ──────────────────────────── */
+.status-min {
+	margin-top: clamp(1.75rem, 4vw, 2.75rem);
 }
-
-.status-brand,
-.status-eyebrow,
-.status-block-kicker,
-.status-last-checked,
-.status-metrics dt,
-.status-footer {
-	color: var(--text-muted);
-}
-
-.status-brand {
-	font-size: 0.875rem;
-	font-weight: 520;
-}
-
-.status-eyebrow {
-	margin-bottom: 0.375rem;
-	font-size: 0.8125rem;
-}
-
-.status-header h1 {
-	font-size: 4.5rem;
-	font-weight: 520;
-	line-height: 0.95;
-	letter-spacing: 0;
-	color: var(--text-main);
-}
-
-.status-intro {
-	max-width: 34rem;
-	margin-top: var(--spacing-xs);
-	color: var(--text-muted);
-	font-size: 0.9375rem;
-	line-height: 1.55;
-}
-
-.status-grid {
-	display: grid;
-	grid-template-columns: 1.1fr 1fr;
-	gap: 12px;
-	margin-top: var(--spacing-sm);
-}
-
-.status-block {
-	min-width: 0;
-	border: 1px solid var(--border);
-	border-radius: 8px;
-	background: var(--bg-elevated);
-	padding: var(--spacing-sm);
-}
-
-.status-block:first-child {
-	grid-column: 1 / -1;
-}
-
-.status-block-ok {
-	border-color: color-mix(in srgb, var(--green) 42%, var(--border));
-	background: var(--green-bg);
-}
-
-.status-block-degraded {
-	border-color: color-mix(in srgb, var(--yellow) 48%, var(--border));
-	background: var(--yellow-bg);
-}
-
-.status-block-down {
-	border-color: color-mix(in srgb, var(--red) 44%, var(--border));
-	background: var(--red-bg);
-}
-
-.status-block-kicker {
-	margin-bottom: var(--spacing-xs);
-	font-size: 0.8125rem;
-}
-
-.status-block-row {
-	display: flex;
-	gap: var(--spacing-xs);
-	align-items: baseline;
-	justify-content: space-between;
-}
-
-.status-state {
+.status-min-pill,
+.status-min-surface {
 	display: inline-flex;
 	align-items: center;
-	gap: 0.625rem;
-	font-family: var(--font-heading-stack);
-	font-size: 1.75rem;
-	font-weight: 560;
-	line-height: 1;
-	letter-spacing: 0;
+	gap: 7px;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	background: var(--bg-elevated);
 	color: var(--text-main);
 }
-
-.status-state-dot {
-	width: 0.75rem;
-	height: 0.75rem;
-	border-radius: 50%;
-	background: var(--text-muted);
+.status-min-pill {
+	padding: 5px 12px 5px 10px;
+	font-family: var(--font-heading-stack);
+	font-size: 0.8125rem;
+	font-weight: 540;
 }
-
-.status-block-ok .status-state-dot {
+.status-min-head {
+	margin: 1.5rem 0 0;
+	font-family: var(--font-heading-stack);
+	font-weight: 560;
+	font-size: clamp(2.25rem, 6vw, 3.75rem);
+	line-height: 1.02;
+	letter-spacing: -0.025em;
+	color: var(--text-main);
+}
+.status-min-sub {
+	margin: 0.9rem 0 0;
+	max-width: 46ch;
+	color: var(--text-muted);
+	font-size: 1rem;
+	line-height: 1.5;
+}
+.status-min-metrics {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	margin-top: 2.25rem;
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	overflow: hidden;
+	background: var(--bg-elevated);
+}
+.status-min-metric {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	padding: 1rem 1.25rem;
+	border-left: 1px solid var(--border);
+}
+.status-min-metric:first-child {
+	border-left: 0;
+}
+.status-min-metric-label {
+	font-family: var(--font-mono-stack);
+	font-size: 0.62rem;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+.status-min-metric-value {
+	font-family: var(--font-mono-stack);
+	font-size: 1.4rem;
+	font-variant-numeric: tabular-nums;
+	color: var(--text-main);
+	white-space: nowrap;
+}
+@media (max-width: 640px) {
+	.status-min-metrics {
+		grid-template-columns: 1fr 1fr;
+	}
+	.status-min-metric:nth-child(3) {
+		border-left: 0;
+	}
+	.status-min-metric:nth-child(n + 3) {
+		border-top: 1px solid var(--border);
+	}
+}
+.status-min-surfaces {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 1.5rem;
+}
+.status-min-surface {
+	padding: 6px 12px;
+	font-size: 0.8125rem;
+}
+.status-min-dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	flex: none;
+	background: var(--border-hover);
+}
+.status-min-ok .status-min-dot {
 	background: var(--green);
 }
-
-.status-block-degraded .status-state-dot {
+.status-min-degraded .status-min-dot {
 	background: var(--yellow);
 }
-
-.status-block-down .status-state-dot {
+.status-min-down .status-min-dot {
 	background: var(--red);
 }
-
-.status-block-copy,
-.status-error,
-.status-incident {
-	margin-top: var(--spacing-xs);
-	color: var(--text-main);
-	font-size: 0.9375rem;
-	line-height: 1.55;
+.status-min-pill.status-min-degraded,
+.status-min-surface.status-min-degraded {
+	border-color: color-mix(in srgb, var(--yellow) 40%, var(--border));
+	background: var(--yellow-bg);
 }
-
-.status-error {
-	color: var(--red);
-	font-family: var(--font-mono-stack);
-	font-size: 0.8125rem;
+.status-min-pill.status-min-down,
+.status-min-surface.status-min-down {
+	border-color: color-mix(in srgb, var(--red) 40%, var(--border));
+	background: var(--red-bg);
 }
-
-.status-metrics {
-	display: grid;
-	gap: var(--spacing-xs);
+@media (prefers-reduced-motion: no-preference) {
+	.status-min-pill.status-min-ok .status-min-dot {
+		animation: home-pulse 1.6s ease-in-out infinite;
+	}
 }
-
-.status-metrics div {
-	display: flex;
-	gap: var(--spacing-xs);
-	align-items: baseline;
-	justify-content: space-between;
-	padding-bottom: 0.75rem;
-	border-bottom: 1px solid var(--border);
-}
-
-.status-metrics div:last-child {
-	padding-bottom: 0;
-	border-bottom: 0;
-}
-
-.status-metrics dt {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.5rem;
-	font-size: 0.8125rem;
-}
-
-.status-metrics dd {
-	min-width: 0;
-	font-family: var(--font-mono-stack);
-	font-size: 0.9375rem;
-	text-align: right;
-	color: var(--text-main);
-}
-
-.status-hash {
-	overflow-wrap: anywhere;
-}
-
-.status-freshness-dot {
-	width: 0.5rem;
-	height: 0.5rem;
-	border-radius: 50%;
-	background: var(--text-muted);
-	flex: 0 0 auto;
-}
-
-.status-freshness-green {
-	background: var(--green);
-}
-
-.status-freshness-yellow {
-	background: var(--yellow);
-}
-
-.status-freshness-muted {
-	background: var(--text-muted);
-}
-
-.status-footer {
-	display: flex;
-	gap: var(--spacing-sm);
-	justify-content: space-between;
-	margin-top: var(--spacing-md);
-	padding-top: var(--spacing-xs);
+.status-min-rule {
+	margin: 1.75rem 0 0;
+	border: none;
 	border-top: 1px solid var(--border);
-	font-size: 0.8125rem;
 }
-
-.status-footer a {
-	text-decoration: underline;
-	text-decoration-color: var(--link-underline);
-	text-underline-offset: 3px;
+.status-min-foot {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 1rem 0 0;
+	font-size: 0.875rem;
+	color: var(--text-muted);
 }
-
-.status-footer a:hover {
+.status-min-when {
+	font-family: var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
 	color: var(--text-main);
-	text-decoration-color: var(--link-underline-hover);
 }
 
 /* ── Code blocks ─────────────────────────────────────────────────── */
@@ -1412,30 +1341,6 @@ a.dataset-shelf-name:hover {
 
 	.status-page {
 		padding: 56px 18px 32px;
-	}
-
-	.status-header {
-		grid-template-columns: 1fr;
-		gap: var(--spacing-xs);
-	}
-
-	.status-header h1 {
-		font-size: 2.75rem;
-	}
-
-	.status-grid {
-		grid-template-columns: 1fr;
-	}
-
-	.status-block-row,
-	.status-metrics div,
-	.status-footer {
-		align-items: flex-start;
-		flex-direction: column;
-	}
-
-	.status-metrics dd {
-		text-align: left;
 	}
 
 	/* Homepage — leave room for the compact auth bar at the top */
@@ -4574,7 +4479,7 @@ html.force-dark .shiki span {
 
 /* Visible focus ring for keyboard users — covers all interactive elements. */
 .www-page :focus-visible {
-	outline: 2px solid var(--accent);
+	outline: 2px solid var(--focus-ring);
 	outline-offset: 3px;
 	border-radius: 4px;
 }
@@ -5658,15 +5563,22 @@ html.force-dark .shiki span {
 .docs-article .page-title {
 	margin-bottom: var(--spacing-sm);
 }
+/* More air above each section + a slightly larger heading so sections read
+   as clear breaks, not crammed dividers. */
+.docs-article .section-heading-wrap {
+	margin-top: var(--spacing-xxl);
+	margin-bottom: var(--spacing-md);
+}
 .docs-article .section-heading {
+	font-size: 0.95rem;
 	scroll-margin-top: 24px;
 }
 .docs-article h3 {
-	font-size: 14.5px;
+	font-size: 15px;
 	font-weight: 600;
 	color: var(--text-main);
 	letter-spacing: -0.008em;
-	margin: var(--spacing-md) 0 0.6rem;
+	margin: var(--spacing-lg) 0 0.65rem;
 	scroll-margin-top: 24px;
 }
 
@@ -5696,14 +5608,16 @@ html.force-dark .shiki span {
 .docs-article .heading-anchor:focus-visible::after {
 	opacity: 1;
 }
-/* Body matches marketing .prose exactly (Public Sans, dense editorial type). */
+/* Body — roomier, lighter editorial type (fumadocs-calibrated): a touch
+   larger, more line-height + block spacing, and a softened (not pure-black)
+   color via --docs-prose so dense pages read calmly instead of crammed. */
 .docs-article p {
-	font-size: 14px;
-	font-weight: 460;
-	line-height: 1.62;
-	letter-spacing: -0.00563rem;
-	color: var(--text-prose);
-	margin: 0 0 1.15rem;
+	font-size: 15px;
+	font-weight: 450;
+	line-height: 1.72;
+	letter-spacing: -0.006em;
+	color: var(--docs-prose);
+	margin: 0 0 1.45rem;
 }
 .docs-article a {
 	color: inherit;
@@ -5727,12 +5641,12 @@ html.force-dark .shiki span {
 }
 .docs-article li {
 	position: relative;
-	margin-bottom: 0.5rem;
+	margin-bottom: 0.55rem;
 	padding-left: 0.25rem;
-	font-size: 14px;
-	line-height: 1.6;
-	letter-spacing: -0.00563rem;
-	color: var(--text-prose);
+	font-size: 15px;
+	line-height: 1.68;
+	letter-spacing: -0.006em;
+	color: var(--docs-prose);
 }
 .docs-article ul > li::before {
 	content: "—";
@@ -5754,13 +5668,27 @@ html.force-dark .shiki span {
 	font-size: 12px;
 	color: var(--text-muted);
 }
+/* Inline code, default — a neutral "keycap" chip: white in light mode, a
+   darker elevated tone in dark (var(--bg-elevated)), hairline border + a
+   faint lift. The quiet workhorse for params, types, symbols, values. */
 .docs-article :not(pre) > code {
 	font-family: var(--font-mono-stack);
-	font-size: 0.9em;
-	background: var(--code-bg);
-	padding: 0.15em 0.35em;
-	border-radius: 3px;
+	font-size: 0.86em;
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	padding: 0.1em 0.4em;
+	border-radius: 5px;
 	color: var(--text-main);
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.03);
+}
+/* Inline code, API endpoints/routes — the branded blue chip (set by the
+   `.code-api` heuristic in mdx-components.tsx). Reserved for `/v1/…`, `/api/…`,
+   and `METHOD /path` so the brand color stays sparing and high-signal. */
+.docs-article :not(pre) > code.code-api {
+	background: var(--accent-bg);
+	border-color: var(--accent-border);
+	color: var(--accent);
+	box-shadow: none;
 }
 .docs-article strong {
 	font-weight: 600;
@@ -5824,6 +5752,107 @@ html.force-dark .shiki span {
 	border: none;
 	border-top: 1px solid var(--border);
 	margin: var(--spacing-md) 0;
+}
+
+/* ── Callout / Banner (rich MDX asides that break up long prose) ──── */
+.docs-callout {
+	display: flex;
+	gap: 0.7rem;
+	margin: var(--spacing-sm) 0;
+	padding: 0.85rem 1rem;
+	border: 1px solid var(--border);
+	border-left-width: 3px;
+	border-radius: 8px;
+}
+.docs-callout-icon {
+	flex: none;
+	width: 17px;
+	height: 17px;
+	margin-top: 1px;
+}
+.docs-callout-icon svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+.docs-callout-body {
+	min-width: 0;
+}
+.docs-callout-title {
+	margin: 0 0 0.2rem;
+	font-size: 14.5px;
+	font-weight: 600;
+	color: var(--text-main);
+}
+/* Body paragraphs sit tighter than article prose; last one has no trailer.
+   Defined after `.docs-article p` so it wins on equal specificity. */
+.docs-callout p {
+	margin: 0 0 0.55rem;
+	font-size: 14.5px;
+	line-height: 1.62;
+	color: var(--docs-prose);
+}
+.docs-callout-body > :last-child {
+	margin-bottom: 0;
+}
+.docs-callout-note,
+.docs-callout-info {
+	background: var(--blue-bg);
+	border-left-color: var(--blue);
+}
+.docs-callout-note .docs-callout-icon,
+.docs-callout-info .docs-callout-icon {
+	color: var(--blue);
+}
+.docs-callout-tip {
+	background: var(--green-bg);
+	border-left-color: var(--green);
+}
+.docs-callout-tip .docs-callout-icon {
+	color: var(--green);
+}
+.docs-callout-warning {
+	background: var(--yellow-bg);
+	border-left-color: var(--yellow);
+}
+.docs-callout-warning .docs-callout-icon {
+	color: var(--yellow);
+}
+.docs-callout-danger {
+	background: var(--red-bg);
+	border-left-color: var(--red);
+}
+.docs-callout-danger .docs-callout-icon {
+	color: var(--red);
+}
+
+.docs-banner {
+	margin: var(--spacing-md) 0;
+	padding: 1.05rem 1.25rem;
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	background: var(--bg-chrome);
+}
+.docs-banner-label {
+	font-family: var(--font-mono-stack);
+	font-size: 0.64rem;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--accent);
+}
+.docs-banner-title {
+	margin: 0.3rem 0 0;
+	font-family: var(--font-heading-stack);
+	font-weight: 560;
+	font-size: 1.05rem;
+	letter-spacing: -0.01em;
+	color: var(--text-main);
+}
+.docs-banner-body {
+	margin-top: 0.45rem;
+}
+.docs-banner-body > :last-child {
+	margin-bottom: 0;
 }
 
 .docs-toc {
@@ -6944,7 +6973,7 @@ html.force-dark .shiki span {
 	border-radius: 8px;
 }
 .explore-card-link:focus-visible {
-	outline: 2px solid var(--accent);
+	outline: 2px solid var(--focus-ring);
 	outline-offset: 2px;
 }
 .explore-card {
@@ -7099,7 +7128,7 @@ html.force-dark .shiki span {
 	}
 }
 .explore-ep-try:focus-visible {
-	outline: 2px solid var(--accent);
+	outline: 2px solid var(--focus-ring);
 	outline-offset: 2px;
 }
 
@@ -7813,7 +7842,7 @@ html.force-dark .shiki span {
 	}
 }
 .explore-send:focus-visible {
-	outline: 2px solid var(--accent);
+	outline: 2px solid var(--focus-ring);
 	outline-offset: 2px;
 }
 .explore-send:disabled {
@@ -7918,7 +7947,7 @@ html.force-dark .shiki span {
 .explore-ep .copy-button:focus-visible,
 .explore-machine-head .copy-button:focus-visible,
 .explore-res-meta .copy-button:focus-visible {
-	outline: 2px solid var(--accent);
+	outline: 2px solid var(--focus-ring);
 	outline-offset: 2px;
 }
 
@@ -8642,48 +8671,181 @@ html.force-dark .shiki span {
 	}
 }
 
-/* latency feed (subscriptions) */
-.home-latrows {
-	padding: 0.6rem 0 0.8rem;
-	height: 160px;
-	overflow: hidden;
-	box-sizing: content-box;
+/* subscriptions pane — on-chain event → signed push → your endpoint.
+   Shares the LivePane shell + tokens with the other home panes. */
+.home-hook {
+	display: flex;
+	flex-direction: column;
+	height: 182px;
 }
-.home-latrow {
+.home-hook-flow {
+	flex: 1;
+	min-height: 0;
+	display: grid;
+	grid-template-columns: 1fr auto 1fr;
+	align-items: center;
+	padding: 0.65rem 0.9rem;
+}
+.home-hook-node {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 0.55rem 0.6rem;
+	background: var(--bg-elevated, var(--bg));
+}
+.home-hook-event {
+	background: var(--accent-bg);
+	border-color: var(--accent-border);
+}
+.home-hook-kicker {
 	display: flex;
 	align-items: center;
-	gap: 10px;
-	height: 32px;
-	padding: 0 1.1rem;
+	gap: 5px;
+	margin-bottom: 6px;
 	font-family: var(--font-mono-stack);
-	font-size: 0.67rem;
-}
-.home-latrow .ev {
-	min-width: 8.6rem;
+	font-size: 0.56rem;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
 	color: var(--text-muted);
+}
+.home-hook-event .home-hook-kicker {
+	color: var(--accent);
+}
+.home-hook-glyph {
+	width: 5px;
+	height: 5px;
+	flex: none;
+	border-radius: 1px;
+	background: var(--accent);
+}
+.home-hook-line {
+	font-family: var(--font-mono-stack);
+	font-size: 0.64rem;
+	line-height: 1.5;
+	font-variant-numeric: tabular-nums;
 	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
 }
-.home-latrow .track {
-	flex: 1;
+.home-hook-line .k {
+	color: var(--text-muted);
 }
-.home-latrow .lat {
-	display: block;
-	height: 6px;
-	border-radius: 999px;
-	background: var(--green);
-	transition: width 600ms var(--ease-smooth), background-color 300ms
-		var(--ease-smooth);
+.home-hook-line .v {
+	color: var(--text-main);
 }
-.home-latrow .lat.warn {
-	background: var(--yellow);
+.home-hook-line .amt {
+	color: var(--accent);
+	font-weight: 600;
 }
-.home-latrow .ms {
-	min-width: 6.2rem;
-	text-align: right;
+.home-hook-url {
+	margin-bottom: 6px;
+	font-family: var(--font-mono-stack);
+	font-size: 0.6rem;
+	color: var(--text-main);
+	word-break: break-all;
+}
+.home-hook-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-top: 3px;
+	font-family: var(--font-mono-stack);
+	font-size: 0.62rem;
+	font-variant-numeric: tabular-nums;
+}
+.home-hook-row .lbl {
+	color: var(--text-muted);
+}
+.home-hook-row .ok {
+	color: var(--green);
+	font-weight: 600;
+}
+.home-hook-row .chk {
+	font-weight: 500;
+}
+.home-hook-wire {
+	position: relative;
+	width: 72px;
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.home-hook-wire svg {
+	width: 100%;
+	height: 48px;
+	overflow: visible;
+}
+.home-hook-track {
+	stroke: var(--border);
+	stroke-width: 1.5;
+	fill: none;
+}
+.home-hook-dash {
+	stroke: var(--accent);
+	stroke-width: 1.5;
+	fill: none;
+	stroke-dasharray: 4 6;
+}
+.home-hook-packet rect {
+	fill: var(--accent);
+}
+.home-hook-tag {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -165%);
+	font-family: var(--font-mono-stack);
+	font-size: 0.5rem;
+	color: var(--accent);
+	background: var(--bg-elevated, var(--bg));
+	padding: 1px 5px;
+	border: 1px solid var(--accent-border);
+	border-radius: 4px;
+	white-space: nowrap;
+}
+@media (prefers-reduced-motion: no-preference) {
+	.home-hook-dash {
+		animation: home-hook-dash 1.1s linear infinite;
+	}
+	@keyframes home-hook-dash {
+		to {
+			stroke-dashoffset: -20;
+		}
+	}
+	.home-hook-packet {
+		animation: home-hook-travel 1.6s ease-in-out infinite;
+	}
+	@keyframes home-hook-travel {
+		0% {
+			transform: translateX(0);
+			opacity: 0;
+		}
+		12% {
+			opacity: 1;
+		}
+		88% {
+			opacity: 1;
+		}
+		100% {
+			transform: translateX(60px);
+			opacity: 0;
+		}
+	}
+}
+.home-hook-foot {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 0.5rem 1.1rem;
+	border-top: 1px solid var(--border);
+	font-family: var(--font-mono-stack);
+	font-size: 0.58rem;
 	color: var(--text-muted);
 	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+	overflow: hidden;
+}
+.home-hook-foot .sig {
+	color: var(--text-main);
 }
 
 /* terminal (cli) */
@@ -8956,9 +9118,9 @@ html.force-dark .shiki span {
 }
 .home-gs-head {
 	display: flex;
-	align-items: baseline;
+	align-items: center;
 	gap: 10px;
-	padding: 0.9rem 1.2rem;
+	padding: 0.7rem 0.7rem 0.7rem 1.2rem;
 	border-bottom: 1px solid var(--border);
 }
 .home-gs-head .t {
@@ -8966,13 +9128,24 @@ html.force-dark .shiki span {
 	font-size: 0.9375rem;
 	font-weight: 560;
 }
-.home-gs-head .h {
+/* Inline labeled copy button (e.g. the "One paste" affordance in the agent
+   card header). Overrides the default absolute icon-only `.copy-button`. */
+.copy-button-labeled {
+	position: static;
+	opacity: 1;
 	margin-left: auto;
+	gap: 6px;
+	padding: 4px 9px;
+	color: var(--text-muted);
+}
+.copy-button-labeled:hover {
+	color: var(--text-main);
+}
+.copy-button-label {
 	font-family: var(--font-mono-stack);
 	font-size: 0.62rem;
 	letter-spacing: 0.05em;
 	text-transform: uppercase;
-	color: var(--text-muted);
 }
 .home-gs-body .code-block-wrapper {
 	margin: 0;
@@ -9007,11 +9180,17 @@ html.force-dark .shiki span {
 	border-radius: 999px;
 	padding: 3px 9px;
 }
-.home-gs-agent {
-	padding: 0.9rem 1.2rem 1.2rem;
-}
-.home-gs-agent .agent-prompt {
+/* Flatten the agent-prompt inside the home card: the card is already the
+   outer box, so drop the prompt's own border/bg — only the inner code box
+   shows. One fewer container-in-container. */
+.home-gs-card .agent-prompt {
 	margin: 0;
+	border: none;
+	border-radius: 0;
+	background: transparent;
+}
+.home-gs-card .agent-prompt-code.code-block-wrapper {
+	margin: 0.9rem 1.2rem 1.2rem;
 }
 
 /* final CTA */
@@ -9080,7 +9259,7 @@ html.force-dark .shiki span {
 	border-radius: 8px;
 }
 .claim-form input:focus-visible {
-	outline: 2px solid var(--accent);
+	outline: 2px solid var(--focus-ring);
 	outline-offset: 1px;
 }
 .claim-form .auth-bar-cta {
@@ -9305,69 +9484,48 @@ html.force-dark .shiki span {
 	font-weight: 540;
 	color: var(--text-main);
 }
+/* Feature ledger — a single column of check-chipped rows split by hairlines.
+   Reads as a deliberate "what's included" list, not a loose dashed grid. */
 .prc-plan ul {
 	list-style: none;
 	padding: 0;
-	margin: 0.9rem 0 1.1rem;
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 0.5rem 1.5rem;
+	margin: 1rem 0 1.25rem;
+	display: flex;
+	flex-direction: column;
 }
 .prc-plan-cont + ul {
-	margin-top: 0.55rem;
-}
-@media (max-width: 480px) {
-	.prc-plan ul {
-		grid-template-columns: 1fr;
-	}
+	margin-top: 0.7rem;
 }
 .prc-plan li {
-	position: relative;
-	padding-left: 1.2rem;
-	font-size: 0.8rem;
-	line-height: 1.35;
+	display: flex;
+	gap: 0.6rem;
+	align-items: flex-start;
+	padding: 0.55rem 0;
+	font-size: 0.82rem;
+	line-height: 1.4;
+	border-top: 1px solid var(--border);
 }
 .prc-plan li::before {
-	content: "—";
-	position: absolute;
-	left: 0;
-	color: var(--text-muted);
-}
-.prc-plan-cta {
+	content: "✓";
+	flex: none;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+	width: 1.05rem;
+	height: 1.05rem;
+	margin-top: 0.05rem;
+	border-radius: 999px;
+	background: var(--accent-bg);
+	color: var(--accent);
+	font-size: 0.6rem;
+	font-weight: 700;
+}
+/* Layout only — visuals come from the shared marketing button (.pp-btn /
+   .pp-btn-ink / .pp-btn-ghost) so pricing CTAs match the rest of the site. */
+.prc-plan-cta {
 	margin-top: auto;
 	align-self: flex-start;
-	height: 38px;
-	padding: 0 18px;
-	border-radius: 6px;
-	font-family: var(--font-sans-stack);
-	font-size: 13px;
-	font-weight: 560;
 	text-decoration: none;
-	cursor: pointer;
-	transition: opacity 0.2s var(--ease-smooth), background 0.2s
-		var(--ease-smooth);
-}
-.prc-plan-cta:hover {
-	opacity: 0.9;
-}
-/* Free CTA is the quiet ghost; the Pro CTA is the inverse of its panel,
-   so it flips with the theme alongside the block. */
-.prc-cta-ghost {
-	background: transparent;
-	border: 1px solid var(--text-main);
-	color: var(--text-main);
-}
-.prc-cta-ghost:hover {
-	opacity: 1;
-	background: var(--code-bg);
-}
-.prc-cta-pro {
-	background: var(--accent);
-	color: var(--accent-contrast);
-	border: 1px solid var(--accent);
 }
 
 /* ── Enterprise + x402: two columns on one row (x402 left | ent right) ── */
@@ -10027,7 +10185,12 @@ html.force-dark .pp {
 	}
 }
 .pp-surface {
-	background: var(--bg-elevated);
+	position: relative;
+	background: radial-gradient(
+			125% 115% at 88% 4%,
+			var(--accent-glow),
+			transparent 52%
+		), var(--bg-elevated);
 	border: 1px solid var(--border);
 	border-radius: 12px;
 	padding: 1.5rem;
@@ -10035,6 +10198,27 @@ html.force-dark .pp {
 	display: flex;
 	flex-direction: column;
 	min-height: 332px;
+}
+/* OG-style grid texture, faded toward the top-right (mirrors .sl-diagram-frame). */
+.pp-surface::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	opacity: 0.45;
+	background-image: linear-gradient(var(--border) 1px, transparent 1px),
+		linear-gradient(90deg, var(--border) 1px, transparent 1px);
+	background-size: 28px 28px;
+	-webkit-mask-image: radial-gradient(
+		120% 100% at 82% 2%,
+		#000 20%,
+		transparent 72%
+	);
+	mask-image: radial-gradient(120% 100% at 82% 2%, #000 20%, transparent 72%);
+}
+/* Lift card content above the grid overlay. */
+.pp-surface > * {
+	position: relative;
 }
 .pp-surface h4 {
 	font-family: var(--font-heading-stack);
@@ -10235,16 +10419,19 @@ html.force-dark .pp {
 	color: var(--text-main);
 }
 
-/* ---- real CodeBlock dropped into a card ("code view") ------ */
-/* inner code panel — light bg + border gives it shape, no window chrome */
+/* ---- surface example as an OG-style faded artifact ---------- */
+/* No grey box: the example recedes as a dimmed product artifact that bleeds
+   into the card's bottom-right corner (mirrors scripts/generate-og.tsx), so
+   the crisp h4 + description carry the message and the example is texture. */
 .pp-codeview,
 .pp-vis {
 	flex: 1;
-	margin-top: 0.25rem;
-	background: var(--bg-chrome);
-	border: 1px solid var(--border);
-	border-radius: 8px;
+	position: relative;
+	margin: 0.5rem -1.5rem -1.5rem 0;
 	overflow: hidden;
+	opacity: 0.62;
+	-webkit-mask-image: linear-gradient(150deg, #000 34%, transparent 88%);
+	mask-image: linear-gradient(150deg, #000 34%, transparent 88%);
 }
 .pp-vis {
 	display: flex;
@@ -10256,28 +10443,20 @@ html.force-dark .pp {
 .pp-codeview .code-block-wrapper pre {
 	background: transparent !important;
 	margin: 0;
-	padding: 12px 14px;
-	font-size: 0.8rem;
-	line-height: 1.8;
+	padding: 14px 16px;
+	font-size: 0.92rem;
+	line-height: 1.75;
 	overflow: hidden;
 }
 .pp-codeview .copy-button {
 	display: none;
 }
 
-/* fade the overflowing code/bash text at the right edge */
-.pp-codeview .code-block-wrapper pre,
-.pp-req,
-.pp-cli {
-	-webkit-mask-image: linear-gradient(to right, #000 84%, transparent);
-	mask-image: linear-gradient(to right, #000 84%, transparent);
-}
-
 .pp-req {
 	font-family: var(--font-mono-stack);
-	font-size: 0.76rem;
-	line-height: 1.85;
-	padding: 12px 14px;
+	font-size: 0.86rem;
+	line-height: 1.8;
+	padding: 14px 16px;
 	color: var(--ppc-fg);
 }
 .pp-req .verb {
@@ -10296,9 +10475,9 @@ html.force-dark .pp {
 .pp-cli {
 	flex: 1;
 	font-family: var(--font-mono-stack);
-	font-size: 0.76rem;
-	line-height: 1.9;
-	padding: 12px 14px;
+	font-size: 0.86rem;
+	line-height: 1.85;
+	padding: 14px 16px;
 	color: var(--ppc-fg);
 }
 .pp-cli .pfx {
@@ -10310,44 +10489,67 @@ html.force-dark .pp {
 .pp-cli .mut {
 	color: var(--text-muted);
 }
-.pp-agent {
+/* Agent surface = a self-contained terminal window (reuses .pp-bar + neutral
+   .pp-dots). Overrides the shared faded-artifact treatment so it reads as a
+   bordered window with a full frame, not a corner-bleeding artifact. */
+.pp-vis-term {
 	flex: 1;
-	padding: 12px 14px;
 	display: flex;
 	flex-direction: column;
-	gap: 9px;
-	font-family: var(--font-sans-stack);
-	font-size: 0.76rem;
-}
-.pp-bubble {
-	align-self: flex-start;
-	max-width: 92%;
-	background: var(--bg-chrome);
+	margin: 0.75rem 0 0;
+	opacity: 1;
 	border: 1px solid var(--border);
-	border-radius: 10px 10px 10px 3px;
-	padding: 7px 11px;
-	color: var(--text-main);
-	line-height: 1.4;
+	border-radius: 9px;
+	background: var(--bg-elevated, var(--bg));
+	overflow: hidden;
+	-webkit-mask-image: none;
+	mask-image: none;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
-.pp-toolchip {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	align-self: flex-start;
+.pp-agentterm {
+	flex: 1;
+	padding: 13px 15px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
 	font-family: var(--font-mono-stack);
-	font-size: 0.64rem;
+	font-size: 0.82rem;
+	line-height: 1.5;
+}
+.pp-at-banner {
+	display: flex;
+	gap: 10px;
+	align-items: flex-start;
+}
+.pp-at-logo {
 	color: var(--accent);
-	background: var(--accent-bg);
-	border: 1px solid var(--accent-border);
-	border-radius: 6px;
-	padding: 3px 8px;
+	font-size: 0.95rem;
+	line-height: 1.2;
 }
-.pp-agent .done {
-	font-family: var(--font-mono-stack);
-	font-size: 0.66rem;
+.pp-at-meta {
 	color: var(--text-muted);
 }
-.pp-agent .done b {
+.pp-at-meta b {
+	color: var(--text-main);
+	font-weight: 600;
+}
+.pp-at-prompt {
+	border: 1px solid var(--border);
+	border-radius: 7px;
+	padding: 7px 10px;
+	color: var(--text-main);
+}
+.pp-at-caret {
+	color: var(--accent);
+	margin-right: 6px;
+}
+.pp-at-tool {
+	color: var(--accent);
+}
+.pp-at-done {
+	color: var(--text-muted);
+}
+.pp-at-done b {
 	color: var(--green);
 	font-weight: 600;
 }
@@ -10372,7 +10574,7 @@ html.force-dark .pp {
 .pp-walk-step {
 	text-align: left;
 	background: transparent;
-	border: 1px solid transparent;
+	border: 1px solid var(--border);
 	border-radius: 10px;
 	padding: 1rem 1.125rem;
 	cursor: pointer;
@@ -10380,10 +10582,11 @@ html.force-dark .pp {
 }
 .pp-walk-step:hover {
 	background: var(--bg-elevated);
+	border-color: var(--border-hover);
 }
 .pp-walk-step.on {
 	background: var(--bg-elevated);
-	border-color: var(--border);
+	border-color: var(--border-hover);
 }
 .pp-walk-step h4 {
 	font-family: var(--font-heading-stack);

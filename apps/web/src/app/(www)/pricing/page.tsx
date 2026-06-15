@@ -13,8 +13,7 @@ export const metadata: Metadata = socialMeta({
 });
 
 const SELFHOST_INCLUDES = [
-	"docker compose up — indexer, API, processor",
-	"The whole stack, MIT-licensed",
+	"Containerized — indexer, API, processor",
 	"Single-tenant, no rate limits",
 	"Your hardware, your data",
 ];
@@ -26,8 +25,6 @@ const PRO_INCLUDES = [
 	"Genesis backfills (full history)",
 	"25 webhook subscriptions + replay",
 	"250 req/s on Index and Streams",
-	"Usage budgets",
-	"Email support",
 ];
 
 const SCALE_INCLUDES = [
@@ -38,7 +35,7 @@ const SCALE_INCLUDES = [
 ];
 
 const ENTERPRISE_SUMMARY =
-	"$3–8k/mo, custom. Dedicated capacity, SLAs, regions, SSO, and a success engineer.";
+	"$3–8k/mo, custom. Dedicated capacity, SLAs, regions, SSO, and a direct line to the team.";
 
 const FAQ = [
 	{
@@ -83,16 +80,6 @@ export default function PricingPage() {
 				backfills, webhooks, and deep history, on flat plans or pay-as-you-go.
 			</MarketingPageHeader>
 
-			<div className="prc-cta-band">
-				<div className="prc-cta-band-copy">
-					<p className="prc-cta-band-title">Let us run it.</p>
-					<p className="prc-cta-band-sub">
-						14-day Pro trial — we host the indexer, you ship. Cancel anytime.
-					</p>
-				</div>
-				<CtaPill />
-			</div>
-
 			<div className="prc-split">
 				<div className="prc-plan prc-free">
 					<span className="prc-plan-eyebrow">Self-host · MIT</span>
@@ -103,8 +90,11 @@ export default function PricingPage() {
 							<li key={f}>{f}</li>
 						))}
 					</ul>
-					<Link href="/docs" className="prc-plan-cta prc-cta-ghost">
-						Self-host guide
+					<Link
+						href="/docs/self-host"
+						className="prc-plan-cta pp-btn pp-btn-ghost"
+					>
+						Get started
 					</Link>
 				</div>
 				<div className="prc-plan prc-pro">
@@ -118,7 +108,7 @@ export default function PricingPage() {
 							<li key={f}>{f}</li>
 						))}
 					</ul>
-					<Link href="/login" className="prc-plan-cta prc-cta-pro">
+					<Link href="/login" className="prc-plan-cta pp-btn pp-btn-ink">
 						Start 14-day trial
 					</Link>
 				</div>
@@ -135,7 +125,7 @@ export default function PricingPage() {
 					</ul>
 					<a
 						href="mailto:hello@secondlayer.tools"
-						className="prc-plan-cta prc-cta-ghost"
+						className="prc-plan-cta pp-btn pp-btn-ghost"
 					>
 						Contact us
 					</a>
@@ -150,7 +140,7 @@ export default function PricingPage() {
 						pull history unthrottled — $5 per 1M rows, no subscription.
 					</p>
 				</div>
-				<Link href="/login" className="prc-plan-cta prc-cta-ghost">
+				<Link href="/login" className="prc-plan-cta pp-btn pp-btn-ghost">
 					Top up credits
 				</Link>
 			</div>
@@ -169,7 +159,7 @@ export default function PricingPage() {
 				<a className="prc-xfoot" href="mailto:hello@secondlayer.tools">
 					<span className="prc-xfoot-row">
 						<span className="prc-xfoot-title">Contact Us</span>
-						<span className="prc-xfoot-tag">Scale · Enterprise</span>
+						<span className="prc-xfoot-tag">Enterprise</span>
 					</span>
 					<p>{ENTERPRISE_SUMMARY} →</p>
 				</a>

@@ -93,10 +93,8 @@ export default async function SubgraphsPage() {
 				</h1>
 				<p className="pp-sub">
 					Pick your events, write handlers, deploy — one TypeScript file. Out
-					comes typed Postgres tables shaped for your app, a public REST API
-					(REST, not GraphQL), and a page on Explore: backfilled from genesis,
-					reorg-safe, and never silently dropped on a schema change. We host it,
-					or bring your own database.
+					comes typed Postgres tables and a public REST API, backfilled from
+					genesis and reorg-safe. We host it, or bring your own database.
 				</p>
 				<div className="pp-ctas">
 					<Link href="/docs/subgraphs" className="pp-btn pp-btn-ink">

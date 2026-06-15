@@ -9,7 +9,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = socialMeta({
-	title: "secondlayer — every layer of the chain, none of the infra",
+	title: "secondlayer — every chain event, none of the infra",
 	description:
 		"Build a custom indexer at any level — the raw event firehose, decoded queryable rows, or a hosted one-file subgraph. All on decoded Stacks data, no node to run.",
 	image: "/og/home.png",
@@ -55,15 +55,14 @@ export function HomeView({ status }: { status: SystemStatus | null }) {
 					<span className="home-pill-arr">→</span>
 				</Link>
 				<h1>
-					Every layer of the chain.
+					Every chain event.
 					<br />
 					None of the infra.
 				</h1>
 				<p className="home-sub">
-					Build a custom indexer at any altitude — tail the raw event firehose,
-					query decoded rows, or deploy a hosted one-file subgraph. It&apos;s
-					all decoded Stacks data — transfers, contract calls, sBTC peg events,
-					typed into JSON — with no node to run.
+					Build a custom indexer at any altitude — the raw event firehose,
+					decoded queryable rows, or a hosted one-file subgraph. All decoded
+					Stacks data, no node to run.
 				</p>
 				<div className="home-ctas">
 					<CtaPill />

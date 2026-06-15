@@ -86,9 +86,10 @@ export const db = new Kysely<Database>({
 
 const SDK_CARD_CODE = `const index = new Index();
 
-for await (const e of
+for await (const t of
   index.ftTransfers.walk({ contractId })) {
-  tally(e.sender, e.amount);
+  // t is fully typed
+  console.log(t.sender, t.amount);
 }`;
 
 export default function IndexPage() {
@@ -106,10 +107,9 @@ export default function IndexPage() {
 					You build the index.
 				</h1>
 				<p className="pp-sub">
-					Every event on Stacks, decoded into typed rows — then yours to index
-					your way. Read them keyless, or build your app&apos;s own index on
-					top: cursors, reorgs, and backfill on every page, in a database you
-					own.
+					Every Stacks event, decoded into typed rows. Read them keyless, or
+					sweep them into your own app index — cursors, reorgs, and backfill on
+					every page.
 				</p>
 				<div className="pp-ctas">
 					<Link href="/docs/index" className="pp-btn pp-btn-ink">
@@ -191,19 +191,36 @@ export default function IndexPage() {
 						</div>
 					</div>
 
-					{/* Agent — MCP prompt + tool call */}
+					{/* Agent — MCP session in a terminal window */}
 					<div className="pp-surface">
 						<h4>Agent</h4>
 						<p>
 							The whole surface speaks MCP — an agent queries with zero setup.
 						</p>
-						<div className="pp-vis">
-							<div className="pp-agent">
-								<div className="pp-bubble">
-									Index every sBTC transfer to my contract
+						<div className="pp-vis pp-vis-term">
+							<div className="pp-bar">
+								<div className="pp-dots">
+									<i />
+									<i />
+									<i />
 								</div>
-								<div className="pp-toolchip">⬡ index_events · ft_transfer</div>
-								<div className="done">
+								<div className="pp-title">agent</div>
+							</div>
+							<div className="pp-agentterm">
+								<div className="pp-at-banner">
+									<span className="pp-at-logo">◆</span>
+									<span className="pp-at-meta">
+										<b>secondlayer</b> · mcp
+										<br />
+										12 tools · keyless reads
+									</span>
+								</div>
+								<div className="pp-at-prompt">
+									<span className="pp-at-caret">›</span> Index every sBTC
+									transfer to my contract
+								</div>
+								<div className="pp-at-tool">⬡ index_events · ft_transfer</div>
+								<div className="pp-at-done">
 									<b>✓</b> 2,481 rows streamed
 								</div>
 							</div>

@@ -31,9 +31,9 @@ describe("www marketing routes", () => {
 		expect(html).toContain('class="home"');
 		// Hero: release pill + headline + sub.
 		expect(html).toContain("Explore subgraphs is live");
-		expect(html).toContain("Every layer of the chain.");
+		expect(html).toContain("Every chain event.");
 		expect(html).toContain("None of the infra.");
-		expect(html).toContain("sBTC peg event");
+		expect(html).toContain("no node to run");
 		// CTA pair: install/mint pill (client component renders install mode in
 		// static markup) + docs ghost link.
 		expect(html).toContain("npm install @secondlayer/sdk");
