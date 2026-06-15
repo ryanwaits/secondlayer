@@ -7663,7 +7663,7 @@ html.force-dark .shiki span {
 		/* see .explore-grid: bare 1fr min-sizes to the nowrap endpoint paths */
 		grid-template-columns: minmax(0, 1fr);
 	}
-	.explore-rail {
+	.explore-rail-inner {
 		position: static;
 	}
 }
@@ -7823,7 +7823,13 @@ html.force-dark .shiki span {
 	color: var(--text-dim);
 }
 
+/* The rail stretches to the full grid-row height (= the left column) so the
+   sticky inner wrapper has room to travel as you scroll. Without this the rail
+   sizes to its own (now taller, 3-card) content and sticky never engages. */
 .explore-rail {
+	align-self: stretch;
+}
+.explore-rail-inner {
 	position: sticky;
 	top: 1.5rem;
 	display: flex;

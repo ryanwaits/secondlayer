@@ -162,91 +162,95 @@ export function DetailBody({
 			</div>
 
 			<aside className="explore-rail" aria-label="Live query">
-				<span className="explore-rail-note" aria-hidden="true">
-					try it — it&apos;s live
-				</span>
-				<div>
-					<div className="explore-req">
-						<div className="explore-req-line">
-							<span className="m">GET</span>
-							<span className="url">
-								/{active}
-								<span className="q">{queryString}</span>
-							</span>
-							<button
-								type="button"
-								className="explore-send"
-								onClick={send}
-								disabled={query.phase === "loading"}
-							>
-								Send
-							</button>
+				<div className="explore-rail-inner">
+					<span className="explore-rail-note" aria-hidden="true">
+						try it — it&apos;s live
+					</span>
+					<div>
+						<div className="explore-req">
+							<div className="explore-req-line">
+								<span className="m">GET</span>
+								<span className="url">
+									/{active}
+									<span className="q">{queryString}</span>
+								</span>
+								<button
+									type="button"
+									className="explore-send"
+									onClick={send}
+									disabled={query.phase === "loading"}
+								>
+									Send
+								</button>
+							</div>
+						</div>
+						<div
+							className={`explore-res${query.phase === "idle" ? " idle" : ""}`}
+						>
+							<div className="explore-res-meta">
+								<span
+									className="explore-dot"
+									style={{
+										opacity: query.phase === "idle" ? 0.35 : 1,
+										background:
+											query.phase === "error"
+												? "var(--red, #ef4444)"
+												: undefined,
+									}}
+								/>
+								<span>
+									{query.phase === "idle" && "idle · response shape"}
+									{query.phase === "loading" && "querying…"}
+									{query.phase === "done" &&
+										`${query.status} · ${query.ms}ms · live`}
+									{query.phase === "error" &&
+										`${query.status ?? "error"} · ${query.ms}ms`}
+								</span>
+								<span className="spacer" />
+								<CopyButton code={`curl '${fullUrl}'`} />
+							</div>
+							<pre>{query.body ?? idleSample}</pre>
+							{query.phase === "idle" && (
+								<p className="hint" aria-hidden="true">
+									press Send — no key, no login
+								</p>
+							)}
 						</div>
 					</div>
-					<div
-						className={`explore-res${query.phase === "idle" ? " idle" : ""}`}
-					>
-						<div className="explore-res-meta">
+					<div className="explore-fork">
+						<span className="lbl">Build one like this</span>
+						<div className="explore-ep">
 							<span
-								className="explore-dot"
+								className="explore-ep-method"
 								style={{
-									opacity: query.phase === "idle" ? 0.35 : 1,
-									background:
-										query.phase === "error" ? "var(--red, #ef4444)" : undefined,
+									color: "var(--text-main)",
+									background: "var(--bg)",
+									borderColor: "var(--border)",
 								}}
-							/>
-							<span>
-								{query.phase === "idle" && "idle · response shape"}
-								{query.phase === "loading" && "querying…"}
-								{query.phase === "done" &&
-									`${query.status} · ${query.ms}ms · live`}
-								{query.phase === "error" &&
-									`${query.status ?? "error"} · ${query.ms}ms`}
+							>
+								CLI
 							</span>
-							<span className="spacer" />
-							<CopyButton code={`curl '${fullUrl}'`} />
+							<span className="explore-ep-path">{scaffoldCmd}</span>
+							<CopyButton code={scaffoldCmd} umamiEvent="fork-explore" />
 						</div>
-						<pre>{query.body ?? idleSample}</pre>
-						{query.phase === "idle" && (
-							<p className="hint" aria-hidden="true">
-								press Send — no key, no login
-							</p>
-						)}
+						<p className="fine">
+							Scaffolds a subgraph over the same contract — deploy under your
+							own name and it lands on Explore.{" "}
+							<em>View source · fork it with `sl subgraphs create`.</em>
+						</p>
 					</div>
-				</div>
-				<div className="explore-fork">
-					<span className="lbl">Build one like this</span>
-					<div className="explore-ep">
-						<span
-							className="explore-ep-method"
-							style={{
-								color: "var(--text-main)",
-								background: "var(--bg)",
-								borderColor: "var(--border)",
-							}}
-						>
-							CLI
-						</span>
-						<span className="explore-ep-path">{scaffoldCmd}</span>
-						<CopyButton code={scaffoldCmd} umamiEvent="fork-explore" />
-					</div>
-					<p className="fine">
-						Scaffolds a subgraph over the same contract — deploy under your own
-						name and it lands on Explore.{" "}
-						<em>View source · fork it with `sl subgraphs create`.</em>
-					</p>
-				</div>
-				<div className="explore-agents">
-					<span className="t">for agents</span>
-					<div className="links">
-						<a href={`${apiUrl}${detail.docs.markdown}`}>docs.md</a>
-						<a href={`${apiUrl}${detail.docs.openapi}`}>openapi.json</a>
-						<a href={`${apiUrl}${detail.docs.schema}`}>schema.json</a>
-						<a
-							href={`${apiUrl}/v1/subgraphs/${detail.name}/${tableNames[0] ?? ""}/stream`}
-						>
-							stream (SSE)
-						</a>
+					<div className="explore-agents">
+						<span className="t">for agents</span>
+						<div className="links">
+							<a href={`${apiUrl}${detail.docs.markdown}`}>docs.md</a>
+							<a href={`${apiUrl}${detail.docs.openapi}`}>openapi.json</a>
+							<a href={`${apiUrl}${detail.docs.schema}`}>schema.json</a>
+							<a
+								href={`${apiUrl}/v1/subgraphs/${detail.name}/${tableNames[0] ?? ""}/stream`}
+							>
+								stream (SSE)
+							</a>
+						</div>
 					</div>
 				</div>
 			</aside>
