@@ -122,6 +122,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+      - caddy_logs:/var/log/caddy
     environment:
       BASE_DOMAIN: ${BASE_DOMAIN:-secondlayer.tools}
       CADDY_ACME_EMAIL: ${CADDY_ACME_EMAIL:-ryan.waits@gmail.com}
@@ -167,3 +168,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  caddy_logs:

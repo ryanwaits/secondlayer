@@ -2,7 +2,6 @@
 #
 # Backend routing:
 #   api.{BASE_DOMAIN}   →  api:3800   (`/hooks/slack*` → agent:3900)
-
 {
 	email {$CADDY_ACME_EMAIL:ryan.waits@gmail.com}
 }
@@ -10,6 +9,20 @@
 api.{$BASE_DOMAIN:secondlayer.tools} {
 	header -Server
 	header X-Content-Type-Options nosniff
+
+	# Access log → rotated file on the caddy_logs volume. `remote_ip` is the real
+	# client IP (Linux iptables DNAT preserves source through the published port),
+	# so this is the source of truth for unique-IP / top-path analytics until the
+	# Loki+Alloy log plane (Phase 1) ships these lines centrally. JSON so it greps
+	# with `jq` and ingests into Loki unchanged.
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 50MiB
+			roll_keep 10
+			roll_keep_for 720h
+		}
+		format json
+	}
 
 	handle /hooks/slack* {
 		reverse_proxy agent:3900
