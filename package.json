@@ -5,6 +5,7 @@
 	"type": "module",
 	"workspaces": ["packages/*", "apps/*"],
 	"scripts": {
+		"prepare": "git config core.hooksPath .githooks || true",
 		"build": "bun run build:stacks && bun run build:docs && bun run build:shared && bun run build:platform && bun run build:subgraphs && bun run build:bundler && bun run build:scaffold && bun run build:sdk && bun run build:mcp && bun run build:cli",
 		"build:bundler": "bun run --filter @secondlayer/bundler build",
 		"build:cli": "bun run --filter @secondlayer/cli build",
