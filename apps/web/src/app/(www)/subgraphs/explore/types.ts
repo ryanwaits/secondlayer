@@ -46,14 +46,7 @@ export interface ExploreDetail {
 	docs: { openapi: string; schema: string; markdown: string };
 }
 
-/** Curated first-party seeds — the only listings attributed "by secondlayer". */
-export const FEATURED = [
-	"sbtc-flows",
-	"pox-stacking",
-	"bns-names",
-	"sip10-balances",
-	// Balance ledgers (G7) — listed once seeded; missing names are filtered.
-	"sbtc-balances",
-	"usdcx-balances",
-	"alex-balances",
-];
+/** Curated first-party seeds — the only listings attributed "by secondlayer".
+ *  Names absent from the live /v1/subgraphs response are filtered downstream,
+ *  so this stays in sync by listing only currently-deployed public subgraphs. */
+export const FEATURED = ["sbtc-flows", "pox-stacking", "bns-names"];
