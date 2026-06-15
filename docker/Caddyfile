@@ -46,3 +46,11 @@ api.{$BASE_DOMAIN:secondlayer.tools} {
 		}
 	}
 }
+
+# Self-hosted web analytics (Umami). Reverse-proxies to the umami container on
+# the shared compose network; Caddy provisions TLS automatically once
+# umami.secondlayer.tools resolves here. See docker-compose.hetzner.yml.
+umami.{$BASE_DOMAIN:secondlayer.tools} {
+	header -Server
+	reverse_proxy umami:3000
+}
