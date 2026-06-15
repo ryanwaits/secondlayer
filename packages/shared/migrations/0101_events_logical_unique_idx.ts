@@ -27,40 +27,73 @@ import { onChainPlane } from "../src/db/migration-role.ts";
  *     conflict now fires → DO NOTHING → idempotent.
  *
  * ORDERING — a UNIQUE index cannot be built while the table still holds
- * duplicates, and CREATE UNIQUE INDEX would ABORT the migrate run (and the
- * deploy) if it did. So this migration is DEPLOY-SAFE: it probes for a duplicate
- * logical key first and, if any exist, RAISES A NOTICE and skips — the migrate
- * step still succeeds, the live indexer keeps running (its inserts use a
- * target-less ON CONFLICT DO NOTHING that needs no index), and nothing breaks.
- * On a clean DB (fresh/dev, or prod AFTER the dedupe) it builds the index inline.
+ * duplicates (CREATE UNIQUE INDEX would ABORT the migrate run and the deploy),
+ * and an inline blocking build over the full mainnet `events` table (152.9M rows)
+ * is unacceptable during migrate regardless — it holds ACCESS EXCLUSIVE and far
+ * exceeds the default statement_timeout. So this migration NEVER does heavy work
+ * inline: it gates on the INSTANT `pg_class.reltuples` planner estimate (no scan)
+ * and skips with a NOTICE on any large table. The migrate step succeeds, the live
+ * indexer keeps running (its inserts use a target-less ON CONFLICT DO NOTHING that
+ * needs no index), and nothing breaks. Only a small table (dev/test, or an empty
+ * fresh DB) gets the index built inline — there a cheap dup-probe runs first.
  *
  * On prod the historical duplicates (blocks 2,021,105–4,327,077, ~8.25M excess)
  * must be removed FIRST via `dedupe-events.ts --apply`, then the index
- * pre-created `CONCURRENTLY` (matching this name exactly) so this migration —
- * whether it skipped earlier or re-runs — is a lock-free no-op via IF NOT EXISTS.
+ * pre-created `CONCURRENTLY` (matching this name exactly). Once it exists this
+ * migration no-ops via the index-exists check below on every subsequent deploy.
  * See the runbook `docs/internal/audits/decoded-events-supply-shortfall-2026-06-15.md`.
- * A blocking build over the full mainnet `events` table would also exceed the
- * default statement_timeout, so lift it for this tx (mirrors 0090).
  *
  * `events` is a chain-plane table → DDL no-ops on the control DB under the split.
  */
+
+// Above this row count, never build the index inline during migrate — skip with a
+// NOTICE and let the operator build it CONCURRENTLY (runbook). Below it (dev/test),
+// an inline build is fast and a brief lock is acceptable.
+const INLINE_BUILD_MAX_ROWS = 1_000_000;
+
 export async function up(db: Kysely<unknown>): Promise<void> {
 	await onChainPlane(async () => {
-		// Skip (don't abort) if duplicates remain — see header. EXISTS over a
-		// grouped probe short-circuits on the first dup, so it's cheap.
+		const skipNotice = (reason: string) =>
+			sql`DO $$ BEGIN RAISE NOTICE ${sql.lit(`events_logical_id_uniq SKIPPED: ${reason} — see migration 0101 header / runbook.`)}; END $$`.execute(
+				db,
+			);
+
+		// (1) Already built (e.g. prod, pre-created CONCURRENTLY post-dedupe) → no-op.
+		const existing = await sql<{ one: number }>`
+			SELECT 1 AS one FROM pg_indexes WHERE indexname = 'events_logical_id_uniq'
+		`.execute(db);
+		if (existing.rows.length > 0) return;
+
+		// (2) Cheap planner estimate — no table scan. Skip the inline build on any
+		// large table; reltuples is accurate on prod (heavily autovacuumed). A
+		// never-analyzed table reports -1 → treated as small (dev/fresh).
+		const est = await sql<{ rows: number }>`
+			SELECT COALESCE(reltuples, -1)::bigint AS rows
+			FROM pg_class WHERE oid = to_regclass('public.events')
+		`.execute(db);
+		const rowEstimate = Number(est.rows[0]?.rows ?? -1);
+		if (rowEstimate > INLINE_BUILD_MAX_ROWS) {
+			await skipNotice(
+				`events ~${rowEstimate} rows — run dedupe-events.ts then CREATE UNIQUE INDEX CONCURRENTLY`,
+			);
+			return;
+		}
+
+		// (3) Small table: a dup-probe is cheap here, so don't risk an aborting
+		// CREATE UNIQUE INDEX if a dev/test fixture seeded duplicate logical keys.
 		const probe = await sql<{ has_dupes: boolean }>`
 			SELECT EXISTS (
 				SELECT 1 FROM events
-				GROUP BY block_height, tx_id, event_index
-				HAVING count(*) > 1
+				GROUP BY block_height, tx_id, event_index HAVING count(*) > 1
 			) AS has_dupes
 		`.execute(db);
 		if (probe.rows[0]?.has_dupes) {
-			await sql`
-				DO $$ BEGIN RAISE NOTICE 'events_logical_id_uniq SKIPPED: duplicate (block_height, tx_id, event_index) rows present — run dedupe-events.ts then create the index CONCURRENTLY (see migration 0101 header).'; END $$
-			`.execute(db);
+			await skipNotice(
+				"duplicate (block_height, tx_id, event_index) rows present",
+			);
 			return;
 		}
+
 		await sql`SET LOCAL statement_timeout = 0`.execute(db);
 		await sql`
 			CREATE UNIQUE INDEX IF NOT EXISTS events_logical_id_uniq
