@@ -122,7 +122,11 @@ export function AuthBar() {
 	// Unauthenticated
 	return (
 		<div className="auth-bar">
-			<Link href="/login" className="auth-bar-nav-link">
+			<Link
+				href="/login"
+				className="auth-bar-nav-link"
+				data-umami-event="login"
+			>
 				<span className="auth-bar-nav-key">[L]</span>
 				<span className="auth-bar-nav-label">Login</span>
 			</Link>
@@ -159,6 +163,7 @@ export function AuthBar() {
 					<button
 						type={expanded ? "submit" : "button"}
 						className="auth-bar-cta"
+						data-umami-event="signup"
 						disabled={status === "sending"}
 						onClick={() => {
 							if (!expanded) setExpanded(true);

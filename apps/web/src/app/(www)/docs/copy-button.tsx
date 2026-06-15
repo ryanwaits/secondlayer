@@ -15,6 +15,7 @@ export function CopyButton({
 			type="button"
 			className={className}
 			aria-label={label}
+			data-umami-event="copy-code"
 			onClick={() => {
 				navigator.clipboard.writeText(text);
 				setCopied(true);

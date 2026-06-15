@@ -128,6 +128,7 @@ export function KeysList({
 						type="button"
 						className="settings-btn primary"
 						style={{ display: "flex", alignItems: "center", gap: 5 }}
+						data-umami-event="create-api-key"
 						onClick={() => {
 							setShowForm(true);
 							setTimeout(() => inputRef.current?.focus(), 0);

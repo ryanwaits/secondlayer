@@ -131,6 +131,7 @@ export function DetailBody({
 								className="explore-ep-try"
 								onClick={() => tryTable(table)}
 								aria-label={`Load ${table} into the live query panel`}
+								data-umami-event="explore-try"
 							>
 								try
 							</button>
@@ -173,7 +174,7 @@ export function DetailBody({
 							CLI
 						</span>
 						<span className="explore-ep-path">{scaffoldCmd}</span>
-						<CopyButton code={scaffoldCmd} />
+						<CopyButton code={scaffoldCmd} umamiEvent="fork-explore" />
 					</div>
 					<p className="fine">
 						Scaffolds a subgraph over the same contract — deploy under your own

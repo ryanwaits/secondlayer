@@ -20,6 +20,12 @@ import { useCommandSources } from "@/lib/command-center/sources";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+declare global {
+	interface Window {
+		umami?: { track: (event: string, data?: Record<string, unknown>) => void };
+	}
+}
+
 /**
  * Command center v1: navigation + discovery only. Fuzzy search over nav
  * routes, your subgraphs/subscriptions, public subgraphs, and docs pages.
@@ -38,6 +44,18 @@ export function CommandPalette() {
 	// Frecency reads localStorage — refresh once per palette open, not per key.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: boosts refresh on open
 	const boosts = useMemo(() => frecencyBoosts(), [open]);
+
+	// Telemetry: debounced search-query tracking. Surfaces what people look for
+	// (doc gaps, missing features) and seeds ranking for the search roadmap.
+	// Settled, non-trivial queries only — never per keystroke.
+	useEffect(() => {
+		const q = query.trim();
+		if (q.length < 3) return;
+		const id = setTimeout(() => {
+			window.umami?.track("site-search", { query: q });
+		}, 800);
+		return () => clearTimeout(id);
+	}, [query]);
 
 	const t0 = performance.now();
 	const { groups, flat } = useMemo(() => {

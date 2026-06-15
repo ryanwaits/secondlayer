@@ -94,6 +94,8 @@ export default function PricingPage() {
 					<Link
 						href="/docs/self-host"
 						className="prc-plan-cta pp-btn pp-btn-ghost"
+						data-umami-event="pricing-plan-click"
+						data-umami-event-plan="self-host"
 					>
 						Get started
 					</Link>
@@ -109,7 +111,12 @@ export default function PricingPage() {
 							<li key={f}>{f}</li>
 						))}
 					</ul>
-					<Link href="/login" className="prc-plan-cta pp-btn pp-btn-ink">
+					<Link
+						href="/login"
+						className="prc-plan-cta pp-btn pp-btn-ink"
+						data-umami-event="pricing-plan-click"
+						data-umami-event-plan="pro"
+					>
 						Start 14-day trial
 					</Link>
 				</div>
@@ -127,6 +134,8 @@ export default function PricingPage() {
 					<a
 						href="mailto:hello@secondlayer.tools"
 						className="prc-plan-cta pp-btn pp-btn-ghost"
+						data-umami-event="pricing-plan-click"
+						data-umami-event-plan="scale"
 					>
 						Contact us
 					</a>
@@ -141,7 +150,12 @@ export default function PricingPage() {
 						pull history unthrottled — $5 per 1M rows, no subscription.
 					</p>
 				</div>
-				<Link href="/login" className="prc-plan-cta pp-btn pp-btn-ghost">
+				<Link
+					href="/login"
+					className="prc-plan-cta pp-btn pp-btn-ghost"
+					data-umami-event="pricing-plan-click"
+					data-umami-event-plan="credits"
+				>
 					Top up credits
 				</Link>
 			</div>
@@ -157,7 +171,12 @@ export default function PricingPage() {
 						Read how it works →
 					</p>
 				</Link>
-				<a className="prc-xfoot" href="mailto:hello@secondlayer.tools">
+				<a
+					className="prc-xfoot"
+					href="mailto:hello@secondlayer.tools"
+					data-umami-event="pricing-plan-click"
+					data-umami-event-plan="enterprise"
+				>
 					<span className="prc-xfoot-row">
 						<span className="prc-xfoot-title">Contact Us</span>
 						<span className="prc-xfoot-tag">Enterprise</span>
