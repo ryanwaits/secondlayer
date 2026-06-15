@@ -111,6 +111,51 @@ docker exec secondlayer-postgres-platform-1 psql -U secondlayer -d secondlayer_p
 ```
 ANY inequality: STOP, top-line finding, touch nothing.
 
+## Phase 4b — chain-truth supply cross-check (catches firehose row-duplication)
+
+Phase 4 is INTERNAL consistency: `sum(balances) == decoded mints−burns`. Both
+sides derive from the same `decoded_events`, so they move together and the gate
+PASSES even when both are wrong vs chain. That is exactly how the 2026-06 sBTC
+shortfall hid (decoded mint−burn 2,331.6 BTC vs on-chain 2,954.7 — whole-block
+`events` duplication inflated burns asymmetrically). This phase anchors to the
+node's authoritative `get-total-supply` and compares THREE quantities per token:
+
+- `chain` = node `get-total-supply` (authoritative).
+- `decoded_net` = `decoded_events` ft_mint−ft_burn (canonical). **Must equal `chain`.**
+- `raw_net` = DISTINCT-logical raw `events` net (dedup `(block_height,tx_id,event_index)`
+  before summing). Proves the firehose itself is intact. **Must equal `chain`.**
+
+`decoded_net != chain` while `raw_net == chain` ⇒ the row-duplication bug is live
+in the decoded plane (events deduped but decoded not re-derived, or new dups).
+`raw_net != chain` ⇒ firehose integrity broken (worse). Tolerance = 0 for FT
+supply (exact integer sats). sbtc-token is mandatory; extend the list freely.
+
+```bash
+CID='SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token'
+ASSET="${CID}::sbtc-token"; ADDR="${CID%.*}"; NAME="${CID#*.}"
+API=$(ssh ryan@claude-mini "ssh app-server 'docker ps --format {{.Names}} | grep -m1 secondlayer-api'")
+
+# chain — node get-total-supply. Pipe the curl script to `sh` over stdin (NOT as a
+# nested `sh -c` arg — the triple quoting mangles the JSON body). $STACKS_NODE_RPC_URL
+# expands inside the container. result hex = 0x07(ok)+01(uint)+16B BE → int(hex[6:]).
+chain=$(printf '%s\n' "curl -s -m 25 -X POST \"\$STACKS_NODE_RPC_URL/v2/contracts/call-read/$ADDR/$NAME/get-total-supply\" -H 'Content-Type: application/json' -d '{\"sender\":\"$ADDR\",\"arguments\":[]}'" \
+  | ssh ryan@claude-mini "ssh app-server 'docker exec -i $API sh'" \
+  | python3 -c "import sys,json;print(int(json.load(sys.stdin)['result'][6:],16))")
+
+# decoded_net (the buggy plane) and raw_net (deduped firehose, authoritative)
+read decoded_net raw_net <<<$(printf '%s\n' "
+select
+ (select coalesce(sum(amount::numeric),0) from decoded_events where event_type='ft_mint' and contract_id='$CID' and canonical)
+-(select coalesce(sum(amount::numeric),0) from decoded_events where event_type='ft_burn' and contract_id='$CID' and canonical),
+ (with d as (select distinct e.block_height,e.tx_id,e.event_index,e.type,(e.data->>'amount')::numeric amt from events e join blocks b on b.height=e.block_height where b.canonical and e.data->>'asset_identifier'='$ASSET' and e.type in ('ft_mint_event','ft_burn_event'))
+  select coalesce(sum(amt) filter (where type='ft_mint_event'),0)-coalesce(sum(amt) filter (where type='ft_burn_event'),0) from d);
+" | ssh ryan@claude-mini "ssh app-server 'docker exec -i secondlayer-postgres-1 psql -U secondlayer -d secondlayer -tAF\" \"'")
+
+echo "sbtc chain=$chain decoded_net=$decoded_net raw_net=$raw_net"
+# assert decoded_net==chain AND raw_net==chain; report Δ on any mismatch.
+```
+`decoded_net != chain` OR `raw_net != chain`: STOP, top-line finding, touch nothing.
+
 ## Phase 5 — known-bug regression probes (each one a past prod incident)
 
 ```bash
@@ -136,7 +181,7 @@ docker logs secondlayer-agent --since 2h 2>&1 | grep -iE 'Pattern:|alert' | tail
 Infra:        ✓/✗ (containers / canaries / connections / FATALs)
 Data planes:  ✓/✗ (decoder lags / queue budget / stuck ops)
 Public API:   ✓/✗ (N public subgraphs read; surfaces)
-Conservation: ✓/✗ per token (exact deltas on ✗)
+Conservation: ✓/✗ per token (internal sum==mints−burns; chain-truth decoded_net & raw_net == get-total-supply; exact deltas on ✗)
 Regressions:  ✓/✗ (guard 422 / kill-block markers / watcher)
 
 Flags: <ambiguous, slow, or trending-wrong items + the exact command to dig deeper>
