@@ -30,9 +30,22 @@ Every tool shares one session — sign in once and the SDK, CLI, and MCP server 
 sl context               # headless orientation snapshot
 ```
 
-`sl context` prints a snapshot to orient before acting — your account, the live Streams and Index tips, your subgraphs, your subscriptions, and any in-flight reindex operations. It's the CLI counterpart to the MCP `secondlayer://context` resource agents read before they reach for a tool.
+`sl context` prints a snapshot to orient before acting. It's the CLI counterpart to the MCP `secondlayer://context` resource agents read before they reach for a tool.
 
-`sl subscriptions create` wires a webhook to a subgraph table. [Direct chain subscriptions](/docs/subscriptions#direct-chain-subscriptions-no-subgraph) — webhooks on raw chain events with no subgraph — are created over the SDK, REST, or MCP instead (they take a `triggers` array rather than a table).
+The snapshot covers:
+
+- Your account
+- The live Streams and Index tips
+- Your subgraphs and subscriptions
+- Any in-flight reindex operations
+
+`sl subscriptions create` wires a webhook to a subgraph table.
+
+<Callout type="note" title="Chain subscriptions use a different surface">
+
+[Direct chain subscriptions](/docs/subscriptions#direct-chain-subscriptions-no-subgraph) — webhooks on raw chain events with no subgraph — are created over the SDK, REST, or MCP instead. They take a `triggers` array rather than a table.
+
+</Callout>
 
 ## Scaffold from a contract
 
@@ -43,18 +56,30 @@ sl subgraphs create sbtc-registry \
 
 `--from-contract` infers each print topic's real payload shape from indexed
 history (the [print-schema endpoint](/docs/index#print-schemas)) and writes a
-typed definition: one `print_event` source per topic with a `prints` field map
-(fully typed `event.data`), and a single wide table with per-column
-"null except on topics: …" comments. Pass `--table-per-topic` for a normalized
-table per topic instead. Anonymous — no login needed.
+typed definition. Anonymous — no login needed.
+
+The generated definition includes:
+
+- One `print_event` source per topic with a `prints` field map (fully typed `event.data`)
+- A single wide table with per-column "null except on topics: …" comments
+- Pass `--table-per-topic` for a normalized table per topic instead
 
 `sl subgraphs codegen <file> --payloads` emits a `.d.ts` of per-topic payload
-types (a discriminated union per source) next to the definition. Incompatible
-with `--target`/`--models-only`/`--env` — those are ORM-only.
+types (a discriminated union per source) next to the definition.
+
+<Callout type="note" title="Payload codegen is print-only">
+
+`--payloads` is incompatible with `--target`/`--models-only`/`--env` — those are ORM-only.
+
+</Callout>
+
+<Callout type="note" title="Deploy-time warnings">
 
 `sl subgraphs deploy` also prints advisory `warnings` when a handler reads an
 `event.data` field never observed on-chain for its source's topic — warn-only,
 never blocks.
+
+</Callout>
 
 ## ORM codegen (frozen)
 

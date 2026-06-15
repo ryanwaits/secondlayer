@@ -9,13 +9,12 @@ Curl `/v1` for decoded Stacks data right now; deploy a one-file subgraph for you
 
 Everything here is indexing — the question is how much of the indexer you want to run.
 
-**Need answers from chain data right now?** Use **Index** — we run the chain indexer and the decoder; one keyless curl returns typed, decoded JSON. Every page carries a resume cursor, the chain tip, and any overlapping `reorgs[]`.
-
-**Building your app's own index?** Still **Index** — the same rows are built to be swept, not just read. `walk()` follows cursors, `from_height=0` backfills history, `reorgs[]` tells you exactly which rows to roll back, and `sl index codegen` emits your mirror schema. You bring the database and run the loop; no decoders to write, no node to run.
-
-**Want your own tables with zero ops?** Use **Subgraphs** — one TypeScript file deploys to hosted Postgres tables behind the same public `/v1` API. We run the backfill, the sync loop, and the reorg handling. REST, not GraphQL. The Index loop above, hosted.
-
-**Building from the raw inputs?** Use **Streams** — the signed raw event firehose with parquet dumps, replay, and a checkpointed consumer with automatic reorg rewind. For data engineers building an indexer from zero — it's what Index itself runs on.
+| You want | Use | What you run |
+| --- | --- | --- |
+| Answers from chain data right now | **Index** | We run the chain indexer and the decoder; one keyless curl returns typed, decoded JSON. Every page carries a resume cursor, the chain tip, and any overlapping `reorgs[]`. |
+| Your app's own index | **Index** | The same rows are built to be swept, not just read. `walk()` follows cursors, `from_height=0` backfills history, `reorgs[]` tells you exactly which rows to roll back, and `sl index codegen` emits your mirror schema. You bring the database and run the loop; no decoders to write, no node to run. |
+| Your own tables with zero ops | **Subgraphs** | One TypeScript file deploys to hosted Postgres tables behind the same public `/v1` API. We run the backfill, the sync loop, and the reorg handling. REST, not GraphQL. The Index loop above, hosted. |
+| To build from the raw inputs | **Streams** | The signed raw event firehose with parquet dumps, replay, and a checkpointed consumer with automatic reorg rewind. For data engineers building an indexer from zero — it's what Index itself runs on. |
 
 Raw events (Streams), decoded rows (Index), your own tables (Subgraphs) — each product is built on the one below, and **Subscriptions** pushes any of it to a webhook.
 

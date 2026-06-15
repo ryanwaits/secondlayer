@@ -15,7 +15,9 @@ Index reads return rows under a named key (`events`, `calls`, …) plus a top-le
 }
 ```
 
-The cursor format is `<block_height>:<event_index>`. `tip.finalized_height` is the highest height past the burn-confirmation finality boundary — rows at or below it never reorg, which is what a `finalizedOnly` consumer gates on.
+The cursor format is `<block_height>:<event_index>`.
+
+`tip.finalized_height` is the highest height past the burn-confirmation finality boundary — rows at or below it never reorg, which is what a `finalizedOnly` consumer gates on.
 
 `/v1/subgraphs` speaks a cursor envelope instead — `rows`, a resumable `next_cursor`, and the indexing `tip`:
 
@@ -42,7 +44,18 @@ Cursors:
 
 ## Filtering
 
-On subgraph table reads, filter on any column by passing it as a query param — columns are validated against the table's schema. Index and streams endpoints instead accept a fixed set of documented filter params per endpoint (e.g. `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier` on `/v1/streams/events`); unknown query params are rejected with `400` (the error suggests the closest valid param). The value grammar — comma lists, ranges, cursor + `_limit`/`_order` — is shared across surfaces.
+How a surface accepts filters depends on whether it has a fixed schema:
+
+- **Subgraph tables** — filter on any column by passing it as a query param; columns are validated against the table's schema.
+- **Index and streams** — a fixed set of documented filter params per endpoint (e.g. `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier` on `/v1/streams/events`).
+
+The value grammar — comma lists, ranges, cursor + `_limit`/`_order` — is shared across surfaces.
+
+<Callout type="warning" title="Unknown params are rejected">
+
+Any query param not recognized for an endpoint returns `400` — the error suggests the closest valid param.
+
+</Callout>
 
 ```bash
 curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers \
@@ -59,7 +72,13 @@ Public subgraphs are anon-readable on `/v1/subgraphs` — wildcard CORS, no key.
 - `GET /v1/subgraphs/:name` — metadata: tables, columns, indexing tip.
 - `GET /v1/subgraphs/:name/:table` — rows; `/count`, `/aggregate`, `/:id`, `/stream` (SSE) alongside.
 
-Pagination is `_id`-keyset: `?cursor=<next_cursor>` resumes, `_order=asc|desc` sets direction. `_offset` and `_sort` are **rejected with `400`** on `/v1` — they live only on the authed `/api/subgraphs` dashboard surface. `_limit`, `_fields`, `_search`, and column filters work as everywhere else.
+Pagination is `_id`-keyset: `?cursor=<next_cursor>` resumes, `_order=asc|desc` sets direction. `_limit`, `_fields`, `_search`, and column filters work as everywhere else.
+
+<Callout type="warning" title="Dashboard-only params">
+
+`_offset` and `_sort` are **rejected with `400`** on `/v1` — they live only on the authed `/api/subgraphs` dashboard surface.
+
+</Callout>
 
 Rate limits: anonymous 100 rps, keyed 50 rps — watch the `X-RateLimit-*` headers.
 
@@ -104,9 +123,22 @@ curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers/aggregate \
 }
 ```
 
+Result types:
+
 - With no aggregate param the response is `{ "count": <n> }`.
-- `count` and `countDistinct.col` are JSON numbers. `sum`/`min`/`max` are **lossless strings** (the underlying `NUMERIC`/`BIGINT` cast to text so large values never lose precision). `sum` over an empty set is `"0"`; `min`/`max` are `null` over an empty/all-null set.
-- `400 NON_NUMERIC_COLUMN` for a non-numeric `_sum/_min/_max` column, `400 INVALID_COLUMN` for an unknown column, `400 TOO_MANY_AGGREGATES` past 32 aggregate columns per request.
+- `count` and `countDistinct.col` are JSON numbers.
+- `sum`/`min`/`max` are **lossless strings** — the underlying `NUMERIC`/`BIGINT` casts to text so large values never lose precision.
+- `sum` over an empty set is `"0"`; `min`/`max` are `null` over an empty/all-null set.
+
+<Callout type="warning" title="Error codes">
+
+| Status / code | Cause |
+| --- | --- |
+| `400 NON_NUMERIC_COLUMN` | a non-numeric `_sum/_min/_max` column |
+| `400 INVALID_COLUMN` | an unknown column |
+| `400 TOO_MANY_AGGREGATES` | past 32 aggregate columns per request |
+
+</Callout>
 
 The [SDK](/docs/sdk) exposes this as a typed `client.aggregate(spec)` whose result shape is inferred from the spec.
 
@@ -148,11 +180,17 @@ curl "https://api.secondlayer.tools/v1/index/transactions/0x<tx_id>/proof"
 }
 ```
 
-- `consensus` is present only when the reward set could be resolved; otherwise the proof is anchored-only.
-- `404 { error, code: "PROOF_UNAVAILABLE" }` — the transaction or its block was not found.
-- `503 { error, code: "PROOF_TX_SET_INCOMPLETE" }` — the server could not reproduce the block's `tx_merkle_root` from its stored transaction set, so it refuses to emit a proof that wouldn't verify (fail-safe).
-- `503 { error, code: "PROOF_NODE_UNAVAILABLE" }` — the stacks-node that serves signed block headers could not be reached, so the proof cannot be assembled. Retry later.
-- Open during beta — no key required, like the other read endpoints.
+`consensus` is present only when the reward set could be resolved; otherwise the proof is anchored-only. Open during beta — no key required, like the other read endpoints.
+
+<Callout type="warning" title="Error codes">
+
+| Status / code | Meaning |
+| --- | --- |
+| `404 PROOF_UNAVAILABLE` | the transaction or its block was not found |
+| `503 PROOF_TX_SET_INCOMPLETE` | the server could not reproduce the block's `tx_merkle_root` from its stored transaction set, so it refuses to emit a proof that wouldn't verify (fail-safe) |
+| `503 PROOF_NODE_UNAVAILABLE` | the stacks-node that serves signed block headers could not be reached, so the proof cannot be assembled — retry later |
+
+</Callout>
 
 See [Verification](/docs/verification) for the trust levels and the `@secondlayer/sdk` verifier.
 

@@ -1,6 +1,13 @@
 # Self-host
 
-The whole Secondlayer stack is MIT-licensed — `docker compose up` runs the indexer, API, and subgraph processor on your own hardware. You get every surface: Index, Streams, Subgraphs, Subscriptions. What you skip: the managed SLA, billing/credits, multi-tenant key management, and the public Explore directory. Those are platform-only; the core is entirely open.
+The whole Secondlayer stack is MIT-licensed — `docker compose up` runs the indexer, API, and subgraph processor on your own hardware. You get every surface: Index, Streams, Subgraphs, Subscriptions.
+
+What you skip is platform-only; the core is entirely open:
+
+- The managed SLA
+- Billing/credits
+- Multi-tenant key management
+- The public Explore directory
 
 Support is community / best-effort. For fully managed hosting with uptime SLAs and priority support, see [pricing](/pricing).
 
@@ -19,7 +26,11 @@ Support is community / best-effort. For fully managed hosting with uptime SLAs a
 - 2 TB NVMe SSD (Bitcoin IBD ~700 GB, Stacks ~200 GB, plus subgraph data)
 - 8+ cores, 1 Gbps network recommended (IBD downloads 700+ GB)
 
+<Callout type="warning" title="No light mode">
+
 There is no light mode that fetches from Hiro's REST API — it's too slow to index anything useful. Run the full chain, point at an external node, or use [hosted](https://secondlayer.tools).
+
+</Callout>
 
 For **local contract development**, `sl devnet connect` wires up a [Clarinet devnet](https://docs.hiro.so/stacks/clarinet) in one step — no mainnet node required.
 
@@ -128,7 +139,13 @@ docker pull ghcr.io/ryanwaits/secondlayer-indexer:latest
 docker pull ghcr.io/ryanwaits/secondlayer-subgraph-processor:latest
 ```
 
-Pin a specific tag (`v1.2.3`) in production rather than `:latest`. The compose file's `build:` block builds from source by default — swap in `image:` to use the pulled images instead. Make sure the tag was cut **after** commit `169b0967` (the OSS read-parity fix); older images returned `402 UPGRADE_REQUIRED` on reads.
+Pin a specific tag (`v1.2.3`) in production rather than `:latest`. The compose file's `build:` block builds from source by default — swap in `image:` to use the pulled images instead.
+
+<Callout type="warning" title="Use a tag after the read-parity fix">
+
+Make sure the tag was cut **after** commit `169b0967` (the OSS read-parity fix); older images returned `402 UPGRADE_REQUIRED` on reads.
+
+</Callout>
 
 ---
 

@@ -2,7 +2,9 @@
 
 Push semantics. Subscribe to your subgraph table writes — the server delivers signed webhooks.
 
-A subscription binds to a subgraph table. Every row change that matches the filter triggers a signed HTTP POST to your endpoint, with automatic retries and idempotency keys. Subscriptions deliver the full row lifecycle — inserts, updates, and deletes — not just the initial write.
+A subscription binds to a subgraph table. Every row change that matches the filter triggers a signed HTTP POST to your endpoint, with automatic retries and idempotency keys.
+
+Subscriptions deliver the full row lifecycle — inserts, updates, and deletes — not just the initial write.
 
 ## Create a subscription
 
@@ -18,7 +20,13 @@ Omit `--no-scaffold` to also scaffold a local receiver project (`-r inngest | tr
 
 ## Verify the signature
 
-On the default `standard-webhooks` format, every delivery carries a per-subscription HMAC. Verify it against your subscription secret before trusting the payload — pass the **raw body first**, then the headers and secret. (The other formats — `raw`, `cloudevents`, `trigger`, `cloudflare`, `inngest` — don't carry this HMAC; they're authenticated by the universal ed25519 signature in [Universal webhook signature](#universal-webhook-signature) below, which rides on **every** delivery regardless of format.)
+On the default `standard-webhooks` format, every delivery carries a per-subscription HMAC. Verify it against your subscription secret before trusting the payload — pass the **raw body first**, then the headers and secret.
+
+<Callout type="note" title="Other formats use the universal signature">
+
+The other formats — `raw`, `cloudevents`, `trigger`, `cloudflare`, `inngest` — don't carry this HMAC. They're authenticated by the universal ed25519 signature in [Universal webhook signature](#universal-webhook-signature) below, which rides on **every** delivery regardless of format.
+
+</Callout>
 
 ```ts
 import { verifyWebhookSignature } from "@secondlayer/sdk";
@@ -53,7 +61,7 @@ Beyond the per-subscription HMAC above, **every** delivery — in any format (`s
 | `x-secondlayer-signature` | ed25519 signature, base64 |
 | `x-secondlayer-signature-keyid` | Id of the signing key used |
 
-The signed content is `` `${webhook-id}.${rawBody}` ``. Verify it with the SDK against Secondlayer's published public key — one key proves authenticity for any format:
+The signed content is `` `${webhook-id}.${rawBody}` ``. Verify it with the SDK against Secondlayer's published public key — one key proves authenticity for any format.
 
 ```ts
 import { verifySecondlayerSignature } from "@secondlayer/sdk";
@@ -76,7 +84,12 @@ const { replayId, enqueuedCount, scannedCount } = await sl.subscriptions.replay(
 });
 ```
 
-The range is capped at **100,000 blocks**. Subgraph replays deliver under `<subgraph>.<table>.replay` — a distinct verb, not the live `.created`/`.updated`/`.deleted` types — while chain-subscription replays re-emit the standard `chain.{type}.apply` envelope. Both are flagged as replays (`is_replay`) so your handler can tell them apart from live traffic.
+The range is capped at **100,000 blocks**. Both kinds are flagged as replays (`is_replay`) so your handler can tell them apart from live traffic.
+
+| Subscription kind | Replay delivers as |
+| --- | --- |
+| Subgraph | `<subgraph>.<table>.replay` — a distinct verb, not the live `.created`/`.updated`/`.deleted` types |
+| Chain | The standard `chain.{type}.apply` envelope |
 
 ## Direct chain subscriptions (no subgraph)
 
@@ -155,7 +168,13 @@ A reorg delivers `chain.reorg.rollback`, so you can undo anything you committed 
 }
 ```
 
-Each orphaned entry is `{ tx_id, event }` — the event body from the original apply, not the full apply envelope. `orphaned` is capped at 500 entries per subscription; if `truncated` is `true`, treat everything you committed at or above `fork_point_height` as orphaned rather than relying on the list.
+Each orphaned entry is `{ tx_id, event }` — the event body from the original apply, not the full apply envelope.
+
+<Callout type="warning" title="orphaned is capped at 500">
+
+`orphaned` is capped at 500 entries per subscription. If `truncated` is `true`, treat everything you committed at or above `fork_point_height` as orphaned rather than relying on the list.
+
+</Callout>
 
 Delivery is at-least-once and HMAC-signed exactly like subgraph subscriptions — verify the signature, and key your state on `(tx_id, block_hash)` so a redelivery is idempotent.
 

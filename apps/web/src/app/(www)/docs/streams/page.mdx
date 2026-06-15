@@ -2,9 +2,15 @@
 
 Raw chain event firehose — cursor-paginated REST, idempotent, replayable. The lowest level of indexing on Secondlayer: the inputs, not our decoding, for building an indexer from zero.
 
-This is the exact surface [Index](/docs/index) is built on — our decoder is itself a Streams consumer. Page forward with a cursor, replay from any point, and — with a committed checkpoint, within your tier's retention — never miss an event. Stream live over SSE in-process (see below), or fan out to your backend with [Subscriptions](/docs/subscriptions).
+This is the exact surface [Index](/docs/index) is built on — our decoder is itself a Streams consumer. Page forward with a cursor, replay from any point, and — with a committed checkpoint, within your tier's retention — never miss an event.
+
+Stream live over SSE in-process (see below), or fan out to your backend with [Subscriptions](/docs/subscriptions).
+
+<Callout type="note" title="Auth & retention">
 
 Streams reads require an API key — send it as `Authorization: Bearer`. Free keys read the recent 24-hour window (free retention is 1 day); reaching older history is [pay-as-you-go credits](/docs/authentication#pay-as-you-go-credits) or a paid plan. A read below the free window returns `402 UPGRADE_REQUIRED`.
+
+</Callout>
 
 ## Read the stream
 
@@ -102,20 +108,40 @@ curl -N -H "Authorization: Bearer $SL_API_KEY" \
 
 Choose a start position with `cursor` (or `from_cursor`), or `from_height`. With no start position the connection live-tails from the reorg-clamped tip. A `ping` keepalive frame is sent every 20s so idle connections stay open.
 
+<Callout type="warning" title="Near-real-time, not instant">
+
 Delivery is **near-real-time**, not instant: the server polls for new events roughly every 1.5s and serves from a tip held a couple of blocks back for reorg safety, so an event lands seconds — occasionally tens of seconds — after it first appears on chain. SSE is the low-latency push surface (vs. polling `/events` yourself), not a zero-latency one.
+
+</Callout>
 
 The SDK's `client.events.subscribe(...)` is the ergonomic way to consume this — it carries your Bearer key, auto-reconnects from the last delivered cursor, and verifies per-frame signatures. See the [SDK docs](/docs/sdk).
 
 ### Per-frame signatures
 
-Each SSE frame body is `{ event, sig, key_id }`, where `sig` is an ed25519 signature over `JSON.stringify(event)`. The SDK **verifies every frame by default** against the key published at `/public/streams/signing-key` before your handler runs. The default is *lenient*: the hosted API signs every frame, so hosted streams are verified, while an unsigned frame from a self-hosted instance (no `STREAMS_SIGNING_PRIVATE_KEY`) is delivered as-is — an *invalid* signature always throws. Pass `verify: true` to require a signature on every frame (strict), or `verify: false` to skip. This is the streaming counterpart to the signed `X-Signature` on REST reads: trust the data without trusting the server.
+Each SSE frame body is `{ event, sig, key_id }`, where `sig` is an ed25519 signature over `JSON.stringify(event)`. The SDK **verifies every frame by default** against the key published at `/public/streams/signing-key` before your handler runs.
+
+The default is *lenient*: the hosted API signs every frame (so hosted streams are verified), while an unsigned frame from a self-hosted instance (no `STREAMS_SIGNING_PRIVATE_KEY`) is delivered as-is. An *invalid* signature always throws.
+
+| `verify` | Behavior |
+| --- | --- |
+| default (lenient) | Verify signed frames; pass unsigned ones through; throw on invalid |
+| `true` (strict) | Require a signature on every frame |
+| `false` | Skip verification |
+
+This is the streaming counterpart to the signed `X-Signature` on REST reads: trust the data without trusting the server.
 
 ## What's new (May 2026)
 
 - **Finality** — `tip.finalized_height` plus a `finalized` flag on every event, anchored to Bitcoin (burn-block) confirmations. A `finalized` event won't reorg.
 - **Caching** — fully-finalized pages are served `Cache-Control: public, immutable` with an `ETag` (and `304` on `If-None-Match`); the moving tip stays short-lived.
-- **Signed responses** — every hosted read carries an ed25519 `X-Signature`. The SDK **verifies by default** (lenient: hosted reads are checked against `/public/streams/signing-key`; an unsigned self-host response passes through; an invalid signature throws). Pass `verify: true` for strict (require a signature), `verify: false` to skip, or `verify: { publicKey }` to pin a known key — trust the data without trusting the server.
-- **Bulk + replay** — download finalized history as parquet (`sl streams pull`, or the SDK `dumps` namespace) and `events.replay({ from: "genesis" })` to backfill cold history then tail live with no gap at the seam. The bulk manifest is itself ed25519-signed and is verified before any per-file `sha256` is trusted — the manifest signature is the root of trust, with the file hashes chained beneath it. The client option `verifyDumpsManifest` defaults to `true` (both `dumps.list()` and `events.replay()` enforce it); opt out with `verifyDumpsManifest: false`.
+- **Signed responses** — every hosted read carries an ed25519 `X-Signature`, **verified by default** (lenient: hosted reads checked against `/public/streams/signing-key`; unsigned self-host responses pass through; invalid signatures throw). Pass `verify: true` for strict, `verify: false` to skip, or `verify: { publicKey }` to pin a key.
+- **Bulk + replay** — download finalized history as parquet (`sl streams pull`, or the SDK `dumps` namespace) and `events.replay({ from: "genesis" })` to backfill cold history then tail live with no gap at the seam.
+
+<Callout type="note" title="Manifest signature is the root of trust">
+
+The bulk manifest is itself ed25519-signed and verified before any per-file `sha256` is trusted — the file hashes chain beneath the manifest signature. The client option `verifyDumpsManifest` defaults to `true` (both `dumps.list()` and `events.replay()` enforce it); opt out with `verifyDumpsManifest: false`.
+
+</Callout>
 
 See the [changelog](/docs/changelog) for the full list.
 

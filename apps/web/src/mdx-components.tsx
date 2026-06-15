@@ -1,4 +1,5 @@
 import { CodeBlock } from "@/components/code-block";
+import { Banner, Callout } from "@/components/docs/callout";
 import type { MDXComponents } from "mdx/types";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -14,6 +15,19 @@ function MdxPre({ children }: { children?: ReactNode }) {
 	const lang = /language-(\w[\w.-]*)/.exec(className)?.[1] ?? "text";
 	const code = String(codeEl?.props?.children ?? "");
 	return <CodeBlock code={code} lang={lang} />;
+}
+
+/** Inline `code` styling rule: API endpoints/routes get the branded blue
+ *  chip (`.code-api`); everything else (params, types, symbols, values,
+ *  status codes, commands) stays the neutral keycap. One regex = the rule,
+ *  applied across every docs page with no manual tagging. Fenced code never
+ *  reaches here — it's intercepted by MdxPre. */
+const ENDPOINT_RE = /\/(v1|api)\b/;
+const METHOD_RE = /^(GET|POST|PUT|PATCH|DELETE)\s/;
+function MdxCode({ children }: { children?: ReactNode }) {
+	const text = typeof children === "string" ? children : "";
+	const isApi = ENDPOINT_RE.test(text) || METHOD_RE.test(text);
+	return <code className={isApi ? "code-api" : undefined}>{children}</code>;
 }
 
 /** Internal links use next/link; external open in a new tab. Styling comes
@@ -80,10 +94,13 @@ function MdxH3({ id, children }: { id?: string; children?: ReactNode }) {
 export function useMDXComponents(components: MDXComponents): MDXComponents {
 	return {
 		pre: MdxPre,
+		code: MdxCode,
 		a: MdxLink,
 		h1: MdxH1,
 		h2: MdxH2,
 		h3: MdxH3,
+		Callout,
+		Banner,
 		...components,
 	};
 }

@@ -36,11 +36,8 @@ export const DOCS_NAV: DocsNavGroup[] = [
 			{ title: "CLI", href: "/docs/cli" },
 			{ title: "MCP", href: "/docs/mcp" },
 			{ title: "x402 (experimental)", href: "/docs/x402" },
+			{ title: "Self-hosting", href: "/docs/self-host" },
 			{ title: "Changelog", href: "/docs/changelog" },
 		],
-	},
-	{
-		label: "Self-host",
-		items: [{ title: "Self-host guide", href: "/docs/self-host" }],
 	},
 ];

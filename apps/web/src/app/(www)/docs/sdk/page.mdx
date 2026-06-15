@@ -145,7 +145,11 @@ await sl.streams.events.consume({
 });
 ```
 
-On Index, `consume` works over decoded events and contract calls. Reorgs rewind the cursor to the fork point automatically (`onReorg` fires so you roll back committed rows from `fork_point_height` up — inclusive of the fork block); `fromHeight: 0` backfills from genesis (hosted: paid plan or pay-as-you-go credits; free/keyless reads cover the last 24h); `finalizedOnly` holds delivery to rows at or below `tip.finalized_height`.
+On Index, `consume` works over decoded events and contract calls:
+
+- **Reorgs** rewind the cursor to the fork point automatically — `onReorg` fires so you roll back committed rows from `fork_point_height` up (inclusive of the fork block).
+- **`fromHeight: 0`** backfills from genesis (hosted: paid plan or pay-as-you-go credits; free/keyless reads cover the last 24h).
+- **`finalizedOnly`** holds delivery to rows at or below `tip.finalized_height`.
 
 ```ts
 // Decoded contract calls from Index
@@ -191,7 +195,24 @@ unsubscribe();
 
 `subscribe({ fromCursor?, types?, notTypes?, contractId?, sender?, recipient?, assetIdentifier?, signal?, onEvent, onError? }): () => void`.
 
-**Signature verification** — a standalone streams client (`createStreamsClient({ apiKey })`) verifies both REST reads (`X-Signature`) and SSE frames **by default**. The default is *lenient*: the hosted API signs everything (so it's verified), while an unsigned response from a self-hosted instance with no signing key passes through — an *invalid* signature always throws. Pass `verify: true` for strict (a missing signature throws too), `verify: { publicKey }` to pin a known PEM, or `verify: false` to disable. The key is fetched once from `/public/streams/signing-key` (a rotated `X-Signature-KeyId` triggers a single refresh). `new SecondLayer()` does not accept `verify`; use `createStreamsClient` when you need it.
+### Signature verification
+
+A standalone streams client (`createStreamsClient({ apiKey })`) verifies both REST reads (`X-Signature`) and SSE frames **by default**. The default is *lenient*: the hosted API signs everything (so it's verified), while an unsigned response from a self-hosted instance with no signing key passes through — an *invalid* signature always throws.
+
+| `verify` | Behavior |
+| --- | --- |
+| default (lenient) | Verify signed responses; pass unsigned through; throw on invalid |
+| `true` (strict) | A missing signature throws too |
+| `{ publicKey }` | Pin a known PEM |
+| `false` | Disable verification |
+
+The key is fetched once from `/public/streams/signing-key` (a rotated `X-Signature-KeyId` triggers a single refresh).
+
+<Callout type="note" title="verify lives on createStreamsClient">
+
+`new SecondLayer()` does not accept `verify` — use `createStreamsClient` when you need it.
+
+</Callout>
 
 ## Read subgraph rows (open /v1)
 
@@ -239,7 +260,10 @@ const unsubscribe = subgraph.transfers.subscribe(
 
 ## Aggregate subgraph rows
 
-`subgraph.<table>.aggregate(spec)` runs scalar aggregates over an optional `where` filter and returns a result whose shape is **inferred from the spec** — only the keys you ask for appear. `sum`/`min`/`max` accept numeric columns only (enforced at compile time) and return lossless strings; `count`/`countDistinct` return numbers. No `as const` needed.
+`subgraph.<table>.aggregate(spec)` runs scalar aggregates over an optional `where` filter and returns a result whose shape is **inferred from the spec** — only the keys you ask for appear. No `as const` needed.
+
+- **`sum`/`min`/`max`** accept numeric columns only (enforced at compile time) and return lossless strings.
+- **`count`/`countDistinct`** return numbers.
 
 ```ts
 const stats = await subgraph.transfers.aggregate({

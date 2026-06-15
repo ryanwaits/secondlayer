@@ -2,7 +2,9 @@
 
 > **Experimental.** The pay-per-call rail is a beta — surfaces, prices, and headers may change. Plans on the [pricing page](/pricing) are the stable way to pay.
 
-Built for agents. Index and Streams reads (`/v1/index`, `/v1/streams`) can be paid with **x402**, the HTTP 402 payment standard, settled on Stacks — and a paid `POST /v1/subgraphs` deploys an indexer owned by your wallet. No card, no signup, no gas: transfers are sponsored, you only hold the token (sBTC, STX, or USDCx).
+Built for agents. Index and Streams reads (`/v1/index`, `/v1/streams`) can be paid with **x402**, the HTTP 402 payment standard, settled on Stacks — and a paid `POST /v1/subgraphs` deploys an indexer owned by your wallet.
+
+No card, no signup, no gas: transfers are sponsored, you only hold the token (sBTC, STX, or USDCx).
 
 ## How it works
 
@@ -118,7 +120,14 @@ The quote also rides back base64-encoded in a `PAYMENT-REQUIRED` response header
 
 ## Discovery and sessions
 
-Standard x402 v2 wire — works with any x402 client. Sponsored means we pay the STX gas. Discovery: `GET /.well-known/x402` and the `x-x402` block in [the OpenAPI spec](https://api.secondlayer.tools/v1/openapi.json). Steady consumers can hold a session (one payment covers up to 500 polls an hour) or a prepaid tab (deposit once, calls debit it instantly).
+Standard x402 v2 wire — works with any x402 client. Sponsored means we pay the STX gas.
+
+Discover the rail at `GET /.well-known/x402` and the `x-x402` block in [the OpenAPI spec](https://api.secondlayer.tools/v1/openapi.json).
+
+Steady consumers can hold either:
+
+- A **session** — one payment covers up to 500 polls an hour
+- A **prepaid tab** — deposit once, calls debit it instantly
 
 export const metadata = {
 	title: "x402 pay-per-call (experimental) — Secondlayer",

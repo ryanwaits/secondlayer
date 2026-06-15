@@ -1,6 +1,16 @@
 # Index
 
-Decoded Stacks data, kept indexed. We run the chain indexer and the decoder; you get one REST surface over decoded events, contract calls, the canonical block map, blocks, full transaction documents, PoX-4 stacking, and the pending mempool. Read it keyless — or [build your app's own index on it](#build-your-index-on-it): the same rows are made to be swept, rolled back, and mirrored. No decoders to write, no node to run. Reads need no key, and a minted free-tier key reads Index too (at the free-tier rate limit, never slower than anonymous). Free reads cover the recent 24-hour window; reaching older history is [pay-as-you-go](/docs/authentication#pay-as-you-go-credits) (prepaid credits) or a paid plan. Index itself is built on [Streams](/docs/streams) — our decoder consumes the same raw firehose you can.
+Decoded Stacks data, kept indexed. We run the chain indexer and the decoder; you get one REST surface over decoded events, contract calls, the canonical block map, blocks, full transaction documents, PoX-4 stacking, and the pending mempool.
+
+Read it keyless — or [build your app's own index on it](#build-your-index-on-it): the same rows are made to be swept, rolled back, and mirrored. No decoders to write, no node to run.
+
+<Callout type="note" title="Keys and history">
+
+Reads need no key, and a minted free-tier key reads Index too — at the free-tier rate limit, never slower than anonymous. Free reads cover the recent 24-hour window; reaching older history is [pay-as-you-go](/docs/authentication#pay-as-you-go-credits) (prepaid credits) or a paid plan.
+
+</Callout>
+
+Index itself is built on [Streams](/docs/streams) — our decoder consumes the same raw firehose you can.
 
 Every list response uses the same cursor envelope — the collection, a `next_cursor`, the chain `tip`, and `reorgs` where applicable. Cursors are opaque `<block_height>:<index>` resume tokens; pass them back unchanged to continue.
 
@@ -24,7 +34,13 @@ Every list response uses the same cursor envelope — the collection, a `next_cu
 curl "https://api.secondlayer.tools/v1/index/events?event_type=stx_transfer&limit=20"
 ```
 
-Without a `cursor` or `from_height`, list reads default to roughly the last day of blocks. Pass `from_height=0` (or any range) to reach full history — backfills are explicit, never accidental. Free and anonymous reads are limited to that recent 24-hour window: a `from_height`/`cursor` below it returns `402 UPGRADE_REQUIRED`. Top up [pay-as-you-go credits](/docs/authentication#pay-as-you-go-credits) (or start a plan) to read older history.
+Without a `cursor` or `from_height`, list reads default to roughly the last day of blocks. Pass `from_height=0` (or any range) to reach full history — backfills are explicit, never accidental.
+
+<Callout type="warning">
+
+Free and anonymous reads are limited to that recent 24-hour window: a `from_height`/`cursor` below it returns `402 UPGRADE_REQUIRED`. Top up [pay-as-you-go credits](/docs/authentication#pay-as-you-go-credits) (or start a plan) to read older history.
+
+</Callout>
 
 Allowed filters vary by `event_type`: `stx_*` have no `contract_id`, `nft_*` accept `asset_identifier`, and `print` filters by `contract_id` and carries a `payload` with the Clarity value decoded to JSON. `ft-transfers` and `nft-transfers` are typed aliases for the two most common types.
 
@@ -68,7 +84,13 @@ curl "https://api.secondlayer.tools/v1/index/contracts/SM3VDXK3WZZSA84XXFKAFAF15
 }
 ```
 
-Each field carries the exact Clarity type, the TypeScript type, and a `column_type` in the subgraph column vocabulary; `camel_name` is what a handler sees on `event.data`. Optional fields report an `optional_some_rate`. Payloads with no `topic` string (or that aren't tuples) land under the `"*"` pseudo-topic with `non_tuple` set. Anonymous and unmetered like the other reads, cached five minutes (`max-age=300` + weak ETag); the endpoint takes no query params (`400` otherwise).
+Each field carries the exact Clarity type, the TypeScript type, and a `column_type` in the subgraph column vocabulary; `camel_name` is what a handler sees on `event.data`. Optional fields report an `optional_some_rate`, and payloads with no `topic` string (or that aren't tuples) land under the `"*"` pseudo-topic with `non_tuple` set.
+
+<Callout type="info">
+
+Anonymous and unmetered like the other reads, cached five minutes (`max-age=300` + weak ETag). The endpoint takes no query params — `400` otherwise.
+
+</Callout>
 
 This is the schema behind `sl subgraphs create <name> --from-contract <contract_id>` — see [Subgraphs](/docs/subgraphs#typed-print-payloads).
 
@@ -118,7 +140,13 @@ Decoded PoX-4 stacking actions, filterable by `function_name`, `stacker`, or `ca
 curl "https://api.secondlayer.tools/v1/index/mempool?contract_id=SP000000000000000000002Q6VF78.pox-4"
 ```
 
-Pending, unconfirmed transactions with the same decoded enrichment as `/transactions`, but pre-chain: no `block_height` or `result`, plus a `received_at`. Filter by `sender`, `type`, or `contract_id`. Rows leave the mempool on confirmation or drop, so the single form 404s once a transaction mines. This surface is never cached.
+Pending, unconfirmed transactions with the same decoded enrichment as `/transactions`, but pre-chain: no `block_height` or `result`, plus a `received_at`. Filter by `sender`, `type`, or `contract_id`.
+
+<Callout type="note">
+
+Rows leave the mempool on confirmation or drop, so the single form `404`s once a transaction mines. This surface is never cached.
+
+</Callout>
 
 ## Discovery
 
@@ -144,7 +172,13 @@ Read envelopes (e.g. `/v1/index/stacking`, `/transactions`, `/contract-calls`) c
 }
 ```
 
-To reconcile: roll back any rows whose cursor falls inside `orphaned_range`, then re-fetch from `new_canonical_tip`. Both bounds are `<block_height>:<event_index>` cursors (reorg cursors track decoded-event positions; on transaction-keyed feeds like `/transactions` and `/contract-calls`, compare by the block-height component). The SDK exports the `IndexReorg` type from `@secondlayer/sdk` for typing these elements. The [ingest loop below](#build-your-index-on-it) shows the reconcile in code.
+To reconcile: roll back any rows whose cursor falls inside `orphaned_range`, then re-fetch from `new_canonical_tip`. The SDK exports the `IndexReorg` type from `@secondlayer/sdk` for typing these elements, and the [ingest loop below](#build-your-index-on-it) shows the reconcile in code.
+
+<Callout type="note">
+
+Both bounds are `<block_height>:<event_index>` cursors. Reorg cursors track decoded-event positions; on transaction-keyed feeds like `/transactions` and `/contract-calls`, compare by the block-height component.
+
+</Callout>
 
 ## Build your index on it
 

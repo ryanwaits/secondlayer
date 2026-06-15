@@ -1,6 +1,14 @@
 # Subgraphs
 
-Subgraphs are your schema on our indexer: one TypeScript file declares the contract events you care about and a handler that shapes each event into rows, and a deploy gives you hosted Postgres tables behind the same public `/v1` read API as Index. Secondlayer backfills history and keeps the tables live as new blocks arrive. Deploying a subgraph requires a paid plan or a 14-day trial — a free account gets `403 PLAN_REQUIRED`.
+Subgraphs are your schema on our indexer: one TypeScript file declares the contract events you care about and a handler that shapes each event into rows. Deploy gives you hosted Postgres tables behind the same public `/v1` read API as Index.
+
+Secondlayer backfills history and keeps the tables live as new blocks arrive.
+
+<Callout type="info" title="Paid plan or trial required">
+
+Deploying a subgraph requires a paid plan or a 14-day trial — a free account gets `403 PLAN_REQUIRED`.
+
+</Callout>
 
 ## How it works
 
@@ -51,7 +59,13 @@ export default defineSubgraph({
 
 ## Write a handler
 
-Handlers are values in the definition's `handlers` map, keyed by source name (or `"*"` for a catch-all). Event payloads are flat and typed per source (`event.amount`, `event.sender` — no wrapper object); tx and block metadata come from `ctx.tx` and `ctx.block`, and writes go through the ctx mutators (`ctx.insert`/`update`/`upsert`/`delete`/`patch`). Every row your handler writes lands in the materialized table.
+Handlers are values in the definition's `handlers` map, keyed by source name (or `"*"` for a catch-all). Every row your handler writes lands in the materialized table.
+
+Each handler receives `(event, ctx)`:
+
+- **`event`** — flat, typed per source (`event.amount`, `event.sender` — no wrapper object).
+- **`ctx.tx` / `ctx.block`** — transaction and block metadata.
+- **`ctx.insert`/`update`/`upsert`/`delete`/`patch`** — the mutators your writes go through.
 
 ```ts
 import { defineSubgraph } from "@secondlayer/subgraphs";
@@ -104,24 +118,44 @@ handlers: {
 },
 ```
 
-Don't guess the fields — payload shape varies per topic within one contract, and a guessed field silently nulls forever. Scaffold the whole definition from the contract's **observed** history instead:
+<Callout type="warning" title="Don't guess print fields">
+
+Payload shape varies per topic within one contract, and a guessed field silently nulls forever. Scaffold the whole definition from the contract's **observed** history instead:
+
+</Callout>
 
 ```bash
 sl subgraphs create sbtc-registry \
   --from-contract SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry
 ```
 
-This calls the [print-schema endpoint](/docs/index#print-schemas) — per-topic schemas inferred empirically from indexed print events — and writes one `print_event` source per topic with its `prints` map, plus a single wide table with per-column "null except on topics: …" comments (`--table-per-topic` for a table per topic). No login needed. `sl subgraphs codegen <file> --payloads` emits a `.d.ts` of the per-topic payload types next to the definition.
+This calls the [print-schema endpoint](/docs/index#print-schemas) — per-topic schemas inferred empirically from indexed print events. It writes one `print_event` source per topic with its `prints` map, plus a single wide table with per-column "null except on topics: …" comments (`--table-per-topic` for a table per topic). No login needed.
+
+`sl subgraphs codegen <file> --payloads` emits a `.d.ts` of the per-topic payload types next to the definition.
+
+<Callout type="note" title="Unobserved-field warnings">
 
 As a safety net, deploys return advisory `warnings` when a handler reads an `event.data` field never observed on-chain for its source's topic (pinned `contractId` sources only — wildcard and trait sources are skipped). Warn-only, never blocks; the CLI prints them.
 
+</Callout>
+
 ## Deploy
 
-Deploy from the CLI. Deploying requires a paid plan or a 14-day trial — a free account gets `403 PLAN_REQUIRED` and must start a trial or plan first. On a plan or trial, the first deploy backfills history from `startBlock`; subsequent blocks stream in automatically.
+Deploy from the CLI. Deploying requires a paid plan or a 14-day trial — a free account gets `403 PLAN_REQUIRED` and must start a trial or plan first.
 
-**Tip-first deploys.** Add `--tip-first` (or `backfillMode: "concurrent"` in the definition) and your subgraph goes live at the chain tip immediately — rows are queryable in seconds while history backfills in the background. Only use it when your handlers tolerate out-of-order processing (commutative writes like balances and counters, or insert-only tables); "latest-value-wins" handlers should keep the default blocking backfill.
+On a plan or trial, the first deploy backfills history from `startBlock`; subsequent blocks stream in automatically.
 
-**No account?** When the x402 pay-per-call rail is enabled, `POST /v1/subgraphs` accepts an x402 payment ($2) in place of an API key: the subgraph is owned by the paying wallet, indexes forward from deploy, and expires after 7 days unless renewed (`POST /v1/subgraphs/{name}/renew`, $0.50) or the account is claimed.
+<Callout type="tip" title="Tip-first deploys">
+
+Add `--tip-first` (or `backfillMode: "concurrent"` in the definition) and your subgraph goes live at the chain tip immediately — rows are queryable in seconds while history backfills in the background. Only use it when your handlers tolerate out-of-order processing (commutative writes like balances and counters, or insert-only tables); "latest-value-wins" handlers should keep the default blocking backfill.
+
+</Callout>
+
+<Callout type="note" title="No account?">
+
+When the x402 pay-per-call rail is enabled, `POST /v1/subgraphs` accepts an x402 payment ($2) in place of an API key: the subgraph is owned by the paying wallet, indexes forward from deploy, and expires after 7 days unless renewed (`POST /v1/subgraphs/{name}/renew`, $0.50) or the account is claimed.
+
+</Callout>
 
 ```bash
 sl subgraphs deploy ./subgraph.config.ts
@@ -152,7 +186,10 @@ Table Rows         balances: 4874
 
 ## Visibility & publishing
 
-Every subgraph has a **visibility**. Managed deploys default **public** — anon-readable on `/v1`. Deploys to your own database (`--database-url`) default **private**, and existing subgraphs were migrated private.
+Every subgraph has a **visibility**:
+
+- **Managed deploys** default **public** — anon-readable on `/v1`.
+- **BYO-database deploys** (`--database-url`) default **private**; existing subgraphs were migrated private.
 
 Override at deploy, or flip later:
 
@@ -164,7 +201,13 @@ sl subgraphs unpublish sbtc-flows   # make private again
 
 The SDK exposes the same as `sl.subgraphs.publish(name)` / `unpublish(name)`, and MCP as `subgraphs_publish` / `subgraphs_unpublish` (plus a `visibility` param on `subgraphs_deploy`).
 
-Public names are a **single global namespace**, claimed on publish — a taken name returns `409 PUBLIC_NAME_TAKEN`. Private subgraphs stay readable on `/v1` with your `sk-sl_` bearer; anonymous requests to a private name return `404` (no existence leak).
+Public names are a **single global namespace**, claimed on publish — a taken name returns `409 PUBLIC_NAME_TAKEN`.
+
+<Callout type="note" title="Private subgraphs don't leak">
+
+Private subgraphs stay readable on `/v1` with your `sk-sl_` bearer; anonymous requests to a private name return `404` (no existence leak).
+
+</Callout>
 
 ## Query your data
 
@@ -251,15 +294,25 @@ sl subgraphs codegen ./subgraph.config.ts --target prisma -o prisma/schema.prism
 npx prisma generate
 ```
 
-Prisma, Drizzle, and Kysely all have first-class generators (`--target prisma|drizzle|kysely`). Secondlayer owns the table DDL, so treat the tables as read-only and verify with `prisma db pull` (never `migrate`).
+Prisma, Drizzle, and Kysely all have first-class generators (`--target prisma|drizzle|kysely`).
+
+<Callout type="warning" title="Treat BYO tables as read-only">
+
+Secondlayer owns the table DDL — treat the tables as read-only and verify with `prisma db pull` (never `migrate`).
+
+</Callout>
 
 Want pushes instead of polling? Bind a [Subscription](/docs/subscriptions) to this table and Secondlayer will POST every matching row change to your webhook — inserts, updates, and deletes, with the verb encoded in the payload `type` (see the [Subscriptions](/docs/subscriptions) page).
 
 ### Breaking changes on your own database
 
+<Callout type="danger" title="Breaking changes never drop your data">
+
 For managed subgraphs a breaking schema change (removed table/column, changed column type, or a forced reindex) auto-reindexes by dropping and rebuilding the schema. On a BYO database that drop would destroy your data, so the deploy is **refused** (HTTP `422`) — nothing on your database is touched.
 
-The refusal carries the exact migration plan instead of a generic error. `sl subgraphs deploy` prints the breaking reasons and the `DROP SCHEMA … CASCADE` + rebuild DDL to run yourself, then re-deploy:
+</Callout>
+
+The refusal carries the exact migration plan instead of a generic error. `sl subgraphs deploy` prints the breaking reasons plus the `DROP SCHEMA … CASCADE` + rebuild DDL to run yourself, then re-deploy:
 
 ```bash
 ✗ Refusing breaking schema change on BYO subgraph (no data dropped).
@@ -271,7 +324,13 @@ To rebuild manually, run on YOUR database:
   CREATE TABLE …
 ```
 
-The SDK throws a typed `ByoBreakingChangeError` exposing `details.reasons` and `details.plan` (`dropStatement`, `statements`, `grantScript`) for programmatic handling. A destructive `--force` rebuild on your database is **not yet supported** — run the DROP manually.
+The SDK throws a typed `ByoBreakingChangeError` exposing `details.reasons` and `details.plan` (`dropStatement`, `statements`, `grantScript`) for programmatic handling.
+
+<Callout type="note" title="No --force on BYO">
+
+A destructive `--force` rebuild on your database is **not yet supported** — run the DROP manually.
+
+</Callout>
 
 export const metadata = {
 	title: "Subgraphs — Secondlayer Docs",
