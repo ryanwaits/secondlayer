@@ -171,6 +171,28 @@ docker exec secondlayer-postgres-platform-1 psql -U secondlayer -d secondlayer_p
 
 # 3. Slack watcher quiet:
 docker logs secondlayer-agent --since 2h 2>&1 | grep -iE 'Pattern:|alert' | tail -5
+
+# 4. Reorg reconciliation — no stale old-fork rows survive in decoded_events.
+#    A reorg hard-DELETEs decoded_events >= fork (handleDecodedEventsReorg, storage.ts);
+#    before that fix a flag-only mark + later re-derive resurrected orphans on SHIFTED
+#    dense cursors (the 2026-05-26 reorg left 57 stale rows + a +152,062-sat sBTC
+#    over-count). Probe: decoded rows inside a recorded reorg window whose tx no longer
+#    exists at that height = old-fork orphans. MUST be 0. The CROSS JOIN LATERAL drives
+#    off chain_reorgs (2 rows) so each window is an index range scan over ~10 blocks —
+#    a bare `JOIN ... BETWEEN` seq-scans all 57M rows, do NOT use it. The supply side of
+#    the same residue (extra ft_mint) is already gated by Phase 4b decoded_net vs chain.
+printf '%s\n' "
+SELECT coalesce(sum(stale),0) AS stale_orphans
+FROM chain_reorgs r CROSS JOIN LATERAL (
+  SELECT count(*) FILTER (
+    WHERE NOT EXISTS (SELECT 1 FROM events e WHERE e.block_height=de.block_height AND e.tx_id=de.tx_id)
+  ) AS stale
+  FROM decoded_events de
+  WHERE de.block_height BETWEEN r.fork_point_height AND r.orphaned_to_height
+) x;" | ssh ryan@claude-mini "ssh app-server 'docker exec -i secondlayer-postgres-1 psql -U secondlayer -d secondlayer -tA'"
+# Nonzero ⇒ a reorg left residue (the UPSERT-without-delete bug is back, or a new reorg
+# hit a decoder running pre-fix code). Realign the offending window with
+# rederive-decoded-events.ts (--types from a `GROUP BY event_type` over the range first).
 ```
 
 ## Report format
@@ -182,7 +204,7 @@ Infra:        ✓/✗ (containers / canaries / connections / FATALs)
 Data planes:  ✓/✗ (decoder lags / queue budget / stuck ops)
 Public API:   ✓/✗ (N public subgraphs read; surfaces)
 Conservation: ✓/✗ per token (internal sum==mints−burns; chain-truth decoded_net & raw_net == get-total-supply; exact deltas on ✗)
-Regressions:  ✓/✗ (guard 422 / kill-block markers / watcher)
+Regressions:  ✓/✗ (guard 422 / kill-block markers / watcher / reorg orphans=0)
 
 Flags: <ambiguous, slow, or trending-wrong items + the exact command to dig deeper>
 ```
