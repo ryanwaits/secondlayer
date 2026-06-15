@@ -11,12 +11,30 @@ const nextConfig: NextConfig = {
 		optimizePackageImports: ["@tanstack/react-query"],
 	},
 	async rewrites() {
-		return [
-			{
-				source: "/site/:path*",
-				destination: "/:path*",
-			},
-		];
+		return {
+			// First-party proxy for the Umami tracker so ad-blockers / Brave shields
+			// (which blocklist the umami.* host + /script.js) can't drop pageviews.
+			// The tracker loads from /sl.js, derives its collector from that origin,
+			// and posts to /api/send — both proxied to the umami container. beforeFiles
+			// guarantees these win over the app's other /api/* route handlers.
+			beforeFiles: [
+				{
+					source: "/sl.js",
+					destination: "https://umami.secondlayer.tools/script.js",
+				},
+				{
+					source: "/api/send",
+					destination: "https://umami.secondlayer.tools/api/send",
+				},
+			],
+			afterFiles: [
+				{
+					source: "/site/:path*",
+					destination: "/:path*",
+				},
+			],
+			fallback: [],
+		};
 	},
 	async redirects() {
 		// Workflow + sentry packages were deprecated in the 2026-04-23 pivot;

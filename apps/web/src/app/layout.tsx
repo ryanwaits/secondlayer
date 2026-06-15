@@ -77,9 +77,10 @@ export default function RootLayout({
 						</PreferencesProvider>
 					</AuthProvider>
 				</QueryProvider>
-				{/* Self-hosted Umami web analytics (umami.secondlayer.tools). */}
+				{/* Self-hosted Umami analytics, proxied first-party (/sl.js → umami)
+				    via next.config rewrites so ad-blockers don't drop pageviews. */}
 				<Script
-					src="https://umami.secondlayer.tools/script.js"
+					src="/sl.js"
 					data-website-id="c97d8770-49d6-4a55-adae-07310f3d8d5e"
 					strategy="afterInteractive"
 				/>
