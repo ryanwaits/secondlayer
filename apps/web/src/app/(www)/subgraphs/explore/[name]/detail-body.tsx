@@ -159,29 +159,6 @@ export function DetailBody({
 						</p>
 					</section>
 				))}
-
-				<div className="explore-fork">
-					<span className="lbl">Build one like this</span>
-					<div className="explore-ep">
-						<span
-							className="explore-ep-method"
-							style={{
-								color: "var(--text-main)",
-								background: "var(--bg)",
-								borderColor: "var(--border)",
-							}}
-						>
-							CLI
-						</span>
-						<span className="explore-ep-path">{scaffoldCmd}</span>
-						<CopyButton code={scaffoldCmd} umamiEvent="fork-explore" />
-					</div>
-					<p className="fine">
-						Scaffolds a subgraph over the same contract — deploy under your own
-						name and it lands on Explore.{" "}
-						<em>View source · fork it with `sl subgraphs create`.</em>
-					</p>
-				</div>
 			</div>
 
 			<aside className="explore-rail" aria-label="Live query">
@@ -236,6 +213,28 @@ export function DetailBody({
 							</p>
 						)}
 					</div>
+				</div>
+				<div className="explore-fork">
+					<span className="lbl">Build one like this</span>
+					<div className="explore-ep">
+						<span
+							className="explore-ep-method"
+							style={{
+								color: "var(--text-main)",
+								background: "var(--bg)",
+								borderColor: "var(--border)",
+							}}
+						>
+							CLI
+						</span>
+						<span className="explore-ep-path">{scaffoldCmd}</span>
+						<CopyButton code={scaffoldCmd} umamiEvent="fork-explore" />
+					</div>
+					<p className="fine">
+						Scaffolds a subgraph over the same contract — deploy under your own
+						name and it lands on Explore.{" "}
+						<em>View source · fork it with `sl subgraphs create`.</em>
+					</p>
 				</div>
 				<div className="explore-agents">
 					<span className="t">for agents</span>

@@ -34,6 +34,7 @@ export function CopyButton({
 				label || inline ? "copy-button copy-button-labeled" : "copy-button"
 			}
 			aria-label="Copy code"
+			data-umami-event={umamiEvent}
 		>
 			{label && (
 				<span className="copy-button-label">{copied ? "copied" : label}</span>

@@ -7789,7 +7789,9 @@ html.force-dark .shiki span {
 	padding: 0;
 }
 .explore-fork {
-	margin-top: 2rem;
+	/* lives in the sticky right rail under the playground; the rail's flex
+	   gap handles spacing, so no top margin of its own. */
+	margin-top: 0;
 	border: 1px solid var(--border);
 	border-radius: 8px;
 	background: var(--bg-elevated);
