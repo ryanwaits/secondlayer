@@ -85,11 +85,8 @@ export function CreditsTopup({
 						</label>
 					))}
 				</fieldset>
-				<div className={s.credPreview}>
-					adds <b>${amt.toFixed(2)}</b> <span className={s.arr}>→</span> new
-					balance <b>${(balance + amt).toFixed(2)}</b>
-				</div>
-				<div className={s.foot}>
+				<div className={s.creditCta}>
+					{error && <span className={s.actErr}>{error}</span>}
 					<button
 						type="button"
 						className={s.btnInk}
@@ -98,8 +95,6 @@ export function CreditsTopup({
 					>
 						{busy ? "Redirecting…" : `Add $${amt} in credits`}
 					</button>
-					<span className={s.actHint}>card · one-time · never expires</span>
-					{error && <span className={s.actErr}>{error}</span>}
 				</div>
 			</div>
 		</>

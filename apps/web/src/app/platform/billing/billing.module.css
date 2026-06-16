@@ -99,9 +99,8 @@
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	padding: 0.8rem 1.2rem;
-	border-top: 1px solid var(--border);
-	background: var(--bg-chrome);
+	padding: 0.85rem 1.2rem;
+	border-top: 1px dashed var(--border);
 }
 .foot .meta {
 	font-family: var(--font-mono-stack);
@@ -248,9 +247,8 @@
 .credPacks {
 	display: flex;
 	gap: 8px;
-	padding: 0.7rem 1.2rem;
+	padding: 0.75rem 1.2rem 0;
 	border: 0;
-	border-top: 1px dashed var(--border);
 	margin: 0;
 	min-inline-size: 0;
 	flex-wrap: wrap;
@@ -286,16 +284,15 @@
 	background: var(--accent-bg);
 	color: var(--accent);
 }
-.credPreview {
-	padding: 0.7rem 1.2rem 0;
-	font-family: var(--font-mono-stack);
-	font-size: 0.66rem;
-	color: var(--text-muted);
-	font-variant-numeric: tabular-nums;
+.creditCta {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 10px;
+	padding: 0.95rem 1.2rem 1.05rem;
 }
-.credPreview b {
-	color: var(--text-main);
-	font-weight: 560;
+.creditCta .actErr {
+	margin-right: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {
