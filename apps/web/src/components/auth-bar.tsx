@@ -5,14 +5,17 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+// Always-platform paths (no marketing equivalent)
 const PLATFORM_PATHS = [
 	"/platform",
-	"/subgraphs",
 	"/api-keys",
 	"/usage",
 	"/billing",
 	"/settings",
 ];
+
+// Paths that serve marketing when unauthed, platform when authed (mirrors middleware DUAL_PATHS)
+const DUAL_PATHS = ["/subgraphs"];
 
 export function AuthBar() {
 	const { account, loading, login, logout } = useAuth();
@@ -25,36 +28,18 @@ export function AuthBar() {
 	);
 	const inputRef = useRef<HTMLInputElement>(null);
 
+	const isDualPath = DUAL_PATHS.some(
+		(p) => pathname === p || pathname.startsWith(`${p}/`),
+	);
 	const isPlatform =
-		pathname === "/" && account
-			? true
-			: PLATFORM_PATHS.some(
-					(p) => pathname === p || pathname.startsWith(`${p}/`),
-				);
+		((pathname === "/" || isDualPath) && !!account) ||
+		PLATFORM_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 	useEffect(() => {
 		if (expanded && inputRef.current) {
 			inputRef.current.focus();
 		}
 	}, [expanded]);
-
-	// L keyboard shortcut for login
-	useEffect(() => {
-		if (account || loading) return;
-		function onKeyDown(e: KeyboardEvent) {
-			if (
-				e.target instanceof HTMLInputElement ||
-				e.target instanceof HTMLTextAreaElement
-			)
-				return;
-			if (e.metaKey || e.ctrlKey || e.altKey) return;
-			if (e.key === "l" || e.key === "L") {
-				router.push("/login");
-			}
-		}
-		window.addEventListener("keydown", onKeyDown);
-		return () => window.removeEventListener("keydown", onKeyDown);
-	}, [account, loading, router]);
 
 	// D keyboard shortcut → docs (available regardless of auth state)
 	useEffect(() => {
@@ -127,8 +112,7 @@ export function AuthBar() {
 				className="auth-bar-nav-link"
 				data-umami-event="login"
 			>
-				<span className="auth-bar-nav-key">[L]</span>
-				<span className="auth-bar-nav-label">Login</span>
+				<span className="auth-bar-nav-label">Sign in</span>
 			</Link>
 			{status === "done" ? (
 				<span className="auth-bar-done">

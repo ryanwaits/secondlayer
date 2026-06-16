@@ -175,7 +175,7 @@ export function MarketingNav() {
 										Get an API key
 									</Link>
 									<Link href="/login" className="mnav-login">
-										Login
+										Sign in
 									</Link>
 								</>
 							)}
