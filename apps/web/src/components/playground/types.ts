@@ -77,6 +77,8 @@ export interface PlaygroundConfig {
 		mode: "rest" | "sse";
 	};
 	render: RenderMode;
+	/** One-click named field-value sets — "preloaded queries" as chips. */
+	presets?: { label: string; values: FieldValues }[];
 	/** Agent-readable companions for the same endpoint. */
 	agents?: Partial<
 		Record<"markdown" | "openapi" | "schema" | "stream", string>

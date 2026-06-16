@@ -67,6 +67,14 @@ export function Playground({
 		[reset],
 	);
 
+	const applyPreset = useCallback(
+		(values: FieldValues) => {
+			setValues((prev) => ({ ...prev, ...values }));
+			reset();
+		},
+		[reset],
+	);
+
 	const sendRest = useCallback(async () => {
 		setPhase("loading");
 		const started = performance.now();
@@ -128,6 +136,21 @@ export function Playground({
 					{streaming ? (phase === "done" ? "Streaming" : "Tail") : "Send"}
 				</button>
 			</div>
+
+			{config.presets ? (
+				<div className="pg-presets">
+					{config.presets.map((preset) => (
+						<button
+							type="button"
+							key={preset.label}
+							className="pg-preset"
+							onClick={() => applyPreset(preset.values)}
+						>
+							{preset.label}
+						</button>
+					))}
+				</div>
+			) : null}
 
 			<FieldsEditor
 				fields={config.request.fields}

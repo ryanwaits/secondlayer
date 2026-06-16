@@ -81,6 +81,24 @@ export const indexQuery: PlaygroundConfig = {
 		],
 	},
 	render: "json",
+	presets: [
+		{
+			label: "sBTC transfers",
+			values: { event_type: "ft_transfer", contract_id: SBTC_TOKEN },
+		},
+		{
+			label: "STX transfers",
+			values: { event_type: "stx_transfer", contract_id: "" },
+		},
+		{
+			label: "NFT transfers",
+			values: { event_type: "nft_transfer", contract_id: "" },
+		},
+		{
+			label: "Contract calls",
+			values: { event_type: "contract_call", contract_id: "" },
+		},
+	],
 	agents: {
 		markdown: "/v1/index/events/docs.md",
 		openapi: "/v1/index/openapi.json",
