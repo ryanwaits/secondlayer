@@ -35,6 +35,34 @@ export function getDisplayStatus(
 	return "syncing";
 }
 
+// Human-facing label per display status. "active" reads as "Live".
+const STATUS_LABELS: Record<DisplayStatus, string> = {
+	active: "Live",
+	syncing: "Syncing",
+	stalled: "Syncing",
+	error: "Error",
+	reindexing: "Reindexing",
+};
+
+export function statusLabel(
+	subgraph: SubgraphSummary | SubgraphDetail,
+	chainTip: number | null,
+): string {
+	return STATUS_LABELS[getDisplayStatus(subgraph, chainTip)];
+}
+
+// CSS modifier on `.badge`. Reindexing is its own class; stalled rolls into error.
+export function badgeClass(
+	subgraph: SubgraphSummary | SubgraphDetail,
+	chainTip: number | null,
+): "active" | "syncing" | "reindex" | "error" {
+	const s = getDisplayStatus(subgraph, chainTip);
+	if (s === "reindexing") return "reindex";
+	if (s === "error" || s === "stalled") return "error";
+	if (s === "active") return "active";
+	return "syncing";
+}
+
 // ── V1 — Stalled Subgraph (legacy, used by insights) ─────────────
 
 export interface StalledSubgraph {

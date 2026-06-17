@@ -8,19 +8,25 @@ import {
 	useState,
 } from "react";
 
+type SubgraphsView = "list" | "cards";
+
 interface Preferences {
 	onboardingComplete: boolean;
+	subgraphsView: SubgraphsView;
 }
 
 interface PreferencesCtx {
 	showOnboarding: boolean;
 	completeOnboarding(): void;
+	subgraphsView: SubgraphsView;
+	setSubgraphsView(view: SubgraphsView): void;
 }
 
 const STORAGE_KEY = "sl:preferences";
 
 const DEFAULT: Preferences = {
 	onboardingComplete: false,
+	subgraphsView: "list",
 };
 
 function read(): Preferences {
@@ -63,10 +69,28 @@ export function PreferencesProvider({
 		});
 	}, []);
 
+	const setSubgraphsView = useCallback((view: SubgraphsView) => {
+		setPreferences((prev) => {
+			const next = { ...prev, subgraphsView: view };
+			write(next);
+			return next;
+		});
+	}, []);
+
 	const showOnboarding = mounted && !preferences.onboardingComplete;
+	// Default to "list" until the stored preference is read, so the first paint
+	// is stable and matches SSR (avoids a flash of the wrong view).
+	const subgraphsView = mounted ? preferences.subgraphsView : "list";
 
 	return (
-		<PreferencesContext.Provider value={{ showOnboarding, completeOnboarding }}>
+		<PreferencesContext.Provider
+			value={{
+				showOnboarding,
+				completeOnboarding,
+				subgraphsView,
+				setSubgraphsView,
+			}}
+		>
 			{children}
 		</PreferencesContext.Provider>
 	);

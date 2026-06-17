@@ -1,23 +1,9 @@
-import { IndexRow } from "@/components/console/index-row";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { PromptActions } from "@/components/console/prompt-actions";
+import { SubgraphsIndex } from "@/components/console/subgraphs-index";
 import { getAgentPrompt } from "@/lib/agent-prompts";
 import { ApiError, apiRequest, getSessionFromCookies } from "@/lib/api";
-import { getDisplayStatus } from "@/lib/intelligence/subgraphs";
 import type { SubgraphSummary } from "@/lib/types";
-
-function statusLabel(sg: SubgraphSummary, chainTip: number | null) {
-	const s = getDisplayStatus(sg, chainTip);
-	return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-function badgeClass(sg: SubgraphSummary, chainTip: number | null) {
-	const s = getDisplayStatus(sg, chainTip);
-	if (s === "active") return "active";
-	if (s === "syncing" || s === "reindexing") return "syncing";
-	if (s === "error" || s === "stalled") return "error";
-	return "";
-}
 
 export default async function SubgraphsPage() {
 	const session = await getSessionFromCookies();
@@ -53,17 +39,6 @@ export default async function SubgraphsPage() {
 			<OverviewTopbar page="Subgraphs" />
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">
-					{subgraphs.length > 0 && (
-						<div className="index-header">
-							<div>
-								<span className="index-title">Subgraphs</span>
-								<span className="index-count">
-									{subgraphs.length} subgraph{subgraphs.length !== 1 ? "s" : ""}
-								</span>
-							</div>
-						</div>
-					)}
-
 					{subgraphs.length === 0 ? (
 						<div className="empty-inner" style={{ padding: "40px 0 0" }}>
 							<h1 className="empty-title">
@@ -307,37 +282,7 @@ export default async function SubgraphsPage() {
 							</div>
 						</div>
 					) : (
-						subgraphs.map((sg) => (
-							<IndexRow
-								key={sg.name}
-								href={`/subgraphs/${sg.name}`}
-								name={sg.name}
-								badge={
-									<span className={`badge ${badgeClass(sg, chainTip)}`}>
-										{statusLabel(sg, chainTip)}
-									</span>
-								}
-								description={
-									sg.tables.length > 0
-										? `${sg.tables.length} table${sg.tables.length !== 1 ? "s" : ""}`
-										: undefined
-								}
-								stats={[
-									{
-										label: "rows",
-										value: `${(sg.totalRows ?? sg.totalProcessed).toLocaleString()} rows`,
-									},
-									...(sg.lastProcessedBlock != null
-										? [
-												{
-													label: "block",
-													value: `#${sg.lastProcessedBlock.toLocaleString()}`,
-												},
-											]
-										: []),
-								]}
-							/>
-						))
+						<SubgraphsIndex subgraphs={subgraphs} chainTip={chainTip} />
 					)}
 				</div>
 			</div>
