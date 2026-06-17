@@ -28,7 +28,6 @@ const SETTINGS_CHILDREN = [
 	{ href: "/settings", label: "Project" },
 	{ href: "/api-keys", label: "API Keys" },
 	{ href: "/team", label: "Team" },
-	{ href: "/usage", label: "Resources" },
 	{ href: "/billing", label: "Billing" },
 ];
 
@@ -108,7 +107,7 @@ function isSettingsActive(pathname: string) {
 		clean.startsWith("/settings") ||
 		clean.startsWith("/api-keys") ||
 		clean.startsWith("/team") ||
-		clean.startsWith("/usage")
+		clean.startsWith("/billing")
 	);
 }
 

@@ -32,13 +32,6 @@ export const actions: Action[] = [
 		href: "/api-keys",
 	},
 	{
-		id: "usage",
-		label: "Resources",
-		keywords: ["usage", "quota", "limits", "metrics", "compute", "storage"],
-		category: "Settings",
-		href: "/usage",
-	},
-	{
 		id: "settings",
 		label: "Settings",
 		keywords: ["account", "profile", "project"],
@@ -51,6 +44,23 @@ export const actions: Action[] = [
 		keywords: ["members", "invite", "collaborators"],
 		category: "Settings",
 		href: "/team",
+	},
+	{
+		id: "billing",
+		label: "Billing",
+		keywords: [
+			"plan",
+			"upgrade",
+			"invoice",
+			"credits",
+			"usage",
+			"quota",
+			"limits",
+			"resources",
+			"spend",
+		],
+		category: "Settings",
+		href: "/billing",
 	},
 
 	// Account

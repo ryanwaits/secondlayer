@@ -6,13 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 // Always-platform paths (no marketing equivalent)
-const PLATFORM_PATHS = [
-	"/platform",
-	"/api-keys",
-	"/usage",
-	"/billing",
-	"/settings",
-];
+const PLATFORM_PATHS = ["/platform", "/api-keys", "/billing", "/settings"];
 
 // Paths that serve marketing when unauthed, platform when authed (mirrors middleware DUAL_PATHS)
 const DUAL_PATHS = ["/subgraphs"];
