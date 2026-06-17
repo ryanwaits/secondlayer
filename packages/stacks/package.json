@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/stacks",
-	"version": "2.5.1",
+	"version": "2.5.2",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -105,7 +105,9 @@
 			"require": "./dist/src/x402/index.cjs"
 		}
 	},
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"scripts": {
 		"build": "bunup",
 		"test": "bun test",

@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 2.5.2
+
+### Patch Changes
+
+- 543f0a4: Consolidate duplicate `biome-ignore` comments in `tools/` (no behavior or API change).
+
 ## 2.5.1
 
 ### Patch Changes
