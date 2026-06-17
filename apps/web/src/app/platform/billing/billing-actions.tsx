@@ -127,7 +127,8 @@ export function BillingActions({
 						<span className={s.ext}>↗</span>
 					</button>
 				)}
-				{(state === "active" || state === "trialing") &&
+				{hasSubscription &&
+					(state === "active" || state === "trialing") &&
 					(confirmCancel ? (
 						<span className={s.cancelRow}>
 							<span className={s.cancelQ}>Cancel Pro at period end?</span>
