@@ -325,50 +325,39 @@ function SubgraphCard({
 					<i style={{ width: `${progress}%` }} />
 				</div>
 			)}
-			<div className="sg-card-hdr">
-				<span className="sg-card-id">
+			<div className="sg-card-body">
+				<div className="sg-card-hd">
 					<span className="sg-card-name">{sg.name}</span>
 					<span className="sg-ver">v{sg.version}</span>
-				</span>
-				<span className="sg-card-hdr-right">
 					<span className={`badge ${badgeClass(sg, chainTip)}`}>
 						{statusLabel(sg, chainTip)}
 					</span>
-					<span
-						className={`sg-vis-ic${sg.visibility === "public" ? " public" : ""}`}
-						title={sg.visibility === "public" ? "Public" : "Private"}
-					>
-						{sg.visibility === "public" ? <GlobeIcon /> : <LockIcon />}
+					<span className="sg-card-meta">
+						<b>{rowCount(sg).toLocaleString()}</b> rows ·{" "}
+						<b>{sg.tables.length}</b> table{sg.tables.length !== 1 ? "s" : ""}
 					</span>
-				</span>
+				</div>
+				<div className="sg-card-chips">
+					{sg.tables.map((t) => (
+						<span key={t} className="sg-tchip">
+							{t}
+						</span>
+					))}
+				</div>
 			</div>
-			<div className="sg-card-body">
-				<div className="sg-card-stats">
-					<div className="st">
-						<span className="k">Tables</span>
-						<span className="v">{sg.tables.length}</span>
-					</div>
-					<div className="st">
-						<span className="k">Rows</span>
-						<span className="v">{rowCount(sg).toLocaleString()}</span>
-					</div>
-					<div className="st">
-						<span className="k">Block</span>
-						<span className="v">
-							{sg.lastProcessedBlock != null
-								? sg.lastProcessedBlock.toLocaleString()
-								: "—"}
-						</span>
-					</div>
-				</div>
-				<div className="sg-card-status">
-					<CardStatusLine sg={sg} ds={ds} progress={progress} />
-					{subs > 0 && (
-						<span className="sg-card-subs">
-							{subs} sub{subs !== 1 ? "s" : ""}
-						</span>
-					)}
-				</div>
+			<div className="sg-card-ft">
+				<CardStatusLine sg={sg} ds={ds} progress={progress} />
+				{subs > 0 && (
+					<span className="sg-card-subs">
+						{subs} sub{subs !== 1 ? "s" : ""}
+					</span>
+				)}
+				<span
+					className={`sg-card-vis${sg.visibility === "public" ? " public" : ""}`}
+				>
+					{sg.visibility === "public" ? <GlobeIcon /> : <LockIcon />}
+					{sg.visibility === "public" ? "Public" : "Private"}
+				</span>
 			</div>
 		</Link>
 	);
