@@ -300,3 +300,55 @@
 		transition: none;
 	}
 }
+
+/* In-app cancel / downgrade affordance */
+.cancelLink {
+	font-family: var(--font-mono-stack);
+	font-size: 0.7rem;
+	color: var(--text-muted);
+	background: transparent;
+	border: none;
+	padding: 6px 4px;
+	cursor: pointer;
+	text-decoration: underline;
+	text-underline-offset: 3px;
+	text-decoration-color: var(--text-dim);
+}
+.cancelLink:hover {
+	color: var(--red);
+	text-decoration-color: var(--red);
+}
+.cancelLink:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+.cancelRow {
+	display: inline-flex;
+	align-items: center;
+	gap: 9px;
+	flex-wrap: wrap;
+}
+.cancelQ {
+	font-family: var(--font-mono-stack);
+	font-size: 0.72rem;
+	color: var(--text-muted);
+}
+.btnDanger {
+	font-family: var(--font-sans-stack);
+	font-size: 0.8125rem;
+	font-weight: 500;
+	color: var(--red);
+	background: transparent;
+	border: 1px solid color-mix(in srgb, var(--red) 30%, var(--border));
+	border-radius: 6px;
+	padding: 6px 12px;
+	cursor: pointer;
+}
+.btnDanger:hover {
+	background: color-mix(in srgb, var(--red) 8%, transparent);
+	border-color: var(--red);
+}
+.btnDanger:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}

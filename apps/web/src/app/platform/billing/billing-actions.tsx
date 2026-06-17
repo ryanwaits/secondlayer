@@ -19,7 +19,10 @@ export function BillingActions({
 }) {
 	const router = useRouter();
 	const params = useSearchParams();
-	const [busy, setBusy] = useState<"upgrade" | "portal" | null>(null);
+	const [busy, setBusy] = useState<"upgrade" | "portal" | "cancel" | null>(
+		null,
+	);
+	const [confirmCancel, setConfirmCancel] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const resolvedOnce = useRef(false);
 
@@ -64,6 +67,27 @@ export function BillingActions({
 		}
 	}
 
+	async function cancelSub() {
+		setBusy("cancel");
+		setError(null);
+		try {
+			const res = await fetch("/api/billing/cancel", { method: "POST" });
+			const data = (await res.json()) as {
+				cancelAtPeriodEnd?: boolean;
+				error?: string;
+			};
+			if (!res.ok || !data.cancelAtPeriodEnd) {
+				throw new Error(data.error ?? "Cancel failed");
+			}
+			setConfirmCancel(false);
+			router.refresh();
+		} catch (e) {
+			setError(e instanceof Error ? e.message : "Cancel failed");
+		} finally {
+			setBusy(null);
+		}
+	}
+
 	return (
 		<>
 			<div className={s.actions}>
@@ -103,6 +127,37 @@ export function BillingActions({
 						<span className={s.ext}>↗</span>
 					</button>
 				)}
+				{(state === "active" || state === "trialing") &&
+					(confirmCancel ? (
+						<span className={s.cancelRow}>
+							<span className={s.cancelQ}>Cancel Pro at period end?</span>
+							<button
+								type="button"
+								className={s.btnDanger}
+								onClick={cancelSub}
+								disabled={busy !== null}
+							>
+								{busy === "cancel" ? "Canceling…" : "Yes, cancel"}
+							</button>
+							<button
+								type="button"
+								className={s.btnGhost}
+								onClick={() => setConfirmCancel(false)}
+								disabled={busy !== null}
+							>
+								Keep Pro
+							</button>
+						</span>
+					) : (
+						<button
+							type="button"
+							className={s.cancelLink}
+							onClick={() => setConfirmCancel(true)}
+							disabled={busy !== null}
+						>
+							Cancel subscription
+						</button>
+					))}
 				{error && <span className={s.actErr}>{error}</span>}
 			</div>
 			{hasSubscription && (

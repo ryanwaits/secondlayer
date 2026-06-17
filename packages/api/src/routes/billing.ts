@@ -301,6 +301,65 @@ app.post("/resolve", async (c) => {
 });
 
 /**
+ * POST /api/billing/cancel
+ *
+ * In-app downgrade: schedule the live subscription to cancel at period end
+ * (`cancel_at_period_end = true`). Keeps Pro through the paid-for window, then
+ * Stripe fires `customer.subscription.deleted` and the webhook drops the plan
+ * to Free — no proration, no immediate cutoff. Idempotent: a second call on an
+ * already-ending sub is a no-op. The billing page reads `cancelAtPeriodEnd`
+ * back as the "ending" state ("Resume Pro" re-opens it in the portal).
+ */
+app.post("/cancel", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+
+	const db = getDb();
+	const account = await getAccountById(db, accountId);
+	if (!account) return c.json({ error: "Account not found" }, 404);
+	if (!account.stripe_customer_id) {
+		return c.json({ error: "No active subscription to cancel." }, 400);
+	}
+
+	const stripe = getStripeOrNull();
+	if (!stripe) {
+		logger.info("Cancel called but Stripe not configured");
+		return c.json({ error: "billing_not_configured" }, 503);
+	}
+
+	const subs = await stripe.subscriptions.list({
+		customer: account.stripe_customer_id,
+		status: "all",
+		limit: 5,
+	});
+	const sub = subs.data.find(
+		(s) => s.status === "active" || s.status === "trialing",
+	);
+	if (!sub) {
+		return c.json({ error: "No active subscription to cancel." }, 400);
+	}
+
+	const toIso = (epoch: number | null | undefined) =>
+		epoch ? new Date(epoch * 1000).toISOString() : null;
+
+	if (sub.cancel_at_period_end) {
+		return c.json({ cancelAtPeriodEnd: true, cancelAt: toIso(sub.cancel_at) });
+	}
+
+	const updated = await stripe.subscriptions.update(sub.id, {
+		cancel_at_period_end: true,
+	});
+	logger.info("billing.cancel.scheduled", {
+		accountId: account.id,
+		subscriptionId: sub.id,
+	});
+	return c.json({
+		cancelAtPeriodEnd: true,
+		cancelAt: toIso(updated.cancel_at),
+	});
+});
+
+/**
  * GET /api/billing/status
  *
  * Read-only snapshot of an account's billing state — plan from the DB
