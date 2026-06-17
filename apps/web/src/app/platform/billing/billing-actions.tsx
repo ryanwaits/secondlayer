@@ -68,64 +68,70 @@ export function BillingActions({
 		}
 	}
 
+	// Nothing actionable for a plan with no Stripe subscription (free, or a
+	// comp/manual plan): render only the resolve effect, no empty containers.
+	const hasActions = state === "ending" || hasSubscription || error !== null;
+
 	return (
 		<>
-			<div className={s.actions}>
-				{state === "ending" && (
-					<button
-						type="button"
-						className={s.btnInk}
-						onClick={openPortal}
-						disabled={busy !== null}
-					>
-						{busy === "portal" ? "Redirecting…" : "Resume Pro"}
-					</button>
-				)}
-				{hasSubscription && (
-					<button
-						type="button"
-						className={s.btnGhost}
-						onClick={openPortal}
-						disabled={busy !== null}
-					>
-						{busy === "portal" ? "Redirecting…" : "Manage subscription"}{" "}
-						<span className={s.ext}>↗</span>
-					</button>
-				)}
-				{hasSubscription &&
-					(state === "active" || state === "trialing") &&
-					(confirmCancel ? (
-						<span className={s.cancelRow}>
-							<span className={s.cancelQ}>Cancel Pro at period end?</span>
-							<button
-								type="button"
-								className={s.btnDanger}
-								onClick={cancelSub}
-								disabled={busy !== null}
-							>
-								{busy === "cancel" ? "Canceling…" : "Yes, cancel"}
-							</button>
-							<button
-								type="button"
-								className={s.btnGhost}
-								onClick={() => setConfirmCancel(false)}
-								disabled={busy !== null}
-							>
-								Keep Pro
-							</button>
-						</span>
-					) : (
+			{hasActions && (
+				<div className={s.actions}>
+					{state === "ending" && (
 						<button
 							type="button"
-							className={s.cancelLink}
-							onClick={() => setConfirmCancel(true)}
+							className={s.btnInk}
+							onClick={openPortal}
 							disabled={busy !== null}
 						>
-							Cancel subscription
+							{busy === "portal" ? "Redirecting…" : "Resume Pro"}
 						</button>
-					))}
-				{error && <span className={s.actErr}>{error}</span>}
-			</div>
+					)}
+					{hasSubscription && (
+						<button
+							type="button"
+							className={s.btnGhost}
+							onClick={openPortal}
+							disabled={busy !== null}
+						>
+							{busy === "portal" ? "Redirecting…" : "Manage subscription"}{" "}
+							<span className={s.ext}>↗</span>
+						</button>
+					)}
+					{hasSubscription &&
+						(state === "active" || state === "trialing") &&
+						(confirmCancel ? (
+							<span className={s.cancelRow}>
+								<span className={s.cancelQ}>Cancel Pro at period end?</span>
+								<button
+									type="button"
+									className={s.btnDanger}
+									onClick={cancelSub}
+									disabled={busy !== null}
+								>
+									{busy === "cancel" ? "Canceling…" : "Yes, cancel"}
+								</button>
+								<button
+									type="button"
+									className={s.btnGhost}
+									onClick={() => setConfirmCancel(false)}
+									disabled={busy !== null}
+								>
+									Keep Pro
+								</button>
+							</span>
+						) : (
+							<button
+								type="button"
+								className={s.cancelLink}
+								onClick={() => setConfirmCancel(true)}
+								disabled={busy !== null}
+							>
+								Cancel subscription
+							</button>
+						))}
+					{error && <span className={s.actErr}>{error}</span>}
+				</div>
+			)}
 			{hasSubscription && (
 				<p className={s.portalNote}>
 					{state === "ending"

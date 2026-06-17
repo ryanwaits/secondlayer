@@ -465,6 +465,10 @@
 	border-radius: 8px;
 	background: var(--bg-elevated);
 	overflow: hidden;
+	/* Containing block for the visually-hidden (position:absolute) credit-pack
+	   radios + legend, so they can't anchor to <html> and extend the document
+	   (was adding ~345px of phantom scroll space below the page). */
+	position: relative;
 }
 .head {
 	display: flex;
