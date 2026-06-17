@@ -48,13 +48,46 @@ function dashboardBaseUrl(): string {
 type StripeClient = NonNullable<ReturnType<typeof getStripeOrNull>>;
 type AccountRow = NonNullable<Awaited<ReturnType<typeof getAccountById>>>;
 
-/** Lazy Stripe customer — first billing action materializes + persists it. */
+/** Stripe's `resource_missing` 400 — the stored customer id no longer exists
+ * under the active key (deleted, or minted under a different key, e.g. a
+ * test-mode id left over after a test→live flip). */
+function isResourceMissing(err: unknown): boolean {
+	return (
+		typeof err === "object" &&
+		err !== null &&
+		(err as { code?: unknown }).code === "resource_missing"
+	);
+}
+
+/**
+ * Lazy Stripe customer — first billing action materializes + persists it.
+ *
+ * Also self-heals a stale stored id: if the column holds a customer the active
+ * key can't resolve (Stripe 404s `retrieve`, or returns a deleted customer),
+ * we mint a fresh one and overwrite the column. Guards the test→live key flip
+ * footgun where pre-flip test-mode `cus_` ids would otherwise 400 every
+ * downstream call forever.
+ */
 async function ensureStripeCustomer(
 	stripe: StripeClient,
 	db: ReturnType<typeof getDb>,
 	account: AccountRow,
 ): Promise<string> {
-	if (account.stripe_customer_id) return account.stripe_customer_id;
+	const existing = account.stripe_customer_id;
+	if (existing) {
+		try {
+			const customer = await stripe.customers.retrieve(existing);
+			// A deleted customer resolves to `{ deleted: true }` rather than
+			// throwing — treat it as missing and recreate.
+			if (!("deleted" in customer && customer.deleted)) return existing;
+		} catch (err) {
+			if (!isResourceMissing(err)) throw err;
+		}
+		logger.warn("Recreating stale Stripe customer", {
+			accountId: account.id,
+			staleCustomerId: existing,
+		});
+	}
 	const customer = await stripe.customers.create({
 		// NULL for ghost accounts (unreachable here in practice — billing is
 		// session-gated and ghosts can't log in until claimed).
@@ -460,8 +493,12 @@ app.get("/portal", async (c) => {
 		logger.info("Portal called but Stripe not configured");
 		return c.json({ error: "billing_not_configured" }, 503);
 	}
+	// Validate/self-heal the stored id before opening the portal — a stale
+	// (e.g. test-mode) customer would otherwise surface a raw Stripe 400 here,
+	// the one billing path with no graceful degrade.
+	const customerId = await ensureStripeCustomer(stripe, db, account);
 	const session = await stripe.billingPortal.sessions.create({
-		customer: account.stripe_customer_id,
+		customer: customerId,
 		return_url: `${dashboardBaseUrl()}/platform/billing`,
 	});
 
