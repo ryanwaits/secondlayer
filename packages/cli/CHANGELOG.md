@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 8.11.0
+
+### Minor Changes
+
+- Trim `sl project` to the single-project model: remove `project create` and `project delete` (accounts are single-project and the project is auto-provisioned by the platform), and update stale hints in `project list`/`get` and `whoami`.
+
 ## 8.10.2
 
 ### Patch Changes
