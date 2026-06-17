@@ -1,253 +1,222 @@
-import { InfoTooltip } from "@/components/console/info-tooltip";
-import { OnboardingCard } from "@/components/console/onboarding-card";
+import { EmptyState } from "@/components/console/empty-state";
+import { LivePill } from "@/components/console/live-pill";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
-import type { SubgraphSummary, SubscriptionSummary } from "@/lib/types";
+import {
+	badgeClass,
+	getDisplayStatus,
+	statusLabel,
+} from "@/lib/intelligence/subgraphs";
+import type { SubgraphSummary } from "@/lib/types";
 import Link from "next/link";
 
-function formatRelative(dateStr: string): string {
-	const diff = Date.now() - new Date(dateStr).getTime();
-	const mins = Math.floor(diff / 60_000);
-	if (mins < 1) return "just now";
-	if (mins < 60) return `${mins}m ago`;
-	const hrs = Math.floor(mins / 60);
-	if (hrs < 24) return `${hrs}h ago`;
-	const days = Math.floor(hrs / 24);
-	if (days < 7) return days === 1 ? "yesterday" : `${days}d ago`;
-	return new Date(dateStr).toLocaleDateString();
+function timeAgo(iso?: string | null): string | null {
+	if (!iso) return null;
+	const then = new Date(iso).getTime();
+	if (Number.isNaN(then)) return null;
+	const s = Math.max(0, Math.round((Date.now() - then) / 1000));
+	if (s < 60) return `${s}s ago`;
+	const m = Math.round(s / 60);
+	if (m < 60) return `${m}m ago`;
+	const h = Math.round(m / 60);
+	if (h < 24) return `${h}h ago`;
+	return `${Math.round(h / 24)}d ago`;
 }
 
-function dotColor(status: string) {
-	if (status === "active") return "green";
-	if (status === "syncing" || status === "reindexing") return "yellow";
-	if (status === "error" || status === "failed") return "red";
-	if (status === "paused") return "yellow";
-	return "muted";
-}
-
-function formatRows(n: number) {
-	if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-	if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-	return n.toLocaleString();
+function GridIcon() {
+	return (
+		<svg
+			viewBox="0 0 16 16"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.5"
+			aria-hidden="true"
+		>
+			<rect x="2" y="2" width="5" height="5" rx="1" />
+			<rect x="9" y="2" width="5" height="5" rx="1" />
+			<rect x="2" y="9" width="5" height="5" rx="1" />
+			<rect x="9" y="9" width="5" height="5" rx="1" />
+		</svg>
+	);
 }
 
 export default async function DashboardPage() {
 	const session = await getSessionFromCookies();
 
 	let subgraphs: SubgraphSummary[] = [];
-	let subscriptions: SubscriptionSummary[] = [];
+	let chainTip: number | null = null;
 
 	if (session) {
-		const [subgraphsResult, subscriptionsResult] = await Promise.allSettled([
+		const [subgraphsResult, statusResult] = await Promise.allSettled([
 			apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", {
 				sessionToken: session,
 			}),
-			apiRequest<{ data: SubscriptionSummary[] }>("/api/subscriptions", {
+			apiRequest<{ chainTip: number | null }>("/status", {
 				sessionToken: session,
+				tags: ["status"],
 			}),
 		]);
 		subgraphs =
 			subgraphsResult.status === "fulfilled" ? subgraphsResult.value.data : [];
-		subscriptions =
-			subscriptionsResult.status === "fulfilled"
-				? subscriptionsResult.value.data
-				: [];
+		chainTip =
+			statusResult.status === "fulfilled" ? statusResult.value.chainTip : null;
 	}
 
+	const withStatus = subgraphs.map((sg) => ({
+		sg,
+		ds: getDisplayStatus(sg, chainTip),
+	}));
+	const counts = { live: 0, syncing: 0, error: 0 };
+	for (const { ds } of withStatus) {
+		if (ds === "active") counts.live++;
+		else if (ds === "error" || ds === "stalled") counts.error++;
+		else counts.syncing++;
+	}
 	const totalRows = subgraphs.reduce(
 		(s, sg) => s + (sg.totalRows ?? sg.totalProcessed),
 		0,
 	);
-	const totalProcessed = subgraphs.reduce((s, sg) => s + sg.totalProcessed, 0);
-	const totalErrors = subgraphs.reduce((s, sg) => s + sg.totalErrors, 0);
-	const uptime =
-		totalProcessed > 0
-			? ((totalProcessed - totalErrors) / totalProcessed) * 100
-			: null;
-
-	const healthySubgraphs = subgraphs.filter(
-		(s) => s.status !== "error" && s.status !== "failed",
-	).length;
-	const activeSubscriptions = subscriptions.filter(
-		(s) => s.status === "active",
-	).length;
+	const errored = withStatus.filter(
+		({ ds }) => ds === "error" || ds === "stalled",
+	);
 
 	return (
 		<>
 			<OverviewTopbar page="Overview" />
 			<div style={{ flex: 1, overflowY: "auto" }}>
-				<OnboardingCard />
 				<div className="overview-inner">
-					<div className="ov-stats-label">
-						Overview
-						<InfoTooltip text="Key metrics across your project" />
+					<div className="dash-head">
+						<h1 className="dash-title">Overview</h1>
+						<Link className="dash-deploy" href="/docs/subgraphs">
+							Deploy subgraph
+						</Link>
 					</div>
 
-					<div className="ov-stats-grid">
-						<Link href="/platform/subgraphs" className="ov-card">
-							<div className="ov-card-label">
-								Active Subgraphs{" "}
-								<InfoTooltip text="Number of deployed subgraphs" />
-							</div>
-							<div className="ov-card-value">{subgraphs.length}</div>
-							<div className="ov-card-sub">
-								{subgraphs.length > 0 ? (
-									<span
-										className={`ov-stat-sub-pill ${healthySubgraphs === subgraphs.length ? "green" : "yellow"}`}
-									>
-										<span
-											style={{
-												width: 4,
-												height: 4,
-												borderRadius: "50%",
-												background: "currentColor",
-												display: "inline-block",
-											}}
-										/>
-										{healthySubgraphs === subgraphs.length
-											? "All healthy"
-											: `${healthySubgraphs} healthy`}
-									</span>
-								) : (
-									"no subgraphs"
+					{subgraphs.length === 0 ? (
+						<EmptyState
+							icon={<GridIcon />}
+							title="Index your first subgraph"
+							message="Subgraphs turn on-chain contract activity into live, decoded tables — queryable and yours. Deploy one to light up your dashboard."
+							command="sl subgraphs deploy my-view.ts"
+							docHref="/docs/subgraphs"
+							docLabel="Read the quickstart →"
+							ghostRows={5}
+						/>
+					) : (
+						<>
+							<div className="dash-fleet">
+								<span>
+									<b>{subgraphs.length}</b> subgraph
+									{subgraphs.length !== 1 ? "s" : ""} · {counts.live} live,{" "}
+									{counts.syncing} syncing, {counts.error} error
+								</span>
+								<span className="sep">·</span>
+								<span>
+									<b>{totalRows.toLocaleString()}</b> rows indexed
+								</span>
+								{chainTip != null && (
+									<>
+										<span className="sep">·</span>
+										<span>
+											chain tip <b>{chainTip.toLocaleString()}</b>
+										</span>
+									</>
 								)}
 							</div>
-						</Link>
 
-						<Link href="/platform/subgraphs" className="ov-card">
-							<div className="ov-card-label">
-								Rows Indexed{" "}
-								<InfoTooltip text="Total rows stored across all subgraph tables" />
-							</div>
-							<div className="ov-card-value">{formatRows(totalRows)}</div>
-							<div className="ov-card-sub">across all subgraphs</div>
-						</Link>
-
-						<div className="ov-card">
-							<div className="ov-card-label">
-								Subscriptions{" "}
-								<InfoTooltip text="Webhook and event subscriptions" />
-							</div>
-							<div className="ov-card-value">{subscriptions.length}</div>
-							<div className="ov-card-sub">
-								{subscriptions.length > 0
-									? `${activeSubscriptions} active`
-									: "no subscriptions"}
-							</div>
-						</div>
-
-						<Link href="/platform/subgraphs" className="ov-card">
-							<div className="ov-card-label">
-								Uptime{" "}
-								<InfoTooltip text="Percentage of blocks processed without error" />
-							</div>
-							<div
-								className="ov-card-value"
-								style={{
-									color:
-										uptime === null
-											? undefined
-											: uptime >= 99
-												? "var(--accent)"
-												: uptime >= 95
-													? "var(--yellow)"
-													: "var(--red)",
-								}}
-							>
-								{uptime !== null ? `${uptime.toFixed(1)}%` : "—"}
-							</div>
-							<div className="ov-card-sub">across all subgraphs</div>
-						</Link>
-					</div>
-
-					{/* Subgraphs */}
-					<div className="ov-act-section">
-						<div className="ov-act-header">
-							<span className="ov-act-title">Subgraphs</span>
-							<Link href="/platform/subgraphs" className="ov-section-link">
-								View all &rarr;
-							</Link>
-						</div>
-						{subgraphs.length > 0 ? (
-							<div className="ov-act-list">
-								{subgraphs.slice(0, 5).map((sg) => (
-									<Link
-										key={sg.name}
-										href={`/subgraphs/${sg.name}`}
-										className="ov-act-item"
-									>
-										<span className={`ov-act-dot ${dotColor(sg.status)}`} />
-										<div className="ov-act-content">
-											<div className="ov-act-name">
-												<code>{sg.name}</code>
-											</div>
-											<div className="ov-act-meta">
-												v{sg.version} &middot;{" "}
-												{formatRows(sg.totalRows ?? sg.totalProcessed)} rows
-											</div>
+							{errored.length > 0 && (
+								<div className="dash-attn">
+									<div className="dash-attn-head">
+										<span className="dash-attn-dot" />
+										Needs attention
+									</div>
+									{errored.map(({ sg }) => (
+										<div key={sg.name} className="dash-attn-row">
+											<span className="dash-attn-dot" />
+											<span className="dash-attn-name">{sg.name}</span>
+											<span className="dash-attn-msg">
+												{sg.lastError || "indexing error"}
+												{sg.lastProcessedBlock != null
+													? ` · block ${sg.lastProcessedBlock.toLocaleString()}`
+													: ""}
+												{sg.lastErrorAt ? ` · ${timeAgo(sg.lastErrorAt)}` : ""}
+											</span>
+											<Link className="dash-btn" href={`/subgraphs/${sg.name}`}>
+												Inspect
+											</Link>
 										</div>
-										<span className={`ov-act-badge ${sg.status}`}>
-											{sg.status}
-										</span>
-									</Link>
-								))}
-							</div>
-						) : (
-							<div className="ov-empty">
-								No subgraphs yet.{" "}
-								<Link href="/platform/subgraphs" className="ov-section-link">
-									Deploy one &rarr;
-								</Link>
-							</div>
-						)}
-					</div>
+									))}
+								</div>
+							)}
 
-					{/* Subscriptions */}
-					<div className="ov-act-section">
-						<div className="ov-act-header">
-							<span className="ov-act-title">Subscriptions</span>
-						</div>
-						{subscriptions.length > 0 ? (
-							<div className="ov-act-list">
-								{subscriptions.slice(0, 5).map((sub) => (
-									<Link
-										key={sub.id}
-										href={`/subgraphs/${sub.subgraphName}/subscriptions/${sub.id}`}
-										className="ov-act-item"
-									>
-										<span className={`ov-act-dot ${dotColor(sub.status)}`} />
-										<div className="ov-act-content">
-											<div className="ov-act-name">
-												<code>{sub.name}</code>
-											</div>
-											<div className="ov-act-meta">
-												{sub.subgraphName} &middot; {sub.format}
-												{sub.lastDeliveryAt &&
-													` · last delivery ${formatRelative(sub.lastDeliveryAt)}`}
-											</div>
-										</div>
-										<span className={`ov-act-badge ${sub.status}`}>
-											{sub.status}
-										</span>
+							<div className="dash-sec">
+								<div className="dash-sec-head">
+									<span className="t">
+										Subgraphs<span className="cnt">{subgraphs.length}</span>
+									</span>
+									<Link className="ov-section-link" href="/platform/subgraphs">
+										Manage &rarr;
 									</Link>
-								))}
+								</div>
+								<div className="dash-led">
+									{withStatus.map(({ sg }) => (
+										<Link
+											key={sg.name}
+											href={`/subgraphs/${sg.name}`}
+											className="dash-led-row"
+										>
+											<span className="dash-led-name">
+												{sg.name}
+												<span className="dash-led-ver">v{sg.version}</span>
+											</span>
+											<span className={`badge ${badgeClass(sg, chainTip)}`}>
+												{statusLabel(sg, chainTip)}
+											</span>
+											<span className="dash-led-num">
+												{(sg.totalRows ?? sg.totalProcessed).toLocaleString()}{" "}
+												rows
+											</span>
+											<span className="dash-led-num">
+												{sg.lastProcessedBlock != null
+													? `#${sg.lastProcessedBlock.toLocaleString()}`
+													: "—"}
+											</span>
+											<span
+												className={`dash-led-vis${sg.visibility === "public" ? " pub" : ""}`}
+											>
+												{sg.visibility === "public" ? "Public" : "Private"}
+											</span>
+										</Link>
+									))}
+								</div>
 							</div>
-						) : (
-							<div className="ov-empty">
-								No subscriptions yet.{" "}
-								<Link
-									href="/docs/subscriptions"
-									className="ov-section-link"
-									target="_blank"
-									rel="noopener noreferrer"
-								>
-									Learn more &rarr;
-								</Link>
-							</div>
-						)}
-					</div>
+						</>
+					)}
 				</div>
 			</div>
+
+			{subgraphs.length > 0 && (
+				<LivePill state="live" label="Live">
+					<div className="lp-h">
+						<span className="lp-dot green" />
+						<b>Project</b> · Live
+					</div>
+					<div className="lp-stat">
+						<span className="k">Subgraphs</span>
+						<span className="v">{subgraphs.length}</span>
+					</div>
+					<div className="lp-stat">
+						<span className="k">Rows indexed</span>
+						<span className="v">{totalRows.toLocaleString()}</span>
+					</div>
+					{chainTip != null && (
+						<div className="lp-stat">
+							<span className="k">Chain tip</span>
+							<span className="v">{chainTip.toLocaleString()}</span>
+						</div>
+					)}
+				</LivePill>
+			)}
 		</>
 	);
 }

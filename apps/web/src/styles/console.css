@@ -9888,3 +9888,210 @@ html.force-light .tabbed-code-tab.active {
 		box-shadow: 0 16px 44px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.25);
 	}
 }
+
+/* ════════════════════════════════════════════════
+   Dashboard / Overview — fleet vitals, needs-attention, condensed ledger
+   Mock ref: docs/mocks/platform-dashboard-v1.html
+   ════════════════════════════════════════════════ */
+.dash-head {
+	display: flex;
+	align-items: flex-end;
+	gap: 12px;
+	margin-bottom: 16px;
+}
+.dash-title {
+	font-family: var(--font-heading-stack);
+	font-size: 22px;
+	font-weight: 560;
+	letter-spacing: -0.015em;
+}
+.dash-deploy {
+	margin-left: auto;
+	font-family: var(--font-sans-stack);
+	font-size: 12.5px;
+	font-weight: 500;
+	border-radius: 6px;
+	padding: 6px 12px;
+	background: var(--text-main);
+	color: var(--bg);
+	border: 1px solid var(--text-main);
+	text-decoration: none;
+	white-space: nowrap;
+}
+.dash-deploy:hover {
+	opacity: 0.88;
+}
+.dash-fleet {
+	display: flex;
+	align-items: center;
+	gap: 11px;
+	flex-wrap: wrap;
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	color: var(--text-muted);
+	margin-bottom: 24px;
+}
+.dash-fleet b {
+	color: var(--text-main);
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
+}
+.dash-fleet .sep {
+	color: var(--text-dim);
+}
+.dash-attn {
+	border: 1px solid color-mix(in srgb, var(--red) 24%, var(--border));
+	border-radius: 10px;
+	background: color-mix(in srgb, var(--red) 6%, transparent);
+	padding: 13px 15px;
+	margin-bottom: 26px;
+}
+.dash-attn-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--red);
+	margin-bottom: 10px;
+}
+.dash-attn-dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--red);
+	flex: none;
+}
+.dash-attn-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 8px 0;
+	border-top: 1px solid color-mix(in srgb, var(--red) 18%, var(--border));
+}
+.dash-attn-row:first-of-type {
+	border-top: 0;
+	padding-top: 2px;
+}
+.dash-attn-name {
+	font-family: var(--font-mono-stack);
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-main);
+}
+.dash-attn-msg {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	color: var(--text-muted);
+}
+.dash-btn {
+	margin-left: auto;
+	font-family: var(--font-sans-stack);
+	font-size: 11.5px;
+	font-weight: 500;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	padding: 4px 10px;
+	color: var(--text-main);
+	text-decoration: none;
+	white-space: nowrap;
+}
+.dash-btn:hover {
+	border-color: var(--border-hover);
+	background: var(--code-bg);
+}
+.dash-sec {
+	margin-bottom: 26px;
+}
+.dash-sec-head {
+	position: relative;
+	display: flex;
+	align-items: center;
+	margin-bottom: 8px;
+}
+.dash-sec-head::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 50%;
+	height: 1px;
+	background: var(--border);
+}
+.dash-sec-head .t {
+	position: relative;
+	background: var(--bg);
+	padding-right: 12px;
+	font-family: var(--font-heading-stack);
+	font-size: 14px;
+	font-weight: 560;
+}
+.dash-sec-head .cnt {
+	font-family: var(--font-mono-stack);
+	font-weight: 400;
+	font-size: 10.5px;
+	color: var(--text-muted);
+	margin-left: 7px;
+}
+.dash-sec-head .ov-section-link {
+	position: relative;
+	margin-left: auto;
+	background: var(--bg);
+	padding-left: 12px;
+}
+.dash-led {
+	display: flex;
+	flex-direction: column;
+}
+.dash-led-row {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 11px 12px;
+	border-bottom: 1px solid var(--border);
+	text-decoration: none;
+	color: inherit;
+	transition: background 0.12s;
+}
+.dash-led-row:last-child {
+	border-bottom: 0;
+}
+.dash-led-row:hover {
+	background: color-mix(in srgb, var(--text-main) 3%, transparent);
+}
+.dash-led-name {
+	font-family: var(--font-mono-stack);
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-main);
+}
+.dash-led-ver {
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	color: var(--text-muted);
+	border: 1px solid var(--border);
+	border-radius: 4px;
+	padding: 0 5px;
+	margin-left: 8px;
+}
+.dash-led-num {
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+	color: var(--text-muted);
+}
+.dash-led .badge + .dash-led-num {
+	margin-left: auto;
+}
+.dash-led-vis {
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	color: var(--text-muted);
+	min-width: 54px;
+	text-align: right;
+}
+.dash-led-vis.pub {
+	color: var(--blue);
+}
