@@ -9581,3 +9581,310 @@ html.force-light .tabbed-code-tab.active {
 		grid-template-columns: 1fr;
 	}
 }
+
+/* ════════════════════════════════════════════════
+   Rich empty state — explore-style ghost skeleton + centered card
+   Mock ref: docs/mocks/platform-empty-states.html
+   ════════════════════════════════════════════════ */
+.empty-stage {
+	position: relative;
+	margin-top: 18px;
+	min-height: 430px;
+}
+.empty-ghost {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	opacity: 0.5;
+	pointer-events: none;
+	-webkit-mask-image: linear-gradient(to bottom, #000 8%, transparent 88%);
+	mask-image: linear-gradient(to bottom, #000 8%, transparent 88%);
+}
+.empty-ghost-row {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	height: 50px;
+	padding: 0 16px;
+	border: 1px solid var(--border);
+	border-radius: 9px;
+	background: var(--bg-elevated);
+}
+.egl {
+	height: 9px;
+	border-radius: 4px;
+	background: var(--border);
+}
+.egl-badge {
+	width: 54px;
+	height: 16px;
+	border-radius: 5px;
+}
+.empty-card {
+	position: absolute;
+	left: 50%;
+	top: 46%;
+	transform: translate(-50%, -50%);
+	width: min(470px, 92%);
+	text-align: center;
+	background: color-mix(in srgb, var(--bg) 96%, transparent);
+	border: 1px solid var(--border);
+	border-radius: 14px;
+	padding: 30px 30px 26px;
+	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
+	backdrop-filter: blur(2px);
+}
+.empty-card-ic {
+	width: 38px;
+	height: 38px;
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	display: grid;
+	place-items: center;
+	margin: 0 auto 16px;
+	color: var(--blue);
+	background: var(--blue-bg);
+}
+.empty-card-ic svg {
+	width: 19px;
+	height: 19px;
+}
+.empty-card h2 {
+	font-family: var(--font-heading-stack);
+	font-size: 20px;
+	font-weight: 580;
+	letter-spacing: -0.01em;
+}
+.empty-card p {
+	margin: 9px auto 0;
+	max-width: 40ch;
+	font-size: 13.5px;
+	line-height: 1.55;
+	color: var(--text-muted);
+}
+.empty-card-cmd {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	margin-top: 18px;
+	padding: 7px 8px 7px 13px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--code-bg);
+}
+.empty-card-cmd code {
+	font-family: var(--font-mono-stack);
+	font-size: 12.5px;
+	color: var(--text-main);
+}
+.empty-card-links {
+	margin-top: 16px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 16px;
+}
+.empty-card-links a {
+	font-family: var(--font-mono-stack);
+	font-size: 11.5px;
+	color: var(--blue);
+	text-decoration: none;
+}
+.empty-card-links a:hover {
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+@media (max-width: 600px) {
+	.empty-stage {
+		min-height: 360px;
+	}
+	.empty-card {
+		padding: 24px 22px;
+	}
+}
+
+/* ════════════════════════════════════════════════
+   Floating LivePill — system status / per-subgraph state
+   Mock ref: docs/mocks/platform-subgraph-livepill.html
+   ════════════════════════════════════════════════ */
+.live-pill-wrap {
+	position: fixed;
+	bottom: 20px;
+	right: 20px;
+	z-index: 15;
+}
+.live-pill-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: -1;
+	background: transparent;
+	border: 0;
+	cursor: default;
+}
+.live-pill-trigger {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	letter-spacing: 0.04em;
+	color: var(--text-muted);
+	padding: 7px 13px;
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
+	border: 1px solid var(--border);
+	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+	backdrop-filter: blur(10px);
+	cursor: pointer;
+	transition: border-color 0.15s, color 0.15s;
+}
+.live-pill-trigger:hover {
+	border-color: var(--border-hover);
+	color: var(--text-main);
+}
+.lp-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 999px;
+	flex: none;
+	position: relative;
+}
+.lp-dot.green {
+	background: #2eb85c;
+}
+.lp-dot.blue {
+	background: var(--blue);
+}
+.lp-dot.red {
+	background: var(--red);
+}
+.lp-dot::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-radius: 999px;
+	background: inherit;
+	animation: lp-pulse 2.4s cubic-bezier(0.19, 1, 0.22, 1) infinite;
+}
+@keyframes lp-pulse {
+	0% {
+		transform: scale(1);
+		opacity: 0.45;
+	}
+	70%,
+	100% {
+		transform: scale(3);
+		opacity: 0;
+	}
+}
+.live-pill-panel {
+	position: absolute;
+	bottom: calc(100% + 8px);
+	right: 0;
+	min-width: 224px;
+	background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	padding: 14px 16px;
+	box-shadow: 0 16px 44px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.07);
+	backdrop-filter: blur(14px);
+	animation: lp-in 0.18s cubic-bezier(0.19, 1, 0.22, 1);
+}
+@keyframes lp-in {
+	from {
+		opacity: 0;
+		transform: translateY(4px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+.lp-h {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	letter-spacing: 0.04em;
+	color: var(--text-muted);
+	margin-bottom: 10px;
+}
+.lp-h b {
+	color: var(--text-main);
+	font-weight: 500;
+}
+.lp-stat {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	font-family: var(--font-mono-stack);
+	font-size: 11.5px;
+	padding: 3.5px 0;
+}
+.lp-stat .k {
+	color: var(--text-muted);
+}
+.lp-stat .v {
+	color: var(--text-main);
+	font-variant-numeric: tabular-nums;
+}
+.lp-stat .v.ok {
+	color: var(--green);
+}
+.lp-bar {
+	height: 5px;
+	border-radius: 999px;
+	background: var(--code-bg);
+	overflow: hidden;
+	margin: 2px 0 8px;
+}
+.lp-bar i {
+	display: block;
+	height: 100%;
+	border-radius: 999px;
+	background: var(--blue);
+}
+.lp-sub {
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	color: var(--text-muted);
+	line-height: 1.7;
+}
+.lp-sub b {
+	color: var(--text-main);
+	font-weight: 500;
+}
+.lp-err {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	color: var(--red);
+	line-height: 1.55;
+	margin-bottom: 8px;
+}
+.lp-err-meta {
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	color: var(--text-dim);
+	margin-bottom: 8px;
+}
+.lp-link {
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	color: var(--blue);
+	text-decoration: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	.lp-dot::after,
+	.live-pill-panel {
+		animation: none;
+	}
+}
+@media (prefers-color-scheme: dark) {
+	.live-pill-trigger {
+		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35), 0 1px 4px rgba(0, 0, 0, 0.2);
+	}
+	.live-pill-panel {
+		box-shadow: 0 16px 44px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.25);
+	}
+}
