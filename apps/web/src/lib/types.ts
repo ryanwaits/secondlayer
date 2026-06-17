@@ -32,6 +32,17 @@ export interface SubgraphSummary {
 	totalRows?: number;
 	totalErrors: number;
 	tables: string[];
+	chainTip?: number;
+	progress?: number;
+	blocksRemaining?: number;
+	syncMode?: "sync" | "reindex";
+	gapCount?: number;
+	integrity?: "complete" | "gaps_detected" | "history_filling";
+	visibility?: "public" | "private";
+	lastError?: string | null;
+	lastErrorAt?: string | null;
+	updatedAt?: string | null;
+	subscriptionCount?: number;
 	resourceWarning?: {
 		code: string;
 		message: string;

@@ -93,6 +93,7 @@ export interface SubgraphSummary {
 	status: string;
 	lastProcessedBlock: number;
 	totalProcessed: number;
+	totalRows?: number;
 	totalErrors: number;
 	tables: string[];
 	chainTip: number;
@@ -106,6 +107,13 @@ export interface SubgraphSummary {
 	/** history_filling = expected gaps while a tip-first backfill op runs. */
 	integrity: "complete" | "gaps_detected" | "history_filling";
 	visibility?: "public" | "private";
+	/** Most recent indexing error reason + when it occurred, if any. */
+	lastError?: string | null;
+	lastErrorAt?: string | null;
+	/** Last row mutation timestamp; powers per-card freshness. */
+	updatedAt?: string | null;
+	/** Number of subscriptions attached to this subgraph. */
+	subscriptionCount?: number;
 	createdAt: string;
 }
 
