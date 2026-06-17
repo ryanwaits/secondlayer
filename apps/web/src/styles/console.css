@@ -10095,3 +10095,233 @@ html.force-light .tabbed-code-tab.active {
 .dash-led-vis.pub {
 	color: var(--blue);
 }
+
+/* ════════════════════════════════════════════════
+   Subgraph detail — metric strip, static sections, subs, settings, danger
+   Mock ref: docs/mocks/platform-subgraph-detail-v1.3.html
+   ════════════════════════════════════════════════ */
+.sg-metrics {
+	display: grid;
+	grid-template-columns: repeat(5, 1fr);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	overflow: hidden;
+	background: var(--bg-elevated);
+	margin-top: 6px;
+}
+.sg-metric {
+	padding: 14px 16px;
+	border-right: 1px solid var(--border);
+	display: flex;
+	flex-direction: column;
+}
+.sg-metric:last-child {
+	border-right: 0;
+}
+.sg-metric .k {
+	font-family: var(--font-mono-stack);
+	font-size: 9px;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	margin-bottom: 6px;
+}
+.sg-metric .v {
+	font-family: var(--font-mono-stack);
+	font-size: 18px;
+	font-weight: 500;
+	letter-spacing: -0.01em;
+	font-variant-numeric: tabular-nums;
+	color: var(--text-main);
+}
+.sg-metric .v.ok {
+	color: var(--green);
+}
+.sg-metric .sub {
+	font-family: var(--font-mono-stack);
+	font-size: 9.5px;
+	color: var(--text-dim);
+	margin-top: 3px;
+}
+.sg-syncline {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-family: var(--font-mono-stack);
+	font-size: 11.5px;
+	color: var(--green);
+	margin: 13px 2px 28px;
+}
+.sg-syncline svg {
+	width: 14px;
+	height: 14px;
+	flex: none;
+}
+.sg-syncline.err {
+	color: var(--red);
+}
+.sg-sec {
+	margin-bottom: 28px;
+}
+.sg-sec-head {
+	position: relative;
+	display: flex;
+	align-items: center;
+	margin-bottom: 14px;
+}
+.sg-sec-head::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 50%;
+	height: 1px;
+	background: var(--border);
+}
+.sg-sec-head .t {
+	position: relative;
+	background: var(--bg);
+	padding-right: 12px;
+	font-family: var(--font-heading-stack);
+	font-size: 14px;
+	font-weight: 560;
+}
+.sg-sec-head .cnt {
+	font-family: var(--font-mono-stack);
+	font-weight: 400;
+	font-size: 10.5px;
+	color: var(--text-muted);
+	margin-left: 7px;
+}
+.sg-sec-head .ov-section-link {
+	position: relative;
+	margin-left: auto;
+	background: var(--bg);
+	padding-left: 12px;
+}
+.sg-subs {
+	display: flex;
+	flex-direction: column;
+}
+.sg-sub-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 12px;
+	border-bottom: 1px solid var(--border);
+	text-decoration: none;
+	color: inherit;
+	transition: background 0.12s;
+}
+.sg-sub-row:last-child {
+	border-bottom: 0;
+}
+.sg-sub-row:hover {
+	background: color-mix(in srgb, var(--text-main) 3%, transparent);
+}
+.sg-sub-name {
+	font-family: var(--font-mono-stack);
+	font-size: 12.5px;
+	font-weight: 500;
+	color: var(--text-main);
+}
+.sg-sub-meta {
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	color: var(--text-muted);
+	margin-top: 2px;
+}
+.sg-sub-right {
+	margin-left: auto;
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	flex: none;
+}
+.sg-sub-when {
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	color: var(--text-muted);
+	min-width: 100px;
+	text-align: right;
+}
+.sg-set-block {
+	padding: 2px 2px 4px;
+}
+.sg-set-block .sg-set-label {
+	margin-bottom: 0;
+}
+.sg-set-block .sg-set-desc {
+	margin-bottom: 12px;
+}
+.sg-set-row {
+	display: flex;
+	align-items: center;
+	gap: 18px;
+	padding: 14px 2px;
+	border-bottom: 1px solid var(--border);
+}
+.sg-set-row:last-child {
+	border-bottom: 0;
+}
+.sg-set-info {
+	min-width: 0;
+}
+.sg-set-label {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-main);
+}
+.sg-set-desc {
+	font-size: 12px;
+	color: var(--text-muted);
+	margin-top: 3px;
+}
+.sg-set-desc .mono {
+	font-family: var(--font-mono-stack);
+}
+.sg-set-err {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	color: var(--red);
+	margin-top: 6px;
+}
+.sg-set-action {
+	margin-left: auto;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex: none;
+}
+.sg-danger {
+	border: 1px solid color-mix(in srgb, var(--red) 24%, var(--border));
+	border-radius: 10px;
+	padding: 2px 16px;
+}
+.sg-danger .sg-set-row {
+	border-bottom-color: color-mix(in srgb, var(--red) 18%, var(--border));
+}
+.sg-btn-danger {
+	font-family: var(--font-sans-stack);
+	font-size: 11.5px;
+	font-weight: 500;
+	border: 1px solid color-mix(in srgb, var(--red) 24%, var(--border));
+	border-radius: 6px;
+	padding: 5px 12px;
+	color: var(--red);
+	background: transparent;
+	cursor: pointer;
+}
+.sg-btn-danger:hover {
+	background: color-mix(in srgb, var(--red) 8%, transparent);
+	border-color: var(--red);
+}
+.sg-btn-danger:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+@media (max-width: 880px) {
+	.sg-metrics {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}

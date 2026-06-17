@@ -1,6 +1,6 @@
 import { BreadcrumbDropdown } from "@/components/console/breadcrumb-dropdown";
-import { CollapsibleSection } from "@/components/console/collapsible-section";
-import { InfoTooltip } from "@/components/console/info-tooltip";
+import { EmptyState } from "@/components/console/empty-state";
+import { LivePill } from "@/components/console/live-pill";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import {
 	ApiError,
@@ -9,24 +9,34 @@ import {
 	getSessionFromCookies,
 } from "@/lib/api";
 import { getDisplayStatus } from "@/lib/intelligence/subgraphs";
-import type { SubgraphDetail, SubgraphSummary } from "@/lib/types";
+import type {
+	SubgraphDetail,
+	SubgraphSummary,
+	SubscriptionSummary,
+} from "@/lib/types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { SubgraphReindexForm } from "./reindex-form";
+import { SubgraphDangerZone } from "./subgraph-danger";
 import { VisibilityToggle } from "./visibility-toggle";
 
-interface SubscriptionSummary {
-	id: string;
-	name: string;
-	status: "active" | "paused" | "error";
-	subgraphName: string;
-	circuitOpenedAt: string | null;
-	lastDeliveryAt: string | null;
+function timeAgo(iso?: string | null): string | null {
+	if (!iso) return null;
+	const then = new Date(iso).getTime();
+	if (Number.isNaN(then)) return null;
+	const s = Math.max(0, Math.round((Date.now() - then) / 1000));
+	if (s < 60) return `${s}s ago`;
+	const m = Math.round(s / 60);
+	if (m < 60) return `${m}m ago`;
+	const h = Math.round(m / 60);
+	if (h < 24) return `${h}h ago`;
+	return `${Math.round(h / 24)}d ago`;
 }
 
-function dotClass(status: string) {
-	if (status === "syncing" || status === "reindexing") return "syncing";
-	if (status === "error" || status === "failed") return "error";
-	return "";
+function subBadge(status: string): string {
+	if (status === "active") return "active";
+	if (status === "paused") return "syncing";
+	return "error";
 }
 
 export default async function SubgraphDetailPage({
@@ -67,9 +77,10 @@ export default async function SubgraphDetailPage({
 
 	let subsForSubgraph: SubscriptionSummary[] = [];
 	try {
-		const subsResult = await apiRequest<{
-			data: SubscriptionSummary[];
-		}>("/api/subscriptions", { sessionToken: session });
+		const subsResult = await apiRequest<{ data: SubscriptionSummary[] }>(
+			"/api/subscriptions",
+			{ sessionToken: session },
+		);
 		subsForSubgraph = subsResult.data.filter((s) => s.subgraphName === name);
 	} catch {
 		subsForSubgraph = [];
@@ -78,15 +89,9 @@ export default async function SubgraphDetailPage({
 	const activeCount = subsForSubgraph.filter(
 		(s) => s.status === "active",
 	).length;
-	const circuitPausedCount = subsForSubgraph.filter(
-		(s) => s.circuitOpenedAt !== null,
-	).length;
 
 	const tableEntries = Object.entries(subgraph.tables);
-	const totalRows = tableEntries.reduce(
-		(sum, [, table]) => sum + table.rowCount,
-		0,
-	);
+	const totalRows = tableEntries.reduce((sum, [, t]) => sum + t.rowCount, 0);
 	const displayStatus = getDisplayStatus(
 		{
 			...subgraph,
@@ -99,7 +104,7 @@ export default async function SubgraphDetailPage({
 	);
 
 	const { totalProcessed, totalErrors } = subgraph.health;
-	const uptime =
+	const successRate =
 		totalProcessed > 0
 			? ((totalProcessed - totalErrors) / totalProcessed) * 100
 			: null;
@@ -108,15 +113,32 @@ export default async function SubgraphDetailPage({
 	const chainTip = subgraph.sync.chainTip;
 	const syncProgress =
 		chainTip && subgraph.lastProcessedBlock
-			? Math.min((subgraph.lastProcessedBlock / chainTip) * 100, 100)
+			? Math.min(
+					Math.round((subgraph.lastProcessedBlock / chainTip) * 100),
+					100,
+				)
 			: 0;
 	const lagSeconds = blocksRemaining * 10;
-	const latency =
+	const lagText =
 		blocksRemaining === 0
 			? "synced"
 			: lagSeconds >= 600
 				? `~${Math.round(lagSeconds / 60)}m`
 				: `~${lagSeconds}s`;
+
+	const isError = displayStatus === "error" || displayStatus === "stalled";
+	const inProgress =
+		displayStatus === "syncing" || displayStatus === "reindexing";
+	const badgeCls = isError ? "error" : inProgress ? "syncing" : "active";
+	const badgeLbl = isError
+		? "Error"
+		: displayStatus === "reindexing"
+			? "Reindexing"
+			: displayStatus === "syncing"
+				? "Syncing"
+				: "Live";
+	const pillState = isError ? "error" : inProgress ? "reindexing" : "live";
+	const pillLabel = inProgress ? `${badgeLbl} · ${syncProgress}%` : badgeLbl;
 
 	const dropdownItems = allSubgraphs.map((sg) => ({
 		name: sg.name,
@@ -148,9 +170,9 @@ export default async function SubgraphDetailPage({
 					{/* Header */}
 					<div className="sg-hdr">
 						<div className="sg-hdr-identity">
-							<div className={`sg-hdr-dot ${dotClass(displayStatus)}`} />
 							<span className="sg-hdr-name">{name}</span>
 							<span className="sg-hdr-version">v{subgraph.version}</span>
+							<span className={`badge ${badgeCls}`}>{badgeLbl}</span>
 							<VisibilityToggle
 								subgraphName={name}
 								visibility={subgraph.visibility ?? "private"}
@@ -175,15 +197,14 @@ export default async function SubgraphDetailPage({
 						</div>
 					</div>
 
-					{/* Endpoint bar — public subgraphs advertise the shareable /v1 URL */}
+					{/* Endpoint bar */}
 					<div className="sg-ep">
 						<span className="sg-ep-method">GET</span>
 						<span className="sg-ep-url">
 							{subgraph.visibility === "public" ? (
 								<>
 									{tenantApiUrl}/v1/subgraphs/{name}/
-									<span className="hl">{"<table>"}</span> (public — no key
-									needed)
+									<span className="hl">{"<table>"}</span>
 								</>
 							) : (
 								<>
@@ -202,105 +223,85 @@ export default async function SubgraphDetailPage({
 						</a>
 					</div>
 
-					{/* Overview */}
-					<CollapsibleSection title="Overview">
-						<div className="sg-cards-grid">
-							{/* Uptime */}
-							<div className="sg-card">
-								<div className="sg-card-label">
-									Uptime{" "}
-									<InfoTooltip text="Percentage of blocks processed without error" />
-								</div>
-								<div className="sg-card-big">
-									{uptime !== null ? (
-										<>
-											{uptime.toFixed(1)}
-											<span className="unit">%</span>
-										</>
-									) : (
-										"—"
-									)}
-								</div>
-							</div>
-
-							{/* Block sync */}
-							<div className="sg-card">
-								<div className="sg-card-label">
-									Block sync{" "}
-									<InfoTooltip text="Current indexed block vs chain tip" />
-								</div>
-								<div className="sg-card-progress">
-									<div className="sg-card-bar-wrap">
-										<div
-											className="sg-card-bar"
-											style={{ width: `${syncProgress.toFixed(2)}%` }}
-										/>
-									</div>
-									<div className="sg-card-bar-labels">
-										<span className="current">
-											{subgraph.lastProcessedBlock
-												? `#${subgraph.lastProcessedBlock.toLocaleString()}`
-												: "—"}
-										</span>
-										<span className="tip">
-											{chainTip ? `#${chainTip.toLocaleString()}` : "—"}
-										</span>
-									</div>
-								</div>
-							</div>
-
-							{/* Latency */}
-							<div className="sg-card">
-								<div className="sg-card-label">
-									Latency <InfoTooltip text="Estimated time behind chain tip" />
-								</div>
-								<div className="sg-card-big neutral">{latency}</div>
-								{blocksRemaining > 0 && (
-									<div className="sg-card-sub">
-										{blocksRemaining.toLocaleString()} blocks behind tip
-									</div>
-								)}
-							</div>
-
-							{/* Rows indexed */}
-							<div className="sg-card">
-								<div className="sg-card-label">
-									Rows Indexed{" "}
-									<InfoTooltip text="Total rows stored across this subgraph's tables" />
-								</div>
-								<div className="sg-card-big neutral">
-									{totalRows.toLocaleString()}
-								</div>
-							</div>
-
-							{/* Tables mini-table */}
-							<div className="sg-card">
-								<div className="sg-card-label">
-									Tables{" "}
-									<InfoTooltip text="Tables and row counts in this subgraph" />
-								</div>
-								<div className="sg-card-mini-table">
-									<div className="sg-card-mini-hdr">
-										<span>#</span>
-										<span>Name</span>
-										<span>Rows</span>
-									</div>
-									{tableEntries.map(([tName, tInfo], i) => (
-										<div key={tName} className="sg-card-mini-row">
-											<span className="sg-card-mini-num">{i + 1}</span>
-											<span className="sg-card-mini-name">{tName}</span>
-											<span className="sg-card-mini-val">
-												{tInfo.rowCount.toLocaleString()}
-											</span>
-										</div>
-									))}
-								</div>
-							</div>
+					{/* Metric strip */}
+					<div className="sg-metrics">
+						<div className="sg-metric">
+							<span className="k">Success rate</span>
+							<span className="v ok">
+								{successRate !== null ? `${successRate.toFixed(1)}%` : "—"}
+							</span>
+							<span className="sub">
+								{totalErrors.toLocaleString()} error
+								{totalErrors !== 1 ? "s" : ""}
+							</span>
 						</div>
-					</CollapsibleSection>
+						<div className="sg-metric">
+							<span className="k">Rows indexed</span>
+							<span className="v">{totalRows.toLocaleString()}</span>
+							<span className="sub">
+								{tableEntries.length} table
+								{tableEntries.length !== 1 ? "s" : ""}
+							</span>
+						</div>
+						<div className="sg-metric">
+							<span className="k">Behind</span>
+							<span className="v">
+								{blocksRemaining === 0
+									? "synced"
+									: `${blocksRemaining.toLocaleString()} blk`}
+							</span>
+							<span className="sub">
+								{blocksRemaining === 0 ? "at tip" : `est ${lagText}`}
+							</span>
+						</div>
+						<div className="sg-metric">
+							<span className="k">Last block</span>
+							<span className="v">
+								{subgraph.lastProcessedBlock
+									? subgraph.lastProcessedBlock.toLocaleString()
+									: "—"}
+							</span>
+							<span className="sub">
+								tip {chainTip ? chainTip.toLocaleString() : "—"}
+							</span>
+						</div>
+						<div className="sg-metric">
+							<span className="k">Subscriptions</span>
+							<span className="v">{subsCount}</span>
+							<span className="sub">{activeCount} active</span>
+						</div>
+					</div>
+					<div className={`sg-syncline${isError ? " err" : ""}`}>
+						{isError ? (
+							<span>{subgraph.health.lastError || "Indexing error"}</span>
+						) : inProgress ? (
+							<span>
+								{syncProgress}% · {blocksRemaining.toLocaleString()} blocks
+								behind tip
+							</span>
+						) : (
+							<>
+								<svg
+									viewBox="0 0 16 16"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="1.6"
+									aria-hidden="true"
+								>
+									<path d="M3 8.5l3 3 7-7" />
+								</svg>
+								<span>Synced to chain tip · decoder healthy</span>
+							</>
+						)}
+					</div>
 
 					{/* Tables */}
-					<CollapsibleSection title="Tables" count={tableEntries.length}>
+					<section className="sg-sec">
+						<div className="sg-sec-head">
+							<span className="t">
+								Tables<span className="cnt">{tableEntries.length}</span>
+							</span>
+						</div>
 						{tableEntries.length > 0 ? (
 							<div className="sg-tl-grid">
 								{tableEntries.map(([tName, tInfo]) => {
@@ -333,19 +334,6 @@ export default async function SubgraphDetailPage({
 													</span>
 												))}
 											</div>
-											<div className="sg-tl-arrow">
-												<svg
-													viewBox="0 0 16 16"
-													fill="none"
-													stroke="currentColor"
-													strokeWidth="1.5"
-													strokeLinecap="round"
-													aria-hidden="true"
-												>
-													<path d="M3 8h10M9 4l4 4-4 4" />
-												</svg>
-												Open table
-											</div>
 										</Link>
 									);
 								})}
@@ -353,31 +341,158 @@ export default async function SubgraphDetailPage({
 						) : (
 							<div className="ov-empty">No tables in this subgraph.</div>
 						)}
-					</CollapsibleSection>
+					</section>
 
 					{/* Subscriptions */}
-					<CollapsibleSection title="Subscriptions" count={subsCount}>
-						{subsCount === 0 ? (
-							<div className="ov-empty">
-								No subscriptions attached to this subgraph.{" "}
+					<section className="sg-sec">
+						<div className="sg-sec-head">
+							<span className="t">
+								Subscriptions
+								<span className="cnt">
+									{subsCount}
+									{subsCount > 0 ? ` · ${activeCount} active` : ""}
+								</span>
+							</span>
+							{subsCount > 0 && (
 								<Link
 									href={`/subgraphs/${name}/subscriptions`}
 									className="ov-section-link"
 								>
-									Create one →
+									View all &rarr;
 								</Link>
-							</div>
+							)}
+						</div>
+						{subsCount === 0 ? (
+							<EmptyState
+								title="No subscriptions yet"
+								message="Subscriptions push new rows to your endpoint as they're indexed — standard webhooks, Inngest, Trigger, or Cloudflare."
+								command={`sl subscriptions create <name> --subgraph ${name}`}
+								docHref="/docs/subscriptions"
+								docLabel="Subscriptions guide →"
+								ghostRows={3}
+							/>
 						) : (
-							<p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-								<Link href={`/subgraphs/${name}/subscriptions`}>
-									{subsCount} subscription{subsCount !== 1 ? "s" : ""}
-								</Link>{" "}
-								· {activeCount} active · {circuitPausedCount} circuit-paused
-							</p>
+							<div className="sg-subs">
+								{subsForSubgraph.map((sub) => (
+									<Link
+										key={sub.id}
+										href={`/subgraphs/${name}/subscriptions/${sub.id}`}
+										className="sg-sub-row"
+									>
+										<div>
+											<div className="sg-sub-name">{sub.name}</div>
+											<div className="sg-sub-meta">
+												{sub.tableName} · {sub.format}
+											</div>
+										</div>
+										<div className="sg-sub-right">
+											<span className={`badge ${subBadge(sub.status)}`}>
+												{sub.status}
+											</span>
+											<span className="sg-sub-when">
+												{sub.lastDeliveryAt
+													? `fired ${timeAgo(sub.lastDeliveryAt)}`
+													: "never fired"}
+											</span>
+										</div>
+									</Link>
+								))}
+							</div>
 						)}
-					</CollapsibleSection>
+					</section>
+
+					{/* Settings */}
+					<section className="sg-sec">
+						<div className="sg-sec-head">
+							<span className="t">Settings</span>
+						</div>
+						<div className="sg-set-block">
+							<div className="sg-set-label">Reindex</div>
+							<div className="sg-set-desc">
+								Re-derive every table from a block range, or rebuild from
+								genesis.
+							</div>
+							<SubgraphReindexForm subgraphName={name} sessionToken={session} />
+						</div>
+					</section>
+
+					{/* Danger zone */}
+					<section className="sg-sec">
+						<div className="sg-sec-head">
+							<span className="t">Danger zone</span>
+						</div>
+						<div className="sg-danger">
+							<SubgraphDangerZone subgraphName={name} sessionToken={session} />
+						</div>
+					</section>
 				</div>
 			</div>
+
+			<LivePill state={pillState} label={pillLabel}>
+				{pillState === "error" ? (
+					<>
+						<div className="lp-h">
+							<span className="lp-dot red" />
+							<b>{name}</b> · Error
+						</div>
+						<div className="lp-err">
+							{subgraph.health.lastError || "Indexing error"}
+						</div>
+						{subgraph.lastProcessedBlock && (
+							<div className="lp-err-meta">
+								block {subgraph.lastProcessedBlock.toLocaleString()}
+							</div>
+						)}
+					</>
+				) : pillState === "reindexing" ? (
+					<>
+						<div className="lp-h">
+							<span className="lp-dot blue" />
+							<b>{name}</b> · {badgeLbl}
+						</div>
+						<div className="lp-bar">
+							<i style={{ width: `${syncProgress}%` }} />
+						</div>
+						<div className="lp-sub">
+							{subgraph.lastProcessedBlock
+								? subgraph.lastProcessedBlock.toLocaleString()
+								: "—"}{" "}
+							/ {chainTip ? chainTip.toLocaleString() : "—"}
+							<br />
+							{blocksRemaining.toLocaleString()} blocks behind
+						</div>
+					</>
+				) : (
+					<>
+						<div className="lp-h">
+							<span className="lp-dot green" />
+							<b>{name}</b> · Live
+						</div>
+						<div className="lp-stat">
+							<span className="k">Success rate</span>
+							<span className="v ok">
+								{successRate !== null ? `${successRate.toFixed(1)}%` : "—"}
+							</span>
+						</div>
+						<div className="lp-stat">
+							<span className="k">Rows indexed</span>
+							<span className="v">{totalRows.toLocaleString()}</span>
+						</div>
+						<div className="lp-stat">
+							<span className="k">Last block</span>
+							<span className="v">
+								{subgraph.lastProcessedBlock
+									? subgraph.lastProcessedBlock.toLocaleString()
+									: "—"}
+							</span>
+						</div>
+						<div className="lp-stat">
+							<span className="k">Subscriptions</span>
+							<span className="v">{subsCount}</span>
+						</div>
+					</>
+				)}
+			</LivePill>
 		</>
 	);
 }
