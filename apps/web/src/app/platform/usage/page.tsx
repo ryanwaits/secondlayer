@@ -3,7 +3,7 @@ import {
 	SettingsCrumb,
 } from "@/components/console/overview-topbar";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
-import { type UsageResponse, formatNum } from "@/lib/usage";
+import { type UsageResponse, formatCents, formatNum } from "@/lib/usage";
 import Link from "next/link";
 
 type ProductUsageResponse = {
@@ -22,10 +22,30 @@ type ProductUsageResponse = {
 	};
 };
 
+/** One taxonomy for every tier badge — product tiers (free/build/scale/…) and
+ *  plan tiers (none/launch/scale/…) both resolve to the plan-facing name. */
+function tierLabel(t: string): string {
+	switch (t) {
+		case "free":
+		case "none":
+			return "Free";
+		case "build":
+		case "launch":
+			return "Pro";
+		case "scale":
+			return "Scale";
+		case "enterprise":
+			return "Enterprise";
+		default:
+			return t.charAt(0).toUpperCase() + t.slice(1);
+	}
+}
+
 export default async function ResourcesPage() {
 	const session = await getSessionFromCookies();
 	let usage: UsageResponse | null = null;
 	let productUsage: ProductUsageResponse | null = null;
+	let creditsUsdMicros = "0";
 
 	if (session) {
 		try {
@@ -38,6 +58,13 @@ export default async function ResourcesPage() {
 				"/api/accounts/usage/products",
 				{ sessionToken: session },
 			);
+		} catch {}
+		try {
+			const bs = await apiRequest<{ creditsUsdMicros: string }>(
+				"/api/billing/status",
+				{ sessionToken: session },
+			);
+			creditsUsdMicros = bs.creditsUsdMicros ?? "0";
 		} catch {}
 	}
 
@@ -59,8 +86,14 @@ export default async function ResourcesPage() {
 		);
 	}
 
-	const { period, plan } = usage;
+	const { period, plan, spend } = usage;
 	const periodLabel = formatPeriod(period.startIso, period.endIso);
+	// credits are USD micros (1e6 = $1) → cents for the shared formatter.
+	const creditsCents = Math.round(Number(creditsUsdMicros) / 10_000);
+	const capPct =
+		spend.capCents && spend.capCents > 0
+			? Math.min(100, Math.round((spend.currentCents / spend.capCents) * 100))
+			: null;
 
 	return (
 		<>
@@ -73,7 +106,7 @@ export default async function ResourcesPage() {
 				<div className="settings-inner">
 					<h1 className="settings-title">Resources</h1>
 					<p className="settings-desc">
-						Resource consumption ·{" "}
+						Usage, limits, and spend ·{" "}
 						<span className="period-chip">
 							<span className="dot" />
 							{periodLabel}
@@ -82,6 +115,68 @@ export default async function ResourcesPage() {
 								: " · last day"}
 						</span>
 					</p>
+
+					{/* Budget — spend vs cap + prepaid credits */}
+					<div className="settings-section">
+						<div className="settings-section-title">Usage budget</div>
+						<div className="usage-budget">
+							<div className="usage-budget-top">
+								<span>Spend this period</span>
+								<span className="usage-budget-amt">
+									{formatCents(spend.currentCents)}
+									{spend.capCents != null && (
+										<span className="muted">
+											{" "}
+											/ {formatCents(spend.capCents)} cap
+										</span>
+									)}
+								</span>
+							</div>
+							{capPct != null && (
+								<div className="usage-bar">
+									<i
+										className={
+											spend.frozen ? "frozen" : spend.thresholdHit ? "warn" : ""
+										}
+										style={{ width: `${capPct}%` }}
+									/>
+								</div>
+							)}
+							<div className="usage-budget-meta">
+								{spend.frozen ? (
+									<span className="usage-warn">
+										Spend frozen — raise your cap on{" "}
+										<Link href="/platform/billing">Billing</Link> to resume.
+									</span>
+								) : spend.capCents != null ? (
+									<>
+										Projected {formatCents(spend.projectedCents)} · alerts at{" "}
+										{spend.thresholdPct}%
+									</>
+								) : (
+									<>
+										No spend cap set ·{" "}
+										<Link href="/platform/billing">set one on Billing →</Link>
+									</>
+								)}
+							</div>
+						</div>
+						<div className="usage-grid">
+							<div className="plan-card usage-tile">
+								<div className="plan-card-name">Credits</div>
+								<div className="plan-card-sub usage-tile-sub">
+									<strong>{formatCents(creditsCents)}</strong> remaining ·{" "}
+									<Link href="/platform/billing">Top up →</Link>
+								</div>
+							</div>
+							<div className="plan-card usage-tile">
+								<div className="plan-card-name">Draws down on</div>
+								<div className="plan-card-sub usage-tile-sub">
+									reads + indexing beyond the free floor
+								</div>
+							</div>
+						</div>
+					</div>
 
 					{productUsage && <ProductUsageSection usage={productUsage} />}
 
@@ -92,12 +187,13 @@ export default async function ResourcesPage() {
 						<div className="plan-card">
 							<div>
 								<div className="plan-card-name">
-									{plan.name} <span className="tier-badge">{plan.tier}</span>
+									{plan.name}{" "}
+									<span className="tier-badge">{tierLabel(plan.tier)}</span>
 								</div>
 								<div className="plan-card-sub">
 									{plan.basePriceUsd > 0
 										? `$${plan.basePriceUsd}/mo · manage on the billing page.`
-										: "Free during open beta — nothing is charged today."}{" "}
+										: "Free tier — keyless reads included; you pay only when you host or exceed the free floor."}{" "}
 									<Link href="/platform/billing">Billing →</Link>
 								</div>
 							</div>
@@ -117,21 +213,13 @@ function ProductUsageSection({ usage }: { usage: ProductUsageResponse }) {
 	return (
 		<div className="settings-section">
 			<div className="settings-section-title">Streams &amp; Index</div>
-			<div
-				style={{
-					display: "grid",
-					gridTemplateColumns: "1fr 1fr",
-					gap: 12,
-				}}
-			>
-				<div className="plan-card" style={{ display: "block", padding: 14 }}>
+			<div className="usage-grid">
+				<div className="plan-card usage-tile">
 					<div className="plan-card-name">
-						Streams <span className="tier-badge">{usage.streams.tier}</span>
+						Streams{" "}
+						<span className="tier-badge">{tierLabel(usage.streams.tier)}</span>
 					</div>
-					<div
-						className="plan-card-sub"
-						style={{ marginTop: 6, lineHeight: 1.6 }}
-					>
+					<div className="plan-card-sub usage-tile-sub">
 						<div>
 							{streamsRate === null
 								? "Unlimited req/s"
@@ -151,14 +239,12 @@ function ProductUsageSection({ usage }: { usage: ProductUsageResponse }) {
 						</div>
 					</div>
 				</div>
-				<div className="plan-card" style={{ display: "block", padding: 14 }}>
+				<div className="plan-card usage-tile">
 					<div className="plan-card-name">
-						Index <span className="tier-badge">{usage.index.tier}</span>
+						Index{" "}
+						<span className="tier-badge">{tierLabel(usage.index.tier)}</span>
 					</div>
-					<div
-						className="plan-card-sub"
-						style={{ marginTop: 6, lineHeight: 1.6 }}
-					>
+					<div className="plan-card-sub usage-tile-sub">
 						<div>
 							{indexRate === null
 								? "Unlimited req/s"

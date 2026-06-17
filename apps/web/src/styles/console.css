@@ -10325,3 +10325,94 @@ html.force-light .tabbed-code-tab.active {
 		grid-template-columns: repeat(2, 1fr);
 	}
 }
+
+/* ════════════════════════════════════════════════
+   Resources — usage budget (spend vs cap) + credits tiles
+   ════════════════════════════════════════════════ */
+.usage-budget {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--bg-elevated);
+	padding: 14px 16px;
+	margin-bottom: 12px;
+}
+.usage-budget-top {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+}
+.usage-budget-top > span:first-child {
+	font-size: 13px;
+	color: var(--text-muted);
+}
+.usage-budget-amt {
+	font-family: var(--font-mono-stack);
+	font-size: 15px;
+	font-weight: 500;
+	color: var(--text-main);
+	font-variant-numeric: tabular-nums;
+}
+.usage-budget-amt .muted {
+	color: var(--text-muted);
+	font-weight: 400;
+	font-size: 12px;
+}
+.usage-bar {
+	height: 6px;
+	border-radius: 999px;
+	background: var(--code-bg);
+	overflow: hidden;
+	margin: 10px 0 9px;
+}
+.usage-bar i {
+	display: block;
+	height: 100%;
+	border-radius: 999px;
+	background: var(--blue);
+}
+.usage-bar i.warn {
+	background: var(--yellow);
+}
+.usage-bar i.frozen {
+	background: var(--red);
+}
+.usage-budget-meta {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	color: var(--text-muted);
+}
+.usage-budget-meta a {
+	color: var(--blue);
+	text-decoration: none;
+}
+.usage-warn {
+	color: var(--red);
+}
+.usage-warn a {
+	color: var(--red);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+.usage-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+}
+.usage-tile {
+	display: block;
+	padding: 14px;
+}
+.usage-tile-sub {
+	margin-top: 6px;
+	line-height: 1.6;
+}
+.usage-tile-sub a {
+	color: var(--blue);
+	text-decoration: none;
+}
+@media (max-width: 640px) {
+	.usage-grid {
+		grid-template-columns: 1fr;
+	}
+}
