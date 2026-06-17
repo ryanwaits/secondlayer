@@ -63,10 +63,7 @@ export function registerWhoamiCommand(program: Command): void {
 						rows.push(["Project", active.slug]);
 						rows.push(["Project source", dim(active.resolvedFrom)]);
 					} else {
-						rows.push([
-							"Project",
-							dim("(none — run `sl project create <name>`)"),
-						]);
+						rows.push(["Project", dim("(none — run `sl project use <slug>`)")]);
 					}
 					console.log(formatKeyValue(rows));
 				},

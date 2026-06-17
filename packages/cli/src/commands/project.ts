@@ -1,6 +1,5 @@
-import { input } from "@inquirer/prompts";
 import type { Command } from "commander";
-import { loadConfig, saveConfig } from "../lib/config.ts";
+import { loadConfig } from "../lib/config.ts";
 import { CliHttpError, httpPlatform } from "../lib/http.ts";
 import {
 	dim,
@@ -20,62 +19,18 @@ interface ProjectSummary {
 	createdAt: string;
 }
 
-interface ProjectCreateOptions {
-	slug?: string;
-}
-
 /**
- * `sl project` — account-scoped project management.
+ * `sl project` — account-scoped project context.
  *
- * Each project maps 1:1 to a dedicated-hosting tenant (enforced at the
- * platform API). `sl project use <slug>` writes `./.secondlayer/project` in
- * cwd so subsequent commands auto-resolve to this project's tenant.
+ * Accounts are single-project: the project is auto-provisioned by the platform
+ * API, so there's no create/delete here. `sl project use <slug>` writes
+ * `./.secondlayer/project` in cwd so subsequent commands auto-resolve to it.
  */
 export function registerProjectCommand(program: Command): void {
 	const project = program
 		.command("projects")
 		.alias("project")
-		.description("Manage Secondlayer projects");
-
-	project
-		.command("create [name]")
-		.description("Create a new project")
-		.option("--slug <slug>", "Project URL identifier")
-		.action(async (nameArg?: string, options: ProjectCreateOptions = {}) => {
-			const name =
-				nameArg ??
-				(await input({
-					message: "Project name",
-					validate: (v: string) =>
-						v.length >= 2 ? true : "Name must be at least 2 characters",
-				}));
-			const slug = options.slug ?? slugifyProjectName(name);
-			const validation = validateProjectSlug(slug);
-			if (validation !== true) {
-				logError(`${validation}. Pass --slug <slug> to choose one explicitly.`);
-				process.exit(1);
-			}
-
-			try {
-				const res = await httpPlatform<ProjectSummary>("/api/projects", {
-					method: "POST",
-					body: { name, slug },
-				});
-				success(`Created project ${res.name} (${res.slug})`);
-				// First project becomes the global default (most users have one).
-				// Subsequent projects don't overwrite — switch with `sl project use`.
-				const config = await loadConfig();
-				if (!config.defaultProject) {
-					await saveConfig({ ...config, defaultProject: res.slug });
-					info(dim("Set as your default project."));
-				} else {
-					info(dim(`To use this project, run: sl project use ${res.slug}`));
-				}
-				info(dim("Next: sl subgraphs deploy <file.ts>"));
-			} catch (err) {
-				handleProjectError(err);
-			}
-		});
+		.description("Manage your Secondlayer project");
 
 	project
 		.command("list")
@@ -96,9 +51,7 @@ export function registerProjectCommand(program: Command): void {
 					data: { projects: res.projects, active: active?.slug ?? null },
 					human: () => {
 						if (res.projects.length === 0) {
-							info(
-								"No projects yet — run `sl project create <name>` to start.",
-							);
+							info("No project found.");
 							return;
 						}
 						const rows = res.projects.map((p) => [
@@ -168,62 +121,13 @@ export function registerProjectCommand(program: Command): void {
 				human: () => {
 					if (!active) {
 						info("No active project.");
-						info(
-							dim("Run 'sl project create <name>' or 'sl project use <slug>'."),
-						);
+						info(dim("Run 'sl project use <slug>' to bind this directory."));
 						return;
 					}
 					console.log(active.slug);
 					console.log(dim(`(from ${active.resolvedFrom})`));
 				},
 			});
-		});
-
-	project
-		.command("delete <slug>")
-		.alias("rm")
-		.description("Delete a project")
-		.option("-y, --yes", "Skip confirmation")
-		.action(async (slug: string, options: { yes?: boolean } = {}) => {
-			if (!options.yes) {
-				// Refuse to prompt on non-TTY stdin so a piped newline can't
-				// auto-accept the destructive default. Mirrors `sl subgraphs delete`.
-				if (!process.stdin.isTTY) {
-					logError(
-						"Interactive prompt unavailable (stdin is not a TTY). Re-run with -y to skip confirmation.",
-					);
-					process.exit(1);
-				}
-				const { confirm } = await import("@inquirer/prompts");
-				let ok = false;
-				try {
-					ok = await confirm({
-						message: `Delete project "${slug}"? This cannot be undone.`,
-					});
-				} catch {
-					logError(
-						"Interactive prompt unavailable. Re-run with -y to skip confirmation.",
-					);
-					process.exit(1);
-				}
-				if (!ok) {
-					info("Cancelled");
-					return;
-				}
-			}
-
-			try {
-				await httpPlatform(`/api/projects/${encodeURIComponent(slug)}`, {
-					method: "DELETE",
-				});
-				success(`Deleted project "${slug}"`);
-			} catch (err) {
-				if (err instanceof CliHttpError && err.status === 404) {
-					info(`Project "${slug}" not found (already deleted?)`);
-					return;
-				}
-				handleProjectError(err);
-			}
 		});
 }
 
@@ -238,23 +142,4 @@ function handleProjectError(err: unknown): never {
 	}
 	logError(err instanceof Error ? err.message : String(err));
 	process.exit(1);
-}
-
-export function slugifyProjectName(name: string): string {
-	return name
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-+|-+$/g, "")
-		.slice(0, 63)
-		.replace(/-+$/g, "");
-}
-
-export function validateProjectSlug(slug: string): true | string {
-	if (slug.length < 2 || slug.length > 63) {
-		return "Project slug must be 2-63 characters";
-	}
-	if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(slug)) {
-		return "Project slug must use lowercase letters, numbers, and hyphens, and start/end with a letter or number";
-	}
-	return true;
 }
