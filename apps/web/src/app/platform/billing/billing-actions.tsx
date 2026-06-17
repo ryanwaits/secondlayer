@@ -19,9 +19,7 @@ export function BillingActions({
 }) {
 	const router = useRouter();
 	const params = useSearchParams();
-	const [busy, setBusy] = useState<"upgrade" | "portal" | "cancel" | null>(
-		null,
-	);
+	const [busy, setBusy] = useState<"portal" | "cancel" | null>(null);
 	const [confirmCancel, setConfirmCancel] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const resolvedOnce = useRef(false);
@@ -34,24 +32,6 @@ export function BillingActions({
 			.then(() => router.refresh())
 			.catch(() => {});
 	}, [params, router]);
-
-	async function upgrade() {
-		setBusy("upgrade");
-		setError(null);
-		try {
-			const res = await fetch("/api/billing/upgrade", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ tier: "launch", interval: "month" }),
-			});
-			const data = (await res.json()) as { url?: string; error?: string };
-			if (!res.ok || !data.url) throw new Error(data.error ?? "Upgrade failed");
-			window.location.assign(data.url);
-		} catch (e) {
-			setError(e instanceof Error ? e.message : "Upgrade failed");
-			setBusy(null);
-		}
-	}
 
 	async function openPortal() {
 		setBusy("portal");
@@ -91,21 +71,6 @@ export function BillingActions({
 	return (
 		<>
 			<div className={s.actions}>
-				{state === "free" && (
-					<>
-						<button
-							type="button"
-							className={s.btnInk}
-							onClick={upgrade}
-							disabled={busy !== null}
-						>
-							{busy === "upgrade" ? "Redirecting…" : "Upgrade to Pro · $79/mo"}
-						</button>
-						<span className={s.actHint}>
-							14-day trial · card up front · $0 today
-						</span>
-					</>
-				)}
 				{state === "ending" && (
 					<button
 						type="button"
