@@ -1,12 +1,9 @@
 /* Billing page — LiveKit-register console billing (docs/mocks/platform-billing-v1.html).
    Co-located module: hairlines + mono values, no shadows, light/dark parity. */
 
-/* ── Layout shell ── */
-.wrap {
-	max-width: 1080px;
-	margin: 0 auto;
-	padding: 24px 28px 96px;
-}
+/* ── Layout shell ──
+   Container is the shared global `.overview-inner` (left-aligned, 28px gutters,
+   matches the topbar breadcrumb edge like every other console page). */
 
 /* Section heading over a hairline */
 .section {

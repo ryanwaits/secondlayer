@@ -3378,7 +3378,9 @@ html.force-light .tabbed-code-tab.active {
 }
 .settings-inner {
 	max-width: 640px;
-	margin: 0 auto;
+	/* Left-aligned (not centered) so the content body lines up with the
+	   topbar breadcrumb edge, matching subgraphs + billing. */
+	margin: 0;
 	padding: 24px 28px 80px;
 }
 .settings-title {

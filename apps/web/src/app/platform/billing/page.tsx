@@ -113,7 +113,7 @@ export default async function BillingPage() {
 					showRefresh={false}
 				/>
 				<div className="settings-scroll">
-					<div className={s.wrap}>
+					<div className="overview-inner">
 						<h1 className="settings-title">Billing</h1>
 						<p className="settings-desc">Unable to load billing data.</p>
 					</div>
@@ -197,7 +197,7 @@ export default async function BillingPage() {
 				showRefresh={false}
 			/>
 			<div className="settings-scroll">
-				<div className={s.wrap}>
+				<div className="overview-inner">
 					<h1 className="settings-title">Billing</h1>
 					<p className="settings-desc">
 						Plans buy capacity; public reads stay free either way. Full ladder
