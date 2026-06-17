@@ -27,7 +27,6 @@ const NAV_ITEMS: NavItem[] = [
 const SETTINGS_CHILDREN = [
 	{ href: "/settings", label: "Project" },
 	{ href: "/api-keys", label: "API Keys" },
-	{ href: "/team", label: "Team" },
 	{ href: "/billing", label: "Billing" },
 ];
 
@@ -106,7 +105,6 @@ function isSettingsActive(pathname: string) {
 	return (
 		clean.startsWith("/settings") ||
 		clean.startsWith("/api-keys") ||
-		clean.startsWith("/team") ||
 		clean.startsWith("/billing")
 	);
 }

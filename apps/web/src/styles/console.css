@@ -4494,6 +4494,13 @@ html.force-light .tabbed-code-tab.active {
 .org-trigger:hover {
 	background: var(--code-bg);
 }
+/* Single-project: static label, no button affordance. */
+.org-trigger.org-static {
+	cursor: default;
+}
+.org-trigger.org-static:hover {
+	background: transparent;
+}
 .org-name {
 	font-family: var(--font-mono-stack);
 	font-size: 12px;

@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import {
+	ensureDefaultProject,
 	getProjectBySlug,
 	getProjectsByAccount,
 	getTeamInvitations,
@@ -21,6 +22,9 @@ function requireAccountId(c: Context): string {
 app.get("/", async (c) => {
 	const accountId = requireAccountId(c);
 	const db = getDb();
+	// Single-project model: self-heal accounts that have no project yet
+	// (created after migration 0023's backfill).
+	await ensureDefaultProject(db, accountId);
 	const projects = await getProjectsByAccount(db, accountId);
 	return c.json({
 		projects: projects.map((p) => ({
@@ -63,6 +67,13 @@ app.post("/", async (c) => {
 	const { name, slug, network, nodeRpc } = body;
 
 	if (!name || !slug) return c.json({ error: "name and slug required" }, 400);
+
+	// Single-project per account (enforced product-wide). The UI has no
+	// create-project flow; this guards the raw API.
+	const owned = await getProjectsByAccount(db, accountId);
+	if (owned.length > 0) {
+		return c.json({ error: "Accounts are limited to a single project" }, 409);
+	}
 
 	const existing = await getProjectBySlug(db, accountId, slug);
 	if (existing) return c.json({ error: "Slug already exists" }, 409);

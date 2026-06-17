@@ -5,11 +5,7 @@ import {
 	SettingsCrumb,
 } from "@/components/console/overview-topbar";
 import { useAuth } from "@/lib/auth";
-import {
-	useDeleteProject,
-	useProjects,
-	useUpdateProject,
-} from "@/lib/queries/projects";
+import { useProjects, useUpdateProject } from "@/lib/queries/projects";
 import { useCallback, useState } from "react";
 import { LogoutButton } from "./logout-button";
 
@@ -17,7 +13,6 @@ export default function SettingsPage() {
 	const { account } = useAuth();
 	const { data: projects } = useProjects();
 	const updateProject = useUpdateProject();
-	const deleteProject = useDeleteProject();
 
 	const project = projects?.[0];
 
@@ -48,18 +43,6 @@ export default function SettingsPage() {
 		}
 	}, [project, name, updateProject]);
 
-	const handleDelete = useCallback(async () => {
-		if (!project) return;
-		if (!confirm(`Delete project "${project.slug}"? This cannot be undone.`))
-			return;
-		try {
-			await deleteProject.mutateAsync(project.slug);
-			window.location.href = "/";
-		} catch (e) {
-			alert(e instanceof Error ? e.message : "Failed to delete project");
-		}
-	}, [project, deleteProject]);
-
 	return (
 		<>
 			<OverviewTopbar
@@ -71,7 +54,7 @@ export default function SettingsPage() {
 				<div className="settings-inner">
 					<h1 className="settings-title">Project settings</h1>
 					<p className="settings-desc">
-						Manage your project identity, instance, and account.
+						Manage your project identity and account.
 					</p>
 
 					<div className="settings-section">
@@ -150,44 +133,6 @@ export default function SettingsPage() {
 							</div>
 						)}
 						<LogoutButton />
-					</div>
-
-					<div className="settings-divider" />
-
-					<div className="settings-section">
-						<div className="settings-section-title">Danger zone</div>
-						<div
-							style={{
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "space-between",
-								padding: "12px 14px",
-								border: "1px solid var(--border)",
-								borderRadius: 8,
-							}}
-						>
-							<div>
-								<div style={{ fontSize: 13, fontWeight: 500 }}>
-									Delete project
-								</div>
-								<div
-									style={{
-										fontSize: 12,
-										color: "var(--text-muted)",
-										marginTop: 2,
-									}}
-								>
-									Permanently remove this project. Cannot be undone.
-								</div>
-							</div>
-							<button
-								type="button"
-								className="settings-btn danger"
-								onClick={handleDelete}
-							>
-								Delete project
-							</button>
-						</div>
 					</div>
 				</div>
 			</div>

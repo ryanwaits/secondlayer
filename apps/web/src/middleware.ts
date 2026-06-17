@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 // Paths that have both marketing (unauthed) and platform (authed) versions
 const DUAL_PATHS = ["/subgraphs"];
 // Paths that require authentication
-const AUTH_REQUIRED = ["/api-keys", "/billing", "/team", "/settings", "/admin"];
+const AUTH_REQUIRED = ["/api-keys", "/billing", "/settings", "/admin"];
 
 export function middleware(request: NextRequest) {
 	const session = request.cookies.get("sl_session");
@@ -52,8 +52,6 @@ export const config = {
 		"/subgraphs/:path*",
 		"/api-keys",
 		"/api-keys/:path*",
-		"/team",
-		"/team/:path*",
 		"/settings",
 		"/settings/:path*",
 		"/billing",

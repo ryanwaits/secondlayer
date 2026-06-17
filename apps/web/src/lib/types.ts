@@ -78,23 +78,6 @@ export interface Project {
 	updatedAt: string;
 }
 
-export interface TeamMember {
-	id: string;
-	role: string;
-	email: string;
-	displayName: string | null;
-	avatarUrl: string | null;
-	createdAt: string;
-}
-
-export interface TeamInvitation {
-	id: string;
-	email: string;
-	role: string;
-	expiresAt: string;
-	createdAt: string;
-}
-
 export interface SystemStatus {
 	status: "healthy" | "degraded";
 	chainTip: number | null;

@@ -39,13 +39,6 @@ export const actions: Action[] = [
 		href: "/settings",
 	},
 	{
-		id: "team",
-		label: "Team",
-		keywords: ["members", "invite", "collaborators"],
-		category: "Settings",
-		href: "/team",
-	},
-	{
 		id: "billing",
 		label: "Billing",
 		keywords: [

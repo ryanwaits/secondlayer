@@ -1,6 +1,6 @@
 "use client";
 
-import type { Project, TeamInvitation, TeamMember } from "@/lib/types";
+import type { Project } from "@/lib/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "./fetch";
 import { queryKeys } from "./keys";
@@ -25,18 +25,6 @@ export function useProject(slug: string) {
 	});
 }
 
-export function useTeamMembers(projectSlug: string) {
-	return useQuery({
-		queryKey: queryKeys.projects.team(projectSlug),
-		queryFn: () =>
-			fetchJson<{ members: TeamMember[]; invitations: TeamInvitation[] }>(
-				`/api/projects/${projectSlug}/team`,
-			),
-		staleTime: 60_000,
-		enabled: !!projectSlug,
-	});
-}
-
 export function useUpdateProject() {
 	const qc = useQueryClient();
 	return useMutation({
@@ -48,38 +36,6 @@ export function useUpdateProject() {
 			}),
 		onSuccess: () => {
 			qc.invalidateQueries({ queryKey: queryKeys.projects.all });
-		},
-	});
-}
-
-export function useDeleteProject() {
-	const qc = useQueryClient();
-	return useMutation({
-		mutationFn: (slug: string) =>
-			fetchJson(`/api/projects/${slug}`, { method: "DELETE" }),
-		onSuccess: () => {
-			qc.invalidateQueries({ queryKey: queryKeys.projects.all });
-		},
-	});
-}
-
-export function useInviteTeamMember() {
-	const qc = useQueryClient();
-	return useMutation({
-		mutationFn: ({
-			projectSlug,
-			email,
-			role,
-		}: { projectSlug: string; email: string; role?: string }) =>
-			fetchJson(`/api/projects/${projectSlug}/team`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ email, role }),
-			}),
-		onSuccess: (_, vars) => {
-			qc.invalidateQueries({
-				queryKey: queryKeys.projects.team(vars.projectSlug),
-			});
 		},
 	});
 }

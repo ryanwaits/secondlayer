@@ -1,83 +1,22 @@
 "use client";
 
 import { useProjects } from "@/lib/queries/projects";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 
+/**
+ * Single-project per account: this is a static label, not a switcher. The name
+ * is editable on the Project settings page. Kept as a component (with the
+ * trailing avatar slot) so the sidebar footer layout is unchanged.
+ */
 export function ProjectSwitcher({ avatar }: { avatar?: ReactNode }) {
-	const [open, setOpen] = useState(false);
-	const ref = useRef<HTMLDivElement>(null);
 	const { data: projects } = useProjects();
-
-	// For now, first project is "active" — will be route-based later
 	const current = projects?.[0];
-	const visibleProjects = current ? [current] : [];
-
-	useEffect(() => {
-		function handleClick(e: MouseEvent) {
-			if (ref.current && !ref.current.contains(e.target as Node)) {
-				setOpen(false);
-			}
-		}
-		document.addEventListener("click", handleClick);
-		return () => document.removeEventListener("click", handleClick);
-	}, []);
 
 	return (
-		<div className="sidebar-org" ref={ref}>
-			{open && (
-				<div className="org-popover">
-					<div className="org-popover-title">Projects</div>
-					{visibleProjects.map((p) => (
-						<button
-							type="button"
-							key={p.id}
-							className={`org-popover-item${p.id === current?.id ? " active" : ""}`}
-							onClick={() => setOpen(false)}
-						>
-							{p.name}
-							<span className="org-popover-check">
-								<svg
-									aria-hidden="true"
-									width="12"
-									height="12"
-									viewBox="0 0 16 16"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								>
-									<path d="M3 8.5l3.5 3.5 6.5-8" />
-								</svg>
-							</span>
-						</button>
-					))}
-					{projects?.length === 0 && (
-						<div className="org-popover-item">No projects yet</div>
-					)}
-				</div>
-			)}
-			<button
-				type="button"
-				className="org-trigger"
-				onClick={() => setOpen(!open)}
-			>
+		<div className="sidebar-org">
+			<span className="org-trigger org-static">
 				<span className="org-name">{current?.name ?? "No project"}</span>
-				<span className="org-chevron">
-					<svg
-						aria-hidden="true"
-						width="10"
-						height="10"
-						viewBox="0 0 16 16"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="2"
-						strokeLinecap="round"
-					>
-						<path d="M4 6l4 4 4-4" />
-					</svg>
-				</span>
-			</button>
+			</span>
 			{avatar}
 		</div>
 	);
