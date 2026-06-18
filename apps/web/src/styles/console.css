@@ -4970,7 +4970,9 @@ html.force-light .tabbed-code-tab.active {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 	gap: 12px;
-	margin-bottom: 4px;
+	/* Clear break below the stat band before the list/toolbar (LiveKit-style),
+	   instead of letting the cards stick to the next section. */
+	margin-bottom: 32px;
 }
 .ov-card {
 	border: 1px solid var(--border);
