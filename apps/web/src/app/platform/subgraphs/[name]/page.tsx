@@ -18,7 +18,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SubgraphReindexForm } from "./reindex-form";
 import { SubgraphDangerZone } from "./subgraph-danger";
-import { VisibilityToggle } from "./visibility-toggle";
 
 function timeAgo(iso?: string | null): string | null {
 	if (!iso) return null;
@@ -118,14 +117,6 @@ export default async function SubgraphDetailPage({
 					100,
 				)
 			: 0;
-	const lagSeconds = blocksRemaining * 10;
-	const lagText =
-		blocksRemaining === 0
-			? "synced"
-			: lagSeconds >= 600
-				? `~${Math.round(lagSeconds / 60)}m`
-				: `~${lagSeconds}s`;
-
 	const isError = displayStatus === "error" || displayStatus === "stalled";
 	const inProgress =
 		displayStatus === "syncing" || displayStatus === "reindexing";
@@ -173,11 +164,9 @@ export default async function SubgraphDetailPage({
 							<span className="sg-hdr-name">{name}</span>
 							<span className="sg-hdr-version">v{subgraph.version}</span>
 							<span className={`badge ${badgeCls}`}>{badgeLbl}</span>
-							<VisibilityToggle
-								subgraphName={name}
-								visibility={subgraph.visibility ?? "private"}
-								sessionToken={session}
-							/>
+							<span className="sg-hdr-version">
+								{subgraph.visibility ?? "private"}
+							</span>
 						</div>
 						<div className="sg-hdr-actions">
 							{subgraph.visibility === "public" && (
@@ -188,12 +177,6 @@ export default async function SubgraphDetailPage({
 									View public page
 								</Link>
 							)}
-							<Link
-								href={`/subgraphs/${name}/subscriptions`}
-								className="sg-hdr-btn"
-							>
-								Subscriptions
-							</Link>
 						</div>
 					</div>
 
@@ -221,78 +204,6 @@ export default async function SubgraphDetailPage({
 						>
 							API docs →
 						</a>
-					</div>
-
-					{/* Metric strip */}
-					<div className="sg-metrics">
-						<div className="sg-metric">
-							<span className="k">Success rate</span>
-							<span className="v ok">
-								{successRate !== null ? `${successRate.toFixed(1)}%` : "—"}
-							</span>
-							<span className="sub">
-								{totalErrors.toLocaleString()} error
-								{totalErrors !== 1 ? "s" : ""}
-							</span>
-						</div>
-						<div className="sg-metric">
-							<span className="k">Rows indexed</span>
-							<span className="v">{totalRows.toLocaleString()}</span>
-							<span className="sub">
-								{tableEntries.length} table
-								{tableEntries.length !== 1 ? "s" : ""}
-							</span>
-						</div>
-						<div className="sg-metric">
-							<span className="k">Behind</span>
-							<span className="v">
-								{blocksRemaining === 0
-									? "synced"
-									: `${blocksRemaining.toLocaleString()} blk`}
-							</span>
-							<span className="sub">
-								{blocksRemaining === 0 ? "at tip" : `est ${lagText}`}
-							</span>
-						</div>
-						<div className="sg-metric">
-							<span className="k">Last block</span>
-							<span className="v">
-								{subgraph.lastProcessedBlock
-									? subgraph.lastProcessedBlock.toLocaleString()
-									: "—"}
-							</span>
-							<span className="sub">
-								tip {chainTip ? chainTip.toLocaleString() : "—"}
-							</span>
-						</div>
-						<div className="sg-metric">
-							<span className="k">Subscriptions</span>
-							<span className="v">{subsCount}</span>
-							<span className="sub">{activeCount} active</span>
-						</div>
-					</div>
-					<div className={`sg-syncline${isError ? " err" : ""}`}>
-						{isError ? (
-							<span>{subgraph.health.lastError || "Indexing error"}</span>
-						) : inProgress ? (
-							<span>
-								{syncProgress}% · {blocksRemaining.toLocaleString()} blocks
-								behind tip
-							</span>
-						) : (
-							<>
-								<svg
-									viewBox="0 0 16 16"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="1.6"
-									aria-hidden="true"
-								>
-									<path d="M3 8.5l3 3 7-7" />
-								</svg>
-								<span>Synced to chain tip · decoder healthy</span>
-							</>
-						)}
 					</div>
 
 					{/* Tables */}
