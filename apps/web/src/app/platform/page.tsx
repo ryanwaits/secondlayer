@@ -80,6 +80,28 @@ export default async function DashboardPage() {
 		({ ds }) => ds === "error" || ds === "stalled",
 	);
 
+	// Honest fleet observability (no fabricated uptime): decode success rate from
+	// real processed/error counts, and how far the furthest-behind subgraph trails.
+	const totalProcessed = subgraphs.reduce((s, sg) => s + sg.totalProcessed, 0);
+	const totalErrors = subgraphs.reduce((s, sg) => s + sg.totalErrors, 0);
+	const successRate =
+		totalProcessed > 0
+			? ((totalProcessed - totalErrors) / totalProcessed) * 100
+			: null;
+	const successDisplay =
+		successRate === null
+			? "—"
+			: totalErrors === 0
+				? "100%"
+				: `${successRate.toFixed(2)}%`;
+	const processedBlocks = subgraphs
+		.map((s) => s.lastProcessedBlock)
+		.filter((b): b is number => b != null);
+	const behind =
+		chainTip != null && processedBlocks.length > 0
+			? Math.max(0, chainTip - Math.min(...processedBlocks))
+			: null;
+
 	return (
 		<>
 			<OverviewTopbar page="Overview" />
@@ -104,24 +126,55 @@ export default async function DashboardPage() {
 						/>
 					) : (
 						<>
-							<div className="dash-fleet">
-								<span>
-									<b>{subgraphs.length}</b> subgraph
-									{subgraphs.length !== 1 ? "s" : ""} · {counts.live} live,{" "}
-									{counts.syncing} syncing, {counts.error} error
-								</span>
-								<span className="sep">·</span>
-								<span>
-									<b>{totalRows.toLocaleString()}</b> rows indexed
-								</span>
-								{chainTip != null && (
-									<>
-										<span className="sep">·</span>
-										<span>
-											chain tip <b>{chainTip.toLocaleString()}</b>
-										</span>
-									</>
-								)}
+							<div className="ov-cards">
+								<Link className="ov-card" href="/platform/subgraphs">
+									<div className="ov-card-label">
+										<span className="ov-card-dot" />
+										Indexing health
+									</div>
+									<div
+										className={`ov-card-value${totalErrors === 0 && successRate !== null ? " ok" : ""}`}
+									>
+										{successDisplay}
+									</div>
+									<div className="ov-card-sub">
+										<span className="live">
+											{counts.live}/{subgraphs.length} live
+										</span>{" "}
+										· {totalErrors.toLocaleString()} decode error
+										{totalErrors !== 1 ? "s" : ""}
+									</div>
+								</Link>
+								<Link className="ov-card" href="/platform/subgraphs">
+									<div className="ov-card-label">Rows indexed</div>
+									<div className="ov-card-value">
+										{totalRows.toLocaleString()}
+									</div>
+									<div className="ov-card-sub">
+										across {subgraphs.length} subgraph
+										{subgraphs.length !== 1 ? "s" : ""}
+									</div>
+								</Link>
+								<Link className="ov-card" href="/platform/subgraphs">
+									<div className="ov-card-label">Behind tip</div>
+									<div className="ov-card-value">
+										{behind === null ? (
+											"—"
+										) : behind === 0 ? (
+											"At tip"
+										) : (
+											<>
+												{behind.toLocaleString()}
+												<span className="unit">blocks</span>
+											</>
+										)}
+									</div>
+									<div className="ov-card-sub">
+										{chainTip != null
+											? `tip ${chainTip.toLocaleString()}${behind && behind > 0 ? " · catching up" : ""}`
+											: "chain tip unavailable"}
+									</div>
+								</Link>
 							</div>
 
 							{errored.length > 0 && (

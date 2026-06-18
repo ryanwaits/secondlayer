@@ -122,6 +122,28 @@ export function SubgraphsIndex({
 		);
 	}, [withStatus, filter, query]);
 
+	// Same honest fleet vitals as the Overview (decode success rate + behind-tip).
+	const vitals = useMemo(() => {
+		const totalRows = subgraphs.reduce((s, sg) => s + rowCount(sg), 0);
+		const totalProcessed = subgraphs.reduce(
+			(s, sg) => s + sg.totalProcessed,
+			0,
+		);
+		const totalErrors = subgraphs.reduce((s, sg) => s + sg.totalErrors, 0);
+		const successRate =
+			totalProcessed > 0
+				? ((totalProcessed - totalErrors) / totalProcessed) * 100
+				: null;
+		const processedBlocks = subgraphs
+			.map((s) => s.lastProcessedBlock)
+			.filter((b): b is number => b != null);
+		const behind =
+			chainTip != null && processedBlocks.length > 0
+				? Math.max(0, chainTip - Math.min(...processedBlocks))
+				: null;
+		return { totalRows, totalErrors, successRate, behind };
+	}, [subgraphs, chainTip]);
+
 	return (
 		<div className="sg-index">
 			<div className="sg-index-head">
@@ -132,6 +154,61 @@ export function SubgraphsIndex({
 				<Link className="sg-btn sg-btn-primary" href="/docs/subgraphs">
 					Deploy subgraph
 				</Link>
+			</div>
+
+			<div className="ov-cards">
+				<div className="ov-card">
+					<div className="ov-card-label">
+						<span className="ov-card-dot" />
+						Indexing health
+					</div>
+					<div
+						className={`ov-card-value${vitals.totalErrors === 0 && vitals.successRate !== null ? " ok" : ""}`}
+					>
+						{vitals.successRate === null
+							? "—"
+							: vitals.totalErrors === 0
+								? "100%"
+								: `${vitals.successRate.toFixed(2)}%`}
+					</div>
+					<div className="ov-card-sub">
+						<span className="live">
+							{counts.live}/{subgraphs.length} live
+						</span>{" "}
+						· {vitals.totalErrors.toLocaleString()} decode error
+						{vitals.totalErrors !== 1 ? "s" : ""}
+					</div>
+				</div>
+				<div className="ov-card">
+					<div className="ov-card-label">Rows indexed</div>
+					<div className="ov-card-value">
+						{vitals.totalRows.toLocaleString()}
+					</div>
+					<div className="ov-card-sub">
+						across {subgraphs.length} subgraph
+						{subgraphs.length !== 1 ? "s" : ""}
+					</div>
+				</div>
+				<div className="ov-card">
+					<div className="ov-card-label">Behind tip</div>
+					<div className="ov-card-value">
+						{vitals.behind === null ? (
+							"—"
+						) : vitals.behind === 0 ? (
+							"At tip"
+						) : (
+							<>
+								{vitals.behind.toLocaleString()}
+								<span className="unit">blocks</span>
+							</>
+						)}
+					</div>
+					<div className="ov-card-sub">
+						{chainTip != null
+							? `tip ${chainTip.toLocaleString()}${vitals.behind && vitals.behind > 0 ? " · catching up" : ""}`
+							: "chain tip unavailable"}
+					</div>
+				</div>
 			</div>
 
 			<div className="sg-toolbar">

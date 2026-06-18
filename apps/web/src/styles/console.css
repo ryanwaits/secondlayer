@@ -4964,25 +4964,32 @@ html.force-light .tabbed-code-tab.active {
 }
 
 /* Stat cards grid */
+/* Unified platform stat card: hairline border, NO background fill, Sora value.
+   Static as a <div>; interactive (hover) only as an <a>. */
 .ov-cards {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 	gap: 12px;
-	margin-bottom: 16px;
+	margin-bottom: 4px;
 }
 .ov-card {
 	border: 1px solid var(--border);
 	border-radius: 8px;
 	padding: 16px;
-	cursor: pointer;
-	transition: all 0.15s;
+	background: transparent;
 	text-decoration: none;
 	color: inherit;
 	display: block;
 }
-.ov-card:hover {
-	border-color: var(--border-hover);
-	background: var(--code-bg);
+a.ov-card {
+	cursor: pointer;
+	transition: border-color 0.15s, background 0.15s;
+}
+@media (hover: hover) {
+	a.ov-card:hover {
+		border-color: var(--border-hover);
+		background: var(--code-bg);
+	}
 }
 .ov-card-label {
 	font-family: var(--font-mono-stack);
@@ -4995,18 +5002,38 @@ html.force-light .tabbed-code-tab.active {
 	margin-bottom: 10px;
 	display: flex;
 	align-items: center;
-	gap: 4px;
+	gap: 6px;
 }
 .ov-card-value {
 	font-family: var(--font-heading-stack);
 	font-size: 22px;
 	font-weight: 600;
 	letter-spacing: -0.03em;
+	font-variant-numeric: tabular-nums;
+}
+.ov-card-value.ok {
+	color: var(--green);
+}
+.ov-card-value .unit {
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--text-muted);
+	margin-left: 3px;
 }
 .ov-card-sub {
 	font-size: 12px;
 	color: var(--text-muted);
 	margin-top: 4px;
+}
+.ov-card-sub .live {
+	color: var(--green);
+}
+.ov-card-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--green);
+	flex-shrink: 0;
 }
 
 /* Mini list inside sections */

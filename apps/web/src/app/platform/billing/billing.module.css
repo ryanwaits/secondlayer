@@ -35,7 +35,7 @@
 .card {
 	border: 1px solid var(--border);
 	border-radius: 8px;
-	background: var(--bg-elevated);
+	background: transparent;
 	padding: 18px 20px;
 }
 .cardLabel {
@@ -100,7 +100,7 @@
 .tile {
 	border: 1px solid var(--border);
 	border-radius: 8px;
-	background: var(--bg-elevated);
+	background: transparent;
 	padding: 18px 20px;
 	min-height: 128px;
 	display: flex;
@@ -332,93 +332,73 @@
 .planGrid {
 	display: grid;
 	grid-template-columns: repeat(4, 1fr);
+	gap: 12px;
+}
+.planCard {
 	border: 1px solid var(--border);
 	border-radius: 8px;
-	overflow: hidden;
-}
-.planCol {
-	padding: 22px 20px;
-	border-right: 1px solid var(--border);
+	background: transparent;
+	padding: 24px 18px 20px;
 	display: flex;
 	flex-direction: column;
+	align-items: center;
+	text-align: center;
 }
-.planCol:last-child {
-	border-right: none;
+.planCardOn {
+	border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
 }
-.planCol h3 {
+.planEyebrow {
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: color-mix(in srgb, var(--text-muted) 75%, transparent);
+	margin-bottom: 14px;
+	min-height: 13px;
+}
+.planCardOn .planEyebrow {
+	color: var(--accent);
+}
+.planPrice {
 	font-family: var(--font-heading-stack);
-	font-size: 19px;
-	font-weight: 560;
-	letter-spacing: -0.01em;
+	font-size: 30px;
+	font-weight: 700;
+	letter-spacing: -0.03em;
+	line-height: 1;
+	font-variant-numeric: tabular-nums;
 }
-.pitch {
-	font-size: 12.5px;
+.planPrice small {
+	font-size: 15px;
+	font-weight: 500;
 	color: var(--text-muted);
-	margin-top: 6px;
-	min-height: 50px;
+}
+.planTag {
+	font-size: 13px;
+	color: var(--text-muted);
+	margin-top: 10px;
+	min-height: 38px;
 	line-height: 1.4;
 }
 .planCta {
-	margin: 8px 0 18px;
+	width: 100%;
+	margin-top: 8px;
 }
 .planCta .btnAccent,
 .planCta .btnGhost {
+	display: block;
 	width: 100%;
-	justify-content: center;
 	text-align: center;
+	padding: 9px 0;
+	text-decoration: none;
 }
-.current {
+.cur {
 	display: block;
 	width: 100%;
 	text-align: center;
 	font-size: 13px;
-	font-weight: 500;
 	color: var(--text-dim);
-	padding: 7px 0;
-}
-.planDivider {
-	height: 1px;
-	background: var(--border);
-	margin-bottom: 16px;
-}
-.priceLabel {
-	font-family: var(--font-mono-stack);
-	font-size: 0.625rem;
-	font-weight: 600;
-	letter-spacing: 0.05em;
-	text-transform: uppercase;
-	color: var(--text-muted);
-	min-height: 13px;
-}
-.priceLg {
-	font-family: var(--font-mono-stack);
-	font-size: 26px;
-	font-weight: 500;
-	letter-spacing: -0.02em;
-	margin: 4px 0 18px;
-	font-variant-numeric: tabular-nums;
-}
-.priceLg small {
-	font-size: 14px;
-	color: var(--text-muted);
-}
-.featHead {
-	font-size: 13px;
-	font-weight: 600;
-	margin-bottom: 12px;
-}
-.feat {
-	display: flex;
-	gap: 9px;
-	align-items: flex-start;
-	font-size: 12.5px;
-	margin-bottom: 11px;
-	color: var(--text-main);
-}
-.feat svg {
-	flex-shrink: 0;
-	margin-top: 1px;
-	color: var(--text-muted);
+	padding: 9px 0;
 }
 
 @media (max-width: 860px) {

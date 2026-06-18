@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import s from "./billing.module.css";
 
 /**
- * "Choose a plan" modal — the upgrade entry point off the Plan settings card.
- * Plan display data mirrors @secondlayer/platform/pricing (PLANS) verbatim;
- * keep the two in sync. Pro is the only self-serve checkout (POST
- * /api/billing/upgrade → Stripe); Scale and Enterprise are sold directly.
+ * "Choose a plan" modal — price-forward plan cards (the full feature ladder
+ * lives on the pricing page, linked). Plan data mirrors
+ * @secondlayer/platform/pricing (PLANS); keep in sync. Pro is the only
+ * self-serve checkout; Scale and Enterprise are sold directly.
  */
 
 type Tier = "none" | "launch" | "scale" | "enterprise";
@@ -15,12 +15,10 @@ type Tier = "none" | "launch" | "scale" | "enterprise";
 interface PlanCard {
 	tier: Tier;
 	name: string;
-	pitch: string;
-	priceLabel: string;
+	qualifier: string;
 	price: string;
 	priceSuffix?: string;
-	featHead: string;
-	features: string[];
+	tagline: string;
 	cta: "self-serve" | "contact" | "none";
 }
 
@@ -28,84 +26,39 @@ const PLAN_CARDS: PlanCard[] = [
 	{
 		tier: "none",
 		name: "Free",
-		pitch: "Everything to read and prototype on decoded Stacks data.",
-		priceLabel: "No card required",
+		qualifier: "No card",
 		price: "$0",
 		priceSuffix: "/mo",
-		featHead: "Start with:",
-		features: [
-			"Keyless reads",
-			"Decoded sBTC, PoX, Clarity",
-			"Public subgraph reads",
-			"10 req/s · last-24h window",
-			"Community support",
-		],
+		tagline: "Read and prototype on decoded Stacks data.",
 		cta: "none",
 	},
 	{
 		tier: "launch",
 		name: "Pro",
-		pitch: "For shipping an app on hosted, always-on data.",
-		priceLabel: "Starting at",
+		qualifier: "Most teams pick this",
 		price: "$79",
 		priceSuffix: "/mo",
-		featHead: "Everything in Free, plus:",
-		features: [
-			"250 req/s on Index and Streams",
-			"Private subgraphs",
-			"Genesis backfills (full history)",
-			"25 webhook subscriptions + replay",
-			"Usage budgets + alerts",
-			"Email support",
-		],
+		tagline: "Hosted, always-on data for shipping an app.",
 		cta: "self-serve",
 	},
 	{
 		tier: "scale",
 		name: "Scale",
-		pitch: "For high-volume production and dedicated capacity.",
-		priceLabel: "Starting at",
+		qualifier: "High volume",
 		price: "$299",
 		priceSuffix: "/mo",
-		featHead: "Everything in Pro, plus:",
-		features: [
-			"500 req/s on Index and Streams",
-			"Heavy history + replay",
-			"24h SLA · priority support",
-		],
+		tagline: "Dedicated capacity and a 24h SLA.",
 		cta: "contact",
 	},
 	{
 		tier: "enterprise",
 		name: "Enterprise",
-		pitch: "For teams that need white-glove and an SLA.",
-		priceLabel: " ",
+		qualifier: "White-glove",
 		price: "Custom",
-		featHead: "Everything in Scale, plus:",
-		features: [
-			"Custom rates + dedicated capacity",
-			"SLAs · regions · SSO",
-			"Dedicated success engineer",
-		],
+		tagline: "SLAs, regions, SSO, and a success engineer.",
 		cta: "contact",
 	},
 ];
-
-const CheckIcon = () => (
-	<svg
-		width="14"
-		height="14"
-		viewBox="0 0 16 16"
-		fill="none"
-		stroke="currentColor"
-		strokeWidth="1.75"
-		strokeLinecap="round"
-		strokeLinejoin="round"
-		aria-hidden="true"
-	>
-		<path d="M3 8.5l3.2 3.2L13 4.5" />
-	</svg>
-);
 
 export function PlanModal({ currentTier }: { currentTier: Tier }) {
 	const [open, setOpen] = useState(false);
@@ -184,65 +137,61 @@ export function PlanModal({ currentTier }: { currentTier: Tier }) {
 
 						<h2 className={s.modalTitle}>Choose a plan</h2>
 						<p className={s.modalSub}>
-							Public reads stay free on every plan. For the full ladder,{" "}
+							Public reads stay free on every plan. For the full breakdown,{" "}
 							<a href="/site/pricing">visit the pricing page</a>.
 						</p>
 
 						{error && <p className={s.modalErr}>{error}</p>}
 
 						<div className={s.planGrid}>
-							{PLAN_CARDS.map((p) => (
-								<div className={s.planCol} key={p.tier}>
-									<h3>{p.name}</h3>
-									<p className={s.pitch}>{p.pitch}</p>
-
-									<div className={s.planCta}>
-										{p.tier === currentTier ? (
-											<span className={s.current}>Current plan</span>
-										) : p.cta === "self-serve" ? (
-											<button
-												type="button"
-												className={s.btnAccent}
-												onClick={() => selectPlan("launch")}
-												disabled={busy}
-											>
-												{busy ? "Redirecting…" : "Select plan"}
-											</button>
-										) : p.cta === "contact" ? (
-											<a
-												className={s.btnGhost}
-												href="mailto:ryan@secondlayer.tools?subject=Secondlayer%20plans"
-											>
-												Contact sales
-											</a>
-										) : (
-											<span className={s.current}>&nbsp;</span>
-										)}
-									</div>
-
-									<div className={s.planDivider} />
-									<div className={s.priceLabel}>{p.priceLabel}</div>
+							{PLAN_CARDS.map((p) => {
+								const isCurrent = p.tier === currentTier;
+								return (
 									<div
-										className={s.priceLg}
-										style={
-											p.price === "Custom"
-												? { color: "var(--accent)" }
-												: undefined
-										}
+										className={`${s.planCard} ${isCurrent ? s.planCardOn : ""}`}
+										key={p.tier}
 									>
-										{p.price}
-										{p.priceSuffix && <small>{p.priceSuffix}</small>}
-									</div>
-
-									<div className={s.featHead}>{p.featHead}</div>
-									{p.features.map((f) => (
-										<div className={s.feat} key={f}>
-											<CheckIcon />
-											{f}
+										<div className={s.planEyebrow}>
+											{p.name} · {isCurrent ? "Current plan" : p.qualifier}
 										</div>
-									))}
-								</div>
-							))}
+										<div
+											className={s.planPrice}
+											style={
+												p.price === "Custom"
+													? { color: "var(--accent)" }
+													: undefined
+											}
+										>
+											{p.price}
+											{p.priceSuffix && <small>{p.priceSuffix}</small>}
+										</div>
+										<div className={s.planTag}>{p.tagline}</div>
+										<div className={s.planCta}>
+											{isCurrent ? (
+												<span className={s.cur}>Current plan</span>
+											) : p.cta === "self-serve" ? (
+												<button
+													type="button"
+													className={s.btnAccent}
+													onClick={() => selectPlan("launch")}
+													disabled={busy}
+												>
+													{busy ? "Redirecting…" : "Select plan"}
+												</button>
+											) : p.cta === "contact" ? (
+												<a
+													className={s.btnGhost}
+													href="mailto:ryan@secondlayer.tools?subject=Secondlayer%20plans"
+												>
+													Contact sales
+												</a>
+											) : (
+												<span className={s.cur}>&nbsp;</span>
+											)}
+										</div>
+									</div>
+								);
+							})}
 						</div>
 					</div>
 				</div>
