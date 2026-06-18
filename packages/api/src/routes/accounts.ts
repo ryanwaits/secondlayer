@@ -16,6 +16,7 @@ import { type Context, Hono } from "hono";
 import { accountPlanToProductTier } from "../auth/product-token-store.ts";
 import { INDEX_TIER_CONFIG } from "../index/tiers.ts";
 import { STREAMS_TIER_CONFIG } from "../streams/tiers.ts";
+import { resolveSlotQuota } from "../subgraphs/plan-limits.ts";
 
 const app = new Hono();
 
@@ -138,6 +139,9 @@ app.get("/usage/products", async (c) => {
 
 	const tier = accountPlanToProductTier(account.plan);
 	const usage = await getProductUsage(db, accountId);
+	// Subgraphs are slot-gated, not usage-metered — surface capacity (used/limit),
+	// the real cost basis, not an events count.
+	const slots = await resolveSlotQuota(db, accountId);
 
 	return c.json({
 		streams: {
@@ -152,6 +156,10 @@ app.get("/usage/products", async (c) => {
 			rateLimitPerSecond: INDEX_TIER_CONFIG[tier].rateLimitPerSecond,
 			decodedEventsToday: usage.indexDecodedEventsToday,
 			decodedEventsThisMonth: usage.indexDecodedEventsThisMonth,
+		},
+		subgraphs: {
+			used: slots.current,
+			limit: slots.limit,
 		},
 	});
 });

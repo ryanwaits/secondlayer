@@ -12,7 +12,10 @@
  * Both are session-authed upstream via `requireAuth`.
  */
 
-import { getCredits } from "@secondlayer/platform/db/queries/account-credits";
+import {
+	getCredits,
+	getMonthlyCreditsSpend,
+} from "@secondlayer/platform/db/queries/account-credits";
 import {
 	getCaps,
 	upsertCaps,
@@ -384,6 +387,11 @@ app.get("/status", async (c) => {
 		plan: account.plan,
 		stripeCustomerId: account.stripe_customer_id ?? null,
 		creditsUsdMicros: (await getCredits(db, accountId)).toString(),
+		// Real PAYG draw-down this month (reads beyond the free window). Display-
+		// only on the billing page; never folds into the subscription invoice.
+		creditsSpentThisMonthUsdMicros: (
+			await getMonthlyCreditsSpend(db, accountId)
+		).toString(),
 	};
 
 	if (!account.stripe_customer_id) {

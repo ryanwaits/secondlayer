@@ -14,7 +14,8 @@ const PACKS = [10, 25, 50, 100] as const;
 
 export function CreditsTopup({
 	balanceUsdMicros,
-}: { balanceUsdMicros: string }) {
+	spentThisMonthUsdMicros,
+}: { balanceUsdMicros: string; spentThisMonthUsdMicros: string }) {
 	const router = useRouter();
 	const params = useSearchParams();
 	const [amt, setAmt] = useState<number>(25);
@@ -23,6 +24,7 @@ export function CreditsTopup({
 	const refreshed = useRef(false);
 
 	const balance = Number(balanceUsdMicros || "0") / 1_000_000;
+	const spentThisMonth = Number(spentThisMonthUsdMicros || "0") / 1_000_000;
 
 	useEffect(() => {
 		if (params.get("topup") !== "success" || refreshed.current) return;
@@ -65,7 +67,11 @@ export function CreditsTopup({
 				</div>
 				<div className={s.erow}>
 					<span>Draws down on</span>
-					<span className={s.val}>reads + indexing beyond free</span>
+					<span className={s.val}>reads beyond the free window</span>
+				</div>
+				<div className={s.erow}>
+					<span>Spent this month</span>
+					<span className={s.val}>${spentThisMonth.toFixed(2)}</span>
 				</div>
 				<fieldset className={s.credPacks}>
 					<legend className={s.srOnly}>Top-up amount</legend>

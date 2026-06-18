@@ -15,6 +15,7 @@ type BillingStatus = {
 	plan: string;
 	stripeCustomerId: string | null;
 	creditsUsdMicros: string;
+	creditsSpentThisMonthUsdMicros: string;
 	subscription: {
 		id: string;
 		status: string;
@@ -36,6 +37,10 @@ type ProductUsageResponse = {
 	index: {
 		decodedEventsToday: number;
 		decodedEventsThisMonth: number;
+	};
+	subgraphs: {
+		used: number;
+		limit: number | null;
 	};
 };
 
@@ -165,6 +170,14 @@ export default async function BillingPage() {
 	const decodedToday = compact(productUsage?.index.decodedEventsToday ?? 0);
 	const decodedMonth = compact(productUsage?.index.decodedEventsThisMonth ?? 0);
 
+	// Subgraphs are slot-gated (capacity), not metered — show used / limit.
+	const slotsUsed = productUsage?.subgraphs.used ?? 0;
+	const slotsLimit = productUsage?.subgraphs.limit ?? null;
+	const slotsValue =
+		slotsLimit === null
+			? `${formatNum(slotsUsed)} / ∞`
+			: `${formatNum(slotsUsed)} / ${formatNum(slotsLimit)}`;
+
 	const badge =
 		state === "free" ? (
 			<span className={`${s.badge} ${s.badgeFree}`}>free</span>
@@ -230,7 +243,7 @@ export default async function BillingPage() {
 								Decoded events today
 								<span
 									className={s.info}
-									title="Decoded events indexed across your subgraphs since 00:00 UTC"
+									title="Decoded events returned to you across Index reads since 00:00 UTC"
 								>
 									i
 								</span>
@@ -247,7 +260,7 @@ export default async function BillingPage() {
 								Decoded events in {monthLabel}
 								<span
 									className={s.info}
-									title="Decoded events indexed in the current billing period"
+									title="Decoded events returned to you across Index reads this billing period"
 								>
 									i
 								</span>
@@ -258,6 +271,18 @@ export default async function BillingPage() {
 									<span className={s.unit}>{decodedMonth[1]}</span>
 								)}
 							</div>
+						</div>
+						<div className={s.tile}>
+							<div className={s.tileLabel}>
+								Subgraphs
+								<span
+									className={s.info}
+									title="Deployed subgraphs vs your plan's slot limit. Subgraphs are slot-gated, not usage-metered."
+								>
+									i
+								</span>
+							</div>
+							<div className={s.tileValue}>{slotsValue}</div>
 						</div>
 						<div className={s.tile}>
 							<div className={s.tileLabel}>
@@ -323,7 +348,7 @@ export default async function BillingPage() {
 									</td>
 								</tr>
 								<tr>
-									<td>Decoded events indexed</td>
+									<td>Decoded events returned</td>
 									<td className={s.num}>
 										{compactStr(
 											productUsage?.index.decodedEventsThisMonth ?? 0,
@@ -348,7 +373,10 @@ export default async function BillingPage() {
 
 					{/* Prepaid credits */}
 					<Suspense fallback={null}>
-						<CreditsTopup balanceUsdMicros={status.creditsUsdMicros} />
+						<CreditsTopup
+							balanceUsdMicros={status.creditsUsdMicros}
+							spentThisMonthUsdMicros={status.creditsSpentThisMonthUsdMicros}
+						/>
 					</Suspense>
 
 					{/* Statements — real invoices live in the Stripe portal */}
