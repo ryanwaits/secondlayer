@@ -3,6 +3,7 @@ import {
 	SettingsCrumb,
 } from "@/components/console/overview-topbar";
 import { apiRequest, getSessionFromCookies } from "@/lib/api";
+import { marketingUrl } from "@/lib/urls";
 import { type UsageResponse, formatCents, formatNum } from "@/lib/usage";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -214,7 +215,7 @@ export default async function BillingPage() {
 					<h1 className="settings-title">Billing</h1>
 					<p className="settings-desc">
 						Plans buy capacity; public reads stay free either way. Full ladder
-						on the <Link href="/site/pricing">pricing page</Link>.
+						on the <Link href={marketingUrl("/pricing")}>pricing page</Link>.
 					</p>
 
 					{/* Current plan + plan settings */}

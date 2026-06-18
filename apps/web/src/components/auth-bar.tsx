@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth";
+import { appHostname, appUrl } from "@/lib/urls";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -25,8 +26,15 @@ export function AuthBar() {
 	const isDualPath = DUAL_PATHS.some(
 		(p) => pathname === p || pathname.startsWith(`${p}/`),
 	);
+	// On the app host (or legacy single-domain when unsplit), `/` and dual paths
+	// render the console. On the marketing host they are real marketing pages, so
+	// the authed bar must show there.
+	const appHost = appHostname();
+	const isAppHost =
+		appHost === null ||
+		(typeof window !== "undefined" && window.location.host === appHost);
 	const isPlatform =
-		((pathname === "/" || isDualPath) && !!account) ||
+		(isAppHost && (pathname === "/" || isDualPath) && !!account) ||
 		PLATFORM_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 	useEffect(() => {
@@ -86,7 +94,7 @@ export function AuthBar() {
 				>
 					Sign out
 				</button>
-				<Link href="/" className="auth-bar-cta">
+				<Link href={appUrl("/")} className="auth-bar-cta">
 					Platform
 				</Link>
 			</div>
@@ -97,7 +105,7 @@ export function AuthBar() {
 	return (
 		<div className="auth-bar">
 			<Link
-				href="/login"
+				href={appUrl("/login")}
 				className="auth-bar-nav-link"
 				data-umami-event="login"
 			>

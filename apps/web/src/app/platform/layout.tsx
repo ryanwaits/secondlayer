@@ -13,7 +13,7 @@ export default async function ConsoleLayout({
 	const session = cookieStore.get("sl_session");
 
 	if (!session) {
-		redirect("/");
+		redirect("/login");
 	}
 
 	return (

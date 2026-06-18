@@ -17,7 +17,12 @@ export async function GET(req: Request) {
 		// Session expired or invalid — clear the cookie
 		const res = NextResponse.json({ account: null });
 		if (e instanceof ApiError && e.status === 401) {
-			res.cookies.set("sl_session", "", { maxAge: 0, path: "/" });
+			// Domain must match the set cookie to override it across subdomains.
+			res.cookies.set("sl_session", "", {
+				maxAge: 0,
+				path: "/",
+				domain: process.env.SESSION_COOKIE_DOMAIN,
+			});
 		}
 		return res;
 	}

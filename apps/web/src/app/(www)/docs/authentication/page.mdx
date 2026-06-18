@@ -37,11 +37,11 @@ An API key looks like `sk-sl_…`. The CLI and MCP server read `SL_API_KEY` auto
 | `streams` | Streams only | No (`403`) | a scoped key |
 | `index` | Index only | No (`403`) | a scoped key |
 
-A leaked scoped key can't escalate: it reads only its surface and can't mint. Keep keys server-side. Rotate or revoke them anytime in the [platform console](https://secondlayer.tools/platform/api-keys).
+A leaked scoped key can't escalate: it reads only its surface and can't mint. Keep keys server-side. Rotate or revoke them anytime in the [platform console](https://app.secondlayer.tools/platform/api-keys).
 
 ## Creating a key
 
-Create a key in the [platform console](https://secondlayer.tools/platform/api-keys); console keys default to `account`.
+Create a key in the [platform console](https://app.secondlayer.tools/platform/api-keys); console keys default to `account`.
 
 To self-provision a **scoped** key without the dashboard (for agents and CI), call the mint API with an `account` (owner) key. Minted keys are always scoped and inherit your account plan's tier; they can never be an `account` key or a higher tier.
 

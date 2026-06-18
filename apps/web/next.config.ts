@@ -27,12 +27,7 @@ const nextConfig: NextConfig = {
 					destination: "https://umami.secondlayer.tools/api/send",
 				},
 			],
-			afterFiles: [
-				{
-					source: "/site/:path*",
-					destination: "/:path*",
-				},
-			],
+			afterFiles: [],
 			fallback: [],
 		};
 	},

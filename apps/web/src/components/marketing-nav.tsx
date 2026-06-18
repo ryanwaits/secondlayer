@@ -2,6 +2,7 @@
 
 import { MobileNavCta } from "@/components/mobile-nav-cta";
 import { useAuth } from "@/lib/auth";
+import { appUrl } from "@/lib/urls";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -158,7 +159,7 @@ export function MarketingNav() {
 						<div className="mnav-foot">
 							{account ? (
 								<>
-									<Link href="/" className="mnav-cta">
+									<Link href={appUrl("/")} className="mnav-cta">
 										Platform
 									</Link>
 									<button
@@ -171,10 +172,10 @@ export function MarketingNav() {
 								</>
 							) : (
 								<>
-									<Link href="/login" className="mnav-cta">
+									<Link href={appUrl("/login")} className="mnav-cta">
 										Get an API key
 									</Link>
-									<Link href="/login" className="mnav-login">
+									<Link href={appUrl("/login")} className="mnav-login">
 										Sign in
 									</Link>
 								</>

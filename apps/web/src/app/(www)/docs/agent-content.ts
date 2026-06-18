@@ -72,7 +72,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Rotate a key or secret",
 			"Rotate an API key or webhook signing secret safely.",
-			"/secondlayer Help me rotate a secret. For an API key, rotate it in the console (https://secondlayer.tools/platform/api-keys); for a webhook signing secret run `sl subscriptions rotate-secret`. Then re-wire everywhere the old value was used and confirm nothing still references it.",
+			"/secondlayer Help me rotate a secret. For an API key, rotate it in the console (https://app.secondlayer.tools/platform/api-keys); for a webhook signing secret run `sl subscriptions rotate-secret`. Then re-wire everywhere the old value was used and confirm nothing still references it.",
 		),
 	],
 

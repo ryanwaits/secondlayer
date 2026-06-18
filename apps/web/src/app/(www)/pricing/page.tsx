@@ -1,6 +1,7 @@
 import { CtaPill } from "@/components/home/cta-pill";
 import { MarketingPageHeader } from "@/components/marketing-page-header";
 import { socialMeta } from "@/lib/og";
+import { appUrl } from "@/lib/urls";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -112,7 +113,7 @@ export default function PricingPage() {
 						))}
 					</ul>
 					<Link
-						href="/login"
+						href={appUrl("/login")}
 						className="prc-plan-cta pp-btn pp-btn-ink"
 						data-umami-event="pricing-plan-click"
 						data-umami-event-plan="pro"
@@ -151,7 +152,7 @@ export default function PricingPage() {
 					</p>
 				</div>
 				<Link
-					href="/login"
+					href={appUrl("/login")}
 					className="prc-plan-cta pp-btn pp-btn-ghost"
 					data-umami-event="pricing-plan-click"
 					data-umami-event-plan="credits"

@@ -1,5 +1,6 @@
 "use client";
 
+import { appUrl } from "@/lib/urls";
 import { useState } from "react";
 
 const API_BASE =
@@ -89,7 +90,7 @@ export function ClaimFlow({ token }: { token: string }) {
 					Done — this key now belongs to <strong>{claimedEmail}</strong>. It
 					keeps working exactly as before. Log in to manage it.
 				</p>
-				<a className="auth-bar-cta" href="/login">
+				<a className="auth-bar-cta" href={appUrl("/login")}>
 					Log in
 				</a>
 			</div>

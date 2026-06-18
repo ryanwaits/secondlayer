@@ -31,12 +31,15 @@ export async function POST(req: Request) {
 		}
 
 		const isProduction = process.env.NODE_ENV === "production";
+		const cookieDomain = process.env.SESSION_COOKIE_DOMAIN;
 		const cookie = [
 			`sl_session=${sessionToken}`,
 			"Path=/",
 			"HttpOnly",
 			"SameSite=Lax",
 			"Max-Age=7776000",
+			// Shared across subdomains (app.* + marketing root) when configured.
+			...(cookieDomain ? [`Domain=${cookieDomain}`] : []),
 			...(isProduction ? ["Secure"] : []),
 		].join("; ");
 

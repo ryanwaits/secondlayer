@@ -1,5 +1,6 @@
 "use client";
 
+import { marketingUrl } from "@/lib/urls";
 import { useEffect, useState } from "react";
 import s from "./billing.module.css";
 
@@ -138,7 +139,7 @@ export function PlanModal({ currentTier }: { currentTier: Tier }) {
 						<h2 className={s.modalTitle}>Choose a plan</h2>
 						<p className={s.modalSub}>
 							Public reads stay free on every plan. For the full breakdown,{" "}
-							<a href="/site/pricing">visit the pricing page</a>.
+							<a href={marketingUrl("/pricing")}>visit the pricing page</a>.
 						</p>
 
 						{error && <p className={s.modalErr}>{error}</p>}

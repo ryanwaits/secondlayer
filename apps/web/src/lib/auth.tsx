@@ -9,6 +9,7 @@ import {
 	useState,
 } from "react";
 import type { Account } from "./types";
+import { marketingUrl } from "./urls";
 
 interface AuthCtx {
 	account: Account | null;
@@ -99,9 +100,11 @@ export function useAuth(): AuthCtx {
 	return ctx;
 }
 
-/** Prefix marketing hrefs with /site when authenticated */
+/**
+ * Resolve a marketing href. Pre-split this prefixed `/site` so authed users on
+ * the single domain could escape the platform rewrite; with the host split,
+ * marketing lives on its own host, so point straight at it.
+ */
 export function useSiteHref(href: string): string {
-	const { account } = useAuth();
-	if (!account) return href;
-	return `/site${href}`;
+	return marketingUrl(href);
 }
