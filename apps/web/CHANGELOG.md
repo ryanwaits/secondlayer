@@ -1,5 +1,11 @@
 # @secondlayer/web
 
+## 0.3.9
+
+### Patch Changes
+
+- @secondlayer/platform@0.1.9
+
 ## 0.3.8
 
 ### Patch Changes

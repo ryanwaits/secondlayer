@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 6.35.1
+
+### Patch Changes
+
+- x402 payment ledger persists `credit_usd_micros` so the reconciler can credit slow-confirming deposits; `sl billing` status now shows the real free-tier limits instead of a "no limits" message.
+
 ## 6.35.0
 
 ### Minor Changes
