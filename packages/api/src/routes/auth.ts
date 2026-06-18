@@ -221,7 +221,7 @@ app.post("/claim/verify", async (c) => {
 			// account; the ghost shell is dropped (cascades claim_tokens etc.).
 			await trx
 				.updateTable("api_keys")
-				.set({ account_id: existing.id })
+				.set({ account_id: existing.id, tier: null })
 				.where("account_id", "=", ghostAccountId)
 				.execute();
 			await trx

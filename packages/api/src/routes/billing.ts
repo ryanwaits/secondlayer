@@ -35,6 +35,7 @@ import {
 	UPGRADEABLE_TIERS,
 	getPriceIdForTier,
 	getTierForPriceId,
+	isSelfServeTier,
 	isUpgradeableTier,
 } from "../lib/tier-mapping.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
@@ -117,6 +118,19 @@ app.post("/upgrade", async (c) => {
 		return c.json(
 			{
 				error: `tier must be one of ${UPGRADEABLE_TIERS.join(", ")}. Enterprise subscriptions are custom-quoted — contact sales.`,
+			},
+			400,
+		);
+	}
+
+	// Scale is sold via contact-sales, not self-serve checkout (it stays an
+	// upgradeable tier so the webhook can resolve manually-created Scale subs).
+	if (!isSelfServeTier(body.tier)) {
+		return c.json(
+			{
+				error:
+					"Scale is custom-quoted — contact sales at https://secondlayer.tools to set up a subscription.",
+				code: "CONTACT_SALES",
 			},
 			400,
 		);

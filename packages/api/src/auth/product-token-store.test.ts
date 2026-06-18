@@ -115,11 +115,58 @@ describe("runtime product token store", () => {
 		expect(tenant?.tier).toBe("build");
 	});
 
-	test("maps account plans to product tiers", () => {
+	// R6: a key's pinned tier may upgrade above its plan, never downgrade below
+	// it — otherwise a ghost key's `tier='free'` merged onto a paid account would
+	// meter (and rate-limit) that paying customer as free.
+	test("key tier below the account plan is ignored (no downgrade)", async () => {
+		const { raw } = generateApiKey();
+		const store = createRuntimeProductTokenStore({
+			staticTokens: new Map(),
+			requiredScope: REQUIRED_SCOPE,
+			product: "index",
+			lookupApiKey: async () => ({
+				account_id: "acct_paid",
+				plan: "scale",
+				status: "active",
+				product: "account",
+				tier: "free", // stray/merged ghost tier
+			}),
+		});
+		const tenant = await store.get(raw);
+		expect(tenant?.tier).toBe("scale");
+	});
+
+	test("key tier above the account plan upgrades", async () => {
+		const { raw } = generateApiKey();
+		const store = createRuntimeProductTokenStore({
+			staticTokens: new Map(),
+			requiredScope: REQUIRED_SCOPE,
+			product: "index",
+			lookupApiKey: async () => ({
+				account_id: "acct_free",
+				plan: "none",
+				status: "active",
+				product: "account",
+				tier: "enterprise",
+			}),
+		});
+		const tenant = await store.get(raw);
+		expect(tenant?.tier).toBe("enterprise");
+	});
+
+	test("maps account plans to product tiers (single-sourced from PLANS)", () => {
 		expect(accountPlanToProductTier("launch")).toBe("build");
-		expect(accountPlanToProductTier("build")).toBe("build");
 		expect(accountPlanToProductTier("scale")).toBe("scale");
 		expect(accountPlanToProductTier("enterprise")).toBe("enterprise");
+		// No-plan cases → free.
 		expect(accountPlanToProductTier("none")).toBe("free");
+		expect(accountPlanToProductTier("")).toBe("free");
+		expect(accountPlanToProductTier("hobby")).toBe("free");
+		// Legacy aliases still resolve.
+		expect(accountPlanToProductTier("build")).toBe("build");
+		expect(accountPlanToProductTier("pro")).toBe("build");
+		expect(accountPlanToProductTier("builder")).toBe("build");
+		// Unknown plan → safe free default (and logs a drift alarm).
+		expect(accountPlanToProductTier("platinum")).toBe("free");
 	});
 });

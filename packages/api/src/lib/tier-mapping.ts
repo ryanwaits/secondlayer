@@ -37,6 +37,18 @@ export function isUpgradeableTier(s: string): s is UpgradeableTier {
 	return (UPGRADEABLE_TIERS as readonly string[]).includes(s);
 }
 
+/**
+ * Tiers a customer may purchase self-serve via `POST /api/billing/upgrade`.
+ * Scale stays in `UPGRADEABLE_TIERS` so the webhook reverse-map can still resolve
+ * a manually-created (sales-assisted) Scale subscription back to its tier — but it
+ * is NOT self-serve: Scale is custom-quoted / contact-sales.
+ */
+export const SELF_SERVE_TIERS: readonly UpgradeableTier[] = ["launch"];
+
+export function isSelfServeTier(s: string): s is "launch" {
+	return (SELF_SERVE_TIERS as readonly string[]).includes(s);
+}
+
 /** Resolve a plan tier to its Stripe price id, or undefined if env unset. */
 export function getPriceIdForTier(
 	tier: UpgradeableTier,

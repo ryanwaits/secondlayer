@@ -1,7 +1,29 @@
+import {
+	PLAN_TO_PRODUCT_TIER,
+	isValidPlanId,
+} from "@secondlayer/platform/pricing";
+import { logger } from "@secondlayer/shared";
 import { getDb as defaultGetDb } from "@secondlayer/shared/db";
 import { hashToken } from "./keys.ts";
 
 export type ProductTier = "free" | "build" | "scale" | "enterprise";
+
+/** Tier ordering: a key's pinned tier may UPGRADE above its account plan, never
+ *  downgrade below it (so a stray `tier='free'` can't meter a paid account). */
+const TIER_RANK: Record<ProductTier, number> = {
+	free: 0,
+	build: 1,
+	scale: 2,
+	enterprise: 3,
+};
+
+// Legacy `accounts.plan` strings predating the canonical PlanIds. Kept until a
+// data check confirms no rows still carry them, then drop.
+const LEGACY_PLAN_ALIASES: Record<string, ProductTier> = {
+	pro: "build",
+	build: "build",
+	builder: "build",
+};
 
 export type ProductTenant<TTier extends ProductTier = ProductTier> = {
 	tenant_id: string;
@@ -37,19 +59,21 @@ type ProductTokenStoreOptions<TTenant extends ProductTenant> = {
 };
 
 export function accountPlanToProductTier(plan: string): ProductTier {
-	switch (plan.toLowerCase()) {
-		case "enterprise":
-			return "enterprise";
-		case "scale":
-			return "scale";
-		case "build":
-		case "launch":
-		case "pro":
-		case "builder":
-			return "build";
-		default:
-			return "free";
+	const normalized = plan.trim().toLowerCase();
+	// Legitimate "no plan" → free tier.
+	if (normalized === "" || normalized === "none" || normalized === "hobby") {
+		return "free";
 	}
+	// Canonical PlanIds resolve via the single source colocated with PLANS.
+	if (isValidPlanId(normalized)) return PLAN_TO_PRODUCT_TIER[normalized];
+	const legacy = LEGACY_PLAN_ALIASES[normalized];
+	if (legacy) return legacy;
+	// Unknown non-empty plan = drift between accounts.plan and PLANS. Don't
+	// silently treat a paid-looking id as free — alarm and fall back safely.
+	logger.error("Unknown account plan — tier drift; defaulting to free", {
+		plan,
+	});
+	return "free";
 }
 
 async function lookupAccountApiKey(
@@ -97,10 +121,19 @@ export function createRuntimeProductTokenStore<TTenant extends ProductTenant>(
 			const key = await lookupApiKey(hashToken(rawToken), opts.product, getDb);
 			if (!key || key.status !== "active") return undefined;
 
+			// A key's pinned tier may only UPGRADE above the account plan, never
+			// downgrade below it — otherwise a stray `tier='free'` (e.g. a ghost
+			// key merged onto a paid account) would meter a paying customer.
+			const planTier = accountPlanToProductTier(key.plan);
+			const tier =
+				key.tier && TIER_RANK[key.tier] > TIER_RANK[planTier]
+					? key.tier
+					: planTier;
+
 			return {
 				tenant_id: `account:${key.account_id}`,
 				account_id: key.account_id,
-				tier: key.tier ?? accountPlanToProductTier(key.plan),
+				tier,
 				scopes: [opts.requiredScope],
 			} as unknown as TTenant;
 		},

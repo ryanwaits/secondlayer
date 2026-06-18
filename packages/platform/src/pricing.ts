@@ -46,7 +46,7 @@ export const PLANS: Record<PlanId, Plan> = {
 		tagline: "Real product",
 		features: [
 			"250 req/s on Index and Streams",
-			"Private subgraphs",
+			"15 private subgraphs",
 			"Genesis backfills (full history)",
 			"25 webhook subscriptions + replay",
 			"Usage budgets + alerts",
@@ -64,6 +64,8 @@ export const PLANS: Record<PlanId, Plan> = {
 		tagline: "Full indexing",
 		features: [
 			"500 req/s on Index and Streams",
+			"50 private subgraphs",
+			"Unlimited webhook subscriptions",
 			"Heavy history + replay",
 			"24h SLA · priority support",
 		],
@@ -87,6 +89,22 @@ export const PLANS: Record<PlanId, Plan> = {
 };
 
 export const PLAN_IDS: readonly PlanId[] = ["launch", "scale", "enterprise"];
+
+/**
+ * Product rate tier each paid plan grants. Single source for the plan→tier
+ * resolution enforced in `@secondlayer/api` (rate limits, retention) — replaces a
+ * hand-maintained switch that silently mapped anything unrecognized to free. The
+ * free tier is the no-plan case (`plan = "none"`), not a PlanId, so it is not a
+ * key here.
+ */
+export const PLAN_TO_PRODUCT_TIER: Record<
+	PlanId,
+	"build" | "scale" | "enterprise"
+> = {
+	launch: "build",
+	scale: "scale",
+	enterprise: "enterprise",
+};
 
 export function getPlan(id: string): Plan {
 	const plan = (PLANS as Record<string, Plan | undefined>)[id];
