@@ -1,6 +1,6 @@
 # CLI
 
-The `sl` command-line tool — authenticate once, manage subgraphs and subscriptions from your terminal.
+The `sl` command-line tool: authenticate once, manage subgraphs and subscriptions from your terminal.
 
 ## Install
 
@@ -22,7 +22,7 @@ sl subgraphs ls          # list your deployments
 sl subscriptions create  # wire up a webhook subscription
 ```
 
-Every tool shares one session — sign in once and the SDK, CLI, and MCP server all inherit it.
+Every tool shares one session: sign in once and the SDK, CLI, and MCP server all inherit it.
 
 ## Orientation
 
@@ -43,7 +43,7 @@ The snapshot covers:
 
 <Callout type="note" title="Chain subscriptions use a different surface">
 
-[Direct chain subscriptions](/docs/subscriptions#direct-chain-subscriptions-no-subgraph) — webhooks on raw chain events with no subgraph — are created over the SDK, REST, or MCP instead. They take a `triggers` array rather than a table.
+[Direct chain subscriptions](/docs/subscriptions#direct-chain-subscriptions-no-subgraph) (webhooks on raw chain events with no subgraph) are created over the SDK, REST, or MCP instead. They take a `triggers` array rather than a table.
 
 </Callout>
 
@@ -56,7 +56,7 @@ sl subgraphs create sbtc-registry \
 
 `--from-contract` infers each print topic's real payload shape from indexed
 history (the [print-schema endpoint](/docs/index#print-schemas)) and writes a
-typed definition. Anonymous — no login needed.
+typed definition. Anonymous, no login needed.
 
 The generated definition includes:
 
@@ -69,30 +69,24 @@ types (a discriminated union per source) next to the definition.
 
 <Callout type="note" title="Payload codegen is print-only">
 
-`--payloads` is incompatible with `--target`/`--models-only`/`--env` — those are ORM-only.
+`--payloads` is incompatible with `--target`/`--models-only`/`--env` (those are ORM-only).
 
 </Callout>
 
 <Callout type="note" title="Deploy-time warnings">
 
 `sl subgraphs deploy` also prints advisory `warnings` when a handler reads an
-`event.data` field never observed on-chain for its source's topic — warn-only,
+`event.data` field never observed on-chain for its source's topic. Warn-only,
 never blocks.
 
 </Callout>
 
-## ORM codegen (frozen)
+## Frozen features
 
-`sl subgraphs codegen --target prisma|drizzle|kysely` generates a typed ORM
-schema for a subgraph's tables, for BYO-database setups. Works, frozen — see
-[Subgraphs](/docs/subgraphs#use-your-own-database--orm) if you need it.
+These work but get no further investment. The supported dev loop is hosted (`sl subgraphs create` → `deploy` against a recent block).
 
-## Local devnet (frozen)
-
-`sl devnet` / `sl local` run the pipeline against a local Clarinet devnet. They
-work but are frozen — no further investment; the supported dev loop is hosted
-(`sl subgraphs create` → `deploy` against a recent block). Run `sl devnet --help`
-if you need them.
+- `sl subgraphs codegen --target prisma|drizzle|kysely` generates a typed ORM schema for a subgraph's tables (BYO-database). See [Subgraphs](/docs/subgraphs#use-your-own-database--orm).
+- `sl devnet` / `sl local` run the pipeline against a local Clarinet devnet. Run `sl devnet --help` for usage.
 
 
 export const metadata = {

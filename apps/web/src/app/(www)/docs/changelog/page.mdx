@@ -6,47 +6,35 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ### Build your app index with `consume()`
 
-Index now ships the loop, not just the reads. `index.events.consume()` and
-`index.contractCalls.consume()` are checkpointed consumers — write your rows
-inside `onBatch`, return the cursor you committed, and crash-restart resumes
-exactly there. Reorgs rewind the cursor to the fork point automatically;
-`finalizedOnly` holds delivery to rows at or below `tip.finalized_height`
-(which the Index tip now reports), and `fromHeight: 0` backfills from genesis.
-The same contract as the Streams consumer, over decoded rows — no node, no
-decoders, no sync loop to hand-roll. Full runnable example:
-[`sales-index`](https://github.com/ryanwaits/secondlayer/tree/main/examples/sales-index)
-indexes every Gamma marketplace sale into your own Postgres in ~50 lines, then
-graduates to the same table as a one-file Subgraph.
+Index now ships the loop. `index.events.consume()` and `index.contractCalls.consume()` are checkpointed consumers over decoded rows, with no node, decoders, or sync loop to hand-roll.
+
+- Write your rows inside `onBatch`, return the cursor you committed, and crash-restart resumes exactly there.
+- Reorgs rewind the cursor to the fork point automatically.
+- `finalizedOnly` holds delivery to rows at or below `tip.finalized_height` (which the Index tip now reports).
+- `fromHeight: 0` backfills from genesis.
+- Runnable example: [`sales-index`](https://github.com/ryanwaits/secondlayer/tree/main/examples/sales-index) indexes every Gamma marketplace sale into your own Postgres in ~50 lines, then graduates to the same table as a one-file Subgraph.
 
 ### Empirical print-event schemas
 
-Clarity ABIs don't describe `print` payloads, and the shape varies per topic
-within one contract. New `GET /v1/index/contracts/:id/print-schema` infers each
-topic's real payload schema from indexed history — sampled print events
-deserialized from raw Clarity, with exact Clarity types, TS types, and subgraph
-column types per field. `sl subgraphs create <name> --from-contract <id>`
-scaffolds a fully typed subgraph from it (per-topic `prints` maps → typed
-`event.data`; `--table-per-topic` to normalize), `codegen --payloads` emits the
-payload types as a `.d.ts`, and deploys now warn when a handler reads a field
-never observed on-chain. Also `sl.index.printSchema()` (SDK) and
-`index_print_schema` (MCP).
+Clarity ABIs don't describe `print` payloads, and the shape varies per topic within one contract. New `GET /v1/index/contracts/:id/print-schema` infers each topic's real payload schema from indexed history: sampled print events deserialized from raw Clarity, with exact Clarity types, TS types, and subgraph column types per field.
+
+- `sl subgraphs create <name> --from-contract <id>` scaffolds a fully typed subgraph (per-topic `prints` maps to typed `event.data`; `--table-per-topic` to normalize).
+- `codegen --payloads` emits the payload types as a `.d.ts`.
+- Deploys now warn when a handler reads a field never observed on-chain.
+- SDK: `sl.index.printSchema()`. MCP: `index_print_schema`.
 
 ### PoX-4 stacking decoded
 
-Index now decodes PoX-4 stacking. `stack-stx`, `delegate-stx`, and reward
-actions are normalized into typed rows at `/v1/index/stacking` — filter by
-stacker, caller, or PoX function with no node and no decoders of your own.
+Index now decodes PoX-4 stacking. `stack-stx`, `delegate-stx`, and reward actions are normalized into typed rows at `/v1/index/stacking`; filter by stacker, caller, or PoX function with no node and no decoders of your own.
 
 ### Keyless reads, plus pay-as-you-go credits
 
-Index reads need no API key. Anonymous requests work with wildcard CORS, and a
-free-tier key reads Index too (never slower than anonymous). Free and anonymous
-reads cover the recent 24-hour window — a read into older history returns
-`402 UPGRADE_REQUIRED`. To read older history without a plan, top up prepaid
-credits with a card (`POST /api/billing/topup`, packs $10–$100): with a positive
-balance the account reads beyond the window, unthrottled, debited $5 per
-1,000,000 rows across both Index and Streams from one shared balance, with the
-prepaid balance as a hard cap. Public chain data stays public.
+Index reads need no API key. Anonymous requests work with wildcard CORS, and a free-tier key reads Index too (never slower than anonymous).
+
+- Free and anonymous reads cover the recent 24-hour window; a read into older history returns `402 UPGRADE_REQUIRED`.
+- Top up prepaid credits with a card (`POST /api/billing/topup`, packs $10–$100) to read older history without a plan.
+- A positive balance reads beyond the window, unthrottled, debited $5 per 1,000,000 rows across both Index and Streams from one shared balance, with the prepaid balance as a hard cap.
+- Public chain data stays public.
 
 ### Trait-filtered event queries
 
@@ -76,25 +64,19 @@ over REST and MCP. See [SDK aggregates](/docs/sdk#aggregate-subgraph-rows).
 
 ### Safer schema changes on your own database
 
-For [bring-your-own-database](/docs/subgraphs#use-your-own-database--orm)
-subgraphs, a breaking schema change (removed table/column, changed type, or a
-forced reindex) is now **refused** instead of dropping your data. The deploy
-returns the exact migration plan — the `DROP SCHEMA … CASCADE` plus the rebuild
-DDL — so you can run it yourself and re-deploy. `sl subgraphs deploy` prints the
-plan; the SDK throws a typed `ByoBreakingChangeError` exposing `reasons` and
-`plan`.
+For [bring-your-own-database](/docs/subgraphs#use-your-own-database--orm) subgraphs, a breaking schema change (removed table/column, changed type, or a forced reindex) is now **refused**, keeping your data intact.
+
+- The deploy returns the exact migration plan: the `DROP SCHEMA … CASCADE` plus the rebuild DDL, so you can run it yourself and re-deploy.
+- `sl subgraphs deploy` prints the plan.
+- The SDK throws a typed `ByoBreakingChangeError` exposing `reasons` and `plan`.
 
 ## Subscriptions — June 2026
 
-Subscriptions went polymorphic. A subscription is now one of two kinds:
-`subgraph` (fires on subgraph table rows, as before) or `chain` — a webhook on
-**raw chain events with no subgraph at all**. The lambda for Stacks.
+Subscriptions went polymorphic. A subscription is now one of two kinds: `subgraph` (fires on subgraph table rows, as before) or `chain`, a webhook on **raw chain events with no subgraph at all**. The lambda for Stacks.
 
 ### Direct chain subscriptions
 
-Pass a `triggers` array instead of a subgraph table. A chain subscription is
-forward-looking — it starts at the chain tip and fires the moment a matching
-event lands, no deploy and no backfill.
+Pass a `triggers` array instead of a subgraph table. A chain subscription is forward-looking: it starts at the chain tip and fires the moment a matching event lands, with no deploy and no backfill.
 
 ```ts
 import { trigger } from "@secondlayer/sdk";
@@ -109,10 +91,7 @@ await sl.subscriptions.create({
 });
 ```
 
-`trigger.*` builders cover every event type — `contractCall`,
-`contractDeploy`, `printEvent`, and the `stx*`/`ft*`/`nft*` transfer/mint/burn
-variants — with `*` wildcards and a `trait` filter that scopes to a whole SIP.
-Over REST, `POST /api/subscriptions` accepts the same `triggers` array (1–50).
+`trigger.*` builders cover every event type (`contractCall`, `contractDeploy`, `printEvent`, and the `stx*`/`ft*`/`nft*` transfer/mint/burn variants), with `*` wildcards and a `trait` filter that scopes to a whole SIP. Over REST, `POST /api/subscriptions` accepts the same `triggers` array (1–50).
 
 ### Apply / rollback delivery
 
@@ -120,7 +99,7 @@ Chain deliveries carry a typed envelope: a match sends `chain.{type}.apply`
 (with `block_hash`, `block_height`, `tx_id`, `canonical`, the matched `trigger`,
 and the `event`), and a reorg sends `chain.reorg.rollback` (with
 `fork_point_height` and the orphaned events) so you can cleanly undo. Delivery
-stays at-least-once and HMAC-signed — key your state on `(tx_id, block_hash)`.
+stays at-least-once and HMAC-signed; key your state on `(tx_id, block_hash)`.
 
 ## Streams — May 2026
 
@@ -142,8 +121,8 @@ curl -H "Authorization: Bearer $SL_API_KEY" \
 ### Finality
 
 `/v1/streams/tip` now returns `finalized_height`, and every event carries a
-`finalized` flag. Finality is anchored to Bitcoin (burn-block) confirmations —
-not a fixed count of Stacks blocks — so a `finalized` event will not reorg.
+`finalized` flag. Finality is anchored to Bitcoin (burn-block) confirmations
+rather than a fixed count of Stacks blocks, so a `finalized` event will not reorg.
 
 ### Caching
 
@@ -157,7 +136,7 @@ so historical reads are cheap while the live edge stays fresh.
 Streams responses are signed with ed25519. Each read carries an `X-Signature`
 (over the exact response body) and `X-Signature-KeyId`. Fetch the public key at
 `GET /public/streams/signing-key` and verify, or set `verify` on the SDK
-client — you can trust the data without trusting the server.
+client; you can trust the data without trusting the server.
 
 ```ts
 const streams = createStreamsClient({ apiKey, verify: true });
@@ -165,16 +144,14 @@ const streams = createStreamsClient({ apiKey, verify: true });
 
 ### Bulk & backfill
 
-Download all of it. Finalized history is published as bulk dumps with an
-ed25519-signed manifest — the SDK verifies that signature by default
-(`verifyDumpsManifest`) before trusting any per-file sha256 it lists:
+Download all of it. Finalized history is published as bulk dumps with an ed25519-signed manifest; the SDK verifies that signature by default (`verifyDumpsManifest`) before trusting any per-file sha256 it lists.
 
 - SDK: `client.dumps.list()` / `download(file)` and a one-call
   `events.replay({ from: "genesis", onDumpFile, onBatch })` that backfills cold
-  history from dumps, then tails live from the manifest's finalized cursor —
+  history from dumps, then tails live from the manifest's finalized cursor with
   no gap or duplicate at the seam.
 - CLI: `sl streams pull --to ./dump` downloads finalized dumps locally
-  (dumps are public — no API key).
+  (dumps are public, no API key).
 
 ### Reliability
 

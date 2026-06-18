@@ -1,10 +1,10 @@
 # MCP
 
-The whole Secondlayer surface as Model Context Protocol tools. Point an agent at the server and it can query decoded chain data, deploy and manage subgraphs, wire up webhooks, and discover contracts — over one connection, with the same auth as the SDK and CLI.
+The whole Secondlayer surface as Model Context Protocol tools. Point an agent at the server and it can query decoded chain data, deploy and manage subgraphs, wire up webhooks, and discover contracts over one connection, with the same auth as the SDK and CLI.
 
 ## Connect
 
-The server ships as `@secondlayer/mcp` and speaks **stdio**. Add it to any MCP client (Claude Code, Cursor, Claude Desktop, or any MCP host):
+The server ships as `@secondlayer/mcp` and speaks **stdio**. Add it to any MCP client (Claude Code, Cursor, Claude Desktop):
 
 ```json
 {
@@ -18,9 +18,9 @@ The server ships as `@secondlayer/mcp` and speaks **stdio**. Add it to any MCP c
 }
 ```
 
-`SL_API_KEY` is optional — leave it out for anonymous reads (see [Authentication](#authentication)).
+`SL_API_KEY` is optional; leave it out for anonymous reads (see [Authentication](#authentication)).
 
-There's also an HTTP transport (`@secondlayer/mcp-http`) with session management and optional `SECONDLAYER_MCP_SECRET` bearer auth, for hosting the server behind a URL.
+An HTTP transport (`@secondlayer/mcp-http`) adds session management and optional `SECONDLAYER_MCP_SECRET` bearer auth for hosting the server behind a URL.
 
 ### Pay-per-call (x402)
 
@@ -41,15 +41,15 @@ X402_TOPUP_WHEN_BELOW=$0.50   # optional: top-up threshold
 | Subgraphs | Public subgraphs keyless; private need your key | Need your key |
 | Streams, Subscriptions, Account | Need your key | Need your key |
 
-An agent holding an account-level key can mint its own scoped read keys with `account_create_key`. Keys and signing secrets are returned **once** — capture and forward them to the user.
+An agent holding an account-level key can mint scoped read keys with `account_create_key`. Keys and signing secrets are returned **once**: capture and forward them to the user.
 
 ## Start here
 
-The server exposes MCP **resources** for orientation — read these before calling tools so the agent knows what exists and what filters are valid:
+The server exposes MCP **resources** for orientation. Read these before calling tools so the agent knows what exists and what filters are valid:
 
 | Resource | What it returns |
 | --- | --- |
-| `secondlayer://context` | Live snapshot — your subgraphs, subscriptions, account, chain tips, auth state, and what you can do. **Read first.** |
+| `secondlayer://context` | Live snapshot: your subgraphs, subscriptions, account, chain tips, auth state, and what you can do. **Read first.** |
 | `secondlayer://filters` | Event filter types and the fields each accepts |
 | `secondlayer://column-types` | Subgraph column types, SQL mappings, and options |
 | `secondlayer://traits` | SIP standards you can classify and scaffold against (sip-009/010/013) |
@@ -59,7 +59,7 @@ For Index specifically, call `index_discover` to learn every event type, its col
 
 ## Tools
 
-Thirty-three tools across seven domains. Reads are cursor-paginated; writes that kick off work (reindex, backfill, replay, deploy) return an `operationId` you can poll.
+Thirty-three tools across seven domains. Reads are cursor-paginated; writes that kick off work (reindex, backfill, replay, deploy) return an `operationId` to poll.
 
 ### Index — decoded reads
 
@@ -68,11 +68,11 @@ Thirty-three tools across seven domains. Reads are cursor-paginated; writes that
 | `index_events` | Decoded events by `eventType` (stx/ft/nft mint·burn, print, …), with `trait` scoping |
 | `index_ft_transfers` | Decoded SIP-010 fungible-token transfers |
 | `index_nft_transfers` | Decoded SIP-009 non-fungible-token transfers |
-| `index_contract_calls` | Decoded contract calls — function, args, result |
+| `index_contract_calls` | Decoded contract calls: function, args, result |
 | `index_transactions` | Decoded transactions, filterable by type/sender/contract |
 | `index_blocks` | Decoded blocks |
 | `index_discover` | The Index vocabulary: event types, columns, allowed filters |
-| `index_print_schema` | Per-topic print payload schemas for a contract, inferred from on-chain history — read before writing `print_event` handlers |
+| `index_print_schema` | Per-topic print payload schemas for a contract, inferred from on-chain history; read before writing `print_event` handlers |
 | `batch_query` | Up to 10 public `/v1` reads in one round trip |
 
 ### Subgraphs — your own indexer
@@ -81,7 +81,7 @@ Thirty-three tools across seven domains. Reads are cursor-paginated; writes that
 | --- | --- |
 | `subgraphs_deploy` | Deploy from `defineSubgraph()` source (managed or BYO Postgres; `dryRun` previews DDL) |
 | `subgraphs_list` | List your deployed subgraphs |
-| `subgraphs_get` | Full detail — schema, health, table columns |
+| `subgraphs_get` | Full detail: schema, health, table columns |
 | `subgraphs_query` | Query a table with operator filters (`amount.gte`, `name.like`, …) |
 | `subgraphs_gaps` | List missing block ranges |
 | `subgraphs_backfill` | Non-destructive forward fill of a block range |
@@ -103,7 +103,7 @@ Thirty-three tools across seven domains. Reads are cursor-paginated; writes that
 | --- | --- |
 | `subscriptions_create` | Create a subgraph- or chain-triggered webhook (returns `signingSecret` once) |
 | `subscriptions_list` | List subscriptions |
-| `subscriptions_get` | Full detail — filter, auth, retry, circuit state |
+| `subscriptions_get` | Full detail: filter, auth, retry, circuit state |
 | `subscriptions_update` | Patch url, filter, auth, retry, timeout, concurrency |
 | `subscriptions_test` | Send a one-off SSRF-guarded test delivery |
 | `subscriptions_replay` | Replay a block range |
@@ -126,7 +126,7 @@ Thirty-three tools across seven domains. Reads are cursor-paginated; writes that
 
 ## Notes
 
-- **One-time secrets.** `account_create_key` and `subscriptions_create` return a key/secret exactly once — forward it to the user.
+- **One-time secrets.** `account_create_key` and `subscriptions_create` return a key/secret exactly once: forward it to the user.
 - **Cursors are opaque** and per-keyspace: contract-call cursors are not interchangeable with event cursors.
 - **Tail without streaming.** For subgraph tables, sort `_id` desc for the latest, then poll forward with `{"_id.gt": "<last id>"}`, order asc.
-- Every surface shares one session — sign in once and the SDK, CLI, and MCP server all inherit it. See the [REST API](/docs/rest-api) for the underlying endpoints.
+- See the [REST API](/docs/rest-api) for the underlying endpoints.

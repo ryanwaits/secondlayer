@@ -1,10 +1,6 @@
 # Subscriptions
 
-Push semantics. Subscribe to your subgraph table writes — the server delivers signed webhooks.
-
-A subscription binds to a subgraph table. Every row change that matches the filter triggers a signed HTTP POST to your endpoint, with automatic retries and idempotency keys.
-
-Subscriptions deliver the full row lifecycle — inserts, updates, and deletes — not just the initial write.
+A subscription binds to a subgraph table: every row change that matches the filter fires a signed HTTP POST to your endpoint, with automatic retries and idempotency keys. Deliveries cover the full row lifecycle: inserts, updates, and deletes.
 
 ## Create a subscription
 
@@ -20,11 +16,11 @@ Omit `--no-scaffold` to also scaffold a local receiver project (`-r inngest | tr
 
 ## Verify the signature
 
-On the default `standard-webhooks` format, every delivery carries a per-subscription HMAC. Verify it against your subscription secret before trusting the payload — pass the **raw body first**, then the headers and secret.
+On the default `standard-webhooks` format, every delivery carries a per-subscription HMAC. Verify it against your subscription secret before trusting the payload: pass the **raw body first**, then the headers and secret.
 
 <Callout type="note" title="Other formats use the universal signature">
 
-The other formats — `raw`, `cloudevents`, `trigger`, `cloudflare`, `inngest` — don't carry this HMAC. They're authenticated by the universal ed25519 signature in [Universal webhook signature](#universal-webhook-signature) below, which rides on **every** delivery regardless of format.
+The other formats (`raw`, `cloudevents`, `trigger`, `cloudflare`, `inngest`) don't carry this HMAC. They're authenticated by the universal ed25519 signature ([below](#universal-webhook-signature)), which rides on **every** delivery.
 
 </Callout>
 
@@ -41,7 +37,7 @@ Failed deliveries retry with backoff; after repeated failures the subscription's
 
 ## Row lifecycle verbs
 
-A subgraph subscription tracks the **whole life** of each matching row, not just the insert. The payload's `type` field encodes which mutation fired, as `` `<subgraph>.<table>.<verb>` ``:
+A subgraph subscription tracks the **whole life** of each matching row. The payload's `type` field encodes which mutation fired, as `` `<subgraph>.<table>.<verb>` ``:
 
 | Verb | Fires on | Example `type` |
 | --- | --- | --- |
@@ -49,11 +45,9 @@ A subgraph subscription tracks the **whole life** of each matching row, not just
 | `updated` | row update | `sbtc-flows.transfers.updated` |
 | `deleted` | row delete | `sbtc-flows.transfers.deleted` |
 
-A downstream mirror should apply `created` and `updated` and remove the row on `deleted`, so your copy stays in lockstep with the materialized table.
-
 ## Universal webhook signature
 
-Beyond the per-subscription HMAC above, **every** delivery — in any format (`standard-webhooks` — the default — `raw`, `cloudevents`, `trigger`, `cloudflare`, `inngest`) — also carries an authenticity signature that proves it came from Secondlayer. Three headers ride on every POST:
+Beyond the per-subscription HMAC, **every** delivery in any format carries an authenticity signature proving it came from Secondlayer. Three headers ride on every POST:
 
 | Header | Purpose |
 | --- | --- |
@@ -61,7 +55,7 @@ Beyond the per-subscription HMAC above, **every** delivery — in any format (`s
 | `x-secondlayer-signature` | ed25519 signature, base64 |
 | `x-secondlayer-signature-keyid` | Id of the signing key used |
 
-The signed content is `` `${webhook-id}.${rawBody}` ``. Verify it with the SDK against Secondlayer's published public key — one key proves authenticity for any format.
+The signed content is `` `${webhook-id}.${rawBody}` ``. Verify it with the SDK against Secondlayer's published public key; one key proves authenticity for any format.
 
 ```ts
 import { verifySecondlayerSignature } from "@secondlayer/sdk";
@@ -75,7 +69,7 @@ Fetch the public key once from `GET /public/streams/signing-key` and cache it (r
 
 ## Replay
 
-Re-deliver historical rows over an existing subscription with `replay`. Replays are **idempotent** (re-running the same range is a no-op), **historical only**, and **never move the live cursor** — your forward stream keeps flowing untouched.
+Re-deliver historical rows over an existing subscription with `replay`. Replays are **idempotent** (re-running the same range is a no-op), **historical only**, and **never move the live cursor**; your forward stream keeps flowing untouched.
 
 ```ts
 const { replayId, enqueuedCount, scannedCount } = await sl.subscriptions.replay(id, {
@@ -88,19 +82,19 @@ The range is capped at **100,000 blocks**. Both kinds are flagged as replays (`i
 
 | Subscription kind | Replay delivers as |
 | --- | --- |
-| Subgraph | `<subgraph>.<table>.replay` — a distinct verb, not the live `.created`/`.updated`/`.deleted` types |
+| Subgraph | `<subgraph>.<table>.replay`, a distinct verb (not the live `.created`/`.updated`/`.deleted` types) |
 | Chain | The standard `chain.{type}.apply` envelope |
 
 ## Direct chain subscriptions (no subgraph)
 
-Subscriptions are polymorphic. A subscription is one of two mutually-exclusive kinds:
+A subscription is one of two mutually-exclusive kinds:
 
-- **`subgraph`** — fires on the rows a subgraph handler writes. Shape: `{ name, subgraphName, tableName, url, filter? }`.
-- **`chain`** — fires on **raw chain events**, with no subgraph deployed. Shape: `{ name, url, triggers: [...] }`. It's the "lambda for Stacks": a webhook on a contract, event, function, or SIP trait — no schema, no handler. Chain subscriptions are forward-looking (they start at the chain tip; there's no backfill).
+- **`subgraph`**: fires on the rows a subgraph handler writes. Shape: `{ name, subgraphName, tableName, url, filter? }`.
+- **`chain`**: fires on **raw chain events**, with no subgraph deployed. Shape: `{ name, url, triggers: [...] }`. A webhook on a contract, event, function, or SIP trait, with no schema or handler. Chain subscriptions are forward-looking: they start at the chain tip, no backfill.
 
 ### Triggers
 
-A chain subscription takes a `triggers` array (1–50) instead of `subgraphName`/`tableName`. Build them with the `trigger.*` factories from the SDK root:
+A chain subscription takes a `triggers` array (1–50) instead of `subgraphName`/`tableName`. Build them with the `trigger.*` factories:
 
 ```ts
 import { trigger } from "@secondlayer/sdk";
@@ -115,7 +109,7 @@ await sl.subscriptions.create({
 });
 ```
 
-The raw object form is equivalent — `{ type: "contract_call", contractId, functionName: "swap-*" }`.
+The raw object form is equivalent: `{ type: "contract_call", contractId, functionName: "swap-*" }`.
 
 **Trigger types and their fields** (`*` wildcards are allowed; `trait` scopes a trigger to a SIP/trait):
 
@@ -135,13 +129,13 @@ The raw object form is equivalent — `{ type: "contract_call", contractId, func
 | `trigger.stxLock` | `stx_lock` | `lockedAddress`, `minAmount` |
 | `trigger.printEvent` | `print_event` | `contractId`, `topic`, `trait` |
 
-Validation is strict per type — mints take `recipient` (no `sender`), burns take `sender` (no `recipient`); any field outside a type's set is rejected with a 400 validation error.
+Validation is strict per type: mints take `recipient` (no `sender`), burns take `sender` (no `recipient`); any field outside a type's set is rejected with a 400.
 
-Via REST, `POST /api/subscriptions` accepts the same `triggers` array (1–50) in place of `subgraphName`/`tableName`. Chain subscriptions are created over the SDK, REST, or MCP — the CLI's `create` is subgraph-only.
+Via REST, `POST /api/subscriptions` accepts the same `triggers` array (1–50). Chain subscriptions are created over the SDK, REST, or MCP; the CLI's `create` is subgraph-only.
 
 ### Delivery envelope
 
-Chain deliveries carry a small typed envelope. A matched event delivers `chain.{type}.apply`:
+A matched event delivers `chain.{type}.apply`:
 
 ```json
 {
@@ -155,7 +149,7 @@ Chain deliveries carry a small typed envelope. A matched event delivers `chain.{
 }
 ```
 
-A reorg delivers `chain.reorg.rollback`, so you can undo anything you committed off an orphaned block:
+A reorg delivers `chain.reorg.rollback` so you can undo anything committed off an orphaned block. Each orphaned entry is `{ tx_id, event }`, the event body from the original apply:
 
 ```json
 {
@@ -168,15 +162,13 @@ A reorg delivers `chain.reorg.rollback`, so you can undo anything you committed 
 }
 ```
 
-Each orphaned entry is `{ tx_id, event }` — the event body from the original apply, not the full apply envelope.
-
 <Callout type="warning" title="orphaned is capped at 500">
 
 `orphaned` is capped at 500 entries per subscription. If `truncated` is `true`, treat everything you committed at or above `fork_point_height` as orphaned rather than relying on the list.
 
 </Callout>
 
-Delivery is at-least-once and HMAC-signed exactly like subgraph subscriptions — verify the signature, and key your state on `(tx_id, block_hash)` so a redelivery is idempotent.
+Delivery is at-least-once and HMAC-signed exactly like subgraph subscriptions. Verify the signature, and key your state on `(tx_id, block_hash)` so a redelivery is idempotent.
 
 export const metadata = {
 	title: "Subscriptions — Secondlayer Docs",

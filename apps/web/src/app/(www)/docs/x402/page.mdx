@@ -1,16 +1,12 @@
 # x402 pay-per-call
 
-> **Experimental.** The pay-per-call rail is a beta — surfaces, prices, and headers may change. Plans on the [pricing page](/pricing) are the stable way to pay.
-
-Built for agents. Index and Streams reads (`/v1/index`, `/v1/streams`) can be paid with **x402**, the HTTP 402 payment standard, settled on Stacks — and a paid `POST /v1/subgraphs` deploys an indexer owned by your wallet.
-
-No card, no signup, no gas: transfers are sponsored, you only hold the token (sBTC, STX, or USDCx).
+> **Experimental.** The pay-per-call rail is a beta; surfaces, prices, and headers may change. Plans on the [pricing page](/pricing) are the stable way to pay. Built for agents: pay Index and Streams reads (`/v1/index`, `/v1/streams`) with **x402**, the HTTP 402 payment standard settled on Stacks, and a paid `POST /v1/subgraphs` deploys an indexer owned by your wallet. No card, no signup, no gas: transfers are sponsored, you only hold the token (sBTC, STX, or USDCx).
 
 ## How it works
 
 ### 1. Call without a key
 
-Call without a key while the pay-per-call rail is on and the API answers `402 Payment Required` with exact quotes per accepted token.
+Call without a key while the rail is on, and the API answers `402 Payment Required` with exact quotes per accepted token.
 
 ```bash
 # your agent calls like anyone else…
@@ -34,7 +30,7 @@ HTTP/1.1 402 Payment Required
 
 ### 2. Wrap fetch, hold a wallet
 
-One line with the SDK: `withX402(fetch, { account })`. It selects an offer, signs the sponsored transfer — **you pay zero gas** — and retries for you.
+One line with the SDK: `withX402(fetch, { account })`. It selects an offer, signs the sponsored transfer (**you pay zero gas**), and retries for you.
 
 ```typescript
 // the code you actually write
@@ -45,13 +41,11 @@ const x402fetch = withX402(fetch, { account });
 const res = await x402fetch(
   "https://api.secondlayer.tools/v1/index/events?event_type=ft_transfer",
 );
-// offer selection, sponsored signing, and the
-// retry all happen inside that one call
 ```
 
 ### 3. The paid retry
 
-Same request plus a `PAYMENT-SIGNATURE` header. The response streams immediately; settlement confirms on-chain behind it. On Streams, one payment opens a session — up to 500 polls in the next hour ride free on a `PAYMENT-SESSION` voucher.
+Same request plus a `PAYMENT-SIGNATURE` header. The response streams immediately; settlement confirms on-chain behind it. On Streams, one payment opens a session: up to 500 polls in the next hour ride free on a `PAYMENT-SESSION` voucher.
 
 ```bash
 # what went over the wire for you
@@ -81,14 +75,14 @@ const receipt = readX402Receipt(res);
 
 ## Free vs. paid: how the API decides
 
-There's no per-call "this read must pay" flag. Whether a request gets a free `200` or a `402` quote is decided per-request, in this order:
+Whether a request gets a free `200` or a `402` quote is decided per-request, in this order:
 
-1. **Holding an API key bypasses x402.** A request with a valid `sk-sl_` key is an account-backed caller — it never sees a 402; usage bills against your [plan](/pricing) via Stripe. Keyless = the pay-per-call rail; keyed = your plan.
-2. **The rail has to be on.** Pay-per-call is gated on a funded sponsor wallet (`X402_SPONSOR_KEY`). While it's off, keyless Index reads stay free and Streams stays key-mandatory — the pre-rail behavior. Check `GET /.well-known/x402` (`enabled: true|false`) to see the live state.
-3. **Index keeps a free anon allowance.** With the rail on, the first **1,000 keyless reads per IP per day** on `/v1/index` still return `200` — the keyless-reads promise survives the flip. The 402 only starts once that daily budget is spent.
-4. **Streams has no free quota.** With the rail on, `/v1/streams` quotes from the first keyless call (one payment then opens a 500-poll session — see below).
+1. **Holding an API key bypasses x402.** A request with a valid `sk-sl_` key is an account-backed caller; it never sees a 402, and usage bills against your [plan](/pricing) via Stripe. Keyless uses the pay-per-call rail; keyed uses your plan.
+2. **The rail has to be on.** Pay-per-call is gated on a funded sponsor wallet (`X402_SPONSOR_KEY`). While it's off, keyless Index reads stay free and Streams stays key-mandatory. Check `GET /.well-known/x402` (`enabled: true|false`) for the live state.
+3. **Index keeps a free anon allowance.** With the rail on, the first **1,000 keyless reads per IP per day** on `/v1/index` still return `200`. The 402 only starts once that daily budget is spent.
+4. **Streams has no free quota.** With the rail on, `/v1/streams` quotes from the first keyless call (one payment then opens a 500-poll session, see below).
 
-So the same endpoint answers three ways for the same agent:
+The same endpoint answers three ways for the same agent:
 
 ```bash
 # A) Keyed → free (billed to your plan, never a 402)
@@ -120,14 +114,12 @@ The quote also rides back base64-encoded in a `PAYMENT-REQUIRED` response header
 
 ## Discovery and sessions
 
-Standard x402 v2 wire — works with any x402 client. Sponsored means we pay the STX gas.
-
-Discover the rail at `GET /.well-known/x402` and the `x-x402` block in [the OpenAPI spec](https://api.secondlayer.tools/v1/openapi.json).
+Standard x402 v2 wire works with any x402 client; sponsored means we pay the STX gas. Discover the rail at `GET /.well-known/x402` and the `x-x402` block in [the OpenAPI spec](https://api.secondlayer.tools/v1/openapi.json).
 
 Steady consumers can hold either:
 
-- A **session** — one payment covers up to 500 polls an hour
-- A **prepaid tab** — deposit once, calls debit it instantly
+- A **session**: one payment covers up to 500 polls an hour.
+- A **prepaid tab**: deposit once, calls debit it instantly.
 
 export const metadata = {
 	title: "x402 pay-per-call (experimental) — Secondlayer",

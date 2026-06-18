@@ -1,14 +1,12 @@
 # Streams
 
-Raw chain event firehose — cursor-paginated REST, idempotent, replayable. The lowest level of indexing on Secondlayer: the inputs, not our decoding, for building an indexer from zero.
+Raw chain event firehose: cursor-paginated REST, idempotent, replayable. The lowest level of indexing on Secondlayer, for building an indexer from zero.
 
-This is the exact surface [Index](/docs/index) is built on — our decoder is itself a Streams consumer. Page forward with a cursor, replay from any point, and — with a committed checkpoint, within your tier's retention — never miss an event.
-
-Stream live over SSE in-process (see below), or fan out to your backend with [Subscriptions](/docs/subscriptions).
+[Index](/docs/index) is built on this exact surface (our decoder is itself a Streams consumer). Page forward with a cursor, replay from any point, and with a committed checkpoint, within your tier's retention, never miss an event. Stream live over SSE in-process (below), or fan out to your backend with [Subscriptions](/docs/subscriptions).
 
 <Callout type="note" title="Auth & retention">
 
-Streams reads require an API key — send it as `Authorization: Bearer`. Free keys read the recent 24-hour window (free retention is 1 day); reaching older history is [pay-as-you-go credits](/docs/authentication#pay-as-you-go-credits) or a paid plan. A read below the free window returns `402 UPGRADE_REQUIRED`.
+Streams reads require an API key; send it as `Authorization: Bearer`. Free keys read the recent 24-hour window (free retention is 1 day); reaching older history is [pay-as-you-go credits](/docs/authentication#pay-as-you-go-credits) or a paid plan. A read below the free window returns `402 UPGRADE_REQUIRED`.
 
 </Callout>
 
@@ -19,7 +17,7 @@ curl -H "Authorization: Bearer $SL_API_KEY" \
   "https://api.secondlayer.tools/v1/streams/events?limit=100"
 ```
 
-Each response returns a `next_cursor`. Pass it back as `cursor` to continue exactly where you left off — deliveries are idempotent, so retries never double-count.
+Each response returns a `next_cursor`. Pass it back as `cursor` to continue where you left off; deliveries are idempotent, so retries never double-count.
 
 ```bash
 curl -H "Authorization: Bearer $SL_API_KEY" \
@@ -28,7 +26,7 @@ curl -H "Authorization: Bearer $SL_API_KEY" \
 
 ## Filter the stream
 
-Narrow the firehose by event type, contract, or principal — `types`, `contract_id`, `sender`, `recipient`, `asset_identifier`, and `from_height`/`to_height`. Filters are exact-match; event types without a given field simply don't match.
+Narrow the firehose by event type, contract, or principal: `types`, `contract_id`, `sender`, `recipient`, `asset_identifier`, and `from_height`/`to_height`. Filters are exact-match; event types without a given field don't match.
 
 ```bash
 curl -H "Authorization: Bearer $SL_API_KEY" \
@@ -37,7 +35,7 @@ curl -H "Authorization: Bearer $SL_API_KEY" \
 
 ## Build an indexer on it
 
-The SDK ships the loop: `events.consume` is a checkpointed consumer with automatic reorg rewind. Write your rows inside `onBatch`, return the cursor you committed — crash anywhere and the next run resumes from your checkpoint. Reorgs rewind the cursor to the fork point and re-deliver (at-least-once; your writes should be idempotent).
+The SDK ships the loop: `events.consume` is a checkpointed consumer with automatic reorg rewind. Write rows inside `onBatch`, return the cursor you committed; crash anywhere and the next run resumes from your checkpoint. Reorgs rewind the cursor to the fork point and re-deliver (at-least-once, so writes should be idempotent).
 
 ```ts
 await streams.events.consume({
@@ -53,7 +51,7 @@ await streams.events.consume({
 });
 ```
 
-For cold history, `events.replay` backfills from the signed bulk dumps, then tails live from the manifest's `latest_finalized_cursor` — no gap or dupe at the seam:
+For cold history, `events.replay` backfills from the signed bulk dumps, then tails live from the manifest's `latest_finalized_cursor`, no gap or dupe at the seam:
 
 ```ts
 await streams.events.replay({
@@ -69,11 +67,11 @@ await streams.events.replay({
 });
 ```
 
-`from: "genesis"` replays every window the dumps cover — the manifest's `coverage` reports that range, which starts where the dump program began (not necessarily chain block 1). To start a partial backfill, pass a cursor instead. Need decoded history all the way back? Use [Index](/docs/index), which serves the full decoded chain from `from_height=0`.
+`from: "genesis"` replays every window the dumps cover; the manifest's `coverage` reports that range, which starts where the dump program began (not necessarily chain block 1). For a partial backfill, pass a cursor instead. Need decoded history all the way back? Use [Index](/docs/index), which serves the full decoded chain from `from_height=0`.
 
 ### Dumps + DuckDB
 
-The dumps are plain parquet — pull a verified range and query it locally, no indexer required:
+The dumps are plain parquet. Pull a verified range and query it locally, no indexer required:
 
 ```bash
 sl streams pull --to ./dump   # sha256-verified against the signed manifest
@@ -95,32 +93,32 @@ duckdb -c "SELECT event_type, count(*) AS events
 └──────────────┴────────┘
 ```
 
-The complete runnable indexer — dumps backfill, live seam, checkpointed tail — is the [`indexer-from-zero` example](https://github.com/ryanwaits/secondlayer/tree/main/examples/indexer-from-zero).
+The complete runnable indexer (dumps backfill, live seam, checkpointed tail) is the [`indexer-from-zero` example](https://github.com/ryanwaits/secondlayer/tree/main/examples/indexer-from-zero).
 
 ## Real-time firehose (SSE)
 
-`GET /v1/streams/events/stream` streams events as Server-Sent Events over a single long-lived connection — the native push surface inside Streams. Authenticate with `Authorization: Bearer`, and apply the same filters as `/events`: `types`, `not_types`, `contract_id`, `sender`, `recipient`, and `asset_identifier`.
+`GET /v1/streams/events/stream` streams events as Server-Sent Events over a single long-lived connection, the native push surface inside Streams. Authenticate with `Authorization: Bearer` and apply the same filters as `/events`: `types`, `not_types`, `contract_id`, `sender`, `recipient`, and `asset_identifier`.
 
 ```bash
 curl -N -H "Authorization: Bearer $SL_API_KEY" \
   "https://api.secondlayer.tools/v1/streams/events/stream?types=ft_transfer"
 ```
 
-Choose a start position with `cursor` (or `from_cursor`), or `from_height`. With no start position the connection live-tails from the reorg-clamped tip. A `ping` keepalive frame is sent every 20s so idle connections stay open.
+Choose a start position with `cursor` (or `from_cursor`), or `from_height`. With no start position the connection live-tails from the reorg-clamped tip. A `ping` keepalive frame is sent every 20s to keep idle connections open.
 
 <Callout type="warning" title="Near-real-time, not instant">
 
-Delivery is **near-real-time**, not instant: the server polls for new events roughly every 1.5s and serves from a tip held a couple of blocks back for reorg safety, so an event lands seconds — occasionally tens of seconds — after it first appears on chain. SSE is the low-latency push surface (vs. polling `/events` yourself), not a zero-latency one.
+Delivery is **near-real-time**. The server polls for new events roughly every 1.5s and serves from a tip held a couple of blocks back for reorg safety, so an event lands seconds (occasionally tens of seconds) after it first appears on chain. SSE is the low-latency push surface versus polling `/events` yourself.
 
 </Callout>
 
-The SDK's `client.events.subscribe(...)` is the ergonomic way to consume this — it carries your Bearer key, auto-reconnects from the last delivered cursor, and verifies per-frame signatures. See the [SDK docs](/docs/sdk).
+The SDK's `client.events.subscribe(...)` is the ergonomic way to consume this: it carries your Bearer key, auto-reconnects from the last delivered cursor, and verifies per-frame signatures. See the [SDK docs](/docs/sdk).
 
 ### Per-frame signatures
 
-Each SSE frame body is `{ event, sig, key_id }`, where `sig` is an ed25519 signature over `JSON.stringify(event)`. The SDK **verifies every frame by default** against the key published at `/public/streams/signing-key` before your handler runs.
+Each SSE frame body is `{ event, sig, key_id }`, where `sig` is an ed25519 signature over `JSON.stringify(event)`. The SDK **verifies every frame by default** against the key at `/public/streams/signing-key` before your handler runs.
 
-The default is *lenient*: the hosted API signs every frame (so hosted streams are verified), while an unsigned frame from a self-hosted instance (no `STREAMS_SIGNING_PRIVATE_KEY`) is delivered as-is. An *invalid* signature always throws.
+The default is *lenient*: the hosted API signs every frame, while an unsigned frame from a self-hosted instance (no `STREAMS_SIGNING_PRIVATE_KEY`) is delivered as-is. An *invalid* signature always throws.
 
 | `verify` | Behavior |
 | --- | --- |
@@ -132,14 +130,14 @@ This is the streaming counterpart to the signed `X-Signature` on REST reads: tru
 
 ## What's new (May 2026)
 
-- **Finality** — `tip.finalized_height` plus a `finalized` flag on every event, anchored to Bitcoin (burn-block) confirmations. A `finalized` event won't reorg.
-- **Caching** — fully-finalized pages are served `Cache-Control: public, immutable` with an `ETag` (and `304` on `If-None-Match`); the moving tip stays short-lived.
-- **Signed responses** — every hosted read carries an ed25519 `X-Signature`, **verified by default** (lenient: hosted reads checked against `/public/streams/signing-key`; unsigned self-host responses pass through; invalid signatures throw). Pass `verify: true` for strict, `verify: false` to skip, or `verify: { publicKey }` to pin a key.
-- **Bulk + replay** — download finalized history as signed bulk dumps (`sl streams pull`, or the SDK `dumps` namespace) and `events.replay({ from: "genesis" })` to backfill cold history then tail live with no gap at the seam.
+- **Finality**: `tip.finalized_height` plus a `finalized` flag on every event, anchored to Bitcoin (burn-block) confirmations. A `finalized` event won't reorg.
+- **Caching**: fully-finalized pages are served `Cache-Control: public, immutable` with an `ETag` (and `304` on `If-None-Match`); the moving tip stays short-lived.
+- **Signed responses**: every hosted read carries an ed25519 `X-Signature`, **verified by default** (lenient: hosted reads checked against `/public/streams/signing-key`; unsigned self-host responses pass through; invalid signatures throw). Pass `verify: true` for strict, `verify: false` to skip, or `verify: { publicKey }` to pin a key.
+- **Bulk + replay**: download finalized history as signed bulk dumps (`sl streams pull`, or the SDK `dumps` namespace) and `events.replay({ from: "genesis" })` to backfill cold history then tail live with no gap at the seam.
 
 <Callout type="note" title="Manifest signature is the root of trust">
 
-The bulk manifest is itself ed25519-signed and verified before any per-file `sha256` is trusted — the file hashes chain beneath the manifest signature. The client option `verifyDumpsManifest` defaults to `true` (both `dumps.list()` and `events.replay()` enforce it); opt out with `verifyDumpsManifest: false`.
+The bulk manifest is itself ed25519-signed and verified before any per-file `sha256` is trusted; the file hashes chain beneath the manifest signature. The client option `verifyDumpsManifest` defaults to `true` (both `dumps.list()` and `events.replay()` enforce it); opt out with `verifyDumpsManifest: false`.
 
 </Callout>
 

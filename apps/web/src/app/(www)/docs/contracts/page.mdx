@@ -1,11 +1,11 @@
 # Contract discovery
 
-Find every contract that conforms to a token standard — "all SIP-010 tokens", "all SIP-009 NFTs" — without maintaining a list of addresses.
+Find every contract that conforms to a token standard ("all SIP-010 tokens", "all SIP-009 NFTs") without maintaining a list of addresses.
 
 Secondlayer keeps a registry of deployed contracts and classifies each against SIP-009 / SIP-010 / SIP-013 two ways:
 
-- **Declared** — parsing the source's `(impl-trait …)`.
-- **Inferred** — statically matching the contract's ABI shape, so contracts that conform without declaring the trait are caught too.
+1. **Declared**: parsing the source's `(impl-trait …)`.
+2. **Inferred**: statically matching the contract's ABI shape, catching contracts that conform without declaring the trait.
 
 ## Query by trait
 
@@ -41,7 +41,7 @@ Reads are public. Cursor-paginate by passing the previous response's `next_curso
 
 ## Index a whole standard in a subgraph
 
-The same classification powers **trait-scoped [Subgraph](/docs/subgraphs) sources** — point a source at a standard instead of a contract and it indexes every conforming contract, including ones deployed later:
+Point a **trait-scoped [Subgraph](/docs/subgraphs) source** at a standard instead of a contract and it indexes every conforming contract, including ones deployed later:
 
 ```ts
 sources: {

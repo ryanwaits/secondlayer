@@ -1,13 +1,13 @@
 # Verification
 
-Trustless transaction-inclusion proofs let you verify — **without trusting Secondlayer** — that a transaction is included in a Stacks (Nakamoto) block, and that the reward cycle's signers attested to that block. Fetch a proof from the API, then recompute everything client-side: nothing Secondlayer returns is taken on faith.
+Trustless transaction-inclusion proofs let you verify, **without trusting Secondlayer**, that a transaction is included in a Stacks (Nakamoto) block, and that the reward cycle's signers attested to that block. Fetch a proof from the API, then recompute everything client-side.
 
 ## The trust spectrum
 
 A proof verifies at one of two levels.
 
-- **Anchored** — recompute the txid from `raw_tx`, fold it up the `tx_merkle_path` to the header's `tx_merkle_root`, and recompute the header's `block_hash` and `index_block_hash` from `raw_header`. This proves the transaction is included in a block header that any Stacks node can independently corroborate.
-- **Consensus** — additionally recover the signer signatures from the header and confirm that **≥70% of the reward cycle's signer weight** signed the block. This is **fully trustless** when you pass a reward set you resolved yourself (see [Fully trustless](#fully-trustless)); otherwise it falls back to the reward set embedded in the proof, which still trusts Secondlayer for that set alone.
+- **Anchored**: recompute the txid from `raw_tx`, fold it up the `tx_merkle_path` to the header's `tx_merkle_root`, and recompute the header's `block_hash` and `index_block_hash` from `raw_header`. This proves the transaction is in a block header any Stacks node can independently corroborate.
+- **Consensus**: additionally recover the signer signatures from the header and confirm that **≥70% of the reward cycle's signer weight** signed the block. This is **fully trustless** when you pass a reward set you resolved yourself (see [Fully trustless](#fully-trustless)); otherwise it falls back to the reward set embedded in the proof, which still trusts Secondlayer for that set alone.
 
 ## Fetch a proof
 
@@ -15,9 +15,9 @@ A proof verifies at one of two levels.
 curl "https://api.secondlayer.tools/v1/index/transactions/0x<tx_id>/proof"
 ```
 
-Like the other read endpoints, this is open during beta — no key required.
+Like the other read endpoints, this is open during beta, no key required.
 
-A `200` returns the raw transaction, the raw header, the merkle path linking them, and (when resolvable) the reward set for consensus verification:
+A `200` returns the raw transaction, raw header, merkle path, and (when resolvable) the reward set for consensus verification:
 
 ```json
 {
@@ -38,7 +38,7 @@ A `200` returns the raw transaction, the raw header, the merkle path linking the
 }
 ```
 
-`consensus` is present only when the reward set could be resolved. Without it, the proof is anchored-only — still independently verifiable as included in a block header, but without the signer-weight attestation.
+`consensus` is present only when the reward set could be resolved. Without it, the proof is anchored-only: still independently verifiable as included in a block header, but without the signer-weight attestation.
 
 ### Errors
 
@@ -56,7 +56,7 @@ A `200` returns the raw transaction, the raw header, the merkle path linking the
 
 ## Verify with the SDK
 
-`verifyTransactionProof` recomputes the txid, the merkle root, the block hash, and the signer weight client-side — nothing in the proof is trusted until it checks out.
+`verifyTransactionProof` recomputes the txid, merkle root, block hash, and signer weight client-side; nothing in the proof is trusted until it checks out.
 
 ```ts
 import { verifyTransactionProof } from "@secondlayer/sdk";
@@ -104,9 +104,9 @@ const trustless = verifyTransactionProof(proof, { rewardSet });
 // trustless.rewardSetSource === "provided"
 ```
 
-When `rewardSetSource` is `"provided"`, the entire chain of checks — inclusion and signer attestation — rests only on the raw bytes of the proof and the reward set from your own node.
+Now the entire chain of checks (inclusion and signer attestation) rests only on the raw bytes of the proof and the reward set from your own node.
 
-> Verification uses Node's crypto (via `@secondlayer/shared`), so it is intended for Node / server-side use — the same as the Streams signature verification.
+> Verification uses Node's crypto (via `@secondlayer/shared`), so it's intended for Node / server-side use, like the Streams signature verification.
 
 ## Reference
 

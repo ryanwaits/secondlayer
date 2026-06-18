@@ -1,6 +1,6 @@
 # REST API
 
-The shared envelope and cursor grammar across the read surfaces — index, streams, and subgraph tables — with per-surface filter params.
+The shared envelope and cursor grammar across the read surfaces (index, streams, and subgraph tables), with per-surface filter params.
 
 ## Response envelope
 
@@ -17,9 +17,9 @@ Index reads return rows under a named key (`events`, `calls`, …) plus a top-le
 
 The cursor format is `<block_height>:<event_index>`.
 
-`tip.finalized_height` is the highest height past the burn-confirmation finality boundary — rows at or below it never reorg, which is what a `finalizedOnly` consumer gates on.
+`tip.finalized_height` is the highest height past the burn-confirmation finality boundary; rows at or below it never reorg, which is what a `finalizedOnly` consumer gates on.
 
-`/v1/subgraphs` speaks a cursor envelope instead — `rows`, a resumable `next_cursor`, and the indexing `tip`:
+`/v1/subgraphs` speaks a cursor envelope instead: `rows`, a resumable `next_cursor`, and the indexing `tip`:
 
 ```json
 {
@@ -33,27 +33,27 @@ The cursor format is `<block_height>:<event_index>`.
 
 Page-size and ordering params are per-surface:
 
-- Subgraph tables — `_limit` (default 50, max 1000) and `_order=asc|desc`; bare `limit`/`order` are rejected with `400`.
-- Index — `limit` (default 200, max 1000); ordering is fixed by the keyset cursor (no order param).
-- Streams — `limit` (default 100, max 1000).
+- Subgraph tables: `_limit` (default 50, max 1000) and `_order=asc|desc`; bare `limit`/`order` are rejected with `400`.
+- Index: `limit` (default 200, max 1000); ordering is fixed by the keyset cursor (no order param).
+- Streams: `limit` (default 100, max 1000).
 
 Cursors:
 
-- `cursor` — pass the previous response's top-level `next_cursor` to resume (index and `/v1/subgraphs`).
+- `cursor`: pass the previous response's top-level `next_cursor` to resume (index and `/v1/subgraphs`).
 - Index also accepts `from_cursor` (exclusive-start alias, mutually exclusive with `cursor`) and `from_height`/`to_height` height-range params.
 
 ## Filtering
 
 How a surface accepts filters depends on whether it has a fixed schema:
 
-- **Subgraph tables** — filter on any column by passing it as a query param; columns are validated against the table's schema.
-- **Index and streams** — a fixed set of documented filter params per endpoint (e.g. `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier` on `/v1/streams/events`).
+- **Subgraph tables**: filter on any column by passing it as a query param; columns are validated against the table's schema.
+- **Index and streams**: a fixed set of documented filter params per endpoint (e.g. `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier` on `/v1/streams/events`).
 
-The value grammar — comma lists, ranges, cursor + `_limit`/`_order` — is shared across surfaces.
+Comma lists, ranges, cursor + `_limit`/`_order` are shared across surfaces.
 
 <Callout type="warning" title="Unknown params are rejected">
 
-Any query param not recognized for an endpoint returns `400` — the error suggests the closest valid param.
+Any query param not recognized for an endpoint returns `400`; the error suggests the closest valid param.
 
 </Callout>
 
@@ -66,28 +66,28 @@ curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers \
 
 ## /v1 subgraphs open reads
 
-Public subgraphs are anon-readable on `/v1/subgraphs` — wildcard CORS, no key. Private subgraphs need the owning account's `sk-sl_` bearer; anonymous requests get `404` (no existence leak).
+Public subgraphs are anon-readable on `/v1/subgraphs`: wildcard CORS, no key. Private subgraphs need the owning account's `sk-sl_` bearer; anonymous requests get `404` (no existence leak).
 
-- `GET /v1/subgraphs` — list public subgraphs (plus your own with a bearer).
-- `GET /v1/subgraphs/:name` — metadata: tables, columns, indexing tip.
-- `GET /v1/subgraphs/:name/:table` — rows; `/count`, `/aggregate`, `/:id`, `/stream` (SSE) alongside.
+- `GET /v1/subgraphs`: list public subgraphs (plus your own with a bearer).
+- `GET /v1/subgraphs/:name`: metadata: tables, columns, indexing tip.
+- `GET /v1/subgraphs/:name/:table`: rows; `/count`, `/aggregate`, `/:id`, `/stream` (SSE) alongside.
 
 Pagination is `_id`-keyset: `?cursor=<next_cursor>` resumes, `_order=asc|desc` sets direction. `_limit`, `_fields`, `_search`, and column filters work as everywhere else.
 
 <Callout type="warning" title="Dashboard-only params">
 
-`_offset` and `_sort` are **rejected with `400`** on `/v1` — they live only on the authed `/api/subgraphs` dashboard surface.
+`_offset` and `_sort` are **rejected with `400`** on `/v1`; they live only on the authed `/api/subgraphs` dashboard surface.
 
 </Callout>
 
-Rate limits: anonymous 100 rps, keyed 50 rps — watch the `X-RateLimit-*` headers.
+Rate limits: anonymous 100 rps, keyed 50 rps; watch the `X-RateLimit-*` headers.
 
 ## Streaming (SSE)
 
 Two endpoints push rows in real time as Server-Sent Events (`Content-Type: text/event-stream`) over a single long-lived connection. Both emit a `ping` keepalive every 20s.
 
-- `GET /v1/streams/events/stream` — the raw chain event firehose. Bearer auth. Accepts the same filters as `/v1/streams/events` (`types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier`) and a start position (`cursor`/`from_cursor`/`from_height`); with no start position it live-tails from the reorg-clamped tip.
-- `GET /v1/subgraphs/:name/:table/stream` — new rows for a subgraph table. Anon for public subgraphs, `sk-sl_` bearer for your private ones. Accepts `?since=<block_height>` (replay from a height, then tail) plus the same column filters as the table's REST read.
+- `GET /v1/streams/events/stream`: the raw chain event firehose. Bearer auth. Accepts the same filters as `/v1/streams/events` (`types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier`) and a start position (`cursor`/`from_cursor`/`from_height`); with no start position it live-tails from the reorg-clamped tip.
+- `GET /v1/subgraphs/:name/:table/stream`: new rows for a subgraph table. Anon for public subgraphs, `sk-sl_` bearer for your private ones. Accepts `?since=<block_height>` (replay from a height, then tail) plus the same column filters as the table's REST read.
 
 ```bash
 curl -N -H "Authorization: Bearer $SL_API_KEY" \
@@ -98,11 +98,11 @@ See [Streams](/docs/streams#real-time-firehose-sse) and the [SDK](/docs/sdk#subs
 
 ## Aggregates
 
-`GET /v1/subgraphs/:name/:table/aggregate` runs scalar aggregates over the same filtered set as the list/count endpoints — anon for public subgraphs, `sk-sl_` bearer for your private ones. Pass any of the column filters above plus aggregate control params:
+`GET /v1/subgraphs/:name/:table/aggregate` runs scalar aggregates over the same filtered set as the list/count endpoints: anon for public subgraphs, `sk-sl_` bearer for your private ones. Pass any of the column filters above plus aggregate control params:
 
-- `_count=true` — `COUNT(*)`.
-- `_countDistinct=col1,col2` — distinct count per column.
-- `_sum=col`, `_min=col`, `_max=col` — comma-separated columns; `_sum/_min/_max` accept **numeric columns only** (`uint`/`int`, plus the system `_block_height`).
+- `_count=true`: `COUNT(*)`.
+- `_countDistinct=col1,col2`: distinct count per column.
+- `_sum=col`, `_min=col`, `_max=col`: comma-separated columns; `_sum/_min/_max` accept **numeric columns only** (`uint`/`int`, plus the system `_block_height`).
 
 ```bash
 curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers/aggregate \
@@ -127,7 +127,7 @@ Result types:
 
 - With no aggregate param the response is `{ "count": <n> }`.
 - `count` and `countDistinct.col` are JSON numbers.
-- `sum`/`min`/`max` are **lossless strings** — the underlying `NUMERIC`/`BIGINT` casts to text so large values never lose precision.
+- `sum`/`min`/`max` are **lossless strings**: the underlying `NUMERIC`/`BIGINT` casts to text so large values never lose precision.
 - `sum` over an empty set is `"0"`; `min`/`max` are `null` over an empty/all-null set.
 
 <Callout type="warning" title="Error codes">
@@ -142,11 +142,11 @@ Result types:
 
 The [SDK](/docs/sdk) exposes this as a typed `client.aggregate(spec)` whose result shape is inferred from the spec.
 
-The `/api/subgraphs/*` equivalents of these endpoints remain as the authed dashboard/control-plane surface (session or key).
+The `/api/subgraphs/*` equivalents remain the authed dashboard/control-plane surface (session or key).
 
 ## Print-event schemas
 
-`GET /v1/index/contracts/:contract_id/print-schema` returns per-topic print payload schemas inferred empirically from the contract's indexed history — exact Clarity types per field, the TypeScript type, and a subgraph `column_type`. See [Index](/docs/index#print-schemas) for the response shape.
+`GET /v1/index/contracts/:contract_id/print-schema` returns per-topic print payload schemas inferred empirically from the contract's indexed history: exact Clarity types per field, the TypeScript type, and a subgraph `column_type`. See [Index](/docs/index#print-schemas) for the response shape.
 
 ```bash
 curl "https://api.secondlayer.tools/v1/index/contracts/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry/print-schema"
@@ -154,11 +154,11 @@ curl "https://api.secondlayer.tools/v1/index/contracts/SM3VDXK3WZZSA84XXFKAFAF15
 
 - Anonymous and unmetered, like the other read endpoints.
 - Cached: `Cache-Control: public, max-age=300` with a weak `ETag`; send `If-None-Match` for `304`.
-- Takes **no query params** — any param is rejected with `400 VALIDATION_ERROR`.
+- Takes **no query params**; any param is rejected with `400 VALIDATION_ERROR`.
 
 ## Transaction-inclusion proof
 
-`GET /v1/index/transactions/:tx_id/proof` returns a trustless inclusion proof: the raw transaction, raw header, and merkle path needed to verify, client-side, that a transaction is in a Stacks (Nakamoto) block — plus the reward set, when resolvable, to confirm the signers attested to it.
+`GET /v1/index/transactions/:tx_id/proof` returns a trustless inclusion proof: the raw transaction, raw header, and merkle path needed to verify, client-side, that a transaction is in a Stacks (Nakamoto) block, plus the reward set, when resolvable, to confirm the signers attested to it.
 
 ```bash
 curl "https://api.secondlayer.tools/v1/index/transactions/0x<tx_id>/proof"
@@ -180,7 +180,7 @@ curl "https://api.secondlayer.tools/v1/index/transactions/0x<tx_id>/proof"
 }
 ```
 
-`consensus` is present only when the reward set could be resolved; otherwise the proof is anchored-only. Open during beta — no key required, like the other read endpoints.
+`consensus` is present only when the reward set could be resolved; otherwise the proof is anchored-only. Open during beta, no key required, like the other read endpoints.
 
 <Callout type="warning" title="Error codes">
 
@@ -188,7 +188,7 @@ curl "https://api.secondlayer.tools/v1/index/transactions/0x<tx_id>/proof"
 | --- | --- |
 | `404 PROOF_UNAVAILABLE` | the transaction or its block was not found |
 | `503 PROOF_TX_SET_INCOMPLETE` | the server could not reproduce the block's `tx_merkle_root` from its stored transaction set, so it refuses to emit a proof that wouldn't verify (fail-safe) |
-| `503 PROOF_NODE_UNAVAILABLE` | the stacks-node that serves signed block headers could not be reached, so the proof cannot be assembled — retry later |
+| `503 PROOF_NODE_UNAVAILABLE` | the stacks-node that serves signed block headers could not be reached, so the proof cannot be assembled; retry later |
 
 </Callout>
 

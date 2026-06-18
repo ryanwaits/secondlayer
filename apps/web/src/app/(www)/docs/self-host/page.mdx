@@ -1,21 +1,14 @@
 # Self-host
 
-The whole Secondlayer stack is MIT-licensed — `docker compose up` runs the indexer, API, and subgraph processor on your own hardware. You get every surface: Index, Streams, Subgraphs, Subscriptions.
+The whole Secondlayer stack is MIT-licensed. `docker compose up` runs the indexer, API, and subgraph processor on your own hardware, with every surface: Index, Streams, Subgraphs, Subscriptions.
 
-What you skip is platform-only; the core is entirely open:
-
-- The managed SLA
-- Billing/credits
-- Multi-tenant key management
-- The public Explore directory
-
-Support is community / best-effort. For fully managed hosting with uptime SLAs and priority support, see [pricing](/pricing).
+You skip the platform-only layer (managed SLA, billing/credits, multi-tenant key management, public Explore directory). Support is community/best-effort. For managed hosting with uptime SLAs and priority support, see [pricing](/pricing).
 
 ---
 
 ## Prerequisites
 
-**Docker + Docker Compose** (v2) is the only hard requirement for the app services. Beyond that, you need a Stacks node for the event feed — either run one yourself or point the indexer at an existing node's event observer.
+**Docker + Docker Compose** (v2) is the only hard requirement for the app services. You also need a Stacks node for the event feed: run one yourself, or point the indexer at an existing node's event observer.
 
 **Hardware — app services only** (external Stacks node):
 - 8 GB RAM, 100 GB SSD, any modern CPU
@@ -28,11 +21,11 @@ Support is community / best-effort. For fully managed hosting with uptime SLAs a
 
 <Callout type="warning" title="No light mode">
 
-There is no light mode that fetches from Hiro's REST API — it's too slow to index anything useful. Run the full chain, point at an external node, or use [hosted](https://secondlayer.tools).
+There's no light mode that fetches from Hiro's REST API; it's too slow to index anything useful. Run the full chain, point at an external node, or use [hosted](https://secondlayer.tools).
 
 </Callout>
 
-For **local contract development**, `sl devnet connect` wires up a [Clarinet devnet](https://docs.hiro.so/stacks/clarinet) in one step — no mainnet node required.
+For **local contract development**, `sl devnet connect` wires up a [Clarinet devnet](https://docs.hiro.so/stacks/clarinet) in one step (no mainnet node required).
 
 ---
 
@@ -101,7 +94,7 @@ docker compose up -d postgres migrate api indexer subgraph-processor
 
 ## Configuration
 
-OSS mode sets `INSTANCE_MODE=oss` — this disables the platform-only layer (magic-link auth, API keys, billing/credits, x402 pay-per-call, multi-tenant). Single-tenant; the operator owns access control.
+OSS mode sets `INSTANCE_MODE=oss`, which disables the platform-only layer (magic-link auth, API keys, billing/credits, x402 pay-per-call, multi-tenant). Single-tenant; the operator owns access control.
 
 Core env vars (`.env`):
 
@@ -139,11 +132,11 @@ docker pull ghcr.io/ryanwaits/secondlayer-indexer:latest
 docker pull ghcr.io/ryanwaits/secondlayer-subgraph-processor:latest
 ```
 
-Pin a specific tag (`v1.2.3`) in production rather than `:latest`. The compose file's `build:` block builds from source by default — swap in `image:` to use the pulled images instead.
+Pin a specific tag (`v1.2.3`) in production rather than `:latest`. The compose file's `build:` block builds from source by default; swap in `image:` to use the pulled images instead.
 
 <Callout type="warning" title="Use a tag after the read-parity fix">
 
-Make sure the tag was cut **after** commit `169b0967` (the OSS read-parity fix); older images returned `402 UPGRADE_REQUIRED` on reads.
+Use a tag cut **after** commit `169b0967` (the OSS read-parity fix); older images returned `402 UPGRADE_REQUIRED` on reads.
 
 </Callout>
 
@@ -151,7 +144,7 @@ Make sure the tag was cut **after** commit `169b0967` (the OSS read-parity fix);
 
 ## Genesis sync
 
-Syncing from genesis to chain tip takes time. During sync, disable the tip follower so it doesn't interfere with IBD:
+During genesis-to-tip sync, disable the tip follower so it doesn't interfere with IBD:
 
 ```bash
 # Start with tip follower off:
@@ -170,7 +163,7 @@ The indexer integrity loop runs every 5 min and auto-fills gaps from the local D
 
 ## Data plane
 
-OSS runs on a **single Postgres instance**. The source/target DB split described in `docker/SCHEMA_SPLIT.md` is a hosted-scale concern for high-throughput multi-tenant deployments — you don't need it for self-hosting.
+OSS runs on a **single Postgres instance**. The source/target DB split in `docker/SCHEMA_SPLIT.md` is a hosted-scale concern for high-throughput multi-tenant deployments; you don't need it for self-hosting.
 
 Database sizing: ~10 KB per block compressed, ~1 GB per 100K blocks. Mainnet is 70+ GB today and growing. Start with at least 100 GB.
 
@@ -195,7 +188,7 @@ curl http://localhost:3700/health | jq   # Indexer
 
 **Security checklist:**
 - Change `POSTGRES_PASSWORD` and `BITCOIN_RPC_PASSWORD` before any public exposure
-- `POSTGRES_PORT` and `INDEXER_PORT` default to `127.0.0.1:...` — keep it that way unless you know what you're opening
+- `POSTGRES_PORT` and `INDEXER_PORT` default to `127.0.0.1:...`; keep it that way unless you know what you're opening
 - Set `API_KEY` if the API is reachable from untrusted networks
 - Never publish port 8332 (bitcoind RPC) to the internet
 
@@ -211,15 +204,14 @@ sl subgraphs deploy ./my-subgraph.ts
 
 ## What's not included
 
-OSS disables the platform-only layer. Specifically, you won't have:
+OSS disables the platform-only layer described in the [intro](#self-host):
 
-- **Managed SLA / uptime** — you operate it
-- **Magic-link auth and API key management** — use `API_KEY` env for a single shared bearer token; layer your own reverse proxy for finer control
-- **Billing, prepaid credits, x402 pay-per-call** — no metering; reads are unbounded single-tenant
-- **Multi-tenant** — one operator, one Postgres, one set of subgraphs
-- **Public Explore directory** — [secondlayer.tools/subgraphs/explore](https://secondlayer.tools/subgraphs/explore) is managed-only
+- **Auth/keys**: use the `API_KEY` env for a single shared bearer token; layer your own reverse proxy for finer control.
+- **Billing, credits, x402**: no metering; reads are unbounded single-tenant.
+- **Multi-tenant**: one operator, one Postgres, one set of subgraphs.
+- **Explore**: [secondlayer.tools/subgraphs/explore](https://secondlayer.tools/subgraphs/explore) is managed-only.
 
-Support is **community / best-effort**. File issues at [github.com/ryanwaits/secondlayer](https://github.com/ryanwaits/secondlayer). For managed hosting with SLAs and dedicated support, see [pricing](/pricing).
+Support is **community/best-effort**. File issues at [github.com/ryanwaits/secondlayer](https://github.com/ryanwaits/secondlayer). For managed hosting with SLAs and dedicated support, see [pricing](/pricing).
 
 export const metadata = {
 	title: "Self-host — Secondlayer Docs",
