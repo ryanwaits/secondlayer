@@ -79,16 +79,20 @@ app.get("/usage", async (c) => {
 	const caps = await getCaps(db, accountId);
 
 	const basePriceCents = getBasePriceCents(plan);
-	const currentCents = basePriceCents;
+	// The flat plan base does not accrue daily; only metered overage does.
+	// No per-unit overage rates exist yet, so metered spend is 0 — but keep
+	// the split so the EOM projection extrapolates the accruing portion only,
+	// never the fixed base (which would inflate a flat $79 to a run-rate).
+	const meteredCents = 0;
+	const currentCents = basePriceCents + meteredCents;
 
-	// Project EOM spend. Clamp day 1-2 (tiny denominator → false positives).
-	const projectedCents =
+	// Project EOM spend: base stays fixed, metered run-rates to month-end.
+	// Clamp day 1-2 (tiny denominator → false positives).
+	const projectedMeteredCents =
 		daysElapsed >= 3
-			? Math.max(
-					currentCents,
-					Math.round(currentCents * (daysInPeriod / daysElapsed)),
-				)
-			: currentCents;
+			? Math.round(meteredCents * (daysInPeriod / daysElapsed))
+			: meteredCents;
+	const projectedCents = basePriceCents + projectedMeteredCents;
 
 	const capCents = caps?.monthly_cap_cents ?? null;
 	const thresholdPct = caps?.alert_threshold_pct ?? 80;
