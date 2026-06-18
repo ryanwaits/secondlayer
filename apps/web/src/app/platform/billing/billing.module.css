@@ -490,8 +490,8 @@
 	background: var(--accent-bg);
 }
 .badgeActive {
-	color: var(--green);
-	background: var(--green-bg);
+	color: var(--accent);
+	background: var(--accent-bg);
 }
 .badgeEnding {
 	color: var(--yellow);

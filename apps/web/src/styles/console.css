@@ -5028,7 +5028,8 @@ a.ov-card {
 	margin-top: 4px;
 }
 .ov-card-sub .live {
-	color: var(--green);
+	/* Neutral, not green — green is reserved for the LIVE status badge. */
+	color: var(--text-main);
 }
 .ov-card-dot {
 	width: 6px;
