@@ -84,6 +84,15 @@ export function createX402Router(deps: X402RouterDeps = {}) {
 				surface: "deposit",
 				ledgerKind: "deposit",
 				priceUsdOverride: readUsd,
+				// Slow confirm: the deposit row is recorded `pending` and the
+				// reconciler will credit it once canonical. Hand back the (deterministic)
+				// balance token now so the client can poll GET /balance until it lands.
+				onPending: (c, { payer }) => {
+					const secret = getSessionSecret();
+					if (secret) {
+						c.header("PAYMENT-BALANCE", mintBalanceToken(payer, secret));
+					}
+				},
 			});
 		router.post("/deposit", depositMw, async (c) => {
 			const payer = c.get("x402Payer" as never) as string | undefined;

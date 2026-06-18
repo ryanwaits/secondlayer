@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
 	type ReconcilePayment,
+	depositCreditMicros,
 	reconcilePayment,
 	sweepX402Reconcile,
 } from "./x402-reconcile.ts";
@@ -11,23 +12,76 @@ function payment(over: Partial<ReconcilePayment> = {}): ReconcilePayment {
 		payer: "SP1",
 		state: "pending",
 		createdAtMs: 1_000,
+		kind: "payment",
+		creditUsdMicros: null,
 		...over,
 	};
 }
 
 describe("reconcilePayment", () => {
-	test("pending → confirmed once canonical (persists confirmed)", async () => {
-		const updates: [string, string][] = [];
+	test("pending → confirmed once canonical (via confirmPayment)", async () => {
+		const confirmed: ReconcilePayment[] = [];
 		const state = await reconcilePayment(payment({ state: "pending" }), {
 			isCanonical: async () => true,
-			updateState: async (txid, s) => {
-				updates.push([txid, s]);
+			confirmPayment: async (p) => {
+				confirmed.push(p);
 			},
 			recordStrike: async () => {},
 			now: () => 2_000,
 		});
 		expect(state).toBe("confirmed");
-		expect(updates).toEqual([["0xtx", "confirmed"]]);
+		expect(confirmed.map((p) => p.txid)).toEqual(["0xtx"]);
+	});
+
+	// R7 regression: a deposit that confirms asynchronously MUST be credited.
+	// Before the fix the reconciler only flipped state and never credited, so a
+	// slow-confirming on-chain deposit was charged but lost.
+	test("deposit pending → canonical → confirm path carries the credit amount", async () => {
+		const confirmed: ReconcilePayment[] = [];
+		await reconcilePayment(
+			payment({ state: "pending", kind: "deposit", creditUsdMicros: "250000" }),
+			{
+				isCanonical: async () => true,
+				confirmPayment: async (p) => {
+					confirmed.push(p);
+				},
+			},
+		);
+		expect(confirmed).toHaveLength(1);
+		expect(
+			depositCreditMicros(confirmed[0].kind, confirmed[0].creditUsdMicros),
+		).toBe(250_000n);
+	});
+
+	test("a per-call payment never credits a balance on confirm", () => {
+		expect(depositCreditMicros("payment", null)).toBeNull();
+		expect(depositCreditMicros("payment", "1000")).toBeNull();
+	});
+
+	test("depositCreditMicros: deposit with amount credits; zero/empty does not", () => {
+		expect(depositCreditMicros("deposit", "250000")).toBe(250_000n);
+		expect(depositCreditMicros("deposit", "0")).toBeNull();
+		expect(depositCreditMicros("deposit", null)).toBeNull();
+	});
+
+	test("already-confirmed canonical row is not re-confirmed (no re-credit)", async () => {
+		let called = false;
+		const state = await reconcilePayment(
+			payment({
+				state: "confirmed",
+				kind: "deposit",
+				creditUsdMicros: "250000",
+			}),
+			{
+				isCanonical: async () => true,
+				confirmPayment: async () => {
+					called = true;
+				},
+				now: () => 2_000,
+			},
+		);
+		expect(state).toBe("confirmed");
+		expect(called).toBe(false);
 	});
 
 	test("pending + not canonical + within grace → stays pending (no write)", async () => {
@@ -89,6 +143,7 @@ describe("sweepX402Reconcile", () => {
 				payment({ txid: "0xdrop", state: "pending", createdAtMs: 0 }),
 			],
 			isCanonical: async (txid) => txid === "0xok",
+			confirmPayment: async () => {},
 			updateState: async () => {},
 			recordStrike: async () => {},
 			now: () => 10 * 60_000,

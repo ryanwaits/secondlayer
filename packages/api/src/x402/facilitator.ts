@@ -348,11 +348,14 @@ export function _resetX402FacilitatorForTests(): void {
 }
 
 /**
- * Whether the x402 rail is live (a sponsor key is configured). When false,
- * surfaces keep their pre-x402 behavior — Streams stays key-mandatory, Index
- * anon reads stay free — so mounting is a no-op until ops funds the sponsor
- * wallet and sets `X402_SPONSOR_KEY`.
+ * Whether the x402 rail is live. Requires a configured sponsor key, and can be
+ * killed independently via `X402_ENABLED=false` — so ops can disable the rail
+ * without rotating the funded sponsor wallet. When false, surfaces keep their
+ * pre-x402 behavior (Streams stays key-mandatory, Index anon reads stay free).
+ * Mounting is decided at module load, so toggling needs a redeploy/recreate, not
+ * just a restart.
  */
 export function isX402Enabled(): boolean {
+	if (process.env.X402_ENABLED === "false") return false;
 	return Boolean(process.env.X402_SPONSOR_KEY);
 }

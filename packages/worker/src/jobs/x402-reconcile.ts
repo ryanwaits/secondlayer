@@ -26,6 +26,11 @@ const SWEEP_INTERVAL_MS = 5 * 60_000; // every 5 minutes
 // A `pending` tx with no canonical transfer after this is treated as dropped/
 // reorged. Comfortably past Nakamoto inclusion (~5-29s) + decode lag + reorg settling.
 const REVERT_GRACE_MS = 5 * 60_000;
+// How far back a sweep scans for unsettled rows. Must comfortably exceed a
+// confirmed-tier deposit's settle deadline so a slow-confirming deposit row is
+// never stranded outside the window before it can confirm+credit. Env-tunable.
+const RECONCILE_SCAN_WINDOW =
+	process.env.X402_RECONCILE_SCAN_WINDOW ?? "6 hours";
 
 export type ReconcileState = "pending" | "confirmed" | "reverted";
 export type ReconcilePayment = {
@@ -33,11 +38,19 @@ export type ReconcilePayment = {
 	payer: string;
 	state: ReconcileState;
 	createdAtMs: number;
+	/** "payment" (per-call settle) or "deposit" (prepaid top-up). */
+	kind: string;
+	/** USD-micros to credit on confirmation (deposit rows only; else null). */
+	creditUsdMicros: string | null;
 };
 
 export type ReconcileDeps = {
 	/** True iff the payment's transfer is canonical in our index. */
 	isCanonical?: (txid: string) => Promise<boolean>;
+	/** Flip a pending row → `confirmed`, crediting deposit balances atomically
+	 *  (exactly-once, guarded on `state='pending'`). Used for the confirm path. */
+	confirmPayment?: (p: ReconcilePayment) => Promise<void>;
+	/** Flip a row → `reverted` (reorg / dropped). */
 	updateState?: (
 		txid: string,
 		state: "confirmed" | "reverted",
@@ -48,22 +61,38 @@ export type ReconcileDeps = {
 };
 
 /**
- * Re-check one payment. Canonical → `confirmed`. Not canonical and either already
- * `confirmed` (reorged out) or past the grace window (`pending` that never landed)
- * → `reverted` (+ strike). Otherwise left `pending` (still settling).
+ * USD-micros to credit when a payment confirms. Only deposit rows carrying a
+ * persisted amount credit a balance; per-call settles credit nothing. Pure so
+ * the credit decision is unit-testable without a DB.
+ */
+export function depositCreditMicros(
+	kind: string,
+	creditUsdMicros: string | null,
+): bigint | null {
+	if (kind !== "deposit" || !creditUsdMicros) return null;
+	const micros = BigInt(creditUsdMicros);
+	return micros > 0n ? micros : null;
+}
+
+/**
+ * Re-check one payment. Canonical → `confirmed` (crediting deposits). Not
+ * canonical and either already `confirmed` (reorged out) or past the grace
+ * window (`pending` that never landed) → `reverted` (+ strike). Otherwise left
+ * `pending` (still settling).
  */
 export async function reconcilePayment(
 	p: ReconcilePayment,
 	deps: ReconcileDeps = {},
 ): Promise<ReconcileState> {
 	const isCanonical = deps.isCanonical ?? defaultIsCanonical;
+	const confirmPayment = deps.confirmPayment ?? defaultConfirmPayment;
 	const updateState = deps.updateState ?? defaultUpdateState;
 	const recordStrike = deps.recordStrike ?? defaultRecordStrike;
 	const now = deps.now ?? (() => Date.now());
 	const graceMs = deps.graceMs ?? REVERT_GRACE_MS;
 
 	if (await isCanonical(p.txid)) {
-		if (p.state !== "confirmed") await updateState(p.txid, "confirmed");
+		if (p.state !== "confirmed") await confirmPayment(p);
 		return "confirmed";
 	}
 
@@ -106,6 +135,54 @@ async function defaultUpdateState(
 		.execute();
 }
 
+/**
+ * Confirm a pending payment, crediting deposit balances in the SAME transaction
+ * as the state flip so a crash can never confirm-without-crediting. The flip is
+ * guarded on `state='pending'`, so concurrent sweeps credit at most once: only
+ * the call that actually transitions the row (numUpdatedRows === 1) credits.
+ * Mirrors `creditBalance` in `@secondlayer/api/x402/balance` (worker can't import
+ * the API package, so the x402_balances upsert is replicated here).
+ */
+async function defaultConfirmPayment(p: ReconcilePayment): Promise<void> {
+	const micros = depositCreditMicros(p.kind, p.creditUsdMicros);
+	if (micros === null) {
+		await getDb()
+			.updateTable("x402_payments")
+			.set({ state: "confirmed", updated_at: sql`now()` })
+			.where("txid", "=", p.txid)
+			.where("state", "=", "pending")
+			.execute();
+		return;
+	}
+
+	await getDb()
+		.transaction()
+		.execute(async (trx) => {
+			const res = await trx
+				.updateTable("x402_payments")
+				.set({ state: "confirmed", updated_at: sql`now()` })
+				.where("txid", "=", p.txid)
+				.where("state", "=", "pending")
+				.executeTakeFirst();
+			// Another sweep already confirmed it → don't double-credit.
+			if (Number(res.numUpdatedRows ?? 0n) !== 1) return;
+			await trx
+				.insertInto("x402_balances")
+				.values({
+					principal: p.payer,
+					balance_usd_micros: micros.toString(),
+					updated_at: new Date(),
+				})
+				.onConflict((oc) =>
+					oc.column("principal").doUpdateSet({
+						balance_usd_micros: sql`x402_balances.balance_usd_micros + ${micros.toString()}`,
+						updated_at: new Date(),
+					}),
+				)
+				.execute();
+		});
+}
+
 let redis: RedisClient | null = null;
 function getRedis(): RedisClient | null {
 	if (redis) return redis;
@@ -129,15 +206,28 @@ async function defaultRecordStrike(principal: string): Promise<void> {
 async function listReconcilable(): Promise<ReconcilePayment[]> {
 	const rows = await getDb()
 		.selectFrom("x402_payments")
-		.select(["txid", "payer", "state", "created_at"])
+		.select([
+			"txid",
+			"payer",
+			"state",
+			"created_at",
+			"kind",
+			"credit_usd_micros",
+		])
 		.where("state", "in", ["pending", "confirmed"])
-		.where("created_at", ">", sql<Date>`now() - interval '2 hours'`)
+		.where(
+			"created_at",
+			">",
+			sql<Date>`now() - ${RECONCILE_SCAN_WINDOW}::interval`,
+		)
 		.execute();
 	return rows.map((r) => ({
 		txid: r.txid,
 		payer: r.payer,
 		state: r.state as ReconcileState,
 		createdAtMs: new Date(r.created_at).getTime(),
+		kind: r.kind,
+		creditUsdMicros: r.credit_usd_micros,
 	}));
 }
 

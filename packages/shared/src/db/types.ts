@@ -850,6 +850,9 @@ export interface X402PaymentsTable {
 	kind: Generated<string>;
 	/** Linked claimed account once the paying wallet is attached (continuity). */
 	account_id: string | null;
+	/** USD-micros to credit on confirmation, for deposit rows the reconciler
+	 *  settles asynchronously. NULL for per-call settles (credit nothing). */
+	credit_usd_micros: string | null;
 }
 
 // --- Tenants (dedicated hosting) ---
@@ -939,8 +942,10 @@ export type UpdateTenantComputeAddon = Updateable<TenantComputeAddonsTable>;
 // --- Account spend caps (soft cap + threshold alerts) ---
 //
 // One row per account. Null caps = "no cap" for that dimension.
-// `frozen_at` is set when a cap is hit; cleared on invoice.paid webhook
-// at cycle rollover. While frozen, metering events stop accumulating.
+// `monthly_cap_cents` caps this calendar month's pay-as-you-go credit spend.
+// The hard stop is enforced in real time on the read path (read-credits.ts);
+// `frozen_at` is a display/alert mirror set by the daily cron when the cap is
+// hit, and cleared on month rollover, on invoice.paid, or when the cap is raised.
 
 export interface AccountSpendCapsTable {
 	account_id: string;

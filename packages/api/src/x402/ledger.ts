@@ -20,6 +20,9 @@ export type X402PaymentRecord = {
 	state: X402PaymentState;
 	/** "payment" (per-call settle, default) or "deposit" (prepaid top-up). */
 	kind?: "payment" | "deposit";
+	/** USD-micros to credit when this row confirms (deposit rows only). The
+	 *  reconciler reads it to credit the tab on async confirmation. */
+	credit_usd_micros?: string | null;
 };
 
 export async function insertX402Payment(

@@ -97,6 +97,11 @@ export type X402MiddlewareOptions = {
 	priceUsdOverride?: (c: Context) => number;
 	/** Ledger row kind for settles on this surface (default "payment"). */
 	ledgerKind?: "payment" | "deposit";
+	/** Called right before the `awaiting_confirmation` 402 on a slow-confirming
+	 *  deposit, after the pending ledger row is recorded. Lets the deposit surface
+	 *  hand back its (deterministic) balance token so the client can poll the tab
+	 *  until the reconciler credits it. */
+	onPending?: (c: Context, ctx: { payer: string; txid: string }) => void;
 	// Injectables (wiring + tests):
 	facilitator?: X402Facilitator | null;
 	nonceStore?: NonceStore;
@@ -380,8 +385,36 @@ export function x402PaymentRequired(
 			optimistic,
 		});
 
+		const insert = options.insertPayment ?? insertX402Payment;
+		const kind = options.ledgerKind ?? "payment";
+		// Deposits persist the USD to credit so the worker reconciler (which has no
+		// USD↔token spot conversion) can credit the tab on async confirmation.
+		const creditUsdMicros =
+			kind === "deposit" ? usdToMicros(cfg.priceUsd).toString() : null;
+
 		if (settlement.state === "pending") {
-			// Confirmed-tier broadcast but not yet canonical — tell the client to retry.
+			// Confirmed-tier broadcast but not yet canonical. For deposits, record a
+			// `pending` row first so the reconciler can confirm + credit it later —
+			// the payer's on-chain funds are never lost to a slow confirmation (R7).
+			// Then let the deposit surface hand back its balance token before we tell
+			// the client to poll/retry.
+			if (kind === "deposit") {
+				await insert({
+					nonce,
+					txid: settlement.txid,
+					asset: payment.asset,
+					amount: offer.amount,
+					payer: verdict.payer,
+					surface: options.surface,
+					state: "pending",
+					kind,
+					credit_usd_micros: creditUsdMicros,
+				});
+				options.onPending?.(c, {
+					payer: verdict.payer,
+					txid: settlement.txid,
+				});
+			}
 			throw new PaymentRequiredError(
 				"Payment broadcast; awaiting confirmation",
 				{ reason: "awaiting_confirmation", txid: settlement.txid },
@@ -390,7 +423,6 @@ export function x402PaymentRequired(
 
 		// Record the payment (txid UNIQUE blocks double-redemption). Optimistic
 		// serves land as `pending` in the ledger; the reconciler advances them.
-		const insert = options.insertPayment ?? insertX402Payment;
 		await insert({
 			nonce,
 			txid: settlement.txid,
@@ -399,10 +431,11 @@ export function x402PaymentRequired(
 			payer: verdict.payer,
 			surface: options.surface,
 			state: settlement.state === "confirmed" ? "confirmed" : "pending",
-			kind: options.ledgerKind ?? "payment",
+			kind,
+			credit_usd_micros: creditUsdMicros,
 		});
 		// Consumption (not deposits) feeds the monthly-spend funnel counter.
-		if ((options.ledgerKind ?? "payment") === "payment") {
+		if (kind === "payment") {
 			await recordSpendFn(verdict.payer, usdToMicros(cfg.priceUsd));
 		}
 
