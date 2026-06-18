@@ -1697,6 +1697,9 @@ app.get("/:subgraphName", async (c) => {
 		version: subgraph.version,
 		schemaHash: subgraph.schema_hash,
 		status: live.status,
+		// Without this the detail page falls back to "private" while the list
+		// (which does return visibility) shows the real value — a mismatch.
+		visibility: subgraph.visibility as "public" | "private",
 		lastProcessedBlock: sync.lastProcessedBlock,
 		...(description && { description }),
 		...(sources && { sources }),
