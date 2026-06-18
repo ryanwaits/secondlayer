@@ -1,6 +1,7 @@
 import { RateLimitError } from "@secondlayer/shared/errors";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import type { MiddlewareHandler } from "hono";
+import { getClientIp } from "../auth/http.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import type { IndexEnv } from "./auth.ts";
 import {
@@ -26,11 +27,11 @@ export function indexRateLimit(): MiddlewareHandler<IndexEnv> {
 		}
 		const tenant = c.get("indexTenant");
 		if (!tenant) {
-			// Open-beta anon reads: enforce a shared global limit so clients
-			// always receive X-RateLimit-* headers and scraping is bounded.
+			// Open-beta anon reads: per-IP bucket so one caller can't 429 every
+			// other anon visitor (and X-RateLimit-* headers reflect that caller).
 			const limit = INDEX_ANON_RATE_LIMIT_PER_SECOND;
 			const result = await getRateLimitStore().check(
-				"index:anon",
+				`index:anon:${getClientIp(c)}`,
 				limit,
 				WINDOW_MS,
 			);

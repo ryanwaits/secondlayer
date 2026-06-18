@@ -1,5 +1,12 @@
+import { logger } from "@secondlayer/shared";
+import { isPlatformMode } from "@secondlayer/shared/mode";
 import { RedisClient } from "bun";
 import { SlidingWindow, type WindowResult } from "./sliding-window.ts";
+
+/** Per-check options. `failClosed` flips the Redis-outage behavior from the
+ *  default fail-open (allow, keep reads available) to deny — for abuse-sensitive
+ *  limiters (auth, anonymous key mint) where an open limiter is the bigger risk. */
+export type CheckOptions = { failClosed?: boolean };
 
 /**
  * Backing store for the sliding-window rate limiters. Process-local
@@ -10,7 +17,12 @@ import { SlidingWindow, type WindowResult } from "./sliding-window.ts";
  * counter.
  */
 export interface RateLimitStore {
-	check(key: string, limit: number, windowMs: number): Promise<WindowResult>;
+	check(
+		key: string,
+		limit: number,
+		windowMs: number,
+		opts?: CheckOptions,
+	): Promise<WindowResult>;
 	clear(): Promise<void>;
 }
 
@@ -33,7 +45,9 @@ export class InProcRateLimitStore implements RateLimitStore {
 		key: string,
 		limit: number,
 		windowMs: number,
+		_opts?: CheckOptions,
 	): Promise<WindowResult> {
+		// In-process store never throws, so failClosed is moot here.
 		return this.windowFor(windowMs).check(key, limit);
 	}
 
@@ -80,6 +94,7 @@ export class RedisRateLimitStore implements RateLimitStore {
 		key: string,
 		limit: number,
 		windowMs: number,
+		opts?: CheckOptions,
 	): Promise<WindowResult> {
 		const now = Date.now();
 		// Unique member: a pure timestamp would collide (and undercount) under a
@@ -128,8 +143,17 @@ export class RedisRateLimitStore implements RateLimitStore {
 				resetAt: Math.ceil((now + windowMs) / 1000),
 			};
 		} catch {
-			// Fail OPEN: a Redis outage must not 503 the whole API. Limits stop
-			// enforcing until Redis recovers; the request is allowed through.
+			logRedisFailure();
+			// Abuse-sensitive callers fail CLOSED (deny) on a Redis outage; the
+			// default is fail OPEN so a Redis blip never 503s public reads.
+			if (opts?.failClosed) {
+				return {
+					allowed: false,
+					count: limit,
+					retryAfter: Math.ceil(windowMs / 1000),
+					resetAt: Math.ceil((now + windowMs) / 1000),
+				};
+			}
 			return {
 				allowed: true,
 				count: 0,
@@ -156,13 +180,34 @@ export class RedisRateLimitStore implements RateLimitStore {
 	}
 }
 
+// Throttle the Redis-outage warning so an outage doesn't spam one line/request.
+let lastRedisFailLogMs = 0;
+function logRedisFailure(): void {
+	const now = Date.now();
+	if (now - lastRedisFailLogMs < 60_000) return;
+	lastRedisFailLogMs = now;
+	logger.warn(
+		"Rate-limit store: Redis unavailable — abuse-sensitive limiters (auth, key mint) fail closed; data-read limiters fail open until it recovers",
+	);
+}
+
 let cachedStore: RateLimitStore | null = null;
 
 export function getRateLimitStore(): RateLimitStore {
 	if (cachedStore) return cachedStore;
-	cachedStore = process.env.REDIS_URL
-		? new RedisRateLimitStore(process.env.REDIS_URL)
-		: new InProcRateLimitStore();
+	if (process.env.REDIS_URL) {
+		cachedStore = new RedisRateLimitStore(process.env.REDIS_URL);
+	} else {
+		cachedStore = new InProcRateLimitStore();
+		// Process-local counters only enforce per-instance: with >1 replica each
+		// enforces the full limit independently, silently allowing N× the intended
+		// rate. Self-host single-tenant is fine; the hosted platform must set REDIS_URL.
+		if (isPlatformMode()) {
+			logger.warn(
+				"REDIS_URL unset in platform mode — rate limits are process-local; multi-replica deployments enforce N× the configured limit. Set REDIS_URL for a shared cross-instance limit.",
+			);
+		}
+	}
 	return cachedStore;
 }
 

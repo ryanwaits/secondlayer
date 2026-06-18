@@ -48,6 +48,7 @@ export function createV1KeysRouter(opts?: {
 			"ghostkeys:global",
 			GLOBAL_DAILY_LIMIT,
 			DAY_MS,
+			{ failClosed: true },
 		);
 		if (!global.allowed) {
 			c.header("Retry-After", String(global.retryAfter));
@@ -62,6 +63,7 @@ export function createV1KeysRouter(opts?: {
 			`ghostkeys:ip:${ip}`,
 			PER_IP_DAILY_LIMIT,
 			DAY_MS,
+			{ failClosed: true },
 		);
 		if (!perIp.allowed) {
 			c.header("Retry-After", String(perIp.retryAfter));

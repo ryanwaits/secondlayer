@@ -9,12 +9,13 @@ const WINDOW_MS = 60_000;
 export function ipRateLimit(max: number = DEFAULT_MAX): MiddlewareHandler {
 	return async (c, next) => {
 		const ip = getClientIp(c);
-		if (ip === "unknown") {
-			await next();
-			return;
-		}
-
-		const result = await getRateLimitStore().check(`ip:${ip}`, max, WINDOW_MS);
+		// An unknown IP (no trusted proxy header) must NOT bypass — that would
+		// grant uncapped auth attempts. Fail closed under one shared bucket. Auth
+		// routes also fail closed if Redis is down (abuse-sensitive, not a read).
+		const key = ip === "unknown" ? "ip:unknown" : `ip:${ip}`;
+		const result = await getRateLimitStore().check(key, max, WINDOW_MS, {
+			failClosed: true,
+		});
 
 		c.header("X-RateLimit-Limit", String(max));
 		c.header("X-RateLimit-Remaining", String(Math.max(0, max - result.count)));

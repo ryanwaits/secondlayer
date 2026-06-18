@@ -1,6 +1,7 @@
 import { RateLimitError } from "@secondlayer/shared/errors";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import type { MiddlewareHandler } from "hono";
+import { getClientIp } from "../auth/http.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import type { StreamsEnv } from "./auth.ts";
 import {
@@ -25,11 +26,11 @@ export function streamsRateLimit(): MiddlewareHandler<StreamsEnv> {
 		}
 		const tenant = c.get("streamsTenant");
 		if (!tenant) {
-			// x402-paid accountless reads: shared global bucket so every caller gets
-			// X-RateLimit-* headers and scraping is bounded.
+			// x402-paid accountless reads: per-IP bucket so one caller can't 429
+			// every other accountless caller (headers reflect that caller).
 			const anonLimit = STREAMS_ANON_RATE_LIMIT_PER_SECOND;
 			const anon = await getRateLimitStore().check(
-				"streams:anon",
+				`streams:anon:${getClientIp(c)}`,
 				anonLimit,
 				WINDOW_MS,
 			);

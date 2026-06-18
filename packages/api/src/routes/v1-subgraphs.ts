@@ -7,6 +7,7 @@ import {
 } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
 import { sql } from "kysely";
+import { getClientIp } from "../auth/http.ts";
 import { hashToken } from "../auth/keys.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import {
@@ -197,7 +198,7 @@ app.use("*", async (c, next) => {
 	const accountId = c.get("v1AccountId");
 	const [bucket, limit] = accountId
 		? [`subgraphs:${accountId}`, KEYED_RATE_LIMIT_PER_SECOND]
-		: ["subgraphs:anon", ANON_RATE_LIMIT_PER_SECOND];
+		: [`subgraphs:anon:${getClientIp(c)}`, ANON_RATE_LIMIT_PER_SECOND];
 	const result = await getRateLimitStore().check(bucket, limit, WINDOW_MS);
 	c.header("X-RateLimit-Limit", String(limit));
 	c.header("X-RateLimit-Remaining", String(Math.max(0, limit - result.count)));
