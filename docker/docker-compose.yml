@@ -140,6 +140,15 @@ services:
       X402_SPOT_STX_USD: ${X402_SPOT_STX_USD:-}
       # Ghost-key claim URLs (POST /v1/keys) point at the marketing site.
       PLATFORM_BASE_URL: ${PLATFORM_BASE_URL:-https://secondlayer.tools}
+      # Host split: the authenticated console lives on app.secondlayer.tools.
+      # Defaults stay on the marketing host (pre-split safe); set these to
+      # https://app.secondlayer.tools in .env at cutover.
+      #   WEB_URL          -> magic-link verify base (auth/email.ts)
+      #   DASHBOARD_URL    -> Stripe success/cancel/return URLs (routes/billing.ts)
+      #   DASHBOARD_ORIGINS-> CORS allowlist for credentialed /api/* calls
+      WEB_URL: ${WEB_URL:-https://secondlayer.tools}
+      DASHBOARD_URL: ${DASHBOARD_URL:-https://secondlayer.tools}
+      DASHBOARD_ORIGINS: ${DASHBOARD_ORIGINS:-https://secondlayer.tools,https://www.secondlayer.tools,https://app.secondlayer.tools,http://localhost:3000}
       # Accounts allowed genesis backfill regardless of plan (curated Explore seeds).
       SUBGRAPH_GENESIS_EXEMPT_ACCOUNT_IDS: ${SUBGRAPH_GENESIS_EXEMPT_ACCOUNT_IDS:-}
       SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}

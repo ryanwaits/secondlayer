@@ -70,7 +70,7 @@ const app = new Hono();
 //    so clients can read them.
 const dashboardOrigins = (
 	process.env.DASHBOARD_ORIGINS ||
-	"https://secondlayer.tools,https://www.secondlayer.tools,http://localhost:3000"
+	"https://secondlayer.tools,https://www.secondlayer.tools,https://app.secondlayer.tools,http://localhost:3000"
 )
 	.split(",")
 	.map((s) => s.trim())
