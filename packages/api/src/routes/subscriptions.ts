@@ -164,8 +164,8 @@ app.post("/", async (c) => {
 		);
 	}
 
-	// Plan quota: free 3 / Pro 25 / Scale+ unlimited. Counts existing rows at
-	// create time only — pausing or deleting frees a slot.
+	// Plan quota: free (plan 'none') 0 / Pro 25 / Scale+ unlimited. Counts
+	// existing rows at create time only — pausing or deleting frees a slot.
 	const quota = await resolveSubscriptionQuota(getDb(), accountId || undefined);
 	if (quota !== null) {
 		const rows = await listSubscriptions(getDb(), accountId);

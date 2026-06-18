@@ -55,15 +55,17 @@ export function addBillingCommand(parent: Command): void {
 }
 
 function renderBillingStatus(res: BillingStatusResponse): void {
-	// No active subscription = free open beta. Everything is unmetered
-	// and there's no upgrade path yet, so keep the output reassuring
-	// rather than surfacing empty Stripe fields.
+	// No active subscription = Free tier. Reads are open but capped (10 req/s,
+	// ~24h window); deploying subgraphs and private visibility require a paid
+	// plan. Surface the real limits + upgrade path rather than empty Stripe
+	// fields or a "no limits" promise the API doesn't honor.
 	if (!res.subscription) {
 		console.log(
 			formatKeyValue([
-				["Plan", "Free during open beta"],
-				["Cost", dim("$0 — no limits, no charges")],
-				["Paid plans", dim("coming after beta")],
+				["Plan", "Free"],
+				["Reads", dim("10 req/s · last ~24h window")],
+				["Subgraphs", dim("upgrade to deploy / go private")],
+				["Upgrade", dim("https://secondlayer.tools/platform/billing")],
 			]),
 		);
 		return;

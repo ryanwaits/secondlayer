@@ -27,8 +27,9 @@ export const STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS = 1_000;
 export const STREAMS_TIP_REORG_MARGIN_BLOCKS = 2;
 
 /** Per-second rate-limit bucket for x402-paid accountless (no-tenant) Streams
- *  reads. Mirrors `INDEX_ANON_RATE_LIMIT_PER_SECOND`; only reachable once the
- *  caller has paid via x402. */
+ *  reads. Only reachable once the caller has paid via x402, so it runs more
+ *  generous than the keyless Index anon limit (`INDEX_ANON_RATE_LIMIT_PER_SECOND`
+ *  = 10). Like that bucket, it is a single shared global counter, not per-caller. */
 export const STREAMS_ANON_RATE_LIMIT_PER_SECOND = 50;
 
 export const STREAMS_TIER_CONFIG: Record<StreamsTier, StreamsTierConfig> = {

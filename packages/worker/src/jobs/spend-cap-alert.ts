@@ -1,35 +1,41 @@
 /**
- * Daily spend-cap threshold monitor.
+ * Daily spend-cap threshold monitor for the pay-as-you-go credits rail.
  *
- * For each account with a Stripe customer + a `monthly_cap_cents`, fetch
- * the upcoming Stripe invoice and compare to the cap:
- *   - Projected spend >= threshold_pct (default 80%) → send email + bump
- *     `alert_sent_at` (debounced per cycle)
- *   - Projected spend >= monthly_cap_cents → set `frozen_at` so the
- *     metering crons stop emitting events for this account
+ * The cap governs the only live variable spend: a free-tier account's prepaid
+ * `account_credits` consumed per read this calendar month. (The earlier version
+ * projected the Stripe *subscription* invoice — flat base price, since no
+ * metered overage is emitted — so it could never trip; see the 2026-06-18
+ * billing audit.) For each account with a `monthly_cap_cents` set:
+ *   - Month's credit spend >= threshold_pct (default 80%) → send email + bump
+ *     `alert_sent_at` (debounced once per calendar month)
+ *   - Month's credit spend >= monthly_cap_cents → set `frozen_at` (display +
+ *     email). The hard stop is enforced in real time by
+ *     `resolveCreditedAccount` (api/lib/read-credits.ts); this flag mirrors it.
+ *   - Back under cap with a stale freeze (month rolled over) → clear it.
  *
- * Frozen state is cleared on the next cycle's `invoice.paid` webhook
- * (see routes/webhooks-stripe.ts) or when the user raises their cap.
- *
- * No-op without STRIPE_SECRET_KEY or in non-platform mode.
+ * Also cleared on `invoice.paid` webhook or when the user raises their cap.
+ * No-op in non-platform mode.
  */
 
-import { upsertCaps } from "@secondlayer/platform/db/queries/account-spend-caps";
+import { getMonthlyCreditsSpend } from "@secondlayer/platform/db/queries/account-credits";
+import {
+	clearFreeze,
+	upsertCaps,
+} from "@secondlayer/platform/db/queries/account-spend-caps";
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import { getInstanceMode } from "@secondlayer/shared/mode";
-import { getStripe } from "./stripe.ts";
 
 const INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h — threshold alerts are not a
-// minute-to-minute concern; daily is plenty and keeps Stripe API volume low.
+// minute-to-minute concern; the hard stop is enforced in real time on the read
+// path, so daily is plenty for the courtesy alert + display freeze.
+
+/** Cap dimensions are stored in cents; credit spend in USD-micros (1¢ = 10k µ$). */
+const USD_MICROS_PER_CENT = 10_000n;
 
 export function startSpendCapAlertCron(): () => void {
 	if (getInstanceMode() !== "platform") {
 		logger.info("Spend-cap alert cron skipped (not platform mode)");
-		return () => {};
-	}
-	if (!getStripe()) {
-		logger.info("Spend-cap alert cron skipped (STRIPE_SECRET_KEY not set)");
 		return () => {};
 	}
 
@@ -54,13 +60,11 @@ export function startSpendCapAlertCron(): () => void {
 }
 
 async function checkAllCaps(): Promise<void> {
-	const stripe = getStripe();
-	if (!stripe) return;
-
 	const db = getDb();
 
-	// Every account that (a) has a Stripe customer (paid) AND
-	// (b) has a monthly cap set. No cap = no enforcement.
+	// Every account with a monthly cap set. No cap = no enforcement. The cap
+	// bites the credits rail, which only free-tier accounts use — paid accounts
+	// with a cap simply show zero credit spend and never trip.
 	const rows = await db
 		.selectFrom("accounts")
 		.innerJoin(
@@ -71,13 +75,11 @@ async function checkAllCaps(): Promise<void> {
 		.select([
 			"accounts.id as account_id",
 			"accounts.email",
-			"accounts.stripe_customer_id",
 			"account_spend_caps.monthly_cap_cents",
 			"account_spend_caps.alert_threshold_pct",
 			"account_spend_caps.alert_sent_at",
 			"account_spend_caps.frozen_at",
 		])
-		.where("accounts.stripe_customer_id", "is not", null)
 		.where("account_spend_caps.monthly_cap_cents", "is not", null)
 		.execute();
 
@@ -95,9 +97,8 @@ async function checkAllCaps(): Promise<void> {
 
 interface CapRow {
 	account_id: string;
-	/** NULL only for ghost accounts, which never have a Stripe customer. */
+	/** NULL only for ghost accounts (no address to alert). */
 	email: string | null;
-	stripe_customer_id: string | null;
 	monthly_cap_cents: number | null;
 	alert_threshold_pct: number;
 	alert_sent_at: Date | null;
@@ -105,26 +106,14 @@ interface CapRow {
 }
 
 async function checkOneCap(row: CapRow): Promise<void> {
-	const stripe = getStripe();
-	if (!stripe || !row.stripe_customer_id || row.monthly_cap_cents == null)
-		return;
+	if (row.monthly_cap_cents == null) return;
 
 	const db = getDb();
 
-	// Upcoming invoice = Stripe's projection of what we'd bill right now.
-	// Sums fixed-price line items + metered line items the customer has
-	// accrued this cycle.
-	const upcoming = await stripe.invoices
-		.createPreview({ customer: row.stripe_customer_id })
-		.catch((err) => {
-			// No active subscription → no upcoming invoice. Not an error state
-			// for us — we just skip.
-			if (err?.code === "invoice_upcoming_none") return null;
-			throw err;
-		});
-	if (!upcoming) return;
-
-	const projected = upcoming.amount_due; // cents
+	// This calendar month's pay-as-you-go credit spend, in cents. getMonthly
+	// CreditsSpend returns 0 once the month rolls over, so the cap auto-resets.
+	const spentMicros = await getMonthlyCreditsSpend(db, row.account_id);
+	const projected = Number(spentMicros / USD_MICROS_PER_CENT); // cents
 	const cap = row.monthly_cap_cents;
 	const threshold = Math.floor((cap * row.alert_threshold_pct) / 100);
 
@@ -140,14 +129,26 @@ async function checkOneCap(row: CapRow): Promise<void> {
 		return;
 	}
 
-	// Threshold alert. Debounce: only send once per cycle. Upcoming
-	// invoice's `period_start` is the cycle anchor; if `alert_sent_at`
-	// predates this cycle, resend.
-	const cycleStart = upcoming.period_start
-		? new Date(upcoming.period_start * 1000)
-		: null;
+	// Auto-unfreeze a stale display freeze once spend resets under the cap
+	// (typically the new month). Real-time enforcement already resumed reads.
+	if (projected < cap && row.frozen_at) {
+		await clearFreeze(db, row.account_id);
+		logger.info("Account spend back under cap — unfrozen", {
+			accountId: row.account_id,
+			projected,
+			cap,
+		});
+		return;
+	}
+
+	// Threshold alert. Debounce: once per calendar month. The credit spend
+	// counter is monthly, so anchor the resend window to the month start.
+	const now = new Date();
+	const monthStart = new Date(
+		Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+	);
 	const alertAlreadySentThisCycle =
-		row.alert_sent_at && cycleStart && row.alert_sent_at >= cycleStart;
+		row.alert_sent_at && row.alert_sent_at >= monthStart;
 
 	if (projected >= threshold && !alertAlreadySentThisCycle) {
 		await upsertCaps(db, row.account_id, { alert_sent_at: new Date() });
@@ -189,8 +190,8 @@ async function sendCapAlert(
 			: `You're at ${pct}% of your Secondlayer spend cap`;
 	const body =
 		kind === "frozen"
-			? `Your projected spend this cycle ($${projected$}) has reached your configured cap of $${cap$}. Usage metering is paused for the rest of this billing period — your instances keep running, but we won't bill further overages until the next cycle. Raise your cap in the dashboard if you want to continue accruing overages this period.`
-			: `Your projected spend this cycle is $${projected$} — ${pct}% of your $${cap$} cap. No action required; we'll freeze overage metering automatically if you reach 100%. Adjust your cap in Billing settings if needed.`;
+			? `Your pay-as-you-go credit spend this month ($${projected$}) has reached your configured cap of $${cap$}. Metered reads are paused for the rest of the month — your prepaid balance is untouched, and reads fall back to the free-tier window. Raise your cap in Billing to keep reading on credits this month; it resets automatically next month.`
+			: `Your pay-as-you-go credit spend this month is $${projected$} — ${pct}% of your $${cap$} cap. No action required; we'll pause metered reads automatically if you reach 100%. Adjust your cap in Billing settings if needed.`;
 
 	const res = await fetch("https://api.resend.com/emails", {
 		method: "POST",
