@@ -52,7 +52,10 @@ import {
 	getStreamsReorgsListResponse,
 } from "../streams/reorgs.ts";
 import { StreamsResponseCache } from "../streams/response-cache.ts";
-import { streamsRetentionWindow } from "../streams/retention.ts";
+import {
+	assertStreamsHeightWithinRetention,
+	streamsRetentionWindow,
+} from "../streams/retention.ts";
 import { getStreamsSigner, respondSignedJson } from "../streams/signing.ts";
 import {
 	STREAMS_TIER_CONFIG,
@@ -354,6 +357,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 				if (response.events.length > 0) {
 					if (accountId) {
 						await recordEventsReturned(accountId, response.events.length);
+						await debitStreamsCreditedRead(c, response.events.length);
 					}
 					lastBeat = Date.now();
 					// Resume strictly after the last delivered cursor (input-exclusive).
@@ -405,6 +409,12 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 			return c.json({ error: "Transaction events not found" }, 404);
 		}
 		const firstEvent = result.events[0];
+		// Point-lookups carry no seekable param, so the retention middleware can't
+		// gate them — enforce post-read against the tx's block height (403 before
+		// any metering, so rejected reads never count or charge).
+		if (firstEvent) {
+			assertStreamsHeightWithinRetention(c, tip, firstEvent.block_height);
+		}
 		const lastEvent = result.events.at(-1);
 		const reorgs =
 			firstEvent && lastEvent
@@ -423,6 +433,11 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 			"Cache-Control",
 			streamsCacheControl(isFinalizedHeight(lastEvent?.block_height, tip)),
 		);
+		const accountId = c.get("streamsTenant")?.account_id;
+		if (accountId) {
+			await recordEventsReturned(accountId, result.events.length);
+			await debitStreamsCreditedRead(c, result.events.length);
+		}
 		return respondSignedJson(c, {
 			events: markFinalized(result.events, tip.finalized_height),
 			tip,
@@ -451,6 +466,11 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 			return c.json({ error: "Block events not found" }, 404);
 		}
 		const firstEvent = result.events[0];
+		// Same post-read retention gate as /events/:tx_id (no seekable param to
+		// inspect up front); 403 before metering.
+		if (firstEvent) {
+			assertStreamsHeightWithinRetention(c, tip, firstEvent.block_height);
+		}
 		const lastEvent = result.events.at(-1);
 		const reorgs =
 			firstEvent && lastEvent
@@ -469,6 +489,11 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 			"Cache-Control",
 			streamsCacheControl(isFinalizedHeight(firstEvent?.block_height, tip)),
 		);
+		const accountId = c.get("streamsTenant")?.account_id;
+		if (accountId) {
+			await recordEventsReturned(accountId, result.events.length);
+			await debitStreamsCreditedRead(c, result.events.length);
+		}
 		return respondSignedJson(c, {
 			events: markFinalized(result.events, tip.finalized_height),
 			tip,

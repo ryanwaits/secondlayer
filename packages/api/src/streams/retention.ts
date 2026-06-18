@@ -2,12 +2,47 @@ import {
 	AuthorizationError,
 	ValidationError,
 } from "@secondlayer/shared/errors";
-import type { MiddlewareHandler } from "hono";
+import type { Context, MiddlewareHandler } from "hono";
 import type { StreamsEnv } from "./auth.ts";
 import { decodeStreamsCursor } from "./cursor.ts";
 import { streamsDumpsManifestUrl } from "./dumps.ts";
 import { STREAMS_TIER_CONFIG, getStreamsRetentionCutoff } from "./tiers.ts";
 import type { StreamsTipProvider } from "./tip.ts";
+
+/**
+ * Post-read retention guard for point-lookup routes (`/events/:tx_id`,
+ * `/blocks/:h/events`) that carry no seekable query param for the
+ * `streamsRetentionWindow` middleware to inspect — the height is only known
+ * once the row is read. Mirrors that middleware's policy exactly: x402
+ * accountless reads and unlimited-retention tiers pass, credited free accounts
+ * pay-as-you-go and bypass, and a height below the tier cutoff 403s with the
+ * cold-dumps pointer.
+ */
+export function assertStreamsHeightWithinRetention(
+	c: Context<StreamsEnv>,
+	tip: { block_height: number },
+	blockHeight: number,
+): void {
+	const tenant = c.get("streamsTenant");
+	if (!tenant) return;
+	const retentionDays = STREAMS_TIER_CONFIG[tenant.tier].retentionDays;
+	if (retentionDays === null) return;
+	if (c.get("credited")) return;
+
+	const cutoff = getStreamsRetentionCutoff(tenant.tier, tip.block_height);
+	if (cutoff !== null && blockHeight < cutoff) {
+		throw new AuthorizationError(
+			`${tenant.tier} tier can read only the last ${retentionDays} days of Stacks Streams data`,
+			{
+				reason: "RETENTION",
+				oldest_seekable_height: cutoff,
+				oldest_cursor: `${cutoff}:0`,
+				dumps_manifest_url: streamsDumpsManifestUrl(),
+				hint: "This height is past the live retention floor; read it from the cold dumps lane (dumps_manifest_url).",
+			},
+		);
+	}
+}
 
 function parseBlockHeight(value: string, name: string): number {
 	if (!/^(0|[1-9]\d*)$/.test(value)) {

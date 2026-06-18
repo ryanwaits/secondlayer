@@ -56,6 +56,12 @@ function createApp(readEvents: StreamsEventsReader = EMPTY_EVENTS_READER) {
 
 function createMeteredApp(opts: {
 	readEvents?: StreamsEventsReader;
+	readEventsByTxId?: NonNullable<
+		Parameters<typeof createStreamsRouter>[0]
+	>["readEventsByTxId"];
+	readBlockEvents?: NonNullable<
+		Parameters<typeof createStreamsRouter>[0]
+	>["readBlockEvents"];
 	recordEventsReturned: (accountId: string, quantity: number) => Promise<void>;
 }) {
 	const app = new Hono();
@@ -87,6 +93,16 @@ function createMeteredApp(opts: {
 				scopes: [],
 			},
 		],
+		// Free tier, NO account_id: exercises the retention gate without touching
+		// the credits DB (resolveCreditedAccount short-circuits on missing account).
+		[
+			"sk-sl_free_anon_streams",
+			{
+				tenant_id: "tenant_free_anon",
+				tier: "free",
+				scopes: [STREAMS_READ_SCOPE],
+			},
+		],
 	]);
 	app.route(
 		"/v1/streams",
@@ -94,6 +110,8 @@ function createMeteredApp(opts: {
 			tokens,
 			getTip: () => TEST_TIP,
 			readEvents: opts.readEvents ?? EMPTY_EVENTS_READER,
+			readEventsByTxId: opts.readEventsByTxId,
+			readBlockEvents: opts.readBlockEvents,
 			readReorgs: async () => [],
 			recordEventsReturned: opts.recordEventsReturned,
 		}),
@@ -631,6 +649,91 @@ describe("Stacks Streams gateway middleware", () => {
 			headers: authHeaders("sk-sl_metered_streams"),
 		});
 
+		expect(metered).toEqual([]);
+	});
+
+	test("meters /events/:tx_id reads (parity with /events)", async () => {
+		const metered: Array<{ accountId: string; quantity: number }> = [];
+		const app = createMeteredApp({
+			recordEventsReturned: async (accountId, quantity) => {
+				metered.push({ accountId, quantity });
+			},
+			readEventsByTxId: async ({ txId }) => ({
+				events: [
+					streamsEvent({ tx_id: txId, cursor: "100:0", event_index: 0 }),
+					streamsEvent({ tx_id: txId, cursor: "100:1", event_index: 1 }),
+				],
+			}),
+		});
+
+		const res = await app.request("/v1/streams/events/0xtx", {
+			headers: authHeaders("sk-sl_metered_streams"),
+		});
+
+		expect(res.status).toBe(200);
+		expect(metered).toEqual([{ accountId: "acct_streams", quantity: 2 }]);
+	});
+
+	test("meters /blocks/:heightOrHash/events reads (parity with /events)", async () => {
+		const metered: Array<{ accountId: string; quantity: number }> = [];
+		const app = createMeteredApp({
+			recordEventsReturned: async (accountId, quantity) => {
+				metered.push({ accountId, quantity });
+			},
+			readBlockEvents: async () => ({
+				events: [streamsEvent({ block_hash: "0xblock" })],
+			}),
+		});
+
+		const res = await app.request("/v1/streams/blocks/0xblock/events", {
+			headers: authHeaders("sk-sl_metered_streams"),
+		});
+
+		expect(res.status).toBe(200);
+		expect(metered).toEqual([{ accountId: "acct_streams", quantity: 1 }]);
+	});
+
+	test("free tier hitting /events/:tx_id past retention gets 403 before metering", async () => {
+		const metered: Array<{ accountId: string; quantity: number }> = [];
+		// streamsEvent defaults to block 100; free-tier cutoff is tip - 1 day
+		// (182_720), so 100 is past the live window → 403.
+		const app = createMeteredApp({
+			recordEventsReturned: async (accountId, quantity) => {
+				metered.push({ accountId, quantity });
+			},
+			readEventsByTxId: async ({ txId }) => ({
+				events: [streamsEvent({ tx_id: txId })],
+			}),
+		});
+
+		const res = await app.request("/v1/streams/events/0xtx", {
+			headers: authHeaders("sk-sl_free_anon_streams"),
+		});
+
+		expect(res.status).toBe(403);
+		const body = (await res.json()) as { details?: { reason?: string } };
+		expect(body.details?.reason).toBe("RETENTION");
+		expect(metered).toEqual([]);
+	});
+
+	test("free tier hitting /blocks/:heightOrHash/events past retention gets 403", async () => {
+		const metered: Array<{ accountId: string; quantity: number }> = [];
+		const app = createMeteredApp({
+			recordEventsReturned: async (accountId, quantity) => {
+				metered.push({ accountId, quantity });
+			},
+			readBlockEvents: async () => ({
+				events: [streamsEvent({ block_hash: "0xblock" })],
+			}),
+		});
+
+		const res = await app.request("/v1/streams/blocks/0xblock/events", {
+			headers: authHeaders("sk-sl_free_anon_streams"),
+		});
+
+		expect(res.status).toBe(403);
+		const body = (await res.json()) as { details?: { reason?: string } };
+		expect(body.details?.reason).toBe("RETENTION");
 		expect(metered).toEqual([]);
 	});
 });
