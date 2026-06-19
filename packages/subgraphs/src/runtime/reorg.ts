@@ -184,7 +184,8 @@ export async function handleSubgraphReorg(
 						// Don't fail the reorg cleanup if the revert event
 						// emission errors — subscriptions can't be more
 						// broken than they were pre-reorg.
-						logger.warn("Failed to emit revert event for subscriptions", {
+						logger.error("Failed to emit revert event for subscriptions", {
+							event: "reorg_revert_emit_dropped",
 							subgraph: sg.name,
 							table: tableName,
 							blockHeight,

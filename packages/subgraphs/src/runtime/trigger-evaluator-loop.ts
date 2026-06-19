@@ -14,6 +14,8 @@ import {
 	referencedEventTypes,
 } from "./trigger-evaluator.ts";
 
+const CHAIN_SUB_WARN_THRESHOLD = 5000; // observability only — not a cap.
+
 /**
  * The chain-trigger evaluator: a single global loop that drives direct
  * chain-level subscriptions. It reads canonical blocks off the public
@@ -75,6 +77,13 @@ export async function runEvaluatorOnce(
 	db: Kysely<Database> = getTargetDb(),
 ): Promise<number> {
 	const chainSubs = await listActiveChainSubscriptions(db);
+	if (chainSubs.length >= CHAIN_SUB_WARN_THRESHOLD) {
+		logger.warn("Active chain subscription count is high", {
+			event: "chain_sub_load_high",
+			count: chainSubs.length,
+			threshold: CHAIN_SUB_WARN_THRESHOLD,
+		});
+	}
 	const source = buildChainBlockSource(referencedEventTypes(chainSubs));
 	const tip = await source.getTip();
 	if (tip <= 0) return 0;
