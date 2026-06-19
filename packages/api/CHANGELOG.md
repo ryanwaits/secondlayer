@@ -1,5 +1,11 @@
 # @secondlayer/api
 
+## 1.23.5
+
+### Patch Changes
+
+- 24b95f2: Revert subgraph detail row counts to exact COUNT(\*); the pg_stat n_live_tup estimate read 0 for freshly-inserted (un-analyzed) tables.
+
 ## 1.23.4
 
 ### Patch Changes

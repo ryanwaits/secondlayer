@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 8.12.0
+
+### Minor Changes
+
+- 519ab22: Surface the `sl devnet` command (previously hidden/frozen) as the supported local Clarinet devnet loop: `connect`, `status`, `logs`, `down`.
+
 ## 8.11.1
 
 ### Patch Changes
