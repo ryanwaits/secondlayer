@@ -12,6 +12,7 @@ import { sendMagicLink } from "../auth/email.ts";
 import { consumeClaimToken, validateClaimToken } from "../auth/ghost.ts";
 import { getClientIp } from "../auth/http.ts";
 import { generateSessionToken, hashToken } from "../auth/keys.ts";
+import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import { isDevMode } from "../lib/dev-mode.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
@@ -27,21 +28,8 @@ const VerifySchema = z.union([
 ]);
 
 // IP-based rate limiting for verify endpoint
-const verifyAttempts = new Map<string, { count: number; resetAt: number }>();
 const VERIFY_RATE_LIMIT = 10;
 const VERIFY_WINDOW_MS = 15 * 60_000;
-
-function checkVerifyRateLimit(ip: string): boolean {
-	const now = Date.now();
-	const entry = verifyAttempts.get(ip);
-	if (!entry || now > entry.resetAt) {
-		verifyAttempts.set(ip, { count: 1, resetAt: now + VERIFY_WINDOW_MS });
-		return true;
-	}
-	if (entry.count >= VERIFY_RATE_LIMIT) return false;
-	entry.count++;
-	return true;
-}
 
 // Request magic link (no auth)
 app.post("/magic-link", async (c) => {
@@ -75,7 +63,17 @@ app.post("/magic-link", async (c) => {
 // Verify token or code → create account + session token (no auth)
 app.post("/verify", async (c) => {
 	const ip = getClientIp(c);
-	if (!checkVerifyRateLimit(ip)) {
+	const key = ip === "unknown" ? "auth:verify:unknown" : `auth:verify:${ip}`;
+	const result = await getRateLimitStore().check(
+		key,
+		VERIFY_RATE_LIMIT,
+		VERIFY_WINDOW_MS,
+		{
+			failClosed: true,
+		},
+	);
+	if (!result.allowed) {
+		c.header("Retry-After", String(result.retryAfter));
 		return c.json({ error: "Too many attempts. Try again later." }, 429);
 	}
 
@@ -182,7 +180,17 @@ app.post("/claim", async (c) => {
 // Phase 2: verify magic link + execute the claim (no auth)
 app.post("/claim/verify", async (c) => {
 	const ip = getClientIp(c);
-	if (!checkVerifyRateLimit(ip)) {
+	const key = ip === "unknown" ? "auth:verify:unknown" : `auth:verify:${ip}`;
+	const result = await getRateLimitStore().check(
+		key,
+		VERIFY_RATE_LIMIT,
+		VERIFY_WINDOW_MS,
+		{
+			failClosed: true,
+		},
+	);
+	if (!result.allowed) {
+		c.header("Retry-After", String(result.retryAfter));
 		return c.json({ error: "Too many attempts. Try again later." }, 429);
 	}
 
