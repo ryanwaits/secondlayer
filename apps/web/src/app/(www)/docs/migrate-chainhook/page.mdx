@@ -1,0 +1,89 @@
+# Migrating from Chainhook
+
+Hiro archived Chainhook. Secondlayer [subscriptions](/docs/subscriptions) are the maintained successor: a webhook on raw chain events — a contract, an event, a function, a SIP trait — with no node to run and signed, retried delivery. This guide maps your predicates over.
+
+## The shape of the change
+
+A Chainhook predicate is a file: an `if_this` scope plus a `then_that` HTTP target, registered against a node you run. A Secondlayer subscription is one API call: a `url` plus a `triggers` array (1–50). We host the indexer; you receive POSTs.
+
+```ts
+import { trigger } from "@secondlayer/sdk";
+
+await sl.subscriptions.create({
+  name: "amm-swaps",
+  url: "https://my-app.com/webhook",
+  triggers: [
+    trigger.contractCall({ contractId: "SP....amm", functionName: "swap-*" }),
+  ],
+});
+```
+
+That's the equivalent of a `contract_call` predicate with an `http_post` action — minus the predicate file, the node, and the registration step.
+
+## Predicate → trigger
+
+Each Chainhook `if_this` scope maps to a `trigger.*` factory. Wildcards (`*`) are allowed on names; `trait` scopes a trigger to a SIP/trait.
+
+| Chainhook `if_this.scope` | Secondlayer trigger |
+| --- | --- |
+| `contract_call` (`contract_identifier`, `method`) | `trigger.contractCall({ contractId, functionName, caller, trait })` |
+| `print_event` (`contract_identifier`, `contains` / `matches_regex`) | `trigger.printEvent({ contractId, topic, trait })` |
+| `ft_event` — `mint` / `transfer` / `burn` | `trigger.ftMint` / `trigger.ftTransfer` / `trigger.ftBurn` (`assetIdentifier`, `minAmount`, `trait`) |
+| `nft_event` — `mint` / `transfer` / `burn` | `trigger.nftMint` / `trigger.nftTransfer` / `trigger.nftBurn` (`assetIdentifier`, `trait`) |
+| `stx_event` — `mint` / `transfer` / `lock` | `trigger.stxMint` / `trigger.stxTransfer` / `trigger.stxLock` (`recipient`, `sender`, `minAmount`) |
+| `contract_deployment` (`deployer`, `implement_trait`) | `trigger.contractDeploy({ deployer, contractName })`, or scope by `trait` |
+| `txid` | No trigger — query [Index](/docs/index) by transaction instead |
+
+The raw object form is equivalent to the factory: `trigger.contractCall({ contractId, functionName })` is `{ type: "contract_call", contractId, functionName }`. See the [full trigger reference](/docs/subscriptions#triggers) for every field.
+
+### Example: a `contract_call` predicate
+
+Chainhook:
+
+```json
+{
+  "if_this": {
+    "scope": "contract_call",
+    "contract_identifier": "SP....amm",
+    "method": "swap-x-for-y"
+  },
+  "then_that": {
+    "http_post": { "url": "https://my-app.com/webhook" }
+  }
+}
+```
+
+Secondlayer:
+
+```ts
+await sl.subscriptions.create({
+  name: "amm-swaps",
+  url: "https://my-app.com/webhook",
+  triggers: [
+    trigger.contractCall({ contractId: "SP....amm", functionName: "swap-x-for-y" }),
+  ],
+});
+```
+
+## Delivery: apply and rollback
+
+Chainhook delivers `apply` / `rollback` payloads. Secondlayer delivers a `chain.{type}.apply` envelope per matched event, and `chain.reorg.rollback` when a block is orphaned — so you can undo anything you committed off a fork. The full envelopes are in the [subscriptions delivery reference](/docs/subscriptions#delivery-envelope).
+
+<Callout type="note" title="Verify the signature">
+Every delivery is HMAC-signed (Standard Webhooks) and carries a universal ed25519 signature. Verify with the SDK's `verifyWebhookSignature` before trusting the payload — see [Verify the signature](/docs/subscriptions#verify-the-signature). Chainhook's bearer-token auth has no equivalent here; the signature is the auth.
+</Callout>
+
+## Two differences worth knowing
+
+- **Forward-looking by default.** A chain subscription starts at the chain tip — no historical scan like a predicate's `start_block`. To deliver history, use [`replay`](/docs/subscriptions#replay) over an existing subscription (idempotent, capped at 100,000 blocks, never moves the live cursor).
+- **No node to run.** Chainhook needs a Stacks node (or Hiro's hosted offering) alongside it. Secondlayer hosts the indexer; you only run your receiver.
+
+## Test it on devnet first
+
+Run the whole loop locally before you point it at mainnet — deploy a subgraph and fire subscriptions against your Clarinet devnet. See [Devnet](/docs/devnet).
+
+export const metadata = {
+	title: "Migrating from Chainhook — Secondlayer Docs",
+	description:
+		"Map your Chainhook predicates to Secondlayer subscriptions — a hosted webhook on raw chain events, with signed, retried delivery and no node to run.",
+};

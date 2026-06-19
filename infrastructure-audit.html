@@ -354,7 +354,7 @@ footer { padding:48px 0; }
       <div class="k">transport in shared leaf</div><div class="v"><code>@secondlayer/shared/index-http</code> — both SDK and subgraphs depend on shared; avoids the sdk→subgraphs cycle.</div>
       <div class="k">self-host scope</div><div class="v">Fully-self-hosted only (own api + indexer + registry + processor). No public-API-consumer self-host.</div>
       <div class="k">GraphQL</div><div class="v">Deliberate NO — REST + typed ORM codegen is the answer across all surfaces.</div>
-      <div class="k">#8 direct subscriptions</div><div class="v">Deferred (separate effort). Subscriptions sit on subgraph rows (L3) / decoded data — not raw L1 (Chainhooks' lane).</div>
+      <div class="k">#8 direct subscriptions</div><div class="v"><span class="tag tag-ok">live</span> Subscriptions fire on subgraph rows or raw chain events — the maintained successor to the archived Hiro Chainhook.</div>
       <div class="k">rollout posture</div><div class="v">Per-subgraph eligibility gate; default <code>db</code>; <code>SUBGRAPH_SOURCE=streams-index</code> committed to prod compose (survives <code>git reset --hard</code> deploys). Unset = instant rollback.</div>
     </div>
   </div>

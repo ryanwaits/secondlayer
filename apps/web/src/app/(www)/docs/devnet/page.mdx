@@ -1,0 +1,111 @@
+# Devnet
+
+Run the full Secondlayer stack against your local Clarinet devnet. Deploy contracts, fire transactions, and watch your subgraphs index them — all on your machine, no cloud, no keys.
+
+<Banner label="What you'll have" title="A local indexer that streams your Clarinet devnet">
+One command points your Clarinet project at a local Secondlayer stack — Postgres, indexer, API, and the subgraph processor — running in Docker. Your devnet node forwards every block to the indexer, so your subgraphs and subscriptions run exactly as they would in production.
+</Banner>
+
+## Prerequisites
+
+- [Clarinet](https://github.com/hirosystems/clarinet) and a Clarinet project (a directory with `Clarinet.toml`).
+- Docker (Docker Desktop or [OrbStack](https://orbstack.dev) on macOS).
+- The CLI: `bun add -g @secondlayer/cli`.
+
+## Connect
+
+From inside your Clarinet project:
+
+```bash
+sl devnet connect
+```
+
+This does three things:
+
+- Patches `settings/Devnet.toml` so the devnet node forwards events to the local indexer (`stacks_node_events_observers = ["host.docker.internal:3700"]`).
+- Writes `.secondlayer/docker-compose.yml` for the published OSS images.
+- Brings the stack up with `docker compose up -d`.
+
+When it's up:
+
+```
+Secondlayer stack up
+  api      → http://localhost:3800
+  indexer  → http://localhost:3700
+```
+
+<Callout type="tip" title="Patch config without starting Docker">
+Pass `--no-up` to write `settings/Devnet.toml` and the compose file without starting containers — then bring it up yourself with `docker compose -f .secondlayer/docker-compose.yml up -d`.
+</Callout>
+
+### Options
+
+| Flag | Default | Purpose |
+| --- | --- | --- |
+| `--project <dir>` | nearest `Clarinet.toml` | Clarinet project directory |
+| `--image-tag <tag>` | `latest` | Published image tag to run |
+| `--owner <owner>` | Secondlayer namespace | ghcr image owner to pull from |
+| `--no-up` | — | Patch config + write compose without starting Docker |
+
+## Start the devnet
+
+With the stack running, start Clarinet's devnet. It auto-deploys your contracts and streams every block to the indexer:
+
+```bash
+clarinet devnet start
+```
+
+## Deploy a subgraph against it
+
+Point the CLI at the local API and deploy. No login, no API key — the local stack accepts a dummy key:
+
+```bash
+SL_API_URL=http://localhost:3800 SL_API_KEY=dummy sl subgraphs deploy ./subgraph.ts
+```
+
+Your handler runs against local devnet blocks the moment they're produced. Fire a contract call in your devnet and the matching rows land in your subgraph's tables.
+
+## Watch it work
+
+```bash
+sl devnet status
+```
+
+Snapshots the stack — ingest lag, deployed subgraphs, and recent indexed rows:
+
+```
+STACK
+  ● indexer   healthy   :3700
+  ● api       healthy   :3800
+
+INGEST
+  chain tip 142   indexed 142   lag caught up   last block 2s ago
+
+SUBGRAPHS
+  my-balances   active   block 142   balances · 37 rows
+```
+
+Add `-w` to refresh every 2s, or `--limit <n>` to change how many recent rows show.
+
+Tail logs for the whole stack or one service (`indexer`, `api`, `subgraph-processor`, `postgres`):
+
+```bash
+sl devnet logs indexer -f
+```
+
+## Tear down
+
+```bash
+sl devnet down            # stop the stack
+sl devnet down --purge    # stop and wipe the local index volumes
+```
+
+## Coming from Chainhook?
+
+If you're here because hosted Chainhook devnet support left you stuck, this is the replacement: a local indexer that runs your subgraphs and fires [subscriptions](/docs/subscriptions) against devnet blocks. See [Migrating from Chainhook](/docs/migrate-chainhook) for the predicate-to-trigger mapping.
+
+export const metadata = {
+	title: "Devnet — Secondlayer Docs",
+	description:
+		"Run the full Secondlayer stack against your local Clarinet devnet — deploy contracts and watch subgraphs index them, no cloud, no keys.",
+};

@@ -14,6 +14,7 @@ export const DOCS_NAV: DocsNavGroup[] = [
 		items: [
 			{ title: "Introduction", href: "/docs" },
 			{ title: "Quickstart", href: "/docs/quickstart" },
+			{ title: "Devnet", href: "/docs/devnet" },
 			{ title: "Authentication", href: "/docs/authentication" },
 		],
 	},
@@ -29,6 +30,7 @@ export const DOCS_NAV: DocsNavGroup[] = [
 	{
 		label: "Reference",
 		items: [
+			{ title: "Migrating from Chainhook", href: "/docs/migrate-chainhook" },
 			{ title: "REST API", href: "/docs/rest-api" },
 			{ title: "Verification", href: "/docs/verification" },
 			{ title: "Contract discovery", href: "/docs/contracts" },
