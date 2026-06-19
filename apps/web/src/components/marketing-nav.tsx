@@ -2,7 +2,7 @@
 
 import { MobileNavCta } from "@/components/mobile-nav-cta";
 import { useAuth } from "@/lib/auth";
-import { appUrl } from "@/lib/urls";
+import { appHostname, appUrl, marketingUrl } from "@/lib/urls";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -30,9 +30,9 @@ function isActive(pathname: string, href: string): boolean {
 					!pathname.startsWith("/subgraphs/explore"));
 }
 
-function Brand() {
+function Brand({ href = "/" }: { href?: string }) {
 	return (
-		<Link href="/" className="marketing-nav-brand">
+		<Link href={href} className="marketing-nav-brand">
 			<svg
 				viewBox="4 7 40 28"
 				width="22"
@@ -63,6 +63,18 @@ export function MarketingNav() {
 	const { account, loading, logout } = useAuth();
 	const [open, setOpen] = useState(false);
 
+	// Product/marketing pages live on the marketing host. When this nav renders
+	// on the app host (e.g. the /login page), relative links would resolve to
+	// app.* and get bounced by middleware, so cross them to the marketing host.
+	// Resolved post-mount to keep SSR + marketing-host output relative (no
+	// hydration mismatch, client-side nav preserved on the marketing site).
+	const [onAppHost, setOnAppHost] = useState(false);
+	useEffect(() => {
+		const host = appHostname();
+		setOnAppHost(host !== null && window.location.host === host);
+	}, []);
+	const navHref = (href: string) => (onAppHost ? marketingUrl(href) : href);
+
 	// Close the sheet whenever the route changes (i.e. a link is tapped).
 	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is a trigger — close the sheet on navigation
 	useEffect(() => {
@@ -89,11 +101,11 @@ export function MarketingNav() {
 	return (
 		<>
 			<nav className="marketing-nav" aria-label="Products">
-				<Brand />
+				<Brand href={navHref("/")} />
 				{PRODUCTS.map((p) => (
 					<Link
 						key={p.href}
-						href={p.href}
+						href={navHref(p.href)}
 						className="auth-bar-nav-link marketing-nav-link"
 						aria-current={isActive(pathname, p.href) ? "page" : undefined}
 					>
@@ -129,7 +141,7 @@ export function MarketingNav() {
 			{open && (
 				<div className="mnav-sheet">
 					<div className="mnav-sheet-bar">
-						<Brand />
+						<Brand href={navHref("/")} />
 						<button
 							type="button"
 							className="mnav-close"
@@ -142,7 +154,7 @@ export function MarketingNav() {
 						{PRODUCTS.map((p, i) => (
 							<Link
 								key={p.href}
-								href={p.href}
+								href={navHref(p.href)}
 								className={`mnav-row${isActive(pathname, p.href) ? " active" : ""}`}
 							>
 								<span className="no">{String(i + 1).padStart(2, "0")}</span>
