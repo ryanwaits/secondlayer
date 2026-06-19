@@ -1,5 +1,13 @@
 # @secondlayer/subgraphs
 
+## 3.15.1
+
+### Patch Changes
+
+- 45e9c27: Avoid redundant array allocation in read-your-writes overlay: early-out when no ops are pending, mutate in place for update ops instead of re-mapping per op.
+- 5021a58: Reject table/column/index identifiers that are not safe SQL identifiers at deploy-time validation.
+- 1da5b8b: Elevate dropped reorg revert-emit log to error level and warn when active chain subscription count exceeds threshold.
+
 ## 3.15.0
 
 ### Minor Changes

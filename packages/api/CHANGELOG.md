@@ -1,5 +1,15 @@
 # @secondlayer/api
 
+## 1.23.4
+
+### Patch Changes
+
+- d38d32c: Replace per-table COUNT(\*) fan-out on subgraph detail endpoint with a single pg_stat_user_tables read for approximate row counts.
+- Updated dependencies [45e9c27]
+- Updated dependencies [5021a58]
+- Updated dependencies [1da5b8b]
+  - @secondlayer/subgraphs@3.15.1
+
 ## 1.23.3
 
 ### Patch Changes
