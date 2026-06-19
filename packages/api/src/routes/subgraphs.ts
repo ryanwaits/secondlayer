@@ -1277,9 +1277,7 @@ app.get("/", async (c) => {
 			.where("subgraph_name", "is not", null)
 			.groupBy("subgraph_name")
 			.execute()
-			.catch(
-				() => [] as { subgraph_name: string | null; count: number }[],
-			),
+			.catch(() => [] as { subgraph_name: string | null; count: number }[]),
 	]);
 
 	const liveStats = new Map<string, (typeof liveResult)[0]>();
@@ -1373,15 +1371,22 @@ export async function buildSubgraphDetailFromRow(
 
 	const schemaEntries = Object.entries(subgraphSchema);
 	const db = getDb();
-	const [countResults, liveRow, chainTip, gapResult] = await Promise.all([
-		Promise.allSettled(
-			schemaEntries.map(([tableName]) =>
-				query(
-					subgraph,
-					`SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`,
-				).then((r) => Number.parseInt(String(r[0]?.count ?? 0), 10)),
-			),
-		),
+
+	// Approximate per-table row counts in one indexed catalog read (matches the
+	// list endpoint's pg_stat approach; avoids N seq-scans on large tables).
+	const rowCountByTable = new Map<string, number>();
+	try {
+		const { rows } = await sql`
+			SELECT relname, n_live_tup::bigint AS rows
+			FROM pg_stat_user_tables
+			WHERE schemaname = ${sn}
+		`.execute(db);
+		for (const r of rows as { relname: string; rows: string }[]) {
+			rowCountByTable.set(r.relname, Number(r.rows));
+		}
+	} catch {}
+
+	const [liveRow, chainTip, gapResult] = await Promise.all([
 		db
 			.selectFrom("subgraphs")
 			.select([
@@ -1408,8 +1413,7 @@ export async function buildSubgraphDetailFromRow(
 
 	for (let i = 0; i < schemaEntries.length; i++) {
 		const [tableName, tableDef] = schemaEntries[i];
-		const cr = countResults[i];
-		const rowCount = cr.status === "fulfilled" ? cr.value : 0;
+		const rowCount = rowCountByTable.get(tableName) ?? 0;
 		const columns: SubgraphDetail["tables"][string]["columns"] = {};
 		for (const [colName, col] of Object.entries(tableDef.columns)) {
 			columns[colName] = {
@@ -1597,17 +1601,22 @@ app.get("/:subgraphName", async (c) => {
 
 	const schemaEntries = Object.entries(subgraphSchema);
 
-	// Fetch live stats, COUNT queries, chain tip, and gaps in parallel
+	// Approximate per-table row counts in one indexed catalog read (matches the
+	// list endpoint's pg_stat approach; avoids N seq-scans on large tables).
 	const db = getDb();
-	const [countResults, liveRow, chainTip, gapResult] = await Promise.all([
-		Promise.allSettled(
-			schemaEntries.map(([tableName]) =>
-				query(
-					subgraph,
-					`SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`,
-				).then((r) => Number.parseInt(String(r[0]?.count ?? 0), 10)),
-			),
-		),
+	const rowCountByTable = new Map<string, number>();
+	try {
+		const { rows } = await sql`
+			SELECT relname, n_live_tup::bigint AS rows
+			FROM pg_stat_user_tables
+			WHERE schemaname = ${sn}
+		`.execute(db);
+		for (const r of rows as { relname: string; rows: string }[]) {
+			rowCountByTable.set(r.relname, Number(r.rows));
+		}
+	} catch {}
+
+	const [liveRow, chainTip, gapResult] = await Promise.all([
 		db
 			.selectFrom("subgraphs")
 			.select([
@@ -1634,8 +1643,7 @@ app.get("/:subgraphName", async (c) => {
 
 	for (let i = 0; i < schemaEntries.length; i++) {
 		const [tableName, tableDef] = schemaEntries[i];
-		const cr = countResults[i];
-		const rowCount = cr.status === "fulfilled" ? cr.value : 0;
+		const rowCount = rowCountByTable.get(tableName) ?? 0;
 
 		// biome-ignore lint/suspicious/noExplicitAny: dynamic column shape
 		const columns: Record<string, any> = {};
