@@ -17,8 +17,10 @@ import {
 	setAccountPlan,
 } from "@secondlayer/platform/db/queries/accounts";
 import { logger } from "@secondlayer/shared";
+import type { Database } from "@secondlayer/shared/db";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
+import type { Kysely } from "kysely";
 import type Stripe from "stripe";
 import {
 	getStripeOrNull,
@@ -62,71 +64,93 @@ app.post("/", async (c) => {
 		livemode: event.livemode,
 	});
 
-	// Idempotency. Stripe redelivers events on any non-2xx and on its own
-	// retry policy; we may also see a late replay of an old `invoice.paid`
-	// arriving days after the cycle it billed. INSERT ON CONFLICT DO
-	// NOTHING into `processed_stripe_events` and bail if the event_id is
-	// already there — the original processing had its chance.
-	const inserted = await getDb()
-		.insertInto("processed_stripe_events")
-		.values({
-			event_id: event.id,
-			event_type: event.type,
-		})
-		.onConflict((oc) => oc.column("event_id").doNothing())
-		.executeTakeFirst();
-	const isDuplicate = (inserted.numInsertedOrUpdatedRows ?? 0n) === 0n;
-	if (isDuplicate) {
+	let outcome: StripeWebhookOutcome;
+	try {
+		outcome = await processStripeEvent(getDb(), event);
+	} catch (err) {
+		// The transaction rolled back — marker NOT persisted. Return 500 so
+		// Stripe redelivers (backoff over ~3 days). A permanently-poisoned event
+		// stops retrying on Stripe's side; far better than silently losing a paid
+		// event by 200-ing a rolled-back effect.
+		logger.error(
+			"Stripe webhook handler failed; rolled back, signaling retry",
+			{
+				id: event.id,
+				type: event.type,
+				error: err instanceof Error ? err.message : String(err),
+			},
+		);
+		return c.json({ error: "handler_failed" }, 500);
+	}
+
+	if (outcome === "duplicate") {
 		logger.info("Stripe webhook event already processed — skipping", {
 			id: event.id,
 			type: event.type,
 		});
 		return c.body(null, 200);
 	}
+	return c.json({ received: true });
+});
 
-	try {
+export type StripeWebhookOutcome = "processed" | "duplicate";
+
+/**
+ * Marker + effect in ONE transaction. If the handler throws, the whole
+ * transaction (including the processed_stripe_events row) rolls back, so the
+ * caller returns non-2xx and Stripe redelivers. Concurrent duplicate
+ * deliveries serialize on the event_id unique constraint.
+ */
+export async function processStripeEvent(
+	db: Kysely<Database>,
+	event: Stripe.Event,
+): Promise<StripeWebhookOutcome> {
+	return db.transaction().execute(async (trx) => {
+		const inserted = await trx
+			.insertInto("processed_stripe_events")
+			.values({ event_id: event.id, event_type: event.type })
+			.onConflict((oc) => oc.column("event_id").doNothing())
+			.executeTakeFirst();
+		if ((inserted.numInsertedOrUpdatedRows ?? 0n) === 0n) return "duplicate";
+
 		if (event.type === "invoice.paid") {
 			const invoice = event.data.object as Stripe.Invoice;
 			const customerId =
 				typeof invoice.customer === "string"
 					? invoice.customer
 					: invoice.customer?.id;
-			if (customerId) await onInvoicePaid(customerId);
+			if (customerId) await onInvoicePaid(trx, customerId);
 		} else if (
 			event.type === "customer.subscription.created" ||
 			event.type === "customer.subscription.updated"
 		) {
 			await onSubscriptionActive(
+				trx,
 				event.data.object as Stripe.Subscription,
 				event.id,
 			);
 		} else if (event.type === "customer.subscription.deleted") {
 			await onSubscriptionDeleted(
+				trx,
 				event.data.object as Stripe.Subscription,
 				event.id,
 			);
 		} else if (event.type === "checkout.session.completed") {
 			await onCheckoutCompleted(
+				trx,
 				event.data.object as Stripe.Checkout.Session,
 				event.id,
 			);
 		}
-	} catch (err) {
-		// Always 200 below even on handler error — Stripe retries on
-		// non-2xx and a handler bug shouldn't cause a retry storm.
-		logger.warn("Stripe webhook handler error", {
-			id: event.id,
-			type: event.type,
-			error: err instanceof Error ? err.message : String(err),
-		});
-	}
-
-	return c.json({ received: true });
-});
+		return "processed";
+	});
+}
 
 /** invoice.paid — clear any cap freeze at cycle rollover. */
-async function onInvoicePaid(stripeCustomerId: string): Promise<void> {
-	const db = getDb();
+async function onInvoicePaid(
+	db: Kysely<Database>,
+	stripeCustomerId: string,
+): Promise<void> {
 	const account = await getAccountByStripeCustomerId(db, stripeCustomerId);
 	if (!account) {
 		logger.warn("invoice.paid: no account matches stripe_customer_id", {
@@ -150,10 +174,10 @@ async function onInvoicePaid(stripeCustomerId: string): Promise<void> {
  *   past_due / incomplete → no-op (don't demote mid-dispute)
  */
 async function onSubscriptionActive(
+	db: Kysely<Database>,
 	sub: Stripe.Subscription,
 	eventId: string,
 ): Promise<void> {
-	const db = getDb();
 	const customerId =
 		typeof sub.customer === "string" ? sub.customer : sub.customer.id;
 
@@ -219,10 +243,10 @@ async function onSubscriptionActive(
 
 /** customer.subscription.deleted — remove plan. Tenant-suspend removed post shared-rip. */
 async function onSubscriptionDeleted(
+	db: Kysely<Database>,
 	sub: Stripe.Subscription,
 	eventId: string,
 ): Promise<void> {
-	const db = getDb();
 	const customerId =
 		typeof sub.customer === "string" ? sub.customer : sub.customer.id;
 	const account = await getAccountByStripeCustomerId(db, customerId);
@@ -249,6 +273,7 @@ async function onSubscriptionDeleted(
  * actually paid) is the source of truth, cents → USD micros (1¢ = 10,000µ$).
  */
 async function onCheckoutCompleted(
+	db: Kysely<Database>,
 	session: Stripe.Checkout.Session,
 	eventId: string,
 ): Promise<void> {
@@ -269,7 +294,7 @@ async function onCheckoutCompleted(
 	const cents = session.amount_total ?? 0;
 	if (cents <= 0) return;
 	const usdMicros = BigInt(cents) * 10_000n;
-	const balance = await creditCredits(getDb(), accountId, usdMicros);
+	const balance = await creditCredits(db, accountId, usdMicros);
 	logger.info("Credited account from top-up", {
 		eventId,
 		accountId,
