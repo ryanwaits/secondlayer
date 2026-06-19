@@ -113,8 +113,9 @@ Examples:
   $ sl contracts generate --config secondlayer.config.ts --watch`,
 );
 
-// Local development — frozen periphery: both groups register hidden and print
-// a deprecation notice on use (see lib/frozen.ts), so this group never renders.
+// Local development. `devnet` (Clarinet devnet → local Secondlayer stack) is the
+// supported local loop and renders here; `local` stays frozen — hidden, prints a
+// deprecation notice on use (see lib/frozen.ts).
 program.commandsGroup("Local development:");
 registerLocalCommand(program);
 registerDevnetCommand(program);

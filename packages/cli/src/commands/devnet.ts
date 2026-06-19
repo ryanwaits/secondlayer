@@ -11,7 +11,6 @@ import {
 	ensureEventObserver,
 	findClarinetProject,
 } from "../lib/devnet-config.ts";
-import { markFrozen } from "../lib/frozen.ts";
 import { bold, cyan, dim, error, green, red, yellow } from "../lib/output.ts";
 
 const COMPOSE_REL = join(".secondlayer", "docker-compose.yml");
@@ -73,11 +72,9 @@ const SERVICES = [
 ];
 
 export function registerDevnetCommand(program: Command): void {
-	const devnet = markFrozen(
-		program
-			.command("devnet", { hidden: true })
-			.description("Run Secondlayer services against a local Clarinet devnet"),
-	);
+	const devnet = program
+		.command("devnet")
+		.description("Run Secondlayer services against a local Clarinet devnet");
 
 	devnet
 		.command("connect")
