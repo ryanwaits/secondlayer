@@ -341,6 +341,7 @@ export class SubgraphContext {
 		where: Record<string, unknown>,
 		dbRow: Record<string, unknown> | null,
 	): Record<string, unknown> | null {
+		if (this.ops.length === 0) return dbRow;
 		let row = dbRow;
 		for (const op of this.ops) {
 			if (op.table !== table) continue;
@@ -354,13 +355,16 @@ export class SubgraphContext {
 		where: Record<string, unknown>,
 		dbRows: Record<string, unknown>[],
 	): Record<string, unknown>[] {
+		if (this.ops.length === 0) return [...dbRows];
 		let result = [...dbRows];
 		for (const op of this.ops) {
 			if (op.table !== table) continue;
 			if (op.kind === "update") {
-				result = result.map((r) =>
-					rowMatches(r, op.data) ? { ...r, ...(op.set ?? {}) } : r,
-				);
+				for (let i = 0; i < result.length; i++) {
+					// biome-ignore lint/style/noNonNullAssertion: idx bounds-checked by loop condition
+					if (rowMatches(result[i]!, op.data))
+						result[i] = { ...result[i], ...(op.set ?? {}) };
+				}
 			} else if (op.kind === "delete") {
 				result = result.filter((r) => !rowMatches(r, op.data));
 			} else {
