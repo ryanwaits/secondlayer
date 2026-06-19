@@ -8,7 +8,7 @@
 		"start": "bun run src/index.ts",
 		"dev": "bun run --watch src/index.ts",
 		"typecheck": "tsc --noEmit",
-		"test": "echo 'no tests yet'"
+		"test": "bun test"
 	},
 	"dependencies": {
 		"@secondlayer/platform": "workspace:*",
