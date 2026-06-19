@@ -1,0 +1,14 @@
+#!/bin/sh
+# Run Biome on staged files before commit. Fast, deterministic, no DB.
+# Bypass a one-off with: git commit --no-verify
+staged=$(git diff --cached --name-only --diff-filter=ACMR \
+  | grep -E '\.(ts|tsx|js|jsx|json|jsonc)$' || true)
+[ -z "$staged" ] && exit 0
+# shellcheck disable=SC2086
+if ! bunx biome check --no-errors-on-unmatched $staged; then
+  echo "✖ pre-commit: biome check failed on staged files." >&2
+  echo "  Fix, or run 'bunx biome check --write <files>'." >&2
+  echo "  (bypass once with: git commit --no-verify)" >&2
+  exit 1
+fi
+exit 0
