@@ -1,10 +1,21 @@
 # Migrating from Chainhook
 
-Hiro archived Chainhook. Secondlayer [subscriptions](/docs/subscriptions) are the maintained successor: a webhook on raw chain events — a contract, an event, a function, a SIP trait — with no node to run and signed, retried delivery. This guide maps your predicates over.
+Hiro shipped Chainhook in two forms: the original **self-hosted Chainhook** (v1), now deprecated and awkward to run, and a **hosted Chainhook** (v2) — the platform whose devnet support never landed. Secondlayer [subscriptions](/docs/subscriptions) replace both: a webhook on raw chain events — a contract, an event, a function, a SIP trait — with signed, retried delivery. This guide maps your predicates over, whichever one you were on.
+
+## Hosted or self-hosted
+
+Subscriptions run either way, so you can match whichever Chainhook you came from. The API is identical; only where the indexer runs changes.
+
+| You were on | Move to | What changes |
+| --- | --- | --- |
+| Hosted Chainhook (v2) | Secondlayer hosted — the default | One API call, no node, no infra to operate — and [devnet](/docs/devnet) works. |
+| Self-hosted Chainhook (v1, deprecated) | Secondlayer [self-hosted](/docs/self-host) | Run your own node + our indexer — maintained, and far simpler to operate than v1. |
+
+The rest of this guide uses the hosted path; everything maps the same when self-hosting.
 
 ## The shape of the change
 
-A Chainhook predicate is a file: an `if_this` scope plus a `then_that` HTTP target, registered against a node you run. A Secondlayer subscription is one API call: a `url` plus a `triggers` array (1–50). We host the indexer; you receive POSTs.
+A Chainhook predicate is a file: an `if_this` scope plus a `then_that` HTTP target, registered against a node you run. A Secondlayer subscription is one API call: a `url` plus a `triggers` array (1–50). On the hosted platform we run the indexer; you receive POSTs.
 
 ```ts
 import { trigger } from "@secondlayer/sdk";
@@ -76,7 +87,7 @@ Every delivery is HMAC-signed (Standard Webhooks) and carries a universal ed2551
 ## Two differences worth knowing
 
 - **Forward-looking by default.** A chain subscription starts at the chain tip — no historical scan like a predicate's `start_block`. To deliver history, use [`replay`](/docs/subscriptions#replay) over an existing subscription (idempotent, capped at 100,000 blocks, never moves the live cursor).
-- **No node to run.** Chainhook needs a Stacks node (or Hiro's hosted offering) alongside it. Secondlayer hosts the indexer; you only run your receiver.
+- **You choose where the indexer runs.** Self-hosted Chainhook made you run a Stacks node; hosted Chainhook ran it for you. On Secondlayer's hosted platform you run neither — just your receiver. Prefer to own the stack? [Self-host](/docs/self-host) the indexer against your own node — the maintained successor to v1.
 
 ## Test it on devnet first
 
@@ -85,5 +96,5 @@ Run the whole loop locally before you point it at mainnet — deploy a subgraph 
 export const metadata = {
 	title: "Migrating from Chainhook — Secondlayer Docs",
 	description:
-		"Map your Chainhook predicates to Secondlayer subscriptions — a hosted webhook on raw chain events, with signed, retried delivery and no node to run.",
+		"Map your Chainhook predicates to Secondlayer subscriptions — replacing both hosted Chainhook (v2) and the deprecated self-hosted v1, with signed, retried delivery.",
 };
