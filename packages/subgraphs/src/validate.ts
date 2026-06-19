@@ -16,6 +16,21 @@ export const SubgraphNameSchema: z.ZodType<string> = z
 		"Must start with lowercase letter, contain only lowercase alphanumeric and hyphens",
 	);
 
+/**
+ * A safe SQL identifier (table or column name). Mirrors the runtime guard in
+ * runtime/context.ts (validateColumnName) so the schema validator can never
+ * accept a name the runtime would reject — and closes the deploy-time DDL
+ * injection path in schema/generator.ts, which interpolates these names raw.
+ */
+export const SqlIdentifierSchema: z.ZodType<string> = z
+	.string()
+	.min(1)
+	.max(63) // Postgres truncates identifiers > 63 bytes; reject rather than collide.
+	.regex(
+		/^[a-z_][a-z0-9_]*$/i,
+		"Must be a valid SQL identifier: start with a letter or underscore, then letters/digits/underscores only",
+	);
+
 export const ColumnTypeSchema: z.ZodType<ColumnType> = z.enum([
 	"text",
 	"uint",
@@ -36,27 +51,27 @@ export const SubgraphColumnSchema: z.ZodType<SubgraphColumn> = z.object({
 
 export const SubgraphTableSchema: z.ZodType<SubgraphTable> = z.object({
 	columns: z
-		.record(z.string(), SubgraphColumnSchema)
+		.record(SqlIdentifierSchema, SubgraphColumnSchema)
 		.refine(
 			(c) => Object.keys(c).length > 0,
 			"Table must have at least one column",
 		),
-	indexes: z.array(z.array(z.string())).optional(),
-	uniqueKeys: z.array(z.array(z.string())).optional(),
+	indexes: z.array(z.array(SqlIdentifierSchema)).optional(),
+	uniqueKeys: z.array(z.array(SqlIdentifierSchema)).optional(),
 	relations: z
 		.array(
 			z.object({
 				name: z.string(),
-				references: z.string(),
-				fields: z.array(z.string()).min(1),
-				referencedColumns: z.array(z.string()).min(1),
+				references: SqlIdentifierSchema,
+				fields: z.array(SqlIdentifierSchema).min(1),
+				referencedColumns: z.array(SqlIdentifierSchema).min(1),
 			}),
 		)
 		.optional(),
 }) as z.ZodType<SubgraphTable>;
 
 export const SubgraphSchemaSchema: z.ZodType<Record<string, SubgraphTable>> = z
-	.record(z.string(), SubgraphTableSchema)
+	.record(SqlIdentifierSchema, SubgraphTableSchema)
 	.refine(
 		(s) => Object.keys(s).length > 0,
 		"Schema must have at least one table",

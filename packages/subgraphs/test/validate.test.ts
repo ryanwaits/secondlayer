@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import {
+	SqlIdentifierSchema,
 	SubgraphNameSchema,
 	validateSubgraphDefinition,
 } from "../src/validate.ts";
@@ -129,4 +130,94 @@ test("validateSubgraphDefinition accepts multiple sources", () => {
 		handlers: { marketplace: () => {}, transfer: () => {}, stx: () => {} },
 	});
 	expect(Object.keys(result.sources).length).toBe(3);
+});
+
+// SQL identifier safety tests
+test("SqlIdentifierSchema rejects unsafe identifiers", () => {
+	expect(() => SqlIdentifierSchema.parse('evt"; DROP TABLE x; --')).toThrow();
+	expect(() => SqlIdentifierSchema.parse("has-hyphen")).toThrow();
+	expect(() => SqlIdentifierSchema.parse("123start")).toThrow();
+	expect(() => SqlIdentifierSchema.parse("has space")).toThrow();
+	expect(() => SqlIdentifierSchema.parse("")).toThrow();
+});
+
+test("SqlIdentifierSchema accepts valid identifiers", () => {
+	expect(SqlIdentifierSchema.parse("transfers")).toBe("transfers");
+	expect(SqlIdentifierSchema.parse("_private")).toBe("_private");
+	expect(SqlIdentifierSchema.parse("col1")).toBe("col1");
+	expect(SqlIdentifierSchema.parse("CamelCase")).toBe("CamelCase");
+});
+
+test("validateSubgraphDefinition rejects injection table name", () => {
+	expect(() =>
+		validateSubgraphDefinition({
+			name: "bad",
+			sources: { handler: { type: "contract_call", contractId: "SP000::c" } },
+			schema: {
+				'evt"; DROP TABLE x; --': { columns: { id: { type: "uint" } } },
+			},
+			handlers: { handler: () => {} },
+		}),
+	).toThrow();
+});
+
+test("validateSubgraphDefinition rejects injection column name", () => {
+	expect(() =>
+		validateSubgraphDefinition({
+			name: "bad",
+			sources: { handler: { type: "contract_call", contractId: "SP000::c" } },
+			schema: { data: { columns: { 'amount"; --': { type: "uint" } } } },
+			handlers: { handler: () => {} },
+		}),
+	).toThrow();
+});
+
+test("validateSubgraphDefinition rejects injection in uniqueKeys", () => {
+	expect(() =>
+		validateSubgraphDefinition({
+			name: "bad",
+			sources: { handler: { type: "contract_call", contractId: "SP000::c" } },
+			schema: {
+				data: {
+					columns: { id: { type: "uint" } },
+					uniqueKeys: [['id"; --']],
+				},
+			},
+			handlers: { handler: () => {} },
+		}),
+	).toThrow();
+});
+
+test("validateSubgraphDefinition rejects injection in indexes", () => {
+	expect(() =>
+		validateSubgraphDefinition({
+			name: "bad",
+			sources: { handler: { type: "contract_call", contractId: "SP000::c" } },
+			schema: {
+				data: {
+					columns: { col: { type: "text" } },
+					indexes: [["col); DROP --"]],
+				},
+			},
+			handlers: { handler: () => {} },
+		}),
+	).toThrow();
+});
+
+test("validateSubgraphDefinition accepts normal definition with uniqueKeys", () => {
+	const result = validateSubgraphDefinition({
+		name: "test-transfers",
+		sources: { handler: { type: "contract_call", contractId: "SP000::c" } },
+		schema: {
+			transfers: {
+				columns: {
+					amount: { type: "uint" },
+					sender: { type: "principal" },
+				},
+				uniqueKeys: [["sender"]],
+			},
+		},
+		handlers: { handler: () => {} },
+	});
+	expect(result.name).toBe("test-transfers");
 });
