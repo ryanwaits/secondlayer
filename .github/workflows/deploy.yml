@@ -87,10 +87,7 @@ jobs:
       - run: bun run build
       - run: DATABASE_URL="$DATABASE_URL" bun run packages/shared/src/db/migrate.ts
       - name: Run test suite
-        # Exclude packages/api/test/subscriptions.test.ts — pre-existing bug:
-        # ACCOUNT_ID "acc-subscriptions-api-test" is not a valid UUID; accounts.id
-        # is uuid type. Tracked separately; not a core-gate test.
-        run: bun run --filter '*' test -- --path-ignore-patterns="**/subscriptions.test.ts"
+        run: bun run test
 
   build-images:
     needs: [typecheck, test]

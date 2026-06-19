@@ -5,7 +5,7 @@ import { Hono } from "hono";
 import subscriptionsRouter from "../src/routes/subscriptions.ts";
 
 const SKIP = !process.env.DATABASE_URL;
-const ACCOUNT_ID = "acc-subscriptions-api-test";
+const ACCOUNT_ID = "a5e10000-0000-4000-8000-000000000009";
 const SUBGRAPH_NAME = "subscriptions-api-test";
 const DEDICATED_SUBGRAPH_NAME = "dedicated-subscriptions-api-test";
 type TestEnv = {
