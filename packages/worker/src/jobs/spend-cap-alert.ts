@@ -59,7 +59,7 @@ export function startSpendCapAlertCron(): () => void {
 	};
 }
 
-async function checkAllCaps(): Promise<void> {
+export async function checkAllCaps(): Promise<void> {
 	const db = getDb();
 
 	// Every account with a monthly cap set. No cap = no enforcement. The cap
