@@ -2,13 +2,7 @@ import type { MetadataRoute } from "next";
 
 const BASE = "https://www.secondlayer.tools";
 
-const ROUTES = [
-	"/",
-	"/streams",
-	"/index-api",
-	"/subgraphs",
-	"/status",
-] as const;
+const ROUTES = ["/", "/streams", "/indexes", "/subgraphs", "/status"] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {
 	const lastModified = new Date();

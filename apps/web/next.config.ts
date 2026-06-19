@@ -37,6 +37,12 @@ const nextConfig: NextConfig = {
 		// (The former /docs → / collapse was reverted: /docs is now the docs site.)
 		return [
 			{
+				// Index product page route renamed /index-api → /indexes.
+				source: "/index-api",
+				destination: "/indexes",
+				permanent: true,
+			},
+			{
 				source: "/workflows",
 				destination: "/docs/subscriptions",
 				permanent: true,

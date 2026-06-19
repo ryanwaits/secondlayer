@@ -9,7 +9,7 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
 	{
 		title: "Product",
 		links: [
-			{ label: "Index", href: "/index-api" },
+			{ label: "Index", href: "/indexes" },
 			{ label: "Subgraphs", href: "/subgraphs" },
 			{ label: "Streams", href: "/streams" },
 		],

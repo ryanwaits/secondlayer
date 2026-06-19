@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export const PRODUCTS = [
-	{ label: "Index", href: "/index-api" },
+	{ label: "Index", href: "/indexes" },
 	{ label: "Subgraphs", href: "/subgraphs" },
 	{ label: "Streams", href: "/streams" },
 	{ label: "Explore", href: "/subgraphs/explore" },

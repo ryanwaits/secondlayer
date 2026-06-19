@@ -60,7 +60,7 @@ export function HomeFeatures() {
 			<div className="home-wrap">
 				<Feature
 					title="Decoded chain data, kept indexed"
-					docsHref="/index-api"
+					docsHref="/indexes"
 					docsLabel="Explore Index"
 					code={INDEX_SNIPPET}
 					pane={<IndexResultsPane />}
