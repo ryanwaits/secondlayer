@@ -23,7 +23,7 @@
 		"db:reset": "docker compose -f docker/docker-compose.dev.yml down -v && bun run db && bun run migrate",
 		"migrate": "DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5440/secondlayer bun run packages/shared/src/db/migrate.ts",
 		"dev": "bun run --filter '*' dev",
-		"test": "bun run --filter '*' test",
+		"test": "bun run --filter '*' --sequential test",
 		"test:cli": "bun run --filter @secondlayer/cli test",
 		"test:ops": "bun test tools/ops/agent tools/ops/konsole",
 		"test:smoke": "bun test tests/smoke",
