@@ -10,7 +10,7 @@ export const metadata: Metadata = socialMeta({
 	description:
 		"Decoded Stacks events and contract calls — normalized, filterable, cursor-paginated. Build an indexer for any contract without running a node.",
 	image: "/og/index.png",
-	path: "/index-api",
+	path: "/indexes",
 });
 
 const INDEXER_CODE = `import { Index } from "@secondlayer/sdk";
