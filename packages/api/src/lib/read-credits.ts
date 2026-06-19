@@ -18,10 +18,10 @@ import { isPlatformMode } from "@secondlayer/shared/mode";
 export const CREDIT_USD_MICROS_PER_ROW = 5n;
 
 /** $2 per 1M rows — commit-tier rate for accounts spending ≥$50/mo (≈10M rows). */
-const CREDIT_USD_MICROS_PER_ROW_VOLUME = 2n;
+export const CREDIT_USD_MICROS_PER_ROW_VOLUME = 2n;
 
 /** Monthly-spend threshold for the commit-tier rate: $50 = 50M µ$. */
-const COMMIT_TIER_MONTHLY_USD_MICROS = 50_000_000n;
+export const COMMIT_TIER_MONTHLY_USD_MICROS = 50_000_000n;
 
 /**
  * Minimum balance to go pay-as-you-go: one full page (1000 rows × 5µ$ = 5000µ$
@@ -81,19 +81,32 @@ export async function resolveCreditedAccount(
  * Debit a credited caller per row read. The gate guaranteed `balance ≥
  * max-page-cost`, so the atomic `balance >= cost` debit always covers a single
  * page. No-op when not credited; records the spend on success.
+ *
+ * Residual soft-cap note: `resolveCreditedAccount` checks the monthly cap
+ * BEFORE serving the page; the debit happens after. Two concurrent reads can
+ * each pass the cap check and each serve a page before either debits, so spend
+ * can exceed the cap by at most (in-flight requests) × one-page cost (≈$0.005
+ * per page). This bounded overage is intentional — balance can never go
+ * negative because `debitCredits` is a conditional `WHERE balance >= cost`.
  */
 export async function debitCreditedRows(
 	credited: Credited | undefined,
 	rows: number,
 ): Promise<void> {
 	if (!credited || rows <= 0) return;
-	const db = getDb();
-	const monthlySpend = await getMonthlyCreditsSpend(db, credited.accountId);
-	const rate =
-		monthlySpend >= COMMIT_TIER_MONTHLY_USD_MICROS
-			? CREDIT_USD_MICROS_PER_ROW_VOLUME
-			: CREDIT_USD_MICROS_PER_ROW;
-	const cost = BigInt(rows) * rate;
-	const res = await debitCredits(db, credited.accountId, cost);
-	if (res.ok) await recordCreditsSpend(db, credited.accountId, cost);
+	await getDb()
+		.transaction()
+		.execute(async (trx) => {
+			const monthlySpend = await getMonthlyCreditsSpend(
+				trx,
+				credited.accountId,
+			);
+			const rate =
+				monthlySpend >= COMMIT_TIER_MONTHLY_USD_MICROS
+					? CREDIT_USD_MICROS_PER_ROW_VOLUME
+					: CREDIT_USD_MICROS_PER_ROW;
+			const cost = BigInt(rows) * rate;
+			const res = await debitCredits(trx, credited.accountId, cost);
+			if (res.ok) await recordCreditsSpend(trx, credited.accountId, cost);
+		});
 }
