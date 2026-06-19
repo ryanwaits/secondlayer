@@ -25,12 +25,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
-import { serializeCV } from "@secondlayer/stacks/clarity";
-import type { ClarityValue } from "@secondlayer/stacks/clarity";
-import {
-	PayloadType,
-	deserializeTransaction,
-} from "@secondlayer/stacks/transactions";
+import { decodeRawTx } from "./parser.ts";
 
 // --- Config ---
 const HIRO_API_KEY = process.env.HIRO_API_KEY;
@@ -206,34 +201,6 @@ class HiroRepairClient {
 
 	getApiCallCount(): number {
 		return this.apiCalls;
-	}
-}
-
-// --- Raw Tx Decoder ---
-function decodeRawTx(
-	rawTx: string,
-	txid: string,
-): { functionArgs: string[] | null } | null {
-	try {
-		const tx = deserializeTransaction(rawTx);
-
-		if (tx.payload.payloadType === PayloadType.ContractCall) {
-			const payload = tx.payload as {
-				functionArgs: unknown[];
-			};
-			const functionArgs =
-				payload.functionArgs?.map((cv) => serializeCV(cv as ClarityValue)) ??
-				null;
-			return { functionArgs };
-		}
-
-		return null;
-	} catch (error) {
-		logger.debug("Failed to decode raw_tx", {
-			txid,
-			error: String(error).split("\n")[0],
-		});
-		return null;
 	}
 }
 
