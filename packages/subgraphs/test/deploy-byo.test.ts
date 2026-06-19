@@ -14,8 +14,13 @@ import type { SubgraphDefinition } from "../src/types.ts";
 
 // Proves the deploy DDL split: schema/tables land in the user's DB, the registry
 // row stays on the managed DB, and breaking changes are refused on BYO.
-const SKIP = !process.env.DATABASE_URL;
-const USER_DB_URL = "postgresql://postgres:postgres@127.0.0.1:5440/byo_userdb";
+//
+// The BYO data plane needs a SECOND, user-owned Postgres distinct from the
+// managed DATABASE_URL. CI (and OSS/self-hosted runners) only provision the one
+// managed DB, so this suite runs only when BYO_DATABASE_URL points at a separate
+// database — e.g. postgresql://postgres:postgres@127.0.0.1:5440/byo_userdb.
+const USER_DB_URL = process.env.BYO_DATABASE_URL ?? "";
+const SKIP = !process.env.DATABASE_URL || !USER_DB_URL;
 const NAME = "deploy-byo-test";
 const SCHEMA = "subgraph_deploy_byo_test";
 
