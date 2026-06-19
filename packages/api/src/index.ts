@@ -56,6 +56,23 @@ if (process.env.NODE_ENV === "production" && process.env.DEV_MODE === "true") {
 	process.exit(1);
 }
 
+// Refuse to boot the hosted platform without a shared rate-limit store.
+// Without REDIS_URL the limiter falls back to process-local counters
+// (`packages/api/src/auth/rate-limit-store.ts:200`), so each replica enforces
+// the full limit independently — N replicas silently allow N× the intended
+// rate, defeating auth brute-force protection and paid per-key limits. Scoped
+// to production: non-prod platform-mode runs keep the warn-only fallback.
+if (
+	process.env.NODE_ENV === "production" &&
+	mode === "platform" &&
+	!process.env.REDIS_URL
+) {
+	logger.error(
+		"REDIS_URL is unset in NODE_ENV=production platform mode — refusing to start (rate limits would be process-local and enforced N× per replica)",
+	);
+	process.exit(1);
+}
+
 const app = new Hono();
 
 // Global middleware
