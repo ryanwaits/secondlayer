@@ -12,7 +12,7 @@ export function createV1IndexRouter() {
 					name: "index",
 					path: "/v1/index",
 					description:
-						"Decoded chain events via /v1/index/events?event_type=… (FT/NFT transfers today), with typed ft-transfers/nft-transfers aliases.",
+						"Decoded chain events via /v1/index/events?event_type=… (stx/ft/nft transfers, mints, burns, stacking locks, and contract prints), with typed ft-transfers/nft-transfers aliases.",
 					auth: "optional bearer for higher tier; anon allowed",
 				},
 				{

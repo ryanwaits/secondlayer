@@ -65,8 +65,13 @@ function pickHeader(
  *
  * The signed content is `${id}.${timestamp}.${rawBody}` HMAC-SHA256 with the
  * signing secret. Secrets returned by `sl subscriptions create` (or
- * `rotate-secret`) carry a `whsec_` prefix and are base64-decoded after the
- * prefix is stripped, matching the Svix / Standard Webhooks convention.
+ * `rotate-secret`) are a bare 64-character hex string used directly as the
+ * HMAC key (its UTF-8 bytes) — this helper handles that. A `whsec_`-prefixed
+ * base64 secret (the Svix convention) is also accepted and base64-decoded after
+ * the prefix is stripped. Note: because the issued secret is bare hex (no
+ * `whsec_` prefix), a generic Svix / Standard Webhooks library will base64-
+ * decode it and derive the wrong key — verify with this helper (or with
+ * {@link verifySecondlayerSignature}, the format-agnostic ed25519 path).
  *
  * @param rawBody         The raw request body as a string. NEVER pass
  *                        `JSON.stringify(req.body)` — re-stringifying drops
@@ -80,9 +85,10 @@ function pickHeader(
  *                        a header value by name. Header name matching is
  *                        case-insensitive.
  * @param secret          The signing secret returned by
- *                        `sl subscriptions create` / `rotateSecret`. Pass it
- *                        through verbatim — the helper handles the `whsec_`
- *                        prefix.
+ *                        `sl subscriptions create` / `rotateSecret` (a bare
+ *                        64-char hex string). Pass it through verbatim — the
+ *                        helper accepts both bare hex and `whsec_`-prefixed
+ *                        base64 secrets.
  * @param toleranceSeconds Max age of `webhook-timestamp` in seconds. Default
  *                         300 (5 min) per the Standard Webhooks spec.
  * @returns true if every header is present, the timestamp is within

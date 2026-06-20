@@ -21,13 +21,17 @@ const OPENAPI_SPEC = {
 		title: "Secondlayer Public API",
 		version: "1.0.0",
 		description:
-			"Public surfaces: Index (semantic FT/NFT, anon-readable), Streams (raw firehose, bearer), Subgraphs (public subgraphs anon-readable, private with the owning account's bearer; `{ rows, next_cursor, tip }` envelope with `_id` keyset cursor). Cursor format is `<block_height>:<event_index>` on Index/Streams.",
+			"Public surfaces: Index (decoded chain events — stx/ft/nft transfers, mints, burns, prints, stacking; anon-readable), Streams (raw firehose, bearer), Subgraphs (public subgraphs anon-readable, private with the owning account's bearer; `{ rows, next_cursor, tip }` envelope with `_id` keyset cursor). Cursor format is `<block_height>:<event_index>` on Index/Streams.",
 	},
 	servers: [
 		{ url: "https://api.secondlayer.tools", description: "Production" },
 	],
 	tags: [
-		{ name: "index", description: "Semantic indexes (FT/NFT transfers)" },
+		{
+			name: "index",
+			description:
+				"Decoded chain events (transfers, mints/burns, prints, stacking)",
+		},
 		{ name: "streams", description: "Raw firehose, bearer" },
 		{
 			name: "subgraphs",

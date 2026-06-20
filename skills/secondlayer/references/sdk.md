@@ -551,7 +551,7 @@ for await (const ev of sl.streams.events.stream()) {
 
 ---
 
-## 5. `sl.index` — server-decoded FT/NFT transfers
+## 5. `sl.index` — server-decoded events (transfers, mints/burns, prints, stacking)
 
 Same physical data as `sl.streams` but pre-decoded and pre-filtered for the two most common queries. Cursor-paginated.
 
