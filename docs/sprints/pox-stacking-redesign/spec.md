@@ -1,6 +1,9 @@
 # Design spec: proper `pox-stacking` subgraph + `pox/cycles` migration
 
-Status: ready to build (blocked only on a free heavy-op reindex slot). Author pass 2026-06-20.
+Status: v1 BUILT + local-tested 2026-06-20 (`subgraphs/pox-stacking.ts`), awaiting a free heavy-op
+slot to deploy+reindex. v1 ships `actions` + `delegations` + `cycles` + `cycle_stackers`; the
+`stackers` projection below is deferred (stack-increase needs cumulative accumulation). Author pass
+2026-06-20.
 Charter: `docs/internal/charter/index-vs-subgraphs.md` (this fulfills the "migrate `pox/cycles`
 onto the `pox-stacking` subgraph" item).
 
