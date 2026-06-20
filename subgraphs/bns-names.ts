@@ -5,14 +5,14 @@
 // (GET /api/subgraphs/bns-names/source) — deployed from an uncommitted local
 // file. This file is now the source of truth; edit here and redeploy.
 //
-// KNOWN DRIFT (reconcile via redeploy in a later sprint): the deployment's
-// DB `start_block` is 5_143_314 (a `--start-block` override at deploy); the
-// source below declares none (defaults to genesis). The committed code is
-// semantically identical to the deployed source; whitespace normalized to
-// repo lint style.
-//
-// Schema parity verified against live meta (GET /v1/subgraphs/bns-names):
-// table `names`.
+// v1.1.0 — two fixes (the deployed v1.0.0 held 0 rows):
+//   1. startBlock 5_143_314 → 167_484 (BNS-V2 mainnet deploy height). The
+//      original never backfilled, missing all history below 5.14M.
+//   2. Handler field mapping. BNS-V2 emits the name as a NESTED tuple
+//      `name: { name: <buff>, namespace: <buff> }` (verified against live
+//      events + the canonical decoder packages/indexer/src/decode/decoders/bns.ts).
+//      The old handler read flat `data.name`/`data.namespace`, so every event
+//      decoded to null and was dropped → 0 rows even while tailing at tip.
 // ───────────────────────────────────────────────────────────────────
 
 import { defineSubgraph } from "@secondlayer/subgraphs";
@@ -21,7 +21,8 @@ import { defineSubgraph } from "@secondlayer/subgraphs";
  * Track BNS-V2 name lifecycle events — registrations, transfers,
  * renewals, burns, airdrops.
  *
- * Source: BNS-V2 print events (topic-discriminated payloads).
+ * Source: BNS-V2 print events (topic-discriminated; name fields are a nested
+ * `name` tuple of `(buff)` labels).
  *
  * Query examples once deployed:
  *   GET /v1/subgraphs/bns-names/names?owner=SP1...
@@ -29,8 +30,11 @@ import { defineSubgraph } from "@secondlayer/subgraphs";
  */
 export default defineSubgraph({
 	name: "bns-names",
-	version: "1.0.0",
+	version: "1.1.0",
 	description: "BNS-V2 name ownership and lifecycle",
+
+	// BNS-V2 mainnet deploy height — earliest block that can carry a BNS-V2 event.
+	startBlock: 167484,
 
 	sources: {
 		bns: {
@@ -59,20 +63,27 @@ export default defineSubgraph({
 	handlers: {
 		bns: (event, ctx) => {
 			if (!event.topic) return;
+			// BNS-V2 name events carry the label as a NESTED tuple:
+			//   { name: { name: <buff>, namespace: <buff> }, owner, properties, topic }
+			// Buffs arrive as `0x…` hex; decode to UTF-8. Namespace/marketplace
+			// events (no `topic` field) never reach here — event.topic is empty.
 			const data = event.data as {
-				namespace?: unknown;
-				name?: unknown;
+				name?: { name?: unknown; namespace?: unknown };
 				owner?: string;
+				properties?: { owner?: string };
 			};
-			const namespace = decodeBuffUtf8(data.namespace);
-			const nameLabel = decodeBuffUtf8(data.name);
+			const nameTuple =
+				data.name && typeof data.name === "object" ? data.name : null;
+			const namespace = decodeBuffUtf8(nameTuple?.namespace);
+			const nameLabel = decodeBuffUtf8(nameTuple?.name);
 			if (!namespace || !nameLabel) return;
+			const owner = data.owner ?? data.properties?.owner ?? null;
 			ctx.insert("names", {
 				topic: event.topic,
 				namespace,
 				name: nameLabel,
 				fqn: `${nameLabel}.${namespace}`,
-				owner: event.topic === "burn-name" ? null : (data.owner ?? null),
+				owner: event.topic === "burn-name" ? null : owner,
 			});
 		},
 	},
