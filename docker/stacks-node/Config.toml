@@ -5,11 +5,19 @@ p2p_bind = "0.0.0.0:20444"
 seed = ""
 bootstrap_node = "02196f005965cebe6ddc3901b7b1cc1aa7a88f305bb8c5893456b8f9a605923893@seed.mainnet.hiro.so:20444,02539449ad94e6e6392d8c1deb2b4e61f80ae2a18964349bc14336d8b903c46a8c@cet.stacksnodes.org:20444,02ececc8ce79b8adf813f13a0255f8ae58d4357309ba0cedd523d9f1a306fcfb79@sgt.stacksnodes.org:20444,0303144ba518fe7a0fb56a8a7d488f950307a4330f146e1e1458fc63fb33defe96@est.stacksnodes.org:20444"
 
+# The event dispatcher BLOCKS the node until an observer responds, and by
+# default retries a failed delivery until it succeeds — so a slow/down observer
+# can stall block processing. That is dangerous when a signer is co-located on
+# the same node (the signer rides the same event-observer path), where a stuck
+# indexer would starve it of block_proposal events. Ship safe-by-default:
+# disable_retries skips a failed delivery instead of retry-blocking, and a low
+# timeout_ms bounds the per-event wait. A missed block is fine — the indexer
+# tip-follower re-fills small gaps.
 [[events_observer]]
 endpoint = "indexer:3700"
 events_keys = ["*"]
-timeout_ms = 30000
-disable_retries = false
+timeout_ms = 500
+disable_retries = true
 
 [burnchain]
 chain = "bitcoin"
