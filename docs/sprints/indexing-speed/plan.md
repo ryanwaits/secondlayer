@@ -27,11 +27,20 @@ Demoable: a measured throughput jump on the existing HTTP path that every tier (
   branch question: **fetch-bound, scan-bound, or write/commit-bound?** → validates: committed timing
   breakdown naming the 27 blk/s culprit. (If commit/lock-bound, Sprint 2's parallel *fetch* won't
   help — re-plan.)
-- [ ] **T2 ★ Skip `walkTransactions` for event-only subgraphs — likely the cheapest big win.**
-  sBTC/BNS sources are event-type (`canSparseScan` true) and discard tx-level data, yet
-  `block-source.ts:202` runs `Promise.all([walkBlocks, walkTransactions, walkEvents])` every batch —
-  one of three parallel calls is pure waste. Gate it off when no source is tx-level. → validates:
-  event-only reindex issues zero `/v1/index/transactions` calls; throughput re-measured (T0) higher.
+- [ ] **T2 ★ Stop draining ALL transactions for event-only subgraphs — the ~20× lever (RE-SCOPED
+  per T1).** Measured: `walkTransactions` drains 10k+ txns / 41s per 1000-block batch vs 164 events /
+  2s — ~98% waste, and it gates the `Promise.all`. **NOT a simple skip**: `source-matcher.ts` is
+  tx-driven (`for (const tx of transactions) eventsByTx.get(tx.tx_id)`), so `txs=[]` matches zero
+  events. Real fix — feed the matcher only the **event-bearing** txs:
+  (a) fetch filtered events first, collect distinct `tx_id`s, then fetch **only those** txs (need a
+  `tx_id`-batch fetch — the `/transactions` endpoint lacks a `tx_id` filter today, so add one or use
+  parallel point-lookups `/v1/index/transactions/:tx_id`); OR
+  (b) **add `sender`/tx-context to the `/v1/index/events` response** (decoded_events has it at decode
+  time) and synthesize the `TxRecord` from the event — zero extra fetch, cleanest, but an API+schema
+  touch. Lean (b) long-term; (a) is the no-API-change path. → validates: event-only reindex fetches
+  txs proportional to event count (not range tx count); rows identical to today; throughput re-measured
+  (T0) ~10–20× on the dense range. Files: `block-source.ts`, `source-matcher.ts`, possibly
+  `packages/api/src/index/events.ts` + `index-http.ts`.
 - [ ] **T3 Tune backfill batch size.** Raise `SUBGRAPH_REINDEX_BATCH_SIZE` (500→750/1000), confirm
   adaptive growth on sparse ranges, stay under the 5–10s socket-timeout window. → validates: blk/s
   up on a fixed 200k-block range, no timeouts.

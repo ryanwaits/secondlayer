@@ -45,6 +45,26 @@ the 27 blk/s cause is **unconfirmed**. Leading suspects, to be settled by profil
   + per-phase timing to attribute (could be fetch-, scan-, or write/commit-bound; the fix branches on
   which).
 
+## T1 RESULT — root cause CONFIRMED (2026-06-20, measured with a paid key)
+
+Black-box timing of the three per-batch source calls over a 1000-block dense range [8.300M–8.301M]:
+
+| call | rows | time |
+|---|---|---|
+| `walkTransactions` (ALL txns, unfiltered) | 10,000+ (didn't finish in 10 pages) | **41+ s** |
+| `walkEvents` (print + sbtc-registry, filtered/indexed) | 164 | 2.0 s |
+| `walkBlocks` | ~200/page | fast |
+
+**It is fetch+iterate-bound on `walkTransactions`, NOT scan- or write-bound.** A 1000-block batch
+≈ 43s ≈ **23 blk/s — matches the measured 27 blk/s.** The reindex drains *every transaction* in each
+range (`walk()` paginates the full range) and `matchSources` iterates all of them to find the ~164
+that carry an sBTC event — ~98% pure waste for an event-only subgraph. **Removing the over-fetch is a
+~20× lever** (sBTC ~16h → ~1h; still short of 5–10 min, but the dominant single fix).
+
+**But it is NOT a simple skip.** `source-matcher.ts` is *transaction-driven* (`for (const tx of
+transactions) eventsByTx.get(tx.tx_id)`), so feeding it `txs=[]` matches **zero events** — naive T2
+silently produces an empty subgraph. The real fix re-scopes T2 (below).
+
 ## Targets vs reality
 
 | | Today | Target | Gap |
