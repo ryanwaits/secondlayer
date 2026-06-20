@@ -1,5 +1,21 @@
 # @secondlayer/sdk
 
+## 6.25.1
+
+### Patch Changes
+
+- Rename the decode plane off the `l2`/`layer2` naming (collides with the blockchain layer model — Bitcoin L1 / Stacks L2).
+
+  - **shared**: DB schema type `l2_decoder_checkpoints` → `decoder_checkpoints` (and `L2DecoderCheckpointsTable` → `DecoderCheckpointsTable`); new migration `0103` renames the table and re-keys checkpoint names `l2.* → decode.*` in place (non-destructive — preserves cursors, no re-decode). Run migrations before booting the decoder. The internal Streams key/tenant defaults change to `sk-sl_streams_decode_internal` / `tenant_streams_decode_internal`.
+  - **subgraphs**: streams-index block source falls back to the renamed internal Streams key default.
+  - **sdk**: correct the webhook-verify JSDoc — issued signing secrets are bare 64-char hex (not `whsec_`-prefixed); `verifyWebhookSignature` handles both, but a generic Svix/Standard-Webhooks library will mis-base64-decode a bare-hex secret.
+
+  Deploy note: the internal default key changed, so recreate api + decoder + subscription-processor together (a partial rollout 401s the decode reader until consistent).
+
+- Updated dependencies
+  - @secondlayer/shared@6.36.0
+  - @secondlayer/subgraphs@3.15.2
+
 ## 6.25.0
 
 ### Minor Changes

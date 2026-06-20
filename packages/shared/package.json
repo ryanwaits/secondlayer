@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/shared",
-	"version": "6.35.1",
+	"version": "6.36.0",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -153,10 +153,7 @@
 			"import": "./dist/src/node/archive-client.js"
 		}
 	},
-	"files": [
-		"dist",
-		"migrations"
-	],
+	"files": ["dist", "migrations"],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",
