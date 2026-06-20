@@ -4,11 +4,13 @@
 
 ## TL;DR
 
-Current full-history reindex of a sparse contract is **~16 hours** (sBTC), bottlenecked by the live
-`jsonb` scan on the Index HTTP source — **not** write throughput. The targets (sBTC ~5–10 min, pox
-~20 min) are **~100× faster** than today and are **not reachable by tuning** — they need an
-architectural change: read our **R2 parquet bulk dumps** (pre-materialized, no scan) + **parallel
-block-range workers**. That same capability is the natural **paid-tier differentiator**.
+Current full-history reindex of a sparse contract is **~16 hours** (sBTC). **Root cause is NOT yet
+confirmed** — see the correction below; an early guess (a jsonb scan) is likely wrong for the
+subgraph path, so the "needs R2" conclusion is unproven until profiled. The targets (sBTC ~5–10 min,
+pox ~20 min) are ~100× today. Likely levers, cheapest first: **(1)** skip the wasted
+`walkTransactions` call for event-only subgraphs, **(2)** **parallel block-range workers** (Nx, no new
+data plane), **(3)** the **R2 parquet** fast-lane (biggest, but gated on the genesis dump backfill and
+on proving the HTTP path insufficient). Plan: `docs/sprints/indexing-speed/plan.md`.
 
 ## Measured baseline (live, 2026-06-20)
 
@@ -28,14 +30,20 @@ block-range workers**. That same capability is the natural **paid-tier different
 
 The runtime (`PublicApiBlockSource`) pulls from the **Index HTTP API**, **serially**, in adaptive
 100–1000 block batches. Per batch it runs `Promise.all([walkBlocks, walkTransactions, walkEvents])`.
-The event read is a **poorly-indexed `jsonb` predicate** on `data->>'contract_identifier'` — the code
-itself notes "not well-indexed; limit 500 reliably hits 5–10s." So:
 
-- The **scan**, not the transport, is the cost. This is why the repo's "direct-DB tap gave no
-  speedup" note holds *and* why HTTP feels slow — both hit the same scan.
-- Once events appear, the **sparse-scan probe** hops short distances, paying a slow scan per hop →
-  the 27 blk/s collapse in the active region.
-- Serial batches mean zero parallelism across the 1.5M active blocks.
+**Correction (post-review):** the event read hits `/v1/index/events`, which queries `decoded_events`
+on `event_type` + `block_height` range + `contract_id IN (...)` — all covered by the
+`(contract_id, block_height, event_index)` index (mig 0066). **It is NOT the unindexed
+`data->>'contract_identifier'` jsonb scan** — that lives in a *different* path (the streams-print
+query the BNS decoder uses). So the original jsonb diagnosis here was wrong for the subgraph path, and
+the 27 blk/s cause is **unconfirmed**. Leading suspects, to be settled by profiling (plan Sprint 1):
+
+- **Wasted `walkTransactions`** — event-only subgraphs (sBTC/BNS) run it every batch for tx-level data
+  they discard (one of three parallel HTTP calls, pure overhead).
+- **Serial batches** — zero parallelism across the ~1.5M active blocks.
+- **Per-batch round-trip + flush/commit** overhead, or the sparse-probe cost — needs `EXPLAIN ANALYZE`
+  + per-phase timing to attribute (could be fetch-, scan-, or write/commit-bound; the fix branches on
+  which).
 
 ## Targets vs reality
 

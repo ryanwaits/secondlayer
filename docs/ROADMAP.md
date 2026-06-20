@@ -12,6 +12,33 @@
 > `ffc2c0ed`). Remaining peg work = `/sbtc/summary` aggregate + BTC settlement confirmer +
 > Peg Explorer. Slot caps still open (blocked on founder per-plan numbers).
 
+## ⚡ Indexing speed — NEXT (the core service, all tiers)
+
+> Plan: `docs/sprints/indexing-speed/plan.md`. Analysis:
+> `docs/internal/audits/reindex-performance-2026-06-20.md`. Indexing IS the product, and it's slow:
+> **measured 27 blk/s** active region → **~16h full sBTC reindex** (live, 2026-06-20). Targets: sBTC
+> 5–10 min, pox 20 min. Make it fast for free/self-host AND every paid tier — backfill *speed* is the
+> paid lever; the data stays open/keyless. **Root cause is NOT yet confirmed** (the audit's first
+> guess — a jsonb scan — is wrong for the subgraph path; `decoded_events` is indexed). Profile first.
+
+- **Sprint 1 — diagnose + universal quick wins (★ highest leverage, every tier, no new data plane).**
+  T0 per-reindex throughput metrics; **T1 profile** (fetch- vs scan- vs write/commit-bound — the fix
+  branches on this); **T2 skip the wasted `walkTransactions` call** for event-only subgraphs
+  (confirmed real at `block-source.ts:202`, nearly free, possibly most of the win); T3 batch-size
+  tune; T4 close any index gap T1 finds.
+- **Sprint 2 — parallel block-range workers (★ Nx, every tier, no new data plane).** T5a partition N
+  workers over FINALIZED history only (reorg-safe); **T5b write-path partition-safety BLOCKER** —
+  insert + commutative `ctx.increment` parallelize, but order-dependent `upsert` projections
+  (`withdrawals`/`delegations`/pox `stackers`) need a `_block_height`-guard or serial post-pass; T5c
+  checkpoint-merge + crash-resume; T5d live-tail handoff; T6 per-tier worker caps (prod-gate for T5).
+- **Sprint 3 — R2 parquet fast-lane (paid differentiator; GATED).** Entry condition: HTTP path proven
+  insufficient after Sprints 1–2. Hard dep: genesis dump backfill (P2 below). T7 R2 reindex source +
+  T7b correctness gate/rollback (decoder-skew risk); T8 tier-gate + HTTP fallback; T9 per-tier SLOs.
+
+Highest-leverage order: **T1+T2** (cheap, likely big) → **T5a–d** (biggest universal win) → **T7**
+(biggest single speedup, but gated). Open: per-tier worker caps (founder #); meter backfill by
+block-span or bundle; free gets parallel workers (MIT) but not hosted R2 dumps.
+
 ## Positioning & marketing — viral-principles audit (2026-06-13)
 
 > Source: ultracode workflow scoring the site/STRATEGY/pricing against the "32
