@@ -451,6 +451,13 @@ a revenue line.
   entering via the skill will anti-recommend a shipped product. Out of scope during the
   positioning arc by founder call; fix on next skill touch.
 
+- **Subgraph deploy silently ignores the definition's `version`.** Deploy auto-increments
+  its own patch counter (file declared `1.1.0`, platform deployed `1.0.1`). The
+  auto-versioning default is wanted — keep it — but an explicit `version` in the definition
+  should override it, and warn + fail if that exact version is already deployed (no silent
+  clobber). Surfaced 2026-06-20 deploying `sbtc-flows`. Ref deploy path
+  `packages/cli/src/commands/subgraphs.ts`.
+
 ## P3 — nice to have / pending a decision
 
 - **Replace the BYO replay-safety heuristic with a real AST / runtime guard.**

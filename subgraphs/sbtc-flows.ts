@@ -7,33 +7,33 @@
 // here and redeploy, never deploy an out-of-tree copy.
 //
 // startBlock is the sbtc-registry mainnet deploy height (328_228, our index
-// system == Hiro). The prior deployment ran start_block 5_143_314 and never
+// system == Hiro). The original deployment ran start_block 5_143_314 and never
 // backfilled (created 2026-06-11, only live-tailed from ~block 6.8M), so it
 // held ~887 of 5_321 deposits. Reindexing from 328_228 backfills full history.
 //
-// v1.1.0 (not yet deployed): adds the `withdrawals` lifecycle-rollup table so
-// the sBTC explorer's per-request withdrawal view + summary counts come from
-// this subgraph instead of bespoke /v1/index/sbtc/* endpoints (see
-// docs/internal/charter/index-vs-subgraphs.md). The `flows` table is
-// unchanged — schema parity with the deployed v1.0.0 is preserved.
+// v1.2.0 (not yet deployed): typed schema — `events` is the raw all-topics
+// registry log (renamed from the vague `flows`); `deposits` and `withdrawals`
+// are typed per-topic projections so the sBTC explorer reads them directly
+// instead of bespoke /v1/index/sbtc/* endpoints
+// (see docs/internal/charter/index-vs-subgraphs.md).
 // ───────────────────────────────────────────────────────────────────
 
 import { defineSubgraph } from "@secondlayer/subgraphs";
 
 /**
- * Track sBTC protocol flows: deposits, withdrawals, signer rotations,
+ * Track sBTC protocol activity: deposits, withdrawals, signer rotations,
  * governance updates — your own indexed view of the sbtc-registry contract.
  *
  * Source contract: sbtc-registry (mainnet).
  *
  * Query examples once deployed:
- *   GET /v1/subgraphs/sbtc-flows/flows?topic=completed-deposit
+ *   GET /v1/subgraphs/sbtc-flows/deposits
  *   GET /v1/subgraphs/sbtc-flows/withdrawals?status=ACCEPTED
- *   GET /v1/subgraphs/sbtc-flows/flows/aggregate?_count=*&_groupBy=topic
+ *   GET /v1/subgraphs/sbtc-flows/events?topic=key-rotation
  */
 export default defineSubgraph({
 	name: "sbtc-flows",
-	version: "1.1.0",
+	version: "1.2.0",
 	description: "sBTC deposits, withdrawals, signer rotations, governance",
 
 	// sbtc-registry mainnet deploy height — the earliest block that can carry an
@@ -48,9 +48,10 @@ export default defineSubgraph({
 	},
 
 	schema: {
-		// Raw per-event log (unchanged from v1.0.0). Summary counts are derived
-		// at read time: /flows/aggregate?_count=*&_groupBy=topic.
-		flows: {
+		// Raw all-topics registry log (renamed from `flows`): one row per print
+		// event of any topic (deposits, withdrawals, key-rotation, governance).
+		// The firehose + the home of signer/governance events not otherwise typed.
+		events: {
 			columns: {
 				topic: { type: "text", indexed: true, search: true },
 				request_id: { type: "uint", nullable: true, indexed: true },
@@ -61,11 +62,27 @@ export default defineSubgraph({
 			},
 		},
 
-		// One row per peg-out request_id, status derived across the lifecycle
-		// (withdrawal-create → accept/reject). Maintained by keyed upsert/update;
-		// reorg-safe via the schema `_journal` (an orphaned accept reverts the
-		// row to REQUESTED). Replaces the bespoke /v1/index/sbtc/withdrawals
-		// rollup. `requested_at`/`resolved_at` are unix seconds (block time).
+		// Typed peg-in: one row per completed-deposit (terminal event). `block_time`
+		// is unix seconds. `bitcoin_txid` is the funding BTC tx.
+		deposits: {
+			columns: {
+				amount: { type: "text", nullable: true },
+				bitcoin_txid: {
+					type: "text",
+					nullable: true,
+					indexed: true,
+					search: true,
+				},
+				output_index: { type: "uint", nullable: true },
+				block_time: { type: "uint", nullable: true },
+			},
+		},
+
+		// Typed peg-out: one row per request_id, status derived across the
+		// lifecycle (withdrawal-create → accept/reject). Maintained by keyed
+		// upsert/update; reorg-safe via the schema `_journal` (an orphaned accept
+		// reverts the row to REQUESTED). `requested_at`/`resolved_at` are unix
+		// seconds (block time).
 		withdrawals: {
 			columns: {
 				request_id: { type: "uint", indexed: true },
@@ -91,10 +108,12 @@ export default defineSubgraph({
 				sender?: string;
 				sweepTxid?: string;
 				bitcoinTxid?: string;
+				outputIndex?: bigint | number;
 				burnHeight?: bigint;
 			};
 
-			ctx.insert("flows", {
+			// Raw all-topics log.
+			ctx.insert("events", {
 				topic: event.topic,
 				request_id: data.requestId ?? null,
 				amount: data.amount != null ? String(data.amount) : null,
@@ -103,8 +122,19 @@ export default defineSubgraph({
 				burn_height: data.burnHeight ?? null,
 			});
 
-			// Per-request withdrawal lifecycle rollup. create seeds the row;
-			// accept/reject update the same request_id with the resolved status.
+			// Typed peg-in projection.
+			if (event.topic === "completed-deposit") {
+				ctx.insert("deposits", {
+					amount: data.amount != null ? String(data.amount) : null,
+					bitcoin_txid: data.bitcoinTxid ?? null,
+					output_index: data.outputIndex ?? null,
+					block_time: ctx.block.timestamp,
+				});
+				return;
+			}
+
+			// Typed peg-out lifecycle rollup. create seeds the row; accept/reject
+			// update the same request_id with the resolved status.
 			const requestId = data.requestId;
 			if (requestId == null) return;
 			if (event.topic === "withdrawal-create") {
