@@ -424,7 +424,7 @@ Runs every 5 minutes. Two-phase gap filling:
 1. **Local DB** — replays blocks already in our DB (handles reorgs)
 2. **Hiro API** — fetches missing blocks individually from Hiro's public API (handles outages)
 
-The stacks-node event observer has `disable_retries = false`, so it will retry failed deliveries. For blocks missed despite retries (e.g., indexer was down), the integrity loop fills them automatically.
+The example stacks-node event observer ships `disable_retries = true` (signer-safe: a stuck indexer can never stall a co-located signer). A delivery that times out is skipped rather than retry-blocking the node, so the integrity loop above is what fills any block missed during an indexer blip. If you run a pure indexer with no co-located signer and want maximum delivery completeness, set `disable_retries = false` (and raise `timeout_ms`) in `Config.toml` — see the comment there for the tradeoff.
 
 ```bash
 curl -s localhost:3700/health/integrity | jq

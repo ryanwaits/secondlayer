@@ -8,11 +8,24 @@ bootstrap_node = "02196f005965cebe6ddc3901b7b1cc1aa7a88f305bb8c5893456b8f9a60592
 
 # Event observer points directly at the bundled indexer service.
 # Same docker network, no reverse proxy needed.
+#
+# The event dispatcher BLOCKS the node until an observer responds, and by default
+# retries a failed delivery until it succeeds — so a slow/down indexer can stall
+# block processing. That is dangerous when a signer is co-located on the same node
+# (the signer rides the same event-observer path): a stuck indexer would starve it
+# of block_proposal events and cost signing. Ship safe-by-default — disable_retries
+# skips a failed delivery instead of retry-blocking, and a low timeout_ms bounds the
+# per-event wait. A missed block is fine — the indexer tip-follower re-fills gaps.
+#
+# Tradeoff: with retries off, a transiently-slow indexer drops the odd block (the
+# tip-follower backfills it). If you run a PURE indexer with NO co-located signer
+# and want maximum block-delivery completeness over a few seconds of node-stall
+# risk, set disable_retries = false and raise timeout_ms.
 [[events_observer]]
 endpoint = "indexer:3700"
 events_keys = ["*"]
-timeout_ms = 30000
-disable_retries = false
+timeout_ms = 500
+disable_retries = true
 
 [burnchain]
 chain = "bitcoin"
