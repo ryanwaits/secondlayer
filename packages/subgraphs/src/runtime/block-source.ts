@@ -1,5 +1,10 @@
 import { getSourceDb } from "@secondlayer/shared/db";
-import { IndexHttpClient } from "@secondlayer/shared/index-http";
+import type { Transaction } from "@secondlayer/shared/db";
+import {
+	type IndexEventRow,
+	IndexHttpClient,
+	type IndexTransactionRow,
+} from "@secondlayer/shared/index-http";
 import { logger } from "@secondlayer/shared/logger";
 import type { SubgraphDefinition, SubgraphFilter } from "../types.ts";
 import { type BlockData, loadBlockRange } from "./batch-loader.ts";
@@ -7,6 +12,7 @@ import {
 	reconstructBlock,
 	reconstructEvent,
 	reconstructTransaction,
+	reconstructTxFromEventRow,
 } from "./reconstruct.ts";
 
 /**
@@ -115,6 +121,26 @@ function sourceFilters(subgraph: SubgraphDefinition): SubgraphFilter[] {
 }
 
 /**
+ * True when any source matches transactions (contract_call / contract_deploy):
+ * the handler receives the full tx, so the loader must fetch real transactions.
+ * Event-only subgraphs skip walkTransactions and synthesize the tx from joined
+ * event context instead (the ~37x reindex over-fetch; see indexing-speed plan).
+ */
+export function needsTransactionData(subgraph: SubgraphDefinition): boolean {
+	return sourceFilters(subgraph).some((f) => TX_SOURCE_TYPES.has(f.type));
+}
+
+/** Build the (few) event-bearing txs from joined event context, one per tx_id —
+ *  the event-only replacement for draining every transaction in the range. */
+function synthesizeTxsFromEvents(events: IndexEventRow[]): Transaction[] {
+	const byId = new Map<string, Transaction>();
+	for (const e of events) {
+		if (!byId.has(e.tx_id)) byId.set(e.tx_id, reconstructTxFromEventRow(e));
+	}
+	return [...byId.values()];
+}
+
+/**
  * The Index event_types the loader must fetch for a set of source filter types.
  * A contract_call/contract_deploy source matches a tx and hands its FULL event
  * set to the handler, so when one is present we fetch every event type (the
@@ -166,6 +192,9 @@ export class PublicApiBlockSource implements BlockSource {
 		private readonly eventTypes: string[],
 		/** When set, enables the sparse-scan probe (event-scoped subgraphs). */
 		private readonly probeTargets?: SparseProbeTarget[],
+		/** False for event-only subgraphs → skip walkTransactions, synthesize the
+		 *  tx from joined event context. Defaults true (safe / unchanged). */
+		private readonly needsTransactions = true,
 	) {}
 
 	/** Lowest height in (after, until] any probe target hits, or null. */
@@ -198,12 +227,17 @@ export class PublicApiBlockSource implements BlockSource {
 		fromHeight: number,
 		toHeight: number,
 	): Promise<Map<number, BlockData>> {
-		const [blocks, txs, eventLists] = await Promise.all([
+		// Event-only subgraphs join tx context onto events (withTx) and skip the
+		// walkTransactions over-fetch entirely; tx-level sources fetch real txs.
+		const withTx = !this.needsTransactions;
+		const [blocks, txRows, eventLists] = await Promise.all([
 			this.http.walkBlocks(fromHeight, toHeight),
-			this.http.walkTransactions(fromHeight, toHeight),
+			this.needsTransactions
+				? this.http.walkTransactions(fromHeight, toHeight)
+				: Promise.resolve<IndexTransactionRow[]>([]),
 			Promise.all(
 				this.eventTypes.map((t) =>
-					this.http.walkEvents(t, fromHeight, toHeight),
+					this.http.walkEvents(t, fromHeight, toHeight, withTx),
 				),
 			),
 		]);
@@ -218,8 +252,13 @@ export class PublicApiBlockSource implements BlockSource {
 				events: [],
 			});
 		}
+		// For event-only subgraphs, materialize only the event-bearing txs from
+		// joined event context instead of every transaction in the range.
+		const txs = this.needsTransactions
+			? txRows.map(reconstructTransaction)
+			: synthesizeTxsFromEvents(eventLists.flat());
 		for (const t of txs) {
-			map.get(t.block_height)?.txs.push(reconstructTransaction(t));
+			map.get(t.block_height)?.txs.push(t);
 		}
 		for (const list of eventLists) {
 			for (const e of list) {
@@ -337,6 +376,7 @@ export function resolveBlockSource(subgraph?: SubgraphDefinition): BlockSource {
 				buildHttpClient(),
 				referencedIndexEventTypes(subgraph),
 				canSparseScan(subgraph) ? sparseProbeTargets(subgraph) : undefined,
+				needsTransactionData(subgraph),
 			),
 			postgresBlockSource,
 		);

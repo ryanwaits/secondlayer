@@ -68,6 +68,31 @@ export function reconstructTransaction(t: IndexTransactionRow): Transaction {
 	} as Transaction;
 }
 
+/**
+ * Build a minimal canonical Transaction from an event row's joined tx context
+ * (`tx_context=true` on /v1/index/events). For event-only subgraphs this lets
+ * the loader materialize only the txs that actually carry a matched event,
+ * instead of draining every transaction in the range (the ~37x reindex
+ * over-fetch — see docs/sprints/indexing-speed/plan.md). `function_args` /
+ * `raw_result` are empty: an event source never reads them (contract_call-only).
+ */
+export function reconstructTxFromEventRow(e: IndexEventRow): Transaction {
+	return {
+		tx_id: e.tx_id,
+		block_height: e.block_height,
+		tx_index: e.tx_index ?? 0,
+		type: e.tx_type ?? "",
+		sender: e.tx_sender ?? "",
+		status: e.tx_status ?? "success",
+		contract_id: e.tx_contract_id ?? null,
+		function_name: e.tx_function_name ?? null,
+		function_args: [],
+		raw_result: null,
+		raw_tx: "",
+		created_at: new Date(0),
+	} as Transaction;
+}
+
 export function reconstructEvent(e: IndexEventRow): Event {
 	const base = {
 		// Synthetic, deterministic id. The runtime only reads `id` for error logs

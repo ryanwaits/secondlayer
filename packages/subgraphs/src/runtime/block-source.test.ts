@@ -116,6 +116,69 @@ describe("PublicApiBlockSource.loadBlockRange", () => {
 		expect(map.get(2)?.txs).toHaveLength(0);
 	});
 
+	test("event-only (needsTransactions=false) skips walkTransactions, synthesizes tx from joined event context", async () => {
+		let txsFetched = false;
+		const http = {
+			walkBlocks: async () => [
+				{
+					block_height: 1,
+					block_hash: "0xh1",
+					parent_hash: "0xp1",
+					burn_block_height: 5,
+					burn_block_hash: null,
+					block_time: "2026-01-01T00:00:00.000Z",
+				},
+			],
+			walkTransactions: async () => {
+				txsFetched = true;
+				return [];
+			},
+			walkEvents: async (
+				type: string,
+				_from: number,
+				_to: number,
+				withTx?: boolean,
+			) =>
+				type === "print" && withTx
+					? [
+							{
+								event_type: "print",
+								block_height: 1,
+								tx_id: "0xtx",
+								tx_index: 3,
+								event_index: 0,
+								contract_id: "SP.reg",
+								payload: {
+									topic: "completed-deposit",
+									value: null,
+									raw_value: "0x",
+								},
+								tx_sender: "SPSUBMITTER",
+								tx_type: "contract_call",
+								tx_status: "success",
+								tx_contract_id: "SP.dep",
+								tx_function_name: "complete-deposit",
+							},
+						]
+					: [],
+			getIndexTip: async () => 1,
+		} as unknown as IndexHttpClient;
+
+		const src = new PublicApiBlockSource(http, ["print"], undefined, false);
+		const map = await src.loadBlockRange(1, 1);
+
+		// walkTransactions is never invoked for an event-only subgraph.
+		expect(txsFetched).toBe(false);
+		const b1 = map.get(1);
+		expect(b1?.txs).toHaveLength(1);
+		// The synthesized tx carries the real submitter from the joined context —
+		// so ctx.tx.sender is correct without draining every tx in the range.
+		expect(b1?.txs[0].tx_id).toBe("0xtx");
+		expect(b1?.txs[0].sender).toBe("SPSUBMITTER");
+		expect(b1?.txs[0].tx_index).toBe(3);
+		expect(b1?.events).toHaveLength(1);
+	});
+
 	test("getTip reads the Index tip", async () => {
 		const src = new PublicApiBlockSource(fakeHttp, []);
 		expect(await src.getTip()).toBe(2);

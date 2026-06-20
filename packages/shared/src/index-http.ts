@@ -44,8 +44,17 @@ export type IndexBlockRow = {
 type IndexEventCommon = {
 	block_height: number;
 	tx_id: string;
+	tx_index?: number;
 	event_index: number;
 	contract_id: string | null;
+	/** Submitting-tx context — present only when the read passed `tx_context=true`.
+	 *  Lets a consumer build the tx for `ctx.tx` without a separate
+	 *  walkTransactions (the ~37x reindex over-fetch; see indexing-speed plan). */
+	tx_sender?: string | null;
+	tx_type?: string | null;
+	tx_status?: string | null;
+	tx_contract_id?: string | null;
+	tx_function_name?: string | null;
 };
 
 export type IndexEventRow = IndexEventCommon &
@@ -289,13 +298,19 @@ export class IndexHttpClient {
 		eventType: string,
 		fromHeight: number,
 		toHeight: number,
+		/** Join the submitting tx so each row carries `tx_*` — lets an event-only
+		 *  subgraph skip walkTransactions and build `ctx.tx` from the event. */
+		withTx = false,
 	): Promise<IndexEventRow[]> {
 		return this.walk<"events", IndexEventRow>(
 			"/v1/index/events",
 			"events",
 			fromHeight,
 			toHeight,
-			{ event_type: eventType },
+			{
+				event_type: eventType,
+				...(withTx ? { tx_context: "true" } : {}),
+			},
 		);
 	}
 
