@@ -93,7 +93,8 @@ defineSubgraph({
 			// nullable `note` optional.
 			ctx.insert("rows", { topic: event.topic, amount: 1n });
 			ctx.insert("rows", { topic: "t", amount: 1n, note: null });
-			// @ts-expect-error amount must be bigint, not number
+			// uint columns accept number on write (runtime coerces to bigint);
+			// reads stay strict bigint.
 			ctx.insert("rows", { topic: "t", amount: 1 });
 			// @ts-expect-error unknown table
 			ctx.insert("nope", { topic: "t", amount: 1n });

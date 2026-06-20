@@ -203,6 +203,19 @@ type IsOptionalColumn<C> = C extends { nullable: true }
 		: false;
 
 /**
+ * Like `InferColumnType` but for WRITE inputs: numeric (`uint`/`int`) columns
+ * also accept a plain `number` (the runtime coerces to bigint). Reads stay
+ * strict `bigint` via `InferColumnType`, so handlers still get exact types back.
+ */
+export type WriteColumnType<C extends SubgraphColumn> = C["type"] extends
+	| "uint"
+	| "int"
+	? C["nullable"] extends true
+		? bigint | number | null
+		: bigint | number
+	: InferColumnType<C>;
+
+/**
  * Row shape accepted by `ctx.insert`. System columns (`_id`, `_blockHeight`,
  * `_txId`, `_createdAt`) are omitted — the runtime adds them. Nullable and
  * defaulted columns are optional; all others required.
@@ -210,11 +223,11 @@ type IsOptionalColumn<C> = C extends { nullable: true }
 export type WriteRow<T extends SubgraphTable> = {
 	[K in keyof T["columns"] as IsOptionalColumn<T["columns"][K]> extends true
 		? never
-		: K]: InferColumnType<T["columns"][K]>;
+		: K]: WriteColumnType<T["columns"][K]>;
 } & {
 	[K in keyof T["columns"] as IsOptionalColumn<T["columns"][K]> extends true
 		? K
-		: never]?: InferColumnType<T["columns"][K]>;
+		: never]?: WriteColumnType<T["columns"][K]>;
 };
 
 /** Computed-or-value row for `patchOrInsert` — each field may be a function of the existing row. */
@@ -253,10 +266,12 @@ export interface TypedSubgraphContext<S extends SubgraphSchema> {
 		where: RowWhere<S, T>,
 		set: Partial<WriteRow<S[T]>>,
 	): void;
-	upsert<T extends TableName<S>>(
+	upsert<T extends TableName<S>, K extends Partial<WriteRow<S[T]>>>(
 		table: T,
-		key: Partial<WriteRow<S[T]>>,
-		row: WriteRow<S[T]>,
+		key: K,
+		// Runtime merges `{...key, ...row}`, so the key columns may be omitted from
+		// `row` — only the remaining required columns must be supplied.
+		row: Omit<WriteRow<S[T]>, keyof K> & Partial<WriteRow<S[T]>>,
 	): void;
 	delete<T extends TableName<S>>(table: T, where: RowWhere<S, T>): void;
 	patch<T extends TableName<S>>(
@@ -269,6 +284,17 @@ export interface TypedSubgraphContext<S extends SubgraphSchema> {
 		key: Partial<WriteRow<S[T]>>,
 		row: PatchRow<S[T]> & Record<string, ComputedValue>,
 	): Promise<void>;
+	/**
+	 * Atomic accumulator — `INSERT … ON CONFLICT (key) DO UPDATE SET col =
+	 * COALESCE(col,0) + delta`. Deltas commute, so it's the reorg-safe primitive
+	 * for running totals (per-cycle aggregates, balances). Requires a `uniqueKeys`
+	 * constraint matching `key`; deltas may be `number` or `bigint`.
+	 */
+	increment<T extends TableName<S>>(
+		table: T,
+		key: Partial<WriteRow<S[T]>>,
+		deltas: Partial<Record<ColumnName<S, T>, bigint | number>>,
+	): void;
 	findOne<T extends TableName<S>>(
 		table: T,
 		where: RowWhere<S, T>,

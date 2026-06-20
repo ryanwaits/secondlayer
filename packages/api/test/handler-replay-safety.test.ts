@@ -68,7 +68,7 @@ describe("non-replayable handler detection", () => {
 			"patchOrInsert",
 			"increment",
 			"delete",
-		];
+		] as const;
 		const declared = known.filter((m) =>
 			new RegExp(`^\\s+(async )?${m}\\(`, "m").test(src),
 		);
@@ -80,7 +80,9 @@ describe("non-replayable handler detection", () => {
 			// patch is a partial SET (idempotent per-block? a replayed patch SETs
 			// the same values — idempotent), so only assert on the true deltas:
 			if (m === "patch") continue;
-			expect(DELTA_CTX_METHODS).toContain(m);
+			expect(DELTA_CTX_METHODS).toContain(
+				m as (typeof DELTA_CTX_METHODS)[number],
+			);
 		}
 	});
 });
