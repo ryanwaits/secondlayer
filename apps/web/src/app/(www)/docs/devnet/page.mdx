@@ -6,6 +6,12 @@ Run the full Secondlayer stack against your local Clarinet devnet. Deploy contra
 One command points your Clarinet project at a local Secondlayer stack — Postgres, indexer, API, and the subgraph processor — running in Docker. Your devnet node forwards every block to the indexer, so your subgraphs and subscriptions run exactly as they would in production.
 </Banner>
 
+<Callout type="note" title="Coming from Chainhook and need devnet?">
+
+This is the local path. Run the loop here, then map your predicates over with [Migrating from Chainhook](/docs/migrate-chainhook).
+
+</Callout>
+
 ## Prerequisites
 
 - [Clarinet](https://github.com/hirosystems/clarinet) and a Clarinet project (a directory with `Clarinet.toml`).
@@ -102,7 +108,7 @@ sl devnet down --purge    # stop and wipe the local index volumes
 
 ## Coming from Chainhook?
 
-If you're here because hosted Chainhook devnet support left you stuck, this is the replacement: a local indexer that runs your subgraphs and fires [subscriptions](/docs/subscriptions) against devnet blocks. See [Migrating from Chainhook](/docs/migrate-chainhook) for the predicate-to-trigger mapping.
+If you need devnet coverage that hosted Chainhook doesn't provide, this is the local path: an indexer that runs your subgraphs and fires [subscriptions](/docs/subscriptions) against devnet blocks. See [Migrating from Chainhook](/docs/migrate-chainhook) for the predicate-to-trigger mapping.
 
 export const metadata = {
 	title: "Devnet — Secondlayer Docs",

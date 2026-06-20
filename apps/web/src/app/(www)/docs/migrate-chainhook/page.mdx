@@ -1,6 +1,6 @@
 # Migrating from Chainhook
 
-Hiro shipped Chainhook in two forms: the original **self-hosted Chainhook** (v1), now deprecated and awkward to run, and a **hosted Chainhook** (v2) — the platform whose devnet support never landed. Secondlayer [subscriptions](/docs/subscriptions) replace both: a webhook on raw chain events — a contract, an event, a function, a SIP trait — with signed, retried delivery. This guide maps your predicates over, whichever one you were on.
+Chainhook ships in two forms: the original **self-hosted Chainhook** (v1), now archived, and a **hosted Chainhook** (v2) on the Hiro Platform, which doesn't cover devnet. Secondlayer [subscriptions](/docs/subscriptions) cover both: a webhook on raw chain events — a contract, an event, a function, a SIP trait — with signed, retried delivery. This guide maps your predicates over, whichever one you were on.
 
 ## Hosted or self-hosted
 
@@ -8,8 +8,8 @@ Subscriptions run either way, so you can match whichever Chainhook you came from
 
 | You were on | Move to | What changes |
 | --- | --- | --- |
-| Hosted Chainhook (v2) | Secondlayer hosted — the default | One API call, no node, no infra to operate — and [devnet](/docs/devnet) works. |
-| Self-hosted Chainhook (v1, deprecated) | Secondlayer [self-hosted](/docs/self-host) | Run your own node + our indexer — maintained, and far simpler to operate than v1. |
+| Hosted Chainhook (v2) | Secondlayer hosted — the default | One API call, no node, no infra to operate — with [devnet](/docs/devnet) support. |
+| Self-hosted Chainhook (v1) | Secondlayer [self-hosted](/docs/self-host) | Run your own node + our indexer — actively maintained. |
 
 The rest of this guide uses the hosted path; everything maps the same when self-hosting.
 
@@ -81,13 +81,13 @@ await sl.subscriptions.create({
 Chainhook delivers `apply` / `rollback` payloads. Secondlayer delivers a `chain.{type}.apply` envelope per matched event, and `chain.reorg.rollback` when a block is orphaned — so you can undo anything you committed off a fork. The full envelopes are in the [subscriptions delivery reference](/docs/subscriptions#delivery-envelope).
 
 <Callout type="note" title="Verify the signature">
-Every delivery is HMAC-signed (Standard Webhooks) and carries a universal ed25519 signature. Verify with the SDK's `verifyWebhookSignature` before trusting the payload — see [Verify the signature](/docs/subscriptions#verify-the-signature). Chainhook's bearer-token auth has no equivalent here; the signature is the auth.
+Every delivery is HMAC-signed (Standard Webhooks) and carries a universal ed25519 signature. Verify with the SDK's `verifyWebhookSignature` before trusting the payload — see [Verify the signature](/docs/subscriptions#verify-the-signature). Where Chainhook used a bearer token, here the signature is the auth.
 </Callout>
 
 ## Two differences worth knowing
 
 - **Forward-looking by default.** A chain subscription starts at the chain tip — no historical scan like a predicate's `start_block`. To deliver history, use [`replay`](/docs/subscriptions#replay) over an existing subscription (idempotent, capped at 100,000 blocks, never moves the live cursor).
-- **You choose where the indexer runs.** Self-hosted Chainhook made you run a Stacks node; hosted Chainhook ran it for you. On Secondlayer's hosted platform you run neither — just your receiver. Prefer to own the stack? [Self-host](/docs/self-host) the indexer against your own node — the maintained successor to v1.
+- **You choose where the indexer runs.** Self-hosted Chainhook ran on a Stacks node you operated; hosted Chainhook ran it for you. On Secondlayer's hosted platform you run neither — just your receiver. Prefer to own the stack? [Self-host](/docs/self-host) the indexer against your own node.
 
 ## Test it on devnet first
 
@@ -96,5 +96,5 @@ Run the whole loop locally before you point it at mainnet — deploy a subgraph 
 export const metadata = {
 	title: "Migrating from Chainhook — Secondlayer Docs",
 	description:
-		"Map your Chainhook predicates to Secondlayer subscriptions — replacing both hosted Chainhook (v2) and the deprecated self-hosted v1, with signed, retried delivery.",
+		"Map your Chainhook predicates to Secondlayer subscriptions — covering both hosted Chainhook (v2) and self-hosted v1, with signed, retried delivery.",
 };
