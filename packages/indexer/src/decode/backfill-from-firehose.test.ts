@@ -47,11 +47,29 @@ function onePageReader(events: StreamsEvent[]) {
 }
 
 describe("backfill-from-firehose", () => {
-	test("registry lists only the recent-only domain decoders", () => {
+	test("registry lists the recent-only domain + floored generic decoders", () => {
 		expect(BACKFILL_REGISTRY.map((e) => e.key).sort()).toEqual([
+			"nft_burn",
+			"nft_mint",
+			"nft_transfer",
 			"sbtc",
 			"sbtc_token",
+			"stx_burn",
+			"stx_lock",
+			"stx_mint",
+			"stx_transfer",
 		]);
+	});
+
+	test("generic decoders carry no contractId (all-contract scope = genesis-complete)", () => {
+		for (const key of ["stx_transfer", "nft_transfer", "stx_lock"]) {
+			const e = BACKFILL_REGISTRY.find((x) => x.key === key);
+			expect(e?.contractId).toBeUndefined();
+		}
+		// Per-contract decoders still scope to their contract.
+		expect(
+			BACKFILL_REGISTRY.find((e) => e.key === "sbtc")?.contractId,
+		).toBeDefined();
 	});
 
 	test("sbtc target replays the registry-print stream and decodes deposits", async () => {
@@ -102,6 +120,23 @@ describe("backfill-from-firehose", () => {
 		});
 		expect(calls[0]?.types).toEqual(["ft_mint", "ft_burn", "ft_transfer"]);
 		expect(calls[0]?.contractId).toContain("sbtc-token");
+	});
+
+	test("generic target filters by type with NO contract scope", async () => {
+		const { read, calls } = onePageReader([]);
+		await backfillFromFirehose({
+			target: "stx_transfer",
+			apply: false,
+			fromHeight: 0,
+			toHeight: 8_300_000,
+			limit: 500,
+			maxBatches: 10,
+			deps: { read, net: "mainnet" },
+		});
+		expect(calls[0]?.types).toEqual(["stx_transfer"]);
+		// The fix: generic decoders pass no contractId → firehose returns events
+		// from ALL contracts, so the genesis backfill is complete (not per-contract).
+		expect(calls[0]?.contractId).toBeUndefined();
 	});
 
 	test("unknown target throws with the known keys", async () => {
@@ -175,6 +210,16 @@ describe("backfill-from-firehose", () => {
 			maxBatches: 10,
 			deps: { read, net: "mainnet" },
 		});
-		expect(stats.map((s) => s.key)).toEqual(["sbtc", "sbtc_token"]);
+		expect(stats.map((s) => s.key)).toEqual([
+			"sbtc",
+			"sbtc_token",
+			"stx_transfer",
+			"stx_mint",
+			"stx_burn",
+			"stx_lock",
+			"nft_transfer",
+			"nft_mint",
+			"nft_burn",
+		]);
 	});
 });

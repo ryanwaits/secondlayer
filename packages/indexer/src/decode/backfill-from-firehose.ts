@@ -12,8 +12,12 @@
  * fills each lagging table with no gaps, idempotently (upsert on cursor).
  *
  * Decoders are registered EXPLICITLY (no auto-discovery) so each backfill is a
- * deliberate, reviewed entry. Already-genesis decoders (pox4, bns name/namespace,
- * and the general ft/nft/stx/print → decoded_events) are intentionally absent.
+ * deliberate, reviewed entry. Genuinely-genesis decoders are absent: pox4, bns,
+ * sbtc (cover from contract deploy) and ft_transfer/ft_mint/ft_burn → decoded_events.
+ * The other generic decoders (stx_*, nft_*, print) were NOT genesis — they were
+ * added go-forward and floored at ~6.8M (audit 2026-06-20), so they ARE registered
+ * here now. (Earlier this comment wrongly claimed all generic decoders were
+ * already-genesis, which hid the gap.)
  *
  * It does NOT touch live decoder checkpoints — the live consumer keeps owning the
  * tip; overlapping ranges re-write identical rows.
@@ -26,7 +30,18 @@
  * Default is a DRY RUN (decode + count, no writes). Pass --apply to write.
  */
 
-import type { StreamsEvent, StreamsEventType } from "@secondlayer/sdk";
+import {
+	type DecodedEventRow,
+	type StreamsEvent,
+	type StreamsEventType,
+	decodeNftBurn,
+	decodeNftMint,
+	decodeNftTransfer,
+	decodeStxBurn,
+	decodeStxLock,
+	decodeStxMint,
+	decodeStxTransfer,
+} from "@secondlayer/sdk";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
@@ -46,7 +61,18 @@ import {
 	writeSbtcEvents,
 	writeSbtcTokenEvents,
 } from "./sbtc-storage.ts";
-import { readDecoderCheckpoint, writeDecoderCheckpoint } from "./storage.ts";
+import {
+	NFT_BURN_DECODER_NAME,
+	NFT_MINT_DECODER_NAME,
+	NFT_TRANSFER_DECODER_NAME,
+	STX_BURN_DECODER_NAME,
+	STX_LOCK_DECODER_NAME,
+	STX_MINT_DECODER_NAME,
+	STX_TRANSFER_DECODER_NAME,
+	readDecoderCheckpoint,
+	writeDecodedEvents,
+	writeDecoderCheckpoint,
+} from "./storage.ts";
 
 /** Backfill progress is checkpointed under its own namespace so it survives an
  *  interruption (deploy/recreate, OOM, reboot) and resumes instead of restarting
@@ -70,7 +96,9 @@ export type BackfillEntry = {
 	key: string;
 	decoderName: string;
 	types: readonly StreamsEventType[];
-	contractId: (net: Network) => string;
+	/** Firehose contract filter. OMIT for generic (all-contract) decoders —
+	 *  stx/nft/ft events span every contract, so they filter by event type only. */
+	contractId?: (net: Network) => string;
 	/** Decode a page of firehose events and (when apply) write the rows. */
 	process: (events: StreamsEvent[], ctx: ProcessCtx) => Promise<ProcessResult>;
 };
@@ -114,10 +142,97 @@ const sbtcTokenEntry: BackfillEntry = {
 	},
 };
 
+/**
+ * Generic decoded-event backfill: decode a whole event TYPE across ALL contracts
+ * into `decoded_events` (mirrors the live `consumeDecodedEvents` path). No
+ * contractId — these decoders aren't contract-scoped. Fixes the go-forward
+ * decoders (stx/nft *) that were added after the original genesis backfill and
+ * never backfilled, so `decoded_events` is recent-only for them (the index
+ * service's genesis-completeness contract).
+ */
+function genericDecodedEntry(
+	key: string,
+	decoderName: string,
+	type: StreamsEventType,
+	decode: (event: StreamsEvent) => DecodedEventRow,
+): BackfillEntry {
+	return {
+		key,
+		decoderName,
+		types: [type],
+		process: async (events, ctx) => {
+			const rows = events.flatMap((event) => {
+				if (event.event_type !== type) return [];
+				try {
+					return [decode(event)];
+				} catch {
+					return [];
+				}
+			});
+			if (ctx.apply && rows.length)
+				await writeDecodedEvents(rows, { db: ctx.db });
+			return { written: rows.length };
+		},
+	};
+}
+
+// The floored generic decoders (audit 2026-06-20): genesis→~6.8M missing from
+// decoded_events. ft_transfer/ft_mint/ft_burn are already genesis; print is being
+// backfilled separately. These run parallel to live (own checkpoint namespace).
+const stxTransferEntry = genericDecodedEntry(
+	"stx_transfer",
+	STX_TRANSFER_DECODER_NAME,
+	"stx_transfer",
+	decodeStxTransfer,
+);
+const stxMintEntry = genericDecodedEntry(
+	"stx_mint",
+	STX_MINT_DECODER_NAME,
+	"stx_mint",
+	decodeStxMint,
+);
+const stxBurnEntry = genericDecodedEntry(
+	"stx_burn",
+	STX_BURN_DECODER_NAME,
+	"stx_burn",
+	decodeStxBurn,
+);
+const stxLockEntry = genericDecodedEntry(
+	"stx_lock",
+	STX_LOCK_DECODER_NAME,
+	"stx_lock",
+	decodeStxLock,
+);
+const nftTransferEntry = genericDecodedEntry(
+	"nft_transfer",
+	NFT_TRANSFER_DECODER_NAME,
+	"nft_transfer",
+	decodeNftTransfer,
+);
+const nftMintEntry = genericDecodedEntry(
+	"nft_mint",
+	NFT_MINT_DECODER_NAME,
+	"nft_mint",
+	decodeNftMint,
+);
+const nftBurnEntry = genericDecodedEntry(
+	"nft_burn",
+	NFT_BURN_DECODER_NAME,
+	"nft_burn",
+	decodeNftBurn,
+);
+
 /** The explicit registry — only decoders whose tables are recent-only. */
 export const BACKFILL_REGISTRY: readonly BackfillEntry[] = [
 	sbtcEntry,
 	sbtcTokenEntry,
+	stxTransferEntry,
+	stxMintEntry,
+	stxBurnEntry,
+	stxLockEntry,
+	nftTransferEntry,
+	nftMintEntry,
+	nftBurnEntry,
 ];
 
 function parseCursor(cursor: string): {
@@ -158,7 +273,7 @@ export async function runEntry(
 	let written = 0;
 	let batches = 0;
 	const topics: Record<string, number> = {};
-	const contractId = entry.contractId(opts.net);
+	const contractId = entry.contractId?.(opts.net);
 	const cpName = checkpointName(entry.key);
 	const readCp =
 		opts.readCheckpoint ??
