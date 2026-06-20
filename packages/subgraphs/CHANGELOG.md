@@ -1,5 +1,21 @@
 # @secondlayer/subgraphs
 
+## 3.16.0
+
+### Minor Changes
+
+- Typed handler context fixes + faster event-only reindex:
+
+  - `TypedSubgraphContext` now exposes `increment` (the reorg-safe accumulator), previously only on the untyped context.
+  - uint/int columns accept `number` on write (the runtime coerces to bigint); reads stay strict `bigint`.
+  - `upsert`'s `row` may omit the key columns (the runtime merges `{...key, ...row}`).
+  - Event-only subgraph reindex synthesizes the transaction from joined event context instead of draining every transaction in each block range — a large full-history backfill speedup.
+
+### Patch Changes
+
+- Updated dependencies
+  - @secondlayer/shared@6.37.0
+
 ## 3.15.2
 
 ### Patch Changes

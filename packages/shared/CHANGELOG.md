@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 6.37.0
+
+### Minor Changes
+
+- `IndexHttpClient.walkEvents` accepts an opt-in `withTx` flag that requests submitting-transaction context on each event row (`tx_sender` / `tx_type` / `tx_status` / `tx_contract_id` / `tx_function_name`) via the Index API's new `tx_context=true`. Lets an event-scoped consumer build transaction context without a separate transactions fetch.
+
 ## 6.36.0
 
 ### Minor Changes
