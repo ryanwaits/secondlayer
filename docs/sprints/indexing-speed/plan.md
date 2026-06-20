@@ -22,7 +22,16 @@ Demoable: a measured throughput jump on the existing HTTP path that every tier (
   handler vs flush/commit) to `block-processor.ts`/`reindex.ts`, logged + queryable. → validates:
   a running reindex emits live throughput without re-deriving from row counts (how this audit was
   made by hand). Cheap; makes every later validation trivial.
-- [ ] **T1 ★ Profile a live reindex (do FIRST).** With T0's metrics + `EXPLAIN ANALYZE` on
+- [x] **T1 ★ DONE (2026-06-20).** Profiled with a paid key: `walkTransactions` drains 150k+ txns /
+  ~520s per 1000-block dense batch vs 13.9s needed → **~37× over-fetch, fetch+iterate-bound** (matches
+  measured 27 blk/s). NOT the jsonb scan (decoded_events is indexed), NOT write-bound. Also caught that
+  the naive "skip walkTransactions" zeroes out event subgraphs (matcher is tx-driven).
+- [x] **T2(b) ★ DONE (2026-06-20).** Shipped the event-driven path. (1) API `tx_context=true` on
+  `/v1/index/events` joins the submitting tx (`000d2c2e`). (2) Root fix: typed ctx `increment` + uint
+  accepts `number` + ergonomic `upsert` (`cbfb4fff`, also cleared the ROADMAP P2 increment-drift).
+  (3) Consumer: event-only subgraphs synthesize the (few) event-bearing txs from joined event context
+  and skip `walkTransactions` (`8fc7bc36`, unit-tested). tsc/biome green. **Lands ~37× on deploy.**
+- [ ] **T1-orig (superseded by the above).** With T0's metrics + `EXPLAIN ANALYZE` on
   `firstEventHeight`/`walkBlocks`/`walkTransactions`/`walkEvents` over a real dense range, answer the
   branch question: **fetch-bound, scan-bound, or write/commit-bound?** → validates: committed timing
   breakdown naming the 27 blk/s culprit. (If commit/lock-bound, Sprint 2's parallel *fetch* won't
