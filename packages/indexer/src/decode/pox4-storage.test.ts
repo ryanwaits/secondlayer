@@ -11,7 +11,7 @@ describe.skipIf(!HAS_DB)("pox4-storage", () => {
 	beforeEach(async () => {
 		if (!db) return;
 		await sql`DELETE FROM pox4_calls`.execute(db);
-		await sql`DELETE FROM l2_decoder_checkpoints WHERE decoder_name = 'l2.pox4.v1'`.execute(
+		await sql`DELETE FROM decoder_checkpoints WHERE decoder_name = 'decode.pox4.v1'`.execute(
 			db,
 		);
 	});
@@ -19,7 +19,7 @@ describe.skipIf(!HAS_DB)("pox4-storage", () => {
 	afterEach(async () => {
 		if (!db) return;
 		await sql`DELETE FROM pox4_calls`.execute(db);
-		await sql`DELETE FROM l2_decoder_checkpoints WHERE decoder_name = 'l2.pox4.v1'`.execute(
+		await sql`DELETE FROM decoder_checkpoints WHERE decoder_name = 'decode.pox4.v1'`.execute(
 			db,
 		);
 	});
@@ -67,9 +67,9 @@ describe.skipIf(!HAS_DB)("pox4-storage", () => {
 
 		// Checkpoint rewound so the decoder re-derives the new fork from < 101.
 		const checkpoint = await db
-			.selectFrom("l2_decoder_checkpoints")
+			.selectFrom("decoder_checkpoints")
 			.select("last_cursor")
-			.where("decoder_name", "=", "l2.pox4.v1")
+			.where("decoder_name", "=", "decode.pox4.v1")
 			.executeTakeFirst();
 		expect(checkpoint?.last_cursor).toBe("100:0");
 	});

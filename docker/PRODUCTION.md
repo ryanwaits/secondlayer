@@ -16,7 +16,7 @@ Compose project lives at `/opt/secondlayer/docker` on app-server.
 | `secondlayer-api-<N>` ×2 | The two API replicas behind Caddy (`api.secondlayer.tools`). `<N>` is Compose's instance counter and **increments every rolling deploy** (e.g. 94/95 → 98/99). Always exactly two; the suffix means nothing. |
 | `secondlayer-caddy-1` | Load balancer + TLS in front of the api replicas. |
 | `secondlayer-indexer-1` | Chain ingestion (event-observer receiver) + Streams bulk/R2 exports. |
-| `secondlayer-l2-decoder-1` | Decodes raw events → `decoded_events` (the Index plane). Backfills via `packages/indexer/src/l2/BACKFILL.md`. |
+| `secondlayer-decoder-1` | Decodes raw events → `decoded_events` (the Index plane). Backfills via `packages/indexer/src/decode/BACKFILL.md`. |
 | `secondlayer-subgraph-processor-1` | Subgraph indexing: catch-up follower + operations runner (deploy/reindex/backfill ops). Sparse reindex + boot-time stranded-reindex sweep live here. |
 | `secondlayer-subscription-processor-1/-2` | Webhook delivery plane: leader-elected trigger evaluator + competing-consumer emitters. Replica 2 = failover + throughput. |
 | `secondlayer-worker-1` | Crons: metering, ghost sweep, x402 reconciler, subgraph-expiry sweep. |
@@ -67,7 +67,7 @@ docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
   -tAc 'SELECT count(*), max(height) FROM blocks'
 
 # Decoder lags (tens of seconds = at tip)
-docker exec secondlayer-l2-decoder-1 curl -s localhost:3710/health | \
+docker exec secondlayer-decoder-1 curl -s localhost:3710/health | \
   python3 -c "import sys,json; [print(x['decoder'], x['lag_seconds']) for x in json.load(sys.stdin)['decoders']]"
 
 # Connection headroom (limit is 200)

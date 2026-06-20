@@ -53,7 +53,7 @@ describe.skipIf(!HAS_DB)(
 			// Full table wipe mirrors the model test's beforeEach and avoids
 			// residue from other test runs at overlapping block heights.
 			await sql`DELETE FROM decoded_events`.execute(db);
-			await sql`DELETE FROM l2_decoder_checkpoints`.execute(db);
+			await sql`DELETE FROM decoder_checkpoints`.execute(db);
 		}
 
 		beforeEach(cleanup);

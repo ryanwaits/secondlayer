@@ -3,7 +3,7 @@ import { getDb, sql } from "@secondlayer/shared/db";
 import {
 	FT_TRANSFER_DECODER_NAME,
 	NFT_TRANSFER_DECODER_NAME,
-	getEnabledL2DecoderNames,
+	getEnabledDecoderNames,
 	handleDecodedEventsReorg,
 	writeDecodedEvents,
 } from "./storage.ts";
@@ -11,38 +11,39 @@ import {
 const HAS_DB = !!process.env.DATABASE_URL;
 
 const ALWAYS_ON = [
-	"l2.ft_transfer.v1",
-	"l2.nft_transfer.v1",
-	"l2.stx_transfer.v1",
-	"l2.stx_mint.v1",
-	"l2.stx_burn.v1",
-	"l2.stx_lock.v1",
-	"l2.ft_mint.v1",
-	"l2.ft_burn.v1",
-	"l2.nft_mint.v1",
-	"l2.nft_burn.v1",
-	"l2.print.v1",
+	"decode.ft_transfer.v1",
+	"decode.nft_transfer.v1",
+	"decode.stx_transfer.v1",
+	"decode.stx_mint.v1",
+	"decode.stx_burn.v1",
+	"decode.stx_lock.v1",
+	"decode.ft_mint.v1",
+	"decode.ft_burn.v1",
+	"decode.nft_mint.v1",
+	"decode.nft_burn.v1",
+	"decode.print.v1",
 ];
 
-describe("getEnabledL2DecoderNames", () => {
+describe("getEnabledDecoderNames", () => {
 	test("always-on decoders plus sbtc + pox4 (both enabled by default)", () => {
-		expect(getEnabledL2DecoderNames({})).toEqual([
+		expect(getEnabledDecoderNames({})).toEqual([
 			...ALWAYS_ON,
-			"l2.sbtc.v1",
-			"l2.sbtc_token.v1",
-			"l2.pox4.v1",
+			"decode.sbtc.v1",
+			"decode.sbtc_token.v1",
+			"decode.pox4.v1",
 		]);
 	});
 
 	test("SBTC_DECODER_ENABLED=false suppresses sbtc (pox4 still default-on)", () => {
-		expect(getEnabledL2DecoderNames({ SBTC_DECODER_ENABLED: "false" })).toEqual(
-			[...ALWAYS_ON, "l2.pox4.v1"],
-		);
+		expect(getEnabledDecoderNames({ SBTC_DECODER_ENABLED: "false" })).toEqual([
+			...ALWAYS_ON,
+			"decode.pox4.v1",
+		]);
 	});
 
 	test("POX4_DECODER_ENABLED=false suppresses pox4", () => {
 		expect(
-			getEnabledL2DecoderNames({
+			getEnabledDecoderNames({
 				SBTC_DECODER_ENABLED: "false",
 				POX4_DECODER_ENABLED: "false",
 			}),
@@ -51,22 +52,22 @@ describe("getEnabledL2DecoderNames", () => {
 
 	test("includes bns when its flag is 'true'", () => {
 		expect(
-			getEnabledL2DecoderNames({
+			getEnabledDecoderNames({
 				SBTC_DECODER_ENABLED: "false",
 				POX4_DECODER_ENABLED: "false",
 				BNS_DECODER_ENABLED: "true",
 			}),
-		).toEqual([...ALWAYS_ON, "l2.bns.v1"]);
+		).toEqual([...ALWAYS_ON, "decode.bns.v1"]);
 	});
 
 	test("opt-in bns ignores non-'true' values; opt-out pox4 ignores non-'false' values", () => {
 		expect(
-			getEnabledL2DecoderNames({
+			getEnabledDecoderNames({
 				SBTC_DECODER_ENABLED: "false",
 				POX4_DECODER_ENABLED: "yes", // not "false" → pox4 stays on
 				BNS_DECODER_ENABLED: "TRUE", // not "true" → bns stays off
 			}),
-		).toEqual([...ALWAYS_ON, "l2.pox4.v1"]);
+		).toEqual([...ALWAYS_ON, "decode.pox4.v1"]);
 	});
 });
 
@@ -76,7 +77,7 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 	beforeEach(async () => {
 		if (!db) return;
 		await sql`DELETE FROM decoded_events`.execute(db);
-		await sql`DELETE FROM l2_decoder_checkpoints`.execute(db);
+		await sql`DELETE FROM decoder_checkpoints`.execute(db);
 	});
 
 	test("reorg deletes affected rows and rewinds checkpoint", async () => {
@@ -101,12 +102,12 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 			.orderBy("cursor")
 			.execute();
 		const checkpoint = await db
-			.selectFrom("l2_decoder_checkpoints")
+			.selectFrom("decoder_checkpoints")
 			.select("last_cursor")
 			.where("decoder_name", "=", FT_TRANSFER_DECODER_NAME)
 			.executeTakeFirst();
 		const nftCheckpoint = await db
-			.selectFrom("l2_decoder_checkpoints")
+			.selectFrom("decoder_checkpoints")
 			.select("last_cursor")
 			.where("decoder_name", "=", NFT_TRANSFER_DECODER_NAME)
 			.executeTakeFirst();
@@ -115,17 +116,17 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 			deleted: 3,
 			checkpoint: "9:0",
 			checkpoints: {
-				"l2.ft_transfer.v1": "9:0",
-				"l2.nft_transfer.v1": null,
-				"l2.stx_transfer.v1": null,
-				"l2.stx_mint.v1": null,
-				"l2.stx_burn.v1": null,
-				"l2.stx_lock.v1": null,
-				"l2.ft_mint.v1": null,
-				"l2.ft_burn.v1": null,
-				"l2.nft_mint.v1": null,
-				"l2.nft_burn.v1": null,
-				"l2.print.v1": null,
+				"decode.ft_transfer.v1": "9:0",
+				"decode.nft_transfer.v1": null,
+				"decode.stx_transfer.v1": null,
+				"decode.stx_mint.v1": null,
+				"decode.stx_burn.v1": null,
+				"decode.stx_lock.v1": null,
+				"decode.ft_mint.v1": null,
+				"decode.ft_burn.v1": null,
+				"decode.nft_mint.v1": null,
+				"decode.nft_burn.v1": null,
+				"decode.print.v1": null,
 			},
 		});
 		expect(rows).toEqual([{ cursor: "9:0", canonical: true }]);

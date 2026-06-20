@@ -8,7 +8,7 @@ import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
 import { writeDecoderCheckpoint } from "./storage.ts";
 
-export const BNS_DECODER_NAME = "l2.bns.v1";
+export const BNS_DECODER_NAME = "decode.bns.v1";
 
 // ── Event row types ─────────────────────────────────────────────────────────
 

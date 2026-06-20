@@ -5,16 +5,16 @@ import { BNS_DECODER_NAME } from "./bns-storage.ts";
 import { POX4_DECODER_NAME } from "./pox4-storage.ts";
 import { SBTC_DECODER_NAME, SBTC_TOKEN_DECODER_NAME } from "./sbtc-storage.ts";
 import {
+	DECODER_EVENT_TYPES,
+	type DecoderName,
 	FT_TRANSFER_DECODER_NAME,
-	type L2DecoderName,
-	L2_DECODER_EVENT_TYPES,
-	getEnabledL2DecoderNames,
+	getEnabledDecoderNames,
 } from "./storage.ts";
 
-export { getEnabledL2DecoderNames, L2_DECODER_EVENT_TYPES };
-export type { L2DecoderName };
+export { getEnabledDecoderNames, DECODER_EVENT_TYPES };
+export type { DecoderName };
 
-export type L2DecoderHealth = {
+export type DecoderHealth = {
 	status: "healthy" | "unhealthy";
 	decoder: string;
 	checkpoint: string | null;
@@ -26,9 +26,9 @@ export type L2DecoderHealth = {
 	checkpoint_recent: boolean;
 };
 
-export type L2DecodersHealth = {
+export type DecodersHealth = {
 	status: "healthy" | "unhealthy";
-	decoders: L2DecoderHealth[];
+	decoders: DecoderHealth[];
 };
 
 function cursorBlockHeight(cursor: string | null): number | null {
@@ -38,17 +38,17 @@ function cursorBlockHeight(cursor: string | null): number | null {
 	return Number(height);
 }
 
-export async function getL2DecoderHealth(opts?: {
+export async function getDecoderHealth(opts?: {
 	db?: Kysely<Database>;
 	decoderName?: string;
 	now?: Date;
-}): Promise<L2DecoderHealth> {
+}): Promise<DecoderHealth> {
 	const db = opts?.db ?? getSourceDb();
 	const decoderName = opts?.decoderName ?? FT_TRANSFER_DECODER_NAME;
 	const now = opts?.now ?? new Date();
 
 	const checkpoint = await db
-		.selectFrom("l2_decoder_checkpoints")
+		.selectFrom("decoder_checkpoints")
 		.select(["last_cursor", "updated_at"])
 		.where("decoder_name", "=", decoderName)
 		.executeTakeFirst();
@@ -120,15 +120,15 @@ export async function getL2DecoderHealth(opts?: {
 	};
 }
 
-export async function getL2DecodersHealth(opts?: {
+export async function getDecodersHealth(opts?: {
 	db?: Kysely<Database>;
 	decoderNames?: readonly string[];
 	now?: Date;
-}): Promise<L2DecodersHealth> {
-	const decoderNames = opts?.decoderNames ?? getEnabledL2DecoderNames();
+}): Promise<DecodersHealth> {
+	const decoderNames = opts?.decoderNames ?? getEnabledDecoderNames();
 	const decoders = await Promise.all(
 		decoderNames.map((decoderName) =>
-			getL2DecoderHealth({ db: opts?.db, decoderName, now: opts?.now }),
+			getDecoderHealth({ db: opts?.db, decoderName, now: opts?.now }),
 		),
 	);
 
@@ -181,8 +181,7 @@ async function readLatestDecodedAt(opts: {
 			.executeTakeFirst();
 	}
 	const eventType =
-		L2_DECODER_EVENT_TYPES[opts.decoderName as L2DecoderName] ??
-		opts.decoderName;
+		DECODER_EVENT_TYPES[opts.decoderName as DecoderName] ?? opts.decoderName;
 	return opts.db
 		.selectFrom("decoded_events")
 		.select(["created_at"])

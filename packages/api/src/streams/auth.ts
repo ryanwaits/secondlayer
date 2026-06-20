@@ -1,7 +1,7 @@
 import {
-	L2_INTERNAL_STREAMS_TENANT_ID,
+	INTERNAL_STREAMS_TENANT_ID,
 	defaultInternalStreamsApiKey,
-} from "@secondlayer/indexer/l2/internal-auth";
+} from "@secondlayer/indexer/decode/internal-auth";
 import {
 	AuthenticationError,
 	AuthorizationError,
@@ -95,7 +95,7 @@ export const DEFAULT_STREAMS_TOKENS: StreamsTokenStore = new Map([
 (DEFAULT_STREAMS_TOKENS as Map<string, StreamsTenant>).set(
 	defaultInternalStreamsApiKey(),
 	{
-		tenant_id: L2_INTERNAL_STREAMS_TENANT_ID,
+		tenant_id: INTERNAL_STREAMS_TENANT_ID,
 		tier: "enterprise",
 		scopes: [STREAMS_READ_SCOPE],
 	},

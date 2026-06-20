@@ -1,9 +1,9 @@
 import {
-	type L2DecodersHealth,
-	L2_DECODER_EVENT_TYPES,
-	getEnabledL2DecoderNames,
-	getL2DecodersHealth,
-} from "@secondlayer/indexer/l2/health";
+	DECODER_EVENT_TYPES,
+	type DecodersHealth,
+	getDecodersHealth,
+	getEnabledDecoderNames,
+} from "@secondlayer/indexer/decode/health";
 import { getDb, getDbSplitStatus, getSourceDb } from "@secondlayer/shared/db";
 import { checkChainDataIntegrity } from "@secondlayer/shared/db/queries/integrity";
 import { getGapSummaryBySubgraph } from "@secondlayer/shared/db/queries/subgraph-gaps";
@@ -40,7 +40,7 @@ type PublicIndexStatus = {
 type SemanticHealthStatus = "ok" | "degraded" | "unavailable";
 
 type PublicServiceHealth = {
-	name: "api" | "database" | "indexer" | "l2_decoder" | "subgraph_processor";
+	name: "api" | "database" | "indexer" | "decoder" | "subgraph_processor";
 	status: SemanticHealthStatus;
 };
 
@@ -52,22 +52,22 @@ const SUBGRAPH_PROCESSOR_STALE_MS = 90_000;
 // the env-gated sbtc/pox4/bns decoders live in separate storage modules and
 // carry their public labels here.
 const DECODER_EVENT_TYPE: Record<string, string> = {
-	...L2_DECODER_EVENT_TYPES,
-	"l2.sbtc.v1": "sbtc",
-	"l2.sbtc_token.v1": "sbtc_token",
-	"l2.pox4.v1": "pox4_call",
-	"l2.bns.v1": "bns_print",
+	...DECODER_EVENT_TYPES,
+	"decode.sbtc.v1": "sbtc",
+	"decode.sbtc_token.v1": "sbtc_token",
+	"decode.pox4.v1": "pox4_call",
+	"decode.bns.v1": "bns_print",
 };
 
 function indexDecoders(): Array<{ decoder: string; eventType: string }> {
-	return getEnabledL2DecoderNames().map((decoder) => ({
+	return getEnabledDecoderNames().map((decoder) => ({
 		decoder,
 		eventType: DECODER_EVENT_TYPE[decoder] ?? decoder,
 	}));
 }
 
 export function publicIndexStatusFromL2Health(
-	health: L2DecodersHealth | null,
+	health: DecodersHealth | null,
 ): PublicIndexStatus {
 	if (!health) {
 		return {
@@ -165,7 +165,7 @@ app.get("/health", async (c) => {
 
 app.get("/public/status", async (c) => {
 	const db = getDb();
-	// Chain + decoded tables (blocks, l2_decoder_checkpoints) live on SOURCE; read
+	// Chain + decoded tables (blocks, decoder_checkpoints) live on SOURCE; read
 	// them from there. Under the active DB split getDb() is TARGET (control plane),
 	// where those tables exist but are empty — reading them via getDb() falsely
 	// reports the decoders/chain as degraded.
@@ -182,7 +182,7 @@ app.get("/public/status", async (c) => {
 		sql`SELECT 1`.execute(db),
 		getIndexerHealth(),
 		getStreamsTip(),
-		getL2DecodersHealth({ db: sourceDb }),
+		getDecodersHealth({ db: sourceDb }),
 		getStreamsBulkManifest(),
 		db
 			.selectFrom("service_heartbeats")
@@ -233,7 +233,7 @@ app.get("/public/status", async (c) => {
 	const streamsTip: StreamsTip | null =
 		streamsTipResult.status === "fulfilled" ? streamsTipResult.value : null;
 	const chainTip = streamsTip?.block_height ?? null;
-	const l2DecodersHealth: L2DecodersHealth | null =
+	const l2DecodersHealth: DecodersHealth | null =
 		l2DecodersResult.status === "fulfilled" ? l2DecodersResult.value : null;
 	const index = publicIndexStatusFromL2Health(l2DecodersHealth);
 	const dumps: StreamsDumpsFreshness = streamsDumpsFreshness({
@@ -256,7 +256,7 @@ app.get("/public/status", async (c) => {
 					? "ok"
 					: "unavailable",
 		},
-		{ name: "l2_decoder", status: serviceStatusFromPublicIndex(index) },
+		{ name: "decoder", status: serviceStatusFromPublicIndex(index) },
 		{ name: "subgraph_processor", status: subgraphProcessorStatus },
 	];
 
@@ -329,7 +329,7 @@ app.get("/public/streams/signing-key", (c) => {
 
 app.get("/status", async (c) => {
 	const db = getDb();
-	// index_progress + l2_decoder_checkpoints are chain/decoded → SOURCE. subgraphs
+	// index_progress + decoder_checkpoints are chain/decoded → SOURCE. subgraphs
 	// + subgraph_gaps + service_heartbeats are control plane → getDb()/TARGET.
 	const sourceDb = getSourceDb();
 
@@ -349,7 +349,7 @@ app.get("/status", async (c) => {
 		db.selectFrom("subgraphs").selectAll().execute(),
 		getGapSummaryBySubgraph(db),
 		getStreamsTip(),
-		getL2DecodersHealth({ db: sourceDb }),
+		getDecodersHealth({ db: sourceDb }),
 		db
 			.selectFrom("service_heartbeats")
 			.select("updated_at")
@@ -444,7 +444,7 @@ app.get("/status", async (c) => {
 			: "gaps_detected";
 	const streamsTip: StreamsTip | null =
 		streamsTipResult.status === "fulfilled" ? streamsTipResult.value : null;
-	const l2DecodersHealth: L2DecodersHealth | null =
+	const l2DecodersHealth: DecodersHealth | null =
 		l2DecodersResult.status === "fulfilled" ? l2DecodersResult.value : null;
 	const index = publicIndexStatusFromL2Health(l2DecodersHealth);
 	const services: PublicServiceHealth[] = [
@@ -460,7 +460,7 @@ app.get("/status", async (c) => {
 					? "ok"
 					: "unavailable",
 		},
-		{ name: "l2_decoder", status: serviceStatusFromPublicIndex(index) },
+		{ name: "decoder", status: serviceStatusFromPublicIndex(index) },
 		{ name: "subgraph_processor", status: subgraphProcessorStatus },
 	];
 

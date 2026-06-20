@@ -454,7 +454,7 @@ export interface DecodedEventsTable {
 	created_at: Generated<Date>;
 }
 
-export interface L2DecoderCheckpointsTable {
+export interface DecoderCheckpointsTable {
 	decoder_name: string;
 	last_cursor: string | null;
 	updated_at: Generated<Date>;
@@ -797,7 +797,7 @@ export interface Database {
 	subscription_deliveries: SubscriptionDeliveriesTable;
 	trigger_evaluator_state: TriggerEvaluatorStateTable;
 	decoded_events: DecodedEventsTable;
-	l2_decoder_checkpoints: L2DecoderCheckpointsTable;
+	decoder_checkpoints: DecoderCheckpointsTable;
 	chain_reorgs: ChainReorgsTable;
 	pox4_calls: Pox4CallsTable;
 	pox4_cycles_daily: Pox4CyclesDailyTable;

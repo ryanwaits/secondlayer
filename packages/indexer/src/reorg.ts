@@ -4,10 +4,10 @@ import type { Database } from "@secondlayer/shared/db";
 import { insertChainReorg } from "@secondlayer/shared/db/queries/chain-reorgs";
 import { logger } from "@secondlayer/shared/logger";
 import type { Transaction } from "kysely";
-import { handleBnsReorg } from "./l2/bns-storage.ts";
-import { handlePox4Reorg } from "./l2/pox4-storage.ts";
-import { handleSbtcReorg } from "./l2/sbtc-storage.ts";
-import { handleDecodedEventsReorg } from "./l2/storage.ts";
+import { handleBnsReorg } from "./decode/bns-storage.ts";
+import { handlePox4Reorg } from "./decode/pox4-storage.ts";
+import { handleSbtcReorg } from "./decode/sbtc-storage.ts";
+import { handleDecodedEventsReorg } from "./decode/storage.ts";
 
 export async function handleReorg(
 	blockHeight: number,

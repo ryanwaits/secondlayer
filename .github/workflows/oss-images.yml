@@ -5,7 +5,7 @@ name: OSS Images
 # - Manual runs via workflow_dispatch.
 # Not built on every push — the deploy workflow covers prod; these exist for
 # self-hosters, who only need tagged releases.
-# Images: ghcr.io/<owner>/secondlayer-{api,indexer,worker,l2-decoder,subgraph-processor,subscription-processor}
+# Images: ghcr.io/<owner>/secondlayer-{api,indexer,worker,decoder,subgraph-processor,subscription-processor}
 
 on:
   push:
@@ -26,10 +26,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api, indexer, worker, l2-decoder, subgraph-processor, subscription-processor]
+        service: [api, indexer, worker, decoder, subgraph-processor, subscription-processor]
         # Thin targets (FROM api / FROM indexer) reuse the base build cache scope.
         include:
-          - service: l2-decoder
+          - service: decoder
             base: indexer
           - service: subgraph-processor
             base: api

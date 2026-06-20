@@ -4,7 +4,7 @@ import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
 import { writeDecoderCheckpoint } from "./storage.ts";
 
-export const POX4_DECODER_NAME = "l2.pox4.v1";
+export const POX4_DECODER_NAME = "decode.pox4.v1";
 
 export type Pox4CallRow = {
 	cursor: string;

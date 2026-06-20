@@ -1,26 +1,26 @@
 import { describe, expect, test } from "bun:test";
 import {
-	type L2DecodersHealth,
-	getEnabledL2DecoderNames,
-} from "@secondlayer/indexer/l2/health";
+	type DecodersHealth,
+	getEnabledDecoderNames,
+} from "@secondlayer/indexer/decode/health";
 import { publicIndexStatusFromL2Health } from "./status.ts";
 
 // publicIndexStatusFromL2Health surfaces every enabled decoder, defaulting any
 // the L2 health snapshot omits to "unavailable". The fixtures below only carry
 // health for the always-on ft + nft pair, so the rest report unavailable.
-const ENABLED_COUNT = getEnabledL2DecoderNames().length;
+const ENABLED_COUNT = getEnabledDecoderNames().length;
 import {
 	getApiTelemetrySnapshot,
 	recordApiTelemetrySample,
 	resetApiTelemetryForTests,
 } from "../telemetry/api.ts";
 
-const HEALTHY_INDEX: L2DecodersHealth = {
+const HEALTHY_INDEX: DecodersHealth = {
 	status: "healthy",
 	decoders: [
 		{
 			status: "healthy",
-			decoder: "l2.ft_transfer.v1",
+			decoder: "decode.ft_transfer.v1",
 			checkpoint: "100:2",
 			checkpoint_block_height: 100,
 			tip_block_height: 101,
@@ -31,7 +31,7 @@ const HEALTHY_INDEX: L2DecodersHealth = {
 		},
 		{
 			status: "healthy",
-			decoder: "l2.nft_transfer.v1",
+			decoder: "decode.nft_transfer.v1",
 			checkpoint: "99:4",
 			checkpoint_block_height: 99,
 			tip_block_height: 101,
@@ -53,8 +53,8 @@ describe("/status Index freshness", () => {
 		expect(status.status).toBe("degraded");
 
 		const byDecoder = new Map(status.decoders.map((d) => [d.decoder, d]));
-		expect(byDecoder.get("l2.ft_transfer.v1")).toEqual({
-			decoder: "l2.ft_transfer.v1",
+		expect(byDecoder.get("decode.ft_transfer.v1")).toEqual({
+			decoder: "decode.ft_transfer.v1",
 			eventType: "ft_transfer",
 			status: "ok",
 			lagSeconds: 12,
@@ -62,8 +62,8 @@ describe("/status Index freshness", () => {
 			tipBlockHeight: 101,
 			lastDecodedAt: "2026-05-11T12:00:00.000Z",
 		});
-		expect(byDecoder.get("l2.nft_transfer.v1")).toEqual({
-			decoder: "l2.nft_transfer.v1",
+		expect(byDecoder.get("decode.nft_transfer.v1")).toEqual({
+			decoder: "decode.nft_transfer.v1",
 			eventType: "nft_transfer",
 			status: "ok",
 			lagSeconds: 18,
@@ -75,7 +75,8 @@ describe("/status Index freshness", () => {
 		// Decoders absent from the health snapshot default to unavailable.
 		const others = status.decoders.filter(
 			(d) =>
-				d.decoder !== "l2.ft_transfer.v1" && d.decoder !== "l2.nft_transfer.v1",
+				d.decoder !== "decode.ft_transfer.v1" &&
+				d.decoder !== "decode.nft_transfer.v1",
 		);
 		expect(others.every((d) => d.status === "unavailable")).toBe(true);
 	});
@@ -90,10 +91,10 @@ describe("/status Index freshness", () => {
 
 		expect(status.status).toBe("degraded");
 		const byDecoder = new Map(status.decoders.map((d) => [d.decoder, d]));
-		expect(byDecoder.get("l2.ft_transfer.v1")?.status).toBe("degraded");
+		expect(byDecoder.get("decode.ft_transfer.v1")?.status).toBe("degraded");
 		expect(
 			status.decoders
-				.filter((d) => d.decoder !== "l2.ft_transfer.v1")
+				.filter((d) => d.decoder !== "decode.ft_transfer.v1")
 				.every((d) => d.status === "unavailable"),
 		).toBe(true);
 	});

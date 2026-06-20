@@ -51,7 +51,7 @@ export function startStreamsReorgPoll(onReorg: OnReorg): () => void {
 		indexBaseUrl: baseUrl,
 		streamsBaseUrl: baseUrl,
 		streamsApiKey:
-			process.env.STREAMS_INTERNAL_API_KEY ?? "sk-sl_streams_l2_internal",
+			process.env.STREAMS_INTERNAL_API_KEY ?? "sk-sl_streams_decode_internal",
 	});
 
 	let since = new Date(Date.now() - STARTUP_MARGIN_MS).toISOString();

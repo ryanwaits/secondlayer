@@ -34,7 +34,7 @@ export const TABLE_TO_DB = {
 	chain_reorgs: "source",
 	// ── SOURCE: decoded (L2) ──
 	decoded_events: "source",
-	l2_decoder_checkpoints: "source",
+	decoder_checkpoints: "source",
 	pox4_calls: "source",
 	pox4_cycles_daily: "source",
 	pox4_signers_daily: "source",

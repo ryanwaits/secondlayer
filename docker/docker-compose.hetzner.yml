@@ -107,7 +107,7 @@ services:
     volumes:
       - ${DATA_DIR:-/opt/secondlayer/data}/archive:/data/archive
 
-  l2-decoder:
+  decoder:
     deploy:
       resources:
         limits:
@@ -142,7 +142,7 @@ services:
       # subgraphs transparently stay on the DB tap. Unset to roll back to db.
       SUBGRAPH_SOURCE: streams-index
     # streams-index routes the block source, reorg poll, and trigger evaluator
-    # over HTTP to api:3800, so the processor must wait for api like l2-decoder
+    # over HTTP to api:3800, so the processor must wait for api like decoder
     # does. Merges additively with the base migrate+postgres deps.
     depends_on:
       api:

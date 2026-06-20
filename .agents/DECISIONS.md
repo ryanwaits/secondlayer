@@ -60,11 +60,18 @@ Append-only ADR log.
 
 ## ADR-0008: Decoder checkpoint table is reused
 **Date:** 2026-05-03
-**Status:** Accepted
+**Status:** Superseded by ADR-0010 (table renamed `l2_decoder_checkpoints` → `decoder_checkpoints`)
 **Source:** PR #19
 **Context:** The L2 decoder already had checkpoint infrastructure from Streams dogfooding.
 **Decision:** Reuse `l2_decoder_checkpoints`.
 **Consequences:** Decoder restart and replay behavior stay in one checkpoint path.
+
+## ADR-0010: Drop the `l2`/`layer2` naming everywhere
+**Date:** 2026-06-19
+**Status:** Accepted
+**Context:** `l2`/`layer2` collides with the blockchain layer model (Bitcoin = L1, Stacks = L2), so an "L2 decoder" reads as a chain layer rather than our decode plane. The prior rule (AGENTS.md) kept internal `l2-*` identifiers as-is; that exception is removed.
+**Decision:** Rename the decode plane off `l2` entirely — service/image `decoder`/`secondlayer-decoder`, dir `packages/indexer/src/decode/`, env `DECODER_*`, internal key `sk-sl_streams_decode_internal`, checkpoint names `decode.<event_type>.v<major>`, and the checkpoint table `decoder_checkpoints` (migration 0103: `ALTER TABLE … RENAME` + re-key `l2.*` → `decode.*` so cursors are preserved, no re-decode). Historical CHANGELOGs and migrations `00xx` keep their original text.
+**Consequences:** Deploy must recreate api + decoder + processors together (the internal default key changed; a partial rollout 401s the decode reader until consistent). No data re-decode — checkpoints are re-keyed in place.
 
 ## ADR-0009: Endpoint reads filter canonical rows
 **Date:** 2026-05-03

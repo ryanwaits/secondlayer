@@ -55,11 +55,11 @@ fi
 [ -n "$_DEPLOY_SHA_OVERRIDE" ] && DEPLOY_SHA="$_DEPLOY_SHA_OVERRIDE"
 unset _DEPLOY_IMAGE_OWNER_OVERRIDE _DEPLOY_IMAGE_TAG_OVERRIDE _DEPLOY_SHA_OVERRIDE
 
-APP_SERVICES="api indexer l2-decoder subgraph-processor subscription-processor worker caddy"
+APP_SERVICES="api indexer decoder subgraph-processor subscription-processor worker caddy"
 # api recreates separately (rolling, replica-by-replica behind Caddy) so its
 # cached read plane never goes fully dark on a code-only deploy. Everything else
 # recreates in bulk.
-APP_SERVICES_NO_API="indexer l2-decoder subgraph-processor subscription-processor worker caddy"
+APP_SERVICES_NO_API="indexer decoder subgraph-processor subscription-processor worker caddy"
 DEPLOY_IMAGE_OWNER="${DEPLOY_IMAGE_OWNER:-secondlayer-labs}"
 DEPLOY_IMAGE_TAG="${DEPLOY_IMAGE_TAG:-${DEPLOY_SHA:-latest}}"
 DEPLOY_STATE_DIR="${DEPLOY_STATE_DIR:-/opt/secondlayer/data/deploy}"
@@ -67,9 +67,9 @@ DB_MAINTENANCE_LOCK_FILE="${DB_MAINTENANCE_LOCK_FILE:-${DATA_DIR:-/opt/secondlay
 DB_MAINTENANCE_LOCK_TIMEOUT_SECONDS="${DB_MAINTENANCE_LOCK_TIMEOUT_SECONDS:-2700}"
 export DEPLOY_IMAGE_OWNER DEPLOY_IMAGE_TAG
 
-# Services that hold locks on tables migrations mutate. Indexer and l2-decoder
+# Services that hold locks on tables migrations mutate. Indexer and decoder
 # write L1/L2 tables, so migrations must complete before they restart on new code.
-MIGRATION_LOCK_HOLDERS="api indexer l2-decoder worker"
+MIGRATION_LOCK_HOLDERS="api indexer decoder worker"
 
 echo "Deploy image owner: ${DEPLOY_IMAGE_OWNER}"
 echo "Deploy image tag: ${DEPLOY_IMAGE_TAG}"
@@ -78,7 +78,7 @@ echo "Deploy image tag: ${DEPLOY_IMAGE_TAG}"
 # image for this SHA, fail while the current deployment is still running.
 # Skip the pull entirely when every required image is already cached locally
 # (no-op re-deploys, rollbacks to a recent SHA, CI pre-pull from build-images).
-_pull_services=(api indexer l2-decoder subgraph-processor subscription-processor worker migrate)
+_pull_services=(api indexer decoder subgraph-processor subscription-processor worker migrate)
 _expected_images=$($COMPOSE config --images "${_pull_services[@]}" 2>/dev/null | sort -u)
 _missing_images=()
 while IFS= read -r _img; do
@@ -323,7 +323,7 @@ wait_api_healthy &
 _pid_api=$!
 check_health indexer http://localhost:3700/health &
 _pid_indexer=$!
-check_container_health l2-decoder &
+check_container_health decoder &
 _pid_decoder=$!
 
 _health_failed=0

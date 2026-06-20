@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
-import { getL2DecoderHealth } from "./health.ts";
+import { getDecoderHealth } from "./health.ts";
 import {
 	NFT_TRANSFER_DECODER_NAME,
 	writeDecoderCheckpoint,
@@ -14,7 +14,7 @@ describe.skipIf(!HAS_DB)("L2 decoder health", () => {
 	beforeEach(async () => {
 		if (!db) return;
 		await sql`DELETE FROM decoded_events`.execute(db);
-		await sql`DELETE FROM l2_decoder_checkpoints`.execute(db);
+		await sql`DELETE FROM decoder_checkpoints`.execute(db);
 		await sql`DELETE FROM events`.execute(db);
 		await sql`DELETE FROM transactions`.execute(db);
 		await sql`DELETE FROM blocks`.execute(db);
@@ -52,7 +52,7 @@ describe.skipIf(!HAS_DB)("L2 decoder health", () => {
 			decoderName: NFT_TRANSFER_DECODER_NAME,
 		});
 
-		const health = await getL2DecoderHealth({
+		const health = await getDecoderHealth({
 			db,
 			decoderName: NFT_TRANSFER_DECODER_NAME,
 			now,
@@ -100,7 +100,7 @@ describe.skipIf(!HAS_DB)("L2 decoder health", () => {
 			decoderName: NFT_TRANSFER_DECODER_NAME,
 		});
 
-		const health = await getL2DecoderHealth({
+		const health = await getDecoderHealth({
 			db,
 			decoderName: NFT_TRANSFER_DECODER_NAME,
 			now,
@@ -148,7 +148,7 @@ describe.skipIf(!HAS_DB)("L2 decoder health", () => {
 			decoderName: NFT_TRANSFER_DECODER_NAME,
 		});
 
-		const health = await getL2DecoderHealth({
+		const health = await getDecoderHealth({
 			db,
 			decoderName: NFT_TRANSFER_DECODER_NAME,
 			now,
@@ -192,7 +192,7 @@ describe.skipIf(!HAS_DB)("L2 decoder health", () => {
 			decoderName: NFT_TRANSFER_DECODER_NAME,
 		});
 
-		const health = await getL2DecoderHealth({
+		const health = await getDecoderHealth({
 			db,
 			decoderName: NFT_TRANSFER_DECODER_NAME,
 			now,
@@ -225,7 +225,7 @@ describe.skipIf(!HAS_DB)("L2 decoder health", () => {
 			])
 			.execute();
 		// No checkpoint row.
-		const health = await getL2DecoderHealth({
+		const health = await getDecoderHealth({
 			db,
 			decoderName: NFT_TRANSFER_DECODER_NAME,
 			now,

@@ -161,9 +161,9 @@ services:
       # Nakamoto node reachable from this container to enable proofs in prod.
       STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-}
       # L2 decoder enable flags — read by api/src/routes/status.ts
-      # (via getEnabledL2DecoderNames) so /public/status reports every
+      # (via getEnabledDecoderNames) so /public/status reports every
       # enabled decoder, not just ft+nft. Mirror the values set on the
-      # l2-decoder service.
+      # decoder service.
       SBTC_DECODER_ENABLED: ${SBTC_DECODER_ENABLED:-true}
       POX4_DECODER_ENABLED: ${POX4_DECODER_ENABLED:-true}
       BNS_DECODER_ENABLED: ${BNS_DECODER_ENABLED:-false}
@@ -255,13 +255,13 @@ services:
 
   # Continuous L2 decoder service. Dedicated image (own Dockerfile target + tag)
   # so it deploys/rolls back independently of the indexer. Per-service tag defaults
-  # to the shared DEPLOY_IMAGE_TAG; set L2_DECODER_IMAGE_TAG to pin it alone.
-  l2-decoder:
-    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-l2-decoder:${L2_DECODER_IMAGE_TAG:-${DEPLOY_IMAGE_TAG:-latest}}
+  # to the shared DEPLOY_IMAGE_TAG; set DECODER_IMAGE_TAG to pin it alone.
+  decoder:
+    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-decoder:${DECODER_IMAGE_TAG:-${DEPLOY_IMAGE_TAG:-latest}}
     build:
       context: ..
       dockerfile: docker/Dockerfile
-      target: l2-decoder
+      target: decoder
     environment:
       # Overridable so split prod can BLANK it (`DATABASE_URL=` in .env) — then a
       # missing SOURCE_/TARGET_ var fails loud via DEFAULT_URL instead of silently

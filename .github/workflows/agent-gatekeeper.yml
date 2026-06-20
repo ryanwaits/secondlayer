@@ -111,7 +111,7 @@ jobs:
             base="$(git rev-list --max-parents=0 "$head")"
           fi
 
-          arch_pattern='(^|/)(migrations|schema|routes)/|packages/shared/src/db/types\.ts|packages/api/src/(routes|index|streams)/|packages/indexer/src/l2/|packages/indexer/src/reorg\.ts'
+          arch_pattern='(^|/)(migrations|schema|routes)/|packages/shared/src/db/types\.ts|packages/api/src/(routes|index|streams)/|packages/indexer/src/decode/|packages/indexer/src/reorg\.ts'
 
           if git diff --name-only "$base" "$head" | grep -Eq "$arch_pattern"; then
             if [[ ! -s .agents/DECISIONS.md ]]; then

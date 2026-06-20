@@ -54,7 +54,7 @@ first maintenance touch. Unfreeze requires a named external request.
 - Cursor format and public `/v1` envelope are 1.0 contracts; reorg/cursor tests
   are sacred.
 - The decoder service (`packages/indexer` l2 module) reads from Streams in production — dogfooding, do not break it.
-- Never describe product surfaces as L1/L2/L3 layers in docs or comms — Stacks is itself a Bitcoin L2, so the terms confuse users. Say raw (Streams), decoded (Index), your schema (Subgraphs). Internal code identifiers (`l2-decoder`, `l2_*`) stay as-is.
+- Never describe product surfaces as L1/L2/L3 layers in docs or comms — Stacks is itself a Bitcoin L2, so the terms confuse users. Say raw (Streams), decoded (Index), your schema (Subgraphs). This also extends to code: no identifier, env var, service, or table may start with `l2`/`layer2`. The decoder service is `decoder` (image `secondlayer-decoder`), the dir is `packages/indexer/src/decode/`, checkpoints are named `decode.<event_type>.v<major>`, and the checkpoint table is `decoder_checkpoints` (see ADR-0008/ADR-0010).
 - No EVM/multi-chain. No wallet-side primitives beyond what's already frozen.
 
 ### Process

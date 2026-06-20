@@ -19,7 +19,7 @@ const PAGE_LIMIT = 1000;
 // unreachable, surfacing as a thrown fetch (connection refused/reset) or a
 // Caddy 502/503/504 while it fails over. Retrying a few times with backoff
 // makes a single-replica recreate transparent to the subgraph-processor /
-// l2-decoder — closing the processors-depend-on-api coupling.
+// decoder — closing the processors-depend-on-api coupling.
 const MAX_ATTEMPTS = 4;
 const RETRY_BASE_MS = 150;
 const RETRYABLE_STATUS = new Set([502, 503, 504]);

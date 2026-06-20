@@ -101,7 +101,7 @@ async function checkPublicStatus(): Promise<void> {
 				asRecord(s),
 			]),
 		);
-		for (const required of ["api", "database", "indexer", "l2_decoder"]) {
+		for (const required of ["api", "database", "indexer", "decoder"]) {
 			const svc = byName.get(required);
 			if (!svc) {
 				failures.push(`missing ${required} service`);

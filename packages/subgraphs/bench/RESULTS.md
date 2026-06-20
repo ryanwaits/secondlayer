@@ -47,7 +47,7 @@ With no composite index on `(event_type, block_height, event_index)`, the planne
 Decoded_events indexes today: `event_type` (alone), `block_height` (alone), `(contract_id|sender|recipient, block_height, event_index)`, `(event_type, canonical, created_at DESC)` — none serve `(event_type, block_height, event_index)` keyset pagination.
 
 ## Fix (concrete, low-risk)
-1. **Composite index** (the real fix; mirrors existing composites + the prior l2-health decoded_events index incident):
+1. **Composite index** (the real fix; mirrors existing composites + the prior decoder-health decoded_events index incident):
    ```sql
    CREATE INDEX CONCURRENTLY decoded_events_type_height_event_idx
      ON decoded_events (event_type, block_height, event_index) WHERE canonical;

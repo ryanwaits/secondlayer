@@ -23,7 +23,7 @@ describe("status page visual smoke", () => {
 						status: "ok",
 						decoders: [
 							{
-								decoder: "l2.ft_transfer.v1",
+								decoder: "decode.ft_transfer.v1",
 								eventType: "ft_transfer",
 								status: "ok",
 								lagSeconds: 12,
@@ -32,7 +32,7 @@ describe("status page visual smoke", () => {
 								lastDecodedAt: "2026-05-11T12:00:00.000Z",
 							},
 							{
-								decoder: "l2.nft_transfer.v1",
+								decoder: "decode.nft_transfer.v1",
 								eventType: "nft_transfer",
 								status: "degraded",
 								lagSeconds: 200,
@@ -55,7 +55,7 @@ describe("status page visual smoke", () => {
 						{ name: "api", status: "ok" },
 						{ name: "database", status: "ok" },
 						{ name: "indexer", status: "ok" },
-						{ name: "l2_decoder", status: "degraded" },
+						{ name: "decoder", status: "degraded" },
 					],
 					lastChecked: new Date("2026-05-03T20:30:45Z"),
 					error: null,

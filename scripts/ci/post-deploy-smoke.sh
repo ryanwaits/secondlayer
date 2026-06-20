@@ -77,10 +77,10 @@ PY
 
 check_public_status_services_ok() {
 	local url="${API_URL%/}/public/status"
-	# Services flap transiently right after a deploy (especially l2_decoder, which
+	# Services flap transiently right after a deploy (especially decoder, which
 	# reports `degraded` while it catches up on indexing lag). Retry within a short
 	# grace window before failing so a momentary blip doesn't red an otherwise-good
-	# deploy. `l2_decoder=degraded` is tolerated outright — it's data-plane lag, not
+	# deploy. `decoder=degraded` is tolerated outright — it's data-plane lag, not
 	# a deploy regression, and persistent degradation is tracked by Staging Health.
 	local retries="${SMOKE_STATUS_RETRIES:-5}"
 	local delay="${SMOKE_STATUS_RETRY_DELAY:-8}"
@@ -114,15 +114,15 @@ for name in ("api", "database", "indexer"):
 
 # Tolerate a degraded (but present and running) decoder; only a down/missing
 # decoder counts against the deploy.
-decoder_status = (by_name.get("l2_decoder") or {}).get("status")
+decoder_status = (by_name.get("decoder") or {}).get("status")
 if decoder_status not in ("ok", "degraded"):
-    bad.append(f"l2_decoder={decoder_status!r}")
+    bad.append(f"decoder={decoder_status!r}")
 
 if bad:
     print("retry: " + "; ".join(bad))
     sys.exit(1)
 
-print("ok (tolerating l2_decoder=degraded)" if decoder_status == "degraded" else "ok")
+print("ok (tolerating decoder=degraded)" if decoder_status == "degraded" else "ok")
 sys.exit(0)
 PY
 		)"; then

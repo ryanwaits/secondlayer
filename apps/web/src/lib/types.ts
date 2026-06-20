@@ -104,7 +104,7 @@ export interface SystemStatus {
 export type ServiceHealthStatus = "ok" | "degraded" | "unavailable";
 
 export interface ServiceHealth {
-	name: "api" | "database" | "indexer" | "l2_decoder" | string;
+	name: "api" | "database" | "indexer" | "decoder" | string;
 	status: ServiceHealthStatus;
 }
 

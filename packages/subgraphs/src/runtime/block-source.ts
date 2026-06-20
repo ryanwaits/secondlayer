@@ -315,7 +315,7 @@ export function buildHttpClient(): IndexHttpClient {
 		indexBaseUrl: baseUrl,
 		streamsBaseUrl: baseUrl,
 		streamsApiKey:
-			process.env.STREAMS_INTERNAL_API_KEY ?? "sk-sl_streams_l2_internal",
+			process.env.STREAMS_INTERNAL_API_KEY ?? "sk-sl_streams_decode_internal",
 	});
 }
 

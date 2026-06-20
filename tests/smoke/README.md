@@ -15,7 +15,7 @@ Smoke tests live in `tests/smoke/`.
 The reusable continuous-service harness is `tests/smoke/continuous-service.ts`.
 
 Current coverage:
-- `tests/smoke/l2-decoder.smoke.test.ts` — continuous-service harness for the L2 FT decoder.
+- `tests/smoke/decoder.smoke.test.ts` — continuous-service harness for the L2 FT decoder.
 - `tests/smoke/phase-2-datasets.smoke.test.ts` — dataset surface checks against a deployed `SECOND_LAYER_API_URL` (datasets API shape, public status fields, manifest reachability, optional parquet checksum verification).
 
 The harness creates an isolated Postgres database, runs migrations, starts the service, waits at least 60 seconds, checks progress, stops the service, and drops the database.

@@ -8,10 +8,12 @@
 			"@secondlayer/indexer/streams-events": [
 				"../indexer/src/streams-events.ts"
 			],
-			"@secondlayer/indexer/l2/decoder": ["../indexer/src/l2/decoder.ts"],
-			"@secondlayer/indexer/l2/health": ["../indexer/src/l2/health.ts"],
-			"@secondlayer/indexer/l2/internal-auth": [
-				"../indexer/src/l2/internal-auth.ts"
+			"@secondlayer/indexer/decode/decoder": [
+				"../indexer/src/decode/decoder.ts"
+			],
+			"@secondlayer/indexer/decode/health": ["../indexer/src/decode/health.ts"],
+			"@secondlayer/indexer/decode/internal-auth": [
+				"../indexer/src/decode/internal-auth.ts"
 			],
 			"@secondlayer/sdk": ["../sdk/src/index.ts"],
 			"@secondlayer/sdk/*": ["../sdk/src/*"],
@@ -25,7 +27,7 @@
 	},
 	"include": [
 		"src/**/*",
-		"../indexer/src/l2/**/*",
+		"../indexer/src/decode/**/*",
 		"../indexer/src/streams-events.ts",
 		"../indexer/src/streams-tip.ts",
 		"../sdk/src/**/*",

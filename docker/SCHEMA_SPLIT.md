@@ -20,12 +20,12 @@ so all of this is safe to merge and deploy before any cutover.
 
 ## SOURCE (chain + decoded)
 
-Written by the `indexer` and `l2-decoder` services. Read by the public API.
+Written by the `indexer` and `decoder` services. Read by the public API.
 
 - Raw chain: `blocks`, `transactions`, `events`, `transactions_archive`,
   `events_archive`, `mempool_transactions`, `dead_letter_events`,
   `index_progress`, `contracts`, `chain_reorgs`, `service_heartbeats`
-- Decoded (L2): `decoded_events`, `l2_decoder_checkpoints`, `pox4_calls`,
+- Decoded (L2): `decoded_events`, `decoder_checkpoints`, `pox4_calls`,
   `pox4_cycles_daily`, `pox4_signers_daily`, `burn_block_rewards`,
   `burn_block_reward_slots`, `sbtc_events`, `sbtc_token_events`,
   `sbtc_supply_snapshots`, `bns_name_events`, `bns_namespace_events`,

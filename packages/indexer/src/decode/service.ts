@@ -20,7 +20,7 @@ import {
 	consumeSbtcRegistryDecodedEvents,
 	consumeSbtcTokenDecodedEvents,
 } from "./decoders/sbtc.ts";
-import { getL2DecodersHealth } from "./health.ts";
+import { getDecodersHealth } from "./health.ts";
 import { bumpDecoderCheckpoint } from "./storage.ts";
 
 const PORT = Number.parseInt(process.env.PORT || "3710", 10);
@@ -31,29 +31,29 @@ const SBTC_ENABLED = process.env.SBTC_DECODER_ENABLED !== "false";
 const POX4_ENABLED = isPox4DecoderEnabled();
 const BNS_ENABLED = process.env.BNS_DECODER_ENABLED === "true";
 const DECODED_EVENT_DECODERS = {
-	"l2.ft_transfer.v1": 0,
-	"l2.nft_transfer.v1": 0,
-	"l2.stx_transfer.v1": 0,
-	"l2.stx_mint.v1": 0,
-	"l2.stx_burn.v1": 0,
-	"l2.stx_lock.v1": 0,
-	"l2.ft_mint.v1": 0,
-	"l2.ft_burn.v1": 0,
-	"l2.nft_mint.v1": 0,
-	"l2.nft_burn.v1": 0,
-	"l2.print.v1": 0,
+	"decode.ft_transfer.v1": 0,
+	"decode.nft_transfer.v1": 0,
+	"decode.stx_transfer.v1": 0,
+	"decode.stx_mint.v1": 0,
+	"decode.stx_burn.v1": 0,
+	"decode.stx_lock.v1": 0,
+	"decode.ft_mint.v1": 0,
+	"decode.ft_burn.v1": 0,
+	"decode.nft_mint.v1": 0,
+	"decode.nft_burn.v1": 0,
+	"decode.print.v1": 0,
 } as const;
 const decodedTotals: Record<string, number> = {
 	...DECODED_EVENT_DECODERS,
-	...(SBTC_ENABLED ? { "l2.sbtc.v1": 0, "l2.sbtc_token.v1": 0 } : {}),
-	...(POX4_ENABLED ? { "l2.pox4.v1": 0 } : {}),
-	...(BNS_ENABLED ? { "l2.bns.v1": 0 } : {}),
+	...(SBTC_ENABLED ? { "decode.sbtc.v1": 0, "decode.sbtc_token.v1": 0 } : {}),
+	...(POX4_ENABLED ? { "decode.pox4.v1": 0 } : {}),
+	...(BNS_ENABLED ? { "decode.bns.v1": 0 } : {}),
 };
 const decodedThisMinute: Record<string, number> = {
 	...DECODED_EVENT_DECODERS,
-	...(SBTC_ENABLED ? { "l2.sbtc.v1": 0, "l2.sbtc_token.v1": 0 } : {}),
-	...(POX4_ENABLED ? { "l2.pox4.v1": 0 } : {}),
-	...(BNS_ENABLED ? { "l2.bns.v1": 0 } : {}),
+	...(SBTC_ENABLED ? { "decode.sbtc.v1": 0, "decode.sbtc_token.v1": 0 } : {}),
+	...(POX4_ENABLED ? { "decode.pox4.v1": 0 } : {}),
+	...(BNS_ENABLED ? { "decode.bns.v1": 0 } : {}),
 };
 
 async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -73,8 +73,8 @@ async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 
 async function logProgress(): Promise<void> {
 	try {
-		const health = await getL2DecodersHealth();
-		logger.info("l2_decoder.progress", {
+		const health = await getDecodersHealth();
+		logger.info("decoder.progress", {
 			status: health.status,
 			decoders: health.decoders.map((decoder) => ({
 				decoder: decoder.decoder,
@@ -89,7 +89,7 @@ async function logProgress(): Promise<void> {
 			decodedThisMinute[decoder] = 0;
 		}
 	} catch (error) {
-		logger.warn("l2_decoder.progress_failed", { error: String(error) });
+		logger.warn("decoder.progress_failed", { error: String(error) });
 	}
 }
 
@@ -113,12 +113,9 @@ async function runDecoder(
 		const before = decodedTotals[decoderName] ?? 0;
 		try {
 			await consume({
-				batchSize: Number.parseInt(
-					process.env.L2_DECODER_BATCH_SIZE ?? "500",
-					10,
-				),
+				batchSize: Number.parseInt(process.env.DECODER_BATCH_SIZE ?? "500", 10),
 				emptyBackoffMs: Number.parseInt(
-					process.env.L2_DECODER_EMPTY_BACKOFF_MS ?? "1000",
+					process.env.DECODER_EMPTY_BACKOFF_MS ?? "1000",
 					10,
 				),
 				// Force `consume()` to return after a small empty-poll budget
@@ -127,7 +124,7 @@ async function runDecoder(
 				// (e.g. sparse contract filter at-tip) keeps the SDK consumer
 				// looping forever and `updated_at` goes stale.
 				maxEmptyPolls: Number.parseInt(
-					process.env.L2_DECODER_MAX_EMPTY_POLLS ?? "1",
+					process.env.DECODER_MAX_EMPTY_POLLS ?? "1",
 					10,
 				),
 				signal: controller.signal,
@@ -140,7 +137,7 @@ async function runDecoder(
 			});
 		} catch (error) {
 			if (controller.signal.aborted) return;
-			logger.error("l2_decoder.error", {
+			logger.error("decoder.error", {
 				decoder: decoderName,
 				error: String(error),
 			});
@@ -163,33 +160,35 @@ async function runDecoder(
 
 async function runDecoders(): Promise<void> {
 	const tasks = [
-		runDecoder("l2.ft_transfer.v1", consumeFtTransferDecodedEvents),
-		runDecoder("l2.nft_transfer.v1", consumeNftTransferDecodedEvents),
-		runDecoder("l2.stx_transfer.v1", consumeStxTransferDecodedEvents),
-		runDecoder("l2.stx_mint.v1", consumeStxMintDecodedEvents),
-		runDecoder("l2.stx_burn.v1", consumeStxBurnDecodedEvents),
-		runDecoder("l2.stx_lock.v1", consumeStxLockDecodedEvents),
-		runDecoder("l2.ft_mint.v1", consumeFtMintDecodedEvents),
-		runDecoder("l2.ft_burn.v1", consumeFtBurnDecodedEvents),
-		runDecoder("l2.nft_mint.v1", consumeNftMintDecodedEvents),
-		runDecoder("l2.nft_burn.v1", consumeNftBurnDecodedEvents),
-		runDecoder("l2.print.v1", consumePrintDecodedEvents),
+		runDecoder("decode.ft_transfer.v1", consumeFtTransferDecodedEvents),
+		runDecoder("decode.nft_transfer.v1", consumeNftTransferDecodedEvents),
+		runDecoder("decode.stx_transfer.v1", consumeStxTransferDecodedEvents),
+		runDecoder("decode.stx_mint.v1", consumeStxMintDecodedEvents),
+		runDecoder("decode.stx_burn.v1", consumeStxBurnDecodedEvents),
+		runDecoder("decode.stx_lock.v1", consumeStxLockDecodedEvents),
+		runDecoder("decode.ft_mint.v1", consumeFtMintDecodedEvents),
+		runDecoder("decode.ft_burn.v1", consumeFtBurnDecodedEvents),
+		runDecoder("decode.nft_mint.v1", consumeNftMintDecodedEvents),
+		runDecoder("decode.nft_burn.v1", consumeNftBurnDecodedEvents),
+		runDecoder("decode.print.v1", consumePrintDecodedEvents),
 	];
 	if (SBTC_ENABLED) {
-		tasks.push(runDecoder("l2.sbtc.v1", consumeSbtcRegistryDecodedEvents));
-		tasks.push(runDecoder("l2.sbtc_token.v1", consumeSbtcTokenDecodedEvents));
+		tasks.push(runDecoder("decode.sbtc.v1", consumeSbtcRegistryDecodedEvents));
+		tasks.push(
+			runDecoder("decode.sbtc_token.v1", consumeSbtcTokenDecodedEvents),
+		);
 	} else {
-		logger.info("l2_decoder.sbtc_disabled");
+		logger.info("decoder.sbtc_disabled");
 	}
 	if (POX4_ENABLED) {
-		tasks.push(runDecoder("l2.pox4.v1", consumePox4DecodedEvents));
+		tasks.push(runDecoder("decode.pox4.v1", consumePox4DecodedEvents));
 	} else {
-		logger.info("l2_decoder.pox4_disabled");
+		logger.info("decoder.pox4_disabled");
 	}
 	if (BNS_ENABLED) {
-		tasks.push(runDecoder("l2.bns.v1", consumeBnsDecodedEvents));
+		tasks.push(runDecoder("decode.bns.v1", consumeBnsDecodedEvents));
 	} else {
-		logger.info("l2_decoder.bns_disabled");
+		logger.info("decoder.bns_disabled");
 	}
 	await Promise.all(tasks);
 }
@@ -208,7 +207,7 @@ const server = Bun.serve({
 		}
 
 		try {
-			const health = await getL2DecodersHealth();
+			const health = await getDecodersHealth();
 			return Response.json(health, {
 				status: health.status === "healthy" ? 200 : 503,
 			});

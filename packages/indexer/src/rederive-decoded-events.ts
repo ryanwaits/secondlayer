@@ -12,7 +12,7 @@
  * Isolated by design: it pages `readCanonicalStreamsEvents` over a bounded
  * [from,to] height window and writes via the same idempotent `writeDecodedEvents`
  * (upsert on cursor) the live decoders use — but it keeps NO checkpoint and never
- * touches the live l2_decoder_checkpoints, so the live decoder stays at tip with
+ * touches the live decoder_checkpoints, so the live decoder stays at tip with
  * zero lag. Dry-run by default; `--apply` deletes + writes. Idempotent.
  *
  * `--types` is REQUIRED and must match exactly the types decoded_events already
@@ -47,7 +47,7 @@ import {
 import { decodeStreamsCursor } from "@secondlayer/shared";
 import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
-import { writeDecodedEvents } from "./l2/storage.ts";
+import { writeDecodedEvents } from "./decode/storage.ts";
 import { readCanonicalStreamsEvents } from "./streams-events.ts";
 
 // event_type → the live decode fn. Covers every type `decoded_events` stores.

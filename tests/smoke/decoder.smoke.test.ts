@@ -16,16 +16,16 @@ import {
 } from "./continuous-service.ts";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const SERVICE_NAME = "l2-decoder";
+const SERVICE_NAME = "decoder";
 const EXPECTED_EVENT_TYPE = "ft_transfer";
-const DECODER_NAME = "l2.ft_transfer.v1";
+const DECODER_NAME = "decode.ft_transfer.v1";
 const SMOKE_TIMEOUT_MS = 95_000;
 
-describe("continuous service smoke: l2-decoder", () => {
+describe("continuous service smoke: decoder", () => {
 	test(
 		"runs for at least 60s and advances decoded output",
 		async () => {
-			const smokeDb = await createSmokeDatabase("secondlayer_smoke_l2_decoder");
+			const smokeDb = await createSmokeDatabase("secondlayer_smoke_decoder");
 			let apiServer: ReturnType<typeof Bun.serve> | null = null;
 
 			try {
@@ -41,33 +41,33 @@ describe("continuous service smoke: l2-decoder", () => {
 					serviceName: SERVICE_NAME,
 					outputTable: "decoded_events",
 					expectedEventType: EXPECTED_EVENT_TYPE,
-					checkpointLabel: "l2_decoder_checkpoints",
+					checkpointLabel: "decoder_checkpoints",
 					timeoutMs: SMOKE_TIMEOUT_MS,
 					pollIntervalMs: 1_000,
 					minimumOutputWrites: 2,
 					minimumExpectedEventTypeRows: 2,
-					seed: () => seedL2DecoderSourceFeed(smokeDb.db),
+					seed: () => seedDecoderSourceFeed(smokeDb.db),
 					startService: () =>
 						spawnContinuousService({
-							command: ["bun", "run", "packages/indexer/src/l2/service.ts"],
+							command: ["bun", "run", "packages/indexer/src/decode/service.ts"],
 							cwd: REPO_ROOT,
 							env: {
 								DATABASE_URL: smokeDb.url,
 								STREAMS_API_URL: `http://127.0.0.1:${apiPort}`,
-								STREAMS_INTERNAL_API_KEY: "sk-sl_streams_l2_internal",
+								STREAMS_INTERNAL_API_KEY: "sk-sl_streams_decode_internal",
 								PORT: String(servicePort),
-								L2_DECODER_BATCH_SIZE: "1",
-								L2_DECODER_EMPTY_BACKOFF_MS: "250",
+								DECODER_BATCH_SIZE: "1",
+								DECODER_EMPTY_BACKOFF_MS: "250",
 								DATABASE_POOL_MAX: "4",
 								LOG_LEVEL: "warn",
 								NODE_ENV: "test",
 							},
 						}),
-					readProgress: () => readL2DecoderProgress(smokeDb.db),
+					readProgress: () => readDecoderProgress(smokeDb.db),
 				});
 
 				console.info(
-					`[l2-decoder smoke] rows_written=${summary.outputRowsWritten} checkpoint_delta=${summary.checkpointDelta.before ?? "null"}->${summary.checkpointDelta.after ?? "null"} event_type_counts=${JSON.stringify(summary.after.eventTypeCounts ?? {})}`,
+					`[decoder smoke] rows_written=${summary.outputRowsWritten} checkpoint_delta=${summary.checkpointDelta.before ?? "null"}->${summary.checkpointDelta.after ?? "null"} event_type_counts=${JSON.stringify(summary.after.eventTypeCounts ?? {})}`,
 				);
 				expect(summary.elapsedMs).toBeGreaterThanOrEqual(60_000);
 				expect(
@@ -112,7 +112,7 @@ function createStreamsApi(db: Kysely<Database>): Hono {
 	return app;
 }
 
-async function seedL2DecoderSourceFeed(db: Kysely<Database>): Promise<void> {
+async function seedDecoderSourceFeed(db: Kysely<Database>): Promise<void> {
 	await db
 		.insertInto("blocks")
 		.values([
@@ -257,7 +257,7 @@ async function seedL2DecoderSourceFeed(db: Kysely<Database>): Promise<void> {
 		.execute();
 }
 
-async function readL2DecoderProgress(
+async function readDecoderProgress(
 	db: Kysely<Database>,
 ): Promise<ContinuousServiceProgress> {
 	const outputRows = await countSql(
@@ -269,7 +269,7 @@ async function readL2DecoderProgress(
 		sql`SELECT count(*)::int AS count FROM decoded_events WHERE event_type = ${EXPECTED_EVENT_TYPE}`,
 	);
 	const checkpoint = await db
-		.selectFrom("l2_decoder_checkpoints")
+		.selectFrom("decoder_checkpoints")
 		.select("last_cursor")
 		.where("decoder_name", "=", DECODER_NAME)
 		.executeTakeFirst();

@@ -42,7 +42,7 @@ const SBTC_TOKEN_ASSET_IDS: readonly string[] = [
 // across all contracts; on a fresh backfill from genesis the response
 // exceeds the upstream socket timeout and the consumer sees
 // "socket connection was closed unexpectedly". Mirrors the BNS decoder's
-// fix at packages/indexer/src/l2/decoders/bns.ts.
+// fix at packages/indexer/src/decode/decoders/bns.ts.
 function pickNetwork(): "mainnet" | "testnet" {
 	return process.env.STACKS_NETWORK === "testnet" ? "testnet" : "mainnet";
 }
@@ -85,7 +85,7 @@ export type ConsumeSbtcOptions = {
 
 /**
  * Registry-events decoder — `print` events on `<network>.sbtc-registry`.
- * Writes to `sbtc_events`. Tracks via the `l2.sbtc.v1` checkpoint.
+ * Writes to `sbtc_events`. Tracks via the `decode.sbtc.v1` checkpoint.
  *
  * Uses `batchSize: 100` and a server-side `contractId` filter for the
  * same reason BNS does: limit=500 against the broader streams scan
@@ -128,7 +128,7 @@ export async function consumeSbtcRegistryDecodedEvents(
 					const row = decodeRegistryPrint(event);
 					if (row) rows.push(row);
 				} catch (error) {
-					logger.warn("l2_decoder.decode_skipped", {
+					logger.warn("decoder.decode_skipped", {
 						decoder: decoderName,
 						cursor: event.cursor,
 						tx_id: event.tx_id,
@@ -163,7 +163,7 @@ export async function consumeSbtcRegistryDecodedEvents(
 /**
  * Token-events decoder — `ft_transfer/mint/burn` against the sbtc-token
  * contract. Writes to `sbtc_token_events`. Tracks via the
- * `l2.sbtc_token.v1` checkpoint.
+ * `decode.sbtc_token.v1` checkpoint.
  */
 export async function consumeSbtcTokenDecodedEvents(
 	opts: ConsumeSbtcOptions = {},
@@ -201,7 +201,7 @@ export async function consumeSbtcTokenDecodedEvents(
 					const row = decodeTokenEvent(event);
 					if (row) rows.push(row);
 				} catch (error) {
-					logger.warn("l2_decoder.decode_skipped", {
+					logger.warn("decoder.decode_skipped", {
 						decoder: decoderName,
 						cursor: event.cursor,
 						tx_id: event.tx_id,

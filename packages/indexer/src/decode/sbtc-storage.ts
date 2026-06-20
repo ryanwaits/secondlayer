@@ -7,8 +7,8 @@ import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
 import { writeDecoderCheckpoint } from "./storage.ts";
 
-export const SBTC_DECODER_NAME = "l2.sbtc.v1";
-export const SBTC_TOKEN_DECODER_NAME = "l2.sbtc_token.v1";
+export const SBTC_DECODER_NAME = "decode.sbtc.v1";
+export const SBTC_TOKEN_DECODER_NAME = "decode.sbtc_token.v1";
 
 export type SbtcEventRow = {
 	cursor: string;

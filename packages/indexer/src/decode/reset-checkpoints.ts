@@ -9,10 +9,10 @@
  * Defaults to a ~90-day window and DRY-RUN. Run against the target DB
  * (prod env / indexer container) and pass `--apply` to actually write:
  *
- *   bun run src/l2/reset-checkpoints.ts                 # dry-run, 90d, go-forward decoders
- *   bun run src/l2/reset-checkpoints.ts --days 30       # dry-run, 30d
- *   bun run src/l2/reset-checkpoints.ts --from-height 8000000 --apply
- *   bun run src/l2/reset-checkpoints.ts --decoders l2.print.v1 --apply
+ *   bun run src/decode/reset-checkpoints.ts                 # dry-run, 90d, go-forward decoders
+ *   bun run src/decode/reset-checkpoints.ts --days 30       # dry-run, 30d
+ *   bun run src/decode/reset-checkpoints.ts --from-height 8000000 --apply
+ *   bun run src/decode/reset-checkpoints.ts --decoders decode.print.v1 --apply
  *
  * After --apply, decoders pick up the new checkpoint within a poll cycle;
  * restart the indexer to force immediate pickup. Reset one group at a time to
@@ -22,8 +22,8 @@ import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
 import {
+	DECODER_NAMES,
 	FT_TRANSFER_DECODER_NAME,
-	L2_DECODER_NAMES,
 	NFT_TRANSFER_DECODER_NAME,
 	readDecoderCheckpoint,
 	writeDecoderCheckpoint,
@@ -31,7 +31,7 @@ import {
 
 // ft/nft transfers were the original decoders and already hold full history;
 // the backfill targets the types added go-forward.
-const GO_FORWARD_DECODERS = L2_DECODER_NAMES.filter(
+const GO_FORWARD_DECODERS = DECODER_NAMES.filter(
 	(name) =>
 		name !== FT_TRANSFER_DECODER_NAME && name !== NFT_TRANSFER_DECODER_NAME,
 );
@@ -68,7 +68,7 @@ function parseArgs(argv: string[]): Args {
 		throw new Error("--from-height must be an integer");
 	}
 	const unknown = decoders.filter(
-		(name) => !L2_DECODER_NAMES.includes(name as never),
+		(name) => !DECODER_NAMES.includes(name as never),
 	);
 	if (unknown.length > 0) {
 		throw new Error(`unknown decoders: ${unknown.join(", ")}`);

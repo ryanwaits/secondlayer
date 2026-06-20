@@ -168,7 +168,7 @@ export async function consumeBnsDecodedEvents(
 						if (row) marketplaceRows.push(row);
 					}
 				} catch (error) {
-					logger.warn("l2_decoder.decode_skipped", {
+					logger.warn("decoder.decode_skipped", {
 						decoder: decoderName,
 						cursor: event.cursor,
 						tx_id: event.tx_id,

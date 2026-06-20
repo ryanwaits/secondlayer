@@ -9,7 +9,7 @@ import {
 import {
 	consumeFtTransferDecodedEvents,
 	consumeNftTransferDecodedEvents,
-} from "@secondlayer/indexer/l2/decoder";
+} from "@secondlayer/indexer/decode/decoder";
 import { createStreamsClient } from "@secondlayer/sdk";
 import { getDb, sql } from "@secondlayer/shared/db";
 import { Hono } from "hono";
@@ -22,12 +22,12 @@ import { createStreamsRouter } from "../routes/streams.ts";
 import { STREAMS_READ_SCOPE, type StreamsTokenStore } from "./auth.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
-const INTERNAL_STREAMS_KEY = "sk-sl_streams_l2_enterprise_test";
+const INTERNAL_STREAMS_KEY = "sk-sl_streams_decode_enterprise_test";
 const INTERNAL_STREAMS_TOKENS: StreamsTokenStore = new Map([
 	[
 		INTERNAL_STREAMS_KEY,
 		{
-			tenant_id: "tenant_streams_l2_internal",
+			tenant_id: "tenant_streams_decode_internal",
 			tier: "enterprise",
 			scopes: [STREAMS_READ_SCOPE],
 		},
@@ -66,7 +66,7 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 	beforeEach(async () => {
 		if (!db) return;
 		await sql`DELETE FROM decoded_events`.execute(db);
-		await sql`DELETE FROM l2_decoder_checkpoints`.execute(db);
+		await sql`DELETE FROM decoder_checkpoints`.execute(db);
 		await sql`DELETE FROM events`.execute(db);
 		await sql`DELETE FROM transactions`.execute(db);
 		await sql`DELETE FROM blocks`.execute(db);
@@ -301,9 +301,9 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 		});
 
 		const checkpoint = await db
-			.selectFrom("l2_decoder_checkpoints")
+			.selectFrom("decoder_checkpoints")
 			.select("last_cursor")
-			.where("decoder_name", "=", "l2.nft_transfer.v1")
+			.where("decoder_name", "=", "decode.nft_transfer.v1")
 			.executeTakeFirstOrThrow();
 		expect(checkpoint.last_cursor).toBe("1:4");
 	});
@@ -331,9 +331,9 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 			.orderBy("cursor")
 			.execute();
 		const checkpoint = await db
-			.selectFrom("l2_decoder_checkpoints")
+			.selectFrom("decoder_checkpoints")
 			.select("last_cursor")
-			.where("decoder_name", "=", "l2.ft_transfer.v1")
+			.where("decoder_name", "=", "decode.ft_transfer.v1")
 			.executeTakeFirst();
 
 		expect(rows).toEqual([

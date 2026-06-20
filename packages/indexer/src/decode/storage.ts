@@ -3,19 +3,19 @@ import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Generated, Kysely } from "kysely";
 
-export const FT_TRANSFER_DECODER_NAME = "l2.ft_transfer.v1";
-export const NFT_TRANSFER_DECODER_NAME = "l2.nft_transfer.v1";
-export const STX_TRANSFER_DECODER_NAME = "l2.stx_transfer.v1";
-export const STX_MINT_DECODER_NAME = "l2.stx_mint.v1";
-export const STX_BURN_DECODER_NAME = "l2.stx_burn.v1";
-export const STX_LOCK_DECODER_NAME = "l2.stx_lock.v1";
-export const FT_MINT_DECODER_NAME = "l2.ft_mint.v1";
-export const FT_BURN_DECODER_NAME = "l2.ft_burn.v1";
-export const NFT_MINT_DECODER_NAME = "l2.nft_mint.v1";
-export const NFT_BURN_DECODER_NAME = "l2.nft_burn.v1";
-export const PRINT_DECODER_NAME = "l2.print.v1";
+export const FT_TRANSFER_DECODER_NAME = "decode.ft_transfer.v1";
+export const NFT_TRANSFER_DECODER_NAME = "decode.nft_transfer.v1";
+export const STX_TRANSFER_DECODER_NAME = "decode.stx_transfer.v1";
+export const STX_MINT_DECODER_NAME = "decode.stx_mint.v1";
+export const STX_BURN_DECODER_NAME = "decode.stx_burn.v1";
+export const STX_LOCK_DECODER_NAME = "decode.stx_lock.v1";
+export const FT_MINT_DECODER_NAME = "decode.ft_mint.v1";
+export const FT_BURN_DECODER_NAME = "decode.ft_burn.v1";
+export const NFT_MINT_DECODER_NAME = "decode.nft_mint.v1";
+export const NFT_BURN_DECODER_NAME = "decode.nft_burn.v1";
+export const PRINT_DECODER_NAME = "decode.print.v1";
 
-export const L2_DECODER_NAMES = [
+export const DECODER_NAMES = [
 	FT_TRANSFER_DECODER_NAME,
 	NFT_TRANSFER_DECODER_NAME,
 	STX_TRANSFER_DECODER_NAME,
@@ -29,9 +29,9 @@ export const L2_DECODER_NAMES = [
 	PRINT_DECODER_NAME,
 ] as const;
 
-export type L2DecoderName = (typeof L2_DECODER_NAMES)[number];
+export type DecoderName = (typeof DECODER_NAMES)[number];
 
-export const L2_DECODER_EVENT_TYPES: Record<L2DecoderName, string> = {
+export const DECODER_EVENT_TYPES: Record<DecoderName, string> = {
 	[FT_TRANSFER_DECODER_NAME]: "ft_transfer",
 	[NFT_TRANSFER_DECODER_NAME]: "nft_transfer",
 	[STX_TRANSFER_DECODER_NAME]: "stx_transfer",
@@ -47,9 +47,9 @@ export const L2_DECODER_EVENT_TYPES: Record<L2DecoderName, string> = {
 
 // Returns ft+nft (always on) plus sbtc/pox4/bns conditional on env flags.
 // Both indexer and api containers read the same docker .env, so this view is
-// consistent across processes. Used as the default for `getL2DecodersHealth`
+// consistent across processes. Used as the default for `getDecodersHealth`
 // so /public/status reports every enabled decoder, not just the hardcoded two.
-export function getEnabledL2DecoderNames(
+export function getEnabledDecoderNames(
 	env: NodeJS.ProcessEnv = process.env,
 ): readonly string[] {
 	const names: string[] = [
@@ -72,10 +72,10 @@ export function getEnabledL2DecoderNames(
 	// `env` (not global process.env) so this stays testable and consistent, and
 	// so /public/status surfaces the same decoder set the indexer actually runs.
 	if (env.SBTC_DECODER_ENABLED !== "false") {
-		names.push("l2.sbtc.v1", "l2.sbtc_token.v1");
+		names.push("decode.sbtc.v1", "decode.sbtc_token.v1");
 	}
-	if (env.POX4_DECODER_ENABLED !== "false") names.push("l2.pox4.v1");
-	if (env.BNS_DECODER_ENABLED === "true") names.push("l2.bns.v1");
+	if (env.POX4_DECODER_ENABLED !== "false") names.push("decode.pox4.v1");
+	if (env.BNS_DECODER_ENABLED === "true") names.push("decode.bns.v1");
 	return names;
 }
 
@@ -100,7 +100,7 @@ type L2Database = Database & {
 		source_cursor: string;
 		created_at: Generated<Date>;
 	};
-	l2_decoder_checkpoints: {
+	decoder_checkpoints: {
 		decoder_name: string;
 		last_cursor: string | null;
 		updated_at: Generated<Date>;
@@ -117,7 +117,7 @@ export async function readDecoderCheckpoint(opts?: {
 }): Promise<string | null> {
 	const db = l2Db(opts?.db);
 	const row = await db
-		.selectFrom("l2_decoder_checkpoints")
+		.selectFrom("decoder_checkpoints")
 		.select("last_cursor")
 		.where("decoder_name", "=", opts?.decoderName ?? FT_TRANSFER_DECODER_NAME)
 		.executeTakeFirst();
@@ -133,7 +133,7 @@ export async function writeDecoderCheckpoint(opts: {
 	const decoderName = opts.decoderName ?? FT_TRANSFER_DECODER_NAME;
 
 	await db
-		.insertInto("l2_decoder_checkpoints")
+		.insertInto("decoder_checkpoints")
 		.values({
 			decoder_name: decoderName,
 			last_cursor: opts.cursor,
@@ -159,7 +159,7 @@ export async function bumpDecoderCheckpoint(opts: {
 }): Promise<void> {
 	const db = l2Db(opts.db);
 	await db
-		.updateTable("l2_decoder_checkpoints")
+		.updateTable("decoder_checkpoints")
 		.set({ updated_at: new Date() })
 		.where("decoder_name", "=", opts.decoderName)
 		.execute();
@@ -236,14 +236,14 @@ export async function writeDecodedEvents(
 
 export async function handleDecodedEventsReorg(
 	blockHeight: number,
-	opts?: { db?: Kysely<Database>; decoderNames?: readonly L2DecoderName[] },
+	opts?: { db?: Kysely<Database>; decoderNames?: readonly DecoderName[] },
 ): Promise<{
 	deleted: number;
-	checkpoints: Record<L2DecoderName, string | null>;
+	checkpoints: Record<DecoderName, string | null>;
 	checkpoint: string | null;
 }> {
 	const db = l2Db(opts?.db);
-	const decoderNames = opts?.decoderNames ?? L2_DECODER_NAMES;
+	const decoderNames = opts?.decoderNames ?? DECODER_NAMES;
 
 	// Hard-DELETE every decoded row at/above the fork, mirroring persistBlock's
 	// delete-before-insert of the raw events at a reorged height. A flag is not
@@ -265,11 +265,11 @@ export async function handleDecodedEventsReorg(
 		.where("block_height", ">=", blockHeight)
 		.executeTakeFirst();
 
-	const checkpoints = {} as Record<L2DecoderName, string | null>;
+	const checkpoints = {} as Record<DecoderName, string | null>;
 	for (const decoderName of decoderNames) {
 		const checkpoint = await readCanonicalCheckpointBeforeBlock(
 			blockHeight,
-			L2_DECODER_EVENT_TYPES[decoderName],
+			DECODER_EVENT_TYPES[decoderName],
 			opts?.db,
 		);
 		checkpoints[decoderName] = checkpoint;

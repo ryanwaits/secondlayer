@@ -102,13 +102,13 @@ jobs:
           - api
           - indexer
           - worker
-          - l2-decoder
+          - decoder
           - subgraph-processor
           - subscription-processor
         # Thin targets (FROM api / FROM indexer) reuse the base image's build
         # cache scope so they don't rebuild the whole chain.
         include:
-          - service: l2-decoder
+          - service: decoder
             base: indexer
           - service: subgraph-processor
             base: api

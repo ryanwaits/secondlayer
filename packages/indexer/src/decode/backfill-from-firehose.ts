@@ -19,7 +19,7 @@
  * tip; overlapping ranges re-write identical rows.
  *
  * Usage:
- *   bun run packages/indexer/src/l2/backfill-from-firehose.ts \
+ *   bun run packages/indexer/src/decode/backfill-from-firehose.ts \
  *     --target sbtc            # a registry key, or "all"
  *     [--from-height N] [--to-height N] [--limit 500] [--apply]
  *

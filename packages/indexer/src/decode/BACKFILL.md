@@ -20,8 +20,8 @@ data since their deploy. This rewinds their checkpoints so they replay history.
 default. `contract_calls` reads the transactions table directly and is already
 historical — nothing to do there.)
 
-Tool: `packages/indexer/src/l2/reset-checkpoints.ts` (dry-run by default; writes
-only with `--apply`). It sets each decoder's `l2_decoder_checkpoints.last_cursor`
+Tool: `packages/indexer/src/decode/reset-checkpoints.ts` (dry-run by default; writes
+only with `--apply`). It sets each decoder's `decoder_checkpoints.last_cursor`
 to `<startHeight>:0`; on its next poll each decoder replays from there. Writes
 are idempotent upserts, so re-processing the recent tail is harmless.
 
@@ -35,7 +35,7 @@ are idempotent upserts, so re-processing the recent tail is harmless.
 - SSH access to the prod host, and you're in the directory with
   `docker-compose.yml` (where `docker compose …` resolves the project).
 - Confirm container/service names if unsure: `docker compose ps` — expect the
-  decoder service `l2-decoder` (container `secondlayer-l2-decoder-1`).
+  decoder service `decoder` (container `secondlayer-decoder-1`).
 
 ## Step 0 — clean reorg dupes first (#46, required)
 
@@ -45,11 +45,11 @@ ingest fix is deployed (so no new dupes form), and before the backfill below:
 
 ```bash
 # dry-run — reports orphaned tx / event counts, no writes
-docker compose run --rm l2-decoder \
+docker compose run --rm decoder \
   bun run packages/indexer/src/cleanup-reorg-dupes.ts
 
 # apply
-docker compose run --rm l2-decoder \
+docker compose run --rm decoder \
   bun run packages/indexer/src/cleanup-reorg-dupes.ts --apply
 ```
 
@@ -62,24 +62,24 @@ Stop the decoder first so it can't overwrite the checkpoint mid-reset.
 
 ```bash
 # 1. Pause the decoder
-docker compose stop l2-decoder
+docker compose stop decoder
 
 # 2. Dry-run — review each decoder's  old cursor -> new cursor  (no writes)
-docker compose run --rm l2-decoder \
-  bun run packages/indexer/src/l2/reset-checkpoints.ts --days 90
+docker compose run --rm decoder \
+  bun run packages/indexer/src/decode/reset-checkpoints.ts --days 90
 
 # 3. Apply once the dry-run looks right
-docker compose run --rm l2-decoder \
-  bun run packages/indexer/src/l2/reset-checkpoints.ts --days 90 --apply
+docker compose run --rm decoder \
+  bun run packages/indexer/src/decode/reset-checkpoints.ts --days 90 --apply
 
 # 4. Resume — decoders replay from the new checkpoint
-docker compose start l2-decoder
+docker compose start decoder
 
 # 5. Watch progress (per-decoder writes_per_minute, checkpoint, lag_seconds)
-docker compose logs -f l2-decoder | grep l2_decoder.progress
+docker compose logs -f decoder | grep decoder.progress
 ```
 
-`docker compose run --rm l2-decoder` starts a throwaway container with the
+`docker compose run --rm decoder` starts a throwaway container with the
 decoder's exact env (DB connection) and overrides the command — it does **not**
 start the long-running service.
 
@@ -93,19 +93,19 @@ cheap types first, let them catch up, then `print` on its own:
 
 ```bash
 # Group A — STX + token mints/burns + lock
-docker compose run --rm l2-decoder \
-  bun run packages/indexer/src/l2/reset-checkpoints.ts --days 90 --apply \
-  --decoders l2.stx_transfer.v1,l2.stx_mint.v1,l2.stx_burn.v1,l2.stx_lock.v1,l2.ft_mint.v1,l2.ft_burn.v1,l2.nft_mint.v1,l2.nft_burn.v1
+docker compose run --rm decoder \
+  bun run packages/indexer/src/decode/reset-checkpoints.ts --days 90 --apply \
+  --decoders decode.stx_transfer.v1,decode.stx_mint.v1,decode.stx_burn.v1,decode.stx_lock.v1,decode.ft_mint.v1,decode.ft_burn.v1,decode.nft_mint.v1,decode.nft_burn.v1
 
 # …let those catch up (watch lag_seconds), then:
 
 # Group B — print (highest volume)
-docker compose run --rm l2-decoder \
-  bun run packages/indexer/src/l2/reset-checkpoints.ts --days 90 --apply \
-  --decoders l2.print.v1
+docker compose run --rm decoder \
+  bun run packages/indexer/src/decode/reset-checkpoints.ts --days 90 --apply \
+  --decoders decode.print.v1
 ```
 
-(Restart `l2-decoder` after each `--apply` if you didn't stop it, or run the
+(Restart `decoder` after each `--apply` if you didn't stop it, or run the
 whole thing with the service stopped and start it once at the end.)
 
 ## Flags
@@ -124,30 +124,30 @@ healthy. The decoder checks run on the prod host (`ssh ryan@claude-mini` →
 `ssh app-server`); the API checks run from anywhere.
 
 **1. Decoders caught up + healthy** (the main check). Want `overall: healthy`
-and every `l2.*` decoder's `lag_seconds` small (tens-to-low-hundreds = at tip).
+and every `decode.*` decoder's `lag_seconds` small (tens-to-low-hundreds = at tip).
 Dense types (`stx_transfer`, `print`) finish last.
 
 ```bash
-docker exec secondlayer-l2-decoder-1 curl -s localhost:3710/health \
+docker exec secondlayer-decoder-1 curl -s localhost:3710/health \
   | python3 -c "import sys,json; d=json.load(sys.stdin); print('overall:', d['status']); [print(f\"  {x['decoder']:22} {x['status']:9} lag={x['lag_seconds']}s\") for x in d['decoders']]"
 ```
 
 **2. Watch live progress** (per-decoder writes_per_minute / checkpoint / lag):
 
 ```bash
-docker logs -f secondlayer-l2-decoder-1 | grep l2_decoder.progress
+docker logs -f secondlayer-decoder-1 | grep decoder.progress
 ```
 
 **3. No decoder errors** (expect empty):
 
 ```bash
-docker logs --since 2h secondlayer-l2-decoder-1 2>&1 | grep "l2_decoder.error" | tail
+docker logs --since 2h secondlayer-decoder-1 2>&1 | grep "decoder.error" | tail
 ```
 
 **4. Replace-per-height holding — no new reorg dupes** (read-only, expect 0):
 
 ```bash
-docker exec secondlayer-l2-decoder-1 \
+docker exec secondlayer-decoder-1 \
   bun run packages/indexer/src/cleanup-reorg-dupes.ts   # → "orphaned transactions: 0"
 ```
 
@@ -168,7 +168,7 @@ historical rows.
 - **Idempotent.** Re-running is safe; upserts on `cursor`.
 - **Recent data lags during replay** for the types being backfilled — the
   decoder is busy with history until it catches back up to tip.
-- **To abort a replay:** stop `l2-decoder`, re-run the tool with
+- **To abort a replay:** stop `decoder`, re-run the tool with
   `--from-height <current-tip>` `--apply` to fast-forward the checkpoint, then
   start it. (Find tip: `curl https://api.secondlayer.tools/v1/index | jq` shows
   it, or query `SELECT max(height) FROM blocks WHERE canonical`.)

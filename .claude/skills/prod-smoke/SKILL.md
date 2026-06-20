@@ -41,11 +41,11 @@ husk symptoms → see PRODUCTION.md rules 2–5.
 ## Phase 2 — data planes
 
 ```bash
-docker exec secondlayer-l2-decoder-1 curl -s localhost:3710/health | \
+docker exec secondlayer-decoder-1 curl -s localhost:3710/health | \
   python3 -c "import sys,json; d=json.load(sys.stdin); print('overall:', d['status']); [print(f\"  {x['decoder']:22} lag={x['lag_seconds']}s cp={x['checkpoint'].split(':')[0]}\") for x in d['decoders'] if x['lag_seconds'] > 120]"
 ```
 15 decoders total. Lag in tens of seconds = at tip. Large lag is OK ONLY during a
-deliberate backfill (`packages/indexer/src/l2/BACKFILL.md`). Known quirk: `l2.pox4.v1`
+deliberate backfill (`packages/indexer/src/decode/BACKFILL.md`). Known quirk: `decode.pox4.v1`
 shadows the slowest replaying decoder's checkpoint — not independently broken.
 
 ```bash

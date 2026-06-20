@@ -132,7 +132,7 @@ CMD ["bun", "run", "packages/indexer/src/index.ts"]
 # L2 decoder service — same payload as the indexer image, dedicated default CMD
 # so it versions/deploys/rolls back as its own image (no shared tag with indexer).
 # =============================================================================
-FROM indexer AS l2-decoder
+FROM indexer AS decoder
 
 ENV PORT=3710
 
@@ -141,7 +141,7 @@ EXPOSE 3710
 HEALTHCHECK --interval=30s --timeout=15s --start-period=60s --retries=3 \
   CMD curl -f http://localhost:3710/health || exit 1
 
-CMD ["bun", "run", "packages/indexer/src/l2/service.ts"]
+CMD ["bun", "run", "packages/indexer/src/decode/service.ts"]
 
 # =============================================================================
 # Subgraph processor — same payload as the api image, dedicated default CMD.

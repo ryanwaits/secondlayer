@@ -11,7 +11,7 @@ Phase 1 runs one live production server path. This runbook is for inspection, re
 | `event-observer-target` | Chain event observer target that forwards events into Second Layer ingest. |
 | `secondlayer-api` | Public HTTPS API for Stacks Streams, Stacks Index, status, and control-plane reads. |
 | `secondlayer-indexer` | Ingest service that writes L1 and L2 stores. |
-| `secondlayer-l2-decoder` | Continuous decoder service for Stacks Index freshness. |
+| `secondlayer-decoder` | Continuous decoder service for Stacks Index freshness. |
 | `secondlayer-worker` | Background worker for billing, usage, and maintenance jobs. |
 | `secondlayer-postgres` | Primary Postgres data store. |
 
@@ -69,7 +69,7 @@ Restart the narrowest failing service first.
 cd /opt/secondlayer
 docker compose -f docker/docker-compose.hetzner.yml restart api
 docker compose -f docker/docker-compose.hetzner.yml restart indexer
-docker compose -f docker/docker-compose.hetzner.yml restart l2-decoder
+docker compose -f docker/docker-compose.hetzner.yml restart decoder
 docker compose -f docker/docker-compose.hetzner.yml restart worker
 ```
 
@@ -142,7 +142,7 @@ If object storage is configured, verify the latest remote object timestamp with 
 cd /opt/secondlayer
 docker compose -f docker/docker-compose.hetzner.yml logs --tail=200 api
 docker compose -f docker/docker-compose.hetzner.yml logs --tail=200 indexer
-docker compose -f docker/docker-compose.hetzner.yml logs --tail=200 l2-decoder
+docker compose -f docker/docker-compose.hetzner.yml logs --tail=200 decoder
 docker compose -f docker/docker-compose.hetzner.yml logs --tail=200 worker
 ```
 
@@ -154,7 +154,7 @@ Escalate beyond restart or rollback when any of these are true:
 
 - `/health` or `/public/status` remains unavailable after one targeted restart.
 - Stacks Streams lag remains above the public threshold after ingest restart.
-- Stacks Index decoder freshness remains unavailable after `l2-decoder` restart.
+- Stacks Index decoder freshness remains unavailable after `decoder` restart.
 - Postgres logs show corruption, disk exhaustion, or failed recovery.
 - Backup freshness cannot be verified.
 - Rollback does not restore one Streams read and one Index read.
@@ -182,7 +182,7 @@ Copy this section into the sprint log or an ops note after Ryan runs the drill.
 - Checklist used: docker/docs/PHASE1_RECOVERY_RUNBOOK.md
 - Health inspection result:
 - Backup freshness result:
-- Service restart exercised: none / api / indexer / l2-decoder / worker
+- Service restart exercised: none / api / indexer / decoder / worker
 - Rollback exercised: no / yes, image tag:
 - `/health` result:
 - `/public/status` result:

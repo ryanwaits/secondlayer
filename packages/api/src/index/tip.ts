@@ -1,4 +1,4 @@
-import { FT_TRANSFER_DECODER_NAME } from "@secondlayer/indexer/l2/decoder";
+import { FT_TRANSFER_DECODER_NAME } from "@secondlayer/indexer/decode/decoder";
 import {
 	type IndexerStreamsTipBlock,
 	getCurrentCanonicalTip,
@@ -56,7 +56,7 @@ export async function getDecoderCheckpointTipBlock(
 	db: Kysely<Database> = getSourceDb(),
 ): Promise<DecodedTipBlock | null> {
 	const checkpoint = await db
-		.selectFrom("l2_decoder_checkpoints")
+		.selectFrom("decoder_checkpoints")
 		.select("last_cursor")
 		.where("decoder_name", "=", FT_TRANSFER_DECODER_NAME)
 		.executeTakeFirst();

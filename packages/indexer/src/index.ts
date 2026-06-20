@@ -17,13 +17,13 @@ import {
 	contractRegistryState,
 	startContractRegistry,
 } from "./contracts/scheduler.ts";
+import { persistBurnBlockRewards } from "./decode/burn-rewards-storage.ts";
 import {
 	getIngestTelemetry,
 	ingestNewBlock,
 	initIngestState,
 } from "./ingest.ts";
 import { integrityState, startIntegrityLoop } from "./integrity.ts";
-import { persistBurnBlockRewards } from "./l2/burn-rewards-storage.ts";
 import {
 	ingestMempoolTxs,
 	isGenuineDrop,

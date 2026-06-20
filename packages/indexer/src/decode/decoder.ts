@@ -39,7 +39,7 @@ import {
 
 export {
 	FT_TRANSFER_DECODER_NAME,
-	L2_DECODER_NAMES,
+	DECODER_NAMES,
 	NFT_TRANSFER_DECODER_NAME,
 } from "./storage.ts";
 
@@ -164,7 +164,7 @@ export async function consumeNftTransferDecodedEvents(opts?: {
 				try {
 					return [decodeNftTransfer(event)];
 				} catch (error) {
-					logger.warn("l2_decoder.decode_skipped", {
+					logger.warn("decoder.decode_skipped", {
 						decoder: decoderName,
 						cursor: event.cursor,
 						tx_id: event.tx_id,
@@ -232,7 +232,7 @@ async function consumeDecodedEvents(
 				try {
 					return [config.decode(event)];
 				} catch (error) {
-					logger.warn("l2_decoder.decode_skipped", {
+					logger.warn("decoder.decode_skipped", {
 						decoder: decoderName,
 						cursor: event.cursor,
 						tx_id: event.tx_id,

@@ -20,7 +20,7 @@ if [ -f .env ]; then
 	set +a
 fi
 
-APP_SERVICES="api indexer l2-decoder subgraph-processor subscription-processor worker caddy"
+APP_SERVICES="api indexer decoder subgraph-processor subscription-processor worker caddy"
 PLATFORM_SERVICES="provisioner"
 TENANT_API_DIGEST_LABEL="org.opencontainers.image.secondlayer.api-source-digest"
 DEPLOY_STATE_DIR="${DEPLOY_STATE_DIR:-/opt/secondlayer/data/deploy}"
@@ -56,11 +56,11 @@ echo "Rollback is image-only. Migrations will not run."
 ROLLBACK_SERVICE="${ROLLBACK_SERVICE:-}"
 if [ -n "$ROLLBACK_SERVICE" ]; then
 	case "$ROLLBACK_SERVICE" in
-		l2-decoder) _svc_tag_var=L2_DECODER_IMAGE_TAG ;;
+		decoder) _svc_tag_var=DECODER_IMAGE_TAG ;;
 		subgraph-processor) _svc_tag_var=SUBGRAPH_PROCESSOR_IMAGE_TAG ;;
 		subscription-processor) _svc_tag_var=SUBSCRIPTION_PROCESSOR_IMAGE_TAG ;;
 		*)
-			echo "ERROR: ROLLBACK_SERVICE must be one of: l2-decoder subgraph-processor subscription-processor"
+			echo "ERROR: ROLLBACK_SERVICE must be one of: decoder subgraph-processor subscription-processor"
 			exit 2
 			;;
 	esac
@@ -84,7 +84,7 @@ if [ -n "$ROLLBACK_SERVICE" ]; then
 fi
 
 # Pull exact images before changing any running containers.
-$COMPOSE pull api indexer l2-decoder subgraph-processor subscription-processor worker migrate
+$COMPOSE pull api indexer decoder subgraph-processor subscription-processor worker migrate
 $COMPOSE --profile platform pull provisioner
 
 # Recreate only runtime services. --no-deps prevents compose from starting the
@@ -130,7 +130,7 @@ check_container_health() {
 	return 1
 }
 
-check_container_health l2-decoder
+check_container_health decoder
 
 refresh_active_tenants() {
 	if [ -z "${PROVISIONER_SECRET:-}" ]; then

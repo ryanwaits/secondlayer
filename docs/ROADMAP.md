@@ -275,7 +275,7 @@ a revenue line.
   surface Bitcoin L1 data ONLY for sBTC peg settlement — do NOT drift into general BTC
   balances/UTXO/ordinals indexing (different engine, saturated, Xverse incumbent — see the
   chain-expansion audit). The full BTC node is an asset for settlement finality, not a license to
-  become a Bitcoin API. Effort: **M**. Files: `packages/indexer/src/l2/` (new btc-confirmer),
+  become a Bitcoin API. Effort: **M**. Files: `packages/indexer/src/decode/` (new btc-confirmer),
   `docker/node-server/` (RPC exposure).
 
 - ~~**Productize PoX-cycle / reward-set aggregate endpoints**~~ **SHIPPED 2026-06-14** —

@@ -80,7 +80,7 @@ describe("status page helpers", () => {
 		expect(serviceStatusColor("ok")).toBe("green");
 		expect(serviceStatusColor("degraded")).toBe("yellow");
 		expect(serviceStatusColor("unavailable")).toBe("muted");
-		expect(serviceDisplayName("l2_decoder")).toBe("Decoder");
+		expect(serviceDisplayName("decoder")).toBe("Decoder");
 	});
 
 	test("reads the incident heading from markdown", () => {
@@ -94,7 +94,7 @@ describe("status page helpers", () => {
 			status: "degraded" as const,
 			decoders: [
 				{
-					decoder: "l2.ft_transfer.v1",
+					decoder: "decode.ft_transfer.v1",
 					eventType: "ft_transfer" as const,
 					status: "ok" as const,
 					lagSeconds: 12,
@@ -103,7 +103,7 @@ describe("status page helpers", () => {
 					lastDecodedAt: "2026-05-11T12:00:00.000Z",
 				},
 				{
-					decoder: "l2.nft_transfer.v1",
+					decoder: "decode.nft_transfer.v1",
 					eventType: "nft_transfer" as const,
 					status: "degraded" as const,
 					lagSeconds: 180,
