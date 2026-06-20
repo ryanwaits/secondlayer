@@ -291,6 +291,47 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 			"/secondlayer Walk me through a genesis sync: start with `TIP_FOLLOWER_ENABLED=false`, track progress via `curl http://localhost:3700/health | jq .block_height` against the chain tip, re-enable the tip follower, then deploy a subgraph against my local instance with `SL_API_URL=http://localhost:3800` and `sl subgraphs deploy`.",
 		),
 	],
+
+	"/docs/devnet": [
+		card(
+			"Spin up local devnet",
+			"Point a Clarinet project at a local Secondlayer stack.",
+			"/secondlayer From inside my Clarinet project, run `sl devnet connect` — explain that it patches `settings/Devnet.toml` to forward events to the local indexer on `:3700`, writes `.secondlayer/docker-compose.yml`, and brings the stack up. Then start the chain with `clarinet devnet start` and confirm the api is live at `http://localhost:3800`.",
+		),
+		card(
+			"Deploy against devnet",
+			"Run a subgraph on local devnet blocks, no keys.",
+			"/secondlayer Help me deploy a subgraph against my local devnet: `SL_API_URL=http://localhost:3800 SL_API_KEY=dummy sl subgraphs deploy ./subgraph.ts` (no login — the local stack accepts a dummy key). Then have me fire a contract call in the devnet and confirm the matching rows land by reading the subgraph's table.",
+		),
+		card(
+			"Watch and tear down",
+			"Snapshot ingest, tail logs, then wipe the stack.",
+			"/secondlayer Walk me through watching the local stack: `sl devnet status -w` for live ingest lag and recent rows, `sl devnet logs indexer -f` to tail one service, then `sl devnet down` to stop — or `sl devnet down --purge` to wipe the local index volumes when I'm done.",
+		),
+	],
+
+	"/docs/migrate-chainhook": [
+		card(
+			"Convert my predicate",
+			"Map a Chainhook predicate to subscription triggers.",
+			"/secondlayer I'm moving from Hiro Chainhook to Secondlayer subscriptions. I'll paste my predicate JSON — map each `if_this` scope to the matching `trigger.*` factory (`contract_call`→`trigger.contractCall`, `print_event`→`trigger.printEvent`, `ft_event`/`nft_event`/`stx_event`→the mint/transfer/burn factories, `contract_deployment`→`trigger.contractDeploy`), carry over `contract_identifier`/`method`/wildcards and any `trait` scope, and build one `sl.subscriptions.create({ name, url, triggers })` call. Flag any scope with no direct trigger — like `txid`, which I query on `/v1/index` instead.",
+		),
+		card(
+			"Backfill predicate history",
+			"Replace a predicate's start_block with replay.",
+			"/secondlayer Chainhook predicates scan from a `start_block`; a Secondlayer subscription starts at the chain tip. Help me deliver the history I'm missing with `replay` over an existing subscription — explain that it's idempotent, capped at 100,000 blocks, and never moves the live cursor — then give me the exact call for the block range I name.",
+		),
+		card(
+			"Verify deliveries",
+			"Swap bearer-token auth for signature verification.",
+			"/secondlayer In Chainhook I authed webhooks with a bearer token; on Secondlayer the signature is the auth. Help me verify every delivery with `verifyWebhookSignature` from `@secondlayer/sdk` before I process it, then handle the `chain.{type}.apply` and `chain.reorg.rollback` envelopes so I undo anything I committed off an orphaned block.",
+		),
+		card(
+			"Move a self-hosted v1 stack",
+			"Run the indexer against your own node, same API.",
+			"/secondlayer I was running self-hosted Chainhook (v1). Help me stand up the Secondlayer indexer against my own Stacks node instead: point the node's `events_observer` at the indexer on `:3700`, then create subscriptions with the same `sl.subscriptions.create` API I'd use on hosted. Same triggers, my infrastructure.",
+		),
+	],
 };
 
 /** Last-resort default for an unknown slug — every real docs page has its own
