@@ -177,6 +177,15 @@ export type IndexEvent = {
 	value?: string | null;
 	memo?: string | null;
 	payload?: unknown;
+	/** Submitting-transaction context, present only when `tx_context=true`. The
+	 *  real tx sender — distinct from a transfer event's asset `sender`, and the
+	 *  only place a print event's sender is available. Lets the subgraph runtime
+	 *  build `ctx.tx` without fetching every transaction in the range. */
+	tx_sender?: string | null;
+	tx_type?: string | null;
+	tx_status?: string | null;
+	tx_contract_id?: string | null;
+	tx_function_name?: string | null;
 };
 
 type IndexEventRow = {
@@ -195,6 +204,11 @@ type IndexEventRow = {
 	value?: string | null;
 	memo?: string | null;
 	payload?: unknown;
+	tx_sender?: string | null;
+	tx_type?: string | null;
+	tx_status?: string | null;
+	tx_contract_id?: string | null;
+	tx_function_name?: string | null;
 };
 
 export type IndexEventsQuery = {
@@ -207,6 +221,8 @@ export type IndexEventsQuery = {
 	filters: Partial<Record<IndexEqualityFilter, string>>;
 	/** Restrict to contracts conforming to this trait/standard (resolved as-of toHeight). */
 	trait?: string;
+	/** Join the submitting tx for `tx_*` fields (opt-in; powers subgraph reindex). */
+	withTx: boolean;
 	cursorPastTip: boolean;
 };
 
@@ -226,6 +242,8 @@ export type ReadIndexEventsParams = {
 	filters?: Partial<Record<IndexEqualityFilter, string>>;
 	/** Restrict to contracts conforming to this trait/standard (resolved as-of toHeight). */
 	trait?: string;
+	/** Join the submitting tx for `tx_*` fields (opt-in; powers subgraph reindex). */
+	withTx?: boolean;
 	db?: Kysely<Database>;
 };
 
@@ -260,6 +278,14 @@ function normalizeIndexRow(
 			column === "payload" && typeof raw === "string"
 				? parseJsonColumn(raw)
 				: raw;
+	}
+	// Submitting-tx context (present only when the read joined it).
+	if (row.tx_sender !== undefined) {
+		event.tx_sender = row.tx_sender;
+		event.tx_type = row.tx_type;
+		event.tx_status = row.tx_status;
+		event.tx_contract_id = row.tx_contract_id;
+		event.tx_function_name = row.tx_function_name;
 	}
 	return event;
 }
@@ -340,6 +366,25 @@ export async function readIndexEvents(
 		sql`, `,
 	);
 
+	// Opt-in submitting-tx context. A LATERAL lookup on the canonical (tx_id,
+	// block_height) — one PK-indexed probe per row, only when requested — so the
+	// subgraph reindex stops fetching every transaction in the range (the ~37x
+	// over-fetch; see docs/sprints/indexing-speed/plan.md T2). `tx.*` columns are
+	// only addressable via the alias, so the bare-column predicates stay
+	// unambiguously scoped to decoded_events.
+	const txSelect = params.withTx
+		? sql`, tx.sender AS tx_sender, tx.type AS tx_type, tx.status AS tx_status, tx.contract_id AS tx_contract_id, tx.function_name AS tx_function_name`
+		: sql``;
+	const txJoin = params.withTx
+		? sql`LEFT JOIN LATERAL (
+				SELECT t.sender, t.type, t.status, t.contract_id, t.function_name
+				FROM transactions t
+				WHERE t.tx_id = decoded_events.tx_id
+					AND t.block_height = decoded_events.block_height
+				LIMIT 1
+			) tx ON true`
+		: sql``;
+
 	const { rows } = await sql<IndexEventRow>`
 		SELECT
 			cursor,
@@ -356,8 +401,9 @@ export async function readIndexEvents(
 			event_index,
 			event_type,
 			contract_id,
-			${extraColumns}
+			${extraColumns}${txSelect}
 		FROM decoded_events
+		${txJoin}
 		WHERE ${sql.join(predicates, sql` AND `)}
 		ORDER BY ${orderBy}
 		LIMIT ${params.limit + 1}
@@ -403,6 +449,7 @@ export function parseIndexEventsQuery(
 	validateQueryParams(query, [
 		...config.allowedFilters,
 		"event_type",
+		"tx_context",
 		...(traitSupported ? ["trait"] : []),
 	]);
 
@@ -425,7 +472,8 @@ export function parseIndexEventsQuery(
 		}
 	}
 
-	return { ...base, eventType: eventTypeRaw, filters, trait };
+	const withTx = query.get("tx_context") === "true";
+	return { ...base, eventType: eventTypeRaw, filters, trait, withTx };
 }
 
 export async function getIndexEventsResponse(opts: {
@@ -454,6 +502,7 @@ export async function getIndexEventsResponse(opts: {
 		limit: parsed.limit,
 		filters: parsed.filters,
 		trait: parsed.trait,
+		withTx: parsed.withTx,
 	});
 	const reorgs = await readReorgsForEvents(result.events, opts.readReorgs);
 
