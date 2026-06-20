@@ -12,6 +12,21 @@
 > `ffc2c0ed`). Remaining peg work = `/sbtc/summary` aggregate + BTC settlement confirmer +
 > Peg Explorer. Slot caps still open (blocked on founder per-plan numbers).
 
+## 🛑 P0 — Genesis-complete every decoder (BLOCKS ALL NEW FEATURES)
+
+> Plan: `docs/sprints/genesis-decoder-backfill/plan.md`. The index service's core contract is **every
+> block from genesis, decoded + supplied** (the SDK's whole pitch). **Audit 2026-06-20: 7 decoders are
+> floored** at ~6.8M (never backfilled — launch-paused, never resumed; `backfill-from-firehose.ts`
+> wrongly marked them "already-genesis"): **`stx_transfer`(6.80M), `stx_mint`, `stx_burn`, `stx_lock`,
+> `nft_transfer`(7.80M, worst), `nft_mint`, `nft_burn`** — all write `decoded_events` (what Subgraphs +
+> SDK indexers read). `print` is being backfilled now (→ block 32). ft + dedicated (sbtc/pox4/bns)
+> are genesis ✓. **No new features until the floor audit shows every decoder at genesis.**
+>
+> Fix = register the 7 generic decoders in `backfill-from-firehose.ts` (parallel-to-live, **no lag**,
+> unlike `reset-checkpoints` which lags) → run grouped cheap→heavy (`stx_transfer` last) → verify →
+> add a health guard so a new go-forward decoder can't silently ship floored. No-block-loss + idempotent
+> (`ON CONFLICT`; dedupe done).
+
 ## ⚡ Indexing speed — NEXT (the core service, all tiers)
 
 > Plan: `docs/sprints/indexing-speed/plan.md`. Analysis:
