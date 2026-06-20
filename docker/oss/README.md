@@ -1,7 +1,8 @@
 # Secondlayer OSS — self-hosted stack
 
-Full self-hosted Secondlayer: Postgres + API + indexer + subgraph processor,
-optionally bundled with bitcoind + stacks-node.
+Full self-hosted Secondlayer: Postgres + API + indexer + decoder + subgraph
+processor + subscription processor, optionally bundled with bitcoind +
+stacks-node.
 
 ## Requirements
 
@@ -31,8 +32,17 @@ clarinet project.
 cp .env.example .env
 # Edit .env — set POSTGRES_PASSWORD at minimum.
 
-docker compose up -d postgres migrate api indexer subgraph-processor
+docker compose up -d postgres migrate api indexer decoder subgraph-processor subscription-processor
 ```
+
+`decoder` populates the semantic `decoded_events` table (transfers, mints,
+burns, and contract **prints**) that powers `/v1/index` and chain
+`print_event`/transfer subscriptions — without it, `decoded_events` stays empty
+and chain subscriptions never match. `subscription-processor` is the webhook
+delivery plane (chain-trigger evaluator + emitter); to run chain subscriptions
+across both `api` and `subscription-processor`, set a shared
+`SECONDLAYER_SECRETS_KEY` in `.env` (see `.env.example`). Omit both services for
+raw-events-only indexing.
 
 The API is now at `http://localhost:3800`. By default it's open (OSS mode
 default). To require a Bearer key on every request, set `API_KEY` in `.env`
@@ -64,7 +74,7 @@ docker compose exec bitcoind bitcoin-cli -rpcuser=stacks -rpcpassword=$BITCOIN_R
 docker compose --profile node up -d stacks-node
 
 # 4. Start app services (if not already running):
-docker compose up -d postgres migrate api indexer subgraph-processor
+docker compose up -d postgres migrate api indexer decoder subgraph-processor subscription-processor
 ```
 
 ## Deploy a subgraph

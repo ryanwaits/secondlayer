@@ -1,6 +1,9 @@
 # Secondlayer OSS — full self-hosted stack.
 #
-#   docker compose up -d postgres migrate api indexer subgraph-processor
+#   docker compose up -d postgres migrate api indexer decoder subgraph-processor subscription-processor
+#   # decoder populates decoded_events (the semantic plane that powers
+#   # /v1/index and chain print_event/transfer subscriptions); subscription-processor
+#   # is the webhook delivery plane. Omit both for raw-events-only indexing.
 #   # then, once you're ready to run a full Stacks node (takes 1-3 days to sync):
 #   docker compose up -d bitcoind
 #   # wait until `bitcoin-cli getblockcount` > 666050, then:
@@ -100,6 +103,48 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # Decoder service — reads raw events from the bundled api's internal Streams
+  # endpoint and writes the semantic `decoded_events` table (ft/nft/stx
+  # transfers, mints, burns, and contract PRINTS). This is what powers
+  # /v1/index/events and chain `print_event`/transfer subscriptions; without it
+  # decoded_events stays empty and chain subscriptions never match. Consumes
+  # live from postgres via the api (no R2/bulk-publisher needed).
+  decoder:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      target: decoder
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
+      PORT: 3710
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NODE_ENV: production
+      STACKS_NETWORK: ${STACKS_NETWORK:-mainnet}
+      STREAMS_API_URL: http://api:3800
+      # Internal Streams auth. Left blank → both api and decoder fall back to the
+      # same built-in default key, so they agree with zero config. Override on
+      # BOTH if you want a custom key.
+      STREAMS_INTERNAL_API_KEY: ${STREAMS_INTERNAL_API_KEY:-}
+      SBTC_DECODER_ENABLED: ${SBTC_DECODER_ENABLED:-true}
+      POX4_DECODER_ENABLED: ${POX4_DECODER_ENABLED:-true}
+      BNS_DECODER_ENABLED: ${BNS_DECODER_ENABLED:-false}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3710/health"]
+      interval: 30s
+      # /health queries per-decoder checkpoints; under heavy backfill DB load it
+      # can take several seconds, so keep this generous to avoid false unhealthy.
+      timeout: 15s
+      start_period: 60s
+      retries: 3
+    restart: unless-stopped
+
   subgraph-processor:
     build:
       context: ../..
@@ -117,6 +162,51 @@ services:
       migrate:
         condition: service_completed_successfully
       postgres:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    restart: unless-stopped
+
+  # Subscription delivery plane — the chain-trigger evaluator + webhook emitter.
+  # The evaluator matches chain subscriptions (print_event, *_transfer) against
+  # decoded_events (populated by decoder) and enqueues signed webhook
+  # deliveries. SUBGRAPH_SOURCE=streams-index is what starts the evaluator;
+  # without this service no chain subscription ever fires.
+  subscription-processor:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      target: subscription-processor
+    command: ["bun", "run", "packages/subgraphs/src/subscription-service.ts"]
+    environment:
+      INSTANCE_MODE: oss
+      DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NODE_ENV: production
+      DATA_DIR: /data
+      # Starts the chain-trigger evaluator against the bundled api's index plane.
+      SUBGRAPH_SOURCE: ${SUBGRAPH_SOURCE:-streams-index}
+      SUBGRAPH_INDEX_API_URL: http://api:3800
+      STREAMS_INTERNAL_API_KEY: ${STREAMS_INTERNAL_API_KEY:-}
+      # Per-subscription secrets (signing secret + any auth_config bearer tokens)
+      # are encrypted at rest. The api ENCRYPTS them on create; this service
+      # DECRYPTS them to deliver — so both MUST share the same key. OSS
+      # auto-bootstrap writes a *different* key per container, so set this
+      # explicitly in .env to run subscriptions across both services.
+      SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY:-}
+      # ed25519 key for the x-secondlayer-signature on every delivery. The boot
+      # guard refuses to start in prod without it — set a key, or set
+      # ALLOW_UNSIGNED_WEBHOOKS=true to ship unsigned (per-subscription HMAC still
+      # applies). Defaulted on here so `docker compose up` boots out of the box.
+      STREAMS_SIGNING_PRIVATE_KEY: ${STREAMS_SIGNING_PRIVATE_KEY:-}
+      SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY: ${SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY:-}
+      ALLOW_UNSIGNED_WEBHOOKS: ${ALLOW_UNSIGNED_WEBHOOKS:-true}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      api:
         condition: service_healthy
     healthcheck:
       disable: true
