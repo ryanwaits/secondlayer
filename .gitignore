@@ -50,14 +50,8 @@ coverage/
 *.tmp
 *.temp
 tmp/
-# Internal working docs (audits, plans, mocks, specs, runbooks, …) live under
-# docs/internal/ and are NOT checked in. Only the roadmap and the public status
-# page's incident log are tracked.
-docs/*
-!docs/ROADMAP.md
-!docs/incidents/
-!docs/incidents/**
-!docker/docs/
+# Docs are tracked, including internal working docs (audits, plans, mocks,
+# specs, runbooks, charters) under docs/internal/.
 
 # Config files (users should create their own)
 secondlayer.config.ts
