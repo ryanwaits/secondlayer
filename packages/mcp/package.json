@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/mcp",
-	"version": "4.1.1",
+	"version": "4.2.0",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -23,7 +23,10 @@
 			"import": "./dist/index.js"
 		}
 	},
-	"files": ["dist", "README.md"],
+	"files": [
+		"dist",
+		"README.md"
+	],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",
@@ -35,7 +38,7 @@
 		"@modelcontextprotocol/sdk": "^1.27.1",
 		"@secondlayer/bundler": "^0.3.7",
 		"@secondlayer/scaffold": "^1.3.0",
-		"@secondlayer/sdk": "^6.23.0",
+		"@secondlayer/sdk": "^6.26.0",
 		"@secondlayer/shared": "^6.32.0",
 		"@secondlayer/stacks": "^2.5.1",
 		"@secondlayer/subgraphs": "^3.14.0",

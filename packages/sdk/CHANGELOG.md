@@ -1,5 +1,11 @@
 # @secondlayer/sdk
 
+## 6.26.0
+
+### Minor Changes
+
+- Add `txContext` option to `index.events` `list`/`walk`/`consume`. When set, each event carries its submitting transaction joined in (`tx_sender`, `tx_type`, `tx_status`, `tx_contract_id`, `tx_function_name`), avoiding a `/v1/index/transactions` call per event. For `print` events it's the only source of the submitting sender.
+
 ## 6.25.1
 
 ### Patch Changes

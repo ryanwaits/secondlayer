@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/sdk",
-	"version": "6.25.1",
+	"version": "6.26.0",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -29,7 +29,9 @@
 			"import": "./dist/x402.js"
 		}
 	},
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",

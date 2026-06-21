@@ -1,5 +1,16 @@
 # @secondlayer/mcp
 
+## 4.2.0
+
+### Minor Changes
+
+- Add `txContext` to the `index_events` tool — joins the submitting transaction into each event (`tx_sender`, `tx_type`, `tx_status`, `tx_contract_id`, `tx_function_name`).
+
+### Patch Changes
+
+- Updated dependencies
+  - @secondlayer/sdk@6.26.0
+
 ## 4.1.1
 
 ### Patch Changes
