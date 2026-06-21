@@ -135,6 +135,16 @@ type IndexEventBase = {
 	tx_index: number;
 	event_index: number;
 	contract_id: string | null;
+	/** Submitting-transaction context, present only when `txContext: true` was
+	 *  requested. `tx_sender` is the real tx sender — distinct from a transfer's
+	 *  asset `sender`, and the only place a `print` event's sender is available.
+	 *  Lets a consumer build per-event tx context without a `/v1/index/transactions`
+	 *  call per event. */
+	tx_sender?: string | null;
+	tx_type?: string | null;
+	tx_status?: string | null;
+	tx_contract_id?: string | null;
+	tx_function_name?: string | null;
 };
 
 export type IndexFtTransfer = IndexEventBase & {
@@ -242,6 +252,11 @@ export type EventsListParams = {
 	/** Restrict to contracts conforming to a trait/standard (e.g. "sip-010").
 	 *  Mutually exclusive with contractId; contract-keyed event types only. */
 	trait?: string;
+	/** Join the submitting transaction into each event — populates `tx_sender`,
+	 *  `tx_type`, `tx_status`, `tx_contract_id`, `tx_function_name`. Off by default.
+	 *  Avoids a `/v1/index/transactions` call per event; for `print` events it's
+	 *  the only source of the submitting sender. */
+	txContext?: boolean;
 };
 
 export type EventsWalkParams = Omit<EventsListParams, "limit"> & {
@@ -739,6 +754,7 @@ export class Index extends BaseClient {
 							recipient: params.recipient,
 							trait: params.trait,
 							toHeight: params.toHeight,
+							txContext: params.txContext,
 							cursor,
 							fromHeight,
 							limit,
@@ -981,6 +997,7 @@ export class Index extends BaseClient {
 				from_height: params.fromHeight,
 				to_height: params.toHeight,
 				trait: params.trait,
+				tx_context: params.txContext ? "true" : undefined,
 			})}`,
 		);
 	}

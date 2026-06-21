@@ -93,6 +93,7 @@ export function registerIndexTools(
 		recipient?: string;
 		assetIdentifier?: string;
 		trait?: string;
+		txContext?: boolean;
 		fromHeight?: number;
 		toHeight?: number;
 		cursor?: string;
@@ -120,6 +121,12 @@ export function registerIndexTools(
 				.optional()
 				.describe(
 					"Match contracts conforming to a trait/standard (e.g. sip-010). Mutually exclusive with contractId; contract-keyed event types only.",
+				),
+			txContext: z
+				.boolean()
+				.optional()
+				.describe(
+					"Join the submitting transaction into each event (tx_sender, tx_type, tx_status, tx_contract_id, tx_function_name). For print events it's the only source of the submitting sender.",
 				),
 		},
 		async (params) =>

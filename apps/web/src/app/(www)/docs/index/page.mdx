@@ -44,6 +44,14 @@ Free and anonymous reads are limited to that recent 24-hour window: a `from_heig
 
 Allowed filters vary by `event_type`: `stx_*` have no `contract_id`, `nft_*` accept `asset_identifier`, and `print` filters by `contract_id` and carries a `payload` with the Clarity value decoded to JSON. `ft-transfers` and `nft-transfers` are typed aliases for the two most common types.
 
+Need the submitting transaction? Pass `tx_context=true`. Every event then carries its tx joined in — `tx_sender`, `tx_type`, `tx_status`, `tx_contract_id`, `tx_function_name` — so [building your own index](#build-your-index-on-it) skips a `/v1/index/transactions` call per event, turning an N+1 transaction walk into one pass.
+
+```bash
+curl "https://api.secondlayer.tools/v1/index/events?event_type=print&tx_context=true&limit=20"
+```
+
+For `print` events `tx_sender` is the only place the real sender lives — the event itself has none.
+
 ## Print schemas
 
 Clarity ABIs don't describe `print` payloads, and the shape varies **per topic** within one contract: sbtc-registry's `withdrawal-create` has no `bitcoin-txid`, `completed-deposit` has no `sender`. `/print-schema` derives the real shape empirically: it samples the contract's indexed print events, deserializes the raw Clarity hex for exact types, and unifies a schema per topic.
@@ -200,6 +208,7 @@ await index.events.consume({
 	eventType: "ft_transfer",
 	fromCursor: await db.loadCheckpoint(), // null on first run
 	fromHeight: 0, // first run: backfill from genesis
+	txContext: true, // join the submitting tx into each event (tx_sender, tx_type, …)
 	onBatch: async (events, envelope, ctx) => {
 		await db.transaction(async (tx) => {
 			for (const t of events) await tx.upsertTransfer(t);
@@ -216,7 +225,7 @@ await index.events.consume({
 });
 ```
 
-`index.contractCalls.consume()` does the same for decoded calls, and `finalizedOnly: true` holds delivery to rows at or below `tip.finalized_height`; finalized data never reorgs, so `onReorg` becomes unnecessary. The complete runnable version (every Gamma marketplace sale in your own Postgres, ~50 lines) is the [`sales-index` example](https://github.com/ryanwaits/secondlayer/tree/main/examples/sales-index).
+`txContext: true` works the same on `walk` and `list` — set it once and every row carries its submitting tx, so you write tx fields straight into your tables with no per-event `/v1/index/transactions` call. `index.contractCalls.consume()` does the same for decoded calls (and already carries `sender`/`function_name`, so it needs no `txContext`), and `finalizedOnly: true` holds delivery to rows at or below `tip.finalized_height`; finalized data never reorgs, so `onReorg` becomes unnecessary. The complete runnable version (every Gamma marketplace sale in your own Postgres, ~50 lines) is the [`sales-index` example](https://github.com/ryanwaits/secondlayer/tree/main/examples/sales-index).
 
 On startup (or any time), verify your mirror followed the canonical chain with `/v1/index/canonical` (one row per height, orphans excluded):
 
@@ -230,7 +239,7 @@ for (const block of canonical) {
 }
 ```
 
-For contract-specific indexes, [`/print-schema`](#print-schemas) tells you the real shape of a contract's `print` payloads before you design tables; then walk `event_type=print&contract_id=…` into them. Transaction [inclusion proofs](#proofs) let you verify anything you mirrored without trusting us.
+For contract-specific indexes, [`/print-schema`](#print-schemas) tells you the real shape of a contract's `print` payloads before you design tables; then walk `event_type=print&contract_id=…` into them — add `tx_context=true` to capture the submitting sender in one pass (prints carry none) instead of fetching each transaction. Transaction [inclusion proofs](#proofs) let you verify anything you mirrored without trusting us.
 
 This loop is what [Subgraphs](/docs/subgraphs) runs for you: the same decoded rows, your schema, our backfill and reorg handling, one TypeScript file, zero ops.
 

@@ -123,3 +123,53 @@ describe("Index trait filter + discover", () => {
 		expect(proof).toBeNull();
 	});
 });
+
+describe("Index events tx_context", () => {
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+	});
+
+	const emptyEvents = { events: [], next_cursor: null, tip: {}, reorgs: [] };
+
+	test("events.list forwards txContext as tx_context=true", async () => {
+		const urls = recorder(emptyEvents);
+		await new Index({ baseUrl: BASE_URL }).events.list({
+			eventType: "print",
+			txContext: true,
+		});
+		expect(urls[0]).toContain("tx_context=true");
+	});
+
+	test("omitted txContext sends no tx_context param", async () => {
+		const urls = recorder(emptyEvents);
+		await new Index({ baseUrl: BASE_URL }).events.list({
+			eventType: "print",
+		});
+		expect(urls[0]).not.toContain("tx_context");
+	});
+
+	test("events.walk forwards tx_context=true", async () => {
+		const urls = recorder(emptyEvents);
+		const it = new Index({ baseUrl: BASE_URL }).events.walk({
+			eventType: "print",
+			txContext: true,
+		});
+		// drain the (empty) generator — issues exactly the first page fetch
+		for await (const _ of it) {
+		}
+		expect(urls[0]).toContain("tx_context=true");
+	});
+
+	test("events.consume threads tx_context=true into its page fetch", async () => {
+		const urls = recorder(emptyEvents);
+		await new Index({ baseUrl: BASE_URL }).events.consume({
+			eventType: "print",
+			txContext: true,
+			fromHeight: 0,
+			mode: "bounded", // return on the first empty page instead of tailing forever
+			onBatch: async (_events, _envelope, ctx) => ctx.cursor,
+		});
+		expect(urls.length).toBeGreaterThan(0);
+		expect(urls[0]).toContain("tx_context=true");
+	});
+});
