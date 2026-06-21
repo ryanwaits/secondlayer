@@ -1,17 +1,24 @@
 # L2 decoder backfill runbook
 
-> **STATUS (2026-05-27) — backfill paused for launch; re-run post-launch.**
-> The 90-day backfill was started but **fast-forwarded back to tip before launch**
-> to remove sustained DB / Streams-API load (`/health` was hitting 5–20s and the
-> dense `print` decoder was ~overnight from catching up). All decoders are now at
-> tip serving **current** data; the one deferred piece is the **90-day history**:
-> partially backfilled (~6.8M → ~7.9M per type) with a gap (~7.9M → recent) the
-> re-run will fill — writes are idempotent, so nothing was lost.
+> **STATUS (2026-06-21) — RESOLVED. All decoders are genesis-complete.**
+> The go-forward decoders (`stx_*`, `nft_*`, `print`) were floored at ~6.8M (added
+> after Streams, never backfilled). Fixed via the **firehose backfill** — see
+> `backfill-from-firehose.ts`, NOT the `reset-checkpoints` path below. The firehose
+> reads the indexer DB on a SEPARATE checkpoint namespace (`backfill.<key>`), so
+> the live decoders stay at tip with **zero lag** while the backfill replays
+> genesis→tip in parallel (the old `reset-checkpoints` approach rewinds the LIVE
+> checkpoint and lags the decoder for the whole run — only acceptable for low-stakes
+> one-offs). Final floor audit: every decoder at its genesis/deploy floor, ~49M
+> events backfilled, 0 errors.
 >
-> **Post-launch TODO (off-peak):** Step 0 cleanup is already done, so just re-run
-> the backfill below — `reset-checkpoints.ts --days 90 --apply` for the go-forward
-> decoders, ideally in **groups** (cheap types first, `print` last). Watch §Verify
-> until every `lag_seconds` is back near tip.
+> **Regression guard:** `floor-audit.ts` (`bun run src/decode/floor-audit.ts`)
+> asserts each enabled decoder's floor stays at its recorded genesis baseline, and
+> FAILS on any new decoder missing from `DECODER_FLOOR_BASELINE`. Run it in CI / on
+> deploy so a future go-forward decoder can't silently ship floored again.
+>
+> The `reset-checkpoints` runbook below remains valid for **targeted** rewinds
+> (e.g. re-deriving a specific decoder over a reorg window), but is NOT the way to
+> backfill a floored decoder — use the firehose path.
 
 The decoders added go-forward — `stx_transfer`, `stx_mint`, `stx_burn`,
 `stx_lock`, `ft_mint`, `ft_burn`, `nft_mint`, `nft_burn`, `print` — only hold
