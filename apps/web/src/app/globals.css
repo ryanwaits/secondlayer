@@ -8506,9 +8506,17 @@ html.force-dark .shiki span {
 	background: #147d42;
 	opacity: 1;
 }
+.footer-status[data-state="yellow"] .footer-status-dot {
+	background: #b7791f;
+	opacity: 1;
+}
 .footer-status[data-state="red"] .footer-status-dot {
 	background: var(--red);
 	opacity: 1;
+}
+.footer-status[data-state="muted"] .footer-status-dot {
+	background: var(--text-muted);
+	opacity: 0.35;
 }
 @media (max-width: 640px) {
 	.home-status-shell {
