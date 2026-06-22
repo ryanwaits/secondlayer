@@ -341,25 +341,39 @@ describe.skipIf(!HAS_DB)("Index /events DB reads", () => {
 		// `column reference "contract_id" is ambiguous` → 500 on every
 		// `tx_context=true` read (broke the subgraph fast-path). Aliasing the
 		// derived columns to `tx_*` fixes it.
+		// transactions has a FK on block_height → blocks(height); seed the parent
+		// block first, then the tx, then the event. Idempotent so the test can
+		// re-run against a persistent test DB (decoded_events is cleared in
+		// beforeEach; blocks/transactions are not).
+		await db
+			.insertInto("blocks")
+			.values({
+				height: 9900,
+				hash: "0x9900",
+				parent_hash: "0x9899",
+				burn_block_height: 9900,
+				timestamp: 1_700_000_000,
+				canonical: true,
+			})
+			.onConflict((oc) => oc.column("height").doNothing())
+			.execute();
+		await db
+			.insertInto("transactions")
+			.values({
+				tx_id: "tx-9900:0", // matches ftRow's `tx-${cursor}`
+				block_height: 9900,
+				type: "contract_call",
+				sender: "SP_TX_SENDER",
+				status: "success",
+				contract_id: "SP1.caller",
+				function_name: "transfer",
+				raw_tx: "0x00",
+			})
+			.onConflict((oc) => oc.column("tx_id").doNothing())
+			.execute();
 		await db
 			.insertInto("decoded_events")
 			.values([ftRow("9900:0", 9900, "SP1.token", "SP1", "SP2", "10")])
-			.execute();
-		await sql`DELETE FROM transactions WHERE tx_id = 'tx-9900:0'`.execute(db);
-		await db
-			.insertInto("transactions")
-			.values([
-				{
-					tx_id: "tx-9900:0", // matches ftRow's `tx-${cursor}`
-					block_height: 9900,
-					type: "contract_call",
-					sender: "SP_TX_SENDER",
-					status: "success",
-					contract_id: "SP1.caller",
-					function_name: "transfer",
-					raw_tx: "0x00",
-				},
-			])
 			.execute();
 
 		const result = await readIndexEvents({
