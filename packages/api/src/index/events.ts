@@ -369,15 +369,17 @@ export async function readIndexEvents(
 	// Opt-in submitting-tx context. A LATERAL lookup on the canonical (tx_id,
 	// block_height) — one PK-indexed probe per row, only when requested — so the
 	// subgraph reindex stops fetching every transaction in the range (the ~37x
-	// over-fetch; see docs/sprints/indexing-speed/plan.md T2). `tx.*` columns are
-	// only addressable via the alias, so the bare-column predicates stay
-	// unambiguously scoped to decoded_events.
+	// over-fetch; see docs/sprints/indexing-speed/plan.md T2). The derived columns
+	// are aliased to `tx_*` INSIDE the subquery, so the `tx` table exposes no bare
+	// `contract_id`/`sender`/etc. that would collide with decoded_events' own
+	// columns — the outer bare-column references (SELECT contract_id, WHERE
+	// contract_id IN …) stay unambiguously scoped to decoded_events.
 	const txSelect = params.withTx
-		? sql`, tx.sender AS tx_sender, tx.type AS tx_type, tx.status AS tx_status, tx.contract_id AS tx_contract_id, tx.function_name AS tx_function_name`
+		? sql`, tx.tx_sender, tx.tx_type, tx.tx_status, tx.tx_contract_id, tx.tx_function_name`
 		: sql``;
 	const txJoin = params.withTx
 		? sql`LEFT JOIN LATERAL (
-				SELECT t.sender, t.type, t.status, t.contract_id, t.function_name
+				SELECT t.sender AS tx_sender, t.type AS tx_type, t.status AS tx_status, t.contract_id AS tx_contract_id, t.function_name AS tx_function_name
 				FROM transactions t
 				WHERE t.tx_id = decoded_events.tx_id
 					AND t.block_height = decoded_events.block_height

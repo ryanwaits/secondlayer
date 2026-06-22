@@ -332,6 +332,56 @@ describe.skipIf(!HAS_DB)("Index /events DB reads", () => {
 			payload,
 		});
 	});
+
+	test("tx_context join populates tx_* without an ambiguous-column error", async () => {
+		if (!db) throw new Error("missing db");
+		// Regression: decoded_events and the LATERAL tx subquery both expose a
+		// `contract_id` (and `sender`) column; the subquery used to select them
+		// unaliased, so the outer bare `contract_id` reference was ambiguous →
+		// `column reference "contract_id" is ambiguous` → 500 on every
+		// `tx_context=true` read (broke the subgraph fast-path). Aliasing the
+		// derived columns to `tx_*` fixes it.
+		await db
+			.insertInto("decoded_events")
+			.values([ftRow("9900:0", 9900, "SP1.token", "SP1", "SP2", "10")])
+			.execute();
+		await sql`DELETE FROM transactions WHERE tx_id = 'tx-9900:0'`.execute(db);
+		await db
+			.insertInto("transactions")
+			.values([
+				{
+					tx_id: "tx-9900:0", // matches ftRow's `tx-${cursor}`
+					block_height: 9900,
+					type: "contract_call",
+					sender: "SP_TX_SENDER",
+					status: "success",
+					contract_id: "SP1.caller",
+					function_name: "transfer",
+					raw_tx: "0x00",
+				},
+			])
+			.execute();
+
+		const result = await readIndexEvents({
+			db,
+			eventType: "ft_transfer",
+			fromHeight: 0,
+			toHeight: 10_000,
+			limit: 10,
+			withTx: true,
+		});
+
+		expect(result.events).toHaveLength(1);
+		expect(result.events[0]).toMatchObject({
+			cursor: "9900:0",
+			contract_id: "SP1.token", // the event's own contract_id — unambiguous
+			tx_sender: "SP_TX_SENDER", // the submitting tx, not the asset `sender`
+			tx_type: "contract_call",
+			tx_status: "success",
+			tx_contract_id: "SP1.caller",
+			tx_function_name: "transfer",
+		});
+	});
 });
 
 function ftRow(
