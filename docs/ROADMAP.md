@@ -12,20 +12,25 @@
 > `ffc2c0ed`). Remaining peg work = `/sbtc/summary` aggregate + BTC settlement confirmer +
 > Peg Explorer. Slot caps still open (blocked on founder per-plan numbers).
 
-## 🛑 P0 — Genesis-complete every decoder (BLOCKS ALL NEW FEATURES)
+## ✅ P0 — Genesis-complete every decoder (RESOLVED 2026-06-21)
 
 > Plan: `docs/sprints/genesis-decoder-backfill/plan.md`. The index service's core contract is **every
-> block from genesis, decoded + supplied** (the SDK's whole pitch). **Audit 2026-06-20: 7 decoders are
-> floored** at ~6.8M (never backfilled — launch-paused, never resumed; `backfill-from-firehose.ts`
-> wrongly marked them "already-genesis"): **`stx_transfer`(6.80M), `stx_mint`, `stx_burn`, `stx_lock`,
-> `nft_transfer`(7.80M, worst), `nft_mint`, `nft_burn`** — all write `decoded_events` (what Subgraphs +
-> SDK indexers read). `print` is being backfilled now (→ block 32). ft + dedicated (sbtc/pox4/bns)
-> are genesis ✓. **No new features until the floor audit shows every decoder at genesis.**
+> block from genesis, decoded + supplied** (the SDK's whole pitch). Audit 2026-06-20 found 7 decoders
+> floored at ~6.8M (`stx_*`, `nft_*`) + `print`; all now backfilled to genesis via
+> `backfill-from-firehose.ts` (parallel-to-live, no lag) cheap→heavy, `stx_transfer` last. Final floor
+> audit: all decoders at their genesis/deploy floor, ~49M events, 0 errors. `print` replayed genesis→tip.
 >
-> Fix = register the 7 generic decoders in `backfill-from-firehose.ts` (parallel-to-live, **no lag**,
-> unlike `reset-checkpoints` which lags) → run grouped cheap→heavy (`stx_transfer` last) → verify →
-> add a health guard so a new go-forward decoder can't silently ship floored. No-block-loss + idempotent
-> (`ON CONFLICT`; dedupe done).
+> **DONE:** Sprint A (register 7 decoders), Sprint B (run + verify all genesis), Sprint C guard
+> (`floor-audit.ts` + tests, committed `93990828` — compares each decoder's live floor to a recorded
+> baseline; fails on a floored or unbaselined decoder).
+>
+> **Remaining (don't lose):**
+> - [ ] **Wire `floor-audit.ts` into CI/cron** — built + committed but currently **on-demand only**
+>   (`bun run src/decode/floor-audit.ts`). Add to prod-smoke or a cron with prod DB creds so a future
+>   go-forward decoder can't silently ship floored. This is the durable regression guard; without
+>   scheduling it, nothing runs the check.
+> - [ ] Reindex hosted subgraphs off the now-complete history: **sbtc-flows** (→ 5321 deposits, in
+>   progress) + **bns-names** (from BNS-V2 deploy 167484).
 
 ## ⚡ Indexing speed — NEXT (the core service, all tiers)
 
