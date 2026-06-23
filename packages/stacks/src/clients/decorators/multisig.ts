@@ -96,6 +96,8 @@ export function multisigActions(client: Client): MultiSigActions {
 			requiredSignatures,
 			client.chain,
 		);
+		if (client.nonceManager)
+			return client.nonceManager.consume({ client, address });
 		return getNonce(client, { address });
 	}
 

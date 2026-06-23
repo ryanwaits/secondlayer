@@ -5,6 +5,7 @@ const BASE_KEYS = new Set([
 	"account",
 	"transport",
 	"request",
+	"nonceManager",
 	"extend",
 ]);
 
@@ -38,6 +39,7 @@ export function createClient<
 		account: config.account,
 		transport,
 		request: transport.request,
+		nonceManager: config.nonceManager,
 		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 		extend: null as any,
 	};

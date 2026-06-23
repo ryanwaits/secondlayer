@@ -6,8 +6,7 @@ import { signTransactionWithAccount } from "../../transactions/signer.ts";
 import { parseContractId } from "../../utils/address.ts";
 import type { IntegerType } from "../../utils/encoding.ts";
 import { estimateFee } from "../public/estimateFee.ts";
-import { getNonce } from "../public/getNonce.ts";
-import { sendTransaction } from "./sendTransaction.ts";
+import { broadcastWithNonceReset, resolveNonce } from "./nonceManager.ts";
 import { isProviderAccount } from "./utils.ts";
 
 export type CallContractParams = {
@@ -41,8 +40,7 @@ export async function callContract(
 	// Local/Custom: build → sign → broadcast
 	const [contractAddress, contractName] = parseContractId(params.contract);
 
-	const nonce =
-		params.nonce ?? (await getNonce(client, { address: account.address }));
+	const nonce = params.nonce ?? (await resolveNonce(client, account.address));
 
 	const unsigned = buildContractCall({
 		contractAddress,
@@ -67,6 +65,8 @@ export async function callContract(
 	}
 
 	const signed = await signTransactionWithAccount(unsigned, account);
-	const result = await sendTransaction(client, { transaction: signed });
-	return result.txid;
+	return broadcastWithNonceReset(client, {
+		transaction: signed,
+		address: account.address,
+	});
 }

@@ -3,6 +3,7 @@ import type {
 	LocalAccount,
 	ProviderAccount,
 } from "../accounts/types.ts";
+import type { NonceManager } from "../actions/wallet/nonceManager.ts";
 import type { StacksChain } from "../chains/types.ts";
 import type {
 	RequestFn,
@@ -24,6 +25,8 @@ export type Client<
 	account?: Account;
 	transport: Transport;
 	request: RequestFn;
+	/** Optional nonce manager for mempool-safe sequential nonces across rapid broadcasts. */
+	nonceManager?: NonceManager;
 	extend: <const TNew extends Record<string, unknown>>(
 		fn: (client: Client<TExtended>) => TNew,
 	) => Client<TExtended & TNew> & TNew;
@@ -34,6 +37,8 @@ export type ClientConfig = {
 	chain?: StacksChain;
 	transport: TransportFactory;
 	account?: Account;
+	/** Optional nonce manager threaded onto the client (see {@link createNonceManager}). */
+	nonceManager?: NonceManager;
 };
 
 /** A client pre-extended with read-only {@link PublicActions}. */

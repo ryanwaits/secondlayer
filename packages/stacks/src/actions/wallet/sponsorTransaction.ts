@@ -9,7 +9,7 @@ import {
 import type { IntegerType } from "../../utils/encoding.ts";
 import { intToBigInt } from "../../utils/encoding.ts";
 import { estimateFee } from "../public/estimateFee.ts";
-import { getNonce } from "../public/getNonce.ts";
+import { resolveNonce } from "./nonceManager.ts";
 import { isProviderAccount } from "./utils.ts";
 
 export type SponsorTransactionParams = {
@@ -39,7 +39,7 @@ export async function sponsorTransaction(
 	const nonce =
 		params.nonce != null
 			? intToBigInt(params.nonce)
-			: await getNonce(client, { address: account.address });
+			: await resolveNonce(client, account.address);
 
 	// Resolve sponsor fee
 	let fee: bigint;
