@@ -66,6 +66,10 @@ export function redisStore(params: RedisStoreParams): NonceStore {
 		async reset(key) {
 			await redis.send("DEL", [prefix + key]);
 		},
+		async peek(key) {
+			const v = await redis.send("GET", [prefix + key]);
+			return v == null ? undefined : BigInt(v as string | number);
+		},
 	};
 }
 
@@ -124,6 +128,13 @@ export function postgresStore(params: PostgresStoreParams): NonceStore {
 		async reset(key) {
 			await ensureTable();
 			await sql`DELETE FROM stacks_nonce_state WHERE key = ${key}`;
+		},
+		async peek(key) {
+			await ensureTable();
+			const rows =
+				await sql`SELECT next FROM stacks_nonce_state WHERE key = ${key}`;
+			const row = rows[0];
+			return row ? BigInt(String(row.next)) : undefined;
 		},
 	};
 }

@@ -33,12 +33,24 @@ export type NonceStore = {
 	reserve(key: string, getFloor: () => Promise<bigint>): Promise<bigint>;
 	/** Forget tracked state for `key` so the next reserve re-syncs from the floor. */
 	reset(key: string): void | Promise<void>;
+	/**
+	 * Return the next nonce that {@link NonceStore.reserve} would hand out for
+	 * `key` WITHOUT consuming it, or `undefined` if `key` is untracked. Used by
+	 * {@link reconcileNonce} to detect drift. Optional — stores that omit it
+	 * simply opt out of reconciliation.
+	 */
+	peek?(key: string): Promise<bigint | undefined> | bigint | undefined;
 };
 
 /** Allocates mempool-safe sequential nonces across rapid broadcasts from one account. */
 export type NonceManager = {
 	consume(params: { client: Client; address: string }): Promise<bigint>;
 	reset(params: { client: Client; address: string }): void | Promise<void>;
+	/** Next nonce that {@link NonceManager.consume} would return without consuming it, or `undefined` if untracked. */
+	peek(params: {
+		client: Client;
+		address: string;
+	}): Promise<bigint | undefined>;
 };
 
 export type CreateNonceManagerParams = {
@@ -88,6 +100,9 @@ export function memoryStore(): NonceStore {
 		reset(key) {
 			next.delete(key);
 		},
+		peek(key) {
+			return next.get(key);
+		},
 	};
 }
 
@@ -117,6 +132,9 @@ export function createNonceManager(
 		reset({ client, address }) {
 			return store.reset(nonceKey(client, address));
 		},
+		async peek({ client, address }) {
+			return store.peek?.(nonceKey(client, address));
+		},
 	};
 }
 
@@ -128,6 +146,117 @@ export async function resolveNonce(
 	if (client.nonceManager)
 		return client.nonceManager.consume({ client, address });
 	return getNonce(client, { address });
+}
+
+export type ReconcileNonceParams = {
+	client: Client;
+	address: string;
+	/** Authoritative (ideally mempool-aware) source to reconcile against. */
+	source: NonceManagerSource;
+	/**
+	 * Allow resetting DOWNWARD when the source's next nonce is below what the
+	 * store tracks — i.e. a previously-allocated tx is no longer pending or
+	 * confirmed (dropped/GC'd), so its nonce should be reused. Default `true`.
+	 *
+	 * Downward resets rely on `source` being current: with a go-forward mempool
+	 * source that lags broadcast, run reconciliation on an interval comfortably
+	 * longer than mempool propagation so a still-missing tx is genuinely dropped.
+	 * Set `false` for upward-only reconciliation (always safe).
+	 */
+	downward?: boolean;
+};
+
+export type ReconcileNonceResult = {
+	/** Whether the manager was reset (drift detected). */
+	reset: boolean;
+	/** Authoritative next nonce from `source`. */
+	authoritative: bigint;
+	/** Next nonce the store tracked, or `undefined` if untracked. */
+	tracked: bigint | undefined;
+};
+
+/**
+ * Reconcile a tracked nonce against an authoritative source, healing silent
+ * drift that produces no broadcast error (a dropped/GC'd mempool tx leaving the
+ * counter overshot, or the chain advancing past the local view).
+ *
+ * When the source's next nonce differs from the tracked value, the manager is
+ * {@link NonceManager.reset}; the next `consume` re-seeds from `source`. A no-op
+ * if the store is untracked or does not implement `peek`.
+ */
+export async function reconcileNonce(
+	manager: NonceManager,
+	params: ReconcileNonceParams,
+): Promise<ReconcileNonceResult> {
+	const { client, address, source } = params;
+	const downward = params.downward ?? true;
+
+	const authoritative = await source.get({ client, address });
+	const tracked = await manager.peek({ client, address });
+
+	if (tracked === undefined || authoritative === tracked) {
+		return { reset: false, authoritative, tracked };
+	}
+	if (authoritative < tracked && !downward) {
+		return { reset: false, authoritative, tracked };
+	}
+
+	await manager.reset({ client, address });
+	return { reset: true, authoritative, tracked };
+}
+
+export type StartNonceReconcilerParams = {
+	client: Client;
+	addresses: string[];
+	source: NonceManagerSource;
+	/** Reconcile interval in ms. Default 60_000. Keep well above mempool propagation. */
+	intervalMs?: number;
+	downward?: boolean;
+	/** Per-address callback after each reconcile (observability). */
+	onReconcile?: (address: string, result: ReconcileNonceResult) => void;
+	/** Per-address error callback; reconciliation continues on the next tick. */
+	onError?: (address: string, error: unknown) => void;
+};
+
+/**
+ * Run {@link reconcileNonce} on a timer for a set of addresses.
+ *
+ * SINGLE-WRITER: run this in exactly ONE process. With a shared persisted store,
+ * a reconciler resetting the counter while other workers allocate is racy — keep
+ * reconciliation on one designated process and let the others only allocate.
+ *
+ * Returns a handle; call `stop()` to clear the timer.
+ */
+export function startNonceReconciler(
+	manager: NonceManager,
+	params: StartNonceReconcilerParams,
+): { stop: () => void } {
+	const { client, addresses, source } = params;
+	const intervalMs = params.intervalMs ?? 60_000;
+
+	const tick = async () => {
+		for (const address of addresses) {
+			try {
+				const result = await reconcileNonce(manager, {
+					client,
+					address,
+					source,
+					downward: params.downward,
+				});
+				params.onReconcile?.(address, result);
+			} catch (error) {
+				params.onError?.(address, error);
+			}
+		}
+	};
+
+	const timer = setInterval(tick, intervalMs);
+	// Don't keep the event loop alive solely for reconciliation (Node/Bun).
+	(timer as { unref?: () => void }).unref?.();
+
+	return {
+		stop: () => clearInterval(timer),
+	};
 }
 
 /** True when a broadcast was rejected for a nonce conflict (`ConflictingNonceInMempool`, `BadNonce`). */

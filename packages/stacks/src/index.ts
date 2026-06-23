@@ -31,12 +31,17 @@ export {
 	resolveNonce,
 	isNonceConflictError,
 	broadcastWithNonceReset,
+	reconcileNonce,
+	startNonceReconciler,
 } from "./actions/wallet/nonceManager.ts";
 export type {
 	NonceManager,
 	NonceManagerSource,
 	NonceStore,
 	CreateNonceManagerParams,
+	ReconcileNonceParams,
+	ReconcileNonceResult,
+	StartNonceReconcilerParams,
 } from "./actions/wallet/nonceManager.ts";
 export { redisStore, postgresStore } from "./actions/wallet/nonceStores.ts";
 export type {
@@ -45,6 +50,17 @@ export type {
 	SqlLike,
 	PostgresStoreParams,
 } from "./actions/wallet/nonceStores.ts";
+export {
+	mempoolAwareSource,
+	indexSource,
+	hiroNonceSource,
+	nextFreeNonce,
+} from "./actions/wallet/nonceSources.ts";
+export type {
+	MempoolAwareSourceParams,
+	IndexSourceParams,
+	HiroNonceSourceParams,
+} from "./actions/wallet/nonceSources.ts";
 
 // Transports
 export { http } from "./transports/http.ts";
