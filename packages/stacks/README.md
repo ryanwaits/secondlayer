@@ -52,6 +52,71 @@ work; Secondlayer is a data-infrastructure company, not a wallet SDK vendor.
 | `@secondlayer/stacks/pox` | PoX stacking — solo and delegated |
 | `@secondlayer/stacks/stackingdao` | StackingDAO liquid staking (STX/stSTX) |
 
+## Nonce management
+
+Stacks' `/v2/accounts` returns only the confirmed nonce — it ignores the mempool. Broadcasting several transactions from one account before the first confirms makes them reuse the same nonce, so every one after the first is rejected (`ConflictingNonceInMempool`). The usual workaround is tracking nonces by hand.
+
+Attach a nonce manager and the SDK hands out sequential nonces across rapid broadcasts:
+
+```ts
+import { createWalletClient, http, createNonceManager } from "@secondlayer/stacks";
+import { mainnet } from "@secondlayer/stacks/chains";
+import { privateKeyToAccount } from "@secondlayer/stacks/accounts";
+
+const client = createWalletClient({
+  chain: mainnet,
+  transport: http(),                  // any node — no Secondlayer dependency
+  account: privateKeyToAccount(process.env.KEY!),
+  nonceManager: createNonceManager(), // jsonRpcSource + in-memory store
+});
+
+// 20 back-to-back transfers → nonces n, n+1, …, n+19 — no collisions
+await Promise.all(
+  recipients.map((to) => client.transferStx({ to, amount: 1000n })),
+);
+```
+
+Passing an explicit `nonce` always bypasses the manager. The defaults are node-agnostic and in-memory — zero external dependencies.
+
+### Multiple processes / smart wallets
+
+The in-memory store is single-process. Backends that sign from one key across multiple workers (smart-wallet-as-a-service) need a shared, durable store. The reservation is atomic in the datastore, so it doubles as the cross-process lock and survives restarts:
+
+```ts
+import { createNonceManager, redisStore } from "@secondlayer/stacks";
+
+const nonceManager = createNonceManager({
+  store: redisStore({ redis: new Bun.RedisClient(process.env.REDIS_URL!) }),
+});
+```
+
+`postgresStore({ sql })` works the same way. Bring your own client — no global `Bun` reference, so the store stays runtime-agnostic.
+
+### Mempool-aware sources (optional)
+
+By default the floor is the node's confirmed nonce. To make it mempool-aware — and to auto-fill the freed nonce of a dropped transaction — swap the source. `indexSource` reads Secondlayer's mempool, `hiroNonceSource` reads Hiro's, or bring your own pending feed with `mempoolAwareSource`:
+
+```ts
+import {
+  createNonceManager,
+  indexSource,
+  startNonceReconciler,
+} from "@secondlayer/stacks";
+
+// indexSource() | hiroNonceSource({ baseUrl }) | mempoolAwareSource({ getPending })
+const source = indexSource();
+const nonceManager = createNonceManager({ source });
+
+// Optional: periodically heal silently-dropped txs (run in ONE process)
+const reconciler = startNonceReconciler(nonceManager, {
+  client,
+  addresses: [account.address],
+  source,
+});
+```
+
+Everything here is opt-in. With no `source`/`store`, the manager depends only on your node.
+
 ## WalletConnect v2
 
 Native WC v2 implementation — X25519 ECDH, AES-256-GCM envelope encryption, Ed25519 JWT relay auth. Zero cost if you don't import it, tree-shakes completely.
