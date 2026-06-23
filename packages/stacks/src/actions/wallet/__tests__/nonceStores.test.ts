@@ -184,16 +184,20 @@ describe("createNonceManager with a persisted store", () => {
 	});
 });
 
-// Live integration — runs only when real infra is configured.
-// REDIS_URL=redis://localhost:6379 / DATABASE_URL=postgres://... bun test
-const hasRedis = !!process.env.REDIS_URL;
-const hasPg = !!process.env.DATABASE_URL;
+// Live integration — opt-in ONLY, against a THROWAWAY datastore. Gated on
+// dedicated env vars (NOT the ambient REDIS_URL/DATABASE_URL, which CI sets for
+// the app — these tests CREATE a table and write rows, so they must never touch
+// a shared/app DB). Run with:
+//   STACKS_NONCE_TEST_REDIS_URL=redis://localhost:6379 \
+//   STACKS_NONCE_TEST_DATABASE_URL=postgres://localhost/scratch bun test
+const redisTestUrl = process.env.STACKS_NONCE_TEST_REDIS_URL;
+const pgTestUrl = process.env.STACKS_NONCE_TEST_DATABASE_URL;
 
 describe("live persisted stores", () => {
-	it.skipIf(!hasRedis)("redisStore against real Redis", async () => {
+	it.skipIf(!redisTestUrl)("redisStore against real Redis", async () => {
 		const { RedisClient } = await import("bun");
-		// biome-ignore lint/style/noNonNullAssertion: guarded by skipIf(!hasRedis)
-		const redis = new RedisClient(process.env.REDIS_URL!);
+		// biome-ignore lint/style/noNonNullAssertion: guarded by skipIf(!redisTestUrl)
+		const redis = new RedisClient(redisTestUrl!);
 		const store = redisStore({ redis, prefix: `test:${Date.now()}:` });
 		const key = "live";
 		await store.reset(key);
@@ -207,10 +211,10 @@ describe("live persisted stores", () => {
 		redis.close();
 	});
 
-	it.skipIf(!hasPg)("postgresStore against real Postgres", async () => {
+	it.skipIf(!pgTestUrl)("postgresStore against real Postgres", async () => {
 		const { SQL } = await import("bun");
-		// biome-ignore lint/style/noNonNullAssertion: guarded by skipIf(!hasPg)
-		const sql = new SQL(process.env.DATABASE_URL!);
+		// biome-ignore lint/style/noNonNullAssertion: guarded by skipIf(!pgTestUrl)
+		const sql = new SQL(pgTestUrl!);
 		const store = postgresStore({ sql: sql as unknown as SqlLike });
 		const key = `live:${Date.now()}`;
 		const results = await Promise.all(
