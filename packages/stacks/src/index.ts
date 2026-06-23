@@ -23,6 +23,29 @@ export type {
 	MultiSigActions,
 } from "./clients/index.ts";
 
+// Nonce management
+export {
+	createNonceManager,
+	jsonRpcSource,
+	memoryStore,
+	resolveNonce,
+	isNonceConflictError,
+	broadcastWithNonceReset,
+} from "./actions/wallet/nonceManager.ts";
+export type {
+	NonceManager,
+	NonceManagerSource,
+	NonceStore,
+	CreateNonceManagerParams,
+} from "./actions/wallet/nonceManager.ts";
+export { redisStore, postgresStore } from "./actions/wallet/nonceStores.ts";
+export type {
+	RedisLike,
+	RedisStoreParams,
+	SqlLike,
+	PostgresStoreParams,
+} from "./actions/wallet/nonceStores.ts";
+
 // Transports
 export { http } from "./transports/http.ts";
 export { custom } from "./transports/custom.ts";
