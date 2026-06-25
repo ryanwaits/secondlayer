@@ -110,7 +110,15 @@ app.get("/", async (c) => {
 	if (accountId === null) {
 		return c.json({ error: "Unauthorized" }, 401);
 	}
-	const rows = await listSubscriptions(getDb(), accountId);
+	const limit = Math.min(
+		Math.max(Number.parseInt(c.req.query("_limit") ?? "50", 10) || 50, 1),
+		200,
+	);
+	const offset = Math.max(
+		Number.parseInt(c.req.query("_offset") ?? "0", 10) || 0,
+		0,
+	);
+	const rows = await listSubscriptions(getDb(), accountId, { limit, offset });
 	return c.json({ data: rows.map(toSummary) });
 });
 

@@ -188,6 +188,118 @@ describe.skipIf(SKIP)("Subscriptions API validation", () => {
 	});
 });
 
+describe.skipIf(SKIP)("Subscriptions API pagination", () => {
+	const PAGINATION_ACCOUNT_ID = "a5e10000-0000-4000-8000-000000000010";
+	const PAGINATION_SUBGRAPH_NAME = "pagination-subscriptions-api-test";
+	const app = new Hono<TestEnv>();
+	const originalInstanceMode = process.env.INSTANCE_MODE;
+	app.use("*", async (c, next) => {
+		c.set("accountId", PAGINATION_ACCOUNT_ID);
+		await next();
+	});
+	app.route("/subscriptions", subscriptionsRouter);
+
+	beforeAll(async () => {
+		process.env.INSTANCE_MODE = "platform";
+		process.env.SECONDLAYER_SECRETS_KEY =
+			process.env.SECONDLAYER_SECRETS_KEY ??
+			"0000000000000000000000000000000000000000000000000000000000000000";
+
+		const db = getDb();
+		// Clean up any leftover data for this account
+		await db
+			.deleteFrom("subscriptions")
+			.where("account_id", "=", PAGINATION_ACCOUNT_ID)
+			.execute();
+		await db
+			.deleteFrom("subgraphs")
+			.where("name", "=", PAGINATION_SUBGRAPH_NAME)
+			.execute();
+		await db
+			.insertInto("accounts")
+			.values({
+				id: PAGINATION_ACCOUNT_ID,
+				email: `${PAGINATION_ACCOUNT_ID}@test.local`,
+				plan: "launch",
+			})
+			.onConflict((oc) => oc.column("id").doUpdateSet({ plan: "launch" }))
+			.execute();
+		await registerSubgraph(db, {
+			name: PAGINATION_SUBGRAPH_NAME,
+			version: "1.0.0",
+			definition: {
+				name: PAGINATION_SUBGRAPH_NAME,
+				sources: {},
+				schema: {
+					transfers: {
+						columns: {
+							sender: { type: "principal" },
+						},
+					},
+				},
+			},
+			schemaHash: "pagination-subscriptions-api-test",
+			handlerPath: "/tmp/pagination-subscriptions-api-test.js",
+			accountId: PAGINATION_ACCOUNT_ID,
+		});
+
+		// Seed 3 subscriptions
+		for (let i = 1; i <= 3; i++) {
+			await app.request("/subscriptions", {
+				method: "POST",
+				body: JSON.stringify({
+					name: `page-sub-${i}`,
+					subgraphName: PAGINATION_SUBGRAPH_NAME,
+					tableName: "transfers",
+					url: `https://example.com/webhook/${i}`,
+				}),
+			});
+		}
+	});
+
+	afterAll(async () => {
+		if (originalInstanceMode === undefined) {
+			Reflect.deleteProperty(process.env, "INSTANCE_MODE");
+		} else {
+			process.env.INSTANCE_MODE = originalInstanceMode;
+		}
+		const db = getDb();
+		await db
+			.deleteFrom("subscriptions")
+			.where("account_id", "=", PAGINATION_ACCOUNT_ID)
+			.execute();
+		await db
+			.deleteFrom("subgraphs")
+			.where("name", "=", PAGINATION_SUBGRAPH_NAME)
+			.execute();
+		await db
+			.deleteFrom("accounts")
+			.where("id", "=", PAGINATION_ACCOUNT_ID)
+			.execute();
+	});
+
+	test("_limit=2 returns exactly 2 rows", async () => {
+		const res = await app.request("/subscriptions?_limit=2");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { data: unknown[] };
+		expect(body.data).toHaveLength(2);
+	});
+
+	test("_limit=2&_offset=2 returns the remaining 1 row", async () => {
+		const res = await app.request("/subscriptions?_limit=2&_offset=2");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { data: unknown[] };
+		expect(body.data).toHaveLength(1);
+	});
+
+	test("no params returns all 3 rows (< default 50)", async () => {
+		const res = await app.request("/subscriptions");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { data: unknown[] };
+		expect(body.data).toHaveLength(3);
+	});
+});
+
 describe.skipIf(SKIP)("Subscriptions API dedicated scope", () => {
 	const app = new Hono<TestEnv>();
 	const originalInstanceMode = process.env.INSTANCE_MODE;

@@ -86,13 +86,16 @@ export async function createSubscription(
 export async function listSubscriptions(
 	db: Kysely<Database>,
 	accountId: string,
+	opts?: { limit?: number; offset?: number },
 ): Promise<Subscription[]> {
-	return db
+	let q = db
 		.selectFrom("subscriptions")
 		.selectAll()
 		.where("account_id", "=", accountId)
-		.orderBy("created_at", "desc")
-		.execute();
+		.orderBy("created_at", "desc");
+	if (opts?.limit !== undefined) q = q.limit(opts.limit);
+	if (opts?.offset !== undefined) q = q.offset(opts.offset);
+	return q.execute();
 }
 
 /**
