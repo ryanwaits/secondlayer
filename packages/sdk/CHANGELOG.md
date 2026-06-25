@@ -1,5 +1,11 @@
 # @secondlayer/sdk
 
+## 6.26.1
+
+### Patch Changes
+
+- 3e26837: Route `Subgraphs.gaps`/`delete`/spec query building through the canonical `buildQuery` (now accepts booleans); identical URLs, less duplication.
+
 ## 6.26.0
 
 ### Minor Changes
