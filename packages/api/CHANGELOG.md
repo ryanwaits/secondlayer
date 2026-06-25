@@ -1,5 +1,20 @@
 # @secondlayer/api
 
+## 1.23.8
+
+### Patch Changes
+
+- 1522e90: Paginate the subscriptions list endpoint (default 50, max 200).
+
+  `GET /api/subscriptions` now accepts `_limit` (1–200, default 50) and `_offset` (default 0) query params. Previously the endpoint fetched every subscription row for the account with no LIMIT. The `listSubscriptions` query in `@secondlayer/shared` accepts an optional `{ limit, offset }`; pagination applies only when provided, so existing internal callers (quota count, trigger matcher) remain unbounded.
+
+- Updated dependencies [5dfd9f0]
+- Updated dependencies [ef887b2]
+- Updated dependencies [1522e90]
+  - @secondlayer/stacks@2.8.0
+  - @secondlayer/shared@6.37.1
+  - @secondlayer/platform@0.1.12
+
 ## 1.23.7
 
 ### Patch Changes

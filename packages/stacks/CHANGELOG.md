@@ -1,5 +1,15 @@
 # @secondlayer/stacks
 
+## 2.8.0
+
+### Minor Changes
+
+- 5dfd9f0: Nonce coordination (`createNonceManager`, `redisStore`/`postgresStore`, mempool-aware sources) is now a supported primitive for multi-broadcast and smart-wallet backends — no longer part of the frozen wallet-half.
+
+### Patch Changes
+
+- ef887b2: Harden nonce manager: reconciler no longer leaks unhandled rejections from a throwing onError callback; getNonce throws a clear error on a malformed node response.
+
 ## 2.7.0
 
 ### Minor Changes
