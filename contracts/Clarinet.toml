@@ -1,0 +1,17 @@
+# Reference Clarity contracts for @secondlayer/stacks.
+#
+# NOTE: spv-adapter requires Clarity 6 / Stacks Epoch 4.0 (the SIP-044 Bitcoin
+# SPV built-ins). Released Clarinet (<= 3.20) tops out at Clarity 3 / Epoch 3.2
+# and cannot type-check or simulate it yet. Until Clarinet ships Clarity 6, drive
+# the contract with `clarity-cli` built from stacks-core (see README.md).
+
+[project]
+name = "secondlayer-contracts"
+authors = []
+telemetry = false
+cache_dir = "./.cache"
+
+[contracts.spv-adapter]
+path = "contracts/spv-adapter.clar"
+clarity_version = 6
+epoch = "4.0"
