@@ -13,6 +13,7 @@ const config: DefineConfigItem[] = defineConfig([
 			"src/transactions/index.ts",
 			"src/utils/index.ts",
 			"src/bns/index.ts",
+			"src/bitcoin/index.ts",
 			"src/pox/index.ts",
 			"src/sbtc/index.ts",
 			"src/stackingdao/index.ts",

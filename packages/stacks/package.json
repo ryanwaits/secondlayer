@@ -64,6 +64,11 @@
 			"import": "./dist/src/bns/index.js",
 			"require": "./dist/src/bns/index.cjs"
 		},
+		"./bitcoin": {
+			"types": "./dist/src/bitcoin/index.d.ts",
+			"import": "./dist/src/bitcoin/index.js",
+			"require": "./dist/src/bitcoin/index.cjs"
+		},
 		"./pox": {
 			"types": "./dist/src/pox/index.d.ts",
 			"import": "./dist/src/pox/index.js",
