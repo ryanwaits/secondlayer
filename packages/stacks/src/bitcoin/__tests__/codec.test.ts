@@ -27,9 +27,16 @@ describe("encodeMerkleProofArgs", () => {
 		proof,
 	});
 
-	test("is a flat 5-arg vector, not a tuple", () => {
+	test("is a flat 5-arg vector (not a tuple), in native order", () => {
 		expect(args).toHaveLength(5);
-		expect(args.some((a) => a.type === "tuple")).toBe(false);
+		// Flatness is also enforced by the return type; assert the arg sequence.
+		expect(args.map((a) => a.type)).toEqual([
+			"buffer",
+			"buffer",
+			"uint",
+			"uint",
+			"list",
+		]);
 	});
 
 	test("leaf + root are buffers in internal order (no reversal)", () => {

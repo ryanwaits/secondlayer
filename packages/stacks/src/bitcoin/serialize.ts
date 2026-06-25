@@ -231,3 +231,43 @@ export function bitcoinTxid(
 	const txid = doubleSha256(scanTx(rawTx).legacy);
 	return display ? reverseBytes(txid) : txid;
 }
+
+export interface BlockHeader {
+	version: number;
+	/** Previous block hash, internal byte order. */
+	prevBlock: Uint8Array;
+	/** Merkle root, internal byte order — pairs with `verify-merkle-proof`. */
+	merkleRoot: Uint8Array;
+	timestamp: number;
+	bits: number;
+	nonce: number;
+}
+
+/** Parse an 80-byte Bitcoin block header into its fields (hashes internal order). */
+export function parseBlockHeader(header: Uint8Array): BlockHeader {
+	if (header.length !== 80) {
+		throw new Error(
+			`Bitcoin block header must be 80 bytes, got ${header.length}`,
+		);
+	}
+	const r = new BtcReader(header);
+	const version = r.readUInt32LE();
+	const prevBlock = r.readBytes(32);
+	const merkleRoot = r.readBytes(32);
+	const timestamp = r.readUInt32LE();
+	const bits = r.readUInt32LE();
+	const nonce = r.readUInt32LE();
+	return { version, prevBlock, merkleRoot, timestamp, bits, nonce };
+}
+
+/**
+ * Hash an 80-byte block header (double-SHA256). Internal byte order by default;
+ * `{ display: true }` for the explorer-style block hash.
+ */
+export function blockHash(
+	header: Uint8Array,
+	{ display = false }: { display?: boolean } = {},
+): Uint8Array {
+	const hash = doubleSha256(header);
+	return display ? reverseBytes(hash) : hash;
+}
