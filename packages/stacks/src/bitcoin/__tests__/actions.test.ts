@@ -7,7 +7,7 @@ import { verifyBitcoinPayment } from "../actions.ts";
 import { formatBitcoinAddress } from "../address.ts";
 import { parseOutputScript } from "../codec.ts";
 import type { ProofSource } from "../proof.ts";
-import { parseBlockHeader, reverseBytes } from "../serialize.ts";
+import { reverseBytes } from "../serialize.ts";
 
 const internal = (display: string): Uint8Array =>
 	reverseBytes(hexToBytes(display));
@@ -43,19 +43,20 @@ function block170Source(): ProofSource {
 	};
 }
 
-const headerRoot = parseBlockHeader(hexToBytes(BLOCK_170.header)).merkleRoot;
-
-/** Mock adapter: verify-merkle → bool, get-header-merkle-root → optional root. */
+/**
+ * Mock adapter. `wasTxMined` → (ok bool) / err; `verify-merkle` → bool (used
+ * when `authenticateHeader` is off).
+ */
 function adapterClient(opts: {
+	wasTxMined?: boolean | "err";
 	verifyMerkle?: boolean;
-	headerRoot?: Uint8Array | null;
 }): Client {
 	const cv = (fnName: string): ClarityValue => {
-		if (fnName === "verify-merkle") return Cl.bool(opts.verifyMerkle ?? true);
-		if (fnName === "get-header-merkle-root") {
-			const r = opts.headerRoot === undefined ? headerRoot : opts.headerRoot;
-			return r === null ? Cl.none() : Cl.some(Cl.buffer(r));
+		if (fnName === "was-tx-mined") {
+			if (opts.wasTxMined === "err") return Cl.error(Cl.uint(5));
+			return Cl.ok(Cl.bool(opts.wasTxMined ?? true));
 		}
+		if (fnName === "verify-merkle") return Cl.bool(opts.verifyMerkle ?? true);
 		throw new Error(`unexpected fn ${fnName}`);
 	};
 	return {
@@ -112,8 +113,6 @@ describe("verifyBitcoinPayment", () => {
 			expect: { amount: BLOCK_170.coinbaseValueSats },
 		});
 
-		expect(result.headerAuthentic).toBe(true);
-		expect(result.included).toBe(true);
 		expect(result.mined).toBe(true);
 		expect(result.verified).toBe(true);
 		expect(result.output.amount).toBe(BLOCK_170.coinbaseValueSats);
@@ -132,9 +131,9 @@ describe("verifyBitcoinPayment", () => {
 		expect(result.verified).toBe(false);
 	});
 
-	test("not mined when the on-chain header root does not match", async () => {
+	test("not mined when was-tx-mined returns false", async () => {
 		const result = await verifyBitcoinPayment(
-			adapterClient({ headerRoot: new Uint8Array(32) }),
+			adapterClient({ wasTxMined: false }),
 			{
 				source: block170Source(),
 				txid: BLOCK_170.coinbaseTxid,
@@ -142,14 +141,13 @@ describe("verifyBitcoinPayment", () => {
 				vout: 0,
 			},
 		);
-		expect(result.headerAuthentic).toBe(false);
 		expect(result.mined).toBe(false);
 		expect(result.verified).toBe(false);
 	});
 
-	test("not mined when the chain has no header at that height", async () => {
+	test("not mined when was-tx-mined errs (header not authentic) — fails closed", async () => {
 		const result = await verifyBitcoinPayment(
-			adapterClient({ headerRoot: null }),
+			adapterClient({ wasTxMined: "err" }),
 			{
 				source: block170Source(),
 				txid: BLOCK_170.coinbaseTxid,
@@ -160,24 +158,10 @@ describe("verifyBitcoinPayment", () => {
 		expect(result.mined).toBe(false);
 	});
 
-	test("not mined when merkle inclusion fails", async () => {
+	test("membership-only path when header authentication is disabled", async () => {
+		// was-tx-mined would throw if called; authenticateHeader:false routes to verify-merkle.
 		const result = await verifyBitcoinPayment(
-			adapterClient({ verifyMerkle: false }),
-			{
-				source: block170Source(),
-				txid: BLOCK_170.coinbaseTxid,
-				contract: "SP000.spv-adapter",
-				vout: 0,
-			},
-		);
-		expect(result.included).toBe(false);
-		expect(result.mined).toBe(false);
-	});
-
-	test("skips header authentication when disabled", async () => {
-		// get-header-merkle-root would throw if called; authenticateHeader:false avoids it.
-		const result = await verifyBitcoinPayment(
-			adapterClient({ headerRoot: null }),
+			adapterClient({ verifyMerkle: true }),
 			{
 				source: block170Source(),
 				txid: BLOCK_170.coinbaseTxid,
@@ -186,7 +170,6 @@ describe("verifyBitcoinPayment", () => {
 				authenticateHeader: false,
 			},
 		);
-		expect(result.headerAuthentic).toBe(true);
 		expect(result.mined).toBe(true);
 	});
 });
