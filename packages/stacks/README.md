@@ -43,6 +43,11 @@ These ship and work but get no further investment — they may be removed in a
 future major. Prefer Hiro's maintained `@stacks/*` ecosystem for wallet-side
 work; Secondlayer is a data-infrastructure company, not a wallet SDK vendor.
 
+Nonce coordination (below) is the exception — it is supported and maintained:
+it's mempool-aware (built on Secondlayer's data plane) and solves a real
+multi-broadcast gap, which is why it lives here rather than being deferred to
+`@stacks/*`.
+
 | Module | Description |
 |---|---|
 | `@secondlayer/stacks/connect` | Wallet connection — browser extensions + `setProvider` |

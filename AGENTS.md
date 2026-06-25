@@ -26,7 +26,7 @@ secondlayer/
 │   ├── platform/      ← accounts, plans, billing
 │   ├── worker/        ← crons (reconcile, sweeps, alerts)
 │   ├── mcp/ sdk/ cli/ ← clients (golden-path surface only — see parity firewall)
-│   ├── stacks/        ← chain primitives SDK (/clarity is load-bearing; wallet half frozen)
+│   ├── stacks/        ← chain primitives SDK (/clarity load-bearing; nonce coordination supported; rest of wallet half frozen)
 │   └── shared/        ← db, schemas, vocab single-sourcing
 └── apps/web/          ← www marketing + docs + /platform console
 ```
@@ -44,9 +44,12 @@ speculatively hand-mirrored. Releases batch weekly via changesets.
 ### Frozen periphery
 
 BYO database plane, multi-ORM codegen, aggregates, index proofs/stacking/mempool
-extras, CLI devnet/local/db, the stacks-SDK wallet half, subscriptions format
+extras, CLI devnet/local/db, the stacks-SDK wallet half (except nonce
+coordination — supported, see packages/stacks/README.md), subscriptions format
 expansion. Shipped code stays; no new investment, no docs prominence. Delete on
 first maintenance touch. Unfreeze requires a named external request.
+Nonce coordination is the carved-out exception: demand-validated (named external
+request), supported, documented.
 
 ### Scope discipline
 
@@ -55,7 +58,7 @@ first maintenance touch. Unfreeze requires a named external request.
   are sacred.
 - The decoder service (`packages/indexer` l2 module) reads from Streams in production — dogfooding, do not break it.
 - Never describe product surfaces as L1/L2/L3 layers in docs or comms — Stacks is itself a Bitcoin L2, so the terms confuse users. Say raw (Streams), decoded (Index), your schema (Subgraphs). This also extends to code: no identifier, env var, service, or table may start with `l2`/`layer2`. The decoder service is `decoder` (image `secondlayer-decoder`), the dir is `packages/indexer/src/decode/`, checkpoints are named `decode.<event_type>.v<major>`, and the checkpoint table is `decoder_checkpoints` (see ADR-0008/ADR-0010).
-- No EVM/multi-chain. No wallet-side primitives beyond what's already frozen.
+- No EVM/multi-chain. No new wallet-side primitives beyond nonce coordination (supported) and what's already frozen.
 
 ### Process
 

@@ -104,9 +104,9 @@ absent from the pricing hero. It leads our agent story; it is not a revenue line
   ONLY. SDK/CLI/MCP wrappers are added on first external request, generated not
   hand-mirrored. Releases batch weekly.
 - **Frozen periphery** — shipped-but-unused surfaces (BYO plane, multi-ORM
-  codegen, aggregates, proofs, CLI devnet/local, stacks-SDK wallet half) stay
-  shipped, lose docs prominence, and get zero further investment. Delete on
-  first maintenance touch.
+  codegen, aggregates, proofs, CLI devnet/local, stacks-SDK wallet half (except
+  supported nonce coordination)) stay shipped, lose docs prominence, and get
+  zero further investment. Delete on first maintenance touch.
 - **Demand before supply** — features unfreeze on a named external request, not
   on taxonomy or completeness arguments.
 - **GTM is founder-led** — the prospect universe is ~30-80 funded Stacks teams.
