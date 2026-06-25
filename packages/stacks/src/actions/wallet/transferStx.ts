@@ -2,6 +2,7 @@ import type { Client } from "../../clients/types.ts";
 import type { PostCondition } from "../../postconditions/types.ts";
 import { buildTokenTransfer } from "../../transactions/build.ts";
 import { signTransactionWithAccount } from "../../transactions/signer.ts";
+import { validateStacksAddress } from "../../utils/address.ts";
 import type { IntegerType } from "../../utils/encoding.ts";
 import { estimateFee } from "../public/estimateFee.ts";
 import { broadcastWithNonceReset, resolveNonce } from "./nonceManager.ts";
@@ -24,6 +25,9 @@ export async function transferStx(
 ): Promise<string> {
 	const account = client.account;
 	if (!account) throw new Error("Account required");
+
+	if (!validateStacksAddress(params.to))
+		throw new Error(`Invalid recipient address: ${params.to}`);
 
 	// Provider: delegate to wallet
 	if (isProviderAccount(account)) {

@@ -27,6 +27,10 @@ export async function callContract(
 	const account = client.account;
 	if (!account) throw new Error("Account required");
 
+	// Validate the contract id up front so both the provider and local paths
+	// reject malformed input instead of forwarding it to the wallet.
+	const [contractAddress, contractName] = parseContractId(params.contract);
+
 	// Provider: delegate to wallet
 	if (isProviderAccount(account)) {
 		const result = await account.provider.request("stx_callContract", {
@@ -38,8 +42,6 @@ export async function callContract(
 	}
 
 	// Local/Custom: build → sign → broadcast
-	const [contractAddress, contractName] = parseContractId(params.contract);
-
 	const nonce = params.nonce ?? (await resolveNonce(client, account.address));
 
 	const unsigned = buildContractCall({

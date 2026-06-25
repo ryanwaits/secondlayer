@@ -3,6 +3,7 @@ import type { PostCondition } from "../../postconditions/types.ts";
 import { buildContractDeploy } from "../../transactions/build.ts";
 import { signTransactionWithAccount } from "../../transactions/signer.ts";
 import type { ClarityVersion } from "../../transactions/types.ts";
+import { isClarityName } from "../../utils/address.ts";
 import type { IntegerType } from "../../utils/encoding.ts";
 import { estimateFee } from "../public/estimateFee.ts";
 import { broadcastWithNonceReset, resolveNonce } from "./nonceManager.ts";
@@ -25,6 +26,9 @@ export async function deployContract(
 ): Promise<string> {
 	const account = client.account;
 	if (!account) throw new Error("Account required");
+
+	if (!isClarityName(params.contractName))
+		throw new Error(`Invalid contract name: ${params.contractName}`);
 
 	// Provider: delegate to wallet
 	if (isProviderAccount(account)) {
