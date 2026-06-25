@@ -40,3 +40,20 @@ export {
 	type ParsedOutputScript,
 	parseOutputScript,
 } from "./codec.ts";
+
+export {
+	type BitcoinNetwork,
+	SPV_ADAPTER_CONTRACTS,
+	type SpvAdapterRef,
+} from "./constants.ts";
+export { SPV_ADAPTER_ABI } from "./abi/spvAdapter.ts";
+export {
+	type Clarity6Gate,
+	getBurnBlockHeight,
+	isClarity6Active,
+} from "./activation.ts";
+export {
+	type BitcoinVerifier,
+	type BitcoinVerifierConfig,
+	bitcoinVerifier,
+} from "./verifier.ts";
