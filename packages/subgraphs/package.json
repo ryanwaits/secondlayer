@@ -45,9 +45,7 @@
 			"import": "./dist/src/runtime/emitter.js"
 		}
 	},
-	"files": [
-		"dist"
-	],
+	"files": ["dist"],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",

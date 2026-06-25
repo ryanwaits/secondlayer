@@ -49,7 +49,7 @@ describe("indexFreeWindow", () => {
 
 	test("oss/self-host: deep read passes (no free window)", async () => {
 		process.env.INSTANCE_MODE = "oss";
-		const res = await app().request(`/events?from_height=1`);
+		const res = await app().request("/events?from_height=1");
 		expect(res.status).toBe(200);
 		process.env.INSTANCE_MODE = "platform";
 	});
@@ -80,7 +80,7 @@ describe("indexFreeWindow", () => {
 
 	test("credited free account: deep read passes (pay-as-you-go)", async () => {
 		const res = await app({ tier: "free", credited: true }).request(
-			`/events?from_height=1`,
+			"/events?from_height=1",
 		);
 		expect(res.status).toBe(200);
 	});

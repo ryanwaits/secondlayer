@@ -6,7 +6,15 @@
 			"**/node_modules/**",
 			"**/.next/**",
 			"**/build/**",
-			"packages/subgraphs/test/fixtures/blockdata-8100000-8100100.json"
+			"packages/subgraphs/test/fixtures/blockdata-8100000-8100100.json",
+			".cadence/**",
+			".vercel/**",
+			".claude/**",
+			".impeccable/**",
+			".mcp.json",
+			"skills-lock.json",
+			"skills/**",
+			"docs/mocks/**"
 		]
 	},
 	"formatter": {

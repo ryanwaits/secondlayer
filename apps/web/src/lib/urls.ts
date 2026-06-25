@@ -9,7 +9,10 @@
 // which have no app subdomain, keep working).
 
 const APP_BASE = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
-const MARKETING_BASE = process.env.NEXT_PUBLIC_MARKETING_URL?.replace(/\/$/, "");
+const MARKETING_BASE = process.env.NEXT_PUBLIC_MARKETING_URL?.replace(
+	/\/$/,
+	"",
+);
 
 /** Link to the authenticated app host. Absolute when configured, else relative. */
 export function appUrl(path = "/"): string {
