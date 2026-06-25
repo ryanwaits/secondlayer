@@ -50,11 +50,25 @@ export const SPV_ADAPTER_ABI = {
 			outputs: "bool",
 		},
 		{
-			// (get-burn-block-info? header-hash burn-height) — authenticate a header → its root
-			name: "get-header-merkle-root",
+			// Composed SPV check: authenticate the caller-supplied header against
+			// `(get-burn-block-info? header-hash height)`, extract its merkle root,
+			// and `verify-merkle-proof` tx inclusion under it — atomically on-chain.
+			// (ok true) = mined, (ok false) = header valid but tx not included,
+			// (err ...) = header not authentic at that height.
+			name: "was-tx-mined",
 			access: "read-only",
-			args: [{ name: "burn-height", type: "uint128" }],
-			outputs: { optional: { buff: { length: 32 } } },
+			args: [
+				{ name: "header", type: { buff: { length: 80 } } },
+				{ name: "height", type: "uint128" },
+				{ name: "leaf", type: { buff: { length: 32 } } },
+				{ name: "tx-index", type: "uint128" },
+				{ name: "tx-count", type: "uint128" },
+				{
+					name: "siblings",
+					type: { list: { type: { buff: { length: 32 } }, length: 24 } },
+				},
+			],
+			outputs: { response: { ok: "bool", error: "uint128" } },
 		},
 	],
 } as const satisfies AbiContract;

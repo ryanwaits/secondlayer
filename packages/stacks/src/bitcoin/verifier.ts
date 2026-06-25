@@ -1,5 +1,10 @@
 import { readContract } from "../actions/public/readContract.ts";
-import { type ClarityValue, bufferCV, uintCV } from "../clarity/index.ts";
+import {
+	type ClarityValue,
+	bufferCV,
+	listCV,
+	uintCV,
+} from "../clarity/index.ts";
 import type { Client } from "../clients/types.ts";
 import {
 	type DecodedTxOutput,
@@ -29,8 +34,16 @@ export interface BitcoinVerifier {
 		root: Uint8Array;
 		proof: MerkleProof;
 	}): Promise<boolean>;
-	/** Verify an `SpvProof`: leaf and root are taken from the proof + its header. */
+	/** Verify an `SpvProof`'s merkle inclusion against its own header root (membership only — not chain-authenticated). */
 	verifySpvProof(proof: SpvProof): Promise<boolean>;
+	/**
+	 * Full header-authenticated SPV check via the adapter's `was-tx-mined`: the
+	 * contract authenticates the proof's header against the chain
+	 * (`get-burn-block-info? header-hash`), extracts its root, and proves
+	 * inclusion — atomically. Returns `false` if the header isn't canonical at
+	 * its height or the tx isn't included. This is the real "is it on Bitcoin" check.
+	 */
+	wasTxMined(proof: SpvProof): Promise<boolean>;
 	/**
 	 * Decode one output of a serialized Bitcoin tx via the adapter's
 	 * `get-tx-output` (the native `get-bitcoin-tx-output?`).
@@ -82,6 +95,24 @@ export function bitcoinVerifier(
 				root,
 				proof: proof.merkle,
 			});
+		},
+		async wasTxMined(proof) {
+			const result = await readContract(client, {
+				contract,
+				functionName: "was-tx-mined",
+				args: [
+					bufferCV(proof.header),
+					uintCV(proof.height),
+					bufferCV(proof.txidInternal),
+					uintCV(proof.merkle.txIndex),
+					uintCV(proof.merkle.txCount),
+					listCV(proof.merkle.siblings.map((s) => bufferCV(s))),
+				],
+				sender,
+			});
+			// (response bool uint): (ok true) mined, (ok false) not, (err) bad header → fail closed.
+			if (result.type === "err") return false;
+			return clarityToBool(result);
 		},
 		async getTxOutput(rawTx, vout) {
 			const result = await readContract(client, {

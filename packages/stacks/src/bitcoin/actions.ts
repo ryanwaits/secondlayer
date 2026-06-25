@@ -1,12 +1,9 @@
-import { readContract } from "../actions/public/readContract.ts";
-import { uintCV } from "../clarity/index.ts";
 import type { Client } from "../clients/types.ts";
-import { bytesToHex, hexToBytes } from "../utils/encoding.ts";
 import { formatBitcoinAddress } from "./address.ts";
 import { type OutputScriptType, parseOutputScript } from "./codec.ts";
 import type { BitcoinNetwork } from "./constants.ts";
 import { type ProofSource, type SpvProof, buildTxProof } from "./proof.ts";
-import { parseBitcoinTx, parseBlockHeader } from "./serialize.ts";
+import { parseBitcoinTx } from "./serialize.ts";
 import { bitcoinVerifier } from "./verifier.ts";
 
 export interface BitcoinPaymentOutput {
@@ -23,12 +20,13 @@ export interface BitcoinPaymentOutput {
 export interface VerifyBitcoinPaymentResult {
 	/** `mined` AND every supplied `expect` constraint holds. */
 	verified: boolean;
-	/** Header authenticated on-chain (if checked) AND merkle inclusion proven. */
+	/**
+	 * On-chain proof that the tx is committed in a Bitcoin block. With
+	 * `authenticateHeader` (default), this is the adapter's `was-tx-mined` —
+	 * header authenticated against the chain AND merkle inclusion. With it off,
+	 * it is merkle inclusion against the proof's own (unauthenticated) header.
+	 */
 	mined: boolean;
-	/** Whether the proof's header is the canonical block at its height (per `get-header-merkle-root`). `true` when `authenticateHeader` is off. */
-	headerAuthentic: boolean;
-	/** Raw merkle-inclusion result from `verify-merkle`. */
-	included: boolean;
 	/** The decoded output at `vout`. */
 	output: BitcoinPaymentOutput;
 	/** The proof used (built or supplied). */
@@ -56,32 +54,14 @@ export type VerifyBitcoinPaymentParams = (
 	sender?: string;
 };
 
-async function getHeaderMerkleRoot(
-	client: Client,
-	contract: string,
-	height: number,
-	sender?: string,
-): Promise<Uint8Array | null> {
-	const result = await readContract(client, {
-		contract,
-		functionName: "get-header-merkle-root",
-		args: [uintCV(height)],
-		sender,
-	});
-	if (result.type === "none") return null;
-	if (result.type === "some" && result.value.type === "buffer") {
-		return hexToBytes(result.value.value);
-	}
-	throw new Error(`unexpected get-header-merkle-root result: ${result.type}`);
-}
-
 /**
  * Verify that a Bitcoin payment is committed on-chain and (optionally) matches
  * an expected recipient/amount. Composes the whole SPV flow:
  *  1. build the proof from a `ProofSource` (or accept a prepared `SpvProof`),
- *  2. authenticate the block header at its height (`get-header-merkle-root`),
- *  3. prove tx inclusion under that root (`verify-merkle`),
- *  4. decode the target output and assert any `expect` constraints.
+ *  2. prove the tx is mined — `was-tx-mined` (header authenticated against the
+ *     chain + merkle inclusion) by default, or membership-only when
+ *     `authenticateHeader` is off,
+ *  3. decode the target output and assert any `expect` constraints.
  *
  * The output is decoded off-chain from the proof's raw tx, which is sound: the
  * raw tx is pinned to the proven txid (`buildTxProof` checks it hashes to the
@@ -105,27 +85,10 @@ export async function verifyBitcoinPayment(
 			? params.proof
 			: await buildTxProof(params.source, { txid: params.txid, vout });
 
-	const headerRoot = parseBlockHeader(proof.header).merkleRoot;
 	const verifier = bitcoinVerifier(client, { contract, sender });
-
-	let headerAuthentic = true;
-	if (authenticateHeader) {
-		const authRoot = await getHeaderMerkleRoot(
-			client,
-			contract,
-			proof.height,
-			sender,
-		);
-		headerAuthentic =
-			authRoot != null && bytesToHex(authRoot) === bytesToHex(headerRoot);
-	}
-
-	const included = await verifier.verifyMerkleProof({
-		leaf: proof.txidInternal,
-		root: headerRoot,
-		proof: proof.merkle,
-	});
-	const mined = headerAuthentic && included;
+	const mined = authenticateHeader
+		? await verifier.wasTxMined(proof)
+		: await verifier.verifySpvProof(proof);
 
 	const parsedTx = parseBitcoinTx(proof.rawTx);
 	const out = parsedTx.outputs[vout];
@@ -148,5 +111,5 @@ export async function verifyBitcoinPayment(
 	const addressOk = expect?.address === undefined || address === expect.address;
 	const verified = mined && amountOk && addressOk;
 
-	return { verified, mined, headerAuthentic, included, output, proof };
+	return { verified, mined, output, proof };
 }
