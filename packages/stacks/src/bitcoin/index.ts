@@ -57,3 +57,10 @@ export {
 	type BitcoinVerifierConfig,
 	bitcoinVerifier,
 } from "./verifier.ts";
+export { formatBitcoinAddress } from "./address.ts";
+export {
+	type BitcoinPaymentOutput,
+	type VerifyBitcoinPaymentParams,
+	type VerifyBitcoinPaymentResult,
+	verifyBitcoinPayment,
+} from "./actions.ts";
