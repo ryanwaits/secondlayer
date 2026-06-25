@@ -34,7 +34,7 @@ const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
 export function buildQuery(
 	params: Record<
 		string,
-		number | string | readonly string[] | null | undefined
+		number | string | boolean | readonly string[] | null | undefined
 	>,
 ): string {
 	const search = new URLSearchParams();

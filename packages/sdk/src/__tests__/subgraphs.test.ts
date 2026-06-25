@@ -168,6 +168,52 @@ describe("Subgraphs", () => {
 		);
 	});
 
+	test("gaps builds URL with pagination + resolved flag", async () => {
+		globalThis.fetch = mockFetch({ ok: true, status: 200, body: { gaps: [] } });
+
+		await subgraphs.gaps("my-subgraph", {
+			limit: 25,
+			offset: 50,
+			resolved: false,
+		});
+
+		const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
+		const calledUrl = fetchMock.mock.calls[0][0] as string;
+		expect(calledUrl).toContain("/api/subgraphs/my-subgraph/gaps?");
+		expect(calledUrl).toContain("_limit=25");
+		expect(calledUrl).toContain("_offset=50");
+		expect(calledUrl).toContain("resolved=false");
+	});
+
+	test("gaps with no opts omits query string", async () => {
+		globalThis.fetch = mockFetch({ ok: true, status: 200, body: { gaps: [] } });
+
+		await subgraphs.gaps("my-subgraph");
+
+		const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
+		const calledUrl = fetchMock.mock.calls[0][0] as string;
+		expect(calledUrl).toBe(`${BASE_URL}/api/subgraphs/my-subgraph/gaps`);
+	});
+
+	test("delete appends force only when set", async () => {
+		globalThis.fetch = mockFetch({
+			ok: true,
+			status: 200,
+			body: { message: "ok" },
+		});
+
+		await subgraphs.delete("my-subgraph");
+		await subgraphs.delete("my-subgraph", { force: true });
+
+		const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
+		expect(fetchMock.mock.calls[0][0]).toBe(
+			`${BASE_URL}/api/subgraphs/my-subgraph`,
+		);
+		expect(fetchMock.mock.calls[1][0]).toBe(
+			`${BASE_URL}/api/subgraphs/my-subgraph?force=true`,
+		);
+	});
+
 	test("markdown returns text response", async () => {
 		globalThis.fetch = mockFetch({
 			ok: true,

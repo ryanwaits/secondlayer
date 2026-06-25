@@ -23,7 +23,7 @@ import type {
 	SubscribeOptions,
 	WhereInput,
 } from "@secondlayer/subgraphs";
-import { BaseClient } from "../base.ts";
+import { BaseClient, buildQuery } from "../base.ts";
 import { resolveOrderByColumn, serializeWhere } from "./serialize.ts";
 
 export interface SubgraphSource {
@@ -110,10 +110,7 @@ function buildAggregateQueryString(params: SubgraphAggregateParams): string {
 }
 
 function buildSpecQueryString(options?: SubgraphSpecOptions): string {
-	const qs = new URLSearchParams();
-	if (options?.serverUrl) qs.set("server", options.serverUrl);
-	const str = qs.toString();
-	return str ? `?${str}` : "";
+	return buildQuery({ server: options?.serverUrl });
 }
 
 export class Subgraphs extends BaseClient {
@@ -188,14 +185,14 @@ export class Subgraphs extends BaseClient {
 		name: string,
 		opts?: { limit?: number; offset?: number; resolved?: boolean },
 	): Promise<SubgraphGapsResponse> {
-		const qs = new URLSearchParams();
-		if (opts?.limit !== undefined) qs.set("_limit", String(opts.limit));
-		if (opts?.offset !== undefined) qs.set("_offset", String(opts.offset));
-		if (opts?.resolved !== undefined) qs.set("resolved", String(opts.resolved));
-		const query = qs.toString();
+		const qs = buildQuery({
+			_limit: opts?.limit,
+			_offset: opts?.offset,
+			resolved: opts?.resolved,
+		});
 		return this.request<SubgraphGapsResponse>(
 			"GET",
-			`/api/subgraphs/${name}/gaps${query ? `?${query}` : ""}`,
+			`/api/subgraphs/${name}/gaps${qs}`,
 		);
 	}
 
@@ -203,7 +200,7 @@ export class Subgraphs extends BaseClient {
 		name: string,
 		options?: { force?: boolean },
 	): Promise<{ message: string }> {
-		const qs = options?.force ? "?force=true" : "";
+		const qs = buildQuery({ force: options?.force ? true : undefined });
 		return this.request<{ message: string }>(
 			"DELETE",
 			`/api/subgraphs/${name}${qs}`,
