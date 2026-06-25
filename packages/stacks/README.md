@@ -36,6 +36,7 @@ const balance = await client.getBalance({
 | `@secondlayer/stacks/transactions` | Build, sign, serialize transactions, multi-sig |
 | `@secondlayer/stacks/postconditions` | `Pc` fluent builder for post-conditions |
 | `@secondlayer/stacks/utils` | Encoding, hashing, addresses, unit formatting |
+| `@secondlayer/stacks/bitcoin` | Trust-minimized Bitcoin SPV — proof construction, Clarity codecs, verifier (SIP-044) |
 
 ### Frozen modules
 
@@ -121,6 +122,54 @@ const reconciler = startNonceReconciler(nonceManager, {
 ```
 
 Everything here is opt-in. With no `source`/`store`, the manager depends only on your node.
+
+## Bitcoin SPV (SIP-044)
+
+The off-chain half of on-chain Bitcoin verification. SIP-044 ("Clarity 6", activating
+with Stacks Epoch 4.0) gives contracts native, uncapped Bitcoin SPV via
+`get-bitcoin-tx-output?` and `verify-merkle-proof`. This module builds the inputs
+those built-ins consume — so a builder never runs a Bitcoin node by hand, strips
+witness data, or reverses hashes.
+
+```ts
+import { createPublicClient, http } from "@secondlayer/stacks";
+import { mainnet } from "@secondlayer/stacks/chains";
+import {
+  buildTxProof,
+  bitcoinRpcSource,
+  esploraSource,
+  fallbackProofSource,
+  verifyBitcoinPayment,
+} from "@secondlayer/stacks/bitcoin";
+
+const client = createPublicClient({ chain: mainnet, transport: http() });
+
+// Trustless by default: the integrator's own node first, hosted fallback second.
+const source = fallbackProofSource([
+  bitcoinRpcSource({ url: "http://127.0.0.1:8332", auth: { username: "u", password: "p" } }),
+  esploraSource({ url: "https://blockstream.info/api" }),
+]);
+
+// "release only when a real BTC payment to <addr> for <amount> is proven on-chain"
+const result = await verifyBitcoinPayment(client, {
+  txid: "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+  source,
+  vout: 0,
+  contract: "SP….spv-adapter",            // the reference adapter (or your own verifier contract)
+  expect: { address: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", amount: 5_000_000_000n },
+});
+// → { verified, mined, headerAuthentic, included, output, proof }
+```
+
+Lower-level pieces are exported too: `parseBitcoinTx` / `buildMerkleProof` /
+`merkleRoot` (proof construction), `encodeMerkleProofArgs` / `decodeTxOutput` /
+`parseOutputScript` (Clarity codecs), and `bitcoinVerifier` / `isClarity6Active`
+(the contract binding + activation gate).
+
+The off-chain surface (proof construction, codecs, sources) works today against
+live Bitcoin data. The on-chain verification calls require the native built-ins,
+which exist once Clarity 6 / Epoch 4.0 is active (demonstrable now on a local
+Clarity-6 devnet). **SPV trust-minimizes *verification*, not *custody*.**
 
 ## WalletConnect v2
 
