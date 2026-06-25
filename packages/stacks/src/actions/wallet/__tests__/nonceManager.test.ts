@@ -15,6 +15,7 @@ import {
 	createNonceManager,
 	isNonceConflictError,
 	resolveNonce,
+	startNonceReconciler,
 } from "../nonceManager.ts";
 
 const ACCOUNT = privateKeyToAccount("11".repeat(32));
@@ -242,5 +243,38 @@ describe("wallet client integration", () => {
 		}
 
 		expect(broadcastNonces).toEqual([9n, 10n, 11n]);
+	});
+});
+
+describe("startNonceReconciler", () => {
+	it("contains a throwing onError callback", async () => {
+		const client = { chain: mainnet } as unknown as Client;
+
+		// manager.peek() must return a tracked nonce so reconcileNonce reaches the
+		// source read; but we make the SOURCE throw to force the catch → onError.
+		const manager = createNonceManager({ source: { get: async () => 1n } });
+
+		let onErrorCalls = 0;
+		const handle = startNonceReconciler(manager, {
+			client,
+			addresses: [ACCOUNT.address],
+			// THIS is what throws — reconcileNonce awaits source.get first.
+			source: {
+				get: async () => {
+					throw new Error("source down");
+				},
+			},
+			intervalMs: 5,
+			onError: () => {
+				onErrorCalls++;
+				throw new Error("callback boom"); // must NOT crash the loop / leak a rejection
+			},
+		});
+
+		// Let at least one tick fire. If the throwing onError leaked as an unhandled
+		// rejection, bun:test fails the run. We also assert the branch actually ran.
+		await new Promise((r) => setTimeout(r, 30));
+		handle.stop();
+		expect(onErrorCalls).toBeGreaterThan(0);
 	});
 });

@@ -16,5 +16,11 @@ export async function getNonce(
 	const data = await client.request(`/v2/accounts/${params.address}`, {
 		method: "GET",
 	});
-	return BigInt(data.nonce);
+	const nonce = (data as { nonce?: unknown })?.nonce;
+	if (typeof nonce !== "number" && typeof nonce !== "string") {
+		throw new Error(
+			`getNonce: unexpected /v2/accounts response for ${params.address} (missing numeric nonce)`,
+		);
+	}
+	return BigInt(nonce);
 }

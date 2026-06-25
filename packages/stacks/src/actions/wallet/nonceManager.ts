@@ -245,7 +245,12 @@ export function startNonceReconciler(
 				});
 				params.onReconcile?.(address, result);
 			} catch (error) {
-				params.onError?.(address, error);
+				try {
+					params.onError?.(address, error);
+				} catch {
+					// A throwing onError callback must not abort the reconcile loop
+					// or surface as an unhandled rejection on the interval timer.
+				}
 			}
 		}
 	};
