@@ -16,3 +16,12 @@ export {
 	merkleRoot,
 	rootFromProof,
 } from "./merkle.ts";
+
+export {
+	type DecodedTxOutput,
+	decodeTxOutput,
+	encodeMerkleProofArgs,
+	type OutputScriptType,
+	type ParsedOutputScript,
+	parseOutputScript,
+} from "./codec.ts";
