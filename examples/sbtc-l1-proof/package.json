@@ -1,0 +1,17 @@
+{
+	"name": "sbtc-l1-proof",
+	"private": true,
+	"type": "module",
+	"description": "For every sBTC deposit the Secondlayer index surfaces, assemble its Bitcoin L1 SPV proof and verify it against the spv-adapter contract in Clarinet simnet.",
+	"scripts": {
+		"start": "bun run index.ts",
+		"deposits": "bun run deposits.ts",
+		"smoke": "bun run simnet.ts",
+		"prove": "bun run prove.ts"
+	},
+	"dependencies": {
+		"@secondlayer/stacks": "workspace:*",
+		"@stacks/clarinet-sdk": "3.21.0",
+		"@stacks/transactions": "7.0.6"
+	}
+}

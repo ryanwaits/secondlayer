@@ -3,7 +3,7 @@
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
-	"workspaces": ["packages/*", "apps/*"],
+	"workspaces": ["packages/*", "apps/*", "examples/sbtc-l1-proof"],
 	"scripts": {
 		"prepare": "git config core.hooksPath .githooks || true",
 		"build": "bun run build:stacks && bun run build:docs && bun run build:shared && bun run build:platform && bun run build:subgraphs && bun run build:bundler && bun run build:scaffold && bun run build:sdk && bun run build:mcp && bun run build:cli",
