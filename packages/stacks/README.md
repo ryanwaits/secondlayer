@@ -158,7 +158,7 @@ const result = await verifyBitcoinPayment(client, {
   contract: "SP….spv-adapter",            // the reference adapter (or your own verifier contract)
   expect: { address: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", amount: 5_000_000_000n },
 });
-// → { verified, mined, headerAuthentic, included, output, proof }
+// → { verified, mined, output, proof }
 ```
 
 Lower-level pieces are exported too: `parseBitcoinTx` / `buildMerkleProof` /
@@ -167,10 +167,29 @@ Lower-level pieces are exported too: `parseBitcoinTx` / `buildMerkleProof` /
 (the contract binding + activation gate).
 
 The off-chain surface (proof construction, codecs, sources) works today against
-live Bitcoin data. The on-chain verification calls require the native built-ins,
-which exist once Clarity 6 / Epoch 4.0 is active (runnable now in Clarinet ≥ 3.21
-simnet — see the `spv-adapter` contract tests). **SPV trust-minimizes
-*verification*, not *custody*.**
+live Bitcoin data. The on-chain verification calls the SIP-044 native built-ins,
+which exist once Clarity 6 / Epoch 4.0 is active.
+
+### Run the on-chain side locally — no node
+
+Clarinet ≥ 3.21 boots simnet at Epoch 4.0, so the `spv-adapter` reference
+contract (`contracts/spv-adapter.clar`) both type-checks and *executes* the
+built-ins today:
+
+```bash
+cd contracts && clarinet console      # in-memory simnet @ Epoch 4.0
+# then: (contract-call? .spv-adapter get-tx-output 0x<rawtx> u0)
+```
+
+The SDK↔contract round-trip is covered in CI — it asserts the bytes this module
+encodes are exactly what the built-ins accept:
+
+```bash
+bun test packages/stacks/src/bitcoin/__tests__/onchain.simnet.test.ts   # 7 pass
+```
+
+See `contracts/README.md` for the full local recipe.
+**SPV trust-minimizes *verification*, not *custody*.**
 
 ## WalletConnect v2
 
