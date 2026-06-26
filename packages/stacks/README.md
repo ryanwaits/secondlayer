@@ -125,11 +125,30 @@ Everything here is opt-in. With no `source`/`store`, the manager depends only on
 
 ## Bitcoin SPV (SIP-044)
 
-The off-chain half of on-chain Bitcoin verification. SIP-044 ("Clarity 6", activating
-with Stacks Epoch 4.0) gives contracts native, uncapped Bitcoin SPV via
-`get-bitcoin-tx-output?` and `verify-merkle-proof`. This module builds the inputs
-those built-ins consume — so a builder never runs a Bitcoin node by hand, strips
-witness data, or reverses hashes.
+**Prove a Bitcoin payment happened — inside a Stacks contract, with no oracle.**
+
+SIP-044 ("Clarity 6", activating with Stacks Epoch 4.0) lets a contract natively
+verify that a Bitcoin transaction was mined — *SPV* (Simplified Payment
+Verification), the proof technique Bitcoin light clients use. A contract can check
+"BTC tx T paid Z sats to address Y in a confirmed block" without trusting an
+indexer or oracle.
+
+The catch: the built-ins (`get-bitcoin-tx-output?`, `verify-merkle-proof`) run
+only *inside* a contract and demand precisely-shaped proof data — the right merkle
+proof, internal byte order, witness stripped. This module does that off-chain prep
+so you never run a node by hand or reverse a hash, and ships a reference contract
+(`spv-adapter`, in `contracts/`) wired to the built-ins.
+
+**What it unlocks** (it trust-minimizes *verification*, not *custody*):
+
+- **BTC-settled escrow / OTC** — release sBTC, an NFT, or a loan only when a real BTC payment is proven on-chain.
+- **BTC-L1 collateral** — prove a borrower's Bitcoin UTXO exists on L1 instead of trusting a price/existence oracle (Zest / Granite-style lending).
+- **Atomic BTC ↔ sBTC / Runes swaps** — native SPV is uncapped, so multi-output Runes/BTC txs that blew past the old `clarity-bitcoin` limits now verify.
+- **Trust-minimized sBTC** — deposits *proven* on-chain rather than only *asserted* by the signer set (aligns with SIP-028).
+
+It's also the Bitcoin half of the [Secondlayer](https://secondlayer.tools) indexer:
+our index already surfaces the `bitcoin_txid` on every sBTC deposit/withdrawal —
+this module turns that correlation into an on-chain-verifiable proof.
 
 ```ts
 import { createPublicClient, http } from "@secondlayer/stacks";
