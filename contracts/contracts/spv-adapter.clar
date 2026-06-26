@@ -1,9 +1,9 @@
-;; spv-adapter — a thin, read-only reference wrapper over the SIP-044 (Clarity 6)
+;; spv-adapter -- a thin, read-only reference wrapper over the SIP-044 (Clarity 6)
 ;; Bitcoin SPV built-ins. The built-ins are callable only from within a Clarity
 ;; contract, not over RPC; this contract exposes them as read-only functions so
 ;; the @secondlayer/stacks `bitcoinVerifier` (and any integrator) can reach them.
 ;;
-;; No state, no admin, no custody — it only reads. Requires Clarity 6 / Stacks
+;; No state, no admin, no custody -- it only reads. Requires Clarity 6 / Stacks
 ;; Epoch 4.0 (where `get-bitcoin-tx-output?` and `verify-merkle-proof` exist).
 ;;
 ;; Byte order: 32-byte hashes (txids, merkle roots, siblings) are INTERNAL order
@@ -25,7 +25,7 @@
   (fold prepend-byte input 0x))
 
 ;; The merkle root committed by an 80-byte block header: bytes [36, 68),
-;; internal order — ready to pass straight to `verify-merkle-proof`.
+;; internal order -- ready to pass straight to `verify-merkle-proof`.
 (define-read-only (header-merkle-root (header (buff 80)))
   (match (slice? header u36 u68)
     sliced (as-max-len? sliced u32)
@@ -38,7 +38,7 @@
   (get-bitcoin-tx-output? tx vout))
 
 ;; (verify-merkle-proof ...): prove tx inclusion under a supplied merkle root.
-;; This is membership only — the root is not authenticated against the chain
+;; This is membership only -- the root is not authenticated against the chain
 ;; here. Use `was-tx-mined` for the full check.
 (define-read-only (verify-merkle
     (leaf (buff 32))
@@ -52,14 +52,14 @@
 
 ;; Authenticate a caller-supplied 80-byte header against the chain's record at
 ;; `height` (`get-burn-block-info? header-hash`), extract its merkle root, and
-;; prove the leaf is committed under it — atomically.
-;;   (ok true)  — header is canonical AND the tx is included (mined)
-;;   (ok false) — header is canonical but the tx is not included
-;;   (err u1)   — header is not the canonical block at `height`
-;;   (err u2)   — header merkle-root slice failed (malformed header length)
+;; prove the leaf is committed under it -- atomically.
+;;   (ok true)  -- header is canonical AND the tx is included (mined)
+;;   (ok false) -- header is canonical but the tx is not included
+;;   (err u1)   -- header is not the canonical block at `height`
+;;   (err u2)   -- header merkle-root slice failed (malformed header length)
 ;; Note: `height` is the Bitcoin/burn block height. A "flash block" (two BTC
 ;; blocks in one Stacks tenure) has no recorded header-hash for the skipped
-;; block, so a tx mined there returns (err u1) — the known SPV edge case.
+;; block, so a tx mined there returns (err u1) -- the known SPV edge case.
 (define-read-only (was-tx-mined
     (header (buff 80))
     (height uint)

@@ -121,6 +121,7 @@
 		"access": "public"
 	},
 	"devDependencies": {
+		"@stacks/clarinet-sdk": "3.21.0",
 		"@stacks/transactions": "7.0.6",
 		"@types/bun": "latest"
 	},
