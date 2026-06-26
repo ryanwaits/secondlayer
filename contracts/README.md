@@ -11,39 +11,32 @@ them. No state, no admin, no custody.
 Functions: `get-tx-output`, `verify-merkle`, `header-merkle-root`,
 `was-tx-mined` (the composed, header-authenticated check), plus `reverse-buff32`.
 
-### Status: gated on Clarity 6 / Epoch 4.0
+### Status: Clarity 6 / Epoch 4.0 — runs in Clarinet simnet
 
-The built-ins do not exist on mainnet/testnet until Stacks Epoch 4.0 activates.
-Released **Clarinet (≤ 3.20) cannot run this** (it caps at Clarity 3 / Epoch 3.2).
-Drive it instead with `clarity-cli` built from a Clarity-6 stacks-core branch.
+The built-ins do not exist on mainnet/testnet until Stacks Epoch 4.0 activates,
+but **Clarinet ≥ 3.21 boots simnet at Epoch 4.0**, so it both type-checks and
+*executes* them locally — no node, no `clarity-cli` build.
 
-### Run locally with `clarity-cli`
+### Run locally
 
 ```bash
-# 1. Build clarity-cli from a Clarity-6 stacks-core branch (~5-15 min, no node).
-#    Confirm the current SIP-044 branch first — branches move.
-git clone --branch pox-wf-integration --depth 1 https://github.com/stacks-network/stacks-core
-cd stacks-core && cargo build --release -p clarity-cli
-CLI=$PWD/target/release/clarity-cli
+# Type-check (resolves the SIP-044 built-ins at Clarity 6).
+clarinet check
 
-# 2. Boot an Epoch 4.0 VM and deploy the adapter.
-$CLI initialize --epoch 4.0 ./db
-ADDR=ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-$CLI launch --epoch 4.0 --clarity-version clarity6 \
-  $ADDR.spv-adapter <path-to>/contracts/spv-adapter.clar ./db
-
-# 3. Exercise a built-in directly (genesis coinbase, vout 0 → 50 BTC).
-echo "(get-bitcoin-tx-output? 0x<genesis-coinbase-hex> u0)" | \
-  $CLI eval-at-chaintip $ADDR.spv-adapter ./db
+# Exercise a built-in in the REPL (genesis coinbase, vout 0 → 50 BTC).
+echo '(contract-call? .spv-adapter get-tx-output 0x<genesis-coinbase-hex> u0)' \
+  | clarinet console
 ```
 
-The `@secondlayer/stacks` test suite has an env-gated integration test
-(`SPV_CLARITY_CLI=<path-to-clarity-cli>`) that does all of the above and asserts
-the built-ins accept the args the SDK encodes. See
-`packages/stacks/src/bitcoin/__tests__/onchain.integration.test.ts`.
+The `@secondlayer/stacks` test suite drives the adapter through
+`@stacks/clarinet-sdk` simnet and asserts the built-ins accept the exact args the
+SDK encodes — runs in plain `bun test`, in CI. See
+`packages/stacks/src/bitcoin/__tests__/onchain.simnet.test.ts`.
 
 `was-tx-mined`'s header-authentication branch calls `get-burn-block-info?
-header-hash`, which needs real burn-block data — it is exercised on a devnet /
-mainnet at Epoch 4.0, not in the isolated `clarity-cli` VM (where it returns the
-not-authentic error). The pure built-ins (`verify-merkle-proof`,
-`get-bitcoin-tx-output?`) and `header-merkle-root` are fully exercised locally.
+header-hash`. simnet *does* record a header-hash per burn block (so the lookup
+resolves and the `ERR-BAD-HEADER` path is tested), but its burn headers are
+synthetic — the authenticated `(ok ...)` path needs a real 80-byte BTC header and
+is exercised on a devnet / mainnet at Epoch 4.0. The pure built-ins
+(`verify-merkle-proof`, `get-bitcoin-tx-output?`) and `header-merkle-root` are
+fully exercised in simnet.

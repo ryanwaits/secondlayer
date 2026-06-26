@@ -168,8 +168,9 @@ Lower-level pieces are exported too: `parseBitcoinTx` / `buildMerkleProof` /
 
 The off-chain surface (proof construction, codecs, sources) works today against
 live Bitcoin data. The on-chain verification calls require the native built-ins,
-which exist once Clarity 6 / Epoch 4.0 is active (demonstrable now on a local
-Clarity-6 devnet). **SPV trust-minimizes *verification*, not *custody*.**
+which exist once Clarity 6 / Epoch 4.0 is active (runnable now in Clarinet ≥ 3.21
+simnet — see the `spv-adapter` contract tests). **SPV trust-minimizes
+*verification*, not *custody*.**
 
 ## WalletConnect v2
 
