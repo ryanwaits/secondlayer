@@ -1,5 +1,11 @@
 # @secondlayer/mcp
 
+## 4.2.1
+
+### Patch Changes
+
+- 3ea6e8a: Route subgraph + subscription tool responses through the shared jsonResponse/textResponse helpers instead of hand-rolling the content envelope; output unchanged.
+
 ## 4.2.0
 
 ### Minor Changes
