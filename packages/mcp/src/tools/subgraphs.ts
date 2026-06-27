@@ -3,7 +3,12 @@ import { bundleSubgraphCode } from "@secondlayer/bundler";
 import { ByoBreakingChangeError } from "@secondlayer/sdk";
 import { z } from "zod/v4";
 import { getClient } from "../lib/client.ts";
-import { formatSubgraphSummary, withCap } from "../lib/format.ts";
+import {
+	formatSubgraphSummary,
+	jsonResponse,
+	textResponse,
+	withCap,
+} from "../lib/format.ts";
 import { defineTool } from "../lib/tool.ts";
 
 type SubgraphClientProvider = typeof getClient;
@@ -19,14 +24,7 @@ export function registerSubgraphTools(
 		{},
 		async () => {
 			const { data } = await clientProvider().subgraphs.list();
-			return {
-				content: [
-					{
-						type: "text",
-						text: JSON.stringify(data.map(formatSubgraphSummary), null, 2),
-					},
-				],
-			};
+			return jsonResponse(data.map(formatSubgraphSummary));
 		},
 	);
 
@@ -37,9 +35,7 @@ export function registerSubgraphTools(
 		{ name: z.string().describe("Subgraph name") },
 		async ({ name }) => {
 			const detail = await clientProvider().subgraphs.get(name);
-			return {
-				content: [{ type: "text", text: JSON.stringify(detail, null, 2) }],
-			};
+			return jsonResponse(detail);
 		},
 	);
 
@@ -102,9 +98,7 @@ export function registerSubgraphTools(
 					table,
 					{ filters, sort, order },
 				);
-				return {
-					content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-				};
+				return jsonResponse(result);
 			}
 			const rows = await clientProvider().subgraphs.queryTable(name, table, {
 				filters,
@@ -114,14 +108,11 @@ export function registerSubgraphTools(
 				offset,
 				fields,
 			});
-			const cap = limit ?? 50;
 			const result = withCap(
 				rows as Record<string, unknown>[],
-				cap > 200 ? 200 : cap,
+				Math.min(limit ?? 50, 200),
 			);
-			return {
-				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-			};
+			return jsonResponse(result);
 		},
 	);
 
@@ -142,9 +133,7 @@ export function registerSubgraphTools(
 				fromBlock,
 				toBlock,
 			});
-			return {
-				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-			};
+			return jsonResponse(result);
 		},
 	);
 
@@ -166,9 +155,7 @@ export function registerSubgraphTools(
 				fromBlock,
 				toBlock,
 			});
-			return {
-				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-			};
+			return jsonResponse(result);
 		},
 	);
 
@@ -179,9 +166,7 @@ export function registerSubgraphTools(
 		{ name: z.string().describe("Subgraph name") },
 		async ({ name }) => {
 			const result = await clientProvider().subgraphs.stop(name);
-			return {
-				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-			};
+			return jsonResponse(result);
 		},
 	);
 
@@ -219,9 +204,7 @@ export function registerSubgraphTools(
 				offset,
 				resolved,
 			});
-			return {
-				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-			};
+			return jsonResponse(result);
 		},
 	);
 
@@ -232,7 +215,7 @@ export function registerSubgraphTools(
 		{ name: z.string().describe("Subgraph name") },
 		async ({ name }) => {
 			const result = await clientProvider().subgraphs.delete(name);
-			return { content: [{ type: "text", text: result.message }] };
+			return textResponse(result.message);
 		},
 	);
 
@@ -291,26 +274,13 @@ export function registerSubgraphTools(
 					...(dryRun !== undefined ? { dryRun } : {}),
 					...(visibility !== undefined ? { visibility } : {}),
 				});
-				return {
-					content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-				};
+				return jsonResponse(result);
 			} catch (err) {
 				// A refused BYO breaking change is an actionable result, not a failure:
 				// defineTool would flatten the throw to {error:{message}} and drop the
 				// migration plan, so surface reasons/diff/plan as a normal result.
 				if (err instanceof ByoBreakingChangeError) {
-					return {
-						content: [
-							{
-								type: "text",
-								text: JSON.stringify(
-									{ byoBreakingChange: true, ...err.details },
-									null,
-									2,
-								),
-							},
-						],
-					};
+					return jsonResponse({ byoBreakingChange: true, ...err.details });
 				}
 				throw err;
 			}
@@ -324,9 +294,7 @@ export function registerSubgraphTools(
 		{ name: z.string().describe("Subgraph name") },
 		async ({ name }) => {
 			const result = await clientProvider().subgraphs.publish(name);
-			return {
-				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-			};
+			return jsonResponse(result);
 		},
 	);
 
@@ -337,9 +305,7 @@ export function registerSubgraphTools(
 		{ name: z.string().describe("Subgraph name") },
 		async ({ name }) => {
 			const result = await clientProvider().subgraphs.unpublish(name);
-			return {
-				content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-			};
+			return jsonResponse(result);
 		},
 	);
 }

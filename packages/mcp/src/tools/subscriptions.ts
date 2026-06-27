@@ -7,6 +7,7 @@ import type {
 import { CHAIN_TRIGGER_TYPES } from "@secondlayer/shared";
 import { z } from "zod/v4";
 import { getClient } from "../lib/client.ts";
+import { jsonResponse } from "../lib/format.ts";
 import { defineTool } from "../lib/tool.ts";
 
 type SubscriptionClientProvider = typeof getClient;
@@ -27,9 +28,7 @@ export function registerSubscriptionTools(
 		{},
 		async () => {
 			const { data } = await clientProvider().subscriptions.list();
-			return {
-				content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
-			};
+			return jsonResponse(data);
 		},
 	);
 
@@ -40,9 +39,7 @@ export function registerSubscriptionTools(
 		{ id: z.string().describe("Subscription id") },
 		async ({ id }) => {
 			const detail = await clientProvider().subscriptions.get(id);
-			return {
-				content: [{ type: "text", text: JSON.stringify(detail, null, 2) }],
-			};
+			return jsonResponse(detail);
 		},
 	);
 
@@ -132,9 +129,7 @@ export function registerSubscriptionTools(
 			const res = await clientProvider().subscriptions.create(
 				input as CreateSubscriptionRequest,
 			);
-			return {
-				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
-			};
+			return jsonResponse(res);
 		},
 	);
 
@@ -191,9 +186,7 @@ export function registerSubscriptionTools(
 				id,
 				patch as UpdateSubscriptionRequest,
 			);
-			return {
-				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
-			};
+			return jsonResponse(res);
 		},
 	);
 
@@ -204,9 +197,7 @@ export function registerSubscriptionTools(
 		{ id: z.string() },
 		async ({ id }) => {
 			const res = await clientProvider().subscriptions.delete(id);
-			return {
-				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
-			};
+			return jsonResponse(res);
 		},
 	);
 
@@ -217,9 +208,7 @@ export function registerSubscriptionTools(
 		{ id: z.string().describe("Subscription id") },
 		async ({ id }) => {
 			const res = await clientProvider().subscriptions.test(id);
-			return {
-				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
-			};
+			return jsonResponse(res);
 		},
 	);
 
@@ -249,9 +238,7 @@ export function registerSubscriptionTools(
 				toBlock,
 				...(force !== undefined ? { force } : {}),
 			});
-			return {
-				content: [{ type: "text", text: JSON.stringify(res, null, 2) }],
-			};
+			return jsonResponse(res);
 		},
 	);
 }
