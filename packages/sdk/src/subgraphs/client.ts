@@ -77,36 +77,25 @@ export interface BundleSubgraphResponse {
 }
 
 function buildSubgraphQueryString(params: SubgraphQueryParams): string {
-	const qs = new URLSearchParams();
-	if (params.sort) qs.set("_sort", params.sort);
-	if (params.order) qs.set("_order", params.order);
-	if (params.limit !== undefined) qs.set("_limit", String(params.limit));
-	if (params.offset !== undefined) qs.set("_offset", String(params.offset));
-	if (params.fields) qs.set("_fields", params.fields);
-	if (params.filters) {
-		for (const [key, value] of Object.entries(params.filters)) {
-			qs.set(key, String(value));
-		}
-	}
-	const str = qs.toString();
-	return str ? `?${str}` : "";
+	return buildQuery({
+		_sort: params.sort,
+		_order: params.order,
+		_limit: params.limit,
+		_offset: params.offset,
+		_fields: params.fields,
+		...params.filters,
+	});
 }
 
 function buildAggregateQueryString(params: SubgraphAggregateParams): string {
-	const qs = new URLSearchParams();
-	if (params.filters) {
-		for (const [key, value] of Object.entries(params.filters)) {
-			qs.set(key, String(value));
-		}
-	}
-	if (params.count) qs.set("_count", "true");
-	if (params.countDistinct?.length)
-		qs.set("_countDistinct", params.countDistinct.join(","));
-	if (params.sum?.length) qs.set("_sum", params.sum.join(","));
-	if (params.min?.length) qs.set("_min", params.min.join(","));
-	if (params.max?.length) qs.set("_max", params.max.join(","));
-	const str = qs.toString();
-	return str ? `?${str}` : "";
+	return buildQuery({
+		...params.filters,
+		_count: params.count ? "true" : undefined, // emit only when truthy
+		_countDistinct: params.countDistinct, // empty array → "" → skipped
+		_sum: params.sum,
+		_min: params.min,
+		_max: params.max,
+	});
 }
 
 function buildSpecQueryString(options?: SubgraphSpecOptions): string {
@@ -431,11 +420,11 @@ export class Subgraphs extends BaseClient {
 				const filters = options.where
 					? serializeWhere(options.where as Record<string, unknown>)
 					: {};
-				const qs = new URLSearchParams();
-				for (const [k, v] of Object.entries(filters)) qs.set(k, String(v));
-				if (options.since != null) qs.set("since", String(options.since));
-				const query = qs.toString();
-				const url = `${self.baseUrl}/api/subgraphs/${subgraphName}/${tableName}/stream${query ? `?${query}` : ""}`;
+				const qs = buildQuery({
+					...filters,
+					since: options.since ?? undefined,
+				});
+				const url = `${self.baseUrl}/api/subgraphs/${subgraphName}/${tableName}/stream${qs}`;
 
 				type EventSourceLike = {
 					onmessage: ((ev: { data: string }) => void) | null;
