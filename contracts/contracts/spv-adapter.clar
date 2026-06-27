@@ -62,9 +62,13 @@
 ;;   (ok false) -- header is canonical but the tx is not included
 ;;   (err u1)   -- header is not the canonical block at `height`
 ;;   (err u2)   -- header merkle-root slice failed (malformed header length)
-;; Note: `height` is the Bitcoin/burn block height. A "flash block" (two BTC
-;; blocks in one Stacks tenure) has no recorded header-hash for the skipped
-;; block, so a tx mined there returns (err u1) -- the known SPV edge case.
+;; Note: `height` is the Bitcoin/burn block height. (err u1) means the supplied
+;; header is not the canonical block the node recorded at `height` -- a wrong or
+;; reorged header, or `height` out of range: before the Stacks chain launched, or
+;; newer than the node's last-processed burn block (a very recent tx -- wait for
+;; the node to catch up). `get-burn-block-info? header-hash` is indexed by burn
+;; height, so "flash blocks" (a BTC block that produced no Stacks block) are
+;; covered, not a gap.
 (define-read-only (was-tx-mined
     (header (buff 80))
     (height uint)
