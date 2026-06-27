@@ -1,7 +1,6 @@
 import type { InferredTopicSchema } from "@secondlayer/subgraphs";
 import { BaseClient, buildQuery } from "../base.ts";
 import type { SecondLayerOptions } from "../base.ts";
-import { ApiError } from "../errors.ts";
 import type { TransactionProof } from "../proofs.ts";
 import { type IndexConsumeOptions, consumeIndexFeed } from "./consumer.ts";
 
@@ -999,15 +998,10 @@ export class Index extends BaseClient {
 	 * 404 → null.
 	 */
 	async printSchema(contractId: string): Promise<PrintSchemaResponse | null> {
-		try {
-			return await this.request<PrintSchemaResponse>(
-				"GET",
-				`/v1/index/contracts/${encodeURIComponent(contractId)}/print-schema`,
-			);
-		} catch (err) {
-			if (err instanceof ApiError && err.status === 404) return null;
-			throw err;
-		}
+		return this.requestOrNull<PrintSchemaResponse>(
+			"GET",
+			`/v1/index/contracts/${encodeURIComponent(contractId)}/print-schema`,
+		);
 	}
 
 	/** Callable: `index.ftTransfers(params)` ≡ `index.ftTransfers.list(params)`. */
@@ -1507,15 +1501,10 @@ export class Index extends BaseClient {
 	}
 
 	private async getBlock(ref: string | number): Promise<BlockEnvelope | null> {
-		try {
-			return await this.request<BlockEnvelope>(
-				"GET",
-				`/v1/index/blocks/${encodeURIComponent(String(ref))}`,
-			);
-		} catch (err) {
-			if (err instanceof ApiError && err.status === 404) return null;
-			throw err;
-		}
+		return this.requestOrNull<BlockEnvelope>(
+			"GET",
+			`/v1/index/blocks/${encodeURIComponent(String(ref))}`,
+		);
 	}
 
 	private async *walkBlocks(
@@ -1574,15 +1563,10 @@ export class Index extends BaseClient {
 	private async getTransaction(
 		txId: string,
 	): Promise<TransactionEnvelope | null> {
-		try {
-			return await this.request<TransactionEnvelope>(
-				"GET",
-				`/v1/index/transactions/${encodeURIComponent(txId)}`,
-			);
-		} catch (err) {
-			if (err instanceof ApiError && err.status === 404) return null;
-			throw err;
-		}
+		return this.requestOrNull<TransactionEnvelope>(
+			"GET",
+			`/v1/index/transactions/${encodeURIComponent(txId)}`,
+		);
 	}
 
 	/** Fetch the inclusion proof for a tx (raw tx + Nakamoto header + merkle path)
@@ -1592,15 +1576,10 @@ export class Index extends BaseClient {
 	private async getTransactionProof(
 		txId: string,
 	): Promise<TransactionProof | null> {
-		try {
-			return await this.request<TransactionProof>(
-				"GET",
-				`/v1/index/transactions/${encodeURIComponent(txId)}/proof`,
-			);
-		} catch (err) {
-			if (err instanceof ApiError && err.status === 404) return null;
-			throw err;
-		}
+		return this.requestOrNull<TransactionProof>(
+			"GET",
+			`/v1/index/transactions/${encodeURIComponent(txId)}/proof`,
+		);
 	}
 
 	private async *walkTransactions(
@@ -1710,15 +1689,10 @@ export class Index extends BaseClient {
 	private async getMempoolTx(
 		txId: string,
 	): Promise<MempoolTransactionEnvelope | null> {
-		try {
-			return await this.request<MempoolTransactionEnvelope>(
-				"GET",
-				`/v1/index/mempool/${encodeURIComponent(txId)}`,
-			);
-		} catch (err) {
-			if (err instanceof ApiError && err.status === 404) return null;
-			throw err;
-		}
+		return this.requestOrNull<MempoolTransactionEnvelope>(
+			"GET",
+			`/v1/index/mempool/${encodeURIComponent(txId)}`,
+		);
 	}
 
 	private async *walkMempool(
@@ -1811,15 +1785,10 @@ export class Index extends BaseClient {
 	private async getSbtcDeposit(
 		bitcoinTxid: string,
 	): Promise<SbtcDepositEnvelope | null> {
-		try {
-			return await this.request<SbtcDepositEnvelope>(
-				"GET",
-				`/v1/index/sbtc/deposits/${encodeURIComponent(bitcoinTxid)}`,
-			);
-		} catch (err) {
-			if (err instanceof ApiError && err.status === 404) return null;
-			throw err;
-		}
+		return this.requestOrNull<SbtcDepositEnvelope>(
+			"GET",
+			`/v1/index/sbtc/deposits/${encodeURIComponent(bitcoinTxid)}`,
+		);
 	}
 
 	private async listSbtcWithdrawals(
@@ -1879,15 +1848,10 @@ export class Index extends BaseClient {
 	private async getSbtcWithdrawal(
 		requestId: number,
 	): Promise<SbtcWithdrawalEnvelope | null> {
-		try {
-			return await this.request<SbtcWithdrawalEnvelope>(
-				"GET",
-				`/v1/index/sbtc/withdrawals/${requestId}`,
-			);
-		} catch (err) {
-			if (err instanceof ApiError && err.status === 404) return null;
-			throw err;
-		}
+		return this.requestOrNull<SbtcWithdrawalEnvelope>(
+			"GET",
+			`/v1/index/sbtc/withdrawals/${requestId}`,
+		);
 	}
 
 	private async listSbtcEvents(
@@ -1993,14 +1957,9 @@ export class Index extends BaseClient {
 	private async getPoxCycle(
 		rewardCycle: number,
 	): Promise<PoxCycleEnvelope | null> {
-		try {
-			return await this.request<PoxCycleEnvelope>(
-				"GET",
-				`/v1/index/pox/cycles/${rewardCycle}`,
-			);
-		} catch (err) {
-			if (err instanceof ApiError && err.status === 404) return null;
-			throw err;
-		}
+		return this.requestOrNull<PoxCycleEnvelope>(
+			"GET",
+			`/v1/index/pox/cycles/${rewardCycle}`,
+		);
 	}
 }

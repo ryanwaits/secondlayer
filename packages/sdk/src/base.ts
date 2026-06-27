@@ -81,6 +81,21 @@ export abstract class BaseClient {
 		return response.json() as Promise<T>;
 	}
 
+	/** Like `request`, but maps a 404 to `null` instead of throwing — the one
+	 *  place that owns the "absent resource" rule for `get*` accessors. */
+	protected async requestOrNull<T>(
+		method: string,
+		path: string,
+		body?: unknown,
+	): Promise<T | null> {
+		try {
+			return await this.request<T>(method, path, body);
+		} catch (err) {
+			if (err instanceof ApiError && err.status === 404) return null;
+			throw err;
+		}
+	}
+
 	protected async requestText(
 		method: string,
 		path: string,

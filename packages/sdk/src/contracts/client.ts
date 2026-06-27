@@ -1,5 +1,4 @@
 import { BaseClient, type SecondLayerOptions, buildQuery } from "../base.ts";
-import { ApiError } from "../errors.ts";
 
 /**
  * Typed client for the contract-discovery API (`GET /v1/contracts`).
@@ -69,17 +68,12 @@ export class Contracts extends BaseClient {
 		contractId: string,
 		opts: { includeAbi?: boolean } = {},
 	): Promise<ContractSummary | null> {
-		try {
-			const { contract } = await this.request<{ contract: ContractSummary }>(
-				"GET",
-				`/v1/contracts/${encodeURIComponent(contractId)}${
-					opts.includeAbi ? "?include=abi" : ""
-				}`,
-			);
-			return contract;
-		} catch (err) {
-			if (err instanceof ApiError && err.status === 404) return null;
-			throw err;
-		}
+		const result = await this.requestOrNull<{ contract: ContractSummary }>(
+			"GET",
+			`/v1/contracts/${encodeURIComponent(contractId)}${
+				opts.includeAbi ? "?include=abi" : ""
+			}`,
+		);
+		return result?.contract ?? null;
 	}
 }
