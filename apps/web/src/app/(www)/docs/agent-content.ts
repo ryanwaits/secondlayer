@@ -192,6 +192,24 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		),
 	],
 
+	"/docs/bitcoin-spv": [
+		card(
+			"Verify a Bitcoin payment",
+			"Prove a BTC payment inside a Stacks contract.",
+			"/secondlayer Help me prove a Bitcoin payment on-chain with `@secondlayer/stacks/bitcoin`: build a proof with `buildTxProof(source, { txid, vout })` from an `esploraSource`, then call `verifyBitcoinPayment(client, { proof, vout, contract, expect: { address, amount } })` and explain `verified` vs `mined`. Note the on-chain call needs the SIP-044 built-ins — Clarity 6 / Stacks Epoch 4.0.",
+		),
+		card(
+			"Build a proof off-chain",
+			"Trustless proof construction, today, on live BTC.",
+			"/secondlayer Show me the trustless proof sources in `@secondlayer/stacks/bitcoin`: wire `fallbackProofSource([bitcoinRpcSource({ url, auth }), esploraSource({ url })])`, run `buildTxProof` against live Bitcoin data, and explain how it re-verifies every claim — txid hashes, txIndex, fold to the header merkle root — so a wrong or hostile source fails loudly.",
+		),
+		card(
+			"Run it on-chain in simnet",
+			"Exercise the SIP-044 built-ins with no node.",
+			"/secondlayer Walk me through exercising the SIP-044 built-ins today with no node: boot the reference `spv-adapter` in Clarinet ≥ 3.21 simnet (Epoch 4.0), encode the args with `encodeMerkleProofArgs`, and call `verify-merkle` / `get-tx-output` — point me at `packages/stacks/src/bitcoin/__tests__/onchain.simnet.test.ts` as the worked example.",
+		),
+	],
+
 	"/docs/contracts": [
 		card(
 			"Find contracts by trait",
