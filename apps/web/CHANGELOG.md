@@ -1,5 +1,12 @@
 # @secondlayer/web
 
+## 0.3.21
+
+### Patch Changes
+
+- Updated dependencies [f78a632]
+  - @secondlayer/sdk@6.27.1
+
 ## 0.3.20
 
 ### Patch Changes

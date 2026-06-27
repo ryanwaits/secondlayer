@@ -1,5 +1,11 @@
 # @secondlayer/sdk
 
+## 6.27.1
+
+### Patch Changes
+
+- f78a632: Collapse the duplicated 404→null try/catch in `get*` accessors into a single `BaseClient.requestOrNull` helper (no behavior change).
+
 ## 6.27.0
 
 ### Minor Changes
