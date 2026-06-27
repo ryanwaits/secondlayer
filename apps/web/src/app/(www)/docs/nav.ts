@@ -33,6 +33,7 @@ export const DOCS_NAV: DocsNavGroup[] = [
 			{ title: "Migrating from Chainhook", href: "/docs/migrate-chainhook" },
 			{ title: "REST API", href: "/docs/rest-api" },
 			{ title: "Verification", href: "/docs/verification" },
+			{ title: "Bitcoin SPV", href: "/docs/bitcoin-spv" },
 			{ title: "Contract discovery", href: "/docs/contracts" },
 			{ title: "SDK", href: "/docs/sdk" },
 			{ title: "CLI", href: "/docs/cli" },
