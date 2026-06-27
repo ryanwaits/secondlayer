@@ -1,5 +1,11 @@
 # @secondlayer/sdk
 
+## 6.27.2
+
+### Patch Changes
+
+- c48de2d: refactor(subgraphs): route query builders through canonical buildQuery
+
 ## 6.27.1
 
 ### Patch Changes
