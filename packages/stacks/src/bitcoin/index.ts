@@ -45,6 +45,8 @@ export {
 	type BitcoinNetwork,
 	SPV_ADAPTER_CONTRACTS,
 	type SpvAdapterRef,
+	getSpvAdapter,
+	spvAdapterPrincipal,
 } from "./constants.ts";
 export { SPV_ADAPTER_ABI } from "./abi/spvAdapter.ts";
 export {

@@ -158,6 +158,18 @@ describe("verifyBitcoinPayment", () => {
 		expect(result.mined).toBe(false);
 	});
 
+	test("throws a guided error when no contract is given and none is deployed", async () => {
+		// SPV_ADAPTER_CONTRACTS is empty until Epoch 4.0, so omitting `contract`
+		// must fail loudly rather than build a malformed principal.
+		expect(
+			verifyBitcoinPayment(adapterClient({}), {
+				source: block170Source(),
+				txid: BLOCK_170.coinbaseTxid,
+				vout: 0,
+			}),
+		).rejects.toThrow(/No spv-adapter deployed for mainnet/);
+	});
+
 	test("membership-only path when header authentication is disabled", async () => {
 		// was-tx-mined would throw if called; authenticateHeader:false routes to verify-merkle.
 		const result = await verifyBitcoinPayment(

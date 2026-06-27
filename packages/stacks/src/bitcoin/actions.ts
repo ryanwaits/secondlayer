@@ -1,7 +1,11 @@
 import type { Client } from "../clients/types.ts";
 import { formatBitcoinAddress } from "./address.ts";
 import { type OutputScriptType, parseOutputScript } from "./codec.ts";
-import type { BitcoinNetwork } from "./constants.ts";
+import {
+	type BitcoinNetwork,
+	getSpvAdapter,
+	spvAdapterPrincipal,
+} from "./constants.ts";
 import { type ProofSource, type SpvProof, buildTxProof } from "./proof.ts";
 import { parseBitcoinTx } from "./serialize.ts";
 import { bitcoinVerifier } from "./verifier.ts";
@@ -37,8 +41,12 @@ export type VerifyBitcoinPaymentParams = (
 	| { proof: SpvProof }
 	| { txid: string; source: ProofSource }
 ) & {
-	/** Adapter contract principal, `"address.name"`. */
-	contract: string;
+	/**
+	 * Adapter contract principal, `"address.name"`. Optional once a reference
+	 * adapter is published for `network` (see `SPV_ADAPTER_CONTRACTS`); until then
+	 * it is required.
+	 */
+	contract?: string;
 	/** Output index to decode and assert against. */
 	vout: number;
 	/** Network for address formatting. Defaults to mainnet. */
@@ -80,12 +88,24 @@ export async function verifyBitcoinPayment(
 		sender,
 	} = params;
 
+	const adapter = getSpvAdapter(network);
+	const resolvedContract =
+		contract ?? (adapter ? spvAdapterPrincipal(adapter) : undefined);
+	if (!resolvedContract) {
+		throw new Error(
+			`No spv-adapter deployed for ${network} — pass an explicit \`contract\`, or wait for Clarity 6 / Epoch 4.0 (deploy recipe: contracts/README.md).`,
+		);
+	}
+
 	const proof =
 		"proof" in params
 			? params.proof
 			: await buildTxProof(params.source, { txid: params.txid, vout });
 
-	const verifier = bitcoinVerifier(client, { contract, sender });
+	const verifier = bitcoinVerifier(client, {
+		contract: resolvedContract,
+		sender,
+	});
 	const mined = authenticateHeader
 		? await verifier.wasTxMined(proof)
 		: await verifier.verifySpvProof(proof);
