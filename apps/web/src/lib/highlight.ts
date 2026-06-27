@@ -15,6 +15,8 @@ function getHighlighter() {
 				"json",
 				"sql",
 				"markdown",
+				"toml",
+				"clarity",
 			],
 		});
 	}
@@ -42,6 +44,8 @@ const SUPPORTED_LANGS = new Set([
 	"json",
 	"sql",
 	"markdown",
+	"toml",
+	"clarity",
 ]);
 
 export function normalizeLang(lang: string): string {
