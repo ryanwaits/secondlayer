@@ -8,9 +8,13 @@ Stacks mint to its Bitcoin L1 transaction — this example builds the Bitcoin SP
 proof and runs the **SIP-044 native built-ins** against the `spv-adapter`
 reference contract. It runs **today** in Clarinet simnet (Epoch 4.0), no node.
 
+> Requires **Clarinet ≥ 3.21** (boots simnet at Epoch 4.0, where the SIP-044
+> built-ins resolve). The on-chain path is devnet/simnet-only until Stacks
+> Epoch 4.0 activates on testnet/mainnet.
+
 ```bash
-bun install            # from the repo root (workspace-linked)
 cd examples/sbtc-l1-proof
+bun install            # resolves @secondlayer/stacks from npm (^2.9.0)
 bun start              # index recent deposits → prove each
 ```
 
