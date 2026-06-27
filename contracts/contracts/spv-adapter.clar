@@ -17,25 +17,29 @@
 ;; --- byte helpers -----------------------------------------------------------
 
 (define-private (prepend-byte (b (buff 1)) (acc (buff 32)))
-  (unwrap-panic (as-max-len? (concat b acc) u32)))
+  (unwrap-panic (as-max-len? (concat b acc) u32))
+)
 
 ;; Reverse a 32-byte buffer (internal <-> display order) by folding each byte
 ;; onto the front of the accumulator.
 (define-read-only (reverse-buff32 (input (buff 32)))
-  (fold prepend-byte input 0x))
+  (fold prepend-byte input 0x)
+)
 
 ;; The merkle root committed by an 80-byte block header: bytes [36, 68),
 ;; internal order -- ready to pass straight to `verify-merkle-proof`.
 (define-read-only (header-merkle-root (header (buff 80)))
   (match (slice? header u36 u68)
     sliced (as-max-len? sliced u32)
-    none))
+    none)
+)
 
 ;; --- built-in passthroughs --------------------------------------------------
 
 ;; (get-bitcoin-tx-output? tx vout): parse one output of a serialized BTC tx.
 (define-read-only (get-tx-output (tx (buff 4096)) (vout uint))
-  (get-bitcoin-tx-output? tx vout))
+  (get-bitcoin-tx-output? tx vout)
+)
 
 ;; (verify-merkle-proof ...): prove tx inclusion under a supplied merkle root.
 ;; This is membership only -- the root is not authenticated against the chain
@@ -46,7 +50,8 @@
     (tx-index uint)
     (tx-count uint)
     (siblings (list 24 (buff 32))))
-  (verify-merkle-proof leaf root tx-index tx-count siblings))
+  (verify-merkle-proof leaf root tx-index tx-count siblings)
+)
 
 ;; --- composed SPV check -----------------------------------------------------
 
@@ -67,8 +72,12 @@
     (tx-index uint)
     (tx-count uint)
     (siblings (list 24 (buff 32))))
-  (let ((root (unwrap! (header-merkle-root header) ERR-BAD-SLICE)))
+  (let (
+        (root (unwrap! (header-merkle-root header) ERR-BAD-SLICE))
+       )
     (if (is-eq (get-burn-block-info? header-hash height)
                (some (reverse-buff32 (sha256 (sha256 header)))))
         (ok (verify-merkle-proof leaf root tx-index tx-count siblings))
-        ERR-BAD-HEADER)))
+        ERR-BAD-HEADER)
+  )
+)
