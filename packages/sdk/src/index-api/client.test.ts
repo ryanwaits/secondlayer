@@ -388,3 +388,219 @@ describe("Index PoX cycles accessors", () => {
 		expect(urls[1]).toContain("cursor=79");
 	});
 });
+
+describe("Index list param forwarding", () => {
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+	});
+
+	const emptyEvents = { events: [], next_cursor: null, tip: {}, reorgs: [] };
+
+	test("ftTransfers.list forwards contract_id + from_height + to_height", async () => {
+		const urls = recorder({
+			events: [],
+			next_cursor: null,
+			tip: {},
+			reorgs: [],
+		});
+		await new Index({ baseUrl: BASE_URL }).ftTransfers.list({
+			contractId: "SP1.token",
+			fromHeight: 100,
+			toHeight: 200,
+		});
+		expect(urls[0]).toContain("/v1/index/ft-transfers");
+		expect(decodeURIComponent(urls[0])).toContain("contract_id=SP1.token");
+		expect(urls[0]).toContain("from_height=100");
+		expect(urls[0]).toContain("to_height=200");
+	});
+
+	test("nftTransfers.list forwards contract_id + asset_identifier", async () => {
+		const urls = recorder({
+			events: [],
+			next_cursor: null,
+			tip: {},
+			reorgs: [],
+		});
+		await new Index({ baseUrl: BASE_URL }).nftTransfers.list({
+			contractId: "SP1.nft",
+			assetIdentifier: "SP1.nft::asset",
+		});
+		expect(urls[0]).toContain("/v1/index/nft-transfers");
+		expect(decodeURIComponent(urls[0])).toContain("contract_id=SP1.nft");
+		expect(decodeURIComponent(urls[0])).toContain(
+			"asset_identifier=SP1.nft::asset",
+		);
+	});
+
+	test("events.list forwards event_type + contract_id + from_height", async () => {
+		const urls = recorder(emptyEvents);
+		await new Index({ baseUrl: BASE_URL }).events.list({
+			eventType: "ft_transfer",
+			contractId: "SP1.x",
+			fromHeight: 5,
+		});
+		expect(urls[0]).toContain("event_type=ft_transfer");
+		expect(decodeURIComponent(urls[0])).toContain("contract_id=SP1.x");
+		expect(urls[0]).toContain("from_height=5");
+	});
+
+	test("contractCalls.list forwards contract_id + function_name", async () => {
+		const urls = recorder({
+			contract_calls: [],
+			next_cursor: null,
+			tip: {},
+			reorgs: [],
+		});
+		await new Index({ baseUrl: BASE_URL }).contractCalls.list({
+			contractId: "SP1.amm",
+			functionName: "swap",
+		});
+		expect(urls[0]).toContain("/v1/index/contract-calls");
+		expect(decodeURIComponent(urls[0])).toContain("contract_id=SP1.amm");
+		expect(urls[0]).toContain("function_name=swap");
+	});
+
+	test("canonical.list forwards from_height + to_height", async () => {
+		const urls = recorder({
+			canonical: [],
+			next_cursor: null,
+			tip: {},
+			reorgs: [],
+		});
+		await new Index({ baseUrl: BASE_URL }).canonical.list({
+			fromHeight: 10,
+			toHeight: 20,
+		});
+		expect(urls[0]).toContain("/v1/index/canonical");
+		expect(urls[0]).toContain("from_height=10");
+		expect(urls[0]).toContain("to_height=20");
+	});
+
+	test("blocks.list forwards from_height + to_height", async () => {
+		const urls = recorder({
+			blocks: [],
+			next_cursor: null,
+			tip: {},
+			reorgs: [],
+		});
+		await new Index({ baseUrl: BASE_URL }).blocks.list({
+			fromHeight: 1,
+			toHeight: 2,
+		});
+		expect(urls[0]).toContain("/v1/index/blocks");
+		expect(urls[0]).toContain("from_height=1");
+		expect(urls[0]).toContain("to_height=2");
+	});
+
+	test("transactions.list forwards type + contract_id + sender", async () => {
+		const urls = recorder({
+			transactions: [],
+			next_cursor: null,
+			tip: {},
+			reorgs: [],
+		});
+		await new Index({ baseUrl: BASE_URL }).transactions.list({
+			type: "contract_call",
+			contractId: "SP1.y",
+			sender: "SP2",
+		});
+		expect(urls[0]).toContain("/v1/index/transactions");
+		expect(urls[0]).toContain("type=contract_call");
+		expect(decodeURIComponent(urls[0])).toContain("contract_id=SP1.y");
+		expect(urls[0]).toContain("sender=SP2");
+	});
+
+	test("stacking.list forwards function_name + stacker + caller", async () => {
+		const urls = recorder({
+			stacking: [],
+			next_cursor: null,
+			tip: {},
+			reorgs: [],
+		});
+		await new Index({ baseUrl: BASE_URL }).stacking.list({
+			functionName: "stack-stx",
+			stacker: "SP3",
+			caller: "SP4",
+		});
+		expect(urls[0]).toContain("/v1/index/stacking");
+		expect(urls[0]).toContain("function_name=stack-stx");
+		expect(urls[0]).toContain("stacker=SP3");
+		expect(urls[0]).toContain("caller=SP4");
+	});
+
+	test("mempool.list forwards sender + type + contract_id", async () => {
+		const urls = recorder({
+			mempool: [],
+			next_cursor: null,
+			tip: {},
+			reorgs: [],
+		});
+		await new Index({ baseUrl: BASE_URL }).mempool.list({
+			sender: "SP5",
+			type: "token_transfer",
+			contractId: "SP1.z",
+		});
+		expect(urls[0]).toContain("/v1/index/mempool");
+		expect(urls[0]).toContain("sender=SP5");
+		expect(urls[0]).toContain("type=token_transfer");
+		expect(decodeURIComponent(urls[0])).toContain("contract_id=SP1.z");
+	});
+});
+
+describe("Index walk termination", () => {
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+	});
+
+	test("ftTransfers.walk pages then stops on null next_cursor", async () => {
+		const responses = [
+			{ events: [{ tx_id: "0x1" }], next_cursor: "c2", tip: {}, reorgs: [] },
+			{ events: [{ tx_id: "0x2" }], next_cursor: null, tip: {}, reorgs: [] },
+		];
+		const urls: string[] = [];
+		let call = 0;
+		globalThis.fetch = mock((input: string | URL | Request) => {
+			urls.push(typeof input === "string" ? input : input.toString());
+			const body = responses[call++] ?? {
+				events: [],
+				next_cursor: null,
+				tip: {},
+				reorgs: [],
+			};
+			return Promise.resolve({
+				ok: true,
+				status: 200,
+				headers: new Headers({ "content-type": "application/json" }),
+				json: () => Promise.resolve(body),
+				text: () => Promise.resolve(JSON.stringify(body)),
+			} as Response);
+		}) as unknown as typeof fetch;
+
+		const ids: string[] = [];
+		for await (const ev of new Index({ baseUrl: BASE_URL }).ftTransfers.walk({
+			batchSize: 1,
+		})) {
+			ids.push(ev.tx_id);
+		}
+		expect(ids).toEqual(["0x1", "0x2"]);
+		expect(urls.length).toBe(2);
+		expect(urls[1]).toContain("cursor=c2");
+	});
+
+	test("events.walk stops immediately on empty first page", async () => {
+		const urls = recorder({
+			events: [],
+			next_cursor: null,
+			tip: {},
+			reorgs: [],
+		});
+		const items: unknown[] = [];
+		for await (const ev of new Index({ baseUrl: BASE_URL }).events.walk({
+			eventType: "print",
+		})) {
+			items.push(ev);
+		}
+		expect(items).toEqual([]);
+		expect(urls.length).toBe(1);
+	});
+});
