@@ -31,7 +31,7 @@ Output (per deposit):
 
 | File | Does |
 | --- | --- |
-| `deposits.ts` | Pulls recent deposits (`bitcoin_txid` + `output_index`) from `/v1/index/sbtc/deposits`. Anonymous read; pinned historical deposit as fallback. |
+| `deposits.ts` | Pulls recent deposits (`bitcoin_txid` + `output_index`) via the typed `index.sbtc.deposits.list()` accessor (`@secondlayer/sdk`). Anonymous read; pinned historical deposit as fallback. |
 | `simnet.ts` | Boots the `spv-adapter` contract in Clarinet simnet (Epoch 4.0) and exposes `callRO`. The SDK↔contract Clarity bridge. |
 | `prove.ts` | Per deposit: `buildTxProof` (Esplora) → `verify-merkle-proof` + `get-bitcoin-tx-output?` on-chain. |
 | `index.ts` | Ties it together. |

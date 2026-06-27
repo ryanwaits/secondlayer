@@ -1,14 +1,18 @@
 // T2 — the Stacks half, from the Secondlayer index.
 //
-// `/v1/index/sbtc/deposits` is the decoded sBTC peg-in feed: each row already
-// carries the `bitcoin_txid` and `output_index` (the funding vout) that link a
-// Stacks mint to its Bitcoin L1 transaction. That join key is what makes the
-// proof in `prove.ts` possible without re-indexing anything.
+// `index.sbtc.deposits` is the typed accessor over the decoded sBTC peg-in
+// feed: each row already carries the `bitcoin_txid` and `output_index` (the
+// funding vout) that link a Stacks mint to its Bitcoin L1 transaction. That
+// join key is what makes the proof in `prove.ts` possible without re-indexing
+// anything.
 //
 // Reads are anonymous (no key) but cover the recent ~24h window; a pinned
 // historical deposit is the fallback so the demo always has something to prove.
 
+import { Index, type IndexSbtcDeposit } from "@secondlayer/sdk";
+
 const API = process.env.SL_API_URL ?? "https://api.secondlayer.tools";
+const sl = new Index({ baseUrl: API });
 
 export interface Deposit {
 	/** Bitcoin funding txid, display order, no `0x`. */
@@ -37,13 +41,11 @@ export const PINNED_DEPOSIT: Deposit = {
 const strip0x = (s: string): string =>
 	(s.startsWith("0x") ? s.slice(2) : s).toLowerCase();
 
-interface DepositRow {
+/** A completed deposit always carries its funding txid + amount; narrow to that. */
+type FundedDeposit = IndexSbtcDeposit & {
 	bitcoin_txid: string;
-	output_index: number;
 	amount: string;
-	tx_id: string;
-	block_height: number;
-}
+};
 
 /**
  * Recent completed sBTC deposits from the index, newest first. Falls back to a
@@ -52,19 +54,20 @@ interface DepositRow {
  */
 export async function recentDeposits(limit = 5): Promise<Deposit[]> {
 	try {
-		const res = await fetch(
-			`${API}/v1/index/sbtc/deposits?confirmed=true&limit=${limit}`,
+		const { deposits } = await sl.sbtc.deposits.list({
+			confirmed: true,
+			limit,
+		});
+		const funded = deposits.filter(
+			(d): d is FundedDeposit => d.bitcoin_txid !== null && d.amount !== null,
 		);
-		if (!res.ok) throw new Error(`HTTP ${res.status}`);
-		const body = (await res.json()) as { deposits?: DepositRow[] };
-		const rows = body.deposits ?? [];
-		if (rows.length === 0) return [PINNED_DEPOSIT];
-		return rows.map((r) => ({
-			bitcoinTxid: strip0x(r.bitcoin_txid),
-			vout: r.output_index,
-			sbtcAmountSats: BigInt(r.amount),
-			stacksTxId: r.tx_id,
-			stacksBlockHeight: r.block_height,
+		if (funded.length === 0) return [PINNED_DEPOSIT];
+		return funded.map((d) => ({
+			bitcoinTxid: strip0x(d.bitcoin_txid),
+			vout: d.output_index ?? 0,
+			sbtcAmountSats: BigInt(d.amount),
+			stacksTxId: d.tx_id,
+			stacksBlockHeight: d.block_height,
 		}));
 	} catch (err) {
 		console.warn(

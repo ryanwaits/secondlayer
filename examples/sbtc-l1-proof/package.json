@@ -11,6 +11,7 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
+		"@secondlayer/sdk": "^6.27.0",
 		"@secondlayer/stacks": "^2.9.0",
 		"@stacks/clarinet-sdk": "3.21.0",
 		"@stacks/transactions": "7.0.6"
