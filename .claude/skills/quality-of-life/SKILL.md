@@ -60,8 +60,12 @@ A "quality-of-life improvement" means:
 - Tightening the Clarity ABI → TypeScript generation pipeline
 
 "Simple" means:
-- Single focused PR
-- Changes no more than 3 files (ideally 1-2)
+- Single focused PR, reviewable in one sitting
+- Bounded blast radius — either a focused change in 1-2 files, OR a
+  mechanical, behavior-preserving change repeated uniformly across several
+  files (e.g. consolidating a duplicated helper, removing a dead pattern)
+  where every touched site is the same edit and covered by typecheck/tests.
+  The bound is risk and reviewability, not raw file count.
 - No new dependencies
 - No public API contract changes
 - Self-contained and non-breaking
@@ -80,7 +84,8 @@ A "quality-of-life improvement" means:
 ## Avoid
 
 - Multiple competing suggestions
-- Large refactors or breaking changes
+- Large refactors that change behavior, require per-site judgment, or touch
+  load-bearing/generated code (mechanical N-file dedup is fine; this is not)
 - Generic advice applicable to any TypeScript project
 - Theoretical improvements without concrete implementation paths
 - Adding dependencies
