@@ -69,7 +69,7 @@ const result = await verifyBitcoinPayment(client, {
 
 <Callout type="warning" title="Adapter not yet deployed">
 
-`contract` points at a deployed adapter that exposes the built-ins. The reference `spv-adapter` deploys to testnet/mainnet when Epoch 4.0 activates. Until then, run the on-chain side in [Clarinet simnet](#run-it-today-no-node), or point `contract` at your own verifier.
+`contract` points at a deployed adapter that exposes the built-ins. The reference `spv-adapter` deploys to testnet/mainnet when Epoch 4.0 activates. Until then, run the on-chain side in [Clarinet simnet](#run-it-in-clarinet-simnet), or point `contract` at your own verifier.
 
 </Callout>
 
@@ -137,22 +137,34 @@ const verifier = bitcoinVerifier(client, { contract: "SP….spv-adapter" });
 const mined = await verifier.wasTxMined(proof);
 ```
 
-## Run it today — no node
+## Run it in Clarinet simnet
 
-Clarinet ≥ 3.21 boots simnet at Epoch 4.0, so the adapter both type-checks and *executes* the built-ins locally:
+The off-chain half above runs against live Bitcoin from a bare `bun add @secondlayer/stacks` — no chain needed. The built-ins themselves run *inside* a Clarity contract, so to exercise them set up a [Clarinet](https://github.com/hirosystems/clarinet) project (**≥ 3.21** — it boots simnet at Epoch 4.0, so the built-ins resolve and execute locally, no node).
 
-```bash
-cd contracts && clarinet console      # in-memory simnet @ Epoch 4.0
-# then: (contract-call? .spv-adapter get-tx-output 0x<rawtx> u0)
+Register a verifier contract at Clarity 6 / Epoch 4.0 in `Clarinet.toml`:
+
+```toml
+[contracts.spv-adapter]
+path = "contracts/spv-adapter.clar"
+clarity_version = 6
+epoch = "4.0"
 ```
 
-The SDK↔contract round-trip is covered in CI — it asserts the bytes this module encodes are exactly what the built-ins accept:
+A minimal read-only adapter — thin pass-throughs so the SDK can reach the built-ins (no state, no custody, internal-order hashes):
 
-```bash
-bun test packages/stacks/src/bitcoin/__tests__/onchain.simnet.test.ts   # 7 pass
+```clarity
+;; parse one output of a serialized BTC tx
+(define-read-only (get-tx-output (tx (buff 4096)) (vout uint))
+  (get-bitcoin-tx-output? tx vout))
+
+;; prove a tx is committed under a block's merkle root
+(define-read-only (verify-merkle
+    (leaf (buff 32)) (root (buff 32))
+    (tx-index uint) (tx-count uint) (siblings (list 24 (buff 32))))
+  (verify-merkle-proof leaf root tx-index tx-count siblings))
 ```
 
-The [`sbtc-l1-proof` example](https://github.com/ryanwaits/secondlayer/tree/main/examples/sbtc-l1-proof) is the end-to-end keystone: for every sBTC deposit the index surfaces (`bitcoin_txid` + `output_index` on every row), it builds the proof and runs the built-ins in simnet.
+Then drive it from TypeScript with [`@stacks/clarinet-sdk`](https://www.npmjs.com/package/@stacks/clarinet-sdk) and this module's encoders — `encodeMerkleProofArgs` shapes the exact `verify-merkle-proof` arguments and `decodeTxOutput` reads the `get-bitcoin-tx-output?` tuple back. The full reference contract (including the header-authenticated `was-tx-mined`) and a worked end-to-end example live in the [secondlayer repo](https://github.com/ryanwaits/secondlayer/tree/main/contracts).
 
 ## Gate on activation
 

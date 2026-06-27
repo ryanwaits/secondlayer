@@ -206,7 +206,12 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Run it on-chain in simnet",
 			"Exercise the SIP-044 built-ins with no node.",
-			"/secondlayer Walk me through exercising the SIP-044 built-ins today with no node: boot the reference `spv-adapter` in Clarinet ≥ 3.21 simnet (Epoch 4.0), encode the args with `encodeMerkleProofArgs`, and call `verify-merkle` / `get-tx-output` — point me at `packages/stacks/src/bitcoin/__tests__/onchain.simnet.test.ts` as the worked example.",
+			"/secondlayer Help me exercise the SIP-044 built-ins today with no node: set up a Clarinet ≥ 3.21 project (boots simnet at Epoch 4.0), add a read-only `spv-adapter` contract that wraps `get-bitcoin-tx-output?` / `verify-merkle-proof` at `clarity_version = 6`, then drive it from TypeScript with `@stacks/clarinet-sdk` plus this module's `encodeMerkleProofArgs` and `decodeTxOutput`.",
+		),
+		card(
+			"Scaffold a Clarinet harness",
+			"Have an agent stand up the whole simnet flow.",
+			'/secondlayer Assuming Clarinet ≥ 3.21 is installed, scaffold a local SPV harness for me: run `clarinet new spv-demo` and `clarinet contract new spv-adapter`, set that contract to `clarity_version = 6` / `epoch = "4.0"` in `Clarinet.toml`, and make it a read-only wrapper over `get-bitcoin-tx-output?` / `verify-merkle-proof`. Then write a `bun` script that builds a real Bitcoin proof with `@secondlayer/stacks/bitcoin` (`buildTxProof` + `encodeMerkleProofArgs`) and verifies it in simnet via `@stacks/clarinet-sdk` — mirror the sbtc-l1-proof example.',
 		),
 	],
 
