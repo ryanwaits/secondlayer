@@ -315,3 +315,76 @@ describe("Index sBTC peg accessors", () => {
 		expect(res.summary.total_deposits).toBe(3);
 	});
 });
+
+describe("Index PoX cycles accessors", () => {
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+	});
+
+	const emptyCycles = { cycles: [], next_cursor: null, tip: {} };
+
+	test("pox.cycles.list forwards cursor + limit", async () => {
+		const urls = recorder(emptyCycles);
+		await new Index({ baseUrl: BASE_URL }).pox.cycles.list({
+			cursor: 80,
+			limit: 10,
+		});
+		expect(urls[0]).toContain("/v1/index/pox/cycles");
+		expect(urls[0]).toContain("cursor=80");
+		expect(urls[0]).toContain("limit=10");
+	});
+
+	test("pox.cycles.get hits the by-reward-cycle path and unwraps", async () => {
+		const urls = recorder({
+			cycle: { reward_cycle: 80, is_current: false },
+			tip: {},
+		});
+		const res = await new Index({ baseUrl: BASE_URL }).pox.cycles.get(80);
+		expect(urls[0]).toContain("/v1/index/pox/cycles/80");
+		expect(res?.cycle.reward_cycle).toBe(80);
+	});
+
+	test("pox.cycles.get resolves null on 404", async () => {
+		globalThis.fetch = mock(() =>
+			Promise.resolve({
+				ok: false,
+				status: 404,
+				headers: new Headers(),
+				json: () => Promise.resolve({ error: "not_found" }),
+				text: () => Promise.resolve('{"error":"not_found"}'),
+			} as Response),
+		) as unknown as typeof fetch;
+		const res = await new Index({ baseUrl: BASE_URL }).pox.cycles.get(999);
+		expect(res).toBeNull();
+	});
+
+	test("pox.cycles.walk pages by numeric next_cursor then stops", async () => {
+		// Two cycles, batchSize 1 → first page returns next_cursor, second ends it.
+		const responses = [
+			{ cycles: [{ reward_cycle: 80 }], next_cursor: 79, tip: {} },
+			{ cycles: [{ reward_cycle: 79 }], next_cursor: null, tip: {} },
+		];
+		const urls: string[] = [];
+		let call = 0;
+		globalThis.fetch = mock((input: string | URL | Request) => {
+			urls.push(typeof input === "string" ? input : input.toString());
+			const body = responses[call++] ?? emptyCycles;
+			return Promise.resolve({
+				ok: true,
+				status: 200,
+				headers: new Headers({ "content-type": "application/json" }),
+				json: () => Promise.resolve(body),
+				text: () => Promise.resolve(JSON.stringify(body)),
+			} as Response);
+		}) as unknown as typeof fetch;
+
+		const seen: number[] = [];
+		for await (const c of new Index({ baseUrl: BASE_URL }).pox.cycles.walk({
+			batchSize: 1,
+		})) {
+			seen.push(c.reward_cycle);
+		}
+		expect(seen).toEqual([80, 79]);
+		expect(urls[1]).toContain("cursor=79");
+	});
+});

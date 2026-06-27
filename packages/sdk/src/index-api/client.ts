@@ -858,6 +858,66 @@ export interface SbtcResource {
 	summary(): Promise<SbtcSummaryEnvelope>;
 }
 
+// ── PoX reward cycles (/v1/index/pox/cycles) ───────────────────────
+
+/** Per-function action count within a reward cycle. */
+export type IndexPoxFunctionCount = {
+	function_name: string;
+	count: number;
+};
+
+/** Aggregate stats for one PoX reward cycle — distinct from `index.stacking`
+ *  (decoded per-call PoX-4 actions); this is the reward-cycle rollup. */
+export type IndexPoxCycle = {
+	reward_cycle: number;
+	/** Total ustx locked across all stack-* calls in this cycle (bigint-safe string). */
+	total_stacked_ustx: string;
+	unique_stackers: number;
+	unique_delegators: number;
+	action_count: number;
+	start_block_height: number;
+	end_block_height: number;
+	/** True when this is the latest reward cycle (still accumulating new actions). */
+	is_current: boolean;
+	function_breakdown: IndexPoxFunctionCount[];
+};
+
+export type PoxCyclesEnvelope = {
+	cycles: IndexPoxCycle[];
+	/** The next `reward_cycle` to page from (cycles descend), or null at the end. */
+	next_cursor: number | null;
+	tip: IndexTip;
+	/** Present only when the PoX-4 decoder is disabled, explaining an empty feed. */
+	notes?: string;
+};
+
+export type PoxCycleEnvelope = {
+	cycle: IndexPoxCycle;
+	tip: IndexTip;
+	notes?: string;
+};
+
+export type PoxCyclesListParams = {
+	/** A `reward_cycle` to page from; the page returns cycles below it (descending). */
+	cursor?: number | null;
+	limit?: number;
+};
+
+export type PoxCyclesWalkParams = Omit<PoxCyclesListParams, "limit"> & {
+	batchSize?: number;
+	signal?: AbortSignal;
+};
+
+/** `index.pox` — PoX reward-cycle aggregates. */
+export interface PoxResource {
+	cycles: {
+		list(params?: PoxCyclesListParams): Promise<PoxCyclesEnvelope>;
+		walk(params?: PoxCyclesWalkParams): AsyncIterable<IndexPoxCycle>;
+		/** Fetch one reward cycle's aggregate by number; 404 → null. */
+		get(rewardCycle: number): Promise<PoxCycleEnvelope | null>;
+	};
+}
+
 function firstWalkFromHeight(params: {
 	cursor?: string | null;
 	fromCursor?: string | null;
@@ -1150,6 +1210,19 @@ export class Index extends BaseClient {
 			): AsyncIterable<IndexSbtcEvent> => this.walkSbtcEvents(params),
 		},
 		summary: (): Promise<SbtcSummaryEnvelope> => this.getSbtcSummary(),
+	};
+
+	/** PoX reward-cycle aggregates. Distinct from `stacking` (per-call PoX-4
+	 *  actions); `cycles` is the reward-cycle rollup. */
+	readonly pox: PoxResource = {
+		cycles: {
+			list: (params: PoxCyclesListParams = {}): Promise<PoxCyclesEnvelope> =>
+				this.listPoxCycles(params),
+			walk: (params: PoxCyclesWalkParams = {}): AsyncIterable<IndexPoxCycle> =>
+				this.walkPoxCycles(params),
+			get: (rewardCycle: number): Promise<PoxCycleEnvelope | null> =>
+				this.getPoxCycle(rewardCycle),
+		},
 	};
 
 	private async listFtTransfers(
@@ -1874,5 +1947,60 @@ export class Index extends BaseClient {
 
 	private async getSbtcSummary(): Promise<SbtcSummaryEnvelope> {
 		return this.request<SbtcSummaryEnvelope>("GET", "/v1/index/sbtc/summary");
+	}
+
+	private async listPoxCycles(
+		params: PoxCyclesListParams = {},
+	): Promise<PoxCyclesEnvelope> {
+		return this.request<PoxCyclesEnvelope>(
+			"GET",
+			`/v1/index/pox/cycles${buildQuery({
+				cursor: params.cursor,
+				limit: params.limit,
+			})}`,
+		);
+	}
+
+	// PoX cycles page by a numeric `reward_cycle` cursor (descending), not the
+	// string keyset the other feeds use — there is no from_cursor/from_height.
+	private async *walkPoxCycles(
+		params: PoxCyclesWalkParams = {},
+	): AsyncGenerator<IndexPoxCycle> {
+		const batchSize = params.batchSize ?? 100;
+		let cursor = params.cursor ?? null;
+
+		while (!params.signal?.aborted) {
+			const envelope = await this.listPoxCycles({ cursor, limit: batchSize });
+
+			for (const cycle of envelope.cycles) {
+				if (params.signal?.aborted) return;
+				yield cycle;
+			}
+
+			const nextCursor = envelope.next_cursor;
+			if (
+				nextCursor === null ||
+				nextCursor === cursor ||
+				envelope.cycles.length < batchSize
+			) {
+				return;
+			}
+
+			cursor = nextCursor;
+		}
+	}
+
+	private async getPoxCycle(
+		rewardCycle: number,
+	): Promise<PoxCycleEnvelope | null> {
+		try {
+			return await this.request<PoxCycleEnvelope>(
+				"GET",
+				`/v1/index/pox/cycles/${rewardCycle}`,
+			);
+		} catch (err) {
+			if (err instanceof ApiError && err.status === 404) return null;
+			throw err;
+		}
 	}
 }
