@@ -614,6 +614,250 @@ export type PrintSchemaResponse = {
 	tip: IndexTip;
 };
 
+// ── sBTC peg (/v1/index/sbtc) ──────────────────────────────────────
+
+/** The decoded `sbtc_events` topics. */
+export type SbtcEventTopic =
+	| "completed-deposit"
+	| "withdrawal-create"
+	| "withdrawal-accept"
+	| "withdrawal-reject"
+	| "key-rotation"
+	| "update-protocol-contract";
+
+export type SbtcWithdrawalStatus = "REQUESTED" | "ACCEPTED" | "REJECTED";
+
+/** A completed sBTC peg-in, keyed by `bitcoin_txid` (deposits carry no
+ *  `request_id`). One terminal `completed-deposit` event per deposit. */
+export type IndexSbtcDeposit = {
+	cursor: string;
+	block_height: number;
+	block_time?: string | null;
+	tx_id: string;
+	tx_index: number;
+	event_index: number;
+	amount: string | null;
+	sender: string | null;
+	bitcoin_txid: string | null;
+	output_index: number | null;
+	recipient_btc_version: number | null;
+	recipient_btc_hashbytes: string | null;
+};
+
+/** A deposit fetched by Bitcoin txid — always terminal, hence `status`. */
+export type IndexSbtcDepositDetail = IndexSbtcDeposit & { status: "COMPLETED" };
+
+/** A peg-out collapsed to one row per `request_id`, with lifecycle `status`
+ *  derived from the latest accept/reject. */
+export type IndexSbtcWithdrawal = {
+	cursor: string;
+	request_id: number;
+	status: SbtcWithdrawalStatus;
+	amount: string | null;
+	sender: string | null;
+	recipient_btc_version: number | null;
+	recipient_btc_hashbytes: string | null;
+	sweep_txid: string | null;
+	requested_at?: string | null;
+	resolved_at?: string | null;
+};
+
+/** One phase of a withdrawal's lifecycle (the on-Stacks event that drove it). */
+export type IndexSbtcWithdrawalPhase = {
+	block_height: number;
+	block_time: string | null;
+	tx_id: string;
+};
+
+/** A single peg-out's full assembled lifecycle, fetched by `request_id`.
+ *  `finalized` is true once terminal and past the reorg margin. */
+export type IndexSbtcWithdrawalDetail = {
+	request_id: number;
+	status: SbtcWithdrawalStatus;
+	amount: string | null;
+	sender: string | null;
+	recipient_btc_version: number | null;
+	recipient_btc_hashbytes: string | null;
+	requested: IndexSbtcWithdrawalPhase;
+	accepted:
+		| (IndexSbtcWithdrawalPhase & {
+				sweep_txid: string | null;
+				signer_bitmap: string | null;
+		  })
+		| null;
+	rejected: IndexSbtcWithdrawalPhase | null;
+	settlement: {
+		sweep_txid: string | null;
+		btc_confirmations: number | null;
+		settlement_confirmed: boolean | null;
+	};
+	finalized: boolean;
+};
+
+/** A raw decoded sBTC protocol-state event — the full `sbtc_events` row, one
+ *  per event across all topics. */
+export type IndexSbtcEvent = {
+	cursor: string;
+	block_height: number;
+	block_time?: string | null;
+	tx_id: string;
+	tx_index: number;
+	event_index: number;
+	topic: SbtcEventTopic;
+	request_id: number | null;
+	amount: string | null;
+	sender: string | null;
+	recipient_btc_version: number | null;
+	recipient_btc_hashbytes: string | null;
+	bitcoin_txid: string | null;
+	output_index: number | null;
+	sweep_txid: string | null;
+	burn_hash: string | null;
+	burn_height: number | null;
+	signer_bitmap: string | null;
+	max_fee: string | null;
+	fee: string | null;
+	governance_contract_type: number | null;
+	governance_new_contract: string | null;
+	signer_aggregate_pubkey: string | null;
+	signer_threshold: number | null;
+	signer_address: string | null;
+	signer_keys_count: number | null;
+};
+
+/** The peg "scoreboard" — a single all-time canonical aggregate. */
+export type IndexSbtcSummary = {
+	total_deposits: number;
+	total_withdrawals_requested: number;
+	total_withdrawals_accepted: number;
+	total_withdrawals_rejected: number;
+	net_peg_flow_sats: string;
+	total_locked_sats: string;
+	sbtc_supply_sats: string | null;
+};
+
+export type SbtcDepositsEnvelope = {
+	deposits: IndexSbtcDeposit[];
+	next_cursor: string | null;
+	tip: IndexTip;
+	// Chain reorgs overlapping this page's height range; empty when none.
+	reorgs: IndexReorg[];
+	/** Present only when the sBTC decoder is disabled, explaining an empty feed. */
+	notes?: string;
+};
+
+export type SbtcDepositEnvelope = {
+	deposit: IndexSbtcDepositDetail;
+	tip: IndexTip;
+};
+
+export type SbtcWithdrawalsEnvelope = {
+	withdrawals: IndexSbtcWithdrawal[];
+	next_cursor: string | null;
+	tip: IndexTip;
+	reorgs: IndexReorg[];
+	notes?: string;
+};
+
+export type SbtcWithdrawalEnvelope = {
+	withdrawal: IndexSbtcWithdrawalDetail;
+	tip: IndexTip;
+};
+
+export type SbtcEventsEnvelope = {
+	events: IndexSbtcEvent[];
+	next_cursor: string | null;
+	tip: IndexTip;
+	reorgs: IndexReorg[];
+	notes?: string;
+};
+
+export type SbtcSummaryEnvelope = {
+	summary: IndexSbtcSummary;
+	tip: IndexTip;
+	notes?: string;
+};
+
+export type SbtcDepositsListParams = {
+	cursor?: string | null;
+	fromCursor?: string | null;
+	limit?: number;
+	/** Clamp to the finality boundary — only settled deposits past the reorg margin. */
+	confirmed?: boolean;
+	sender?: string;
+	bitcoinTxid?: string;
+	fromHeight?: number;
+	toHeight?: number;
+};
+
+export type SbtcDepositsWalkParams = Omit<SbtcDepositsListParams, "limit"> & {
+	batchSize?: number;
+	signal?: AbortSignal;
+};
+
+export type SbtcWithdrawalsListParams = {
+	cursor?: string | null;
+	fromCursor?: string | null;
+	limit?: number;
+	confirmed?: boolean;
+	status?: SbtcWithdrawalStatus;
+	sender?: string;
+	requestId?: number;
+	fromHeight?: number;
+	toHeight?: number;
+};
+
+export type SbtcWithdrawalsWalkParams = Omit<
+	SbtcWithdrawalsListParams,
+	"limit"
+> & {
+	batchSize?: number;
+	signal?: AbortSignal;
+};
+
+export type SbtcEventsListParams = {
+	cursor?: string | null;
+	fromCursor?: string | null;
+	limit?: number;
+	confirmed?: boolean;
+	topic?: SbtcEventTopic;
+	sender?: string;
+	requestId?: number;
+	bitcoinTxid?: string;
+	fromHeight?: number;
+	toHeight?: number;
+};
+
+export type SbtcEventsWalkParams = Omit<SbtcEventsListParams, "limit"> & {
+	batchSize?: number;
+	signal?: AbortSignal;
+};
+
+/** `index.sbtc` — the decoded sBTC peg surface (deposits, withdrawals, raw
+ *  events, scoreboard). The only productized decoded sBTC peg feed on Stacks. */
+export interface SbtcResource {
+	deposits: {
+		list(params?: SbtcDepositsListParams): Promise<SbtcDepositsEnvelope>;
+		walk(params?: SbtcDepositsWalkParams): AsyncIterable<IndexSbtcDeposit>;
+		/** Fetch a completed deposit by Bitcoin txid; 404 → null. */
+		get(bitcoinTxid: string): Promise<SbtcDepositEnvelope | null>;
+	};
+	withdrawals: {
+		list(params?: SbtcWithdrawalsListParams): Promise<SbtcWithdrawalsEnvelope>;
+		walk(
+			params?: SbtcWithdrawalsWalkParams,
+		): AsyncIterable<IndexSbtcWithdrawal>;
+		/** Fetch a withdrawal's full lifecycle by request id; 404 → null. */
+		get(requestId: number): Promise<SbtcWithdrawalEnvelope | null>;
+	};
+	events: {
+		list(params?: SbtcEventsListParams): Promise<SbtcEventsEnvelope>;
+		walk(params?: SbtcEventsWalkParams): AsyncIterable<IndexSbtcEvent>;
+	};
+	/** The peg scoreboard — a single all-time aggregate (no pagination). */
+	summary(): Promise<SbtcSummaryEnvelope>;
+}
+
 function firstWalkFromHeight(params: {
 	cursor?: string | null;
 	fromCursor?: string | null;
@@ -873,6 +1117,39 @@ export class Index extends BaseClient {
 		): AsyncIterable<IndexMempoolTransaction> => this.walkMempool(params),
 		get: (txId: string): Promise<MempoolTransactionEnvelope | null> =>
 			this.getMempoolTx(txId),
+	};
+
+	/** Decoded sBTC peg surface — the only productized decoded sBTC peg feed on
+	 *  Stacks. `deposits`/`withdrawals`/`events` paginate; `summary` is a scalar. */
+	readonly sbtc: SbtcResource = {
+		deposits: {
+			list: (
+				params: SbtcDepositsListParams = {},
+			): Promise<SbtcDepositsEnvelope> => this.listSbtcDeposits(params),
+			walk: (
+				params: SbtcDepositsWalkParams = {},
+			): AsyncIterable<IndexSbtcDeposit> => this.walkSbtcDeposits(params),
+			get: (bitcoinTxid: string): Promise<SbtcDepositEnvelope | null> =>
+				this.getSbtcDeposit(bitcoinTxid),
+		},
+		withdrawals: {
+			list: (
+				params: SbtcWithdrawalsListParams = {},
+			): Promise<SbtcWithdrawalsEnvelope> => this.listSbtcWithdrawals(params),
+			walk: (
+				params: SbtcWithdrawalsWalkParams = {},
+			): AsyncIterable<IndexSbtcWithdrawal> => this.walkSbtcWithdrawals(params),
+			get: (requestId: number): Promise<SbtcWithdrawalEnvelope | null> =>
+				this.getSbtcWithdrawal(requestId),
+		},
+		events: {
+			list: (params: SbtcEventsListParams = {}): Promise<SbtcEventsEnvelope> =>
+				this.listSbtcEvents(params),
+			walk: (
+				params: SbtcEventsWalkParams = {},
+			): AsyncIterable<IndexSbtcEvent> => this.walkSbtcEvents(params),
+		},
+		summary: (): Promise<SbtcSummaryEnvelope> => this.getSbtcSummary(),
 	};
 
 	private async listFtTransfers(
@@ -1403,5 +1680,199 @@ export class Index extends BaseClient {
 			cursor = nextCursor;
 			firstPage = false;
 		}
+	}
+
+	private async listSbtcDeposits(
+		params: SbtcDepositsListParams = {},
+	): Promise<SbtcDepositsEnvelope> {
+		return this.request<SbtcDepositsEnvelope>(
+			"GET",
+			`/v1/index/sbtc/deposits${buildQuery({
+				cursor: params.cursor,
+				from_cursor: params.fromCursor,
+				limit: params.limit,
+				confirmed: params.confirmed,
+				sender: params.sender,
+				bitcoin_txid: params.bitcoinTxid,
+				from_height: params.fromHeight,
+				to_height: params.toHeight,
+			})}`,
+		);
+	}
+
+	private async *walkSbtcDeposits(
+		params: SbtcDepositsWalkParams = {},
+	): AsyncGenerator<IndexSbtcDeposit> {
+		const batchSize = params.batchSize ?? 200;
+		let cursor = params.cursor ?? params.fromCursor ?? null;
+		let firstPage = true;
+
+		while (!params.signal?.aborted) {
+			const envelope = await this.listSbtcDeposits({
+				...params,
+				limit: batchSize,
+				cursor: firstPage ? params.cursor : cursor,
+				fromCursor: firstPage ? params.fromCursor : undefined,
+				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
+			});
+
+			for (const deposit of envelope.deposits) {
+				if (params.signal?.aborted) return;
+				yield deposit;
+			}
+
+			const nextCursor = envelope.next_cursor;
+			if (
+				!nextCursor ||
+				nextCursor === cursor ||
+				envelope.deposits.length < batchSize
+			) {
+				return;
+			}
+
+			cursor = nextCursor;
+			firstPage = false;
+		}
+	}
+
+	private async getSbtcDeposit(
+		bitcoinTxid: string,
+	): Promise<SbtcDepositEnvelope | null> {
+		try {
+			return await this.request<SbtcDepositEnvelope>(
+				"GET",
+				`/v1/index/sbtc/deposits/${encodeURIComponent(bitcoinTxid)}`,
+			);
+		} catch (err) {
+			if (err instanceof ApiError && err.status === 404) return null;
+			throw err;
+		}
+	}
+
+	private async listSbtcWithdrawals(
+		params: SbtcWithdrawalsListParams = {},
+	): Promise<SbtcWithdrawalsEnvelope> {
+		return this.request<SbtcWithdrawalsEnvelope>(
+			"GET",
+			`/v1/index/sbtc/withdrawals${buildQuery({
+				cursor: params.cursor,
+				from_cursor: params.fromCursor,
+				limit: params.limit,
+				confirmed: params.confirmed,
+				status: params.status,
+				sender: params.sender,
+				request_id: params.requestId,
+				from_height: params.fromHeight,
+				to_height: params.toHeight,
+			})}`,
+		);
+	}
+
+	private async *walkSbtcWithdrawals(
+		params: SbtcWithdrawalsWalkParams = {},
+	): AsyncGenerator<IndexSbtcWithdrawal> {
+		const batchSize = params.batchSize ?? 200;
+		let cursor = params.cursor ?? params.fromCursor ?? null;
+		let firstPage = true;
+
+		while (!params.signal?.aborted) {
+			const envelope = await this.listSbtcWithdrawals({
+				...params,
+				limit: batchSize,
+				cursor: firstPage ? params.cursor : cursor,
+				fromCursor: firstPage ? params.fromCursor : undefined,
+				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
+			});
+
+			for (const withdrawal of envelope.withdrawals) {
+				if (params.signal?.aborted) return;
+				yield withdrawal;
+			}
+
+			const nextCursor = envelope.next_cursor;
+			if (
+				!nextCursor ||
+				nextCursor === cursor ||
+				envelope.withdrawals.length < batchSize
+			) {
+				return;
+			}
+
+			cursor = nextCursor;
+			firstPage = false;
+		}
+	}
+
+	private async getSbtcWithdrawal(
+		requestId: number,
+	): Promise<SbtcWithdrawalEnvelope | null> {
+		try {
+			return await this.request<SbtcWithdrawalEnvelope>(
+				"GET",
+				`/v1/index/sbtc/withdrawals/${requestId}`,
+			);
+		} catch (err) {
+			if (err instanceof ApiError && err.status === 404) return null;
+			throw err;
+		}
+	}
+
+	private async listSbtcEvents(
+		params: SbtcEventsListParams = {},
+	): Promise<SbtcEventsEnvelope> {
+		return this.request<SbtcEventsEnvelope>(
+			"GET",
+			`/v1/index/sbtc/events${buildQuery({
+				cursor: params.cursor,
+				from_cursor: params.fromCursor,
+				limit: params.limit,
+				confirmed: params.confirmed,
+				topic: params.topic,
+				sender: params.sender,
+				request_id: params.requestId,
+				bitcoin_txid: params.bitcoinTxid,
+				from_height: params.fromHeight,
+				to_height: params.toHeight,
+			})}`,
+		);
+	}
+
+	private async *walkSbtcEvents(
+		params: SbtcEventsWalkParams = {},
+	): AsyncGenerator<IndexSbtcEvent> {
+		const batchSize = params.batchSize ?? 200;
+		let cursor = params.cursor ?? params.fromCursor ?? null;
+		let firstPage = true;
+
+		while (!params.signal?.aborted) {
+			const envelope = await this.listSbtcEvents({
+				...params,
+				limit: batchSize,
+				cursor: firstPage ? params.cursor : cursor,
+				fromCursor: firstPage ? params.fromCursor : undefined,
+				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
+			});
+
+			for (const event of envelope.events) {
+				if (params.signal?.aborted) return;
+				yield event;
+			}
+
+			const nextCursor = envelope.next_cursor;
+			if (
+				!nextCursor ||
+				nextCursor === cursor ||
+				envelope.events.length < batchSize
+			) {
+				return;
+			}
+
+			cursor = nextCursor;
+			firstPage = false;
+		}
+	}
+
+	private async getSbtcSummary(): Promise<SbtcSummaryEnvelope> {
+		return this.request<SbtcSummaryEnvelope>("GET", "/v1/index/sbtc/summary");
 	}
 }

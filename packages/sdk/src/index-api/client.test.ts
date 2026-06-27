@@ -173,3 +173,145 @@ describe("Index events tx_context", () => {
 		expect(urls[0]).toContain("tx_context=true");
 	});
 });
+
+describe("Index sBTC peg accessors", () => {
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+	});
+
+	const emptyDeposits = {
+		deposits: [],
+		next_cursor: null,
+		tip: {},
+		reorgs: [],
+	};
+	const emptyWithdrawals = {
+		withdrawals: [],
+		next_cursor: null,
+		tip: {},
+		reorgs: [],
+	};
+	const emptySbtcEvents = {
+		events: [],
+		next_cursor: null,
+		tip: {},
+		reorgs: [],
+	};
+
+	test("sbtc.deposits.list hits the deposits path with filters", async () => {
+		const urls = recorder(emptyDeposits);
+		await new Index({ baseUrl: BASE_URL }).sbtc.deposits.list({
+			confirmed: true,
+			sender: "SP1",
+			limit: 50,
+		});
+		expect(urls[0]).toContain("/v1/index/sbtc/deposits");
+		expect(urls[0]).toContain("confirmed=true");
+		expect(urls[0]).toContain("sender=SP1");
+		expect(urls[0]).toContain("limit=50");
+	});
+
+	test("sbtc.deposits omits confirmed when not set", async () => {
+		const urls = recorder(emptyDeposits);
+		await new Index({ baseUrl: BASE_URL }).sbtc.deposits.list({});
+		expect(urls[0]).toContain("/v1/index/sbtc/deposits");
+		expect(urls[0]).not.toContain("confirmed");
+	});
+
+	test("sbtc.deposits.get hits the by-bitcoin-txid path and unwraps", async () => {
+		const urls = recorder({
+			deposit: { bitcoin_txid: "0xbtc", status: "COMPLETED" },
+			tip: {},
+		});
+		const res = await new Index({ baseUrl: BASE_URL }).sbtc.deposits.get(
+			"0xbtc",
+		);
+		expect(urls[0]).toContain("/v1/index/sbtc/deposits/0xbtc");
+		expect(res?.deposit.status).toBe("COMPLETED");
+	});
+
+	test("sbtc.deposits.get resolves null on 404", async () => {
+		globalThis.fetch = mock(() =>
+			Promise.resolve({
+				ok: false,
+				status: 404,
+				headers: new Headers(),
+				json: () => Promise.resolve({ error: "Deposit not found" }),
+				text: () => Promise.resolve('{"error":"Deposit not found"}'),
+			} as Response),
+		) as unknown as typeof fetch;
+		const res = await new Index({ baseUrl: BASE_URL }).sbtc.deposits.get(
+			"0xmissing",
+		);
+		expect(res).toBeNull();
+	});
+
+	test("sbtc.withdrawals.list forwards status + request_id", async () => {
+		const urls = recorder(emptyWithdrawals);
+		await new Index({ baseUrl: BASE_URL }).sbtc.withdrawals.list({
+			status: "ACCEPTED",
+			requestId: 7,
+		});
+		expect(urls[0]).toContain("/v1/index/sbtc/withdrawals");
+		expect(urls[0]).toContain("status=ACCEPTED");
+		expect(urls[0]).toContain("request_id=7");
+	});
+
+	test("sbtc.withdrawals.get hits the by-request-id path", async () => {
+		const urls = recorder({
+			withdrawal: { request_id: 7, status: "ACCEPTED", finalized: true },
+			tip: {},
+		});
+		const res = await new Index({ baseUrl: BASE_URL }).sbtc.withdrawals.get(7);
+		expect(urls[0]).toContain("/v1/index/sbtc/withdrawals/7");
+		expect(res?.withdrawal.request_id).toBe(7);
+	});
+
+	test("sbtc.withdrawals.get resolves null on 404", async () => {
+		globalThis.fetch = mock(() =>
+			Promise.resolve({
+				ok: false,
+				status: 404,
+				headers: new Headers(),
+				json: () => Promise.resolve({ error: "Withdrawal not found" }),
+				text: () => Promise.resolve('{"error":"Withdrawal not found"}'),
+			} as Response),
+		) as unknown as typeof fetch;
+		const res = await new Index({ baseUrl: BASE_URL }).sbtc.withdrawals.get(
+			404,
+		);
+		expect(res).toBeNull();
+	});
+
+	test("sbtc.events.list forwards topic + bitcoin_txid", async () => {
+		const urls = recorder(emptySbtcEvents);
+		await new Index({ baseUrl: BASE_URL }).sbtc.events.list({
+			topic: "completed-deposit",
+			bitcoinTxid: "0xbtc",
+		});
+		expect(urls[0]).toContain("/v1/index/sbtc/events");
+		expect(urls[0]).toContain("topic=completed-deposit");
+		expect(urls[0]).toContain("bitcoin_txid=0xbtc");
+	});
+
+	test("sbtc.events.walk issues the first page fetch", async () => {
+		const urls = recorder(emptySbtcEvents);
+		const it = new Index({ baseUrl: BASE_URL }).sbtc.events.walk({
+			topic: "completed-deposit",
+		});
+		for await (const _ of it) {
+		}
+		expect(urls[0]).toContain("/v1/index/sbtc/events");
+		expect(urls[0]).toContain("topic=completed-deposit");
+	});
+
+	test("sbtc.summary hits the summary path and unwraps", async () => {
+		const urls = recorder({
+			summary: { total_deposits: 3, sbtc_supply_sats: "100" },
+			tip: {},
+		});
+		const res = await new Index({ baseUrl: BASE_URL }).sbtc.summary();
+		expect(urls[0]).toContain("/v1/index/sbtc/summary");
+		expect(res.summary.total_deposits).toBe(3);
+	});
+});
