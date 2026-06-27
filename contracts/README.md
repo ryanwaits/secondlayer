@@ -40,3 +40,48 @@ synthetic — the authenticated `(ok ...)` path needs a real 80-byte BTC header 
 is exercised on a devnet / mainnet at Epoch 4.0. The pure built-ins
 (`verify-merkle-proof`, `get-bitcoin-tx-output?`) and `header-merkle-root` are
 fully exercised in simnet.
+
+### Deploy (at Epoch 4.0) — one-command recipe, gated until activation
+
+> **Blocked until Clarity 6 / Epoch 4.0 is live on the target network.** The
+> contract references the SIP-044 built-ins; `clarinet` analysis rejects it on a
+> pre-4.0 testnet/mainnet. Do not run `apply` before activation. (simnet is the
+> exception — it boots at 4.0.)
+
+**Founder decision first:** the deployer principal + contract name is a new,
+irreversible on-chain identity (e.g. `SP….spv-adapter`). Reuse an existing
+secondlayer deployer or mint a dedicated key — decide before applying to mainnet.
+
+1. Create the network settings with the deployer mnemonic (these are
+   **gitignored** — they hold secrets; encrypt rather than leaving plaintext):
+
+   ```bash
+   cp settings/Devnet.toml settings/Testnet.toml   # then set the real mnemonic + node url
+   clarinet deployments encrypt                     # encrypt the mnemonic at rest
+   ```
+
+2. Generate the deployment plan (writes `deployments/` — also gitignored):
+
+   ```bash
+   clarinet deployments generate --testnet --low-cost   # or --mainnet
+   ```
+
+3. Apply it:
+
+   ```bash
+   clarinet deployments apply --testnet                 # or --mainnet (founder sign-off)
+   ```
+
+4. Record the deployed principal as the default. Drop it into
+   `packages/stacks/src/bitcoin/constants.ts` → `SPV_ADAPTER_CONTRACTS` so
+   `verifyBitcoinPayment` resolves it automatically when `contract` is omitted:
+
+   ```ts
+   export const SPV_ADAPTER_CONTRACTS = {
+     testnet: { address: "ST…", name: "spv-adapter" },
+     mainnet: { address: "SP…", name: "spv-adapter" },
+   };
+   ```
+
+5. Smoke-test end-to-end: point `bitcoinVerifier` at the deployed adapter and
+   verify a golden proof (`was-tx-mined` against a real BTC header).

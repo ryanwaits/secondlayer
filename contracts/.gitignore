@@ -1,3 +1,8 @@
 .cache/
+.requirements/
 deployments/
 history.txt
+# Network settings hold deployer mnemonics — never commit. Devnet uses a
+# well-known test mnemonic and is safe to track.
+settings/Testnet.toml
+settings/Mainnet.toml
