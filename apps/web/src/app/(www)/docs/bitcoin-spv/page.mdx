@@ -187,8 +187,10 @@ The whole contract — read-only, no state, no custody. Copy it into your own Cl
 ;;   (ok false) header canonical but tx not included
 ;;   (err u1)   header not the canonical block at `height`
 ;;   (err u2)   malformed header length
-;; Note: a "flash block" (two BTC blocks in one Stacks tenure) has no recorded
-;; header-hash for the skipped block, so a tx mined there returns (err u1).
+;; Note: an out-of-range `height` (before the chain launched, or newer than the
+;; node's last-processed burn block — a very recent tx) also yields (err u1).
+;; Flash blocks (a BTC block with no Stacks block) are covered — get-burn-block-info?
+;; header-hash is indexed by burn height, not a gap.
 (define-read-only (was-tx-mined
     (header (buff 80)) (height uint) (leaf (buff 32))
     (tx-index uint) (tx-count uint) (siblings (list 24 (buff 32))))
@@ -243,7 +245,7 @@ const live = await isClarity6Active(client, { activationBurnHeight: 0 /* set pos
 
 <Callout type="note" title="SPV trust-minimizes verification, not custody">
 
-`verify-merkle-proof` proves a tx is committed under a block's merkle root; `was-tx-mined` additionally authenticates that the header is the canonical block at its height. Neither moves or guards funds — they prove a Bitcoin fact to a Stacks contract, which then decides what to do. A "flash block" (two BTC blocks in one Stacks tenure) has no recorded header-hash for the skipped block; a tx mined there can't be header-authenticated — a known SPV edge case the SDK can't fix.
+`verify-merkle-proof` proves a tx is committed under a block's merkle root; `was-tx-mined` additionally authenticates that the header is the canonical block at its height. Neither moves or guards funds — they prove a Bitcoin fact to a Stacks contract, which then decides what to do. `was-tx-mined` errors only when the supplied header isn't the canonical Bitcoin block the Stacks node recorded at that height — a wrong or reorged header, or a height out of range (before the chain launched, or newer than the node's last-processed burn block, so a very recent tx may need to wait). Flash blocks — Bitcoin blocks that produced no Stacks block — are *not* a gap: `get-burn-block-info? header-hash` is indexed by burn height, so it covers them.
 
 </Callout>
 
