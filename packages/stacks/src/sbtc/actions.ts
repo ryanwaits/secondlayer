@@ -1,15 +1,10 @@
-import { getContract } from "../actions/getContract.ts";
+import { getContract, resolveNetworkContract } from "../actions/getContract.ts";
 import type { Client } from "../clients/types.ts";
 import { SBTC_TOKEN_ABI } from "./abi.ts";
 import { SBTC_CONTRACTS } from "./constants.ts";
 
 function getTokenContract(client: Client) {
-	if (!client.chain) {
-		throw new Error("Client must have a chain configured");
-	}
-	const network = client.chain.network;
-	const contract =
-		network === "mainnet" ? SBTC_CONTRACTS.mainnet : SBTC_CONTRACTS.testnet;
+	const contract = resolveNetworkContract(client, SBTC_CONTRACTS);
 	return getContract({
 		client,
 		address: contract.address,

@@ -1,4 +1,4 @@
-import { getContract } from "../actions/getContract.ts";
+import { getContract, resolveNetworkContract } from "../actions/getContract.ts";
 import { ContractResponseError } from "../actions/getContract.ts";
 import { Cl } from "../clarity/index.ts";
 import type { Client } from "../clients/types.ts";
@@ -23,13 +23,7 @@ import {
 import { ZONEFILE_RESOLVER_ABI } from "./zonefile-abi.ts";
 
 function getBnsContract(client: Client) {
-	if (!client.chain) {
-		throw new Error("Client must have a chain configured");
-	}
-	const network = client.chain.network;
-	const contract =
-		network === "mainnet" ? BNS_CONTRACTS.mainnet : BNS_CONTRACTS.testnet;
-
+	const contract = resolveNetworkContract(client, BNS_CONTRACTS);
 	return getContract({
 		client,
 		address: contract.address,
@@ -39,15 +33,7 @@ function getBnsContract(client: Client) {
 }
 
 function getZonefileContract(client: Client) {
-	if (!client.chain) {
-		throw new Error("Client must have a chain configured");
-	}
-	const network = client.chain.network;
-	const contract =
-		network === "mainnet"
-			? ZONEFILE_RESOLVER_CONTRACTS.mainnet
-			: ZONEFILE_RESOLVER_CONTRACTS.testnet;
-
+	const contract = resolveNetworkContract(client, ZONEFILE_RESOLVER_CONTRACTS);
 	return getContract({
 		client,
 		address: contract.address,
@@ -366,12 +352,7 @@ export async function transfer(
 	}
 
 	const bns = getBnsContract(client);
-	if (!client.chain) {
-		throw new Error("Client must have a chain configured");
-	}
-	const network = client.chain.network;
-	const contract =
-		network === "mainnet" ? BNS_CONTRACTS.mainnet : BNS_CONTRACTS.testnet;
+	const contract = resolveNetworkContract(client, BNS_CONTRACTS);
 
 	return bns.call.transfer(
 		{

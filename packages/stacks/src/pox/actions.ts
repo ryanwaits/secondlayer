@@ -1,4 +1,4 @@
-import { getContract } from "../actions/getContract.ts";
+import { getContract, resolveNetworkContract } from "../actions/getContract.ts";
 import type { Client } from "../clients/types.ts";
 import { Pc } from "../postconditions/index.ts";
 import { POX_ABI } from "./abi.ts";
@@ -15,13 +15,7 @@ import type {
 import { parseBtcAddress, validateLockPeriod } from "./utils.ts";
 
 function getPoxContract(client: Client) {
-	if (!client.chain) {
-		throw new Error("Client must have a chain configured");
-	}
-	const network = client.chain.network;
-	const contract =
-		network === "mainnet" ? POX_CONTRACTS.mainnet : POX_CONTRACTS.testnet;
-
+	const contract = resolveNetworkContract(client, POX_CONTRACTS);
 	return getContract({
 		client,
 		address: contract.address,

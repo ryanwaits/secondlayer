@@ -186,6 +186,20 @@ export function getContract<const TAbi extends AbiContract>(
 	return { read, call, maps };
 }
 
+/**
+ * Resolve a network-keyed contract config for the client's chain. The contracts
+ * map is keyed by network ("mainnet" | "testnet"), so selection is a direct
+ * index — no per-call ternary. Throws if the client has no chain configured.
+ */
+export function resolveNetworkContract<
+	T extends Record<"mainnet" | "testnet", { address: string }>,
+>(client: Client, contracts: T): T["mainnet"] | T["testnet"] {
+	if (!client.chain) {
+		throw new Error("Client must have a chain configured");
+	}
+	return contracts[client.chain.network];
+}
+
 // --- Helpers ---
 
 function buildFunctionArgs(
