@@ -50,6 +50,31 @@ function normalizeTxid(txid: string): string {
 }
 
 /**
+ * Locate `txid` in a block's txid set and assemble its `BlockForTx`. Owns the
+ * display→internal byte-order reversal (`reverseBytes`) so the ProofSources
+ * can't drift on the one operation a silent merkle-root mismatch would hide.
+ * `txidsDisplay` are display-order hex txids as returned by Core / Esplora.
+ */
+function assembleBlockForTx(args: {
+	txid: string;
+	blockId: string;
+	headerHex: string;
+	height: number;
+	txidsDisplay: string[];
+}): BlockForTx {
+	const txIndex = args.txidsDisplay.indexOf(normalizeTxid(args.txid));
+	if (txIndex < 0) {
+		throw new Error(`tx ${args.txid} not found in block ${args.blockId}`);
+	}
+	return {
+		header: hexToBytes(args.headerHex),
+		height: args.height,
+		txidsInternal: args.txidsDisplay.map((t) => reverseBytes(hexToBytes(t))),
+		txIndex,
+	};
+}
+
+/**
  * Assemble an `SpvProof` for a txid from a `ProofSource`, validating every claim
  * the source makes:
  *  - the returned raw tx actually hashes to the requested txid,
@@ -203,16 +228,13 @@ export function bitcoinRpcSource(config: BitcoinRpcConfig): ProofSource {
 				1,
 			]);
 			const header = await rpc<string>("getblockheader", [tx.blockhash, false]);
-			const txIndex = block.tx.indexOf(normalizeTxid(txid));
-			if (txIndex < 0) {
-				throw new Error(`tx ${txid} not found in block ${tx.blockhash}`);
-			}
-			return {
-				header: hexToBytes(header),
+			return assembleBlockForTx({
+				txid,
+				blockId: tx.blockhash,
+				headerHex: header,
 				height: block.height,
-				txidsInternal: block.tx.map((t) => reverseBytes(hexToBytes(t))),
-				txIndex,
-			};
+				txidsDisplay: block.tx,
+			});
 		},
 	};
 }
@@ -263,16 +285,13 @@ export function esploraSource(config: EsploraConfig): ProofSource {
 			const txids = (await (
 				await get(`/block/${blockHashHex}/txids`)
 			).json()) as string[];
-			const txIndex = txids.indexOf(normalizeTxid(txid));
-			if (txIndex < 0) {
-				throw new Error(`tx ${txid} not found in block ${blockHashHex}`);
-			}
-			return {
-				header: hexToBytes(header),
+			return assembleBlockForTx({
+				txid,
+				blockId: blockHashHex,
+				headerHex: header,
 				height: status.status.block_height,
-				txidsInternal: txids.map((t) => reverseBytes(hexToBytes(t))),
-				txIndex,
-			};
+				txidsDisplay: txids,
+			});
 		},
 	};
 }
