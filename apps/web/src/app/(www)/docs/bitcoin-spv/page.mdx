@@ -17,7 +17,17 @@ The node owns the on-chain half. This module owns the off-chain half.
 - **On-chain (the node):** `get-bitcoin-tx-output?` parses one output of a serialized BTC tx; `verify-merkle-proof` proves a tx is committed in a block. They run only *inside* a contract and demand precisely-shaped data — the right merkle proof, internal byte order, witness stripped.
 - **Off-chain (this module):** construct that data — parse the tx, build the merkle proof, encode the exact Clarity args — and decode the results. You never run a node by hand or reverse a hash.
 
-It trust-minimizes **verification**, not **custody**. It unlocks BTC-settled escrow/OTC, BTC-L1 collateral proofs (Zest / Granite-style), atomic BTC ↔ sBTC / Runes swaps, and trust-minimized sBTC deposits.
+It trust-minimizes **verification**, not **custody**.
+
+## What it unlocks
+
+A Stacks contract can act on a proven Bitcoin fact — no oracle, no signer attestation.
+
+- **BTC-settled escrow / OTC** — release sBTC, an NFT, or a loan only once a real BTC payment is proven on-chain.
+- **BTC-L1 collateral** — prove a borrower's Bitcoin UTXO exists on L1 instead of trusting a price/existence oracle (Zest / Granite-style lending).
+- **Atomic BTC ↔ sBTC / Runes swaps** — native SPV is uncapped, so multi-output Runes/BTC txs that the old `clarity-bitcoin` caps blocked now verify.
+- **Trust-minimized sBTC** — deposits *proven* on-chain, not just *asserted* by the signer set (aligns with SIP-028).
+- **Proof-of-payment receipts** — any flow that needs "this BTC tx paid Y sats to Z" as a contract-checkable fact.
 
 ## Install
 
@@ -128,6 +138,73 @@ The built-ins are callable only from *inside* a contract, never over RPC. So `bi
 | `header-merkle-root` | slice the merkle root out of an 80-byte header |
 | `was-tx-mined` | composed: authenticate the header against `get-burn-block-info?`, then prove inclusion — atomically |
 
+The whole contract — read-only, no state, no custody. Copy it into your own Clarinet project, or point at your own verifier with the same shape. (GitHub is the [source of truth](https://github.com/ryanwaits/secondlayer/blob/main/contracts/contracts/spv-adapter.clar); requires `clarity_version = 6` / `epoch = "4.0"`.)
+
+```clarity
+;; spv-adapter -- a thin, read-only reference wrapper over the SIP-044 (Clarity 6)
+;; Bitcoin SPV built-ins. The built-ins are callable only from within a Clarity
+;; contract, not over RPC; this contract exposes them as read-only functions so
+;; the @secondlayer/stacks `bitcoinVerifier` (and any integrator) can reach them.
+;;
+;; Byte order: 32-byte hashes (txids, merkle roots, siblings) are INTERNAL order
+;; (raw double-SHA-256), matching the built-ins. The only display-order value is
+;; the block hash from `get-burn-block-info? header-hash`, reversed before compare.
+
+(define-constant ERR-BAD-HEADER (err u1)) ;; header not canonical at that height
+(define-constant ERR-BAD-SLICE (err u2))  ;; header merkle-root slice failed
+
+;; Reverse a 32-byte buffer (internal <-> display order).
+(define-private (prepend-byte (b (buff 1)) (acc (buff 32)))
+  (unwrap-panic (as-max-len? (concat b acc) u32))
+)
+(define-read-only (reverse-buff32 (input (buff 32)))
+  (fold prepend-byte input 0x)
+)
+
+;; The merkle root committed by an 80-byte header: bytes [36, 68), internal order.
+(define-read-only (header-merkle-root (header (buff 80)))
+  (match (slice? header u36 u68)
+    sliced (as-max-len? sliced u32)
+    none)
+)
+
+;; Parse one output of a serialized BTC tx.
+(define-read-only (get-tx-output (tx (buff 4096)) (vout uint))
+  (get-bitcoin-tx-output? tx vout)
+)
+
+;; Prove tx inclusion under a SUPPLIED root (membership only — not chain-authenticated).
+(define-read-only (verify-merkle
+    (leaf (buff 32)) (root (buff 32))
+    (tx-index uint) (tx-count uint) (siblings (list 24 (buff 32))))
+  (verify-merkle-proof leaf root tx-index tx-count siblings)
+)
+
+;; Full check: authenticate the caller's 80-byte header against the chain's record
+;; at `height` (`get-burn-block-info? header-hash`), extract its root, and prove
+;; inclusion — atomically.
+;;   (ok true)  header canonical AND tx included (mined)
+;;   (ok false) header canonical but tx not included
+;;   (err u1)   header not the canonical block at `height`
+;;   (err u2)   malformed header length
+;; Note: a "flash block" (two BTC blocks in one Stacks tenure) has no recorded
+;; header-hash for the skipped block, so a tx mined there returns (err u1).
+(define-read-only (was-tx-mined
+    (header (buff 80)) (height uint) (leaf (buff 32))
+    (tx-index uint) (tx-count uint) (siblings (list 24 (buff 32))))
+  (let (
+        (root (unwrap! (header-merkle-root header) ERR-BAD-SLICE))
+       )
+    (if (is-eq (get-burn-block-info? header-hash height)
+               (some (reverse-buff32 (sha256 (sha256 header)))))
+        (ok (verify-merkle-proof leaf root tx-index tx-count siblings))
+        ERR-BAD-HEADER)
+  )
+)
+```
+
+It's read-only — a verification *query*. To gate value on a proof (escrow, collateral, swaps), call the same built-ins from a `define-public` in your own contract so the check runs as a committed, consensus-enforced transaction.
+
 Point `bitcoinVerifier` at the reference adapter or your own contract with the same shape:
 
 ```ts
@@ -150,21 +227,7 @@ clarity_version = 6
 epoch = "4.0"
 ```
 
-A minimal read-only adapter — thin pass-throughs so the SDK can reach the built-ins (no state, no custody, internal-order hashes):
-
-```clarity
-;; parse one output of a serialized BTC tx
-(define-read-only (get-tx-output (tx (buff 4096)) (vout uint))
-  (get-bitcoin-tx-output? tx vout))
-
-;; prove a tx is committed under a block's merkle root
-(define-read-only (verify-merkle
-    (leaf (buff 32)) (root (buff 32))
-    (tx-index uint) (tx-count uint) (siblings (list 24 (buff 32))))
-  (verify-merkle-proof leaf root tx-index tx-count siblings))
-```
-
-Then drive it from TypeScript with [`@stacks/clarinet-sdk`](https://www.npmjs.com/package/@stacks/clarinet-sdk) and this module's encoders — `encodeMerkleProofArgs` shapes the exact `verify-merkle-proof` arguments and `decodeTxOutput` reads the `get-bitcoin-tx-output?` tuple back. The full reference contract (including the header-authenticated `was-tx-mined`) and a worked end-to-end example live in the [secondlayer repo](https://github.com/ryanwaits/secondlayer/tree/main/contracts).
+Use the [`spv-adapter`](#the-reference-adapter) shown above (or your own verifier) as `contracts/spv-adapter.clar`. Then drive it from TypeScript with [`@stacks/clarinet-sdk`](https://www.npmjs.com/package/@stacks/clarinet-sdk) and this module's encoders — `encodeMerkleProofArgs` shapes the exact `verify-merkle-proof` arguments and `decodeTxOutput` reads the `get-bitcoin-tx-output?` tuple back. A worked end-to-end example lives in the [secondlayer repo](https://github.com/ryanwaits/secondlayer/tree/main/examples/sbtc-l1-proof).
 
 ## Gate on activation
 
