@@ -21,6 +21,11 @@ import {
 	consumeSbtcTokenDecodedEvents,
 } from "./decoders/sbtc.ts";
 import { getDecodersHealth } from "./health.ts";
+import {
+	SETTLEMENT_CONFIRMER_NAME,
+	consumeSbtcSettlements,
+	getSettlementConfirmerHealth,
+} from "./settlement.ts";
 import { bumpDecoderCheckpoint } from "./storage.ts";
 
 const PORT = Number.parseInt(process.env.PORT || "3710", 10);
@@ -30,6 +35,11 @@ const controller = new AbortController();
 const SBTC_ENABLED = process.env.SBTC_DECODER_ENABLED !== "false";
 const POX4_ENABLED = isPox4DecoderEnabled();
 const BNS_ENABLED = process.env.BNS_DECODER_ENABLED === "true";
+// Opt-in (needs bitcoind RPC creds): the BTC L1 settlement confirmer for sBTC
+// withdrawals. Kept OUT of getEnabledDecoderNames/floor-audit — it has its own
+// health path (see settlement.ts).
+const SETTLEMENT_CONFIRMER_ENABLED =
+	process.env.SBTC_SETTLEMENT_CONFIRMER_ENABLED === "true";
 const DECODED_EVENT_DECODERS = {
 	"decode.ft_transfer.v1": 0,
 	"decode.nft_transfer.v1": 0,
@@ -48,12 +58,14 @@ const decodedTotals: Record<string, number> = {
 	...(SBTC_ENABLED ? { "decode.sbtc.v1": 0, "decode.sbtc_token.v1": 0 } : {}),
 	...(POX4_ENABLED ? { "decode.pox4.v1": 0 } : {}),
 	...(BNS_ENABLED ? { "decode.bns.v1": 0 } : {}),
+	...(SETTLEMENT_CONFIRMER_ENABLED ? { [SETTLEMENT_CONFIRMER_NAME]: 0 } : {}),
 };
 const decodedThisMinute: Record<string, number> = {
 	...DECODED_EVENT_DECODERS,
 	...(SBTC_ENABLED ? { "decode.sbtc.v1": 0, "decode.sbtc_token.v1": 0 } : {}),
 	...(POX4_ENABLED ? { "decode.pox4.v1": 0 } : {}),
 	...(BNS_ENABLED ? { "decode.bns.v1": 0 } : {}),
+	...(SETTLEMENT_CONFIRMER_ENABLED ? { [SETTLEMENT_CONFIRMER_NAME]: 0 } : {}),
 };
 
 async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -71,9 +83,27 @@ async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 	});
 }
 
+// getDecodersHealth covers the enabled-decoder set; the settlement confirmer is
+// deliberately excluded from that set (it has no genesis floor — keeps it off
+// floor-audit), so append its dedicated health here when enabled.
+async function getServiceHealth(): Promise<
+	Awaited<ReturnType<typeof getDecodersHealth>>
+> {
+	const health = await getDecodersHealth();
+	if (!SETTLEMENT_CONFIRMER_ENABLED) return health;
+	const confirmer = await getSettlementConfirmerHealth();
+	const decoders = [...health.decoders, confirmer];
+	return {
+		status: decoders.every((decoder) => decoder.status === "healthy")
+			? "healthy"
+			: "unhealthy",
+		decoders,
+	};
+}
+
 async function logProgress(): Promise<void> {
 	try {
-		const health = await getDecodersHealth();
+		const health = await getServiceHealth();
 		logger.info("decoder.progress", {
 			status: health.status,
 			decoders: health.decoders.map((decoder) => ({
@@ -190,6 +220,11 @@ async function runDecoders(): Promise<void> {
 	} else {
 		logger.info("decoder.bns_disabled");
 	}
+	if (SETTLEMENT_CONFIRMER_ENABLED) {
+		tasks.push(runDecoder(SETTLEMENT_CONFIRMER_NAME, consumeSbtcSettlements));
+	} else {
+		logger.info("settlement_confirmer_disabled");
+	}
 	await Promise.all(tasks);
 }
 
@@ -207,7 +242,7 @@ const server = Bun.serve({
 		}
 
 		try {
-			const health = await getDecodersHealth();
+			const health = await getServiceHealth();
 			return Response.json(health, {
 				status: health.status === "healthy" ? 200 : 503,
 			});
