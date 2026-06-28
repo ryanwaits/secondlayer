@@ -5,6 +5,7 @@ import type {
 } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
+import { deleteOrphanedSettlements } from "./settlement.ts";
 import { writeDecoderCheckpoint } from "./storage.ts";
 
 export const SBTC_DECODER_NAME = "decode.sbtc.v1";
@@ -147,7 +148,11 @@ export async function writeSbtcTokenEvents(
 export async function handleSbtcReorg(
 	blockHeight: number,
 	opts?: { db?: Kysely<Database> },
-): Promise<{ deleted: number; checkpoints: Record<string, string | null> }> {
+): Promise<{
+	deleted: number;
+	orphanedSettlements: number;
+	checkpoints: Record<string, string | null>;
+}> {
 	const client = db(opts?.db);
 
 	const eventsResult = await client
@@ -194,10 +199,15 @@ export async function handleSbtcReorg(
 		decoderName: SBTC_TOKEN_DECODER_NAME,
 	});
 
+	// Drop settlement rows orphaned by the accept-row delete above. Runs in the
+	// same reorg tx so settlements stay consistent with canonical sbtc_events.
+	const orphanedSettlements = await deleteOrphanedSettlements({ db: opts?.db });
+
 	return {
 		deleted:
 			Number(eventsResult.numDeletedRows ?? 0) +
 			Number(tokenResult.numDeletedRows ?? 0),
+		orphanedSettlements,
 		checkpoints: {
 			[SBTC_DECODER_NAME]: registryCheckpoint,
 			[SBTC_TOKEN_DECODER_NAME]: tokenCheckpoint,

@@ -30,6 +30,19 @@ export const SETTLEMENT_CONFIRMATIONS = Number.parseInt(
 	10,
 );
 
+/**
+ * Keep re-checking an already-CONFIRMED sweep until it is this many confirmations
+ * deep, so a post-confirmation Bitcoin reorg that drops it below the threshold
+ * un-confirms it. Beyond this depth a reorg is effectively impossible, so the row
+ * leaves the work queue permanently (bounds the watch set). Must exceed
+ * SETTLEMENT_CONFIRMATIONS to have any effect.
+ */
+export const SETTLEMENT_REORG_WATCH_DEPTH = Number.parseInt(
+	process.env.SBTC_SETTLEMENT_REORG_WATCH_DEPTH ??
+		String(SETTLEMENT_CONFIRMATIONS + 6),
+	10,
+);
+
 const FIVE_MINUTES_MS = 5 * 60_000;
 
 type SweepReader = { getConfirmations(txid: string): Promise<TxConfirmation> };
@@ -78,13 +91,13 @@ function readerFromEnv(): SweepReader {
 
 /**
  * Pending sweeps to (re)check: canonical `withdrawal-accept` rows with a
- * `sweep_txid` that either have no settlement row yet or aren't confirmed.
+ * `sweep_txid` that either (a) have no settlement row yet, (b) aren't confirmed,
+ * or (c) are confirmed but still within the reorg-watch window — case (c) keeps
+ * a confirmed sweep under observation so a post-confirmation Bitcoin reorg can
+ * un-confirm it, until it buries past SETTLEMENT_REORG_WATCH_DEPTH and drops out.
  * Ordered least-recently-checked first (never-checked sort first) for a fair
  * drain. `DISTINCT ON (sweep_txid)` collapses any duplicate accepts sharing a
  * sweep — belt-and-suspenders, since `sweep_txid` is the settlements PK.
- *
- * S2: relax the WHERE to also re-check recently-confirmed rows within a
- * Bitcoin-reorg-depth window (un-confirm path).
  */
 export async function readPendingSweeps(opts: {
 	db?: Kysely<Database>;
@@ -101,6 +114,10 @@ export async function readPendingSweeps(opts: {
 			eb.or([
 				eb("s.sweep_txid", "is", null),
 				eb("s.settlement_confirmed", "=", false),
+				eb.and([
+					eb("s.settlement_confirmed", "=", true),
+					eb("s.btc_confirmations", "<", SETTLEMENT_REORG_WATCH_DEPTH),
+				]),
 			]),
 		)
 		.select(["e.sweep_txid", "e.request_id"])
@@ -134,6 +151,10 @@ async function upsertSettlement(
 			settlement_confirmed: confirmed,
 			block_hash: conf.blockHash,
 			block_height: conf.blockHeight,
+			// Stamp confirmed_at on insert too — a sweep already past threshold the
+			// first time we see it is confirmed on INSERT, where the onConflict CASE
+			// below never runs.
+			confirmed_at: confirmed ? now : null,
 		})
 		.onConflict((oc) =>
 			oc.column("sweep_txid").doUpdateSet((eb) => ({
@@ -143,12 +164,38 @@ async function upsertSettlement(
 				block_height: eb.ref("excluded.block_height"),
 				last_checked_at: now,
 				updated_at: now,
-				// Set once, when settlement_confirmed first flips true; never cleared
-				// here — S2's un-confirm path owns reverting it on a Bitcoin reorg.
-				confirmed_at: sql`COALESCE(sbtc_settlements.confirmed_at, CASE WHEN excluded.settlement_confirmed THEN now() END)`,
+				// While confirmed: preserve the original confirm timestamp (COALESCE).
+				// On un-confirm (a Bitcoin reorg dropped it below threshold): clear it,
+				// so confirmed_at always agrees with settlement_confirmed.
+				confirmed_at: sql`CASE WHEN excluded.settlement_confirmed THEN COALESCE(sbtc_settlements.confirmed_at, now()) ELSE NULL END`,
 			})),
 		)
 		.execute();
+}
+
+/**
+ * Drop settlement rows whose backing `withdrawal-accept` no longer exists as a
+ * canonical sweep — orphans left when a Stacks reorg hard-DELETEs accept rows
+ * from `sbtc_events` (handleSbtcReorg). Called inside that same leader-gated
+ * reorg transaction. If the withdrawal re-decodes on the new fork with the same
+ * `sweep_txid` (the common case — the sweep is a Bitcoin fact), the row survives
+ * and keeps its confirmation history; only a genuinely-vanished sweep is removed.
+ */
+export async function deleteOrphanedSettlements(opts?: {
+	db?: Kysely<Database>;
+}): Promise<number> {
+	const result = await db(opts?.db)
+		.deleteFrom("sbtc_settlements")
+		.where("sweep_txid", "not in", (qb) =>
+			qb
+				.selectFrom("sbtc_events")
+				.select("sweep_txid")
+				.where("topic", "=", "withdrawal-accept")
+				.where("canonical", "=", true)
+				.where("sweep_txid", "is not", null),
+		)
+		.executeTakeFirst();
+	return Number(result.numDeletedRows ?? 0);
 }
 
 /**

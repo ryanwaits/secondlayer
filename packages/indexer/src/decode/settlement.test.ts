@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
 import type { SbtcEventTopic } from "@secondlayer/shared/db/schema";
 import type { TxConfirmation } from "./bitcoin-rpc.ts";
+import { handleSbtcReorg } from "./sbtc-storage.ts";
 import {
 	SETTLEMENT_CONFIRMER_NAME,
 	consumeSbtcSettlements,
+	deleteOrphanedSettlements,
 	getSettlementConfirmerHealth,
 	readPendingSweeps,
 } from "./settlement.ts";
@@ -171,7 +173,8 @@ describe.skipIf(!HAS_DB)("sBTC settlement confirmer (DB)", () => {
 			.values({
 				sweep_txid: "0xsweep5",
 				request_id: 5,
-				btc_confirmations: 6,
+				// buried past the reorg-watch depth (>12) → settled for good, excluded
+				btc_confirmations: 20,
 				settlement_confirmed: true,
 				block_hash: "0xblk",
 				block_height: 800_000,
@@ -241,9 +244,10 @@ describe.skipIf(!HAS_DB)("sBTC settlement confirmer (DB)", () => {
 		const confirmedAt = row?.confirmed_at;
 		expect(confirmedAt).not.toBeNull();
 
-		// once confirmed it leaves the work queue (no re-poll, confirmed_at stable)
+		// confirmed at 6 but still within the reorg-watch window (< 12) → stays
+		// queued for re-check; it only leaves once it buries past the watch depth.
 		const stillPending = await readPendingSweeps({ db, limit: 100 });
-		expect(stillPending).toEqual([]);
+		expect(stillPending).toEqual([{ sweep_txid: "0xsweep42", request_id: 42 }]);
 	});
 
 	test("health: healthy when caught up + fresh checkpoint, unhealthy when stale", async () => {
@@ -261,5 +265,156 @@ describe.skipIf(!HAS_DB)("sBTC settlement confirmer (DB)", () => {
 			now: new Date(Date.now() + 10 * 60_000),
 		});
 		expect(stale.status).toBe("unhealthy");
+	});
+
+	test("un-confirms a sweep when a Bitcoin reorg drops it below threshold", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("sbtc_events")
+			.values(
+				seed({
+					cursor: "300:0",
+					block_height: 300,
+					tx_id: "acc",
+					tx_index: 0,
+					event_index: 0,
+					topic: "withdrawal-accept",
+					request_id: 7,
+					sweep_txid: "0xsweep7",
+				}),
+			)
+			.execute();
+
+		const confsRef = { value: 6 };
+		const reader = stubReader(confsRef);
+
+		// Confirm at 6.
+		await consumeSbtcSettlements({ db, reader });
+		let row = await db
+			.selectFrom("sbtc_settlements")
+			.select(["settlement_confirmed", "btc_confirmations", "confirmed_at"])
+			.where("sweep_txid", "=", "0xsweep7")
+			.executeTakeFirst();
+		expect(row?.settlement_confirmed).toBe(true);
+		expect(row?.confirmed_at).not.toBeNull();
+		// Still within the watch window → eligible for re-check.
+		expect(await readPendingSweeps({ db, limit: 100 })).toEqual([
+			{ sweep_txid: "0xsweep7", request_id: 7 },
+		]);
+
+		// Reorg drops it to 2 → un-confirm + clear confirmed_at.
+		confsRef.value = 2;
+		await consumeSbtcSettlements({ db, reader });
+		row = await db
+			.selectFrom("sbtc_settlements")
+			.select(["settlement_confirmed", "btc_confirmations", "confirmed_at"])
+			.where("sweep_txid", "=", "0xsweep7")
+			.executeTakeFirst();
+		expect(row?.settlement_confirmed).toBe(false);
+		expect(row?.btc_confirmations).toBe(2);
+		expect(row?.confirmed_at).toBeNull();
+	});
+
+	test("stops watching once a confirmed sweep buries past the reorg-watch depth", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("sbtc_events")
+			.values(
+				seed({
+					cursor: "400:0",
+					block_height: 400,
+					tx_id: "acc",
+					tx_index: 0,
+					event_index: 0,
+					topic: "withdrawal-accept",
+					request_id: 8,
+					sweep_txid: "0xsweep8",
+				}),
+			)
+			.execute();
+
+		const confsRef = { value: 6 };
+		const reader = stubReader(confsRef);
+		await consumeSbtcSettlements({ db, reader });
+		expect(await readPendingSweeps({ db, limit: 100 })).toHaveLength(1);
+
+		// Buries well past the default watch depth (12) → drops out of the queue.
+		confsRef.value = 50;
+		await consumeSbtcSettlements({ db, reader });
+		const row = await db
+			.selectFrom("sbtc_settlements")
+			.select(["settlement_confirmed", "btc_confirmations"])
+			.where("sweep_txid", "=", "0xsweep8")
+			.executeTakeFirst();
+		expect(row?.settlement_confirmed).toBe(true);
+		expect(row?.btc_confirmations).toBe(50);
+		expect(await readPendingSweeps({ db, limit: 100 })).toEqual([]);
+	});
+
+	test("deleteOrphanedSettlements removes settlements whose accept is gone", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("sbtc_events")
+			.values(
+				seed({
+					cursor: "500:0",
+					block_height: 500,
+					tx_id: "acc",
+					tx_index: 0,
+					event_index: 0,
+					topic: "withdrawal-accept",
+					request_id: 9,
+					sweep_txid: "0xkeep",
+				}),
+			)
+			.execute();
+		await db
+			.insertInto("sbtc_settlements")
+			.values([
+				{ sweep_txid: "0xkeep", request_id: 9, btc_confirmations: 6 },
+				// orphan: no backing canonical accept
+				{ sweep_txid: "0xorphan", request_id: 99, btc_confirmations: 3 },
+			])
+			.execute();
+
+		const deleted = await deleteOrphanedSettlements({ db });
+		expect(deleted).toBe(1);
+		const remaining = await db
+			.selectFrom("sbtc_settlements")
+			.select("sweep_txid")
+			.execute();
+		expect(remaining).toEqual([{ sweep_txid: "0xkeep" }]);
+	});
+
+	test("handleSbtcReorg cleans up settlements orphaned by the accept delete", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("sbtc_events")
+			.values(
+				seed({
+					cursor: "600:0",
+					block_height: 600,
+					tx_id: "acc",
+					tx_index: 0,
+					event_index: 0,
+					topic: "withdrawal-accept",
+					request_id: 10,
+					sweep_txid: "0xsweep10",
+				}),
+			)
+			.execute();
+		await db
+			.insertInto("sbtc_settlements")
+			.values({ sweep_txid: "0xsweep10", request_id: 10, btc_confirmations: 6 })
+			.execute();
+
+		// Reorg at/above 600 deletes the accept, orphaning its settlement.
+		const result = await handleSbtcReorg(600, { db });
+		expect(result.orphanedSettlements).toBe(1);
+		const remaining = await db
+			.selectFrom("sbtc_settlements")
+			.select("sweep_txid")
+			.execute();
+		expect(remaining).toEqual([]);
 	});
 });
