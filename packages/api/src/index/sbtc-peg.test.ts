@@ -281,6 +281,7 @@ describe("sBTC peg helpers", () => {
 						recipient_btc_version: 1,
 						recipient_btc_hashbytes: "0xab",
 						sweep_txid: "0xsweep",
+						settlement_confirmed: null,
 						requested_at: null,
 						resolved_at: null,
 					},
@@ -352,6 +353,7 @@ describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 
 	beforeEach(async () => {
 		if (!db) return;
+		await sql`DELETE FROM sbtc_settlements`.execute(db);
 		await sql`DELETE FROM sbtc_events`.execute(db);
 		await sql`DELETE FROM sbtc_token_events`.execute(db);
 	});
@@ -546,6 +548,112 @@ describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 		expect(accepted.withdrawals.map((w) => w.request_id)).toEqual([2]);
 	});
 
+	test("withdrawals: settlement_confirmed filter + summary flag", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("sbtc_events")
+			.values([
+				// req 1: accepted, sweep confirmed on Bitcoin
+				seed({
+					cursor: "100:0",
+					block_height: 100,
+					tx_id: "0x1",
+					tx_index: 0,
+					event_index: 0,
+					topic: "withdrawal-create",
+					request_id: 1,
+				}),
+				seed({
+					cursor: "101:0",
+					block_height: 101,
+					tx_id: "0x1b",
+					tx_index: 0,
+					event_index: 0,
+					topic: "withdrawal-accept",
+					request_id: 1,
+					sweep_txid: "0xconfirmed",
+				}),
+				// req 2: accepted, sweep still pending (no settlement row)
+				seed({
+					cursor: "102:0",
+					block_height: 102,
+					tx_id: "0x2",
+					tx_index: 0,
+					event_index: 0,
+					topic: "withdrawal-create",
+					request_id: 2,
+				}),
+				seed({
+					cursor: "103:0",
+					block_height: 103,
+					tx_id: "0x2b",
+					tx_index: 0,
+					event_index: 0,
+					topic: "withdrawal-accept",
+					request_id: 2,
+					sweep_txid: "0xpending",
+				}),
+				// req 3: only requested → no sweep
+				seed({
+					cursor: "104:0",
+					block_height: 104,
+					tx_id: "0x3",
+					tx_index: 0,
+					event_index: 0,
+					topic: "withdrawal-create",
+					request_id: 3,
+				}),
+			])
+			.execute();
+		await db
+			.insertInto("sbtc_settlements")
+			.values([
+				// confirmed
+				{
+					sweep_txid: "0xconfirmed",
+					request_id: 1,
+					btc_confirmations: 6,
+					settlement_confirmed: true,
+				},
+				// observed but not yet confirmed
+				{
+					sweep_txid: "0xpending",
+					request_id: 2,
+					btc_confirmations: 2,
+					settlement_confirmed: false,
+				},
+			])
+			.execute();
+
+		const base = { db, fromHeight: 0, toHeight: 200, limit: 50 } as const;
+
+		// Unfiltered: summary carries the three settlement states — confirmed (true),
+		// observed-but-pending (false), and no settlement record yet (null, req 3
+		// has no sweep).
+		const all = await readSbtcWithdrawals(base);
+		expect(
+			all.withdrawals.map((w) => [w.request_id, w.settlement_confirmed]),
+		).toEqual([
+			[1, true],
+			[2, false],
+			[3, null],
+		]);
+
+		// confirmed only → req 1
+		const confirmed = await readSbtcWithdrawals({
+			...base,
+			settlementConfirmed: true,
+		});
+		expect(confirmed.withdrawals.map((w) => w.request_id)).toEqual([1]);
+
+		// not-confirmed (pending sweep + no sweep both fold in) → req 2, 3
+		const unconfirmed = await readSbtcWithdrawals({
+			...base,
+			settlementConfirmed: false,
+		});
+		expect(unconfirmed.withdrawals.map((w) => w.request_id)).toEqual([2, 3]);
+	});
+
 	test("withdrawal by id assembles the full lifecycle; null when absent", async () => {
 		if (!db) throw new Error("missing db");
 		await db
@@ -580,14 +688,67 @@ describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 		expect(lifecycle?.requested.tx_id).toBe("0xreq");
 		expect(lifecycle?.accepted?.sweep_txid).toBe("0xsweep42");
 		expect(lifecycle?.rejected).toBeNull();
+		// No sbtc_settlements row seeded → settlement fields stay null.
 		expect(lifecycle?.settlement).toEqual({
 			sweep_txid: "0xsweep42",
 			btc_confirmations: null,
 			settlement_confirmed: null,
+			btc_block_height: null,
+			confirmed_at: null,
 		});
 		expect(lifecycle?.latest_height).toBe(110);
 
 		expect(await readSbtcWithdrawalById(999, { db })).toBeNull();
+	});
+
+	test("lifecycle surfaces BTC L1 settlement once the confirmer records it", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("sbtc_events")
+			.values([
+				seed({
+					cursor: "200:0",
+					block_height: 200,
+					tx_id: "0xreq2",
+					tx_index: 0,
+					event_index: 0,
+					topic: "withdrawal-create",
+					request_id: 77,
+					amount: "9000",
+				}),
+				seed({
+					cursor: "201:0",
+					block_height: 201,
+					tx_id: "0xacc2",
+					tx_index: 0,
+					event_index: 0,
+					topic: "withdrawal-accept",
+					request_id: 77,
+					sweep_txid: "0xsweep77",
+				}),
+			])
+			.execute();
+		await db
+			.insertInto("sbtc_settlements")
+			.values({
+				sweep_txid: "0xsweep77",
+				request_id: 77,
+				btc_confirmations: 6,
+				settlement_confirmed: true,
+				block_hash: "0xbtcblk",
+				block_height: 880_123,
+				confirmed_at: new Date("2026-06-01T00:00:00.000Z"),
+			})
+			.execute();
+
+		const lifecycle = await readSbtcWithdrawalById(77, { db });
+		expect(lifecycle?.settlement).toEqual({
+			sweep_txid: "0xsweep77",
+			btc_confirmations: 6,
+			settlement_confirmed: true,
+			btc_block_height: 880_123,
+			confirmed_at: "2026-06-01T00:00:00.000Z",
+		});
 	});
 
 	test("deposit by bitcoin_txid returns the typed object; null when absent", async () => {

@@ -144,6 +144,9 @@ export type SbtcWithdrawalSummary = {
 	recipient_btc_version: number | null;
 	recipient_btc_hashbytes: string | null;
 	sweep_txid: string | null;
+	/** BTC L1 settlement of the committed sweep: true once confirmed, false while
+	 *  pending, null when there is no sweep yet (REQUESTED). */
+	settlement_confirmed: boolean | null;
 	requested_at?: string | null;
 	resolved_at?: string | null;
 };
@@ -576,6 +579,7 @@ type SbtcWithdrawalSummaryDbRow = {
 	resolution_topic: SbtcEventTopic | null;
 	sweep_txid: string | null;
 	resolved_at: Date | string | null;
+	settlement_confirmed: boolean | null;
 };
 
 function deriveStatus(
@@ -598,6 +602,7 @@ function normalizeSbtcWithdrawalSummary(
 		recipient_btc_version: row.recipient_btc_version,
 		recipient_btc_hashbytes: row.recipient_btc_hashbytes,
 		sweep_txid: row.sweep_txid,
+		settlement_confirmed: row.settlement_confirmed,
 		requested_at: toIsoOrNull(row.requested_at),
 		resolved_at: toIsoOrNull(row.resolved_at),
 	};
@@ -611,6 +616,7 @@ export type ReadSbtcWithdrawalsParams = {
 	status?: SbtcWithdrawalStatus;
 	sender?: string;
 	requestId?: number;
+	settlementConfirmed?: boolean;
 	db?: Kysely<Database>;
 };
 
@@ -659,6 +665,16 @@ export async function readSbtcWithdrawals(
 					? sql`res.resolution_topic IS NULL`
 					: sql`true`;
 
+	// Settlement filter: true → only sweeps confirmed on Bitcoin; false → not
+	// confirmed (pending sweep OR no sweep yet — `IS DISTINCT FROM true` folds the
+	// null settlement into the not-confirmed bucket).
+	const settlementPredicate =
+		params.settlementConfirmed === true
+			? sql`st.settlement_confirmed IS TRUE`
+			: params.settlementConfirmed === false
+				? sql`st.settlement_confirmed IS DISTINCT FROM true`
+				: sql`true`;
+
 	const { rows } = await sql<SbtcWithdrawalSummaryDbRow>`
 		SELECT
 			c.cursor,
@@ -672,7 +688,8 @@ export async function readSbtcWithdrawals(
 			c.block_time AS requested_at,
 			res.resolution_topic,
 			res.sweep_txid,
-			res.resolved_at
+			res.resolved_at,
+			st.settlement_confirmed
 		FROM (
 			SELECT DISTINCT ON (request_id)
 				cursor, block_height, event_index, block_time, request_id, amount,
@@ -691,7 +708,8 @@ export async function readSbtcWithdrawals(
 			ORDER BY r.block_height DESC, r.event_index DESC
 			LIMIT 1
 		) res ON true
-		WHERE ${statusPredicate}
+		LEFT JOIN sbtc_settlements st ON st.sweep_txid = res.sweep_txid
+		WHERE ${statusPredicate} AND ${settlementPredicate}
 		ORDER BY c.block_height ASC, c.event_index ASC
 		LIMIT ${params.limit + 1}
 	`.execute(db);
@@ -720,6 +738,16 @@ function parseStatusFilter(
 		);
 	}
 	return value;
+}
+
+function parseSettlementConfirmedFilter(
+	value: string | undefined,
+): boolean | undefined {
+	if (value === undefined) return undefined;
+	if (value !== "true" && value !== "false") {
+		throw new ValidationError("settlement_confirmed must be true or false");
+	}
+	return value === "true";
 }
 
 export async function getSbtcWithdrawalsResponse(opts: {
@@ -754,6 +782,9 @@ export async function getSbtcWithdrawalsResponse(opts: {
 		status: parseStatusFilter(opts.query.get("status") ?? undefined),
 		sender: parseFilter(opts.query.get("sender") ?? undefined, "sender"),
 		requestId: parseRequestIdFilter(opts.query.get("request_id") ?? undefined),
+		settlementConfirmed: parseSettlementConfirmedFilter(
+			opts.query.get("settlement_confirmed") ?? undefined,
+		),
 	});
 
 	// Reorg reconciliation over the create-event range (the summary cursor keys on
@@ -781,8 +812,8 @@ export type SbtcWithdrawalPhase = {
 };
 
 /** A single peg-out's full assembled lifecycle, joined by request_id. The
- *  settlement block is a placeholder until the BTC L1 confirmer fills
- *  btc_confirmations + settlement_confirmed for the committed sweep. */
+ *  settlement block is filled from `sbtc_settlements` by the BTC L1 confirmer:
+ *  null fields mean the committed sweep has not been observed on Bitcoin yet. */
 export type SbtcWithdrawalLifecycle = {
 	request_id: number;
 	status: SbtcWithdrawalStatus;
@@ -802,6 +833,10 @@ export type SbtcWithdrawalLifecycle = {
 		sweep_txid: string | null;
 		btc_confirmations: number | null;
 		settlement_confirmed: boolean | null;
+		/** Confirming Bitcoin block height; null until the sweep confirms. */
+		btc_block_height: number | null;
+		/** ISO timestamp the sweep first crossed the confirmation threshold. */
+		confirmed_at: string | null;
 	};
 	/** The highest block_height across the lifecycle's events — the route uses it
 	 *  to decide finality (and whether the row is immutably cacheable). */
@@ -877,6 +912,9 @@ export async function readSbtcWithdrawalById(
 		0,
 	);
 
+	const sweepTxid = acceptRow?.sweep_txid ?? null;
+	const settlementRow = await readSettlementForSweep(db, sweepTxid);
+
 	return {
 		request_id: requestId,
 		status,
@@ -894,12 +932,41 @@ export async function readSbtcWithdrawalById(
 			: null,
 		rejected: rejectRow ? phaseOf(rejectRow) : null,
 		settlement: {
-			sweep_txid: acceptRow?.sweep_txid ?? null,
-			btc_confirmations: null,
-			settlement_confirmed: null,
+			sweep_txid: sweepTxid,
+			btc_confirmations: settlementRow?.btc_confirmations ?? null,
+			settlement_confirmed: settlementRow?.settlement_confirmed ?? null,
+			btc_block_height: settlementRow?.block_height ?? null,
+			confirmed_at: settlementRow
+				? toIsoOrNull(settlementRow.confirmed_at)
+				: null,
 		},
 		latest_height: latestHeight,
 	};
+}
+
+/** The BTC L1 settlement status the confirmer recorded for a committed sweep,
+ *  or null if there is no sweep or it has not been observed on Bitcoin yet. */
+async function readSettlementForSweep(
+	db: Kysely<Database>,
+	sweepTxid: string | null,
+): Promise<{
+	btc_confirmations: number;
+	settlement_confirmed: boolean;
+	block_height: number | null;
+	confirmed_at: Date | null;
+} | null> {
+	if (!sweepTxid) return null;
+	const row = await db
+		.selectFrom("sbtc_settlements")
+		.select([
+			"btc_confirmations",
+			"settlement_confirmed",
+			"block_height",
+			"confirmed_at",
+		])
+		.where("sweep_txid", "=", sweepTxid)
+		.executeTakeFirst();
+	return row ?? null;
 }
 
 export type SbtcWithdrawalByIdReader = (

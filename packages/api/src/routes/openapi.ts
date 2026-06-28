@@ -511,6 +511,7 @@ const OPENAPI_SPEC = {
 					qp("status", "string"),
 					qp("sender", "string"),
 					qp("request_id", "integer"),
+					qp("settlement_confirmed", "boolean"),
 				],
 				responses: envelope("withdrawals"),
 			},

@@ -257,6 +257,14 @@ describe("Index sBTC peg accessors", () => {
 		expect(urls[0]).toContain("request_id=7");
 	});
 
+	test("sbtc.withdrawals.list maps settlementConfirmed → settlement_confirmed", async () => {
+		const urls = recorder(emptyWithdrawals);
+		await new Index({ baseUrl: BASE_URL }).sbtc.withdrawals.list({
+			settlementConfirmed: true,
+		});
+		expect(urls[0]).toContain("settlement_confirmed=true");
+	});
+
 	test("sbtc.withdrawals.get hits the by-request-id path", async () => {
 		const urls = recorder({
 			withdrawal: { request_id: 7, status: "ACCEPTED", finalized: true },

@@ -657,6 +657,9 @@ export type IndexSbtcWithdrawal = {
 	recipient_btc_version: number | null;
 	recipient_btc_hashbytes: string | null;
 	sweep_txid: string | null;
+	/** BTC L1 settlement of the committed sweep: true once confirmed, false while
+	 *  pending, null when there is no sweep yet (REQUESTED). */
+	settlement_confirmed: boolean | null;
 	requested_at?: string | null;
 	resolved_at?: string | null;
 };
@@ -689,6 +692,10 @@ export type IndexSbtcWithdrawalDetail = {
 		sweep_txid: string | null;
 		btc_confirmations: number | null;
 		settlement_confirmed: boolean | null;
+		/** Confirming Bitcoin block height; null until the sweep confirms. */
+		btc_block_height: number | null;
+		/** ISO timestamp the sweep first crossed the confirmation threshold. */
+		confirmed_at: string | null;
 	};
 	finalized: boolean;
 };
@@ -802,6 +809,9 @@ export type SbtcWithdrawalsListParams = {
 	status?: SbtcWithdrawalStatus;
 	sender?: string;
 	requestId?: number;
+	/** Filter by BTC L1 settlement: true → only confirmed sweeps; false → not
+	 *  yet confirmed (pending or no sweep). */
+	settlementConfirmed?: boolean;
 	fromHeight?: number;
 	toHeight?: number;
 };
@@ -1804,6 +1814,7 @@ export class Index extends BaseClient {
 				status: params.status,
 				sender: params.sender,
 				request_id: params.requestId,
+				settlement_confirmed: params.settlementConfirmed,
 				from_height: params.fromHeight,
 				to_height: params.toHeight,
 			})}`,

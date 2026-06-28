@@ -519,6 +519,7 @@ describe("Index sBTC peg routes", () => {
 							recipient_btc_version: 1,
 							recipient_btc_hashbytes: "0xab",
 							sweep_txid: "0xsweep",
+							settlement_confirmed: null,
 							requested_at: null,
 							resolved_at: null,
 						},
@@ -551,6 +552,8 @@ describe("Index sBTC peg routes", () => {
 									sweep_txid: "0xsweep",
 									btc_confirmations: null,
 									settlement_confirmed: null,
+									btc_block_height: null,
+									confirmed_at: null,
 								},
 								latest_height: 9001,
 							}
