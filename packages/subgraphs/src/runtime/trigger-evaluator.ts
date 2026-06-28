@@ -10,6 +10,7 @@ import type {
 	SbtcEventsTable,
 	Subscription,
 } from "@secondlayer/shared/db";
+import { getSourceDb } from "@secondlayer/shared/db";
 import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
 import type { ChainTrigger } from "@secondlayer/shared/schemas/subscriptions";
 import type { Kysely, Selectable } from "kysely";
@@ -439,7 +440,7 @@ export async function emitSbtcOutbox(
 	chainSubs: Subscription[],
 	blockHeight: number,
 	blockHash: string,
-	opts?: { replayId?: string },
+	opts?: { replayId?: string; sourceDb?: Kysely<Database> },
 ): Promise<number> {
 	const sbtcSubs = chainSubs.filter((sub) =>
 		triggersOf(sub).some((t) => isSbtcTriggerType(t.type)),
@@ -454,9 +455,15 @@ export async function emitSbtcOutbox(
 		}
 	}
 
-	const sbtcRows = await loadSbtcEventsForBlock(db, blockHeight, [
-		...neededTopics,
-	]);
+	// `sbtc_events` is a SOURCE-plane table; the evaluator runs on the TARGET
+	// handle (where an empty same-named table exists post-split). Read the decoded
+	// rows from the source plane explicitly — reading off `db` here silently
+	// matched zero rows under the live split, so sBTC webhooks never fired.
+	const sbtcRows = await loadSbtcEventsForBlock(
+		opts?.sourceDb ?? getSourceDb(),
+		blockHeight,
+		[...neededTopics],
+	);
 	if (sbtcRows.length === 0) return 0;
 
 	const replayId = opts?.replayId;
