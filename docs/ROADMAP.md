@@ -3,18 +3,21 @@
 > Canonical prioritized backlog of work we've consciously deferred, so it isn't lost.
 > `STRATEGY.md` holds strategic direction and wins on positioning conflicts; this is the
 > tactical TODO that hangs off it. Add items when you defer something; delete when shipped.
-> Last updated 2026-06-14. **sBTC peg read + lifecycle SKU SHIPPED 2026-06-13**
+> Last updated 2026-06-27. **`/v1/index/sbtc/summary` aggregate SHIPPED** (route
+> `routes/index.ts:777` + OpenAPI; scoreboard reader `sbtc-peg.ts:933`).
+> **sBTC peg read + lifecycle SKU SHIPPED 2026-06-13**
 > (typed `/v1/index/sbtc/*` endpoints + confirmed-finality gating). **sBTC webhook topics
 > SHIPPED 2026-06-14** (`shared@6.34.0` / `subgraphs@3.15.0`: 4 `ChainTrigger` types +
 > `emitSbtcOutbox` evaluator path). **PoX reward-cycle aggregates SHIPPED 2026-06-14**
 > (`/v1/index/pox/cycles` + `/v1/index/pox/cycles/:reward_cycle`). **P1 webhook signing +
 > trial enforcement SHIPPED** (signing key wired `d9b5d342`; trial gate + 14d + quota=0
-> `ffc2c0ed`). Remaining peg work = `/sbtc/summary` aggregate + BTC settlement confirmer +
-> Peg Explorer. Slot caps still open (blocked on founder per-plan numbers).
+> `ffc2c0ed`). Remaining peg work = BTC settlement confirmer + Peg Explorer. Slot
+> caps still open (blocked on founder per-plan numbers).
 
 ## ✅ P0 — Genesis-complete every decoder (RESOLVED 2026-06-21)
 
-> Plan: `docs/sprints/genesis-decoder-backfill/plan.md`. The index service's core contract is **every
+> Plan: ~~`docs/sprints/genesis-decoder-backfill/plan.md`~~ (deleted as completed, commit
+> `930f9563`). The index service's core contract is **every
 > block from genesis, decoded + supplied** (the SDK's whole pitch). Audit 2026-06-20 found 7 decoders
 > floored at ~6.8M (`stx_*`, `nft_*`) + `print`; all now backfilled to genesis via
 > `backfill-from-firehose.ts` (parallel-to-live, no lag) cheap→heavy, `stx_transfer` last. Final floor
@@ -34,8 +37,10 @@
 
 ## ⚡ Indexing speed — NEXT (the core service, all tiers)
 
-> Plan: `docs/sprints/indexing-speed/plan.md`. Analysis:
-> `docs/internal/audits/reindex-performance-2026-06-20.md`. Indexing IS the product, and it's slow:
+> Plan: ~~`docs/sprints/indexing-speed/plan.md`~~ (deleted as completed working doc, commit
+> `930f9563`; T1+T2(b) were marked done before deletion — re-audit live throughput before
+> resuming Sprint 2/3). Analysis: `docs/internal/audits/reindex-performance-2026-06-20.md`
+> (still present). Indexing IS the product, and it's slow:
 > **measured 27 blk/s** active region → **~16h full sBTC reindex** (live, 2026-06-20). Targets: sBTC
 > 5–10 min, pox 20 min. Make it fast for free/self-host AND every paid tier — backfill *speed* is the
 > paid lever; the data stays open/keyless. **Root cause is NOT yet confirmed** (the audit's first
@@ -281,8 +286,9 @@ a revenue line.
   **REMAINING for "done":** (c) ~~named webhook topics~~ **SHIPPED 2026-06-14** —
   `sbtc_deposit` / `sbtc_withdrawal_create` / `sbtc_withdrawal_accept` / `sbtc_withdrawal_reject`
   `ChainTrigger` types + `emitSbtcOutbox` evaluator path (`shared@6.34.0` / `subgraphs@3.15.0`);
-  (e) **aggregates** `/v1/index/sbtc/summary` (net peg flow, total locked sats, sBTC supply,
-  counts) — SUM queries over `sbtc_events` / `sbtc_token_events`, effort **S-M**. (The BTC L1
+  (e) ~~**aggregates** `/v1/index/sbtc/summary`~~ **SHIPPED** — net peg flow, total locked
+  sats, sBTC supply, counts over `sbtc_events` / `sbtc_token_events` (`sbtc-peg.ts:933`,
+  route `routes/index.ts:777`). (The BTC L1
   settlement confirmer that fills the settlement placeholder + emits
   `sbtc.withdrawal.swept.confirmed` is the separate bullet below.)
 
