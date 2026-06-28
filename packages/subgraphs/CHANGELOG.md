@@ -1,5 +1,19 @@
 # @secondlayer/subgraphs
 
+## 3.17.0
+
+### Minor Changes
+
+- 69c50cc: Add the `sbtc_withdrawal_swept_confirmed` webhook: fires once when a peg-out's committed BTC sweep crosses the confirmation threshold on Bitcoin. New `t.sbtcWithdrawalSweptConfirmed()` trigger + `SbtcWithdrawalSweptConfirmedEvent` payload, emitted by a scan-based evaluator path (`emitSbtcSettlementOutbox`) on its own `last_settlement_scan_at` cursor — forward-only (`confirmed_at > sub.created_at`), idempotent via the outbox dedup key (no double-fire on a reorg→un-confirm→re-confirm).
+
+### Patch Changes
+
+- c63476a: Fix the chain-trigger evaluator reading `sbtc_events` off the target (control) plane: that table is SOURCE-plane, so under the live source/target split the evaluator scanned an empty copy and the sBTC webhook topics never fired. `emitSbtcOutbox` now reads decoded rows via `getSourceDb()` while still writing the outbox on the target handle, with a regression test guarding the plane.
+- 236b683: Fix `buildTraitContracts` reading the `contracts` registry off the target (control) plane: `contracts` is SOURCE-plane, so under the live split the evaluator and chain-replay resolved zero trait members and trait-scoped subscriptions never matched. Now reads via `getSourceDb()` — same plane-read class as the sbtc_events fix.
+- Updated dependencies [6e570ea]
+- Updated dependencies [69c50cc]
+  - @secondlayer/shared@6.38.0
+
 ## 3.16.0
 
 ### Minor Changes

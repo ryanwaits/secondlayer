@@ -1,5 +1,20 @@
 # @secondlayer/sdk
 
+## 6.28.0
+
+### Minor Changes
+
+- b9a15b1: Surface BTC L1 settlement on the sBTC withdrawal read API: `/v1/index/sbtc/withdrawals/:request_id` now fills `settlement.{btc_confirmations,settlement_confirmed,btc_block_height,confirmed_at}` from the confirmer instead of nulls, the rolled-up withdrawals list carries a `settlement_confirmed` flag plus a `?settlement_confirmed=` filter, and the SDK types/`settlementConfirmed` param match.
+
+### Patch Changes
+
+- Updated dependencies [c63476a]
+- Updated dependencies [236b683]
+- Updated dependencies [6e570ea]
+- Updated dependencies [69c50cc]
+  - @secondlayer/subgraphs@3.17.0
+  - @secondlayer/shared@6.38.0
+
 ## 6.27.2
 
 ### Patch Changes

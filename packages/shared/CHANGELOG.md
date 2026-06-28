@@ -1,5 +1,15 @@
 # @secondlayer/shared
 
+## 6.38.0
+
+### Minor Changes
+
+- 69c50cc: Add the `sbtc_withdrawal_swept_confirmed` webhook: fires once when a peg-out's committed BTC sweep crosses the confirmation threshold on Bitcoin. New `t.sbtcWithdrawalSweptConfirmed()` trigger + `SbtcWithdrawalSweptConfirmedEvent` payload, emitted by a scan-based evaluator path (`emitSbtcSettlementOutbox`) on its own `last_settlement_scan_at` cursor — forward-only (`confirmed_at > sub.created_at`), idempotent via the outbox dedup key (no double-fire on a reorg→un-confirm→re-confirm).
+
+### Patch Changes
+
+- 6e570ea: Add the `sbtc_settlements` table (migration 0104) + `SbtcSettlementsTable` schema type for the sBTC withdrawal BTC L1 settlement confirmer.
+
 ## 6.37.1
 
 ### Patch Changes
