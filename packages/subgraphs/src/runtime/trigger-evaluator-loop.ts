@@ -10,6 +10,7 @@ import {
 	buildTraitContracts,
 	emitChainOutbox,
 	emitSbtcOutbox,
+	emitSbtcSettlementOutbox,
 	evaluateBlock,
 	referencedEventTypes,
 } from "./trigger-evaluator.ts";
@@ -84,22 +85,27 @@ export async function runEvaluatorOnce(
 			threshold: CHAIN_SUB_WARN_THRESHOLD,
 		});
 	}
+
+	// sBTC settlement webhooks fire on Bitcoin confirmations, async to Stacks
+	// blocks — scan every tick on their own cursor, independent of (and before)
+	// the block-cursor early returns below.
+	let emitted = await emitSbtcSettlementOutbox(db, chainSubs);
+
 	const source = buildChainBlockSource(referencedEventTypes(chainSubs));
 	const tip = await source.getTip();
-	if (tip <= 0) return 0;
+	if (tip <= 0) return emitted;
 
 	const cursor = await readCursor(db);
 	// Forward-looking: uninitialized cursor or no subscriptions → jump to tip so
 	// nothing backfills history.
 	if (cursor === 0 || chainSubs.length === 0) {
 		await advanceCursor(db, tip);
-		return 0;
+		return emitted;
 	}
-	if (cursor >= tip) return 0;
+	if (cursor >= tip) return emitted;
 
 	const { sources, keyMeta } = buildSourcesMap(chainSubs);
 	const target = Math.min(tip, cursor + MAX_BLOCKS_PER_TICK);
-	let emitted = 0;
 	for (let from = cursor + 1; from <= target; from = from + BATCH) {
 		const to = Math.min(from + BATCH - 1, target);
 		const blocks = await source.loadBlockRange(from, to);

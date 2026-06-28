@@ -104,6 +104,7 @@ export const CHAIN_TRIGGER_TYPES = [
 	"sbtc_withdrawal_create",
 	"sbtc_withdrawal_accept",
 	"sbtc_withdrawal_reject",
+	"sbtc_withdrawal_swept_confirmed",
 ] as const;
 
 const triggerAmount = z.union([
@@ -255,6 +256,13 @@ export const ChainTriggerSchema: z.ZodType<ChainTrigger> = z.discriminatedUnion(
 			.object({
 				type: z.literal("sbtc_withdrawal_reject"),
 				requestId: z.number().int().nonnegative().optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("sbtc_withdrawal_swept_confirmed"),
+				requestId: z.number().int().nonnegative().optional(),
+				sweepTxid: triggerPattern.optional(),
 			})
 			.strict(),
 	],
@@ -459,7 +467,12 @@ export type ChainTrigger =
 			requestId?: number;
 			sweepTxid?: string;
 	  }
-	| { type: "sbtc_withdrawal_reject"; requestId?: number };
+	| { type: "sbtc_withdrawal_reject"; requestId?: number }
+	| {
+			type: "sbtc_withdrawal_swept_confirmed";
+			requestId?: number;
+			sweepTxid?: string;
+	  };
 
 /** Args for a chain-trigger builder — every field of a variant except `type`. */
 type TriggerArgs<T extends ChainTrigger["type"]> = Omit<
@@ -551,6 +564,12 @@ export const trigger = {
 		f: TriggerArgs<"sbtc_withdrawal_reject"> = {},
 	): ChainTrigger => ({
 		type: "sbtc_withdrawal_reject",
+		...f,
+	}),
+	sbtcWithdrawalSweptConfirmed: (
+		f: TriggerArgs<"sbtc_withdrawal_swept_confirmed"> = {},
+	): ChainTrigger => ({
+		type: "sbtc_withdrawal_swept_confirmed",
 		...f,
 	}),
 } as const;

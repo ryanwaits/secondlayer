@@ -1240,6 +1240,13 @@ export interface TriggerEvaluatorStateTable {
 		bigint | number | undefined,
 		bigint | number
 	>;
+	/** Watermark for the async sBTC settlement-confirmed webhook scan; null until
+	 *  the evaluator fast-forwards it on first run. */
+	last_settlement_scan_at: ColumnType<
+		Date | null,
+		Date | null | undefined,
+		Date | null
+	>;
 	updated_at: Generated<Date>;
 }
 

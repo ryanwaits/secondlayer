@@ -21,17 +21,33 @@ export interface SbtcDepositEvent {
 	tx_id: string;
 }
 
-/** Payload for `sbtc_withdrawal_create`, `sbtc_withdrawal_accept`, `sbtc_withdrawal_reject`. */
+/** Payload for `sbtc_withdrawal_create`, `sbtc_withdrawal_accept`, `sbtc_withdrawal_reject` —
+ *  the on-Stacks lifecycle events. `settlement_confirmed` is always false here; the
+ *  BTC L1 confirmation is delivered separately as `SbtcWithdrawalSweptConfirmedEvent`. */
 export interface SbtcWithdrawalEvent {
 	topic: "withdrawal-create" | "withdrawal-accept" | "withdrawal-reject";
 	request_id: number;
 	sender: string | null;
 	amount: string | null;
 	sweep_txid: string | null;
-	/** Always false until the BTC L1 confirmer ships. */
 	settlement_confirmed: false;
 	block_height: number;
 	tx_id: string;
+}
+
+/** Payload for `sbtc_withdrawal_swept_confirmed` — fired once when a peg-out's
+ *  committed BTC sweep crosses the confirmation threshold on Bitcoin. Anchored to
+ *  the Stacks `withdrawal-accept` event (block_height/tx_id in the envelope); the
+ *  Bitcoin-side specifics live here. */
+export interface SbtcWithdrawalSweptConfirmedEvent {
+	topic: "withdrawal-swept-confirmed";
+	request_id: number;
+	sweep_txid: string;
+	btc_confirmations: number;
+	btc_block_height: number | null;
+	confirmed_at: string | null;
+	amount: string | null;
+	sender: string | null;
 }
 
 /**
@@ -49,7 +65,11 @@ export interface ChainApplyEnvelope {
 	canonical: true;
 	/** The chain-trigger type that matched. */
 	trigger: ChainTrigger["type"];
-	event: SbtcDepositEvent | SbtcWithdrawalEvent | Record<string, unknown>;
+	event:
+		| SbtcDepositEvent
+		| SbtcWithdrawalEvent
+		| SbtcWithdrawalSweptConfirmedEvent
+		| Record<string, unknown>;
 }
 
 /** One orphaned delivery recalled by a reorg rollback. */

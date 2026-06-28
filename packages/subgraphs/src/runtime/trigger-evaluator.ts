@@ -2,6 +2,7 @@ import type {
 	ChainApplyEnvelope,
 	SbtcDepositEvent,
 	SbtcWithdrawalEvent,
+	SbtcWithdrawalSweptConfirmedEvent,
 } from "@secondlayer/shared";
 import type {
 	Database,
@@ -26,6 +27,12 @@ import {
 /** Trigger types that match a whole transaction (not an individual event). */
 const TX_LEVEL_TRIGGER_TYPES = new Set(["contract_call", "contract_deploy"]);
 
+/** Fired on a Bitcoin confirmation, async to Stacks blocks — handled by the
+ *  scan-based `emitSbtcSettlementOutbox`, NOT the per-block path. Listed in
+ *  SBTC_TRIGGER_TYPES so the per-block matcher skips it, but deliberately absent
+ *  from SBTC_TRIGGER_TO_TOPIC (it has no `sbtc_events` topic). */
+const SETTLEMENT_TRIGGER_TYPE = "sbtc_withdrawal_swept_confirmed";
+
 /**
  * sBTC trigger types — matched via the `sbtc_events` table, NOT via
  * `decoded_events`. Excluded from the chain-event sources map so the
@@ -37,6 +44,7 @@ const SBTC_TRIGGER_TYPES = new Set([
 	"sbtc_withdrawal_create",
 	"sbtc_withdrawal_accept",
 	"sbtc_withdrawal_reject",
+	SETTLEMENT_TRIGGER_TYPE,
 ]);
 
 function isSbtcTriggerType(type: string): boolean {
@@ -504,4 +512,182 @@ export async function emitSbtcOutbox(
 		)
 		.executeTakeFirst();
 	return Number(result.numInsertedOrUpdatedRows ?? 0);
+}
+
+/**
+ * Emit the `sbtc_withdrawal_swept_confirmed` webhook. Unlike the per-block sBTC
+ * path, this fires on a BITCOIN confirmation (async to Stacks blocks), so it
+ * scans `sbtc_settlements` on its own cadence rather than per Stacks block.
+ *
+ * - Reads/advances a dedicated `last_settlement_scan_at` watermark on `db` (the
+ *   target/control plane). Null cursor → fast-forward to `now`, emit nothing
+ *   (forward-only, no historical backfill — mirrors the block cursor).
+ * - Scans confirmed settlements with `confirmed_at > cursor` from the SOURCE
+ *   plane (`sbtc_settlements` is source), joined to the Stacks accept event +
+ *   block for the envelope anchor.
+ * - Per-sub forward-only (`confirmed_at > sub.created_at`) + optional
+ *   requestId/sweepTxid filters; dedup on `(subscription_id, sweep_txid)` so a
+ *   reorg→un-confirm→re-confirm never double-fires.
+ */
+export async function emitSbtcSettlementOutbox(
+	db: Kysely<Database>,
+	chainSubs: Subscription[],
+	opts?: { sourceDb?: Kysely<Database>; now?: Date },
+): Promise<number> {
+	const settlementSubs = chainSubs.filter((sub) =>
+		triggersOf(sub).some((t) => t.type === SETTLEMENT_TRIGGER_TYPE),
+	);
+	if (settlementSubs.length === 0) return 0;
+
+	const now = opts?.now ?? new Date();
+	const state = await db
+		.selectFrom("trigger_evaluator_state")
+		.select("last_settlement_scan_at")
+		.where("id", "=", true)
+		.executeTakeFirst();
+
+	// Uninitialized → fast-forward, emit nothing (forward-only).
+	const cursor = state?.last_settlement_scan_at ?? null;
+	if (cursor === null) {
+		await db
+			.updateTable("trigger_evaluator_state")
+			.set({ last_settlement_scan_at: now })
+			.where("id", "=", true)
+			.execute();
+		return 0;
+	}
+
+	const sourceDb = opts?.sourceDb ?? getSourceDb();
+	const rows = await sourceDb
+		.selectFrom("sbtc_settlements as s")
+		.innerJoin("sbtc_events as e", (join) =>
+			join
+				.onRef("e.sweep_txid", "=", "s.sweep_txid")
+				.on("e.topic", "=", "withdrawal-accept")
+				.on("e.canonical", "=", true),
+		)
+		.innerJoin("blocks as b", (join) =>
+			join
+				.onRef("b.height", "=", "e.block_height")
+				.on("b.canonical", "=", true),
+		)
+		.where("s.settlement_confirmed", "=", true)
+		.where("s.confirmed_at", ">", cursor)
+		.select([
+			"s.sweep_txid",
+			"s.request_id",
+			"s.btc_confirmations",
+			"s.block_height as btc_block_height",
+			"s.confirmed_at",
+			"e.tx_id",
+			"e.block_height as stacks_block_height",
+			"e.amount",
+			"e.sender",
+			"b.hash as block_hash",
+		])
+		.execute();
+
+	if (rows.length === 0) return 0;
+
+	const outboxRows: InsertSubscriptionOutbox[] = [];
+	let maxConfirmedAt = cursor;
+	for (const row of rows) {
+		const confirmedAt = row.confirmed_at;
+		if (confirmedAt && confirmedAt > maxConfirmedAt)
+			maxConfirmedAt = confirmedAt;
+		if (!confirmedAt) continue;
+		for (const sub of settlementSubs) {
+			// Forward-only: a sub only receives settlements confirmed after it existed.
+			if (confirmedAt <= sub.created_at) continue;
+			const trigger = triggersOf(sub).find(
+				(t) => t.type === SETTLEMENT_TRIGGER_TYPE,
+			);
+			if (!trigger || trigger.type !== SETTLEMENT_TRIGGER_TYPE) continue;
+			if (
+				trigger.requestId !== undefined &&
+				trigger.requestId !== Number(row.request_id)
+			) {
+				continue;
+			}
+			if (
+				trigger.sweepTxid !== undefined &&
+				trigger.sweepTxid !== row.sweep_txid
+			) {
+				continue;
+			}
+			outboxRows.push(settlementApplyRow(sub.id, row));
+		}
+	}
+
+	if (outboxRows.length > 0) {
+		await db
+			.insertInto("subscription_outbox")
+			.values(outboxRows)
+			.onConflict((oc) =>
+				oc.columns(["subscription_id", "dedup_key"]).doNothing(),
+			)
+			.execute();
+	}
+
+	// Advance the watermark past every settlement scanned this pass (even ones
+	// filtered out per-sub — they're in the past for any future subscriber).
+	await db
+		.updateTable("trigger_evaluator_state")
+		.set({ last_settlement_scan_at: maxConfirmedAt })
+		.where("id", "=", true)
+		.execute();
+
+	return outboxRows.length;
+}
+
+type SettlementScanRow = {
+	sweep_txid: string;
+	request_id: number;
+	btc_confirmations: number;
+	btc_block_height: number | null;
+	confirmed_at: Date | null;
+	tx_id: string;
+	stacks_block_height: number;
+	amount: string | null;
+	sender: string | null;
+	block_hash: string;
+};
+
+function settlementApplyRow(
+	subscriptionId: string,
+	row: SettlementScanRow,
+): InsertSubscriptionOutbox {
+	const event: SbtcWithdrawalSweptConfirmedEvent = {
+		topic: "withdrawal-swept-confirmed",
+		request_id: Number(row.request_id),
+		sweep_txid: row.sweep_txid,
+		btc_confirmations: row.btc_confirmations,
+		btc_block_height: row.btc_block_height,
+		confirmed_at: row.confirmed_at ? row.confirmed_at.toISOString() : null,
+		amount: row.amount,
+		sender: row.sender,
+	};
+	const payload: ChainApplyEnvelope = {
+		action: "apply",
+		block_hash: row.block_hash,
+		block_height: Number(row.stacks_block_height),
+		tx_id: row.tx_id,
+		canonical: true,
+		trigger: SETTLEMENT_TRIGGER_TYPE,
+		event,
+	};
+	return {
+		subscription_id: subscriptionId,
+		kind: "chain",
+		subgraph_name: null,
+		table_name: null,
+		block_height: Number(row.stacks_block_height),
+		tx_id: row.tx_id,
+		row_pk: { sweep_txid: row.sweep_txid },
+		event_type: `chain.${SETTLEMENT_TRIGGER_TYPE}.apply`,
+		payload,
+		// Settlement fires on a Bitcoin confirmation, not a Stacks block — dedup on
+		// the sweep so a reorg→un-confirm→re-confirm cycle never re-delivers.
+		dedup_key: `settlement:${subscriptionId}:${row.sweep_txid}`,
+	};
 }
