@@ -110,7 +110,7 @@ export async function runEvaluatorOnce(
 		const to = Math.min(from + BATCH - 1, target);
 		const blocks = await source.loadBlockRange(from, to);
 		// Trait membership only grows; resolve once per batch as of its top height.
-		const traitContracts = await buildTraitContracts(db, chainSubs, to);
+		const traitContracts = await buildTraitContracts(chainSubs, to);
 		for (let h = from; h <= to; h++) {
 			const bd = blocks.get(h);
 			if (!bd) continue;

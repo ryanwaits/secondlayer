@@ -168,13 +168,19 @@ export function referencedTraits(chainSubs: Subscription[]): string[] {
  * grows, so the evaluator resolves this once per batch, not per block.
  */
 export async function buildTraitContracts(
-	db: Kysely<Database>,
 	chainSubs: Subscription[],
 	asOfBlock: number,
+	opts?: { sourceDb?: Kysely<Database> },
 ): Promise<TraitContracts> {
+	// `contracts` is a SOURCE-plane table; the evaluator/replay run on the TARGET
+	// handle (an empty same-named copy exists there post-split). Read the registry
+	// from the source plane — reading off the target silently resolved zero trait
+	// members, so trait-scoped subscriptions never matched. Same class of bug as
+	// the old emitSbtcOutbox sbtc_events read.
+	const sourceDb = opts?.sourceDb ?? getSourceDb();
 	const resolved: TraitContracts = new Map();
 	for (const trait of referencedTraits(chainSubs)) {
-		const ids = await resolveTraitContractIds(db, trait, asOfBlock);
+		const ids = await resolveTraitContractIds(sourceDb, trait, asOfBlock);
 		resolved.set(trait, new Set(ids));
 	}
 	return resolved;

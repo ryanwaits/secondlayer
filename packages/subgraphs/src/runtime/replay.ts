@@ -226,7 +226,7 @@ async function replayChainSubscription(
 		const to = Math.min(from + CHAIN_REPLAY_BATCH - 1, input.toBlock);
 		const blocks = await source.loadBlockRange(from, to);
 		// Trait membership only grows; resolve once per batch as of its top height.
-		const traitContracts = await buildTraitContracts(db, [sub], to);
+		const traitContracts = await buildTraitContracts([sub], to);
 		for (let h = from; h <= to; h++) {
 			const bd = blocks.get(h);
 			if (!bd) continue;
