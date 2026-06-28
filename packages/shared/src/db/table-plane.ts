@@ -42,6 +42,7 @@ export const TABLE_TO_DB = {
 	burn_block_reward_slots: "source",
 	sbtc_events: "source",
 	sbtc_token_events: "source",
+	sbtc_settlements: "source",
 	sbtc_supply_snapshots: "source",
 	bns_name_events: "source",
 	bns_namespace_events: "source",

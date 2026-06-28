@@ -634,6 +634,30 @@ export interface SbtcTokenEventsTable {
 	created_at: Generated<Date>;
 }
 
+/**
+ * BTC L1 settlement status for sBTC withdrawal sweeps. Filled by the indexer's
+ * settlement-confirmer worker, which polls our own bitcoind for confirmations of
+ * each `withdrawal-accept`'s `sweep_txid` and surfaces real settlement on the
+ * withdrawal lifecycle (the API's `settlement.{btc_confirmations,
+ * settlement_confirmed}` placeholder). Keyed on `sweep_txid` (not `request_id`):
+ * a request can produce more than one sweep over its life (RBF/rebroadcast), so
+ * each broadcast keeps its own confirmation history.
+ */
+export interface SbtcSettlementsTable {
+	sweep_txid: string;
+	request_id: number;
+	btc_confirmations: Generated<number>;
+	settlement_confirmed: Generated<boolean>;
+	/** Confirming Bitcoin block — null while the sweep is unconfirmed. */
+	block_hash: string | null;
+	block_height: number | null;
+	first_seen_at: Generated<Date>;
+	last_checked_at: Generated<Date>;
+	/** Set once, when `settlement_confirmed` first flips true. */
+	confirmed_at: Date | null;
+	updated_at: Generated<Date>;
+}
+
 export interface SbtcSupplySnapshotsTable {
 	date: string;
 	total_supply: Generated<string>;
@@ -806,6 +830,7 @@ export interface Database {
 	burn_block_reward_slots: BurnBlockRewardSlotsTable;
 	sbtc_events: SbtcEventsTable;
 	sbtc_token_events: SbtcTokenEventsTable;
+	sbtc_settlements: SbtcSettlementsTable;
 	sbtc_supply_snapshots: SbtcSupplySnapshotsTable;
 	bns_name_events: BnsNameEventsTable;
 	bns_namespace_events: BnsNamespaceEventsTable;
