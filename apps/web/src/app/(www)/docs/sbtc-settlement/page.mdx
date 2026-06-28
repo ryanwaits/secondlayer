@@ -1,0 +1,89 @@
+# sBTC settlement
+
+Accepted isn't received. Prove a peg-out's BTC actually settled on Bitcoin — confirmation count, confirming block, and a webhook that fires the moment it lands.
+
+A withdrawal's on-Stacks `withdrawal-accept` event only tells you the signers *committed* to a Bitcoin sweep. It doesn't prove the sweep confirmed — there's a broadcast→confirmed window where it can be dropped or replaced. Secondlayer verifies the committed `sweep_txid` against its own Bitcoin node and surfaces the result on the decoded sBTC feed.
+
+Deposits need no such check: `completed-deposit` only fires *after* the signers see the BTC confirmations, so a peg-in is already settled when you read it.
+
+## Settlement on a withdrawal
+
+Every peg-out lifecycle carries a `settlement` object. `GET /v1/index/sbtc/withdrawals/:request_id`:
+
+```json
+{
+  "request_id": 42,
+  "status": "ACCEPTED",
+  "settlement": {
+    "sweep_txid": "abcd…",
+    "btc_confirmations": 7,
+    "settlement_confirmed": true,
+    "btc_block_height": 880321,
+    "confirmed_at": "2026-06-01T00:00:00.000Z"
+  }
+}
+```
+
+A `null` field means the committed sweep has **not been observed on Bitcoin yet** — no record, not a denial. `settlement_confirmed` is `true` once the sweep crosses the confirmation threshold, `false` while it's still shallow, and `null` before there's any settlement record (or when the withdrawal has no sweep yet, e.g. `REQUESTED`).
+
+## Filtering the list
+
+The rolled-up list `GET /v1/index/sbtc/withdrawals` carries a `settlement_confirmed` flag per row and a filter:
+
+```bash
+# only peg-outs whose BTC sweep is confirmed
+curl "https://api.secondlayer.tools/v1/index/sbtc/withdrawals?settlement_confirmed=true"
+
+# the pending set — sweeps accepted but not yet confirmed (or no sweep yet)
+curl "https://api.secondlayer.tools/v1/index/sbtc/withdrawals?settlement_confirmed=false"
+```
+
+`settlement_confirmed=false` folds in both the not-yet-confirmed and not-yet-observed cases, so it's the complete "not done" bucket.
+
+## The webhook
+
+Subscribe to `sbtc_withdrawal_swept_confirmed` and get notified the moment a peg-out's sweep confirms — no polling.
+
+```ts
+import { trigger } from "@secondlayer/sdk";
+
+await client.subscriptions.create({
+  url: "https://your-app.com/webhooks/sbtc-settlement",
+  triggers: [trigger.sbtcWithdrawalSweptConfirmed()],
+});
+```
+
+Scope it to one withdrawal or one sweep with `requestId` / `sweepTxid`. It fires **once** per sweep, when `btc_confirmations` first crosses the threshold (default 6). Like every chain subscription it's **forward-only** — you receive settlements confirmed *after* you subscribe, never a backfill of history. A rare Bitcoin reorg that un-confirms a sweep never re-fires the webhook (the read self-corrects; the notification doesn't double-send).
+
+The delivery is the standard `chain.{type}.apply` envelope; `event` carries the settlement specifics:
+
+```json
+{
+  "action": "apply",
+  "trigger": "sbtc_withdrawal_swept_confirmed",
+  "event": {
+    "topic": "withdrawal-swept-confirmed",
+    "request_id": 42,
+    "sweep_txid": "abcd…",
+    "btc_confirmations": 6,
+    "btc_block_height": 880321,
+    "confirmed_at": "2026-06-01T00:00:00.000Z",
+    "amount": "100000",
+    "sender": "SP…"
+  }
+}
+```
+
+See [Subscriptions](/docs/subscriptions) for delivery formats, signature verification, and the full trigger list.
+
+<Callout type="info" title="What this proves — and what it doesn't">
+
+Settlement status is verified against Secondlayer's own Bitcoin node, not taken from a signer's word — it trust-minimizes the **verification and accounting** of the peg. It does **not** make the bridge non-custodial: a signer set still controls the pegged UTXO. Use it to know a peg-out's BTC actually landed; not as a custody guarantee.
+
+</Callout>
+
+export const metadata = {
+	title: "sBTC settlement — Secondlayer Docs",
+	description:
+		"Verify a peg-out's BTC sweep on Bitcoin: confirmation count, confirming block, settlement_confirmed filter, and the sbtc_withdrawal_swept_confirmed webhook.",
+};

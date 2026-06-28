@@ -131,6 +131,8 @@ The raw object form is equivalent: `{ type: "contract_call", contractId, functio
 
 Validation is strict per type: mints take `recipient` (no `sender`), burns take `sender` (no `recipient`); any field outside a type's set is rejected with a 400.
 
+sBTC peg triggers (`sbtcDeposit`, `sbtcWithdrawalCreate`, `sbtcWithdrawalAccept`, `sbtcWithdrawalReject`) fire on the on-Stacks events; `sbtcWithdrawalSweptConfirmed` fires when a peg-out's BTC sweep confirms on Bitcoin — see [sBTC settlement](/docs/sbtc-settlement).
+
 Via REST, `POST /api/subscriptions` accepts the same `triggers` array (1–50). Chain subscriptions are created over the SDK, REST, or MCP; the CLI's `create` is subgraph-only.
 
 ### Delivery envelope

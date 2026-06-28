@@ -215,6 +215,24 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		),
 	],
 
+	"/docs/sbtc-settlement": [
+		card(
+			"Check a peg-out's settlement",
+			"See if a withdrawal's BTC sweep actually landed.",
+			"/secondlayer Help me read BTC L1 settlement for an sBTC peg-out: GET `/v1/index/sbtc/withdrawals/:request_id`, then explain the `settlement` object — `sweep_txid`, `btc_confirmations`, `settlement_confirmed`, `btc_block_height`, `confirmed_at` — and what a `null` field means (the committed sweep hasn't been observed on Bitcoin yet, not a denial). Note deposits need no such check — `completed-deposit` only fires after the signers see BTC confirmations.",
+		),
+		card(
+			"List confirmed peg-outs",
+			"Filter withdrawals by Bitcoin settlement state.",
+			"/secondlayer Show me how to filter peg-outs by settlement: curl `/v1/index/sbtc/withdrawals?settlement_confirmed=true` for sweeps confirmed on Bitcoin and `?settlement_confirmed=false` for the pending set (accepted-but-not-confirmed, or no sweep yet). Explain the per-row `settlement_confirmed` flag and cursor-paginate with `next_cursor`.",
+		),
+		card(
+			"Get notified when a sweep confirms",
+			"Webhook the moment a peg-out settles on Bitcoin.",
+			"/secondlayer Help me subscribe to sBTC settlement webhooks: `client.subscriptions.create({ url, triggers: [trigger.sbtcWithdrawalSweptConfirmed()] })`. Explain that it fires once per sweep when `btc_confirmations` crosses the threshold (default 6), is forward-only (only settlements confirmed after I subscribe), and never double-fires on a reorg→un-confirm→re-confirm. Show the `chain.sbtc_withdrawal_swept_confirmed.apply` envelope shape and how to verify the signature.",
+		),
+	],
+
 	"/docs/contracts": [
 		card(
 			"Find contracts by trait",
