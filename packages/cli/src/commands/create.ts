@@ -12,6 +12,10 @@ import { fileURLToPath } from "node:url";
 import { input, select } from "@inquirer/prompts";
 import { SecondLayer } from "@secondlayer/sdk";
 import type { CreateSubscriptionRequest } from "@secondlayer/sdk";
+import {
+	type ChainTrigger,
+	ChainTriggerSchema,
+} from "@secondlayer/shared/schemas/subscriptions";
 import type { Command } from "commander";
 import { parseSubscriptionFilter } from "../lib/filter-params.ts";
 import { blue, error, info, success, warn } from "../lib/output.ts";
@@ -86,6 +90,59 @@ export interface CreateSubscriptionOptions {
 	// true by default and becomes false when --no-scaffold is passed.
 	scaffold?: boolean;
 	filter?: string[];
+	// Chain-subscription mode: a `triggers` array instead of a subgraph table.
+	trigger?: string[];
+	triggersFile?: string;
+	format?: string;
+}
+
+/**
+ * Parse `--trigger <json>` (repeatable) and `--triggers-file <path>` into a
+ * validated `ChainTrigger[]`. Inline values are single JSON objects; the file is
+ * a JSON array of triggers. Every entry is validated against `ChainTriggerSchema`
+ * so a typo'd `type` fails here with a clear message, not server-side later.
+ */
+export function parseTriggersInput(
+	opts: Pick<CreateSubscriptionOptions, "trigger" | "triggersFile">,
+): ChainTrigger[] {
+	const raw: unknown[] = [];
+
+	if (opts.triggersFile) {
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(readFileSync(opts.triggersFile, "utf8"));
+		} catch (err) {
+			throw new Error(
+				`Could not read/parse --triggers-file ${opts.triggersFile}: ${err instanceof Error ? err.message : String(err)}`,
+			);
+		}
+		if (!Array.isArray(parsed)) {
+			throw new Error("--triggers-file must contain a JSON array of triggers");
+		}
+		raw.push(...parsed);
+	}
+
+	for (const value of opts.trigger ?? []) {
+		try {
+			raw.push(JSON.parse(value));
+		} catch {
+			throw new Error(`--trigger is not valid JSON: ${value}`);
+		}
+	}
+
+	if (raw.length === 0) {
+		throw new Error("Provide at least one --trigger or --triggers-file");
+	}
+
+	return raw.map((entry, i) => {
+		const result = ChainTriggerSchema.safeParse(entry);
+		if (!result.success) {
+			throw new Error(
+				`Invalid trigger at index ${i}: ${result.error.issues[0]?.message ?? "validation failed"}`,
+			);
+		}
+		return result.data;
+	});
 }
 
 async function promptFor(
@@ -309,6 +366,81 @@ export async function createSubscription(
 	success(`Done. Next:\n  ${dashboardLine}${pausedLine}${runHint}`);
 }
 
+/**
+ * `sl subscriptions create <name> --url <url> --trigger '<json>'`
+ *
+ * Chain-subscription path: no subgraph, no scaffold — provisions a direct
+ * chain-level subscription (a `triggers` array) over the session-authed SDK.
+ * Branched before `createSubscription`'s subgraph prompts so it never touches
+ * the filesystem or the subgraph/table flow.
+ */
+export async function createChainSubscription(
+	name: string,
+	opts: CreateSubscriptionOptions,
+): Promise<void> {
+	for (const [flag, value] of [
+		["--subgraph", opts.subgraph],
+		["--table", opts.table],
+		["--runtime", opts.runtime],
+	] as const) {
+		if (value !== undefined) {
+			error(`${flag} is not valid with --trigger/--triggers-file (chain mode)`);
+			process.exit(1);
+		}
+	}
+	if (!opts.url) {
+		error("--url is required when creating a chain subscription");
+		process.exit(1);
+	}
+
+	let triggers: ChainTrigger[];
+	let authConfig: Record<string, unknown> | undefined;
+	try {
+		triggers = parseTriggersInput(opts);
+		authConfig = buildSubscriptionAuthConfig(opts.authToken);
+	} catch (err) {
+		error(err instanceof Error ? err.message : String(err));
+		process.exit(1);
+	}
+
+	const sl = await getSubscriptionClient();
+	let subscriptionId: string;
+	let signingSecret: string;
+	try {
+		const res = await sl.subscriptions.create({
+			name,
+			url: opts.url,
+			triggers,
+			format: (opts.format ??
+				"standard-webhooks") as CreateSubscriptionRequest["format"],
+			...(authConfig ? { authConfig } : {}),
+		} as CreateSubscriptionRequest);
+		subscriptionId = res.subscription.id;
+		signingSecret = res.signingSecret;
+		success(`Chain subscription provisioned: ${blue(subscriptionId)}`);
+	} catch (err) {
+		error(
+			`Subscription provisioning failed: ${err instanceof Error ? err.message : String(err)}`,
+		);
+		process.exit(1);
+	}
+
+	info(`Signing secret (store securely): ${signingSecret}`);
+
+	let dashboardLine = "";
+	try {
+		const { apiUrl } = await resolveAuth();
+		const base = deriveBaseUrl(apiUrl);
+		dashboardLine = `Dashboard: ${base}/platform/subscriptions/${subscriptionId}\n  `;
+	} catch {
+		// dashboard URL is decorative; don't block on it
+	}
+	console.log();
+	success(
+		`Done. Next:\n  ${dashboardLine}View deliveries:\n  sl subscriptions get ${name}`,
+	);
+}
+
 export async function getSubscriptionClient(): Promise<SecondLayer> {
 	const { apiUrl, ephemeralKey } = await resolveAuth();
 	return new SecondLayer({ baseUrl: apiUrl, apiKey: ephemeralKey });
@@ -336,6 +468,18 @@ function addSubscriptionScaffold(
 			"--filter <kv...>",
 			"Filter as key=value (supports .eq/.neq/.gt/.gte/.lt/.lte suffixes)",
 		)
+		.option(
+			"--trigger <json...>",
+			'Chain-subscription trigger as JSON (repeatable), e.g. \'{"type":"sbtc_deposit"}\'',
+		)
+		.option(
+			"--triggers-file <path>",
+			"Chain-subscription triggers as a JSON array file",
+		)
+		.option(
+			"--format <format>",
+			"Chain mode delivery format (default standard-webhooks)",
+		)
 		.option("--skip-api", "Copy template only, don't call the API")
 		.option(
 			"--no-scaffold",
@@ -346,9 +490,16 @@ function addSubscriptionScaffold(
 			`
 Examples:
   $ ${opts.examplePrefix} my-sub -s my-graph -t transfers -u https://example.com/webhook
-  $ ${opts.examplePrefix} my-sub -s my-graph -t balances -r inngest --filter amount.gte=1000`,
+  $ ${opts.examplePrefix} my-sub -s my-graph -t balances -r inngest --filter amount.gte=1000
+  $ ${opts.examplePrefix} my-hook -u https://example.com/webhook --trigger '{"type":"sbtc_deposit"}'`,
 		)
 		.action(async (name: string, options: CreateSubscriptionOptions) => {
+			// Chain mode: a `triggers` array, no subgraph/scaffold. Branch here so the
+			// subgraph-oriented prompts in createSubscription are never reached.
+			if (options.trigger?.length || options.triggersFile) {
+				await createChainSubscription(name, options);
+				return;
+			}
 			await createSubscription(name, options);
 		});
 }

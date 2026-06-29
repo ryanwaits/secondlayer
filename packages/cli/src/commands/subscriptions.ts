@@ -21,6 +21,7 @@ import {
 	green,
 	info,
 	success,
+	warn,
 	yellow,
 } from "../lib/output.ts";
 import { validateSubscriptionTargetFromApi } from "../lib/subscription-validation.ts";
@@ -870,6 +871,19 @@ Examples:
 					}
 					const client = await getSubscriptionClient();
 					const { id, detail } = await resolveSubscriptionRef(client, idOrName);
+					// Settlement (`swept_confirmed`) fires on Bitcoin confirmations, not
+					// Stacks blocks — it's cursor/confirmed_at driven and forward-only, so
+					// a block-range replay never re-emits it. Warn instead of silently
+					// dropping those triggers.
+					if (
+						detail.triggers?.some(
+							(t) => t.type === "sbtc_withdrawal_swept_confirmed",
+						)
+					) {
+						warn(
+							"sbtc_withdrawal_swept_confirmed triggers are forward-only and not replayed; only on-Stacks sBTC and chain triggers emit over this range.",
+						);
+					}
 					const ok = await confirmOrExit(
 						`Replay ${detail.name} from block ${fromBlock} to ${toBlock}?`,
 						options.yes,
