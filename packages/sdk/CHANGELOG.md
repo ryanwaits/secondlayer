@@ -1,5 +1,11 @@
 # @secondlayer/sdk
 
+## 6.28.1
+
+### Patch Changes
+
+- e0561fb: Collapse the 12 duplicated index `walk*` generators into a shared `keysetWalk` helper. Internal refactor; no behavior or public API change.
+
 ## 6.28.0
 
 ### Minor Changes
