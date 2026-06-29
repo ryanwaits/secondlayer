@@ -5,11 +5,16 @@ import { getSubscription } from "@secondlayer/shared/db/queries/subscriptions";
 import { logger } from "@secondlayer/shared/logger";
 import { type Kysely, sql } from "kysely";
 import { pgSchemaName as defaultSchemaName } from "../schema/utils.ts";
-import { PublicApiBlockSource, buildHttpClient } from "./block-source.ts";
+import {
+	type BlockSource,
+	PublicApiBlockSource,
+	buildHttpClient,
+} from "./block-source.ts";
 import {
 	buildSourcesMap,
 	buildTraitContracts,
 	emitChainOutbox,
+	emitSbtcOutbox,
 	evaluateBlock,
 	referencedEventTypes,
 } from "./trigger-evaluator.ts";
@@ -198,10 +203,11 @@ const CHAIN_REPLAY_BATCH = 200;
  * critically — this never advances `trigger_evaluator_state`: replay is
  * historical and must not move the live forward cursor.
  */
-async function replayChainSubscription(
+export async function replayChainSubscription(
 	db: Kysely<Database>,
 	sub: Subscription,
 	input: ReplayInput,
+	opts?: { source?: BlockSource },
 ): Promise<ReplayResult> {
 	const replayId = deterministicReplayId(
 		sub.id,
@@ -211,10 +217,9 @@ async function replayChainSubscription(
 	);
 
 	const { sources, keyMeta } = buildSourcesMap([sub]);
-	const source = new PublicApiBlockSource(
-		buildHttpClient(),
-		referencedEventTypes([sub]),
-	);
+	const source =
+		opts?.source ??
+		new PublicApiBlockSource(buildHttpClient(), referencedEventTypes([sub]));
 
 	let scanned = 0;
 	let enqueued = 0;
@@ -232,17 +237,26 @@ async function replayChainSubscription(
 			if (!bd) continue;
 			scanned++;
 			const matches = evaluateBlock(bd, sources, traitContracts);
-			if (matches.length === 0) continue;
-			enqueued += await emitChainOutbox(
-				db,
-				matches,
-				keyMeta,
-				h,
-				bd.block.hash,
-				{
-					replayId,
-				},
-			);
+			if (matches.length > 0) {
+				enqueued += await emitChainOutbox(
+					db,
+					matches,
+					keyMeta,
+					h,
+					bd.block.hash,
+					{
+						replayId,
+					},
+				);
+			}
+			// sBTC lifecycle triggers (deposit/withdrawal-create/accept/reject) match
+			// against `sbtc_events`, not decoded_events — mirror the live loop so a
+			// replay over a historical range backfills sBTC webhooks too. (Settlement
+			// `swept_confirmed` is cursor/confirmed_at driven, not block-keyed, so it
+			// emits nothing here — documented forward-only.)
+			enqueued += await emitSbtcOutbox(db, [sub], h, bd.block.hash, {
+				replayId,
+			});
 		}
 	}
 
