@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/cli",
-	"version": "8.12.0",
+	"version": "8.13.0",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryanwaits/secondlayer.git",
@@ -43,7 +43,7 @@
 		"@secondlayer/sdk": "^6.23.1",
 		"@secondlayer/shared": "^6.35.1",
 		"@secondlayer/stacks": "^2.5.1",
-		"@secondlayer/subgraphs": "^3.14.1",
+		"@secondlayer/subgraphs": "^3.18.0",
 		"@biomejs/js-api": "^0.7.0",
 		"@biomejs/wasm-nodejs": "^1.9.0",
 		"esbuild": "^0.19.0",
