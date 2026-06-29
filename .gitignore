@@ -75,3 +75,8 @@ packages/subgraphs/test/fixtures/
 
 # Cadence (local tooling artifacts)
 .cadence/
+
+# CSS Studio MCP regenerates this skill on connect each session; the canonical
+# tracked copy lives at .claude/skills/studio/. Ignore the duplicate so it never
+# re-enters git (see commit b2f2be7c which moved it out of .agents/).
+.agents/skills/studio/
