@@ -85,6 +85,8 @@ The range is capped at **100,000 blocks**. Both kinds are flagged as replays (`i
 | Subgraph | `<subgraph>.<table>.replay`, a distinct verb (not the live `.created`/`.updated`/`.deleted` types) |
 | Chain | The standard `chain.{type}.apply` envelope |
 
+Chain replay covers decoded events and the on-Stacks sBTC peg triggers (deposit, withdrawal create/accept/reject). The `sbtc_withdrawal_swept_confirmed` settlement trigger fires on a Bitcoin confirmation (not a Stacks block), so it is **forward-only and not replayable** — the CLI warns when you replay a subscription that uses it.
+
 ## Direct chain subscriptions (no subgraph)
 
 A subscription is one of two mutually-exclusive kinds:
@@ -133,7 +135,18 @@ Validation is strict per type: mints take `recipient` (no `sender`), burns take 
 
 sBTC peg triggers (`sbtcDeposit`, `sbtcWithdrawalCreate`, `sbtcWithdrawalAccept`, `sbtcWithdrawalReject`) fire on the on-Stacks events; `sbtcWithdrawalSweptConfirmed` fires when a peg-out's BTC sweep confirms on Bitcoin — see [sBTC settlement](/docs/sbtc-settlement).
 
-Via REST, `POST /api/subscriptions` accepts the same `triggers` array (1–50). Chain subscriptions are created over the SDK, REST, or MCP; the CLI's `create` is subgraph-only.
+Via REST, `POST /api/subscriptions` accepts the same `triggers` array (1–50). Chain subscriptions are also created over the CLI, SDK, REST, or MCP.
+
+From the CLI, pass `--trigger` (repeatable, one JSON object each) or `--triggers-file` (a JSON array) instead of `--subgraph`/`--table`:
+
+```bash
+sl subscriptions create amm-swaps \
+  --url https://my-app.com/webhook \
+  --trigger '{"type":"contract_call","contractId":"SP....amm","functionName":"swap-*"}' \
+  --trigger '{"type":"sbtc_deposit"}'
+```
+
+`--trigger`/`--triggers-file` switches `create` into chain mode — no subgraph, no local scaffold; each trigger is validated before the subscription is provisioned. The signing secret is printed once on success.
 
 ### Delivery envelope
 
