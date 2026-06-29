@@ -108,9 +108,14 @@ export function bitcoinConfirmationReader(config: BitcoinRpcConfig): {
 
 	return {
 		async getConfirmations(txid: string): Promise<TxConfirmation> {
+			// Sweep txids come from Stacks `0x`-prefixed (66 chars), but Bitcoin
+			// Core's getrawtransaction wants a bare 64-hex txid and rejects the
+			// prefix ("parameter 1 must be of length 64"). Strip it for the RPC;
+			// the returned `txid` keeps the caller's original form.
+			const rpcTxid = txid.startsWith("0x") ? txid.slice(2) : txid;
 			let tx: { confirmations?: number; blockhash?: string };
 			try {
-				tx = await rpc("getrawtransaction", [txid, true]);
+				tx = await rpc("getrawtransaction", [rpcTxid, true]);
 			} catch (error) {
 				// Unknown txid is a normal state (never broadcast / pruned mempool),
 				// not a node failure — report it as not-found rather than throwing.

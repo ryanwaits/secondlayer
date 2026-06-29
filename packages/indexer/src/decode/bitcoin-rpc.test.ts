@@ -58,6 +58,30 @@ describe("bitcoinConfirmationReader.getConfirmations", () => {
 		});
 	});
 
+	test("strips the 0x prefix before calling bitcoind (bare 64-hex txid)", async () => {
+		// Stacks stores sweep_txid 0x-prefixed (66 chars); bitcoind rejects the
+		// prefix and wants a bare 64-hex txid. The returned txid keeps the
+		// caller's original form.
+		let sentTxid: unknown;
+		const hex = "a".repeat(64);
+		const reader = bitcoinConfirmationReader({
+			url: "http://node/",
+			fetch: mockFetch((method, params) => {
+				if (method === "getrawtransaction") {
+					sentTxid = params[0];
+					return { result: { confirmations: 3, blockhash: "0xblk" } };
+				}
+				if (method === "getblock") return { result: { height: 1 } };
+				throw new Error(`unexpected method ${method}`);
+			}),
+		});
+
+		const result = await reader.getConfirmations(`0x${hex}`);
+		expect(sentTxid).toBe(hex);
+		expect(result.txid).toBe(`0x${hex}`);
+		expect(result.found).toBe(true);
+	});
+
 	test("mempool / unconfirmed: no blockhash → 0 confirmations, no block", async () => {
 		const reader = bitcoinConfirmationReader({
 			url: "http://node/",
