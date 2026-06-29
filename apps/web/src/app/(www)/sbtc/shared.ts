@@ -25,7 +25,16 @@ export interface Withdrawal {
 	sweep_txid: string | null; // 0x-prefixed, present once accepted
 	requested_at: string;
 	resolved_at: string | null;
+	// BTC L1 settlement of the committed sweep (inline from the list endpoint).
+	settlement_confirmed: boolean | null;
+	btc_confirmations: number | null;
+	btc_block_height: number | null;
+	confirmed_at: string | null; // ISO, set once the sweep crosses the threshold
 }
+
+/** BTC confirmations required before a sweep counts as settled (matches the
+ *  confirmer's default; a local literal so the web app never imports the indexer). */
+export const CONFIRMATIONS_TARGET = 6;
 
 export interface DepositEnvelope {
 	deposits: Deposit[];
@@ -105,6 +114,30 @@ export function ago(iso: string, nowMs: number): string {
 	const hrs = Math.round(mins / 60);
 	if (hrs < 36) return `${hrs}h ago`;
 	return `${Math.round(hrs / 24)}d ago`;
+}
+
+/**
+ * Time-to-settle: peg-out accept (`resolved_at`) → BTC-final (`confirmed_at`),
+ * e.g. "4m" / "1h 12m". This is wall-clock to settlement (it bakes in the ~6-conf
+ * wait + the confirmer's poll cadence), not a single BTC block interval. Returns
+ * null when either timestamp is missing (not yet settled / no sweep).
+ */
+export function settledIn(
+	acceptedIso: string | null,
+	confirmedIso: string | null,
+): string | null {
+	if (!acceptedIso || !confirmedIso) return null;
+	const secs = Math.round(
+		(new Date(confirmedIso).getTime() - new Date(acceptedIso).getTime()) / 1000,
+	);
+	if (!Number.isFinite(secs) || secs < 0) return null;
+	if (secs < 60) return "< 1m";
+	const mins = Math.round(secs / 60);
+	if (mins < 90) return `${mins}m`;
+	const hrs = Math.floor(mins / 60);
+	const rem = mins % 60;
+	if (hrs < 36) return rem ? `${hrs}h ${rem}m` : `${hrs}h`;
+	return `${Math.round(hrs / 24)}d`;
 }
 
 /** Block height encoded in a `block:index` cursor (deposits + withdrawals). */

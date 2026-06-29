@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+	CONFIRMATIONS_TARGET,
 	type Deposit,
 	PUBLIC_SBTC,
 	type Withdrawal,
@@ -10,6 +11,7 @@ import {
 	fetchWindow,
 	mempoolTx,
 	num,
+	settledIn,
 	stacksAddr,
 	stacksTx,
 	trunc,
@@ -25,6 +27,57 @@ function StatusBadge({ status }: { status: string }) {
 		<span className={`peg-badge peg-badge-${status.toLowerCase()}`}>
 			{status}
 		</span>
+	);
+}
+
+/**
+ * Verified BTC-L1 settlement for a peg-out sweep — the explorer's centerpiece.
+ * Leads with our own confirmation (✓ Settled · N conf + time-to-settle) rather
+ * than handing off to mempool.space; the raw sweep stays reachable as a demoted
+ * secondary link.
+ */
+function SettlementCell({ w }: { w: Withdrawal }) {
+	if (!w.sweep_txid) return <span className="peg-dash">—</span>;
+	const sweepLink = (
+		<a
+			className="peg-link peg-link-dim peg-settle-tx"
+			href={mempoolTx(w.sweep_txid)}
+			target="_blank"
+			rel="noreferrer"
+			title="View sweep tx on mempool.space"
+		>
+			{trunc(w.sweep_txid)} ↗
+		</a>
+	);
+
+	if (w.settlement_confirmed === true) {
+		const took = settledIn(w.resolved_at, w.confirmed_at);
+		return (
+			<div className="peg-settle">
+				<span className="peg-badge peg-badge-settled">
+					✓ Settled
+					{w.btc_confirmations != null ? ` · ${w.btc_confirmations} conf` : ""}
+				</span>
+				<span className="peg-settle-sub">
+					{took ? <span className="peg-settle-took">in {took}</span> : null}
+					{sweepLink}
+				</span>
+			</div>
+		);
+	}
+
+	// Sweep broadcast but not yet BTC-final. Clamp + guard the rare post-confirm
+	// reorg race (flag false while the stale confirmation count still reads ≥ target).
+	const n = w.btc_confirmations ?? 0;
+	const pending =
+		n >= CONFIRMATIONS_TARGET
+			? "Re-confirming"
+			: `Settling · ${n}/${CONFIRMATIONS_TARGET}`;
+	return (
+		<div className="peg-settle">
+			<span className="peg-settle-pending">{pending}</span>
+			<span className="peg-settle-sub">{sweepLink}</span>
+		</div>
 	);
 }
 
@@ -199,7 +252,7 @@ export function LivePegTables({
 							<th>Sender</th>
 							<th>Amount</th>
 							<th>Status</th>
-							<th>BTC sweep</th>
+							<th>BTC settlement</th>
 							<th className="peg-when">When</th>
 						</tr>
 					</thead>
@@ -222,18 +275,7 @@ export function LivePegTables({
 									<StatusBadge status={w.status} />
 								</td>
 								<td>
-									{w.sweep_txid ? (
-										<a
-											className="peg-link"
-											href={mempoolTx(w.sweep_txid)}
-											target="_blank"
-											rel="noreferrer"
-										>
-											{trunc(w.sweep_txid)}
-										</a>
-									) : (
-										<span className="peg-dash">—</span>
-									)}
+									<SettlementCell w={w} />
 								</td>
 								<td className="peg-when" suppressHydrationWarning>
 									{ago(w.requested_at, now)}

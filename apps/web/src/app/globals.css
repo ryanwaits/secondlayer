@@ -7581,6 +7581,40 @@ html.force-dark .shiki span {
 	border-color: var(--red-bg);
 }
 
+/* verified BTC-L1 settlement cell */
+.peg-badge-settled {
+	color: var(--green);
+	background: var(--green-bg);
+	border-color: var(--green-bg);
+	/* keep "✓ Settled · N conf" readable, not uppercased like a status pill */
+	text-transform: none;
+	letter-spacing: 0.01em;
+}
+.peg-settle {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	align-items: flex-start;
+}
+.peg-settle-sub {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-family: var(--font-mono-stack);
+	font-size: 0.6875rem;
+	color: var(--text-muted);
+}
+.peg-settle-tx {
+	font-size: 0.6875rem;
+}
+.peg-settle-pending {
+	font-family: var(--font-mono-stack);
+	font-size: 0.6875rem;
+	font-weight: 560;
+	letter-spacing: 0.02em;
+	color: var(--yellow);
+}
+
 /* empty + footer */
 .peg-empty {
 	margin-top: 2rem;
