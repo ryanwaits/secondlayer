@@ -147,6 +147,12 @@ export type SbtcWithdrawalSummary = {
 	/** BTC L1 settlement of the committed sweep: true once confirmed, false while
 	 *  pending, null when there is no sweep yet (REQUESTED). */
 	settlement_confirmed: boolean | null;
+	/** BTC confirmations on the sweep tx, null when no settlement row yet. */
+	btc_confirmations: number | null;
+	/** Confirming BTC block height, null while unconfirmed / no sweep. */
+	btc_block_height: number | null;
+	/** When the sweep crossed the confirmation threshold (ISO), null otherwise. */
+	confirmed_at: string | null;
 	requested_at?: string | null;
 	resolved_at?: string | null;
 };
@@ -580,6 +586,9 @@ type SbtcWithdrawalSummaryDbRow = {
 	sweep_txid: string | null;
 	resolved_at: Date | string | null;
 	settlement_confirmed: boolean | null;
+	btc_confirmations: number | string | null;
+	btc_block_height: number | string | null;
+	confirmed_at: Date | string | null;
 };
 
 function deriveStatus(
@@ -603,6 +612,11 @@ function normalizeSbtcWithdrawalSummary(
 		recipient_btc_hashbytes: row.recipient_btc_hashbytes,
 		sweep_txid: row.sweep_txid,
 		settlement_confirmed: row.settlement_confirmed,
+		btc_confirmations:
+			row.btc_confirmations === null ? null : Number(row.btc_confirmations),
+		btc_block_height:
+			row.btc_block_height === null ? null : Number(row.btc_block_height),
+		confirmed_at: toIsoOrNull(row.confirmed_at),
 		requested_at: toIsoOrNull(row.requested_at),
 		resolved_at: toIsoOrNull(row.resolved_at),
 	};
@@ -689,7 +703,13 @@ export async function readSbtcWithdrawals(
 			res.resolution_topic,
 			res.sweep_txid,
 			res.resolved_at,
-			st.settlement_confirmed
+			st.settlement_confirmed,
+			st.btc_confirmations,
+			-- Alias: the row already carries c.block_height, which builds next_cursor
+			-- (line ~724). A second unaliased block_height would shadow it and collapse
+			-- pagination to "0:…", so the settlement height MUST be aliased.
+			st.block_height AS btc_block_height,
+			st.confirmed_at
 		FROM (
 			SELECT DISTINCT ON (request_id)
 				cursor, block_height, event_index, block_time, request_id, amount,

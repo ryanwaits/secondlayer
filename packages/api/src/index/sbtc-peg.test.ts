@@ -282,6 +282,9 @@ describe("sBTC peg helpers", () => {
 						recipient_btc_hashbytes: "0xab",
 						sweep_txid: "0xsweep",
 						settlement_confirmed: null,
+						btc_confirmations: null,
+						btc_block_height: null,
+						confirmed_at: null,
 						requested_at: null,
 						resolved_at: null,
 					},
@@ -614,6 +617,8 @@ describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 					request_id: 1,
 					btc_confirmations: 6,
 					settlement_confirmed: true,
+					block_height: 855000,
+					confirmed_at: new Date("2026-06-29T00:00:00.000Z"),
 				},
 				// observed but not yet confirmed
 				{
@@ -638,6 +643,21 @@ describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 			[2, false],
 			[3, null],
 		]);
+
+		// The confirmed row carries the full settlement detail inline (so the Peg
+		// Explorer table renders verified settlement without an N+1 detail fetch).
+		const confirmedRow = all.withdrawals.find((w) => w.request_id === 1);
+		expect(confirmedRow?.btc_confirmations).toBe(6);
+		expect(confirmedRow?.btc_block_height).toBe(855000);
+		expect(confirmedRow?.confirmed_at).toBe("2026-06-29T00:00:00.000Z");
+		// Pending sweep: confirmations present, no confirmed height/time yet.
+		const pendingRow = all.withdrawals.find((w) => w.request_id === 2);
+		expect(pendingRow?.btc_confirmations).toBe(2);
+		expect(pendingRow?.btc_block_height).toBeNull();
+		expect(pendingRow?.confirmed_at).toBeNull();
+		// No sweep at all → settlement fields null.
+		const noSweepRow = all.withdrawals.find((w) => w.request_id === 3);
+		expect(noSweepRow?.btc_confirmations).toBeNull();
 
 		// confirmed only → req 1
 		const confirmed = await readSbtcWithdrawals({
