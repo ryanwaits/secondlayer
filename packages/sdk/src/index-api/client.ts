@@ -937,6 +937,15 @@ function firstWalkFromHeight(params: {
 	return 0;
 }
 
+/** Pagination overrides `keysetWalk` applies to each page request; the original
+ *  filter params are merged in by the per-resource list closure. */
+type PageParams = {
+	limit: number;
+	cursor?: string | null;
+	fromCursor?: string | null;
+	fromHeight?: number;
+};
+
 /**
  * `index.ftTransfers` — callable shorthand for `.list()`, with `.list`/`.walk`
  * still available: `await sl.index.ftTransfers({ contractId })`.
@@ -1266,33 +1275,42 @@ export class Index extends BaseClient {
 		);
 	}
 
-	private async *walkFtTransfers(
-		params: FtTransfersWalkParams = {},
-	): AsyncGenerator<FtTransfer> {
+	/** Shared keyset-pagination loop for every `walk*` feed: seed the cursor from
+	 *  `cursor`/`fromCursor` (and `fromHeight` 0 on the first page), then page until
+	 *  the cursor stops advancing or a short page signals the tail. `list` merges the
+	 *  resource's filter params; `itemsOf` selects the envelope's item array. PoX
+	 *  cycles use a numeric cursor and are walked separately. */
+	private async *keysetWalk<E extends { next_cursor: string | null }, T>(
+		params: {
+			cursor?: string | null;
+			fromCursor?: string | null;
+			fromHeight?: number;
+			batchSize?: number;
+			signal?: AbortSignal;
+		},
+		list: (page: PageParams) => Promise<E>,
+		itemsOf: (envelope: E) => T[],
+	): AsyncGenerator<T> {
 		const batchSize = params.batchSize ?? 200;
 		let cursor = params.cursor ?? params.fromCursor ?? null;
 		let firstPage = true;
 
 		while (!params.signal?.aborted) {
-			const envelope = await this.listFtTransfers({
-				...params,
+			const envelope = await list({
 				limit: batchSize,
 				cursor: firstPage ? params.cursor : cursor,
 				fromCursor: firstPage ? params.fromCursor : undefined,
 				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
 			});
 
-			for (const event of envelope.events) {
+			const items = itemsOf(envelope);
+			for (const item of items) {
 				if (params.signal?.aborted) return;
-				yield event;
+				yield item;
 			}
 
 			const nextCursor = envelope.next_cursor;
-			if (
-				!nextCursor ||
-				nextCursor === cursor ||
-				envelope.events.length < batchSize
-			) {
+			if (!nextCursor || nextCursor === cursor || items.length < batchSize) {
 				return;
 			}
 
@@ -1301,39 +1319,24 @@ export class Index extends BaseClient {
 		}
 	}
 
-	private async *walkNftTransfers(
+	private walkFtTransfers(
+		params: FtTransfersWalkParams = {},
+	): AsyncGenerator<FtTransfer> {
+		return this.keysetWalk(
+			params,
+			(page) => this.listFtTransfers({ ...params, ...page }),
+			(e) => e.events,
+		);
+	}
+
+	private walkNftTransfers(
 		params: NftTransfersWalkParams = {},
 	): AsyncGenerator<NftTransfer> {
-		const batchSize = params.batchSize ?? 200;
-		let cursor = params.cursor ?? params.fromCursor ?? null;
-		let firstPage = true;
-
-		while (!params.signal?.aborted) {
-			const envelope = await this.listNftTransfers({
-				...params,
-				limit: batchSize,
-				cursor: firstPage ? params.cursor : cursor,
-				fromCursor: firstPage ? params.fromCursor : undefined,
-				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
-			});
-
-			for (const event of envelope.events) {
-				if (params.signal?.aborted) return;
-				yield event;
-			}
-
-			const nextCursor = envelope.next_cursor;
-			if (
-				!nextCursor ||
-				nextCursor === cursor ||
-				envelope.events.length < batchSize
-			) {
-				return;
-			}
-
-			cursor = nextCursor;
-			firstPage = false;
-		}
+		return this.keysetWalk(
+			params,
+			(page) => this.listNftTransfers({ ...params, ...page }),
+			(e) => e.events,
+		);
 	}
 
 	private async listEvents(params: EventsListParams): Promise<EventsEnvelope> {
@@ -1356,39 +1359,12 @@ export class Index extends BaseClient {
 		);
 	}
 
-	private async *walkEvents(
-		params: EventsWalkParams,
-	): AsyncGenerator<IndexEvent> {
-		const batchSize = params.batchSize ?? 200;
-		let cursor = params.cursor ?? params.fromCursor ?? null;
-		let firstPage = true;
-
-		while (!params.signal?.aborted) {
-			const envelope = await this.listEvents({
-				...params,
-				limit: batchSize,
-				cursor: firstPage ? params.cursor : cursor,
-				fromCursor: firstPage ? params.fromCursor : undefined,
-				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
-			});
-
-			for (const event of envelope.events) {
-				if (params.signal?.aborted) return;
-				yield event;
-			}
-
-			const nextCursor = envelope.next_cursor;
-			if (
-				!nextCursor ||
-				nextCursor === cursor ||
-				envelope.events.length < batchSize
-			) {
-				return;
-			}
-
-			cursor = nextCursor;
-			firstPage = false;
-		}
+	private walkEvents(params: EventsWalkParams): AsyncGenerator<IndexEvent> {
+		return this.keysetWalk(
+			params,
+			(page) => this.listEvents({ ...params, ...page }),
+			(e) => e.events,
+		);
 	}
 
 	private async listContractCalls(
@@ -1410,39 +1386,14 @@ export class Index extends BaseClient {
 		);
 	}
 
-	private async *walkContractCalls(
+	private walkContractCalls(
 		params: ContractCallsWalkParams = {},
 	): AsyncGenerator<IndexContractCall> {
-		const batchSize = params.batchSize ?? 200;
-		let cursor = params.cursor ?? params.fromCursor ?? null;
-		let firstPage = true;
-
-		while (!params.signal?.aborted) {
-			const envelope = await this.listContractCalls({
-				...params,
-				limit: batchSize,
-				cursor: firstPage ? params.cursor : cursor,
-				fromCursor: firstPage ? params.fromCursor : undefined,
-				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
-			});
-
-			for (const call of envelope.contract_calls) {
-				if (params.signal?.aborted) return;
-				yield call;
-			}
-
-			const nextCursor = envelope.next_cursor;
-			if (
-				!nextCursor ||
-				nextCursor === cursor ||
-				envelope.contract_calls.length < batchSize
-			) {
-				return;
-			}
-
-			cursor = nextCursor;
-			firstPage = false;
-		}
+		return this.keysetWalk(
+			params,
+			(page) => this.listContractCalls({ ...params, ...page }),
+			(e) => e.contract_calls,
+		);
 	}
 
 	private async listCanonical(
@@ -1460,39 +1411,14 @@ export class Index extends BaseClient {
 		);
 	}
 
-	private async *walkCanonical(
+	private walkCanonical(
 		params: CanonicalWalkParams = {},
 	): AsyncGenerator<IndexCanonicalBlock> {
-		const batchSize = params.batchSize ?? 200;
-		let cursor = params.cursor ?? params.fromCursor ?? null;
-		let firstPage = true;
-
-		while (!params.signal?.aborted) {
-			const envelope = await this.listCanonical({
-				...params,
-				limit: batchSize,
-				cursor: firstPage ? params.cursor : cursor,
-				fromCursor: firstPage ? params.fromCursor : undefined,
-				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
-			});
-
-			for (const block of envelope.canonical) {
-				if (params.signal?.aborted) return;
-				yield block;
-			}
-
-			const nextCursor = envelope.next_cursor;
-			if (
-				!nextCursor ||
-				nextCursor === cursor ||
-				envelope.canonical.length < batchSize
-			) {
-				return;
-			}
-
-			cursor = nextCursor;
-			firstPage = false;
-		}
+		return this.keysetWalk(
+			params,
+			(page) => this.listCanonical({ ...params, ...page }),
+			(e) => e.canonical,
+		);
 	}
 
 	private async listBlocks(
@@ -1517,39 +1443,14 @@ export class Index extends BaseClient {
 		);
 	}
 
-	private async *walkBlocks(
+	private walkBlocks(
 		params: BlocksWalkParams = {},
 	): AsyncGenerator<IndexBlock> {
-		const batchSize = params.batchSize ?? 200;
-		let cursor = params.cursor ?? params.fromCursor ?? null;
-		let firstPage = true;
-
-		while (!params.signal?.aborted) {
-			const envelope = await this.listBlocks({
-				...params,
-				limit: batchSize,
-				cursor: firstPage ? params.cursor : cursor,
-				fromCursor: firstPage ? params.fromCursor : undefined,
-				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
-			});
-
-			for (const block of envelope.blocks) {
-				if (params.signal?.aborted) return;
-				yield block;
-			}
-
-			const nextCursor = envelope.next_cursor;
-			if (
-				!nextCursor ||
-				nextCursor === cursor ||
-				envelope.blocks.length < batchSize
-			) {
-				return;
-			}
-
-			cursor = nextCursor;
-			firstPage = false;
-		}
+		return this.keysetWalk(
+			params,
+			(page) => this.listBlocks({ ...params, ...page }),
+			(e) => e.blocks,
+		);
 	}
 
 	private async listTransactions(
@@ -1592,39 +1493,14 @@ export class Index extends BaseClient {
 		);
 	}
 
-	private async *walkTransactions(
+	private walkTransactions(
 		params: TransactionsWalkParams = {},
 	): AsyncGenerator<IndexTransaction> {
-		const batchSize = params.batchSize ?? 200;
-		let cursor = params.cursor ?? params.fromCursor ?? null;
-		let firstPage = true;
-
-		while (!params.signal?.aborted) {
-			const envelope = await this.listTransactions({
-				...params,
-				limit: batchSize,
-				cursor: firstPage ? params.cursor : cursor,
-				fromCursor: firstPage ? params.fromCursor : undefined,
-				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
-			});
-
-			for (const tx of envelope.transactions) {
-				if (params.signal?.aborted) return;
-				yield tx;
-			}
-
-			const nextCursor = envelope.next_cursor;
-			if (
-				!nextCursor ||
-				nextCursor === cursor ||
-				envelope.transactions.length < batchSize
-			) {
-				return;
-			}
-
-			cursor = nextCursor;
-			firstPage = false;
-		}
+		return this.keysetWalk(
+			params,
+			(page) => this.listTransactions({ ...params, ...page }),
+			(e) => e.transactions,
+		);
 	}
 
 	private async listStacking(
@@ -1645,39 +1521,14 @@ export class Index extends BaseClient {
 		);
 	}
 
-	private async *walkStacking(
+	private walkStacking(
 		params: StackingWalkParams = {},
 	): AsyncGenerator<IndexStackingAction> {
-		const batchSize = params.batchSize ?? 200;
-		let cursor = params.cursor ?? params.fromCursor ?? null;
-		let firstPage = true;
-
-		while (!params.signal?.aborted) {
-			const envelope = await this.listStacking({
-				...params,
-				limit: batchSize,
-				cursor: firstPage ? params.cursor : cursor,
-				fromCursor: firstPage ? params.fromCursor : undefined,
-				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
-			});
-
-			for (const action of envelope.stacking) {
-				if (params.signal?.aborted) return;
-				yield action;
-			}
-
-			const nextCursor = envelope.next_cursor;
-			if (
-				!nextCursor ||
-				nextCursor === cursor ||
-				envelope.stacking.length < batchSize
-			) {
-				return;
-			}
-
-			cursor = nextCursor;
-			firstPage = false;
-		}
+		return this.keysetWalk(
+			params,
+			(page) => this.listStacking({ ...params, ...page }),
+			(e) => e.stacking,
+		);
 	}
 
 	private async listMempool(
@@ -1705,38 +1556,15 @@ export class Index extends BaseClient {
 		);
 	}
 
-	private async *walkMempool(
+	private walkMempool(
 		params: MempoolWalkParams = {},
 	): AsyncGenerator<IndexMempoolTransaction> {
-		const batchSize = params.batchSize ?? 200;
-		let cursor = params.cursor ?? params.fromCursor ?? null;
-		let firstPage = true;
-
-		while (!params.signal?.aborted) {
-			const envelope = await this.listMempool({
-				...params,
-				limit: batchSize,
-				cursor: firstPage ? params.cursor : cursor,
-				fromCursor: firstPage ? params.fromCursor : undefined,
-			});
-
-			for (const tx of envelope.mempool) {
-				if (params.signal?.aborted) return;
-				yield tx;
-			}
-
-			const nextCursor = envelope.next_cursor;
-			if (
-				!nextCursor ||
-				nextCursor === cursor ||
-				envelope.mempool.length < batchSize
-			) {
-				return;
-			}
-
-			cursor = nextCursor;
-			firstPage = false;
-		}
+		// Mempool has no height filter; listMempool ignores the seeded fromHeight.
+		return this.keysetWalk(
+			params,
+			(page) => this.listMempool({ ...params, ...page }),
+			(e) => e.mempool,
+		);
 	}
 
 	private async listSbtcDeposits(
@@ -1757,39 +1585,14 @@ export class Index extends BaseClient {
 		);
 	}
 
-	private async *walkSbtcDeposits(
+	private walkSbtcDeposits(
 		params: SbtcDepositsWalkParams = {},
 	): AsyncGenerator<IndexSbtcDeposit> {
-		const batchSize = params.batchSize ?? 200;
-		let cursor = params.cursor ?? params.fromCursor ?? null;
-		let firstPage = true;
-
-		while (!params.signal?.aborted) {
-			const envelope = await this.listSbtcDeposits({
-				...params,
-				limit: batchSize,
-				cursor: firstPage ? params.cursor : cursor,
-				fromCursor: firstPage ? params.fromCursor : undefined,
-				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
-			});
-
-			for (const deposit of envelope.deposits) {
-				if (params.signal?.aborted) return;
-				yield deposit;
-			}
-
-			const nextCursor = envelope.next_cursor;
-			if (
-				!nextCursor ||
-				nextCursor === cursor ||
-				envelope.deposits.length < batchSize
-			) {
-				return;
-			}
-
-			cursor = nextCursor;
-			firstPage = false;
-		}
+		return this.keysetWalk(
+			params,
+			(page) => this.listSbtcDeposits({ ...params, ...page }),
+			(e) => e.deposits,
+		);
 	}
 
 	private async getSbtcDeposit(
@@ -1821,39 +1624,14 @@ export class Index extends BaseClient {
 		);
 	}
 
-	private async *walkSbtcWithdrawals(
+	private walkSbtcWithdrawals(
 		params: SbtcWithdrawalsWalkParams = {},
 	): AsyncGenerator<IndexSbtcWithdrawal> {
-		const batchSize = params.batchSize ?? 200;
-		let cursor = params.cursor ?? params.fromCursor ?? null;
-		let firstPage = true;
-
-		while (!params.signal?.aborted) {
-			const envelope = await this.listSbtcWithdrawals({
-				...params,
-				limit: batchSize,
-				cursor: firstPage ? params.cursor : cursor,
-				fromCursor: firstPage ? params.fromCursor : undefined,
-				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
-			});
-
-			for (const withdrawal of envelope.withdrawals) {
-				if (params.signal?.aborted) return;
-				yield withdrawal;
-			}
-
-			const nextCursor = envelope.next_cursor;
-			if (
-				!nextCursor ||
-				nextCursor === cursor ||
-				envelope.withdrawals.length < batchSize
-			) {
-				return;
-			}
-
-			cursor = nextCursor;
-			firstPage = false;
-		}
+		return this.keysetWalk(
+			params,
+			(page) => this.listSbtcWithdrawals({ ...params, ...page }),
+			(e) => e.withdrawals,
+		);
 	}
 
 	private async getSbtcWithdrawal(
@@ -1885,39 +1663,14 @@ export class Index extends BaseClient {
 		);
 	}
 
-	private async *walkSbtcEvents(
+	private walkSbtcEvents(
 		params: SbtcEventsWalkParams = {},
 	): AsyncGenerator<IndexSbtcEvent> {
-		const batchSize = params.batchSize ?? 200;
-		let cursor = params.cursor ?? params.fromCursor ?? null;
-		let firstPage = true;
-
-		while (!params.signal?.aborted) {
-			const envelope = await this.listSbtcEvents({
-				...params,
-				limit: batchSize,
-				cursor: firstPage ? params.cursor : cursor,
-				fromCursor: firstPage ? params.fromCursor : undefined,
-				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
-			});
-
-			for (const event of envelope.events) {
-				if (params.signal?.aborted) return;
-				yield event;
-			}
-
-			const nextCursor = envelope.next_cursor;
-			if (
-				!nextCursor ||
-				nextCursor === cursor ||
-				envelope.events.length < batchSize
-			) {
-				return;
-			}
-
-			cursor = nextCursor;
-			firstPage = false;
-		}
+		return this.keysetWalk(
+			params,
+			(page) => this.listSbtcEvents({ ...params, ...page }),
+			(e) => e.events,
+		);
 	}
 
 	private async getSbtcSummary(): Promise<SbtcSummaryEnvelope> {
