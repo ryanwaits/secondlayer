@@ -79,20 +79,31 @@ export function bitcoinConfirmationReader(config: BitcoinRpcConfig): {
 				params,
 			}),
 		});
-		if (!res.ok) {
-			throw new Error(`bitcoin rpc ${method} failed: HTTP ${res.status}`);
-		}
-		const json = (await res.json()) as {
+		// Bitcoin Core delivers JSON-RPC errors (e.g. -5 "no such transaction")
+		// with an HTTP 500 status AND the error in the body — so parse the body
+		// BEFORE throwing on `!res.ok`, or the graceful -5 path in getConfirmations
+		// is unreachable and every unknown/unbroadcast sweep crashes the loop. A
+		// genuine transport outage (HTML 502/503, unparseable body) carries no
+		// JSON-RPC error and still throws as an HTTP failure.
+		let json: {
 			result: T;
 			error: { code: number; message: string } | null;
-		};
-		if (json.error) {
+		} | null;
+		try {
+			json = (await res.json()) as typeof json;
+		} catch {
+			json = null;
+		}
+		if (json?.error) {
 			throw new BitcoinRpcError(
 				`bitcoin rpc ${method} error: ${json.error.message}`,
 				json.error.code,
 			);
 		}
-		return json.result;
+		if (!res.ok) {
+			throw new Error(`bitcoin rpc ${method} failed: HTTP ${res.status}`);
+		}
+		return (json as { result: T }).result;
 	}
 
 	return {
