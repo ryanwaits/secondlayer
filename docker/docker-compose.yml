@@ -289,6 +289,15 @@ services:
       # writes name/namespace/marketplace events + maintains current-state
       # projections (bns_names, bns_namespaces).
       BNS_DECODER_ENABLED: ${BNS_DECODER_ENABLED:-false}
+      # BTC-L1 sBTC settlement confirmer (settle.sbtc.v1). Default-OFF: with no
+      # BITCOIN_RPC_* env it stays dormant and the API returns settlement:null.
+      # Enable in prod .env once bitcoind RPC is reachable (read-only rpcauth).
+      SBTC_SETTLEMENT_CONFIRMER_ENABLED: ${SBTC_SETTLEMENT_CONFIRMER_ENABLED:-false}
+      BITCOIN_RPC_URL: ${BITCOIN_RPC_URL:-}
+      BITCOIN_RPC_USERNAME: ${BITCOIN_RPC_USERNAME:-}
+      BITCOIN_RPC_PASSWORD: ${BITCOIN_RPC_PASSWORD:-}
+      SBTC_SETTLEMENT_CONFIRMATIONS: ${SBTC_SETTLEMENT_CONFIRMATIONS:-6}
+      SBTC_SETTLEMENT_REORG_WATCH_DEPTH: ${SBTC_SETTLEMENT_REORG_WATCH_DEPTH:-12}
     depends_on:
       migrate:
         condition: service_completed_successfully

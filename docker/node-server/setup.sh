@@ -150,6 +150,24 @@ EOF
 log "Wrote bitcoin.conf"
 
 # ---------------------------------------------------------------------------
+# sBTC settlement confirmer exposure (manual, post-setup) — see settle.sbtc.v1.
+# The app-server decoder reads bitcoind RPC over :8332 (published in this
+# compose). The kylemanna image forces -rpcallowip=0.0.0.0/0, so the network
+# gate is the host firewall, NOT rpcallowip. To enable:
+#   1. Mint a read-only credential and append to bitcoin.conf (keep the `stacks`
+#      burnchain user untouched — rpcauth coexists with rpcuser):
+#        SALT=$(openssl rand -hex 16)
+#        PASS=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 32)
+#        HASH=$(printf '%s' "$PASS" | openssl dgst -sha256 -hmac "$SALT" | awk '{print $NF}')
+#        echo "rpcauth=secondlayer-ro:$SALT\$$HASH" >> "$BITCOIN_DATA_DIR/bitcoin.conf"
+#      (PASS -> app-server .env BITCOIN_RPC_USERNAME/PASSWORD.)
+#   2. Restrict :8332 to the app-server, persisted across reboots, via a
+#      systemd oneshot (docker bypasses ufw, so use the DOCKER-USER chain):
+#        iptables -I DOCKER-USER -i <wan-iface> -p tcp --dport 8332 ! -s ${APP_SERVER_IP} -j DROP
+#      Unit: bitcoind-rpc-firewall.service (After=docker.service, ExecStart re-inserts).
+#   3. docker compose up -d bitcoind  (publishes 8332 + reloads conf).
+
+# ---------------------------------------------------------------------------
 # Write Config.toml with app server IP + password
 # ---------------------------------------------------------------------------
 cat > "$SCRIPT_DIR/Config.toml" <<EOF

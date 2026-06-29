@@ -16,6 +16,12 @@ services:
       # so also run: chown -R 1000:1000 $BITCOIN_DATA_DIR
     ports:
       - "8333:8333"
+      # RPC 8332 published for the app-server settlement confirmer (settle.sbtc.v1).
+      # The image forces -rpcallowip=0.0.0.0/0, so access is gated at the host
+      # firewall: a DOCKER-USER rule restricts :8332 to the app-server IP only
+      # (persisted via the bitcoind-rpc-firewall systemd unit — see setup.sh).
+      # Auth is a dedicated read-only rpcauth (secondlayer-ro) in bitcoin.conf.
+      - "8332:8332"
     dns:
       - 8.8.8.8
       - 1.1.1.1
