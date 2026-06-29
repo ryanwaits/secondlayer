@@ -115,5 +115,8 @@ function legacyMiddleware(
 export const config = {
 	// Run on everything except API routes (auth/verify must not be redirected,
 	// and the Umami proxy /api/send must pass through) and static assets.
-	matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)"],
+	// Note the trailing slash on `api/`: anchoring to the segment is required so
+	// clean console paths that merely start with "api" (e.g. /api-keys) still
+	// hit the rewrite instead of falling through to a 404.
+	matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|.*\\..*).*)"],
 };
