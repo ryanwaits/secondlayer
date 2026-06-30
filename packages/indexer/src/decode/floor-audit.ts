@@ -20,7 +20,7 @@
  * min() scan per decoder. Run it as a CI / cron / on-demand check
  * (`bun run src/decode/floor-audit.ts`), not on every health poll.
  */
-import { getSourceDb } from "@secondlayer/shared/db";
+import { closeDb, getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
 import { BNS_DECODER_NAME } from "./bns-storage.ts";
@@ -220,7 +220,14 @@ if (import.meta.main) {
 			process.stderr.write(
 				`\nUNBASELINED (add to DECODER_FLOOR_BASELINE after genesis backfill): ${audit.unbaselined.map((d) => d.decoder).join(", ")}\n`,
 			);
+		await closeDb();
 		process.exit(1);
 	}
 	process.stdout.write("\nAll decoders genesis-complete.\n");
+	// Drain the source-DB pool so the process exits — without this the open
+	// connection keeps the event loop alive and the script hangs on success
+	// (the failure path force-exits via process.exit(1), so only success hangs),
+	// which would wedge the systemd oneshot forever.
+	await closeDb();
+	process.exit(0);
 }

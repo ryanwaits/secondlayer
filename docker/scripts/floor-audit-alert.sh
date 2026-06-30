@@ -15,6 +15,9 @@ set -uo pipefail
 COMPOSE_DIR="${COMPOSE_DIR:-/opt/secondlayer/docker}"
 DECODER_CONTAINER="${DECODER_CONTAINER:-secondlayer-decoder-1}"
 AUDIT_CMD="${FLOOR_AUDIT_CMD:-bun run packages/indexer/src/decode/floor-audit.ts}"
+# Hard cap so a hung audit can never wedge the systemd oneshot — on timeout the
+# wrapper exits non-zero (124) and pages, rather than blocking forever.
+AUDIT_TIMEOUT="${FLOOR_AUDIT_TIMEOUT:-300}"
 STATE_FILE="${FLOOR_AUDIT_STATE_FILE:-/var/run/secondlayer-floor-audit.state}"
 WEBHOOK="${SLACK_WEBHOOK_URL:-}"
 
@@ -31,10 +34,10 @@ post_slack() {
 # and it already has the source-DB env). Fall back to a throwaway container if
 # the live one isn't up.
 if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$DECODER_CONTAINER"; then
-  output=$(docker exec "$DECODER_CONTAINER" $AUDIT_CMD 2>&1)
+  output=$(timeout "$AUDIT_TIMEOUT" docker exec "$DECODER_CONTAINER" $AUDIT_CMD 2>&1)
   status=$?
 elif [ -d "$COMPOSE_DIR" ]; then
-  output=$(cd "$COMPOSE_DIR" && docker compose run --rm decoder $AUDIT_CMD 2>&1)
+  output=$(cd "$COMPOSE_DIR" && timeout "$AUDIT_TIMEOUT" docker compose run --rm decoder $AUDIT_CMD 2>&1)
   status=$?
 else
   output="floor-audit: decoder container '$DECODER_CONTAINER' not running and no compose dir at $COMPOSE_DIR"
