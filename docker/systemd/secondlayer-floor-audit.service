@@ -1,0 +1,11 @@
+[Unit]
+Description=Secondlayer decoder genesis-floor regression check with Slack alerting
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/opt/secondlayer/docker/.env
+ExecStart=/opt/secondlayer/docker/scripts/floor-audit-alert.sh
+StandardOutput=append:/var/log/secondlayer-floor-audit.log
+StandardError=append:/var/log/secondlayer-floor-audit.log

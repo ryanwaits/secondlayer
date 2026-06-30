@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the Secondlayer decoder genesis-floor check daily
+
+[Timer]
+OnCalendar=*-*-* 06:00:00
+AccuracySec=1m
+Persistent=true
+Unit=secondlayer-floor-audit.service
+
+[Install]
+WantedBy=timers.target
