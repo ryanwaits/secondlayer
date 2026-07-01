@@ -1,3 +1,4 @@
+import type { ChainWebhookDelivery } from "@secondlayer/shared";
 import { verifySecondlayerSignatureValues } from "@secondlayer/shared/crypto/secondlayer-webhook";
 import {
 	type StandardWebhooksHeaders,
@@ -10,8 +11,25 @@ export {
 } from "@secondlayer/shared/crypto/standard-webhooks";
 export type {
 	ChainApplyEnvelope,
+	ChainApplyEnvelopeOf,
+	ChainEventEnvelope,
+	ChainFtBurnData,
+	ChainFtMintData,
+	ChainFtTransferData,
+	ChainNftBurnData,
+	ChainNftMintData,
+	ChainNftTransferData,
+	ChainPrintEventData,
 	ChainReorgOrphanedEntry,
+	ChainReorgRollbackDelivery,
 	ChainReorgRollbackEnvelope,
+	ChainStxBurnData,
+	ChainStxLockData,
+	ChainStxMintData,
+	ChainStxTransferData,
+	ChainTestDelivery,
+	ChainTxLevelEvent,
+	ChainWebhookDelivery,
 	ChainWebhookEnvelope,
 } from "@secondlayer/shared";
 
@@ -189,4 +207,93 @@ export function verifySecondlayerSignature(
 	const id = pickHeader(headers, "webhook-id");
 	const signature = pickHeader(headers, "x-secondlayer-signature");
 	return verifySecondlayerSignatureValues(rawBody, id, signature, publicKeyPem);
+}
+
+/**
+ * Decode + narrow a chain-subscription webhook delivery body into a typed
+ * {@link ChainWebhookDelivery}. Verify the signature first with
+ * {@link verifyWebhookSignature} (or {@link verifySecondlayerSignature}), then
+ * decode the same raw body — this does not check authenticity, only shape.
+ *
+ * Only understands the `format: "standard-webhooks"` envelope (`{ type,
+ * timestamp, data }`) — the subscription default, and the only format
+ * `verifyWebhookSignature` covers. Other formats (`raw`, `cloudevents`, …)
+ * carry the same `data` value under a different envelope; see the "Chain
+ * subscription webhook payloads" doc for how to unwrap those.
+ *
+ * A chain-subscription delivery is NOT a Streams/Index event — do not run this
+ * over a `StreamsEvent` body (`{ event_type, payload }`) or vice versa.
+ *
+ * @param rawBody The raw request body string (same bytes passed to
+ *                {@link verifyWebhookSignature}).
+ * @throws {Error} if the body isn't a `chain.*` delivery, or the envelope is
+ *         internally inconsistent (e.g. `type` and `data.trigger` disagree —
+ *         a sign the wire shape drifted from this decoder).
+ *
+ * @example
+ * ```ts
+ * import { decodeChainWebhook, verifyWebhookSignature } from "@secondlayer/sdk";
+ *
+ * app.post("/webhook", async (c) => {
+ *   const raw = await c.req.text();
+ *   if (!verifyWebhookSignature(raw, c.req.raw.headers, process.env.SIGNING_SECRET!)) {
+ *     return c.text("Invalid signature", 401);
+ *   }
+ *   const delivery = decodeChainWebhook(raw);
+ *   if (delivery.data.action === "apply" && delivery.data.trigger === "stx_transfer") {
+ *     delivery.data.event.data.amount; // typed
+ *   }
+ *   return c.body(null, 204);
+ * });
+ * ```
+ */
+export function decodeChainWebhook(rawBody: string): ChainWebhookDelivery {
+	const parsed = JSON.parse(rawBody) as {
+		type?: unknown;
+		timestamp?: unknown;
+		data?: unknown;
+	};
+	if (
+		typeof parsed.type !== "string" ||
+		typeof parsed.timestamp !== "string" ||
+		typeof parsed.data !== "object" ||
+		parsed.data === null
+	) {
+		throw new Error(
+			"decodeChainWebhook: not a chain-subscription delivery — expected { type, timestamp, data }",
+		);
+	}
+	if (!parsed.type.startsWith("chain.")) {
+		throw new Error(
+			`decodeChainWebhook: not a chain-subscription delivery (type "${parsed.type}")`,
+		);
+	}
+
+	const data = parsed.data as Record<string, unknown>;
+	if (parsed.type === "chain.test.apply") {
+		if (data.test !== true) {
+			throw new Error(
+				'decodeChainWebhook: "chain.test.apply" body missing `data.test: true`',
+			);
+		}
+	} else if (parsed.type === "chain.reorg.rollback") {
+		if (data.action !== "rollback" || !Array.isArray(data.orphaned)) {
+			throw new Error(
+				'decodeChainWebhook: "chain.reorg.rollback" body missing `data.action`/`data.orphaned`',
+			);
+		}
+	} else {
+		if (data.action !== "apply" || typeof data.trigger !== "string") {
+			throw new Error(
+				"decodeChainWebhook: apply delivery missing `data.action`/`data.trigger`",
+			);
+		}
+		if (parsed.type !== `chain.${data.trigger}.apply`) {
+			throw new Error(
+				`decodeChainWebhook: type "${parsed.type}" doesn't match data.trigger "${data.trigger}"`,
+			);
+		}
+	}
+
+	return parsed as unknown as ChainWebhookDelivery;
 }
