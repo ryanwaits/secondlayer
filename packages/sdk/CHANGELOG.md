@@ -1,5 +1,16 @@
 # @secondlayer/sdk
 
+## 6.29.0
+
+### Minor Changes
+
+- Add `decodeChainWebhook(rawBody)`, a decode/validate helper for chain-subscription webhook deliveries that narrows to the new `ChainWebhookDelivery` type, mirroring `verifyWebhookSignature` beside it (verify the signature, then decode the body). Throws if the body isn't a `chain.*` delivery or if `type` and `data.trigger` disagree, so a future wire-shape drift fails loudly instead of silently mismatching a consumer's hand-rolled parser.
+
+### Patch Changes
+
+- Updated dependencies
+  - @secondlayer/shared@6.39.0
+
 ## 6.28.2
 
 ### Patch Changes

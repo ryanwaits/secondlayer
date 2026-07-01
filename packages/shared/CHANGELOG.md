@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 6.39.0
+
+### Minor Changes
+
+- Add `ChainWebhookDelivery`, a discriminated union typing the exact wire body of a chain-subscription webhook delivery (`{ type, timestamp, data }`), keyed on `data.trigger`. Covers all 18 trigger types plus `chain.reorg.rollback` and `chain.test.apply`, derived directly from the emit code rather than the unrelated Streams/Index event shape a prior integration mistakenly matched against — e.g. `print_event` deliveries carry `event.type: "contract_event"` (not `print_event_event`) and a `contract_identifier` field (not `contract_id`), NFT events carry only `raw_value` with no decoded `value`, and mint/burn events omit the inapplicable `sender`/`recipient` key entirely rather than sending `null`.
+
 ## 6.38.0
 
 ### Minor Changes
