@@ -150,40 +150,191 @@ sl subscriptions create amm-swaps \
 
 ### Delivery envelope
 
-A matched event delivers `chain.{type}.apply`:
+A matched event delivers `chain.{trigger}.apply`. On the default `standard-webhooks` format, the full POST body is `{ type, timestamp, data }` — `action`, `trigger`, and `event` all live under `data`:
 
 ```json
 {
-  "action": "apply",
-  "block_hash": "0x…",
-  "block_height": 123456,
-  "tx_id": "0x…",
-  "canonical": true,
-  "trigger": "contract_call",
-  "event": { /* the raw chain event */ }
+  "type": "chain.stx_transfer.apply",
+  "timestamp": "2026-05-01T12:00:00.000Z",
+  "data": {
+    "action": "apply",
+    "trigger": "stx_transfer",
+    "tx_id": "0x…",
+    "block_hash": "0x…",
+    "block_height": 8445086,
+    "canonical": true,
+    "event": {
+      "type": "stx_transfer_event",
+      "event_index": 2240,
+      "tx_id": "0x…",
+      "data": { "memo": "", "amount": "1853058049", "sender": "SM….pool", "recipient": "SP…" }
+    }
+  }
 }
 ```
+
+<Callout type="note" title="Other formats wrap `data` differently">
+
+`raw`, `cloudevents`, `inngest`, `trigger`, and `cloudflare` all carry the exact same `data` value shown above — just under a different key:
+
+| Format | Where `data` lives |
+| --- | --- |
+| `raw` | the body IS `data`, no wrapper |
+| `cloudevents` | `{ specversion, type, source, id, time, datacontenttype, data }` |
+| `inngest` | a JSON array: `[{ name, data, id, ts, v }]` |
+| `trigger` | `{ payload: data, options: { idempotencyKey } }` — key is `payload`, not `data` |
+| `cloudflare` | `{ params: { ...data, _type, _outboxId } }` — spread flat, not nested |
+
+</Callout>
+
+<Callout type="warning" title="This is not a Streams event">
+
+A chain-subscription delivery and a [Streams](/docs/streams) event are structurally unrelated — don't parse one as the other. Streams events are `{ event_type, payload, cursor, block_height, … }`; a chain-subscription delivery is `{ type, timestamp, data: { trigger, event } }`. Building a webhook parser against `StreamsEvent`'s `event_type`/`payload` shape will silently fail to match every delivery.
+
+</Callout>
+
+Verify the signature, then decode:
+
+```ts
+import { decodeChainWebhook, verifyWebhookSignature } from "@secondlayer/sdk";
+
+const valid = verifyWebhookSignature(rawBody, req.headers, secret);
+if (!valid) return new Response("bad signature", { status: 401 });
+
+const delivery = decodeChainWebhook(rawBody); // throws if the body isn't a chain.* delivery
+if (delivery.type === "chain.stx_transfer.apply") {
+  delivery.data.event.data.amount; // fully typed
+}
+```
+
+`decodeChainWebhook` narrows to `ChainWebhookDelivery`, a discriminated union keyed on `data.trigger` (both exported from `@secondlayer/sdk`). It only understands the `standard-webhooks` envelope — unwrap other formats per the table above first.
+
+Delivery is at-least-once and HMAC-signed exactly like subgraph subscriptions. Key your state on `(tx_id, block_hash)` so a redelivery is idempotent.
+
+#### Event-level triggers
+
+For `stx_*`, `ft_*`, `nft_*`, and `print_event`, `data.event` is `{ tx_id, type, event_index, data }`:
+
+| Trigger | `event.type` | `event.data` fields |
+| --- | --- | --- |
+| `stx_transfer` | `stx_transfer_event` | `sender?, recipient?, amount, memo` |
+| `stx_mint` | `stx_mint_event` | `recipient?, amount` |
+| `stx_burn` | `stx_burn_event` | `sender?, amount` |
+| `stx_lock` | `stx_lock_event` | `locked_address, locked_amount, unlock_height` |
+| `ft_transfer` | `ft_transfer_event` | `asset_identifier, sender?, recipient?, amount` |
+| `ft_mint` | `ft_mint_event` | `asset_identifier, recipient?, amount` |
+| `ft_burn` | `ft_burn_event` | `asset_identifier, sender?, amount` |
+| `nft_transfer` | `nft_transfer_event` | `asset_identifier, sender?, recipient?, raw_value` |
+| `nft_mint` | `nft_mint_event` | `asset_identifier, recipient?, raw_value` |
+| `nft_burn` | `nft_burn_event` | `asset_identifier, sender?, raw_value` |
+| `print_event` | `contract_event` | `topic, contract_identifier, value, raw_value` |
+
+<Callout type="warning" title="Three traps in this table">
+
+- Fields marked `?` are **omitted entirely** when not applicable — `JSON.stringify` drops them. A `stx_mint` delivery has no `sender` key at all; it is never sent as `sender: null`.
+- NFT deliveries carry only `raw_value` (canonical hex of the token-id Clarity value) — there's no decoded `value` field on `nft_*` events.
+- `print_event`'s delivered `event.type` is the node's raw name `contract_event`, not `print_event_event`. Its contract field is `contract_identifier`, not `contract_id`.
+
+</Callout>
+
+```json
+"event": {
+  "type": "contract_event",
+  "event_index": 0,
+  "tx_id": "0x…",
+  "data": {
+    "topic": "print",
+    "contract_identifier": "SP….registry",
+    "value": { "updated": true },
+    "raw_value": "0x0c00000001…"
+  }
+}
+```
+
+#### Tx-level triggers: `contract_call` / `contract_deploy`
+
+`data.event` is flat — no nested `.data`:
+
+```json
+"event": {
+  "tx_id": "0x…",
+  "type": "contract_call",
+  "sender": "SP…",
+  "status": "success",
+  "contract_id": "SP….amm",
+  "function_name": "swap-x-for-y",
+  "function_args": ["0x0100000000000000000000000000002710"],
+  "result_hex": "0x0703"
+}
+```
+
+<Callout type="warning" title="function_args are raw hex">
+
+`function_args` are RAW, undecoded Clarity-value hex strings in call order — decode them yourself with `decodeClarityValue` from `@secondlayer/sdk`. For a `contract_deploy` trigger, `event.type` is `smart_contract` (the underlying Stacks tx type) — not `contract_deploy` — and `function_name`/`function_args`/`result_hex` are all `null` (no function call to report).
+
+</Callout>
+
+#### sBTC triggers
+
+`sbtc_deposit`, `sbtc_withdrawal_create`, `sbtc_withdrawal_accept`, `sbtc_withdrawal_reject`, and `sbtc_withdrawal_swept_confirmed` deliver a flat, already-typed `event` keyed by `topic`:
+
+```json
+"event": {
+  "topic": "completed-deposit",
+  "request_id": 42,
+  "sender": "SP…",
+  "amount": "5000000",
+  "bitcoin_txid": "…",
+  "block_height": 123456,
+  "tx_id": "0x…"
+}
+```
+
+`topic` is `completed-deposit` (`sbtc_deposit`), `withdrawal-create`/`withdrawal-accept`/`withdrawal-reject` (the matching withdrawal triggers), or `withdrawal-swept-confirmed` (the settlement trigger — whose event instead carries `sweep_txid, btc_confirmations, btc_block_height, confirmed_at, amount, sender`, with no `bitcoin_txid`/`block_height`/`tx_id`). See [sBTC settlement](/docs/sbtc-settlement) for the full peg lifecycle.
+
+### Reorg rollback
 
 A reorg delivers `chain.reorg.rollback` so you can undo anything committed off an orphaned block. Each orphaned entry is `{ tx_id, event }`, the event body from the original apply:
 
 ```json
 {
-  "action": "rollback",
-  "fork_point_height": 123450,
-  "orphaned": [
-    { "tx_id": "0x…", "event": { /* event body from the original apply */ } }
-  ],
-  "truncated": false
+  "type": "chain.reorg.rollback",
+  "timestamp": "2026-05-01T12:00:00.000Z",
+  "data": {
+    "action": "rollback",
+    "fork_point_height": 123450,
+    "orphaned": [
+      { "tx_id": "0x…", "event": { "type": "stx_transfer_event", "event_index": 2240, "tx_id": "0x…", "data": { "…": "…" } } }
+    ],
+    "truncated": false
+  }
 }
 ```
 
 <Callout type="warning" title="orphaned is capped at 500">
 
-`orphaned` is capped at 500 entries per subscription. If `truncated` is `true`, treat everything you committed at or above `fork_point_height` as orphaned rather than relying on the list.
+`orphaned` is capped at 500 entries per subscription. If `truncated` is `true`, treat everything you committed at or above `fork_point_height` as orphaned rather than relying on the list. Also note: each entry's `event` doesn't carry a `trigger` tag — a subscription can have multiple triggers, and a rollback lists every previously-delivered apply regardless of which one matched, so you must already know what you subscribed to in order to interpret an orphaned entry's shape.
 
 </Callout>
 
-Delivery is at-least-once and HMAC-signed exactly like subgraph subscriptions. Verify the signature, and key your state on `(tx_id, block_hash)` so a redelivery is idempotent.
+### Test delivery
+
+`sl subscriptions test <idOrName> --post` sends a logged test delivery instead of waiting for a real chain event to match:
+
+```json
+{
+  "type": "chain.test.apply",
+  "timestamp": "2026-05-01T12:00:00.000Z",
+  "data": {
+    "test": true,
+    "message": "Secondlayer test delivery",
+    "subscription_id": "sub-…",
+    "sent_at": "2026-05-01T12:00:00.000Z"
+  }
+}
+```
+
+Not a real chain event — check `data.test` before treating a delivery as live.
 
 export const metadata = {
 	title: "Subscriptions — Secondlayer Docs",
