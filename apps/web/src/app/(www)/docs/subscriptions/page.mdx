@@ -196,20 +196,39 @@ A chain-subscription delivery and a [Streams](/docs/streams) event are structura
 Verify the signature, then decode:
 
 ```ts
-import { decodeChainWebhook, verifyWebhookSignature } from "@secondlayer/sdk";
+import {
+  decodeChainWebhook,
+  decodeClarityValue,
+  verifyWebhookSignature,
+} from "@secondlayer/sdk";
 
 const valid = verifyWebhookSignature(rawBody, req.headers, secret);
 if (!valid) return new Response("bad signature", { status: 401 });
 
 const delivery = decodeChainWebhook(rawBody); // throws if the body isn't a chain.* delivery
-if (delivery.type === "chain.stx_transfer.apply") {
-  delivery.data.event.data.amount; // fully typed
+
+if ("trigger" in delivery.data) {
+  switch (delivery.data.trigger) {
+    case "stx_transfer":
+      delivery.data.event.data.amount; // fully typed
+      break;
+    case "contract_call":
+      // event is flat here (no nested `.data`); function_args are raw hex
+      delivery.data.event.function_args?.map(decodeClarityValue);
+      break;
+  }
 }
 ```
 
 `decodeChainWebhook` narrows to `ChainWebhookDelivery`, a discriminated union keyed on `data.trigger` (both exported from `@secondlayer/sdk`). It only understands the `standard-webhooks` envelope — unwrap other formats per the table above first.
 
-Delivery is at-least-once and HMAC-signed exactly like subgraph subscriptions. Key your state on `(tx_id, block_hash)` so a redelivery is idempotent.
+<Callout type="tip" title="Discriminate on data.trigger, never event.type">
+
+`event.type` is NOT a consistent trigger name — it's `stx_transfer_event` for `stx_transfer`, the bare Stacks tx type (`contract_call`) for `contract_call`, and the node's raw event name (`contract_event`) for `print_event`. `data.trigger` is the one field that's always the trigger you subscribed with; switch on it, not `event.type`.
+
+</Callout>
+
+Delivery is at-least-once and HMAC-signed exactly like subgraph subscriptions. Key your state on `(tx_id, event_index, block_hash)` so a redelivery is idempotent — a single tx can fire multiple event-level deliveries (e.g. two `ft_transfer` events in one tx) that share a `tx_id`, so `event_index` (`-1` for tx-level triggers) is required to avoid collapsing them.
 
 #### Event-level triggers
 
