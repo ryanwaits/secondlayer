@@ -693,8 +693,12 @@ function formatSubgraphSync(sync: {
 			processedBlocks !== undefined && totalBlocks !== undefined
 				? `${processedBlocks} / ${totalBlocks} blocks`
 				: `${sync.lastProcessedBlock} / ${targetBlock}`;
+		const eta =
+			sync.etaSeconds != null
+				? ` · est ${formatDuration(sync.etaSeconds)}`
+				: "";
 		return {
-			line: `reindexing — ${progress} (${range}, target #${targetBlock})`,
+			line: `reindexing — ${progress} (${range}, target #${targetBlock})${eta}`,
 			remainingLabel: "Reindex Remaining",
 			remaining: String(sync.blocksRemaining),
 		};
@@ -1088,6 +1092,15 @@ Examples:
 									);
 									info(
 										`  Publish:   sl subgraphs publish ${effectiveDef.name} (open anon /v1 reads)`,
+									);
+								}
+								if (result.reindexStarted) {
+									const denom =
+										result.estimatedEvents != null
+											? ` ~${result.estimatedEvents.toLocaleString()} events —`
+											: "";
+									info(
+										`  Reindex:  ${denom} started in the background — check status in ~30s for an ETA`,
 									);
 								}
 								info(`  Watch:     sl subgraphs status ${effectiveDef.name}`);
