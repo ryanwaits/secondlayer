@@ -174,6 +174,24 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		),
 	],
 
+	"/docs/stacks": [
+		card(
+			"Call a contract",
+			"Wallet client, typed args, broadcast.",
+			"/secondlayer Help me wire `@secondlayer/stacks` into my app: `createWalletClient` with `privateKeyToAccount`, build `functionArgs` with `Cl.*`, then `client.callContract(...)` with fee estimation and nonce management handled for me.",
+		),
+		card(
+			"Protect a transfer",
+			"Post-conditions so a call can't overspend.",
+			'/secondlayer Add post-conditions to my contract call with `Pc` from `@secondlayer/stacks/postconditions` — e.g. `Pc.origin().willSendLte(n).ft(contractId, token)` — explain `deny` mode, and show the plain-object form (`{ type: "stx-postcondition", ... }`) too.',
+		),
+		card(
+			"SIP-045 staking guards",
+			"Bound pox-5 staking calls before Epoch 4.0.",
+			"/secondlayer Show me how to attach `staking-postcondition` (bound the STX a `stake`/`register-for-bond` call may lock) and `pox-postcondition` (`will-not-perform` on other PoX state) from `@secondlayer/stacks@2.10.0`, and explain what activates at the Epoch 4.0 fork vs what I can ship today.",
+		),
+	],
+
 	"/docs/verification": [
 		card(
 			"Verify a tx proof",

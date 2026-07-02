@@ -1,0 +1,129 @@
+# Stacks SDK
+
+Build, sign, and broadcast Stacks transactions from TypeScript — viem-style clients, typed Clarity values, and post-conditions that protect your users' assets.
+
+`@secondlayer/stacks` is the transaction-side companion to the [data SDK](/docs/sdk): where `@secondlayer/sdk` reads decoded chain data, this package writes to the chain.
+
+## Install
+
+```bash
+bun add @secondlayer/stacks
+```
+
+## Call a contract
+
+Create a wallet client, call a function. Fees are estimated and nonces managed for you.
+
+```ts
+import { createWalletClient, http, mainnet } from "@secondlayer/stacks";
+import { privateKeyToAccount } from "@secondlayer/stacks/accounts";
+import { Cl } from "@secondlayer/stacks/clarity";
+
+const client = createWalletClient({
+  account: privateKeyToAccount(process.env.KEY!),
+  chain: mainnet,
+  transport: http(),
+});
+
+const txid = await client.callContract({
+  contractAddress: "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9",
+  contractName: "usda-token",
+  functionName: "transfer",
+  functionArgs: [
+    Cl.uint(1_000_000),
+    Cl.principal(client.account.address),
+    Cl.principal("SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7"),
+    Cl.none(),
+  ],
+});
+```
+
+## Post-conditions
+
+Post-conditions are on-chain assertions the network enforces: if a transaction moves more than you allowed, it aborts instead of settling. Attach them to any `callContract`, `transferStx`, or `deployContract` call with `postConditions` (mode defaults to `deny`).
+
+Build them fluently with `Pc`:
+
+```ts
+import { Pc } from "@secondlayer/stacks/postconditions";
+
+const txid = await client.callContract({
+  // …call as above
+  postConditions: [
+    Pc.origin()
+      .willSendLte(1_000_000)
+      .ft("SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.usda-token", "usda"),
+  ],
+});
+```
+
+Or pass plain objects — same shape stacks.js uses, portable between SDKs:
+
+```ts
+postConditions: [
+  {
+    type: "stx-postcondition",
+    address: "origin",
+    condition: "lte",
+    amount: 1_000_000,
+  },
+]
+```
+
+| Type | Protects | Condition |
+| --- | --- | --- |
+| `stx-postcondition` | STX movement | `eq`, `gt`, `gte`, `lt`, `lte` + amount |
+| `ft-postcondition` | SIP-010 token movement | same, scoped to `asset` |
+| `nft-postcondition` | SIP-009 asset movement | `sent`, `not-sent` + `assetId` |
+| `staking-postcondition` | Staking changes (SIP-045) | `eq`–`lte` + amount |
+| `pox-postcondition` | Non-locking PoX changes (SIP-045) | `will-not-perform`, `may-perform`, `will-perform` |
+
+### SIP-045 staking post-conditions
+
+Epoch 4.0 (the Bitcoin Staking hard fork) adds two transaction-level post-condition types that guard pox-5 calls. `staking-postcondition` bounds how much STX a transaction may stake or re-parameterize (`stake`, `register-for-bond`, `stake-update`); `pox-postcondition` gates non-locking PoX state changes (`unstake`, `announce-l1-early-exit`, bond-registration updates).
+
+```ts
+const txid = await client.callContract({
+  contractAddress: "SP000000000000000000002Q6VF78",
+  contractName: "pox-5",
+  functionName: "register-for-bond",
+  functionArgs: [/* … */],
+  postConditions: [
+    // this call may stake at most 500,000 STX on my behalf
+    {
+      type: "staking-postcondition",
+      address: "origin",
+      condition: "lte",
+      amount: 500_000_000_000n,
+    },
+    // and must not touch my other PoX state
+    {
+      type: "pox-postcondition",
+      address: "origin",
+      condition: "will-not-perform",
+    },
+  ],
+});
+```
+
+<Callout type="note" title="Activates at Epoch 4.0">
+
+The wire format ships today in `@secondlayer/stacks@2.10.0` — encoding and decoding are byte-identical to the reference implementation — but the network only accepts these post-conditions once the SIP-045 hard fork activates. Ship your integration now; it works the day pox-5 goes live.
+
+</Callout>
+
+Decoding is strict: deserializing a transaction with an unknown post-condition type throws instead of silently misreading the bytes after it. Your indexer sees an error, never corrupt data.
+
+## Also in the box
+
+- **Typed contracts** — `getContract()` binds an ABI to a client for typed reads/writes; generate ABIs with [`sl contracts generate`](/docs/cli).
+- **Clarity values** — `Cl.*` constructors and decoding via `@secondlayer/stacks/clarity`.
+- **Bitcoin SPV** — merkle proofs and Bitcoin payment verification, see [Bitcoin SPV](/docs/bitcoin-spv).
+- **Accounts** — `privateKeyToAccount`, `mnemonicToAccount`, WalletConnect providers via `@secondlayer/stacks/accounts` and `@secondlayer/stacks/connect`.
+- **Multi-sig** — `createMultiSigClient` for m-of-n signing flows.
+
+export const metadata = {
+	title: "Stacks SDK — Secondlayer Docs",
+	description:
+		"Build, sign, and broadcast Stacks transactions with typed Clarity values and SIP-045-ready post-conditions.",
+};

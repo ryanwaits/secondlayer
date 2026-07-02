@@ -37,6 +37,7 @@ export const DOCS_NAV: DocsNavGroup[] = [
 			{ title: "sBTC settlement", href: "/docs/sbtc-settlement" },
 			{ title: "Contract discovery", href: "/docs/contracts" },
 			{ title: "SDK", href: "/docs/sdk" },
+			{ title: "Stacks SDK", href: "/docs/stacks" },
 			{ title: "CLI", href: "/docs/cli" },
 			{ title: "MCP", href: "/docs/mcp" },
 			{ title: "x402 (experimental)", href: "/docs/x402" },

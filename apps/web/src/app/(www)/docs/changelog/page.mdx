@@ -2,6 +2,29 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## SDK — July 2026
+
+### SIP-045 staking post-conditions, ready before the fork
+
+`@secondlayer/stacks@2.10.0` speaks the Epoch 4.0 wire format ahead of the
+Bitcoin Staking hard fork (SIP-045, targeted ~July 29). The transaction codec
+decodes and encodes the two new post-condition types — `0x03` Staking and
+`0x04` PoX — byte-identical to the reference implementation, so your decoders
+don't break the day pox-5 transactions hit the chain.
+
+- Protect staking calls with `staking-postcondition` (principal + amount bound,
+  evaluated on `stake`, `register-for-bond`, `stake-update`) and
+  `pox-postcondition` (`will-not-perform` / `may-perform` / `will-perform`,
+  evaluated on `unstake`, `announce-l1-early-exit`, and other non-locking PoX
+  calls).
+- The deserializer now fails loud on unknown post-condition types instead of
+  silently misreading everything after them — malformed or future-format
+  transactions surface as errors, not corrupt data.
+- `ClarityVersion.Clarity6` ships for Epoch 4.0 contract deploys (SIP-044).
+
+Type names mirror stacks.js, so post-conditions written for either SDK are
+portable. See the [Stacks SDK docs](/docs/stacks#post-conditions).
+
 ## Index — June 2026
 
 ### Build your app index with `consume()`
