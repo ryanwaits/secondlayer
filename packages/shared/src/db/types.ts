@@ -266,6 +266,8 @@ export interface AccountsTable {
 	avatar_url: string | null;
 	slug: string | null;
 	stripe_customer_id: string | null;
+	/** Opt-out toggle for the subgraph reindex-completion email. Defaults true. */
+	notify_reindex_complete: Generated<boolean>;
 	created_at: Generated<Date>;
 }
 
