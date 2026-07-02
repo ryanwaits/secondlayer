@@ -1,4 +1,11 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	describe,
+	expect,
+	test,
+} from "bun:test";
 import { resolve } from "node:path";
 import { getDb, getRawClient } from "@secondlayer/shared/db";
 import { createSubgraphOperation } from "@secondlayer/shared/db/queries/subgraph-operations";
@@ -267,6 +274,117 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 	test("GET /subgraphs/:subgraphName returns 404 for unknown subgraph", async () => {
 		const res = await app.request("/subgraphs/nonexistent");
 		expect(res.status).toBe(404);
+	});
+
+	// ── Active-op ETA/progress on the authed detail endpoint ────────────────
+	//
+	// Regression: this handler previously built `sync` without fetching the
+	// active operation at all, so estimatedEvents/processedEvents/etaSeconds/
+	// queue never appeared on the endpoint the CLI + dashboard poll — every
+	// ETA surface was silently dead while the data sat in subgraph_operations.
+
+	describe("active-op sync fields", () => {
+		async function subgraphId(): Promise<string> {
+			const row = await getDb()
+				.selectFrom("subgraphs")
+				.select("id")
+				.where("name", "=", SUBGRAPH_NAME)
+				.executeTakeFirstOrThrow();
+			return row.id;
+		}
+
+		afterEach(async () => {
+			await getDb()
+				.deleteFrom("subgraph_operations")
+				.where("subgraph_name", "=", SUBGRAPH_NAME)
+				.execute();
+		});
+
+		test("running op surfaces estimatedEvents/processedEvents/etaSeconds", async () => {
+			const db = getDb();
+			const id = await subgraphId();
+			const op = await createSubgraphOperation(db, {
+				subgraphId: id,
+				subgraphName: SUBGRAPH_NAME,
+				kind: "reindex",
+				fromBlock: 0,
+				toBlock: 1000,
+				weight: "light",
+				estimatedEvents: 1000,
+			});
+			await db
+				.updateTable("subgraph_operations")
+				.set({
+					status: "running",
+					started_at: new Date(Date.now() - 60_000),
+					processed_events: 100,
+				})
+				.where("id", "=", op.id)
+				.execute();
+
+			const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}`);
+			expect(res.status).toBe(200);
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+			const body = (await res.json()) as any;
+			expect(body.sync.estimatedEvents).toBe(1000);
+			expect(body.sync.processedEvents).toBe(100);
+			expect(body.sync.etaSeconds).toBeNumber();
+			expect(body.sync.etaSeconds).toBeGreaterThan(0);
+		});
+
+		test("queued op surfaces queue position", async () => {
+			const db = getDb();
+			const id = await subgraphId();
+			await createSubgraphOperation(db, {
+				subgraphId: id,
+				subgraphName: SUBGRAPH_NAME,
+				kind: "reindex",
+				fromBlock: 0,
+				toBlock: 1000,
+				weight: "light",
+				estimatedEvents: 500,
+			});
+
+			const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}`);
+			expect(res.status).toBe(200);
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+			const body = (await res.json()) as any;
+			expect(body.sync.queue).toBeDefined();
+			expect(body.sync.queue.estimatedEvents).toBe(500);
+		});
+
+		test("running backfill op reads as history_filling integrity", async () => {
+			const db = getDb();
+			const id = await subgraphId();
+			const op = await createSubgraphOperation(db, {
+				subgraphId: id,
+				subgraphName: SUBGRAPH_NAME,
+				kind: "backfill",
+				fromBlock: 0,
+				toBlock: 1000,
+			});
+			await db
+				.updateTable("subgraph_operations")
+				.set({ status: "running", started_at: new Date() })
+				.where("id", "=", op.id)
+				.execute();
+
+			const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}`);
+			expect(res.status).toBe(200);
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+			const body = (await res.json()) as any;
+			expect(body.sync.integrity).toBe("history_filling");
+		});
+
+		test("no active op: no queue/estimate/eta fields", async () => {
+			const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}`);
+			expect(res.status).toBe(200);
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+			const body = (await res.json()) as any;
+			expect(body.sync.queue).toBeUndefined();
+			expect(body.sync.estimatedEvents).toBeUndefined();
+			expect(body.sync.etaSeconds).toBeUndefined();
+		});
 	});
 
 	// ── GET /subgraphs/:subgraphName/:tableName ─────────────────────────────

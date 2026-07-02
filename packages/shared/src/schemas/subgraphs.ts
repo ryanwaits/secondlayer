@@ -75,6 +75,10 @@ export interface DeploySubgraphResponse {
 	start_block_clamped?: boolean;
 	operationId?: string;
 	reindexStarted?: boolean;
+	/** Bounded candidate-event denominator for the reindex just started, when the
+	 *  op was classifiable as sparse/light. Absent for heavy ops (no upfront estimate
+	 *  possible) — check `sl subgraphs status` after ~30s for a rate-based ETA instead. */
+	estimatedEvents?: number;
 	/** Non-blocking deploy lints (e.g. handler reads a print field never observed on-chain). */
 	warnings?: string[];
 	diff?: {

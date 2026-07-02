@@ -206,6 +206,13 @@ export function buildSyncInfo(
 			etaSeconds = Math.round(
 				Math.max(0, estimatedEvents - processedEvents) / rate,
 			);
+		} else if (processedBlocks > 0 && elapsedMs >= 30_000) {
+			// No event-count estimate (heavy op, or the light-classification probe
+			// didn't fire) — fall back to the observed block rate. Less precise
+			// than the event denominator (density varies across a range), but far
+			// better than no ETA at all.
+			const blockRate = processedBlocks / (elapsedMs / 1000);
+			etaSeconds = Math.round(blocksRemaining / blockRate);
 		} else {
 			etaSeconds = null;
 		}
@@ -716,6 +723,7 @@ export async function runSubgraphDeploy(
 	// job is destructive. A BYO backfill needs a concrete range, so it only runs
 	// once there's a chain tip; otherwise forward catch-up populates as blocks land.
 	let operationId: string | undefined;
+	let reindexEstimatedEvents: number | undefined;
 	const needsPopulation =
 		result.action === "created" || result.action === "reindexed";
 	const startByoBackfill = byoUrl && needsPopulation && chainTip > 0;
@@ -763,6 +771,7 @@ export async function runSubgraphDeploy(
 				estimatedEvents: historyWeight.estimatedEvents,
 			});
 			operationId = op.id;
+			reindexEstimatedEvents = historyWeight.estimatedEvents ?? undefined;
 			tipFirstHistory = {
 				from: deployStartBlock ?? 1,
 				to: tipFirstAnchor,
@@ -798,6 +807,7 @@ export async function runSubgraphDeploy(
 				estimatedEvents: populationWeight.estimatedEvents,
 			});
 			operationId = operation.id;
+			reindexEstimatedEvents = populationWeight.estimatedEvents ?? undefined;
 			await updateSubgraphStatus(db, name, "reindexing");
 		} catch (err) {
 			if (isActiveSubgraphOperationConflict(err)) {
@@ -832,7 +842,13 @@ export async function runSubgraphDeploy(
 				: {}),
 			...(result.diff ? { diff: result.diff } : {}),
 			...(result.action === "created" || result.action === "reindexed"
-				? { reindexStarted: true, operationId }
+				? {
+						reindexStarted: true,
+						operationId,
+						...(reindexEstimatedEvents != null
+							? { estimatedEvents: reindexEstimatedEvents }
+							: {}),
+					}
 				: {}),
 		},
 		status,
@@ -1352,6 +1368,62 @@ app.get("/", async (c) => {
 
 // ── Subgraph metadata + docs ────────────────────────────────────────────
 
+/**
+ * The subgraph's active (queued/running) operation, mapped to the `opInfo`
+ * shape `buildSyncInfo` consumes, plus the op's kind (drives the
+ * `history_filling` integrity state). ONE shared implementation on purpose:
+ * this logic was previously inlined only in `buildSubgraphDetailFromRow`, so
+ * the authed `GET /:subgraphName` route (the one the CLI + dashboard hit)
+ * never fetched ops at all — every ETA/queue/progress field silently vanished
+ * from the surfaces customers actually watch during a reindex.
+ */
+export async function resolveActiveOpInfo(
+	db: ReturnType<typeof getDb>,
+	subgraphId: string,
+): Promise<{
+	opInfo?: {
+		status: "queued" | "running";
+		estimatedEvents: number | null;
+		processedEvents: number | null;
+		startedAt: Date | null;
+		queuePosition: number | null;
+		medianDurationSeconds?: number | null;
+	};
+	activeOpKind?: string;
+}> {
+	const recentOps = await listSubgraphOperations(db, subgraphId);
+	const activeOp = recentOps.find(
+		(o) => o.status === "queued" || o.status === "running",
+	);
+	if (!activeOp) return {};
+	return {
+		opInfo: {
+			status: activeOp.status as "queued" | "running",
+			estimatedEvents:
+				activeOp.estimated_events == null
+					? null
+					: Number(activeOp.estimated_events),
+			processedEvents:
+				activeOp.processed_events == null
+					? null
+					: Number(activeOp.processed_events),
+			startedAt: activeOp.started_at,
+			queuePosition:
+				activeOp.status === "queued"
+					? await getOperationQueuePosition(db, activeOp.id)
+					: null,
+			medianDurationSeconds:
+				activeOp.status === "queued"
+					? await getRecentOperationMedianDuration(
+							db,
+							(activeOp.weight as "light" | "heavy") ?? "heavy",
+						)
+					: null,
+		},
+		activeOpKind: activeOp.kind,
+	};
+}
+
 async function buildSubgraphDetailPayload(
 	subgraphName: string,
 	accountId: string | undefined,
@@ -1439,35 +1511,7 @@ export async function buildSubgraphDetailFromRow(
 	const errorRate = totalProcessed > 0 ? totalErrors / totalProcessed : 0;
 	const totalMissingBlocks = gapResult.gaps.reduce((sum, g) => sum + g.size, 0);
 	const hasGaps = gapResult.total > 0;
-	const recentOps = await listSubgraphOperations(db, subgraph.id);
-	const activeOp = recentOps.find(
-		(o) => o.status === "queued" || o.status === "running",
-	);
-	const opInfo = activeOp
-		? {
-				status: activeOp.status as "queued" | "running",
-				estimatedEvents:
-					activeOp.estimated_events == null
-						? null
-						: Number(activeOp.estimated_events),
-				processedEvents:
-					activeOp.processed_events == null
-						? null
-						: Number(activeOp.processed_events),
-				startedAt: activeOp.started_at,
-				queuePosition:
-					activeOp.status === "queued"
-						? await getOperationQueuePosition(db, activeOp.id)
-						: null,
-				medianDurationSeconds:
-					activeOp.status === "queued"
-						? await getRecentOperationMedianDuration(
-								db,
-								(activeOp.weight as "light" | "heavy") ?? "heavy",
-							)
-						: null,
-			}
-		: undefined;
+	const { opInfo, activeOpKind } = await resolveActiveOpInfo(db, subgraph.id);
 	const sync = buildSyncInfo(
 		live,
 		chainTip,
@@ -1483,7 +1527,7 @@ export async function buildSubgraphDetailFromRow(
 		},
 		// An active history fill ALWAYS reads as history_filling — a clean
 		// tip-first fill records no gap rows, but the history is still absent.
-		activeOp?.kind === "backfill"
+		activeOpKind === "backfill"
 			? "history_filling"
 			: hasGaps
 				? "gaps_detected"
@@ -1595,40 +1639,45 @@ app.get("/:subgraphName", async (c) => {
 
 	const schemaEntries = Object.entries(subgraphSchema);
 
-	// Fetch live stats, COUNT queries, chain tip, and gaps in parallel
+	// Fetch live stats, COUNT queries, chain tip, gaps, and the active op
+	// (ETA/progress source) in parallel
 	const db = getDb();
-	const [countResults, liveRow, chainTip, gapResult] = await Promise.all([
-		Promise.allSettled(
-			schemaEntries.map(([tableName]) =>
-				query(
-					subgraph,
-					`SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`,
-				).then((r) => Number.parseInt(String(r[0]?.count ?? 0), 10)),
+	const [countResults, liveRow, chainTip, gapResult, activeOpResult] =
+		await Promise.all([
+			Promise.allSettled(
+				schemaEntries.map(([tableName]) =>
+					query(
+						subgraph,
+						`SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`,
+					).then((r) => Number.parseInt(String(r[0]?.count ?? 0), 10)),
+				),
 			),
-		),
-		db
-			.selectFrom("subgraphs")
-			.select([
-				"start_block",
-				"last_processed_block",
-				"total_processed",
-				"total_errors",
-				"status",
-				"last_error",
-				"last_error_at",
-				"updated_at",
-				"reindex_from_block",
-				"reindex_to_block",
-			])
-			.where("id", "=", subgraph.id)
-			.executeTakeFirst()
-			.catch(() => null),
-		getChainTip(),
-		findSubgraphGaps(db, subgraphName, {
-			limit: 10,
-			unresolvedOnly: true,
-		}).catch(() => ({ gaps: [], total: 0 })),
-	]);
+			db
+				.selectFrom("subgraphs")
+				.select([
+					"start_block",
+					"last_processed_block",
+					"total_processed",
+					"total_errors",
+					"status",
+					"last_error",
+					"last_error_at",
+					"updated_at",
+					"reindex_from_block",
+					"reindex_to_block",
+				])
+				.where("id", "=", subgraph.id)
+				.executeTakeFirst()
+				.catch(() => null),
+			getChainTip(),
+			findSubgraphGaps(db, subgraphName, {
+				limit: 10,
+				unresolvedOnly: true,
+			}).catch(() => ({ gaps: [], total: 0 })),
+			resolveActiveOpInfo(db, subgraph.id).catch(
+				() => ({}) as Awaited<ReturnType<typeof resolveActiveOpInfo>>,
+			),
+		]);
 
 	for (let i = 0; i < schemaEntries.length; i++) {
 		const [tableName, tableDef] = schemaEntries[i];
@@ -1683,7 +1732,14 @@ app.get("/:subgraphName", async (c) => {
 				reason: g.reason,
 			})),
 		},
-		hasGaps ? "gaps_detected" : "complete",
+		// An active history fill ALWAYS reads as history_filling — a clean
+		// tip-first fill records no gap rows, but the history is still absent.
+		activeOpResult.activeOpKind === "backfill"
+			? "history_filling"
+			: hasGaps
+				? "gaps_detected"
+				: "complete",
+		activeOpResult.opInfo,
 	);
 
 	const def = subgraph.definition as Record<string, unknown> | null;
