@@ -236,6 +236,7 @@ export interface AccountProfile {
 	bio: string | null;
 	slug: string | null;
 	avatarUrl: string | null;
+	notifyReindexComplete: boolean;
 	createdAt: string;
 }
 
@@ -247,6 +248,7 @@ export async function updateAccountProfile(data: {
 	display_name?: string;
 	bio?: string;
 	slug?: string;
+	notify_reindex_complete?: boolean;
 }): Promise<{
 	id: string;
 	email: string;
@@ -254,6 +256,7 @@ export async function updateAccountProfile(data: {
 	bio: string | null;
 	slug: string | null;
 	avatarUrl: string | null;
+	notifyReindexComplete: boolean;
 }> {
 	return httpPlatform("/api/accounts/me", { method: "PATCH", body: data });
 }
