@@ -27,6 +27,7 @@ import {
 	canSparseScan,
 	resolveBlockSource,
 } from "./block-source.ts";
+import { notifyReindexComplete } from "./reindex-notify.ts";
 import { StatsAccumulator } from "./stats.ts";
 
 const LOG_INTERVAL = 1000;
@@ -629,6 +630,12 @@ export async function reindexSubgraph(
 		await clearReindexMetadata(targetDb, subgraphName);
 		logger.info("Reindex complete", {
 			subgraph: subgraphName,
+			blocks: result.blocksProcessed,
+			events: result.totalEventsProcessed,
+			errors: result.totalErrors,
+		});
+		// Fire-and-forget — never delay or fail the reindex on a notify hiccup.
+		void notifyReindexComplete(targetDb, subgraphName, {
 			blocks: result.blocksProcessed,
 			events: result.totalEventsProcessed,
 			errors: result.totalErrors,
