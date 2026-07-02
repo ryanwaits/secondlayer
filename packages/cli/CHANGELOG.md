@@ -1,5 +1,18 @@
 # @secondlayer/cli
 
+## 8.14.0
+
+### Minor Changes
+
+- `sl subgraphs status` now shows an ETA on the reindexing line (`reindexing — 27.6% (2.2M / 8.1M blocks) · est 41m`), and `sl subgraphs deploy` prints the event estimate up front when a reindex starts. Add `sl account update --notify-reindex-complete` / `--no-notify-reindex-complete` to control the new reindex-completion email.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @secondlayer/shared@6.40.0
+  - @secondlayer/subgraphs@3.19.0
+
 ## 8.13.0
 
 ### Minor Changes

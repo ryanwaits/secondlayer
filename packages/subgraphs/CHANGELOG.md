@@ -1,5 +1,16 @@
 # @secondlayer/subgraphs
 
+## 3.19.0
+
+### Minor Changes
+
+- Email the deploying account when a subgraph reindex/backfill finishes (blocks/events/errors summary), gated on the account's `notify_reindex_complete` setting (defaults on). Fire-and-forget — a failed send only logs a warning, never affects the reindex result.
+
+### Patch Changes
+
+- Updated dependencies
+  - @secondlayer/shared@6.40.0
+
 ## 3.18.0
 
 ### Minor Changes

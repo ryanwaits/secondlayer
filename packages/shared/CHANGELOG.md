@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 6.40.0
+
+### Minor Changes
+
+- Add `notify_reindex_complete` account column (opt-out toggle for the subgraph reindex-completion email, defaults `true`) and `estimatedEvents`/`processedEvents`/`etaSeconds` to `SubgraphSyncInfo`, plus `estimatedEvents` to `DeploySubgraphResponse` — the fields that power the CLI/dashboard reindex ETA.
+
 ## 6.39.0
 
 ### Minor Changes
