@@ -15,6 +15,8 @@ export type {
 	StxPostConditionWire,
 	FtPostConditionWire,
 	NftPostConditionWire,
+	StakingPostConditionWire,
+	PoxPostConditionWire,
 	PostConditionPrincipalWire,
 	AssetInfoWire,
 	TransactionAuthField,

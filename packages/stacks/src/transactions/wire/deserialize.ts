@@ -27,6 +27,7 @@ import {
 	PostConditionPrincipalId,
 	type PostConditionPrincipalWire,
 	type PostConditionWire,
+	type PoxConditionCode,
 	RECOVERABLE_ECDSA_SIG_LENGTH_BYTES,
 	type SpendingCondition,
 	type StacksTransaction,
@@ -171,6 +172,29 @@ function readPostConditions(r: BytesReader): PostConditionWire[] {
 					conditionCode: r.readUInt8(),
 				});
 				break;
+			case AssetType.Staking:
+				// SIP-045: same body as STX (fungible condition code + amount)
+				pcs.push({
+					type: "staking",
+					principal,
+					conditionCode: r.readUInt8(),
+					amount: r.readBigUInt64BE(),
+				});
+				break;
+			case AssetType.Pox:
+				// SIP-045: PoX condition code only, no amount
+				pcs.push({
+					type: "pox",
+					principal,
+					conditionCode: r.readUInt8() as PoxConditionCode,
+				});
+				break;
+			default:
+				// An unknown asset type has an unknown body length; continuing would
+				// silently misalign every field after this point.
+				throw new Error(
+					`Unknown post-condition asset type: 0x${assetType.toString(16).padStart(2, "0")} (post-condition ${i + 1}/${count})`,
+				);
 		}
 	}
 	return pcs;

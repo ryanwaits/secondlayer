@@ -20,6 +20,7 @@ import {
 	PostConditionModeWire,
 	type PostConditionPrincipalWire,
 	type PostConditionWire,
+	PoxConditionCode,
 	type StacksTransaction,
 } from "./types.ts";
 
@@ -139,8 +140,28 @@ function convertPostCondition(pc: PostCondition): PostConditionWire {
 				assetId: pc.assetId,
 			};
 		}
+		case "staking-postcondition":
+			return {
+				type: "staking",
+				principal: resolvePrincipal(pc.address),
+				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
+				conditionCode: FUNGIBLE_CODE_MAP[pc.condition]!,
+				amount: intToBigInt(pc.amount),
+			};
+		case "pox-postcondition":
+			return {
+				type: "pox",
+				principal: resolvePrincipal(pc.address),
+				conditionCode: POX_CODE_MAP[pc.condition],
+			};
 	}
 }
+
+const POX_CODE_MAP = {
+	"will-not-perform": PoxConditionCode.WillNotPerform,
+	"may-perform": PoxConditionCode.MayPerform,
+	"will-perform": PoxConditionCode.WillPerform,
+} as const;
 
 import type { Authorization } from "./types.ts";
 

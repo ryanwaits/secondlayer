@@ -8,6 +8,7 @@ export {
 	PubKeyEncoding,
 	FungibleConditionCode,
 	NonFungibleConditionCode,
+	PoxConditionCode,
 	PostConditionPrincipalId,
 	AssetType,
 	AuthFieldType,
@@ -37,6 +38,11 @@ export {
 	type TenureChangePayload,
 	type NakamotoCoinbasePayload,
 	type PostConditionWire,
+	type StxPostConditionWire,
+	type FtPostConditionWire,
+	type NftPostConditionWire,
+	type StakingPostConditionWire,
+	type PoxPostConditionWire,
 	type TransactionAuthField,
 } from "./types.ts";
 

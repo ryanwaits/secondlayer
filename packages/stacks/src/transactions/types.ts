@@ -28,6 +28,7 @@ export const ClarityVersion = {
 	Clarity3: 3,
 	Clarity4: 4,
 	Clarity5: 5,
+	Clarity6: 6, // SIP-044, Epoch 4.0
 } as const;
 export type ClarityVersion =
 	(typeof ClarityVersion)[keyof typeof ClarityVersion];
@@ -83,6 +84,15 @@ export const NonFungibleConditionCode = {
 	DoesNotSend: 0x11,
 } as const;
 
+// PoX condition codes (wire format, SIP-045)
+export const PoxConditionCode = {
+	WillNotPerform: 0x30,
+	MayPerform: 0x31,
+	WillPerform: 0x32,
+} as const;
+export type PoxConditionCode =
+	(typeof PoxConditionCode)[keyof typeof PoxConditionCode];
+
 // Post condition principal types
 export const PostConditionPrincipalId = {
 	Origin: 0x01,
@@ -95,6 +105,8 @@ export const AssetType = {
 	STX: 0x00,
 	Fungible: 0x01,
 	NonFungible: 0x02,
+	Staking: 0x03, // SIP-045
+	Pox: 0x04, // SIP-045
 } as const;
 
 // Auth field types
@@ -265,7 +277,9 @@ export type StacksTransaction = {
 export type PostConditionWire =
 	| StxPostConditionWire
 	| FtPostConditionWire
-	| NftPostConditionWire;
+	| NftPostConditionWire
+	| StakingPostConditionWire
+	| PoxPostConditionWire;
 
 export type StxPostConditionWire = {
 	type: "stx";
@@ -288,6 +302,21 @@ export type NftPostConditionWire = {
 	asset: AssetInfoWire;
 	conditionCode: number;
 	assetId: ClarityValue;
+};
+
+// SIP-045: gates stake/register-for-bond/stake-update; same shape as STX
+export type StakingPostConditionWire = {
+	type: "staking";
+	principal: PostConditionPrincipalWire;
+	conditionCode: number;
+	amount: bigint;
+};
+
+// SIP-045: gates non-locking PoX state changes (unstake, announce-l1-early-exit, …); no amount
+export type PoxPostConditionWire = {
+	type: "pox";
+	principal: PostConditionPrincipalWire;
+	conditionCode: PoxConditionCode;
 };
 
 export type PostConditionPrincipalWire =

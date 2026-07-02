@@ -157,6 +157,19 @@ function serializePostCondition(pc: PostConditionWire): Uint8Array {
 			parts.push(serializeCVBytes(pc.assetId));
 			parts.push(writeUInt8(pc.conditionCode));
 			break;
+		case "staking":
+			// SIP-045: same body as STX (fungible condition code + amount)
+			parts.push(writeUInt8(AssetType.Staking));
+			parts.push(serializePrincipal(pc.principal));
+			parts.push(writeUInt8(pc.conditionCode));
+			parts.push(intToBytes(pc.amount, 8));
+			break;
+		case "pox":
+			// SIP-045: PoX condition code only, no amount
+			parts.push(writeUInt8(AssetType.Pox));
+			parts.push(serializePrincipal(pc.principal));
+			parts.push(writeUInt8(pc.conditionCode));
+			break;
 	}
 
 	return concatBytes(...parts);
