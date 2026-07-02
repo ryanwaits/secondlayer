@@ -1,6 +1,5 @@
 import { BreadcrumbDropdown } from "@/components/console/breadcrumb-dropdown";
 import { EmptyState } from "@/components/console/empty-state";
-import { LivePill } from "@/components/console/live-pill";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import {
 	ApiError,
@@ -16,6 +15,7 @@ import type {
 } from "@/lib/types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { SubgraphLiveStatus } from "./live-status";
 import { SubgraphReindexForm } from "./reindex-form";
 import { SubgraphDangerZone } from "./subgraph-danger";
 
@@ -90,7 +90,6 @@ export default async function SubgraphDetailPage({
 	).length;
 
 	const tableEntries = Object.entries(subgraph.tables);
-	const totalRows = tableEntries.reduce((sum, [, t]) => sum + t.rowCount, 0);
 	const displayStatus = getDisplayStatus(
 		{
 			...subgraph,
@@ -102,21 +101,6 @@ export default async function SubgraphDetailPage({
 		subgraph.lastProcessedBlock,
 	);
 
-	const { totalProcessed, totalErrors } = subgraph.health;
-	const successRate =
-		totalProcessed > 0
-			? ((totalProcessed - totalErrors) / totalProcessed) * 100
-			: null;
-
-	const { blocksRemaining } = subgraph.sync;
-	const chainTip = subgraph.sync.chainTip;
-	const syncProgress =
-		chainTip && subgraph.lastProcessedBlock
-			? Math.min(
-					Math.round((subgraph.lastProcessedBlock / chainTip) * 100),
-					100,
-				)
-			: 0;
 	const isError = displayStatus === "error" || displayStatus === "stalled";
 	const inProgress =
 		displayStatus === "syncing" || displayStatus === "reindexing";
@@ -128,8 +112,6 @@ export default async function SubgraphDetailPage({
 			: displayStatus === "syncing"
 				? "Syncing"
 				: "Live";
-	const pillState = isError ? "error" : inProgress ? "reindexing" : "live";
-	const pillLabel = inProgress ? `${badgeLbl} · ${syncProgress}%` : badgeLbl;
 
 	const dropdownItems = allSubgraphs.map((sg) => ({
 		name: sg.name,
@@ -339,71 +321,11 @@ export default async function SubgraphDetailPage({
 				</div>
 			</div>
 
-			<LivePill state={pillState} label={pillLabel}>
-				{pillState === "error" ? (
-					<>
-						<div className="lp-h">
-							<span className="lp-dot red" />
-							<b>{name}</b> · Error
-						</div>
-						<div className="lp-err">
-							{subgraph.health.lastError || "Indexing error"}
-						</div>
-						{subgraph.lastProcessedBlock && (
-							<div className="lp-err-meta">
-								block {subgraph.lastProcessedBlock.toLocaleString()}
-							</div>
-						)}
-					</>
-				) : pillState === "reindexing" ? (
-					<>
-						<div className="lp-h">
-							<span className="lp-dot blue" />
-							<b>{name}</b> · {badgeLbl}
-						</div>
-						<div className="lp-bar">
-							<i style={{ width: `${syncProgress}%` }} />
-						</div>
-						<div className="lp-sub">
-							{subgraph.lastProcessedBlock
-								? subgraph.lastProcessedBlock.toLocaleString()
-								: "—"}{" "}
-							/ {chainTip ? chainTip.toLocaleString() : "—"}
-							<br />
-							{blocksRemaining.toLocaleString()} blocks behind
-						</div>
-					</>
-				) : (
-					<>
-						<div className="lp-h">
-							<span className="lp-dot green" />
-							<b>{name}</b> · Live
-						</div>
-						<div className="lp-stat">
-							<span className="k">Success rate</span>
-							<span className="v ok">
-								{successRate !== null ? `${successRate.toFixed(1)}%` : "—"}
-							</span>
-						</div>
-						<div className="lp-stat">
-							<span className="k">Rows indexed</span>
-							<span className="v">{totalRows.toLocaleString()}</span>
-						</div>
-						<div className="lp-stat">
-							<span className="k">Last block</span>
-							<span className="v">
-								{subgraph.lastProcessedBlock
-									? subgraph.lastProcessedBlock.toLocaleString()
-									: "—"}
-							</span>
-						</div>
-						<div className="lp-stat">
-							<span className="k">Subscriptions</span>
-							<span className="v">{subsCount}</span>
-						</div>
-					</>
-				)}
-			</LivePill>
+			<SubgraphLiveStatus
+				name={name}
+				initial={subgraph}
+				subsCount={subsCount}
+			/>
 		</>
 	);
 }

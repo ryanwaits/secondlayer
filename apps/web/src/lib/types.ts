@@ -190,6 +190,9 @@ export interface SubgraphDetail {
 		processedBlocks?: number;
 		totalBlocks?: number;
 		progress: number;
+		estimatedEvents?: number;
+		processedEvents?: number;
+		etaSeconds?: number | null;
 	};
 	tables: Record<
 		string,
