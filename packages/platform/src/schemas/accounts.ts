@@ -11,6 +11,8 @@ export interface UpdateProfileRequest {
 	display_name?: string;
 	bio?: string;
 	slug?: string;
+	/** Opt-out toggle for the subgraph reindex-completion email. */
+	notify_reindex_complete?: boolean;
 }
 
 export const UpdateProfileRequestSchema: z.ZodType<UpdateProfileRequest> =
@@ -23,4 +25,5 @@ export const UpdateProfileRequestSchema: z.ZodType<UpdateProfileRequest> =
 			.min(3)
 			.max(30)
 			.optional(),
+		notify_reindex_complete: z.boolean().optional(),
 	});

@@ -35,12 +35,15 @@ export async function updateAccountProfile(
 		display_name?: string;
 		bio?: string;
 		slug?: string;
+		notify_reindex_complete?: boolean;
 	},
 ): Promise<Account> {
 	const set: Record<string, unknown> = {};
 	if (data.display_name !== undefined) set.display_name = data.display_name;
 	if (data.bio !== undefined) set.bio = data.bio;
 	if (data.slug !== undefined) set.slug = data.slug;
+	if (data.notify_reindex_complete !== undefined)
+		set.notify_reindex_complete = data.notify_reindex_complete;
 
 	return db
 		.updateTable("accounts")

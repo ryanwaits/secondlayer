@@ -42,6 +42,7 @@ app.get("/me", async (c) => {
 		bio: account.bio,
 		slug: account.slug,
 		avatarUrl: account.avatar_url,
+		notifyReindexComplete: account.notify_reindex_complete,
 		createdAt: account.created_at.toISOString(),
 	});
 });
@@ -194,6 +195,7 @@ app.patch("/me", async (c) => {
 		bio: updated.bio,
 		slug: updated.slug,
 		avatarUrl: updated.avatar_url,
+		notifyReindexComplete: updated.notify_reindex_complete,
 	});
 });
 
