@@ -37,7 +37,7 @@
 		"konsole": "DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:5432/secondlayer} bun run tools/ops/konsole/src/index.ts",
 		"clean": "rm -rf packages/*/dist packages/*/node_modules tools/ops/*/dist tools/ops/*/node_modules node_modules",
 		"changeset": "changeset",
-		"version": "changeset version && bun run scripts/ci/check-changelogs.ts",
+		"version": "changeset version && bun run scripts/ci/check-changelogs.ts && bun run scripts/ci/check-site-changelog.ts",
 		"check:changelogs": "bun run scripts/ci/check-changelogs.ts",
 		"release": "bun run build && changeset publish"
 	},
