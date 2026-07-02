@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 2.10.0
+
+### Minor Changes
+
+- SIP-045 staking/pox post-condition wire support: decode/encode 0x03 Staking and 0x04 PoX post-conditions, fail loud on unknown PC asset types instead of misaligning the reader, add `ClarityVersion.Clarity6`, `PoxConditionCode`, and `staking-postcondition`/`pox-postcondition` builder types (stacks.js 7.5.0-compatible naming, byte-identical wire encoding).
+
 ## 2.9.1
 
 ### Patch Changes

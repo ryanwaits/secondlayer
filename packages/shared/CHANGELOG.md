@@ -1,5 +1,13 @@
 # @secondlayer/shared
 
+## 6.40.1
+
+### Patch Changes
+
+- Gate the reindex-notify accounts migration to the control plane only.
+- Updated dependencies
+  - @secondlayer/stacks@2.10.0
+
 ## 6.40.0
 
 ### Minor Changes
