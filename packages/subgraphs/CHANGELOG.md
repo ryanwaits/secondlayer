@@ -1,5 +1,12 @@
 # @secondlayer/subgraphs
 
+## 3.19.2
+
+### Patch Changes
+
+- 90386b2: fix(subgraphs): widen the webhook outbox lock window past the maximum delivery
+  timeout so a slow-but-alive receiver is not re-claimed mid-delivery
+
 ## 3.19.1
 
 ### Patch Changes

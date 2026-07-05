@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/subgraphs",
-	"version": "3.19.1",
+	"version": "3.19.2",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -45,7 +45,9 @@
 			"import": "./dist/src/runtime/emitter.js"
 		}
 	},
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",
