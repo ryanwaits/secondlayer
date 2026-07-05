@@ -41,8 +41,13 @@ const CIRCUIT_THRESHOLD = 20;
  * `LOCK_WINDOW_MS` into the future. Any crash between claim + settle
  * leaves the row re-claimable after this window expires — the SSOT for
  * double-dispatch prevention.
+ *
+ * Must exceed the maximum possible in-flight delivery time so a slow-but-alive
+ * receiver's row is never re-claimed mid-delivery (duplicate dispatch). The max
+ * subscription timeout is 300_000ms (see shared/schemas/subscriptions.ts:307).
  */
-const LOCK_WINDOW_MS = 60_000;
+export const MAX_SUBSCRIPTION_TIMEOUT_MS = 300_000;
+export const LOCK_WINDOW_MS = MAX_SUBSCRIPTION_TIMEOUT_MS + 60_000; // 6 min: max timeout + settle margin
 
 interface RunningState {
 	running: boolean;
