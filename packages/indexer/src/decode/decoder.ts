@@ -96,9 +96,20 @@ export async function consumeFtTransferDecodedEvents(opts?: {
 		signal: opts?.signal,
 		types: opts?.types ?? ["ft_transfer"],
 		onBatch: async (events, envelope) => {
-			const rows = events
-				.filter((event) => event.event_type === "ft_transfer")
-				.map((event) => decodeFtTransfer(event));
+			const rows = events.flatMap((event) => {
+				if (event.event_type !== "ft_transfer") return [];
+				try {
+					return [decodeFtTransfer(event)];
+				} catch (error) {
+					logger.warn("decoder.decode_skipped", {
+						decoder: decoderName,
+						cursor: event.cursor,
+						tx_id: event.tx_id,
+						error: String(error),
+					});
+					return [];
+				}
+			});
 			await writeDecodedEvents(rows, { db });
 			decoded += rows.length;
 
