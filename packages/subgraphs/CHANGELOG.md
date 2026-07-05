@@ -1,5 +1,12 @@
 # @secondlayer/subgraphs
 
+## 3.19.1
+
+### Patch Changes
+
+- 9f36120: fix(subgraphs): validate FK relation name as a SQL identifier, closing a
+  deploy-time DDL-injection gap
+
 ## 3.19.0
 
 ### Minor Changes
