@@ -47,7 +47,7 @@ const CIRCUIT_THRESHOLD = 20;
  * subscription timeout is 300_000ms (see shared/schemas/subscriptions.ts:307).
  */
 export const MAX_SUBSCRIPTION_TIMEOUT_MS = 300_000;
-export const LOCK_WINDOW_MS = MAX_SUBSCRIPTION_TIMEOUT_MS + 60_000; // 6 min: max timeout + settle margin
+export const LOCK_WINDOW_MS: number = MAX_SUBSCRIPTION_TIMEOUT_MS + 60_000; // 6 min: max timeout + settle margin
 
 interface RunningState {
 	running: boolean;
