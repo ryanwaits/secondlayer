@@ -3,6 +3,7 @@ import {
 	type ReconcilePayment,
 	depositCreditMicros,
 	reconcilePayment,
+	shouldDebitOnRevert,
 	sweepX402Reconcile,
 } from "./x402-reconcile.ts";
 
@@ -88,7 +89,7 @@ describe("reconcilePayment", () => {
 		let wrote = false;
 		const state = await reconcilePayment(payment({ createdAtMs: 1_000 }), {
 			isCanonical: async () => false,
-			updateState: async () => {
+			revertPayment: async () => {
 				wrote = true;
 			},
 			recordStrike: async () => {
@@ -103,11 +104,11 @@ describe("reconcilePayment", () => {
 
 	test("pending past grace + not canonical → reverted + strike", async () => {
 		const strikes: string[] = [];
-		const updates: [string, string][] = [];
+		const reverted: string[] = [];
 		const state = await reconcilePayment(payment({ createdAtMs: 0 }), {
 			isCanonical: async () => false,
-			updateState: async (txid, s) => {
-				updates.push([txid, s]);
+			revertPayment: async (p) => {
+				reverted.push(p.txid);
 			},
 			recordStrike: async (p) => {
 				strikes.push(p);
@@ -116,7 +117,7 @@ describe("reconcilePayment", () => {
 			graceMs: 5 * 60_000,
 		});
 		expect(state).toBe("reverted");
-		expect(updates).toEqual([["0xtx", "reverted"]]);
+		expect(reverted).toEqual(["0xtx"]);
 		expect(strikes).toEqual(["SP1"]);
 	});
 
@@ -124,7 +125,7 @@ describe("reconcilePayment", () => {
 		const strikes: string[] = [];
 		const state = await reconcilePayment(payment({ state: "confirmed" }), {
 			isCanonical: async () => false,
-			updateState: async () => {},
+			revertPayment: async () => {},
 			recordStrike: async (p) => {
 				strikes.push(p);
 			},
@@ -132,6 +133,75 @@ describe("reconcilePayment", () => {
 		});
 		expect(state).toBe("reverted");
 		expect(strikes).toEqual(["SP1"]);
+	});
+
+	// F-047 regression: a confirmed deposit that reorgs out MUST claw back the
+	// credit it received on confirmation, not just flip state.
+	test("confirmed deposit reorged out → revertPayment called with the credited row", async () => {
+		const reverted: ReconcilePayment[] = [];
+		const state = await reconcilePayment(
+			payment({
+				state: "confirmed",
+				kind: "deposit",
+				creditUsdMicros: "250000",
+			}),
+			{
+				isCanonical: async () => false,
+				revertPayment: async (p) => {
+					reverted.push(p);
+				},
+				recordStrike: async () => {},
+				now: () => 2_000,
+			},
+		);
+		expect(state).toBe("reverted");
+		expect(reverted).toHaveLength(1);
+		expect(reverted[0].kind).toBe("deposit");
+		expect(
+			depositCreditMicros(reverted[0].kind, reverted[0].creditUsdMicros),
+		).toBe(250_000n);
+	});
+});
+
+describe("shouldDebitOnRevert", () => {
+	test("confirmed deposit with a positive credit → debit", () => {
+		expect(
+			shouldDebitOnRevert(
+				payment({
+					state: "confirmed",
+					kind: "deposit",
+					creditUsdMicros: "250000",
+				}),
+			),
+		).toBe(true);
+	});
+
+	test("pending deposit (never credited) → no debit", () => {
+		expect(
+			shouldDebitOnRevert(
+				payment({
+					state: "pending",
+					kind: "deposit",
+					creditUsdMicros: "250000",
+				}),
+			),
+		).toBe(false);
+	});
+
+	test("confirmed per-call payment (no credit ever) → no debit", () => {
+		expect(
+			shouldDebitOnRevert(
+				payment({ state: "confirmed", kind: "payment", creditUsdMicros: null }),
+			),
+		).toBe(false);
+	});
+
+	test("confirmed deposit with zero credit → no debit", () => {
+		expect(
+			shouldDebitOnRevert(
+				payment({ state: "confirmed", kind: "deposit", creditUsdMicros: "0" }),
+			),
+		).toBe(false);
 	});
 });
 
@@ -144,7 +214,7 @@ describe("sweepX402Reconcile", () => {
 			],
 			isCanonical: async (txid) => txid === "0xok",
 			confirmPayment: async () => {},
-			updateState: async () => {},
+			revertPayment: async () => {},
 			recordStrike: async () => {},
 			now: () => 10 * 60_000,
 			graceMs: 5 * 60_000,

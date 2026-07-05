@@ -50,11 +50,9 @@ export type ReconcileDeps = {
 	/** Flip a pending row → `confirmed`, crediting deposit balances atomically
 	 *  (exactly-once, guarded on `state='pending'`). Used for the confirm path. */
 	confirmPayment?: (p: ReconcilePayment) => Promise<void>;
-	/** Flip a row → `reverted` (reorg / dropped). */
-	updateState?: (
-		txid: string,
-		state: "confirmed" | "reverted",
-	) => Promise<void>;
+	/** Flip a row → `reverted` (reorg / dropped), clawing back any credited
+	 *  deposit balance atomically (exactly-once, guarded on the prior state). */
+	revertPayment?: (p: ReconcilePayment) => Promise<void>;
 	recordStrike?: (principal: string) => Promise<void>;
 	now?: () => number;
 	graceMs?: number;
@@ -77,8 +75,8 @@ export function depositCreditMicros(
 /**
  * Re-check one payment. Canonical → `confirmed` (crediting deposits). Not
  * canonical and either already `confirmed` (reorged out) or past the grace
- * window (`pending` that never landed) → `reverted` (+ strike). Otherwise left
- * `pending` (still settling).
+ * window (`pending` that never landed) → `reverted` (+ strike, + clawback of
+ * any credited deposit balance). Otherwise left `pending` (still settling).
  */
 export async function reconcilePayment(
 	p: ReconcilePayment,
@@ -86,7 +84,7 @@ export async function reconcilePayment(
 ): Promise<ReconcileState> {
 	const isCanonical = deps.isCanonical ?? defaultIsCanonical;
 	const confirmPayment = deps.confirmPayment ?? defaultConfirmPayment;
-	const updateState = deps.updateState ?? defaultUpdateState;
+	const revertPayment = deps.revertPayment ?? defaultRevertPayment;
 	const recordStrike = deps.recordStrike ?? defaultRecordStrike;
 	const now = deps.now ?? (() => Date.now());
 	const graceMs = deps.graceMs ?? REVERT_GRACE_MS;
@@ -98,7 +96,7 @@ export async function reconcilePayment(
 
 	const matured = now() - p.createdAtMs > graceMs;
 	if (p.state === "confirmed" || matured) {
-		await updateState(p.txid, "reverted");
+		await revertPayment(p);
 		await recordStrike(p.payer);
 		logger.warn("x402 payment reverted", {
 			txid: p.txid,
@@ -108,6 +106,20 @@ export async function reconcilePayment(
 		return "reverted";
 	}
 	return "pending"; // still within grace — give it time to mine
+}
+
+/**
+ * True iff a revert of this payment must claw back a previously credited
+ * deposit balance: only a row that actually reached `confirmed` with a
+ * positive deposit credit was ever credited. A `pending` revert (never
+ * landed) or a `payment`-kind/zero-credit row credited nothing. Pure so the
+ * money-critical decision is unit-testable without a DB.
+ */
+export function shouldDebitOnRevert(p: ReconcilePayment): boolean {
+	return (
+		p.state === "confirmed" &&
+		depositCreditMicros(p.kind, p.creditUsdMicros) !== null
+	);
 }
 
 /** Canonical iff a transfer event for this txid exists in our index (decoded by
@@ -124,15 +136,50 @@ async function defaultIsCanonical(txid: string): Promise<boolean> {
 	return rows.length > 0;
 }
 
-async function defaultUpdateState(
-	txid: string,
-	state: "confirmed" | "reverted",
-): Promise<void> {
+/**
+ * Revert a payment, clawing back any credited deposit balance in the SAME
+ * transaction as the state flip so a crash can never revert-without-debiting.
+ * The flip is guarded on the row's prior state, so concurrent sweeps debit at
+ * most once: only the call that actually transitions the row
+ * (numUpdatedRows === 1) debits. Negative balances are allowed on purpose —
+ * if the payer already spent the credit, the debit takes them below zero
+ * (an honest ledger); clamping at zero would silently forgive spent-then-
+ * reverted credit.
+ */
+async function defaultRevertPayment(p: ReconcilePayment): Promise<void> {
+	if (!shouldDebitOnRevert(p)) {
+		await getDb()
+			.updateTable("x402_payments")
+			.set({ state: "reverted", updated_at: sql`now()` })
+			.where("txid", "=", p.txid)
+			.where("state", "in", ["pending", "confirmed"])
+			.execute();
+		return;
+	}
+
+	const micros = depositCreditMicros(p.kind, p.creditUsdMicros);
+	if (micros === null) return; // unreachable given shouldDebitOnRevert, but keeps TS narrow
+
 	await getDb()
-		.updateTable("x402_payments")
-		.set({ state, updated_at: sql`now()` })
-		.where("txid", "=", txid)
-		.execute();
+		.transaction()
+		.execute(async (trx) => {
+			const res = await trx
+				.updateTable("x402_payments")
+				.set({ state: "reverted", updated_at: sql`now()` })
+				.where("txid", "=", p.txid)
+				.where("state", "=", "confirmed")
+				.executeTakeFirst();
+			// Another sweep already reverted it → don't double-debit.
+			if (Number(res.numUpdatedRows ?? 0n) !== 1) return;
+			await trx
+				.updateTable("x402_balances")
+				.set({
+					balance_usd_micros: sql`x402_balances.balance_usd_micros - ${micros.toString()}`,
+					updated_at: new Date(),
+				})
+				.where("principal", "=", p.payer)
+				.execute();
+		});
 }
 
 /**
