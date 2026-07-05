@@ -22,6 +22,7 @@ These were all deployed from local files that were never committed (git-orphan g
 | `sbtc-flows` | ✅ `sbtc-flows.ts` | 5,143,314 | source declares `860000` |
 | `pox-stacking` | ✅ `pox-stacking.ts` | 5,143,314 | source declares none (genesis) |
 | `bns-names` | ✅ `bns-names.ts` | 5,143,314 | source declares none (genesis) |
+| `contract-deployments` | ✅ `contract-deployments.ts` | genesis (deployed 2026-07-03) | none |
 
 All three deploy `start_block`s were set by a `--start-block 5143314` override, not the
 source. Reconcile (align source ⇄ deployment) on each subgraph's next redeploy.
