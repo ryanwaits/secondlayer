@@ -3,6 +3,7 @@ import { mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { extractSubgraphDefinition } from "@secondlayer/bundler";
 import { getDb } from "@secondlayer/shared/db";
 import { pgSchemaNameFor } from "@secondlayer/shared/db/queries/subgraphs";
 import { ByoBreakingChangeError } from "@secondlayer/subgraphs";
@@ -160,6 +161,46 @@ describe("subgraph deploy helpers", () => {
 		expect(m1.v).toBe(1);
 		expect(m2.v).toBe(2);
 	});
+
+	// f059: the deploy route derives `def` from `handlerCode` via
+	// extractSubgraphDefinition + applyDeployStartBlockOverride WITHOUT ever
+	// import()-ing it. Prove that pipeline yields the expected definition and
+	// never executes a top-level side effect in the (bundled-shaped) source.
+	test("extracts the deploy definition from handlerCode without executing it", () => {
+		(globalThis as Record<string, unknown>).__f059_deploy_pwned = undefined;
+		const handlerCode = [
+			"function defineSubgraph(def) { return def; }",
+			"globalThis.__f059_deploy_pwned = true;",
+			"var x = defineSubgraph({",
+			'  name: "deploy-extract-demo",',
+			"  startBlock: 10,",
+			"  sources: {",
+			'    events: { type: "print_event", contractId: "SP123.demo", topic: "event" },',
+			"  },",
+			"  schema: {",
+			'    events: { columns: { sender: { type: "principal" } } },',
+			"  },",
+			"  handlers: { events: function (event, ctx) {} },",
+			"});",
+			"export { x as default };",
+		].join("\n");
+
+		const extracted = extractSubgraphDefinition(handlerCode);
+		const overridden = applyDeployStartBlockOverride(
+			{
+				...extracted,
+				handlers: extracted.handlerSources,
+			} as unknown as SubgraphDefinition,
+			123,
+		);
+
+		expect(overridden.name).toBe("deploy-extract-demo");
+		expect(overridden.startBlock).toBe(123);
+		expect(Object.keys(overridden.sources)).toEqual(["events"]);
+		expect(
+			(globalThis as Record<string, unknown>).__f059_deploy_pwned,
+		).toBeUndefined();
+	});
 });
 
 // ── deploy-time print-field lint (route) ─────────────────────────────────
@@ -245,8 +286,10 @@ describe.skipIf(!HAS_DB)("deploy print-field lint (route)", () => {
 		dryRun?: boolean;
 	}) {
 		const schema = { rows: { columns: { amount: { type: "uint" } } } };
+		// Wrapped in defineSubgraph(...) so the AST extractor (f059) can find it —
+		// the extractor never executes this, so the identifier need not resolve.
 		const handlerCode = [
-			"export default {",
+			"export default defineSubgraph({",
 			`  name: ${JSON.stringify(input.name)},`,
 			`  sources: { prints: ${JSON.stringify(input.source)} },`,
 			`  schema: ${JSON.stringify(schema)},`,
@@ -255,7 +298,7 @@ describe.skipIf(!HAS_DB)("deploy print-field lint (route)", () => {
 			`      return ${input.handlerExpr};`,
 			"    },",
 			"  },",
-			"};",
+			"});",
 		].join("\n");
 		return {
 			name: input.name,

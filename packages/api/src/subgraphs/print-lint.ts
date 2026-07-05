@@ -30,7 +30,13 @@ export async function lintPrintFields(
 		// them — only a single pinned contract has one observable schema.
 		if (!filter.contractId || filter.trait) continue;
 		const handler = def.handlers?.[sourceName] ?? def.handlers?.["*"];
-		if (typeof handler !== "function") continue;
+		const source =
+			typeof handler === "function"
+				? handler.toString()
+				: typeof handler === "string"
+					? handler
+					: null;
+		if (source === null) continue;
 
 		let topics: InferredTopicSchema[];
 		try {
@@ -54,7 +60,7 @@ export async function lintPrintFields(
 
 		const topicList = relevant.map((t) => t.topic).join(", ");
 		const seen = new Set<string>();
-		for (const match of handler.toString().matchAll(DATA_FIELD_ACCESS)) {
+		for (const match of source.matchAll(DATA_FIELD_ACCESS)) {
 			const ident = match[1];
 			if (ident === undefined || known.has(ident) || seen.has(ident)) continue;
 			seen.add(ident);

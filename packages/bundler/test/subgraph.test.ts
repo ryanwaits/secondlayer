@@ -63,4 +63,32 @@ describe("bundleSubgraphCode", () => {
 			'Subgraph schema hint: use indexes: [["sender"], ["recipient"]], not indexes: [{ columns: ["sender"] }].',
 		);
 	});
+
+	test("never executes a top-level side effect in the source (f059 regression)", async () => {
+		(globalThis as Record<string, unknown>).__f059_bundle_pwned = undefined;
+		const result = await bundleSubgraphCode(`
+				import { defineSubgraph } from "@secondlayer/subgraphs";
+				;(globalThis as any).__f059_bundle_pwned = true;
+
+				export default defineSubgraph({
+					name: "bundle-side-effect",
+					sources: {
+						events: { type: "print_event", contractId: "SP123.demo" },
+					},
+					schema: {
+						events: {
+							columns: { tx_id: { type: "text" } },
+						},
+					},
+					handlers: {
+						events: () => {},
+					},
+				});
+			`);
+
+		expect(result.name).toBe("bundle-side-effect");
+		expect(
+			(globalThis as Record<string, unknown>).__f059_bundle_pwned,
+		).toBeUndefined();
+	});
 });
