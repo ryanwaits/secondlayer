@@ -204,6 +204,36 @@ test("validateSubgraphDefinition rejects injection in indexes", () => {
 	).toThrow();
 });
 
+test("validateSubgraphDefinition rejects FK relation name that is not a SQL identifier", () => {
+	const withRelName = (name: string) => ({
+		name: "rel-test",
+		sources: { handler: { type: "contract_call", contractId: "SP000::c" } },
+		schema: {
+			sales: {
+				columns: { listing_id: { type: "uint" } },
+				relations: [
+					{
+						name,
+						fields: ["listing_id"],
+						references: "listings",
+						referencedColumns: ["id"],
+					},
+				],
+			},
+			listings: { columns: { id: { type: "uint" } } },
+		},
+		handlers: { handler: () => {} },
+	});
+
+	expect(() =>
+		validateSubgraphDefinition(withRelName('x") ; DROP TABLE foo; --')),
+	).toThrow();
+	expect(() => validateSubgraphDefinition(withRelName("my-rel"))).toThrow();
+	expect(() =>
+		validateSubgraphDefinition(withRelName("listing")),
+	).not.toThrow();
+});
+
 test("validateSubgraphDefinition accepts normal definition with uniqueKeys", () => {
 	const result = validateSubgraphDefinition({
 		name: "test-transfers",

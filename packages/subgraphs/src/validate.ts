@@ -61,7 +61,7 @@ export const SubgraphTableSchema: z.ZodType<SubgraphTable> = z.object({
 	relations: z
 		.array(
 			z.object({
-				name: z.string(),
+				name: SqlIdentifierSchema,
 				references: SqlIdentifierSchema,
 				fields: z.array(SqlIdentifierSchema).min(1),
 				referencedColumns: z.array(SqlIdentifierSchema).min(1),
