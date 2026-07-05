@@ -1,5 +1,12 @@
 # @secondlayer/api
 
+## 1.24.5
+
+### Patch Changes
+
+- Updated dependencies
+  - @secondlayer/bundler@0.4.0
+
 ## 1.24.4
 
 ### Patch Changes

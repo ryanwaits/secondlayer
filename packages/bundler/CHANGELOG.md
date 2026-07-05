@@ -1,5 +1,11 @@
 # @secondlayer/bundler
 
+## 0.4.0
+
+### Minor Changes
+
+- Add `extractSubgraphDefinition`: read subgraph metadata (name, version, sources, schema) by statically parsing the AST instead of importing and executing the module. `bundleSubgraphCode` now derives metadata without executing user code. Subgraph definitions must be a single top-level `defineSubgraph({ ... })` call with literal `sources`/`schema`; non-statically-analyzable definitions are rejected with `SubgraphNotStaticError`.
+
 ## 0.3.9
 
 ### Patch Changes

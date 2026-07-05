@@ -1,5 +1,12 @@
 # @secondlayer/mcp
 
+## 4.2.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @secondlayer/bundler@0.4.0
+
 ## 4.2.1
 
 ### Patch Changes

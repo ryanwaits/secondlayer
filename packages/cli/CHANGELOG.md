@@ -1,5 +1,12 @@
 # @secondlayer/cli
 
+## 8.14.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @secondlayer/bundler@0.4.0
+
 ## 8.14.0
 
 ### Minor Changes
