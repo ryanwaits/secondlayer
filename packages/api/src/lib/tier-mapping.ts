@@ -39,13 +39,12 @@ export function isUpgradeableTier(s: string): s is UpgradeableTier {
 
 /**
  * Tiers a customer may purchase self-serve via `POST /api/billing/upgrade`.
- * Scale stays in `UPGRADEABLE_TIERS` so the webhook reverse-map can still resolve
- * a manually-created (sales-assisted) Scale subscription back to its tier — but it
- * is NOT self-serve: Scale is custom-quoted / contact-sales.
+ * Enterprise is not in `UPGRADEABLE_TIERS` at all — it stays custom-quoted /
+ * contact-sales (invoicing, PO, SLA are out-of-band).
  */
-export const SELF_SERVE_TIERS: readonly UpgradeableTier[] = ["launch"];
+export const SELF_SERVE_TIERS: readonly UpgradeableTier[] = ["launch", "scale"];
 
-export function isSelfServeTier(s: string): s is "launch" {
+export function isSelfServeTier(s: string): s is UpgradeableTier {
 	return (SELF_SERVE_TIERS as readonly string[]).includes(s);
 }
 

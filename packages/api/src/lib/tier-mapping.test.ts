@@ -7,11 +7,9 @@ describe("tier-mapping self-serve vs upgradeable", () => {
 		expect(isSelfServeTier("launch")).toBe(true);
 	});
 
-	// Scale stays upgradeable (the webhook reverse-map needs it to resolve
-	// manually-created Scale subs) but is NOT self-serve — it is contact-sales.
-	test("scale is upgradeable but NOT self-serve", () => {
+	test("scale is upgradeable and self-serve", () => {
 		expect(isUpgradeableTier("scale")).toBe(true);
-		expect(isSelfServeTier("scale")).toBe(false);
+		expect(isSelfServeTier("scale")).toBe(true);
 	});
 
 	test("enterprise / unknown are neither", () => {

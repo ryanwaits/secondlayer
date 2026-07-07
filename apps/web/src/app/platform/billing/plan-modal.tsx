@@ -7,8 +7,8 @@ import s from "./billing.module.css";
 /**
  * "Choose a plan" modal — price-forward plan cards (the full feature ladder
  * lives on the pricing page, linked). Plan data mirrors
- * @secondlayer/platform/pricing (PLANS); keep in sync. Pro is the only
- * self-serve checkout; Scale and Enterprise are sold directly.
+ * @secondlayer/platform/pricing (PLANS); keep in sync. Pro and Scale are
+ * self-serve checkout; Enterprise is sold directly.
  */
 
 type Tier = "none" | "launch" | "scale" | "enterprise";
@@ -49,7 +49,7 @@ const PLAN_CARDS: PlanCard[] = [
 		price: "$299",
 		priceSuffix: "/mo",
 		tagline: "Dedicated capacity and a 24h SLA.",
-		cta: "contact",
+		cta: "self-serve",
 	},
 	{
 		tier: "enterprise",
@@ -174,7 +174,9 @@ export function PlanModal({ currentTier }: { currentTier: Tier }) {
 												<button
 													type="button"
 													className={s.btnAccent}
-													onClick={() => selectPlan("launch")}
+													onClick={() =>
+														selectPlan(p.tier as "launch" | "scale")
+													}
 													disabled={busy}
 												>
 													{busy ? "Redirecting…" : "Select plan"}

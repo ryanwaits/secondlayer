@@ -123,13 +123,14 @@ app.post("/upgrade", async (c) => {
 		);
 	}
 
-	// Scale is sold via contact-sales, not self-serve checkout (it stays an
-	// upgradeable tier so the webhook can resolve manually-created Scale subs).
+	// Currently launch + scale are self-serve; enterprise never reaches here
+	// (rejected above by isUpgradeableTier). Kept as a guard for any future
+	// upgradeable-but-not-self-serve tier.
 	if (!isSelfServeTier(body.tier)) {
 		return c.json(
 			{
 				error:
-					"Scale is custom-quoted — contact sales at https://secondlayer.tools to set up a subscription.",
+					"That plan is custom-quoted — contact sales at https://secondlayer.tools to set up a subscription.",
 				code: "CONTACT_SALES",
 			},
 			400,

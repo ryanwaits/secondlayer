@@ -58,7 +58,7 @@ const FAQ = [
 	},
 	{
 		q: "How does the trial work?",
-		a: "Hosted Pro opens with a 14-day trial — card on file, cancel anytime. Usage dashboards show exactly where you'd land before anything bills.",
+		a: "Hosted Pro and Scale both open with a 14-day trial — card on file, cancel anytime. Usage dashboards show exactly where you'd land before anything bills.",
 	},
 ];
 
@@ -126,20 +126,20 @@ export default function PricingPage() {
 					<p className="prc-plan-price">
 						$299<small>/mo</small>
 					</p>
-					<p className="prc-plan-cont">Talk to us — not self-serve.</p>
+					<p className="prc-plan-cont">We host it. Dedicated capacity.</p>
 					<ul>
 						{SCALE_INCLUDES.map((f) => (
 							<li key={f}>{f}</li>
 						))}
 					</ul>
-					<a
-						href="mailto:hello@secondlayer.tools"
+					<Link
+						href={appUrl("/login")}
 						className="prc-plan-cta pp-btn pp-btn-ghost"
 						data-umami-event="pricing-plan-click"
 						data-umami-event-plan="scale"
 					>
-						Contact us
-					</a>
+						Start 14-day trial
+					</Link>
 				</div>
 			</div>
 

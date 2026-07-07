@@ -56,7 +56,6 @@ export const PLANS: Record<PlanId, Plan> = {
 		stripeAnnualLookupKey: "secondlayer_launch_yearly",
 	},
 	scale: {
-		// Not self-serve: sold via contact-sales / manual deals only.
 		id: "scale",
 		displayName: "Scale",
 		monthlyPriceCents: 29_900, // $299
