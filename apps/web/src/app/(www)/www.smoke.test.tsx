@@ -62,7 +62,8 @@ describe("www marketing routes", () => {
 		expect(html).toContain("public and private");
 		expect(html).toContain("$299");
 		expect(html).toContain("Scale");
-		expect(html).toContain("Contact us");
+		// Scale is self-serve now (same login flow as Pro), not mailto
+		expect(html).toContain("We host it. Dedicated capacity.");
 		expect(html).toContain("$3–8k");
 		expect(html).not.toContain("$499");
 		expect(html).not.toContain("$1.5k");
