@@ -1,5 +1,12 @@
 # @secondlayer/subgraphs
 
+## 3.19.3
+
+### Patch Changes
+
+- 34990a4: fix(subgraphs): resolve + validate webhook hostnames before egress, closing the DNS-rebinding SSRF gap (any resolved private/link-local address, incl. 169.254.169.254, is refused)
+- fix(subgraphs): serialize catch-up writes against reorg rewind so an in-flight catch-up walk can no longer clobber a reorg's cursor rewind (in-process per-subgraph lock + reorg-epoch guard)
+
 ## 3.19.2
 
 ### Patch Changes

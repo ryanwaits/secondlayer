@@ -1,5 +1,15 @@
 # @secondlayer/cli
 
+## 8.14.2
+
+### Patch Changes
+
+- 5bfc9ba: fix(cli): write the session file via temp+rename at mode 0600 so it's never
+  briefly world-readable, and narrow an existing wrong-mode file on overwrite
+- Updated dependencies [34990a4]
+- Updated dependencies
+  - @secondlayer/subgraphs@3.19.3
+
 ## 8.14.1
 
 ### Patch Changes
