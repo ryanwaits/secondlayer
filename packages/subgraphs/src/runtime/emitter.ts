@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { lookup as dnsLookup } from "node:dns/promises";
 import {
 	type Database,
 	type Subscription,
@@ -75,29 +76,19 @@ const PRIVATE_V4_PATTERNS = [
 ];
 
 /**
- * Reject hostnames that resolve to, or are spelled as, private IPs.
- * Covers v4 literal, v6 literal, IPv4-mapped IPv6 (`::ffff:127.0.0.1`),
- * and the `localhost` alias. DNS-level rebinding still bypasses this
- * check (hostname that resolves to a private IP at egress time) — mitigate
- * with an egress allowlist at the network level if that matters.
+ * Classify a raw IP address literal (v4 or v6, no brackets, already lowercased
+ * or not) as private/loopback/link-local/reserved. Covers v4 private ranges +
+ * link-local (incl. `169.254.169.254`), `0.0.0.0`, IPv6 loopback (`::1`),
+ * unspecified (`::`), unique-local (`fc00::/7`), link-local (`fe80::/10`), and
+ * IPv4-mapped IPv6 (`::ffff:127.0.0.1`, `::ffff:7f00:0001`).
+ *
+ * Shared by `isPrivateEgress` (literal-hostname fast-fail) and the resolved-
+ * DNS-address check in `checkEgressAllowed` (rebinding mitigation).
  */
-function isPrivateEgress(url: string): boolean {
-	let parsed: URL;
-	try {
-		parsed = new URL(url);
-	} catch {
-		return true; // malformed URL: reject
-	}
-	if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-		return true;
-	}
+function isPrivateIp(address: string): boolean {
+	const host = address.toLowerCase();
 
-	// Strip brackets from IPv6 literals.
-	const raw = parsed.hostname.toLowerCase();
-	const host =
-		raw.startsWith("[") && raw.endsWith("]") ? raw.slice(1, -1) : raw;
-
-	if (host === "localhost" || host === "0.0.0.0") return true;
+	if (host === "0.0.0.0") return true;
 	if (host === "::" || host === "::1") return true;
 	// Unique-local (fc00::/7) + link-local (fe80::/10)
 	if (/^f[cd][0-9a-f]{2}:/.test(host)) return true;
@@ -122,6 +113,7 @@ function isPrivateEgress(url: string): boolean {
 			const dotted = `${(a >> 8) & 0xff}.${a & 0xff}.${(b >> 8) & 0xff}.${b & 0xff}`;
 			for (const p of PRIVATE_V4_PATTERNS) if (p.test(dotted)) return true;
 		}
+		return false;
 	}
 
 	for (const p of PRIVATE_V4_PATTERNS) {
@@ -130,8 +122,120 @@ function isPrivateEgress(url: string): boolean {
 	return false;
 }
 
+/**
+ * Reject hostnames spelled as private IPs (cheap, synchronous, no I/O — a
+ * fast-fail pre-filter). DNS-level rebinding (hostname that *resolves* to a
+ * private IP at egress time) is NOT caught here — see `checkEgressAllowed`,
+ * which resolves DNS and validates every returned address.
+ */
+function isPrivateEgress(url: string): boolean {
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return true; // malformed URL: reject
+	}
+	if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+		return true;
+	}
+
+	// Strip brackets from IPv6 literals.
+	const raw = parsed.hostname.toLowerCase();
+	const host =
+		raw.startsWith("[") && raw.endsWith("]") ? raw.slice(1, -1) : raw;
+
+	if (host === "localhost") return true;
+	return isPrivateIp(host);
+}
+
 function allowPrivateEgress(): boolean {
 	return process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS === "true";
+}
+
+interface ResolvedAddress {
+	address: string;
+	family: number;
+}
+
+type DnsLookupFn = (hostname: string) => Promise<ResolvedAddress[]>;
+
+async function defaultDnsLookup(hostname: string): Promise<ResolvedAddress[]> {
+	return dnsLookup(hostname, { all: true });
+}
+
+let dnsLookupImpl: DnsLookupFn = defaultDnsLookup;
+
+/**
+ * Test-only seam: inject a fake DNS resolver so tests can simulate a hostname
+ * resolving to a private/metadata IP without depending on real DNS or
+ * network access. Pass `null` to restore the real `dns.lookup`-backed
+ * resolver. Production code never calls this — only `ssrf.test.ts` does.
+ */
+export function __setDnsLookupForTest(fn: DnsLookupFn | null): void {
+	dnsLookupImpl = fn ?? defaultDnsLookup;
+}
+
+const ALLOW_HINT = "(set SECONDLAYER_ALLOW_PRIVATE_EGRESS=true to allow)";
+
+/**
+ * Full egress check: literal fast-fail, then resolve DNS and reject if *any*
+ * returned address (not just the first) is private/loopback/link-local —
+ * a single private answer among several is enough for an attacker to abuse.
+ *
+ * Residual TOCTOU: this resolves-and-validates *immediately before* `fetch()`
+ * but does not pin the actual connection to the validated address. True
+ * pinning (resolve once, connect to that literal IP, keep the original `Host`
+ * header/SNI) was attempted per plan f053 via a custom undici `Agent` with
+ * `connect.lookup` passed as `fetch()`'s `dispatcher` — the standard Node
+ * ecosystem pattern for this. Empirically, under Bun 1.3.10, that hook is
+ * silently never invoked (confirmed with a throwaway smoke test hitting a
+ * real local HTTP server: `lookupCalled` stayed `false` and the connection
+ * failed even though the dispatcher was passed) — Bun's `fetch()` does not
+ * implement undici's `connect.lookup` dispatcher hook, whether reached via
+ * the global `fetch` or `import { fetch } from "undici"` (Bun overrides
+ * "undici"'s `fetch` export with its own native implementation regardless of
+ * an installed real `undici` package). So a second DNS answer between this
+ * check and `fetch()`'s own resolution (true rebinding, not just a one-time
+ * private answer) could in theory still slip through. This closes the
+ * practical rebinding gap (attacker's hostname resolves private at delivery
+ * time) without adding a dependency; a network-level egress allowlist/proxy
+ * is the recommended defense-in-depth for the remaining TOCTOU sliver.
+ */
+export async function checkEgressAllowed(url: string): Promise<string | null> {
+	if (isPrivateEgress(url)) {
+		return `refused private egress: literal address ${ALLOW_HINT}`;
+	}
+
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return `refused private egress: malformed URL ${ALLOW_HINT}`;
+	}
+	if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+		return `refused private egress: unsupported protocol ${ALLOW_HINT}`;
+	}
+
+	const raw = parsed.hostname.toLowerCase();
+	const hostname =
+		raw.startsWith("[") && raw.endsWith("]") ? raw.slice(1, -1) : raw;
+
+	let resolved: ResolvedAddress[];
+	try {
+		resolved = await dnsLookupImpl(hostname);
+	} catch (err) {
+		const msg = err instanceof Error ? err.message : String(err);
+		return `refused private egress: DNS resolution failed (${msg}) ${ALLOW_HINT}`;
+	}
+	if (resolved.length === 0) {
+		return `refused private egress: DNS resolution returned no addresses ${ALLOW_HINT}`;
+	}
+	for (const { address } of resolved) {
+		if (isPrivateIp(address)) {
+			return `refused private egress: hostname resolves to private address ${address} ${ALLOW_HINT}`;
+		}
+	}
+	return null;
 }
 
 /** The wire result of one POST attempt (no DB side effect) — shared by the
@@ -153,17 +257,19 @@ async function postToSubscription(
 	headers: Record<string, string>,
 	timeoutMs: number,
 ): Promise<PostResult> {
-	if (isPrivateEgress(url) && !allowPrivateEgress()) {
-		logger.warn("[emitter] refused private egress", { url });
-		return {
-			ok: false,
-			statusCode: null,
-			error:
-				"refused private egress (set SECONDLAYER_ALLOW_PRIVATE_EGRESS=true to allow)",
-			durationMs: 0,
-			responseBody: null,
-			responseHeaders: null,
-		};
+	if (!allowPrivateEgress()) {
+		const refusal = await checkEgressAllowed(url);
+		if (refusal) {
+			logger.warn("[emitter] refused private egress", { url, reason: refusal });
+			return {
+				ok: false,
+				statusCode: null,
+				error: refusal,
+				durationMs: 0,
+				responseBody: null,
+				responseHeaders: null,
+			};
+		}
 	}
 
 	const start = performance.now();
