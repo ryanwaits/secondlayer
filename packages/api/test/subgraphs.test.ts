@@ -525,6 +525,69 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		expect(row.status).toBeUndefined();
 	});
 
+	// ── _count param ─────────────────────────────────────────────────────
+
+	test("_count=none omits total from meta", async () => {
+		const res = await app.request(
+			`/subgraphs/${SUBGRAPH_NAME}/listings?_count=none`,
+		);
+		expect(res.status).toBe(200);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.data.length).toBe(4);
+		expect(body.meta.total).toBeNull();
+		expect(body.meta.limit).toBe(50);
+		expect(body.meta.offset).toBe(0);
+	});
+
+	test("_count=estimate on unfiltered list uses reltuples", async () => {
+		// reltuples is only populated after ANALYZE; run it so the estimate is defined.
+		await getRawClient().unsafe(`ANALYZE ${PG_SCHEMA}.listings`);
+		const res = await app.request(
+			`/subgraphs/${SUBGRAPH_NAME}/listings?_count=estimate`,
+		);
+		expect(res.status).toBe(200);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.data.length).toBe(4);
+		expect(typeof body.meta.total).toBe("number");
+		expect(body.meta.total).toBe(4);
+	});
+
+	test("_count=estimate with a filter falls back to exact", async () => {
+		const res = await app.request(
+			`/subgraphs/${SUBGRAPH_NAME}/listings?status=active&_count=estimate`,
+		);
+		expect(res.status).toBe(200);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.meta.total).toBe(3);
+	});
+
+	test("default (no _count) matches explicit _count=exact — unchanged behavior", async () => {
+		const [withParam, withoutParam] = await Promise.all([
+			app.request(`/subgraphs/${SUBGRAPH_NAME}/listings?_count=exact`),
+			app.request(`/subgraphs/${SUBGRAPH_NAME}/listings`),
+		]);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const bodyWith = (await withParam.json()) as any;
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const bodyWithout = (await withoutParam.json()) as any;
+		expect(bodyWith.meta.total).toBe(4);
+		expect(bodyWithout.meta.total).toBe(4);
+		expect(bodyWith.meta).toEqual(bodyWithout.meta);
+	});
+
+	test("unknown _count value returns 400", async () => {
+		const res = await app.request(
+			`/subgraphs/${SUBGRAPH_NAME}/listings?_count=foo`,
+		);
+		expect(res.status).toBe(400);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.code).toBe("VALIDATION_ERROR");
+	});
+
 	test("unknown column in filter returns 400", async () => {
 		const res = await app.request(
 			`/subgraphs/${SUBGRAPH_NAME}/listings?nonexistent=foo`,

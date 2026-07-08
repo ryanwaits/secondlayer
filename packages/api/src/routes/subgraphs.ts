@@ -2022,6 +2022,13 @@ app.get("/:subgraphName/:tableName/:id", async (c) => {
 
 // ── List rows with filters ──────────────────────────────────────────────
 
+// `_count` controls how `meta.total` is computed: "exact" (default, unchanged)
+// runs COUNT(*) alongside the page query; "none" skips the count entirely
+// (`total: null`); "estimate" uses pg_class.reltuples (no table scan) for
+// unfiltered lists — filtered lists fall back to "exact" since a planner
+// estimate wouldn't reflect the WHERE clause.
+const COUNT_MODES = new Set(["exact", "estimate", "none"]);
+
 app.get("/:subgraphName/:tableName", async (c) => {
 	const { subgraphName, tableName } = c.req.param();
 	const accountId = getAccountId(c);
@@ -2035,8 +2042,23 @@ app.get("/:subgraphName/:tableName", async (c) => {
 
 	const validColumns = getValidColumns(tableDef);
 
+	const countModeRaw = c.req.query("_count");
+	if (countModeRaw !== undefined && !COUNT_MODES.has(countModeRaw)) {
+		return c.json(
+			{
+				error: `Invalid _count value: "${countModeRaw}". Expected "exact", "estimate", or "none".`,
+				code: "VALIDATION_ERROR",
+			},
+			400,
+		);
+	}
+	const countMode = (countModeRaw ?? "exact") as "exact" | "estimate" | "none";
+
 	try {
-		const parsed = parseQueryParams(c.req.query(), validColumns, tableDef);
+		// Strip `_count` before parseQueryParams — it throws on any unrecognized
+		// `_`-prefixed key (see parseAggregateParams for the same pattern).
+		const { _count: _countParam, ...queryParams } = c.req.query();
+		const parsed = parseQueryParams(queryParams, validColumns, tableDef);
 		const sn = subgraphSchemaName(subgraph);
 		const params: unknown[] = [];
 
@@ -2058,6 +2080,34 @@ app.get("/:subgraphName/:tableName", async (c) => {
 		text += ` ORDER BY ${orderBy}`;
 		text += ` LIMIT ${parsed.limit} OFFSET ${parsed.offset}`;
 
+		const meta = { limit: parsed.limit, offset: parsed.offset };
+
+		if (countMode === "none") {
+			const data = await query(subgraph, text, params);
+			return c.json({ data: Array.from(data), meta: { total: null, ...meta } });
+		}
+
+		if (countMode === "estimate" && conditions.length === 0) {
+			const qualifiedName = `${ident(sn)}.${ident(tableName)}`;
+			const [data, estimateResult] = await Promise.all([
+				query(subgraph, text, params),
+				query(
+					subgraph,
+					"SELECT reltuples::bigint AS count FROM pg_class WHERE oid = $1::regclass",
+					[qualifiedName],
+				),
+			]);
+			return c.json({
+				data: Array.from(data),
+				meta: {
+					total: Number.parseInt(String(estimateResult[0]?.count ?? 0), 10),
+					...meta,
+				},
+			});
+		}
+
+		// "exact" (default, unchanged) — and the "estimate" fallback for filtered
+		// lists, where a planner estimate wouldn't reflect the WHERE clause.
 		// Count query uses same params
 		let countText = `SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`;
 		if (conditions.length > 0) {
@@ -2075,8 +2125,7 @@ app.get("/:subgraphName/:tableName", async (c) => {
 				data: Array.from(data),
 				meta: {
 					total: Number.parseInt(String(countResult[0]?.count ?? 0), 10),
-					limit: parsed.limit,
-					offset: parsed.offset,
+					...meta,
 				},
 			});
 		}
@@ -2090,8 +2139,7 @@ app.get("/:subgraphName/:tableName", async (c) => {
 			data: Array.from(data),
 			meta: {
 				total: Number.parseInt(String(countResult[0]?.count ?? 0), 10),
-				limit: parsed.limit,
-				offset: parsed.offset,
+				...meta,
 			},
 		});
 	} catch (e) {
