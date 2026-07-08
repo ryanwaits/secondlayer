@@ -221,4 +221,52 @@ describe("sweepX402Reconcile", () => {
 		});
 		expect(result).toEqual({ checked: 2, confirmed: 1, reverted: 1 });
 	});
+
+	// f054: canonicality for the whole sweep must resolve in a single batched
+	// call, not once per payment — the resolver is a spy here precisely to
+	// prove that (no DB harness needed since deps are injected).
+	test("resolves canonicality once for the whole batch, not once per payment", async () => {
+		const payments = [
+			payment({ txid: "0xa", state: "pending", createdAtMs: 0 }),
+			payment({ txid: "0xb", state: "pending", createdAtMs: 0 }),
+			payment({ txid: "0xc", state: "pending", createdAtMs: 0 }),
+		];
+		let resolveCalls = 0;
+		const result = await sweepX402Reconcile({
+			list: async () => payments,
+			resolveCanonicalSet: async (txids) => {
+				resolveCalls++;
+				expect(txids).toEqual(["0xa", "0xb", "0xc"]);
+				return new Set(["0xa", "0xc"]);
+			},
+			confirmPayment: async () => {},
+			revertPayment: async () => {},
+			recordStrike: async () => {},
+			now: () => 10 * 60_000,
+			graceMs: 5 * 60_000,
+		});
+		expect(resolveCalls).toBe(1);
+		expect(result).toEqual({ checked: 3, confirmed: 2, reverted: 1 });
+	});
+
+	test("an injected isCanonical still wins over the batched resolver", async () => {
+		let resolveCalls = 0;
+		const result = await sweepX402Reconcile({
+			list: async () => [
+				payment({ txid: "0xok", state: "pending", createdAtMs: 0 }),
+			],
+			resolveCanonicalSet: async () => {
+				resolveCalls++;
+				return new Set();
+			},
+			isCanonical: async (txid) => txid === "0xok",
+			confirmPayment: async () => {},
+			revertPayment: async () => {},
+			recordStrike: async () => {},
+			now: () => 10 * 60_000,
+			graceMs: 5 * 60_000,
+		});
+		expect(resolveCalls).toBe(0);
+		expect(result).toEqual({ checked: 1, confirmed: 1, reverted: 0 });
+	});
 });

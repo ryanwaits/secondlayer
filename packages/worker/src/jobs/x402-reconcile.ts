@@ -136,6 +136,41 @@ async function defaultIsCanonical(txid: string): Promise<boolean> {
 	return rows.length > 0;
 }
 
+// Keep IN-list parameter counts bounded for large sweeps.
+const CANONICAL_QUERY_CHUNK_SIZE = 1000;
+
+/**
+ * Resolve canonicality for a whole batch of payment txids in one query (chunked
+ * for very large sweeps) instead of one query per payment. Returns the set of
+ * **payment** txids (not the mapped index tx_id form) that are canonical.
+ */
+async function canonicalTxidSet(txids: string[]): Promise<Set<string>> {
+	if (txids.length === 0) return new Set();
+
+	// index tx_id -> original payment txid, so results map back correctly.
+	const byIndexId = new Map<string, string>();
+	for (const txid of txids) byIndexId.set(toIndexTxId(txid), txid);
+	const indexIds = [...byIndexId.keys()];
+
+	const canonical = new Set<string>();
+	for (let i = 0; i < indexIds.length; i += CANONICAL_QUERY_CHUNK_SIZE) {
+		const chunk = indexIds.slice(i, i + CANONICAL_QUERY_CHUNK_SIZE);
+		const rows = await getSourceDb()
+			.selectFrom("decoded_events")
+			.select("tx_id")
+			.distinct()
+			.where("tx_id", "in", chunk)
+			.where("canonical", "=", true)
+			.where("event_type", "in", ["stx_transfer", "ft_transfer"])
+			.execute();
+		for (const row of rows) {
+			const paymentTxid = byIndexId.get(row.tx_id);
+			if (paymentTxid) canonical.add(paymentTxid);
+		}
+	}
+	return canonical;
+}
+
 /**
  * Revert a payment, clawing back any credited deposit balance in the SAME
  * transaction as the state flip so a crash can never revert-without-debiting.
@@ -280,6 +315,11 @@ async function listReconcilable(): Promise<ReconcilePayment[]> {
 
 export type SweepDeps = ReconcileDeps & {
 	list?: () => Promise<ReconcilePayment[]>;
+	/** Resolve canonicality for the whole batch in one call. Feeds
+	 *  `reconcilePayment`'s `isCanonical` for the sweep, UNLESS the caller
+	 *  already injected its own `isCanonical` (that always wins). Defaults to
+	 *  a single batched (chunked) DB query instead of one query per payment. */
+	resolveCanonicalSet?: (txids: string[]) => Promise<Set<string>>;
 };
 
 /** One sweep over recent pending/confirmed payments. Returns counts for logging. */
@@ -287,11 +327,21 @@ export async function sweepX402Reconcile(
 	deps: SweepDeps = {},
 ): Promise<{ checked: number; confirmed: number; reverted: number }> {
 	const list = deps.list ?? listReconcilable;
+	const resolveCanonicalSet = deps.resolveCanonicalSet ?? canonicalTxidSet;
 	const payments = await list();
 	let confirmed = 0;
 	let reverted = 0;
+
+	// Resolve canonicality for the whole batch in one shot, unless the caller
+	// injected a per-payment `isCanonical` (respected as-is, e.g. in tests).
+	let sweepDeps: ReconcileDeps = deps;
+	if (!deps.isCanonical) {
+		const canon = await resolveCanonicalSet(payments.map((p) => p.txid));
+		sweepDeps = { ...deps, isCanonical: async (txid) => canon.has(txid) };
+	}
+
 	for (const p of payments) {
-		const next = await reconcilePayment(p, deps);
+		const next = await reconcilePayment(p, sweepDeps);
 		if (next === "confirmed" && p.state !== "confirmed") confirmed++;
 		if (next === "reverted") reverted++;
 	}
