@@ -49,13 +49,13 @@ function dashboardBaseUrl(): string {
 	return process.env.DASHBOARD_URL ?? "https://secondlayer.tools";
 }
 
-type StripeClient = NonNullable<ReturnType<typeof getStripeOrNull>>;
+export type StripeClient = NonNullable<ReturnType<typeof getStripeOrNull>>;
 type AccountRow = NonNullable<Awaited<ReturnType<typeof getAccountById>>>;
 
 /** Stripe's `resource_missing` 400 — the stored customer id no longer exists
  * under the active key (deleted, or minted under a different key, e.g. a
  * test-mode id left over after a test→live flip). */
-function isResourceMissing(err: unknown): boolean {
+export function isResourceMissing(err: unknown): boolean {
 	return (
 		typeof err === "object" &&
 		err !== null &&
@@ -72,7 +72,7 @@ function isResourceMissing(err: unknown): boolean {
  * footgun where pre-flip test-mode `cus_` ids would otherwise 400 every
  * downstream call forever.
  */
-async function ensureStripeCustomer(
+export async function ensureStripeCustomer(
 	stripe: StripeClient,
 	db: ReturnType<typeof getDb>,
 	account: AccountRow,
