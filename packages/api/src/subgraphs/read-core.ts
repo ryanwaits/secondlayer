@@ -163,11 +163,16 @@ export async function handleRowById(
 		return c.json({ error: "Table not found", code: "TABLE_NOT_FOUND" }, 404);
 	}
 
+	const numericId = Number(id);
+	if (!Number.isInteger(numericId)) {
+		return c.json({ error: "Row not found", code: "ROW_NOT_FOUND" }, 404);
+	}
+
 	const sn = subgraphSchemaName(subgraph);
 	const result = await querySubgraph(
 		subgraph,
 		`SELECT * FROM ${ident(sn)}.${ident(tableName)} WHERE "_id" = $1`,
-		[Number.parseInt(id, 10)],
+		[numericId],
 	);
 
 	if (!result[0]) {

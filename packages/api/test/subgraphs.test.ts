@@ -597,6 +597,22 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		expect(body.code).toBe("ROW_NOT_FOUND");
 	});
 
+	test("GET by non-numeric _id returns 404, not a driver error", async () => {
+		const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings/abc`);
+		expect(res.status).toBe(404);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.code).toBe("ROW_NOT_FOUND");
+	});
+
+	test("GET by _id with trailing garbage (12abc) returns 404, not treated as 12", async () => {
+		const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings/12abc`);
+		expect(res.status).toBe(404);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.code).toBe("ROW_NOT_FOUND");
+	});
+
 	// ── GET /subgraphs/:subgraphName/:tableName/count ───────────────────────
 
 	test("count returns total rows", async () => {
