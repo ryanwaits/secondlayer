@@ -20,6 +20,104 @@ const STANDARD_CATCHUP_BATCH_CONFIG = {
 
 const catchingUp = new Set<string>();
 
+/**
+ * f057 guard: `recordLiveProgress` (subgraphs.ts) writes `last_processed_block`
+ * unconditionally — no monotonic guard — because the reorg rewind MUST be able
+ * to move the cursor backward. That means a catch-up walk's forward writes and
+ * a reorg's backward rewind must never interleave for the same subgraph, or
+ * whichever commits last wins regardless of correctness. `catchingUp` (above)
+ * only excludes concurrent catch-ups; it does nothing against a reorg.
+ *
+ * Both writers can only ever race within the SAME process: catch-up only ever
+ * runs on the catch-up leader (processor.ts `runCatchUp`), and the reorg
+ * NOTIFY listener runs on every process including that leader — so an
+ * in-process guard is sufficient; no cross-process DB lock is needed.
+ *
+ * Two pieces, used together by catchUpSubgraph (below) and handleSubgraphReorg
+ * (reorg.ts):
+ *
+ * - `withSubgraphBlockLock` is a per-subgraph mutex held for the duration of
+ *   ONE block's write — catch-up acquires it around each individual block it
+ *   commits (not around the whole walk), and the reorg handler acquires it
+ *   around its entire delete+reprocess+rewind sequence for a subgraph. So a
+ *   reorg only ever waits out a single in-flight block commit, never an
+ *   entire remaining catch-up walk — and since the lock is per-subgraph name,
+ *   a slow catch-up on one subgraph never stalls reorg handling for another
+ *   (handleSubgraphReorg processes subgraphs sequentially).
+ * - `reorgEpoch` is a monotonic per-subgraph counter, bumped by
+ *   handleSubgraphReorg BEFORE it acquires the lock (so the bump is visible
+ *   immediately, independent of how long the lock wait takes, and is never
+ *   "cleared" — there's no race in un-setting a flag too early). catchUpSubgraph
+ *   snapshots the epoch once at the start of its walk and, after acquiring the
+ *   lock for each block, checks it again: a changed epoch means a reorg
+ *   touched this subgraph's cursor at some point during the walk, so the
+ *   walk's local progress state can no longer be trusted — it aborts the
+ *   whole tick without writing anything further. The next catch-up tick
+ *   re-reads `last_processed_block` fresh from the DB (line ~108) and resumes
+ *   correctly from the post-reorg cursor.
+ */
+const subgraphBlockLockHeld = new Set<string>();
+const subgraphBlockLockWaiters = new Map<string, Array<() => void>>();
+const reorgEpoch = new Map<string, number>();
+
+async function acquireSubgraphBlockLock(name: string): Promise<() => void> {
+	if (!subgraphBlockLockHeld.has(name)) {
+		subgraphBlockLockHeld.add(name);
+		return () => releaseSubgraphBlockLock(name);
+	}
+	return new Promise<() => void>((resolve) => {
+		const waiters = subgraphBlockLockWaiters.get(name) ?? [];
+		waiters.push(() => resolve(() => releaseSubgraphBlockLock(name)));
+		subgraphBlockLockWaiters.set(name, waiters);
+	});
+}
+
+function releaseSubgraphBlockLock(name: string): void {
+	const waiters = subgraphBlockLockWaiters.get(name);
+	if (waiters && waiters.length > 0) {
+		const next = waiters.shift() as () => void;
+		if (waiters.length === 0) subgraphBlockLockWaiters.delete(name);
+		next(); // hand the lock straight to the next waiter (FIFO), stays held
+		return;
+	}
+	subgraphBlockLockHeld.delete(name);
+}
+
+/** Run `fn` (a single block's write, or a reorg's whole rewind) holding the
+ *  per-subgraph block lock. Exported for reorg.ts. */
+export async function withSubgraphBlockLock<T>(
+	name: string,
+	fn: () => Promise<T>,
+): Promise<T> {
+	const release = await acquireSubgraphBlockLock(name);
+	try {
+		return await fn();
+	} finally {
+		release();
+	}
+}
+
+/** Bump a subgraph's reorg epoch. Call BEFORE acquiring the block lock so the
+ *  bump is visible to any concurrent catch-up immediately. Exported for
+ *  reorg.ts. */
+export function bumpReorgEpoch(name: string): void {
+	reorgEpoch.set(name, (reorgEpoch.get(name) ?? 0) + 1);
+}
+
+function getReorgEpoch(name: string): number {
+	return reorgEpoch.get(name) ?? 0;
+}
+
+/** Thrown inside the lock to unwind a catch-up walk when a reorg's epoch bump
+ *  is observed mid-walk — distinct from a real processing failure so the
+ *  caller aborts silently instead of marking the subgraph "error". */
+class ReorgEpochChangedError extends Error {
+	constructor(name: string) {
+		super(`reorg epoch changed for ${name} mid catch-up`);
+		this.name = "ReorgEpochChangedError";
+	}
+}
+
 type CatchupBatchConfig = {
 	defaultBatchSize: number;
 	minBatchSize: number;
@@ -128,6 +226,9 @@ export async function catchUpSubgraph(
 		const batchConfig = resolveCatchupBatchConfig();
 		let batchSize = batchConfig.defaultBatchSize;
 		let currentHeight = startBlock;
+		// f057: snapshot the epoch once — see the guard comment above
+		// `subgraphBlockLockHeld` for the invariant this protects.
+		const walkEpoch = getReorgEpoch(subgraphName);
 
 		// Pipeline: start loading first batch and track the prefetched range.
 		// batchEnd must match what was actually loaded — not recalculated from a
@@ -194,13 +295,30 @@ export async function catchUpSubgraph(
 					stopCatchup = true;
 					break;
 				}
+				const preloaded = blockData;
 
 				let result: ProcessBlockResult;
 				try {
-					result = await processBlockWithRetry(subgraph, subgraphName, height, {
-						preloaded: blockData,
+					// f057: hold the per-subgraph block lock for this one block's
+					// write, and bail without writing if a reorg's epoch bump landed
+					// mid-walk — see the guard comment near subgraphBlockLockHeld.
+					result = await withSubgraphBlockLock(subgraphName, async () => {
+						if (getReorgEpoch(subgraphName) !== walkEpoch) {
+							throw new ReorgEpochChangedError(subgraphName);
+						}
+						return processBlockWithRetry(subgraph, subgraphName, height, {
+							preloaded,
+						});
 					});
 				} catch (err) {
+					if (err instanceof ReorgEpochChangedError) {
+						logger.info(
+							"Reorg detected mid catch-up, aborting walk without writing further progress",
+							{ subgraph: subgraphName, blockHeight: height },
+						);
+						stopCatchup = true;
+						break;
+					}
 					// Persistent failure: halt with the cursor before this block.
 					// Advancing past it would bake the missing events into every
 					// downstream row (fix-f040 B5).

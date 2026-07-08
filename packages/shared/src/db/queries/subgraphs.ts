@@ -310,7 +310,19 @@ export async function updateSubgraphExpiry(
  *  'active' (deploying/error → active keeps reorg eligibility, reorg.ts gates
  *  on it) but never overwrites an explicit 'reindexing' park — unconditional
  *  status stamping let catch-up flap a parked subgraph back into its own path
- *  per block, fighting the queued reindex op. */
+ *  per block, fighting the queued reindex op.
+ *
+ *  `last_processed_block` itself is written UNCONDITIONALLY — no monotonic
+ *  guard — on purpose: a reorg rewind must be able to move it *backward* to
+ *  the fork height, and a naive GREATEST(old, new) would block that. This
+ *  only stays correct because the two writers that can advance/rewind a
+ *  given subgraph's cursor concurrently (the catch-up walk and the reorg
+ *  handler, both in `@secondlayer/subgraphs/runtime`) serialize on an
+ *  in-process per-subgraph lock + reorg epoch guard
+ *  (`packages/subgraphs/src/runtime/catchup.ts`, `subgraphBlockLockHeld` /
+ *  `reorgEpoch` — see the comment there for the full invariant; f057). Don't
+ *  add a monotonic guard here without re-deriving that it can't also block
+ *  the rewind. */
 export async function recordLiveProgress(
 	db: Kysely<Database>,
 	name: string,
