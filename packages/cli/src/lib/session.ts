@@ -1,4 +1,11 @@
-import { chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+	chmod,
+	mkdir,
+	readFile,
+	rename,
+	rm,
+	writeFile,
+} from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { z } from "zod/v4";
@@ -44,14 +51,26 @@ export async function readSession(): Promise<Session | null> {
 	}
 }
 
-export async function writeSession(session: Session): Promise<void> {
-	await mkdir(dirname(SESSION_PATH), { recursive: true });
-	await writeFile(
-		SESSION_PATH,
-		`${JSON.stringify(session, null, 2)}\n`,
-		"utf8",
-	);
-	await chmod(SESSION_PATH, 0o600);
+// `path` override exists only so tests can point writeSession at a temp
+// file without racing the module-level SESSION_PATH constant (which is
+// resolved once from homedir() at import time). Callers in this package
+// never pass it.
+export async function writeSession(
+	session: Session,
+	path: string = SESSION_PATH,
+): Promise<void> {
+	const dir = dirname(path);
+	await mkdir(dir, { recursive: true });
+	const tmp = join(dir, `.session.${process.pid}.tmp`);
+	await writeFile(tmp, `${JSON.stringify(session, null, 2)}\n`, {
+		mode: 0o600,
+		encoding: "utf8",
+	});
+	// Belt-and-suspenders: enforce 0600 even if the temp file's create-time
+	// mode was affected by an unusual umask. rename() then carries this
+	// mode onto the destination atomically — no world-readable window.
+	await chmod(tmp, 0o600);
+	await rename(tmp, path);
 }
 
 export async function clearSession(): Promise<void> {
