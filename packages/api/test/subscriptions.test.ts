@@ -186,6 +186,67 @@ describe.skipIf(SKIP)("Subscriptions API validation", () => {
 			),
 		});
 	});
+
+	test("replay over a >100k block range returns the known validation message", async () => {
+		const created = await app.request("/subscriptions", {
+			method: "POST",
+			body: JSON.stringify({
+				name: "replay-range-too-large",
+				subgraphName: SUBGRAPH_NAME,
+				tableName: "transfers",
+				url: "https://example.com/webhook",
+			}),
+		});
+		const body = (await created.json()) as { subscription: { id: string } };
+
+		const res = await app.request(
+			`/subscriptions/${body.subscription.id}/replay`,
+			{
+				method: "POST",
+				body: JSON.stringify({ fromBlock: 0, toBlock: 200_000 }),
+			},
+		);
+		expect(res.status).toBe(400);
+		expect(await res.json()).toMatchObject({
+			error: "replay range exceeds 100k blocks",
+		});
+	});
+
+	// f052: replay against a subscription whose schema-declared table has no
+	// physical table underneath throws a raw Postgres "relation does not exist"
+	// error. That's exactly the kind of driver detail the route must not leak —
+	// it should collapse to the same generic 500 shape as the global handler.
+	test("replay swallows an unexpected DB error into a generic 500, not the raw driver message", async () => {
+		const created = await app.request("/subscriptions", {
+			method: "POST",
+			body: JSON.stringify({
+				name: "replay-unexpected-error",
+				subgraphName: SUBGRAPH_NAME,
+				tableName: "transfers",
+				url: "https://example.com/webhook",
+			}),
+		});
+		const body = (await created.json()) as { subscription: { id: string } };
+
+		// The `transfers` table exists only in the subgraph's schema JSON, not as
+		// a physical Postgres table/schema — replaySubscription's raw SELECT will
+		// throw "relation ... does not exist".
+		const res = await app.request(
+			`/subscriptions/${body.subscription.id}/replay`,
+			{
+				method: "POST",
+				body: JSON.stringify({ fromBlock: 0, toBlock: 10 }),
+			},
+		);
+		expect(res.status).toBe(500);
+		const responseBody = await res.json();
+		expect(responseBody).toEqual({
+			error: "Internal Server Error",
+			code: "INTERNAL_ERROR",
+		});
+		expect(JSON.stringify(responseBody)).not.toContain("relation");
+		expect(JSON.stringify(responseBody)).not.toContain("does not exist");
+	});
 });
 
 describe.skipIf(SKIP)("Subscriptions API pagination", () => {

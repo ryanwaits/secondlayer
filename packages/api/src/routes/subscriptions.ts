@@ -36,6 +36,24 @@ import { resolveSubscriptionQuota } from "../subgraphs/plan-limits.ts";
  */
 const app = new Hono();
 
+// Known, user-facing errors `replaySubscription` throws (see
+// packages/subgraphs/src/runtime/replay.ts). Anything else may carry raw
+// DB/driver detail, so it's genericized before reaching the client — the
+// "Subscription not found" sentinel is handled separately (-> 404).
+const KNOWN_REPLAY_ERRORS = [
+	"fromBlock must be <= toBlock",
+	"replay range exceeds 100k blocks",
+	"replay is only supported for subgraph or chain subscriptions",
+];
+const SUBGRAPH_NOT_REGISTERED_RE =
+	/^Subgraph ".*" not registered — cannot replay its rows\. Deploy the subgraph first\.$/;
+
+function isKnownReplayError(msg: string): boolean {
+	return (
+		KNOWN_REPLAY_ERRORS.includes(msg) || SUBGRAPH_NOT_REGISTERED_RE.test(msg)
+	);
+}
+
 function toSummary(sub: Subscription) {
 	return {
 		id: sub.id,
@@ -211,7 +229,10 @@ app.post("/", async (c) => {
 		return c.json({ subscription: toDetail(subscription), signingSecret }, 201);
 	} catch (err) {
 		logger.error("createSubscription failed", { error: getErrorMessage(err) });
-		return c.json({ error: getErrorMessage(err) }, 500);
+		return c.json(
+			{ error: "Internal Server Error", code: "INTERNAL_ERROR" },
+			500,
+		);
 	}
 });
 
@@ -470,8 +491,17 @@ app.post("/:id/replay", async (c) => {
 		return c.json(result, 202);
 	} catch (err) {
 		const msg = getErrorMessage(err);
-		const status = msg === "Subscription not found" ? 404 : 400;
-		return c.json({ error: msg }, status);
+		if (msg === "Subscription not found") {
+			return c.json({ error: msg }, 404);
+		}
+		if (isKnownReplayError(msg)) {
+			return c.json({ error: msg }, 400);
+		}
+		logger.error("replaySubscription failed", { error: msg });
+		return c.json(
+			{ error: "Internal Server Error", code: "INTERNAL_ERROR" },
+			500,
+		);
 	}
 });
 
