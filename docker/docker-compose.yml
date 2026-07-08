@@ -189,11 +189,15 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
+      # timeout/retries loosened from 3s/3 — uncapped postgres/decoder CPU bursts
+      # occasionally starved the host enough that a forked curl couldn't return
+      # in 3s three times running, flapping api to unhealthy with no real outage
+      # (2026-07-08 incident). See CPU limits on postgres/decoder below.
       test: ["CMD", "curl", "-f", "http://localhost:3800/health"]
       interval: 30s
-      timeout: 3s
+      timeout: 5s
       start_period: 10s
-      retries: 3
+      retries: 5
     restart: unless-stopped
 
   # Indexer service
@@ -279,6 +283,12 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
       STACKS_NETWORK: ${STACKS_NETWORK:-mainnet}
+      # ~15 per-event-type decoder loops each poll independently; at-tip, this is
+      # the only throttle between polls. Code default (1000ms) was never wired
+      # here, so prod ran all 15 at a ~1s cadence continuously (2026-07-08 CPU
+      # incident). 5s is still tiny next to the 300s lag / 5min checkpoint-stale
+      # thresholds that define "healthy" — cuts idle query volume ~5x for free.
+      DECODER_EMPTY_BACKOFF_MS: ${DECODER_EMPTY_BACKOFF_MS:-5000}
       SBTC_DECODER_ENABLED: ${SBTC_DECODER_ENABLED:-true}
       # PoX-4 transaction-result decoder. Mainnet-only; auto-seeds checkpoint
       # to tip on first enable (no historical replay).

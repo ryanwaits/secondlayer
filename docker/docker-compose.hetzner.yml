@@ -28,6 +28,12 @@ services:
     volumes:
       - ${DATA_DIR:-/opt/secondlayer/data}/postgres:/var/lib/postgresql/data
       - ${DATA_DIR:-/opt/secondlayer/data}/wal_archive:/wal_archive
+    deploy:
+      resources:
+        limits:
+          # Was uncapped and hit ~5 cores during a decoder-checkpoint query burst
+          # (2026-07-08), starving api's healthcheck curl on this 12-core host.
+          cpus: "4"
 
   # Control-plane DB for the source/target split. Persist to the host DATA_DIR
   # like the chain instance (the base compose only declares a named volume).
@@ -112,6 +118,10 @@ services:
       resources:
         limits:
           memory: 512M
+          # Observed at 202% CPU while writes_per_minute:0 (idle but CPU-hot —
+          # separate bug worth investigating). Capped so it can't starve api
+          # regardless.
+          cpus: "1.5"
 
   caddy:
     image: caddy:2-alpine
