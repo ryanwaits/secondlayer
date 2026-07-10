@@ -37,13 +37,18 @@ export async function discoverDeploys(
 		.select(["contract_id", "sender", "block_height"])
 		.where("type", "=", "smart_contract")
 		.where("contract_id", "is not", null)
+		// Anti-join against CANONICAL rows only: a contract flipped non-canonical
+		// by a reorg is re-selected here once its deploy tx exists on the new
+		// fork, and recordContractDeploy's upsert re-canonicalizes it (one-shot —
+		// the row is canonical again on the next tick, so it drops back out).
 		.where((eb) =>
 			eb.not(
 				eb.exists(
 					eb
 						.selectFrom("contracts")
 						.select("contracts.contract_id")
-						.whereRef("contracts.contract_id", "=", "transactions.contract_id"),
+						.whereRef("contracts.contract_id", "=", "transactions.contract_id")
+						.where("contracts.canonical", "=", true),
 				),
 			),
 		)

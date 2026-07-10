@@ -9,7 +9,14 @@ import type { Contract, Database } from "../types.ts";
 
 export type AbiStatus = "pending" | "fetched" | "failed" | "unparseable";
 
-/** Record a contract deploy (idempotent). ABI is fetched separately + async. */
+/**
+ * Record a contract deploy (idempotent). ABI is fetched separately + async.
+ * On conflict the row is re-canonicalized rather than skipped: after a reorg
+ * flips contracts non-canonical (markContractsNonCanonical), discovery
+ * re-selects any id whose deploy tx exists on the new fork and this upsert
+ * restores `canonical` with the fork's height. ABI fields are untouched, so a
+ * previously fetched ABI survives the round trip.
+ */
 export async function recordContractDeploy(
 	db: Kysely<Database>,
 	row: { contractId: string; deployer: string; blockHeight: number },
@@ -21,7 +28,13 @@ export async function recordContractDeploy(
 			deployer: row.deployer,
 			block_height: row.blockHeight,
 		})
-		.onConflict((oc) => oc.column("contract_id").doNothing())
+		.onConflict((oc) =>
+			oc.column("contract_id").doUpdateSet({
+				deployer: row.deployer,
+				block_height: row.blockHeight,
+				canonical: true,
+			}),
+		)
 		.execute();
 }
 
@@ -51,6 +64,11 @@ export async function setContractAbi(
 		.execute();
 }
 
+/**
+ * A contract reorged out and not (yet) redeployed on the new fork is not on
+ * the canonical chain — serve 404, not its stale row/ABI. Matches every other
+ * contracts read (list, trait scope, pending-ABI), which already filter.
+ */
 export async function getContract(
 	db: Kysely<Database>,
 	contractId: string,
@@ -60,6 +78,7 @@ export async function getContract(
 			.selectFrom("contracts")
 			.selectAll()
 			.where("contract_id", "=", contractId)
+			.where("canonical", "=", true)
 			.executeTakeFirst()) ?? null
 	);
 }
@@ -131,7 +150,12 @@ export async function resolveTraitContractIds(
 	return rows.map((r) => r.contract_id);
 }
 
-/** Reorg: flip contracts deployed at/above a reorged height to non-canonical. */
+/**
+ * Reorg: flip contracts deployed at/above a reorged height to non-canonical.
+ * Called from the indexer's handleReorg tx. Recovery is eventual: discovery
+ * (discoverDeploys) re-selects non-canonical ids whose deploy tx exists on
+ * the new fork and recordContractDeploy re-canonicalizes them.
+ */
 export async function markContractsNonCanonical(
 	db: Kysely<Database>,
 	fromBlockHeight: number,

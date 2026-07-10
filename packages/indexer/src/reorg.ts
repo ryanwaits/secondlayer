@@ -2,6 +2,7 @@ import { STREAMS_DB_EVENT_TYPES, sql } from "@secondlayer/shared";
 import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db";
 import { insertChainReorg } from "@secondlayer/shared/db/queries/chain-reorgs";
+import { markContractsNonCanonical } from "@secondlayer/shared/db/queries/contracts";
 import { logger } from "@secondlayer/shared/logger";
 import type { Transaction } from "kysely";
 import { handleBnsReorg } from "./decode/bns-storage.ts";
@@ -69,6 +70,11 @@ export async function handleReorg(
 		await sql`SELECT pg_notify('subgraph_reorg', ${JSON.stringify({ blockHeight, oldHash, newHash })})`.execute(
 			tx,
 		);
+
+		// Contracts registry: same `>=` sweep as blocks. Recovery is eventual —
+		// discoverDeploys re-selects non-canonical ids whose deploy tx exists on
+		// the new fork and recordContractDeploy re-canonicalizes them (CANON-01).
+		await markContractsNonCanonical(tx, blockHeight);
 
 		// Reconcile every decoded plane in the same tx: the generic decoded_events
 		// table plus the per-asset projections (sBTC, pox4, BNS), which share the

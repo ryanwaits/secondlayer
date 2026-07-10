@@ -54,6 +54,14 @@ async function seedOrphanedBlock(db: NonNullable<ReturnType<typeof getDb>>) {
 			})),
 		)
 		.execute();
+	await db
+		.insertInto("contracts")
+		.values({
+			contract_id: "SP1.reorged-deploy",
+			deployer: "SP1",
+			block_height: H,
+		})
+		.execute();
 }
 
 describe.skipIf(!HAS_DB)("handleReorg orphaned_to cursor", () => {
@@ -71,6 +79,10 @@ describe.skipIf(!HAS_DB)("handleReorg orphaned_to cursor", () => {
 		await db
 			.deleteFrom("chain_reorgs")
 			.where("fork_point_height", "=", H)
+			.execute();
+		await db
+			.deleteFrom("contracts")
+			.where("contract_id", "=", "SP1.reorged-deploy")
 			.execute();
 	});
 
@@ -115,5 +127,19 @@ describe.skipIf(!HAS_DB)("handleReorg orphaned_to cursor", () => {
 		// contract_event and would record 1 here.
 		expect(Number(reorg.orphaned_to_event_index)).toBe(expectedEventIndex);
 		expect(Number(reorg.orphaned_to_event_index)).toBe(SEED_EVENTS.length - 1);
+	});
+
+	test("flips contracts deployed at/above the fork point to non-canonical", async () => {
+		if (!db) throw new Error("missing db");
+		await seedOrphanedBlock(db);
+
+		await handleReorg(H, "0xreorgA", "0xreorgB");
+
+		const contract = await db
+			.selectFrom("contracts")
+			.select("canonical")
+			.where("contract_id", "=", "SP1.reorged-deploy")
+			.executeTakeFirstOrThrow();
+		expect(contract.canonical).toBe(false);
 	});
 });
