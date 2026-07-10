@@ -561,7 +561,6 @@ export interface BurnBlockRewardsTable {
 	// sats; TEXT to match the dataset amount convention (BIGINT returns as string).
 	amount_sats: string;
 	burn_amount: Generated<string>;
-	canonical: Generated<boolean>;
 	created_at: Generated<Date>;
 }
 
@@ -572,7 +571,6 @@ export interface BurnBlockRewardSlotsTable {
 	burn_block_hash: string;
 	slot_index: number;
 	holder_btc: string;
-	canonical: Generated<boolean>;
 	created_at: Generated<Date>;
 }
 

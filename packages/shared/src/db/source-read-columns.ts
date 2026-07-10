@@ -218,7 +218,6 @@ export const SOURCE_READ_COLUMNS = {
 		"burn_amount",
 		"burn_block_hash",
 		"burn_block_height",
-		"canonical",
 		"cursor",
 		"recipient_btc",
 		"reward_index",
@@ -226,7 +225,6 @@ export const SOURCE_READ_COLUMNS = {
 	burn_block_reward_slots: [
 		"burn_block_hash",
 		"burn_block_height",
-		"canonical",
 		"cursor",
 		"holder_btc",
 		"slot_index",
@@ -467,7 +465,6 @@ export const SOURCE_READ_TYPES = {
 		burn_amount: { type: "text" },
 		burn_block_hash: { type: "text" },
 		burn_block_height: { type: "int" },
-		canonical: { type: "boolean" },
 		cursor: { type: "text" },
 		recipient_btc: { type: "text" },
 		reward_index: { type: "int" },
@@ -475,7 +472,6 @@ export const SOURCE_READ_TYPES = {
 	burn_block_reward_slots: {
 		burn_block_hash: { type: "text" },
 		burn_block_height: { type: "int" },
-		canonical: { type: "boolean" },
 		cursor: { type: "text" },
 		holder_btc: { type: "text" },
 		slot_index: { type: "int" },

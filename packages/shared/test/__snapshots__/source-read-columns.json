@@ -204,7 +204,6 @@
 		"burn_amount",
 		"burn_block_hash",
 		"burn_block_height",
-		"canonical",
 		"cursor",
 		"recipient_btc",
 		"reward_index"
@@ -212,7 +211,6 @@
 	"burn_block_reward_slots": [
 		"burn_block_hash",
 		"burn_block_height",
-		"canonical",
 		"cursor",
 		"holder_btc",
 		"slot_index"

@@ -251,7 +251,9 @@ const server = Bun.serve({
 
 		// New burn block event — persists PoX reward payouts + reward-set
 		// membership (the burnchain dataset). Replace-per-height write is
-		// idempotent on redelivery and shallow burnchain reorgs.
+		// idempotent on redelivery and heals burnchain reorgs of any depth
+		// as the node re-announces each replaced height (see
+		// persistBurnBlockRewards for the full contract).
 		"/new_burn_block": {
 			POST: async (req) => {
 				try {

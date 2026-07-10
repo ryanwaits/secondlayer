@@ -14,9 +14,25 @@ let innerKeysVerified = false;
  * Persist the PoX reward data from a /new_burn_block event observer payload.
  *
  * Both tables are rewritten per burn-block-height (delete-then-insert in one
- * tx), which makes event redelivery and shallow burnchain reorgs idempotent: a
- * new burn block at the same height replaces the prior fork's rows. Recipients
- * map positionally to reward slots (reward_index 0/1 — at most two per block).
+ * tx). Replace-per-height IS the burnchain reorg contract (plan f062): it
+ * heals event redelivery and burnchain reorgs of ANY depth height-by-height,
+ * because stacks-core re-announces /new_burn_block for every replaced height
+ * when it processes a burnchain fork (the nakamoto coordinator runs every
+ * newly-canonical burn block lacking a sortition through evaluate_sortition,
+ * which fires dispatcher_announce_burn_ops; the announce_burn_block trait doc
+ * says explicitly it fires multiple times per header hash across forks).
+ *
+ * Accepted residual gaps, by design: during a depth-d reorg there is a
+ * mixed-fork read window (heights not yet redelivered still show the old
+ * fork) with no detection signal — chain_reorgs is Stacks-level; consumers
+ * needing fork consistency must cross-check burn_block_hash linkage. A
+ * replacement fork with fewer blocks (essentially impossible outside a
+ * difficulty-retarget boundary) leaves rows above the new tip stale until
+ * the chain re-reaches that height. There is no orphan history: replaced
+ * rows are gone, not archived.
+ *
+ * Recipients map positionally to reward slots (reward_index 0/1 — at most
+ * two per block).
  */
 export async function persistBurnBlockRewards(
 	payload: NewBurnBlockPayload,
