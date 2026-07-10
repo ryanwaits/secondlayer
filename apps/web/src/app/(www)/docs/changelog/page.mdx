@@ -2,6 +2,23 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## Index — July 2026
+
+### Reorg-safe contract lookups
+
+`GET /v1/contracts/:contractId` no longer serves contracts that were reorged
+out of the canonical chain. A reorg flips the registry row non-canonical, and
+the moment the deploy reappears on the new fork, discovery restores it
+automatically — your fetched ABIs survive the round trip.
+
+- Trait discovery (`/v1/contracts?trait=`) and as-of-block trait resolution
+  already excluded reorged-out contracts; the by-id read now agrees with them.
+- The burnchain reward tables (`burn_block_rewards`,
+  `burn_block_reward_slots`) drop their never-enforced `canonical` column —
+  replace-per-height is the documented reorg contract for burnchain data. If
+  your `sl index codegen` mirror includes these tables, re-run codegen and
+  drop the column; it was always `true`, so nothing is lost.
+
 ## SDK — July 2026
 
 ### SIP-045 staking post-conditions, ready before the fork
