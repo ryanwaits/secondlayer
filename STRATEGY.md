@@ -18,7 +18,8 @@ Everything we market is one of these three. Everything else is a feature of them
 **Index** — indexer-as-a-service. We run the chain indexer; you query decoded
 Stacks data (events, transfers, blocks, transactions) over REST with a cursor
 envelope — keyless — or build your own app index on the same rows: a
-checkpointed `consume()` loop with automatic reorg rewind, `walk()` sweeps,
+checkpointed `consume()` loop with automatic cursor rewind on reorg (`onReorg`
+rolls back your own rows), `walk()` sweeps,
 `from_height=0` backfill, `/canonical`, `sl index codegen` for your mirror
 schema. Built on Streams (our decoder is a Streams consumer). For app devs and agents: answers tonight, or an app index
 without writing decoders.
