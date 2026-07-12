@@ -37,6 +37,21 @@ const BATCH = Number(process.env.TRIGGER_EVALUATOR_BATCH) || 200;
 const MAX_BLOCKS_PER_TICK =
 	Number(process.env.TRIGGER_EVALUATOR_MAX_BLOCKS) || 2_000;
 
+// A concurrent reorg rewind and the evaluator's forward advance target the same
+// cursor row. FOR UPDATE serializes the writes but not the *staleness* of a `to`
+// computed before the rewind — so a stale advance could clobber the rewind
+// (under-delivery). This in-memory generation counter, bumped by handleChainReorg
+// BEFORE it rewinds, lets advanceCursor reject any advance snapshotted before the
+// reorg. In-process only: subscription-plane gates the evaluator and the reorg on
+// the same leader (see subscription-plane.ts). Mirrors f057's reorgEpoch in catchup.ts.
+let chainReorgGeneration = 0;
+export function bumpChainReorgGeneration(): void {
+	chainReorgGeneration++;
+}
+export function getChainReorgGeneration(): number {
+	return chainReorgGeneration;
+}
+
 async function readCursor(db: Kysely<Database>): Promise<number> {
 	const row = await db
 		.selectFrom("trigger_evaluator_state")
@@ -48,24 +63,36 @@ async function readCursor(db: Kysely<Database>): Promise<number> {
 
 /**
  * Advance the global cursor to `to`, never backwards. The `FOR UPDATE` +
- * `< to` guard serializes concurrent evaluators and ignores a stale advance
- * that races a reorg rewind; `dedup_key` is the duplicate-delivery backstop.
+ * `< to` guard serializes concurrent evaluators; the `generation` re-check
+ * (inside the same transaction, after FOR UPDATE) rejects an advance whose
+ * `to` was computed before a reorg rewound the cursor — see
+ * `chainReorgGeneration` above. `dedup_key` is the duplicate-delivery
+ * backstop for anything that still slips through.
  */
-async function advanceCursor(db: Kysely<Database>, to: number): Promise<void> {
-	await db.transaction().execute(async (trx) => {
+export async function advanceCursor(
+	db: Kysely<Database>,
+	to: number,
+	generation: number,
+): Promise<{ advanced: boolean; reorged: boolean }> {
+	return db.transaction().execute(async (trx) => {
 		const cur = await trx
 			.selectFrom("trigger_evaluator_state")
 			.select("last_processed_block")
 			.where("id", "=", true)
 			.forUpdate()
 			.executeTakeFirst();
+		if (getChainReorgGeneration() !== generation) {
+			return { advanced: false, reorged: true };
+		}
 		if (cur && Number(cur.last_processed_block) < to) {
 			await trx
 				.updateTable("trigger_evaluator_state")
 				.set({ last_processed_block: to, updated_at: new Date() })
 				.where("id", "=", true)
 				.execute();
+			return { advanced: true, reorged: false };
 		}
+		return { advanced: false, reorged: false };
 	});
 }
 
@@ -77,6 +104,10 @@ async function advanceCursor(db: Kysely<Database>, to: number): Promise<void> {
 export async function runEvaluatorOnce(
 	db: Kysely<Database> = getTargetDb(),
 ): Promise<number> {
+	// Snapshot BEFORE reading the cursor: a rewind between this read and the
+	// cursor read below still trips the guard on the next advanceCursor call
+	// (conservative — one wasted tick, never a clobber).
+	const generation = getChainReorgGeneration();
 	const chainSubs = await listActiveChainSubscriptions(db);
 	if (chainSubs.length >= CHAIN_SUB_WARN_THRESHOLD) {
 		logger.warn("Active chain subscription count is high", {
@@ -99,7 +130,7 @@ export async function runEvaluatorOnce(
 	// Forward-looking: uninitialized cursor or no subscriptions → jump to tip so
 	// nothing backfills history.
 	if (cursor === 0 || chainSubs.length === 0) {
-		await advanceCursor(db, tip);
+		await advanceCursor(db, tip, generation);
 		return emitted;
 	}
 	if (cursor >= tip) return emitted;
@@ -126,7 +157,8 @@ export async function runEvaluatorOnce(
 			}
 			emitted += await emitSbtcOutbox(db, chainSubs, h, bd.block.hash);
 		}
-		await advanceCursor(db, to);
+		const res = await advanceCursor(db, to, generation);
+		if (res.reorged) break;
 	}
 	return emitted;
 }

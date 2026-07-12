@@ -9,6 +9,7 @@ import type {
 import { getTargetDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
+import { bumpChainReorgGeneration } from "./trigger-evaluator-loop.ts";
 
 /**
  * Reorg handling for direct chain-level subscriptions.
@@ -37,6 +38,11 @@ export async function handleChainReorg(
 	forkHeight: number,
 	db: Kysely<Database> = getTargetDb(),
 ): Promise<void> {
+	// Invalidate any evaluator tick snapshotted before this reorg so its stale
+	// forward advance cannot clobber the rewind below (bump before any await, so
+	// a concurrent advance taking the cursor lock observes it). Mirrors f057.
+	bumpChainReorgGeneration();
+
 	// 1. Drop undelivered applies for orphaned blocks.
 	await db
 		.deleteFrom("subscription_outbox")
