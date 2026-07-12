@@ -10,6 +10,7 @@ import type { Context, MiddlewareHandler } from "hono";
 import { getClientIp } from "../auth/http.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import {
+	creditBalance,
 	debitBalance,
 	recordSpend,
 	usdToMicros,
@@ -423,20 +424,49 @@ export function x402PaymentRequired(
 
 		// Record the payment (txid UNIQUE blocks double-redemption). Optimistic
 		// serves land as `pending` in the ledger; the reconciler advances them.
-		await insert({
-			nonce,
-			txid: settlement.txid,
-			asset: payment.asset,
-			amount: offer.amount,
-			payer: verdict.payer,
-			surface: options.surface,
-			state: settlement.state === "confirmed" ? "confirmed" : "pending",
-			kind,
-			credit_usd_micros: creditUsdMicros,
-		});
-		// Consumption (not deposits) feeds the monthly-spend funnel counter.
-		if (kind === "payment") {
-			await recordSpendFn(verdict.payer, usdToMicros(cfg.priceUsd));
+		//
+		// A confirmed deposit's ledger row and its balance credit must land
+		// atomically: an API crash between two separate statements here would
+		// settle the customer's on-chain funds, record `confirmed`, and never
+		// credit the tab — and nothing downstream can recover it (the reconciler
+		// only credits on a pending→confirmed transition). Mirrors the worker's
+		// `defaultConfirmPayment` (`x402-reconcile.ts`).
+		if (kind === "deposit" && settlement.state === "confirmed") {
+			await getDb()
+				.transaction()
+				.execute(async (trx) => {
+					await insert(
+						{
+							nonce,
+							txid: settlement.txid,
+							asset: payment.asset,
+							amount: offer.amount,
+							payer: verdict.payer,
+							surface: options.surface,
+							state: "confirmed",
+							kind,
+							credit_usd_micros: creditUsdMicros,
+						},
+						trx,
+					);
+					await creditBalance(trx, verdict.payer, usdToMicros(cfg.priceUsd));
+				});
+		} else {
+			await insert({
+				nonce,
+				txid: settlement.txid,
+				asset: payment.asset,
+				amount: offer.amount,
+				payer: verdict.payer,
+				surface: options.surface,
+				state: settlement.state === "confirmed" ? "confirmed" : "pending",
+				kind,
+				credit_usd_micros: creditUsdMicros,
+			});
+			// Consumption (not deposits) feeds the monthly-spend funnel counter.
+			if (kind === "payment") {
+				await recordSpendFn(verdict.payer, usdToMicros(cfg.priceUsd));
+			}
 		}
 
 		c.header(

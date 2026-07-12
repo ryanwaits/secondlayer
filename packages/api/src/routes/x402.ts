@@ -5,12 +5,10 @@ import { Hono } from "hono";
 import {
 	MAX_DEPOSIT_USD,
 	MIN_DEPOSIT_USD,
-	creditBalance,
 	getBalance,
 	getMonthlySpend,
 	mintBalanceToken,
 	upgradeHint,
-	usdToMicros,
 	verifyBalanceToken,
 } from "../x402/balance.ts";
 import { X402_MIN_FLOOR_USD, X402_PRICE_CATALOG } from "../x402/catalog.ts";
@@ -110,7 +108,9 @@ export function createX402Router(deps: X402RouterDeps = {}) {
 					503,
 				);
 			}
-			const balance = await creditBalance(getDb(), payer, usdToMicros(paidUsd));
+			// The middleware already credited the tab atomically with the ledger
+			// row (see `x402/middleware.ts`) — read it back, don't credit again.
+			const balance = await getBalance(getDb(), payer);
 			const spent = await getMonthlySpend(getDb(), payer);
 			return c.json({
 				credited_usd: paidUsd,

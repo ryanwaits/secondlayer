@@ -52,7 +52,10 @@ describe.skipIf(SKIP)("x402 prepaid balances", () => {
 		process.env.SECONDLAYER_SECRETS_KEY = SECRET;
 		const app = new Hono();
 		app.onError(errorHandler);
-		// fake deposit middleware: pretend a $5 payment settled for PAYER
+		// fake deposit middleware: pretend a $5 payment settled for PAYER. The real
+		// x402PaymentRequired middleware credits confirmed deposits atomically with
+		// the ledger row (f064) — the route only reads the balance back — so the
+		// stub credits here too, matching production.
 		const fakeMw = (async (
 			// biome-ignore lint/suspicious/noExplicitAny: test stub
 			c: any,
@@ -60,6 +63,7 @@ describe.skipIf(SKIP)("x402 prepaid balances", () => {
 		) => {
 			c.set("x402Payer", PAYER);
 			c.set("x402PaidUsd", 5);
+			await creditBalance(getDb(), PAYER, usdToMicros(5));
 			await next();
 			// biome-ignore lint/suspicious/noExplicitAny: matches middleware type
 		}) as any;
