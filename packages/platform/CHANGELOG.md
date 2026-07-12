@@ -1,5 +1,12 @@
 # @secondlayer/platform
 
+## 0.1.19
+
+### Patch Changes
+
+- Updated dependencies [db52ee6]
+  - @secondlayer/shared@6.41.2
+
 ## 0.1.18
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @secondlayer/subgraphs
 
+## 3.19.5
+
+### Patch Changes
+
+- dff4a07: Fix a chain-trigger evaluator race where a reorg's cursor rewind could be clobbered by a stale, already-in-flight forward advance computed from the old canonical chain, causing blocks on the new canonical chain to never re-evaluate (under-delivery). The evaluator now snapshots an in-memory reorg generation each tick and refuses to advance the cursor if a reorg landed since the snapshot was taken.
+- Updated dependencies [db52ee6]
+  - @secondlayer/shared@6.41.2
+
 ## 3.19.4
 
 ### Patch Changes
