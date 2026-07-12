@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 6.41.1
+
+### Patch Changes
+
+- Gate the 0107 burnchain migration to the chain plane.
+
 ## 6.41.0
 
 ### Minor Changes

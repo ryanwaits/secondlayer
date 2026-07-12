@@ -1,5 +1,13 @@
 # @secondlayer/cli
 
+## 8.14.3
+
+### Patch Changes
+
+- Clarinet plugin now warns when Clarinet.toml exists but contracts fail to load, instead of silently generating nothing. Dedupe contract/function include-exclude filters and the default read-only sender address across plugins; remove dead react provider generators.
+- Updated dependencies
+  - @secondlayer/shared@6.41.1
+
 ## 8.14.2
 
 ### Patch Changes
