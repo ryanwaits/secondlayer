@@ -878,6 +878,11 @@ export interface X402PaymentsTable {
 	/** USD-micros to credit on confirmation, for deposit rows the reconciler
 	 *  settles asynchronously. NULL for per-call settles (credit nothing). */
 	credit_usd_micros: string | null;
+	/** Idempotency key: stamped exactly once when this row's credit is applied.
+	 *  NULL means never credited (or not a credit-bearing row). Pre-migration
+	 *  non-pending deposit rows are backfilled to a non-null sentinel so the
+	 *  reconciler's heal path can never double-credit them. */
+	credited_at: Generated<Date> | null;
 }
 
 // --- Tenants (dedicated hosting) ---
