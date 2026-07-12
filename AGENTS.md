@@ -19,16 +19,28 @@ secondlayer/
 ├── STRATEGY.md        ← what we build and why (wins all contradictions)
 ├── AGENTS.md          ← this file
 ├── docs/              ← audits, specs, guides, sprints (historical)
-├── packages/
+├── packages/          ← the 13 workspace packages (all of them)
 │   ├── indexer/       ← block follower, decoders; writes raw + decoded planes
 │   ├── api/           ← public HTTPS surface (/v1: index, subgraphs, streams, x402)
 │   ├── subgraphs/     ← subgraph compiler + runtime
 │   ├── platform/      ← accounts, plans, billing
 │   ├── worker/        ← crons (reconcile, sweeps, alerts)
 │   ├── mcp/ sdk/ cli/ ← clients (golden-path surface only — see parity firewall)
+│   ├── scaffold/      ← generates a subgraph definition from a contract ABI (powers `sl subgraphs scaffold`)
+│   ├── bundler/       ← compiles a subgraph definition into one deployable artifact (powers `sl subgraphs deploy`)
+│   ├── clarity-docs/  ← ClarityDoc comment standard + tooling for Clarity contracts
 │   ├── stacks/        ← chain primitives SDK (/clarity load-bearing; nonce coordination supported; rest of wallet half frozen)
 │   └── shared/        ← db, schemas, vocab single-sourcing
-└── apps/web/          ← www marketing + docs + /platform console
+├── apps/web/          ← www marketing + docs + /platform console
+├── subgraphs/         ← canonical source for the hosted public subgraphs (sBTC, Explore, …)
+├── contracts/         ← reference Clarity contracts (Clarinet project; e.g. spv-adapter)
+├── examples/          ← runnable end-to-end examples for devs
+├── docker/            ← Dockerfiles, compose stacks, Caddy (dev + Hetzner prod)
+├── scripts/           ← ops/dev/CI one-offs (seeds, backfills, dry-runs)
+├── tools/             ← non-workspace internal tooling (tools/ops/konsole)
+├── bench/             ← throwaway benchmarking subgraphs
+├── spike/             ← subgraph-isolation PoC (load-bearing for the open f060 sandbox spike)
+└── release-hold/      ← changesets parked out of the next release on purpose (see its README)
 ```
 
 ---
