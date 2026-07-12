@@ -51,6 +51,9 @@ export type ReconcilePayment = {
 	kind: string;
 	/** USD-micros to credit on confirmation (deposit rows only; else null). */
 	creditUsdMicros: string | null;
+	/** When this row's credit was applied (idempotency key), or null if never
+	 *  credited (or not credit-bearing). Drives the heal path below. */
+	creditedAtMs: number | null;
 };
 
 export type ReconcileDeps = {
@@ -62,6 +65,11 @@ export type ReconcileDeps = {
 	/** Flip a row → `reverted` (reorg / dropped), clawing back any credited
 	 *  deposit balance atomically (exactly-once, guarded on the prior state). */
 	revertPayment?: (p: ReconcilePayment) => Promise<void>;
+	/** Heal a confirmed deposit that was never credited (`credited_at IS
+	 *  NULL`) — exactly-once, guarded on `credited_at IS NULL`. Only rows
+	 *  created after the credited_at migration are ever eligible (pre-existing
+	 *  confirmed deposits were backfilled to a non-null sentinel). */
+	healCredit?: (p: ReconcilePayment) => Promise<void>;
 	recordStrike?: (principal: string) => Promise<void>;
 	now?: () => number;
 	graceMs?: number;
@@ -100,6 +108,7 @@ export async function reconcilePayment(
 	const isCanonical = deps.isCanonical ?? defaultIsCanonical;
 	const confirmPayment = deps.confirmPayment ?? defaultConfirmPayment;
 	const revertPayment = deps.revertPayment ?? defaultRevertPayment;
+	const healCredit = deps.healCredit ?? defaultHealCredit;
 	const recordStrike = deps.recordStrike ?? defaultRecordStrike;
 	const now = deps.now ?? (() => Date.now());
 	const defaultGraceMs =
@@ -107,7 +116,17 @@ export async function reconcilePayment(
 	const graceMs = deps.graceMs ?? defaultGraceMs;
 
 	if (await isCanonical(p.txid)) {
-		if (p.state !== "confirmed") await confirmPayment(p);
+		if (p.state !== "confirmed") {
+			await confirmPayment(p);
+		} else if (
+			p.creditedAtMs === null &&
+			depositCreditMicros(p.kind, p.creditUsdMicros) !== null
+		) {
+			// Genuinely-uncredited confirmed deposit (post-migration row only —
+			// pre-existing confirmed deposits were backfilled to a non-null
+			// credited_at sentinel and can never reach this branch). Heal it.
+			await healCredit(p);
+		}
 		return "confirmed";
 	}
 
@@ -273,12 +292,57 @@ async function defaultConfirmPayment(p: ReconcilePayment): Promise<void> {
 		.execute(async (trx) => {
 			const res = await trx
 				.updateTable("x402_payments")
-				.set({ state: "confirmed", updated_at: sql`now()` })
+				.set({
+					state: "confirmed",
+					updated_at: sql`now()`,
+					credited_at: sql`now()`,
+				})
 				.where("txid", "=", p.txid)
 				.where("state", "=", "pending")
 				.executeTakeFirst();
 			// Another sweep already confirmed it → don't double-credit.
 			if (Number(res.numUpdatedRows ?? 0n) !== 1) return;
+			await trx
+				.insertInto("x402_balances")
+				.values({
+					principal: p.payer,
+					balance_usd_micros: micros.toString(),
+					updated_at: new Date(),
+				})
+				.onConflict((oc) =>
+					oc.column("principal").doUpdateSet({
+						balance_usd_micros: sql`x402_balances.balance_usd_micros + ${micros.toString()}`,
+						updated_at: new Date(),
+					}),
+				)
+				.execute();
+		});
+}
+
+/**
+ * Heal a confirmed deposit whose credit was never applied — a confirmed row
+ * with `credited_at IS NULL` created after the credited_at migration (see
+ * 0108_x402_payments_credited_at.ts). Pre-existing confirmed deposits were
+ * backfilled to a non-null sentinel and are never eligible here, so this can
+ * only ever touch a genuinely-uncredited post-migration row. Guarded on
+ * `state='confirmed' AND credited_at IS NULL` in the SAME transaction as the
+ * credit, so concurrent sweeps heal at most once (numUpdatedRows === 1).
+ */
+async function defaultHealCredit(p: ReconcilePayment): Promise<void> {
+	await getDb()
+		.transaction()
+		.execute(async (trx) => {
+			const res = await trx
+				.updateTable("x402_payments")
+				.set({ credited_at: sql`now()`, updated_at: sql`now()` })
+				.where("txid", "=", p.txid)
+				.where("state", "=", "confirmed")
+				.where("credited_at", "is", null)
+				.executeTakeFirst();
+			// Another sweep already healed it → don't double-credit.
+			if (Number(res.numUpdatedRows ?? 0n) !== 1) return;
+			const micros = depositCreditMicros(p.kind, p.creditUsdMicros);
+			if (micros === null) return;
 			await trx
 				.insertInto("x402_balances")
 				.values({
@@ -326,6 +390,7 @@ async function listReconcilable(): Promise<ReconcilePayment[]> {
 			"created_at",
 			"kind",
 			"credit_usd_micros",
+			"credited_at",
 		])
 		.where("state", "in", ["pending", "confirmed"])
 		.where(
@@ -341,6 +406,7 @@ async function listReconcilable(): Promise<ReconcilePayment[]> {
 		createdAtMs: new Date(r.created_at).getTime(),
 		kind: r.kind,
 		creditUsdMicros: r.credit_usd_micros,
+		creditedAtMs: r.credited_at ? new Date(r.credited_at).getTime() : null,
 	}));
 }
 

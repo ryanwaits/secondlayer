@@ -446,6 +446,7 @@ export function x402PaymentRequired(
 							state: "confirmed",
 							kind,
 							credit_usd_micros: creditUsdMicros,
+							credited_at: new Date(),
 						},
 						trx,
 					);

@@ -1,4 +1,5 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
+import { getDb } from "@secondlayer/shared/db";
 import {
 	type ReconcilePayment,
 	depositCreditMicros,
@@ -6,6 +7,8 @@ import {
 	shouldDebitOnRevert,
 	sweepX402Reconcile,
 } from "./x402-reconcile.ts";
+
+const SKIP_DB = !process.env.DATABASE_URL;
 
 function payment(over: Partial<ReconcilePayment> = {}): ReconcilePayment {
 	return {
@@ -15,6 +18,7 @@ function payment(over: Partial<ReconcilePayment> = {}): ReconcilePayment {
 		createdAtMs: 1_000,
 		kind: "payment",
 		creditUsdMicros: null,
+		creditedAtMs: null,
 		...over,
 	};
 }
@@ -72,10 +76,16 @@ describe("reconcilePayment", () => {
 				state: "confirmed",
 				kind: "deposit",
 				creditUsdMicros: "250000",
+				// Already carries a credit marker (already credited) — must not
+				// re-confirm OR re-heal.
+				creditedAtMs: 500,
 			}),
 			{
 				isCanonical: async () => true,
 				confirmPayment: async () => {
+					called = true;
+				},
+				healCredit: async () => {
 					called = true;
 				},
 				now: () => 2_000,
@@ -83,6 +93,105 @@ describe("reconcilePayment", () => {
 		);
 		expect(state).toBe("confirmed");
 		expect(called).toBe(false);
+	});
+
+	// A confirmed deposit with no credit marker (credited_at IS NULL) is the
+	// genuinely-uncredited case the heal path exists for — only reachable by
+	// rows created after the credited_at migration (pre-existing confirmed
+	// deposits are backfilled to a non-null sentinel and can never land here).
+	test("a confirmed deposit with no credit marker is healed exactly once", async () => {
+		let healCalls = 0;
+		const state = await reconcilePayment(
+			payment({
+				state: "confirmed",
+				kind: "deposit",
+				creditUsdMicros: "250000",
+				creditedAtMs: null,
+			}),
+			{
+				isCanonical: async () => true,
+				confirmPayment: async () => {
+					throw new Error("must not re-confirm an already-confirmed row");
+				},
+				healCredit: async () => {
+					healCalls++;
+				},
+				now: () => 2_000,
+			},
+		);
+		expect(state).toBe("confirmed");
+		expect(healCalls).toBe(1);
+	});
+
+	// Regression lock against double-crediting historical/backfilled rows: a
+	// confirmed deposit that already carries a credit marker must never be
+	// healed again, no matter how many sweeps re-check it.
+	test("a confirmed deposit already carrying a credit marker is not re-credited", async () => {
+		let healCalls = 0;
+		const state = await reconcilePayment(
+			payment({
+				state: "confirmed",
+				kind: "deposit",
+				creditUsdMicros: "250000",
+				creditedAtMs: 500,
+			}),
+			{
+				isCanonical: async () => true,
+				healCredit: async () => {
+					healCalls++;
+				},
+				now: () => 2_000,
+			},
+		);
+		expect(state).toBe("confirmed");
+		expect(healCalls).toBe(0);
+	});
+
+	test("a confirmed non-deposit row is never healed", async () => {
+		let healCalls = 0;
+		const state = await reconcilePayment(
+			payment({
+				state: "confirmed",
+				kind: "payment",
+				creditUsdMicros: null,
+				creditedAtMs: null,
+			}),
+			{
+				isCanonical: async () => true,
+				healCredit: async () => {
+					healCalls++;
+				},
+				now: () => 2_000,
+			},
+		);
+		expect(state).toBe("confirmed");
+		expect(healCalls).toBe(0);
+	});
+
+	test("a canonical pending deposit still confirms and credits via confirmPayment, not healCredit", async () => {
+		let confirmCalls = 0;
+		let healCalls = 0;
+		const state = await reconcilePayment(
+			payment({
+				state: "pending",
+				kind: "deposit",
+				creditUsdMicros: "250000",
+				creditedAtMs: null,
+			}),
+			{
+				isCanonical: async () => true,
+				confirmPayment: async () => {
+					confirmCalls++;
+				},
+				healCredit: async () => {
+					healCalls++;
+				},
+				now: () => 2_000,
+			},
+		);
+		expect(state).toBe("confirmed");
+		expect(confirmCalls).toBe(1);
+		expect(healCalls).toBe(0);
 	});
 
 	test("pending + not canonical + within grace → stays pending (no write)", async () => {
@@ -392,5 +501,84 @@ describe("sweepX402Reconcile", () => {
 		});
 		expect(resolveCalls).toBe(0);
 		expect(result).toEqual({ checked: 1, confirmed: 1, reverted: 0 });
+	});
+});
+
+// DB-level lock on the heal path itself (defaultHealCredit, not injected):
+// a confirmed deposit that was never credited gets credited exactly the
+// deposit amount, and a second heal attempt against the same stale read is a
+// guarded no-op — the DB-side `credited_at IS NULL` guard, not just the
+// in-process check, is what makes concurrent sweeps safe.
+describe.skipIf(SKIP_DB)("heal path (real DB)", () => {
+	const payer = `heal-test-${crypto.randomUUID()}`;
+	const txid = `0xheal${crypto.randomUUID().replace(/-/g, "")}`;
+	const nonce = crypto.randomUUID();
+
+	afterAll(async () => {
+		const db = getDb();
+		await db.deleteFrom("x402_payments").where("txid", "=", txid).execute();
+		await db
+			.deleteFrom("x402_balances")
+			.where("principal", "=", payer)
+			.execute();
+	});
+
+	test("a confirmed-uncredited deposit is credited once, and a second heal attempt is a no-op", async () => {
+		const db = getDb();
+		await db
+			.insertInto("x402_payments")
+			.values({
+				nonce,
+				txid,
+				asset: "USDCx",
+				amount: "250000",
+				payer,
+				surface: "deposit",
+				state: "confirmed",
+				kind: "deposit",
+				credit_usd_micros: "250000",
+				credited_at: null,
+			})
+			.execute();
+
+		const p: ReconcilePayment = {
+			txid,
+			payer,
+			state: "confirmed",
+			createdAtMs: Date.now(),
+			kind: "deposit",
+			creditUsdMicros: "250000",
+			creditedAtMs: null,
+		};
+
+		// First heal: real defaultHealCredit (no deps injected beyond
+		// isCanonical) credits the balance and stamps credited_at.
+		await reconcilePayment(p, { isCanonical: async () => true });
+
+		const balanceAfterFirst = await db
+			.selectFrom("x402_balances")
+			.select("balance_usd_micros")
+			.where("principal", "=", payer)
+			.executeTakeFirst();
+		expect(String(balanceAfterFirst?.balance_usd_micros)).toBe("250000");
+
+		const rowAfterFirst = await db
+			.selectFrom("x402_payments")
+			.select("credited_at")
+			.where("txid", "=", txid)
+			.executeTakeFirst();
+		expect(rowAfterFirst?.credited_at).not.toBeNull();
+
+		// Second heal against the SAME stale `p` (creditedAtMs still null, as a
+		// concurrent sweep reading a pre-heal snapshot would see) — the DB-side
+		// `credited_at IS NULL` guard must make this a no-op, not a double credit.
+		await reconcilePayment(p, { isCanonical: async () => true });
+
+		const balanceAfterSecond = await db
+			.selectFrom("x402_balances")
+			.select("balance_usd_micros")
+			.where("principal", "=", payer)
+			.executeTakeFirst();
+		expect(String(balanceAfterSecond?.balance_usd_micros)).toBe("250000");
 	});
 });

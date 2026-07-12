@@ -23,6 +23,10 @@ export type X402PaymentRecord = {
 	/** USD-micros to credit when this row confirms (deposit rows only). The
 	 *  reconciler reads it to credit the tab on async confirmation. */
 	credit_usd_micros?: string | null;
+	/** Idempotency key: set only when this insert is itself the atomic credit
+	 *  (the confirmed-deposit fast path). Leave unset for pending/non-credited
+	 *  inserts so the reconciler's heal path remains the single source of truth. */
+	credited_at?: Date | null;
 };
 
 export async function insertX402Payment(
