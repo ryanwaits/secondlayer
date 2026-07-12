@@ -153,6 +153,9 @@ export async function handleSubgraphReorg(
 						.insertInto("subscription_outbox")
 						.columns([
 							"subscription_id",
+							"subgraph_name",
+							"table_name",
+							"block_height",
 							"event_type",
 							"payload",
 							"dedup_key",
@@ -164,6 +167,9 @@ export async function handleSubgraphReorg(
 								.selectFrom("subscriptions")
 								.select((eb2) => [
 									"id as subscription_id",
+									eb2.val(sg.name).as("subgraph_name"),
+									eb2.val(tableName).as("table_name"),
+									eb2.val(blockHeight).as("block_height"),
 									eb2.val(`${sg.name}.${tableName}.reverted`).as("event_type"),
 									eb2
 										.val(
@@ -191,7 +197,9 @@ export async function handleSubgraphReorg(
 								.where("table_name", "=", tableName)
 								.where("status", "=", "active"),
 						)
-						.onConflict((oc) => oc.column("dedup_key").doNothing())
+						.onConflict((oc) =>
+							oc.columns(["subscription_id", "dedup_key"]).doNothing(),
+						)
 						.execute()
 						.catch((err) => {
 							// Don't fail the reorg cleanup if the revert event
