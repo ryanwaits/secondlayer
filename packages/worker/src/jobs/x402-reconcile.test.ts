@@ -161,6 +161,130 @@ describe("reconcilePayment", () => {
 			depositCreditMicros(reverted[0].kind, reverted[0].creditUsdMicros),
 		).toBe(250_000n);
 	});
+
+	test("a pending deposit still confirming after the payment grace is not reverted", async () => {
+		let reverted = false;
+		let struck = false;
+		const tenMinutes = 10 * 60_000;
+		const state = await reconcilePayment(
+			payment({ state: "pending", kind: "deposit", createdAtMs: 0 }),
+			{
+				isCanonical: async () => false,
+				revertPayment: async () => {
+					reverted = true;
+				},
+				recordStrike: async () => {
+					struck = true;
+				},
+				now: () => tenMinutes, // past the 5-minute payment grace, well within the deposit grace
+			},
+		);
+		expect(state).toBe("pending");
+		expect(reverted).toBe(false);
+		expect(struck).toBe(false);
+	});
+
+	test("a pending deposit that ages out past the deposit grace is reverted without a strike", async () => {
+		const reverted: string[] = [];
+		let struck = false;
+		const state = await reconcilePayment(
+			payment({ state: "pending", kind: "deposit", createdAtMs: 0 }),
+			{
+				isCanonical: async () => false,
+				revertPayment: async (p) => {
+					reverted.push(p.txid);
+				},
+				recordStrike: async () => {
+					struck = true;
+				},
+				now: () => 7 * 60 * 60_000, // 7h old, past the 6h deposit grace
+			},
+		);
+		expect(state).toBe("reverted");
+		expect(reverted).toEqual(["0xtx"]);
+		expect(struck).toBe(false);
+	});
+
+	test("a confirmed deposit that loses canonicality still reverts and strikes", async () => {
+		const reverted: string[] = [];
+		const strikes: string[] = [];
+		const state = await reconcilePayment(
+			payment({
+				state: "confirmed",
+				kind: "deposit",
+				creditUsdMicros: "250000",
+				createdAtMs: 0,
+			}),
+			{
+				isCanonical: async () => false,
+				revertPayment: async (p) => {
+					reverted.push(p.txid);
+				},
+				recordStrike: async (principal) => {
+					strikes.push(principal);
+				},
+				now: () => 7 * 60 * 60_000, // well past any grace — irrelevant for a reorg
+			},
+		);
+		expect(state).toBe("reverted");
+		expect(reverted).toEqual(["0xtx"]);
+		expect(strikes).toEqual(["SP1"]);
+	});
+
+	test("a pending payment still reverts at the 5-minute grace", async () => {
+		const reverted: string[] = [];
+		const strikes: string[] = [];
+		const state = await reconcilePayment(
+			payment({ state: "pending", kind: "payment", createdAtMs: 0 }),
+			{
+				isCanonical: async () => false,
+				revertPayment: async (p) => {
+					reverted.push(p.txid);
+				},
+				recordStrike: async (principal) => {
+					strikes.push(principal);
+				},
+				now: () => 6 * 60_000, // 6 min old, past the 5-minute payment grace
+			},
+		);
+		expect(state).toBe("reverted");
+		expect(reverted).toEqual(["0xtx"]);
+		expect(strikes).toEqual(["SP1"]);
+	});
+
+	test("a slow deposit that becomes canonical later is confirmed and credited", async () => {
+		const confirmed: ReconcilePayment[] = [];
+		const p = payment({
+			state: "pending",
+			kind: "deposit",
+			creditUsdMicros: "250000",
+			createdAtMs: 0,
+		});
+
+		// First sweep: still not canonical, but within the deposit grace — stays pending.
+		const first = await reconcilePayment(p, {
+			isCanonical: async () => false,
+			revertPayment: async () => {
+				throw new Error("must not revert while still within grace");
+			},
+			now: () => 10 * 60_000, // 10 min old
+		});
+		expect(first).toBe("pending");
+
+		// Later sweep: now canonical — confirms and credits.
+		const second = await reconcilePayment(p, {
+			isCanonical: async () => true,
+			confirmPayment: async (row) => {
+				confirmed.push(row);
+			},
+			now: () => 20 * 60_000,
+		});
+		expect(second).toBe("confirmed");
+		expect(confirmed).toHaveLength(1);
+		expect(
+			depositCreditMicros(confirmed[0].kind, confirmed[0].creditUsdMicros),
+		).toBe(250_000n);
+	});
 });
 
 describe("shouldDebitOnRevert", () => {

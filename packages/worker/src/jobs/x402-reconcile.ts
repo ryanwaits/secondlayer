@@ -23,9 +23,18 @@ import {
 import { RedisClient } from "bun";
 
 const SWEEP_INTERVAL_MS = 5 * 60_000; // every 5 minutes
-// A `pending` tx with no canonical transfer after this is treated as dropped/
-// reorged. Comfortably past Nakamoto inclusion (~5-29s) + decode lag + reorg settling.
-const REVERT_GRACE_MS = 5 * 60_000;
+// A `pending` per-call payment with no canonical transfer after this is treated
+// as dropped/reorged. Comfortably past Nakamoto inclusion (~5-29s) + decode lag
+// + reorg settling. A never-landing consumption serve should lapse quickly.
+const PAYMENT_REVERT_GRACE_MS = 5 * 60_000;
+// A `pending` deposit is real customer money that may simply be confirming
+// slowly under congestion — writing it off (and striking the payer) after only
+// 5 minutes turns normal latency into a permanent loss (it's then excluded from
+// `listReconcilable`, so a later canonical confirmation never credits it). Give
+// deposits substantially longer before treating them as dropped. Matches the
+// `RECONCILE_SCAN_WINDOW` default below so a slow row is never scanned out of
+// the window before it can mature into this grace.
+const DEPOSIT_REVERT_GRACE_MS = 6 * 60 * 60_000;
 // How far back a sweep scans for unsettled rows. Must comfortably exceed a
 // confirmed-tier deposit's settle deadline so a slow-confirming deposit row is
 // never stranded outside the window before it can confirm+credit. Env-tunable.
@@ -75,8 +84,14 @@ export function depositCreditMicros(
 /**
  * Re-check one payment. Canonical → `confirmed` (crediting deposits). Not
  * canonical and either already `confirmed` (reorged out) or past the grace
- * window (`pending` that never landed) → `reverted` (+ strike, + clawback of
- * any credited deposit balance). Otherwise left `pending` (still settling).
+ * window (`pending` that never landed) → `reverted` (+ clawback of any
+ * credited deposit balance). Otherwise left `pending` (still settling).
+ *
+ * A revert only takes a strike when it reflects an actual optimism failure:
+ * a `payment` that never landed, or a genuine reorg (`state === "confirmed"`
+ * — it WAS canonical, now it isn't). A `pending` deposit that merely aged out
+ * (never proven non-canonical) was never proven dropped, so the payer isn't
+ * penalized for it — see the aged-out log below for the operator-visible trace.
  */
 export async function reconcilePayment(
 	p: ReconcilePayment,
@@ -87,22 +102,38 @@ export async function reconcilePayment(
 	const revertPayment = deps.revertPayment ?? defaultRevertPayment;
 	const recordStrike = deps.recordStrike ?? defaultRecordStrike;
 	const now = deps.now ?? (() => Date.now());
-	const graceMs = deps.graceMs ?? REVERT_GRACE_MS;
+	const defaultGraceMs =
+		p.kind === "deposit" ? DEPOSIT_REVERT_GRACE_MS : PAYMENT_REVERT_GRACE_MS;
+	const graceMs = deps.graceMs ?? defaultGraceMs;
 
 	if (await isCanonical(p.txid)) {
 		if (p.state !== "confirmed") await confirmPayment(p);
 		return "confirmed";
 	}
 
-	const matured = now() - p.createdAtMs > graceMs;
-	if (p.state === "confirmed" || matured) {
+	const age = now() - p.createdAtMs;
+	const matured = age > graceMs;
+	const reorged = p.state === "confirmed";
+	if (reorged || matured) {
 		await revertPayment(p);
-		await recordStrike(p.payer);
-		logger.warn("x402 payment reverted", {
-			txid: p.txid,
-			payer: p.payer,
-			was: p.state,
-		});
+		const agedOutDeposit = !reorged && matured && p.kind === "deposit";
+		if (!agedOutDeposit) await recordStrike(p.payer);
+		if (agedOutDeposit) {
+			// Distinct, greppable signal: this is the only trace an operator has
+			// that a customer's deposit was written off without proof it dropped.
+			logger.warn("x402 deposit aged out", {
+				event: "x402_deposit_aged_out",
+				txid: p.txid,
+				payer: p.payer,
+				ageMs: age,
+			});
+		} else {
+			logger.warn("x402 payment reverted", {
+				txid: p.txid,
+				payer: p.payer,
+				was: p.state,
+			});
+		}
 		return "reverted";
 	}
 	return "pending"; // still within grace — give it time to mine
