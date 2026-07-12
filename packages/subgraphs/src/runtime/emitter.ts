@@ -249,49 +249,90 @@ interface PostResult {
 	responseHeaders: Record<string, string> | null;
 }
 
+/**
+ * Bound on redirect hops honored while delivering a webhook. `fetch` is
+ * called with `redirect: "manual"` so a 3xx never auto-follows — each hop's
+ * target is re-validated through `checkEgressAllowed` before it is fetched
+ * (see `postToSubscription`), otherwise a `Location` header pointing at a
+ * private/metadata address would bypass the egress guard entirely. Counts
+ * every fetch issued (the initial request plus each redirect), so this is
+ * also the max number of `fetch` calls one delivery attempt can make.
+ */
+export const MAX_REDIRECT_HOPS: number = 3;
+
 /** POST a pre-built body to a subscription URL with the SSRF guard + timeout.
- *  Pure transport: returns the attempt result; the caller logs the delivery row. */
+ *  Pure transport: returns the attempt result; the caller logs the delivery row.
+ *  Follows redirects manually (up to `MAX_REDIRECT_HOPS`), re-running the
+ *  egress guard against every hop's target — the guard only protects the
+ *  first request otherwise, and a webhook target can redirect to a private/
+ *  metadata address to read back the response after f053 pinned the guard to
+ *  just the original URL. */
 async function postToSubscription(
 	url: string,
 	body: string,
 	headers: Record<string, string>,
 	timeoutMs: number,
 ): Promise<PostResult> {
-	if (!allowPrivateEgress()) {
-		const refusal = await checkEgressAllowed(url);
-		if (refusal) {
-			logger.warn("[emitter] refused private egress", { url, reason: refusal });
-			return {
-				ok: false,
-				statusCode: null,
-				error: refusal,
-				durationMs: 0,
-				responseBody: null,
-				responseHeaders: null,
-			};
-		}
-	}
-
 	const start = performance.now();
+	let target = url;
 	let statusCode: number | null = null;
 	let error: string | null = null;
 	let ok = false;
 	let responseBody = "";
-	let responseHeaders: Record<string, string> = {};
+	let responseHeaders: Record<string, string> | null = null;
 	try {
-		const res = await fetch(url, {
-			method: "POST",
-			headers,
-			body,
-			signal: AbortSignal.timeout(timeoutMs),
-		});
-		statusCode = res.status;
-		ok = res.ok;
-		// Collect small response preview for the delivery log (≤8KB).
-		const buf = await res.arrayBuffer();
-		const truncated = buf.byteLength > 8192 ? buf.slice(0, 8192) : buf;
-		responseBody = Buffer.from(truncated).toString("utf8");
-		responseHeaders = Object.fromEntries(res.headers.entries());
+		for (let hop = 0; ; hop++) {
+			if (!allowPrivateEgress()) {
+				const refusal = await checkEgressAllowed(target);
+				if (refusal) {
+					logger.warn("[emitter] refused private egress", {
+						url: target,
+						reason: refusal,
+					});
+					return {
+						ok: false,
+						statusCode: null,
+						error: refusal,
+						durationMs: Math.round(performance.now() - start),
+						responseBody: null,
+						responseHeaders: null,
+					};
+				}
+			}
+			if (hop >= MAX_REDIRECT_HOPS) {
+				return {
+					ok: false,
+					statusCode,
+					error: `too many redirects (exceeded ${MAX_REDIRECT_HOPS} hops)`,
+					durationMs: Math.round(performance.now() - start),
+					responseBody: null,
+					responseHeaders: null,
+				};
+			}
+
+			const res = await fetch(target, {
+				method: "POST",
+				headers,
+				body,
+				redirect: "manual",
+				signal: AbortSignal.timeout(timeoutMs),
+			});
+			statusCode = res.status;
+
+			const location = res.headers.get("location");
+			if (res.status >= 300 && res.status < 400 && location) {
+				target = new URL(location, target).toString();
+				continue;
+			}
+
+			ok = res.ok;
+			// Collect small response preview for the delivery log (≤8KB).
+			const buf = await res.arrayBuffer();
+			const truncated = buf.byteLength > 8192 ? buf.slice(0, 8192) : buf;
+			responseBody = Buffer.from(truncated).toString("utf8");
+			responseHeaders = Object.fromEntries(res.headers.entries());
+			break;
+		}
 	} catch (err) {
 		error = err instanceof Error ? err.message : String(err);
 	}
@@ -304,6 +345,19 @@ async function postToSubscription(
 		responseHeaders,
 	};
 }
+
+/**
+ * Test-only seam: exposes `postToSubscription` (otherwise module-private) so
+ * redirect/egress behavior can be exercised directly against a stubbed
+ * `fetch` + injected DNS lookup, without standing up the DB-backed emitter
+ * loop. Production code never calls this — only tests do.
+ */
+export const __postToSubscriptionForTest: (
+	url: string,
+	body: string,
+	headers: Record<string, string>,
+	timeoutMs: number,
+) => Promise<PostResult> = postToSubscription;
 
 async function dispatchOne(
 	db: Kysely<Database>,
