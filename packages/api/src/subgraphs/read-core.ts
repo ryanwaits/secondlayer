@@ -40,6 +40,13 @@ export async function querySubgraph(
 	return client.unsafe(text, params as any[]);
 }
 
+// `_count` controls how the count is computed: "exact" (default, unchanged)
+// runs COUNT(*); "estimate" uses pg_class.reltuples (no table scan) when there
+// are no filters — filtered requests fall back to "exact" since a planner
+// estimate wouldn't reflect the WHERE clause. Mirrors the list endpoint's
+// `_count` handling in routes/subgraphs.ts.
+const COUNT_MODES = new Set(["exact", "estimate"]);
+
 export async function handleTableCount(
 	c: Context,
 	subgraph: Subgraph,
@@ -51,13 +58,41 @@ export async function handleTableCount(
 	}
 	const validColumns = getValidColumns(tableDef);
 
+	const countModeRaw = c.req.query("_count");
+	if (countModeRaw !== undefined && !COUNT_MODES.has(countModeRaw)) {
+		return c.json(
+			{
+				error: `Invalid _count value: "${countModeRaw}". Expected "exact" or "estimate".`,
+				code: "VALIDATION_ERROR",
+			},
+			400,
+		);
+	}
+	const countMode = (countModeRaw ?? "exact") as "exact" | "estimate";
+
 	try {
-		const parsed = parseQueryParams(c.req.query(), validColumns, tableDef);
+		// Strip `_count` before parseQueryParams — it throws on any unrecognized
+		// `_`-prefixed key.
+		const { _count: _countParam, ...queryParams } = c.req.query();
+		const parsed = parseQueryParams(queryParams, validColumns, tableDef);
 		const sn = subgraphSchemaName(subgraph);
 		const params: unknown[] = [];
-		let text = `SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`;
 
 		const conditions = buildWhereConditions(parsed, params);
+
+		if (countMode === "estimate" && conditions.length === 0) {
+			const qualifiedName = `${ident(sn)}.${ident(tableName)}`;
+			const result = await querySubgraph(
+				subgraph,
+				"SELECT reltuples::bigint AS count FROM pg_class WHERE oid = $1::regclass",
+				[qualifiedName],
+			);
+			return c.json({
+				count: Number.parseInt(String(result[0]?.count ?? 0), 10),
+			});
+		}
+
+		let text = `SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`;
 		if (conditions.length > 0) {
 			text += ` WHERE ${conditions.join(" AND ")}`;
 		}

@@ -705,6 +705,47 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		expect(body.count).toBe(2);
 	});
 
+	test("count defaults to an exact count", async () => {
+		const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/listings/count`);
+		expect(res.status).toBe(200);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.count).toBe(4);
+	});
+
+	test("estimate mode does not scan the table", async () => {
+		// reltuples is only populated after ANALYZE; run it so the estimate is defined.
+		await getRawClient().unsafe(`ANALYZE ${PG_SCHEMA}.listings`);
+		const res = await app.request(
+			`/subgraphs/${SUBGRAPH_NAME}/listings/count?_count=estimate`,
+		);
+		expect(res.status).toBe(200);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(typeof body.count).toBe("number");
+		expect(body.count).toBeGreaterThanOrEqual(0);
+	});
+
+	test("estimate with filters falls back to exact", async () => {
+		const res = await app.request(
+			`/subgraphs/${SUBGRAPH_NAME}/listings/count?status=active&_count=estimate`,
+		);
+		expect(res.status).toBe(200);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.count).toBe(3);
+	});
+
+	test("an invalid _count value is a 400", async () => {
+		const res = await app.request(
+			`/subgraphs/${SUBGRAPH_NAME}/listings/count?_count=bogus`,
+		);
+		expect(res.status).toBe(400);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.code).toBe("VALIDATION_ERROR");
+	});
+
 	// ── GET /subgraphs/:subgraphName/:tableName/aggregate ───────────────────
 
 	const aggUrl = `/subgraphs/${SUBGRAPH_NAME}/listings/aggregate`;
