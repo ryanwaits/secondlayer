@@ -1,5 +1,12 @@
 # @secondlayer/subgraphs
 
+## 3.19.4
+
+### Patch Changes
+
+- 5ec0188: fix(subgraphs): reorg revert-event outbox INSERT now actually lands — use the composite `(subscription_id, dedup_key)` conflict target (the table's real unique constraint; the old `dedup_key`-only target made Postgres reject every statement) and supply the NOT NULL `subgraph_name`/`table_name`/`block_height` columns the INSERT omitted. `.reverted` events now reach subscribers on reorg.
+- 7ecf0d7: fix(subgraphs): re-validate webhook redirect targets against the egress guard — deliveries now use `redirect: "manual"` and re-run the SSRF guard on every hop (bounded to 3), so a webhook target can no longer redirect to a private/metadata address to have its response captured and read back via the delivery log.
+
 ## 3.19.3
 
 ### Patch Changes
