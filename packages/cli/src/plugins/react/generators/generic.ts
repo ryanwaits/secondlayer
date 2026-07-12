@@ -3,6 +3,7 @@
  */
 
 import { USE_CONTRACT_TEMPLATE } from "../../../generators/templates/use-contract";
+import { DEFAULT_SENDER_ADDRESS } from "../../../utils/constants";
 import { formatCode } from "../../../utils/format";
 
 const GENERIC_HOOKS = [
@@ -297,7 +298,7 @@ function generateGenericHook(hookName: string): string {
         functionName: params.functionName,
         functionArgs,
         network: params.network || config.network || 'mainnet',
-        senderAddress: config.senderAddress || 'SP000000000000000000002Q6VF78'
+        senderAddress: config.senderAddress || '${DEFAULT_SENDER_ADDRESS}'
       }) as TResult
     },
     enabled: params.enabled ?? true

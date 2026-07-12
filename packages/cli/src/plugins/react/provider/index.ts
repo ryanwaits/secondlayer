@@ -2,6 +2,7 @@
  * Provider generator for React plugin
  */
 
+import { DEFAULT_SENDER_ADDRESS } from "../../../utils/constants";
 import { formatCode } from "../../../utils/format";
 
 /**
@@ -62,7 +63,7 @@ export function createSecondLayerConfig(config: SecondLayerReactConfig): SecondL
     network: config.network,
     apiKey: config.apiKey,
     apiUrl: config.apiUrl,
-    senderAddress: config.senderAddress || 'SP000000000000000000002Q6VF78'
+    senderAddress: config.senderAddress || '${DEFAULT_SENDER_ADDRESS}'
   }
 }
 

@@ -8,6 +8,7 @@ import type {
 	GenerateContext,
 	PluginFactory,
 } from "../../types/plugin";
+import { matchesContractFilters } from "../shared";
 import { generateActionHelpers } from "./generators";
 
 export interface ActionsPluginOptions {
@@ -42,15 +43,9 @@ export const actions: PluginFactory<ActionsPluginOptions> = (options = {}) => {
 			const { contracts } = context;
 
 			// Filter contracts based on options
-			const filteredContracts = contracts.filter((contract) => {
-				if (options.include && !options.include.includes(contract.name)) {
-					return false;
-				}
-				if (options.exclude?.includes(contract.name)) {
-					return false;
-				}
-				return true;
-			});
+			const filteredContracts = contracts.filter((contract) =>
+				matchesContractFilters(contract.name, options),
+			);
 
 			if (filteredContracts.length === 0) {
 				if (options.debug) {

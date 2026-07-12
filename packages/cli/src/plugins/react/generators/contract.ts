@@ -5,6 +5,7 @@
 import type { AbiFunction } from "@secondlayer/stacks/clarity";
 import type { AbiMap, AbiVariable } from "@secondlayer/stacks/clarity";
 import type { ProcessedContract } from "../../../types/plugin";
+import { DEFAULT_SENDER_ADDRESS } from "../../../utils/constants";
 import { formatCode } from "../../../utils/format";
 import {
 	capitalize,
@@ -154,7 +155,7 @@ function generateReadHook(func: AbiFunction, contractName: string): string {
     queryKey: ['${func.name}', ${contractName}.address, ${generateArgNames(func.args)}],
     queryFn: () => ${contractName}.read.${toCamelCase(func.name)}(${generateArgNames(func.args) ? `{ ${generateObjectArgs(func.args)} }, ` : ""}{
       network: config.network,
-      senderAddress: config.senderAddress || 'SP000000000000000000002Q6VF78'
+      senderAddress: config.senderAddress || '${DEFAULT_SENDER_ADDRESS}'
     }),
     ${func.args.length > 0 ? `enabled: ${generateEnabledCondition(func.args)} && (options?.enabled ?? true),` : ""}
     ...options

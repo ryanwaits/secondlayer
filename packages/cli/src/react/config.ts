@@ -1,3 +1,4 @@
+import { DEFAULT_SENDER_ADDRESS } from "../utils/constants";
 import type { SecondLayerReactConfig } from "./types";
 
 /**
@@ -10,6 +11,6 @@ export function createSecondLayerConfig(
 		network: config.network,
 		apiKey: config.apiKey,
 		apiUrl: config.apiUrl,
-		senderAddress: config.senderAddress || "SP000000000000000000002Q6VF78",
+		senderAddress: config.senderAddress || DEFAULT_SENDER_ADDRESS,
 	};
 }

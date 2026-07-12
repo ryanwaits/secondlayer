@@ -4,11 +4,33 @@
 
 import { type AbiFunction, toCamelCase } from "@secondlayer/stacks/clarity";
 import type { ProcessedContract } from "../../types/plugin";
+import { DEFAULT_SENDER_ADDRESS } from "../../utils/constants";
 import {
 	generateArgsSignature,
 	generateClarityArgs,
 } from "../../utils/generator-helpers";
 import type { ActionsPluginOptions } from "./index";
+
+/**
+ * Apply includeFunctions/excludeFunctions filters (exact match)
+ */
+function applyFunctionFilters(
+	functions: AbiFunction[],
+	options: ActionsPluginOptions,
+): AbiFunction[] {
+	return functions.filter((func) => {
+		if (
+			options.includeFunctions &&
+			!options.includeFunctions.includes(func.name)
+		) {
+			return false;
+		}
+		if (options.excludeFunctions?.includes(func.name)) {
+			return false;
+		}
+		return true;
+	});
+}
 
 /**
  * Generate read helper functions for a contract (fixed version)
@@ -28,19 +50,7 @@ function generateReadHelpers(
 		return "";
 	}
 
-	// Apply function filters
-	const filteredFunctions = readOnlyFunctions.filter((func: AbiFunction) => {
-		if (
-			options.includeFunctions &&
-			!options.includeFunctions.includes(func.name)
-		) {
-			return false;
-		}
-		if (options.excludeFunctions?.includes(func.name)) {
-			return false;
-		}
-		return true;
-	});
+	const filteredFunctions = applyFunctionFilters(readOnlyFunctions, options);
 
 	if (filteredFunctions.length === 0) {
 		return "";
@@ -61,7 +71,7 @@ function generateReadHelpers(
         functionName: '${func.name}',
         functionArgs: [${clarityArgs}],
         network: options?.network ?? inferNetworkFromAddress('${contract.address}') ?? 'mainnet',
-        senderAddress: options?.senderAddress || 'SP000000000000000000002Q6VF78'
+        senderAddress: options?.senderAddress || '${DEFAULT_SENDER_ADDRESS}'
       });
     }`;
 	});
@@ -90,19 +100,7 @@ function generateWriteHelpers(
 		return "";
 	}
 
-	// Apply function filters
-	const filteredFunctions = publicFunctions.filter((func: AbiFunction) => {
-		if (
-			options.includeFunctions &&
-			!options.includeFunctions.includes(func.name)
-		) {
-			return false;
-		}
-		if (options.excludeFunctions?.includes(func.name)) {
-			return false;
-		}
-		return true;
-	});
+	const filteredFunctions = applyFunctionFilters(publicFunctions, options);
 
 	if (filteredFunctions.length === 0) {
 		return "";
