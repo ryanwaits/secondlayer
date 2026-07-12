@@ -12,7 +12,9 @@ import type {
 	UserConfig,
 } from "../../types/plugin";
 import { normalizeAbi } from "../../utils/abi-compat";
+import { DEFAULT_SENDER_ADDRESS } from "../../utils/constants";
 import { parseContractId } from "../../utils/contract-id";
+import { matchesContractFilters } from "../shared";
 
 export interface ClarinetPluginOptions {
 	/** Path to Clarinet.toml file */
@@ -63,7 +65,7 @@ async function isUserDefinedContract(
 		if (userContracts.has(contractName)) {
 			return true;
 		}
-	} catch (error) {
+	} catch {
 		// If we can't read the TOML file, fall back to pattern matching
 	}
 
@@ -83,7 +85,7 @@ async function isUserDefinedContract(
 
 	// System contracts often use specific addresses
 	const systemAddresses = [
-		"SP000000000000000000002Q6VF78", // Boot contracts address
+		DEFAULT_SENDER_ADDRESS, // Boot contracts address
 		"ST000000000000000000002AMW42H", // Boot contracts address (testnet)
 	];
 
@@ -129,10 +131,7 @@ export const clarinet: PluginFactory<ClarinetPluginOptions> = (
 					}
 
 					// Apply user filters
-					if (options.include && !options.include.includes(contractName)) {
-						continue;
-					}
-					if (options.exclude?.includes(contractName)) {
+					if (!matchesContractFilters(contractName, options)) {
 						continue;
 					}
 
@@ -162,12 +161,16 @@ export const clarinet: PluginFactory<ClarinetPluginOptions> = (
 				};
 			} catch (error) {
 				const err = error as Error;
-				if (options.debug) {
+				if (await hasClarinetProject(manifestPath)) {
+					// Manifest exists but loading failed — always surface it
 					console.warn(
-						`⚠️  Clarinet plugin failed to load contracts: ${err.message}`,
+						`⚠️  Clarinet plugin: found ${manifestPath} but failed to load contracts: ${err.message}`,
+					);
+				} else if (options.debug) {
+					console.warn(
+						`⚠️  Clarinet plugin: no manifest at ${manifestPath}, skipping`,
 					);
 				}
-				// If Clarinet.toml doesn't exist or fails, just return config unchanged
 				return config;
 			}
 		},
