@@ -126,7 +126,7 @@ async function challengeOffer(app: Hono) {
 	return offer;
 }
 
-describe.skipIf(SKIP)("confirmed-deposit atomic credit (f064)", () => {
+describe.skipIf(SKIP)("confirmed-deposit atomic credit", () => {
 	const cleanupTxids: string[] = [];
 	const cleanupPayers: string[] = [];
 
