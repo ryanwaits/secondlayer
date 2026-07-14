@@ -81,9 +81,6 @@ export function createPlugin(
 export { clarinet, hasClarinetProject } from "./clarinet/index";
 export type { ClarinetPluginOptions } from "./clarinet/index";
 
-export { actions } from "./actions/index";
-export type { ActionsPluginOptions } from "./actions/index";
-
 export { react } from "./react/index";
 export type { ReactPluginOptions } from "./react/index";
 
