@@ -52,4 +52,8 @@ export { prettyPrint, cvToJSON, cvToValue } from "./prettyPrint.ts";
 export * from "./abi/index.ts";
 
 // JS ↔ ClarityValue bridge
-export { jsToClarityValue, clarityValueToJS } from "./bridge.ts";
+export {
+	jsToClarityValue,
+	clarityValueToJS,
+	isClarityValue,
+} from "./bridge.ts";

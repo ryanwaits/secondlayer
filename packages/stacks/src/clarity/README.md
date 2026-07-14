@@ -46,14 +46,39 @@ cvToValue(Cl.uint(42));      // 42n
 ## JS Bridge
 
 ```typescript
-import { jsToClarityValue, clarityValueToJS } from "@secondlayer/stacks/clarity";
+import { jsToClarityValue, clarityValueToJS, isClarityValue } from "@secondlayer/stacks/clarity";
 
 // Convert JS → Clarity using ABI type hints
-const cv = jsToClarityValue(42n, "uint128");
+const cv = jsToClarityValue("uint128", 42n);
+
+// Pre-built ClarityValues pass through unchanged (escape hatch)
+jsToClarityValue("uint128", Cl.uint(42n));
+
+// Buffer args accept flexible inputs
+const buff = { buff: { length: 34 } };
+jsToClarityValue(buff, new Uint8Array([1, 2]));
+jsToClarityValue(buff, "0xdeadbeef");                     // hex (0x optional)
+jsToClarityValue(buff, { type: "ascii", value: "hi" });   // ascii | utf8 | hex
+
+// Runtime CV guard
+isClarityValue(Cl.uint(1n)); // true
 
 // Convert Clarity → JS
 const js = clarityValueToJS(abiType, cv);
 ```
+
+## ABI Type System
+
+```typescript
+import type { TypedAbi, ContractTypes, AbiTypesOf } from "@secondlayer/stacks/clarity";
+```
+
+`sl contracts generate` emits named per-function type aliases plus a
+`<Contract>Types` bundle, and brands the generated ABI const with
+`TypedAbi<typeof abi, Types>`. The brand is a phantom property — zero runtime
+cost — that brand-aware consumers (`getContract`) resolve via `AbiTypesOf` to
+show the named aliases in hovers and errors. Un-branded `as const` ABIs keep
+working through structural inference.
 
 ## Standard ABIs
 

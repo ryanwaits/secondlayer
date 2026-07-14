@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import type { AbiType } from "../abi/types.ts";
-import { clarityValueToJS, jsToClarityValue } from "../bridge.ts";
+import {
+	clarityValueToJS,
+	isClarityValue,
+	jsToClarityValue,
+} from "../bridge.ts";
 import { Cl } from "../values.ts";
 
 describe("jsToClarityValue", () => {
@@ -107,6 +111,92 @@ describe("jsToClarityValue", () => {
 		const type: AbiType = { response: { ok: "bool", error: "uint128" } };
 		const cv = jsToClarityValue(type, { err: 100n });
 		expect(cv).toEqual(Cl.error(Cl.uint(100n)));
+	});
+
+	describe("ClarityValue passthrough", () => {
+		it("passes pre-built CVs through unchanged", () => {
+			const uint = Cl.uint(5n);
+			expect(jsToClarityValue("uint128", uint)).toBe(uint);
+
+			const some = Cl.some(Cl.uint(1n));
+			expect(jsToClarityValue({ optional: "uint128" }, some)).toBe(some);
+
+			const tuple = Cl.tuple({ a: Cl.uint(1n) });
+			expect(
+				jsToClarityValue({ tuple: [{ name: "a", type: "uint128" }] }, tuple),
+			).toBe(tuple);
+		});
+
+		it("passes CVs through inside lists and tuple fields", () => {
+			const cv = jsToClarityValue({ list: { type: "uint128", length: 3 } }, [
+				1n,
+				Cl.uint(2n),
+			]);
+			expect(cv).toEqual(Cl.list([Cl.uint(1n), Cl.uint(2n)]));
+		});
+
+		it("isClarityValue accepts CVs and rejects lookalikes", () => {
+			expect(isClarityValue(Cl.uint(1n))).toBe(true);
+			expect(isClarityValue(Cl.none())).toBe(true);
+			expect(isClarityValue(Cl.bool(true))).toBe(true);
+			expect(isClarityValue({ type: "hex", value: "00" })).toBe(false);
+			expect(isClarityValue({ ok: true })).toBe(false);
+			expect(isClarityValue("uint")).toBe(false);
+			expect(isClarityValue(null)).toBe(false);
+			// payload tags require a value
+			expect(isClarityValue({ type: "uint" })).toBe(false);
+		});
+	});
+
+	describe("flexible buffer inputs", () => {
+		const BUFF: AbiType = { buff: { length: 34 } };
+
+		it("accepts Uint8Array", () => {
+			expect(jsToClarityValue(BUFF, new Uint8Array([1, 2]))).toEqual(
+				Cl.buffer(new Uint8Array([1, 2])),
+			);
+		});
+
+		it("accepts even-length hex strings, with or without 0x", () => {
+			expect(jsToClarityValue(BUFF, "0xdeadbeef")).toEqual(
+				Cl.bufferFromHex("deadbeef"),
+			);
+			expect(jsToClarityValue(BUFF, "deadbeef")).toEqual(
+				Cl.bufferFromHex("deadbeef"),
+			);
+		});
+
+		it("encodes non-hex strings as UTF-8", () => {
+			expect(jsToClarityValue(BUFF, "hello!")).toEqual(
+				Cl.bufferFromUtf8("hello!"),
+			);
+		});
+
+		it("accepts tagged { type, value } objects", () => {
+			expect(jsToClarityValue(BUFF, { type: "ascii", value: "hi" })).toEqual(
+				Cl.bufferFromAscii("hi"),
+			);
+			expect(jsToClarityValue(BUFF, { type: "utf8", value: "hí" })).toEqual(
+				Cl.bufferFromUtf8("hí"),
+			);
+			expect(jsToClarityValue(BUFF, { type: "hex", value: "00ff" })).toEqual(
+				Cl.bufferFromHex("00ff"),
+			);
+		});
+
+		it("passes pre-built BufferCVs through", () => {
+			const cv = Cl.buffer(new Uint8Array([9]));
+			expect(jsToClarityValue(BUFF, cv)).toBe(cv);
+		});
+
+		it("rejects invalid buffer inputs", () => {
+			expect(() => jsToClarityValue(BUFF, 42)).toThrow(
+				"buffer arg expects Uint8Array",
+			);
+			expect(() =>
+				jsToClarityValue(BUFF, { type: "base64", value: "aGk=" }),
+			).toThrow("Unsupported buffer input");
+		});
 	});
 });
 

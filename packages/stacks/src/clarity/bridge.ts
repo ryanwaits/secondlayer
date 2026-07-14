@@ -27,13 +27,85 @@ import {
 } from "./values.ts";
 import { Cl } from "./values.ts";
 
+/** CV type tags — mirrors the discriminants of `ClarityValue`. */
+const CV_TYPE_TAGS = new Set([
+	"int",
+	"uint",
+	"true",
+	"false",
+	"address",
+	"contract",
+	"ascii",
+	"utf8",
+	"buffer",
+	"list",
+	"tuple",
+	"none",
+	"some",
+	"ok",
+	"err",
+]);
+
+/**
+ * Duck-type check: is `value` already a built ClarityValue? Tag-only CVs
+ * (`true`/`false`/`none`) have no payload; every other tag carries `value`.
+ */
+export function isClarityValue(value: unknown): value is ClarityValue {
+	if (typeof value !== "object" || value === null) return false;
+	const type = (value as { type?: unknown }).type;
+	if (typeof type !== "string" || !CV_TYPE_TAGS.has(type)) return false;
+	if (type === "true" || type === "false" || type === "none") return true;
+	return "value" in value;
+}
+
+const HEX_PAIRS_REGEX = /^(?:[0-9a-fA-F]{2})+$/;
+
+/**
+ * Coerce a flexible buffer input to a BufferCV. Accepts `Uint8Array`, a
+ * pre-built `BufferCV`, a tagged `{ type: 'ascii' | 'utf8' | 'hex', value }`
+ * object, or a bare string (even-length hex — optionally 0x-prefixed — is
+ * decoded as hex; anything else is UTF-8 encoded).
+ */
+function coerceBuffer(value: unknown): ClarityValue {
+	if (value instanceof Uint8Array) return bufferCV(value);
+	if (typeof value === "object" && value !== null && "type" in value) {
+		const tagged = value as { type: string; value?: unknown };
+		if (tagged.type === "buffer" && isClarityValue(value)) return value;
+		if (typeof tagged.value === "string") {
+			if (tagged.type === "ascii") return Cl.bufferFromAscii(tagged.value);
+			if (tagged.type === "utf8") return Cl.bufferFromUtf8(tagged.value);
+			if (tagged.type === "hex") return Cl.bufferFromHex(tagged.value);
+		}
+		throw new Error(`Unsupported buffer input: ${JSON.stringify(value)}`);
+	}
+	if (typeof value === "string") {
+		const hex = value.startsWith("0x") ? value.slice(2) : value;
+		if (HEX_PAIRS_REGEX.test(hex)) return Cl.bufferFromHex(hex);
+		return Cl.bufferFromUtf8(value);
+	}
+	throw new Error(
+		"buffer arg expects Uint8Array, hex string, { type, value }, or BufferCV",
+	);
+}
+
 /**
  * Convert a JS value to a ClarityValue using ABI type information.
+ *
+ * Pre-built ClarityValues pass through unchanged (escape hatch for callers
+ * that already hold a CV). Buffer args additionally accept hex strings and
+ * tagged `{ type, value }` objects — matching the generated-client input
+ * contract.
  */
 export function jsToClarityValue(
 	abiType: AbiType,
 	value: unknown,
 ): ClarityValue {
+	// Buffers first: the tagged `{ type: 'ascii', value }` input form is
+	// shape-identical to StringAsciiCV, so buffer coercion wins for buff args.
+	if (isAbiBuffer(abiType)) return coerceBuffer(value);
+
+	if (isClarityValue(value)) return value;
+
 	if (abiType === "uint128") return uintCV(value as bigint | number);
 	if (abiType === "int128") return intCV(value as bigint | number);
 	if (abiType === "bool") return boolCV(value as boolean);
@@ -42,7 +114,6 @@ export function jsToClarityValue(
 
 	if (isAbiStringAscii(abiType)) return stringAsciiCV(value as string);
 	if (isAbiStringUtf8(abiType)) return stringUtf8CV(value as string);
-	if (isAbiBuffer(abiType)) return bufferCV(value as Uint8Array);
 
 	if (isAbiList(abiType)) {
 		const arr = value as unknown[];
