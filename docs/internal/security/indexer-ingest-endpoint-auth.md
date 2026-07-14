@@ -67,18 +67,64 @@ This is **network-layer only**. Single points of failure that silently reopen th
 
 There is **no application-layer check** to catch any of these. The node is trusted purely by network position.
 
-## 5. Proper fix (not done)
+## 5. Delivery architecture (investigated 2026-07-14)
 
-Add an application-layer shared secret to the ingest endpoints:
+The node→indexer path is not direct — there's a reverse-proxy hop we control:
 
-- Indexer requires a secret (e.g. `INDEXER_INGEST_SECRET`) on `POST /new_block` et al.; reject with `401` otherwise. Keep the firewall as defense-in-depth (belt-and-suspenders).
-- **Obstacle to verify**: the Stacks node's `[[events_observer]]` config is believed to support only an endpoint URL + `events_keys` — **no custom auth header / bearer token field**. *This needs confirmation against the running node version before committing to a design.* If true, options are:
-  1. Put the ingest endpoints behind the existing Caddy reverse proxy (443, already public + TLS) on a secret path, and point the node's observer at that path. Auth-by-unguessable-path is weak but better than nothing and node-compatible.
-  2. Front the node→indexer hop with a small authenticating shim, or a private network (Hetzner vSwitch) so the trust boundary is a real private link rather than a public-IP allowlist.
-  3. Upstream: request an auth-header field in the Stacks node event-observer config.
+```
+stacks-node (node-server, v3.4.0.0.3)
+  │  [[events_observer]] endpoint = "event-proxy:3700"   (docker/node-server/Config.toml:9)
+  ▼
+nginx "event-proxy" sidecar (node-server, same host, internal docker net)
+  │  proxy_pass http://65.21.135.94:3700   (docker/node-server/nginx/nginx.conf:12)   ← PUBLIC hop, plain HTTP
+  ▼
+indexer :3700 (app-server)  ← unauthenticated ingest
+```
 
-## 6. Recommended next steps
+Two facts settle the fix design:
 
-1. Verify the Stacks node event-observer auth-header capability (decides which §5 option is viable).
-2. Assign a finding ID and slot into the security backlog (P1).
-3. Add a monitoring probe that alerts if 3700 becomes reachable from a non-node public IP (catches §4 lapses actively rather than by luck) — pairs with the `health-alert.sh` pattern already in `docker/scripts/`.
+- **The node cannot send auth.** stacks-core's `[[events_observer]]` config supports only `endpoint`, `events_keys`, `timeout_ms`, `disable_retries` — no header/token/secret field, in any version. The outbound send path (`stacks-node/src/event_dispatcher/worker.rs`) adds only `Connection: close`. (The `auth_token` in `[connection_options]` is inbound-only — it guards requests *to* the node, wrong direction.) So "indexer requires a header, node sends it" is **not directly possible**.
+- **But the nginx event-proxy is ours.** The node→nginx hop is same-host/trusted; the nginx→app-server hop is the untrusted public leg. nginx *can* `proxy_set_header`, so the secret is injected exactly on the leg that needs it, with zero node support required. This is the key that makes an app-layer secret viable.
+
+Caveat: that public hop is currently plain HTTP, so a header secret crosses the internet in cleartext (replayable). Two design tiers below.
+
+## 6. Proposed fix — staged plan (not implemented)
+
+### Tier 1 — shared-secret header via nginx (minimal, keeps firewall)
+
+**Indexer** (`packages/indexer/src/index.ts`): add a `withIngestAuth(handler)` HOF near the `PORT` read (~:49) and wrap the five write handlers — `/new_block` (:231), `/new_burn_block` (:261), `/new_mempool_tx` (:286), `/drop_mempool_tx` (:307), `/attachments/new` (:326). Leave `/health` (:136) and `/health/integrity` (:176) open (docker healthcheck, API status probe, and firewall/ops curls depend on them). Note: the `fetch` 404 fallback (:332) runs only for *unmatched* routes, so the guard must wrap the per-route POST handlers, not the fallback.
+
+- Reads `INDEXER_INGEST_SECRET` + `INDEXER_INGEST_AUTH_MODE` (`off`|`warn`|`enforce`, default `off` when unset — soft-launch, today's behavior unchanged). Compare `X-Ingest-Secret` with `crypto.timingSafeEqual`. `warn` logs + proceeds; `enforce` returns `401`.
+- Follows the indexer's direct-`process.env` convention; do **not** touch the `packages/shared/src/env.ts` zod schema (unused by these routes).
+
+**nginx** (`docker/node-server/nginx/nginx.conf`, `location /`): `proxy_set_header X-Ingest-Secret "<secret>";` — env-templated, secret in node-server's `.env` (uncommitted). Primary live-delivery caller.
+
+**Other internal HTTP callers that must also send the header** (verified — these self-POST, unlike tip-follower/auto-backfill which call `ingestNewBlock` in-process and need nothing):
+- `packages/shared/src/node/archive-client.ts:148` (`replayGaps` → used by `bulk-backfill.ts:290` archive mode)
+- `packages/cli/src/commands/db.ts:568` (CLI backfill)
+
+**Compose** (`docker/docker-compose.yml` indexer env, ~:221): `INDEXER_INGEST_SECRET: ${INDEXER_INGEST_SECRET:-}` + `INDEXER_INGEST_AUTH_MODE: ${INDEXER_INGEST_AUTH_MODE:-off}`.
+
+**Rollout (delivery must never break):**
+1. Deploy indexer code, secret unset → auth no-op.
+2. Set the secret on node-server nginx → forwarded events now carry the header; indexer still `off`, ignores it.
+3. Set the same secret on the indexer with mode `warn` → watch logs for zero mismatches across several blocks + a burn block (proves the proxy header is correct).
+4. Ensure archive/CLI callers read the secret from env, then flip to `enforce`.
+5. Firewall stays as the outer layer.
+
+The `warn` stage is the safety valve: it confirms the sender is correct *before* the receiver starts rejecting.
+
+### Tier 2 — TLS + close the public port (stronger, more moving parts)
+
+Point the nginx event-proxy at the existing Caddy (`443`, already public + TLS) on a secret path instead of raw `:3700`; Caddy routes internally to `indexer:3700`. Then the secret rides TLS (no cleartext), and the indexer port no longer needs public exposure at all — bind it to the internal interface and retire the `DOCKER-USER` allowlist. This folds the network fix and the app fix into one and removes the §4 residual-risk surface, at the cost of a Caddy route + node-server proxy reconfig.
+
+## 7. Recommended next steps
+
+1. Decide header vs `Authorization: Bearer`, and Tier 1 vs Tier 2 (recommend Tier 1 now, Tier 2 as follow-up).
+2. Assign a finding ID; slot into the security backlog (P1).
+3. Add a monitoring probe that alerts if `:3700` is reachable from a non-node public IP (actively catches §4 lapses) — pairs with the `health-alert.sh` pattern in `docker/scripts/`.
+
+### Open questions
+- Header name: `X-Ingest-Secret` vs `Authorization: Bearer`? (nginx handles either.)
+- Guard `/attachments/new`, or leave open? (Harmless no-op today; guarding is free and uniform.)
+- Secret delivery to node-server nginx: env-substitution template vs uncommitted conf file.
