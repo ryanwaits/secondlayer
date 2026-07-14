@@ -2,8 +2,10 @@ import { describe, expect, it } from "bun:test";
 import { expectTypeOf } from "expect-type";
 import type { AbiContract } from "../../clarity/abi/contract.ts";
 import type {
+	AbiTypesOf,
 	ExtractFunctionArgs,
 	ExtractFunctionOutput,
+	TypedAbi,
 } from "../../clarity/abi/index.ts";
 import { Cl } from "../../clarity/values.ts";
 import type { Client } from "../../clients/types.ts";
@@ -182,6 +184,173 @@ describe("getContract", () => {
 				"SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
 			);
 			expect(balance).toBeNull();
+		});
+	});
+
+	describe("buildCall methods", () => {
+		const PUBKEY =
+			"02e3af144cc2a3f8f3f7be8f6e3a951c2f4ce9dcd1f26e279c7f8bbcf9e2b6e2d5";
+
+		it("builds an unsigned contract-call transaction without broadcasting", async () => {
+			let requested = false;
+			const mockClient = createMockClient(async () => {
+				requested = true;
+				return {};
+			});
+
+			const contract = getContract({
+				client: mockClient,
+				address: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+				name: "my-token",
+				abi: TEST_ABI,
+			});
+
+			const tx = await contract.buildCall.transfer(
+				{
+					amount: 100n,
+					sender: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+					recipient: "SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE",
+					memo: null,
+				},
+				{ publicKey: PUBKEY, fee: 200n, nonce: 7n },
+			);
+
+			expect(tx.payload.payloadType).toBe(2); // PayloadType.ContractCall
+			// biome-ignore lint/suspicious/noExplicitAny: asserting on wire payload shape
+			const payload = tx.payload as any;
+			expect(payload.functionName).toBe("transfer");
+			expect(payload.contractName).toBe("my-token");
+			expect(payload.functionArgs).toHaveLength(4);
+			expect(tx.auth.spendingCondition.nonce).toBe(7n);
+			expect(tx.auth.spendingCondition.fee).toBe(200n);
+			// explicit fee + nonce → no network calls, nothing broadcast
+			expect(requested).toBe(false);
+		});
+
+		it("throws without a publicKey or client account", async () => {
+			const contract = getContract({
+				client: createMockClient(async () => ({})),
+				address: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+				name: "my-token",
+				abi: TEST_ABI,
+			});
+
+			expect(
+				contract.buildCall.transfer(
+					{
+						amount: 100n,
+						sender: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+						recipient: "SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE",
+						memo: null,
+					},
+					{ fee: 200n, nonce: 7n },
+				),
+			).rejects.toThrow("buildCall requires a publicKey");
+		});
+
+		it("exposes only public functions", () => {
+			const contract = getContract({
+				client: createMockClient(async () => ({})),
+				address: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+				name: "my-token",
+				abi: TEST_ABI,
+			});
+
+			// biome-ignore lint/suspicious/noExplicitAny: probing runtime proxy behavior
+			expect((contract.buildCall as any).getBalance).toBeUndefined();
+			expect(contract.buildCall.transfer).toBeInstanceOf(Function);
+		});
+	});
+
+	describe("branded ABI (TypedAbi)", () => {
+		type GetBalanceArgs = { account: string };
+		type GetBalanceResult = { ok: bigint } | { err: bigint };
+		type TransferArgs = {
+			amount: bigint;
+			sender: string;
+			recipient: string;
+			memo: Uint8Array | null;
+		};
+		type TransferResult = { ok: boolean } | { err: bigint };
+
+		type TestTypes = {
+			functions: {
+				getBalance: {
+					args: GetBalanceArgs;
+					ret: GetBalanceResult;
+					access: "read-only";
+				};
+				getName: {
+					args: Record<string, never>;
+					ret: { ok: string } | { err: bigint };
+					access: "read-only";
+				};
+				transfer: {
+					args: TransferArgs;
+					ret: TransferResult;
+					access: "public";
+				};
+			};
+			maps: {
+				tokenBalances: { key: string; value: bigint };
+			};
+		};
+
+		const BRANDED_ABI = TEST_ABI as TypedAbi<typeof TEST_ABI, TestTypes>;
+
+		it("resolves the brand for branded ABIs and never for plain ones", () => {
+			expectTypeOf<AbiTypesOf<typeof BRANDED_ABI>>().toEqualTypeOf<TestTypes>();
+			expectTypeOf<AbiTypesOf<typeof TEST_ABI>>().toBeNever();
+		});
+
+		it("surfaces branded named types on read/call/maps methods", () => {
+			const contract = getContract({
+				client: createMockClient(async () => ({})),
+				address: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+				name: "my-token",
+				abi: BRANDED_ABI,
+			});
+
+			expectTypeOf(contract.read.getBalance)
+				.parameter(0)
+				.toEqualTypeOf<GetBalanceArgs>();
+			expectTypeOf(contract.read.getBalance).returns.toEqualTypeOf<
+				Promise<bigint>
+			>();
+			expectTypeOf(contract.call.transfer)
+				.parameter(0)
+				.toEqualTypeOf<TransferArgs>();
+			expectTypeOf(contract.maps.tokenBalances).returns.toEqualTypeOf<
+				Promise<bigint | null>
+			>();
+			expectTypeOf(contract.buildCall.transfer)
+				.parameter(0)
+				.toEqualTypeOf<TransferArgs>();
+
+			// public fn absent from read, read-only absent from call
+			expectTypeOf<keyof typeof contract.read>().toEqualTypeOf<
+				"getBalance" | "getName"
+			>();
+			expectTypeOf<keyof typeof contract.call>().toEqualTypeOf<"transfer">();
+		});
+
+		it("runtime behavior is identical for branded ABIs (brand is phantom)", async () => {
+			const mockClient = createMockClient(async () => ({
+				okay: true,
+				result: Cl.serialize(Cl.ok(Cl.uint(1000n))),
+			}));
+
+			const contract = getContract({
+				client: mockClient,
+				address: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+				name: "my-token",
+				abi: BRANDED_ABI,
+			});
+
+			const balance = await contract.read.getBalance({
+				account: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+			});
+			expect(balance).toBe(1000n);
 		});
 	});
 });

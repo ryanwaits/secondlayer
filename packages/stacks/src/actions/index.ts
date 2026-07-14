@@ -6,4 +6,5 @@ export {
 	type ContractInstance,
 	type GetContractParams,
 	type ContractCallOptions,
+	type ContractBuildCallOptions,
 } from "./getContract.ts";

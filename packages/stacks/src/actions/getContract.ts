@@ -3,6 +3,8 @@ import type {
 	AbiFunction,
 	AbiMap,
 	AbiType,
+	AbiTypesOf,
+	ContractTypes,
 	ExtractFunctionArgs,
 	ExtractFunctionOutput,
 	ExtractMapKey,
@@ -19,16 +21,28 @@ import {
 import type { ClarityValue } from "../clarity/types.ts";
 import type { Client } from "../clients/types.ts";
 import type { PostCondition } from "../postconditions/types.ts";
+import { buildContractCall } from "../transactions/build.ts";
+import type { StacksTransaction } from "../transactions/types.ts";
+import { publicKeyToAddress } from "../utils/address.ts";
 import type { IntegerType } from "../utils/encoding.ts";
+import { estimateFee } from "./public/estimateFee.ts";
 import { getMapEntry } from "./public/getMapEntry.ts";
 import { readContract } from "./public/readContract.ts";
 import { callContract } from "./wallet/callContract.ts";
+import { resolveNonce } from "./wallet/nonceManager.ts";
 
 // --- Type helpers for unwrapping response types ---
 
-/** Unwrap `(response ok err)` → just the `ok` branch type */
-// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-type UnwrapResponse<T> = T extends { ok: infer O } | { err: any } ? O : T;
+/**
+ * Unwrap `(response ok err)` → just the `ok` branch type. Distributes over the
+ * `{ ok } | { err }` union: the `err` branch maps to `never` (it throws
+ * `ContractResponseError` at runtime, so it never reaches the caller).
+ */
+type UnwrapResponse<T> = T extends { ok: infer O }
+	? O
+	: T extends { err: unknown }
+		? never
+		: T;
 
 type ReadMethodReturn<
 	C extends AbiContract,
@@ -37,24 +51,58 @@ type ReadMethodReturn<
 
 // --- Public type for the contract instance ---
 
-type ReadMethods<C extends AbiContract> = {
-	[N in ExtractReadOnlyFunctions<C> as ToCamelCase<N>]: (
-		args: ExtractFunctionArgs<C, N>,
-	) => Promise<ReadMethodReturn<C, N>>;
+/**
+ * When the ABI carries a codegen brand (`TypedAbi`), method types resolve to
+ * the generated named aliases — cleaner hovers and error messages. Un-branded
+ * ABIs fall back to structural inference over the as-const literal.
+ */
+type TypedReadMethods<T extends ContractTypes> = {
+	[K in keyof T["functions"] as T["functions"][K]["access"] extends "read-only"
+		? K
+		: never]: (
+		args: T["functions"][K]["args"],
+	) => Promise<UnwrapResponse<T["functions"][K]["ret"]>>;
 };
 
-type CallMethods<C extends AbiContract> = {
-	[N in ExtractPublicFunctions<C> as ToCamelCase<N>]: (
-		args: ExtractFunctionArgs<C, N>,
+type TypedCallMethods<T extends ContractTypes> = {
+	[K in keyof T["functions"] as T["functions"][K]["access"] extends "public"
+		? K
+		: never]: (
+		args: T["functions"][K]["args"],
 		options?: ContractCallOptions,
 	) => Promise<string>;
 };
 
-type MapMethods<C extends AbiContract> = {
-	[N in ExtractMapNames<C> as ToCamelCase<N>]: (
-		key: ExtractMapKey<C, N>,
-	) => Promise<ExtractMapValue<C, N> | null>;
+type TypedMapMethods<T extends ContractTypes> = {
+	[K in keyof NonNullable<T["maps"]>]: (
+		key: NonNullable<T["maps"]>[K]["key"],
+	) => Promise<NonNullable<T["maps"]>[K]["value"] | null>;
 };
+
+type ReadMethods<C extends AbiContract> = [AbiTypesOf<C>] extends [never]
+	? {
+			[N in ExtractReadOnlyFunctions<C> as ToCamelCase<N>]: (
+				args: ExtractFunctionArgs<C, N>,
+			) => Promise<ReadMethodReturn<C, N>>;
+		}
+	: TypedReadMethods<AbiTypesOf<C>>;
+
+type CallMethods<C extends AbiContract> = [AbiTypesOf<C>] extends [never]
+	? {
+			[N in ExtractPublicFunctions<C> as ToCamelCase<N>]: (
+				args: ExtractFunctionArgs<C, N>,
+				options?: ContractCallOptions,
+			) => Promise<string>;
+		}
+	: TypedCallMethods<AbiTypesOf<C>>;
+
+type MapMethods<C extends AbiContract> = [AbiTypesOf<C>] extends [never]
+	? {
+			[N in ExtractMapNames<C> as ToCamelCase<N>]: (
+				key: ExtractMapKey<C, N>,
+			) => Promise<ExtractMapValue<C, N> | null>;
+		}
+	: TypedMapMethods<AbiTypesOf<C>>;
 
 export type ContractCallOptions = {
 	fee?: IntegerType;
@@ -63,9 +111,39 @@ export type ContractCallOptions = {
 	postConditions?: PostCondition[];
 };
 
+/**
+ * Options for `buildCall.*` — building an unsigned transaction for
+ * wallet-signs-later flows. `publicKey` defaults to the client account's
+ * public key; `fee`/`nonce` are resolved from the network when omitted.
+ */
+export type ContractBuildCallOptions = ContractCallOptions & {
+	publicKey?: string;
+	sponsored?: boolean;
+};
+
+type TypedBuildCallMethods<T extends ContractTypes> = {
+	[K in keyof T["functions"] as T["functions"][K]["access"] extends "public"
+		? K
+		: never]: (
+		args: T["functions"][K]["args"],
+		options?: ContractBuildCallOptions,
+	) => Promise<StacksTransaction>;
+};
+
+type BuildCallMethods<C extends AbiContract> = [AbiTypesOf<C>] extends [never]
+	? {
+			[N in ExtractPublicFunctions<C> as ToCamelCase<N>]: (
+				args: ExtractFunctionArgs<C, N>,
+				options?: ContractBuildCallOptions,
+			) => Promise<StacksTransaction>;
+		}
+	: TypedBuildCallMethods<AbiTypesOf<C>>;
+
 export type ContractInstance<C extends AbiContract> = {
 	read: ReadMethods<C>;
 	call: CallMethods<C>;
+	/** Build unsigned transactions (wallet-signs-later) — never broadcasts. */
+	buildCall: BuildCallMethods<C>;
 	maps: MapMethods<C>;
 };
 
@@ -158,6 +236,59 @@ export function getContract<const TAbi extends AbiContract>(
 		},
 	});
 
+	const buildCall = new Proxy({} as BuildCallMethods<TAbi>, {
+		get(_target, prop: string) {
+			const fnName = camelToKebab.get(prop) ?? prop;
+			const fn = fnByName.get(fnName);
+			if (!fn || fn.access !== "public") return undefined;
+
+			return async (
+				args: Record<string, unknown>,
+				options?: ContractBuildCallOptions,
+			) => {
+				const publicKey = options?.publicKey ?? client.account?.publicKey;
+				if (!publicKey) {
+					throw new Error(
+						"buildCall requires a publicKey (pass options.publicKey or configure a client account)",
+					);
+				}
+
+				const functionArgs = buildFunctionArgs(fn, args);
+				const network = client.chain?.network ?? "mainnet";
+				const nonce =
+					options?.nonce ??
+					(await resolveNonce(client, publicKeyToAddress(publicKey, network)));
+
+				const unsigned = buildContractCall({
+					contractAddress: address,
+					contractName,
+					functionName: fn.name,
+					functionArgs,
+					fee: options?.fee ?? 0n,
+					nonce,
+					publicKey,
+					chain: client.chain,
+					postConditionMode: options?.postConditionMode,
+					postConditions: options?.postConditions,
+					sponsored: options?.sponsored,
+				});
+
+				if (options?.fee === undefined) {
+					const estimates = await estimateFee(client, {
+						transaction: unsigned,
+					});
+					const mid = estimates[1] ?? estimates[0];
+					if (mid) {
+						// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
+						(unsigned.auth.spendingCondition as any).fee = BigInt(mid.fee);
+					}
+				}
+
+				return unsigned;
+			};
+		},
+	});
+
 	const maps = new Proxy({} as MapMethods<TAbi>, {
 		get(_target, prop: string) {
 			const mapName = camelToKebab.get(prop) ?? prop;
@@ -183,7 +314,7 @@ export function getContract<const TAbi extends AbiContract>(
 		},
 	});
 
-	return { read, call, maps };
+	return { read, call, buildCall, maps };
 }
 
 /**
