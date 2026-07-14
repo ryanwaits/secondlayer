@@ -285,3 +285,135 @@ Both the baseline and the worker path sit **1-2 orders of magnitude under** the 
 - **f049** (`docs/internal/security/subgraph-isolation-spike.md`) is the parent spike — Stage 1 (AST-only extraction, sites 1 & 2) is DONE; this doc is Stage 2 (site 3, per-block handler execution).
 - Until Stage 2a-d land and the key is rotated, "the shared processor executes untrusted handler code in-process every block, holding the master key" stays on the known-live-risk list — this spike does not close the finding, it clears the path to close it.
 - **Out of scope for this spike (not done here, called out above as follow-up work)**: no product code was modified; no secret was rotated; reindex-throughput-specific benchmarking; per-`Worker` memory measurement; a real tenant `handler_code` read/write ratio survey; an adversarial resolver-lockdown review; the full `overlayOne`/`overlayMany`/`applyOpToRow` port.
+
+---
+
+## 9. Stage 2a preconditions (measured 2026-07-14, before implementation)
+
+Plan f071 (Stage 2a) gates its build on three measurements this spike flagged
+as required and did not take. Done here, against the real local dev DB and
+the real `app-server` production host (read-only queries only — no product
+code changed, no secret touched). None tripped a STOP condition; the plan
+proceeded to the build.
+
+### 9a. Real handler read/write-ratio survey
+
+**Corpus available**: the local dev DB's `subgraphs` table (`127.0.0.1:5440`,
+after `bun run db` + `bun run migrate`) has **0 rows** — there is no live BYO
+tenant `handler_code` reachable from this environment. Per the plan's explicit
+fallback, the survey instead used every real, committed subgraph-handler
+source in the monorepo:
+
+- Four **hosted-production** subgraphs, each explicitly documented in its own
+  file header as recovered verbatim from the deployed source-capture (i.e.
+  this file content **is** what's stored in `subgraphs.handler_code` in prod
+  for these four): `subgraphs/sbtc-flows.ts`, `subgraphs/pox-stacking.ts`,
+  `subgraphs/bns-names.ts`, `subgraphs/contract-deployments.ts`.
+- Product example/skill handlers: `examples/sales-index/subgraph.ts`,
+  `packages/subgraphs/examples/contract-deployments.ts`,
+  `skills/secondlayer/examples/{minimal-subgraph,contract-events,sip010-balances}.ts`,
+  `scripts/seed-balances/{sbtc,alex,usdcx}-balances.ts`,
+  `bench/subgraphs/sbtc-flows-bench.ts`.
+- A repo-wide `grep` for `ctx.findOne`/`ctx.findMany` outside tests/spike
+  confirmed there is exactly **one** place in the whole monorepo where a real
+  (non-test, non-spike) handler reads via `ctx`: the CLI scaffold template
+  (`packages/cli/src/templates/subgraph.ts:205`, the generated "balances"
+  starter every `secondlayer subgraph create --template balances`-style flow
+  hands a new user).
+
+**Findings**:
+- All four hosted-production subgraphs and every example/skill/seed handler
+  found are **0 reads : N writes per event** — `insert`/`upsert`/`update`/
+  `increment` only, never `findOne`/`findMany`. This matches D1's own finding
+  that the two real example handlers it benchmarked were 0:1.
+- The one read-using real pattern in the repo, the CLI scaffold's `adjust()`
+  helper, does `1 findOne + 1 upsert` per touched party, and a `transfer`
+  event touches both sender and recipient — so its worst case is **2 findOne
+  + 2 upsert per event**, matching (not exceeding) the spike's own synthetic
+  "read-heavy accumulator" profile (2 findOne + 2 increment/event) almost
+  exactly. That profile was already benchmarked in §2.3 at ~+15-25%/block
+  (~+1-2ms), 1-2 orders of magnitude under the ~100ms budget derived in §7.
+
+**Conclusion**: no material fraction of real handlers found are read-heavy
+enough to blow the budget — the one read-using real-world pattern found is
+already covered by the spike's own worst-case benchmark. **Not a STOP.**
+Stated limit: this is a thin, self-hosted-and-example corpus (4 production +
+~9 example/template files), not a sample of actual third-party BYO tenant
+`handler_code` — none was reachable from this environment (local DB empty,
+no cross-tenant prod handler-code access attempted). This is a documented
+estimate, not a claim about the full BYO fleet's handler shape; re-survey
+once real BYO tenants with custom handlers exist.
+
+### 9b. Per-worker resident memory at fleet scale
+
+**Fleet's actual active-subgraph count** (read-only query, `app-server`,
+`secondlayer-postgres-platform-1` / `secondlayer_platform` DB,
+`SELECT status, count(*) FROM subgraphs GROUP BY status`): **5 active**
+subgraphs today (matches the four hosted-production subgraphs above plus one
+more).
+
+**Measurement**: esbuild-bundled the four real hosted-production subgraph
+files (`bundleForBench`, same resolver-lockdown shape as `bundle.ts` plus a
+stub for `@secondlayer/subgraphs`'s `defineSubgraph` so the real files
+evaluate without needing the runtime package) and loaded each into its own
+warm Bun `Worker({ env: {} })`, mirroring §3.3's "one warm worker per active
+subgraph, reused across blocks, idle between blocks" — then measured host
+process RSS delta as workers were added incrementally (1 → 5 → 10 → 20 → 40 →
+60), on this dev machine (Bun v1.3.10, macOS arm64):
+
+| workers | total RSS | delta from 0-worker baseline | avg marginal MB/worker |
+|---|---|---|---|
+| 1 | 53.98 MB | 7.63 MB | 7.63 |
+| 5 | 77.25 MB | 30.89 MB | 6.18 |
+| 10 | 106.52 MB | 60.16 MB | 6.02 |
+| 20 | 163.81 MB | 117.45 MB | 5.87 |
+| 40 | 280.52 MB | 234.16 MB | 5.85 |
+| 60 | 385.14 MB | 338.78 MB | 5.65 |
+
+Marginal cost converges to **~5.6-6MB per idle warm worker** holding a real
+bundled handler module. (Note: an earlier pass summing each worker's own
+self-reported `process.memoryUsage().rss` gave a misleading ~80MB/worker
+figure — `process.memoryUsage()` reports whole-process RSS regardless of
+which thread calls it in Bun, confirmed empirically when every worker
+reported the same value as the host's total; the host-side delta-over-N
+measurement above is the correct signal.)
+
+**Fleet-scale check**: `app-server` has 62GiB total RAM, 57GiB available
+(`free -h`); the live `secondlayer-subgraph-processor-1` container currently
+uses ~79MiB RSS. At the fleet's actual N=5, one-warm-worker-per-subgraph costs
+~30MB. Even at the spike's own stated outer bound ("tens-to-low-hundreds"),
+150 workers × ~6MB ≈ 900MB — under 2% of available RAM.
+
+**Conclusion**: one warm worker per active subgraph is not infeasible at any
+scale this fleet is plausibly near. **Not a STOP.**
+
+### 9c. Reindex-throughput benchmark
+
+Phase 3-4 (the real worker runtime) don't exist yet at measurement time, so
+per the plan's explicit allowance this used the f060 D2 PoC (`spike/f060/
+d2-worker/`) as a throughput proxy against the D1-style in-process path, both
+driven through the *same* real `SubgraphContext`/`generateSubgraphSQL`
+machinery, over **300 blocks back-to-back with no tip pacing and no warmup/
+measured split** (the reindex access pattern) at 20 events/block, for both
+the write-only and read-heavy synthetic profiles. Two independent runs:
+
+| profile | run | in-process | worker-path (PoC proxy) | regression |
+|---|---|---|---|---|
+| write-only | 1 | 390.5 blocks/sec | 422.3 blocks/sec | **-8.1%** (worker faster) |
+| write-only | 2 | 400.1 blocks/sec | 457.4 blocks/sec | **-14.3%** (worker faster) |
+| read-heavy | 1 | 114.0 blocks/sec | 121.4 blocks/sec | **-6.5%** (worker faster) |
+| read-heavy | 2 | 144.2 blocks/sec | 123.0 blocks/sec | **+14.7%** (worker slower) |
+
+**Conclusion**: regression sign flips between runs and stays single-digit-to-
+low-teens percent either way — consistent with the doc's own framing
+elsewhere ("a shared laptop, not an isolated benchmark rig"), not a
+systematic, operationally-significant throughput regression. No run showed
+anything close to a multiple-x slowdown. **Not a STOP.** This remains a
+component-level proxy (real ctx/DB/dispatch, PoC worker plumbing, synthetic
+chain input) — Step 6/7's coverage tests are the place a real Phase 3-4
+reindex-mode regression would first show up structurally; re-benchmark with
+the production worker runtime once built if reindex operational cost becomes
+a concern.
+
+**Net Phase 0 result: no STOP condition triggered. Proceeding to the Step
+1-7 build.**
