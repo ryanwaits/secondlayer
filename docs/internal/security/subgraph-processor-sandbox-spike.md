@@ -417,3 +417,124 @@ a concern.
 
 **Net Phase 0 result: no STOP condition triggered. Proceeding to the Step
 1-7 build.**
+
+---
+
+## 10. STOP at Step 7 — the Bun Worker substrate does NOT isolate untrusted code (2026-07-14)
+
+**Status: the Stage 2a build is STOPPED at the isolation-regression gate.**
+Steps 1-6 were built and pass their correctness gates (flag/column/overlay
+parity/host-membrane block parity/catch-up-reindex-reorg coverage — all
+green). Step 7's isolation regression test — the security lock the whole
+staged sandbox exists to satisfy — **fails fundamentally**, and the reason
+is not a fixable bug in this plan's code: **a Bun `Worker` cannot isolate
+untrusted handler code from the master key.** This invalidates D4's core
+conclusion ("Bun `Worker` + resolver lockdown is a real boundary for this
+threat model") and, by extension, the go/no-go premise of Stages 2b-2d.
+
+### What the f060 spike's isolation demo actually tested — and what it missed
+
+The spike's `handler-src/hostile.ts` fixture probed exactly three things:
+(1) `globalThis.process.env.SECONDLAYER_SECRETS_KEY`, (2) `import("node:fs")`,
+(3) `import("node:child_process")`. All three are genuinely blocked by
+`env: {}` + the resolver lockdown, and the demo reports `<absent>` /
+blocked — **truthfully, for those three access forms.** But a hostile
+handler is not limited to those three forms, and the spike never probed the
+others. Three empirically-verified bypasses (Bun v1.3.10, macOS arm64, and
+the same via a re-exec'd process with a fake key in the real OS environ):
+
+1. **Bare `process.env.X` bypasses the env scrub.** `env: {}` scrubs
+   `globalThis.process.env` and `Bun.env` and the enumeration of
+   `process.env` (`Object.keys(process.env).length === 0` in the worker),
+   but the **bare `process.env.SECONDLAYER_SECRETS_KEY`** binding still
+   returns the real value — it resolves to a live `getenv()`-backed binding
+   that is immune to the Worker `env` option AND to mutating/replacing
+   `globalThis.process`. The spike's fixture used the `globalThis.process`
+   form (scrubbed), so it never saw this. A banner-injected module-scope
+   `const process = { env: {} }` in the esbuild bundle DOES shadow the bare
+   identifier — but that only closes vector 1, not vector 3.
+
+2. **`Bun.file(path).text()` — arbitrary filesystem read.** The ambient
+   `Bun` global exposes `Bun.file`, which reads any path the host process
+   can (another tenant's on-disk `handler_path`, secrets on disk, etc.).
+   No import, so the resolver lockdown never sees it.
+
+3. **`Bun.spawnSync({cmd})` — arbitrary command execution that reaches the
+   HOST process environ.** The Worker is a *thread inside the host process*;
+   `Bun.spawnSync` spawns a child that inherits the **host** process's real
+   OS environment (not the Worker's `env: {}` scrub), so
+   `Bun.spawnSync({cmd:["/bin/sh","-c","echo $SECONDLAYER_SECRETS_KEY"]})`
+   prints the master key. Verified end-to-end: in a fully-scrubbed worker
+   (`env: {}` + bundle banner shadowing `process`/`Bun` + `globalThis.process`
+   replaced), `Bun.file()` still read a canary file and `Bun.spawnSync` still
+   printed a fake `EXFIL_SECRET` set only in the host's environ.
+
+**`globalThis.Bun` cannot be removed.** Its property descriptor on
+`globalThis` is `{ configurable: false, writable: false }` — `delete
+globalThis.Bun` is a silent no-op, and both `globalThis.Bun = undefined` and
+`Object.defineProperty(globalThis, "Bun", …)` throw
+`Attempted to assign to readonly property`. The esbuild banner can shadow the
+*bare* `Bun` identifier inside the handler bundle, but a handler that writes
+`globalThis.Bun.spawnSync(...)` reaches the real, un-shadowable global. There
+is no worker-side or bundle-side scrub that closes this within the Bun `Worker`
+model — the capability is an intrinsic, non-configurable property of every Bun
+JS context.
+
+### Why this is a STOP and not a patch
+
+The entire staged plan (2a build → 2b shadow-diff → 2c cutover → 2d remove
+the master key) is predicated on the worker being a trust boundary that keeps
+untrusted handler code away from `SECONDLAYER_SECRETS_KEY`. It is not. Wiring
+a flag-selectable "sandbox" that a hostile handler escapes in one
+`globalThis.Bun.spawnSync` line would be **security theater** — worse than the
+current honest state, because a future operator (or Stage 2d) could remove the
+key believing the worker contains the code it does not. The isolation gate
+existing precisely to catch "is the scrub load-bearing?" did its job: the
+answer, for a Bun `Worker`, is **no**.
+
+### What this changes (founder decision)
+
+- **D4 must be revisited.** `isolated-vm` was ruled out in f049/f060 because
+  it's a V8/N-API addon incompatible with Bun's JSC runtime — but that
+  trade-off assumed the Bun `Worker` was a real boundary. It is not, so the
+  comparison has to be re-run honestly. Real options that actually contain
+  untrusted code, each a larger change than this plan assumed:
+  - **A separate OS process per tenant** (Bun/Node subprocess with a
+    genuinely scrubbed environ AND no inherited fds/secrets), reached over an
+    IPC channel — the host-answers-reads / replay-ops membrane built here
+    (`overlay.ts`, the protocol, the host replay) ports to a subprocess
+    boundary largely unchanged; only the transport (`Worker.postMessage` →
+    IPC) and the spawn/scrub change. This is the most likely path.
+  - **`isolated-vm` on a Node processor** — a real V8-isolate boundary, but
+    forces the processor off Bun (a second migration), which is why f049
+    deferred it.
+  - **A container/microVM per tenant** (gVisor / Firecracker) — strongest
+    isolation, largest operational cost.
+- **f049 site 3 stays open and on the known-live-risk list**, unchanged:
+  "the shared subgraph processor executes untrusted handler code in-process,
+  every block, holding the master key." This stage did not, and on this
+  substrate cannot, build the machine that closes it.
+
+### Disposition of the Stage 2a build
+
+- **The flag-gated dispatch was NOT wired into `block-processor.ts`'s
+  production hot path** (the Step-5 edit was reverted): the in-process path
+  is byte-identical to before, so nothing ships a selectable non-isolating
+  sandbox. `runHandlersSandboxed` has no production caller.
+- The `packages/subgraphs/src/runtime/sandbox/` modules (bundle / protocol /
+  overlay / worker-ctx / worker-entry / host) and their correctness tests
+  are left **unwired** as investigation artifacts — `overlay.ts` (the verbatim
+  `context.ts` overlay port) and the host-membrane/replay design are
+  substrate-independent and are the reusable core for whichever real
+  isolation substrate is chosen. `isolation.test.ts` is a **green regression
+  lock that asserts the break** (proves `env: {}` + resolver lockdown do NOT
+  contain `globalThis.Bun` / bare `process.env`), so the finding stays
+  enforced in CI and nobody re-adopts the substrate assuming it isolates.
+- The dark `sandbox_workers` column + `sandboxEnabled` resolver (migration
+  0109) remain as control-plane opt-in prep — reusable by any redesigned
+  sandbox — but are wired to nothing.
+
+**Net Stage 2a result: STOPPED at the isolation gate. The correctness
+scaffolding is built and green; the security substrate is disproven. Next
+step is a founder-level isolation-substrate decision, not a continuation of
+this plan on Bun `Worker`s.**
