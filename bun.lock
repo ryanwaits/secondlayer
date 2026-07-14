@@ -25,7 +25,7 @@
     },
     "apps/web": {
       "name": "@secondlayer/web",
-      "version": "0.3.17",
+      "version": "0.3.31",
       "dependencies": {
         "@mdx-js/loader": "^3.1.1",
         "@mdx-js/react": "^3.1.1",
@@ -51,7 +51,7 @@
     },
     "packages/api": {
       "name": "@secondlayer/api",
-      "version": "1.23.8",
+      "version": "1.24.8",
       "dependencies": {
         "@secondlayer/bundler": "^0.3.9",
         "@secondlayer/indexer": "^1.12.5",
@@ -71,14 +71,14 @@
     },
     "packages/bundler": {
       "name": "@secondlayer/bundler",
-      "version": "0.3.9",
+      "version": "0.4.0",
       "dependencies": {
         "@secondlayer/subgraphs": "^3.2.1",
         "esbuild": "^0.27.4",
+        "typescript": "^5",
       },
       "devDependencies": {
         "@types/bun": "latest",
-        "typescript": "^5",
       },
     },
     "packages/clarity-docs": {
@@ -90,7 +90,7 @@
     },
     "packages/cli": {
       "name": "@secondlayer/cli",
-      "version": "8.12.0",
+      "version": "8.14.3",
       "bin": {
         "secondlayer": "./dist/cli.js",
         "sl": "./dist/cli.js",
@@ -140,7 +140,7 @@
     },
     "packages/mcp": {
       "name": "@secondlayer/mcp",
-      "version": "4.2.0",
+      "version": "4.2.2",
       "bin": {
         "mcp": "./dist/bin.js",
         "secondlayer-mcp": "./dist/bin.js",
@@ -164,7 +164,7 @@
     },
     "packages/platform": {
       "name": "@secondlayer/platform",
-      "version": "0.1.12",
+      "version": "0.1.19",
       "dependencies": {
         "@secondlayer/shared": "workspace:*",
         "kysely": "0.28.15",
@@ -189,7 +189,7 @@
     },
     "packages/sdk": {
       "name": "@secondlayer/sdk",
-      "version": "6.26.1",
+      "version": "6.29.0",
       "dependencies": {
         "@secondlayer/shared": "^6.30.0",
         "@secondlayer/stacks": "^2.5.1",
@@ -202,9 +202,9 @@
     },
     "packages/shared": {
       "name": "@secondlayer/shared",
-      "version": "6.37.1",
+      "version": "6.41.2",
       "dependencies": {
-        "@secondlayer/stacks": "^2.5.0",
+        "@secondlayer/stacks": "^2.10.0",
         "kysely": "0.28.15",
         "kysely-postgres-js": "3.0.0",
         "postgres": "^3.4.6",
@@ -217,7 +217,7 @@
     },
     "packages/stacks": {
       "name": "@secondlayer/stacks",
-      "version": "2.8.1",
+      "version": "2.10.0",
       "dependencies": {
         "@noble/ciphers": "2.1.1",
         "@noble/curves": "2.0.1",
@@ -239,10 +239,11 @@
     },
     "packages/subgraphs": {
       "name": "@secondlayer/subgraphs",
-      "version": "3.16.0",
+      "version": "3.19.5",
       "dependencies": {
-        "@secondlayer/shared": "^6.30.0",
+        "@secondlayer/shared": "^6.41.2",
         "@secondlayer/stacks": "^2.3.0",
+        "esbuild": "^0.27.4",
         "kysely": "0.28.15",
         "zod": "^4.3.6",
       },
@@ -253,7 +254,7 @@
     },
     "packages/worker": {
       "name": "@secondlayer/worker",
-      "version": "1.2.14",
+      "version": "1.2.21",
       "dependencies": {
         "@secondlayer/platform": "workspace:*",
         "@secondlayer/shared": "^6.0.0",
