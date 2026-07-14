@@ -41,6 +41,9 @@ export type {
 	AbiContract,
 } from "./contract.ts";
 
+// Codegen type brand
+export type { ContractTypes, TypedAbi, AbiTypesOf } from "./typed.ts";
+
 // Extractors
 export type {
 	ExtractFunctionNames,
