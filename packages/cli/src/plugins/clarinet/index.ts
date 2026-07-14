@@ -26,6 +26,12 @@ export interface ClarinetPluginOptions {
 	/** Exclude specific contracts */
 	exclude?: string[];
 
+	/**
+	 * Also generate interfaces for dependency contracts declared under
+	 * `[project.requirements]` in Clarinet.toml (default: true).
+	 */
+	includeRequirements?: boolean;
+
 	/** Enable debug output */
 	debug?: boolean;
 }
@@ -37,63 +43,92 @@ function sanitizeContractName(name: string): string {
 	return toCamelCase(name);
 }
 
-/**
- * Check if a contract is a user-defined contract (not a system contract)
- */
-async function isUserDefinedContract(
-	contractId: string,
-	manifestPath: string,
-): Promise<boolean> {
-	const { address, contractName } = parseContractId(contractId);
+/** @internal exported for tests */
+export interface ManifestInfo {
+	/** Names from `[contracts.NAME]` sections */
+	projectContracts: Set<string>;
+	/** Fully-qualified ids from `[project.requirements]` entries */
+	requirementIds: Set<string>;
+}
 
+/**
+ * Read project contracts and requirements from Clarinet.toml. Returns null if
+ * the manifest can't be read (callers fall back to pattern heuristics).
+ */
+export async function readManifestInfo(
+	manifestPath: string,
+): Promise<ManifestInfo | null> {
 	try {
-		// Read Clarinet.toml to get user-defined contracts
 		const { promises: fs } = await import("node:fs");
 		const tomlContent = await fs.readFile(manifestPath, "utf-8");
 
-		// Simple TOML parsing to find [contracts.CONTRACT_NAME] sections
+		// Simple TOML parsing: [contracts.NAME] sections
+		const projectContracts = new Set<string>();
 		const contractSectionRegex = /^\[contracts\.([^\]]+)\]/gm;
-		const userContracts = new Set<string>();
-
 		let match: RegExpExecArray | null = contractSectionRegex.exec(tomlContent);
 		while (match !== null) {
-			userContracts.add(match[1]);
+			projectContracts.add(match[1]);
 			match = contractSectionRegex.exec(tomlContent);
 		}
 
-		// If the contract is explicitly defined in Clarinet.toml, it's user-defined
-		if (userContracts.has(contractName)) {
-			return true;
+		// Requirements: `contract_id = "SP....name"` entries — covers both the
+		// inline `requirements = [{ contract_id = "..." }]` and the
+		// `[[project.requirements]]` table-array forms.
+		const requirementIds = new Set<string>();
+		const requirementRegex = /contract_id\s*=\s*["']([^"']+)["']/g;
+		match = requirementRegex.exec(tomlContent);
+		while (match !== null) {
+			requirementIds.add(match[1]);
+			match = requirementRegex.exec(tomlContent);
 		}
+
+		return { projectContracts, requirementIds };
 	} catch {
-		// If we can't read the TOML file, fall back to pattern matching
+		return null;
+	}
+}
+
+/** @internal exported for tests */
+export type ContractKind = "project" | "requirement" | "system";
+
+/**
+ * Classify a simnet contract. With a readable manifest the classification is
+ * deterministic: `[contracts.*]` → project, `[project.requirements]` →
+ * requirement, everything else (boot contracts) → system. Without a manifest,
+ * fall back to boot-contract heuristics.
+ */
+export function classifyContract(
+	contractId: string,
+	manifest: ManifestInfo | null,
+): ContractKind {
+	const { address, contractName } = parseContractId(contractId);
+
+	if (manifest) {
+		if (manifest.projectContracts.has(contractName)) return "project";
+		if (manifest.requirementIds.has(contractId)) return "requirement";
+		return "system";
 	}
 
-	// Fallback: System contracts typically have specific addresses or are in the boot contracts
-	// Common system contract patterns:
+	// Fallback heuristics: boot contracts have well-known names/addresses
 	const systemContractPatterns = [
 		/^pox-\d+$/, // pox-2, pox-3, etc.
 		/^bns$/, // Blockchain Name System
 		/^costs-\d+$/, // costs-2, costs-3, etc.
 		/^lockup$/, // lockup contract
 	];
-
-	// Check if it matches any system contract pattern
 	if (systemContractPatterns.some((pattern) => pattern.test(contractName))) {
-		return false;
+		return "system";
 	}
 
-	// System contracts often use specific addresses
 	const systemAddresses = [
 		DEFAULT_SENDER_ADDRESS, // Boot contracts address
 		"ST000000000000000000002AMW42H", // Boot contracts address (testnet)
 	];
-
 	if (systemAddresses.includes(address)) {
-		return false;
+		return "system";
 	}
 
-	return true;
+	return "project";
 }
 
 /**
@@ -118,14 +153,21 @@ export const clarinet: PluginFactory<ClarinetPluginOptions> = (
 				// Get contract interfaces from Clarinet
 				const contractInterfaces = simnet.getContractsInterfaces();
 				const contracts = [];
+				const manifest = await readManifestInfo(manifestPath);
+				const includeRequirements = options.includeRequirements ?? true;
 
 				for (const [contractId, abi] of contractInterfaces) {
 					const { contractName } = parseContractId(contractId);
 
-					// Skip system contracts
-					if (!(await isUserDefinedContract(contractId, manifestPath))) {
+					const kind = classifyContract(contractId, manifest);
+
+					// Skip system/boot contracts, and requirements when opted out
+					if (
+						kind === "system" ||
+						(kind === "requirement" && !includeRequirements)
+					) {
 						if (options.debug) {
-							console.log(`🚫 Skipping system contract: ${contractId}`);
+							console.log(`🚫 Skipping ${kind} contract: ${contractId}`);
 						}
 						continue;
 					}
