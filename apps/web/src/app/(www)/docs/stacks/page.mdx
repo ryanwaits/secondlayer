@@ -116,7 +116,7 @@ Decoding is strict: deserializing a transaction with an unknown post-condition t
 
 ## Also in the box
 
-- **Typed contracts** — `getContract()` binds an ABI to a client for typed reads/writes; generate ABIs with [`sl contracts generate`](/docs/cli).
+- **Typed contracts** — `getContract()` binds an ABI to a client for typed reads (`read.*`), broadcasts (`call.*`), unsigned wallet-signs-later transactions (`buildCall.*`), and map lookups (`maps.*`); generate branded ABIs with [`sl contracts generate`](/docs/cli#generate-typed-contract-clients) for named-alias hovers.
 - **Clarity values** — `Cl.*` constructors and decoding via `@secondlayer/stacks/clarity`.
 - **Bitcoin SPV** — merkle proofs and Bitcoin payment verification, see [Bitcoin SPV](/docs/bitcoin-spv).
 - **Accounts** — `privateKeyToAccount`, `mnemonicToAccount`, WalletConnect providers via `@secondlayer/stacks/accounts` and `@secondlayer/stacks/connect`.

@@ -167,6 +167,7 @@ address prefix), or globs.
 sl contracts generate ./contracts/token.clar -o ./src/generated.ts
 sl contracts generate SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault -o ./src/generated.ts
 sl contracts generate "./contracts/*.clar" -o ./src/generated.ts
+sl contracts generate --watch   # regenerate on .clar / config / Clarinet.toml changes
 ```
 
 Config-driven:
@@ -179,33 +180,36 @@ sl contracts generate  # regenerates from the config
 ```typescript
 // secondlayer.config.ts
 import { defineConfig } from "@secondlayer/cli"
-import { clarinet, actions, react } from "@secondlayer/cli/plugins"
+import { clarinet, react } from "@secondlayer/cli/plugins"
 
 export default defineConfig({
   out: "src/generated.ts",
-  plugins: [clarinet(), actions(), react()],
+  plugins: [clarinet(), react()],
 })
 ```
 
 | Plugin | What it adds |
 |---|---|
-| `clarinet()` | Parse local Clarinet project |
-| `actions()` | `read.*` + `write.*` helpers per contract |
+| `clarinet()` | Parse local Clarinet project — includes `[project.requirements]` dependency contracts too (`includeRequirements: false` to opt out) |
 | `react()` | Typed React Query hooks |
 | `testing()` | Clarinet SDK test helpers |
+
+Generated output includes named per-function type aliases (`TokenTransferArgs`,
+`TokenTransferResult`), a `TokenTypes` bundle, and a `tokenAbi` const branded
+with `TypedAbi` — `getContract` from `@secondlayer/stacks` picks up the brand
+so hovers and type errors show the named aliases instead of expanded inline
+types.
 
 ```typescript
 import { token } from "./generated/contracts"
 
-// Works with @stacks/transactions directly:
+// Generated call descriptors compose with any tx builder:
 await makeContractCall({
   ...token.transfer({ amount: 100n, recipient: "SP..." }),
   network: "mainnet",
 })
 
-// With actions() — read/write helpers + maps/vars/constants:
-const balance = await token.read.getBalance({ account: "SP..." })
-await token.write.transfer({ amount: 100n, recipient: "SP..." })
+// Maps/vars/constants accessors are built in:
 const supply = await token.vars.totalSupply.get()
 ```
 

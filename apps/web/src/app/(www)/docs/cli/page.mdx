@@ -81,6 +81,52 @@ never blocks.
 
 </Callout>
 
+## Generate typed contract clients
+
+Turn Clarity contracts into typed TypeScript — local `.clar` files, deployed
+contracts, or a whole Clarinet project.
+
+```bash
+sl contracts generate ./contracts/token.clar -o ./src/generated.ts
+sl contracts generate SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault -o ./src/generated.ts
+sl contracts generate --watch    # regenerate on .clar / config / Clarinet.toml changes
+```
+
+Deployed contract ids fetch the real ABI from the network (address prefix picks
+mainnet vs testnet). Config-driven projects scaffold with `sl init` and
+regenerate with plain `sl contracts generate`:
+
+```ts
+// secondlayer.config.ts
+import { defineConfig } from "@secondlayer/cli";
+import { clarinet, react } from "@secondlayer/cli/plugins";
+
+export default defineConfig({
+	out: "./src/generated/contracts.ts",
+	plugins: [clarinet(), react()],
+});
+```
+
+| Plugin | What it adds |
+|---|---|
+| `clarinet()` | Real ABIs from your Clarinet project via Simnet — includes `[project.requirements]` dependency contracts (`includeRequirements: false` to opt out) |
+| `react()` | Typed React hooks per contract |
+| `testing()` | Clarinet SDK test helpers |
+
+Generated output ships named type aliases per function (`TokenTransferArgs`,
+`TokenTransferResult`) and an ABI const branded with `TypedAbi`. Feed it to
+`getContract` from [`@secondlayer/stacks`](/docs/stacks#also-in-the-box) and
+hovers and type errors show the named aliases — not a wall of expanded
+conditional types.
+
+<Callout type="tip" title="Your contract's dependencies get types too">
+
+Contracts you depend on but didn't write — a token you call, a protocol you
+integrate — are declared as Clarinet requirements. The `clarinet()` plugin
+generates typed clients for those by default.
+
+</Callout>
+
 ## Frozen features
 
 These work but get no further investment. The supported dev loop is hosted (`sl subgraphs create` → `deploy` against a recent block).
