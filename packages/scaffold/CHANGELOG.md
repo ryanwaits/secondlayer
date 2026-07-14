@@ -1,5 +1,20 @@
 # @secondlayer/scaffold
 
+## 1.4.0
+
+### Minor Changes
+
+- Generated contract interfaces now emit named per-function type aliases (`TokenTransferArgs`, `TokenTransferResult`), a `<Contract>Types` bundle, and brand the ABI const with `TypedAbi<typeof abi, Types>` so `getContract` surfaces the aliases in hovers and errors. Method signatures use the aliases for the object-form overload.
+
+  Fixes: generated imports now target real `@secondlayer/stacks` subpaths (`/clarity`, `/utils`) — the previous root imports of `Cl`/`validateStacksAddress` did not resolve; map accessors no longer call `.toString('hex')` on `serializeCV`'s already-hex result.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies [bb550ea]
+  - @secondlayer/stacks@2.11.0
+  - @secondlayer/subgraphs@3.19.6
+
 ## 1.3.0
 
 ### Minor Changes

@@ -1,5 +1,16 @@
 # @secondlayer/stacks
 
+## 2.11.0
+
+### Minor Changes
+
+- Typed contract client upgrades:
+
+  - `TypedAbi` brand (`@secondlayer/stacks/clarity`): codegen fuses named per-function type aliases onto the generated ABI const; `getContract` resolves the brand so hovers and type errors show `TokenTransferArgs`-style aliases instead of expanded conditional types. Un-branded `as const` ABIs keep working via structural inference. New type exports: `TypedAbi`, `ContractTypes`, `AbiTypesOf`.
+  - `contract.buildCall.*`: build unsigned contract-call transactions for wallet-signs-later flows — never broadcasts; `publicKey` defaults to the client account, fee/nonce auto-resolved when omitted. New exports: `ContractBuildCallOptions` (`/actions`), `publicKeyToAddress` (`/utils`).
+  - `jsToClarityValue`: pre-built ClarityValues pass through anywhere (escape hatch); buff args accept hex strings (0x optional), tagged `{ type: 'ascii' | 'utf8' | 'hex', value }` objects, `Uint8Array`, or a `BufferCV`. New export: `isClarityValue` (`/clarity`).
+  - Fix: read-method return types for `(response ok err)` outputs now unwrap to the `ok` type — previously the `{ok}|{err}` union could collapse to `unknown`.
+
 ## 2.10.0
 
 ### Minor Changes

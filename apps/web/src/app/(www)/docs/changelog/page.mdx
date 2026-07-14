@@ -2,6 +2,26 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## CLI — July 2026
+
+### Watch mode and dependency types for contract codegen
+
+`sl contracts generate --watch` regenerates your typed clients the moment a
+`.clar` file, your config, or `Clarinet.toml` changes — leave it running next
+to your editor. And the `clarinet()` plugin now types the contracts you depend
+on, not just the ones you wrote: everything under `[project.requirements]`
+gets a typed client by default (`includeRequirements: false` to opt out).
+
+- Generated output now ships named type aliases per function
+  (`TokenTransferArgs`, `TokenTransferResult`) and a `TypedAbi`-branded ABI
+  const — hovers and type errors name your types instead of dumping expanded
+  conditionals.
+- Generated imports target real `@secondlayer/stacks` subpaths — previously
+  emitted root imports didn't resolve.
+- Breaking: the `actions()` codegen plugin is gone. It generated code against
+  an API surface that no longer exists; the generated contract objects and
+  `getContract` cover the same ground, typed.
+
 ## Index — July 2026
 
 ### Reorg-safe contract lookups
@@ -20,6 +40,22 @@ automatically — your fetched ABIs survive the round trip.
   drop the column; it was always `true`, so nothing is lost.
 
 ## SDK — July 2026
+
+### Named types on hover, unsigned transactions on demand
+
+Your generated ABIs now carry their own type names. `getContract` picks up the
+`TypedAbi` brand emitted by `sl contracts generate`, so hovering
+`contract.call.transfer` shows `TokenTransferArgs` — cmd-clickable, readable
+in errors — instead of a wall of inferred conditionals. Hand-written
+`as const` ABIs keep working exactly as before.
+
+- New `contract.buildCall.*` namespace builds unsigned transactions for
+  wallet-signs-later flows — never broadcasts; fee and nonce auto-resolve when
+  you omit them. Plus `publicKeyToAddress` in `@secondlayer/stacks/utils`.
+- `jsToClarityValue` takes pre-built ClarityValues anywhere, and buffer args
+  accept hex strings, `Uint8Array`, or tagged `{ type, value }` objects.
+- Read methods on `(response ok err)` outputs now type as the `ok` value —
+  no more `unknown` leaking out of typed reads.
 
 ### SIP-045 staking post-conditions, ready before the fork
 

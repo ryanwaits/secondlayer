@@ -1,5 +1,13 @@
 # @secondlayer/worker
 
+## 1.2.22
+
+### Patch Changes
+
+- Updated dependencies [bb550ea]
+  - @secondlayer/shared@6.41.3
+  - @secondlayer/platform@0.1.20
+
 ## 1.2.21
 
 ### Patch Changes

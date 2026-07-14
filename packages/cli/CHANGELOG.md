@@ -1,5 +1,27 @@
 # @secondlayer/cli
 
+## 9.0.0
+
+### Major Changes
+
+- Contract codegen overhaul:
+
+  - BREAKING: removed the `actions()` codegen plugin (`@secondlayer/cli/plugins` no longer exports `actions`/`ActionsPluginOptions`). It emitted imports that no longer resolve against `@secondlayer/stacks`; the generated contract objects and `getContract` cover the same use cases.
+  - `sl contracts generate --watch` now works: watches local `.clar` sources, `secondlayer.config.*`, and `Clarinet.toml` + `contracts/`, regenerating on change (debounced; keeps watching on failed runs).
+  - `clarinet()` plugin generates typed clients for `[project.requirements]` dependency contracts by default (`includeRequirements: false` to opt out) and classifies contracts deterministically from the manifest — project contracts named like boot contracts (e.g. `pox-helper`) are no longer wrongly skipped.
+  - Generated output includes named type aliases per function plus a `TypedAbi`-branded ABI const (see `@secondlayer/stacks` changelog).
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies [bb550ea]
+- Updated dependencies [bb550ea]
+  - @secondlayer/scaffold@1.4.0
+  - @secondlayer/stacks@2.11.0
+  - @secondlayer/shared@6.41.3
+  - @secondlayer/subgraphs@3.19.6
+
 ## 8.14.3
 
 ### Patch Changes
