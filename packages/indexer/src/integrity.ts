@@ -19,6 +19,10 @@ export const integrityState = {
 	autoBackfillEnabled: process.env.AUTO_BACKFILL_ENABLED !== "false",
 	autoBackfillInProgress: false,
 	autoBackfillRemaining: 0,
+	// Heights confirmed unfillable from local DB (persists across cycles, unlike
+	// autoBackfillRemaining/InProgress which reset to 0/false after every attempt —
+	// that reset made a permanently-stuck gap look identical to "caught up").
+	autoBackfillUnfillable: [] as number[],
 };
 
 // Track when gaps were first seen (for 5-min cooldown)
@@ -44,6 +48,7 @@ async function runIntegrityCheck() {
 
 		if (gaps.length === 0) {
 			gapFirstSeen.clear();
+			integrityState.autoBackfillUnfillable = [];
 			logger.debug("Integrity check: no gaps");
 			return;
 		}
@@ -156,6 +161,7 @@ async function autoBackfill(gaps: Gap[]) {
 		}
 
 		if (remainingHeights.size === 0) {
+			integrityState.autoBackfillUnfillable = [];
 			await recomputeContiguous(getSourceDb());
 			logger.info("Auto-backfill complete (all from local)", {
 				blocks: totalBlocks,
@@ -168,15 +174,19 @@ async function autoBackfill(gaps: Gap[]) {
 		// Hiro-free. Historical execution events can't be re-derived from raw node RPC,
 		// so surface the unfillable gap loudly for re-sync/ops instead of silently
 		// reaching an external provider. (Was: HiroClient.getBlockForIndexer fill.)
-		if (remainingHeights.size > 0) {
-			const sorted = [...remainingHeights].sort((a, b) => a - b);
-			logger.error("Auto-backfill: unfillable gap (not in local DB)", {
-				count: sorted.length,
-				first: sorted[0],
-				last: sorted[sorted.length - 1],
-				hint: "re-sync from the stacks-node event stream; no external fallback",
-			});
-		}
+		//
+		// This state persists past this function's `finally` (unlike
+		// autoBackfillInProgress/Remaining) so /health/integrity can report a
+		// permanently-stuck gap distinctly from "backfill just hasn't run yet" —
+		// otherwise a real, unfixable gap looks identical to idle/healthy.
+		const sorted = [...remainingHeights].sort((a, b) => a - b);
+		integrityState.autoBackfillUnfillable = sorted;
+		logger.error("Auto-backfill: unfillable gap (not in local DB)", {
+			count: sorted.length,
+			first: sorted[0],
+			last: sorted[sorted.length - 1],
+			hint: "re-sync from the stacks-node event stream; no external fallback",
+		});
 
 		await recomputeContiguous(getSourceDb());
 		logger.info("Auto-backfill complete", {

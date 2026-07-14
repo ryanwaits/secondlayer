@@ -207,7 +207,9 @@ const server = Bun.serve({
 					? "healthy"
 					: integrityState.autoBackfillInProgress
 						? "degraded"
-						: "gaps_detected";
+						: integrityState.autoBackfillUnfillable.length > 0
+							? "gaps_unfillable"
+							: "gaps_detected";
 
 			return Response.json({
 				status,
@@ -219,6 +221,8 @@ const server = Bun.serve({
 				autoBackfillProgress: {
 					remaining: integrityState.autoBackfillRemaining,
 					inProgress: integrityState.autoBackfillInProgress,
+					unfillable: integrityState.autoBackfillUnfillable.length,
+					unfillableHeights: integrityState.autoBackfillUnfillable.slice(0, 10),
 				},
 			});
 		},
