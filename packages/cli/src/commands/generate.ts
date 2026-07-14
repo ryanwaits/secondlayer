@@ -14,7 +14,7 @@ import type {
 } from "../types/config";
 import type { ContractConfig, ResolvedConfig } from "../types/plugin";
 import { StacksApiClient } from "../utils/api";
-import { loadConfig } from "../utils/config";
+import { findConfigFile, loadConfig } from "../utils/config";
 import { parseContractId } from "../utils/contract-id";
 import { checkBaseDependencies } from "../utils/dependencies";
 import { inferNetwork } from "../utils/network";
@@ -165,6 +165,20 @@ async function buildConfigFromInputs(
 }
 
 export async function generate(files: string[], options: GenerateOptions) {
+	if (!options.watch) {
+		await runGenerate(files, options, { exitOnError: true });
+		return;
+	}
+
+	await runGenerate(files, options, { exitOnError: false });
+	await watchAndRegenerate(files, options);
+}
+
+async function runGenerate(
+	files: string[],
+	options: GenerateOptions,
+	{ exitOnError }: { exitOnError: boolean },
+) {
 	try {
 		let config: SecondLayerConfig;
 
@@ -303,8 +317,144 @@ export async function generate(files: string[], options: GenerateOptions) {
 		if (process.env.DEBUG && error instanceof Error) {
 			console.error(error.stack);
 		}
-		process.exit(1);
+		if (exitOnError) {
+			process.exit(1);
+		}
 	}
+}
+
+// --- Watch mode ---
+
+/** File names that should trigger regeneration when they change. */
+function isWatchRelevant(filename: string): boolean {
+	return (
+		filename.endsWith(".clar") ||
+		filename.endsWith(".toml") ||
+		filename.startsWith("secondlayer.config")
+	);
+}
+
+/**
+ * Collect watch targets: parent directories of direct .clar inputs, the config
+ * file, config-declared local sources, and the Clarinet project (manifest +
+ * contracts dir) when present. Directories are watched (non-recursively for
+ * plain parents, recursively for the Clarinet contracts dir) so atomic-save
+ * editors don't drop the watcher.
+ */
+async function collectWatchTargets(
+	files: string[],
+	options: GenerateOptions,
+): Promise<{ path: string; recursive: boolean }[]> {
+	const { promises: fs } = await import("node:fs");
+	const dirs = new Map<string, boolean>(); // path → recursive
+	const addParentDir = (filePath: string) => {
+		const dir = path.dirname(path.resolve(process.cwd(), filePath));
+		if (!dirs.get(dir)) dirs.set(dir, false);
+	};
+
+	if (files && files.length > 0) {
+		const parsedInputs = await parseInputs(files);
+		for (const file of parsedInputs.files) {
+			addParentDir(file);
+		}
+	} else {
+		const configPath = options.config
+			? path.resolve(process.cwd(), options.config)
+			: await findConfigFile(process.cwd());
+		if (configPath) addParentDir(configPath);
+
+		try {
+			const config = await loadConfig(options.config);
+			for (const contract of config.contracts || []) {
+				if (contract.source) addParentDir(contract.source);
+			}
+		} catch {
+			// Config may be temporarily broken while the user edits it — the
+			// config file's parent dir is already watched, so we recover on save.
+		}
+
+		// Clarinet project: watch the manifest dir and the contracts dir
+		const manifestPath = path.resolve(process.cwd(), "Clarinet.toml");
+		try {
+			await fs.access(manifestPath);
+			addParentDir(manifestPath);
+			const contractsDir = path.resolve(process.cwd(), "contracts");
+			try {
+				const stat = await fs.stat(contractsDir);
+				if (stat.isDirectory()) dirs.set(contractsDir, true);
+			} catch {
+				// no contracts dir
+			}
+		} catch {
+			// no Clarinet project
+		}
+	}
+
+	return [...dirs.entries()].map(([dir, recursive]) => ({
+		path: dir,
+		recursive,
+	}));
+}
+
+async function watchAndRegenerate(files: string[], options: GenerateOptions) {
+	const { watch } = await import("node:fs");
+	const targets = await collectWatchTargets(files, options);
+
+	if (targets.length === 0) {
+		console.log(
+			chalk.yellow("⚠ Nothing to watch — no local inputs were found"),
+		);
+		return;
+	}
+
+	console.log(
+		chalk.cyan(
+			`👀 Watching ${targets.length} ${targets.length === 1 ? "location" : "locations"} for changes — press Ctrl+C to stop`,
+		),
+	);
+
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	let running = false;
+	let rerunRequested = false;
+
+	const regenerate = async (changed?: string) => {
+		if (running) {
+			rerunRequested = true;
+			return;
+		}
+		running = true;
+		console.log(
+			chalk.gray(
+				`↻ ${changed ? `${changed} changed` : "Change detected"} — regenerating...`,
+			),
+		);
+		await runGenerate(files, options, { exitOnError: false });
+		running = false;
+		if (rerunRequested) {
+			rerunRequested = false;
+			await regenerate();
+		}
+	};
+
+	const onEvent = (filename: string | Buffer | null) => {
+		const name = typeof filename === "string" ? filename : filename?.toString();
+		if (name && !isWatchRelevant(path.basename(name))) return;
+		if (timer) clearTimeout(timer);
+		timer = setTimeout(() => void regenerate(name ?? undefined), 150);
+	};
+
+	for (const target of targets) {
+		try {
+			watch(target.path, { recursive: target.recursive }, (_event, filename) =>
+				onEvent(filename),
+			);
+		} catch {
+			console.warn(chalk.yellow(`⚠ Could not watch ${target.path}`));
+		}
+	}
+
+	// fs.watch keeps the event loop alive; block forever until Ctrl+C.
+	await new Promise(() => {});
 }
 
 // Keep existing contract resolution functions for backward compatibility and plugin use
