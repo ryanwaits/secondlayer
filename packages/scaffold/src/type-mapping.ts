@@ -18,12 +18,28 @@ import {
 } from "@secondlayer/stacks/clarity";
 
 /**
+ * Direction of the mapping: `input` types describe what callers may pass
+ * (permissive — buffers accept `Uint8Array | string | { type, value }`),
+ * `output` types describe what deserialization produces (buffers are always
+ * `Uint8Array`).
+ */
+export type TypeDirection = "input" | "output";
+
+/**
  * Map a Clarity type to its TypeScript type string representation
  *
  * @param type - The Clarity type definition from an ABI
+ * @param direction - Input (default) or output mapping, see {@link TypeDirection}
  * @returns The TypeScript type string (e.g., "bigint", "string", "{ field: bigint }")
  */
-export function clarityTypeToTS(type: AbiType): string {
+export function clarityTypeToTS(
+	type: AbiType,
+	direction: TypeDirection = "input",
+): string {
+	const bufferType =
+		direction === "output"
+			? "Uint8Array"
+			: "Uint8Array | string | { type: 'ascii' | 'utf8' | 'hex'; value: string }";
 	// Handle string primitive types
 	if (typeof type === "string") {
 		switch (type) {
@@ -51,7 +67,7 @@ export function clarityTypeToTS(type: AbiType): string {
 					return "string";
 				}
 				if (typeStr.includes("buff")) {
-					return "Uint8Array | string | { type: 'ascii' | 'utf8' | 'hex'; value: string }";
+					return bufferType;
 				}
 				if (typeStr.includes("uint") || typeStr.includes("int")) {
 					return "bigint";
@@ -63,7 +79,7 @@ export function clarityTypeToTS(type: AbiType): string {
 
 	// Handle buffer types - support flexible input
 	if (isAbiBuffer(type)) {
-		return "Uint8Array | string | { type: 'ascii' | 'utf8' | 'hex'; value: string }";
+		return bufferType;
 	}
 
 	// Handle string types
@@ -73,7 +89,7 @@ export function clarityTypeToTS(type: AbiType): string {
 
 	// Handle optional types
 	if (isAbiOptional(type)) {
-		const innerType = clarityTypeToTS(type.optional);
+		const innerType = clarityTypeToTS(type.optional, direction);
 		// Wrap union types in parentheses for correct precedence
 		if (innerType.includes(" | ") && !innerType.startsWith("(")) {
 			return `(${innerType}) | null`;
@@ -83,7 +99,7 @@ export function clarityTypeToTS(type: AbiType): string {
 
 	// Handle list types
 	if (isAbiList(type)) {
-		const innerType = clarityTypeToTS(type.list.type);
+		const innerType = clarityTypeToTS(type.list.type, direction);
 		// Wrap union types in parentheses for correct precedence
 		if (innerType.includes(" | ") && !innerType.startsWith("(")) {
 			return `(${innerType})[]`;
@@ -96,7 +112,7 @@ export function clarityTypeToTS(type: AbiType): string {
 		const fields = type.tuple
 			.map(
 				(field: { name: string; type: AbiType }) =>
-					`${toCamelCase(field.name)}: ${clarityTypeToTS(field.type)}`,
+					`${toCamelCase(field.name)}: ${clarityTypeToTS(field.type, direction)}`,
 			)
 			.join("; ");
 		return `{ ${fields} }`;
@@ -104,8 +120,8 @@ export function clarityTypeToTS(type: AbiType): string {
 
 	// Handle response types
 	if (isAbiResponse(type)) {
-		const okType = clarityTypeToTS(type.response.ok);
-		const errType = clarityTypeToTS(type.response.error);
+		const okType = clarityTypeToTS(type.response.ok, direction);
+		const errType = clarityTypeToTS(type.response.error, direction);
 		return `{ ok: ${okType} } | { err: ${errType} }`;
 	}
 
