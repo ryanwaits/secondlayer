@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { privateKeyToAccount } from "../../accounts/privateKeyToAccount.ts";
 import {
 	addressToVersion,
 	getContractAddress,
 	isAddressEqual,
 	isValidAddress,
+	publicKeyToAddress,
 	validateStacksAddress,
 } from "../address.ts";
 import { AddressVersion } from "../constants.ts";
@@ -102,5 +104,25 @@ describe("getContractAddress", () => {
 		expect(() =>
 			getContractAddress("SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7", "1bad"),
 		).toThrow("Invalid contract name");
+	});
+});
+
+describe("publicKeyToAddress", () => {
+	// Cross-check against privateKeyToAccount, which derives the same way
+	const account = privateKeyToAccount(
+		"0000000000000000000000000000000000000000000000000000000000000001",
+	);
+
+	test("derives the mainnet single-sig address of a compressed key", () => {
+		expect(publicKeyToAddress(account.publicKey)).toBe(account.address);
+		expect(addressToVersion(publicKeyToAddress(account.publicKey))).toBe(
+			AddressVersion.MainnetSingleSig,
+		);
+	});
+
+	test("derives testnet addresses with the testnet version byte", () => {
+		const testnet = publicKeyToAddress(account.publicKey, "testnet");
+		expect(addressToVersion(testnet)).toBe(AddressVersion.TestnetSingleSig);
+		expect(testnet).not.toBe(account.address);
 	});
 });

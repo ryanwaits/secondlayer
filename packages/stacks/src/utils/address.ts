@@ -1,6 +1,27 @@
 import { c32address, c32addressDecode } from "./c32.ts";
+import { AddressVersion } from "./constants.ts";
+import { bytesToHex, hexToBytes, without0x } from "./encoding.ts";
+import { hash160 } from "./hash.ts";
 
 export { c32address, c32addressDecode };
+
+/**
+ * Derive the single-sig Stacks address for a compressed public key.
+ */
+export function publicKeyToAddress(
+	publicKey: string | Uint8Array,
+	network: "mainnet" | "testnet" = "mainnet",
+): string {
+	const bytes =
+		typeof publicKey === "string"
+			? hexToBytes(without0x(publicKey))
+			: publicKey;
+	const version =
+		network === "mainnet"
+			? AddressVersion.MainnetSingleSig
+			: AddressVersion.TestnetSingleSig;
+	return c32address(version, bytesToHex(hash160(bytes)));
+}
 
 export function validateStacksAddress(address: string): boolean {
 	try {

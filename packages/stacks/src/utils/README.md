@@ -28,12 +28,16 @@ const h160 = hash160(data);  // Uint8Array (20 bytes) — SHA-256 + RIPEMD-160
 import {
   c32address,
   c32addressDecode,
+  publicKeyToAddress,
   validateStacksAddress,
   parseContractId,
 } from "@secondlayer/stacks/utils";
 
 const addr = c32address(22, hash160Bytes); // "SP2J6..."
 const [version, hash] = c32addressDecode("SP2J6...");
+
+publicKeyToAddress("02e3af14...");            // single-sig mainnet address
+publicKeyToAddress("02e3af14...", "testnet"); // "ST..."
 
 validateStacksAddress("SP2J6...");  // true
 parseContractId("SP2J6....my-contract"); // { address: "SP2J6...", name: "my-contract" }

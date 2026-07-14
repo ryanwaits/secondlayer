@@ -35,6 +35,7 @@ export {
 export {
 	c32address,
 	c32addressDecode,
+	publicKeyToAddress,
 	validateStacksAddress,
 	isValidAddress,
 	parseContractId,
