@@ -31,6 +31,24 @@ COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
 # bind-vs-named-volume drift class). See scripts/preflight-data.sh.
 ./scripts/preflight-data.sh
 
+# Install/refresh the indexer port firewall (source-restricts the publicly
+# published 3700 to the Stacks node — the ingest endpoints have no app-layer
+# auth). The live rule survives normal deploys (docker daemon isn't restarted)
+# but not reboots, so a systemd oneshot re-applies it After=docker.service.
+# Idempotent; never fatal to a deploy.
+install_indexer_firewall() {
+	local unit=systemd/secondlayer-firewall.service
+	local dest=/etc/systemd/system/secondlayer-firewall.service
+	chmod +x scripts/firewall-indexer.sh 2>/dev/null || true
+	if ! cmp -s "$unit" "$dest" 2>/dev/null; then
+		cp "$unit" "$dest" && systemctl daemon-reload
+	fi
+	systemctl enable secondlayer-firewall.service >/dev/null 2>&1 || true
+	# restart re-runs the oneshot's ExecStart → re-applies the rules now.
+	systemctl restart secondlayer-firewall.service || echo "WARN: indexer firewall unit failed to start"
+}
+install_indexer_firewall || echo "WARN: install_indexer_firewall failed (non-fatal)"
+
 # Snapshot vars supplied by the deploy invocation (CI workflow env or manual
 # operator export) BEFORE sourcing .env. `record_successful_deploy` persists
 # these keys into .env at the end of every successful deploy, so once a deploy

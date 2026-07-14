@@ -243,6 +243,11 @@ services:
       # ed25519 authenticity proof. Unset → manifests export unsigned (legacy).
       STREAMS_SIGNING_PRIVATE_KEY: ${STREAMS_SIGNING_PRIVATE_KEY:-}
     ports:
+      # Published on 0.0.0.0 so the remote Stacks node can deliver events. The
+      # ingest endpoints have no app-layer auth, so public access is gated at
+      # the packet level by docker/scripts/firewall-indexer.sh (installed as
+      # secondlayer-firewall.service by deploy.sh) — a plain host bind can't
+      # source-restrict, and UFW is bypassed by Docker's own iptables rules.
       - "${INDEXER_PORT:-3700}:3700"
     depends_on:
       migrate:

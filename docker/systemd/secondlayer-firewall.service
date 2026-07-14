@@ -1,0 +1,16 @@
+[Unit]
+Description=Restrict published indexer port to the Stacks node (DOCKER-USER firewall)
+# Docker recreates DOCKER-USER empty when the daemon starts, so re-apply after it.
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# Optional (leading -): supplies STACKS_NODE_RPC_URL so the script derives the
+# allowed node IP. Falls back to a built-in default if absent.
+EnvironmentFile=-/opt/secondlayer/docker/.env
+ExecStart=/opt/secondlayer/docker/scripts/firewall-indexer.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
