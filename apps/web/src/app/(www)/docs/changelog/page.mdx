@@ -4,6 +4,22 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## SDK — July 2026
 
+### Bitcoin addresses without the Bitcoin baggage
+
+Derive your paired BTC account — the `bc1q…`/`bc1p…` addresses Leather and
+Xverse show next to your Stacks address — from the same mnemonic, with zero
+new dependencies. And ask the chain, not a config file, where sBTC deposits
+go: `client.sbtc.getSignersAddress()` derives the signers' taproot address
+from the on-chain registry, encoded for whatever network your client points
+at.
+
+- `mnemonicToBitcoinKeys` covers BIP84 (native segwit) and BIP86 (taproot)
+  paths, validated against the official spec vectors.
+- Pubkey→address helpers (`publicKeyToP2trAddress`, `taprootTweakPubkey`)
+  ship in `@secondlayer/stacks/bitcoin` — pure derivation, no tx signing.
+- Network-aware end to end: mainnet, testnet, and regtest encodings, so a
+  devnet integration never shows you a mainnet address by mistake.
+
 ### Send, price, and confirm transactions in one flow
 
 Pass `fee: 'min' | 'low' | 'mid' | 'high'` to any send action and await the

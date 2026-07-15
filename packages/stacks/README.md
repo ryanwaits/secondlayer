@@ -82,6 +82,29 @@ const { receipt } = await sendTransaction(client, { transaction, wait: 2 });
 
 Status reads are pluggable, like nonce sources: the default reads `/extended/v1/tx` on your transport host; `indexTxSource()` reads Secondlayer's index, which returns the chain tip in the same response — N-confirmation waits cost one request per poll. Rejection reasons are typed too: `BroadcastError.reason` is a literal union of all 26 stacks-node rejection strings (with `reasonData` and `txid` attached).
 
+## Bitcoin addresses from the same mnemonic
+
+Derive the paired BTC account (what Leather/Xverse show next to your Stacks address) with no extra dependencies — BIP84 native segwit or BIP86 taproot, network-aware:
+
+```ts
+import { mnemonicToBitcoinKeys } from "@secondlayer/stacks/accounts";
+
+const btc = mnemonicToBitcoinKeys(mnemonic, { type: "p2tr" });
+btc.address; // bc1p…   (path m/86'/0'/0'/0/0)
+
+mnemonicToBitcoinKeys(mnemonic, { type: "p2wpkh", network: "testnet" }).address; // tb1q…
+```
+
+Pure derivation — no Bitcoin transaction building or signing. The pubkey→address helpers (`publicKeyToP2wpkhAddress`, `publicKeyToP2trAddress`, `taprootTweakPubkey`) are exported from `@secondlayer/stacks/bitcoin`, validated against the BIP84/86/341 test vectors.
+
+The sBTC extension uses the same machinery to derive the **signers' deposit address** straight from the on-chain registry — network-aware, so testnet gives `tb1p…` instead of a wrong-network address:
+
+```ts
+const client = createPublicClient({ chain: mainnet, transport: http() }).extend(sbtc());
+await client.sbtc.getSignersAddress();   // bc1p… (derived from get-current-aggregate-pubkey)
+await client.sbtc.getSignersPublicKey(); // 33-byte aggregate key
+```
+
 ## Nonce management
 
 Stacks' `/v2/accounts` returns only the confirmed nonce — it ignores the mempool. Broadcasting several transactions from one account before the first confirms makes them reuse the same nonce, so every one after the first is rejected (`ConflictingNonceInMempool`). The usual workaround is tracking nonces by hand.
