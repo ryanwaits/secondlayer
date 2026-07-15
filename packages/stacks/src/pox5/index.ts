@@ -53,3 +53,22 @@ export {
 	signSignerGrant,
 	verifySignerGrant,
 } from "./grants.ts";
+export {
+	type AnnounceL1EarlyExitParams,
+	type BtcLockup,
+	type CalculateRewardsParams,
+	type ClaimRewardsParams,
+	type ClaimStakerRewardsForSignerParams,
+	type GrantSignerKeyParams,
+	type L1LockupOutput,
+	pox5ContractId,
+	type RegisterForBondParams,
+	type RevokeSignerGrantParams,
+	type SetupBondParams,
+	type StakeParams,
+	type StakeUpdateParams,
+	type UnstakeParams,
+	type UnstakeSbtcParams,
+	type UpdateBondRegistrationParams,
+} from "./actions.ts";
+export { pox5, type Pox5Actions, type StakerState } from "./extension.ts";
