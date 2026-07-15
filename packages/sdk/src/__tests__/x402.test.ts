@@ -142,6 +142,7 @@ describe("resolveAccountNonce", () => {
 		globalThis.fetch = (async () =>
 			new Response(JSON.stringify({ nonce: 7, balance: "0x0" }), {
 				status: 200,
+				headers: { "content-type": "application/json" },
 			})) as unknown as typeof fetch;
 		expect(await resolveAccountNonce("SP123", "https://node")).toBe(7);
 	});

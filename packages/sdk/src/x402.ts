@@ -3,7 +3,9 @@ import {
 	X402_TOKENS,
 	findX402TokenByAsset,
 } from "@secondlayer/shared/x402";
+import { http, createPublicClient } from "@secondlayer/stacks";
 import type { LocalAccount } from "@secondlayer/stacks/accounts";
+import { getNonce } from "@secondlayer/stacks/actions";
 import type { StacksChain } from "@secondlayer/stacks/chains";
 import {
 	serializeTransactionHex,
@@ -134,12 +136,8 @@ export async function resolveAccountNonce(
 	address: string,
 	nodeUrl: string = DEFAULT_NONCE_NODE_URL,
 ): Promise<number> {
-	const res = await fetch(
-		`${nodeUrl.replace(/\/$/, "")}/v2/accounts/${address}?proof=0`,
-	);
-	if (!res.ok) throw new Error(`x402 nonce lookup failed: ${res.status}`);
-	const json = (await res.json()) as { nonce: number };
-	return json.nonce;
+	const client = createPublicClient({ transport: http(nodeUrl) });
+	return Number(await getNonce(client, { address }));
 }
 
 export type BuildSignedX402PaymentOptions = {
