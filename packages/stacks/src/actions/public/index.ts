@@ -53,6 +53,17 @@ export {
 	type GetTransactionParams,
 } from "./getTransaction.ts";
 export {
+	getAccountHistory,
+	type GetAccountHistoryParams,
+	type AccountHistoryResponse,
+} from "./getAccountHistory.ts";
+export { getMempoolStats } from "./getMempoolStats.ts";
+export {
+	getNftHoldings,
+	type GetNftHoldingsParams,
+	type NftHoldingsResponse,
+} from "./getNftHoldings.ts";
+export {
 	waitForTransactionReceipt,
 	type WaitForTransactionReceiptParams,
 } from "./waitForTransactionReceipt.ts";

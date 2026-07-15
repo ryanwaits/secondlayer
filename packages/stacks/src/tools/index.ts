@@ -37,10 +37,14 @@ import { z } from "zod";
 // biome-ignore lint/suspicious/noExplicitAny: Tool's input-schema generic too precise for isolated-declarations; AI SDK validates at runtime
 type LooseTool = Tool<any, any>;
 import { estimateFee as _estimateFee } from "../actions/public/estimateFee.ts";
+import { getAccountHistory as _getAccountHistory } from "../actions/public/getAccountHistory.ts";
 import { getAccountInfo as _getAccountInfo } from "../actions/public/getAccountInfo.ts";
 import { getBalance as _getBalance } from "../actions/public/getBalance.ts";
 import { getBlock as _getBlock } from "../actions/public/getBlock.ts";
 import { getBlockHeight as _getBlockHeight } from "../actions/public/getBlockHeight.ts";
+import { getMempoolStats as _getMempoolStats } from "../actions/public/getMempoolStats.ts";
+import { getNftHoldings as _getNftHoldings } from "../actions/public/getNftHoldings.ts";
+import { getTransaction as _getTransaction } from "../actions/public/getTransaction.ts";
 import { readContract as _readContract } from "../actions/public/readContract.ts";
 import {
 	getPrimaryName as _getPrimaryName,
@@ -111,29 +115,10 @@ async function bnsReverseImpl(client: StacksReadClient, principal: string) {
 	return { name: await _getPrimaryName(client, principal) };
 }
 
-// --- Hiro API-backed tools (extended endpoints beyond /v2) ---
-
-function hiroBase(client: StacksReadClient): string {
-	const url =
-		client.chain?.rpcUrls.default.http[0] ??
-		process.env.STACKS_RPC_URL ??
-		"https://api.hiro.so";
-	return url.replace(/\/$/, "");
-}
-
-async function hiroGet<T>(client: StacksReadClient, path: string): Promise<T> {
-	const res = await fetch(`${hiroBase(client)}${path}`, {
-		headers: { Accept: "application/json" },
-	});
-	if (!res.ok) {
-		throw new Error(`Hiro API ${path} → ${res.status} ${res.statusText}`);
-	}
-	return res.json() as Promise<T>;
-}
+// --- Extended-API-backed tools (beyond bare-node /v2) ---
 
 async function transactionByTxId(client: StacksReadClient, txId: string) {
-	const normalized = txId.startsWith("0x") ? txId : `0x${txId}`;
-	return hiroGet<unknown>(client, `/extended/v1/tx/${normalized}`);
+	return _getTransaction(client, { txid: txId });
 }
 
 async function accountHistory(
@@ -141,14 +126,11 @@ async function accountHistory(
 	principal: string,
 	limit: number,
 ) {
-	return hiroGet<{ results: unknown[]; total: number }>(
-		client,
-		`/extended/v2/addresses/${principal}/transactions?limit=${Math.min(limit, 50)}`,
-	);
+	return _getAccountHistory(client, { address: principal, limit });
 }
 
 async function mempoolStats(client: StacksReadClient) {
-	return hiroGet<unknown>(client, "/extended/v1/tx/mempool/stats");
+	return _getMempoolStats(client);
 }
 
 async function nftHoldings(
@@ -156,10 +138,7 @@ async function nftHoldings(
 	principal: string,
 	limit: number,
 ) {
-	return hiroGet<{ results: unknown[]; total: number }>(
-		client,
-		`/extended/v1/tokens/nft/holdings?principal=${encodeURIComponent(principal)}&limit=${Math.min(limit, 50)}`,
-	);
+	return _getNftHoldings(client, { address: principal, limit });
 }
 
 // --- Factory: bind tools to an explicit client ---

@@ -4,6 +4,11 @@ import {
 	estimateFee,
 } from "../../actions/public/estimateFee.ts";
 import {
+	type AccountHistoryResponse,
+	type GetAccountHistoryParams,
+	getAccountHistory,
+} from "../../actions/public/getAccountHistory.ts";
+import {
 	type AccountInfo,
 	type GetAccountInfoParams,
 	getAccountInfo,
@@ -30,6 +35,12 @@ import {
 	type GetMapEntryParams,
 	getMapEntry,
 } from "../../actions/public/getMapEntry.ts";
+import { getMempoolStats } from "../../actions/public/getMempoolStats.ts";
+import {
+	type GetNftHoldingsParams,
+	type NftHoldingsResponse,
+	getNftHoldings,
+} from "../../actions/public/getNftHoldings.ts";
 import {
 	type GetNonceParams,
 	getNonce,
@@ -112,6 +123,14 @@ export type PublicActions = {
 	getTransaction: (
 		params: GetTransactionParams,
 	) => Promise<TransactionReceipt | null>;
+	getAccountHistory: (
+		params: GetAccountHistoryParams,
+	) => Promise<AccountHistoryResponse>;
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
+	getMempoolStats: () => Promise<any>;
+	getNftHoldings: (
+		params: GetNftHoldingsParams,
+	) => Promise<NftHoldingsResponse>;
 	waitForTransactionReceipt: (
 		params: WaitForTransactionReceiptParams,
 	) => Promise<TransactionReceipt>;
@@ -143,6 +162,9 @@ export function publicActions(client: Client): PublicActions {
 		simulateCall: (params) => simulateCall(client, params),
 		simulateTransaction: (params) => simulateTransaction(client, params),
 		getTransaction: (params) => getTransaction(client, params),
+		getAccountHistory: (params) => getAccountHistory(client, params),
+		getMempoolStats: () => getMempoolStats(client),
+		getNftHoldings: (params) => getNftHoldings(client, params),
 		waitForTransactionReceipt: (params) =>
 			waitForTransactionReceipt(client, params),
 		watchBlocks: (params) => watchBlocks(client, params),
