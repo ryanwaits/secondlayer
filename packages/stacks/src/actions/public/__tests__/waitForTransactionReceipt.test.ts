@@ -176,7 +176,7 @@ describe("indexTxSource", () => {
 				}),
 				{ status: 200, headers: { "content-type": "application/json" } },
 			);
-		}) as typeof fetch;
+		}) as unknown as typeof fetch;
 
 		// client whose transport must never be hit — tip comes from the source
 		const client = scriptedClient([]);
@@ -193,7 +193,7 @@ describe("indexTxSource", () => {
 
 	it("treats 404 as unknown (pending-compatible)", async () => {
 		const fetchImpl = (async () =>
-			new Response("{}", { status: 404 })) as typeof fetch;
+			new Response("{}", { status: 404 })) as unknown as typeof fetch;
 		const source = indexTxSource({ baseUrl: "https://idx.test", fetchImpl });
 		const snapshot = await source.get({
 			client: scriptedClient([]),
