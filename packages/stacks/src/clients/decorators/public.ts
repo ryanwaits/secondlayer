@@ -22,6 +22,11 @@ import {
 	getContractAbi,
 } from "../../actions/public/getContractAbi.ts";
 import {
+	type ContractSourceResponse,
+	type GetContractSourceParams,
+	getContractSource,
+} from "../../actions/public/getContractSource.ts";
+import {
 	type GetMapEntryParams,
 	getMapEntry,
 } from "../../actions/public/getMapEntry.ts";
@@ -29,6 +34,11 @@ import {
 	type GetNonceParams,
 	getNonce,
 } from "../../actions/public/getNonce.ts";
+import {
+	type GetRawBlockParams,
+	type RawBlockResponse,
+	getRawBlock,
+} from "../../actions/public/getRawBlock.ts";
 import {
 	type GetTransactionParams,
 	getTransaction,
@@ -82,10 +92,14 @@ export type PublicActions = {
 	getAccountInfo: (params: GetAccountInfoParams) => Promise<AccountInfo>;
 	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	getBlock: (params: GetBlockParams) => Promise<any>;
+	getRawBlock: (params: GetRawBlockParams) => Promise<RawBlockResponse | null>;
 	getBlockHeight: () => Promise<number>;
 	readContract: (params: ReadContractParams) => Promise<ClarityValue>;
 	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	getContractAbi: (params: GetContractAbiParams) => Promise<any>;
+	getContractSource: (
+		params: GetContractSourceParams,
+	) => Promise<ContractSourceResponse | null>;
 	getMapEntry: (params: GetMapEntryParams) => Promise<ClarityValue>;
 	estimateFee: (params: EstimateFeeParams) => Promise<FeeEstimation[]>;
 	multicall: <T extends boolean = true>(
@@ -118,9 +132,11 @@ export function publicActions(client: Client): PublicActions {
 		getBalance: (params) => getBalance(client, params),
 		getAccountInfo: (params) => getAccountInfo(client, params),
 		getBlock: (params) => getBlock(client, params),
+		getRawBlock: (params) => getRawBlock(client, params),
 		getBlockHeight: () => getBlockHeight(client),
 		readContract: (params) => readContract(client, params),
 		getContractAbi: (params) => getContractAbi(client, params),
+		getContractSource: (params) => getContractSource(client, params),
 		getMapEntry: (params) => getMapEntry(client, params),
 		estimateFee: (params) => estimateFee(client, params),
 		multicall: (params) => multicall(client, params),

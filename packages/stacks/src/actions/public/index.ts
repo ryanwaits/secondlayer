@@ -6,9 +6,19 @@ export {
 	type AccountInfo,
 } from "./getAccountInfo.ts";
 export { getBlock, type GetBlockParams } from "./getBlock.ts";
+export {
+	getRawBlock,
+	type GetRawBlockParams,
+	type RawBlockResponse,
+} from "./getRawBlock.ts";
 export { getBlockHeight } from "./getBlockHeight.ts";
 export { readContract, type ReadContractParams } from "./readContract.ts";
 export { getContractAbi, type GetContractAbiParams } from "./getContractAbi.ts";
+export {
+	getContractSource,
+	type GetContractSourceParams,
+	type ContractSourceResponse,
+} from "./getContractSource.ts";
 export { getMapEntry, type GetMapEntryParams } from "./getMapEntry.ts";
 export {
 	estimateFee,
