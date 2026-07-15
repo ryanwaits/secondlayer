@@ -74,6 +74,11 @@
 			"import": "./dist/src/pox/index.js",
 			"require": "./dist/src/pox/index.cjs"
 		},
+		"./pox5": {
+			"types": "./dist/src/pox5/index.d.ts",
+			"import": "./dist/src/pox5/index.js",
+			"require": "./dist/src/pox5/index.cjs"
+		},
 		"./sbtc": {
 			"types": "./dist/src/sbtc/index.d.ts",
 			"import": "./dist/src/sbtc/index.js",
@@ -121,7 +126,7 @@
 		"access": "public"
 	},
 	"devDependencies": {
-		"@stacks/clarinet-sdk": "3.21.0",
+		"@stacks/clarinet-sdk": "3.21.1",
 		"@stacks/transactions": "7.0.6",
 		"@types/bun": "latest"
 	},

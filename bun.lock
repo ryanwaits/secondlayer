@@ -25,7 +25,7 @@
     },
     "apps/web": {
       "name": "@secondlayer/web",
-      "version": "0.3.32",
+      "version": "0.3.36",
       "dependencies": {
         "@mdx-js/loader": "^3.1.1",
         "@mdx-js/react": "^3.1.1",
@@ -51,7 +51,7 @@
     },
     "packages/api": {
       "name": "@secondlayer/api",
-      "version": "1.24.9",
+      "version": "1.24.10",
       "dependencies": {
         "@secondlayer/bundler": "^0.3.9",
         "@secondlayer/indexer": "^1.12.5",
@@ -90,7 +90,7 @@
     },
     "packages/cli": {
       "name": "@secondlayer/cli",
-      "version": "9.0.1",
+      "version": "9.0.3",
       "bin": {
         "secondlayer": "./dist/cli.js",
         "sl": "./dist/cli.js",
@@ -125,7 +125,7 @@
     },
     "packages/indexer": {
       "name": "@secondlayer/indexer",
-      "version": "1.12.5",
+      "version": "1.12.6",
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1042.0",
         "@dsnp/parquetjs": "^1.8.7",
@@ -140,7 +140,7 @@
     },
     "packages/mcp": {
       "name": "@secondlayer/mcp",
-      "version": "4.2.2",
+      "version": "4.2.3",
       "bin": {
         "mcp": "./dist/bin.js",
         "secondlayer-mcp": "./dist/bin.js",
@@ -164,7 +164,7 @@
     },
     "packages/platform": {
       "name": "@secondlayer/platform",
-      "version": "0.1.20",
+      "version": "0.1.21",
       "dependencies": {
         "@secondlayer/shared": "workspace:*",
         "kysely": "0.28.15",
@@ -189,7 +189,7 @@
     },
     "packages/sdk": {
       "name": "@secondlayer/sdk",
-      "version": "6.29.0",
+      "version": "6.29.1",
       "dependencies": {
         "@secondlayer/shared": "^6.39.0",
         "@secondlayer/stacks": "^2.5.1",
@@ -202,7 +202,7 @@
     },
     "packages/shared": {
       "name": "@secondlayer/shared",
-      "version": "6.41.3",
+      "version": "7.0.0",
       "dependencies": {
         "@secondlayer/stacks": "^2.11.0",
         "kysely": "0.28.15",
@@ -217,7 +217,7 @@
     },
     "packages/stacks": {
       "name": "@secondlayer/stacks",
-      "version": "2.11.0",
+      "version": "2.14.1",
       "dependencies": {
         "@noble/ciphers": "2.1.1",
         "@noble/curves": "2.0.1",
@@ -229,7 +229,7 @@
         "zod": "^4.3.6",
       },
       "devDependencies": {
-        "@stacks/clarinet-sdk": "3.21.0",
+        "@stacks/clarinet-sdk": "3.21.1",
         "@stacks/transactions": "7.0.6",
         "@types/bun": "latest",
       },
@@ -239,7 +239,7 @@
     },
     "packages/subgraphs": {
       "name": "@secondlayer/subgraphs",
-      "version": "3.19.6",
+      "version": "3.19.7",
       "dependencies": {
         "@secondlayer/shared": "^6.41.3",
         "@secondlayer/stacks": "^2.11.0",
@@ -254,7 +254,7 @@
     },
     "packages/worker": {
       "name": "@secondlayer/worker",
-      "version": "1.2.22",
+      "version": "1.2.23",
       "dependencies": {
         "@secondlayer/platform": "workspace:*",
         "@secondlayer/shared": "^6.0.0",
@@ -867,9 +867,9 @@
 
     "@smithy/uuid": ["@smithy/uuid@1.1.2", "", { "dependencies": { "tslib": "^2.6.2" } }, "sha512-O/IEdcCUKkubz60tFbGA7ceITTAJsty+lBjNoorP4Z6XRqaFb/OjQjZODophEcuq68nKm6/0r+6/lLQ+XVpk8g=="],
 
-    "@stacks/clarinet-sdk": ["@stacks/clarinet-sdk@3.21.0", "", { "dependencies": { "@stacks/clarinet-sdk-wasm": "3.21.0", "@stacks/transactions": "7.4.0", "kolorist": "1.8.0", "prompts": "2.4.2", "yargs": "18.0.0" } }, "sha512-rA8S1j/3n4DcBAmtu8BhKDEPE2qWBOdkEdoz5IgqdRu7qOUvyUyrGEa/JEZJLqkiSYhSrIB/hIQVWgUVK5iiHQ=="],
+    "@stacks/clarinet-sdk": ["@stacks/clarinet-sdk@3.21.1", "", { "dependencies": { "@stacks/clarinet-sdk-wasm": "3.21.1", "@stacks/transactions": "7.4.0", "kolorist": "1.8.0", "prompts": "2.4.2", "yargs": "18.0.0" } }, "sha512-hsmrfXYBqwSMGIt8AuTasCaEDB9ZCJdwaUthmtsjRjW6pAq1LyIWAct/Mc8okk4DAeECjBZ+yn5W6x2qrj6sxg=="],
 
-    "@stacks/clarinet-sdk-wasm": ["@stacks/clarinet-sdk-wasm@3.21.0", "", {}, "sha512-jX/QWkWIhT2S+NSci5QV0882K9nXDt/WV9c+oqlcdGmCMaiEvsSgWIJ9YNuyNyiyPfIcBOnvGrxxqAMtVaVrog=="],
+    "@stacks/clarinet-sdk-wasm": ["@stacks/clarinet-sdk-wasm@3.21.1", "", {}, "sha512-sBhTgYe5V6G5MOFBJaLq/VvirF/VTWD6W0950AWoEkTwLEUxL82HIXcUKmtKPHvSvxi//h0Qhc/FT8DAYNxGPg=="],
 
     "@stacks/common": ["@stacks/common@7.0.2", "", {}, "sha512-+RSecHdkxOtswmE4tDDoZlYEuULpnTQVeDIG5eZ32opK8cFxf4EugAcK9CsIsHx/Se1yTEaQ21WGATmJGK84lQ=="],
 
