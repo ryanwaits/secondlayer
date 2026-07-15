@@ -164,8 +164,11 @@ describe("Maps, Variables, and Constants Generation", () => {
 
 			const code = await generateContractInterface([simpleContract]);
 
-			// Should not have maps/vars/constants if not defined
-			expect(code).not.toContain("maps: {");
+			// Should not have maps/vars/constants accessors if not defined
+			// (the <Contract>Types bundle always has a `maps:` key, so probe the
+			// accessor implementation instead of the literal `maps: {`)
+			expect(code).not.toContain("keyType:");
+			expect(code).not.toContain("/v2/map_entry/");
 			expect(code).not.toContain("vars: {");
 			expect(code).not.toContain("constants: {");
 		});

@@ -34,14 +34,43 @@ export async function generateGenericHooks(
 import { useState, useCallback } from 'react'
 import { useSecondLayerConfig } from './provider'
 import { connect, disconnect, isConnected, request } from '@secondlayer/stacks/connect'
-import { Cl, validateStacksAddress } from '@secondlayer/stacks'
-import type { PostCondition } from '@secondlayer/stacks'
+import { Cl } from '@secondlayer/stacks/clarity'
 import type { ExtractFunctionArgs, ExtractFunctionNames, AbiContract } from '@secondlayer/stacks/clarity'
+import type { PostCondition } from '@secondlayer/stacks/postconditions'
+import { validateStacksAddress } from '@secondlayer/stacks/utils'
 
 const API_URLS: Record<string, string> = {
   mainnet: 'https://api.hiro.so',
   testnet: 'https://api.testnet.hiro.so',
   devnet: 'http://localhost:3999'
+}
+
+async function callReadOnly(params: {
+  contractAddress: string;
+  contractName: string;
+  functionName: string;
+  functionArgs: any[];
+  senderAddress: string;
+  network?: string;
+  apiUrl?: string;
+}): Promise<any> {
+  const { serializeCV, deserializeCV } = await import('@secondlayer/stacks/clarity')
+  const baseUrl = params.apiUrl || API_URLS[params.network || 'mainnet']
+  const response = await fetch(
+    \`\${baseUrl}/v2/contracts/call-read/\${params.contractAddress}/\${params.contractName}/\${params.functionName}\`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sender: params.senderAddress,
+        arguments: params.functionArgs.map((arg: any) => \`0x\${serializeCV(arg)}\`)
+      })
+    }
+  )
+  if (!response.ok) throw new Error(\`Read-only call failed: \${response.statusText}\`)
+  const data = await response.json()
+  if (!data.okay) throw new Error(data.cause ?? 'Read-only call failed')
+  return deserializeCV(data.result)
 }
 
 async function fetchTransaction({ txId, network, apiUrl }: { txId: string; network?: string; apiUrl?: string }): Promise<any> {
@@ -155,9 +184,9 @@ function generateGenericHook(hookName: string): string {
   const queryClient = useQueryClient()
   
   const mutation = useMutation({
-    mutationFn: async (options: { forceWalletSelect?: boolean } = {}) => {
+    mutationFn: async () => {
       // SIP-030 connect
-      return await connect(options)
+      return await connect()
     },
     onSuccess: () => {
       // Invalidate account queries to refetch connection state
@@ -170,11 +199,11 @@ function generateGenericHook(hookName: string): string {
 
   return {
     // Custom connect function that works without arguments
-    connect: (options?: { forceWalletSelect?: boolean }) => {
-      return mutation.mutate(options || {})
+    connect: () => {
+      return mutation.mutate(undefined)
     },
-    connectAsync: async (options?: { forceWalletSelect?: boolean }) => {
-      return mutation.mutateAsync(options || {})
+    connectAsync: async () => {
+      return mutation.mutateAsync(undefined)
     },
     // Expose all the mutation state
     isPending: mutation.isPending,
@@ -273,31 +302,27 @@ function generateGenericHook(hookName: string): string {
   return useQuery<TResult>({
     queryKey: ['read-contract', params.contractAddress, params.contractName, params.functionName, params.args, params.network || config.network],
     queryFn: async () => {
-      const { fetchCallReadOnlyFunction } = await import('@secondlayer/stacks/clarity')
-      
-      // For now, we'll need to handle the args conversion here
-      // In the future, we could integrate with the contract interface for automatic conversion
+      // Args must already be ClarityValues (build them with Cl.* or a generated
+      // contract method's descriptor). Positional array, ABI declaration order.
       let functionArgs: any[] = []
-      
+
       if (params.args) {
-        // This is a simplified conversion - in practice, we'd need the ABI to do proper conversion
-        // For now, we'll assume the args are already in the correct format or simple types
         if (Array.isArray(params.args)) {
           functionArgs = params.args
         } else if (typeof params.args === 'object') {
-          // Convert object args to array (this is a basic implementation)
           functionArgs = Object.values(params.args)
         } else {
           functionArgs = [params.args]
         }
       }
-      
-      return await fetchCallReadOnlyFunction({
+
+      return await callReadOnly({
         contractAddress: params.contractAddress,
         contractName: params.contractName,
         functionName: params.functionName,
         functionArgs,
         network: params.network || config.network || 'mainnet',
+        apiUrl: config.apiUrl,
         senderAddress: config.senderAddress || '${DEFAULT_SENDER_ADDRESS}'
       }) as TResult
     },
@@ -362,11 +387,13 @@ function generateGenericHook(hookName: string): string {
       apiUrl: config.apiUrl
     }),
     enabled: !!txId,
-    refetchInterval: (data) => {
+    refetchInterval: (queryOrData: any) => {
+      // react-query v5 passes the query object, v4 passed the data — support both
+      const tx = queryOrData?.state?.data ?? queryOrData
       // Stop polling when transaction is complete
-      if (data?.tx_status === 'success' || 
-          data?.tx_status === 'abort_by_response' || 
-          data?.tx_status === 'abort_by_post_condition') {
+      if (tx?.tx_status === 'success' ||
+          tx?.tx_status === 'abort_by_response' ||
+          tx?.tx_status === 'abort_by_post_condition') {
         return false
       }
       return 2000 // Poll every 2 seconds

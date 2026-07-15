@@ -51,9 +51,12 @@ describe("Contract Generator", () => {
 		it("should generate a contract interface with type-safe methods", async () => {
 			const code = await generateContractInterface([sampleContract]);
 
-			// Check imports
+			// Check imports resolve against real @secondlayer/stacks subpaths
 			expect(code).toContain(
-				"import { Cl, validateStacksAddress } from '@secondlayer/stacks'",
+				"import { Cl, type TypedAbi } from '@secondlayer/stacks/clarity'",
+			);
+			expect(code).toContain(
+				"import { validateStacksAddress } from '@secondlayer/stacks/utils'",
 			);
 
 			// Check contract generation
@@ -119,9 +122,14 @@ describe("Contract Generator", () => {
 
 			const code = await generateContractInterface([singleArgContract]);
 
-			// Should support both object and direct argument syntax
+			// Should support both object (named alias) and direct argument syntax
 			expect(code).toContain("getUserBalance(...args:");
-			expect(code).toContain("[{ user: string }] | [string]");
+			expect(code).toContain(
+				"[SingleArgContractGetUserBalanceArgs] | [string]",
+			);
+			expect(code).toContain(
+				"export type SingleArgContractGetUserBalanceArgs = { user: string }",
+			);
 		});
 
 		it("should handle multiple contracts", async () => {
@@ -384,9 +392,9 @@ describe("Contract Generator", () => {
 
 			// Contract exports should use camelCase names
 			expect(code).toContain("export const createRandom =");
-			expect(code).toContain("export const createRandomAbi =");
+			expect(code).toContain("export const createRandomAbi:");
 			expect(code).toContain("export const getTenureForBlock =");
-			expect(code).toContain("export const getTenureForBlockAbi =");
+			expect(code).toContain("export const getTenureForBlockAbi:");
 
 			// Should not contain underscores in export names
 			expect(code).not.toContain("create_random");

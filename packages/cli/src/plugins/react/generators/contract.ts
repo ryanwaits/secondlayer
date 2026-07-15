@@ -26,8 +26,47 @@ export async function generateContractHooks(
 import { useCallback } from 'react'
 import { useSecondLayerConfig } from './provider'
 import { request } from '@secondlayer/stacks/connect'
-import type { PostCondition } from '@secondlayer/stacks'
-import { ${contracts.map((c) => c.name).join(", ")} } from './contracts'`;
+import type { PostCondition } from '@secondlayer/stacks/postconditions'
+import { ${contracts.map((c) => c.name).join(", ")} } from './contracts'
+
+const API_URLS: Record<string, string> = {
+  mainnet: 'https://api.hiro.so',
+  testnet: 'https://api.testnet.hiro.so',
+  devnet: 'http://localhost:3999'
+}
+
+async function readContractCall(params: {
+  contractAddress: string;
+  contractName: string;
+  functionName: string;
+  functionArgs: any[];
+  outputType: any;
+  senderAddress: string;
+  network?: string;
+  apiUrl?: string;
+}): Promise<any> {
+  const { serializeCV, deserializeCV, clarityValueToJS } = await import('@secondlayer/stacks/clarity')
+  // Untyped call: outputType is a runtime ABI value; relating the generic
+  // signature (even via a direct cast) explodes into deep instantiation on
+  // the AbiType union, so route the cast through unknown.
+  const toJS = clarityValueToJS as unknown as (type: any, cv: any) => any
+  const baseUrl = params.apiUrl || API_URLS[params.network || 'mainnet']
+  const response = await fetch(
+    \`\${baseUrl}/v2/contracts/call-read/\${params.contractAddress}/\${params.contractName}/\${params.functionName}\`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sender: params.senderAddress,
+        arguments: params.functionArgs.map((arg: any) => \`0x\${serializeCV(arg)}\`)
+      })
+    }
+  )
+  if (!response.ok) throw new Error(\`Read-only call failed: \${response.statusText}\`)
+  const data = await response.json()
+  if (!data.okay) throw new Error(data.cause ?? 'Read-only call failed')
+  return toJS(params.outputType, deserializeCV(data.result))
+}`;
 
 	const header = `/**
  * Generated contract-specific React hooks
@@ -148,15 +187,24 @@ function generateReadHook(func: AbiFunction, contractName: string): string {
 	// Generate proper return type from function outputs
 	const returnType = clarityTypeToTS(func.outputs);
 
+	const callArgs =
+		func.args.length > 0 ? `{ ${generateObjectArgs(func.args)} }` : "";
+
 	return `export function ${hookName}(${argsSignature}${enabledParam}) {
   const config = useSecondLayerConfig()
 
   return useQuery<${returnType}>({
     queryKey: ['${func.name}', ${contractName}.address, ${generateArgNames(func.args)}],
-    queryFn: () => ${contractName}.read.${toCamelCase(func.name)}(${generateArgNames(func.args) ? `{ ${generateObjectArgs(func.args)} }, ` : ""}{
-      network: config.network,
-      senderAddress: config.senderAddress || '${DEFAULT_SENDER_ADDRESS}'
-    }),
+    queryFn: async () => {
+      const call = ${contractName}.${toCamelCase(func.name)}(${callArgs})
+      return await readContractCall({
+        ...call,
+        outputType: ${JSON.stringify(func.outputs)},
+        network: config.network,
+        apiUrl: config.apiUrl,
+        senderAddress: config.senderAddress || '${DEFAULT_SENDER_ADDRESS}'
+      }) as ${returnType}
+    },
     ${func.args.length > 0 ? `enabled: ${generateEnabledCondition(func.args)} && (options?.enabled ?? true),` : ""}
     ...options
   })
