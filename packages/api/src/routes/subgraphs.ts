@@ -248,7 +248,19 @@ export function buildSyncInfo(
 	};
 }
 
-export async function getChainTip(): Promise<number> {
+const CHAIN_TIP_TTL_MS = 2_000;
+
+let chainTipCache: { value: number; fetchedAt: number } | null = null;
+
+export function resetChainTipCache(): void {
+	chainTipCache = null;
+}
+
+export async function getChainTip(now: number = Date.now()): Promise<number> {
+	if (chainTipCache && now - chainTipCache.fetchedAt < CHAIN_TIP_TTL_MS) {
+		return chainTipCache.value;
+	}
+
 	const network = process.env.NETWORK ?? "mainnet";
 	const selectTip = (db: ReturnType<typeof getDb>) =>
 		db
@@ -261,7 +273,17 @@ export async function getChainTip(): Promise<number> {
 	const progressRow =
 		(await selectTip(getSourceDb()).catch(() => null)) ??
 		(await selectTip(getDb()).catch(() => null));
-	return progressRow?.highest_seen_block ?? 0;
+	const value = progressRow?.highest_seen_block ?? 0;
+
+	// A transient read failure/absence must not overwrite a previously known
+	// tip with 0 — that would make every caller's `blocks_behind` jump to the
+	// full chain height on a single blip in `index_progress`.
+	if (value === 0 && chainTipCache) {
+		return chainTipCache.value;
+	}
+
+	chainTipCache = { value, fetchedAt: now };
+	return value;
 }
 
 /** Persisted (event type, contract) probe pairs — null when not sparse-eligible. */

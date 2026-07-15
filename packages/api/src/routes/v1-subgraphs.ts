@@ -296,8 +296,41 @@ async function getRowCounts(): Promise<Map<string, number>> {
 	return counts;
 }
 
+const ANON_DIRECTORY_TTL_MS = 10_000;
+
+let anonDirectoryCache: {
+	body: string;
+	etag: string;
+	computedAt: number;
+} | null = null;
+
+export function resetAnonDirectoryCache(): void {
+	anonDirectoryCache = null;
+}
+
 app.get("/", async (c) => {
 	const accountId = c.get("v1AccountId");
+
+	// Anon-cacheable: the keyed view varies on the bearer, so only the anon
+	// list advertises caching (the directory is the hot path). Short TTL
+	// memoization skips the row-count aggregate + tip lookup + summarize pass
+	// (and the ETag hash) on repeat anon hits, including 304 revalidations.
+	if (!accountId) {
+		const now = Date.now();
+		if (
+			anonDirectoryCache &&
+			now - anonDirectoryCache.computedAt < ANON_DIRECTORY_TTL_MS
+		) {
+			c.header("Cache-Control", "public, max-age=30");
+			c.header("ETag", anonDirectoryCache.etag);
+			if (c.req.header("if-none-match") === anonDirectoryCache.etag) {
+				return c.body(null, 304);
+			}
+			c.header("Content-Type", "application/json");
+			return c.body(anonDirectoryCache.body, 200);
+		}
+	}
+
 	const [chainTip, rowCounts] = await Promise.all([
 		getChainTip(),
 		getRowCounts(),
@@ -323,10 +356,10 @@ app.get("/", async (c) => {
 			cursor: "_id keyset; pass ?cursor=<next_cursor> to resume",
 		},
 	};
-	// Anon-cacheable: the keyed view varies on the bearer, so only the anon
-	// list advertises caching (the directory is the hot path).
 	if (!accountId) {
-		const etag = `"${Bun.hash(JSON.stringify(body)).toString(16)}"`;
+		const bodyString = JSON.stringify(body);
+		const etag = `"${Bun.hash(bodyString).toString(16)}"`;
+		anonDirectoryCache = { body: bodyString, etag, computedAt: Date.now() };
 		c.header("Cache-Control", "public, max-age=30");
 		c.header("ETag", etag);
 		if (c.req.header("if-none-match") === etag) {
