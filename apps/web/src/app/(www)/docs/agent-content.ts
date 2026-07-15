@@ -192,6 +192,24 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		),
 	],
 
+	"/docs/pox5": [
+		card(
+			"Stake STX",
+			"Extend the client, gate on activation, stake.",
+			"/secondlayer Wire PoX-5 staking into my app with `@secondlayer/stacks/pox5`: `.extend(pox5())`, gate on `client.pox5.isActive()` (it reads the chain's `/v2/pox`, no hardcoded heights), then `client.pox5.stake({ signerManager, amountUstx, numCycles, startBurnHeight, fee: 'low' })` and `waitForTransactionReceipt`.",
+		),
+		card(
+			"Build an L1 lockup",
+			"Lockup address today, proven registration at the fork.",
+			"/secondlayer Help me build a PoX-5 L1 BTC lockup: `buildDefaultStakerUnlockBytes` from my pubkey, `buildLockupAddress` for the P2WSH address, then `buildTxProof` from `@secondlayer/stacks/bitcoin` to produce the SPV proof fields `registerForBond`'s `l1Outputs` path needs.",
+		),
+		card(
+			"Sign a signer grant",
+			"SIP-018 grant hash, RSV signature, on-chain grant.",
+			"/secondlayer Walk me through PoX-5 signer-key grants: `computeSignerGrantHash({ signerManager, authId, chainId })`, `signSignerGrant` for the 65-byte RSV signature `grant-signer-key` expects, verify locally with `verifySignerGrant`, then broadcast `client.pox5.grantSignerKey(...)`.",
+		),
+	],
+
 	"/docs/verification": [
 		card(
 			"Verify a tx proof",

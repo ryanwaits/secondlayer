@@ -37,6 +37,7 @@ const balance = await client.getBalance({
 | `@secondlayer/stacks/postconditions` | `Pc` fluent builder for post-conditions |
 | `@secondlayer/stacks/utils` | Encoding, hashing, addresses, unit formatting |
 | `@secondlayer/stacks/bitcoin` | Trust-minimized Bitcoin SPV — proof construction, Clarity codecs, verifier (SIP-044) |
+| `@secondlayer/stacks/pox5` | PoX-5 Bitcoin Staking (SIP-045) — bonds, staking, lockup scripts, signer grants |
 
 ### Frozen modules
 
@@ -119,6 +120,42 @@ const client = createPublicClient({ chain: mainnet, transport: http() }).extend(
 await client.sbtc.getSignersAddress();   // bc1p… (derived from get-current-aggregate-pubkey)
 await client.sbtc.getSignersPublicKey(); // 33-byte aggregate key
 ```
+
+## PoX-5 Bitcoin Staking (SIP-045)
+
+Epoch 4.0 activates at Bitcoin block 960,230 (~Jul 29 2026). This module is pinned against the **final `pox-5` contract from stacks-core 4.0.0** — bonds, staking, L1 lockup scripts, signer grants, cycle math.
+
+Activation gating is chain-reported, not hardcoded: `client.pox5.isActive()` / `getActivation()` read the node's `/v2/pox` `contract_versions` — no heights baked in, correct on any network, so integrations built today ship safely before the fork.
+
+```ts
+import { createWalletClient, http } from "@secondlayer/stacks";
+import { mainnet } from "@secondlayer/stacks/chains";
+import { pox5 } from "@secondlayer/stacks/pox5";
+
+const client = createWalletClient({ chain: mainnet, transport: http(), account })
+  .extend(pox5());
+
+if (await client.pox5.isActive()) {
+  const txid = await client.pox5.stake({
+    signerManager: "SP….signer-mgr",
+    amountUstx: 100_000_000_000n,
+    numCycles: 12,
+    startBurnHeight: 960_231,
+    fee: "low",
+  });
+  await client.waitForTransactionReceipt({ txid });
+}
+```
+
+Every wallet action (`setupBond`, `registerForBond`, `stake`, `unstake`, `unstakeSbtc`, `claimRewards`, `grantSignerKey`, …) inherits fee tiers, nonce management, and typed errors from the client. `client.pox5.getStakerState(staker)` returns a staker's whole position — staker info, bond membership, custodied sBTC, current cycle — in ONE batched multicall.
+
+### Off-chain L1 tooling — works before activation
+
+- **Lockup scripts** — `buildLockupScript` / `buildLockupAddress` construct the CLTV + early-exit witness script and the network-aware P2WSH address a staker sends their L1 BTC to.
+- **Signer grants** — `computeSignerGrantHash` (SIP-018 structured data) and `signSignerGrant` (65-byte RSV signature, the layout `grant-signer-key` expects), plus local `verifySignerGrant`.
+- **Cycle math** — `burnHeightToRewardCycle`, `bondPeriodToBurnHeight`, `bondPhaseAtHeight`, … anchored on chain-reported `/v2/pox` parameters, nothing hardcoded.
+
+The trust story: every wallet action is pinned against the boot contract interface in Clarinet simnet tests, and the script/grant-hash ports are byte-compared against the actual pox-5 contract read-onlys — not a hand-transcribed ABI.
 
 ## Nonce management
 

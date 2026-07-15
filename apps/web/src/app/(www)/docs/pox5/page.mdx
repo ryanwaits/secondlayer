@@ -1,0 +1,240 @@
+# PoX-5 Bitcoin Staking
+
+Stake STX, register for BTC-paired bonds, build L1 lockup scripts, and manage signer-key grants against `pox-5` (SIP-045) — one client extension, activation-aware from day one.
+
+<Banner label="SIP-045 / Epoch 4.0" title="Ship before the fork, live at Bitcoin block 960,230">
+
+Epoch 4.0 activates at Bitcoin block **960,230** (~July 29, 2026). The module is pinned against the final `pox-5` contract in **stacks-core 4.0.0**. Everything off-chain — lockup scripts, grant signing, cycle math — works **today**; contract calls go live the moment the chain crosses the activation height, and your code finds out by asking the chain, not a constant.
+
+</Banner>
+
+## Install
+
+```bash
+bun add @secondlayer/stacks
+```
+
+PoX-5 is a subpath module — it tree-shakes out if you don't use it.
+
+```ts
+import { pox5 } from "@secondlayer/stacks/pox5";
+```
+
+## Quick start
+
+Extend a wallet client, gate on activation, stake.
+
+```ts
+import { createWalletClient, http, mainnet } from "@secondlayer/stacks";
+import { privateKeyToAccount } from "@secondlayer/stacks/accounts";
+import { pox5 } from "@secondlayer/stacks/pox5";
+
+const client = createWalletClient({
+  account: privateKeyToAccount(process.env.KEY!),
+  chain: mainnet,
+  transport: http(),
+}).extend(pox5());
+
+if (await client.pox5.isActive()) {
+  const txid = await client.pox5.stake({
+    signerManager: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7.signer-mgr",
+    amountUstx: 100_000_000_000n, // 100,000 STX
+    numCycles: 12,
+    startBurnHeight: 960_231,
+    fee: "low",
+  });
+  await client.waitForTransactionReceipt({ txid, confirmations: 1 });
+}
+```
+
+Every action routes through the same transaction pipeline as `callContract`: fee tiers (`min` | `low` | `mid` | `high`), managed nonces, typed `BroadcastError` reasons. An action returns a txid — pair it with `waitForTransactionReceipt` to await inclusion.
+
+## Gate on activation
+
+No hardcoded heights. `isActive()` and `getActivation()` read the chain's `/v2/pox` `contract_versions` — the node reports where `pox-5` activates on *its* network, so the same code is correct on mainnet, testnet, and devnet.
+
+```ts
+const activation = await client.pox5.getActivation();
+// { contractId, activationBurnchainBlockHeight, firstRewardCycleId }
+// undefined until the node runs stacks-core >= 4.0.0
+
+const live = await client.pox5.isActive();
+// true once the burnchain reaches the activation height
+```
+
+Ship your integration before the fork: actions against an inactive chain fail with a descriptive error naming the activation height, never a raw contract abort.
+
+## Read a staker's position
+
+`getStakerState` returns a staker's whole position in **one** batched request — staker info, bond membership, custodied sBTC, and the current cycle. The state a dashboard or agent polls, without four round-trips.
+
+```ts
+const state = await client.pox5.getStakerState("SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7");
+// { stakerInfo, bondMembership, custodiedSbtc, currentCycle }
+```
+
+Individual reads are exposed too: `getStakerInfo`, `getBondMembership`, `getProtocolBond`, `getBondAllowance`, `getTotalSbtcStakedForBond`, `getStakerCustodiedSbtc`, `hasAnnouncedL1EarlyExit`, `getBondL1UnlockHeight`, `getSignerInfo`, `verifySignerKeyGrant`, `getCurrentRewardCycle`, `getFirstRewardCycle`.
+
+## Wallet actions
+
+Every `pox-5` public function, typed. All accept `fee`, `nonce`, `postConditions`, `postConditionMode`; all return a txid.
+
+| Action | Contract call | Does |
+| --- | --- | --- |
+| `setupBond` | `setup-bond` | Configure a bond's rate, ratios, early-unlock script, allowlist (bond-admin only) |
+| `registerForBond` | `register-for-bond` | Join a bond with custodied sBTC **or** proven L1 BTC lockups |
+| `updateBondRegistration` | `update-bond-registration` | Switch signer-managers mid-bond |
+| `stake` | `stake` | STX-only staking |
+| `stakeUpdate` | `stake-update` | Extend and/or increase an STX-only position |
+| `unstake` | `unstake` | Wind down an STX-only position at the next cycle |
+| `unstakeSbtc` | `unstake-sbtc` | Withdraw custodied sBTC (rejected in prepare phase) |
+| `announceL1EarlyExit` | `announce-l1-early-exit` | Signal an L1 early exit (rejected in prepare phase) |
+| `calculateRewards` | `calculate-rewards` | Settle reward accounting for up to 6 bond periods |
+| `claimRewards` | `claim-rewards` | Signer-manager claims a cycle's accrued rewards |
+| `claimStakerRewardsForSigner` | `claim-staker-rewards-for-signer` | Claim a staker's rewards via their signer |
+| `grantSignerKey` | `grant-signer-key` | Register a signed signer-key grant |
+| `revokeSignerGrant` | `revoke-signer-grant` | Revoke a grant |
+
+`registerForBond` takes the BTC side as a union — custodied sBTC, or SPV-proven L1 lockup outputs:
+
+```ts
+// sBTC path
+await client.pox5.registerForBond({
+  bondIndex: 0,
+  signerManager: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7.signer-mgr",
+  amountUstx: 500_000_000_000n,
+  btcLockup: { sbtcSats: 100_000_000n },
+});
+
+// Proven L1 lockup path — proof fields come from buildTxProof
+btcLockup: {
+  l1Outputs: [{
+    height: proof.height,
+    tx: proof.rawTx,
+    outputIndex: proof.vout,
+    header: proof.header,
+    leafHashes: proof.merkle.siblings,
+    txCount: proof.merkle.txCount,
+    txIndex: proof.merkle.txIndex,
+    amount: 100_000_000n,
+    unlockBurnHeight: 987_530n,
+  }],
+  stakerUnlockBytes,
+}
+```
+
+`buildTxProof` from [`@secondlayer/stacks/bitcoin`](/docs/bitcoin-spv) produces the SPV proof fields — the contract verifies the lockup tx's Bitcoin inclusion on-chain.
+
+## L1 BTC lockup scripts
+
+Works today, no chain needed. Byte-for-byte TypeScript ports of the contract's script constructors — the contract validates your L1 output against *exactly* these bytes, so the module builds them for you.
+
+```ts
+import {
+  buildDefaultStakerUnlockBytes,
+  buildLockupAddress,
+  buildLockupScript,
+  stakerPreimage,
+} from "@secondlayer/stacks/pox5";
+
+const stakerUnlockBytes = buildDefaultStakerUnlockBytes(compressedPubkey); // <pubkey> OP_CHECKSIG
+
+const address = buildLockupAddress(
+  {
+    stxAddress: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+    unlockBurnHeight: 987_530,
+    stakerUnlockBytes,
+    earlyUnlockBytes, // from the bond's protocol-bonds.early-unlock-bytes
+  },
+  "mainnet",
+);
+// bc1q… — send the BTC lockup here
+```
+
+- `buildLockupScript` — the witness script: a CLTV branch (spendable at `unlockBurnHeight`) and an early-exit branch that must reveal `stakerPreimage(stxAddress)`.
+- `buildLockupOutputScript` — the P2WSH `scriptPubKey` (`0x0020 || sha256(script)`).
+- `buildLockupAddress` — the bech32 P2WSH address; network-aware, including `regtest`.
+- `buildDefaultStakerUnlockBytes` — the common single-key staker subscript; any script tail is valid.
+- `stakerPreimage` — the 32-byte witness item the early-exit branch reveals.
+
+## Signer-key grants
+
+SIP-018 structured-data signatures authorizing a signer-manager contract to use a signer key. All three work pre-activation.
+
+```ts
+import {
+  computeSignerGrantHash,
+  signSignerGrant,
+  verifySignerGrant,
+} from "@secondlayer/stacks/pox5";
+
+const opts = {
+  signerManager: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7.signer-mgr",
+  authId: 1n,
+  chainId: mainnet.id,
+};
+
+const signerSig = await signSignerGrant(signerAccount, opts); // 65-byte RSV hex
+
+verifySignerGrant({ ...opts, publicKey: signerPubkey, signature: signerSig }); // true
+```
+
+`signSignerGrant` returns the signature in **RSV** order — exactly the `(buff 65)` layout `grant-signer-key` expects. `computeSignerGrantHash` is byte-identical to the contract's `get-signer-grant-message-hash`, so you can cross-check any hash on-chain.
+
+## Cycle math
+
+Pure functions mirroring the contract's cycle read-onlys. Nothing hardcoded — pass chain-reported parameters from `/v2/pox` and `getActivation()`, and the math is correct on any network.
+
+```ts
+import { burnHeightToRewardCycle, bondPhaseAtHeight, isInPreparePhase } from "@secondlayer/stacks/pox5";
+
+const params = { firstBurnchainBlockHeight: 666_050, rewardCycleLength: 2_100 }; // from /v2/pox
+const firstBondPeriodCycle = activation!.firstRewardCycleId; // from getActivation()
+
+burnHeightToRewardCycle(960_231, params);                 // → cycle number
+bondPhaseAtHeight(0, 960_231, { ...params, firstBondPeriodCycle }); // "too-early" | "open" | "locked" | "unlocked"
+isInPreparePhase(960_231, { ...params, prepareCycleLength: 100 });  // boolean
+```
+
+Also exported: `rewardCycleToBurnHeight`, `bondPeriodToRewardCycle`, `bondPeriodToBurnHeight`, `bondUnlockCycle`, `burnHeightToDistributionIndex`.
+
+<Callout type="warning" title="Prepare phase rejects exits">
+
+`unstake-sbtc` and `announce-l1-early-exit` are rejected during a cycle's prepare phase (the final `prepare_cycle_length` blocks). Check `isInPreparePhase` before broadcasting — or your exit transaction burns a fee to abort.
+
+</Callout>
+
+## Post-conditions
+
+`pox-5` has no `allow-contract-caller` indirection like pox-4 — it acts on `tx-sender` / `contract-caller` directly. Safety is expressed with the Epoch 4.0 `staking-postcondition` / `pox-postcondition` types, passed via `postConditions` on any action:
+
+```ts
+await client.pox5.stake({
+  signerManager: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7.signer-mgr",
+  amountUstx: 100_000_000_000n,
+  numCycles: 12,
+  startBurnHeight: 960_231,
+  postConditions: [
+    { type: "staking-postcondition", address: "origin", condition: "lte", amount: 100_000_000_000n },
+    { type: "pox-postcondition", address: "origin", condition: "will-not-perform" },
+  ],
+});
+```
+
+See [SIP-045 staking post-conditions](/docs/stacks#sip-045-staking-post-conditions) for the full semantics.
+
+## Verified against the contract
+
+<Callout type="note" title="Pinned, not approximated">
+
+Every action is pinned against the `pox-5` boot contract interface via Clarinet simnet at Epoch 4.0, and the script and grant-hash ports are byte-compared against the contract's own read-onlys (`construct-lockup-script`, `get-signer-grant-message-hash`) in CI. If stacks-core changed a byte, the build would fail before you did.
+
+</Callout>
+
+See also the [Stacks SDK](/docs/stacks) for clients, fees, and post-conditions, and [Bitcoin SPV](/docs/bitcoin-spv) for building the L1 lockup proofs.
+
+export const metadata = {
+	title: "PoX-5 Bitcoin Staking — Secondlayer Docs",
+	description:
+		"Stake STX, register BTC-paired bonds, build L1 lockup scripts, and sign signer-key grants against pox-5 (SIP-045) — activation-aware before the Epoch 4.0 fork.",
+};
