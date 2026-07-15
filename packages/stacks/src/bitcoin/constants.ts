@@ -1,4 +1,4 @@
-export type BitcoinNetwork = "mainnet" | "testnet";
+export type BitcoinNetwork = "mainnet" | "testnet" | "regtest";
 
 export interface SpvAdapterRef {
 	/** Deployer principal. */

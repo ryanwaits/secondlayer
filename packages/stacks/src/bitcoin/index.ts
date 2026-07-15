@@ -59,7 +59,12 @@ export {
 	type BitcoinVerifierConfig,
 	bitcoinVerifier,
 } from "./verifier.ts";
-export { formatBitcoinAddress } from "./address.ts";
+export {
+	formatBitcoinAddress,
+	publicKeyToP2trAddress,
+	publicKeyToP2wpkhAddress,
+	taprootTweakPubkey,
+} from "./address.ts";
 export {
 	type BitcoinPaymentOutput,
 	type VerifyBitcoinPaymentParams,
