@@ -1,5 +1,5 @@
 import { http, createPublicClient } from "@secondlayer/stacks";
-import { getContractAbi } from "@secondlayer/stacks/actions";
+import { getContractAbi, getRawBlock } from "@secondlayer/stacks/actions";
 import type { RewardSet } from "./consensus.ts";
 import {
 	type NakamotoBlockHeader,
@@ -65,15 +65,7 @@ export class StacksNodeClient {
 	}
 
 	async getBlock(height: number): Promise<BlockResponse | null> {
-		// Stacks API v2 block-by-height endpoint
-		const res = await fetch(`${this.rpcUrl}/v2/blocks/${height}`, {
-			signal: AbortSignal.timeout(30_000),
-		});
-		if (res.status === 404) return null;
-		if (!res.ok) {
-			throw new Error(`Node RPC /v2/blocks/${height} returned ${res.status}`);
-		}
-		return res.json() as Promise<BlockResponse>;
+		return getRawBlock(this.client(30_000), { height });
 	}
 
 	/**
