@@ -156,4 +156,6 @@ export {
 	TransactionDroppedError,
 	WaitForTransactionTimeoutError,
 	type TxRejectionReason,
+	HttpRequestError,
+	MalformedResponseError,
 } from "./errors/index.ts";
