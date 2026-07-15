@@ -140,20 +140,6 @@ export class StacksNodeClient {
 		return getContractAbi(this.client(30_000), { contract: contractId });
 	}
 
-	/** Fetch a contract's Clarity source — used to parse declared `impl-trait`s. */
-	async getContractSource(contractId: string): Promise<string | null> {
-		const dotIdx = contractId.indexOf(".");
-		const address = contractId.slice(0, dotIdx);
-		const name = contractId.slice(dotIdx + 1);
-		const res = await fetch(
-			`${this.rpcUrl}/v2/contracts/source/${address}/${name}`,
-			{ signal: AbortSignal.timeout(30_000) },
-		);
-		if (!res.ok) return null;
-		const body = (await res.json()) as { source?: string };
-		return body.source ?? null;
-	}
-
 	getRpcUrl(): string {
 		return this.rpcUrl;
 	}

@@ -1,6 +1,14 @@
-import { afterAll, beforeEach, describe, expect, test } from "bun:test";
+import {
+	afterAll,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	test,
+} from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
-import { discoverDeploys } from "./registry.ts";
+import { StacksNodeClient } from "@secondlayer/shared/node/client";
+import { discoverDeploys, processPendingAbis } from "./registry.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 // BELOW reorg.test.ts's 990050: its handleReorg assertions take MAX(height)
@@ -134,5 +142,106 @@ describe.skipIf(!HAS_DB)("discoverDeploys reorg re-canonicalization", () => {
 			.where("contract_id", "=", "SP9.already-canon")
 			.executeTakeFirstOrThrow();
 		expect(row.deployer).toBe("SP-marker");
+	});
+});
+
+// processPendingAbis: real caller of @secondlayer/stacks's getContractAbi /
+// getContractSource against a live node. Mock server stands in for the node.
+const ABI_MOCK_PORT = 19442;
+let abiMockServer: ReturnType<typeof Bun.serve> | undefined;
+
+describe.skipIf(!HAS_DB)("processPendingAbis", () => {
+	const db = HAS_DB ? getDb() : null;
+	const node = new StacksNodeClient(`http://localhost:${ABI_MOCK_PORT}`);
+
+	beforeAll(() => {
+		abiMockServer = Bun.serve({
+			port: ABI_MOCK_PORT,
+			routes: {
+				"/v2/contracts/interface/SP9/pending-ok": () =>
+					Response.json({
+						functions: [],
+						maps: [],
+						variables: [],
+						fungible_tokens: [],
+						non_fungible_tokens: [],
+					}),
+				"/v2/contracts/source/SP9/pending-ok": () =>
+					Response.json({
+						source: "(impl-trait 'SP9.trait.sip-010-trait)",
+						publish_height: 1,
+					}),
+			},
+			fetch() {
+				return new Response("Not Found", { status: 404 });
+			},
+		});
+	});
+
+	afterAll(() => {
+		abiMockServer?.stop();
+	});
+
+	beforeEach(async () => {
+		if (!db) return;
+		await db
+			.deleteFrom("contracts")
+			.where("contract_id", "in", ["SP9.pending-ok", "SP9.pending-missing"])
+			.execute();
+	});
+
+	afterAll(async () => {
+		if (!db) return;
+		await db
+			.deleteFrom("contracts")
+			.where("contract_id", "in", ["SP9.pending-ok", "SP9.pending-missing"])
+			.execute();
+	});
+
+	test("fetches the ABI, classifies it, and marks the row fetched", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("contracts")
+			.values({
+				contract_id: "SP9.pending-ok",
+				deployer: "SP9",
+				block_height: 999_999_001,
+				canonical: true,
+				abi_status: "pending",
+			})
+			.execute();
+
+		await processPendingAbis(db, node, { limit: 500 });
+
+		const row = await db
+			.selectFrom("contracts")
+			.select(["abi_status", "declared_traits"])
+			.where("contract_id", "=", "SP9.pending-ok")
+			.executeTakeFirstOrThrow();
+		expect(row.abi_status).toBe("fetched");
+		expect(row.declared_traits).toContain("sip-010-trait");
+	});
+
+	test("marks a contract failed when the ABI fetch 404s", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("contracts")
+			.values({
+				contract_id: "SP9.pending-missing",
+				deployer: "SP9",
+				block_height: 999_999_002,
+				canonical: true,
+				abi_status: "pending",
+			})
+			.execute();
+
+		await processPendingAbis(db, node, { limit: 500 });
+
+		const row = await db
+			.selectFrom("contracts")
+			.select(["abi_status"])
+			.where("contract_id", "=", "SP9.pending-missing")
+			.executeTakeFirstOrThrow();
+		expect(row.abi_status).toBe("failed");
 	});
 });

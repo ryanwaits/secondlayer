@@ -6,6 +6,8 @@ import {
 } from "@secondlayer/shared/db/queries/contracts";
 import { logger } from "@secondlayer/shared/logger";
 import type { StacksNodeClient } from "@secondlayer/shared/node/client";
+import { http, createPublicClient } from "@secondlayer/stacks";
+import { getContractSource } from "@secondlayer/stacks/actions";
 import {
 	type AbiContract,
 	classifyContract,
@@ -83,6 +85,9 @@ export async function processPendingAbis(
 	const pending = await listContractsPendingAbi(db, opts.limit ?? 50);
 	let fetched = 0;
 	let failed = 0;
+	// getContractSource is node-RPC-only (no Hiro/proxy equivalent) — reuse the
+	// same rpcUrl StacksNodeClient is already configured against.
+	const client = createPublicClient({ transport: http(node.getRpcUrl()) });
 
 	for (const contract of pending) {
 		let abi: AbiContract | null = null;
@@ -106,8 +111,10 @@ export async function processPendingAbis(
 		// Declared traits come from source (ABI/RPC don't carry them). Best-effort.
 		let declared: string[] = [];
 		try {
-			const source = await node.getContractSource(contract.contract_id);
-			if (source) declared = parseDeclaredStandards(source);
+			const result = await getContractSource(client, {
+				contract: contract.contract_id,
+			});
+			if (result) declared = parseDeclaredStandards(result.source);
 		} catch {
 			// Source unavailable — declared stays empty, inferred still applies.
 		}
