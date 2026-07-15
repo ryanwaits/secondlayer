@@ -57,3 +57,21 @@ export const SBTC_TOKEN_ABI = {
 		},
 	],
 } as const satisfies AbiContract;
+
+/**
+ * Minimal read-only ABI for `sbtc-registry`.
+ *
+ * Only the current signer-set aggregate pubkey getter — the input to deriving
+ * the signers' taproot deposit address. Verified against the deployed mainnet
+ * contract interface.
+ */
+export const SBTC_REGISTRY_ABI = {
+	functions: [
+		{
+			name: "get-current-aggregate-pubkey",
+			access: "read-only",
+			args: [],
+			outputs: { buff: { length: 33 } },
+		},
+	],
+} as const satisfies AbiContract;

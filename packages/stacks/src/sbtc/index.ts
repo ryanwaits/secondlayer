@@ -3,6 +3,8 @@ import {
 	getBalance,
 	getDecimals,
 	getName,
+	getSignersAddress,
+	getSignersPublicKey,
 	getSymbol,
 	getTokenUri,
 	getTotalSupply,
@@ -54,6 +56,10 @@ export type SbtcActions = {
 		getSymbol: () => Promise<string>;
 		getDecimals: () => Promise<bigint>;
 		getTokenUri: () => Promise<string | null>;
+		/** Current signer-set aggregate pubkey (33B compressed) from `sbtc-registry`. */
+		getSignersPublicKey: () => Promise<Uint8Array>;
+		/** Signers' taproot deposit address, network-aware from `client.chain`. */
+		getSignersAddress: () => Promise<string>;
 	};
 };
 
@@ -81,6 +87,8 @@ export function sbtc(): (client: Client) => SbtcActions {
 			getSymbol: () => getSymbol(client),
 			getDecimals: () => getDecimals(client),
 			getTokenUri: () => getTokenUri(client),
+			getSignersPublicKey: () => getSignersPublicKey(client),
+			getSignersAddress: () => getSignersAddress(client),
 		},
 	});
 }
