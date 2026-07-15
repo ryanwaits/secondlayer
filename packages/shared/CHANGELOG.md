@@ -1,5 +1,19 @@
 # @secondlayer/shared
 
+## 7.0.0
+
+### Major Changes
+
+- Remove `HiroClient.getTransaction`, `.fetchChainTip`, `.isHealthy`, and the `HiroTransaction` type — dead code with zero production callers (the x402 reconciler `getTransaction` was allegedly used by is Hiro-free by design; `fetchChainTip`'s one caller now uses `@secondlayer/stacks`'s `getBlockHeight`; `isHealthy` was never called).
+- `StacksNodeClient.getInfo`, `.getContractAbi`, and `.getBlock` now delegate to `@secondlayer/stacks`'s transport/actions instead of hand-rolled `fetch()` calls — same public signatures and behavior (no retries, per-call timeouts preserved), but errors are now properly thrown on non-2xx responses instead of occasionally passing a 404 error body through as if it were valid data.
+
+  **Breaking**: `StacksNodeClient.getContractSource` is removed — it had exactly one caller (the indexer's contract registry), which now calls `@secondlayer/stacks`'s `getContractSource` action directly.
+
+### Patch Changes
+
+- Updated dependencies
+  - @secondlayer/stacks@2.14.1
+
 ## 6.41.3
 
 ### Patch Changes

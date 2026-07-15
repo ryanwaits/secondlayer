@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/indexer",
-	"version": "1.12.5",
+	"version": "1.12.6",
 	"private": true,
 	"type": "module",
 	"main": "./src/index.ts",
@@ -39,9 +39,9 @@
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.1042.0",
 		"@dsnp/parquetjs": "^1.8.7",
-		"@secondlayer/sdk": "^6.16.0",
-		"@secondlayer/shared": "^6.28.1",
-		"@secondlayer/stacks": "^2.14.0"
+		"@secondlayer/sdk": "^6.29.1",
+		"@secondlayer/shared": "^7.0.0",
+		"@secondlayer/stacks": "^2.14.1"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

@@ -1,5 +1,19 @@
 # @secondlayer/cli
 
+## 9.0.3
+
+### Patch Changes
+
+- Generated `useTransaction`/`useWaitForTransaction` hooks (react plugin) now call `@secondlayer/stacks`'s `getTransaction`/`waitForTransactionReceipt` actions instead of a hand-rolled fetch — richer typed receipts (decoded Clarity result), reorg-tolerant confirmation waits, and typed abort/drop/timeout rejections replace the old manual polling loop. `useWaitForTransaction` gains an optional `{ confirmations }` param.
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @secondlayer/sdk@6.29.1
+  - @secondlayer/shared@7.0.0
+  - @secondlayer/stacks@2.14.1
+  - @secondlayer/subgraphs@3.19.7
+
 ## 9.0.2
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # @secondlayer/sdk
 
+## 6.29.1
+
+### Patch Changes
+
+- x402's `resolveAccountNonce` now reads the account nonce through `@secondlayer/stacks`'s `getNonce` action instead of a hand-rolled `fetch` call — same behavior, routes through the SDK's typed error handling and retry policy.
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @secondlayer/shared@7.0.0
+  - @secondlayer/stacks@2.14.1
+  - @secondlayer/subgraphs@3.19.7
+
 ## 6.29.0
 
 ### Minor Changes

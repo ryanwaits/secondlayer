@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 2.14.1
+
+### Patch Changes
+
+- `HttpRequestError` and `MalformedResponseError` (added in the last release) are now re-exported from the package root — they were reachable via `./errors` internals but missing from `@secondlayer/stacks`'s curated root export list.
+
 ## 2.14.0
 
 ### Minor Changes
