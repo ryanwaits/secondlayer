@@ -4,6 +4,26 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## SDK — July 2026
 
+### PoX-5 Bitcoin Staking, two weeks before the fork
+
+Build against SIP-045 today: the new `@secondlayer/stacks/pox5` module ships
+every staking flow — bonds, STX staking, L1 lockup scripts, signer-key
+grants — pinned against the final `pox-5` contract in stacks-core 4.0.0.
+Your integration gates itself: `client.pox5.isActive()` asks the chain, so
+code you ship now simply switches on when Bitcoin block 960,230 lands
+(~July 29).
+
+- 13 wallet actions that inherit fee tiers, nonce management, and typed
+  errors; `getStakerState()` reads a staker's whole position in one batched
+  call.
+- Off-chain tooling works pre-activation: CLTV lockup scripts and P2WSH
+  addresses, SIP-018 signer grants, cycle and bond-phase math.
+- Not a hand-transcribed ABI: scripts and grant hashes are byte-compared
+  against the actual boot contract in Clarinet simnet, and every action is
+  pinned to the contract interface through the real signing path.
+
+See the [PoX-5 staking docs](/docs/pox5).
+
 ### More node data, fewer silent failures
 
 New actions round out the read surface, and a fixed-up transport catches
