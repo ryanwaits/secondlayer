@@ -2,6 +2,28 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## SDK — July 2026
+
+### Send, price, and confirm transactions in one flow
+
+Pass `fee: 'min' | 'low' | 'mid' | 'high'` to any send action and await the
+result with `client.waitForTransactionReceipt({ txid, confirmations })` — no
+more hand-rolled fee estimates or polling loops. `'min'` is the node's relay
+floor (1 uSTX per byte), computed offline, and it's also the automatic
+fallback when the node can't produce an estimate — your broadcast goes
+through instead of erroring.
+
+- `waitForTransactionReceipt` returns a normalized receipt with the decoded
+  Clarity result, rejects with typed errors on abort/drop/timeout, and
+  recounts confirmations if a reorg moves your transaction.
+- Status sources are pluggable: the default reads any extended-API host;
+  `indexTxSource()` reads Secondlayer's index and gets the chain tip in the
+  same response — N-confirmation waits cost one request per poll.
+- `sendTransaction({ wait: 2 })` broadcasts and confirms in one call; x402
+  settlement can now await the payment landing before reporting it.
+- Broadcast rejections are typed: `BroadcastError.reason` narrows across all
+  26 stacks-node rejection strings, with the node's `reason_data` attached.
+
 ## CLI — July 2026
 
 ### Watch mode and dependency types for contract codegen

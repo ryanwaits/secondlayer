@@ -1,5 +1,16 @@
 # @secondlayer/stacks
 
+## 2.12.0
+
+### Minor Changes
+
+- Transaction lifecycle upgrades: fee tiers, confirmation waits, typed rejections.
+
+  - `fee` on `transferStx`/`callContract`/`deployContract`/`sponsorTransaction` now accepts `'min' | 'low' | 'mid' | 'high'` alongside exact amounts. `'min'` is the minimum relay fee (1 uSTX/byte, computed offline); estimation failures fall back to `'min'` instead of throwing — or, for `sponsorTransaction`, broadcasting a doomed 0-fee tx. Fee tiers with provider (wallet) accounts throw, since the wallet sets its own fee.
+  - New `waitForTransactionReceipt` and `getTransaction` public actions (also on `client.*`): poll until mined with N confirmations, decoded Clarity result on the receipt, typed `TransactionAbortedError` / `TransactionDroppedError` / `WaitForTransactionTimeoutError` rejections, reorg-tolerant confirmation counting. Status sources are pluggable — default reads `/extended/v1/tx` on the transport host; `indexTxSource()` reads Secondlayer's index and gets the chain tip in the same response.
+  - `sendTransaction` gains `wait?: boolean | number`; x402 `sponsorAndBroadcast` gains the same, so settlement can await the payment landing.
+  - `BroadcastError.reason` is now a literal union of all 26 stacks-node rejection strings, with `reasonData` and `txid` attached. Nonce-conflict detection matches typed reasons exactly before falling back to message sniffing.
+
 ## 2.11.0
 
 ### Minor Changes
