@@ -5,15 +5,21 @@ import { signTransactionWithAccount } from "../../transactions/signer.ts";
 import type { ClarityVersion } from "../../transactions/types.ts";
 import { isClarityName } from "../../utils/address.ts";
 import type { IntegerType } from "../../utils/encoding.ts";
-import { estimateFee } from "../public/estimateFee.ts";
 import { broadcastWithNonceReset, resolveNonce } from "./nonceManager.ts";
-import { isProviderAccount } from "./utils.ts";
+import {
+	type FeeParam,
+	assertNoFeeTierForProvider,
+	isFeeTier,
+	isProviderAccount,
+	resolveFee,
+	setUnsignedFee,
+} from "./utils.ts";
 
 export type DeployContractParams = {
 	contractName: string;
 	codeBody: string;
 	clarityVersion?: ClarityVersion;
-	fee?: IntegerType;
+	fee?: FeeParam;
 	nonce?: IntegerType;
 	postConditionMode?: "allow" | "deny";
 	postConditions?: PostCondition[];
@@ -32,6 +38,7 @@ export async function deployContract(
 
 	// Provider: delegate to wallet
 	if (isProviderAccount(account)) {
+		assertNoFeeTierForProvider(params.fee);
 		const result = await account.provider.request("stx_deployContract", {
 			contractName: params.contractName,
 			codeBody: params.codeBody,
@@ -43,11 +50,13 @@ export async function deployContract(
 	// Local/Custom: build → sign → broadcast
 	const nonce = params.nonce ?? (await resolveNonce(client, account.address));
 
+	const needsFeeResolution = params.fee === undefined || isFeeTier(params.fee);
+
 	const unsigned = buildContractDeploy({
 		contractName: params.contractName,
 		codeBody: params.codeBody,
 		clarityVersion: params.clarityVersion,
-		fee: params.fee ?? 0n,
+		fee: needsFeeResolution ? 0n : (params.fee as IntegerType),
 		nonce,
 		publicKey: account.publicKey,
 		chain: client.chain,
@@ -55,13 +64,8 @@ export async function deployContract(
 		postConditions: params.postConditions,
 	});
 
-	if (params.fee === undefined) {
-		const estimates = await estimateFee(client, { transaction: unsigned });
-		const mid = estimates[1] ?? estimates[0];
-		if (mid) {
-			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-			(unsigned.auth.spendingCondition as any).fee = BigInt(mid.fee);
-		}
+	if (needsFeeResolution) {
+		setUnsignedFee(unsigned, await resolveFee(client, unsigned, params.fee));
 	}
 
 	const signed = await signTransactionWithAccount(unsigned, account);

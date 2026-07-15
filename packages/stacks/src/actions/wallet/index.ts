@@ -15,4 +15,11 @@ export {
 	sponsorTransaction,
 	type SponsorTransactionParams,
 } from "./sponsorTransaction.ts";
-export { isProviderAccount } from "./utils.ts";
+export {
+	type FeeParam,
+	type FeeTier,
+	isFeeTier,
+	isProviderAccount,
+	minimumFee,
+	resolveFee,
+} from "./utils.ts";
