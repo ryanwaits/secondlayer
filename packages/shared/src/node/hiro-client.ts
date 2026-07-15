@@ -429,30 +429,6 @@ export class HiroClient {
 		return results;
 	}
 
-	/** Fetch current chain tip height from Hiro API status endpoint */
-	async fetchChainTip(): Promise<number> {
-		const res = await this.fetchWithRetry(`${this.apiUrl}/extended/v1/status`);
-		if (!res.ok) throw new Error(`Hiro API /status returned ${res.status}`);
-		const data = (await res.json()) as {
-			chain_tip?: { block_height: number };
-			stacks_tip_height?: number;
-		};
-		return data.chain_tip?.block_height ?? data.stacks_tip_height ?? 0;
-	}
-
-	async isHealthy(): Promise<boolean> {
-		try {
-			const res = await fetch(`${this.apiUrl}/extended/v1/status`, {
-				headers: this.headers,
-				signal: AbortSignal.timeout(10_000),
-			});
-			// 429 = rate limited but reachable
-			return res.ok || res.status === 429;
-		} catch {
-			return false;
-		}
-	}
-
 	getApiUrl(): string {
 		return this.apiUrl;
 	}

@@ -33,6 +33,8 @@ import { HiroClient } from "@secondlayer/shared/node/hiro-client";
 import type { GetBlockOptions } from "@secondlayer/shared/node/hiro-client";
 import { HiroPgClient } from "@secondlayer/shared/node/hiro-pg-client";
 import { LocalClient } from "@secondlayer/shared/node/local-client";
+import { http, createPublicClient } from "@secondlayer/stacks";
+import { getBlockHeight } from "@secondlayer/stacks/actions";
 import type { Transaction } from "kysely";
 import {
 	parseBlock,
@@ -227,7 +229,15 @@ async function main() {
 			targetHeight = (await hiroPg?.getChainTip()) ?? 0;
 		} else {
 			logger.info("Auto-detecting chain tip from Hiro API...");
-			targetHeight = await hiro.fetchChainTip();
+			const hiroApiKey = process.env.HIRO_API_KEY;
+			const client = createPublicClient({
+				transport: http(hiro.getApiUrl(), {
+					fetchOptions: hiroApiKey
+						? { headers: { "x-hiro-api-key": hiroApiKey } }
+						: undefined,
+				}),
+			});
+			targetHeight = await getBlockHeight(client);
 		}
 		logger.info("Chain tip detected", { height: targetHeight });
 	}
