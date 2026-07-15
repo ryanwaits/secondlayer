@@ -219,7 +219,8 @@ describe.skipIf(!HAS_DB)("processPendingAbis", () => {
 			.where("contract_id", "=", "SP9.pending-ok")
 			.executeTakeFirstOrThrow();
 		expect(row.abi_status).toBe("fetched");
-		expect(row.declared_traits).toContain("sip-010-trait");
+		// parseDeclaredStandards normalizes to SIP labels, not the raw trait name.
+		expect(row.declared_traits).toContain("sip-010");
 	});
 
 	test("marks a contract failed when the ABI fetch 404s", async () => {
