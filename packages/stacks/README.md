@@ -58,6 +58,30 @@ multi-broadcast gap, which is why it lives here rather than being deferred to
 | `@secondlayer/stacks/pox` | PoX stacking — solo and delegated |
 | `@secondlayer/stacks/stackingdao` | StackingDAO liquid staking (STX/stSTX) |
 
+## Fee tiers
+
+Every send action takes `fee` as an exact amount **or a named tier** — `'min' | 'low' | 'mid' | 'high'`. Tiers map to the node's three estimations; `'min'` is the minimum relay fee (1 uSTX per serialized byte), computed offline with no round-trip. Omitting `fee` estimates mid, and if the node can't produce an estimate (`NoEstimateAvailable`), the SDK falls back to `'min'` instead of failing.
+
+```ts
+await client.transferStx({ to, amount: 1000n, fee: "low" });
+await client.callContract({ contract, functionName: "mint", fee: "min" });
+```
+
+## Wait for confirmation
+
+`waitForTransactionReceipt` polls until a transaction is mined (optionally N confirmations deep) and returns a normalized receipt with the decoded Clarity result. It rejects with typed errors when the tx aborts (`TransactionAbortedError`, receipt attached), drops from the mempool (`TransactionDroppedError`), or times out — and it re-reads block placement every cycle, so reorgs don't strand the wait.
+
+```ts
+const { txid } = await client.callContract({ contract, functionName: "mint" });
+const receipt = await client.waitForTransactionReceipt({ txid, confirmations: 2 });
+receipt.result; // decoded ClarityValue
+
+// or in one step:
+const { receipt } = await sendTransaction(client, { transaction, wait: 2 });
+```
+
+Status reads are pluggable, like nonce sources: the default reads `/extended/v1/tx` on your transport host; `indexTxSource()` reads Secondlayer's index, which returns the chain tip in the same response — N-confirmation waits cost one request per poll. Rejection reasons are typed too: `BroadcastError.reason` is a literal union of all 26 stacks-node rejection strings (with `reasonData` and `txid` attached).
+
 ## Nonce management
 
 Stacks' `/v2/accounts` returns only the confirmed nonce — it ignores the mempool. Broadcasting several transactions from one account before the first confirms makes them reuse the same nonce, so every one after the first is rejected (`ConflictingNonceInMempool`). The usual workaround is tracking nonces by hand.

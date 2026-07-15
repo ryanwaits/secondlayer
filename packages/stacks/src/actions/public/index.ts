@@ -39,6 +39,23 @@ export {
 	type SimulateDeployResult,
 } from "./simulateTransaction.ts";
 export {
+	getTransaction,
+	type GetTransactionParams,
+} from "./getTransaction.ts";
+export {
+	waitForTransactionReceipt,
+	type WaitForTransactionReceiptParams,
+} from "./waitForTransactionReceipt.ts";
+export {
+	extendedApiSource,
+	indexTxSource,
+	type IndexTxSourceParams,
+	type TransactionReceipt,
+	type TransactionSnapshot,
+	type TransactionStatus,
+	type TransactionStatusSource,
+} from "./txSources.ts";
+export {
 	watchBlocks,
 	type WatchBlocksParams,
 	watchMempool,

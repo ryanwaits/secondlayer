@@ -61,6 +61,23 @@ export type {
 	IndexSourceParams,
 	HiroNonceSourceParams,
 } from "./actions/wallet/nonceSources.ts";
+export {
+	getTransaction,
+	type GetTransactionParams,
+} from "./actions/public/getTransaction.ts";
+export {
+	waitForTransactionReceipt,
+	type WaitForTransactionReceiptParams,
+} from "./actions/public/waitForTransactionReceipt.ts";
+export {
+	extendedApiSource,
+	indexTxSource,
+	type IndexTxSourceParams,
+	type TransactionReceipt,
+	type TransactionSnapshot,
+	type TransactionStatus,
+	type TransactionStatusSource,
+} from "./actions/public/txSources.ts";
 
 // Transports
 export { http } from "./transports/http.ts";
@@ -135,4 +152,8 @@ export {
 	ReadOnlyCallError,
 	WebSocketError,
 	SimulationError,
+	TransactionAbortedError,
+	TransactionDroppedError,
+	WaitForTransactionTimeoutError,
+	type TxRejectionReason,
 } from "./errors/index.ts";

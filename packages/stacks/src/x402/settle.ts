@@ -1,3 +1,4 @@
+import type { TransactionReceipt } from "../actions/public/txSources.ts";
 import { sendTransaction } from "../actions/wallet/sendTransaction.ts";
 import { sponsorTransaction } from "../actions/wallet/sponsorTransaction.ts";
 import type { Client } from "../clients/types.ts";
@@ -9,10 +10,18 @@ export type SponsorAndBroadcastOptions = {
 	fee?: IntegerType;
 	/** Override the sponsor account nonce. Defaults to the on-chain nonce. */
 	nonce?: IntegerType;
+	/**
+	 * Wait for the payment to be mined before returning (`true` = 1
+	 * confirmation, a number = that many). Settlement rejects if the payment
+	 * aborts or drops, instead of reporting a txid that never lands.
+	 */
+	wait?: boolean | number;
 };
 
 export type SponsorAndBroadcastResult = {
 	txid: string;
+	/** Present when `wait` was requested. */
+	receipt?: TransactionReceipt;
 };
 
 /**
@@ -38,5 +47,8 @@ export async function sponsorAndBroadcast(
 		fee: options.fee,
 		nonce: options.nonce,
 	});
-	return sendTransaction(client, { transaction: sponsored });
+	return sendTransaction(client, {
+		transaction: sponsored,
+		wait: options.wait,
+	});
 }

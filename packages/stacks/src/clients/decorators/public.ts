@@ -30,6 +30,10 @@ import {
 	getNonce,
 } from "../../actions/public/getNonce.ts";
 import {
+	type GetTransactionParams,
+	getTransaction,
+} from "../../actions/public/getTransaction.ts";
+import {
 	type MulticallParams,
 	type MulticallResult,
 	multicall,
@@ -48,6 +52,11 @@ import {
 	type SimulateTransactionResult,
 	simulateTransaction,
 } from "../../actions/public/simulateTransaction.ts";
+import type { TransactionReceipt } from "../../actions/public/txSources.ts";
+import {
+	type WaitForTransactionReceiptParams,
+	waitForTransactionReceipt,
+} from "../../actions/public/waitForTransactionReceipt.ts";
 import type { ClarityValue } from "../../clarity/types.ts";
 import {
 	type WatchAddressBalanceParams,
@@ -86,6 +95,12 @@ export type PublicActions = {
 	simulateTransaction: (
 		params: SimulateTransactionParams,
 	) => Promise<SimulateTransactionResult>;
+	getTransaction: (
+		params: GetTransactionParams,
+	) => Promise<TransactionReceipt | null>;
+	waitForTransactionReceipt: (
+		params: WaitForTransactionReceiptParams,
+	) => Promise<TransactionReceipt>;
 	watchBlocks: (params: WatchBlocksParams) => Promise<Subscription>;
 	watchMempool: (params: WatchMempoolParams) => Promise<Subscription>;
 	watchTransaction: (params: WatchTransactionParams) => Promise<Subscription>;
@@ -111,6 +126,9 @@ export function publicActions(client: Client): PublicActions {
 		multicall: (params) => multicall(client, params),
 		simulateCall: (params) => simulateCall(client, params),
 		simulateTransaction: (params) => simulateTransaction(client, params),
+		getTransaction: (params) => getTransaction(client, params),
+		waitForTransactionReceipt: (params) =>
+			waitForTransactionReceipt(client, params),
 		watchBlocks: (params) => watchBlocks(client, params),
 		watchMempool: (params) => watchMempool(client, params),
 		watchTransaction: (params) => watchTransaction(client, params),
