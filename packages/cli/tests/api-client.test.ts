@@ -22,13 +22,6 @@ beforeAll(() => {
 				return Response.json({ contract: { abi: ABI, abi_status: "ok" } });
 			}
 
-			if (
-				url.pathname ===
-				"/v2/contracts/interface/SP1234567890123456789012345678901234567890/demo"
-			) {
-				return Response.json(ABI);
-			}
-
 			if (url.pathname === "/v1/contracts/SP123.fail") {
 				failureRequests += 1;
 				return Response.json({ error: "node unavailable" }, { status: 502 });
@@ -48,7 +41,6 @@ describe("StacksApiClient", () => {
 		const client = new StacksApiClient(
 			"mainnet",
 			undefined,
-			undefined,
 			`http://localhost:${MOCK_PORT}/`,
 		);
 
@@ -60,29 +52,10 @@ describe("StacksApiClient", () => {
 		expect(client.describeContractInfoSource()).toBe("Secondlayer node");
 	});
 
-	test("fetches devnet ABIs directly from the configured Stacks node RPC", async () => {
-		const client = new StacksApiClient(
-			"devnet",
-			"node-key",
-			`http://localhost:${MOCK_PORT}`,
-		);
-
-		const abi = await client.getContractInfo(CONTRACT_ID);
-
-		expect(abi).toEqual(ABI);
-		expect(lastPath).toBe(
-			"/v2/contracts/interface/SP1234567890123456789012345678901234567890/demo",
-		);
-		expect(client.describeContractInfoSource()).toBe(
-			`Stacks node RPC at http://localhost:${MOCK_PORT}`,
-		);
-	});
-
 	test("does not retry ABI failures for minutes", async () => {
 		failureRequests = 0;
 		const client = new StacksApiClient(
 			"mainnet",
-			undefined,
 			undefined,
 			`http://localhost:${MOCK_PORT}`,
 		);

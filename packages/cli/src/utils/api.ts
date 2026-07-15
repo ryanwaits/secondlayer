@@ -2,7 +2,6 @@ import type { AbiContract } from "@secondlayer/stacks/clarity";
 import got from "got";
 import { resolveAuth } from "../lib/resolve-auth.ts";
 import type { NetworkName } from "../types/config";
-import { parseContractId } from "./contract-id";
 
 const contractFetch = got.extend({
 	timeout: { request: 15000 },
@@ -14,45 +13,33 @@ const contractFetch = got.extend({
 });
 
 /**
- * Stacks contract client for fetching ABIs and source code.
- *
- * Mainnet/testnet: the SecondLayer contract registry (/v1/contracts/:id?include=abi)
- * Devnet: direct RPC to local node (STACKS_NODE_RPC_URL or localhost:3999)
+ * Stacks contract client for fetching ABIs via the SecondLayer contract
+ * registry (/v1/contracts/:id?include=abi). Mainnet/testnet only — no shipped
+ * `sl` command resolves a devnet network, so there's no direct-RPC fallback.
  */
 export class StacksApiClient {
 	private baseUrl: string;
 	private headers: Record<string, string>;
-	private useProxy: boolean;
 
 	constructor(
-		network: NetworkName = "mainnet",
-		apiKey?: string,
-		apiUrl?: string,
+		_network: NetworkName = "mainnet",
+		_apiKey?: string,
 		slApiUrl?: string,
 	) {
-		this.useProxy = !apiUrl && network !== "devnet";
-
-		if (this.useProxy) {
-			this.baseUrl = slApiUrl?.replace(/\/$/, "") || "";
-			this.headers = {};
-		} else {
-			this.baseUrl =
-				apiUrl || process.env.STACKS_NODE_RPC_URL || "http://localhost:3999";
-			this.headers = apiKey ? { "x-api-key": apiKey } : {};
-		}
+		this.baseUrl = slApiUrl?.replace(/\/$/, "") || "";
+		this.headers = {};
 	}
 
-	/** Lazy-init: resolve tenant API URL + ephemeral bearer if using proxy */
+	/** Lazy-init: resolve tenant API URL + ephemeral bearer */
 	private async ensureProxy(): Promise<void> {
-		if (!this.useProxy || this.baseUrl) return;
+		if (this.baseUrl) return;
 		const { apiUrl, ephemeralKey } = await resolveAuth();
 		this.baseUrl = apiUrl.replace(/\/$/, "");
 		this.headers = { authorization: `Bearer ${ephemeralKey}` };
 	}
 
 	describeContractInfoSource(): string {
-		if (this.useProxy) return "Secondlayer node";
-		return `Stacks node RPC at ${this.baseUrl}`;
+		return "Secondlayer node";
 	}
 
 	private async fetchWithErrorHandling<T>(
@@ -93,41 +80,18 @@ export class StacksApiClient {
 	async getContractInfo(contractId: string): Promise<AbiContract> {
 		await this.ensureProxy();
 
-		if (this.useProxy) {
-			// Prod-safe registry source (the /api/node proxy is OSS/dedicated-only).
-			const url = `${this.baseUrl}/v1/contracts/${encodeURIComponent(
-				contractId,
-			)}?include=abi`;
-			const { contract } = await this.fetchWithErrorHandling<{
-				contract: { abi?: unknown; abi_status?: string };
-			}>(url, "Contract", contractId);
-			if (!contract?.abi) {
-				throw new Error(
-					`ABI not available for ${contractId} (status: ${contract?.abi_status ?? "unknown"})`,
-				);
-			}
-			return contract.abi as AbiContract;
+		// Prod-safe registry source (the /api/node proxy is OSS/dedicated-only).
+		const url = `${this.baseUrl}/v1/contracts/${encodeURIComponent(
+			contractId,
+		)}?include=abi`;
+		const { contract } = await this.fetchWithErrorHandling<{
+			contract: { abi?: unknown; abi_status?: string };
+		}>(url, "Contract", contractId);
+		if (!contract?.abi) {
+			throw new Error(
+				`ABI not available for ${contractId} (status: ${contract?.abi_status ?? "unknown"})`,
+			);
 		}
-
-		const { address, contractName } = parseContractId(contractId);
-		const url = `${this.baseUrl}/v2/contracts/interface/${address}/${contractName}`;
-		return this.fetchWithErrorHandling<AbiContract>(
-			url,
-			"Contract",
-			contractId,
-		);
-	}
-
-	async getContractSource(contractId: string): Promise<string> {
-		// Source endpoint is only available via direct RPC
-		const { address, contractName } = parseContractId(contractId);
-		const rpcUrl = process.env.STACKS_NODE_RPC_URL || this.baseUrl;
-		const url = `${rpcUrl}/v2/contracts/source/${address}/${contractName}`;
-		const data = await this.fetchWithErrorHandling<{ source: string }>(
-			url,
-			"Contract source",
-			contractId,
-		);
-		return data.source;
+		return contract.abi as AbiContract;
 	}
 }
