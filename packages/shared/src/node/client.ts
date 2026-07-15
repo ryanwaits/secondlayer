@@ -1,3 +1,5 @@
+import { http, createPublicClient } from "@secondlayer/stacks";
+import { getContractAbi } from "@secondlayer/stacks/actions";
 import type { RewardSet } from "./consensus.ts";
 import {
 	type NakamotoBlockHeader,
@@ -43,14 +45,23 @@ export class StacksNodeClient {
 			rpcUrl || process.env.STACKS_NODE_RPC_URL || "http://localhost:20443";
 	}
 
-	async getInfo(): Promise<NodeInfo> {
-		const res = await fetch(`${this.rpcUrl}/v2/info`, {
-			signal: AbortSignal.timeout(10_000),
+	/**
+	 * A stacks-backed client for the given call's original timeout, with no
+	 * retries — matches every method's prior single-attempt fetch semantics
+	 * (in particular `getInfo`'s fast-fail timing, which `isHealthy()` and its
+	 * callers depend on).
+	 */
+	private client(timeoutMs: number) {
+		return createPublicClient({
+			transport: http(this.rpcUrl, { retryCount: 0, timeout: timeoutMs }),
 		});
-		if (!res.ok) {
-			throw new Error(`Node RPC /v2/info returned ${res.status}`);
-		}
-		return res.json() as Promise<NodeInfo>;
+	}
+
+	async getInfo(): Promise<NodeInfo> {
+		const data = await this.client(10_000).request("/v2/info", {
+			method: "GET",
+		});
+		return data as NodeInfo;
 	}
 
 	async getBlock(height: number): Promise<BlockResponse | null> {
@@ -134,21 +145,7 @@ export class StacksNodeClient {
 	}
 
 	async getContractAbi(contractId: string): Promise<unknown> {
-		const dotIdx = contractId.indexOf(".");
-		const address = contractId.slice(0, dotIdx);
-		const name = contractId.slice(dotIdx + 1);
-		const res = await fetch(
-			`${this.rpcUrl}/v2/contracts/interface/${address}/${name}`,
-			{
-				signal: AbortSignal.timeout(30_000),
-			},
-		);
-		if (!res.ok) {
-			throw new Error(
-				`Node RPC /v2/contracts/interface/${address}/${name} returned ${res.status}`,
-			);
-		}
-		return res.json();
+		return getContractAbi(this.client(30_000), { contract: contractId });
 	}
 
 	/** Fetch a contract's Clarity source — used to parse declared `impl-trait`s. */

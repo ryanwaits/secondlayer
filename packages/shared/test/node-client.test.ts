@@ -38,6 +38,8 @@ beforeAll(() => {
 					txs: [],
 				}),
 			"/v2/blocks/999999": () => new Response("Not Found", { status: 404 }),
+			"/v2/contracts/interface/SP123/token": () =>
+				Response.json({ functions: [], maps: [], variables: [] }),
 		},
 		fetch() {
 			return new Response("Not Found", { status: 404 });
@@ -80,5 +82,14 @@ describe("StacksNodeClient", () => {
 
 	test("getRpcUrl returns configured URL", () => {
 		expect(client.getRpcUrl()).toBe(`http://localhost:${MOCK_PORT}`);
+	});
+
+	test("getContractAbi returns the ABI", async () => {
+		const abi = await client.getContractAbi("SP123.token");
+		expect(abi).toEqual({ functions: [], maps: [], variables: [] });
+	});
+
+	test("getContractAbi throws on 404 (unknown contract)", async () => {
+		await expect(client.getContractAbi("SP123.missing")).rejects.toThrow();
 	});
 });
