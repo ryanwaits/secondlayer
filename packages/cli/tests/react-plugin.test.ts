@@ -31,15 +31,39 @@ describe("react plugin generated imports", () => {
 	test("generic hooks import only real @secondlayer/stacks subpaths", async () => {
 		const code = await generateGenericHooks();
 
-		expect(code).toContain("from '@secondlayer/stacks/clarity'");
-		expect(code).toContain(
-			"import { validateStacksAddress } from '@secondlayer/stacks/utils'",
+		// Extract every `import [type] { ... } from '<module>'` statement,
+		// tolerant of formatCode's line-wrapping, and map named imports to
+		// their source module.
+		const importRe = /import\s+(?:type\s+)?\{([^}]+)\}\s+from\s+'([^']+)'/gs;
+		const moduleByName = new Map<string, string>();
+		for (const [, names, mod] of code.matchAll(importRe)) {
+			for (const raw of names.split(",")) {
+				const name = raw.trim();
+				if (name) moduleByName.set(name, mod);
+			}
+		}
+
+		expect(moduleByName.get("Cl")).toBe("@secondlayer/stacks/clarity");
+		expect(moduleByName.get("validateStacksAddress")).toBe(
+			"@secondlayer/stacks/utils",
 		);
-		expect(code).toContain(
-			"import type { PostCondition } from '@secondlayer/stacks/postconditions'",
+		expect(moduleByName.get("PostCondition")).toBe(
+			"@secondlayer/stacks/postconditions",
 		);
-		// Root barrel exports none of these — never import from it
-		expect(code).not.toContain("from '@secondlayer/stacks'\n");
+		expect(moduleByName.get("ExtractFunctionArgs")).toBe(
+			"@secondlayer/stacks/clarity",
+		);
+		expect(moduleByName.get("getTransaction")).toBe(
+			"@secondlayer/stacks/actions",
+		);
+		expect(moduleByName.get("waitForTransactionReceipt")).toBe(
+			"@secondlayer/stacks/actions",
+		);
+		// createPublicClient/http are root-only (no dedicated subpath) — the one
+		// legitimate root import. Everything else above must use its subpath,
+		// never the bare root barrel.
+		expect(moduleByName.get("createPublicClient")).toBe("@secondlayer/stacks");
+		expect(moduleByName.get("http")).toBe("@secondlayer/stacks");
 		// fetchCallReadOnlyFunction never existed in @secondlayer/stacks
 		expect(code).not.toContain("fetchCallReadOnlyFunction");
 		// connect() takes no arguments in the current SDK

@@ -38,11 +38,17 @@ import { Cl } from '@secondlayer/stacks/clarity'
 import type { ExtractFunctionArgs, ExtractFunctionNames, AbiContract } from '@secondlayer/stacks/clarity'
 import type { PostCondition } from '@secondlayer/stacks/postconditions'
 import { validateStacksAddress } from '@secondlayer/stacks/utils'
+import { createPublicClient, http } from '@secondlayer/stacks'
+import { getTransaction, waitForTransactionReceipt } from '@secondlayer/stacks/actions'
 
 const API_URLS: Record<string, string> = {
   mainnet: 'https://api.hiro.so',
   testnet: 'https://api.testnet.hiro.so',
   devnet: 'http://localhost:3999'
+}
+
+function getStacksClient({ network, apiUrl }: { network?: string; apiUrl?: string }) {
+  return createPublicClient({ transport: http(apiUrl || API_URLS[network || 'mainnet']) })
 }
 
 async function callReadOnly(params: {
@@ -71,13 +77,6 @@ async function callReadOnly(params: {
   const data = await response.json()
   if (!data.okay) throw new Error(data.cause ?? 'Read-only call failed')
   return deserializeCV(data.result)
-}
-
-async function fetchTransaction({ txId, network, apiUrl }: { txId: string; network?: string; apiUrl?: string }): Promise<any> {
-  const baseUrl = apiUrl || API_URLS[network || 'mainnet']
-  const response = await fetch(\`\${baseUrl}/extended/v1/tx/\${txId}\`)
-  if (!response.ok) throw new Error(\`Failed to fetch transaction: \${response.statusText}\`)
-  return response.json()
 }
 
 async function fetchBlock({ height, network, apiUrl }: { height: number; network?: string; apiUrl?: string }): Promise<any> {
@@ -333,14 +332,10 @@ function generateGenericHook(hookName: string): string {
 		case "useTransaction":
 			return `export function useTransaction(txId?: string) {
   const config = useSecondLayerConfig()
-  
+
   return useQuery({
     queryKey: ['transaction', txId, config.network],
-    queryFn: () => fetchTransaction({
-      txId: txId!,
-      network: config.network,
-      apiUrl: config.apiUrl
-    }),
+    queryFn: () => getTransaction(getStacksClient(config), { txid: txId! }),
     enabled: !!txId
   })
 }`;
@@ -376,29 +371,20 @@ function generateGenericHook(hookName: string): string {
 }`;
 
 		case "useWaitForTransaction":
-			return `export function useWaitForTransaction(txId?: string) {
+			return `export function useWaitForTransaction(txId?: string, options?: { confirmations?: number }) {
   const config = useSecondLayerConfig()
-  
+
+  // waitForTransactionReceipt polls internally (reorg-tolerant, typed
+  // abort/drop/timeout rejections) — no react-query refetchInterval needed.
   return useQuery({
-    queryKey: ['wait-for-transaction', txId, config.network],
-    queryFn: () => fetchTransaction({
-      txId: txId!,
-      network: config.network,
-      apiUrl: config.apiUrl
+    queryKey: ['wait-for-transaction', txId, config.network, options?.confirmations],
+    queryFn: () => waitForTransactionReceipt(getStacksClient(config), {
+      txid: txId!,
+      confirmations: options?.confirmations
     }),
     enabled: !!txId,
-    refetchInterval: (queryOrData: any) => {
-      // react-query v5 passes the query object, v4 passed the data — support both
-      const tx = queryOrData?.state?.data ?? queryOrData
-      // Stop polling when transaction is complete
-      if (tx?.tx_status === 'success' ||
-          tx?.tx_status === 'abort_by_response' ||
-          tx?.tx_status === 'abort_by_post_condition') {
-        return false
-      }
-      return 2000 // Poll every 2 seconds
-    },
-    staleTime: 0 // Always refetch
+    retry: false,
+    staleTime: Infinity
   })
 }`;
 
