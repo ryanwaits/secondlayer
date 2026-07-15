@@ -4,6 +4,10 @@ export {
 	BroadcastError,
 	SerializationError,
 	SigningError,
+	TransactionAbortedError,
+	TransactionDroppedError,
+	WaitForTransactionTimeoutError,
+	type TxRejectionReason,
 } from "./transaction.ts";
 export { ContractCallError, ReadOnlyCallError } from "./contract.ts";
 export { WebSocketError } from "./websocket.ts";

@@ -267,8 +267,17 @@ export function startNonceReconciler(
 /** True when a broadcast was rejected for a nonce conflict (`ConflictingNonceInMempool`, `BadNonce`). */
 export function isNonceConflictError(error: unknown): boolean {
 	if (!(error instanceof BroadcastError)) return false;
-	const haystack = `${error.reason ?? ""} ${error.message}`.toLowerCase();
-	return haystack.includes("nonce");
+	if (
+		error.reason === "ConflictingNonceInMempool" ||
+		error.reason === "BadNonce"
+	) {
+		return true;
+	}
+	// Typed reason present but not nonce-related — trust it over the message
+	// (e.g. a FeeTooLow message mentioning "nonce" must not trigger a reset).
+	if (error.reason !== undefined) return false;
+	// No structured reason (older nodes/proxies) — fall back to message match.
+	return error.message.toLowerCase().includes("nonce");
 }
 
 /**
