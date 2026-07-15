@@ -4,6 +4,24 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## SDK — July 2026
 
+### More node data, fewer silent failures
+
+New actions round out the read surface, and a fixed-up transport catches
+errors it used to swallow: `getContractSource`, `getRawBlock`,
+`getAccountHistory`, `getMempoolStats`, and `getNftHoldings` join the SDK's
+action set, and every read now throws instead of quietly treating a failed
+request as real data.
+
+- `getContractSource` and `getRawBlock` read straight from a stacks-node
+  (Clarity source, raw block headers) for cases the indexed extended API
+  can't serve.
+- `getAccountHistory`, `getMempoolStats`, and `getNftHoldings` — promoted out
+  of the AI-tools layer into first-class actions, also available on
+  `client.*`.
+- The HTTP transport throws a typed error on any failed request and now
+  retries rate limits (429), not just server errors — a 404 body no longer
+  gets parsed as if it were a successful response.
+
 ### Bitcoin addresses without the Bitcoin baggage
 
 Derive your paired BTC account — the `bc1q…`/`bc1p…` addresses Leather and

@@ -1,5 +1,13 @@
 # @secondlayer/cli
 
+## 9.0.2
+
+### Patch Changes
+
+- Remove dead devnet direct-RPC contract-fetch path from `StacksApiClient` — unreachable from any shipped `sl` command (no command ever resolves `network: 'devnet'` or passes a custom `apiUrl`). Internal cleanup only, no public API change.
+- Updated dependencies
+  - @secondlayer/stacks@2.14.0
+
 ## 9.0.1
 
 ### Patch Changes

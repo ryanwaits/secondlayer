@@ -1,5 +1,16 @@
 # @secondlayer/stacks
 
+## 2.14.0
+
+### Minor Changes
+
+- Transport and action surface consolidation:
+
+  - HTTP transport now throws a typed `HttpRequestError` (carries `status`) on any non-2xx response, instead of silently returning the error body as if it succeeded. Also now retries on `429` (previously only 5xx and network errors retried). **Behavior change**: code that previously read a 404/401 response body directly off `client.request(...)` will now see a thrown `HttpRequestError` instead — `getTransaction`/`waitForTransactionReceipt` and `sendTransaction`'s broadcast-rejection handling already account for this.
+  - New actions: `getContractSource` (`/v2/contracts/source`, node-RPC only), `getRawBlock` (`/v2/blocks/{height}`, raw node RPC — distinct from `getBlock`'s Hiro extended-API shape), `getAccountHistory`, `getMempoolStats`, `getNftHoldings` (promoted from the AI-tools layer into real SDK actions, also available via `client.*`).
+  - New `MalformedResponseError` thrown by `getBalance`, `getAccountInfo`, `getMapEntry`, `getBlockHeight`, `getBurnBlockHeight` when a node response is missing an expected field, instead of failing with an opaque native error.
+  - BNS `canRegister`/`getZonefile` no longer swallow network/transport failures into a misleading "available"/`null` result — only a contract-level `(err ...)` response (name genuinely unresolved) is treated that way now.
+
 ## 2.13.0
 
 ### Minor Changes
