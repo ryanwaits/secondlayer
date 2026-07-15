@@ -22,6 +22,8 @@ const transport = http("https://my-node.example.com", {
 });
 ```
 
+Non-2xx responses throw a typed `HttpRequestError` (`.status` attached) instead of resolving with the error body — check `e.status` rather than reading `client.request(...)`'s return value for failure. Retries cover `5xx`, network errors, and `429`.
+
 ## WebSocket
 
 ```typescript

@@ -82,6 +82,21 @@ const { receipt } = await sendTransaction(client, { transaction, wait: 2 });
 
 Status reads are pluggable, like nonce sources: the default reads `/extended/v1/tx` on your transport host; `indexTxSource()` reads Secondlayer's index, which returns the chain tip in the same response — N-confirmation waits cost one request per poll. Rejection reasons are typed too: `BroadcastError.reason` is a literal union of all 26 stacks-node rejection strings (with `reasonData` and `txid` attached).
 
+## Errors
+
+The HTTP transport throws a typed `HttpRequestError` (`.status` attached) on any non-2xx response instead of handing back the error body as if it were a successful result — and it retries `429`s now, not just `5xx`/network errors. `MalformedResponseError` throws from `getBalance`, `getAccountInfo`, `getMapEntry`, `getBlockHeight`, and `getBurnBlockHeight` when the node's response is missing an expected field, instead of failing with an opaque native error (`BigInt(undefined)` and friends). Both are exported from `@secondlayer/stacks`.
+
+```ts
+import { HttpRequestError, MalformedResponseError } from "@secondlayer/stacks";
+
+try {
+  await client.getBalance({ address });
+} catch (e) {
+  if (e instanceof HttpRequestError) e.status; // non-2xx from the node/API
+  if (e instanceof MalformedResponseError) { /* response shape didn't match */ }
+}
+```
+
 ## Bitcoin addresses from the same mnemonic
 
 Derive the paired BTC account (what Leather/Xverse show next to your Stacks address) with no extra dependencies — BIP84 native segwit or BIP86 taproot, network-aware:

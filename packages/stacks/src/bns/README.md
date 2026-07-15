@@ -34,6 +34,8 @@ const name = await client.bns.getPrimaryName("SP2J6...");
 
 // Check availability
 const available = await client.bns.canRegister("bob.btc");
+// `true` only means the contract call itself resolved to "name unknown" —
+// network/HTTP failures throw instead of being reported as "available".
 
 // Get price (microSTX)
 const price = await client.bns.getNamePrice("bob.btc");
@@ -86,6 +88,8 @@ await wallet.bns.setPrimary({ name: "alice.btc" });
 // Read zonefile
 const zonefile = await client.bns.getZonefile("alice.btc");
 if (zonefile) console.log(new TextDecoder().decode(zonefile));
+// `null` only means the contract genuinely has no zonefile set — network/HTTP
+// failures throw instead of being reported as "no zonefile".
 
 // Update zonefile
 await wallet.bns.updateZonefile({

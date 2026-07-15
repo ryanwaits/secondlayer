@@ -12,6 +12,19 @@ const nonce = await getNonce(client, { address: "SP2J6..." });
 const height = await getBlockHeight(client);
 ```
 
+`getAccountHistory`, `getMempoolStats`, and `getNftHoldings` cover paginated tx history, mempool stats, and NFT holdings — same actions the AI-tools layer (`@secondlayer/stacks/tools`) is built on, promoted here as first-class, standalone-importable actions.
+
+## Node-Only Reads
+
+`getContractSource` and `getRawBlock` hit a stacks-node's raw RPC (`/v2/contracts/source`, `/v2/blocks/{height}`) — not Hiro's extended API and not a tenant proxy, so `client` needs a direct node transport. `getRawBlock` is distinct from `getBlock` (which reads the indexed extended-API shape): it returns node/consensus fields like `index_block_hash` and `miner_txid`. Both return `null` on a 404 or missing data instead of throwing.
+
+```typescript
+import { getContractSource, getRawBlock } from "@secondlayer/stacks/actions";
+
+const src = await getContractSource(client, { contract: "SP2J6....my-contract" });
+const block = await getRawBlock(client, { height: 150_000 });
+```
+
 ## Contract Reads
 
 ```typescript
