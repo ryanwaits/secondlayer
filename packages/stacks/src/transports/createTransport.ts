@@ -1,3 +1,4 @@
+import { HttpRequestError } from "../errors/http.ts";
 import type {
 	RequestFn,
 	RequestOptions,
@@ -16,6 +17,11 @@ export function createTransport(
 	};
 }
 
+/** 5xx and 429 are transient — worth a retry. Every other status is not. */
+function isRetryableStatus(status: number): boolean {
+	return status === 429 || status >= 500;
+}
+
 export async function fetchWithRetry(
 	url: string,
 	options: RequestInit,
@@ -26,29 +32,39 @@ export async function fetchWithRetry(
 	let lastError: Error | undefined;
 
 	for (let attempt = 0; attempt <= retryCount; attempt++) {
+		let response: Response;
 		try {
 			const controller = new AbortController();
 			const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-			const response = await fetch(url, {
+			response = await fetch(url, {
 				...options,
 				signal: controller.signal,
 			});
 
 			clearTimeout(timeoutId);
-
-			if (response.ok || response.status < 500) {
-				return response;
-			}
-
-			lastError = new Error(`HTTP ${response.status}: ${response.statusText}`);
 		} catch (error) {
 			lastError = error instanceof Error ? error : new Error(String(error));
+			if (attempt < retryCount) {
+				await new Promise((r) => setTimeout(r, retryDelay * (attempt + 1)));
+				continue;
+			}
+			throw lastError;
 		}
 
-		if (attempt < retryCount) {
-			await new Promise((r) => setTimeout(r, retryDelay * (attempt + 1)));
+		if (response.ok) {
+			return response;
 		}
+
+		const retryable = isRetryableStatus(response.status);
+		if (!retryable || attempt === retryCount) {
+			throw new HttpRequestError(response.status, {
+				details: await response.text().catch(() => undefined),
+			});
+		}
+
+		lastError = new HttpRequestError(response.status);
+		await new Promise((r) => setTimeout(r, retryDelay * (attempt + 1)));
 	}
 
 	throw lastError ?? new Error("Request failed");

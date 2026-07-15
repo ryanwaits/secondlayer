@@ -1,6 +1,7 @@
 import type { TransactionReceipt } from "../../actions/public/txSources.ts";
 import { waitForTransactionReceipt } from "../../actions/public/waitForTransactionReceipt.ts";
 import type { Client } from "../../clients/types.ts";
+import { HttpRequestError } from "../../errors/http.ts";
 import { BroadcastError } from "../../errors/transaction.ts";
 import { getTransactionId } from "../../transactions/signer.ts";
 import type { StacksTransaction } from "../../transactions/types.ts";
@@ -39,10 +40,23 @@ export async function sendTransaction(
 				: bytesToHex(params.attachment);
 	}
 
-	const data = await client.request("/v2/transactions", {
-		method: "POST",
-		body,
-	});
+	// A stacks-node responds to a rejected broadcast with a non-2xx status
+	// (the transport now throws for that) but the rejection JSON — the thing
+	// this function actually needs — rides along as the error body.
+	let data: Awaited<ReturnType<Client["request"]>>;
+	try {
+		data = await client.request("/v2/transactions", { method: "POST", body });
+	} catch (error) {
+		if (error instanceof HttpRequestError && error.details) {
+			try {
+				data = JSON.parse(error.details);
+			} catch {
+				throw error;
+			}
+		} else {
+			throw error;
+		}
+	}
 
 	if (data.error) {
 		throw new BroadcastError(data.reason ?? data.error, {

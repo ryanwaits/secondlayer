@@ -10,5 +10,6 @@ export {
 	type TxRejectionReason,
 } from "./transaction.ts";
 export { ContractCallError, ReadOnlyCallError } from "./contract.ts";
+export { HttpRequestError } from "./http.ts";
 export { WebSocketError } from "./websocket.ts";
 export { SimulationError } from "./simulation.ts";

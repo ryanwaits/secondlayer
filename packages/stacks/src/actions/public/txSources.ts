@@ -1,6 +1,7 @@
 import { deserializeCVBytes } from "../../clarity/deserialize.ts";
 import type { ClarityValue } from "../../clarity/types.ts";
 import type { Client } from "../../clients/types.ts";
+import { HttpRequestError } from "../../errors/http.ts";
 
 /**
  * Pluggable transaction-status sources for {@link getTransaction} /
@@ -96,14 +97,21 @@ function normalizeStatus(txStatus: string): TransactionStatus | undefined {
 export function extendedApiSource(): TransactionStatusSource {
 	return {
 		async get({ client, txid }) {
-			const data = await client.request(
-				`/extended/v1/tx/${normalizeTxid(txid)}`,
-				{ method: "GET" },
-			);
+			let data: Awaited<ReturnType<Client["request"]>>;
+			try {
+				data = await client.request(`/extended/v1/tx/${normalizeTxid(txid)}`, {
+					method: "GET",
+				});
+			} catch (error) {
+				if (error instanceof HttpRequestError && error.status === 404) {
+					return { receipt: null };
+				}
+				throw error;
+			}
 
 			const txStatus =
 				typeof data?.tx_status === "string" ? data.tx_status : undefined;
-			if (!txStatus) return { receipt: null }; // 404 body or unexpected shape
+			if (!txStatus) return { receipt: null }; // unexpected shape
 
 			const status = normalizeStatus(txStatus);
 			if (!status) return { receipt: null };
