@@ -1,4 +1,5 @@
 import type { Client } from "../clients/types.ts";
+import { MalformedResponseError } from "../errors/response.ts";
 
 /**
  * SIP-044 (the native Bitcoin SPV built-ins) activates as part of the **Stacks
@@ -21,7 +22,9 @@ export async function getBurnBlockHeight(client: Client): Promise<number> {
 		burn_block_height?: number;
 	};
 	if (typeof info?.burn_block_height !== "number") {
-		throw new Error("could not read burn_block_height from /v2/info");
+		throw new MalformedResponseError(
+			'getBurnBlockHeight: /v2/info response is missing "burn_block_height"',
+		);
 	}
 	return info.burn_block_height;
 }

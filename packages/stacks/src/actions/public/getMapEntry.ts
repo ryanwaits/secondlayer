@@ -2,6 +2,7 @@ import { deserializeCVBytes } from "../../clarity/deserialize.ts";
 import { serializeCVBytes } from "../../clarity/serialize.ts";
 import type { ClarityValue } from "../../clarity/types.ts";
 import type { Client } from "../../clients/types.ts";
+import { MalformedResponseError } from "../../errors/response.ts";
 import { parseContractId } from "../../utils/address.ts";
 import { bytesToHex, with0x } from "../../utils/encoding.ts";
 
@@ -26,5 +27,10 @@ export async function getMapEntry<T extends ClarityValue = ClarityValue>(
 		},
 	);
 
+	if (typeof data?.data !== "string") {
+		throw new MalformedResponseError(
+			`getMapEntry: /v2/map_entry/${address}/${name}/${params.mapName} response is missing "data"`,
+		);
+	}
 	return deserializeCVBytes<T>(data.data);
 }

@@ -11,5 +11,6 @@ export {
 } from "./transaction.ts";
 export { ContractCallError, ReadOnlyCallError } from "./contract.ts";
 export { HttpRequestError } from "./http.ts";
+export { MalformedResponseError } from "./response.ts";
 export { WebSocketError } from "./websocket.ts";
 export { SimulationError } from "./simulation.ts";

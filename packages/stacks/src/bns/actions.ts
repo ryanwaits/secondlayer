@@ -118,15 +118,18 @@ export async function canRegister(
 	const bns = getBnsContract(client);
 
 	// No can-register-name function — use can-resolve-name instead.
-	// If it resolves, the name is taken. If it errors, it's available.
+	// If it resolves, the name is taken. If the contract call errors (name
+	// unknown), it's available. Network/HTTP failures propagate instead of
+	// being mistaken for "available".
 	try {
 		await bns.read.canResolveName({
 			namespace: stringToBytes(namespace),
 			name: stringToBytes(name),
 		});
 		return false; // resolved = taken
-	} catch {
-		return true; // error = available
+	} catch (e) {
+		if (e instanceof ContractResponseError) return true; // errored = available
+		throw e;
 	}
 }
 
@@ -426,9 +429,11 @@ export async function getZonefile(
 		})) as Uint8Array | null;
 
 		return result;
-	} catch {
-		// Contract returns (err 101) when no zonefile is set
-		return null;
+	} catch (e) {
+		// Contract returns (err 101) when no zonefile is set. Network/HTTP
+		// failures propagate instead of being mistaken for "no zonefile".
+		if (e instanceof ContractResponseError) return null;
+		throw e;
 	}
 }
 
