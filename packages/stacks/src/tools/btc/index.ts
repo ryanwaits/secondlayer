@@ -45,9 +45,12 @@ async function get<T>(path: string): Promise<T> {
 const BTC_TXID = z
 	.string()
 	.regex(/^[0-9a-fA-F]{64}$/, "64-character hex BTC txid");
-const BTC_ADDRESS = z
+export const BTC_ADDRESS = z
 	.string()
-	.describe("Bitcoin address (legacy, segwit, or taproot)");
+	.regex(
+		/^(1[a-zA-HJ-NP-Z0-9]{25,34}|3[a-zA-HJ-NP-Z0-9]{25,34}|bc1[a-zA-HJ-NP-Z0-9]{11,71}|tb1[a-zA-HJ-NP-Z0-9]{11,71})$/,
+		{ message: "Invalid Bitcoin address" },
+	);
 
 export const btcConfirmations: LooseTool = tool({
 	description:
@@ -77,7 +80,7 @@ export const btcBalance: LooseTool = tool({
 		const info = await get<{
 			chain_stats: { funded_txo_sum: number; spent_txo_sum: number };
 			mempool_stats: { funded_txo_sum: number; spent_txo_sum: number };
-		}>(`/api/address/${address}`);
+		}>(`/api/address/${encodeURIComponent(address)}`);
 		return {
 			confirmedSat:
 				info.chain_stats.funded_txo_sum - info.chain_stats.spent_txo_sum,
@@ -102,7 +105,7 @@ export const btcUtxos: LooseTool = tool({
 				value: number;
 				status: { confirmed: boolean; block_height?: number };
 			}>
-		>(`/api/address/${address}/utxo`);
+		>(`/api/address/${encodeURIComponent(address)}/utxo`);
 		return { utxos: utxos.slice(0, limit) };
 	},
 });
