@@ -223,15 +223,24 @@ describe("startNonceReconciler", () => {
 
 		state.next = 10n;
 		const results: boolean[] = [];
+		let clockMs = 0;
+		const clock = {
+			advance: async (ms: number) => {
+				clockMs += ms;
+				await new Promise((r) => setTimeout(r, 0)); // yield for async cleanup
+			},
+			now: () => clockMs,
+		};
 		const handle = startNonceReconciler(manager, {
 			client,
 			addresses: [ADDR],
 			source,
 			intervalMs: 5,
 			onReconcile: (_addr, r) => results.push(r.reset),
+			clock,
 		});
 
-		await new Promise((r) => setTimeout(r, 30));
+		await clock.advance(30);
 		handle.stop();
 
 		expect(results.some((reset) => reset)).toBe(true);

@@ -216,6 +216,12 @@ export type StartNonceReconcilerParams = {
 	onReconcile?: (address: string, result: ReconcileNonceResult) => void;
 	/** Per-address error callback; reconciliation continues on the next tick. */
 	onError?: (address: string, error: unknown) => void;
+	/** Optional test clock. If provided, the reconciler advances time via
+	 *  `clock.advance(ms)` instead of real `setInterval`. */
+	clock?: {
+		advance: (ms: number) => Promise<void>;
+		now: () => number;
+	};
 };
 
 /**
@@ -231,10 +237,12 @@ export function startNonceReconciler(
 	manager: NonceManager,
 	params: StartNonceReconcilerParams,
 ): { stop: () => void } {
-	const { client, addresses, source } = params;
+	const { client, addresses, source, clock } = params;
 	const intervalMs = params.intervalMs ?? 60_000;
+	let running = true;
 
 	const tick = async () => {
+		if (!running) return;
 		for (const address of addresses) {
 			try {
 				const result = await reconcileNonce(manager, {
@@ -253,7 +261,20 @@ export function startNonceReconciler(
 				}
 			}
 		}
+		if (running && clock) {
+			await clock.advance(intervalMs);
+			tick();
+		}
 	};
+
+	if (clock) {
+		tick();
+		return {
+			stop: () => {
+				running = false;
+			},
+		};
+	}
 
 	const timer = setInterval(tick, intervalMs);
 	// Don't keep the event loop alive solely for reconciliation (Node/Bun).

@@ -255,6 +255,14 @@ describe("startNonceReconciler", () => {
 		const manager = createNonceManager({ source: { get: async () => 1n } });
 
 		let onErrorCalls = 0;
+		let clockMs = 0;
+		const clock = {
+			advance: async (ms: number) => {
+				clockMs += ms;
+				await new Promise((r) => setTimeout(r, 0)); // yield for async cleanup
+			},
+			now: () => clockMs,
+		};
 		const handle = startNonceReconciler(manager, {
 			client,
 			addresses: [ACCOUNT.address],
@@ -269,11 +277,13 @@ describe("startNonceReconciler", () => {
 				onErrorCalls++;
 				throw new Error("callback boom"); // must NOT crash the loop / leak a rejection
 			},
+			clock,
 		});
 
-		// Let at least one tick fire. If the throwing onError leaked as an unhandled
-		// rejection, bun:test fails the run. We also assert the branch actually ran.
-		await new Promise((r) => setTimeout(r, 30));
+		// Advance the test clock — ticks fire deterministically, no real timers.
+		// If the throwing onError leaked as an unhandled rejection, bun:test fails
+		// the run. We also assert the branch actually ran.
+		await clock.advance(30);
 		handle.stop();
 		expect(onErrorCalls).toBeGreaterThan(0);
 	});
