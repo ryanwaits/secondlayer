@@ -99,7 +99,7 @@ describe("simulateTransaction", () => {
 				return { okay: true, result: Cl.serialize(Cl.ok(Cl.bool(true))) };
 			}
 			if (path.includes("/v2/fees/transaction")) {
-				return { estimations: [{ feeRate: 1, fee: 200 }] };
+				return { estimations: [{ fee_rate: 1, fee: 200 }] };
 			}
 			return {};
 		});
@@ -122,7 +122,7 @@ describe("simulateTransaction", () => {
 				return { okay: false, cause: "Unchecked(NoSuchContract)" };
 			}
 			if (path.includes("/v2/fees/transaction")) {
-				return { estimations: [{ feeRate: 1, fee: 100 }] };
+				return { estimations: [{ fee_rate: 1, fee: 100 }] };
 			}
 			return {};
 		});
@@ -140,7 +140,7 @@ describe("simulateTransaction", () => {
 
 	it("token transfer → returns fees only", async () => {
 		const client = createMockClient(async () => ({
-			estimations: [{ feeRate: 1, fee: 180 }],
+			estimations: [{ fee_rate: 1, fee: 180 }],
 		}));
 
 		const result = await simulateTransaction(client, {
@@ -156,7 +156,7 @@ describe("simulateTransaction", () => {
 
 	it("contract deploy → returns fees only", async () => {
 		const client = createMockClient(async () => ({
-			estimations: [{ feeRate: 2, fee: 5000 }],
+			estimations: [{ fee_rate: 2, fee: 5000 }],
 		}));
 
 		const result = await simulateTransaction(client, {

@@ -1,4 +1,5 @@
 import type { Client } from "../../clients/types.ts";
+import { MalformedResponseError } from "../../errors/response.ts";
 import type { StacksTransaction } from "../../transactions/types.ts";
 import {
 	serializePayload,
@@ -15,6 +16,21 @@ export type FeeEstimation = {
 	fee: number;
 };
 
+function isValidEstimation(
+	e: unknown,
+): e is { fee_rate: number | string; fee: number | string } {
+	return (
+		typeof e === "object" &&
+		e !== null &&
+		"fee_rate" in e &&
+		"fee" in e &&
+		(typeof (e as Record<string, unknown>).fee_rate === "number" ||
+			typeof (e as Record<string, unknown>).fee_rate === "string") &&
+		(typeof (e as Record<string, unknown>).fee === "number" ||
+			typeof (e as Record<string, unknown>).fee === "string")
+	);
+}
+
 export async function estimateFee(
 	client: Client,
 	params: EstimateFeeParams,
@@ -30,9 +46,16 @@ export async function estimateFee(
 		},
 	});
 
-	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-	return (data.estimations ?? []).map((e: any) => ({
-		feeRate: e.fee_rate,
-		fee: e.fee,
-	}));
+	const raw = (data as { estimations?: unknown[] })?.estimations ?? [];
+	return raw.map((e) => {
+		if (!isValidEstimation(e)) {
+			throw new MalformedResponseError(
+				"estimateFee: node response contains invalid fee estimation entry",
+			);
+		}
+		return {
+			feeRate: Number(e.fee_rate),
+			fee: Number(e.fee),
+		};
+	});
 }
