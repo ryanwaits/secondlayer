@@ -45,7 +45,7 @@ async function get<T>(path: string): Promise<T> {
 const BTC_TXID = z
 	.string()
 	.regex(/^[0-9a-fA-F]{64}$/, "64-character hex BTC txid");
-export const BTC_ADDRESS = z
+export const BTC_ADDRESS: z.ZodString = z
 	.string()
 	.regex(
 		/^(1[a-zA-HJ-NP-Z0-9]{25,34}|3[a-zA-HJ-NP-Z0-9]{25,34}|bc1[a-zA-HJ-NP-Z0-9]{11,71}|tb1[a-zA-HJ-NP-Z0-9]{11,71})$/,
