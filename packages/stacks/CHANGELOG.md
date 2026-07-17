@@ -1,5 +1,16 @@
 # @secondlayer/stacks
 
+## 2.16.0
+
+### Minor Changes
+
+- Add typed `cvTo*` narrowing helpers, memoize transaction serialization, and preserve `_multisig` through wallet round-trips.
+
+  - New helpers `cvToBigInt`, `cvToString`, `cvToBuffer`, `cvToBoolean`, `cvToPrincipal` narrow a `ClarityValue` to a typed primitive or throw a descriptive error. `cvToJSON`/`cvToValue` are unchanged — the helpers are opt-in.
+  - `serializeTransaction` is memoized per transaction object (`WeakMap`), removing redundant serializations across multisig and sponsored signing flows. Wire bytes are unchanged; in-place mutations (`setUnsignedFee`, and fee estimation in `getContract`'s `buildCall` and the multisig client decorator) invalidate the cache.
+  - `_multisig` is now a typed optional field on `StacksTransaction`, preserved across provider-wallet round-trips via `serializeTransactionWithMeta` and an optional `meta` param on `deserializeTransaction`. Multi-sig auto-detection no longer breaks after `stx_signTransaction` returns a fresh transaction.
+  - Tests: nonce reconciler tests run on a deterministic injected clock (no real timers).
+
 ## 2.15.1
 
 ### Patch Changes

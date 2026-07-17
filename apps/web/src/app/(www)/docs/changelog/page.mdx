@@ -4,6 +4,22 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## SDK — July 2026
 
+### Typed Clarity narrowing, cheaper signing
+
+`cvToJSON` returns `any`, which switches the compiler off at the exact boundary
+where Clarity meets your code. Five new helpers — `cvToBigInt`, `cvToString`,
+`cvToBuffer`, `cvToBoolean`, `cvToPrincipal` — narrow a `ClarityValue` to a
+typed primitive or throw with a message naming the mismatch, so a wrong
+assumption fails at the call site instead of three functions later.
+
+- Signing is cheaper: transaction serialization is memoized per object, so
+  multi-sig and sponsored flows no longer re-serialize the same transaction on
+  every signer step. Wire bytes are unchanged.
+- Multi-sig metadata survives the wallet round-trip: `_multisig` signer keys
+  set at build time carry through provider signing, so auto-detection keeps
+  working after `stx_signTransaction` returns.
+- `cvToJSON` and `cvToValue` are untouched — existing code keeps working.
+
 ### PoX-5 Bitcoin Staking, two weeks before the fork
 
 Build against SIP-045 today: the new `@secondlayer/stacks/pox5` module ships
