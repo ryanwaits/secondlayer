@@ -1,3 +1,4 @@
+import { isClarityValue } from "../clarity/bridge.ts";
 import { serializeCVBytes } from "../clarity/serialize.ts";
 import { bytesToHex } from "../utils/encoding.ts";
 import { ConnectError, JsonRpcError } from "./errors.ts";
@@ -11,18 +12,6 @@ const POST_CONDITION_TYPES = new Set([
 	"nft-postcondition",
 ]);
 
-function isClarityValue(obj: unknown): obj is { type: string } {
-	return (
-		typeof obj === "object" &&
-		obj !== null &&
-		"type" in obj &&
-		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-		typeof (obj as any).type === "string" &&
-		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-		!POST_CONDITION_TYPES.has((obj as any).type)
-	);
-}
-
 function serializeParams(value: unknown): unknown {
 	if (value === null || value === undefined) return value;
 	if (typeof value === "bigint") return value.toString();
@@ -35,8 +24,7 @@ function serializeParams(value: unknown): unknown {
 		if (POST_CONDITION_TYPES.has((value as any).type)) return value;
 
 		if (isClarityValue(value)) {
-			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-			return bytesToHex(serializeCVBytes(value as any));
+			return bytesToHex(serializeCVBytes(value));
 		}
 
 		const result: Record<string, unknown> = {};

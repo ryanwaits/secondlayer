@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { Cl } from "../../clarity/values.ts";
 import { ConnectError, JsonRpcError } from "../errors.ts";
 import { request } from "../request.ts";
 import type { WalletProvider } from "../types.ts";
@@ -212,5 +213,40 @@ describe("request", () => {
 		});
 
 		expect(result).toEqual(expected);
+	});
+
+	test("does not treat fake { type: string } objects as Clarity values", async () => {
+		const mockRequest = mock(() => Promise.resolve({}));
+		setProvider({ request: mockRequest });
+
+		const fake = { type: "foo", value: "bar" };
+		await request("stx_callContract", {
+			contract: "SP123.test",
+			functionName: "foo",
+			functionArgs: [fake],
+			network: "mainnet",
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		} as any);
+
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const sent = (mockRequest.mock.calls[0] as any)[1] as any;
+		expect(sent.functionArgs[0]).toEqual(fake);
+	});
+
+	test("serializes real Clarity values to hex in params", async () => {
+		const mockRequest = mock(() => Promise.resolve({}));
+		setProvider({ request: mockRequest });
+
+		await request("stx_callContract", {
+			contract: "SP123.test",
+			functionName: "foo",
+			functionArgs: [Cl.uint(1)],
+			network: "mainnet",
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		} as any);
+
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const sent = (mockRequest.mock.calls[0] as any)[1] as any;
+		expect(sent.functionArgs[0]).toBe("0100000000000000000000000000000001");
 	});
 });
