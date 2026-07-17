@@ -35,5 +35,14 @@
 		"../stacks/src/**/*",
 		"../subgraphs/src/**/*"
 	],
-	"exclude": ["node_modules", "dist"]
+	"exclude": [
+		"node_modules",
+		"dist",
+		"**/*.test.ts",
+		"**/*.test.tsx",
+		"**/__tests__/**",
+		"../stacks/src/**/__tests__/**",
+		"../stacks/src/**/*.test.ts",
+		"../stacks/src/**/*.test.tsx"
+	]
 }
