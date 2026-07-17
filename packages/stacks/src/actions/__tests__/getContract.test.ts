@@ -9,6 +9,9 @@ import type {
 } from "../../clarity/abi/index.ts";
 import { Cl } from "../../clarity/values.ts";
 import type { Client } from "../../clients/types.ts";
+import { buildContractCall } from "../../transactions/build.ts";
+import { serializeTransaction } from "../../transactions/wire/serialize.ts";
+import { bytesToHex } from "../../utils/encoding.ts";
 import { ContractResponseError, getContract } from "../getContract.ts";
 
 const TEST_ABI = {
@@ -225,6 +228,56 @@ describe("getContract", () => {
 			expect(tx.auth.spendingCondition.fee).toBe(200n);
 			// explicit fee + nonce → no network calls, nothing broadcast
 			expect(requested).toBe(false);
+		});
+
+		it("fee estimation invalidates the cached serialization (ST-011 regression)", async () => {
+			const mockClient = createMockClient(async () => ({
+				estimations: [
+					{ fee_rate: 1, fee: 100 },
+					{ fee_rate: 2, fee: 250 },
+					{ fee_rate: 3, fee: 900 },
+				],
+			}));
+
+			const contract = getContract({
+				client: mockClient,
+				address: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+				name: "my-token",
+				abi: TEST_ABI,
+			});
+
+			// no fee → estimateFee serializes the tx (fee=0) before the fee is
+			// set in place; that mutation must invalidate the memoized bytes
+			const tx = await contract.buildCall.transfer(
+				{
+					amount: 100n,
+					sender: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+					recipient: "SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE",
+					memo: null,
+				},
+				{ publicKey: PUBKEY, nonce: 7n },
+			);
+
+			expect(tx.auth.spendingCondition.fee).toBe(250n);
+
+			const expected = buildContractCall({
+				contractAddress: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+				contractName: "my-token",
+				functionName: "transfer",
+				functionArgs: [
+					Cl.uint(100n),
+					Cl.principal("SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7"),
+					Cl.principal("SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE"),
+					Cl.none(),
+				],
+				fee: 250n,
+				nonce: 7n,
+				publicKey: PUBKEY,
+			});
+
+			expect(bytesToHex(serializeTransaction(tx))).toBe(
+				bytesToHex(serializeTransaction(expected)),
+			);
 		});
 
 		it("throws without a publicKey or client account", async () => {

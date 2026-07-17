@@ -30,6 +30,7 @@ import { getMapEntry } from "./public/getMapEntry.ts";
 import { readContract } from "./public/readContract.ts";
 import { callContract } from "./wallet/callContract.ts";
 import { resolveNonce } from "./wallet/nonceManager.ts";
+import { setUnsignedFee } from "./wallet/utils.ts";
 
 // --- Type helpers for unwrapping response types ---
 
@@ -279,8 +280,7 @@ export function getContract<const TAbi extends AbiContract>(
 					});
 					const mid = estimates[1] ?? estimates[0];
 					if (mid) {
-						// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-						(unsigned.auth.spendingCondition as any).fee = BigInt(mid.fee);
+						setUnsignedFee(unsigned, BigInt(mid.fee));
 					}
 				}
 
