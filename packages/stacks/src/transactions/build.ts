@@ -228,8 +228,7 @@ export function buildTokenTransfer(
 	};
 
 	if (options.publicKeys) {
-		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-		(tx as any)._multisig = { publicKeys: options.publicKeys };
+		tx._multisig = { publicKeys: options.publicKeys };
 	}
 	return tx;
 }
@@ -260,8 +259,7 @@ export function buildContractCall(
 	};
 
 	if (options.publicKeys) {
-		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-		(tx as any)._multisig = { publicKeys: options.publicKeys };
+		tx._multisig = { publicKeys: options.publicKeys };
 	}
 	return tx;
 }
@@ -294,8 +292,7 @@ export function buildContractDeploy(
 	};
 
 	if (options.publicKeys) {
-		// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-		(tx as any)._multisig = { publicKeys: options.publicKeys };
+		tx._multisig = { publicKeys: options.publicKeys };
 	}
 	return tx;
 }

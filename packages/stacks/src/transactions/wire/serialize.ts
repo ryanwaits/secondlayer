@@ -291,3 +291,13 @@ export function serializeTransaction(tx: StacksTransaction): Uint8Array {
 export function serializeTransactionHex(tx: StacksTransaction): string {
 	return bytesToHex(serializeTransaction(tx));
 }
+
+/** Serialize a transaction, returning the wire bytes plus the out-of-band
+ *  `_multisig` metadata so callers can preserve it across a round-trip
+ *  (the wire format itself does not carry it). */
+export function serializeTransactionWithMeta(tx: StacksTransaction): {
+	bytes: Uint8Array;
+	_multisig?: { publicKeys: string[] };
+} {
+	return { bytes: serializeTransaction(tx), _multisig: tx._multisig };
+}

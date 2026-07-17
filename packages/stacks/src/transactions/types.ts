@@ -271,6 +271,9 @@ export type StacksTransaction = {
 	postConditionMode: PostConditionModeWire;
 	postConditions: PostConditionWire[];
 	payload: TransactionPayload;
+	/** Multi-sig signer metadata — not part of the wire format, preserved
+	 *  through serialize/deserialize round-trip for auto-detection. */
+	_multisig?: { publicKeys: string[] };
 };
 
 // Wire post condition types

@@ -309,12 +309,13 @@ function readPayload(r: BytesReader): TransactionPayload {
 
 export function deserializeTransaction(
 	input: string | Uint8Array,
+	meta?: { _multisig?: { publicKeys: string[] } },
 ): StacksTransaction {
 	const bytes =
 		typeof input === "string" ? hexToBytes(without0x(input)) : input;
 	const r = new BytesReader(bytes);
 
-	return {
+	const tx: StacksTransaction = {
 		version: r.readUInt8(),
 		chainId: r.readUInt32BE(),
 		auth: readAuthorization(r),
@@ -323,4 +324,8 @@ export function deserializeTransaction(
 		postConditions: readPostConditions(r),
 		payload: readPayload(r),
 	};
+	if (meta?._multisig) {
+		tx._multisig = meta._multisig;
+	}
+	return tx;
 }

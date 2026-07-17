@@ -1,9 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { getPublicKey } from "@noble/secp256k1";
 import { privateKeyToAccount } from "../../accounts/privateKeyToAccount.ts";
+import { signTransactionAction } from "../../actions/wallet/signTransaction.ts";
 import { mainnet, testnet } from "../../chains/definitions.ts";
+import { createWalletClient } from "../../clients/createWalletClient.ts";
+import type { Client } from "../../clients/types.ts";
+import { custom } from "../../transports/custom.ts";
 import { bytesToHex, hexToBytes } from "../../utils/encoding.ts";
-import { buildTokenTransfer } from "../build.ts";
+import { buildContractCall, buildTokenTransfer } from "../build.ts";
 import {
 	combineMultiSigSignatures,
 	createMultiSigSpendingCondition,
@@ -16,7 +20,10 @@ import {
 import { AddressHashMode } from "../types.ts";
 import type { MultiSigSpendingCondition } from "../types.ts";
 import { deserializeTransaction } from "../wire/deserialize.ts";
-import { serializeTransaction } from "../wire/serialize.ts";
+import {
+	serializeTransaction,
+	serializeTransactionHex,
+} from "../wire/serialize.ts";
 
 // 3 deterministic test keys
 const KEY1 = "6d430bb91222b0a96b16a8b2631b82895f45e9a68e5b34fdf202dfb25b111de1";
@@ -249,8 +256,7 @@ describe("multi-sig", () => {
 
 			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 			expect((tx as any)._multisig).toBeDefined();
-			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
-			expect((tx as any)._multisig.publicKeys).toEqual(publicKeys);
+			expect(tx._multisig?.publicKeys).toEqual(publicKeys);
 		});
 
 		test("buildTokenTransfer does not attach _multisig for single-sig", () => {
@@ -262,8 +268,91 @@ describe("multi-sig", () => {
 				publicKey: pubkey1,
 			});
 
-			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
-			expect((tx as any)._multisig).toBeUndefined();
+			expect(tx._multisig).toBeUndefined();
+		});
+	});
+
+	describe("_multisig wire round-trip (ST-010)", () => {
+		const buildMultisigCall = () =>
+			buildContractCall({
+				contractAddress: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+				contractName: "hello-world",
+				functionName: "say-hi",
+				functionArgs: [],
+				fee: 200n,
+				nonce: 0n,
+				publicKeys,
+				signaturesRequired: 2,
+			});
+
+		test("buildContractCall with publicKeys sets _multisig", () => {
+			const tx = buildMultisigCall();
+			expect(tx._multisig).toBeDefined();
+			expect(tx._multisig?.publicKeys).toEqual(publicKeys);
+		});
+
+		test("bare serialize → deserialize loses _multisig (documented behavior)", () => {
+			const tx = buildMultisigCall();
+			expect(tx._multisig).toBeDefined();
+
+			const hex = serializeTransactionHex(tx);
+			const restored = deserializeTransaction(hex);
+			expect(restored._multisig).toBeUndefined();
+		});
+
+		test("deserializeTransaction with meta restores _multisig", () => {
+			const tx = buildMultisigCall();
+			const hex = serializeTransactionHex(tx);
+
+			const restored = deserializeTransaction(hex, {
+				_multisig: tx._multisig,
+			});
+			expect(restored._multisig?.publicKeys).toEqual(publicKeys);
+		});
+
+		test("signTransactionAction auto-detects multi-sig after round-trip with meta", async () => {
+			const account = privateKeyToAccount(KEY1);
+			const request = async (path: string) => {
+				throw new Error(`unexpected path ${path}`);
+			};
+			const client = createWalletClient({
+				chain: mainnet,
+				account,
+				transport: custom({ request }),
+			}) as unknown as Client;
+
+			const tx = buildMultisigCall();
+			const hex = serializeTransactionHex(tx);
+			const restored = deserializeTransaction(hex, {
+				_multisig: tx._multisig,
+			});
+
+			const signed = await signTransactionAction(client, {
+				transaction: restored,
+			});
+			const cond = signed.auth.spendingCondition as MultiSigSpendingCondition;
+			expect(cond.fields.length).toBe(1);
+			expect(cond.fields[0]?.type).toBe("signature");
+		});
+
+		test("signTransactionAction throws without meta after round-trip", async () => {
+			const account = privateKeyToAccount(KEY1);
+			const request = async (path: string) => {
+				throw new Error(`unexpected path ${path}`);
+			};
+			const client = createWalletClient({
+				chain: mainnet,
+				account,
+				transport: custom({ request }),
+			}) as unknown as Client;
+
+			const tx = buildMultisigCall();
+			const hex = serializeTransactionHex(tx);
+			const restored = deserializeTransaction(hex);
+
+			await expect(
+				signTransactionAction(client, { transaction: restored }),
+			).rejects.toThrow("Multi-sig signing requires signers");
 		});
 	});
 

@@ -26,15 +26,16 @@ export async function signTransactionAction(
 		const result = await account.provider.request("stx_signTransaction", {
 			transaction: hex,
 		});
-		return deserializeTransaction(result.transaction);
+		return deserializeTransaction(result.transaction, {
+			_multisig: params.transaction._multisig,
+		});
 	}
 
 	// Multi-sig: auto-detect from fields or _multisig metadata
 	const condition = params.transaction.auth.spendingCondition;
 	if ("fields" in condition) {
 		const publicKeys =
-			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-			params.signers ?? (params.transaction as any)._multisig?.publicKeys;
+			params.signers ?? params.transaction._multisig?.publicKeys;
 		if (!publicKeys)
 			throw new Error("Multi-sig signing requires signers (publicKeys)");
 		return signMultiSigWithAccount(params.transaction, account, publicKeys);
