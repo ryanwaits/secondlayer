@@ -1,5 +1,18 @@
 # @secondlayer/stacks
 
+## 2.15.1
+
+### Patch Changes
+
+- Harden node response parsing, validate AI tool inputs, and add 78 characterization tests.
+
+  - `getAccountInfo`/`getBalance`: guard against `null` node responses
+  - `estimateFee`: validate node response shape before mapping
+  - `connect/request`: use real `isClarityValue` guard from `clarity/bridge`
+  - `tools/btc`: strict Bitcoin address regex + URL-encode before interpolation
+  - `tools/fee`: hex format validation + try/catch around deserialization
+  - Tests: `Pc` builder, all AI tools, account derivation vectors, request guard
+
 ## 2.15.0
 
 ### Minor Changes
