@@ -139,3 +139,45 @@ export function cvToValue(val: ClarityValue): any {
 			return val.value;
 	}
 }
+
+/** Narrow to bigint; throws unless `val` is an int or uint. */
+export function cvToBigInt(val: ClarityValue): bigint {
+	if (val.type !== "int" && val.type !== "uint") {
+		throw new Error(`cvToBigInt: expected int or uint, got ${val.type}`);
+	}
+	return val.value;
+}
+
+/** Narrow to string; throws unless `val` is an ascii or utf8 string. */
+export function cvToString(val: ClarityValue): string {
+	if (val.type !== "ascii" && val.type !== "utf8") {
+		throw new Error(`cvToString: expected ascii or utf8, got ${val.type}`);
+	}
+	return val.value;
+}
+
+/** Narrow to hex string (no 0x prefix); throws unless `val` is a buffer. */
+export function cvToBuffer(val: ClarityValue): string {
+	if (val.type !== "buffer") {
+		throw new Error(`cvToBuffer: expected buffer, got ${val.type}`);
+	}
+	return val.value;
+}
+
+/** Narrow to boolean; throws unless `val` is a bool. */
+export function cvToBoolean(val: ClarityValue): boolean {
+	if (val.type !== "true" && val.type !== "false") {
+		throw new Error(`cvToBoolean: expected bool, got ${val.type}`);
+	}
+	return val.type === "true";
+}
+
+/** Narrow to principal string; throws unless `val` is a standard or contract principal. */
+export function cvToPrincipal(val: ClarityValue): string {
+	if (val.type !== "address" && val.type !== "contract") {
+		throw new Error(
+			`cvToPrincipal: expected principal or contract, got ${val.type}`,
+		);
+	}
+	return val.value;
+}

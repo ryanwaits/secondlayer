@@ -46,7 +46,16 @@ export {
 
 export { serializeCV, serializeCVBytes } from "./serialize.ts";
 export { deserializeCV, deserializeCVBytes } from "./deserialize.ts";
-export { prettyPrint, cvToJSON, cvToValue } from "./prettyPrint.ts";
+export {
+	prettyPrint,
+	cvToJSON,
+	cvToValue,
+	cvToBigInt,
+	cvToString,
+	cvToBuffer,
+	cvToBoolean,
+	cvToPrincipal,
+} from "./prettyPrint.ts";
 
 // ABI type system
 export * from "./abi/index.ts";
