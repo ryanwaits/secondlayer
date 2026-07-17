@@ -260,8 +260,22 @@ export function serializePayload(payload: TransactionPayload): Uint8Array {
 	return concatBytes(...parts);
 }
 
+// Memoization cache: transactions are immutable in practice (fields are set
+// once during build/signing), so the serialized bytes for a given transaction
+// object never change. The signing flow serializes the same object several
+// times (txid, sighash, sponsor sighash); caching avoids that redundant work.
+// Any in-place mutation MUST call clearTxCache — see setUnsignedFee.
+const _txCache = new WeakMap<StacksTransaction, Uint8Array>();
+
+/** Invalidate the memoized serialization of a mutated transaction */
+export function clearTxCache(tx: StacksTransaction): void {
+	_txCache.delete(tx);
+}
+
 export function serializeTransaction(tx: StacksTransaction): Uint8Array {
-	return concatBytes(
+	const cached = _txCache.get(tx);
+	if (cached) return cached;
+	const bytes = concatBytes(
 		writeUInt8(tx.version),
 		writeUInt32BE(tx.chainId),
 		serializeAuthorization(tx.auth),
@@ -270,6 +284,8 @@ export function serializeTransaction(tx: StacksTransaction): Uint8Array {
 		serializePostConditions(tx.postConditions),
 		serializePayload(tx.payload),
 	);
+	_txCache.set(tx, bytes);
+	return bytes;
 }
 
 export function serializeTransactionHex(tx: StacksTransaction): string {

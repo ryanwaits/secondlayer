@@ -1,7 +1,10 @@
 import type { ProviderAccount } from "../../accounts/types.ts";
 import type { Account, Client } from "../../clients/types.ts";
 import type { StacksTransaction } from "../../transactions/types.ts";
-import { serializeTransaction } from "../../transactions/wire/serialize.ts";
+import {
+	clearTxCache,
+	serializeTransaction,
+} from "../../transactions/wire/serialize.ts";
 import type { IntegerType } from "../../utils/encoding.ts";
 import { intToBigInt } from "../../utils/encoding.ts";
 import { estimateFee } from "../public/estimateFee.ts";
@@ -72,6 +75,9 @@ export function setUnsignedFee(
 ): void {
 	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	(transaction.auth.spendingCondition as any).fee = fee;
+	// In-place mutation: invalidate the memoized serialization (resolveFee may
+	// have already serialized this object via minimumFee/estimateFee).
+	clearTxCache(transaction);
 }
 
 /** Throw when a named fee tier is used with a provider (wallet) account. */
