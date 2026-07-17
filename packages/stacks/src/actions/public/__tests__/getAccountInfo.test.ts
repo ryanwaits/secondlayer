@@ -37,4 +37,38 @@ describe("getAccountInfo", () => {
 			getAccountInfo(mockClient({ balance: "1" }), { address: "SP..." }),
 		).rejects.toThrow(MalformedResponseError);
 	});
+
+	it("throws MalformedResponseError when balance is null", async () => {
+		await expect(
+			getAccountInfo(mockClient({ balance: null, nonce: 1 }), {
+				address: "SP...",
+			}),
+		).rejects.toThrow(MalformedResponseError);
+	});
+
+	it("throws MalformedResponseError when nonce is null", async () => {
+		await expect(
+			getAccountInfo(mockClient({ balance: "1", nonce: null }), {
+				address: "SP...",
+			}),
+		).rejects.toThrow(MalformedResponseError);
+	});
+
+	it("parses number balance and nonce", async () => {
+		const info = await getAccountInfo(
+			mockClient({
+				balance: 100,
+				nonce: 7,
+				balance_proof: "",
+				nonce_proof: "",
+			}),
+			{ address: "SP..." },
+		);
+		expect(info).toEqual({
+			balance: 100n,
+			nonce: 7n,
+			balanceProof: "",
+			nonceProof: "",
+		});
+	});
 });

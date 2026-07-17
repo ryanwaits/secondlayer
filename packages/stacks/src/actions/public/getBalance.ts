@@ -12,10 +12,11 @@ export async function getBalance(
 	const data = await client.request(`/v2/accounts/${params.address}`, {
 		method: "GET",
 	});
-	if (data?.balance === undefined) {
+	const balance = (data as { balance?: unknown })?.balance;
+	if (typeof balance !== "string" && typeof balance !== "number") {
 		throw new MalformedResponseError(
 			`getBalance: /v2/accounts/${params.address} response is missing "balance"`,
 		);
 	}
-	return BigInt(data.balance);
+	return BigInt(balance);
 }

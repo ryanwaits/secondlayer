@@ -19,14 +19,19 @@ export async function getAccountInfo(
 	const data = await client.request(`/v2/accounts/${params.address}?proof=1`, {
 		method: "GET",
 	});
-	if (data?.balance === undefined || data?.nonce === undefined) {
+	const balance = (data as { balance?: unknown })?.balance;
+	const nonce = (data as { nonce?: unknown })?.nonce;
+	if (
+		(typeof balance !== "string" && typeof balance !== "number") ||
+		(typeof nonce !== "string" && typeof nonce !== "number")
+	) {
 		throw new MalformedResponseError(
 			`getAccountInfo: /v2/accounts/${params.address} response is missing "balance" or "nonce"`,
 		);
 	}
 	return {
-		balance: BigInt(data.balance),
-		nonce: BigInt(data.nonce),
+		balance: BigInt(balance),
+		nonce: BigInt(nonce),
 		balanceProof: data.balance_proof ?? "",
 		nonceProof: data.nonce_proof ?? "",
 	};

@@ -19,4 +19,16 @@ describe("getBalance", () => {
 			getBalance(mockClient({}), { address: "SP..." }),
 		).rejects.toThrow(MalformedResponseError);
 	});
+
+	it("throws MalformedResponseError when balance is null", async () => {
+		await expect(
+			getBalance(mockClient({ balance: null }), { address: "SP..." }),
+		).rejects.toThrow(MalformedResponseError);
+	});
+
+	it("parses a numeric balance", async () => {
+		expect(
+			await getBalance(mockClient({ balance: 100 }), { address: "SP..." }),
+		).toBe(100n);
+	});
 });
