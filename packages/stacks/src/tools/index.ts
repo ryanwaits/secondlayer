@@ -50,6 +50,8 @@ import {
 	getPrimaryName as _getPrimaryName,
 	resolveName as _resolveName,
 } from "../bns/actions.ts";
+import type { StacksTransaction } from "../transactions/types.ts";
+import { deserializeTransaction } from "../transactions/wire/deserialize.ts";
 import { type StacksReadClient, getDefaultPublicClient } from "./client.ts";
 
 const PRINCIPAL = z
@@ -90,15 +92,31 @@ async function contractRead(
 	return { result: JSON.stringify(result) };
 }
 
+function assertValidHex(raw: string): void {
+	if (raw.length % 2 !== 0) {
+		throw new Error("serializedTxHex: odd-length hex string");
+	}
+	if (!/^[0-9a-fA-F]+$/.test(raw)) {
+		throw new Error("serializedTxHex: contains non-hex characters");
+	}
+}
+
 async function fee(client: StacksReadClient, serializedTxHex: string) {
 	const raw = serializedTxHex.startsWith("0x")
 		? serializedTxHex.slice(2)
 		: serializedTxHex;
+	assertValidHex(raw);
 	const txBytes = new Uint8Array(Buffer.from(raw, "hex"));
-	const { deserializeTransaction } = await import("@stacks/transactions");
-	const transaction = deserializeTransaction(txBytes);
+	let transaction: StacksTransaction;
+	try {
+		transaction = deserializeTransaction(txBytes);
+	} catch (e) {
+		throw new Error(
+			`serializedTxHex: deserialization failed — ${e instanceof Error ? e.message : String(e)}`,
+		);
+	}
 	const fees = await _estimateFee(client, {
-		transaction: transaction as never,
+		transaction,
 	});
 	return {
 		low: fees[0]?.fee ?? 0,
