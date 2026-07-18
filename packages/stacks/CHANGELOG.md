@@ -1,5 +1,15 @@
 # @secondlayer/stacks
 
+## 2.17.0
+
+### Minor Changes
+
+- Route pox5 through typed `getContract` with a committed, drift-guarded ABI.
+
+  - All 13 wallet actions and 12 reads now run through a curated 25-function pox-5 ABI (`pox5/abi.ts`), machine-extracted from the boot contract and pinned by a simnet drift test — a stacks-core contract change fails the build, not your integration.
+  - Every action's arguments are checked at compile time (wrong name or type is a `tsc` error), and every public function gains `buildCall` for unsigned-transaction flows. Wallet payloads are byte-identical (14 simnet pin tests unmodified).
+  - **Breaking**: the 12 individual `client.pox5.*` reads return JS-mapped values instead of `ClarityValue` — `uint` → `bigint`, tuples → camelCase objects, `null` for absent optionals, response ok auto-unwrapped. `getStakerState` still returns raw `ClarityValue` fields. pox5 shipped days ago and pre-activation, so real-world impact is minimal.
+
 ## 2.16.0
 
 ### Minor Changes

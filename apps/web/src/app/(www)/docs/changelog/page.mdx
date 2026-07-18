@@ -4,6 +4,23 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## SDK — July 2026
 
+### PoX-5 calls, fully typed
+
+Every `client.pox5.*` action and read now runs through the module's committed
+pox-5 ABI: arguments are checked at compile time — a wrong name or type is a
+`tsc` error, not a failed transaction — and reads return plain JS values
+instead of raw Clarity envelopes.
+
+- Reads decode for you: `uint` becomes `bigint`, tuples become camelCase
+  objects, and an optional read returns `null` when the record doesn't exist.
+  `getStakerInfo(...)` hands you `{ amountUstx, firstRewardCycle, numCycles,
+  signer } | null` directly.
+- One breaking change: the 12 individual reads no longer return
+  `ClarityValue`. `getStakerState` is unchanged.
+- The ABI is machine-extracted from the `pox-5` boot contract and guarded by
+  a simnet drift test — a stacks-core contract change fails our build, not
+  your integration.
+
 ### Typed Clarity narrowing, cheaper signing
 
 `cvToJSON` returns `any`, which switches the compiler off at the exact boundary
