@@ -49,6 +49,13 @@ import {
 	getPox5Activation,
 	isPox5Active,
 } from "./activation.ts";
+import type {
+	BondAllowance,
+	BondMembership,
+	ProtocolBond,
+	SignerInfo,
+	StakerInfo,
+} from "./types.ts";
 
 /**
  * A staker's whole PoX-5 position in ONE batched request: staker info, bond
@@ -108,29 +115,27 @@ export type Pox5Actions = {
 		// batched state
 		getStakerState: (staker: string) => Promise<StakerState>;
 		// reads
-		getStakerInfo: (staker: string) => Promise<ClarityValue>;
-		getBondMembership: (staker: string) => Promise<ClarityValue>;
-		getProtocolBond: (bondIndex: IntegerType) => Promise<ClarityValue>;
+		getStakerInfo: (staker: string) => Promise<StakerInfo>;
+		getBondMembership: (staker: string) => Promise<BondMembership>;
+		getProtocolBond: (bondIndex: IntegerType) => Promise<ProtocolBond>;
 		getBondAllowance: (
 			bondIndex: IntegerType,
 			staker: string,
-		) => Promise<ClarityValue>;
-		getTotalSbtcStakedForBond: (
-			bondIndex: IntegerType,
-		) => Promise<ClarityValue>;
-		getStakerCustodiedSbtc: (staker: string) => Promise<ClarityValue>;
+		) => Promise<BondAllowance>;
+		getTotalSbtcStakedForBond: (bondIndex: IntegerType) => Promise<bigint>;
+		getStakerCustodiedSbtc: (staker: string) => Promise<bigint>;
 		hasAnnouncedL1EarlyExit: (
 			bondIndex: IntegerType,
 			staker: string,
-		) => Promise<ClarityValue>;
-		getBondL1UnlockHeight: (bondIndex: IntegerType) => Promise<ClarityValue>;
-		getSignerInfo: (signer: string) => Promise<ClarityValue>;
+		) => Promise<boolean>;
+		getBondL1UnlockHeight: (bondIndex: IntegerType) => Promise<bigint>;
+		getSignerInfo: (signer: string) => Promise<SignerInfo>;
 		verifySignerKeyGrant: (
 			signerManager: string,
 			signerKey: Uint8Array | string,
-		) => Promise<ClarityValue>;
-		getCurrentRewardCycle: () => Promise<ClarityValue>;
-		getFirstRewardCycle: () => Promise<ClarityValue>;
+		) => Promise<boolean>;
+		getCurrentRewardCycle: () => Promise<bigint>;
+		getFirstRewardCycle: () => Promise<bigint>;
 		// wallet actions (txids; pair with waitForTransactionReceipt)
 		setupBond: (params: SetupBondParams) => Promise<string>;
 		registerForBond: (params: RegisterForBondParams) => Promise<string>;

@@ -10,6 +10,7 @@ import type { ContractCallPayload } from "../../transactions/types.ts";
 import { deserializeTransaction } from "../../transactions/wire/deserialize.ts";
 import { custom } from "../../transports/custom.ts";
 import { hexToBytes } from "../../utils/encoding.ts";
+import { POX5_ABI } from "../abi.ts";
 import { pox5 } from "../extension.ts";
 
 // Pins every pox5 wallet action against the ACTUAL boot contract interface:
@@ -266,6 +267,52 @@ describe("pox5 reads match the boot contract interface", () => {
 			if (!fn) throw new Error(`read-only ${name} missing from pox-5`);
 			expect(fn.access).toBe("read_only");
 			expect(fn.args.length).toBe(arity);
+		}
+	});
+});
+
+describe("pox5 committed ABI matches the boot contract interface", () => {
+	// Same Clarinet→AbiContract normalization as spike/pox5-getContract/extract-abi.ts.
+	// biome-ignore lint/suspicious/noExplicitAny: recursive type walk
+	function mapType(t: any): any {
+		if (typeof t !== "object" || t === null) return t;
+		if ("buffer" in t) return { buff: { length: t.buffer.length } };
+		if ("buff" in t) return t;
+		if ("list" in t)
+			return { list: { type: mapType(t.list.type), length: t.list.length } };
+		if ("optional" in t) return { optional: mapType(t.optional) };
+		if ("response" in t)
+			return {
+				response: {
+					ok: mapType(t.response.ok),
+					error: mapType(t.response.error),
+				},
+			};
+		if ("tuple" in t)
+			return {
+				// biome-ignore lint/suspicious/noExplicitAny: clarinet interface JSON
+				tuple: t.tuple.map((f: any) => ({
+					name: f.name,
+					type: mapType(f.type),
+				})),
+			};
+		return t;
+	}
+
+	test("every curated function exists with matching access and args", () => {
+		expect(POX5_ABI.functions.length).toBe(25);
+		for (const fn of POX5_ABI.functions) {
+			// biome-ignore lint/suspicious/noExplicitAny: clarinet interface JSON
+			const onchain = iface.functions.find((f: any) => f.name === fn.name);
+			if (!onchain) throw new Error(`${fn.name} missing from pox-5`);
+			const access =
+				onchain.access === "read_only" ? "read-only" : onchain.access;
+			expect(access).toBe(fn.access);
+			const args = onchain.args.map(
+				// biome-ignore lint/suspicious/noExplicitAny: clarinet interface JSON
+				(a: any) => ({ name: a.name, type: mapType(a.type) }),
+			);
+			expect(args).toEqual(fn.args);
 		}
 	});
 });

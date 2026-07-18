@@ -1,13 +1,21 @@
-import { readContract } from "../actions/public/readContract.ts";
-import {
-	type CallContractParams,
-	callContract,
-} from "../actions/wallet/callContract.ts";
-import type { ClarityValue } from "../clarity/types.ts";
-import { Cl } from "../clarity/values.ts";
+import { getContract } from "../actions/getContract.ts";
+import type { FeeParam } from "../actions/wallet/utils.ts";
 import type { Client } from "../clients/types.ts";
-import type { IntegerType } from "../utils/encoding.ts";
+import type { PostCondition } from "../postconditions/types.ts";
+import {
+	type IntegerType,
+	hexToBytes,
+	intToBigInt,
+} from "../utils/encoding.ts";
+import { POX5_ABI } from "./abi.ts";
 import { POX5_CONTRACT_NAME } from "./constants.ts";
+import type {
+	BondAllowance,
+	BondMembership,
+	ProtocolBond,
+	SignerInfo,
+	StakerInfo,
+} from "./types.ts";
 
 /**
  * PoX-5 contract calls and reads, pinned against the final contract in
@@ -28,36 +36,16 @@ export function pox5ContractId(client: Client): string {
 	return `${boot}.${POX5_CONTRACT_NAME}`;
 }
 
-type TxOptions = Pick<
-	CallContractParams,
-	"fee" | "nonce" | "postConditions" | "postConditionMode"
->;
+type TxOptions = {
+	fee?: FeeParam;
+	nonce?: IntegerType;
+	postConditions?: PostCondition[];
+	postConditionMode?: "allow" | "deny";
+};
 
-function call(
-	client: Client,
-	functionName: string,
-	functionArgs: ClarityValue[],
-	options: TxOptions = {},
-): Promise<string> {
-	return callContract(client, {
-		contract: pox5ContractId(client),
-		functionName,
-		functionArgs,
-		...options,
-	});
-}
-
-function read(
-	client: Client,
-	functionName: string,
-	functionArgs: ClarityValue[] = [],
-): Promise<ClarityValue> {
+function getPox5Contract(client: Client) {
 	const [address, name] = pox5ContractId(client).split(".") as [string, string];
-	return readContract(client, {
-		contract: `${address}.${name}`,
-		functionName,
-		args: functionArgs,
-	});
+	return getContract({ client, address, name, abi: POX5_ABI });
 }
 
 // ---------------------------------------------------------------------------
@@ -91,36 +79,35 @@ export type BtcLockup =
 	| { l1Outputs: L1LockupOutput[]; stakerUnlockBytes: Uint8Array | string }
 	| { sbtcSats: IntegerType };
 
-function bufferCV(input: Uint8Array | string): ClarityValue {
-	return typeof input === "string" ? Cl.bufferFromHex(input) : Cl.buffer(input);
+/** ABI buff args take `Uint8Array`; hex strings decode exactly like `Cl.bufferFromHex`. */
+function toBytes(input: Uint8Array | string): Uint8Array {
+	return typeof input === "string" ? hexToBytes(input) : input;
 }
 
-function btcLockupCV(lockup: BtcLockup): ClarityValue {
-	if ("sbtcSats" in lockup) return Cl.error(Cl.uint(lockup.sbtcSats));
-	return Cl.ok(
-		Cl.tuple({
-			outputs: Cl.list(
-				lockup.l1Outputs.map((o) =>
-					Cl.tuple({
-						height: Cl.uint(o.height),
-						tx: bufferCV(o.tx),
-						"output-index": Cl.uint(o.outputIndex),
-						header: bufferCV(o.header),
-						"leaf-hashes": Cl.list(o.leafHashes.map(bufferCV)),
-						"tx-count": Cl.uint(o.txCount),
-						"tx-index": Cl.uint(o.txIndex),
-						amount: Cl.uint(o.amount),
-						"unlock-burn-height": Cl.uint(o.unlockBurnHeight),
-					}),
-				),
-			),
-			"staker-unlock-bytes": bufferCV(lockup.stakerUnlockBytes),
-		}),
-	);
+/** ABI `(optional (buff …))` args are required-with-null. */
+function optionalBytes(input?: Uint8Array | string): Uint8Array | null {
+	return input === undefined ? null : toBytes(input);
 }
 
-function optionalBuffer(input?: Uint8Array | string): ClarityValue {
-	return input === undefined ? Cl.none() : Cl.some(bufferCV(input));
+/** Map `BtcLockup` to the ABI's `(response (tuple …) uint)` arg shape. */
+function btcLockupArg(lockup: BtcLockup) {
+	if ("sbtcSats" in lockup) return { err: intToBigInt(lockup.sbtcSats) };
+	return {
+		ok: {
+			outputs: lockup.l1Outputs.map((o) => ({
+				height: intToBigInt(o.height),
+				tx: toBytes(o.tx),
+				outputIndex: intToBigInt(o.outputIndex),
+				header: toBytes(o.header),
+				leafHashes: o.leafHashes.map(toBytes),
+				txCount: intToBigInt(o.txCount),
+				txIndex: intToBigInt(o.txIndex),
+				amount: intToBigInt(o.amount),
+				unlockBurnHeight: intToBigInt(o.unlockBurnHeight),
+			})),
+			stakerUnlockBytes: toBytes(lockup.stakerUnlockBytes),
+		},
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -154,24 +141,18 @@ export function setupBond(
 		allowlist,
 		...tx
 	} = params;
-	return call(
-		client,
-		"setup-bond",
-		[
-			Cl.uint(bondIndex),
-			Cl.uint(targetRate),
-			Cl.uint(stxValueRatio),
-			Cl.uint(minUstxRatio),
-			bufferCV(earlyUnlockBytes),
-			Cl.list(
-				allowlist.map((a) =>
-					Cl.tuple({
-						staker: Cl.principal(a.staker),
-						"max-sats": Cl.uint(a.maxSats),
-					}),
-				),
-			),
-		],
+	return getPox5Contract(client).call.setupBond(
+		{
+			bondIndex: intToBigInt(bondIndex),
+			targetRate: intToBigInt(targetRate),
+			stxValueRatio: intToBigInt(stxValueRatio),
+			minUstxRatio: intToBigInt(minUstxRatio),
+			earlyUnlockBytes: toBytes(earlyUnlockBytes),
+			allowlist: allowlist.map((a) => ({
+				staker: a.staker,
+				maxSats: intToBigInt(a.maxSats),
+			})),
+		},
 		tx,
 	);
 }
@@ -198,16 +179,14 @@ export function registerForBond(
 		signerCalldata,
 		...tx
 	} = params;
-	return call(
-		client,
-		"register-for-bond",
-		[
-			Cl.uint(bondIndex),
-			Cl.principal(signerManager),
-			Cl.uint(amountUstx),
-			btcLockupCV(btcLockup),
-			optionalBuffer(signerCalldata),
-		],
+	return getPox5Contract(client).call.registerForBond(
+		{
+			bondIndex: intToBigInt(bondIndex),
+			signerManager,
+			amountUstx: intToBigInt(amountUstx),
+			btcLockup: btcLockupArg(btcLockup),
+			signerCalldata: optionalBytes(signerCalldata),
+		},
 		tx,
 	);
 }
@@ -224,14 +203,12 @@ export function updateBondRegistration(
 	params: UpdateBondRegistrationParams,
 ): Promise<string> {
 	const { signerManager, oldSignerManager, signerCalldata, ...tx } = params;
-	return call(
-		client,
-		"update-bond-registration",
-		[
-			Cl.principal(signerManager),
-			Cl.principal(oldSignerManager),
-			optionalBuffer(signerCalldata),
-		],
+	return getPox5Contract(client).call.updateBondRegistration(
+		{
+			signerManager,
+			oldSignerManager,
+			signerCalldata: optionalBytes(signerCalldata),
+		},
 		tx,
 	);
 }
@@ -254,16 +231,14 @@ export function stake(client: Client, params: StakeParams): Promise<string> {
 		signerCalldata,
 		...tx
 	} = params;
-	return call(
-		client,
-		"stake",
-		[
-			Cl.principal(signerManager),
-			Cl.uint(amountUstx),
-			Cl.uint(numCycles),
-			Cl.uint(startBurnHeight),
-			optionalBuffer(signerCalldata),
-		],
+	return getPox5Contract(client).call.stake(
+		{
+			signerManager,
+			amountUstx: intToBigInt(amountUstx),
+			numCycles: intToBigInt(numCycles),
+			startBurnHt: intToBigInt(startBurnHeight),
+			signerCalldata: optionalBytes(signerCalldata),
+		},
 		tx,
 	);
 }
@@ -289,16 +264,14 @@ export function stakeUpdate(
 		signerCalldata,
 		...tx
 	} = params;
-	return call(
-		client,
-		"stake-update",
-		[
-			Cl.principal(signerManager),
-			Cl.principal(oldSignerManager),
-			Cl.uint(cyclesToExtend),
-			Cl.uint(amountIncrease),
-			optionalBuffer(signerCalldata),
-		],
+	return getPox5Contract(client).call.stakeUpdate(
+		{
+			signerManager,
+			oldSignerManager,
+			cyclesToExtend: intToBigInt(cyclesToExtend),
+			amountIncrease: intToBigInt(amountIncrease),
+			signerCalldata: optionalBytes(signerCalldata),
+		},
 		tx,
 	);
 }
@@ -311,7 +284,7 @@ export function unstake(
 	params: UnstakeParams,
 ): Promise<string> {
 	const { oldSignerManager, ...tx } = params;
-	return call(client, "unstake", [Cl.principal(oldSignerManager)], tx);
+	return getPox5Contract(client).call.unstake({ oldSignerManager }, tx);
 }
 
 export type UnstakeSbtcParams = TxOptions & {
@@ -325,10 +298,8 @@ export function unstakeSbtc(
 	params: UnstakeSbtcParams,
 ): Promise<string> {
 	const { signerManager, amountSats, ...tx } = params;
-	return call(
-		client,
-		"unstake-sbtc",
-		[Cl.principal(signerManager), Cl.uint(amountSats)],
+	return getPox5Contract(client).call.unstakeSbtc(
+		{ signerManager, amountToWithdrawalSats: intToBigInt(amountSats) },
 		tx,
 	);
 }
@@ -344,10 +315,8 @@ export function announceL1EarlyExit(
 	params: AnnounceL1EarlyExitParams,
 ): Promise<string> {
 	const { staker, oldSignerManager, ...tx } = params;
-	return call(
-		client,
-		"announce-l1-early-exit",
-		[Cl.principal(staker), Cl.principal(oldSignerManager)],
+	return getPox5Contract(client).call.announceL1EarlyExit(
+		{ staker, oldSignerManager },
 		tx,
 	);
 }
@@ -362,10 +331,8 @@ export function calculateRewards(
 	params: CalculateRewardsParams,
 ): Promise<string> {
 	const { bondPeriods, ...tx } = params;
-	return call(
-		client,
-		"calculate-rewards",
-		[Cl.list(bondPeriods.map((p) => Cl.uint(p)))],
+	return getPox5Contract(client).call.calculateRewards(
+		{ bondPeriods: bondPeriods.map(intToBigInt) },
 		tx,
 	);
 }
@@ -381,10 +348,11 @@ export function claimRewards(
 	params: ClaimRewardsParams,
 ): Promise<string> {
 	const { bondPeriods, rewardCycle, ...tx } = params;
-	return call(
-		client,
-		"claim-rewards",
-		[Cl.list(bondPeriods.map((p) => Cl.uint(p))), Cl.uint(rewardCycle)],
+	return getPox5Contract(client).call.claimRewards(
+		{
+			bondPeriods: bondPeriods.map(intToBigInt),
+			rewardCycle: intToBigInt(rewardCycle),
+		},
 		tx,
 	);
 }
@@ -401,14 +369,12 @@ export function claimStakerRewardsForSigner(
 	params: ClaimStakerRewardsForSignerParams,
 ): Promise<string> {
 	const { staker, rewardCycle, bondIndex, ...tx } = params;
-	return call(
-		client,
-		"claim-staker-rewards-for-signer",
-		[
-			Cl.principal(staker),
-			Cl.uint(rewardCycle),
-			bondIndex === undefined ? Cl.none() : Cl.some(Cl.uint(bondIndex)),
-		],
+	return getPox5Contract(client).call.claimStakerRewardsForSigner(
+		{
+			staker,
+			rewardCycle: intToBigInt(rewardCycle),
+			bondIndex: bondIndex === undefined ? null : intToBigInt(bondIndex),
+		},
 		tx,
 	);
 }
@@ -428,15 +394,13 @@ export function grantSignerKey(
 	params: GrantSignerKeyParams,
 ): Promise<string> {
 	const { signerKey, signerManager, authId, signerSig, ...tx } = params;
-	return call(
-		client,
-		"grant-signer-key",
-		[
-			bufferCV(signerKey),
-			Cl.principal(signerManager),
-			Cl.uint(authId),
-			bufferCV(signerSig),
-		],
+	return getPox5Contract(client).call.grantSignerKey(
+		{
+			signerKey: toBytes(signerKey),
+			signerManager,
+			authId: intToBigInt(authId),
+			signerSig: toBytes(signerSig),
+		},
 		tx,
 	);
 }
@@ -452,68 +416,74 @@ export function revokeSignerGrant(
 	params: RevokeSignerGrantParams,
 ): Promise<string> {
 	const { signerManager, signerKey, ...tx } = params;
-	return call(
-		client,
-		"revoke-signer-grant",
-		[Cl.principal(signerManager), bufferCV(signerKey)],
+	return getPox5Contract(client).call.revokeSignerGrant(
+		{ signerManager, signerKey: toBytes(signerKey) },
 		tx,
 	);
 }
 
 // ---------------------------------------------------------------------------
-// Reads (raw ClarityValues — decode with the caller's ABI knowledge)
+// Reads (JS-mapped return types — see types.ts)
 // ---------------------------------------------------------------------------
 
 /** `get-staker-info` — lock dimensions + signer, `none` when expired/absent. */
-export function getStakerInfo(
+export async function getStakerInfo(
 	client: Client,
 	staker: string,
-): Promise<ClarityValue> {
-	return read(client, "get-staker-info", [Cl.principal(staker)]);
+): Promise<StakerInfo> {
+	return (await getPox5Contract(client).read.getStakerInfo({
+		staker,
+	})) as StakerInfo;
 }
 
 /** `get-bond-membership` — the staker's active bond membership, if any. */
-export function getBondMembership(
+export async function getBondMembership(
 	client: Client,
 	staker: string,
-): Promise<ClarityValue> {
-	return read(client, "get-bond-membership", [Cl.principal(staker)]);
+): Promise<BondMembership> {
+	return (await getPox5Contract(client).read.getBondMembership({
+		staker,
+	})) as BondMembership;
 }
 
 /** `get-protocol-bond` — a bond's core parameters. */
-export function getProtocolBond(
+export async function getProtocolBond(
 	client: Client,
 	bondIndex: IntegerType,
-): Promise<ClarityValue> {
-	return read(client, "get-protocol-bond", [Cl.uint(bondIndex)]);
+): Promise<ProtocolBond> {
+	return (await getPox5Contract(client).read.getProtocolBond({
+		bondIndex: intToBigInt(bondIndex),
+	})) as ProtocolBond;
 }
 
 /** `get-bond-allowance` — a staker's allowlisted max sats for a bond. */
-export function getBondAllowance(
+export async function getBondAllowance(
 	client: Client,
 	bondIndex: IntegerType,
 	staker: string,
-): Promise<ClarityValue> {
-	return read(client, "get-bond-allowance", [
-		Cl.uint(bondIndex),
-		Cl.principal(staker),
-	]);
+): Promise<BondAllowance> {
+	return (await getPox5Contract(client).read.getBondAllowance({
+		bondIndex: intToBigInt(bondIndex),
+		staker,
+	})) as BondAllowance;
 }
 
 /** `get-total-sbtc-staked-for-bond`. */
 export function getTotalSbtcStakedForBond(
 	client: Client,
 	bondIndex: IntegerType,
-): Promise<ClarityValue> {
-	return read(client, "get-total-sbtc-staked-for-bond", [Cl.uint(bondIndex)]);
+): Promise<bigint> {
+	return getPox5Contract(client).read.getTotalSbtcStakedForBond({
+		bondIndex: intToBigInt(bondIndex),
+	});
 }
 
 /** `get-staker-custodied-sbtc`. */
 export function getStakerCustodiedSbtc(
 	client: Client,
 	staker: string,
-): Promise<ClarityValue> {
-	return read(client, "get-staker-custodied-sbtc", [Cl.principal(staker)]);
+): Promise<bigint> {
+	return getPox5Contract(client).read.getStakerCustodiedSbtc({ staker });
 }
 
 /** `has-announced-l1-early-exit`. */
@@ -521,27 +491,31 @@ export function hasAnnouncedL1EarlyExit(
 	client: Client,
 	bondIndex: IntegerType,
 	staker: string,
-): Promise<ClarityValue> {
-	return read(client, "has-announced-l1-early-exit", [
-		Cl.uint(bondIndex),
-		Cl.principal(staker),
-	]);
+): Promise<boolean> {
+	return getPox5Contract(client).read.hasAnnouncedL1EarlyExit({
+		bondIndex: intToBigInt(bondIndex),
+		staker,
+	});
 }
 
 /** `get-bond-l1-unlock-height` — half a cycle before the bond period ends. */
 export function getBondL1UnlockHeight(
 	client: Client,
 	bondIndex: IntegerType,
-): Promise<ClarityValue> {
-	return read(client, "get-bond-l1-unlock-height", [Cl.uint(bondIndex)]);
+): Promise<bigint> {
+	return getPox5Contract(client).read.getBondL1UnlockHeight({
+		bondIndex: intToBigInt(bondIndex),
+	});
 }
 
 /** `get-signer-info`. */
-export function getSignerInfo(
+export async function getSignerInfo(
 	client: Client,
 	signer: string,
-): Promise<ClarityValue> {
-	return read(client, "get-signer-info", [Cl.principal(signer)]);
+): Promise<SignerInfo> {
+	return (await getPox5Contract(client).read.getSignerInfo({
+		signer,
+	})) as SignerInfo;
 }
 
 /** `verify-signer-key-grant` — whether a grant exists on-chain. */
@@ -549,19 +523,19 @@ export function verifySignerKeyGrantOnChain(
 	client: Client,
 	signerManager: string,
 	signerKey: Uint8Array | string,
-): Promise<ClarityValue> {
-	return read(client, "verify-signer-key-grant", [
-		Cl.principal(signerManager),
-		bufferCV(signerKey),
-	]);
+): Promise<boolean> {
+	return getPox5Contract(client).read.verifySignerKeyGrant({
+		signerManager,
+		signerKey: toBytes(signerKey),
+	});
 }
 
 /** `current-pox-reward-cycle`. */
-export function getCurrentRewardCycle(client: Client): Promise<ClarityValue> {
-	return read(client, "current-pox-reward-cycle");
+export function getCurrentRewardCycle(client: Client): Promise<bigint> {
+	return getPox5Contract(client).read.currentPoxRewardCycle({});
 }
 
 /** `get-first-pox-5-reward-cycle`. */
-export function getFirstPox5RewardCycle(client: Client): Promise<ClarityValue> {
-	return read(client, "get-first-pox-5-reward-cycle");
+export function getFirstPox5RewardCycle(client: Client): Promise<bigint> {
+	return getPox5Contract(client).read.getFirstPox5RewardCycle({});
 }
