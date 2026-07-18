@@ -147,7 +147,7 @@ if (await client.pox5.isActive()) {
 }
 ```
 
-Every wallet action (`setupBond`, `registerForBond`, `stake`, `unstake`, `unstakeSbtc`, `claimRewards`, `grantSignerKey`, …) inherits fee tiers, nonce management, and typed errors from the client. `client.pox5.getStakerState(staker)` returns a staker's whole position — staker info, bond membership, custodied sBTC, current cycle — in ONE batched multicall.
+Every wallet action (`setupBond`, `registerForBond`, `stake`, `unstake`, `unstakeSbtc`, `claimRewards`, `grantSignerKey`, …) inherits fee tiers, nonce management, and typed errors from the client. `client.pox5.getStakerState(staker)` returns a staker's whole position — staker info, bond membership, custodied sBTC, current cycle — in ONE batched multicall. Individual reads return typed JS values decoded via the module's committed pox-5 ABI (bigints, camelCase tuples, `null` for absent optionals), and every action's arguments are checked against that ABI at compile time.
 
 ### Off-chain L1 tooling — works before activation
 

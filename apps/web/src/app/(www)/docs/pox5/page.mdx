@@ -75,6 +75,13 @@ const state = await client.pox5.getStakerState("SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PY
 
 Individual reads are exposed too: `getStakerInfo`, `getBondMembership`, `getProtocolBond`, `getBondAllowance`, `getTotalSbtcStakedForBond`, `getStakerCustodiedSbtc`, `hasAnnouncedL1EarlyExit`, `getBondL1UnlockHeight`, `getSignerInfo`, `verifySignerKeyGrant`, `getCurrentRewardCycle`, `getFirstRewardCycle`.
 
+Individual reads return plain JS values decoded from the contract's own ABI — `uint` becomes `bigint`, tuples become camelCase objects, and an optional read returns `null` when the record doesn't exist:
+
+```ts
+const info = await client.pox5.getStakerInfo("SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7");
+// { amountUstx, firstRewardCycle, numCycles, signer } | null
+```
+
 ## Wallet actions
 
 Every `pox-5` public function, typed. All accept `fee`, `nonce`, `postConditions`, `postConditionMode`; all return a txid.
