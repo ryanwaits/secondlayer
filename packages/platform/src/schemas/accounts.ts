@@ -1,4 +1,4 @@
-import { z } from "zod/v4";
+import { z } from "zod";
 
 /**
  * Account profile shapes. Unrelated to marketplace — previously lived in

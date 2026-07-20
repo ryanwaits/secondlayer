@@ -5,7 +5,7 @@ import type {
 	UpdateSubscriptionRequest,
 } from "@secondlayer/sdk";
 import { CHAIN_TRIGGER_TYPES } from "@secondlayer/shared";
-import { z } from "zod/v4";
+import { z } from "zod";
 import { getClient } from "../lib/client.ts";
 import { jsonResponse } from "../lib/format.ts";
 import { defineTool } from "../lib/tool.ts";

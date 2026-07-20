@@ -1,5 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod/v4";
+import { z } from "zod";
 import { apiRequest, getClient } from "../lib/client.ts";
 import { jsonResponse } from "../lib/format.ts";
 import { defineTool } from "../lib/tool.ts";

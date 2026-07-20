@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, parse as parsePath, resolve } from "node:path";
-import { z } from "zod/v4";
+import { z } from "zod";
 
 /**
  * Per-directory active-project binding (Supabase-style).

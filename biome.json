@@ -26,6 +26,16 @@
 		"rules": {
 			"a11y": {
 				"noAutofocus": "off"
+			},
+			"nursery": {
+				"noRestrictedImports": {
+					"level": "error",
+					"options": {
+						"paths": {
+							"zod/v4": "Import from \"zod\" — the /v4 compat subpath is not guaranteed past zod 4."
+						}
+					}
+				}
 			}
 		}
 	},

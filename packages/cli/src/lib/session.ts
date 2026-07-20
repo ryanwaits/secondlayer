@@ -8,7 +8,7 @@ import {
 } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { z } from "zod/v4";
+import { z } from "zod";
 
 /**
  * CLI session storage.

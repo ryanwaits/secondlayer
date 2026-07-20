@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { generateSubgraphCode } from "@secondlayer/scaffold";
 import type { AbiFunction, AbiMap } from "@secondlayer/scaffold";
-import { z } from "zod/v4";
+import { z } from "zod";
 import { getClient } from "../lib/client.ts";
 import { defineTool } from "../lib/tool.ts";
 

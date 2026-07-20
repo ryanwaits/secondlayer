@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { DECODED_EVENT_TYPES } from "@secondlayer/shared";
-import { z } from "zod/v4";
+import { z } from "zod";
 import { getClient } from "../lib/client.ts";
 import { jsonResponse } from "../lib/format.ts";
 import { defineTool } from "../lib/tool.ts";

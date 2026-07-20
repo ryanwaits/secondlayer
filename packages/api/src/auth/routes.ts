@@ -1,6 +1,6 @@
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
-import { z } from "zod/v4";
+import { z } from "zod";
 import { getClientIp } from "./http.ts";
 import { requireAuth } from "./middleware.ts";
 import {

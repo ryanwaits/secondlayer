@@ -1,7 +1,7 @@
 import { CODE_TO_STATUS } from "@secondlayer/shared/errors";
 import type { MiddlewareHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { ZodError } from "zod/v4";
+import { ZodError } from "zod";
 
 export type ApiTelemetryGroup = "streams" | "index" | "platform" | "status";
 

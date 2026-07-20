@@ -1,7 +1,7 @@
 import { CODE_TO_STATUS, SecondLayerError } from "@secondlayer/shared/errors";
 import type { ErrorHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { ZodError } from "zod/v4";
+import { ZodError } from "zod";
 
 export class InvalidJSONError extends Error {
 	code = "INVALID_JSON";

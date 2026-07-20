@@ -7,7 +7,7 @@ import {
 import { getDb } from "@secondlayer/shared/db";
 import { ValidationError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
-import { z } from "zod/v4";
+import { z } from "zod";
 import { sendMagicLink } from "../auth/email.ts";
 import { consumeClaimToken, validateClaimToken } from "../auth/ghost.ts";
 import { getClientIp } from "../auth/http.ts";

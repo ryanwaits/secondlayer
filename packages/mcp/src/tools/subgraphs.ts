@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { bundleSubgraphCode } from "@secondlayer/bundler";
 import { ByoBreakingChangeError } from "@secondlayer/sdk";
-import { z } from "zod/v4";
+import { z } from "zod";
 import { getClient } from "../lib/client.ts";
 import {
 	formatSubgraphSummary,
