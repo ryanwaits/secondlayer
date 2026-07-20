@@ -313,7 +313,7 @@ export async function readIndexEvents(
 	const filters = params.filters ?? {};
 
 	const predicates: RawBuilder<unknown>[] = [
-		sql`canonical = true`,
+		sql`decoded_events.canonical = true`,
 		sql`event_type = ${params.eventType}`,
 		sql`block_height >= ${params.fromHeight}`,
 		sql`block_height <= ${params.toHeight}`,
@@ -391,13 +391,7 @@ export async function readIndexEvents(
 		SELECT
 			cursor,
 			block_height,
-			(
-				SELECT to_timestamp(b.timestamp) AT TIME ZONE 'UTC'
-				FROM blocks b
-				WHERE b.height = decoded_events.block_height
-					AND b.canonical = true
-				LIMIT 1
-			) AS block_time,
+			to_timestamp(b.timestamp) AT TIME ZONE 'UTC' AS block_time,
 			tx_id,
 			tx_index,
 			event_index,
@@ -405,6 +399,9 @@ export async function readIndexEvents(
 			contract_id,
 			${extraColumns}${txSelect}
 		FROM decoded_events
+		LEFT JOIN blocks b
+			ON b.height = decoded_events.block_height
+			AND b.canonical = true
 		${txJoin}
 		WHERE ${sql.join(predicates, sql` AND `)}
 		ORDER BY ${orderBy}

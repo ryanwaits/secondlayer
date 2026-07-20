@@ -396,6 +396,101 @@ describe.skipIf(!HAS_DB)("Index /events DB reads", () => {
 			tx_function_name: "transfer",
 		});
 	});
+
+	test("block_time reflects the canonical block's timestamp (blocks LEFT JOIN, not a subquery)", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("blocks")
+			.values({
+				height: 9950,
+				hash: "0x9950",
+				parent_hash: "0x9949",
+				burn_block_height: 9950,
+				timestamp: 1_700_000_500,
+				canonical: true,
+			})
+			.onConflict((oc) => oc.column("height").doNothing())
+			.execute();
+		await db
+			.insertInto("decoded_events")
+			.values([ftRow("9950:0", 9950, "SP1.token", "SP1", "SP2", "10")])
+			.execute();
+
+		const result = await readIndexEvents({
+			db,
+			eventType: "ft_transfer",
+			fromHeight: 0,
+			toHeight: 10_000,
+			limit: 10,
+		});
+
+		expect(result.events).toHaveLength(1);
+		expect(result.events[0]?.block_time).toBe(
+			new Date(1_700_000_500 * 1000).toISOString(),
+		);
+	});
+
+	test("block_time is null when the block at that height is not canonical", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("blocks")
+			.values({
+				height: 9960,
+				hash: "0x9960",
+				parent_hash: "0x9959",
+				burn_block_height: 9960,
+				timestamp: 1_700_000_600,
+				canonical: false,
+			})
+			.onConflict((oc) => oc.column("height").doNothing())
+			.execute();
+		await db
+			.insertInto("decoded_events")
+			.values([ftRow("9960:0", 9960, "SP1.token", "SP1", "SP2", "10")])
+			.execute();
+
+		const result = await readIndexEvents({
+			db,
+			eventType: "ft_transfer",
+			fromHeight: 0,
+			toHeight: 10_000,
+			limit: 10,
+		});
+
+		expect(result.events).toHaveLength(1);
+		expect(result.events[0]?.block_time).toBeNull();
+	});
+
+	test("the blocks LEFT JOIN does not fan out rows (blocks.height is the PK)", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("blocks")
+			.values({
+				height: 9970,
+				hash: "0x9970",
+				parent_hash: "0x9969",
+				burn_block_height: 9970,
+				timestamp: 1_700_000_700,
+				canonical: true,
+			})
+			.onConflict((oc) => oc.column("height").doNothing())
+			.execute();
+		await db
+			.insertInto("decoded_events")
+			.values([ftRow("9970:0", 9970, "SP1.token", "SP1", "SP2", "10")])
+			.execute();
+
+		const result = await readIndexEvents({
+			db,
+			eventType: "ft_transfer",
+			fromHeight: 0,
+			toHeight: 10_000,
+			limit: 10,
+		});
+
+		expect(result.events).toHaveLength(1);
+		expect(result.events.map((e) => e.cursor)).toEqual(["9970:0"]);
+	});
 });
 
 function ftRow(
