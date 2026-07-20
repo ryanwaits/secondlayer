@@ -409,7 +409,10 @@ describe("Stacks Streams gateway middleware", () => {
 				readEvents: EMPTY_EVENTS_READER,
 				readReorgs: async () => [],
 				readReorgsSince: async ({ since, limit }) => {
-					expect(since).toBeInstanceOf(Date);
+					expect(since).toEqual({
+						detected_at: "2026-05-03T00:00:00.000Z",
+						id: null,
+					});
 					expect(limit).toBe(2);
 					return [
 						{
@@ -434,7 +437,8 @@ describe("Stacks Streams gateway middleware", () => {
 		expect(res.status).toBe(200);
 		await expect(res.json()).resolves.toMatchObject({
 			reorgs: [{ id: "reorg-1" }],
-			next_since: "2026-05-03T12:30:00.000Z",
+			// detected_at~id: microsecond-safe resume token with an id tiebreak
+			next_since: "2026-05-03T12:30:00.000Z~reorg-1",
 		});
 	});
 

@@ -7,6 +7,19 @@ export type ChainReorgCursor = {
 	event_index: number;
 };
 
+/**
+ * Wall-clock resume cursor for `readChainReorgsSince`. `detected_at` is kept as
+ * a raw string all the way to SQL (cast to timestamptz there) because Postgres
+ * stores microseconds and a JS Date round-trip truncates to milliseconds —
+ * truncation makes `detected_at > cursor` re-match the row the cursor came
+ * from, re-delivering the same reorg forever. `id` breaks ties between rows
+ * sharing a detected_at.
+ */
+export type ChainReorgTimeCursor = {
+	detected_at: string;
+	id: string | null;
+};
+
 export type ChainReorgRecord = {
 	id: string;
 	detected_at: string;
@@ -28,7 +41,7 @@ export type InsertChainReorgParams = {
 };
 
 export type ReadChainReorgsSinceParams = {
-	since: Date | ChainReorgCursor;
+	since: Date | ChainReorgTimeCursor | ChainReorgCursor;
 	limit: number;
 	db?: Kysely<Database>;
 };
@@ -48,6 +61,9 @@ export type ReadChainReorgsForHeightRangeParams = {
 type ChainReorgRow = {
 	id: string;
 	detected_at: Date | string;
+	/** Microsecond-precision ISO text, selected alongside `detected_at` where
+	 *  the value feeds a resume cursor (pg's Date parsing drops microseconds). */
+	detected_at_us?: string;
 	fork_point_height: string | number;
 	old_index_block_hash: string | null;
 	new_index_block_hash: string | null;
@@ -65,9 +81,10 @@ export function encodeChainReorgCursor(cursor: ChainReorgCursor): string {
 
 function normalizeRow(row: ChainReorgRow): ChainReorgRecord {
 	const detectedAt =
-		row.detected_at instanceof Date
+		row.detected_at_us ??
+		(row.detected_at instanceof Date
 			? row.detected_at.toISOString()
-			: new Date(row.detected_at).toISOString();
+			: new Date(row.detected_at).toISOString());
 
 	return {
 		id: row.id,
@@ -115,33 +132,53 @@ export async function insertChainReorg(
 	return normalizeRow(row);
 }
 
+/** Microsecond-precision ISO text for `detected_at`. Selected wherever the
+ *  value can feed a resume cursor: pg parses timestamptz into a JS Date, which
+ *  drops microseconds, and a truncated cursor re-matches the row it came from. */
+const detectedAtUs = sql<string>`to_char(detected_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
+
 export async function readChainReorgsSince(
 	params: ReadChainReorgsSinceParams,
 ): Promise<ChainReorgRecord[]> {
 	const db = params.db ?? getSourceDb();
 	const limit = Math.min(1000, Math.max(1, params.limit));
+	const { since } = params;
 
-	const result =
-		params.since instanceof Date
+	if (since instanceof Date || "detected_at" in since) {
+		const cursor: ChainReorgTimeCursor =
+			since instanceof Date
+				? { detected_at: since.toISOString(), id: null }
+				: since;
+		const result = cursor.id
 			? await sql<ChainReorgRow>`
-					SELECT *
+					SELECT *, ${detectedAtUs} AS detected_at_us
 					FROM chain_reorgs
-					WHERE detected_at > ${params.since}
+					WHERE (detected_at, id) > (${cursor.detected_at}::timestamptz, ${cursor.id}::uuid)
 					ORDER BY detected_at ASC, id ASC
 					LIMIT ${limit}
 				`.execute(db)
 			: await sql<ChainReorgRow>`
-					SELECT *
+					SELECT *, ${detectedAtUs} AS detected_at_us
 					FROM chain_reorgs
-					WHERE
-						orphaned_to_height > ${params.since.block_height}
-						OR (
-							orphaned_to_height = ${params.since.block_height}
-							AND orphaned_to_event_index >= ${params.since.event_index}
-						)
+					WHERE detected_at > ${cursor.detected_at}::timestamptz
 					ORDER BY detected_at ASC, id ASC
 					LIMIT ${limit}
 				`.execute(db);
+		return result.rows.map(normalizeRow);
+	}
+
+	const result = await sql<ChainReorgRow>`
+		SELECT *, ${detectedAtUs} AS detected_at_us
+		FROM chain_reorgs
+		WHERE
+			orphaned_to_height > ${since.block_height}
+			OR (
+				orphaned_to_height = ${since.block_height}
+				AND orphaned_to_event_index >= ${since.event_index}
+			)
+		ORDER BY detected_at ASC, id ASC
+		LIMIT ${limit}
+	`.execute(db);
 
 	return result.rows.map(normalizeRow);
 }
@@ -171,7 +208,7 @@ export async function readChainReorgsForRange(
 	const db = params.db ?? getSourceDb();
 	const { from, to } = params;
 	const { rows } = await sql<ChainReorgRow>`
-		SELECT *
+		SELECT *, ${detectedAtUs} AS detected_at_us
 		FROM chain_reorgs
 		WHERE
 			(

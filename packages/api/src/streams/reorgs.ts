@@ -1,6 +1,7 @@
 import {
 	type ChainReorgCursor,
 	type ChainReorgRecord,
+	type ChainReorgTimeCursor,
 	readChainReorgsForRange,
 	readChainReorgsSince,
 } from "@secondlayer/shared/db/queries/chain-reorgs";
@@ -15,7 +16,7 @@ export type StreamsReorgsReader = (range: {
 }) => Promise<StreamsReorg[]>;
 
 export type StreamsReorgsSinceReader = (params: {
-	since: Date | ChainReorgCursor;
+	since: ChainReorgTimeCursor | ChainReorgCursor;
 	limit: number;
 }) => Promise<StreamsReorg[]>;
 
@@ -45,9 +46,20 @@ function parseLimit(value: string | undefined): number {
 	return Math.min(1000, parsed);
 }
 
+const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** `next_since` resume token: `<detected_at>~<id>`. The timestamp is carried
+ *  as raw text end-to-end (never through a JS Date, which truncates Postgres
+ *  microseconds and would re-match the row the cursor came from); the id
+ *  tiebreak guarantees a delivered reorg can never be re-delivered. */
+export function encodeReorgsNextSince(reorg: StreamsReorg): string {
+	return `${reorg.detected_at}~${reorg.id}`;
+}
+
 export function parseReorgsSince(
 	value: string | null,
-): Date | ChainReorgCursor {
+): ChainReorgTimeCursor | ChainReorgCursor {
 	if (!value) {
 		throw new ValidationError("since is required");
 	}
@@ -56,11 +68,17 @@ export function parseReorgsSince(
 		return decodeStreamsCursor(value);
 	} catch {}
 
-	const parsed = new Date(value);
-	if (Number.isNaN(parsed.getTime())) {
+	const tilde = value.indexOf("~");
+	const detectedAt = tilde === -1 ? value : value.slice(0, tilde);
+	const id = tilde === -1 ? null : value.slice(tilde + 1);
+
+	if (Number.isNaN(new Date(detectedAt).getTime())) {
 		throw new ValidationError("since must be an ISO timestamp or cursor");
 	}
-	return parsed;
+	if (id !== null && !UUID_RE.test(id)) {
+		throw new ValidationError("since cursor id must be a UUID");
+	}
+	return { detected_at: detectedAt, id };
 }
 
 export async function getStreamsReorgsListResponse(opts: {
@@ -72,9 +90,10 @@ export async function getStreamsReorgsListResponse(opts: {
 	const readReorgsSince =
 		opts.readReorgsSince ?? DEFAULT_STREAMS_REORGS_SINCE_READER;
 	const reorgs = await readReorgsSince({ since, limit });
+	const last = reorgs.at(-1);
 
 	return {
 		reorgs,
-		next_since: reorgs.at(-1)?.detected_at ?? null,
+		next_since: last ? encodeReorgsNextSince(last) : null,
 	};
 }
