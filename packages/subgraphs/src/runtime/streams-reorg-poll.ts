@@ -17,21 +17,38 @@ export type OnReorg = (forkHeight: number) => Promise<void>;
 /**
  * Fetch reorgs since `cursor` and invoke `onReorg` at each fork point (lowest
  * first), returning the next cursor. Extracted for testing.
+ *
+ * `handled` dedupes by reorg id across polls: a re-delivered reorg (cursor
+ * bug, server restart, startup margin re-scan) must be a no-op, because the
+ * rewind handler — while idempotent in outcome — aborts any in-flight catch-up
+ * and resets subgraph cursors to the fork point. Re-delivery every poll would
+ * pin subgraphs at the fork point forever (the 2026-07-19 prod incident).
  */
 export async function pollReorgsOnce(
 	http: ReorgLister,
 	cursor: string,
 	onReorg: OnReorg,
+	handled?: Set<string>,
 ): Promise<string> {
 	const { reorgs, next_since } = await http.listReorgs(cursor);
 	const sorted = [...reorgs].sort(
 		(a, b) => a.fork_point_height - b.fork_point_height,
 	);
 	for (const r of sorted) {
+		if (handled && r.id && handled.has(r.id)) {
+			logger.info("Streams reorg already handled — skipping", {
+				forkPointHeight: r.fork_point_height,
+				reorgId: r.id,
+			});
+			continue;
+		}
 		logger.info("Streams reorg — rewinding", {
 			forkPointHeight: r.fork_point_height,
 		});
 		await onReorg(r.fork_point_height);
+		// Only after a successful rewind — a throw must leave the reorg
+		// eligible for retry on the next poll.
+		if (handled && r.id) handled.add(r.id);
 	}
 	return next_since ?? cursor;
 }
@@ -57,11 +74,15 @@ export function startStreamsReorgPoll(onReorg: OnReorg): () => void {
 	let since = new Date(Date.now() - STARTUP_MARGIN_MS).toISOString();
 	let running = true;
 	let timer: ReturnType<typeof setTimeout> | undefined;
+	// Reorg ids already applied this process. Reorgs are rare (~1/day), so an
+	// unbounded-in-theory set stays tiny in practice; cap it anyway.
+	const handled = new Set<string>();
 
 	const tick = async (): Promise<void> => {
 		if (!running) return;
+		if (handled.size > 10_000) handled.clear();
 		try {
-			since = await pollReorgsOnce(http, since, onReorg);
+			since = await pollReorgsOnce(http, since, onReorg, handled);
 		} catch (err) {
 			logger.error("Streams reorg poll failed", {
 				error: getErrorMessage(err),

@@ -115,6 +115,7 @@ export type IndexTransactionRow = {
 };
 
 export type StreamsReorgRow = {
+	id: string;
 	detected_at: string;
 	fork_point_height: number;
 	orphaned_range: { from: string; to: string };
