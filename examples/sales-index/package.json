@@ -4,7 +4,8 @@
 	"type": "module",
 	"description": "A complete app index on Secondlayer Index: every Gamma marketplace sale, in your own Postgres, ~50 lines.",
 	"scripts": {
-		"start": "bun run indexer.ts"
+		"start": "bun run indexer.ts",
+		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@secondlayer/sdk": "^6.23.0",
