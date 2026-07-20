@@ -17,7 +17,7 @@
 		"@secondlayer/platform": "workspace:*",
 		"@secondlayer/sdk": "^6.29.1",
 		"@secondlayer/shared": "^7.0.3",
-		"@secondlayer/stacks": "^2.14.1",
+		"@secondlayer/stacks": "^2.17.0",
 		"@secondlayer/subgraphs": "^3.19.9",
 		"hono": "^4.0.0",
 		"stripe": "^22.0.2",
