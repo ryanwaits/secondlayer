@@ -19,8 +19,11 @@ export {
 	C_SCRIPT_NUM_MAX,
 	MAX_NUM_CYCLES,
 	POX5_ACTIVATION_BURN_HEIGHT_MAINNET,
+	POX5_CONTRACT_ID_MAINNET,
 	POX5_CONTRACT_NAME,
+	POX5_EVENT_TOPICS,
 	POX5_SIGNER_DOMAIN,
+	type Pox5EventTopic,
 } from "./constants.ts";
 export {
 	type BondCycleParams,
