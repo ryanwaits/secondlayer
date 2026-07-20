@@ -1,6 +1,7 @@
 /**
  * PoX-5 (SIP-045 Bitcoin Staking) constants, pinned against the final
- * contract shipped in stacks-core 4.0.0 (`stackslib/.../boot/pox-5.clar`).
+ * contract shipped in stacks-core 4.0.1 (`stackslib/.../boot/pox-5.clar`);
+ * `scripts/ci/check-pox5-pin.ts` holds the pinned tag + content hash.
  */
 
 /** Boot contract name; deployer is the chain's boot address. */
@@ -45,7 +46,7 @@ export type Pox5EventTopic = (typeof POX5_EVENT_TOPICS)[number];
 
 /**
  * Epoch 4.0 hard-fork activation height on mainnet — Bitcoin block 960,230
- * (expected ~2026-07-29 03:00 UTC, per the stacks-core 4.0.0 release).
+ * (expected ~2026-07-30 AM UTC, per the stacks-core 4.0.1 release notes).
  * Prefer the runtime gate in `activation.ts` (`getPox5Activation`), which
  * reads the node's `/v2/pox` and needs no hardcoded height.
  */

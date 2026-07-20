@@ -11,7 +11,7 @@ import { BITCOIN_LOCKTIME_THRESHOLD, C_SCRIPT_NUM_MAX } from "./constants.ts";
  * Byte-for-byte TypeScript mirrors of pox-5's Bitcoin-script helpers
  * (`serialize-c-script-num`, `push-c-script-num`, `push-script-bytes`,
  * `construct-lockup-script`, `construct-lockup-output-script`), pinned
- * against the final contract in stacks-core 4.0.0. The contract validates a
+ * against the final contract in stacks-core 4.0.1. The contract validates a
  * staker's L1 lockup output against exactly these bytes, so any divergence
  * means a rejected registration — the read-onlys on-chain double as a
  * cross-check oracle for these functions.

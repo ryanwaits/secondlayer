@@ -90,6 +90,8 @@ jobs:
       - run: DATABASE_URL="$DATABASE_URL" bun run packages/shared/src/db/migrate.ts
       - name: Run test suite
         run: bun run test
+      - name: pox-5 pin check (shipped tag vs clarinet-embedded ABI)
+        run: bun scripts/ci/check-pox5-pin.ts
 
   build-images:
     needs: [typecheck, test]
