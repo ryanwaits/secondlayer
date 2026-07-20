@@ -555,6 +555,56 @@ export interface Pox4SignersDailyTable {
 	updated_at: Generated<Date>;
 }
 
+export type Pox5EventTopic =
+	| "set-bond-admin"
+	| "set-pause-admin"
+	| "pause-rewards"
+	| "setup-bond"
+	| "add-to-allowlist"
+	| "register-for-bond"
+	| "update-bond-registration"
+	| "register-signer"
+	| "stake"
+	| "stake-update"
+	| "announce-l1-early-exit"
+	| "unstake-sbtc"
+	| "unstake"
+	| "calculate-rewards"
+	| "bond-distribution"
+	| "claim-rewards"
+	| "claim-staker-rewards-for-signer"
+	| "grant-signer-key"
+	| "revoke-signer-grant";
+
+// PoX-5 print events (SIP-045). Promoted columns cover hot query paths; the
+// full decoded tuple always lands in `data` (nested shapes: btc-lockup,
+// bond-rewards lists, bond-periods).
+export interface Pox5EventsTable {
+	cursor: string;
+	block_height: number;
+	block_time: Date;
+	tx_id: string;
+	tx_index: number;
+	event_index: number;
+	topic: Pox5EventTopic;
+	staker: string | null;
+	signer: string | null;
+	signer_manager: string | null;
+	bond_index: number | null;
+	amount_ustx: string | null;
+	amount_sats: string | null;
+	reward_cycle: number | null;
+	first_reward_cycle: number | null;
+	unlock_cycle: number | null;
+	unlock_burn_height: number | null;
+	is_l1_lock: boolean | null;
+	signer_key: string | null;
+	data: unknown;
+	canonical: Generated<boolean>;
+	source_cursor: string;
+	created_at: Generated<Date>;
+}
+
 // Actual BTC PoX payout — one row per reward slot (≤2 per burn block), from the
 // /new_burn_block reward_recipients array. `amount_sats`/`burn_amount` are sats.
 export interface BurnBlockRewardsTable {
@@ -831,6 +881,7 @@ export interface Database {
 	pox4_calls: Pox4CallsTable;
 	pox4_cycles_daily: Pox4CyclesDailyTable;
 	pox4_signers_daily: Pox4SignersDailyTable;
+	pox5_events: Pox5EventsTable;
 	burn_block_rewards: BurnBlockRewardsTable;
 	burn_block_reward_slots: BurnBlockRewardSlotsTable;
 	sbtc_events: SbtcEventsTable;

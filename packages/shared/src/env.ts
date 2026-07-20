@@ -117,5 +117,15 @@ export function isPox4DecoderEnabled(): boolean {
 	return process.env.POX4_DECODER_ENABLED !== "false";
 }
 
+/**
+ * PoX-5 print-event decoder is ON by default (mirrors pox-4/sBTC policy).
+ * No activation gating needed: pox-5 events cannot exist before the Epoch 4.0
+ * hard fork (Bitcoin block 960,230), so pre-activation the decoder idles at
+ * tip. Opt out with `POX5_DECODER_ENABLED=false`.
+ */
+export function isPox5DecoderEnabled(): boolean {
+	return process.env.POX5_DECODER_ENABLED !== "false";
+}
+
 // Export for testing
 export { envSchema };

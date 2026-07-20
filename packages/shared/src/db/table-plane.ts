@@ -38,6 +38,7 @@ export const TABLE_TO_DB = {
 	pox4_calls: "source",
 	pox4_cycles_daily: "source",
 	pox4_signers_daily: "source",
+	pox5_events: "source",
 	burn_block_rewards: "source",
 	burn_block_reward_slots: "source",
 	sbtc_events: "source",
