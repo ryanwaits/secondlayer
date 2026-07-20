@@ -1,5 +1,15 @@
 # @secondlayer/api
 
+## 1.24.13
+
+### Patch Changes
+
+- 32c95b2: Consolidate duplicated query-param validators (`parseNonNegativeInteger`, `parseCursor`) into a single `parse-query.ts` module shared by the index and streams surfaces. Behavior-preserving; error strings on the frozen /v1 envelope unchanged.
+- Updated dependencies [729cbf7]
+  - @secondlayer/shared@7.0.3
+  - @secondlayer/subgraphs@3.19.9
+  - @secondlayer/platform@0.1.24
+
 ## 1.24.12
 
 ### Patch Changes
