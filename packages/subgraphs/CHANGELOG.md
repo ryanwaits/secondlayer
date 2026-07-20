@@ -1,5 +1,13 @@
 # @secondlayer/subgraphs
 
+## 3.19.8
+
+### Patch Changes
+
+- Fix infinite reorg re-delivery pinning subgraphs at a fork point. The `/v1/streams/reorgs` resume cursor now carries microsecond-precision `detected_at` text plus an id tiebreak (a millisecond-truncated cursor re-matched the row it came from every poll), and the subgraph reorg poller skips reorg ids it has already applied so a re-delivered reorg can no longer abort in-flight catch-up.
+- Updated dependencies
+  - @secondlayer/shared@7.0.1
+
 ## 3.19.7
 
 ### Patch Changes
