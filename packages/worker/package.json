@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/worker",
-	"version": "1.2.26",
+	"version": "1.2.27",
 	"private": true,
 	"type": "module",
 	"main": "./src/index.ts",
@@ -12,7 +12,7 @@
 	},
 	"dependencies": {
 		"@secondlayer/platform": "workspace:*",
-		"@secondlayer/shared": "^7.0.3",
+		"@secondlayer/shared": "^7.1.0",
 		"kysely": "0.28.17",
 		"stripe": "^22.0.2"
 	},

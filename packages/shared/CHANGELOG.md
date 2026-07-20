@@ -1,5 +1,16 @@
 # @secondlayer/shared
 
+## 7.1.0
+
+### Minor Changes
+
+- Add the `pox5_events` dataset: `Pox5EventsTable`/`Pox5EventTopic` schema types, the `0110_pox5_events` migration (19-topic PoX-5 print-event table with promoted columns + JSONB tuple), source-plane registration, and the `isPox5DecoderEnabled` env gate (default ON, opt out with `POX5_DECODER_ENABLED=false`).
+
+### Patch Changes
+
+- Updated dependencies [4e572d6]
+  - @secondlayer/stacks@2.18.0
+
 ## 7.0.3
 
 ### Patch Changes

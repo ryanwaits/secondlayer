@@ -2,6 +2,25 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## Index — July 2026
+
+### PoX-5 events, decoded from activation block one
+
+The indexer now ships a PoX-5 decoder alongside the existing PoX-4 dataset.
+Every print event the new `pox-5` boot contract emits — all 19 topics, from
+`stake` and `register-for-bond` through `claim-rewards` and signer grants —
+lands in a queryable `pox5_events` dataset with typed columns for stakers,
+signers, bonds, amounts, and cycle windows, plus the full event tuple as JSON.
+
+- Nothing to configure: the decoder is on by default and idles until the
+  Epoch 4.0 fork activates at Bitcoin block 960,230. Your first pox-5 event
+  is decoded the moment it exists.
+- Self-hosting? Raw events are always stored, so upgrading after the fork
+  backfills the dataset with zero data loss — no re-sync from your node.
+- `@secondlayer/stacks` now exports `POX5_EVENT_TOPICS`, `Pox5EventTopic`,
+  and `POX5_CONTRACT_ID_MAINNET` for building your own event tooling against
+  the same verified topic set.
+
 ## SDK — July 2026
 
 ### PoX-5 calls, fully typed
