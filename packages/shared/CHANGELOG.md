@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 7.0.2
+
+### Patch Changes
+
+- cbedcb5: Route the reorg cursor timestamp through `::text` before the `timestamptz` cast. A bare `::timestamptz` made the driver infer the param as a timestamp and convert it client-side at millisecond precision, silently discarding the microseconds the cursor exists to preserve.
+
 ## 7.0.1
 
 ### Patch Changes

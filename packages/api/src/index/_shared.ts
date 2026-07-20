@@ -1,5 +1,4 @@
 import { ValidationError } from "@secondlayer/shared/errors";
-import { decodeStreamsCursor } from "../streams/cursor.ts";
 import {
 	EMPTY_STREAMS_REORGS_READER,
 	type StreamsReorg,
@@ -13,26 +12,9 @@ export type IndexCursorInput = {
 	event_index: number;
 };
 
-export function parseNonNegativeInteger(value: string, name: string): number {
-	if (!/^(0|[1-9]\d*)$/.test(value)) {
-		throw new ValidationError(`${name} must be a non-negative integer`);
-	}
-
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed)) {
-		throw new ValidationError(`${name} must be a non-negative integer`);
-	}
-
-	return parsed;
-}
-
-export function parseCursor(value: string): IndexCursorInput {
-	try {
-		return decodeStreamsCursor(value);
-	} catch {
-		throw new ValidationError("cursor must use <block_height>:<event_index>");
-	}
-}
+// Canonical implementations live in ../parse-query.ts; re-exported here for
+// existing index-surface import sites.
+export { parseCursor, parseNonNegativeInteger } from "../parse-query.ts";
 
 export function parseLimit(value: string | undefined): number {
 	if (value === undefined) return 200;

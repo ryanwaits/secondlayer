@@ -1,5 +1,12 @@
 # @secondlayer/platform
 
+## 0.1.23
+
+### Patch Changes
+
+- Updated dependencies [cbedcb5]
+  - @secondlayer/shared@7.0.2
+
 ## 0.1.22
 
 ### Patch Changes

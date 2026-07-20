@@ -1,5 +1,13 @@
 # @secondlayer/worker
 
+## 1.2.25
+
+### Patch Changes
+
+- Updated dependencies [cbedcb5]
+  - @secondlayer/shared@7.0.2
+  - @secondlayer/platform@0.1.23
+
 ## 1.2.24
 
 ### Patch Changes
