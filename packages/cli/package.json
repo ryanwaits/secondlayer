@@ -46,7 +46,7 @@
 		"@secondlayer/subgraphs": "^3.19.7",
 		"@biomejs/js-api": "^0.7.0",
 		"@biomejs/wasm-nodejs": "^1.9.0",
-		"esbuild": "^0.19.0",
+		"esbuild": "^0.27.4",
 		"smol-toml": "^1.6.1",
 		"zod": "^4.3.6"
 	},
