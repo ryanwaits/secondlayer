@@ -15,5 +15,8 @@
 		"@secondlayer/stacks": "^2.9.0",
 		"@stacks/clarinet-sdk": "3.21.0",
 		"@stacks/transactions": "7.0.6"
+	},
+	"devDependencies": {
+		"@types/bun": "^1.3.14"
 	}
 }
