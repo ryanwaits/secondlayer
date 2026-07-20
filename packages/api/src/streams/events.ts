@@ -7,7 +7,8 @@ import {
 	readCanonicalStreamsEvents,
 } from "@secondlayer/indexer/streams-events";
 import { ValidationError } from "@secondlayer/shared/errors";
-import { type StreamsCursorInput, decodeStreamsCursor } from "./cursor.ts";
+import { parseCursor, parseNonNegativeInteger } from "../parse-query.ts";
+import type { StreamsCursorInput } from "./cursor.ts";
 import {
 	EMPTY_STREAMS_REORGS_READER,
 	type StreamsReorg,
@@ -71,27 +72,6 @@ export function markFinalized(
 }
 
 const STREAMS_EVENT_TYPE_SET = new Set<string>(STREAMS_EVENT_TYPES);
-
-function parseNonNegativeInteger(value: string, name: string): number {
-	if (!/^(0|[1-9]\d*)$/.test(value)) {
-		throw new ValidationError(`${name} must be a non-negative integer`);
-	}
-
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed)) {
-		throw new ValidationError(`${name} must be a non-negative integer`);
-	}
-
-	return parsed;
-}
-
-function parseCursor(value: string): StreamsCursorInput {
-	try {
-		return decodeStreamsCursor(value);
-	} catch {
-		throw new ValidationError("cursor must use <block_height>:<event_index>");
-	}
-}
 
 function parseLimit(value: string | undefined): number {
 	if (value === undefined) return 100;

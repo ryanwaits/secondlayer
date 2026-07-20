@@ -3,6 +3,7 @@ import {
 	ValidationError,
 } from "@secondlayer/shared/errors";
 import type { Context, MiddlewareHandler } from "hono";
+import { parseNonNegativeInteger } from "../parse-query.ts";
 import type { StreamsEnv } from "./auth.ts";
 import { decodeStreamsCursor } from "./cursor.ts";
 import { streamsDumpsManifestUrl } from "./dumps.ts";
@@ -42,19 +43,6 @@ export function assertStreamsHeightWithinRetention(
 			},
 		);
 	}
-}
-
-function parseBlockHeight(value: string, name: string): number {
-	if (!/^(0|[1-9]\d*)$/.test(value)) {
-		throw new ValidationError(`${name} must be a non-negative integer`);
-	}
-
-	const height = Number(value);
-	if (!Number.isSafeInteger(height)) {
-		throw new ValidationError(`${name} must be a non-negative integer`);
-	}
-
-	return height;
 }
 
 function parseCursorBlockHeight(cursor: string): number {
@@ -99,7 +87,7 @@ export function streamsRetentionWindow(opts: {
 		const requestedHeight = cursor
 			? parseCursorBlockHeight(cursor)
 			: fromHeight
-				? parseBlockHeight(fromHeight, "from_height")
+				? parseNonNegativeInteger(fromHeight, "from_height")
 				: null;
 
 		if (requestedHeight !== null) {

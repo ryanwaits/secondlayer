@@ -1,4 +1,5 @@
 import { ValidationError } from "@secondlayer/shared/errors";
+import { parseCursor, parseNonNegativeInteger } from "../parse-query.ts";
 import {
 	EMPTY_STREAMS_REORGS_READER,
 	type StreamsReorg,
@@ -14,7 +15,7 @@ export type IndexCursorInput = {
 
 // Canonical implementations live in ../parse-query.ts; re-exported here for
 // existing index-surface import sites.
-export { parseCursor, parseNonNegativeInteger } from "../parse-query.ts";
+export { parseCursor, parseNonNegativeInteger };
 
 export function parseLimit(value: string | undefined): number {
 	if (value === undefined) return 200;
