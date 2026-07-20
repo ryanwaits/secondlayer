@@ -149,18 +149,23 @@ export async function readChainReorgsSince(
 			since instanceof Date
 				? { detected_at: since.toISOString(), id: null }
 				: since;
+		// The (…::text)::timestamptz double cast is load-bearing: a bare
+		// ::timestamptz makes the driver infer the param as a timestamp and
+		// convert the string client-side at millisecond precision, silently
+		// discarding microseconds — the exact truncation this cursor exists to
+		// avoid. ::text forces the raw string through so Postgres does the cast.
 		const result = cursor.id
 			? await sql<ChainReorgRow>`
 					SELECT *, ${detectedAtUs} AS detected_at_us
 					FROM chain_reorgs
-					WHERE (detected_at, id) > (${cursor.detected_at}::timestamptz, ${cursor.id}::uuid)
+					WHERE (detected_at, id) > ((${cursor.detected_at}::text)::timestamptz, ${cursor.id}::uuid)
 					ORDER BY detected_at ASC, id ASC
 					LIMIT ${limit}
 				`.execute(db)
 			: await sql<ChainReorgRow>`
 					SELECT *, ${detectedAtUs} AS detected_at_us
 					FROM chain_reorgs
-					WHERE detected_at > ${cursor.detected_at}::timestamptz
+					WHERE detected_at > (${cursor.detected_at}::text)::timestamptz
 					ORDER BY detected_at ASC, id ASC
 					LIMIT ${limit}
 				`.execute(db);
