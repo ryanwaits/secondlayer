@@ -75,6 +75,7 @@ export function getEnabledDecoderNames(
 		names.push("decode.sbtc.v1", "decode.sbtc_token.v1");
 	}
 	if (env.POX4_DECODER_ENABLED !== "false") names.push("decode.pox4.v1");
+	if (env.POX5_DECODER_ENABLED !== "false") names.push("decode.pox5.v1");
 	if (env.BNS_DECODER_ENABLED === "true") names.push("decode.bns.v1");
 	return names;
 }

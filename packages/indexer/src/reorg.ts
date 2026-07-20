@@ -7,6 +7,7 @@ import { logger } from "@secondlayer/shared/logger";
 import type { Transaction } from "kysely";
 import { handleBnsReorg } from "./decode/bns-storage.ts";
 import { handlePox4Reorg } from "./decode/pox4-storage.ts";
+import { handlePox5Reorg } from "./decode/pox5-storage.ts";
 import { handleSbtcReorg } from "./decode/sbtc-storage.ts";
 import { handleDecodedEventsReorg } from "./decode/storage.ts";
 
@@ -85,6 +86,7 @@ export async function handleReorg(
 		const l2Reorg = await handleDecodedEventsReorg(blockHeight, { db: tx });
 		const sbtcReorg = await handleSbtcReorg(blockHeight, { db: tx });
 		const pox4Reorg = await handlePox4Reorg(blockHeight, { db: tx });
+		const pox5Reorg = await handlePox5Reorg(blockHeight, { db: tx });
 		const bnsReorg = await handleBnsReorg(blockHeight, { db: tx });
 		const reorg = await insertChainReorg({
 			db: tx,
@@ -104,6 +106,7 @@ export async function handleReorg(
 			l2Reorg,
 			sbtcReorg,
 			pox4Reorg,
+			pox5Reorg,
 			bnsReorg,
 			reorg,
 		});

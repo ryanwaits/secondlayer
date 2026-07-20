@@ -25,27 +25,30 @@ const ALWAYS_ON = [
 ];
 
 describe("getEnabledDecoderNames", () => {
-	test("always-on decoders plus sbtc + pox4 (both enabled by default)", () => {
+	test("always-on decoders plus sbtc + pox4 + pox5 (all enabled by default)", () => {
 		expect(getEnabledDecoderNames({})).toEqual([
 			...ALWAYS_ON,
 			"decode.sbtc.v1",
 			"decode.sbtc_token.v1",
 			"decode.pox4.v1",
+			"decode.pox5.v1",
 		]);
 	});
 
-	test("SBTC_DECODER_ENABLED=false suppresses sbtc (pox4 still default-on)", () => {
+	test("SBTC_DECODER_ENABLED=false suppresses sbtc (pox4/pox5 still default-on)", () => {
 		expect(getEnabledDecoderNames({ SBTC_DECODER_ENABLED: "false" })).toEqual([
 			...ALWAYS_ON,
 			"decode.pox4.v1",
+			"decode.pox5.v1",
 		]);
 	});
 
-	test("POX4_DECODER_ENABLED=false suppresses pox4", () => {
+	test("POX4_DECODER_ENABLED=false and POX5_DECODER_ENABLED=false suppress their decoders", () => {
 		expect(
 			getEnabledDecoderNames({
 				SBTC_DECODER_ENABLED: "false",
 				POX4_DECODER_ENABLED: "false",
+				POX5_DECODER_ENABLED: "false",
 			}),
 		).toEqual(ALWAYS_ON);
 	});
@@ -55,19 +58,21 @@ describe("getEnabledDecoderNames", () => {
 			getEnabledDecoderNames({
 				SBTC_DECODER_ENABLED: "false",
 				POX4_DECODER_ENABLED: "false",
+				POX5_DECODER_ENABLED: "false",
 				BNS_DECODER_ENABLED: "true",
 			}),
 		).toEqual([...ALWAYS_ON, "decode.bns.v1"]);
 	});
 
-	test("opt-in bns ignores non-'true' values; opt-out pox4 ignores non-'false' values", () => {
+	test("opt-in bns ignores non-'true' values; opt-out pox4/pox5 ignore non-'false' values", () => {
 		expect(
 			getEnabledDecoderNames({
 				SBTC_DECODER_ENABLED: "false",
 				POX4_DECODER_ENABLED: "yes", // not "false" → pox4 stays on
+				POX5_DECODER_ENABLED: "on", // not "false" → pox5 stays on
 				BNS_DECODER_ENABLED: "TRUE", // not "true" → bns stays off
 			}),
-		).toEqual([...ALWAYS_ON, "decode.pox4.v1"]);
+		).toEqual([...ALWAYS_ON, "decode.pox4.v1", "decode.pox5.v1"]);
 	});
 });
 

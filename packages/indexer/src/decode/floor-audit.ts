@@ -25,6 +25,7 @@ import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
 import { BNS_DECODER_NAME } from "./bns-storage.ts";
 import { POX4_DECODER_NAME } from "./pox4-storage.ts";
+import { POX5_DECODER_NAME } from "./pox5-storage.ts";
 import { SBTC_DECODER_NAME, SBTC_TOKEN_DECODER_NAME } from "./sbtc-storage.ts";
 import {
 	DECODER_EVENT_TYPES,
@@ -59,6 +60,13 @@ export const DECODER_FLOOR_BASELINE: Record<string, number> = {
 	"decode.sbtc.v1": 328312,
 	"decode.sbtc_token.v1": 329351,
 	"decode.pox4.v1": 147294,
+	// PROVISIONAL: pox-5 deploys at Epoch 4.0 activation (Bitcoin block
+	// 960,230, ~2026-07-30) — its true genesis floor is the first pox-5 event's
+	// Stacks height, unknowable before activation. Set generously ABOVE any
+	// plausible first-event height so the guard can't false-alarm on launch
+	// (floor BELOW baseline passes; only floor > baseline+tolerance fails).
+	// Re-measure and tighten to the real floor once events exist.
+	"decode.pox5.v1": 8_900_000,
 	"decode.bns.v1": 167540,
 };
 
@@ -159,6 +167,7 @@ async function readDecoderFloor(
 	if (decoderName === SBTC_TOKEN_DECODER_NAME)
 		return minOf("sbtc_token_events");
 	if (decoderName === POX4_DECODER_NAME) return minOf("pox4_calls");
+	if (decoderName === POX5_DECODER_NAME) return minOf("pox5_events");
 	if (decoderName === BNS_DECODER_NAME) return minOf("bns_name_events");
 
 	const eventType =

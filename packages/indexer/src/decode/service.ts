@@ -1,4 +1,7 @@
-import { isPox4DecoderEnabled } from "@secondlayer/shared";
+import {
+	isPox4DecoderEnabled,
+	isPox5DecoderEnabled,
+} from "@secondlayer/shared";
 import { assertDbSplit, closeDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import {
@@ -16,6 +19,7 @@ import {
 } from "./decoder.ts";
 import { consumeBnsDecodedEvents } from "./decoders/bns.ts";
 import { consumePox4DecodedEvents } from "./decoders/pox-4.ts";
+import { consumePox5DecodedEvents } from "./decoders/pox-5.ts";
 import {
 	consumeSbtcRegistryDecodedEvents,
 	consumeSbtcTokenDecodedEvents,
@@ -34,6 +38,7 @@ const controller = new AbortController();
 // opt out with `SBTC_DECODER_ENABLED=false`.
 const SBTC_ENABLED = process.env.SBTC_DECODER_ENABLED !== "false";
 const POX4_ENABLED = isPox4DecoderEnabled();
+const POX5_ENABLED = isPox5DecoderEnabled();
 const BNS_ENABLED = process.env.BNS_DECODER_ENABLED === "true";
 // Opt-in (needs bitcoind RPC creds): the BTC L1 settlement confirmer for sBTC
 // withdrawals. Kept OUT of getEnabledDecoderNames/floor-audit — it has its own
@@ -57,6 +62,7 @@ const decodedTotals: Record<string, number> = {
 	...DECODED_EVENT_DECODERS,
 	...(SBTC_ENABLED ? { "decode.sbtc.v1": 0, "decode.sbtc_token.v1": 0 } : {}),
 	...(POX4_ENABLED ? { "decode.pox4.v1": 0 } : {}),
+	...(POX5_ENABLED ? { "decode.pox5.v1": 0 } : {}),
 	...(BNS_ENABLED ? { "decode.bns.v1": 0 } : {}),
 	...(SETTLEMENT_CONFIRMER_ENABLED ? { [SETTLEMENT_CONFIRMER_NAME]: 0 } : {}),
 };
@@ -64,6 +70,7 @@ const decodedThisMinute: Record<string, number> = {
 	...DECODED_EVENT_DECODERS,
 	...(SBTC_ENABLED ? { "decode.sbtc.v1": 0, "decode.sbtc_token.v1": 0 } : {}),
 	...(POX4_ENABLED ? { "decode.pox4.v1": 0 } : {}),
+	...(POX5_ENABLED ? { "decode.pox5.v1": 0 } : {}),
 	...(BNS_ENABLED ? { "decode.bns.v1": 0 } : {}),
 	...(SETTLEMENT_CONFIRMER_ENABLED ? { [SETTLEMENT_CONFIRMER_NAME]: 0 } : {}),
 };
@@ -214,6 +221,11 @@ async function runDecoders(): Promise<void> {
 		tasks.push(runDecoder("decode.pox4.v1", consumePox4DecodedEvents));
 	} else {
 		logger.info("decoder.pox4_disabled");
+	}
+	if (POX5_ENABLED) {
+		tasks.push(runDecoder("decode.pox5.v1", consumePox5DecodedEvents));
+	} else {
+		logger.info("decoder.pox5_disabled");
 	}
 	if (BNS_ENABLED) {
 		tasks.push(runDecoder("decode.bns.v1", consumeBnsDecodedEvents));
