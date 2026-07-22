@@ -124,8 +124,8 @@ The system is built on tinted near-neutrals (warm paper, near-black ink) carryin
 
 **Key Characteristics:**
 - Editorial restraint: hairline rules, generous measure (65–75ch), no decorative containers.
-- Hand-annotation layer: Caveat cursive labels and rough-notation circles, used sparingly.
-- One accent that points (Signal Blue), one accent that delights (Marker Pink), used once each per view.
+- Hand-annotation layer (Caveat cursive labels, rough-notation circles, Marker Pink): **OPT-IN ONLY** — never include in mockups, showcases, or new pages unless explicitly requested. See The Opt-In Annotation Rule.
+- One accent that points (Signal Blue). Marker Pink exists in the token set but is opt-in (see below).
 - Light by default, with a true dark theme via `prefers-color-scheme` plus explicit `.force-light` / `.force-dark` overrides.
 - Monospace as a first-class voice for data, code, identifiers, and numerals.
 
@@ -137,7 +137,7 @@ Tinted near-neutrals do the work; chromatic color is rationed. The palette is de
 - **Signal Blue** (#2563eb light / #8aa7f8 dark): the single pointing color. Links, focus states, primary CTAs, selected rows, callout accents, the logo fill. It marks the one actionable or important thing in view. Its softer forms ship as `accent-bg` (#2563eb0f) and `accent-border` (#2563eb33) for tinted fills.
 
 ### Secondary
-- **Marker Pink** (#ff00aa, both themes): the human flourish. Appears once per page at most — the "free forever" claim's dashed underline, the hand-drawn NEW badge circle, a single editorial highlight. Treated like a marker swipe, never a brand fill.
+- **Marker Pink** (#ff00aa, both themes): the human flourish — a dashed underline, a hand-drawn circle, a single editorial highlight. **Opt-in only:** never appears in a mockup or new page unless explicitly requested. When requested, once per page at most, treated like a marker swipe, never a brand fill.
 
 ### Neutral
 - **Ink** (#111111 light / #ececec dark): primary text and the fill of ink-button CTAs.
@@ -154,7 +154,9 @@ Tinted near-neutrals do the work; chromatic color is rationed. The palette is de
 ### Named Rules
 **The One Voice Rule.** Signal Blue covers ≤10% of any screen. If two things are blue, neither reads as the signal. Demote one to ink.
 
-**The Pink-Once Rule.** Marker Pink appears at most once per page, and only as a hand-gesture (underline, circle, highlight). Never as a button, fill, or second accent.
+**The Opt-In Annotation Rule.** The entire hand-annotation layer — Marker Pink, Caveat cursive notes, rough-notation circles, cursive diagram captions (`sl-diagram-note`) — is NOT part of the default page recipe. Do not add any of it to mockups, showcases, artifacts, or new pages. It is added only as a separate, explicit step when someone asks for it. Existing product surfaces that already use it are grandfathered.
+
+**The Pink-Once Rule.** When hand annotation IS requested, Marker Pink appears at most once per page, and only as a hand-gesture (underline, circle, highlight). Never as a button, fill, or second accent.
 
 **The Tinted-Neutral Rule.** No `#000`, no `#fff`. Paper is warm (#fafafa), elevated surfaces are pure white only as a deliberate lift; ink is #111, never pure black.
 
@@ -163,7 +165,7 @@ Tinted near-neutrals do the work; chromatic color is rationed. The palette is de
 **Display Font:** Sora (with ui-sans-serif, system-ui fallback) — all headings `h1`–`h4`.
 **Body Font:** Public Sans (with ui-sans-serif, system-ui fallback) — prose and UI text.
 **Mono Font:** Fira Code (with SFMono-Regular, Consolas fallback) — code, data, identifiers, numerals, labels.
-**Note Font:** Caveat (cursive) — hand annotations only.
+**Note Font:** Caveat (cursive) — hand annotations only; opt-in (see The Opt-In Annotation Rule), never in default mockups.
 
 **Character:** Sora's geometric headlines sit over Public Sans body tuned unusually tight (weight 460, letter-spacing -0.00563rem) so dense pages stay calm and even-toned. Fira Code carries anything that is data, and Caveat is the one handwritten voice that keeps the whole thing from feeling machine-made.
 
@@ -229,8 +231,8 @@ Four button registers share a 6px radius, ~12px mono-adjacent sans label, and sn
 ### Section Heading (signature)
 Text overlaid on a horizontal hairline: the rule runs full width, the heading sits on top with a Paper background masking the line behind it (`.section-heading-wrap`). Sora 560, 0.875rem. This, not boxes, is how the editorial surface chunks content.
 
-### Hand Annotation (signature)
-Caveat cursive labels (`.notation-label`, `.beta-bracket-label`) and rough-notation SVG circles (`.badge-new`), positioned in the margin and rotated -2deg to +2deg. The NEW badge animates its stroke in over 400ms. **All rough-notation SVGs are hidden below 768px** (their computed bounds break on narrow screens); the cursive labels reflow inline instead.
+### Hand Annotation (opt-in — never default)
+**Do not build this into mockups or new pages unless explicitly requested** (The Opt-In Annotation Rule). Where it already exists in the product: Caveat cursive labels (`.notation-label`, `.beta-bracket-label`) and rough-notation SVG circles (`.badge-new`), positioned in the margin and rotated -2deg to +2deg. The NEW badge animates its stroke in over 400ms. **All rough-notation SVGs are hidden below 768px** (their computed bounds break on narrow screens); the cursive labels reflow inline instead.
 
 ### Data Table (signature, console)
 `.dash-data-table`: full Fira Code 12px, `border-collapse`, hairline row dividers, no outer border. Headers are 10px uppercase mono `text-muted` with 0.06em tracking. Rows tint on hover (`rgba(0,0,0,0.02)`) and on selection (`accent-bg`). Cells truncate with ellipsis at 200px and expand a `row-detail` JSON `<pre>` on click. This is the "data page" of the notebook.
@@ -247,7 +249,7 @@ Caveat cursive labels (`.notation-label`, `.beta-bracket-label`) and rough-notat
 - **Data node** (`.node.data`): `accent-bg` fill, `accent-border` stroke, Signal Blue title. A shaped/decoded data layer.
 - **API node** (`.node.api`): solid Signal Blue fill, paper-contrast text. The Secondlayer surface itself, the one filled node.
 
-Node titles are Sora 13px/600; sublabels and edge labels are Fira Code (8–8.5px). Edges are thin strokes (`.edge` muted at 0.6 opacity, `.edge.acc` Signal Blue at 0.5) with arrowhead markers. A right-aligned Caveat cursive `sl-diagram-note` in Signal Blue captions each diagram ("decoded once — query forever"). **The node coloring is meaningful, not decorative:** the single filled accent node is always the product surface in the pipeline.
+Node titles are Sora 13px/600; sublabels and edge labels are Fira Code (8–8.5px). Edges are thin strokes (`.edge` muted at 0.6 opacity, `.edge.acc` Signal Blue at 0.5) with arrowhead markers. The cursive `sl-diagram-note` caption is part of the opt-in hand-annotation layer — do not add it to new diagrams unless asked. **The node coloring is meaningful, not decorative:** the single filled accent node is always the product surface in the pipeline.
 
 ### Dataset Sandbox (signature)
 `.dataset-sandbox`: an inline, runnable query playground embedded in dataset, docs, and streams pages (one shared component, 7 mounts). It is the place the product register surfaces inside the editorial column, structured as a **notebook cell**: a shaded request "input" strip stacked flush above a lifted response "output", with the response as the hero.
@@ -268,7 +270,7 @@ Node titles are Sora 13px/600; sublabels and edge labels are Fira Code (8–8.5p
 - **Do** set all data, identifiers, hashes, endpoints, and numerals in Fira Code with `tabular-nums`.
 - **Do** keep prose to a 65–75ch measure and body weight 460. Calm, even color on the page.
 - **Do** express depth with borders and inset Chrome backgrounds. Reserve shadow + blur for floating, dismissible chrome only.
-- **Do** use the Caveat hand-annotation layer sparingly to keep pages from feeling machine-generated.
+- **Do** leave the hand-annotation layer (Caveat, Marker Pink, rough-notation) OUT of mockups and new pages — it is opt-in, added only when explicitly requested.
 - **Do** ease with the project curves: `--ease-snappy` (cubic-bezier(0.175,0.885,0.32,1.1)) for state feedback, `--ease-smooth` (cubic-bezier(0.19,1,0.22,1)) for transitions.
 - **Do** pair every status hue (green/yellow/red/teal) with text or an icon. Never encode meaning in color alone.
 - **Do** provide deliberate, visible custom focus states. The console suppresses native focus rings, so a `:focus-visible` affordance is mandatory, not optional. Maintain AA contrast in both light and dark.
@@ -280,7 +282,7 @@ Node titles are Sora 13px/600; sublabels and edge labels are Fira Code (8–8.5p
 - **Don't** go **heavy enterprise**: no navy-and-gold corporate, legalese, stock photography, or bloated marketing chrome.
 - **Don't** go **playful / consumer**: no rounded blobs, mascots, cartoon palettes, or oversized friendly emoji.
 - **Don't** use `#000` or `#fff` as text or page color. Paper is #fafafa, ink is #111.
-- **Don't** make Marker Pink a second accent or a button. One human gesture per page, maximum.
+- **Don't** add Marker Pink or Caveat annotations unprompted — the whole layer is opt-in. Even when requested: never a second accent or a button, one human gesture per page, maximum.
 - **Don't** nest cards or box content that a hairline and whitespace would separate better.
 - **Don't** add focus glows or rings to inputs. Focus is a border-color shift (plus the mandatory a11y `:focus-visible` outline).
 - **Don't** use bounce or elastic easing, and never animate layout properties. Ease-out only.
