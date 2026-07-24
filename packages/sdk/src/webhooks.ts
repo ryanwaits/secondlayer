@@ -10,6 +10,7 @@ export {
 	verify as verifyStandardWebhooksHeaders,
 } from "@secondlayer/shared/crypto/standard-webhooks";
 export type {
+	ChainApplyDeliveryOf,
 	ChainApplyEnvelope,
 	ChainApplyEnvelopeOf,
 	ChainEventEnvelope,
@@ -31,6 +32,9 @@ export type {
 	ChainTxLevelEvent,
 	ChainWebhookDelivery,
 	ChainWebhookEnvelope,
+	SbtcDepositEvent,
+	SbtcWithdrawalEvent,
+	SbtcWithdrawalSweptConfirmedEvent,
 } from "@secondlayer/shared";
 
 type HeaderLookup = (name: string) => string | null | undefined;

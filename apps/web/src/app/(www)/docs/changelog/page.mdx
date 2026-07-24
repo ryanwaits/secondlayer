@@ -23,6 +23,25 @@ signers, bonds, amounts, and cycle windows, plus the full event tuple as JSON.
 
 ## SDK — July 2026
 
+### Chain webhooks decode and narrow from one import
+
+`decodeChainWebhook` is now reachable from the SDK root. Verify a delivery's
+signature, hand the same raw body to the decoder, and switch on
+`data.trigger` with your event fully narrowed — no hand-rolled parser, no
+guessing which fields a `print_event` versus a `contract_call` delivery
+carries.
+
+- The result type comes with it: `import type { ChainWebhookDelivery }` from
+  `@secondlayer/sdk` alone. Every piece the union composes is exported too —
+  the per-trigger `Chain*Data` shapes, `ChainEventEnvelope`,
+  `ChainTxLevelEvent`, `ChainReorgRollbackDelivery`, and the sBTC deposit and
+  withdrawal payloads.
+- The decoder validates as it narrows. A body that isn't a `chain.*`
+  delivery, or whose `type` disagrees with `data.trigger`, throws instead of
+  quietly handing you a mistyped object.
+- `WebhookHeaderInput` and `StandardWebhooksHeaders` are exported as well, so
+  you can type your own framework adapter around `verifyWebhookSignature`.
+
 ### PoX-5 calls, fully typed
 
 Every `client.pox5.*` action and read now runs through the module's committed

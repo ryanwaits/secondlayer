@@ -238,7 +238,11 @@ export interface ChainApplyEnvelopeOf<
 	event: TEvent;
 }
 
-type ChainApplyDeliveryOf<TTrigger extends ChainTrigger["type"], TEvent> = {
+/** One delivery body, generic over its trigger literal + matched-event shape. */
+export type ChainApplyDeliveryOf<
+	TTrigger extends ChainTrigger["type"],
+	TEvent,
+> = {
 	type: `chain.${TTrigger}.apply`;
 	timestamp: string;
 	data: ChainApplyEnvelopeOf<TTrigger, TEvent>;
