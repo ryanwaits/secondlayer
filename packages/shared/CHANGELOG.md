@@ -1,5 +1,13 @@
 # @secondlayer/shared
 
+## 7.2.0
+
+### Minor Changes
+
+- Export `decodeChainWebhook` and the chain-webhook type surface from the `@secondlayer/sdk` root. The decoder shipped in 6.29.0 but was never re-exported from `src/index.ts`, so `import { decodeChainWebhook } from "@secondlayer/sdk"` resolved to `undefined` at runtime and the result type `ChainWebhookDelivery` was unnameable without depending on the internal `@secondlayer/shared` package.
+
+  The root export now also carries the types a decoder consumer needs to discriminate on `data.trigger` and read the matched event — `ChainWebhookDelivery`, `ChainReorgRollbackDelivery`, `ChainTestDelivery`, `ChainApplyDeliveryOf`, `ChainApplyEnvelope`/`ChainApplyEnvelopeOf`, `ChainReorgRollbackEnvelope`, `ChainReorgOrphanedEntry`, `ChainWebhookEnvelope`, `ChainEventEnvelope`, `ChainTxLevelEvent`, every `Chain{Stx,Ft,Nft,Print}*Data` variant, the sBTC event payloads (`SbtcDepositEvent`, `SbtcWithdrawalEvent`, `SbtcWithdrawalSweptConfirmedEvent`), plus `WebhookHeaderInput`, `StandardWebhooksHeaders`, and `verifyStandardWebhooksHeaders`. `ChainApplyDeliveryOf` is newly exported from `@secondlayer/shared` — previously module-private, so the generic apply-delivery shape couldn't be named at all.
+
 ## 7.1.0
 
 ### Minor Changes
