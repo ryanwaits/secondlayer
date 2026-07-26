@@ -86,6 +86,51 @@ function describeDbUrl(url: string): string {
 	}
 }
 
+/** Warn-once latch — one line per process, not one per import or connection. */
+let warnedDefaultUrlFallthrough = false;
+
+/**
+ * Test-run guard for the plain "no DB env at all" case, which `assertDbSplit`
+ * deliberately does not cover (it only fires when a SPLIT is requested).
+ *
+ * Without any of the three URL vars, every getter resolves to the built-in
+ * dev `DEFAULT_URL`. In a test run that means one of two silent outcomes: the
+ * suite's own `skipIf(!process.env.DATABASE_URL)` guard disables it entirely,
+ * or an unguarded test connects to whatever Postgres happens to be on
+ * localhost:5432. Both exit 0 and read as "tests passed".
+ *
+ * Fires at MODULE LOAD, not from a getter: DB-backed suites guard `getDb()`
+ * behind their own `skipIf`, so when the env is missing no getter is ever
+ * called — import is the only point where this is still observable.
+ *
+ * Gated to `NODE_ENV=test` on purpose. `@secondlayer/shared` is published, and
+ * end users running `sl local` / `sl dev` rely on `DEFAULT_URL` legitimately —
+ * it matches what the CLI provisions. They must see nothing. Fail-soft: warns,
+ * never throws, matching `assertDbSplit`'s contract.
+ */
+function warnIfTestRunFallsThroughToDefault(): void {
+	if (warnedDefaultUrlFallthrough) return;
+	// Runtime read — inlining `process.env.NODE_ENV` gets constant-folded into
+	// the shipped dist, freezing this to a build-time literal. See env.ts.
+	// biome-ignore lint/complexity/useLiteralKeys: bracket access is deliberate — dot-access gets constant-folded by the bundler.
+	if (process.env["NODE_ENV"] !== "test") return;
+	if (
+		process.env.DATABASE_URL ||
+		process.env.SOURCE_DATABASE_URL ||
+		process.env.TARGET_DATABASE_URL
+	) {
+		return;
+	}
+	warnedDefaultUrlFallthrough = true;
+	console.warn(
+		`⚠️  DATABASE_URL unset — falling through to the built-in DEFAULT_URL (${describeDbUrl(
+			DEFAULT_URL,
+		)}). Database-backed tests will skip or hit the wrong Postgres. Copy .env.example to .env in this package (see \`bun run db\`).`,
+	);
+}
+
+warnIfTestRunFallsThroughToDefault();
+
 export interface DbSplitStatus {
 	/** "split" when source/target resolve to different DBs, else "single". */
 	mode: "split" | "single";

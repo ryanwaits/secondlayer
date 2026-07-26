@@ -136,6 +136,71 @@ describe("getDbSplitStatus", () => {
 	});
 });
 
+describe("DEFAULT_URL fallthrough warning", () => {
+	// The module warns at import time, and `import()` is cached per specifier —
+	// so each case imports through a unique query string to force a fresh
+	// top-level evaluation against the env it just set.
+	let savedNodeEnv: string | undefined;
+	let warnings: string[];
+	let originalWarn: typeof console.warn;
+
+	beforeEach(() => {
+		savedNodeEnv = process.env.NODE_ENV;
+		warnings = [];
+		originalWarn = console.warn;
+		console.warn = (...args: unknown[]) => {
+			warnings.push(args.map(String).join(" "));
+		};
+	});
+
+	afterEach(() => {
+		console.warn = originalWarn;
+		if (savedNodeEnv === undefined) {
+			delete process.env.NODE_ENV;
+		} else {
+			process.env.NODE_ENV = savedNodeEnv;
+		}
+	});
+
+	test("warns under NODE_ENV=test when no DB URL is set", async () => {
+		for (const k of ENV_KEYS) unsetEnv(k);
+		process.env.NODE_ENV = "test";
+
+		await import("../src/db/index.ts?fallthrough-warn");
+
+		const warning = warnings.find((w) => w.includes("DATABASE_URL unset"));
+		expect(warning).toBeDefined();
+		// Names the built-in target and the package-local fix, so the reader
+		// knows both what went wrong and what to do about it.
+		expect(warning).toContain("localhost:5432/secondlayer_dev");
+		expect(warning).toContain(".env.example");
+	});
+
+	test("silent when DATABASE_URL is set", async () => {
+		unsetEnv("SOURCE_DATABASE_URL");
+		unsetEnv("TARGET_DATABASE_URL");
+		process.env.DATABASE_URL = "postgres://postgres:x@localhost:5432/a";
+		process.env.NODE_ENV = "test";
+
+		await import("../src/db/index.ts?fallthrough-silent");
+
+		expect(warnings.filter((w) => w.includes("DATABASE_URL unset"))).toEqual(
+			[],
+		);
+	});
+
+	test("silent outside a test run, even with no DB URL — DEFAULT_URL is the legitimate CLI fallback", async () => {
+		for (const k of ENV_KEYS) unsetEnv(k);
+		process.env.NODE_ENV = "development";
+
+		await import("../src/db/index.ts?fallthrough-nontest");
+
+		expect(warnings.filter((w) => w.includes("DATABASE_URL unset"))).toEqual(
+			[],
+		);
+	});
+});
+
 describe("assertDbSplit", () => {
 	test("dormant single-DB in prod warns, never throws", async () => {
 		unsetEnv("SOURCE_DATABASE_URL");
