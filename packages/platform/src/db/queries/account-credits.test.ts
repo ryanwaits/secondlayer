@@ -58,9 +58,8 @@ afterAll(async () => {
 	}
 });
 
-describe("creditCredits / getCredits", () => {
+describe.skipIf(!HAS_DB)("creditCredits / getCredits", () => {
 	test("balance accumulates across two credits", async () => {
-		if (!HAS_DB) return;
 		await creditCredits(db, accountId, 1_000_000n);
 		const after = await creditCredits(db, accountId, 500_000n);
 		expect(after).toBe(1_500_000n);
@@ -68,9 +67,8 @@ describe("creditCredits / getCredits", () => {
 	});
 });
 
-describe("debitCredits", () => {
+describe.skipIf(!HAS_DB)("debitCredits", () => {
 	test("refuses overdraw and leaves balance unchanged", async () => {
-		if (!HAS_DB) return;
 		await creditCredits(db, accountId, 1_000_000n);
 		const refused = await debitCredits(db, accountId, 1_500_000n);
 		expect(refused.ok).toBe(false);
@@ -78,7 +76,6 @@ describe("debitCredits", () => {
 	});
 
 	test("succeeds and returns correct remaining balance", async () => {
-		if (!HAS_DB) return;
 		await creditCredits(db, accountId, 1_000_000n);
 		const result = await debitCredits(db, accountId, 400_000n);
 		expect(result.ok).toBe(true);
@@ -86,9 +83,8 @@ describe("debitCredits", () => {
 	});
 });
 
-describe("recordCreditsSpend / getMonthlyCreditsSpend", () => {
+describe.skipIf(!HAS_DB)("recordCreditsSpend / getMonthlyCreditsSpend", () => {
 	test("accumulates spend within same month", async () => {
-		if (!HAS_DB) return;
 		const fixedNow = new Date("2026-06-01T12:00:00Z");
 		await recordCreditsSpend(db, accountId, 5_000n, fixedNow);
 		await recordCreditsSpend(db, accountId, 5_000n, fixedNow);
@@ -97,7 +93,6 @@ describe("recordCreditsSpend / getMonthlyCreditsSpend", () => {
 	});
 
 	test("month rollover returns 0", async () => {
-		if (!HAS_DB) return;
 		const thisMonth = new Date("2026-06-01T12:00:00Z");
 		const nextMonth = new Date("2026-07-01T12:00:00Z");
 		await recordCreditsSpend(db, accountId, 9_000n, thisMonth);
