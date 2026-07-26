@@ -166,7 +166,10 @@ describe("DEFAULT_URL fallthrough warning", () => {
 		for (const k of ENV_KEYS) unsetEnv(k);
 		process.env.NODE_ENV = "test";
 
-		await import("../src/db/index.ts?fallthrough-warn");
+		// A variable specifier: Bun still re-evaluates per unique query string,
+		// but TypeScript does not try to resolve it.
+		const warnSpec = "../src/db/index.ts?fallthrough-warn";
+		await import(warnSpec);
 
 		const warning = warnings.find((w) => w.includes("DATABASE_URL unset"));
 		expect(warning).toBeDefined();
@@ -182,7 +185,8 @@ describe("DEFAULT_URL fallthrough warning", () => {
 		process.env.DATABASE_URL = "postgres://postgres:x@localhost:5432/a";
 		process.env.NODE_ENV = "test";
 
-		await import("../src/db/index.ts?fallthrough-silent");
+		const silentSpec = "../src/db/index.ts?fallthrough-silent";
+		await import(silentSpec);
 
 		expect(warnings.filter((w) => w.includes("DATABASE_URL unset"))).toEqual(
 			[],
@@ -193,7 +197,8 @@ describe("DEFAULT_URL fallthrough warning", () => {
 		for (const k of ENV_KEYS) unsetEnv(k);
 		process.env.NODE_ENV = "development";
 
-		await import("../src/db/index.ts?fallthrough-nontest");
+		const nontestSpec = "../src/db/index.ts?fallthrough-nontest";
+		await import(nontestSpec);
 
 		expect(warnings.filter((w) => w.includes("DATABASE_URL unset"))).toEqual(
 			[],
