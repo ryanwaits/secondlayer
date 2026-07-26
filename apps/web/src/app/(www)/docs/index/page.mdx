@@ -25,6 +25,7 @@ Every list response uses the same cursor envelope: the collection, a `next_curso
 | `/v1/index/blocks` · `/{height_or_hash}` | Decoded blocks, list or single |
 | `/v1/index/canonical` | Canonical block-hash map, one row per height, for chain sync |
 | `/v1/index/stacking` | Decoded PoX-4 stacking actions (stack-stx, delegate-stx, …) |
+| `/v1/index/pox5/events` | Decoded PoX-5 print events (stake, register-for-bond, claim-rewards, …) |
 | `/v1/index/mempool` · `/{tx_id}` | Pending (unconfirmed) transaction documents |
 | `/v1/index/usage` | Your own consumption and tier limits |
 
@@ -141,6 +142,14 @@ curl "https://api.secondlayer.tools/v1/index/stacking?function_name=stack-stx&li
 ```
 
 Decoded PoX-4 stacking actions, filterable by `function_name`, `stacker`, or `caller`.
+
+## PoX-5 events
+
+```bash
+curl "https://api.secondlayer.tools/v1/index/pox5/events?topic=stake&limit=20"
+```
+
+Decoded print events from the `pox-5` boot contract (SIP-045 Bitcoin Staking), which replaces PoX-4 at the epoch 4.0 hard fork — all 19 topics, filterable by `topic`, `staker`, `signer`, `signer_manager`, `bond_index`, or `reward_cycle`. Hot fields are promoted to typed columns, and every row also carries `data`, the full decoded tuple, so nested shapes with no flat column (`btc-lockup`, `bond-rewards`, `bond-periods`) are never lost.
 
 ## Mempool
 

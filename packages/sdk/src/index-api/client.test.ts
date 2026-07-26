@@ -324,6 +324,74 @@ describe("Index sBTC peg accessors", () => {
 	});
 });
 
+describe("Index PoX-5 accessors", () => {
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+	});
+
+	const emptyPox5Events = {
+		events: [],
+		next_cursor: null,
+		tip: {},
+		reorgs: [],
+	};
+
+	test("pox5.events.list maps camelCase params to the snake_case wire", async () => {
+		const urls = recorder(emptyPox5Events);
+		await new Index({ baseUrl: BASE_URL }).pox5.events.list({
+			topic: "stake",
+			bondIndex: 3,
+			signerManager: "SP_MANAGER",
+			rewardCycle: 97,
+		});
+		expect(urls[0]).toContain("/v1/index/pox5/events");
+		expect(urls[0]).toContain("topic=stake");
+		expect(urls[0]).toContain("bond_index=3");
+		expect(urls[0]).toContain("signer_manager=SP_MANAGER");
+		expect(urls[0]).toContain("reward_cycle=97");
+	});
+
+	test("pox5.events.walk follows next_cursor across two pages, then stops", async () => {
+		const urls: string[] = [];
+		const page = (cursor: string | null, count: number) => ({
+			events: Array.from({ length: count }, (_, i) => ({
+				cursor: `${i}`,
+				topic: "stake",
+			})),
+			next_cursor: cursor,
+			tip: {},
+			reorgs: [],
+		});
+		// Full page (2 of batchSize 2) → walk continues; short page → walk stops.
+		const bodies = [page("100:1", 2), page("200:1", 1)];
+		globalThis.fetch = mock((input: string | URL | Request) => {
+			urls.push(typeof input === "string" ? input : input.toString());
+			const body = bodies[urls.length - 1] ?? page(null, 0);
+			return Promise.resolve({
+				ok: true,
+				status: 200,
+				headers: new Headers({ "content-type": "application/json" }),
+				json: () => Promise.resolve(body),
+				text: () => Promise.resolve(JSON.stringify(body)),
+			} as Response);
+		}) as unknown as typeof fetch;
+
+		const seen: unknown[] = [];
+		for await (const event of new Index({ baseUrl: BASE_URL }).pox5.events.walk(
+			{
+				batchSize: 2,
+			},
+		)) {
+			seen.push(event);
+		}
+		expect(urls).toHaveLength(2);
+		expect(urls[0]).toContain("/v1/index/pox5/events");
+		// Second page resumes from the first page's next_cursor.
+		expect(urls[1]).toContain("cursor=100%3A1");
+		expect(seen).toHaveLength(3);
+	});
+});
+
 describe("Index PoX cycles accessors", () => {
 	afterEach(() => {
 		globalThis.fetch = originalFetch;

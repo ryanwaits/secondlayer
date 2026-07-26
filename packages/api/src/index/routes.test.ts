@@ -465,6 +465,111 @@ describe("Stacks Index gateway middleware", () => {
 	});
 });
 
+describe("Index PoX-5 events route", () => {
+	const POX5_EVENT = {
+		cursor: "9000:0",
+		block_height: 9000,
+		block_time: null,
+		tx_id: "0x9000",
+		tx_index: 0,
+		event_index: 0,
+		topic: "stake" as const,
+		staker: "SP_STAKER",
+		signer: "SP_SIGNER",
+		signer_manager: null,
+		bond_index: 3,
+		amount_ustx: "1000",
+		amount_sats: null,
+		reward_cycle: 97,
+		first_reward_cycle: 98,
+		unlock_cycle: null,
+		unlock_burn_height: null,
+		is_l1_lock: true,
+		signer_key: "0xabcd",
+		data: { topic: "stake" },
+	};
+
+	function pox5App(
+		overrides: {
+			tokens?: IndexTokenStore;
+			recordDecodedEventsReturned?: (
+				accountId: string,
+				quantity: number,
+			) => Promise<void>;
+		} = {},
+	) {
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readPox5Events: async () => ({
+					events: [POX5_EVENT],
+					next_cursor: "9000:0",
+				}),
+				...overrides,
+			}),
+		);
+		return app;
+	}
+
+	test("returns the envelope, keyless", async () => {
+		const res = await pox5App().request("/v1/index/pox5/events");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			events: Array<{ topic: string; data: unknown }>;
+			next_cursor: string | null;
+			tip: unknown;
+			reorgs: unknown[];
+		};
+		expect(body.events).toHaveLength(1);
+		expect(body.events[0]?.topic).toBe("stake");
+		// `data` is passed through as parsed JSON, never a re-serialized string.
+		expect(body.events[0]?.data).toEqual({ topic: "stake" });
+		expect(body.next_cursor).toBe("9000:0");
+		expect(body.tip).toBeDefined();
+		expect(body.reorgs).toEqual([]);
+	});
+
+	test("is listed in the discovery doc", async () => {
+		const res = await pox5App().request("/v1/index");
+		const body = (await res.json()) as { routes: Array<{ path: string }> };
+		expect(body.routes.map((r) => r.path)).toContain("/v1/index/pox5/events");
+	});
+
+	test("rejects an unknown query filter", async () => {
+		const res = await pox5App().request("/v1/index/pox5/events?sender=x");
+		expect(res.status).toBe(400);
+	});
+
+	test("meters the returned row count for an authenticated account", async () => {
+		const metered: Array<{ accountId: string; quantity: number }> = [];
+		const tokens: IndexTokenStore = new Map([
+			[
+				"sk-sl_metered_pox5",
+				{
+					tenant_id: "account:acct_pox5",
+					account_id: "acct_pox5",
+					tier: "build",
+					scopes: [INDEX_READ_SCOPE],
+				},
+			],
+		]);
+		const res = await pox5App({
+			tokens,
+			recordDecodedEventsReturned: async (accountId, quantity) => {
+				metered.push({ accountId, quantity });
+			},
+		}).request("/v1/index/pox5/events", {
+			headers: authHeaders("sk-sl_metered_pox5"),
+		});
+		expect(res.status).toBe(200);
+		expect(metered).toEqual([{ accountId: "acct_pox5", quantity: 1 }]);
+	});
+});
+
 describe("Index sBTC peg routes", () => {
 	function sbtcApp() {
 		const app = new Hono();

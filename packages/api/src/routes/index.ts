@@ -64,6 +64,11 @@ import {
 	getPoxCyclesResponse,
 } from "../index/pox-cycles.ts";
 import {
+	POX5_EVENTS_FILTERS,
+	type Pox5EventsReader,
+	getPox5EventsResponse,
+} from "../index/pox5-events.ts";
+import {
 	type PrintSchemaCache,
 	type PrintSchemaReader,
 	getPrintSchemaResponse,
@@ -145,6 +150,7 @@ export type IndexRouterOptions = {
 	readTransactions?: TransactionsReader;
 	readTransactionById?: TransactionByIdReader;
 	readStacking?: StackingReader;
+	readPox5Events?: Pox5EventsReader;
 	readSbtcEvents?: SbtcEventsReader;
 	readSbtcDeposits?: SbtcDepositsReader;
 	readSbtcWithdrawals?: SbtcWithdrawalsReader;
@@ -311,6 +317,13 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					method: "GET",
 					description:
 						"Single PoX reward cycle aggregate by cycle number. Same shape as the list item. 404 when the cycle has no recorded actions.",
+				},
+				{
+					path: "/v1/index/pox5/events",
+					method: "GET",
+					description:
+						"Decoded PoX-5 (SIP-045 Bitcoin Staking) print events from the pox-5 boot contract — all 19 topics with the full decoded tuple in data. Filterable by topic/staker/signer/signer_manager/bond_index/reward_cycle + cursor-paginated; ?confirmed=true returns only rows past the reorg margin. Returns events[], next_cursor, tip, reorgs[]. Cursor: <block_height>:<event_index>.",
+					filters: POX5_EVENTS_FILTERS,
 				},
 				{
 					path: "/v1/index/sbtc/events",
@@ -690,6 +703,35 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			"Cache-Control",
 			`public, max-age=${maxAge}, stale-while-revalidate=120`,
 		);
+		return c.json(response);
+	});
+
+	// PoX-5 print events — the decoded pox-5 boot-contract log (SIP-045). The
+	// pox-4-backed surfaces above go silent at the epoch 4.0 fork; this one is
+	// the staking primitive from then on. Raw rows, so the standard finality
+	// cache + per-row metering apply.
+	router.get("/pox5/events", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, POX5_EVENTS_FILTERS);
+		const tip = await getTip();
+		c.set("indexTip", tip);
+		const response = await getPox5EventsResponse({
+			query,
+			tip,
+			readPox5Events: opts.readPox5Events,
+			readReorgs,
+		});
+		const notModified = applyIndexCache(c, query, tip, {
+			events: response.events,
+			next_cursor: response.next_cursor,
+			reorgs: response.reorgs,
+		});
+		if (notModified) return notModified;
+		const accountId = c.get("indexTenant")?.account_id;
+		if (accountId && response.events.length > 0) {
+			await recordDecodedEventsReturned(accountId, response.events.length);
+			await debitCreditedRead(c, response.events.length);
+		}
 		return c.json(response);
 	});
 

@@ -933,6 +933,100 @@ export interface PoxResource {
 	};
 }
 
+// ── PoX-5 events (/v1/index/pox5/events) ───────────────────────────
+
+/** The decoded `pox-5` boot-contract print topics (SIP-045 Bitcoin Staking).
+ *  Declared locally rather than imported from the server packages — the SDK is
+ *  published and owns its own dependency surface (same as {@link SbtcEventTopic}). */
+export type IndexPox5EventTopic =
+	| "set-bond-admin"
+	| "set-pause-admin"
+	| "pause-rewards"
+	| "setup-bond"
+	| "add-to-allowlist"
+	| "register-for-bond"
+	| "update-bond-registration"
+	| "register-signer"
+	| "stake"
+	| "stake-update"
+	| "announce-l1-early-exit"
+	| "unstake-sbtc"
+	| "unstake"
+	| "calculate-rewards"
+	| "bond-distribution"
+	| "claim-rewards"
+	| "claim-staker-rewards-for-signer"
+	| "grant-signer-key"
+	| "revoke-signer-grant";
+
+/** A raw decoded PoX-5 print event. Promoted fields cover the hot query paths;
+ *  `data` always carries the full decoded tuple, including nested shapes
+ *  (`btc-lockup`, `bond-rewards`, `bond-periods`) that have no flat column. */
+export type IndexPox5Event = {
+	cursor: string;
+	block_height: number;
+	block_time: string | null;
+	tx_id: string;
+	tx_index: number;
+	event_index: number;
+	topic: IndexPox5EventTopic;
+	staker: string | null;
+	signer: string | null;
+	signer_manager: string | null;
+	bond_index: number | null;
+	/** ustx, bigint-safe string. */
+	amount_ustx: string | null;
+	/** sats, bigint-safe string. */
+	amount_sats: string | null;
+	reward_cycle: number | null;
+	first_reward_cycle: number | null;
+	unlock_cycle: number | null;
+	unlock_burn_height: number | null;
+	is_l1_lock: boolean | null;
+	signer_key: string | null;
+	/** The full decoded print tuple as JSON. */
+	data: unknown;
+};
+
+export type Pox5EventsEnvelope = {
+	events: IndexPox5Event[];
+	next_cursor: string | null;
+	tip: IndexTip;
+	reorgs: IndexReorg[];
+	/** Present only when the PoX-5 decoder is disabled, explaining an empty feed. */
+	notes?: string;
+};
+
+export type Pox5EventsListParams = {
+	cursor?: string | null;
+	fromCursor?: string | null;
+	limit?: number;
+	/** Clamp to the finality boundary — only rows past the reorg margin. */
+	confirmed?: boolean;
+	topic?: IndexPox5EventTopic;
+	staker?: string;
+	signer?: string;
+	signerManager?: string;
+	bondIndex?: number;
+	rewardCycle?: number;
+	fromHeight?: number;
+	toHeight?: number;
+};
+
+export type Pox5EventsWalkParams = Omit<Pox5EventsListParams, "limit"> & {
+	batchSize?: number;
+	signal?: AbortSignal;
+};
+
+/** `index.pox5` — decoded PoX-5 print events, the staking primitive from the
+ *  epoch 4.0 hard fork onward (PoX-4's `index.stacking` stream ends there). */
+export interface Pox5Resource {
+	events: {
+		list(params?: Pox5EventsListParams): Promise<Pox5EventsEnvelope>;
+		walk(params?: Pox5EventsWalkParams): AsyncIterable<IndexPox5Event>;
+	};
+}
+
 function firstWalkFromHeight(params: {
 	cursor?: string | null;
 	fromCursor?: string | null;
@@ -1241,6 +1335,18 @@ export class Index extends BaseClient {
 				this.walkPoxCycles(params),
 			get: (rewardCycle: number): Promise<PoxCycleEnvelope | null> =>
 				this.getPoxCycle(rewardCycle),
+		},
+	};
+
+	/** Decoded PoX-5 print events (SIP-045 Bitcoin Staking) — the raw pox-5
+	 *  boot-contract log, all 19 topics. Distinct from `stacking` (PoX-4 era). */
+	readonly pox5: Pox5Resource = {
+		events: {
+			list: (params: Pox5EventsListParams = {}): Promise<Pox5EventsEnvelope> =>
+				this.listPox5Events(params),
+			walk: (
+				params: Pox5EventsWalkParams = {},
+			): AsyncIterable<IndexPox5Event> => this.walkPox5Events(params),
 		},
 	};
 
@@ -1681,6 +1787,38 @@ export class Index extends BaseClient {
 
 	private async getSbtcSummary(): Promise<SbtcSummaryEnvelope> {
 		return this.request<SbtcSummaryEnvelope>("GET", "/v1/index/sbtc/summary");
+	}
+
+	private async listPox5Events(
+		params: Pox5EventsListParams = {},
+	): Promise<Pox5EventsEnvelope> {
+		return this.request<Pox5EventsEnvelope>(
+			"GET",
+			`/v1/index/pox5/events${buildQuery({
+				cursor: params.cursor,
+				from_cursor: params.fromCursor,
+				limit: params.limit,
+				confirmed: params.confirmed,
+				topic: params.topic,
+				staker: params.staker,
+				signer: params.signer,
+				signer_manager: params.signerManager,
+				bond_index: params.bondIndex,
+				reward_cycle: params.rewardCycle,
+				from_height: params.fromHeight,
+				to_height: params.toHeight,
+			})}`,
+		);
+	}
+
+	private walkPox5Events(
+		params: Pox5EventsWalkParams = {},
+	): AsyncGenerator<IndexPox5Event> {
+		return this.keysetWalk(
+			params,
+			(page) => this.listPox5Events({ ...params, ...page }),
+			(e) => e.events,
+		);
 	}
 
 	private async listPoxCycles(
