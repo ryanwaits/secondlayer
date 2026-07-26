@@ -4,6 +4,21 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## Index — July 2026
 
+### Read PoX-5 events at `/v1/index/pox5/events`
+
+The decoded pox-5 log is now queryable. One row per print event across all 19
+topics, with the full decoded tuple in `data` — so nested shapes like
+`btc-lockup`, `bond-rewards`, and `bond-periods` come through intact rather
+than flattened away.
+
+- Filter by `topic`, `staker`, `signer`, `signer_manager`, `bond_index`, or
+  `reward_cycle`, and page with the same `<block_height>:<event_index>` cursor
+  the rest of Index uses.
+- `?confirmed=true` clamps the window to the finality boundary, so settlement
+  consumers only see rows past the reorg margin.
+- Every response carries `tip` and a `reorgs[]` array for the page's height
+  range — reconcile anything you already committed from a fork.
+
 ### PoX-5 events, decoded from activation block one
 
 The indexer now ships a PoX-5 decoder alongside the existing PoX-4 dataset.
@@ -22,6 +37,20 @@ signers, bonds, amounts, and cycle windows, plus the full event tuple as JSON.
   the same verified topic set.
 
 ## SDK — July 2026
+
+### PoX-5 events from `sl.index.pox5`
+
+The decoded pox-5 feed has a typed client. `sl.index.pox5.events.list()` for a
+page, `.walk()` to stream every event across pages without writing cursor
+logic yourself.
+
+- Filters map to the endpoint one-to-one — `topic`, `staker`, `signer`,
+  `signerManager`, `bondIndex`, `rewardCycle`, plus `confirmed` to stay behind
+  the finality boundary.
+- `amount_ustx` and `amount_sats` stay strings, so stacking amounts past
+  `Number.MAX_SAFE_INTEGER` survive the round trip intact.
+- Types are importable from the package root: `IndexPox5Event`,
+  `IndexPox5EventTopic`, `Pox5EventsEnvelope`, and the list/walk param shapes.
 
 ### Chain webhooks decode and narrow from one import
 

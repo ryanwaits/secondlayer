@@ -1,5 +1,16 @@
 # @secondlayer/sdk
 
+## 6.31.0
+
+### Minor Changes
+
+- 796f829: Add `index.pox5.events` — decoded PoX-5 print events from the pox-5 boot contract.
+
+### Patch Changes
+
+- Updated dependencies
+  - @secondlayer/shared@7.2.1
+
 ## 6.30.0
 
 ### Minor Changes

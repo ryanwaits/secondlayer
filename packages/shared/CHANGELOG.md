@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 7.2.1
+
+### Patch Changes
+
+- Warn once at import time when a test run has no `DATABASE_URL`/`SOURCE_DATABASE_URL`/`TARGET_DATABASE_URL` and falls through to the built-in `DEFAULT_URL`. Gated to `NODE_ENV=test`, so normal runtime is unaffected.
+
 ## 7.2.0
 
 ### Minor Changes
