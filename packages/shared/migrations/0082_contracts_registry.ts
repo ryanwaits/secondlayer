@@ -5,7 +5,8 @@ import { type Kysely, sql } from "kysely";
 // Clarity source), and statically-inferred SIP standards. `canonical` mirrors
 // chain reorgs. The partial index on transactions makes the deploy backfill
 // (WHERE type='smart_contract') an index scan, not a full-table seq scan.
-export async function up(db: Kysely<unknown>): Promise<void> {
+// biome-ignore lint/suspicious/noExplicitAny: migration DDL is intentionally schema-dynamic
+export async function up(db: Kysely<any>): Promise<void> {
 	await sql`
 		CREATE TABLE contracts (
 			contract_id        TEXT PRIMARY KEY,
@@ -38,7 +39,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 	);
 }
 
-export async function down(db: Kysely<unknown>): Promise<void> {
+// biome-ignore lint/suspicious/noExplicitAny: migration DDL is intentionally schema-dynamic
+export async function down(db: Kysely<any>): Promise<void> {
 	await sql`DROP INDEX IF EXISTS transactions_smart_contract_idx`.execute(db);
 	await sql`DROP TABLE IF EXISTS contracts`.execute(db);
 }

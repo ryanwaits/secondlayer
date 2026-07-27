@@ -12,7 +12,8 @@ import { onChainPlane } from "../src/db/migration-role.ts";
 // led with a constant-true boolean; a plain height index now serves the
 // handler's per-height DELETE. Tables are small (≤2 reward rows + slot rows
 // per burn block), so in-place DDL under the 30s lock_timeout is fine.
-export async function up(db: Kysely<unknown>): Promise<void> {
+// biome-ignore lint/suspicious/noExplicitAny: migration DDL is intentionally schema-dynamic
+export async function up(db: Kysely<any>): Promise<void> {
 	// Chain-plane tables only — under the split this must no-op on TARGET
 	// (the platform DB has no burnchain tables; unguarded CREATE INDEX there
 	// fails with 42P01 even with IF NOT EXISTS).
@@ -42,7 +43,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 	});
 }
 
-export async function down(db: Kysely<unknown>): Promise<void> {
+// biome-ignore lint/suspicious/noExplicitAny: migration DDL is intentionally schema-dynamic
+export async function down(db: Kysely<any>): Promise<void> {
 	await onChainPlane(async () => {
 		await sql`SET lock_timeout = '30s'`.execute(db);
 

@@ -10,7 +10,8 @@ import { type Kysely, sql } from "kysely";
 // delete-by-height-then-insert (replace-per-height), which makes redelivery and
 // shallow burnchain reorgs idempotent. `canonical` is reserved for a future
 // mark-non-canonical reorg path; v1 keeps every row canonical.
-export async function up(db: Kysely<unknown>): Promise<void> {
+// biome-ignore lint/suspicious/noExplicitAny: migration DDL is intentionally schema-dynamic
+export async function up(db: Kysely<any>): Promise<void> {
 	await sql`SET lock_timeout = '30s'`.execute(db);
 
 	await sql`
@@ -57,7 +58,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 	);
 }
 
-export async function down(db: Kysely<unknown>): Promise<void> {
+// biome-ignore lint/suspicious/noExplicitAny: migration DDL is intentionally schema-dynamic
+export async function down(db: Kysely<any>): Promise<void> {
 	await sql`DROP TABLE IF EXISTS burn_block_reward_slots`.execute(db);
 	await sql`DROP TABLE IF EXISTS burn_block_rewards`.execute(db);
 }
