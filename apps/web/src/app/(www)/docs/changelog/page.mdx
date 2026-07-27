@@ -38,6 +38,23 @@ signers, bonds, amounts, and cycle windows, plus the full event tuple as JSON.
 
 ## SDK — July 2026
 
+### Name any decoded event, not just the union
+
+`IndexEvent` is a union of eleven shapes, and until now you could name the
+union but none of its members. Every variant is exported from the package root:
+`IndexFtTransfer`, `IndexNftTransfer`, `IndexStxTransfer`, `IndexStxMint`,
+`IndexStxBurn`, `IndexStxLock`, `IndexFtMint`, `IndexFtBurn`, `IndexNftMint`,
+`IndexNftBurn`, and `IndexPrint`.
+
+- Write the handler signature you actually want —
+  `function onTransfer(e: IndexFtTransfer)` — instead of taking `IndexEvent`
+  and re-narrowing inside every function.
+- The `consumeIndexFeed` types come with it: `IndexFeedItem`,
+  `IndexFeedEnvelope`, and `IndexFeedFetcher` are all importable from
+  `@secondlayer/sdk`, so you can type a custom fetcher or hold a feed item in a
+  variable without reaching into a subpath.
+- Purely additive — nothing was renamed or removed.
+
 ### PoX-5 events from `sl.index.pox5`
 
 The decoded pox-5 feed has a typed client. `sl.index.pox5.events.list()` for a
