@@ -21,5 +21,11 @@
 		"jsx": "react-jsx",
 		"noEmit": true
 	},
-	"exclude": ["apps/**", "packages/*/templates/**", "tmp/**", "spike/**"]
+	"exclude": [
+		"apps/**",
+		"examples/**",
+		"packages/*/templates/**",
+		"tmp/**",
+		"spike/**"
+	]
 }
