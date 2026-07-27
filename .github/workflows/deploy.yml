@@ -92,6 +92,10 @@ jobs:
         run: bun run test
       - name: pox-5 pin check (shipped tag vs clarinet-embedded ABI)
         run: bun scripts/ci/check-pox5-pin.ts
+      # The per-package `bun run typecheck` excludes test files; only the root
+      # config sweeps them, so type drift in tests lands unseen without this.
+      - name: Typecheck repo root
+        run: bunx tsc --noEmit
 
   build-images:
     needs: [typecheck, test]
