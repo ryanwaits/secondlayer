@@ -32,7 +32,9 @@ function stubFetch(
 	responses: Array<{ status: number; location?: string; body?: string }>,
 ): { fetch: typeof fetch; calls: string[] } {
 	const calls: string[] = [];
-	const fn = (async (input: RequestInfo | URL) => {
+	// `string | URL | Request` is what the runtime's `fetch` accepts; the DOM's
+	// `RequestInfo` alias is not in scope under the repo-root `lib: ["ES2020"]`.
+	const fn = (async (input: string | URL | Request) => {
 		const url = typeof input === "string" ? input : input.toString();
 		calls.push(url);
 		const idx = calls.length - 1;
