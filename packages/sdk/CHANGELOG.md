@@ -1,5 +1,16 @@
 # @secondlayer/sdk
 
+## 6.32.0
+
+### Minor Changes
+
+- 013b220: Export the `IndexEvent` union members (`IndexFtTransfer`, `IndexPrint`, …) and the `consumeIndexFeed` types (`IndexFeedItem`, `IndexFeedEnvelope`, `IndexFeedFetcher`) from the package root, so consumers can name a narrowed event variant or a feed item directly.
+
+### Patch Changes
+
+- Updated dependencies [929aa00]
+  - @secondlayer/shared@7.2.2
+
 ## 6.31.0
 
 ### Minor Changes
