@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+import type { ToolCallOptions } from "ai";
 import {
 	BTC_ADDRESS,
 	btcBalance,
@@ -7,6 +8,30 @@ import {
 	btcFeeEstimate,
 	btcUtxos,
 } from "../btc/index.ts";
+
+/**
+ * The AI SDK types `Tool.execute` as optional and two-argument
+ * `(input, options)`. Every tool under test defines it, so assert that once
+ * here instead of at each call site, and supply the options bag the signature
+ * requires.
+ */
+const TOOL_CALL_OPTIONS: ToolCallOptions = {
+	toolCallId: "test-tool-call",
+	messages: [],
+};
+
+async function runTool<Input, Output>(
+	tool: {
+		execute?: (
+			input: Input,
+			options: ToolCallOptions,
+		) => AsyncIterable<Output> | PromiseLike<Output> | Output;
+	},
+	input: Input,
+): Promise<Output | AsyncIterable<Output>> {
+	if (!tool.execute) throw new Error("tool has no execute");
+	return await tool.execute(input, TOOL_CALL_OPTIONS);
+}
 
 function mockFetch(responses: Record<string, unknown>) {
 	const calls: Array<{ url: string; init?: RequestInit }> = [];
@@ -62,7 +87,7 @@ describe("btcBalance", () => {
 			},
 		});
 		try {
-			const result = await btcBalance.execute({
+			const result = await runTool(btcBalance, {
 				address: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
 			});
 			expect(result).toEqual({ confirmedSat: 1000, unconfirmedSat: 0 });
@@ -83,7 +108,7 @@ describe("btcBalance", () => {
 				},
 		});
 		try {
-			await btcBalance.execute({
+			await runTool(btcBalance, {
 				address: "../../../etc/passwd?x=1",
 			});
 			expect(calls[0].url).toBe(
@@ -116,7 +141,7 @@ describe("btcUtxos", () => {
 				],
 		});
 		try {
-			const result = await btcUtxos.execute({
+			const result = await runTool(btcUtxos, {
 				address: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
 				limit: 1,
 			});
@@ -144,7 +169,7 @@ describe("btcUtxos", () => {
 				[],
 		});
 		try {
-			await btcUtxos.execute({
+			await runTool(btcUtxos, {
 				address: "../admin?secret=1",
 				limit: 10,
 			});
@@ -168,7 +193,7 @@ describe("btcConfirmations", () => {
 			"https://mempool.space/api/blocks/tip/height": 105,
 		});
 		try {
-			const result = await btcConfirmations.execute({
+			const result = await runTool(btcConfirmations, {
 				txid: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
 			});
 			expect(result).toEqual({
@@ -189,7 +214,7 @@ describe("btcConfirmations", () => {
 				},
 		});
 		try {
-			const result = await btcConfirmations.execute({
+			const result = await runTool(btcConfirmations, {
 				txid: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
 			});
 			expect(result).toEqual({ confirmed: false, confirmations: 0 });
@@ -211,7 +236,7 @@ describe("btcFeeEstimate", () => {
 			},
 		});
 		try {
-			const result = await btcFeeEstimate.execute({});
+			const result = await runTool(btcFeeEstimate, {});
 			expect(result).toEqual({
 				fastestSatVb: 50,
 				halfHourSatVb: 30,
@@ -231,7 +256,7 @@ describe("btcBlockHeight", () => {
 			"https://mempool.space/api/blocks/tip/height": 850000,
 		});
 		try {
-			const result = await btcBlockHeight.execute({});
+			const result = await runTool(btcBlockHeight, {});
 			expect(result).toEqual({ height: 850000 });
 		} finally {
 			restore();
