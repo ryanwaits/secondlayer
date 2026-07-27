@@ -1,7 +1,14 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import {
+	afterAll,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	test,
+} from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
 import type { Pox4FunctionName } from "@secondlayer/shared/db/schema";
-import { getPoxCyclesResponse } from "./pox-cycles.ts";
+import { getPoxCyclesResponse, readPoxCycle } from "./pox-cycles.ts";
 import type { IndexTip } from "./tip.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -94,11 +101,53 @@ describe.skipIf(!HAS_DB)("PoX cycles and the pox-4 era", () => {
 		expect(response.cycles.every((c) => c.is_current === false)).toBe(true);
 		expect(response.notes).toBe(ERA_NOTE);
 	});
+});
 
-	// NOTE: the single-cycle read (`getPoxCycleResponse` / `readPoxCycle`) cannot
-	// be covered here — its query selects `m.val` and `f.function_breakdown`
-	// alongside aggregates with no GROUP BY, so Postgres rejects it outright
-	// (42803) on every call. That is a pre-existing defect independent of the
-	// era flag; the flag is threaded through the same `normalizeCycle` path the
-	// list read exercises above.
+// The single-cycle read used to select `m.val` and `f.function_breakdown`
+// alongside aggregates with no GROUP BY, so Postgres rejected it at plan time
+// (42803) on every call and the endpoint 500'd for every input. These cases run
+// the real SQL so the grouping cannot silently regress.
+describe.skipIf(!HAS_DB)("the single-cycle read against Postgres", () => {
+	const db = HAS_DB ? getDb() : null;
+	const CURSORS = ["999001:0", "999003:0"];
+
+	async function removeFixtures() {
+		if (!db) return;
+		await db.deleteFrom("pox4_calls").where("cursor", "in", CURSORS).execute();
+	}
+
+	beforeAll(async () => {
+		if (!db) return;
+		await removeFixtures();
+		await db
+			.insertInto("pox4_calls")
+			.values([
+				call("999001:0", 999_001, 999_001),
+				{ ...call("999003:0", 999_003, 999_003), canonical: false },
+			])
+			.execute();
+	});
+
+	afterAll(removeFixtures);
+
+	test("a known cycle resolves instead of erroring on the ungrouped aggregate", async () => {
+		if (!db) return;
+		const cycle = await readPoxCycle(999_001, db);
+		expect(cycle).not.toBeNull();
+		expect(cycle?.reward_cycle).toBe(999_001);
+		expect(cycle?.action_count).toBe(1);
+		expect(cycle?.function_breakdown).toEqual([
+			{ function_name: "stack-stx", count: 1 },
+		]);
+	});
+
+	test("an unknown cycle returns null so the route can answer 404", async () => {
+		if (!db) return;
+		expect(await readPoxCycle(999_002, db)).toBeNull();
+	});
+
+	test("a cycle with only non-canonical rows returns null", async () => {
+		if (!db) return;
+		expect(await readPoxCycle(999_003, db)).toBeNull();
+	});
 });

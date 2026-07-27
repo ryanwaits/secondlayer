@@ -208,6 +208,7 @@ export async function readPoxCycle(
 		CROSS JOIN fn_breakdown f
 		CROSS JOIN max_cycle m
 		WHERE p.canonical = true AND p.reward_cycle = ${rewardCycle}
+		GROUP BY m.val, f.function_breakdown
 	`.execute(db);
 
 	const row = rows[0];
