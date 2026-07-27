@@ -52,14 +52,15 @@ describe("Index stacking helpers", () => {
 		expect(response.notes).toContain("POX4_DECODER_ENABLED");
 	});
 
-	test("omits notes when the decoder is enabled", async () => {
+	test("omits notes when the decoder is enabled and the era is open", async () => {
 		const response = await getStackingResponse({
 			query: params("?from_height=0"),
 			tip: TIP,
 			readStacking: EMPTY_READER,
 			decoderEnabled: true,
+			eraClosed: false,
 		});
-		expect(response.notes).toBeUndefined();
+		expect("notes" in response).toBe(false);
 	});
 
 	test("a cursor past the tip returns empty and echoes the cursor", async () => {
@@ -71,6 +72,71 @@ describe("Index stacking helpers", () => {
 		});
 		expect(response.stacking).toEqual([]);
 		expect(response.next_cursor).toBe("40000:0");
+	});
+});
+
+describe("Index stacking after the pox-4 era closes", () => {
+	const ERA_NOTE =
+		"PoX-4 ended at the epoch 4.0 activation; this feed covers pox-4 history only. PoX-5 era data is at /v1/index/pox5/events.";
+	const DISABLED_NOTE =
+		"PoX-4 decoding is disabled (POX4_DECODER_ENABLED=false); stacking is empty until re-enabled.";
+
+	test("explains the empty feed instead of implying stacking stopped", async () => {
+		const response = await getStackingResponse({
+			query: params("?from_height=0"),
+			tip: TIP,
+			readStacking: EMPTY_READER,
+			decoderEnabled: true,
+			eraClosed: true,
+		});
+		expect(response.stacking).toEqual([]);
+		expect(response.notes).toBe(ERA_NOTE);
+	});
+
+	test("still flags the closed era on a page that has rows", async () => {
+		const response = await getStackingResponse({
+			query: params("?from_height=0"),
+			tip: TIP,
+			readStacking: async () => ({
+				stacking: [
+					{
+						cursor: "9000:0",
+						block_height: 9000,
+						burn_block_height: 19_000,
+						tx_id: "0x9000",
+						tx_index: 0,
+						function_name: "stack-stx",
+						caller: "SP1",
+						stacker: "SP1",
+						delegate_to: null,
+						amount_ustx: "1000000",
+						lock_period: 6,
+						pox_addr: { version: 4, hashbytes: "0xabcd", btc: "bc1q9000" },
+						start_cycle: 100,
+						end_cycle: 106,
+						reward_cycle: 100,
+						signer_key: null,
+						result_ok: true,
+					},
+				],
+				next_cursor: "9000:0",
+			}),
+			decoderEnabled: true,
+			eraClosed: true,
+		});
+		expect(response.stacking).toHaveLength(1);
+		expect(response.notes).toBe(ERA_NOTE);
+	});
+
+	test("a disabled decoder outranks the closed-era note", async () => {
+		const response = await getStackingResponse({
+			query: params("?from_height=0"),
+			tip: TIP,
+			readStacking: EMPTY_READER,
+			decoderEnabled: false,
+			eraClosed: true,
+		});
+		expect(response.notes).toBe(DISABLED_NOTE);
 	});
 });
 

@@ -669,18 +669,25 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 	});
 
 	// PoX cycle aggregates — per-cycle rollup every stacking dashboard hand-builds.
-	// Completed cycles are immutably cached (no new actions land); the current cycle
-	// is short-cached (still accumulating). Cache control is per-item in the list
-	// based on is_current; the single-cycle route caches the same way.
+	// Completed cycles are long-cached (no new actions land); the current cycle
+	// is short-cached (still accumulating). The list caches per page — short only
+	// if some cycle on it is current; the single-cycle route caches the same way.
 	router.get("/pox/cycles", async (c) => {
 		const query = new URL(c.req.url).searchParams;
 		validateQueryParams(query, POX_CYCLES_FILTERS);
 		const tip = await getTip();
 		c.set("indexTip", tip);
 		const response = await getPoxCyclesResponse({ query, tip });
-		// Short-cache: current cycle may still accumulate; history is immutable but
-		// we can't know which cycles the page contains without inspecting is_current.
-		c.header("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
+		// Short-cache only when the page actually contains a still-accumulating
+		// cycle. Completed cycles are immutable, and after the epoch 4.0 fork no
+		// pox-4 cycle is current at all — so every page becomes long-cacheable.
+		const anyCurrent = response.cycles.some((cycle) => cycle.is_current);
+		c.header(
+			"Cache-Control",
+			anyCurrent
+				? "public, max-age=30, stale-while-revalidate=60"
+				: "public, max-age=3600, stale-while-revalidate=120",
+		);
 		return c.json(response);
 	});
 

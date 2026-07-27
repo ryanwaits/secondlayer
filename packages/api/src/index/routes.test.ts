@@ -6,6 +6,7 @@ import {
 	expect,
 	test,
 } from "bun:test";
+import { getDb, jsonb, sql } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { _resetRateLimitStoreForTests } from "../auth/rate-limit-store.ts";
 import { errorHandler } from "../middleware/error.ts";
@@ -17,12 +18,14 @@ import type { StreamsTip } from "../streams/tip.ts";
 import { INDEX_READ_SCOPE, type IndexTokenStore } from "./auth.ts";
 import type { FtTransfersReader } from "./ft-transfers.ts";
 import type { NftTransfersReader } from "./nft-transfers.ts";
+import { _resetPox4EraCacheForTests } from "./pox-era.ts";
 import {
 	INDEX_ANON_RATE_LIMIT_PER_SECOND,
 	INDEX_TIER_CONFIG,
 } from "./tiers.ts";
 import type { IndexTip } from "./tip.ts";
 
+const HAS_DB = !!process.env.DATABASE_URL;
 const BUILD_KEY = "sk-sl_index_build_test";
 const FREE_KEY = "sk-sl_index_free_test";
 const SCALE_KEY = "sk-sl_index_scale_test";
@@ -740,5 +743,122 @@ describe("Index sBTC peg routes", () => {
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as { deposit: { status: string } };
 		expect(body.deposit.status).toBe("COMPLETED");
+	});
+});
+
+describe.skipIf(!HAS_DB)("Index PoX cycles route caching", () => {
+	const db = HAS_DB ? getDb() : null;
+
+	function cyclesApp() {
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/index",
+			createIndexRouter({ getTip: () => TIP, readReorgs: async () => [] }),
+		);
+		return app;
+	}
+
+	function poxCall(cursor: string, blockHeight: number, rewardCycle: number) {
+		return {
+			cursor,
+			block_height: blockHeight,
+			block_time: new Date(1_700_000_000_000),
+			burn_block_height: blockHeight + 10_000,
+			tx_id: `0x${cursor}`,
+			tx_index: 0,
+			function_name: "stack-stx" as const,
+			caller: "SP1",
+			stacker: "SP1",
+			delegate_to: null,
+			amount_ustx: "1000000",
+			lock_period: 6,
+			pox_addr_version: 4,
+			pox_addr_hashbytes: "0xabcd",
+			pox_addr_btc: `bc1q${blockHeight}`,
+			start_cycle: rewardCycle,
+			end_cycle: rewardCycle + 6,
+			signer_key: null,
+			signer_signature: null,
+			auth_id: null,
+			max_amount: null,
+			reward_cycle: rewardCycle,
+			aggregated_amount_ustx: null,
+			aggregated_signer_index: null,
+			auth_period: null,
+			auth_topic: null,
+			auth_allowed: null,
+			result_ok: true,
+			result_raw: "0x07",
+			canonical: true,
+			source_cursor: cursor,
+		};
+	}
+
+	function pox5Row(cursor: string) {
+		return {
+			cursor,
+			block_height: 900_000,
+			block_time: new Date("2026-07-30T00:00:00.000Z"),
+			tx_id: `0x${cursor}`,
+			tx_index: 0,
+			event_index: 0,
+			topic: "stake" as const,
+			staker: null,
+			signer: null,
+			signer_manager: null,
+			bond_index: null,
+			amount_ustx: null,
+			amount_sats: null,
+			reward_cycle: null,
+			first_reward_cycle: null,
+			unlock_cycle: null,
+			unlock_burn_height: null,
+			is_l1_lock: null,
+			signer_key: null,
+			data: jsonb({ topic: "stake" }),
+			canonical: true,
+			source_cursor: cursor,
+		};
+	}
+
+	beforeEach(async () => {
+		_resetPox4EraCacheForTests();
+		if (!db) return;
+		await sql`DELETE FROM pox4_calls`.execute(db);
+		await sql`DELETE FROM pox5_events`.execute(db);
+		await db
+			.insertInto("pox4_calls")
+			.values([poxCall("9000:0", 9000, 100), poxCall("9100:0", 9100, 101)])
+			.execute();
+	});
+
+	test("short-caches a page that still contains the current cycle", async () => {
+		const res = await cyclesApp().request("/v1/index/pox/cycles");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			cycles: Array<{ is_current: boolean }>;
+		};
+		expect(body.cycles.some((c) => c.is_current)).toBe(true);
+		expect(res.headers.get("Cache-Control")).toContain("max-age=30");
+	});
+
+	test("long-caches every page once the pox-4 era has closed", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("pox5_events")
+			.values([pox5Row("900000:0")])
+			.execute();
+		_resetPox4EraCacheForTests();
+
+		const res = await cyclesApp().request("/v1/index/pox/cycles");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			cycles: Array<{ is_current: boolean }>;
+			notes?: string;
+		};
+		expect(body.cycles.every((c) => c.is_current === false)).toBe(true);
+		expect(body.notes).toContain("PoX-4 ended at the epoch 4.0 activation");
+		expect(res.headers.get("Cache-Control")).toContain("max-age=3600");
 	});
 });

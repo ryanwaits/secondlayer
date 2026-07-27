@@ -3,6 +3,7 @@ import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { ValidationError } from "@secondlayer/shared/errors";
 import type { Kysely } from "kysely";
+import { isPox4EraClosed } from "./pox-era.ts";
 import type { IndexTip } from "./tip.ts";
 
 export const POX_CYCLES_FILTERS = ["limit", "cursor"] as const;
@@ -25,7 +26,8 @@ export type PoxCycle = {
 	action_count: number;
 	start_block_height: number;
 	end_block_height: number;
-	/** True when this is the latest reward cycle (still accumulating new actions). */
+	/** True when this is the latest reward cycle and it is still accumulating new
+	 *  actions. Always false once the pox-4 era closed at the epoch 4.0 fork. */
 	is_current: boolean;
 	function_breakdown: PoxFunctionCount[];
 };
@@ -46,6 +48,11 @@ export type PoxCycleResponse = {
 const POX4_DISABLED_NOTE =
 	"PoX-4 decoding is disabled (POX4_DECODER_ENABLED=false); cycle data is unavailable until re-enabled.";
 
+// `pox4_calls` stops receiving rows forever at the epoch 4.0 hard fork, so the
+// last pox-4 cycle would otherwise report `is_current: true` in perpetuity.
+const POX4_ERA_CLOSED_NOTE =
+	"PoX-4 ended at the epoch 4.0 activation; these cycles are final. PoX-5 era data is at /v1/index/pox5/events.";
+
 type CycleDbRow = {
 	reward_cycle: number;
 	total_stacked_ustx: string;
@@ -58,7 +65,7 @@ type CycleDbRow = {
 	function_breakdown: Record<string, number>;
 };
 
-function normalizeCycle(row: CycleDbRow): PoxCycle {
+function normalizeCycle(row: CycleDbRow, eraClosed = false): PoxCycle {
 	return {
 		reward_cycle: Number(row.reward_cycle),
 		total_stacked_ustx: row.total_stacked_ustx ?? "0",
@@ -67,7 +74,8 @@ function normalizeCycle(row: CycleDbRow): PoxCycle {
 		action_count: Number(row.action_count),
 		start_block_height: Number(row.start_block_height),
 		end_block_height: Number(row.end_block_height),
-		is_current: Number(row.reward_cycle) === Number(row.max_cycle),
+		is_current:
+			Number(row.reward_cycle) === Number(row.max_cycle) && !eraClosed,
 		function_breakdown: Object.entries(row.function_breakdown ?? {}).map(
 			([function_name, count]) => ({ function_name, count: Number(count) }),
 		),
@@ -97,6 +105,7 @@ function parseCycleCursor(raw: string | null): number | undefined {
 export async function readPoxCycles(
 	query: URLSearchParams,
 	db: Kysely<Database> = getSourceDb(),
+	eraClosed = false,
 ): Promise<{ cycles: PoxCycle[]; next_cursor: number | null }> {
 	const limit = parseCycleLimit(query.get("limit"));
 	const after = parseCycleCursor(query.get("cursor"));
@@ -148,7 +157,9 @@ export async function readPoxCycles(
 		LIMIT ${limit + 1}
 	`.execute(db);
 
-	const cycles = rows.slice(0, limit).map(normalizeCycle);
+	const cycles = rows
+		.slice(0, limit)
+		.map((row) => normalizeCycle(row, eraClosed));
 	const hasMore = rows.length > limit;
 	const last = cycles.at(-1);
 	return {
@@ -160,6 +171,7 @@ export async function readPoxCycles(
 export async function readPoxCycle(
 	rewardCycle: number,
 	db: Kysely<Database> = getSourceDb(),
+	eraClosed = false,
 ): Promise<PoxCycle | null> {
 	const { rows } = await sql<CycleDbRow>`
 		WITH fn_counts AS (
@@ -200,20 +212,39 @@ export async function readPoxCycle(
 
 	const row = rows[0];
 	if (!row || row.action_count === 0) return null;
-	return normalizeCycle(row);
+	return normalizeCycle(row, eraClosed);
+}
+
+/** Exactly one note is returned. A disabled decoder outranks the era note: it
+ *  is the more actionable problem and the one an operator can fix. */
+function cycleNote(enabled: boolean, eraClosed: boolean): string | undefined {
+	if (!enabled) return POX4_DISABLED_NOTE;
+	if (eraClosed) return POX4_ERA_CLOSED_NOTE;
+	return undefined;
 }
 
 export async function getPoxCyclesResponse(opts: {
 	query: URLSearchParams;
 	tip: IndexTip;
 	decoderEnabled?: boolean;
+	eraClosed?: boolean;
 }): Promise<PoxCyclesResponse> {
 	const enabled = opts.decoderEnabled ?? isPox4DecoderEnabled();
-	const note = enabled ? undefined : POX4_DISABLED_NOTE;
 	if (!enabled) {
-		return { cycles: [], next_cursor: null, tip: opts.tip, notes: note };
+		return {
+			cycles: [],
+			next_cursor: null,
+			tip: opts.tip,
+			notes: POX4_DISABLED_NOTE,
+		};
 	}
-	const { cycles, next_cursor } = await readPoxCycles(opts.query);
+	const eraClosed = opts.eraClosed ?? (await isPox4EraClosed());
+	const note = cycleNote(enabled, eraClosed);
+	const { cycles, next_cursor } = await readPoxCycles(
+		opts.query,
+		undefined,
+		eraClosed,
+	);
 	return {
 		cycles,
 		next_cursor,
@@ -226,13 +257,15 @@ export async function getPoxCycleResponse(opts: {
 	rewardCycle: number;
 	tip: IndexTip;
 	decoderEnabled?: boolean;
+	eraClosed?: boolean;
 }): Promise<PoxCycleResponse | null> {
 	const enabled = opts.decoderEnabled ?? isPox4DecoderEnabled();
-	const note = enabled ? undefined : POX4_DISABLED_NOTE;
 	if (!enabled) {
 		return null;
 	}
-	const cycle = await readPoxCycle(opts.rewardCycle);
+	const eraClosed = opts.eraClosed ?? (await isPox4EraClosed());
+	const note = cycleNote(enabled, eraClosed);
+	const cycle = await readPoxCycle(opts.rewardCycle, undefined, eraClosed);
 	if (!cycle) return null;
 	return {
 		cycle,

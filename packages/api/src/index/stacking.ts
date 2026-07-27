@@ -11,6 +11,7 @@ import {
 	parseNonNegativeInteger,
 	toIsoOrNull,
 } from "./_shared.ts";
+import { isPox4EraClosed } from "./pox-era.ts";
 import type { IndexTip } from "./tip.ts";
 
 export const STACKING_FILTERS = [
@@ -61,7 +62,8 @@ export type StackingResponse = {
 	next_cursor: string | null;
 	tip: IndexTip;
 	reorgs: StreamsReorg[];
-	/** Present only when the PoX-4 decoder is disabled, explaining an empty feed. */
+	/** Present when the PoX-4 decoder is disabled, or once the pox-4 era closed
+	 *  at the epoch 4.0 fork — both explain a feed that stops growing. */
 	notes?: string;
 };
 
@@ -124,6 +126,23 @@ type StackingDbRow = {
 // the network had no stacking activity.
 const POX4_DISABLED_NOTE =
 	"PoX-4 decoding is disabled (POX4_DECODER_ENABLED=false); stacking is empty until re-enabled.";
+
+// After the epoch 4.0 fork `pox4_calls` never grows again, so the default
+// last-day window is empty forever. Say so rather than implying the network
+// stopped stacking.
+const POX4_ERA_CLOSED_NOTE =
+	"PoX-4 ended at the epoch 4.0 activation; this feed covers pox-4 history only. PoX-5 era data is at /v1/index/pox5/events.";
+
+/** Exactly one note is returned. A disabled decoder outranks the era note: it
+ *  is the more actionable problem and the one an operator can fix. */
+function stackingNote(
+	enabled: boolean,
+	eraClosed: boolean,
+): string | undefined {
+	if (!enabled) return POX4_DISABLED_NOTE;
+	if (eraClosed) return POX4_ERA_CLOSED_NOTE;
+	return undefined;
+}
 
 function normalizeStacking(row: StackingDbRow): StackingAction {
 	const blockHeight = Number(row.block_height);
@@ -296,10 +315,14 @@ export async function getStackingResponse(opts: {
 		toHeight: number;
 	}) => Promise<StreamsReorg[]>;
 	decoderEnabled?: boolean;
+	eraClosed?: boolean;
 }): Promise<StackingResponse> {
 	const parsed = parseStackingQuery(opts.query, opts.tip);
 	const enabled = opts.decoderEnabled ?? isPox4DecoderEnabled();
-	const note = enabled ? undefined : POX4_DISABLED_NOTE;
+	const eraClosed = enabled
+		? (opts.eraClosed ?? (await isPox4EraClosed()))
+		: false;
+	const note = stackingNote(enabled, eraClosed);
 
 	if (parsed.cursorPastTip) {
 		return {
