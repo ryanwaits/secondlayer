@@ -1,5 +1,13 @@
 # @secondlayer/sdk
 
+## 6.33.1
+
+### Patch Changes
+
+- Export `resolveApiKey` from the package root. 6.33.0 documented it as part of
+  the public surface, but it was only reachable from the internal module — so
+  `import { resolveApiKey } from "@secondlayer/sdk"` failed to typecheck.
+
 ## 6.33.0
 
 ### Minor Changes

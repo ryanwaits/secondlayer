@@ -7,6 +7,7 @@ export type {
 	ContextSnapshot,
 } from "./client.ts";
 export type { SecondLayerOptions } from "./base.ts";
+export { resolveApiKey } from "./base.ts";
 export {
 	ApiKeys,
 	type ApiKeySummary,
