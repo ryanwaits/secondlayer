@@ -6,7 +6,11 @@ description: Run a production smoke sweep against secondlayer prod — container
 # Prod Smoke — secondlayer production sweep
 
 Read-only sweep; report a single scorecard. NEVER restart, trigger, or mutate.
-SSH: `ssh ryan@claude-mini "ssh app-server '<cmd>'"`. API: https://api.secondlayer.tools.
+SSH: `ssh app-server '<cmd>'` / `ssh node-server '<cmd>'` — direct, no jump host.
+(Both hosts are in `~/.ssh/config`; each machine authenticates with its own key. An
+older revision of this skill hopped through `ssh ryan@claude-mini`, which fails from
+any machine that cannot reach the mini — if you see that pattern anywhere, it is stale.)
+API: https://api.secondlayer.tools.
 Topology + runbooks: `docker/PRODUCTION.md`. CI's deploy-time twin: `scripts/ci/post-deploy-smoke.sh`
 (this skill is the anytime + deeper version — don't duplicate its envelope checks, go past them).
 
@@ -133,13 +137,13 @@ supply (exact integer sats). sbtc-token is mandatory; extend the list freely.
 ```bash
 CID='SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token'
 ASSET="${CID}::sbtc-token"; ADDR="${CID%.*}"; NAME="${CID#*.}"
-API=$(ssh ryan@claude-mini "ssh app-server 'docker ps --format {{.Names}} | grep -m1 secondlayer-api'")
+API=$(ssh app-server 'docker ps --format {{.Names}} | grep -m1 secondlayer-api')
 
 # chain — node get-total-supply. Pipe the curl script to `sh` over stdin (NOT as a
 # nested `sh -c` arg — the triple quoting mangles the JSON body). $STACKS_NODE_RPC_URL
 # expands inside the container. result hex = 0x07(ok)+01(uint)+16B BE → int(hex[6:]).
 chain=$(printf '%s\n' "curl -s -m 25 -X POST \"\$STACKS_NODE_RPC_URL/v2/contracts/call-read/$ADDR/$NAME/get-total-supply\" -H 'Content-Type: application/json' -d '{\"sender\":\"$ADDR\",\"arguments\":[]}'" \
-  | ssh ryan@claude-mini "ssh app-server 'docker exec -i $API sh'" \
+  | ssh app-server "docker exec -i $API sh" \
   | python3 -c "import sys,json;print(int(json.load(sys.stdin)['result'][6:],16))")
 
 # decoded_net (the buggy plane) and raw_net (deduped firehose, authoritative)
@@ -149,7 +153,7 @@ select
 -(select coalesce(sum(amount::numeric),0) from decoded_events where event_type='ft_burn' and contract_id='$CID' and canonical),
  (with d as (select distinct e.block_height,e.tx_id,e.event_index,e.type,(e.data->>'amount')::numeric amt from events e join blocks b on b.height=e.block_height where b.canonical and e.data->>'asset_identifier'='$ASSET' and e.type in ('ft_mint_event','ft_burn_event'))
   select coalesce(sum(amt) filter (where type='ft_mint_event'),0)-coalesce(sum(amt) filter (where type='ft_burn_event'),0) from d);
-" | ssh ryan@claude-mini "ssh app-server 'docker exec -i secondlayer-postgres-1 psql -U secondlayer -d secondlayer -tAF\" \"'")
+" | ssh app-server 'docker exec -i secondlayer-postgres-1 psql -U secondlayer -d secondlayer -tAF" "')
 
 echo "sbtc chain=$chain decoded_net=$decoded_net raw_net=$raw_net"
 # assert decoded_net==chain AND raw_net==chain; report Δ on any mismatch.
@@ -196,7 +200,7 @@ FROM (
 LEFT JOIN LATERAL (
   SELECT count(*) cnt FROM events e
   WHERE e.block_height=d.block_height AND e.tx_id=d.tx_id AND e.type IN ($RAW)
-) r ON true;" | ssh ryan@claude-mini "ssh app-server 'docker exec -i secondlayer-postgres-1 psql -U secondlayer -d secondlayer -tA'"
+) r ON true;" | ssh app-server 'docker exec -i secondlayer-postgres-1 psql -U secondlayer -d secondlayer -tA'
 # Nonzero ⇒ a reorg left residue (UPSERT-without-delete bug back, or a new reorg hit a
 # pre-fix decoder). Realign the window with rederive-decoded-events.ts (--types from a
 # `GROUP BY event_type` over the range first), then re-run this + Phase 4b.

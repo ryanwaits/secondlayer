@@ -1,6 +1,8 @@
 # Production topology
 
-Two hosts. SSH: `ssh ryan@claude-mini` → `ssh app-server` / `ssh node-server`.
+Two hosts. SSH: `ssh app-server` / `ssh node-server` — direct, no jump host. Each
+machine authenticates with its own key; add a new machine by appending its public
+key to `~/.ssh/authorized_keys` on both hosts rather than copying an existing key.
 Compose project lives at `/opt/secondlayer/docker` on app-server.
 
 - **app-server** — everything below.
