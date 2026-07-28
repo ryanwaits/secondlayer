@@ -1,5 +1,20 @@
 # @secondlayer/sdk
 
+## 6.33.0
+
+### Minor Changes
+
+- Clients now fall back to the `SL_API_KEY` environment variable when no `apiKey`
+  option is passed, matching the CLI and MCP server. Previously `new Index()` ran
+  keyless even on a machine with a key exported, so a genesis backfill
+  (`fromHeight: 0`) failed with `402 PAYMENT_REQUIRED` and the fix — passing the
+  key through explicitly — was undocumented and easy to miss.
+
+  An explicit `apiKey` still wins, including an explicit `""`, which is how you
+  opt a client back into keyless reads on a machine that has a key exported. The
+  resolver is exported as `resolveApiKey` and is guarded for browsers and edge
+  runtimes where `process` is undefined.
+
 ## 6.32.0
 
 ### Minor Changes

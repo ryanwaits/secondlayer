@@ -38,6 +38,18 @@ signers, bonds, amounts, and cycle windows, plus the full event tuple as JSON.
 
 ## SDK — July 2026
 
+### Clients pick up `SL_API_KEY` from your environment
+
+Export `SL_API_KEY` and `new Index()` uses it — the same variable the CLI and
+MCP server already read. No more constructing a client keyless by accident,
+then hitting `402 PAYMENT_REQUIRED` the first time you reach past the free
+24-hour window.
+
+- An explicit `apiKey` still wins. Pass `apiKey: ""` to force keyless reads on
+  a machine that has a key exported.
+- Exported as `resolveApiKey` if you want the same precedence in your own code,
+  and guarded for browsers and edge runtimes where `process` is undefined.
+
 ### Name any decoded event, not just the union
 
 `IndexEvent` is a union of eleven shapes, and until now you could name the
