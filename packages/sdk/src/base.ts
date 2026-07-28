@@ -27,6 +27,19 @@ export interface SecondLayerOptions {
 
 const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
 
+/** Resolve the credential a client should use. An explicit `apiKey` option
+ *  always wins — including an explicit `""`, which is how you opt a client
+ *  back into keyless reads on a machine that has a key exported. Otherwise
+ *  fall back to `SL_API_KEY`, the single credential var shared with the CLI
+ *  and MCP server, so `new Index()` picks up an already-exported key instead
+ *  of silently running keyless and 402-ing on the first deep-history read.
+ *  Guarded for browsers and edge runtimes, where `process` is undefined. */
+export function resolveApiKey(apiKey?: string): string | undefined {
+	if (apiKey !== undefined) return apiKey;
+	if (typeof process === "undefined") return undefined;
+	return process.env?.SL_API_KEY || undefined;
+}
+
 /** Build a query-string suffix from name→value pairs. Skips null/undefined and
  *  empty values; arrays are comma-joined. Returns "" (never a dangling "?") or
  *  "?a=1&b=2" — the one canonical builder every list endpoint shares, so the
@@ -55,7 +68,7 @@ export abstract class BaseClient {
 
 	constructor(options: Partial<SecondLayerOptions> = {}) {
 		this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
-		this.apiKey = options.apiKey;
+		this.apiKey = resolveApiKey(options.apiKey);
 		this.origin = options.origin ?? "cli";
 	}
 

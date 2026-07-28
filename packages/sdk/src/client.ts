@@ -1,6 +1,6 @@
 import type { SubgraphSummary } from "@secondlayer/shared/schemas";
 import { ApiKeys } from "./api-keys/client.ts";
-import { BaseClient } from "./base.ts";
+import { BaseClient, resolveApiKey } from "./base.ts";
 import type { SecondLayerOptions } from "./base.ts";
 import { Contracts } from "./contracts/client.ts";
 import { Index } from "./index-api/client.ts";
@@ -71,7 +71,7 @@ export class SecondLayer extends BaseClient {
 	constructor(options: Partial<SecondLayerOptions> = {}) {
 		super(options);
 		this.streams = createStreamsClient({
-			apiKey: options.apiKey ?? "",
+			apiKey: resolveApiKey(options.apiKey) ?? "",
 			baseUrl: options.baseUrl,
 			fetchImpl: options.fetchImpl,
 			dumpsBaseUrl: options.dumpsBaseUrl,

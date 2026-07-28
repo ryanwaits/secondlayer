@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { BaseClient } from "../base.ts";
+import { BaseClient, resolveApiKey } from "../base.ts";
 import { ApiError, ByoBreakingChangeError } from "../errors.ts";
 
 const BASE_URL = "http://localhost:3800";
@@ -33,6 +33,10 @@ function mockFetch(response: {
 class TestClient extends BaseClient {
 	doRequest<T>(method: string, path: string, body?: unknown) {
 		return this.request<T>(method, path, body);
+	}
+
+	authHeader() {
+		return BaseClient.authHeaders(this.apiKey).Authorization;
 	}
 }
 
@@ -200,6 +204,39 @@ describe("BaseClient", () => {
 			const headers = BaseClient.authHeaders();
 			expect(headers.Authorization).toBeUndefined();
 			expect(headers["Content-Type"]).toBe("application/json");
+		});
+	});
+
+	describe("resolveApiKey", () => {
+		const original = process.env.SL_API_KEY;
+
+		afterEach(() => {
+			if (original === undefined) delete process.env.SL_API_KEY;
+			else process.env.SL_API_KEY = original;
+		});
+
+		test("falls back to SL_API_KEY when no apiKey is passed", () => {
+			process.env.SL_API_KEY = "sk-sl_from_env";
+			expect(resolveApiKey()).toBe("sk-sl_from_env");
+			expect(new TestClient().authHeader()).toBe("Bearer sk-sl_from_env");
+		});
+
+		test("an explicit apiKey wins over the environment", () => {
+			process.env.SL_API_KEY = "sk-sl_from_env";
+			expect(resolveApiKey("sk-sl_explicit")).toBe("sk-sl_explicit");
+		});
+
+		test("an explicit empty string opts back into keyless", () => {
+			process.env.SL_API_KEY = "sk-sl_from_env";
+			expect(resolveApiKey("")).toBe("");
+			expect(new TestClient({ apiKey: "" }).authHeader()).toBeUndefined();
+		});
+
+		test("resolves to undefined when SL_API_KEY is unset or empty", () => {
+			delete process.env.SL_API_KEY;
+			expect(resolveApiKey()).toBeUndefined();
+			process.env.SL_API_KEY = "";
+			expect(resolveApiKey()).toBeUndefined();
 		});
 	});
 
