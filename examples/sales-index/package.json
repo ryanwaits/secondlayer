@@ -8,7 +8,7 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@secondlayer/sdk": "^6.23.0",
+		"@secondlayer/sdk": "^6.34.0",
 		"@secondlayer/subgraphs": "^3.14.3",
 		"kysely": "^0.28.15",
 		"pg": "^8.16.0"

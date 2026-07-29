@@ -1,4 +1,5 @@
 import { Index } from "@secondlayer/sdk";
+import { recordProgress, startHealthServer } from "./health.ts";
 import { db, loadCheckpoint, migrate } from "./schema.ts";
 
 // Every sale on Gamma's marketplace, swept into your own Postgres.
@@ -25,6 +26,22 @@ function reached(time: string | null | undefined): string {
 await migrate();
 const index = new Index();
 
+// Answers the platform's health check, so the loop isn't killed for binding
+// nothing. Local: curl localhost:8080/health
+const server = startHealthServer();
+
+// Redeploys arrive as SIGTERM. Aborting is checked at the top of the consume
+// loop, never mid-batch, so the in-flight transaction — rows AND checkpoint —
+// always commits before the process exits. Nothing is half-written, and the
+// next run resumes from exactly that cursor.
+const shutdown = new AbortController();
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+	process.on(signal, () => {
+		console.log(`${signal} — finishing the current batch, then stopping`);
+		shutdown.abort();
+	});
+}
+
 const resumeFrom = await loadCheckpoint();
 // Say which run this is before the first network round trip, so a restart is
 // visibly a restart and the wait for batch one isn't silence.
@@ -40,8 +57,12 @@ await index.contractCalls.consume({
 	functionName: "purchase-asset",
 	fromCursor: resumeFrom,
 	fromHeight: 0, // first run only: backfill from genesis
+	signal: shutdown.signal,
 
-	onBatch: async (calls, envelope, ctx) => {
+	onBatch: async (calls, _envelope, ctx) => {
+		// Before the early return: an empty page still proves the loop is alive.
+		// ctx carries height and blocksBehind, so nothing here recomputes them.
+		recordProgress(ctx);
 		if (!ctx.cursor) return;
 		// Rows and checkpoint commit in one transaction — crash anywhere and
 		// the next run resumes exactly here, no gaps, no double-counts.
@@ -73,12 +94,12 @@ await index.contractCalls.consume({
 		indexed += sales.length;
 		// Lead with the date the sweep has reached: it moves every line and says
 		// "history, in order" at a glance. The cursor is the resumable fact, so
-		// it stays — but at the end of the line, not the front.
-		const last = calls.at(-1);
+		// it stays — but at the end of the line, not the front. Height and lag
+		// come off ctx; only the timestamp needs the row itself.
 		console.log(
-			`  ${reached(last?.block_time)}  block ${num(last?.block_height ?? 0).padStart(9)}` +
+			`  ${reached(calls.at(-1)?.block_time)}  block ${num(ctx.height ?? 0).padStart(9)}` +
 				`  ${num(indexed).padStart(8)} sales` +
-				`   ${((100 * (last?.block_height ?? 0)) / envelope.tip.block_height).toFixed(1).padStart(5)}%` +
+				`   ${((100 * (ctx.height ?? 0)) / ctx.tipHeight).toFixed(1).padStart(5)}%` +
 				`   ${ctx.cursor}`,
 		);
 		return ctx.cursor;
@@ -108,3 +129,8 @@ await index.contractCalls.consume({
 		});
 	},
 });
+
+// Reached on SIGTERM (or when a bounded run finishes) — never mid-batch.
+await server.stop();
+await db.destroy();
+console.log("stopped cleanly");
