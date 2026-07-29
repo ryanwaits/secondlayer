@@ -1,8 +1,6 @@
 # Stacks SDK
 
-Build, sign, and broadcast Stacks transactions from TypeScript — viem-style clients, typed Clarity values, and post-conditions that protect your users' assets.
-
-`@secondlayer/stacks` is the transaction-side companion to the [data SDK](/docs/sdk): where `@secondlayer/sdk` reads decoded chain data, this package writes to the chain.
+Build, sign, and broadcast Stacks transactions from TypeScript — where [`@secondlayer/sdk`](/docs/sdk) reads decoded chain data, `@secondlayer/stacks` writes to the chain.
 
 ## Install
 
@@ -11,8 +9,6 @@ bun add @secondlayer/stacks
 ```
 
 ## Call a contract
-
-Create a wallet client, call a function. Fees are estimated and nonces managed for you.
 
 ```ts
 import { createWalletClient, http, mainnet } from "@secondlayer/stacks";
@@ -38,11 +34,11 @@ const txid = await client.callContract({
 });
 ```
 
+Fees estimated, nonces managed.
+
 ## Post-conditions
 
-Post-conditions are on-chain assertions the network enforces: if a transaction moves more than you allowed, it aborts instead of settling. Attach them to any `callContract`, `transferStx`, or `deployContract` call with `postConditions` (mode defaults to `deny`).
-
-Build them fluently with `Pc`:
+On-chain assertions the network enforces: move more than you allowed and the transaction aborts instead of settling. Attach `postConditions` to any `callContract`, `transferStx`, or `deployContract` call (mode defaults to `deny`).
 
 ```ts
 import { Pc } from "@secondlayer/stacks/postconditions";
@@ -75,12 +71,12 @@ postConditions: [
 | `stx-postcondition` | STX movement | `eq`, `gt`, `gte`, `lt`, `lte` + amount |
 | `ft-postcondition` | SIP-010 token movement | same, scoped to `asset` |
 | `nft-postcondition` | SIP-009 asset movement | `sent`, `not-sent` + `assetId` |
-| `staking-postcondition` | Staking changes (SIP-045) | `eq`–`lte` + amount |
-| `pox-postcondition` | Non-locking PoX changes (SIP-045) | `will-not-perform`, `may-perform`, `will-perform` |
+| `staking-postcondition` | How much STX a tx may stake or re-parameterize (SIP-045): `stake`, `register-for-bond`, `stake-update` | `eq`–`lte` + amount |
+| `pox-postcondition` | Non-locking PoX state changes (SIP-045): `unstake`, `announce-l1-early-exit`, bond-registration updates | `will-not-perform`, `may-perform`, `will-perform` |
 
 ### SIP-045 staking post-conditions
 
-Epoch 4.0 (the Bitcoin Staking hard fork) adds two transaction-level post-condition types that guard pox-5 calls. `staking-postcondition` bounds how much STX a transaction may stake or re-parameterize (`stake`, `register-for-bond`, `stake-update`); `pox-postcondition` gates non-locking PoX state changes (`unstake`, `announce-l1-early-exit`, bond-registration updates).
+Bound a `pox-5` call from both sides:
 
 ```ts
 const txid = await client.callContract({
@@ -89,14 +85,12 @@ const txid = await client.callContract({
   functionName: "register-for-bond",
   functionArgs: [/* … */],
   postConditions: [
-    // this call may stake at most 500,000 STX on my behalf
     {
       type: "staking-postcondition",
       address: "origin",
       condition: "lte",
       amount: 500_000_000_000n,
     },
-    // and must not touch my other PoX state
     {
       type: "pox-postcondition",
       address: "origin",
@@ -108,13 +102,13 @@ const txid = await client.callContract({
 
 <Callout type="note" title="Activates at Epoch 4.0">
 
-The wire format ships today in `@secondlayer/stacks@2.10.0` — encoding and decoding are byte-identical to the reference implementation — but the network only accepts these post-conditions once the SIP-045 hard fork activates. Ship your integration now; it works the day pox-5 goes live.
+Wire format ships in `@secondlayer/stacks@2.10.0`; the network accepts these only after SIP-045 activates.
 
 </Callout>
 
 Decoding is strict: deserializing a transaction with an unknown post-condition type throws instead of silently misreading the bytes after it. Your indexer sees an error, never corrupt data.
 
-The pox-5 calls these guard have their own typed surface — see [PoX-5 Bitcoin Staking](/docs/pox5).
+The `pox-5` calls these guard have their own typed surface — see [PoX-5 Bitcoin Staking](/docs/pox5).
 
 ## Also in the box
 

@@ -1,11 +1,8 @@
 # Contract discovery
 
-Find every contract that conforms to a token standard ("all SIP-010 tokens", "all SIP-009 NFTs") without maintaining a list of addresses.
+Find every contract conforming to a token standard — all SIP-010 tokens, all SIP-009 NFTs — without maintaining a list of addresses.
 
-Secondlayer keeps a registry of deployed contracts and classifies each against SIP-009 / SIP-010 / SIP-013 two ways:
-
-1. **Declared**: parsing the source's `(impl-trait …)`.
-2. **Inferred**: statically matching the contract's ABI shape, catching contracts that conform without declaring the trait.
+Secondlayer classifies each deployed contract two ways: **declared**, by parsing the source's `(impl-trait …)`, and **inferred**, by statically matching the ABI shape (catching contracts that conform without declaring).
 
 ## Query by trait
 
@@ -30,24 +27,16 @@ curl https://api.secondlayer.tools/v1/contracts \
 }
 ```
 
-Reads are public. Cursor-paginate by passing the previous response's `next_cursor` (it's `null` on the last page).
+Reads are public.
 
 | Param | Description |
 | --- | --- |
 | `trait` | `sip-009`, `sip-010`, or `sip-013` (required). |
 | `conformance` | `declared` (parsed from source), `inferred` (ABI shape match), or `any` (default). |
 | `limit` | 1–500, default 100. |
-| `cursor` | Resume token from `next_cursor`. |
+| `cursor` | Resume token from the previous response's `next_cursor` (`null` on the last page). |
 
-## Index a whole standard in a subgraph
-
-Point a **trait-scoped [Subgraph](/docs/subgraphs) source** at a standard instead of a contract and it indexes every conforming contract, including ones deployed later:
-
-```ts
-sources: {
-  tokens: { type: "ft_transfer", trait: "sip-010" }, // no contract address
-}
-```
+A subgraph source can target a trait instead of a contract and index the whole standard, including contracts deployed later — see [Index by standard](/docs/subgraphs#index-by-standard-not-by-address).
 
 export const metadata = {
 	title: "Contract discovery — Secondlayer Docs",

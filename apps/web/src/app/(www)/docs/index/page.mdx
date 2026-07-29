@@ -1,18 +1,12 @@
 # Index
 
-Decoded Stacks data, kept indexed. We run the chain indexer and the decoder; you get one REST surface over decoded events, contract calls, the canonical block map, blocks, full transaction documents, PoX-4 stacking, and the pending mempool.
-
-Read it keyless, or [build your app's own index on it](#build-your-index-on-it): the same rows are made to be swept, rolled back, and mirrored. No decoders to write, no node to run.
+Decoded Stacks data, kept indexed. No decoders to write, no node to run.
 
 <Callout type="note" title="Keys and history">
 
-Reads need no key, and a minted free-tier key reads Index at the free-tier rate limit, never slower than anonymous. Free reads cover the recent 24-hour window. Older history needs [pay-as-you-go](/docs/authentication#pay-as-you-go-credits) (prepaid credits) or a paid plan.
+Reads need no key. Free and anonymous reads cover the recent 24-hour window; a `from_height`/`cursor` below it returns `402 UPGRADE_REQUIRED` ([Authentication](/docs/authentication#pay-as-you-go-credits)). `from_height=0` reaches full history.
 
 </Callout>
-
-Index itself is built on [Streams](/docs/streams): our decoder consumes the same raw firehose you can.
-
-Every list response uses the same cursor envelope: the collection, a `next_cursor`, the chain `tip`, and `reorgs` where applicable. Cursors are opaque `<block_height>:<index>` resume tokens; pass them back unchanged to continue.
 
 ## Surfaces
 
@@ -21,13 +15,15 @@ Every list response uses the same cursor envelope: the collection, a `next_curso
 | `/v1/index/events` | Decoded events for a chosen `event_type` (+ `ft-transfers` / `nft-transfers` aliases) |
 | `/v1/index/contract-calls` | Decoded contract-call transactions with `args` and `result` |
 | `/v1/index/contracts/{contract_id}/print-schema` | Per-topic print payload schemas, inferred empirically from indexed history |
-| `/v1/index/transactions` · `/{tx_id}` | Full transaction documents (fee, nonce, post-conditions, decoded payload) |
+| `/v1/index/transactions` · `/{tx_id}` | Full transaction documents (fee, nonce, sponsored, post-conditions, decoded payload) |
 | `/v1/index/blocks` · `/{height_or_hash}` | Decoded blocks, list or single |
-| `/v1/index/canonical` | Canonical block-hash map, one row per height, for chain sync |
+| `/v1/index/canonical` | Canonical block-hash map, one row per height, orphans excluded, for chain sync |
 | `/v1/index/stacking` | Decoded PoX-4 stacking actions (stack-stx, delegate-stx, …) |
 | `/v1/index/pox5/events` | Decoded PoX-5 print events (stake, register-for-bond, claim-rewards, …) |
 | `/v1/index/mempool` · `/{tx_id}` | Pending (unconfirmed) transaction documents |
 | `/v1/index/usage` | Your own consumption and tier limits |
+
+Built on [Streams](/docs/streams): our decoder reads the same raw firehose you can. Every list response carries the collection, an opaque `next_cursor` (`<block_height>:<index>`), the chain `tip`, and `reorgs` — see [REST API](/docs/rest-api#response-envelope).
 
 ## Events
 
@@ -35,27 +31,17 @@ Every list response uses the same cursor envelope: the collection, a `next_curso
 curl "https://api.secondlayer.tools/v1/index/events?event_type=stx_transfer&limit=20"
 ```
 
-Without a `cursor` or `from_height`, list reads default to roughly the last day of blocks. Pass `from_height=0` (or any range) to reach full history.
-
-<Callout type="warning">
-
-Free and anonymous reads are limited to that recent 24-hour window: a `from_height`/`cursor` below it returns `402 UPGRADE_REQUIRED`. Top up [pay-as-you-go credits](/docs/authentication#pay-as-you-go-credits) (or start a plan) for older history.
-
-</Callout>
-
-Allowed filters vary by `event_type`: `stx_*` have no `contract_id`, `nft_*` accept `asset_identifier`, and `print` filters by `contract_id` and carries a `payload` with the Clarity value decoded to JSON. `ft-transfers` and `nft-transfers` are typed aliases for the two most common types.
-
-Need the submitting transaction? Pass `tx_context=true`. Every event then carries its tx joined in — `tx_sender`, `tx_type`, `tx_status`, `tx_contract_id`, `tx_function_name` — so [building your own index](#build-your-index-on-it) skips a `/v1/index/transactions` call per event, turning an N+1 transaction walk into one pass.
+Filters vary by `event_type`: `stx_*` take no `contract_id`, `nft_*` accept `asset_identifier`, `print` filters by `contract_id` and carries a `payload` decoded from Clarity to JSON.
 
 ```bash
 curl "https://api.secondlayer.tools/v1/index/events?event_type=print&tx_context=true&limit=20"
 ```
 
-For `print` events `tx_sender` is the only place the real sender lives — the event itself has none.
+`tx_context=true` joins the submitting transaction into every event — `tx_sender`, `tx_type`, `tx_status`, `tx_contract_id`, `tx_function_name` — collapsing an N+1 walk into one pass. For `print` events, `tx_sender` is the only place the sender lives.
 
 ## Print schemas
 
-Clarity ABIs don't describe `print` payloads, and the shape varies **per topic** within one contract: sbtc-registry's `withdrawal-create` has no `bitcoin-txid`, `completed-deposit` has no `sender`. `/print-schema` derives the real shape empirically: it samples the contract's indexed print events, deserializes the raw Clarity hex for exact types, and unifies a schema per topic.
+Clarity ABIs don't describe `print` payloads, and the shape varies **per topic** within one contract.
 
 ```bash
 curl "https://api.secondlayer.tools/v1/index/contracts/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry/print-schema"
@@ -93,71 +79,64 @@ curl "https://api.secondlayer.tools/v1/index/contracts/SM3VDXK3WZZSA84XXFKAFAF15
 }
 ```
 
-`camel_name` is what a handler sees on `event.data`. Optional fields report an `optional_some_rate`, and payloads with no `topic` string (or that aren't tuples) land under the `"*"` pseudo-topic with `non_tuple` set.
+Sampled from indexed prints, raw Clarity hex deserialized for exact types, unified per topic. `camel_name` is what a handler sees on `event.data`.
 
-<Callout type="info">
+- Optional fields report an `optional_some_rate`.
+- Payloads with no `topic` string, or that aren't tuples, land under the `"*"` pseudo-topic with `non_tuple` set.
+- Anonymous, unmetered, cached five minutes (`max-age=300` + weak `ETag`).
+- No query params (`400` otherwise).
 
-Anonymous and unmetered like the other reads, cached five minutes (`max-age=300` + weak ETag). The endpoint takes no query params (`400` otherwise).
+Backs `sl subgraphs create <name> --from-contract <contract_id>` — see [Subgraphs](/docs/subgraphs#typed-print-payloads).
 
-</Callout>
+## More surfaces
 
-This is the schema behind `sl subgraphs create <name> --from-contract <contract_id>`; see [Subgraphs](/docs/subgraphs#typed-print-payloads).
-
-## Contract calls
+### Contract calls
 
 ```bash
 curl "https://api.secondlayer.tools/v1/index/contract-calls?function_name=transfer&limit=20"
 ```
 
-Each row decodes the call's `args` and `result` from the raw Clarity. Contract-call cursors are a separate keyspace from event cursors.
+Contract-call cursors are a separate keyspace from event cursors.
 
-## Transactions
+### Transactions
 
 ```bash
 curl "https://api.secondlayer.tools/v1/index/transactions/0x<tx_id>"
 ```
 
-Full transaction documents, decoded from the raw transaction: `fee`, `nonce`, `sponsored`, `post_conditions`, and a typed `payload` sub-object. List with `/v1/index/transactions` filtered by `type`, `sender`, or `contract_id`, or fetch one by `tx_id`.
+List filtered by `type`, `sender`, or `contract_id`. `/{tx_id}/proof` returns a trustless inclusion proof — see [Verification](/docs/verification).
 
-### Proofs
-
-```bash
-curl "https://api.secondlayer.tools/v1/index/transactions/0x<tx_id>/proof"
-```
-
-`/{tx_id}/proof` returns a trustless inclusion proof: the raw transaction, raw header, and merkle path needed to verify, client-side, that the transaction is in a Stacks block and that the reward cycle's signers attested to it. Nothing Secondlayer returns is trusted. See [Verification](/docs/verification).
-
-## Blocks and canonical
+### Blocks and canonical
 
 ```bash
 curl "https://api.secondlayer.tools/v1/index/blocks/892100"
 ```
 
-`/v1/index/blocks` lists decoded blocks (or fetch one by height or hash). `/v1/index/canonical` returns the canonical block-hash map (exactly one row per height, orphaned blocks excluded) so a client can sync only the canonical chain.
+Fetch a block by height or hash. `/v1/index/canonical` drops orphans, so a client syncs only the canonical chain.
 
-## Stacking
+### Stacking
 
 ```bash
 curl "https://api.secondlayer.tools/v1/index/stacking?function_name=stack-stx&limit=20"
 ```
 
-Decoded PoX-4 stacking actions, filterable by `function_name`, `stacker`, or `caller`.
+Filter by `function_name`, `stacker`, or `caller`.
 
-## PoX-5 events
+### PoX-5 events
 
 ```bash
 curl "https://api.secondlayer.tools/v1/index/pox5/events?topic=stake&limit=20"
 ```
 
-Decoded print events from the `pox-5` boot contract (SIP-045 Bitcoin Staking), which replaces PoX-4 at the epoch 4.0 hard fork — all 19 topics, filterable by `topic`, `staker`, `signer`, `signer_manager`, `bond_index`, or `reward_cycle`. Hot fields are promoted to typed columns, and every row also carries `data`, the full decoded tuple, so nested shapes with no flat column (`btc-lockup`, `bond-rewards`, `bond-periods`) are never lost.
+From the `pox-5` boot contract (SIP-045 Bitcoin Staking), which replaces PoX-4 at the epoch 4.0 hard fork. All 19 topics; filter by `topic`, `staker`, `signer`, `signer_manager`, `bond_index`, or `reward_cycle`. Hot fields become typed columns; `data` carries the full decoded tuple, so nested shapes (`btc-lockup`, `bond-rewards`, `bond-periods`) are never lost.
 
-## Mempool
+### Mempool
 
 ```bash
 curl "https://api.secondlayer.tools/v1/index/mempool?contract_id=SP000000000000000000002Q6VF78.pox-4"
 ```
 
-Pending transactions with the same decoded enrichment as `/transactions`, but pre-chain: no `block_height` or `result`, plus a `received_at`. Filter by `sender`, `type`, or `contract_id`.
+Same decoded enrichment as `/transactions`, minus `block_height` and `result`, plus a `received_at`. Filter by `sender`, `type`, or `contract_id`.
 
 <Callout type="note">
 
@@ -165,13 +144,13 @@ Rows leave the mempool on confirmation or drop, so the single form `404`s once a
 
 </Callout>
 
-## Discovery
+### Discovery
 
-`GET /v1/index` describes itself. Alongside the route list it returns `event_type_filters`, a per-type map of `columns`, `allowed_filters`, `equality_filters`, and `required_non_null` generated from the event registry, so an agent can learn what each `event_type` accepts at runtime rather than hard-coding it.
+`GET /v1/index` describes itself: routes plus `event_type_filters`, a per-type map of `columns`, `allowed_filters`, `equality_filters`, and `required_non_null`, so an agent learns each `event_type` at runtime.
 
 ## Reorgs
 
-Read envelopes (e.g. `/v1/index/stacking`, `/transactions`, `/contract-calls`) carry a `reorgs` array alongside the data: the chain reorganizations overlapping the page's height range, empty when none. Use it to reconcile any rows you've already committed from a fork.
+Read envelopes carry a `reorgs` array: the reorganizations overlapping the page's height range, empty when none.
 
 ```json
 {
@@ -189,25 +168,23 @@ Read envelopes (e.g. `/v1/index/stacking`, `/transactions`, `/contract-calls`) c
 }
 ```
 
-To reconcile: roll back any rows whose cursor falls inside `orphaned_range`, then re-fetch from `new_canonical_tip`. The [ingest loop below](#build-your-index-on-it) shows the reconcile in code.
+Roll back rows whose cursor falls inside `orphaned_range`, then re-fetch from `new_canonical_tip`.
 
 <Callout type="note">
 
-Both bounds are `<block_height>:<event_index>` cursors. Reorg cursors track decoded-event positions; on transaction-keyed feeds like `/transactions` and `/contract-calls`, compare by the block-height component.
+Both bounds are `<block_height>:<event_index>` cursors tracking decoded-event positions. On transaction-keyed feeds (`/transactions`, `/contract-calls`), compare by the block-height component.
 
 </Callout>
 
 ## Build your index on it
 
-Everything above is also the substrate for your own app index: every list envelope carries a resume cursor, the tip, and overlapping `reorgs[]`; `from_height=0` reaches genesis; pages below finality are served with immutable caching, so re-sweeps are cheap. You bring the database and run the loop; we keep the decoded data flowing.
-
-`sl index codegen` emits the mirror schema so your tables can't drift from the API:
+You bring the database. `sl index codegen` emits the mirror schema so your tables can't drift:
 
 ```bash
 sl index codegen --target kysely   # also: prisma, drizzle, json-schema
 ```
 
-The loop is built in: `consume()` is a checkpointed consumer with automatic reorg rewind (the same contract as the Streams consumer). Write your rows in `onBatch`, return the cursor you committed; crash anywhere and the next run resumes from your checkpoint:
+`consume()` is a checkpointed consumer with automatic reorg rewind. Write rows in `onBatch`, return the cursor you committed; crash anywhere and the next run resumes from your checkpoint.
 
 ```ts
 import { Index } from "@secondlayer/sdk";
@@ -234,9 +211,15 @@ await index.events.consume({
 });
 ```
 
-`txContext: true` works the same on `walk` and `list` — set it once and every row carries its submitting tx, so you write tx fields straight into your tables with no per-event `/v1/index/transactions` call. `index.contractCalls.consume()` does the same for decoded calls (and already carries `sender`/`function_name`, so it needs no `txContext`), and `finalizedOnly: true` holds delivery to rows at or below `tip.finalized_height`; finalized data never reorgs, so `onReorg` becomes unnecessary. The complete runnable version (every Gamma marketplace sale in your own Postgres, ~50 lines) is the [`sales-index` example](https://github.com/ryanwaits/secondlayer/tree/main/examples/sales-index).
+| Option | Effect |
+| --- | --- |
+| `txContext: true` | Same on `walk` and `list`; every row carries its submitting tx, so no per-event `/v1/index/transactions` call |
+| `finalizedOnly: true` | Holds delivery to rows at or below `tip.finalized_height`; finalized data never reorgs, so `onReorg` is unnecessary |
+| `index.contractCalls.consume()` | Same loop for decoded calls; already carries `sender`/`function_name`, so it needs no `txContext` |
 
-On startup (or any time), verify your mirror followed the canonical chain with `/v1/index/canonical` (one row per height, orphans excluded):
+Runnable, ~50 lines: the [`sales-index` example](https://github.com/ryanwaits/secondlayer/tree/main/examples/sales-index).
+
+Check your mirror against the canonical chain any time:
 
 ```ts
 const { canonical } = await sl.index.canonical({ fromHeight: myLowestHeight });
@@ -248,13 +231,9 @@ for (const block of canonical) {
 }
 ```
 
-For contract-specific indexes, [`/print-schema`](#print-schemas) tells you the real shape of a contract's `print` payloads before you design tables; then walk `event_type=print&contract_id=…` into them — add `tx_context=true` to capture the submitting sender in one pass (prints carry none) instead of fetching each transaction. Transaction [inclusion proofs](#proofs) let you verify anything you mirrored without trusting us.
-
-This loop is what [Subgraphs](/docs/subgraphs) runs for you: the same decoded rows, your schema, our backfill and reorg handling, one TypeScript file, zero ops.
+Designing tables for one contract? [`/print-schema`](#print-schemas) gives the real payload shape first. Want the loop run for you: [Subgraphs](/docs/subgraphs).
 
 ## Beyond REST
-
-The Index is the same data through every surface. Pick the one that fits your runtime:
 
 ```ts
 // SDK — typed client, cursor walking built in
@@ -271,11 +250,9 @@ sl index transactions get 0x<tx_id>
 sl index mempool --contract-id SP….token
 ```
 
-In MCP, the same families are tools: `index_events`, `index_transactions`, `index_stacking`, `index_mempool`, `index_blocks`, and the rest.
+MCP exposes the same families as tools: `index_events`, `index_transactions`, `index_stacking`, `index_mempool`, `index_blocks`, and the rest.
 
 ## Usage
-
-Read your own consumption and tier limits anytime.
 
 ```bash
 curl "https://api.secondlayer.tools/v1/index/usage" -H "Authorization: Bearer $SL_API_KEY"
@@ -287,5 +264,5 @@ Also `sl.index.usage()` (SDK) and `index_usage` (MCP).
 export const metadata = {
 	title: "Index — Secondlayer Docs",
 	description:
-		"Decoded Stacks data, kept indexed: query events, contract calls, transactions, and blocks keyless, or build your own app index on the same rows with cursors, reorgs[], and codegen.",
+		"Decoded Stacks data, kept indexed: query events, contract calls, transactions, and blocks keyless, or mirror the same rows with cursors, reorgs[], and codegen.",
 };

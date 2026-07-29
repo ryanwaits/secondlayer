@@ -1,6 +1,6 @@
 # Subscriptions
 
-A subscription binds to a subgraph table: every row change that matches the filter fires a signed HTTP POST to your endpoint, with automatic retries and idempotency keys. Deliveries cover the full row lifecycle: inserts, updates, and deletes.
+A subscription fires a signed HTTP POST at your endpoint for every matching subgraph row change or raw chain event.
 
 ## Create a subscription
 
@@ -12,17 +12,11 @@ sl subscriptions create sbtc-webhook \
   --url https://your-app.com/webhooks/sbtc
 ```
 
-Omit `--no-scaffold` to also scaffold a local receiver project (`-r inngest | trigger | cloudflare | node`) in a directory named after the subscription.
+Omit `--no-scaffold` to scaffold a local receiver (`-r inngest | trigger | cloudflare | node`) named after the subscription.
 
 ## Verify the signature
 
-On the default `standard-webhooks` format, every delivery carries a per-subscription HMAC. Verify it against your subscription secret before trusting the payload: pass the **raw body first**, then the headers and secret.
-
-<Callout type="note" title="Other formats use the universal signature">
-
-The other formats (`raw`, `cloudevents`, `trigger`, `cloudflare`, `inngest`) don't carry this HMAC. They're authenticated by the universal ed25519 signature ([below](#universal-webhook-signature)), which rides on **every** delivery.
-
-</Callout>
+On the default `standard-webhooks` format, every delivery carries a per-subscription HMAC. Pass the **raw body first**.
 
 ```ts
 import { verifyWebhookSignature } from "@secondlayer/sdk";
@@ -31,31 +25,13 @@ const valid = verifyWebhookSignature(rawBody, req.headers, secret);
 if (!valid) return new Response("bad signature", { status: 401 });
 ```
 
-The optional fourth argument is the timestamp tolerance in seconds (`verifyWebhookSignature(rawBody, headers, secret, toleranceSeconds = 300)`).
-
-Failed deliveries retry with backoff; after repeated failures the subscription's circuit opens so a downed endpoint can't block the queue.
-
-## Row lifecycle verbs
-
-A subgraph subscription tracks the **whole life** of each matching row. The payload's `type` field encodes which mutation fired, as `` `<subgraph>.<table>.<verb>` ``:
-
-| Verb | Fires on | Example `type` |
-| --- | --- | --- |
-| `created` | row insert | `sbtc-flows.transfers.created` |
-| `updated` | row update | `sbtc-flows.transfers.updated` |
-| `deleted` | row delete | `sbtc-flows.transfers.deleted` |
-
-## Universal webhook signature
-
-Beyond the per-subscription HMAC, **every** delivery in any format carries an authenticity signature proving it came from Secondlayer. Three headers ride on every POST:
+**Every** delivery, in every format, also carries an ed25519 signature over `` `${webhook-id}.${rawBody}` ``. For `raw`, `cloudevents`, `trigger`, `cloudflare`, and `inngest` — no HMAC — it is the only auth.
 
 | Header | Purpose |
 | --- | --- |
 | `webhook-id` | Unique delivery id (also the signed prefix) |
 | `x-secondlayer-signature` | ed25519 signature, base64 |
 | `x-secondlayer-signature-keyid` | Id of the signing key used |
-
-The signed content is `` `${webhook-id}.${rawBody}` ``. Verify it with the SDK against Secondlayer's published public key; one key proves authenticity for any format.
 
 ```ts
 import { verifySecondlayerSignature } from "@secondlayer/sdk";
@@ -65,11 +41,21 @@ const valid = verifySecondlayerSignature(rawBody, req.headers, publicKeyPem);
 if (!valid) return new Response("bad signature", { status: 401 });
 ```
 
-Fetch the public key once from `GET /public/streams/signing-key` and cache it (rotate on the `keyid` header).
+Fetch the public key once and cache it; rotate on the `keyid` header. Failed deliveries retry with backoff, then the circuit opens so a downed endpoint can't block the queue.
+
+## Row lifecycle verbs
+
+A subgraph subscription tracks the whole life of each row. The payload `type` is `` `<subgraph>.<table>.<verb>` ``:
+
+| Verb | Fires on | Example `type` |
+| --- | --- | --- |
+| `created` | row insert | `sbtc-flows.transfers.created` |
+| `updated` | row update | `sbtc-flows.transfers.updated` |
+| `deleted` | row delete | `sbtc-flows.transfers.deleted` |
 
 ## Replay
 
-Re-deliver historical rows over an existing subscription with `replay`. Replays are **idempotent** (re-running the same range is a no-op), **historical only**, and **never move the live cursor**; your forward stream keeps flowing untouched.
+Re-deliver historical rows over an existing subscription.
 
 ```ts
 const { replayId, enqueuedCount, scannedCount } = await sl.subscriptions.replay(id, {
@@ -78,25 +64,25 @@ const { replayId, enqueuedCount, scannedCount } = await sl.subscriptions.replay(
 });
 ```
 
-The range is capped at **100,000 blocks**. Both kinds are flagged as replays (`is_replay`) so your handler can tell them apart from live traffic.
+Replays are **idempotent**, **historical only**, and **never move the live cursor**. The range is capped at **100,000 blocks**. Both kinds are flagged `is_replay`.
 
 | Subscription kind | Replay delivers as |
 | --- | --- |
 | Subgraph | `<subgraph>.<table>.replay`, a distinct verb (not the live `.created`/`.updated`/`.deleted` types) |
 | Chain | The standard `chain.{type}.apply` envelope |
 
-Chain replay covers decoded events and the on-Stacks sBTC peg triggers (deposit, withdrawal create/accept/reject). The `sbtc_withdrawal_swept_confirmed` settlement trigger fires on a Bitcoin confirmation (not a Stacks block), so it is **forward-only and not replayable** — the CLI warns when you replay a subscription that uses it.
+`sbtc_withdrawal_swept_confirmed` fires on a Bitcoin confirmation, not a Stacks block, so it is forward-only and never replayed — the CLI warns.
 
 ## Direct chain subscriptions (no subgraph)
 
 A subscription is one of two mutually-exclusive kinds:
 
-- **`subgraph`**: fires on the rows a subgraph handler writes. Shape: `{ name, subgraphName, tableName, url, filter? }`.
-- **`chain`**: fires on **raw chain events**, with no subgraph deployed. Shape: `{ name, url, triggers: [...] }`. A webhook on a contract, event, function, or SIP trait, with no schema or handler. Chain subscriptions are forward-looking: they start at the chain tip, no backfill.
+- **`subgraph`**: the rows a subgraph handler writes. `{ name, subgraphName, tableName, url, filter? }`.
+- **`chain`**: raw chain events, no subgraph deployed. `{ name, url, triggers: [...] }`. Starts at the chain tip, no backfill.
 
-### Triggers
+## Triggers
 
-A chain subscription takes a `triggers` array (1–50) instead of `subgraphName`/`tableName`. Build them with the `trigger.*` factories:
+A chain subscription takes a `triggers` array (1–50) instead of `subgraphName`/`tableName`. Use the `trigger.*` factories or the equivalent raw objects.
 
 ```ts
 import { trigger } from "@secondlayer/sdk";
@@ -111,9 +97,7 @@ await sl.subscriptions.create({
 });
 ```
 
-The raw object form is equivalent: `{ type: "contract_call", contractId, functionName: "swap-*" }`.
-
-**Trigger types and their fields** (`*` wildcards are allowed; `trait` scopes a trigger to a SIP/trait):
+`*` wildcards are allowed; `trait` scopes to a SIP/trait.
 
 | Builder | `type` | Fields |
 | --- | --- | --- |
@@ -133,11 +117,9 @@ The raw object form is equivalent: `{ type: "contract_call", contractId, functio
 
 Validation is strict per type: mints take `recipient` (no `sender`), burns take `sender` (no `recipient`); any field outside a type's set is rejected with a 400.
 
-sBTC peg triggers (`sbtcDeposit`, `sbtcWithdrawalCreate`, `sbtcWithdrawalAccept`, `sbtcWithdrawalReject`) fire on the on-Stacks events; `sbtcWithdrawalSweptConfirmed` fires when a peg-out's BTC sweep confirms on Bitcoin — see [sBTC settlement](/docs/sbtc-settlement).
+sBTC peg triggers — `sbtcDeposit`, `sbtcWithdrawalCreate`, `sbtcWithdrawalAccept`, `sbtcWithdrawalReject`, `sbtcWithdrawalSweptConfirmed` — track the [sBTC settlement](/docs/sbtc-settlement) lifecycle.
 
-Via REST, `POST /api/subscriptions` accepts the same `triggers` array (1–50). Chain subscriptions are also created over the CLI, SDK, REST, or MCP.
-
-From the CLI, pass `--trigger` (repeatable, one JSON object each) or `--triggers-file` (a JSON array) instead of `--subgraph`/`--table`:
+`POST /api/subscriptions` accepts the same array. From the CLI, pass `--trigger` (repeatable, one JSON object each) or `--triggers-file` (a JSON array) instead of `--subgraph`/`--table`:
 
 ```bash
 sl subscriptions create amm-swaps \
@@ -146,11 +128,11 @@ sl subscriptions create amm-swaps \
   --trigger '{"type":"sbtc_deposit"}'
 ```
 
-`--trigger`/`--triggers-file` switches `create` into chain mode — no subgraph, no local scaffold; each trigger is validated before the subscription is provisioned. The signing secret is printed once on success.
+`--trigger`/`--triggers-file` switches `create` into chain mode — no subgraph, no scaffold. Each trigger is validated before provisioning; the signing secret prints once.
 
-### Delivery envelope
+## Delivery envelope
 
-A matched event delivers `chain.{trigger}.apply`. On the default `standard-webhooks` format, the full POST body is `{ type, timestamp, data }` — `action`, `trigger`, and `event` all live under `data`:
+A matched event delivers `chain.{trigger}.apply`. On `standard-webhooks` the body is `{ type, timestamp, data }`:
 
 ```json
 {
@@ -173,9 +155,7 @@ A matched event delivers `chain.{trigger}.apply`. On the default `standard-webho
 }
 ```
 
-<Callout type="note" title="Other formats wrap `data` differently">
-
-`raw`, `cloudevents`, `inngest`, `trigger`, and `cloudflare` all carry the exact same `data` value shown above — just under a different key:
+Other formats carry the exact same `data` value under a different key:
 
 | Format | Where `data` lives |
 | --- | --- |
@@ -185,11 +165,9 @@ A matched event delivers `chain.{trigger}.apply`. On the default `standard-webho
 | `trigger` | `{ payload: data, options: { idempotencyKey } }` — key is `payload`, not `data` |
 | `cloudflare` | `{ params: { ...data, _type, _outboxId } }` — spread flat, not nested |
 
-</Callout>
-
 <Callout type="warning" title="This is not a Streams event">
 
-A chain-subscription delivery and a [Streams](/docs/streams) event are structurally unrelated — don't parse one as the other. Streams events are `{ event_type, payload, cursor, block_height, … }`; a chain-subscription delivery is `{ type, timestamp, data: { trigger, event } }`. Building a webhook parser against `StreamsEvent`'s `event_type`/`payload` shape will silently fail to match every delivery.
+A chain-subscription delivery and a [Streams](/docs/streams) event are structurally unrelated — don't parse one as the other. Streams events are `{ event_type, payload, cursor, block_height, … }`; a chain-subscription delivery is `{ type, timestamp, data: { trigger, event } }`.
 
 </Callout>
 
@@ -220,7 +198,7 @@ if ("trigger" in delivery.data) {
 }
 ```
 
-`decodeChainWebhook` narrows to `ChainWebhookDelivery`, a discriminated union keyed on `data.trigger` (both exported from `@secondlayer/sdk`). It only understands the `standard-webhooks` envelope — unwrap other formats per the table above first.
+`decodeChainWebhook` narrows to `ChainWebhookDelivery`, a discriminated union keyed on `data.trigger` (both exported from `@secondlayer/sdk`). It understands only the `standard-webhooks` envelope — unwrap other formats first.
 
 <Callout type="tip" title="Discriminate on data.trigger, never event.type">
 
@@ -228,9 +206,9 @@ if ("trigger" in delivery.data) {
 
 </Callout>
 
-Delivery is at-least-once and HMAC-signed exactly like subgraph subscriptions. Key your state on `(tx_id, event_index, block_hash)` so a redelivery is idempotent — a single tx can fire multiple event-level deliveries (e.g. two `ft_transfer` events in one tx) that share a `tx_id`, so `event_index` (`-1` for tx-level triggers) is required to avoid collapsing them.
+Delivery is at-least-once. Key your state on `(tx_id, event_index, block_hash)`: one tx can fire multiple event-level deliveries sharing a `tx_id`, so `event_index` (`-1` for tx-level triggers) keeps them distinct.
 
-#### Event-level triggers
+### Event-level triggers
 
 For `stx_*`, `ft_*`, `nft_*`, and `print_event`, `data.event` is `{ tx_id, type, event_index, data }`:
 
@@ -270,7 +248,7 @@ For `stx_*`, `ft_*`, `nft_*`, and `print_event`, `data.event` is `{ tx_id, type,
 }
 ```
 
-#### Tx-level triggers: `contract_call` / `contract_deploy`
+### Tx-level triggers: `contract_call` / `contract_deploy`
 
 `data.event` is flat — no nested `.data`:
 
@@ -293,9 +271,9 @@ For `stx_*`, `ft_*`, `nft_*`, and `print_event`, `data.event` is `{ tx_id, type,
 
 </Callout>
 
-#### sBTC triggers
+### sBTC triggers
 
-`sbtc_deposit`, `sbtc_withdrawal_create`, `sbtc_withdrawal_accept`, `sbtc_withdrawal_reject`, and `sbtc_withdrawal_swept_confirmed` deliver a flat, already-typed `event` keyed by `topic`:
+The five sBTC triggers deliver a flat, already-typed `event` keyed by `topic`:
 
 ```json
 "event": {
@@ -309,11 +287,11 @@ For `stx_*`, `ft_*`, `nft_*`, and `print_event`, `data.event` is `{ tx_id, type,
 }
 ```
 
-`topic` is `completed-deposit` (`sbtc_deposit`), `withdrawal-create`/`withdrawal-accept`/`withdrawal-reject` (the matching withdrawal triggers), or `withdrawal-swept-confirmed` (the settlement trigger — whose event instead carries `sweep_txid, btc_confirmations, btc_block_height, confirmed_at, amount, sender`, with no `bitcoin_txid`/`block_height`/`tx_id`). See [sBTC settlement](/docs/sbtc-settlement) for the full peg lifecycle.
+`topic` is `completed-deposit`, `withdrawal-create`, `withdrawal-accept`, `withdrawal-reject`, or `withdrawal-swept-confirmed`. The settlement event instead carries `sweep_txid, btc_confirmations, btc_block_height, confirmed_at, amount, sender` — no `bitcoin_txid`/`block_height`/`tx_id`.
 
-### Reorg rollback
+## Reorg rollback
 
-A reorg delivers `chain.reorg.rollback` so you can undo anything committed off an orphaned block. Each orphaned entry is `{ tx_id, event }`, the event body from the original apply:
+A reorg delivers `chain.reorg.rollback` so you can undo anything committed off an orphaned block. Each entry is `{ tx_id, event }` — the event body from the original apply:
 
 ```json
 {
@@ -332,13 +310,13 @@ A reorg delivers `chain.reorg.rollback` so you can undo anything committed off a
 
 <Callout type="warning" title="orphaned is capped at 500">
 
-`orphaned` is capped at 500 entries per subscription. If `truncated` is `true`, treat everything you committed at or above `fork_point_height` as orphaned rather than relying on the list. Also note: each entry's `event` doesn't carry a `trigger` tag — a subscription can have multiple triggers, and a rollback lists every previously-delivered apply regardless of which one matched, so you must already know what you subscribed to in order to interpret an orphaned entry's shape.
+`orphaned` is capped at 500 entries per subscription. If `truncated` is `true`, treat everything you committed at or above `fork_point_height` as orphaned rather than relying on the list. Entries carry no `trigger` tag — a rollback lists every previously-delivered apply regardless of which trigger matched, so you must know what you subscribed to in order to read an entry's shape.
 
 </Callout>
 
-### Test delivery
+## Test delivery
 
-`sl subscriptions test <idOrName> --post` sends a logged test delivery instead of waiting for a real chain event to match:
+`sl subscriptions test <idOrName> --post` sends a logged test delivery:
 
 ```json
 {

@@ -1,14 +1,10 @@
 # Devnet
 
-Run the full Secondlayer stack against your local Clarinet devnet. Deploy contracts, fire transactions, and watch your subgraphs index them — all on your machine, no cloud, no keys.
+Run the full Secondlayer stack — Postgres, indexer, API, subgraph processor — against your local Clarinet devnet. No cloud, no keys.
 
-<Banner label="What you'll have" title="A local indexer that streams your Clarinet devnet">
-One command points your Clarinet project at a local Secondlayer stack — Postgres, indexer, API, and the subgraph processor — running in Docker. Your devnet node forwards every block to the indexer, so your subgraphs and subscriptions run exactly as they would in production.
-</Banner>
+<Callout type="note" title="Coming from Chainhook?">
 
-<Callout type="note" title="Coming from Chainhook and need devnet?">
-
-This is the local path. Run the loop here, then map your predicates over with [Migrating from Chainhook](/docs/migrate-chainhook).
+This is the local path; map your predicates over with [Migrating from Chainhook](/docs/migrate-chainhook).
 
 </Callout>
 
@@ -26,15 +22,11 @@ From inside your Clarinet project:
 sl devnet connect
 ```
 
-This does three things:
-
 - Patches `settings/Devnet.toml` so the devnet node forwards events to the local indexer (`stacks_node_events_observers = ["host.docker.internal:3700"]`).
 - Writes `.secondlayer/docker-compose.yml` for the published OSS images.
 - Brings the stack up with `docker compose up -d`.
 
-When it's up:
-
-```
+```text
 Secondlayer stack up
   api      → http://localhost:3800
   indexer  → http://localhost:3700
@@ -55,7 +47,7 @@ Pass `--no-up` to write `settings/Devnet.toml` and the compose file without star
 
 ## Start the devnet
 
-With the stack running, start Clarinet's devnet. It auto-deploys your contracts and streams every block to the indexer:
+Start the devnet; it auto-deploys your contracts and streams every block to the indexer.
 
 ```bash
 clarinet devnet start
@@ -63,13 +55,13 @@ clarinet devnet start
 
 ## Deploy a subgraph against it
 
-Point the CLI at the local API and deploy. No login, no API key — the local stack accepts a dummy key:
+Point the CLI at the local API — no login, no API key, the local stack accepts a dummy key:
 
 ```bash
 SL_API_URL=http://localhost:3800 SL_API_KEY=dummy sl subgraphs deploy ./subgraph.ts
 ```
 
-Your handler runs against local devnet blocks the moment they're produced. Fire a contract call in your devnet and the matching rows land in your subgraph's tables.
+Fire a contract call in your devnet and the matching rows land in your subgraph's tables.
 
 ## Watch it work
 
@@ -77,9 +69,7 @@ Your handler runs against local devnet blocks the moment they're produced. Fire 
 sl devnet status
 ```
 
-Snapshots the stack — ingest lag, deployed subgraphs, and recent indexed rows:
-
-```
+```text
 STACK
   ● indexer   healthy   :3700
   ● api       healthy   :3800
@@ -105,10 +95,6 @@ sl devnet logs indexer -f
 sl devnet down            # stop the stack
 sl devnet down --purge    # stop and wipe the local index volumes
 ```
-
-## Coming from Chainhook?
-
-If you need devnet coverage that hosted Chainhook doesn't provide, this is the local path: an indexer that runs your subgraphs and fires [subscriptions](/docs/subscriptions) against devnet blocks. See [Migrating from Chainhook](/docs/migrate-chainhook) for the predicate-to-trigger mapping.
 
 export const metadata = {
 	title: "Devnet — Secondlayer Docs",

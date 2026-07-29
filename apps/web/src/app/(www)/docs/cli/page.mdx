@@ -19,27 +19,9 @@ sl subgraphs deploy      # deploy a subgraph from a config
 sl subgraphs publish     # claim the global public name (409 PUBLIC_NAME_TAKEN if claimed)
 sl subgraphs unpublish   # make a subgraph private again
 sl subgraphs ls          # list your deployments
-sl subscriptions create  # wire up a webhook subscription
-```
-
-Every tool shares one session: sign in once and the SDK, CLI, and MCP server all inherit it.
-
-## Orientation
-
-```bash
+sl subscriptions create  # wire a webhook to a subgraph table
 sl context               # headless orientation snapshot
 ```
-
-`sl context` prints a snapshot to orient before acting. It's the CLI counterpart to the MCP `secondlayer://context` resource agents read before they reach for a tool.
-
-The snapshot covers:
-
-- Your account
-- The live Streams and Index tips
-- Your subgraphs and subscriptions
-- Any in-flight reindex operations
-
-`sl subscriptions create` wires a webhook to a subgraph table.
 
 <Callout type="note" title="Chain subscriptions use a different surface">
 
@@ -54,18 +36,9 @@ sl subgraphs create sbtc-registry \
   --from-contract SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry
 ```
 
-`--from-contract` infers each print topic's real payload shape from indexed
-history (the [print-schema endpoint](/docs/index#print-schemas)) and writes a
-typed definition. Anonymous, no login needed.
+Infers each print topic's real payload shape from indexed history and writes a typed definition — see [print schemas](/docs/index#print-schemas). Anonymous, no login needed. Pass `--table-per-topic` for a normalized table per topic instead of one wide table.
 
-The generated definition includes:
-
-- One `print_event` source per topic with a `prints` field map (fully typed `event.data`)
-- A single wide table with per-column "null except on topics: …" comments
-- Pass `--table-per-topic` for a normalized table per topic instead
-
-`sl subgraphs codegen <file> --payloads` emits a `.d.ts` of per-topic payload
-types (a discriminated union per source) next to the definition.
+`sl subgraphs codegen <file> --payloads` emits a `.d.ts` of per-topic payload types (a discriminated union per source) next to the definition.
 
 <Callout type="note" title="Payload codegen is print-only">
 
@@ -109,30 +82,21 @@ export default defineConfig({
 
 | Plugin | What it adds |
 |---|---|
-| `clarinet()` | Real ABIs from your Clarinet project via Simnet — includes `[project.requirements]` dependency contracts (`includeRequirements: false` to opt out) |
+| `clarinet()` | Real ABIs from your Clarinet project via Simnet — typed clients for `[project.requirements]` dependency contracts too (`includeRequirements: false` to opt out) |
 | `react()` | Typed React hooks per contract |
 | `testing()` | Clarinet SDK test helpers |
 
-Generated output ships named type aliases per function (`TokenTransferArgs`,
+Output ships named type aliases per function (`TokenTransferArgs`,
 `TokenTransferResult`) and an ABI const branded with `TypedAbi`. Feed it to
-`getContract` from [`@secondlayer/stacks`](/docs/stacks#also-in-the-box) and
-hovers and type errors show the named aliases — not a wall of expanded
-conditional types.
-
-<Callout type="tip" title="Your contract's dependencies get types too">
-
-Contracts you depend on but didn't write — a token you call, a protocol you
-integrate — are declared as Clarinet requirements. The `clarinet()` plugin
-generates typed clients for those by default.
-
-</Callout>
+`getContract` from [`@secondlayer/stacks`](/docs/stacks#also-in-the-box) for
+named-alias hovers.
 
 ## Frozen features
 
 These work but get no further investment. The supported dev loop is hosted (`sl subgraphs create` → `deploy` against a recent block).
 
 - `sl subgraphs codegen --target prisma|drizzle|kysely` generates a typed ORM schema for a subgraph's tables (BYO-database). See [Subgraphs](/docs/subgraphs#use-your-own-database--orm).
-- `sl devnet` / `sl local` run the pipeline against a local Clarinet devnet. Run `sl devnet --help` for usage.
+- `sl local` — superseded by [`sl devnet`](/docs/devnet), the supported local loop. Hidden, and prints a deprecation notice on use.
 
 
 export const metadata = {

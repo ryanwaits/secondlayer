@@ -2,8 +2,6 @@
 
 Reads are public during the open beta. API keys gate writes and scope which surfaces a key can read.
 
-Most reads need no key; a free-tier key reads the Index at the free-tier rate limit (never slower than anonymous). Free and anonymous reads cover the recent 24-hour window. Older history needs [pay-as-you-go credits](#pay-as-you-go-credits) or a paid plan; a read below the window returns `402 UPGRADE_REQUIRED`.
-
 | Surface | Key needed | Behavior |
 | --- | --- | --- |
 | Index reads (`/v1/index/*`) | None | Anonymous-readable; contracts fully open |
@@ -12,9 +10,11 @@ Most reads need no key; a free-tier key reads the Index at the free-tier rate li
 | Dashboard (`/api/subgraphs`) | Session or key | Always requires auth |
 | Streams firehose + all writes | Key | Deploy / publish / subscriptions all keyed |
 
-<Callout type="note" title="x402 exception">
+Free and anonymous reads cover the recent 24-hour window; older history needs [pay-as-you-go credits](#pay-as-you-go-credits) or a plan, and a read below the window returns `402 UPGRADE_REQUIRED`.
 
-The **Streams** firehose and every **write** (deploying subgraphs, publishing/unpublishing them, managing subscriptions) require a key, with one exception. When the x402 pay-per-call rail is enabled, `POST /v1/subgraphs` accepts an x402 payment instead, deploying a subgraph owned by the paying wallet (7-day expiry unless renewed or the account is claimed).
+<Callout type="note" title="Pay per call instead">
+
+Keyless reads and `POST /v1/subgraphs` also accept an [x402 payment](/docs/x402) — no account at all.
 
 </Callout>
 
@@ -29,21 +29,21 @@ curl https://api.secondlayer.tools/v1/streams/tip \
 
 ## API keys
 
-An API key looks like `sk-sl_…`. The CLI and MCP server read `SL_API_KEY` automatically; the SDK takes it explicitly: `new SecondLayer({ apiKey: process.env.SL_API_KEY })`. Every key has a **product** that scopes what it can do:
+A key looks like `sk-sl_…`. The CLI and MCP server read `SL_API_KEY` automatically; the SDK takes it explicitly: `new SecondLayer({ apiKey: process.env.SL_API_KEY })`.
 
-| Product | Reads | Can mint new keys? | Use it as |
-| --- | --- | --- | --- |
-| `account` | Streams **and** Index | Yes | your **owner** key |
-| `streams` | Streams only | No (`403`) | a scoped key |
-| `index` | Index only | No (`403`) | a scoped key |
+| Product | Reads | Can mint new keys? | Tier | Use it as |
+| --- | --- | --- | --- | --- |
+| `account` | Streams **and** Index | Yes | your account plan | your **owner** key |
+| `streams` | Streams only | No (`403`) | inherits your plan | a scoped key |
+| `index` | Index only | No (`403`) | inherits your plan | a scoped key |
 
-A leaked scoped key can't escalate: it reads only its surface and can't mint. Keep keys server-side. Rotate or revoke them anytime in the [platform console](https://app.secondlayer.tools/platform/api-keys).
+Tiers (`free` · `build` · `scale` · `enterprise`) set rate limit and, for Streams, history retention. Free reads Index and Streams at 10 req/s, never slower than anonymous.
+
+Keep keys server-side. Rotate or revoke in the [platform console](https://app.secondlayer.tools/platform/api-keys).
 
 ## Creating a key
 
-Create a key in the [platform console](https://app.secondlayer.tools/platform/api-keys); console keys default to `account`.
-
-To self-provision a **scoped** key without the dashboard (for agents and CI), call the mint API with an `account` (owner) key. Minted keys are always scoped and inherit your account plan's tier; they can never be an `account` key or a higher tier.
+Console keys default to `account`. Mint a **scoped** key for agents and CI with an `account` key — minted keys are never `account`, never a higher tier than your plan.
 
 ```bash
 curl -X POST https://api.secondlayer.tools/v1/api-keys \
@@ -53,43 +53,29 @@ curl -X POST https://api.secondlayer.tools/v1/api-keys \
 # → 201 { "key": "sk-sl_…", "product": "streams", "tier": null, ... }
 ```
 
-The plaintext `key` is returned **once**, so store it immediately. The same mint is available as `sl.apiKeys.create({ product })` (SDK), `sl keys create --product streams` (CLI), and the `account_create_key` tool (MCP).
+The plaintext `key` is returned **once**. Same mint elsewhere: `sl.apiKeys.create({ product })` (SDK), `sl keys create --product streams` (CLI), `account_create_key` (MCP).
 
 ### No account yet?
 
-`POST https://api.secondlayer.tools/v1/keys` with no `Authorization` header mints a read-only free-tier **ghost key**: `201 { "key": "sk-sl_…", "tier": "free", "scopes": ["streams:read", "index:read"], "claim_url": "…" }`. It reads Streams and Index at the free tier, capped at 3 mints per IP per day.
+`POST https://api.secondlayer.tools/v1/keys` with no `Authorization` header mints a read-only free-tier **ghost key**, capped at 3 mints per IP per day: `201 { "key": "sk-sl_…", "tier": "free", "scopes": ["streams:read", "index:read"], "claim_url": "…" }`.
 
 <Callout type="note">
 
-Every non-GET returns `403 GHOST_KEY_READ_ONLY` until you claim the account via `claim_url`. This is distinct from the owner-key mint at `/v1/api-keys` above.
+Every non-GET returns `403 GHOST_KEY_READ_ONLY` until you claim the account via `claim_url`. Distinct from the owner-key mint at `/v1/api-keys` above.
 
 </Callout>
-
-## Tiers
-
-A key's tier (`free` · `build` · `scale` · `enterprise`) sets its rate limit and, for Streams, its history retention (free retention is 1 day). The free tier rate-limits Index and Streams reads at 10 req/s, never slower than anonymous.
-
-A minted key has no pinned tier and inherits your account plan. To read older history without a plan, see [pay-as-you-go credits](#pay-as-you-go-credits).
 
 ## Pay-as-you-go credits
 
-To read older history without committing to a plan, top up **prepaid credits with a card**: packs of $10, $25, $50, or $100 via `POST /api/billing/topup`.
-
-With a positive balance the account goes pay-as-you-go: it reads beyond the free window, unthrottled, debited **$5 per 1,000,000 rows** (5 USD-micros per row) across **both Index and Streams** from one shared balance. This is the card-funded peer to the x402 agent rail, which settles per call on Stacks.
-
-<Callout type="info" title="Hard cap, no surprise bills">
-
-The prepaid balance is the hard cap: when it runs out, reads fall back to the free window. Deploying a subgraph or creating a webhook still needs a paid plan or a 14-day trial. Credits cover reads, not write surfaces.
-
-</Callout>
+Top up prepaid credits with a card — packs of $10, $25, $50, or $100 via `POST /api/billing/topup`. A positive balance reads beyond the free window, unthrottled, debited **$5 per 1,000,000 rows** (5 USD-micros per row) across Index and Streams from one shared balance. The balance is the hard cap: spent, reads fall back to the free window. Credits cover reads, not writes — a subgraph deploy or a webhook still needs a paid plan or the 14-day trial.
 
 ## Session tokens
 
-`sl login` issues a **session token** (`ss-sl_…`) instead of a long-lived key. The CLI stores it and reuses it on every request; the server extends its expiry on each use. Like a key, a session authenticates you. Prefer it for interactive CLI use and reserve `sk-sl_` keys for servers and agents.
+`sl login` issues a **session token** (`ss-sl_…`) instead of a long-lived key; the server extends its expiry on each use. One session is shared by the SDK, CLI, and MCP server. Prefer it for interactive CLI use; reserve `sk-sl_` keys for servers and agents.
 
 ## Webhook signing secrets
 
-A **signing secret** (`whsec_…`) is a separate kind of secret from an API key. Each subscription has one, used to *verify* that an incoming webhook payload genuinely came from Secondlayer (`verifyWebhookSignature`). It never goes in `Authorization` and isn't interchangeable with `SL_API_KEY`. Rotate it with `sl subscriptions rotate-secret`.
+A **signing secret** (`whsec_…`) is per-subscription and verifies an incoming webhook came from Secondlayer (`verifyWebhookSignature`) — see [Subscriptions](/docs/subscriptions). Never in `Authorization`. Rotate with `sl subscriptions rotate-secret`.
 
 export const metadata = {
 	title: "Authentication — Secondlayer Docs",

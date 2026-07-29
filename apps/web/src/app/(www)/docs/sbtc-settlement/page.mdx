@@ -1,10 +1,8 @@
 # sBTC settlement
 
-Accepted isn't received. Prove a peg-out's BTC actually settled on Bitcoin — confirmation count, confirming block, and a webhook that fires the moment it lands.
+Accepted isn't received. A `withdrawal-accept` event only means the signers *committed* to a Bitcoin sweep; Secondlayer verifies that `sweep_txid` against its own Bitcoin node and surfaces the result on the decoded sBTC feed.
 
-A withdrawal's on-Stacks `withdrawal-accept` event only tells you the signers *committed* to a Bitcoin sweep. It doesn't prove the sweep confirmed — there's a broadcast→confirmed window where it can be dropped or replaced. Secondlayer verifies the committed `sweep_txid` against its own Bitcoin node and surfaces the result on the decoded sBTC feed.
-
-Deposits need no such check: `completed-deposit` only fires *after* the signers see the BTC confirmations, so a peg-in is already settled when you read it.
+Deposits need no such check — `completed-deposit` fires only after the signers see the BTC confirmations.
 
 ## Settlement on a withdrawal
 
@@ -24,25 +22,23 @@ Every peg-out lifecycle carries a `settlement` object. `GET /v1/index/sbtc/withd
 }
 ```
 
-A `null` field means the committed sweep has **not been observed on Bitcoin yet** — no record, not a denial. `settlement_confirmed` is `true` once the sweep crosses the confirmation threshold, `false` while it's still shallow, and `null` before there's any settlement record (or when the withdrawal has no sweep yet, e.g. `REQUESTED`).
+`settlement_confirmed` is `true` past the confirmation threshold, `false` while the sweep is still shallow, `null` when there's no settlement record yet (no sweep observed — not a denial).
 
 ## Filtering the list
 
-The rolled-up list `GET /v1/index/sbtc/withdrawals` carries a `settlement_confirmed` flag per row and a filter:
+`GET /v1/index/sbtc/withdrawals` carries `settlement_confirmed` per row and as a filter:
 
 ```bash
 # only peg-outs whose BTC sweep is confirmed
 curl "https://api.secondlayer.tools/v1/index/sbtc/withdrawals?settlement_confirmed=true"
 
-# the pending set — sweeps accepted but not yet confirmed (or no sweep yet)
+# the complete "not done" bucket — not yet confirmed, or no sweep yet
 curl "https://api.secondlayer.tools/v1/index/sbtc/withdrawals?settlement_confirmed=false"
 ```
 
-`settlement_confirmed=false` folds in both the not-yet-confirmed and not-yet-observed cases, so it's the complete "not done" bucket.
-
 ## The webhook
 
-Subscribe to `sbtc_withdrawal_swept_confirmed` and get notified the moment a peg-out's sweep confirms — no polling.
+Subscribe to `sbtc_withdrawal_swept_confirmed` and skip the polling.
 
 ```ts
 import { trigger } from "@secondlayer/sdk";
@@ -53,9 +49,12 @@ await client.subscriptions.create({
 });
 ```
 
-Scope it to one withdrawal or one sweep with `requestId` / `sweepTxid`. It fires **once** per sweep, when `btc_confirmations` first crosses the threshold (default 6). Like every chain subscription it's **forward-only** — you receive settlements confirmed *after* you subscribe, never a backfill of history. A rare Bitcoin reorg that un-confirms a sweep never re-fires the webhook (the read self-corrects; the notification doesn't double-send).
+- Scope with `requestId` / `sweepTxid`.
+- Fires **once** per sweep, when `btc_confirmations` first crosses the threshold (default 6).
+- **Forward-only** — settlements confirmed after you subscribe, never a backfill.
+- A Bitcoin reorg that un-confirms a sweep never re-fires it; the read self-corrects.
 
-The delivery is the standard `chain.{type}.apply` envelope; `event` carries the settlement specifics:
+Delivery is the standard `chain.{type}.apply` envelope; `event` carries the settlement specifics:
 
 ```json
 {
@@ -78,7 +77,7 @@ See [Subscriptions](/docs/subscriptions) for delivery formats, signature verific
 
 <Callout type="info" title="What this proves — and what it doesn't">
 
-Settlement status is verified against Secondlayer's own Bitcoin node, not taken from a signer's word — it trust-minimizes the **verification and accounting** of the peg. It does **not** make the bridge non-custodial: a signer set still controls the pegged UTXO. Use it to know a peg-out's BTC actually landed; not as a custody guarantee.
+Settlement is verified against our own Bitcoin node, not a custody guarantee — a signer set still controls the pegged UTXO.
 
 </Callout>
 

@@ -1,33 +1,19 @@
 # Bitcoin SPV
 
-Prove a Bitcoin payment happened — inside a Stacks contract, with no oracle. `@secondlayer/stacks/bitcoin` does the off-chain proof prep so the SIP-044 native built-ins can verify a Bitcoin transaction on-chain.
+Prove a Bitcoin payment happened — inside a Stacks contract, with no oracle.
 
 <Banner label="SIP-044 / Clarity 6" title="Off-chain today, on-chain at Epoch 4.0">
 
-The off-chain surface — proof construction, Clarity codecs, byte handling — works **today** against live Bitcoin data. The on-chain calls hit the SIP-044 native built-ins, which exist once **Clarity 6 / Stacks Epoch 4.0** is active. Until then you run the full round-trip in **Clarinet ≥ 3.21 simnet** (no node).
+Proof construction, Clarity codecs, and byte handling work **today** against live Bitcoin. The on-chain calls hit the SIP-044 built-ins, which exist once **Clarity 6 / Stacks Epoch 4.0** is active. Until then, run the round-trip in **Clarinet ≥ 3.21 simnet** — no node.
 
 </Banner>
 
 ## The two halves
 
-SIP-044 ("Clarity 6") lets a contract natively verify that a Bitcoin transaction was mined — *SPV* (Simplified Payment Verification), the technique Bitcoin light clients use. A contract checks "BTC tx T paid Z sats to address Y in a confirmed block" without trusting an indexer or oracle.
+- **On-chain (the node):** `get-bitcoin-tx-output?` parses one output of a serialized BTC tx; `verify-merkle-proof` proves it committed in a block.
+- **Off-chain (`@secondlayer/stacks/bitcoin`):** shape the data those built-ins demand — right merkle proof, internal byte order, witness stripped — and decode the results.
 
-The node owns the on-chain half. This module owns the off-chain half.
-
-- **On-chain (the node):** `get-bitcoin-tx-output?` parses one output of a serialized BTC tx; `verify-merkle-proof` proves a tx is committed in a block. They run only *inside* a contract and demand precisely-shaped data — the right merkle proof, internal byte order, witness stripped.
-- **Off-chain (this module):** construct that data — parse the tx, build the merkle proof, encode the exact Clarity args — and decode the results. You never run a node by hand or reverse a hash.
-
-It trust-minimizes **verification**, not **custody**.
-
-## What it unlocks
-
-A Stacks contract can act on a proven Bitcoin fact — no oracle, no signer attestation.
-
-- **BTC-settled escrow / OTC** — release sBTC, an NFT, or a loan only once a real BTC payment is proven on-chain.
-- **BTC-L1 collateral** — prove a borrower's Bitcoin UTXO exists on L1 instead of trusting a price/existence oracle (Zest / Granite-style lending).
-- **Atomic BTC ↔ sBTC / Runes swaps** — native SPV is uncapped, so multi-output Runes/BTC txs that the old `clarity-bitcoin` caps blocked now verify.
-- **Trust-minimized sBTC** — deposits *proven* on-chain, not just *asserted* by the signer set (aligns with SIP-028).
-- **Proof-of-payment receipts** — any flow that needs "this BTC tx paid Y sats to Z" as a contract-checkable fact.
+Unlocks BTC-settled escrow/OTC, BTC-L1 collateral, atomic BTC ↔ sBTC/Runes swaps (native SPV is uncapped, unlike `clarity-bitcoin`), trust-minimized sBTC deposits (SIP-028), proof-of-payment receipts.
 
 ## Install
 
@@ -35,7 +21,7 @@ A Stacks contract can act on a proven Bitcoin fact — no oracle, no signer atte
 bun add @secondlayer/stacks
 ```
 
-The Bitcoin module is a subpath import — it tree-shakes out if you don't use it.
+Subpath import — tree-shakes out if unused.
 
 ```ts
 import { buildTxProof, verifyBitcoinPayment } from "@secondlayer/stacks/bitcoin";
@@ -43,7 +29,7 @@ import { buildTxProof, verifyBitcoinPayment } from "@secondlayer/stacks/bitcoin"
 
 ## Verify a Bitcoin payment
 
-`verifyBitcoinPayment` composes the whole flow: build the proof from a source, decode the funded output, run the on-chain check, and assert your expectations.
+`verifyBitcoinPayment` composes the flow: build the proof, decode the funded output, run the on-chain check, assert your expectations.
 
 ```ts
 import { createPublicClient, http } from "@secondlayer/stacks";
@@ -75,7 +61,7 @@ const result = await verifyBitcoinPayment(client, {
 // → { verified, mined, output, proof }
 ```
 
-`verified` is `true` when the tx is `mined` **and** every `expect` field matches. By default the adapter authenticates the proof's header against the chain (`was-tx-mined`); pass `proof` directly instead of `txid + source` if you already built one.
+`verified` is `true` when the tx is `mined` **and** every `expect` field matches. Pass `proof` instead of `txid + source` if you already have one.
 
 <Callout type="warning" title="Adapter not yet deployed">
 
@@ -85,7 +71,7 @@ const result = await verifyBitcoinPayment(client, {
 
 ## Build a proof
 
-The proof sources are trustless by construction — `buildTxProof` re-verifies every claim a source makes (txids hash correctly, the index points at the tx, the proof folds to the header's merkle root). A wrong or hostile source fails loudly.
+`buildTxProof` re-verifies every claim a source makes: txids hash correctly, the index points at the tx, the proof folds to the header's root. A hostile source fails loudly.
 
 ```ts
 import { buildTxProof, esploraSource } from "@secondlayer/stacks/bitcoin";
@@ -98,19 +84,17 @@ const proof = await buildTxProof(source, {
 // proof: { rawTx, txidInternal, vout, merkle: { siblings, txIndex, txCount }, header, height }
 ```
 
-Three sources, all interchangeable:
-
 | Source | Use |
 | --- | --- |
 | `bitcoinRpcSource({ url, auth })` | Your own Bitcoin Core node (`-txindex`). Trustless, the default. |
 | `esploraSource({ url })` | Any Esplora REST endpoint — blockstream, mempool.space, self-hosted. Hosted fallback. |
 | `fallbackProofSource([primary, …])` | Chain them: try your node, fall back to hosted. |
 
-Lower-level building blocks are exported too: `parseBitcoinTx`, `parseBlockHeader`, `stripWitness`, `doubleSha256`, `reverseBytes`, `buildMerkleProof`, `merkleRoot`.
+Also exported: `parseBitcoinTx`, `parseBlockHeader`, `stripWitness`, `doubleSha256`, `reverseBytes`, `buildMerkleProof`, `merkleRoot`.
 
 ## Encode for Clarity
 
-The codecs turn a proof into the exact built-in arguments — internal byte order, flat args, `tx-count` (not tree depth). Getting this wrong is the foot-gun the module exists to absorb.
+Internal byte order, flat args, `tx-count` (not tree depth) — the foot-gun this module absorbs.
 
 ```ts
 import {
@@ -129,7 +113,7 @@ const spk = parseOutputScript(out.script);     // { type: "p2pkh" | "p2wpkh" | "
 
 ## The reference adapter
 
-The built-ins are callable only from *inside* a contract, never over RPC. So `bitcoinVerifier` binds a thin read-only wrapper that exposes them. Secondlayer ships a reference [`spv-adapter`](https://github.com/ryanwaits/secondlayer/blob/main/contracts/contracts/spv-adapter.clar) — no state, no admin, no custody:
+Built-ins are callable only from *inside* a contract, never over RPC. The reference [`spv-adapter`](https://github.com/ryanwaits/secondlayer/blob/main/contracts/contracts/spv-adapter.clar) wraps them — read-only, no state, no custody, at `clarity_version = 6` / `epoch = "4.0"`. GitHub is the source of truth; copy it, or ship your own with the same shape.
 
 | Function | Wraps |
 | --- | --- |
@@ -138,76 +122,14 @@ The built-ins are callable only from *inside* a contract, never over RPC. So `bi
 | `header-merkle-root` | slice the merkle root out of an 80-byte header |
 | `was-tx-mined` | composed: authenticate the header against `get-burn-block-info?`, then prove inclusion — atomically |
 
-The whole contract — read-only, no state, no custody. Copy it into your own Clarinet project, or point at your own verifier with the same shape. (GitHub is the [source of truth](https://github.com/ryanwaits/secondlayer/blob/main/contracts/contracts/spv-adapter.clar); requires `clarity_version = 6` / `epoch = "4.0"`.)
+`was-tx-mined` returns:
 
-```clarity
-;; spv-adapter -- a thin, read-only reference wrapper over the SIP-044 (Clarity 6)
-;; Bitcoin SPV built-ins. The built-ins are callable only from within a Clarity
-;; contract, not over RPC; this contract exposes them as read-only functions so
-;; the @secondlayer/stacks `bitcoinVerifier` (and any integrator) can reach them.
-;;
-;; Byte order: 32-byte hashes (txids, merkle roots, siblings) are INTERNAL order
-;; (raw double-SHA-256), matching the built-ins. The only display-order value is
-;; the block hash from `get-burn-block-info? header-hash`, reversed before compare.
-
-(define-constant ERR-BAD-HEADER (err u1)) ;; header not canonical at that height
-(define-constant ERR-BAD-SLICE (err u2))  ;; header merkle-root slice failed
-
-;; Reverse a 32-byte buffer (internal <-> display order).
-(define-private (prepend-byte (b (buff 1)) (acc (buff 32)))
-  (unwrap-panic (as-max-len? (concat b acc) u32))
-)
-(define-read-only (reverse-buff32 (input (buff 32)))
-  (fold prepend-byte input 0x)
-)
-
-;; The merkle root committed by an 80-byte header: bytes [36, 68), internal order.
-(define-read-only (header-merkle-root (header (buff 80)))
-  (match (slice? header u36 u68)
-    sliced (as-max-len? sliced u32)
-    none)
-)
-
-;; Parse one output of a serialized BTC tx.
-(define-read-only (get-tx-output (tx (buff 4096)) (vout uint))
-  (get-bitcoin-tx-output? tx vout)
-)
-
-;; Prove tx inclusion under a SUPPLIED root (membership only — not chain-authenticated).
-(define-read-only (verify-merkle
-    (leaf (buff 32)) (root (buff 32))
-    (tx-index uint) (tx-count uint) (siblings (list 24 (buff 32))))
-  (verify-merkle-proof leaf root tx-index tx-count siblings)
-)
-
-;; Full check: authenticate the caller's 80-byte header against the chain's record
-;; at `height` (`get-burn-block-info? header-hash`), extract its root, and prove
-;; inclusion — atomically.
-;;   (ok true)  header canonical AND tx included (mined)
-;;   (ok false) header canonical but tx not included
-;;   (err u1)   header not the canonical block at `height`
-;;   (err u2)   malformed header length
-;; Note: an out-of-range `height` (before the chain launched, or newer than the
-;; node's last-processed burn block — a very recent tx) also yields (err u1).
-;; Flash blocks (a BTC block with no Stacks block) are covered — get-burn-block-info?
-;; header-hash is indexed by burn height, not a gap.
-(define-read-only (was-tx-mined
-    (header (buff 80)) (height uint) (leaf (buff 32))
-    (tx-index uint) (tx-count uint) (siblings (list 24 (buff 32))))
-  (let (
-        (root (unwrap! (header-merkle-root header) ERR-BAD-SLICE))
-       )
-    (if (is-eq (get-burn-block-info? header-hash height)
-               (some (reverse-buff32 (sha256 (sha256 header)))))
-        (ok (verify-merkle-proof leaf root tx-index tx-count siblings))
-        ERR-BAD-HEADER)
-  )
-)
-```
-
-It's read-only — a verification *query*. To gate value on a proof (escrow, collateral, swaps), call the same built-ins from a `define-public` in your own contract so the check runs as a committed, consensus-enforced transaction.
-
-Point `bitcoinVerifier` at the reference adapter or your own contract with the same shape:
+| Result | Meaning |
+| --- | --- |
+| `(ok true)` | header canonical **and** tx included (mined) |
+| `(ok false)` | header canonical, tx not included |
+| `(err u1)` | header isn't the canonical block at `height` |
+| `(err u2)` | malformed header length |
 
 ```ts
 import { bitcoinVerifier } from "@secondlayer/stacks/bitcoin";
@@ -216,11 +138,11 @@ const verifier = bitcoinVerifier(client, { contract: "SP….spv-adapter" });
 const mined = await verifier.wasTxMined(proof);
 ```
 
+To gate value on a proof, call the same built-ins from a `define-public` in your own contract — consensus-enforced, not a read-only query.
+
 ## Run it in Clarinet simnet
 
-The off-chain half above runs against live Bitcoin from a bare `bun add @secondlayer/stacks` — no chain needed. The built-ins themselves run *inside* a Clarity contract, so to exercise them set up a [Clarinet](https://github.com/hirosystems/clarinet) project (**≥ 3.21** — it boots simnet at Epoch 4.0, so the built-ins resolve and execute locally, no node).
-
-Register a verifier contract at Clarity 6 / Epoch 4.0 in `Clarinet.toml`:
+[Clarinet](https://github.com/hirosystems/clarinet) **≥ 3.21** boots simnet at Epoch 4.0, so the built-ins resolve locally. Register your verifier in `Clarinet.toml`:
 
 ```toml
 [contracts.spv-adapter]
@@ -229,27 +151,31 @@ clarity_version = 6
 epoch = "4.0"
 ```
 
-Use the [`spv-adapter`](#the-reference-adapter) shown above (or your own verifier) as `contracts/spv-adapter.clar`. Then drive it from TypeScript with [`@stacks/clarinet-sdk`](https://www.npmjs.com/package/@stacks/clarinet-sdk) and this module's encoders — `encodeMerkleProofArgs` shapes the exact `verify-merkle-proof` arguments and `decodeTxOutput` reads the `get-bitcoin-tx-output?` tuple back. A worked end-to-end example lives in the [secondlayer repo](https://github.com/ryanwaits/secondlayer/tree/main/examples/sbtc-l1-proof).
+Drive it with [`@stacks/clarinet-sdk`](https://www.npmjs.com/package/@stacks/clarinet-sdk) plus `encodeMerkleProofArgs` / `decodeTxOutput`. Worked example: [examples/sbtc-l1-proof](https://github.com/ryanwaits/secondlayer/tree/main/examples/sbtc-l1-proof).
 
 ## Gate on activation
 
-The exact Epoch 4.0 activation burn height is selected only after the SIP-044 vote, so there's no constant to hardcode. `isClarity6Active` reads the node's current burn height and compares — you supply the activation height once it's known.
+SIP-044 rides the same Epoch 4.0 fork as `pox-5` — Bitcoin block **960,230** on mainnet. `isClarity6Active` compares the node's burn height against it.
 
 ```ts
 import { isClarity6Active } from "@secondlayer/stacks/bitcoin";
 
-const live = await isClarity6Active(client, { activationBurnHeight: 0 /* set post-vote */ });
+// Mainnet client: the height is known, nothing to pass.
+const live = await isClarity6Active(client);
+
+// Any other network has no fixed height — supply one.
+const onDevnet = await isClarity6Active(devnetClient, { activationBurnHeight: 120 });
 ```
 
-## What it proves — and what it doesn't
+## What it proves
 
 <Callout type="note" title="SPV trust-minimizes verification, not custody">
 
-`verify-merkle-proof` proves a tx is committed under a block's merkle root; `was-tx-mined` additionally authenticates that the header is the canonical block at its height. Neither moves or guards funds — they prove a Bitcoin fact to a Stacks contract, which then decides what to do. `was-tx-mined` errors only when the supplied header isn't the canonical Bitcoin block the Stacks node recorded at that height — a wrong or reorged header, or a height out of range (before the chain launched, or newer than the node's last-processed burn block, so a very recent tx may need to wait). Flash blocks — Bitcoin blocks that produced no Stacks block — are *not* a gap: `get-burn-block-info? header-hash` is indexed by burn height, so it covers them.
+Both prove a Bitcoin fact to a contract; neither moves or guards funds. Out-of-range heights — before the chain launched, or newer than the node's last-processed burn block — also return `(err u1)`, so a very recent tx may need to wait. Flash blocks (Bitcoin blocks with no Stacks block) are *not* a gap: `get-burn-block-info? header-hash` is indexed by burn height.
 
 </Callout>
 
-See also [Verification](/docs/verification) for trustless inclusion proofs on the *Stacks* side, and the [SDK](/docs/sdk) reference.
+See also [Verification](/docs/verification) for inclusion proofs on the *Stacks* side, and the [SDK](/docs/sdk).
 
 export const metadata = {
 	title: "Bitcoin SPV — Secondlayer Docs",

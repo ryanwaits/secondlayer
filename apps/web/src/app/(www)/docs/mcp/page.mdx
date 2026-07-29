@@ -1,6 +1,6 @@
 # MCP
 
-The whole Secondlayer surface as Model Context Protocol tools. Point an agent at the server and it can query decoded chain data, deploy and manage subgraphs, wire up webhooks, and discover contracts over one connection, with the same auth as the SDK and CLI.
+The whole Secondlayer surface as Model Context Protocol tools, over one connection, with the same auth as the SDK and CLI.
 
 ## Connect
 
@@ -36,16 +36,14 @@ X402_TOPUP_WHEN_BELOW=$0.50   # optional: top-up threshold
 
 | Surface | Reads | Writes |
 | --- | --- | --- |
-| Index | Anonymous, or any key incl. free-tier (free reads cover the recent 24h window; older history is pay-as-you-go credits or a plan) | — |
+| Index | Anonymous or any key; see [Authentication](/docs/authentication) | — |
 | Contracts, Scaffold | Public, no key | — |
 | Subgraphs | Public subgraphs keyless; private need your key | Need your key |
 | Streams, Subscriptions, Account | Need your key | Need your key |
 
-An agent holding an account-level key can mint scoped read keys with `account_create_key`. Keys and signing secrets are returned **once**: capture and forward them to the user.
-
 ## Start here
 
-The server exposes MCP **resources** for orientation. Read these before calling tools so the agent knows what exists and what filters are valid:
+Read these **resources** before calling tools:
 
 | Resource | What it returns |
 | --- | --- |
@@ -59,7 +57,7 @@ For Index specifically, call `index_discover` to learn every event type, its col
 
 ## Tools
 
-Thirty-three tools across seven domains. Reads are cursor-paginated; writes that kick off work (reindex, backfill, replay, deploy) return an `operationId` to poll.
+Thirty-three tools across six domains. Reads are cursor-paginated; writes that kick off work (reindex, backfill, replay, deploy) return an `operationId` to poll.
 
 ### Index — decoded reads
 
@@ -130,3 +128,9 @@ Thirty-three tools across seven domains. Reads are cursor-paginated; writes that
 - **Cursors are opaque** and per-keyspace: contract-call cursors are not interchangeable with event cursors.
 - **Tail without streaming.** For subgraph tables, sort `_id` desc for the latest, then poll forward with `{"_id.gt": "<last id>"}`, order asc.
 - See the [REST API](/docs/rest-api) for the underlying endpoints.
+
+export const metadata = {
+	title: "MCP — Secondlayer Docs",
+	description:
+		"The Secondlayer MCP server: stdio and HTTP transports, resources, and 33 tools for Index, Subgraphs, Streams, Subscriptions, contracts, and account.",
+};
