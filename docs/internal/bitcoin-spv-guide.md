@@ -138,11 +138,11 @@ A consuming contract calls the built-ins directly. The reference adapter
 (define-read-only (was-tx-mined (header (buff 80)) (height uint) (leaf (buff 32))
                                 (tx-index uint) (tx-count uint)
                                 (siblings (list 24 (buff 32))))
-  (let ((root (unwrap! (header-merkle-root header) ERR-BAD-SLICE)))
+  (let ((root (unwrap! (header-merkle-root header) ERR_BAD_SLICE)))
     (if (is-eq (get-burn-block-info? header-hash height)
                (some (reverse-buff32 (sha256 (sha256 header)))))
         (ok (verify-merkle-proof leaf root tx-index tx-count siblings))
-        ERR-BAD-HEADER)))
+        ERR_BAD_HEADER)))
 ```
 
 A real product contract inlines this and gates a payout on `(ok true)`:
@@ -195,7 +195,7 @@ Args `(leaf root tx-index tx-count siblings)`, hashes in **internal** byte order
 (80 zero bytes = **160 hex chars** — not 196) fails authentication:
 ```clojure
 (contract-call? .spv-adapter was-tx-mined 0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 u0 0x82501c1178fa0b222c1f3d474ec726b832013f0a532b44bb620cce8624a5feb1 u0 u2 (list 0x169e1e83e930853391bc6f35f605c6754cfead57cf8387639d3b4096c54f18f4))
-;; → (err u1)  (ERR-BAD-HEADER)
+;; → (err u1)  (ERR_BAD_HEADER)
 ```
 > Header `(buff 80)` = exactly 160 hex digits. A `(buff 98)` error means too many
 > bytes. Generate a clean zero-header: `printf '0%.0s' {1..160}`.

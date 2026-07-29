@@ -149,7 +149,7 @@ describe("spv-adapter on simnet (Epoch 4.0 built-ins)", () => {
 			root,
 			proof,
 		});
-		// 80 zero bytes is a well-formed but non-canonical header → ERR-BAD-HEADER.
+		// 80 zero bytes is a well-formed but non-canonical header → ERR_BAD_HEADER.
 		const result = callRO("was-tx-mined", [
 			bufferCV(new Uint8Array(80)),
 			uintCV(0),
