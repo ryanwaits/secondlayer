@@ -42,15 +42,15 @@ curl "https://api.secondlayer.tools/v1/index/sbtc/withdrawals?settlement_confirm
 
 ```ts
 await sl.index.sbtc.events.consume({
-	topic: "withdrawal-accept", // server-side; omit for every topic
-	fromCursor: await db.loadCheckpoint(),
-	fromHeight: 0,
-	onBatch: async (events, _envelope, ctx) => {
-		for (const e of events) await db.upsertPegEvent(e); // typed columns, no payload parsing
-		await db.saveCheckpoint(ctx.cursor);
-		return ctx.cursor;
-	},
-	onReorg: async (r) => db.deleteFromHeight(r.fork_point_height),
+  topic: "withdrawal-accept", // server-side; omit for every topic
+  fromCursor: await db.loadCheckpoint(),
+  fromHeight: 0,
+  onBatch: async (events, _envelope, ctx) => {
+    for (const e of events) await db.upsertPegEvent(e); // typed columns, no payload parsing
+    await db.saveCheckpoint(ctx.cursor);
+    return ctx.cursor;
+  },
+  onReorg: async (r) => db.deleteFromHeight(r.fork_point_height),
 });
 ```
 

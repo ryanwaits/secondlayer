@@ -16,15 +16,15 @@ For cold history, `events.replay` backfills from the signed bulk dumps, then tai
 
 ```ts
 await streams.events.replay({
-	from: "genesis",
-	async onDumpFile(file) {
-		const bytes = await streams.dumps.download(file); // sha256-verified
-		await ingestParquet(bytes);
-	},
-	async onBatch(events, envelope) {
-		await db.insertEvents(events);
-		return envelope.next_cursor;
-	},
+  from: "genesis",
+  async onDumpFile(file) {
+    const bytes = await streams.dumps.download(file); // sha256-verified
+    await ingestParquet(bytes);
+  },
+  async onBatch(events, envelope) {
+    await db.insertEvents(events);
+    return envelope.next_cursor;
+  },
 });
 ```
 

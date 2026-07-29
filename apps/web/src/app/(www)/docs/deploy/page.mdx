@@ -51,13 +51,13 @@ let last = { at: 0, ctx: null as ConsumerBatchContext | null };
 last = { at: Date.now(), ctx };
 
 Bun.serve({
-	port: Number(process.env.PORT ?? 8080),
-	fetch: () =>
-		Response.json({
-			ok: Date.now() - last.at < 120_000,
-			block_height: last.ctx?.height ?? null,
-			blocks_behind: last.ctx?.blocksBehind ?? null,
-		}),
+  port: Number(process.env.PORT ?? 8080),
+  fetch: () =>
+    Response.json({
+      ok: Date.now() - last.at < 120_000,
+      block_height: last.ctx?.height ?? null,
+      blocks_behind: last.ctx?.blocksBehind ?? null,
+    }),
 });
 ```
 
@@ -72,8 +72,8 @@ const shutdown = new AbortController();
 process.on("SIGTERM", () => shutdown.abort());
 
 await index.contractCalls.consume({
-	signal: shutdown.signal,
-	// …
+  signal: shutdown.signal,
+  // …
 });
 ```
 

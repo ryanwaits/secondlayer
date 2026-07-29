@@ -16,21 +16,21 @@ import { Index } from "@secondlayer/sdk";
 export const maxDuration = 300;
 
 export async function GET(req: Request) {
-	if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
-		return new Response("unauthorized", { status: 401 });
-	}
+  if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
+    return new Response("unauthorized", { status: 401 });
+  }
 
-	await new Index().contractCalls.consume({
-		mode: "bounded", // return on the first empty page instead of holding the tip
-		signal: AbortSignal.timeout(280_000), // stop before the platform does
-		fromCursor: await loadCheckpoint(),
-		onBatch: async (calls, envelope, ctx) => {
-			await commitRowsAndCheckpoint(calls, ctx.cursor);
-			return ctx.cursor;
-		},
-	});
+  await new Index().contractCalls.consume({
+    mode: "bounded", // return on the first empty page instead of holding the tip
+    signal: AbortSignal.timeout(280_000), // stop before the platform does
+    fromCursor: await loadCheckpoint(),
+    onBatch: async (calls, envelope, ctx) => {
+      await commitRowsAndCheckpoint(calls, ctx.cursor);
+      return ctx.cursor;
+    },
+  });
 
-	return Response.json({ ok: true });
+  return Response.json({ ok: true });
 }
 ```
 

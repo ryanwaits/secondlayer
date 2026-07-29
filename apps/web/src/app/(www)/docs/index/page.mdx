@@ -45,24 +45,24 @@ import { Index } from "@secondlayer/sdk";
 
 const index = new Index();
 await index.events.consume({
-	eventType: "ft_transfer",
-	fromCursor: await db.loadCheckpoint(), // null on first run
-	fromHeight: 0, // first run: backfill from genesis
-	txContext: true, // join the submitting tx into each event (tx_sender, tx_type, …)
-	signal: shutdown.signal, // abort checked between batches, never mid-commit
-	onBatch: async (events, envelope, ctx) => {
-		await db.transaction(async (tx) => {
-			for (const t of events) await tx.upsertTransfer(t);
-			await tx.saveCheckpoint(ctx.cursor); // commits with the rows
-		});
-		return ctx.cursor;
-	},
-	onReorg: async (reorg) => {
-		// the fork block and everything above it is no longer canonical (delete
-		// is inclusive of the fork height); the consumer then rewinds the cursor
-		// and re-reads the canonical run for you
-		await db.deleteFromHeight(reorg.fork_point_height);
-	},
+  eventType: "ft_transfer",
+  fromCursor: await db.loadCheckpoint(), // null on first run
+  fromHeight: 0, // first run: backfill from genesis
+  txContext: true, // join the submitting tx into each event (tx_sender, tx_type, …)
+  signal: shutdown.signal, // abort checked between batches, never mid-commit
+  onBatch: async (events, envelope, ctx) => {
+    await db.transaction(async (tx) => {
+      for (const t of events) await tx.upsertTransfer(t);
+      await tx.saveCheckpoint(ctx.cursor); // commits with the rows
+    });
+    return ctx.cursor;
+  },
+  onReorg: async (reorg) => {
+    // the fork block and everything above it is no longer canonical (delete
+    // is inclusive of the fork height); the consumer then rewinds the cursor
+    // and re-reads the canonical run for you
+    await db.deleteFromHeight(reorg.fork_point_height);
+  },
 });
 ```
 
@@ -125,10 +125,10 @@ Check your tables against the canonical chain any time:
 ```ts
 const { canonical } = await sl.index.canonical({ fromHeight: myLowestHeight });
 for (const block of canonical) {
-	if (myHashAt(block.block_height) !== block.block_hash) {
-		await db.deleteFromHeight(block.block_height); // diverged — re-sweep from here
-		break;
-	}
+  if (myHashAt(block.block_height) !== block.block_hash) {
+    await db.deleteFromHeight(block.block_height); // diverged — re-sweep from here
+    break;
+  }
 }
 ```
 

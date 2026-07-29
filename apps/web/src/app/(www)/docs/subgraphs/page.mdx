@@ -135,9 +135,9 @@ Typed from the SDK, or REST at `/v1/subgraphs` with wildcard CORS. Pages are `_i
 
 ```ts
 const { rows, next_cursor, tip } = await sl.subgraphs.rows(
-	"sbtc-flows",
-	"transfers",
-	{ limit: 10, order: "desc" },
+  "sbtc-flows",
+  "transfers",
+  { limit: 10, order: "desc" },
 );
 ```
 
