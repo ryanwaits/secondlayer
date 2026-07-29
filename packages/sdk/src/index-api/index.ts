@@ -34,6 +34,7 @@ export type {
 	IndexEvent,
 	IndexEventsResource,
 	IndexEventTypeFilters,
+	IndexEventOf,
 	IndexEventType,
 	IndexFtTransfer,
 	IndexNftTransfer,

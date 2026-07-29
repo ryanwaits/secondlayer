@@ -228,17 +228,25 @@ export type IndexEvent =
 
 export type IndexEventType = IndexEvent["event_type"];
 
-export type EventsEnvelope = {
-	events: IndexEvent[];
+export type EventsEnvelope<T extends IndexEventType = IndexEventType> = {
+	events: IndexEventOf<T>[];
 	next_cursor: string | null;
 	tip: IndexTip;
 	// Chain reorgs overlapping this page's height range; empty when none.
 	reorgs: IndexReorg[];
 };
 
-export type EventsListParams = {
-	/** Required. One of the decoded event types. */
-	eventType: IndexEventType;
+/** The single decoded-event member matching one `event_type` literal.
+ *  `IndexEventOf<"ft_transfer">` is `IndexFtTransfer`. */
+export type IndexEventOf<T extends IndexEventType> = Extract<
+	IndexEvent,
+	{ event_type: T }
+>;
+
+export type EventsListParams<T extends IndexEventType = IndexEventType> = {
+	/** Required. One of the decoded event types. Passing a literal narrows the
+	 *  rows every surface hands back to that event's own shape. */
+	eventType: T;
 	cursor?: string | null;
 	fromCursor?: string | null;
 	limit?: number;
@@ -260,16 +268,17 @@ export type EventsListParams = {
 	txContext?: boolean;
 };
 
-export type EventsWalkParams = Omit<EventsListParams, "limit"> & {
+export type EventsWalkParams<T extends IndexEventType = IndexEventType> = Omit<
+	EventsListParams<T>,
+	"limit"
+> & {
 	batchSize?: number;
 	signal?: AbortSignal;
 };
 
-export type EventsConsumeParams = Omit<
-	EventsListParams,
-	"cursor" | "fromCursor" | "limit"
-> &
-	IndexConsumeOptions<IndexEvent, EventsEnvelope>;
+export type EventsConsumeParams<T extends IndexEventType = IndexEventType> =
+	Omit<EventsListParams<T>, "cursor" | "fromCursor" | "limit"> &
+		IndexConsumeOptions<IndexEventOf<T>, EventsEnvelope<T>>;
 
 // ── Contract calls (/v1/index/contract-calls) ──────────────────────
 
@@ -1104,11 +1113,17 @@ export interface NftTransfersResource {
 
 /** `index.events` — callable shorthand for `.list()`; `eventType` is required. */
 export interface IndexEventsResource {
-	(params: EventsListParams): Promise<EventsEnvelope>;
-	list(params: EventsListParams): Promise<EventsEnvelope>;
-	walk(params: EventsWalkParams): AsyncIterable<IndexEvent>;
-	consume(
-		params: EventsConsumeParams,
+	<T extends IndexEventType>(
+		params: EventsListParams<T>,
+	): Promise<EventsEnvelope<T>>;
+	list<T extends IndexEventType>(
+		params: EventsListParams<T>,
+	): Promise<EventsEnvelope<T>>;
+	walk<T extends IndexEventType>(
+		params: EventsWalkParams<T>,
+	): AsyncIterable<IndexEventOf<T>>;
+	consume<T extends IndexEventType>(
+		params: EventsConsumeParams<T>,
 	): Promise<{ cursor: string | null; pages: number; emptyPolls: number }>;
 }
 
@@ -1188,15 +1203,18 @@ export class Index extends BaseClient {
 	/** Generic decoded events by `event_type` (the full /v1/index/events surface).
 	 *  Callable: `index.events(params)` ≡ `index.events.list(params)`. */
 	readonly events: IndexEventsResource = Object.assign(
-		(params: EventsListParams): Promise<EventsEnvelope> =>
-			this.listEvents(params),
+		<T extends IndexEventType>(
+			params: EventsListParams<T>,
+		): Promise<EventsEnvelope<T>> => this.listEvents(params),
 		{
-			list: (params: EventsListParams): Promise<EventsEnvelope> =>
-				this.listEvents(params),
-			walk: (params: EventsWalkParams): AsyncIterable<IndexEvent> =>
-				this.walkEvents(params),
-			consume: (params: EventsConsumeParams) =>
-				consumeIndexFeed<IndexEvent, EventsEnvelope>({
+			list: <T extends IndexEventType>(
+				params: EventsListParams<T>,
+			): Promise<EventsEnvelope<T>> => this.listEvents(params),
+			walk: <T extends IndexEventType>(
+				params: EventsWalkParams<T>,
+			): AsyncIterable<IndexEventOf<T>> => this.walkEvents(params),
+			consume: <T extends IndexEventType>(params: EventsConsumeParams<T>) =>
+				consumeIndexFeed<IndexEventOf<T>, EventsEnvelope<T>>({
 					...params,
 					fetchPage: ({ cursor, fromHeight, limit }) =>
 						this.listEvents({
@@ -1519,8 +1537,10 @@ export class Index extends BaseClient {
 		);
 	}
 
-	private async listEvents(params: EventsListParams): Promise<EventsEnvelope> {
-		return this.request<EventsEnvelope>(
+	private async listEvents<T extends IndexEventType>(
+		params: EventsListParams<T>,
+	): Promise<EventsEnvelope<T>> {
+		return this.request<EventsEnvelope<T>>(
 			"GET",
 			`/v1/index/events${buildQuery({
 				event_type: params.eventType,
@@ -1539,7 +1559,9 @@ export class Index extends BaseClient {
 		);
 	}
 
-	private walkEvents(params: EventsWalkParams): AsyncGenerator<IndexEvent> {
+	private walkEvents<T extends IndexEventType>(
+		params: EventsWalkParams<T>,
+	): AsyncGenerator<IndexEventOf<T>> {
 		return this.keysetWalk(
 			params,
 			(page) => this.listEvents({ ...params, ...page }),

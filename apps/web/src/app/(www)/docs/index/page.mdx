@@ -68,6 +68,7 @@ await index.events.consume({
 
 | Option | Effect |
 | --- | --- |
+| `eventType` | A literal narrows the rows: `"ft_transfer"` hands `onBatch` typed `amount`/`sender`, `"print"` hands it `payload.topic`. No discriminant check to write |
 | `contractId` | One id, or an array to follow a whole protocol on one cursor — `["…sbtc-token", "…sbtc-registry"]`, up to 20. Mutually exclusive with `trait` |
 | `txContext: true` | Same on `walk` and `list`; every row carries its submitting tx, so no per-event `/v1/index/transactions` call |
 | `finalizedOnly: true` | Holds delivery to rows at or below `tip.finalized_height`; finalized data never reorgs, so `onReorg` is unnecessary |

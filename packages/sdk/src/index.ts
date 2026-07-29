@@ -54,6 +54,7 @@ export type {
 	IndexDiscovery,
 	IndexEvent,
 	IndexEventsResource,
+	IndexEventOf,
 	IndexEventType,
 	IndexEventTypeFilters,
 	IndexFtTransfer,
