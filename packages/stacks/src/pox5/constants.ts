@@ -4,6 +4,8 @@
  * `scripts/ci/check-pox5-pin.ts` holds the pinned tag + content hash.
  */
 
+import { EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET } from "../epochs.ts";
+
 /** Boot contract name; deployer is the chain's boot address. */
 export const POX5_CONTRACT_NAME = "pox-5";
 
@@ -45,12 +47,13 @@ export const POX5_EVENT_TOPICS = [
 export type Pox5EventTopic = (typeof POX5_EVENT_TOPICS)[number];
 
 /**
- * Epoch 4.0 hard-fork activation height on mainnet — Bitcoin block 960,230
- * (expected ~2026-07-30 AM UTC, per the stacks-core 4.0.1 release notes).
- * Prefer the runtime gate in `activation.ts` (`getPox5Activation`), which
- * reads the node's `/v2/pox` and needs no hardcoded height.
+ * Epoch 4.0 hard-fork activation height on mainnet — see
+ * {@link EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET}. Prefer the runtime gate in
+ * `activation.ts` (`getPox5Activation`), which reads the node's `/v2/pox` and
+ * works on every network.
  */
-export const POX5_ACTIVATION_BURN_HEIGHT_MAINNET = 960_230;
+export const POX5_ACTIVATION_BURN_HEIGHT_MAINNET =
+	EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET;
 
 /** Length of a paired-BTC bond, in reward cycles (`BOND_LENGTH_CYCLES`). */
 export const BOND_LENGTH_CYCLES = 12;

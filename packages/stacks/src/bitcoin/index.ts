@@ -54,6 +54,7 @@ export {
 	getBurnBlockHeight,
 	isClarity6Active,
 } from "./activation.ts";
+export { EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET } from "../epochs.ts";
 export {
 	type BitcoinVerifier,
 	type BitcoinVerifierConfig,
