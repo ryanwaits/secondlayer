@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "6.34.0",
+	"version": "6.35.0",
 	"areas": [
 		{
 			"name": "Client",

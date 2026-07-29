@@ -1,5 +1,27 @@
 # @secondlayer/sdk
 
+## 6.35.0
+
+### Minor Changes
+
+- 0f1dac2: `index.events.list`, `.walk`, and `.consume` are now generic over the `eventType` literal, so the rows they hand back are narrowed to that event's own shape. `consume({ eventType: "ft_transfer" })` gives `onBatch` an `IndexFtTransfer[]` with `amount` and `sender` directly reachable; `"print"` gives `IndexPrint[]` with `payload.topic`.
+
+  Every handler used to open with `if (e.event_type !== "ft_transfer") continue` purely to satisfy the compiler, because the rows arrived as the full `IndexEvent` union regardless of what was asked for.
+
+  Non-breaking. A non-literal `eventType` still yields the union, so dynamic callers are unaffected, and `IndexEvent[]` remains assignable where it was before. The narrowing helper is exported as `IndexEventOf<T>`.
+
+- f3c310b: `contractId` on `index.events` and `index.contractCalls` now accepts an array — `contractId: ["SP…sbtc-token", "SP…sbtc-registry"]` — so one consumer with one checkpoint can follow a protocol's whole contract set. Serialized as the comma list the API already uses on Streams; capped at 20 ids, and still mutually exclusive with `trait`.
+
+  Previously `contractId` was a single string, so watching sBTC (four contracts) or spanning a `v3` → `v4` migration meant one consumer per contract: N poll loops, N checkpoints, and no single answer to "how far is my index complete".
+
+  Use `trait` instead when you mean "every contract of a standard" — it resolves at read time and picks up contracts deployed after you ship.
+
+- e2d50ef: `index.sbtc.events.consume()` and `index.sbtc.deposits.consume()` — checkpointed consumers over the decoded sBTC peg feed, with the same cursor commit, reorg rewind, and progress context as every other Index loop. Server-side `topic` filtering survives pagination, so mirroring one topic no longer means pulling all six.
+
+  Previously the peg surface offered only `list` and `walk`. Neither checkpoints and neither handles reorgs, so building a durable sBTC index meant dropping to `events.consume({ eventType: "print" })` against the registry contract and filtering topics client-side — giving up the typed columns.
+
+  `withdrawals` deliberately has no `consume`: the row is a lifecycle aggregate keyed by `request_id` that mutates as a peg-out moves REQUESTED → ACCEPTED/REJECTED, and a forward-only cursor would commit it once and never see it transition. Consume the append-only `events` feed and derive status from the `withdrawal-*` topics.
+
 ## 6.34.0
 
 ### Minor Changes

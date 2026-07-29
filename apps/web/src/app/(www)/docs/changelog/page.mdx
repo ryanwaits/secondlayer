@@ -38,6 +38,41 @@ signers, bonds, amounts, and cycle windows, plus the full event tuple as JSON.
 
 ## SDK — July 2026
 
+### Mirror the sBTC peg with a checkpointed consumer
+
+`index.sbtc.events.consume()` and `index.sbtc.deposits.consume()` bring the
+decoded peg feed the same cursor commit, reorg rewind, and progress context
+every other Index loop has. Server-side `topic` filtering survives pagination,
+so following one topic no longer means pulling all six.
+
+- Building a durable sBTC index used to mean consuming raw `print` events off
+  the registry contract and matching topics yourself, losing the typed columns.
+- `withdrawals` has no `consume` on purpose: the row is a lifecycle aggregate
+  that mutates as a peg-out settles, and a forward-only cursor would commit it
+  once and never see it change. Consume the append-only events instead — see
+  [sBTC settlement](/docs/sbtc-settlement#mirror-the-peg-into-your-own-tables).
+
+### Follow a whole protocol on one cursor
+
+`contractId` now takes an array on `index.events` and `index.contractCalls`.
+sBTC is four contracts; a `v3` → `v4` migration is two. One consumer, one
+checkpoint, one answer to "how far is my index complete".
+
+- Up to 20 ids, still mutually exclusive with `trait` — reach for `trait` when
+  you mean "every contract of a standard", since it picks up contracts
+  deployed after you ship.
+
+### Rows match the event type you asked for
+
+`index.events.list`, `.walk`, and `.consume` are generic over the `eventType`
+literal, so `consume({ eventType: "ft_transfer" })` hands `onBatch` an
+`IndexFtTransfer[]` with `amount` and `sender` reachable directly.
+
+- The `if (e.event_type !== "ft_transfer") continue` line every handler opened
+  with — written only to satisfy the compiler — is gone.
+- A non-literal `eventType` still yields the union, so dynamic callers are
+  untouched.
+
 ### Every batch tells you how far along it is
 
 `onBatch` now hands you `height`, `tipHeight`, and `blocksBehind` alongside
