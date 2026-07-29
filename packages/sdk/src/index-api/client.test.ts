@@ -680,3 +680,37 @@ describe("Index walk termination", () => {
 		expect(urls.length).toBe(1);
 	});
 });
+
+describe("multi-contract scope", () => {
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+	});
+
+	test("events.list serializes a contract_id list as a comma string", async () => {
+		const urls = recorder({
+			events: [],
+			next_cursor: null,
+			tip: {},
+			reorgs: [],
+		});
+		await new Index({ baseUrl: BASE_URL }).events.list({
+			eventType: "print",
+			contractId: ["SP1.a", "SP2.b", "SP3.c"],
+		});
+		expect(urls[0]).toContain("contract_id=SP1.a%2CSP2.b%2CSP3.c");
+	});
+
+	test("contractCalls.list accepts a single id unchanged", async () => {
+		const urls = recorder({
+			contract_calls: [],
+			next_cursor: null,
+			tip: {},
+			reorgs: [],
+		});
+		await new Index({ baseUrl: BASE_URL }).contractCalls.list({
+			contractId: "SP1.only",
+		});
+		expect(urls[0]).toContain("contract_id=SP1.only");
+		expect(urls[0]).not.toContain("%2C");
+	});
+});

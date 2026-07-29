@@ -1,5 +1,14 @@
 import { Hono } from "hono";
 
+/** `contract_id` on the two consume-able feeds accepts a comma-separated set,
+ *  so one cursor can follow a whole protocol. */
+const CONTRACT_ID_PARAM = qp(
+	"contract_id",
+	"string",
+	false,
+	"Contract principal, or a comma-separated set of up to 20 (e.g. `SP1.sbtc-token,SP1.sbtc-registry`). Mutually exclusive with `trait`.",
+);
+
 /** The public API description. Exported so the docs site can render it as the
  *  API reference instead of restating it by hand — `bun run openapi` in
  *  apps/web writes it to src/generated/openapi.json. */
@@ -272,7 +281,7 @@ export const OPENAPI_SPEC = {
 					qp("from_cursor", "string"),
 					qp("from_height", "integer"),
 					qp("to_height", "integer"),
-					qp("contract_id", "string"),
+					CONTRACT_ID_PARAM,
 					qp("asset_identifier", "string"),
 					qp("sender", "string"),
 					qp("recipient", "string"),
@@ -332,7 +341,7 @@ export const OPENAPI_SPEC = {
 					qp("from_cursor", "string"),
 					qp("from_height", "integer"),
 					qp("to_height", "integer"),
-					qp("contract_id", "string"),
+					CONTRACT_ID_PARAM,
 					qp("function_name", "string"),
 					qp("sender", "string"),
 				],
@@ -665,8 +674,19 @@ export const OPENAPI_SPEC = {
 	},
 };
 
-function qp(name: string, type: string, required = false) {
-	return { name, in: "query", required, schema: { type } };
+function qp(
+	name: string,
+	type: string,
+	required = false,
+	description?: string,
+) {
+	return {
+		name,
+		in: "query",
+		required,
+		schema: { type },
+		...(description ? { description } : {}),
+	};
 }
 
 function pp(name: string) {

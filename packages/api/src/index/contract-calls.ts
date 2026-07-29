@@ -10,6 +10,7 @@ import {
 	jsonSafeBigInt,
 	parseFilter,
 	parseLimit,
+	parseListFilter,
 	parseNonNegativeInteger,
 	toIsoOrNull,
 } from "./_shared.ts";
@@ -54,6 +55,8 @@ export type ContractCallsQuery = {
 	toHeight: number;
 	limit: number;
 	contractId?: string;
+	/** Set only when `contract_id` carried more than one value. */
+	contractIds?: string[];
 	functionName?: string;
 	sender?: string;
 	/** Restrict to contracts conforming to this trait/standard (resolved as-of toHeight). */
@@ -74,6 +77,8 @@ export type ReadContractCallsParams = {
 	toHeight: number;
 	limit: number;
 	contractId?: string;
+	/** Scope to several contracts at once (emitted as an IN list). */
+	contractIds?: readonly string[];
 	functionName?: string;
 	sender?: string;
 	/** Restrict to contracts conforming to this trait/standard (resolved as-of toHeight). */
@@ -145,6 +150,10 @@ export function parseContractCallsQuery(
 		cursorRaw === undefined && fromHeightRaw === undefined
 			? Math.max(0, tip.block_height - STREAMS_BLOCKS_PER_DAY)
 			: undefined;
+	const contractIds = parseListFilter(
+		query.get("contract_id") ?? undefined,
+		"contract_id",
+	);
 
 	return {
 		cursor,
@@ -155,19 +164,18 @@ export function parseContractCallsQuery(
 				? tip.block_height
 				: Math.min(requestedToHeight, tip.block_height),
 		limit: parseLimit(query.get("limit") ?? undefined),
-		contractId: parseFilter(
-			query.get("contract_id") ?? undefined,
-			"contract_id",
-		),
+		// One id keeps the scalar equality; several become an IN scope. Ordering
+		// here is fixed on (block_height, tx_index), so unlike /events the list
+		// form needs no special handling beyond the predicate.
+		contractId: contractIds?.length === 1 ? contractIds[0] : undefined,
+		contractIds:
+			contractIds && contractIds.length > 1 ? contractIds : undefined,
 		functionName: parseFilter(
 			query.get("function_name") ?? undefined,
 			"function_name",
 		),
 		sender: parseFilter(query.get("sender") ?? undefined, "sender"),
-		trait: parseTrait(
-			query,
-			parseFilter(query.get("contract_id") ?? undefined, "contract_id"),
-		),
+		trait: parseTrait(query, contractIds),
 		cursorPastTip: cursor ? cursor.block_height > tip.block_height : false,
 	};
 }
@@ -175,10 +183,10 @@ export function parseContractCallsQuery(
 /** Trait filter is mutually exclusive with an explicit contract_id. */
 function parseTrait(
 	query: URLSearchParams,
-	contractId: string | undefined,
+	contractIds: string[] | undefined,
 ): string | undefined {
 	const trait = parseFilter(query.get("trait") ?? undefined, "trait");
-	if (trait !== undefined && contractId !== undefined) {
+	if (trait !== undefined && contractIds !== undefined) {
 		throw new ValidationError("trait and contract_id are mutually exclusive");
 	}
 	return trait;
@@ -253,6 +261,14 @@ export async function readContractCalls(
 
 	if (params.contractId) {
 		predicates.push(sql`t.contract_id = ${params.contractId}`);
+	}
+	if (params.contractIds && params.contractIds.length > 0) {
+		predicates.push(
+			sql`t.contract_id IN (${sql.join(
+				params.contractIds.map((id) => sql`${id}`),
+				sql`, `,
+			)})`,
+		);
 	}
 	if (params.functionName) {
 		predicates.push(sql`t.function_name = ${params.functionName}`);
@@ -346,6 +362,7 @@ export async function getContractCallsResponse(opts: {
 		toHeight: parsed.toHeight,
 		limit: parsed.limit,
 		contractId: parsed.contractId,
+		contractIds: parsed.contractIds,
 		functionName: parsed.functionName,
 		sender: parsed.sender,
 		trait: parsed.trait,

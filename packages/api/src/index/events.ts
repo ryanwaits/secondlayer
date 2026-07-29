@@ -10,6 +10,7 @@ import {
 	encodeIndexCursor,
 	parseFilter,
 	parseIndexBaseQuery,
+	parseListFilter,
 	readReorgsForEvents,
 	toIsoOrNull,
 } from "./_shared.ts";
@@ -219,6 +220,8 @@ export type IndexEventsQuery = {
 	toHeight: number;
 	limit: number;
 	filters: Partial<Record<IndexEqualityFilter, string>>;
+	/** Set only when `contract_id` carried more than one value. */
+	contractIds?: string[];
 	/** Restrict to contracts conforming to this trait/standard (resolved as-of toHeight). */
 	trait?: string;
 	/** Join the submitting tx for `tx_*` fields (opt-in; powers subgraph reindex). */
@@ -240,6 +243,10 @@ export type ReadIndexEventsParams = {
 	toHeight: number;
 	limit: number;
 	filters?: Partial<Record<IndexEqualityFilter, string>>;
+	/** Scope to several contracts at once. Set only when the caller passed more
+	 *  than one `contract_id`; a single id stays in `filters` so it keeps the
+	 *  contract-led ORDER BY. See the ordering note in the reader. */
+	contractIds?: readonly string[];
 	/** Restrict to contracts conforming to this trait/standard (resolved as-of toHeight). */
 	trait?: string;
 	/** Join the submitting tx for `tx_*` fields (opt-in; powers subgraph reindex). */
@@ -340,6 +347,20 @@ export async function readIndexEvents(
 		}
 	}
 
+	// Multi-contract scope. Deliberately NOT routed through `filters`, which
+	// would make `contract_id` the lead ORDER BY column (see below): sorting by
+	// contract first while the keyset compares only (block_height, event_index)
+	// silently drops every row of a later contract that sits below the cursor's
+	// height. Same shape as the trait scope, for the same reason.
+	if (params.contractIds && params.contractIds.length > 0) {
+		predicates.push(
+			sql`contract_id IN (${sql.join(
+				params.contractIds.map((id) => sql`${id}`),
+				sql`, `,
+			)})`,
+		);
+	}
+
 	// Trait scope: resolve "all contracts of standard X (as-of toHeight)" to a
 	// contract-id set and filter on it. No matches → empty page (skip the read).
 	if (params.trait) {
@@ -357,6 +378,11 @@ export async function readIndexEvents(
 		);
 	}
 
+	// A scalar equality filter can lead the sort for free — it's a constant, so
+	// `col ASC, block_height ASC, event_index ASC` matches the composite index
+	// and the (block_height, event_index) keyset still totally orders the page.
+	// That stops being true the moment the column takes more than one value,
+	// which is why the multi-contract and trait scopes never populate `filters`.
 	const leadFilter = config.equalityFilters.find((filter) => filters[filter]);
 	const orderBy = leadFilter
 		? sql`${sql.ref(leadFilter)} ASC, block_height ASC, event_index ASC`
@@ -454,7 +480,17 @@ export function parseIndexEventsQuery(
 
 	const base = parseIndexBaseQuery(query, tip);
 	const filters: Partial<Record<IndexEqualityFilter, string>> = {};
+	let contractIds: string[] | undefined;
 	for (const filter of config.equalityFilters) {
+		if (filter === "contract_id") {
+			// One id keeps the scalar path (and its contract-led ORDER BY); several
+			// become an IN scope that must stay out of `filters`.
+			const ids = parseListFilter(query.get(filter) ?? undefined, filter);
+			if (ids === undefined) continue;
+			if (ids.length === 1) filters.contract_id = ids[0];
+			else contractIds = ids;
+			continue;
+		}
 		const value = parseFilter(query.get(filter) ?? undefined, filter);
 		if (value !== undefined) filters[filter] = value;
 	}
@@ -466,13 +502,20 @@ export function parseIndexEventsQuery(
 				`trait filter is not supported for ${eventTypeRaw}`,
 			);
 		}
-		if (filters.contract_id !== undefined) {
+		if (filters.contract_id !== undefined || contractIds !== undefined) {
 			throw new ValidationError("trait and contract_id are mutually exclusive");
 		}
 	}
 
 	const withTx = query.get("tx_context") === "true";
-	return { ...base, eventType: eventTypeRaw, filters, trait, withTx };
+	return {
+		...base,
+		eventType: eventTypeRaw,
+		filters,
+		contractIds,
+		trait,
+		withTx,
+	};
 }
 
 export async function getIndexEventsResponse(opts: {
@@ -500,6 +543,7 @@ export async function getIndexEventsResponse(opts: {
 		toHeight: parsed.toHeight,
 		limit: parsed.limit,
 		filters: parsed.filters,
+		contractIds: parsed.contractIds,
 		trait: parsed.trait,
 		withTx: parsed.withTx,
 	});

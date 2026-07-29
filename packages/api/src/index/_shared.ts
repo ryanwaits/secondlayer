@@ -37,6 +37,38 @@ export function parseFilter(
 	return value;
 }
 
+/** Largest contract-id set a single read may scope to. Generous for "watch my
+ *  protocol's contracts", small enough that the `IN` list can't become a
+ *  planner problem or a way to smuggle an unbounded query through. */
+export const MAX_CONTRACT_IDS = 20;
+
+/**
+ * Parse a single-or-comma-list filter into a normalized array. Mirrors the
+ * Streams parser's wire format (`?contract_id=a,b,c`) so the two surfaces
+ * don't disagree about what a list looks like.
+ */
+export function parseListFilter(
+	value: string | undefined,
+	name: string,
+	maxItems = MAX_CONTRACT_IDS,
+): string[] | undefined {
+	if (value === undefined) return undefined;
+	if (value.length === 0) {
+		throw new ValidationError(`${name} must not be empty`);
+	}
+	const items = value.split(",").map((part) => part.trim());
+	if (items.some((item) => item.length === 0)) {
+		throw new ValidationError(`${name} must be a comma-separated list`);
+	}
+	if (items.length > maxItems) {
+		throw new ValidationError(
+			`${name} accepts at most ${maxItems} values (got ${items.length})`,
+		);
+	}
+	// Duplicates would inflate the IN list without changing the result set.
+	return [...new Set(items)];
+}
+
 export function toIsoOrNull(
 	value: Date | string | null | undefined,
 ): string | null {

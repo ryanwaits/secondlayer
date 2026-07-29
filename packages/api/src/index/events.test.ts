@@ -52,6 +52,63 @@ describe("Index /events query parsing", () => {
 		expect(parsed.filters.asset_identifier).toBe("SP1.nft::item");
 	});
 
+	test("a single contract_id stays a scalar equality filter", () => {
+		const parsed = parseIndexEventsQuery(
+			params("?event_type=ft_transfer&contract_id=SP1.token"),
+			TIP,
+		);
+		expect(parsed.filters.contract_id).toBe("SP1.token");
+		expect(parsed.contractIds).toBeUndefined();
+	});
+
+	test("several contract_ids become a scope and never a sort key", () => {
+		const parsed = parseIndexEventsQuery(
+			params("?event_type=print&contract_id=SP1.a,SP2.b,SP3.c"),
+			TIP,
+		);
+		expect(parsed.contractIds).toEqual(["SP1.a", "SP2.b", "SP3.c"]);
+		// Must stay out of `filters`: it would otherwise lead the ORDER BY, and
+		// the (block_height, event_index) keyset would skip every row of a later
+		// contract sitting below the cursor's height.
+		expect(parsed.filters.contract_id).toBeUndefined();
+	});
+
+	test("duplicate contract_ids collapse", () => {
+		const parsed = parseIndexEventsQuery(
+			params("?event_type=print&contract_id=SP1.a,SP1.a,SP2.b"),
+			TIP,
+		);
+		expect(parsed.contractIds).toEqual(["SP1.a", "SP2.b"]);
+	});
+
+	test("a contract_id list is capped", () => {
+		const many = Array.from({ length: 21 }, (_, i) => `SP${i}.c`).join(",");
+		expect(() =>
+			parseIndexEventsQuery(
+				params(`?event_type=print&contract_id=${many}`),
+				TIP,
+			),
+		).toThrow("at most 20 values");
+	});
+
+	test("an empty entry in the contract_id list is rejected", () => {
+		expect(() =>
+			parseIndexEventsQuery(
+				params("?event_type=print&contract_id=SP1.a,,SP2.b"),
+				TIP,
+			),
+		).toThrow("comma-separated list");
+	});
+
+	test("trait and a contract_id list are still mutually exclusive", () => {
+		expect(() =>
+			parseIndexEventsQuery(
+				params("?event_type=ft_transfer&trait=sip-010&contract_id=SP1.a,SP2.b"),
+				TIP,
+			),
+		).toThrow("mutually exclusive");
+	});
+
 	test("trait is allowed for contract-keyed event types", () => {
 		const parsed = parseIndexEventsQuery(
 			params("?event_type=ft_transfer&trait=sip-010"),
@@ -231,6 +288,45 @@ describe.skipIf(!HAS_DB)("Index /events DB reads", () => {
 	beforeEach(async () => {
 		if (!db) return;
 		await sql`DELETE FROM decoded_events`.execute(db);
+	});
+
+	test("a multi-contract scope pages without dropping a later contract's rows", async () => {
+		if (!db) throw new Error("missing db");
+		// Interleave heights across contracts so a contract-led sort would order
+		// them very differently from the cursor's (block_height, event_index).
+		await db
+			.insertInto("decoded_events")
+			.values([
+				ftRow("9900:0", 9900, "SP3.c", "SP1", "SP2", "10"),
+				ftRow("9901:0", 9901, "SP1.a", "SP1", "SP2", "20"),
+				ftRow("9902:0", 9902, "SP2.b", "SP1", "SP2", "30"),
+				ftRow("9903:0", 9903, "SP1.a", "SP1", "SP2", "40"),
+				ftRow("9904:0", 9904, "SP9.excluded", "SP1", "SP2", "50"),
+			])
+			.execute();
+
+		// Page size 2 forces pagination across the contract boundary — the exact
+		// shape that silently loses rows if contract_id leads the ORDER BY.
+		const seen: string[] = [];
+		let cursor: { block_height: number; event_index: number } | undefined;
+		for (let page = 0; page < 5; page++) {
+			const result = await readIndexEvents({
+				eventType: "ft_transfer",
+				after: cursor,
+				fromHeight: 0,
+				toHeight: TIP.block_height,
+				limit: 2,
+				contractIds: ["SP1.a", "SP2.b", "SP3.c"],
+				db,
+			});
+			seen.push(...result.events.map((e) => e.cursor));
+			if (!result.next_cursor) break;
+			const [bh, ei] = result.next_cursor.split(":").map(Number);
+			cursor = { block_height: bh as number, event_index: ei as number };
+		}
+
+		// All three scoped contracts, in chain order, and nothing from SP9.
+		expect(seen).toEqual(["9900:0", "9901:0", "9902:0", "9903:0"]);
 	});
 
 	test("ft_transfer reads match the typed readFtTransfers path", async () => {

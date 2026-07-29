@@ -242,7 +242,9 @@ export type EventsListParams = {
 	cursor?: string | null;
 	fromCursor?: string | null;
 	limit?: number;
-	contractId?: string;
+	/** One id, or several to scope the sweep to a set of contracts (max 20).
+	 *  Mutually exclusive with `trait`. */
+	contractId?: string | readonly string[];
 	assetIdentifier?: string;
 	sender?: string;
 	recipient?: string;
@@ -298,7 +300,9 @@ export type ContractCallsListParams = {
 	cursor?: string | null;
 	fromCursor?: string | null;
 	limit?: number;
-	contractId?: string;
+	/** One id, or several to scope the sweep to a set of contracts (max 20).
+	 *  Mutually exclusive with `trait`. */
+	contractId?: string | readonly string[];
 	functionName?: string;
 	sender?: string;
 	fromHeight?: number;

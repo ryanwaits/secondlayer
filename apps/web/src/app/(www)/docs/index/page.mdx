@@ -68,6 +68,7 @@ await index.events.consume({
 
 | Option | Effect |
 | --- | --- |
+| `contractId` | One id, or an array to follow a whole protocol on one cursor — `["…sbtc-token", "…sbtc-registry"]`, up to 20. Mutually exclusive with `trait` |
 | `txContext: true` | Same on `walk` and `list`; every row carries its submitting tx, so no per-event `/v1/index/transactions` call |
 | `finalizedOnly: true` | Holds delivery to rows at or below `tip.finalized_height`; finalized data never reorgs, so `onReorg` is unnecessary |
 | `signal` | Checked at the top of the loop, so the in-flight batch always commits — see [Deploy](/docs/deploy#handle-sigterm) |
@@ -182,6 +183,8 @@ curl "https://api.secondlayer.tools/v1/index/events?event_type=stx_transfer&limi
 | --- | --- | --- |
 | `/v1/index/events` | Decoded events for a chosen `event_type` (+ `ft-transfers` / `nft-transfers` aliases) | `event_type` required; `asset_identifier` on `nft_*`; `contract_id` + decoded `payload` on `print`; no `contract_id` on `stx_*` |
 | `/v1/index/contract-calls` | Decoded contract-call transactions with `args` and `result` | `function_name`, `sender`, `trait`; cursors are a separate keyspace from events |
+
+On both feeds `contract_id` also takes a comma-separated set (`?contract_id=SP1.a,SP1.b`, max 20) — one cursor over a protocol's contracts instead of one consumer each. For "every contract of a standard" reach for `trait` instead; it picks up contracts deployed after you ship.
 | `/v1/index/transactions` · `/{tx_id}` | Full transaction documents (fee, nonce, sponsored, post-conditions, decoded payload) | `type`, `sender`, `contract_id`; `/{tx_id}/proof` returns an inclusion proof ([Verification](/docs/verification)) |
 | `/v1/index/blocks` · `/{height_or_hash}` | Decoded blocks, list or single | — |
 | `/v1/index/canonical` | Canonical block-hash map, one row per height, orphans excluded | `from_height` |

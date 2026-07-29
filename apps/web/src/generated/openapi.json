@@ -781,7 +781,8 @@
 						"required": false,
 						"schema": {
 							"type": "string"
-						}
+						},
+						"description": "Contract principal, or a comma-separated set of up to 20 (e.g. `SP1.sbtc-token,SP1.sbtc-registry`). Mutually exclusive with `trait`."
 					},
 					{
 						"name": "asset_identifier",
@@ -1156,7 +1157,8 @@
 						"required": false,
 						"schema": {
 							"type": "string"
-						}
+						},
+						"description": "Contract principal, or a comma-separated set of up to 20 (e.g. `SP1.sbtc-token,SP1.sbtc-registry`). Mutually exclusive with `trait`."
 					},
 					{
 						"name": "function_name",
