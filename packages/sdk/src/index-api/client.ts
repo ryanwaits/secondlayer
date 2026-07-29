@@ -848,12 +848,31 @@ export type SbtcEventsWalkParams = Omit<SbtcEventsListParams, "limit"> & {
 	signal?: AbortSignal;
 };
 
+export type SbtcEventsConsumeParams = Omit<
+	SbtcEventsListParams,
+	"cursor" | "fromCursor" | "limit"
+> &
+	IndexConsumeOptions<IndexSbtcEvent, SbtcEventsEnvelope>;
+
+export type SbtcDepositsConsumeParams = Omit<
+	SbtcDepositsListParams,
+	"cursor" | "fromCursor" | "limit"
+> &
+	IndexConsumeOptions<IndexSbtcDeposit, SbtcDepositsEnvelope>;
+
 /** `index.sbtc` — the decoded sBTC peg surface (deposits, withdrawals, raw
  *  events, scoreboard). The only productized decoded sBTC peg feed on Stacks. */
 export interface SbtcResource {
 	deposits: {
 		list(params?: SbtcDepositsListParams): Promise<SbtcDepositsEnvelope>;
 		walk(params?: SbtcDepositsWalkParams): AsyncIterable<IndexSbtcDeposit>;
+		/** Checkpointed sweep of completed deposits — append-only, so safe to
+		 *  mirror. See {@link IndexConsumeOptions}. */
+		consume(params: SbtcDepositsConsumeParams): Promise<{
+			cursor: string | null;
+			pages: number;
+			emptyPolls: number;
+		}>;
 		/** Fetch a completed deposit by Bitcoin txid; 404 → null. */
 		get(bitcoinTxid: string): Promise<SbtcDepositEnvelope | null>;
 	};
@@ -864,10 +883,23 @@ export interface SbtcResource {
 		): AsyncIterable<IndexSbtcWithdrawal>;
 		/** Fetch a withdrawal's full lifecycle by request id; 404 → null. */
 		get(requestId: number): Promise<SbtcWithdrawalEnvelope | null>;
+		// No `consume` by design: a withdrawal row is a lifecycle aggregate keyed
+		// by `request_id`, and it MUTATES as the peg-out moves REQUESTED →
+		// ACCEPTED/REJECTED → settled. A checkpointed cursor only ever moves
+		// forward, so a consumer would commit a row as REQUESTED and never see it
+		// transition. Mirror the append-only `events` feed and derive status from
+		// the withdrawal-{create,accept,reject} topics instead.
 	};
 	events: {
 		list(params?: SbtcEventsListParams): Promise<SbtcEventsEnvelope>;
 		walk(params?: SbtcEventsWalkParams): AsyncIterable<IndexSbtcEvent>;
+		/** Checkpointed sweep of the raw peg event log — append-only across all
+		 *  six topics. See {@link IndexConsumeOptions}. */
+		consume(params: SbtcEventsConsumeParams): Promise<{
+			cursor: string | null;
+			pages: number;
+			emptyPolls: number;
+		}>;
 	};
 	/** The peg scoreboard — a single all-time aggregate (no pagination). */
 	summary(): Promise<SbtcSummaryEnvelope>;
@@ -1302,6 +1334,21 @@ export class Index extends BaseClient {
 			walk: (
 				params: SbtcDepositsWalkParams = {},
 			): AsyncIterable<IndexSbtcDeposit> => this.walkSbtcDeposits(params),
+			consume: (params: SbtcDepositsConsumeParams) =>
+				consumeIndexFeed<IndexSbtcDeposit, SbtcDepositsEnvelope>({
+					...params,
+					fetchPage: ({ cursor, fromHeight, limit }) =>
+						this.listSbtcDeposits({
+							confirmed: params.confirmed,
+							sender: params.sender,
+							bitcoinTxid: params.bitcoinTxid,
+							toHeight: params.toHeight,
+							cursor,
+							fromHeight,
+							limit,
+						}),
+					itemsOf: (envelope) => envelope.deposits,
+				}),
 			get: (bitcoinTxid: string): Promise<SbtcDepositEnvelope | null> =>
 				this.getSbtcDeposit(bitcoinTxid),
 		},
@@ -1321,6 +1368,23 @@ export class Index extends BaseClient {
 			walk: (
 				params: SbtcEventsWalkParams = {},
 			): AsyncIterable<IndexSbtcEvent> => this.walkSbtcEvents(params),
+			consume: (params: SbtcEventsConsumeParams) =>
+				consumeIndexFeed<IndexSbtcEvent, SbtcEventsEnvelope>({
+					...params,
+					fetchPage: ({ cursor, fromHeight, limit }) =>
+						this.listSbtcEvents({
+							confirmed: params.confirmed,
+							topic: params.topic,
+							sender: params.sender,
+							requestId: params.requestId,
+							bitcoinTxid: params.bitcoinTxid,
+							toHeight: params.toHeight,
+							cursor,
+							fromHeight,
+							limit,
+						}),
+					itemsOf: (envelope) => envelope.events,
+				}),
 		},
 		summary: (): Promise<SbtcSummaryEnvelope> => this.getSbtcSummary(),
 	};

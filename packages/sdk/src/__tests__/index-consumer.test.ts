@@ -331,6 +331,132 @@ describe("index.contractCalls.consume", () => {
 	});
 });
 
+describe("index.sbtc consumers", () => {
+	function sbtcEvent(cursor: string, blockHeight: number, index: number) {
+		return {
+			cursor,
+			block_height: blockHeight,
+			tx_id: `0x${index}`,
+			tx_index: index,
+			event_index: index,
+			topic: "completed-deposit",
+			request_id: null,
+			amount: "1000",
+			sender: "SP1",
+		};
+	}
+
+	test("events.consume pages the peg log and keeps the topic filter on every request", async () => {
+		const pages = [
+			{
+				events: [sbtcEvent("1:0", 1, 0), sbtcEvent("2:1", 2, 1)],
+				next_cursor: "2:1",
+				tip: TIP,
+				reorgs: [],
+			},
+			{
+				events: [sbtcEvent("3:0", 3, 2)],
+				next_cursor: "3:0",
+				tip: TIP,
+				reorgs: [],
+			},
+		];
+		const urls: string[] = [];
+		globalThis.fetch = (async (input: string | URL | Request) => {
+			urls.push(input.toString());
+			return jsonResponse(pages.shift());
+		}) as unknown as typeof fetch;
+
+		const seen: string[] = [];
+		const result = await new Index().sbtc.events.consume({
+			topic: "withdrawal-accept",
+			batchSize: 2,
+			maxPages: 2,
+			onBatch: (events, _envelope, ctx) => {
+				seen.push(...events.map((e) => e.cursor));
+				return ctx.cursor;
+			},
+		});
+
+		expect(seen).toEqual(["1:0", "2:1", "3:0"]);
+		expect(result.cursor).toBe("3:0");
+		expect(urls[0]).toContain("/v1/index/sbtc/events");
+		// The filter has to survive pagination, or page two silently widens to
+		// every topic and the mirror fills with rows the caller never asked for.
+		expect(urls[0]).toContain("topic=withdrawal-accept");
+		expect(urls[1]).toContain("topic=withdrawal-accept");
+		expect(urls[1]).toContain("cursor=2%3A1");
+	});
+
+	test("events.consume rolls back on a reorg like every other index feed", async () => {
+		let served = 0;
+		globalThis.fetch = (async () => {
+			served++;
+			if (served === 1) {
+				return jsonResponse({
+					events: [sbtcEvent("9:0", 9, 0)],
+					next_cursor: "9:0",
+					tip: TIP,
+					reorgs: [],
+				});
+			}
+			return jsonResponse({
+				events: [],
+				next_cursor: null,
+				tip: TIP,
+				reorgs: [reorg()],
+			});
+		}) as unknown as typeof fetch;
+
+		const rolledBackFrom: number[] = [];
+		const heights: Array<number | null> = [];
+		await new Index().sbtc.events.consume({
+			emptyBackoffMs: 0,
+			maxEmptyPolls: 1,
+			onBatch: (_events, _envelope, ctx) => {
+				heights.push(ctx.height);
+				return ctx.cursor;
+			},
+			onReorg: (r) => {
+				rolledBackFrom.push(r.fork_point_height);
+			},
+		});
+
+		expect(rolledBackFrom).toEqual([5]);
+		expect(heights).toEqual([9, 4]);
+	});
+
+	test("deposits.consume reads the deposits collection, not events", async () => {
+		const urls: string[] = [];
+		globalThis.fetch = (async (input: string | URL | Request) => {
+			urls.push(input.toString());
+			return jsonResponse({
+				deposits: [
+					{ ...sbtcEvent("4:0", 4, 0), bitcoin_txid: "0xabc" },
+					{ ...sbtcEvent("5:0", 5, 1), bitcoin_txid: "0xdef" },
+				],
+				next_cursor: "5:0",
+				tip: TIP,
+				reorgs: [],
+			});
+		}) as unknown as typeof fetch;
+
+		const txids: Array<string | null> = [];
+		await new Index().sbtc.deposits.consume({
+			confirmed: true,
+			maxPages: 1,
+			onBatch: (deposits, _envelope, ctx) => {
+				txids.push(...deposits.map((d) => d.bitcoin_txid));
+				return ctx.cursor;
+			},
+		});
+
+		expect(txids).toEqual(["0xabc", "0xdef"]);
+		expect(urls[0]).toContain("/v1/index/sbtc/deposits");
+		expect(urls[0]).toContain("confirmed=true");
+	});
+});
+
 describe("consume progress context", () => {
 	test("reports the highest block reached and its distance from the tip", async () => {
 		const pages: EventsEnvelope[] = [
