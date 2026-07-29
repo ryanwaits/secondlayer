@@ -123,7 +123,7 @@ await client.sbtc.getSignersPublicKey(); // 33-byte aggregate key
 
 ## PoX-5 Bitcoin Staking (SIP-045)
 
-Epoch 4.0 activates at Bitcoin block 960,230 (~Jul 29 2026). This module is pinned against the **final `pox-5` contract from stacks-core 4.0.0** — bonds, staking, L1 lockup scripts, signer grants, cycle math.
+Epoch 4.0 activates at Bitcoin block 960,230 (~Jul 30 2026). This module is pinned against the **final `pox-5` contract from stacks-core 4.0.0** — bonds, staking, L1 lockup scripts, signer grants, cycle math.
 
 Activation gating is chain-reported, not hardcoded: `client.pox5.isActive()` / `getActivation()` read the node's `/v2/pox` `contract_versions` — no heights baked in, correct on any network, so integrations built today ship safely before the fork.
 
@@ -273,11 +273,15 @@ const result = await verifyBitcoinPayment(client, {
   txid: "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
   source,
   vout: 0,
-  contract: "SP….spv-adapter",            // the reference adapter (or your own verifier contract)
   expect: { address: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", amount: 5_000_000_000n },
 });
 // → { verified, mined, output, proof }
 ```
+
+On mainnet `contract` is optional — it resolves the reference adapter,
+`SP2M1DE95TS0QBM4K893X6ST49FFJ53CCX9CYWNVY.spv-adapter`, live at Epoch 4.0.
+Stacks testnet has no Epoch 4.0, so the built-ins don't exist there: pass an
+explicit `contract`, or point it at your own verifier.
 
 Lower-level pieces are exported too: `parseBitcoinTx` / `buildMerkleProof` /
 `merkleRoot` (proof construction), `encodeMerkleProofArgs` / `decodeTxOutput` /
@@ -286,7 +290,8 @@ Lower-level pieces are exported too: `parseBitcoinTx` / `buildMerkleProof` /
 
 The off-chain surface (proof construction, codecs, sources) works today against
 live Bitcoin data. The on-chain verification calls the SIP-044 native built-ins,
-which exist once Clarity 6 / Epoch 4.0 is active.
+which exist once Clarity 6 / Epoch 4.0 activates — Bitcoin block 960,230 on
+mainnet, exported as `EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET`.
 
 ### Run the on-chain side locally — no node
 

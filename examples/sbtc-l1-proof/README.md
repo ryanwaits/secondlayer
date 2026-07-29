@@ -9,8 +9,9 @@ proof and runs the **SIP-044 native built-ins** against the `spv-adapter`
 reference contract. It runs **today** in Clarinet simnet (Epoch 4.0), no node.
 
 > Requires **Clarinet ≥ 3.21** (boots simnet at Epoch 4.0, where the SIP-044
-> built-ins resolve). The on-chain path is devnet/simnet-only until Stacks
-> Epoch 4.0 activates on testnet/mainnet.
+> built-ins resolve). On mainnet the same calls run against the deployed
+> adapter from Epoch 4.0 (Bitcoin block 960,230). Stacks testnet has no
+> Epoch 4.0 — the built-ins don't exist there.
 
 ```bash
 cd examples/sbtc-l1-proof
@@ -49,9 +50,10 @@ It is **not yet chain-authentication**: `verify-merkle-proof` checks inclusion
 under a caller-supplied root, and simnet's burn-block headers are synthetic. The
 fully header-authenticated check — `was-tx-mined`, which authenticates the block
 header against `get-burn-block-info?` — needs a real Bitcoin header and a live
-Clarity-6 chain. At Epoch 4.0 it's a one-line upgrade: swap `callRO` for
-`bitcoinVerifier` + a `PublicClient` and call `was-tx-mined` on the deployed
-adapter. Same proof, same contract.
+Clarity-6 chain. On mainnet it's a one-line upgrade: swap `callRO` for
+`bitcoinVerifier` + a `PublicClient` and call `was-tx-mined` against
+`SP2M1DE95TS0QBM4K893X6ST49FFJ53CCX9CYWNVY.spv-adapter`. Same proof, same
+contract.
 
 SPV trust-minimizes **verification**, not **custody**.
 

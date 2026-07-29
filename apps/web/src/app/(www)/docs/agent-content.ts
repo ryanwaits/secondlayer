@@ -232,7 +232,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Verify a Bitcoin payment",
 			"Prove a BTC payment inside a Stacks contract.",
-			"/secondlayer Help me prove a Bitcoin payment on-chain with `@secondlayer/stacks/bitcoin`: build a proof with `buildTxProof(source, { txid, vout })` from an `esploraSource`, then call `verifyBitcoinPayment(client, { proof, vout, contract, expect: { address, amount } })` and explain `verified` vs `mined`. Note the on-chain call needs the SIP-044 built-ins — Clarity 6 / Stacks Epoch 4.0.",
+			"/secondlayer Help me prove a Bitcoin payment on-chain with `@secondlayer/stacks/bitcoin`: build a proof with `buildTxProof(source, { txid, vout })` from an `esploraSource`, then call `verifyBitcoinPayment(client, { proof, vout, expect: { address, amount } })` and explain `verified` vs `mined`. On mainnet `contract` is optional — it resolves the reference `spv-adapter` from `SPV_ADAPTER_CONTRACTS`; explain when I'd still pass my own.",
 		),
 		card(
 			"Build a proof off-chain",
@@ -242,7 +242,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Run it on-chain in simnet",
 			"Exercise the SIP-044 built-ins with no node.",
-			"/secondlayer Help me exercise the SIP-044 built-ins today with no node: set up a Clarinet ≥ 3.21 project (boots simnet at Epoch 4.0), add a read-only `spv-adapter` contract that wraps `get-bitcoin-tx-output?` / `verify-merkle-proof` at `clarity_version = 6`, then drive it from TypeScript with `@stacks/clarinet-sdk` plus this module's `encodeMerkleProofArgs` and `decodeTxOutput`.",
+			"/secondlayer Help me exercise the SIP-044 built-ins locally with no node: set up a Clarinet ≥ 3.21 project (boots simnet at Epoch 4.0), add a read-only `spv-adapter` contract that wraps `get-bitcoin-tx-output?` / `verify-merkle-proof` at `clarity_version = 6`, then drive it from TypeScript with `@stacks/clarinet-sdk` plus this module's `encodeMerkleProofArgs` and `decodeTxOutput`.",
 		),
 		card(
 			"Scaffold a Clarinet harness",

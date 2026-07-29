@@ -2,9 +2,9 @@
 
 Prove a Bitcoin payment happened — inside a Stacks contract, with no oracle.
 
-<Banner label="SIP-044 / Clarity 6" title="Off-chain today, on-chain at Epoch 4.0">
+<Banner label="SIP-044 / Clarity 6" title="On-chain at Epoch 4.0 — Bitcoin block 960,230">
 
-Proof construction, Clarity codecs, and byte handling work **today** against live Bitcoin. The on-chain calls hit the SIP-044 built-ins, which exist once **Clarity 6 / Stacks Epoch 4.0** is active. Until then, run the round-trip in **Clarinet ≥ 3.21 simnet** — no node.
+Proof construction, Clarity codecs, and byte handling work **today** against live Bitcoin. The on-chain calls hit the SIP-044 built-ins, which exist once **Clarity 6 / Stacks Epoch 4.0** activates on mainnet. Run the round-trip locally any time in **Clarinet ≥ 3.21 simnet** — no node.
 
 </Banner>
 
@@ -13,7 +13,15 @@ Proof construction, Clarity codecs, and byte handling work **today** against liv
 - **On-chain (the node):** `get-bitcoin-tx-output?` parses one output of a serialized BTC tx; `verify-merkle-proof` proves it committed in a block.
 - **Off-chain (`@secondlayer/stacks/bitcoin`):** shape the data those built-ins demand — right merkle proof, internal byte order, witness stripped — and decode the results.
 
-Unlocks BTC-settled escrow/OTC, BTC-L1 collateral, atomic BTC ↔ sBTC/Runes swaps (native SPV is uncapped, unlike `clarity-bitcoin`), trust-minimized sBTC deposits (SIP-028), proof-of-payment receipts.
+Unlocks:
+
+| Use case | Why native SPV |
+| --- | --- |
+| BTC-settled escrow / OTC | Release on proof, no oracle |
+| BTC-L1 collateral | Prove the lock without bridging |
+| Atomic BTC ↔ sBTC/Runes swaps | Uncapped, unlike `clarity-bitcoin` |
+| Trust-minimized sBTC deposits | SIP-028 |
+| Proof-of-payment receipts | Verifiable on-chain |
 
 ## Install
 
@@ -55,7 +63,6 @@ const result = await verifyBitcoinPayment(client, {
   txid: "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
   source,
   vout: 0,
-  contract: "SP….spv-adapter", // the reference adapter (or your own verifier contract)
   expect: { address: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", amount: 5_000_000_000n },
 });
 // → { verified, mined, output, proof }
@@ -63,9 +70,9 @@ const result = await verifyBitcoinPayment(client, {
 
 `verified` is `true` when the tx is `mined` **and** every `expect` field matches. Pass `proof` instead of `txid + source` if you already have one.
 
-<Callout type="warning" title="Adapter not yet deployed">
+<Callout type="note" title="`contract` is optional on mainnet">
 
-`contract` points at a deployed adapter that exposes the built-ins. The reference `spv-adapter` deploys to testnet/mainnet when Epoch 4.0 activates. Until then, run the on-chain side in [Clarinet simnet](#run-it-in-clarinet-simnet), or point `contract` at your own verifier.
+Omit it and the reference adapter resolves automatically. Pass it to use your own verifier — or on any network without a published adapter, where the call throws until you do.
 
 </Callout>
 
@@ -113,7 +120,15 @@ const spk = parseOutputScript(out.script);     // { type: "p2pkh" | "p2wpkh" | "
 
 ## The reference adapter
 
-Built-ins are callable only from *inside* a contract, never over RPC. The reference [`spv-adapter`](https://github.com/ryanwaits/secondlayer/blob/main/contracts/contracts/spv-adapter.clar) wraps them — read-only, no state, no custody, at `clarity_version = 6` / `epoch = "4.0"`. GitHub is the source of truth; copy it, or ship your own with the same shape.
+Built-ins are callable only from *inside* a contract, never over RPC. The reference [`spv-adapter`](https://github.com/ryanwaits/secondlayer/blob/main/contracts/contracts/spv-adapter.clar) wraps them — read-only, no state, no custody, at `clarity_version = 6` / `epoch = "4.0"`. Copy it, or ship your own with the same shape.
+
+| Network | Adapter |
+| --- | --- |
+| Mainnet | `SP2M1DE95TS0QBM4K893X6ST49FFJ53CCX9CYWNVY.spv-adapter`, live at Epoch 4.0 |
+| Testnet | None — testnet has no Epoch 4.0, so the built-ins don't exist. Pass your own `contract`. |
+| Devnet | Deploy it yourself; set `epoch_4_0` in `settings/Devnet.toml`. |
+
+`SPV_ADAPTER_CONTRACTS` and `getSpvAdapter(network)` expose the principal to pin it yourself.
 
 | Function | Wraps |
 | --- | --- |
@@ -134,7 +149,9 @@ Built-ins are callable only from *inside* a contract, never over RPC. The refere
 ```ts
 import { bitcoinVerifier } from "@secondlayer/stacks/bitcoin";
 
-const verifier = bitcoinVerifier(client, { contract: "SP….spv-adapter" });
+const verifier = bitcoinVerifier(client, {
+  contract: "SP2M1DE95TS0QBM4K893X6ST49FFJ53CCX9CYWNVY.spv-adapter",
+});
 const mined = await verifier.wasTxMined(proof);
 ```
 
@@ -155,7 +172,7 @@ Drive it with [`@stacks/clarinet-sdk`](https://www.npmjs.com/package/@stacks/cla
 
 ## Gate on activation
 
-SIP-044 rides the same Epoch 4.0 fork as `pox-5` — Bitcoin block **960,230** on mainnet. `isClarity6Active` compares the node's burn height against it.
+SIP-044 rides the same Epoch 4.0 fork as `pox-5` — Bitcoin block **960,230** on mainnet, exported as `EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET`. `isClarity6Active` compares the node's burn height against it.
 
 ```ts
 import { isClarity6Active } from "@secondlayer/stacks/bitcoin";
@@ -180,5 +197,5 @@ See also [Verification](/docs/verification) for inclusion proofs on the *Stacks*
 export const metadata = {
 	title: "Bitcoin SPV — Secondlayer Docs",
 	description:
-		"Prove a Bitcoin payment inside a Stacks contract with the SIP-044 native built-ins. Off-chain proof construction today; on-chain verification at Epoch 4.0.",
+		"Prove a Bitcoin payment inside a Stacks contract with the SIP-044 native built-ins. Off-chain proof construction today; on-chain verification from Epoch 4.0.",
 };

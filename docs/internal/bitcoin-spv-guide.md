@@ -65,7 +65,7 @@ const { verified, mined, output, proof } = await verifyBitcoinPayment(client, {
   txid:    "f4184fc5…9e16",
   source,
   vout:    0,
-  contract: "SP….spv-adapter",                 // reference adapter, or your own verifier
+  // `contract` optional on mainnet — resolves the reference adapter
   expect:  { address: "1A1zP1…", amount: 5_000_000_000n },
 });
 // verified === (mined && address matches && amount matches)
@@ -92,8 +92,8 @@ assert expect.amount / expect.address          // → verified
 
 ```ts
 import { isClarity6Active } from "@secondlayer/stacks/bitcoin";
-// Epoch 4.0 activation height is set only after the SIP vote — pass it once known.
-if (!(await isClarity6Active(client, { activationBurnHeight: HEIGHT }))) {
+// Mainnet height is known (960,230) and used by default; pass one on other networks.
+if (!(await isClarity6Active(client))) {
   // built-ins not live yet — defer / use a fallback path
 }
 ```
@@ -271,10 +271,9 @@ const spec = sbtcDeposit({ subgraph, table });   // a Subscription/Subgraph filt
 async function onDeposit(event) {                 // delivered by the subscription webhook
   const proof = await buildTxProof(source, { txid: event.bitcoin_txid, vout: 0 });
 
-  // 3. At Epoch 4.0, the same proof verifies on-chain — no code change.
-  const { mined } = await verifyBitcoinPayment(client, {
-    proof, contract: "SP….spv-adapter", vout: 0,
-  });
+  // 3. From Epoch 4.0 the same proof verifies on-chain — no code change.
+  //    `contract` is optional on mainnet: it resolves the reference adapter.
+  const { mined } = await verifyBitcoinPayment(client, { proof, vout: 0 });
 }
 ```
 
@@ -341,7 +340,8 @@ demand-gated, exactly as the doctrine prescribes.
   (`onchain.simnet.test.ts`). Recipe in `contracts/README.md` (no `clarity-cli`).
 - **Still needs a live chain:** the authenticated `was-tx-mined` happy path against
   a real BTC header (simnet's burn headers are synthetic), then deploy
-  `spv-adapter` testnet→mainnet at Epoch 4.0 (founder sign-off).
+  `spv-adapter` to mainnet at Epoch 4.0 (founder sign-off). Testnet has no
+  Epoch 4.0 — devnet is the only pre-mainnet rehearsal.
 - **Deferred:** a secondlayer-hosted proof-bundle feed (plan 014) — only on named
   demand; integrator-node-first covers the common case today.
 ```
