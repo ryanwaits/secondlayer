@@ -98,6 +98,7 @@ export type {
 export { STREAMS_EVENT_TYPES } from "./types.ts";
 export { Cursor } from "./cursor.ts";
 export type {
+	ConsumerBatchContext,
 	FetchLike,
 	StreamsBatch,
 	StreamsBatchContext,

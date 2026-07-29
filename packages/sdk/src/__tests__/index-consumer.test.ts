@@ -331,6 +331,143 @@ describe("index.contractCalls.consume", () => {
 	});
 });
 
+describe("consume progress context", () => {
+	test("reports the highest block reached and its distance from the tip", async () => {
+		const pages: EventsEnvelope[] = [
+			{
+				events: [event("4:0", 0, 4), event("6:1", 1, 6)],
+				next_cursor: "6:1",
+				tip: TIP,
+				reorgs: [],
+			},
+		];
+		const seen: Array<{ height: number | null; behind: number | null }> = [];
+		const client = clientFor(() => pages.shift());
+
+		await client.events.consume({
+			eventType: "ft_transfer",
+			batchSize: 2,
+			maxPages: 1,
+			onBatch: (_events, envelope, ctx) => {
+				seen.push({ height: ctx.height, behind: ctx.blocksBehind });
+				return envelope.next_cursor;
+			},
+		});
+
+		// Last row of the page is the highest block; tip is 10.
+		expect(seen).toEqual([{ height: 6, behind: 4 }]);
+	});
+
+	test("holds the last known height across empty pages at the tip", async () => {
+		let served = 0;
+		const client = clientFor(() => {
+			served++;
+			return served === 1
+				? {
+						events: [event("8:0", 0, 8)],
+						next_cursor: "8:0",
+						tip: TIP,
+						reorgs: [],
+					}
+				: { events: [], next_cursor: "8:0", tip: TIP, reorgs: [] };
+		});
+
+		const heights: Array<number | null> = [];
+		await client.events.consume({
+			eventType: "ft_transfer",
+			emptyBackoffMs: 0,
+			maxEmptyPolls: 2,
+			onBatch: (_events, _envelope, ctx) => {
+				heights.push(ctx.height);
+				return ctx.cursor;
+			},
+		});
+
+		// An empty page is the normal case at the tip — it must not reset progress
+		// to null, or a health check reads a live loop as unknown.
+		expect(heights).toEqual([8, 8, 8]);
+	});
+
+	test("rolls the reached height back below the fork point after a reorg", async () => {
+		let served = 0;
+		const client = clientFor(() => {
+			served++;
+			if (served === 1) {
+				return {
+					events: [event("9:0", 0, 9)],
+					next_cursor: "9:0",
+					tip: TIP,
+					reorgs: [],
+				};
+			}
+			if (served === 2) {
+				// fork_point_height 5 — blocks 5 and up are no longer canonical.
+				return { events: [], next_cursor: "9:0", tip: TIP, reorgs: [reorg()] };
+			}
+			return { events: [], next_cursor: null, tip: TIP, reorgs: [reorg()] };
+		});
+
+		const heights: Array<number | null> = [];
+		await client.events.consume({
+			eventType: "ft_transfer",
+			emptyBackoffMs: 0,
+			maxEmptyPolls: 1,
+			onBatch: (_events, _envelope, ctx) => {
+				heights.push(ctx.height);
+				return ctx.cursor;
+			},
+			onReorg: () => {},
+		});
+
+		// 9 before the fork; after it, everything at or above 5 is gone, so the
+		// highest block still known-canonical is 4.
+		expect(heights).toEqual([9, 4]);
+	});
+
+	test("reports an unknown height before the first row arrives", async () => {
+		const client = clientFor(() => ({
+			events: [],
+			next_cursor: null,
+			tip: TIP,
+			reorgs: [],
+		}));
+
+		const seen: Array<{ height: number | null; behind: number | null }> = [];
+		await client.events.consume({
+			eventType: "ft_transfer",
+			emptyBackoffMs: 0,
+			maxEmptyPolls: 1,
+			onBatch: (_events, _envelope, ctx) => {
+				seen.push({ height: ctx.height, behind: ctx.blocksBehind });
+			},
+		});
+
+		// Null rather than 0 — "not started" and "at genesis" are different states.
+		expect(seen).toEqual([{ height: null, behind: null }]);
+	});
+
+	test("exposes the tip height on every batch", async () => {
+		const client = clientFor(() => ({
+			events: [event("2:0", 0, 2)],
+			next_cursor: "2:0",
+			tip: TIP,
+			reorgs: [],
+		}));
+
+		let tipHeight = 0;
+		await client.events.consume({
+			eventType: "ft_transfer",
+			maxPages: 1,
+			onBatch: (_events, _envelope, ctx) => {
+				tipHeight = ctx.tipHeight;
+				return ctx.cursor;
+			},
+		});
+
+		expect(tipHeight).toBe(TIP.block_height);
+	});
+});
+
 function jsonResponse(body: unknown, status = 200): Response {
 	return new Response(JSON.stringify(body), {
 		status,

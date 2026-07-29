@@ -1,5 +1,6 @@
 import { Cursor } from "./cursor.ts";
 import type {
+	ConsumerBatchContext,
 	StreamsBatch,
 	StreamsEvent,
 	StreamsEventType,
@@ -29,6 +30,21 @@ export type StreamsEventsFetcher = (
 ) => Promise<StreamsEventsEnvelope>;
 
 export type Sleep = (ms: number, signal?: AbortSignal) => Promise<void>;
+
+/** Build the ctx handed to `onBatch`. Shared by the Streams and Index loops so
+ *  the two can't drift on what "progress" means. */
+export function batchContext(
+	cursor: string | null,
+	height: number | null,
+	tipHeight: number,
+): ConsumerBatchContext {
+	return {
+		cursor,
+		height,
+		tipHeight,
+		blocksBehind: height === null ? null : Math.max(0, tipHeight - height),
+	};
+}
 
 export async function defaultSleep(
 	ms: number,
@@ -65,7 +81,7 @@ export async function consumeStreamsEvents(opts: {
 	onBatch: (
 		events: StreamsEvent[],
 		envelope: StreamsEventsEnvelope,
-		ctx: { cursor: string | null },
+		ctx: ConsumerBatchContext,
 	) =>
 		| void
 		| string
@@ -95,6 +111,9 @@ export async function consumeStreamsEvents(opts: {
 	const handledReorgs = new Set<string>();
 	let pages = 0;
 	let emptyPolls = 0;
+	// Highest block reached, carried across empty pages so a caught-up tail
+	// keeps reporting its position instead of dropping to null.
+	let height: number | null = null;
 
 	while (
 		pages < maxPages &&
@@ -130,6 +149,9 @@ export async function consumeStreamsEvents(opts: {
 					handledReorgs.add(reorgKey(reorg));
 				}
 				cursor = rewind;
+				// Everything at and above the fork is no longer canonical, so the
+				// reached height rolls back with it.
+				height = forkPoint > 0 ? forkPoint - 1 : null;
 				emptyPolls = 0;
 				continue;
 			}
@@ -143,10 +165,15 @@ export async function consumeStreamsEvents(opts: {
 		const checkpoint = finalizedOnly
 			? (emitted.at(-1)?.cursor ?? cursor)
 			: envelope.next_cursor;
+		// Ascending cursor order, so the last row is the highest block this page
+		// reached; an empty page keeps the previous value.
+		height = emitted.at(-1)?.block_height ?? height;
 
-		const returnedCursor = await opts.onBatch(emitted, envelope, {
-			cursor: checkpoint,
-		});
+		const returnedCursor = await opts.onBatch(
+			emitted,
+			envelope,
+			batchContext(checkpoint, height, envelope.tip.block_height),
+		);
 		const nextCursor = returnedCursor ?? checkpoint;
 
 		if (nextCursor && nextCursor !== cursor) {

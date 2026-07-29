@@ -310,6 +310,83 @@ describe("client.events.consume", () => {
 	});
 });
 
+describe("consume progress context", () => {
+	test("reports the highest block reached and its distance from the tip", async () => {
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			fetchImpl: async () =>
+				jsonResponse({
+					events: [
+						event("4:0", 0, { block_height: 4 }),
+						event("6:1", 1, { block_height: 6 }),
+					],
+					next_cursor: "6:1",
+					tip: TIP,
+					reorgs: [],
+				}),
+		});
+
+		const seen: Array<{ height: number | null; behind: number | null }> = [];
+		await client.events.consume({
+			batchSize: 2,
+			maxPages: 1,
+			onBatch: (_events, envelope, ctx) => {
+				seen.push({ height: ctx.height, behind: ctx.blocksBehind });
+				return envelope.next_cursor;
+			},
+		});
+
+		expect(seen).toEqual([{ height: 6, behind: 4 }]);
+	});
+
+	test("rolls the reached height back below the fork point after a reorg", async () => {
+		let served = 0;
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			fetchImpl: async () => {
+				served++;
+				if (served === 1) {
+					return jsonResponse({
+						events: [event("9:0", 0, { block_height: 9 })],
+						next_cursor: "9:0",
+						tip: TIP,
+						reorgs: [],
+					});
+				}
+				if (served === 2) {
+					return jsonResponse({
+						events: [],
+						next_cursor: "9:0",
+						tip: TIP,
+						reorgs: [reorg({ fork_point_height: 5 })],
+					});
+				}
+				return jsonResponse({
+					events: [],
+					next_cursor: null,
+					tip: TIP,
+					reorgs: [reorg({ fork_point_height: 5 })],
+				});
+			},
+		});
+
+		const heights: Array<number | null> = [];
+		await client.events.consume({
+			emptyBackoffMs: 0,
+			maxEmptyPolls: 1,
+			onBatch: (_events, _envelope, ctx) => {
+				heights.push(ctx.height);
+				return ctx.cursor;
+			},
+			onReorg: () => {},
+		});
+
+		// Parity with the Index loop: blocks at or above the fork are gone, so 4
+		// is the highest still-canonical block.
+		expect(heights).toEqual([9, 4]);
+	});
+});
+
 function jsonResponse(body: unknown, status = 200): Response {
 	return new Response(JSON.stringify(body), {
 		status,

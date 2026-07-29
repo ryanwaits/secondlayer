@@ -247,7 +247,35 @@ export type StreamsEventsSubscribeParams = {
  * It is the position to advance to: `next_cursor` normally, or the last
  * finalized event when `finalizedOnly` is set.
  */
-export type StreamsBatchContext = { cursor: string | null };
+/**
+ * What the loop knows at the end of a page, handed to `onBatch`.
+ *
+ * `cursor` is the position to commit. The rest answers "how far along am I,
+ * and am I still moving" — the question every deployed consumer has to expose
+ * for a health check.
+ *
+ * Progress is reported here rather than left to callers because only the loop
+ * can get it right: `height` has to survive empty pages (normal at the tip)
+ * and has to roll back to `fork_point_height - 1` after a reorg rewind.
+ * Deriving it from `cursor` is wrong — `Cursor.atHeight` encodes the foot of a
+ * block as `${height - 1}:<sentinel>`, so a rewound cursor parses to a
+ * position that was never reached.
+ */
+export type ConsumerBatchContext = {
+	/** Checkpoint to commit alongside your rows. */
+	cursor: string | null;
+	/** Highest canonical block the sweep has reached. `null` before the first
+	 *  row of a fresh consume. */
+	height: number | null;
+	/** Chain tip as of this page's read. */
+	tipHeight: number;
+	/** `tipHeight - height`, floored at 0. `null` until `height` is known. */
+	blocksBehind: number | null;
+};
+
+/** @deprecated Use {@link ConsumerBatchContext} — the Index and Streams loops
+ *  share one shape now. Kept as an alias so existing annotations compile. */
+export type StreamsBatchContext = ConsumerBatchContext;
 
 /**
  * The checkpoint for a reorg rollback. Persist `cursor` (the rewind position)

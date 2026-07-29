@@ -242,6 +242,7 @@ export {
 } from "./streams/index.ts";
 export { decodeClarityValue, toJsonSafe } from "./clarity.ts";
 export type {
+	ConsumerBatchContext,
 	DecodedEventColumns,
 	DecodedEventRow,
 	DecodedFtBurn,

@@ -79,10 +79,21 @@ function streamsClientOnBatchSpy(events: StreamsEvent[]): StreamsClient {
 		events: {
 			...base.events,
 			consume: async (params) => {
+				// Mirror what the real loop hands onBatch, progress fields included.
+				const chainTip = tip();
+				const height = events.at(-1)?.block_height ?? null;
 				await params.onBatch(
 					events,
-					{ events, next_cursor: null, tip: tip(), reorgs: [] },
-					{ cursor: null },
+					{ events, next_cursor: null, tip: chainTip, reorgs: [] },
+					{
+						cursor: null,
+						height,
+						tipHeight: chainTip.block_height,
+						blocksBehind:
+							height === null
+								? null
+								: Math.max(0, chainTip.block_height - height),
+					},
 				);
 				return { cursor: null, pages: 1, emptyPolls: 0 };
 			},

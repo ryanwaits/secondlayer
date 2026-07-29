@@ -1,5 +1,6 @@
-import { type Sleep, defaultSleep } from "../streams/consumer.ts";
+import { type Sleep, batchContext, defaultSleep } from "../streams/consumer.ts";
 import { Cursor } from "../streams/cursor.ts";
+import type { ConsumerBatchContext } from "../streams/types.ts";
 import type { IndexReorg, IndexTip } from "./client.ts";
 
 /** Minimum shape a consumed Index row must expose. */
@@ -45,7 +46,7 @@ export type IndexConsumeOptions<
 	onBatch: (
 		items: TItem[],
 		envelope: TEnvelope,
-		ctx: { cursor: string | null },
+		ctx: ConsumerBatchContext,
 	) =>
 		| void
 		| string
@@ -96,6 +97,9 @@ export async function consumeIndexFeed<
 	const handledReorgs = new Set<string>();
 	let pages = 0;
 	let emptyPolls = 0;
+	// Highest block reached, carried across empty pages so a caught-up tail
+	// keeps reporting its position instead of dropping to null.
+	let height: number | null = null;
 
 	while (
 		pages < maxPages &&
@@ -126,6 +130,9 @@ export async function consumeIndexFeed<
 					handledReorgs.add(reorg.id);
 				}
 				cursor = rewind;
+				// Everything at and above the fork is no longer canonical, so the
+				// reached height rolls back with it.
+				height = forkPoint > 0 ? forkPoint - 1 : null;
 				emptyPolls = 0;
 				continue;
 			}
@@ -142,10 +149,15 @@ export async function consumeIndexFeed<
 		const checkpoint = finalizedOnly
 			? (emitted.at(-1)?.cursor ?? cursor)
 			: envelope.next_cursor;
+		// Ascending cursor order, so the last row is the highest block this page
+		// reached; an empty page keeps the previous value.
+		height = emitted.at(-1)?.block_height ?? height;
 
-		const returnedCursor = await opts.onBatch(emitted, envelope, {
-			cursor: checkpoint,
-		});
+		const returnedCursor = await opts.onBatch(
+			emitted,
+			envelope,
+			batchContext(checkpoint, height, envelope.tip.block_height),
+		);
 		const nextCursor = returnedCursor ?? checkpoint;
 
 		if (nextCursor && nextCursor !== cursor) {
