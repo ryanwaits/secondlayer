@@ -10,6 +10,10 @@
 export const SBTC_CONTRACT_ID =
 	"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token";
 
+/** sBTC protocol registry contract (mainnet) — the peg-event emitter. */
+export const SBTC_REGISTRY_CONTRACT_ID =
+	"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry";
+
 /** sBTC SIP-010 asset identifier (mainnet). */
 export const SBTC_ASSET_IDENTIFIER =
 	"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token";
@@ -22,12 +26,20 @@ for await (const batch of sl.streams.consume({ cursor })) {
 // or bulk history from signed dumps
 const dumps = await sl.streams.dumps.list();`;
 
-export const INDEX_SNIPPET = `// sweep decoded sBTC transfers into your own table
-for await (const t of sl.index.ftTransfers.walk({
-  contractId: "${SBTC_CONTRACT_ID}",
-})) {
-  await save(t); // typed: sender, recipient, amount
-}
+export const INDEX_SNIPPET = `// sweep sBTC into your own tables — resumable, reorg-aware
+await sl.index.events.consume({
+  eventType: "ft_transfer",           // narrows rows to ft_transfer
+  contractId: [                       // one cursor, both contracts
+    "${SBTC_CONTRACT_ID}",
+    "${SBTC_REGISTRY_CONTRACT_ID}",
+  ],
+  fromCursor: await loadCheckpoint(), // null on first run
+  onBatch: async (transfers, _envelope, ctx) => {
+    for (const t of transfers) await save(t); // typed: sender, amount
+    return ctx.cursor;                        // commits with your rows
+  },
+  onReorg: async (r) => rollbackFrom(r.fork_point_height),
+});
 
 // or just read — keyless, by contract or trait
 await sl.index.events({ eventType: "ft_transfer", trait: "sip-010" });`;

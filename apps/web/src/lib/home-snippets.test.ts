@@ -10,6 +10,7 @@ import {
 	INDEX_SNIPPET,
 	SBTC_ASSET_IDENTIFIER,
 	SBTC_CONTRACT_ID,
+	SBTC_REGISTRY_CONTRACT_ID,
 	SHELL_GETSTARTED_SNIPPET,
 	STREAMS_SNIPPET,
 	SUBGRAPHS_SNIPPET,
@@ -42,12 +43,22 @@ async function indexTwin(
 		recipient: string;
 		amount: string;
 	}) => Promise<void>,
+	loadCheckpoint: () => Promise<string | null>,
+	rollbackFrom: (height: number) => Promise<void>,
 ) {
-	for await (const t of sl.index.ftTransfers.walk({
-		contractId: SBTC_CONTRACT_ID,
-	})) {
-		await save(t); // typed: sender, recipient, amount
-	}
+	await sl.index.events.consume({
+		eventType: "ft_transfer", // narrows rows to ft_transfer
+		contractId: [SBTC_CONTRACT_ID, SBTC_REGISTRY_CONTRACT_ID],
+		fromCursor: await loadCheckpoint(), // null on first run
+		onBatch: async (transfers, _envelope, ctx) => {
+			// No discriminant check: `transfers` is IndexFtTransfer[], so
+			// sender/recipient/amount are reachable directly. If the narrowing
+			// regressed, this twin stops compiling.
+			for (const t of transfers) await save(t);
+			return ctx.cursor;
+		},
+		onReorg: async (r) => rollbackFrom(r.fork_point_height),
+	});
 	return sl.index.events({ eventType: "ft_transfer", trait: "sip-010" });
 }
 
@@ -92,7 +103,11 @@ describe("home snippets", () => {
 	test("snippet strings reference the real method names", () => {
 		expect(STREAMS_SNIPPET).toContain("sl.streams.consume({ cursor })");
 		expect(STREAMS_SNIPPET).toContain("sl.streams.dumps.list()");
-		expect(INDEX_SNIPPET).toContain("sl.index.ftTransfers.walk({");
+		expect(INDEX_SNIPPET).toContain("sl.index.events.consume({");
+		// The homepage must show the durable pattern, not walk-into-a-database:
+		// walk has no checkpoint and ignores reorgs (see /docs/index).
+		expect(INDEX_SNIPPET).not.toContain(".walk(");
+		expect(INDEX_SNIPPET).toContain("onReorg:");
 		expect(INDEX_SNIPPET).toContain(
 			'sl.index.events({ eventType: "ft_transfer", trait: "sip-010" })',
 		);
