@@ -9,9 +9,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = socialMeta({
-	title: "secondlayer — every chain event, none of the infra",
+	title: "secondlayer — your indexer, our decoders",
 	description:
-		"Build a custom indexer at any level — the raw event firehose, decoded queryable rows, or a hosted one-file subgraph. All on decoded Stacks data, no node to run.",
+		"You write the loop, we hand you decoded Stacks events with cursors and reorgs already handled. Deploy it to Railway, Fly, or your own box. No node to run.",
 	image: "/og/home.png",
 	path: "/",
 });
@@ -26,9 +26,9 @@ export default async function Home() {
 			<HomeGetStarted />
 			<section className="home-final">
 				<h2>
-					Stop rebuilding the indexer.
+					Stop rebuilding the chain indexer.
 					<br />
-					Start shipping features.
+					Start shipping your own.
 				</h2>
 				<p className="home-sub">
 					Open data, open SDKs, honest infrastructure — decoded sBTC, PoX, and
@@ -55,14 +55,14 @@ export function HomeView({ status }: { status: SystemStatus | null }) {
 					<span className="home-pill-arr">→</span>
 				</Link>
 				<h1>
-					Every chain event.
+					Your indexer.
 					<br />
-					None of the infra.
+					Our decoders.
 				</h1>
 				<p className="home-sub">
-					Build a custom indexer at any altitude — the raw event firehose,
-					decoded queryable rows, or a hosted one-file subgraph. All decoded
-					Stacks data, no node to run.
+					You write the loop, we hand you decoded events with cursors and reorgs
+					already handled. Deploy it to Railway, Fly, or your own box. No node
+					to run.
 				</p>
 				<div className="home-ctas">
 					<CtaPill />

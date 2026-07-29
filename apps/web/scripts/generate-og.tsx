@@ -522,8 +522,10 @@ function ArtHome() {
 					color: DIM,
 				}}
 			>
-				<span style={{ color: KW }}>GET&nbsp;</span>
-				<span>api.secondlayer.tools/v1/subgraphs/stx-transfe…</span>
+				<span style={{ color: KW }}>await&nbsp;</span>
+				<span>
+					sl.index.events.consume({"{"} onBatch, onReorg {"}"})
+				</span>
 			</div>
 		</div>
 	);
@@ -682,8 +684,8 @@ const CARDS: CardSpec[] = [
 	{
 		file: "home.png",
 		eyebrow: null,
-		line1: "Every chain event.",
-		line2: "None of the infra.",
+		line1: "Your indexer.",
+		line2: "Our decoders.",
 		mutedLine2: false,
 		artifact: <ArtHome />,
 	},

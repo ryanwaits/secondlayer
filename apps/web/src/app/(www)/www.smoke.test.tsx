@@ -31,9 +31,13 @@ describe("www marketing routes", () => {
 		expect(html).toContain('class="home"');
 		// Hero: release pill + headline + sub.
 		expect(html).toContain("Explore subgraphs is live");
-		expect(html).toContain("Every chain event.");
-		expect(html).toContain("None of the infra.");
-		expect(html).toContain("no node to run");
+		expect(html).toContain("Your indexer.");
+		expect(html).toContain("Our decoders.");
+		expect(html).toContain("No node to");
+		// The hero names where your loop runs — the deploy story, not just reads.
+		expect(html).toContain("Railway");
+		// The old infra-negative framing is gone.
+		expect(html).not.toContain("None of the infra.");
 		// CTA pair: install/mint pill (client component renders install mode in
 		// static markup) + docs ghost link.
 		expect(html).toContain("npm install @secondlayer/sdk");

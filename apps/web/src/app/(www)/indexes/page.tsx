@@ -8,7 +8,7 @@ import Link from "next/link";
 export const metadata: Metadata = socialMeta({
 	title: "Index | secondlayer",
 	description:
-		"Decoded Stacks events and contract calls — normalized, filterable, cursor-paginated. Build an indexer for any contract without running a node.",
+		"Decoded Stacks events and contract calls — normalized, filterable, cursor-paginated. Write a checkpointed consumer, keep the rows in your own database, and run it wherever your code already runs. No node required.",
 	image: "/og/index.png",
 	path: "/indexes",
 });
