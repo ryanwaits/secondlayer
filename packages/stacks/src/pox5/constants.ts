@@ -52,7 +52,7 @@ export type Pox5EventTopic = (typeof POX5_EVENT_TOPICS)[number];
  * `activation.ts` (`getPox5Activation`), which reads the node's `/v2/pox` and
  * works on every network.
  */
-export const POX5_ACTIVATION_BURN_HEIGHT_MAINNET =
+export const POX5_ACTIVATION_BURN_HEIGHT_MAINNET: typeof EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET =
 	EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET;
 
 /** Length of a paired-BTC bond, in reward cycles (`BOND_LENGTH_CYCLES`). */
