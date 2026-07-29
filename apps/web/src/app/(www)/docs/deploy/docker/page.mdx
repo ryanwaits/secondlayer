@@ -1,0 +1,73 @@
+# Docker and EC2
+
+No platform, no config schema — a container and something that restarts it.
+
+## Compose
+
+```yaml
+services:
+  indexer:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    ports: ["8080:8080"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on: [postgres]
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: sales
+    volumes: ["./data/postgres:/var/lib/postgresql/data"]
+```
+
+```bash
+docker compose up -d
+docker compose logs -f indexer
+```
+
+`restart: unless-stopped` covers crashes and host reboots. Docker's own `healthcheck` reports status but won't restart a wedged container on its own — pair it with a supervisor or an external probe if you want that.
+
+<Callout type="tip" title="Stop grace period">
+
+`docker compose stop` sends `SIGTERM` and kills after 10s by default. A batch mid-commit against a slow database can exceed that — raise it with `stop_grace_period: 60s` on the service.
+
+</Callout>
+
+## Bare systemd
+
+Skipping containers:
+
+```ini
+[Unit]
+After=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/bun run /srv/sales-index/indexer.ts
+EnvironmentFile=/srv/sales-index/.env
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target
+```
+
+`KillSignal=SIGTERM` and a generous `TimeoutStopSec` are what let the [shutdown handler](/docs/deploy#handle-sigterm) finish its transaction before systemd escalates to `SIGKILL`.
+
+## Database
+
+Local Postgres in the same compose file keeps latency near zero, which matters most during a genesis backfill. Point `DATABASE_URL` at a managed instance instead when you'd rather not own backups.
+
+export const metadata = {
+	title: "Deploy with Docker or EC2 — Secondlayer Docs",
+	description:
+		"Run a checkpointed Secondlayer consumer on your own box: compose with health checks and restart policy, or a bare systemd unit with a real stop timeout.",
+};

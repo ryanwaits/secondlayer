@@ -46,9 +46,9 @@ export const QUICKSTART_STEPS: QuickstartStep[] = [
 	{
 		n: "05",
 		tab: "Query",
-		title: "Query it",
-		desc: "Live on /v1 immediately; managed deploys are public, no auth to read.",
-		kw: "curl",
-		rest: ' https://api.secondlayer.tools/v1/subgraphs/my-balances/balances -G -d "_limit=10"',
+		title: "Read it back",
+		desc: 'Rows are live the moment the first block lands. Same read from the SDK — sl.subgraphs.rows("my-balances", "balances") — or straight over HTTP.',
+		kw: "sl",
+		rest: " subgraphs query my-balances balances --limit 10",
 	},
 ];

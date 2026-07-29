@@ -131,7 +131,15 @@ SDK: `sl.subgraphs.publish(name)` / `unpublish(name)`. MCP: `subgraphs_publish` 
 
 ## Read your table
 
-REST at `/v1/subgraphs`, wildcard CORS. Pages are `_id`-keyset: `?cursor=<next_cursor>` resumes, `_order=asc|desc` sets direction. No `_offset`/`_sort` on `/v1`.
+Typed from the SDK, or REST at `/v1/subgraphs` with wildcard CORS. Pages are `_id`-keyset: `?cursor=<next_cursor>` resumes, `_order=asc|desc` sets direction. No `_offset`/`_sort` on `/v1`.
+
+```ts
+const { rows, next_cursor, tip } = await sl.subgraphs.rows(
+	"sbtc-flows",
+	"transfers",
+	{ limit: 10, order: "desc" },
+);
+```
 
 ```bash
 curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers \
@@ -154,7 +162,7 @@ curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers \
 }
 ```
 
-`GET /v1/subgraphs` lists public subgraphs (yours too with a bearer); `GET /v1/subgraphs/sbtc-flows` returns metadata. Row-by-id `/:table/:id`, counts `/:table/count`, rollups `/:table/aggregate` — see [aggregates](/docs/rest-api#aggregates).
+`GET /v1/subgraphs` lists public subgraphs (yours too with a bearer); `GET /v1/subgraphs/sbtc-flows` returns metadata. Row-by-id `/:table/:id`, counts `/:table/count`, rollups `/:table/aggregate` — see [aggregates](/docs/rest-api#aggregates) and the [API reference](/docs/api-reference).
 
 ## Index by standard, not by address
 

@@ -1,0 +1,100 @@
+# Deploy your indexer
+
+A `consume()` loop is a long-running process with a database and a checkpoint. Here's where to put it.
+
+## What you're deploying
+
+Four files, whatever the target:
+
+| File | Does |
+| --- | --- |
+| `indexer.ts` | The `consume()` loop — `onBatch` writes rows, `onReorg` rolls them back |
+| `schema.ts` | Your tables, plus the `checkpoints` row that makes a restart free |
+| `health.ts` | `GET /health` on `PORT`, so the platform can tell live from wedged |
+| `Dockerfile` | One image; every target below takes it unchanged |
+
+Runnable original: [`sales-index`](https://github.com/ryanwaits/secondlayer/tree/main/examples/sales-index). The loop itself lives in [Index](/docs/index#build-your-index-on-it).
+
+## Pick a target
+
+| Target | Process model | Config | Guide |
+| --- | --- | --- | --- |
+| **Railway** | Persistent container | `railway.json` | [Railway](/docs/deploy/railway) |
+| **Render** | Persistent container | `render.yaml` | [Render](/docs/deploy/render) |
+| **Fly** | Persistent VM, scale-to-zero off | `fly.toml` | [Fly](/docs/deploy/fly) |
+| **Vercel** | Cron-invoked function, 300s cap | `vercel.json` | [Vercel](/docs/deploy/vercel) |
+| **Docker / EC2** | Your box, your supervisor | `compose.yaml` | [Docker](/docs/deploy/docker) |
+| **Your own stack** | Indexer and decoder too, not just the loop | `docker/oss` | [Run the platform yourself](/docs/self-host) |
+
+Everything above the last row reads from hosted Secondlayer. The last row replaces it.
+
+## Make writes idempotent
+
+Delivery is at-least-once. A process killed between the read and the commit re-reads that page on restart, so every write needs a conflict rule:
+
+```ts
+.onConflict((oc) => oc.column("tx_id").doNothing())
+```
+
+Rows and checkpoint commit in one transaction. With both, a kill mid-batch costs a repeated page — never a gap, never a double count.
+
+## Bind a port
+
+Railway, Render, and Fly mark a service unhealthy unless something answers over HTTP. A bare loop binds nothing and gets restarted forever.
+
+`onBatch` receives progress on its context, so liveness needs no bookkeeping of its own:
+
+```ts
+let last = { at: 0, ctx: null as ConsumerBatchContext | null };
+
+// in onBatch, before any early return — an empty page still proves it's alive
+last = { at: Date.now(), ctx };
+
+Bun.serve({
+	port: Number(process.env.PORT ?? 8080),
+	fetch: () =>
+		Response.json({
+			ok: Date.now() - last.at < 120_000,
+			block_height: last.ctx?.height ?? null,
+			blocks_behind: last.ctx?.blocksBehind ?? null,
+		}),
+});
+```
+
+Gate on freshness, not lag: a genesis backfill sits millions of blocks behind the tip and is perfectly healthy. A wedged loop stops reporting pages — that's the restartable signal. `ctx.height` holds across empty pages and rolls back on a reorg, so it never needs reconstructing from the rows.
+
+## Handle SIGTERM
+
+Every redeploy arrives as `SIGTERM`. Pass an `AbortSignal` and `consume()` checks it at the top of the loop, never mid-batch, so the in-flight transaction always commits.
+
+```ts
+const shutdown = new AbortController();
+process.on("SIGTERM", () => shutdown.abort());
+
+await index.contractCalls.consume({
+	signal: shutdown.signal,
+	// …
+});
+```
+
+<Callout type="warning" title="PID 1 has to be your process">
+
+A shell-form `CMD` makes `/bin/sh` PID 1, which swallows `SIGTERM` — the loop never hears it and the platform hard-kills after its grace period. Use exec form: `CMD ["bun", "run", "indexer.ts"]`.
+
+</Callout>
+
+## Bring your database
+
+`DATABASE_URL` is the whole contract — Secondlayer never sees your rows. Any Postgres works; the platform guides each name a local option.
+
+<Callout type="note" title="Backfill needs a key">
+
+`fromHeight: 0` reaches full history on a paid plan or pay-as-you-go credits. Keyless reads cover the last 24 hours, so an uncredited backfill returns `402 UPGRADE_REQUIRED` below that window — see [Authentication](/docs/authentication#pay-as-you-go-credits). Live-tail-only deploys need no key.
+
+</Callout>
+
+export const metadata = {
+	title: "Deploy — Secondlayer Docs",
+	description:
+		"Where to run a checkpointed consumer: Railway, Render, Fly, Vercel cron, or your own box — with the health, shutdown, and idempotency rules that make redeploys safe.",
+};

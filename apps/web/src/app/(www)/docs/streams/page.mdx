@@ -1,35 +1,12 @@
 # Streams
 
-Raw chain event firehose: cursor-paginated REST, idempotent, replayable. Build an indexer from zero.
+Raw chain event firehose: cursor-paginated, idempotent, replayable. Build an indexer from zero — this is what Index itself runs on.
 
 <Callout type="note" title="Auth">
 
 Streams reads need an API key (`Authorization: Bearer`), and free keys stop at the recent window — see [Authentication](/docs/authentication#pay-as-you-go-credits).
 
 </Callout>
-
-## Read the stream
-
-```bash
-curl -H "Authorization: Bearer $SL_API_KEY" \
-  "https://api.secondlayer.tools/v1/streams/events?limit=100"
-```
-
-```bash
-curl -H "Authorization: Bearer $SL_API_KEY" \
-  "https://api.secondlayer.tools/v1/streams/events?cursor=7970329:8"
-```
-
-Pass the response's `next_cursor` back as `cursor`. Deliveries are idempotent, so retries never double-count. Fully-finalized pages are served `Cache-Control: public, immutable` with an `ETag` (`304` on `If-None-Match`); the moving tip stays short-lived.
-
-## Filter the stream
-
-```bash
-curl -H "Authorization: Bearer $SL_API_KEY" \
-  "https://api.secondlayer.tools/v1/streams/events?types=ft_transfer&sender=SP...&limit=50"
-```
-
-Narrow by `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier`, and `from_height`/`to_height`. Filters are exact-match; event types without a given field don't match.
 
 ## Build an indexer on it
 
@@ -83,7 +60,18 @@ The bulk manifest is itself ed25519-signed and verified before any per-file `sha
 
 </Callout>
 
-Runnable end to end, dumps through live tail: the [`indexer-from-zero` example](https://github.com/ryanwaits/secondlayer/tree/main/examples/indexer-from-zero).
+Runnable end to end, dumps through live tail: the [`indexer-from-zero` example](https://github.com/ryanwaits/secondlayer/tree/main/examples/indexer-from-zero). Where to run it: [Deploy](/docs/deploy).
+
+## Read it directly
+
+```bash
+curl -H "Authorization: Bearer $SL_API_KEY" \
+  "https://api.secondlayer.tools/v1/streams/events?types=ft_transfer&limit=100"
+```
+
+Pass the response's `next_cursor` back as `cursor`. Narrow with `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier`, and `from_height`/`to_height` — exact-match, and event types without a given field don't match. Full grammar: [API reference](/docs/api-reference).
+
+Deliveries are idempotent, so retries never double-count. Fully-finalized pages are served `Cache-Control: public, immutable` with an `ETag` (`304` on `If-None-Match`); the moving tip stays short-lived.
 
 ## Real-time firehose (SSE)
 

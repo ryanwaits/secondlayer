@@ -1,0 +1,53 @@
+# Fly
+
+Same image as [Railway](/docs/deploy/railway), with one setting that decides whether the loop survives.
+
+## Configure
+
+```toml
+app = "sales-index"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8080
+  # A consumer is not a request/response service. Both lines are load-bearing.
+  auto_stop_machines = false
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    path = "/health"
+    interval = "30s"
+    timeout = "5s"
+```
+
+<Callout type="danger" title="Scale-to-zero kills the loop">
+
+Fly stops machines with no inbound HTTP traffic by default. A consumer receives none — it makes outbound calls — so the defaults suspend it minutes after deploy and the sweep silently stops. `auto_stop_machines = false` and `min_machines_running = 1` are not optional here.
+
+</Callout>
+
+## Deploy
+
+```bash
+fly launch --no-deploy   # writes fly.toml; replace it with the block above
+fly secrets set DATABASE_URL="postgres://…" SL_API_KEY="sk-sl_…"
+fly deploy
+```
+
+Secrets land as environment variables in the machine.
+
+## Database
+
+Any reachable Postgres works — attach a Fly-managed instance, or point `DATABASE_URL` at Neon, Supabase, or RDS. Keep it in the same region as the app; the loop commits a transaction per batch, so round-trip latency sets the backfill ceiling.
+
+## Redeploys
+
+`fly deploy` replaces machines one at a time with `SIGTERM` first. The [shutdown handler](/docs/deploy#handle-sigterm) commits the in-flight batch inside the grace period; the replacement resumes from that cursor.
+
+export const metadata = {
+	title: "Deploy to Fly — Secondlayer Docs",
+	description:
+		"Run a checkpointed Secondlayer consumer on Fly.io — fly.toml, health checks, and the scale-to-zero setting that otherwise stops the sweep.",
+};
