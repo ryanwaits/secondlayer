@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 3.19.10
+
+### Patch Changes
+
+- 83c2fb3: Keep CI emitter perf tests correctness-gated while reserving latency thresholds for explicit perf runs.
+
 ## 3.19.9
 
 ### Patch Changes

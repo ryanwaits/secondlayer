@@ -1,5 +1,11 @@
 # @secondlayer/web
 
+## 0.3.54
+
+### Patch Changes
+
+- 2c0fd14: Normalize docs code fence indentation.
+
 ## 0.3.53
 
 ### Patch Changes
