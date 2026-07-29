@@ -38,6 +38,31 @@ signers, bonds, amounts, and cycle windows, plus the full event tuple as JSON.
 
 ## SDK — July 2026
 
+### Prove a Bitcoin payment without naming a contract
+
+`verifyBitcoinPayment` resolves the reference `spv-adapter` on mainnet, so
+`contract` is now optional. Build a proof, pass it, get `verified` — no adapter
+principal to look up, and no verifier contract of your own to deploy first.
+
+- The adapter is a read-only wrapper over the SIP-044 built-ins, so it goes
+  live with the Epoch 4.0 fork at Bitcoin block 960,230. Reads before the fork
+  still need Clarinet simnet.
+- Stacks testnet has no Epoch 4.0, so the built-ins don't exist there. Pass an
+  explicit `contract` on testnet — the thrown error now says exactly that
+  instead of telling you to wait for an activation that isn't coming.
+- `SPV_ADAPTER_CONTRACTS` and `getSpvAdapter(network)` expose the principal if
+  you'd rather pin it yourself.
+
+### One constant for the Epoch 4.0 activation height
+
+`EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET` is Bitcoin block 960,230. Epoch 4.0
+carries both SIP-044 (the Bitcoin SPV built-ins) and SIP-045 (`pox-5` Bitcoin
+Staking) — one fork, one height — so the bitcoin and pox5 modules read it from
+the same place and can't drift apart.
+
+- Only mainnet has a fixed height. Elsewhere, read it from the node with
+  `getPox5Activation` or pass it explicitly.
+
 ### Clients pick up `SL_API_KEY` from your environment
 
 Export `SL_API_KEY` and `new Index()` uses it — the same variable the CLI and

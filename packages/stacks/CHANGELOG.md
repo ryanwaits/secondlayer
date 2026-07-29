@@ -1,5 +1,12 @@
 # @secondlayer/stacks
 
+## 2.19.0
+
+### Minor Changes
+
+- 43e003d: Add `EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET` (Bitcoin burn block 960,230) in a new `epochs.ts`, re-exported from `@secondlayer/stacks/bitcoin`. Epoch 4.0 carries both SIP-044 (the native Bitcoin SPV built-ins / Clarity 6) and SIP-045 (`pox-5` Bitcoin Staking) — one fork, one height — so the bitcoin and pox5 modules now resolve it from a single constant instead of each carrying their own. Only mainnet has a fixed height; on other networks read it from the node (`getPox5Activation`) or pass it explicitly.
+- 5838f14: `@secondlayer/stacks/bitcoin`: `verifyBitcoinPayment` now resolves the published reference `spv-adapter` on mainnet when `contract` is omitted — `SPV_ADAPTER_CONTRACTS.mainnet` points at `SP2M1DE95TS0QBM4K893X6ST49FFJ53CCX9CYWNVY.spv-adapter`, the read-only wrapper over the SIP-044 built-ins deployed at Stacks Epoch 4.0. Testnet is deliberately absent: Stacks testnet has no Epoch 4.0, so the built-ins do not exist there and callers must pass an explicit `contract`; the thrown error now says so instead of advising callers to wait for activation.
+
 ## 2.18.0
 
 ### Minor Changes
