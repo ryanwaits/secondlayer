@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/web",
-	"version": "0.3.50",
+	"version": "0.3.51",
 	"private": true,
 	"scripts": {
 		"dev": "next dev --turbopack",
