@@ -7,6 +7,7 @@
 			"**/.next/**",
 			"**/build/**",
 			"packages/subgraphs/test/fixtures/blockdata-8100000-8100100.json",
+			"apps/web/src/generated/**",
 			".cadence/**",
 			".vercel/**",
 			".claude/**",

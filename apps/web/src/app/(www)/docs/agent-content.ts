@@ -37,9 +37,9 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 			"/secondlayer I'm new to Secondlayer. Explain the surfaces — Index, Subgraphs, Subscriptions, Streams — and recommend which one fits my use case. Ask what I'm building, then point me at the next step.",
 		),
 		card(
-			"Curl /v1 right now",
-			"Hit decoded data keyless, before installing anything.",
-			"/secondlayer Show me the fastest keyless win: curl `/v1/index/events?limit=5` with no key, explain the response envelope and the resume cursor, then tell me which surface — Index, Subgraphs, or Streams — fits what I'm building.",
+			"Sweep it into my database",
+			"Stand up a checkpointed consumer end to end.",
+			"/secondlayer Help me build my own index on Secondlayer: run `sl index codegen --target kysely` for the mirror schema, write a `consume()` loop that commits rows and the checkpoint in one transaction, handle `onReorg` by deleting from `fork_point_height` up, then point me at a deploy target.",
 		),
 		variant("subgraph-create"),
 	],
@@ -348,6 +348,76 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 			"Scaffold from a contract",
 			"Typed print payloads, no login required.",
 			"/secondlayer Run `sl subgraphs create <name> --from-contract <contract-id>` to infer typed print payloads from indexed history, walk me through the generated `print_event` sources and wide table, then `sl subgraphs deploy` and query recent rows.",
+		),
+	],
+
+	"/docs/sdk-reference": [
+		card(
+			"Find the right export",
+			"Locate the call for what I'm trying to do.",
+			"/secondlayer I know what I want to do but not what it's called in `@secondlayer/sdk`. Ask what I'm building, then name the exact export, show its signature, and give me a working snippet against a real contract.",
+		),
+		card(
+			"Check what changed",
+			"Diff the surface against the version I'm on.",
+			"/secondlayer I'm pinned to an older `@secondlayer/sdk`. Compare my version against the current surface, list exports that were added or deprecated, and tell me what I'd have to touch to upgrade.",
+		),
+	],
+
+	"/docs/api-reference": [
+		card(
+			"Call it over HTTP",
+			"Build a request against the real parameter set.",
+			"/secondlayer I'm not using TypeScript. Help me build a raw HTTP request against a Secondlayer endpoint: pick the right route, list its required and optional query params, show the response envelope, and explain how to page with `next_cursor` and react to `reorgs[]`.",
+		),
+		card(
+			"Use the SDK instead",
+			"Swap hand-rolled HTTP for the typed client.",
+			"/secondlayer I've been calling `/v1` by hand with my own paging loop. Show me the `@secondlayer/sdk` equivalent — `walk()` for cursor following, `consume()` for a checkpointed sweep — and what my code stops having to handle.",
+		),
+	],
+
+	"/docs/deploy": [
+		card(
+			"Pick a target",
+			"Match my stack to a deploy recipe.",
+			"/secondlayer I have a `consume()` loop and need somewhere to run it. Ask what I already use for hosting and Postgres, then point me at the matching guide — Railway, Render, Fly, Vercel cron, or Docker — and list what I have to add: a Dockerfile, a `/health` route, and a SIGTERM handler.",
+		),
+		card(
+			"Make my loop deploy-safe",
+			"Audit idempotency, health, and shutdown.",
+			"/secondlayer Review my indexer for production: are writes idempotent (conflict rule on every insert), do rows and the checkpoint commit in one transaction, does something answer on `PORT`, and is an `AbortSignal` wired to `SIGTERM` so the in-flight batch commits before exit? Show me the diffs.",
+		),
+		card(
+			"Containerize it",
+			"Write a Dockerfile that shuts down cleanly.",
+			"/secondlayer Write a Dockerfile for my Secondlayer consumer: install deps from the lockfile, bind the health server to `PORT`, and use exec-form `CMD` so the process receives `SIGTERM` as PID 1 instead of a shell swallowing it.",
+		),
+	],
+
+	"/docs/deploy/railway": [
+		card(
+			"Ship it to Railway",
+			"Dockerfile, Postgres, health check, deploy.",
+			"/secondlayer Deploy my Secondlayer consumer to Railway: write `railway.json` with the Dockerfile builder and `healthcheckPath: /health`, run `railway init` and `railway up`, add Postgres with `railway add --database postgres`, and wire `DATABASE_URL` with the `${{Postgres.DATABASE_URL}}` reference.",
+		),
+		card(
+			"Debug a failing deploy",
+			"Read logs and health to find the stall.",
+			"/secondlayer My Railway deploy is unhealthy. Check `railway logs` for the per-batch progress line, curl `/health` for `blocks_behind` and `idle_s`, and tell me whether it's a missing `DATABASE_URL`, a `402` on backfill without `SL_API_KEY`, or a loop that stopped reporting pages.",
+		),
+	],
+
+	"/docs/deploy/vercel": [
+		card(
+			"Wire the cron sweep",
+			"Bounded consume behind a Vercel cron.",
+			'/secondlayer Set up my Secondlayer consumer on Vercel cron: add `crons` to `vercel.json`, write the route with `export const maxDuration = 300`, call consume with `mode: "bounded"` and `signal: AbortSignal.timeout(280_000)`, and gate the handler on the `CRON_SECRET` bearer.',
+		),
+		card(
+			"Seed the checkpoint",
+			"Backfill elsewhere, then tail on cron.",
+			"/secondlayer I need history but cron slices are 300s. Help me run the `fromHeight: 0` backfill once locally or on a persistent host, confirm the `checkpoints` row landed, then point the Vercel cron at that cursor so it only tails.",
 		),
 	],
 

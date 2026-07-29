@@ -63,6 +63,14 @@ jobs:
       # write schema. No Postgres needed — pure snapshot diff.
       - name: Schema contract drift check
         run: bun test packages/shared/test/source-read-columns.test.ts
+      # The docs site renders these two files rather than restating the API and
+      # SDK by hand. Regenerating must be a no-op, or /docs/api-reference and
+      # /docs/sdk-reference are describing something that no longer ships.
+      - name: Generated reference drift check
+        run: |
+          bun run --filter @secondlayer/api openapi
+          bun run --filter @secondlayer/sdk openpkg
+          git diff --exit-code -- apps/web/src/generated
 
   test:
     runs-on: ubuntu-latest

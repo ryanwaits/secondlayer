@@ -1,6 +1,9 @@
 import { Hono } from "hono";
 
-const OPENAPI_SPEC = {
+/** The public API description. Exported so the docs site can render it as the
+ *  API reference instead of restating it by hand — `bun run openapi` in
+ *  apps/web writes it to src/generated/openapi.json. */
+export const OPENAPI_SPEC = {
 	openapi: "3.1.0",
 	"x-x402": {
 		supported: "/v1/x402/supported",

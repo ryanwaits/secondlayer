@@ -80,3 +80,4 @@ packages/subgraphs/test/fixtures/
 # tracked copy lives at .claude/skills/studio/. Ignore the duplicate so it never
 # re-enters git (see commit b2f2be7c which moved it out of .agents/).
 .agents/skills/studio/
+.openpkg-spec.json

@@ -7,6 +7,7 @@
 	"scripts": {
 		"start": "bun run src/index.ts",
 		"dev": "bun run --watch src/index.ts",
+		"openapi": "bun scripts/sync-openapi.ts",
 		"typecheck": "tsc --noEmit",
 		"test": "bun test",
 		"stripe:setup": "bun run scripts/stripe-setup.ts"

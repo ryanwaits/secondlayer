@@ -1,0 +1,2453 @@
+{
+	"package": "@secondlayer/sdk",
+	"version": "6.33.1",
+	"areas": [
+		{
+			"name": "Client",
+			"exports": [
+				{
+					"name": "ActiveSubgraphOperation",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "src/client.ts",
+					"line": 35
+				},
+				{
+					"name": "ContextAccount",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "src/client.ts",
+					"line": 15
+				},
+				{
+					"name": "ContextApiKey",
+					"kind": "interface",
+					"summary": "Compact API-key view for {@link ContextSnapshot} — never the plaintext.",
+					"signature": null,
+					"file": "src/client.ts",
+					"line": 28
+				},
+				{
+					"name": "ContextProject",
+					"kind": "interface",
+					"summary": "Compact project view for {@link ContextSnapshot}.",
+					"signature": null,
+					"file": "src/client.ts",
+					"line": 21
+				},
+				{
+					"name": "ContextSnapshot",
+					"kind": "interface",
+					"summary": "A point-in-time orientation snapshot for an agent: who you are, the live tips, and what you own.",
+					"signature": null,
+					"file": "src/client.ts",
+					"line": 48
+				},
+				{
+					"name": "resolveApiKey",
+					"kind": "function",
+					"summary": "Resolve the credential a client should use.",
+					"signature": "resolveApiKey(apiKey?: string): null | string",
+					"file": "src/base.ts",
+					"line": 37
+				},
+				{
+					"name": "SecondLayer",
+					"kind": "class",
+					"summary": "",
+					"signature": "SecondLayer(options?: object): unknown",
+					"file": "src/client.ts",
+					"line": 62
+				},
+				{
+					"name": "SecondLayerOptions",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "src/base.ts",
+					"line": 13
+				}
+			]
+		},
+		{
+			"name": "Index",
+			"exports": [
+				{
+					"name": "BlockEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 376
+				},
+				{
+					"name": "BlocksEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 370
+				},
+				{
+					"name": "BlocksListParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 381
+				},
+				{
+					"name": "BlocksWalkParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 389
+				},
+				{
+					"name": "CanonicalEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 336
+				},
+				{
+					"name": "CanonicalListParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 342
+				},
+				{
+					"name": "CanonicalWalkParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 350
+				},
+				{
+					"name": "consumeIndexFeed",
+					"kind": "function",
+					"summary": "Checkpointed pull loop over a cursor-paginated Index feed — the Index port of `consumeStreamsEvents`, sharing its contract: at-least-once delivery, client-owned checkpoints (`onBatch` may return th…",
+					"signature": "consumeIndexFeed(opts: object): object",
+					"file": "src/index-api/consumer.ts",
+					"line": 78
+				},
+				{
+					"name": "ContractCallsConsumeParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 316
+				},
+				{
+					"name": "ContractCallsEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 289
+				},
+				{
+					"name": "ContractCallsListParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 297
+				},
+				{
+					"name": "ContractCallsWalkParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 311
+				},
+				{
+					"name": "EventsConsumeParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 266
+				},
+				{
+					"name": "EventsEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 231
+				},
+				{
+					"name": "EventsListParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 239
+				},
+				{
+					"name": "EventsWalkParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 261
+				},
+				{
+					"name": "FtTransfer",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 50
+				},
+				{
+					"name": "FtTransfersEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 64
+				},
+				{
+					"name": "FtTransfersListParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 72
+				},
+				{
+					"name": "FtTransfersResource",
+					"kind": "interface",
+					"summary": "`index.ftTransfers` — callable shorthand for `.list()`, with `.list`/`.walk` still available: `await sl.index.ftTransfers({ contractId })`.",
+					"signature": "FtTransfersResource(params?: FtTransfersListParams): object",
+					"file": "src/index-api/client.ts",
+					"line": 1056
+				},
+				{
+					"name": "FtTransfersWalkParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 83
+				},
+				{
+					"name": "Index",
+					"kind": "class",
+					"summary": "",
+					"signature": "Index(options?: object): unknown",
+					"file": "src/index-api/client.ts",
+					"line": 1095
+				},
+				{
+					"name": "IndexBlock",
+					"kind": "type",
+					"summary": "A block resource.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 359
+				},
+				{
+					"name": "IndexCanonicalBlock",
+					"kind": "type",
+					"summary": "One canonical block in the sync map.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 327
+				},
+				{
+					"name": "IndexConsumeOptions",
+					"kind": "type",
+					"summary": "Consumer options shared by `index.events.consume` and `index.contractCalls.consume`.",
+					"signature": null,
+					"file": "src/index-api/consumer.ts",
+					"line": 28
+				},
+				{
+					"name": "IndexContractCall",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 274
+				},
+				{
+					"name": "IndexDiscovery",
+					"kind": "type",
+					"summary": "The `GET /v1/index` discovery doc — live endpoint + filter vocabulary.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1090
+				},
+				{
+					"name": "IndexEvent",
+					"kind": "type",
+					"summary": "Decoded chain event, discriminated by `event_type`.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 216
+				},
+				{
+					"name": "IndexEventsResource",
+					"kind": "interface",
+					"summary": "`index.events` — callable shorthand for `.list()`; `eventType` is required.",
+					"signature": "IndexEventsResource(params: EventsListParams): object",
+					"file": "src/index-api/client.ts",
+					"line": 1070
+				},
+				{
+					"name": "IndexEventType",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 229
+				},
+				{
+					"name": "IndexEventTypeFilters",
+					"kind": "type",
+					"summary": "Per-event-type filter vocabulary in the {@link IndexDiscovery} doc.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1080
+				},
+				{
+					"name": "IndexFeedEnvelope",
+					"kind": "type",
+					"summary": "Minimum envelope shape of a consumable Index feed page.",
+					"signature": null,
+					"file": "src/index-api/consumer.ts",
+					"line": 10
+				},
+				{
+					"name": "IndexFeedFetcher",
+					"kind": "type",
+					"summary": "One page fetch.",
+					"signature": null,
+					"file": "src/index-api/consumer.ts",
+					"line": 19
+				},
+				{
+					"name": "IndexFeedItem",
+					"kind": "type",
+					"summary": "Minimum shape a consumed Index row must expose.",
+					"signature": null,
+					"file": "src/index-api/consumer.ts",
+					"line": 7
+				},
+				{
+					"name": "IndexFtBurn",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 192
+				},
+				{
+					"name": "IndexFtMint",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 186
+				},
+				{
+					"name": "IndexFtTransfer",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 149
+				},
+				{
+					"name": "IndexMempoolTransaction",
+					"kind": "type",
+					"summary": "A pending (unconfirmed) transaction.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 545
+				},
+				{
+					"name": "IndexNftBurn",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 204
+				},
+				{
+					"name": "IndexNftMint",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 198
+				},
+				{
+					"name": "IndexNftTransfer",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 156
+				},
+				{
+					"name": "IndexPostCondition",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 396
+				},
+				{
+					"name": "IndexPox5Event",
+					"kind": "type",
+					"summary": "A raw decoded PoX-5 print event.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 965
+				},
+				{
+					"name": "IndexPox5EventTopic",
+					"kind": "type",
+					"summary": "The decoded `pox-5` boot-contract print topics (SIP-045 Bitcoin Staking).",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 941
+				},
+				{
+					"name": "IndexPoxCycle",
+					"kind": "type",
+					"summary": "Aggregate stats for one PoX reward cycle — distinct from `index.stacking` (decoded per-call PoX-4 actions); this is the reward-cycle rollup.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 886
+				},
+				{
+					"name": "IndexPoxFunctionCount",
+					"kind": "type",
+					"summary": "Per-function action count within a reward cycle.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 879
+				},
+				{
+					"name": "IndexPrint",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 210
+				},
+				{
+					"name": "IndexReorg",
+					"kind": "type",
+					"summary": "A chain reorg overlapping a returned page's height range.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 26
+				},
+				{
+					"name": "IndexSbtcDeposit",
+					"kind": "type",
+					"summary": "A completed sBTC peg-in, keyed by `bitcoin_txid` (deposits carry no `request_id`).",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 631
+				},
+				{
+					"name": "IndexSbtcDepositDetail",
+					"kind": "type",
+					"summary": "A deposit fetched by Bitcoin txid — always terminal, hence `status`.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 647
+				},
+				{
+					"name": "IndexSbtcEvent",
+					"kind": "type",
+					"summary": "A raw decoded sBTC protocol-state event — the full `sbtc_events` row, one per event across all topics.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 711
+				},
+				{
+					"name": "IndexSbtcSummary",
+					"kind": "type",
+					"summary": "The peg \"scoreboard\" — a single all-time canonical aggregate.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 741
+				},
+				{
+					"name": "IndexSbtcWithdrawal",
+					"kind": "type",
+					"summary": "A peg-out collapsed to one row per `request_id`, with lifecycle `status` derived from the latest accept/reject.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 651
+				},
+				{
+					"name": "IndexSbtcWithdrawalDetail",
+					"kind": "type",
+					"summary": "A single peg-out's full assembled lifecycle, fetched by `request_id`.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 682
+				},
+				{
+					"name": "IndexSbtcWithdrawalPhase",
+					"kind": "type",
+					"summary": "One phase of a withdrawal's lifecycle (the on-Stacks event that drove it).",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 674
+				},
+				{
+					"name": "IndexStackingAction",
+					"kind": "type",
+					"summary": "A decoded PoX-4 stacking action (one per stacking contract call).",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 489
+				},
+				{
+					"name": "IndexStxBurn",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 175
+				},
+				{
+					"name": "IndexStxLock",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 180
+				},
+				{
+					"name": "IndexStxMint",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 170
+				},
+				{
+					"name": "IndexStxTransfer",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 163
+				},
+				{
+					"name": "IndexTip",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 7
+				},
+				{
+					"name": "IndexTransaction",
+					"kind": "type",
+					"summary": "Full transaction document: columnar fields plus `raw_tx`-decoded enrichment.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 424
+				},
+				{
+					"name": "IndexUsage",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 43
+				},
+				{
+					"name": "MempoolEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 568
+				},
+				{
+					"name": "MempoolListParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 579
+				},
+				{
+					"name": "MempoolTransactionEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 574
+				},
+				{
+					"name": "MempoolWalkParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 589
+				},
+				{
+					"name": "NftTransfer",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 88
+				},
+				{
+					"name": "NftTransfersEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 102
+				},
+				{
+					"name": "NftTransfersListParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 110
+				},
+				{
+					"name": "NftTransfersResource",
+					"kind": "interface",
+					"summary": "`index.nftTransfers` — callable shorthand for `.list()` (see {@link FtTransfersResource}).",
+					"signature": "NftTransfersResource(params?: NftTransfersListParams): object",
+					"file": "src/index-api/client.ts",
+					"line": 1063
+				},
+				{
+					"name": "NftTransfersWalkParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 122
+				},
+				{
+					"name": "Pox5EventsEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 991
+				},
+				{
+					"name": "Pox5EventsListParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1000
+				},
+				{
+					"name": "Pox5EventsWalkParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1016
+				},
+				{
+					"name": "Pox5Resource",
+					"kind": "interface",
+					"summary": "`index.pox5` — decoded PoX-5 print events, the staking primitive from the epoch 4.0 hard fork onward (PoX-4's `index.stacking` stream ends there).",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 1023
+				},
+				{
+					"name": "PoxCycleEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 909
+				},
+				{
+					"name": "PoxCyclesEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 900
+				},
+				{
+					"name": "PoxCyclesListParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 915
+				},
+				{
+					"name": "PoxCyclesWalkParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 921
+				},
+				{
+					"name": "PoxResource",
+					"kind": "interface",
+					"summary": "`index.pox` — PoX reward-cycle aggregates.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 927
+				},
+				{
+					"name": "PrintSchemaResponse",
+					"kind": "type",
+					"summary": "Empirical per-topic print payload schema for a contract, inferred from sampled on-chain events.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 601
+				},
+				{
+					"name": "SbtcDepositEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 761
+				},
+				{
+					"name": "SbtcDepositsEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 751
+				},
+				{
+					"name": "SbtcDepositsListParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 793
+				},
+				{
+					"name": "SbtcDepositsWalkParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 805
+				},
+				{
+					"name": "SbtcEventsEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 779
+				},
+				{
+					"name": "SbtcEventsListParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 833
+				},
+				{
+					"name": "SbtcEventsWalkParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 846
+				},
+				{
+					"name": "SbtcEventTopic",
+					"kind": "type",
+					"summary": "The decoded `sbtc_events` topics.",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 619
+				},
+				{
+					"name": "SbtcResource",
+					"kind": "interface",
+					"summary": "`index.sbtc` — the decoded sBTC peg surface (deposits, withdrawals, raw events, scoreboard).",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 853
+				},
+				{
+					"name": "SbtcSummaryEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 787
+				},
+				{
+					"name": "SbtcWithdrawalEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 774
+				},
+				{
+					"name": "SbtcWithdrawalsEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 766
+				},
+				{
+					"name": "SbtcWithdrawalsListParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 810
+				},
+				{
+					"name": "SbtcWithdrawalStatus",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 627
+				},
+				{
+					"name": "SbtcWithdrawalsWalkParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 825
+				},
+				{
+					"name": "StackingEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 514
+				},
+				{
+					"name": "StackingListParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 524
+				},
+				{
+					"name": "StackingWalkParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 535
+				},
+				{
+					"name": "TransactionEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 465
+				},
+				{
+					"name": "TransactionsEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 457
+				},
+				{
+					"name": "TransactionsListParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 470
+				},
+				{
+					"name": "TransactionsWalkParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 481
+				}
+			]
+		},
+		{
+			"name": "Subgraphs",
+			"exports": [
+				{
+					"name": "getSubgraph",
+					"kind": "function",
+					"summary": "Returns a typed client for a subgraph defined with `defineSubgraph()`.",
+					"signature": "getSubgraph(def: object, options?: Subgraphs | SecondLayer | object): InferSubgraphClient",
+					"file": "src/subgraphs/get-subgraph.ts",
+					"line": 20
+				},
+				{
+					"name": "SubgraphAgentSchema",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/subgraphs/spec.d.ts",
+					"line": 92
+				},
+				{
+					"name": "SubgraphOperationStatus",
+					"kind": "interface",
+					"summary": "Status of a tracked reindex/backfill operation (poll until terminal).",
+					"signature": null,
+					"file": "src/subgraphs/client.ts",
+					"line": 39
+				},
+				{
+					"name": "Subgraphs",
+					"kind": "class",
+					"summary": "",
+					"signature": "Subgraphs(options?: object): unknown",
+					"file": "src/subgraphs/client.ts",
+					"line": 105
+				},
+				{
+					"name": "SubgraphSpecFormat",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/subgraphs/spec.d.ts",
+					"line": 87
+				},
+				{
+					"name": "SubgraphSpecOptions",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/subgraphs/spec.d.ts",
+					"line": 88
+				}
+			]
+		},
+		{
+			"name": "Streams",
+			"exports": [
+				{
+					"name": "AuthError",
+					"kind": "class",
+					"summary": "",
+					"signature": "AuthError(message?: string): unknown",
+					"file": "src/streams/errors.ts",
+					"line": 1
+				},
+				{
+					"name": "ConsumerBatchContext",
+					"kind": "type",
+					"summary": "What the loop knows at the end of a page, handed to `onBatch`.",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 264
+				},
+				{
+					"name": "createStreamsClient",
+					"kind": "function",
+					"summary": "",
+					"signature": "createStreamsClient(options: CreateStreamsClientOptions): StreamsClient",
+					"file": "src/streams/client.ts",
+					"line": 154
+				},
+				{
+					"name": "Cursor",
+					"kind": "variable",
+					"summary": "Helpers for Streams cursors.",
+					"signature": null,
+					"file": "src/streams/cursor.ts",
+					"line": 17
+				},
+				{
+					"name": "DecodedEventColumns",
+					"kind": "type",
+					"summary": "Superset of the columns the decoded_events table holds.",
+					"signature": null,
+					"file": "src/streams/_payload.ts",
+					"line": 6
+				},
+				{
+					"name": "DecodedEventRow",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/index.ts",
+					"line": 48
+				},
+				{
+					"name": "DecodedFtBurn",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/token-mint-burn.ts",
+					"line": 37
+				},
+				{
+					"name": "DecodedFtBurnPayload",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/token-mint-burn.ts",
+					"line": 29
+				},
+				{
+					"name": "DecodedFtMint",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/token-mint-burn.ts",
+					"line": 18
+				},
+				{
+					"name": "DecodedFtMintPayload",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/token-mint-burn.ts",
+					"line": 10
+				},
+				{
+					"name": "DecodedFtTransfer",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/ft-transfer.ts",
+					"line": 25
+				},
+				{
+					"name": "DecodedFtTransferPayload",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/ft-transfer.ts",
+					"line": 16
+				},
+				{
+					"name": "DecodedNftBurn",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/token-mint-burn.ts",
+					"line": 75
+				},
+				{
+					"name": "DecodedNftBurnPayload",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/token-mint-burn.ts",
+					"line": 67
+				},
+				{
+					"name": "DecodedNftMint",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/token-mint-burn.ts",
+					"line": 56
+				},
+				{
+					"name": "DecodedNftMintPayload",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/token-mint-burn.ts",
+					"line": 48
+				},
+				{
+					"name": "DecodedNftTransfer",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/nft-transfer.ts",
+					"line": 25
+				},
+				{
+					"name": "DecodedNftTransferPayload",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/nft-transfer.ts",
+					"line": 16
+				},
+				{
+					"name": "DecodedPrint",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/print.ts",
+					"line": 21
+				},
+				{
+					"name": "DecodedPrintPayload",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/print.ts",
+					"line": 16
+				},
+				{
+					"name": "DecodedPrintValue",
+					"kind": "type",
+					"summary": "Decoded form of a Clarity `print` event: - `topic`: the print topic, when the contract emits a `{ topic, ...",
+					"signature": null,
+					"file": "src/streams/print.ts",
+					"line": 10
+				},
+				{
+					"name": "DecodedStxBurn",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/stx-events.ts",
+					"line": 49
+				},
+				{
+					"name": "DecodedStxBurnPayload",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/stx-events.ts",
+					"line": 44
+				},
+				{
+					"name": "DecodedStxLock",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/stx-events.ts",
+					"line": 122
+				},
+				{
+					"name": "DecodedStxLockPayload",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/stx-events.ts",
+					"line": 113
+				},
+				{
+					"name": "DecodedStxMint",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/stx-events.ts",
+					"line": 33
+				},
+				{
+					"name": "DecodedStxMintPayload",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/stx-events.ts",
+					"line": 28
+				},
+				{
+					"name": "DecodedStxTransfer",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/stx-events.ts",
+					"line": 17
+				},
+				{
+					"name": "DecodedStxTransferPayload",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/stx-events.ts",
+					"line": 10
+				},
+				{
+					"name": "decodeFtBurn",
+					"kind": "function",
+					"summary": "",
+					"signature": "decodeFtBurn(event: StreamsEvent): DecodedFtBurn",
+					"file": "src/streams/token-mint-burn.ts",
+					"line": 126
+				},
+				{
+					"name": "decodeFtMint",
+					"kind": "function",
+					"summary": "",
+					"signature": "decodeFtMint(event: StreamsEvent): DecodedFtMint",
+					"file": "src/streams/token-mint-burn.ts",
+					"line": 109
+				},
+				{
+					"name": "decodeFtTransfer",
+					"kind": "function",
+					"summary": "",
+					"signature": "decodeFtTransfer(event: StreamsEvent): DecodedFtTransfer",
+					"file": "src/streams/ft-transfer.ts",
+					"line": 40
+				},
+				{
+					"name": "decodeNftBurn",
+					"kind": "function",
+					"summary": "",
+					"signature": "decodeNftBurn(event: StreamsEvent): DecodedNftBurn",
+					"file": "src/streams/token-mint-burn.ts",
+					"line": 160
+				},
+				{
+					"name": "decodeNftMint",
+					"kind": "function",
+					"summary": "",
+					"signature": "decodeNftMint(event: StreamsEvent): DecodedNftMint",
+					"file": "src/streams/token-mint-burn.ts",
+					"line": 143
+				},
+				{
+					"name": "decodeNftTransfer",
+					"kind": "function",
+					"summary": "",
+					"signature": "decodeNftTransfer(event: StreamsEvent): DecodedNftTransfer",
+					"file": "src/streams/nft-transfer.ts",
+					"line": 40
+				},
+				{
+					"name": "decodePrint",
+					"kind": "function",
+					"summary": "",
+					"signature": "decodePrint(event: StreamsEvent): DecodedPrint",
+					"file": "src/streams/print.ts",
+					"line": 52
+				},
+				{
+					"name": "decodeStxBurn",
+					"kind": "function",
+					"summary": "",
+					"signature": "decodeStxBurn(event: StreamsEvent): DecodedStxBurn",
+					"file": "src/streams/stx-events.ts",
+					"line": 102
+				},
+				{
+					"name": "decodeStxLock",
+					"kind": "function",
+					"summary": "",
+					"signature": "decodeStxLock(event: StreamsEvent): DecodedStxLock",
+					"file": "src/streams/stx-events.ts",
+					"line": 139
+				},
+				{
+					"name": "decodeStxMint",
+					"kind": "function",
+					"summary": "",
+					"signature": "decodeStxMint(event: StreamsEvent): DecodedStxMint",
+					"file": "src/streams/stx-events.ts",
+					"line": 85
+				},
+				{
+					"name": "decodeStxTransfer",
+					"kind": "function",
+					"summary": "",
+					"signature": "decodeStxTransfer(event: StreamsEvent): DecodedStxTransfer",
+					"file": "src/streams/stx-events.ts",
+					"line": 66
+				},
+				{
+					"name": "FetchLike",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 406
+				},
+				{
+					"name": "FtTransferEvent",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/ft-transfer.ts",
+					"line": 11
+				},
+				{
+					"name": "FtTransferPayload",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 31
+				},
+				{
+					"name": "isFtBurn",
+					"kind": "function",
+					"summary": "",
+					"signature": "isFtBurn(event: StreamsEvent): boolean",
+					"file": "src/streams/token-mint-burn.ts",
+					"line": 120
+				},
+				{
+					"name": "isFtMint",
+					"kind": "function",
+					"summary": "",
+					"signature": "isFtMint(event: StreamsEvent): boolean",
+					"file": "src/streams/token-mint-burn.ts",
+					"line": 103
+				},
+				{
+					"name": "isFtTransfer",
+					"kind": "function",
+					"summary": "",
+					"signature": "isFtTransfer(event: StreamsEvent): boolean",
+					"file": "src/streams/ft-transfer.ts",
+					"line": 36
+				},
+				{
+					"name": "isNftBurn",
+					"kind": "function",
+					"summary": "",
+					"signature": "isNftBurn(event: StreamsEvent): boolean",
+					"file": "src/streams/token-mint-burn.ts",
+					"line": 154
+				},
+				{
+					"name": "isNftMint",
+					"kind": "function",
+					"summary": "",
+					"signature": "isNftMint(event: StreamsEvent): boolean",
+					"file": "src/streams/token-mint-burn.ts",
+					"line": 137
+				},
+				{
+					"name": "isNftTransfer",
+					"kind": "function",
+					"summary": "",
+					"signature": "isNftTransfer(event: StreamsEvent): boolean",
+					"file": "src/streams/nft-transfer.ts",
+					"line": 36
+				},
+				{
+					"name": "isPrint",
+					"kind": "function",
+					"summary": "",
+					"signature": "isPrint(event: StreamsEvent): boolean",
+					"file": "src/streams/print.ts",
+					"line": 46
+				},
+				{
+					"name": "isStxBurn",
+					"kind": "function",
+					"summary": "",
+					"signature": "isStxBurn(event: StreamsEvent): boolean",
+					"file": "src/streams/stx-events.ts",
+					"line": 96
+				},
+				{
+					"name": "isStxLock",
+					"kind": "function",
+					"summary": "",
+					"signature": "isStxLock(event: StreamsEvent): boolean",
+					"file": "src/streams/stx-events.ts",
+					"line": 133
+				},
+				{
+					"name": "isStxMint",
+					"kind": "function",
+					"summary": "",
+					"signature": "isStxMint(event: StreamsEvent): boolean",
+					"file": "src/streams/stx-events.ts",
+					"line": 79
+				},
+				{
+					"name": "isStxTransfer",
+					"kind": "function",
+					"summary": "",
+					"signature": "isStxTransfer(event: StreamsEvent): boolean",
+					"file": "src/streams/stx-events.ts",
+					"line": 60
+				},
+				{
+					"name": "NftTransferEvent",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/nft-transfer.ts",
+					"line": 11
+				},
+				{
+					"name": "NftTransferPayload",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 47
+				},
+				{
+					"name": "RateLimitError",
+					"kind": "class",
+					"summary": "",
+					"signature": "RateLimitError(message?: string, retryAfter?: string): unknown",
+					"file": "src/streams/errors.ts",
+					"line": 10
+				},
+				{
+					"name": "StreamsBatch",
+					"kind": "type",
+					"summary": "One yielded page from {@link StreamsClient.consume} — the `GET /v1/streams/events` envelope verbatim, with `next_cursor` renamed to `cursor` (the checkpoint to persist and resume from).",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 341
+				},
+				{
+					"name": "StreamsBatchContext",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 278
+				},
+				{
+					"name": "StreamsCanonicalBlock",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 151
+				},
+				{
+					"name": "StreamsClient",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 454
+				},
+				{
+					"name": "StreamsConsumeParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 351
+				},
+				{
+					"name": "StreamsDumpFile",
+					"kind": "type",
+					"summary": "One bulk parquet file in the dumps manifest.",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 413
+				},
+				{
+					"name": "StreamsDumps",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 445
+				},
+				{
+					"name": "StreamsDumpsManifest",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 426
+				},
+				{
+					"name": "StreamsEvent",
+					"kind": "type",
+					"summary": "A raw Streams event.",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 118
+				},
+				{
+					"name": "StreamsEventPayload",
+					"kind": "type",
+					"summary": "Union of every Streams payload shape, discriminated by `event_type` on the parent `StreamsEvent`.",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 76
+				},
+				{
+					"name": "StreamsEventsConsumeParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 286
+				},
+				{
+					"name": "StreamsEventsConsumeResult",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 368
+				},
+				{
+					"name": "StreamsEventsEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 172
+				},
+				{
+					"name": "StreamsEventsListEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 179
+				},
+				{
+					"name": "StreamsEventsListParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 197
+				},
+				{
+					"name": "StreamsEventsStreamParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 211
+				},
+				{
+					"name": "StreamsEventsSubscribeParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 226
+				},
+				{
+					"name": "StreamsEventType",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/src/event-types.ts",
+					"line": 28
+				},
+				{
+					"name": "StreamsReorg",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 159
+				},
+				{
+					"name": "StreamsReorgContext",
+					"kind": "type",
+					"summary": "The checkpoint for a reorg rollback.",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 284
+				},
+				{
+					"name": "StreamsReorgsListEnvelope",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 189
+				},
+				{
+					"name": "StreamsReorgsListParams",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 184
+				},
+				{
+					"name": "StreamsServerError",
+					"kind": "class",
+					"summary": "",
+					"signature": "StreamsServerError(message: string, status: number, body?: object): unknown",
+					"file": "src/streams/errors.ts",
+					"line": 33
+				},
+				{
+					"name": "StreamsSignatureError",
+					"kind": "class",
+					"summary": "Thrown when response signature verification is enabled and fails.",
+					"signature": "StreamsSignatureError(message?: string): unknown",
+					"file": "src/streams/errors.ts",
+					"line": 45
+				},
+				{
+					"name": "StreamsTip",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 131
+				},
+				{
+					"name": "StreamsUsage",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/streams/types.ts",
+					"line": 525
+				},
+				{
+					"name": "ValidationError",
+					"kind": "class",
+					"summary": "",
+					"signature": "ValidationError(message: string, status: number, body?: object): unknown",
+					"file": "src/streams/errors.ts",
+					"line": 22
+				}
+			]
+		},
+		{
+			"name": "Subscriptions and webhooks",
+			"exports": [
+				{
+					"name": "ChainApplyDeliveryOf",
+					"kind": "type",
+					"summary": "One delivery body, generic over its trigger literal + matched-event shape.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 242
+				},
+				{
+					"name": "ChainApplyEnvelope",
+					"kind": "interface",
+					"summary": "Delivered when a matched chain event lands in a canonical block (`event_type: \"chain.<trigger>.apply\"`).",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 58
+				},
+				{
+					"name": "ChainApplyEnvelopeOf",
+					"kind": "interface",
+					"summary": "One `apply` envelope, generic over its trigger literal + matched-event shape.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 228
+				},
+				{
+					"name": "ChainEventEnvelope",
+					"kind": "interface",
+					"summary": "Wrapper around an event-level trigger's matched event.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 200
+				},
+				{
+					"name": "ChainFtBurnData",
+					"kind": "interface",
+					"summary": "`event.data` for an `ft_burn` delivery.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 154
+				},
+				{
+					"name": "ChainFtMintData",
+					"kind": "interface",
+					"summary": "`event.data` for an `ft_mint` delivery.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 148
+				},
+				{
+					"name": "ChainFtTransferData",
+					"kind": "interface",
+					"summary": "`event.data` for an `ft_transfer` delivery.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 141
+				},
+				{
+					"name": "ChainNftBurnData",
+					"kind": "interface",
+					"summary": "`event.data` for an `nft_burn` delivery.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 177
+				},
+				{
+					"name": "ChainNftMintData",
+					"kind": "interface",
+					"summary": "`event.data` for an `nft_mint` delivery.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 171
+				},
+				{
+					"name": "ChainNftTransferData",
+					"kind": "interface",
+					"summary": "`event.data` for an `nft_transfer` delivery.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 164
+				},
+				{
+					"name": "ChainPrintEventData",
+					"kind": "interface",
+					"summary": "`event.data` for a `print_event` delivery.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 187
+				},
+				{
+					"name": "ChainReorgOrphanedEntry",
+					"kind": "interface",
+					"summary": "One orphaned delivery recalled by a reorg rollback.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 76
+				},
+				{
+					"name": "ChainReorgRollbackDelivery",
+					"kind": "interface",
+					"summary": "Delivered once per affected subscription on a reorg (`type: \"chain.reorg.rollback\"`).",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 252
+				},
+				{
+					"name": "ChainReorgRollbackEnvelope",
+					"kind": "interface",
+					"summary": "Delivered once per affected subscription on a reorg (`event_type: \"chain.reorg.rollback\"`).",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 88
+				},
+				{
+					"name": "ChainStxBurnData",
+					"kind": "interface",
+					"summary": "`event.data` for a `stx_burn` delivery.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 130
+				},
+				{
+					"name": "ChainStxLockData",
+					"kind": "interface",
+					"summary": "`event.data` for a `stx_lock` delivery.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 135
+				},
+				{
+					"name": "ChainStxMintData",
+					"kind": "interface",
+					"summary": "`event.data` for a `stx_mint` delivery.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 125
+				},
+				{
+					"name": "ChainStxTransferData",
+					"kind": "interface",
+					"summary": "`event.data` for a `stx_transfer` delivery.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 117
+				},
+				{
+					"name": "ChainTestDelivery",
+					"kind": "interface",
+					"summary": "The `POST /subscriptions/:id/test` ping (`type: \"chain.test.apply\"`) — not a real chain event.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 259
+				},
+				{
+					"name": "ChainTrigger",
+					"kind": "type",
+					"summary": "JSON mirror of the subgraph runtime's `SubgraphFilter` union.",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"line": 55
+				},
+				{
+					"name": "ChainTriggerType",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"line": 48
+				},
+				{
+					"name": "ChainTxLevelEvent",
+					"kind": "interface",
+					"summary": "A tx-level trigger's matched event (`contract_call` / `contract_deploy`) — flat, no nested `data` key.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 212
+				},
+				{
+					"name": "ChainWebhookDelivery",
+					"kind": "type",
+					"summary": "The full wire body of a chain-subscription webhook delivery, as sent to a `format: \"standard-webhooks\"` subscription (the default) — `{ type, timestamp, data }`.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 301
+				},
+				{
+					"name": "ChainWebhookEnvelope",
+					"kind": "type",
+					"summary": "Any chain-subscription webhook body.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 96
+				},
+				{
+					"name": "CreateSubscriptionRequest",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"line": 175
+				},
+				{
+					"name": "CreateSubscriptionResponse",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"line": 241
+				},
+				{
+					"name": "DeadRow",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"line": 273
+				},
+				{
+					"name": "decodeChainWebhook",
+					"kind": "function",
+					"summary": "Decode + narrow a chain-subscription webhook delivery body into a typed {@link ChainWebhookDelivery}.",
+					"signature": "decodeChainWebhook(rawBody: string): ChainWebhookDelivery",
+					"file": "src/webhooks.ts",
+					"line": 254
+				},
+				{
+					"name": "DeliveryRow",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"line": 250
+				},
+				{
+					"name": "ReplayResult",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"line": 259
+				},
+				{
+					"name": "RotateSecretResponse",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"line": 246
+				},
+				{
+					"name": "SbtcDepositEvent",
+					"kind": "interface",
+					"summary": "Payload for `sbtc_deposit` (topic: completed-deposit).",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 14
+				},
+				{
+					"name": "SbtcWithdrawalEvent",
+					"kind": "interface",
+					"summary": "Payload for `sbtc_withdrawal_create`, `sbtc_withdrawal_accept`, `sbtc_withdrawal_reject` — the on-Stacks lifecycle events.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 27
+				},
+				{
+					"name": "SbtcWithdrawalSweptConfirmedEvent",
+					"kind": "interface",
+					"summary": "Payload for `sbtc_withdrawal_swept_confirmed` — fired once when a peg-out's committed BTC sweep crosses the confirmation threshold on Bitcoin.",
+					"signature": null,
+					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"line": 42
+				},
+				{
+					"name": "StandardWebhooksHeaders",
+					"kind": "interface",
+					"summary": "Standard Webhooks signing helpers — https://standardwebhooks.com",
+					"signature": null,
+					"file": "packages/shared/dist/src/crypto/standard-webhooks.d.ts",
+					"line": 14
+				},
+				{
+					"name": "SubscriptionDetail",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"line": 229
+				},
+				{
+					"name": "SubscriptionFormat",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"line": 28
+				},
+				{
+					"name": "SubscriptionKind",
+					"kind": "type",
+					"summary": "Polymorphic subscription mode (mirrors db/types `SubscriptionKind`).",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"line": 27
+				},
+				{
+					"name": "SubscriptionRuntime",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"line": 29
+				},
+				{
+					"name": "Subscriptions",
+					"kind": "class",
+					"summary": "",
+					"signature": "Subscriptions(options?: object): unknown",
+					"file": "src/subscriptions/client.ts",
+					"line": 37
+				},
+				{
+					"name": "SubscriptionStatus",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"line": 25
+				},
+				{
+					"name": "SubscriptionSummary",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"line": 212
+				},
+				{
+					"name": "trigger",
+					"kind": "variable",
+					"summary": "Ergonomic chain-trigger constructors for `subscriptions.create({ triggers })`.",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"line": 155
+				},
+				{
+					"name": "UpdateSubscriptionRequest",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"line": 194
+				},
+				{
+					"name": "verifySecondlayerSignature",
+					"kind": "function",
+					"summary": "Verify the universal Secondlayer authenticity signature that every delivery carries, regardless of body format (`raw`, `cloudevents`, `standard-webhooks`, …).",
+					"signature": "verifySecondlayerSignature(rawBody: string, headers: WebhookHeaderInput, publicKeyPem: string): boolean",
+					"file": "src/webhooks.ts",
+					"line": 206
+				},
+				{
+					"name": "verifyStandardWebhooksHeaders",
+					"kind": "function",
+					"summary": "",
+					"signature": "verifyStandardWebhooksHeaders(body: string, headers: StandardWebhooksHeaders | object, secret: string, opts?: VerifyOptions): boolean",
+					"file": "packages/shared/dist/src/crypto/standard-webhooks.d.ts",
+					"line": 32
+				},
+				{
+					"name": "verifyWebhookSignature",
+					"kind": "function",
+					"summary": "Verify a Secondlayer webhook delivery signature.",
+					"signature": "verifyWebhookSignature(rawBody: string, headers: WebhookHeaderInput, secret: string, toleranceSeconds?: number): boolean",
+					"file": "src/webhooks.ts",
+					"line": 155
+				},
+				{
+					"name": "WebhookHeaderInput",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/webhooks.ts",
+					"line": 41
+				}
+			]
+		},
+		{
+			"name": "Account",
+			"exports": [
+				{
+					"name": "ApiKeys",
+					"kind": "class",
+					"summary": "",
+					"signature": "ApiKeys(options?: object): unknown",
+					"file": "src/api-keys/client.ts",
+					"line": 44
+				},
+				{
+					"name": "ApiKeySummary",
+					"kind": "interface",
+					"summary": "A key as seen by {@link ApiKeys.list} — metadata only, never the plaintext.",
+					"signature": null,
+					"file": "src/api-keys/client.ts",
+					"line": 33
+				},
+				{
+					"name": "CreateApiKeyParams",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "src/api-keys/client.ts",
+					"line": 15
+				},
+				{
+					"name": "CreateApiKeyResponse",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "src/api-keys/client.ts",
+					"line": 22
+				},
+				{
+					"name": "CreateProjectParams",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "src/projects/client.ts",
+					"line": 45
+				},
+				{
+					"name": "Project",
+					"kind": "interface",
+					"summary": "Typed client for project management (`/api/projects/*`).",
+					"signature": null,
+					"file": "src/projects/client.ts",
+					"line": 12
+				},
+				{
+					"name": "ProjectInvitation",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "src/projects/client.ts",
+					"line": 32
+				},
+				{
+					"name": "Projects",
+					"kind": "class",
+					"summary": "",
+					"signature": "Projects(options?: object): unknown",
+					"file": "src/projects/client.ts",
+					"line": 61
+				},
+				{
+					"name": "ProjectTeam",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "src/projects/client.ts",
+					"line": 40
+				},
+				{
+					"name": "ProjectTeamMember",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "src/projects/client.ts",
+					"line": 23
+				},
+				{
+					"name": "ScopedKeyProduct",
+					"kind": "type",
+					"summary": "Scope of a minted read key.",
+					"signature": null,
+					"file": "src/api-keys/client.ts",
+					"line": 13
+				},
+				{
+					"name": "UpdateProjectParams",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "src/projects/client.ts",
+					"line": 52
+				}
+			]
+		},
+		{
+			"name": "Clarity",
+			"exports": [
+				{
+					"name": "decodeClarityValue",
+					"kind": "function",
+					"summary": "Decode a hex-encoded Clarity value to JSON-safe JS (uints as strings, buffers as `0x…` hex, tuples as objects).",
+					"signature": "decodeClarityValue(hex: string): object",
+					"file": "src/clarity.ts",
+					"line": 20
+				},
+				{
+					"name": "toJsonSafe",
+					"kind": "function",
+					"summary": "Make a cvToValue result JSON-serializable: Clarity (u)ints decode to bigint, which JSON.stringify can't handle — convert recursively to strings.",
+					"signature": "toJsonSafe(value: object): object",
+					"file": "src/clarity.ts",
+					"line": 5
+				}
+			]
+		},
+		{
+			"name": "Contracts",
+			"exports": [
+				{
+					"name": "ContractConformance",
+					"kind": "type",
+					"summary": "Whether a trait match must be declared in source, inferred from ABI, or either.",
+					"signature": null,
+					"file": "src/contracts/client.ts",
+					"line": 13
+				},
+				{
+					"name": "Contracts",
+					"kind": "class",
+					"summary": "",
+					"signature": "Contracts(options?: object): unknown",
+					"file": "src/contracts/client.ts",
+					"line": 44
+				},
+				{
+					"name": "ContractsEnvelope",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "src/contracts/client.ts",
+					"line": 39
+				},
+				{
+					"name": "ContractsListParams",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "src/contracts/client.ts",
+					"line": 15
+				},
+				{
+					"name": "ContractSummary",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "src/contracts/client.ts",
+					"line": 28
+				}
+			]
+		},
+		{
+			"name": "Errors",
+			"exports": [
+				{
+					"name": "ApiError",
+					"kind": "class",
+					"summary": "Error thrown by {@link SecondLayer} when an API request fails.",
+					"signature": "ApiError(status: number, message: string, body?: object, code?: string): unknown",
+					"file": "src/errors.ts",
+					"line": 20
+				},
+				{
+					"name": "ByoBreakingChangeDetails",
+					"kind": "interface",
+					"summary": "Structured payload carried on a refused BYO breaking-change deploy.",
+					"signature": null,
+					"file": "packages/shared/dist/src/errors.d.ts",
+					"line": 23
+				},
+				{
+					"name": "ByoBreakingChangeError",
+					"kind": "class",
+					"summary": "Thrown when a BYO subgraph deploy is refused for a breaking schema change.",
+					"signature": "ByoBreakingChangeError(message: string, details: ByoBreakingChangeDetails): unknown",
+					"file": "src/errors.ts",
+					"line": 67
+				},
+				{
+					"name": "VersionConflictError",
+					"kind": "class",
+					"summary": "Thrown on optimistic-concurrency conflict when a deploy supplies an `expectedVersion` that no longer matches the server's stored version.",
+					"signature": "VersionConflictError(currentVersion: string, expectedVersion: string, message?: string): unknown",
+					"file": "src/errors.ts",
+					"line": 39
+				}
+			]
+		},
+		{
+			"name": "Proofs",
+			"exports": [
+				{
+					"name": "fetchRewardSet",
+					"kind": "function",
+					"summary": "Resolve a reward set directly from a stacks-node (`/v3/stacker_set/{cycle}`), so a caller can verify the consensus layer against a node IT trusts rather than the reward set Secondlayer embedded in …",
+					"signature": "fetchRewardSet(opts: object): object",
+					"file": "src/proofs.ts",
+					"line": 82
+				},
+				{
+					"name": "RewardSet",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/node/consensus.d.ts",
+					"line": 9
+				},
+				{
+					"name": "TransactionProof",
+					"kind": "interface",
+					"summary": "Trustless transaction-inclusion proof verification.",
+					"signature": null,
+					"file": "src/proofs.ts",
+					"line": 30
+				},
+				{
+					"name": "TransactionProofVerifyResult",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "src/proofs.ts",
+					"line": 49
+				},
+				{
+					"name": "verifyTransactionProof",
+					"kind": "function",
+					"summary": "Verify a transaction-inclusion proof.",
+					"signature": "verifyTransactionProof(proof: TransactionProof, opts?: object): TransactionProofVerifyResult",
+					"file": "src/proofs.ts",
+					"line": 115
+				}
+			]
+		},
+		{
+			"name": "x402",
+			"exports": [
+				{
+					"name": "buildSignedX402Payment",
+					"kind": "function",
+					"summary": "Build a signed, base64 `PAYMENT-SIGNATURE` header for one `accepts[]` entry.",
+					"signature": "buildSignedX402Payment(opts: BuildSignedX402PaymentOptions): object",
+					"file": "src/x402.ts",
+					"line": 154
+				},
+				{
+					"name": "BuildSignedX402PaymentOptions",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/x402.ts",
+					"line": 143
+				},
+				{
+					"name": "createX402Client",
+					"kind": "function",
+					"summary": "A small client over {@link withX402}: `.get/.post` against `baseUrl`, returning parsed JSON plus the settlement receipt.",
+					"signature": "createX402Client(opts: X402ClientOptions): X402Client",
+					"file": "src/x402.ts",
+					"line": 363
+				},
+				{
+					"name": "DEFAULT_PREFER_ASSETS",
+					"kind": "variable",
+					"summary": "Bitcoin-native first — sBTC is the compelling micropay asset; USDCx the dollar peg; STX the fallback.",
+					"signature": null,
+					"file": "src/x402.ts",
+					"line": 57
+				},
+				{
+					"name": "payAndRetry",
+					"kind": "function",
+					"summary": "Low-level: run a request via a caller-controlled fetch; if it 402s, pay and retry once.",
+					"signature": "payAndRetry(doFetch: X402FetchFn, opts: PayAndRetryOptions): object",
+					"file": "src/x402.ts",
+					"line": 406
+				},
+				{
+					"name": "PayAndRetryOptions",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/x402.ts",
+					"line": 396
+				},
+				{
+					"name": "readX402Challenge",
+					"kind": "function",
+					"summary": "Read the x402 challenge from a 402 response — prefer the wire header, fall back to the JSON body.",
+					"signature": "readX402Challenge(res: Response): object",
+					"file": "src/x402.ts",
+					"line": 88
+				},
+				{
+					"name": "readX402Receipt",
+					"kind": "function",
+					"summary": "Read the settlement receipt from a paid 200 response.",
+					"signature": "readX402Receipt(res: Response): null | X402Receipt",
+					"file": "src/x402.ts",
+					"line": 104
+				},
+				{
+					"name": "resolveAccountNonce",
+					"kind": "function",
+					"summary": "Fetch the payer account's next nonce from a Stacks node (`/v2/accounts`).",
+					"signature": "resolveAccountNonce(address: string, nodeUrl?: string): object",
+					"file": "src/x402.ts",
+					"line": 135
+				},
+				{
+					"name": "selectOffer",
+					"kind": "function",
+					"summary": "Choose an `accepts[]` entry by preference order, skipping any that exceed the per-asset spend cap.",
+					"signature": "selectOffer(challenge: X402Challenge, opts?: SelectOfferOptions): object",
+					"file": "src/x402.ts",
+					"line": 116
+				},
+				{
+					"name": "SelectOfferOptions",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/x402.ts",
+					"line": 109
+				},
+				{
+					"name": "withX402",
+					"kind": "function",
+					"summary": "Wrap a `fetch` so requests transparently pay on 402: select an offer (by `preferAssets` + `maxAmountPerCall`), resolve the nonce, sign origin-only, and retry once with `PAYMENT-SIGNATURE`.",
+					"signature": "withX402(baseFetch: object, opts: WithX402Options): X402Fetch",
+					"file": "src/x402.ts",
+					"line": 236
+				},
+				{
+					"name": "WithX402Options",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/x402.ts",
+					"line": 200
+				},
+				{
+					"name": "X402Accept",
+					"kind": "type",
+					"summary": "Client for the x402 pay-per-request rail.",
+					"signature": null,
+					"file": "src/x402.ts",
+					"line": 27
+				},
+				{
+					"name": "X402Challenge",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/x402.ts",
+					"line": 38
+				},
+				{
+					"name": "X402Client",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/x402.ts",
+					"line": 344
+				},
+				{
+					"name": "X402ClientOptions",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/x402.ts",
+					"line": 331
+				},
+				{
+					"name": "X402Fetch",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/x402.ts",
+					"line": 221
+				},
+				{
+					"name": "X402Receipt",
+					"kind": "type",
+					"summary": "Decoded `PAYMENT-RESPONSE` settlement receipt.",
+					"signature": null,
+					"file": "src/x402.ts",
+					"line": 45
+				},
+				{
+					"name": "X402Result",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/x402.ts",
+					"line": 337
+				},
+				{
+					"name": "X402SpendGuardError",
+					"kind": "class",
+					"summary": "Thrown when no offered asset is within the caller's spend guard / preferences.",
+					"signature": "X402SpendGuardError(message: string): unknown",
+					"file": "src/x402.ts",
+					"line": 67
+				}
+			]
+		}
+	]
+}
