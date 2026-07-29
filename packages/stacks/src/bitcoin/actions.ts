@@ -42,9 +42,9 @@ export type VerifyBitcoinPaymentParams = (
 	| { txid: string; source: ProofSource }
 ) & {
 	/**
-	 * Adapter contract principal, `"address.name"`. Optional once a reference
-	 * adapter is published for `network` (see `SPV_ADAPTER_CONTRACTS`); until then
-	 * it is required.
+	 * Adapter contract principal, `"address.name"`. Optional on networks with a
+	 * published reference adapter (see `SPV_ADAPTER_CONTRACTS` — mainnet only);
+	 * required everywhere else.
 	 */
 	contract?: string;
 	/** Output index to decode and assert against. */
@@ -93,7 +93,7 @@ export async function verifyBitcoinPayment(
 		contract ?? (adapter ? spvAdapterPrincipal(adapter) : undefined);
 	if (!resolvedContract) {
 		throw new Error(
-			`No spv-adapter deployed for ${network} — pass an explicit \`contract\`, or wait for Clarity 6 / Epoch 4.0 (deploy recipe: contracts/README.md).`,
+			`No spv-adapter deployed for ${network} — pass an explicit \`contract\`. Only mainnet has a published reference adapter; the SIP-044 built-ins require Clarity 6 / Epoch 4.0 (deploy recipe: contracts/README.md).`,
 		);
 	}
 

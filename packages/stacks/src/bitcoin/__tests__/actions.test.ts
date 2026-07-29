@@ -6,6 +6,7 @@ import { bytesToHex, hexToBytes, with0x } from "../../utils/encoding.ts";
 import { verifyBitcoinPayment } from "../actions.ts";
 import { formatBitcoinAddress } from "../address.ts";
 import { parseOutputScript } from "../codec.ts";
+import { getSpvAdapter } from "../constants.ts";
 import type { ProofSource } from "../proof.ts";
 import { reverseBytes } from "../serialize.ts";
 
@@ -159,15 +160,42 @@ describe("verifyBitcoinPayment", () => {
 	});
 
 	test("throws a guided error when no contract is given and none is deployed", async () => {
-		// SPV_ADAPTER_CONTRACTS is empty until Epoch 4.0, so omitting `contract`
-		// must fail loudly rather than build a malformed principal.
+		// testnet has no Epoch 4.0, so no adapter can exist there — omitting
+		// `contract` must fail loudly rather than build a malformed principal.
 		expect(
 			verifyBitcoinPayment(adapterClient({}), {
 				source: block170Source(),
 				txid: BLOCK_170.coinbaseTxid,
 				vout: 0,
+				network: "testnet",
 			}),
-		).rejects.toThrow(/No spv-adapter deployed for mainnet/);
+		).rejects.toThrow(/No spv-adapter deployed for testnet/);
+	});
+
+	test("resolves the published mainnet adapter when no contract is given", async () => {
+		const adapter = getSpvAdapter("mainnet");
+		if (!adapter) throw new Error("mainnet adapter must be published");
+
+		const inner = adapterClient({});
+		const paths: string[] = [];
+		const capturing = {
+			async request(path: string) {
+				paths.push(path);
+				return inner.request(path);
+			},
+		} as unknown as Client;
+
+		const result = await verifyBitcoinPayment(capturing, {
+			source: block170Source(),
+			txid: BLOCK_170.coinbaseTxid,
+			vout: 0,
+		});
+
+		expect(result.mined).toBe(true);
+		expect(paths.length).toBeGreaterThan(0);
+		for (const path of paths) {
+			expect(path).toContain(`/${adapter.address}/${adapter.name}/`);
+		}
 	});
 
 	test("membership-only path when header authentication is disabled", async () => {
