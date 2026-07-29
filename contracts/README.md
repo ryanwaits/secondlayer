@@ -65,47 +65,36 @@ is exercised on a devnet / mainnet at Epoch 4.0. The pure built-ins
 (`verify-merkle-proof`, `get-bitcoin-tx-output?`) and `header-merkle-root` are
 fully exercised in simnet.
 
-### Deploy (at Epoch 4.0) — one-command recipe, gated until activation
+### Deployment
 
-> **Blocked until Clarity 6 / Epoch 4.0 is live on the target network.** The
-> contract references the SIP-044 built-ins; `clarinet` analysis rejects it on a
-> pre-4.0 testnet/mainnet. Do not run `apply` before activation. (simnet is the
-> exception — it boots at 4.0.)
+**Mainnet:** `SP2M1DE95TS0QBM4K893X6ST49FFJ53CCX9CYWNVY.spv-adapter` — the
+principal published in `packages/stacks/src/bitcoin/constants.ts` →
+`SPV_ADAPTER_CONTRACTS`, which `verifyBitcoinPayment` resolves automatically when
+`contract` is omitted. Deployed from a dedicated key that signs nothing else.
 
-**Founder decision first:** the deployer principal + contract name is a new,
-irreversible on-chain identity (e.g. `SP….spv-adapter`). Reuse an existing
-secondlayer deployer or mint a dedicated key — decide before applying to mainnet.
+**Testnet: none, and none is possible.** Stacks testnet has no Epoch 4.0 — its
+epoch schedule ends at `Epoch34` — so the SIP-044 built-ins do not exist there and
+`clarinet` analysis rejects the contract. Callers on testnet must pass an explicit
+`contract`. Devnet is the substitute: clarinet supports an `epoch_4_0` key, and
+its regtest `bitcoind` provides real burn headers.
 
-1. Create the network settings with the deployer mnemonic (these are
-   **gitignored** — they hold secrets; encrypt rather than leaving plaintext):
+> The contract references the SIP-044 built-ins, so `apply` only succeeds where
+> Clarity 6 / Epoch 4.0 is live. simnet is the exception — it boots at 4.0.
 
-   ```bash
-   cp settings/Devnet.toml settings/Testnet.toml   # then set the real mnemonic + node url
-   clarinet deployments encrypt                     # encrypt the mnemonic at rest
-   ```
+Recipe (settings + `deployments/` are **gitignored** — they hold secrets):
 
-2. Generate the deployment plan (writes `deployments/` — also gitignored):
+```bash
+# 1. settings/Mainnet.toml with the deployer mnemonic, then encrypt at rest
+clarinet deployments encrypt
 
-   ```bash
-   clarinet deployments generate --testnet --low-cost   # or --mainnet
-   ```
+# 2. generate the plan
+clarinet deployments generate --mainnet --low-cost
 
-3. Apply it:
+# 3. apply (founder sign-off — irreversible)
+clarinet deployments apply --mainnet
+```
 
-   ```bash
-   clarinet deployments apply --testnet                 # or --mainnet (founder sign-off)
-   ```
-
-4. Record the deployed principal as the default. Drop it into
-   `packages/stacks/src/bitcoin/constants.ts` → `SPV_ADAPTER_CONTRACTS` so
-   `verifyBitcoinPayment` resolves it automatically when `contract` is omitted:
-
-   ```ts
-   export const SPV_ADAPTER_CONTRACTS = {
-     testnet: { address: "ST…", name: "spv-adapter" },
-     mainnet: { address: "SP…", name: "spv-adapter" },
-   };
-   ```
-
-5. Smoke-test end-to-end: point `bitcoinVerifier` at the deployed adapter and
-   verify a golden proof (`was-tx-mined` against a real BTC header).
+Then smoke-test end-to-end before trusting the published default: point
+`bitcoinVerifier` at the deployed adapter and verify a golden proof
+(`was-tx-mined` against a real BTC header). Until that returns `(ok true)`, the
+adapter is deployed but unproven.
