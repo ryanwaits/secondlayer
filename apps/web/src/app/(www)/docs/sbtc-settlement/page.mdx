@@ -36,6 +36,32 @@ curl "https://api.secondlayer.tools/v1/index/sbtc/withdrawals?settlement_confirm
 curl "https://api.secondlayer.tools/v1/index/sbtc/withdrawals?settlement_confirmed=false"
 ```
 
+## Mirror the peg into your own tables
+
+`sbtc.events.consume()` is the checkpointed sweep over the raw peg log — all six topics, or one:
+
+```ts
+await sl.index.sbtc.events.consume({
+	topic: "withdrawal-accept", // server-side; omit for every topic
+	fromCursor: await db.loadCheckpoint(),
+	fromHeight: 0,
+	onBatch: async (events, _envelope, ctx) => {
+		for (const e of events) await db.upsertPegEvent(e); // typed columns, no payload parsing
+		await db.saveCheckpoint(ctx.cursor);
+		return ctx.cursor;
+	},
+	onReorg: async (r) => db.deleteFromHeight(r.fork_point_height),
+});
+```
+
+`sbtc.deposits.consume()` is the same loop over completed deposits alone.
+
+<Callout type="note" title="Withdrawals have no consume">
+
+A withdrawal row is a lifecycle aggregate keyed by `request_id`, and it mutates as the peg-out moves REQUESTED → ACCEPTED → settled. A checkpoint only moves forward, so a consumer would commit a row as REQUESTED and never see it change. Mirror the append-only events above and derive status from the `withdrawal-*` topics; read `withdrawals.get(id)` when you want the assembled lifecycle.
+
+</Callout>
+
 ## The webhook
 
 Subscribe to `sbtc_withdrawal_swept_confirmed` and skip the polling.
