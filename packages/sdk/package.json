@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/sdk",
-	"version": "6.33.1",
+	"version": "6.34.0",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -33,6 +33,7 @@
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",
+		"openpkg": "bun scripts/sync-openpkg.ts",
 		"test": "bun test",
 		"typecheck": "tsc --noEmit",
 		"prepublishOnly": "bun run build"
@@ -43,6 +44,7 @@
 		"@secondlayer/subgraphs": "^3.19.7"
 	},
 	"devDependencies": {
+		"@openpkg-ts/cli": "^0.11.3",
 		"@types/bun": "latest",
 		"typescript": "^5"
 	},

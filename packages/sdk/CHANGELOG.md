@@ -1,5 +1,15 @@
 # @secondlayer/sdk
 
+## 6.34.0
+
+### Minor Changes
+
+- Consumer `onBatch` now receives progress on its context: `height` (highest canonical block reached), `tipHeight`, and `blocksBehind`, alongside the existing `cursor`. Both the Index and Streams loops report it.
+
+  Previously every consumer hand-rolled this from `items.at(-1)?.block_height ?? previous`, which only the loop can get right — the height has to survive empty pages (normal at the tip) and roll back to `fork_point_height - 1` after a reorg rewind. Deriving it from `cursor` is also wrong, since `Cursor.atHeight` encodes the foot of a block as `${height - 1}:<sentinel>`.
+
+  Existing `onBatch` implementations read `ctx.cursor` and are unaffected. Code that _constructs_ a context — a test double standing in for `consume` — must now supply the three new fields. `StreamsBatchContext` is a deprecated alias for the shared `ConsumerBatchContext`.
+
 ## 6.33.1
 
 ### Patch Changes

@@ -38,6 +38,19 @@ signers, bonds, amounts, and cycle windows, plus the full event tuple as JSON.
 
 ## SDK — July 2026
 
+### Every batch tells you how far along it is
+
+`onBatch` now hands you `height`, `tipHeight`, and `blocksBehind` alongside
+`cursor`, on both the Index and Streams consumers. Answering "is my indexer
+still moving" no longer means tracking it yourself.
+
+- `height` survives empty pages, so a consumer caught up at the tip keeps
+  reporting its position instead of dropping to nothing.
+- After a reorg it rolls back with the chain, to the last block still
+  canonical — the case a hand-rolled `at(-1)` gets wrong.
+- Wire it straight into a health check: see [Deploy](/docs/deploy#bind-a-port)
+  for why your process needs one and what to gate it on.
+
 ### Prove a Bitcoin payment without naming a contract
 
 `verifyBitcoinPayment` resolves the reference `spv-adapter` on mainnet, so
