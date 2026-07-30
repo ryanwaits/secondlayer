@@ -122,7 +122,7 @@
 	},
 	"files": ["dist"],
 	"scripts": {
-		"build": "bunup",
+		"build": "rm -rf dist && bunup",
 		"test": "bun test",
 		"typecheck": "tsc --noEmit",
 		"prepublishOnly": "bun run build"
