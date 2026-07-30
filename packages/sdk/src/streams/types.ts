@@ -327,6 +327,17 @@ export type StreamsEventsConsumeParams = {
 		reorg: StreamsReorg,
 		ctx: StreamsReorgContext,
 	) => Promise<void> | void;
+	/** Page-fetch retries after the first failure (429/5xx/network only —
+	 *  4xx and handler throws always propagate). Default 3; `0` disables. */
+	retryCount?: number;
+	/** Base retry delay in ms; the n-th retry waits `retryDelay * n`. A server
+	 *  `Retry-After` overrides it. Default 1000. */
+	retryDelay?: number;
+	/** Void observer, called before each retry sleep (metrics/logging). */
+	onError?: (
+		err: unknown,
+		ctx: { attempt: number; retriesLeft: number; delayMs: number },
+	) => void;
 	emptyBackoffMs?: number;
 	maxPages?: number;
 	maxEmptyPolls?: number;

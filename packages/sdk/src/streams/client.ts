@@ -341,6 +341,9 @@ export function createStreamsClient(
 					maxPages: params.maxPages,
 					maxEmptyPolls: params.maxEmptyPolls,
 					signal: params.signal,
+					retryCount: params.retryCount,
+					retryDelay: params.retryDelay,
+					onError: params.onError,
 				});
 			},
 			stream(params: StreamsEventsStreamParams = {}) {

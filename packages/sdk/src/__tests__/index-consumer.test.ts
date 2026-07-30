@@ -621,3 +621,154 @@ function jsonResponse(body: unknown, status = 200): Response {
 		headers: { "Content-Type": "application/json" },
 	});
 }
+
+// ── Page-fetch retry ─────────────────────────────────────────────────
+
+describe("consume page-fetch retry", () => {
+	const okEnvelope = {
+		events: [event("1:0", 0)],
+		next_cursor: "1:0",
+		tip: TIP,
+		reorgs: [],
+	};
+
+	/** Fetch that fails `failures` times with `status`, then serves the feed. */
+	function flakyClient(
+		failures: number,
+		status: number,
+		headers: Record<string, string> = {},
+	) {
+		let calls = 0;
+		globalThis.fetch = (async () => {
+			calls++;
+			if (calls <= failures) {
+				return new Response(JSON.stringify({ error: "err" }), {
+					status,
+					headers,
+				});
+			}
+			return jsonResponse(okEnvelope);
+		}) as unknown as typeof fetch;
+		return { count: () => calls, client: new Index() };
+	}
+
+	test("survives a transient 429, honoring Retry-After for the delay", async () => {
+		const { client, count } = flakyClient(1, 429, { "Retry-After": "7" });
+		const sleeps: number[] = [];
+		const applied: string[] = [];
+
+		await client.events.consume({
+			eventType: "ft_transfer",
+			fromCursor: null,
+			maxPages: 1,
+			sleep: async (ms) => {
+				sleeps.push(ms);
+			},
+			onBatch: (events) => {
+				applied.push(...events.map((e) => e.cursor));
+			},
+		});
+
+		expect(count()).toBe(2); // failed once, retried once
+		expect(applied).toEqual(["1:0"]);
+		expect(sleeps).toContain(7000); // Retry-After seconds, not the base delay
+	});
+
+	test("survives a transient 502 with the linear backoff", async () => {
+		const { client, count } = flakyClient(2, 502);
+		const sleeps: number[] = [];
+		const observed: Array<{ attempt: number; retriesLeft: number }> = [];
+
+		const result = await client.events.consume({
+			eventType: "ft_transfer",
+			fromCursor: null,
+			maxPages: 1,
+			retryDelay: 10,
+			sleep: async (ms) => {
+				sleeps.push(ms);
+			},
+			onError: (_err, ctx) => {
+				observed.push({ attempt: ctx.attempt, retriesLeft: ctx.retriesLeft });
+			},
+			onBatch: () => undefined,
+		});
+
+		expect(count()).toBe(3);
+		expect(result.cursor).toBe("1:0");
+		expect(sleeps).toEqual([10, 20]); // retryDelay * (attempt + 1)
+		expect(observed).toEqual([
+			{ attempt: 0, retriesLeft: 3 },
+			{ attempt: 1, retriesLeft: 2 },
+		]);
+	});
+
+	test("rethrows a 400 immediately — caller bugs are not retried", async () => {
+		const { client, count } = flakyClient(99, 400);
+		await expect(
+			client.events.consume({
+				eventType: "ft_transfer",
+				fromCursor: null,
+				maxPages: 1,
+				onBatch: () => undefined,
+			}),
+		).rejects.toThrow();
+		expect(count()).toBe(1);
+	});
+
+	test("exhausts retryCount then rethrows the last failure", async () => {
+		const { client, count } = flakyClient(99, 503);
+		await expect(
+			client.events.consume({
+				eventType: "ft_transfer",
+				fromCursor: null,
+				maxPages: 1,
+				retryCount: 2,
+				retryDelay: 1,
+				sleep: async () => {},
+				onBatch: () => undefined,
+			}),
+		).rejects.toThrow();
+		expect(count()).toBe(3); // 1 try + 2 retries
+	});
+
+	test("onBatch throws are never retried", async () => {
+		const { client, count } = flakyClient(0, 200);
+		await expect(
+			client.events.consume({
+				eventType: "ft_transfer",
+				fromCursor: null,
+				maxPages: 3,
+				onBatch: () => {
+					throw new Error("handler bug");
+				},
+			}),
+		).rejects.toThrow("handler bug");
+		expect(count()).toBe(1); // the failing page was fetched exactly once
+	});
+
+	test("onReorg throws are never retried — rollback must not be skipped", async () => {
+		let calls = 0;
+		globalThis.fetch = (async () => {
+			calls++;
+			return jsonResponse({
+				events: [],
+				next_cursor: null,
+				tip: TIP,
+				reorgs: [reorg()],
+			});
+		}) as unknown as typeof fetch;
+
+		await expect(
+			new Index().events.consume({
+				eventType: "ft_transfer",
+				fromCursor: "6:0",
+				maxPages: 3,
+				onBatch: () => undefined,
+				onReorg: () => {
+					throw new Error("rollback failed");
+				},
+			}),
+		).rejects.toThrow("rollback failed");
+		expect(calls).toBe(1);
+	});
+});

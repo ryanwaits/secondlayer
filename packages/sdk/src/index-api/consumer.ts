@@ -1,8 +1,10 @@
 import {
+	type PageRetryOptions,
 	type Sleep,
 	assertFinalizedCheckpoint,
 	batchContext,
 	defaultSleep,
+	fetchPageWithRetry,
 } from "../streams/consumer.ts";
 import { Cursor } from "../streams/cursor.ts";
 import type { ConsumerBatchContext } from "../streams/types.ts";
@@ -68,6 +70,15 @@ export type IndexConsumeOptions<
 	maxPages?: number;
 	maxEmptyPolls?: number;
 	signal?: AbortSignal;
+	/** Page-fetch retries after the first failure (429/5xx/network only —
+	 *  4xx and handler throws always propagate). Default 3; `0` disables. */
+	retryCount?: number;
+	/** Base retry delay in ms; the n-th retry waits `retryDelay * n`. A server
+	 *  `Retry-After` overrides it. Default 1000. */
+	retryDelay?: number;
+	/** Void observer, called before each retry sleep. Cannot change the retry
+	 *  decision — the policy owns it. */
+	onError?: PageRetryOptions["onError"];
 };
 
 /**
@@ -111,11 +122,24 @@ export async function consumeIndexFeed<
 		emptyPolls < maxEmptyPolls &&
 		!opts.signal?.aborted
 	) {
-		const envelope = await opts.fetchPage({
-			cursor,
-			fromHeight: cursor === null ? opts.fromHeight : undefined,
-			limit: batchSize,
-		});
+		// Retry wraps ONLY the page fetch: one transient 429/5xx must not kill
+		// an hours-long backfill, and handler throws must never be re-entered
+		// (retrying past a thrown onReorg would skip its rollback silently).
+		const envelope = await fetchPageWithRetry(
+			() =>
+				opts.fetchPage({
+					cursor,
+					fromHeight: cursor === null ? opts.fromHeight : undefined,
+					limit: batchSize,
+				}),
+			{
+				retryCount: opts.retryCount,
+				retryDelay: opts.retryDelay,
+				onError: opts.onError,
+				sleep,
+				signal: opts.signal,
+			},
+		);
 		pages++;
 
 		// Reorgs: roll back each new fork, then rewind to the lowest fork point

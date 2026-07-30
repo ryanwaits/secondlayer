@@ -79,6 +79,74 @@ export function batchContext(
 	};
 }
 
+/** Options shared by both consume loops' page-fetch retry. Vocabulary matches
+ *  `@secondlayer/stacks` transports (`retryCount`/`retryDelay`) — one retry
+ *  language across the family, not a third. */
+export type PageRetryOptions = {
+	/** Retries after the first failure. Default 3; `0` disables. */
+	retryCount?: number;
+	/** Base delay in ms; the n-th retry waits `retryDelay * n` (matches the
+	 *  stacks transport). A server `Retry-After` overrides it. Default 1000. */
+	retryDelay?: number;
+	/** Void observer, called before each retry sleep (metrics/logging). The
+	 *  retry policy owns the decision; this cannot change it. */
+	onError?: (
+		err: unknown,
+		ctx: { attempt: number; retriesLeft: number; delayMs: number },
+	) => void;
+};
+
+/** Retry-After above this is treated as "give up now, resume later". */
+const MAX_RETRY_AFTER_MS = 300_000;
+
+function errRetryable(err: unknown): boolean {
+	// SecondLayerError family carries an explicit signal; a bare TypeError is
+	// the raw fetch network failure (Streams' fetchImpl isn't wrapped).
+	if (err && typeof err === "object" && "retryable" in err) {
+		return (err as { retryable: unknown }).retryable === true;
+	}
+	return err instanceof TypeError;
+}
+
+function errRetryAfterMs(err: unknown): number | undefined {
+	if (err && typeof err === "object" && "retryAfterSeconds" in err) {
+		const seconds = (err as { retryAfterSeconds: unknown }).retryAfterSeconds;
+		if (typeof seconds === "number" && Number.isFinite(seconds)) {
+			return Math.min(seconds * 1000, MAX_RETRY_AFTER_MS);
+		}
+	}
+	return undefined;
+}
+
+/**
+ * Run one page fetch with retries. Scoped to the FETCH only — never the loop
+ * body: retrying after an `onReorg`/`onBatch` throw would re-enter with
+ * `handledReorgs` partially mutated and skip a rollback silently. `onBatch`
+ * and `onReorg` throws always propagate to the caller.
+ */
+export async function fetchPageWithRetry<T>(
+	fetchPage: () => Promise<T>,
+	opts: PageRetryOptions & { sleep: Sleep; signal?: AbortSignal },
+): Promise<T> {
+	const retryCount = opts.retryCount ?? 3;
+	const retryDelay = opts.retryDelay ?? 1000;
+	for (let attempt = 0; ; attempt++) {
+		try {
+			return await fetchPage();
+		} catch (err) {
+			const retriesLeft = retryCount - attempt;
+			if (retriesLeft <= 0 || !errRetryable(err) || opts.signal?.aborted) {
+				throw err;
+			}
+			const delayMs = errRetryAfterMs(err) ?? retryDelay * (attempt + 1);
+			opts.onError?.(err, { attempt, retriesLeft, delayMs });
+			await opts.sleep(delayMs, opts.signal);
+			// Aborted mid-sleep: surface the original failure, not a fresh fetch.
+			if (opts.signal?.aborted) throw err;
+		}
+	}
+}
+
 export async function defaultSleep(
 	ms: number,
 	signal?: AbortSignal,
@@ -130,6 +198,9 @@ export async function consumeStreamsEvents(opts: {
 	emptyBackoffMs?: number;
 	maxPages?: number;
 	maxEmptyPolls?: number;
+	retryCount?: number;
+	retryDelay?: number;
+	onError?: PageRetryOptions["onError"];
 	signal?: AbortSignal;
 }): Promise<{ cursor: string | null; pages: number; emptyPolls: number }> {
 	const sleep = opts.sleep ?? defaultSleep;
@@ -153,16 +224,28 @@ export async function consumeStreamsEvents(opts: {
 		emptyPolls < maxEmptyPolls &&
 		!opts.signal?.aborted
 	) {
-		const envelope = await opts.fetchEvents({
-			cursor,
-			limit: opts.batchSize,
-			types: opts.types,
-			notTypes: opts.notTypes,
-			contractId: opts.contractId,
-			sender: opts.sender,
-			recipient: opts.recipient,
-			assetIdentifier: opts.assetIdentifier,
-		});
+		// Retry wraps ONLY the page fetch: one transient 429/5xx must not kill
+		// an hours-long backfill, and handler throws must never be re-entered.
+		const envelope = await fetchPageWithRetry(
+			() =>
+				opts.fetchEvents({
+					cursor,
+					limit: opts.batchSize,
+					types: opts.types,
+					notTypes: opts.notTypes,
+					contractId: opts.contractId,
+					sender: opts.sender,
+					recipient: opts.recipient,
+					assetIdentifier: opts.assetIdentifier,
+				}),
+			{
+				retryCount: opts.retryCount,
+				retryDelay: opts.retryDelay,
+				onError: opts.onError,
+				sleep,
+				signal: opts.signal,
+			},
+		);
 		pages++;
 
 		// Reorgs: roll back each new fork, then rewind to the lowest fork point
