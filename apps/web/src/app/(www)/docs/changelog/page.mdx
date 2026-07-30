@@ -2,6 +2,40 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## Subgraphs — July 2026
+
+### Read contract state from a handler
+
+```ts
+import { readContractAt } from "@secondlayer/subgraphs";
+
+const token = readContractAt(ctx, contractId, SIP010, {
+  cache: "contract-constant",
+});
+const decimals = await token.read.getDecimals({}); // bigint, typed from the ABI
+```
+
+Some facts aren't in any event — a token's `decimals`, a pool's reserves — so
+`amount` stayed a bare integer nobody could render. Now a handler can ask the
+contract, with the ABI's camelCased read methods and no `call` (a handler
+indexes the chain, it never writes to it).
+
+- **Pinned to the block being processed.** The call carries that block's
+  `index_block_hash`, so a handler is a pure function of its block and a
+  reindex produces byte-identical rows. A block whose id was never persisted
+  throws rather than silently reading at the node's tip.
+- **Cached in Postgres**, keyed on the block id — so a reorg-replaced block
+  can't inherit the orphaned fork's answer. Pass
+  `cache: "contract-constant"` for values that genuinely can't change and it
+  is fetched once, ever; that is what makes a full backfill affordable.
+- Unit tests stay offline: `createTestContext(schema, { reads })` stubs reads
+  by `"<contract>.<function-name>"`.
+- Self-hosting needs `STACKS_NODE_RPC_URL` on the subgraph processor — the
+  node you already run, not a new service.
+
+The `sip-010-balances` starter now labels tokens with their real symbol and
+decimals.
+
 ## Streams — July 2026
 
 ### Track two things in one loop

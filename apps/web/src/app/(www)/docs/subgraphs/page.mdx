@@ -115,6 +115,53 @@ events (discovery runs before matching), and the discovered set is rolled
 back on a reorg like any other chain-derived state — an address announced on
 an orphaned fork stops matching.
 
+## Reading the chain from a handler
+
+Some facts aren't in any event. A token's `decimals`, a pool's reserves, an
+NFT's metadata URI — those live in contract state, and without them `amount` is
+a bare integer nobody can render. `ctx.client` calls read-only functions for
+you:
+
+```ts
+import { readContractAt } from "@secondlayer/subgraphs";
+
+const SIP010 = { functions: [ /* get-decimals, get-symbol … */ ] } as const;
+
+handlers: {
+  transfer: async (event, ctx) => {
+    const token = readContractAt(ctx, contractId, SIP010, {
+      cache: "contract-constant",
+    });
+    const decimals = await token.read.getDecimals({}); // bigint — typed from the ABI
+  },
+},
+```
+
+Same shape as [`getContract`](/docs/stacks) — ABI in, camelCased read methods
+out — minus `call`: a handler indexes the chain, it never writes to it. It is a
+free function rather than a method on `ctx` so the ABI generic resolves at the
+call site, where it is concrete and costs the compiler nothing.
+
+**Every read is pinned to the block being processed.** The call goes out with
+that block's `index_block_hash`, so a handler stays a pure function of its
+block: reindexing a range produces byte-identical rows. Reading at the node's
+tip instead would make the same reindex return different values, so a block
+whose id was never persisted **throws** rather than falling back.
+
+<Callout type="tip" title="Declare what can't change">
+
+Results are cached in Postgres. By default that key includes the block, which
+dedupes reads across events but still costs one call per block. For values that
+genuinely cannot change — SIP-010 `decimals`, `symbol` — pass
+`cache: "contract-constant"` and it is fetched **once**, ever. That is what
+makes a full backfill affordable. Declaring it on a value that does change pins
+the first answer forever, so it is opt-in and never inferred.
+
+</Callout>
+
+Self-hosting: set `STACKS_NODE_RPC_URL` on the subgraph processor — the node you
+already run, not a new service. See [self-host](/docs/self-host#configuration).
+
 ## Testing a handler before you deploy
 
 ```bash
@@ -139,6 +186,10 @@ const ctx = createTestContext(bns.schema, { block: { height: 167_484 } });
 await bns.handlers.bns!(buildEvent(bns.sources.bns, { topic: "name-register", data }), ctx);
 expect(await ctx.rows("names")).toMatchInlineSnapshot();
 ```
+
+Handlers that read the chain get stubbed reads instead of a node — pass
+`reads: { "<contract>.<function-name>": value }` to `createTestContext`. An
+unstubbed read throws naming the key it wanted.
 
 ## Typed print payloads
 
