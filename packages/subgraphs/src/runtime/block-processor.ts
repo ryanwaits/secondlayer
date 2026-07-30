@@ -20,8 +20,13 @@ import {
 	type TxMeta,
 } from "./context.ts";
 import { emitSubscriptionOutbox } from "./outbox-emit.ts";
-import { runHandlers } from "./runner.ts";
-import { matchSources } from "./source-matcher.ts";
+import { buildEventPayload, runHandlers } from "./runner.ts";
+import {
+	type EventRecord,
+	type TxRecord,
+	matchSources,
+	readPath,
+} from "./source-matcher.ts";
 import { matcher } from "./subscription-state.ts";
 
 /**
@@ -69,6 +74,105 @@ export function invalidateSubgraphRoute(subgraphName: string): void {
  * contract-id set, as of `blockHeight`, from the contract registry. Empty map
  * when no source is trait-scoped (the common case → no DB work).
  */
+/**
+ * Resolve each factory-scoped source's address set for this block.
+ *
+ * Two parts, and the ORDER is the guarantee:
+ * 1. addresses persisted by earlier blocks (`block_height <= blockHeight`,
+ *    so a reindex sees exactly what the live walk saw), then
+ * 2. addresses revealed by THIS block's events — computed before matching,
+ *    so a contract discovered in block N receives its own block-N events.
+ *    Without this pass the first event from every discovered contract is
+ *    silently lost.
+ */
+async function resolveFactoryContracts(
+	subgraph: SubgraphDefinition,
+	blockHeight: number,
+	schemaName: string,
+	db: Kysely<Database>,
+	txs: TxRecord[],
+	evts: EventRecord[],
+): Promise<{
+	resolved: Map<string, ReadonlySet<string>>;
+	discovered: Array<{ sourceName: string; address: string }>;
+}> {
+	// Keyed by the DISCOVERING source (`factory.from`), not the consuming one:
+	// several sources can share one factory, and this way the extraction runs
+	// once per discovering source rather than once per consumer.
+	const factories = new Map<string, { from: string; field: string }>();
+	for (const source of Object.values(subgraph.sources)) {
+		const factory = (source as { factory?: { from: string; field: string } })
+			.factory;
+		if (factory) factories.set(factory.from, factory);
+	}
+	const resolved = new Map<string, ReadonlySet<string>>();
+	const discovered: Array<{ sourceName: string; address: string }> = [];
+	if (factories.size === 0) return { resolved, discovered };
+
+	for (const [discoveringSource, factory] of factories) {
+		const known = new Set<string>();
+		// 1. Everything revealed at or below this height.
+		try {
+			const rows = await sql<{ address: string }>`
+				SELECT address FROM ${sql.raw(`"${schemaName}"."_factory_addresses"`)}
+				WHERE source_name = ${discoveringSource} AND block_height <= ${blockHeight}
+			`.execute(db);
+			for (const row of rows.rows) known.add(row.address);
+		} catch {
+			// Table absent (first deploy before DDL, or a non-factory subgraph):
+			// treat as an empty set rather than failing the block.
+		}
+
+		// 2. This block's own reveals — before matching, so same-block events
+		//    from a new contract are not dropped.
+		const discovering = subgraph.sources[factory.from];
+		if (discovering) {
+			const matches = matchSources(
+				{ [factory.from]: discovering },
+				txs,
+				evts,
+				new Map(),
+				new Map(),
+			);
+			for (const match of matches) {
+				for (const event of match.events ?? []) {
+					const payload = buildEventPayload(discovering, match.tx, event);
+					const value = readPath(payload, factory.field);
+					if (
+						typeof value === "string" &&
+						value.length > 0 &&
+						!known.has(value)
+					) {
+						known.add(value);
+						discovered.push({ sourceName: discoveringSource, address: value });
+					}
+				}
+			}
+		}
+		resolved.set(discoveringSource, known);
+	}
+	return { resolved, discovered };
+}
+
+/** Persist this block's discoveries, stamped with the block that revealed
+ *  them so the reorg handler can roll them back. */
+async function persistFactoryDiscoveries(
+	schemaName: string,
+	db: Kysely<Database>,
+	blockHeight: number,
+	discovered: Array<{ sourceName: string; address: string }>,
+): Promise<void> {
+	if (discovered.length === 0) return;
+	for (const { sourceName, address } of discovered) {
+		await sql`
+			INSERT INTO ${sql.raw(`"${schemaName}"."_factory_addresses"`)}
+				(source_name, address, block_height)
+			VALUES (${sourceName}, ${address}, ${blockHeight})
+			ON CONFLICT (source_name, address) DO NOTHING
+		`.execute(db);
+	}
+}
+
 async function resolveTraitContracts(
 	subgraph: SubgraphDefinition,
 	blockHeight: number,
@@ -260,12 +364,34 @@ export async function processBlock(
 	// set of conforming contracts AS OF this block (deploy_height ≤ blockHeight),
 	// so a reindex backfills a token's full history even if it was classified
 	// after deploy. Resolution is done here (DB access) so the matcher stays pure.
+	// Route first: the factory set lives in this subgraph's pg schema, and it
+	// must resolve BEFORE matching. `resolveRoute` is cached per subgraph.
+	const route = await resolveRoute(subgraphName, targetDb);
+	const schemaName = route.schemaName;
+
 	const traitContracts = await resolveTraitContracts(
 		subgraph,
 		blockHeight,
 		targetDb,
 	);
-	const matched = matchSources(subgraph.sources, txs, evts, traitContracts);
+	// Factory sets resolve BEFORE matching so a contract revealed in this
+	// block receives its own block-N events (see resolveFactoryContracts).
+	const { resolved: factoryContracts, discovered } =
+		await resolveFactoryContracts(
+			subgraph,
+			blockHeight,
+			schemaName,
+			targetDb,
+			txs,
+			evts,
+		);
+	const matched = matchSources(
+		subgraph.sources,
+		txs,
+		evts,
+		traitContracts,
+		factoryContracts,
+	);
 	result.matched = matched.length;
 
 	if (matched.length === 0) {
@@ -279,10 +405,8 @@ export async function processBlock(
 		return result;
 	}
 
-	// 4. Resolve where this subgraph's data plane lives (managed target DB, or
-	// the user's DB when BYO). Cached per subgraph.
-	const route = await resolveRoute(subgraphName, targetDb);
-	const schemaName = route.schemaName;
+	// 4. Data plane (managed target DB, or the user's DB when BYO) — resolved
+	// above, since factory-set resolution needs the schema name.
 	const blockMeta: BlockMeta = {
 		height: block.height,
 		hash: block.hash,
@@ -388,6 +512,17 @@ export async function processBlock(
 			});
 		result.processed = runResult.processed;
 		result.errors = runResult.errors;
+
+		// Persist factory discoveries only after the block's writes commit, so
+		// a failed block doesn't leave addresses claimed for a block that
+		// produced nothing. Stamped with this height, so the reorg handler
+		// rolls them back with everything else.
+		await persistFactoryDiscoveries(
+			schemaName,
+			route.dataDb,
+			blockHeight,
+			discovered,
+		);
 
 		// Phase B (managed) — only reached after phase A commits.
 		await targetDb.transaction().execute(async (tx: Transaction<Database>) => {

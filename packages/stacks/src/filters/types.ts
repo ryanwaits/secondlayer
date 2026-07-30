@@ -98,7 +98,9 @@ export interface NftBurnSpec extends TraitScope {
 
 export interface ContractCallSpec extends TraitScope {
 	type: "contract_call";
-	contractId?: string;
+	/** One contract id, or a set of them (max 20). Mirrors the subgraphs
+	 *  filter — a router plus its pools is one source, not N. */
+	contractId?: string | readonly string[];
 	functionName?: string;
 	caller?: string;
 	/** Contract ABI (`as const`) — preserved literally so `toSubgraphSource()`
@@ -112,7 +114,8 @@ export interface ContractDeploySpec {
 }
 export interface PrintEventSpec extends TraitScope {
 	type: "print_event";
-	contractId?: string;
+	/** One contract id, or a set of them (max 20). */
+	contractId?: string | readonly string[];
 	topic?: string;
 	/** Per-topic field schema — preserved literally so `toSubgraphSource()`
 	 *  keeps the discriminated-union narrowing of `event.data`. */
@@ -198,9 +201,14 @@ export type SubgraphSourceSpec = Extract<
  *  JS safe integers) and the type-only `abi`/`prints` decorations dropped.
  *  Structurally assignable to the SDK's `ChainTrigger` union. */
 export type ChainTriggerOf<S> = {
-	[K in keyof Omit<S, "abi" | "prints">]: S[K] extends bigint | undefined
-		? Exclude<S[K], bigint> | string
-		: S[K];
+	// bigint amounts stringify at the JSON boundary; a contract SET is not
+	// expressible (the wire takes ONE contract per trigger, and
+	// `toChainTrigger()` throws rather than silently taking the first).
+	[K in keyof Omit<S, "abi" | "prints">]:
+		| Exclude<S[K], bigint | readonly string[]>
+		// A bigint amount arrives as a decimal string; `bigint extends S[K]`
+		// (not the reverse) so it still fires for `bigint | undefined`.
+		| (bigint extends S[K] ? string : never);
 };
 
 /** Loose trigger shape (any member). */

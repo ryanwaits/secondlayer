@@ -321,3 +321,85 @@ test("a garbage ABI is refused", () => {
 		validateSubgraphDefinition(withAbi({ functions: [{ name: "x" }] })),
 	).toThrow();
 });
+
+// ── Filter union: bad field/type combos fail at deploy ────────────────
+
+function withSource(source: unknown) {
+	return {
+		name: "filter-test",
+		sources: { s: source },
+		schema: { t: { columns: { a: { type: "uint" } } } },
+		handlers: { s: () => {} },
+	};
+}
+
+test("a field the source type does not support is refused at deploy", () => {
+	// This validated clean under the old flat schema and then matched
+	// nothing, forever: contract_deploy has no assetIdentifier or minAmount.
+	expect(() =>
+		validateSubgraphDefinition(
+			withSource({
+				type: "contract_deploy",
+				assetIdentifier: "SP1.t::t",
+				minAmount: 1n,
+			}),
+		),
+	).toThrow();
+	// stx_mint has no sender (only recipient).
+	expect(() =>
+		validateSubgraphDefinition(withSource({ type: "stx_mint", sender: "SP1" })),
+	).toThrow();
+	// print_event has no assetIdentifier.
+	expect(() =>
+		validateSubgraphDefinition(
+			withSource({ type: "print_event", assetIdentifier: "SP1.t::t" }),
+		),
+	).toThrow();
+});
+
+test("valid per-type field sets still pass", () => {
+	expect(() =>
+		validateSubgraphDefinition(
+			withSource({ type: "stx_transfer", sender: "SP1", minAmount: 1n }),
+		),
+	).not.toThrow();
+	expect(() =>
+		validateSubgraphDefinition(
+			withSource({ type: "ft_transfer", trait: "sip-010" }),
+		),
+	).not.toThrow();
+});
+
+test("contractId accepts a set of contracts (a router plus its pools)", () => {
+	expect(() =>
+		validateSubgraphDefinition(
+			withSource({
+				type: "contract_call",
+				contractId: ["SP1.router", "SP1.pool-a", "SP1.pool-b"],
+			}),
+		),
+	).not.toThrow();
+	// Capped at the same 20 the Index API enforces.
+	expect(() =>
+		validateSubgraphDefinition(
+			withSource({
+				type: "contract_call",
+				contractId: Array.from({ length: 21 }, (_, i) => `SP1.pool-${i}`),
+			}),
+		),
+	).toThrow();
+});
+
+test("trait and contractId compose (trait-scoped, narrowed to ids)", () => {
+	// The matcher ANDs them, so this means "sip-010 contracts, but only this
+	// one". Refusing the pair would break already-deployed subgraphs.
+	expect(() =>
+		validateSubgraphDefinition(
+			withSource({
+				type: "contract_call",
+				trait: "sip-010",
+				contractId: "SP1.token",
+			}),
+		),
+	).not.toThrow();
+});

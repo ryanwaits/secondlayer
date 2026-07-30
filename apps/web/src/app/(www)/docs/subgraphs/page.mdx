@@ -43,7 +43,102 @@ export default defineSubgraph({
 });
 ```
 
-Each handler gets `(event, ctx)`: `ctx.tx` / `ctx.block` for metadata, `ctx.insert` / `update` / `upsert` / `delete` / `patch` for writes.
+Each handler gets `(event, ctx)`: `ctx.tx` / `ctx.block` for metadata, `ctx.insert` / `update` / `upsert` / `delete` / `patch` / `increment` for writes.
+
+### Counters and balances: use `increment`
+
+`ctx.increment(table, key, deltas)` applies a **delta** in one atomic
+statement (upserting the row on the table's `uniqueKeys`). Reach for it
+whenever a value accumulates:
+
+```ts
+ctx.increment("balances", { holder }, { amount: -amount });
+```
+
+The read-modify-write it replaces — `findOne` → compute → `upsert` — looks
+equivalent and isn't. Two events touching the same row in one block both read
+the stale value and the second write wins, so updates are silently lost. It is
+also not replay-safe: under `backfillMode: "concurrent"` the history fill
+revisits blocks, and a non-commutative handler double-counts. Deltas commute,
+so order doesn't matter, and a reorg rewind reverses them cleanly.
+
+### Hoisting the schema
+
+Pull `schema` out of the call with `defineSchema()` when a handler grows
+enough to factor a helper — the helper stays fully typed:
+
+```ts
+import { defineSchema, defineSubgraph, type TypedSubgraphContext } from "@secondlayer/subgraphs";
+
+export const schema = defineSchema({
+  balances: {
+    columns: { holder: { type: "principal" }, amount: { type: "uint" } },
+    uniqueKeys: [["holder"]],
+  },
+});
+
+function credit(ctx: TypedSubgraphContext<typeof schema>, holder: string) {
+  ctx.increment("balances", { holder }, { amount: 1n });
+}
+
+export default defineSubgraph({ name: "balances", schema, sources, handlers });
+```
+
+## Indexing a contract set
+
+`contractId` takes an array, so a router plus its pools is one source and one
+handler instead of twelve of each:
+
+```ts
+sources: {
+  swaps: { type: "print_event", contractId: [ROUTER, POOL_A, POOL_B], topic: "swap" },
+}
+```
+
+For a set that **grows** — pools created after you deploy, launchpad-minted
+tokens, registry entries — use a `factory`. It extracts addresses from
+another source's events:
+
+```ts
+sources: {
+  registry: { type: "print_event", contractId: REGISTRY, topic: "pool-created" },
+  swaps: {
+    type: "print_event",
+    topic: "swap",
+    factory: { from: "registry", field: "data.pool" },
+  },
+}
+```
+
+Two guarantees: a pool discovered in block N receives its **own** block-N
+events (discovery runs before matching), and the discovered set is rolled
+back on a reorg like any other chain-derived state — an address announced on
+an orphaned fork stops matching.
+
+## Testing a handler before you deploy
+
+```bash
+sl subgraphs test subgraphs/bns-names.ts --from 167484 --to 167600
+sl subgraphs test subgraphs/bns-names.ts --offline   # replay the cassette
+```
+
+Real chain events, your local handler code, no deploy. The first run records
+a cassette so later runs are free and offline; changing a source filter
+discards it rather than passing against data the subgraph would no longer
+request. If events arrive and your handlers write nothing, the command fails
+— that is the shape of a field-mapping bug that would otherwise ship a
+0-row subgraph.
+
+For unit tests, `@secondlayer/subgraphs/testing` gives you the same context
+the runtime uses, backed by memory:
+
+```ts
+import { buildEvent, createTestContext } from "@secondlayer/subgraphs/testing";
+
+const ctx = createTestContext(bns.schema, { block: { height: 167_484 } });
+await bns.handlers.bns!(buildEvent(bns.sources.bns, { topic: "name-register", data }), ctx);
+expect(await ctx.rows("names")).toMatchInlineSnapshot();
+```
 
 ## Typed print payloads
 
@@ -81,7 +176,7 @@ sl subgraphs create sbtc-registry \
 
 Scaffolds from the [print-schema endpoint](/docs/index#print-schemas): one `print_event` source per topic with its `prints` map, plus one wide table (`--table-per-topic` splits it per topic). `sl subgraphs codegen <file> --payloads` emits a `.d.ts` of the payload types.
 
-Deploys return advisory `warnings` when a handler reads an `event.data` field never observed for its topic (pinned `contractId` sources only). Never blocks.
+Deploys return advisory `warnings` when a handler reads an `event.data` field never observed for its topic (pinned `contractId` sources only). If the source **declares** a `prints` map, the same finding is an error and the deploy is refused — you stated the shape, so a mismatch is a defect rather than a hint.
 
 ## Deploy
 

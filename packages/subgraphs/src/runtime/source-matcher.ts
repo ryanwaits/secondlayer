@@ -7,7 +7,7 @@ export interface MatchedTx {
 	sourceName: string;
 }
 
-type TxRecord = {
+export type TxRecord = {
 	tx_id: string;
 	type: string;
 	sender: string;
@@ -20,7 +20,7 @@ type TxRecord = {
 	raw_result?: string | null;
 };
 
-type EventRecord = {
+export type EventRecord = {
 	id: string;
 	tx_id: string;
 	type: string;
@@ -31,6 +31,13 @@ type EventRecord = {
 // ── Wildcard matching (shared with v1) ──────────────────────────────
 
 const patternCache = new Map<string, RegExp>();
+
+/** Match a value against one pattern, or ANY pattern in a set. */
+function matchAny(value: string, pattern: string | readonly string[]): boolean {
+	return Array.isArray(pattern)
+		? pattern.some((p) => matchPattern(value, p))
+		: matchPattern(value, pattern as string);
+}
 
 function matchPattern(value: string, pattern: string): boolean {
 	if (!pattern.includes("*")) return value === pattern;
@@ -55,6 +62,37 @@ const EMPTY_SET: ReadonlySet<string> = new Set();
  * True when a filter's optional `trait` admits this contract: no trait → always
  * allowed; trait set → the contract must be in the resolved conforming set.
  */
+/** Addresses discovered per source name (factory sets), resolved by the
+ *  caller as-of the block being processed. */
+export type FactoryContracts = ReadonlyMap<string, ReadonlySet<string>>;
+
+/**
+ * A factory-scoped source matches only contracts its factory has revealed.
+ * Same shape as {@link traitAllows}: the set is injected, so this module
+ * stays pure and sync.
+ */
+function factoryAllows(
+	filter: { factory?: { from: string; field: string } },
+	contractId: string | undefined | null,
+	factoryContracts: FactoryContracts,
+): boolean {
+	if (!filter.factory) return true;
+	if (!contractId) return false;
+	return (factoryContracts.get(filter.factory.from) ?? EMPTY_SET).has(
+		contractId,
+	);
+}
+
+/** Read a dotted path off a decoded payload (`"data.pool"`). */
+export function readPath(payload: unknown, path: string): unknown {
+	let cur: unknown = payload;
+	for (const key of path.split(".")) {
+		if (cur === null || typeof cur !== "object") return undefined;
+		cur = (cur as Record<string, unknown>)[key];
+	}
+	return cur;
+}
+
 function traitAllows(
 	filter: SubgraphFilter,
 	contractId: string | undefined | null,
@@ -78,6 +116,7 @@ function matchFilter(
 	transactions: TxRecord[],
 	eventsByTx: Map<string, EventRecord[]>,
 	traitContracts: TraitContracts,
+	factoryContracts: FactoryContracts = new Map(),
 ): { tx: TxRecord; events: EventRecord[] }[] {
 	const results: { tx: TxRecord; events: EventRecord[] }[] = [];
 
@@ -237,12 +276,11 @@ function matchFilter(
 
 				// Contract filter
 				if (filter.contractId) {
-					if (
-						!tx.contract_id ||
-						!matchPattern(tx.contract_id, filter.contractId)
-					)
+					if (!tx.contract_id || !matchAny(tx.contract_id, filter.contractId))
 						continue;
 				}
+				// Factory scope: only contracts this source's factory revealed.
+				if (!factoryAllows(filter, tx.contract_id, factoryContracts)) continue;
 				// Function filter
 				if (filter.functionName) {
 					if (
@@ -304,11 +342,13 @@ function matchFilter(
 					if (filter.contractId) {
 						if (
 							!printContractId ||
-							!matchPattern(printContractId, filter.contractId)
+							!matchAny(printContractId, filter.contractId)
 						)
 							return false;
 					}
 					if (!traitAllows(filter, printContractId, traitContracts))
+						return false;
+					if (!factoryAllows(filter, printContractId, factoryContracts))
 						return false;
 					// Topic filter — check the decoded Clarity value's topic field
 					// At this stage data.value is still raw hex; topic filtering happens
@@ -337,6 +377,7 @@ export function matchSources(
 	transactions: TxRecord[],
 	events: EventRecord[],
 	traitContracts: TraitContracts = new Map(),
+	factoryContracts: FactoryContracts = new Map(),
 ): MatchedTx[] {
 	// Index events by txId
 	const eventsByTx = new Map<string, EventRecord[]>();
@@ -355,6 +396,7 @@ export function matchSources(
 			transactions,
 			eventsByTx,
 			traitContracts,
+			factoryContracts,
 		);
 		for (const match of matches) {
 			const dedupeKey = `${match.tx.tx_id}:${sourceName}`;

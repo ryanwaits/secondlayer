@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CHAIN_TRIGGER_FIELDS } from "@secondlayer/shared";
 import { TRAIT_STANDARDS } from "@secondlayer/stacks/clarity";
+import { filterFieldsByType } from "@secondlayer/subgraphs";
 import { TYPE_MAP } from "@secondlayer/subgraphs/schema";
 import type { ColumnType } from "@secondlayer/subgraphs/types";
 import { getClient } from "./lib/client.ts";
@@ -23,39 +24,13 @@ const TRAIT_BLURBS: Record<(typeof TRAIT_STANDARDS)[number], string> = {
 	"sip-013": "Semi-fungible token standard",
 };
 
-export const FILTERS_REFERENCE = [
-	{
-		type: "stx_transfer",
-		fields: ["sender", "recipient", "minAmount", "maxAmount"],
-	},
-	{ type: "stx_mint", fields: ["recipient", "minAmount"] },
-	{ type: "stx_burn", fields: ["sender", "minAmount"] },
-	{ type: "stx_lock", fields: ["lockedAddress", "minAmount"] },
-	{
-		type: "ft_transfer",
-		fields: ["sender", "recipient", "assetIdentifier", "minAmount", "trait"],
-	},
-	{
-		type: "ft_mint",
-		fields: ["recipient", "assetIdentifier", "minAmount", "trait"],
-	},
-	{
-		type: "ft_burn",
-		fields: ["sender", "assetIdentifier", "minAmount", "trait"],
-	},
-	{
-		type: "nft_transfer",
-		fields: ["sender", "recipient", "assetIdentifier", "trait"],
-	},
-	{ type: "nft_mint", fields: ["recipient", "assetIdentifier", "trait"] },
-	{ type: "nft_burn", fields: ["sender", "assetIdentifier", "trait"] },
-	{
-		type: "contract_call",
-		fields: ["contractId", "functionName", "caller", "trait", "abi"],
-	},
-	{ type: "contract_deploy", fields: ["deployer", "contractName"] },
-	{ type: "print_event", fields: ["contractId", "topic", "trait"] },
-];
+/**
+ * Per-source-type filter fields, DERIVED from the subgraphs filter schema —
+ * this was a hand-maintained parallel copy, so adding a field to a filter
+ * left the agent-facing reference silently behind.
+ */
+export const FILTERS_REFERENCE: Array<{ type: string; fields: string[] }> =
+	filterFieldsByType();
 
 // Human blurb per column type, keyed by ColumnType so adding a type to the union
 // forces an entry here (the drift test in resources.test.ts asserts full coverage).

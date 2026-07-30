@@ -143,6 +143,18 @@ export async function handleSubgraphReorg(
 					}
 				}
 
+				// Factory-discovered addresses are chain-derived state like any
+				// row: an address revealed on the orphaned fork must not keep
+				// matching forever. `IF EXISTS` because the table is only
+				// created for subgraphs that actually use a factory.
+				await client.unsafe(
+					`DO $$ BEGIN
+						IF to_regclass('"${schemaName}"."_factory_addresses"') IS NOT NULL THEN
+							DELETE FROM "${schemaName}"."_factory_addresses" WHERE block_height >= ${Number(blockHeight)};
+						END IF;
+					END $$`,
+				);
+
 				// Emit revert events to dependent subscriptions so receivers
 				// know to roll back. Insert into subscription_outbox with a
 				// stable dedup_key keyed on (subscription, table, height,

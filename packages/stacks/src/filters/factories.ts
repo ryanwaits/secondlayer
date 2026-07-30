@@ -44,7 +44,11 @@ function validateSpec(spec: ChainEventFilterSpec): void {
 		} else if (key === "assetIdentifier") {
 			assertAssetIdentifier(key, value as string);
 		} else if (key === "contractId") {
-			assertContractId(key, value as string);
+			// A contract SET validates member-wise — one bad id in a router+pools
+			// list must fail as loudly as a bad single id.
+			for (const id of Array.isArray(value) ? value : [value]) {
+				assertContractId(key, id as string);
+			}
 		}
 	}
 }
@@ -76,6 +80,16 @@ function toChainTrigger(spec: ChainEventFilterSpec): ChainTriggerShape {
 	const out: Record<string, string | number> = {};
 	for (const [key, value] of specEntries(spec)) {
 		if (DECORATIVE_FIELDS.has(key)) continue;
+		if (Array.isArray(value)) {
+			// One trigger, one contract: silently taking the first would watch
+			// a fraction of what the filter says. Create one subscription per
+			// contract instead.
+			unsupported(
+				"Subscriptions",
+				`${key} set`,
+				"a chain trigger targets ONE contract — create one subscription per contract, or use Index/Subgraphs which accept the set",
+			);
+		}
 		// The one sanctioned bigint→string boundary.
 		out[key] =
 			typeof value === "bigint" ? value.toString() : (value as string | number);

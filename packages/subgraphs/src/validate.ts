@@ -162,31 +162,159 @@ export const VALID_FILTER_TYPES = [
 	"print_event",
 ] as const;
 
-export const SubgraphFilterSchema: z.ZodType<SubgraphFilter> = z
-	.object({
-		type: z.enum(VALID_FILTER_TYPES),
-		// All optional fields across all filter types
-		sender: z.string().optional(),
-		recipient: z.string().optional(),
-		minAmount: z.bigint().optional(),
-		maxAmount: z.bigint().optional(),
-		assetIdentifier: z.string().optional(),
-		contractId: z.string().optional(),
-		functionName: z.string().optional(),
-		caller: z.string().optional(),
-		deployer: z.string().optional(),
-		contractName: z.string().optional(),
-		topic: z.string().optional(),
-		lockedAddress: z.string().optional(),
-		abi: AbiContractSchema.optional(),
-		trait: z.string().optional(),
-		// print_event per-topic field schema. Declaring it opts the source into
-		// runtime payload validation (skip + log on mismatch).
-		prints: z
-			.record(z.string(), z.record(z.string(), PrintFieldSchema))
-			.optional(),
-	})
-	.strict() as unknown as z.ZodType<SubgraphFilter>;
+/** A contract id, or a set of them (max 20, matching the Index API cap). */
+const contractIdField = z.union([
+	z.string(),
+	z.array(z.string()).min(1).max(20),
+]);
+
+/** Fields shared by the trait-scopable filters. */
+const traitScope = { trait: z.string().optional() };
+/** Dynamic address set discovered from another source's events. */
+const factoryScope = {
+	factory: z
+		.object({ from: z.string().min(1), field: z.string().min(1) })
+		.strict()
+		.optional(),
+};
+const amountRange = {
+	minAmount: z.bigint().optional(),
+	maxAmount: z.bigint().optional(),
+};
+
+/**
+ * A REAL discriminated union — one member per source type, each `.strict()`
+ * with only the fields that type actually supports.
+ *
+ * It used to be one flat object with every field optional, so
+ * `{ type: "contract_deploy", assetIdentifier: "SP…", minAmount: 1n }`
+ * validated clean at deploy and then matched nothing, forever. The runtime
+ * union already knew better; only the validator didn't.
+ */
+const SubgraphFilterUnion = z.discriminatedUnion("type", [
+	z
+		.object({
+			type: z.literal("stx_transfer"),
+			sender: z.string().optional(),
+			recipient: z.string().optional(),
+			...amountRange,
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal("stx_mint"),
+			recipient: z.string().optional(),
+			minAmount: z.bigint().optional(),
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal("stx_burn"),
+			sender: z.string().optional(),
+			minAmount: z.bigint().optional(),
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal("stx_lock"),
+			lockedAddress: z.string().optional(),
+			minAmount: z.bigint().optional(),
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal("ft_transfer"),
+			assetIdentifier: z.string().optional(),
+			sender: z.string().optional(),
+			recipient: z.string().optional(),
+			minAmount: z.bigint().optional(),
+			...traitScope,
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal("ft_mint"),
+			assetIdentifier: z.string().optional(),
+			recipient: z.string().optional(),
+			minAmount: z.bigint().optional(),
+			...traitScope,
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal("ft_burn"),
+			assetIdentifier: z.string().optional(),
+			sender: z.string().optional(),
+			minAmount: z.bigint().optional(),
+			...traitScope,
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal("nft_transfer"),
+			assetIdentifier: z.string().optional(),
+			sender: z.string().optional(),
+			recipient: z.string().optional(),
+			...traitScope,
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal("nft_mint"),
+			assetIdentifier: z.string().optional(),
+			recipient: z.string().optional(),
+			...traitScope,
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal("nft_burn"),
+			assetIdentifier: z.string().optional(),
+			sender: z.string().optional(),
+			...traitScope,
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal("contract_call"),
+			contractId: contractIdField.optional(),
+			functionName: z.string().optional(),
+			caller: z.string().optional(),
+			abi: AbiContractSchema.optional(),
+			...traitScope,
+			...factoryScope,
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal("contract_deploy"),
+			deployer: z.string().optional(),
+			contractName: z.string().optional(),
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal("print_event"),
+			contractId: contractIdField.optional(),
+			topic: z.string().optional(),
+			prints: z
+				.record(z.string(), z.record(z.string(), PrintFieldSchema))
+				.optional(),
+			...traitScope,
+			...factoryScope,
+		})
+		.strict(),
+]);
+
+/**
+ * `trait` and `contractId` compose rather than conflict: the matcher ANDs
+ * them, so the pair means "contracts conforming to this trait, narrowed to
+ * these ids". (The Index READ API refuses the combination because its query
+ * planner picks one index path — that's an API constraint, not a semantic
+ * one, and subgraph sources are not bound by it.)
+ */
+export const SubgraphFilterSchema: z.ZodType<SubgraphFilter> =
+	SubgraphFilterUnion as unknown as z.ZodType<SubgraphFilter>;
 
 export const SubgraphDefinitionSchema: z.ZodType<SubgraphDefinition> = z.object(
 	{
@@ -214,4 +342,33 @@ export const SubgraphDefinitionSchema: z.ZodType<SubgraphDefinition> = z.object(
  */
 export function validateSubgraphDefinition(def: unknown): SubgraphDefinition {
 	return SubgraphDefinitionSchema.parse(def);
+}
+
+/**
+ * Per-source-type field vocabulary, DERIVED from
+ * {@link SubgraphFilterSchema}. Agent-facing surfaces (the MCP filters
+ * reference) used to hand-maintain a parallel copy of this list; deriving it
+ * means adding a field to a filter can never leave the documentation behind.
+ */
+export function filterFieldsByType(): Array<{
+	type: string;
+	fields: string[];
+}> {
+	// Read the UNION directly (SubgraphFilterSchema wraps it in superRefine).
+	// biome-ignore lint/suspicious/noExplicitAny: reading zod's internal option shapes
+	const options = (SubgraphFilterUnion as any)?._def?.options ?? [];
+	const out: Array<{ type: string; fields: string[] }> = [];
+	for (const option of options) {
+		// `.superRefine()` wraps the union, so unwrap one level when present.
+		const shape = option?.shape ?? option?._def?.shape;
+		if (!shape) continue;
+		const literal =
+			shape.type?._def?.values?.[0] ?? shape.type?._def?.value ?? undefined;
+		if (typeof literal !== "string") continue;
+		out.push({
+			type: literal,
+			fields: Object.keys(shape).filter((k) => k !== "type"),
+		});
+	}
+	return out;
 }

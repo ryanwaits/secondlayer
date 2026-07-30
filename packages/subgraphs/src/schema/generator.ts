@@ -149,6 +149,27 @@ export function emitJournalDDL(schemaName: string): string[] {
 	];
 }
 
+/**
+ * Storage for factory-discovered addresses.
+ *
+ * `block_height` is what makes the set reorg-scoped: the reorg handler
+ * deletes rows at or above the fork alongside the data tables, so an address
+ * revealed on an orphaned chain does not linger in the matcher forever
+ * (the failure mode a set kept outside the rollback model would have).
+ */
+export function emitFactoryDDL(schemaName: string): string[] {
+	return [
+		`CREATE TABLE IF NOT EXISTS ${schemaName}._factory_addresses (
+  source_name TEXT NOT NULL,
+  address TEXT NOT NULL,
+  block_height BIGINT NOT NULL,
+  _created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (source_name, address)
+)`,
+		`CREATE INDEX IF NOT EXISTS idx_${schemaName}_factory_height ON ${schemaName}._factory_addresses (block_height)`,
+	];
+}
+
 /** Foreign-key DDL for one table's relations. Emit AFTER every referenced table
  *  exists; references require the target columns to be a UNIQUE key. */
 export function emitForeignKeyDDL(
@@ -197,6 +218,14 @@ export function generateSubgraphSQL(
 
 	// Revert journal (one per schema) — see emitJournalDDL.
 	statements.push(...emitJournalDDL(schemaName));
+	// Only when a source actually uses a factory — no dead table otherwise.
+	if (
+		Object.values(def.sources ?? {}).some(
+			(src) => (src as { factory?: unknown }).factory !== undefined,
+		)
+	) {
+		statements.push(...emitFactoryDDL(schemaName));
+	}
 
 	// Foreign keys are added in a second pass so every referenced table exists.
 	// These mirror the ORM relations emitted by the codegen (no drift) and require

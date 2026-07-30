@@ -51,9 +51,17 @@ export async function lintPrintFields(
 					: null;
 		if (source === null) continue;
 
+		// A contract SET has one observable schema per member; lint against
+		// their union, so a field observed on any of them is accepted.
+		const contractIds = Array.isArray(filter.contractId)
+			? filter.contractId
+			: [filter.contractId];
 		let topics: InferredTopicSchema[];
 		try {
-			topics = (await schemaLookup(filter.contractId)).topics;
+			const perContract = await Promise.all(
+				contractIds.map(async (id) => (await schemaLookup(id)).topics),
+			);
+			topics = perContract.flat();
 		} catch {
 			continue;
 		}
