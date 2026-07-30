@@ -43,6 +43,10 @@
 		"./runtime/emitter": {
 			"types": "./dist/src/runtime/emitter.d.ts",
 			"import": "./dist/src/runtime/emitter.js"
+		},
+		"./testing": {
+			"types": "./dist/src/testing/index.d.ts",
+			"import": "./dist/src/testing/index.js"
 		}
 	},
 	"files": ["dist"],

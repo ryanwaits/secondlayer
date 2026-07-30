@@ -1,5 +1,6 @@
 export type {
 	ColumnType,
+	FactoryScope,
 	PrintField,
 	SubgraphColumn,
 	SubgraphTable,
@@ -27,7 +28,9 @@ export type {
 	ComputedValue,
 } from "./types.ts";
 export {
+	defineSchema,
 	defineSubgraph,
+	type InferContext,
 	type TypedHandlers,
 	type TypedSubgraphDefinition,
 } from "./define.ts";
@@ -51,7 +54,10 @@ export type {
 	PrintFieldToTS,
 	ContractDeployPayload,
 } from "./events.ts";
-export { validateSubgraphDefinition } from "./validate.ts";
+export {
+	filterFieldsByType,
+	validateSubgraphDefinition,
+} from "./validate.ts";
 export {
 	type PrintValidationResult,
 	validatePrintPayload,

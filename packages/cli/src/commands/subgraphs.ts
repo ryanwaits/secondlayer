@@ -376,8 +376,8 @@ function createLocalSubgraphDetail(input: {
 					default?: string | number | boolean;
 				}
 			>;
-			indexes?: string[][];
-			uniqueKeys?: string[][];
+			indexes?: readonly (readonly string[])[];
+			uniqueKeys?: readonly (readonly string[])[];
 		};
 		const columns: SubgraphDetail["tables"][string]["columns"] = {};
 		for (const [columnName, column] of Object.entries(table.columns ?? {})) {
@@ -1535,6 +1535,29 @@ Examples:
 				);
 			},
 		);
+
+	// --- test (run handlers against real chain data, no deploy) ---
+	subgraphs
+		.command("test <file>")
+		.description(
+			"Run a subgraph's handlers against real chain data without deploying",
+		)
+		.option("--from <height>", "Start block height (required on first run)")
+		.option("--to <height>", "End block height (defaults to --from + 100)")
+		.option("--offline", "Replay the recorded cassette; never hit the network")
+		.option("--no-record", "Don't write a cassette")
+		.option("--limit <n>", "Max events per source", "500")
+		.addHelpText(
+			"after",
+			`
+Examples:
+  $ sl subgraphs test subgraphs/bns-names.ts --from 167484 --to 167600
+  $ sl subgraphs test subgraphs/bns-names.ts --offline`,
+		)
+		.action(async (file: string, options) => {
+			const { runSubgraphTest } = await import("./subgraph-test.ts");
+			await runSubgraphTest(file, options);
+		});
 
 	// --- reindex ---
 	subgraphs

@@ -19,6 +19,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/runtime/stats.ts",
 		"src/runtime/replay.ts",
 		"src/runtime/emitter.ts",
+		"src/testing/index.ts",
 		"src/service.ts",
 	],
 	format: ["esm"],

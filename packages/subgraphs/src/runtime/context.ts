@@ -76,7 +76,10 @@ export class SubgraphContext {
 	private readonly db: AnyDb;
 	private readonly pgSchemaName: string;
 	private readonly subgraphSchema: SubgraphSchema;
-	private readonly ops: WriteOp[] = [];
+	/** Pending writes for this block. `protected` so the in-memory test
+	 *  context (`@secondlayer/subgraphs/testing`) can materialize them through
+	 *  the SAME overlay this class uses — never a second implementation. */
+	protected readonly ops: WriteOp[] = [];
 	/**
 	 * BYO data plane: handler writes land in a user-owned DB whose flush can't
 	 * share the managed block transaction, so a crash replays the block. When
@@ -295,21 +298,35 @@ export class SubgraphContext {
 
 	// --- Read operations (immediate) ---
 
+	/**
+	 * Committed rows matching `where`, BEFORE the pending-ops overlay. The one
+	 * seam a different backing store replaces (the in-memory test context);
+	 * everything above it — validation, overlay, op queueing, flush semantics
+	 * — stays here so the two can't diverge.
+	 */
+	protected async readRows(
+		table: string,
+		where: Record<string, unknown>,
+		limit?: number,
+	): Promise<Record<string, unknown>[]> {
+		const qualifiedTable = `"${this.pgSchemaName}"."${table}"`;
+		const { clause } = buildWhereClause(where);
+		const query = `SELECT * FROM ${qualifiedTable} WHERE ${clause}${
+			limit !== undefined ? ` LIMIT ${limit}` : ""
+		}`;
+		const { rows } = await sql.raw(query).execute(this.db);
+		return (rows as Record<string, unknown>[]).map((r) =>
+			this.coerceRow(table, r),
+		);
+	}
+
 	async findOne(
 		table: string,
 		where: Record<string, unknown>,
 	): Promise<Record<string, unknown> | null> {
 		this.validateTable(table);
-		const qualifiedTable = `"${this.pgSchemaName}"."${table}"`;
-		const { clause } = buildWhereClause(where);
-		const query = `SELECT * FROM ${qualifiedTable} WHERE ${clause} LIMIT 1`;
-		const { rows } = await sql.raw(query).execute(this.db);
-		const row = (rows as Record<string, unknown>[])[0] ?? null;
-		return this.overlayOne(
-			table,
-			where,
-			row ? this.coerceRow(table, row) : null,
-		);
+		const row = (await this.readRows(table, where, 1))[0] ?? null;
+		return this.overlayOne(table, where, row);
 	}
 
 	async findMany(
@@ -317,14 +334,7 @@ export class SubgraphContext {
 		where: Record<string, unknown>,
 	): Promise<Record<string, unknown>[]> {
 		this.validateTable(table);
-		const qualifiedTable = `"${this.pgSchemaName}"."${table}"`;
-		const { clause } = buildWhereClause(where);
-		const query = `SELECT * FROM ${qualifiedTable} WHERE ${clause}`;
-		const { rows } = await sql.raw(query).execute(this.db);
-		const dbRows = (rows as Record<string, unknown>[]).map((r) =>
-			this.coerceRow(table, r),
-		);
-		return this.overlayMany(table, where, dbRows);
+		return this.overlayMany(table, where, await this.readRows(table, where));
 	}
 
 	// --- Pending-ops overlay (read-your-writes) ---
@@ -336,7 +346,7 @@ export class SubgraphContext {
 	 * apply by where-match. Overlaid rows synthesized from pending inserts
 	 * lack DB-generated columns (_id, _created_at).
 	 */
-	private overlayOne(
+	protected overlayOne(
 		table: string,
 		where: Record<string, unknown>,
 		dbRow: Record<string, unknown> | null,
@@ -350,7 +360,7 @@ export class SubgraphContext {
 		return row;
 	}
 
-	private overlayMany(
+	protected overlayMany(
 		table: string,
 		where: Record<string, unknown>,
 		dbRows: Record<string, unknown>[],
@@ -391,7 +401,7 @@ export class SubgraphContext {
 	}
 
 	/** Apply one pending op to a candidate row state (null = row absent). */
-	private applyOpToRow(
+	protected applyOpToRow(
 		op: WriteOp,
 		row: Record<string, unknown> | null,
 		where: Record<string, unknown>,

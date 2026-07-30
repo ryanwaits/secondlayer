@@ -81,3 +81,4 @@ packages/subgraphs/test/fixtures/
 # re-enters git (see commit b2f2be7c which moved it out of .agents/).
 .agents/skills/studio/
 .openpkg-spec.json
+cassettes/
