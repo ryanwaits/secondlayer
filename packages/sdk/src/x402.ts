@@ -71,13 +71,22 @@ export class X402SpendGuardError extends Error {
 	}
 }
 
+// btoa/atob operate on latin-1 strings, so JSON (which may hold any unicode)
+// round-trips through TextEncoder/TextDecoder. Buffer is avoided on purpose:
+// the SDK's auth path is edge-safe (see resolveApiKey's `process` guard) and
+// payments must not be the one surface that throws `Buffer is not defined`.
 function b64encode(value: unknown): string {
-	return Buffer.from(JSON.stringify(value), "utf8").toString("base64");
+	const utf8 = new TextEncoder().encode(JSON.stringify(value));
+	let binary = "";
+	for (const byte of utf8) binary += String.fromCharCode(byte);
+	return btoa(binary);
 }
 
 function b64decodeJson<T>(value: string): T | null {
 	try {
-		return JSON.parse(Buffer.from(value, "base64").toString("utf8")) as T;
+		const binary = atob(value);
+		const utf8 = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
+		return JSON.parse(new TextDecoder().decode(utf8)) as T;
 	} catch {
 		return null;
 	}

@@ -10,6 +10,7 @@ import {
 	stacksTxid,
 	verifyTxMerkleProof,
 } from "@secondlayer/shared/node/nakamoto";
+import { hexToBytes } from "@secondlayer/stacks/utils";
 
 /**
  * Trustless transaction-inclusion proof verification.
@@ -70,8 +71,9 @@ export interface TransactionProofVerifyResult {
 }
 
 const strip = (h: string): string => (h.startsWith("0x") ? h.slice(2) : h);
-const bytes = (h: string): Uint8Array =>
-	Uint8Array.from(Buffer.from(strip(h), "hex"));
+// hexToBytes instead of Buffer.from(h, "hex") — proofs must verify on edge
+// runtimes where Buffer doesn't exist, and it validates byte sequences.
+const bytes = (h: string): Uint8Array => hexToBytes(h);
 
 /**
  * Resolve a reward set directly from a stacks-node (`/v3/stacker_set/{cycle}`),
