@@ -30,7 +30,7 @@ import { error, info, success, warn } from "../lib/output.ts";
 
 const CASSETTE_DIR = "cassettes";
 /** Bump when the decoded row shape changes; invalidates every cassette. */
-const DECODER_VERSION = 1;
+export const DECODER_VERSION = 1;
 
 interface Cassette {
 	decoderVersion: number;
@@ -43,7 +43,7 @@ interface Cassette {
 	events: Record<string, IndexEvent[]>;
 }
 
-function filterHashOf(sources: Record<string, unknown>): string {
+export function filterHashOf(sources: Record<string, unknown>): string {
 	// Stable across key order so a cosmetic reshuffle doesn't invalidate.
 	const stable = JSON.stringify(
 		Object.fromEntries(
@@ -54,15 +54,18 @@ function filterHashOf(sources: Record<string, unknown>): string {
 	return createHash("sha256").update(stable).digest("hex").slice(0, 16);
 }
 
-function cassettePath(name: string): string {
-	return resolve(CASSETTE_DIR, `${name}.json`);
+function cassettePath(name: string, dir = CASSETTE_DIR): string {
+	return resolve(dir, `${name}.json`);
 }
 
-function loadCassette(
+/** Exported (with `dir`) as a test seam — cassette invalidation is the whole
+ *  reason the cassette is safe to trust, and it had no coverage. */
+export function loadCassette(
 	name: string,
 	filterHash: string,
+	dir = CASSETTE_DIR,
 ): Cassette | { stale: string } | null {
-	const path = cassettePath(name);
+	const path = cassettePath(name, dir);
 	if (!existsSync(path)) return null;
 	let parsed: Cassette;
 	try {
