@@ -76,6 +76,7 @@ const STREAMS_EVENTS_ALLOWED = [
 	"sender",
 	"recipient",
 	"asset_identifier",
+	"filters",
 	"limit",
 ] as const;
 const STREAMS_REORGS_ALLOWED = ["since", "limit"] as const;
@@ -101,6 +102,12 @@ const STREAMS_EVENTS_FILTER_SPEC = [
 	{ name: "sender", type: "principal | comma-list" },
 	{ name: "recipient", type: "principal | comma-list" },
 	{ name: "asset_identifier", type: "string" },
+	{
+		name: "filters",
+		type: "json object of label -> filter",
+		description:
+			"Labelled filter groups; groups OR together and each event echoes the labels it matched",
+	},
 	{ name: "from_height", type: "number" },
 	{ name: "to_height", type: "number" },
 	{ name: "cursor", type: "string" },

@@ -3,6 +3,7 @@ import {
 	type StreamsEventsReader,
 	getClampedStreamsTipHeight,
 	getStreamsEventsResponse,
+	parseStreamsEventsQuery,
 } from "./events.ts";
 import {
 	STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS,
@@ -306,5 +307,58 @@ describe("Streams events route helpers", () => {
 				readEvents: async () => ({ events: [], next_cursor: null }),
 			}),
 		).rejects.toThrow("Unknown Streams event type: contract_call");
+	});
+});
+
+describe("parseStreamsEventsQuery — labelled filter maps", () => {
+	function parse(qs: string) {
+		return parseStreamsEventsQuery(new URLSearchParams(qs), TIP);
+	}
+	function withFilters(value: unknown): string {
+		return `filters=${encodeURIComponent(JSON.stringify(value))}`;
+	}
+
+	test("parses labels with per-group types and payload filters", () => {
+		const parsed = parse(
+			withFilters({
+				peg: { types: ["ft_transfer"], assetIdentifier: "SP1.sbtc::sbtc" },
+				treasury: { types: ["stx_transfer"], sender: ["SP1", "SP2"] },
+			}),
+		);
+
+		expect(parsed.filters?.peg).toMatchObject({
+			types: ["ft_transfer"],
+			assetIdentifier: "SP1.sbtc::sbtc",
+		});
+		expect(parsed.filters?.treasury?.sender).toEqual(["SP1", "SP2"]);
+	});
+
+	test("rejects a non-object body", () => {
+		expect(() => parse(withFilters(["peg"]))).toThrow(/JSON object/);
+		expect(() => parse("filters=not-json")).toThrow(/JSON object/);
+	});
+
+	test("rejects an empty map, too many labels, and a bad label", () => {
+		expect(() => parse(withFilters({}))).toThrow(/at least one label/);
+		const many = Object.fromEntries(
+			Array.from({ length: 9 }, (_, i) => [`l${i}`, {}]),
+		);
+		expect(() => parse(withFilters(many))).toThrow(/at most 8 labels/);
+		expect(() => parse(withFilters({ "1bad": {} }))).toThrow(
+			/Invalid filter label/,
+		);
+	});
+
+	test("rejects unknown fields and unknown event types inside a group", () => {
+		expect(() => parse(withFilters({ peg: { topic: "swap" } }))).toThrow(
+			/Unknown field in filters.peg: topic/,
+		);
+		expect(() => parse(withFilters({ peg: { types: ["nope"] } }))).toThrow(
+			/Unknown Streams event type: nope/,
+		);
+	});
+
+	test("omitting filters leaves the parsed query unchanged", () => {
+		expect(parse("from_height=1&to_height=5").filters).toBeUndefined();
 	});
 });

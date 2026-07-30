@@ -4,6 +4,7 @@ import {
 	STREAMS_EVENT_TYPES,
 	type StreamsEvent,
 	type StreamsEventType,
+	type StreamsLabelledFilter,
 	readCanonicalStreamsEvents,
 } from "@secondlayer/indexer/streams-events";
 import { ValidationError } from "@secondlayer/shared/errors";
@@ -44,6 +45,7 @@ export type StreamsEventsQuery = {
 	sender?: string | string[];
 	recipient?: string | string[];
 	assetIdentifier?: string;
+	filters?: Readonly<Record<string, StreamsLabelledFilter>>;
 	limit: number;
 	cursorPastTip: boolean;
 };
@@ -127,6 +129,120 @@ function parsePayloadFilter(
 	return value;
 }
 
+const MAX_FILTER_LABELS = 8;
+const FILTER_LABEL_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,31}$/;
+const FILTER_GROUP_KEYS = new Set([
+	"types",
+	"contractId",
+	"sender",
+	"recipient",
+	"assetIdentifier",
+]);
+
+/**
+ * `filters` — a JSON-encoded map of labelled filter groups. Groups OR together
+ * server-side and every returned event echoes the labels it satisfied, so two
+ * unrelated concerns share one scan, one cursor, and one checkpoint instead of
+ * two consume loops.
+ *
+ * JSON rather than repeated flat params because the value is nested (a label
+ * owning its own type list and payload filters), and a query param keeps GET
+ * semantics — so SSE `subscribe` takes it unchanged and no new POST-and-stream
+ * route is needed.
+ */
+function parseFilters(
+	value: string | undefined,
+): Record<string, StreamsLabelledFilter> | undefined {
+	if (value === undefined) return undefined;
+
+	let decoded: unknown;
+	try {
+		decoded = JSON.parse(value);
+	} catch {
+		throw new ValidationError(
+			"filters must be a JSON object of label → filter",
+		);
+	}
+	if (
+		decoded === null ||
+		typeof decoded !== "object" ||
+		Array.isArray(decoded)
+	) {
+		throw new ValidationError(
+			"filters must be a JSON object of label → filter",
+		);
+	}
+
+	const entries = Object.entries(decoded as Record<string, unknown>);
+	if (entries.length === 0) {
+		throw new ValidationError("filters must declare at least one label");
+	}
+	if (entries.length > MAX_FILTER_LABELS) {
+		throw new ValidationError(
+			`filters accepts at most ${MAX_FILTER_LABELS} labels`,
+		);
+	}
+
+	const parsed: Record<string, StreamsLabelledFilter> = {};
+	for (const [label, group] of entries) {
+		if (!FILTER_LABEL_PATTERN.test(label)) {
+			throw new ValidationError(
+				`Invalid filter label "${label}": use letters, digits, - and _ (max 32)`,
+			);
+		}
+		if (group === null || typeof group !== "object" || Array.isArray(group)) {
+			throw new ValidationError(`filters.${label} must be an object`);
+		}
+		const record = group as Record<string, unknown>;
+		const unknownKey = Object.keys(record).find(
+			(key) => !FILTER_GROUP_KEYS.has(key),
+		);
+		if (unknownKey) {
+			throw new ValidationError(
+				`Unknown field in filters.${label}: ${unknownKey}`,
+			);
+		}
+		parsed[label] = {
+			types: parseTypes(
+				joinFilterValue(record.types, `filters.${label}.types`),
+			),
+			contractId: parseListFilter(
+				joinFilterValue(record.contractId, `filters.${label}.contractId`),
+				`filters.${label}.contractId`,
+			),
+			sender: parseListFilter(
+				joinFilterValue(record.sender, `filters.${label}.sender`),
+				`filters.${label}.sender`,
+			),
+			recipient: parseListFilter(
+				joinFilterValue(record.recipient, `filters.${label}.recipient`),
+				`filters.${label}.recipient`,
+			),
+			assetIdentifier: parsePayloadFilter(
+				joinFilterValue(
+					record.assetIdentifier,
+					`filters.${label}.assetIdentifier`,
+				),
+				`filters.${label}.assetIdentifier`,
+			),
+		};
+	}
+	return parsed;
+}
+
+/** Normalize a JSON string-or-array field into the comma form the flat
+ *  query-param parsers already validate, so both wire shapes share one rule. */
+function joinFilterValue(value: unknown, name: string): string | undefined {
+	if (value === undefined) return undefined;
+	if (typeof value === "string") return value;
+	if (Array.isArray(value) && value.every((item) => typeof item === "string")) {
+		if (value.length === 0)
+			throw new ValidationError(`${name} must not be empty`);
+		return value.join(",");
+	}
+	throw new ValidationError(`${name} must be a string or array of strings`);
+}
+
 /**
  * Highest height the public Streams API will serve. Held back from the raw tip
  * by a fixed reorg-safety margin (in blocks) so consumers never read a height
@@ -207,6 +323,7 @@ export function parseStreamsEventsQuery(
 			query.get("asset_identifier") ?? undefined,
 			"asset_identifier",
 		),
+		filters: parseFilters(query.get("filters") ?? undefined),
 		limit: parseLimit(query.get("limit") ?? undefined),
 		cursorPastTip: cursor ? cursor.block_height > clampedTipHeight : false,
 	};
@@ -241,6 +358,7 @@ export async function getStreamsEventsResponse(opts: {
 		sender: parsed.sender,
 		recipient: parsed.recipient,
 		assetIdentifier: parsed.assetIdentifier,
+		filters: parsed.filters,
 		limit: parsed.limit,
 	});
 	const readReorgs = opts.readReorgs ?? EMPTY_STREAMS_REORGS_READER;
