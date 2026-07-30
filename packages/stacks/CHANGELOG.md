@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 2.19.2
+
+### Patch Changes
+
+- 025779e: `fetchWithRetry` now honors a server-sent `Retry-After` header (delta-seconds or HTTP-date) on 429/503 instead of always using the linear backoff. Values above 60s fall back to the normal backoff so a transport-level retry never stalls for minutes.
+
 ## 2.19.1
 
 ### Patch Changes

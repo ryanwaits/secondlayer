@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "6.36.0",
+	"version": "6.37.0",
 	"areas": [
 		{
 			"name": "Client",
@@ -51,7 +51,7 @@
 					"summary": "Resolve the credential a client should use.",
 					"signature": "resolveApiKey(apiKey?: string): null | string",
 					"file": "src/base.ts",
-					"line": 37
+					"line": 39
 				},
 				{
 					"name": "SecondLayer",
@@ -67,7 +67,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/base.ts",
-					"line": 13
+					"line": 15
 				}
 			]
 		},
@@ -136,7 +136,7 @@
 					"summary": "Checkpointed pull loop over a cursor-paginated Index feed — the Index port of `consumeStreamsEvents`, sharing its contract: at-least-once delivery, client-owned checkpoints (`onBatch` may return th…",
 					"signature": "consumeIndexFeed(opts: object): object",
 					"file": "src/index-api/consumer.ts",
-					"line": 83
+					"line": 94
 				},
 				{
 					"name": "ContractCallsConsumeParams",
@@ -272,7 +272,7 @@
 					"summary": "Consumer options shared by `index.events.consume` and `index.contractCalls.consume`.",
 					"signature": null,
 					"file": "src/index-api/consumer.ts",
-					"line": 33
+					"line": 35
 				},
 				{
 					"name": "IndexContractCall",
@@ -336,7 +336,7 @@
 					"summary": "Minimum envelope shape of a consumable Index feed page.",
 					"signature": null,
 					"file": "src/index-api/consumer.ts",
-					"line": 15
+					"line": 17
 				},
 				{
 					"name": "IndexFeedFetcher",
@@ -344,7 +344,7 @@
 					"summary": "One page fetch.",
 					"signature": null,
 					"file": "src/index-api/consumer.ts",
-					"line": 24
+					"line": 26
 				},
 				{
 					"name": "IndexFeedItem",
@@ -352,7 +352,7 @@
 					"summary": "Minimum shape a consumed Index row must expose.",
 					"signature": null,
 					"file": "src/index-api/consumer.ts",
-					"line": 12
+					"line": 14
 				},
 				{
 					"name": "IndexFtBurn",
@@ -989,14 +989,6 @@
 			"name": "Streams",
 			"exports": [
 				{
-					"name": "AuthError",
-					"kind": "class",
-					"summary": "",
-					"signature": "AuthError(message?: string): unknown",
-					"file": "src/streams/errors.ts",
-					"line": 1
-				},
-				{
 					"name": "ConsumerBatchContext",
 					"kind": "type",
 					"summary": "What the loop knows at the end of a page, handed to `onBatch`.",
@@ -1314,7 +1306,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 406
+					"line": 417
 				},
 				{
 					"name": "FtTransferEvent",
@@ -1437,20 +1429,12 @@
 					"line": 47
 				},
 				{
-					"name": "RateLimitError",
-					"kind": "class",
-					"summary": "",
-					"signature": "RateLimitError(message?: string, retryAfter?: string): unknown",
-					"file": "src/streams/errors.ts",
-					"line": 10
-				},
-				{
 					"name": "StreamsBatch",
 					"kind": "type",
 					"summary": "One yielded page from {@link StreamsClient.consume} — the `GET /v1/streams/events` envelope verbatim, with `next_cursor` renamed to `cursor` (the checkpoint to persist and resume from).",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 341
+					"line": 352
 				},
 				{
 					"name": "StreamsBatchContext",
@@ -1474,7 +1458,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 454
+					"line": 465
 				},
 				{
 					"name": "StreamsConsumeParams",
@@ -1482,7 +1466,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 351
+					"line": 362
 				},
 				{
 					"name": "StreamsDumpFile",
@@ -1490,7 +1474,7 @@
 					"summary": "One bulk parquet file in the dumps manifest.",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 413
+					"line": 424
 				},
 				{
 					"name": "StreamsDumps",
@@ -1498,7 +1482,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 445
+					"line": 456
 				},
 				{
 					"name": "StreamsDumpsManifest",
@@ -1506,7 +1490,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 426
+					"line": 437
 				},
 				{
 					"name": "StreamsEvent",
@@ -1538,7 +1522,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 368
+					"line": 379
 				},
 				{
 					"name": "StreamsEventsEnvelope",
@@ -1623,10 +1607,10 @@
 				{
 					"name": "StreamsServerError",
 					"kind": "class",
-					"summary": "",
+					"summary": "Thrown on a 5xx from the Streams API.",
 					"signature": "StreamsServerError(message: string, status: number, body?: object): unknown",
 					"file": "src/streams/errors.ts",
-					"line": 33
+					"line": 9
 				},
 				{
 					"name": "StreamsSignatureError",
@@ -1634,7 +1618,7 @@
 					"summary": "Thrown when response signature verification is enabled and fails.",
 					"signature": "StreamsSignatureError(message?: string): unknown",
 					"file": "src/streams/errors.ts",
-					"line": 45
+					"line": 17
 				},
 				{
 					"name": "StreamsTip",
@@ -1650,15 +1634,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 525
-				},
-				{
-					"name": "ValidationError",
-					"kind": "class",
-					"summary": "",
-					"signature": "ValidationError(message: string, status: number, body?: object): unknown",
-					"file": "src/streams/errors.ts",
-					"line": 22
+					"line": 536
 				}
 			]
 		},
@@ -2225,9 +2201,17 @@
 					"name": "ApiError",
 					"kind": "class",
 					"summary": "Error thrown by {@link SecondLayer} when an API request fails.",
-					"signature": "ApiError(status: number, message: string, body?: object, code?: string): unknown",
+					"signature": "ApiError(status: number, message: string, body?: object, code?: string, options?: SecondLayerErrorOptions): unknown",
 					"file": "src/errors.ts",
-					"line": 20
+					"line": 133
+				},
+				{
+					"name": "AuthError",
+					"kind": "class",
+					"summary": "Thrown on a 401 — by both the platform clients and Streams.",
+					"signature": "AuthError(message?: string): unknown",
+					"file": "src/errors.ts",
+					"line": 160
 				},
 				{
 					"name": "ByoBreakingChangeDetails",
@@ -2243,7 +2227,47 @@
 					"summary": "Thrown when a BYO subgraph deploy is refused for a breaking schema change.",
 					"signature": "ByoBreakingChangeError(message: string, details: ByoBreakingChangeDetails): unknown",
 					"file": "src/errors.ts",
-					"line": 67
+					"line": 239
+				},
+				{
+					"name": "parseRetryAfter",
+					"kind": "function",
+					"summary": "Parse a `Retry-After` header: delta-seconds or an HTTP-date.",
+					"signature": "parseRetryAfter(value?: null | string): null | number",
+					"file": "src/errors.ts",
+					"line": 196
+				},
+				{
+					"name": "RateLimitError",
+					"kind": "class",
+					"summary": "Thrown on a 429 — by both the platform clients and Streams.",
+					"signature": "RateLimitError(message?: string, retryAfter?: string): unknown",
+					"file": "src/errors.ts",
+					"line": 171
+				},
+				{
+					"name": "SecondLayerError",
+					"kind": "class",
+					"summary": "Root of the SDK error family.",
+					"signature": "SecondLayerError(shortMessage: string, options?: SecondLayerErrorOptions): unknown",
+					"file": "src/errors.ts",
+					"line": 35
+				},
+				{
+					"name": "SecondLayerErrorOptions",
+					"kind": "interface",
+					"summary": "Options accepted by every error in the family.",
+					"signature": null,
+					"file": "src/errors.ts",
+					"line": 8
+				},
+				{
+					"name": "ValidationError",
+					"kind": "class",
+					"summary": "Thrown on a 4xx the caller can fix (bad cursor, bad params).",
+					"signature": "ValidationError(message: string, status: number, body?: object): unknown",
+					"file": "src/errors.ts",
+					"line": 188
 				},
 				{
 					"name": "VersionConflictError",
@@ -2251,7 +2275,7 @@
 					"summary": "Thrown on optimistic-concurrency conflict when a deploy supplies an `expectedVersion` that no longer matches the server's stored version.",
 					"signature": "VersionConflictError(currentVersion: string, expectedVersion: string, message?: string): unknown",
 					"file": "src/errors.ts",
-					"line": 39
+					"line": 209
 				}
 			]
 		},
