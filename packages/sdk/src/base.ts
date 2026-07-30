@@ -65,11 +65,15 @@ export abstract class BaseClient {
 	protected baseUrl: string;
 	protected apiKey?: string;
 	protected origin: "cli" | "mcp" | "session";
+	protected fetchImpl: FetchLike;
 
 	constructor(options: Partial<SecondLayerOptions> = {}) {
 		this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
 		this.apiKey = resolveApiKey(options.apiKey);
 		this.origin = options.origin ?? "cli";
+		// Bind the global so a bare `fetch` reference doesn't lose its Request
+		// context on runtimes where fetch is a method (workerd, older Node).
+		this.fetchImpl = options.fetchImpl ?? ((...args) => fetch(...args));
 	}
 
 	static authHeaders(apiKey?: string): Record<string, string> {
@@ -148,7 +152,7 @@ export abstract class BaseClient {
 
 		let response: Response;
 		try {
-			response = await fetch(url, {
+			response = await this.fetchImpl(url, {
 				method,
 				headers,
 				body: serializedBody,

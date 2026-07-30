@@ -51,6 +51,32 @@ describe("BaseClient", () => {
 		globalThis.fetch = originalFetch;
 	});
 
+	describe("fetchImpl", () => {
+		test("an injected fetchImpl is used instead of the global", async () => {
+			const seen: Array<string | URL | Request> = [];
+			const injected: typeof fetch = ((input: string | URL | Request) => {
+				seen.push(input);
+				return Promise.resolve(Response.json({ via: "injected" }));
+			}) as typeof fetch;
+			// Poison the global so any fallthrough fails the test loudly.
+			globalThis.fetch = (() => {
+				throw new Error("global fetch must not be called");
+			}) as unknown as typeof fetch;
+
+			const c = new TestClient({ baseUrl: BASE_URL, fetchImpl: injected });
+			const result = await c.doRequest<{ via: string }>("GET", "/test");
+
+			expect(result).toEqual({ via: "injected" });
+			expect(seen).toEqual([`${BASE_URL}/test`]);
+		});
+
+		test("defaults to the global fetch when not provided", async () => {
+			globalThis.fetch = mockFetch({ ok: true, status: 200, body: { g: 1 } });
+			const c = new TestClient({ baseUrl: BASE_URL });
+			await expect(c.doRequest("GET", "/test")).resolves.toEqual({ g: 1 });
+		});
+	});
+
 	test("strips trailing slashes from baseUrl", () => {
 		const c = new TestClient({ baseUrl: "http://localhost:3800///" });
 		expect(c).toBeInstanceOf(BaseClient);
