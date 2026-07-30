@@ -3,6 +3,7 @@ import { type Command, program } from "commander";
 import pkg from "../package.json" with { type: "json" };
 import {
 	registerAccountCommand,
+	registerCodegenCommand,
 	registerConfigCommand,
 	registerContextCommand,
 	registerDevnetCommand,
@@ -78,6 +79,10 @@ registerIndexCommand(program);
 // Project & codegen
 program.commandsGroup("Project & codegen:");
 registerProjectCommand(program);
+// Canonical codegen verb. The per-product paths below (`sl contracts
+// generate`, `sl subgraphs codegen`, `sl index codegen`, …) remain as
+// deprecated aliases until the next major.
+registerCodegenCommand(program);
 
 // Clarity → TypeScript codegen. Shared options + action so it mounts as
 // the canonical `sl contracts generate`.
@@ -91,6 +96,8 @@ const configureGenerate = (cmd: Command): Command =>
 		.option("-k, --api-key <key>", "Stacks node API key for direct RPC URLs")
 		.option("-w, --watch", "Watch for changes")
 		.action(async (files, options) => {
+			const { deprecatedCodegenNotice } = await import("./commands/codegen.ts");
+			deprecatedCodegenNotice("sl contracts generate", "sl codegen contracts");
 			options.out = options.output;
 			const { generate } = await import("./commands/generate");
 			await generate(files, options);

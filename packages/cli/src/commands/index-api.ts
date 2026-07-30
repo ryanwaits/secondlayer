@@ -10,6 +10,7 @@ import {
 	writeData,
 } from "../lib/output.ts";
 import { resolveEnvKey } from "../lib/resolve-auth.ts";
+import { deprecatedCodegenNotice } from "./codegen.ts";
 
 const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
 
@@ -115,53 +116,10 @@ export function registerIndexCommand(program: Command): void {
 		)
 		.option("--env <var>", "Prisma datasource url env var", "DATABASE_URL")
 		.option("-o, --output <path>", "Write to a file (defaults to stdout)")
-		.action(
-			async (o: {
-				target?: string;
-				schema?: string;
-				tables?: string;
-				env?: string;
-				output?: string;
-			}) => {
-				try {
-					const target = o.target ?? "kysely";
-					if (
-						target !== "prisma" &&
-						target !== "kysely" &&
-						target !== "drizzle" &&
-						target !== "json-schema"
-					) {
-						logError(
-							`Unsupported --target "${target}" (supported: prisma, kysely, drizzle, json-schema).`,
-						);
-						process.exit(1);
-					}
-					const { generateIndexSchema } = await import(
-						"@secondlayer/subgraphs"
-					);
-					const tables = o.tables
-						? o.tables
-								.split(",")
-								.map((t) => t.trim())
-								.filter(Boolean)
-						: undefined;
-					const out = generateIndexSchema(target, {
-						schemaName: o.schema,
-						tables,
-						datasourceEnv: o.env,
-					});
-					if (o.output) {
-						await writeTextFile(resolve(o.output), out);
-						success(`Wrote ${target} Index schema to ${o.output}`);
-					} else {
-						process.stdout.write(out);
-					}
-				} catch (err) {
-					logError(`Failed to generate Index schema: ${err}`);
-					process.exit(1);
-				}
-			},
-		);
+		.action(async (o: IndexCodegenOptions) => {
+			deprecatedCodegenNotice("sl index codegen", "sl codegen index");
+			await runIndexCodegen(o);
+		});
 
 	const rangeFlags = (cmd: Command): Command =>
 		cmd
@@ -394,4 +352,56 @@ export function registerIndexCommand(program: Command): void {
 				fail("get mempool tx", err);
 			}
 		});
+}
+
+/** Options for {@link runIndexCodegen}. */
+export interface IndexCodegenOptions {
+	target?: string;
+	schema?: string;
+	tables?: string;
+	env?: string;
+	output?: string;
+}
+
+/**
+ * Typed-schema codegen for the Index domain tables. Shared by the canonical
+ * `sl codegen index` and the deprecated `sl index codegen` alias so the two
+ * can never drift.
+ */
+export async function runIndexCodegen(o: IndexCodegenOptions): Promise<void> {
+	try {
+		const target = o.target ?? "kysely";
+		if (
+			target !== "prisma" &&
+			target !== "kysely" &&
+			target !== "drizzle" &&
+			target !== "json-schema"
+		) {
+			logError(
+				`Unsupported --target "${target}" (supported: prisma, kysely, drizzle, json-schema).`,
+			);
+			process.exit(1);
+		}
+		const { generateIndexSchema } = await import("@secondlayer/subgraphs");
+		const tables = o.tables
+			? o.tables
+					.split(",")
+					.map((t) => t.trim())
+					.filter(Boolean)
+			: undefined;
+		const out = generateIndexSchema(target, {
+			schemaName: o.schema,
+			tables,
+			datasourceEnv: o.env,
+		});
+		if (o.output) {
+			await writeTextFile(resolve(o.output), out);
+			success(`Wrote ${target} Index schema to ${o.output}`);
+		} else {
+			process.stdout.write(out);
+		}
+	} catch (err) {
+		logError(`Failed to generate Index schema: ${err}`);
+		process.exit(1);
+	}
 }

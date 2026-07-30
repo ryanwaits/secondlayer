@@ -41,6 +41,7 @@ import {
 	unpublishSubgraphApi,
 } from "../lib/api-client.ts";
 import type { SubgraphQueryParams } from "../lib/api-client.ts";
+import { deprecatedCodegenNotice } from "./codegen.ts";
 type SubgraphSpecFormat = "openapi" | "agent" | "markdown";
 import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
 import { parseQueryFilters } from "../lib/filter-params.ts";
@@ -202,7 +203,7 @@ export function ormFlagsConflictingWithPayloads(
 
 /** `codegen --payloads`: bundle the def, fetch each pinned contract's print
  *  schema, and emit per-source payload .d.ts types. */
-async function runPayloadsCodegen(
+export async function runPayloadsCodegen(
 	file: string,
 	output: string | undefined,
 ): Promise<void> {
@@ -798,6 +799,9 @@ Examples:
 							name,
 							topics: schema.topics,
 							tablePerTopic: opts.tablePerTopic,
+							// Stamp the inference provenance into the file — `prints`
+							// is empirical, and a reader deserves the sample size.
+							sample: schema.sample,
 						}),
 					);
 				} else {
@@ -1517,91 +1521,18 @@ Examples:
 		.action(
 			async (
 				file: string,
-				options: {
-					target?: string;
-					schema?: string;
-					env?: string;
-					output?: string;
-					modelsOnly?: boolean;
-					payloads?: boolean;
-				},
+				options: SubgraphSchemaCodegenOptions,
 				command: Command,
 			) => {
-				if (options.payloads) {
-					const conflicts = ormFlagsConflictingWithPayloads((key) =>
-						command.getOptionValueSource(key),
-					);
-					if (conflicts.length > 0) {
-						error(
-							`--payloads cannot be combined with ${conflicts.join(", ")} — those flags apply to ORM targets only.`,
-						);
-						process.exit(1);
-					}
-					await runPayloadsCodegen(file, options.output);
-					return;
-				}
-				try {
-					const target = options.target ?? "prisma";
-					if (
-						target !== "prisma" &&
-						target !== "drizzle" &&
-						target !== "kysely"
-					) {
-						error(
-							`Unsupported --target "${target}" (supported: prisma, drizzle, kysely).`,
-						);
-						process.exit(1);
-					}
-					const absPath = resolve(file);
-					if (!existsSync(absPath)) {
-						error(`File not found: ${absPath}`);
-						process.exit(1);
-					}
-					const { readFile } = await import("node:fs/promises");
-					const { bundleSubgraphCode } = await import("@secondlayer/bundler");
-					const {
-						generatePrismaSchema,
-						generateDrizzleSchema,
-						generateKyselySchema,
-					} = await import("@secondlayer/subgraphs");
-					const source = await readFile(absPath, "utf8");
-					const bundled = await bundleSubgraphCode(source);
-					const def: SubgraphDefinition = {
-						name: bundled.name,
-						version: bundled.version,
-						description: bundled.description,
-						sources:
-							bundled.sources as unknown as SubgraphDefinition["sources"],
-						schema: bundled.schema as SubgraphDefinition["schema"],
-						handlers: {},
-					};
-					const out =
-						target === "drizzle"
-							? generateDrizzleSchema(def, { schemaName: options.schema })
-							: target === "kysely"
-								? generateKyselySchema(def, { schemaName: options.schema })
-								: generatePrismaSchema(def, {
-										schemaName: options.schema,
-										datasourceEnv: options.env,
-										modelsOnly: options.modelsOnly,
-									});
-					if (options.output) {
-						await writeTextFile(resolve(options.output), out);
-						success(`Wrote ${target} schema to ${options.output}`);
-						const next =
-							target === "prisma"
-								? "point its datasource at your BYO database, then `prisma generate`."
-								: target === "drizzle"
-									? "point your Drizzle connection at your BYO database (treat tables read-only)."
-									: "import the `DB` type into `new Kysely<DB>()` against your BYO database.";
-						info(`Next: ${next}`);
-					} else {
-						process.stdout.write(out);
-					}
-				} catch (err) {
-					error(`Failed to generate schema: ${err}`);
-					process.exit(1);
-				}
+				deprecatedCodegenNotice(
+					"sl subgraphs codegen",
+					options.payloads ? "sl codegen prints" : "sl codegen subgraph",
+				);
+				// Keeps `prisma` as its default so existing scripts don't change
+				// output; the canonical verb defaults to kysely everywhere.
+				await runSubgraphSchemaCodegen(file, options, (key) =>
+					command.getOptionValueSource(key),
+				);
 			},
 		);
 
@@ -2143,30 +2074,137 @@ Examples:
 		.description("Generate a typed query client for a deployed subgraph")
 		.option("-o, --output <path>", "Output file path (required)")
 		.action(async (subgraphName: string, options: { output?: string }) => {
-			try {
-				if (!options.output) {
-					error("--output <path> is required");
-					process.exit(1);
-				}
-
-				const outPath = resolve(options.output);
-
-				info(`Fetching subgraph metadata for "${subgraphName}"...`);
-				const subgraphDetail = await getSubgraphApi(subgraphName);
-
-				info("Generating typed client...");
-				const content = await generateSubgraphConsumer(
-					subgraphName,
-					subgraphDetail,
-				);
-
-				const dir = resolve(outPath, "..");
-				if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-				await writeTextFile(outPath, content);
-
-				success(`Created ${outPath}`);
-			} catch (err) {
-				handleApiError(err, "generate subgraph client");
-			}
+			deprecatedCodegenNotice("sl subgraphs client", "sl codegen client");
+			await runSubgraphClientCodegen(subgraphName, options);
 		});
+}
+
+/**
+ * Typed query-client codegen for a deployed subgraph. Shared by the canonical
+ * `sl codegen client` and the deprecated `sl subgraphs client` alias.
+ */
+export async function runSubgraphClientCodegen(
+	subgraphName: string,
+	options: { output?: string },
+): Promise<void> {
+	try {
+		if (!options.output) {
+			error("--output <path> is required");
+			process.exit(1);
+		}
+
+		const outPath = resolve(options.output);
+
+		info(`Fetching subgraph metadata for "${subgraphName}"...`);
+		const subgraphDetail = await getSubgraphApi(subgraphName);
+
+		info("Generating typed client...");
+		const content = await generateSubgraphConsumer(
+			subgraphName,
+			subgraphDetail,
+		);
+
+		const dir = resolve(outPath, "..");
+		if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+		await writeTextFile(outPath, content);
+
+		success(`Created ${outPath}`);
+	} catch (err) {
+		handleApiError(err, "generate subgraph client");
+	}
+}
+
+/** Options for {@link runSubgraphSchemaCodegen}. */
+export interface SubgraphSchemaCodegenOptions {
+	target?: string;
+	schema?: string;
+	env?: string;
+	output?: string;
+	modelsOnly?: boolean;
+	payloads?: boolean;
+}
+
+/**
+ * ORM-schema (or print-payload) codegen for a subgraph file. Shared by the
+ * canonical `sl codegen subgraph` and the deprecated `sl subgraphs codegen`
+ * alias, so the two can never drift.
+ *
+ * `defaultTarget` differs by entry point on purpose: the canonical verb uses
+ * `kysely` (one default across every codegen surface), while the deprecated
+ * alias keeps `prisma` so existing scripts don't silently change output.
+ */
+export async function runSubgraphSchemaCodegen(
+	file: string,
+	options: SubgraphSchemaCodegenOptions,
+	optionSource: (key: string) => string | undefined,
+	defaultTarget: "prisma" | "kysely" = "prisma",
+): Promise<void> {
+	if (options.payloads) {
+		const conflicts = ormFlagsConflictingWithPayloads(optionSource);
+		if (conflicts.length > 0) {
+			error(
+				`--payloads cannot be combined with ${conflicts.join(", ")} — those flags apply to ORM targets only.`,
+			);
+			process.exit(1);
+		}
+		await runPayloadsCodegen(file, options.output);
+		return;
+	}
+	try {
+		const target = options.target ?? defaultTarget;
+		if (target !== "prisma" && target !== "drizzle" && target !== "kysely") {
+			error(
+				`Unsupported --target "${target}" (supported: prisma, drizzle, kysely).`,
+			);
+			process.exit(1);
+		}
+		const absPath = resolve(file);
+		if (!existsSync(absPath)) {
+			error(`File not found: ${absPath}`);
+			process.exit(1);
+		}
+		const { readFile } = await import("node:fs/promises");
+		const { bundleSubgraphCode } = await import("@secondlayer/bundler");
+		const {
+			generatePrismaSchema,
+			generateDrizzleSchema,
+			generateKyselySchema,
+		} = await import("@secondlayer/subgraphs");
+		const source = await readFile(absPath, "utf8");
+		const bundled = await bundleSubgraphCode(source);
+		const def: SubgraphDefinition = {
+			name: bundled.name,
+			version: bundled.version,
+			description: bundled.description,
+			sources: bundled.sources as unknown as SubgraphDefinition["sources"],
+			schema: bundled.schema as SubgraphDefinition["schema"],
+			handlers: {},
+		};
+		const out =
+			target === "drizzle"
+				? generateDrizzleSchema(def, { schemaName: options.schema })
+				: target === "kysely"
+					? generateKyselySchema(def, { schemaName: options.schema })
+					: generatePrismaSchema(def, {
+							schemaName: options.schema,
+							datasourceEnv: options.env,
+							modelsOnly: options.modelsOnly,
+						});
+		if (options.output) {
+			await writeTextFile(resolve(options.output), out);
+			success(`Wrote ${target} schema to ${options.output}`);
+			const next =
+				target === "prisma"
+					? "point its datasource at your BYO database, then `prisma generate`."
+					: target === "drizzle"
+						? "point your Drizzle connection at your BYO database (treat tables read-only)."
+						: "import the `DB` type into `new Kysely<DB>()` against your BYO database.";
+			info(`Next: ${next}`);
+		} else {
+			process.stdout.write(out);
+		}
+	} catch (err) {
+		error(`Failed to generate schema: ${err}`);
+		process.exit(1);
+	}
 }
