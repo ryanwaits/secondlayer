@@ -2,6 +2,25 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## Index — July 2026
+
+### Field projection reaches sBTC deposits
+
+```ts
+const { deposits } = await sl.sbtc.deposits.list({
+  confirmed: true,
+  fields: ["bitcoin_txid", "output_index", "amount", "tx_id", "block_height"],
+});
+deposits[0].sender; // ✗ not requested, not fetched, not in the type
+```
+
+Projection shipped on `/v1/index/events` and stayed there, so every sibling
+resource returned full rows whether or not you wanted them. The parse-and-strip
+logic is now shared, which keeps the two rules that matter identical wherever
+it is applied: a misspelled field is **refused** rather than quietly ignored,
+and `cursor`/`block_height` always survive so pagination and reorg reporting
+cannot be projected away.
+
 ## Reliability — July 2026
 
 ### A reorg is confirmed before it overwrites anything
