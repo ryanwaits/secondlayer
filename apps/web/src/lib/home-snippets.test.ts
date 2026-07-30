@@ -8,6 +8,7 @@ import {
 	SBTC_ASSET_IDENTIFIER,
 	TESTING_RUN,
 	TESTING_SNIPPET,
+	TYPED_HANDLERS_ABI_SNIPPET,
 	TYPED_HANDLERS_SNIPPET,
 } from "./home-snippets";
 
@@ -73,6 +74,11 @@ describe("home snippets", () => {
 		expect(TYPED_HANDLERS_SNIPPET).toContain('type: "contract_call"');
 		expect(TYPED_HANDLERS_SNIPPET).toContain("abi: marketplaceAbi");
 		expect(TYPED_HANDLERS_SNIPPET).toContain("event.input.");
+		// The ABI pane must stay the real Clarity JSON ABI shape (AbiFunction:
+		// name/access/args) and keep the const assertion the typing relies on.
+		expect(TYPED_HANDLERS_ABI_SNIPPET).toContain('name: "purchase-asset"');
+		expect(TYPED_HANDLERS_ABI_SNIPPET).toContain('access: "public"');
+		expect(TYPED_HANDLERS_ABI_SNIPPET).toContain("as const");
 		expect(TESTING_SNIPPET).toContain('from "@secondlayer/subgraphs/testing"');
 		expect(TESTING_SNIPPET).toContain("createTestContext(");
 		expect(TESTING_SNIPPET).toContain("buildEvent(");

@@ -49,7 +49,9 @@ export const FILTERS_GATE_SNIPPET = `on.sbtcDeposit({}).toIndexParams();
  * squiggle can sit inside the code; compile-checked in @secondlayer/subgraphs.
  * Kept here so the mirror test can assert the field names against the pane.
  */
-export const TYPED_HANDLERS_SNIPPET = `sources: {
+export const TYPED_HANDLERS_SNIPPET = `import { marketplaceAbi } from "./marketplace.abi";
+
+sources: {
   sale: { type: "contract_call",
           contractId: MARKETPLACE,
           functionName: "purchase-asset",
@@ -62,6 +64,25 @@ handlers: {
     amount:     event.input.amount,
   }),
 },`;
+
+/**
+ * The right pane of the IDE section: the ABI artifact the types come from —
+ * the Clarity JSON ABI shape (`AbiFunction`: name/access/args) emitted by
+ * contract codegen, frozen `as const` so the literals survive into types.
+ */
+export const TYPED_HANDLERS_ABI_SNIPPET = `// marketplace.abi.ts — generated from the deployed contract
+export const marketplaceAbi = {
+  functions: [{
+    name: "purchase-asset",
+    access: "public",
+    args: [
+      { name: "collection", type: "principal" },
+      { name: "token-id",   type: "uint128" },
+      { name: "price",      type: "uint128" },
+    ],
+    /* outputs … */
+  }],
+} as const;`;
 
 /** Testing section — the unit-test half (left pane of the V3 shell). */
 export const TESTING_SNIPPET = `import { buildEvent, createTestContext }
