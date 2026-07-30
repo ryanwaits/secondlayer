@@ -4,7 +4,7 @@ import type {
 	AbiFunction,
 	AbiType,
 } from "@secondlayer/stacks/clarity";
-import { normalizeAbi } from "../utils/abi-compat";
+import { normalizeAbi } from "@secondlayer/stacks/clarity";
 
 /**
  * Basic Clarity contract parser
@@ -139,7 +139,7 @@ function inferReturnType(body: string): AbiType {
 
 /**
  * Parse ABI from API response
- * Uses the abi-compat normalization layer for consistent handling of different ABI formats
+ * Uses normalizeAbi from @secondlayer/stacks/clarity for consistent handling of different ABI formats
  */
 // biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 export function parseApiResponse(apiResponse: any): AbiContract {

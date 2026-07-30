@@ -5,13 +5,13 @@
 
 import { initSimnet } from "@hirosystems/clarinet-sdk";
 import { toCamelCase } from "@secondlayer/stacks/clarity";
+import { normalizeAbi } from "@secondlayer/stacks/clarity";
 import { generateContractInterface } from "../../generators/contract";
 import type {
 	GenerateContext,
 	PluginFactory,
 	UserConfig,
 } from "../../types/plugin";
-import { normalizeAbi } from "../../utils/abi-compat";
 import { DEFAULT_SENDER_ADDRESS } from "../../utils/constants";
 import { parseContractId } from "../../utils/contract-id";
 import { matchesContractFilters } from "../shared";

@@ -1,18 +1,26 @@
 /**
- * ABI compatibility layer for normalizing different ABI formats
+ * Normalize a Clarity ABI from any source into the canonical `AbiContract`
+ * shape this package's type extractors expect.
  *
- * Handles differences between:
- * - Upstream ClarityAbi types (uses `buffer`, `read_only`)
- * - Internal format (uses `buff`, `read-only`)
+ * Sources differ in small, load-bearing ways: the Hiro API and Clarinet SDK
+ * emit `buffer`/`read_only` and wrap function outputs as `{ type: … }`, while
+ * the canonical shape uses `buff`/`read-only` and a bare `AbiType`. Passing a
+ * raw ABI straight through produces a value that LOOKS right and silently
+ * fails the `AbiContract` constraint, so `event.input` / `.read.x()` typing
+ * quietly degrades. Run it through here first.
+ *
+ * Lives in `@secondlayer/stacks/clarity` (not the CLI) so a raw ABI can be
+ * normalized anywhere — scaffolds, MCP, a user's own script — without the CLI
+ * installed.
  */
 
 import type {
 	AbiContract,
 	AbiFunction,
 	AbiMap,
-	AbiType,
 	AbiVariable,
-} from "@secondlayer/stacks/clarity";
+} from "./contract.ts";
+import type { AbiType } from "./types.ts";
 
 /**
  * Normalize function access type from various formats to internal format

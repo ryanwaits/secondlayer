@@ -125,3 +125,8 @@ export {
 // Utils
 export type { ToCamelCase } from "./utils.ts";
 export { toCamelCase } from "./utils.ts";
+export {
+	normalizeAbi,
+	normalizeAccess,
+	normalizeType,
+} from "./normalize.ts";
