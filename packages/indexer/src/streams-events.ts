@@ -47,6 +47,9 @@ export type StreamsEvent = {
 	 *  Optional for backwards compat with pre-2026-05 callers + test
 	 *  fixtures that pre-date the field. */
 	canonical?: boolean;
+	/** Which labelled filter groups this event satisfied, when the request
+	 *  used `filters`. One event can match several labels. */
+	matched?: string[];
 };
 
 export type ReadCanonicalStreamsEventsParams = {
@@ -65,6 +68,10 @@ export type ReadCanonicalStreamsEventsParams = {
 	sender?: string | readonly string[];
 	recipient?: string | readonly string[];
 	assetIdentifier?: string;
+	/** Labelled filter groups. Groups OR together, each group's fields AND;
+	 *  every top-level filter above still applies to the whole scan. Each
+	 *  returned event echoes the labels it satisfied. */
+	filters?: Readonly<Record<string, StreamsLabelledFilter>>;
 	limit: number;
 	db?: Kysely<Database>;
 };
@@ -102,6 +109,9 @@ type StreamsEventRow = {
 	db_event_type: (typeof STREAMS_DB_EVENT_TYPES)[number];
 	data: unknown;
 	stream_event_index: string | number;
+	/** Labels whose filter group this row satisfied. Absent unless the
+	 *  request used a labelled filter map. */
+	matched?: string[] | null;
 };
 
 /** Alias of the shared codec; kept for existing indexer import sites. */
@@ -188,6 +198,7 @@ function normalizeRow(row: StreamsEventRow): StreamsEvent {
 		payload,
 		ts: new Date(Number(row.timestamp) * 1000).toISOString(),
 		canonical: true,
+		...(row.matched ? { matched: row.matched } : {}),
 	};
 }
 
@@ -204,9 +215,22 @@ export async function readCanonicalStreamsEvents(
 		return { events: [], next_cursor: null };
 	}
 
+	const labels = params.filters ? Object.keys(params.filters) : [];
+	// A labelled map scans the UNION of its groups' types — the candidate scan
+	// has to be wide enough for every group, and each group's own `types` is
+	// then re-applied exactly inside its OR branch. Without the union a
+	// two-label request would silently drop one label's events.
+	const requestedStreamsTypes =
+		labels.length > 0
+			? unionTypes(params.filters ?? {}, params.types)
+			: (params.types ?? STREAMS_EVENT_TYPES);
+	if (labels.length > 0 && requestedStreamsTypes.length === 0) {
+		return { events: [], next_cursor: null };
+	}
+
 	// `not_types` narrows the included set rather than adding a NOT IN clause, so
 	// the existing `type IN (...)` path covers both inclusion and exclusion.
-	const includedStreamsTypes = (params.types ?? STREAMS_EVENT_TYPES).filter(
+	const includedStreamsTypes = requestedStreamsTypes.filter(
 		(eventType) => !params.notTypes?.includes(eventType),
 	);
 	if (includedStreamsTypes.length === 0) {
@@ -221,7 +245,9 @@ export async function readCanonicalStreamsEvents(
 			STREAMS_TO_DB_EVENT_TYPES[eventType].map((dbType) => sql`${dbType}`),
 		),
 	);
-	const filterPredicate = streamsFilterPredicate(params);
+	const filterPredicate = sql`${streamsFilterPredicate(params)}${labelledFilterPredicate(params.filters)}`;
+	const matched = matchedSelect(params.filters);
+	const matchedCol = matchedForward(params.filters);
 	const rows = params.after
 		? await readCanonicalStreamsEventsAfterCursor({
 				db,
@@ -231,6 +257,8 @@ export async function readCanonicalStreamsEvents(
 				allDbEventTypes,
 				selectedDbEventTypes,
 				filterPredicate,
+				matched,
+				matchedCol,
 			})
 		: await readCanonicalStreamsEventsFromHeight({
 				db,
@@ -240,6 +268,8 @@ export async function readCanonicalStreamsEvents(
 				allDbEventTypes,
 				selectedDbEventTypes,
 				filterPredicate,
+				matched,
+				matchedCol,
 			});
 
 	const pageRows = rows.slice(0, params.limit);
@@ -344,6 +374,88 @@ function streamsFilterPredicate(params: {
 	)}`;
 }
 
+/** One labelled filter group. Fields within a group AND together. */
+export type StreamsLabelledFilter = {
+	types?: readonly StreamsEventType[];
+	contractId?: string | readonly string[];
+	sender?: string | readonly string[];
+	recipient?: string | readonly string[];
+	assetIdentifier?: string;
+};
+
+/** Restrict a group to its own event types (its share of the candidate scan). */
+function groupTypePredicate(
+	types: readonly StreamsEventType[] | undefined,
+): RawBuilder<unknown> {
+	if (!types || types.length === 0) return sql``;
+	const dbTypes = sql.join(
+		types.flatMap((eventType) =>
+			STREAMS_TO_DB_EVENT_TYPES[eventType].map((dbType) => sql`${dbType}`),
+		),
+	);
+	return sql` AND e.type IN (${dbTypes})`;
+}
+
+/** The AND-ed body of one labelled group (no leading AND). */
+function groupBody(filter: StreamsLabelledFilter): RawBuilder<unknown> {
+	return sql`TRUE${groupTypePredicate(filter.types)}${streamsFilterPredicate(filter)}`;
+}
+
+/**
+ * WHERE predicate for a labelled filter map: the groups OR together.
+ *
+ * A single flat filter can only express one AND-ed set, so two independent
+ * concerns meant two consume loops, two cursors, and two checkpoints — or
+ * over-fetching the union and discarding client-side. `(ft_mint AND
+ * asset=sbtc) OR (stx_transfer AND sender=treasury)` is one scan.
+ */
+function labelledFilterPredicate(
+	filters: Readonly<Record<string, StreamsLabelledFilter>> | undefined,
+): RawBuilder<unknown> {
+	const groups = Object.values(filters ?? {});
+	if (groups.length === 0) return sql``;
+	return sql` AND (${sql.join(
+		groups.map((filter) => sql`(${groupBody(filter)})`),
+		sql` OR `,
+	)})`;
+}
+
+/** Union of every group's event types (a group without `types` inherits the
+ *  request-level `types`, or the full firehose vocabulary). */
+function unionTypes(
+	filters: Readonly<Record<string, StreamsLabelledFilter>>,
+	requestTypes: readonly StreamsEventType[] | undefined,
+): StreamsEventType[] {
+	const fallback = requestTypes ?? STREAMS_EVENT_TYPES;
+	const union = new Set<StreamsEventType>();
+	for (const filter of Object.values(filters)) {
+		for (const eventType of filter.types ?? fallback) union.add(eventType);
+	}
+	return [...union];
+}
+
+/**
+ * `matched` echo: one boolean CASE per label, aggregated into a text array so
+ * a consumer switches on the LABEL instead of re-testing the predicate the
+ * server already evaluated.
+ */
+function matchedSelect(
+	filters: Readonly<Record<string, StreamsLabelledFilter>> | undefined,
+): RawBuilder<unknown> {
+	if (!filters || Object.keys(filters).length === 0) return sql``;
+	const cases = Object.entries(filters).map(
+		([label, filter]) => sql`CASE WHEN ${groupBody(filter)} THEN ${label} END`,
+	);
+	return sql`, ARRAY_REMOVE(ARRAY[${sql.join(cases, sql`, `)}], NULL) AS matched`;
+}
+
+/** Forward `matched` out of `candidate_events` into `ordered_events`. */
+function matchedForward(
+	filters: Readonly<Record<string, StreamsLabelledFilter>> | undefined,
+): RawBuilder<unknown> {
+	return filters && Object.keys(filters).length > 0 ? sql`, c.matched` : sql``;
+}
+
 /**
  * `block_event_ordinals` + `ordered_events` CTEs that assign each candidate row
  * its dense, 0-based, per-block `stream_event_index`.
@@ -364,6 +476,7 @@ function streamsFilterPredicate(params: {
  */
 function streamOrdinalCtes(
 	allDbEventTypes: RawBuilder<unknown>,
+	matchedColumn: RawBuilder<unknown> = sql``,
 ): RawBuilder<unknown> {
 	return sql`
 		block_event_ordinals AS (
@@ -390,7 +503,7 @@ function streamOrdinalCtes(
 				c.tx_index,
 				c.source_event_index,
 				c.db_event_type,
-				c.data,
+				c.data${matchedColumn},
 				o.stream_event_index
 			FROM candidate_events c
 			INNER JOIN block_event_ordinals o
@@ -490,6 +603,8 @@ async function readCanonicalStreamsEventsFromHeight(opts: {
 	allDbEventTypes: RawBuilder<unknown>;
 	selectedDbEventTypes: RawBuilder<unknown>;
 	filterPredicate: RawBuilder<unknown>;
+	matched: RawBuilder<unknown>;
+	matchedCol: RawBuilder<unknown>;
 }): Promise<StreamsEventRow[]> {
 	const { rows } = await sql<StreamsEventRow>`
     WITH candidate_events AS (
@@ -502,7 +617,7 @@ async function readCanonicalStreamsEventsFromHeight(opts: {
         t.tx_index,
         e.event_index AS source_event_index,
         e.type AS db_event_type,
-        e.data
+        e.data${opts.matched}
       FROM events e
       INNER JOIN transactions t ON t.tx_id = e.tx_id
       INNER JOIN blocks b ON b.height = e.block_height
@@ -514,7 +629,7 @@ async function readCanonicalStreamsEventsFromHeight(opts: {
       ORDER BY e.block_height ASC, t.tx_index ASC, e.event_index ASC
       LIMIT ${opts.limit + 1}
     ),
-    ${streamOrdinalCtes(opts.allDbEventTypes)}
+    ${streamOrdinalCtes(opts.allDbEventTypes, opts.matchedCol)}
     SELECT *
     FROM ordered_events
     ORDER BY block_height ASC, tx_index ASC, stream_event_index ASC
@@ -532,6 +647,8 @@ async function readCanonicalStreamsEventsAfterCursor(opts: {
 	allDbEventTypes: RawBuilder<unknown>;
 	selectedDbEventTypes: RawBuilder<unknown>;
 	filterPredicate: RawBuilder<unknown>;
+	matched: RawBuilder<unknown>;
+	matchedCol: RawBuilder<unknown>;
 }): Promise<StreamsEventRow[]> {
 	const { rows } = await sql<StreamsEventRow>`
     WITH same_block_events AS (
@@ -544,7 +661,7 @@ async function readCanonicalStreamsEventsAfterCursor(opts: {
         t.tx_index,
         e.event_index AS source_event_index,
         e.type AS db_event_type,
-        e.data
+        e.data${opts.matched}
       FROM events e
       INNER JOIN transactions t ON t.tx_id = e.tx_id
       INNER JOIN blocks b ON b.height = e.block_height
@@ -564,7 +681,7 @@ async function readCanonicalStreamsEventsAfterCursor(opts: {
         t.tx_index,
         e.event_index AS source_event_index,
         e.type AS db_event_type,
-        e.data
+        e.data${opts.matched}
       FROM events e
       INNER JOIN transactions t ON t.tx_id = e.tx_id
       INNER JOIN blocks b ON b.height = e.block_height
@@ -581,7 +698,7 @@ async function readCanonicalStreamsEventsAfterCursor(opts: {
       UNION ALL
       SELECT * FROM future_events
     ),
-    ${streamOrdinalCtes(opts.allDbEventTypes)}
+    ${streamOrdinalCtes(opts.allDbEventTypes, opts.matchedCol)}
     SELECT *
     FROM ordered_events
     WHERE

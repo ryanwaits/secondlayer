@@ -706,6 +706,164 @@ describe.skipIf(!HAS_DB)("readCanonicalStreamsEvents", () => {
 		expect(page.events).toEqual([]);
 		expect(page.next_cursor).toBe("12:2147483647");
 	});
+
+	describe("labelled filter maps", () => {
+		async function seedTwoConcerns() {
+			if (!db) throw new Error("missing db");
+			await db
+				.insertInto("blocks")
+				.values({
+					height: 5,
+					hash: "0x05",
+					parent_hash: "0x04",
+					burn_block_height: 105,
+					timestamp: 1005,
+					canonical: true,
+				})
+				.execute();
+			await db
+				.insertInto("transactions")
+				.values({
+					tx_id: "tx-mixed",
+					block_height: 5,
+					tx_index: 0,
+					type: "contract_call",
+					sender: "SP1",
+					status: "success",
+					contract_id: "SP1.app",
+					raw_tx: "0x01",
+				})
+				.execute();
+			await db
+				.insertInto("events")
+				.values([
+					{
+						tx_id: "tx-mixed",
+						block_height: 5,
+						event_index: 0,
+						type: "ft_transfer_event",
+						data: {
+							asset_identifier: "SP1.sbtc::sbtc",
+							sender: "SPX",
+							recipient: "SPY",
+							amount: "1",
+						},
+					},
+					{
+						tx_id: "tx-mixed",
+						block_height: 5,
+						event_index: 1,
+						type: "stx_transfer_event",
+						data: { sender: "SP-TREASURY", recipient: "SPZ", amount: "2" },
+					},
+					{
+						tx_id: "tx-mixed",
+						block_height: 5,
+						event_index: 2,
+						type: "stx_transfer_event",
+						data: { sender: "SP-NOBODY", recipient: "SPZ", amount: "3" },
+					},
+				])
+				.execute();
+		}
+
+		test("groups OR together and each event echoes its label", async () => {
+			if (!db) throw new Error("missing db");
+			await seedTwoConcerns();
+
+			const page = await readCanonicalStreamsEvents({
+				fromHeight: 5,
+				toHeight: 5,
+				filters: {
+					peg: { types: ["ft_transfer"], assetIdentifier: "SP1.sbtc::sbtc" },
+					treasury: { types: ["stx_transfer"], sender: "SP-TREASURY" },
+				},
+				limit: 100,
+				db,
+			});
+
+			// The third event (stx_transfer from SP-NOBODY) satisfies neither
+			// group: a labelled map is not "union of types".
+			expect(page.events.map((e) => e.event_type)).toEqual([
+				"ft_transfer",
+				"stx_transfer",
+			]);
+			expect(page.events.map((e) => e.matched)).toEqual([
+				["peg"],
+				["treasury"],
+			]);
+		});
+
+		test("one event can match several labels", async () => {
+			if (!db) throw new Error("missing db");
+			await seedTwoConcerns();
+
+			const page = await readCanonicalStreamsEvents({
+				fromHeight: 5,
+				toHeight: 5,
+				filters: {
+					anyStx: { types: ["stx_transfer"] },
+					treasury: { types: ["stx_transfer"], sender: "SP-TREASURY" },
+				},
+				limit: 100,
+				db,
+			});
+
+			expect(page.events.map((e) => e.matched)).toEqual([
+				["anyStx", "treasury"],
+				["anyStx"],
+			]);
+		});
+
+		test("cursors stay comparable across a label-set change", async () => {
+			if (!db) throw new Error("missing db");
+			await seedTwoConcerns();
+
+			// The ordinal is computed over the block's FULL event set, so a
+			// consumer may add or drop labels between restarts and keep its
+			// checkpoint. Same event, two different label sets, one cursor.
+			const narrow = await readCanonicalStreamsEvents({
+				fromHeight: 5,
+				toHeight: 5,
+				filters: {
+					treasury: { types: ["stx_transfer"], sender: "SP-TREASURY" },
+				},
+				limit: 100,
+				db,
+			});
+			const wide = await readCanonicalStreamsEvents({
+				fromHeight: 5,
+				toHeight: 5,
+				filters: {
+					treasury: { types: ["stx_transfer"], sender: "SP-TREASURY" },
+					peg: { types: ["ft_transfer"], assetIdentifier: "SP1.sbtc::sbtc" },
+				},
+				limit: 100,
+				db,
+			});
+
+			const treasuryCursor = narrow.events[0]?.cursor;
+			expect(treasuryCursor).toBe("5:1");
+			expect(
+				wide.events.find((e) => e.matched?.includes("treasury"))?.cursor,
+			).toBe(treasuryCursor);
+		});
+
+		test("no `filters` leaves rows and cursors untouched", async () => {
+			if (!db) throw new Error("missing db");
+			await seedTwoConcerns();
+
+			const page = await readCanonicalStreamsEvents({
+				fromHeight: 5,
+				toHeight: 5,
+				limit: 100,
+				db,
+			});
+
+			expect(page.events).toHaveLength(3);
+			expect(page.events.every((e) => e.matched === undefined)).toBe(true);
+		});
+	});
 });
 
 describe.skipIf(!HAS_DB)(
