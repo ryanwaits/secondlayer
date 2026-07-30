@@ -33,7 +33,7 @@
 			"import": "./dist/sinks/kysely.js"
 		}
 	},
-	"files": ["dist"],
+	"files": ["dist", "AGENTS.md"],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",
