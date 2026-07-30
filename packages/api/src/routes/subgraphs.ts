@@ -894,8 +894,8 @@ export async function runSubgraphDeploy(
 				: {}),
 			...(expiresAt ? { expires_at: expiresAt.toISOString() } : {}),
 			message: `Subgraph "${name}" ${result.action}`,
-			...(printFieldWarnings.length > 0
-				? { warnings: printFieldWarnings }
+			...(printFieldWarnings.length > 0 || (result.warnings?.length ?? 0) > 0
+				? { warnings: [...printFieldWarnings, ...(result.warnings ?? [])] }
 				: {}),
 			...(result.diff ? { diff: result.diff } : {}),
 			...(result.action === "created" || result.action === "reindexed"

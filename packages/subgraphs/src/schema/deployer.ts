@@ -34,16 +34,57 @@ export interface TableDiff {
 	removedTables: string[];
 	/** Per-table column diffs (only for tables present in both) */
 	tables: Record<string, ColumnDiff>;
+	/** Per-table uniqueKeys / composite-index diffs (tables present in both) */
+	constraints: Record<string, ConstraintDiff>;
 }
 
 export interface ColumnDiff {
 	added: string[];
 	removed: string[];
+	/** Data-shape changes (type/nullable/default) — breaking. */
 	changed: string[];
+	/** Only the `indexed`/`search` flags differ — index DDL, never a rebuild. */
+	indexChanged: string[];
+}
+
+export interface ConstraintDiff {
+	/** New uniqueKeys entries → `ALTER TABLE … ADD CONSTRAINT` (additive). */
+	addedUniqueKeys: string[][];
+	/** Removed uniqueKeys entries — breaking: handler upserts may target them. */
+	removedUniqueKeys: string[][];
+	/** New composite `indexes` entries → CREATE INDEX (additive). */
+	addedIndexes: string[][];
+	/** Removed composite `indexes` entries → DROP INDEX (additive). */
+	removedIndexes: string[][];
+}
+
+/** Column identity minus the index flags: what actually shapes stored data. */
+function columnDataShape(col: unknown): string {
+	const { indexed, search, ...rest } = (col ?? {}) as Record<string, unknown>;
+	return JSON.stringify(rest, Object.keys(rest).sort());
+}
+
+/** Diff two `string[][]` lists (uniqueKeys / indexes) by column-list value. */
+function diffKeyLists(
+	existing: string[][] | undefined,
+	incoming: string[][] | undefined,
+): { added: string[][]; removed: string[][] } {
+	const key = (cols: string[]) => JSON.stringify(cols);
+	const existingSet = new Set((existing ?? []).map(key));
+	const incomingSet = new Set((incoming ?? []).map(key));
+	return {
+		added: (incoming ?? []).filter((cols) => !existingSet.has(key(cols))),
+		removed: (existing ?? []).filter((cols) => !incomingSet.has(key(cols))),
+	};
 }
 
 /**
  * Compare two multi-table subgraph schemas and return differences.
+ *
+ * Index-only changes (`indexed`/`search` flags, composite `indexes`) are
+ * reported separately from data-shape changes: an index never requires a
+ * rebuild, so it must never land in `changed`/breaking — flipping
+ * `indexed: true` on a populated column used to cost a full reindex.
  */
 export function diffSchema(
 	existing: SubgraphSchema,
@@ -58,34 +99,57 @@ export function diffSchema(
 	);
 
 	const tables: Record<string, ColumnDiff> = {};
+	const constraints: Record<string, ConstraintDiff> = {};
 	for (const tableName of incomingTables) {
 		if (!existingTables.has(tableName)) continue;
-		const existingCols = existing[tableName]?.columns;
-		const incomingCols = incoming[tableName]?.columns;
+		const existingTable = existing[tableName];
+		const incomingTable = incoming[tableName];
+		const existingCols = existingTable?.columns;
+		const incomingCols = incomingTable?.columns;
 
 		const existingKeys = new Set(Object.keys(existingCols));
 		const incomingKeys = new Set(Object.keys(incomingCols));
+		const common = [...incomingKeys].filter((k) => existingKeys.has(k));
+
+		const sortedStringify = (o: unknown) =>
+			JSON.stringify(o, Object.keys(o as object).sort());
 
 		tables[tableName] = {
 			added: [...incomingKeys].filter((k) => !existingKeys.has(k)),
 			removed: [...existingKeys].filter((k) => !incomingKeys.has(k)),
-			changed: [...incomingKeys].filter((k) => {
-				if (!existingKeys.has(k)) return false;
-				const sortedStringify = (o: unknown) =>
-					JSON.stringify(o, Object.keys(o as object).sort());
-				return (
-					sortedStringify(existingCols[k]) !== sortedStringify(incomingCols[k])
-				);
-			}),
+			changed: common.filter(
+				(k) =>
+					columnDataShape(existingCols[k]) !== columnDataShape(incomingCols[k]),
+			),
+			indexChanged: common.filter(
+				(k) =>
+					columnDataShape(existingCols[k]) ===
+						columnDataShape(incomingCols[k]) &&
+					sortedStringify(existingCols[k]) !== sortedStringify(incomingCols[k]),
+			),
+		};
+
+		const uq = diffKeyLists(
+			existingTable?.uniqueKeys,
+			incomingTable?.uniqueKeys,
+		);
+		const ix = diffKeyLists(existingTable?.indexes, incomingTable?.indexes);
+		constraints[tableName] = {
+			addedUniqueKeys: uq.added,
+			removedUniqueKeys: uq.removed,
+			addedIndexes: ix.added,
+			removedIndexes: ix.removed,
 		};
 	}
 
-	return { addedTables, removedTables, tables };
+	return { addedTables, removedTables, tables, constraints };
 }
 
 /**
  * Returns true if the diff contains any breaking changes
- * (removed tables, removed columns, or changed column types).
+ * (removed tables, removed columns, changed column types, or removed
+ * uniqueKeys — handler upserts `ON CONFLICT` against those).
+ * Index-flag and composite-index changes are never breaking.
  */
 export function hasBreakingChanges(diff: TableDiff): {
 	breaking: boolean;
@@ -101,6 +165,15 @@ export function hasBreakingChanges(diff: TableDiff): {
 		}
 		if (colDiff.changed.length > 0) {
 			reasons.push(`${table}: changed columns [${colDiff.changed.join(", ")}]`);
+		}
+	}
+	for (const [table, conDiff] of Object.entries(diff.constraints ?? {})) {
+		if (conDiff.removedUniqueKeys.length > 0) {
+			reasons.push(
+				`${table}: removed uniqueKeys [${conDiff.removedUniqueKeys
+					.map((cols) => `(${cols.join(", ")})`)
+					.join(", ")}]`,
+			);
 		}
 	}
 	return { breaking: reasons.length > 0, reasons };
@@ -119,6 +192,10 @@ export interface DeployDiff {
 	removedTables: string[];
 	addedColumns: Record<string, string[]>;
 	breakingChanges: string[];
+	/** Columns whose only change was the `indexed`/`search` flag (index DDL applied in place). */
+	indexChanges?: Record<string, string[]>;
+	/** uniqueKeys added in place via ALTER TABLE … ADD CONSTRAINT. */
+	addedUniqueKeys?: Record<string, string[][]>;
 }
 
 export interface ByoMigrationPlan {
@@ -235,6 +312,8 @@ export async function deploySchema(
 	subgraphId: string;
 	version: string;
 	diff?: DeployDiff;
+	/** Non-fatal caveats the caller should surface (e.g. handler grafts at tip). */
+	warnings?: string[];
 }> {
 	validateSubgraphDefinition(def);
 
@@ -326,6 +405,18 @@ export async function deploySchema(
 				action: handlerChanged ? "handler_updated" : "unchanged",
 				subgraphId: existing.id,
 				version: existing.version,
+				// A handler-only change takes effect from the CURRENT tip: rows
+				// already indexed keep the old handler's output. Silent until now —
+				// say it, and name the fix.
+				...(handlerChanged
+					? {
+							warnings: [
+								"handler changed but schema did not: new logic applies from the current tip only. " +
+									"Rows already indexed were computed by the previous handler. " +
+									"To recompute history, redeploy with --reindex (or backfill a range).",
+							],
+						}
+					: {}),
 			};
 		}
 
@@ -438,6 +529,112 @@ export async function deploySchema(
 				}
 			}
 
+			// Index-flag flips on EXISTING (populated) columns: pure index DDL,
+			// applied in place. CONCURRENTLY because the table has data and this
+			// runs outside a transaction (autocommit per statement) — a plain
+			// CREATE INDEX would take a write lock for the whole build.
+			const existingSchema = existing.definition.schema as SubgraphSchema;
+			const flagFlips: Record<string, string[]> = {};
+			const needsTrgmForFlips = Object.entries(diff.tables).some(
+				([tableName, colDiff]) =>
+					colDiff.indexChanged.some(
+						(colName) =>
+							def.schema[tableName]?.columns[colName]?.search &&
+							!existingSchema[tableName]?.columns[colName]?.search,
+					),
+			);
+			if (needsTrgmForFlips) {
+				await sql.raw("CREATE EXTENSION IF NOT EXISTS pg_trgm").execute(ddlDb);
+			}
+			for (const [tableName, colDiff] of Object.entries(diff.tables)) {
+				if (colDiff.indexChanged.length === 0) continue;
+				flagFlips[tableName] = colDiff.indexChanged;
+				const qualifiedName = `${schemaName}.${tableName}`;
+				for (const colName of colDiff.indexChanged) {
+					const was = existingSchema[tableName]?.columns[colName];
+					const now = def.schema[tableName]?.columns[colName];
+					if (!now) continue;
+					const plainIdx = `idx_${schemaName}_${tableName}_${colName}`;
+					const trgmIdx = `idx_${schemaName}_${tableName}_${colName}_trgm`;
+					if (now.indexed && !was?.indexed) {
+						await sql
+							.raw(
+								`CREATE INDEX CONCURRENTLY IF NOT EXISTS ${plainIdx} ON ${qualifiedName} (${colName})`,
+							)
+							.execute(ddlDb);
+					} else if (!now.indexed && was?.indexed) {
+						await sql
+							.raw(
+								`DROP INDEX CONCURRENTLY IF EXISTS ${schemaName}.${plainIdx}`,
+							)
+							.execute(ddlDb);
+					}
+					if (now.search && !was?.search) {
+						await sql
+							.raw(
+								`CREATE INDEX CONCURRENTLY IF NOT EXISTS ${trgmIdx} ON ${qualifiedName} USING gin (${colName} gin_trgm_ops)`,
+							)
+							.execute(ddlDb);
+					} else if (!now.search && was?.search) {
+						await sql
+							.raw(`DROP INDEX CONCURRENTLY IF EXISTS ${schemaName}.${trgmIdx}`)
+							.execute(ddlDb);
+					}
+				}
+			}
+
+			// uniqueKeys additions: ADD CONSTRAINT in place (idempotent via
+			// pg_constraint check — Postgres has no ADD CONSTRAINT IF NOT EXISTS).
+			// Removals never reach here: hasBreakingChanges classifies them
+			// breaking, which lands in the reindex branch above.
+			const addedUq: Record<string, string[][]> = {};
+			for (const [tableName, conDiff] of Object.entries(diff.constraints)) {
+				const qualifiedName = `${schemaName}.${tableName}`;
+				for (const cols of conDiff.addedUniqueKeys) {
+					const constraintName = `uq_${schemaName}_${tableName}_${cols.join("_")}`;
+					const exists = await sql<{ exists: boolean }>`
+						SELECT EXISTS (
+							SELECT 1 FROM pg_constraint
+							WHERE conname = ${constraintName}
+						) AS "exists"
+					`
+						.execute(ddlDb)
+						.then((r) => r.rows[0]?.exists ?? false);
+					if (!exists) {
+						await sql
+							.raw(
+								`ALTER TABLE ${qualifiedName} ADD CONSTRAINT ${constraintName} UNIQUE (${cols.join(", ")})`,
+							)
+							.execute(ddlDb);
+					}
+					addedUq[tableName] = [...(addedUq[tableName] ?? []), cols];
+				}
+				// Composite indexes: additive both ways. Names are positional in the
+				// incoming schema; a reordered (unchanged-value) entry keeps its old
+				// positionally-derived name, which is harmless.
+				for (const cols of conDiff.addedIndexes) {
+					const i = (def.schema[tableName]?.indexes ?? []).findIndex(
+						(entry) => JSON.stringify(entry) === JSON.stringify(cols),
+					);
+					const idxName = `idx_${schemaName}_${tableName}_composite_${i}`;
+					await sql
+						.raw(
+							`CREATE INDEX CONCURRENTLY IF NOT EXISTS ${idxName} ON ${qualifiedName} (${cols.join(", ")})`,
+						)
+						.execute(ddlDb);
+				}
+				for (const cols of conDiff.removedIndexes) {
+					const i = (existingSchema[tableName]?.indexes ?? []).findIndex(
+						(entry) => JSON.stringify(entry) === JSON.stringify(cols),
+					);
+					if (i < 0) continue;
+					const idxName = `idx_${schemaName}_${tableName}_composite_${i}`;
+					await sql
+						.raw(`DROP INDEX CONCURRENTLY IF EXISTS ${schemaName}.${idxName}`)
+						.execute(ddlDb);
+				}
+			}
+
 			const sg = await registerSubgraph(db, regData);
 			const addedCols: Record<string, string[]> = {};
 			for (const [t, colDiff] of Object.entries(diff.tables)) {
@@ -449,6 +646,12 @@ export async function deploySchema(
 				removedTables: [],
 				addedColumns: addedCols,
 				breakingChanges: [],
+				...(Object.keys(flagFlips).length > 0
+					? { indexChanges: flagFlips }
+					: {}),
+				...(Object.keys(addedUq).length > 0
+					? { addedUniqueKeys: addedUq }
+					: {}),
 			};
 			return {
 				action: "updated",
