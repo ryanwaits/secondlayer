@@ -1,3 +1,5 @@
+import type { Pox5EventTopic } from "@secondlayer/stacks/pox5";
+import type { SbtcEventTopic } from "@secondlayer/stacks/sbtc";
 import type { InferredTopicSchema } from "@secondlayer/subgraphs";
 import { BaseClient, buildQuery } from "../base.ts";
 import type { SecondLayerOptions } from "../base.ts";
@@ -628,14 +630,9 @@ export type PrintSchemaResponse = {
 
 // ── sBTC peg (/v1/index/sbtc) ──────────────────────────────────────
 
-/** The decoded `sbtc_events` topics. */
-export type SbtcEventTopic =
-	| "completed-deposit"
-	| "withdrawal-create"
-	| "withdrawal-accept"
-	| "withdrawal-reject"
-	| "key-rotation"
-	| "update-protocol-contract";
+/** The decoded `sbtc_events` topics — one source of truth in
+ *  `@secondlayer/stacks/sbtc` (already a dependency), re-exported here. */
+export type { SbtcEventTopic } from "@secondlayer/stacks/sbtc";
 
 export type SbtcWithdrawalStatus = "REQUESTED" | "ACCEPTED" | "REJECTED";
 
@@ -980,29 +977,10 @@ export interface PoxResource {
 
 // ── PoX-5 events (/v1/index/pox5/events) ───────────────────────────
 
-/** The decoded `pox-5` boot-contract print topics (SIP-045 Bitcoin Staking).
- *  Declared locally rather than imported from the server packages — the SDK is
- *  published and owns its own dependency surface (same as {@link SbtcEventTopic}). */
-export type IndexPox5EventTopic =
-	| "set-bond-admin"
-	| "set-pause-admin"
-	| "pause-rewards"
-	| "setup-bond"
-	| "add-to-allowlist"
-	| "register-for-bond"
-	| "update-bond-registration"
-	| "register-signer"
-	| "stake"
-	| "stake-update"
-	| "announce-l1-early-exit"
-	| "unstake-sbtc"
-	| "unstake"
-	| "calculate-rewards"
-	| "bond-distribution"
-	| "claim-rewards"
-	| "claim-staker-rewards-for-signer"
-	| "grant-signer-key"
-	| "revoke-signer-grant";
+/** The decoded `pox-5` boot-contract print topics (SIP-045 Bitcoin Staking) —
+ *  one source of truth in `@secondlayer/stacks/pox5` (already a dependency;
+ *  the old "SDK owns its own dependency surface" rationale predated that). */
+export type IndexPox5EventTopic = Pox5EventTopic;
 
 /** A raw decoded PoX-5 print event. Promoted fields cover the hot query paths;
  *  `data` always carries the full decoded tuple, including nested shapes
