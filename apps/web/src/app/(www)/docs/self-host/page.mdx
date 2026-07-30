@@ -116,6 +116,17 @@ Indexer-specific (for advanced tuning):
 | `HIRO_API_URL` | `https://api.mainnet.hiro.so` | Gap-fill fallback only |
 | `HIRO_API_KEY` | _(unset)_ | Optional — improves gap-fill rate limits |
 
+Subgraph handlers that read the chain (`ctx.client.contract(...).read`) need a
+Nakamoto node — the same one you already run, not a new service:
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `STACKS_NODE_RPC_URL` | _(unset)_ | Unset → a handler that reads throws naming this var; handlers that don't read are unaffected |
+| `SUBGRAPH_CHAIN_READ_CONCURRENCY` | `4` | Max concurrent node reads across all handlers in the process |
+
+Results are memoized in the `chain_read_cache` table on the chain database — no
+Redis, no extra container.
+
 ---
 
 ## Run from published images

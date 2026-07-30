@@ -367,6 +367,14 @@ services:
       SUBGRAPH_REINDEX_BATCH_SIZE: ${SUBGRAPH_REINDEX_BATCH_SIZE:-}
       SUBGRAPH_REINDEX_MIN_BATCH_SIZE: ${SUBGRAPH_REINDEX_MIN_BATCH_SIZE:-}
       SUBGRAPH_REINDEX_MAX_BATCH_SIZE: ${SUBGRAPH_REINDEX_MAX_BATCH_SIZE:-}
+      # Chain reads from handlers (`ctx.client.contract(...).read`). Unset →
+      # a handler that reads throws naming this var; handlers that don't read
+      # are unaffected. No new service: point it at the Nakamoto node you
+      # already run (the same one the proof endpoint uses).
+      STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-}
+      # Max concurrent node reads across all handlers in this process.
+      # Unset → 4. Raise only if your node can take it.
+      SUBGRAPH_CHAIN_READ_CONCURRENCY: ${SUBGRAPH_CHAIN_READ_CONCURRENCY:-}
     volumes:
       - ${DATA_DIR:-/opt/secondlayer/data}/views:/data/subgraphs
     depends_on:
