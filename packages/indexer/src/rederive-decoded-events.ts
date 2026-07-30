@@ -28,10 +28,9 @@
  * events_logical_id_uniq is VALID. See
  * `docs/internal/audits/decoded-events-supply-shortfall-2026-06-15.md`.
  */
+import type { StreamsEvent, StreamsEventType } from "@secondlayer/sdk";
 import {
 	type DecodedEventRow,
-	type StreamsEvent,
-	type StreamsEventType,
 	decodeFtBurn,
 	decodeFtMint,
 	decodeFtTransfer,
@@ -43,7 +42,7 @@ import {
 	decodeStxLock,
 	decodeStxMint,
 	decodeStxTransfer,
-} from "@secondlayer/sdk";
+} from "@secondlayer/sdk/streams/rows";
 import { decodeStreamsCursor } from "@secondlayer/shared";
 import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";

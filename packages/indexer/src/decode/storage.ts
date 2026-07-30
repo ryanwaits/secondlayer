@@ -1,4 +1,7 @@
-import type { DecodedEventColumns, DecodedEventRow } from "@secondlayer/sdk";
+import type {
+	DecodedEventColumns,
+	DecodedEventRow,
+} from "@secondlayer/sdk/streams/rows";
 import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Generated, Kysely } from "kysely";

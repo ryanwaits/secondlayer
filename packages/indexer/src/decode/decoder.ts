@@ -1,9 +1,11 @@
 import {
-	type DecodedEventRow,
 	type StreamsClient,
 	type StreamsEvent,
 	type StreamsEventType,
 	createStreamsClient,
+} from "@secondlayer/sdk";
+import {
+	type DecodedEventRow,
 	decodeFtBurn,
 	decodeFtMint,
 	decodeFtTransfer,
@@ -15,7 +17,7 @@ import {
 	decodeStxLock,
 	decodeStxMint,
 	decodeStxTransfer,
-} from "@secondlayer/sdk";
+} from "@secondlayer/sdk/streams/rows";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";

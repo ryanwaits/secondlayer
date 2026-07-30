@@ -30,10 +30,9 @@
  * Default is a DRY RUN (decode + count, no writes). Pass --apply to write.
  */
 
+import type { StreamsEvent, StreamsEventType } from "@secondlayer/sdk";
 import {
 	type DecodedEventRow,
-	type StreamsEvent,
-	type StreamsEventType,
 	decodeNftBurn,
 	decodeNftMint,
 	decodeNftTransfer,
@@ -41,7 +40,7 @@ import {
 	decodeStxLock,
 	decodeStxMint,
 	decodeStxTransfer,
-} from "@secondlayer/sdk";
+} from "@secondlayer/sdk/streams/rows";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";

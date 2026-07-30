@@ -1,10 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import {
-	type StreamsEvent,
-	createStreamsClient,
-	decodeFtTransfer,
-	isFtTransfer,
-} from "@secondlayer/sdk";
+import { type StreamsEvent, createStreamsClient } from "@secondlayer/sdk";
+import { decodeFtTransfer, isFtTransfer } from "@secondlayer/sdk/streams/rows";
 import { Hono } from "hono";
 import { errorHandler } from "../middleware/error.ts";
 import { createStreamsRouter } from "../routes/streams.ts";
