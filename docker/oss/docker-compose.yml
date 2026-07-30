@@ -56,6 +56,10 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
       DATA_DIR: /data
+      # Signed-header source for transaction proofs
+      # (GET /v1/index/transactions/:id/proof). Unset → that endpoint returns
+      # a clean 503; nothing else is affected.
+      STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-}
       # Optional: uncomment to require a Bearer key on every request.
       # When unset, the API is open to localhost (bind POSTGRES_PORT/API_PORT
       # to 127.0.0.1 if running on a public host).
@@ -156,6 +160,12 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
       DATA_DIR: /data
+      # Chain reads from subgraph handlers (`readContractAt`). Point it at the
+      # stacks-node in this file, or an external one. Unset → a handler that
+      # reads throws naming this var; handlers that don't read are unaffected.
+      STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-}
+      # Max concurrent handler chain reads in this process. Unset → 4.
+      SUBGRAPH_CHAIN_READ_CONCURRENCY: ${SUBGRAPH_CHAIN_READ_CONCURRENCY:-}
     volumes:
       - subgraphs_data:/data/subgraphs
     depends_on:
