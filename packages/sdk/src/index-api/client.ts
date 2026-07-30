@@ -506,8 +506,8 @@ export type IndexTransaction = {
 	tenure_change?: { cause: number };
 };
 
-export type TransactionsEnvelope = {
-	transactions: IndexTransaction[];
+export type TransactionsEnvelope<TRow = IndexTransaction> = {
+	transactions: TRow[];
 	next_cursor: string | null;
 	tip: IndexTip;
 	// Chain reorgs overlapping this page's height range; empty when none.
@@ -519,7 +519,22 @@ export type TransactionEnvelope = {
 	tip: IndexTip;
 };
 
+/** Transaction columns that survive any projection. */
+export type TransactionAlwaysFields = "cursor" | "block_height" | "tx_id";
+
+/** A Transaction row narrowed to the requested columns plus the always-present ones. */
+export type TransactionFields<F extends keyof IndexTransaction & string> = Pick<
+	IndexTransaction,
+	(F | TransactionAlwaysFields) & keyof IndexTransaction
+>;
+
 export type TransactionsListParams = {
+	/**
+	 * Columns to return. The server projects the row, so an unrequested column
+	 * is physically absent — and the narrowing overload on `list` makes reading
+	 * one a compile error rather than `undefined` at runtime.
+	 */
+	fields?: readonly (keyof IndexTransaction & string)[];
 	cursor?: string | null;
 	fromCursor?: string | null;
 	limit?: number;
@@ -810,8 +825,8 @@ export type SbtcDepositEnvelope = {
 	tip: IndexTip;
 };
 
-export type SbtcWithdrawalsEnvelope = {
-	withdrawals: IndexSbtcWithdrawal[];
+export type SbtcWithdrawalsEnvelope<TRow = IndexSbtcWithdrawal> = {
+	withdrawals: TRow[];
 	next_cursor: string | null;
 	tip: IndexTip;
 	reorgs: IndexReorg[];
@@ -869,7 +884,23 @@ export type SbtcDepositsWalkParams = Omit<SbtcDepositsListParams, "limit"> & {
 	signal?: AbortSignal;
 };
 
+/** SbtcWithdrawal columns that survive any projection. */
+export type SbtcWithdrawalAlwaysFields = "cursor" | "request_id";
+
+/** A SbtcWithdrawal row narrowed to the requested columns plus the always-present ones. */
+export type SbtcWithdrawalFields<F extends keyof IndexSbtcWithdrawal & string> =
+	Pick<
+		IndexSbtcWithdrawal,
+		(F | SbtcWithdrawalAlwaysFields) & keyof IndexSbtcWithdrawal
+	>;
+
 export type SbtcWithdrawalsListParams = {
+	/**
+	 * Columns to return. The server projects the row, so an unrequested column
+	 * is physically absent — and the narrowing overload on `list` makes reading
+	 * one a compile error rather than `undefined` at runtime.
+	 */
+	fields?: readonly (keyof IndexSbtcWithdrawal & string)[];
 	cursor?: string | null;
 	fromCursor?: string | null;
 	limit?: number;
@@ -946,6 +977,11 @@ export interface SbtcResource {
 		get(bitcoinTxid: string): Promise<SbtcDepositEnvelope | null>;
 	};
 	withdrawals: {
+		/** Narrowing overload: `fields` shrinks the row type to exactly the
+		 *  requested columns plus {@link SbtcWithdrawalAlwaysFields}. */
+		list<const F extends keyof IndexSbtcWithdrawal & string>(
+			params: SbtcWithdrawalsListParams & { fields: readonly F[] },
+		): Promise<SbtcWithdrawalsEnvelope<SbtcWithdrawalFields<F>>>;
 		list(params?: SbtcWithdrawalsListParams): Promise<SbtcWithdrawalsEnvelope>;
 		walk(
 			params?: SbtcWithdrawalsWalkParams,
@@ -1072,8 +1108,8 @@ export type IndexPox5Event = {
 	data: unknown;
 };
 
-export type Pox5EventsEnvelope = {
-	events: IndexPox5Event[];
+export type Pox5EventsEnvelope<TRow = IndexPox5Event> = {
+	events: TRow[];
 	next_cursor: string | null;
 	tip: IndexTip;
 	reorgs: IndexReorg[];
@@ -1081,7 +1117,22 @@ export type Pox5EventsEnvelope = {
 	notes?: string;
 };
 
+/** Pox5Event columns that survive any projection. */
+export type Pox5EventAlwaysFields = "cursor" | "block_height" | "topic";
+
+/** A Pox5Event row narrowed to the requested columns plus the always-present ones. */
+export type Pox5EventFields<F extends keyof IndexPox5Event & string> = Pick<
+	IndexPox5Event,
+	(F | Pox5EventAlwaysFields) & keyof IndexPox5Event
+>;
+
 export type Pox5EventsListParams = {
+	/**
+	 * Columns to return. The server projects the row, so an unrequested column
+	 * is physically absent — and the narrowing overload on `list` makes reading
+	 * one a compile error rather than `undefined` at runtime.
+	 */
+	fields?: readonly (keyof IndexPox5Event & string)[];
 	cursor?: string | null;
 	fromCursor?: string | null;
 	limit?: number;
@@ -1106,6 +1157,11 @@ export type Pox5EventsWalkParams = Omit<Pox5EventsListParams, "limit"> & {
  *  epoch 4.0 hard fork onward (PoX-4's `index.stacking` stream ends there). */
 export interface Pox5Resource {
 	events: {
+		/** Narrowing overload: `fields` shrinks the row type to exactly the
+		 *  requested columns plus {@link Pox5EventAlwaysFields}. */
+		list<const F extends keyof IndexPox5Event & string>(
+			params: Pox5EventsListParams & { fields: readonly F[] },
+		): Promise<Pox5EventsEnvelope<Pox5EventFields<F>>>;
 		list(params?: Pox5EventsListParams): Promise<Pox5EventsEnvelope>;
 		walk(params?: Pox5EventsWalkParams): AsyncIterable<IndexPox5Event>;
 	};
@@ -1371,7 +1427,16 @@ export class Index extends BaseClient {
 	/** Full transaction documents: paginated `list`/`walk`, plus `get` by tx_id
 	 *  (resolves to null on 404). */
 	readonly transactions: {
-		list: (params?: TransactionsListParams) => Promise<TransactionsEnvelope>;
+		/** Narrowing overload: `fields` shrinks the row type to exactly the
+		 *  requested columns plus {@link TransactionAlwaysFields}. Declared as
+		 *  an overloaded call signature because an arrow property cannot carry
+		 *  overloads. */
+		list: {
+			<const F extends keyof IndexTransaction & string>(
+				params: TransactionsListParams & { fields: readonly F[] },
+			): Promise<TransactionsEnvelope<TransactionFields<F>>>;
+			(params?: TransactionsListParams): Promise<TransactionsEnvelope>;
+		};
 		walk: (params?: TransactionsWalkParams) => AsyncIterable<IndexTransaction>;
 		get: (txId: string) => Promise<TransactionEnvelope | null>;
 		getProof: (txId: string) => Promise<TransactionProof | null>;
@@ -1747,6 +1812,7 @@ export class Index extends BaseClient {
 				contract_id: params.contractId,
 				from_height: params.fromHeight,
 				to_height: params.toHeight,
+				fields: params.fields?.join(","),
 			})}`,
 		);
 	}
@@ -1901,6 +1967,7 @@ export class Index extends BaseClient {
 				settlement_confirmed: params.settlementConfirmed,
 				from_height: params.fromHeight,
 				to_height: params.toHeight,
+				fields: params.fields?.join(","),
 			})}`,
 		);
 	}
@@ -1976,6 +2043,7 @@ export class Index extends BaseClient {
 				reward_cycle: params.rewardCycle,
 				from_height: params.fromHeight,
 				to_height: params.toHeight,
+				fields: params.fields?.join(","),
 			})}`,
 		);
 	}

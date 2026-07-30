@@ -69,6 +69,31 @@ export const SBTC_DEPOSIT_FILTERS = [
 	"fields",
 ] as const;
 
+/**
+ * Projectable columns on a withdrawal row.
+ *
+ * A withdrawal is keyed by `request_id`, not by height — the normalized row
+ * carries no `block_height` at all — so the always-kept set is `cursor` plus
+ * the request id that identifies it.
+ */
+export const SBTC_WITHDRAWAL_FIELDS = [
+	"status",
+	"amount",
+	"sender",
+	"recipient_btc_version",
+	"recipient_btc_hashbytes",
+	"sweep_txid",
+	"settlement_confirmed",
+	"btc_confirmations",
+	"btc_block_height",
+	"confirmed_at",
+	"requested_at",
+	"resolved_at",
+] as const;
+
+/** Withdrawal columns that survive any projection. */
+export const SBTC_WITHDRAWAL_ALWAYS = ["cursor", "request_id"] as const;
+
 export const SBTC_WITHDRAWAL_FILTERS = [
 	"limit",
 	"cursor",
@@ -79,6 +104,7 @@ export const SBTC_WITHDRAWAL_FILTERS = [
 	"status",
 	"sender",
 	"request_id",
+	"fields",
 ] as const;
 
 export type SbtcWithdrawalStatus = "REQUESTED" | "ACCEPTED" | "REJECTED";
@@ -650,6 +676,8 @@ function normalizeSbtcWithdrawalSummary(
 }
 
 export type ReadSbtcWithdrawalsParams = {
+	/** Columns to return; omit for the full row. */
+	fields?: readonly string[];
 	after?: IndexCursorInput;
 	fromHeight: number;
 	toHeight: number;
@@ -762,7 +790,17 @@ export async function readSbtcWithdrawals(
 	`.execute(db);
 
 	const pageRows = rows.slice(0, params.limit);
-	const withdrawals = pageRows.map(normalizeSbtcWithdrawalSummary);
+	// Cursor is built from the RAW rows, so projecting the normalized ones
+	// cannot break pagination.
+	const fieldSet = params.fields ? new Set(params.fields) : undefined;
+	const withdrawals = pageRows.map(
+		(row) =>
+			projectRow(
+				normalizeSbtcWithdrawalSummary(row) as Record<string, unknown>,
+				fieldSet,
+				SBTC_WITHDRAWAL_ALWAYS,
+			) as unknown as SbtcWithdrawalSummary,
+	);
 	const last = pageRows.at(-1);
 	return {
 		withdrawals,
@@ -822,6 +860,11 @@ export async function getSbtcWithdrawalsResponse(opts: {
 
 	const reader = opts.readSbtcWithdrawals ?? readSbtcWithdrawals;
 	const result = await reader({
+		fields: parseFields(
+			opts.query.get("fields"),
+			SBTC_WITHDRAWAL_FIELDS,
+			SBTC_WITHDRAWAL_ALWAYS,
+		),
 		after: base.cursor,
 		fromHeight: base.fromHeight,
 		toHeight: base.toHeight,

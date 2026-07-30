@@ -14,6 +14,7 @@ import {
 	readReorgsForEvents,
 	toIsoOrNull,
 } from "./_shared.ts";
+import { parseFields, projectRow } from "./field-projection.ts";
 import type { IndexTip } from "./tip.ts";
 
 /**
@@ -65,6 +66,29 @@ function isPox5Topic(value: string): value is Pox5EventTopic {
 	return POX5_TOPICS.has(value);
 }
 
+/** Projectable columns on a pox-5 event row. */
+export const POX5_EVENT_FIELDS = [
+	"block_time",
+	"tx_id",
+	"tx_index",
+	"event_index",
+	"staker",
+	"signer",
+	"signer_manager",
+	"bond_index",
+	"amount_ustx",
+	"amount_sats",
+	"reward_cycle",
+	"first_reward_cycle",
+	"unlock_cycle",
+	"unlock_burn_height",
+	"signer_key",
+	"data",
+] as const;
+
+/** `topic` always survives — it is the row's discriminant. */
+export const POX5_EVENT_ALWAYS = ["cursor", "block_height", "topic"] as const;
+
 export const POX5_EVENTS_FILTERS = [
 	"limit",
 	"cursor",
@@ -78,6 +102,7 @@ export const POX5_EVENTS_FILTERS = [
 	"signer_manager",
 	"bond_index",
 	"reward_cycle",
+	"fields",
 ] as const;
 
 /** A raw decoded PoX-5 print event — the full `pox5_events` row. Promoted
@@ -240,6 +265,8 @@ function normalizePox5Event(row: Pox5EventDbRow): Pox5Event {
 }
 
 export type ReadPox5EventsParams = {
+	/** Columns to return; omit for the full row. */
+	fields?: readonly string[];
 	after?: IndexCursorInput;
 	fromHeight: number;
 	toHeight: number;
@@ -296,7 +323,17 @@ export async function readPox5Events(
 		LIMIT ${params.limit + 1}
 	`.execute(db);
 
-	const events = rows.slice(0, params.limit).map(normalizePox5Event);
+	const fieldSet = params.fields ? new Set(params.fields) : undefined;
+	const events = rows
+		.slice(0, params.limit)
+		.map(
+			(row) =>
+				projectRow(
+					normalizePox5Event(row) as Record<string, unknown>,
+					fieldSet,
+					POX5_EVENT_ALWAYS,
+				) as unknown as Pox5Event,
+		);
 	const last = events.at(-1);
 	return {
 		events,
@@ -339,6 +376,11 @@ export async function getPox5EventsResponse(opts: {
 
 	const reader = opts.readPox5Events ?? readPox5Events;
 	const result = await reader({
+		fields: parseFields(
+			opts.query.get("fields"),
+			POX5_EVENT_FIELDS,
+			POX5_EVENT_ALWAYS,
+		),
 		after: base.cursor,
 		fromHeight: base.fromHeight,
 		toHeight: base.toHeight,

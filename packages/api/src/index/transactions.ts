@@ -12,8 +12,37 @@ import {
 	parseNonNegativeInteger,
 	toIsoOrNull,
 } from "./_shared.ts";
+import { parseFields, projectRow } from "./field-projection.ts";
 import type { IndexTip } from "./tip.ts";
 import { type DecodedTx, decodeTransaction } from "./transaction-decode.ts";
+
+/**
+ * Projectable columns on a transaction row.
+ *
+ * The widest row Index serves, and the one most worth projecting: the nested
+ * `contract_call` / `smart_contract` objects carry hex function args that
+ * dwarf the scalar columns.
+ */
+export const TRANSACTION_FIELDS = [
+	"block_time",
+	"burn_block_height",
+	"tx_index",
+	"tx_type",
+	"sender",
+	"status",
+	"fee",
+	"nonce",
+	"sponsored",
+	"anchor_mode",
+	"post_condition_mode",
+	"post_conditions",
+	"contract_call",
+	"smart_contract",
+	"token_transfer",
+] as const;
+
+/** Transaction columns that survive any projection — `tx_id` identifies it. */
+export const TRANSACTION_ALWAYS = ["cursor", "block_height", "tx_id"] as const;
 
 export const TRANSACTIONS_FILTERS = [
 	"limit",
@@ -24,6 +53,7 @@ export const TRANSACTIONS_FILTERS = [
 	"type",
 	"sender",
 	"contract_id",
+	"fields",
 ] as const;
 
 export type TransactionCursor = {
@@ -97,6 +127,8 @@ export type TransactionsReorgsReader = (range: {
 }) => Promise<StreamsReorg[]>;
 
 export type ReadTransactionsParams = {
+	/** Columns to return; omit for the full row. */
+	fields?: readonly string[];
 	after?: TransactionCursor;
 	fromHeight: number;
 	toHeight: number;
@@ -355,7 +387,15 @@ export async function readTransactions(
 		LIMIT ${params.limit}
 	`.execute(db);
 
-	const transactions = rows.map(normalizeTransaction);
+	const fieldSet = params.fields ? new Set(params.fields) : undefined;
+	const transactions = rows.map(
+		(row) =>
+			projectRow(
+				normalizeTransaction(row) as Record<string, unknown>,
+				fieldSet,
+				TRANSACTION_ALWAYS,
+			) as unknown as IndexTransaction,
+	);
 	const last = transactions.at(-1);
 
 	return {
@@ -402,6 +442,11 @@ export async function getTransactionsResponse(opts: {
 
 	const reader = opts.readTransactions ?? readTransactions;
 	const result = await reader({
+		fields: parseFields(
+			opts.query.get("fields"),
+			TRANSACTION_FIELDS,
+			TRANSACTION_ALWAYS,
+		),
 		after: parsed.cursor,
 		fromHeight: parsed.fromHeight,
 		toHeight: parsed.toHeight,
