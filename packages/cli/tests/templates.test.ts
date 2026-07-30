@@ -59,7 +59,9 @@ describe("subgraph templates", () => {
 		// Deltas commute and are replay-safe; findOne→compute→upsert loses
 		// concurrent updates and double-counts under concurrent backfill.
 		expect(source).toContain("ctx.increment(");
-		expect(source).not.toContain("ctx.findOne(");
-		expect(source).not.toContain("ctx.upsert(");
+		// Scoped to the balances table: an upsert of immutable token metadata is
+		// idempotent and fine — moving a BALANCE that way is what corrupts.
+		expect(source).not.toContain('ctx.findOne("balances"');
+		expect(source).not.toContain('ctx.upsert("balances"');
 	});
 });

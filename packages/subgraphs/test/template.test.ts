@@ -27,7 +27,8 @@ describe("generateSubgraphTemplate", () => {
 			expect(content, `slug ${slug}`).toContain('name: "my-graph"');
 			expect(content, `slug ${slug}`).toContain("defineSubgraph");
 			expect(content, `slug ${slug}`).toContain("sources:");
-			expect(content, `slug ${slug}`).toContain("schema:");
+			// Inline (`schema: {`) or hoisted via defineSchema (`schema,`).
+			expect(content, `slug ${slug}`).toMatch(/schema[:,]/);
 			expect(content, `slug ${slug}`).toContain("handlers:");
 		}
 	});

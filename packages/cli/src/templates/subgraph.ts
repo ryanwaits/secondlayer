@@ -137,7 +137,7 @@ export default defineSubgraph({
 // ── sip-010-balances ──────────────────────────────────────────────────
 
 function sip010Balances(name: string): string {
-	return `import { defineSubgraph } from "@secondlayer/subgraphs";
+	return `import { defineSchema, defineSubgraph, readContractAt, type TypedSubgraphContext } from "@secondlayer/subgraphs";
 
 /**
  * Track SIP-010 token balances per (asset_identifier, holder).
@@ -152,10 +152,53 @@ function sip010Balances(name: string): string {
  * under \`backfillMode: "concurrent"\`. Deltas commute, so order doesn't
  * matter and a reorg rewind reverses cleanly via the journal.
  *
+ * Token metadata (decimals/symbol) comes from the token contract itself via
+ * \`readContractAt\`, so \`amount\` stops being a bare integer nobody can
+ * render. The read is pinned to the block being processed — a handler stays a
+ * pure function of its block — and \`cache: "contract-constant"\` says these
+ * two values can never change for a given token, so each is fetched ONCE
+ * instead of once per block.
+ *
  * Query examples once deployed:
  *   GET /v1/subgraphs/${name}/balances?_search=SP1...
  *   GET /v1/subgraphs/${name}/balances?holder=SP1...
+ *   GET /v1/subgraphs/${name}/tokens
  */
+
+/** The two SIP-010 read-only functions this subgraph calls. */
+const SIP010_ABI = {
+  functions: [
+    { name: "get-decimals", access: "read-only", args: [], outputs: { response: { ok: "uint128", error: "uint128" } } },
+    { name: "get-symbol", access: "read-only", args: [], outputs: { response: { ok: { "string-ascii": { length: 32 } }, error: "uint128" } } },
+  ],
+} as const;
+
+/** Tokens already labelled in this process — metadata is immutable, so one
+ *  resolution per token is enough even across a backfill. */
+const labelled = new Set<string>();
+
+// Hoisted so the helper below can be typed against it.
+const schema = defineSchema({
+  balances: {
+    columns: {
+      asset_identifier: { type: "text", indexed: true, search: true },
+      holder: { type: "principal", indexed: true, search: true },
+      amount: { type: "uint" },
+    },
+    // increment() upserts on this key.
+    uniqueKeys: [["asset_identifier", "holder"]],
+  },
+  tokens: {
+    columns: {
+      asset_identifier: { type: "text", indexed: true },
+      contract_id: { type: "text" },
+      symbol: { type: "text" },
+      decimals: { type: "uint" },
+    },
+    uniqueKeys: [["asset_identifier"]],
+  },
+});
+
 export default defineSubgraph({
   name: "${name}",
   version: "1.0.0",
@@ -167,20 +210,11 @@ export default defineSubgraph({
     burn: { type: "ft_burn" },
   },
 
-  schema: {
-    balances: {
-      columns: {
-        asset_identifier: { type: "text", indexed: true, search: true },
-        holder: { type: "principal", indexed: true, search: true },
-        amount: { type: "uint" },
-      },
-      // increment() upserts on this key.
-      uniqueKeys: [["asset_identifier", "holder"]],
-    },
-  },
+  schema,
 
   handlers: {
-    transfer: (event, ctx) => {
+    transfer: async (event, ctx) => {
+      await labelToken(event.assetIdentifier, ctx);
       const amount = BigInt(event.amount ?? 0);
       if (event.sender) {
         ctx.increment("balances", { asset_identifier: event.assetIdentifier, holder: event.sender }, { amount: -amount });
@@ -201,6 +235,22 @@ export default defineSubgraph({
     },
   },
 });
+
+/** Resolve a token's symbol + decimals from its contract, once. */
+async function labelToken(
+  assetIdentifier: string | undefined,
+  ctx: TypedSubgraphContext<typeof schema>,
+) {
+  if (!assetIdentifier || labelled.has(assetIdentifier)) return;
+  labelled.add(assetIdentifier);
+  const contractId = assetIdentifier.split("::")[0];
+  const token = readContractAt(ctx, contractId, SIP010_ABI, { cache: "contract-constant" });
+  const [decimals, symbol] = await Promise.all([
+    token.read.getDecimals({}),
+    token.read.getSymbol({}),
+  ]);
+  ctx.upsert("tokens", { asset_identifier: assetIdentifier }, { asset_identifier: assetIdentifier, contract_id: contractId, symbol, decimals });
+}
 `;
 }
 
