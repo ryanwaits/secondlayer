@@ -4,6 +4,53 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## Subgraphs — July 2026
 
+### Run a handler before you deploy
+
+```bash
+sl subgraphs test subgraphs/bns-names.ts --from 167484 --to 167600
+sl subgraphs test subgraphs/bns-names.ts --offline
+```
+
+Real chain events, your local handler code, no deploy. The first run records
+a cassette so later runs are offline and free; changing a source filter
+discards it rather than passing against data your subgraph would no longer
+request. If events arrive and your handlers write nothing, it fails — that is
+the shape of the field-mapping bug that ships a 0-row subgraph.
+
+For unit tests, `@secondlayer/subgraphs/testing` gives you the same context
+the runtime uses, backed by memory — so read-your-writes, `increment` deltas,
+and upsert merging behave exactly as they do in production.
+
+### Index a contract set, including one that grows
+
+`contractId` takes an array, so a router plus its pools is one source and one
+handler. For pools created *after* you deploy, a `factory` discovers
+addresses from another source's events:
+
+```ts
+swaps: {
+  type: "print_event",
+  topic: "swap",
+  factory: { from: "registry", field: "data.pool" },
+}
+```
+
+A pool discovered in block N receives its own block-N events, and the
+discovered set rolls back on a reorg like any other chain-derived state.
+
+### Hoistable schemas, and balances that don't lose updates
+
+`defineSchema()` lets you pull the schema out of the call and keep helpers
+fully typed. The `sip-010-balances` starter no longer reaches for `ctx: any`
+— it moves balances with `ctx.increment`, which applies a delta atomically
+instead of a read-modify-write that silently loses same-block updates.
+
+Source filters are now validated as a real discriminated union, so a field
+that a source type doesn't support fails at deploy instead of matching
+nothing forever.
+
+## Subgraphs — July 2026
+
 ### Print payloads are typed all the way down
 
 `prints` could only describe flat fields, so a nested payload had to be

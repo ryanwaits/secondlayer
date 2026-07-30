@@ -1,5 +1,22 @@
 # @secondlayer/subgraphs
 
+## 3.22.0
+
+### Minor Changes
+
+- 94c0e81: Subgraph DX: hoistable schemas, a real test surface, and contract sets that grow.
+
+  - **`defineSchema()` + readonly schema arrays.** A schema literal can finally be hoisted out of the `defineSubgraph()` call and reused — `as const` used to fail (mutable `uniqueKeys` rejected `readonly [readonly ["holder"]]`) and a bare literal widened `type` to `string`. That gap is why the shipped starter typed its helper `ctx: any`, and in doing so modelled the non-commutative read-modify-write the docs warn against. Extracted helpers now annotate with `TypedSubgraphContext<typeof schema>` (or `InferContext<typeof def>`) and keep the full typed surface.
+  - **New `@secondlayer/subgraphs/testing` subpath** — `createTestContext(schema, { block })` and `buildEvent(source, payload)` run a handler with no deploy. It is the REAL `SubgraphContext` with its row store swapped for memory, so read-your-writes, increment deltas, and upsert merging are the production implementation rather than a second copy (one already drifted; see `runtime/sandbox/overlay-parity.test.ts`). Its own test suite reproduces the bns-names bug that held a subgraph at 0 rows chain-wide for a release.
+  - **`contractId` accepts a set** (max 20, matching the Index API cap): a router plus twelve pools is one source and one handler, not twelve of each. Wildcards still work; `event.contractId` disambiguates.
+  - **New `factory` primitive** for a set that _grows_ — `{ from: "<source>", field: "data.pool" }` discovers addresses from another source's events, so pools created after you deploy are indexed automatically. Deliberately not tied to contract deployment, so it also covers launchpad tokens, DAO allowlists, and registry entries. Two guarantees: a contract discovered in block N receives its own block-N events (discovery runs before matching), and the discovered set is stamped with the revealing block and rolled back on a reorg — an address announced on an orphaned fork stops matching.
+  - **The source filter validator is a real discriminated union.** It was one flat object with every field optional, so `{ type: "contract_deploy", assetIdentifier: "SP…", minAmount: 1n }` validated clean at deploy and then matched nothing, forever. Each member is now `.strict()` with only the fields that type supports.
+
+### Patch Changes
+
+- Updated dependencies [94c0e81]
+  - @secondlayer/stacks@2.21.1
+
 ## 3.21.0
 
 ### Minor Changes
