@@ -1,5 +1,12 @@
 # @secondlayer/shared
 
+## 7.3.1
+
+### Patch Changes
+
+- Updated dependencies [4369792]
+  - @secondlayer/stacks@3.0.0
+
 ## 7.3.0
 
 ### Minor Changes

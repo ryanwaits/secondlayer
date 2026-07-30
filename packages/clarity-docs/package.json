@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/clarity-docs",
-	"version": "0.3.12",
+	"version": "0.3.13",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryanwaits/secondlayer.git",
@@ -36,7 +36,7 @@
 	"author": "Ryan Waits",
 	"license": "MIT",
 	"dependencies": {
-		"@secondlayer/stacks": "^2.2.1"
+		"@secondlayer/stacks": "^3.0.0"
 	},
 	"devDependencies": {},
 	"engines": {

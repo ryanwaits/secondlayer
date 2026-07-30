@@ -1,5 +1,11 @@
 # @secondlayer/platform
 
+## 0.1.30
+
+### Patch Changes
+
+- @secondlayer/shared@7.3.1
+
 ## 0.1.29
 
 ### Patch Changes

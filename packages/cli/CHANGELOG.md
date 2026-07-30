@@ -1,5 +1,16 @@
 # @secondlayer/cli
 
+## 9.3.1
+
+### Patch Changes
+
+- Updated dependencies [4369792]
+  - @secondlayer/stacks@3.0.0
+  - @secondlayer/sdk@6.41.0
+  - @secondlayer/scaffold@1.5.1
+  - @secondlayer/shared@7.3.1
+  - @secondlayer/subgraphs@3.23.1
+
 ## 9.3.0
 
 ### Minor Changes
