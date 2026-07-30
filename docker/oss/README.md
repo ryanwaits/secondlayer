@@ -44,6 +44,34 @@ across both `api` and `subscription-processor`, set a shared
 `SECONDLAYER_SECRETS_KEY` in `.env` (see `.env.example`). Omit both services for
 raw-events-only indexing.
 
+Then provision the owner account and API key — there is no signup flow on a
+single-tenant box, and without a key `sl subgraphs deploy` dead-ends at
+"claim an account":
+
+```bash
+docker compose run --rm api bun run scripts/oss-bootstrap.ts
+```
+
+It prints the key once (only its hash is stored) and is safe to re-run — the
+account is reused and a fresh key is minted. Then:
+
+```bash
+export SL_API_KEY=sk-sl_...        # from the command above
+export SL_API_URL=http://localhost:3800
+sl subgraphs deploy ./subgraph.config.ts
+```
+
+Streams reads accept a seeded static key (`sk-sl_streams_enterprise_test`) or
+any key from the bootstrap above.
+
+To check the install end to end — migrations, an empty-chain response, labelled
+Streams filters, Index field selection, a subgraph deploy, and a sink consumer
+writing to your own Postgres:
+
+```bash
+bun run self-host:smoke
+```
+
 The API is now at `http://localhost:3800`. By default it's open (OSS mode
 default). To require a Bearer key on every request, set `API_KEY` in `.env`
 and uncomment the line in `docker-compose.yml`.
