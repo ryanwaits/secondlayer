@@ -166,10 +166,15 @@ export type {
 } from "./subscriptions/client.ts";
 export {
 	ApiError,
+	SecondLayerError,
 	VersionConflictError,
 	ByoBreakingChangeError,
+	parseRetryAfter,
 } from "./errors.ts";
-export type { ByoBreakingChangeDetails } from "./errors.ts";
+export type {
+	ByoBreakingChangeDetails,
+	SecondLayerErrorOptions,
+} from "./errors.ts";
 export {
 	verifyWebhookSignature,
 	verifySecondlayerSignature,

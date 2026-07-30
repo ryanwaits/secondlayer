@@ -1,48 +1,20 @@
-export class AuthError extends Error {
-	readonly status = 401;
+// AuthError / RateLimitError / ValidationError are shared across the whole SDK
+// (Index and the platform clients throw them too) and live in ../errors.ts —
+// re-exported here so `@secondlayer/sdk/streams` imports keep working.
+import { ApiError, SecondLayerError } from "../errors.ts";
 
-	constructor(message = "API key invalid or expired.") {
-		super(message);
-		this.name = "AuthError";
-	}
-}
+export { AuthError, RateLimitError, ValidationError } from "../errors.ts";
 
-export class RateLimitError extends Error {
-	readonly status = 429;
-
-	constructor(
-		message = "Rate limited. Try again later.",
-		readonly retryAfter?: string,
-	) {
-		super(message);
-		this.name = "RateLimitError";
-	}
-}
-
-export class ValidationError extends Error {
-	constructor(
-		message: string,
-		readonly status: number,
-		readonly body?: unknown,
-	) {
-		super(message);
-		this.name = "ValidationError";
-	}
-}
-
-export class StreamsServerError extends Error {
-	constructor(
-		message: string,
-		readonly status: number,
-		readonly body?: unknown,
-	) {
-		super(message);
+/** Thrown on a 5xx from the Streams API. `retryable`. */
+export class StreamsServerError extends ApiError {
+	constructor(message: string, status: number, body?: unknown) {
+		super(status, message, body, undefined, { retryable: true });
 		this.name = "StreamsServerError";
 	}
 }
 
 /** Thrown when response signature verification is enabled and fails. */
-export class StreamsSignatureError extends Error {
+export class StreamsSignatureError extends SecondLayerError {
 	constructor(message = "Streams response signature verification failed.") {
 		super(message);
 		this.name = "StreamsSignatureError";

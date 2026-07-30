@@ -1,7 +1,9 @@
 import {
 	ApiError,
+	AuthError,
 	type ByoBreakingChangeDetails,
 	ByoBreakingChangeError,
+	RateLimitError,
 	isByoBreakingDetails,
 } from "./errors.ts";
 
@@ -146,7 +148,14 @@ export abstract class BaseClient {
 				);
 			} catch (err) {
 				const detail = err instanceof Error ? err.message : String(err);
-				throw new ApiError(0, `Failed to serialize request body: ${detail}`);
+				// Not retryable: the same body will fail to serialize again.
+				throw new ApiError(
+					0,
+					`Failed to serialize request body: ${detail}`,
+					undefined,
+					undefined,
+					{ retryable: false },
+				);
 			}
 		}
 
@@ -157,24 +166,29 @@ export abstract class BaseClient {
 				headers,
 				body: serializedBody,
 			});
-		} catch {
+		} catch (err) {
 			throw new ApiError(
 				0,
 				`Cannot reach API at ${this.baseUrl}. Check your connection or try again.`,
+				undefined,
+				undefined,
+				{ retryable: true, cause: err instanceof Error ? err : undefined },
 			);
 		}
 
 		if (!response.ok) {
 			if (response.status === 401) {
-				throw new ApiError(401, "API key invalid or expired.");
+				throw new AuthError();
 			}
 
 			if (response.status === 429) {
+				// The header is preserved as `retryAfterSeconds` (not just prose) so
+				// the consume loops can honor it.
 				const retryAfter = response.headers.get("Retry-After");
 				const msg = retryAfter
 					? `Rate limited. Wait ${retryAfter} seconds.`
 					: "Rate limited. Try again later.";
-				throw new ApiError(429, msg);
+				throw new RateLimitError(msg, retryAfter ?? undefined);
 			}
 
 			if (response.status >= 500) {

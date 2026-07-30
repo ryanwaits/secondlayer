@@ -105,7 +105,11 @@ describe("BaseClient", () => {
 			} catch (err) {
 				expect(err).toBeInstanceOf(ApiError);
 				expect((err as ApiError).status).toBe(401);
-				expect((err as ApiError).message).toBe("API key invalid or expired.");
+				// shortMessage is the clean line; message appends the docs pointer.
+				expect((err as ApiError).shortMessage).toBe(
+					"API key invalid or expired.",
+				);
+				expect((err as ApiError).message).toContain("Docs: ");
 			}
 		});
 
@@ -133,7 +137,7 @@ describe("BaseClient", () => {
 				await client.doRequest("GET", "/test");
 				expect.unreachable("should have thrown");
 			} catch (err) {
-				expect((err as ApiError).message).toBe(
+				expect((err as ApiError).shortMessage).toBe(
 					"Rate limited. Try again later.",
 				);
 			}
