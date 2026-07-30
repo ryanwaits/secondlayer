@@ -69,7 +69,51 @@ curl -H "Authorization: Bearer $SL_API_KEY" \
   "https://api.secondlayer.tools/v1/streams/events?types=ft_transfer&limit=100"
 ```
 
-Pass the response's `next_cursor` back as `cursor`. Narrow with `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier`, and `from_height`/`to_height` — exact-match, and event types without a given field don't match. Full grammar: [API reference](/docs/api-reference).
+Pass the response's `next_cursor` back as `cursor`. Narrow with `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier`, `filters`, and `from_height`/`to_height` — exact-match, and event types without a given field don't match. Full grammar: [API reference](/docs/api-reference).
+
+### Two concerns, one loop
+
+A flat filter is one AND-ed set, so tracking sBTC mints *and* treasury spends
+meant two consume loops, two cursors, two checkpoints — or fetching the union
+and throwing half of it away. `filters` names each concern and the server ORs
+them into a single scan:
+
+```ts
+await sl.streams.events.consume({
+  filters: {
+    peg: { types: ["ft_transfer"], assetIdentifier: `${SBTC}::sbtc-token` },
+    treasury: { types: ["stx_transfer"], sender: TREASURY },
+  },
+  on: {
+    peg: (events) => events.map((e) => e.payload.asset_identifier),
+    treasury: (events) => events.map((e) => e.payload.sender),
+  },
+});
+```
+
+Each label's declared `types` narrows its handler, so `event.payload` is typed
+without an `event_type` guard, and a label added to `filters` is a compile error
+until `on` handles it. A label's own events arrive in cursor order; events of
+different labels don't interleave within a page. Add `onBatch` for the whole
+page when you need strict global order.
+
+One cursor covers all of it. The position is computed over the block's full
+event set, not the filtered one, so you can add or drop labels between restarts
+and keep the checkpoint.
+
+Over REST it's one JSON query param, and each event echoes the labels it hit:
+
+```bash
+curl -H "Authorization: Bearer $SL_API_KEY" -G \
+  --data-urlencode 'filters={"peg":{"types":["ft_transfer"]}}' \
+  "https://api.secondlayer.tools/v1/streams/events"
+```
+
+```json
+{ "cursor": "8054704:12", "event_type": "ft_transfer", "matched": ["peg"] }
+```
+
+SSE takes the same param, so `subscribe` narrows the same way.
 
 Deliveries are idempotent, so retries never double-count. Fully-finalized pages are served `Cache-Control: public, immutable` with an `ETag` (`304` on `If-None-Match`); the moving tip stays short-lived.
 

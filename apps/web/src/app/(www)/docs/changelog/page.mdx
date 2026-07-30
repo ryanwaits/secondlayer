@@ -2,6 +2,36 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## Streams — July 2026
+
+### Track two things in one loop
+
+```ts
+await sl.streams.events.consume({
+  filters: {
+    peg: { types: ["ft_transfer"], assetIdentifier: `${SBTC}::sbtc-token` },
+    treasury: { types: ["stx_transfer"], sender: TREASURY },
+  },
+  on: {
+    peg: (events) => credit(events),      // narrowed to ft_transfer
+    treasury: (events) => debit(events),  // narrowed to stx_transfer
+  },
+});
+```
+
+A flat filter is one AND-ed set, so two unrelated concerns meant two consume
+loops, two cursors, and two checkpoints — or fetching the union and discarding
+half of it. Name each concern and the server ORs them into a single scan.
+
+- Each label's declared `types` narrows its handler, so `event.payload` is
+  typed without an `event_type` guard, and adding a label to `filters` is a
+  compile error until `on` handles it.
+- One cursor covers every label. The position is computed over the block's
+  full event set, so you can add or drop labels between restarts and keep the
+  checkpoint.
+- Over REST it is one JSON query param, and each event carries the labels it
+  matched. SSE takes the same param, so `subscribe` narrows the same way.
+
 ## Index — July 2026
 
 ### Ask for the columns you want
