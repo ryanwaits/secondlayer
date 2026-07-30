@@ -1,24 +1,15 @@
-// The decoded event-type vocabulary. Index (decoded layer) and Streams
-// (canonical firehose) expose the SAME set, so they share one source here.
-// Previously this list was duplicated as a literal in sdk/streams,
-// indexer/streams-events, and the mcp index/streams tools — drift risk. Every
-// consumer now imports from this module (sdk + indexer re-export it under the
-// `STREAMS_EVENT_TYPES` name for back-compat).
-export const DECODED_EVENT_TYPES = [
-	"stx_transfer",
-	"stx_mint",
-	"stx_burn",
-	"stx_lock",
-	"ft_transfer",
-	"ft_mint",
-	"ft_burn",
-	"nft_transfer",
-	"nft_mint",
-	"nft_burn",
-	"print",
-] as const;
+// The decoded event-type vocabulary — canonical home is now
+// `@secondlayer/stacks/filters` (the LEAF of the dependency graph: shared
+// depends on stacks, never the reverse, so no package can drift a private
+// copy upward). Re-exported here so every existing `@secondlayer/shared`
+// import keeps working unchanged.
+import { DECODED_EVENT_TYPES } from "@secondlayer/stacks/filters";
+import type { DecodedEventType } from "@secondlayer/stacks/filters";
 
-export type DecodedEventType = (typeof DECODED_EVENT_TYPES)[number];
+export {
+	DECODED_EVENT_TYPES,
+	type DecodedEventType,
+} from "@secondlayer/stacks/filters";
 
 /** Alias kept for the Streams surface (identical to {@link DECODED_EVENT_TYPES}).
  *  Explicit type annotation required — isolatedDeclarations emits `unknown` for

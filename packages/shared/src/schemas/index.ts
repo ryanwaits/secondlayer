@@ -1,4 +1,3 @@
-export * from "./filters.ts";
 export * from "./subgraphs.ts";
 export {
 	CHAIN_TRIGGER_FIELDS,

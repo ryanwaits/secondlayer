@@ -17,7 +17,6 @@ const config: DefineConfigItem = defineConfig({
 		"src/db/schema.ts",
 		"src/queue/listener.ts",
 		"src/schemas/index.ts",
-		"src/schemas/filters.ts",
 		"src/schemas/subgraphs.ts",
 		"src/schemas/subscriptions.ts",
 		"src/subgraphs/spec.ts",
