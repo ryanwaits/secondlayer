@@ -4,6 +4,8 @@ import {
 	STREAMS_EVENT_TYPES,
 	type StreamsEventType,
 } from "@secondlayer/shared";
+import type { IndexEvent } from "../index-api/client.ts";
+import type { ConsumerSink, WithSinkTx } from "../sinks/types.ts";
 
 export { STREAMS_EVENT_TYPES, type StreamsEventType };
 
@@ -283,8 +285,28 @@ export type StreamsBatchContext = ConsumerBatchContext;
  */
 export type StreamsReorgContext = { cursor: string };
 
-export type StreamsEventsConsumeParams = {
+export type StreamsEventsConsumeParams<
+	TTx = never,
+	D extends boolean = false,
+> = {
 	fromCursor?: string | null;
+	/**
+	 * Deliver events pre-decoded as the flat, `event_type`-discriminated rows
+	 * Index serves (`IndexEvent`), so Streams consumption reads identically
+	 * to Index consumption — no guard+decode pairs in your handler.
+	 */
+	decoded?: D;
+	/**
+	 * Destination adapter that owns the checkpoint + rollback transaction
+	 * (e.g. `kyselySink` from `@secondlayer/sdk/sinks/kysely`). With a sink:
+	 * the loop resumes from the sink's committed cursor, `onBatch` receives
+	 * `ctx.tx` and must write ONLY through it (rows and cursor commit in one
+	 * transaction), reorg rollback is automatic, and `onBatch`'s return value
+	 * is ignored.
+	 */
+	sink?: ConsumerSink<TTx>;
+	/** Fires once per page, before `onBatch` and before any early return. */
+	onProgress?: (ctx: ConsumerBatchContext) => void;
 	mode?: "tail" | "bounded";
 	/**
 	 * Emit only finalized (immutable) events and never surface reorgs. The SDK
@@ -306,9 +328,9 @@ export type StreamsEventsConsumeParams = {
 	 * the resume point (advanced manual control); returning nothing uses it.
 	 */
 	onBatch: (
-		events: StreamsEvent[],
+		events: D extends true ? IndexEvent[] : StreamsEvent[],
 		envelope: StreamsEventsEnvelope,
-		ctx: StreamsBatchContext,
+		ctx: StreamsBatchContext & WithSinkTx<TTx>,
 	) =>
 		| void
 		| string
@@ -490,8 +512,12 @@ export type StreamsClient = {
 		 * The consumer also exits when `maxPages`, `maxEmptyPolls`, or `signal`
 		 * stops it.
 		 */
-		consume(
-			params: StreamsEventsConsumeParams,
+		consume<TTx = never, D extends boolean = false>(
+			// The redundant `sink` member gives TS a DIRECT inference site for
+			// TTx — inference does not reliably traverse the params alias.
+			params: StreamsEventsConsumeParams<TTx, D> & {
+				sink?: ConsumerSink<TTx>;
+			},
 		): Promise<StreamsEventsConsumeResult>;
 		/**
 		 * Backfill from bulk dumps, then continue live from the dump→live seam in

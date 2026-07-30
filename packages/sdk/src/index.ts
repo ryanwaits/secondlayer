@@ -164,6 +164,16 @@ export type {
 	ReplayResult,
 	DeadRow,
 } from "./subscriptions/client.ts";
+export type {
+	ConsumerSink,
+	SinkTx,
+	WithSinkTx,
+} from "./sinks/types.ts";
+export {
+	type ConsumerHealth,
+	consumerHealth,
+	shutdownSignal,
+} from "./consumer-ops.ts";
 export {
 	ApiError,
 	SecondLayerError,
@@ -219,6 +229,7 @@ export {
 export type { RewardSet } from "@secondlayer/shared/node/consensus";
 export {
 	createStreamsClient,
+	decode,
 	Cursor,
 	decodeFtBurn,
 	decodeFtMint,

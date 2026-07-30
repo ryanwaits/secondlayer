@@ -1,11 +1,13 @@
 import { ed25519 } from "@secondlayer/shared";
 import { buildQuery } from "../base.ts";
+import type { ConsumerSink } from "../sinks/types.ts";
 import {
 	type StreamsEventsFetcher,
 	consumeStreamsEvents,
 	iterateStreamsBatches,
 	streamStreamsEvents,
 } from "./consumer.ts";
+import { decode } from "./decode.ts";
 import { createStreamsDumps } from "./dumps.ts";
 import {
 	AuthError,
@@ -322,9 +324,29 @@ export function createStreamsClient(
 					`/v1/streams/events/${encodeURIComponent(txId)}`,
 				);
 			},
-			consume(params: StreamsEventsConsumeParams) {
-				return consumeStreamsEvents({
+			consume<TTx = never, D extends boolean = false>(
+				// Redundant `sink` member: direct TTx inference site (inference
+				// does not traverse the params alias).
+				params: StreamsEventsConsumeParams<TTx, D> & {
+					sink?: ConsumerSink<TTx>;
+				},
+			) {
+				// With `decoded: true`, events arrive as the flat Index-shaped
+				// rows — decoding never appears in the handler.
+				const onBatch: StreamsEventsConsumeParams<TTx>["onBatch"] =
+					params.decoded
+						? (events, envelope, ctx) =>
+								(
+									params.onBatch as StreamsEventsConsumeParams<
+										TTx,
+										true
+									>["onBatch"]
+								)(events.map(decode), envelope, ctx)
+						: (params.onBatch as StreamsEventsConsumeParams<TTx>["onBatch"]);
+				return consumeStreamsEvents<TTx>({
 					fromCursor: params.fromCursor,
+					sink: params.sink,
+					onProgress: params.onProgress,
 					mode: params.mode,
 					finalizedOnly: params.finalizedOnly,
 					types: params.types,
@@ -335,7 +357,7 @@ export function createStreamsClient(
 					assetIdentifier: params.assetIdentifier,
 					batchSize: params.batchSize ?? 100,
 					fetchEvents,
-					onBatch: params.onBatch,
+					onBatch,
 					onReorg: params.onReorg,
 					emptyBackoffMs: params.emptyBackoffMs,
 					maxPages: params.maxPages,

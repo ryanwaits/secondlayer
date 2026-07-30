@@ -1,4 +1,5 @@
 export { createStreamsClient } from "./client.ts";
+export { decode } from "./decode.ts";
 export {
 	AuthError,
 	RateLimitError,
@@ -6,6 +7,13 @@ export {
 	StreamsSignatureError,
 	ValidationError,
 } from "./errors.ts";
+// ── Per-type guard+decode pairs ─────────────────────────────────────────
+// @deprecated (whole block): these 22 helpers are an internal decoder API
+// that shipped as public DX — they return DB-row shapes (`decoded_payload`
+// nested, `source_cursor`) and force an 11-branch guard+decode dispatch.
+// Use `decode(event)` (one call, the same flat `event_type`-discriminated
+// row Index serves) or `decoded: true` on `streams.events.consume`. These
+// exports will be removed in the next major.
 export { decodeFtTransfer, isFtTransfer } from "./ft-transfer.ts";
 export { decodeNftTransfer, isNftTransfer } from "./nft-transfer.ts";
 export {

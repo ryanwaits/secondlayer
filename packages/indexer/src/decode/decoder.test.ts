@@ -82,8 +82,11 @@ function streamsClientOnBatchSpy(events: StreamsEvent[]): StreamsClient {
 				// Mirror what the real loop hands onBatch, progress fields included.
 				const chainTip = tip();
 				const height = events.at(-1)?.block_height ?? null;
+				// The spy always feeds raw events with no sink attached; the
+				// generic conditional param types (decoded/D, sink/TTx) can't see
+				// that from inside the mock, hence the casts.
 				await params.onBatch(
-					events,
+					events as Parameters<typeof params.onBatch>[0],
 					{ events, next_cursor: null, tip: chainTip, reorgs: [] },
 					{
 						cursor: null,
@@ -93,7 +96,7 @@ function streamsClientOnBatchSpy(events: StreamsEvent[]): StreamsClient {
 							height === null
 								? null
 								: Math.max(0, chainTip.block_height - height),
-					},
+					} as Parameters<typeof params.onBatch>[2],
 				);
 				return { cursor: null, pages: 1, emptyPolls: 0 };
 			},
