@@ -12,6 +12,7 @@ import type {
 } from "../types.ts";
 import { decodeClarityValue, decodeEventData } from "./clarity.ts";
 import type { SubgraphContext } from "./context.ts";
+import { validatePrintPayload } from "./print-validate.ts";
 import type { MatchedTx } from "./source-matcher.ts";
 
 /** Max consecutive handler errors before marking subgraph as error */
@@ -20,6 +21,10 @@ const DEFAULT_ERROR_THRESHOLD = 50;
 export interface RunResult {
 	processed: number;
 	errors: number;
+	/** Print events skipped because their decoded payload did not match the
+	 *  source's declared `prints` schema. Never an error: skipping keeps the
+	 *  block committable, which the checkpoint model requires. */
+	skipped?: number;
 }
 
 /** Convert kebab-case to camelCase: "bitcoin-txid" → "bitcoinTxid" */
@@ -368,6 +373,7 @@ export async function runHandlers(
 ): Promise<RunResult> {
 	let processed = 0;
 	let errors = 0;
+	let skipped = 0;
 	const threshold = opts?.errorThreshold ?? DEFAULT_ERROR_THRESHOLD;
 
 	// Build filter lookup from sources (supports both array and named object)
@@ -415,7 +421,7 @@ export async function runHandlers(
 					threshold,
 				},
 			);
-			return { processed, errors };
+			return { processed, errors, ...(skipped > 0 ? { skipped } : {}) };
 		}
 
 		const handler =
@@ -491,6 +497,34 @@ export async function runHandlers(
 				continue;
 			}
 
+			// Declared `prints` is the developer's stated payload shape, so a
+			// mismatch is a real defect (a contract upgrade, or a declaration
+			// that never matched — the bns-names class, where every event
+			// decoded to null for an entire deploy). Skip + log rather than
+			// write nulls; never throw, which would wedge the block.
+			if (event !== null && filter?.type === "print_event" && filter.prints) {
+				const printPayload = payload as {
+					topic?: string;
+					data?: Record<string, unknown>;
+				};
+				const verdict = validatePrintPayload(
+					filter.prints,
+					printPayload.topic ?? "",
+					printPayload.data ?? {},
+				);
+				if (!verdict.ok) {
+					skipped++;
+					logger.warn("Print payload does not match declared prints schema", {
+						subgraph: subgraph.name,
+						sourceName,
+						topic: printPayload.topic,
+						txId: tx.tx_id,
+						reason: verdict.reason,
+					});
+					continue;
+				}
+			}
+
 			await handler(payload, ctx);
 			processed++;
 		} catch (err) {
@@ -506,5 +540,5 @@ export async function runHandlers(
 		}
 	}
 
-	return { processed, errors };
+	return { processed, errors, ...(skipped > 0 ? { skipped } : {}) };
 }
