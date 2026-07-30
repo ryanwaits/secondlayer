@@ -3,6 +3,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { Index } from "@secondlayer/sdk";
 import type { IndexEvent } from "@secondlayer/sdk";
+import {
+	DECODED_EVENT_TYPES,
+	type DecodedEventType,
+} from "@secondlayer/stacks/filters";
 import { error, info, success, warn } from "../lib/output.ts";
 
 /**
@@ -78,12 +82,23 @@ function loadCassette(
 }
 
 /** Index event types a source filter maps onto, or null when unsupported. */
-function eventTypeFor(filter: { type: string }): string | null {
-	if (filter.type === "print_event") return "print";
+/**
+ * Subgraph source type → the `event_type` `/v1/index/events` accepts, or null
+ * when the source isn't an events read at all.
+ *
+ * Validated against the canonical decoded vocabulary rather than returned as a
+ * bare `string`: this used to hand back `string` and the call site cast it with
+ * `as any`, so a source type the Index API doesn't serve would have sailed
+ * through to a 400 at runtime.
+ */
+function eventTypeFor(filter: { type: string }): DecodedEventType | null {
 	if (filter.type === "contract_call" || filter.type === "contract_deploy") {
 		return null; // separate endpoint / not an events read
 	}
-	return filter.type;
+	const candidate = filter.type === "print_event" ? "print" : filter.type;
+	return DECODED_EVENT_TYPES.includes(candidate as DecodedEventType)
+		? (candidate as DecodedEventType)
+		: null;
 }
 
 export interface SubgraphTestOptions {
@@ -184,8 +199,7 @@ export async function runSubgraphTest(
 			info(`Fetching ${name} (${eventType}) blocks ${fromHeight}–${toHeight}…`);
 			try {
 				const envelope = await index.events.list({
-					// biome-ignore lint/suspicious/noExplicitAny: eventType is validated above against the live vocabulary
-					eventType: eventType as any,
+					eventType,
 					...(filter.contractId
 						? {
 								contractId: Array.isArray(filter.contractId)
