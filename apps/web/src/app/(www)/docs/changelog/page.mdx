@@ -32,6 +32,22 @@ error instead of a runtime `undefined`.
 
 ## SDK — July 2026
 
+### A 429 no longer kills your backfill
+
+Both consume loops now retry the page fetch on rate limits, server errors,
+and network failures — honoring the server's `Retry-After` — so one transient
+error hours into a genesis sweep no longer costs you the process. Retry wraps
+only the fetch: your `onBatch`/`onReorg` code and real 4xx mistakes still
+fail fast.
+
+- Tune with `retryCount` / `retryDelay` (the same knobs as
+  `@secondlayer/stacks` transports); watch with the `onError` observer.
+- One error family: `RateLimitError`, `AuthError`, and `ValidationError` are
+  now `ApiError` subclasses thrown by every surface, so a single
+  `instanceof` check works around Index, platform, and Streams calls alike.
+- Errors carry `retryable`, `retryAfterSeconds`, a `docsUrl` pointing at the
+  fix, and `walk()` for cause-chain inspection.
+
 ### finalizedOnly consumers can no longer skip events
 
 Returning `envelope.next_cursor` from a `finalizedOnly` consumer's `onBatch`
