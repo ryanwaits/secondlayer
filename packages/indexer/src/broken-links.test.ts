@@ -16,6 +16,14 @@ describe.skipIf(!HAS_DB)("findBrokenLinks", () => {
 
 	beforeEach(async () => {
 		if (!db) return;
+		// Children first — events reference transactions, transactions reference
+		// blocks, and neither FK cascades.
+		await sql`DELETE FROM events WHERE block_height BETWEEN ${BASE} AND ${BASE + 10}`.execute(
+			db,
+		);
+		await sql`DELETE FROM transactions WHERE block_height BETWEEN ${BASE} AND ${BASE + 10}`.execute(
+			db,
+		);
 		await sql`DELETE FROM blocks WHERE height BETWEEN ${BASE} AND ${BASE + 10}`.execute(
 			db,
 		);
