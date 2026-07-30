@@ -2,6 +2,36 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## Stacks SDK — July 2026
+
+### `on` is the filter union (breaking)
+
+```ts
+import { on } from "@secondlayer/stacks";
+
+on.ftTransfer({ assetIdentifier: `${SBTC}::sbtc-token` }).toIndexParams({ limit: 50 });
+```
+
+The name used to hold a second, older set of factories keyed on snake_case
+**database column** names and typed `Record<string, …>` — so a typo compiled and
+silently matched nothing. They had no consumers, and they are gone, along with
+the `Filter` / `FilterClause` / `FilterOperator` / `FilterPrimitive` /
+`SubscriptionFilterSpec` / `BnsAction` / `FactoryTarget` / `PoxFunction` types.
+
+`on` at the package root is now the same typed union as
+`@secondlayer/stacks/filters`: per-event-type fields, and explicit projections
+onto every surface. Using `on.transferTo(...)`, `on.bnsName(...)`, or
+`on.poxStack(...)`? Build the filter with `on.ftTransfer({ … })` and project it
+onto the surface you're calling.
+
+### Field projection narrows everywhere it applies
+
+`events.walk({ fields })` now narrows its row type the way `events.list` already
+did — it was forwarding `fields` to the wire, so it yielded stripped rows while
+the type promised every column. The callable `index.events({ fields })`
+shorthand narrows too. `events.consume` no longer accepts `fields` at all: the
+consume loop never forwarded it, so it type-checked and was then dropped.
+
 ## Agents — July 2026
 
 ### The docs, as text an agent can read
