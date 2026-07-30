@@ -2,6 +2,54 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## Subgraphs — July 2026
+
+### Print payloads are typed all the way down
+
+`prints` could only describe flat fields, so a nested payload had to be
+declared `"jsonb"`. That is how a handler reading flat `data.name`
+type-checked, deployed, and decoded to null on every event while BNS-V2
+emitted `name` as a nested tuple — zero rows chain-wide, while the subgraph
+tailed happily at the tip.
+
+```ts
+prints: {
+  "name-register": {
+    name: { tuple: { name: "text", namespace: "text" } },
+    owner: "principal",
+    memo: { type: "text", optional: true },
+  },
+}
+// event.data.name.namespace → string
+// event.data.memo           → string | undefined
+```
+
+- Declaring `prints` also turns on runtime validation: an event that does not
+  match is skipped and logged instead of written as nulls. It never throws —
+  a block that can't advance would wedge your checkpoint.
+- Deploy now refuses (rather than warns) when a handler on a `prints`-declaring
+  source reads a field no observed event carries.
+- The `abi` on a source is validated at deploy against the real Clarity ABI
+  shape. A raw Hiro or Clarinet ABI used to pass and then mis-decode
+  `event.input` forever; the error now names the fix.
+
+## CLI — July 2026
+
+### One verb for generating code
+
+`sl codegen contracts | subgraph | index | client | prints` replaces six
+entry points under three verbs. `--target` means the same thing with the same
+default everywhere — previously `sl subgraphs codegen -o db.ts` wrote Prisma
+while the identical-looking `sl index codegen -o db.ts` wrote Kysely. Old
+paths still work, print a deprecation notice, and keep their original
+defaults so your output doesn't change.
+
+- Scaffolds now emit the contract's `as const` ABI and reference it, so
+  handlers read `event.input.tokenId` instead of `event.args[0] as bigint`.
+- Generated row types are derived from the schema instead of a second
+  hand-written map that answered `uint` with `number` — which didn't compile
+  against the client it shipped beside, and truncated `uint128`.
+
 ## SDK — July 2026
 
 ### Sinks: your indexer is one file now
