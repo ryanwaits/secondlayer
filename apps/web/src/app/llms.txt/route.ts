@@ -52,7 +52,9 @@ const LLMS_TXT = `# Secondlayer — the hosted indexer for Stacks
   PAYMENT-SESSION) forward to every item.
 
 ## Docs
-- https://secondlayer.tools/docs (append ?mode=agent for the agent view)
+- https://secondlayer.tools/docs (append ?mode=agent for the agent view —
+  note it resolves client-side, so if you do not execute JS use the .md
+  routes below, which are the real answer for non-JS readers)
 - Full text, one file: https://secondlayer.tools/llms-full.txt
 - Any page as markdown: append .md — https://secondlayer.tools/docs/streams.md
 - SDK agent notes ship in the package: node_modules/@secondlayer/sdk/AGENTS.md

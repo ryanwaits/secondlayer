@@ -1,5 +1,6 @@
 import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
+import { logger } from "@secondlayer/shared/logger";
 import { http, createPublicClient } from "@secondlayer/stacks";
 import {
 	ContractResponseError,
@@ -269,13 +270,28 @@ export function createChainReadClient(ctx: ChainReadContext): ChainReadClient {
 		const resultHex =
 			cached?.result_hex ??
 			(await gate.run(async () => {
+				// A constant read still pins to this block where it can: "cannot
+				// change" is a claim about future blocks, not a license to read
+				// a tip that may be ahead of the one being processed.
+				if (!ctx.indexBlockHash) {
+					// The one path where an UNPINNED read happens. Reachable only
+					// in constant mode on a block with no persisted id — which is
+					// exactly what the pinning error tells you to do — so it is
+					// allowed, but never silently.
+					logger.warn(
+						"Chain read is not pinned to a block (no index_block_hash)",
+						{
+							contractId,
+							functionName: fn.name,
+							blockHeight: ctx.blockHeight,
+							note: 'cache: "contract-constant" asserts this value cannot change; the node answered at its own tip',
+						},
+					);
+				}
 				const value = await readContract(nodeClient(rpcUrl), {
 					contract: contractId,
 					functionName: fn.name,
 					args: clarityArgs,
-					// A constant read still pins to this block: "cannot change"
-					// is a claim about future blocks, not a license to read a
-					// tip that may be ahead of the one being processed.
 					tip: ctx.indexBlockHash ?? undefined,
 				});
 				return serializeCV(value);

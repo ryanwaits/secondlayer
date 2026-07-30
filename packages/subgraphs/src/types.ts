@@ -268,7 +268,10 @@ export type PrintField =
 export interface PrintEventFilter extends TraitScope, FactoryScope {
 	type: "print_event";
 	/** One contract id, or a set of them (max 20). Supports `*` wildcards.
-	 *  Mutually exclusive with `trait`. */
+	 *  COMPOSES with `trait` — the matcher ANDs them, so the pair means
+	 *  "contracts conforming to this trait, narrowed to these ids". (The Index
+	 *  read API refuses the combination, but that is its query planner's
+	 *  constraint, not a semantic one.) */
 	contractId?: string | readonly string[];
 	topic?: string;
 	/**
