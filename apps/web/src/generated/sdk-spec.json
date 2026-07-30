@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "6.43.0",
+	"version": "6.44.0",
 	"areas": [
 		{
 			"name": "Client",
@@ -232,7 +232,7 @@
 					"summary": "`index.ftTransfers` — callable shorthand for `.list()`, with `.list`/`.walk` still available: `await sl.index.ftTransfers({ contractId })`.",
 					"signature": "FtTransfersResource(params?: FtTransfersListParams): object",
 					"file": "src/index-api/client.ts",
-					"line": 1140
+					"line": 1196
 				},
 				{
 					"name": "FtTransfersWalkParams",
@@ -248,7 +248,7 @@
 					"summary": "",
 					"signature": "Index(options?: object): unknown",
 					"file": "src/index-api/client.ts",
-					"line": 1212
+					"line": 1268
 				},
 				{
 					"name": "IndexAlwaysFields",
@@ -296,7 +296,7 @@
 					"summary": "The `GET /v1/index` discovery doc — live endpoint + filter vocabulary.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1207
+					"line": 1263
 				},
 				{
 					"name": "IndexEvent",
@@ -328,7 +328,7 @@
 					"summary": "`index.events` — callable shorthand for `.list()`; `eventType` is required.",
 					"signature": "IndexEventsResource(params: object): object",
 					"file": "src/index-api/client.ts",
-					"line": 1154
+					"line": 1210
 				},
 				{
 					"name": "IndexEventType",
@@ -344,7 +344,7 @@
 					"summary": "Per-event-type filter vocabulary in the {@link IndexDiscovery} doc.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1197
+					"line": 1253
 				},
 				{
 					"name": "IndexFeedEnvelope",
@@ -400,7 +400,7 @@
 					"summary": "A pending (unconfirmed) transaction.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 597
+					"line": 612
 				},
 				{
 					"name": "IndexNftBurn",
@@ -440,7 +440,7 @@
 					"summary": "A raw decoded PoX-5 print event.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1049
+					"line": 1085
 				},
 				{
 					"name": "IndexPox5EventTopic",
@@ -448,7 +448,7 @@
 					"summary": "The decoded `pox-5` boot-contract print topics (SIP-045 Bitcoin Staking) — one source of truth in `@secondlayer/stacks/pox5` (already a dependency; the old \"SDK owns its own dependency surface\" rat…",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1044
+					"line": 1080
 				},
 				{
 					"name": "IndexPoxCycle",
@@ -456,7 +456,7 @@
 					"summary": "Aggregate stats for one PoX reward cycle — distinct from `index.stacking` (decoded per-call PoX-4 actions); this is the reward-cycle rollup.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 989
+					"line": 1025
 				},
 				{
 					"name": "IndexPoxFunctionCount",
@@ -464,7 +464,7 @@
 					"summary": "Per-function action count within a reward cycle.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 982
+					"line": 1018
 				},
 				{
 					"name": "IndexPrint",
@@ -488,7 +488,7 @@
 					"summary": "A completed sBTC peg-in, keyed by `bitcoin_txid` (deposits carry no `request_id`).",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 678
+					"line": 693
 				},
 				{
 					"name": "IndexSbtcDepositDetail",
@@ -496,7 +496,7 @@
 					"summary": "A deposit fetched by Bitcoin txid — always terminal, hence `status`.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 694
+					"line": 709
 				},
 				{
 					"name": "IndexSbtcEvent",
@@ -504,7 +504,7 @@
 					"summary": "A raw decoded sBTC protocol-state event — the full `sbtc_events` row, one per event across all topics.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 758
+					"line": 773
 				},
 				{
 					"name": "IndexSbtcSummary",
@@ -512,7 +512,7 @@
 					"summary": "The peg \"scoreboard\" — a single all-time canonical aggregate.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 788
+					"line": 803
 				},
 				{
 					"name": "IndexSbtcWithdrawal",
@@ -520,7 +520,7 @@
 					"summary": "A peg-out collapsed to one row per `request_id`, with lifecycle `status` derived from the latest accept/reject.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 698
+					"line": 713
 				},
 				{
 					"name": "IndexSbtcWithdrawalDetail",
@@ -528,7 +528,7 @@
 					"summary": "A single peg-out's full assembled lifecycle, fetched by `request_id`.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 729
+					"line": 744
 				},
 				{
 					"name": "IndexSbtcWithdrawalPhase",
@@ -536,7 +536,7 @@
 					"summary": "One phase of a withdrawal's lifecycle (the on-Stacks event that drove it).",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 721
+					"line": 736
 				},
 				{
 					"name": "IndexStackingAction",
@@ -544,7 +544,7 @@
 					"summary": "A decoded PoX-4 stacking action (one per stacking contract call).",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 541
+					"line": 556
 				},
 				{
 					"name": "IndexStxBurn",
@@ -608,7 +608,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 620
+					"line": 635
 				},
 				{
 					"name": "MempoolListParams",
@@ -616,7 +616,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 631
+					"line": 646
 				},
 				{
 					"name": "MempoolTransactionEnvelope",
@@ -624,7 +624,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 626
+					"line": 641
 				},
 				{
 					"name": "MempoolWalkParams",
@@ -632,7 +632,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 641
+					"line": 656
 				},
 				{
 					"name": "NftTransfer",
@@ -664,7 +664,7 @@
 					"summary": "`index.nftTransfers` — callable shorthand for `.list()` (see {@link FtTransfersResource}).",
 					"signature": "NftTransfersResource(params?: NftTransfersListParams): object",
 					"file": "src/index-api/client.ts",
-					"line": 1147
+					"line": 1203
 				},
 				{
 					"name": "NftTransfersWalkParams",
@@ -680,7 +680,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1075
+					"line": 1111
 				},
 				{
 					"name": "Pox5EventsListParams",
@@ -688,7 +688,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1084
+					"line": 1129
 				},
 				{
 					"name": "Pox5EventsWalkParams",
@@ -696,7 +696,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1100
+					"line": 1151
 				},
 				{
 					"name": "Pox5Resource",
@@ -704,7 +704,7 @@
 					"summary": "`index.pox5` — decoded PoX-5 print events, the staking primitive from the epoch 4.0 hard fork onward (PoX-4's `index.stacking` stream ends there).",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1107
+					"line": 1158
 				},
 				{
 					"name": "PoxCycleEnvelope",
@@ -712,7 +712,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1012
+					"line": 1048
 				},
 				{
 					"name": "PoxCyclesEnvelope",
@@ -720,7 +720,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1003
+					"line": 1039
 				},
 				{
 					"name": "PoxCyclesListParams",
@@ -728,7 +728,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1018
+					"line": 1054
 				},
 				{
 					"name": "PoxCyclesWalkParams",
@@ -736,7 +736,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1024
+					"line": 1060
 				},
 				{
 					"name": "PoxResource",
@@ -744,7 +744,7 @@
 					"summary": "`index.pox` — PoX reward-cycle aggregates.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1030
+					"line": 1066
 				},
 				{
 					"name": "PrintSchemaResponse",
@@ -752,7 +752,7 @@
 					"summary": "Empirical per-topic print payload schema for a contract, inferred from sampled on-chain events.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 653
+					"line": 668
 				},
 				{
 					"name": "SbtcDepositEnvelope",
@@ -760,7 +760,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 808
+					"line": 823
 				},
 				{
 					"name": "SbtcDepositsConsumeParams",
@@ -768,7 +768,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 919
+					"line": 950
 				},
 				{
 					"name": "SbtcDepositsEnvelope",
@@ -776,7 +776,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 798
+					"line": 813
 				},
 				{
 					"name": "SbtcDepositsListParams",
@@ -784,7 +784,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 840
+					"line": 855
 				},
 				{
 					"name": "SbtcDepositsWalkParams",
@@ -792,7 +792,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 867
+					"line": 882
 				},
 				{
 					"name": "SbtcEventsConsumeParams",
@@ -800,7 +800,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 913
+					"line": 944
 				},
 				{
 					"name": "SbtcEventsEnvelope",
@@ -808,7 +808,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 826
+					"line": 841
 				},
 				{
 					"name": "SbtcEventsListParams",
@@ -816,7 +816,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 895
+					"line": 926
 				},
 				{
 					"name": "SbtcEventsWalkParams",
@@ -824,7 +824,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 908
+					"line": 939
 				},
 				{
 					"name": "SbtcResource",
@@ -832,7 +832,7 @@
 					"summary": "`index.sbtc` — the decoded sBTC peg surface (deposits, withdrawals, raw events, scoreboard).",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 927
+					"line": 958
 				},
 				{
 					"name": "SbtcSummaryEnvelope",
@@ -840,7 +840,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 834
+					"line": 849
 				},
 				{
 					"name": "SbtcWithdrawalEnvelope",
@@ -848,7 +848,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 821
+					"line": 836
 				},
 				{
 					"name": "SbtcWithdrawalsEnvelope",
@@ -856,7 +856,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 813
+					"line": 828
 				},
 				{
 					"name": "SbtcWithdrawalsListParams",
@@ -864,7 +864,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 872
+					"line": 897
 				},
 				{
 					"name": "SbtcWithdrawalStatus",
@@ -872,7 +872,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 674
+					"line": 689
 				},
 				{
 					"name": "SbtcWithdrawalsWalkParams",
@@ -880,7 +880,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 887
+					"line": 918
 				},
 				{
 					"name": "StackingEnvelope",
@@ -888,7 +888,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 566
+					"line": 581
 				},
 				{
 					"name": "StackingListParams",
@@ -896,7 +896,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 576
+					"line": 591
 				},
 				{
 					"name": "StackingWalkParams",
@@ -904,7 +904,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 587
+					"line": 602
 				},
 				{
 					"name": "TransactionEnvelope",
@@ -928,7 +928,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 522
+					"line": 531
 				},
 				{
 					"name": "TransactionsWalkParams",
@@ -936,7 +936,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 533
+					"line": 548
 				}
 			]
 		},
@@ -1322,7 +1322,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 511
+					"line": 531
 				},
 				{
 					"name": "FtTransferEvent",
@@ -1450,7 +1450,7 @@
 					"summary": "One yielded page from {@link StreamsClient.consume} — the `GET /v1/streams/events` envelope verbatim, with `next_cursor` renamed to `cursor` (the checkpoint to persist and resume from).",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 446
+					"line": 466
 				},
 				{
 					"name": "StreamsBatchContext",
@@ -1458,7 +1458,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 326
+					"line": 339
 				},
 				{
 					"name": "StreamsCanonicalBlock",
@@ -1474,7 +1474,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 559
+					"line": 579
 				},
 				{
 					"name": "StreamsConsumeParams",
@@ -1482,7 +1482,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 456
+					"line": 476
 				},
 				{
 					"name": "StreamsDumpFile",
@@ -1490,7 +1490,7 @@
 					"summary": "One bulk parquet file in the dumps manifest.",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 518
+					"line": 538
 				},
 				{
 					"name": "StreamsDumps",
@@ -1498,7 +1498,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 550
+					"line": 570
 				},
 				{
 					"name": "StreamsDumpsManifest",
@@ -1506,7 +1506,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 531
+					"line": 551
 				},
 				{
 					"name": "StreamsEvent",
@@ -1530,7 +1530,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 334
+					"line": 347
 				},
 				{
 					"name": "StreamsEventsConsumeResult",
@@ -1538,7 +1538,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 473
+					"line": 493
 				},
 				{
 					"name": "StreamsEventsEnvelope",
@@ -1602,7 +1602,7 @@
 					"summary": "The checkpoint for a reorg rollback.",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 332
+					"line": 345
 				},
 				{
 					"name": "StreamsReorgsListEnvelope",
@@ -1650,7 +1650,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 638
+					"line": 658
 				}
 			]
 		},
