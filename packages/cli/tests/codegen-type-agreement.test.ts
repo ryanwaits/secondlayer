@@ -94,4 +94,17 @@ describe("codegen type agreement", () => {
 		expect(prisma).toContain("amount");
 		expect(drizzle).toContain("amount");
 	});
+
+	test("each target pins its own lossless spelling", () => {
+		// The three DO differ, and should: `string`, `Decimal`, and `numeric`
+		// are each their ORM's idiomatic lossless numeric. Demanding one shared
+		// spelling would be wrong. What the negative assertion above cannot
+		// catch is one target silently changing to a different — possibly
+		// lossy — representation, so pin them individually.
+		expect(generateKyselySchema(DEF)).toMatch(/amount:\s*string;/);
+		expect(generatePrismaSchema(DEF)).toMatch(
+			/amount\s+Decimal\s+@db\.Numeric/,
+		);
+		expect(generateDrizzleSchema(DEF)).toMatch(/amount:\s*numeric\("amount"\)/);
+	});
 });
