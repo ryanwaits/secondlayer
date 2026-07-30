@@ -41,6 +41,75 @@ export const ColumnTypeSchema: z.ZodType<ColumnType> = z.enum([
 	"jsonb",
 ]);
 
+/**
+ * One declared print field: a bare column type, or a composite (optional,
+ * nested tuple, list). Recursive — real print payloads nest, and a vocabulary
+ * that could only say `"jsonb"` is what let a flat-field declaration pass
+ * while every event decoded to null.
+ */
+export const PrintFieldSchema: z.ZodType<unknown> = z.lazy(() =>
+	z.union([
+		ColumnTypeSchema,
+		z.object({ type: PrintFieldSchema, optional: z.literal(true) }),
+		z.object({ tuple: z.record(z.string(), PrintFieldSchema) }),
+		z.object({ list: PrintFieldSchema }),
+	]),
+);
+
+/**
+ * A Clarity ABI type: a primitive name, or one of the composite shapes.
+ * Recursive, so nested tuples/lists/optionals are checked all the way down.
+ */
+const AbiTypeSchema: z.ZodType<unknown> = z.lazy(() =>
+	z.union([
+		z.string(),
+		z.object({ buff: z.object({ length: z.number() }) }),
+		z.object({ "string-ascii": z.object({ length: z.number() }) }),
+		z.object({ "string-utf8": z.object({ length: z.number() }) }),
+		z.object({ optional: AbiTypeSchema }),
+		z.object({
+			list: z.object({ type: AbiTypeSchema, length: z.number() }),
+		}),
+		z.object({
+			tuple: z.array(z.object({ name: z.string(), type: AbiTypeSchema })),
+		}),
+		z.object({
+			response: z.object({ ok: AbiTypeSchema, error: AbiTypeSchema }),
+		}),
+	]),
+);
+
+/**
+ * The canonical `AbiContract` shape, validated at deploy time.
+ *
+ * This used to be `z.record(z.string(), z.any())`, which accepted a raw
+ * Hiro/Clarinet ABI (`read_only` access, `buffer` types, outputs wrapped as
+ * `{ type: … }`) and let it through — the deploy succeeded and `event.input`
+ * then mis-decoded at RUNTIME, per event, forever. Reject it here instead,
+ * and name the fix: run it through `normalizeAbi` from
+ * `@secondlayer/stacks/clarity`.
+ */
+export const AbiContractSchema: z.ZodType<unknown> = z.object({
+	functions: z.array(
+		z.object({
+			name: z.string(),
+			access: z.enum(["public", "read-only", "private"], {
+				message:
+					"ABI access must be public | read-only | private — a raw Hiro/Clarinet ABI uses `read_only`. Normalize it first: normalizeAbi() from @secondlayer/stacks/clarity.",
+			}),
+			args: z.array(z.object({ name: z.string(), type: AbiTypeSchema })),
+			// Canonical shape is a bare AbiType; raw ABIs wrap it as `{ type: … }`.
+			outputs: AbiTypeSchema,
+		}),
+	),
+	maps: z.array(z.unknown()).optional(),
+	variables: z.array(z.unknown()).optional(),
+	fungible_tokens: z.array(z.unknown()).optional(),
+	non_fungible_tokens: z.array(z.unknown()).optional(),
+	implemented_traits: z.array(z.unknown()).optional(),
+	defined_traits: z.array(z.unknown()).optional(),
+});
+
 export const SubgraphColumnSchema: z.ZodType<SubgraphColumn> = z.object({
 	type: ColumnTypeSchema,
 	nullable: z.boolean().optional(),
@@ -109,11 +178,12 @@ export const SubgraphFilterSchema: z.ZodType<SubgraphFilter> = z
 		contractName: z.string().optional(),
 		topic: z.string().optional(),
 		lockedAddress: z.string().optional(),
-		abi: z.record(z.string(), z.any()).optional(),
+		abi: AbiContractSchema.optional(),
 		trait: z.string().optional(),
-		// print_event per-topic field schema (type-level hints; not enforced at runtime)
+		// print_event per-topic field schema. Declaring it opts the source into
+		// runtime payload validation (skip + log on mismatch).
 		prints: z
-			.record(z.string(), z.record(z.string(), ColumnTypeSchema))
+			.record(z.string(), z.record(z.string(), PrintFieldSchema))
 			.optional(),
 	})
 	.strict() as unknown as z.ZodType<SubgraphFilter>;

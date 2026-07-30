@@ -8,9 +8,8 @@ import type { ChainEventFilterType, DecodedEventType } from "./event-types.ts";
 // single place that conversion happens, so it cannot be bypassed by
 // structural spread.
 
-/** Print field-schema vocabulary (structural mirror of the subgraphs
- *  `ColumnType`; kept literal so `toSubgraphSource()` preserves narrowing). */
-export type PrintFieldType =
+/** Scalar print field types (structural mirror of the subgraphs `ColumnType`). */
+export type PrintScalarType =
 	| "uint"
 	| "int"
 	| "text"
@@ -18,6 +17,20 @@ export type PrintFieldType =
 	| "boolean"
 	| "timestamp"
 	| "jsonb";
+
+/**
+ * One declared print field — structural mirror of `PrintField` in
+ * `@secondlayer/subgraphs`. Composite forms exist because real print payloads
+ * nest: a vocabulary that could only say `"jsonb"` is what let a flat-field
+ * declaration type-check while every event decoded to null.
+ *
+ * Kept literal through `toSubgraphSource()` so handler narrowing survives.
+ */
+export type PrintFieldType =
+	| PrintScalarType
+	| { type: PrintFieldType; optional: true }
+	| { tuple: Record<string, PrintFieldType> }
+	| { list: PrintFieldType };
 
 export interface StxTransferSpec {
 	type: "stx_transfer";

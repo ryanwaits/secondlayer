@@ -185,18 +185,43 @@ export interface ContractDeployFilter {
 	deployer?: string;
 	contractName?: string;
 }
+/**
+ * One declared field of a print payload.
+ *
+ * A bare {@link ColumnType} is a required scalar (`amount: "uint"`). The
+ * composite forms exist because real print payloads are not flat: BNS-V2
+ * emits `name` as a NESTED tuple, and a `prints` vocabulary that could only
+ * say `"jsonb"` is why a handler reading flat `data.name` type-checked,
+ * deployed, and then decoded to null on every event.
+ *
+ * - `{ type: F, optional: true }` — the KEY becomes optional on `event.data`
+ *   (mirrors `always_present: false` in the inferred schema).
+ * - `{ tuple: { … } }` — a nested tuple, typed all the way down.
+ * - `{ list: F }` — a list of `F`.
+ */
+export type PrintField =
+	| ColumnType
+	| { type: PrintField; optional: true }
+	| { tuple: Record<string, PrintField> }
+	| { list: PrintField };
+
 export interface PrintEventFilter extends TraitScope {
 	type: "print_event";
 	contractId?: string;
 	topic?: string;
 	/**
-	 * Optional per-topic field schema. When declared, the handler's `event` is
-	 * a discriminated union keyed by `topic` and `event.data` is typed per topic
+	 * Per-topic field schema. When declared, the handler's `event` is a
+	 * discriminated union keyed by `topic` and `event.data` is typed per topic
 	 * (e.g. `{ "completed-deposit": { amount: "uint", sender: "principal" } }`).
-	 * Uses the same `ColumnType` vocab as `schema`; nested fields use `"jsonb"`.
-	 * Type-level only — not validated at runtime.
+	 * Nested tuples, lists, and optional fields are expressible — see
+	 * {@link PrintField}.
+	 *
+	 * Declaring `prints` also opts the source into RUNTIME validation: an
+	 * event whose decoded payload does not match is skipped and logged rather
+	 * than written as nulls (and the deploy-time field lint is promoted from
+	 * a warning to an error).
 	 */
-	prints?: Record<string, Record<string, ColumnType>>;
+	prints?: Record<string, Record<string, PrintField>>;
 }
 
 /** All subgraph filter types — discriminated on `type` */

@@ -251,3 +251,73 @@ test("validateSubgraphDefinition accepts normal definition with uniqueKeys", () 
 	});
 	expect(result.name).toBe("test-transfers");
 });
+
+// ── ABI validation ───────────────────────────────────────────────────
+
+const CANONICAL_ABI = {
+	functions: [
+		{
+			name: "transfer",
+			access: "public",
+			args: [
+				{ name: "amount", type: "uint128" },
+				{ name: "memo", type: { optional: { buff: { length: 34 } } } },
+			],
+			outputs: { response: { ok: "bool", error: "uint128" } },
+		},
+	],
+};
+
+function withAbi(abi: unknown) {
+	return {
+		name: "abi-test",
+		sources: {
+			call: {
+				type: "contract_call",
+				contractId: "SP000.c",
+				functionName: "transfer",
+				abi,
+			},
+		},
+		schema: { calls: { columns: { amount: { type: "uint" } } } },
+		handlers: { call: () => {} },
+	};
+}
+
+test("a canonical ABI passes deploy validation", () => {
+	expect(() =>
+		validateSubgraphDefinition(withAbi(CANONICAL_ABI)),
+	).not.toThrow();
+});
+
+test("a raw Hiro/Clarinet ABI is refused at deploy, not mis-decoded at runtime", () => {
+	// `read_only` access and outputs wrapped as `{ type: … }` — the shapes the
+	// Hiro API and Clarinet SDK emit. These used to validate clean (the field
+	// was `z.record(z.any())`) and then mis-decode `event.input` per event.
+	const rawAccess = {
+		functions: [
+			{
+				...CANONICAL_ABI.functions[0],
+				access: "read_only",
+			},
+		],
+	};
+	expect(() => validateSubgraphDefinition(withAbi(rawAccess))).toThrow();
+
+	const wrappedOutputs = {
+		functions: [
+			{
+				...CANONICAL_ABI.functions[0],
+				outputs: { type: { response: { ok: "bool", error: "uint128" } } },
+			},
+		],
+	};
+	expect(() => validateSubgraphDefinition(withAbi(wrappedOutputs))).toThrow();
+});
+
+test("a garbage ABI is refused", () => {
+	expect(() => validateSubgraphDefinition(withAbi({ nope: true }))).toThrow();
+	expect(() =>
+		validateSubgraphDefinition(withAbi({ functions: [{ name: "x" }] })),
+	).toThrow();
+});

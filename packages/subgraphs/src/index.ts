@@ -1,5 +1,6 @@
 export type {
 	ColumnType,
+	PrintField,
 	SubgraphColumn,
 	SubgraphTable,
 	SubgraphSchema,
@@ -46,9 +47,15 @@ export type {
 	StxBurnPayload,
 	StxLockPayload,
 	PrintEventPayload,
+	PrintDataOf,
+	PrintFieldToTS,
 	ContractDeployPayload,
 } from "./events.ts";
 export { validateSubgraphDefinition } from "./validate.ts";
+export {
+	type PrintValidationResult,
+	validatePrintPayload,
+} from "./runtime/print-validate.ts";
 export {
 	camelizeDataKey,
 	inferPrintTopics,

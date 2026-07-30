@@ -36,6 +36,7 @@ export type {
 	NftTransferSpec,
 	PrintEventSpec,
 	PrintFieldType,
+	PrintScalarType,
 	SbtcDepositSpec,
 	SbtcWithdrawalAcceptSpec,
 	SbtcWithdrawalCreateSpec,

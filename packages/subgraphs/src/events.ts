@@ -15,6 +15,7 @@ import type { ColumnToTS } from "./infer.ts";
 import type {
 	ColumnType,
 	ContractCallEvent,
+	PrintField,
 	SubgraphFilter,
 	TxMeta,
 } from "./types.ts";
@@ -139,17 +140,49 @@ export type ContractCallPayload<F> = F extends {
  * per topic; otherwise it falls back to the untyped {@link PrintEventPayload}.
  */
 export type PrintEventFor<F> = F extends {
-	prints: infer P extends Record<string, Record<string, ColumnType>>;
+	prints: infer P extends Record<string, Record<string, PrintField>>;
 }
 	? {
 			[K in keyof P]: {
 				contractId: string;
 				topic: K;
-				data: { [Field in keyof P[K]]: ColumnToTS<P[K][Field]> };
+				data: PrintDataOf<P[K]>;
 				tx: TxMeta;
 			};
 		}[keyof P]
 	: PrintEventPayload;
+
+/** TS type of one declared print field (nested tuples and lists included). */
+export type PrintFieldToTS<F> = F extends ColumnType
+	? ColumnToTS<F>
+	: F extends { type: infer Inner; optional: true }
+		? PrintFieldToTS<Inner>
+		: F extends { tuple: infer T extends Record<string, PrintField> }
+			? PrintDataOf<T>
+			: F extends { list: infer Item }
+				? PrintFieldToTS<Item>[]
+				: unknown;
+
+type OptionalFieldKeys<T> = {
+	[K in keyof T]: T[K] extends { optional: true } ? K : never;
+}[keyof T];
+
+/** Collapse an intersection into one object literal, so hovering `event.data`
+ *  shows the fields rather than `A & B`. */
+type Flatten<T> = { [K in keyof T]: T[K] } & {};
+
+/**
+ * `event.data` for one topic: declared fields typed, with
+ * `{ optional: true }` fields made optional KEYS (a field observed on only
+ * some events must not be typed as always present).
+ */
+export type PrintDataOf<T extends Record<string, PrintField>> = Flatten<
+	{
+		[K in Exclude<keyof T, OptionalFieldKeys<T>>]: PrintFieldToTS<T[K]>;
+	} & {
+		[K in OptionalFieldKeys<T>]?: PrintFieldToTS<T[K]>;
+	}
+>;
 
 /** The event payload a handler receives for a given source filter. */
 export type EventForFilter<F extends SubgraphFilter> = F extends {
