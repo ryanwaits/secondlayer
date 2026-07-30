@@ -19,7 +19,7 @@ import {
 	type Pox5EventRow,
 	writePox5Events,
 } from "../pox5-storage.ts";
-import { readDecoderCheckpoint, writeDecoderCheckpoint } from "../storage.ts";
+import { commitDecodedBatch, readDecoderCheckpoint } from "../storage.ts";
 
 export { POX5_DECODER_NAME };
 
@@ -104,16 +104,15 @@ export async function consumePox5DecodedEvents(
 				}
 			}
 
-			if (rows.length > 0) await writePox5Events(rows, { db });
+			await commitDecodedBatch({
+				db,
+				decoderName,
+				cursor: envelope.next_cursor,
+				write: async (tx) => {
+					if (rows.length > 0) await writePox5Events(rows, { db: tx });
+				},
+			});
 			decoded += rows.length;
-
-			if (envelope.next_cursor) {
-				await writeDecoderCheckpoint({
-					cursor: envelope.next_cursor,
-					db,
-					decoderName,
-				});
-			}
 			await opts.onProgress?.({
 				decoded: rows.length,
 				cursor: envelope.next_cursor,

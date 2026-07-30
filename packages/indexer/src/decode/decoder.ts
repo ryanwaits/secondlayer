@@ -34,9 +34,9 @@ import {
 	STX_LOCK_DECODER_NAME,
 	STX_MINT_DECODER_NAME,
 	STX_TRANSFER_DECODER_NAME,
+	commitDecodedBatch,
 	readDecoderCheckpoint,
 	writeDecodedEvents,
-	writeDecoderCheckpoint,
 } from "./storage.ts";
 
 export {
@@ -112,16 +112,13 @@ export async function consumeFtTransferDecodedEvents(opts?: {
 					return [];
 				}
 			});
-			await writeDecodedEvents(rows, { db });
+			await commitDecodedBatch({
+				db,
+				decoderName,
+				cursor: envelope.next_cursor,
+				write: (tx) => writeDecodedEvents(rows, { db: tx }),
+			});
 			decoded += rows.length;
-
-			if (envelope.next_cursor) {
-				await writeDecoderCheckpoint({
-					cursor: envelope.next_cursor,
-					db,
-					decoderName,
-				});
-			}
 			await opts?.onProgress?.({
 				decoded: rows.length,
 				cursor: envelope.next_cursor,
@@ -186,16 +183,13 @@ export async function consumeNftTransferDecodedEvents(opts?: {
 					return [];
 				}
 			});
-			await writeDecodedEvents(rows, { db });
+			await commitDecodedBatch({
+				db,
+				decoderName,
+				cursor: envelope.next_cursor,
+				write: (tx) => writeDecodedEvents(rows, { db: tx }),
+			});
 			decoded += rows.length;
-
-			if (envelope.next_cursor) {
-				await writeDecoderCheckpoint({
-					cursor: envelope.next_cursor,
-					db,
-					decoderName,
-				});
-			}
 			await opts?.onProgress?.({
 				decoded: rows.length,
 				cursor: envelope.next_cursor,
@@ -254,16 +248,13 @@ async function consumeDecodedEvents(
 					return [];
 				}
 			});
-			await writeDecodedEvents(rows, { db });
+			await commitDecodedBatch({
+				db,
+				decoderName,
+				cursor: envelope.next_cursor,
+				write: (tx) => writeDecodedEvents(rows, { db: tx }),
+			});
 			decoded += rows.length;
-
-			if (envelope.next_cursor) {
-				await writeDecoderCheckpoint({
-					cursor: envelope.next_cursor,
-					db,
-					decoderName,
-				});
-			}
 			await opts?.onProgress?.({
 				decoded: rows.length,
 				cursor: envelope.next_cursor,

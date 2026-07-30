@@ -26,7 +26,11 @@ import {
 	writeBnsNamespaceEvents,
 } from "../bns-storage.ts";
 import { defaultInternalStreamsApiKey } from "../internal-auth.ts";
-import { readDecoderCheckpoint, writeDecoderCheckpoint } from "../storage.ts";
+import {
+	commitDecodedBatch,
+	readDecoderCheckpoint,
+	writeDecoderCheckpoint,
+} from "../storage.ts";
 
 export { BNS_DECODER_NAME };
 
@@ -177,26 +181,29 @@ export async function consumeBnsDecodedEvents(
 				}
 			}
 
-			if (nameRows.length > 0) await writeBnsNameEvents(nameRows, { db });
-			if (namespaceRows.length > 0)
-				await writeBnsNamespaceEvents(namespaceRows, { db });
-			if (marketplaceRows.length > 0)
-				await writeBnsMarketplaceEvents(marketplaceRows, { db });
+			await commitDecodedBatch({
+				db,
+				decoderName,
+				cursor: envelope.next_cursor,
+				write: async (tx) => {
+					if (nameRows.length > 0)
+						await writeBnsNameEvents(nameRows, { db: tx });
+					if (namespaceRows.length > 0)
+						await writeBnsNamespaceEvents(namespaceRows, { db: tx });
+					if (marketplaceRows.length > 0)
+						await writeBnsMarketplaceEvents(marketplaceRows, { db: tx });
 
-			// Apply projection updates after the event tables are durable.
-			for (const row of nameRows) await applyNameProjection(row, db);
-			for (const row of namespaceRows) await applyNamespaceProjection(row, db);
+					// Projections derive from the event rows, so they belong to the
+					// same commit — a crash between the two used to leave `bns_names`
+					// behind the events it is derived from.
+					for (const row of nameRows) await applyNameProjection(row, tx);
+					for (const row of namespaceRows)
+						await applyNamespaceProjection(row, tx);
+				},
+			});
 
 			decoded +=
 				nameRows.length + namespaceRows.length + marketplaceRows.length;
-
-			if (envelope.next_cursor) {
-				await writeDecoderCheckpoint({
-					cursor: envelope.next_cursor,
-					db,
-					decoderName,
-				});
-			}
 			await opts.onProgress?.({
 				decoded:
 					nameRows.length + namespaceRows.length + marketplaceRows.length,

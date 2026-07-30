@@ -13,7 +13,11 @@ import {
 	type Pox4CallRow,
 	writePox4Calls,
 } from "../pox4-storage.ts";
-import { readDecoderCheckpoint, writeDecoderCheckpoint } from "../storage.ts";
+import {
+	commitDecodedBatch,
+	readDecoderCheckpoint,
+	writeDecoderCheckpoint,
+} from "../storage.ts";
 
 export { POX4_DECODER_NAME };
 
@@ -150,16 +154,20 @@ export async function consumePox4DecodedEvents(
 			}
 		}
 
-		if (decodedRows.length > 0) {
-			await writePox4Calls(decodedRows, { db: targetDb });
-			decoded += decodedRows.length;
-		}
-
 		const last = rows[rows.length - 1];
 		if (!last) break;
 		cursor = encodePox4Cursor(Number(last.block_height), Number(last.tx_index));
 
-		await writeDecoderCheckpoint({ db: targetDb, decoderName, cursor });
+		await commitDecodedBatch({
+			db: targetDb,
+			decoderName,
+			cursor,
+			write: async (tx) => {
+				if (decodedRows.length > 0)
+					await writePox4Calls(decodedRows, { db: tx });
+			},
+		});
+		decoded += decodedRows.length;
 		pages += 1;
 
 		await opts.onProgress?.({ decoded, cursor });

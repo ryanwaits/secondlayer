@@ -23,7 +23,7 @@ import {
 	writeSbtcEvents,
 	writeSbtcTokenEvents,
 } from "../sbtc-storage.ts";
-import { readDecoderCheckpoint, writeDecoderCheckpoint } from "../storage.ts";
+import { commitDecodedBatch, readDecoderCheckpoint } from "../storage.ts";
 
 export { SBTC_DECODER_NAME, SBTC_TOKEN_DECODER_NAME };
 
@@ -138,16 +138,15 @@ export async function consumeSbtcRegistryDecodedEvents(
 				}
 			}
 
-			if (rows.length > 0) await writeSbtcEvents(rows, { db });
+			await commitDecodedBatch({
+				db,
+				decoderName,
+				cursor: envelope.next_cursor,
+				write: async (tx) => {
+					if (rows.length > 0) await writeSbtcEvents(rows, { db: tx });
+				},
+			});
 			decoded += rows.length;
-
-			if (envelope.next_cursor) {
-				await writeDecoderCheckpoint({
-					cursor: envelope.next_cursor,
-					db,
-					decoderName,
-				});
-			}
 			await opts.onProgress?.({
 				decoded: rows.length,
 				cursor: envelope.next_cursor,
@@ -211,16 +210,15 @@ export async function consumeSbtcTokenDecodedEvents(
 				}
 			}
 
-			if (rows.length > 0) await writeSbtcTokenEvents(rows, { db });
+			await commitDecodedBatch({
+				db,
+				decoderName,
+				cursor: envelope.next_cursor,
+				write: async (tx) => {
+					if (rows.length > 0) await writeSbtcTokenEvents(rows, { db: tx });
+				},
+			});
 			decoded += rows.length;
-
-			if (envelope.next_cursor) {
-				await writeDecoderCheckpoint({
-					cursor: envelope.next_cursor,
-					db,
-					decoderName,
-				});
-			}
 			await opts.onProgress?.({
 				decoded: rows.length,
 				cursor: envelope.next_cursor,

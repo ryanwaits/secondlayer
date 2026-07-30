@@ -309,3 +309,38 @@ async function readCanonicalCheckpointBeforeBlock(
 		.executeTakeFirst();
 	return row?.source_cursor ?? null;
 }
+
+/**
+ * Commit a decoder's rows and its checkpoint in ONE transaction.
+ *
+ * These used to be two separate awaits on a bare handle: rows landed, then the
+ * checkpoint. A crash in between re-delivers the batch on resume, which is
+ * survivable here only because every decoded write is an idempotent upsert on
+ * `cursor` — an accident of the schema, not a guarantee the loop offered. One
+ * transaction makes it a property instead.
+ *
+ * Reorg rollback deliberately stays where it is: `indexer/src/reorg.ts` sweeps
+ * every decoded plane and rewinds every decoder checkpoint inside a single
+ * transaction driven by the indexer's own chain-reorg detection. A per-consumer
+ * sink would add a second rollback on the Streams API's separate reorg feed —
+ * two owners for one invariant.
+ */
+export async function commitDecodedBatch(opts: {
+	db?: Kysely<Database>;
+	decoderName: string;
+	/** Skipped when null — an empty page must not move the checkpoint. */
+	cursor: string | null;
+	write: (tx: Kysely<Database>) => Promise<void>;
+}): Promise<void> {
+	const db = opts.db ?? getSourceDb();
+	await db.transaction().execute(async (tx) => {
+		await opts.write(tx as unknown as Kysely<Database>);
+		if (opts.cursor !== null) {
+			await writeDecoderCheckpoint({
+				cursor: opts.cursor,
+				db: tx as unknown as Kysely<Database>,
+				decoderName: opts.decoderName,
+			});
+		}
+	});
+}
