@@ -4,6 +4,7 @@ import type { InferredTopicSchema } from "@secondlayer/subgraphs";
 import { BaseClient, buildQuery } from "../base.ts";
 import type { SecondLayerOptions } from "../base.ts";
 import type { TransactionProof } from "../proofs.ts";
+import type { ConsumerSink } from "../sinks/types.ts";
 import { type IndexConsumeOptions, consumeIndexFeed } from "./consumer.ts";
 
 export type IndexTip = {
@@ -278,9 +279,11 @@ export type EventsWalkParams<T extends IndexEventType = IndexEventType> = Omit<
 	signal?: AbortSignal;
 };
 
-export type EventsConsumeParams<T extends IndexEventType = IndexEventType> =
-	Omit<EventsListParams<T>, "cursor" | "fromCursor" | "limit"> &
-		IndexConsumeOptions<IndexEventOf<T>, EventsEnvelope<T>>;
+export type EventsConsumeParams<
+	T extends IndexEventType = IndexEventType,
+	TTx = never,
+> = Omit<EventsListParams<T>, "cursor" | "fromCursor" | "limit"> &
+	IndexConsumeOptions<IndexEventOf<T>, EventsEnvelope<T>, TTx>;
 
 // ── Contract calls (/v1/index/contract-calls) ──────────────────────
 
@@ -328,11 +331,11 @@ export type ContractCallsWalkParams = Omit<ContractCallsListParams, "limit"> & {
 	signal?: AbortSignal;
 };
 
-export type ContractCallsConsumeParams = Omit<
+export type ContractCallsConsumeParams<TTx = never> = Omit<
 	ContractCallsListParams,
 	"cursor" | "fromCursor" | "limit"
 > &
-	IndexConsumeOptions<IndexContractCall, ContractCallsEnvelope>;
+	IndexConsumeOptions<IndexContractCall, ContractCallsEnvelope, TTx>;
 
 // ── Canonical block-hash map (/v1/index/canonical) ─────────────────
 
@@ -858,17 +861,17 @@ export type SbtcEventsWalkParams = Omit<SbtcEventsListParams, "limit"> & {
 	signal?: AbortSignal;
 };
 
-export type SbtcEventsConsumeParams = Omit<
+export type SbtcEventsConsumeParams<TTx = never> = Omit<
 	SbtcEventsListParams,
 	"cursor" | "fromCursor" | "limit"
 > &
-	IndexConsumeOptions<IndexSbtcEvent, SbtcEventsEnvelope>;
+	IndexConsumeOptions<IndexSbtcEvent, SbtcEventsEnvelope, TTx>;
 
-export type SbtcDepositsConsumeParams = Omit<
+export type SbtcDepositsConsumeParams<TTx = never> = Omit<
 	SbtcDepositsListParams,
 	"cursor" | "fromCursor" | "limit"
 > &
-	IndexConsumeOptions<IndexSbtcDeposit, SbtcDepositsEnvelope>;
+	IndexConsumeOptions<IndexSbtcDeposit, SbtcDepositsEnvelope, TTx>;
 
 /** `index.sbtc` — the decoded sBTC peg surface (deposits, withdrawals, raw
  *  events, scoreboard). The only productized decoded sBTC peg feed on Stacks. */
@@ -878,7 +881,9 @@ export interface SbtcResource {
 		walk(params?: SbtcDepositsWalkParams): AsyncIterable<IndexSbtcDeposit>;
 		/** Checkpointed sweep of completed deposits — append-only, so safe to
 		 *  mirror. See {@link IndexConsumeOptions}. */
-		consume(params: SbtcDepositsConsumeParams): Promise<{
+		consume<TTx = never>(
+			params: SbtcDepositsConsumeParams<TTx> & { sink?: ConsumerSink<TTx> },
+		): Promise<{
 			cursor: string | null;
 			pages: number;
 			emptyPolls: number;
@@ -905,7 +910,9 @@ export interface SbtcResource {
 		walk(params?: SbtcEventsWalkParams): AsyncIterable<IndexSbtcEvent>;
 		/** Checkpointed sweep of the raw peg event log — append-only across all
 		 *  six topics. See {@link IndexConsumeOptions}. */
-		consume(params: SbtcEventsConsumeParams): Promise<{
+		consume<TTx = never>(
+			params: SbtcEventsConsumeParams<TTx> & { sink?: ConsumerSink<TTx> },
+		): Promise<{
 			cursor: string | null;
 			pages: number;
 			emptyPolls: number;
@@ -1100,8 +1107,12 @@ export interface IndexEventsResource {
 	walk<T extends IndexEventType>(
 		params: EventsWalkParams<T>,
 	): AsyncIterable<IndexEventOf<T>>;
-	consume<T extends IndexEventType>(
-		params: EventsConsumeParams<T>,
+	consume<T extends IndexEventType, TTx = never>(
+		// The redundant `sink` member gives TS a DIRECT inference site for TTx —
+		// inference does not reliably traverse the params alias intersection.
+		params: EventsConsumeParams<T, TTx> & {
+			sink?: ConsumerSink<TTx>;
+		},
 	): Promise<{ cursor: string | null; pages: number; emptyPolls: number }>;
 }
 
@@ -1191,8 +1202,12 @@ export class Index extends BaseClient {
 			walk: <T extends IndexEventType>(
 				params: EventsWalkParams<T>,
 			): AsyncIterable<IndexEventOf<T>> => this.walkEvents(params),
-			consume: <T extends IndexEventType>(params: EventsConsumeParams<T>) =>
-				consumeIndexFeed<IndexEventOf<T>, EventsEnvelope<T>>({
+			consume: <T extends IndexEventType, TTx = never>(
+				// The redundant `sink` member gives TS a DIRECT inference site for
+				// TTx — inference does not traverse the Omit-intersection alias.
+				params: EventsConsumeParams<T, TTx> & { sink?: ConsumerSink<TTx> },
+			) =>
+				consumeIndexFeed<IndexEventOf<T>, EventsEnvelope<T>, TTx>({
 					...params,
 					fetchPage: ({ cursor, fromHeight, limit }) =>
 						this.listEvents({
@@ -1218,8 +1233,8 @@ export class Index extends BaseClient {
 		walk: (
 			params?: ContractCallsWalkParams,
 		) => AsyncIterable<IndexContractCall>;
-		consume: (
-			params: ContractCallsConsumeParams,
+		consume: <TTx = never>(
+			params: ContractCallsConsumeParams<TTx> & { sink?: ConsumerSink<TTx> },
 		) => Promise<{ cursor: string | null; pages: number; emptyPolls: number }>;
 	} = {
 		list: (
@@ -1228,8 +1243,10 @@ export class Index extends BaseClient {
 		walk: (
 			params: ContractCallsWalkParams = {},
 		): AsyncIterable<IndexContractCall> => this.walkContractCalls(params),
-		consume: (params: ContractCallsConsumeParams) =>
-			consumeIndexFeed<IndexContractCall, ContractCallsEnvelope>({
+		consume: <TTx = never>(
+			params: ContractCallsConsumeParams<TTx> & { sink?: ConsumerSink<TTx> },
+		) =>
+			consumeIndexFeed<IndexContractCall, ContractCallsEnvelope, TTx>({
 				...params,
 				fetchPage: ({ cursor, fromHeight, limit }) =>
 					this.listContractCalls({
@@ -1334,8 +1351,10 @@ export class Index extends BaseClient {
 			walk: (
 				params: SbtcDepositsWalkParams = {},
 			): AsyncIterable<IndexSbtcDeposit> => this.walkSbtcDeposits(params),
-			consume: (params: SbtcDepositsConsumeParams) =>
-				consumeIndexFeed<IndexSbtcDeposit, SbtcDepositsEnvelope>({
+			consume: <TTx = never>(
+				params: SbtcDepositsConsumeParams<TTx> & { sink?: ConsumerSink<TTx> },
+			) =>
+				consumeIndexFeed<IndexSbtcDeposit, SbtcDepositsEnvelope, TTx>({
 					...params,
 					fetchPage: ({ cursor, fromHeight, limit }) =>
 						this.listSbtcDeposits({
@@ -1368,8 +1387,10 @@ export class Index extends BaseClient {
 			walk: (
 				params: SbtcEventsWalkParams = {},
 			): AsyncIterable<IndexSbtcEvent> => this.walkSbtcEvents(params),
-			consume: (params: SbtcEventsConsumeParams) =>
-				consumeIndexFeed<IndexSbtcEvent, SbtcEventsEnvelope>({
+			consume: <TTx = never>(
+				params: SbtcEventsConsumeParams<TTx> & { sink?: ConsumerSink<TTx> },
+			) =>
+				consumeIndexFeed<IndexSbtcEvent, SbtcEventsEnvelope, TTx>({
 					...params,
 					fetchPage: ({ cursor, fromHeight, limit }) =>
 						this.listSbtcEvents({

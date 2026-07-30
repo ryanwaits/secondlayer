@@ -1,3 +1,4 @@
+import type { ConsumerSink, WithSinkTx } from "../sinks/types.ts";
 import {
 	type PageRetryOptions,
 	type Sleep,
@@ -31,16 +32,18 @@ export type IndexFeedFetcher<TEnvelope extends IndexFeedEnvelope> = (params: {
 
 /** Consumer options shared by `index.events.consume` and
  *  `index.contractCalls.consume`. Same contract as the Streams consumer:
- *  commit your writes inside `onBatch`, return the cursor you committed. */
+ *  commit your writes inside `onBatch`, return the cursor you committed —
+ *  or attach a `sink` and let it own checkpointing and rollback entirely. */
 export type IndexConsumeOptions<
 	TItem extends IndexFeedItem,
 	TEnvelope extends IndexFeedEnvelope,
+	TTx = never,
 > = {
 	/** Resume from a committed checkpoint. Without it (and without
 	 *  `fromHeight`) the API serves only the recent default window. */
 	fromCursor?: string | null;
 	/** Start a fresh sweep at this height (e.g. `0` for genesis backfill).
-	 *  Ignored once a cursor exists. */
+	 *  Ignored once a cursor exists (including a sink's committed cursor). */
 	fromHeight?: number;
 	/** `tail` (default) keeps polling at the tip; `bounded` returns on the
 	 *  first empty page. */
@@ -50,10 +53,23 @@ export type IndexConsumeOptions<
 	 *  never reorgs, so `onReorg` is skipped entirely. */
 	finalizedOnly?: boolean;
 	batchSize?: number;
+	/**
+	 * Destination adapter that owns the checkpoint + rollback transaction
+	 * (e.g. `kyselySink` from `@secondlayer/sdk/sinks/kysely`). With a sink:
+	 * the loop resumes from the sink's committed cursor, `onBatch` receives
+	 * `ctx.tx` and must write ONLY through it (rows and cursor commit in one
+	 * transaction — a throw aborts both), reorg rollback is automatic (no
+	 * `onReorg` needed), and `onBatch`'s return value is ignored.
+	 */
+	sink?: ConsumerSink<TTx>;
+	/** Fires once per page, before `onBatch` and before any early return —
+	 *  an empty page still proves the loop is alive. Feed it to
+	 *  `consumerHealth().record`. */
+	onProgress?: (ctx: ConsumerBatchContext) => void;
 	onBatch: (
 		items: TItem[],
 		envelope: TEnvelope,
-		ctx: ConsumerBatchContext,
+		ctx: ConsumerBatchContext & WithSinkTx<TTx>,
 	) =>
 		| void
 		| string
@@ -94,8 +110,9 @@ export type IndexConsumeOptions<
 export async function consumeIndexFeed<
 	TItem extends IndexFeedItem,
 	TEnvelope extends IndexFeedEnvelope,
+	TTx = never,
 >(
-	opts: IndexConsumeOptions<TItem, TEnvelope> & {
+	opts: IndexConsumeOptions<TItem, TEnvelope, TTx> & {
 		fetchPage: IndexFeedFetcher<TEnvelope>;
 		itemsOf: (envelope: TEnvelope) => TItem[];
 	},
@@ -107,7 +124,8 @@ export async function consumeIndexFeed<
 	const emptyBackoffMs = opts.emptyBackoffMs ?? 500;
 	const maxPages = opts.maxPages ?? Number.POSITIVE_INFINITY;
 	const maxEmptyPolls = opts.maxEmptyPolls ?? Number.POSITIVE_INFINITY;
-	let cursor = opts.fromCursor ?? null;
+	// Resume order: explicit fromCursor, then the sink's committed checkpoint.
+	let cursor = opts.fromCursor ?? (await opts.sink?.loadCursor()) ?? null;
 	// In-memory only: rollback is idempotent, so a crash before the rewind is
 	// re-detected and re-applied harmlessly on restart — no need to persist.
 	const handledReorgs = new Set<string>();
@@ -144,8 +162,9 @@ export async function consumeIndexFeed<
 
 		// Reorgs: roll back each new fork, then rewind to the lowest fork point
 		// and re-read the now-canonical run. Finalized data never reorgs, so
-		// `finalizedOnly` skips this entirely.
-		if (!finalizedOnly && opts.onReorg) {
+		// `finalizedOnly` skips this entirely. A sink makes rollback
+		// UNCONDITIONAL — omitting `onReorg` used to skip reorgs silently.
+		if (!finalizedOnly && (opts.onReorg || opts.sink)) {
 			const fresh = envelope.reorgs
 				.filter((reorg) => !handledReorgs.has(reorg.id))
 				.sort((a, b) => a.fork_point_height - b.fork_point_height);
@@ -155,7 +174,10 @@ export async function consumeIndexFeed<
 				);
 				const rewind = Cursor.atHeight(forkPoint);
 				for (const reorg of fresh) {
-					await opts.onReorg(reorg, { cursor: rewind });
+					// Sink first: rollback + rewound cursor commit atomically.
+					// A user onReorg (if any) runs after, for observability.
+					await opts.sink?.rollback(reorg.fork_point_height, rewind);
+					await opts.onReorg?.(reorg, { cursor: rewind });
 					handledReorgs.add(reorg.id);
 				}
 				cursor = rewind;
@@ -182,13 +204,38 @@ export async function consumeIndexFeed<
 		// reached; an empty page keeps the previous value.
 		height = emitted.at(-1)?.block_height ?? height;
 
-		const returnedCursor = await opts.onBatch(
-			emitted,
-			envelope,
-			batchContext(checkpoint, height, envelope.tip.block_height),
-		);
-		if (finalizedOnly) assertFinalizedCheckpoint(returnedCursor, checkpoint);
-		const nextCursor = returnedCursor ?? checkpoint;
+		const ctx = batchContext(checkpoint, height, envelope.tip.block_height);
+		// Before any early return: an empty page still proves the loop is alive.
+		opts.onProgress?.(ctx);
+
+		let nextCursor: string | null;
+		if (opts.sink) {
+			const sink = opts.sink;
+			// Rows and cursor commit in ONE transaction; a handler throw aborts
+			// both, so the crashed batch is simply re-read on restart. When the
+			// page moved nothing (same checkpoint, no rows) there is nothing to
+			// commit and the handler is not invoked.
+			if (
+				checkpoint !== null &&
+				(checkpoint !== cursor || emitted.length > 0)
+			) {
+				await sink.commitBatch(checkpoint, async (tx) => {
+					await opts.onBatch(emitted, envelope, {
+						...ctx,
+						tx,
+					} as ConsumerBatchContext & WithSinkTx<TTx>);
+				});
+			}
+			nextCursor = checkpoint;
+		} else {
+			const returnedCursor = await opts.onBatch(
+				emitted,
+				envelope,
+				ctx as ConsumerBatchContext & WithSinkTx<TTx>,
+			);
+			if (finalizedOnly) assertFinalizedCheckpoint(returnedCursor, checkpoint);
+			nextCursor = returnedCursor ?? checkpoint;
+		}
 
 		if (nextCursor && nextCursor !== cursor) {
 			cursor = nextCursor;

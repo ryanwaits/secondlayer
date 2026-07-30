@@ -1,3 +1,4 @@
+import type { ConsumerSink, WithSinkTx } from "../sinks/types.ts";
 import { Cursor } from "./cursor.ts";
 import { ValidationError } from "./errors.ts";
 import type {
@@ -167,7 +168,7 @@ export async function defaultSleep(
 	});
 }
 
-export async function consumeStreamsEvents(opts: {
+export async function consumeStreamsEvents<TTx = never>(opts: {
 	fromCursor?: string | null;
 	mode?: "tail" | "bounded";
 	finalizedOnly?: boolean;
@@ -179,10 +180,14 @@ export async function consumeStreamsEvents(opts: {
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
 	fetchEvents: StreamsEventsFetcher;
+	/** Destination adapter owning checkpoint + rollback (see IndexConsumeOptions.sink). */
+	sink?: ConsumerSink<TTx>;
+	/** Fires once per page, before `onBatch` and any early return. */
+	onProgress?: (ctx: ConsumerBatchContext) => void;
 	onBatch: (
 		events: StreamsEvent[],
 		envelope: StreamsEventsEnvelope,
-		ctx: ConsumerBatchContext,
+		ctx: ConsumerBatchContext & WithSinkTx<TTx>,
 	) =>
 		| void
 		| string
@@ -209,7 +214,8 @@ export async function consumeStreamsEvents(opts: {
 	const emptyBackoffMs = opts.emptyBackoffMs ?? 500;
 	const maxPages = opts.maxPages ?? Number.POSITIVE_INFINITY;
 	const maxEmptyPolls = opts.maxEmptyPolls ?? Number.POSITIVE_INFINITY;
-	let cursor = opts.fromCursor ?? null;
+	// Resume order: explicit fromCursor, then the sink's committed checkpoint.
+	let cursor = opts.fromCursor ?? (await opts.sink?.loadCursor()) ?? null;
 	// In-memory only: rollback is idempotent, so a crash before the rewind is
 	// re-detected and re-applied harmlessly on restart — no need to persist.
 	const handledReorgs = new Set<string>();
@@ -250,8 +256,9 @@ export async function consumeStreamsEvents(opts: {
 
 		// Reorgs: roll back each new fork, then rewind to the lowest fork point
 		// and re-read the now-canonical run. Finalized data never reorgs, so
-		// `finalizedOnly` skips this entirely.
-		if (!finalizedOnly && opts.onReorg) {
+		// `finalizedOnly` skips this entirely. A sink makes rollback
+		// UNCONDITIONAL — omitting `onReorg` used to skip reorgs silently.
+		if (!finalizedOnly && (opts.onReorg || opts.sink)) {
 			const fresh = envelope.reorgs
 				.filter((reorg) => !handledReorgs.has(reorgKey(reorg)))
 				.sort((a, b) => a.fork_point_height - b.fork_point_height);
@@ -261,7 +268,8 @@ export async function consumeStreamsEvents(opts: {
 				);
 				const rewind = Cursor.atHeight(forkPoint);
 				for (const reorg of fresh) {
-					await opts.onReorg(reorg, { cursor: rewind });
+					await opts.sink?.rollback(reorg.fork_point_height, rewind);
+					await opts.onReorg?.(reorg, { cursor: rewind });
 					handledReorgs.add(reorgKey(reorg));
 				}
 				cursor = rewind;
@@ -285,13 +293,36 @@ export async function consumeStreamsEvents(opts: {
 		// reached; an empty page keeps the previous value.
 		height = emitted.at(-1)?.block_height ?? height;
 
-		const returnedCursor = await opts.onBatch(
-			emitted,
-			envelope,
-			batchContext(checkpoint, height, envelope.tip.block_height),
-		);
-		if (finalizedOnly) assertFinalizedCheckpoint(returnedCursor, checkpoint);
-		const nextCursor = returnedCursor ?? checkpoint;
+		const ctx = batchContext(checkpoint, height, envelope.tip.block_height);
+		// Before any early return: an empty page still proves the loop is alive.
+		opts.onProgress?.(ctx);
+
+		let nextCursor: string | null;
+		if (opts.sink) {
+			const sink = opts.sink;
+			// Rows and cursor commit in ONE transaction; a handler throw aborts
+			// both. Nothing moved → nothing to commit, handler not invoked.
+			if (
+				checkpoint !== null &&
+				(checkpoint !== cursor || emitted.length > 0)
+			) {
+				await sink.commitBatch(checkpoint, async (tx) => {
+					await opts.onBatch(emitted, envelope, {
+						...ctx,
+						tx,
+					} as ConsumerBatchContext & WithSinkTx<TTx>);
+				});
+			}
+			nextCursor = checkpoint;
+		} else {
+			const returnedCursor = await opts.onBatch(
+				emitted,
+				envelope,
+				ctx as ConsumerBatchContext & WithSinkTx<TTx>,
+			);
+			if (finalizedOnly) assertFinalizedCheckpoint(returnedCursor, checkpoint);
+			nextCursor = returnedCursor ?? checkpoint;
+		}
 
 		if (nextCursor && nextCursor !== cursor) {
 			cursor = nextCursor;

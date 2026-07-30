@@ -27,6 +27,10 @@
 		"./x402": {
 			"types": "./dist/x402.d.ts",
 			"import": "./dist/x402.js"
+		},
+		"./sinks/kysely": {
+			"types": "./dist/sinks/kysely.d.ts",
+			"import": "./dist/sinks/kysely.js"
 		}
 	},
 	"files": ["dist"],
@@ -46,9 +50,20 @@
 	"devDependencies": {
 		"@openpkg-ts/cli": "^0.11.3",
 		"@types/bun": "latest",
-		"typescript": "^5"
+		"typescript": "^5",
+		"kysely": "^0.28.15",
+		"pg": "^8.16.0",
+		"@types/pg": "^8.15.0"
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"peerDependencies": {
+		"kysely": ">=0.27"
+	},
+	"peerDependenciesMeta": {
+		"kysely": {
+			"optional": true
+		}
 	}
 }
