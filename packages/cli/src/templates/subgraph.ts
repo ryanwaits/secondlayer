@@ -328,27 +328,41 @@ export default defineSubgraph({
 
 function poxStacking(name: string): string {
 	return `import { defineSubgraph } from "@secondlayer/subgraphs";
+import { POX5_ABI } from "@secondlayer/stacks/pox5";
 
 /**
- * Track Stacking lifecycle calls on PoX-4 — solo stacking, delegation,
- * extension, increase, aggregation, signer-key authorizations.
+ * Track PoX-5 \`stake\` calls with their arguments already decoded.
  *
- * Note: PoX-4 emits zero print events; this subgraph captures contract
- * calls. Decoding function args + raw_result is left to your handler.
+ * pox-5 replaced pox-4 when Epoch 4.0 activated (Bitcoin block 960,230,
+ * 2026-07-30). SIP-045 reshaped the API: stacking became bonds + staking, so
+ * the entry point is \`stake\`, not \`stack-stx\`.
+ *
+ * The source pairs \`abi\` with \`functionName\`, which is what makes
+ * \`event.input\` a typed, named argument set instead of positional
+ * \`args[0] as bigint\`. Add one source per function you want to track.
  *
  * Query examples once deployed:
- *   GET /v1/subgraphs/${name}/calls?function_name=stack-stx
+ *   GET /v1/subgraphs/${name}/calls?caller=SP1...
  *   GET /v1/subgraphs/${name}/calls?caller=SP1...
  */
 export default defineSubgraph({
   name: "${name}",
   version: "1.0.0",
-  description: "PoX-4 stacking lifecycle calls",
+  description: "PoX-5 stake calls with decoded arguments",
 
   sources: {
     pox: {
       type: "contract_call",
-      contractId: "SP000000000000000000002Q6VF78.pox-4",
+      // pox-5 is the live PoX contract since Epoch 4.0 activated at Bitcoin
+      // block 960,230 (2026-07-30). Stacking history before that is pox-4 —
+      // point a second source at \`.pox-4\` if you need it.
+      contractId: "SP000000000000000000002Q6VF78.pox-5",
+      // \`abi\` + \`functionName\` together are what type \`event.input\`: the
+      // arguments cannot be typed without knowing which function was called.
+      // POX5_ABI ships \`as const\` in @secondlayer/stacks, so there is no
+      // hand-copied ABI to drift. Add a source per function you care about.
+      functionName: "stake",
+      abi: POX5_ABI,
     },
   },
 
@@ -357,6 +371,8 @@ export default defineSubgraph({
       columns: {
         function_name: { type: "text", indexed: true, search: true },
         caller: { type: "principal", indexed: true, search: true },
+        amount_ustx: { type: "uint" },
+        num_cycles: { type: "uint" },
         result_ok: { type: "boolean" },
       },
     },
@@ -364,12 +380,14 @@ export default defineSubgraph({
 
   handlers: {
     pox: (event, ctx) => {
-      // contract_call events are typed: functionName, resultHex, args, sender.
-      // (Add an \`abi\` to the source to also get typed \`event.input\`.)
+      // \`event.input\` is the decoded, named, typed argument set — no
+      // \`args[0] as bigint\`. Hover \`amountUstx\` and it is a bigint.
       const resultHex = event.resultHex ?? "";
       ctx.insert("calls", {
         function_name: event.functionName || ctx.tx.functionName || "",
         caller: ctx.tx.sender,
+        amount_ustx: event.input.amountUstx,
+        num_cycles: event.input.numCycles,
         result_ok: resultHex.startsWith("0x07"), // 0x07 = response-ok type tag
       });
     },

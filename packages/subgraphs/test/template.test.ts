@@ -52,10 +52,15 @@ describe("generateSubgraphTemplate", () => {
 		expect(content).toContain("print_event");
 	});
 
-	test("pox-stacking template targets the pox-4 contract", () => {
+	test("pox-stacking template targets the live pox-5 contract", () => {
 		const content = generateSubgraphTemplate("staking", "pox-stacking");
 		expect(content).toContain("contract_call");
-		expect(content).toContain("SP000000000000000000002Q6VF78.pox-4");
+		// pox-5 has been the live PoX contract since Epoch 4.0 activated
+		// (2026-07-30); a starter should teach the contract people can call.
+		expect(content).toContain("SP000000000000000000002Q6VF78.pox-5");
+		// And it must carry the ABI + functionName pair that types event.input.
+		expect(content).toContain("abi: POX5_ABI");
+		expect(content).toContain('functionName: "stake"');
 	});
 
 	test("bns-names template subscribes to BNS-V2", () => {
