@@ -54,6 +54,8 @@ export type {
 	IndexDiscovery,
 	IndexEvent,
 	IndexEventsResource,
+	IndexAlwaysFields,
+	IndexEventFields,
 	IndexEventOf,
 	IndexEventType,
 	IndexEventTypeFilters,

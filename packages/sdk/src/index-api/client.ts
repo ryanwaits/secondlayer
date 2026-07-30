@@ -231,8 +231,21 @@ export type IndexEvent =
 
 export type IndexEventType = IndexEvent["event_type"];
 
-export type EventsEnvelope<T extends IndexEventType = IndexEventType> = {
-	events: IndexEventOf<T>[];
+/** Fields every read returns regardless of `fields` — the consume contract
+ *  (`cursor`, `block_height`) plus the union discriminant. */
+export type IndexAlwaysFields = "cursor" | "block_height" | "event_type";
+
+/** An event row narrowed to a `fields` selection (plus what always ships). */
+export type IndexEventFields<
+	T extends IndexEventType,
+	F extends keyof IndexEventOf<T> & string,
+> = Pick<IndexEventOf<T>, (F | IndexAlwaysFields) & keyof IndexEventOf<T>>;
+
+export type EventsEnvelope<
+	T extends IndexEventType = IndexEventType,
+	TRow = IndexEventOf<T>,
+> = {
+	events: TRow[];
 	next_cursor: string | null;
 	tip: IndexTip;
 	// Chain reorgs overlapping this page's height range; empty when none.
@@ -269,6 +282,21 @@ export type EventsListParams<T extends IndexEventType = IndexEventType> = {
 	 *  Avoids a `/v1/index/transactions` call per event; for `print` events it's
 	 *  the only source of the submitting sender. */
 	txContext?: boolean;
+	/**
+	 * Return only these columns. The server projects the SELECT, so an
+	 * unrequested field is physically absent — and the returned row type
+	 * narrows to match, making a read of one a compile error rather than
+	 * `undefined`.
+	 *
+	 * `cursor`, `block_height`, and `event_type` come back regardless: the
+	 * first two are the consume contract, the third carries the discriminant.
+	 * Don't list them.
+	 *
+	 * Cost note: this does NOT change your bill — Index meters per row read,
+	 * not per field. What it buys is wire bytes, plus skipping the `blocks`
+	 * join when `block_time` is omitted.
+	 */
+	fields?: readonly (keyof IndexEventOf<T> & string)[];
 };
 
 export type EventsWalkParams<T extends IndexEventType = IndexEventType> = Omit<
@@ -1101,6 +1129,15 @@ export interface IndexEventsResource {
 	<T extends IndexEventType>(
 		params: EventsListParams<T>,
 	): Promise<EventsEnvelope<T>>;
+	/** Narrowing overload: `fields` shrinks the returned row type to exactly
+	 *  the requested columns plus {@link IndexAlwaysFields}. `const F` means no
+	 *  `as const` at the call site. */
+	list<
+		T extends IndexEventType,
+		const F extends keyof IndexEventOf<T> & string,
+	>(
+		params: EventsListParams<T> & { fields: readonly F[] },
+	): Promise<EventsEnvelope<T, IndexEventFields<T, F>>>;
 	list<T extends IndexEventType>(
 		params: EventsListParams<T>,
 	): Promise<EventsEnvelope<T>>;
@@ -1196,9 +1233,10 @@ export class Index extends BaseClient {
 			params: EventsListParams<T>,
 		): Promise<EventsEnvelope<T>> => this.listEvents(params),
 		{
-			list: <T extends IndexEventType>(
+			list: (<T extends IndexEventType>(
 				params: EventsListParams<T>,
-			): Promise<EventsEnvelope<T>> => this.listEvents(params),
+			): Promise<EventsEnvelope<T>> =>
+				this.listEvents(params)) as IndexEventsResource["list"],
 			walk: <T extends IndexEventType>(
 				params: EventsWalkParams<T>,
 			): AsyncIterable<IndexEventOf<T>> => this.walkEvents(params),
@@ -1554,6 +1592,7 @@ export class Index extends BaseClient {
 				to_height: params.toHeight,
 				trait: params.trait,
 				tx_context: params.txContext ? "true" : undefined,
+				fields: params.fields?.join(","),
 			})}`,
 		);
 	}
