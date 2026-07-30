@@ -171,7 +171,19 @@ export type AggregateResult<
 		: unknown);
 
 export interface SubgraphTableClient<TRow> {
-	findMany(options?: FindManyOptions<TRow>): Promise<TRow[]>;
+	/**
+	 * List rows. `fields` narrows BOTH the wire payload and the return type:
+	 * the server projects the SELECT to exactly those columns, so an
+	 * unrequested field is physically absent — reading it is a compile error,
+	 * not `undefined`. The `const` type parameter keeps the literal field
+	 * names without `as const` at the call site (same pattern as `aggregate`).
+	 */
+	findMany<
+		const F extends readonly (keyof TRow & string)[] = readonly (keyof TRow &
+			string)[],
+	>(
+		options?: Omit<FindManyOptions<TRow>, "fields"> & { fields?: F },
+	): Promise<Pick<TRow, F[number]>[]>;
 	count(where?: WhereInput<TRow> & SystemWhereAliases): Promise<number>;
 	/**
 	 * Scalar aggregates over the filtered set. SUM/MIN/MAX accept numeric columns

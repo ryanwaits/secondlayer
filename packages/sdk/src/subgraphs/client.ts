@@ -347,7 +347,9 @@ export class Subgraphs extends BaseClient {
 
 		return {
 			async findMany<TRow>(
-				options: FindManyOptions<TRow> = {},
+				options: Omit<FindManyOptions<TRow>, "fields"> & {
+					fields?: readonly (keyof TRow & string)[];
+				} = {},
 			): Promise<TRow[]> {
 				const filters = options.where
 					? serializeWhere(options.where as Record<string, unknown>)
