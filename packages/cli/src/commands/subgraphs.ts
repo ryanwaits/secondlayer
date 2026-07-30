@@ -1035,6 +1035,58 @@ Examples:
 						// The server decides whether this creates, updates, or reindexes.
 						// Always forward startBlock — CLI flag takes priority, then definition file.
 						const deployStartBlock = startBlock ?? effectiveDef.startBlock;
+
+						// Destructive-deploy confirmation runs BEFORE the request: the
+						// server drops + rebuilds as a side effect of deploying, so a
+						// post-hoc prompt would fire after the data is already gone.
+						// Preflight with the same differ the server uses; a race between
+						// this check and the deploy is possible but strictly better than
+						// always prompting too late.
+						if (!options.yes) {
+							const existingDetail = await getSubgraphApi(
+								effectiveDef.name,
+							).catch(() => null);
+							const existingSchema = (
+								existingDetail?.definition as
+									| { schema?: Record<string, unknown>; startBlock?: number }
+									| undefined
+							)?.schema;
+							if (existingDetail && existingSchema) {
+								const { diffSchema, hasBreakingChanges } = await import(
+									"@secondlayer/subgraphs"
+								);
+								const verdict = hasBreakingChanges(
+									diffSchema(
+										existingSchema as Parameters<typeof diffSchema>[0],
+										effectiveDef.schema as Parameters<typeof diffSchema>[1],
+									),
+								);
+								const existingStart = (
+									existingDetail.definition as { startBlock?: number }
+								)?.startBlock;
+								const startBlockForcesReindex =
+									deployStartBlock !== undefined &&
+									deployStartBlock !== existingStart;
+								if (verdict.breaking || startBlockForcesReindex) {
+									if (verdict.breaking) {
+										warn("Breaking changes detected:");
+										for (const r of verdict.reasons) warn(`  ✗ ${r}`);
+									} else {
+										warn(
+											`startBlock change (${existingStart ?? "unset"} → ${deployStartBlock}) forces a reindex.`,
+										);
+									}
+									const confirmed = await confirm({
+										message:
+											"⚠  This will drop all data and reindex from scratch. Continue?",
+									});
+									if (!confirmed) {
+										info("Aborted — nothing was deployed.");
+										process.exit(0);
+									}
+								}
+							}
+						}
 						if (options.databaseUrl) {
 							info(
 								"BYO data plane: schema + rows will live in your database. The server verifies the connection before deploying.",
@@ -1144,18 +1196,9 @@ Examples:
 								}
 							}
 
-							// Confirmation prompt — dropping existing data (skippable with --yes)
-							const confirmed =
-								options.yes ||
-								(await confirm({
-									message:
-										"⚠  This will drop all data and reindex from scratch. Continue?",
-								}));
-							if (!confirmed) {
-								info("Aborted.");
-								process.exit(0);
-							}
-
+							// Confirmation already happened in the preflight above (or was
+							// skipped with --yes) — by the time the server answers
+							// "reindexed", the drop has run and a prompt can't undo it.
 							success(
 								`Subgraph "${effectiveDef.name}" updated → v${result.version} (reindexing)`,
 							);
