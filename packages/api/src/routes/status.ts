@@ -45,6 +45,42 @@ type PublicServiceHealth = {
 };
 
 const SUBGRAPH_PROCESSOR_STALE_MS = 90_000;
+/**
+ * How far the furthest-behind active subgraph may trail the chain tip before
+ * the processor counts as degraded.
+ *
+ * Heartbeat freshness alone says the process is ALIVE, not that it is making
+ * progress. On 2026-07-30 a three-block canonical gap wedged every subgraph
+ * for hours while this endpoint reported `subgraph_processor: ok` the whole
+ * time — the loop was ticking, deferring the same missing block each tick, and
+ * heartbeating happily. Liveness and progress are different questions and this
+ * endpoint now asks both.
+ *
+ * Sized well above normal catch-up churn (a redeploy/reindex legitimately runs
+ * behind) so it flags a stall, not a busy backfill.
+ */
+const SUBGRAPH_PROCESSOR_LAG_BLOCKS = 500;
+
+/**
+ * The subgraph processor's verdict from BOTH signals: is it alive, and is it
+ * moving? Exported so the stalled-but-heartbeating case has a test — that is
+ * the shape that went unnoticed for hours in production.
+ */
+export function subgraphProcessorVerdict(input: {
+	ageSeconds: number;
+	blocksBehind: number | null;
+}): { status: SemanticHealthStatus; reason: string } {
+	if (input.ageSeconds * 1000 > SUBGRAPH_PROCESSOR_STALE_MS) {
+		return { status: "degraded", reason: "stale" };
+	}
+	if (
+		input.blocksBehind !== null &&
+		input.blocksBehind > SUBGRAPH_PROCESSOR_LAG_BLOCKS
+	) {
+		return { status: "degraded", reason: "stalled" };
+	}
+	return { status: "ok", reason: "fresh" };
+}
 
 // Built per-request from env flags so the public status response surfaces
 // every enabled L2 decoder, not just the always-on ft + nft pair. The base
@@ -178,6 +214,7 @@ app.get("/public/status", async (c) => {
 		dumpsManifestResult,
 		subgraphProcessorHeartbeat,
 		chainIntegrityResult,
+		subgraphProgressResult,
 	] = await Promise.allSettled([
 		sql`SELECT 1`.execute(db),
 		getIndexerHealth(),
@@ -190,11 +227,21 @@ app.get("/public/status", async (c) => {
 			.where("name", "=", "subgraph-processor")
 			.executeTakeFirst(),
 		checkChainDataIntegrity(sourceDb),
+		db
+			.selectFrom("subgraphs")
+			.select(({ fn }) => fn.min("last_processed_block").as("min_block"))
+			.where("status", "in", ["active", "reindexing"])
+			.executeTakeFirst(),
 	]);
+	// Read before the block below — the processor's verdict depends on it.
+	const streamsTipForProgress: StreamsTip | null =
+		streamsTipResult.status === "fulfilled" ? streamsTipResult.value : null;
 	const subgraphProcessorDetail: {
 		status: SemanticHealthStatus;
 		lastSeen: string | null;
 		ageSeconds: number | null;
+		/** Furthest-behind active subgraph vs the chain tip; null when unknown. */
+		blocksBehind: number | null;
 		reason: string;
 	} = (() => {
 		if (subgraphProcessorHeartbeat.status !== "fulfilled") {
@@ -206,6 +253,7 @@ app.get("/public/status", async (c) => {
 				status: "unavailable",
 				lastSeen: null,
 				ageSeconds: null,
+				blocksBehind: null,
 				reason: `query_error: ${reason.slice(0, 200)}`,
 			};
 		}
@@ -215,23 +263,29 @@ app.get("/public/status", async (c) => {
 				status: "unavailable",
 				lastSeen: null,
 				ageSeconds: null,
+				blocksBehind: null,
 				reason: "no_heartbeat_row",
 			};
 		}
 		const lastSeen = new Date(row.updated_at);
 		const ageSeconds = Math.floor((Date.now() - lastSeen.getTime()) / 1000);
-		const status: SemanticHealthStatus =
-			ageSeconds * 1000 <= SUBGRAPH_PROCESSOR_STALE_MS ? "ok" : "degraded";
+		const minBlock =
+			subgraphProgressResult.status === "fulfilled"
+				? Number(subgraphProgressResult.value?.min_block ?? 0)
+				: 0;
+		const tipHeight = streamsTipForProgress?.block_height ?? 0;
+		const blocksBehind =
+			minBlock > 0 && tipHeight > 0 ? Math.max(0, tipHeight - minBlock) : null;
+		const verdict = subgraphProcessorVerdict({ ageSeconds, blocksBehind });
 		return {
-			status,
+			...verdict,
 			lastSeen: lastSeen.toISOString(),
 			ageSeconds,
-			reason: status === "ok" ? "fresh" : "stale",
+			blocksBehind,
 		};
 	})();
 	const subgraphProcessorStatus = subgraphProcessorDetail.status;
-	const streamsTip: StreamsTip | null =
-		streamsTipResult.status === "fulfilled" ? streamsTipResult.value : null;
+	const streamsTip: StreamsTip | null = streamsTipForProgress;
 	const chainTip = streamsTip?.block_height ?? null;
 	const l2DecodersHealth: DecodersHealth | null =
 		l2DecodersResult.status === "fulfilled" ? l2DecodersResult.value : null;

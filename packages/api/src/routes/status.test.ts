@@ -3,7 +3,10 @@ import {
 	type DecodersHealth,
 	getEnabledDecoderNames,
 } from "@secondlayer/indexer/decode/health";
-import { publicIndexStatusFromL2Health } from "./status.ts";
+import {
+	publicIndexStatusFromL2Health,
+	subgraphProcessorVerdict,
+} from "./status.ts";
 
 // publicIndexStatusFromL2Health surfaces every enabled decoder, defaulting any
 // the L2 health snapshot omits to "unavailable". The fixtures below only carry
@@ -126,5 +129,36 @@ describe("/status API telemetry shape", () => {
 		expect(api.error_rate).toBe(0);
 		expect(api.groups.streams.requests).toBe(1);
 		expect(api.groups.index.requests).toBe(0);
+	});
+});
+
+describe("/status subgraph processor verdict", () => {
+	// The 2026-07-30 outage: a three-block canonical gap wedged every subgraph
+	// for hours. The loop kept ticking and heartbeating, so a liveness-only
+	// check reported `ok` the entire time while the plane fell 5,500 blocks
+	// behind. Progress is a separate question and has to be asked separately.
+	test("a fresh heartbeat with no progress is degraded, not ok", () => {
+		expect(
+			subgraphProcessorVerdict({ ageSeconds: 5, blocksBehind: 5_540 }),
+		).toEqual({ status: "degraded", reason: "stalled" });
+	});
+
+	test("keeping up is ok", () => {
+		expect(
+			subgraphProcessorVerdict({ ageSeconds: 5, blocksBehind: 3 }),
+		).toEqual({ status: "ok", reason: "fresh" });
+	});
+
+	test("a stale heartbeat is degraded even when progress looks fine", () => {
+		expect(
+			subgraphProcessorVerdict({ ageSeconds: 600, blocksBehind: 0 }),
+		).toEqual({ status: "degraded", reason: "stale" });
+	});
+
+	test("unknown progress does not manufacture a failure", () => {
+		// No active subgraphs, or no tip — absence of evidence isn't evidence.
+		expect(
+			subgraphProcessorVerdict({ ageSeconds: 5, blocksBehind: null }),
+		).toEqual({ status: "ok", reason: "fresh" });
 	});
 });
