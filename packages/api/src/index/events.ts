@@ -226,6 +226,8 @@ export type IndexEventsQuery = {
 	trait?: string;
 	/** Join the submitting tx for `tx_*` fields (opt-in; powers subgraph reindex). */
 	withTx: boolean;
+	/** Return only these columns (see `ReadIndexEventsParams.fields`). */
+	fields?: readonly string[];
 	cursorPastTip: boolean;
 };
 
@@ -251,21 +253,50 @@ export type ReadIndexEventsParams = {
 	trait?: string;
 	/** Join the submitting tx for `tx_*` fields (opt-in; powers subgraph reindex). */
 	withTx?: boolean;
+	/**
+	 * Return only these columns. Validated against the event type's own
+	 * vocabulary by the query parser.
+	 *
+	 * `cursor`, `block_height`, and `event_type` are always returned: the first
+	 * two are the consume contract and the third carries the discriminant, so
+	 * omitting them is not expressible. `block_height` and `event_index` also
+	 * stay in the SQL SELECT unconditionally — cursor encoding and the
+	 * reorg-span lookup read them — and are stripped from the response instead.
+	 *
+	 * This does NOT change your bill: Index meters per row read, not per
+	 * field. What it buys is wire bytes, and — when `block_time` is omitted —
+	 * skipping the `blocks` join entirely.
+	 */
+	fields?: readonly string[];
 	db?: Kysely<Database>;
 };
 
 export type ReadIndexEventsResult = {
 	events: IndexEvent[];
 	next_cursor: string | null;
+	/**
+	 * First/last `(block_height, event_index)` of the page, captured BEFORE
+	 * the field projection strips them. The reorg-span lookup needs both, and
+	 * `event_index` is droppable from the response — so the span travels
+	 * separately rather than being re-read off projected rows.
+	 */
+	span?: {
+		from: { block_height: number; event_index: number };
+		to: { block_height: number; event_index: number };
+	};
 };
 
 export type IndexEventsReader = (
 	params: ReadIndexEventsParams,
 ) => Promise<ReadIndexEventsResult>;
 
+/** Response fields that survive any projection. */
+const ALWAYS_FIELDS = new Set(["cursor", "block_height", "event_type"]);
+
 function normalizeIndexRow(
 	row: IndexEventRow,
 	config: IndexEventConfig,
+	fields?: ReadonlySet<string>,
 ): IndexEvent {
 	const event: IndexEvent = {
 		cursor: row.cursor,
@@ -285,6 +316,16 @@ function normalizeIndexRow(
 			column === "payload" && typeof raw === "string"
 				? parseJsonColumn(raw)
 				: raw;
+	}
+	if (fields) {
+		// Strip what the caller didn't ask for. `block_height`/`event_index`
+		// were selected regardless (cursor + reorg span need them), so the
+		// projection happens HERE rather than in the SELECT list.
+		for (const key of Object.keys(event)) {
+			if (!ALWAYS_FIELDS.has(key) && !fields.has(key)) {
+				delete (event as Record<string, unknown>)[key];
+			}
+		}
 	}
 	// Submitting-tx context (present only when the read joined it).
 	if (row.tx_sender !== undefined) {
@@ -387,10 +428,45 @@ export async function readIndexEvents(
 	const orderBy = leadFilter
 		? sql`${sql.ref(leadFilter)} ASC, block_height ASC, event_index ASC`
 		: sql`block_height ASC, event_index ASC`;
-	const extraColumns = sql.join(
-		config.columns.map((column) => sql.ref(column)),
+	// Projection: select only the type-specific columns the caller asked for.
+	// The universal columns below are handled separately — `block_height` and
+	// `event_index` are always selected (cursor encoding + reorg-span lookup
+	// read them) and stripped from the response instead.
+	const wanted = params.fields ? new Set(params.fields) : undefined;
+	const selectedColumns = wanted
+		? config.columns.filter((column) => wanted.has(column))
+		: [...config.columns];
+	const extraColumns =
+		selectedColumns.length > 0
+			? sql`, ${sql.join(
+					selectedColumns.map((column) => sql.ref(column)),
+					sql`, `,
+				)}`
+			: sql``;
+	// `block_time` is not a column of decoded_events — it is `to_timestamp()`
+	// off a LEFT JOIN on blocks, on EVERY read. Omitting it lets the planner
+	// skip that join entirely, which is the real win here.
+	const needsBlockTime = !wanted || wanted.has("block_time");
+	const blockTimeSelect = needsBlockTime
+		? sql`, to_timestamp(b.timestamp) AT TIME ZONE 'UTC' AS block_time`
+		: sql``;
+	const blocksJoin = needsBlockTime
+		? sql`LEFT JOIN blocks b
+			ON b.height = decoded_events.block_height
+			AND b.canonical = true`
+		: sql``;
+	// Universal columns other than the always-present ones.
+	const optionalBase = ["tx_id", "tx_index", "contract_id"] as const;
+	const baseSelect = sql.join(
+		optionalBase
+			.filter((column) => !wanted || wanted.has(column))
+			.map((column) => sql.ref(column)),
 		sql`, `,
 	);
+	const baseSelectClause =
+		optionalBase.filter((c) => !wanted || wanted.has(c)).length > 0
+			? sql`, ${baseSelect}`
+			: sql``;
 
 	// Opt-in submitting-tx context. A LATERAL lookup on the canonical (tx_id,
 	// block_height) — one PK-indexed probe per row, only when requested — so the
@@ -417,17 +493,10 @@ export async function readIndexEvents(
 		SELECT
 			cursor,
 			block_height,
-			to_timestamp(b.timestamp) AT TIME ZONE 'UTC' AS block_time,
-			tx_id,
-			tx_index,
 			event_index,
-			event_type,
-			contract_id,
-			${extraColumns}${txSelect}
+			event_type${blockTimeSelect}${baseSelectClause}${extraColumns}${txSelect}
 		FROM decoded_events
-		LEFT JOIN blocks b
-			ON b.height = decoded_events.block_height
-			AND b.canonical = true
+		${blocksJoin}
 		${txJoin}
 		WHERE ${sql.join(predicates, sql` AND `)}
 		ORDER BY ${orderBy}
@@ -435,17 +504,35 @@ export async function readIndexEvents(
 	`.execute(db);
 
 	const pageRows = rows.slice(0, params.limit);
-	const events = pageRows.map((row) => normalizeIndexRow(row, config));
-	const lastEvent = events.at(-1);
+	// Capture the span from the RAW rows: block_height/event_index are always
+	// selected, but the projection may strip event_index from the response.
+	const firstRow = pageRows.at(0);
+	const lastRow = pageRows.at(-1);
+	const span =
+		firstRow && lastRow
+			? {
+					from: {
+						block_height: Number(firstRow.block_height),
+						event_index: Number(firstRow.event_index),
+					},
+					to: {
+						block_height: Number(lastRow.block_height),
+						event_index: Number(lastRow.event_index),
+					},
+				}
+			: undefined;
+	const events = pageRows.map((row) => normalizeIndexRow(row, config, wanted));
+	const lastEvent = lastRow;
 
 	return {
 		events,
 		next_cursor: lastEvent
 			? encodeIndexCursor({
-					block_height: lastEvent.block_height,
-					event_index: lastEvent.event_index,
+					block_height: Number(lastEvent.block_height),
+					event_index: Number(lastEvent.event_index),
 				})
 			: null,
+		span,
 	};
 }
 
@@ -475,6 +562,7 @@ export function parseIndexEventsQuery(
 		...config.allowedFilters,
 		"event_type",
 		"tx_context",
+		"fields",
 		...(traitSupported ? ["trait"] : []),
 	]);
 
@@ -508,6 +596,7 @@ export function parseIndexEventsQuery(
 	}
 
 	const withTx = query.get("tx_context") === "true";
+	const fields = parseFieldsParam(query.get("fields"), config, withTx);
 	return {
 		...base,
 		eventType: eventTypeRaw,
@@ -515,7 +604,61 @@ export function parseIndexEventsQuery(
 		contractIds,
 		trait,
 		withTx,
+		fields,
 	};
+}
+
+/** Universal columns every decoded event carries. */
+const UNIVERSAL_FIELDS = [
+	"cursor",
+	"block_height",
+	"block_time",
+	"tx_id",
+	"tx_index",
+	"event_index",
+	"event_type",
+	"contract_id",
+] as const;
+/** Only meaningful alongside `tx_context=true`. */
+const TX_CONTEXT_FIELDS = [
+	"tx_sender",
+	"tx_type",
+	"tx_status",
+	"tx_contract_id",
+	"tx_function_name",
+] as const;
+
+/**
+ * Parse and validate `fields`. Unknown names are refused (rather than
+ * silently ignored) so a typo can't quietly drop a column the caller
+ * believes they requested.
+ */
+function parseFieldsParam(
+	raw: string | null,
+	config: IndexEventConfig,
+	withTx: boolean,
+): readonly string[] | undefined {
+	if (raw === null) return undefined;
+	const requested = raw
+		.split(",")
+		.map((f) => f.trim())
+		.filter(Boolean);
+	if (requested.length === 0) {
+		throw new ValidationError("fields must name at least one column");
+	}
+	const allowed = new Set<string>([
+		...UNIVERSAL_FIELDS,
+		...config.columns,
+		...(withTx ? TX_CONTEXT_FIELDS : []),
+	]);
+	for (const field of requested) {
+		if (!allowed.has(field)) {
+			throw new ValidationError(
+				`unknown field: ${field} (available for this event_type: ${[...allowed].sort().join(", ")})`,
+			);
+		}
+	}
+	return requested;
 }
 
 export async function getIndexEventsResponse(opts: {
@@ -546,8 +689,13 @@ export async function getIndexEventsResponse(opts: {
 		contractIds: parsed.contractIds,
 		trait: parsed.trait,
 		withTx: parsed.withTx,
+		fields: parsed.fields,
 	});
-	const reorgs = await readReorgsForEvents(result.events, opts.readReorgs);
+	// Prefer the raw span (survives a projection that dropped event_index).
+	const reorgs = await readReorgsForEvents(
+		result.span ? [result.span.from, result.span.to] : result.events,
+		opts.readReorgs,
+	);
 
 	return {
 		events: result.events,

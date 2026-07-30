@@ -358,7 +358,11 @@ describe.skipIf(!HAS_DB)("Index /events DB reads", () => {
 		});
 
 		expect(viaEvents.events.map((e) => e.cursor)).toEqual(["9900:0", "9901:0"]);
-		expect(viaEvents).toEqual(viaTyped);
+		// Compare what actually ships. `span` is internal reader plumbing for
+		// the reorg lookup (it never reaches the HTTP response), and only the
+		// generic path computes it.
+		expect(viaEvents.events).toEqual(viaTyped.events);
+		expect(viaEvents.next_cursor).toEqual(viaTyped.next_cursor);
 	});
 
 	test("event_type filter excludes other decoded event types", async () => {
@@ -629,3 +633,84 @@ function nftRow(cursor: string, blockHeight = Number(cursor.split(":")[0])) {
 		source_cursor: cursor,
 	};
 }
+
+describe.skipIf(!HAS_DB)("Index /events field selection", () => {
+	const db = HAS_DB ? getDb() : null;
+
+	beforeEach(async () => {
+		if (!db) return;
+		await sql`DELETE FROM decoded_events`.execute(db);
+		await db
+			.insertInto("decoded_events")
+			.values([ftRow("9900:0", 9900, "SP3.c", "SP1", "SP2", "10")])
+			.execute();
+	});
+
+	test("returns only the requested columns, plus the always-present set", async () => {
+		if (!db) throw new Error("missing db");
+		const result = await readIndexEvents({
+			db,
+			eventType: "ft_transfer",
+			fromHeight: 0,
+			toHeight: 10_000,
+			limit: 10,
+			fields: ["recipient", "amount"],
+		});
+		const row = result.events[0];
+		expect(row).toBeDefined();
+		// Requested…
+		expect(row).toHaveProperty("recipient");
+		expect(row).toHaveProperty("amount");
+		// …plus the three that are never droppable: the consume contract
+		// (cursor + block_height) and the union discriminant.
+		expect(row).toHaveProperty("cursor");
+		expect(row).toHaveProperty("block_height");
+		expect(row).toHaveProperty("event_type");
+		// Everything else is genuinely absent, not undefined.
+		expect(Object.keys(row ?? {}).sort()).toEqual([
+			"amount",
+			"block_height",
+			"cursor",
+			"event_type",
+			"recipient",
+		]);
+	});
+
+	test("omitting block_time still paginates and reports reorgs", async () => {
+		if (!db) throw new Error("missing db");
+		// block_time is the only column that forces the `blocks` LEFT JOIN, and
+		// event_index (needed for the cursor and the reorg span) is dropped
+		// from the response here — both must still work.
+		const result = await readIndexEvents({
+			db,
+			eventType: "ft_transfer",
+			fromHeight: 0,
+			toHeight: 10_000,
+			limit: 10,
+			fields: ["sender"],
+		});
+		expect(result.events[0]).not.toHaveProperty("block_time");
+		expect(result.events[0]).not.toHaveProperty("event_index");
+		expect(result.next_cursor).toBe("9900:0");
+		expect(result.span).toEqual({
+			from: { block_height: 9900, event_index: 0 },
+			to: { block_height: 9900, event_index: 0 },
+		});
+	});
+
+	test("the full read is unchanged when fields is omitted", async () => {
+		if (!db) throw new Error("missing db");
+		const result = await readIndexEvents({
+			db,
+			eventType: "ft_transfer",
+			fromHeight: 0,
+			toHeight: 10_000,
+			limit: 10,
+		});
+		const row = result.events[0];
+		expect(row).toHaveProperty("block_time");
+		expect(row).toHaveProperty("tx_id");
+		expect(row).toHaveProperty("sender");
+		expect(row).toHaveProperty("asset_identifier");
+	});
+});
