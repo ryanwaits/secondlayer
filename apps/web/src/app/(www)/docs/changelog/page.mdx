@@ -4,6 +4,26 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## Index — July 2026
 
+### Field projection across the Index surface
+
+```ts
+const { withdrawals } = await sl.sbtc.withdrawals.list({
+  fields: ["amount", "status"],
+});
+withdrawals[0].sender; // ✗ not requested, not fetched, not in the type
+```
+
+Deposits, withdrawals, transactions, and pox-5 events all take `fields` now,
+each narrowing its row type to what you asked for. **Which columns always
+survive differs per resource, on purpose**: a withdrawal is keyed by
+`request_id` and has no `block_height`, a transaction keeps `tx_id`, and a
+pox-5 event keeps `topic` because it is the row's discriminant. Dropping those
+would leave a row you cannot paginate or identify.
+
+`blocks`, `ft_transfers`, and `nft_transfers` deliberately do **not** take
+`fields` — those rows are 5-8 columns, and the option would cost more in API
+surface than it saves on the wire.
+
 ### Field projection reaches sBTC deposits
 
 ```ts
