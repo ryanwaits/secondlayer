@@ -508,6 +508,34 @@ describe("Index list param forwarding", () => {
 		);
 	});
 
+	test("ftTransfers.list forwards fields as a comma-joined param", async () => {
+		const urls = recorder({
+			events: [],
+			next_cursor: null,
+			tip: {},
+			reorgs: [],
+		});
+		await new Index({ baseUrl: BASE_URL }).ftTransfers.list({
+			fields: ["amount", "sender"],
+		});
+		expect(decodeURIComponent(urls[0])).toContain("fields=amount,sender");
+	});
+
+	test("nftTransfers.walk forwards fields on every page request", async () => {
+		const urls = recorder({
+			events: [],
+			next_cursor: null,
+			tip: {},
+			reorgs: [],
+		});
+		for await (const _ of new Index({ baseUrl: BASE_URL }).nftTransfers.walk({
+			fields: ["value"],
+		})) {
+			// drain
+		}
+		expect(decodeURIComponent(urls[0])).toContain("fields=value");
+	});
+
 	test("events.list forwards event_type + contract_id + from_height", async () => {
 		const urls = recorder(emptyEvents);
 		await new Index({ baseUrl: BASE_URL }).events.list({

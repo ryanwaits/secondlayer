@@ -53,6 +53,7 @@ export type IndexUsage = {
 export type FtTransfer = {
 	cursor: string;
 	block_height: number;
+	block_time?: string | null;
 	tx_id: string;
 	tx_index: number;
 	event_index: number;
@@ -64,15 +65,32 @@ export type FtTransfer = {
 	amount: string;
 };
 
-export type FtTransfersEnvelope = {
-	events: FtTransfer[];
+export type FtTransfersEnvelope<TRow = FtTransfer> = {
+	events: TRow[];
 	next_cursor: string | null;
 	tip: IndexTip;
 	// Chain reorgs overlapping this page's height range; empty when none.
 	reorgs: IndexReorg[];
 };
 
+/** Transfer columns that survive any projection — the consume contract
+ *  (`cursor`, `block_height`) plus the `event_type` discriminant. */
+export type FtTransferAlwaysFields = "cursor" | "block_height" | "event_type";
+
+/** An ft-transfer row narrowed to the requested columns plus the always-present ones. */
+export type FtTransferFields<F extends keyof FtTransfer & string> = Pick<
+	FtTransfer,
+	(F | FtTransferAlwaysFields) & keyof FtTransfer
+>;
+
 export type FtTransfersListParams = {
+	/**
+	 * Columns to return. The server projects the row, so an unrequested column
+	 * is physically absent — and the narrowing overload on `list` makes reading
+	 * one a compile error rather than `undefined` at runtime. Omitting
+	 * `block_time` also lets the server skip the blocks join.
+	 */
+	fields?: readonly (keyof FtTransfer & string)[];
 	cursor?: string | null;
 	fromCursor?: string | null;
 	limit?: number;
@@ -91,6 +109,7 @@ export type FtTransfersWalkParams = Omit<FtTransfersListParams, "limit"> & {
 export type NftTransfer = {
 	cursor: string;
 	block_height: number;
+	block_time?: string | null;
 	tx_id: string;
 	tx_index: number;
 	event_index: number;
@@ -102,15 +121,26 @@ export type NftTransfer = {
 	value: string;
 };
 
-export type NftTransfersEnvelope = {
-	events: NftTransfer[];
+export type NftTransfersEnvelope<TRow = NftTransfer> = {
+	events: TRow[];
 	next_cursor: string | null;
 	tip: IndexTip;
 	// Chain reorgs overlapping this page's height range; empty when none.
 	reorgs: IndexReorg[];
 };
 
+/** See {@link FtTransferAlwaysFields}. */
+export type NftTransferAlwaysFields = "cursor" | "block_height" | "event_type";
+
+/** An nft-transfer row narrowed to the requested columns plus the always-present ones. */
+export type NftTransferFields<F extends keyof NftTransfer & string> = Pick<
+	NftTransfer,
+	(F | NftTransferAlwaysFields) & keyof NftTransfer
+>;
+
 export type NftTransfersListParams = {
+	/** Columns to return (see {@link FtTransfersListParams.fields}). */
+	fields?: readonly (keyof NftTransfer & string)[];
 	cursor?: string | null;
 	fromCursor?: string | null;
 	limit?: number;
@@ -1194,15 +1224,45 @@ type PageParams = {
  * no amount filtering and no asset-slug resolution on /v1/index/ft-transfers.
  */
 export interface FtTransfersResource {
+	/** Narrowing overload for the callable shorthand — same wire path as
+	 *  `list`, so it must narrow identically. */
+	<const F extends keyof FtTransfer & string>(
+		params: FtTransfersListParams & { fields: readonly F[] },
+	): Promise<FtTransfersEnvelope<FtTransferFields<F>>>;
 	(params?: FtTransfersListParams): Promise<FtTransfersEnvelope>;
+	/** Narrowing overload: `fields` shrinks the row type to exactly the
+	 *  requested columns plus {@link FtTransferAlwaysFields}. */
+	list<const F extends keyof FtTransfer & string>(
+		params: FtTransfersListParams & { fields: readonly F[] },
+	): Promise<FtTransfersEnvelope<FtTransferFields<F>>>;
 	list(params?: FtTransfersListParams): Promise<FtTransfersEnvelope>;
+	/** Narrowing overload, matching `list`: `walk` forwards `fields` to the
+	 *  wire, so without this the yielded rows are stripped while the type
+	 *  still promises every column. */
+	walk<const F extends keyof FtTransfer & string>(
+		params: FtTransfersWalkParams & { fields: readonly F[] },
+	): AsyncIterable<FtTransferFields<F>>;
 	walk(params?: FtTransfersWalkParams): AsyncIterable<FtTransfer>;
 }
 
 /** `index.nftTransfers` — callable shorthand for `.list()` (see {@link FtTransfersResource}). */
 export interface NftTransfersResource {
+	/** Narrowing overload for the callable shorthand — same wire path as
+	 *  `list`, so it must narrow identically. */
+	<const F extends keyof NftTransfer & string>(
+		params: NftTransfersListParams & { fields: readonly F[] },
+	): Promise<NftTransfersEnvelope<NftTransferFields<F>>>;
 	(params?: NftTransfersListParams): Promise<NftTransfersEnvelope>;
+	/** Narrowing overload: `fields` shrinks the row type to exactly the
+	 *  requested columns plus {@link NftTransferAlwaysFields}. */
+	list<const F extends keyof NftTransfer & string>(
+		params: NftTransfersListParams & { fields: readonly F[] },
+	): Promise<NftTransfersEnvelope<NftTransferFields<F>>>;
 	list(params?: NftTransfersListParams): Promise<NftTransfersEnvelope>;
+	/** Narrowing overload, matching `list` (see {@link FtTransfersResource}). */
+	walk<const F extends keyof NftTransfer & string>(
+		params: NftTransfersWalkParams & { fields: readonly F[] },
+	): AsyncIterable<NftTransferFields<F>>;
 	walk(params?: NftTransfersWalkParams): AsyncIterable<NftTransfer>;
 }
 
@@ -1592,6 +1652,7 @@ export class Index extends BaseClient {
 				recipient: params.recipient,
 				from_height: params.fromHeight,
 				to_height: params.toHeight,
+				fields: params.fields?.join(","),
 			})}`,
 		);
 	}
@@ -1611,6 +1672,7 @@ export class Index extends BaseClient {
 				recipient: params.recipient,
 				from_height: params.fromHeight,
 				to_height: params.toHeight,
+				fields: params.fields?.join(","),
 			})}`,
 		);
 	}
