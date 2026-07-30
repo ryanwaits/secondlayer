@@ -2,6 +2,30 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## Agents — July 2026
+
+### The docs, as text an agent can read
+
+- **`/llms-full.txt`** — every docs page in one markdown file, sidebar-ordered,
+  each passage tagged with the page it came from.
+- **Any page as markdown** — append `.md` to a docs URL
+  (`/docs/streams.md`). Generated from the MDX itself, so it can't drift.
+- **`?mode=agent` now works.** It was advertised in `llms.txt` but only ever
+  set from localStorage, so the URL did nothing. Agent mode also stopped
+  replacing the page — you get the prompt deck *and* the reference content.
+- **`AGENTS.md` ships inside `@secondlayer/sdk`** with the five facts you
+  can't infer from the types: reads need no key, cursors are opaque, reorg
+  rollback is `>=` not `>`, rows and cursor commit in one transaction, and
+  `walk()` is not reorg-safe.
+
+### MCP
+
+`codegen_index_schema` emits an ORM schema for the Index tables in-conversation
+— same generator as `sl codegen index`. `get_contract_abi` becomes
+`contracts_get_abi` (the unprefixed name filed itself under a phantom "get"
+product in the capability listing); the old name keeps working until the next
+major.
+
 ## Subgraphs — July 2026
 
 ### Read contract state from a handler
