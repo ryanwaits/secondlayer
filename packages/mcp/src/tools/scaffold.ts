@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { generateSubgraphCode } from "@secondlayer/scaffold";
-import type { AbiFunction, AbiMap } from "@secondlayer/scaffold";
+import type { AbiFunction } from "@secondlayer/scaffold";
 import { z } from "zod";
 import { getClient } from "../lib/client.ts";
 import { defineTool } from "../lib/tool.ts";
@@ -9,24 +9,28 @@ type ClientProvider = typeof getClient;
 
 // Source ABIs from the platform contract registry (prod-safe). The old
 // `/api/node/contracts/:id/abi` proxy is OSS/dedicated-only and 404s in prod.
+//
+// Only `functions` are usable for scaffolding. `abi.maps` is define-map
+// STORAGE — map names are not print topics; a source pinned to one matches
+// zero events forever. Print sources come from the observed print schema
+// (`sl subgraphs create --from-contract`), not the ABI.
 async function fetchAbi(
 	clientProvider: ClientProvider,
 	contractId: string,
-): Promise<{ functions: AbiFunction[]; maps: AbiMap[] }> {
+): Promise<{ functions: AbiFunction[] }> {
 	const contract = await clientProvider().contracts.get(contractId, {
 		includeAbi: true,
 	});
 	if (!contract) throw new Error(`Contract not found: ${contractId}`);
 	const abi = contract.abi as {
 		functions?: AbiFunction[];
-		maps?: AbiMap[];
 	} | null;
 	if (!abi) {
 		throw new Error(
 			`No ABI available for ${contractId} (abi_status: ${contract.abi_status})`,
 		);
 	}
-	return { functions: abi.functions ?? [], maps: abi.maps ?? [] };
+	return { functions: abi.functions ?? [] };
 }
 
 export function registerScaffoldTools(
@@ -49,13 +53,8 @@ export function registerScaffoldTools(
 				.describe("Override the subgraph name (defaults to contract name)"),
 		},
 		async ({ contractId, subgraphName }) => {
-			const { functions, maps } = await fetchAbi(clientProvider, contractId);
-			const code = generateSubgraphCode(
-				contractId,
-				functions,
-				subgraphName,
-				maps,
-			);
+			const { functions } = await fetchAbi(clientProvider, contractId);
+			const code = generateSubgraphCode(contractId, functions, subgraphName);
 			return { content: [{ type: "text", text: code }] };
 		},
 	);

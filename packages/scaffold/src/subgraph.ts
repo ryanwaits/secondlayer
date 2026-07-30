@@ -131,16 +131,46 @@ function buildColumns(
 		.join(",\n");
 }
 
+/** TS cast target for a decoded value, from the column type it lands in.
+ *  Mirrors `ColumnToTS` in @secondlayer/subgraphs — until the source carries a
+ *  `const abi` (typed `event.input`), decoded values arrive as `unknown` and
+ *  the insert needs an explicit cast. */
+function tsCastFor(columnType: string): string {
+	switch (columnType) {
+		case "uint":
+		case "int":
+			return "bigint";
+		case "boolean":
+			return "boolean";
+		case "jsonb":
+			return "Record<string, unknown>";
+		default:
+			// text | principal | timestamp
+			return "string";
+	}
+}
+
 function buildInsertCall(
 	tableName: string,
 	args: ReadonlyArray<{ name: string; type: AbiType }>,
+	payload: "contract_call" | "print",
 ): string {
 	if (args.length === 0) {
-		return `      ctx.insert('${tableName}', {\n        sender: ctx.tx.sender,\n      });`;
+		const sender =
+			payload === "contract_call" ? "event.sender" : "event.tx.sender";
+		return `      ctx.insert('${tableName}', {\n        sender: ${sender},\n      });`;
 	}
 
-	const mappings = args.map((arg) => {
-		return `        ${toSnake(arg.name)}: event.${toCamel(arg.name)}`;
+	// Real payload paths: contract_call args are POSITIONAL (`event.args[i]`)
+	// until the source carries an `abi` (then `event.input.<name>` is typed);
+	// print tuple fields live under `event.data.<camelName>`.
+	const mappings = args.map((arg, i) => {
+		const cast = tsCastFor(clarityTypeToSubgraphColumn(arg.type).type);
+		const access =
+			payload === "contract_call"
+				? `event.args[${i}] as ${cast}`
+				: `event.data.${toCamel(arg.name)} as ${cast}`;
+		return `        ${toSnake(arg.name)}: ${access}`;
 	});
 
 	return `      ctx.insert('${tableName}', {\n${mappings.join(",\n")},\n      });`;
@@ -172,7 +202,9 @@ export function generateSubgraphCode(
 			if (isAbiTuple(ev.value)) {
 				columns = buildColumns(ev.value.tuple);
 			} else {
-				columns = `        value: { type: '${clarityTypeToSubgraphColumn(ev.value).type}' }`;
+				// Matches the non-tuple handler below: scalar print values aren't
+				// decoded onto the payload, so only the occurrence is recorded.
+				columns = "        topic: { type: 'text' }";
 			}
 			tableDefs.push(
 				`    ${tableName}: {\n      columns: {\n${columns}\n      }\n    }`,
@@ -205,9 +237,11 @@ export function generateSubgraphCode(
 			);
 			let insertCall: string;
 			if (isAbiTuple(ev.value)) {
-				insertCall = buildInsertCall(tableName, ev.value.tuple);
+				insertCall = buildInsertCall(tableName, ev.value.tuple, "print");
 			} else {
-				insertCall = `      ctx.insert('${tableName}', {\n        value: event.value,\n      });`;
+				// Non-tuple print values carry no decoded fields on the payload
+				// (`event.data` is empty for scalars) — record the occurrence.
+				insertCall = `      ctx.insert('${tableName}', {\n        topic: event.topic,\n      });`;
 			}
 			handlerEntries.push(
 				`    ${tableName}: async (event, ctx) => {\n${insertCall}\n    }`,
@@ -220,7 +254,7 @@ export function generateSubgraphCode(
 		sourceEntries.push(
 			`    ${tableName}: { type: 'contract_call', contractId: '${contractId}', functionName: '${fn.name}' }`,
 		);
-		const insertCall = buildInsertCall(tableName, fn.args);
+		const insertCall = buildInsertCall(tableName, fn.args, "contract_call");
 		handlerEntries.push(
 			`    ${tableName}: async (event, ctx) => {\n${insertCall}\n    }`,
 		);
