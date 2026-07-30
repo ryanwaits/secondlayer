@@ -19,11 +19,24 @@ export type PrintSchemaLookup = (
 	contractId: string,
 ) => Promise<{ topics: InferredTopicSchema[] }>;
 
+export interface PrintLintResult {
+	/** Advisory findings on sources that did NOT declare `prints`. */
+	warnings: string[];
+	/**
+	 * Findings on sources that DID declare `prints`. Declaring the schema is
+	 * the developer's statement of the payload shape, which makes strictness
+	 * safe: reading a field that no observed event carries is a defect, not a
+	 * style note. The deploy is refused.
+	 */
+	errors: string[];
+}
+
 export async function lintPrintFields(
 	def: Pick<SubgraphDefinition, "sources" | "handlers">,
 	schemaLookup: PrintSchemaLookup,
-): Promise<string[]> {
+): Promise<PrintLintResult> {
 	const warnings: string[] = [];
+	const errors: string[] = [];
 	for (const [sourceName, filter] of Object.entries(def.sources ?? {})) {
 		if (filter?.type !== "print_event") continue;
 		// Trait sources span many contracts and unpinned sources span all of
@@ -59,15 +72,23 @@ export async function lintPrintFields(
 		}
 
 		const topicList = relevant.map((t) => t.topic).join(", ");
+		// A declared `prints` map is an explicit claim about the payload shape,
+		// so findings against it are errors rather than advice.
+		const declared = filter.prints !== undefined;
 		const seen = new Set<string>();
 		for (const match of source.matchAll(DATA_FIELD_ACCESS)) {
 			const ident = match[1];
 			if (ident === undefined || known.has(ident) || seen.has(ident)) continue;
 			seen.add(ident);
-			warnings.push(
-				`print_event source "${sourceName}": field "${ident}" never observed on topic(s) ${topicList} of ${filter.contractId}`,
-			);
+			const finding = `print_event source "${sourceName}": field "${ident}" never observed on topic(s) ${topicList} of ${filter.contractId}`;
+			if (declared) {
+				errors.push(
+					`${finding}. The source declares \`prints\`, so this is a mismatch, not a hint — fix the field name or update the declaration.`,
+				);
+			} else {
+				warnings.push(finding);
+			}
 		}
 	}
-	return warnings;
+	return { warnings, errors };
 }

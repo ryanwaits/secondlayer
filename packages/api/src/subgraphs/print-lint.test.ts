@@ -58,7 +58,7 @@ describe("lintPrintFields", () => {
 					e.data.amount && e.data.bogusField,
 			},
 		);
-		const warnings = await lintPrintFields(def, lookupOf(depositTopics));
+		const { warnings } = await lintPrintFields(def, lookupOf(depositTopics));
 		expect(warnings).toEqual([
 			`print_event source "deposits": field "bogusField" never observed on topic(s) completed-deposit of ${CONTRACT}`,
 		]);
@@ -78,7 +78,9 @@ describe("lintPrintFields", () => {
 					e.data.topic && e.data.amount && e.data.bitcoinTxid,
 			},
 		);
-		expect(await lintPrintFields(def, lookupOf(depositTopics))).toEqual([]);
+		expect(
+			(await lintPrintFields(def, lookupOf(depositTopics))).warnings,
+		).toEqual([]);
 	});
 
 	test("topicless source lints against the union of all observed topics", async () => {
@@ -89,7 +91,7 @@ describe("lintPrintFields", () => {
 					e.data.recipient && e.data.nope,
 			},
 		);
-		const warnings = await lintPrintFields(def, lookupOf(depositTopics));
+		const { warnings } = await lintPrintFields(def, lookupOf(depositTopics));
 		expect(warnings).toEqual([
 			`print_event source "prints": field "nope" never observed on topic(s) completed-deposit, withdrawal of ${CONTRACT}`,
 		]);
@@ -109,7 +111,7 @@ describe("lintPrintFields", () => {
 				deposits: (e: { data: Record<string, unknown> }) => e.data.recipient,
 			},
 		);
-		const warnings = await lintPrintFields(def, lookupOf(depositTopics));
+		const { warnings } = await lintPrintFields(def, lookupOf(depositTopics));
 		expect(warnings).toHaveLength(1);
 		expect(warnings[0]).toContain('"recipient"');
 	});
@@ -125,7 +127,9 @@ describe("lintPrintFields", () => {
 			},
 			{ "*": (e: { data: Record<string, unknown> }) => e.data.bogusField },
 		);
-		expect(await lintPrintFields(def, lookupOf(depositTopics))).toHaveLength(1);
+		expect(
+			(await lintPrintFields(def, lookupOf(depositTopics))).warnings,
+		).toHaveLength(1);
 	});
 
 	test("repeated unknown reads warn once", async () => {
@@ -136,7 +140,9 @@ describe("lintPrintFields", () => {
 					e.data.nope && e.data.nope && e.data.nope,
 			},
 		);
-		expect(await lintPrintFields(def, lookupOf(depositTopics))).toHaveLength(1);
+		expect(
+			(await lintPrintFields(def, lookupOf(depositTopics))).warnings,
+		).toHaveLength(1);
 	});
 
 	test("skips trait, unpinned, and non-print sources", async () => {
@@ -153,7 +159,9 @@ describe("lintPrintFields", () => {
 			},
 			{ traited: handler, unpinned: handler, calls: handler },
 		);
-		expect(await lintPrintFields(def, lookupOf(depositTopics))).toEqual([]);
+		expect(
+			(await lintPrintFields(def, lookupOf(depositTopics))).warnings,
+		).toEqual([]);
 	});
 
 	test("skips when the declared topic was never observed", async () => {
@@ -167,7 +175,9 @@ describe("lintPrintFields", () => {
 			},
 			{ ghosts: (e: { data: Record<string, unknown> }) => e.data.bogus },
 		);
-		expect(await lintPrintFields(def, lookupOf(depositTopics))).toEqual([]);
+		expect(
+			(await lintPrintFields(def, lookupOf(depositTopics))).warnings,
+		).toEqual([]);
 	});
 
 	test("skips when no topics observed or the lookup throws", async () => {
@@ -175,11 +185,82 @@ describe("lintPrintFields", () => {
 			{ prints: { type: "print_event", contractId: CONTRACT } },
 			{ prints: (e: { data: Record<string, unknown> }) => e.data.bogus },
 		);
-		expect(await lintPrintFields(def, lookupOf([]))).toEqual([]);
+		expect((await lintPrintFields(def, lookupOf([]))).warnings).toEqual([]);
 		expect(
-			await lintPrintFields(def, async () => {
-				throw new Error("schema source down");
-			}),
+			(
+				await lintPrintFields(def, async () => {
+					throw new Error("schema source down");
+				})
+			).warnings,
 		).toEqual([]);
+	});
+});
+
+describe("declared prints promote findings to errors", () => {
+	const depositTopics = [
+		topicSchema("completed-deposit", ["amount", "sender"]),
+	];
+
+	test("a source that declares prints turns an unobserved field into an error", async () => {
+		const def = defOf(
+			{
+				deposits: {
+					type: "print_event",
+					contractId: CONTRACT,
+					topic: "completed-deposit",
+					// The declaration is the developer's claim about the payload —
+					// so reading a field no event carries is a defect, not advice.
+					prints: { "completed-deposit": { amount: "uint" } },
+				},
+			},
+			{ deposits: (e) => e.data.bogus },
+		);
+		const { warnings, errors } = await lintPrintFields(
+			def,
+			lookupOf(depositTopics),
+		);
+		expect(warnings).toEqual([]);
+		expect(errors).toHaveLength(1);
+		expect(errors[0]).toContain("bogus");
+		expect(errors[0]).toContain("declares");
+	});
+
+	test("without a prints declaration the same read stays advisory", async () => {
+		const def = defOf(
+			{
+				deposits: {
+					type: "print_event",
+					contractId: CONTRACT,
+					topic: "completed-deposit",
+				},
+			},
+			{ deposits: (e) => e.data.bogus },
+		);
+		const { warnings, errors } = await lintPrintFields(
+			def,
+			lookupOf(depositTopics),
+		);
+		expect(errors).toEqual([]);
+		expect(warnings).toHaveLength(1);
+	});
+
+	test("a declared source reading only observed fields is clean", async () => {
+		const def = defOf(
+			{
+				deposits: {
+					type: "print_event",
+					contractId: CONTRACT,
+					topic: "completed-deposit",
+					prints: { "completed-deposit": { amount: "uint" } },
+				},
+			},
+			{ deposits: (e) => e.data.amount },
+		);
+		const { warnings, errors } = await lintPrintFields(
+			def,
+			lookupOf(depositTopics),
+		);
+		expect(errors).toEqual([]);
+		expect(warnings).toEqual([]);
 	});
 });

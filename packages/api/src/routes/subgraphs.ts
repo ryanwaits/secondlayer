@@ -485,12 +485,27 @@ export async function runSubgraphDeploy(
 	// (Runs before the dryRun returns so plans carry the warnings too; the
 	// genesis clamp below only moves startBlock and can't change the lint.)
 	let printFieldWarnings: string[] = [];
+	let printFieldErrors: string[] = [];
 	try {
-		printFieldWarnings = await lintPrintFields(def, (contractId) =>
+		const lint = await lintPrintFields(def, (contractId) =>
 			getPrintSchemaBody({ contractId }),
 		);
+		printFieldWarnings = lint.warnings;
+		printFieldErrors = lint.errors;
 	} catch {
 		// Non-blocking by contract.
+	}
+	// Findings against a DECLARED `prints` map are refusals: the developer
+	// stated the payload shape, so a field no observed event carries is a
+	// defect that would otherwise write nulls for an entire deploy.
+	if (printFieldErrors.length > 0) {
+		return c.json(
+			{
+				error: `Print field mismatch: ${printFieldErrors.join("; ")}`,
+				code: "PRINT_FIELD_MISMATCH",
+			},
+			422,
+		);
 	}
 
 	const apiKeyId = identity ? undefined : getApiKeyId(c);
