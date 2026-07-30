@@ -2,6 +2,30 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## Index — July 2026
+
+### Ask for the columns you want
+
+```ts
+const { events } = await sl.index.events.list({
+  eventType: "ft_transfer",
+  fields: ["recipient", "amount"],
+});
+events[0].asset_identifier; // ✗ not requested, not fetched, not in the type
+```
+
+The server projects the SELECT, so an unrequested column is physically
+absent — and now the row type says so, making a read of one a compile error
+instead of `undefined` at runtime.
+
+- Omitting `block_time` lets the server skip the `blocks` join entirely. It
+  is not a stored column but a `to_timestamp()` off a join taken on every
+  read, so this is a planner-level saving on wide sweeps.
+- `cursor`, `block_height`, and `event_type` always come back — pagination
+  and the union discriminant don't depend on what you asked for. Reorg
+  reporting is unaffected too.
+- It does not change your bill: Index meters per row, not per field.
+
 ## Subgraphs — July 2026
 
 ### Run a handler before you deploy

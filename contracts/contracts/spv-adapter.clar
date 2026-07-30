@@ -2,16 +2,6 @@
 ;; Bitcoin SPV built-ins. The built-ins are callable only from within a Clarity
 ;; contract, not over RPC; this contract exposes them as read-only functions so
 ;; the @secondlayer/stacks `bitcoinVerifier` (and any integrator) can reach them.
-;;
-;; No state, no admin, no custody -- it only reads. Requires Clarity 6 / Stacks
-;; Epoch 4.0 (where `get-bitcoin-tx-output?` and `verify-merkle-proof` exist).
-;;
-;; Byte order: 32-byte hashes (txids, merkle roots, siblings) are INTERNAL order
-;; (raw double-SHA-256), matching the built-ins. The only display-order value is
-;; the block hash returned by `get-burn-block-info? header-hash`, which is
-;; reversed before comparison.
-;;
-;; Function reference, error semantics, and the deploy recipe: contracts/README.md
 
 (define-constant ERR_BAD_HEADER (err u1))
 (define-constant ERR_BAD_SLICE (err u2))
