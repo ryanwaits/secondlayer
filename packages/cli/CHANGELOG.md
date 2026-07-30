@@ -1,5 +1,17 @@
 # @secondlayer/cli
 
+## 9.0.5
+
+### Patch Changes
+
+- 8ff8dcb: `sl subgraphs deploy` now confirms destructive deploys BEFORE sending the request. The prompt previously fired after the server had already dropped and rebuilt the schema, so answering "n" aborted the CLI but the data was already gone. The CLI preflights the same schema diff the server runs and prompts on breaking changes or a startBlock change.
+- Updated dependencies [3abd001]
+- Updated dependencies [a4a7699]
+- Updated dependencies [b7d0b5b]
+  - @secondlayer/sdk@6.36.0
+  - @secondlayer/subgraphs@3.20.0
+  - @secondlayer/scaffold@1.4.1
+
 ## 9.0.4
 
 ### Patch Changes

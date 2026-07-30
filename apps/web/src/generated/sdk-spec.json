@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "6.35.0",
+	"version": "6.36.0",
 	"areas": [
 		{
 			"name": "Client",
@@ -136,7 +136,7 @@
 					"summary": "Checkpointed pull loop over a cursor-paginated Index feed — the Index port of `consumeStreamsEvents`, sharing its contract: at-least-once delivery, client-owned checkpoints (`onBatch` may return th…",
 					"signature": "consumeIndexFeed(opts: object): object",
 					"file": "src/index-api/consumer.ts",
-					"line": 78
+					"line": 83
 				},
 				{
 					"name": "ContractCallsConsumeParams",
@@ -272,7 +272,7 @@
 					"summary": "Consumer options shared by `index.events.consume` and `index.contractCalls.consume`.",
 					"signature": null,
 					"file": "src/index-api/consumer.ts",
-					"line": 28
+					"line": 33
 				},
 				{
 					"name": "IndexContractCall",
@@ -336,7 +336,7 @@
 					"summary": "Minimum envelope shape of a consumable Index feed page.",
 					"signature": null,
 					"file": "src/index-api/consumer.ts",
-					"line": 10
+					"line": 15
 				},
 				{
 					"name": "IndexFeedFetcher",
@@ -344,7 +344,7 @@
 					"summary": "One page fetch.",
 					"signature": null,
 					"file": "src/index-api/consumer.ts",
-					"line": 19
+					"line": 24
 				},
 				{
 					"name": "IndexFeedItem",
@@ -352,7 +352,7 @@
 					"summary": "Minimum shape a consumed Index row must expose.",
 					"signature": null,
 					"file": "src/index-api/consumer.ts",
-					"line": 7
+					"line": 12
 				},
 				{
 					"name": "IndexFtBurn",
@@ -2264,7 +2264,7 @@
 					"summary": "Resolve a reward set directly from a stacks-node (`/v3/stacker_set/{cycle}`), so a caller can verify the consensus layer against a node IT trusts rather than the reward set Secondlayer embedded in …",
 					"signature": "fetchRewardSet(opts: object): object",
 					"file": "src/proofs.ts",
-					"line": 82
+					"line": 84
 				},
 				{
 					"name": "RewardSet",
@@ -2280,7 +2280,7 @@
 					"summary": "Trustless transaction-inclusion proof verification.",
 					"signature": null,
 					"file": "src/proofs.ts",
-					"line": 30
+					"line": 31
 				},
 				{
 					"name": "TransactionProofVerifyResult",
@@ -2288,7 +2288,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/proofs.ts",
-					"line": 49
+					"line": 50
 				},
 				{
 					"name": "verifyTransactionProof",
@@ -2296,7 +2296,7 @@
 					"summary": "Verify a transaction-inclusion proof.",
 					"signature": "verifyTransactionProof(proof: TransactionProof, opts?: object): TransactionProofVerifyResult",
 					"file": "src/proofs.ts",
-					"line": 115
+					"line": 117
 				}
 			]
 		},
@@ -2309,7 +2309,7 @@
 					"summary": "Build a signed, base64 `PAYMENT-SIGNATURE` header for one `accepts[]` entry.",
 					"signature": "buildSignedX402Payment(opts: BuildSignedX402PaymentOptions): object",
 					"file": "src/x402.ts",
-					"line": 154
+					"line": 163
 				},
 				{
 					"name": "BuildSignedX402PaymentOptions",
@@ -2317,7 +2317,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/x402.ts",
-					"line": 143
+					"line": 152
 				},
 				{
 					"name": "createX402Client",
@@ -2325,7 +2325,7 @@
 					"summary": "A small client over {@link withX402}: `.get/.post` against `baseUrl`, returning parsed JSON plus the settlement receipt.",
 					"signature": "createX402Client(opts: X402ClientOptions): X402Client",
 					"file": "src/x402.ts",
-					"line": 363
+					"line": 372
 				},
 				{
 					"name": "DEFAULT_PREFER_ASSETS",
@@ -2341,7 +2341,7 @@
 					"summary": "Low-level: run a request via a caller-controlled fetch; if it 402s, pay and retry once.",
 					"signature": "payAndRetry(doFetch: X402FetchFn, opts: PayAndRetryOptions): object",
 					"file": "src/x402.ts",
-					"line": 406
+					"line": 415
 				},
 				{
 					"name": "PayAndRetryOptions",
@@ -2349,7 +2349,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/x402.ts",
-					"line": 396
+					"line": 405
 				},
 				{
 					"name": "readX402Challenge",
@@ -2357,7 +2357,7 @@
 					"summary": "Read the x402 challenge from a 402 response — prefer the wire header, fall back to the JSON body.",
 					"signature": "readX402Challenge(res: Response): object",
 					"file": "src/x402.ts",
-					"line": 88
+					"line": 97
 				},
 				{
 					"name": "readX402Receipt",
@@ -2365,7 +2365,7 @@
 					"summary": "Read the settlement receipt from a paid 200 response.",
 					"signature": "readX402Receipt(res: Response): null | X402Receipt",
 					"file": "src/x402.ts",
-					"line": 104
+					"line": 113
 				},
 				{
 					"name": "resolveAccountNonce",
@@ -2373,7 +2373,7 @@
 					"summary": "Fetch the payer account's next nonce from a Stacks node (`/v2/accounts`).",
 					"signature": "resolveAccountNonce(address: string, nodeUrl?: string): object",
 					"file": "src/x402.ts",
-					"line": 135
+					"line": 144
 				},
 				{
 					"name": "selectOffer",
@@ -2381,7 +2381,7 @@
 					"summary": "Choose an `accepts[]` entry by preference order, skipping any that exceed the per-asset spend cap.",
 					"signature": "selectOffer(challenge: X402Challenge, opts?: SelectOfferOptions): object",
 					"file": "src/x402.ts",
-					"line": 116
+					"line": 125
 				},
 				{
 					"name": "SelectOfferOptions",
@@ -2389,7 +2389,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/x402.ts",
-					"line": 109
+					"line": 118
 				},
 				{
 					"name": "withX402",
@@ -2397,7 +2397,7 @@
 					"summary": "Wrap a `fetch` so requests transparently pay on 402: select an offer (by `preferAssets` + `maxAmountPerCall`), resolve the nonce, sign origin-only, and retry once with `PAYMENT-SIGNATURE`.",
 					"signature": "withX402(baseFetch: object, opts: WithX402Options): X402Fetch",
 					"file": "src/x402.ts",
-					"line": 236
+					"line": 245
 				},
 				{
 					"name": "WithX402Options",
@@ -2405,7 +2405,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/x402.ts",
-					"line": 200
+					"line": 209
 				},
 				{
 					"name": "X402Accept",
@@ -2429,7 +2429,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/x402.ts",
-					"line": 344
+					"line": 353
 				},
 				{
 					"name": "X402ClientOptions",
@@ -2437,7 +2437,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/x402.ts",
-					"line": 331
+					"line": 340
 				},
 				{
 					"name": "X402Fetch",
@@ -2445,7 +2445,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/x402.ts",
-					"line": 221
+					"line": 230
 				},
 				{
 					"name": "X402Receipt",
@@ -2461,7 +2461,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/x402.ts",
-					"line": 337
+					"line": 346
 				},
 				{
 					"name": "X402SpendGuardError",

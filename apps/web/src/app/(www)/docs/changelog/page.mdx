@@ -2,6 +2,49 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## Subgraphs — July 2026
+
+### Add an index without losing your data
+
+Flipping `indexed: true` (or `search`) on a column of a populated subgraph now
+builds the index in place with `CREATE INDEX CONCURRENTLY` — it no longer
+counts as a breaking change, so it no longer costs a `DROP SCHEMA` and a full
+reindex. The most routine operation in an indexer's life is now a few seconds
+of DDL instead of hours of backfill.
+
+- `uniqueKeys` changes are no longer invisible to deploys: additions run
+  `ALTER TABLE … ADD CONSTRAINT` in place, and removals are correctly refused
+  as breaking. Previously a `uniqueKeys` addition reported success, created
+  nothing, and every later `upsert` failed against a constraint that didn't
+  exist.
+- Handler-only redeploys now warn that new logic applies from the current tip
+  — rows already indexed keep the previous handler's output unless you
+  reindex.
+- The CLI confirms destructive deploys **before** sending the request. The
+  old prompt fired after the server had already dropped your data.
+
+### `findMany({ fields })` returns what it says
+
+Requesting specific fields now narrows the row type to exactly those columns.
+The server always projected the SELECT, so unrequested fields were physically
+absent while TypeScript promised they existed — reading one is now a compile
+error instead of a runtime `undefined`.
+
+## SDK — July 2026
+
+### finalizedOnly consumers can no longer skip events
+
+Returning `envelope.next_cursor` from a `finalizedOnly` consumer's `onBatch`
+now throws instead of silently committing past events that were never
+delivered. The filtered unfinalized tail is re-read once it settles; a cursor
+above it would have dropped those events forever, with reorg handling skipped
+in that mode. The loop now catches the one wrong return it can detect.
+
+- `fetchImpl` is honored by every platform client — inject a fetch for tests,
+  proxies, or an x402-wrapped payer without monkey-patching the global.
+- x402 payments and proof verification no longer touch `Buffer`, so both work
+  on edge runtimes like Cloudflare Workers.
+
 ## Index — July 2026
 
 ### Read PoX-5 events at `/v1/index/pox5/events`

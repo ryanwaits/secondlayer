@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/cli",
-	"version": "9.0.4",
+	"version": "9.0.5",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryanwaits/secondlayer.git",
@@ -25,7 +25,11 @@
 			"import": "./dist/plugins/index.js"
 		}
 	},
-	"files": ["dist", "templates", "README.md"],
+	"files": [
+		"dist",
+		"templates",
+		"README.md"
+	],
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",
@@ -33,17 +37,23 @@
 		"typecheck": "tsc --noEmit",
 		"prepublishOnly": "bun run build"
 	},
-	"keywords": ["stacks", "clarity", "blockchain", "smart-contracts", "cli"],
+	"keywords": [
+		"stacks",
+		"clarity",
+		"blockchain",
+		"smart-contracts",
+		"cli"
+	],
 	"author": "",
 	"license": "MIT",
 	"dependencies": {
 		"@inquirer/prompts": "^8.2.0",
 		"@secondlayer/bundler": "^0.4.0",
-		"@secondlayer/scaffold": "^1.4.0",
-		"@secondlayer/sdk": "^6.29.1",
+		"@secondlayer/scaffold": "^1.4.1",
+		"@secondlayer/sdk": "^6.36.0",
 		"@secondlayer/shared": "^7.0.3",
 		"@secondlayer/stacks": "^2.14.1",
-		"@secondlayer/subgraphs": "^3.19.9",
+		"@secondlayer/subgraphs": "^3.20.0",
 		"@biomejs/js-api": "^0.7.0",
 		"@biomejs/wasm-nodejs": "^1.9.0",
 		"esbuild": "^0.27.4",
