@@ -33,10 +33,26 @@ const db = new Kysely<Database>({
 	}),
 });
 
+/**
+ * Reachability, not just configuration — this suite owns the sink's entire
+ * correctness story (rows+cursor atomicity, the advisory lock, reorg rollback),
+ * so it must never report success by skipping. Locally, no database means skip.
+ * In CI it means fail: a green check for proofs that never ran is worse than a
+ * red one.
+ */
 const dbUp = await sql`SELECT 1`
 	.execute(db)
 	.then(() => true)
-	.catch(() => false);
+	.catch((err) => {
+		if (process.env.CI) {
+			throw new Error(
+				`kysely sink suite cannot reach Postgres at ${DATABASE_URL}: ${
+					err instanceof Error ? err.message : String(err)
+				}. In CI this is a failure — skipping would report success for the atomicity, advisory-lock, and reorg-rollback proofs.`,
+			);
+		}
+		return false;
+	});
 
 const TIP: IndexTip = {
 	block_height: 103,

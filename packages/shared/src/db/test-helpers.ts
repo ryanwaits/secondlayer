@@ -76,3 +76,29 @@ export function createTestDb(dbUrl: string): Kysely<Database> {
 		dialect: new PostgresJSDialect({ postgres: client }),
 	});
 }
+
+/**
+ * Gate for a database-backed suite — and a tripwire for CI.
+ *
+ * `describe.skipIf(!HAS_DB)` is the right ergonomics locally: a contributor
+ * without Postgres running should not see a wall of red. It is the wrong
+ * behaviour in CI, where a skip is indistinguishable from a pass. If the
+ * Postgres service ever fails to start or `DATABASE_URL` is misconfigured,
+ * every database-backed suite in the repo goes green by skipping — and the
+ * proofs that matter most (sink atomicity, advisory locking, reorg rollback)
+ * are exactly the ones that stop running.
+ *
+ * So: skip when there is no database and no CI. Fail loudly when CI says a
+ * database was supposed to be there.
+ *
+ *   describe.skipIf(!hasTestDb("kysely sink"))("…", () => { … })
+ */
+export function hasTestDb(suiteName: string): boolean {
+	const configured = !!process.env.DATABASE_URL;
+	if (!configured && process.env.CI) {
+		throw new Error(
+			`${suiteName}: DATABASE_URL is unset in CI. A database-backed suite must not skip here — a silent skip reports success for tests that never ran. Check the Postgres service and DATABASE_URL in the workflow.`,
+		);
+	}
+	return configured;
+}
