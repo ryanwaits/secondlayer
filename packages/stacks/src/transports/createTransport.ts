@@ -22,6 +22,24 @@ function isRetryableStatus(status: number): boolean {
 	return status === 429 || status >= 500;
 }
 
+/** Retry-After above this cap falls back to the normal backoff — a node
+ *  asking for minutes shouldn't stall a transport-level retry. */
+const MAX_RETRY_AFTER_MS = 60_000;
+
+/** Parse a `Retry-After` header (delta-seconds or HTTP-date) into a delay,
+ *  or undefined when absent/unparseable/over the cap. */
+function retryAfterMs(response: Response): number | undefined {
+	const value = response.headers.get("Retry-After");
+	if (!value) return undefined;
+	const seconds = Number(value);
+	const ms = Number.isFinite(seconds)
+		? seconds * 1000
+		: Date.parse(value) - Date.now();
+	if (!Number.isFinite(ms) || ms < 0 || ms > MAX_RETRY_AFTER_MS)
+		return undefined;
+	return ms;
+}
+
 export async function fetchWithRetry(
 	url: string,
 	options: RequestInit,
@@ -64,7 +82,9 @@ export async function fetchWithRetry(
 		}
 
 		lastError = new HttpRequestError(response.status);
-		await new Promise((r) => setTimeout(r, retryDelay * (attempt + 1)));
+		// A server-sent Retry-After (429/503) overrides the linear backoff.
+		const delay = retryAfterMs(response) ?? retryDelay * (attempt + 1);
+		await new Promise((r) => setTimeout(r, delay));
 	}
 
 	throw lastError ?? new Error("Request failed");

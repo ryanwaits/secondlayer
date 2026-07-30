@@ -57,3 +57,44 @@ describe("http() transport config overrides", () => {
 		await expect(transport.request("/v2/info")).rejects.toThrow();
 	});
 });
+
+describe("Retry-After honoring", () => {
+	it("waits the server-sent Retry-After instead of the linear backoff", async () => {
+		let calls = 0;
+		const started = Date.now();
+		setFetchMock(async () => {
+			calls++;
+			if (calls === 1) {
+				return new Response("{}", {
+					status: 429,
+					headers: { "Retry-After": "0" }, // 0s: honored, effectively no wait
+				});
+			}
+			return jsonResponse(200, { ok: true });
+		});
+
+		// retryDelay of 5s would blow the test budget if the header were ignored.
+		const transport = http("http://x", { retryCount: 1, retryDelay: 5000 })({});
+		await expect(transport.request("/v2/info")).resolves.toEqual({ ok: true });
+		expect(calls).toBe(2);
+		expect(Date.now() - started).toBeLessThan(2000);
+	});
+
+	it("falls back to the backoff when Retry-After exceeds the cap", async () => {
+		let calls = 0;
+		setFetchMock(async () => {
+			calls++;
+			if (calls === 1) {
+				return new Response("{}", {
+					status: 429,
+					headers: { "Retry-After": "3600" }, // over the 60s cap → ignored
+				});
+			}
+			return jsonResponse(200, { ok: true });
+		});
+
+		const transport = http("http://x", { retryCount: 1, retryDelay: 1 })({});
+		await expect(transport.request("/v2/info")).resolves.toEqual({ ok: true });
+		expect(calls).toBe(2);
+	});
+});
