@@ -99,19 +99,22 @@ export type {
 // Subscriptions (WebSocket address watchers)
 export type { Subscription } from "./subscriptions/types.ts";
 
-// `on.*` filter factories for @secondlayer/sdk subscriptions.
-// Usage: `import { on } from "@secondlayer/stacks"; on.transferTo(target, ...)`.
-export * as on from "./on/index.ts";
+// `on.*` — the canonical chain-event filter vocabulary.
+// Usage: `import { on } from "@secondlayer/stacks"; on.ftTransfer({ … })`,
+// then project it onto a surface: `.toIndexParams()`, `.toStreamsParams()`,
+// `.toChainTrigger()`, `.toSubgraphSource()`.
+//
+// This name used to hold a second, older set of factories keyed on snake_case
+// database column names and typed `Record<string, …>` — so a typo compiled and
+// silently matched nothing. They had no consumers and are gone; `on` is the
+// unified union, at the root and at `@secondlayer/stacks/filters` alike.
+export { on } from "./filters/index.ts";
 export type {
-	BnsAction,
-	FactoryTarget,
-	Filter,
-	FilterClause,
-	FilterOperator,
-	FilterPrimitive,
-	PoxFunction,
-	SubscriptionFilterSpec,
-} from "./on/index.ts";
+	ChainEventFilter,
+	ChainEventFilterSpec,
+	ChainEventFilterType,
+	ChainTriggerOf,
+} from "./filters/index.ts";
 
 // Accounts
 export { providerToAccount } from "./accounts/providerToAccount.ts";
