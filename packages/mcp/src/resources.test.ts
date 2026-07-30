@@ -163,27 +163,56 @@ describe("column-types ↔ subgraphs TYPE_MAP", () => {
 describe("filters ↔ subgraphs SubgraphFilter validator", () => {
 	// Guards against the served filter reference advertising a type or field the
 	// validator rejects (the audit's "agents emit validator-rejected schemas").
-	// The per-type field breakdown is hand-authored, but locked here: every type
-	// must be in VALID_FILTER_TYPES and every field must be an accepted key of the
-	// `.strict()` SubgraphFilterSchema.
-	// biome-ignore lint/suspicious/noExplicitAny: zod-internal shape access to read accepted keys
-	const shape = (SubgraphFilterSchema as any)._zod.def.shape as Record<
-		string,
-		unknown
-	>;
-	const allowedFields = new Set(Object.keys(shape));
+	// The reference is now DERIVED from the validator, so instead of reading
+	// zod internals we prove the round trip: every advertised field must be
+	// accepted on its own type by the real schema.
+
+	/** A value the schema will accept for a given field name. */
+	function sampleValue(field: string): unknown {
+		switch (field) {
+			case "minAmount":
+			case "maxAmount":
+				return 1n;
+			case "abi":
+				return { functions: [] };
+			case "prints":
+				return { topic: { field: "uint" } };
+			case "factory":
+				return { from: "other", field: "data.pool" };
+			case "contractId":
+				return "SP1.contract";
+			default:
+				return "SP1";
+		}
+	}
 
 	it("serves exactly the validator's filter types", () => {
 		const served = FILTERS_REFERENCE.map((f) => f.type).sort();
 		expect(served).toEqual([...VALID_FILTER_TYPES].sort());
 	});
 
-	it("never advertises a field the .strict() validator rejects", () => {
+	it("never advertises a field the validator rejects", () => {
 		for (const filter of FILTERS_REFERENCE) {
 			for (const field of filter.fields) {
-				expect(allowedFields.has(field)).toBe(true);
+				const candidate = { type: filter.type, [field]: sampleValue(field) };
+				const parsed = SubgraphFilterSchema.safeParse(candidate);
+				expect(
+					parsed.success,
+					`${filter.type}.${field}: ${parsed.success ? "" : JSON.stringify(parsed.error.issues)}`,
+				).toBe(true);
 			}
 		}
+	});
+
+	it("a field from ANOTHER type is rejected (the union is strict)", () => {
+		// contract_deploy has no assetIdentifier — this used to validate clean
+		// under the old flat schema and then match nothing forever.
+		expect(
+			SubgraphFilterSchema.safeParse({
+				type: "contract_deploy",
+				assetIdentifier: "SP1.t::t",
+			}).success,
+		).toBe(false);
 	});
 
 	it("locks the specific drift the audit caught", () => {
