@@ -209,8 +209,8 @@ export interface SubgraphDetail {
 			>;
 			rowCount: number;
 			example: string;
-			indexes?: string[][];
-			uniqueKeys?: string[][];
+			indexes?: readonly (readonly string[])[];
+			uniqueKeys?: readonly (readonly string[])[];
 		}
 	>;
 	createdAt: string;

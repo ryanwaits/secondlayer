@@ -65,3 +65,51 @@ export function defineSubgraph<
 ): TypedSubgraphDefinition<Sources, S> {
 	return def;
 }
+
+/**
+ * Identity helper that preserves a schema literal's exact types so it can be
+ * HOISTED out of the `defineSubgraph()` call and reused:
+ *
+ * ```ts
+ * export const schema = defineSchema({
+ *   balances: {
+ *     columns: { holder: { type: "principal" }, amount: { type: "uint" } },
+ *     uniqueKeys: [["holder"]],
+ *   },
+ * });
+ *
+ * // An extracted helper keeps the full typed surface — table names and row
+ * // columns are still checked:
+ * function credit(ctx: TypedSubgraphContext<typeof schema>, holder: string) {
+ *   ctx.increment("balances", { holder }, { amount: 1n });
+ * }
+ *
+ * export default defineSubgraph({ name: "balances", schema, sources, handlers });
+ * ```
+ *
+ * `as const` alone does not work here (it produces `readonly` arrays that a
+ * mutable `uniqueKeys` rejected) and a bare literal widens `type` to `string`.
+ * That gap is why the shipped starter typed its helper `ctx: any` — and in
+ * doing so modelled a non-commutative read-modify-write the docs warn against.
+ */
+export function defineSchema<const S extends SubgraphSchema>(schema: S): S {
+	return schema;
+}
+
+/**
+ * The typed handler context for a subgraph definition — for annotating
+ * helpers extracted out of a handler:
+ *
+ * ```ts
+ * const def = defineSubgraph({ … });
+ * function credit(ctx: InferContext<typeof def>) { … }
+ * ```
+ *
+ * Prefer `TypedSubgraphContext<typeof schema>` when the schema is hoisted;
+ * this is the form for when only the definition is in scope.
+ */
+export type InferContext<D> = D extends {
+	schema: infer S extends SubgraphSchema;
+}
+	? TypedSubgraphContext<S>
+	: never;

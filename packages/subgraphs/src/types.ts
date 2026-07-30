@@ -36,15 +36,24 @@ export interface SubgraphRelation {
 	referencedColumns: string[];
 }
 
-/** Table definition within a subgraph schema */
+/**
+ * Table definition within a subgraph schema.
+ *
+ * The array fields are `readonly` so a schema literal can be hoisted out of
+ * the `defineSubgraph()` call with `as const` (or {@link defineSchema}) and
+ * still typecheck — `as const` produces `readonly [readonly ["holder"]]`,
+ * which a mutable `string[][]` rejects. Without that, extracting a helper
+ * that takes `ctx` meant losing the entire typed surface, which is why the
+ * shipped starter reached for `ctx: any`.
+ */
 export interface SubgraphTable {
 	columns: Record<string, SubgraphColumn>;
 	/** Composite indexes (each entry is an array of column names) */
-	indexes?: string[][];
+	indexes?: readonly (readonly string[])[];
 	/** Unique key constraints (each entry is an array of column names). Required for upsert. */
-	uniqueKeys?: string[][];
+	uniqueKeys?: readonly (readonly string[])[];
 	/** Foreign-key relations to other tables (for typed ORM joins). */
-	relations?: SubgraphRelation[];
+	relations?: readonly SubgraphRelation[];
 }
 
 /** Subgraph schema — maps table names to table definitions */
@@ -84,6 +93,46 @@ export interface StxLockFilter {
  * as-of each processed block. Lets a source index "all SIP-010 tokens" etc.
  */
 type TraitScope = { trait?: string };
+
+/**
+ * Scope a source to a DYNAMIC address set discovered from another source's
+ * events, instead of a fixed contract list.
+ *
+ * The standard shape it unlocks: a router plus pools created after you
+ * deploy. `contractId` arrays cover a set you know at authoring time; a
+ * factory covers the set that grows. It is deliberately NOT tied to contract
+ * deployment — the address can come from any field of any event, so it also
+ * covers launchpad-minted tokens, DAO extension allowlists, and registry
+ * entries.
+ *
+ * ```ts
+ * sources: {
+ *   registry: { type: "print_event", contractId: REGISTRY, topic: "pool-created" },
+ *   swaps: {
+ *     type: "print_event",
+ *     topic: "swap",
+ *     // every pool the registry has ever announced, including new ones
+ *     factory: { from: "registry", field: "data.pool" },
+ *   },
+ * }
+ * ```
+ *
+ * Two guarantees the runtime provides:
+ * - **Same-block ordering** — a contract discovered in block N receives its
+ *   own block-N events. Discovery runs before matching, within the block.
+ * - **Reorg-scoped** — the discovered set is stamped with the block that
+ *   revealed it and rolled back with everything else on a fork, so an address
+ *   announced on an orphaned chain does not linger forever.
+ */
+export interface FactoryScope {
+	factory?: {
+		/** Source name whose events reveal the addresses. */
+		from: string;
+		/** Dotted path to the address on that source's payload
+		 *  (e.g. `"data.pool"`, `"contractId"`, `"data.token.id"`). */
+		field: string;
+	};
+}
 
 /** FT event filters */
 export interface FtTransferFilter extends TraitScope {
@@ -167,9 +216,19 @@ export interface ContractCallEvent {
 }
 
 /** Contract event filters */
-export interface ContractCallFilter extends TraitScope {
+export interface ContractCallFilter extends TraitScope, FactoryScope {
 	type: "contract_call";
-	contractId?: string;
+	/**
+	 * One contract id, or a SET of them (max 20) — the standard DeFi shape is
+	 * a router plus N pools, which used to cost N near-identical sources and
+	 * handlers, or the `"*"` catch-all that erases per-source typing. Payload
+	 * types are identical per `type`, so one handler serves the set and
+	 * `event.contractId` disambiguates.
+	 *
+	 * Supports `*` wildcards (e.g. `"SP1ABC….pool-*"`). Mutually exclusive
+	 * with `trait`, which resolves its own set per block.
+	 */
+	contractId?: string | readonly string[];
 	functionName?: string;
 	caller?: string;
 	/**
@@ -205,9 +264,11 @@ export type PrintField =
 	| { tuple: Record<string, PrintField> }
 	| { list: PrintField };
 
-export interface PrintEventFilter extends TraitScope {
+export interface PrintEventFilter extends TraitScope, FactoryScope {
 	type: "print_event";
-	contractId?: string;
+	/** One contract id, or a set of them (max 20). Supports `*` wildcards.
+	 *  Mutually exclusive with `trait`. */
+	contractId?: string | readonly string[];
 	topic?: string;
 	/**
 	 * Per-topic field schema. When declared, the handler's `event` is a

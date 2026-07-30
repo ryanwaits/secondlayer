@@ -209,8 +209,8 @@ export interface SubgraphDetail {
 					default?: string | number | boolean;
 				}
 			>;
-			indexes?: string[][];
-			uniqueKeys?: string[][];
+			indexes?: readonly (readonly string[])[];
+			uniqueKeys?: readonly (readonly string[])[];
 			example: unknown;
 		}
 	>;

@@ -24,8 +24,8 @@ export interface SubgraphAgentSchema {
 			streamEndpoint?: string;
 			rowCount: number;
 			columns: SubgraphDetail["tables"][string]["columns"];
-			indexes?: string[][];
-			uniqueKeys?: string[][];
+			indexes?: readonly (readonly string[])[];
+			uniqueKeys?: readonly (readonly string[])[];
 			query: {
 				parameters: string[];
 				sortable: string[];

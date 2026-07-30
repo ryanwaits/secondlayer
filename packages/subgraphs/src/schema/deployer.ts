@@ -66,15 +66,19 @@ function columnDataShape(col: unknown): string {
 
 /** Diff two `string[][]` lists (uniqueKeys / indexes) by column-list value. */
 function diffKeyLists(
-	existing: string[][] | undefined,
-	incoming: string[][] | undefined,
+	existing: readonly (readonly string[])[] | undefined,
+	incoming: readonly (readonly string[])[] | undefined,
 ): { added: string[][]; removed: string[][] } {
-	const key = (cols: string[]) => JSON.stringify(cols);
+	const key = (cols: readonly string[]) => JSON.stringify(cols);
 	const existingSet = new Set((existing ?? []).map(key));
 	const incomingSet = new Set((incoming ?? []).map(key));
 	return {
-		added: (incoming ?? []).filter((cols) => !existingSet.has(key(cols))),
-		removed: (existing ?? []).filter((cols) => !incomingSet.has(key(cols))),
+		added: (incoming ?? [])
+			.filter((cols) => !existingSet.has(key(cols)))
+			.map((cols) => [...cols]),
+		removed: (existing ?? [])
+			.filter((cols) => !incomingSet.has(key(cols)))
+			.map((cols) => [...cols]),
 	};
 }
 
