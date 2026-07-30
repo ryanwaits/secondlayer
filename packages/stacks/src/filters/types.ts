@@ -1,5 +1,6 @@
 import type { AbiContract } from "../clarity/abi/contract.ts";
 import type { ChainEventFilterType, DecodedEventType } from "./event-types.ts";
+import type { AssetIdentifier } from "./validate.ts";
 
 // ── Canonical filter specs ───────────────────────────────────────────────
 // One spelling of a chain-event filter, projected to each surface's wire
@@ -62,37 +63,37 @@ type TraitScope = { trait?: string };
 
 export interface FtTransferSpec extends TraitScope {
 	type: "ft_transfer";
-	assetIdentifier?: string;
+	assetIdentifier?: AssetIdentifier;
 	sender?: string;
 	recipient?: string;
 	minAmount?: bigint;
 }
 export interface FtMintSpec extends TraitScope {
 	type: "ft_mint";
-	assetIdentifier?: string;
+	assetIdentifier?: AssetIdentifier;
 	recipient?: string;
 	minAmount?: bigint;
 }
 export interface FtBurnSpec extends TraitScope {
 	type: "ft_burn";
-	assetIdentifier?: string;
+	assetIdentifier?: AssetIdentifier;
 	sender?: string;
 	minAmount?: bigint;
 }
 export interface NftTransferSpec extends TraitScope {
 	type: "nft_transfer";
-	assetIdentifier?: string;
+	assetIdentifier?: AssetIdentifier;
 	sender?: string;
 	recipient?: string;
 }
 export interface NftMintSpec extends TraitScope {
 	type: "nft_mint";
-	assetIdentifier?: string;
+	assetIdentifier?: AssetIdentifier;
 	recipient?: string;
 }
 export interface NftBurnSpec extends TraitScope {
 	type: "nft_burn";
-	assetIdentifier?: string;
+	assetIdentifier?: AssetIdentifier;
 	sender?: string;
 }
 
@@ -218,7 +219,7 @@ export type ChainTriggerShape = ChainTriggerOf<ChainEventFilterSpec>;
 export type IndexEventsParamsShape = {
 	eventType: DecodedEventType;
 	contractId?: string;
-	assetIdentifier?: string;
+	assetIdentifier?: AssetIdentifier;
 	sender?: string;
 	recipient?: string;
 	trait?: string;
@@ -238,7 +239,7 @@ export type StreamsParamsShape = {
 	contractId?: string;
 	sender?: string;
 	recipient?: string;
-	assetIdentifier?: string;
+	assetIdentifier?: AssetIdentifier;
 };
 
 // ── Member → projection capability ───────────────────────────────────────

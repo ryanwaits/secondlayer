@@ -5,6 +5,7 @@
  */
 import { expectTypeOf } from "expect-type";
 import { on } from "./factories.ts";
+import { assetId } from "./validate.ts";
 
 export function _filterTypeChecks(): void {
 	// Member gating: a surface a member can't reach is a MISSING METHOD.
@@ -67,4 +68,33 @@ export function _filterTypeChecks(): void {
 	expectTypeOf<NonNullable<typeof callSource.abi>>().toEqualTypeOf<
 		typeof abi
 	>();
+}
+
+// ── Asset identifier vs contract id ─────────────────────────────────────
+// The artifact's claim: "passing a contract id where an asset identifier
+// belongs is a compile error rather than a silent zero-row query." It was a
+// runtime throw until the field became a template-literal type.
+const SBTC_CONTRACT = "SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE.sbtc-token";
+declare const fromEnv: string;
+
+export function _assetIdentifierTypeChecks(): void {
+	on.ftTransfer({ assetIdentifier: `${SBTC_CONTRACT}::sbtc-token` });
+
+	on.ftTransfer({
+		// @ts-expect-error — a contract id has no `::asset`, so it cannot match
+		assetIdentifier: SBTC_CONTRACT,
+	});
+
+	on.nftMint({
+		// @ts-expect-error — same mistake on a different member
+		assetIdentifier: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7.monkeys",
+	});
+
+	// A value only known at runtime is deliberately not narrow enough — it goes
+	// through `assetId`, which validates and narrows.
+	on.ftTransfer({
+		// @ts-expect-error — plain string is not an AssetIdentifier
+		assetIdentifier: fromEnv,
+	});
+	on.ftTransfer({ assetIdentifier: assetId(fromEnv) });
 }

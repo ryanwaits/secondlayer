@@ -1,4 +1,5 @@
 import type { AbiContract } from "@secondlayer/stacks/clarity";
+import type { AssetIdentifier } from "@secondlayer/stacks/filters";
 
 /** Supported column types for subgraph schemas */
 export type ColumnType =
@@ -137,20 +138,20 @@ export interface FactoryScope {
 /** FT event filters */
 export interface FtTransferFilter extends TraitScope {
 	type: "ft_transfer";
-	assetIdentifier?: string;
+	assetIdentifier?: AssetIdentifier;
 	sender?: string;
 	recipient?: string;
 	minAmount?: bigint;
 }
 export interface FtMintFilter extends TraitScope {
 	type: "ft_mint";
-	assetIdentifier?: string;
+	assetIdentifier?: AssetIdentifier;
 	recipient?: string;
 	minAmount?: bigint;
 }
 export interface FtBurnFilter extends TraitScope {
 	type: "ft_burn";
-	assetIdentifier?: string;
+	assetIdentifier?: AssetIdentifier;
 	sender?: string;
 	minAmount?: bigint;
 }
@@ -158,18 +159,18 @@ export interface FtBurnFilter extends TraitScope {
 /** NFT event filters */
 export interface NftTransferFilter extends TraitScope {
 	type: "nft_transfer";
-	assetIdentifier?: string;
+	assetIdentifier?: AssetIdentifier;
 	sender?: string;
 	recipient?: string;
 }
 export interface NftMintFilter extends TraitScope {
 	type: "nft_mint";
-	assetIdentifier?: string;
+	assetIdentifier?: AssetIdentifier;
 	recipient?: string;
 }
 export interface NftBurnFilter extends TraitScope {
 	type: "nft_burn";
-	assetIdentifier?: string;
+	assetIdentifier?: AssetIdentifier;
 	sender?: string;
 }
 

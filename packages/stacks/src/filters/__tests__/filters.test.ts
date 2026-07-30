@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { fromSubgraphSource, on } from "../factories.ts";
 
-const USDC = "SP3Y2ZSH8P7D50B0VBTSX11S7XSG24M1VB9YFQA4K.token-aeusdc::aeUSDC";
+const USDC =
+	"SP3Y2ZSH8P7D50B0VBTSX11S7XSG24M1VB9YFQA4K.token-aeusdc::aeUSDC" as const;
 const TOKEN_CONTRACT = "SP3Y2ZSH8P7D50B0VBTSX11S7XSG24M1VB9YFQA4K.token-aeusdc";
 const ALICE = "SP2QEZ06AGJ3RKJPBV14SY1V5BBFNAW33D96YPGZF";
 
@@ -101,10 +102,16 @@ describe("on.* factories", () => {
 	});
 
 	test("swapped identifier kinds fail at construction, not as zero-row queries", () => {
-		// A contract id where an asset identifier belongs:
-		expect(() => on.ftTransfer({ assetIdentifier: TOKEN_CONTRACT })).toThrow(
-			/asset identifier/,
-		);
+		// A contract id where an asset identifier belongs. The compile-time
+		// check is the first line of defence now (`assetIdentifier` is
+		// `${string}::${string}`), so this has to be cast past to reach the
+		// runtime backstop — which still matters for JS callers and for values
+		// that only exist at runtime.
+		expect(() =>
+			on.ftTransfer({
+				assetIdentifier: TOKEN_CONTRACT as `${string}::${string}`,
+			}),
+		).toThrow(/asset identifier/);
 		// An asset identifier where a contract id belongs:
 		expect(() => on.print({ contractId: USDC })).toThrow(/contract id/);
 		// A garbage principal:

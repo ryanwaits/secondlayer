@@ -53,9 +53,11 @@ export type {
 } from "./types.ts";
 export {
 	assertAssetIdentifier,
+	assetId,
 	assertContractId,
 	assertPrincipalish,
 	hasWildcard,
 	isPrincipal,
+	type AssetIdentifier,
 	type Principal,
 } from "./validate.ts";
