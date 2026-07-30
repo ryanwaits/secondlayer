@@ -32,6 +32,9 @@ export const TABLE_TO_DB = {
 	index_progress: "source",
 	contracts: "source",
 	chain_reorgs: "source",
+	// Chain-derived read memo — keyed on index_block_hash, lives with the
+	// blocks it pins to.
+	chain_read_cache: "source",
 	// ── SOURCE: decoded (L2) ──
 	decoded_events: "source",
 	decoder_checkpoints: "source",

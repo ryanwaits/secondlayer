@@ -835,6 +835,27 @@ export interface BnsNamespacesTable {
 
 // ── Database interface ────────────────────────────────────────────────
 
+/**
+ * Memoized `ctx.client.readOnly()` results. Keyed on `index_block_hash` so a
+ * reorg-replaced block never inherits the orphaned fork's answer; a NULL
+ * `index_block_hash` marks a caller-declared contract-constant value, cached
+ * once per contract+args instead of once per block.
+ */
+export interface ChainReadCacheTable {
+	id: Generated<number>;
+	contract_id: string;
+	function_name: string;
+	args_hash: string;
+	index_block_hash: string | null;
+	block_height: ColumnType<
+		number | null,
+		number | null | undefined,
+		number | null
+	>;
+	result_hex: string;
+	created_at: Generated<Date>;
+}
+
 export interface Database {
 	blocks: BlocksTable;
 	transactions: TransactionsTable;
@@ -896,6 +917,7 @@ export interface Database {
 	service_heartbeats: ServiceHeartbeatsTable;
 	x402_payments: X402PaymentsTable;
 	x402_balances: X402BalancesTable;
+	chain_read_cache: ChainReadCacheTable;
 }
 
 /** Prepaid x402 credit — one running USD-micros balance per payer principal. */
