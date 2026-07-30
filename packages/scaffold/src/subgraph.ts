@@ -1,6 +1,10 @@
 /**
- * Browser-safe subgraph scaffold generator — pure string templating, no deps.
+ * Browser-safe subgraph scaffold generator — string templating, plus the
+ * shared ABI normalizer (the emitted `as const` ABI must be canonical or
+ * `event.input` typing silently degrades).
  */
+
+import { normalizeAbi } from "@secondlayer/stacks/clarity";
 
 type AbiType = string | Record<string, unknown>;
 
@@ -161,19 +165,39 @@ function buildInsertCall(
 		return `      ctx.insert('${tableName}', {\n        sender: ${sender},\n      });`;
 	}
 
-	// Real payload paths: contract_call args are POSITIONAL (`event.args[i]`)
-	// until the source carries an `abi` (then `event.input.<name>` is typed);
-	// print tuple fields live under `event.data.<camelName>`.
-	const mappings = args.map((arg, i) => {
-		const cast = tsCastFor(clarityTypeToSubgraphColumn(arg.type).type);
+	// Real payload paths: contract_call sources carry the `as const` abi, so
+	// `event.input.<camelName>` is the named, typed, decoded argument; print
+	// tuple fields live under `event.data.<camelName>` (untyped until the
+	// source declares `prints`, hence the cast).
+	const mappings = args.map((arg) => {
 		const access =
 			payload === "contract_call"
-				? `event.args[${i}] as ${cast}`
-				: `event.data.${toCamel(arg.name)} as ${cast}`;
+				? `event.input.${toCamel(arg.name)}`
+				: `event.data.${toCamel(arg.name)} as ${tsCastFor(clarityTypeToSubgraphColumn(arg.type).type)}`;
 		return `        ${toSnake(arg.name)}: ${access}`;
 	});
 
 	return `      ctx.insert('${tableName}', {\n${mappings.join(",\n")},\n      });`;
+}
+
+/**
+ * Emit the `as const` ABI the scaffolded contract_call sources reference —
+ * this is what makes `event.input` typed (`ExtractFunctionArgs` reads the
+ * literal arg names and Clarity types off it). Trimmed to the scaffolded
+ * functions. MCP returns a single text blob, so it must be inline.
+ */
+function abiConstant(functions: readonly AbiFunction[]): string {
+	// Normalize first: registry/Hiro ABIs use `buffer`/`read_only` and wrap
+	// outputs as `{ type: … }`. Emitting that verbatim produces an `as const`
+	// that silently fails the `AbiContract` constraint, and `event.input`
+	// typing degrades without a word.
+	const normalized = normalizeAbi({ functions });
+	const json = JSON.stringify({ functions: normalized.functions }, null, 2)
+		.replace(/"([a-zA-Z_$][a-zA-Z0-9_$-]*)":/g, (match, key: string) =>
+			/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key) ? `${key}:` : match,
+		)
+		.replace(/"/g, "'");
+	return `\n/** Trimmed contract ABI — \`as const\` is what types \`event.input\`. */\nconst abi = ${json} as const\n`;
 }
 
 export function generateSubgraphCode(
@@ -251,8 +275,10 @@ export function generateSubgraphCode(
 
 	for (const fn of publicFunctions) {
 		const tableName = toSnake(fn.name);
+		// `abi` on the source is what makes `event.input` the named, typed,
+		// decoded arguments instead of a positional `unknown[]`.
 		sourceEntries.push(
-			`    ${tableName}: { type: 'contract_call', contractId: '${contractId}', functionName: '${fn.name}' }`,
+			`    ${tableName}: { type: 'contract_call', contractId: '${contractId}', functionName: '${fn.name}', abi }`,
 		);
 		const insertCall = buildInsertCall(tableName, fn.args, "contract_call");
 		handlerEntries.push(
@@ -264,7 +290,7 @@ export function generateSubgraphCode(
 	const handlersBlock = handlerEntries.join(",\n\n");
 
 	return `import { defineSubgraph } from '@secondlayer/subgraphs';
-
+${publicFunctions.length > 0 ? abiConstant(publicFunctions) : ""}
 export default defineSubgraph({
   name: '${name}',
   sources: {

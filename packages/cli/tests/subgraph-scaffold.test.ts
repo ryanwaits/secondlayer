@@ -52,7 +52,13 @@ describe("standard-aware scaffolder", () => {
 			functions: ["transfer"],
 		});
 		expect(out).toContain("functionName");
-		expect(out).toContain("event.args["); // positional arg decode
-		expect(out).toContain("as bigint"); // typed cast
+		// The source carries the `as const` ABI, so handlers read NAMED, typed
+		// args — no positional index and no unchecked cast.
+		expect(out).toContain("as const");
+		expect(out).toContain("abi,");
+		expect(out).toContain("event.input.amount");
+		expect(out).toContain("event.input.recipient");
+		expect(out).not.toContain("event.args[");
+		expect(out).not.toContain("as bigint");
 	});
 });

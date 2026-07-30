@@ -93,11 +93,18 @@ describe("scaffold → validate round-trip", () => {
 		expect(validated.name).toBe("test");
 		expect(Object.keys(validated.sources)).toContain("transfer");
 		expect(Object.keys(validated.handlers)).toContain("transfer");
-		expect(validated.sources.transfer).toEqual({
+		expect(validated.sources.transfer).toMatchObject({
 			type: "contract_call",
 			contractId: CONTRACT_ID,
 			functionName: "transfer",
 		});
+		// The source carries the normalized ABI — that is what types
+		// `event.input`, and it must survive validation. (Narrow off the
+		// filter union to reach `abi`.)
+		const source = validated.sources.transfer;
+		if (source?.type !== "contract_call")
+			throw new Error("expected contract_call");
+		expect(source.abi?.functions[0]?.name).toBe("transfer");
 	});
 
 	it("generated code passes validate for print events (tuple payload)", async () => {
@@ -125,9 +132,9 @@ describe("scaffold → validate round-trip", () => {
 	});
 
 	it("handlers read fields that exist on the payload (the phantom-field regression)", async () => {
-		// contract_call args are positional (`event.args[i]`) until the source
-		// carries an `abi`; `event.<argName>` does not exist on the payload and
-		// inserted `undefined` into every generated column.
+		// `event.<argName>` does not exist on any payload — it silently inserted
+		// `undefined` into every generated column. Sources now carry the `as
+		// const` ABI, so args are read by name off `event.input`.
 		const functions: AbiFunction[] = [
 			{
 				name: "transfer",
@@ -140,8 +147,13 @@ describe("scaffold → validate round-trip", () => {
 			},
 		];
 		const { code } = await generateAndLoad(functions);
-		expect(code).toContain("event.args[0] as bigint");
-		expect(code).toContain("event.args[1] as string");
+		// contract_call sources carry the `as const` ABI, so args are NAMED and
+		// typed — `event.<argName>` never existed on any payload, and the
+		// positional `event.args[i] as T` cast is gone too.
+		expect(code).toContain("as const");
+		expect(code).toContain("event.input.amount");
+		expect(code).toContain("event.input.recipient");
+		expect(code).not.toContain("event.args[");
 		expect(code).not.toMatch(/event\.amount\b/);
 		expect(code).not.toMatch(/event\.recipient\b/);
 
@@ -199,15 +211,18 @@ describe("scaffold → validate round-trip", () => {
 			);
 
 			// Negative control: the pre-fix emit shape (`event.<argName>`) MUST
-			// fail here — proves this harness catches the phantom-field class.
+			// fail here — proves this harness catches the phantom-field class
+			// rather than passing because nothing is checked.
 			const phantomPath = join(dir, "phantom.ts");
-			writeFileSync(
-				phantomPath,
-				generateSubgraphCode(CONTRACT_ID, functions, "t3").replace(
-					"event.args[0] as bigint",
-					"event.amount",
-				),
-			);
+			const phantom = generateSubgraphCode(
+				CONTRACT_ID,
+				functions,
+				"t3",
+			).replace("event.input.amount", "event.amount");
+			if (!phantom.includes("event.amount")) {
+				throw new Error("negative control did not apply — emit shape changed");
+			}
+			writeFileSync(phantomPath, phantom);
 
 			expect(typecheckGenerated(fnPath, evPath)).toEqual([]);
 			const phantomErrors = typecheckGenerated(phantomPath);

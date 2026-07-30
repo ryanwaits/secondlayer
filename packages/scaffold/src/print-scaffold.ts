@@ -40,6 +40,14 @@ export interface PrintScaffoldInput {
 	topics: PrintScaffoldTopic[];
 	/** One table per topic instead of a single wide table. */
 	tablePerTopic?: boolean;
+	/** Provenance of the inference. Stamped into the file so a reader knows
+	 *  the declaration is EMPIRICAL — a field absent from a small sample can
+	 *  still exist on chain, and a contract upgrade invalidates it. */
+	sample?: {
+		size: number;
+		oldest_height?: number | null;
+		newest_height?: number | null;
+	};
 }
 
 const IDENT_RE = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
@@ -112,10 +120,11 @@ function wrap(
 	sources: string,
 	schema: string,
 	handlers: string,
+	provenance = "",
 ): string {
 	return `
 import { defineSubgraph } from '@secondlayer/subgraphs';
-
+${provenance}
 export default defineSubgraph({
   name: ${str(name)},
   sources: {
@@ -150,7 +159,15 @@ function sourceEntry(
 		for (const f of topic.fields) {
 			if (seen.has(f.camel_name)) continue;
 			seen.add(f.camel_name);
-			fieldLines.push(`          ${key(f.camel_name)}: ${str(f.column_type)}`);
+			// Honor always_present: a field seen on only SOME sampled events is
+			// declared optional, so `event.data.x` is `T | undefined` rather than
+			// a lie. This emitter used to drop the flag while `--payloads`
+			// honored it — the same schema, two different answers about
+			// optionality.
+			const declared = f.always_present
+				? str(f.column_type)
+				: `{ type: ${str(f.column_type)}, optional: true }`;
+			fieldLines.push(`          ${key(f.camel_name)}: ${declared}`);
 		}
 		lines[lines.length - 1] += ",";
 		lines.push(
@@ -188,6 +205,22 @@ interface WideColumn {
 	/** Topics this field appears on (in topic order). */
 	topics: string[];
 	alwaysPresentEverywhere: boolean;
+}
+
+/** Header comment recording that `prints` is INFERRED, and from what. */
+function provenanceComment(input: PrintScaffoldInput): string {
+	if (!input.sample) return "";
+	const { size, oldest_height, newest_height } = input.sample;
+	const range =
+		oldest_height != null && newest_height != null
+			? `, blocks ${oldest_height}–${newest_height}`
+			: "";
+	return `
+// \`prints\` below is INFERRED from ${size} sampled on-chain event${size === 1 ? "" : "s"}${range}.
+// It is the shape observed, not a guarantee: a field absent from the sample may
+// still occur, and a contract upgrade can invalidate it. Declaring \`prints\`
+// also enables runtime validation — a mismatching event is skipped and logged.
+`;
 }
 
 export function generatePrintSchemaSubgraph(input: PrintScaffoldInput): string {
@@ -262,7 +295,7 @@ export function generatePrintSchemaSubgraph(input: PrintScaffoldInput): string {
 				return `    ${key(srcKey(t))}: (event, ctx) => {\n      ctx.insert(${str(table)}, { ${row} });\n    }`;
 			})
 			.join(",\n\n");
-		return wrap(name, sources, schema, handlers);
+		return wrap(name, sources, schema, handlers, provenanceComment(input));
 	}
 
 	// Default: single wide table — union of every topic's columns + a `topic`
@@ -326,5 +359,5 @@ export function generatePrintSchemaSubgraph(input: PrintScaffoldInput): string {
 		})
 		.join(",\n\n");
 
-	return wrap(name, sources, schema, handlers);
+	return wrap(name, sources, schema, handlers, provenanceComment(input));
 }

@@ -32,10 +32,12 @@ function wrap(
 	sources: string,
 	schema: string,
 	handlers: string,
+	/** Emitted above the definition — the `as const` ABI that types `event.input`. */
+	preamble = "",
 ): string {
 	return `
 import { defineSubgraph } from '@secondlayer/subgraphs';
-
+${preamble}
 export default defineSubgraph({
   name: '${name}',
   sources: {
@@ -49,6 +51,26 @@ ${handlers}
   }
 });
 `.trimStart();
+}
+
+/**
+ * Emit the `as const` ABI the scaffolded sources reference. `as const` is what
+ * makes `event.input` typed: `ContractCallPayload` reads the literal arg names
+ * and Clarity types off it via `ExtractFunctionArgs`. Trimmed to the scaffolded
+ * functions so the file stays readable — nothing else is needed for typing.
+ */
+function abiConstant(fns: AbiContract["functions"]): string {
+	const json = JSON.stringify({ functions: fns }, null, 2)
+		.replace(/"([a-zA-Z_$][a-zA-Z0-9_$-]*)":/g, (match, key: string) =>
+			/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key) ? `${key}:` : match,
+		)
+		.replace(/"/g, "'")
+		.split("\n")
+		.join("\n");
+	return `
+/** Trimmed contract ABI — \`as const\` is what types \`event.input\`. */
+const abi = ${json} as const;
+`;
 }
 
 /** ft/nft transfer source + transfers table + working handler. */
@@ -114,10 +136,13 @@ function functionsScaffold(
 			`none of --functions [${fnNames.join(", ")}] are public functions of ${contractId}`,
 		);
 	}
+	// `abi` on the source is what makes `event.input` the named, typed,
+	// decoded arguments — without it the handler is stuck with positional
+	// `event.args[i]` and an unchecked cast.
 	const sources = fns
 		.map(
 			(f) =>
-				`    ${toCamelCase(f.name)}: { type: 'contract_call', contractId: '${contractId}', functionName: '${f.name}' }`,
+				`    ${toCamelCase(f.name)}: { type: 'contract_call', contractId: '${contractId}', functionName: '${f.name}', abi }`,
 		)
 		.join(",\n");
 	const schema = fns
@@ -134,23 +159,17 @@ function functionsScaffold(
 		.join(",\n");
 	const handlers = fns
 		.map((f) => {
+			// Named and typed off the ABI — no positional index, no cast.
 			const inserts = f.args
-				// biome-ignore lint/suspicious/noExplicitAny: ABI arg type is dynamic
-				.map((arg: { name: string; type: any }, i: number) => {
-					const m = clarityTypeToSubgraphColumn(arg.type);
-					const ts =
-						m.type === "uint" || m.type === "int"
-							? "bigint"
-							: m.type === "boolean"
-								? "boolean"
-								: "string";
-					return `${snake(arg.name)}: event.args[${i}] as ${ts}`;
-				})
+				.map(
+					(arg: { name: string }) =>
+						`${snake(arg.name)}: event.input.${toCamelCase(arg.name)}`,
+				)
 				.join(", ");
 			return `    ${toCamelCase(f.name)}: (event, ctx) => {\n      ctx.insert('${snake(f.name)}', { ${inserts} });\n    }`;
 		})
 		.join(",\n\n");
-	return wrap(name, sources, schema, handlers);
+	return wrap(name, sources, schema, handlers, abiConstant(fns));
 }
 
 /**
