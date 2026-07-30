@@ -161,6 +161,23 @@ export type SpecFor<T extends ChainEventFilterType> = Extract<
 	{ type: T }
 >;
 
+/** The members expressible as subgraph sources (everything but the
+ *  Subscriptions-only sBTC lifecycle types). Instantiating
+ *  `ChainEventFilter<SubgraphMemberType>` keeps `toSubgraphSource` present:
+ *  the conditional in `ProjectionsFor` evaluates over this whole union
+ *  (non-distributive at an instantiated site), and every member qualifies. */
+export type SubgraphMemberType = Exclude<
+	ChainEventFilterType,
+	`sbtc_${string}`
+>;
+
+/** A subgraph-source-shaped filter object (the `toSubgraphSource()` output /
+ *  `fromSubgraphSource()` input). */
+export type SubgraphSourceSpec = Extract<
+	ChainEventFilterSpec,
+	{ type: SubgraphMemberType }
+>;
+
 // ── Projection output shapes ─────────────────────────────────────────────
 
 /** Wire shape of a chain trigger (Subscriptions), derived per member from

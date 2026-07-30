@@ -42,6 +42,8 @@ export type {
 	SbtcWithdrawalRejectSpec,
 	SbtcWithdrawalSweptConfirmedSpec,
 	SpecFor,
+	SubgraphMemberType,
+	SubgraphSourceSpec,
 	StreamsParamsShape,
 	StxBurnSpec,
 	StxLockSpec,

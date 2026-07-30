@@ -1,5 +1,6 @@
 import type { AbiContract } from "../clarity/abi/contract.ts";
 import type { ChainEventFilterType } from "./event-types.ts";
+import type { SubgraphMemberType, SubgraphSourceSpec } from "./types.ts";
 import type {
 	ChainEventFilter,
 	ChainEventFilterSpec,
@@ -251,13 +252,13 @@ export function makeChainEventFilter<
  * `f` for every production subgraph source.
  */
 export function fromSubgraphSource(
-	source: ChainEventFilterSpec,
-): ChainEventFilter {
+	source: SubgraphSourceSpec,
+): ChainEventFilter<SubgraphMemberType> {
 	const { type, ...fields } = source;
 	return makeChainEventFilter(
 		type,
 		fields as Omit<SpecFor<typeof type>, "type">,
-	) as ChainEventFilter;
+	) as unknown as ChainEventFilter<SubgraphMemberType>;
 }
 
 type Fields<T extends ChainEventFilterType> = Omit<SpecFor<T>, "type">;
