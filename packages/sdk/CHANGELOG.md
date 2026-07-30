@@ -1,5 +1,15 @@
 # @secondlayer/sdk
 
+## 6.37.1
+
+### Patch Changes
+
+- af8abeb: `SbtcEventTopic` and `IndexPox5EventTopic` are no longer hand-retyped copies — they re-export the canonical constants from `@secondlayer/stacks/sbtc` and `@secondlayer/stacks/pox5` (byte-identical today; now they can never drift). A new type-level CI gate also pins that `@secondlayer/stacks/filters` projections stay assignable to this SDK's Index/Streams/Subscriptions param types.
+- Updated dependencies [b4930cd]
+- Updated dependencies [ad46572]
+  - @secondlayer/stacks@2.20.0
+  - @secondlayer/shared@7.3.0
+
 ## 6.37.0
 
 ### Minor Changes

@@ -2,6 +2,36 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## SDK — July 2026
+
+### Write the filter once — `on.*`
+
+One chain event used to be spelled differently on every surface: `eventType`
+on Index, `types` arrays on Streams, a `sources` entry on subgraphs, a
+trigger object on subscriptions — with three incompatible `minAmount` types
+among them. The new `@secondlayer/stacks/filters` module is the single
+spelling, projected explicitly to each surface:
+
+```ts
+import { on } from "@secondlayer/stacks/filters";
+
+const usdc = on.ftTransfer({ assetIdentifier: USDC, minAmount: 1_000_000n });
+
+sl.index.events.list(usdc.toIndexParams({ limit: 100 }));
+sl.streams.events.consume({ ...usdc.toStreamsParams(), onBatch });
+sl.subscriptions.create({ name, url, triggers: [usdc.toChainTrigger()] });
+defineSubgraph({ sources: { usdc: usdc.toSubgraphSource() } });
+```
+
+- A surface a filter can't reach is a missing method — a compile error, not
+  a runtime surprise. A field a surface can't express throws at projection
+  time with a message naming the surface that supports it.
+- Amounts are `bigint` end to end and stringify at exactly one boundary, so
+  a spread bigint can never crash `JSON.stringify` again.
+- Typos fail at construction: a contract id where an asset identifier
+  belongs, or a malformed principal, is an immediate error instead of a
+  silent zero-row query.
+
 ## Subgraphs — July 2026
 
 ### Add an index without losing your data
