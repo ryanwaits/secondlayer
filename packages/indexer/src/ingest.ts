@@ -3,6 +3,11 @@ import type { Database, InsertEvent } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
 import {
+	clearStagedForks,
+	findSettledFork,
+	stageForkContender,
+} from "./fork-choice.ts";
+import {
 	parseBlock,
 	parseEvent,
 	parseTransaction,
@@ -80,7 +85,9 @@ export function getIngestTelemetry(): {
 }
 
 export type IngestResult = {
-	status: "ok" | "duplicate";
+	/** `staged` — the block claimed a height we already hold and is parked
+	 *  until a later block names one of the two as its parent. */
+	status: "ok" | "duplicate" | "staged";
 	block_height: number;
 	transactions: number;
 	events: number;
@@ -96,17 +103,53 @@ export async function ingestNewBlock(
 		hash: payload.block_hash,
 	});
 
+	// Does this block settle a fork we parked one height below? A block names
+	// exactly one parent, so if it names a contender we staged instead of the
+	// block we kept, the chain has ruled — apply that reorg now, then let this
+	// block land on top of it.
+	const settled = await findSettledFork(
+		db,
+		payload.block_height,
+		payload.parent_block_hash,
+	);
+	if (settled) {
+		logger.warn("Chain settled a staged fork — adopting the contender", {
+			height: settled.height,
+			winner: settled.blockHash,
+			loser: settled.incumbentHash,
+			decidedBy: payload.block_hash,
+		});
+		await handleReorg(settled.height, settled.incumbentHash, settled.blockHash);
+		await clearStagedForks(db, settled.height);
+		// Replays through this same path, so a fork several blocks deep unwinds
+		// one height at a time. Each step is strictly lower, so this terminates.
+		await ingestNewBlock(settled.payload as NewBlockPayload);
+	}
+
 	const reorgCheck = await detectReorg(
 		payload.block_height,
 		payload.block_hash,
 	);
 	if (reorgCheck.isReorg && reorgCheck.oldHash) {
-		await handleReorg(
-			payload.block_height,
-			reorgCheck.oldHash,
-			payload.block_hash,
-		);
-	} else {
+		// A hash mismatch is NOT proof the chain moved — the observer emits
+		// competing blocks at the same height as a matter of course. Adopting on
+		// sight backed the losing fork twice in one week. Park it; the next block
+		// names a parent and settles it.
+		await stageForkContender(db, {
+			height: payload.block_height,
+			blockHash: payload.block_hash,
+			parentHash: payload.parent_block_hash,
+			incumbentHash: reorgCheck.oldHash,
+			payload,
+		});
+		return {
+			status: "staged",
+			block_height: payload.block_height,
+			transactions: 0,
+			events: 0,
+		};
+	}
+	{
 		// Duplicate — only skip if already canonical.
 		const existing = await db
 			.selectFrom("blocks")

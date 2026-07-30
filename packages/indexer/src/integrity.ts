@@ -9,6 +9,7 @@ import type { Gap } from "@secondlayer/shared/db/queries/integrity";
 import { logger } from "@secondlayer/shared/logger";
 import { LocalClient } from "@secondlayer/shared/node/local-client";
 import { sendSlackAlert } from "./alerts.ts";
+import { pruneStagedForks } from "./fork-choice.ts";
 import { ingestNewBlock } from "./ingest.ts";
 import type { NewBlockPayload } from "./types/node-events.ts";
 
@@ -48,6 +49,9 @@ async function runIntegrityCheck() {
 		const missing = await countMissingBlocks(db);
 		// Every height can be present while the chain still does not join up —
 		// that is exactly how a losing-fork adoption hides. Ask separately.
+		// Contenders far below the tip can no longer be named by any future
+		// block; clear them so an unresolved fork does not accumulate.
+		await pruneStagedForks(db);
 		const brokenLinks = await findBrokenLinks(db, { limit: 20 });
 		integrityState.brokenLinks = brokenLinks.map((l) => l.height);
 		if (brokenLinks.length > 0) {
