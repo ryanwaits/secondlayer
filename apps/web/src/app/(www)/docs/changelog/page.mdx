@@ -4,6 +4,38 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## SDK — July 2026
 
+### Sinks: your indexer is one file now
+
+`kyselySink` owns the three hard parts of a durable indexer — checkpoint
+persistence, rows+cursor atomicity, and reorg rollback — so your handler is
+just the writes:
+
+```ts
+const sink = kyselySink(db, { id: "sales", tables: ["sales"], height: "block_height" });
+
+await new Index().contractCalls.consume({
+  contractId: MARKETPLACE, functionName: "purchase-asset", fromHeight: 0,
+  sink,
+  signal: shutdownSignal(),
+  onBatch: (calls, _env, ctx) =>
+    ctx.tx.insertInto("sales").values(calls.map(toSale)).execute(),
+});
+// no onReorg, no checkpoint table, no SIGTERM block
+```
+
+- Rows and cursor commit in one transaction; a crash mid-batch aborts both
+  and the batch is simply re-read. Reorg rollback is automatic and
+  unconditional — forgetting `onReorg` can no longer skip reorgs silently.
+- `ctx.tx` is a fully typed `Transaction<DB>`; a table missing the height
+  column fails loudly at startup, not silently at reorg time.
+- `consumerHealth()` answers your platform's liveness probe (page recency,
+  never lag — a genesis backfill is millions behind and healthy) and
+  `shutdownSignal()` finishes the in-flight batch on SIGTERM.
+- On Streams, `decoded: true` delivers events as the same flat rows Index
+  serves — the eleven guard+decode pairs are deprecated.
+- The flagship sales-index example dropped from 167 lines across three files
+  to one 61-line file, and CI keeps it that way.
+
 ### Write the filter once — `on.*`
 
 One chain event used to be spelled differently on every surface: `eventType`

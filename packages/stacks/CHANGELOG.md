@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 2.20.1
+
+### Patch Changes
+
+- 39ba91e: `fromSubgraphSource` now returns `ChainEventFilter<SubgraphMemberType>` (the non-sBTC members), so `toSubgraphSource()` and the other projections are visible on its result — previously the full-union instantiation collapsed the conditional projection methods and the round-trip failed to typecheck. New `SubgraphMemberType` / `SubgraphSourceSpec` exports.
+
 ## 2.20.0
 
 ### Minor Changes
