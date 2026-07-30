@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "6.39.0",
+	"version": "6.40.0",
 	"areas": [
 		{
 			"name": "Client",
@@ -1002,7 +1002,7 @@
 					"summary": "What the loop knows at the end of a page, handed to `onBatch`.",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 266
+					"line": 312
 				},
 				{
 					"name": "createStreamsClient",
@@ -1010,7 +1010,7 @@
 					"summary": "",
 					"signature": "createStreamsClient(options: CreateStreamsClientOptions): StreamsClient",
 					"file": "src/streams/client.ts",
-					"line": 156
+					"line": 160
 				},
 				{
 					"name": "Cursor",
@@ -1322,7 +1322,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 439
+					"line": 511
 				},
 				{
 					"name": "FtTransferEvent",
@@ -1450,7 +1450,7 @@
 					"summary": "One yielded page from {@link StreamsClient.consume} — the `GET /v1/streams/events` envelope verbatim, with `next_cursor` renamed to `cursor` (the checkpoint to persist and resume from).",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 374
+					"line": 446
 				},
 				{
 					"name": "StreamsBatchContext",
@@ -1458,7 +1458,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 280
+					"line": 326
 				},
 				{
 					"name": "StreamsCanonicalBlock",
@@ -1466,7 +1466,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 153
+					"line": 159
 				},
 				{
 					"name": "StreamsClient",
@@ -1474,7 +1474,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 487
+					"line": 559
 				},
 				{
 					"name": "StreamsConsumeParams",
@@ -1482,7 +1482,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 384
+					"line": 456
 				},
 				{
 					"name": "StreamsDumpFile",
@@ -1490,7 +1490,7 @@
 					"summary": "One bulk parquet file in the dumps manifest.",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 446
+					"line": 518
 				},
 				{
 					"name": "StreamsDumps",
@@ -1498,7 +1498,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 478
+					"line": 550
 				},
 				{
 					"name": "StreamsDumpsManifest",
@@ -1506,7 +1506,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 459
+					"line": 531
 				},
 				{
 					"name": "StreamsEvent",
@@ -1514,7 +1514,7 @@
 					"summary": "A raw Streams event.",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 120
+					"line": 126
 				},
 				{
 					"name": "StreamsEventPayload",
@@ -1530,7 +1530,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 288
+					"line": 334
 				},
 				{
 					"name": "StreamsEventsConsumeResult",
@@ -1538,7 +1538,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 401
+					"line": 473
 				},
 				{
 					"name": "StreamsEventsEnvelope",
@@ -1546,7 +1546,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 174
+					"line": 180
 				},
 				{
 					"name": "StreamsEventsListEnvelope",
@@ -1554,7 +1554,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 181
+					"line": 187
 				},
 				{
 					"name": "StreamsEventsListParams",
@@ -1562,7 +1562,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 199
+					"line": 235
 				},
 				{
 					"name": "StreamsEventsStreamParams",
@@ -1570,7 +1570,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 213
+					"line": 255
 				},
 				{
 					"name": "StreamsEventsSubscribeParams",
@@ -1578,7 +1578,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 228
+					"line": 272
 				},
 				{
 					"name": "StreamsEventType",
@@ -1594,7 +1594,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 161
+					"line": 167
 				},
 				{
 					"name": "StreamsReorgContext",
@@ -1602,7 +1602,7 @@
 					"summary": "The checkpoint for a reorg rollback.",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 286
+					"line": 332
 				},
 				{
 					"name": "StreamsReorgsListEnvelope",
@@ -1610,7 +1610,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 191
+					"line": 197
 				},
 				{
 					"name": "StreamsReorgsListParams",
@@ -1618,7 +1618,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 186
+					"line": 192
 				},
 				{
 					"name": "StreamsServerError",
@@ -1642,7 +1642,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 133
+					"line": 139
 				},
 				{
 					"name": "StreamsUsage",
@@ -1650,7 +1650,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 562
+					"line": 638
 				}
 			]
 		},
