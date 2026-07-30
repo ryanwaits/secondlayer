@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { CODE_TO_STATUS } from "@secondlayer/shared/errors";
 import {
 	type StreamsTipBlockReader,
 	createStreamsTipProvider,
@@ -97,5 +98,17 @@ describe("Streams tip provider", () => {
 		expect(calls).toBe(2);
 		expect(first.block_height).toBe(1);
 		expect(second.block_height).toBe(2);
+	});
+});
+
+describe("createStreamsTipProvider — empty chain", () => {
+	test("names the condition instead of failing as a server fault", async () => {
+		const getTip = createStreamsTipProvider({ readTip: async () => null });
+		// A fresh self-host install has no blocks yet; the operator needs
+		// "wait for the indexer", not a 500 with a stack trace.
+		await expect(getTip()).rejects.toMatchObject({
+			code: "CHAIN_DATA_UNAVAILABLE",
+		});
+		expect(CODE_TO_STATUS.CHAIN_DATA_UNAVAILABLE).toBe(503);
 	});
 });

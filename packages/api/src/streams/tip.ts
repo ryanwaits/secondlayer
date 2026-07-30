@@ -60,6 +60,21 @@ export function getLagSeconds(tipTs: Date, nowMs = Date.now()): number {
 	return Math.max(0, lagSeconds);
 }
 
+/**
+ * No canonical block exists yet — a freshly booted self-host install whose
+ * indexer hasn't ingested anything. Distinct from a server fault: the operator
+ * needs "wait for the indexer", not a stack trace.
+ */
+export class StreamsTipUnavailableError extends Error {
+	readonly code = "CHAIN_DATA_UNAVAILABLE";
+	constructor() {
+		super(
+			"No canonical block indexed yet — Streams has nothing to serve. Wait for the indexer to ingest its first block.",
+		);
+		this.name = "StreamsTipUnavailableError";
+	}
+}
+
 export function createStreamsTipProvider(
 	opts: StreamsTipProviderOptions = {},
 ): StreamsTipProvider {
@@ -77,7 +92,7 @@ export function createStreamsTipProvider(
 
 		const tip = await readTip();
 		if (!tip) {
-			throw new Error("Streams tip unavailable: no canonical block found");
+			throw new StreamsTipUnavailableError();
 		}
 
 		const finalizedBurn = finalizedBurnHeight(

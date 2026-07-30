@@ -166,8 +166,12 @@ export class TenantSuspendedError extends SecondLayerError {
 // the equation.
 export const CODE_TO_STATUS: Record<
 	string,
-	400 | 401 | 402 | 403 | 404 | 409 | 422 | 423 | 429
+	400 | 401 | 402 | 403 | 404 | 409 | 422 | 423 | 429 | 503
 > = {
+	// The chain plane has no data yet — a fresh self-host install before the
+	// first block lands. Retryable, and not the operator's mistake, so it is a
+	// 503 with a name rather than an opaque 500.
+	CHAIN_DATA_UNAVAILABLE: 503,
 	AUTHENTICATION_ERROR: 401,
 	AUTHORIZATION_ERROR: 403,
 	PAYMENT_REQUIRED: 402,
