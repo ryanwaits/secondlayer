@@ -38,6 +38,8 @@ export type IndexBlockRow = {
 	parent_hash: string;
 	burn_block_height: number;
 	burn_block_hash: string | null;
+	/** Nakamoto StacksBlockId. Absent from pre-2026-07 API deployments. */
+	index_block_hash?: string | null;
 	block_time: string | null;
 };
 

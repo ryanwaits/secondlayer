@@ -31,6 +31,13 @@ export type IndexBlock = {
 	parent_hash: string;
 	burn_block_height: number;
 	burn_block_hash: string | null;
+	/**
+	 * Nakamoto StacksBlockId — the identifier `?tip=` accepts on a node's
+	 * call-read endpoint. Served so a consumer can pin a read-only call to
+	 * exactly this block instead of the node's moving tip. Null on rows
+	 * ingested before it was persisted.
+	 */
+	index_block_hash: string | null;
 	block_time: string | null;
 	canonical: boolean;
 };
@@ -66,6 +73,7 @@ const BLOCK_COLUMNS = [
 	"parent_hash",
 	"burn_block_height",
 	"burn_block_hash",
+	"index_block_hash",
 	"timestamp",
 	"canonical",
 ] as const;
@@ -76,6 +84,7 @@ type BlockRow = {
 	parent_hash: string;
 	burn_block_height: number | string;
 	burn_block_hash: string | null;
+	index_block_hash: string | null;
 	timestamp: number | string;
 	canonical: boolean;
 };
@@ -89,6 +98,7 @@ function normalizeBlock(row: BlockRow): IndexBlock {
 		parent_hash: row.parent_hash,
 		burn_block_height: Number(row.burn_block_height),
 		burn_block_hash: row.burn_block_hash ?? null,
+		index_block_hash: row.index_block_hash ?? null,
 		block_time: toIsoOrNull(new Date(Number(row.timestamp) * 1000)),
 		canonical: row.canonical,
 	};

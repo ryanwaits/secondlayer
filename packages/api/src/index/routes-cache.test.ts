@@ -127,6 +127,7 @@ const BLOCK_9000: IndexBlock = {
 	block_height: 9000,
 	block_hash: "0x9000",
 	parent_hash: "0x8999",
+	index_block_hash: "0xibh9000",
 	burn_block_height: 19_000,
 	burn_block_hash: "0xb9000",
 	block_time: "2026-05-01T00:00:00.000Z",
