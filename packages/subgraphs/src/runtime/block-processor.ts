@@ -85,7 +85,13 @@ export function invalidateSubgraphRoute(subgraphName: string): void {
  *    Without this pass the first event from every discovered contract is
  *    silently lost.
  */
-async function resolveFactoryContracts(
+/**
+ * Exported as a test seam. Both guarantees this function carries — a contract
+ * discovered in block N receiving its OWN block-N events, and the persisted set
+ * being height-stamped so a reorg can roll it back — were asserted only by
+ * comment until now.
+ */
+export async function resolveFactoryContracts(
 	subgraph: SubgraphDefinition,
 	blockHeight: number,
 	schemaName: string,
