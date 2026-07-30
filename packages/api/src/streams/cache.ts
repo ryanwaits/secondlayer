@@ -5,7 +5,7 @@ import {
 	etag,
 	matchesIfNoneMatch,
 } from "../http/cache.ts";
-import { parseStreamsEventsQuery } from "./events.ts";
+import { type StreamsEventsQuery, parseStreamsEventsQuery } from "./events.ts";
 import type { StreamsTip } from "./tip.ts";
 
 /**
@@ -60,15 +60,41 @@ export function streamsEventsCachePlan(
 				f: parsed.fromHeight ?? null,
 				t: parsed.toHeight,
 				ty: parsed.types ? [...parsed.types].sort() : null,
+				// `not_types` narrows the rows a page returns, so two requests
+				// differing only by it are different pages — omitting it here
+				// served one's body for the other's URL.
+				nty: parsed.notTypes ? [...parsed.notTypes].sort() : null,
 				c: parsed.contractId ?? null,
 				s: parsed.sender ?? null,
 				r: parsed.recipient ?? null,
 				a: parsed.assetIdentifier ?? null,
+				fl: canonicalFilters(parsed.filters),
 				l: parsed.limit,
 				cur: parsed.cursorRaw ?? null,
 			})
 		: null;
 	return { cacheControl: streamsCacheControl(fullyFinalized), cacheKey };
+}
+
+/**
+ * Canonical form of a labelled filter map for the cache key. Labels sort so
+ * key order can't fork the entry, and the labels themselves are part of the
+ * key because they ride back on every row as `matched`.
+ */
+function canonicalFilters(
+	filters: StreamsEventsQuery["filters"],
+): unknown[] | null {
+	if (!filters) return null;
+	return Object.entries(filters)
+		.sort(([a], [b]) => (a < b ? -1 : 1))
+		.map(([label, group]) => [
+			label,
+			group.types ? [...group.types].sort() : null,
+			group.contractId ?? null,
+			group.sender ?? null,
+			group.recipient ?? null,
+			group.assetIdentifier ?? null,
+		]);
 }
 
 export function streamsEventsCacheControl(

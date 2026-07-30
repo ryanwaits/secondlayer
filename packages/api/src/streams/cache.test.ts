@@ -95,3 +95,54 @@ describe("matchesIfNoneMatch", () => {
 		expect(matchesIfNoneMatch("", etag)).toBe(false);
 	});
 });
+
+describe("streamsEventsCachePlan — key coverage", () => {
+	function key(qs: string): string | null {
+		return streamsEventsCachePlan(new URLSearchParams(qs), TIP).cacheKey;
+	}
+
+	test("not_types forks the key", () => {
+		const withExclusion = key("from_height=1&to_height=800&not_types=print");
+		expect(withExclusion).not.toBeNull();
+		expect(withExclusion).not.toBe(key("from_height=1&to_height=800"));
+	});
+
+	test("a labelled filter map forks the key", () => {
+		const filters = encodeURIComponent(
+			JSON.stringify({ peg: { types: ["ft_transfer"] } }),
+		);
+		expect(key(`from_height=1&to_height=800&filters=${filters}`)).not.toBe(
+			key("from_height=1&to_height=800"),
+		);
+	});
+
+	test("labels are part of the key — they ride back on every row", () => {
+		const asPeg = encodeURIComponent(
+			JSON.stringify({ peg: { types: ["ft_transfer"] } }),
+		);
+		const asMints = encodeURIComponent(
+			JSON.stringify({ mints: { types: ["ft_transfer"] } }),
+		);
+		expect(key(`from_height=1&to_height=800&filters=${asPeg}`)).not.toBe(
+			key(`from_height=1&to_height=800&filters=${asMints}`),
+		);
+	});
+
+	test("label declaration order does not fork the key", () => {
+		const a = encodeURIComponent(
+			JSON.stringify({
+				peg: { types: ["ft_transfer"] },
+				tre: { sender: "SP1" },
+			}),
+		);
+		const b = encodeURIComponent(
+			JSON.stringify({
+				tre: { sender: "SP1" },
+				peg: { types: ["ft_transfer"] },
+			}),
+		);
+		expect(key(`from_height=1&to_height=800&filters=${a}`)).toBe(
+			key(`from_height=1&to_height=800&filters=${b}`),
+		);
+	});
+});
