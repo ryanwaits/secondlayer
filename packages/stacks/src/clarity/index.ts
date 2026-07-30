@@ -64,5 +64,6 @@ export * from "./abi/index.ts";
 export {
 	jsToClarityValue,
 	clarityValueToJS,
+	clarityValueToJSUntyped,
 	isClarityValue,
 } from "./bridge.ts";

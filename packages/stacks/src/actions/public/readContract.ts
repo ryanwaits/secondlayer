@@ -10,6 +10,12 @@ export type ReadContractParams = {
 	functionName: string;
 	args?: ClarityValue[];
 	sender?: string;
+	/**
+	 * Nakamoto StacksBlockId to evaluate against. Without it the node answers
+	 * at its own moving tip, which makes a read non-deterministic — the same
+	 * reindex of the same block can return a different value.
+	 */
+	tip?: string;
 };
 
 export async function readContract<T extends ClarityValue = ClarityValue>(
@@ -23,8 +29,9 @@ export async function readContract<T extends ClarityValue = ClarityValue>(
 		with0x(bytesToHex(serializeCVBytes(arg))),
 	);
 
+	const path = `/v2/contracts/call-read/${address}/${name}/${params.functionName}`;
 	const data = await client.request(
-		`/v2/contracts/call-read/${address}/${name}/${params.functionName}`,
+		params.tip ? `${path}?tip=${params.tip}` : path,
 		{
 			method: "POST",
 			body: {

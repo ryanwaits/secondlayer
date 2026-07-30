@@ -39,7 +39,7 @@ import { setUnsignedFee } from "./wallet/utils.ts";
  * `{ ok } | { err }` union: the `err` branch maps to `never` (it throws
  * `ContractResponseError` at runtime, so it never reaches the caller).
  */
-type UnwrapResponse<T> = T extends { ok: infer O }
+export type UnwrapResponse<T> = T extends { ok: infer O }
 	? O
 	: T extends { err: unknown }
 		? never
@@ -333,7 +333,13 @@ export function resolveNetworkContract<
 
 // --- Helpers ---
 
-function buildFunctionArgs(
+/**
+ * Encode an ABI function's named args into positional ClarityValues. Exported
+ * so a caller that needs the raw ClarityValue result (to cache or re-serialize
+ * it) can reuse the same encoding this module's read methods use, instead of
+ * maintaining a second one that drifts.
+ */
+export function buildFunctionArgs(
 	fn: AbiFunction,
 	args: Record<string, unknown>,
 ): ClarityValue[] {
@@ -351,7 +357,8 @@ function buildFunctionArgs(
 	});
 }
 
-function isResponseOutput(type: AbiType): boolean {
+/** True when an ABI output is a `(response ok err)` and needs unwrapping. */
+export function isResponseOutput(type: AbiType): boolean {
 	return typeof type === "object" && type !== null && "response" in type;
 }
 
