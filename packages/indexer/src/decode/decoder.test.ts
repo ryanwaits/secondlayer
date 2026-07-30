@@ -85,8 +85,8 @@ function streamsClientOnBatchSpy(events: StreamsEvent[]): StreamsClient {
 				// The spy always feeds raw events with no sink attached; the
 				// generic conditional param types (decoded/D, sink/TTx) can't see
 				// that from inside the mock, hence the casts.
-				await params.onBatch(
-					events as Parameters<typeof params.onBatch>[0],
+				await params.onBatch?.(
+					events as Parameters<NonNullable<typeof params.onBatch>>[0],
 					{ events, next_cursor: null, tip: chainTip, reorgs: [] },
 					{
 						cursor: null,

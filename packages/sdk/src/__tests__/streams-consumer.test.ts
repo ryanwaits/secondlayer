@@ -448,3 +448,126 @@ function jsonResponse(body: unknown, status = 200): Response {
 		headers: { "Content-Type": "application/json" },
 	});
 }
+
+describe("client.events.consume — labelled filter maps", () => {
+	function labelled(
+		cursor: string,
+		index: number,
+		eventType: StreamsEvent["event_type"],
+		matched: string[],
+	): StreamsEvent {
+		return {
+			...event(cursor, index),
+			event_type: eventType,
+			matched,
+		} as StreamsEvent;
+	}
+
+	test("sends filters as a JSON query param and dispatches per label", async () => {
+		let sentFilters: string | null = null;
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			fetchImpl: async (input) => {
+				const url = new URL(input.toString());
+				sentFilters = url.searchParams.get("filters");
+				return jsonResponse({
+					events: [
+						labelled("1:0", 0, "ft_transfer", ["peg"]),
+						labelled("1:1", 1, "stx_transfer", ["treasury"]),
+					],
+					next_cursor: "1:1",
+					tip: TIP,
+					reorgs: [],
+				});
+			},
+		});
+
+		const peg: string[] = [];
+		const treasury: string[] = [];
+		await client.events.consume({
+			fromCursor: null,
+			maxPages: 1,
+			filters: {
+				peg: { types: ["ft_transfer"], assetIdentifier: "SP1.token::token" },
+				treasury: { types: ["stx_transfer"] },
+			},
+			on: {
+				peg: (events) => {
+					// Narrowed by the label's declared `types` — no guard needed.
+					peg.push(...events.map((e) => e.payload.asset_identifier));
+				},
+				treasury: (events) => {
+					treasury.push(...events.map((e) => e.cursor));
+				},
+			},
+		});
+
+		expect(JSON.parse(sentFilters ?? "null")).toEqual({
+			peg: { types: ["ft_transfer"], assetIdentifier: "SP1.token::token" },
+			treasury: { types: ["stx_transfer"] },
+		});
+		expect(peg).toEqual(["SP1.token::token"]);
+		expect(treasury).toEqual(["1:1"]);
+	});
+
+	test("an event matching two labels reaches both handlers", async () => {
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			fetchImpl: async () =>
+				jsonResponse({
+					events: [labelled("1:0", 0, "ft_transfer", ["all", "peg"])],
+					next_cursor: "1:0",
+					tip: TIP,
+					reorgs: [],
+				}),
+		});
+
+		const seen: string[] = [];
+		await client.events.consume({
+			fromCursor: null,
+			maxPages: 1,
+			filters: { all: {}, peg: { types: ["ft_transfer"] } },
+			on: {
+				all: (events) => {
+					seen.push(`all:${events.length}`);
+				},
+				peg: (events) => {
+					seen.push(`peg:${events.length}`);
+				},
+			},
+		});
+
+		expect(seen).toEqual(["all:1", "peg:1"]);
+	});
+
+	test("onBatch still sees the whole page and owns the checkpoint", async () => {
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			fetchImpl: async () =>
+				jsonResponse({
+					events: [
+						labelled("1:0", 0, "ft_transfer", ["peg"]),
+						labelled("1:1", 1, "stx_transfer", []),
+					],
+					next_cursor: "1:1",
+					tip: TIP,
+					reorgs: [],
+				}),
+		});
+
+		let pageSize = 0;
+		const result = await client.events.consume({
+			fromCursor: null,
+			maxPages: 1,
+			filters: { peg: { types: ["ft_transfer"] } },
+			on: { peg: () => {} },
+			onBatch: (events) => {
+				pageSize = events.length;
+				return "9:9";
+			},
+		});
+
+		expect(pageSize).toBe(2);
+		expect(result.cursor).toBe("9:9");
+	});
+});

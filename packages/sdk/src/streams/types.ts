@@ -108,6 +108,12 @@ export type StreamsEventBase = {
 	 * Optional for back-compat; the API always sets it on Streams responses.
 	 */
 	finalized?: boolean;
+	/**
+	 * Labels whose filter group this event satisfied, present only when the
+	 * request used a labelled `filters` map. The SDK dispatches on it for you
+	 * (`on.<label>`), so handlers rarely read it directly.
+	 */
+	matched?: string[];
 };
 
 type StreamsEventOf<T extends StreamsEventType, P> = StreamsEventBase & {
@@ -196,6 +202,36 @@ export type StreamsReorgsListEnvelope = {
 /** A filter that matches a single value or any value in a list. */
 export type StreamsFilterValue = string | readonly string[];
 
+/**
+ * One labelled filter group. Fields inside a group AND together; groups in a
+ * map OR together server-side.
+ */
+export type StreamsLabelledFilter = {
+	types?: readonly StreamsEventType[];
+	contractId?: StreamsFilterValue;
+	sender?: StreamsFilterValue;
+	recipient?: StreamsFilterValue;
+	assetIdentifier?: string;
+};
+
+/** A map of label → filter group. Labels are yours; the server echoes them. */
+export type StreamsFilterMap = Record<string, StreamsLabelledFilter>;
+
+/**
+ * The events one label can yield. A group that declares `types` narrows to
+ * exactly those variants, so a per-label handler needs no `event_type` guard;
+ * a group without `types` keeps the full union.
+ */
+export type StreamsEventForFilter<F, D extends boolean = false> = F extends {
+	types: readonly (infer T extends StreamsEventType)[];
+}
+	? D extends true
+		? Extract<IndexEvent, { event_type: T }>
+		: Extract<StreamsEvent, { event_type: T }>
+	: D extends true
+		? IndexEvent
+		: StreamsEvent;
+
 export type StreamsEventsListParams = {
 	cursor?: string | null;
 	fromHeight?: number;
@@ -207,6 +243,12 @@ export type StreamsEventsListParams = {
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
+	/**
+	 * Labelled filter groups. The groups OR together in one scan and each
+	 * returned event carries the labels it matched (`event.matched`) — two
+	 * unrelated concerns share one page, one cursor, one checkpoint.
+	 */
+	filters?: StreamsFilterMap;
 	limit?: number;
 };
 
@@ -218,6 +260,8 @@ export type StreamsEventsStreamParams = {
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
+	/** Labelled filter groups; see {@link StreamsEventsListParams.filters}. */
+	filters?: StreamsFilterMap;
 	batchSize?: number;
 	emptyBackoffMs?: number;
 	maxPages?: number;
@@ -234,6 +278,8 @@ export type StreamsEventsSubscribeParams = {
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
+	/** Labelled filter groups; see {@link StreamsEventsListParams.filters}. */
+	filters?: StreamsFilterMap;
 	/** Abort to unsubscribe (the returned function does the same). */
 	signal?: AbortSignal;
 	/** Called for each pushed event, in order. */
@@ -288,6 +334,7 @@ export type StreamsReorgContext = { cursor: string };
 export type StreamsEventsConsumeParams<
 	TTx = never,
 	D extends boolean = false,
+	F extends StreamsFilterMap = Record<never, never>,
 > = {
 	fromCursor?: string | null;
 	/**
@@ -321,13 +368,38 @@ export type StreamsEventsConsumeParams<
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
+	/**
+	 * Labelled filter groups. The groups OR together in ONE server-side scan,
+	 * so two unrelated concerns share one page, one cursor, and one checkpoint
+	 * instead of two consume loops. Pair with `on` to handle each label.
+	 */
+	filters?: F;
+	/**
+	 * One handler per label in `filters`. Every label must be handled, so
+	 * adding a label is a compile error until its handler exists.
+	 *
+	 * A label's declared `types` narrows its handler's events, so `payload` is
+	 * typed without an `event_type` guard. Labels are dispatched in declaration
+	 * order: a label's own events stay in cursor order, but events of different
+	 * labels do not interleave within a page — add `onBatch` when you need
+	 * strict global order across labels.
+	 */
+	on?: {
+		[K in keyof F]: (
+			events: StreamsEventForFilter<F[K], D>[],
+			ctx: StreamsBatchContext & WithSinkTx<TTx>,
+		) => void | Promise<void>;
+	};
 	batchSize?: number;
 	/**
 	 * Apply a page of canonical events. Persist `ctx.cursor` in the same
 	 * transaction as your writes. Returning a cursor overrides `ctx.cursor` as
 	 * the resume point (advanced manual control); returning nothing uses it.
+	 *
+	 * Optional only when `on` handles the page instead; a consume call with
+	 * neither throws.
 	 */
-	onBatch: (
+	onBatch?: (
 		events: D extends true ? IndexEvent[] : StreamsEvent[],
 		envelope: StreamsEventsEnvelope,
 		ctx: StreamsBatchContext & WithSinkTx<TTx>,
@@ -512,10 +584,14 @@ export type StreamsClient = {
 		 * The consumer also exits when `maxPages`, `maxEmptyPolls`, or `signal`
 		 * stops it.
 		 */
-		consume<TTx = never, D extends boolean = false>(
+		consume<
+			const F extends StreamsFilterMap = Record<never, never>,
+			TTx = never,
+			D extends boolean = false,
+		>(
 			// The redundant `sink` member gives TS a DIRECT inference site for
 			// TTx — inference does not reliably traverse the params alias.
-			params: StreamsEventsConsumeParams<TTx, D> & {
+			params: StreamsEventsConsumeParams<TTx, D, F> & {
 				sink?: ConsumerSink<TTx>;
 			},
 		): Promise<StreamsEventsConsumeResult>;

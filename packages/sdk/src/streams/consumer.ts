@@ -7,6 +7,7 @@ import type {
 	StreamsEvent,
 	StreamsEventType,
 	StreamsEventsEnvelope,
+	StreamsFilterMap,
 	StreamsFilterValue,
 	StreamsReorg,
 } from "./types.ts";
@@ -25,6 +26,8 @@ type StreamsEventsFetchParams = {
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
+	/** Labelled filter groups, forwarded to the server verbatim. */
+	filters?: StreamsFilterMap;
 };
 
 export type StreamsEventsFetcher = (
@@ -179,6 +182,8 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
+	/** Labelled filter groups, forwarded to the server verbatim. */
+	filters?: StreamsFilterMap;
 	fetchEvents: StreamsEventsFetcher;
 	/** Destination adapter owning checkpoint + rollback (see IndexConsumeOptions.sink). */
 	sink?: ConsumerSink<TTx>;
@@ -243,6 +248,7 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 					sender: opts.sender,
 					recipient: opts.recipient,
 					assetIdentifier: opts.assetIdentifier,
+					filters: opts.filters,
 				}),
 			{
 				retryCount: opts.retryCount,
@@ -362,6 +368,8 @@ export async function* iterateStreamsBatches(opts: {
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
+	/** Labelled filter groups, forwarded to the server verbatim. */
+	filters?: StreamsFilterMap;
 	fetchEvents: StreamsEventsFetcher;
 	sleep?: Sleep;
 	signal?: AbortSignal;
@@ -379,6 +387,7 @@ export async function* iterateStreamsBatches(opts: {
 			sender: opts.sender,
 			recipient: opts.recipient,
 			assetIdentifier: opts.assetIdentifier,
+			filters: opts.filters,
 		});
 
 		const checkpoint = envelope.next_cursor ?? cursor;
@@ -410,6 +419,8 @@ export async function* streamStreamsEvents(opts: {
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
+	/** Labelled filter groups, forwarded to the server verbatim. */
+	filters?: StreamsFilterMap;
 	fetchEvents: StreamsEventsFetcher;
 	sleep?: Sleep;
 	emptyBackoffMs?: number;
@@ -439,6 +450,7 @@ export async function* streamStreamsEvents(opts: {
 			sender: opts.sender,
 			recipient: opts.recipient,
 			assetIdentifier: opts.assetIdentifier,
+			filters: opts.filters,
 		});
 		pages++;
 

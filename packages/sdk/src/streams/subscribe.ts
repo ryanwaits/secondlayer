@@ -58,6 +58,9 @@ export function subscribeStreamsEvents(opts: {
 					sender: params.sender,
 					recipient: params.recipient,
 					asset_identifier: params.assetIdentifier,
+					// JSON in a query param, so SSE keeps plain GET semantics —
+					// no POST-and-stream variant of this route.
+					filters: params.filters ? JSON.stringify(params.filters) : undefined,
 				})}`;
 				const res = await opts.fetchImpl(url, {
 					headers: {

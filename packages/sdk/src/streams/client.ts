@@ -1,5 +1,6 @@
 import { ed25519 } from "@secondlayer/shared";
 import { buildQuery } from "../base.ts";
+import type { IndexEvent } from "../index-api/client.ts";
 import type { ConsumerSink } from "../sinks/types.ts";
 import {
 	type StreamsEventsFetcher,
@@ -22,13 +23,16 @@ import type {
 	StreamsCanonicalBlock,
 	StreamsClient,
 	StreamsConsumeParams,
+	StreamsEvent,
 	StreamsEventsConsumeParams,
+	StreamsEventsConsumeResult,
 	StreamsEventsEnvelope,
 	StreamsEventsListEnvelope,
 	StreamsEventsListParams,
 	StreamsEventsReplayParams,
 	StreamsEventsStreamParams,
 	StreamsEventsSubscribeParams,
+	StreamsFilterMap,
 	StreamsReorgsListEnvelope,
 	StreamsReorgsListParams,
 	StreamsTip,
@@ -269,6 +273,7 @@ export function createStreamsClient(
 		sender,
 		recipient,
 		assetIdentifier,
+		filters,
 	}) => {
 		return listEvents({
 			cursor,
@@ -279,8 +284,13 @@ export function createStreamsClient(
 			sender,
 			recipient,
 			assetIdentifier,
+			filters,
 		});
 	};
+
+	function encodeFilters(filters: StreamsFilterMap | undefined) {
+		return filters ? JSON.stringify(filters) : undefined;
+	}
 
 	async function listEvents(
 		params: StreamsEventsListParams = {},
@@ -297,8 +307,116 @@ export function createStreamsClient(
 				asset_identifier: params.assetIdentifier,
 				types: params.types,
 				not_types: params.notTypes,
+				filters: encodeFilters(params.filters),
 			})}`,
 		);
+	}
+
+	/**
+	 * One signature, two shapes: a flat filter with `onBatch`, or a labelled
+	 * `filters` map with a handler per label (or both). Deliberately NOT
+	 * overloaded — an overloaded interface member strips contextual typing from
+	 * every stub and alternate implementation of `StreamsClient`.
+	 */
+	function consumeEvents<
+		const F extends StreamsFilterMap = Record<never, never>,
+		TTx = never,
+		D extends boolean = false,
+	>(
+		// Redundant `sink` member: direct TTx inference site (inference
+		// does not traverse the params alias).
+		params: StreamsEventsConsumeParams<TTx, D, F> & {
+			sink?: ConsumerSink<TTx>;
+		},
+	): Promise<StreamsEventsConsumeResult> {
+		const labels = params.filters ? Object.keys(params.filters) : [];
+		// The "at least one handler" rule is conditional on `filters`, so it
+		// can't live in the type without making `F` uninferrable. Fail loudly
+		// instead of consuming pages into nothing.
+		if (labels.length === 0 && !params.onBatch) {
+			throw new ValidationError(
+				"consume requires onBatch, or filters + on handlers.",
+				400,
+			);
+		}
+		if (labels.length > 0 && !params.on && !params.onBatch) {
+			throw new ValidationError(
+				"consume with filters requires on handlers (or onBatch).",
+				400,
+			);
+		}
+		const dispatch = params.on as
+			| Record<
+					string,
+					(
+						events: StreamsEvent[] | IndexEvent[],
+						ctx: Parameters<
+							NonNullable<StreamsEventsConsumeParams<TTx>["onBatch"]>
+						>[2],
+					) => void | Promise<void>
+			  >
+			| undefined;
+
+		// With `decoded: true`, events arrive as the flat Index-shaped rows —
+		// decoding never appears in the handler.
+		const project = (events: StreamsEvent[]): StreamsEvent[] | IndexEvent[] =>
+			params.decoded ? events.map(decode) : events;
+
+		const onBatch: StreamsEventsConsumeParams<TTx>["onBatch"] = async (
+			events,
+			envelope,
+			ctx,
+		) => {
+			// Label dispatch reads the wire `matched` array, so it has to run
+			// BEFORE decode — the decoded row shape does not carry it.
+			for (const label of labels) {
+				const forLabel = events.filter((event) =>
+					event.matched?.includes(label),
+				);
+				if (forLabel.length === 0) continue;
+				await dispatch?.[label]?.(project(forLabel), ctx);
+			}
+			// `onBatch`'s several legal return shapes collapse to one here: the
+			// consume loop only ever reads a cursor string or nothing.
+			// The `decoded` flag is a runtime value here, so `project`'s return
+			// can't be narrowed to the D-conditional the declared handler wants.
+			const userOnBatch = params.onBatch as StreamsEventsConsumeParams<
+				TTx,
+				boolean
+			>["onBatch"];
+			// `onBatch`'s several legal return shapes collapse to one here: the
+			// consume loop only ever reads a cursor string or nothing.
+			return (await userOnBatch?.(project(events), envelope, ctx)) as
+				| string
+				| null
+				| undefined;
+		};
+
+		return consumeStreamsEvents<TTx>({
+			fromCursor: params.fromCursor,
+			sink: params.sink,
+			onProgress: params.onProgress,
+			mode: params.mode,
+			finalizedOnly: params.finalizedOnly,
+			types: params.types,
+			notTypes: params.notTypes,
+			contractId: params.contractId,
+			sender: params.sender,
+			recipient: params.recipient,
+			assetIdentifier: params.assetIdentifier,
+			filters: params.filters,
+			batchSize: params.batchSize ?? 100,
+			fetchEvents,
+			onBatch,
+			onReorg: params.onReorg,
+			emptyBackoffMs: params.emptyBackoffMs,
+			maxPages: params.maxPages,
+			maxEmptyPolls: params.maxEmptyPolls,
+			signal: params.signal,
+			retryCount: params.retryCount,
+			retryDelay: params.retryDelay,
+			onError: params.onError,
+		});
 	}
 
 	return {
@@ -324,50 +442,7 @@ export function createStreamsClient(
 					`/v1/streams/events/${encodeURIComponent(txId)}`,
 				);
 			},
-			consume<TTx = never, D extends boolean = false>(
-				// Redundant `sink` member: direct TTx inference site (inference
-				// does not traverse the params alias).
-				params: StreamsEventsConsumeParams<TTx, D> & {
-					sink?: ConsumerSink<TTx>;
-				},
-			) {
-				// With `decoded: true`, events arrive as the flat Index-shaped
-				// rows — decoding never appears in the handler.
-				const onBatch: StreamsEventsConsumeParams<TTx>["onBatch"] =
-					params.decoded
-						? (events, envelope, ctx) =>
-								(
-									params.onBatch as StreamsEventsConsumeParams<
-										TTx,
-										true
-									>["onBatch"]
-								)(events.map(decode), envelope, ctx)
-						: (params.onBatch as StreamsEventsConsumeParams<TTx>["onBatch"]);
-				return consumeStreamsEvents<TTx>({
-					fromCursor: params.fromCursor,
-					sink: params.sink,
-					onProgress: params.onProgress,
-					mode: params.mode,
-					finalizedOnly: params.finalizedOnly,
-					types: params.types,
-					notTypes: params.notTypes,
-					contractId: params.contractId,
-					sender: params.sender,
-					recipient: params.recipient,
-					assetIdentifier: params.assetIdentifier,
-					batchSize: params.batchSize ?? 100,
-					fetchEvents,
-					onBatch,
-					onReorg: params.onReorg,
-					emptyBackoffMs: params.emptyBackoffMs,
-					maxPages: params.maxPages,
-					maxEmptyPolls: params.maxEmptyPolls,
-					signal: params.signal,
-					retryCount: params.retryCount,
-					retryDelay: params.retryDelay,
-					onError: params.onError,
-				});
-			},
+			consume: consumeEvents,
 			stream(params: StreamsEventsStreamParams = {}) {
 				return streamStreamsEvents({
 					fromCursor: params.fromCursor,
