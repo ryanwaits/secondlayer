@@ -310,7 +310,13 @@ export type EventsWalkParams<T extends IndexEventType = IndexEventType> = Omit<
 export type EventsConsumeParams<
 	T extends IndexEventType = IndexEventType,
 	TTx = never,
-> = Omit<EventsListParams<T>, "cursor" | "fromCursor" | "limit"> &
+	// `fields` is omitted deliberately: the consume loop builds its page
+	// request field-by-field and never forwarded it, so accepting the option
+	// meant it type-checked and was then silently dropped. Consuming a
+	// projected row is a real want — it needs the loop to thread it AND the
+	// handler's row type to narrow, which is a larger change than pretending
+	// the option works.
+> = Omit<EventsListParams<T>, "cursor" | "fromCursor" | "limit" | "fields"> &
 	IndexConsumeOptions<IndexEventOf<T>, EventsEnvelope<T>, TTx>;
 
 // ── Contract calls (/v1/index/contract-calls) ──────────────────────
@@ -1126,6 +1132,11 @@ export interface NftTransfersResource {
 
 /** `index.events` — callable shorthand for `.list()`; `eventType` is required. */
 export interface IndexEventsResource {
+	/** Narrowing overload for the callable shorthand — same wire path as
+	 *  `list`, so it must narrow identically. */
+	<T extends IndexEventType, const F extends keyof IndexEventOf<T> & string>(
+		params: EventsListParams<T> & { fields: readonly F[] },
+	): Promise<EventsEnvelope<T, IndexEventFields<T, F>>>;
 	<T extends IndexEventType>(
 		params: EventsListParams<T>,
 	): Promise<EventsEnvelope<T>>;
@@ -1141,6 +1152,15 @@ export interface IndexEventsResource {
 	list<T extends IndexEventType>(
 		params: EventsListParams<T>,
 	): Promise<EventsEnvelope<T>>;
+	/** Narrowing overload, matching `list`: `walk` forwards `fields` to the
+	 *  wire, so without this the yielded rows are stripped while the type
+	 *  still promises every column. */
+	walk<
+		T extends IndexEventType,
+		const F extends keyof IndexEventOf<T> & string,
+	>(
+		params: EventsWalkParams<T> & { fields: readonly F[] },
+	): AsyncIterable<IndexEventFields<T, F>>;
 	walk<T extends IndexEventType>(
 		params: EventsWalkParams<T>,
 	): AsyncIterable<IndexEventOf<T>>;
