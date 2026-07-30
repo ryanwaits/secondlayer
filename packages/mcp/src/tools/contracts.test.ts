@@ -46,8 +46,11 @@ describe("contracts MCP tool", () => {
 				>,
 		);
 
+		// `get_contract_abi` is the pre-rename alias — still callable, so it is
+		// registered, but `contracts_get_abi` is the advertised name.
 		expect(tools.map((t) => t.name).sort()).toEqual([
 			"contracts_find",
+			"contracts_get_abi",
 			"get_contract_abi",
 		]);
 		const res = await tools

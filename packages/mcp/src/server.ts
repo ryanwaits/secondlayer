@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerResources } from "./resources.ts";
 import { registerAccountTools } from "./tools/account.ts";
+import { registerCodegenTools } from "./tools/codegen.ts";
 import { registerContractTools } from "./tools/contracts.ts";
 import { registerIndexTools } from "./tools/index.ts";
 import { registerScaffoldTools } from "./tools/scaffold.ts";
@@ -29,6 +30,7 @@ export function createServer(): McpServer {
 	registerIndexTools(server);
 	registerStreamsTools(server);
 	registerContractTools(server);
+	registerCodegenTools(server);
 	registerResources(server);
 
 	return server;

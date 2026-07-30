@@ -236,6 +236,7 @@ const GOLDEN_PATH_TOOLS = [
 	"account_whoami",
 	// index reads
 	"batch_query",
+	"codegen_index_schema",
 	"index_blocks",
 	"index_contract_calls",
 	"index_discover",
@@ -246,7 +247,7 @@ const GOLDEN_PATH_TOOLS = [
 	"index_transactions",
 	// contracts / scaffold
 	"contracts_find",
-	"get_contract_abi",
+	"contracts_get_abi",
 	"scaffold_from_contract",
 	// streams
 	"streams_dumps",

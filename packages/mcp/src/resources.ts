@@ -70,6 +70,7 @@ const PRODUCT_BLURBS: Record<string, string> = {
 	subscriptions: "webhook delivery on subgraph rows or raw chain events",
 	account: "identity and self-provisioned API keys",
 	scaffold: "generate deploy-ready subgraph code from a deployed contract",
+	codegen: "ORM schemas for the tables you read",
 };
 
 const PRODUCT_ORDER = [
@@ -80,6 +81,7 @@ const PRODUCT_ORDER = [
 	"subscriptions",
 	"account",
 	"scaffold",
+	"codegen",
 ];
 
 /**
