@@ -2,121 +2,107 @@ import { CodeBlock } from "@/components/code-block";
 import { AgentPromptBlock } from "@/components/console/agent-prompt";
 import { CopyButton } from "@/components/copy-button";
 import { MARKETING_HOME_PROMPT } from "@/lib/agent-prompts";
-import {
-	CLI_SNIPPET,
-	INDEX_SNIPPET,
-	STREAMS_SNIPPET,
-	SUBGRAPHS_SNIPPET,
-	SUBSCRIPTIONS_SNIPPET,
-} from "@/lib/home-snippets";
+import { FILTERS_SNIPPET, TESTING_SNIPPET } from "@/lib/home-snippets";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { CliTerminalPane } from "./panes/cli-terminal-pane";
-import { IndexResultsPane } from "./panes/index-results-pane";
-import { StreamsBlocksPane } from "./panes/streams-blocks-pane";
-import { SubgraphSchemaPane } from "./panes/subgraph-schema-pane";
-import { WebhookLatencyPane } from "./panes/webhook-latency-pane";
+import {
+	FilterProjectionRails,
+	FilterProjectionsPane,
+} from "./panes/filter-projections-pane";
+import { TestRunPane } from "./panes/test-run-pane";
+import { TypedHandlerPane } from "./panes/typed-handler-pane";
 
-function Feature({
+function SectionHead({
 	title,
 	docsHref,
-	docsLabel = "Read the docs",
+	docsLabel,
 	children,
-	code,
-	lang = "typescript",
-	pane,
 }: {
 	title: string;
 	docsHref: string;
-	docsLabel?: string;
+	docsLabel: string;
 	children: ReactNode;
-	code: string;
-	lang?: string;
-	pane: ReactNode;
 }) {
 	return (
-		<div className="home-feature">
-			<div className="home-feature-head">
-				<h3>{title}</h3>
-				<p>{children}</p>
-				<Link href={docsHref} className="home-docs-link">
-					{docsLabel} <span className="ar">→</span>
-				</Link>
-			</div>
-			<div className="home-duo">
-				<div className="home-duo-code">
-					<CodeBlock code={code} lang={lang} />
-				</div>
-				<div className="home-duo-pane">{pane}</div>
-			</div>
+		<div className="home-feature-head">
+			<h3>{title}</h3>
+			<p>{children}</p>
+			<Link href={docsHref} className="home-docs-link">
+				{docsLabel} <span className="ar">→</span>
+			</Link>
 		</div>
 	);
 }
 
-/** The five capability sections (Streams → Index → Subgraphs → Subscriptions → CLI). */
+/** The three capability sections: Filters → Typed handlers → Testing. */
 export function HomeFeatures() {
 	return (
 		<section className="home-block">
 			<div className="home-wrap">
-				<Feature
-					title="Decoded chain data, kept indexed"
-					docsHref="/indexes"
-					docsLabel="Explore Index"
-					code={INDEX_SNIPPET}
-					pane={<IndexResultsPane />}
-				>
-					Every FT and NFT transfer, contract call, and print event — decoded,
-					typed, and cursor-paginated. Read it keyless, or sweep it into your
-					own app index: backfill from genesis, reorgs flagged on every page.
-				</Feature>
+				{/* V1 · projection board — the `on` union */}
+				<div className="home-feature">
+					<SectionHead
+						title="Say it once. Send it anywhere."
+						docsHref="/docs/filters"
+						docsLabel="Read about filters"
+					>
+						One typed filter describes the chain event. Each surface gets its
+						own explicit projection — including the conversions and
+						disagreements a spread would hide.
+					</SectionHead>
+					<div className="home-proj">
+						<div className="home-proj-src">
+							<span className="home-proj-label">the filter</span>
+							<CodeBlock code={FILTERS_SNIPPET} />
+						</div>
+						<FilterProjectionRails />
+						<FilterProjectionsPane />
+					</div>
+					<p className="home-proj-foot">
+						Principals are validated at construction: a contract id where an
+						asset identifier belongs throws naming the field, instead of quietly
+						matching zero rows.
+					</p>
+				</div>
 
-				<Feature
-					title="You shape it. We run it."
-					docsHref="/subgraphs"
-					docsLabel="Explore Subgraphs"
-					code={SUBGRAPHS_SNIPPET}
-					pane={<SubgraphSchemaPane />}
-				>
-					Define sources, schema, and handlers in one TypeScript file. Deploy it
-					and get typed Postgres tables, a public read API, and a page on
-					Explore — live from the moment you deploy, full genesis history on
-					paid plans.
-				</Feature>
+				{/* V4 · IDE moment — ABI-typed handlers */}
+				<div className="home-feature">
+					<SectionHead
+						title="The ABI already knows."
+						docsHref="/docs/subgraphs"
+						docsLabel="Read about typed handlers"
+					>
+						Give a source its contract&apos;s ABI and{" "}
+						<code className="home-inline-code">event.input</code> is typed per
+						function — names checked, integers as{" "}
+						<code className="home-inline-code">bigint</code>, wrong fields
+						caught before deploy.
+					</SectionHead>
+					<TypedHandlerPane />
+				</div>
 
-				<Feature
-					title="Consume the raw firehose"
-					docsHref="/streams"
-					docsLabel="Explore Streams"
-					code={STREAMS_SNIPPET}
-					pane={<StreamsBlocksPane />}
-				>
-					Every event the chain emits — ordered, cursor-paginated, reorg-aware.
-					Resume from any cursor, replay history from signed bulk dumps, or hold
-					the tip. This is what you&apos;d run a node for — and what Index
-					itself is built on.
-				</Feature>
-
-				<Feature
-					title="Webhooks when it happens"
-					docsHref="/docs/subscriptions"
-					code={SUBSCRIPTIONS_SNIPPET}
-					pane={<WebhookLatencyPane />}
-				>
-					Subscribe to chain events or your subgraph rows and get signed
-					deliveries with retries and circuit breakers. The push channel for
-					Index and Subgraphs — no polling loop to babysit.
-				</Feature>
-
-				<Feature
-					title="The same API, from your shell"
-					docsHref="/docs/cli"
-					code={CLI_SNIPPET}
-					lang="bash"
-					pane={<CliTerminalPane />}
-				>
-					Every surface is also a command. Scaffold, deploy, query, tail —
-					pipeable, scriptable, JSON when you ask for it. Local devnet included.
-				</Feature>
+				{/* V3 · editor + test run — handler testing */}
+				<div className="home-feature">
+					<SectionHead
+						title="Production is not a test environment."
+						docsHref="/docs/subgraphs#testing-a-handler-before-you-deploy"
+						docsLabel="Read about testing"
+					>
+						Run real chain events through your local handler code before you
+						deploy. The first run records a cassette, so every run after is free
+						and offline.
+					</SectionHead>
+					<div className="home-test">
+						<div className="home-test-editor">
+							<div className="home-ide-tabs">
+								<span className="home-ide-tab on">bns-names.test.ts</span>
+								<span className="home-ide-tab">bns-names.ts</span>
+							</div>
+							<CodeBlock code={TESTING_SNIPPET} />
+						</div>
+						<TestRunPane />
+					</div>
+				</div>
 			</div>
 		</section>
 	);

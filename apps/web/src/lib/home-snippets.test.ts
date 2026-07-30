@@ -1,20 +1,14 @@
 import { describe, expect, test } from "bun:test";
+import type { SecondLayer } from "@secondlayer/sdk";
+import { on } from "@secondlayer/stacks/filters";
 import {
-	type SecondLayer,
-	SecondLayer as SecondLayerClient,
-	type StreamsEvent,
-	trigger,
-} from "@secondlayer/sdk";
-import {
-	CLI_SNIPPET,
-	INDEX_SNIPPET,
+	FILTERS_GATE_SNIPPET,
+	FILTERS_PROJECTIONS,
+	FILTERS_SNIPPET,
 	SBTC_ASSET_IDENTIFIER,
-	SBTC_CONTRACT_ID,
-	SBTC_REGISTRY_CONTRACT_ID,
-	SHELL_GETSTARTED_SNIPPET,
-	STREAMS_SNIPPET,
-	SUBGRAPHS_SNIPPET,
-	SUBSCRIPTIONS_SNIPPET,
+	TESTING_RUN,
+	TESTING_SNIPPET,
+	TYPED_HANDLERS_SNIPPET,
 } from "./home-snippets";
 
 // Compile-checked twins of the homepage snippets. These are never executed
@@ -22,106 +16,70 @@ import {
 // drifts from what the homepage promises. Keep each twin in sync with its
 // string constant in home-snippets.ts.
 
-// STREAMS_SNIPPET
-async function streamsTwin(
-	sl: SecondLayer,
-	cursor: string,
-	handle: (events: StreamsEvent[]) => Promise<void>,
-) {
-	for await (const batch of sl.streams.consume({ cursor })) {
-		await handle(batch.events); // ordered, reorg-aware
-	}
-	const dumps = await sl.streams.dumps.list();
-	return dumps;
-}
-
-// INDEX_SNIPPET
-async function indexTwin(
-	sl: SecondLayer,
-	save: (t: {
-		sender: string;
-		recipient: string;
-		amount: string;
-	}) => Promise<void>,
-	loadCheckpoint: () => Promise<string | null>,
-	rollbackFrom: (height: number) => Promise<void>,
-) {
-	await sl.index.events.consume({
-		eventType: "ft_transfer", // narrows rows to ft_transfer
-		contractId: [SBTC_CONTRACT_ID, SBTC_REGISTRY_CONTRACT_ID],
-		fromCursor: await loadCheckpoint(), // null on first run
-		onBatch: async (transfers, _envelope, ctx) => {
-			// No discriminant check: `transfers` is IndexFtTransfer[], so
-			// sender/recipient/amount are reachable directly. If the narrowing
-			// regressed, this twin stops compiling.
-			for (const t of transfers) await save(t);
-			return ctx.cursor;
-		},
-		onReorg: async (r) => rollbackFrom(r.fork_point_height),
+// FILTERS_SNIPPET + FILTERS_PROJECTIONS: one filter, three surfaces.
+async function filtersTwin(sl: SecondLayer, url: string) {
+	const whales = on.ftTransfer({
+		assetIdentifier: SBTC_ASSET_IDENTIFIER,
+		// the snippet shows `100_000_000n`; this app targets ES2017, where
+		// bigint literals don't parse — BigInt() is the same value and type
+		minAmount: BigInt(100_000_000), // ≥ 1 BTC
 	});
-	return sl.index.events({ eventType: "ft_transfer", trait: "sip-010" });
-}
 
-// SUBGRAPHS_SNIPPET (the SDK read; the defineSubgraph() half is type-checked
-// in @secondlayer/subgraphs itself, which this app doesn't depend on).
-async function subgraphsTwin(sl: SecondLayer) {
-	const { rows } = await sl.subgraphs.rows("sbtc-flows", "transfers", {
-		limit: 3,
-	});
-	return rows;
-}
-
-// SUBSCRIPTIONS_SNIPPET
-async function subscriptionsTwin(sl: SecondLayer) {
-	return sl.subscriptions.create({
+	await sl.index.events.list(whales.toIndexParams({ limit: 50 }));
+	await sl.streams.events.list(whales.toStreamsParams());
+	await sl.subscriptions.create({
 		name: "whale-alerts",
-		triggers: [
-			trigger.ftTransfer({
-				assetIdentifier: SBTC_ASSET_IDENTIFIER,
-				minAmount: 100_000_000, // ≥ 1 BTC
-			}),
-		],
-		url: "https://hooks.example.com/sbtc",
+		triggers: [whales.toChainTrigger()],
+		url,
 	});
 }
 
-// SHELL_GETSTARTED_SNIPPET (the TypeScript lines)
-function getStartedTwin() {
-	const sl = new SecondLayerClient(); // anonymous, default base URL
-	return sl.index.ftTransfers({ contractId: SBTC_CONTRACT_ID });
+// FILTERS_GATE_SNIPPET: the homepage promises this is a COMPILE error, so the
+// twin proves it stays one. If the projection ever appears on the member,
+// the expect-error goes stale and tsc fails.
+function filtersGateTwin() {
+	// @ts-expect-error — sbtc_deposit is a Subscriptions-only member:
+	// toIndexParams must not exist on its filter.
+	return on.sbtcDeposit({}).toIndexParams();
 }
+
+// TYPED_HANDLERS_SNIPPET and TESTING_SNIPPET are `@secondlayer/subgraphs`
+// surface (defineSubgraph abi typing, createTestContext). This app doesn't
+// depend on that package; both compile as type-tests inside it. Here we pin
+// the method names so a rename breaks this suite.
 
 describe("home snippets", () => {
 	test("compile-checked twins exist for every executable snippet", () => {
-		expect(typeof streamsTwin).toBe("function");
-		expect(typeof indexTwin).toBe("function");
-		expect(typeof subgraphsTwin).toBe("function");
-		expect(typeof subscriptionsTwin).toBe("function");
-		expect(typeof getStartedTwin).toBe("function");
+		expect(typeof filtersTwin).toBe("function");
+		expect(typeof filtersGateTwin).toBe("function");
 	});
 
-	test("snippet strings reference the real method names", () => {
-		expect(STREAMS_SNIPPET).toContain("sl.streams.consume({ cursor })");
-		expect(STREAMS_SNIPPET).toContain("sl.streams.dumps.list()");
-		expect(INDEX_SNIPPET).toContain("sl.index.events.consume({");
-		// The homepage must show the durable pattern, not walk-into-a-database:
-		// walk has no checkpoint and ignores reorgs (see /docs/index).
-		expect(INDEX_SNIPPET).not.toContain(".walk(");
-		expect(INDEX_SNIPPET).toContain("onReorg:");
-		expect(INDEX_SNIPPET).toContain(
-			'sl.index.events({ eventType: "ft_transfer", trait: "sip-010" })',
+	test("filter snippet and projections reference the real surface", () => {
+		expect(FILTERS_SNIPPET).toContain(
+			'import { on } from "@secondlayer/stacks/filters"',
 		);
-		expect(SUBGRAPHS_SNIPPET).toContain(
-			'sl.subgraphs.rows("sbtc-flows", "transfers", { limit: 3 })',
+		expect(FILTERS_SNIPPET).toContain("on.ftTransfer({");
+		expect(FILTERS_SNIPPET).toContain("minAmount: 100_000_000n");
+		const codes = FILTERS_PROJECTIONS.map((p) => p.code).join("\n");
+		expect(codes).toContain("whales.toIndexParams({ limit: 50 })");
+		expect(codes).toContain("whales.toStreamsParams()");
+		expect(codes).toContain("triggers: [whales.toChainTrigger()]");
+		expect(FILTERS_GATE_SNIPPET).toContain(
+			"Property 'toIndexParams' does not exist",
 		);
-		expect(SUBSCRIPTIONS_SNIPPET).toContain("sl.subscriptions.create({");
-		expect(SUBSCRIPTIONS_SNIPPET).toContain("trigger.ftTransfer({");
-		expect(CLI_SNIPPET).toContain("sl subgraphs query sbtc-flows transfers");
-		expect(SHELL_GETSTARTED_SNIPPET).toContain("new SecondLayer()");
+	});
+
+	test("subgraphs-package snippets name the real exports", () => {
+		expect(TYPED_HANDLERS_SNIPPET).toContain('type: "contract_call"');
+		expect(TYPED_HANDLERS_SNIPPET).toContain("abi: marketplaceAbi");
+		expect(TYPED_HANDLERS_SNIPPET).toContain("event.input.");
+		expect(TESTING_SNIPPET).toContain('from "@secondlayer/subgraphs/testing"');
+		expect(TESTING_SNIPPET).toContain("createTestContext(");
+		expect(TESTING_SNIPPET).toContain("buildEvent(");
+		expect(TESTING_RUN.cmd).toContain("sl subgraphs test");
 	});
 
 	test("snippets use the real mainnet sBTC identifiers", () => {
-		expect(INDEX_SNIPPET).toContain(SBTC_CONTRACT_ID);
-		expect(SUBSCRIPTIONS_SNIPPET).toContain(SBTC_ASSET_IDENTIFIER);
+		expect(FILTERS_SNIPPET).toContain(SBTC_ASSET_IDENTIFIER);
 	});
 });

@@ -1,97 +1,93 @@
 /**
- * Homepage code snippets — the marketing copy for each product surface.
+ * Homepage code snippets — the marketing copy for each capability section.
  *
- * Every TypeScript snippet here is mirrored as real, compiled code in
+ * Every snippet that can compile is mirrored as real, compiled code in
  * `home-snippets.test.ts`, so the SDK surface can't drift behind what the
  * homepage promises. If you change a snippet, change its twin in the test.
+ * The `defineSubgraph`/testing snippets compile in `@secondlayer/subgraphs`
+ * itself (this app doesn't depend on it); their twins assert method names.
  */
-
-/** sBTC token contract (mainnet). */
-export const SBTC_CONTRACT_ID =
-	"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token";
-
-/** sBTC protocol registry contract (mainnet) — the peg-event emitter. */
-export const SBTC_REGISTRY_CONTRACT_ID =
-	"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry";
 
 /** sBTC SIP-010 asset identifier (mainnet). */
 export const SBTC_ASSET_IDENTIFIER =
 	"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token";
 
-export const STREAMS_SNIPPET = `// resume the firehose from your cursor
-for await (const batch of sl.streams.consume({ cursor })) {
-  await handle(batch.events); // ordered, reorg-aware
-}
+/** Filters section — the `on` union, written once. */
+export const FILTERS_SNIPPET = `import { on } from "@secondlayer/stacks/filters";
 
-// or bulk history from signed dumps
-const dumps = await sl.streams.dumps.list();`;
-
-export const INDEX_SNIPPET = `// sweep sBTC into your own tables — resumable, reorg-aware
-await sl.index.events.consume({
-  eventType: "ft_transfer",           // narrows rows to ft_transfer
-  contractId: [                       // one cursor, both contracts
-    "${SBTC_CONTRACT_ID}",
-    "${SBTC_REGISTRY_CONTRACT_ID}",
-  ],
-  fromCursor: await loadCheckpoint(), // null on first run
-  onBatch: async (transfers, _envelope, ctx) => {
-    for (const t of transfers) await save(t); // typed: sender, amount
-    return ctx.cursor;                        // commits with your rows
-  },
-  onReorg: async (r) => rollbackFrom(r.fork_point_height),
-});
-
-// or just read — keyless, by contract or trait
-await sl.index.events({ eventType: "ft_transfer", trait: "sip-010" });`;
-
-export const SUBGRAPHS_SNIPPET = `export default defineSubgraph({
-  name: "sbtc-flows",
-  sources: { transfer: { type: "ft_transfer",
-    assetIdentifier: "${SBTC_ASSET_IDENTIFIER}" } },
-  schema: {
-    transfers: { columns: {
-      sender:    { type: "principal", indexed: true },
-      recipient: { type: "principal", indexed: true },
-      amount:    { type: "uint" } } },
-    balances: {
-      columns: {
-        address: { type: "principal" },
-        balance: { type: "uint" } },
-      uniqueKeys: [["address"]] },
-  },
-  handlers: { transfer: async (e, ctx) => { /* ... */ } },
-});
-
-// query it back — anonymous read on public subgraphs
-const { rows } = await sl.subgraphs.rows("sbtc-flows", "transfers", { limit: 3 });`;
-
-export const SUBSCRIPTIONS_SNIPPET = `await sl.subscriptions.create({
-  name: "whale-alerts",
-  triggers: [trigger.ftTransfer({
-    assetIdentifier: "${SBTC_ASSET_IDENTIFIER}",
-    minAmount: 100_000_000, // ≥ 1 BTC
-  })],
-  url: "https://hooks.example.com/sbtc",
+const whales = on.ftTransfer({
+  assetIdentifier:
+    "${SBTC_ASSET_IDENTIFIER}",
+  minAmount: 100_000_000n, // ≥ 1 BTC
 });`;
 
-export const CLI_SNIPPET = `# contract → subgraph in one line
-sl subgraphs scaffold ${SBTC_CONTRACT_ID} -o sbtc.ts
+/** The four projection rows on the right of the filters section. */
+export const FILTERS_PROJECTIONS = [
+	{
+		surface: "index",
+		note: "same rows, one cursor",
+		code: "sl.index.events.list(whales.toIndexParams({ limit: 50 }));",
+	},
+	{
+		surface: "streams",
+		note: "hold the tip, reorg-aware",
+		code: "sl.streams.events.list(whales.toStreamsParams());",
+	},
+	{
+		surface: "subscriptions",
+		note: '100_000_000n → "100000000" — converted here, not at JSON.stringify',
+		code: "sl.subscriptions.create({ triggers: [whales.toChainTrigger()], url });",
+	},
+] as const;
 
-# deploy + watch it sync
-sl subgraphs deploy sbtc.ts
-sl subgraphs status sbtc-flows
+/** The member-gating row — a compile error, not an empty result. */
+export const FILTERS_GATE_SNIPPET = `on.sbtcDeposit({}).toIndexParams();
+// Property 'toIndexParams' does not exist. Subscriptions only.`;
 
-# query from the shell, pipe to jq
-sl subgraphs query sbtc-flows transfers --limit 3 --json`;
+/**
+ * Typed-handlers section (V4 IDE shell). Rendered hand-tokenized so the
+ * squiggle can sit inside the code; compile-checked in @secondlayer/subgraphs.
+ * Kept here so the mirror test can assert the field names against the pane.
+ */
+export const TYPED_HANDLERS_SNIPPET = `sources: {
+  sale: { type: "contract_call",
+          contractId: MARKETPLACE,
+          functionName: "purchase-asset",
+          abi: marketplaceAbi },
+},
+handlers: {
+  sale: (event, ctx) => ctx.insert("sales", {
+    collection: event.input.collection,
+    token_id:   event.input.tokenId,
+    amount:     event.input.amount,
+  }),
+},`;
 
-export const SHELL_GETSTARTED_SNIPPET = `npm install @secondlayer/sdk
+/** Testing section — the unit-test half (left pane of the V3 shell). */
+export const TESTING_SNIPPET = `import { buildEvent, createTestContext }
+  from "@secondlayer/subgraphs/testing";
 
-// first query — anonymous, no key
-const sl = new SecondLayer();
-await sl.index.ftTransfers({
-  contractId: "${SBTC_CONTRACT_ID}",
-});
+test("registers a name from a nested tuple", async () => {
+  const ctx = createTestContext(bns.schema, {
+    block: { height: 167_484 },
+  });
+  await bns.handlers.bns!(
+    buildEvent(bns.sources.bns, {
+      topic: "name-register", data,
+    }),
+    ctx,
+  );
+  expect(await ctx.rows("names")).toMatchInlineSnapshot();
+});`;
 
-# deploy your own view when ready
-bun add -g @secondlayer/cli
-sl subgraphs deploy my-view.ts`;
+/** Testing section — the `sl subgraphs test` terminal transcript. */
+export const TESTING_RUN = {
+	cmd: "sl subgraphs test subgraphs/bns-names.ts --from 167484 --to 167600",
+	ok: "✓ 41 events matched · 41 rows written · 1.2s",
+	cassette: "cassette: cassettes/bns-names.json",
+	offlineCmd: "sl subgraphs test subgraphs/bns-names.ts --offline",
+	offlineOk: "✓ replayed cassette · 0 network calls",
+	guardNote: "# and the bug this gate exists for:",
+	guardErr: "✗ events matched, handlers wrote 0 rows",
+	guardDetail: "a field-mapping bug — this subgraph would ship empty",
+} as const;
