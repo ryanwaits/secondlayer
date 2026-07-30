@@ -4,6 +4,8 @@ import pg from "pg";
 import type { EventsEnvelope, IndexReorg, IndexTip } from "../index.ts";
 import { Index } from "../index.ts";
 import { kyselySink } from "../sinks/kysely.ts";
+import type { ConsumerSink } from "../sinks/types.ts";
+import { createStreamsClient } from "../streams/client.ts";
 
 /**
  * The sink acceptance harness: the reorg-demo fork script (chain forks at
@@ -344,5 +346,56 @@ describe("sales-index example stays small", () => {
 		expect(source).not.toContain("onReorg");
 		expect(source).not.toContain("checkpoints");
 		expect(source).not.toContain("loadCheckpoint");
+	});
+});
+
+describe("sink initialization", () => {
+	test("an explicit fromCursor still initializes the sink", async () => {
+		const calls: string[] = [];
+		const sink: ConsumerSink<unknown> = {
+			async loadCursor() {
+				calls.push("loadCursor");
+				return "1:0";
+			},
+			async commitBatch(_cursor, apply) {
+				calls.push("commitBatch");
+				await apply({} as never);
+			},
+			async rollback() {
+				calls.push("rollback");
+			},
+		};
+
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			fetchImpl: async () =>
+				new Response(
+					JSON.stringify({
+						events: [],
+						next_cursor: null,
+						tip: {
+							block_height: 10,
+							block_hash: "0x1",
+							burn_block_height: 20,
+							lag_seconds: 0,
+						},
+						reorgs: [],
+					}),
+					{ headers: { "content-type": "application/json" } },
+				),
+		});
+
+		// `loadCursor` doubles as the sink's init (checkpoint DDL + the
+		// height-column precondition). Skipping it on an explicit cursor made
+		// the first commit fail against a table that was never created.
+		await client.events.consume({
+			fromCursor: "5:0",
+			mode: "bounded",
+			maxPages: 1,
+			sink,
+			onBatch: () => {},
+		});
+
+		expect(calls).toContain("loadCursor");
 	});
 });

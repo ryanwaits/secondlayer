@@ -220,7 +220,14 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 	const maxPages = opts.maxPages ?? Number.POSITIVE_INFINITY;
 	const maxEmptyPolls = opts.maxEmptyPolls ?? Number.POSITIVE_INFINITY;
 	// Resume order: explicit fromCursor, then the sink's committed checkpoint.
-	let cursor = opts.fromCursor ?? (await opts.sink?.loadCursor()) ?? null;
+	// `loadCursor` is also the sink's INIT — it creates the checkpoint table and
+	// validates the rollback precondition. Short-circuiting it on an explicit
+	// `fromCursor` meant a replay-from-cursor run crashed on its first commit,
+	// and skipped the height-column check that keeps reorg rollback from being
+	// a silent no-op. Always initialize; `fromCursor` still wins as the resume
+	// position.
+	const committedCursor = (await opts.sink?.loadCursor()) ?? null;
+	let cursor = opts.fromCursor ?? committedCursor;
 	// In-memory only: rollback is idempotent, so a crash before the rewind is
 	// re-detected and re-applied harmlessly on restart — no need to persist.
 	const handledReorgs = new Set<string>();
