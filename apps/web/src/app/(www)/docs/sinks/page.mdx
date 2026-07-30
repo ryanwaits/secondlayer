@@ -1,0 +1,117 @@
+# Sinks
+
+A sink is the destination your consume loop writes through. It owns the three
+things everyone gets subtly wrong — the checkpoint, the transaction boundary,
+and the reorg rollback — so your handler only inserts rows.
+
+## The problem it removes
+
+Written by hand, a correct consumer is about ninety lines, and most of them are
+not about your data:
+
+```ts
+// load the cursor, in your own table
+// begin a transaction
+//   insert rows
+//   write the cursor — in the SAME transaction, or a crash between them
+//   either replays the batch or skips it
+// commit
+// on reorg: delete rows at _block_height >= fork_point_height (INCLUSIVE),
+//   rewind the cursor, both atomically
+```
+
+Miss the shared transaction and you double-count on restart. Use `>` instead of
+`>=` and one block of orphaned rows survives the fork forever. Forget `onReorg`
+entirely and the loop silently skips reorg handling — there is no error, just
+rows from a chain that no longer exists.
+
+## With a sink
+
+```ts
+import { Streams } from "@secondlayer/sdk";
+import { kyselySink } from "@secondlayer/sdk/sinks/kysely";
+
+await sl.streams.events.consume({
+  types: ["ft_transfer"],
+  sink: kyselySink(db, {
+    id: "sbtc-flows",          // checkpoint identity
+    tables: ["transfers"],     // rolled back on reorg
+    height: "height",          // the column carrying block height
+  }),
+  onBatch: async (events, _envelope, ctx) => {
+    for (const event of events) {
+      await ctx.tx.insertInto("transfers").values({
+        cursor: event.cursor,
+        sender: event.payload.sender,
+        recipient: event.payload.recipient,
+        amount: event.payload.amount,
+        height: event.block_height,
+      }).execute();
+    }
+  },
+});
+```
+
+That is the whole indexer. `ctx.tx` is the sink's transaction — write only
+through it, and rows plus checkpoint commit together. `onBatch`'s return value
+is ignored: the sink owns the cursor.
+
+<Callout type="warning" title="A sink without reorg handling would be a no-op">
+
+The consume loop gates all reorg handling on `onReorg` being present. A sink
+injects its own, so rollback happens whether or not you wrote one — that is the
+point. If you also pass `onReorg`, yours runs and you own the rollback.
+
+</Callout>
+
+## Keyed on the query builder, not the driver
+
+`kyselySink(db, …)` takes a [Kysely](https://kysely.dev) instance because a bare
+`pg.Pool` carries no schema type. Without it, `tables` could not be checked
+against your database and `ctx.tx` could not be typed — you would be back to
+`any` at the exact place correctness matters.
+
+kysely is an optional peer dependency; the root entry stays dependency-free.
+
+## Rollback is height-stamped
+
+v1 rolls back by deleting rows at `height >= fork_point_height`. That is correct
+for append-only projections, and it is why `height` is required: the sink throws
+at construction if a declared table has no such column, rather than discovering
+at reorg time that rollback deletes nothing.
+
+Aggregates — running balances, counters — are not append-only, so a delete
+cannot reverse them. Use a [Subgraph](/docs/subgraphs) for those: its runtime
+journals pre-images and restores them on rewind.
+
+## Resuming
+
+The sink loads its own committed cursor on start, so a restart continues where
+it left off with no arguments. An explicit `fromCursor` overrides that position
+— useful for replaying a range — and the sink still initializes.
+
+## Health and shutdown
+
+```ts
+import { consumerHealth, shutdownSignal } from "@secondlayer/sdk";
+
+const health = consumerHealth({ staleAfterMs: 60_000 });
+Bun.serve({ port: 8080, fetch: health.handler });
+
+await sl.streams.events.consume({
+  signal: shutdownSignal(),   // SIGTERM/SIGINT → clean stop at a batch boundary
+  onProgress: health.record,
+  sink,
+  onBatch: …,
+});
+```
+
+`consumerHealth` returns a `record` to feed from `onProgress` and a `handler`
+you mount yourself — the SDK never starts a server for you, which would pin
+your runtime.
+
+export const metadata = {
+	title: "Sinks — Secondlayer Docs",
+	description:
+		"A destination adapter that owns the checkpoint, the transaction, and the reorg rollback, so your handler only inserts rows.",
+};

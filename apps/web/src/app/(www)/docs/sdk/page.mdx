@@ -102,7 +102,22 @@ await sl.index.contractCalls.consume({
 - **`fromHeight: 0`** backfills from genesis (hosted: paid plan or pay-as-you-go credits; free/keyless reads cover the last 24h).
 - **`finalizedOnly`** holds delivery to rows at or below `tip.finalized_height`.
 
-See [Index, Build your index on it](/docs/index#build-your-index-on-it) and the runnable [`sales-index` example](https://github.com/ryanwaits/secondlayer/tree/main/examples/sales-index).
+A [sink](/docs/sinks) removes the checkpoint, transaction, and rollback code
+above entirely — it owns all three, and your handler only inserts rows:
+
+```ts
+import { kyselySink } from "@secondlayer/sdk/sinks/kysely";
+
+await sl.index.contractCalls.consume({
+  contractId: "SP...marketplace-v4",
+  sink: kyselySink(db, { id: "sales", tables: ["sales"], height: "height" }),
+  onBatch: async (calls, _envelope, ctx) => {
+    for (const call of calls) await ctx.tx.insertInto("sales").values(...).execute();
+  },
+});
+```
+
+See [Sinks](/docs/sinks), [Index, Build your index on it](/docs/index#build-your-index-on-it), and the runnable [`sales-index` example](https://github.com/ryanwaits/secondlayer/tree/main/examples/sales-index).
 
 ## Subscribe to the live stream (SSE)
 

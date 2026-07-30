@@ -26,6 +26,8 @@ export const DOCS_NAV: DocsNavGroup[] = [
 			{ title: "Subscriptions", href: "/docs/subscriptions" },
 			{ title: "Streams", href: "/docs/streams" },
 			{ title: "SDK", href: "/docs/sdk" },
+			{ title: "Sinks", href: "/docs/sinks" },
+			{ title: "Filters", href: "/docs/filters" },
 			{ title: "CLI", href: "/docs/cli" },
 			{ title: "MCP", href: "/docs/mcp" },
 		],

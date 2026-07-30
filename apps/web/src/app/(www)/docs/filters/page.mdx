@@ -1,0 +1,80 @@
+# Filters
+
+One way to describe a chain event, projected onto whichever surface you send it
+to. Write the filter once; ask it for the shape Index, Streams, Subscriptions,
+or Subgraphs expects.
+
+```ts
+import { on } from "@secondlayer/stacks/filters";
+
+const sbtcMints = on.ftMint({
+  assetIdentifier: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token",
+  minAmount: 100_000n,
+});
+
+await sl.index.events.list(sbtcMints.toIndexParams({ limit: 50 }));
+await sl.streams.events.list(sbtcMints.toStreamsParams());
+await sl.subscriptions.create({ trigger: sbtcMints.toChainTrigger(), url });
+```
+
+## Why not just spread it
+
+Because the four surfaces genuinely disagree, and a spread hides that:
+
+- Index spells the print event `print`; Subgraphs spell it `print_event`.
+- `contract_call` and `contract_deploy` live on a different Index endpoint than
+  events do.
+- Subscriptions take amounts as **strings** — a `bigint` in a
+  `JSON.stringify` body throws at runtime, not at compile time.
+- `trait` scoping exists on Index and Subgraphs, not on Streams.
+
+Each projection converts explicitly. `toChainTrigger()` is where `100_000n`
+becomes `"100000"` — the bug that a structural spread ships to production.
+
+## Member gating
+
+A filter type that a surface does not support simply lacks that method:
+
+```ts
+on.sbtcDeposit({}).toChainTrigger();   // ✓ trigger-only event
+on.sbtcDeposit({}).toIndexParams();    // ✗ Property 'toIndexParams' does not exist
+```
+
+"Property does not exist" names the problem; a `never` parameter does not. Field
+gating comes second — `trait` is absent from `toStreamsParams()`, wildcards are
+Subscriptions-only.
+
+## Principals are branded
+
+```ts
+on.ftTransfer({ assetIdentifier: "SP…token" });        // ✗ that's a contract id
+on.ftTransfer({ assetIdentifier: "SP…token::token" }); // ✓
+```
+
+Asset identifiers and principals are distinct branded types, so the most common
+copy-paste mistake in this API is a compile error rather than a query that
+returns nothing.
+
+## Subgraph sources
+
+`toSubgraphSource()` and `fromSubgraphSource()` round-trip, so a source you
+already wrote in `defineSubgraph` can be lifted into a filter and back without
+losing its `abi` literal — which is what keeps `event.input` typed inside the
+handler.
+
+```ts
+import { fromSubgraphSource } from "@secondlayer/stacks/filters";
+
+const source = fromSubgraphSource(subgraph.sources.swaps);
+await sl.index.events.list(source.toIndexParams({ limit: 10 }));
+```
+
+The round-trip is a CI gate: every production subgraph's sources must survive
+`toSubgraphSource(fromSubgraphSource(f)) === f`, and every filter's
+`toChainTrigger()` must satisfy the Subscriptions schema.
+
+export const metadata = {
+	title: "Filters — Secondlayer Docs",
+	description:
+		"One typed way to describe a chain event, projected onto Index, Streams, Subscriptions, and Subgraphs.",
+};
