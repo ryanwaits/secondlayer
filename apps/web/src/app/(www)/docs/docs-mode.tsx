@@ -19,8 +19,15 @@ const DocsModeContext = createContext<{
 export function DocsModeProvider({ children }: { children: ReactNode }) {
 	const [mode, setModeState] = useState<Mode>("human");
 
-	// Restore the reader's last choice (defaults to human on first visit / SSR).
+	// `?mode=agent` wins over the saved choice — llms.txt hands that URL to
+	// agents, and it was inert (localStorage-only) until now, so the file was
+	// advertising a parameter that did nothing.
 	useEffect(() => {
+		const fromUrl = new URLSearchParams(window.location.search).get("mode");
+		if (fromUrl === "agent" || fromUrl === "human") {
+			setModeState(fromUrl);
+			return;
+		}
 		const saved = localStorage.getItem("docs-mode");
 		if (saved === "agent" || saved === "human") setModeState(saved);
 	}, []);
