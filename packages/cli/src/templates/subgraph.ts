@@ -146,6 +146,12 @@ function sip010Balances(name: string): string {
  * token by adding \`assetIdentifier: "SP...token::token-name"\` to each
  * source filter.
  *
+ * Balances are moved with \`ctx.increment\`, which applies a DELTA in one
+ * atomic statement. That matters: a read-modify-write (findOne → compute →
+ * upsert) loses concurrent updates to the same row, and it is not replay-safe
+ * under \`backfillMode: "concurrent"\`. Deltas commute, so order doesn't
+ * matter and a reorg rewind reverses cleanly via the journal.
+ *
  * Query examples once deployed:
  *   GET /v1/subgraphs/${name}/balances?_search=SP1...
  *   GET /v1/subgraphs/${name}/balances?holder=SP1...
@@ -168,49 +174,33 @@ export default defineSubgraph({
         holder: { type: "principal", indexed: true, search: true },
         amount: { type: "uint" },
       },
+      // increment() upserts on this key.
       uniqueKeys: [["asset_identifier", "holder"]],
     },
   },
 
   handlers: {
-    transfer: async (event, ctx) => {
+    transfer: (event, ctx) => {
       const amount = BigInt(event.amount ?? 0);
       if (event.sender) {
-        await adjust(ctx, event.assetIdentifier, event.sender, -amount);
+        ctx.increment("balances", { asset_identifier: event.assetIdentifier, holder: event.sender }, { amount: -amount });
       }
       if (event.recipient) {
-        await adjust(ctx, event.assetIdentifier, event.recipient, amount);
+        ctx.increment("balances", { asset_identifier: event.assetIdentifier, holder: event.recipient }, { amount });
       }
     },
-    mint: async (event, ctx) => {
+    mint: (event, ctx) => {
       if (event.recipient) {
-        await adjust(ctx, event.assetIdentifier, event.recipient, BigInt(event.amount ?? 0));
+        ctx.increment("balances", { asset_identifier: event.assetIdentifier, holder: event.recipient }, { amount: BigInt(event.amount ?? 0) });
       }
     },
-    burn: async (event, ctx) => {
+    burn: (event, ctx) => {
       if (event.sender) {
-        await adjust(ctx, event.assetIdentifier, event.sender, -BigInt(event.amount ?? 0));
+        ctx.increment("balances", { asset_identifier: event.assetIdentifier, holder: event.sender }, { amount: -BigInt(event.amount ?? 0) });
       }
     },
   },
 });
-
-async function adjust(
-  // biome-ignore lint/suspicious/noExplicitAny: subgraph runtime ctx shape
-  ctx: any,
-  assetIdentifier: string,
-  holder: string,
-  delta: bigint,
-): Promise<void> {
-  const existing = await ctx.findOne("balances", { asset_identifier: assetIdentifier, holder });
-  const current = existing ? BigInt(existing.amount) : 0n;
-  const next = current + delta;
-  await ctx.upsert(
-    "balances",
-    { asset_identifier: assetIdentifier, holder },
-    { asset_identifier: assetIdentifier, holder, amount: next },
-  );
-}
 `;
 }
 
