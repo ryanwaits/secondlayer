@@ -8,7 +8,7 @@
 
   Which columns always survive differs per resource, deliberately: a withdrawal is keyed by `request_id` and carries no `block_height` at all, a transaction keeps `tx_id`, and a pox-5 event keeps `topic` because it is the row's discriminant. Dropping those would leave a row that cannot be paginated or identified rather than a smaller one.
 
-  Not projected: `blocks`, `ft_transfers`, and `nft_transfers` — those rows are 5-8 columns wide and projection would cost more in API surface than it saves on the wire.
+  Not projected in this release: `blocks`, `ft_transfers`, and `nft_transfers`. (Correction: the "5-8 columns wide" rationale originally published here undercounted the transfer rows, which are 17 columns wide — 6.45.0 adds `fields` to both transfer feeds. `blocks` is genuinely 8 columns read off a single table with no join to skip, and stays unprojected.)
 
   Subgraphs: `contractId` and `trait` compose — the matcher ANDs them, so the pair means "contracts conforming to this trait, narrowed to these ids". A doc comment claimed they were mutually exclusive, which contradicted both the validator and the runtime.
 

@@ -4,6 +4,32 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## Index — July 2026
 
+### Field projection reaches the transfer feeds
+
+```ts
+const { events } = await sl.index.ftTransfers.list({
+  contractId,
+  fields: ["amount", "sender", "recipient"],
+});
+events[0].tx_id; // ✗ not requested, not fetched, not in the type
+```
+
+`ft-transfers` and `nft-transfers` — almost certainly the highest-traffic
+Index reads — now take `fields`, with the same contract as everywhere else:
+requested columns come back, a misspelled one is refused, and the row type
+narrows to match. `cursor`/`block_height` always survive, plus `event_type`
+because it is the row's discriminant. Omitting `block_time` also lets the
+server skip the `blocks` join entirely.
+
+We previously wrote here that these rows were "5-8 columns" and not worth
+projecting. That was a measurement error — we counted only the type-specific
+columns and missed the 12-column base they extend. A transfer row is 17
+columns wide, wider than the withdrawals we did project. Corrected.
+
+`blocks` alone stays unprojected, now for a checked reason: it is 8 columns
+read off a single table — `block_time` is a column of the row itself, so
+unlike the event feeds there is no join for a projection to skip.
+
 ### Field projection across the Index surface
 
 ```ts
@@ -20,9 +46,10 @@ survive differs per resource, on purpose**: a withdrawal is keyed by
 pox-5 event keeps `topic` because it is the row's discriminant. Dropping those
 would leave a row you cannot paginate or identify.
 
-`blocks`, `ft_transfers`, and `nft_transfers` deliberately do **not** take
-`fields` — those rows are 5-8 columns, and the option would cost more in API
-surface than it saves on the wire.
+`blocks`, `ft_transfers`, and `nft_transfers` did not take `fields` in this
+release. The "5-8 columns" rationale originally published here undercounted
+the transfer rows — see the correction above; both transfer feeds have since
+gained `fields`.
 
 ### Field projection reaches sBTC deposits
 
