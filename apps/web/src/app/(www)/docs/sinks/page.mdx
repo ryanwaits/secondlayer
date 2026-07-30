@@ -76,9 +76,11 @@ kysely is an optional peer dependency; the root entry stays dependency-free.
 ## Rollback is height-stamped
 
 v1 rolls back by deleting rows at `height >= fork_point_height`. That is correct
-for append-only projections, and it is why `height` is required: the sink throws
-at construction if a declared table has no such column, rather than discovering
-at reorg time that rollback deletes nothing.
+for append-only projections, and it is why `height` is required. A declared
+table that lacks the column is a type error when your Kysely schema knows about
+it, and a loud throw on the consumer's first cursor load otherwise — either way
+you find out before the first batch, rather than discovering at reorg time that
+rollback deletes nothing.
 
 Aggregates — running balances, counters — are not append-only, so a delete
 cannot reverse them. Use a [Subgraph](/docs/subgraphs) for those: its runtime

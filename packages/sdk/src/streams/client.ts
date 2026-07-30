@@ -376,8 +376,6 @@ export function createStreamsClient(
 				if (forLabel.length === 0) continue;
 				await dispatch?.[label]?.(project(forLabel), ctx);
 			}
-			// `onBatch`'s several legal return shapes collapse to one here: the
-			// consume loop only ever reads a cursor string or nothing.
 			// The `decoded` flag is a runtime value here, so `project`'s return
 			// can't be narrowed to the D-conditional the declared handler wants.
 			const userOnBatch = params.onBatch as StreamsEventsConsumeParams<

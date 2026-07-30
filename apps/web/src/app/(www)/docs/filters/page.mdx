@@ -44,16 +44,26 @@ on.sbtcDeposit({}).toIndexParams();    // ✗ Property 'toIndexParams' does not 
 gating comes second — `trait` is absent from `toStreamsParams()`, wildcards are
 Subscriptions-only.
 
-## Principals are branded
+## Principals are validated
 
 ```ts
-on.ftTransfer({ assetIdentifier: "SP…token" });        // ✗ that's a contract id
+on.ftTransfer({ assetIdentifier: "SP…token" });        // ✗ throws — that's a contract id
 on.ftTransfer({ assetIdentifier: "SP…token::token" }); // ✓
 ```
 
-Asset identifiers and principals are distinct branded types, so the most common
-copy-paste mistake in this API is a compile error rather than a query that
-returns nothing.
+A contract id where an asset identifier belongs is the most common copy-paste
+mistake in this API, and it used to produce a query that quietly returned zero
+rows. The factory now validates principals and asset identifiers as it builds
+the filter, so you get a throw at construction naming the field.
+
+<Callout type="note" title="Construction-time, not compile-time">
+
+The `Principal` brand exists in `@secondlayer/stacks/filters`, but the filter
+fields are still typed `string` — validation runs when the filter is built, not
+when it is typed. A wrong literal fails fast and loudly; it is not yet a red
+squiggle.
+
+</Callout>
 
 ## Subgraph sources
 
