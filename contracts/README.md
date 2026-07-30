@@ -35,11 +35,11 @@ node to catch up). `get-burn-block-info? header-hash` is indexed by burn height,
 so "flash blocks" (a BTC block that produced no Stacks block) are covered, not a
 gap.
 
-### Status: Clarity 6 / Epoch 4.0 — runs in Clarinet simnet
+### Status: Clarity 6 / Epoch 4.0 — live on mainnet
 
-The built-ins do not exist on mainnet/testnet until Stacks Epoch 4.0 activates,
-but **Clarinet ≥ 3.21 boots simnet at Epoch 4.0**, so it both type-checks and
-*executes* them locally — no node, no `clarity-cli` build.
+Epoch 4.0 activated at Bitcoin block 960,230 (2026-07-30); the built-ins are now
+live on mainnet. **Clarinet ≥ 3.21 boots simnet at Epoch 4.0** too, so it both
+type-checks and *executes* them locally — no node, no `clarity-cli` build.
 
 ### Run locally
 
@@ -60,14 +60,16 @@ SDK encodes — runs in plain `bun test`, in CI. See
 `was-tx-mined`'s header-authentication branch calls `get-burn-block-info?
 header-hash`. simnet *does* record a header-hash per burn block (so the lookup
 resolves and the `ERR_BAD_HEADER` path is tested), but its burn headers are
-synthetic — the authenticated `(ok ...)` path needs a real 80-byte BTC header and
-is exercised on a devnet / mainnet at Epoch 4.0. The pure built-ins
+synthetic — the authenticated `(ok ...)` path needs a real 80-byte BTC header, now
+exercised on mainnet (confirmed via a `was-tx-mined` golden-proof smoke test
+against the live adapter). The pure built-ins
 (`verify-merkle-proof`, `get-bitcoin-tx-output?`) and `header-merkle-root` are
 fully exercised in simnet.
 
 ### Deployment
 
-**Mainnet:** `SP2M1DE95TS0QBM4K893X6ST49FFJ53CCX9CYWNVY.spv-adapter` — the
+**Mainnet:** `SP2M1DE95TS0QBM4K893X6ST49FFJ53CCX9CYWNVY.spv-adapter` — deployed
+2026-07-30 (Stacks block 8666842, just after Epoch 4.0 activation). The
 principal published in `packages/stacks/src/bitcoin/constants.ts` →
 `SPV_ADAPTER_CONTRACTS`, which `verifyBitcoinPayment` resolves automatically when
 `contract` is omitted. Deployed from a dedicated key that signs nothing else.
@@ -96,5 +98,6 @@ clarinet deployments apply --mainnet
 
 Then smoke-test end-to-end before trusting the published default: point
 `bitcoinVerifier` at the deployed adapter and verify a golden proof
-(`was-tx-mined` against a real BTC header). Until that returns `(ok true)`, the
-adapter is deployed but unproven.
+(`was-tx-mined` against a real BTC header). Done — the golden-proof smoke test
+against the live mainnet adapter returned `(ok true)`; the adapter is deployed
+and proven.

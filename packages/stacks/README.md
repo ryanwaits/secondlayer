@@ -123,7 +123,7 @@ await client.sbtc.getSignersPublicKey(); // 33-byte aggregate key
 
 ## PoX-5 Bitcoin Staking (SIP-045)
 
-Epoch 4.0 activates at Bitcoin block 960,230 (~Jul 30 2026). This module is pinned against the **final `pox-5` contract from stacks-core 4.0.0** — bonds, staking, L1 lockup scripts, signer grants, cycle math.
+Epoch 4.0 activated at Bitcoin block 960,230 (2026-07-30). This module is pinned against the **final `pox-5` contract from stacks-core 4.0.0** — bonds, staking, L1 lockup scripts, signer grants, cycle math.
 
 Activation gating is chain-reported, not hardcoded: `client.pox5.isActive()` / `getActivation()` read the node's `/v2/pox` `contract_versions` — no heights baked in, correct on any network, so integrations built today ship safely before the fork.
 
@@ -226,7 +226,7 @@ Everything here is opt-in. With no `source`/`store`, the manager depends only on
 
 **Prove a Bitcoin payment happened — inside a Stacks contract, with no oracle.**
 
-SIP-044 ("Clarity 6", activating with Stacks Epoch 4.0) lets a contract natively
+SIP-044 ("Clarity 6", live since Stacks Epoch 4.0 activated 2026-07-30) lets a contract natively
 verify that a Bitcoin transaction was mined — *SPV* (Simplified Payment
 Verification), the proof technique Bitcoin light clients use. A contract can check
 "BTC tx T paid Z sats to address Y in a confirmed block" without trusting an
@@ -279,7 +279,8 @@ const result = await verifyBitcoinPayment(client, {
 ```
 
 On mainnet `contract` is optional — it resolves the reference adapter,
-`SP2M1DE95TS0QBM4K893X6ST49FFJ53CCX9CYWNVY.spv-adapter`, live at Epoch 4.0.
+`SP2M1DE95TS0QBM4K893X6ST49FFJ53CCX9CYWNVY.spv-adapter`, live since Epoch 4.0
+activated (2026-07-30) and proven via a `was-tx-mined` golden-proof smoke test.
 Stacks testnet has no Epoch 4.0, so the built-ins don't exist there: pass an
 explicit `contract`, or point it at your own verifier.
 
@@ -290,8 +291,8 @@ Lower-level pieces are exported too: `parseBitcoinTx` / `buildMerkleProof` /
 
 The off-chain surface (proof construction, codecs, sources) works today against
 live Bitcoin data. The on-chain verification calls the SIP-044 native built-ins,
-which exist once Clarity 6 / Epoch 4.0 activates — Bitcoin block 960,230 on
-mainnet, exported as `EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET`.
+live on mainnet since Clarity 6 / Epoch 4.0 activated at Bitcoin block 960,230
+(2026-07-30), exported as `EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET`.
 
 ### Run the on-chain side locally — no node
 

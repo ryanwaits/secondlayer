@@ -1,14 +1,12 @@
 # Bitcoin SPV on Stacks — `@secondlayer/stacks/bitcoin` reference
 
-> **Status (2026-06-26): on-chain round-trip now runs in Clarinet simnet.**
-> The off-chain SDK is feature + test complete and byte-validated against the
-> stacks-core built-in source. The reference `spv-adapter` contract is written —
-> and **Clarinet ≥ 3.21 boots simnet at Epoch 4.0**, so the SIP-044 built-ins
-> now type-check AND execute locally (no node, no `clarity-cli` build). The
-> SDK↔contract round-trip is proven in CI (`onchain.simnet.test.ts`, 7 tests).
-> What still needs a live chain: the authenticated `was-tx-mined` happy path
-> against a *real* BTC header, and testnet/mainnet deploy. All on branch
-> `feat/bitcoin-spv` (not merged/pushed).
+> **Status (2026-07-30): live on mainnet.** Epoch 4.0 activated at Bitcoin block
+> 960,230; `spv-adapter` is deployed at
+> `SP2M1DE95TS0QBM4K893X6ST49FFJ53CCX9CYWNVY.spv-adapter` and proven — a
+> `was-tx-mined` golden-proof smoke test against a real BTC header returned
+> `(ok true)`. The off-chain SDK is feature + test complete and byte-validated
+> against the stacks-core built-in source; the SDK↔contract round-trip is
+> proven both in CI (`onchain.simnet.test.ts`, 7 tests) and on mainnet.
 
 ---
 
@@ -206,8 +204,9 @@ Args `(leaf root tx-index tx-count siblings)`, hashes in **internal** byte order
 ;; → (some 0x…)   not none
 ```
 The authenticated `(ok true)` path needs a *real* 80-byte BTC header whose hash
-matches a recorded burn block — simnet's burn headers are synthetic, so that's a
-devnet/mainnet test. Every other branch runs here.
+matches a recorded burn block — simnet's burn headers are synthetic, so that
+branch only runs on a live chain. Confirmed on mainnet 2026-07-30 (see status
+banner). Every other branch runs here in simnet.
 
 **Automated (SDK-driven) version** — proves the bytes the SDK encodes are exactly
 what the built-ins accept, runs in CI:
@@ -251,10 +250,10 @@ privacy; it stands apart from SilentBTC.
 
 | Example | Builds on | Demoable |
 |---|---|---|
-| **sBTC deposit → Bitcoin L1 proof** | Subgraphs/Streams `sbtcDeposit` (already surfaces `bitcoin_txid`) + SDK `buildTxProof` | **now** (off-chain); verify runs in **simnet** |
-| **BTC-settled escrow / OTC** | `spv-adapter.was-tx-mined` + `verifyBitcoinPayment` | **simnet now** (real-header auth at activation) |
-| **BTC-L1 collateral proof** (Zest/Granite-style) | same | **simnet now** (real-header auth at activation) |
-| **Atomic BTC↔sBTC/Runes swap** | uncapped native SPV (multi-output) | **simnet now** (real-header auth at activation) |
+| **sBTC deposit → Bitcoin L1 proof** | Subgraphs/Streams `sbtcDeposit` (already surfaces `bitcoin_txid`) + SDK `buildTxProof` | **now** (off-chain); verify runs in **simnet + live on mainnet** |
+| **BTC-settled escrow / OTC** | `spv-adapter.was-tx-mined` + `verifyBitcoinPayment` | **simnet + real-header auth now live on mainnet** |
+| **BTC-L1 collateral proof** (Zest/Granite-style) | same | **simnet + real-header auth now live on mainnet** |
+| **Atomic BTC↔sBTC/Runes swap** | uncapped native SPV (multi-output) | **simnet + real-header auth now live on mainnet** |
 | **Proof-bundle dataset** `/v1/index/bitcoin/proofs` | indexer + a Bitcoin source (plan 014) | deferred to demand |
 
 The first one is the keystone — and it runs **today**, because secondlayer already
@@ -280,8 +279,9 @@ async function onDeposit(event) {                 // delivered by the subscripti
 #1 is **built and runnable now** at `examples/sbtc-l1-proof/` — indexes real sBTC
 deposits, builds each Bitcoin proof from Esplora, and runs the SIP-044 built-ins
 against `spv-adapter` in simnet (`bun start` → `included: true` + decoded output +
-fee delta). #2–#4 ship as code + `.clar` alongside the adapter at activation (so
-they're tested, not untested Clarity). #5 is plan 014.
+fee delta). #2–#4 remain to be built — no longer blocked on activation now that
+mainnet real-header auth is proven (adapter live, `was-tx-mined` confirmed
+`(ok true)`). #5 is plan 014.
 
 ## 8. The flywheel — secondlayer indexing ⇄ SPV
 
@@ -338,10 +338,14 @@ demand-gated, exactly as the doctrine prescribes.
 - **Done (on-chain, simnet):** `spv-adapter` type-checks + executes the SIP-044
   built-ins in Clarinet ≥ 3.21 simnet; SDK↔contract round-trip proven in CI
   (`onchain.simnet.test.ts`). Recipe in `contracts/README.md` (no `clarity-cli`).
-- **Still needs a live chain:** the authenticated `was-tx-mined` happy path against
-  a real BTC header (simnet's burn headers are synthetic), then deploy
-  `spv-adapter` to mainnet at Epoch 4.0 (founder sign-off). Testnet has no
-  Epoch 4.0 — devnet is the only pre-mainnet rehearsal.
+- **Done (on-chain, mainnet):** Epoch 4.0 activated 2026-07-30 (Bitcoin block
+  960,230); `spv-adapter` deployed to
+  `SP2M1DE95TS0QBM4K893X6ST49FFJ53CCX9CYWNVY.spv-adapter` and proven — a
+  `was-tx-mined` golden-proof smoke test against a real BTC header returned
+  `(ok true)`. Testnet still has no Epoch 4.0 — devnet remains the only
+  pre-mainnet rehearsal there.
+- **Next:** build examples #2–#4 from §7 (escrow/OTC, collateral proof, atomic
+  swaps) now that mainnet real-header auth is live.
 - **Deferred:** a secondlayer-hosted proof-bundle feed (plan 014) — only on named
   demand; integrator-node-first covers the common case today.
 ```

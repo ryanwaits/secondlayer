@@ -9,8 +9,9 @@ proof and runs the **SIP-044 native built-ins** against the `spv-adapter`
 reference contract. It runs **today** in Clarinet simnet (Epoch 4.0), no node.
 
 > Requires **Clarinet ≥ 3.21** (boots simnet at Epoch 4.0, where the SIP-044
-> built-ins resolve). On mainnet the same calls run against the deployed
-> adapter from Epoch 4.0 (Bitcoin block 960,230). Stacks testnet has no
+> built-ins resolve). Epoch 4.0 activated on mainnet at Bitcoin block 960,230
+> (2026-07-30) — the same calls now run against the live deployed adapter,
+> `SP2M1DE95TS0QBM4K893X6ST49FFJ53CCX9CYWNVY.spv-adapter`. Stacks testnet has no
 > Epoch 4.0 — the built-ins don't exist there.
 
 ```bash
@@ -46,14 +47,14 @@ and `get-bitcoin-tx-output?` decodes the funded output — both **native built-i
 executed on-chain in simnet**, fed by the exact bytes the SDK encodes. The BTC
 output amount (12000 sats) minus the protocol fee equals the sBTC minted (11753).
 
-It is **not yet chain-authentication**: `verify-merkle-proof` checks inclusion
-under a caller-supplied root, and simnet's burn-block headers are synthetic. The
-fully header-authenticated check — `was-tx-mined`, which authenticates the block
-header against `get-burn-block-info?` — needs a real Bitcoin header and a live
-Clarity-6 chain. On mainnet it's a one-line upgrade: swap `callRO` for
-`bitcoinVerifier` + a `PublicClient` and call `was-tx-mined` against
-`SP2M1DE95TS0QBM4K893X6ST49FFJ53CCX9CYWNVY.spv-adapter`. Same proof, same
-contract.
+This example itself is **not chain-authentication**: `verify-merkle-proof` checks
+inclusion under a caller-supplied root, and simnet's burn-block headers are
+synthetic. The fully header-authenticated check — `was-tx-mined`, which
+authenticates the block header against `get-burn-block-info?` — needs a real
+Bitcoin header and a live Clarity-6 chain. That upgrade (swap `callRO` for
+`bitcoinVerifier` + a `PublicClient`, call `was-tx-mined` against
+`SP2M1DE95TS0QBM4K893X6ST49FFJ53CCX9CYWNVY.spv-adapter`) has been run against
+mainnet post-activation and returned `(ok true)` — same proof, same contract.
 
 SPV trust-minimizes **verification**, not **custody**.
 
