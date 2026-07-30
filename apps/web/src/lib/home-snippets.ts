@@ -52,10 +52,12 @@ export const FILTERS_GATE_SNIPPET = `on.sbtcDeposit({}).toIndexParams();
 export const TYPED_HANDLERS_SNIPPET = `import { marketplaceAbi } from "./marketplace.abi";
 
 sources: {
-  sale: { type: "contract_call",
-          contractId: MARKETPLACE,
-          functionName: "purchase-asset",
-          abi: marketplaceAbi },
+  sale: {
+    type: "contract_call",
+    contractId: MARKETPLACE,
+    functionName: "purchase-asset",
+    abi: marketplaceAbi,
+  },
 },
 handlers: {
   sale: (event, ctx) => ctx.insert("sales", {

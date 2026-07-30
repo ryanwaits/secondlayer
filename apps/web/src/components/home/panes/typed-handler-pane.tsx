@@ -25,14 +25,16 @@ export function TypedHandlerPane() {
 							<span className="s">"./marketplace.abi"</span>;{"\n"}
 							{"\n"}
 							{"sources: {\n"}
-							{"  sale: { type: "}
+							{"  sale: {\n"}
+							{"    type: "}
 							<span className="s">"contract_call"</span>
 							{",\n"}
-							{"          contractId: MARKETPLACE,\n"}
-							{"          functionName: "}
+							{"    contractId: MARKETPLACE,\n"}
+							{"    functionName: "}
 							<span className="s">"purchase-asset"</span>
 							{",\n"}
-							{"          abi: marketplaceAbi },\n"}
+							{"    abi: marketplaceAbi,\n"}
+							{"  },\n"}
 							{"},\n"}
 							{"handlers: {\n"}
 							{"  sale: (event, ctx) "}
