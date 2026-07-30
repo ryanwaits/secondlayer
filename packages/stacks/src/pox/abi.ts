@@ -1,11 +1,10 @@
 import type { AbiContract } from "../clarity/abi/contract.ts";
 
-const poxAddressTuple = {
-	tuple: [
-		{ name: "version", type: { buff: { length: 1 } } },
-		{ name: "hashbytes", type: { buff: { length: 32 } } },
-	],
-} as const;
+// NOTE: ABI fragments are written out at each use site rather than shared via a
+// module-local const. bunup's dts emitter cannot express a reference to a
+// non-exported const — it drops the `type` property entirely (and collapses it
+// to `{}` if the const is exported), so the SHIPPED types were malformed while
+// the source type-checked clean. Verbose here beats broken for consumers.
 
 export const POX_ABI = {
 	functions: [
@@ -37,7 +36,15 @@ export const POX_ABI = {
 			outputs: {
 				optional: {
 					tuple: [
-						{ name: "pox-addr", type: poxAddressTuple },
+						{
+							name: "pox-addr",
+							type: {
+								tuple: [
+									{ name: "version", type: { buff: { length: 1 } } },
+									{ name: "hashbytes", type: { buff: { length: 32 } } },
+								],
+							},
+						},
 						{ name: "lock-period", type: "uint128" },
 						{ name: "first-reward-cycle", type: "uint128" },
 						{
@@ -59,7 +66,17 @@ export const POX_ABI = {
 						{ name: "amount-ustx", type: "uint128" },
 						{ name: "delegated-to", type: "principal" },
 						{ name: "until-burn-ht", type: { optional: "uint128" } },
-						{ name: "pox-addr", type: { optional: poxAddressTuple } },
+						{
+							name: "pox-addr",
+							type: {
+								optional: {
+									tuple: [
+										{ name: "version", type: { buff: { length: 1 } } },
+										{ name: "hashbytes", type: { buff: { length: 32 } } },
+									],
+								},
+							},
+						},
 					],
 				},
 			},
@@ -68,7 +85,15 @@ export const POX_ABI = {
 			name: "can-stack-stx",
 			access: "read-only",
 			args: [
-				{ name: "pox-addr", type: poxAddressTuple },
+				{
+					name: "pox-addr",
+					type: {
+						tuple: [
+							{ name: "version", type: { buff: { length: 1 } } },
+							{ name: "hashbytes", type: { buff: { length: 32 } } },
+						],
+					},
+				},
 				{ name: "amount-ustx", type: "uint128" },
 				{ name: "first-reward-cycle", type: "uint128" },
 				{ name: "num-cycles", type: "uint128" },
@@ -82,7 +107,15 @@ export const POX_ABI = {
 			access: "public",
 			args: [
 				{ name: "amount-ustx", type: "uint128" },
-				{ name: "pox-addr", type: poxAddressTuple },
+				{
+					name: "pox-addr",
+					type: {
+						tuple: [
+							{ name: "version", type: { buff: { length: 1 } } },
+							{ name: "hashbytes", type: { buff: { length: 32 } } },
+						],
+					},
+				},
 				{ name: "start-burn-ht", type: "uint128" },
 				{ name: "lock-period", type: "uint128" },
 				{
@@ -114,7 +147,17 @@ export const POX_ABI = {
 				{ name: "amount-ustx", type: "uint128" },
 				{ name: "delegate-to", type: "principal" },
 				{ name: "until-burn-ht", type: { optional: "uint128" } },
-				{ name: "pox-addr", type: { optional: poxAddressTuple } },
+				{
+					name: "pox-addr",
+					type: {
+						optional: {
+							tuple: [
+								{ name: "version", type: { buff: { length: 1 } } },
+								{ name: "hashbytes", type: { buff: { length: 32 } } },
+							],
+						},
+					},
+				},
 			],
 			outputs: { response: { ok: "bool", error: "int128" } },
 		},
@@ -130,7 +173,17 @@ export const POX_ABI = {
 								{ name: "amount-ustx", type: "uint128" },
 								{ name: "delegated-to", type: "principal" },
 								{ name: "until-burn-ht", type: { optional: "uint128" } },
-								{ name: "pox-addr", type: { optional: poxAddressTuple } },
+								{
+									name: "pox-addr",
+									type: {
+										optional: {
+											tuple: [
+												{ name: "version", type: { buff: { length: 1 } } },
+												{ name: "hashbytes", type: { buff: { length: 32 } } },
+											],
+										},
+									},
+								},
 							],
 						},
 					},
@@ -143,7 +196,15 @@ export const POX_ABI = {
 			access: "public",
 			args: [
 				{ name: "extend-count", type: "uint128" },
-				{ name: "pox-addr", type: poxAddressTuple },
+				{
+					name: "pox-addr",
+					type: {
+						tuple: [
+							{ name: "version", type: { buff: { length: 1 } } },
+							{ name: "hashbytes", type: { buff: { length: 32 } } },
+						],
+					},
+				},
 				{
 					name: "signer-sig",
 					type: { optional: { buff: { length: 65 } } },

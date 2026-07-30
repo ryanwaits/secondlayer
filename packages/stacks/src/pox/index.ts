@@ -30,6 +30,9 @@ export type {
 	DelegationInfo,
 };
 export type { PoxAddress } from "./types.ts";
+/** The pox-4 ABI — `as const`, so a `contract_call` subgraph source that
+ *  references it gets typed `event.input`. */
+export { POX_ABI } from "./abi.ts";
 
 /** Actions provided by the PoX extension. */
 export type PoxActions = {

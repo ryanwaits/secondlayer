@@ -6,33 +6,11 @@
  */
 import type { AbiContract } from "../clarity/abi/contract.ts";
 
-const optionalSignerCalldata = {
-	optional: { buff: { length: 500 } },
-} as const;
-
-const earnedRewardsTuple = {
-	tuple: [
-		{ name: "earned", type: "uint128" },
-		{ name: "rewards-per-token", type: "uint128" },
-	],
-} as const;
-
-const l1LockupOutputTuple = {
-	tuple: [
-		{ name: "amount", type: "uint128" },
-		{ name: "header", type: { buff: { length: 80 } } },
-		{ name: "height", type: "uint128" },
-		{
-			name: "leaf-hashes",
-			type: { list: { type: { buff: { length: 32 } }, length: 14 } },
-		},
-		{ name: "output-index", type: "uint128" },
-		{ name: "tx", type: { buff: { length: 100000 } } },
-		{ name: "tx-count", type: "uint128" },
-		{ name: "tx-index", type: "uint128" },
-		{ name: "unlock-burn-height", type: "uint128" },
-	],
-} as const;
+// NOTE: ABI fragments are written out at each use site rather than shared via a
+// module-local const. bunup's dts emitter cannot express a reference to a
+// non-exported const — it drops the `type` property entirely (and collapses it
+// to `{}` if the const is exported), so the SHIPPED types were malformed while
+// the source type-checked clean. Verbose here beats broken for consumers.
 
 export const POX5_ABI = {
 	functions: [
@@ -232,7 +210,15 @@ export const POX5_ABI = {
 								},
 							},
 							{ name: "bond-totals", type: "uint128" },
-							{ name: "stx-rewards", type: earnedRewardsTuple },
+							{
+								name: "stx-rewards",
+								type: {
+									tuple: [
+										{ name: "earned", type: "uint128" },
+										{ name: "rewards-per-token", type: "uint128" },
+									],
+								},
+							},
 							{ name: "total-rewards", type: "uint128" },
 						],
 					},
@@ -249,7 +235,15 @@ export const POX5_ABI = {
 				{ name: "bond-index", type: { optional: "uint128" } },
 			],
 			outputs: {
-				response: { ok: earnedRewardsTuple, error: "uint128" },
+				response: {
+					ok: {
+						tuple: [
+							{ name: "earned", type: "uint128" },
+							{ name: "rewards-per-token", type: "uint128" },
+						],
+					},
+					error: "uint128",
+				},
 			},
 		},
 		{
@@ -289,7 +283,32 @@ export const POX5_ABI = {
 								tuple: [
 									{
 										name: "outputs",
-										type: { list: { type: l1LockupOutputTuple, length: 10 } },
+										type: {
+											list: {
+												type: {
+													tuple: [
+														{ name: "amount", type: "uint128" },
+														{ name: "header", type: { buff: { length: 80 } } },
+														{ name: "height", type: "uint128" },
+														{
+															name: "leaf-hashes",
+															type: {
+																list: {
+																	type: { buff: { length: 32 } },
+																	length: 14,
+																},
+															},
+														},
+														{ name: "output-index", type: "uint128" },
+														{ name: "tx", type: { buff: { length: 100000 } } },
+														{ name: "tx-count", type: "uint128" },
+														{ name: "tx-index", type: "uint128" },
+														{ name: "unlock-burn-height", type: "uint128" },
+													],
+												},
+												length: 10,
+											},
+										},
 									},
 									{
 										name: "staker-unlock-bytes",
@@ -301,7 +320,12 @@ export const POX5_ABI = {
 						},
 					},
 				},
-				{ name: "signer-calldata", type: optionalSignerCalldata },
+				{
+					name: "signer-calldata",
+					type: {
+						optional: { buff: { length: 500 } },
+					},
+				},
 			],
 			outputs: {
 				response: {
@@ -423,7 +447,12 @@ export const POX5_ABI = {
 				{ name: "amount-ustx", type: "uint128" },
 				{ name: "num-cycles", type: "uint128" },
 				{ name: "start-burn-ht", type: "uint128" },
-				{ name: "signer-calldata", type: optionalSignerCalldata },
+				{
+					name: "signer-calldata",
+					type: {
+						optional: { buff: { length: 500 } },
+					},
+				},
 			],
 			outputs: {
 				response: {
@@ -450,7 +479,12 @@ export const POX5_ABI = {
 				{ name: "old-signer-manager", type: "trait_reference" },
 				{ name: "cycles-to-extend", type: "uint128" },
 				{ name: "amount-increase", type: "uint128" },
-				{ name: "signer-calldata", type: optionalSignerCalldata },
+				{
+					name: "signer-calldata",
+					type: {
+						optional: { buff: { length: 500 } },
+					},
+				},
 			],
 			outputs: {
 				response: {
@@ -520,7 +554,12 @@ export const POX5_ABI = {
 			args: [
 				{ name: "signer-manager", type: "trait_reference" },
 				{ name: "old-signer-manager", type: "trait_reference" },
-				{ name: "signer-calldata", type: optionalSignerCalldata },
+				{
+					name: "signer-calldata",
+					type: {
+						optional: { buff: { length: 500 } },
+					},
+				},
 			],
 			outputs: {
 				response: {

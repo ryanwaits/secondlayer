@@ -75,3 +75,8 @@ export {
 	type UpdateBondRegistrationParams,
 } from "./actions.ts";
 export { pox5, type Pox5Actions, type StakerState } from "./extension.ts";
+
+/** The pox-5 ABI (curated to the 25 functions this module calls, verified
+ *  against mainnet). `as const`, so a `contract_call` subgraph source that
+ *  references it gets typed `event.input`. */
+export { POX5_ABI } from "./abi.ts";
