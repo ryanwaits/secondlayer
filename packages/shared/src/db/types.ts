@@ -856,6 +856,22 @@ export interface ChainReadCacheTable {
 	created_at: Generated<Date>;
 }
 
+/**
+ * A block that arrived for a height we already hold, staged until a later
+ * block's `parent_hash` says which of the two the chain kept. See migration
+ * 0112 — adopting on first sight picked the losing fork twice.
+ */
+export interface PendingForkBlocksTable {
+	height: number;
+	block_hash: string;
+	parent_hash: string;
+	/** The canonical hash we held at this height when the contender arrived. */
+	incumbent_hash: string;
+	/** The raw observer payload, replayed verbatim if this fork wins. */
+	payload: ColumnType<unknown, unknown, unknown>;
+	received_at: Generated<Date>;
+}
+
 export interface Database {
 	blocks: BlocksTable;
 	transactions: TransactionsTable;
@@ -918,6 +934,7 @@ export interface Database {
 	x402_payments: X402PaymentsTable;
 	x402_balances: X402BalancesTable;
 	chain_read_cache: ChainReadCacheTable;
+	pending_fork_blocks: PendingForkBlocksTable;
 }
 
 /** Prepaid x402 credit — one running USD-micros balance per payer principal. */

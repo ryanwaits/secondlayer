@@ -35,6 +35,8 @@ export const TABLE_TO_DB = {
 	// Chain-derived read memo — keyed on index_block_hash, lives with the
 	// blocks it pins to.
 	chain_read_cache: "source",
+	// Staged fork contenders — raw chain data, resolved during ingest.
+	pending_fork_blocks: "source",
 	// ── SOURCE: decoded (L2) ──
 	decoded_events: "source",
 	decoder_checkpoints: "source",
