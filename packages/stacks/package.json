@@ -113,6 +113,11 @@
 			"types": "./dist/src/x402/index.d.ts",
 			"import": "./dist/src/x402/index.js",
 			"require": "./dist/src/x402/index.cjs"
+		},
+		"./filters": {
+			"types": "./dist/src/filters/index.d.ts",
+			"import": "./dist/src/filters/index.js",
+			"require": "./dist/src/filters/index.cjs"
 		}
 	},
 	"files": ["dist"],

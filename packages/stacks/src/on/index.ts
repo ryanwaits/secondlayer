@@ -1,4 +1,12 @@
 /**
+ * @deprecated These row-filter factories are superseded by the canonical
+ * chain-event filter vocabulary in `@secondlayer/stacks/filters` — one
+ * filter that projects to Index params, Streams params, subscription
+ * triggers, AND subgraph sources (`on.ftTransfer(...)`,
+ * `.toChainTrigger()`, …). These older factories emit snake_case DB-column
+ * row filters usable only for subgraph-TABLE subscriptions and will be
+ * removed in the next major.
+ *
  * `on.*` — typed filter factories for `@secondlayer/sdk` subscriptions.
  *
  * Each factory binds typed filter clauses to a known table shape and

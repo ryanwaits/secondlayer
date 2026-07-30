@@ -20,6 +20,7 @@ const config: DefineConfigItem[] = defineConfig([
 			"src/stackingdao/index.ts",
 			"src/subscriptions/index.ts",
 			"src/x402/index.ts",
+			"src/filters/index.ts",
 		],
 		format: ["esm", "cjs"],
 		dts: true,
