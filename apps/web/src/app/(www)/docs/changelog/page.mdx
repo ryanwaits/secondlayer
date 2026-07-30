@@ -2,6 +2,46 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## Reliability — July 2026
+
+### A reorg is confirmed before it overwrites anything
+
+A block arriving for a height we already hold no longer replaces it on sight.
+The node's event observer emits competing blocks at the same height routinely,
+so a hash mismatch says "someone built a different block here", not "the chain
+moved" — and only the second justifies orphaning indexed data. Guessing picked
+the losing fork twice in one week.
+
+The contender is now staged and the **next block decides**: a block names
+exactly one parent, so whichever side it names is the one the chain kept. Cost
+is one block of latency on a genuine reorg; the alternative was sitting on the
+wrong chain until someone noticed.
+
+### Integrity asks whether the chain joins up
+
+`findBrokenLinks` reports canonical heights whose block does not descend from
+the one below it, surfaced as a `chain_unlinked` status. The previous check only
+asked whether every height was *present* — which a chain on a losing fork
+answers yes to.
+
+Orphaned blocks the canonical chain still links to are now reclaimed
+automatically, using local data only: if the canonical block at `h + 1` names
+an orphaned block at `h` as its parent, that block is on-chain by definition.
+
+### Status reports progress, not just liveness
+
+`/public/status` reported `subgraph_processor: ok` through a seventeen-hour
+stall — the loop was ticking and heartbeating while making no progress. It now
+also checks how far the furthest-behind subgraph trails the tip.
+
+### Decoded rows and their checkpoint commit together
+
+Every decoder wrote its rows and then its checkpoint as two separate
+statements; a crash in between re-delivered the batch on resume, survivable only
+because the writes happened to be idempotent upserts. They now share one
+transaction. For BNS this also pulls its `bns_names` projections into the same
+commit, which previously could lag the events they derive from.
+
 ## Stacks SDK — July 2026
 
 ### `on` is the filter union (breaking)
