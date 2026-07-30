@@ -10,7 +10,8 @@ const LLMS_TXT = `# Secondlayer — the hosted indexer for Stacks
 - OpenAPI: https://api.secondlayer.tools/v1/openapi.json
 - Public subgraph directory (no key): https://api.secondlayer.tools/v1/subgraphs
 - Per-subgraph agent docs: https://api.secondlayer.tools/v1/subgraphs/{name}/docs.md
-- MCP server (40+ tools): npx -y @secondlayer/mcp  (reads need zero setup)
+- MCP server: npx -y @secondlayer/mcp  (reads need zero setup; call the
+  "capabilities" resource for the current tool list)
 - Mint a free API key, no signup: POST https://api.secondlayer.tools/v1/keys
 - Deploy your own indexer (keyed): npm i -g @secondlayer/cli, then
   sl subgraphs scaffold <contract_id> -o my-view.ts && sl subgraphs deploy my-view.ts
@@ -52,6 +53,10 @@ const LLMS_TXT = `# Secondlayer — the hosted indexer for Stacks
 
 ## Docs
 - https://secondlayer.tools/docs (append ?mode=agent for the agent view)
+- Full text, one file: https://secondlayer.tools/llms-full.txt
+- Any page as markdown: append .md — https://secondlayer.tools/docs/streams.md
+- SDK agent notes ship in the package: node_modules/@secondlayer/sdk/AGENTS.md
+- Deeper agent skill: bunx skills add ryanwaits/secondlayer
 `;
 
 export function GET() {
