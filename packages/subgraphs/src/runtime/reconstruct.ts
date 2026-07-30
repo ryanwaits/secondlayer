@@ -41,6 +41,10 @@ export function reconstructBlock(b: IndexBlockRow): Block {
 		parent_hash: b.parent_hash,
 		burn_block_height: b.burn_block_height,
 		burn_block_hash: b.burn_block_hash,
+		// Present since the blocks endpoint started serving it; older API
+		// deployments omit it, and a null propagates to a clean refusal in
+		// `ctx.client.readOnly` rather than an unpinned tip read.
+		index_block_hash: b.index_block_hash ?? null,
 		timestamp: isoToUnixSeconds(b.block_time),
 		// Index serves canonical rows only.
 		canonical: true,

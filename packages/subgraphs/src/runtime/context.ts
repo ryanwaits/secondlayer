@@ -37,11 +37,20 @@ export interface FlushManifest {
 	writes: FlushWrite[];
 }
 
+import { type ChainReadClient, createChainReadClient } from "./chain-read.ts";
+
 export interface BlockMeta {
 	height: number;
 	hash: string;
 	timestamp: number;
 	burnBlockHeight: number;
+	/**
+	 * Nakamoto StacksBlockId — the identifier `?tip=` accepts, and the only way
+	 * to pin a read-only call to THIS block. Null on rows ingested before it
+	 * was persisted; `ctx.client.readOnly` refuses to run rather than silently
+	 * reading at the node's tip.
+	 */
+	indexBlockHash?: string | null;
 }
 
 export interface TxMeta {
@@ -96,6 +105,9 @@ export class SubgraphContext {
 	 */
 	private readonly journal: boolean;
 
+	/** Memoized per block; see the `client` getter. */
+	protected _client?: ChainReadClient;
+
 	constructor(
 		db: AnyDb,
 		pgSchemaName: string,
@@ -112,6 +124,19 @@ export class SubgraphContext {
 		this._tx = tx;
 		this.byo = byo;
 		this.journal = journal;
+	}
+
+	/**
+	 * Chain reads pinned to THIS block. Lazily built so a handler that never
+	 * reads never touches the node config, and so the in-memory test context
+	 * can override it without a node.
+	 */
+	get client(): ChainReadClient {
+		this._client ??= createChainReadClient({
+			blockHeight: this.block.height,
+			indexBlockHash: this.block.indexBlockHash,
+		});
+		return this._client;
 	}
 
 	get tx(): TxMeta {

@@ -69,6 +69,15 @@ export {
 	type InferredTopicSchema,
 	type PrintSample,
 } from "./print-schema.ts";
+export {
+	ChainReadError,
+	readContractAt,
+	type ChainReadCacheMode,
+	type ChainReadClient,
+	type ChainReadMethods,
+	type ChainReadOptions,
+	type ErasedChainReadClient,
+} from "./runtime/chain-read.ts";
 export { generateSubgraphSQL } from "./schema/generator.ts";
 export {
 	generatePrismaSchema,

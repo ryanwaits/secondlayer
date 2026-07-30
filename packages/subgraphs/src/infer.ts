@@ -1,3 +1,4 @@
+import type { ErasedChainReadClient } from "./runtime/chain-read.ts";
 import type {
 	ColumnType,
 	ComputedValue,
@@ -270,8 +271,17 @@ export interface TypedSubgraphContext<S extends SubgraphSchema> {
 		hash: string;
 		timestamp: number;
 		burnBlockHeight: number;
+		/** Nakamoto StacksBlockId, when the block row carries one. */
+		indexBlockHash?: string | null;
 	};
 	tx: TxMeta;
+	/**
+	 * Read-only contract calls pinned to this block. Erased here for the same
+	 * reason as on `SubgraphContext`: an ABI-generic method on a structurally
+	 * compared interface exceeds TS's instantiation budget. Wrap it with
+	 * `readContractAt(ctx, id, abi)` for full ABI typing at the call site.
+	 */
+	client: ErasedChainReadClient;
 	insert<T extends TableName<S>>(table: T, row: WriteRow<S[T]>): void;
 	update<T extends TableName<S>>(
 		table: T,

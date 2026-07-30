@@ -327,6 +327,8 @@ export type ComputedValue =
 	| RowValue
 	| ((existing: Record<string, unknown> | null) => unknown);
 
+import type { ErasedChainReadClient } from "./runtime/chain-read.ts";
+
 /** Context passed to subgraph handlers during event processing */
 export interface SubgraphContext {
 	block: {
@@ -334,8 +336,21 @@ export interface SubgraphContext {
 		hash: string;
 		timestamp: number;
 		burnBlockHeight: number;
+		/** Nakamoto StacksBlockId, when the block row carries one. */
+		indexBlockHash?: string | null;
 	};
 	tx: TxMeta;
+	/**
+	 * Read-only contract calls pinned to this block. Cached, so the same
+	 * (contract, function, args) is fetched once per block rather than once
+	 * per event.
+	 *
+	 * Erased here on purpose: this interface is compared structurally wherever
+	 * a subgraph definition is passed around, and carrying an ABI-generic
+	 * method pushes those comparisons past TS's instantiation depth. Handlers
+	 * receive `TypedSubgraphContext`, which exposes the fully typed version.
+	 */
+	client: ErasedChainReadClient;
 	insert(table: string, row: Record<string, unknown>): void;
 	update(
 		table: string,

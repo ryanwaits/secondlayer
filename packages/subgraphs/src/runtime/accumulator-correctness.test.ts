@@ -96,15 +96,15 @@ function makeHandlers(): Record<string, SubgraphHandler> {
 			const ev = e as { sender: string; recipient: string; amount: bigint };
 			await debit(ctx, ev.sender, ev.amount);
 			await credit(ctx, ev.recipient, ev.amount);
-		}) as SubgraphHandler,
+		}) as unknown as SubgraphHandler,
 		mint: (async (e: unknown, ctx: SubgraphContext) => {
 			const ev = e as { recipient: string; amount: bigint };
 			await credit(ctx, ev.recipient, ev.amount);
-		}) as SubgraphHandler,
+		}) as unknown as SubgraphHandler,
 		burn: (async (e: unknown, ctx: SubgraphContext) => {
 			const ev = e as { sender: string; amount: bigint };
 			await debit(ctx, ev.sender, ev.amount);
-		}) as SubgraphHandler,
+		}) as unknown as SubgraphHandler,
 	};
 }
 
@@ -141,7 +141,7 @@ function makeIncrementDef(name: string): SubgraphDefinition {
 					{ address: ev.recipient },
 					{ balance: ev.amount },
 				);
-			}) as SubgraphHandler,
+			}) as unknown as SubgraphHandler,
 			mint: (async (e: unknown, ctx: SubgraphContext) => {
 				const ev = e as { recipient: string; amount: bigint };
 				ctx.increment(
@@ -149,7 +149,7 @@ function makeIncrementDef(name: string): SubgraphDefinition {
 					{ address: ev.recipient },
 					{ balance: ev.amount },
 				);
-			}) as SubgraphHandler,
+			}) as unknown as SubgraphHandler,
 			burn: (async (e: unknown, ctx: SubgraphContext) => {
 				const ev = e as { sender: string; amount: bigint };
 				ctx.increment(
@@ -157,7 +157,7 @@ function makeIncrementDef(name: string): SubgraphDefinition {
 					{ address: ev.sender },
 					{ balance: -ev.amount },
 				);
-			}) as SubgraphHandler,
+			}) as unknown as SubgraphHandler,
 		},
 	};
 }

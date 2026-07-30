@@ -412,6 +412,7 @@ export async function processBlock(
 		hash: block.hash,
 		timestamp: block.timestamp,
 		burnBlockHeight: block.burn_block_height,
+		indexBlockHash: block.index_block_hash,
 	};
 	const initialTx: TxMeta = {
 		txId: "",
