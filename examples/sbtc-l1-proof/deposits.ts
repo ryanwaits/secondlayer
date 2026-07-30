@@ -9,7 +9,7 @@
 // Reads are anonymous (no key) but cover the recent ~24h window; a pinned
 // historical deposit is the fallback so the demo always has something to prove.
 
-import { Index, type IndexSbtcDeposit } from "@secondlayer/sdk";
+import { Index } from "@secondlayer/sdk";
 
 const API = process.env.SL_API_URL ?? "https://api.secondlayer.tools";
 const sl = new Index({ baseUrl: API });
@@ -41,12 +41,6 @@ export const PINNED_DEPOSIT: Deposit = {
 const strip0x = (s: string): string =>
 	(s.startsWith("0x") ? s.slice(2) : s).toLowerCase();
 
-/** A completed deposit always carries its funding txid + amount; narrow to that. */
-type FundedDeposit = IndexSbtcDeposit & {
-	bitcoin_txid: string;
-	amount: string;
-};
-
 /**
  * Recent completed sBTC deposits from the index, newest first. Falls back to a
  * single pinned historical deposit if the live read is empty or fails — so the
@@ -54,12 +48,24 @@ type FundedDeposit = IndexSbtcDeposit & {
  */
 export async function recentDeposits(limit = 5): Promise<Deposit[]> {
 	try {
+		// Ask for the five columns this function actually uses. The server
+		// projects the SELECT, so the rest never cross the wire — and the row
+		// type says so, which is what lets the `funded` guard below narrow
+		// without a hand-written interface.
 		const { deposits } = await sl.sbtc.deposits.list({
 			confirmed: true,
 			limit,
+			fields: [
+				"bitcoin_txid",
+				"output_index",
+				"amount",
+				"tx_id",
+				"block_height",
+			],
 		});
 		const funded = deposits.filter(
-			(d): d is FundedDeposit => d.bitcoin_txid !== null && d.amount !== null,
+			(d): d is typeof d & { bitcoin_txid: string; amount: string } =>
+				d.bitcoin_txid !== null && d.amount !== null,
 		);
 		if (funded.length === 0) return [PINNED_DEPOSIT];
 		return funded.map((d) => ({

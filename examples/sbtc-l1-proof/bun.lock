@@ -5,7 +5,7 @@
     "": {
       "name": "sbtc-l1-proof",
       "dependencies": {
-        "@secondlayer/sdk": "^6.27.0",
+        "@secondlayer/sdk": "^6.43.0",
         "@secondlayer/stacks": "^2.9.0",
         "@stacks/clarinet-sdk": "3.21.0",
         "@stacks/transactions": "7.0.6",
@@ -90,13 +90,13 @@
 
     "@scure/bip39": ["@scure/bip39@2.0.1", "", { "dependencies": { "@noble/hashes": "2.0.1", "@scure/base": "2.0.0" } }, "sha512-PsxdFj/d2AcJcZDX1FXN3dDgitDDTmwf78rKZq1a6c1P1Nan1X/Sxc7667zU3U+AN60g7SxxP0YCVw2H/hBycg=="],
 
-    "@secondlayer/sdk": ["@secondlayer/sdk@6.29.1", "", { "dependencies": { "@secondlayer/shared": "^7.0.0", "@secondlayer/stacks": "^2.14.1", "@secondlayer/subgraphs": "^3.19.7" } }, "sha512-O8jq9X76dDQtDym/NkBI3vDAeuR1yCtuuSCY6gEntKmgkk6W5BJxgnx4NPFo1gbudnom8SoatUwMuo8Wi+rg0w=="],
+    "@secondlayer/sdk": ["@secondlayer/sdk@6.43.0", "", { "dependencies": { "@secondlayer/shared": "^7.4.0", "@secondlayer/stacks": "^3.0.0", "@secondlayer/subgraphs": "^3.23.1" }, "peerDependencies": { "kysely": ">=0.27" }, "optionalPeers": ["kysely"] }, "sha512-BVRWwxk79iK1u3N+3U19iiaXk0UKswXdStVLbMsvvgqXd5xK2nI00+aabUJh9x+HVH7HheA6GBeK3cfQM8F/JA=="],
 
-    "@secondlayer/shared": ["@secondlayer/shared@7.0.2", "", { "dependencies": { "@secondlayer/stacks": "^2.14.1", "kysely": "0.28.15", "kysely-postgres-js": "3.0.0", "postgres": "^3.4.6", "zod": "^4.3.6" } }, "sha512-erK9zk0Alc6HiYJHa4T7w/0g4CoDk3eRl/Sas2tI1oAVA+H+X5fCwQO59W/5bDjKWQDbp3HGqKV3xWOejc3uVw=="],
+    "@secondlayer/shared": ["@secondlayer/shared@7.4.0", "", { "dependencies": { "@secondlayer/stacks": "^3.0.0", "kysely": "0.28.17", "kysely-postgres-js": "3.0.0", "postgres": "^3.4.6", "zod": "^4.3.6" } }, "sha512-e8MbiqJk4mJkUbs52qyCpNqu/AnQz8TY8ShYwQT8EKwo3k9dH08ytXOHW/bnpnOBiSN11ZJqZ/A5Gz8qqm4NkA=="],
 
     "@secondlayer/stacks": ["@secondlayer/stacks@2.17.0", "", { "dependencies": { "@noble/ciphers": "2.1.1", "@noble/curves": "2.0.1", "@noble/hashes": "2.0.1", "@noble/secp256k1": "2.3.0", "@scure/bip32": "2.0.1", "@scure/bip39": "2.0.1", "ai": "6.0.167", "zod": "^4.3.6" }, "peerDependencies": { "typescript": "^5" } }, "sha512-LI5g96mnNbsPi8aEcW10fOX6uMEwxmo/1XJ7jALXCqnT4/iietwAIjUXTFVEZeqXa8Cu73my1sD4l2Rz8V/Siw=="],
 
-    "@secondlayer/subgraphs": ["@secondlayer/subgraphs@3.19.8", "", { "dependencies": { "@secondlayer/shared": "^7.0.1", "@secondlayer/stacks": "^2.14.1", "esbuild": "^0.27.4", "kysely": "0.28.15", "zod": "^4.3.6" } }, "sha512-98KuNjal79S0vCV4nEohMM3r2ddneQxyjFsMTYh+huJKGbbIyQ8UlvOyIGEtcAcTblVSOetyju1XkzxufCnY6w=="],
+    "@secondlayer/subgraphs": ["@secondlayer/subgraphs@3.23.1", "", { "dependencies": { "@secondlayer/shared": "^7.3.1", "@secondlayer/stacks": "^3.0.0", "esbuild": "^0.27.4", "kysely": "0.28.17", "zod": "^4.3.6" } }, "sha512-cr+eyNT5tMyeyNprK0m08whrGCEHZ0BE/LFYCjWfh2eVaugR0LCSGtl1lbMiEmYd9ezhWG2ESiVYKRtx8QTT/g=="],
 
     "@stacks/clarinet-sdk": ["@stacks/clarinet-sdk@3.21.0", "", { "dependencies": { "@stacks/clarinet-sdk-wasm": "3.21.0", "@stacks/transactions": "7.4.0", "kolorist": "1.8.0", "prompts": "2.4.2", "yargs": "18.0.0" } }, "sha512-rA8S1j/3n4DcBAmtu8BhKDEPE2qWBOdkEdoz5IgqdRu7qOUvyUyrGEa/JEZJLqkiSYhSrIB/hIQVWgUVK5iiHQ=="],
 
@@ -150,7 +150,7 @@
 
     "kolorist": ["kolorist@1.8.0", "", {}, "sha512-Y+60/zizpJ3HRH8DCss+q95yr6145JXZo46OTpFvDZWLfRCE4qChOyk1b26nMaNpfHHgxagk9dXT5OP0Tfe+dQ=="],
 
-    "kysely": ["kysely@0.28.15", "", {}, "sha512-r2clcf7HLWvDXaVUEvQymXJY4i3bSOIV3xsL/Upy3ZfSv5HeKsk9tsqbBptLvth5qHEIhxeHTA2jNLyQABkLBA=="],
+    "kysely": ["kysely@0.28.17", "", {}, "sha512-nbD8lB9EB3wNdMhOCdx5Li8DxnLbvKByylRLcJ1h+4SkrowVeECAyZlyiKMThF7xFdRz0jSQ2MoJr+wXux2y0Q=="],
 
     "kysely-postgres-js": ["kysely-postgres-js@3.0.0", "", { "peerDependencies": { "kysely": ">= 0.24.0 < 1", "postgres": "^3.4.0" }, "optionalPeers": ["postgres"] }, "sha512-o2t/xNSYJQDW6rVGGFPXKmZ0BEz2dGn66c2B+cO/k9ZNcU2qPWPycQPQ+B+P2MBXbKYq0xV9BZmFIvkUrmFWAQ=="],
 
@@ -187,6 +187,12 @@
     "yargs-parser": ["yargs-parser@22.0.0", "", {}, "sha512-rwu/ClNdSMpkSrUb+d6BRsSkLUq1fmfsY6TOpYzTwvwkg1/NRG85KBy3kq++A8LKQwX6lsu+aWad+2khvuXrqw=="],
 
     "zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
+
+    "@secondlayer/sdk/@secondlayer/stacks": ["@secondlayer/stacks@3.0.0", "", { "dependencies": { "@noble/ciphers": "2.1.1", "@noble/curves": "2.0.1", "@noble/hashes": "2.0.1", "@noble/secp256k1": "2.3.0", "@scure/bip32": "2.0.1", "@scure/bip39": "2.0.1", "ai": "6.0.167", "zod": "^4.3.6" }, "peerDependencies": { "typescript": "^5" } }, "sha512-dAYhPTWzJkkNyHSIo4DN6m4gtYBQFNkdoqcsfh0CZxJEKGg3P08wVqu75hInFKs1F38OXaOEWLEfeMRFgYRwSg=="],
+
+    "@secondlayer/shared/@secondlayer/stacks": ["@secondlayer/stacks@3.0.0", "", { "dependencies": { "@noble/ciphers": "2.1.1", "@noble/curves": "2.0.1", "@noble/hashes": "2.0.1", "@noble/secp256k1": "2.3.0", "@scure/bip32": "2.0.1", "@scure/bip39": "2.0.1", "ai": "6.0.167", "zod": "^4.3.6" }, "peerDependencies": { "typescript": "^5" } }, "sha512-dAYhPTWzJkkNyHSIo4DN6m4gtYBQFNkdoqcsfh0CZxJEKGg3P08wVqu75hInFKs1F38OXaOEWLEfeMRFgYRwSg=="],
+
+    "@secondlayer/subgraphs/@secondlayer/stacks": ["@secondlayer/stacks@3.0.0", "", { "dependencies": { "@noble/ciphers": "2.1.1", "@noble/curves": "2.0.1", "@noble/hashes": "2.0.1", "@noble/secp256k1": "2.3.0", "@scure/bip32": "2.0.1", "@scure/bip39": "2.0.1", "ai": "6.0.167", "zod": "^4.3.6" }, "peerDependencies": { "typescript": "^5" } }, "sha512-dAYhPTWzJkkNyHSIo4DN6m4gtYBQFNkdoqcsfh0CZxJEKGg3P08wVqu75hInFKs1F38OXaOEWLEfeMRFgYRwSg=="],
 
     "@stacks/clarinet-sdk/@stacks/transactions": ["@stacks/transactions@7.4.0", "", { "dependencies": { "@noble/hashes": "1.1.5", "@noble/secp256k1": "1.7.1", "@stacks/common": "^7.3.1", "@stacks/network": "^7.3.1", "c32check": "^2.0.0", "lodash.clonedeep": "^4.5.0" } }, "sha512-scsQO3rSNNKcPHp56Wy5OeZiIpQNmmZOORz8bkQKWjzvzycAodtSWmAoHiMFAKSleR1NyeRIz642fReqlZU9tw=="],
 
