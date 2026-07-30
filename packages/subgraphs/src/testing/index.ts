@@ -1,5 +1,8 @@
+import type { AbiContract } from "@secondlayer/stacks/clarity";
+import { normalizeAbi, toCamelCase } from "@secondlayer/stacks/clarity";
 import type { EventForFilter } from "../events.ts";
 import type { TypedSubgraphContext } from "../infer.ts";
+import type { ChainReadClient } from "../runtime/chain-read.ts";
 import { SubgraphContext } from "../runtime/context.ts";
 import type { BlockMeta, TxMeta } from "../runtime/context.ts";
 import { buildEventPayload } from "../runtime/runner.ts";
@@ -100,6 +103,41 @@ class InMemorySubgraphContext extends SubgraphContext {
 		return this.overlayMany(table, {}, await this.readRows(table, {}));
 	}
 
+	/**
+	 * Offline `ctx.client`. A handler unit test has no node, so reads are
+	 * stubbed by `<contractId>.<function-name>`; an unstubbed read throws
+	 * naming the key, rather than silently returning undefined and failing the
+	 * assertion somewhere else.
+	 */
+	setReads(reads: Record<string, unknown>): void {
+		this._client = {
+			contract(contractId: string, abi: AbiContract) {
+				const camelToKebab = new Map<string, string>();
+				for (const fn of normalizeAbi(abi).functions) {
+					camelToKebab.set(toCamelCase(fn.name), fn.name);
+				}
+				const read = new Proxy(
+					{},
+					{
+						get(_target, prop: string) {
+							const fnName = camelToKebab.get(prop) ?? prop;
+							const key = `${contractId}.${fnName}`;
+							return async () => {
+								if (!(key in reads)) {
+									throw new Error(
+										`No stubbed chain read for "${key}" — pass it via createTestContext(schema, { reads: { "${key}": … } }).`,
+									);
+								}
+								return reads[key];
+							};
+						},
+					},
+				);
+				return { read } as never;
+			},
+		} as ChainReadClient;
+	}
+
 	/** Materialize pending ops into the store (an end-of-block flush). */
 	async commitOps(): Promise<void> {
 		const tables = new Set<string>();
@@ -135,13 +173,20 @@ function sameValue(a: unknown, b: unknown): boolean {
  */
 export function createTestContext<const S extends SubgraphSchema>(
 	schema: S,
-	options: { block?: Partial<BlockMeta>; tx?: Partial<TxMeta> } = {},
+	options: {
+		block?: Partial<BlockMeta>;
+		tx?: Partial<TxMeta>;
+		/** Stubbed `ctx.client.readOnly` results, keyed
+		 *  `"<contractId>.<function-name>"`. */
+		reads?: Record<string, unknown>;
+	} = {},
 ): TestSubgraphContext<S> {
 	const impl = new InMemorySubgraphContext(
 		schema,
 		defaultBlock(options.block),
 		defaultTx(options.tx),
 	);
+	impl.setReads(options.reads ?? {});
 	const ctx = impl as unknown as TestSubgraphContext<S>;
 	ctx.rows = (table) => impl.rowsOf(table);
 	ctx.commit = () => impl.commitOps();
