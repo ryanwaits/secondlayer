@@ -1,5 +1,11 @@
 # @secondlayer/sdk
 
+## 6.40.1
+
+### Patch Changes
+
+- Fix: passing an explicit `fromCursor` alongside a `sink` skipped the sink's initialization. `loadCursor` is also the sink's setup — it creates the checkpoint table and verifies every declared table carries the height column — so a replay-from-cursor run crashed on its first commit, and the check that keeps reorg rollback from being a silent no-op never ran. The sink now always initializes; `fromCursor` still wins as the resume position.
+
 ## 6.40.0
 
 ### Minor Changes
