@@ -70,16 +70,20 @@ export function assertFinalizedCheckpoint(
 
 /** Build the ctx handed to `onBatch`. Shared by the Streams and Index loops so
  *  the two can't drift on what "progress" means. */
-export function batchContext(
+export function batchContext<TTip extends { block_height: number }, TReorg>(
 	cursor: string | null,
 	height: number | null,
-	tipHeight: number,
-): ConsumerBatchContext {
+	tip: TTip,
+	reorgs: readonly TReorg[] = [],
+): ConsumerBatchContext<TTip, TReorg> {
+	const tipHeight = tip.block_height;
 	return {
 		cursor,
 		height,
 		tipHeight,
 		blocksBehind: height === null ? null : Math.max(0, tipHeight - height),
+		tip,
+		reorgs,
 	};
 }
 
@@ -306,7 +310,7 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 		// reached; an empty page keeps the previous value.
 		height = emitted.at(-1)?.block_height ?? height;
 
-		const ctx = batchContext(checkpoint, height, envelope.tip.block_height);
+		const ctx = batchContext(checkpoint, height, envelope.tip, envelope.reorgs);
 		// Before any early return: an empty page still proves the loop is alive.
 		opts.onProgress?.(ctx);
 

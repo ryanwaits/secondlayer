@@ -211,7 +211,7 @@ export async function consumeIndexFeed<
 		// reached; an empty page keeps the previous value.
 		height = emitted.at(-1)?.block_height ?? height;
 
-		const ctx = batchContext(checkpoint, height, envelope.tip.block_height);
+		const ctx = batchContext(checkpoint, height, envelope.tip, envelope.reorgs);
 		// Before any early return: an empty page still proves the loop is alive.
 		opts.onProgress?.(ctx);
 

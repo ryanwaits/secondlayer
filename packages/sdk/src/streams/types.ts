@@ -309,7 +309,7 @@ export type StreamsEventsSubscribeParams = {
  * block as `${height - 1}:<sentinel>`, so a rewound cursor parses to a
  * position that was never reached.
  */
-export type ConsumerBatchContext = {
+export type ConsumerBatchContext<TTip = unknown, TReorg = unknown> = {
 	/** Checkpoint to commit alongside your rows. */
 	cursor: string | null;
 	/** Highest canonical block the sweep has reached. `null` before the first
@@ -319,6 +319,19 @@ export type ConsumerBatchContext = {
 	tipHeight: number;
 	/** `tipHeight - height`, floored at 0. `null` until `height` is known. */
 	blocksBehind: number | null;
+	/**
+	 * The full tip for this page — `StreamsTip` or `IndexTip` depending on the
+	 * surface. Exposed here so a handler never needs the `envelope` parameter,
+	 * which is the only way to reach it today and is also how the worst
+	 * `finalizedOnly` mistake becomes reachable (`return envelope.next_cursor`
+	 * jumps the cursor past events that were filtered out and never delivered).
+	 */
+	tip: TTip;
+	/**
+	 * Reorgs reported alongside this page; empty when none. Rollback still
+	 * belongs in `onReorg` — this is for observability inside a batch.
+	 */
+	reorgs: readonly TReorg[];
 };
 
 /** @deprecated Use {@link ConsumerBatchContext} — the Index and Streams loops
@@ -401,6 +414,13 @@ export type StreamsEventsConsumeParams<
 	 */
 	onBatch?: (
 		events: D extends true ? IndexEvent[] : StreamsEvent[],
+		/**
+		 * @deprecated Read `ctx.tip` / `ctx.reorgs` instead. The envelope is
+		 * also how the worst `finalizedOnly` mistake stays reachable —
+		 * returning `envelope.next_cursor` jumps the cursor past unfinalized
+		 * events that were filtered out and never delivered. Removed in the
+		 * next major.
+		 */
 		envelope: StreamsEventsEnvelope,
 		ctx: StreamsBatchContext & WithSinkTx<TTx>,
 	) =>
