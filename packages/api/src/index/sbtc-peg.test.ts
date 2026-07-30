@@ -899,3 +899,82 @@ describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 		expect(summary.sbtc_supply_sats).toBeNull();
 	});
 });
+
+describe("sBTC deposits field projection", () => {
+	const rows = [
+		{
+			cursor: "100:0",
+			block_height: 100,
+			block_time: new Date(0),
+			tx_id: "0xabc",
+			tx_index: 0,
+			event_index: 0,
+			amount: "1000",
+			sender: "SP1",
+			bitcoin_txid: "0xbtc",
+			output_index: 1,
+			recipient_btc_version: 0,
+			recipient_btc_hashbytes: "0xhash",
+		},
+	];
+
+	test("returns only the requested columns, plus the pagination keys", async () => {
+		const envelope = await getSbtcDepositsResponse({
+			query: new URLSearchParams("fields=amount,bitcoin_txid"),
+			tip: TIP,
+			readSbtcDeposits: async (params) => {
+				expect(params.fields).toEqual(["amount", "bitcoin_txid"]);
+				const fieldSet = new Set(params.fields);
+				return {
+					deposits: rows.map((r) => {
+						const row: Record<string, unknown> = { ...r };
+						for (const key of Object.keys(row)) {
+							if (
+								!["cursor", "block_height"].includes(key) &&
+								!fieldSet.has(key)
+							)
+								delete row[key];
+						}
+						return row as never;
+					}),
+					next_cursor: null,
+				};
+			},
+			decoderEnabled: true,
+		});
+
+		const row = envelope.deposits[0] as unknown as Record<string, unknown>;
+		expect(Object.keys(row).sort()).toEqual([
+			"amount",
+			"bitcoin_txid",
+			"block_height",
+			"cursor",
+		]);
+		// Genuinely absent, not null — that is what makes the narrowed SDK type honest.
+		expect("sender" in row).toBe(false);
+	});
+
+	test("an unknown field is refused, not silently dropped", async () => {
+		await expect(
+			getSbtcDepositsResponse({
+				query: new URLSearchParams("fields=amount,sendr"),
+				tip: TIP,
+				readSbtcDeposits: async () => ({ deposits: [], next_cursor: null }),
+				decoderEnabled: true,
+			}),
+		).rejects.toThrow(/unknown field: sendr/);
+	});
+
+	test("omitting fields returns the whole row", async () => {
+		const envelope = await getSbtcDepositsResponse({
+			query: new URLSearchParams(""),
+			tip: TIP,
+			readSbtcDeposits: async (params) => {
+				expect(params.fields).toBeUndefined();
+				return { deposits: rows as never, next_cursor: null };
+			},
+			decoderEnabled: true,
+		});
+		expect(envelope.deposits[0]?.sender).toBe("SP1");
+	});
+});

@@ -795,8 +795,8 @@ export type IndexSbtcSummary = {
 	sbtc_supply_sats: string | null;
 };
 
-export type SbtcDepositsEnvelope = {
-	deposits: IndexSbtcDeposit[];
+export type SbtcDepositsEnvelope<TRow = IndexSbtcDeposit> = {
+	deposits: TRow[];
 	next_cursor: string | null;
 	tip: IndexTip;
 	// Chain reorgs overlapping this page's height range; empty when none.
@@ -847,7 +847,22 @@ export type SbtcDepositsListParams = {
 	bitcoinTxid?: string;
 	fromHeight?: number;
 	toHeight?: number;
+	/**
+	 * Columns to return. The server projects the row, so an unrequested column
+	 * is physically absent — and the narrowing overload on `list` makes reading
+	 * one a compile error rather than `undefined` at runtime.
+	 */
+	fields?: readonly (keyof IndexSbtcDeposit & string)[];
 };
+
+/** Deposit columns that survive any projection — pagination needs them. */
+export type SbtcDepositAlwaysFields = "cursor" | "block_height";
+
+/** A deposit row narrowed to the requested columns plus the always-present ones. */
+export type SbtcDepositFields<F extends keyof IndexSbtcDeposit & string> = Pick<
+	IndexSbtcDeposit,
+	(F | SbtcDepositAlwaysFields) & keyof IndexSbtcDeposit
+>;
 
 export type SbtcDepositsWalkParams = Omit<SbtcDepositsListParams, "limit"> & {
 	batchSize?: number;
@@ -911,6 +926,11 @@ export type SbtcDepositsConsumeParams<TTx = never> = Omit<
  *  events, scoreboard). The only productized decoded sBTC peg feed on Stacks. */
 export interface SbtcResource {
 	deposits: {
+		/** Narrowing overload: `fields` shrinks the row type to exactly the
+		 *  requested columns plus {@link SbtcDepositAlwaysFields}. */
+		list<const F extends keyof IndexSbtcDeposit & string>(
+			params: SbtcDepositsListParams & { fields: readonly F[] },
+		): Promise<SbtcDepositsEnvelope<SbtcDepositFields<F>>>;
 		list(params?: SbtcDepositsListParams): Promise<SbtcDepositsEnvelope>;
 		walk(params?: SbtcDepositsWalkParams): AsyncIterable<IndexSbtcDeposit>;
 		/** Checkpointed sweep of completed deposits — append-only, so safe to
@@ -1841,6 +1861,7 @@ export class Index extends BaseClient {
 				bitcoin_txid: params.bitcoinTxid,
 				from_height: params.fromHeight,
 				to_height: params.toHeight,
+				fields: params.fields?.join(","),
 			})}`,
 		);
 	}

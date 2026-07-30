@@ -14,6 +14,7 @@ import {
 	readReorgsForEvents,
 	toIsoOrNull,
 } from "./_shared.ts";
+import { parseFields, projectRow } from "./field-projection.ts";
 import type { IndexTip } from "./tip.ts";
 
 /**
@@ -65,6 +66,7 @@ export const SBTC_DEPOSIT_FILTERS = [
 	"confirmed",
 	"sender",
 	"bitcoin_txid",
+	"fields",
 ] as const;
 
 export const SBTC_WITHDRAWAL_FILTERS = [
@@ -447,6 +449,21 @@ export async function getSbtcEventsResponse(opts: {
 	};
 }
 
+/** Projectable columns on a deposit row. `cursor`/`block_height` always
+ *  survive (see ALWAYS_PROJECTED) — pagination and the reorg span need them. */
+export const SBTC_DEPOSIT_FIELDS = [
+	"block_time",
+	"tx_id",
+	"tx_index",
+	"event_index",
+	"amount",
+	"sender",
+	"bitcoin_txid",
+	"output_index",
+	"recipient_btc_version",
+	"recipient_btc_hashbytes",
+] as const;
+
 // --- deposits (T2) --------------------------------------------------------
 
 function normalizeSbtcDeposit(row: SbtcEventDbRow): SbtcDeposit {
@@ -467,6 +484,8 @@ function normalizeSbtcDeposit(row: SbtcEventDbRow): SbtcDeposit {
 }
 
 export type ReadSbtcDepositsParams = {
+	/** Columns to return; omit for the full row. */
+	fields?: readonly string[];
 	after?: IndexCursorInput;
 	fromHeight: number;
 	toHeight: number;
@@ -512,14 +531,21 @@ export async function readSbtcDeposits(
 		LIMIT ${params.limit + 1}
 	`.execute(db);
 
-	const deposits = rows.slice(0, params.limit).map(normalizeSbtcDeposit);
-	const last = deposits.at(-1);
+	const page = rows.slice(0, params.limit);
+	// Cursor comes from the RAW rows: `event_index` is a projectable column, so
+	// computing the cursor after the strip would break pagination for anyone
+	// who omitted it.
+	const lastRow = page.at(-1);
+	const fieldSet = params.fields ? new Set(params.fields) : undefined;
+	const deposits = page.map((row) =>
+		projectRow(normalizeSbtcDeposit(row) as Record<string, unknown>, fieldSet),
+	) as SbtcDeposit[];
 	return {
 		deposits,
-		next_cursor: last
+		next_cursor: lastRow
 			? encodeIndexCursor({
-					block_height: last.block_height,
-					event_index: last.event_index,
+					block_height: Number(lastRow.block_height),
+					event_index: Number(lastRow.event_index),
 				})
 			: null,
 	};
@@ -550,6 +576,7 @@ export async function getSbtcDepositsResponse(opts: {
 
 	const reader = opts.readSbtcDeposits ?? readSbtcDeposits;
 	const result = await reader({
+		fields: parseFields(opts.query.get("fields"), SBTC_DEPOSIT_FIELDS),
 		after: base.cursor,
 		fromHeight: base.fromHeight,
 		toHeight: base.toHeight,
