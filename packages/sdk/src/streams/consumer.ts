@@ -1,4 +1,5 @@
 import { Cursor } from "./cursor.ts";
+import { ValidationError } from "./errors.ts";
 import type {
 	ConsumerBatchContext,
 	StreamsBatch,
@@ -30,6 +31,38 @@ export type StreamsEventsFetcher = (
 ) => Promise<StreamsEventsEnvelope>;
 
 export type Sleep = (ms: number, signal?: AbortSignal) => Promise<void>;
+
+/**
+ * Guard the `finalizedOnly` checkpoint contract. Shared by both loops.
+ *
+ * In `finalizedOnly` mode the unfinalized tail is filtered OUT of the batch
+ * and re-read next poll — and `onReorg` is skipped entirely, so nothing ever
+ * re-reads a range the cursor has passed. Returning a cursor above the last
+ * delivered finalized event (e.g. `envelope.next_cursor`, which points past
+ * the filtered tail) therefore drops those events permanently and silently.
+ * Throw instead: this is the one wrong return the loop can detect.
+ */
+export function assertFinalizedCheckpoint(
+	// biome-ignore lint/suspicious/noConfusingVoidType: mirrors the onBatch return union it validates
+	returned: string | null | undefined | void,
+	checkpoint: string | null,
+): void {
+	if (returned === null || returned === undefined) return;
+	if (returned === checkpoint) return;
+	const r = Cursor.parse(returned);
+	const c = checkpoint === null ? null : Cursor.parse(checkpoint);
+	const above =
+		c === null ||
+		r.blockHeight > c.blockHeight ||
+		(r.blockHeight === c.blockHeight && r.eventIndex > c.eventIndex);
+	if (above) {
+		const boundary = c ? ` ("${checkpoint}")` : " (none delivered yet)";
+		throw new ValidationError(
+			`onBatch returned cursor "${returned}", above the last delivered finalized event${boundary}. With finalizedOnly, events past that point were filtered out and will be re-read once finalized — committing beyond it skips them permanently. Return ctx.cursor (or nothing); never envelope.next_cursor.`,
+			400,
+		);
+	}
+}
 
 /** Build the ctx handed to `onBatch`. Shared by the Streams and Index loops so
  *  the two can't drift on what "progress" means. */
@@ -174,6 +207,7 @@ export async function consumeStreamsEvents(opts: {
 			envelope,
 			batchContext(checkpoint, height, envelope.tip.block_height),
 		);
+		if (finalizedOnly) assertFinalizedCheckpoint(returnedCursor, checkpoint);
 		const nextCursor = returnedCursor ?? checkpoint;
 
 		if (nextCursor && nextCursor !== cursor) {

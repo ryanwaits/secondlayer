@@ -1,4 +1,9 @@
-import { type Sleep, batchContext, defaultSleep } from "../streams/consumer.ts";
+import {
+	type Sleep,
+	assertFinalizedCheckpoint,
+	batchContext,
+	defaultSleep,
+} from "../streams/consumer.ts";
 import { Cursor } from "../streams/cursor.ts";
 import type { ConsumerBatchContext } from "../streams/types.ts";
 import type { IndexReorg, IndexTip } from "./client.ts";
@@ -158,6 +163,7 @@ export async function consumeIndexFeed<
 			envelope,
 			batchContext(checkpoint, height, envelope.tip.block_height),
 		);
+		if (finalizedOnly) assertFinalizedCheckpoint(returnedCursor, checkpoint);
 		const nextCursor = returnedCursor ?? checkpoint;
 
 		if (nextCursor && nextCursor !== cursor) {

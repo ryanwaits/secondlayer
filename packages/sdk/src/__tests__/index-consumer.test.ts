@@ -265,6 +265,27 @@ describe("index.events.consume", () => {
 		expect(result.cursor).toBe("7:0");
 	});
 
+	test("finalizedOnly throws when onBatch commits past the finalized boundary", async () => {
+		const client = clientFor(() => ({
+			events: [event("6:0", 0, 6), event("8:0", 1, 8)],
+			next_cursor: "8:0",
+			tip: TIP, // finalized_height: 7 — 8:0 is filtered out
+			reorgs: [],
+		}));
+
+		await expect(
+			client.events.consume({
+				eventType: "ft_transfer",
+				finalizedOnly: true,
+				fromCursor: null,
+				maxPages: 1,
+				// The quickstart's habit: envelope.next_cursor. Under finalizedOnly
+				// it points past the undelivered tail — committing it drops 8:0.
+				onBatch: (_events, envelope) => envelope.next_cursor,
+			}),
+		).rejects.toThrow(/finalizedOnly|finalized event/);
+	});
+
 	test("finalizedOnly never fires onReorg", async () => {
 		let reorgCalls = 0;
 		const client = clientFor(() => ({

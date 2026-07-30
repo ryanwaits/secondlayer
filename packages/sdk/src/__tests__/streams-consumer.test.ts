@@ -282,6 +282,61 @@ describe("client.events.consume", () => {
 		expect(result.cursor).toBe("7:0");
 	});
 
+	test("finalizedOnly throws when onBatch commits past the finalized boundary", async () => {
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			fetchImpl: async () =>
+				jsonResponse({
+					events: [
+						event("6:0", 0, { block_height: 6, finalized: true }),
+						event("8:0", 1, { block_height: 8, finalized: false }),
+					],
+					next_cursor: "8:0",
+					tip: TIP,
+					reorgs: [],
+				}),
+		});
+
+		// The classic mistake: returning envelope.next_cursor, which points past
+		// the filtered unfinalized tail. Committing it drops 8:0 forever.
+		await expect(
+			client.events.consume({
+				finalizedOnly: true,
+				fromCursor: null,
+				batchSize: 10,
+				maxPages: 1,
+				onBatch: (_events, envelope) => envelope.next_cursor,
+			}),
+		).rejects.toThrow(/finalizedOnly|finalized event/);
+	});
+
+	test("finalizedOnly accepts returning the delivered checkpoint or below", async () => {
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			fetchImpl: async () =>
+				jsonResponse({
+					events: [
+						event("6:0", 0, { block_height: 6, finalized: true }),
+						event("7:0", 1, { block_height: 7, finalized: true }),
+						event("8:0", 2, { block_height: 8, finalized: false }),
+					],
+					next_cursor: "8:0",
+					tip: TIP,
+					reorgs: [],
+				}),
+		});
+
+		const result = await client.events.consume({
+			finalizedOnly: true,
+			fromCursor: null,
+			batchSize: 10,
+			maxPages: 1,
+			// Committed less than delivered (e.g. a partial write) — legal.
+			onBatch: () => "6:0",
+		});
+		expect(result.cursor).toBe("6:0");
+	});
+
 	test("finalizedOnly never fires onReorg", async () => {
 		let reorgCalls = 0;
 		const client = createStreamsClient({
