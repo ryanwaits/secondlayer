@@ -8,9 +8,28 @@ import {
 	readReorgsForEvents,
 } from "./_shared.ts";
 import { readIndexEvents } from "./events.ts";
+import { parseFields } from "./field-projection.ts";
 import type { IndexTip } from "./tip.ts";
 
 export type { IndexCursorInput };
+
+/**
+ * Projectable columns on an nft-transfer row. `cursor`/`block_height` always
+ * survive (ALWAYS_PROJECTED) and `event_type` is the discriminant — the
+ * delegate reader keeps all three regardless. Omitting `block_time` skips the
+ * `blocks` join entirely (see readIndexEvents).
+ */
+export const NFT_TRANSFER_FIELDS = [
+	"block_time",
+	"tx_id",
+	"tx_index",
+	"event_index",
+	"contract_id",
+	"asset_identifier",
+	"sender",
+	"recipient",
+	"value",
+] as const;
 
 export type NftTransferEvent = {
 	cursor: string;
@@ -37,6 +56,8 @@ export type NftTransfersQuery = {
 	assetIdentifier?: string;
 	sender?: string;
 	recipient?: string;
+	/** Return only these columns (validated against NFT_TRANSFER_FIELDS). */
+	fields?: readonly string[];
 	cursorPastTip: boolean;
 };
 
@@ -56,12 +77,20 @@ export type ReadNftTransfersParams = {
 	assetIdentifier?: string;
 	sender?: string;
 	recipient?: string;
+	/** Columns to return; omit for the full row (see ReadIndexEventsParams.fields). */
+	fields?: readonly string[];
 	db?: Kysely<Database>;
 };
 
 export type ReadNftTransfersResult = {
 	events: NftTransferEvent[];
 	next_cursor: string | null;
+	/** Raw page span for the reorg lookup — survives a projection that
+	 *  dropped `event_index` (see ReadIndexEventsResult.span). */
+	span?: {
+		from: { block_height: number; event_index: number };
+		to: { block_height: number; event_index: number };
+	};
 };
 
 export type NftTransfersReader = (
@@ -84,6 +113,9 @@ export function parseNftTransfersQuery(
 		),
 		sender: parseFilter(query.get("sender") ?? undefined, "sender"),
 		recipient: parseFilter(query.get("recipient") ?? undefined, "recipient"),
+		fields: parseFields(query.get("fields"), NFT_TRANSFER_FIELDS, [
+			"event_type",
+		]),
 	};
 }
 
@@ -105,12 +137,14 @@ export async function readNftTransfers(
 		toHeight: params.toHeight,
 		limit: params.limit,
 		filters,
+		fields: params.fields,
 		db: params.db,
 	});
 
 	return {
 		events: result.events as NftTransferEvent[],
 		next_cursor: result.next_cursor,
+		span: result.span,
 	};
 }
 
@@ -141,8 +175,13 @@ export async function getNftTransfersResponse(opts: {
 		assetIdentifier: parsed.assetIdentifier,
 		sender: parsed.sender,
 		recipient: parsed.recipient,
+		fields: parsed.fields,
 	});
-	const reorgs = await readReorgsForEvents(result.events, opts.readReorgs);
+	// Prefer the raw span (survives a projection that dropped event_index).
+	const reorgs = await readReorgsForEvents(
+		result.span ? [result.span.from, result.span.to] : result.events,
+		opts.readReorgs,
+	);
 
 	return {
 		events: result.events,

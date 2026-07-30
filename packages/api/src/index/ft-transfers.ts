@@ -8,9 +8,28 @@ import {
 	readReorgsForEvents,
 } from "./_shared.ts";
 import { readIndexEvents } from "./events.ts";
+import { parseFields } from "./field-projection.ts";
 import type { IndexTip } from "./tip.ts";
 
 export type { IndexCursorInput };
+
+/**
+ * Projectable columns on an ft-transfer row. `cursor`/`block_height` always
+ * survive (ALWAYS_PROJECTED) and `event_type` is the discriminant — the
+ * delegate reader keeps all three regardless. Omitting `block_time` skips the
+ * `blocks` join entirely (see readIndexEvents).
+ */
+export const FT_TRANSFER_FIELDS = [
+	"block_time",
+	"tx_id",
+	"tx_index",
+	"event_index",
+	"contract_id",
+	"asset_identifier",
+	"sender",
+	"recipient",
+	"amount",
+] as const;
 
 export type FtTransferEvent = {
 	cursor: string;
@@ -36,6 +55,8 @@ export type FtTransfersQuery = {
 	contractId?: string;
 	sender?: string;
 	recipient?: string;
+	/** Return only these columns (validated against FT_TRANSFER_FIELDS). */
+	fields?: readonly string[];
 	cursorPastTip: boolean;
 };
 
@@ -54,12 +75,20 @@ export type ReadFtTransfersParams = {
 	contractId?: string;
 	sender?: string;
 	recipient?: string;
+	/** Columns to return; omit for the full row (see ReadIndexEventsParams.fields). */
+	fields?: readonly string[];
 	db?: Kysely<Database>;
 };
 
 export type ReadFtTransfersResult = {
 	events: FtTransferEvent[];
 	next_cursor: string | null;
+	/** Raw page span for the reorg lookup — survives a projection that
+	 *  dropped `event_index` (see ReadIndexEventsResult.span). */
+	span?: {
+		from: { block_height: number; event_index: number };
+		to: { block_height: number; event_index: number };
+	};
 };
 
 export type FtTransfersReader = (
@@ -78,6 +107,9 @@ export function parseFtTransfersQuery(
 		),
 		sender: parseFilter(query.get("sender") ?? undefined, "sender"),
 		recipient: parseFilter(query.get("recipient") ?? undefined, "recipient"),
+		fields: parseFields(query.get("fields"), FT_TRANSFER_FIELDS, [
+			"event_type",
+		]),
 	};
 }
 
@@ -98,12 +130,14 @@ export async function readFtTransfers(
 		toHeight: params.toHeight,
 		limit: params.limit,
 		filters,
+		fields: params.fields,
 		db: params.db,
 	});
 
 	return {
 		events: result.events as FtTransferEvent[],
 		next_cursor: result.next_cursor,
+		span: result.span,
 	};
 }
 
@@ -133,8 +167,13 @@ export async function getFtTransfersResponse(opts: {
 		contractId: parsed.contractId,
 		sender: parsed.sender,
 		recipient: parsed.recipient,
+		fields: parsed.fields,
 	});
-	const reorgs = await readReorgsForEvents(result.events, opts.readReorgs);
+	// Prefer the raw span (survives a projection that dropped event_index).
+	const reorgs = await readReorgsForEvents(
+		result.span ? [result.span.from, result.span.to] : result.events,
+		opts.readReorgs,
+	);
 
 	return {
 		events: result.events,

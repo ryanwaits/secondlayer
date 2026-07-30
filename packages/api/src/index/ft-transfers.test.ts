@@ -89,6 +89,65 @@ describe("Index ft-transfers helpers", () => {
 	});
 });
 
+describe("Index ft-transfers field projection", () => {
+	test("fields are parsed and threaded to the reader", async () => {
+		const response = await getFtTransfersResponse({
+			query: params("?from_height=0&fields=amount,sender"),
+			tip: TIP,
+			readTransfers: async (readParams) => {
+				expect(readParams.fields).toEqual(["amount", "sender"]);
+				return { events: [], next_cursor: null };
+			},
+		});
+		expect(response.events).toEqual([]);
+	});
+
+	test("an unknown field is refused, not silently dropped", () => {
+		expect(() =>
+			parseFtTransfersQuery(params("?fields=amount,sendr"), TIP),
+		).toThrow(/unknown field: sendr/);
+	});
+
+	test("omitting fields leaves the reader unprojected", async () => {
+		await getFtTransfersResponse({
+			query: params("?from_height=0"),
+			tip: TIP,
+			readTransfers: async (readParams) => {
+				expect(readParams.fields).toBeUndefined();
+				return { events: [], next_cursor: null };
+			},
+		});
+	});
+
+	test("reorg lookup uses the raw span when the projection dropped event_index", async () => {
+		const ranges: Array<{ from: number; to: number }> = [];
+		await getFtTransfersResponse({
+			query: params("?from_height=0&fields=amount"),
+			tip: TIP,
+			readTransfers: async () => ({
+				// Projected rows carry no event_index; the span travels separately.
+				events: [
+					{ cursor: "10:2", block_height: 10, amount: "1" } as never,
+					{ cursor: "12:5", block_height: 12, amount: "2" } as never,
+				],
+				next_cursor: "12:5",
+				span: {
+					from: { block_height: 10, event_index: 2 },
+					to: { block_height: 12, event_index: 5 },
+				},
+			}),
+			readReorgs: async (range) => {
+				ranges.push({
+					from: range.from.block_height,
+					to: range.to.block_height,
+				});
+				return [];
+			},
+		});
+		expect(ranges).toEqual([{ from: 10, to: 12 }]);
+	});
+});
+
 describe.skipIf(!HAS_DB)("Index ft-transfers DB reads", () => {
 	const db = HAS_DB ? getDb() : null;
 
@@ -229,6 +288,31 @@ describe.skipIf(!HAS_DB)("Index ft-transfers DB reads", () => {
 		]);
 		expect(defaultResponse.reorgs).toEqual([]);
 		expect(fullResponse.reorgs).toEqual([]);
+	});
+
+	test("fields=amount returns only that column plus the always-kept set, without breaking pagination", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("decoded_events")
+			.values([
+				row("9900:0", 9900, "SP1.token", "SP1", "SP2", "10"),
+				row("9900:1", 9900, "SP1.token", "SP1", "SP2", "20"),
+			])
+			.execute();
+
+		const response = await getFtTransfersResponse({
+			query: params("?from_height=0&fields=amount"),
+			tip: TIP,
+			readTransfers: (readParams) => readFtTransfers({ ...readParams, db }),
+		});
+
+		for (const event of response.events) {
+			expect(
+				Object.keys(event as unknown as Record<string, unknown>).sort(),
+			).toEqual(["amount", "block_height", "cursor", "event_type"]);
+		}
+		// Cursor built from the RAW rows — pagination survives omitting event_index.
+		expect(response.next_cursor).toBe("9900:1");
 	});
 });
 

@@ -90,6 +90,37 @@ describe("Index nft-transfers helpers", () => {
 	});
 });
 
+describe("Index nft-transfers field projection", () => {
+	test("fields are parsed and threaded to the reader", async () => {
+		const response = await getNftTransfersResponse({
+			query: params("?from_height=0&fields=value,sender"),
+			tip: TIP,
+			readTransfers: async (readParams) => {
+				expect(readParams.fields).toEqual(["value", "sender"]);
+				return { events: [], next_cursor: null };
+			},
+		});
+		expect(response.events).toEqual([]);
+	});
+
+	test("an unknown field is refused, not silently dropped", () => {
+		expect(() =>
+			parseNftTransfersQuery(params("?fields=value,amout"), TIP),
+		).toThrow(/unknown field: amout/);
+	});
+
+	test("omitting fields leaves the reader unprojected", async () => {
+		await getNftTransfersResponse({
+			query: params("?from_height=0"),
+			tip: TIP,
+			readTransfers: async (readParams) => {
+				expect(readParams.fields).toBeUndefined();
+				return { events: [], next_cursor: null };
+			},
+		});
+	});
+});
+
 describe.skipIf(!HAS_DB)("Index nft-transfers DB reads", () => {
 	const db = HAS_DB ? getDb() : null;
 
@@ -241,6 +272,31 @@ describe.skipIf(!HAS_DB)("Index nft-transfers DB reads", () => {
 		]);
 		expect(defaultResponse.reorgs).toEqual([]);
 		expect(fullResponse.reorgs).toEqual([]);
+	});
+
+	test("fields=value returns only that column plus the always-kept set, without breaking pagination", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("decoded_events")
+			.values([
+				row("9900:0", 9900, "SP1.collection", "SP1", "SP2", "0x01"),
+				row("9900:1", 9900, "SP1.collection", "SP1", "SP2", "0x02"),
+			])
+			.execute();
+
+		const response = await getNftTransfersResponse({
+			query: params("?from_height=0&fields=value"),
+			tip: TIP,
+			readTransfers: (readParams) => readNftTransfers({ ...readParams, db }),
+		});
+
+		for (const event of response.events) {
+			expect(
+				Object.keys(event as unknown as Record<string, unknown>).sort(),
+			).toEqual(["block_height", "cursor", "event_type", "value"]);
+		}
+		// Cursor built from the RAW rows — pagination survives omitting event_index.
+		expect(response.next_cursor).toBe("9900:1");
 	});
 });
 
