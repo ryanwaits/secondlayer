@@ -75,10 +75,29 @@ if (needsEntry.length === 0) {
 	process.exit(0);
 }
 
-const siteChangelogDirty =
-	git(["diff", "--name-only", "HEAD", "--", SITE_CHANGELOG]) !== "";
+/**
+ * The entry counts whether it is still uncommitted OR already committed since
+ * the last release tag. Checking only the dirty tree punished the normal flow —
+ * write the entry, commit it with the feature, then bump — and a guard that
+ * fails on correct behavior trains people to pass SKIP_SITE_CHANGELOG.
+ */
+function siteChangelogTouched(): boolean {
+	if (git(["diff", "--name-only", "HEAD", "--", SITE_CHANGELOG]) !== "") {
+		return true;
+	}
+	let lastTag: string;
+	try {
+		lastTag = git(["describe", "--tags", "--abbrev=0"]);
+	} catch {
+		return false; // no tags yet — nothing to compare against
+	}
+	return (
+		git(["diff", "--name-only", `${lastTag}..HEAD`, "--", SITE_CHANGELOG]) !==
+		""
+	);
+}
 
-if (siteChangelogDirty) {
+if (siteChangelogTouched()) {
 	console.log(
 		`Site-changelog guard passed: ${SITE_CHANGELOG} updated alongside ${needsEntry.length} minor/major bump(s).`,
 	);
@@ -91,6 +110,6 @@ console.error(
 		.join("\n")}`,
 );
 console.error(
-	`\nFix: add a "## <Product> — <Month Year>" entry with a "### <title>" block to\n  ${SITE_CHANGELOG}\n(it renders /docs/changelog and the marketing highlights), then re-run.\nInternal-only release? Bypass once with SKIP_SITE_CHANGELOG=1.`,
+	`\nFix: add a "## <Product> — <Month Year>" entry with a "### <title>" block to\n  ${SITE_CHANGELOG}\n(it renders /docs/changelog and the marketing highlights), then re-run.\nAn entry already committed since the last release tag counts too.\nInternal-only release? Bypass once with SKIP_SITE_CHANGELOG=1.`,
 );
 process.exit(1);
