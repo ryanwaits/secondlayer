@@ -1,5 +1,5 @@
 import { CtaPill } from "@/components/home/cta-pill";
-import { HomeFeatures, HomeGetStarted } from "@/components/home/home-sections";
+import { HomeFeatures } from "@/components/home/home-sections";
 import { ProtocolMarquee } from "@/components/home/protocol-marquee";
 import { HomeStatusBadge } from "@/components/status/home-status-badge";
 import { socialMeta } from "@/lib/og";
@@ -23,7 +23,6 @@ export default async function Home() {
 			<HomeView status={status} />
 			<ProtocolMarquee />
 			<HomeFeatures />
-			<HomeGetStarted />
 			<section className="home-final">
 				<h2>
 					Stop rebuilding the chain indexer.

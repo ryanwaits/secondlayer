@@ -1,7 +1,4 @@
 import { CodeBlock } from "@/components/code-block";
-import { AgentPromptBlock } from "@/components/console/agent-prompt";
-import { CopyButton } from "@/components/copy-button";
-import { MARKETING_HOME_PROMPT } from "@/lib/agent-prompts";
 import { FILTERS_SNIPPET, TESTING_SNIPPET } from "@/lib/home-snippets";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -101,38 +98,6 @@ export function HomeFeatures() {
 							<CodeBlock code={TESTING_SNIPPET} />
 						</div>
 						<TestRunPane />
-					</div>
-				</div>
-			</div>
-		</section>
-	);
-}
-
-/** Get-started split: run it yourself / hand it to your agent. */
-export function HomeGetStarted() {
-	return (
-		<section className="home-block" style={{ paddingTop: 0 }}>
-			<div className="home-wrap">
-				<p className="home-kicker">Get started</p>
-				<h2 className="home-h2">Run it yourself. Or hand it to your agent.</h2>
-				<p className="home-lede">
-					Reads need no key, deploys need one command — and the whole surface
-					speaks MCP, so the fastest path might be pasting one block into your
-					harness.
-				</p>
-				<div className="home-gs home-gs-single">
-					<div className="home-gs-card">
-						<div className="home-gs-head">
-							<span className="t">In your agent&apos;s harness</span>
-							<CopyButton code={MARKETING_HOME_PROMPT} inline />
-						</div>
-						<div className="home-harness-row" aria-label="Works with">
-							<span className="home-harness">Claude Code</span>
-							<span className="home-harness">Cursor</span>
-							<span className="home-harness">Codex</span>
-							<span className="home-harness">any MCP client</span>
-						</div>
-						<AgentPromptBlock code={MARKETING_HOME_PROMPT} showCopy={false} />
 					</div>
 				</div>
 			</div>
