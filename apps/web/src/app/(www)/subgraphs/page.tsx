@@ -194,6 +194,14 @@ export default async function SubgraphsPage() {
 							</div>
 							<div className="pp-term">
 								<div>
+									<span className="pfx">$</span> sl subgraphs test
+									stx-transfers.ts --from 8249600
+								</div>
+								<div>
+									<span className="ok">✓</span> 128 events · 128 rows ·{" "}
+									<span className="mut">cassette recorded</span>
+								</div>
+								<div>
 									<span className="pfx">$</span> sl subgraphs deploy
 									stx-transfers.ts --visibility public
 								</div>

@@ -13,23 +13,26 @@ export const metadata: Metadata = socialMeta({
 });
 
 const CONSUME_CODE = `import { createStreamsClient } from "@secondlayer/sdk";
+import { kyselySink } from "@secondlayer/sdk/sinks/kysely";
+import { on } from "@secondlayer/stacks/filters";
+import { db } from "./db";
 
 const streams = createStreamsClient({ apiKey: process.env.SL_API_KEY });
 
 // Every event the chain emits, in order — resume from any
 // cursor, reorg-aware, no node to run.
+const names = on.print({ contractId: "SP2QEZ…BNS-V2" });
+
 await streams.events.consume({
-  fromCursor: lastCheckpoint,
-  types: ["print"],
-  contractId: "SP2QEZ…BNS-V2",
+  ...names.toStreamsParams(),
   batchSize: 500,
-  onBatch: async (events, _envelope, { cursor }) => {
-    for (const e of events) await handle(e);
-    await saveCheckpoint(cursor);
-  },
-  onReorg: async (reorg, { cursor }) => {
-    await rollbackFrom(reorg.fork_point_height); // inclusive of the fork block
-    await saveCheckpoint(cursor);
+  sink: kyselySink(db, {
+    id: "bns-prints",    // checkpoint identity — resumes on restart
+    tables: ["prints"],  // rolled back on reorg, fork block inclusive
+    height: "height",
+  }),
+  onBatch: async (events, _envelope, ctx) => {
+    for (const e of events) await save(ctx.tx, e);
   },
 });`;
 

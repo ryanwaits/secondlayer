@@ -14,17 +14,22 @@ export const metadata: Metadata = socialMeta({
 });
 
 const INDEXER_CODE = `import { Index } from "@secondlayer/sdk";
+import { on } from "@secondlayer/stacks/filters";
 import { db } from "./index-db";
 
 const index = new Index();
-const MARKETPLACE = "SPNWZ…E0VQ0S.marketplace-v4";
 
-// Tail every decoded call to a contract —
-// no node to run, no Clarity to parse.
-for await (const call of index.contractCalls.walk({
-  contractId: MARKETPLACE,
+// One filter, written once — it drives the quick walk here
+// and the production consumer in consumer.ts.
+const sales = on.contractCall({
+  contractId: "SPNWZ…E0VQ0S.marketplace-v4",
   functionName: "purchase-asset",
-})) {
+});
+
+// Tail every decoded call — no node to run, no Clarity to parse.
+for await (const call of index.contractCalls.walk(
+  sales.toContractCallsParams(),
+)) {
   const [collection, tokenId] = call.args;
 
   await db
@@ -39,36 +44,34 @@ for await (const call of index.contractCalls.walk({
     .execute();
 }`;
 
-const CHECKPOINT_CODE = `// The production loop: checkpointed, reorg-safe.
-// Kill it anywhere — it resumes from your cursor.
+const CHECKPOINT_CODE = `// Production: attach a sink. It owns the checkpoint, the
+// transaction boundary, and the reorg rollback — your handler
+// only inserts rows. Kill it anywhere; it resumes.
+import { kyselySink } from "@secondlayer/sdk/sinks/kysely";
+
 await index.contractCalls.consume({
-  contractId: MARKETPLACE,
-  functionName: "purchase-asset",
-  fromCursor: await loadCheckpoint(),
-  fromHeight: 0, // first run: backfill from genesis (paid/credits; free reads = last 24h)
-
-  onBatch: async (calls, envelope, ctx) => {
-    await db.transaction().execute(async (tx) => {
-      for (const call of calls) await insertSale(tx, call);
-      await saveCheckpoint(tx, ctx.cursor); // commits with the rows
-    });
-    return ctx.cursor;
+  ...sales.toContractCallsParams(),
+  fromHeight: 0, // first run: backfill from genesis
+  sink: kyselySink(db, {
+    id: "sales",             // checkpoint identity
+    tables: ["sales"],       // rolled back on reorg
+    height: "block_height",  // the rollback stamp
+  }),
+  onBatch: async (calls, _envelope, ctx) => {
+    // ctx.tx is the sink's transaction — rows and cursor
+    // commit together, or not at all
+    for (const call of calls) await insertSale(ctx.tx, call);
   },
-
-  onReorg: async (reorg) => {
-    // delete from the fork block up (inclusive); the consumer then rewinds
-    // and re-reads the canonical run for you
-    await db.deleteFrom("sales")
-      .where("block_height", ">=", reorg.fork_point_height)
-      .execute();
-  },
-});`;
+});
+// no onReorg, no checkpoint table, no saveCheckpoint —
+// rollback runs whether or not you wrote one`;
 
 const DB_CODE = `import { Kysely, PostgresDialect } from "kysely";
 import { Pool } from "pg";
 
-// The rows your indexer writes — one per decoded purchase-asset call —
-// plus the checkpoint that makes the loop resumable.
+// The rows your indexer writes — one per decoded purchase-asset
+// call. The sink creates its own checkpoint table
+// (sl_consumer_checkpoints) on first run.
 export interface Database {
   sales: {
     tx_id: string;
@@ -77,7 +80,6 @@ export interface Database {
     token_id: string;
     block_height: number;
   };
-  checkpoints: { id: string; cursor: string };
 }
 
 export const db = new Kysely<Database>({
@@ -132,7 +134,7 @@ export default function IndexPage() {
 									content: <CodeBlock code={INDEXER_CODE} lang="typescript" />,
 								},
 								{
-									label: "checkpoint.ts",
+									label: "consumer.ts",
 									content: (
 										<CodeBlock code={CHECKPOINT_CODE} lang="typescript" />
 									),
