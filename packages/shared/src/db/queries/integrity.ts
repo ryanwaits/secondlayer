@@ -129,3 +129,58 @@ export async function computeContiguousTip(
 
 	return Number(rows[0]?.tip ?? fromHeight);
 }
+
+export type BrokenLink = {
+	height: number;
+	hash: string;
+	expectedParent: string;
+	storedParent: string;
+};
+
+/**
+ * Canonical heights whose block does not descend from the canonical block
+ * below it.
+ *
+ * `findGaps` asks "is every height present?", which a chain sitting on a losing
+ * fork answers yes to. On 2026-07-30 a reorg at 8,663,166 was resolved the
+ * wrong way: we adopted a block that mainnet orphaned, its true successors were
+ * swept non-canonical, and later blocks were inserted canonical on top. Every
+ * height existed. Nothing was "missing". The chain simply did not join up, and
+ * no check asked that question — so we served a broken chain for seventeen
+ * hours and only noticed because subgraphs stopped moving.
+ *
+ * Scoped to a recent window by default: an unlinked height is an active-repair
+ * concern, and scanning eight million rows every cycle is not.
+ */
+export async function findBrokenLinks(
+	db: Kysely<Database>,
+	opts: { window?: number; limit?: number } = {},
+): Promise<BrokenLink[]> {
+	const windowSize = opts.window ?? 10_000;
+	const limitClause = opts.limit ? sql`LIMIT ${opts.limit}` : sql``;
+	const { rows } = await sql<{
+		height: string | number;
+		hash: string;
+		expected_parent: string;
+		stored_parent: string;
+	}>`
+		WITH recent AS (
+			SELECT height, hash, parent_hash
+			FROM blocks
+			WHERE canonical = true
+				AND height > (SELECT MAX(height) - ${windowSize} FROM blocks WHERE canonical = true)
+		)
+		SELECT b.height, b.hash, p.hash AS expected_parent, b.parent_hash AS stored_parent
+		FROM recent b
+		JOIN recent p ON p.height = b.height - 1
+		WHERE b.parent_hash <> p.hash
+		ORDER BY b.height
+		${limitClause}
+	`.execute(db);
+	return rows.map((r) => ({
+		height: Number(r.height),
+		hash: r.hash,
+		expectedParent: r.expected_parent,
+		storedParent: r.stored_parent,
+	}));
+}

@@ -2,6 +2,7 @@ import { getSourceDb, sql } from "@secondlayer/shared/db";
 import {
 	computeContiguousTip,
 	countMissingBlocks,
+	findBrokenLinks,
 	findGaps,
 } from "@secondlayer/shared/db/queries/integrity";
 import type { Gap } from "@secondlayer/shared/db/queries/integrity";
@@ -24,6 +25,8 @@ export const integrityState = {
 	// autoBackfillRemaining/InProgress which reset to 0/false after every attempt —
 	// that reset made a permanently-stuck gap look identical to "caught up").
 	autoBackfillUnfillable: [] as number[],
+	/** Canonical heights whose parent_hash does not match the block below. */
+	brokenLinks: [] as number[],
 };
 
 // Track when gaps were first seen (for 5-min cooldown)
@@ -43,6 +46,21 @@ async function runIntegrityCheck() {
 		const db = getSourceDb();
 		const gaps = await findGaps(db, 100);
 		const missing = await countMissingBlocks(db);
+		// Every height can be present while the chain still does not join up —
+		// that is exactly how a losing-fork adoption hides. Ask separately.
+		const brokenLinks = await findBrokenLinks(db, { limit: 20 });
+		integrityState.brokenLinks = brokenLinks.map((l) => l.height);
+		if (brokenLinks.length > 0) {
+			const first = brokenLinks[0];
+			logger.error("Integrity: canonical chain does not link", {
+				count: brokenLinks.length,
+				heights: integrityState.brokenLinks,
+				firstHeight: first?.height,
+				storedParent: first?.storedParent,
+				expectedParent: first?.expectedParent,
+				hint: "a block at this height is off-chain; re-ingest it from the node",
+			});
+		}
 
 		integrityState.lastCheckAt = new Date();
 		integrityState.gapCount = gaps.length;
@@ -123,6 +141,48 @@ async function recomputeContiguous(db: ReturnType<typeof getSourceDb>) {
 	logger.info("Recomputed last_contiguous_block", { tip });
 }
 
+/**
+ * Re-canonicalize orphaned blocks the canonical chain actually links to.
+ *
+ * A reorg sweep marks every block at `>= forkHeight` non-canonical and trusts
+ * the normal ingest flow to re-establish them "as new-chain blocks arrive".
+ * When the new fork contains blocks we ALREADY stored, they never arrive again
+ * — the node has no reason to re-deliver them — so they sit `canonical = false`
+ * forever. `last_contiguous_block` stops there, and every subgraph wedges
+ * behind it. (2026-07-30: three blocks, five subgraphs, several hours.)
+ *
+ * The proof needs no RPC and no external provider: if the canonical block at
+ * `h + 1` has `parent_hash` equal to the orphaned row's `hash` at `h`, then `h`
+ * is on the canonical chain by definition — the chain we already trust points
+ * straight at it. Walking downward lets a run of orphans reclaim itself from
+ * the first canonical descendant.
+ *
+ * Returns the heights reclaimed, lowest first.
+ */
+export async function reclaimLinkedOrphans(
+	db: ReturnType<typeof getSourceDb>,
+	heights: readonly number[],
+): Promise<number[]> {
+	const reclaimed: number[] = [];
+	// Descending: reclaiming h+1 first is what lets h prove itself next.
+	for (const height of [...heights].sort((a, b) => b - a)) {
+		const { rows } = await sql<{ reclaimed: number | string | null }>`
+			UPDATE blocks AS orphan
+				 SET canonical = true
+			 FROM blocks AS child
+			WHERE orphan.height = ${height}
+				AND orphan.canonical = false
+				AND child.height = ${height} + 1
+				AND child.canonical = true
+				AND child.parent_hash = orphan.hash
+			RETURNING orphan.height AS reclaimed
+		`.execute(db);
+		if (rows.length > 0) reclaimed.push(height);
+	}
+	reclaimed.sort((a, b) => a - b);
+	return reclaimed;
+}
+
 async function autoBackfill(gaps: Gap[]) {
 	if (integrityState.autoBackfillInProgress) {
 		logger.debug("Auto-backfill already in progress, skipping");
@@ -185,6 +245,32 @@ async function autoBackfill(gaps: Gap[]) {
 				blocks: totalBlocks,
 			});
 			return;
+		}
+
+		// Phase 1b: before declaring anything unfillable, reclaim orphans the
+		// canonical chain links to. These are not missing data — they are rows we
+		// already have, mislabelled by a reorg sweep whose replacements never
+		// re-arrived because they were the same blocks.
+		const reclaimed = await reclaimLinkedOrphans(getSourceDb(), [
+			...remainingHeights,
+		]);
+		if (reclaimed.length > 0) {
+			for (const height of reclaimed) remainingHeights.delete(height);
+			logger.warn(
+				"Auto-backfill: reclaimed orphaned blocks on the canonical chain",
+				{
+					count: reclaimed.length,
+					heights: reclaimed.slice(0, 20),
+				},
+			);
+			if (remainingHeights.size === 0) {
+				integrityState.autoBackfillUnfillable = [];
+				await recomputeContiguous(getSourceDb());
+				logger.info("Auto-backfill complete (reclaimed orphans)", {
+					blocks: reclaimed.length,
+				});
+				return;
+			}
 		}
 
 		// Phase 2: gaps the own DB can't replay. We deliberately do NOT fall back to
