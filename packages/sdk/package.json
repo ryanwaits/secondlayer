@@ -20,6 +20,10 @@
 			"types": "./dist/streams/index.d.ts",
 			"import": "./dist/streams/index.js"
 		},
+		"./streams/rows": {
+			"types": "./dist/streams/rows.d.ts",
+			"import": "./dist/streams/rows.js"
+		},
 		"./subgraphs": {
 			"types": "./dist/subgraphs/index.d.ts",
 			"import": "./dist/subgraphs/index.js"

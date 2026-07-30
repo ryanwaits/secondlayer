@@ -8,12 +8,17 @@ export {
 	ValidationError,
 } from "./errors.ts";
 // ── Per-type guard+decode pairs ─────────────────────────────────────────
-// @deprecated (whole block): these 22 helpers are an internal decoder API
-// that shipped as public DX — they return DB-row shapes (`decoded_payload`
-// nested, `source_cursor`) and force an 11-branch guard+decode dispatch.
-// Use `decode(event)` (one call, the same flat `event_type`-discriminated
-// row Index serves) or `decoded: true` on `streams.events.consume`. These
-// exports will be removed in the next major.
+// @deprecated (whole block): these 22 helpers return DB-row shapes
+// (`decoded_payload` nested, `source_cursor`) and force an 11-branch
+// guard+decode dispatch, which is the wrong default for a consumer. Use
+// `decode(event)` — one call, the same flat `event_type`-discriminated row
+// Index serves — or `decoded: true` on `streams.events.consume`.
+//
+// They are NOT going away: building a `decoded_events`-shaped projection is a
+// real use, and it is what our own decoder does. They move to the explicit
+// `@secondlayer/sdk/streams/rows` subpath at the next major, so reaching for
+// the storage shape is a deliberate act rather than the first thing autocomplete
+// offers. Import from there today.
 export { decodeFtTransfer, isFtTransfer } from "./ft-transfer.ts";
 export { decodeNftTransfer, isNftTransfer } from "./nft-transfer.ts";
 export {

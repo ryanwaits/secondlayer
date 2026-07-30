@@ -5,6 +5,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/index.ts",
 		"src/subgraphs/index.ts",
 		"src/streams/index.ts",
+		"src/streams/rows.ts",
 		"src/x402.ts",
 		"src/sinks/kysely.ts",
 	],
