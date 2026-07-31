@@ -73,10 +73,29 @@ function assertNoWildcards(surface: string, spec: ChainEventFilterSpec): void {
 				unsupported(
 					surface,
 					`${key} wildcard "${candidate}"`,
-					"wildcard patterns are Subscriptions-only",
+					"wildcard patterns are Subscriptions/Subgraphs-only",
 				);
 			}
 		}
+	}
+}
+
+/** The Index API treats `trait` and `contractId` as mutually exclusive (a
+ *  trait already resolves to a contract set). Throw here, naming the fix,
+ *  instead of letting the pair reach the server as a 400. Subgraphs AND them
+ *  — that surface accepts both. */
+function assertNotTraitAndContract(
+	surface: string,
+	spec: ChainEventFilterSpec,
+): void {
+	const trait = "trait" in spec ? spec.trait : undefined;
+	const contract = "contractId" in spec ? spec.contractId : undefined;
+	if (trait !== undefined && contract !== undefined) {
+		unsupported(
+			surface,
+			"trait with contractId",
+			"the Index treats them as mutually exclusive — drop one, or use a subgraph source, which ANDs the pair",
+		);
 	}
 }
 
@@ -108,6 +127,7 @@ function toIndexParams(
 	extra: Record<string, unknown> = {},
 ): IndexEventsParamsShape {
 	assertNoWildcards("Index events", spec);
+	assertNotTraitAndContract("Index events", spec);
 	const out: Record<string, unknown> = {
 		eventType: spec.type === "print_event" ? "print" : spec.type,
 	};
@@ -128,11 +148,10 @@ function toIndexParams(
 			);
 		}
 		if (key === "lockedAddress") {
-			unsupported(
-				"Index events",
-				"lockedAddress",
-				"stx_lock address filtering is Subscriptions/Subgraphs-only",
-			);
+			// Index normalizes stx_lock's locked_address INTO the `sender` column
+			// (the row's sender IS the locked address) — a rename, not a gap.
+			out.sender = value;
+			continue;
 		}
 		if (key === "caller") {
 			unsupported(
@@ -194,15 +213,15 @@ function toContractCallsParams(
 	extra: Record<string, unknown> = {},
 ): ContractCallsParamsShape {
 	assertNoWildcards("Index contract-calls", spec);
+	assertNotTraitAndContract("Index contract-calls", spec);
 	const out: Record<string, unknown> = {};
 	for (const [key, value] of specEntries(spec)) {
 		if (DECORATIVE_FIELDS.has(key)) continue;
 		if (key === "caller") {
-			unsupported(
-				"Index contract-calls",
-				"caller",
-				"caller filtering is Subscriptions/Subgraphs-only (the endpoint filters by tx sender)",
-			);
+			// The endpoint filters by tx sender, which IS the caller — a rename,
+			// not a gap.
+			out.sender = value;
+			continue;
 		}
 		out[key] = value;
 	}

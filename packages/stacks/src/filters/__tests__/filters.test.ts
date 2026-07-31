@@ -84,7 +84,7 @@ describe("on.* factories", () => {
 		});
 	});
 
-	test("wildcards are Subscriptions-only", () => {
+	test("wildcards are Subscriptions/Subgraphs-only", () => {
 		const wild = on.stxTransfer({ sender: "SP2QEZ*" });
 		expect(wild.toChainTrigger()).toEqual({
 			type: "stx_transfer",
@@ -92,6 +92,44 @@ describe("on.* factories", () => {
 		});
 		expect(() => wild.toIndexParams()).toThrow(/wildcard/);
 		expect(() => wild.toStreamsParams()).toThrow(/wildcard/);
+	});
+
+	test("lockedAddress projects to Index's sender column, not a throw", () => {
+		// Index normalizes stx_lock's locked_address INTO `sender` — the rename
+		// was previously refused as if it were a capability gap.
+		const lock = on.stxLock({ lockedAddress: ALICE });
+		expect(lock.toIndexParams()).toEqual({
+			eventType: "stx_lock",
+			sender: ALICE,
+		});
+		// Streams filters probe the RAW payload, whose key is locked_address —
+		// the throw there is genuine, keep it.
+		expect(() => lock.toStreamsParams()).toThrow(/lockedAddress/);
+	});
+
+	test("caller projects to contract-calls' sender (the tx sender IS the caller)", () => {
+		const call = on.contractCall({
+			contractId: TOKEN_CONTRACT,
+			caller: ALICE,
+		});
+		expect(call.toContractCallsParams()).toEqual({
+			contractId: TOKEN_CONTRACT,
+			sender: ALICE,
+		});
+	});
+
+	test("trait with contractId throws at projection, pointing at subgraphs", () => {
+		// The Index treats the pair as mutually exclusive; previously this
+		// reached the server as a runtime 400 instead of throwing locally.
+		const both = on.print({ trait: "sip-010", contractId: TOKEN_CONTRACT });
+		expect(() => both.toIndexParams()).toThrow(/trait with contractId/);
+		const call = on.contractCall({
+			trait: "sip-010",
+			contractId: TOKEN_CONTRACT,
+		});
+		expect(() => call.toContractCallsParams()).toThrow(/trait with contractId/);
+		// Subgraph sources AND the pair — must not throw.
+		expect(both.toSubgraphSource().trait).toBe("sip-010");
 	});
 
 	test("a wildcard inside a contractId array is refused, not passed to the wire", () => {

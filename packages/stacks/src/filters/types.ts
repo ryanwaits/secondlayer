@@ -218,7 +218,8 @@ export type ChainTriggerShape = ChainTriggerOf<ChainEventFilterSpec>;
 /** Params fragment for `index.events.*` (spread into list/walk/consume). */
 export type IndexEventsParamsShape = {
 	eventType: DecodedEventType;
-	contractId?: string;
+	/** A spec's contract set passes through verbatim (the API takes up to 20). */
+	contractId?: string | readonly string[];
 	assetIdentifier?: AssetIdentifier;
 	sender?: string;
 	recipient?: string;
@@ -227,8 +228,11 @@ export type IndexEventsParamsShape = {
 
 /** Params fragment for `index.contractCalls.*`. */
 export type ContractCallsParamsShape = {
-	contractId?: string;
+	/** A spec's contract set passes through verbatim (the API takes up to 20). */
+	contractId?: string | readonly string[];
 	functionName?: string;
+	/** Populated from the spec's `caller` — the endpoint filters by tx sender,
+	 *  which is the caller. */
 	sender?: string;
 	trait?: string;
 };
@@ -236,7 +240,7 @@ export type ContractCallsParamsShape = {
 /** Params fragment for `streams.events.*`. */
 export type StreamsParamsShape = {
 	types: readonly DecodedEventType[];
-	contractId?: string;
+	contractId?: string | readonly string[];
 	sender?: string;
 	recipient?: string;
 	assetIdentifier?: AssetIdentifier;
