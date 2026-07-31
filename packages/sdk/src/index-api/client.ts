@@ -95,6 +95,7 @@ export type FtTransfersListParams = {
 	fromCursor?: string | null;
 	limit?: number;
 	contractId?: string;
+	assetIdentifier?: string;
 	sender?: string;
 	recipient?: string;
 	fromHeight?: number;
@@ -1648,6 +1649,7 @@ export class Index extends BaseClient {
 				from_cursor: params.fromCursor,
 				limit: params.limit,
 				contract_id: params.contractId,
+				asset_identifier: params.assetIdentifier,
 				sender: params.sender,
 				recipient: params.recipient,
 				from_height: params.fromHeight,
