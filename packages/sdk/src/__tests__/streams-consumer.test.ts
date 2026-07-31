@@ -629,3 +629,36 @@ describe("sink capabilities", () => {
 		expect(result.pages).toBe(1);
 	});
 });
+
+describe("resume position reporting", () => {
+	test("a restart into a quiet tail reports the resume position, not nulls", async () => {
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			fetchImpl: async () =>
+				jsonResponse({ events: [], next_cursor: null, tip: TIP, reorgs: [] }),
+		});
+
+		const seen: Array<{
+			cursor: string | null;
+			height: number | null;
+			blocksBehind: number | null;
+		}> = [];
+		await client.events.consume({
+			fromCursor: "5:0",
+			mode: "bounded",
+			maxPages: 1,
+			emptyBackoffMs: 0,
+			onProgress: (ctx) =>
+				seen.push({
+					cursor: ctx.cursor,
+					height: ctx.height,
+					blocksBehind: ctx.blocksBehind,
+				}),
+			onBatch: () => {},
+		});
+
+		expect(seen).toEqual([
+			{ cursor: "5:0", height: 5, blocksBehind: TIP.block_height - 5 },
+		]);
+	});
+});

@@ -87,6 +87,22 @@ export function assertSinkModeCompatible(
 	}
 }
 
+/**
+ * The height a resume cursor implies — seeds the loop's "highest block
+ * reached" so a consumer restarted into a quiet tail reports its true
+ * position (`checkpoint`, `height`, `blocksBehind`) instead of `null`s
+ * until the first delivered row. Lenient: an unparseable cursor seeds
+ * nothing and is left for the server to reject.
+ */
+export function resumeHeight(cursor: string | null): number | null {
+	if (cursor === null) return null;
+	try {
+		return Cursor.parse(cursor).blockHeight;
+	} catch {
+		return null;
+	}
+}
+
 /** Build the ctx handed to `onBatch`. Shared by the Streams and Index loops so
  *  the two can't drift on what "progress" means. */
 export function batchContext<TTip extends { block_height: number }, TReorg>(
@@ -258,8 +274,10 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 	let pages = 0;
 	let emptyPolls = 0;
 	// Highest block reached, carried across empty pages so a caught-up tail
-	// keeps reporting its position instead of dropping to null.
-	let height: number | null = null;
+	// keeps reporting its position instead of dropping to null. Seeded from
+	// the resume cursor: a restart into a quiet tail knows where it stands
+	// before the first row lands.
+	let height: number | null = resumeHeight(cursor);
 
 	while (
 		pages < maxPages &&
@@ -330,7 +348,14 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 		// reached; an empty page keeps the previous value.
 		height = emitted.at(-1)?.block_height ?? height;
 
-		const ctx = batchContext(checkpoint, height, envelope.tip, envelope.reorgs);
+		// An empty page reports the STANDING cursor, not null: the committed
+		// checkpoint is still this consumer's position while it idles.
+		const ctx = batchContext(
+			checkpoint ?? cursor,
+			height,
+			envelope.tip,
+			envelope.reorgs,
+		);
 		// Before any early return: an empty page still proves the loop is alive.
 		opts.onProgress?.(ctx);
 

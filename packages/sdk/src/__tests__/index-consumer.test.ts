@@ -799,3 +799,45 @@ describe("index sink capabilities", () => {
 		expect(fetched).toBe(0);
 	});
 });
+
+describe("index resume position reporting", () => {
+	test("a sink resume into a quiet tail reports the committed position, not nulls", async () => {
+		const client = clientFor(() => ({
+			events: [],
+			next_cursor: null,
+			tip: TIP,
+			reorgs: [],
+		}));
+
+		const seen: Array<{
+			cursor: string | null;
+			height: number | null;
+			blocksBehind: number | null;
+		}> = [];
+		await client.events.consume({
+			eventType: "ft_transfer",
+			sink: {
+				async loadCursor() {
+					return "7:0";
+				},
+				async commitBatch(_cursor, write) {
+					await write({} as never);
+				},
+				async rollback() {},
+			},
+			maxEmptyPolls: 1,
+			emptyBackoffMs: 0,
+			onProgress: (ctx) =>
+				seen.push({
+					cursor: ctx.cursor,
+					height: ctx.height,
+					blocksBehind: ctx.blocksBehind,
+				}),
+			onBatch: () => {},
+		});
+
+		expect(seen).toEqual([
+			{ cursor: "7:0", height: 7, blocksBehind: TIP.block_height - 7 },
+		]);
+	});
+});
