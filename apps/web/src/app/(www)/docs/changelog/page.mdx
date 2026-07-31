@@ -4,6 +4,23 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## Index — July 2026
 
+### One day of dogfooding, four fixes
+
+We ran the whole surface from a fresh repo with one API key, the way you
+would. What broke got fixed the same day:
+
+- `on.ftTransfer({ assetIdentifier })` projected a filter the Index refused —
+  the server accepted `asset_identifier` for nft event reads but not ft. It
+  now works on all six token event types, and `ftTransfers.list` takes
+  `assetIdentifier` directly.
+- `pox5/events` and `sbtc/deposits` 500'd, and `transactions` returned a
+  corrupt cursor, when `fields` omitted the index column — pagination
+  machinery was reading projected rows. Cursors and reorg spans now always
+  come from the raw rows.
+- `/v1/subgraphs/<name>/<table>?_fields=…` without `_id` returned a full page
+  with `next_cursor: null`, silently dropping the rest of your rows. `_id`
+  now drives the cursor server-side whether or not you asked for it.
+
 ### Field projection reaches the transfer feeds
 
 ```ts
