@@ -4,6 +4,19 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## SDK — July 2026
 
+### blocks_behind now means backlog, not event age
+
+Your consumer on a quiet contract used to report tens of thousands of
+blocks "behind" while fully caught up — the number measured how old the
+last matching event was, and it only grew. Now `ctx.blocksBehind` (and
+`consumerHealth`'s `blocks_behind`) is `tip - scannedHeight`: the highest
+block the sweep has *verified*, where an empty page counts as the server
+confirming nothing matches up to the tip. A caught-up tail reads ~0. The
+new `ctx.scannedHeight` carries the verified position; `ctx.height` still
+marks the last delivered row. Capped server scans only claim the cursor
+they returned, `finalizedOnly` stops at the finalized boundary, and reorgs
+roll the verified position back below the fork.
+
 ### Bring any database: sinks are now an open surface
 
 Three sinks ship — `kyselySink`, `drizzleSink` (Postgres and SQLite, with

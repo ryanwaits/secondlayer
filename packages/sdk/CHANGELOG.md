@@ -1,5 +1,11 @@
 # @secondlayer/sdk
 
+## 6.49.0
+
+### Minor Changes
+
+- `blocksBehind` now measures the consumer's actual backlog, not the age of the last delivered event. New `ctx.scannedHeight` (and `scanned_height` in `consumerHealth`'s body) tracks the highest block the sweep has VERIFIED: an empty page is the server confirming nothing matches up to the tip, so a caught-up tail on a quiet contract reads ~0 behind while `height` (last delivered row) stays parked at the last matching event. Rules: rows delivered → verified through the last row; empty page with an advanced cursor → through that cursor only (capped server scans never overclaim); truly empty page → the tip, or `finalized_height` in `finalizedOnly` mode; reorg → rolls back below the fork.
+
 ## 6.48.1
 
 ### Patch Changes
