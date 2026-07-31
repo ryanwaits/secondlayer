@@ -64,14 +64,26 @@ point. If you also pass `onReorg`, yours runs and you own the rollback.
 
 </Callout>
 
+## Three sinks ship
+
+| Sink | Import | Store |
+| --- | --- | --- |
+| `kyselySink` | `@secondlayer/sdk/sinks/kysely` | Postgres via [Kysely](https://kysely.dev) |
+| `drizzleSink` | `@secondlayer/sdk/sinks/drizzle` | Postgres or SQLite via [drizzle](https://orm.drizzle.team) |
+| `bunSqliteSink` | `@secondlayer/sdk/sinks/bun-sqlite` | `bun:sqlite` — one file, zero dependencies |
+
+Any other store: [write your own](/docs/custom-sinks) on the same base and prove it with the conformance kit.
+
 ## Keyed on the query builder, not the driver
 
 `kyselySink(db, …)` takes a [Kysely](https://kysely.dev) instance because a bare
 `pg.Pool` carries no schema type. Without it, `tables` could not be checked
 against your database and `ctx.tx` could not be typed — you would be back to
-`any` at the exact place correctness matters.
+`any` at the exact place correctness matters. `drizzleSink` plays the same
+trick with your schema objects.
 
-kysely is an optional peer dependency; the root entry stays dependency-free.
+kysely and drizzle-orm are optional peer dependencies; the root entry stays
+dependency-free.
 
 ## Rollback is height-stamped
 
