@@ -105,6 +105,13 @@ function toChainTrigger(spec: ChainEventFilterSpec): ChainTriggerShape {
 	const out: Record<string, string | number> = {};
 	for (const [key, value] of specEntries(spec)) {
 		if (DECORATIVE_FIELDS.has(key)) continue;
+		if (key === "factory") {
+			unsupported(
+				"Subscriptions",
+				"factory",
+				"dynamic factory discovery is a Subgraphs-only concept — a trigger targets addresses known when it is created",
+			);
+		}
 		if (Array.isArray(value)) {
 			// One trigger, one contract: silently taking the first would watch
 			// a fraction of what the filter says. Create one subscription per
@@ -133,6 +140,13 @@ function toIndexParams(
 	};
 	for (const [key, value] of specEntries(spec)) {
 		if (DECORATIVE_FIELDS.has(key)) continue;
+		if (key === "factory") {
+			unsupported(
+				"Index events",
+				"factory",
+				"dynamic factory discovery is a Subgraphs-only concept",
+			);
+		}
 		if (AMOUNT_FIELDS.has(key)) {
 			unsupported(
 				"Index events",
@@ -175,6 +189,13 @@ function toStreamsParams(
 	};
 	for (const [key, value] of specEntries(spec)) {
 		if (DECORATIVE_FIELDS.has(key)) continue;
+		if (key === "factory") {
+			unsupported(
+				"Streams",
+				"factory",
+				"dynamic factory discovery is a Subgraphs-only concept",
+			);
+		}
 		if (AMOUNT_FIELDS.has(key)) {
 			unsupported(
 				"Streams",
@@ -217,6 +238,13 @@ function toContractCallsParams(
 	const out: Record<string, unknown> = {};
 	for (const [key, value] of specEntries(spec)) {
 		if (DECORATIVE_FIELDS.has(key)) continue;
+		if (key === "factory") {
+			unsupported(
+				"Index contract-calls",
+				"factory",
+				"dynamic factory discovery is a Subgraphs-only concept",
+			);
+		}
 		if (key === "caller") {
 			// The endpoint filters by tx sender, which IS the caller — a rename,
 			// not a gap.

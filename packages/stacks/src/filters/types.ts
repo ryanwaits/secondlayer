@@ -61,6 +61,19 @@ export interface StxLockSpec {
  *  trait resolution — `toStreamsParams()` throws if set. */
 type TraitScope = { trait?: string };
 
+/** Scope to a DYNAMIC address set discovered from another source's events —
+ *  a Subgraphs-only concept (`toSubgraphSource()` keeps it; every other
+ *  projection throws). Structural mirror of the subgraphs `FactoryScope`:
+ *  `stacks` is the dependency-graph leaf and cannot import it. */
+type FactoryScope = {
+	factory?: {
+		/** Source name whose events reveal the addresses. */
+		from: string;
+		/** Dotted path to the address on that source's payload (e.g. "data.pool"). */
+		field: string;
+	};
+};
+
 export interface FtTransferSpec extends TraitScope {
 	type: "ft_transfer";
 	assetIdentifier?: AssetIdentifier;
@@ -97,7 +110,7 @@ export interface NftBurnSpec extends TraitScope {
 	sender?: string;
 }
 
-export interface ContractCallSpec extends TraitScope {
+export interface ContractCallSpec extends TraitScope, FactoryScope {
 	type: "contract_call";
 	/** One contract id, or a set of them (max 20). Mirrors the subgraphs
 	 *  filter — a router plus its pools is one source, not N. */
@@ -113,7 +126,7 @@ export interface ContractDeploySpec {
 	deployer?: string;
 	contractName?: string;
 }
-export interface PrintEventSpec extends TraitScope {
+export interface PrintEventSpec extends TraitScope, FactoryScope {
 	type: "print_event";
 	/** One contract id, or a set of them (max 20). */
 	contractId?: string | readonly string[];
@@ -205,7 +218,7 @@ export type ChainTriggerOf<S> = {
 	// bigint amounts stringify at the JSON boundary; a contract SET is not
 	// expressible (the wire takes ONE contract per trigger, and
 	// `toChainTrigger()` throws rather than silently taking the first).
-	[K in keyof Omit<S, "abi" | "prints">]:
+	[K in keyof Omit<S, "abi" | "prints" | "factory">]:
 		| Exclude<S[K], bigint | readonly string[]>
 		// A bigint amount arrives as a decimal string; `bigint extends S[K]`
 		// (not the reverse) so it still fires for `bigint | undefined`.

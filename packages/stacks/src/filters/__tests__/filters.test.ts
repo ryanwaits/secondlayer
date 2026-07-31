@@ -118,6 +118,15 @@ describe("on.* factories", () => {
 		});
 	});
 
+	test("factory is Subgraphs-only: kept by toSubgraphSource, refused everywhere else", () => {
+		const factory = { from: "registry", field: "data.pool" } as const;
+		const pools = on.print({ contractId: TOKEN_CONTRACT, factory });
+		expect(pools.toSubgraphSource().factory).toEqual(factory);
+		expect(() => pools.toChainTrigger()).toThrow(/factory/);
+		expect(() => pools.toIndexParams()).toThrow(/factory/);
+		expect(() => pools.toStreamsParams()).toThrow(/factory/);
+	});
+
 	test("trait with contractId throws at projection, pointing at subgraphs", () => {
 		// The Index treats the pair as mutually exclusive; previously this
 		// reached the server as a runtime 400 instead of throwing locally.
