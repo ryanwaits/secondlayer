@@ -327,11 +327,15 @@ export async function readContractCalls(
 
 	const pageRows = rows.slice(0, params.limit);
 	const contract_calls = pageRows.map(normalizeRow);
-	const last = contract_calls.at(-1);
+	// Cursor from the RAW rows, pre-normalization: the day this resource gains
+	// `fields`, a cursor read off projected rows is the pox5 bug again.
+	const lastRow = pageRows.at(-1);
 
 	return {
 		contract_calls,
-		next_cursor: last ? `${last.block_height}:${last.tx_index}` : null,
+		next_cursor: lastRow
+			? `${Number(lastRow.block_height)}:${Number(lastRow.tx_index)}`
+			: null,
 	};
 }
 

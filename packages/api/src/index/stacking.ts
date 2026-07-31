@@ -237,10 +237,14 @@ export async function readStacking(
 	`.execute(db);
 
 	const stacking = rows.map(normalizeStacking);
-	const last = stacking.at(-1);
+	// Cursor from the RAW rows, pre-normalization: the day this resource gains
+	// `fields`, a cursor read off projected rows is the pox5 bug again.
+	const lastRow = rows.at(-1);
 	return {
 		stacking,
-		next_cursor: last ? `${last.block_height}:${last.tx_index}` : null,
+		next_cursor: lastRow
+			? `${Number(lastRow.block_height)}:${Number(lastRow.tx_index)}`
+			: null,
 	};
 }
 
