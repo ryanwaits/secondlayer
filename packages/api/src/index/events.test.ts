@@ -35,13 +35,15 @@ describe("Index /events query parsing", () => {
 		).toThrow("unknown event_type");
 	});
 
-	test("asset_identifier is rejected for ft_transfer", () => {
-		expect(() =>
-			parseIndexEventsQuery(
-				params("?event_type=ft_transfer&asset_identifier=SP1.t::c"),
-				TIP,
-			),
-		).toThrow("unknown query param: asset_identifier");
+	test("asset_identifier is allowed for ft_transfer", () => {
+		// Was rejected until the unified filter union exposed the drift:
+		// `on.ftTransfer({ assetIdentifier }).toIndexParams()` projects it here,
+		// and the column is NOT NULL for every ft row — parity with nft.
+		const parsed = parseIndexEventsQuery(
+			params("?event_type=ft_transfer&asset_identifier=SP1.t::c"),
+			TIP,
+		);
+		expect(parsed.filters.asset_identifier).toBe("SP1.t::c");
 	});
 
 	test("asset_identifier is allowed for nft_transfer", () => {

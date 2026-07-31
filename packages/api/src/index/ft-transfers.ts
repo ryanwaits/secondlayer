@@ -53,6 +53,7 @@ export type FtTransfersQuery = {
 	toHeight: number;
 	limit: number;
 	contractId?: string;
+	assetIdentifier?: string;
 	sender?: string;
 	recipient?: string;
 	/** Return only these columns (validated against FT_TRANSFER_FIELDS). */
@@ -73,6 +74,7 @@ export type ReadFtTransfersParams = {
 	toHeight: number;
 	limit: number;
 	contractId?: string;
+	assetIdentifier?: string;
 	sender?: string;
 	recipient?: string;
 	/** Columns to return; omit for the full row (see ReadIndexEventsParams.fields). */
@@ -105,6 +107,10 @@ export function parseFtTransfersQuery(
 			query.get("contract_id") ?? undefined,
 			"contract_id",
 		),
+		assetIdentifier: parseFilter(
+			query.get("asset_identifier") ?? undefined,
+			"asset_identifier",
+		),
 		sender: parseFilter(query.get("sender") ?? undefined, "sender"),
 		recipient: parseFilter(query.get("recipient") ?? undefined, "recipient"),
 		fields: parseFields(query.get("fields"), FT_TRANSFER_FIELDS, [
@@ -117,9 +123,10 @@ export async function readFtTransfers(
 	params: ReadFtTransfersParams,
 ): Promise<ReadFtTransfersResult> {
 	const filters: Partial<
-		Record<"contract_id" | "sender" | "recipient", string>
+		Record<"contract_id" | "asset_identifier" | "sender" | "recipient", string>
 	> = {};
 	if (params.contractId) filters.contract_id = params.contractId;
+	if (params.assetIdentifier) filters.asset_identifier = params.assetIdentifier;
 	if (params.sender) filters.sender = params.sender;
 	if (params.recipient) filters.recipient = params.recipient;
 
@@ -165,6 +172,7 @@ export async function getFtTransfersResponse(opts: {
 		toHeight: parsed.toHeight,
 		limit: parsed.limit,
 		contractId: parsed.contractId,
+		assetIdentifier: parsed.assetIdentifier,
 		sender: parsed.sender,
 		recipient: parsed.recipient,
 		fields: parsed.fields,

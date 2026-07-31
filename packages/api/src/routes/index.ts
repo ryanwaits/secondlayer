@@ -133,7 +133,7 @@ const INDEX_COMMON = [
 	"sender",
 	"recipient",
 ] as const;
-const FT_ALLOWED = [...INDEX_COMMON, "fields"] as const;
+const FT_ALLOWED = [...INDEX_COMMON, "asset_identifier", "fields"] as const;
 const NFT_ALLOWED = [...INDEX_COMMON, "asset_identifier", "fields"] as const;
 const EVENTS_ALLOWED = [...INDEX_COMMON, "event_type", "asset_identifier"];
 

@@ -198,6 +198,19 @@ describe.skipIf(!HAS_DB)("Index ft-transfers DB reads", () => {
 		).resolves.toMatchObject({
 			events: [{ cursor: "9000:0" }, { cursor: "9900:0" }],
 		});
+		// asset_identifier filters ft rows like it always did nft rows — the
+		// unified filter union projects it to both.
+		await expect(
+			readFtTransfers({
+				db,
+				fromHeight: 0,
+				toHeight: 10_000,
+				assetIdentifier: "SP1.token::token",
+				limit: 10,
+			}),
+		).resolves.toMatchObject({
+			events: [{ cursor: "9000:0" }, { cursor: "9900:0" }],
+		});
 		await expect(
 			readFtTransfers({
 				db,

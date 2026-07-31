@@ -66,8 +66,11 @@ export const INDEX_EVENT_CONFIG = {
 			"recipient",
 			"amount",
 		],
-		equalityFilters: ["contract_id", "sender", "recipient"],
-		allowedFilters: INDEX_COMMON_FILTERS,
+		// asset_identifier mirrors nft_transfer: the column is NOT NULL for every
+		// ft row, and the unified filter union (`on.ftTransfer({ assetIdentifier })`)
+		// projects it here — rejecting it broke the union's contract.
+		equalityFilters: ["contract_id", "asset_identifier", "sender", "recipient"],
+		allowedFilters: [...INDEX_COMMON_FILTERS, "asset_identifier"],
 	},
 	nft_transfer: {
 		columns: ["asset_identifier", "sender", "recipient", "value"],
@@ -110,14 +113,24 @@ export const INDEX_EVENT_CONFIG = {
 	ft_mint: {
 		columns: ["asset_identifier", "recipient", "amount"],
 		requiredNonNull: ["contract_id", "asset_identifier", "recipient", "amount"],
-		equalityFilters: ["contract_id", "recipient"],
-		allowedFilters: [...PAGINATION_FILTERS, "contract_id", "recipient"],
+		equalityFilters: ["contract_id", "asset_identifier", "recipient"],
+		allowedFilters: [
+			...PAGINATION_FILTERS,
+			"contract_id",
+			"asset_identifier",
+			"recipient",
+		],
 	},
 	ft_burn: {
 		columns: ["asset_identifier", "sender", "amount"],
 		requiredNonNull: ["contract_id", "asset_identifier", "sender", "amount"],
-		equalityFilters: ["contract_id", "sender"],
-		allowedFilters: [...PAGINATION_FILTERS, "contract_id", "sender"],
+		equalityFilters: ["contract_id", "asset_identifier", "sender"],
+		allowedFilters: [
+			...PAGINATION_FILTERS,
+			"contract_id",
+			"asset_identifier",
+			"sender",
+		],
 	},
 	nft_mint: {
 		columns: ["asset_identifier", "recipient", "value"],
