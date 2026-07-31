@@ -450,6 +450,9 @@ export function createStreamsClient(
 					sender: params.sender,
 					recipient: params.recipient,
 					assetIdentifier: params.assetIdentifier,
+					// Forward the labelled OR-groups: dropping them here silently
+					// widened the stream to the FULL firehose (billed per row).
+					filters: params.filters,
 					batchSize: params.batchSize ?? 100,
 					emptyBackoffMs: params.emptyBackoffMs,
 					maxPages: params.maxPages,

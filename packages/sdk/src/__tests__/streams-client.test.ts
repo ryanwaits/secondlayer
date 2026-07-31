@@ -245,6 +245,42 @@ describe("createStreamsClient", () => {
 		expect(requestedCursors).toEqual([null, "1:1"]);
 	});
 
+	test("stream forwards the labelled filters map to the wire", async () => {
+		// Regression: stream() declared `filters` but never forwarded it, so a
+		// labelled caller got the FULL unfiltered firehose — billed per row.
+		const requests: Request[] = [];
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			fetchImpl: async (input, init) => {
+				requests.push(
+					input instanceof Request
+						? input
+						: new Request(input.toString(), init),
+				);
+				return jsonResponse({
+					events: [],
+					next_cursor: null,
+					tip: TIP,
+					reorgs: [],
+				});
+			},
+		});
+
+		const filters = {
+			sbtc: { types: ["ft_transfer"], assetIdentifier: "SP1.t::t" },
+		} as const;
+		for await (const _ of client.events.stream({
+			filters,
+			maxEmptyPolls: 1,
+		})) {
+			// drains immediately: single empty page
+		}
+
+		const url = new URL(requests[0]?.url ?? "");
+		expect(url.searchParams.get("filters")).toBe(JSON.stringify(filters));
+	});
+
 	test("stream terminates cleanly when aborted during empty-page backoff", async () => {
 		const controller = new AbortController();
 		const client = createStreamsClient({
