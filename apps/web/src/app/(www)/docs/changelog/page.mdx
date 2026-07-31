@@ -4,6 +4,21 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## SDK — July 2026
 
+### The type spelling you meant now works on both feeds
+
+`/v1/streams/events?event_type=print` and `/v1/index/events?types=print` both
+work now — each surface accepts the other's spelling for a single type. Ask
+the Index for a type *set* and it refuses with the reason: Index pagination
+is keyed per event type, by design (a design we wrote down this week). The
+CLI takes both flags on both commands.
+
+Streams consumers also close two gaps: the top-level `consume()` iterator
+takes the labelled `filters` map, `replay()` can narrow its live tail, and a
+literal `types: ["ft_transfer"]` now narrows row types at compile time the
+way labels always did. And subgraph factory sources — a router plus pools
+created after you deploy — can now be authored through the `on.*` filter
+vocabulary; every non-subgraph projection refuses the field loudly.
+
 ### Filter renames stop pretending to be capability gaps
 
 `on.stxLock({ lockedAddress }).toIndexParams()` works now: the Index stores
