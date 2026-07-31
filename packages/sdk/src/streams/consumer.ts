@@ -68,6 +68,25 @@ export function assertFinalizedCheckpoint(
 	}
 }
 
+/**
+ * Fail fast on an impossible sink/mode pairing. Shared by both loops, checked
+ * BEFORE the first fetch and before `loadCursor`: a `finalizedOnly` sink
+ * (append-only store — cannot undo committed rows) following the unfinalized
+ * tip would corrupt on the first fork, and the corruption is silent until the
+ * fork happens. Throwing at startup is the only loud moment available.
+ */
+export function assertSinkModeCompatible(
+	sink: Pick<ConsumerSink, "capabilities"> | undefined,
+	finalizedOnly: boolean,
+): void {
+	if (sink?.capabilities?.finalizedOnly && !finalizedOnly) {
+		throw new ValidationError(
+			"This sink declares capabilities.finalizedOnly — it cannot roll back reorged rows, and following the unfinalized tip would corrupt it at the first fork. Pass finalizedOnly: true to consume(), or use a sink that implements rollback.",
+			400,
+		);
+	}
+}
+
 /** Build the ctx handed to `onBatch`. Shared by the Streams and Index loops so
  *  the two can't drift on what "progress" means. */
 export function batchContext<TTip extends { block_height: number }, TReorg>(
@@ -223,6 +242,7 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 	const emptyBackoffMs = opts.emptyBackoffMs ?? 500;
 	const maxPages = opts.maxPages ?? Number.POSITIVE_INFINITY;
 	const maxEmptyPolls = opts.maxEmptyPolls ?? Number.POSITIVE_INFINITY;
+	assertSinkModeCompatible(opts.sink, finalizedOnly);
 	// Resume order: explicit fromCursor, then the sink's committed checkpoint.
 	// `loadCursor` is also the sink's INIT — it creates the checkpoint table and
 	// validates the rollback precondition. Short-circuiting it on an explicit
@@ -324,6 +344,10 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 				(checkpoint !== cursor || emitted.length > 0)
 			) {
 				await sink.commitBatch(checkpoint, async (tx) => {
+					// The cast is sound exactly as far as the sink's own typing:
+					// `sink: ConsumerSink<TTx>` binds TTx, and `tx` here is what its
+					// commitBatch lends. Nothing verifies it at runtime — a sink whose
+					// declared Tx lies about what it lends fails inside the handler.
 					await opts.onBatch(emitted, envelope, {
 						...ctx,
 						tx,

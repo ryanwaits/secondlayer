@@ -3,6 +3,7 @@ import {
 	type PageRetryOptions,
 	type Sleep,
 	assertFinalizedCheckpoint,
+	assertSinkModeCompatible,
 	batchContext,
 	defaultSleep,
 	fetchPageWithRetry,
@@ -124,6 +125,7 @@ export async function consumeIndexFeed<
 	const emptyBackoffMs = opts.emptyBackoffMs ?? 500;
 	const maxPages = opts.maxPages ?? Number.POSITIVE_INFINITY;
 	const maxEmptyPolls = opts.maxEmptyPolls ?? Number.POSITIVE_INFINITY;
+	assertSinkModeCompatible(opts.sink, finalizedOnly);
 	// Resume order: explicit fromCursor, then the sink's committed checkpoint.
 	// `loadCursor` is also the sink's INIT — it creates the checkpoint table and
 	// validates the rollback precondition. Short-circuiting it on an explicit
@@ -227,6 +229,10 @@ export async function consumeIndexFeed<
 				(checkpoint !== cursor || emitted.length > 0)
 			) {
 				await sink.commitBatch(checkpoint, async (tx) => {
+					// The cast is sound exactly as far as the sink's own typing:
+					// `sink: ConsumerSink<TTx>` binds TTx, and `tx` here is what its
+					// commitBatch lends. Nothing verifies it at runtime — a sink whose
+					// declared Tx lies about what it lends fails inside the handler.
 					await opts.onBatch(emitted, envelope, {
 						...ctx,
 						tx,

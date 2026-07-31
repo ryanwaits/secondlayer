@@ -571,3 +571,61 @@ describe("client.events.consume — labelled filter maps", () => {
 		expect(result.cursor).toBe("9:9");
 	});
 });
+
+describe("sink capabilities", () => {
+	const finalizedOnlySink = {
+		capabilities: { finalizedOnly: true },
+		async loadCursor() {
+			return null;
+		},
+		async commitBatch(_cursor: string, write: (tx: unknown) => unknown) {
+			await write({});
+		},
+		async rollback() {
+			throw new Error("unreachable: finalizedOnly sinks never see reorgs");
+		},
+	};
+
+	test("a finalizedOnly sink following the tip throws BEFORE the first fetch", async () => {
+		let fetched = 0;
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			fetchImpl: async () => {
+				fetched++;
+				return jsonResponse({
+					events: [],
+					next_cursor: null,
+					tip: TIP,
+					reorgs: [],
+				});
+			},
+		});
+
+		await expect(
+			client.events.consume({
+				sink: finalizedOnlySink,
+				maxPages: 1,
+				onBatch: () => {},
+			}),
+		).rejects.toThrow(/finalizedOnly/);
+		// Loudly at startup — not after data already flowed to the sink.
+		expect(fetched).toBe(0);
+	});
+
+	test("the same sink is accepted once finalizedOnly: true is set", async () => {
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			fetchImpl: async () =>
+				jsonResponse({ events: [], next_cursor: null, tip: TIP, reorgs: [] }),
+		});
+
+		const result = await client.events.consume({
+			sink: finalizedOnlySink,
+			finalizedOnly: true,
+			mode: "bounded",
+			maxPages: 1,
+			onBatch: () => {},
+		});
+		expect(result.pages).toBe(1);
+	});
+});

@@ -772,3 +772,30 @@ describe("consume page-fetch retry", () => {
 		expect(calls).toBe(1);
 	});
 });
+
+describe("index sink capabilities", () => {
+	test("a finalizedOnly sink following the tip throws before any fetch", async () => {
+		let fetched = 0;
+		const client = clientFor(() => {
+			fetched++;
+			return { events: [], next_cursor: null, tip: TIP, reorgs: [] };
+		});
+
+		await expect(
+			client.events.consume({
+				eventType: "ft_transfer",
+				sink: {
+					capabilities: { finalizedOnly: true },
+					async loadCursor() {
+						return null;
+					},
+					async commitBatch() {},
+					async rollback() {},
+				},
+				maxPages: 1,
+				onBatch: () => {},
+			}),
+		).rejects.toThrow(/finalizedOnly/);
+		expect(fetched).toBe(0);
+	});
+});
