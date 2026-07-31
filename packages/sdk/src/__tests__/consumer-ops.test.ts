@@ -63,6 +63,9 @@ describe("consumerHealth", () => {
 		const body = (await res.json()) as Record<string, unknown>;
 		expect(body.blocks_behind).toBe(3_499_000);
 		expect(body.checkpoint).toBe("1000:0");
+		expect(body.last_delivered_height).toBe(1000);
+		// The old ambiguous name is gone, not duplicated.
+		expect(body.block_height).toBeUndefined();
 	});
 
 	test("non-/health paths 404", () => {

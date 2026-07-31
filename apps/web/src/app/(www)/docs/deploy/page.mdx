@@ -55,7 +55,7 @@ Bun.serve({
   fetch: () =>
     Response.json({
       ok: Date.now() - last.at < 120_000,
-      block_height: last.ctx?.height ?? null,
+      last_delivered_height: last.ctx?.height ?? null,
       blocks_behind: last.ctx?.blocksBehind ?? null,
     }),
 });
