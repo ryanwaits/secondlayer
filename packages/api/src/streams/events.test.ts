@@ -310,6 +310,28 @@ describe("Streams events route helpers", () => {
 	});
 });
 
+describe("parseStreamsEventsQuery — event_type alias", () => {
+	test("event_type=<single> folds into types (the Index spelling)", () => {
+		const parsed = parseStreamsEventsQuery(params("?event_type=print"), TIP);
+		expect(parsed.types).toEqual(["print"]);
+	});
+
+	test("event_type with a set is refused, pointing at types", () => {
+		expect(() =>
+			parseStreamsEventsQuery(params("?event_type=print,stx_transfer"), TIP),
+		).toThrow(/use types=/);
+	});
+
+	test("types and event_type together are refused", () => {
+		expect(() =>
+			parseStreamsEventsQuery(
+				params("?types=print&event_type=stx_transfer"),
+				TIP,
+			),
+		).toThrow(/mutually exclusive/);
+	});
+});
+
 describe("parseStreamsEventsQuery — labelled filter maps", () => {
 	function parse(qs: string) {
 		return parseStreamsEventsQuery(new URLSearchParams(qs), TIP);

@@ -44,6 +44,8 @@ type ListOptions = {
 	assetIdentifier?: string;
 	functionName?: string;
 	eventType?: string;
+	/** Alias for eventType (the Streams spelling), single value. */
+	types?: string;
 	type?: string;
 	stacker?: string;
 	caller?: string;
@@ -183,7 +185,11 @@ export function registerIndexCommand(program: Command): void {
 		.description(
 			"List decoded events by type (stx_*, ft/nft mint/burn, print, …)",
 		)
-		.requiredOption("--event-type <type>", "Decoded event type (required)")
+		.option("--event-type <type>", "Decoded event type")
+		.option(
+			"--types <type>",
+			"alias for --event-type, ONE value (the Streams spelling)",
+		)
 		.option("--sender <principal>", "Filter by sender")
 		.option("--recipient <principal>", "Filter by recipient")
 		.option("--asset-identifier <id>", "Filter by asset identifier")
@@ -192,7 +198,7 @@ export function registerIndexCommand(program: Command): void {
 				emit(
 					await client().events.list({
 						// biome-ignore lint/suspicious/noExplicitAny: event_type is validated server-side
-						eventType: o.eventType as any,
+						eventType: (o.eventType ?? o.types) as any,
 						...rangeParams(o),
 						sender: o.sender,
 						recipient: o.recipient,

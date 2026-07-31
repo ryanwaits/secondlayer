@@ -130,6 +130,10 @@ export function registerStreamsCommand(program: Command): void {
 			"--types <types>",
 			`comma-separated event types (${VALID_TYPES.join(", ")})`,
 		)
+		.option(
+			"--event-type <type>",
+			"alias for a single-value --types (the Index spelling)",
+		)
 		.option("--not-types <types>", "comma-separated event types to exclude")
 		.option("--contract-id <ids>", "comma-separated contract identifier(s)")
 		.option("--sender <addrs>", "comma-separated sender principal(s)")
@@ -151,6 +155,7 @@ Examples:
 		.action(
 			async (options: {
 				types?: string;
+				eventType?: string;
 				notTypes?: string;
 				contractId?: string;
 				sender?: string;
@@ -162,7 +167,7 @@ Examples:
 			}) => {
 				try {
 					const envelope: StreamsEventsEnvelope = await client().events.list({
-						types: parseTypes(options.types),
+						types: parseTypes(options.types ?? options.eventType),
 						notTypes: parseTypes(options.notTypes, "--not-types"),
 						contractId: parseList(options.contractId),
 						sender: parseList(options.sender),

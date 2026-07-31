@@ -71,6 +71,8 @@ const STREAMS_EVENTS_ALLOWED = [
 	"from_height",
 	"to_height",
 	"types",
+	// Alias for a single-value `types` — the Index spelling, honored here.
+	"event_type",
 	"not_types",
 	"contract_id",
 	"sender",

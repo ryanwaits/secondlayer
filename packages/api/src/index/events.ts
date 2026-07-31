@@ -553,7 +553,22 @@ export function parseIndexEventsQuery(
 	query: URLSearchParams,
 	tip: IndexTip,
 ): IndexEventsQuery {
-	const eventTypeRaw = query.get("event_type") ?? undefined;
+	// `types=<single>` is accepted as an alias for `event_type` — the Streams
+	// spelling, honored as a courtesy. A SET is refused with the reason: Index
+	// reads are keyed per type (docs/internal/charter/index-vs-streams.md).
+	const typesAlias = query.get("types") ?? undefined;
+	let eventTypeRaw = query.get("event_type") ?? undefined;
+	if (typesAlias !== undefined) {
+		if (eventTypeRaw !== undefined) {
+			throw new ValidationError("event_type and types are mutually exclusive");
+		}
+		if (typesAlias.includes(",")) {
+			throw new ValidationError(
+				"types takes ONE value on Index reads — pagination is keyed per event type; make one request per type (or use /v1/streams/events for a multi-type feed)",
+			);
+		}
+		eventTypeRaw = typesAlias;
+	}
 	if (eventTypeRaw === undefined) {
 		throw new ValidationError(
 			`event_type is required (one of: ${INDEX_EVENT_TYPES.join(", ")})`,
@@ -574,6 +589,7 @@ export function parseIndexEventsQuery(
 	validateQueryParams(query, [
 		...config.allowedFilters,
 		"event_type",
+		"types",
 		"tx_context",
 		"fields",
 		...(traitSupported ? ["trait"] : []),

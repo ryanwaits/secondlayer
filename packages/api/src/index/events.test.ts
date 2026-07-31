@@ -35,6 +35,23 @@ describe("Index /events query parsing", () => {
 		).toThrow("unknown event_type");
 	});
 
+	test("types=<single> is accepted as an alias for event_type", () => {
+		const parsed = parseIndexEventsQuery(params("?types=ft_transfer"), TIP);
+		expect(parsed.eventType).toBe("ft_transfer");
+	});
+
+	test("types with a set is refused, naming the reason", () => {
+		expect(() =>
+			parseIndexEventsQuery(params("?types=ft_transfer,print"), TIP),
+		).toThrow(/ONE value/);
+	});
+
+	test("event_type and types together are refused", () => {
+		expect(() =>
+			parseIndexEventsQuery(params("?event_type=print&types=print"), TIP),
+		).toThrow(/mutually exclusive/);
+	});
+
 	test("asset_identifier is allowed for ft_transfer", () => {
 		// Was rejected until the unified filter union exposed the drift:
 		// `on.ftTransfer({ assetIdentifier }).toIndexParams()` projects it here,

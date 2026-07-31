@@ -101,6 +101,24 @@ function parseTypes(
 	return types as StreamsEventType[];
 }
 
+/** `event_type=<single>` is accepted as an alias for `types` — the Index
+ *  spelling, honored here as a courtesy (docs/internal/charter/
+ *  index-vs-streams.md). One value only; a set must use `types`. */
+function resolveTypesParam(query: URLSearchParams): string | undefined {
+	const types = query.get("types") ?? undefined;
+	const alias = query.get("event_type") ?? undefined;
+	if (alias === undefined) return types;
+	if (types !== undefined) {
+		throw new ValidationError("types and event_type are mutually exclusive");
+	}
+	if (alias.includes(",")) {
+		throw new ValidationError(
+			"event_type takes one value — use types=a,b for a set",
+		);
+	}
+	return alias;
+}
+
 /** Parse a single-or-comma-list filter. Returns a string for one value and a
  *  string[] for many, so single-value callers keep the simpler shape. */
 function parseListFilter(
@@ -308,7 +326,7 @@ export function parseStreamsEventsQuery(
 		cursorRaw,
 		fromHeight: fromHeight ?? defaultFromHeight,
 		toHeight,
-		types: parseTypes(query.get("types") ?? undefined),
+		types: parseTypes(resolveTypesParam(query)),
 		notTypes: parseTypes(query.get("not_types") ?? undefined),
 		contractId: parseListFilter(
 			query.get("contract_id") ?? undefined,
