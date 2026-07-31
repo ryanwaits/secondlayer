@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "6.47.0",
+	"version": "6.48.0",
 	"areas": [
 		{
 			"name": "Client",
@@ -136,7 +136,7 @@
 					"summary": "Checkpointed pull loop over a cursor-paginated Index feed — the Index port of `consumeStreamsEvents`, sharing its contract: at-least-once delivery, client-owned checkpoints (`onBatch` may return th…",
 					"signature": "consumeIndexFeed(opts: object): object",
 					"file": "src/index-api/consumer.ts",
-					"line": 110
+					"line": 111
 				},
 				{
 					"name": "ContractCallsConsumeParams",
@@ -280,7 +280,7 @@
 					"summary": "Consumer options shared by `index.events.consume` and `index.contractCalls.consume`.",
 					"signature": null,
 					"file": "src/index-api/consumer.ts",
-					"line": 37
+					"line": 38
 				},
 				{
 					"name": "IndexContractCall",
@@ -352,7 +352,7 @@
 					"summary": "Minimum envelope shape of a consumable Index feed page.",
 					"signature": null,
 					"file": "src/index-api/consumer.ts",
-					"line": 18
+					"line": 19
 				},
 				{
 					"name": "IndexFeedFetcher",
@@ -360,7 +360,7 @@
 					"summary": "One page fetch.",
 					"signature": null,
 					"file": "src/index-api/consumer.ts",
-					"line": 27
+					"line": 28
 				},
 				{
 					"name": "IndexFeedItem",
@@ -368,7 +368,7 @@
 					"summary": "Minimum shape a consumed Index row must expose.",
 					"signature": null,
 					"file": "src/index-api/consumer.ts",
-					"line": 15
+					"line": 16
 				},
 				{
 					"name": "IndexFtBurn",
@@ -2538,7 +2538,7 @@
 					"summary": "A consumer sink: the destination adapter a consume loop writes through.",
 					"signature": null,
 					"file": "src/sinks/types.ts",
-					"line": 17
+					"line": 78
 				},
 				{
 					"name": "SbtcEventTopic",
@@ -2562,7 +2562,7 @@
 					"summary": "The transaction type a sink hands to `onBatch` (`ctx.tx`).",
 					"signature": null,
 					"file": "src/sinks/types.ts",
-					"line": 49
+					"line": 125
 				},
 				{
 					"name": "WithSinkTx",
@@ -2570,7 +2570,7 @@
 					"summary": "`ctx` gains `tx` exactly when a sink is attached; without one the shape is unchanged (an intersection with `unknown` is an identity, so contextual typing of `onBatch` callbacks never degrades to a …",
 					"signature": null,
 					"file": "src/sinks/types.ts",
-					"line": 54
+					"line": 130
 				}
 			]
 		}

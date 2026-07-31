@@ -1,5 +1,11 @@
 # @secondlayer/sdk
 
+## 6.48.0
+
+### Minor Changes
+
+- Sinks become an open surface. The `ConsumerSink` contract is documented on the interface itself (13 invariants), and `createSink(driver)` at `@secondlayer/sdk/sinks/core` owns the commit/rollback transaction sequences so a new sink is a 7-method driver, not a re-derivation of checkpoint correctness. Three sinks ship on the base: `kyselySink` (now a driver), `drizzleSink` (`@secondlayer/sdk/sinks/drizzle`, Postgres + SQLite dialects with schema-typed `ctx.tx`), and `bunSqliteSink` (`@secondlayer/sdk/sinks/bun-sqlite`, zero-dependency, no docker). A conformance kit at `@secondlayer/sdk/sinks/testing` probes every invariant against your real store — torn batches, cursor replay, inclusive `>=` rollback, mismatched multi-fork pairs, lock contention — and every shipped sink passes it in CI. Sinks may declare `capabilities: { finalizedOnly: true }` (append-only stores); consume loops now fail loudly at startup instead of corrupting at the first fork. Reference-impl fixes: the Postgres advisory lock now keys on `hashtextextended` (int8 — no false 409 collisions between distinct ids), checkpoint DDL tolerates concurrent first starts, and the lock's doc no longer overclaims fencing.
+
 ## 6.47.0
 
 ### Minor Changes

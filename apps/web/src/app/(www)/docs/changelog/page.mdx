@@ -4,6 +4,26 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## SDK — July 2026
 
+### Bring any database: sinks are now an open surface
+
+Three sinks ship — `kyselySink`, `drizzleSink` (Postgres and SQLite, with
+your schema typing `ctx.tx`), and `bunSqliteSink` (one file, zero
+dependencies, no docker) — and the machinery behind them is yours to build
+on. `createSink(driver)` from `@secondlayer/sdk/sinks/core` owns the
+transaction sequences that make a sink correct; your driver is seven methods
+of dialect. The contract's 13 invariants are documented on the interface and
+mechanically probed by a conformance kit at `@secondlayer/sdk/sinks/testing`
+— torn batches, cursor replay, inclusive `>=` rollback, lock contention —
+the same kit every shipped sink passes in CI.
+[Write your own sink](/docs/custom-sinks).
+
+Append-only stores (ClickHouse, parquet) declare
+`capabilities: { finalizedOnly: true }`: the consume loop refuses to follow
+the unfinalized tip at startup — loudly — instead of corrupting at the first
+fork. The Postgres advisory lock also moves to an int8 hash, so two
+unrelated sink ids can no longer collide into a false "another consumer"
+409.
+
 ### The type spelling you meant now works on both feeds
 
 `/v1/streams/events?event_type=print` and `/v1/index/events?types=print` both
