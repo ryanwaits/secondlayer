@@ -1,5 +1,11 @@
 # @secondlayer/sdk
 
+## 6.48.1
+
+### Patch Changes
+
+- Consumers restarted into a quiet tail now report their true position. `ctx.cursor`, `ctx.height`, and `ctx.blocksBehind` (and therefore `consumerHealth`) seed from the resume cursor instead of sitting at `null` until the first delivered row, and an empty page reports the standing committed cursor rather than `null`.
+
 ## 6.48.0
 
 ### Minor Changes

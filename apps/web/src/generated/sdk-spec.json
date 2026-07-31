@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "6.48.0",
+	"version": "6.48.1",
 	"areas": [
 		{
 			"name": "Client",
@@ -136,7 +136,7 @@
 					"summary": "Checkpointed pull loop over a cursor-paginated Index feed — the Index port of `consumeStreamsEvents`, sharing its contract: at-least-once delivery, client-owned checkpoints (`onBatch` may return th…",
 					"signature": "consumeIndexFeed(opts: object): object",
 					"file": "src/index-api/consumer.ts",
-					"line": 111
+					"line": 112
 				},
 				{
 					"name": "ContractCallsConsumeParams",
@@ -280,7 +280,7 @@
 					"summary": "Consumer options shared by `index.events.consume` and `index.contractCalls.consume`.",
 					"signature": null,
 					"file": "src/index-api/consumer.ts",
-					"line": 38
+					"line": 39
 				},
 				{
 					"name": "IndexContractCall",
@@ -352,7 +352,7 @@
 					"summary": "Minimum envelope shape of a consumable Index feed page.",
 					"signature": null,
 					"file": "src/index-api/consumer.ts",
-					"line": 19
+					"line": 20
 				},
 				{
 					"name": "IndexFeedFetcher",
@@ -360,7 +360,7 @@
 					"summary": "One page fetch.",
 					"signature": null,
 					"file": "src/index-api/consumer.ts",
-					"line": 28
+					"line": 29
 				},
 				{
 					"name": "IndexFeedItem",
@@ -368,7 +368,7 @@
 					"summary": "Minimum shape a consumed Index row must expose.",
 					"signature": null,
 					"file": "src/index-api/consumer.ts",
-					"line": 16
+					"line": 17
 				},
 				{
 					"name": "IndexFtBurn",
