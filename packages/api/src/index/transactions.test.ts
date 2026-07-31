@@ -257,4 +257,23 @@ describe.skipIf(!HAS_DB)("Index transactions DB reads", () => {
 		});
 		expect(result.transactions).toEqual([]);
 	});
+
+	test("fields without tx_index still yields a usable next_cursor", async () => {
+		await seed();
+		const result = await readTransactions({
+			db: db ?? undefined,
+			fromHeight: 0,
+			toHeight: 10_000,
+			limit: 10,
+			fields: ["sender"],
+		});
+
+		for (const tx of result.transactions) {
+			expect(
+				Object.keys(tx as unknown as Record<string, unknown>).sort(),
+			).toEqual(["block_height", "cursor", "sender", "tx_id"]);
+		}
+		// Cursor built from the RAW rows — never "9000:undefined".
+		expect(result.next_cursor).toBe("9000:1");
+	});
 });

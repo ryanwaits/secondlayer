@@ -977,4 +977,34 @@ describe("sBTC deposits field projection", () => {
 		});
 		expect(envelope.deposits[0]?.sender).toBe("SP1");
 	});
+
+	test("reorg span survives a projection that dropped event_index", async () => {
+		const ranges: Array<{
+			from: { block_height: number; event_index: number };
+			to: { block_height: number; event_index: number };
+		}> = [];
+		await getSbtcDepositsResponse({
+			query: new URLSearchParams("fields=amount"),
+			tip: TIP,
+			// Projected rows carry no event_index; the span must come from `cursor`.
+			readSbtcDeposits: async () => ({
+				deposits: [
+					{ cursor: "100:3", block_height: 100, amount: "1" } as never,
+					{ cursor: "102:7", block_height: 102, amount: "2" } as never,
+				],
+				next_cursor: "102:7",
+			}),
+			readReorgs: async (range) => {
+				ranges.push(range);
+				return [];
+			},
+			decoderEnabled: true,
+		});
+		expect(ranges).toEqual([
+			{
+				from: { block_height: 100, event_index: 3 },
+				to: { block_height: 102, event_index: 7 },
+			},
+		]);
+	});
 });

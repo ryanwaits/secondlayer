@@ -387,6 +387,9 @@ export async function readTransactions(
 		LIMIT ${params.limit}
 	`.execute(db);
 
+	// Cursor comes from the RAW rows: `tx_index` is itself projectable, so
+	// reading it off the projected row breaks pagination for anyone who omits it.
+	const lastRow = rows.at(-1);
 	const fieldSet = params.fields ? new Set(params.fields) : undefined;
 	const transactions = rows.map(
 		(row) =>
@@ -396,11 +399,12 @@ export async function readTransactions(
 				TRANSACTION_ALWAYS,
 			) as unknown as IndexTransaction,
 	);
-	const last = transactions.at(-1);
 
 	return {
 		transactions,
-		next_cursor: last ? `${last.block_height}:${last.tx_index}` : null,
+		next_cursor: lastRow
+			? `${Number(lastRow.block_height)}:${Number(lastRow.tx_index)}`
+			: null,
 	};
 }
 

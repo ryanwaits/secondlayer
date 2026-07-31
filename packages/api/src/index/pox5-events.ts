@@ -8,6 +8,7 @@ import type { StreamsReorg, StreamsReorgsReader } from "../streams/reorgs.ts";
 import {
 	type IndexCursorInput,
 	encodeIndexCursor,
+	parseCursor,
 	parseFilter,
 	parseIndexBaseQuery,
 	parseNonNegativeInteger,
@@ -323,24 +324,25 @@ export async function readPox5Events(
 		LIMIT ${params.limit + 1}
 	`.execute(db);
 
+	const page = rows.slice(0, params.limit);
+	// Cursor comes from the RAW rows: `event_index` is itself projectable, so
+	// reading it off the projected row breaks pagination for anyone who omits it.
+	const lastRow = page.at(-1);
 	const fieldSet = params.fields ? new Set(params.fields) : undefined;
-	const events = rows
-		.slice(0, params.limit)
-		.map(
-			(row) =>
-				projectRow(
-					normalizePox5Event(row) as Record<string, unknown>,
-					fieldSet,
-					POX5_EVENT_ALWAYS,
-				) as unknown as Pox5Event,
-		);
-	const last = events.at(-1);
+	const events = page.map(
+		(row) =>
+			projectRow(
+				normalizePox5Event(row) as Record<string, unknown>,
+				fieldSet,
+				POX5_EVENT_ALWAYS,
+			) as unknown as Pox5Event,
+	);
 	return {
 		events,
-		next_cursor: last
+		next_cursor: lastRow
 			? encodeIndexCursor({
-					block_height: last.block_height,
-					event_index: last.event_index,
+					block_height: Number(lastRow.block_height),
+					event_index: Number(lastRow.event_index),
 				})
 			: null,
 	};
@@ -401,7 +403,12 @@ export async function getPox5EventsResponse(opts: {
 			"reward_cycle",
 		),
 	});
-	const reorgs = await readReorgsForEvents(result.events, opts.readReorgs);
+	// Reorg span parsed from `cursor`, which always survives projection — the
+	// projected rows may carry no `event_index` at all.
+	const reorgs = await readReorgsForEvents(
+		result.events.map((event) => parseCursor(event.cursor)),
+		opts.readReorgs,
+	);
 	return {
 		events: result.events,
 		next_cursor: result.next_cursor,

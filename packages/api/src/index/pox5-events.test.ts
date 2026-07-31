@@ -476,4 +476,59 @@ describe.skipIf(!HAS_DB)("PoX-5 events DB reads", () => {
 		});
 		expect(result).toEqual({ events: [], next_cursor: null });
 	});
+
+	test("fields without event_index still paginates and reconciles reorgs", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("pox5_events")
+			.values([
+				seed({
+					cursor: "700:1",
+					block_height: 700,
+					tx_id: "0xa",
+					tx_index: 0,
+					event_index: 1,
+					topic: "stake",
+				}),
+				seed({
+					cursor: "700:4",
+					block_height: 700,
+					tx_id: "0xb",
+					tx_index: 1,
+					event_index: 4,
+					topic: "unstake",
+				}),
+			])
+			.execute();
+
+		const ranges: Array<{
+			from: { block_height: number; event_index: number };
+			to: { block_height: number; event_index: number };
+		}> = [];
+		const response = await getPox5EventsResponse({
+			query: eventsParams("?from_height=0&fields=topic"),
+			tip: TIP,
+			readPox5Events: (params) => readPox5Events({ ...params, db }),
+			readReorgs: async (range) => {
+				ranges.push(range);
+				return [];
+			},
+			decoderEnabled: true,
+		});
+
+		for (const event of response.events) {
+			expect(
+				Object.keys(event as unknown as Record<string, unknown>).sort(),
+			).toEqual(["block_height", "cursor", "topic"]);
+		}
+		// Cursor built from the RAW rows — pagination survives omitting event_index.
+		expect(response.next_cursor).toBe("700:4");
+		// Reorg span parsed from cursors, not read off the stripped rows.
+		expect(ranges).toEqual([
+			{
+				from: { block_height: 700, event_index: 1 },
+				to: { block_height: 700, event_index: 4 },
+			},
+		]);
+	});
 });

@@ -613,7 +613,12 @@ export async function getSbtcDepositsResponse(opts: {
 			"bitcoin_txid",
 		),
 	});
-	const reorgs = await readReorgsForEvents(result.deposits, opts.readReorgs);
+	// Reorg span parsed from `cursor`, which always survives projection — the
+	// projected rows may carry no `event_index` at all.
+	const reorgs = await readReorgsForEvents(
+		result.deposits.map((deposit) => parseCursor(deposit.cursor)),
+		opts.readReorgs,
+	);
 	return {
 		deposits: result.deposits,
 		next_cursor: result.next_cursor,
