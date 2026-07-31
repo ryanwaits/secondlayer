@@ -156,7 +156,7 @@ Use a tag cut **after** commit `169b0967` (the OSS read-parity fix); older image
 TIP_FOLLOWER_ENABLED=false docker compose up -d postgres migrate api indexer subgraph-processor
 
 # Check sync progress (compare to chain tip):
-curl http://localhost:3700/health | jq .block_height
+curl http://localhost:3700/public/status | jq .chainTip
 
 # Once caught up, re-enable:
 TIP_FOLLOWER_ENABLED=true docker compose up -d --force-recreate indexer
