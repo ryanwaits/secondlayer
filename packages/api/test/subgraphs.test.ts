@@ -25,6 +25,7 @@ import subgraphsRouter, {
 	startSubgraphCache,
 	stopSubgraphCache,
 } from "../src/routes/subgraphs.ts";
+import v1SubgraphsRouter from "../src/routes/v1-subgraphs.ts";
 
 const SKIP = !process.env.DATABASE_URL;
 
@@ -191,6 +192,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 	const app = new Hono();
 	app.onError(errorHandler);
 	app.route("/subgraphs", subgraphsRouter);
+	app.route("/v1/subgraphs", v1SubgraphsRouter);
 
 	beforeAll(async () => {
 		const db = getDb();
@@ -198,8 +200,9 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		await db.deleteFrom("subgraphs").execute();
 		await sql.raw(`DROP SCHEMA IF EXISTS ${PG_SCHEMA} CASCADE`).execute(db);
 
-		// Register subgraph
+		// Register subgraph; public so the anon /v1 read surface resolves it too.
 		await registerSubgraph(db, subgraphDef);
+		await db.updateTable("subgraphs").set({ visibility: "public" }).execute();
 
 		// Create PG schema + table
 		const client = getRawClient();
@@ -523,6 +526,42 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		expect(row.price).toBeDefined();
 		expect(row.seller).toBeUndefined();
 		expect(row.status).toBeUndefined();
+	});
+
+	// ── /v1 cursor pagination under _fields ─────────────────────────────
+
+	test("/v1 _fields without _id still paginates the full result set", async () => {
+		const first = await app.request(
+			`/v1/subgraphs/${SUBGRAPH_NAME}/listings?_fields=price&_limit=2`,
+		);
+		expect(first.status).toBe(200);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const page1 = (await first.json()) as any;
+		expect(page1.rows.length).toBe(2);
+		// Projection holds: `_id` powers the cursor server-side but is not leaked.
+		expect(Object.keys(page1.rows[0])).toEqual(["price"]);
+		// The bug: a full page with `_fields` set returned next_cursor: null and
+		// silently truncated the result set.
+		expect(page1.next_cursor).not.toBeNull();
+
+		const second = await app.request(
+			`/v1/subgraphs/${SUBGRAPH_NAME}/listings?_fields=price&_limit=2&cursor=${page1.next_cursor}`,
+		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const page2 = (await second.json()) as any;
+		expect(page2.rows.length).toBe(2);
+		// 4 seeded rows, 2 pages, no overlap and nothing lost.
+		expect(page2.rows).not.toEqual(page1.rows);
+	});
+
+	test("/v1 _fields that names _id keeps it in the rows", async () => {
+		const res = await app.request(
+			`/v1/subgraphs/${SUBGRAPH_NAME}/listings?_fields=_id,price&_limit=2`,
+		);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(Object.keys(body.rows[0]).sort()).toEqual(["_id", "price"]);
+		expect(String(body.rows[1]._id)).toBe(body.next_cursor);
 	});
 
 	// ── _count param ─────────────────────────────────────────────────────

@@ -531,8 +531,14 @@ app.get("/:subgraphName/:tableName", async (c) => {
 			conditions.push(`"_id" ${order === "ASC" ? ">" : "<"} $${params.length}`);
 		}
 
+		// `_id` is the keyset cursor — not the caller's to omit (the Index
+		// ALWAYS_PROJECTED rule, applied here). Select it regardless of `_fields`,
+		// build the cursor from the raw value, and strip it from the emitted rows
+		// when it wasn't requested — otherwise a full page with `_fields` set
+		// returns next_cursor: null and silently truncates the result set.
+		const wantsId = !parsed.fields || parsed.fields.includes("_id");
 		const selectFields = parsed.fields
-			? parsed.fields.map((f) => ident(f)).join(", ")
+			? [...new Set(["_id", ...parsed.fields])].map((f) => ident(f)).join(", ")
 			: "*";
 		let text = `SELECT ${selectFields} FROM ${ident(sn)}.${ident(tableName)}`;
 		if (conditions.length > 0) text += ` WHERE ${conditions.join(" AND ")}`;
@@ -548,10 +554,16 @@ app.get("/:subgraphName/:tableName", async (c) => {
 			rows.length === parsed.limit && lastRow?._id != null
 				? String(lastRow._id)
 				: null;
+		const emitted = wantsId
+			? Array.from(rows)
+			: Array.from(rows, (row) => {
+					const { _id, ...rest } = row as Record<string, unknown>;
+					return rest;
+				});
 		const lastProcessed = Number(subgraph.last_processed_block) || 0;
 
 		return c.json({
-			rows: Array.from(rows),
+			rows: emitted,
 			next_cursor: nextCursor,
 			tip: {
 				block_height: chainTip,
