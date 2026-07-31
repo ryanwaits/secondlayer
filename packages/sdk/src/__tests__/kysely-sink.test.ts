@@ -330,7 +330,7 @@ describe.skipIf(!dbUp)("kyselySink acceptance (fork at block 102)", () => {
 			release = r;
 		});
 		const holder = db.transaction().execute(async (tx) => {
-			await sql`SELECT pg_advisory_xact_lock(hashtext('sink-test-sales'))`.execute(
+			await sql`SELECT pg_advisory_xact_lock(hashtextextended('sink-test-sales', 0))`.execute(
 				tx,
 			);
 			await held;
