@@ -64,12 +64,18 @@ function unsupported(surface: string, field: string, hint: string): never {
 
 function assertNoWildcards(surface: string, spec: ChainEventFilterSpec): void {
 	for (const [key, value] of specEntries(spec)) {
-		if (typeof value === "string" && hasWildcard(value)) {
-			unsupported(
-				surface,
-				`${key} wildcard "${value}"`,
-				"wildcard patterns are Subscriptions-only",
-			);
+		// Arrays too: a wildcard inside a contractId set would otherwise reach
+		// the wire as a literal `IN ('SP….pool-*')` — the silent zero-row match
+		// this module exists to kill.
+		const candidates = Array.isArray(value) ? value : [value];
+		for (const candidate of candidates) {
+			if (typeof candidate === "string" && hasWildcard(candidate)) {
+				unsupported(
+					surface,
+					`${key} wildcard "${candidate}"`,
+					"wildcard patterns are Subscriptions-only",
+				);
+			}
 		}
 	}
 }

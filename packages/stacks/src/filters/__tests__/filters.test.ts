@@ -94,6 +94,19 @@ describe("on.* factories", () => {
 		expect(() => wild.toStreamsParams()).toThrow(/wildcard/);
 	});
 
+	test("a wildcard inside a contractId array is refused, not passed to the wire", () => {
+		// Regression: the guard only checked scalar values, so an array smuggled
+		// the pattern through as a literal IN ('SP….pool-*') — silent zero rows.
+		const wild = on.print({ contractId: [TOKEN_CONTRACT, "SP2*.pool-*"] });
+		expect(() => wild.toIndexParams()).toThrow(/wildcard "SP2\*\.pool-\*"/);
+		expect(() => wild.toStreamsParams()).toThrow(/wildcard/);
+		// Subgraph sources keep wildcard support — must NOT throw.
+		expect(wild.toSubgraphSource().contractId).toEqual([
+			TOKEN_CONTRACT,
+			"SP2*.pool-*",
+		]);
+	});
+
 	test("trait projects to Index and triggers, never Streams", () => {
 		const sip10 = on.ftTransfer({ trait: "sip-010" });
 		expect(sip10.toIndexParams().trait).toBe("sip-010");
