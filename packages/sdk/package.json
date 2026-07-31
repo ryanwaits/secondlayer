@@ -32,9 +32,25 @@
 			"types": "./dist/x402.d.ts",
 			"import": "./dist/x402.js"
 		},
+		"./sinks/core": {
+			"types": "./dist/sinks/core.d.ts",
+			"import": "./dist/sinks/core.js"
+		},
 		"./sinks/kysely": {
 			"types": "./dist/sinks/kysely.d.ts",
 			"import": "./dist/sinks/kysely.js"
+		},
+		"./sinks/drizzle": {
+			"types": "./dist/sinks/drizzle.d.ts",
+			"import": "./dist/sinks/drizzle.js"
+		},
+		"./sinks/bun-sqlite": {
+			"types": "./dist/sinks/bun-sqlite.d.ts",
+			"import": "./dist/sinks/bun-sqlite.js"
+		},
+		"./sinks/testing": {
+			"types": "./dist/sinks/testing.d.ts",
+			"import": "./dist/sinks/testing.js"
 		}
 	},
 	"files": ["dist", "AGENTS.md"],
@@ -54,18 +70,24 @@
 	"devDependencies": {
 		"@openpkg-ts/cli": "^0.11.3",
 		"@types/bun": "latest",
-		"typescript": "^5",
+		"@types/pg": "^8.15.0",
+		"bunup": "0.16.32",
+		"drizzle-orm": "0.45.2",
 		"kysely": "^0.28.15",
 		"pg": "^8.16.0",
-		"@types/pg": "^8.15.0"
+		"typescript": "^5"
 	},
 	"publishConfig": {
 		"access": "public"
 	},
 	"peerDependencies": {
+		"drizzle-orm": ">=0.36",
 		"kysely": ">=0.27"
 	},
 	"peerDependenciesMeta": {
+		"drizzle-orm": {
+			"optional": true
+		},
 		"kysely": {
 			"optional": true
 		}
