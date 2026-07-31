@@ -22,7 +22,10 @@ export interface ConsumerHealth {
  * "are we near the tip": during a genesis backfill the loop is millions of
  * blocks behind and perfectly healthy, so lag can't be the signal. A wedged
  * loop stops reporting pages and flips to 503 — that's what platforms
- * should restart on. `blocks_behind` still ships in the body for dashboards.
+ * should restart on. The body carries position for dashboards:
+ * `blocks_behind` is the actual backlog (`tip - scanned_height`, ~0 for a
+ * caught-up tail even on a quiet contract), while `block_height` is the
+ * last DELIVERED row — its distance from the tip is event age, not lag.
  */
 export function consumerHealth(
 	options: { staleAfterMs?: number } = {},
@@ -50,6 +53,7 @@ export function consumerHealth(
 					ok,
 					checkpoint: lastCtx?.cursor ?? null,
 					block_height: lastCtx?.height ?? null,
+					scanned_height: lastCtx?.scannedHeight ?? null,
 					tip_height: lastCtx?.tipHeight ?? null,
 					blocks_behind: lastCtx?.blocksBehind ?? null,
 					idle_s: Math.floor(idleMs / 1000),

@@ -146,6 +146,10 @@ export async function consumeIndexFeed<
 	// the resume cursor: a restart into a quiet tail knows where it stands
 	// before the first row lands.
 	let height: number | null = resumeHeight(cursor);
+	// Highest block VERIFIED — how far the sweep is actually caught up, as
+	// opposed to `height` (last delivered row). Starts at the resume position;
+	// each page moves it (see below).
+	let scanned: number | null = height;
 
 	while (
 		pages < maxPages &&
@@ -194,8 +198,10 @@ export async function consumeIndexFeed<
 				}
 				cursor = rewind;
 				// Everything at and above the fork is no longer canonical, so the
-				// reached height rolls back with it.
+				// reached height rolls back with it — including the verified
+				// position: the new chain above the fork is unread.
 				height = forkPoint > 0 ? forkPoint - 1 : null;
+				scanned = height;
 				emptyPolls = 0;
 				continue;
 			}
@@ -215,6 +221,22 @@ export async function consumeIndexFeed<
 		// Ascending cursor order, so the last row is the highest block this page
 		// reached; an empty page keeps the previous value.
 		height = emitted.at(-1)?.block_height ?? height;
+		// Verified position. Rows delivered → through the last row (the page
+		// limit hides what's above it). Empty page with an ADVANCED cursor →
+		// through that cursor only (a server may cap an expensive filtered
+		// scan; claiming the tip would overstate). Truly empty → the server
+		// confirmed nothing matches up to the boundary — the finalized height
+		// in finalizedOnly mode (the unfinalized tail is deliberately unread),
+		// the tip otherwise.
+		if (emitted.length > 0) {
+			scanned = height;
+		} else if (checkpoint !== null && checkpoint !== cursor) {
+			scanned = resumeHeight(checkpoint) ?? scanned;
+		} else {
+			scanned = finalizedOnly
+				? envelope.tip.finalized_height
+				: envelope.tip.block_height;
+		}
 
 		// An empty page reports the STANDING cursor, not null: the committed
 		// checkpoint is still this consumer's position while it idles.
@@ -223,6 +245,7 @@ export async function consumeIndexFeed<
 			height,
 			envelope.tip,
 			envelope.reorgs,
+			scanned,
 		);
 		// Before any early return: an empty page still proves the loop is alive.
 		opts.onProgress?.(ctx);

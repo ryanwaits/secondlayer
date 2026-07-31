@@ -19,7 +19,13 @@ describe("consumerHealth", () => {
 		expect(get().status).toBe(200);
 
 		health.record(
-			ctx({ cursor: "5:0", height: 5, tipHeight: 10, blocksBehind: 5 }),
+			ctx({
+				cursor: "5:0",
+				height: 5,
+				scannedHeight: 5,
+				tipHeight: 10,
+				blocksBehind: 5,
+			}),
 		);
 		expect(get().status).toBe(200);
 	});
@@ -27,7 +33,13 @@ describe("consumerHealth", () => {
 	test("flips to 503 once pages stop landing", async () => {
 		const health = consumerHealth({ staleAfterMs: 10 });
 		health.record(
-			ctx({ cursor: "5:0", height: 5, tipHeight: 10, blocksBehind: 5 }),
+			ctx({
+				cursor: "5:0",
+				height: 5,
+				scannedHeight: 5,
+				tipHeight: 10,
+				blocksBehind: 5,
+			}),
 		);
 		await new Promise((r) => setTimeout(r, 25));
 		const res = health.handler(new Request("http://x/health"));
@@ -41,6 +53,7 @@ describe("consumerHealth", () => {
 			ctx({
 				cursor: "1000:0",
 				height: 1000,
+				scannedHeight: 1000,
 				tipHeight: 3_500_000,
 				blocksBehind: 3_499_000,
 			}),

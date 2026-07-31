@@ -589,8 +589,11 @@ describe("consume progress context", () => {
 			},
 		});
 
-		// Null rather than 0 — "not started" and "at genesis" are different states.
-		expect(seen).toEqual([{ height: null, behind: null }]);
+		// `height` stays null — no row was ever delivered, and "not started"
+		// and "at genesis" are different states. `blocksBehind` is 0: the
+		// empty page verified nothing matches up to the tip, so the sweep has
+		// no backlog even though it has delivered nothing.
+		expect(seen).toEqual([{ height: null, behind: 0 }]);
 	});
 
 	test("exposes the tip height on every batch", async () => {
@@ -812,6 +815,7 @@ describe("index resume position reporting", () => {
 		const seen: Array<{
 			cursor: string | null;
 			height: number | null;
+			scannedHeight: number | null;
 			blocksBehind: number | null;
 		}> = [];
 		await client.events.consume({
@@ -831,13 +835,55 @@ describe("index resume position reporting", () => {
 				seen.push({
 					cursor: ctx.cursor,
 					height: ctx.height,
+					scannedHeight: ctx.scannedHeight,
 					blocksBehind: ctx.blocksBehind,
 				}),
 			onBatch: () => {},
 		});
 
+		// Empty page at the tail: last delivered stays 7, verified position is
+		// the tip, backlog is zero.
 		expect(seen).toEqual([
-			{ cursor: "7:0", height: 7, blocksBehind: TIP.block_height - 7 },
+			{
+				cursor: "7:0",
+				height: 7,
+				scannedHeight: TIP.block_height,
+				blocksBehind: 0,
+			},
+		]);
+	});
+});
+
+describe("index scanned position boundaries", () => {
+	test("finalizedOnly claims only the finalized height on an empty page", async () => {
+		// Rows exist above the finalized boundary but are filtered; the loop
+		// deliberately re-reads them later, so "verified" stops at the boundary.
+		const client = clientFor(() => ({
+			events: [event("9:0", 0, 9)],
+			next_cursor: "9:0",
+			tip: TIP,
+			reorgs: [],
+		}));
+
+		const seen: Array<{ scanned: number | null; behind: number | null }> = [];
+		await client.events.consume({
+			eventType: "ft_transfer",
+			fromCursor: "8:0",
+			finalizedOnly: true,
+			maxEmptyPolls: 1,
+			emptyBackoffMs: 0,
+			onProgress: (ctx) =>
+				seen.push({ scanned: ctx.scannedHeight, behind: ctx.blocksBehind }),
+			onBatch: () => {},
+		});
+
+		// The row at 9 is above finalized_height (7) and was filtered out —
+		// verified position is the finalized boundary, not the tip.
+		expect(seen).toEqual([
+			{
+				scanned: TIP.finalized_height,
+				behind: TIP.block_height - TIP.finalized_height,
+			},
 		]);
 	});
 });

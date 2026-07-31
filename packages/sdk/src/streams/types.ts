@@ -317,12 +317,21 @@ export type StreamsEventsSubscribeParams = {
 export type ConsumerBatchContext<TTip = unknown, TReorg = unknown> = {
 	/** Checkpoint to commit alongside your rows. */
 	cursor: string | null;
-	/** Highest canonical block the sweep has reached. `null` before the first
-	 *  row of a fresh consume. */
+	/** Highest canonical block a row was DELIVERED from. `null` before the
+	 *  first row of a fresh consume. With a sparse filter this parks at the
+	 *  last matching event — it measures event recency, not progress. */
 	height: number | null;
+	/** Highest canonical block the sweep has VERIFIED through: an empty page
+	 *  is the server confirming nothing matches between the cursor and the
+	 *  tip, so a caught-up tail scans to the tip even when `height` is far
+	 *  below it. Rolls back with reorg rewinds. */
+	scannedHeight: number | null;
 	/** Chain tip as of this page's read. */
 	tipHeight: number;
-	/** `tipHeight - height`, floored at 0. `null` until `height` is known. */
+	/** `tipHeight - scannedHeight`, floored at 0 — the consumer's actual
+	 *  backlog. `null` until a position is known. A caught-up consumer on a
+	 *  quiet contract reads ~0 here while `tipHeight - height` grows — that
+	 *  difference is event age, not lag. */
 	blocksBehind: number | null;
 	/**
 	 * The full tip for this page — `StreamsTip` or `IndexTip` depending on the

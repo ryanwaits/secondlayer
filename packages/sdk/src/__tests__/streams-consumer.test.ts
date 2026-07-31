@@ -641,6 +641,7 @@ describe("resume position reporting", () => {
 		const seen: Array<{
 			cursor: string | null;
 			height: number | null;
+			scannedHeight: number | null;
 			blocksBehind: number | null;
 		}> = [];
 		await client.events.consume({
@@ -652,13 +653,108 @@ describe("resume position reporting", () => {
 				seen.push({
 					cursor: ctx.cursor,
 					height: ctx.height,
+					scannedHeight: ctx.scannedHeight,
 					blocksBehind: ctx.blocksBehind,
 				}),
 			onBatch: () => {},
 		});
 
+		// The empty page is the server confirming nothing matches up to the
+		// tip: `height` stays at the last delivered row (5), but the VERIFIED
+		// position is the tip — the consumer is 0 behind, not tip-minus-5.
 		expect(seen).toEqual([
-			{ cursor: "5:0", height: 5, blocksBehind: TIP.block_height - 5 },
+			{
+				cursor: "5:0",
+				height: 5,
+				scannedHeight: TIP.block_height,
+				blocksBehind: 0,
+			},
 		]);
+	});
+});
+
+describe("scanned position edge cases", () => {
+	test("an empty page with an ADVANCED cursor claims only that cursor, never the tip", async () => {
+		// A server may cap an expensive filtered scan: no rows, but next_cursor
+		// moved partway. Claiming the tip would overstate what was verified.
+		let served = 0;
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			fetchImpl: async () => {
+				served++;
+				if (served === 1) {
+					return jsonResponse({
+						events: [],
+						next_cursor: "7:0",
+						tip: TIP,
+						reorgs: [],
+					});
+				}
+				return jsonResponse({
+					events: [],
+					next_cursor: null,
+					tip: TIP,
+					reorgs: [],
+				});
+			},
+		});
+
+		const seen: Array<{ scanned: number | null; behind: number | null }> = [];
+		await client.events.consume({
+			fromCursor: "3:0",
+			mode: "bounded",
+			maxPages: 2,
+			emptyBackoffMs: 0,
+			onProgress: (ctx) =>
+				seen.push({ scanned: ctx.scannedHeight, behind: ctx.blocksBehind }),
+			onBatch: () => {},
+		});
+
+		expect(seen).toEqual([
+			// Page 1: cursor advanced 3:0 → 7:0 with no rows — verified through 7.
+			{ scanned: 7, behind: TIP.block_height - 7 },
+			// Page 2: truly empty — verified to the tip, 0 behind.
+			{ scanned: TIP.block_height, behind: 0 },
+		]);
+	});
+
+	test("a reorg rolls the scanned position back below the fork", async () => {
+		let served = 0;
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			fetchImpl: async () => {
+				served++;
+				if (served === 1) {
+					return jsonResponse({
+						events: [event("9:0", 0, { block_height: 9 })],
+						next_cursor: "9:0",
+						tip: TIP,
+						reorgs: [],
+					});
+				}
+				return jsonResponse({
+					events: [],
+					next_cursor: "9:0",
+					tip: TIP,
+					reorgs: [reorg({ fork_point_height: 5 })],
+				});
+			},
+		});
+
+		const seen: Array<number | null> = [];
+		await client.events.consume({
+			emptyBackoffMs: 0,
+			maxEmptyPolls: 1,
+			maxPages: 4,
+			onReorg: () => {},
+			onProgress: (ctx) => seen.push(ctx.scannedHeight),
+			onBatch: () => {},
+		});
+
+		// Page 1 delivers through 9. The fork at 5 rolls the verified position
+		// back (no ctx — the reorg page rewinds and continues). The post-rewind
+		// page advances the cursor to 9:0 without rows — verified through 9,
+		// NOT the tip. Only the echo page (nothing new) verifies to the tip.
+		expect(seen).toEqual([9, 9, TIP.block_height]);
 	});
 });

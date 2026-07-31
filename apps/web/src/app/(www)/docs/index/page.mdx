@@ -84,9 +84,10 @@ Runnable, ~50 lines: the [`sales-index` example](https://github.com/ryanwaits/se
 | Field | Is |
 | --- | --- |
 | `cursor` | The checkpoint to commit alongside your rows |
-| `height` | Highest canonical block reached; held across empty pages, rolled back on a reorg |
+| `height` | Highest canonical block a row was DELIVERED from — event recency, parks on a quiet filter |
+| `scannedHeight` | Highest block VERIFIED — an empty page proves nothing matches up to the tip; rolled back on a reorg |
 | `tipHeight` | Chain tip as of this page's read |
-| `blocksBehind` | `tipHeight - height`, floored at `0` |
+| `blocksBehind` | `tipHeight - scannedHeight`, floored at `0` — real backlog; `~0` for a caught-up tail even when `height` is old |
 
 Want the loop run for you instead: [Subgraphs](/docs/subgraphs).
 
