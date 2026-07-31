@@ -1,6 +1,11 @@
 import { expectTypeOf } from "expect-type";
 import type { IndexEvent } from "./index-api/client.ts";
-import type { StreamsEvent, StreamsEventForFilter } from "./streams/types.ts";
+import type {
+	StreamsClient,
+	StreamsEvent,
+	StreamsEventForFilter,
+	StreamsEventOfTypes,
+} from "./streams/types.ts";
 
 type FtTransfer = Extract<StreamsEvent, { event_type: "ft_transfer" }>;
 type StxTransfer = Extract<StreamsEvent, { event_type: "stx_transfer" }>;
@@ -40,3 +45,23 @@ declare const stxEvent: StreamsEventForFilter<{
 }>;
 // @ts-expect-error — stx_transfer payload has no asset_identifier
 expectTypeOf(stxEvent.payload.asset_identifier).toBeString();
+
+// Top-level `types` narrows too (const-generic overloads on list/stream/consume)
+// — previously only labels narrowed while the flat array kept the full union.
+expectTypeOf<
+	StreamsEventOfTypes<["ft_transfer"]>
+>().toEqualTypeOf<FtTransfer>();
+
+declare const client: StreamsClient;
+{
+	const page = await client.events.list({ types: ["ft_transfer"] });
+	expectTypeOf(page.events).toEqualTypeOf<FtTransfer[]>();
+	const wide = await client.events.list({});
+	expectTypeOf(wide.events).toEqualTypeOf<StreamsEvent[]>();
+	for await (const batch of client.consume({ types: ["stx_transfer"] })) {
+		expectTypeOf(batch.events).toEqualTypeOf<StxTransfer[]>();
+	}
+	for await (const ev of client.events.stream({ types: ["ft_transfer"] })) {
+		expectTypeOf(ev.payload.amount).toEqualTypeOf<string>();
+	}
+}

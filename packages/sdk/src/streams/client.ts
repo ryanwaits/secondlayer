@@ -429,6 +429,7 @@ export function createStreamsClient(
 				sender: params.sender,
 				recipient: params.recipient,
 				assetIdentifier: params.assetIdentifier,
+				filters: params.filters,
 				signal: params.signal,
 				fetchEvents,
 			});
@@ -495,6 +496,11 @@ export function createStreamsClient(
 					fromCursor: seam,
 					mode: params.mode ?? "tail",
 					batchSize: params.batchSize ?? 100,
+					// Live-tail narrowing only — the dump phase above hands over
+					// whole all-type files by design.
+					types: params.types,
+					notTypes: params.notTypes,
+					filters: params.filters,
 					fetchEvents,
 					onBatch: params.onBatch,
 					onReorg: params.onReorg,

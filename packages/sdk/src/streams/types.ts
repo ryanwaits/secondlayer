@@ -177,8 +177,8 @@ export type StreamsReorg = {
 	new_canonical_tip: string;
 };
 
-export type StreamsEventsEnvelope = {
-	events: StreamsEvent[];
+export type StreamsEventsEnvelope<TEvent = StreamsEvent> = {
+	events: TEvent[];
 	next_cursor: string | null;
 	tip: StreamsTip;
 	reorgs: StreamsReorg[];
@@ -188,6 +188,11 @@ export type StreamsEventsListEnvelope = Omit<
 	StreamsEventsEnvelope,
 	"next_cursor"
 >;
+
+/** The StreamsEvent union narrowed to a `types` selection — what a
+ *  const-generic `types: ["ft_transfer"]` buys at the type level. */
+export type StreamsEventOfTypes<T extends readonly StreamsEventType[]> =
+	Extract<StreamsEvent, { event_type: T[number] }>;
 
 export type StreamsReorgsListParams = {
 	since: string;
@@ -463,9 +468,9 @@ export type StreamsEventsConsumeParams<
  * `GET /v1/streams/events` envelope verbatim, with `next_cursor` renamed to
  * `cursor` (the checkpoint to persist and resume from).
  */
-export type StreamsBatch = {
+export type StreamsBatch<TEvent = StreamsEvent> = {
 	/** Canonical events of this page, in cursor order. */
-	events: StreamsEvent[];
+	events: TEvent[];
 	/** Checkpoint after this page — pass back as `consume({ cursor })` to resume. */
 	cursor: string | null;
 	tip: StreamsTip;
@@ -482,6 +487,9 @@ export type StreamsConsumeParams = {
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
+	/** Labelled OR-groups — same semantics as `events.consume`; each returned
+	 *  event echoes the labels it matched. */
+	filters?: StreamsFilterMap;
 	/** Events per page (the `limit` query param). Default 100. */
 	batchSize?: number;
 	/** Poll interval while caught up at the tip, in ms. Default 2000. */
@@ -526,6 +534,13 @@ export type StreamsEventsReplayParams = {
 	maxPages?: number;
 	maxEmptyPolls?: number;
 	signal?: AbortSignal;
+	/** Narrow the LIVE TAIL after the dump phase. The dump files themselves are
+	 *  always all-type (block-partitioned parquet) — filter those in your own
+	 *  tooling while processing each file. */
+	types?: readonly StreamsEventType[];
+	notTypes?: readonly StreamsEventType[];
+	/** Labelled OR-groups for the live tail, like `consume`. */
+	filters?: StreamsFilterMap;
 };
 
 export type FetchLike = (
@@ -591,8 +606,17 @@ export type StreamsClient = {
 	 * rewound automatically — use `events.consume` with `onReorg` for managed
 	 * rollback semantics.
 	 */
+	/** Narrowing overload: a literal `types` array narrows every batch's
+	 *  event union to exactly those members. */
+	consume<const T extends readonly StreamsEventType[]>(
+		params: StreamsConsumeParams & { types: T },
+	): AsyncIterableIterator<StreamsBatch<StreamsEventOfTypes<T>>>;
 	consume(params?: StreamsConsumeParams): AsyncIterableIterator<StreamsBatch>;
 	events: {
+		/** Narrowing overload, matching `consume`. */
+		list<const T extends readonly StreamsEventType[]>(
+			params: StreamsEventsListParams & { types: T },
+		): Promise<StreamsEventsEnvelope<StreamsEventOfTypes<T>>>;
 		list(params?: StreamsEventsListParams): Promise<StreamsEventsEnvelope>;
 		byTxId(txId: string): Promise<StreamsEventsListEnvelope>;
 		/**
@@ -632,6 +656,10 @@ export type StreamsClient = {
 		 * indefinitely by default and stops when its `AbortSignal`, `maxPages`, or
 		 * `maxEmptyPolls` stops it.
 		 */
+		/** Narrowing overload, matching `consume`. */
+		stream<const T extends readonly StreamsEventType[]>(
+			params: StreamsEventsStreamParams & { types: T },
+		): AsyncIterable<StreamsEventOfTypes<T>>;
 		stream(params?: StreamsEventsStreamParams): AsyncIterable<StreamsEvent>;
 		/**
 		 * Subscribe to the real-time SSE push surface. Calls `onEvent` for each new
