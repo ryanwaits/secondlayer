@@ -1,5 +1,17 @@
 # @secondlayer/sdk
 
+## 6.49.2
+
+### Patch Changes
+
+- `consumerHealth`'s body drops `block_height` entirely — `last_delivered_height` is the name. No deprecation window: the field was days old and ambiguous next to `scanned_height`/`tip_height`.
+
+## 6.49.1
+
+### Patch Changes
+
+- `consumerHealth`'s body renames `block_height` to `last_delivered_height` — next to `scanned_height` and `tip_height`, the bare name read as "the block I'm on" when it means "height of the last delivered row." `block_height` still ships as a deprecated duplicate so existing dashboards keep working; it will be removed in a later minor.
+
 ## 6.49.0
 
 ### Minor Changes

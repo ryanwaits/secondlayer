@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "6.49.0",
+	"version": "6.49.2",
 	"areas": [
 		{
 			"name": "Client",
@@ -2522,7 +2522,7 @@
 					"summary": "Liveness for a consume loop.",
 					"signature": "consumerHealth(options?: object): ConsumerHealth",
 					"file": "src/consumer-ops.ts",
-					"line": 30
+					"line": 31
 				},
 				{
 					"name": "ConsumerHealth",
@@ -2554,7 +2554,7 @@
 					"summary": "An `AbortSignal` wired to SIGTERM/SIGINT (redeploys arrive as SIGTERM).",
 					"signature": "shutdownSignal(options?: object): AbortSignal",
 					"file": "src/consumer-ops.ts",
-					"line": 77
+					"line": 78
 				},
 				{
 					"name": "SinkTx",
