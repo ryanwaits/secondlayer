@@ -1,5 +1,11 @@
 # @secondlayer/web
 
+## 0.5.1
+
+### Patch Changes
+
+- d24622d: Docs agent mode replaces the page instead of stacking the prompt deck above a duplicate of the human article; the deck now links the page's raw-markdown endpoint for agents that need the reference.
+
 ## 0.5.0
 
 ### Minor Changes
