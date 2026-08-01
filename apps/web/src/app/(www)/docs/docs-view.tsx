@@ -55,18 +55,12 @@ export function DocsView({ children }: { children: ReactNode }) {
 	const pathname = usePathname();
 	const info = lookup(pathname);
 
-	// Agent mode adds the prompt deck ABOVE the page — it never replaces it.
-	// Swapping the content out meant "the agent view" of a page didn't contain
-	// the page, so an agent following ?mode=agent got prompts and no reference.
+	// Agent mode replaces the page: the deck IS the view. The reference an
+	// agent needs lives at the page's raw-markdown endpoint (`<slug>.md`),
+	// which AgentView links — rendering the human article underneath just
+	// duplicated the page below the deck.
 	if (mode === "agent") {
-		return (
-			<>
-				<AgentView slug={pathname} title={info?.title ?? "Docs"} />
-				<article className="docs-article" id="docs-article">
-					{children}
-				</article>
-			</>
-		);
+		return <AgentView slug={pathname} title={info?.title ?? "Docs"} />;
 	}
 
 	return (

@@ -106,6 +106,9 @@ export function AgentView({ slug, title }: { slug: string; title: string }) {
 				>
 					↗ Open skill repo
 				</a>
+				<a className="agent-btn" href={`${slug}.md`}>
+					≡ Page as markdown
+				</a>
 			</div>
 
 			<hr className="agent-rule" />
