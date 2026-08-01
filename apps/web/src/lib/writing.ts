@@ -19,6 +19,9 @@ export type WritingPost = {
 	date: string;
 	tags: string[];
 	readingTime: string;
+	/** Figure titles in order — feeds the post's meta-rail figure index
+	 *  (jump links to #fig-N anchors). Omit to hide the index. */
+	figures?: string[];
 	/** Drafts render in dev but 404 in production and never hit sitemap/RSS. */
 	status: "draft" | "published";
 };
@@ -32,6 +35,13 @@ export const POSTS: WritingPost[] = [
 		date: "2026-08-01",
 		tags: ["indexers", "checkpoints"],
 		readingTime: "8 min",
+		figures: [
+			"timeline of heights",
+			"the poll, as a spec",
+			"seeks per restart",
+			"crash asymmetry",
+			"selectivity explorer",
+		],
 		status: "published",
 	},
 ];
@@ -50,6 +60,19 @@ export function getPublishedPosts(): WritingPost[] {
 
 export function getPost(slug: string): WritingPost | undefined {
 	return POSTS.find((p) => p.slug === slug);
+}
+
+/** Previous/next among visible posts, by number (continuum footer). */
+export function getAdjacentPosts(slug: string): {
+	prev: WritingPost | undefined;
+	next: WritingPost | undefined;
+} {
+	const posts = [...getVisiblePosts()].sort((a, b) => a.number - b.number);
+	const i = posts.findIndex((p) => p.slug === slug);
+	return {
+		prev: i > 0 ? posts[i - 1] : undefined,
+		next: i >= 0 && i < posts.length - 1 ? posts[i + 1] : undefined,
+	};
 }
 
 /** Per-post Metadata: title/description/OG card from the registry entry. */

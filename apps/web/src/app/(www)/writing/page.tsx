@@ -1,5 +1,6 @@
+import { PostVignette } from "@/components/writing/vignettes";
 import { socialMeta } from "@/lib/og";
-import { getVisiblePosts } from "@/lib/writing";
+import { type WritingPost, getVisiblePosts } from "@/lib/writing";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -16,42 +17,78 @@ export const metadata: Metadata = {
 	},
 };
 
+function monthLabel(date: string): string {
+	return new Date(`${date}T00:00:00Z`)
+		.toLocaleDateString("en-US", {
+			month: "long",
+			year: "numeric",
+			timeZone: "UTC",
+		})
+		.toUpperCase();
+}
+
+function FeaturePost({ post }: { post: WritingPost }) {
+	const vignette = <PostVignette slug={post.slug} />;
+	return (
+		<Link
+			href={`/writing/${post.slug}`}
+			className={`writing-feature${vignette ? "" : " no-fig"}`}
+		>
+			<span className="writing-feature-main">
+				<span className="writing-feature-no">
+					{String(post.number).padStart(2, "0")} · {monthLabel(post.date)}
+					{post.status === "draft" && (
+						<span className="writing-draft-chip">draft</span>
+					)}
+				</span>
+				<span className="writing-feature-t">{post.title}</span>
+				<span className="writing-feature-d">{post.dek}</span>
+				<span className="writing-feature-m">
+					{post.readingTime} · {post.tags.join(" · ")}
+				</span>
+			</span>
+			{vignette && <span className="writing-feature-fig">{vignette}</span>}
+		</Link>
+	);
+}
+
+/** Front-page index: the newest post leads with its signature figure;
+ *  everything older drops into a two-column ledger below the rule. */
 export default function WritingIndexPage() {
-	const posts = getVisiblePosts();
+	const posts = [...getVisiblePosts()].sort((a, b) => b.number - a.number);
+	const [feature, ...rest] = posts;
 
 	return (
-		<main className="writing-shell">
-			<header className="writing-index-head">
-				<div className="writing-index-eyebrow">Writings</div>
-				<h1 className="writing-index-title">Mechanism, explained</h1>
-				<p className="writing-index-dek">
-					Long-form technical guides to how our systems work and what to expect
-					from them. Built from the same figures and data they describe.
-				</p>
-			</header>
-			<div className="writing-index-list">
-				{posts.map((post) => (
-					<Link
-						key={post.slug}
-						href={`/writing/${post.slug}`}
-						className="writing-index-row"
-					>
-						<span className="writing-index-no">
-							{String(post.number).padStart(2, "0")}
-						</span>
-						<span className="writing-index-main">
-							<span className="writing-index-post-title">
-								{post.title}
-								{post.status === "draft" && (
-									<span className="writing-draft-chip">draft</span>
-								)}
+		<main className="writing-front">
+			<div className="writing-index-eyebrow">Writings · latest</div>
+			{feature && <FeaturePost post={feature} />}
+			{rest.length > 0 && (
+				<div className="writing-rest">
+					{rest.map((post) => (
+						<Link
+							key={post.slug}
+							href={`/writing/${post.slug}`}
+							className="writing-rest-row"
+						>
+							<span className="writing-index-no">
+								{String(post.number).padStart(2, "0")}
 							</span>
-							<span className="writing-index-post-dek">{post.dek}</span>
-						</span>
-						<span className="writing-index-date">{post.date}</span>
-					</Link>
-				))}
-			</div>
+							<span>
+								<span className="t">
+									{post.title}
+									{post.status === "draft" && (
+										<span className="writing-draft-chip">draft</span>
+									)}
+								</span>
+								<span className="d">{post.dek}</span>
+								<span className="m">
+									{post.date} · {post.readingTime}
+								</span>
+							</span>
+						</Link>
+					))}
+				</div>
+			)}
 		</main>
 	);
 }

@@ -1,4 +1,5 @@
 import { PostHeader } from "@/components/writing/post-header";
+import { PostFooter } from "@/components/writing/post-footer";
 import {
 	FigShell,
 	Timeline,
@@ -201,3 +202,5 @@ Checkpoint design compresses to one question: *what can you afford to lose?* Fac
 There's plenty this guide skips: exactly-once delivery (a lie, but a useful one: cursors as idempotency keys get you the honest version), what reorg rollback actually deletes, and why the cursor commits in the same transaction as your rows rather than after them. Those live in the [sinks docs](/docs/sinks).
 
 Anyway: if your indexer greets you with the same cursor every restart, you can now read it as the receipt it is. And when a number on a dashboard feels wrong, it's worth asking which fact it's actually measuring.
+
+<PostFooter slug="checkpoint-receipt-not-bookmark" />

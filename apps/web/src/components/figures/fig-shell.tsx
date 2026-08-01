@@ -19,7 +19,7 @@ export function FigShell({
 	children: ReactNode;
 }) {
 	return (
-		<figure className="fig">
+		<figure className="fig" id={`fig-${n}`}>
 			<div className="fig-head">
 				<span className="fig-no">Fig. {n}</span>
 				<span className="fig-title">{title}</span>
