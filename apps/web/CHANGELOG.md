@@ -1,5 +1,11 @@
 # @secondlayer/web
 
+## 0.6.2
+
+### Patch Changes
+
+- 0ece492: Post rail settles on the right page margin beside the centered reading column, pinned in view with a figure scrollspy; margin sidenotes float left.
+
 ## 0.6.1
 
 ### Patch Changes
