@@ -11821,9 +11821,8 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 	padding: 6px 12px;
 	cursor: pointer;
 	min-height: 32px;
-	transition:
-		border-color var(--duration-snappy) var(--ease-snappy),
-		color var(--duration-snappy) var(--ease-snappy);
+	transition: border-color var(--duration-snappy) var(--ease-snappy), color
+		var(--duration-snappy) var(--ease-snappy);
 }
 
 .fig-btn:hover {
@@ -12169,9 +12168,7 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 	flex-direction: column;
 	align-items: center;
 	gap: 2px;
-	transition:
-		left 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-		opacity 0.3s ease;
+	transition: left 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
 	font-family: var(--font-mono-stack);
 	font-size: 10.5px;
 	letter-spacing: 0.06em;
@@ -12431,9 +12428,7 @@ input[type="range"].fig-range {
 	color: var(--text-muted);
 	line-height: 1.5;
 	opacity: 0.55;
-	transition:
-		opacity 0.15s ease,
-		background-color 0.15s ease;
+	transition: opacity 0.15s ease, background-color 0.15s ease;
 }
 
 .fig-note.on {
@@ -12686,9 +12681,7 @@ input[type="range"].fig-range {
 	background: var(--bg-elevated);
 	border: 1px solid var(--border);
 	border-radius: 6px;
-	box-shadow:
-		0 4px 24px rgba(0, 0, 0, 0.06),
-		0 1px 4px rgba(0, 0, 0, 0.04);
+	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
 	padding: 9px 12px;
 	font-size: 12.5px;
 	line-height: 1.5;
@@ -12792,9 +12785,7 @@ input[type="range"].fig-range {
 	letter-spacing: 0.07em;
 	text-transform: uppercase;
 	white-space: nowrap;
-	transition:
-		left 0.6s cubic-bezier(0.22, 1, 0.36, 1),
-		opacity 0.3s ease;
+	transition: left 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
 }
 
 .fig-mk-flag.role-a {
@@ -12817,9 +12808,7 @@ input[type="range"].fig-range {
 	font-variant-numeric: tabular-nums;
 	white-space: nowrap;
 	color: var(--text-main);
-	transition:
-		left 0.6s cubic-bezier(0.22, 1, 0.36, 1),
-		opacity 0.3s ease;
+	transition: left 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
 }
 
 .fig-flow {
@@ -12921,9 +12910,7 @@ input[type="range"].fig-range {
 .fig-life-svg .lnode rect {
 	fill: var(--bg-chrome);
 	stroke: var(--border);
-	transition:
-		fill 0.2s ease,
-		stroke 0.2s ease;
+	transition: fill 0.2s ease, stroke 0.2s ease;
 }
 
 .fig-life-svg .lnode.active rect {
@@ -12941,9 +12928,7 @@ input[type="range"].fig-range {
 	stroke-width: 1.2;
 	fill: none;
 	opacity: 0.55;
-	transition:
-		opacity 0.2s ease,
-		stroke 0.2s ease;
+	transition: opacity 0.2s ease, stroke 0.2s ease;
 }
 
 .fig-life-svg .ledge.active {
@@ -13111,10 +13096,8 @@ input[type="range"].fig-range {
 	cursor: pointer;
 	text-align: left;
 	width: 100%;
-	transition:
-		transform 0.18s cubic-bezier(0.19, 1, 0.22, 1),
-		border-color 0.18s ease,
-		background-color 0.18s ease;
+	transition: transform 0.18s cubic-bezier(0.19, 1, 0.22, 1), border-color 0.18s
+		ease, background-color 0.18s ease;
 }
 
 .fig-layer .lsub {
@@ -13180,9 +13163,7 @@ input[type="range"].fig-range {
 .fig-tree-svg .tnode rect {
 	fill: var(--bg-chrome);
 	stroke: var(--border);
-	transition:
-		fill 0.25s ease,
-		stroke 0.25s ease;
+	transition: fill 0.25s ease, stroke 0.25s ease;
 }
 
 .fig-tree-svg .tnode.lit rect {
@@ -13230,9 +13211,7 @@ input[type="range"].fig-range {
 
 .fig-ba-mk {
 	position: absolute;
-	transition:
-		left 0.5s cubic-bezier(0.22, 1, 0.36, 1),
-		opacity 0.4s ease;
+	transition: left 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s ease;
 }
 
 .fig-ba-pin {
@@ -13305,10 +13284,7 @@ input[type="range"].fig-range {
 	height: 10px;
 	background: color-mix(in srgb, var(--fig-alarm) 14%, transparent);
 	border-radius: 3px;
-	transition:
-		opacity 0.4s ease,
-		left 0.5s ease,
-		width 0.5s ease;
+	transition: opacity 0.4s ease, left 0.5s ease, width 0.5s ease;
 }
 
 .fig-staterow {
@@ -13339,9 +13315,7 @@ input[type="range"].fig-range {
 	padding: 5px 10px;
 	color: var(--fig-faint);
 	background: var(--bg-chrome);
-	transition:
-		background-color 0.2s ease,
-		color 0.2s ease;
+	transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .fig-st.past {
@@ -13483,9 +13457,7 @@ input[type="range"].fig-range {
 	background: var(--bg-elevated);
 	border: 1px solid var(--border);
 	border-radius: 6px;
-	box-shadow:
-		0 4px 24px rgba(0, 0, 0, 0.06),
-		0 1px 4px rgba(0, 0, 0, 0.04);
+	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
 	padding: 7px 10px;
 	font-family: var(--font-mono-stack);
 	font-size: 11.5px;
@@ -13621,9 +13593,7 @@ input[type="range"].fig-range {
 	background: transparent;
 	color: var(--text-main);
 	cursor: pointer;
-	transition:
-		border-color 0.15s ease,
-		background-color 0.15s ease;
+	transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .fig-popt:hover {
@@ -13703,9 +13673,7 @@ input[type="range"].fig-range {
 	margin-bottom: 8px;
 	color: var(--text-muted);
 	cursor: pointer;
-	transition:
-		border-color 0.15s ease,
-		color 0.15s ease;
+	transition: border-color 0.15s ease, color 0.15s ease;
 }
 
 .fig-xchip .xk {
@@ -13730,9 +13698,7 @@ input[type="range"].fig-range {
 .fig-xval {
 	border-radius: 3px;
 	padding: 0 2px;
-	transition:
-		background-color 0.15s ease,
-		outline-color 0.15s ease;
+	transition: background-color 0.15s ease, outline-color 0.15s ease;
 	cursor: pointer;
 }
 
