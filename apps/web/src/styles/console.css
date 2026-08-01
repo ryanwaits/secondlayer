@@ -51,7 +51,7 @@ body:has(.dash) .auth-bar {
 .dash-page-title {
 	font-family: var(--font-heading-stack);
 	font-size: 15px;
-	font-weight: 500;
+	font-weight: 560;
 	letter-spacing: -0.01875rem;
 }
 .dash-page-desc {
@@ -659,7 +659,7 @@ html.force-light .tabbed-code-tab.active {
 .dash-page-title {
 	font-family: var(--font-heading-stack);
 	font-size: 15px;
-	font-weight: 500;
+	font-weight: 560;
 	letter-spacing: -0.01875rem;
 	color: var(--text-main);
 	margin-bottom: 0;

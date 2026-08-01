@@ -53,6 +53,16 @@
 	--font-heading-stack: "Sora", ui-sans-serif, system-ui, sans-serif;
 	--font-mono-stack: "Fira Code", "SFMono-Regular", Consolas, monospace;
 
+	/* Type scale (normalization pass): the reading register shared by docs
+	   and writing, and the three sanctioned weights. UI surfaces (marketing
+	   cards, platform) stay on the dense 14px base — density is the brand
+	   there; these tokens exist so reading surfaces can't drift apart. */
+	--type-reading: 16px;
+	--lh-reading: 1.75;
+	--w-reading: 440;
+	--w-ui: 460;
+	--w-heading: 560;
+
 	--spacing-xxs: 0.5rem;
 	--spacing-xs: 1rem;
 	--spacing-sm: 1.5rem;
@@ -489,7 +499,7 @@ a {
 
 .page-title {
 	font-size: 0.9375rem;
-	font-weight: 500;
+	font-weight: var(--w-heading);
 	letter-spacing: -0.01875rem;
 	line-height: normal;
 	margin-bottom: 0.25rem;
@@ -4699,7 +4709,7 @@ html.force-dark .shiki span {
 .www-hero-title {
 	font-family: var(--font-heading-stack);
 	font-size: clamp(2rem, 5.5vw, 3.25rem);
-	font-weight: 600;
+	font-weight: var(--w-heading);
 	line-height: 1.05;
 	letter-spacing: -0.025em;
 	color: var(--text-main);
@@ -5629,26 +5639,32 @@ html.force-dark .shiki span {
 .docs-article {
 	max-width: 720px;
 }
-/* Title + section headings reuse marketing's .page-title / .section-heading
-   (set in mdx-components). Here we only add docs-specific spacing + anchors. */
+/* Title gets a real masthead step (~1.75x body) instead of body-sized
+   .page-title — a page's name should outrank its chips. */
 .docs-article .page-title {
+	font-size: clamp(24px, 3vw, 30px);
+	font-weight: var(--w-heading);
+	line-height: 1.2;
+	letter-spacing: 0;
 	margin-bottom: var(--spacing-sm);
+	text-wrap: balance;
 }
-/* More air above each section + a slightly larger heading so sections read
-   as clear breaks, not crammed dividers. */
+/* Section rhythm: ~3.5x body of air above each rule so sections read as
+   clear breaks, and a heading at ~1.4x body (Sora runs wide). */
 .docs-article .section-heading-wrap {
 	margin-top: var(--spacing-xxl);
 	margin-bottom: var(--spacing-md);
 }
 .docs-article .section-heading {
-	font-size: 0.95rem;
+	font-size: 22px;
+	line-height: 1.3;
 	scroll-margin-top: 24px;
 }
 .docs-article h3 {
-	font-size: 15px;
-	font-weight: 600;
+	font-size: 17px;
+	font-weight: var(--w-heading);
 	color: var(--text-main);
-	letter-spacing: -0.008em;
+	letter-spacing: 0;
 	margin: var(--spacing-lg) 0 0.65rem;
 	scroll-margin-top: 24px;
 }
@@ -5683,12 +5699,12 @@ html.force-dark .shiki span {
    larger, more line-height + block spacing, and a softened (not pure-black)
    color via --docs-prose so dense pages read calmly instead of crammed. */
 .docs-article p {
-	font-size: 15px;
-	font-weight: 450;
-	line-height: 1.72;
-	letter-spacing: -0.006em;
+	font-size: var(--type-reading);
+	font-weight: var(--w-reading);
+	line-height: var(--lh-reading);
+	letter-spacing: 0;
 	color: var(--docs-prose);
-	margin: 0 0 1.45rem;
+	margin: 0 0 1.25rem;
 }
 .docs-article a {
 	color: inherit;
@@ -5714,9 +5730,10 @@ html.force-dark .shiki span {
 	position: relative;
 	margin-bottom: 0.55rem;
 	padding-left: 0.25rem;
-	font-size: 15px;
-	line-height: 1.68;
-	letter-spacing: -0.006em;
+	font-size: var(--type-reading);
+	font-weight: var(--w-reading);
+	line-height: 1.7;
+	letter-spacing: 0;
 	color: var(--docs-prose);
 }
 .docs-article ul > li::before {
@@ -11501,21 +11518,29 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
    ══════════════════════════════════════════════════════════════════ */
 
 .writing-shell {
-	max-width: 680px;
+	max-width: 720px;
 	margin: 0 auto;
 	padding: 72px 24px 80px;
 }
 
+/* Reading register — IDENTICAL to .docs-article prose by design (the
+   normalization pass): same size/weight/leading tokens, same softened
+   ink. Only the masthead and figure chrome distinguish a post. */
 .writing-article {
-	font-size: 17px;
-	font-weight: 430;
-	line-height: 1.72;
+	font-size: var(--type-reading);
+	font-weight: var(--w-reading);
+	line-height: var(--lh-reading);
 	letter-spacing: 0;
 	color: var(--text-main);
 }
 
 .writing-article p {
 	margin: 0 0 20px;
+	color: var(--docs-prose);
+}
+
+.writing-article li {
+	color: var(--docs-prose);
 }
 
 .writing-article p a,
@@ -11527,7 +11552,8 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 }
 
 .writing-article strong {
-	font-weight: 650;
+	font-weight: 600;
+	color: var(--text-main);
 }
 
 .writing-article em {
@@ -11618,17 +11644,17 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 	font-variant-numeric: tabular-nums;
 }
 
-/* Section headings — restyle what MdxH2 emits (.section-heading-wrap)
-   for the reading register: Sora, larger, more air above. */
+/* Section headings — restyle what MdxH2 emits (.section-heading-wrap).
+   Same scale and rhythm as .docs-article (~1.4x body, ~3.5x body of air). */
 .writing-article .section-heading-wrap {
-	margin-top: 64px;
-	margin-bottom: 20px;
+	margin-top: var(--spacing-xxl);
+	margin-bottom: var(--spacing-md);
 }
 
 .writing-article .section-heading {
 	font-family: var(--font-heading-stack);
-	font-size: 19px;
-	font-weight: 560;
+	font-size: 22px;
+	font-weight: var(--w-heading);
 	line-height: 1.3;
 	letter-spacing: 0;
 	padding-right: 16px;
@@ -11636,9 +11662,9 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 
 .writing-article h3 {
 	font-family: var(--font-heading-stack);
-	font-size: 16px;
-	font-weight: 560;
-	margin: 40px 0 14px;
+	font-size: 17px;
+	font-weight: var(--w-heading);
+	margin: var(--spacing-lg) 0 14px;
 }
 
 /* Index page */
