@@ -11847,10 +11847,15 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 	vertical-align: 2px;
 }
 
-/* ── Post meta rail (P·1, right side) + continuum footer (P·2) ───── */
-/* Rail sits in the right page margin beside the 720px column; the
-   sidenote margin variant flips LEFT to stay out of its way (both
-   behind the same ≥1160px breakpoint — below it, everything inlines). */
+/* ── Post meta rail (P·1) + continuum footer (P·2) ───────────────── */
+/* ≥1180px the post shell becomes
+   sidebar-and-content: the rail is fixed near the left viewport edge
+   (docs-shell style) and the 720px reading column starts after its
+   lane, left-aligned rather than viewport-centered. The fixed rail
+   keeps the figure index in view while scrolling; an
+   IntersectionObserver lights the figure currently on screen. Margin
+   sidenotes float right at ≥1240px, where the right margin has room.
+   Below 1180px everything inlines. */
 .writing-header {
 	position: relative;
 }
@@ -11859,13 +11864,23 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 	display: none;
 }
 
-@media (min-width: 1160px) {
+@media (min-width: 1180px) {
+	/* Sidebar-and-content, docs-shell style: the rail hugs the left edge
+	   of the viewport and the reading column starts after its lane. */
+	.writing-shell {
+		max-width: none;
+		margin: 0;
+		padding-left: 270px;
+	}
+	.writing-shell > .writing-article {
+		max-width: 720px;
+	}
 	.writing-rail {
 		display: block;
-		position: absolute;
-		top: 6px;
-		left: calc(100% + 32px);
+		position: fixed;
+		top: 128px;
 		width: 190px;
+		left: 32px;
 		font-family: var(--font-mono-stack);
 		font-size: 11px;
 		color: var(--fig-faint);
@@ -11894,12 +11909,16 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 		text-decoration: none;
 		transition: color var(--duration-snappy) var(--ease-snappy);
 	}
-	.writing-rail .fig-ln:hover {
+	.writing-rail .fig-ln:hover,
+	.writing-rail .fig-ln.on {
 		color: var(--accent);
 	}
 	.writing-rail .fig-ln b {
 		color: var(--text-muted);
 		font-weight: 500;
+	}
+	.writing-rail .fig-ln.on b {
+		color: var(--accent);
 	}
 	/* The rail carries what the inline eyebrow + meta row said. */
 	.writing-header .writing-eyebrow,
@@ -14135,12 +14154,12 @@ input[type="range"].fig-range {
 	padding: 2px 0 2px 12px;
 }
 
-@media (min-width: 1160px) {
+@media (min-width: 1240px) {
 	.writing-article .fig-snbody.margin {
-		float: left;
-		clear: left;
+		float: right;
+		clear: right;
 		width: 180px;
-		margin-left: -216px;
+		margin-right: -216px;
 		margin-top: 4px;
 		margin-bottom: 8px;
 		font-size: 12px;

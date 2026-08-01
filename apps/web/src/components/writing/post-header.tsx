@@ -1,13 +1,14 @@
 import { getPost } from "@/lib/writing";
 import { notFound } from "next/navigation";
+import { PostRail } from "./post-rail";
 
 /**
- * Post masthead + the right meta rail. On viewports ≥1160px the number,
- * date, reading time, figure index, and tags live in an absolutely
- * positioned rail beside the column (and margin sidenotes float LEFT to
- * stay out of its way); below that the same facts render as the inline
- * eyebrow + meta row, and the rail is hidden. Title lives ONLY here —
- * post MDX bodies start at h2 so the docs MdxH1 mapping is never hit.
+ * Post masthead + the pinned meta rail. On viewports ≥1180px the number,
+ * date, reading time, figure index (scrollspy), and tags live in a fixed
+ * rail in the left page margin, and margin sidenotes float right; below
+ * that the same facts render as the inline eyebrow + meta row and the
+ * rail is hidden. Title lives ONLY here — post MDX bodies start at h2 so
+ * the docs MdxH1 mapping is never hit.
  *
  * Also the draft gate: drafts 404 in production (and stay out of the
  * build output for static pages) while remaining reachable in dev.
@@ -29,24 +30,13 @@ export function PostHeader({ slug }: { slug: string }) {
 
 	return (
 		<header className="writing-header">
-			<aside className="writing-rail" aria-label="Post details">
-				<span className="k">Writings</span>
-				<span className="no">№ {number}</span>
-				<span>{date}</span>
-				<span>{post.readingTime} read</span>
-				{post.figures && post.figures.length > 0 && (
-					<>
-						<span className="k">Figures</span>
-						{post.figures.map((title, i) => (
-							<a key={title} className="fig-ln" href={`#fig-${i + 1}`}>
-								<b>{i + 1}</b> · {title}
-							</a>
-						))}
-					</>
-				)}
-				<span className="k">Tags</span>
-				<span>{post.tags.join(" · ")}</span>
-			</aside>
+			<PostRail
+				number={number}
+				date={date}
+				readingTime={post.readingTime}
+				figures={post.figures}
+				tags={post.tags}
+			/>
 			<div className="writing-eyebrow">
 				<span>Writings · {number}</span>
 				<span className="dim">{post.readingTime}</span>
