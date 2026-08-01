@@ -1,5 +1,11 @@
 # @secondlayer/web
 
+## 0.6.0
+
+### Minor Changes
+
+- 82f1696: /writing front-page index (featured post with live signature-figure vignette + two-column ledger), post meta rail on the right with a figure index, continuum footer (prev/next + feed), sidenotes moved to the left margin.
+
 ## 0.5.1
 
 ### Patch Changes
