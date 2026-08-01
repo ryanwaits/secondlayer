@@ -1,5 +1,11 @@
 # @secondlayer/web
 
+## 0.6.1
+
+### Patch Changes
+
+- d9b880e: Post meta rail refined to a sidebar-and-content layout: fixed left rail with an IntersectionObserver figure scrollspy, left-aligned reading column, sidenotes back in the right margin on wide viewports.
+
 ## 0.6.0
 
 ### Minor Changes
