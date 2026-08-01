@@ -41,6 +41,14 @@
 	--teal: #1588b2;
 	--teal-bg: rgba(21, 136, 178, 0.08);
 
+	/* Writings figure library — role pair validated for light (#fff cards) */
+	--fig-role-a: #2563eb;
+	--fig-role-b: #d97706;
+	--fig-role-b-bg: rgba(217, 119, 6, 0.08);
+	--fig-alarm: #dc2626;
+	--fig-ok: #15803d;
+	--fig-faint: rgba(0, 0, 0, 0.42);
+
 	--font-sans-stack: "Public Sans", ui-sans-serif, system-ui, sans-serif;
 	--font-heading-stack: "Sora", ui-sans-serif, system-ui, sans-serif;
 	--font-mono-stack: "Fira Code", "SFMono-Regular", Consolas, monospace;
@@ -101,6 +109,14 @@
 		--blue-bg: rgba(96, 165, 250, 0.08);
 		--teal: #1ea8d8;
 		--teal-bg: rgba(30, 168, 216, 0.1);
+
+		/* Figure role pair validated for dark (#1a1a1a cards) — NOT --accent */
+		--fig-role-a: #5e81ea;
+		--fig-role-b: #bd8412;
+		--fig-role-b-bg: rgba(189, 132, 18, 0.14);
+		--fig-alarm: #ef6a6a;
+		--fig-ok: #4ade80;
+		--fig-faint: rgba(255, 255, 255, 0.38);
 	}
 }
 
@@ -145,6 +161,12 @@ html.force-dark {
 	--blue-bg: rgba(96, 165, 250, 0.08);
 	--teal: #1ea8d8;
 	--teal-bg: rgba(30, 168, 216, 0.1);
+	--fig-role-a: #5e81ea;
+	--fig-role-b: #bd8412;
+	--fig-role-b-bg: rgba(189, 132, 18, 0.14);
+	--fig-alarm: #ef6a6a;
+	--fig-ok: #4ade80;
+	--fig-faint: rgba(255, 255, 255, 0.38);
 }
 
 /* Force light via class (user preference override on dark system) */
@@ -188,6 +210,12 @@ html.force-light {
 	--blue-bg: rgba(59, 130, 246, 0.08);
 	--teal: #1588b2;
 	--teal-bg: rgba(21, 136, 178, 0.08);
+	--fig-role-a: #2563eb;
+	--fig-role-b: #d97706;
+	--fig-role-b-bg: rgba(217, 119, 6, 0.08);
+	--fig-alarm: #dc2626;
+	--fig-ok: #15803d;
+	--fig-faint: rgba(0, 0, 0, 0.42);
 }
 
 * {
@@ -11463,4 +11491,2400 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 .sdkref-summary {
 	margin: 8px 0 0;
 	font-size: 13px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Writing — /writing long-form posts (reading register)
+   Wider type than docs on purpose: a bare 680px column, 17px body,
+   figures full-bleed past the prose edge. Ported from the approved
+   writings mock; all colors via house tokens.
+   ══════════════════════════════════════════════════════════════════ */
+
+.writing-shell {
+	max-width: 680px;
+	margin: 0 auto;
+	padding: 72px 24px 80px;
+}
+
+.writing-article {
+	font-size: 17px;
+	font-weight: 430;
+	line-height: 1.72;
+	letter-spacing: 0;
+	color: var(--text-main);
+}
+
+.writing-article p {
+	margin: 0 0 20px;
+}
+
+.writing-article p a,
+.writing-article li a {
+	color: var(--accent);
+	text-decoration: underline;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 3px;
+}
+
+.writing-article strong {
+	font-weight: 650;
+}
+
+.writing-article em {
+	font-style: italic;
+}
+
+.writing-article code {
+	font-family: var(--font-mono-stack);
+	font-size: 0.86em;
+	background: var(--code-bg);
+	padding: 1px 5px;
+	border-radius: 3px;
+}
+
+.writing-article .code-block-wrapper {
+	margin: 0 0 20px;
+}
+
+.writing-article .code-block-wrapper pre {
+	font-size: 13.5px;
+	line-height: 1.6;
+}
+
+.writing-article ul {
+	list-style: none;
+	margin: 0 0 20px;
+	padding-left: 1.35rem;
+}
+
+.writing-article ul li {
+	position: relative;
+	margin-bottom: 10px;
+}
+
+.writing-article ul li::before {
+	content: "–";
+	position: absolute;
+	left: -1.35rem;
+	color: var(--text-muted);
+}
+
+/* Post header (PostHeader component) */
+.writing-eyebrow {
+	display: flex;
+	gap: 14px;
+	flex-wrap: wrap;
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: var(--accent);
+	margin-bottom: 20px;
+}
+
+.writing-eyebrow .dim {
+	color: var(--fig-faint);
+}
+
+.writing-title {
+	font-family: var(--font-heading-stack);
+	font-size: clamp(34px, 6vw, 46px);
+	line-height: 1.15;
+	letter-spacing: 0;
+	font-weight: 560;
+	margin: 0 0 20px;
+	text-wrap: balance;
+}
+
+.writing-dek {
+	font-size: 19.5px;
+	line-height: 1.6;
+	color: var(--text-muted);
+	margin: 0 0 28px;
+	text-wrap: pretty;
+}
+
+.writing-meta {
+	display: flex;
+	gap: 18px;
+	align-items: center;
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	color: var(--fig-faint);
+	border-top: 1px solid var(--border);
+	border-bottom: 1px solid var(--border);
+	padding: 12px 2px;
+	margin-bottom: 52px;
+	font-variant-numeric: tabular-nums;
+}
+
+/* Section headings — restyle what MdxH2 emits (.section-heading-wrap)
+   for the reading register: Sora, larger, more air above. */
+.writing-article .section-heading-wrap {
+	margin-top: 64px;
+	margin-bottom: 20px;
+}
+
+.writing-article .section-heading {
+	font-family: var(--font-heading-stack);
+	font-size: 19px;
+	font-weight: 560;
+	line-height: 1.3;
+	letter-spacing: 0;
+	padding-right: 16px;
+}
+
+.writing-article h3 {
+	font-family: var(--font-heading-stack);
+	font-size: 16px;
+	font-weight: 560;
+	margin: 40px 0 14px;
+}
+
+/* Index page */
+.writing-index-head {
+	margin-bottom: 8px;
+}
+
+.writing-index-eyebrow {
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: var(--accent);
+	margin-bottom: 14px;
+}
+
+.writing-index-title {
+	font-family: var(--font-heading-stack);
+	font-size: 28px;
+	font-weight: 560;
+	line-height: 1.2;
+	margin: 0 0 10px;
+}
+
+.writing-index-dek {
+	font-size: 15.5px;
+	line-height: 1.6;
+	color: var(--text-muted);
+	margin: 0 0 36px;
+	max-width: 54ch;
+}
+
+.writing-index-list {
+	border-top: 1px solid var(--border);
+}
+
+.writing-index-row {
+	display: grid;
+	grid-template-columns: auto 1fr auto;
+	gap: 18px;
+	align-items: baseline;
+	padding: 18px 8px;
+	border-bottom: 1px solid var(--border);
+	transition: background var(--duration-snappy) var(--ease-snappy);
+}
+
+.writing-index-row:hover {
+	background: var(--nudge-bg);
+}
+
+.writing-index-no {
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	color: var(--fig-faint);
+	font-variant-numeric: tabular-nums;
+}
+
+.writing-index-main {
+	min-width: 0;
+}
+
+.writing-index-post-title {
+	display: block;
+	font-family: var(--font-heading-stack);
+	font-size: 17px;
+	font-weight: 560;
+	line-height: 1.35;
+	color: var(--text-main);
+	margin-bottom: 4px;
+}
+
+.writing-index-row:hover .writing-index-post-title {
+	color: var(--accent);
+}
+
+.writing-index-post-dek {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	font-size: 13.5px;
+	line-height: 1.55;
+	color: var(--text-muted);
+}
+
+.writing-index-date {
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	color: var(--fig-faint);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.writing-draft-chip {
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	font-weight: 600;
+	color: var(--yellow);
+	background: var(--yellow-bg);
+	border-radius: 3px;
+	padding: 2px 7px;
+	margin-left: 10px;
+	vertical-align: 2px;
+}
+
+@media (max-width: 560px) {
+	.writing-index-row {
+		grid-template-columns: auto 1fr;
+	}
+	.writing-index-date {
+		grid-column: 2;
+	}
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Writings figure library (.fig-) — shared chrome + per-type styles.
+   Role colors are semantic and constant per post (--fig-role-a = blue
+   = receipt/delivered, --fig-role-b = amber = bookmark/scanned),
+   never cycled. Flat-By-Default: no shadows, hairlines only.
+   ══════════════════════════════════════════════════════════════════ */
+
+.fig {
+	margin: 36px -28px;
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	overflow: hidden;
+}
+
+@media (max-width: 760px) {
+	.fig {
+		margin: 32px -8px;
+	}
+}
+
+.fig-head {
+	display: flex;
+	align-items: baseline;
+	gap: 12px;
+	padding: 14px 20px 0;
+}
+
+.fig-no {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	letter-spacing: 0.14em;
+	color: var(--accent);
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.fig-title {
+	font-size: 13.5px;
+	font-weight: 600;
+	color: var(--text-muted);
+}
+
+.fig-body {
+	padding: 18px 20px 20px;
+}
+
+.fig-caption {
+	padding: 0 20px 16px;
+	font-size: 13px;
+	color: var(--fig-faint);
+	line-height: 1.55;
+}
+
+/* Segmented control shared by toggling figures (aria-pressed drives state) */
+.fig-btn {
+	font-family: var(--font-mono-stack);
+	font-size: 11.5px;
+	letter-spacing: 0.04em;
+	color: var(--text-muted);
+	background: none;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	padding: 6px 12px;
+	cursor: pointer;
+	min-height: 32px;
+	transition:
+		border-color var(--duration-snappy) var(--ease-snappy),
+		color var(--duration-snappy) var(--ease-snappy);
+}
+
+.fig-btn:hover {
+	border-color: var(--border-hover);
+	color: var(--text-main);
+}
+
+.fig-btn[aria-pressed="true"] {
+	color: var(--accent);
+	border-color: var(--accent-border);
+	background: var(--accent-bg);
+}
+
+.fig-btn:focus-visible {
+	outline: none;
+	border-color: var(--accent);
+}
+
+/* ── B3 Timeline ─────────────────────────────────────────────────── */
+.fig-tl {
+	position: relative;
+	height: 108px;
+	margin: 4px 8px;
+}
+
+.fig-tl-rail {
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 62px;
+	height: 2px;
+	background: var(--border);
+	border-radius: 2px;
+}
+
+.fig-tl-span {
+	position: absolute;
+	top: 59px;
+	height: 8px;
+	border-radius: 3px;
+	background: color-mix(in srgb, var(--fig-ok) 16%, transparent);
+}
+
+.fig-tl-tick {
+	position: absolute;
+	top: 54px;
+	width: 2px;
+	height: 18px;
+	transform: translateX(-50%);
+	border-radius: 1px;
+	background: var(--fig-faint);
+}
+
+.fig-tl-tick.major {
+	width: 3px;
+}
+
+.fig-tl-tick.role-a {
+	background: var(--fig-role-a);
+}
+
+.fig-tl-tick.role-b {
+	background: var(--fig-role-b);
+}
+
+.fig-tl-flag {
+	position: absolute;
+	top: 14px;
+	transform: translateX(-50%);
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	white-space: nowrap;
+	color: var(--text-muted);
+}
+
+.fig-tl-flag.role-a {
+	color: var(--fig-role-a);
+}
+
+.fig-tl-flag.role-b {
+	color: var(--fig-role-b);
+}
+
+.fig-tl-val {
+	position: absolute;
+	top: 82px;
+	transform: translateX(-50%);
+	font-family: var(--font-mono-stack);
+	font-size: 11.5px;
+	color: var(--text-main);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.fig-tl-spanlab {
+	position: absolute;
+	top: 38px;
+	transform: translateX(-50%);
+	font-size: 11.5px;
+	color: var(--fig-faint);
+	white-space: nowrap;
+}
+
+/* ── A10 SpecSheet ───────────────────────────────────────────────── */
+.fig-sheet {
+	font-family: var(--font-mono-stack);
+	font-size: 12.5px;
+}
+
+.fig-sheet-row {
+	display: grid;
+	grid-template-columns: 170px 1fr;
+	gap: 12px;
+	padding: 8px 2px;
+	border-top: 1px solid var(--border);
+}
+
+.fig-sheet-row:first-child {
+	border-top: none;
+}
+
+.fig-sheet-k {
+	color: var(--fig-faint);
+	font-size: 10.5px;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	padding-top: 2px;
+}
+
+.fig-sheet-v {
+	color: var(--text-main);
+	font-variant-numeric: tabular-nums;
+	overflow-wrap: anywhere;
+}
+
+.fig-sheet-v .dim {
+	color: var(--text-muted);
+}
+
+@media (max-width: 560px) {
+	.fig-sheet-row {
+		grid-template-columns: 1fr;
+		gap: 2px;
+	}
+}
+
+/* ── C2 BarChart ─────────────────────────────────────────────────── */
+.fig-cbar-svg {
+	width: 100%;
+	height: auto;
+	display: block;
+}
+
+.fig-cbar-svg text {
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	fill: var(--fig-faint);
+}
+
+.fig-cbar-svg .dlab {
+	font-weight: 600;
+	font-size: 10.5px;
+	fill: var(--fig-role-a);
+}
+
+.fig-cbar-svg .gline {
+	stroke: var(--border);
+	stroke-width: 1;
+}
+
+/* ── A11 SourceQuote — unnumbered pull-quote, sits in prose flow ─── */
+.fig-squote {
+	margin: 36px 0;
+	padding: 0 8px;
+}
+
+.fig-squote blockquote {
+	margin: 0;
+	font-size: 16.5px;
+	line-height: 1.6;
+	color: var(--text-main);
+	font-style: italic;
+	max-width: 58ch;
+}
+
+.fig-squote figcaption {
+	margin-top: 10px;
+	font-family: var(--font-mono-stack);
+	font-size: 11.5px;
+	color: var(--fig-faint);
+}
+
+.fig-squote figcaption a {
+	color: var(--accent);
+	text-decoration: none;
+}
+
+/* ── A3 Matrix — 2×n asymmetry cards, role via dot marker ────────── */
+.fig-asym {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+}
+
+@media (max-width: 620px) {
+	.fig-asym {
+		grid-template-columns: 1fr;
+	}
+}
+
+.fig-asym-card {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 16px 18px;
+}
+
+.fig-asym-card h4 {
+	margin: 0 0 4px;
+	font-size: 13px;
+	font-weight: 650;
+	font-family: var(--font-mono-stack);
+	letter-spacing: 0.04em;
+}
+
+.fig-asym-card h4 .soft {
+	font-weight: 400;
+}
+
+.fig-asym-card h4::before {
+	content: "";
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	margin-right: 9px;
+	vertical-align: 1px;
+	background: var(--fig-faint);
+}
+
+.fig-asym-card.role-a h4::before {
+	background: var(--fig-role-a);
+}
+
+.fig-asym-card.role-b h4::before {
+	background: var(--fig-role-b);
+}
+
+.fig-asym-kicker {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+	color: var(--fig-faint);
+	margin-bottom: 10px;
+	font-family: var(--font-mono-stack);
+}
+
+.fig-asym-card p {
+	font-size: 14px;
+	line-height: 1.6;
+	margin: 0 0 10px;
+	color: var(--text-muted);
+}
+
+.fig-asym-card p:last-child {
+	margin-bottom: 0;
+}
+
+.fig-cost {
+	font-family: var(--font-mono-stack);
+	font-size: 12.5px;
+	padding: 2px 7px;
+	border-radius: 3px;
+}
+
+.fig-cost.cheap {
+	color: var(--fig-ok);
+	background: color-mix(in srgb, var(--fig-ok) 10%, transparent);
+}
+
+.fig-cost.dear {
+	color: var(--fig-alarm);
+	background: color-mix(in srgb, var(--fig-alarm) 10%, transparent);
+}
+
+/* ── C7 InlineSpark — word-scale trend inside a sentence ─────────── */
+.fig-spark {
+	vertical-align: -2px;
+	margin: 0 2px;
+}
+
+.fig-spark .role-a {
+	stroke: var(--fig-role-a);
+}
+
+.fig-spark circle.role-a {
+	fill: var(--fig-role-a);
+	stroke: none;
+}
+
+.fig-spark .role-b {
+	stroke: var(--fig-role-b);
+}
+
+.fig-spark circle.role-b {
+	fill: var(--fig-role-b);
+	stroke: none;
+}
+
+/* ── D1 ParamExplorer + PointerStrip ─────────────────────────────── */
+.fig-strip {
+	display: flex;
+	gap: 2px;
+	height: 34px;
+	align-items: stretch;
+	overflow: hidden;
+	border-radius: 6px;
+}
+
+.fig-cell {
+	flex: 1 0 0;
+	background: var(--bg-chrome);
+	border-radius: 2.5px;
+	min-width: 4px;
+}
+
+.fig-cell.hit {
+	background: var(--fig-role-a);
+}
+
+.fig-ptrs {
+	position: relative;
+	height: 58px;
+	margin-top: 6px;
+}
+
+.fig-ptr {
+	position: absolute;
+	top: 0;
+	transform: translateX(-50%);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+	transition:
+		left 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+		opacity 0.3s ease;
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.fig-ptr .stem {
+	width: 2px;
+	height: 14px;
+}
+
+.fig-ptr .plabel {
+	font-weight: 600;
+}
+
+.fig-ptr.role-a {
+	color: var(--fig-role-a);
+}
+
+.fig-ptr.role-a .stem {
+	background: var(--fig-role-a);
+}
+
+.fig-ptr.role-b {
+	color: var(--fig-role-b);
+}
+
+.fig-ptr.role-b .stem {
+	background: var(--fig-role-b);
+}
+
+.fig-ptr.merged {
+	color: var(--text-muted);
+}
+
+.fig-ptr.merged .stem {
+	background: linear-gradient(90deg, var(--fig-role-a), var(--fig-role-b));
+	width: 4px;
+}
+
+.fig-readout {
+	margin-top: 4px;
+	font-family: var(--font-mono-stack);
+	font-size: 12.5px;
+	font-variant-numeric: tabular-nums;
+	color: var(--text-muted);
+	min-height: 1.5em;
+}
+
+.fig-readout b {
+	color: var(--text-main);
+}
+
+.fig-range-label {
+	display: block;
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	color: var(--text-muted);
+}
+
+input[type="range"].fig-range {
+	width: 100%;
+	margin: 16px 0 6px;
+	accent-color: var(--accent);
+	height: 28px;
+}
+
+.fig-range-ends {
+	display: flex;
+	justify-content: space-between;
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	color: var(--fig-faint);
+}
+
+.fig-range-ends .end-r {
+	text-align: right;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.fig *,
+	.fig-ptr {
+		transition: none !important;
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+	}
+}
+
+/* ── Figure library: tier A additions ────────────────────────────── */
+.fig-tiles {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+}
+
+.fig-tile {
+	padding: 4px 20px;
+}
+
+.fig-tile + .fig-tile {
+	border-left: 1px solid var(--border);
+}
+
+.fig-tile:first-child {
+	padding-left: 2px;
+}
+
+@media (max-width: 620px) {
+	.fig-tiles {
+		grid-template-columns: 1fr;
+	}
+	.fig-tile {
+		padding: 12px 2px;
+	}
+	.fig-tile + .fig-tile {
+		border-left: none;
+		border-top: 1px solid var(--border);
+	}
+}
+
+.fig-tile-label {
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--fig-faint);
+	margin-bottom: 6px;
+}
+
+.fig-tile-value {
+	font-family: var(--font-heading-stack);
+	font-size: 24px;
+	font-weight: 560;
+	letter-spacing: -0.02em;
+	font-variant-numeric: tabular-nums;
+	line-height: 1.1;
+}
+
+.fig-tile-sub {
+	font-size: 12px;
+	color: var(--text-muted);
+	margin-top: 4px;
+	font-variant-numeric: tabular-nums;
+}
+
+.fig-tile-sub.good {
+	color: var(--fig-ok);
+}
+
+.fig-tile svg {
+	display: block;
+	margin-top: 8px;
+}
+
+.fig-pair {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+}
+
+@media (max-width: 620px) {
+	.fig-pair {
+		grid-template-columns: 1fr;
+	}
+}
+
+.fig-pair-card {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 15px 17px;
+}
+
+.fig-pair-card h4 {
+	margin: 0 0 6px;
+	font-size: 13.5px;
+	font-family: var(--font-mono-stack);
+}
+
+.fig-pair-card h4::before {
+	content: "";
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	margin-right: 9px;
+	vertical-align: 0;
+	background: currentColor;
+}
+
+.fig-pair-card.role-a h4 {
+	color: var(--fig-role-a);
+}
+
+.fig-pair-card.role-b h4 {
+	color: var(--fig-role-b);
+}
+
+.fig-pair-card p {
+	margin: 0;
+	font-size: 13.5px;
+	color: var(--text-muted);
+	line-height: 1.55;
+}
+
+.fig-payload {
+	display: grid;
+	grid-template-columns: 1.2fr 1fr;
+	gap: 16px;
+}
+
+@media (max-width: 680px) {
+	.fig-payload {
+		grid-template-columns: 1fr;
+	}
+}
+
+.fig-payload pre {
+	background: var(--bg-chrome);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 14px 16px;
+	margin: 0;
+	font-family: var(--font-mono-stack);
+	font-size: 13px;
+	line-height: 1.75;
+	overflow-x: auto;
+}
+
+.fig-fld {
+	border-radius: 4px;
+	padding: 1px 3px;
+	cursor: pointer;
+	border: none;
+	background: none;
+	font: inherit;
+	color: var(--fig-role-a);
+}
+
+.fig-fld:hover,
+.fig-fld:focus-visible,
+.fig-fld.on {
+	background: var(--accent-bg);
+	outline: 1px solid var(--accent-border);
+}
+
+.fig-notes {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.fig-note {
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	padding: 9px 12px;
+	font-size: 12.5px;
+	color: var(--text-muted);
+	line-height: 1.5;
+	opacity: 0.55;
+	transition:
+		opacity 0.15s ease,
+		background-color 0.15s ease;
+}
+
+.fig-note.on {
+	opacity: 1;
+	background: var(--accent-bg);
+	border-color: var(--accent-border);
+}
+
+.fig-note b {
+	font-family: var(--font-mono-stack);
+	font-size: 11.5px;
+	color: var(--text-main);
+}
+
+.fig-prose {
+	margin: 0;
+	font-size: 15px;
+	max-width: 62ch;
+	line-height: 1.65;
+}
+
+.fig-snref {
+	background: none;
+	border: none;
+	padding: 0 2px;
+	cursor: pointer;
+	font: inherit;
+	color: var(--accent);
+	font-variant-position: super;
+}
+
+.fig-snref:focus-visible {
+	outline: none;
+	text-decoration: underline;
+}
+
+.fig-snbody {
+	margin-top: 10px;
+	border-left: 1px solid var(--border);
+	padding: 6px 0 6px 14px;
+	font-size: 13px;
+	color: var(--text-muted);
+	display: none;
+	line-height: 1.6;
+}
+
+.fig-snbody.open {
+	display: block;
+}
+
+.fig-snbody b {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	color: var(--accent);
+}
+
+.fig-acode {
+	display: grid;
+	grid-template-columns: 1.25fr 1fr;
+	gap: 16px;
+}
+
+@media (max-width: 680px) {
+	.fig-acode {
+		grid-template-columns: 1fr;
+	}
+}
+
+.fig-acode pre {
+	margin: 0;
+	padding: 10px 0;
+	background: var(--bg-chrome);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	font-family: var(--font-mono-stack);
+	font-size: 13px;
+	line-height: 1.75;
+	overflow-x: auto;
+}
+
+.fig-aline {
+	display: block;
+	width: 100%;
+	text-align: left;
+	background: none;
+	border: none;
+	font: inherit;
+	color: inherit;
+	padding: 2px 16px;
+	cursor: pointer;
+	white-space: pre;
+}
+
+.fig-aline:hover,
+.fig-aline:focus-visible,
+.fig-aline.on {
+	background: var(--accent-bg);
+}
+
+.fig-aline:focus-visible {
+	outline: 1px solid var(--accent-border);
+	outline-offset: -1px;
+}
+
+.fig-diff pre {
+	margin: 0;
+	padding: 10px 0;
+	background: var(--bg-chrome);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	font-family: var(--font-mono-stack);
+	font-size: 13px;
+	line-height: 1.75;
+	overflow-x: auto;
+}
+
+.fig-diff-line {
+	display: block;
+	padding: 2px 16px;
+	white-space: pre;
+}
+
+.fig-diff-g {
+	display: inline-block;
+	width: 18px;
+	color: var(--fig-faint);
+	user-select: none;
+}
+
+.fig-diff-line.del {
+	background: color-mix(in srgb, var(--fig-alarm) 8%, transparent);
+}
+
+.fig-diff-line.add {
+	background: color-mix(in srgb, var(--fig-ok) 9%, transparent);
+}
+
+.fig-diff-line.del .fig-diff-g {
+	color: var(--fig-alarm);
+}
+
+.fig-diff-line.add .fig-diff-g {
+	color: var(--fig-ok);
+}
+
+.fig-controls {
+	display: flex;
+	gap: 8px;
+	margin-bottom: 14px;
+	flex-wrap: wrap;
+}
+
+.fig-invs {
+	display: flex;
+	flex-direction: column;
+}
+
+.fig-inv {
+	border-top: 1px solid var(--border);
+}
+
+.fig-inv:first-child {
+	border-top: none;
+}
+
+.fig-inv-head {
+	display: flex;
+	align-items: baseline;
+	gap: 14px;
+	width: 100%;
+	text-align: left;
+	background: none;
+	border: none;
+	font: inherit;
+	color: inherit;
+	padding: 11px 4px;
+	cursor: pointer;
+	min-height: 44px;
+}
+
+.fig-inv-head:hover .fig-inv-title,
+.fig-inv-head:focus-visible .fig-inv-title {
+	color: var(--accent);
+}
+
+.fig-inv-head:focus-visible {
+	outline: 1px solid var(--accent-border);
+	outline-offset: -1px;
+}
+
+.fig-inv-no {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	color: var(--accent);
+	letter-spacing: 0.08em;
+}
+
+.fig-inv-title {
+	font-size: 14px;
+	font-weight: 600;
+	transition: color 0.15s ease;
+}
+
+.fig-inv-hint {
+	margin-left: auto;
+	font-family: var(--font-mono-stack);
+	font-size: 14px;
+	color: var(--fig-faint);
+	transition: transform 0.2s ease;
+}
+
+.fig-inv[data-open="true"] .fig-inv-hint {
+	transform: rotate(45deg);
+}
+
+.fig-inv-body {
+	display: none;
+	padding: 0 4px 14px 40px;
+	font-size: 13.5px;
+	color: var(--text-muted);
+	line-height: 1.6;
+}
+
+.fig-inv[data-open="true"] .fig-inv-body {
+	display: block;
+}
+
+.fig-term {
+	background: none;
+	border: none;
+	padding: 0;
+	font: inherit;
+	color: inherit;
+	border-bottom: 1px dotted var(--accent);
+	cursor: help;
+	position: relative;
+}
+
+.fig-term:focus-visible {
+	outline: none;
+	border-bottom-style: solid;
+}
+
+.fig-term-def {
+	position: absolute;
+	left: 50%;
+	bottom: calc(100% + 8px);
+	transform: translateX(-50%);
+	width: 240px;
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	box-shadow:
+		0 4px 24px rgba(0, 0, 0, 0.06),
+		0 1px 4px rgba(0, 0, 0, 0.04);
+	padding: 9px 12px;
+	font-size: 12.5px;
+	line-height: 1.5;
+	color: var(--text-muted);
+	text-align: left;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.12s ease;
+	z-index: 6;
+	font-family: var(--font-sans-stack);
+	font-style: normal;
+	font-weight: 430;
+}
+
+.fig-term-def b {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	color: var(--accent);
+	display: block;
+	margin-bottom: 3px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+@media (hover: hover) {
+	.fig-term:hover .fig-term-def {
+		opacity: 1;
+	}
+}
+
+.fig-term:focus-visible .fig-term-def,
+.fig-term.pinned .fig-term-def {
+	opacity: 1;
+}
+
+/* ── Figure library: tier B additions ────────────────────────────── */
+.fig-track {
+	position: relative;
+	height: 128px;
+	margin: 4px 8px;
+}
+
+.fig-rail {
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 66px;
+	height: 2px;
+	background: var(--border);
+	border-radius: 2px;
+}
+
+.fig-mk {
+	position: absolute;
+	top: 0;
+	width: 0;
+	transition: left 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fig-mk-pin {
+	position: absolute;
+	top: 60px;
+	transform: translateX(-50%);
+	width: 13px;
+	height: 13px;
+	border-radius: 50%;
+	border: 2.5px solid var(--bg);
+}
+
+.fig-mk-pin.small {
+	width: 11px;
+	height: 11px;
+	top: 61px;
+}
+
+.fig-mk-pin.tick {
+	width: 4px;
+	height: 18px;
+	border-radius: 2px;
+	border: none;
+	top: 58px;
+}
+
+.fig-mk-pin.role-a {
+	background: var(--fig-role-a);
+}
+
+.fig-mk-pin.role-b {
+	background: var(--fig-role-b);
+}
+
+.fig-mk-pin.role-muted {
+	background: var(--text-muted);
+}
+
+.fig-mk-flag {
+	position: absolute;
+	transform: translateX(-50%);
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	white-space: nowrap;
+	transition:
+		left 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+		opacity 0.3s ease;
+}
+
+.fig-mk-flag.role-a {
+	color: var(--fig-role-a);
+}
+
+.fig-mk-flag.role-b {
+	color: var(--fig-role-b);
+}
+
+.fig-mk-flag.role-muted {
+	color: var(--text-muted);
+}
+
+.fig-mk-val {
+	position: absolute;
+	transform: translateX(-50%);
+	font-family: var(--font-mono-stack);
+	font-size: 11.5px;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+	color: var(--text-main);
+	transition:
+		left 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+		opacity 0.3s ease;
+}
+
+.fig-flow {
+	display: grid;
+	grid-template-columns: 1fr auto 1fr;
+	gap: 10px;
+	align-items: center;
+}
+
+.fig-flow-node {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 11px 13px;
+	font-family: var(--font-mono-stack);
+	font-size: 11.5px;
+	line-height: 1.6;
+}
+
+.fig-flow-nl {
+	font-size: 10px;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--fig-faint);
+	margin-bottom: 5px;
+}
+
+.fig-wire {
+	position: relative;
+	width: 110px;
+	height: 40px;
+}
+
+.fig-wire-line {
+	position: absolute;
+	top: 19px;
+	left: 0;
+	right: 0;
+	height: 2px;
+	background: var(--border);
+}
+
+.fig-wire-dot {
+	position: absolute;
+	top: 15px;
+	left: 0;
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+	background: var(--accent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.fig-wire-dot {
+		animation: fig-shuttle 2.2s ease-in-out infinite;
+	}
+}
+
+@keyframes fig-shuttle {
+	0% {
+		left: 0;
+	}
+	45% {
+		left: calc(100% - 9px);
+	}
+	50% {
+		left: calc(100% - 9px);
+		opacity: 0.3;
+	}
+	95% {
+		left: 0;
+		opacity: 1;
+	}
+	100% {
+		left: 0;
+	}
+}
+
+@media (max-width: 620px) {
+	.fig-flow {
+		grid-template-columns: 1fr;
+	}
+	.fig-wire {
+		display: none;
+	}
+}
+
+.fig-life-svg {
+	width: 100%;
+	height: auto;
+	display: block;
+}
+
+.fig-life-svg text {
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	fill: var(--text-muted);
+}
+
+.fig-life-svg .lnode rect {
+	fill: var(--bg-chrome);
+	stroke: var(--border);
+	transition:
+		fill 0.2s ease,
+		stroke 0.2s ease;
+}
+
+.fig-life-svg .lnode.active rect {
+	fill: var(--accent-bg);
+	stroke: var(--accent);
+}
+
+.fig-life-svg .lnode.active text {
+	fill: var(--accent);
+	font-weight: 600;
+}
+
+.fig-life-svg .ledge {
+	stroke: var(--fig-faint);
+	stroke-width: 1.2;
+	fill: none;
+	opacity: 0.55;
+	transition:
+		opacity 0.2s ease,
+		stroke 0.2s ease;
+}
+
+.fig-life-svg .ledge.active {
+	stroke: var(--accent);
+	opacity: 1;
+}
+
+.fig-life-svg .elab {
+	font-size: 9.5px;
+	fill: var(--fig-faint);
+}
+
+.fig-life-cap {
+	margin-top: 10px;
+	font-size: 13px;
+	color: var(--text-muted);
+	min-height: 40px;
+}
+
+.fig-pipe-svg {
+	width: 100%;
+	height: auto;
+	display: block;
+}
+
+.fig-pipe-svg text {
+	font-family: var(--font-heading-stack);
+	font-size: 11.5px;
+	font-weight: 600;
+	fill: var(--text-main);
+}
+
+.fig-pipe-svg .sub {
+	font-family: var(--font-mono-stack);
+	font-size: 8.5px;
+	font-weight: 400;
+	fill: var(--text-muted);
+}
+
+.fig-pipe-svg .pnode rect {
+	fill: var(--bg-chrome);
+	stroke: var(--border);
+}
+
+.fig-pipe-svg .pnode.data rect {
+	fill: var(--accent-bg);
+	stroke: var(--accent-border);
+}
+
+.fig-pipe-svg .pnode.data text {
+	fill: var(--accent);
+}
+
+.fig-pipe-svg .pnode.api rect {
+	fill: var(--accent);
+	stroke: var(--accent);
+}
+
+.fig-pipe-svg .pnode.api text,
+.fig-pipe-svg .pnode.api .sub {
+	fill: var(--bg-elevated);
+}
+
+.fig-pipe-svg .pedge {
+	stroke: var(--fig-faint);
+	stroke-width: 1.2;
+	fill: none;
+	opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.fig-pipe-svg .pedge.flow {
+		stroke-dasharray: 4 5;
+		animation: fig-march 1.4s linear infinite;
+	}
+}
+
+@keyframes fig-march {
+	to {
+		stroke-dashoffset: -9;
+	}
+}
+
+.fig-seq-svg {
+	width: 100%;
+	height: auto;
+	display: block;
+}
+
+.fig-seq-svg text {
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	fill: var(--text-muted);
+}
+
+.fig-seq-svg .actor {
+	font-size: 11px;
+	font-weight: 600;
+	fill: var(--text-main);
+	letter-spacing: 0.04em;
+}
+
+.fig-seq-svg .lifeline {
+	stroke: var(--border);
+	stroke-width: 1;
+	stroke-dasharray: 3 4;
+}
+
+.fig-seq-svg .msg {
+	cursor: pointer;
+	outline: none;
+}
+
+.fig-seq-svg .msg line {
+	stroke: var(--text-muted);
+	stroke-width: 1.3;
+	transition: stroke 0.15s ease;
+}
+
+.fig-seq-svg .msg circle {
+	fill: var(--text-muted);
+	transition: fill 0.15s ease;
+}
+
+.fig-seq-svg .msg text {
+	transition: fill 0.15s ease;
+}
+
+.fig-seq-svg .msg:hover line,
+.fig-seq-svg .msg:focus-visible line {
+	stroke: var(--accent);
+	stroke-width: 1.8;
+}
+
+.fig-seq-svg .msg:hover circle,
+.fig-seq-svg .msg:focus-visible circle {
+	fill: var(--accent);
+}
+
+.fig-seq-svg .msg:hover text,
+.fig-seq-svg .msg:focus-visible text {
+	fill: var(--accent);
+	font-weight: 600;
+}
+
+.fig-seq-svg .msg.ret line {
+	stroke-dasharray: 3 3;
+}
+
+.fig-stack {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	max-width: 460px;
+}
+
+.fig-layer {
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	padding: 11px 16px;
+	background: var(--bg-chrome);
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	color: var(--text-muted);
+	cursor: pointer;
+	text-align: left;
+	width: 100%;
+	transition:
+		transform 0.18s cubic-bezier(0.19, 1, 0.22, 1),
+		border-color 0.18s ease,
+		background-color 0.18s ease;
+}
+
+.fig-layer .lsub {
+	display: block;
+	font-size: 10px;
+	color: var(--fig-faint);
+	margin-top: 2px;
+	letter-spacing: 0.05em;
+}
+
+.fig-layer.data {
+	background: var(--accent-bg);
+	border-color: var(--accent-border);
+	color: var(--accent);
+}
+
+.fig-layer.api {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: var(--bg-elevated);
+	font-weight: 600;
+}
+
+.fig-layer.api .lsub {
+	color: color-mix(in srgb, var(--bg-elevated) 70%, transparent);
+}
+
+@media (hover: hover) {
+	.fig-layer:hover {
+		transform: translateX(10px);
+	}
+}
+
+.fig-layer.on {
+	transform: translateX(10px);
+	border-color: var(--accent);
+}
+
+.fig-layer:focus-visible {
+	outline: none;
+	border-color: var(--accent);
+}
+
+.fig-stack-note {
+	margin-top: 12px;
+	font-size: 13px;
+	color: var(--text-muted);
+	min-height: 38px;
+}
+
+.fig-tree-svg {
+	width: 100%;
+	height: auto;
+	display: block;
+}
+
+.fig-tree-svg text {
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	fill: var(--text-muted);
+}
+
+.fig-tree-svg .tnode rect {
+	fill: var(--bg-chrome);
+	stroke: var(--border);
+	transition:
+		fill 0.25s ease,
+		stroke 0.25s ease;
+}
+
+.fig-tree-svg .tnode.lit rect {
+	fill: var(--accent-bg);
+	stroke: var(--accent);
+}
+
+.fig-tree-svg .tnode.lit text {
+	fill: var(--accent);
+	font-weight: 600;
+}
+
+.fig-tree-svg .tedge {
+	stroke: var(--border);
+	stroke-width: 1.2;
+	transition: stroke 0.25s ease;
+}
+
+.fig-tree-svg .tedge.lit {
+	stroke: var(--accent);
+	stroke-width: 1.8;
+}
+
+.fig-walk-out {
+	margin-top: 8px;
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.fig-walk-out b {
+	color: var(--text-main);
+}
+
+.fig-ba-track {
+	position: relative;
+	height: 84px;
+	margin: 6px 8px 0;
+}
+
+.fig-ba-track .fig-rail {
+	top: 44px;
+}
+
+.fig-ba-mk {
+	position: absolute;
+	transition:
+		left 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+		opacity 0.4s ease;
+}
+
+.fig-ba-pin {
+	position: absolute;
+	top: 38px;
+	transform: translateX(-50%);
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	border: 2.5px solid var(--bg-elevated);
+}
+
+.fig-ba-pin.tick {
+	width: 4px;
+	height: 16px;
+	border-radius: 2px;
+	border: none;
+	top: 36px;
+}
+
+.fig-ba-pin.role-a {
+	background: var(--fig-role-a);
+}
+
+.fig-ba-pin.role-b {
+	background: var(--fig-role-b);
+}
+
+.fig-ba-pin.alarm {
+	background: var(--fig-alarm);
+}
+
+.fig-ba-flag {
+	position: absolute;
+	top: 12px;
+	transform: translateX(-50%);
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.fig-ba-flag.role-a {
+	color: var(--fig-role-a);
+}
+
+.fig-ba-flag.role-b {
+	color: var(--fig-role-b);
+}
+
+.fig-ba-flag.alarm {
+	color: var(--fig-alarm);
+}
+
+.fig-ba-val {
+	position: absolute;
+	top: 58px;
+	transform: translateX(-50%);
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	color: var(--text-main);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.fig-ba-zone {
+	position: absolute;
+	top: 40px;
+	height: 10px;
+	background: color-mix(in srgb, var(--fig-alarm) 14%, transparent);
+	border-radius: 3px;
+	transition:
+		opacity 0.4s ease,
+		left 0.5s ease,
+		width 0.5s ease;
+}
+
+.fig-staterow {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	background: none;
+	border: none;
+	padding: 6px 0;
+	cursor: pointer;
+	width: 100%;
+}
+
+.fig-staterow:focus-visible {
+	outline: 1px solid var(--accent-border);
+	outline-offset: 4px;
+	border-radius: 4px;
+}
+
+.fig-st {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	border-radius: 3px;
+	padding: 5px 10px;
+	color: var(--fig-faint);
+	background: var(--bg-chrome);
+	transition:
+		background-color 0.2s ease,
+		color 0.2s ease;
+}
+
+.fig-st.past {
+	color: var(--text-muted);
+}
+
+.fig-st.now.s-pending {
+	color: var(--fig-role-b);
+	background: var(--fig-role-b-bg);
+}
+
+.fig-st.now.s-confirmed {
+	color: var(--accent);
+	background: var(--accent-bg);
+}
+
+.fig-st.now.s-final {
+	color: var(--fig-ok);
+	background: color-mix(in srgb, var(--fig-ok) 12%, transparent);
+}
+
+.fig-st-arrow {
+	color: var(--fig-faint);
+	font-family: var(--font-mono-stack);
+}
+
+/* ── Figure library: tier C shared + additions ───────────────────── */
+.fig-chart-wrap {
+	position: relative;
+}
+
+.fig-chart-svg {
+	width: 100%;
+	height: auto;
+	display: block;
+}
+
+.fig-chart-svg text {
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	fill: var(--fig-faint);
+}
+
+.fig-chart-svg .grid-line {
+	stroke: var(--border);
+	stroke-width: 1;
+}
+
+.fig-chart-svg .s-a {
+	stroke: var(--fig-role-a);
+	stroke-width: 2;
+	fill: none;
+}
+
+.fig-chart-svg .s-b {
+	stroke: var(--fig-role-b);
+	stroke-width: 2;
+	fill: none;
+}
+
+.fig-chart-svg .thresh {
+	stroke: var(--fig-alarm);
+	stroke-width: 1;
+	stroke-dasharray: 4 4;
+}
+
+.fig-chart-svg .t-lab {
+	fill: var(--fig-alarm);
+}
+
+.fig-chart-svg .dl {
+	font-weight: 600;
+	font-size: 11px;
+}
+
+.fig-chart-svg .dl-a {
+	fill: var(--fig-role-a);
+}
+
+.fig-chart-svg .dl-b {
+	fill: var(--fig-role-b);
+}
+
+.fig-chart-svg .xh {
+	stroke: var(--fig-faint);
+	stroke-width: 1;
+}
+
+.fig-chart-svg .mark {
+	transition: opacity 0.12s ease;
+}
+
+.fig-chart-svg .mark:hover {
+	opacity: 0.82;
+}
+
+.fig-chart-svg .dlab {
+	font-weight: 600;
+	font-size: 10.5px;
+}
+
+.fig-chart-svg .pmark {
+	stroke: var(--text-main);
+	stroke-width: 1;
+	stroke-dasharray: 3 3;
+	opacity: 0.55;
+}
+
+.fig-legend {
+	display: flex;
+	gap: 18px;
+	padding: 0 2px 10px;
+	font-family: var(--font-mono-stack);
+	font-size: 11.5px;
+	color: var(--text-muted);
+}
+
+.fig-sw {
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	border-radius: 3px;
+	margin-right: 6px;
+	vertical-align: -1px;
+}
+
+.fig-sw.role-a {
+	background: var(--fig-role-a);
+}
+
+.fig-sw.role-b {
+	background: var(--fig-role-b);
+}
+
+.fig-tooltip {
+	position: absolute;
+	pointer-events: none;
+	z-index: 5;
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	box-shadow:
+		0 4px 24px rgba(0, 0, 0, 0.06),
+		0 1px 4px rgba(0, 0, 0, 0.04);
+	padding: 7px 10px;
+	font-family: var(--font-mono-stack);
+	font-size: 11.5px;
+	font-variant-numeric: tabular-nums;
+	line-height: 1.6;
+	white-space: nowrap;
+	opacity: 0;
+	transition: opacity 0.12s ease;
+}
+
+.fig-tooltip.on {
+	opacity: 1;
+}
+
+.fig-tooltip .tt-a {
+	color: var(--fig-role-a);
+}
+
+.fig-tooltip .tt-b {
+	color: var(--fig-role-b);
+}
+
+.fig-heat-scroll {
+	overflow-x: auto;
+}
+
+.fig-heat {
+	display: grid;
+	grid-template-rows: repeat(7, 13px);
+	grid-auto-flow: column;
+	grid-auto-columns: 13px;
+	gap: 2px;
+}
+
+.fig-hcell {
+	width: 13px;
+	height: 13px;
+	border-radius: 2.5px;
+}
+
+.fig-heat-legend {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	margin-top: 10px;
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	color: var(--fig-faint);
+}
+
+.fig-heat-legend .fig-hcell {
+	width: 11px;
+	height: 11px;
+}
+
+/* ── Figure library: tier D additions ────────────────────────────── */
+.fig-steps-controls {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 14px;
+}
+
+.fig-step-count {
+	font-family: var(--font-mono-stack);
+	font-size: 11.5px;
+	color: var(--fig-faint);
+	font-variant-numeric: tabular-nums;
+}
+
+.fig-steps-stage {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 16px 18px;
+	background: var(--bg-chrome);
+	font-family: var(--font-mono-stack);
+	font-size: 12.5px;
+	line-height: 1.9;
+}
+
+.fig-sline {
+	display: block;
+	opacity: 0.35;
+	transition: opacity 0.2s ease;
+}
+
+.fig-sline.done {
+	opacity: 0.75;
+}
+
+.fig-sline.now {
+	opacity: 1;
+	background: var(--accent-bg);
+	margin: 0 -8px;
+	padding: 0 8px;
+	border-radius: 4px;
+}
+
+.fig-sline.dead {
+	text-decoration: line-through;
+	text-decoration-color: var(--fig-alarm);
+	opacity: 0.55;
+}
+
+.fig-step-cap {
+	margin-top: 12px;
+	font-size: 13px;
+	color: var(--text-muted);
+	min-height: 40px;
+}
+
+.fig-predict-q {
+	font-size: 14.5px;
+	margin: 0 0 14px;
+	max-width: 60ch;
+}
+
+.fig-predict-opts {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	max-width: 480px;
+}
+
+.fig-popt {
+	text-align: left;
+	font-family: var(--font-mono-stack);
+	font-size: 12.5px;
+	padding: 10px 14px;
+	min-height: 44px;
+	border-radius: 6px;
+	border: 1px solid var(--border);
+	background: transparent;
+	color: var(--text-main);
+	cursor: pointer;
+	transition:
+		border-color 0.15s ease,
+		background-color 0.15s ease;
+}
+
+.fig-popt:hover {
+	border-color: var(--fig-faint);
+}
+
+.fig-popt:focus-visible {
+	outline: none;
+	border-color: var(--accent);
+}
+
+.fig-popt[data-state="right"] {
+	border-color: var(--fig-ok);
+	background: color-mix(in srgb, var(--fig-ok) 9%, transparent);
+}
+
+.fig-popt[data-state="wrong"] {
+	border-color: var(--fig-alarm);
+	background: color-mix(in srgb, var(--fig-alarm) 7%, transparent);
+	opacity: 0.75;
+}
+
+.fig-predict-reveal {
+	display: none;
+	margin-top: 14px;
+	padding: 12px 14px;
+	border: 1px solid var(--accent-border);
+	background: var(--accent-bg);
+	border-radius: 6px;
+	font-size: 13.5px;
+	color: var(--text-muted);
+	line-height: 1.6;
+}
+
+.fig-predict-reveal.open {
+	display: block;
+}
+
+.fig-predict-reveal b {
+	color: var(--text-main);
+}
+
+.fig-xhl {
+	display: grid;
+	grid-template-columns: 1fr 1.3fr;
+	gap: 16px;
+}
+
+@media (max-width: 680px) {
+	.fig-xhl {
+		grid-template-columns: 1fr;
+	}
+}
+
+.fig-xhl pre {
+	background: var(--bg-chrome);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 14px 16px;
+	margin: 0;
+	font-family: var(--font-mono-stack);
+	font-size: 13px;
+	line-height: 1.75;
+	overflow-x: auto;
+}
+
+.fig-xchip {
+	display: block;
+	width: 100%;
+	text-align: left;
+	background: var(--bg-chrome);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	padding: 8px 11px;
+	margin-bottom: 8px;
+	color: var(--text-muted);
+	cursor: pointer;
+	transition:
+		border-color 0.15s ease,
+		color 0.15s ease;
+}
+
+.fig-xchip .xk {
+	color: var(--fig-faint);
+	font-size: 10px;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	display: block;
+	margin-bottom: 2px;
+}
+
+.fig-xchip.hot {
+	border-color: var(--accent);
+	color: var(--accent);
+}
+
+.fig-xchip:focus-visible {
+	outline: none;
+	border-color: var(--accent);
+}
+
+.fig-xval {
+	border-radius: 3px;
+	padding: 0 2px;
+	transition:
+		background-color 0.15s ease,
+		outline-color 0.15s ease;
+	cursor: pointer;
+}
+
+.fig-xval.hot {
+	background: var(--accent-bg);
+	outline: 1px solid var(--accent-border);
+	color: var(--accent);
+}
+
+/* ── Figure catalog (/writing/figures) ───────────────────────────── */
+.figcat-wrap {
+	max-width: 860px;
+	margin: 0 auto;
+	padding: 56px 24px 96px;
+}
+
+.figcat-title {
+	font-family: var(--font-heading-stack);
+	font-size: clamp(28px, 5vw, 36px);
+	font-weight: 560;
+	margin: 0 0 14px;
+	line-height: 1.15;
+}
+
+.figcat-lede {
+	font-size: 17.5px;
+	color: var(--text-muted);
+	max-width: 62ch;
+	margin: 0 0 10px;
+	line-height: 1.6;
+}
+
+.figcat-principles {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 22px 0 0;
+}
+
+.figcat-principle {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	letter-spacing: 0.06em;
+	color: var(--text-muted);
+	border: 1px solid var(--border);
+	border-radius: 3px;
+	padding: 5px 11px;
+}
+
+.figcat-principle b {
+	color: var(--accent);
+	font-weight: 600;
+}
+
+.figcat-cat {
+	font-family: var(--font-heading-stack);
+	font-size: 17px;
+	font-weight: 560;
+	margin: 64px 0 6px;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.figcat-cat::after {
+	content: "";
+	flex: 1;
+	height: 1px;
+	background: var(--border);
+	min-width: 40px;
+}
+
+.figcat-cat .cat-code {
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	color: var(--accent);
+	letter-spacing: 0.12em;
+}
+
+.figcat-note {
+	color: var(--text-muted);
+	font-size: 14.5px;
+	margin: 0 0 24px;
+	max-width: 68ch;
+	line-height: 1.6;
+}
+
+.figcat-specimen {
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	margin: 0 0 26px;
+	overflow: hidden;
+}
+
+.figcat-head {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+	padding: 14px 20px;
+	border-bottom: 1px solid var(--border);
+}
+
+.figcat-id {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	letter-spacing: 0.12em;
+	color: var(--accent);
+}
+
+.figcat-name {
+	font-weight: 650;
+	font-size: 14.5px;
+}
+
+.figcat-name code {
+	font-family: var(--font-mono-stack);
+	font-size: 12.5px;
+	background: var(--code-bg);
+	padding: 1px 6px;
+	border-radius: 3px;
+}
+
+.figcat-head .spacer {
+	flex: 1;
+}
+
+.figcat-tier {
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	border-radius: 3px;
+	padding: 3px 7px;
+	color: var(--text-muted);
+	background: var(--code-bg);
+}
+
+.figcat-body {
+	padding: 20px;
+}
+
+.figcat-use {
+	padding: 12px 20px;
+	border-top: 1px dashed var(--border);
+	font-size: 13px;
+	color: var(--fig-faint);
+	line-height: 1.55;
+}
+
+.figcat-use b {
+	color: var(--text-muted);
+	font-weight: 600;
 }
