@@ -1,5 +1,11 @@
 # @secondlayer/web
 
+## 0.4.1
+
+### Patch Changes
+
+- fdedc93: Sidenotes float into the right margin beside their reference on viewports ≥1100px; narrow viewports keep tap-to-expand, which now completes the sentence line before the note appears.
+
 ## 0.4.0
 
 ### Minor Changes
