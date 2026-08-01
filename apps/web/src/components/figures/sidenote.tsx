@@ -1,12 +1,17 @@
 "use client";
 
 import { type ReactNode, useId, useState } from "react";
+import { useMediaQuery } from "./use-media-query";
 
 /**
  * A5 Sidenote — a numbered aside for hedges, sources, and precision
- * upgrades that would break the paragraph's stride. Renders a superscript
- * reference inline; tapping it expands the note below the paragraph.
- * Tap target padding comes from the CSS; body is hidden until opened.
+ * upgrades that would break the paragraph's stride.
+ *
+ * ≥1100px the note is always visible, floated into the right margin
+ * beside its reference (Tufte-style; float CSS is scoped to
+ * `.writing-article`, so the catalog shows the margin variant inline).
+ * Below that, a superscript button expands the note inline under the
+ * paragraph.
  *
  * Usage: place inside the paragraph right after the referenced phrase,
  * with the note body as children.
@@ -14,7 +19,19 @@ import { type ReactNode, useId, useState } from "react";
 export function Sidenote({ n, children }: { n: number; children: ReactNode }) {
 	const [open, setOpen] = useState(false);
 	const id = useId();
+	const wide = useMediaQuery("(min-width: 1100px)");
 	const sup = "¹²³⁴⁵⁶⁷⁸⁹"[n - 1] ?? `(${n})`;
+
+	if (wide) {
+		return (
+			<>
+				<sup className="fig-snref-static">{sup}</sup>
+				<span className="fig-snbody margin">
+					<b>{n}</b>. {children}
+				</span>
+			</>
+		);
+	}
 
 	return (
 		<>

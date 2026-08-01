@@ -309,8 +309,9 @@ export default function FigureLibraryPage() {
 				use={
 					<>
 						<b>Use when</b> a hedge, source, or precision upgrade would break
-						the paragraph&rsquo;s stride. Tap the reference to expand the note
-						inline. Tap target ≥44px.
+						the paragraph&rsquo;s stride. ≥1100px the note lives in the right
+						margin beside its reference (as in a post; shown inline here);
+						narrower viewports tap to expand inline.
 					</>
 				}
 			>

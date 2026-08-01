@@ -119,7 +119,7 @@ the post's `page.mdx` — see the checkpoint post's `selectivity-explorer.tsx`.
 - [x] Impeccable pass: house tokens, Flat-By-Default, no accent stripes, no em dashes, Weight-Not-Size headings
 - [x] Shared `<FigShell>` chrome extracted (`fig-shell.tsx`)
 - [x] D7 wraps the real production component; D6 slot reserved (component was removed from production)
-- [ ] A5 Sidenote: true margin placement ≥1100px (currently inline-expand at all widths)
+- [x] A5 Sidenote: margin placement ≥1100px inside `.writing-article` (float, never intrudes on the measure); inline-expand below
 
 ## Process per new figure
 

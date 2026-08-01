@@ -12475,8 +12475,14 @@ input[type="range"].fig-range {
 	line-height: 1.6;
 }
 
+/* Full-width float rather than display:block so the sentence's current
+   line completes before the note appears (a bare block splits the line
+   box mid-sentence, orphaning the words after the reference). */
 .fig-snbody.open {
 	display: block;
+	float: left;
+	width: 100%;
+	margin: 8px 0 10px;
 }
 
 .fig-snbody b {
@@ -13853,4 +13859,37 @@ input[type="range"].fig-range {
 .figcat-use b {
 	color: var(--text-muted);
 	font-weight: 600;
+}
+
+/* ── A5 Sidenote: margin placement ≥1100px ───────────────────────── */
+/* Static marker replacing the toggle button when the note lives in
+   the margin (wide viewports). */
+.fig-snref-static {
+	color: var(--accent);
+	font-size: 0.75em;
+	padding: 0 2px;
+}
+
+/* Margin variant: inside the writing column the note floats into the
+   right page margin beside its reference (Tufte-style). The fully
+   negative margin means it never intrudes on the text measure;
+   clear: right stacks successive notes. Elsewhere (the catalog card,
+   which has overflow: hidden) it renders as an always-open inline note. */
+.fig-snbody.margin {
+	display: block;
+	border-left: 1px solid var(--border);
+	padding: 2px 0 2px 12px;
+}
+
+@media (min-width: 1100px) {
+	.writing-article .fig-snbody.margin {
+		float: right;
+		clear: right;
+		width: 180px;
+		margin-right: -216px;
+		margin-top: 4px;
+		margin-bottom: 8px;
+		font-size: 12px;
+		line-height: 1.55;
+	}
 }

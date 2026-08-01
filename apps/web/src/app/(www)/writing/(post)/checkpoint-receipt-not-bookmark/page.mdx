@@ -7,6 +7,7 @@ import {
 	Matrix,
 	SourceQuote,
 	InlineSpark,
+	Sidenote,
 } from "@/components/figures";
 import { postMeta } from "@/lib/writing";
 import { SelectivityExplorer } from "./selectivity-explorer";
@@ -87,7 +88,7 @@ GET /v1/index/contract-calls
 	/>
 </FigShell>
 
-When the answer is "no rows," the consumer has not skipped forty thousand blocks of work. There was never forty thousand blocks of work. There was one question, and the answer was no. And because a seek costs the same at any cursor age, restarting "from" 8,637,064 costs exactly what polling from the tip would cost:
+When the answer is "no rows," the consumer has not skipped forty thousand blocks of work. There was never forty thousand blocks of work. There was one question, and the answer was no. And because a seek costs the same at any cursor age<Sidenote n={1}>B-tree index on (filter, cursor); the seek is O(log n) over the *event* count, not the block count, so cursor age never enters the cost.</Sidenote>, restarting "from" 8,637,064 costs exactly what polling from the tip would cost:
 
 <FigShell
 	n={3}
