@@ -1,5 +1,11 @@
 # @secondlayer/web
 
+## 0.4.0
+
+### Minor Changes
+
+- 052d938: /writing section: writings index, first post (checkpoint receipt-not-bookmark), 34-component interactive figure library with /writing/figures catalog, RSS feed, sitemap entries, and OG cards.
+
 ## 0.3.79
 
 ### Patch Changes
