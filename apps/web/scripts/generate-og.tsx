@@ -11,6 +11,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
+import { POSTS } from "../src/lib/writing";
 
 const FONT_DIR = join(process.cwd(), "src/assets/og-fonts");
 const OUT_DIR = join(process.cwd(), "public/og");
@@ -739,6 +740,151 @@ const fonts = [
 	},
 ];
 
+// ── writings cards ───────────────────────────────────────────────────────────
+// Same field-notebook frame, but the headline is a full post title (satori
+// wraps it), with a mono meta line underneath instead of a product artifact.
+
+function WritingFrame({
+	eyebrow,
+	title,
+	meta,
+}: {
+	eyebrow: string;
+	title: string;
+	meta: string;
+}) {
+	return (
+		<div
+			style={{
+				position: "relative",
+				width: "100%",
+				height: "100%",
+				display: "flex",
+				flexDirection: "column",
+				background: PAPER,
+				padding: "60px 80px",
+				fontFamily: "Sora",
+			}}
+		>
+			<div
+				style={{
+					position: "absolute",
+					top: 0,
+					left: 0,
+					right: 0,
+					bottom: 0,
+					background:
+						"radial-gradient(circle at 90% 6%, rgba(37,99,235,0.045), rgba(37,99,235,0) 42%)",
+				}}
+			/>
+			<div
+				style={{
+					position: "relative",
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "space-between",
+					borderBottom: `1.5px solid ${HAIR}`,
+					paddingBottom: 22,
+				}}
+			>
+				<div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+					<svg
+						viewBox="6 9 36 24"
+						width="40"
+						height="27"
+						role="img"
+						aria-label="secondlayer"
+					>
+						<polygon
+							points="8,23 28,15 40,23 20,31"
+							fill={ACCENT}
+							opacity={0.24}
+						/>
+						<polygon points="8,19 28,11 40,19 20,27" fill={ACCENT} />
+					</svg>
+					<span
+						style={{
+							fontFamily: "Sora",
+							fontSize: 30,
+							color: INK,
+							letterSpacing: -0.5,
+						}}
+					>
+						secondlayer
+					</span>
+				</div>
+				<span
+					style={{
+						fontFamily: "Fira Code",
+						fontSize: 20,
+						letterSpacing: 3,
+						color: ACCENT,
+					}}
+				>
+					{eyebrow}
+				</span>
+			</div>
+			<div
+				style={{
+					position: "relative",
+					flex: 1,
+					display: "flex",
+					flexDirection: "column",
+					justifyContent: "center",
+					gap: 30,
+					paddingBottom: 28,
+				}}
+			>
+				<span
+					style={{
+						fontFamily: "Sora",
+						fontSize: title.length > 44 ? 62 : 72,
+						color: INK,
+						lineHeight: 1.08,
+						letterSpacing: -2,
+						maxWidth: 1000,
+					}}
+				>
+					{title}
+				</span>
+				<span
+					style={{
+						fontFamily: "Fira Code",
+						fontSize: 22,
+						color: "rgba(17,17,17,0.42)",
+					}}
+				>
+					{meta.replace(/ /g, NB)}
+				</span>
+			</div>
+		</div>
+	);
+}
+
+const WRITING_CARDS: { file: string; frame: React.ReactElement }[] = [
+	{
+		file: "writing.png",
+		frame: (
+			<WritingFrame
+				eyebrow="WRITINGS"
+				title="Mechanism, explained."
+				meta="long-form technical guides · secondlayer.tools/writing"
+			/>
+		),
+	},
+	// All posts, drafts included — flipping a draft live shouldn't need a re-run.
+	...POSTS.map((post) => ({
+		file: `writing-${post.slug}.png`,
+		frame: (
+			<WritingFrame
+				eyebrow={`WRITINGS · ${String(post.number).padStart(2, "0")}`}
+				title={post.title}
+				meta={`${post.date} · ${post.readingTime} · ${post.tags.join(" · ")}`}
+			/>
+		),
+	})),
+];
+
 for (const spec of CARDS) {
 	const res = new ImageResponse(<Frame {...spec} />, { ...SIZE, fonts });
 	const buf = Buffer.from(await res.arrayBuffer());
@@ -746,4 +892,15 @@ for (const spec of CARDS) {
 	console.log(`✓ ${spec.file}  (${buf.length.toLocaleString()} bytes)`);
 }
 
-console.log("\nDone — wrote", CARDS.length, "cards to public/og/");
+for (const spec of WRITING_CARDS) {
+	const res = new ImageResponse(spec.frame, { ...SIZE, fonts });
+	const buf = Buffer.from(await res.arrayBuffer());
+	await writeFile(join(OUT_DIR, spec.file), buf);
+	console.log(`✓ ${spec.file}  (${buf.length.toLocaleString()} bytes)`);
+}
+
+console.log(
+	"\nDone — wrote",
+	CARDS.length + WRITING_CARDS.length,
+	"cards to public/og/",
+);

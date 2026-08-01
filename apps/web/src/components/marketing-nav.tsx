@@ -13,6 +13,7 @@ export const PRODUCTS = [
 	{ label: "Streams", href: "/streams" },
 	{ label: "Explore", href: "/subgraphs/explore" },
 	{ label: "Docs", href: "/docs" },
+	{ label: "Writing", href: "/writing" },
 	{ label: "Pricing", href: "/pricing" },
 ];
 

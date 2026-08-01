@@ -40,6 +40,7 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
 		links: [
 			{ label: "CLI", href: "/docs/cli" },
 			{ label: "SDK", href: "/docs/sdk" },
+			{ label: "Writing", href: "/writing" },
 			{ label: "Pricing", href: "/pricing" },
 		],
 	},
