@@ -19,7 +19,7 @@ import { useMediaQuery } from "./use-media-query";
 export function Sidenote({ n, children }: { n: number; children: ReactNode }) {
 	const [open, setOpen] = useState(false);
 	const id = useId();
-	const wide = useMediaQuery("(min-width: 1240px)");
+	const wide = useMediaQuery("(min-width: 1180px)");
 	const sup = "¹²³⁴⁵⁶⁷⁸⁹"[n - 1] ?? `(${n})`;
 
 	if (wide) {

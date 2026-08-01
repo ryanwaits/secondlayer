@@ -11847,15 +11847,13 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 	vertical-align: 2px;
 }
 
-/* ── Post meta rail (P·1) + continuum footer (P·2) ───────────────── */
-/* ≥1180px the post shell becomes
-   sidebar-and-content: the rail is fixed near the left viewport edge
-   (docs-shell style) and the 720px reading column starts after its
-   lane, left-aligned rather than viewport-centered. The fixed rail
-   keeps the figure index in view while scrolling; an
-   IntersectionObserver lights the figure currently on screen. Margin
-   sidenotes float right at ≥1240px, where the right margin has room.
-   Below 1180px everything inlines. */
+/* ── Post meta rail (P·1, right margin) + continuum footer (P·2) ─── */
+/* The reading column stays centered at 720px. ≥1180px a fixed rail
+   pins in the right page margin beside it — number, date, figure
+   index, tags — and stays in view while scrolling, with an
+   IntersectionObserver lighting the figure currently on screen.
+   Margin sidenotes float LEFT to stay out of its way (same
+   breakpoint). Below 1180px everything inlines. */
 .writing-header {
 	position: relative;
 }
@@ -11865,22 +11863,12 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 }
 
 @media (min-width: 1180px) {
-	/* Sidebar-and-content, docs-shell style: the rail hugs the left edge
-	   of the viewport and the reading column starts after its lane. */
-	.writing-shell {
-		max-width: none;
-		margin: 0;
-		padding-left: 270px;
-	}
-	.writing-shell > .writing-article {
-		max-width: 720px;
-	}
 	.writing-rail {
 		display: block;
 		position: fixed;
 		top: 128px;
 		width: 190px;
-		left: 32px;
+		left: calc(50% + 360px + 32px);
 		font-family: var(--font-mono-stack);
 		font-size: 11px;
 		color: var(--fig-faint);
@@ -14154,12 +14142,12 @@ input[type="range"].fig-range {
 	padding: 2px 0 2px 12px;
 }
 
-@media (min-width: 1240px) {
+@media (min-width: 1180px) {
 	.writing-article .fig-snbody.margin {
-		float: right;
-		clear: right;
+		float: left;
+		clear: left;
 		width: 180px;
-		margin-right: -216px;
+		margin-left: -216px;
 		margin-top: 4px;
 		margin-bottom: 8px;
 		font-size: 12px;
