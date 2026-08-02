@@ -198,6 +198,39 @@ export async function updateSubgraphStatus(
 		.execute();
 }
 
+/** Live-walk ERROR write (f069): a block whose handlers ALL failed
+ *  (`processed === 0 && errors > 0`, `block-processor.ts`'s `applyProgress`)
+ *  is stamped 'error' and its height is recorded as processed, same as
+ *  `updateSubgraphStatus(db, name, "error", blockHeight)` — except the
+ *  cursor half of that write now goes through the same conditional `<`
+ *  guard as {@link recordLiveProgress}. Marking a subgraph 'error' is not
+ *  itself replay-sensitive, but it shares the `last_processed_block` column
+ *  with the replay guard: an unconditional write here could regress the
+ *  cursor a racing (successful) writer already advanced past, which is
+ *  exactly the regress-then-re-walk loop this guard exists to close. In
+ *  practice `ctx.rollbackTo` (`runner.ts`) means an all-failed block never
+ *  flushes writes, so a lost race here is always a silent no-op, never a
+ *  case that needs `CursorRaceLostError`-style tx abort. Returns whether
+ *  the write applied. Live path only — reindex/backfill's error stamping
+ *  goes through {@link updateSubgraphStatus} unconditionally, as before. */
+export async function recordLiveError(
+	db: Kysely<Database>,
+	name: string,
+	blockHeight: number,
+): Promise<boolean> {
+	const result = await db
+		.updateTable("subgraphs")
+		.set({
+			status: "error",
+			last_processed_block: blockHeight,
+			updated_at: new Date(),
+		})
+		.where("name", "=", name)
+		.where("last_processed_block", "<", blockHeight)
+		.executeTakeFirst();
+	return Number(result.numUpdatedRows ?? 0n) > 0;
+}
+
 export async function recordSubgraphProcessed(
 	db: Kysely<Database>,
 	name: string,
@@ -312,18 +345,68 @@ export async function updateSubgraphExpiry(
  *  status stamping let catch-up flap a parked subgraph back into its own path
  *  per block, fighting the queued reindex op.
  *
- *  `last_processed_block` itself is written UNCONDITIONALLY — no monotonic
- *  guard — on purpose: a reorg rewind must be able to move it *backward* to
- *  the fork height, and a naive GREATEST(old, new) would block that. This
- *  only stays correct because the two writers that can advance/rewind a
- *  given subgraph's cursor concurrently (the catch-up walk and the reorg
- *  handler, both in `@secondlayer/subgraphs/runtime`) serialize on an
- *  in-process per-subgraph lock + reorg epoch guard
- *  (`packages/subgraphs/src/runtime/catchup.ts`, `subgraphBlockLockHeld` /
- *  `reorgEpoch` — see the comment there for the full invariant; f057). Don't
- *  add a monotonic guard here without re-deriving that it can't also block
- *  the rewind. */
+ *  `last_processed_block` is now written CONDITIONALLY — `WHERE
+ *  last_processed_block < lastProcessedBlock`, mirroring
+ *  `advanceOperationCursor`'s (`subgraph-operations.ts`) comparison shape —
+ *  and returns whether THIS call actually advanced it. This used to be
+ *  unconditional by design, on the premise that the only two writers able to
+ *  advance/rewind a given subgraph's cursor concurrently (the catch-up walk
+ *  and the reorg handler) serialize on an in-process per-subgraph lock +
+ *  reorg epoch guard (`packages/subgraphs/src/runtime/catchup.ts`,
+ *  `subgraphBlockLockHeld` / `reorgEpoch`; f057). That guard is in-process
+ *  only. The f068 investigation
+ *  (`docs/internal/audits/asset-holdings-unreproducible-balances-f068.md`)
+ *  found a cross-process sequence it does not cover: a catch-up leader that
+ *  loses its advisory-lock connection mid-walk keeps writing (leadership is
+ *  checked only at walk entry, not per-iteration) while a new leader takes
+ *  over and walks the same range — both commit increments for overlapping
+ *  heights, and every regressed cursor write from the laggard re-triggers a
+ *  full re-walk, growing per-height application without bound. The
+ *  conditional advance here (paired with the fast-path replay guard armed on
+ *  the live path in `block-processor.ts`) is now the cross-process
+ *  guarantee: a block at/below the current cursor can never re-advance it,
+ *  so a laggard's commits can no longer regress-then-retrigger.
+ *
+ *  This conditionality is why the reorg rewind can no longer go through this
+ *  function — a rewind's whole point is to move the cursor *backward*, which
+ *  the `<` guard would silently refuse. Reorg mode calls
+ *  {@link rewindLiveProgress} instead, which keeps the old unconditional
+ *  semantics and is safe specifically because the reorg path takes a
+ *  transaction-scoped advisory lock (`reorg.ts`) other writers can't cross. */
 export async function recordLiveProgress(
+	db: Kysely<Database>,
+	name: string,
+	lastProcessedBlock: number,
+): Promise<boolean> {
+	const result = await db
+		.updateTable("subgraphs")
+		.set({
+			last_processed_block: lastProcessedBlock,
+			status: sql`CASE WHEN status = 'reindexing' THEN status ELSE 'active' END`,
+			updated_at: new Date(),
+		})
+		.where("name", "=", name)
+		.where("last_processed_block", "<", lastProcessedBlock)
+		.executeTakeFirst();
+	return Number(result.numUpdatedRows ?? 0n) > 0;
+}
+
+/** Reorg-rewind progress write: the OLD unconditional `recordLiveProgress`
+ *  semantics, verbatim — moves `last_processed_block` to the fork height
+ *  regardless of its current value, because that is by definition a
+ *  backward move the conditional `<` guard in `recordLiveProgress` would
+ *  refuse. Same status-promotion CASE (never unparks an explicit
+ *  'reindexing').
+ *
+ *  Callers: exclusively the subgraph-reorg path
+ *  (`packages/subgraphs/src/runtime/reorg.ts`, via `block-processor.ts`'s
+ *  `reorgRewind` mode), which is safe from the cross-process race this
+ *  function reintroduces because it holds a transaction-scoped Postgres
+ *  advisory lock (`pg_advisory_xact_lock`) for the whole
+ *  delete+reprocess+rewind sequence — no other writer can interleave a
+ *  forward write between the rewind and the fork block's reprocess. Do not
+ *  call this from the live catch-up path. */
+export async function rewindLiveProgress(
 	db: Kysely<Database>,
 	name: string,
 	lastProcessedBlock: number,

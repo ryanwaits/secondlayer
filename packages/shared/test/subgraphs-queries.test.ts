@@ -5,7 +5,10 @@ import {
 	deleteSubgraph,
 	getSubgraph,
 	listSubgraphs,
+	recordLiveError,
+	recordLiveProgress,
 	registerSubgraph,
+	rewindLiveProgress,
 	updateSubgraphStatus,
 } from "../src/db/queries/subgraphs.ts";
 
@@ -133,3 +136,105 @@ describe.skipIf(SKIP)("Subgraphs Queries", () => {
 		expect(result).toBeNull();
 	});
 });
+
+/**
+ * f069: the live-path cursor writes gained a conditional guarantee — a
+ * regression carrier this plan closes was `recordLiveProgress` writing
+ * `last_processed_block` unconditionally, letting a laggard writer regress
+ * a cursor a faster writer already advanced past.
+ */
+describe.skipIf(SKIP)(
+	"recordLiveProgress / recordLiveError / rewindLiveProgress (f069)",
+	() => {
+		const testDef = {
+			name: "test-subgraph",
+			version: "1.0.0",
+			definition: {
+				name: "test-subgraph",
+				sources: [{ contract: "SP::c" }],
+				schema: {},
+			},
+			schemaHash: "abc123",
+			handlerPath: "/tmp/test-subgraph.ts",
+		};
+
+		afterEach(async () => {
+			const db = getDb();
+			await db.deleteFrom("subgraphs").execute();
+		});
+
+		test("recordLiveProgress advances only strictly forward and reports whether it did", async () => {
+			const db = getDb();
+			await registerSubgraph(db, testDef);
+
+			expect(await recordLiveProgress(db, "test-subgraph", 100)).toBe(true);
+			expect(
+				Number((await getSubgraph(db, "test-subgraph"))?.last_processed_block),
+			).toBe(100);
+
+			// Same height or lower: refused — no data change, no exception.
+			expect(await recordLiveProgress(db, "test-subgraph", 100)).toBe(false);
+			expect(await recordLiveProgress(db, "test-subgraph", 50)).toBe(false);
+			expect(
+				Number((await getSubgraph(db, "test-subgraph"))?.last_processed_block),
+			).toBe(100);
+
+			// Forward again: succeeds.
+			expect(await recordLiveProgress(db, "test-subgraph", 101)).toBe(true);
+		});
+
+		test("recordLiveProgress promotes status toward active but never unparks reindexing", async () => {
+			const db = getDb();
+			await registerSubgraph(db, testDef);
+
+			await updateSubgraphStatus(db, "test-subgraph", "reindexing");
+			await recordLiveProgress(db, "test-subgraph", 10);
+			expect((await getSubgraph(db, "test-subgraph"))?.status).toBe(
+				"reindexing",
+			);
+
+			await updateSubgraphStatus(db, "test-subgraph", "error");
+			await recordLiveProgress(db, "test-subgraph", 20);
+			expect((await getSubgraph(db, "test-subgraph"))?.status).toBe("active");
+		});
+
+		test("recordLiveError stamps status=error and advances the cursor only forward", async () => {
+			const db = getDb();
+			await registerSubgraph(db, testDef);
+			await recordLiveProgress(db, "test-subgraph", 50);
+
+			expect(await recordLiveError(db, "test-subgraph", 60)).toBe(true);
+			let row = await getSubgraph(db, "test-subgraph");
+			expect(row?.status).toBe("error");
+			expect(Number(row?.last_processed_block)).toBe(60);
+
+			// A losing (behind) writer's error stamp must not regress the cursor
+			// a racing writer already advanced past.
+			expect(await recordLiveError(db, "test-subgraph", 55)).toBe(false);
+			row = await getSubgraph(db, "test-subgraph");
+			expect(Number(row?.last_processed_block)).toBe(60);
+		});
+
+		test("rewindLiveProgress moves the cursor backward unconditionally", async () => {
+			const db = getDb();
+			await registerSubgraph(db, testDef);
+			await recordLiveProgress(db, "test-subgraph", 500);
+
+			await rewindLiveProgress(db, "test-subgraph", 100);
+			expect(
+				Number((await getSubgraph(db, "test-subgraph"))?.last_processed_block),
+			).toBe(100);
+		});
+
+		test("rewindLiveProgress promotes status toward active but never unparks reindexing", async () => {
+			const db = getDb();
+			await registerSubgraph(db, testDef);
+
+			await updateSubgraphStatus(db, "test-subgraph", "reindexing");
+			await rewindLiveProgress(db, "test-subgraph", 10);
+			expect((await getSubgraph(db, "test-subgraph"))?.status).toBe(
+				"reindexing",
+			);
+		});
+	},
+);
