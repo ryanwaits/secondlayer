@@ -476,6 +476,9 @@ export type BlocksWalkParams = Omit<BlocksListParams, "limit"> & {
 
 // ── Transactions (/v1/index/transactions) ──────────────────────────
 
+// Mirrors DecodedPostCondition in packages/api/src/index/transaction-decode.ts
+// (source of truth) — this type is hand-maintained, not generated, so the two
+// must move together.
 export type IndexPostCondition =
 	| {
 			type: "stx";
@@ -497,6 +500,22 @@ export type IndexPostCondition =
 			principal: string;
 			asset_identifier: string;
 			asset_value: unknown;
+			condition_code: number;
+			condition_code_name: string | null;
+	  }
+	// SIP-045 (epoch 4.0 / pox-5): gates stake / register-for-bond / stake-update.
+	| {
+			type: "staking";
+			principal: string;
+			condition_code: number;
+			condition_code_name: string | null;
+			amount: string;
+	  }
+	// SIP-045 (epoch 4.0 / pox-5): gates non-locking PoX state changes, e.g.
+	// unstake / announce-l1-early-exit. No amount — see PoxPostConditionWire.
+	| {
+			type: "pox";
+			principal: string;
 			condition_code: number;
 			condition_code_name: string | null;
 	  };

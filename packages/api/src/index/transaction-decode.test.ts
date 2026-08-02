@@ -1,4 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import {
+	buildContractCall,
+	serializeTransactionHex,
+} from "@secondlayer/stacks/transactions";
 import { decodeTransaction } from "./transaction-decode.ts";
 
 // Real mainnet transactions (shared with packages/indexer parser tests). Pinned
@@ -43,5 +47,98 @@ describe("decodeTransaction", () => {
 		expect(decodeTransaction("0xinvalid")).toBeNull();
 		expect(decodeTransaction(null)).toBeNull();
 		expect(decodeTransaction(undefined)).toBeNull();
+	});
+
+	// SIP-045 (epoch 4.0 / pox-5) post-conditions. Built with the repo's own
+	// builder (packages/stacks/src/transactions/build.ts) rather than pinned
+	// hex, so this is an end-to-end round-trip through the real codec.
+	const STAKER_ADDR = "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7";
+	const FAKE_PUBLIC_KEY = `02${"11".repeat(32)}`;
+
+	test("normalizePostCondition surfaces staking and pox post-conditions", async () => {
+		const tx = await buildContractCall({
+			contractAddress: "SP000000000000000000002Q6VF78",
+			contractName: "pox-5",
+			functionName: "stake",
+			functionArgs: [],
+			fee: 200n,
+			nonce: 1n,
+			publicKey: FAKE_PUBLIC_KEY,
+			postConditionMode: "deny",
+			postConditions: [
+				{
+					type: "staking-postcondition",
+					address: STAKER_ADDR,
+					condition: "lte",
+					amount: "500000000000",
+				},
+				{
+					type: "pox-postcondition",
+					address: "origin",
+					condition: "will-not-perform",
+				},
+			],
+		});
+		const decoded = decodeTransaction(`0x${serializeTransactionHex(tx)}`);
+		expect(decoded).not.toBeNull();
+		expect(decoded?.post_conditions).toHaveLength(2);
+
+		const staking = decoded?.post_conditions[0];
+		expect(staking).toEqual({
+			type: "staking",
+			principal: STAKER_ADDR,
+			condition_code: 5, // FungibleConditionCode.LessEqual
+			condition_code_name: "sent_le",
+			amount: "500000000000",
+		});
+		expect(typeof (staking as { amount: string }).amount).toBe("string");
+
+		const pox = decoded?.post_conditions[1];
+		expect(pox).toEqual({
+			type: "pox",
+			principal: "origin",
+			condition_code: 0x30, // PoxConditionCode.WillNotPerform
+			condition_code_name: "will_not_perform",
+		});
+		expect(pox && "amount" in pox).toBe(false);
+	});
+
+	test("mixed stx/staking/pox post-conditions preserve order and count", async () => {
+		const tx = await buildContractCall({
+			contractAddress: "SP000000000000000000002Q6VF78",
+			contractName: "pox-5",
+			functionName: "stake",
+			functionArgs: [],
+			fee: 200n,
+			nonce: 1n,
+			publicKey: FAKE_PUBLIC_KEY,
+			postConditionMode: "deny",
+			postConditions: [
+				{
+					type: "stx-postcondition",
+					address: STAKER_ADDR,
+					condition: "eq",
+					amount: "0",
+				},
+				{
+					type: "staking-postcondition",
+					address: STAKER_ADDR,
+					condition: "lte",
+					amount: "500000000000",
+				},
+				{
+					type: "pox-postcondition",
+					address: "origin",
+					condition: "will-perform",
+				},
+			],
+		});
+		const decoded = decodeTransaction(`0x${serializeTransactionHex(tx)}`);
+		expect(decoded?.post_conditions).toHaveLength(3);
+		expect(decoded?.post_conditions.map((pc) => pc.type)).toEqual([
+			"stx",
+			"staking",
+			"pox",
+		]);
 	});
 });

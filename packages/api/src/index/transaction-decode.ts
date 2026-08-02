@@ -41,6 +41,22 @@ export type DecodedPostCondition =
 			asset_value: unknown;
 			condition_code: number;
 			condition_code_name: string | null;
+	  }
+	// SIP-045 (epoch 4.0 / pox-5): gates stake / register-for-bond / stake-update.
+	| {
+			type: "staking";
+			principal: string;
+			condition_code: number;
+			condition_code_name: string | null;
+			amount: string;
+	  }
+	// SIP-045 (epoch 4.0 / pox-5): gates non-locking PoX state changes, e.g.
+	// unstake / announce-l1-early-exit. No amount — see PoxPostConditionWire.
+	| {
+			type: "pox";
+			principal: string;
+			condition_code: number;
+			condition_code_name: string | null;
 	  };
 
 /** Fields decoded from `raw_tx` that the `transactions` table does not persist:
@@ -91,6 +107,13 @@ const NON_FUNGIBLE_CONDITION_NAME: Record<number, string> = {
 	16: "sent",
 	17: "not_sent",
 };
+// SIP-045 PoX post-condition codes (packages/stacks/src/transactions/types.ts):
+// 48 = 0x30 WillNotPerform, 49 = 0x31 MayPerform, 50 = 0x32 WillPerform.
+const POX_CONDITION_NAME: Record<number, string> = {
+	48: "will_not_perform",
+	49: "may_perform",
+	50: "will_perform",
+};
 
 // biome-ignore lint/suspicious/noExplicitAny: wire principal shape from @secondlayer/stacks
 function principalToString(principal: any): string {
@@ -137,6 +160,26 @@ function normalizePostCondition(pc: any): DecodedPostCondition | null {
 			condition_code: pc.conditionCode,
 			condition_code_name:
 				NON_FUNGIBLE_CONDITION_NAME[pc.conditionCode] ?? null,
+		};
+	}
+	// SIP-045 gives staking post-conditions the same body as STX ones (fungible
+	// condition code + amount) — reusing FUNGIBLE_CONDITION_NAME here is
+	// deliberate, not a shortcut. See wire/deserialize.ts's Staking case.
+	if (pc.type === "staking") {
+		return {
+			type: "staking",
+			principal,
+			condition_code: pc.conditionCode,
+			condition_code_name: FUNGIBLE_CONDITION_NAME[pc.conditionCode] ?? null,
+			amount: String(pc.amount),
+		};
+	}
+	if (pc.type === "pox") {
+		return {
+			type: "pox",
+			principal,
+			condition_code: pc.conditionCode,
+			condition_code_name: POX_CONDITION_NAME[pc.conditionCode] ?? null,
 		};
 	}
 	return null;
