@@ -301,11 +301,105 @@ different mechanism entirely. I could not resolve which.
 
 ---
 
+## Step 3 addendum — testing a per-holder replay factor (coordinator-requested revision)
+
+After the first pass above, the coordinator independently reproduced Steps 2–3's
+measurements (confirmed correct) but flagged that my Step 3 rejection of H1 used the
+wrong test: I compared each holder's *own* burst-window contribution against the
+*fleet-average* ~44–94× multiplier, which conflates a system-wide average over all
+blocks with the specific, possibly very different, number of times any one holder's
+own few blocks were re-walked. The coordinator proposed solving directly for the
+implied per-holder replay factor:
+
+```
+k = (stored − reindex_net) / live_net        i.e. stored = reindex_net + k × live_net
+```
+
+on the premise that the reindex era is clean (Step 2b: ~95% coverage, no replay) and
+all excess lives in a `k`-fold replay of the live era. For sBTC/`state-v1` alone,
+this gives `k = 6.775` and reproduces `stored` to within rounding — a plausible
+replay count, and the coordinator asked whether this holds up across all 88 rows.
+
+**It does not hold up.** I computed `k` for all 86 failing negative rows and both
+failing positive rows (68 of the 86 negatives have `live_net ≠ 0` and thus a defined
+`k`; the other 18 have `live_net = 0`, meaning the model predicts `stored =
+reindex_net` for them regardless of `k` — and since these rows are in the failing
+set by definition, `stored ≠ reindex_net`, so **the model cannot explain these 18
+rows at all**, independent of what `k` is elsewhere).
+
+Distribution of `k` over the 68 defined cases:
+
+```
+k < 0 (negative — not a meaningful replay count):        28 of 68  (41%)
+0 ≤ k ≤ 100 (the coordinator's proposed plausible band):  21 of 68  (31%)
+k > 100:                                                   19 of 68  (28%)
+
+min k = -3,298,409         max k = 32,666,668
+```
+
+Spread sample across the sorted range (holder truncated):
+
+```
+k=-3,298,409   cf-vault-v1-tij04d-so8              live_events=2
+k=  -8,755.09  market-factory-v20-bias             live_events=932
+k=  -2,152.12  stableswap-staking-stx-ststx-v-1-4  live_events=520
+k=     -36.63  pepe-faktory-pool-v2-2               live_events=185
+k=       6.775 state-v1 (sBTC — the coordinator's case)  live_events=62
+k=     178.07  univ2-pool-v1_0_0-0061 (STX)          live_events=26
+k=   6,888.66  bitcoin-block-finality               live_events=7
+k=   7,513.43  dlmm-pool-aeusdc-usdcx-v-1-bps-1      live_events=4010
+k=  32,666,668 sendor-stxcity-dex (STX)              live_events=12
+```
+
+The two failing **positive** rows give `k = -0.498` (escrow-mainnet-v3) and
+`k = 0.556` (univ2-fees-v1_0_0-0056) — both **less than 1**, which under this model
+would mean the live era was applied *less than once*, not replayed at all. Neither
+falls anywhere near the negative-side band either.
+
+**Correlation with burst-window exposure** (item 3 of the revision request): for the
+68 defined-`k` negative rows, Pearson correlation between `k` and each holder's
+burst-window share of its live-era event count (`burst_events / live_events`) is
+**r = 0.47** — but Spearman rank correlation, which is far less sensitive to the one
+or two extreme outliers (the 32.6-million and -3.3-million values dominate the
+Pearson number), is **ρ = 0.15** — a weak relationship, not the strong monotonic tie
+you'd expect if "more of a holder's activity fell in the measured burst window" were
+driving "how far its stored value has drifted." sBTC/`state-v1` itself is a
+counter-example to its own fit being burst-driven: only 4.8% of its live-era events
+fall inside the burst window, yet it's the case with the cleanest-looking `k`.
+
+**Conclusion on this test: the per-holder replay factor does not cluster in a
+plausible band, is frequently negative (impossible for a replay count), spans eight
+orders of magnitude, and does not correlate strongly with measured burst-window
+exposure.** The sBTC fit is very close, but on this evidence I read it as very
+likely a coincidence of one case out of 88, not a demonstration of the underlying
+mechanism — the same arithmetic form (one free parameter fit to one data point)
+will produce *some* value of `k` for every row by construction; the question was
+always whether those values cluster meaningfully, and they don't. Per the
+coordinator's own instruction: reporting this plainly rather than forcing the
+conclusion. **The current verdict (H1 confirmed as a real, active defect in the live
+path; not confirmed as sufficient to explain the sampled magnitudes) stands.**
+
+The sign-flip insight is independent of whether `k` clusters and remains valid: the
+reindex era is positive for all three of Part B's cases, the live era swings sharply
+negative for sBTC specifically (reindex +9,225,611,332 / live −8,984,311,088 — a
+real, measured feature of the chain-plane data, not a replay artifact), and that
+alone is why the total can look small and positive while a large negative
+`ctx.increment` sequence starting from that base plausibly overshoots past zero.
+What this addendum shows is that overshoot's *exact size*, tested rigorously across
+the full failing set rather than one case, isn't standing up as a clean function of
+the measured replay volume.
+
+---
+
 ## Step 4 — hypotheses
 
 **H1 — Replay / double application.**
 **CONFIRMED as a real, measured phenomenon; NOT CONFIRMED as sufficient to explain
-the sampled magnitudes.** `blocks_processed` in the live/catch-up era exceeds the
+the sampled magnitudes.** (This verdict was challenged and re-tested — see the
+"Step 3 addendum" above, which solves for an implied per-holder replay factor `k`
+across all 88 keys rather than one case, and finds it does not cluster in a
+plausible range. The verdict here is unchanged after that test.)
+`blocks_processed` in the live/catch-up era exceeds the
 actual block range by ~44× overall, concentrated in a 12-day burst
 (2026-07-09→07-20) that is nowhere near the reindex. This is hard evidence that the
 catch-up path re-attempted large ranges of already-processed blocks. Code review
@@ -411,6 +505,17 @@ landing on another holder's row.
    net by a large factor) — a shared signature across the whole table, not
    independent one-off errors, which argues for a common systemic mechanism even
    though its exact shape is unresolved.
+6. A more targeted version of point 4 — solving per-holder for the implied replay
+   count `k` in `stored = reindex_net + k × live_net`, rather than applying the
+   fleet-average multiplier — was tested at the coordinator's request across all 86
+   failing negative rows plus both failing positive rows (Step 3 addendum). It does
+   **not** rescue the replay-alone story: `k` is negative for 41% of rows (not a
+   valid replay count), spans eight orders of magnitude (−3.3M to +32.7M), only 31%
+   land in the proposed plausible 0–100 band, 18 of 86 rows have `live_net = 0` and
+   so cannot be explained by the model at any `k`, and `k`'s correlation with a
+   holder's own burst-window exposure is weak (Spearman ρ = 0.15). One case (sBTC)
+   fits the model almost exactly; the full-sample test indicates that is very likely
+   coincidence rather than the general mechanism.
 
 **Narrowest remaining question**: what happened to this subgraph's processing
 pipeline between **2026-06-26 15:32 and 15:52** (the 20-minute pre-existence of
