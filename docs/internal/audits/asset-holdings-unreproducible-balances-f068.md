@@ -342,10 +342,10 @@ Spread sample across the sorted range (holder truncated):
 ```
 k=-3,298,409   cf-vault-v1-tij04d-so8              live_events=2
 k=  -8,755.09  market-factory-v20-bias             live_events=932
-k=  -2,152.12  stableswap-staking-stx-ststx-v-1-4  live_events=520
+k=  -2,152.12  stableswap-pool-aeusdc-usdcx-v-1-1  live_events=520
 k=     -36.63  pepe-faktory-pool-v2-2               live_events=185
 k=       6.775 state-v1 (sBTC — the coordinator's case)  live_events=62
-k=     178.07  univ2-pool-v1_0_0-0061 (STX)          live_events=26
+k=     178.07  univ2-pool-v1_0_0-0065 (STX)          live_events=26
 k=   6,888.66  bitcoin-block-finality               live_events=7
 k=   7,513.43  dlmm-pool-aeusdc-usdcx-v-1-bps-1      live_events=4010
 k=  32,666,668 sendor-stxcity-dex (STX)              live_events=12
@@ -570,3 +570,168 @@ query by always filtering on the indexed `sender`/`recipient` columns rather tha
 scanning `events.data->>'...'`). Control-plane queries against
 `subgraph_operations`, `subgraph_processing_stats`, and `subgraphs` on
 `secondlayer_platform` all completed in well under a second.
+
+---
+
+## Verification pass — 2026-08-02, adversarial re-check (fresh context)
+
+> Independent re-verification by a fresh agent with no stake in the conclusions
+> above. All queries re-run from scratch (`SELECT`-only, both planes); all
+> file:line cites re-derived from source, not copied from this doc. Two
+> mislabeled holder names in the Step 3 addendum's spread table were corrected in
+> place as part of this pass (`univ2-pool-v1_0_0-0065`, not `-0061`, carries
+> k=178.07/26 events — the actual `-0061` row is k=−1.32 over 5 events; and
+> `stableswap-pool-aeusdc-usdcx-v-1-1`, not `stableswap-staking-stx-ststx-v-1-4`,
+> carries k=−2,152.12/520 events — the actual staking row is k=18.13 over 48
+> events). The underlying aggregates were computed from the correct rows and
+> reproduce exactly; only the labels were wrong.
+
+### Per-claim verdicts
+
+| Claim | Verdict |
+|---|---|
+| 1 — 20.68M blocks_processed, ~44× live-era, 07-09→07-20 burst | **CONFIRMED — and strengthened** (counted = committed on the live path) |
+| 2 — sBTC `state-v1` era-split numbers | **CONFIRMED** (every number exact, including sub-era splits event-by-event) |
+| 3 — k-distribution refutes replay | **PARTIALLY CONFIRMED** (arithmetic exact; the anti-replay inference is overreach — see below) |
+| 4 — 38/40 positives reconcile → defect selective | **Measurement confirmed; conclusion REFUTED** (sampling artifact) |
+| 5 — catch-up lacks the replay guard | **CONFIRMED** (no equivalent guard under any name; concrete dual-writer sequence constructible) |
+
+### Claim 1 strengthened: a counted processing IS a committed write on the live path
+
+Section 2a above hedged that high `blocks_processed` "could be many safe
+re-attempts that were skipped." That hedge is wrong for the live path — in this
+doc's favor. Traced: `result.timing` is assigned only at
+`block-processor.ts:668-673`, after the transaction branch completes. Early
+returns at `block-processor.ts:361-363` (block missing) and `403-411` (matched=0)
+never set timing and are never counted; a thrown transaction (including every
+failed `processBlockWithRetry` attempt, `block-processor.ts:303-320`) is never
+counted. The skip-still-counted path (`block-processor.ts:566-590` skip → falls
+through to timing) requires `atomicProgress`, which catch-up never passes
+(`catchup.ts:309-311` passes only `{ preloaded }`). Therefore every one of the
+12.68M live-era counts corresponds to a **committed managed transaction** in
+which handlers ran and any `ctx.increment` ops flushed. Era split and daily burst
+breakdown reproduced row-for-row (reindex era 8,004,491 exactly; live era
+12,676,598 at re-check time, delta vs 12,676,555 is same-day accrual; burst
+window holds 12,515,855 = 98.7% of live-era volume).
+
+### Claim 3 corrected in both directions
+
+The Step 3 addendum's kill of the **uniform per-holder** replay model stands.
+But this doc's own "replay too small by 1–2 orders of magnitude" test (Step 3)
+was also ill-posed: it multiplied each holder's burst deltas by the
+**fleet-average** 44–94× multiplier. Per-height replay counts under cursor-thrash
+are heterogeneous — heights just above a stuck cursor get re-walked on every
+tick for days. sBTC's gap ÷ its burst deltas ≈ **610×**, achievable by a
+walk-per-tick loop over ~11 days. Negative k and live_net=0 rows do **not**
+refute replay: with mixed-sign deltas at different heights and per-block counts
+n_b, the effective k = Σn_bδ_b/Σδ_b can take any value including negative. And k
+is ill-conditioned when live_net ≈ 0: cf-vault's live_net is **+3** (credits
+9,895,230 vs debits 9,895,227), sendor's is **−3** (500,002,634 vs 500,002,637)
+— the million-scale k values are numerical artifacts, evidence of nothing.
+
+### New finding: a LOST-EVENT signature coexists with replay
+
+Three cases where the gap is exact under-application, not replay:
+
+- **cf-vault-v1-tij04d-so8 / zft**: gap = −9,895,227 − (+3) = −9,895,230 =
+  exactly its single `ft_mint` credit at block **8,613,401** (amount 9,895,230),
+  never applied.
+- **sendor-stxcity-dex / STX**: gap = −98,000,000 = exactly one of its **three
+  identical 98M credits** (blocks 8,586,131 / 8,586,150 / 8,586,164, inside the
+  burst window), never applied.
+- **escrow-mainnet-v3 / STX**: stored 325,000,000 equals the exact running
+  balance after the event at block **8,621,682**; the last two events
+  (−325M @ 8,621,685, +999M @ 8,621,906) were never applied. No reorg in
+  `chain_reorgs` has a fork ≤ those heights (nearest is 8,625,260), so this is
+  not reorg deletion. This supersedes Step 1b's "stale accumulator matching one
+  debit" curiosity — the match to a 325M debit amount was coincidence; the real
+  signature is a truncated prefix.
+
+Under-application and over-application coexist on the live path. A
+single-parameter replay fit cannot see loss and produces garbage k where loss
+dominates — a further reason the k-scatter refutes nothing about replay.
+
+### Claim 4 refuted: "selective" was a sampling artifact
+
+A fresh 10-row random positive sample (different randomization) reconciled
+10/10 — but **all 10 had zero live-era events**. Random draws over 28,028 rows
+land on dormant holders whose entire history is in the clean reindex era; the
+38/40 result measured that base rate, not the defect's scope. A targeted sample
+of the top-25 burst-window-active contract holders: **every row with a nonzero
+net fails, positives included**, wrong by ×3 to ×714 in both directions —
+`dlmm-pool-sbtc-usdcx-v-1-bps-10`/sBTC stored 448,695,188,340 vs chain net
+628,149,712 (×714 inflated); `dlmm-pool-ststx-stx-v-1-bps-1` ×333;
+`dlmm-pool-stx-sbtc-v-1-bps-15` ×393; `amm-vault-v2-01`/alex ×3.6 **deflated**
+(consistent with replayed net-negative live blocks); arkadiko-swap ×3.3. The
+clean natural experiment: `dlmm-pool-leo-stx-v-1-bps-50` has **zero reindex-era
+events** — its entire history is live-era — and stored = ×16.4 chain net, so its
+corruption is 100% live-path. The only burst-active rows that "reconcile" are
+flow-through bots (blue, hilt, bill) whose credits and debits are exactly equal
+in every era: stored 0 = chain net 0, where replay is arithmetically invisible
+by construction. **Corrected blast radius: every holder with unbalanced
+live-era (especially burst-window) activity — hundreds to thousands of rows,
+not 88.**
+
+### Claim 5: the concrete dual-writer sequence
+
+The leader lock is a session advisory lock (`leader.ts`,
+`catchup-leader.ts:44-64`). Losing the lease does **not** cancel an in-flight
+walk: leadership is checked only at `runCatchUp` entry (`processor.ts:492-493`);
+the walk loop re-checks only `status === 'active'` (`catchup.ts:243-249`). The
+lock connection can drop silently on driver auto-reconnect (acknowledged at
+`leader.ts:84-99`). The cursor write is unconditional and non-monotonic
+(`subgraphs.ts:326-340`, deliberate for reorg rewind). Sequence: leader A
+mid-walk loses its lock connection; B acquires within ≤15s and walks from the
+committed cursor; A continues to tip regardless; both commit increments for
+overlapping heights; every commit by the laggard **regresses**
+`last_processed_block`, so each NOTIFY/5s poll (`processor.ts:507-540`) triggers
+another full re-walk of laggard-height→tip — per-height application counts grow
+without bound while the overlap persists, concentrated just above the laggard's
+position. This matches both the burst's shape and the ×hundreds per-height
+factors the magnitudes require. The `catchup-leader.ts:12-15` "idempotent
+upserts keep it correct" comment is false for `ctx.increment`. Secondary hazard,
+same family: `handleSubgraphReorg` runs on **every** process
+(`processor.ts:517-535`) and its delete+journal-restore+reprocess
+(`reorg.ts:64-129,240`) is not cross-process-serialized. Which sequence fired in
+July is not provable from read-only SQL; the missing cross-process defense is
+code fact. Supporting circumstantials, both verified: 07-08 has **zero** stats
+rows (restart/deploy-churn signature immediately preceding the burst), and the
+20-minute pre-op stats anomaly is real and is **not clock skew** — bucket
+timestamps are JS-clock (`stats.ts:74,88`) and op `created_at` is a DB default
+(`subgraph-operations.ts:58-72`), but the reindex's final bucket_end
+(00:55:12.635) matches the op's `finished_at` (00:55:12.641) to 6ms, so the
+clocks agreed.
+
+### Cross-subgraph check
+
+No burst-scale over-processing on the other four deployed subgraphs: in the same
+window, bns-names processed ~265k blocks (~1× its live range), pox-stacking
+~230k (~1×), contract-deployments ~13k, sbtc-flows ~8k. Corruption of this
+magnitude is likely asset-holdings-specific in practice (its walks are the
+fleet's slowest — it matches nearly every block); the vulnerable code path is
+shared by all of them.
+
+### Superseded conclusions
+
+Readers must no longer rely on the following earlier statements in this doc
+(left intact above as the record):
+
+1. **"Replay is not sufficient to explain the sampled magnitudes"** — Step 3's
+   conclusion, the Step 3 addendum's final framing of H1, and ROOT-CAUSE
+   statement items 4 and 6 insofar as they rest on it. Both tests used
+   (fleet-average multiplier; uniform per-holder k) were ill-posed. Per-height
+   heterogeneous replay plus the lost-event signature is consistent with
+   everything measured; no additional exotic mechanism is required by the data.
+2. **The "selective / small tail" scope framing** — Step 1b's verdict and
+   ROOT-CAUSE framing that the blast radius is "at least the 88 negative rows
+   plus an apparently small tail." The defect hits every unbalanced live-active
+   holder; the 88 negatives are merely where it crossed zero and became visible.
+
+### Next measurement
+
+Count `holdings` rows whose holder has ≥1 unbalanced live-era event (net ≠ 0
+over blocks > 8,405,235) — that single number is the real blast radius and the
+input remediation scoping needs. Remediation itself (live-path replay guard +
+full reindex) is a separate founder-approved plan; row-patching the 88 negative
+rows is provably insufficient — 9/9 burst-active positive rows tested are also
+wrong.
