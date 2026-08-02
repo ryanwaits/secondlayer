@@ -6,6 +6,7 @@ import {
 	resolveSubgraphRawClient,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { logger } from "@secondlayer/shared/logger";
+import { sql } from "kysely";
 import { pgSchemaName } from "../schema/utils.ts";
 import type { SubgraphDefinition, SubgraphSchema } from "../types.ts";
 import { processBlock } from "./block-processor.ts";
@@ -63,186 +64,30 @@ export async function handleSubgraphReorg(
 			// See the guard comment near `subgraphBlockLockHeld` in catchup.ts.
 			bumpReorgEpoch(sg.name);
 			await withSubgraphBlockLock(sg.name, async () => {
-				const schemaName = sg.schema_name ?? pgSchemaName(sg.name);
-				// Rows live on the subgraph's data plane — user DB for BYO, else target.
-				const client = resolveSubgraphRawClient(sg);
-
-				// Snapshot affected rows BEFORE deletion so we can surface them
-				// to subscription receivers as revert events. Cap at 1k rows
-				// per (table, reorg) to bound memory; deeper reverts are rare
-				// and at-volume the receiver should be reading from the table
-				// directly anyway.
-				const tableNames = Object.keys(schema);
-				const revertedByTable: Record<string, unknown[]> = {};
-				for (const tableName of tableNames) {
-					const rows = await client.unsafe<unknown[]>(
-						`SELECT * FROM "${schemaName}"."${tableName}" WHERE "_block_height" >= $1 LIMIT 1000`,
-						[blockHeight],
-					);
-					if (rows.length > 0) revertedByTable[tableName] = rows;
-				}
-
-				// Revert table state. With a journal: restore each touched row to its
-				// pre-fork state (accumulators keep their history — fix-f040 B2), then
-				// sweep append-only rows created at/after the fork. Without one
-				// (pre-journal deploy), fall back to the height sweep alone — correct
-				// only for append-only tables.
-				const hasJournal = (
-					await client.unsafe<{ r: unknown }[]>(
-						`SELECT to_regclass('"${schemaName}"."_journal"') AS r`,
-					)
-				)[0]?.r;
-				if (hasJournal) {
-					await client.begin(async (tx) => {
-						for (const tableName of tableNames) {
-							// Pre-fork state per row = prev_row of the EARLIEST journal
-							// entry at/after the fork (pre-images compose: the first one
-							// captured is the state before any fork-era op touched it).
-							// prev_row NULL = the row was created in the fork era.
-							const earliest = `
-								SELECT DISTINCT ON (row_key) row_key, prev_row
-								FROM "${schemaName}"."_journal"
-								WHERE block_height >= $1 AND table_name = $2
-								ORDER BY row_key, _jid ASC`;
-							// 1. Drop the current (orphaned) versions of journaled rows.
-							await tx.unsafe(
-								`DELETE FROM "${schemaName}"."${tableName}" t USING (${earliest}) e WHERE to_jsonb(t.*) @> e.row_key`,
-								[blockHeight, tableName],
-							);
-							// 2. Sweep append-only rows born at/after the fork.
-							await tx.unsafe(
-								`DELETE FROM "${schemaName}"."${tableName}" WHERE "_block_height" >= $1`,
-								[blockHeight],
-							);
-							// 3. Restore pre-fork row states (pure SQL — NUMERIC precision
-							// never round-trips through JS). Restored rows were created
-							// pre-fork, so step 2 cannot have matched them.
-							await tx.unsafe(
-								`INSERT INTO "${schemaName}"."${tableName}"
-								 SELECT r.* FROM (${earliest}) e
-								 CROSS JOIN LATERAL jsonb_populate_record(NULL::"${schemaName}"."${tableName}", e.prev_row) r
-								 WHERE e.prev_row IS NOT NULL`,
-								[blockHeight, tableName],
-							);
-						}
-						await tx.unsafe(
-							`DELETE FROM "${schemaName}"."_journal" WHERE block_height >= $1`,
-							[blockHeight],
+				// f069: the in-process block lock above only excludes a same-process
+				// catch-up walk (f057) — `handleSubgraphReorg` itself runs on EVERY
+				// process (NOTIFY fan-out from processor.ts), so two processes could
+				// otherwise run this exact revert+reprocess sequence for the same
+				// subgraph concurrently, double-applying the fork block or racing
+				// each other's journal restore. A Postgres advisory lock scoped to
+				// a wrapping transaction on the managed (target) DB closes that:
+				// held for the WHOLE delete+reprocess+rewind sequence below, since
+				// `pg_advisory_xact_lock` releases only when this transaction
+				// commits/rolls back — regardless of how long the callback runs or
+				// what other connections (the subgraph's own data-plane client,
+				// `processBlock`'s own separate managed-DB transaction) it awaits
+				// in the meantime. Transaction-scoped (not session-scoped): nothing
+				// here needs the lock to outlive this one call, and an xact lock
+				// can never leak past a crash the way a session lock without a
+				// matching `finally` unlock could.
+				await getTargetDb()
+					.transaction()
+					.execute(async (lockTx) => {
+						await sql`SELECT pg_advisory_xact_lock(hashtext(${`subgraph-reorg:${sg.name}`}))`.execute(
+							lockTx,
 						);
+						await reorgOneSubgraph(sg, schema, blockHeight, loadSubgraphDef);
 					});
-				} else {
-					logger.warn(
-						"Subgraph has no revert journal — falling back to height delete (accumulator rows may lose history)",
-						{ subgraph: sg.name, blockHeight },
-					);
-					for (const tableName of tableNames) {
-						await client.unsafe(
-							`DELETE FROM "${schemaName}"."${tableName}" WHERE "_block_height" >= $1`,
-							[blockHeight],
-						);
-					}
-				}
-
-				// Factory-discovered addresses are chain-derived state like any
-				// row: an address revealed on the orphaned fork must not keep
-				// matching forever. `IF EXISTS` because the table is only
-				// created for subgraphs that actually use a factory.
-				await client.unsafe(
-					`DO $$ BEGIN
-						IF to_regclass('"${schemaName}"."_factory_addresses"') IS NOT NULL THEN
-							DELETE FROM "${schemaName}"."_factory_addresses" WHERE block_height >= ${Number(blockHeight)};
-						END IF;
-					END $$`,
-				);
-
-				// Emit revert events to dependent subscriptions so receivers
-				// know to roll back. Insert into subscription_outbox with a
-				// stable dedup_key keyed on (subscription, table, height,
-				// "revert") so a duplicate reorg notification is a no-op.
-				for (const [tableName, rows] of Object.entries(revertedByTable)) {
-					if (rows.length === 0) continue;
-					await targetDb
-						.insertInto("subscription_outbox")
-						.columns([
-							"subscription_id",
-							"subgraph_name",
-							"table_name",
-							"block_height",
-							"event_type",
-							"payload",
-							"dedup_key",
-							"row_pk",
-							"status",
-						])
-						.expression((eb) =>
-							eb
-								.selectFrom("subscriptions")
-								.select((eb2) => [
-									"id as subscription_id",
-									eb2.val(sg.name).as("subgraph_name"),
-									eb2.val(tableName).as("table_name"),
-									eb2.val(blockHeight).as("block_height"),
-									eb2.val(`${sg.name}.${tableName}.reverted`).as("event_type"),
-									eb2
-										.val(
-											JSON.stringify({
-												subgraph: sg.name,
-												table: tableName,
-												reorgFromHeight: blockHeight,
-												rows,
-											}),
-										)
-										.as("payload"),
-									eb2
-										.val(`reorg:${sg.name}:${tableName}:${blockHeight}`)
-										.as("dedup_key"),
-									eb2
-										.val({
-											subgraph: sg.name,
-											table: tableName,
-											reorgRoot: blockHeight,
-										})
-										.as("row_pk"),
-									eb2.val("pending").as("status"),
-								])
-								.where("subgraph_name", "=", sg.name)
-								.where("table_name", "=", tableName)
-								.where("status", "=", "active"),
-						)
-						.onConflict((oc) =>
-							oc.columns(["subscription_id", "dedup_key"]).doNothing(),
-						)
-						.execute()
-						.catch((err) => {
-							// Don't fail the reorg cleanup if the revert event
-							// emission errors — subscriptions can't be more
-							// broken than they were pre-reorg.
-							logger.error("Failed to emit revert event for subscriptions", {
-								event: "reorg_revert_emit_dropped",
-								subgraph: sg.name,
-								table: tableName,
-								blockHeight,
-								error: getErrorMessage(err),
-							});
-						});
-				}
-
-				logger.info("Subgraph reorg cleanup done", {
-					subgraph: sg.name,
-					blockHeight,
-					tablesAffected: Object.keys(revertedByTable).length,
-				});
-
-				// Reprocess the new canonical block. Subsequent blocks above
-				// `blockHeight` will be reprocessed as the indexer ingests
-				// them — they're already marked non-canonical by handleReorg.
-				const def = await loadSubgraphDef(sg);
-				await processBlock(def, sg.name, blockHeight);
-
-				logger.info("Subgraph reorg reprocessed", {
-					subgraph: sg.name,
-					blockHeight,
-				});
 			});
 		} catch (err) {
 			logger.error("Subgraph reorg handling failed", {
@@ -252,4 +97,200 @@ export async function handleSubgraphReorg(
 			});
 		}
 	}
+}
+
+/** The per-subgraph revert+reprocess sequence, run while holding both the
+ *  in-process block lock (f057) and the cross-process advisory lock (f069,
+ *  see the call site in {@link handleSubgraphReorg}). */
+async function reorgOneSubgraph(
+	sg: Subgraph,
+	schema: SubgraphSchema,
+	blockHeight: number,
+	loadSubgraphDef: (sg: Subgraph) => Promise<SubgraphDefinition>,
+): Promise<void> {
+	const targetDb = getTargetDb();
+	const schemaName = sg.schema_name ?? pgSchemaName(sg.name);
+	// Rows live on the subgraph's data plane — user DB for BYO, else target.
+	const client = resolveSubgraphRawClient(sg);
+
+	// Snapshot affected rows BEFORE deletion so we can surface them
+	// to subscription receivers as revert events. Cap at 1k rows
+	// per (table, reorg) to bound memory; deeper reverts are rare
+	// and at-volume the receiver should be reading from the table
+	// directly anyway.
+	const tableNames = Object.keys(schema);
+	const revertedByTable: Record<string, unknown[]> = {};
+	for (const tableName of tableNames) {
+		const rows = await client.unsafe<unknown[]>(
+			`SELECT * FROM "${schemaName}"."${tableName}" WHERE "_block_height" >= $1 LIMIT 1000`,
+			[blockHeight],
+		);
+		if (rows.length > 0) revertedByTable[tableName] = rows;
+	}
+
+	// Revert table state. With a journal: restore each touched row to its
+	// pre-fork state (accumulators keep their history — fix-f040 B2), then
+	// sweep append-only rows created at/after the fork. Without one
+	// (pre-journal deploy), fall back to the height sweep alone — correct
+	// only for append-only tables.
+	const hasJournal = (
+		await client.unsafe<{ r: unknown }[]>(
+			`SELECT to_regclass('"${schemaName}"."_journal"') AS r`,
+		)
+	)[0]?.r;
+	if (hasJournal) {
+		await client.begin(async (tx) => {
+			for (const tableName of tableNames) {
+				// Pre-fork state per row = prev_row of the EARLIEST journal
+				// entry at/after the fork (pre-images compose: the first one
+				// captured is the state before any fork-era op touched it).
+				// prev_row NULL = the row was created in the fork era.
+				const earliest = `
+					SELECT DISTINCT ON (row_key) row_key, prev_row
+					FROM "${schemaName}"."_journal"
+					WHERE block_height >= $1 AND table_name = $2
+					ORDER BY row_key, _jid ASC`;
+				// 1. Drop the current (orphaned) versions of journaled rows.
+				await tx.unsafe(
+					`DELETE FROM "${schemaName}"."${tableName}" t USING (${earliest}) e WHERE to_jsonb(t.*) @> e.row_key`,
+					[blockHeight, tableName],
+				);
+				// 2. Sweep append-only rows born at/after the fork.
+				await tx.unsafe(
+					`DELETE FROM "${schemaName}"."${tableName}" WHERE "_block_height" >= $1`,
+					[blockHeight],
+				);
+				// 3. Restore pre-fork row states (pure SQL — NUMERIC precision
+				// never round-trips through JS). Restored rows were created
+				// pre-fork, so step 2 cannot have matched them.
+				await tx.unsafe(
+					`INSERT INTO "${schemaName}"."${tableName}"
+					 SELECT r.* FROM (${earliest}) e
+					 CROSS JOIN LATERAL jsonb_populate_record(NULL::"${schemaName}"."${tableName}", e.prev_row) r
+					 WHERE e.prev_row IS NOT NULL`,
+					[blockHeight, tableName],
+				);
+			}
+			await tx.unsafe(
+				`DELETE FROM "${schemaName}"."_journal" WHERE block_height >= $1`,
+				[blockHeight],
+			);
+		});
+	} else {
+		logger.warn(
+			"Subgraph has no revert journal — falling back to height delete (accumulator rows may lose history)",
+			{ subgraph: sg.name, blockHeight },
+		);
+		for (const tableName of tableNames) {
+			await client.unsafe(
+				`DELETE FROM "${schemaName}"."${tableName}" WHERE "_block_height" >= $1`,
+				[blockHeight],
+			);
+		}
+	}
+
+	// Factory-discovered addresses are chain-derived state like any
+	// row: an address revealed on the orphaned fork must not keep
+	// matching forever. `IF EXISTS` because the table is only
+	// created for subgraphs that actually use a factory.
+	await client.unsafe(
+		`DO $$ BEGIN
+			IF to_regclass('"${schemaName}"."_factory_addresses"') IS NOT NULL THEN
+				DELETE FROM "${schemaName}"."_factory_addresses" WHERE block_height >= ${Number(blockHeight)};
+			END IF;
+		END $$`,
+	);
+
+	// Emit revert events to dependent subscriptions so receivers
+	// know to roll back. Insert into subscription_outbox with a
+	// stable dedup_key keyed on (subscription, table, height,
+	// "revert") so a duplicate reorg notification is a no-op.
+	for (const [tableName, rows] of Object.entries(revertedByTable)) {
+		if (rows.length === 0) continue;
+		await targetDb
+			.insertInto("subscription_outbox")
+			.columns([
+				"subscription_id",
+				"subgraph_name",
+				"table_name",
+				"block_height",
+				"event_type",
+				"payload",
+				"dedup_key",
+				"row_pk",
+				"status",
+			])
+			.expression((eb) =>
+				eb
+					.selectFrom("subscriptions")
+					.select((eb2) => [
+						"id as subscription_id",
+						eb2.val(sg.name).as("subgraph_name"),
+						eb2.val(tableName).as("table_name"),
+						eb2.val(blockHeight).as("block_height"),
+						eb2.val(`${sg.name}.${tableName}.reverted`).as("event_type"),
+						eb2
+							.val(
+								JSON.stringify({
+									subgraph: sg.name,
+									table: tableName,
+									reorgFromHeight: blockHeight,
+									rows,
+								}),
+							)
+							.as("payload"),
+						eb2
+							.val(`reorg:${sg.name}:${tableName}:${blockHeight}`)
+							.as("dedup_key"),
+						eb2
+							.val({
+								subgraph: sg.name,
+								table: tableName,
+								reorgRoot: blockHeight,
+							})
+							.as("row_pk"),
+						eb2.val("pending").as("status"),
+					])
+					.where("subgraph_name", "=", sg.name)
+					.where("table_name", "=", tableName)
+					.where("status", "=", "active"),
+			)
+			.onConflict((oc) =>
+				oc.columns(["subscription_id", "dedup_key"]).doNothing(),
+			)
+			.execute()
+			.catch((err) => {
+				// Don't fail the reorg cleanup if the revert event
+				// emission errors — subscriptions can't be more
+				// broken than they were pre-reorg.
+				logger.error("Failed to emit revert event for subscriptions", {
+					event: "reorg_revert_emit_dropped",
+					subgraph: sg.name,
+					table: tableName,
+					blockHeight,
+					error: getErrorMessage(err),
+				});
+			});
+	}
+
+	logger.info("Subgraph reorg cleanup done", {
+		subgraph: sg.name,
+		blockHeight,
+		tablesAffected: Object.keys(revertedByTable).length,
+	});
+
+	// Reprocess the new canonical block. Subsequent blocks above
+	// `blockHeight` will be reprocessed as the indexer ingests
+	// them — they're already marked non-canonical by handleReorg.
+	// f069: reorgRewind bypasses the live-path replay guard (this height is,
+	// by construction, at or below the current cursor) and writes the
+	// checkpoint unconditionally via rewindLiveProgress, moving it backward
+	// to the fork height instead of skipping as "already applied."
+	const def = await loadSubgraphDef(sg);
+	await processBlock(def, sg.name, blockHeight, { reorgRewind: true });
+
+	logger.info("Subgraph reorg reprocessed", {
+		subgraph: sg.name,
+		blockHeight,
+	});
 }

@@ -8,6 +8,7 @@ import {
 	processBlockWithRetry,
 } from "./block-processor.ts";
 import { resolveBlockSource } from "./block-source.ts";
+import { isCatchUpLeader } from "./catchup-leader.ts";
 import { StatsAccumulator } from "./stats.ts";
 
 const LOG_INTERVAL = 1000;
@@ -239,6 +240,28 @@ export async function catchUpSubgraph(
 			: undefined;
 
 		while (currentHeight <= chainTip) {
+			// f069: per-iteration leadership check. `isCatchUpLeader()` reads this
+			// process's own in-memory lease state (catchup-leader.ts) — no DB
+			// query, so it's cheap enough to check every batch. Pre-f069, only
+			// `runCatchUp`'s entry gate (processor.ts) checked leadership, so a
+			// process that lost its advisory-lock connection mid-walk (driver
+			// auto-reconnect silently drops the session lock — leader.ts:84-99)
+			// kept committing blocks indefinitely while a new leader walked the
+			// same range: the two writers' overlapping commits, combined with
+			// `recordLiveProgress` regressing the cursor on every laggard write,
+			// is the mechanism the f068 investigation traced to the July burst.
+			// The conditional cursor advance (block-processor.ts) now makes an
+			// overlap safe even if this check somehow missed a beat, but ending
+			// the laggard's walk promptly is still the right behavior — it stops
+			// wasted work and the log noise of every write losing its race.
+			if (!isCatchUpLeader()) {
+				logger.info("Lost catch-up leadership, stopping catch-up", {
+					subgraph: subgraphName,
+					processed,
+				});
+				break;
+			}
+
 			// Check if subgraph status changed (e.g. reindex started) — bail if so
 			const currentRow = await getSubgraph(targetDb, subgraphName);
 			if (!currentRow || currentRow.status !== "active") {
