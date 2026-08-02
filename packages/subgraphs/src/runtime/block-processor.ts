@@ -3,9 +3,11 @@ import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contract
 import { advanceOperationCursor } from "@secondlayer/shared/db/queries/subgraph-operations";
 import {
 	isByoSubgraph,
+	recordLiveError,
 	recordLiveProgress,
 	recordSubgraphProcessed,
 	resolveSubgraphDb,
+	rewindLiveProgress,
 	updateSubgraphStatus,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { logger } from "@secondlayer/shared/logger";
@@ -249,6 +251,19 @@ export interface ProcessBlockOptions {
 	 * relevant checkpoint.
 	 */
 	atomicProgress?: { status: string } | { operationId: string };
+	/**
+	 * Reorg rewind (f069): set exclusively by `reorg.ts`'s fork-block
+	 * reprocess. Bypasses the live-path replay guard (a fork block's height
+	 * is, by construction, at or below the current cursor — the guard would
+	 * otherwise skip it) and writes the checkpoint via
+	 * `rewindLiveProgress` (unconditional — a rewind's whole point is
+	 * moving the cursor *backward*, which the live path's conditional
+	 * advance would refuse). Safe only because the reorg path holds a
+	 * transaction-scoped advisory lock across its whole
+	 * delete+reprocess+rewind sequence, so nothing else can interleave a
+	 * forward write. Never set this outside `reorg.ts`.
+	 */
+	reorgRewind?: true;
 }
 
 /** Thrown inside the block tx when a racing writer already covered this
@@ -261,11 +276,29 @@ class CursorRaceLostError extends Error {
 	}
 }
 
+/** Live-path sibling of {@link CursorRaceLostError}: thrown when the live
+ *  path's conditional `recordLiveProgress` advance loses to a racing
+ *  writer that already committed a higher (or equal) `last_processed_block`
+ *  for this subgraph. Same success-shaped handling — the winner's commit
+ *  stands, so this becomes `result.skipped = true`, never an error/gap. */
+class LiveCursorRaceLostError extends Error {
+	constructor(subgraphName: string, height: number) {
+		super(`live cursor race lost for ${subgraphName} at block ${height}`);
+		this.name = "LiveCursorRaceLostError";
+	}
+}
+
 function opCursorMode(
 	opts?: ProcessBlockOptions,
 ): { operationId: string } | undefined {
 	const ap = opts?.atomicProgress;
 	return ap && "operationId" in ap ? ap : undefined;
+}
+
+/** True only for the reorg fork-block reprocess — see `reorgRewind` on
+ *  {@link ProcessBlockOptions}. */
+function isReorgRewind(opts?: ProcessBlockOptions): boolean {
+	return opts?.reorgRewind === true;
 }
 
 function statusMode(
@@ -402,11 +435,21 @@ export async function processBlock(
 
 	if (matched.length === 0) {
 		if (!opts?.skipProgressUpdate) {
-			// Promote-but-never-unpark: unconditional "active" stamping let the
-			// live walk overwrite "reindexing" set by a queued reindex op,
-			// flapping the subgraph back into catch-up (and into collision with
-			// the op's schema drop).
-			await recordLiveProgress(targetDb, subgraphName, blockHeight);
+			if (isReorgRewind(opts)) {
+				// Fork block itself may match nothing for this subgraph — the
+				// rewind still must land (unconditional, may move backward).
+				await rewindLiveProgress(targetDb, subgraphName, blockHeight);
+			} else {
+				// Promote-but-never-unpark: unconditional "active" stamping let the
+				// live walk overwrite "reindexing" set by a queued reindex op,
+				// flapping the subgraph back into catch-up (and into collision with
+				// the op's schema drop). Conditional advance (f069): a no-write
+				// block can't race-lose in any way that matters (nothing was
+				// written), so a `false` return here is a silent no-op — the
+				// cursor simply stays at whatever a racing writer already set it
+				// to.
+				await recordLiveProgress(targetDb, subgraphName, blockHeight);
+			}
 		}
 		return result;
 	}
@@ -431,17 +474,44 @@ export async function processBlock(
 	let flushMs = 0;
 
 	// Progress + health writes — always on the managed DB, identical in both
-	// modes (the subgraphs control-plane table lives in target).
+	// modes (the subgraphs control-plane table lives in target). Only ever
+	// reached with real work to do on the live catch-up path and the reorg
+	// rewind path (both leave `skipProgressUpdate` unset); reindex/backfill
+	// always pass `skipProgressUpdate: true` and return above.
 	const applyProgress = async (
 		tx: Transaction<Database>,
 		rr: { processed: number; errors: number },
+		flushedWrites: boolean,
 	) => {
 		if (opts?.skipProgressUpdate) return;
+		const rewind = isReorgRewind(opts);
 		if (rr.errors > 0 && rr.processed === 0) {
-			await updateSubgraphStatus(tx, subgraphName, "error", blockHeight);
+			if (rewind) {
+				await updateSubgraphStatus(tx, subgraphName, "error", blockHeight);
+			} else {
+				// f069: conditional — see recordLiveError's docblock for why a lost
+				// race here is always a silent no-op (an all-failed block never
+				// flushes writes, so there's nothing to protect by throwing).
+				await recordLiveError(tx, subgraphName, blockHeight);
+			}
+		} else if (rewind) {
+			// Unconditional, may move the cursor backward — see ProcessBlockOptions.
+			await rewindLiveProgress(tx, subgraphName, blockHeight);
 		} else {
-			// Promote-but-never-unpark (see matched-0 note).
-			await recordLiveProgress(tx, subgraphName, blockHeight);
+			// Promote-but-never-unpark (see matched-0 note). Conditional advance
+			// (f069): a racing writer that already committed a higher cursor for
+			// this height means OUR writes must not stand — abort the whole tx
+			// so ctx.increment deltas already flushed above roll back with it.
+			// BYO exception: phase A already committed to the user's DB by the
+			// time this runs (phase B) — there is nothing left to roll back, so
+			// throwing here would only turn an already-irreversible double-apply
+			// into an uncaught error. BYO's cursor stays advisory, as documented
+			// where phase A/B is split above; the CHECK-constraint guards are
+			// BYO's load-bearing protection, not this cursor.
+			const advanced = await recordLiveProgress(tx, subgraphName, blockHeight);
+			if (!advanced && flushedWrites && !route.byo) {
+				throw new LiveCursorRaceLostError(subgraphName, blockHeight);
+			}
 		}
 		if (rr.processed > 0 || rr.errors > 0) {
 			const lastError =
@@ -551,7 +621,7 @@ export async function processBlock(
 				// the cursor was covered by another writer — nothing to undo.
 				await advanceOperationCursor(tx, byoOm.operationId, blockHeight);
 			}
-			await applyProgress(tx, runResult);
+			await applyProgress(tx, runResult, manifest ? manifest.count > 0 : false);
 		});
 	} else {
 		// Managed: a single atomic transaction on the target DB.
@@ -563,7 +633,9 @@ export async function processBlock(
 					// their checkpoint (below), so a block at/below the cursor has already
 					// been applied — running it again would double-apply deltas.
 					const opMode = opCursorMode(opts);
-					if (statusMode(opts)) {
+					const sm = statusMode(opts);
+					const rewind = isReorgRewind(opts);
+					if (sm) {
 						const row = await tx
 							.selectFrom("subgraphs")
 							.select("last_processed_block")
@@ -584,6 +656,23 @@ export async function processBlock(
 							row?.cursor_block != null &&
 							Number(row.cursor_block) >= blockHeight
 						) {
+							result.skipped = true;
+							return;
+						}
+					} else if (!rewind) {
+						// f069: the same fast-path guard, now armed on the live path.
+						// Fast path only — the conditional `recordLiveProgress` advance
+						// below (via applyProgress) is the actual guarantee; this SELECT,
+						// taken before handlers run, cannot see a same-height race that
+						// commits between here and there. Never checked when `rewind` is
+						// set: a reorg's fork block is, by construction, at or below the
+						// current cursor, and must run anyway.
+						const row = await tx
+							.selectFrom("subgraphs")
+							.select("last_processed_block")
+							.where("name", "=", subgraphName)
+							.executeTakeFirst();
+						if (row && Number(row.last_processed_block) >= blockHeight) {
 							result.skipped = true;
 							return;
 						}
@@ -625,7 +714,6 @@ export async function processBlock(
 
 					// Checkpoint travels with the writes it covers — a crash can never
 					// leave committed deltas ahead of the checkpoint (fix-f040 B3).
-					const sm = statusMode(opts);
 					if (sm && flushedWrites) {
 						await updateSubgraphStatus(
 							tx,
@@ -646,10 +734,13 @@ export async function processBlock(
 						}
 					}
 
-					await applyProgress(tx, runResult);
+					await applyProgress(tx, runResult, flushedWrites);
 				});
 		} catch (err) {
-			if (err instanceof CursorRaceLostError) {
+			if (
+				err instanceof CursorRaceLostError ||
+				err instanceof LiveCursorRaceLostError
+			) {
 				// Success-shaped: the block IS committed (by the winner). Surfacing
 				// this as an error would mint a false gap row and re-invite the
 				// double-apply through gap repair.
@@ -666,11 +757,18 @@ export async function processBlock(
 	}
 
 	const totalMs = performance.now() - blockStart;
-	result.timing = {
-		totalMs: Math.round(totalMs),
-		handlerMs: Math.round(handlerMs),
-		flushMs: Math.round(flushMs),
-	};
+	// f069: a skipped block (guard fast-path, or a race-loss success-shaped
+	// skip) never reaches here as a distinct branch — it falls through from
+	// the transaction callback's early `return`. `blocks_processed` is now
+	// load-bearing forensic evidence (f068's own re-derivation of it), so a
+	// skip must not inflate it: only count blocks that actually ran handlers.
+	if (!result.skipped) {
+		result.timing = {
+			totalMs: Math.round(totalMs),
+			handlerMs: Math.round(handlerMs),
+			flushMs: Math.round(flushMs),
+		};
+	}
 
 	// 7. Row count warning — sample every 1000 blocks (uses pg_stat estimate, not COUNT(*))
 	if (blockHeight % 1000 === 0) {
