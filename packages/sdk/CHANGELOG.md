@@ -1,5 +1,11 @@
 # @secondlayer/sdk
 
+## 6.50.0
+
+### Minor Changes
+
+- 37eea04: serve SIP-045 staking and pox post-conditions instead of dropping them
+
 ## 6.49.2
 
 ### Patch Changes

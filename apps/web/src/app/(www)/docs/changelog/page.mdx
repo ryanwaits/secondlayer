@@ -2,6 +2,23 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## Index — August 2026
+
+### Staking post-conditions come through on PoX-5 transactions
+
+`/v1/index/transactions` and `/v1/index/mempool` now return the SIP-045
+staking and pox post-conditions that arrived with epoch 4.0. Before this, a
+`stake` call's post-conditions came back as an empty array — the same answer
+you'd get for a transaction that genuinely carried none.
+
+Both types sit on `post_conditions` alongside `stx`/`ft`/`nft`: `staking`
+carries a principal, an `amount` (a string, like every other amount), and the
+fungible condition code; `pox` carries a principal and one of
+`will_not_perform`, `may_perform`, or `will_perform`. `IndexPostCondition` in
+the SDK gains both members. Post-conditions are decoded from `raw_tx` at read
+time, so every staking transaction already indexed reads correctly now — no
+reindex, no migration.
+
 ## Web — August 2026
 
 ### The writing section gets a front page and a proper post frame
