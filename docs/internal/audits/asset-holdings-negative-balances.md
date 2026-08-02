@@ -106,8 +106,13 @@ complete.
 - Debits do **not** exceed credits — net is positive ~5.84M STX, not the stored
   −639.5M STX. Gap is enormous and does not correspond to any subset of the observed
   volume.
-- `_journal` (reorg-revert log) has **zero** rows for this holder/kind — no reorg
-  revert touched this row, ever.
+- `_journal` (reorg-revert log) is **empty** for this holder/kind — but this is
+  **not evidence of absence**. `_journal` is pruned to a 300-block window
+  (`JOURNAL_RETENTION_BLOCKS = 300`, `packages/subgraphs/src/runtime/context.ts:12`,
+  deleted via `packages/subgraphs/src/runtime/block-processor.ts:709`), and the
+  subgraph is at block ~8,690,850 — any revert from earlier than ~300 blocks ago has
+  long since been deleted regardless of whether it happened. A reorg revert restoring
+  a bad pre-image cannot be ruled out for this row.
 
 ### Case 2 — FT (memecoin), `amm-vault-v2-01` / `stakemouse`
 
@@ -127,7 +132,8 @@ and raw `events` agree exactly; no event-plane discrepancy exists between the tw
 tables.
 
 - Debits do **not** exceed credits — net is positive ~1.2e17, not the stored
-  −2.39e17. `_journal` has zero rows for this key.
+  −2.39e17. `_journal` is empty for this key, but (as with Case 1) that's not
+  probative — see the pruning note there.
 
 ### Case 3 — FT (blue-chip), `state-v1` / `sbtc-token` (highest priority)
 
@@ -147,7 +153,8 @@ numbers**: `28583445084 | 28342144840 | 2645 | 2911`. Also verified zero rows ha
 `canonical = false` for this filter (no orphaned reorg remnants), zero duplicate
 `(tx_id, event_index)` pairs, and no alternate `asset_identifier` spelling for sBTC
 matched this holder (`ILIKE '%sbtc%'` returns only the one identifier already used).
-`_journal` has zero rows for this key.
+`_journal` is empty for this key, but (as with Case 1) that's not probative — see the
+pruning note there.
 
 - Debits do **not** exceed credits — net is positive ~2.4 sBTC, not the stored
   −516.4 sBTC.
@@ -164,9 +171,9 @@ matched this holder (`ILIKE '%sbtc%'` returns only the one identifier already us
 
 | Case | Bucket | Why |
 |---|---|---|
-| 1 (STX) | **B3-d** | B3-a is inapplicable by definition (native STX is not a custom token ledger). Debits don't exceed credits in the reconstructed history. Raw-events cross-check **timed out** (280s, confirms the brief's performance warning) so B3-c cannot be formally ruled out for this case the way it was for 2 and 3 — but the `decoded_events` reconstruction and journal check are clean, and there is no positive evidence of a decode gap. |
-| 2 (stakemouse) | **B3-d** | Raw events = decoded events exactly (B3-c formally ruled out). Debits don't exceed credits — the leading B3-a hypothesis is contradicted by the data itself. |
-| 3 (sbtc-token) | **B3-d** | Same as case 2: raw = decoded exactly (B3-c ruled out), debits don't exceed credits, no journal reverts, no duplicate or aliased rows. sBTC is (functionally, from its event shape) a conforming token, so B3-a doesn't fit even loosely. |
+| 1 (STX) | **B3-d** | B3-a is inapplicable by definition (native STX is not a custom token ledger). Debits don't exceed credits in the reconstructed history. Raw-events cross-check **timed out** (280s, confirms the brief's performance warning) so B3-c cannot be formally ruled out for this case the way it was for 2 and 3. `_journal` is empty but not probative (300-block prune window). No positive evidence of a decode gap, but none can be ruled out either. |
+| 2 (stakemouse) | **B3-d** | Raw events = decoded events exactly (B3-c formally ruled out). Debits don't exceed credits — the leading B3-a hypothesis is contradicted by the data itself. `_journal` empty but not probative. |
+| 3 (sbtc-token) | **B3-d** | Same as case 2: raw = decoded exactly (B3-c ruled out), debits don't exceed credits, no duplicate or aliased rows, `_journal` empty but not probative (300-block prune window — does not rule out a historical reorg revert). sBTC is (functionally, from its event shape) a conforming token, so B3-a doesn't fit even loosely. |
 
 **None of the three cases land in B3-a, B3-b, or B3-c as defined.** B3-c specifically —
 "a credit present in raw `events` but missing from `decoded_events`" — is the STOP
@@ -183,8 +190,12 @@ content came back clean:
 
 - No duplicate `decoded_events` rows (`count(*) = count(DISTINCT cursor) = count(DISTINCT (tx_id, event_index))` for case 3).
 - No non-canonical remnants (100% of matched rows are `canonical = true`).
-- No reorg-journal reverts recorded against any of the three rows (`_journal` has zero
-  entries for all three keys).
+- The `_journal` is empty for all three keys, but this is not probative — it is
+  pruned to a 300-block window (`JOURNAL_RETENTION_BLOCKS = 300`,
+  `packages/subgraphs/src/runtime/context.ts:12`, pruned in
+  `packages/subgraphs/src/runtime/block-processor.ts:709`), so any historical revert
+  evidence is long gone at block ~8,690,850. A reorg revert that restored a bad
+  pre-image remains a live, unruled-out hypothesis.
 - No alternate/aliased `asset_identifier` string capturing missed volume.
 - `decoded_events` and raw `events` agree exactly (cases 2 and 3; case 1 unconfirmed).
 
@@ -194,9 +205,11 @@ stream as the subgraph originally consumed it" and "the event stream as it reads
 read-only chain-plane or control-plane SQL. Plausible mechanisms this investigation
 cannot confirm or rule out without runtime/deploy history access: a decoder revision
 that reprocessed and changed `decoded_events` content sometime after `asset-holdings`
-had already consumed the earlier values, or an unlogged double-application during a
+had already consumed the earlier values; an unlogged double-application during a
 backfill/redeploy (the `_journal` table only records reorg reverts, not
-backfill-replay events, so it would not show this even if it happened). **This is a
+backfill-replay events, so it would not show this even if it happened); or a reorg
+revert that restored an incorrect pre-image, which `_journal`'s 300-block retention
+window cannot confirm or rule out this far after the fact. **This is a
 different and more serious problem than the leading hypothesis.** "Some long-tail
 tokens don't emit credit events" is a bounded, explainable limitation. "The stored
 accumulator can't be reproduced from current chain-plane data, for a blue-chip token,
@@ -237,3 +250,8 @@ chain-plane/accumulator divergence found here as a separate, higher-priority fol
 investigation — with access to deploy/backfill history for this subgraph deployment —
 before considering option 2 anywhere in the system. The founder decides the sequencing
 and whether the follow-up investigation is worth resourcing ahead of other work.
+
+Note for whoever picks up (1): `find_value_contracts` is **not defined anywhere in
+this repo** — a repo-wide search matches only this doc and the reference to it in
+`subgraphs/asset-holdings.ts`'s header comment. It appears to live in a separate
+consumer (audit-sentinel); look there, not here.
