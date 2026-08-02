@@ -2,8 +2,10 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { getDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db";
+import type { LeaderBackend } from "@secondlayer/shared/leader";
 import type { Kysely } from "kysely";
 import type { SubgraphDefinition, SubgraphSchema } from "../types.ts";
+import { startCatchUpLeader } from "./catchup-leader.ts";
 import { catchUpSubgraph } from "./catchup.ts";
 import { handleSubgraphReorg } from "./reorg.ts";
 
@@ -108,12 +110,34 @@ async function cursorOf(name: string): Promise<number> {
 	return Number(row.last_processed_block);
 }
 
+/** f069 added a per-iteration `isCatchUpLeader()` check to the walk loop
+ *  (catchup.ts) — `catchUpSubgraph` now bails immediately unless this
+ *  process holds the catch-up leader lock. This test drives
+ *  `catchUpSubgraph` directly (not through the leader-gated `runCatchUp`
+ *  entry point it normally runs behind), so it needs to hold that lease
+ *  itself via a fake always-succeeds backend — unrelated to the real
+ *  Postgres advisory lock or the race this test actually exercises, which
+ *  is entirely about the cursor column. */
+let stopLeader: () => Promise<void>;
+
 beforeAll(async () => {
 	db = getDb();
 	await seedChain(TOTAL_BLOCKS);
+	const alwaysLeaderBackend = (): LeaderBackend => ({
+		tryAcquire: async () => true,
+		ping: async () => {},
+		close: async () => {},
+	});
+	stopLeader = startCatchUpLeader({
+		createBackend: alwaysLeaderBackend,
+		pollMs: 10_000,
+	});
+	// Let the fire-and-forget initial tryAcquire() resolve before any test runs.
+	await new Promise((resolve) => setTimeout(resolve, 0));
 });
 
 afterAll(async () => {
+	await stopLeader();
 	for (const name of createdSubgraphNames) {
 		await db.deleteFrom("subgraphs").where("name", "=", name).execute();
 	}
