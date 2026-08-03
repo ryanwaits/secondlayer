@@ -23,6 +23,8 @@ import {
 } from "./context.ts";
 import { emitSubscriptionOutbox } from "./outbox-emit.ts";
 import { buildEventPayload, runHandlers } from "./runner.ts";
+import { sandboxEnabled } from "./sandbox/flag.ts";
+import { evictSandboxWorker, runHandlersSandboxed } from "./sandbox/host.ts";
 import {
 	type EventRecord,
 	type TxRecord,
@@ -37,11 +39,23 @@ import { matcher } from "./subscription-state.ts";
  * and whether it's BYO. Cached per subgraph to avoid a per-block lookup +
  * decrypt; invalidated on redeploy (the connection can change) via
  * {@link invalidateSubgraphRoute}.
+ *
+ * Also carries the f071 Stage A sandbox-dispatch inputs
+ * (`sandboxWorkers`/`handlerCode`/`version`) — cheap to keep alongside the
+ * route since `resolveRoute` already selects the full `subgraphs` row; kept
+ * in lockstep with the same cache invalidation edge (redeploys change
+ * `handler_code`/`version` together with the connection).
  */
 interface SubgraphRoute {
 	schemaName: string;
 	dataDb: Kysely<Database>;
 	byo: boolean;
+	/** `subgraphs.sandbox_workers` — combined with the global env gate by
+	 *  `sandboxEnabled()`. Default false for every row; nothing in committed
+	 *  code sets it true (f071 Stage A stays dark). */
+	sandboxWorkers: boolean;
+	handlerCode: string | null;
+	version: string;
 }
 const routeCache = new Map<string, SubgraphRoute>();
 
@@ -61,14 +75,25 @@ async function resolveRoute(
 		schemaName: row?.schema_name ?? pgSchemaName(subgraphName),
 		dataDb: row && byo ? resolveSubgraphDb(row) : targetDb,
 		byo,
+		sandboxWorkers: row?.sandbox_workers === true,
+		handlerCode: row?.handler_code ?? null,
+		version: row?.version ?? "",
 	};
 	routeCache.set(subgraphName, route);
 	return route;
 }
 
-/** Drop a subgraph's cached route — call on redeploy/delete (conn may change). */
+/** Drop a subgraph's cached route — call on redeploy/delete (conn may
+ *  change). Also evicts any warm sandbox subprocess for this subgraph
+ *  (f071 Stage A `host.ts`) on the same edge: a redeploy can change
+ *  `handler_code`/`version`/the BYO connection together, and a stale warm
+ *  subprocess must not survive past this invalidation any more than the
+ *  cached route does. A no-op today since nothing sets `sandbox_workers`,
+ *  but keeps the pool's documented invalidation contract honest for when it
+ *  is. */
 export function invalidateSubgraphRoute(subgraphName: string): void {
 	routeCache.delete(subgraphName);
+	evictSandboxWorker(subgraphName);
 }
 
 /**
@@ -688,8 +713,29 @@ export async function processBlock(
 						journalEnabled(opts),
 					);
 
+					// f071 Stage A: dark, flag-gated dispatch. `sandboxEnabled` requires
+					// BOTH the global env gate AND this subgraph's `sandbox_workers`
+					// column — nothing in committed code sets that column, so this
+					// branch is unreached in production today; `runHandlers` (below)
+					// is what actually executes, byte-identical to before this plan.
+					// When it IS reached: `runHandlersSandboxed` runs handlers in the
+					// sandbox subprocess but replays their decided ops onto THIS same
+					// `ctx`, bound to THIS same open transaction, before returning —
+					// so the flush/manifest/outbox flow and the f069 guard placement
+					// below are unaffected either way (see `host.ts`'s docblock).
 					const handlerStart = performance.now();
-					const runResult = await runHandlers(subgraph, matched, ctx);
+					const runResult = sandboxEnabled({
+						sandbox_workers: route.sandboxWorkers,
+					})
+						? await runHandlersSandboxed({
+								subgraphName,
+								version: route.version,
+								handlerCode: route.handlerCode,
+								hostCtx: ctx,
+								block: blockMeta,
+								matched,
+							})
+						: await runHandlers(subgraph, matched, ctx);
 					handlerMs = performance.now() - handlerStart;
 
 					result.processed = runResult.processed;
