@@ -1,6 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
 import {
 	BundleSizeError,
 	bundleSubgraphCode,
@@ -79,9 +78,6 @@ import {
 } from "./subgraph-query-helpers.ts";
 
 const app = new Hono();
-
-// f049 legacy rollback: log the unsafe-eval warning once per process, not per deploy.
-let warnedUnsafeImportEvalDeploy = false;
 
 type SubgraphSpecOptions = {
 	serverUrl?: string;
@@ -421,48 +417,24 @@ export async function runSubgraphDeploy(
 	await Bun.write(handlerPath, handlerCode);
 
 	// Derive the definition WITHOUT executing user code — parse the metadata
-	// out of the AST. (Legacy `import()` fallback below is an unsafe rollback
-	// path only; see SUBGRAPH_UNSAFE_IMPORT_EVAL.)
+	// out of the AST.
 	let def: SubgraphDefinition;
-	if (process.env.SUBGRAPH_UNSAFE_IMPORT_EVAL === "1") {
-		if (!warnedUnsafeImportEvalDeploy) {
-			warnedUnsafeImportEvalDeploy = true;
-			logger.warn(
-				"SUBGRAPH_UNSAFE_IMPORT_EVAL=1: executing untrusted subgraph code (f049 legacy path)",
-			);
-		}
-		try {
-			const mod = await import(pathToFileURL(handlerPath).href);
-			def = applyDeployStartBlockOverride(
-				mod.default ?? mod,
-				parsed.data.startBlock,
-			);
-		} catch (err) {
-			return c.json(
-				{
-					error: `Failed to load handler: ${getErrorMessage(err)}`,
-				},
-				400,
-			);
-		}
-	} else {
-		try {
-			const extracted = extractSubgraphDefinition(handlerCode);
-			def = applyDeployStartBlockOverride(
-				{
-					...extracted,
-					handlers: extracted.handlerSources,
-				} as unknown as SubgraphDefinition,
-				parsed.data.startBlock,
-			);
-		} catch (err) {
-			return c.json(
-				{
-					error: `Failed to load handler: ${getErrorMessage(err)}`,
-				},
-				400,
-			);
-		}
+	try {
+		const extracted = extractSubgraphDefinition(handlerCode);
+		def = applyDeployStartBlockOverride(
+			{
+				...extracted,
+				handlers: extracted.handlerSources,
+			} as unknown as SubgraphDefinition,
+			parsed.data.startBlock,
+		);
+	} catch (err) {
+		return c.json(
+			{
+				error: `Failed to load handler: ${getErrorMessage(err)}`,
+			},
+			400,
+		);
 	}
 
 	try {
