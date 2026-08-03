@@ -538,3 +538,184 @@ answer, for a Bun `Worker`, is **no**.
 scaffolding is built and green; the security substrate is disproven. Next
 step is a founder-level isolation-substrate decision, not a continuation of
 this plan on Bun `Worker`s.**
+
+---
+
+## 11. Stage A — subprocess substrate (2026-08-03)
+
+**The founder decision**: substrate = one separate OS process per tenant,
+chosen over `isolated-vm`-on-Node and container/microVM (§10's three
+options). Founder call, recorded here per the plan's requirement — not
+re-litigated by the implementation. Rationale: the Stage 2a membrane
+(§3.2's ctx table — buffered writes, host-answered reads, checkpoint/
+rollback, end-of-block replay) ports essentially unchanged; only the
+transport (`Worker.postMessage` → OS-level IPC) and the spawn/scrub
+mechanism change. `isolated-vm` remains ruled out for forcing the processor
+off Bun (a second migration bundled into this one); a container/microVM was
+judged more operational cost than this threat model needs given a plain OS
+process already closes the two named vectors that broke the Worker
+substrate (below).
+
+### What was ported vs reused
+
+Reused **as-is, zero edits**: `protocol.ts` (transport-agnostic message
+shapes — already carried `BufferedOp`/`ReadReply` generically), `overlay.ts`
+(the verbatim `context.ts` write/overlay port — pure data transformation,
+no transport dependency), `worker-ctx.ts` (already took an injected
+`SendRead` callback rather than owning `postMessage` — see its own header),
+`bundle.ts` (the esbuild resolver lockdown — bundle-time, substrate-
+independent), `flag.ts`'s gating logic (only its docblock wording was
+updated from "Bun Worker" to "subprocess" for accuracy), and both existing
+parity suites (`overlay-parity.test.ts`, `host-parity.test.ts`) — **neither
+needed a single line changed** to pass against the new substrate, because
+`WorkerCtx` and `runHandlersSandboxed`'s public signatures didn't move.
+
+Ported (substrate-specific code rewritten): `worker-entry.ts` → new
+`subprocess-entry.ts` (postMessage/onmessage → `process.send`/
+`process.on("message")`; everything else — the `runHandlers` call, the
+`WorkerCtx` cast, the init/runBlock/shutdown message handling — carried over
+line-for-line in spirit). `host.ts`'s pool: `spawnSandboxWorker` →
+`spawnSandboxProcess` (`Bun.spawn` in place of `new Worker`), `PoolEntry`
+now holds a `SandboxProcess` wrapper instead of a `Worker`, and the
+per-block message-correlation/timeout/replay logic
+(`runBlockThroughProcess`, was `runBlockThroughWorker`) was rewritten around
+Bun's callback-at-spawn-time IPC API (no `addEventListener`/
+`removeEventListener` — a settable message sink plus a `settled`-flag guard
+against the crash-detection promise firing after a run already resolved).
+`evictSandboxWorker`/`shutdownSandboxPool`/`SandboxRunParams`/
+`runHandlersSandboxed`'s **names and signatures are unchanged** — only what
+they do internally moved to the subprocess transport. `spawnSandboxWorker`
+(the raw Bun-`Worker`-spawning function) is **retained, unchanged**, solely
+so `isolation.test.ts` keeps exercising the actual disproven Worker
+substrate — the pool no longer calls it.
+
+**Transport choice: Bun subprocess IPC (`Bun.spawn({ipc, serialization:
+"advanced"})`), not hand-rolled stdio-JSONL.** Bun's "advanced" IPC
+serialization (the default) reuses the same JSC structured-clone codec
+`Worker.postMessage` used, including native BigInt support — load-bearing,
+since `protocol.ts`'s `BufferedOp.args` genuinely carries real `bigint`
+values from handler writes (e.g. `ctx.insert(table, { amount: 500n })`). A
+hand-rolled JSONL transport would need its own BigInt-safe codec
+(`JSON.stringify` throws on `bigint`) to carry the exact same messages. IPC
+only works bun-to-bun, which is guaranteed here (the host always spawns
+`[process.execPath, "--no-env-file", subprocess-entry.ts]`). Framing lives
+in exactly two places (`host.ts`'s `spawnSandboxProcess` and
+`subprocess-entry.ts`'s `post`/`process.on("message")`), so swapping to
+stdio-JSONL later — if IPC-to-non-bun compatibility is ever needed — touches
+only those two functions, not `protocol.ts` or `worker-ctx.ts`.
+
+### A genuine finding while building this: `Bun.spawn`'s explicit `env` does NOT stop Bun's own auto `.env` loading
+
+The first version of `spawnSandboxProcess` passed only
+`env: { PATH: process.env.PATH }` (no other flags) — the plan's literal
+spec. `subprocess-isolation.test.ts` caught, on its first run, that this was
+**not sufficient**: this repo's real `.env.local` (which carries the real
+dev `SECONDLAYER_SECRETS_KEY`) leaked into the sandboxed subprocess's
+`process.env` anyway. Cause: Bun auto-loads `.env`/`.env.local` for **any**
+`bun <file>` invocation based on the **child's own cwd**, independent of —
+and applied after — whatever `env` object the parent passed to `Bun.spawn`.
+The child's cwd defaulted to the host's cwd (inside this repo checkout), so
+Bun found and loaded `.env.local` on the child's own startup, completely
+bypassing the explicit allowlist. Fix, applied as defense in depth (either
+alone closes it; both are shipped): (1) `--no-env-file` on the spawned
+command line, (2) `cwd: tmpdir()` so the child's own directory has no
+`.env`/`.env.local` to find in the first place. This is exactly the kind of
+gap the containment test exists to catch — recorded here because it is a
+real, reproducible Bun behavior (v1.3.10) anyone building a similar
+subprocess sandbox needs to know, not a one-off mistake specific to this
+codebase.
+
+### Containment matrix (measured, `subprocess-isolation.test.ts`, Bun v1.3.10, macOS arm64 — vector 6b re-verified conceptually, not locally re-run, on Linux per the plan's skip-visible allowance)
+
+| Vector | Worker substrate (Stage 2a, §10) | Subprocess substrate (Stage A) |
+|---|---|---|
+| 1. bare `process.env.X` | **LEAKS** (getenv-backed binding, immune to `env:{}`) | **CLOSED** — `<absent>` |
+| 2. `globalThis.process.env.X` | closed | **CLOSED** |
+| 3. `Bun.env.X` | closed | **CLOSED** |
+| 4. `Bun.spawnSync(echo $X)` | **LEAKS** (child inherits the HOST's real environ — the substrate-killing vector) | **CLOSED** — child inherits the sandbox subprocess's own scrubbed environ |
+| 5. `import("node:fs")` / `node:child_process` | blocked (bundle-time resolver lockdown) | **BLOCKED** (unchanged — same `bundle.ts`) |
+| 6a. `Bun.file(path)` same-UID FS read | **open** (undocumented risk at Stage 2a) | **DOCUMENTED OPEN** — reads successfully; closed only by key relocation (§3.1/D3), not this stage |
+| 6b. `/proc/<hostpid>/environ` (Linux, same UID) | not probed by Stage 2a's isolation.test.ts | **DOCUMENTED OPEN** on Linux (skip-visible off Linux); same-UID read, same closing stage as 6a |
+| 7. Hostile handler hang/crash | not covered by Stage 2a (STOPPED before reaching it) | **HANDLED** — per-block deadline kills + evicts the subprocess, the block fails loudly (never silently skipped, f040 B5), the pool respawns cleanly for the next block |
+
+Vectors 1–4 closing is the whole point of the substrate change: the OS
+process boundary gives a scrubbed environ *as the process's own*, at the
+kernel level — everything the process reads or spawns observes that scrub,
+not the host's. Vectors 6a/6b staying open is the honest, threat-model-
+accurate reason Stage A is **not** full f049 closure: same-UID filesystem
+and `/proc` reads are outside what a shared-environ-but-separate-process
+boundary can close on its own. Key relocation (§3.1/D3 — decryption moves
+out of the processor entirely) is what closes them; Stage A builds the
+boundary that makes that relocation meaningful without performing it.
+
+### Measured per-process RSS at N=5 warm sandboxes, vs §9b's Worker-era numbers
+
+Same methodology as §9b (real hosted-production subgraph files —
+`subgraphs/{sbtc-flows,pox-stacking,bns-names,contract-deployments}.ts` —
+bundled via `bundle.ts`'s real resolver lockdown, one warm sandbox per file,
+idle between blocks; a 5th slot reused `sbtc-flows.ts` under a distinct
+version since RSS cost is per-process, not content-dependent, and the one
+other candidate example file doesn't bundle standalone outside the
+monorepo — noted, not hidden), measured via `ps -o rss=` per child PID
+(each subprocess is independently attributable — unlike §9b's Worker
+measurement, which needed a host-RSS-delta workaround because
+`process.memoryUsage()` reported the same whole-process value from every
+thread):
+
+| N (warm sandboxes) | total RSS | avg per-sandbox |
+|---|---|---|
+| 1 | 81.73 MB | 81.73 MB |
+| 2 | 163.64 MB | 81.82 MB |
+| 3 | 245.05 MB | 81.68 MB |
+| 4 | 325.88 MB | 81.47 MB |
+| 5 | 407.06 MB | 81.41 MB |
+
+Cost is **linear, ~81.5 MB per warm subprocess**, with no amortization
+across N (each is a fully independent OS process — unlike a Worker, which
+shares the host's already-loaded JS engine). This is **~13-15x** §9b's
+measured Worker-era marginal cost (~5.6-6 MB/worker). This is the real,
+measured price of the containment vectors 1-4 closing: a genuinely separate
+process, not a thread, costs a genuinely separate process's worth of
+memory.
+
+**Fleet-scale check, re-run against this number**: at the fleet's actual
+active-subgraph count (5, per §9b's read-only query), 5 warm subprocesses ≈
+407 MB — still a small fraction of `app-server`'s 57 GiB available RAM. At
+§9b's own stated outer bound ("tens-to-low-hundreds"), the conclusion is
+**materially different** from the Worker-era one: 150 × ~81.5 MB ≈ 12.2 GB
+— still available, but roughly **21% of 57 GiB**, not "under 2%." **Flagged
+for whoever plans the eventual cutover stage**: pool-sizing policy (warm
+vs. spawn-on-demand-with-a-cold-start-tax, an idle-eviction timeout, or a
+lower concurrent-warm-pool cap than "one per active subgraph") needs a real
+decision before Stage A's substrate is trusted at "tens-to-low-hundreds"
+active subgraphs — it was a comfortable assumption at Worker-era memory
+cost and is not, at this stage's measured subprocess cost. **Not a STOP**
+for Stage A itself (nothing is enabled; this plan ships dark) — a
+pre-cutover-stage requirement, same shape as §9's own preconditions were
+for Stage 2a.
+
+### Remaining stages (none authorized by this plan)
+
+In order, matching §5's original staging shape, retargeted at the
+subprocess substrate:
+
+1. **Canary flip** — a founder/operator manually sets
+   `subgraphs.sandbox_workers = true` for ONE low-traffic subgraph plus the
+   global `SUBGRAPH_SANDBOX_WORKERS=1` env gate. Requires the pool-sizing
+   decision above if it's the first of several.
+2. **Shadow-diff** — run the subprocess path in parallel with in-process on
+   real blocks for flagged subgraphs, diff `FlushManifest`s byte-for-byte
+   (same mechanism §5's Stage 2b described), across catch-up, backfill,
+   reindex, and at least one observed reorg.
+3. **Cutover per subgraph** — once shadow-diff is clean over a
+   representative window, flip the subgraph's path to authoritative.
+4. **Key relocation (f049 closure)** — per §3.1/D3: move decryption out of
+   the processor entirely. This is what closes vectors 6a/6b and the finding
+   itself; Stage A is the boundary that makes it meaningful, not the
+   closure.
+
+None of these four are performed, scheduled, or defaulted-on by this plan.
+Everything ships dark: `sandboxEnabled()` requires both the env gate and a
+row's `sandbox_workers = true`, and no committed code sets that column
+(`grep -rn "sandbox_workers" --include="*.ts" packages | grep -v test`
+shows only the migration's DDL default, type declarations, and reads).
