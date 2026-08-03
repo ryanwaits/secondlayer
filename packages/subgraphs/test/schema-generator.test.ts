@@ -204,3 +204,17 @@ test("generates composite indexes", () => {
 	expect(compositeIdx).toBeDefined();
 	expect(compositeIdx).toContain("(seller, status)");
 });
+
+test("emitTableDDL escapes a hostile column name instead of injecting it", () => {
+	// Defense-in-depth only — SqlIdentifierSchema rejects this upstream. A
+	// name with an embedded quote must come out double-quoted with the quote
+	// escaped, never spliced into the DDL raw.
+	const stmts = emitTableDDL("subgraph_x", "widgets", {
+		columns: {
+			'evil" ; DROP TABLE widgets; --': { type: "text" },
+		},
+	});
+	const createTable = stmts[0] ?? "";
+	expect(createTable).toContain('"evil"" ; DROP TABLE widgets; --" TEXT');
+	expect(createTable).not.toContain('evil" ; DROP TABLE widgets; --  TEXT');
+});

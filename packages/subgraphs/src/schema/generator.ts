@@ -4,7 +4,7 @@ import type {
 	SubgraphDefinition,
 	SubgraphTable,
 } from "../types.ts";
-import { pgSchemaName } from "./utils.ts";
+import { pgSchemaName, quotePgIdent } from "./utils.ts";
 
 export const TYPE_MAP: Record<ColumnType, string> = {
 	text: "TEXT",
@@ -47,7 +47,7 @@ export function emitTableDDL(
 	tableName: string,
 	tableDef: SubgraphTable,
 ): string[] {
-	const qualifiedName = `${schemaName}.${tableName}`;
+	const qualifiedName = `${quotePgIdent(schemaName)}.${quotePgIdent(tableName)}`;
 	const statements: string[] = [];
 
 	const columnDefs: string[] = [
@@ -59,7 +59,7 @@ export function emitTableDDL(
 	for (const [colName, col] of Object.entries(tableDef.columns)) {
 		const sqlType = TYPE_MAP[col.type];
 		const nullable = col.nullable ? "" : " NOT NULL";
-		let colDef = `${colName} ${sqlType}${nullable}`;
+		let colDef = `${quotePgIdent(colName)} ${sqlType}${nullable}`;
 		if (col.default !== undefined) {
 			colDef += ` DEFAULT ${escapeLiteralDefault(col.default)}`;
 		}
@@ -67,7 +67,7 @@ export function emitTableDDL(
 		// storing a negative (fix-f040 B4). Handlers run in chain order, so a
 		// legitimate same-block receive-then-spend never trips this.
 		if (col.type === "uint") {
-			colDef += ` CHECK (${colName} >= 0)`;
+			colDef += ` CHECK (${quotePgIdent(colName)} >= 0)`;
 		}
 		columnDefs.push(colDef);
 	}
@@ -77,17 +77,17 @@ export function emitTableDDL(
 
 	// Auto-indexes on meta columns.
 	statements.push(
-		`CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_block_height ON ${qualifiedName} (_block_height)`,
+		`CREATE INDEX IF NOT EXISTS ${quotePgIdent(`idx_${schemaName}_${tableName}_block_height`)} ON ${qualifiedName} (_block_height)`,
 	);
 	statements.push(
-		`CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_tx_id ON ${qualifiedName} (_tx_id)`,
+		`CREATE INDEX IF NOT EXISTS ${quotePgIdent(`idx_${schemaName}_${tableName}_tx_id`)} ON ${qualifiedName} (_tx_id)`,
 	);
 
 	// Single-column indexes.
 	for (const [colName, col] of Object.entries(tableDef.columns)) {
 		if (col.indexed) {
 			statements.push(
-				`CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_${colName} ON ${qualifiedName} (${colName})`,
+				`CREATE INDEX IF NOT EXISTS ${quotePgIdent(`idx_${schemaName}_${tableName}_${colName}`)} ON ${qualifiedName} (${quotePgIdent(colName)})`,
 			);
 		}
 	}
@@ -96,7 +96,7 @@ export function emitTableDDL(
 	for (const [colName, col] of Object.entries(tableDef.columns)) {
 		if (col.search) {
 			statements.push(
-				`CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_${colName}_trgm ON ${qualifiedName} USING gin (${colName} gin_trgm_ops)`,
+				`CREATE INDEX IF NOT EXISTS ${quotePgIdent(`idx_${schemaName}_${tableName}_${colName}_trgm`)} ON ${qualifiedName} USING gin (${quotePgIdent(colName)} gin_trgm_ops)`,
 			);
 		}
 	}
@@ -106,9 +106,11 @@ export function emitTableDDL(
 		for (let i = 0; i < tableDef.indexes.length; i++) {
 			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			const cols = tableDef.indexes[i]!;
-			const idxName = `idx_${schemaName}_${tableName}_composite_${i}`;
+			const idxName = quotePgIdent(
+				`idx_${schemaName}_${tableName}_composite_${i}`,
+			);
 			statements.push(
-				`CREATE INDEX IF NOT EXISTS ${idxName} ON ${qualifiedName} (${cols.join(", ")})`,
+				`CREATE INDEX IF NOT EXISTS ${idxName} ON ${qualifiedName} (${cols.map(quotePgIdent).join(", ")})`,
 			);
 		}
 	}
@@ -118,9 +120,11 @@ export function emitTableDDL(
 		for (let i = 0; i < tableDef.uniqueKeys.length; i++) {
 			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			const cols = tableDef.uniqueKeys[i]!;
-			const constraintName = `uq_${schemaName}_${tableName}_${cols.join("_")}`;
+			const constraintName = quotePgIdent(
+				`uq_${schemaName}_${tableName}_${cols.join("_")}`,
+			);
 			statements.push(
-				`ALTER TABLE ${qualifiedName} ADD CONSTRAINT ${constraintName} UNIQUE (${cols.join(", ")})`,
+				`ALTER TABLE ${qualifiedName} ADD CONSTRAINT ${constraintName} UNIQUE (${cols.map(quotePgIdent).join(", ")})`,
 			);
 		}
 	}
@@ -178,11 +182,13 @@ export function emitForeignKeyDDL(
 	tableDef: SubgraphTable,
 ): string[] {
 	return (tableDef.relations ?? []).map((rel) => {
-		const constraintName = `fk_${schemaName}_${tableName}_${rel.name}`;
+		const constraintName = quotePgIdent(
+			`fk_${schemaName}_${tableName}_${rel.name}`,
+		);
 		return (
-			`ALTER TABLE ${schemaName}.${tableName} ADD CONSTRAINT ${constraintName} ` +
-			`FOREIGN KEY (${rel.fields.join(", ")}) ` +
-			`REFERENCES ${schemaName}.${rel.references} (${rel.referencedColumns.join(", ")})`
+			`ALTER TABLE ${quotePgIdent(schemaName)}.${quotePgIdent(tableName)} ADD CONSTRAINT ${constraintName} ` +
+			`FOREIGN KEY (${rel.fields.map(quotePgIdent).join(", ")}) ` +
+			`REFERENCES ${quotePgIdent(schemaName)}.${quotePgIdent(rel.references)} (${rel.referencedColumns.map(quotePgIdent).join(", ")})`
 		);
 	});
 }
