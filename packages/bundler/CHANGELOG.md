@@ -1,5 +1,13 @@
 # @secondlayer/bundler
 
+## 0.4.1
+
+### Patch Changes
+
+- 20d7116: remove the SUBGRAPH_UNSAFE_IMPORT_EVAL legacy eval fallback; the AST-based extraction path is now the only path
+- Updated dependencies [152fdf3]
+  - @secondlayer/subgraphs@3.24.1
+
 ## 0.4.0
 
 ### Minor Changes

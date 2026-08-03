@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 3.24.1
+
+### Patch Changes
+
+- 152fdf3: DDL emitters now quote/escape identifiers defensively; no change in output for valid names
+
 ## 3.24.0
 
 ### Minor Changes

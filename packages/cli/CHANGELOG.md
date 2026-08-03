@@ -1,5 +1,15 @@
 # @secondlayer/cli
 
+## 9.4.1
+
+### Patch Changes
+
+- cc3724f: clarinet: classify signer-manager (SIP-045 boot contract) as system, not project
+- Updated dependencies [152fdf3]
+- Updated dependencies [20d7116]
+  - @secondlayer/subgraphs@3.24.1
+  - @secondlayer/bundler@0.4.1
+
 ## 9.4.0
 
 ### Minor Changes
