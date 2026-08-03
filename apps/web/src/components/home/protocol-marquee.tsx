@@ -9,7 +9,7 @@ type ExploreListLite = {
 /** Known contract → display label. Unknown contracts show a shortened id. */
 const LABELS: Record<string, { name: string; detail: string }> = {
 	"sbtc-token": { name: "sBTC", detail: "bridge + token" },
-	"pox-4": { name: "PoX-4", detail: "stacking" },
+	"pox-5": { name: "PoX-5", detail: "staking" },
 	"BNS-V2": { name: "BNS", detail: "names" },
 	"bns-v2": { name: "BNS", detail: "names" },
 	"arkadiko-vault": { name: "Arkadiko", detail: "vaults" },
@@ -21,7 +21,7 @@ const LABELS: Record<string, { name: string; detail: string }> = {
 
 const FALLBACK: { name: string; detail: string }[] = [
 	{ name: "sBTC", detail: "bridge + token" },
-	{ name: "PoX-4", detail: "stacking" },
+	{ name: "PoX-5", detail: "staking" },
 	{ name: "BNS", detail: "names" },
 	{ name: "SIP-010", detail: "fungible tokens" },
 	{ name: "SIP-009", detail: "nfts" },

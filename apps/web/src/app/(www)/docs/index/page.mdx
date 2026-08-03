@@ -190,7 +190,7 @@ On both feeds `contract_id` also takes a comma-separated set (`?contract_id=SP1.
 | `/v1/index/transactions` · `/{tx_id}` | Full transaction documents (fee, nonce, sponsored, post-conditions, decoded payload) | `type`, `sender`, `contract_id`; `/{tx_id}/proof` returns an inclusion proof ([Verification](/docs/verification)) |
 | `/v1/index/blocks` · `/{height_or_hash}` | Decoded blocks, list or single | — |
 | `/v1/index/canonical` | Canonical block-hash map, one row per height, orphans excluded | `from_height` |
-| `/v1/index/stacking` | Decoded PoX-4 stacking actions (stack-stx, delegate-stx, …) | `function_name`, `stacker`, `caller` |
+| `/v1/index/stacking` | Decoded PoX-4 stacking actions (stack-stx, delegate-stx, …) (historical — era ended at Epoch 4.0; live: `/v1/index/pox5/events`) | `function_name`, `stacker`, `caller` |
 | `/v1/index/pox5/events` | Decoded PoX-5 print events, all 19 topics ([PoX-5](/docs/pox5)) | `topic`, `staker`, `signer`, `signer_manager`, `bond_index`, `reward_cycle` |
 | `/v1/index/mempool` · `/{tx_id}` | Pending transactions — no `block_height`/`result`, plus `received_at`; `404`s once mined, never cached | `sender`, `type`, `contract_id` |
 | `/v1/index/usage` | Your own consumption and tier limits | — |
