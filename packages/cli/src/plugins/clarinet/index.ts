@@ -115,6 +115,7 @@ export function classifyContract(
 		/^bns$/, // Blockchain Name System
 		/^costs-\d+$/, // costs-2, costs-3, etc.
 		/^lockup$/, // lockup contract
+		/^signer-manager$/, // SIP-045 (epoch 4.0) boot contract
 	];
 	if (systemContractPatterns.some((pattern) => pattern.test(contractName))) {
 		return "system";

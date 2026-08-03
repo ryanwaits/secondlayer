@@ -103,4 +103,10 @@ describe("classifyContract", () => {
 		);
 		expect(classifyContract(`${DEPLOYER}.counter`, null)).toBe("project");
 	});
+
+	test("signer-manager (SIP-045 boot contract) classifies as system", () => {
+		expect(
+			classifyContract("SP000000000000000000002Q6VF78.signer-manager", null),
+		).toBe("system");
+	});
 });
