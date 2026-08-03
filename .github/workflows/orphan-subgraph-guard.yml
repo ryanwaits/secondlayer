@@ -24,8 +24,30 @@ jobs:
         if: steps.setup-bun.outcome == 'failure'
         with:
           bun-version: "1.3.10"
+      # No GitHub-hosted runner can reach prod Postgres directly (chain
+      # postgres binds 127.0.0.1:5432 on the host; platform postgres exposes
+      # no host port at all). The working trust root is SSH — same
+      # DEPLOY_HOST/DEPLOY_SSH_KEY every deploy.yml run already uses. Fetch
+      # the deployed first-party subgraph names over SSH into a file, then
+      # hand the file to the script (no DB URL secret needed in this repo).
+      # An SSH failure here MUST fail the job — never fall back to silently
+      # skipping, which would make the guard inert again.
+      - name: Fetch deployed subgraph names over SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          FIRST_PARTY_ACCOUNT_ID: ${{ vars.FIRST_PARTY_ACCOUNT_ID || '005f2b11-9fb0-4dda-aef4-a80428426d9d' }}
+        run: |
+          set -euo pipefail
+          KEYFILE="$(mktemp)"
+          trap 'rm -f "$KEYFILE"' EXIT
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$KEYFILE"
+          chmod 600 "$KEYFILE"
+          ssh -i "$KEYFILE" -o StrictHostKeyChecking=accept-new "root@${DEPLOY_HOST}" \
+            "docker exec -i secondlayer-postgres-platform-1 psql -U secondlayer -d secondlayer_platform -tAc \"SELECT name FROM subgraphs WHERE account_id='${FIRST_PARTY_ACCOUNT_ID}' ORDER BY name\"" \
+            > /tmp/deployed-names.txt
       - name: Check for orphaned subgraph sources
         env:
-          TARGET_DATABASE_URL: ${{ secrets.PLATFORM_DATABASE_URL }}
+          ORPHAN_DEPLOYED_NAMES_FILE: /tmp/deployed-names.txt
           FIRST_PARTY_ACCOUNT_ID: ${{ vars.FIRST_PARTY_ACCOUNT_ID }}
         run: bun scripts/ci/check-orphan-subgraphs.ts

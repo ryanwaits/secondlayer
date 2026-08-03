@@ -27,10 +27,17 @@
  *     PLATFORM_DATABASE_URL secret exists, and starts doing real work the
  *     moment it's added. A guard that fails red from day one gets disabled,
  *     not fixed.
+ *
+ * Names source precedence: ORPHAN_DEPLOYED_NAMES_FILE (newline-separated
+ * deployed names, no DB access needed) > TARGET_DATABASE_URL (direct SQL) >
+ * skip-notice. The file mode exists because no GitHub-hosted runner can
+ * reach prod Postgres directly — CI populates the file via an SSH step
+ * against the deploy host instead (see orphan-subgraph-guard.yml).
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
+const NAMES_FILE = process.env.ORPHAN_DEPLOYED_NAMES_FILE || "";
 const DB_URL =
 	process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL || "";
 const FIRST_PARTY_ACCOUNT_ID =
@@ -59,27 +66,44 @@ function isCovered(
 	return files.some((f) => pattern.test(readFileSync(join(dir, f), "utf8")));
 }
 
+/** Reads names from ORPHAN_DEPLOYED_NAMES_FILE (one per line, blanks
+ *  dropped). Bypasses the DB entirely — used when CI populates the file
+ *  itself (e.g. via SSH against the deploy host). */
+function namesFromFile(path: string): string[] {
+	return readFileSync(path, "utf8")
+		.split("\n")
+		.map((line) => line.trim())
+		.filter((line) => line.length > 0);
+}
+
+/** Queries deployed names directly from TARGET_DATABASE_URL. */
+async function namesFromDb(dbUrl: string): Promise<string[]> {
+	// Bun.SQL replaces pg/postgres.js per project stack convention.
+	const db = new Bun.SQL(dbUrl);
+	try {
+		const rows = await db`
+			SELECT name FROM subgraphs WHERE account_id = ${FIRST_PARTY_ACCOUNT_ID} ORDER BY name
+		`;
+		return rows.map((r: { name: string }) => r.name);
+	} finally {
+		await db.close();
+	}
+}
+
 async function checkOrphanSubgraphs(): Promise<void> {
-	if (!DB_URL) {
+	if (!NAMES_FILE && !DB_URL) {
 		notices.push("skipped (TARGET_DATABASE_URL not set)");
 		return;
 	}
 
 	let deployedNames: string[] = [];
 	try {
-		// Bun.SQL replaces pg/postgres.js per project stack convention.
-		const db = new Bun.SQL(DB_URL);
-		try {
-			const rows = await db`
-				SELECT name FROM subgraphs WHERE account_id = ${FIRST_PARTY_ACCOUNT_ID} ORDER BY name
-			`;
-			deployedNames = rows.map((r: { name: string }) => r.name);
-		} finally {
-			await db.close();
-		}
+		deployedNames = NAMES_FILE
+			? namesFromFile(NAMES_FILE)
+			: await namesFromDb(DB_URL);
 	} catch (err) {
 		failures.push(
-			`orphan subgraph check: query failed: ${err instanceof Error ? err.message : String(err)}`,
+			`orphan subgraph check: ${NAMES_FILE ? "reading names file" : "query"} failed: ${err instanceof Error ? err.message : String(err)}`,
 		);
 		return;
 	}
