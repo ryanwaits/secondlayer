@@ -1,5 +1,12 @@
 # @secondlayer/platform
 
+## 0.1.32
+
+### Patch Changes
+
+- Updated dependencies [8030dcf]
+  - @secondlayer/shared@7.5.0
+
 ## 0.1.31
 
 ### Patch Changes

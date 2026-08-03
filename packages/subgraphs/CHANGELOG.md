@@ -1,5 +1,16 @@
 # @secondlayer/subgraphs
 
+## 3.24.0
+
+### Minor Changes
+
+- 8030dcf: live-path replay guard: concurrent walkers can no longer double-apply blocks or regress the cursor
+
+### Patch Changes
+
+- Updated dependencies [8030dcf]
+  - @secondlayer/shared@7.5.0
+
 ## 3.23.2
 
 ### Patch Changes

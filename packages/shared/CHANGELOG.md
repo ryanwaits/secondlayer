@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 7.5.0
+
+### Minor Changes
+
+- 8030dcf: live-path replay guard: concurrent walkers can no longer double-apply blocks or regress the cursor
+
 ## 7.4.0
 
 ### Minor Changes

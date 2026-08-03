@@ -2,6 +2,22 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## Subgraphs — August 2026
+
+### Block processing is now replay-proof across restarts
+
+Your subgraph's accumulator tables are guarded against a class of drift that
+processor restarts could cause: if two catch-up walkers ever overlap on the
+same block — a restart mid-walk, a leadership handoff — only one commit
+stands. The block's writes and its checkpoint advance travel in one
+transaction with a conditional cursor, so a duplicate application aborts
+cleanly and a stale walker can no longer rewind progress and trigger
+re-walks. Reorg rewinds still work exactly as before — they take a dedicated
+path that serializes across processes.
+
+None of this changes your handler code. `ctx.increment` and friends behave
+identically; the guarantee is in the runtime underneath them.
+
 ## Index — August 2026
 
 ### Staking post-conditions come through on PoX-5 transactions
