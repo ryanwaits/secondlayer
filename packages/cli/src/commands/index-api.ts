@@ -325,6 +325,7 @@ export function registerIndexCommand(program: Command): void {
 			"List pending mempool transactions (run `mempool get <txId>` for one)",
 		)
 		.option("--contract-id <id>", "Filter to pending calls to a contract")
+		.option("--function-name <name>", "Filter to pending calls to a function")
 		.option("--sender <principal>", "Filter by sender")
 		.option("--type <type>", "Filter by transaction type")
 		.option("--cursor <cursor>", "Resume token from a previous next_cursor")
@@ -335,6 +336,7 @@ export function registerIndexCommand(program: Command): void {
 				emit(
 					await client().mempool.list({
 						contractId: o.contractId,
+						functionName: o.functionName,
 						sender: o.sender,
 						type: o.type,
 						cursor: o.cursor,
