@@ -285,6 +285,11 @@ curl https://api.secondlayer.tools/v1/subgraphs/asset-holdings/holdings \
   -G -d "_limit=5" -d "_sort=amount" -d "_order=desc"
 ```
 
+Mark a column `indexed: true` if you plan to sort on it. Sorted reads get a
+`(column, _id)` index that matches the page order, so deep pages stay flat
+instead of re-sorting every tie group. Existing tables pick that index up on
+their next reindex or schema change.
+
 ```ts
 const { rows, next_cursor, tip } = await sl.subgraphs.rows(
   "sbtc-flows",
