@@ -2,6 +2,37 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## Index — August 2026
+
+### Watch the mempool for one function, not a whole contract
+
+`/v1/index/mempool` takes `function_name`. Watching a privileged function on a
+busy contract used to mean pulling every pending call to it and filtering
+client-side; now you ask for the one you care about:
+
+```bash
+curl https://api.secondlayer.tools/v1/index/mempool \
+  -G -d "contract_id=SP….my-dao" -d "function_name=execute-proposal"
+```
+
+It composes with `sender`, `type`, and the cursor like every other filter.
+`sl index mempool --function-name <name>` and `functionName` on the SDK's
+`mempool.list`/`walk` pass it through. A `(contract_id, function_name)` index
+backs it — which also puts an index behind plain `contract_id` filtering for the
+first time.
+
+## Subgraphs — August 2026
+
+### Sorted reads stay fast on deep pages
+
+Indexed columns now get a `(column, _id)` index alongside the single-column one,
+matching how `/v1` orders sorted reads. On a low-cardinality column, a deep page
+went from ~17.5 ms and 8,557 buffer reads to ~0.09 ms and 14 — Postgres walks
+the index in final order instead of re-sorting each tie group.
+
+New tables get it on deploy. Existing tables pick it up on their next reindex or
+schema change, not on a plain redeploy.
+
 ## CLI — August 2026
 
 ### Deploy refuses a subgraph source that isn't committed

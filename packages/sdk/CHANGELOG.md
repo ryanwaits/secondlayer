@@ -1,5 +1,16 @@
 # @secondlayer/sdk
 
+## 6.51.0
+
+### Minor Changes
+
+- 2a30175: Add `functionName` / `--function-name` to filter the mempool read (and walk) to pending calls to one contract function.
+
+### Patch Changes
+
+- Updated dependencies [fc3eb0f]
+  - @secondlayer/subgraphs@3.25.0
+
 ## 6.50.0
 
 ### Minor Changes
