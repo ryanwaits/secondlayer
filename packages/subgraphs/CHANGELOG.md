@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 3.25.1
+
+### Patch Changes
+
+- aecbe79: Log which handler-execution path (in-process vs. sandbox) a subgraph resolved to, once per route-cache resolution rather than per block
+
 ## 3.25.0
 
 ### Minor Changes
