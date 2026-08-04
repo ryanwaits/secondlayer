@@ -43,4 +43,8 @@ services:
       # Allow subscription webhooks to reach a localhost receiver during local
       # dev (the emitter blocks private/loopback egress by default).
       SECONDLAYER_ALLOW_PRIVATE_EGRESS: "true"
-      SECONDLAYER_SECRETS_KEY: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+      # f072: deliberately NOT granted here (was a stale carry-over from
+      # before the delivery plane split into subscription-processor —
+      # service.ts/processor.ts never decrypts subscription secrets). This
+      # process runs untrusted handler code every block; see the same-named
+      # comment in the base docker-compose.yml for the full rationale.

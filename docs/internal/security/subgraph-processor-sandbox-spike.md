@@ -719,3 +719,47 @@ Everything ships dark: `sandboxEnabled()` requires both the env gate and a
 row's `sandbox_workers = true`, and no committed code sets that column
 (`grep -rn "sandbox_workers" --include="*.ts" packages | grep -v test`
 shows only the migration's DDL default, type declarations, and reads).
+
+## 12. Key relocation (f072)
+
+**What moved: nothing.** No broker service, no re-encryption, no new IPC —
+the connection-broker sketch this section's stage 4 implied turned out to be
+unnecessary. What actually happened is simpler: the processor's
+`SECONDLAYER_SECRETS_KEY` grant was deleted from `docker/docker-compose.yml`
+(and the `docker/oss/docker-compose.devnet.yml` overlay, which carried a
+stale pre-split copy of the same grant). `resolveRoute`
+(`block-processor.ts`) now calls a non-throwing `secretsKeyAvailable()`
+predicate (`shared/src/crypto/secrets.ts`) before ever reaching the
+decrypt site, and throws a named `ByoKeyUnavailableError` if a BYO row shows
+up with no key resolvable — it never falls back to the managed DB.
+
+**Why that suffices**: three facts made the broker unnecessary.
+1. The processor has exactly one decrypt site reachable from its entry
+   (`service.ts` → `processor.ts` → `block-processor.ts`'s `resolveRoute` →
+   `resolveSubgraphDb`) — verified by grepping every `decryptSecret` call
+   site and confirming `processor.ts` imports neither `emitter` nor
+   `formats/*`.
+2. The delivery plane (subscription signing secrets, webhook format
+   tokens) already runs in the dedicated `subscription-processor` service,
+   which keeps its key grant — this plan didn't touch it.
+3. Production carries **zero** BYO subgraphs (`SELECT count(*) FILTER
+   (WHERE database_url_enc IS NOT NULL) … FROM subgraphs` → `0` of `5`, at
+   plan time). The one code path the key existed for never executes today.
+
+**What this closes**: f049 site 3 — the processor no longer holds the
+master secret while running untrusted handler code, every block. It also
+means the two vectors §11's containment matrix left **DOCUMENTED OPEN**
+(6a — same-UID `Bun.file()` reads; 6b — `/proc/<hostpid>/environ` on Linux)
+stop mattering for the master key specifically: there is nothing in this
+process's environment or readable-by-UID filesystem for either vector to
+expose anymore. Stage A's sandbox subprocess boundary (§11) is unaffected
+either way — this plan is orthogonal to it, and remains dark
+(`sandboxEnabled()` still requires the unset `sandbox_workers` column).
+
+**What remains**: if a BYO tenant ever ships, routing them needs a real
+broker — a process that legitimately holds the key and can hand a live,
+scoped connection to the processor (or take over BYO routing itself). That
+is the D3 sketch this section's predecessor described; it was not built
+because there is currently nothing for it to serve. Until then, a BYO row
+appearing in production halts that subgraph loudly
+(`ByoKeyUnavailableError`) rather than silently misrouting its writes.

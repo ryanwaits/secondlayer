@@ -361,7 +361,16 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
       DATA_DIR: /data
-      SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}
+      # f072: deliberately NOT granted here. This process runs untrusted
+      # subgraph handler code in-process, every block (f049 site 3) — holding
+      # the master secret alongside that code is what made the sandbox
+      # spike's documented-open vectors (same-UID Bun.file() reads,
+      # /proc/<pid>/environ on Linux) dangerous. The only decrypt site this
+      # process could reach (resolveSubgraphDb, for BYO subgraphs) now fails
+      # loud with a named ByoKeyUnavailableError instead of falling back to
+      # the managed DB. Safe because production has zero BYO subgraphs; if
+      # one ever ships, route it through a process that still holds the key
+      # (see docs/internal/security/subgraph-processor-sandbox-spike.md, D3).
       # Reindex batch tuning (runtime/reindex.ts reads these; resume-safe to
       # restart mid-reindex). Unset → 500/100/1000 defaults.
       SUBGRAPH_REINDEX_BATCH_SIZE: ${SUBGRAPH_REINDEX_BATCH_SIZE:-}
