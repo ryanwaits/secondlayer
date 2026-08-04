@@ -34,7 +34,7 @@ export const OPENAPI_SPEC = {
 		title: "Secondlayer Public API",
 		version: "1.0.0",
 		description:
-			"Public surfaces: Index (decoded chain events — stx/ft/nft transfers, mints, burns, prints, stacking; anon-readable), Streams (raw firehose, bearer), Subgraphs (public subgraphs anon-readable, private with the owning account's bearer; `{ rows, next_cursor, tip }` envelope with `_id` keyset cursor). Cursor format is `<block_height>:<event_index>` on Index/Streams.",
+			"Public surfaces: Index (decoded chain events — stx/ft/nft transfers, mints, burns, prints, stacking; anon-readable), Streams (raw firehose, bearer), Subgraphs (public subgraphs anon-readable, private with the owning account's bearer; `{ rows, next_cursor, tip }` envelope with `_id` keyset cursor, or a composite keyset cursor when `_sort` is used). Cursor format is `<block_height>:<event_index>` on Index/Streams; opaque on Subgraphs.",
 	},
 	servers: [
 		{ url: "https://api.secondlayer.tools", description: "Production" },
@@ -209,7 +209,7 @@ export const OPENAPI_SPEC = {
 			get: {
 				tags: ["subgraphs"],
 				summary:
-					"Rows, cursor-paginated by _id ({ rows, next_cursor, tip }). Column filters via col.op=value, _limit, _fields, _order=asc|desc.",
+					"Rows, cursor-paginated by _id, or by _sort/_order ({ rows, next_cursor, tip }). Column filters via col.op=value, _limit, _fields.",
 				security: [{}, { bearerAuth: [] }],
 				parameters: [
 					pp("name"),
@@ -220,12 +220,23 @@ export const OPENAPI_SPEC = {
 						false,
 						`Page size, 1–${MAX_LIMIT}. Non-integers, 0, negatives, and values above ${MAX_LIMIT} are rejected (400), not clamped.`,
 					),
-					qp("cursor", "string"),
+					qp(
+						"cursor",
+						"string",
+						false,
+						"Opaque; pass back the previous page's next_cursor verbatim. Its shape depends on whether _sort was used to fetch that page — do not hand-construct one, and don't replay a cursor from one _sort/_order under a different _sort/_order (400).",
+					),
+					qp(
+						"_sort",
+						"string",
+						false,
+						"Single column to sort by (no comma list — composite keyset pagination pairs it with the _id tiebreaker, which only works for one column). jsonb columns are rejected (no meaningful ordering). Omit to keep the default _id-only ordering.",
+					),
 					qp(
 						"_order",
 						"string",
 						false,
-						'"asc" or "desc" — direction of the _id scan (no arbitrary-column sort on /v1; any other value is rejected).',
+						'"asc" or "desc" — direction of the _id scan, or of the _sort column when _sort is present (any other value is rejected).',
 					),
 					qp("_fields", "string"),
 				],
@@ -734,7 +745,8 @@ function envelope(_arrayKey = "events") {
 function rowsEnvelope() {
 	return {
 		"200": {
-			description: "Row envelope, _id keyset cursor",
+			description:
+				"Row envelope, _id keyset cursor by default (composite with the sort column when _sort is used)",
 			content: {
 				"application/json": {
 					schema: { $ref: "#/components/schemas/RowsEnvelope" },

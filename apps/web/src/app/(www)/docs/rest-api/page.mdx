@@ -29,7 +29,7 @@ Cursor format is `<block_height>:<event_index>`. `tip.finalized_height` is the b
 
 | Surface | Page size | Ordering |
 | --- | --- | --- |
-| Subgraph tables | `_limit` (default 50, max 1000 — on `/v1` a non-integer, `0`, negative, or over-1000 value is rejected with `400` rather than clamped) | `_order=asc` / `_order=desc`; any other value (a column name, `desc,asc`, …) returns `400`; bare `limit` or `order` returns `400` |
+| Subgraph tables | `_limit` (default 50, max 1000 — on `/v1` a non-integer, `0`, negative, or over-1000 value is rejected with `400` rather than clamped) | `_id` by default, or `_sort=<column>&_order=asc\|desc` for one column (`/v1`); `_order` on its own is `asc`/`desc` only — any other value (a column name, `desc,asc`, …) returns `400`; bare `limit`, `order`, or `sort` returns `400` |
 | Index | `limit` (default 200, max 1000) | Fixed by the keyset cursor, no order param |
 | Streams | `limit` (default 100, max 1000) | Fixed by the keyset cursor, no order param |
 
@@ -62,7 +62,7 @@ Any unrecognized query param returns `400`; the error suggests the closest valid
 
 Public subgraphs read anonymously: wildcard CORS, no key. Private ones need the owner's `sk-sl_` bearer; anonymous requests get `404`, no existence leak.
 
-`_id`-keyset pagination: `?cursor=<next_cursor>` resumes, `_order=asc|desc` sets direction (no other value — sorting by an arbitrary column isn't supported on `/v1`); `_limit`, `_fields`, `_search`, and column filters work as everywhere else. `_offset` and `_sort` are **rejected with `400`** here — dashboard-only, on the authed `/api/subgraphs`.
+Keyset pagination: `?cursor=<next_cursor>` resumes. By default the keyset is `_id`; add `?_sort=<column>&_order=asc|desc` to sort by one column instead (jsonb columns and multi-column `_sort=a,b` are rejected with `400` — the cursor pairs the sort column with `_id` as a tiebreaker, which only works for one column). `_order` on its own, with no `_sort`, is still `asc`/`desc` direction of the `_id` scan. The cursor's shape follows the sort: don't hand-construct one, and a cursor issued under one `_sort`/`_order` returns `400` if replayed under a different one. `_limit`, `_fields`, `_search`, and column filters work as everywhere else. `_offset` is **rejected with `400`** here — deep `OFFSET` scans hurt on big tables; it's dashboard-only, on the authed `/api/subgraphs`.
 
 `_search` needs at least one column marked `search: true` in the subgraph's schema; on a table with none, it's rejected with `400` rather than silently matching everything.
 
