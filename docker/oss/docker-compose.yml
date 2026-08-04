@@ -166,6 +166,10 @@ services:
       STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-}
       # Max concurrent handler chain reads in this process. Unset → 4.
       SUBGRAPH_CHAIN_READ_CONCURRENCY: ${SUBGRAPH_CHAIN_READ_CONCURRENCY:-}
+      # Sandbox capability switch (global). OFF unless explicitly set to "1".
+      # Per-subgraph rollout is the `subgraphs.sandbox_workers` column; BOTH
+      # are required (see sandbox/flag.ts) — this alone routes no traffic.
+      SUBGRAPH_SANDBOX_WORKERS: ${SUBGRAPH_SANDBOX_WORKERS:-}
     volumes:
       - subgraphs_data:/data/subgraphs
     depends_on:

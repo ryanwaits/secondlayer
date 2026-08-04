@@ -371,6 +371,10 @@ services:
       # the managed DB. Safe because production has zero BYO subgraphs; if
       # one ever ships, route it through a process that still holds the key
       # (see docs/internal/security/subgraph-processor-sandbox-spike.md, D3).
+      # Sandbox capability switch (global). OFF unless explicitly set to "1".
+      # Per-subgraph rollout is the `subgraphs.sandbox_workers` column; BOTH
+      # are required (see sandbox/flag.ts) — this alone routes no traffic.
+      SUBGRAPH_SANDBOX_WORKERS: ${SUBGRAPH_SANDBOX_WORKERS:-}
       # Reindex batch tuning (runtime/reindex.ts reads these; resume-safe to
       # restart mid-reindex). Unset → 500/100/1000 defaults.
       SUBGRAPH_REINDEX_BATCH_SIZE: ${SUBGRAPH_REINDEX_BATCH_SIZE:-}
