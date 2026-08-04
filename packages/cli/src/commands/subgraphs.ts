@@ -46,6 +46,7 @@ type SubgraphSpecFormat = "openapi" | "agent" | "markdown";
 import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
 import { parseQueryFilters } from "../lib/filter-params.ts";
 import { writeTextFile } from "../lib/fs.ts";
+import { inspectSourceGitState } from "../lib/git-status.ts";
 import {
 	dim,
 	error,
@@ -944,6 +945,10 @@ Examples:
 			"--visibility <visibility>",
 			"Read visibility: public (anon /v1 reads, global name claim) or private (your key only). Defaults: managed → public, BYO → private.",
 		)
+		.option(
+			"--allow-uncommitted",
+			"Deploy even though the source file is not committed to git (the deployed definition will exist only in the database)",
+		)
 		.action(
 			async (
 				file: string,
@@ -955,10 +960,45 @@ Examples:
 					strict?: boolean;
 					databaseUrl?: string;
 					visibility?: string;
+					allowUncommitted?: boolean;
 				},
 			) => {
 				try {
 					const absPath = resolve(file);
+
+					if (!options.dryRun) {
+						if (options.allowUncommitted) {
+							info(
+								"--allow-uncommitted: skipping the git commit check for the source file.",
+							);
+						} else {
+							const gitState = inspectSourceGitState(absPath);
+							if (
+								gitState.kind === "untracked" ||
+								gitState.kind === "modified"
+							) {
+								const reason =
+									gitState.kind === "untracked"
+										? "not tracked by git"
+										: "modified with uncommitted changes";
+								const message = `${file} is ${reason}. If you deploy it, the only copy of this definition will be a row in the database — this has already caused two production recoveries.`;
+								if (process.stdout.isTTY) {
+									warn(message);
+									const confirmed = await confirm({
+										message: "Deploy anyway?",
+									});
+									if (!confirmed) {
+										info("Aborted.");
+										process.exit(0);
+									}
+								} else {
+									error(`${message} Commit it, or pass --allow-uncommitted.`);
+									process.exit(1);
+								}
+							}
+						}
+					}
+
 					const config = await loadConfig();
 					if (config.network !== "local") {
 						// Remote deploys hit the platform API; prompt for login if no
