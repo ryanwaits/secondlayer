@@ -74,7 +74,12 @@ export async function handleTableCount(
 		// Strip `_count` before parseQueryParams — it throws on any unrecognized
 		// `_`-prefixed key.
 		const { _count: _countParam, ...queryParams } = c.req.query();
-		const parsed = parseQueryParams(queryParams, validColumns, tableDef);
+		const parsed = parseQueryParams(
+			queryParams,
+			validColumns,
+			tableDef,
+			tableName,
+		);
 		const sn = subgraphSchemaName(subgraph);
 		const params: unknown[] = [];
 
@@ -128,7 +133,12 @@ export async function handleTableAggregate(
 			validColumns,
 			tableDef,
 		);
-		const parsed = parseQueryParams(readParams, validColumns, tableDef);
+		const parsed = parseQueryParams(
+			readParams,
+			validColumns,
+			tableDef,
+			tableName,
+		);
 		const sn = subgraphSchemaName(subgraph);
 		const params: unknown[] = [];
 
@@ -239,7 +249,7 @@ export function handleTableStream(
 	const { since: sinceRaw, ...filterQuery } = c.req.query();
 	let parsed: ReturnType<typeof parseQueryParams>;
 	try {
-		parsed = parseQueryParams(filterQuery, validColumns, tableDef);
+		parsed = parseQueryParams(filterQuery, validColumns, tableDef, tableName);
 	} catch (e) {
 		if (e instanceof InvalidColumnError) {
 			return c.json({ error: e.message, code: "INVALID_COLUMN" }, 400);

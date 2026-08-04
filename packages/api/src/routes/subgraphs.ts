@@ -2067,7 +2067,12 @@ app.get("/:subgraphName/:tableName", async (c) => {
 		// Strip `_count` before parseQueryParams — it throws on any unrecognized
 		// `_`-prefixed key (see parseAggregateParams for the same pattern).
 		const { _count: _countParam, ...queryParams } = c.req.query();
-		const parsed = parseQueryParams(queryParams, validColumns, tableDef);
+		const parsed = parseQueryParams(
+			queryParams,
+			validColumns,
+			tableDef,
+			tableName,
+		);
 		const sn = subgraphSchemaName(subgraph);
 		const params: unknown[] = [];
 

@@ -102,6 +102,7 @@ export function parseQueryParams(
 	params: Record<string, string>,
 	validColumns: Set<string>,
 	tableDef?: { columns: Record<string, SubgraphColumn> },
+	tableName?: string,
 ): ParsedQuery {
 	const filters: ParsedQuery["filters"] = [];
 	// Captured raw, zipped into `sorts` after the loop (params order is arbitrary).
@@ -135,9 +136,13 @@ export function parseQueryParams(
 						.filter(([, col]) => col.search)
 						.map(([name]) => name)
 				: [];
-			if (searchCols.length > 0) {
-				search = { value, columns: searchCols };
+			if (searchCols.length === 0) {
+				const table = tableName ? `"${tableName}"` : "this table";
+				throw new ValidationError(
+					`_search is not supported on table ${table}: no columns are marked searchable. Mark a column with search: true in the subgraph definition, or filter with <column>.like=...`,
+				);
 			}
+			search = { value, columns: searchCols };
 			continue;
 		}
 		if (key === "_sort") {
@@ -149,6 +154,17 @@ export function parseQueryParams(
 			continue;
 		}
 		if (key === "_order") {
+			// Comma-aligned with _sort (or, on /v1, a lone direction for the
+			// implicit _id order) — every element must be asc|desc. Anything else
+			// (a column name, "DESCENDING", "-amount", …) used to fall through to
+			// silent ASC; reject it instead.
+			const dirs = value.split(",").map((s) => s.trim().toLowerCase());
+			const bad = dirs.find((d) => d !== "asc" && d !== "desc");
+			if (bad !== undefined) {
+				throw new ValidationError(
+					`_order value "${bad}" is invalid (from "_order=${value}"): each comma-separated element must be "asc" or "desc"`,
+				);
+			}
 			orderRaw = value;
 			continue;
 		}
