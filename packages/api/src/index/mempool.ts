@@ -65,6 +65,7 @@ export const MEMPOOL_FILTERS = [
 	"sender",
 	"type",
 	"contract_id",
+	"function_name",
 ] as const;
 
 /** A pending (unconfirmed) transaction. The columnar fields plus `raw_tx`
@@ -106,6 +107,7 @@ export type MempoolQuery = {
 	sender?: string;
 	type?: string;
 	contractId?: string;
+	functionName?: string;
 };
 
 export type ReadMempoolParams = {
@@ -114,6 +116,7 @@ export type ReadMempoolParams = {
 	sender?: string;
 	type?: string;
 	contractId?: string;
+	functionName?: string;
 	db?: Kysely<Database>;
 };
 
@@ -247,6 +250,10 @@ export function parseMempoolQuery(query: URLSearchParams): MempoolQuery {
 			query.get("contract_id") ?? undefined,
 			"contract_id",
 		),
+		functionName: parseFilter(
+			query.get("function_name") ?? undefined,
+			"function_name",
+		),
 	};
 }
 
@@ -260,6 +267,8 @@ export async function readMempool(
 	if (params.type) predicates.push(sql`type = ${params.type}`);
 	if (params.contractId)
 		predicates.push(sql`contract_id = ${params.contractId}`);
+	if (params.functionName)
+		predicates.push(sql`function_name = ${params.functionName}`);
 	const where =
 		predicates.length > 0
 			? sql`WHERE ${sql.join(predicates, sql` AND `)}`
@@ -309,6 +318,7 @@ export async function getMempoolResponse(opts: {
 		sender: parsed.sender,
 		type: parsed.type,
 		contractId: parsed.contractId,
+		functionName: parsed.functionName,
 	});
 	return {
 		mempool: result.mempool,

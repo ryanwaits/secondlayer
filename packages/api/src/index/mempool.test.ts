@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
+import { validateQueryParams } from "../middleware/validation.ts";
 import {
+	MEMPOOL_FILTERS,
 	type MempoolReader,
 	getMempoolResponse,
 	parseMempoolQuery,
@@ -42,6 +44,24 @@ describe("Index mempool helpers", () => {
 	test("parses the contract_id filter", () => {
 		const parsed = parseMempoolQuery(params("?contract_id=SP2.amm"));
 		expect(parsed.contractId).toBe("SP2.amm");
+	});
+
+	test("parses the function_name filter", () => {
+		const parsed = parseMempoolQuery(params("?function_name=swap"));
+		expect(parsed.functionName).toBe("swap");
+	});
+
+	test("function_name is in MEMPOOL_FILTERS and survives validateQueryParams; an unknown param does not", () => {
+		expect(MEMPOOL_FILTERS).toContain("function_name");
+		expect(() =>
+			validateQueryParams(
+				params("?contract_id=SP2.amm&function_name=swap"),
+				MEMPOOL_FILTERS,
+			),
+		).not.toThrow();
+		expect(() =>
+			validateQueryParams(params("?bogus=1"), MEMPOOL_FILTERS),
+		).toThrow(/unknown query param/);
 	});
 
 	test("rejects a non-integer cursor", () => {
@@ -104,6 +124,29 @@ describe.skipIf(!HAS_DB)("Index mempool DB reads", () => {
 					function_name: "swap",
 					function_args: null,
 				},
+				{
+					// Same contract as 0xcc, different function — must be excluded when
+					// filtering by contract_id + function_name together.
+					tx_id: "0xcc2",
+					raw_tx: "0x00",
+					type: "contract_call",
+					sender: "SP2",
+					contract_id: "SP2.amm",
+					function_name: "deposit",
+					function_args: null,
+				},
+				{
+					// Same function_name as 0xcc, different contract and sender — must
+					// be excluded when filtering by contract_id (or sender) alongside
+					// function_name.
+					tx_id: "0xcc3",
+					raw_tx: "0x00",
+					type: "contract_call",
+					sender: "SP4",
+					contract_id: "SP4.other",
+					function_name: "swap",
+					function_args: null,
+				},
 			])
 			.execute();
 	}
@@ -111,7 +154,12 @@ describe.skipIf(!HAS_DB)("Index mempool DB reads", () => {
 	test("returns pending txs ordered by seq, merging decoded enrichment", async () => {
 		await seed();
 		const result = await readMempool({ db: db ?? undefined, limit: 10 });
-		expect(result.mempool.map((t) => t.tx_id)).toEqual(["0xtt", "0xcc"]);
+		expect(result.mempool.map((t) => t.tx_id)).toEqual([
+			"0xtt",
+			"0xcc",
+			"0xcc2",
+			"0xcc3",
+		]);
 
 		const transfer = result.mempool[0];
 		expect(transfer?.tx_type).toBe("token_transfer");
@@ -122,7 +170,7 @@ describe.skipIf(!HAS_DB)("Index mempool DB reads", () => {
 		// raw_tx "0x00" is undecodable → enrichment null, columnar detail stays.
 		expect(call?.fee).toBeNull();
 		expect(call?.contract_call?.function_name).toBe("swap");
-		expect(result.next_cursor).toBe(result.mempool[1]?.cursor);
+		expect(result.next_cursor).toBe(result.mempool[3]?.cursor);
 	});
 
 	test("filters by type and paginates by seq cursor", async () => {
@@ -132,7 +180,11 @@ describe.skipIf(!HAS_DB)("Index mempool DB reads", () => {
 			type: "contract_call",
 			limit: 10,
 		});
-		expect(filtered.mempool.map((t) => t.tx_id)).toEqual(["0xcc"]);
+		expect(filtered.mempool.map((t) => t.tx_id)).toEqual([
+			"0xcc",
+			"0xcc2",
+			"0xcc3",
+		]);
 
 		// Round-trip the opaque cursor back through the parser to resume.
 		const firstCursor = filtered.mempool[0]?.cursor ?? "";
@@ -152,7 +204,76 @@ describe.skipIf(!HAS_DB)("Index mempool DB reads", () => {
 			contractId: "SP2.amm",
 			limit: 10,
 		});
+		expect(filtered.mempool.map((t) => t.tx_id)).toEqual(["0xcc", "0xcc2"]);
+	});
+
+	test("filters by function_name across contracts", async () => {
+		await seed();
+		const filtered = await readMempool({
+			db: db ?? undefined,
+			functionName: "swap",
+			limit: 10,
+		});
+		// "swap" is pending on two different contracts (0xcc on SP2.amm, 0xcc3 on
+		// SP4.other) — both come back; "deposit" (0xcc2) does not.
+		expect(filtered.mempool.map((t) => t.tx_id).sort()).toEqual([
+			"0xcc",
+			"0xcc3",
+		]);
+	});
+
+	test("function_name composes with contract_id: only that contract's that function", async () => {
+		await seed();
+		const filtered = await readMempool({
+			db: db ?? undefined,
+			contractId: "SP2.amm",
+			functionName: "swap",
+			limit: 10,
+		});
+		// Not 0xcc2 (same contract, different function) and not 0xcc3 (same
+		// function, different contract).
 		expect(filtered.mempool.map((t) => t.tx_id)).toEqual(["0xcc"]);
+	});
+
+	test("function_name composes with sender and the seq cursor", async () => {
+		await seed();
+		// sender=SP4 + function_name=swap narrows to 0xcc3 only, even though
+		// "swap" also matches 0xcc under a different sender.
+		const bySender = await readMempool({
+			db: db ?? undefined,
+			sender: "SP4",
+			functionName: "swap",
+			limit: 10,
+		});
+		expect(bySender.mempool.map((t) => t.tx_id)).toEqual(["0xcc3"]);
+
+		// Cursor + function_name compose too: resume past 0xcc, still filtered
+		// to "swap", and 0xcc2 ("deposit") never appears.
+		const all = await readMempool({ db: db ?? undefined, limit: 10 });
+		const afterFirstCc = all.mempool.find((t) => t.tx_id === "0xcc")?.cursor;
+		const parsed = parseMempoolQuery(
+			params(`?from_cursor=${afterFirstCc ?? ""}`),
+		);
+		const resumed = await readMempool({
+			db: db ?? undefined,
+			after: parsed.after,
+			functionName: "swap",
+			limit: 10,
+		});
+		expect(resumed.mempool.map((t) => t.tx_id)).toEqual(["0xcc3"]);
+	});
+
+	test("function_name excludes rows where it is NULL (non-contract-call txs)", async () => {
+		await seed();
+		const filtered = await readMempool({
+			db: db ?? undefined,
+			functionName: "swap",
+			limit: 10,
+		});
+		// 0xtt is a token_transfer with function_name NULL. `= NULL` never
+		// matches in SQL, but assert it explicitly so a future rewrite to
+		// IN/ANY can't silently start returning it.
+		expect(filtered.mempool.some((t) => t.tx_id === "0xtt")).toBe(false);
 	});
 
 	test("fetches a single pending tx by tx_id", async () => {
