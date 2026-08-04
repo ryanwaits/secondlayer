@@ -76,10 +76,13 @@ describe("www marketing routes", () => {
 		expect(html).toContain("Experimental");
 	});
 
-	test("/pricing carries the marketing-page chrome", () => {
+	test("/pricing renders its header without a breadcrumb", () => {
 		const html = renderToStaticMarkup(<PricingPage />);
-		expect(html).toContain('aria-label="Breadcrumb"');
-		expect(html).toContain(">Pricing<");
-		expect(html).toContain('href="/"');
+		// Product and pricing pages carry no crumb — the accent-coloured section
+		// in the nav bar is the whole positional cue. Only Explore and the
+		// writing posts, which sit two levels deep, still print one.
+		expect(html).not.toContain('aria-label="Breadcrumb"');
+		expect(html).toContain("explore-hero");
+		expect(html).toContain("Host it yourself.");
 	});
 });

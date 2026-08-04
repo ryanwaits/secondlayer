@@ -66,9 +66,6 @@ export default function PricingPage() {
 	return (
 		<main className="explore-wrap">
 			<MarketingPageHeader
-				crumb="Home"
-				crumbHref="/"
-				here="Pricing"
 				title={
 					<>
 						Host it yourself.
