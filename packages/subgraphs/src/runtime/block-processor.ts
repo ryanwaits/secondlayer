@@ -104,6 +104,17 @@ async function resolveRoute(
 		version: row?.version ?? "",
 	};
 	routeCache.set(subgraphName, route);
+	// f071 Stage A observability: state which handler-execution path this
+	// subgraph resolved to, once per route-cache resolution (process start,
+	// or the next block after a redeploy invalidates the cache) — never per
+	// block, so this can't spam logs. Doesn't change dispatch: reads the same
+	// `sandboxEnabled` inputs the ternary at the call site below uses.
+	logger.info("subgraph handler dispatch path resolved", {
+		subgraph: subgraphName,
+		path: sandboxEnabled({ sandbox_workers: route.sandboxWorkers })
+			? "sandbox"
+			: "in-process",
+	});
 	return route;
 }
 
