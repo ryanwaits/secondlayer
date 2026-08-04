@@ -23,6 +23,7 @@ import { isX402Enabled } from "../x402/facilitator.ts";
 import { x402PaymentRequired } from "../x402/middleware.ts";
 import {
 	InvalidColumnError,
+	MAX_LIMIT,
 	buildWhereConditions,
 	getSubgraphSchema,
 	getValidColumns,
@@ -507,9 +508,33 @@ app.get("/:subgraphName/:tableName", async (c) => {
 			"/v1 uses cursor pagination ordered by _id: pass ?cursor=<next_cursor> to resume, _order=asc|desc for direction (no _offset/_sort)",
 		);
 	}
+	// /v1 has no _sort, so _order can only mean the direction of the implicit
+	// _id scan — a single asc|desc, never a column name or a multi-value list.
+	// (The shared parser also rejects non-asc|desc elements, but with a
+	// message written for _sort-paired usage; this one teaches the /v1 shape.)
+	if ("_order" in query) {
+		const orderValue = query._order ?? "";
+		const dirs = orderValue.split(",").map((s) => s.trim().toLowerCase());
+		if (dirs.length !== 1 || (dirs[0] !== "asc" && dirs[0] !== "desc")) {
+			throw new ValidationError(
+				`_order=${orderValue} is not valid: /v1 is cursor-paginated by _id, so _order takes only asc|desc (direction of the _id scan). Sorting by an arbitrary column is not supported on /v1.`,
+			);
+		}
+	}
+	// /v1 is the documented public surface — malformed/out-of-range _limit is a
+	// caller error, not a hint to silently substitute the default or clamp.
+	if ("_limit" in query) {
+		const limitValue = query._limit ?? "";
+		const n = Number.parseInt(limitValue, 10);
+		if (!/^\d+$/.test(limitValue) || n < 1 || n > MAX_LIMIT) {
+			throw new ValidationError(
+				`_limit=${limitValue} is not valid: /v1 requires an integer between 1 and ${MAX_LIMIT}`,
+			);
+		}
+	}
 
 	try {
-		const parsed = parseQueryParams(query, validColumns, tableDef);
+		const parsed = parseQueryParams(query, validColumns, tableDef, tableName);
 		const desc = parsed.sorts.some(
 			(s) => s.column === "_id" && s.order === "DESC",
 		);

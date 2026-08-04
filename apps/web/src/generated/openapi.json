@@ -472,7 +472,13 @@
 						}
 					},
 					{
-						"$ref": "#/components/parameters/Limit"
+						"name": "_limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						},
+						"description": "Page size, 1–1000. Non-integers, 0, negatives, and values above 1000 are rejected (400), not clamped."
 					},
 					{
 						"name": "cursor",
@@ -488,7 +494,8 @@
 						"required": false,
 						"schema": {
 							"type": "string"
-						}
+						},
+						"description": "\"asc\" or \"desc\" — direction of the _id scan (no arbitrary-column sort on /v1; any other value is rejected)."
 					},
 					{
 						"name": "_fields",

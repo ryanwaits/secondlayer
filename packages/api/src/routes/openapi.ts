@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { MAX_LIMIT } from "./subgraph-query-helpers.ts";
 
 /** `contract_id` on the two consume-able feeds accepts a comma-separated set,
  *  so one cursor can follow a whole protocol. */
@@ -213,9 +214,19 @@ export const OPENAPI_SPEC = {
 				parameters: [
 					pp("name"),
 					pp("table"),
-					{ $ref: "#/components/parameters/Limit" },
+					qp(
+						"_limit",
+						"integer",
+						false,
+						`Page size, 1–${MAX_LIMIT}. Non-integers, 0, negatives, and values above ${MAX_LIMIT} are rejected (400), not clamped.`,
+					),
 					qp("cursor", "string"),
-					qp("_order", "string"),
+					qp(
+						"_order",
+						"string",
+						false,
+						'"asc" or "desc" — direction of the _id scan (no arbitrary-column sort on /v1; any other value is rejected).',
+					),
 					qp("_fields", "string"),
 				],
 				responses: rowsEnvelope(),
