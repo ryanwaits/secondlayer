@@ -763,3 +763,66 @@ is the D3 sketch this section's predecessor described; it was not built
 because there is currently nothing for it to serve. Until then, a BYO row
 appearing in production halts that subgraph loudly
 (`ByoKeyUnavailableError`) rather than silently misrouting its writes.
+
+## Canary runbook
+
+§11's "Remaining stages" table names "Canary flip" as the first authorized
+next step. This section is the operator runbook for it, now that the three
+things that made it unsafe to attempt are built: the capability flag is
+settable via compose (`SUBGRAPH_SANDBOX_WORKERS`, defaults empty/off), the
+rollout switch is `scripts/ops/sandbox-rollout.ts` (report by default,
+requires confirmation to mutate, refuses unknown subgraphs), and
+`block-processor.ts`'s `resolveRoute` logs which dispatch path a subgraph
+resolved to, once per route-cache resolution.
+
+1. **Pre-flight.** Confirm the deployed processor image contains the
+   subprocess sandbox — it shipped in `@secondlayer/subgraphs@3.24.2` (the
+   current published version is `3.25.0`, which supersedes it; anything
+   older does not have `runtime/sandbox/`). Record the target subgraph's
+   current cursor (`last_processed_block`) and row counts as the rollback
+   comparison point — `scripts/ops/sandbox-rollout.ts` (no args) also prints
+   its current `sandbox_workers` state as part of this.
+
+2. **Flip the capability flag alone.** Set `SUBGRAPH_SANDBOX_WORKERS=1` in
+   the server's `.env`, redeploy the processor, and read the dispatch-path
+   log this plan added (`resolveRoute`, `block-processor.ts`): confirm
+   **every** subgraph still logs `"path":"in-process"` on the next route
+   resolution. Capability on + rollout off (every row's `sandbox_workers` is
+   still `false`) must change nothing — this is the AND semantics in
+   `sandbox/flag.ts` holding in production, not in a test.
+
+3. **Enable ONE subgraph.** `bun scripts/ops/sandbox-rollout.ts --enable <name>`
+   (interactive confirmation shows before→after; add `--yes` only for
+   scripted use). Recommended first subgraph: **`bns-names`** or
+   `contract-deployments` — both low write volume. Do **not** start with
+   `asset-holdings`: its data is under active investigation
+   (`docs/internal/audits/asset-holdings-unreproducible-balances-f068.md`)
+   and it has the most complex accumulator in the fleet — the worst subgraph
+   to be debugging two things in at once.
+
+4. **Watch.** For the enabled subgraph only:
+   - the dispatch-path log flips to `"path":"sandbox"` on its next route
+     resolution (redeploy or process restart invalidates the cache);
+   - its cursor (`last_processed_block`) keeps advancing block over block;
+   - processor RSS rises by roughly **~81.5 MB** (§11's measured
+     per-subprocess cost at N=1) — a bigger jump than that on a
+     single-subgraph canary is itself a signal;
+   - no `last_error`/`total_errors` growth on the subgraph's row;
+   - no sandbox crash/respawn churn in processor logs (the pool logs an
+     eviction + respawn on every deadline kill or crash — see `host.ts`).
+
+5. **Rollback.** Any cursor stall, any new error on the row, or RSS growth
+   beyond one subprocess's worth →
+   `bun scripts/ops/sandbox-rollout.ts --disable <name>`. If that alone
+   isn't enough (e.g. the processor itself is unhealthy), unset
+   `SUBGRAPH_SANDBOX_WORKERS` in the server's `.env` and redeploy — this
+   closes the capability switch fleet-wide regardless of any row's column.
+
+6. **What a green canary means — and doesn't.** A clean canary confirms the
+   subprocess substrate holds up under real production blocks for one
+   subgraph: the boundary works, the dispatch is correctly gated, and the
+   operator tooling is safe to use. It does **not** imply moving to the next
+   rung. §11 lists three further stages (shadow-diff, per-subgraph cutover,
+   key relocation) — each is a separate founder decision, made after
+   reviewing this canary's results, not an automatic follow-on from a green
+   run here.
