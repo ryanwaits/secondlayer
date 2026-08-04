@@ -56,10 +56,151 @@ test("maps column types correctly", () => {
 test("generates indexes for indexed columns", () => {
 	const { statements } = generateSubgraphSQL(baseDef);
 	const indexStatements = statements.filter((s) => s.includes("CREATE INDEX"));
-	// 2 auto (block_height, tx_id) + 2 user (recipient, amount) + 1 journal height
-	expect(indexStatements.length).toBe(5);
+	// 2 auto (block_height, tx_id) + 2 user single-column (recipient, amount)
+	// + 2 user composite (recipient, amount) sort indexes + 1 journal height
+	expect(indexStatements.length).toBe(7);
 	expect(indexStatements.some((s) => s.includes("recipient"))).toBe(true);
 	expect(indexStatements.some((s) => s.includes("amount"))).toBe(true);
+});
+
+// ── Composite `(col, _id)` sort index ────────────────────────────────────
+// `/v1`'s `?_sort=<col>` keyset predicate compares `(col, "_id")` and orders
+// by `col, "_id"` — see generator.ts's single-column loop.
+
+test("an indexed column emits both the single-column and the (col, _id) composite index", () => {
+	const { statements } = generateSubgraphSQL(baseDef);
+	const single = statements.find(
+		(s) =>
+			s.includes("CREATE INDEX") &&
+			s.includes("idx_subgraph_token_transfers_transfers_recipient ") &&
+			s.includes("(recipient)"),
+	);
+	const composite = statements.find(
+		(s) =>
+			s.includes("CREATE INDEX") &&
+			s.includes("idx_subgraph_token_transfers_transfers_recipient_id") &&
+			s.includes("(recipient, _id)"),
+	);
+	expect(single).toBeDefined();
+	expect(composite).toBeDefined();
+	expect(composite).toContain("(recipient, _id)");
+});
+
+test("a non-indexed column emits neither a single-column nor a composite index", () => {
+	const { statements } = generateSubgraphSQL(baseDef);
+	// `sender` and `memo` on baseDef are not indexed.
+	const senderIdx = statements.filter(
+		(s) => s.includes("CREATE INDEX") && s.includes("_sender"),
+	);
+	const memoIdx = statements.filter(
+		(s) => s.includes("CREATE INDEX") && s.includes("_memo"),
+	);
+	expect(senderIdx.length).toBe(0);
+	expect(memoIdx.length).toBe(0);
+});
+
+test("a search column still emits its trigram index and gains no composite", () => {
+	const def: SubgraphDefinition = {
+		name: "search-only",
+		sources: { handler: { type: "contract_call", contractId: "SP::c" } },
+		schema: {
+			notes: {
+				columns: {
+					body: { type: "text", search: true },
+				},
+			},
+		},
+		handlers: { handler: () => {} },
+	};
+	const { statements } = generateSubgraphSQL(def);
+	const trgm = statements.find((s) => s.includes("_body_trgm"));
+	expect(trgm).toBeDefined();
+	expect(trgm).toContain("USING gin (body gin_trgm_ops)");
+	// search: true alone (no indexed: true) must not also emit a plain
+	// single-column or (body, _id) composite index.
+	const bodyIdx = statements.filter(
+		(s) =>
+			s.includes("CREATE INDEX") && s.includes("_body ") && !s.includes("trgm"),
+	);
+	const bodyComposite = statements.filter((s) => s.includes("_body_id"));
+	expect(bodyIdx.length).toBe(0);
+	expect(bodyComposite.length).toBe(0);
+});
+
+test("user-declared tableDef.indexes entries are unchanged: still _composite_<i>, no _id appended", () => {
+	const def: SubgraphDefinition = {
+		name: "indexed",
+		sources: { handler: { type: "contract_call", contractId: "SP::c" } },
+		schema: {
+			data: {
+				columns: {
+					seller: { type: "principal" },
+					status: { type: "text" },
+				},
+				indexes: [["seller", "status"]],
+			},
+		},
+		handlers: { handler: () => {} },
+	};
+	const { statements } = generateSubgraphSQL(def);
+	const compositeIdx = statements.find((s) => s.includes("composite_0"));
+	expect(compositeIdx).toBeDefined();
+	expect(compositeIdx).toContain("(seller, status)");
+	expect(compositeIdx).not.toContain("_id");
+	// Neither seller nor status is `indexed: true`, so no per-column sort
+	// index should appear for them either.
+	expect(statements.some((s) => s.includes("_seller_id"))).toBe(false);
+	expect(statements.some((s) => s.includes("_status_id"))).toBe(false);
+});
+
+test("a long schema+table+column combination produces a unique, <=63-byte composite name", () => {
+	// schema/table/column names are each independently capped at 63 bytes
+	// (SqlIdentifierSchema/SubgraphNameSchema), but concatenated into
+	// `idx_<schema>_<table>_<col>_id` they can exceed 63 — this pins the
+	// hash-suffix fallback that keeps the name both short and unique.
+	const longTable = "t".repeat(60);
+	const longCol = "c".repeat(60);
+	const stmts = emitTableDDL(
+		"subgraph_very_long_schema_name_padding_padding",
+		longTable,
+		{
+			columns: {
+				[longCol]: { type: "text", indexed: true },
+			},
+		},
+	);
+	const composite = stmts.find(
+		(s) => s.includes("CREATE INDEX") && s.includes(`(${longCol}, _id)`),
+	);
+	expect(composite).toBeDefined();
+	// biome-ignore lint/style/noNonNullAssertion: asserted defined above
+	const match = composite!.match(/CREATE INDEX IF NOT EXISTS (\S+) ON/);
+	expect(match).not.toBeNull();
+	// biome-ignore lint/style/noNonNullAssertion: regex matched above
+	const idxName = match![1]!.replace(/^"|"$/g, "").replace(/""/g, '"');
+	expect(idxName.length).toBeLessThanOrEqual(63);
+
+	// A second, differently-named long column should never collide with the
+	// first even though both truncate the same amount off the front.
+	const longCol2 = `${"c".repeat(59)}d`;
+	const stmts2 = emitTableDDL(
+		"subgraph_very_long_schema_name_padding_padding",
+		longTable,
+		{
+			columns: {
+				[longCol2]: { type: "text", indexed: true },
+			},
+		},
+	);
+	const composite2 = stmts2.find(
+		(s) => s.includes("CREATE INDEX") && s.includes(`(${longCol2}, _id)`),
+	);
+	// biome-ignore lint/style/noNonNullAssertion: asserted defined above
+	const match2 = composite2!.match(/CREATE INDEX IF NOT EXISTS (\S+) ON/);
+	// biome-ignore lint/style/noNonNullAssertion: regex matched above
+	const idxName2 = match2![1]!.replace(/^"|"$/g, "").replace(/""/g, '"');
+	expect(idxName2.length).toBeLessThanOrEqual(63);
+	expect(idxName2).not.toBe(idxName);
 });
 
 test("produces stable hash for same schema", () => {

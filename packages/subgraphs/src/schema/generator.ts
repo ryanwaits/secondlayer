@@ -21,6 +21,22 @@ export interface GeneratedSQL {
 	hash: string;
 }
 
+// Postgres truncates identifiers over 63 bytes. schema/table/column names are
+// each individually capped at 63 (SqlIdentifierSchema / SubgraphNameSchema),
+// but concatenated (`idx_<schema>_<table>_<col>_id`, plus an optional
+// account-scoped schema prefix) they can exceed that — two different columns
+// could then truncate to the same name and silently collide on CREATE INDEX.
+// Route the sort-composite name through here: short names pass through
+// unchanged (human-readable, matches the single-column naming style); an
+// oversized name is truncated and given a content hash suffix so it can't
+// collide with a different oversized name that happens to share a prefix.
+const MAX_IDENT_BYTES = 63;
+function safeIndexName(name: string): string {
+	if (name.length <= MAX_IDENT_BYTES) return name;
+	const hash = createHash("sha256").update(name).digest("hex").slice(0, 8);
+	return `${name.slice(0, MAX_IDENT_BYTES - hash.length - 1)}_${hash}`;
+}
+
 function escapeLiteralDefault(value: unknown): string {
 	if (value === null || value === undefined) return "NULL";
 	if (typeof value === "number" || typeof value === "bigint")
@@ -83,11 +99,19 @@ export function emitTableDDL(
 		`CREATE INDEX IF NOT EXISTS ${quotePgIdent(`idx_${schemaName}_${tableName}_tx_id`)} ON ${qualifiedName} (_tx_id)`,
 	);
 
-	// Single-column indexes.
+	// Single-column indexes, plus a composite `(col, "_id")` sort index.
+	// `/v1`'s `?_sort=<col>&_order=` keyset predicate compares `(col, "_id")`
+	// and orders by `col, "_id"` — a composite index matches that exactly, so
+	// deep pages on a low-cardinality column become an index-only scan instead
+	// of a Filter/re-sort within each value group. The single-column index
+	// stays too: it still serves plain equality filters (`?col=value`).
 	for (const [colName, col] of Object.entries(tableDef.columns)) {
 		if (col.indexed) {
 			statements.push(
 				`CREATE INDEX IF NOT EXISTS ${quotePgIdent(`idx_${schemaName}_${tableName}_${colName}`)} ON ${qualifiedName} (${quotePgIdent(colName)})`,
+			);
+			statements.push(
+				`CREATE INDEX IF NOT EXISTS ${quotePgIdent(safeIndexName(`idx_${schemaName}_${tableName}_${colName}_id`))} ON ${qualifiedName} (${quotePgIdent(colName)}, ${quotePgIdent("_id")})`,
 			);
 		}
 	}
