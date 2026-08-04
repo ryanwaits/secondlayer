@@ -109,9 +109,9 @@ export default function SubscriptionsPage() {
 	return (
 		<main className="pp">
 			<header className="pp-hero">
-				<Link href="/docs/migrate-chainhook" className="pp-pill">
-					<span className="dot" /> Coming from Chainhook v2?
-					Predicate-to-trigger mapping <span className="arr">→</span>
+				<Link href="/docs/subscriptions" className="pp-pill">
+					<span className="dot" /> Seventeen triggers, no subgraph required{" "}
+					<span className="arr">→</span>
 				</Link>
 				<h1>
 					Only what matches.
@@ -444,7 +444,7 @@ export default function SubscriptionsPage() {
 				</div>
 			</section>
 
-			{/* SELF-HOST — the wedge: hosted Chainhook can't run anywhere else */}
+			{/* SELF-HOST — the whole stack is MIT, delivery included */}
 			<section className="pp-section pp-wrap">
 				<div className="pp-section-head">
 					<h2>
@@ -481,15 +481,14 @@ export default function SubscriptionsPage() {
 					</div>
 					<div className="pp-catches">
 						<div className="pp-catch">
-							<span className="k">Why it matters here</span>
-							<h4>Hosted Chainhook can&apos;t be run anywhere else</h4>
+							<span className="k">Inside your own perimeter</span>
+							<h4>Nothing between the chain and your database</h4>
 							<p>
-								Chainhook v2 is hosted-only, and self-hosted v1 is archived. If
-								you need webhook delivery inside your own perimeter — a
-								compliance boundary, an air-gapped chain, or simply not wanting
-								a third party between the chain and your database — that&apos;s
-								the gap this fills. Same API, same SDK, same triggers; the only
-								difference is whose machine it runs on.
+								Run delivery on your own hardware when that&apos;s what the work
+								calls for — a compliance boundary, an air-gapped network, or
+								simply a preference. Same API, same SDK, same triggers; the only
+								difference is whose machine it runs on, so moving between hosted
+								and self-hosted is a config change, not a rewrite.
 							</p>
 						</div>
 						<div className="pp-catch">
@@ -497,9 +496,9 @@ export default function SubscriptionsPage() {
 							<h4>Devnet is a first-class target</h4>
 							<p>
 								<code>sl devnet connect</code> wires a Clarinet devnet in one
-								step, so you can fire real subscriptions at a local contract
-								before it ever touches mainnet. Hosted Chainhook v2 skips devnet
-								entirely.
+								step, so you can fire real subscriptions at a local contract and
+								watch them land — signatures, retries, replay and all — before
+								anything touches mainnet.
 							</p>
 						</div>
 					</div>
@@ -595,11 +594,8 @@ export default function SubscriptionsPage() {
 						<Link href="/docs/subscriptions" className="pp-btn pp-btn-ink">
 							Create a subscription
 						</Link>
-						<Link
-							href="/docs/migrate-chainhook"
-							className="pp-btn pp-btn-ghost"
-						>
-							Coming from Chainhook v2? →
+						<Link href="/docs/self-host" className="pp-btn pp-btn-ghost">
+							Run it yourself →
 						</Link>
 					</div>
 				</div>
