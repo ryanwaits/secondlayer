@@ -2,6 +2,20 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## CLI — August 2026
+
+### Deploy refuses a subgraph source that isn't committed
+
+`sl subgraphs deploy` now checks whether your definition file is committed to
+git before it deploys. If it's untracked or has uncommitted changes, you get a
+prompt in a terminal and a hard failure in scripts and CI — because a deployed
+definition whose source isn't in version control exists only as a database row,
+with nothing to review, diff, or restore from.
+
+Pass `--allow-uncommitted` to deploy anyway; it prints a line saying the check
+was skipped, so the choice is visible in CI logs. Deploys from outside a git
+repo, and `--dry-run`, are unaffected.
+
 ## Subgraphs — August 2026
 
 ### Block processing is now replay-proof across restarts
