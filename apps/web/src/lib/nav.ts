@@ -120,11 +120,6 @@ export const NAV: NavEntry[] = [
 				href: "/docs/mcp",
 				desc: "Point an agent at your data",
 			},
-			{
-				label: "Migrate from Chainhook",
-				href: "/docs/migrate-chainhook",
-				desc: "Predicate-to-trigger mapping",
-			},
 		],
 	},
 	{
