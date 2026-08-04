@@ -60,7 +60,6 @@ export default function WritingIndexPage() {
 
 	return (
 		<main className="writing-front">
-			<div className="writing-index-eyebrow">Writings · latest</div>
 			{feature && <FeaturePost post={feature} />}
 			{rest.length > 0 && (
 				<div className="writing-rest">

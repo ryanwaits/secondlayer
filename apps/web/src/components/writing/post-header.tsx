@@ -1,4 +1,5 @@
 import { getPost } from "@/lib/writing";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PostRail } from "./post-rail";
 
@@ -37,6 +38,14 @@ export function PostHeader({ slug }: { slug: string }) {
 				figures={post.figures}
 				tags={post.tags}
 			/>
+			{/* The rail hides the eyebrow at ≥1180px, which left a post with no way
+			    back to the index at exactly the width most people read it. This
+			    crumb stays at every width. */}
+			<nav className="writing-crumb" aria-label="Breadcrumb">
+				<Link href="/writing">Writing</Link>
+				<span className="sep">/</span>
+				{post.title}
+			</nav>
 			<div className="writing-eyebrow">
 				<span>Writings · {number}</span>
 				<span className="dim">{post.readingTime}</span>
