@@ -54,6 +54,19 @@ never blocks.
 
 </Callout>
 
+<Callout type="warning" title="Commit your definition before deploying">
+
+`sl subgraphs deploy` checks whether the source file is committed to git. Deploy
+an uncommitted file and the only copy of that definition is a row in the
+database — nothing to review, diff, or restore from.
+
+In a terminal you get a prompt. In scripts and CI it fails. Pass
+`--allow-uncommitted` to override; it logs that the check was skipped, so the
+choice shows up in CI output. Deploys from outside a git repo, and `--dry-run`,
+skip the check entirely.
+
+</Callout>
+
 ## Generate typed contract clients
 
 Turn Clarity contracts into typed TypeScript — local `.clar` files, deployed
