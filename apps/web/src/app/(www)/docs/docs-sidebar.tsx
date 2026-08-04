@@ -1,8 +1,8 @@
 "use client";
 
 import { Logo } from "@/components/console/logo";
-import { PRODUCTS } from "@/components/marketing-nav";
 import { MobileNavCta } from "@/components/mobile-nav-cta";
+import { DOCS_STRIP } from "@/lib/nav";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -79,7 +79,7 @@ export function DocsSidebar() {
 				<div className="docs-nav-group docs-nav-products">
 					<div className="docs-nav-grouplabel">Products</div>
 					<div className="docs-nav-products-grid">
-						{PRODUCTS.filter((p) => p.href !== "/docs").map((p) => (
+						{DOCS_STRIP.map((p) => (
 							<Link key={p.href} href={p.href} className="docs-nav-item">
 								{p.label}
 							</Link>
