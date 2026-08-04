@@ -22,6 +22,13 @@ export type WritingPost = {
 	/** Figure titles in order — feeds the post's meta-rail figure index
 	 *  (jump links to #fig-N anchors). Omit to hide the index. */
 	figures?: string[];
+	/**
+	 * How this post surfaces its Sidenotes. "inline" drops a ruled aside into
+	 * the column; "popover" keeps the column unbroken and opens the note from
+	 * its marker. Per post on purpose — a piece heavy on hedges reads better
+	 * inline, a tight argument reads better undisturbed. Defaults to inline.
+	 */
+	notes?: "inline" | "popover";
 	/** Drafts render in dev but 404 in production and never hit sitemap/RSS. */
 	status: "draft" | "published";
 };
@@ -35,6 +42,7 @@ export const POSTS: WritingPost[] = [
 		date: "2026-08-01",
 		tags: ["indexers", "checkpoints"],
 		readingTime: "8 min",
+		notes: "popover",
 		figures: [
 			"timeline of heights",
 			"the poll, as a spec",
