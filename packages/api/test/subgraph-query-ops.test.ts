@@ -61,6 +61,76 @@ describe("parseQueryParams — multi-column sort", () => {
 	});
 });
 
+describe("parseQueryParams — _order validation", () => {
+	test("_order=amount.desc (column-syntax value) is rejected", () => {
+		expect(() =>
+			parseQueryParams({ _sort: "amount", _order: "amount.desc" }, cols),
+		).toThrow(/_order/);
+		expect(() =>
+			parseQueryParams({ _sort: "amount", _order: "amount.desc" }, cols),
+		).toThrow(/asc.*desc|desc.*asc/i);
+	});
+
+	test("_order garbage values (DESCENDING, -amount, 1) are all rejected", () => {
+		for (const bad of ["DESCENDING", "-amount", "1", "dsc"]) {
+			expect(() => parseQueryParams({ _order: bad }, cols)).toThrow(/_order/);
+		}
+	});
+
+	test("_order=desc and _order=ASC still work (case-insensitive)", () => {
+		const lower = parseQueryParams({ _sort: "amount", _order: "desc" }, cols);
+		expect(lower.sorts).toEqual([{ column: "amount", order: "DESC" }]);
+
+		const upper = parseQueryParams({ _sort: "amount", _order: "ASC" }, cols);
+		expect(upper.sorts).toEqual([{ column: "amount", order: "ASC" }]);
+	});
+
+	test("legacy multi-sort _sort=a,b&_order=desc,asc still zips into two sorts", () => {
+		const p = parseQueryParams(
+			{ _sort: "amount,_id", _order: "desc,asc" },
+			cols,
+		);
+		expect(p.sorts).toEqual([
+			{ column: "amount", order: "DESC" },
+			{ column: "_id", order: "ASC" },
+		]);
+	});
+});
+
+describe("parseQueryParams — _search validation", () => {
+	const noSearchTableDef = {
+		columns: {
+			sender: { type: "text" as const },
+			amount: { type: "uint" as const },
+		},
+	};
+	const searchableTableDef = {
+		columns: {
+			sender: { type: "text" as const, search: true },
+			amount: { type: "uint" as const },
+		},
+	};
+
+	test("_search on a table with no searchable columns is rejected", () => {
+		expect(() =>
+			parseQueryParams({ _search: "x" }, cols, noSearchTableDef, "transfers"),
+		).toThrow(/_search/);
+		expect(() =>
+			parseQueryParams({ _search: "x" }, cols, noSearchTableDef, "transfers"),
+		).toThrow(/searchable/);
+	});
+
+	test("_search on a table with searchable columns builds the search clause", () => {
+		const p = parseQueryParams(
+			{ _search: "alice" },
+			cols,
+			searchableTableDef,
+			"transfers",
+		);
+		expect(p.search).toEqual({ value: "alice", columns: ["sender"] });
+	});
+});
+
 describe("buildWhereConditions — IN is parameterized", () => {
 	test("emits IN ($1,$2,$3) with each value a param (no interpolation)", () => {
 		const p = parseQueryParams({ "status.in": "a,b,c" }, cols);

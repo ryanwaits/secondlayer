@@ -924,6 +924,92 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		expect(body.meta.limit).toBe(1);
 	});
 
+	// ── /v1 strict _limit/_order + _search validation ───────────────────────
+
+	test("/v1 _order=price.desc (column-syntax value) → 400 naming _order and asc|desc", async () => {
+		const res = await app.request(
+			`/v1/subgraphs/${SUBGRAPH_NAME}/listings?_order=price.desc`,
+		);
+		expect(res.status).toBe(400);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.code).toBe("VALIDATION_ERROR");
+		expect(body.error).toMatch(/_order/);
+		expect(body.error).toMatch(/asc.*desc|desc.*asc/i);
+	});
+
+	test("/v1 _order=desc and _order=ASC still work", async () => {
+		const lower = await app.request(
+			`/v1/subgraphs/${SUBGRAPH_NAME}/listings?_order=desc`,
+		);
+		expect(lower.status).toBe(200);
+		const upper = await app.request(
+			`/v1/subgraphs/${SUBGRAPH_NAME}/listings?_order=ASC`,
+		);
+		expect(upper.status).toBe(200);
+	});
+
+	test("/v1 _limit=abc → 400", async () => {
+		const res = await app.request(
+			`/v1/subgraphs/${SUBGRAPH_NAME}/listings?_limit=abc`,
+		);
+		expect(res.status).toBe(400);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.code).toBe("VALIDATION_ERROR");
+		expect(body.error).toMatch(/_limit/);
+	});
+
+	test("/v1 _limit=0 → 400", async () => {
+		const res = await app.request(
+			`/v1/subgraphs/${SUBGRAPH_NAME}/listings?_limit=0`,
+		);
+		expect(res.status).toBe(400);
+	});
+
+	test("/v1 _limit=99999 (above MAX_LIMIT) → 400", async () => {
+		const res = await app.request(
+			`/v1/subgraphs/${SUBGRAPH_NAME}/listings?_limit=99999`,
+		);
+		expect(res.status).toBe(400);
+	});
+
+	test("/v1 _limit=25 → honored (200, no error)", async () => {
+		const res = await app.request(
+			`/v1/subgraphs/${SUBGRAPH_NAME}/listings?_limit=25`,
+		);
+		expect(res.status).toBe(200);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		// Only 4 rows are seeded — a full-page result proves the limit wasn't
+		// silently reset to some other value, just that it wasn't rejected.
+		expect(body.rows.length).toBe(4);
+	});
+
+	// Legacy `/subgraphs/...` keeps clamping (see the three `_limit` tests
+	// above, unmodified) — strictness is scoped to `/v1` only.
+	test("legacy /subgraphs _limit=abc still clamps to default (unchanged)", async () => {
+		const res = await app.request(
+			`/subgraphs/${SUBGRAPH_NAME}/listings?_limit=abc`,
+		);
+		expect(res.status).toBe(200);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.meta.limit).toBe(50);
+	});
+
+	test("_search on a table with no searchable columns → 400 naming the table and the remedy", async () => {
+		const res = await app.request(
+			`/subgraphs/${SUBGRAPH_NAME}/listings?_search=nope`,
+		);
+		expect(res.status).toBe(400);
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		const body = (await res.json()) as any;
+		expect(body.code).toBe("VALIDATION_ERROR");
+		expect(body.error).toMatch(/_search/);
+		expect(body.error).toMatch(/searchable/);
+	});
+
 	// ── POST /subgraphs/:subgraphName/reindex ───────────────────────────────
 
 	test("POST /subgraphs/:subgraphName/reindex returns 404 for unknown subgraph", async () => {
