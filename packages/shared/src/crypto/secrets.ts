@@ -128,6 +128,23 @@ function getKey(): Buffer {
 	return _cachedKey;
 }
 
+/**
+ * Non-throwing check for whether a secrets key is currently resolvable —
+ * same resolution order as {@link loadKey} (env var, then the OSS
+ * `.env.local` fallback), but never bootstraps a new key (that would
+ * generate+persist a key as a side effect of a mere existence check), never
+ * throws, and never returns or logs the key itself. Used by callers that
+ * need to fail loud on a missing key BEFORE attempting a decrypt (f072).
+ */
+export function secretsKeyAvailable(): boolean {
+	if (process.env[KEY_ENV]) return true;
+	if (getInstanceMode() === "oss") {
+		const envPath = resolve(process.cwd(), ".env.local");
+		return readExistingKey(envPath) !== null;
+	}
+	return false;
+}
+
 export function encryptSecret(plaintext: string): Buffer {
 	const key = getKey();
 	const iv = randomBytes(IV_LEN);
