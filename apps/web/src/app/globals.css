@@ -8115,19 +8115,199 @@ html.force-dark .shiki span {
 	text-decoration: none;
 	margin-right: var(--spacing-xxs);
 }
+/* Which section you're in. Colour only — the bar is fixed and shared by every
+   page, so it must not change width based on where you are. The page name is
+   the breadcrumb's job (.pp-crumb). */
 .marketing-nav-link[aria-current="page"] {
-	color: var(--text-main);
+	color: var(--accent);
 }
 .marketing-nav-spacer {
 	flex: 1;
 }
+
+/* ── desktop group panels ─────────────────────────────────────────────
+   Four of the five top-level entries open one of these. Absolutely
+   positioned so the bar stays 48px and nothing below it shifts. */
+.mnav-group {
+	position: relative;
+	display: inline-flex;
+}
+.mnav-trigger {
+	gap: 5px;
+	background: none;
+	border: 0;
+	cursor: pointer;
+	border-radius: 4px;
+}
+.mnav-chev {
+	width: 7px;
+	height: 7px;
+	flex: none;
+	opacity: 0.55;
+	transition: transform 0.16s var(--ease-smooth);
+}
+.mnav-trigger[aria-expanded="true"] {
+	color: var(--text-main);
+}
+/* After the expanded rule (same specificity, source order wins): the active
+   section keeps its accent even while its own panel is open. */
+.mnav-trigger[aria-current="page"] {
+	color: var(--accent);
+}
+.mnav-trigger[aria-expanded="true"] .mnav-chev {
+	transform: rotate(180deg);
+	opacity: 1;
+}
+.mnav-panel {
+	position: absolute;
+	/* Tucked close to the bar. The caption row below takes the hit from the
+	   cursor coming off the trigger, so the first *link* still sits well clear
+	   without the panel having to float away from the chrome it belongs to. */
+	top: calc(100% + 5px);
+	left: -4px;
+	z-index: 60;
+	min-width: 262px;
+	padding: 6px;
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	box-shadow: 0 8px 28px rgba(0, 0, 0, 0.09), 0 1px 3px rgba(0, 0, 0, 0.05);
+	opacity: 0;
+	transform: translateY(-4px);
+	pointer-events: none;
+	transition: opacity 0.16s ease-out, transform 0.16s var(--ease-smooth);
+}
+/* Invisible bridge across the gap. Without it the pointer crosses dead space
+   on its way down from the trigger, which fires mouseleave on the group and
+   starts the close timer — the wider the gap, the likelier the panel closes
+   out from under the cursor reaching for it. Inherits the panel's
+   pointer-events, so it only exists while the panel is open. */
+.mnav-panel::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 100%;
+	height: 7px;
+}
+/* Non-interactive header. Names what the trigger can't ("Products" → "Build
+   on") and keeps a link out from under the arriving cursor. */
+.mnav-panel-caption {
+	padding: 7px 10px 8px;
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	font-weight: 560;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: color-mix(in srgb, var(--text-muted) 62%, transparent);
+}
+.mnav-group[data-open="true"] .mnav-panel {
+	opacity: 1;
+	transform: translateY(0);
+	pointer-events: auto;
+}
+.mnav-item {
+	display: block;
+	padding: 8px 10px;
+	border-radius: 6px;
+	text-decoration: none;
+	transition: background 0.12s ease;
+}
+.mnav-item:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: -2px;
+}
+.mnav-item .t {
+	display: block;
+	font-size: 13px;
+	font-weight: 540;
+	color: var(--text-main);
+	line-height: 1.3;
+}
+.mnav-item .d {
+	display: block;
+	font-size: 11.5px;
+	color: var(--text-muted);
+	line-height: 1.35;
+	margin-top: 2px;
+}
+.mnav-item[aria-current="page"] .t {
+	color: var(--accent);
+}
+.mnav-rule {
+	height: 1px;
+	background: var(--border);
+	opacity: 0.7;
+	margin: 6px 4px;
+}
+.mnav-live-head {
+	display: flex;
+	justify-content: space-between;
+	padding: 7px 10px 5px;
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	font-weight: 560;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: color-mix(in srgb, var(--text-muted) 65%, transparent);
+}
+.mnav-dot {
+	display: inline-block;
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	background: var(--green);
+	margin-right: 6px;
+	vertical-align: middle;
+}
+.mnav-live {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+}
+.mnav-live .s {
+	font-family: var(--font-mono-stack);
+	font-size: 11.5px;
+	color: var(--text-main);
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.mnav-live .n {
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	color: color-mix(in srgb, var(--text-muted) 65%, transparent);
+	font-variant-numeric: tabular-nums;
+	flex: none;
+}
+.mnav-panel-foot {
+	margin: 6px -6px -6px;
+	padding: 9px 16px;
+	border-top: 1px solid var(--border);
+	background: var(--bg-chrome);
+	border-radius: 0 0 7px 7px;
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	letter-spacing: 0.04em;
+	color: color-mix(in srgb, var(--text-muted) 65%, transparent);
+}
+@media (hover: hover) {
+	.mnav-item:hover {
+		background: var(--accent-bg);
+	}
+}
+
 /* burger + bar CTA are the mobile chrome — desktop shows the link row */
 .mnav-burger,
 .mnav-bar-cta {
 	display: none;
 }
 @media (max-width: 800px) {
-	.marketing-nav .marketing-nav-link {
+	.marketing-nav .marketing-nav-link,
+	.marketing-nav .mnav-group {
 		display: none;
 	}
 	/* the floating AuthBar is replaced by the bar CTA + sheet on phones */
@@ -8191,8 +8371,29 @@ html.force-dark .shiki span {
 	overflow-y: auto;
 	padding: 18px 28px 0;
 }
-.mnav-row {
-	position: relative;
+/* Stagger the five top-level entries, not the fifteen destinations under
+   them — the sheet reads as an index of sections, so the sections are what
+   should arrive in sequence. */
+.mnav-list > * {
+	animation: mnav-row-in 0.3s var(--ease-smooth) both;
+}
+.mnav-list > *:nth-child(2) {
+	animation-delay: 0.03s;
+}
+.mnav-list > *:nth-child(3) {
+	animation-delay: 0.06s;
+}
+.mnav-list > *:nth-child(4) {
+	animation-delay: 0.09s;
+}
+.mnav-list > *:nth-child(5) {
+	animation-delay: 0.12s;
+}
+
+.mnav-acc {
+	border-bottom: 1px solid var(--border);
+}
+.mnav-flat {
 	display: flex;
 	align-items: baseline;
 	gap: 16px;
@@ -8200,30 +8401,49 @@ html.force-dark .shiki span {
 	border-bottom: 1px solid var(--border);
 	text-decoration: none;
 	color: inherit;
-	animation: mnav-row-in 0.3s var(--ease-smooth) both;
 }
-.mnav-row:last-child {
+.mnav-list > *:last-child,
+.mnav-list > *:last-child .mnav-acc-top {
 	border-bottom: none;
 }
-.mnav-row:nth-child(2) {
-	animation-delay: 0.03s;
+.mnav-acc-top {
+	display: flex;
+	align-items: baseline;
+	gap: 16px;
+	width: 100%;
+	/* comfortably over the 44px touch minimum with the 26px display face */
+	padding: 17px 0;
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: inherit;
+	text-align: left;
+	font: inherit;
 }
-.mnav-row:nth-child(3) {
-	animation-delay: 0.06s;
+.mnav-acc-top .sp {
+	flex: 1;
 }
-.mnav-row:nth-child(4) {
-	animation-delay: 0.09s;
+.mnav-acc-top .ct {
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	font-weight: 560;
+	color: color-mix(in srgb, var(--text-muted) 55%, transparent);
+	align-self: center;
 }
-.mnav-row:nth-child(5) {
-	animation-delay: 0.12s;
+.mnav-acc-chev {
+	width: 10px;
+	height: 10px;
+	flex: none;
+	align-self: center;
+	opacity: 0.4;
+	transition: transform 0.22s var(--ease-smooth);
 }
-.mnav-row:nth-child(6) {
-	animation-delay: 0.15s;
+.mnav-acc[data-open="true"] .mnav-acc-chev {
+	transform: rotate(180deg);
+	opacity: 0.9;
 }
-.mnav-row:nth-child(7) {
-	animation-delay: 0.18s;
-}
-.mnav-row .no {
+.mnav-flat .no,
+.mnav-acc-top .no {
 	flex: none;
 	width: 22px;
 	font-family: var(--font-mono-stack);
@@ -8231,22 +8451,41 @@ html.force-dark .shiki span {
 	font-weight: 560;
 	color: color-mix(in srgb, var(--text-muted) 55%, transparent);
 }
-.mnav-row .nm {
+.mnav-flat .nm,
+.mnav-acc-top .nm {
 	font-family: var(--font-heading-stack);
 	font-weight: 520;
 	font-size: 26px;
 	letter-spacing: -0.01em;
 }
-.mnav-row.active .nm {
+.mnav-flat.active .nm {
 	color: var(--accent);
 }
-.mnav-note {
-	position: absolute;
-	right: 4px;
-	top: 50%;
-	transform: translateY(-50%) rotate(-2deg);
-	font-family: var(--font-cursive), cursive;
-	font-size: 19px;
+/* 0fr → 1fr animates to the content's own height with no JS measuring. */
+.mnav-acc-body {
+	display: grid;
+	grid-template-rows: 0fr;
+	transition: grid-template-rows 0.24s var(--ease-smooth);
+}
+.mnav-acc[data-open="true"] .mnav-acc-body {
+	grid-template-rows: 1fr;
+}
+.mnav-acc-inner {
+	overflow: hidden;
+}
+.mnav-acc-row {
+	display: flex;
+	align-items: center;
+	min-height: 44px;
+	padding: 0 0 0 38px;
+	font-size: 15px;
+	color: var(--text-muted);
+	text-decoration: none;
+}
+.mnav-acc-row:last-child {
+	margin-bottom: 10px;
+}
+.mnav-acc-row.active {
 	color: var(--accent);
 }
 .mnav-foot {
@@ -8303,8 +8542,14 @@ html.force-dark .shiki span {
 }
 @media (prefers-reduced-motion: reduce) {
 	.mnav-sheet,
-	.mnav-row {
+	.mnav-list > * {
 		animation: none;
+	}
+	.mnav-panel,
+	.mnav-acc-body,
+	.mnav-chev,
+	.mnav-acc-chev {
+		transition: none;
 	}
 }
 
@@ -10535,6 +10780,143 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 	background: rgba(138, 167, 248, 0.16);
 }
 
+/* ---- subscriptions page ------------------------------------ */
+/* Inline identifiers in product-page prose. The marketing pages had no
+   inline-code rule (only .prose and .docs-article did), so <code> fell
+   back to the browser's mono face at the wrong size. */
+.pp :not(pre) > code {
+	font-family: var(--font-mono-stack);
+	font-size: 0.86em;
+	background: var(--code-bg);
+	padding: 1px 5px;
+	border-radius: 3px;
+	color: var(--text-main);
+}
+
+/* Two-up variant of the surface grid: pairs a code window with prose,
+   or two peer explanations. Collapses at the same 940px the 3/4-up
+   grids do, so the whole family reflows together. */
+.pp-surfaces.two {
+	grid-template-columns: repeat(2, 1fr);
+	align-items: start;
+}
+@media (max-width: 940px) {
+	.pp-surfaces.two {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* A window standing on its own inside a section, rather than lifted off
+   the dotted stage — no shadow lift needed, just top spacing. */
+.pp-subs-code {
+	margin-top: 2rem;
+	max-width: 680px;
+}
+.pp-surfaces .pp-subs-code {
+	margin-top: 0;
+	max-width: none;
+}
+
+/* Delivery-format matrix. Ruled rows, mono in the data columns — the
+   console register, not the essay one. */
+.pp-formats {
+	overflow-x: auto;
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	background: var(--bg-elevated);
+}
+.pp-formats table {
+	border-collapse: collapse;
+	width: 100%;
+	min-width: 600px;
+	font-size: 0.8125rem;
+}
+.pp-formats th {
+	font-family: var(--font-mono-stack);
+	font-size: 0.625rem;
+	font-weight: 560;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	text-align: left;
+	padding: 11px 16px;
+	border-bottom: 1px solid var(--border);
+	background: var(--bg-chrome);
+	white-space: nowrap;
+}
+.pp-formats td {
+	padding: 11px 16px;
+	border-bottom: 1px solid var(--border);
+	vertical-align: top;
+}
+.pp-formats tr:last-child td {
+	border-bottom: 0;
+}
+.pp-formats td.fmt {
+	font-family: var(--font-mono-stack);
+	font-size: 0.75rem;
+	color: var(--text-main);
+	white-space: nowrap;
+}
+.pp-formats td.shape {
+	font-family: var(--font-mono-stack);
+	font-size: 0.72rem;
+	color: var(--text-muted);
+}
+.pp-formats .tag {
+	font-family: var(--font-mono-stack);
+	font-size: 0.6rem;
+	font-weight: 560;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--accent);
+	background: var(--accent-bg);
+	padding: 2px 6px;
+	border-radius: 3px;
+	white-space: nowrap;
+}
+
+/* "The catch, stated plainly" — the page says the awkward part out loud
+   instead of burying it in docs. Quieter than a surface: no glow, no
+   grid, so it reads as an aside rather than a feature. */
+.pp-catches {
+	display: flex;
+	flex-direction: column;
+	gap: 1.25rem;
+}
+.pp-catch {
+	border: 1px solid var(--border);
+	background: var(--bg-elevated);
+	border-radius: 12px;
+	padding: 1.5rem 1.75rem;
+}
+.pp-catch .k {
+	display: block;
+	font-family: var(--font-mono-stack);
+	font-size: 0.625rem;
+	font-weight: 560;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	margin-bottom: 0.6rem;
+}
+.pp-catch h4 {
+	font-family: var(--font-heading-stack);
+	font-weight: 540;
+	font-size: 1.05rem;
+	letter-spacing: -0.01em;
+	margin-bottom: 0.5rem;
+}
+.pp-catch p {
+	font-size: 0.875rem;
+	line-height: 1.6;
+	color: var(--text-muted);
+	margin-bottom: 0.75rem;
+}
+.pp-catch p:last-child {
+	margin-bottom: 0;
+}
+
 /* ── Playground (config-driven live request cell) ─────────────────────
    Quiet/editorial: hairlines, mono labels, one Signal-Blue accent, one
    live dot. Shares the Field Notebook tokens; no chrome of its own. */
@@ -11517,10 +11899,21 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
    writings mock; all colors via house tokens.
    ══════════════════════════════════════════════════════════════════ */
 
+/* Same container as .writing-front (960 + 24 gutter) so the index and a post
+   share a left edge — going from the list to the piece shouldn't move the
+   text. The prose keeps its own measure inside it and sits left, which is
+   what opens the gap to the rail. */
 .writing-shell {
-	max-width: 720px;
+	max-width: 960px;
 	margin: 0 auto;
 	padding: 72px 24px 80px;
+}
+
+/* 672px lands at ~71 characters, inside the 65–75 reading target — this is
+   the measure, not a leftover of the old container width. Don't tune it to
+   make room for the rail; move the rail. */
+.writing-article {
+	max-width: 672px;
 }
 
 /* Reading register — IDENTICAL to .docs-article prose by design (the
@@ -11672,15 +12065,6 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 	max-width: 960px;
 	margin: 0 auto;
 	padding: 56px 24px 80px;
-}
-
-.writing-index-eyebrow {
-	font-family: var(--font-mono-stack);
-	font-size: 12px;
-	letter-spacing: 0.16em;
-	text-transform: uppercase;
-	color: var(--accent);
-	margin-bottom: 22px;
 }
 
 .writing-feature {
@@ -11848,14 +12232,43 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 }
 
 /* ── Post meta rail (P·1, right margin) + continuum footer (P·2) ─── */
-/* The reading column stays centered at 720px. ≥1180px a fixed rail
-   pins in the right page margin beside it — number, date, figure
-   index, tags — and stays in view while scrolling, with an
-   IntersectionObserver lighting the figure currently on screen.
-   Margin sidenotes float LEFT to stay out of its way (same
-   breakpoint). Below 1180px everything inlines. */
+/* The reading column sits left in a 960px shell, sharing its left edge with
+   the /writing index. ≥1180px a fixed rail pins in the right page margin
+   beside it — number, date, figure index, tags — and stays in view while
+   scrolling, with an IntersectionObserver lighting the figure currently on
+   screen. Below 1180px the rail inlines as the eyebrow + meta row.
+
+   Sidenotes are NOT in the margin: they render inline or as a popover
+   (per post, see Sidenote), so nothing but the rail depends on this
+   geometry. Keep it that way — the margin variant clipped the moment the
+   shell's left edge moved. */
 .writing-header {
 	position: relative;
+}
+
+/* Way back to the index, at the top of every post. Matches .pp-crumb so the
+   two reading surfaces orient the same way. */
+.writing-crumb {
+	font-family: var(--font-mono-stack);
+	font-size: 0.6875rem;
+	font-weight: 560;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--text-main);
+	margin-bottom: 26px;
+}
+.writing-crumb a {
+	color: var(--text-muted);
+	text-decoration: none;
+}
+@media (hover: hover) {
+	.writing-crumb a:hover {
+		color: var(--text-main);
+	}
+}
+.writing-crumb .sep {
+	color: var(--text-dim);
+	margin: 0 0.5em;
 }
 
 .writing-rail {
@@ -11868,7 +12281,10 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 		position: fixed;
 		top: 128px;
 		width: 190px;
-		left: calc(50% + 360px + 32px);
+		/* Prose starts at 50% - 456px (shell half, less the gutter) and runs
+		   672px. +96px of air puts the rail clear of the text instead of
+		   crowding it — the old 32px read as a second column. */
+		left: calc(50% - 456px + 672px + 96px);
 		font-family: var(--font-mono-stack);
 		font-size: 11px;
 		color: var(--fig-faint);
@@ -12734,16 +13150,6 @@ input[type="range"].fig-range {
 	color: var(--text-muted);
 	display: none;
 	line-height: 1.6;
-}
-
-/* Full-width float rather than display:block so the sentence's current
-   line completes before the note appears (a bare block splits the line
-   box mid-sentence, orphaning the words after the reference). */
-.fig-snbody.open {
-	display: block;
-	float: left;
-	width: 100%;
-	margin: 8px 0 10px;
 }
 
 .fig-snbody b {
@@ -14136,21 +14542,82 @@ input[type="range"].fig-range {
    negative margin means it never intrudes on the text measure;
    clear: right stacks successive notes. Elsewhere (the catalog card,
    which has overflow: hidden) it renders as an always-open inline note. */
-.fig-snbody.margin {
+/* ── Sidenote: inline aside ──────────────────────────────────────────
+   Always visible, inside the measure. Nothing here depends on where the
+   post shell sits, which is the point — the old margin variant floated to
+   a fixed negative offset and clipped as soon as the shell moved.
+
+   Full-width float rather than display:block so the sentence's current line
+   completes before the note appears — a bare block splits the line box
+   mid-sentence and orphans the words after the reference. */
+.fig-snbody.inline {
 	display: block;
-	border-left: 1px solid var(--border);
-	padding: 2px 0 2px 12px;
+	float: left;
+	clear: both;
+	width: 100%;
+	border-left: 2px solid var(--accent-border);
+	background: var(--accent-bg);
+	border-radius: 0 6px 6px 0;
+	padding: 11px 14px;
+	margin: 10px 0 20px;
+	font-size: 13.5px;
+	line-height: 1.6;
+	color: var(--text-muted);
 }
 
-@media (min-width: 1180px) {
-	.writing-article .fig-snbody.margin {
-		float: left;
-		clear: left;
-		width: 180px;
-		margin-left: -216px;
-		margin-top: 4px;
-		margin-bottom: 8px;
-		font-size: 12px;
-		line-height: 1.55;
+/* ── Sidenote: popover ───────────────────────────────────────────────
+   The column stays unbroken; the marker opens the note. Only rendered on
+   fine-pointer devices — Sidenote falls back to the inline aside on touch,
+   where a popover is a bad trade. */
+/* inline-block, not inline: the card is absolutely positioned against this
+   wrapper, and an inline wrapper's box is only as wide as the marker glyph. */
+.fig-snpop {
+	position: relative;
+	display: inline-block;
+	vertical-align: baseline;
+}
+/* No max-width here — a percentage would resolve against that same
+   marker-width box and squeeze the card to one word per line. The JS clamp
+   in Sidenote keeps it inside the column instead. */
+.fig-snpop-card {
+	position: absolute;
+	left: 0;
+	top: 1.7em;
+	z-index: 30;
+	display: block;
+	width: 300px;
+	padding: 11px 14px;
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	box-shadow: 0 8px 28px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.05);
+	font-size: 13px;
+	line-height: 1.6;
+	color: var(--text-muted);
+	text-indent: 0;
+	opacity: 0;
+	transform: translateY(-4px);
+	pointer-events: none;
+	transition: opacity 0.15s ease-out, transform 0.15s var(--ease-smooth);
+}
+.fig-snpop[data-open="true"] .fig-snpop-card {
+	opacity: 1;
+	transform: translateY(0);
+	pointer-events: auto;
+}
+.fig-snpop-card b {
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	font-weight: 560;
+	color: var(--accent);
+}
+@media (prefers-color-scheme: dark) {
+	.fig-snpop-card {
+		box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.fig-snpop-card {
+		transition: none;
 	}
 }
