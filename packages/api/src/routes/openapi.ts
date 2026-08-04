@@ -608,6 +608,7 @@ export const OPENAPI_SPEC = {
 					qp("from_cursor", "string"),
 					qp("sender", "string"),
 					qp("type", "string"),
+					qp("function_name", "string"),
 				],
 				responses: envelope("mempool"),
 			},
