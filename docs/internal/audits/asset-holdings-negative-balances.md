@@ -255,3 +255,167 @@ Note for whoever picks up (1): `find_value_contracts` is **not defined anywhere 
 this repo** — a repo-wide search matches only this doc and the reference to it in
 `subgraphs/asset-holdings.ts`'s header comment. It appears to live in a separate
 consumer (audit-sentinel); look there, not here.
+
+---
+
+## Addendum — 2026-08-04, post-replay-guard reindex-path investigation
+
+> Read-only forensic follow-up. The live-path replay guard (f069, see
+> `live-path-replay-guard.test.ts` and `catchup.ts`'s per-iteration leadership
+> check) has since shipped, and a clean ~6h47m from-genesis reindex completed
+> 2026-08-03 03:07→09:54 UTC (`subgraph_operations` id `fae75ad1`). This
+> addendum re-scopes to whether the REINDEX path itself (as opposed to the
+> since-fixed catch-up replay defect) under-applies events, using
+> cursor-bounded per-row reconciliation instead of the superseded fleet-average
+> / per-holder-`k` methods above. Prod access was `SELECT`-only plus read-only
+> HTTPS GETs against the public Index API throughout; nothing was written,
+> redeployed, or reindexed against prod. Local docker Postgres was used for the
+> one write-capable reproduction attempt (Step 3).
+
+### Correction: negative-row count oscillation is normal, not a signal
+
+The row count at `amount < 0` moved 50→51→52→51 across this investigation as
+live rows crossed zero in both directions. **This is expected** — the table
+keeps updating live. The only valid reconciliation method is **cursor-bounded**:
+snapshot the subgraph's `last_processed_block`, then bound every chain-plane
+query to `block_height <= that height`. Unbounded or differently-timed
+snapshots are not comparable to each other and produce apparent "drift" that
+is really just measurement skew. All numbers below are bounded to cursor
+`8,699,193` (captured once, then reused for every query in this pass).
+
+### Step 1 — cursor-bounded reconciliation, full negative set + positive sample
+
+All 52 negative rows present at the time of the snapshot (49 `ft`, 3 `stx`)
+were reconciled against `decoded_events` (`canonical = true`, event types
+matching the deployed handler: `ft_transfer`/`ft_mint`/`ft_burn` or
+`stx_transfer`/`stx_mint`/`stx_burn`), credits split by `recipient`, debits by
+`sender`, both bounded to `block_height <= 8699193`.
+
+**Result: 2 of 52 reconcile exactly (both `stx`) — the same two rows Part B
+found genuinely, correctly negative** (`univ2-pool-v1_0_0-0173`: stored
+`-29,952,162` = chain net exactly; `hilt`: stored `-22,178,700` = chain net
+exactly). **The other 50 (49 `ft` + 1 new `stx` row, `vgld-vault-v4`,
+deficit −17,790,183) do not reconcile** — every one is missing chain-plane
+volume the accumulator should have applied (`stored < chain_net` in every
+failing case; never the reverse in this set). This generalizes the two
+priority cases from the plan (`gl-fees-bank`/sbtc-token, deficit −3,699 on a
+net of 0; `alex-vault-v1-1`/mega, deficit −6,425 on a net of +201) to the
+full 50-row set.
+
+A **35-row random positive sample** (9 `stx`, 26 `ft`) reconciled the same
+way: **34 of 35 exact, 1 of 35 fails** —
+`univ2-farming-distributor-1-v1_0_0-0009` / `wen-nakamoto-stxcity::WEN`,
+stored `7,319,861,717,284` vs chain net `7,308,750,932,822`, deficit
+`11,110,784,462` (same under-application shape as the negatives, ~0.15% of
+gross volume — much smaller in relative terms than the worst negatives).
+
+**Blast-radius verdict**: ~96% of currently-negative rows are wrong, ~3% of a
+random positive sample is wrong. This is a **materially smaller blast radius**
+than f068's "every unbalanced live-active holder, hundreds to thousands of
+rows" finding — because that finding was about the pre-f069 catch-up replay
+defect, which is now fixed. What remains post-fix is a real but much
+smaller-magnitude under-application, concentrated in (but not limited to) the
+negative rows.
+
+**Deficit-bearing block ranges** (from `GREATEST(max sender block, max
+recipient block)` per failing key, bounded to cursor): one genuinely dense
+cluster — 17 of the 49 failing `ft` rows are all `SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault*`
+relationships with last activity between blocks **148,315 and 154,976**
+(and, per the full per-holder event-height list pulled for `mega`, real
+activity densely populating **133,776–150,373**) — plus the two priority-case
+clusters at block **8,465,501** (`gl-fees-bank` / sbtc-token *and* usdh-token,
+same block) and a long tail of isolated single-holder deficits scattered
+across the whole chain (296k, 398k–433k, 510k, 599k, 644k, 1.18M, 1.6M–1.61M,
+2.13M, 2.88M, 8.24M, 8.30M, 8.39M, 8.66M–8.67M). The scattered tail does not
+cluster into a small number of incident windows the way the f068 catch-up
+burst did — it looks like a low, steady background rate rather than one
+episode.
+
+### Step 2 — SDK-consumer comparison: clean
+
+A minimal consumer built ONLY on `@secondlayer/sdk` (`Index.events.walk`,
+hitting the public `https://api.secondlayer.tools` Index API — no
+`packages/subgraphs` runtime code in the path) reconstructed both priority
+cases' full credit/debit histories:
+
+```
+mega / alex-vault-v1-1:      credits=40,507,496  debits=40,507,295  net=+201
+gl-fees-bank / sbtc-token:    credits=1,754,308   debits=1,754,308  net=0
+```
+
+Both figures are **byte-identical** to the `decoded_events` SQL reconciliation
+above, and to Part B's original numbers. **Verdict: the SDK read path is
+correct; `holdings` (the subgraph accumulator) is what's wrong.** This is a
+clean, unambiguous pass — no STOP condition. The defect, whatever it is,
+is confined to the subgraph-runtime write path; SDK-based consumers reading
+the same Index API are unaffected.
+
+### Step 3 — reindex-path reproduction: discard counter never fired
+
+`PublicApiBlockSource.loadBlockRange` (`block-source.ts:226-274`) was
+instrumented (locally, uncommitted, reverted after this pass) to count events
+whose `block_height` was absent from the blocks-walk-seeded map — the exact
+mechanism the leading hypothesis named. Reproduction ran against prod's real
+public Index API (read-only GETs; no prod writes) with local docker Postgres
+as the write target:
+
+1. A real `reindexSubgraph` call (not a synthetic per-block harness) over
+   blocks 140,000–142,999 — the real function, real HTTP walks, real local
+   DB writes, `SUBGRAPH_SOURCE=streams-index` — processed ~2,000 contiguous
+   blocks with **zero discards**.
+2. A targeted sample of 40 exact block heights spanning the *entire*
+   `mega`/`alex-vault-v1-1` relationship's history (133,776→150,373) and 59
+   exact heights spanning the entire `gl-fees-bank` sbtc-token+usdh-token
+   relationship's history (857,750→8,465,501) were each probed via
+   `loadBlockRange(h, h)` — **zero discards** across all 99 heights.
+
+**The discard counter never fired.** Per the plan's STOP condition, this
+hypothesis is **not supported by empirical evidence** — at least not under
+current chain/API conditions, replaying via a fresh, low-concurrency local
+process. This does not rule out a historical, timing/concurrency-dependent
+occurrence during the original production reindex (a reorg landing between
+the concurrent blocks/events walks, the leading candidate) that isn't
+reproducible from a quiet replay after the fact — but no positive evidence
+for it was found either.
+
+**Pivot per the plan: `FallbackBlockSource` log check.** Read-only
+`docker logs secondlayer-subgraph-processor-1` was checked for "fallback" /
+"using DB tap" warnings during the reindex window (2026-08-03 03:07–09:54
+UTC). **Inconclusive, not clean**: the container was restarted 2026-08-04
+02:40:39 UTC (log history starts there), so no logs from the reindex window
+exist to check. This is unmeasured, not ruled out.
+
+### Step 4/5 — no fix
+
+Per the STOP condition (discard counter never fired), **no fix was
+implemented**. The instrumented `block-source.ts` was reverted to its
+committed state; no other file in `packages/subgraphs` was changed. No
+regression test was added, since there is no confirmed mechanism to encode
+one against.
+
+### Where this leaves things
+
+- The pre-f069 catch-up replay defect is fixed and its blast radius (hundreds
+  to thousands of rows) no longer applies.
+- A smaller, real under-application defect remains: ~96% of currently-negative
+  rows and ~3% of a random positive sample. Its mechanism is **not** the
+  `loadBlockRange` blocks/events walk-disagreement hypothesis — that was
+  tested directly and did not reproduce.
+- Two structural facts from the earlier (superseded) investigation still
+  stand and are worth re-reading before the next attempt: (a) the reindex
+  era's own `blocks_processed` coverage was 95.2% of its range — consistent
+  with sparse early-chain history, not evidence of loss on its own; (b) the
+  per-height retry-or-halt logic in both `reindex.ts:289-308` and
+  `catchup.ts:302-320` means a height *entirely* missing from the blocks walk
+  either self-heals (single-height refetch succeeds) or fails loudly
+  (`subgraph_gaps` row or a halted reindex) — neither of which matches the
+  silent, gap-free deficits found here. That structural argument, plus this
+  addendum's empirical null result, together make the `loadBlockRange`
+  map-seeding gap an unlikely explanation going forward, not just an
+  unreproduced one this session.
+- Genuine next steps, not attempted here: instrument the reindex *write* path
+  (`ctx.increment` / `context.ts`'s batching) rather than the read path, since
+  Step 2 already clears the read path all the way to the Index API; and
+  retry the `FallbackBlockSource` log check with longer-retention logging
+  (or a metrics counter) in place before the next full reindex, since this
+  pass found the question unanswerable after the fact.
