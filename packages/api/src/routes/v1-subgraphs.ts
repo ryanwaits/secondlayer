@@ -5,6 +5,7 @@ import {
 	RateLimitError,
 	ValidationError,
 } from "@secondlayer/shared/errors";
+import { TYPE_MAP } from "@secondlayer/subgraphs/schema";
 import { Hono } from "hono";
 import { sql } from "kysely";
 import { getClientIp } from "../auth/http.ts";
@@ -38,6 +39,97 @@ import {
 	readSpecOptions,
 	runSubgraphDeploy,
 } from "./subgraphs.ts";
+import {
+	type SortDir,
+	decodeSortedCursor,
+	encodeSortedCursor,
+} from "./v1-cursor.ts";
+
+// System columns aren't in a table's SubgraphColumn map (they're emitted
+// directly in DDL — see emitTableDDL), so their SQL types for cursor casting
+// are hardcoded here rather than looked up through TYPE_MAP.
+const SYSTEM_COLUMN_SQL_TYPES: Record<string, string> = {
+	_id: "BIGINT",
+	_block_height: "BIGINT",
+	_tx_id: "TEXT",
+	_created_at: "TIMESTAMPTZ",
+};
+
+/** SQL type to cast a `_sort` column's cursor value to, so the keyset
+ *  predicate compares apples to apples (a NUMERIC compared as TEXT sorts
+ *  "9" > "10"). Derived from the table's declared column type — never
+ *  guessed from the value's shape. */
+function sortColumnSqlType(
+	column: string,
+	tableDef: { columns: Record<string, { type: keyof typeof TYPE_MAP }> },
+): string {
+	const system = SYSTEM_COLUMN_SQL_TYPES[column];
+	if (system) return system;
+	const col = tableDef.columns[column];
+	return col ? TYPE_MAP[col.type] : "TEXT";
+}
+
+/** Cursor values round-trip as strings (NUMERIC can exceed
+ *  Number.MAX_SAFE_INTEGER). The postgres.js driver returns TIMESTAMPTZ as a
+ *  JS Date, not a string — `.toISOString()` keeps it parseable by Postgres
+ *  on the way back in; a bare `String(date)` would not be. */
+function stringifySortValue(value: unknown): string {
+	return value instanceof Date ? value.toISOString() : String(value);
+}
+
+/**
+ * Composite keyset predicate for `(sortColumn, _id)` pagination, both sorted
+ * the SAME direction so the comparison is monotonic. NULLs are pinned to
+ * Postgres's own default placement per direction (ASC → NULLS LAST, DESC →
+ * NULLS FIRST — see the ORDER BY this pairs with), so a plain index on the
+ * column already matches the on-disk order and needs no NULLS-order override.
+ *
+ * SQL row comparison short-circuits to NULL (not true) when the sort column
+ * is NULL, which would silently drop rows — so the NULL partition is paged
+ * separately, by `_id` alone, and the two partitions are stitched so the
+ * transition never skips or repeats a row:
+ *   - ASC (non-NULL values first, NULLs last): while the cursor's sort value
+ *     is non-NULL, take every remaining non-NULL row past the cursor PLUS
+ *     every NULL row unconditionally (they always sort after any non-NULL
+ *     value). Once the cursor itself is in the NULL partition, only page
+ *     the NULLs, by `_id`.
+ *   - DESC (NULLs first, non-NULL values last): while the cursor is in the
+ *     NULL partition, take the remaining NULLs (by `_id`) PLUS every
+ *     non-NULL row unconditionally (they always sort after the NULLs).
+ *     Once the cursor's sort value is non-NULL, only page the non-NULL rows.
+ */
+function buildSortedKeysetPredicate(
+	sortColumn: string,
+	sqlType: string,
+	dir: "ASC" | "DESC",
+	position: { value: string | null; id: string },
+	params: unknown[],
+): string {
+	const col = ident(sortColumn);
+	const pushIdParam = () => {
+		params.push(position.id);
+		return `$${params.length}::BIGINT`;
+	};
+	if (dir === "ASC") {
+		if (position.value !== null) {
+			params.push(position.value);
+			const vRef = `$${params.length}::${sqlType}`;
+			const idRef = pushIdParam();
+			return `((${col} IS NOT NULL AND (${col}, "_id") > (${vRef}, ${idRef})) OR ${col} IS NULL)`;
+		}
+		const idRef = pushIdParam();
+		return `(${col} IS NULL AND "_id" > ${idRef})`;
+	}
+	// DESC
+	if (position.value !== null) {
+		params.push(position.value);
+		const vRef = `$${params.length}::${sqlType}`;
+		const idRef = pushIdParam();
+		return `(${col} IS NOT NULL AND (${col}, "_id") < (${vRef}, ${idRef}))`;
+	}
+	const idRef = pushIdParam();
+	return `((${col} IS NULL AND "_id" < ${idRef}) OR ${col} IS NOT NULL)`;
+}
 
 /**
  * Open read surface for subgraphs: /v1/subgraphs.
@@ -354,7 +446,8 @@ app.get("/", async (c) => {
 		tip: { block_height: chainTip },
 		envelope: {
 			rows: "GET /v1/subgraphs/:name/:table → { rows, next_cursor, tip }",
-			cursor: "_id keyset; pass ?cursor=<next_cursor> to resume",
+			cursor:
+				"_id keyset by default, or ?_sort=<column>&_order=asc|desc for a composite keyset; pass ?cursor=<next_cursor> to resume",
 		},
 	};
 	if (!accountId) {
@@ -489,9 +582,11 @@ app.get("/:subgraphName/:tableName/:id", async (c) => {
 
 // ── Cursor-paginated rows ───────────────────────────────────────────────
 
-// /v1 envelope: { rows, next_cursor, tip } with `_id` keyset pagination —
-// no offset (deep OFFSET scans hurt on big tables) and no arbitrary sort
-// (keyset needs a stable order). Filters/_fields/_limit work as on /api.
+// /v1 envelope: { rows, next_cursor, tip } with keyset pagination — by `_id`
+// by default, or by `?_sort=<column>&_order=asc|desc` (single column; the
+// cursor becomes a composite `(sort_value, _id)` pair, opaque either way).
+// No offset (deep OFFSET scans hurt on big tables). Filters/_fields/_limit
+// work as on /api.
 app.get("/:subgraphName/:tableName", async (c) => {
 	const { subgraphName, tableName } = c.req.param();
 	const subgraph = resolveReadableSubgraph(subgraphName, c.get("v1AccountId"));
@@ -503,21 +598,40 @@ app.get("/:subgraphName/:tableName", async (c) => {
 	const validColumns = getValidColumns(tableDef);
 
 	const { cursor: cursorRaw, ...query } = c.req.query();
-	if ("_offset" in query || "_sort" in query) {
+	if ("_offset" in query) {
 		throw new ValidationError(
-			"/v1 uses cursor pagination ordered by _id: pass ?cursor=<next_cursor> to resume, _order=asc|desc for direction (no _offset/_sort)",
+			"/v1 uses cursor pagination ordered by _id (or _sort, if given): pass ?cursor=<next_cursor> to resume, _order=asc|desc for direction (no _offset — deep OFFSET scans hurt on big tables)",
 		);
 	}
-	// /v1 has no _sort, so _order can only mean the direction of the implicit
-	// _id scan — a single asc|desc, never a column name or a multi-value list.
-	// (The shared parser also rejects non-asc|desc elements, but with a
-	// message written for _sort-paired usage; this one teaches the /v1 shape.)
+	// /v1 sorting is single-column only: the keyset cursor is a composite
+	// (sort_column, _id) pair, and there's no single well-ordered tiebreaker
+	// structure for a multi-column sort to build a stable cursor from.
+	// jsonb is excluded too — it has no meaningful ordering.
+	if ("_sort" in query) {
+		const sortValue = query._sort ?? "";
+		if (sortValue.split(",").length > 1) {
+			throw new ValidationError(
+				`_sort=${sortValue} is not valid: /v1 sorts by a single column only (composite keyset pagination pairs it with the _id tiebreaker, which only works for one column)`,
+			);
+		}
+		const sortType = tableDef.columns[sortValue.trim()]?.type;
+		if (sortType === "jsonb") {
+			throw new ValidationError(
+				`_sort=${sortValue} is not valid: jsonb columns have no meaningful ordering`,
+			);
+		}
+	}
+	// /v1 has no _offset, so _order means direction — of the implicit _id
+	// scan, or of the _sort column when _sort is present. Either way it's a
+	// single asc|desc, never a column name or a multi-value list. (The shared
+	// parser also rejects non-asc|desc elements, but with a message written
+	// for the legacy _sort=a,b&_order=desc,asc shape; this one teaches /v1's.)
 	if ("_order" in query) {
 		const orderValue = query._order ?? "";
 		const dirs = orderValue.split(",").map((s) => s.trim().toLowerCase());
 		if (dirs.length !== 1 || (dirs[0] !== "asc" && dirs[0] !== "desc")) {
 			throw new ValidationError(
-				`_order=${orderValue} is not valid: /v1 is cursor-paginated by _id, so _order takes only asc|desc (direction of the _id scan). Sorting by an arbitrary column is not supported on /v1.`,
+				`_order=${orderValue} is not valid: /v1 takes a single asc|desc value — direction of the _id scan, or of the _sort column when _sort is present.`,
 			);
 		}
 	}
@@ -535,56 +649,122 @@ app.get("/:subgraphName/:tableName", async (c) => {
 
 	try {
 		const parsed = parseQueryParams(query, validColumns, tableDef, tableName);
-		const desc = parsed.sorts.some(
-			(s) => s.column === "_id" && s.order === "DESC",
-		);
-		// _order without _sort applies to the implicit _id ordering.
-		const order =
-			desc || c.req.query("_order")?.toLowerCase() === "desc" ? "DESC" : "ASC";
+		// parsed.sorts has at most one entry here — the pre-check above rejects
+		// a comma list before parseQueryParams ever sees it.
+		const sortSpec = parsed.sorts[0];
+		// The sort column's direction doubles as the _id tiebreaker's direction
+		// (composite keyset comparisons must be monotonic). Without _sort,
+		// _order applies to the implicit _id ordering — unchanged. (parsed.sorts
+		// can only hold this same single entry — see sortSpec above — so there's
+		// no other case to fold in here.)
+		const order = sortSpec
+			? sortSpec.order
+			: c.req.query("_order")?.toLowerCase() === "desc"
+				? "DESC"
+				: "ASC";
 
 		const sn = subgraphSchemaName(subgraph);
 		const params: unknown[] = [];
 		const conditions = buildWhereConditions(parsed, params);
 
-		const cursor =
-			cursorRaw != null && /^\d+$/.test(cursorRaw) ? Number(cursorRaw) : null;
-		if (cursorRaw != null && cursor == null) {
-			throw new ValidationError(`invalid cursor: ${cursorRaw}`);
-		}
-		if (cursor != null) {
-			params.push(cursor);
-			conditions.push(`"_id" ${order === "ASC" ? ">" : "<"} $${params.length}`);
+		if (sortSpec) {
+			const dir = sortSpec.order.toLowerCase() as SortDir;
+			if (cursorRaw != null) {
+				const position = decodeSortedCursor(cursorRaw, {
+					column: sortSpec.column,
+					order: dir,
+				});
+				const sqlType = sortColumnSqlType(sortSpec.column, tableDef);
+				conditions.push(
+					buildSortedKeysetPredicate(
+						sortSpec.column,
+						sqlType,
+						sortSpec.order,
+						position,
+						params,
+					),
+				);
+			}
+		} else {
+			// Unchanged legacy path: a bare `_id` cursor, exactly as before —
+			// every pre-`_sort` client keeps working byte-for-byte.
+			const cursor =
+				cursorRaw != null && /^\d+$/.test(cursorRaw) ? Number(cursorRaw) : null;
+			if (cursorRaw != null && cursor == null) {
+				throw new ValidationError(`invalid cursor: ${cursorRaw}`);
+			}
+			if (cursor != null) {
+				params.push(cursor);
+				conditions.push(
+					`"_id" ${order === "ASC" ? ">" : "<"} $${params.length}`,
+				);
+			}
 		}
 
 		// `_id` is the keyset cursor — not the caller's to omit (the Index
 		// ALWAYS_PROJECTED rule, applied here). Select it regardless of `_fields`,
 		// build the cursor from the raw value, and strip it from the emitted rows
 		// when it wasn't requested — otherwise a full page with `_fields` set
-		// returns next_cursor: null and silently truncates the result set.
+		// returns next_cursor: null and silently truncates the result set. The
+		// `_sort` column gets the identical treatment when present: the cursor
+		// needs its value even if the caller only asked for other fields.
 		const wantsId = !parsed.fields || parsed.fields.includes("_id");
+		const wantsSortColumn =
+			!sortSpec || !parsed.fields || parsed.fields.includes(sortSpec.column);
+		const forcedColumns = sortSpec ? ["_id", sortSpec.column] : ["_id"];
 		const selectFields = parsed.fields
-			? [...new Set(["_id", ...parsed.fields])].map((f) => ident(f)).join(", ")
+			? [...new Set([...forcedColumns, ...parsed.fields])]
+					.map((f) => ident(f))
+					.join(", ")
 			: "*";
 		let text = `SELECT ${selectFields} FROM ${ident(sn)}.${ident(tableName)}`;
 		if (conditions.length > 0) text += ` WHERE ${conditions.join(" AND ")}`;
-		text += ` ORDER BY "_id" ${order} LIMIT ${parsed.limit}`;
+		if (sortSpec) {
+			// NULLS LAST/FIRST is Postgres's own default for ASC/DESC respectively
+			// (verified: `ORDER BY x ASC` already puts NULLs last, `DESC` already
+			// puts them first) — spelled out explicitly so the ordering doesn't
+			// silently change if that default is ever revisited, while staying
+			// exactly what a plain index on the column already produces.
+			const nulls = sortSpec.order === "ASC" ? "NULLS LAST" : "NULLS FIRST";
+			text += ` ORDER BY ${ident(sortSpec.column)} ${sortSpec.order} ${nulls}, "_id" ${sortSpec.order}`;
+		} else {
+			text += ` ORDER BY "_id" ${order}`;
+		}
+		text += ` LIMIT ${parsed.limit}`;
 
 		const [rows, chainTip] = await Promise.all([
 			querySubgraph(subgraph, text, params),
 			getChainTip(),
 		]);
 
-		const lastRow = rows[rows.length - 1] as { _id?: number | string };
-		const nextCursor =
-			rows.length === parsed.limit && lastRow?._id != null
-				? String(lastRow._id)
-				: null;
-		const emitted = wantsId
-			? Array.from(rows)
-			: Array.from(rows, (row) => {
-					const { _id, ...rest } = row as Record<string, unknown>;
-					return rest;
-				});
+		const lastRow = rows[rows.length - 1] as
+			| Record<string, unknown>
+			| undefined;
+		let nextCursor: string | null = null;
+		if (rows.length === parsed.limit && lastRow?._id != null) {
+			if (sortSpec) {
+				const rawSortValue = lastRow[sortSpec.column];
+				nextCursor = encodeSortedCursor(
+					sortSpec.column,
+					sortSpec.order.toLowerCase() as SortDir,
+					rawSortValue == null ? null : stringifySortValue(rawSortValue),
+					String(lastRow._id),
+				);
+			} else {
+				nextCursor = String(lastRow._id);
+			}
+		}
+		const stripKeys: string[] = [];
+		if (!wantsId) stripKeys.push("_id");
+		if (sortSpec && !wantsSortColumn) stripKeys.push(sortSpec.column);
+		const emitted =
+			stripKeys.length === 0
+				? Array.from(rows)
+				: Array.from(rows, (row) => {
+						const rest = { ...(row as Record<string, unknown>) };
+						for (const k of stripKeys) delete rest[k];
+						return rest;
+					});
 		const lastProcessed = Number(subgraph.last_processed_block) || 0;
 
 		return c.json({
