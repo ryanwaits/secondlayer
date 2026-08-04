@@ -8,6 +8,7 @@ const ROUTES = [
 	"/streams",
 	"/indexes",
 	"/subgraphs",
+	"/subscriptions",
 	"/status",
 	"/writing",
 ] as const;

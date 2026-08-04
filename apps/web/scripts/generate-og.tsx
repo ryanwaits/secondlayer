@@ -246,6 +246,96 @@ function ArtIndex() {
 	);
 }
 
+/** Subscriptions: the receiver above, the delivery log (with a fork) below. */
+function ArtSubscriptions() {
+	return (
+		<div
+			style={{
+				position: "absolute",
+				top: 0,
+				left: 0,
+				right: 0,
+				bottom: 0,
+				display: "flex",
+			}}
+		>
+			<Card style={{ position: "absolute", top: 126, left: 815, width: 720 }}>
+				<Line
+					tokens={[
+						["const", KW],
+						[" d = ", BASE],
+						["decodeChainWebhook", KW],
+						["(raw);", BASE],
+					]}
+				/>
+				<Line
+					tokens={[
+						["if", KW],
+						[' ("trigger" ', BASE],
+						["in", KW],
+						[" d.data) {", BASE],
+					]}
+				/>
+				<Line
+					indent={2}
+					tokens={[
+						["switch", KW],
+						[" (d.data.trigger) {", BASE],
+					]}
+				/>
+				<Line
+					indent={4}
+					tokens={[
+						["case", KW],
+						[' "sbtc_deposit"', STR],
+						[": ", BASE],
+						["credit", KW],
+						["(d.data.event);", BASE],
+					]}
+				/>
+				<Line indent={2} tokens={[["}", BASE]]} />
+				<Line
+					tokens={[
+						["} ", BASE],
+						["else", KW],
+						[" ", BASE],
+						["undo", KW],
+						["(d.data.orphaned);", BASE],
+					]}
+				/>
+			</Card>
+			<Card style={{ position: "absolute", top: 470, left: 880, width: 660 }}>
+				<Line
+					tokens={[
+						["200", ACCENT],
+						["  chain.sbtc_deposit.apply", BASE],
+					]}
+				/>
+				<Line
+					tokens={[
+						["200", ACCENT],
+						["  chain.ft_transfer.apply", BASE],
+					]}
+				/>
+				{/* ASCII only — Fira Code has no ↺, and a miss sends satori off to
+				    fetch a dynamic font that isn't reachable from the build. */}
+				<Line
+					tokens={[
+						["<<", ACCENT],
+						["   chain.reorg.rollback", BASE],
+					]}
+				/>
+				<Line
+					tokens={[
+						['      "fork_point_height"', STR],
+						[": 8249711", DIM],
+					]}
+				/>
+			</Card>
+		</div>
+	);
+}
+
 function ArtSubgraphs() {
 	return (
 		<div
@@ -713,6 +803,14 @@ const CARDS: CardSpec[] = [
 		line2: "We run it.",
 		mutedLine2: true,
 		artifact: <ArtSubgraphs />,
+	},
+	{
+		file: "subscriptions.png",
+		eyebrow: "SUBSCRIPTIONS",
+		line1: "Only what matches.",
+		line2: "On our infra or yours.",
+		mutedLine2: true,
+		artifact: <ArtSubscriptions />,
 	},
 	{
 		file: "pricing.png",
