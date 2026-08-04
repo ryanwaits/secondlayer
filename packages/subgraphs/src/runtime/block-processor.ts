@@ -1,3 +1,4 @@
+import { secretsKeyAvailable } from "@secondlayer/shared/crypto/secrets";
 import { type Database, getTargetDb } from "@secondlayer/shared/db";
 import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
 import { advanceOperationCursor } from "@secondlayer/shared/db/queries/subgraph-operations";
@@ -59,6 +60,23 @@ interface SubgraphRoute {
 }
 const routeCache = new Map<string, SubgraphRoute>();
 
+/** f072: thrown by `resolveRoute` when a BYO subgraph needs its user-DB
+ *  connection decrypted but this process holds no `SECONDLAYER_SECRETS_KEY`
+ *  — the subgraph processor deliberately does not hold the master key (it
+ *  runs untrusted handler code in-process, every block; see f049 site 3 /
+ *  the sandbox spike doc's D3). Deny by default, fail loud: this must NEVER
+ *  be caught and silently rerouted to the managed target DB, since that
+ *  would write a tenant's rows into ours — far worse than halting the
+ *  block. */
+export class ByoKeyUnavailableError extends Error {
+	constructor(subgraphName: string) {
+		super(
+			`subgraph ${subgraphName} is BYO (database_url_enc set) but this process has no SECONDLAYER_SECRETS_KEY — the subgraph processor deliberately does not hold it (f072). Route BYO subgraphs to a process that does, or unset BYO.`,
+		);
+		this.name = "ByoKeyUnavailableError";
+	}
+}
+
 async function resolveRoute(
 	subgraphName: string,
 	targetDb: Kysely<Database>,
@@ -71,6 +89,12 @@ async function resolveRoute(
 		.where("name", "=", subgraphName)
 		.executeTakeFirst();
 	const byo = row ? isByoSubgraph(row) : false;
+	// f072: check BEFORE the decrypt-on-access below (`resolveSubgraphDb` ->
+	// `decryptSecret`) so a missing key fails loud with a named, actionable
+	// error instead of secrets.ts's generic "not set" throw.
+	if (row && byo && !secretsKeyAvailable()) {
+		throw new ByoKeyUnavailableError(subgraphName);
+	}
 	const route: SubgraphRoute = {
 		schemaName: row?.schema_name ?? pgSchemaName(subgraphName),
 		dataDb: row && byo ? resolveSubgraphDb(row) : targetDb,
