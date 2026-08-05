@@ -13,16 +13,19 @@ const CommandPalette = dynamic(
  * The palette ships behind the `command-palette` flag so it can be pulled
  * without a deploy.
  *
- * The flag is inverted on purpose. PostHog omits a disabled flag from the
- * client payload entirely rather than returning it as false, so "rolled out to
- * 0%", "flag deleted", "wrong evaluation_runtime" and "request blocked by an
- * ad-blocker" all arrive identically: absent. A positive `command-palette` flag
- * would therefore have to read absence as "hide", handing four unrelated
- * failure modes the power to delete a working feature.
+ * The flag is inverted on purpose. Whenever flags fail to resolve, every flag
+ * reads as off — and posthog-js empties them silently in at least two cases we
+ * hit for real: it discards flags entirely for clients it decides are bots
+ * (`$enabled_feature_flags: {}`, no error, no warning), and an ad-blocker
+ * eating the request leaves nothing to read either.
  *
- * Inverted, absence means "don't hide" — so every one of those degrades to the
- * palette working, and only a deliberate flip of `disable-command-palette`
- * turns it off.
+ * A positive `command-palette` flag would therefore have to treat "off" as
+ * "hide", which deletes the palette for every crawler, uptime check, E2E run
+ * and blocked user. Inverted, all of those degrade to the palette working, and
+ * only a deliberate flip of `disable-command-palette` turns it off.
+ *
+ * (A genuinely disabled flag does come back as `enabled: false` — PostHog does
+ * not omit it. The ambiguity is in non-resolution, not in the off state.)
  */
 export function LazyCommandPalette() {
 	const [hidden, setHidden] = useState(false);

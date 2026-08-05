@@ -15,6 +15,10 @@ if (!projectToken || !host) {
 } else {
 	posthog.init(projectToken, {
 		api_host: host,
+		// api_host is our own first-party /ingest proxy, so the SDK can no longer
+		// infer where the PostHog app lives. Without this, toolbar and replay
+		// links resolve against our origin and 404.
+		ui_host: "https://us.posthog.com",
 		defaults: "2026-01-30",
 		capture_exceptions: true,
 		debug: process.env.NODE_ENV === "development",

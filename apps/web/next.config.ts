@@ -4,6 +4,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
 	// .mdx files are first-class pages (docs site lives at /docs).
 	pageExtensions: ["ts", "tsx", "mdx"],
+	// PostHog's ingest paths must not be trailing-slash-redirected out from
+	// under the SDK.
+	skipTrailingSlashRedirect: true,
 	experimental: {
 		staleTimes: {
 			dynamic: 30,
@@ -51,6 +54,31 @@ const nextConfig: NextConfig = {
 				],
 			},
 		];
+	},
+	async rewrites() {
+		return {
+			// First-party proxy for PostHog, same slot and rationale the Umami
+			// tracker used: ad-blockers and Brave shields blocklist the vendor
+			// hosts, so anything loaded cross-origin loses pageviews silently.
+			// Serving ingestion from our own origin makes it indistinguishable
+			// from app traffic.
+			//
+			// /ingest/static/* must come first — it is a prefix of /ingest/* and
+			// resolves to a different upstream (assets CDN, not ingestion).
+			// beforeFiles guarantees both win over the app's /api/* handlers.
+			beforeFiles: [
+				{
+					source: "/ingest/static/:path*",
+					destination: "https://us-assets.i.posthog.com/static/:path*",
+				},
+				{
+					source: "/ingest/:path*",
+					destination: "https://us.i.posthog.com/:path*",
+				},
+			],
+			afterFiles: [],
+			fallback: [],
+		};
 	},
 	async redirects() {
 		// Workflow + sentry packages were deprecated in the 2026-04-23 pivot;
