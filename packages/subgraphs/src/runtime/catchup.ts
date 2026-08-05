@@ -1,4 +1,4 @@
-import { getTargetDb } from "@secondlayer/shared/db";
+import { getTargetDb, sql } from "@secondlayer/shared/db";
 import { getSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
 import { logger } from "@secondlayer/shared/logger";
 import type { SubgraphDefinition } from "../types.ts";
@@ -29,10 +29,32 @@ const catchingUp = new Set<string>();
  * whichever commits last wins regardless of correctness. `catchingUp` (above)
  * only excludes concurrent catch-ups; it does nothing against a reorg.
  *
- * Both writers can only ever race within the SAME process: catch-up only ever
- * runs on the catch-up leader (processor.ts `runCatchUp`), and the reorg
- * NOTIFY listener runs on every process including that leader — so an
- * in-process guard is sufficient; no cross-process DB lock is needed.
+ * Catch-up and the reorg handler can only ever race within the SAME process:
+ * catch-up only ever runs on the catch-up leader (processor.ts `runCatchUp`),
+ * and the reorg NOTIFY listener runs on every process including that leader —
+ * so for THAT pair an in-process guard is sufficient.
+ *
+ * The reindex/backfill walk is the exception, and it is why the advisory lock
+ * below exists. `startSubgraphOperationRunner` (processor.ts) is NOT
+ * leader-gated — it runs on every processor instance — so a reindex or
+ * backfill for subgraph S can be walking on instance B while the catch-up
+ * leader walks the same S on instance A. They share no JS state, so the
+ * in-process mutex serializes nothing between them. Backfill makes this
+ * routine rather than exotic: it runs at status 'active', the exact status
+ * `runCatchUp` selects on, and it never changes that status, so catch-up has
+ * no reason to stand down.
+ *
+ * Acquisition order — every lock around a subgraph write, outermost first.
+ * A fourth lock MUST slot into this order or it can deadlock:
+ *
+ *   1. `withSubgraphBlockLock`  — in-process mutex, per subgraph name
+ *   2. `subgraph-reorg:<name>`  — advisory xact lock (reorg.ts, reorg only)
+ *   3. `subgraph-block:<name>`  — advisory xact lock (below, walks only)
+ *
+ * No path holds (2) and (3) at once: the reorg handler reprocesses the fork
+ * block through `processBlock` directly, never through a walk, so it never
+ * reaches (3); and neither walk ever takes (2). The order is therefore only
+ * ever exercised as 1→2 (reorg) or 1→3 (walks), and no cycle exists.
  *
  * Two pieces, used together by catchUpSubgraph (below) and handleSubgraphReorg
  * (reorg.ts):
@@ -96,6 +118,60 @@ export async function withSubgraphBlockLock<T>(
 	} finally {
 		release();
 	}
+}
+
+/**
+ * Cross-process half of the block lock: a transaction-scoped Postgres advisory
+ * lock keyed `subgraph-block:<name>`, held for the duration of `fn`.
+ *
+ * Held, not merely acquired: each block's own write transaction is opened
+ * INSIDE `processBlock` (block-processor.ts — `targetDb.transaction()` for
+ * managed subgraphs, `route.dataDb.transaction()` for BYO), and that boundary
+ * is load-bearing for the f069 replay guard, so the lock cannot be taken on
+ * the writing connection. Instead this wraps the write in a separate
+ * lock-holding transaction on the target DB, exactly as the reorg lock does
+ * (reorg.ts): `pg_advisory_xact_lock` releases only when THIS transaction
+ * commits, regardless of which other connections `fn` awaits meanwhile.
+ * Transaction-scoped rather than session-scoped so a crashed walk can never
+ * strand the lock.
+ *
+ * The lock lives on the target DB even for BYO subgraphs — same as the reorg
+ * lock — because it coordinates control-plane walkers, not data-plane rows.
+ *
+ * Connection budget: this holds one pooled target-DB connection while `fn`
+ * takes another for the write, so an in-flight block costs 2 of
+ * `DATABASE_POOL_MAX` (default 20). Concurrent block writes are bounded by
+ * catch-up fan-out (5 subgraphs) plus operation concurrency (1) = 6 blocks =
+ * 12 connections. Raising either concurrency knob must be checked against the
+ * pool, or the wrapping transactions can starve the writes they wrap.
+ */
+export async function withSubgraphBlockAdvisoryLock<T>(
+	name: string,
+	fn: () => Promise<T>,
+): Promise<T> {
+	return getTargetDb()
+		.transaction()
+		.execute(async (lockTx) => {
+			await sql`SELECT pg_advisory_xact_lock(hashtext(${`subgraph-block:${name}`}))`.execute(
+				lockTx,
+			);
+			return fn();
+		});
+}
+
+/**
+ * One block's write, holding BOTH halves of the block lock in the documented
+ * order: the in-process mutex, then the cross-process advisory lock. Every
+ * walk that writes a subgraph's schema — live catch-up, reindex, backfill —
+ * must go through this, or it serializes against nothing.
+ */
+export async function withSubgraphBlockWriteLock<T>(
+	name: string,
+	fn: () => Promise<T>,
+): Promise<T> {
+	return withSubgraphBlockLock(name, () =>
+		withSubgraphBlockAdvisoryLock(name, fn),
+	);
 }
 
 /** Bump a subgraph's reorg epoch. Call BEFORE acquiring the block lock so the
@@ -322,10 +398,13 @@ export async function catchUpSubgraph(
 
 				let result: ProcessBlockResult;
 				try {
-					// f057: hold the per-subgraph block lock for this one block's
-					// write, and bail without writing if a reorg's epoch bump landed
-					// mid-walk — see the guard comment near subgraphBlockLockHeld.
-					result = await withSubgraphBlockLock(subgraphName, async () => {
+					// Hold both halves of the per-subgraph block lock for this one
+					// block's write — the in-process mutex (excludes a same-process
+					// reorg) and the advisory lock (excludes a reindex/backfill walk
+					// on another instance) — and bail without writing if a reorg's
+					// epoch bump landed mid-walk. See the guard comment near
+					// subgraphBlockLockHeld.
+					result = await withSubgraphBlockWriteLock(subgraphName, async () => {
 						if (getReorgEpoch(subgraphName) !== walkEpoch) {
 							throw new ReorgEpochChangedError(subgraphName);
 						}

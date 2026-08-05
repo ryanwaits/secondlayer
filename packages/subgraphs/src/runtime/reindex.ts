@@ -27,6 +27,7 @@ import {
 	canSparseScan,
 	resolveBlockSource,
 } from "./block-source.ts";
+import { withSubgraphBlockWriteLock } from "./catchup.ts";
 import { notifyReindexComplete } from "./reindex-notify.ts";
 import { StatsAccumulator } from "./stats.ts";
 
@@ -315,11 +316,37 @@ async function processBlockRange(
 
 			let result: ProcessBlockResult;
 			try {
-				result = await processBlockWithRetry(def, subgraphName, height, {
-					skipProgressUpdate: true,
-					atomicProgress,
-					preloaded: blockData,
-				});
+				// Same per-subgraph block lock the live catch-up walk takes, at the
+				// same granularity (one block's write), so the two walks actually
+				// contend instead of interleaving writes to the same rows. The
+				// advisory half is the load-bearing one here: this walk runs under
+				// the operation runner, which is not leader-gated, so it is
+				// routinely in a DIFFERENT process from the catch-up leader.
+				// Backfill runs at status 'active' and never changes it, so catch-up
+				// never stands down on its own. See catchup.ts for the acquisition
+				// order these two locks share with the reorg lock.
+				//
+				// Locked only when the block can write. This walk always passes
+				// `skipProgressUpdate`, so a block that matches nothing writes
+				// NOTHING — not even a cursor — and `matchSources`/factory discovery
+				// draw exclusively from the txs and events below, so an empty block
+				// cannot match. That is a property of the preloaded data, not a
+				// second copy of the matcher's rules. It matters because a
+				// genesis-era range is overwhelmingly empty blocks, and locking each
+				// one costs a round trip that buys no serialization. (Catch-up
+				// cannot take this shortcut: its no-match path still writes the
+				// cursor, which is exactly what the lock protects there.)
+				const mayWrite =
+					blockData.txs.length > 0 || blockData.events.length > 0;
+				const runBlock = () =>
+					processBlockWithRetry(def, subgraphName, height, {
+						skipProgressUpdate: true,
+						atomicProgress,
+						preloaded: blockData,
+					});
+				result = mayWrite
+					? await withSubgraphBlockWriteLock(subgraphName, runBlock)
+					: await runBlock();
 			} catch (err) {
 				const errorMsg = getErrorMessage(err);
 				logger.error("Block processing failed persistently", {
