@@ -15,10 +15,10 @@ export async function POST(req: Request) {
 		// Check if user has existing keys; if not, auto-create first key
 		let apiKey: string | undefined;
 		try {
-			const keys = await apiRequest<ApiKey[]>("/api/keys", {
+			const { keys } = await apiRequest<{ keys: ApiKey[] }>("/api/keys", {
 				sessionToken,
 			});
-			if (keys.length === 0) {
+			if ((keys ?? []).length === 0) {
 				const newKey = await apiRequest<{ key: string }>("/api/keys", {
 					method: "POST",
 					body: { name: "Default" },
@@ -26,8 +26,13 @@ export async function POST(req: Request) {
 				});
 				apiKey = newKey.key;
 			}
-		} catch {
-			// Non-critical — user can create keys later
+		} catch (e) {
+			// Non-critical — user can create keys later, but a silent failure
+			// here previously masked every account never getting a default key.
+			console.error("Default API key mint failed during verify", {
+				accountId: account.id,
+				error: e instanceof Error ? e.message : String(e),
+			});
 		}
 
 		const isProduction = process.env.NODE_ENV === "production";
