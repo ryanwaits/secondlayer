@@ -2,6 +2,20 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## SDK — August 2026
+
+### `subgraphs.reindex()` takes just a name
+
+`reindex(name)` no longer accepts `fromBlock` or `toBlock`. The API stopped
+supporting a ranged reindex — it answers `400 REINDEX_RANGE_NOT_SUPPORTED` — so
+the old signature type-checked and then failed at runtime.
+
+Reindex is always the whole subgraph: dropped and rebuilt from your `startBlock`
+to chain tip. For a specific range, use `subgraphs.backfill()`, which never drops
+anything.
+
+The `subgraphs_reindex` MCP tool drops the same two parameters.
+
 ## Subgraphs — August 2026
 
 ### Reindex no longer takes a block range

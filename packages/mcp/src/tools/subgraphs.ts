@@ -116,23 +116,15 @@ export function registerSubgraphTools(
 		},
 	);
 
-	defineTool<{ name: string; fromBlock?: number; toBlock?: number }>(
+	defineTool<{ name: string }>(
 		server,
 		"subgraphs_reindex",
-		"Reindex a subgraph from a specific block range. Returns an operationId — check subgraphs_get (health) or the REST operations endpoint to track progress to completion.",
+		"Reindex a subgraph: drops and rebuilds the whole subgraph from its start block to chain tip. Takes no block range — use subgraphs_backfill to process a specific range. Returns an operationId — check subgraphs_get (health) or the REST operations endpoint to track progress to completion.",
 		{
 			name: z.string().describe("Subgraph name"),
-			fromBlock: z
-				.number()
-				.optional()
-				.describe("Start block (defaults to beginning)"),
-			toBlock: z.number().optional().describe("End block (defaults to latest)"),
 		},
-		async ({ name, fromBlock, toBlock }) => {
-			const result = await clientProvider().subgraphs.reindex(name, {
-				fromBlock,
-				toBlock,
-			});
+		async ({ name }) => {
+			const result = await clientProvider().subgraphs.reindex(name);
 			return jsonResponse(result);
 		},
 	);

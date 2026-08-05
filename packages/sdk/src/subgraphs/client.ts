@@ -138,14 +138,15 @@ export class Subgraphs extends BaseClient {
 		);
 	}
 
-	async reindex(
-		name: string,
-		options?: { fromBlock?: number; toBlock?: number },
-	): Promise<ReindexResponse> {
+	/**
+	 * Reindex always drops and rebuilds the whole subgraph, so it takes no
+	 * block range — the API rejects one with `REINDEX_RANGE_NOT_SUPPORTED`.
+	 * Use {@link backfill} to process a specific range.
+	 */
+	async reindex(name: string): Promise<ReindexResponse> {
 		return this.request<ReindexResponse>(
 			"POST",
 			`/api/subgraphs/${name}/reindex`,
-			options,
 		);
 	}
 

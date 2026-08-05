@@ -139,9 +139,8 @@ export async function getSubgraphMarkdown(
 
 export async function reindexSubgraphApi(
 	name: string,
-	options?: { fromBlock?: number; toBlock?: number },
 ): Promise<ReindexResponse> {
-	return (await getPlatformClient()).subgraphs.reindex(name, options);
+	return (await getPlatformClient()).subgraphs.reindex(name);
 }
 
 export async function backfillSubgraphApi(
