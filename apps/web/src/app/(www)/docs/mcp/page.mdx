@@ -83,7 +83,7 @@ Thirty-three tools across six domains. Reads are cursor-paginated; writes that k
 | `subgraphs_query` | Query a table with operator filters (`amount.gte`, `name.like`, …) |
 | `subgraphs_gaps` | List missing block ranges |
 | `subgraphs_backfill` | Non-destructive forward fill of a block range |
-| `subgraphs_reindex` | Drop + reprocess a block range |
+| `subgraphs_reindex` | Drop + rebuild the whole subgraph, start block to chain tip (no range) |
 | `subgraphs_stop` | Cancel an in-flight reindex/backfill |
 | `subgraphs_publish` | Claim the global public name; anon-readable at `/v1/subgraphs/<name>` |
 | `subgraphs_unpublish` | Make it private again |
