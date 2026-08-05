@@ -144,7 +144,7 @@ call site, where it is concrete and costs the compiler nothing.
 
 **Every read is pinned to the block being processed.** The call goes out with
 that block's `index_block_hash`, so a handler stays a pure function of its
-block: reindexing a range produces byte-identical rows. Reading at the node's
+block: reprocessing the same blocks produces byte-identical rows. Reading at the node's
 tip instead would make the same reindex return different values, so a block
 whose id was never persisted **throws** rather than falling back.
 

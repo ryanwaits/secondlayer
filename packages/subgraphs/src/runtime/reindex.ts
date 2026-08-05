@@ -132,8 +132,14 @@ function coalesceFailedBlocks(
 }
 
 export interface ReindexOptions {
-	fromBlock?: number;
-	toBlock?: number;
+	/**
+	 * Policy floor on the walk's first block — NOT a caller-supplied range.
+	 * Free-tier accounts may not reindex below their registered `start_block`
+	 * (see `resolveGenesisPolicy` on the API side); this raises the walk start
+	 * and can never lower it. There is deliberately no `toBlock` counterpart:
+	 * a reindex always runs to chain tip. See {@link resolveBlockRange}.
+	 */
+	startBlockFloor?: number;
 	schemaName?: string;
 	/** Op row to receive processed_events on each progress flush. */
 	operationId?: string;
@@ -485,17 +491,32 @@ async function processBlockRange(
 }
 
 /**
- * Resolve block range from options, defaulting to def.startBlock..chain_tip.
- * Chain tip reads from `index_progress` — lives in the source DB.
+ * Resolve the reindex walk range. Always the whole subgraph:
+ * `[def.startBlock, chain tip]`. Chain tip reads from `index_progress` —
+ * lives in the source DB.
+ *
+ * Reindex drops the schema unconditionally, so the walk range is also the
+ * ONLY data that survives. A narrower walk therefore does not "reindex a
+ * range" — it silently destroys every row outside it while leaving the
+ * subgraph reporting `active` at chain tip (f079: a single-block
+ * `--from-block N --to-block N` emptied sbtc-flows, and the first recovery
+ * attempt rebuilt only 21% of its history). Ranged, additive work is
+ * `backfillSubgraph`'s job.
+ *
+ * `startBlockFloor` is a plan-policy floor, not a range: it can only raise
+ * the start block, never lower it, and never bounds the end.
  */
-async function resolveBlockRange(
+export async function resolveBlockRange(
 	source: BlockSource,
 	def: SubgraphDefinition,
 	opts?: ReindexOptions,
 ): Promise<{ fromBlock: number; toBlock: number }> {
-	const fromBlock = opts?.fromBlock ?? def.startBlock ?? 1;
-	const toBlock = opts?.toBlock != null ? opts.toBlock : await source.getTip();
-	return { fromBlock, toBlock };
+	const definitionStart = def.startBlock ?? 1;
+	const fromBlock =
+		opts?.startBlockFloor != null
+			? Math.max(definitionStart, opts.startBlockFloor)
+			: definitionStart;
+	return { fromBlock, toBlock: await source.getTip() };
 }
 
 /**
@@ -515,6 +536,13 @@ async function clearReindexMetadata(
 /**
  * Reindex a subgraph by dropping its tables, recreating them, and reprocessing
  * all historical blocks through the handler pipeline.
+ *
+ * Always whole-subgraph: `[start_block, chain tip]`. There is no ranged
+ * reindex — the drop cannot be scoped to a range without re-running delta
+ * handlers (`ctx.increment` / `ctx.update` / `ctx.patchOrInsert`) over rows
+ * that were never removed, which is the exact double-count hazard `backfill`
+ * already refuses. Use `backfillSubgraph` for ranged, additive work.
+ *
  * Supports cancellation via AbortSignal — on shutdown abort, status stays
  * "reindexing" for auto-resume; on user cancel, status resets to "active".
  */

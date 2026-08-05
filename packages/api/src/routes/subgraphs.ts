@@ -1069,40 +1069,51 @@ app.post("/:subgraphName/unpublish", async (c) => {
 
 app.post("/:subgraphName/reindex", async (c) => {
 	const { subgraphName } = c.req.param();
+	const body = await c.req.json().catch(() => ({}));
+
+	// Reindex drops the whole schema, so the walk range is also the only data
+	// that survives it — a narrower walk destroys everything outside the range
+	// instead of scoping the work to it (f079). Reject the range loudly rather
+	// than ignoring it; silently ignoring a supplied range is how the
+	// destructive version shipped looking safe. Checked before the subgraph is
+	// resolved: it is a request-shape rule, true of every subgraph.
+	if (body.fromBlock !== undefined || body.toBlock !== undefined) {
+		return c.json(
+			{
+				error:
+					"Ranged reindex is not supported — reindex always drops and rebuilds the whole subgraph. Use `backfill` to process a specific block range.",
+				code: "REINDEX_RANGE_NOT_SUPPORTED",
+			},
+			400,
+		);
+	}
+
 	const accountId = getAccountId(c);
 	const subgraph = getOwnedSubgraph(subgraphName, accountId);
-
-	const body = await c.req.json().catch(() => ({}));
-	const requestedFrom =
-		typeof body.fromBlock === "number" ? body.fromBlock : undefined;
-	const toBlock = typeof body.toBlock === "number" ? body.toBlock : undefined;
 	const db = getDb();
 	const chainTip = await getChainTip();
-	void chainTip;
 
-	// Free tier may reprocess its own indexed range, never below it. The
-	// fromBlock is materialized (never null) so the runtime's
-	// definition.startBlock-genesis fallback can't fire for clamped accounts.
+	// Free tier may reprocess its own indexed range, never below it. This is a
+	// plan-policy floor, not a user-supplied range: it raises the runtime's walk
+	// start so the definition.startBlock-genesis fallback can't fire for clamped
+	// accounts, and it never bounds the end.
 	const reindexPolicy = await resolveGenesisPolicy(db, accountId ?? undefined);
-	let fromBlock = requestedFrom;
-	if (!reindexPolicy.genesisAllowed) {
-		const registeredStart = toBlockNumber(subgraph.start_block) ?? 0;
-		fromBlock = Math.max(requestedFrom ?? registeredStart, registeredStart);
-	}
+	const startBlockFloor = reindexPolicy.genesisAllowed
+		? undefined
+		: (toBlockNumber(subgraph.start_block) ?? 0);
 
 	try {
 		const reindexWeight = await classifyOperationWeight(
 			parseProbeTargets(subgraph.sparse_probe_targets),
-			fromBlock ?? 1,
-			toBlock ?? (await getChainTip()),
+			startBlockFloor ?? 1,
+			chainTip,
 		);
 		const operation = await createSubgraphOperation(db, {
 			subgraphId: subgraph.id,
 			subgraphName,
 			accountId,
 			kind: "reindex",
-			fromBlock,
-			toBlock,
+			fromBlock: startBlockFloor,
 			weight: reindexWeight.weight,
 			estimatedEvents: reindexWeight.estimatedEvents,
 		});
@@ -1110,8 +1121,8 @@ app.post("/:subgraphName/reindex", async (c) => {
 
 		return c.json({
 			message: `Reindex queued for subgraph "${subgraphName}"`,
-			fromBlock: fromBlock ?? 1,
-			toBlock: toBlock ?? "chain tip",
+			fromBlock: startBlockFloor ?? toBlockNumber(subgraph.start_block) ?? 1,
+			toBlock: "chain tip",
 			operationId: operation.id,
 			status: "queued",
 		});

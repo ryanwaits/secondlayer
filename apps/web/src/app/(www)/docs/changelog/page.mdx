@@ -2,6 +2,25 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## Subgraphs — August 2026
+
+### Reindex no longer takes a block range
+
+`sl subgraphs reindex` drops `--from-block` and `--to-block`, and the API
+rejects either with `400 REINDEX_RANGE_NOT_SUPPORTED`.
+
+A reindex drops your subgraph's tables and rebuilds them. The range only ever
+controlled the rebuild — never the drop — so a narrow range didn't reindex those
+blocks, it kept them and threw away the rest. The subgraph then looked fine:
+status back to `active`, cursor at chain tip, no gaps recorded, nothing logged.
+Only counting rows against another source showed the history was gone.
+
+Reindex is now always the whole subgraph: every row dropped, rebuilt from your
+`startBlock` to chain tip. The confirmation prompt says so plainly. For a
+specific block range, use `sl subgraphs backfill --from-block <n> --to-block <n>`
+— it never drops anything, and it already refuses handlers that would
+double-count on a replay.
+
 ## Index — August 2026
 
 ### Watch the mempool for one function, not a whole contract

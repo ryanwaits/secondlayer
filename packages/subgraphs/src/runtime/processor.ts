@@ -258,10 +258,12 @@ async function runSubgraphOperation(
 	}
 
 	const result = await reindexSubgraph(def, {
-		fromBlock:
+		// Policy floor only — a reindex always rebuilds [start_block, chain tip].
+		// `operation.to_block` is progress/resume metadata, never a walk bound:
+		// bounding the walk while the drop stays unconditional is what destroyed
+		// sbtc-flows' history (f079).
+		startBlockFloor:
 			operation.from_block == null ? undefined : Number(operation.from_block),
-		toBlock:
-			operation.to_block == null ? undefined : Number(operation.to_block),
 		schemaName,
 		operationId: operation.id,
 		signal,

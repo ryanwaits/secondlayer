@@ -1603,33 +1603,27 @@ Examples:
 	subgraphs
 		.command("reindex <name>")
 		.description(
-			"Reindex a subgraph from historical blocks (drops + reprocesses)",
+			"Drop a subgraph's data and rebuild it from its start block (destructive)",
 		)
-		.option("--from-block <n>", "Start block height")
-		.option("--to-block <n>", "End block height")
 		.option("-y, --yes", "Skip confirmation")
 		.addHelpText(
 			"after",
 			`
+Reindex is always whole-subgraph: it drops every row and rebuilds from the
+subgraph's start block to chain tip. To process a specific block range without
+dropping anything, use "sl subgraphs backfill".
+
 Examples:
-  $ sl subgraphs reindex my-graph -y
-  $ sl subgraphs reindex my-graph --from-block 150000 --to-block 160000 -y`,
+  $ sl subgraphs reindex my-graph -y`,
 		)
 		.action(
 			async (
 				name: string,
 				options: {
-					fromBlock?: string;
-					toBlock?: string;
 					yes?: boolean;
 				},
 			) => {
 				try {
-					const fromRaw = options.fromBlock;
-					const toRaw = options.toBlock;
-					const fromBlock = fromRaw ? Number.parseInt(fromRaw, 10) : undefined;
-					const toBlock = toRaw ? Number.parseInt(toRaw, 10) : undefined;
-
 					if (!options.yes) {
 						if (!process.stdin.isTTY) {
 							error(
@@ -1638,18 +1632,10 @@ Examples:
 							process.exit(1);
 						}
 						const { confirm } = await import("@inquirer/prompts");
-						const range =
-							fromBlock !== undefined && toBlock !== undefined
-								? ` for blocks [${fromBlock}, ${toBlock}]`
-								: fromBlock !== undefined
-									? ` from block ${fromBlock}`
-									: toBlock !== undefined
-										? ` up to block ${toBlock}`
-										: "";
 						let ok = false;
 						try {
 							ok = await confirm({
-								message: `Reindex subgraph "${name}"${range}? Existing rows in this range will be dropped and reprocessed.`,
+								message: `Reindex subgraph "${name}"? ALL of its data will be dropped and rebuilt from its start block. This cannot be undone.`,
 								default: false,
 							});
 						} catch (promptErr) {
@@ -1673,10 +1659,7 @@ Examples:
 
 					info(`Reindexing subgraph "${name}"...`);
 
-					const result = await reindexSubgraphApi(name, {
-						fromBlock,
-						toBlock,
-					});
+					const result = await reindexSubgraphApi(name);
 
 					success(result.message);
 					info(`From block ${result.fromBlock} to ${result.toBlock}`);
