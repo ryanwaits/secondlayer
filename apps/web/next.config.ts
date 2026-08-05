@@ -37,8 +37,13 @@ const nextConfig: NextConfig = {
 							"style-src 'self' 'unsafe-inline'",
 							"img-src 'self' data: https:",
 							"font-src 'self' data:",
-							`connect-src 'self' ${process.env.NEXT_PUBLIC_POSTHOG_HOST ?? ""}`,
-							"worker-src 'self' blob:",
+							// Wildcard rather than ${NEXT_PUBLIC_POSTHOG_HOST}: the SDK talks
+							// to more than the ingestion host (assets and replay bundles come
+							// from us-assets.i.posthog.com), and interpolating an env var into
+							// a security header means an unset var silently renders a policy
+							// with no PostHog origin at all.
+							"connect-src 'self' https://*.posthog.com",
+							"worker-src 'self' blob: data:",
 							"frame-ancestors 'none'",
 							"base-uri 'self'",
 						].join("; "),
