@@ -16,20 +16,8 @@ function VerifyContent() {
 		attempted.current = true;
 
 		try {
-			const result = await verify(token);
-
-			// Dispatch event for floating toolbar to show API key
-			if (result.apiKey) {
-				window.dispatchEvent(
-					new CustomEvent("sl:verified", { detail: { apiKey: result.apiKey } }),
-				);
-				// Brief delay so toolbar can show the key
-				setTimeout(() => {
-					window.location.href = "/";
-				}, 100);
-			} else {
-				window.location.href = "/";
-			}
+			await verify(token);
+			window.location.href = "/";
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Verification failed");
 		}
