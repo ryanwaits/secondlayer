@@ -12,17 +12,36 @@ export const revalidate = 30;
 // Explore hits a static CDN page (instant) instead of an on-demand serverless
 // render (cold start ~10s). dynamicParams stays default-true: names not in this
 // set still render on-demand and notFound() filters non-public ones.
+// Returning [] here still produces a green build — it just prerenders nothing,
+// which silently costs every Explore page the ~10s cold start this function
+// exists to avoid. On a deploy, zero public subgraphs is never a legitimate
+// answer, so a fetch blip must fail the build rather than ship a degraded one.
+// Locally (no platform API running) skipping prerender is expected and fine.
 export async function generateStaticParams(): Promise<{ name: string }[]> {
+	const onDeploy = Boolean(process.env.CI || process.env.VERCEL);
 	try {
 		const res = await fetch(`${PLATFORM_API_URL}/v1/subgraphs`, {
 			next: { revalidate: 30 },
 		});
-		if (!res.ok) return [];
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
 		const body = (await res.json()) as ExploreList;
-		return body.subgraphs
+		const names = body.subgraphs
 			.filter((s) => s.visibility === "public" && s.total_rows !== null)
 			.map((s) => ({ name: s.name }));
-	} catch {
+		if (names.length === 0) throw new Error("no public subgraphs returned");
+		return names;
+	} catch (err) {
+		const reason = err instanceof Error ? err.message : String(err);
+		if (onDeploy) {
+			throw new Error(
+				`Explore prerender failed against ${PLATFORM_API_URL}: ${reason}`,
+			);
+		}
+		// Sibling routes hitting the same API log their own raw "TypeError:
+		// fetch failed" from Next's fetch layer; this line names the cause.
+		console.warn(
+			`[explore] prerender skipped, pages will render on demand — ${PLATFORM_API_URL} unreachable (${reason})`,
+		);
 		return [];
 	}
 }
