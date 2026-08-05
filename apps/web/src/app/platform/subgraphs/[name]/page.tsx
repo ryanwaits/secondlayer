@@ -53,7 +53,7 @@ export default async function SubgraphDetailPage({
 	try {
 		if (!session) notFound();
 		const [sgResult, listResult] = await Promise.allSettled([
-			apiRequest<SubgraphDetail>(`/api/subgraphs/${name}`, {
+			apiRequest<SubgraphDetail>(`/api/subgraphs/${encodeURIComponent(name)}`, {
 				sessionToken: session,
 			}),
 			apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs", {

@@ -12,7 +12,9 @@ export async function GET(
 
 	try {
 		const { slug } = await params;
-		const data = await apiRequest(`/api/projects/${slug}`, { sessionToken });
+		const data = await apiRequest(`/api/projects/${encodeURIComponent(slug)}`, {
+			sessionToken,
+		});
 		return NextResponse.json(data);
 	} catch (e) {
 		if (e instanceof ApiError) {
@@ -34,7 +36,7 @@ export async function PATCH(
 	try {
 		const { slug } = await params;
 		const body = await req.json();
-		const data = await apiRequest(`/api/projects/${slug}`, {
+		const data = await apiRequest(`/api/projects/${encodeURIComponent(slug)}`, {
 			method: "PATCH",
 			body,
 			sessionToken,
@@ -59,7 +61,7 @@ export async function DELETE(
 
 	try {
 		const { slug } = await params;
-		const data = await apiRequest(`/api/projects/${slug}`, {
+		const data = await apiRequest(`/api/projects/${encodeURIComponent(slug)}`, {
 			method: "DELETE",
 			sessionToken,
 		});

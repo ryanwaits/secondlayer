@@ -16,6 +16,31 @@ export class ApiError extends Error {
 	}
 }
 
+/**
+ * Rejects a request path that could resolve outside the intended upstream
+ * route. `encodeURIComponent` does not escape "." — a raw or percent-encoded
+ * ".." segment interpolated into a path still gets resolved by the WHATWG
+ * URL parser `fetch` uses, popping preceding segments. A segment that
+ * decodes to a "/" (a smuggled separator) is rejected for the same reason:
+ * it can widen a single path segment into extra ones the route never
+ * intended.
+ */
+function assertSafePath(path: string): void {
+	const pathname = path.split("?")[0] ?? "";
+	for (const segment of pathname.split("/")) {
+		if (!segment) continue;
+		let decoded: string;
+		try {
+			decoded = decodeURIComponent(segment);
+		} catch {
+			throw new ApiError(400, "Invalid request path");
+		}
+		if (decoded === "." || decoded === ".." || decoded.includes("/")) {
+			throw new ApiError(400, "Invalid request path");
+		}
+	}
+}
+
 export async function apiRequest<T>(
 	path: string,
 	options: {
@@ -26,6 +51,7 @@ export async function apiRequest<T>(
 		headers?: Record<string, string>;
 	} = {},
 ): Promise<T> {
+	assertSafePath(path);
 	const { method = "GET", body, sessionToken, tags } = options;
 
 	const headers: Record<string, string> = {

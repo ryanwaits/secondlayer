@@ -6,9 +6,13 @@ export async function POST(
 ) {
 	const { name } = await params;
 	const body = await req.json().catch(() => ({}));
-	return proxyApiRequest(req, `/api/subgraphs/${name}/reindex`, {
-		method: "POST",
-		body,
-		revalidate: ["subgraphs", `subgraph-${name}`],
-	});
+	return proxyApiRequest(
+		req,
+		`/api/subgraphs/${encodeURIComponent(name)}/reindex`,
+		{
+			method: "POST",
+			body,
+			revalidate: ["subgraphs", `subgraph-${name}`],
+		},
+	);
 }

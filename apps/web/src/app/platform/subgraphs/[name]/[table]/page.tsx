@@ -24,9 +24,12 @@ export default async function TableDetailPage({
 	let subgraph: SubgraphDetail;
 	const tenantApiUrl = PLATFORM_API_URL;
 	try {
-		subgraph = await apiRequest<SubgraphDetail>(`/api/subgraphs/${name}`, {
-			sessionToken: session,
-		});
+		subgraph = await apiRequest<SubgraphDetail>(
+			`/api/subgraphs/${encodeURIComponent(name)}`,
+			{
+				sessionToken: session,
+			},
+		);
 	} catch (e) {
 		if (e instanceof ApiError && e.status === 404) notFound();
 		throw e;

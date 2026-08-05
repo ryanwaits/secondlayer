@@ -7,7 +7,7 @@ export async function POST(
 	const { id, outboxId } = await params;
 	return proxyApiRequest(
 		req,
-		`/api/subscriptions/${id}/dead/${outboxId}/requeue`,
+		`/api/subscriptions/${encodeURIComponent(id)}/dead/${encodeURIComponent(outboxId)}/requeue`,
 		{ method: "POST" },
 	);
 }

@@ -15,7 +15,7 @@ export async function DELETE(
 
 	try {
 		const data = await apiRequest<{ revoked: boolean; id: string }>(
-			`/api/keys/${id}`,
+			`/api/keys/${encodeURIComponent(id)}`,
 			{ method: "DELETE", sessionToken },
 		);
 		revalidateTag("keys", { expire: 0 });

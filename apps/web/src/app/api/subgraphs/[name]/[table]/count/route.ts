@@ -5,5 +5,8 @@ export async function GET(
 	{ params }: { params: Promise<{ name: string; table: string }> },
 ) {
 	const { name, table } = await params;
-	return proxyApiRequest(req, `/api/subgraphs/${name}/${table}/count`);
+	return proxyApiRequest(
+		req,
+		`/api/subgraphs/${encodeURIComponent(name)}/${encodeURIComponent(table)}/count`,
+	);
 }

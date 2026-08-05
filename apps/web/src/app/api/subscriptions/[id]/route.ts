@@ -6,7 +6,7 @@ interface RouteParams {
 
 export async function GET(req: Request, { params }: RouteParams) {
 	const { id } = await params;
-	return proxyApiRequest(req, `/api/subscriptions/${id}`);
+	return proxyApiRequest(req, `/api/subscriptions/${encodeURIComponent(id)}`);
 }
 
 export async function PATCH(req: Request, { params }: RouteParams) {
@@ -15,7 +15,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
 	if (!body) {
 		return Response.json({ error: "Invalid JSON" }, { status: 400 });
 	}
-	return proxyApiRequest(req, `/api/subscriptions/${id}`, {
+	return proxyApiRequest(req, `/api/subscriptions/${encodeURIComponent(id)}`, {
 		method: "PATCH",
 		body,
 		revalidate: "subscriptions",
@@ -24,7 +24,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
 
 export async function DELETE(req: Request, { params }: RouteParams) {
 	const { id } = await params;
-	return proxyApiRequest(req, `/api/subscriptions/${id}`, {
+	return proxyApiRequest(req, `/api/subscriptions/${encodeURIComponent(id)}`, {
 		method: "DELETE",
 		revalidate: "subscriptions",
 	});

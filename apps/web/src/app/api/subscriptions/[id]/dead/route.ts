@@ -5,5 +5,8 @@ export async function GET(
 	{ params }: { params: Promise<{ id: string }> },
 ) {
 	const { id } = await params;
-	return proxyApiRequest(req, `/api/subscriptions/${id}/dead`);
+	return proxyApiRequest(
+		req,
+		`/api/subscriptions/${encodeURIComponent(id)}/dead`,
+	);
 }

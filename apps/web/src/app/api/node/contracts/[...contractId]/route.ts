@@ -12,7 +12,7 @@ export async function GET(
 	}
 
 	const { contractId } = await params;
-	const id = contractId.join("/");
+	const id = contractId.map(encodeURIComponent).join("/");
 
 	try {
 		const data = await apiRequest<{ abi: AbiContract }>(

@@ -5,8 +5,12 @@ export async function POST(
 	{ params }: { params: Promise<{ id: string }> },
 ) {
 	const { id } = await params;
-	return proxyApiRequest(req, `/api/subscriptions/${id}/resume`, {
-		method: "POST",
-		revalidate: "subscriptions",
-	});
+	return proxyApiRequest(
+		req,
+		`/api/subscriptions/${encodeURIComponent(id)}/resume`,
+		{
+			method: "POST",
+			revalidate: "subscriptions",
+		},
+	);
 }

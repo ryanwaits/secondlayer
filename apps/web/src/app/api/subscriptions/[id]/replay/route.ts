@@ -9,8 +9,12 @@ export async function POST(
 	if (!body) {
 		return Response.json({ error: "Invalid JSON" }, { status: 400 });
 	}
-	return proxyApiRequest(req, `/api/subscriptions/${id}/replay`, {
-		method: "POST",
-		body,
-	});
+	return proxyApiRequest(
+		req,
+		`/api/subscriptions/${encodeURIComponent(id)}/replay`,
+		{
+			method: "POST",
+			body,
+		},
+	);
 }

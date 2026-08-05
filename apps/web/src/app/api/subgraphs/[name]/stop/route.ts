@@ -5,8 +5,12 @@ export async function POST(
 	{ params }: { params: Promise<{ name: string }> },
 ) {
 	const { name } = await params;
-	return proxyApiRequest(req, `/api/subgraphs/${name}/stop`, {
-		method: "POST",
-		revalidate: ["subgraphs", `subgraph-${name}`],
-	});
+	return proxyApiRequest(
+		req,
+		`/api/subgraphs/${encodeURIComponent(name)}/stop`,
+		{
+			method: "POST",
+			revalidate: ["subgraphs", `subgraph-${name}`],
+		},
+	);
 }

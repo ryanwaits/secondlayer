@@ -13,7 +13,9 @@ export async function GET(
 		const val = searchParams.get(key);
 		if (val) allowed.set(key, val);
 	}
-	return proxyApiRequest(req, `/api/subgraphs/${name}/${table}`, {
-		query: allowed,
-	});
+	return proxyApiRequest(
+		req,
+		`/api/subgraphs/${encodeURIComponent(name)}/${encodeURIComponent(table)}`,
+		{ query: allowed },
+	);
 }

@@ -5,7 +5,7 @@ export async function GET(
 	{ params }: { params: Promise<{ name: string }> },
 ) {
 	const { name } = await params;
-	return proxyApiRequest(req, `/api/subgraphs/${name}`);
+	return proxyApiRequest(req, `/api/subgraphs/${encodeURIComponent(name)}`);
 }
 
 export async function DELETE(
@@ -13,7 +13,7 @@ export async function DELETE(
 	{ params }: { params: Promise<{ name: string }> },
 ) {
 	const { name } = await params;
-	return proxyApiRequest(req, `/api/subgraphs/${name}`, {
+	return proxyApiRequest(req, `/api/subgraphs/${encodeURIComponent(name)}`, {
 		method: "DELETE",
 		revalidate: "subgraphs",
 	});
