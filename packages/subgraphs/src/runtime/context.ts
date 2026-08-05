@@ -23,6 +23,26 @@ interface WriteOp {
 	set?: Record<string, unknown>;
 }
 
+/**
+ * One step of a flush. Most writes are a plain SQL string executed in order.
+ * An increment is a PAIR the executor branches on, because closing its
+ * lost-update race needs a per-statement rowcount — see
+ * {@link SubgraphContext.execStatements} and the rationale on the increment
+ * batch in `buildStatements`.
+ */
+type FlushStatement =
+	| string
+	| {
+			kind: "increment";
+			/** `UPDATE … SET c = COALESCE(c,0) + δ WHERE <key>` */
+			update: string;
+			/** `INSERT … SELECT … WHERE NOT EXISTS (<key>)` */
+			insert: string;
+			/** Key predicate, for the (unreachable-by-design) error message. */
+			keyPred: string;
+			table: string;
+	  };
+
 export interface FlushWrite {
 	op: "insert" | "update" | "delete";
 	table: string;
@@ -611,14 +631,10 @@ export class SubgraphContext {
 		const statements = this.buildStatements(opsToFlush);
 
 		if ("isTransaction" in this.db) {
-			for (const stmt of statements) {
-				await sql.raw(stmt).execute(this.db);
-			}
+			await this.execStatements(this.db, statements);
 		} else {
 			await (this.db as Kysely<Database>).transaction().execute(async (tx) => {
-				for (const stmt of statements) {
-					await sql.raw(stmt).execute(tx);
-				}
+				await this.execStatements(tx, statements);
 			});
 		}
 
@@ -645,6 +661,56 @@ export class SubgraphContext {
 		});
 
 		return { count: opsToFlush.length, writes };
+	}
+
+	/**
+	 * Run a built statement list on an open transaction.
+	 *
+	 * Plain statements run in order. An increment runs UPDATE-first and then,
+	 * ONLY if that matched nothing, the guarded INSERT — and if the INSERT also
+	 * wrote nothing, the UPDATE again.
+	 *
+	 * That last step is the whole point. Under READ COMMITTED, two block
+	 * transactions flushing the same key while the row is absent both see
+	 * `UPDATE → 0 rows`; the first commits its INSERT, and the second's
+	 * `WHERE NOT EXISTS` then sees that committed row and inserts nothing. No
+	 * error, no constraint violation — the second delta was simply dropped.
+	 * Re-running the UPDATE takes a fresh snapshot that DOES see the winner's
+	 * row and applies the delta onto it.
+	 *
+	 * It cannot double-apply: the retry is reached only when the first UPDATE
+	 * matched no row AND the INSERT wrote no row, so the delta has not been
+	 * applied by either.
+	 */
+	private async execStatements(
+		executor: AnyDb,
+		statements: FlushStatement[],
+	): Promise<void> {
+		const affected = (r: { numAffectedRows?: bigint }): bigint =>
+			r.numAffectedRows ?? 0n;
+
+		for (const stmt of statements) {
+			if (typeof stmt === "string") {
+				await sql.raw(stmt).execute(executor);
+				continue;
+			}
+			const updated = await sql.raw(stmt.update).execute(executor);
+			if (affected(updated) > 0n) continue;
+
+			const inserted = await sql.raw(stmt.insert).execute(executor);
+			if (affected(inserted) > 0n) continue;
+
+			const retried = await sql.raw(stmt.update).execute(executor);
+			if (affected(retried) === 0n) {
+				// Neither wrote: the row a concurrent writer created was gone again
+				// by the retry (a delete raced in). Fail loudly — silently dropping
+				// the delta is the bug this whole path exists to prevent. The block
+				// transaction rolls back and the walk re-processes it.
+				throw new Error(
+					`increment could not be applied to ${this.pgSchemaName}.${stmt.table} where ${stmt.keyPred}: row neither updated nor inserted`,
+				);
+			}
+		}
 	}
 
 	/** Prepare a single insert row, returning its data, columns, upsert key for batching. */
@@ -753,8 +819,8 @@ export class SubgraphContext {
 	}
 
 	/** Build SQL statements from write ops, batching compatible INSERTs. */
-	private buildStatements(ops: WriteOp[]): string[] {
-		const statements: string[] = [];
+	private buildStatements(ops: WriteOp[]): FlushStatement[] {
+		const statements: FlushStatement[] = [];
 
 		// BYO replace-per-height: clear this block's prior inserts before
 		// re-inserting so a replayed block (no cross-DB tx) stays idempotent.
@@ -831,6 +897,12 @@ export class SubgraphContext {
 			// UPDATE-first lets the CHECK see the FINAL value; the guarded
 			// INSERT covers missing rows — where a negative delta is a GENUINE
 			// violation and must still fail loudly.
+			//
+			// The pair is emitted as ONE step rather than two statements because
+			// the executor must branch on their rowcounts: an INSERT that wrote
+			// nothing means a concurrent transaction created the row after our
+			// UPDATE missed it, and the delta has to be re-applied instead of
+			// silently dropped. See `execStatements`.
 			for (const r of batch.rows.values()) {
 				const keyPred = batch.keyCols
 					.map((k) => `"${k}" = ${escapeLiteral(r.keys[k])}`)
@@ -841,9 +913,6 @@ export class SubgraphContext {
 							`"${c}" = COALESCE("${c}", 0) + (${String(r.deltas[c] ?? 0n)})`,
 					)
 					.join(", ");
-				statements.push(
-					`UPDATE ${qualifiedTable} SET ${updSet} WHERE ${keyPred}`,
-				);
 				const insertVals = [
 					...batch.keyCols.map((k) => escapeLiteral(r.keys[k])),
 					...batch.deltaCols.map((c) => String(r.deltas[c] ?? 0n)),
@@ -851,11 +920,16 @@ export class SubgraphContext {
 					escapeLiteral(r.meta.txId),
 					"NOW()",
 				];
-				statements.push(
-					`INSERT INTO ${qualifiedTable} (${cols.map((c) => `"${c}"`).join(", ")}) ` +
+				statements.push({
+					kind: "increment",
+					table: batch.table,
+					keyPred,
+					update: `UPDATE ${qualifiedTable} SET ${updSet} WHERE ${keyPred}`,
+					insert:
+						`INSERT INTO ${qualifiedTable} (${cols.map((c) => `"${c}"`).join(", ")}) ` +
 						`SELECT ${insertVals.join(", ")} ` +
 						`WHERE NOT EXISTS (SELECT 1 FROM ${qualifiedTable} WHERE ${keyPred})`,
-				);
+				});
 			}
 			incBatch = null;
 			incBatchKey = "";
