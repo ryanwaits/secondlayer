@@ -165,10 +165,15 @@ describe("buildAggregateSelect", () => {
 const SUBGRAPH_NAME = "test-api-subgraph";
 // Mirrors `pgSchemaName` from @secondlayer/shared/db/queries/subgraphs.
 const PG_SCHEMA = "subgraph_test_api_subgraph";
+// The block this fixture is registered at. Reindex rebuilds the whole subgraph
+// from here, so the route reports it as the walk start — assert against this
+// rather than a literal.
+const REGISTERED_START = 0;
 
 const subgraphDef = {
 	name: SUBGRAPH_NAME,
 	version: "1.0.0",
+	startBlock: REGISTERED_START,
 	definition: {
 		name: SUBGRAPH_NAME,
 		sources: [{ contract: "SP123::marketplace" }],
@@ -1022,15 +1027,11 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 	test("POST /subgraphs/:subgraphName/reindex accepts request for existing subgraph", async () => {
 		const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/reindex`, {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ fromBlock: 1, toBlock: 10 }),
 		});
 		expect(res.status).toBe(200);
 		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.message).toContain("Reindex queued");
-		expect(body.fromBlock).toBe(1);
-		expect(body.toBlock).toBe(10);
 	});
 
 	test("POST /subgraphs/:subgraphName/reindex works without body", async () => {
@@ -1047,7 +1048,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
 		const body = (await res.json()) as any;
 		expect(body.message).toContain("Reindex queued");
-		expect(body.fromBlock).toBe(1);
+		expect(body.fromBlock).toBe(REGISTERED_START);
 		expect(body.toBlock).toBe("chain tip");
 	});
 

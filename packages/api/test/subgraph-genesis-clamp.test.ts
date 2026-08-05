@@ -238,11 +238,10 @@ describe.skipIf(SKIP)("genesis policy (DB + routes)", () => {
 		expect(body.fromBlock).toBe(REGISTERED_START);
 	});
 
-	test("free-tier reindex below registered start is floored", async () => {
-		await getDb()
-			.deleteFrom("subgraph_operations")
-			.where("subgraph_name", "=", SUBGRAPH)
-			.execute();
+	// The clamp itself is covered by the test above, which reaches it via an
+	// unranged request. A free-tier account gets no exemption from the range
+	// rule: the request-shape guard rejects it before policy is consulted.
+	test("free-tier ranged reindex is rejected like any other", async () => {
 		const res = await appAs(FREE_ACCOUNT).request(
 			`/subgraphs/${SUBGRAPH}/reindex`,
 			{
@@ -251,9 +250,9 @@ describe.skipIf(SKIP)("genesis policy (DB + routes)", () => {
 				body: JSON.stringify({ fromBlock: 1 }),
 			},
 		);
-		expect(res.status).toBe(200);
+		expect(res.status).toBe(400);
 		// biome-ignore lint/suspicious/noExplicitAny: test response shape
 		const body = (await res.json()) as any;
-		expect(body.fromBlock).toBe(REGISTERED_START);
+		expect(body.code).toBe("REINDEX_RANGE_NOT_SUPPORTED");
 	});
 });
