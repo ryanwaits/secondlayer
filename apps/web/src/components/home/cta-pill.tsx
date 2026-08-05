@@ -22,7 +22,6 @@ export function CtaPill() {
 			className="home-cmd"
 			onClick={() => copy(INSTALL_CMD)}
 			aria-label="Copy install command"
-			data-umami-event="copy-install"
 		>
 			<span className="p">$</span>
 			<span className="home-cmd-label">{INSTALL_CMD}</span>

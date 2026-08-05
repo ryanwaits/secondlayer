@@ -92,8 +92,6 @@ export default function PricingPage() {
 					<Link
 						href="/docs/self-host"
 						className="prc-plan-cta pp-btn pp-btn-ghost"
-						data-umami-event="pricing-plan-click"
-						data-umami-event-plan="self-host"
 					>
 						Get started
 					</Link>
@@ -112,8 +110,6 @@ export default function PricingPage() {
 					<Link
 						href={appUrl("/login")}
 						className="prc-plan-cta pp-btn pp-btn-ink"
-						data-umami-event="pricing-plan-click"
-						data-umami-event-plan="pro"
 					>
 						Start 14-day trial
 					</Link>
@@ -132,8 +128,6 @@ export default function PricingPage() {
 					<Link
 						href={appUrl("/login")}
 						className="prc-plan-cta pp-btn pp-btn-ghost"
-						data-umami-event="pricing-plan-click"
-						data-umami-event-plan="scale"
 					>
 						Start 14-day trial
 					</Link>
@@ -151,8 +145,6 @@ export default function PricingPage() {
 				<Link
 					href={appUrl("/login")}
 					className="prc-plan-cta pp-btn pp-btn-ghost"
-					data-umami-event="pricing-plan-click"
-					data-umami-event-plan="credits"
 				>
 					Top up credits
 				</Link>
@@ -169,12 +161,7 @@ export default function PricingPage() {
 						Read how it works →
 					</p>
 				</Link>
-				<a
-					className="prc-xfoot"
-					href="mailto:hello@secondlayer.tools"
-					data-umami-event="pricing-plan-click"
-					data-umami-event-plan="enterprise"
-				>
+				<a className="prc-xfoot" href="mailto:hello@secondlayer.tools">
 					<span className="prc-xfoot-row">
 						<span className="prc-xfoot-title">Contact Us</span>
 						<span className="prc-xfoot-tag">Enterprise</span>

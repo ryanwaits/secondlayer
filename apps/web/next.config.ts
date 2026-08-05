@@ -18,9 +18,7 @@ const nextConfig: NextConfig = {
 		// nothing), so denying framing outright is safe.
 		//
 		// The CSP below ships report-only. A strict enforcing policy can break
-		// inline styles and the proxied Umami analytics script (/sl.js, wired
-		// via the rewrites() above) — enforcing it is a follow-up, not part of
-		// this change.
+		// inline styles — enforcing it is a follow-up, not part of this change.
 		return [
 			{
 				source: "/:path*",
@@ -47,27 +45,6 @@ const nextConfig: NextConfig = {
 				],
 			},
 		];
-	},
-	async rewrites() {
-		return {
-			// First-party proxy for the Umami tracker so ad-blockers / Brave shields
-			// (which blocklist the umami.* host + /script.js) can't drop pageviews.
-			// The tracker loads from /sl.js, derives its collector from that origin,
-			// and posts to /api/send — both proxied to the umami container. beforeFiles
-			// guarantees these win over the app's other /api/* route handlers.
-			beforeFiles: [
-				{
-					source: "/sl.js",
-					destination: "https://umami.secondlayer.tools/script.js",
-				},
-				{
-					source: "/api/send",
-					destination: "https://umami.secondlayer.tools/api/send",
-				},
-			],
-			afterFiles: [],
-			fallback: [],
-		};
 	},
 	async redirects() {
 		// Workflow + sentry packages were deprecated in the 2026-04-23 pivot;

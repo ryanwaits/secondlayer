@@ -6,7 +6,6 @@ export function CopyButton({
 	code,
 	label,
 	inline,
-	umamiEvent = "copy-code",
 }: {
 	code: string;
 	/** Optional text label rendered before the icon (toggles to "copied"). */
@@ -14,9 +13,6 @@ export function CopyButton({
 	/** Render statically in-flow (header/toolbar) instead of the default
 	 *  absolute, hover-revealed icon used inside code blocks. Implied by `label`. */
 	inline?: boolean;
-	/** Umami event fired on copy. Defaults to "copy-code"; override per usage
-	 *  (e.g. "fork-explore" on the Explore scaffold command). */
-	umamiEvent?: string;
 }) {
 	const [copied, setCopied] = useState(false);
 
@@ -34,7 +30,6 @@ export function CopyButton({
 				label || inline ? "copy-button copy-button-labeled" : "copy-button"
 			}
 			aria-label="Copy code"
-			data-umami-event={umamiEvent}
 		>
 			{label && (
 				<span className="copy-button-label">{copied ? "copied" : label}</span>

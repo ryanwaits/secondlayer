@@ -17,11 +17,7 @@ export function MobileNavCta({ className }: { className: string }) {
 			Platform
 		</Link>
 	) : (
-		<Link
-			href={appUrl("/login")}
-			className={className}
-			data-umami-event="signup"
-		>
+		<Link href={appUrl("/login")} className={className}>
 			Get an API key
 		</Link>
 	);
