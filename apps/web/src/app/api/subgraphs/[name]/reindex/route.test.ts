@@ -23,7 +23,7 @@ function authedRequest() {
 
 describe("POST /api/subgraphs/[name]/reindex", () => {
 	// Regression for the incident: the console form used to send
-	// fromBlock/toBlock on every submit, which the upstream API now rejects
+	// fromBlock/toBlock on every submit, which the platform API now rejects
 	// with 400 REINDEX_RANGE_NOT_SUPPORTED. The route (and the form behind it)
 	// must never forward those keys — reindex always rebuilds the whole
 	// subgraph and takes no range.
