@@ -7,6 +7,38 @@ interface SubgraphReindexFormProps {
 	sessionToken: string;
 }
 
+// Accepts only digit strings so "12,000" (Number() -> NaN) and "-5" (not
+// \d+) are rejected before they ever reach JSON.stringify, which would
+// otherwise silently turn NaN into `null` in the request body.
+export function parseBlockInput(raw: string): number | null {
+	const trimmed = raw.trim();
+	if (!/^\d+$/.test(trimmed)) return null;
+	const n = Number(trimmed);
+	return Number.isSafeInteger(n) ? n : null;
+}
+
+export type BackfillRangeValidation =
+	| { valid: true; fromBlock: number; toBlock: number }
+	| { valid: false; error: string };
+
+export function validateBackfillRange(
+	fromRaw: string,
+	toRaw: string,
+): BackfillRangeValidation {
+	const fromBlock = parseBlockInput(fromRaw);
+	const toBlock = parseBlockInput(toRaw);
+	if (fromBlock === null || toBlock === null) {
+		return {
+			valid: false,
+			error: "From/to block must be whole numbers (e.g. 185000).",
+		};
+	}
+	if (fromBlock > toBlock) {
+		return { valid: false, error: "From block must not be after to block." };
+	}
+	return { valid: true, fromBlock, toBlock };
+}
+
 export function SubgraphReindexForm({
 	subgraphName,
 	sessionToken,
@@ -15,29 +47,57 @@ export function SubgraphReindexForm({
 	const [fromBlock, setFromBlock] = useState("");
 	const [toBlock, setToBlock] = useState("");
 	const [message, setMessage] = useState("");
+	const [submitting, setSubmitting] = useState(false);
 
-	async function handleSubmit() {
+	const rangeValidation = validateBackfillRange(fromBlock, toBlock);
+	const rangeTouched = fromBlock.trim() !== "" || toBlock.trim() !== "";
+
+	async function post(path: string, body?: unknown) {
+		return fetch(`/api/subgraphs/${subgraphName}/${path}`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${sessionToken}`,
+			},
+			...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+		});
+	}
+
+	async function handleBackfillSubmit() {
+		if (!rangeValidation.valid) {
+			setMessage(`Error: ${rangeValidation.error}`);
+			return;
+		}
 		setMessage("");
+		setSubmitting(true);
 		try {
-			const res = await fetch(`/api/subgraphs/${subgraphName}/reindex`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${sessionToken}`,
-				},
-				body: JSON.stringify({
-					fromBlock: fromBlock ? Number(fromBlock) : undefined,
-					toBlock: toBlock ? Number(toBlock) : undefined,
-				}),
+			const res = await post("backfill", {
+				fromBlock: rangeValidation.fromBlock,
+				toBlock: rangeValidation.toBlock,
 			});
 			if (!res.ok) throw new Error(await res.text());
-			setMessage(
-				tab === "backfill"
-					? "Backfill started successfully."
-					: "Reindex started successfully.",
-			);
+			setMessage("Backfill started successfully.");
 		} catch (e) {
 			setMessage(`Error: ${e instanceof Error ? e.message : "Unknown error"}`);
+		} finally {
+			setSubmitting(false);
+		}
+	}
+
+	async function handleReindexSubmit() {
+		setMessage("");
+		setSubmitting(true);
+		try {
+			// Reindex rebuilds the whole subgraph and takes no body — sending no
+			// JSON body at all keeps the request shape honest about that (rather
+			// than an empty `{}` implying a body was considered and cleared).
+			const res = await post("reindex");
+			if (!res.ok) throw new Error(await res.text());
+			setMessage("Reindex started successfully.");
+		} catch (e) {
+			setMessage(`Error: ${e instanceof Error ? e.message : "Unknown error"}`);
+		} finally {
+			setSubmitting(false);
 		}
 	}
 
@@ -75,7 +135,7 @@ export function SubgraphReindexForm({
 					</p>
 					<div className="sg-reindex-fields">
 						<div className="sg-reindex-field">
-							<div className="sg-reindex-label">From block (optional)</div>
+							<div className="sg-reindex-label">From block</div>
 							<input
 								className="sg-reindex-input"
 								type="text"
@@ -85,7 +145,7 @@ export function SubgraphReindexForm({
 							/>
 						</div>
 						<div className="sg-reindex-field">
-							<div className="sg-reindex-label">To block (optional)</div>
+							<div className="sg-reindex-label">To block</div>
 							<input
 								className="sg-reindex-input"
 								type="text"
@@ -95,10 +155,22 @@ export function SubgraphReindexForm({
 							/>
 						</div>
 					</div>
+					{rangeTouched && !rangeValidation.valid && (
+						<p
+							style={{
+								marginTop: 8,
+								fontSize: 12,
+								color: "var(--text-danger, #d92d20)",
+							}}
+						>
+							{rangeValidation.error}
+						</p>
+					)}
 					<button
 						type="button"
 						className="sg-reindex-btn"
-						onClick={handleSubmit}
+						disabled={!rangeValidation.valid || submitting}
+						onClick={handleBackfillSubmit}
 					>
 						Backfill gaps
 					</button>
@@ -133,36 +205,16 @@ export function SubgraphReindexForm({
 							<circle cx="8" cy="11" r="0.5" fill="currentColor" />
 						</svg>
 						<span>
-							Reindexing is destructive. Existing data in the specified block
-							range will be deleted and re-processed from the blockchain.
+							Reindexing is destructive. It drops and rebuilds the entire
+							subgraph from its start block &mdash; there is no way to scope it
+							to a range.
 						</span>
-					</div>
-					<div className="sg-reindex-fields">
-						<div className="sg-reindex-field">
-							<div className="sg-reindex-label">From block (optional)</div>
-							<input
-								className="sg-reindex-input"
-								type="text"
-								placeholder="e.g. 187000"
-								value={fromBlock}
-								onChange={(e) => setFromBlock(e.target.value)}
-							/>
-						</div>
-						<div className="sg-reindex-field">
-							<div className="sg-reindex-label">To block (optional)</div>
-							<input
-								className="sg-reindex-input"
-								type="text"
-								placeholder="e.g. 187421"
-								value={toBlock}
-								onChange={(e) => setToBlock(e.target.value)}
-							/>
-						</div>
 					</div>
 					<button
 						type="button"
 						className="sg-reindex-btn"
-						onClick={handleSubmit}
+						disabled={submitting}
+						onClick={handleReindexSubmit}
 					>
 						Reindex
 					</button>
