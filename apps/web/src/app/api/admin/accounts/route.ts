@@ -1,14 +1,15 @@
-import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
+import { requireAdmin } from "@/lib/admin";
+import { ApiError, apiRequest } from "@/lib/api";
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
-	const sessionToken = getSessionFromRequest(req);
-	if (!sessionToken) {
-		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-	}
+	const admin = await requireAdmin(req);
+	if (!admin.ok) return admin.response;
 
 	try {
-		const data = await apiRequest("/api/admin/accounts", { sessionToken });
+		const data = await apiRequest("/api/admin/accounts", {
+			sessionToken: admin.sessionToken,
+		});
 		return NextResponse.json(data);
 	} catch (e) {
 		if (e instanceof ApiError) {
