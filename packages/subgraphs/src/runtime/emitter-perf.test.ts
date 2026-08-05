@@ -15,8 +15,9 @@ import { emitSubscriptionOutbox } from "./outbox-emit.ts";
  *     `status='delivered'` for a 200-returning receiver.
  *
  * Targets (plan): p95 emitMs < 30ms, p50 deliveryMs < 1s, p95 < 5s.
- * Shared CI runners are too noisy for latency gates; CI records the metrics
- * and asserts delivery correctness. Set PERF_ENFORCE=1 for a hard perf run.
+ * No machine is quiet enough for latency gates by default, so every run records
+ * the metrics and asserts delivery correctness. Set PERF_ENFORCE=1 for a hard
+ * perf run that also gates on latency.
  */
 
 process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
@@ -34,8 +35,11 @@ let stopEmitter: (() => Promise<void>) | null = null;
 //   PERF_SUBS=50 PERF_BLOCKS=200 bun test emitter-perf
 const SUB_COUNT = Number.parseInt(process.env.PERF_SUBS ?? "20", 10);
 const BLOCK_COUNT = Number.parseInt(process.env.PERF_BLOCKS ?? "50", 10);
-const ENFORCE_LATENCY =
-	process.env.PERF_ENFORCE === "1" || process.env.CI !== "true";
+// Latency gates are opt-in. Any machine running this test by default — a dev
+// box with builds, Docker and parallel suites, or a shared CI runner — is too
+// noisy to hold a millisecond threshold. So: always measure and report, assert
+// only on a deliberate perf run (PERF_ENFORCE=1).
+const ENFORCE_LATENCY = process.env.PERF_ENFORCE === "1";
 
 function percentile(values: number[], p: number): number {
 	if (values.length === 0) return 0;
@@ -176,9 +180,10 @@ describe("emitter perf", () => {
 			// eslint-disable-next-line no-console
 			console.log("[perf]", JSON.stringify(report, null, 2));
 
-			// Targets — tight enough to catch regressions on a dedicated run. GitHub's
-			// shared runners can stall for seconds while the test itself remains
-			// correct, so CI keeps the metrics and gates delivery correctness below.
+			// Targets — tight enough to catch regressions on a dedicated run, which
+			// is the only place they are enforced. A loaded dev box or a shared CI
+			// runner can stall for seconds while the test remains correct, so the
+			// default run keeps the metrics and gates delivery correctness below.
 			// Local baseline: emitMs p95 ~50ms, deliveryMs p95 ~10ms.
 			if (ENFORCE_LATENCY) {
 				expect(report.emitMs.p95).toBeLessThan(100);
