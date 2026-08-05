@@ -37,10 +37,12 @@ yarn-error.log*
 coverage/
 .nyc_output/
 
-# Environment variables
-.env
-.env.local
-.env.*.local
+# Environment variables. Ignore the whole family — `.env`, `.env.local`,
+# `.env.bak`, `.env.save`, `.env.prod` — so a backup or copy of a real env file
+# can never be committed with live credentials. The negation re-admits the
+# tracked `*.example` templates and MUST stay after the wildcard to take effect.
+.env*
+!.env*.example
 
 # `sl project use` writes the active project binding here. Per-checkout local
 # state — never useful in version control.
@@ -58,7 +60,6 @@ secondlayer.config.ts
 secondlayer.config.js
 secondlayer.config.mjs
 .vercel
-.env*.local
 plans/
 
 # Claude Code local state
