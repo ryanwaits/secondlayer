@@ -1,6 +1,7 @@
 "use client";
 
 import { marketingUrl } from "@/lib/urls";
+import posthog from "posthog-js";
 import { useEffect, useState } from "react";
 import s from "./billing.module.css";
 
@@ -86,6 +87,7 @@ export function PlanModal({ currentTier }: { currentTier: Tier }) {
 			});
 			const data = (await res.json()) as { url?: string; error?: string };
 			if (!res.ok || !data.url) throw new Error(data.error ?? "Upgrade failed");
+			posthog.capture("billing_upgrade_checkout_started", { tier });
 			window.location.assign(data.url);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "Upgrade failed");

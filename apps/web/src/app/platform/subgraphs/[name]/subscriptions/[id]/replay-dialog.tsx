@@ -1,5 +1,6 @@
 "use client";
 
+import posthog from "posthog-js";
 import { useState } from "react";
 
 /**
@@ -42,9 +43,12 @@ export function ReplayDialog({ subscriptionId }: { subscriptionId: string }) {
 				setErr(body.error ?? `HTTP ${res.status}`);
 				return;
 			}
-			setResult({
-				enqueuedCount: body.enqueuedCount ?? 0,
-				scannedCount: body.scannedCount ?? 0,
+			const enqueuedCount = body.enqueuedCount ?? 0;
+			const scannedCount = body.scannedCount ?? 0;
+			setResult({ enqueuedCount, scannedCount });
+			posthog.capture("subscription_replay_enqueued", {
+				enqueued_count: enqueuedCount,
+				scanned_count: scannedCount,
 			});
 		} finally {
 			setBusy(false);

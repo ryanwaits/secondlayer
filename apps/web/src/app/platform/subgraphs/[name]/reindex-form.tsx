@@ -1,5 +1,6 @@
 "use client";
 
+import posthog from "posthog-js";
 import { useState } from "react";
 
 interface SubgraphReindexFormProps {
@@ -76,6 +77,10 @@ export function SubgraphReindexForm({
 				toBlock: rangeValidation.toBlock,
 			});
 			if (!res.ok) throw new Error(await res.text());
+			posthog.capture("subgraph_backfill_started", {
+				from_block: rangeValidation.fromBlock,
+				to_block: rangeValidation.toBlock,
+			});
 			setMessage("Backfill started successfully.");
 		} catch (e) {
 			setMessage(`Error: ${e instanceof Error ? e.message : "Unknown error"}`);
@@ -93,6 +98,7 @@ export function SubgraphReindexForm({
 			// than an empty `{}` implying a body was considered and cleared).
 			const res = await post("reindex");
 			if (!res.ok) throw new Error(await res.text());
+			posthog.capture("subgraph_reindex_started");
 			setMessage("Reindex started successfully.");
 		} catch (e) {
 			setMessage(`Error: ${e instanceof Error ? e.message : "Unknown error"}`);

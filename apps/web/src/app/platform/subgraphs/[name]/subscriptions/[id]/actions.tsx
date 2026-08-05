@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import { useState } from "react";
 
 export function SubscriptionActions({
@@ -41,7 +42,8 @@ export function SubscriptionActions({
 
 	async function onPauseResume() {
 		const target = status === "active" ? "pause" : "resume";
-		await call(`/api/subscriptions/${id}/${target}`);
+		const body = await call(`/api/subscriptions/${id}/${target}`);
+		if (body !== null) posthog.capture(`subscription_${target}d`);
 		router.refresh();
 	}
 
@@ -54,7 +56,10 @@ export function SubscriptionActions({
 			return;
 		}
 		const body = await call(`/api/subscriptions/${id}/rotate-secret`);
-		if (body?.signingSecret) setRotatedSecret(body.signingSecret);
+		if (body?.signingSecret) {
+			setRotatedSecret(body.signingSecret);
+			posthog.capture("subscription_signing_secret_rotated");
+		}
 	}
 
 	async function onDelete() {
@@ -66,7 +71,10 @@ export function SubscriptionActions({
 			return;
 		}
 		const body = await call(`/api/subscriptions/${id}`, "DELETE");
-		if (body !== null) router.push(`/subgraphs/${subgraphName}/subscriptions`);
+		if (body !== null) {
+			posthog.capture("subscription_deleted");
+			router.push(`/subgraphs/${subgraphName}/subscriptions`);
+		}
 	}
 
 	return (

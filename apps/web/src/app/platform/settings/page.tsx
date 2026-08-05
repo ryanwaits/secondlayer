@@ -6,6 +6,7 @@ import {
 } from "@/components/console/overview-topbar";
 import { useAuth } from "@/lib/auth";
 import { useProjects, useUpdateProject } from "@/lib/queries/projects";
+import posthog from "posthog-js";
 import { useCallback, useState } from "react";
 import { LogoutButton } from "./logout-button";
 
@@ -37,6 +38,7 @@ export default function SettingsPage() {
 				data: { name },
 			});
 			setSaveStatus("saved");
+			posthog.capture("project_settings_saved");
 			setTimeout(() => setSaveStatus("idle"), 2000);
 		} catch {
 			setSaveStatus("error");

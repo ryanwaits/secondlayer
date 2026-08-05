@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import {
 	createContext,
 	useCallback,
@@ -34,7 +35,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		try {
 			const res = await fetch("/api/auth/me");
 			const data = await res.json();
-			setAccount(data.account ?? null);
+			const account = data.account ?? null;
+			setAccount(account);
+			if (account) {
+				posthog.identify(account.id, {
+					email: account.email,
+					plan: account.plan,
+					...(account.displayName ? { name: account.displayName } : {}),
+				});
+			}
 		} catch {
 			setAccount(null);
 		} finally {
@@ -70,12 +79,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			throw new Error(data.error || "Verification failed");
 		}
 		const data = await res.json();
-		setAccount(data.account);
-		return { account: data.account, apiKey: data.apiKey };
+		const account = data.account as Account;
+		setAccount(account);
+		posthog.identify(account.id, {
+			email: account.email,
+			plan: account.plan,
+			...(account.displayName ? { name: account.displayName } : {}),
+		});
+		return { account, apiKey: data.apiKey };
 	}, []);
 
 	const logout = useCallback(async () => {
 		await fetch("/api/auth/logout", { method: "POST" });
+		posthog.reset();
 		router.push("/");
 		router.refresh();
 		setAccount(null);

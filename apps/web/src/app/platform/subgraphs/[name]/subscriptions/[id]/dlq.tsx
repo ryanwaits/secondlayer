@@ -1,5 +1,6 @@
 "use client";
 
+import posthog from "posthog-js";
 import { useEffect, useState } from "react";
 
 interface DeadRow {
@@ -47,8 +48,10 @@ export function Dlq({ subscriptionId }: { subscriptionId: string }) {
 				`/api/subscriptions/${subscriptionId}/dead/${outboxId}/requeue`,
 				{ method: "POST", credentials: "same-origin" },
 			);
-			if (res.ok) await load();
-			else setErr(`HTTP ${res.status}`);
+			if (res.ok) {
+				posthog.capture("subscription_dead_letter_requeued");
+				await load();
+			} else setErr(`HTTP ${res.status}`);
 		} finally {
 			setBusy(null);
 		}

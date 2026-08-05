@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import { useState } from "react";
 
 /**
@@ -29,6 +30,7 @@ export function SubgraphDangerZone({
 				headers: { Authorization: `Bearer ${sessionToken}` },
 			});
 			if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
+			posthog.capture("subgraph_deleted");
 			router.push("/platform/subgraphs");
 			router.refresh();
 		} catch (e) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import posthog from "posthog-js";
 import { useEffect, useRef, useState } from "react";
 import s from "./billing.module.css";
 
@@ -40,6 +41,7 @@ export function BillingActions({
 			const res = await fetch("/api/billing/portal");
 			const data = (await res.json()) as { url?: string; error?: string };
 			if (!res.ok || !data.url) throw new Error(data.error ?? "Portal failed");
+			posthog.capture("billing_portal_opened", { subscription_state: state });
 			window.location.assign(data.url);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "Portal failed");
@@ -60,6 +62,9 @@ export function BillingActions({
 				throw new Error(data.error ?? "Cancel failed");
 			}
 			setConfirmCancel(false);
+			posthog.capture("billing_subscription_cancelled", {
+				subscription_state: state,
+			});
 			router.refresh();
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "Cancel failed");

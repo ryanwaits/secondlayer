@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import posthog from "posthog-js";
 import { useEffect, useRef, useState } from "react";
 import s from "./billing.module.css";
 
@@ -45,6 +46,9 @@ export function CreditsTopup({
 			});
 			const data = (await res.json()) as { url?: string; error?: string };
 			if (!res.ok || !data.url) throw new Error(data.error ?? "Top-up failed");
+			posthog.capture("billing_credit_topup_checkout_started", {
+				amount_usd: amt,
+			});
 			window.location.assign(data.url);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "Top-up failed");

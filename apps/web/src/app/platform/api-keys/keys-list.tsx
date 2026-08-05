@@ -7,6 +7,7 @@ import {
 	useRevokeApiKey,
 } from "@/lib/queries/api-keys";
 import type { ApiKey, ApiKeyProduct, ApiKeyTier } from "@/lib/types";
+import posthog from "posthog-js";
 import { useCallback, useRef, useState } from "react";
 
 const PRODUCT_LABELS: Record<ApiKeyProduct, string> = {
@@ -74,6 +75,10 @@ export function KeysList({
 				{
 					onSuccess: (data) => {
 						setNewRawKey(data.key);
+						posthog.capture("api_key_created", {
+							product,
+							tier: tier || "plan_default",
+						});
 					},
 				},
 			);
@@ -380,8 +385,11 @@ export function KeysList({
 									key.status !== "active" ? { visibility: "hidden" } : undefined
 								}
 								onClick={() => {
-									if (confirm("Revoke this key? This cannot be undone."))
-										revokeKey.mutate(key.id);
+									if (confirm("Revoke this key? This cannot be undone.")) {
+										revokeKey.mutate(key.id, {
+											onSuccess: () => posthog.capture("api_key_revoked"),
+										});
+									}
 								}}
 							>
 								Revoke
