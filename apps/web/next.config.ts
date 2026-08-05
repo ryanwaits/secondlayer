@@ -10,6 +10,44 @@ const nextConfig: NextConfig = {
 		},
 		optimizePackageImports: ["@tanstack/react-query"],
 	},
+	async headers() {
+		// This is an authenticated console that performs one-click destructive
+		// and financial actions (revoke key, cancel plan), and the magic-link
+		// verify page reads its token from the URL. Nothing in this app
+		// legitimately iframes it (grep for "iframe" across src/ turns up
+		// nothing), so denying framing outright is safe.
+		//
+		// The CSP below ships report-only. A strict enforcing policy can break
+		// inline styles and the proxied Umami analytics script (/sl.js, wired
+		// via the rewrites() above) — enforcing it is a follow-up, not part of
+		// this change.
+		return [
+			{
+				source: "/:path*",
+				headers: [
+					{
+						key: "Referrer-Policy",
+						value: "strict-origin-when-cross-origin",
+					},
+					{ key: "X-Frame-Options", value: "DENY" },
+					{ key: "X-Content-Type-Options", value: "nosniff" },
+					{
+						key: "Content-Security-Policy-Report-Only",
+						value: [
+							"default-src 'self'",
+							"script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+							"style-src 'self' 'unsafe-inline'",
+							"img-src 'self' data: https:",
+							"font-src 'self' data:",
+							"connect-src 'self'",
+							"frame-ancestors 'none'",
+							"base-uri 'self'",
+						].join("; "),
+					},
+				],
+			},
+		];
+	},
 	async rewrites() {
 		return {
 			// First-party proxy for the Umami tracker so ad-blockers / Brave shields
