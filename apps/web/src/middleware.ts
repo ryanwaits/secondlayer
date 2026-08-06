@@ -4,6 +4,12 @@ import type { NextRequest } from "next/server";
 
 // Paths that have both marketing (unauthed) and platform (authed) versions
 const DUAL_PATHS = ["/subgraphs"];
+// Public marketing routes that sit *underneath* a DUAL_PATH prefix. They live in
+// the (www) group and have no /platform counterpart, so the rewrite below would
+// send /subgraphs/explore to /platform/subgraphs/explore, match it against
+// /platform/subgraphs/[name] with name="explore", resolve no subgraph, and 404.
+// Checked before the rewrite so Explore stays reachable while signed in.
+const MARKETING_ONLY = ["/subgraphs/explore"];
 // Paths that require authentication
 const AUTH_REQUIRED = ["/api-keys", "/billing", "/settings", "/admin"];
 // Public auth pages — reachable without a session on the app host
@@ -11,6 +17,11 @@ const PUBLIC_AUTH_PATHS = ["/login", "/verify"];
 
 function matches(pathname: string, prefixes: string[]): boolean {
 	return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
+/** Exported for tests: these must never be rewritten into /platform. */
+export function isMarketingOnlyPath(pathname: string): boolean {
+	return matches(pathname, MARKETING_ONLY);
 }
 
 export function middleware(request: NextRequest) {
@@ -57,6 +68,9 @@ function appHostMiddleware(
 		return NextResponse.next();
 	}
 
+	// Marketing routes nested under a console prefix serve from (www) as-is.
+	if (isMarketingOnlyPath(pathname)) return NextResponse.next();
+
 	// Clean console paths -> /platform/* filesystem (admin keeps its own root).
 	for (const prefix of [...DUAL_PATHS, ...AUTH_REQUIRED]) {
 		if (prefix === "/admin") continue;
@@ -102,6 +116,8 @@ function legacyMiddleware(
 	if (pathname === "/admin" || pathname.startsWith("/admin/")) {
 		return NextResponse.next();
 	}
+
+	if (isMarketingOnlyPath(pathname)) return NextResponse.next();
 
 	for (const prefix of [...DUAL_PATHS, ...AUTH_REQUIRED]) {
 		if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
