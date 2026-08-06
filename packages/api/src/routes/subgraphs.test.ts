@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { buildSyncInfo } from "./subgraphs.ts";
+import type { SubgraphOperation } from "@secondlayer/shared/db";
+import { buildSyncInfo, deriveOperationProgress } from "./subgraphs.ts";
 
 const NO_GAPS = { count: 0, totalMissingBlocks: 0, ranges: [] };
 
@@ -131,5 +132,74 @@ describe("buildSyncInfo", () => {
 		expect(info.queue).toBeUndefined();
 		expect(info.estimatedEvents).toBeUndefined();
 		expect(info.etaSeconds).toBeUndefined();
+	});
+});
+
+// ── deriveOperationProgress ─────────────────────────────────────────────
+
+function operation(overrides: Record<string, unknown> = {}): SubgraphOperation {
+	return {
+		id: "op-1",
+		subgraph_id: "sg-1",
+		subgraph_name: "bns-names",
+		account_id: null,
+		kind: "backfill",
+		status: "running",
+		from_block: 1000,
+		to_block: 1999,
+		cancel_requested: false,
+		locked_by: null,
+		locked_until: null,
+		started_at: null,
+		finished_at: null,
+		processed_blocks: null,
+		error: null,
+		created_at: new Date(),
+		updated_at: new Date(),
+		weight: "heavy",
+		estimated_events: null,
+		processed_events: null,
+		cursor_block: null,
+		...overrides,
+	} as SubgraphOperation;
+}
+
+describe("deriveOperationProgress", () => {
+	test("a running backfill reports progress from its cursor checkpoint", () => {
+		// The whole point of the fallback: a backfill writes neither
+		// processed_events (reindex-only flush) nor processed_blocks (terminal
+		// only), so without the cursor it reports null for its entire run.
+		const op = operation({ cursor_block: 1499 });
+		expect(deriveOperationProgress(op, 1000, 1000)).toBe(0.5);
+	});
+
+	test("the cursor counts inclusively — its own block is committed", () => {
+		expect(
+			deriveOperationProgress(operation({ cursor_block: 1000 }), 1000, 1000),
+		).toBe(0.001);
+	});
+
+	test("a cursor behind the range floors at zero instead of going negative", () => {
+		const op = operation({ cursor_block: 500 });
+		expect(deriveOperationProgress(op, 1000, 1000)).toBe(0);
+	});
+
+	test("event counts win over the cursor when the estimate exists", () => {
+		const op = operation({
+			estimated_events: 400,
+			processed_events: 100,
+			cursor_block: 1900,
+		});
+		expect(deriveOperationProgress(op, 1000, 1000)).toBe(0.25);
+	});
+
+	test("a completed op is 1 even with no progress signal recorded", () => {
+		expect(
+			deriveOperationProgress(operation({ status: "completed" }), 1000, 1000),
+		).toBe(1);
+	});
+
+	test("null when the op has reported nothing at all", () => {
+		expect(deriveOperationProgress(operation(), 1000, 1000)).toBeNull();
 	});
 });

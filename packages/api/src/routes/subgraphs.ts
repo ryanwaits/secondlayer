@@ -1909,6 +1909,47 @@ app.get("/:subgraphName/gaps", async (c) => {
 
 // ── Operation status (poll reindex/backfill/stop progress) ───────────────
 
+/**
+ * Fraction complete for a tracked operation, or null when nothing has been
+ * reported yet. Ordered most- to least-precise:
+ *
+ *  1. Event counts, when the enqueue-time estimate exists (sparse ops) — the
+ *     block fraction is meaningless when most heights are skipped.
+ *  2. `processed_blocks`, which only the terminal writers set.
+ *  3. `cursor_block`, the per-block commit checkpoint. This is the ONLY live
+ *     signal a running backfill produces: it never writes `processed_events`
+ *     (that flush is on the reindex path) and `processed_blocks` lands at
+ *     completion, so without this fallback every in-flight backfill reports
+ *     `progress: null` for its whole duration.
+ */
+export function deriveOperationProgress(
+	op: SubgraphOperation,
+	fromBlock: number,
+	totalBlocks: number,
+): number | null {
+	if (op.status === "completed") return 1;
+
+	const estimated =
+		op.estimated_events == null ? null : Number(op.estimated_events);
+	const processedEvents =
+		op.processed_events == null ? null : Number(op.processed_events);
+	if (estimated != null && estimated > 0 && processedEvents != null) {
+		return Math.min(1, processedEvents / estimated);
+	}
+	if (totalBlocks <= 0) return null;
+	if (op.processed_blocks != null) {
+		return Math.min(1, Math.max(0, op.processed_blocks / totalBlocks));
+	}
+	if (op.cursor_block != null) {
+		// The cursor is the last *committed* height, so it counts inclusively.
+		// It can sit below `fromBlock` on a resumed op whose checkpoint predates
+		// the range — clamp rather than report negative progress.
+		const covered = Number(op.cursor_block) - fromBlock + 1;
+		return Math.min(1, Math.max(0, covered / totalBlocks));
+	}
+	return null;
+}
+
 /** Map a tracked operation to the public status shape (+ derived progress). */
 function toOperationResponse(
 	op: SubgraphOperation,
@@ -1922,16 +1963,7 @@ function toOperationResponse(
 		op.estimated_events == null ? null : Number(op.estimated_events);
 	const processedEvents =
 		op.processed_events == null ? null : Number(op.processed_events);
-	// Event-based progress when the enqueue-time estimate exists (sparse ops) —
-	// the block fraction is meaningless when most blocks are skipped.
-	const progress =
-		op.status === "completed"
-			? 1
-			: estimated != null && estimated > 0 && processedEvents != null
-				? Math.min(1, processedEvents / estimated)
-				: op.processed_blocks != null && total > 0
-					? Math.min(1, Math.max(0, op.processed_blocks / total))
-					: null;
+	const progress = deriveOperationProgress(op, from, total);
 	return {
 		id: op.id,
 		subgraphName: op.subgraph_name,
