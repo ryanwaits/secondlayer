@@ -65,7 +65,11 @@ export function SubgraphReindexForm({
 	const [tab, setTab] = useState<"backfill" | "reindex">("backfill");
 	const [fromBlock, setFromBlock] = useState("");
 	const [toBlock, setToBlock] = useState("");
-	const [message, setMessage] = useState("");
+	const [outcome, setOutcome] = useState<{
+		tone: OperationTone;
+		body: ReactNode;
+		hint?: ReactNode;
+	} | null>(null);
 	const [submitting, setSubmitting] = useState(false);
 
 	const rangeValidation = validateBackfillRange(fromBlock, toBlock);
@@ -84,10 +88,10 @@ export function SubgraphReindexForm({
 
 	async function handleBackfillSubmit() {
 		if (!rangeValidation.valid) {
-			setMessage(`Error: ${rangeValidation.error}`);
+			setOutcome({ tone: "err", body: rangeValidation.error });
 			return;
 		}
-		setMessage("");
+		setOutcome(null);
 		setSubmitting(true);
 		try {
 			const res = await post("backfill", {
@@ -109,16 +113,38 @@ export function SubgraphReindexForm({
 				operation_id: operationId,
 				source: "console",
 			});
-			setMessage("Backfill queued — track its progress in the status pill.");
+			setOutcome({
+				tone: "ok",
+				body: (
+					<>
+						Queued a backfill across blocks{" "}
+						{formatBlockRange(
+							rangeValidation.fromBlock,
+							rangeValidation.toBlock,
+						)}
+						.
+					</>
+				),
+				hint: "Only blocks with no data are processed. Track its progress in the status pill.",
+			});
 		} catch (e) {
-			setMessage(`Error: ${e instanceof Error ? e.message : "Unknown error"}`);
+			setOutcome({
+				tone: "err",
+				body: (
+					<>
+						Couldn't start the backfill —{" "}
+						<b>{e instanceof Error ? e.message : "unknown error"}</b>.
+					</>
+				),
+				hint: "Nothing was queued. Try again in a moment.",
+			});
 		} finally {
 			setSubmitting(false);
 		}
 	}
 
 	async function handleReindexSubmit() {
-		setMessage("");
+		setOutcome(null);
 		setSubmitting(true);
 		try {
 			// Reindex rebuilds the whole subgraph and takes no body — sending no
@@ -141,9 +167,22 @@ export function SubgraphReindexForm({
 				operation_id: operationId,
 				source: "console",
 			});
-			setMessage("Reindex queued — track its progress in the status pill.");
+			setOutcome({
+				tone: "ok",
+				body: <>Queued a full reindex from the subgraph's start block.</>,
+				hint: "Tables rebuild as it walks to the chain tip. Track its progress in the status pill.",
+			});
 		} catch (e) {
-			setMessage(`Error: ${e instanceof Error ? e.message : "Unknown error"}`);
+			setOutcome({
+				tone: "err",
+				body: (
+					<>
+						Couldn't start the reindex —{" "}
+						<b>{e instanceof Error ? e.message : "unknown error"}</b>.
+					</>
+				),
+				hint: "Nothing was queued. Try again in a moment.",
+			});
 		} finally {
 			setSubmitting(false);
 		}
@@ -203,35 +242,23 @@ export function SubgraphReindexForm({
 							/>
 						</div>
 					</div>
-					{rangeTouched && !rangeValidation.valid && (
-						<p
-							style={{
-								marginTop: 8,
-								fontSize: 12,
-								color: "var(--text-danger, #d92d20)",
-							}}
-						>
-							{rangeValidation.error}
-						</p>
-					)}
 					<button
 						type="button"
 						className="sg-reindex-btn"
 						disabled={!rangeValidation.valid || submitting}
 						onClick={handleBackfillSubmit}
 					>
-						Backfill gaps
+						{submitting ? "Queuing…" : "Backfill gaps"}
 					</button>
-					{message && (
-						<p
-							style={{
-								marginTop: 12,
-								fontSize: 12,
-								color: "var(--text-muted)",
-							}}
-						>
-							{message}
-						</p>
+					{rangeTouched && !rangeValidation.valid && (
+						<OperationResult tone="err">
+							{rangeValidation.error}
+						</OperationResult>
+					)}
+					{outcome && (
+						<OperationResult tone={outcome.tone} hint={outcome.hint}>
+							{outcome.body}
+						</OperationResult>
 					)}
 				</div>
 			) : (
@@ -264,18 +291,12 @@ export function SubgraphReindexForm({
 						disabled={submitting}
 						onClick={handleReindexSubmit}
 					>
-						Reindex
+						{submitting ? "Queuing…" : "Reindex"}
 					</button>
-					{message && (
-						<p
-							style={{
-								marginTop: 12,
-								fontSize: 12,
-								color: "var(--text-muted)",
-							}}
-						>
-							{message}
-						</p>
+					{outcome && (
+						<OperationResult tone={outcome.tone} hint={outcome.hint}>
+							{outcome.body}
+						</OperationResult>
 					)}
 				</div>
 			)}

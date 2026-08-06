@@ -10728,3 +10728,69 @@ a.ov-card {
 		transition: none;
 	}
 }
+/* ════════════════════════════════════════════════
+   Operation result — replay / backfill outcome
+   Four states so a zero-row success stops reading
+   like a failure. Semantic tokens only; the accent
+   never means "succeeded".
+   ════════════════════════════════════════════════ */
+.sg-result {
+	display: flex;
+	gap: 9px;
+	align-items: flex-start;
+	margin-top: 14px;
+	padding: 10px 12px;
+	border-radius: 6px;
+	font-size: 12.5px;
+	line-height: 1.5;
+	max-width: 60ch;
+}
+.sg-result .ic {
+	flex: none;
+	margin-top: 1px;
+	font-family: var(--font-mono-stack);
+	font-weight: 700;
+}
+.sg-result b {
+	font-weight: 560;
+}
+.sg-result .sub {
+	display: block;
+	color: var(--text-muted);
+	margin-top: 2px;
+	font-size: 12px;
+}
+.sg-result .mono {
+	font-family: var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
+}
+.sg-result.ok {
+	background: var(--green-bg);
+	color: var(--text-main);
+}
+.sg-result.ok .ic {
+	color: var(--green);
+}
+.sg-result.warn {
+	background: var(--yellow-bg);
+	color: var(--text-main);
+}
+.sg-result.warn .ic {
+	color: var(--yellow);
+}
+.sg-result.none {
+	background: var(--nudge-bg);
+	border: 1px solid var(--border);
+	color: var(--text-muted);
+}
+.sg-result.none .ic {
+	color: var(--text-muted);
+}
+.sg-result.err {
+	background: var(--red-bg);
+	color: var(--text-main);
+}
+.sg-result.err .ic {
+	color: var(--red);
+}
+

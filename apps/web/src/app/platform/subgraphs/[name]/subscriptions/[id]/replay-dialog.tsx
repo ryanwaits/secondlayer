@@ -1,54 +1,154 @@
 "use client";
 
+import {
+	OperationResult,
+	type OperationTone,
+	formatBlockRange,
+} from "@/components/console/operation-result";
 import posthog from "posthog-js";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
+import { validateBackfillRange } from "../../reindex-form";
 
 /**
- * Replay modal — prompts for a block range, POSTs to
- * `/api/subscriptions/:id/replay`, shows the enqueued count. The emitter
- * drains replay outbox rows at 10% of batch capacity so the live stream
- * is never starved (see `LIVE_SHARE` in emitter.ts).
+ * Replay form — prompts for a block range, POSTs to
+ * `/api/subscriptions/:id/replay`. The emitter drains replay outbox rows at
+ * 10% of batch capacity so the live stream is never starved (see `LIVE_SHARE`
+ * in emitter.ts).
+ *
+ * The section heading lives on the page, not here — two components each
+ * rendering their own heading is what produced the doubled "Replay / Replay
+ * block range" stack.
  */
+
+interface ReplayOutcome {
+	tone: OperationTone;
+	body: ReactNode;
+	hint: ReactNode;
+}
+
+/**
+ * Maps a replay response onto one of the four result states. Split out from
+ * the component so the mapping is testable and so the zero-row case can't
+ * silently regress back into "Enqueued 0 of 0 scanned rows."
+ */
+export function describeReplay(
+	enqueuedCount: number,
+	scannedCount: number,
+	fromBlock: number,
+	toBlock: number,
+): ReplayOutcome {
+	const range = formatBlockRange(fromBlock, toBlock);
+
+	if (scannedCount === 0) {
+		return {
+			tone: "none",
+			body: <>No rows in blocks {range} match this subscription's filter.</>,
+			hint: "Nothing to replay. Widen the range, or check the filter on this subscription.",
+		};
+	}
+	if (enqueuedCount === 0) {
+		return {
+			tone: "warn",
+			body: (
+				<>
+					All <b>{scannedCount.toLocaleString()}</b> rows in blocks {range} are
+					already queued.
+				</>
+			),
+			hint: "An earlier replay covered this range. They'll deliver once.",
+		};
+	}
+	if (enqueuedCount < scannedCount) {
+		return {
+			tone: "warn",
+			body: (
+				<>
+					Queued <b>{enqueuedCount.toLocaleString()}</b> of{" "}
+					<b>{scannedCount.toLocaleString()}</b> rows from blocks {range}.
+				</>
+			),
+			hint: `The other ${(scannedCount - enqueuedCount).toLocaleString()} are already queued from an earlier replay — they'll deliver once.`,
+		};
+	}
+	return {
+		tone: "ok",
+		body: (
+			<>
+				Queued <b>{enqueuedCount.toLocaleString()}</b> rows from blocks {range}.
+			</>
+		),
+		hint: "Replays drain at 10% of batch capacity. Watch the delivery log below.",
+	};
+}
+
 export function ReplayDialog({ subscriptionId }: { subscriptionId: string }) {
 	const [open, setOpen] = useState(false);
 	const [fromBlock, setFromBlock] = useState("");
 	const [toBlock, setToBlock] = useState("");
 	const [busy, setBusy] = useState(false);
-	const [result, setResult] = useState<{
-		enqueuedCount: number;
-		scannedCount: number;
-	} | null>(null);
-	const [err, setErr] = useState<string | null>(null);
+	const [outcome, setOutcome] = useState<ReplayOutcome | null>(null);
+
+	// Shared with the subgraph backfill form so a bad range is rejected with
+	// the same words in both places.
+	const range = validateBackfillRange(fromBlock, toBlock);
+	const rangeTouched = fromBlock.trim() !== "" || toBlock.trim() !== "";
 
 	async function onReplay() {
+		if (!range.valid) return;
 		setBusy(true);
-		setErr(null);
-		setResult(null);
+		setOutcome(null);
 		try {
 			const res = await fetch(`/api/subscriptions/${subscriptionId}/replay`, {
 				method: "POST",
 				credentials: "same-origin",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
-					fromBlock: Number(fromBlock),
-					toBlock: Number(toBlock),
+					fromBlock: range.fromBlock,
+					toBlock: range.toBlock,
 				}),
 			});
-			const body = (await res.json()) as {
+			const body = (await res.json().catch(() => ({}))) as {
 				enqueuedCount?: number;
 				scannedCount?: number;
 				error?: string;
 			};
 			if (!res.ok) {
-				setErr(body.error ?? `HTTP ${res.status}`);
+				setOutcome({
+					tone: "err",
+					body: (
+						<>
+							Couldn't start the replay —{" "}
+							<b>{body.error ?? `HTTP ${res.status}`}</b>.
+						</>
+					),
+					hint: "Nothing was queued. Try again in a moment.",
+				});
 				return;
 			}
 			const enqueuedCount = body.enqueuedCount ?? 0;
 			const scannedCount = body.scannedCount ?? 0;
-			setResult({ enqueuedCount, scannedCount });
+			setOutcome(
+				describeReplay(
+					enqueuedCount,
+					scannedCount,
+					range.fromBlock,
+					range.toBlock,
+				),
+			);
 			posthog.capture("subscription_replay_enqueued", {
 				enqueued_count: enqueuedCount,
 				scanned_count: scannedCount,
+			});
+		} catch (e) {
+			setOutcome({
+				tone: "err",
+				body: (
+					<>
+						Couldn't reach the API —{" "}
+						<b>{e instanceof Error ? e.message : "network error"}</b>.
+					</>
+				),
+				hint: "Nothing was queued. Check your connection and try again.",
 			});
 		} finally {
 			setBusy(false);
@@ -57,71 +157,72 @@ export function ReplayDialog({ subscriptionId }: { subscriptionId: string }) {
 
 	if (!open) {
 		return (
-			<button
-				type="button"
-				className="btn-secondary"
-				onClick={() => setOpen(true)}
-			>
+			<button type="button" className="dash-btn" onClick={() => setOpen(true)}>
 				Replay range
 			</button>
 		);
 	}
 
 	return (
-		<div className="detail-section">
-			<h3>Replay block range</h3>
-			<p className="detail-desc">
-				Re-emit rows from this subgraph table in the given block range. Replays
-				drain at 10% of batch capacity so live deliveries aren't starved.
-				Receivers must be idempotent — dedup on the `webhook-id` header.
-			</p>
-			<div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-				<label className="form-field" style={{ flex: 1 }}>
-					<span>From block</span>
+		<div className="sg-reindex-form">
+			<div className="sg-reindex-fields">
+				<div className="sg-reindex-field">
+					<label className="sg-reindex-label" htmlFor="replay-from">
+						From block
+					</label>
 					<input
-						type="number"
-						min="0"
+						id="replay-from"
+						className="sg-reindex-input"
+						type="text"
+						inputMode="numeric"
+						placeholder="e.g. 8709410"
 						value={fromBlock}
 						onChange={(e) => setFromBlock(e.target.value)}
 					/>
-				</label>
-				<label className="form-field" style={{ flex: 1 }}>
-					<span>To block</span>
+				</div>
+				<div className="sg-reindex-field">
+					<label className="sg-reindex-label" htmlFor="replay-to">
+						To block
+					</label>
 					<input
-						type="number"
-						min="0"
+						id="replay-to"
+						className="sg-reindex-input"
+						type="text"
+						inputMode="numeric"
+						placeholder="e.g. 8709415"
 						value={toBlock}
 						onChange={(e) => setToBlock(e.target.value)}
 					/>
-				</label>
+				</div>
 			</div>
-			{err && <p style={{ color: "var(--error)", marginTop: 8 }}>{err}</p>}
-			{result && (
-				<p style={{ color: "var(--success)", marginTop: 8 }}>
-					Enqueued {result.enqueuedCount} of {result.scannedCount} scanned rows.
-				</p>
-			)}
-			<div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+			<div style={{ display: "flex", gap: 8 }}>
 				<button
 					type="button"
-					className="btn-primary"
-					disabled={busy || !fromBlock || !toBlock}
+					className="sg-reindex-btn"
+					disabled={busy || !range.valid}
 					onClick={onReplay}
 				>
 					{busy ? "Enqueuing…" : "Enqueue replay"}
 				</button>
 				<button
 					type="button"
-					className="btn-secondary"
+					className="dash-btn"
 					onClick={() => {
 						setOpen(false);
-						setResult(null);
-						setErr(null);
+						setOutcome(null);
 					}}
 				>
 					Close
 				</button>
 			</div>
+			{rangeTouched && !range.valid && (
+				<OperationResult tone="err">{range.error}</OperationResult>
+			)}
+			{outcome && (
+				<OperationResult tone={outcome.tone} hint={outcome.hint}>
+					{outcome.body}
+				</OperationResult>
+			)}
 		</div>
 	);
 }
