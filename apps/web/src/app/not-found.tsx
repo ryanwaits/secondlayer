@@ -1,3 +1,4 @@
+import { NotFoundTracker } from "@/components/not-found-tracker";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -9,6 +10,7 @@ export const metadata: Metadata = {
 export default function NotFound() {
 	return (
 		<div className="homepage">
+			<NotFoundTracker boundary="root" />
 			<header className="page-header">
 				<h1 className="page-title">404</h1>
 				<p className="page-sub">that page does not exist</p>
