@@ -387,7 +387,14 @@ export function KeysList({
 								onClick={() => {
 									if (confirm("Revoke this key? This cannot be undone.")) {
 										revokeKey.mutate(key.id, {
-											onSuccess: () => posthog.capture("api_key_revoked"),
+											// Mirrors the properties on api_key_created so the two
+											// halves of the key lifecycle can be compared on the
+											// same dimensions.
+											onSuccess: () =>
+												posthog.capture("api_key_revoked", {
+													product: key.product,
+													tier: key.tier || "plan_default",
+												}),
 										});
 									}
 								}}
