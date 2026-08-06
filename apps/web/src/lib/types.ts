@@ -274,3 +274,30 @@ export interface DeadRow {
 	failedAt: string | null;
 	createdAt: string;
 }
+
+/**
+ * A tracked reindex/backfill job, as returned by
+ * `GET /api/subgraphs/:name/operations`. Mirrors the platform API's
+ * `toOperationResponse` shape.
+ */
+export interface SubgraphOperation {
+	id: string;
+	subgraphName: string;
+	kind: "backfill" | "reindex";
+	status: "queued" | "running" | "completed" | "failed" | "cancelled";
+	weight: string | null;
+	fromBlock: number | null;
+	toBlock: number | null;
+	processedBlocks: number | null;
+	cursorBlock: number | null;
+	estimatedEvents: number | null;
+	processedEvents: number | null;
+	/** 0–1, or null when the job has reported no progress signal yet. */
+	progress: number | null;
+	queuePosition?: number;
+	error: string | null;
+	startedAt: string | null;
+	finishedAt: string | null;
+	createdAt: string;
+	updatedAt: string;
+}
