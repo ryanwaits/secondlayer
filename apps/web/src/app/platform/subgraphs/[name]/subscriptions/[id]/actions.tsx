@@ -4,28 +4,21 @@ import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import { useState } from "react";
 
-export function SubscriptionActions({
-	id,
-	subgraphName,
-	status,
-}: {
-	id: string;
-	subgraphName: string;
-	status: "active" | "paused" | "error";
-}) {
-	const router = useRouter();
+/**
+ * Subscription settings and the destructive action, split into two exported
+ * blocks so the page can place them under their own headings. Neither renders
+ * a heading itself — the page owns section structure.
+ */
+
+function useSubscriptionCall() {
 	const [busy, setBusy] = useState(false);
 	const [err, setErr] = useState<string | null>(null);
-	const [rotatedSecret, setRotatedSecret] = useState<string | null>(null);
 
 	async function call(path: string, method = "POST") {
 		setBusy(true);
 		setErr(null);
 		try {
-			const res = await fetch(path, {
-				method,
-				credentials: "same-origin",
-			});
+			const res = await fetch(path, { method, credentials: "same-origin" });
 			const body = (await res.json().catch(() => ({}))) as {
 				error?: string;
 				signingSecret?: string;
@@ -39,6 +32,20 @@ export function SubscriptionActions({
 			setBusy(false);
 		}
 	}
+
+	return { busy, err, call };
+}
+
+export function SubscriptionSettings({
+	id,
+	status,
+}: {
+	id: string;
+	status: "active" | "paused" | "error";
+}) {
+	const router = useRouter();
+	const { busy, err, call } = useSubscriptionCall();
+	const [rotatedSecret, setRotatedSecret] = useState<string | null>(null);
 
 	async function onPauseResume() {
 		const target = status === "active" ? "pause" : "resume";
@@ -62,6 +69,74 @@ export function SubscriptionActions({
 		}
 	}
 
+	return (
+		<>
+			<div className="sg-set-row">
+				<div className="sg-set-info">
+					<div className="sg-set-label">Delivery</div>
+					<div className="sg-set-desc">
+						{status === "active"
+							? "Active. New rows deliver to the receiver as they're indexed."
+							: "Paused. Rows keep accumulating in the outbox and deliver on resume."}
+					</div>
+				</div>
+				<div className="sg-set-action">
+					<button
+						type="button"
+						className="dash-btn"
+						onClick={onPauseResume}
+						disabled={busy}
+					>
+						{status === "active" ? "Pause" : "Resume"}
+					</button>
+				</div>
+			</div>
+
+			<div className="sg-set-row">
+				<div className="sg-set-info">
+					<div className="sg-set-label">Signing secret</div>
+					<div className="sg-set-desc">
+						Receivers verify deliveries with this. Rotating breaks any receiver
+						still using the old one.
+					</div>
+					{rotatedSecret && (
+						<>
+							<div className="sg-set-desc" style={{ marginTop: 10 }}>
+								New signing secret — copy it now, it won't be shown again.
+							</div>
+							<div className="sg-secret" style={{ marginTop: 6 }}>
+								<code className="sg-secret-value">{rotatedSecret}</code>
+							</div>
+						</>
+					)}
+				</div>
+				<div className="sg-set-action">
+					<button
+						type="button"
+						className="dash-btn"
+						onClick={onRotate}
+						disabled={busy}
+					>
+						Rotate
+					</button>
+				</div>
+			</div>
+
+			{err && <div className="sg-set-err">{err}</div>}
+		</>
+	);
+}
+
+export function SubscriptionDangerZone({
+	id,
+	subgraphName,
+}: {
+	id: string;
+	subgraphName: string;
+}) {
+	const router = useRouter();
+	const { busy, err, call } = useSubscriptionCall();
+
 	async function onDelete() {
 		if (
 			!confirm(
@@ -78,52 +153,26 @@ export function SubscriptionActions({
 	}
 
 	return (
-		<div className="detail-section">
-			<h2>Actions</h2>
-			<div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-				<button
-					type="button"
-					className="btn-secondary"
-					onClick={onPauseResume}
-					disabled={busy}
-				>
-					{status === "active" ? "Pause" : "Resume"}
-				</button>
-				<button
-					type="button"
-					className="btn-secondary"
-					onClick={onRotate}
-					disabled={busy}
-				>
-					Rotate signing secret
-				</button>
-				<button
-					type="button"
-					className="btn-danger"
-					onClick={onDelete}
-					disabled={busy}
-				>
-					Delete
-				</button>
-			</div>
-			{err && <p style={{ color: "var(--error)", marginTop: 8 }}>{err}</p>}
-			{rotatedSecret && (
-				<div style={{ marginTop: 16 }}>
-					<p className="detail-desc">
-						New signing secret — copy now, won't be shown again.
-					</p>
-					<code
-						style={{
-							display: "block",
-							padding: 12,
-							background: "var(--code-bg)",
-							wordBreak: "break-all",
-						}}
-					>
-						{rotatedSecret}
-					</code>
+		<div className="sg-danger">
+			<div className="sg-set-row">
+				<div className="sg-set-info">
+					<div className="sg-set-label">Delete subscription</div>
+					<div className="sg-set-desc">
+						Pending outbox entries are cascade-deleted and cannot be recovered.
+					</div>
+					{err && <div className="sg-set-err">{err}</div>}
 				</div>
-			)}
+				<div className="sg-set-action">
+					<button
+						type="button"
+						className="sg-btn-danger"
+						onClick={onDelete}
+						disabled={busy}
+					>
+						{busy ? "Deleting…" : "Delete"}
+					</button>
+				</div>
+			</div>
 		</div>
 	);
 }

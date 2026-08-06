@@ -21,6 +21,35 @@ export interface AgentPromptContext {
 	tables?: string[];
 	subscriptionId?: string;
 	subscriptionName?: string;
+	/**
+	 * Facts the console can already see about the subscription. Appended to
+	 * diagnosis-shaped prompts so the agent starts from evidence rather than
+	 * re-deriving it, and so the operator can read exactly what state is being
+	 * handed over.
+	 */
+	observed?: ObservedSubscriptionState;
+}
+
+export interface ObservedSubscriptionState {
+	status?: string;
+	url?: string;
+	format?: string;
+	runtime?: string | null;
+	/** ISO instant the state was read, so a stale paste is obvious. */
+	capturedAt?: string;
+	circuitOpenedAt?: string | null;
+	circuitFailures?: number;
+	lastError?: string | null;
+	lastSuccessAt?: string | null;
+	deliveriesTotal?: number;
+	deliveriesFailed?: number;
+	dominantStatusCode?: number | null;
+	p50DurationMs?: number | null;
+	timeoutMs?: number;
+	deadCount?: number;
+	deadOldestBlock?: number | null;
+	sourceTable?: string;
+	sourceBlocksBehind?: number | null;
 }
 
 export interface AgentPromptDefinition {
@@ -64,6 +93,81 @@ ${body}`.trim();
 function formatTables(tables?: string[]): string {
 	if (!tables?.length) return "No table list is available yet.";
 	return `Known tables: ${tables.map((t) => `\`${t}\``).join(", ")}.`;
+}
+
+/**
+ * Renders the observed state as a plain bullet list. Omits every field the
+ * console couldn't read, so the agent is never handed a confident-looking
+ * "unknown" it might reason from.
+ */
+function formatObserved(observed?: ObservedSubscriptionState): string {
+	if (!observed) return "";
+	const lines: string[] = [];
+
+	if (observed.status) {
+		const circuit = observed.circuitOpenedAt
+			? `; circuit open since ${observed.circuitOpenedAt}${
+					observed.circuitFailures
+						? ` (${observed.circuitFailures} consecutive failures)`
+						: ""
+				}`
+			: "";
+		lines.push(`- status: ${observed.status}${circuit}`);
+	}
+	if (observed.url) {
+		const shape = [observed.runtime, observed.format]
+			.filter(Boolean)
+			.join(", ");
+		lines.push(`- receiver: ${observed.url}${shape ? ` (${shape})` : ""}`);
+	}
+	if (observed.sourceTable) {
+		const lag =
+			observed.sourceBlocksBehind == null
+				? ""
+				: observed.sourceBlocksBehind === 0
+					? "; source at chain tip"
+					: `; source ${observed.sourceBlocksBehind} blocks behind chain tip`;
+		lines.push(`- source: ${observed.sourceTable}${lag}`);
+	}
+	if (observed.lastError) {
+		lines.push(`- last error: ${observed.lastError}`);
+	}
+	if (observed.deliveriesTotal) {
+		const code =
+			observed.dominantStatusCode != null
+				? `, mostly ${observed.dominantStatusCode}`
+				: "";
+		const timing =
+			observed.p50DurationMs != null && observed.timeoutMs
+				? `; p50 ${observed.p50DurationMs}ms against a ${observed.timeoutMs}ms timeout`
+				: "";
+		lines.push(
+			`- last ${observed.deliveriesTotal} attempts: ${observed.deliveriesFailed ?? 0} failed${code}${timing}`,
+		);
+	}
+	// `undefined` means the caller didn't supply it; `null` means it genuinely
+	// never succeeded. Only the latter is worth telling the agent.
+	if (observed.lastSuccessAt !== undefined) {
+		lines.push(
+			observed.lastSuccessAt
+				? `- last success: ${observed.lastSuccessAt}`
+				: "- last success: never",
+		);
+	}
+	if (observed.deadCount) {
+		const oldest =
+			observed.deadOldestBlock != null
+				? `, oldest at block ${observed.deadOldestBlock}`
+				: "";
+		lines.push(`- dead-letter rows: ${observed.deadCount}${oldest}`);
+	}
+
+	if (lines.length === 0) return "";
+	const stamp = observed.capturedAt ? `, captured ${observed.capturedAt}` : "";
+	return `
+
+Observed state${stamp}:
+${lines.join("\n")}`;
 }
 
 function subscriptionRef(context?: AgentPromptContext): string {
@@ -132,7 +236,7 @@ Inspect the account state first. If the subgraph and table are already clear, as
 		build: (context) =>
 			withSetup(`${SUBSCRIPTIONS_INTRO}
 
-/secondlayer Diagnose ${subscriptionRef(context)}. Inspect subscription detail, recent deliveries, dead-letter rows, and the linked subgraph state. Return the highest-priority findings first. If dead rows exist, propose inspecting them before requeueing selected rows. Do not replay a block range until I confirm exact from/to blocks.`),
+/secondlayer Diagnose ${subscriptionRef(context)}. Inspect subscription detail, recent deliveries, dead-letter rows, and the linked subgraph state. Return the highest-priority findings first. If dead rows exist, propose inspecting them before requeueing selected rows. Do not replay a block range until I confirm exact from/to blocks.${formatObserved(context?.observed)}`),
 	},
 	{
 		id: "subscription-test",
@@ -145,7 +249,19 @@ Inspect the account state first. If the subgraph and table are already clear, as
 		build: (context) =>
 			withSetup(`${SUBSCRIPTIONS_INTRO}
 
-/secondlayer Generate a signed Standard Webhooks test fixture for ${subscriptionRef(context)}. Use only the signing secret I provide in chat; never request or recover the stored platform secret. Produce the JSON body, headers, and curl. Do not POST it.`),
+/secondlayer Generate a signed Standard Webhooks test fixture for ${subscriptionRef(context)}. Use only the signing secret I provide in chat; never request or recover the stored platform secret. Produce the JSON body, headers, and curl. Do not POST it.${formatObserved(
+				context?.observed
+					? {
+							// The fixture only needs the receiver's shape — delivery
+							// history would be noise, and pasting it into a prompt that
+							// gets shared alongside a secret is worth avoiding.
+							url: context.observed.url,
+							format: context.observed.format,
+							runtime: context.observed.runtime,
+							sourceTable: context.observed.sourceTable,
+						}
+					: undefined,
+			)}`),
 	},
 	{
 		id: "cli-operate",
