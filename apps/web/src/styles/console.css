@@ -9913,6 +9913,25 @@ a.ov-card {
 	color: var(--blue);
 	text-decoration: none;
 }
+/* Clears a finished backfill/reindex off the pill. The result is held until
+   it's dismissed rather than timing out, so this is the way back to "Live". */
+.lp-dismiss {
+	margin-top: 10px;
+	width: 100%;
+	padding: 5px 0;
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	color: var(--text-muted);
+	background: transparent;
+	border: 1px solid var(--border);
+	border-radius: 7px;
+	cursor: pointer;
+	transition: color 0.12s ease, border-color 0.12s ease;
+}
+.lp-dismiss:hover {
+	color: var(--text-main);
+	border-color: var(--text-dim);
+}
 @media (prefers-reduced-motion: reduce) {
 	.lp-dot::after,
 	.live-pill-panel {
@@ -10453,5 +10472,259 @@ a.ov-card {
 @media (max-width: 640px) {
 	.usage-grid {
 		grid-template-columns: 1fr;
+	}
+}
+
+/* ════════════════════════════════════════════════
+   Operation result — replay / backfill outcome
+   Four states so a zero-row success stops reading
+   like a failure. Semantic tokens only; the accent
+   never means "succeeded".
+   ════════════════════════════════════════════════ */
+.sg-result {
+	display: flex;
+	gap: 9px;
+	align-items: flex-start;
+	margin-top: 14px;
+	padding: 10px 12px;
+	border-radius: 6px;
+	font-size: 12.5px;
+	line-height: 1.5;
+	max-width: 60ch;
+}
+.sg-result .ic {
+	flex: none;
+	margin-top: 1px;
+	font-family: var(--font-mono-stack);
+	font-weight: 700;
+}
+.sg-result b {
+	font-weight: 560;
+}
+.sg-result .sub {
+	display: block;
+	color: var(--text-muted);
+	margin-top: 2px;
+	font-size: 12px;
+}
+.sg-result .mono {
+	font-family: var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
+}
+.sg-result.ok {
+	background: var(--green-bg);
+	color: var(--text-main);
+}
+.sg-result.ok .ic {
+	color: var(--green);
+}
+.sg-result.warn {
+	background: var(--yellow-bg);
+	color: var(--text-main);
+}
+.sg-result.warn .ic {
+	color: var(--yellow);
+}
+.sg-result.none {
+	background: var(--nudge-bg);
+	border: 1px solid var(--border);
+	color: var(--text-muted);
+}
+.sg-result.none .ic {
+	color: var(--text-muted);
+}
+.sg-result.err {
+	background: var(--red-bg);
+	color: var(--text-main);
+}
+.sg-result.err .ic {
+	color: var(--red);
+}
+
+/* ════════════════════════════════════════════════
+   Diagnostics — evidence panel on subscription detail
+   ════════════════════════════════════════════════ */
+.sg-dx-strip {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 14px;
+}
+.sg-dx-chip {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 6px;
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	padding: 4px 9px;
+	border-radius: 5px;
+	border: 1px solid var(--border);
+	background: transparent;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+.sg-dx-chip b {
+	font-weight: 600;
+	color: var(--text-main);
+}
+.sg-dx-chip.bad {
+	border-color: color-mix(in srgb, var(--red) 30%, var(--border));
+	background: var(--red-bg);
+}
+.sg-dx-chip.bad b {
+	color: var(--red);
+}
+.sg-dx-chip.warn {
+	border-color: color-mix(in srgb, var(--yellow) 30%, var(--border));
+	background: var(--yellow-bg);
+}
+.sg-dx-chip.warn b {
+	color: var(--yellow);
+}
+.sg-dx-chip.ok {
+	border-color: color-mix(in srgb, var(--green) 30%, var(--border));
+	background: var(--green-bg);
+}
+.sg-dx-chip.ok b {
+	color: var(--green);
+}
+
+.sg-dx-err {
+	border: 1px solid color-mix(in srgb, var(--red) 22%, var(--border));
+	border-radius: 8px;
+	overflow: hidden;
+	margin-bottom: 16px;
+}
+.sg-dx-err-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 9px 13px;
+	background: var(--red-bg);
+	border-bottom: 1px solid color-mix(in srgb, var(--red) 18%, var(--border));
+	font-size: 12.5px;
+}
+.sg-dx-err-head .lbl {
+	font-family: var(--font-mono-stack);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--red);
+	flex: none;
+}
+.sg-dx-err-head .msg {
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	color: var(--text-main);
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.sg-dx-err-head .when {
+	margin-left: auto;
+	font-size: 11px;
+	color: var(--text-muted);
+	flex: none;
+}
+.sg-dx-err-body {
+	margin: 0;
+	padding: 11px 13px;
+	background: var(--code-block-bg);
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	line-height: 1.6;
+	color: var(--text-muted);
+	white-space: pre-wrap;
+	word-break: break-word;
+	max-height: 120px;
+	overflow-y: auto;
+}
+
+/* ════════════════════════════════════════════════
+   Agent prompt card — copy button plus the exact
+   text that gets copied, so it isn't a blind hand-off
+   ════════════════════════════════════════════════ */
+.sg-prompt {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	overflow: hidden;
+}
+.sg-prompt + .sg-prompt {
+	margin-top: 8px;
+}
+.sg-prompt-head {
+	display: flex;
+	align-items: flex-start;
+	gap: 16px;
+	padding: 12px 14px;
+}
+.sg-prompt-name {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-main);
+}
+.sg-prompt-desc {
+	font-size: 12px;
+	color: var(--text-muted);
+	margin-top: 3px;
+	max-width: 54ch;
+}
+.sg-prompt-act {
+	margin-left: auto;
+	flex: none;
+}
+.sg-prompt details {
+	border-top: 1px solid var(--border);
+}
+.sg-prompt summary {
+	list-style: none;
+	cursor: pointer;
+	padding: 7px 14px;
+	background: var(--nudge-bg);
+	font-family: var(--font-mono-stack);
+	font-size: 10.5px;
+	font-weight: 500;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	display: flex;
+	align-items: center;
+	gap: 7px;
+}
+.sg-prompt summary::-webkit-details-marker {
+	display: none;
+}
+.sg-prompt summary::before {
+	content: "▸";
+	font-size: 9px;
+	display: inline-block;
+	transition: transform 0.15s;
+}
+.sg-prompt details[open] summary::before {
+	transform: rotate(90deg);
+}
+.sg-prompt summary:hover {
+	color: var(--text-main);
+}
+.sg-prompt pre {
+	margin: 0;
+	padding: 13px 14px;
+	background: var(--code-block-bg);
+	border-top: 1px solid var(--border);
+	font-family: var(--font-mono-stack);
+	font-size: 11px;
+	line-height: 1.65;
+	color: var(--text-muted);
+	white-space: pre-wrap;
+	word-break: break-word;
+	max-height: 340px;
+	overflow-y: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sg-prompt summary::before {
+		transition: none;
 	}
 }
