@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { parseBlockInput, validateBackfillRange } from "./reindex-form";
+import {
+	parseBlockInput,
+	parseOperationId,
+	validateBackfillRange,
+} from "./reindex-form";
 
 describe("parseBlockInput", () => {
 	test("rejects comma-separated numbers instead of silently NaN-ing", () => {
@@ -36,5 +40,23 @@ describe("validateBackfillRange", () => {
 	test("accepts a valid ascending range", () => {
 		const result = validateBackfillRange("185000", "187421");
 		expect(result).toEqual({ valid: true, fromBlock: 185000, toBlock: 187421 });
+	});
+});
+
+describe("parseOperationId", () => {
+	test("reads the queued operation id the start endpoints return", () => {
+		expect(parseOperationId({ operationId: "op-123", status: "queued" })).toBe(
+			"op-123",
+		);
+	});
+
+	test("degrades to null rather than throwing on an unexpected body", () => {
+		// The started event is still worth sending without a join key — losing
+		// the whole submit over a missing id would be the worse failure.
+		expect(parseOperationId(null)).toBeNull();
+		expect(parseOperationId("queued")).toBeNull();
+		expect(parseOperationId({})).toBeNull();
+		expect(parseOperationId({ operationId: 123 })).toBeNull();
+		expect(parseOperationId({ operationId: "" })).toBeNull();
 	});
 });

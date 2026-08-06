@@ -1,11 +1,29 @@
 "use client";
 
+import {
+	OperationResult,
+	type OperationTone,
+	formatBlockRange,
+} from "@/components/console/operation-result";
 import posthog from "posthog-js";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
+import { rememberOperationStartedHere } from "./operation-memory";
+import { blockCountForRange } from "./operation-status";
 
 interface SubgraphReindexFormProps {
 	subgraphName: string;
 	sessionToken: string;
+}
+
+/**
+ * The queued operation's id, which both start endpoints return. It is what
+ * ties a `_started` event to the `_completed`/`_failed` the status pill emits
+ * later, so a missing one degrades to an unjoinable event rather than a throw.
+ */
+export function parseOperationId(body: unknown): string | null {
+	if (typeof body !== "object" || body === null) return null;
+	const id = (body as { operationId?: unknown }).operationId;
+	return typeof id === "string" && id.length > 0 ? id : null;
 }
 
 // Accepts only digit strings so "12,000" (Number() -> NaN) and "-5" (not
@@ -77,11 +95,21 @@ export function SubgraphReindexForm({
 				toBlock: rangeValidation.toBlock,
 			});
 			if (!res.ok) throw new Error(await res.text());
+			const operationId = parseOperationId(await res.json().catch(() => null));
+			// Tag it as ours before the pill can observe it finishing, so the
+			// terminal event is attributed to the console rather than the CLI.
+			if (operationId) rememberOperationStartedHere(operationId);
 			posthog.capture("subgraph_backfill_started", {
 				from_block: rangeValidation.fromBlock,
 				to_block: rangeValidation.toBlock,
+				block_count: blockCountForRange(
+					rangeValidation.fromBlock,
+					rangeValidation.toBlock,
+				),
+				operation_id: operationId,
+				source: "console",
 			});
-			setMessage("Backfill started successfully.");
+			setMessage("Backfill queued — track its progress in the status pill.");
 		} catch (e) {
 			setMessage(`Error: ${e instanceof Error ? e.message : "Unknown error"}`);
 		} finally {
@@ -98,8 +126,22 @@ export function SubgraphReindexForm({
 			// than an empty `{}` implying a body was considered and cleared).
 			const res = await post("reindex");
 			if (!res.ok) throw new Error(await res.text());
-			posthog.capture("subgraph_reindex_started");
-			setMessage("Reindex started successfully.");
+			const body = await res.json().catch(() => null);
+			const operationId = parseOperationId(body);
+			if (operationId) rememberOperationStartedHere(operationId);
+			// No block_count: a reindex has no upper bound at submit time — it
+			// always walks to whatever the chain tip is when it runs. The pill's
+			// terminal event fills that in against the tip it actually reached.
+			posthog.capture("subgraph_reindex_started", {
+				from_block:
+					typeof (body as { fromBlock?: unknown } | null)?.fromBlock ===
+					"number"
+						? (body as { fromBlock: number }).fromBlock
+						: null,
+				operation_id: operationId,
+				source: "console",
+			});
+			setMessage("Reindex queued — track its progress in the status pill.");
 		} catch (e) {
 			setMessage(`Error: ${e instanceof Error ? e.message : "Unknown error"}`);
 		} finally {
