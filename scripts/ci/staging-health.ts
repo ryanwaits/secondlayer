@@ -1,7 +1,10 @@
 #!/usr/bin/env bun
 /**
- * Staging health smoke check — runs on cron every 30 min via
- * .github/workflows/staging-health.yml.
+ * Staging health smoke check — runs on cron every 30 min on the prod host via
+ * `secondlayer-staging-health.timer` (see docker/systemd/). The GitHub workflow
+ * of the same name is manual-dispatch only: scheduled runs there were routinely
+ * cancelled without ever being assigned a runner, which paged as a health
+ * failure while telling us nothing about prod.
  *
  * Probes the public status surface and a few derived invariants. Designed
  * to alert when the API is genuinely down, not on every momentary lag blip:
@@ -217,7 +220,9 @@ async function checkZeroTimestampBlocks(): Promise<void> {
 			FROM blocks, tip
 			WHERE canonical = true
 				AND timestamp = 0
-				AND height >= GREATEST(0, tip.height - ${ZERO_TIMESTAMP_LOOKBACK_BLOCKS})
+				-- Qualified: the tip CTE also exposes a height column, so a bare
+				-- reference is ambiguous and errors the whole check into a failure.
+				AND blocks.height >= GREATEST(0, tip.height - ${ZERO_TIMESTAMP_LOOKBACK_BLOCKS})
 		`;
 		const count = Number((rows[0] as { count: string | number })?.count ?? 0);
 		if (count > 0) {
