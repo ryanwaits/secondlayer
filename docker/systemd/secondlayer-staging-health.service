@@ -1,0 +1,11 @@
+[Unit]
+Description=Secondlayer deep prod health check with Slack alerting
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/opt/secondlayer/docker/.env
+ExecStart=/opt/secondlayer/docker/scripts/staging-health-alert.sh
+StandardOutput=append:/var/log/secondlayer-staging-health.log
+StandardError=append:/var/log/secondlayer-staging-health.log
