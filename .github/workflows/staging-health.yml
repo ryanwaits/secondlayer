@@ -1,9 +1,17 @@
 name: Staging Health
 
+# Manual dispatch only. The recurring probe runs on the prod host via
+# `secondlayer-staging-health.timer` (docker/systemd/), NOT here.
+#
+# This workflow used to carry `schedule: */30`. GitHub never assigned runners to
+# a meaningful share of those firings: the job sat unassigned for ~15 min and was
+# cancelled with zero steps executed, which surfaced as a red "Staging Health"
+# failure that said nothing about prod. The dropped firings were worse than the
+# false pages — of 48 expected daily runs only ~4 actually materialized, so the
+# check ran at roughly 8% of its configured cadence. Both problems are properties
+# of the hosted-runner queue, so the schedule moved off it entirely.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "*/30 * * * *"
 
 concurrency:
   group: staging-health
@@ -12,6 +20,9 @@ concurrency:
 jobs:
   health:
     runs-on: ubuntu-latest
+    # The probe finishes in ~15s. A dispatch that drags on is a starved runner,
+    # not a slow check — fail fast and distinctly instead of hanging.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       # continue-on-error + retry: transient GitHub API 503s during setup must not page as staging failures
