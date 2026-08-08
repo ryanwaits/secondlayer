@@ -66,6 +66,12 @@ export function buildTransactionProof(params: {
 	};
 }
 
+/** Reader over the composed (DB + node) proof gatherer, as exposed at the
+ *  route layer — the route only ever calls the "default" composed version. */
+export type TransactionProofReader = (
+	txId: string,
+) => Promise<TransactionProofResponse | null>;
+
 export type ProofTxReader = (txId: string) => Promise<{
 	block_height: number;
 	tx_index: number;

@@ -102,6 +102,18 @@ function parseCycleCursor(raw: string | null): number | undefined {
 	return n;
 }
 
+export type PoxCyclesReader = (
+	query: URLSearchParams,
+	db?: Kysely<Database>,
+	eraClosed?: boolean,
+) => Promise<{ cycles: PoxCycle[]; next_cursor: number | null }>;
+
+export type PoxCycleReader = (
+	rewardCycle: number,
+	db?: Kysely<Database>,
+	eraClosed?: boolean,
+) => Promise<PoxCycle | null>;
+
 export async function readPoxCycles(
 	query: URLSearchParams,
 	db: Kysely<Database> = getSourceDb(),
@@ -229,6 +241,7 @@ export async function getPoxCyclesResponse(opts: {
 	tip: IndexTip;
 	decoderEnabled?: boolean;
 	eraClosed?: boolean;
+	readPoxCycles?: PoxCyclesReader;
 }): Promise<PoxCyclesResponse> {
 	const enabled = opts.decoderEnabled ?? isPox4DecoderEnabled();
 	if (!enabled) {
@@ -241,7 +254,8 @@ export async function getPoxCyclesResponse(opts: {
 	}
 	const eraClosed = opts.eraClosed ?? (await isPox4EraClosed());
 	const note = cycleNote(enabled, eraClosed);
-	const { cycles, next_cursor } = await readPoxCycles(
+	const reader = opts.readPoxCycles ?? readPoxCycles;
+	const { cycles, next_cursor } = await reader(
 		opts.query,
 		undefined,
 		eraClosed,
@@ -259,6 +273,7 @@ export async function getPoxCycleResponse(opts: {
 	tip: IndexTip;
 	decoderEnabled?: boolean;
 	eraClosed?: boolean;
+	readPoxCycle?: PoxCycleReader;
 }): Promise<PoxCycleResponse | null> {
 	const enabled = opts.decoderEnabled ?? isPox4DecoderEnabled();
 	if (!enabled) {
@@ -266,7 +281,8 @@ export async function getPoxCycleResponse(opts: {
 	}
 	const eraClosed = opts.eraClosed ?? (await isPox4EraClosed());
 	const note = cycleNote(enabled, eraClosed);
-	const cycle = await readPoxCycle(opts.rewardCycle, undefined, eraClosed);
+	const reader = opts.readPoxCycle ?? readPoxCycle;
+	const cycle = await reader(opts.rewardCycle, undefined, eraClosed);
 	if (!cycle) return null;
 	return {
 		cycle,

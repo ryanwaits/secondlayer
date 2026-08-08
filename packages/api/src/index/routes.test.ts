@@ -18,12 +18,24 @@ import type { StreamsTip } from "../streams/tip.ts";
 import { INDEX_READ_SCOPE, type IndexTokenStore } from "./auth.ts";
 import type { FtTransfersReader } from "./ft-transfers.ts";
 import type { NftTransfersReader } from "./nft-transfers.ts";
+import type {
+	PoxCycle,
+	PoxCycleReader,
+	PoxCyclesReader,
+} from "./pox-cycles.ts";
 import { _resetPox4EraCacheForTests } from "./pox-era.ts";
 import {
 	INDEX_ANON_RATE_LIMIT_PER_SECOND,
 	INDEX_TIER_CONFIG,
 } from "./tiers.ts";
 import type { IndexTip } from "./tip.ts";
+import {
+	IncompleteBlockTxSetError,
+	ProofNodeUnavailableError,
+	type TransactionProofReader,
+	type TransactionProofResponse,
+} from "./transaction-proof.ts";
+import type { UsageReader } from "./usage.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 const BUILD_KEY = "sk-sl_index_build_test";
@@ -743,6 +755,257 @@ describe("Index sBTC peg routes", () => {
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as { deposit: { status: string } };
 		expect(body.deposit.status).toBe("COMPLETED");
+	});
+});
+
+const FAKE_POX_CYCLE: PoxCycle = {
+	reward_cycle: 142,
+	total_stacked_ustx: "5000000",
+	unique_stackers: 3,
+	unique_delegators: 1,
+	action_count: 4,
+	start_block_height: 9000,
+	end_block_height: 9100,
+	is_current: true,
+	function_breakdown: [{ function_name: "stack-stx", count: 4 }],
+};
+
+describe("Index /pox/cycles route (fake reader)", () => {
+	function cyclesApp(overrides: { readPoxCycles?: PoxCyclesReader } = {}) {
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readPoxCycles: async () => ({
+					cycles: [FAKE_POX_CYCLE],
+					next_cursor: null,
+				}),
+				...overrides,
+			}),
+		);
+		return app;
+	}
+
+	test("returns the envelope from the injected fake reader", async () => {
+		const res = await cyclesApp().request("/v1/index/pox/cycles");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			cycles: PoxCycle[];
+			next_cursor: number | null;
+		};
+		expect(body.cycles).toEqual([FAKE_POX_CYCLE]);
+		expect(body.next_cursor).toBeNull();
+	});
+
+	test("short-caches a page that contains a current cycle", async () => {
+		const res = await cyclesApp().request("/v1/index/pox/cycles");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Cache-Control")).toContain("max-age=30");
+	});
+
+	test("long-caches a page where no returned cycle is current", async () => {
+		const closedCycle = { ...FAKE_POX_CYCLE, is_current: false };
+		const res = await cyclesApp({
+			readPoxCycles: async () => ({
+				cycles: [closedCycle],
+				next_cursor: null,
+			}),
+		}).request("/v1/index/pox/cycles");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Cache-Control")).toContain("max-age=3600");
+	});
+});
+
+describe("Index /pox/cycles/:reward_cycle route (fake reader)", () => {
+	function cycleApp(overrides: { readPoxCycle?: PoxCycleReader } = {}) {
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readPoxCycle: async (rewardCycle) =>
+					rewardCycle === 142 ? FAKE_POX_CYCLE : null,
+				...overrides,
+			}),
+		);
+		return app;
+	}
+
+	test("returns the cycle for a matching reward_cycle", async () => {
+		const res = await cycleApp().request("/v1/index/pox/cycles/142");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { cycle: PoxCycle };
+		expect(body.cycle).toEqual(FAKE_POX_CYCLE);
+	});
+
+	test("404s for a reward_cycle the reader doesn't have", async () => {
+		const res = await cycleApp().request("/v1/index/pox/cycles/999");
+		expect(res.status).toBe(404);
+	});
+
+	test("400s for a non-integer reward_cycle without ever calling the reader", async () => {
+		let called = false;
+		const res = await cycleApp({
+			readPoxCycle: async (rewardCycle) => {
+				called = true;
+				return rewardCycle === 142 ? FAKE_POX_CYCLE : null;
+			},
+		}).request("/v1/index/pox/cycles/abc");
+		expect(res.status).toBe(400);
+		expect(called).toBe(false);
+	});
+
+	test("400s for a negative reward_cycle without ever calling the reader", async () => {
+		let called = false;
+		const res = await cycleApp({
+			readPoxCycle: async (rewardCycle) => {
+				called = true;
+				return rewardCycle === 142 ? FAKE_POX_CYCLE : null;
+			},
+		}).request("/v1/index/pox/cycles/-1");
+		expect(res.status).toBe(400);
+		expect(called).toBe(false);
+	});
+});
+
+describe("Index /usage route (fake reader)", () => {
+	const FAKE_USAGE = {
+		streamsEventsToday: 1,
+		streamsEventsThisMonth: 2,
+		indexDecodedEventsToday: 5,
+		indexDecodedEventsThisMonth: 120,
+	};
+
+	function usageApp(
+		overrides: {
+			tokens?: IndexTokenStore;
+			readUsage?: UsageReader;
+		} = {},
+	) {
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readUsage: async () => FAKE_USAGE,
+				...overrides,
+			}),
+		);
+		return app;
+	}
+
+	test("401s an anonymous request", async () => {
+		let called = false;
+		const res = await usageApp({
+			readUsage: async () => {
+				called = true;
+				return FAKE_USAGE;
+			},
+		}).request("/v1/index/usage");
+		expect(res.status).toBe(401);
+		expect(called).toBe(false);
+	});
+
+	test("200s an authenticated request with the injected usage", async () => {
+		const tokens: IndexTokenStore = new Map([
+			[
+				"sk-sl_usage_test",
+				{
+					tenant_id: "account:acct_usage",
+					account_id: "acct_usage",
+					tier: "build",
+					scopes: [INDEX_READ_SCOPE],
+				},
+			],
+		]);
+		const res = await usageApp({ tokens }).request("/v1/index/usage", {
+			headers: authHeaders("sk-sl_usage_test"),
+		});
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			usage: {
+				decoded_events_today: number;
+				decoded_events_this_month: number;
+			};
+		};
+		expect(body.usage.decoded_events_today).toBe(5);
+		expect(body.usage.decoded_events_this_month).toBe(120);
+	});
+});
+
+describe("Index /transactions/:tx_id/proof route (fake reader)", () => {
+	const FAKE_PROOF: TransactionProofResponse = {
+		txid: "abc",
+		index_block_hash: "deadbeef",
+		block_height: 9000,
+		tx_index: 0,
+		raw_tx: "00",
+		raw_header: "00",
+		tx_merkle_path: [],
+	};
+
+	function proofApp(
+		overrides: {
+			readTransactionProof?: TransactionProofReader;
+		} = {},
+	) {
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readTransactionProof: async (txId) =>
+					txId === "0xabc" ? FAKE_PROOF : null,
+				...overrides,
+			}),
+		);
+		return app;
+	}
+
+	test("returns the proof, immutably cached", async () => {
+		const res = await proofApp().request("/v1/index/transactions/0xabc/proof");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as TransactionProofResponse;
+		expect(body).toEqual(FAKE_PROOF);
+		expect(res.headers.get("Cache-Control")).toContain("immutable");
+	});
+
+	test("404s when the reader finds no tx/block", async () => {
+		const res = await proofApp().request(
+			"/v1/index/transactions/0xnotfound/proof",
+		);
+		expect(res.status).toBe(404);
+	});
+
+	test("503s with PROOF_TX_SET_INCOMPLETE when the reader throws IncompleteBlockTxSetError", async () => {
+		const res = await proofApp({
+			readTransactionProof: async () => {
+				throw new IncompleteBlockTxSetError(9000);
+			},
+		}).request("/v1/index/transactions/0xabc/proof");
+		expect(res.status).toBe(503);
+		const body = (await res.json()) as { code: string };
+		expect(body.code).toBe("PROOF_TX_SET_INCOMPLETE");
+	});
+
+	test("503s with PROOF_NODE_UNAVAILABLE when the reader throws ProofNodeUnavailableError", async () => {
+		const res = await proofApp({
+			readTransactionProof: async () => {
+				throw new ProofNodeUnavailableError(new Error("connect ECONNREFUSED"));
+			},
+		}).request("/v1/index/transactions/0xabc/proof");
+		expect(res.status).toBe(503);
+		const body = (await res.json()) as { code: string };
+		expect(body.code).toBe("PROOF_NODE_UNAVAILABLE");
 	});
 });
 

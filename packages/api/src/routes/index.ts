@@ -1,7 +1,4 @@
-import {
-	getProductUsage,
-	incrementIndexDecodedEventsReturned,
-} from "@secondlayer/platform/db/queries/usage";
+import { incrementIndexDecodedEventsReturned } from "@secondlayer/platform/db/queries/usage";
 import { getDb } from "@secondlayer/shared/db";
 import { readChainReorgsForHeightRange } from "@secondlayer/shared/db/queries/chain-reorgs";
 import { type Context, Hono, type MiddlewareHandler } from "hono";
@@ -60,6 +57,8 @@ import {
 } from "../index/nft-transfers.ts";
 import {
 	POX_CYCLES_FILTERS,
+	type PoxCycleReader,
+	type PoxCyclesReader,
 	getPoxCycleResponse,
 	getPoxCyclesResponse,
 } from "../index/pox-cycles.ts";
@@ -106,6 +105,7 @@ import {
 import {
 	IncompleteBlockTxSetError,
 	ProofNodeUnavailableError,
+	type TransactionProofReader,
 	getTransactionProofDefault,
 } from "../index/transaction-proof.ts";
 import {
@@ -115,6 +115,7 @@ import {
 	getTransactionsResponse,
 	readTransactionById,
 } from "../index/transactions.ts";
+import { type UsageReader, readUsage } from "../index/usage.ts";
 import { validateQueryParams } from "../middleware/validation.ts";
 import {
 	DEFAULT_STREAMS_REORGS_READER,
@@ -150,6 +151,10 @@ export type IndexRouterOptions = {
 	readTransactions?: TransactionsReader;
 	readTransactionById?: TransactionByIdReader;
 	readStacking?: StackingReader;
+	readPoxCycles?: PoxCyclesReader;
+	readPoxCycle?: PoxCycleReader;
+	readUsage?: UsageReader;
+	readTransactionProof?: TransactionProofReader;
 	readPox5Events?: Pox5EventsReader;
 	readSbtcEvents?: SbtcEventsReader;
 	readSbtcDeposits?: SbtcDepositsReader;
@@ -428,7 +433,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 				401,
 			);
 		}
-		const usage = await getProductUsage(getDb(), tenant.account_id);
+		const usage = await (opts.readUsage ?? readUsage)(tenant.account_id);
 		return c.json({
 			product: "index",
 			tier: tenant.tier,
@@ -614,7 +619,9 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 	router.get("/transactions/:tx_id/proof", async (c) => {
 		let proof: Awaited<ReturnType<typeof getTransactionProofDefault>>;
 		try {
-			proof = await getTransactionProofDefault(c.req.param("tx_id"));
+			proof = await (opts.readTransactionProof ?? getTransactionProofDefault)(
+				c.req.param("tx_id"),
+			);
 		} catch (err) {
 			if (err instanceof IncompleteBlockTxSetError) {
 				return c.json(
@@ -677,7 +684,11 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		validateQueryParams(query, POX_CYCLES_FILTERS);
 		const tip = await getTip();
 		c.set("indexTip", tip);
-		const response = await getPoxCyclesResponse({ query, tip });
+		const response = await getPoxCyclesResponse({
+			query,
+			tip,
+			readPoxCycles: opts.readPoxCycles,
+		});
 		// Short-cache only when the page actually contains a still-accumulating
 		// cycle. Completed cycles are immutable, and after the epoch 4.0 fork no
 		// pox-4 cycle is current at all — so every page becomes long-cacheable.
@@ -702,7 +713,11 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		}
 		const tip = await getTip();
 		c.set("indexTip", tip);
-		const response = await getPoxCycleResponse({ rewardCycle, tip });
+		const response = await getPoxCycleResponse({
+			rewardCycle,
+			tip,
+			readPoxCycle: opts.readPoxCycle,
+		});
 		if (!response) return c.json({ error: "not_found" }, 404);
 		// Immutable cache for completed cycles; short for the current one.
 		const maxAge = response.cycle.is_current ? 30 : 3600;
