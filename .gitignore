@@ -83,3 +83,6 @@ packages/subgraphs/test/fixtures/
 .agents/skills/studio/
 .openpkg-spec.json
 cassettes/
+
+# Local bb visual artifacts
+.bb-artifacts/
