@@ -476,6 +476,122 @@ export const OPENAPI_SPEC = {
 				responses: envelope("stacking"),
 			},
 		},
+		"/v1/index/pox/cycles": {
+			get: {
+				tags: ["index"],
+				summary: "PoX-4 reward-cycle aggregates",
+				description:
+					"Per-cycle rollup over pox4_calls: total stacked ustx, unique stackers/delegators, action count, block range, function breakdown. Cursor-paginated by reward_cycle descending; may carry an optional `notes` field (decoder disabled, or PoX-4 era closed at the epoch 4.0 fork).",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [
+					{ $ref: "#/components/parameters/Limit" },
+					{
+						name: "cursor",
+						in: "query",
+						schema: { type: "integer", example: 84 },
+						description: "Reward cycle to page backward from (exclusive).",
+					},
+				],
+				responses: {
+					"200": {
+						description: "Cursor-paginated reward-cycle list",
+						content: {
+							"application/json": {
+								schema: {
+									type: "object",
+									properties: {
+										cycles: { type: "array", items: { type: "object" } },
+										next_cursor: { type: ["integer", "null"], example: 83 },
+										tip: { $ref: "#/components/schemas/Tip" },
+										notes: { type: "string" },
+									},
+								},
+							},
+						},
+					},
+					"400": jsonError(),
+					"401": jsonError(),
+					"429": jsonError(),
+				},
+			},
+		},
+		"/v1/index/pox/cycles/{reward_cycle}": {
+			get: {
+				tags: ["index"],
+				summary: "PoX-4 reward-cycle aggregate by cycle number",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [
+					{
+						name: "reward_cycle",
+						in: "path",
+						required: true,
+						schema: { type: "integer", example: 142 },
+					},
+				],
+				responses: {
+					"200": {
+						description: "OK",
+						content: {
+							"application/json": {
+								schema: {
+									type: "object",
+									properties: {
+										cycle: { type: "object" },
+										tip: { $ref: "#/components/schemas/Tip" },
+										notes: { type: "string" },
+									},
+								},
+							},
+						},
+					},
+					"400": {
+						description: "reward_cycle is not a non-negative integer",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/Error" },
+							},
+						},
+					},
+					"404": {
+						description: "No cycle found for reward_cycle",
+						content: {
+							"application/json": {
+								schema: { $ref: "#/components/schemas/Error" },
+							},
+						},
+					},
+				},
+			},
+		},
+		"/v1/index/pox5/events": {
+			get: {
+				tags: ["index"],
+				summary: "PoX-5 boot-contract events (decoded)",
+				description:
+					"Decoded print log of the pox-5 boot contract (SIP-045 Bitcoin Staking) — all 19 topics (stake, stake-update, register-signer, unstake, claim-rewards, etc.), one row per print. Starts at the epoch 4.0 hard fork, where /v1/index/stacking's pox-4 feed ends.",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [
+					{ $ref: "#/components/parameters/Limit" },
+					{
+						name: "cursor",
+						in: "query",
+						schema: { type: "string", example: "7960000:3" },
+					},
+					qp("from_cursor", "string"),
+					qp("from_height", "integer"),
+					qp("to_height", "integer"),
+					qp("confirmed", "boolean"),
+					qp("topic", "string"),
+					qp("staker", "string"),
+					qp("signer", "string"),
+					qp("signer_manager", "string"),
+					qp("bond_index", "integer"),
+					qp("reward_cycle", "integer"),
+					qp("fields", "string"),
+				],
+				responses: envelope("events"),
+			},
+		},
 		"/v1/index/sbtc/events": {
 			get: {
 				tags: ["index"],
