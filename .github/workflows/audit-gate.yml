@@ -1,0 +1,48 @@
+name: Audit Gate
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 9 * * 1"   # Monday 09:00 UTC — weekly
+
+concurrency:
+  group: audit-gate
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        id: setup-bun
+        continue-on-error: true
+        with:
+          bun-version: "1.3.10"
+      - uses: oven-sh/setup-bun@v2
+        if: steps.setup-bun.outcome == 'failure'
+        with:
+          bun-version: "1.3.10"
+      - name: Run bun audit (fail only on high+ severity)
+        run: |
+          set -o pipefail
+          bun audit | tee /tmp/audit.txt
+          if grep -qE '\([1-9][0-9]* high' /tmp/audit.txt; then
+            echo "::error::bun audit found one or more HIGH severity vulnerabilities — see log above"
+            exit 1
+          fi
+
+  notify:
+    needs: [audit]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Slack notification
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": ":x: bun audit found HIGH severity vulnerabilities — <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+            }
