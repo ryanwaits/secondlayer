@@ -162,11 +162,29 @@ function serviceStatusFromPublicIndex(
 	return "unavailable";
 }
 
-function nodeStatusFromStreamsTip(
+/**
+ * Tip lag (seconds) at which the node counts as degraded.
+ *
+ * Keep in sync with `LAG_DEGRADED_SECONDS` in apps/web/src/lib/status-page.ts —
+ * every other surface is judged against that same 180s bar.
+ *
+ * This was 60s, which is inside normal block-spacing variance: sampled against
+ * prod, real tip lag sawtooths between ~15s and ~130s as it climbs waiting for
+ * the next block and resets when one lands. That put `node` over the line about
+ * 18% of the time, and because the status page takes the WORST surface, roughly
+ * one in five loads rendered "Some systems degraded" while every other surface
+ * was ok and the API's own top-level status said `healthy`. The web side had
+ * already moved its threshold to 180s to stop exactly this flapping, but could
+ * not fix it here: `node.status` crosses the wire pre-computed as a string, so
+ * the raw lag needed to apply a threshold never reaches the browser.
+ */
+export const NODE_LAG_DEGRADED_SECONDS = 180;
+
+export function nodeStatusFromStreamsTip(
 	streamsTip: StreamsTip | null,
 ): SemanticHealthStatus {
 	if (!streamsTip) return "unavailable";
-	if (streamsTip.lag_seconds >= 60) return "degraded";
+	if (streamsTip.lag_seconds >= NODE_LAG_DEGRADED_SECONDS) return "degraded";
 	return "ok";
 }
 

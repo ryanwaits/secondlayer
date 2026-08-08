@@ -12,8 +12,14 @@ export type StatusState = "checking" | "ok" | "degraded" | "down";
 export type FreshnessColor = "green" | "yellow" | "muted";
 
 /** Lag (seconds) at which a surface/decoder is considered degraded. Normal
- *  ingest lag sits ~45s, so this is set well above that to avoid flapping the
- *  public status to "degraded" on routine block-spacing variance. */
+ *  ingest lag sits ~45s and sawtooths past 100s waiting on the next block, so
+ *  this is set well above that to avoid flapping the public status to
+ *  "degraded" on routine block-spacing variance.
+ *
+ *  The node surface is judged API-side against `NODE_LAG_DEGRADED_SECONDS` in
+ *  packages/api/src/routes/status.ts, since `node.status` arrives already
+ *  reduced to a string. Keep the two in sync — when they drifted, the node
+ *  surface flapped on its own and dragged the whole page to "degraded". */
 export const LAG_DEGRADED_SECONDS = 180;
 
 export type ApiHealth = {

@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
+	type StatusSnapshot,
+	deriveSurfaces,
 	determineApiHealth,
 	determinePublicStatusHealth,
 	formatErrorRate,
@@ -8,6 +10,7 @@ import {
 	formatLatencyMs,
 	indexFreshnessColor,
 	indexFreshnessLabel,
+	overallStatus,
 	readIncidentHeading,
 	serviceDisplayName,
 	serviceStatusColor,
@@ -120,5 +123,75 @@ describe("status page helpers", () => {
 		expect(indexFreshnessColor(index.decoders[1])).toBe("yellow");
 		expect(indexFreshnessLabel("ft_transfer", null)).toBe("FT unavailable");
 		expect(indexFreshnessColor(null)).toBe("muted");
+	});
+});
+
+describe("node surface", () => {
+	// The status page reduces to the WORST surface, so a single flapping surface
+	// takes the whole headline with it. `node.status` is computed API-side and
+	// arrives as a string, so this is the only place the behaviour is visible.
+	function snapshot(node: StatusSnapshot["node"]): StatusSnapshot {
+		return {
+			health: { state: "ok", label: "OK", description: "" },
+			tip: { lag_seconds: 30 } as StatusSnapshot["tip"],
+			index: {
+				status: "ok",
+				decoders: [
+					{
+						decoder: "decode.ft_transfer.v1",
+						eventType: "ft_transfer",
+						status: "ok",
+						lagSeconds: 30,
+						checkpointBlockHeight: 100,
+						tipBlockHeight: 101,
+						lastDecodedAt: "2026-05-11T12:00:00.000Z",
+					},
+				],
+			} as StatusSnapshot["index"],
+			api: null,
+			node,
+			services: [
+				{ name: "subgraph_processor", status: "ok" },
+			] as StatusSnapshot["services"],
+			lastChecked: null,
+			error: null,
+		};
+	}
+
+	function surfaceState(node: StatusSnapshot["node"]) {
+		const snap = snapshot(node);
+		const surfaces = deriveSurfaces(snap);
+		return {
+			node: surfaces.find((s) => s.key === "node")?.state,
+			pill: overallStatus(snap, surfaces).pill,
+		};
+	}
+
+	test("a healthy node leaves the page operational", () => {
+		expect(surfaceState({ status: "ok" })).toEqual({
+			node: "ok",
+			pill: "Operational",
+		});
+	});
+
+	// Guards the regression this test file was extended for: while the API
+	// degraded the node at 60s tip lag, routine block spacing pushed roughly one
+	// in five page loads to "Degraded" with every other surface ok.
+	test("a degraded node drags the whole page to degraded", () => {
+		expect(surfaceState({ status: "degraded" })).toEqual({
+			node: "degraded",
+			pill: "Degraded",
+		});
+	});
+
+	test("an unobservable node is unknown, not a confirmed outage", () => {
+		expect(surfaceState({ status: "unavailable" })).toEqual({
+			node: "unknown",
+			pill: "Operational",
+		});
+		expect(surfaceState(null)).toEqual({
+			node: "unknown",
+			pill: "Operational",
+		});
 	});
 });

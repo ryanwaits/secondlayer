@@ -3,7 +3,10 @@ import {
 	type DecodersHealth,
 	getEnabledDecoderNames,
 } from "@secondlayer/indexer/decode/health";
+import type { StreamsTip } from "../streams/tip.ts";
 import {
+	NODE_LAG_DEGRADED_SECONDS,
+	nodeStatusFromStreamsTip,
 	publicIndexStatusFromL2Health,
 	subgraphProcessorVerdict,
 } from "./status.ts";
@@ -160,5 +163,41 @@ describe("/status subgraph processor verdict", () => {
 		expect(
 			subgraphProcessorVerdict({ ageSeconds: 5, blocksBehind: null }),
 		).toEqual({ status: "ok", reason: "fresh" });
+	});
+});
+
+describe("/status node status", () => {
+	const tipAt = (lag_seconds: number) => ({ lag_seconds }) as StreamsTip;
+
+	// The threshold was 60s, inside normal block-spacing variance. Sampled
+	// against prod, tip lag sawtooths ~15s→~130s between blocks, so the node
+	// surface reported degraded ~18% of the time and — because the status page
+	// takes the worst surface — dragged the whole page to "Some systems
+	// degraded" while everything was fine. These lags must all read ok.
+	test("routine block-spacing lag is ok, not degraded", () => {
+		for (const lag of [0, 45, 60, 65, 100, 131, 179]) {
+			expect(nodeStatusFromStreamsTip(tipAt(lag))).toBe("ok");
+		}
+	});
+
+	test("degrades at the shared threshold, not before", () => {
+		expect(nodeStatusFromStreamsTip(tipAt(NODE_LAG_DEGRADED_SECONDS - 1))).toBe(
+			"ok",
+		);
+		expect(nodeStatusFromStreamsTip(tipAt(NODE_LAG_DEGRADED_SECONDS))).toBe(
+			"degraded",
+		);
+		expect(nodeStatusFromStreamsTip(tipAt(600))).toBe("degraded");
+	});
+
+	// Matches LAG_DEGRADED_SECONDS in apps/web/src/lib/status-page.ts; the two
+	// judge the same surface and drifting apart is what caused the flapping.
+	test("uses the same threshold the web surfaces use", () => {
+		expect(NODE_LAG_DEGRADED_SECONDS).toBe(180);
+	});
+
+	test("no tip is unavailable, not degraded", () => {
+		// We could not observe the node — that is not a confirmed problem.
+		expect(nodeStatusFromStreamsTip(null)).toBe("unavailable");
 	});
 });
