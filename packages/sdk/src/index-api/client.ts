@@ -1229,6 +1229,30 @@ function firstWalkFromHeight(params: {
 	return 0;
 }
 
+/** The query params every Index keyset feed shares: page window, height range,
+ *  column projection. Keeping the camel→snake mapping in one place means a new
+ *  feed can't typo `from_cursor` into a silently-dropped filter. `buildQuery`
+ *  drops undefined/null and comma-joins arrays, so a feed whose params type has
+ *  no height window or `fields` contributes nothing for those keys. PoX cycles
+ *  page by a numeric cursor and opt out. */
+function indexPageQuery(params: {
+	cursor?: string | null;
+	fromCursor?: string | null;
+	limit?: number;
+	fromHeight?: number;
+	toHeight?: number;
+	fields?: readonly string[];
+}) {
+	return {
+		cursor: params.cursor,
+		from_cursor: params.fromCursor,
+		limit: params.limit,
+		from_height: params.fromHeight,
+		to_height: params.toHeight,
+		fields: params.fields,
+	};
+}
+
 /** Pagination overrides `keysetWalk` applies to each page request; the original
  *  filter params are merged in by the per-resource list closure. */
 type PageParams = {
@@ -1666,16 +1690,11 @@ export class Index extends BaseClient {
 		return this.request<FtTransfersEnvelope>(
 			"GET",
 			`/v1/index/ft-transfers${buildQuery({
-				cursor: params.cursor,
-				from_cursor: params.fromCursor,
-				limit: params.limit,
+				...indexPageQuery(params),
 				contract_id: params.contractId,
 				asset_identifier: params.assetIdentifier,
 				sender: params.sender,
 				recipient: params.recipient,
-				from_height: params.fromHeight,
-				to_height: params.toHeight,
-				fields: params.fields?.join(","),
 			})}`,
 		);
 	}
@@ -1686,16 +1705,11 @@ export class Index extends BaseClient {
 		return this.request<NftTransfersEnvelope>(
 			"GET",
 			`/v1/index/nft-transfers${buildQuery({
-				cursor: params.cursor,
-				from_cursor: params.fromCursor,
-				limit: params.limit,
+				...indexPageQuery(params),
 				contract_id: params.contractId,
 				asset_identifier: params.assetIdentifier,
 				sender: params.sender,
 				recipient: params.recipient,
-				from_height: params.fromHeight,
-				to_height: params.toHeight,
-				fields: params.fields?.join(","),
 			})}`,
 		);
 	}
@@ -1770,19 +1784,14 @@ export class Index extends BaseClient {
 		return this.request<EventsEnvelope<T>>(
 			"GET",
 			`/v1/index/events${buildQuery({
+				...indexPageQuery(params),
 				event_type: params.eventType,
-				cursor: params.cursor,
-				from_cursor: params.fromCursor,
-				limit: params.limit,
 				contract_id: params.contractId,
 				asset_identifier: params.assetIdentifier,
 				sender: params.sender,
 				recipient: params.recipient,
-				from_height: params.fromHeight,
-				to_height: params.toHeight,
 				trait: params.trait,
 				tx_context: params.txContext ? "true" : undefined,
-				fields: params.fields?.join(","),
 			})}`,
 		);
 	}
@@ -1803,14 +1812,10 @@ export class Index extends BaseClient {
 		return this.request<ContractCallsEnvelope>(
 			"GET",
 			`/v1/index/contract-calls${buildQuery({
-				cursor: params.cursor,
-				from_cursor: params.fromCursor,
-				limit: params.limit,
+				...indexPageQuery(params),
 				contract_id: params.contractId,
 				function_name: params.functionName,
 				sender: params.sender,
-				from_height: params.fromHeight,
-				to_height: params.toHeight,
 				trait: params.trait,
 			})}`,
 		);
@@ -1831,13 +1836,7 @@ export class Index extends BaseClient {
 	): Promise<CanonicalEnvelope> {
 		return this.request<CanonicalEnvelope>(
 			"GET",
-			`/v1/index/canonical${buildQuery({
-				cursor: params.cursor,
-				from_cursor: params.fromCursor,
-				limit: params.limit,
-				from_height: params.fromHeight,
-				to_height: params.toHeight,
-			})}`,
+			`/v1/index/canonical${buildQuery(indexPageQuery(params))}`,
 		);
 	}
 
@@ -1856,13 +1855,7 @@ export class Index extends BaseClient {
 	): Promise<BlocksEnvelope> {
 		return this.request<BlocksEnvelope>(
 			"GET",
-			`/v1/index/blocks${buildQuery({
-				cursor: params.cursor,
-				from_cursor: params.fromCursor,
-				limit: params.limit,
-				from_height: params.fromHeight,
-				to_height: params.toHeight,
-			})}`,
+			`/v1/index/blocks${buildQuery(indexPageQuery(params))}`,
 		);
 	}
 
@@ -1889,15 +1882,10 @@ export class Index extends BaseClient {
 		return this.request<TransactionsEnvelope>(
 			"GET",
 			`/v1/index/transactions${buildQuery({
-				cursor: params.cursor,
-				from_cursor: params.fromCursor,
-				limit: params.limit,
+				...indexPageQuery(params),
 				type: params.type,
 				sender: params.sender,
 				contract_id: params.contractId,
-				from_height: params.fromHeight,
-				to_height: params.toHeight,
-				fields: params.fields?.join(","),
 			})}`,
 		);
 	}
@@ -1940,14 +1928,10 @@ export class Index extends BaseClient {
 		return this.request<StackingEnvelope>(
 			"GET",
 			`/v1/index/stacking${buildQuery({
-				cursor: params.cursor,
-				from_cursor: params.fromCursor,
-				limit: params.limit,
+				...indexPageQuery(params),
 				function_name: params.functionName,
 				stacker: params.stacker,
 				caller: params.caller,
-				from_height: params.fromHeight,
-				to_height: params.toHeight,
 			})}`,
 		);
 	}
@@ -1968,9 +1952,7 @@ export class Index extends BaseClient {
 		return this.request<MempoolEnvelope>(
 			"GET",
 			`/v1/index/mempool${buildQuery({
-				cursor: params.cursor,
-				from_cursor: params.fromCursor,
-				limit: params.limit,
+				...indexPageQuery(params),
 				sender: params.sender,
 				type: params.type,
 				contract_id: params.contractId,
@@ -2005,15 +1987,10 @@ export class Index extends BaseClient {
 		return this.request<SbtcDepositsEnvelope>(
 			"GET",
 			`/v1/index/sbtc/deposits${buildQuery({
-				cursor: params.cursor,
-				from_cursor: params.fromCursor,
-				limit: params.limit,
+				...indexPageQuery(params),
 				confirmed: params.confirmed,
 				sender: params.sender,
 				bitcoin_txid: params.bitcoinTxid,
-				from_height: params.fromHeight,
-				to_height: params.toHeight,
-				fields: params.fields?.join(","),
 			})}`,
 		);
 	}
@@ -2043,17 +2020,12 @@ export class Index extends BaseClient {
 		return this.request<SbtcWithdrawalsEnvelope>(
 			"GET",
 			`/v1/index/sbtc/withdrawals${buildQuery({
-				cursor: params.cursor,
-				from_cursor: params.fromCursor,
-				limit: params.limit,
+				...indexPageQuery(params),
 				confirmed: params.confirmed,
 				status: params.status,
 				sender: params.sender,
 				request_id: params.requestId,
 				settlement_confirmed: params.settlementConfirmed,
-				from_height: params.fromHeight,
-				to_height: params.toHeight,
-				fields: params.fields?.join(","),
 			})}`,
 		);
 	}
@@ -2083,16 +2055,12 @@ export class Index extends BaseClient {
 		return this.request<SbtcEventsEnvelope>(
 			"GET",
 			`/v1/index/sbtc/events${buildQuery({
-				cursor: params.cursor,
-				from_cursor: params.fromCursor,
-				limit: params.limit,
+				...indexPageQuery(params),
 				confirmed: params.confirmed,
 				topic: params.topic,
 				sender: params.sender,
 				request_id: params.requestId,
 				bitcoin_txid: params.bitcoinTxid,
-				from_height: params.fromHeight,
-				to_height: params.toHeight,
 			})}`,
 		);
 	}
@@ -2117,9 +2085,7 @@ export class Index extends BaseClient {
 		return this.request<Pox5EventsEnvelope>(
 			"GET",
 			`/v1/index/pox5/events${buildQuery({
-				cursor: params.cursor,
-				from_cursor: params.fromCursor,
-				limit: params.limit,
+				...indexPageQuery(params),
 				confirmed: params.confirmed,
 				topic: params.topic,
 				staker: params.staker,
@@ -2127,9 +2093,6 @@ export class Index extends BaseClient {
 				signer_manager: params.signerManager,
 				bond_index: params.bondIndex,
 				reward_cycle: params.rewardCycle,
-				from_height: params.fromHeight,
-				to_height: params.toHeight,
-				fields: params.fields?.join(","),
 			})}`,
 		);
 	}
