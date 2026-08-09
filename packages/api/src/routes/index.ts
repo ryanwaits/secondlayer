@@ -210,6 +210,19 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		opts.recordDecodedEventsReturned ??
 		((accountId, quantity) =>
 			incrementIndexDecodedEventsReturned(getDb(), accountId, quantity));
+
+	/**
+	 * Meter one page of decoded rows against the calling tenant: usage counter
+	 * plus credit debit, always together. No-op for anonymous callers and empty
+	 * pages. Call AFTER the cache check — a 304 must not meter.
+	 */
+	const meterRows = async (c: Context<IndexEnv>, rows: { length: number }) => {
+		const accountId = c.get("indexTenant")?.account_id;
+		if (!accountId || rows.length === 0) return;
+		await recordDecodedEventsReturned(accountId, rows.length);
+		await debitCreditedRead(c, rows.length);
+	};
+
 	const router = new Hono<IndexEnv>();
 
 	// Discovery — anonymous, lists endpoints + filters.
@@ -464,11 +477,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			reorgs: response.reorgs,
 		});
 		if (notModified) return notModified;
-		const accountId = c.get("indexTenant")?.account_id;
-		if (accountId && response.events.length > 0) {
-			await recordDecodedEventsReturned(accountId, response.events.length);
-			await debitCreditedRead(c, response.events.length);
-		}
+		await meterRows(c, response.events);
 		return c.json(response);
 	});
 
@@ -489,14 +498,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			reorgs: response.reorgs,
 		});
 		if (notModified) return notModified;
-		const accountId = c.get("indexTenant")?.account_id;
-		if (accountId && response.contract_calls.length > 0) {
-			await recordDecodedEventsReturned(
-				accountId,
-				response.contract_calls.length,
-			);
-			await debitCreditedRead(c, response.contract_calls.length);
-		}
+		await meterRows(c, response.contract_calls);
 		return c.json(response);
 	});
 
@@ -535,11 +537,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			next_cursor: response.next_cursor,
 		});
 		if (notModified) return notModified;
-		const accountId = c.get("indexTenant")?.account_id;
-		if (accountId && response.blocks.length > 0) {
-			await recordDecodedEventsReturned(accountId, response.blocks.length);
-			await debitCreditedRead(c, response.blocks.length);
-		}
+		await meterRows(c, response.blocks);
 		return c.json(response);
 	});
 
@@ -581,14 +579,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			reorgs: response.reorgs,
 		});
 		if (notModified) return notModified;
-		const accountId = c.get("indexTenant")?.account_id;
-		if (accountId && response.transactions.length > 0) {
-			await recordDecodedEventsReturned(
-				accountId,
-				response.transactions.length,
-			);
-			await debitCreditedRead(c, response.transactions.length);
-		}
+		await meterRows(c, response.transactions);
 		return c.json(response);
 	});
 
@@ -667,11 +658,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			reorgs: response.reorgs,
 		});
 		if (notModified) return notModified;
-		const accountId = c.get("indexTenant")?.account_id;
-		if (accountId && response.stacking.length > 0) {
-			await recordDecodedEventsReturned(accountId, response.stacking.length);
-			await debitCreditedRead(c, response.stacking.length);
-		}
+		await meterRows(c, response.stacking);
 		return c.json(response);
 	});
 
@@ -749,11 +736,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			reorgs: response.reorgs,
 		});
 		if (notModified) return notModified;
-		const accountId = c.get("indexTenant")?.account_id;
-		if (accountId && response.events.length > 0) {
-			await recordDecodedEventsReturned(accountId, response.events.length);
-			await debitCreditedRead(c, response.events.length);
-		}
+		await meterRows(c, response.events);
 		return c.json(response);
 	});
 
@@ -778,11 +761,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			reorgs: response.reorgs,
 		});
 		if (notModified) return notModified;
-		const accountId = c.get("indexTenant")?.account_id;
-		if (accountId && response.events.length > 0) {
-			await recordDecodedEventsReturned(accountId, response.events.length);
-			await debitCreditedRead(c, response.events.length);
-		}
+		await meterRows(c, response.events);
 		return c.json(response);
 	});
 
@@ -803,11 +782,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			reorgs: response.reorgs,
 		});
 		if (notModified) return notModified;
-		const accountId = c.get("indexTenant")?.account_id;
-		if (accountId && response.deposits.length > 0) {
-			await recordDecodedEventsReturned(accountId, response.deposits.length);
-			await debitCreditedRead(c, response.deposits.length);
-		}
+		await meterRows(c, response.deposits);
 		return c.json(response);
 	});
 
@@ -826,11 +801,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		// can be accepted at a *later* height, so a row is never safely immutable
 		// even when finalized. Short private TTL only — no ETag/304.
 		c.header("Cache-Control", MUTABLE_CACHE_CONTROL);
-		const accountId = c.get("indexTenant")?.account_id;
-		if (accountId && response.withdrawals.length > 0) {
-			await recordDecodedEventsReturned(accountId, response.withdrawals.length);
-			await debitCreditedRead(c, response.withdrawals.length);
-		}
+		await meterRows(c, response.withdrawals);
 		return c.json(response);
 	});
 
@@ -914,11 +885,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		// Mempool is permanently volatile — never finalized, so no immutable cache
 		// or ETag/304. Short private TTL only.
 		c.header("Cache-Control", MUTABLE_CACHE_CONTROL);
-		const accountId = c.get("indexTenant")?.account_id;
-		if (accountId && response.mempool.length > 0) {
-			await recordDecodedEventsReturned(accountId, response.mempool.length);
-			await debitCreditedRead(c, response.mempool.length);
-		}
+		await meterRows(c, response.mempool);
 		return c.json(response);
 	});
 
@@ -977,11 +944,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			reorgs: response.reorgs,
 		});
 		if (notModified) return notModified;
-		const accountId = c.get("indexTenant")?.account_id;
-		if (accountId && response.events.length > 0) {
-			await recordDecodedEventsReturned(accountId, response.events.length);
-			await debitCreditedRead(c, response.events.length);
-		}
+		await meterRows(c, response.events);
 		return c.json(response);
 	});
 
@@ -1002,11 +965,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			reorgs: response.reorgs,
 		});
 		if (notModified) return notModified;
-		const accountId = c.get("indexTenant")?.account_id;
-		if (accountId && response.events.length > 0) {
-			await recordDecodedEventsReturned(accountId, response.events.length);
-			await debitCreditedRead(c, response.events.length);
-		}
+		await meterRows(c, response.events);
 		return c.json(response);
 	});
 
