@@ -1,5 +1,11 @@
 # @secondlayer/sdk
 
+## 6.52.1
+
+### Patch Changes
+
+- Internal: Index feed paging params (`cursor`/`from_cursor`/`limit`/`from_height`/`to_height`/`fields`) now build from one shared helper instead of being restated per feed. No change to request URLs or public types.
+
 ## 6.52.0
 
 ### Minor Changes
