@@ -3,7 +3,7 @@ import type {
 	SubgraphDefinition,
 	SubgraphTable,
 } from "../types.ts";
-import { pgSchemaName } from "./utils.ts";
+import { pascalCase, pgSchemaName, snakeToCamel } from "./utils.ts";
 
 /**
  * Generate a Drizzle schema from a subgraph definition — the Drizzle arm of the
@@ -35,15 +35,6 @@ const BUILDERS_USED: Record<ColumnType, string> = {
 	timestamp: "timestamp",
 	jsonb: "jsonb",
 };
-
-function snakeToCamel(name: string): string {
-	return name.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
-}
-
-function pascalCase(name: string): string {
-	const camel = snakeToCamel(name);
-	return camel.charAt(0).toUpperCase() + camel.slice(1);
-}
 
 function literalDefault(value: string | number | boolean): string {
 	return typeof value === "string"

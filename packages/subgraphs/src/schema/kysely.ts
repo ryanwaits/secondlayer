@@ -3,7 +3,7 @@ import type {
 	SubgraphDefinition,
 	SubgraphTable,
 } from "../types.ts";
-import { pgSchemaName } from "./utils.ts";
+import { pascalCase, pgSchemaName } from "./utils.ts";
 
 /**
  * Generate Kysely table interfaces from a subgraph definition — the Kysely arm of
@@ -33,12 +33,6 @@ const SYSTEM_FIELDS: Array<{ col: string; type: string }> = [
 	{ col: "_tx_id", type: "string" },
 	{ col: "_created_at", type: "Generated<Date>" },
 ];
-
-function pascalCase(name: string): string {
-	return name
-		.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase())
-		.replace(/^[a-z]/, (c) => c.toUpperCase());
-}
 
 function renderTable(tableName: string, table: SubgraphTable): string {
 	const lines = SYSTEM_FIELDS.map((f) => `  ${f.col}: ${f.type};`);

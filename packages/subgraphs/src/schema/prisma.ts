@@ -3,7 +3,7 @@ import type {
 	SubgraphDefinition,
 	SubgraphTable,
 } from "../types.ts";
-import { pgSchemaName } from "./utils.ts";
+import { pascalCase, pgSchemaName, snakeToCamel } from "./utils.ts";
 
 /**
  * Generate a `schema.prisma` from a subgraph definition. Pairs with the BYO data
@@ -37,15 +37,6 @@ const SYSTEM_FIELDS: Array<{ field: string; col: string; line: string }> = [
 		line: "DateTime @default(now()) @db.Timestamptz",
 	},
 ];
-
-function snakeToCamel(name: string): string {
-	return name.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
-}
-
-function pascalCase(name: string): string {
-	const camel = snakeToCamel(name);
-	return camel.charAt(0).toUpperCase() + camel.slice(1);
-}
 
 function quotePrismaDefault(value: string | number | boolean): string {
 	if (typeof value === "string")

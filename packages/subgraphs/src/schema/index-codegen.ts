@@ -5,6 +5,7 @@ import {
 	SOURCE_READ_PKS,
 	SOURCE_READ_TYPES,
 } from "@secondlayer/shared/db";
+import { pascalCase, snakeToCamel } from "./utils.ts";
 
 /**
  * Emit a portable, typed schema for the public Index read domain (blocks,
@@ -35,16 +36,6 @@ export interface IndexCodegenOptions {
 }
 
 type IndexTables = typeof SOURCE_READ_TYPES;
-
-function pascalCase(name: string): string {
-	return name
-		.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase())
-		.replace(/^[a-z]/, (c) => c.toUpperCase());
-}
-
-function snakeToCamel(name: string): string {
-	return name.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
-}
 
 /** Resolve the requested tables (validated) → ordered [table, columns] entries. */
 function selectTables(
