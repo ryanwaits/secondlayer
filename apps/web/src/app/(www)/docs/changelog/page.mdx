@@ -4,6 +4,27 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## SDK — August 2026
 
+### Contract names with underscores work everywhere
+
+`my_contract` is a legal Clarity contract name, but the principal validation
+rejected it — so passing `SP….my_contract` as a principal argument threw, both
+in `@secondlayer/stacks` and in the contract interfaces the CLI generates.
+Those contracts are now usable.
+
+The same change tightens validation in the other direction. A principal
+carrying more than one dot segment (`SP….token.extra`) used to slip through:
+generated code truncated it to `SP….token` and called a different contract than
+you asked for, and the ABI guards passed it along. It throws now. Filter
+builders also check the contract name against the Clarity grammar, so a typo'd
+id fails where you write it instead of quietly matching zero rows.
+
+`parsePrincipal` and `CONTRACT_NAME_REGEX` are exported from
+`@secondlayer/stacks/utils` if you want the same check.
+
+Generated files keep the old behavior until you re-run `secondlayer generate`.
+
+## SDK — August 2026
+
 ### `subgraphs.reindex()` takes just a name
 
 `reindex(name)` no longer accepts `fromBlock` or `toBlock`. The API stopped

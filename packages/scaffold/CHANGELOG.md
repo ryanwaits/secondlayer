@@ -1,5 +1,16 @@
 # @secondlayer/scaffold
 
+## 1.5.2
+
+### Patch Changes
+
+- Fix principal conversion in generated contract interfaces. A principal argument carrying more than one dot segment (`SP….token.extra`) was silently truncated to `SP….token` and called the wrong contract; it now throws. Contract names containing `_` are now accepted — they are legal Clarity, but the inlined validation regex rejected them, making those contracts unusable through generated code.
+
+  Existing generated files keep the old behavior until `secondlayer generate` re-runs.
+
+- Updated dependencies
+  - @secondlayer/stacks@3.3.0
+
 ## 1.5.1
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @secondlayer/stacks
 
+## 3.3.0
+
+### Minor Changes
+
+- One principal parser for the package. `parsePrincipal` and `CONTRACT_NAME_REGEX` are now exported from `@secondlayer/stacks/utils`, and both the ABI guards (`isPrincipal`, `isStandardPrincipal`, `isContractPrincipal`) and the filter validators (`isPrincipal`, `assertPrincipalish`, `assertContractId`) use it.
+
+  This closes two validation holes that were live in opposite directions: the ABI guards accepted principals with more than one dot segment (`SP….token.extra`), and the filter validators accepted contract names that break the Clarity grammar (`SP….9bad`, over-long names) — the latter producing a silent zero-row query rather than the throw the asserts exist for. Contract names containing `_` are now accepted, which the ABI guards previously rejected despite being legal.
+
 ## 3.2.0
 
 ### Minor Changes
