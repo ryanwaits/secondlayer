@@ -2,7 +2,7 @@ import { MAX_I128, MAX_U128, MIN_I128 } from "../../utils/constants.ts";
 
 export { MAX_U128, MAX_I128, MIN_I128 };
 
-export const CONTRACT_NAME_REGEX: RegExp = /^[a-zA-Z][a-zA-Z0-9\-]{0,127}$/;
+export { CONTRACT_NAME_REGEX } from "../../utils/address.ts";
 
 // Primitive types
 

@@ -1,6 +1,6 @@
-import { validateStacksAddress } from "../../utils/address.ts";
+import { parsePrincipal } from "../../utils/address.ts";
 import type { ResponseErr, ResponseOk } from "./mappings.ts";
-import { CONTRACT_NAME_REGEX, MAX_I128, MAX_U128, MIN_I128 } from "./types.ts";
+import { MAX_I128, MAX_U128, MIN_I128 } from "./types.ts";
 import type {
 	AbiBuffer,
 	AbiListType,
@@ -28,34 +28,20 @@ export function isBool(value: unknown): value is boolean {
 }
 
 export function isPrincipal(value: unknown): value is string {
-	if (typeof value !== "string") return false;
-	const parts = value.split(".");
-	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-	const address = parts[0]!;
-	const contractName = parts[1];
-	if (!validateStacksAddress(address)) return false;
-	if (contractName !== undefined) {
-		return CONTRACT_NAME_REGEX.test(contractName);
-	}
-	return true;
+	return typeof value === "string" && parsePrincipal(value) !== null;
 }
 
 export function isStandardPrincipal(value: unknown): value is string {
 	if (typeof value !== "string") return false;
-	if (value.includes(".")) return false;
-	return validateStacksAddress(value);
+	const parsed = parsePrincipal(value);
+	// Explicit null check: `null?.contractName === undefined` is also true.
+	return parsed !== null && parsed.contractName === undefined;
 }
 
 export function isContractPrincipal(value: unknown): value is string {
 	if (typeof value !== "string") return false;
-	if (!value.includes(".")) return false;
-	const parts = value.split(".");
-	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-	const address = parts[0]!;
-	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-	const contractName = parts[1]!;
-	if (!validateStacksAddress(address)) return false;
-	return CONTRACT_NAME_REGEX.test(contractName);
+	const parsed = parsePrincipal(value);
+	return parsed !== null && parsed.contractName !== undefined;
 }
 
 export function isTraitReference(value: unknown): value is string {

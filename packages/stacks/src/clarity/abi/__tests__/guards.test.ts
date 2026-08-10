@@ -114,6 +114,32 @@ describe("Value Guards", () => {
 				isContractPrincipal("SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7."),
 			).toBe(false);
 		});
+
+		it("rejects a principal carrying more than one dot segment", () => {
+			const extra = "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7.token.extra";
+			expect(isPrincipal(extra)).toBe(false);
+			expect(isContractPrincipal(extra)).toBe(false);
+			expect(isStandardPrincipal(extra)).toBe(false);
+		});
+
+		it("rejects a contract name past the length bound", () => {
+			const tooLong = `SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7.a${"x".repeat(128)}`;
+			expect(isPrincipal(tooLong)).toBe(false);
+			expect(isContractPrincipal(tooLong)).toBe(false);
+		});
+
+		it("accepts underscores in contract names (legal per the Clarity grammar)", () => {
+			const underscored =
+				"SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7.has_underscore";
+			expect(isPrincipal(underscored)).toBe(true);
+			expect(isContractPrincipal(underscored)).toBe(true);
+			expect(isStandardPrincipal(underscored)).toBe(false);
+		});
+
+		it("reports a malformed value as neither standard nor contract", () => {
+			expect(isStandardPrincipal("garbage")).toBe(false);
+			expect(isContractPrincipal("garbage")).toBe(false);
+		});
 	});
 
 	describe("Response type guards", () => {

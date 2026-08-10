@@ -1,4 +1,4 @@
-import { isValidAddress } from "../utils/address.ts";
+import { parsePrincipal } from "../utils/address.ts";
 
 /** A validated Stacks principal (standard or contract). Branded so downstream
  *  code can require "already validated" without re-checking. */
@@ -34,14 +34,11 @@ export function assetId(value: string): AssetIdentifier {
 	return value as AssetIdentifier;
 }
 
-/** `true` for a standard (`SP…`/`ST…`) or contract (`SP….name`) principal. */
+/** `true` for a standard (`SP…`/`ST…`) or contract (`SP….name`) principal.
+ *  Shares {@link parsePrincipal} with the ABI guards so the two surfaces can't
+ *  disagree about what a principal is. */
 export function isPrincipal(value: string): value is Principal {
-	const parts = value.split(".");
-	if (parts.length > 2) return false;
-	const [addr, contractName] = parts;
-	if (!addr || !isValidAddress(addr)) return false;
-	if (parts.length === 2 && !contractName) return false;
-	return true;
+	return parsePrincipal(value) !== null;
 }
 
 /** Subscriptions and Subgraph sources match `*` wildcards in

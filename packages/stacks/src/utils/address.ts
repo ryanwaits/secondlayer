@@ -23,6 +23,11 @@ export function publicKeyToAddress(
 	return c32address(version, bytesToHex(hash160(bytes)));
 }
 
+/** Clarity contract-name grammar: leading letter, then letters/digits/`-`/`_`.
+ *  Underscore is legal (SIP-002) and deployed contracts use it — matches the
+ *  pattern the Index API already accepts for contract ids. */
+export const CONTRACT_NAME_REGEX: RegExp = /^[a-zA-Z][a-zA-Z0-9_-]{0,127}$/;
+
 export function validateStacksAddress(address: string): boolean {
 	try {
 		c32addressDecode(address);
@@ -35,6 +40,22 @@ export function validateStacksAddress(address: string): boolean {
 /** Alias for validateStacksAddress — matches future.md naming. */
 export const isValidAddress: (address: string) => boolean =
 	validateStacksAddress;
+
+/** Parse a principal into its parts, or null when malformed. The single
+ *  definition of "valid principal" for this package: exactly one optional
+ *  `.name` segment (never two), a c32-decodable address, and a contract name
+ *  matching the Clarity grammar. */
+export function parsePrincipal(
+	value: string,
+): { address: string; contractName?: string } | null {
+	const parts = value.split(".");
+	if (parts.length > 2) return null;
+	const [address, contractName] = parts as [string, string | undefined];
+	if (!validateStacksAddress(address)) return null;
+	if (contractName === undefined) return { address };
+	if (!CONTRACT_NAME_REGEX.test(contractName)) return null;
+	return { address, contractName };
+}
 
 export function parseContractId(contractId: string): [string, string] {
 	const [address, name] = contractId.split(".");
