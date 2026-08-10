@@ -24,6 +24,7 @@ import type {
 	StreamsClient,
 	StreamsConsumeParams,
 	StreamsEvent,
+	StreamsEventType,
 	StreamsEventsConsumeParams,
 	StreamsEventsConsumeResult,
 	StreamsEventsEnvelope,
@@ -33,6 +34,7 @@ import type {
 	StreamsEventsStreamParams,
 	StreamsEventsSubscribeParams,
 	StreamsFilterMap,
+	StreamsFilterValue,
 	StreamsReorgsListEnvelope,
 	StreamsReorgsListParams,
 	StreamsTip,
@@ -62,6 +64,33 @@ function maxCursor(a: string | null, b: string | null): string | null {
 	const [ah, ai] = cursorTuple(a);
 	const [bh, bi] = cursorTuple(b);
 	return ah > bh || (ah === bh && ai >= bi) ? a : b;
+}
+
+/**
+ * The narrowing set every Streams read forwards verbatim to the consumer
+ * loops. Kept in one place because each field is optional: a forgotten one is
+ * a type-checkable object that silently widens the stream toward the full
+ * firehose — which is billed per row, and has happened. `events.replay()`
+ * deliberately forwards a subset and stays explicit.
+ */
+function streamsFilters(params: {
+	types?: readonly StreamsEventType[];
+	notTypes?: readonly StreamsEventType[];
+	contractId?: StreamsFilterValue;
+	sender?: StreamsFilterValue;
+	recipient?: StreamsFilterValue;
+	assetIdentifier?: string;
+	filters?: StreamsFilterMap;
+}) {
+	return {
+		types: params.types,
+		notTypes: params.notTypes,
+		contractId: params.contractId,
+		sender: params.sender,
+		recipient: params.recipient,
+		assetIdentifier: params.assetIdentifier,
+		filters: params.filters,
+	};
 }
 
 const DEFAULT_STREAMS_BASE_URL = "https://api.secondlayer.tools";
@@ -264,29 +293,9 @@ export function createStreamsClient(
 		return JSON.parse(text) as T;
 	}
 
-	const fetchEvents: StreamsEventsFetcher = async ({
-		cursor,
-		limit,
-		types,
-		notTypes,
-		contractId,
-		sender,
-		recipient,
-		assetIdentifier,
-		filters,
-	}) => {
-		return listEvents({
-			cursor,
-			limit,
-			types,
-			notTypes,
-			contractId,
-			sender,
-			recipient,
-			assetIdentifier,
-			filters,
-		});
-	};
+	// StreamsEventsFetchParams is a strict subset of StreamsEventsListParams, so
+	// this is checked by the compiler rather than by a hand-copied destructure.
+	const fetchEvents: StreamsEventsFetcher = listEvents;
 
 	function encodeFilters(filters: StreamsFilterMap | undefined) {
 		return filters ? JSON.stringify(filters) : undefined;
@@ -396,13 +405,7 @@ export function createStreamsClient(
 			onProgress: params.onProgress,
 			mode: params.mode,
 			finalizedOnly: params.finalizedOnly,
-			types: params.types,
-			notTypes: params.notTypes,
-			contractId: params.contractId,
-			sender: params.sender,
-			recipient: params.recipient,
-			assetIdentifier: params.assetIdentifier,
-			filters: params.filters,
+			...streamsFilters(params),
 			batchSize: params.batchSize ?? 100,
 			fetchEvents,
 			onBatch,
@@ -423,13 +426,7 @@ export function createStreamsClient(
 				fromCursor: params.cursor,
 				batchSize: params.batchSize ?? 100,
 				intervalMs: params.intervalMs ?? 2000,
-				types: params.types,
-				notTypes: params.notTypes,
-				contractId: params.contractId,
-				sender: params.sender,
-				recipient: params.recipient,
-				assetIdentifier: params.assetIdentifier,
-				filters: params.filters,
+				...streamsFilters(params),
 				signal: params.signal,
 				fetchEvents,
 			});
@@ -445,15 +442,9 @@ export function createStreamsClient(
 			stream(params: StreamsEventsStreamParams = {}) {
 				return streamStreamsEvents({
 					fromCursor: params.fromCursor,
-					types: params.types,
-					notTypes: params.notTypes,
-					contractId: params.contractId,
-					sender: params.sender,
-					recipient: params.recipient,
-					assetIdentifier: params.assetIdentifier,
-					// Forward the labelled OR-groups: dropping them here silently
+					// Includes the labelled OR-groups: dropping them here silently
 					// widened the stream to the FULL firehose (billed per row).
-					filters: params.filters,
+					...streamsFilters(params),
 					batchSize: params.batchSize ?? 100,
 					emptyBackoffMs: params.emptyBackoffMs,
 					maxPages: params.maxPages,
