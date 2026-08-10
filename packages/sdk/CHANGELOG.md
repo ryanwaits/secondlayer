@@ -1,5 +1,18 @@
 # @secondlayer/sdk
 
+## 6.53.0
+
+### Minor Changes
+
+- `index.sbtc.deposits.consume` no longer accepts `fields`. The option type-checked but was never forwarded to the page request, so a projected consume silently returned full rows — the same defect that was already fixed for `index.events.consume`, never applied here. Passing `fields` is now a compile error instead of a silent no-op; use `list`/`walk` for a projected read.
+
+  Internally, all four Index consume wirings now forward their feed filters from one place rather than restating them per call site, so a filter can no longer be dropped on the way into the consume loop.
+
+### Patch Changes
+
+- Updated dependencies
+  - @secondlayer/subgraphs@3.26.3
+
 ## 6.52.1
 
 ### Patch Changes

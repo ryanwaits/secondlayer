@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 3.26.3
+
+### Patch Changes
+
+- Internal: the Prisma, Drizzle, Kysely, and index-codegen schema emitters share one identifier-casing helper instead of each carrying its own copy. Emitted output is unchanged.
+
 ## 3.26.2
 
 ### Patch Changes

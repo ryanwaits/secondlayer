@@ -4,6 +4,19 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## SDK — August 2026
 
+### `sbtc.deposits.consume` stops pretending to accept `fields`
+
+`index.sbtc.deposits.consume({ fields: [...] })` type-checked and then ignored
+you — the consume loop built its page request field by field and never
+forwarded the projection, so you got full rows back either way. The option is
+gone, so passing it is a compile error instead of a silent no-op. For a
+projected read, use `sbtc.deposits.list` or `.walk`, which have always applied
+it.
+
+The same gap was fixed for `index.events.consume` earlier; every Index consume
+now forwards its filters from one place, so a filter can't be dropped between
+what you asked for and what the loop requests.
+
 ### Contract names with underscores work everywhere
 
 `my_contract` is a legal Clarity contract name, but the principal validation
