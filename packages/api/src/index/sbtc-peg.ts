@@ -104,6 +104,9 @@ export const SBTC_WITHDRAWAL_FILTERS = [
 	"status",
 	"sender",
 	"request_id",
+	// Parsed by parseSettlementConfirmedFilter and pushed into the SQL
+	// predicate below; without it here the gate 400s before the parser runs.
+	"settlement_confirmed",
 	"fields",
 ] as const;
 

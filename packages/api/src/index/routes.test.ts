@@ -728,6 +728,37 @@ describe("Index sBTC peg routes", () => {
 		expect(res.status).toBe(400);
 	});
 
+	test("the withdrawals settlement filter passes the gate and reaches the reader", async () => {
+		// The parser, the SQL predicate, the SDK option, and the OpenAPI spec all
+		// carry settlement_confirmed; leaving it out of SBTC_WITHDRAWAL_FILTERS
+		// meant the allowlist 400'd every request before the parser ran.
+		const seen: Array<boolean | undefined> = [];
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readSbtcWithdrawals: async (params) => {
+					seen.push(params.settlementConfirmed);
+					return { withdrawals: [], next_cursor: null };
+				},
+			}),
+		);
+
+		const res = await app.request(
+			"/v1/index/sbtc/withdrawals?settlement_confirmed=true",
+		);
+		expect(res.status).toBe(200);
+		expect(seen).toEqual([true]);
+
+		const bad = await app.request(
+			"/v1/index/sbtc/withdrawals?settlement_confirmed=maybe",
+		);
+		expect(bad.status).toBe(400);
+	});
+
 	test("withdrawal by request_id returns the assembled lifecycle, immutable when terminal+finalized", async () => {
 		const res = await sbtcApp().request("/v1/index/sbtc/withdrawals/7");
 		expect(res.status).toBe(200);
