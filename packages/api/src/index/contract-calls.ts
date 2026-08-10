@@ -5,13 +5,13 @@ import type { Database } from "@secondlayer/shared/db/schema";
 import { ValidationError } from "@secondlayer/shared/errors";
 import type { Kysely, RawBuilder } from "kysely";
 import type { StreamsReorg } from "../streams/reorgs.ts";
-import { STREAMS_BLOCKS_PER_DAY } from "../streams/tiers.ts";
 import {
+	type IndexTxCursorInput,
 	jsonSafeBigInt,
 	parseFilter,
-	parseLimit,
+	parseIndexBaseQuery,
 	parseListFilter,
-	parseNonNegativeInteger,
+	parseTxIndexCursor,
 	toIsoOrNull,
 } from "./_shared.ts";
 import type { IndexTip } from "./tip.ts";
@@ -28,10 +28,7 @@ export const CONTRACT_CALLS_FILTERS = [
 	"trait",
 ] as const;
 
-export type ContractCallCursor = {
-	block_height: number;
-	tx_index: number;
-};
+export type ContractCallCursor = IndexTxCursorInput;
 
 export type ContractCall = {
 	cursor: string;
@@ -108,62 +105,20 @@ type ContractCallDbRow = {
 	raw_result: string | null;
 };
 
-function parseContractCallCursor(value: string): ContractCallCursor {
-	const match = /^(0|[1-9]\d*):(0|[1-9]\d*)$/.exec(value);
-	if (!match) {
-		throw new ValidationError("cursor must use <block_height>:<tx_index>");
-	}
-	const blockHeight = Number(match[1]);
-	const txIndex = Number(match[2]);
-	if (!Number.isSafeInteger(blockHeight) || !Number.isSafeInteger(txIndex)) {
-		throw new ValidationError("cursor must use <block_height>:<tx_index>");
-	}
-	return { block_height: blockHeight, tx_index: txIndex };
-}
-
 export function parseContractCallsQuery(
 	query: URLSearchParams,
 	tip: IndexTip,
 ): ContractCallsQuery {
-	const cursorParamRaw = query.get("cursor") ?? undefined;
-	const fromCursorRaw = query.get("from_cursor") ?? undefined;
-	if (cursorParamRaw !== undefined && fromCursorRaw !== undefined) {
-		throw new ValidationError("cursor and from_cursor are mutually exclusive");
-	}
-
-	const cursorRaw = fromCursorRaw ?? cursorParamRaw;
-	const fromHeightRaw = query.get("from_height") ?? undefined;
-	if (cursorRaw && fromHeightRaw !== undefined) {
-		throw new ValidationError("cursor and from_height are mutually exclusive");
-	}
-
-	const cursor = cursorRaw ? parseContractCallCursor(cursorRaw) : undefined;
-	const requestedFromHeight =
-		fromHeightRaw !== undefined
-			? parseNonNegativeInteger(fromHeightRaw, "from_height")
-			: undefined;
-	const requestedToHeight =
-		query.get("to_height") !== null
-			? parseNonNegativeInteger(query.get("to_height") as string, "to_height")
-			: undefined;
-	const defaultFromHeight =
-		cursorRaw === undefined && fromHeightRaw === undefined
-			? Math.max(0, tip.block_height - STREAMS_BLOCKS_PER_DAY)
-			: undefined;
+	// Base first, so a request that violates both the cursor rules and the
+	// contract_id rules still reports the cursor error it always reported.
+	const base = parseIndexBaseQuery(query, tip, parseTxIndexCursor);
 	const contractIds = parseListFilter(
 		query.get("contract_id") ?? undefined,
 		"contract_id",
 	);
 
 	return {
-		cursor,
-		cursorRaw,
-		fromHeight: requestedFromHeight ?? defaultFromHeight ?? 0,
-		toHeight:
-			requestedToHeight === undefined
-				? tip.block_height
-				: Math.min(requestedToHeight, tip.block_height),
-		limit: parseLimit(query.get("limit") ?? undefined),
+		...base,
 		// One id keeps the scalar equality; several become an IN scope. Ordering
 		// here is fixed on (block_height, tx_index), so unlike /events the list
 		// form needs no special handling beyond the predicate.
@@ -176,7 +131,6 @@ export function parseContractCallsQuery(
 		),
 		sender: parseFilter(query.get("sender") ?? undefined, "sender"),
 		trait: parseTrait(query, contractIds),
-		cursorPastTip: cursor ? cursor.block_height > tip.block_height : false,
 	};
 }
 

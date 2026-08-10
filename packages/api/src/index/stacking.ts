@@ -1,14 +1,13 @@
 import { isPox4DecoderEnabled } from "@secondlayer/shared";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
-import { ValidationError } from "@secondlayer/shared/errors";
 import type { Kysely, RawBuilder } from "kysely";
 import type { StreamsReorg } from "../streams/reorgs.ts";
-import { STREAMS_BLOCKS_PER_DAY } from "../streams/tiers.ts";
 import {
+	type IndexTxCursorInput,
 	parseFilter,
-	parseLimit,
-	parseNonNegativeInteger,
+	parseIndexBaseQuery,
+	parseTxIndexCursor,
 	toIsoOrNull,
 } from "./_shared.ts";
 import { isPox4EraClosed } from "./pox-era.ts";
@@ -25,10 +24,7 @@ export const STACKING_FILTERS = [
 	"caller",
 ] as const;
 
-export type StackingCursor = {
-	block_height: number;
-	tx_index: number;
-};
+export type StackingCursor = IndexTxCursorInput;
 
 /** A decoded PoX-4 stacking action. One row per stacking contract call
  *  (stack-stx, delegate-stx, stack-aggregation-commit, …). */
@@ -248,65 +244,18 @@ export async function readStacking(
 	};
 }
 
-function parseStackingCursor(value: string): StackingCursor {
-	const match = /^(0|[1-9]\d*):(0|[1-9]\d*)$/.exec(value);
-	if (!match) {
-		throw new ValidationError("cursor must use <block_height>:<tx_index>");
-	}
-	const blockHeight = Number(match[1]);
-	const txIndex = Number(match[2]);
-	if (!Number.isSafeInteger(blockHeight) || !Number.isSafeInteger(txIndex)) {
-		throw new ValidationError("cursor must use <block_height>:<tx_index>");
-	}
-	return { block_height: blockHeight, tx_index: txIndex };
-}
-
 export function parseStackingQuery(
 	query: URLSearchParams,
 	tip: IndexTip,
 ): StackingQuery {
-	const cursorParamRaw = query.get("cursor") ?? undefined;
-	const fromCursorRaw = query.get("from_cursor") ?? undefined;
-	if (cursorParamRaw !== undefined && fromCursorRaw !== undefined) {
-		throw new ValidationError("cursor and from_cursor are mutually exclusive");
-	}
-
-	const cursorRaw = fromCursorRaw ?? cursorParamRaw;
-	const fromHeightRaw = query.get("from_height") ?? undefined;
-	if (cursorRaw && fromHeightRaw !== undefined) {
-		throw new ValidationError("cursor and from_height are mutually exclusive");
-	}
-
-	const cursor = cursorRaw ? parseStackingCursor(cursorRaw) : undefined;
-	const requestedFromHeight =
-		fromHeightRaw !== undefined
-			? parseNonNegativeInteger(fromHeightRaw, "from_height")
-			: undefined;
-	const requestedToHeight =
-		query.get("to_height") !== null
-			? parseNonNegativeInteger(query.get("to_height") as string, "to_height")
-			: undefined;
-	const defaultFromHeight =
-		cursorRaw === undefined && fromHeightRaw === undefined
-			? Math.max(0, tip.block_height - STREAMS_BLOCKS_PER_DAY)
-			: undefined;
-
 	return {
-		cursor,
-		cursorRaw,
-		fromHeight: requestedFromHeight ?? defaultFromHeight ?? 0,
-		toHeight:
-			requestedToHeight === undefined
-				? tip.block_height
-				: Math.min(requestedToHeight, tip.block_height),
-		limit: parseLimit(query.get("limit") ?? undefined),
+		...parseIndexBaseQuery(query, tip, parseTxIndexCursor),
 		functionName: parseFilter(
 			query.get("function_name") ?? undefined,
 			"function_name",
 		),
 		stacker: parseFilter(query.get("stacker") ?? undefined, "stacker"),
 		caller: parseFilter(query.get("caller") ?? undefined, "caller"),
-		cursorPastTip: cursor ? cursor.block_height > tip.block_height : false,
 	};
 }
 

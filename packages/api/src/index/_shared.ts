@@ -13,6 +13,27 @@ export type IndexCursorInput = {
 	event_index: number;
 };
 
+/** Cursor for feeds ordered on (block_height, tx_index) — /contract-calls,
+ *  /stacking, /transactions — as opposed to the (block_height, event_index)
+ *  keyset the event feeds use. */
+export type IndexTxCursorInput = {
+	block_height: number;
+	tx_index: number;
+};
+
+export function parseTxIndexCursor(value: string): IndexTxCursorInput {
+	const match = /^(0|[1-9]\d*):(0|[1-9]\d*)$/.exec(value);
+	if (!match) {
+		throw new ValidationError("cursor must use <block_height>:<tx_index>");
+	}
+	const blockHeight = Number(match[1]);
+	const txIndex = Number(match[2]);
+	if (!Number.isSafeInteger(blockHeight) || !Number.isSafeInteger(txIndex)) {
+		throw new ValidationError("cursor must use <block_height>:<tx_index>");
+	}
+	return { block_height: blockHeight, tx_index: txIndex };
+}
+
 // Canonical implementations live in ../parse-query.ts; re-exported here for
 // existing index-surface import sites.
 export { parseCursor, parseNonNegativeInteger };
@@ -101,8 +122,8 @@ export { encodeStreamsCursor as encodeIndexCursor } from "@secondlayer/shared";
 
 /** Shared cursor / height-window parsing for every Index read endpoint.
  *  Resolves cursor vs from_height precedence and the default last-day window. */
-export type IndexBaseQuery = {
-	cursor?: IndexCursorInput;
+export type IndexBaseQuery<C = IndexCursorInput> = {
+	cursor?: C;
 	cursorRaw?: string;
 	fromHeight: number;
 	toHeight: number;
@@ -110,10 +131,18 @@ export type IndexBaseQuery = {
 	cursorPastTip: boolean;
 };
 
-export function parseIndexBaseQuery(
+export function parseIndexBaseQuery<
+	C extends { block_height: number } = IndexCursorInput,
+>(
 	query: URLSearchParams,
 	tip: IndexTip,
-): IndexBaseQuery {
+	/** Defaults to the (block_height, event_index) keyset; tx-index feeds pass
+	 *  `parseTxIndexCursor`. Everything else about the window contract is
+	 *  shared. */
+	parseCursorValue: (raw: string) => C = parseCursor as unknown as (
+		raw: string,
+	) => C,
+): IndexBaseQuery<C> {
 	const cursorParamRaw = query.get("cursor") ?? undefined;
 	const fromCursorRaw = query.get("from_cursor") ?? undefined;
 	if (cursorParamRaw !== undefined && fromCursorRaw !== undefined) {
@@ -127,7 +156,7 @@ export function parseIndexBaseQuery(
 		throw new ValidationError("cursor and from_height are mutually exclusive");
 	}
 
-	const cursor = cursorRaw ? parseCursor(cursorRaw) : undefined;
+	const cursor = cursorRaw ? parseCursorValue(cursorRaw) : undefined;
 	const requestedFromHeight =
 		fromHeightRaw !== undefined
 			? parseNonNegativeInteger(fromHeightRaw, "from_height")

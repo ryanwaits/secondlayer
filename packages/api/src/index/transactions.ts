@@ -1,15 +1,14 @@
 import { decodeClarityValue } from "@secondlayer/sdk";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
-import { ValidationError } from "@secondlayer/shared/errors";
 import type { Kysely, RawBuilder } from "kysely";
 import type { StreamsReorg } from "../streams/reorgs.ts";
-import { STREAMS_BLOCKS_PER_DAY } from "../streams/tiers.ts";
 import {
+	type IndexTxCursorInput,
 	jsonSafeBigInt,
 	parseFilter,
-	parseLimit,
-	parseNonNegativeInteger,
+	parseIndexBaseQuery,
+	parseTxIndexCursor,
 	toIsoOrNull,
 } from "./_shared.ts";
 import { parseFields, projectRow } from "./field-projection.ts";
@@ -56,10 +55,7 @@ export const TRANSACTIONS_FILTERS = [
 	"fields",
 ] as const;
 
-export type TransactionCursor = {
-	block_height: number;
-	tx_index: number;
-};
+export type TransactionCursor = IndexTxCursorInput;
 
 /** The full transaction document: the columnar fields from `transactions` plus
  *  the `raw_tx`-decoded enrichment (fee/nonce/post-conditions/payload detail).
@@ -281,65 +277,20 @@ function normalizeTransaction(row: TransactionDbRow): IndexTransaction {
 	return jsonSafeBigInt(tx);
 }
 
-export function parseTransactionCursor(value: string): TransactionCursor {
-	const match = /^(0|[1-9]\d*):(0|[1-9]\d*)$/.exec(value);
-	if (!match) {
-		throw new ValidationError("cursor must use <block_height>:<tx_index>");
-	}
-	const blockHeight = Number(match[1]);
-	const txIndex = Number(match[2]);
-	if (!Number.isSafeInteger(blockHeight) || !Number.isSafeInteger(txIndex)) {
-		throw new ValidationError("cursor must use <block_height>:<tx_index>");
-	}
-	return { block_height: blockHeight, tx_index: txIndex };
-}
+export const parseTransactionCursor = parseTxIndexCursor;
 
 export function parseTransactionsQuery(
 	query: URLSearchParams,
 	tip: IndexTip,
 ): TransactionsQuery {
-	const cursorParamRaw = query.get("cursor") ?? undefined;
-	const fromCursorRaw = query.get("from_cursor") ?? undefined;
-	if (cursorParamRaw !== undefined && fromCursorRaw !== undefined) {
-		throw new ValidationError("cursor and from_cursor are mutually exclusive");
-	}
-
-	const cursorRaw = fromCursorRaw ?? cursorParamRaw;
-	const fromHeightRaw = query.get("from_height") ?? undefined;
-	if (cursorRaw && fromHeightRaw !== undefined) {
-		throw new ValidationError("cursor and from_height are mutually exclusive");
-	}
-
-	const cursor = cursorRaw ? parseTransactionCursor(cursorRaw) : undefined;
-	const requestedFromHeight =
-		fromHeightRaw !== undefined
-			? parseNonNegativeInteger(fromHeightRaw, "from_height")
-			: undefined;
-	const requestedToHeight =
-		query.get("to_height") !== null
-			? parseNonNegativeInteger(query.get("to_height") as string, "to_height")
-			: undefined;
-	const defaultFromHeight =
-		cursorRaw === undefined && fromHeightRaw === undefined
-			? Math.max(0, tip.block_height - STREAMS_BLOCKS_PER_DAY)
-			: undefined;
-
 	return {
-		cursor,
-		cursorRaw,
-		fromHeight: requestedFromHeight ?? defaultFromHeight ?? 0,
-		toHeight:
-			requestedToHeight === undefined
-				? tip.block_height
-				: Math.min(requestedToHeight, tip.block_height),
-		limit: parseLimit(query.get("limit") ?? undefined),
+		...parseIndexBaseQuery(query, tip, parseTxIndexCursor),
 		type: parseFilter(query.get("type") ?? undefined, "type"),
 		sender: parseFilter(query.get("sender") ?? undefined, "sender"),
 		contractId: parseFilter(
 			query.get("contract_id") ?? undefined,
 			"contract_id",
 		),
-		cursorPastTip: cursor ? cursor.block_height > tip.block_height : false,
 	};
 }
 
