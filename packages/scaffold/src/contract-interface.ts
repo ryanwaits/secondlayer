@@ -67,9 +67,12 @@ function resolveApiUrl(
 function generateValidationUtils(): string {
 	return `/**
  * Contract name validation regex
- * Must start with letter, contain only letters, numbers, and hyphens, max 128 chars
+ * Must start with a letter, contain only letters, numbers, hyphens, and
+ * underscores, max 128 chars. Mirrors CONTRACT_NAME_REGEX in
+ * @secondlayer/stacks/utils — kept inline so generated code works against any
+ * @secondlayer/stacks ^3.0.0.
  */
-const CONTRACT_NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9\\-]{0,127}$/;`;
+const CONTRACT_NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_\\-]{0,127}$/;`;
 }
 
 /**

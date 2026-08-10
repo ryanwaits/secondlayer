@@ -38,6 +38,8 @@ export {
 	publicKeyToAddress,
 	validateStacksAddress,
 	isValidAddress,
+	parsePrincipal,
+	CONTRACT_NAME_REGEX,
 	parseContractId,
 	isClarityName,
 	isAddressEqual,

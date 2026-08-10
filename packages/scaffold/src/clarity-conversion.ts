@@ -36,13 +36,17 @@ export function generateClarityConversion(
 			case "principal":
 			case "trait_reference":
 				return `(() => {
-          const [address, contractName] = ${argName}.split(".") as [string, string | undefined];
+          const parts = ${argName}.split(".");
+          if (parts.length > 2) {
+            throw new Error("Invalid principal format: expected an address, optionally followed by one .contract-name");
+          }
+          const [address, contractName] = parts as [string, string | undefined];
           if (!validateStacksAddress(address)) {
             throw new Error("Invalid Stacks address format");
           }
           if (contractName !== undefined) {
             if (!CONTRACT_NAME_REGEX.test(contractName)) {
-              throw new Error("Invalid contract name format: must start with letter and contain only letters, numbers, and hyphens");
+              throw new Error("Invalid contract name format: must start with a letter and contain only letters, numbers, hyphens, and underscores");
             }
             return Cl.contractPrincipal(address, contractName);
           }
