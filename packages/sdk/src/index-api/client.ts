@@ -1001,7 +1001,12 @@ export type SbtcEventsConsumeParams<TTx = never> = Omit<
 
 export type SbtcDepositsConsumeParams<TTx = never> = Omit<
 	SbtcDepositsListParams,
-	"cursor" | "fromCursor" | "limit"
+	// `fields` omitted for the same reason as EventsConsumeParams: the consume
+	// loop never forwarded it, so accepting the option meant it type-checked
+	// and was then silently dropped. Consuming a projected row needs the
+	// handler's row type to narrow too — a larger change than pretending the
+	// option works.
+	"cursor" | "fromCursor" | "limit" | "fields"
 > &
 	IndexConsumeOptions<IndexSbtcDeposit, SbtcDepositsEnvelope, TTx>;
 
@@ -1217,6 +1222,20 @@ export interface Pox5Resource {
 		list(params?: Pox5EventsListParams): Promise<Pox5EventsEnvelope>;
 		walk(params?: Pox5EventsWalkParams): AsyncIterable<IndexPox5Event>;
 	};
+}
+
+/**
+ * A consume call's feed filters: everything except the loop's own starting
+ * checkpoint. `fromCursor` MUST be dropped — it is where the loop begins, not
+ * a filter, and the API rejects `cursor` + `from_cursor` together, so
+ * forwarding it would 400 every page after the first. `fromHeight`/`limit`
+ * also appear in both, and the explicit page args at each call site override
+ * them. The loop's non-wire options (onBatch, sink, signal, …) ride along
+ * unread — `buildQuery` only reads the keys each list method names.
+ */
+function feedFilters<T extends { fromCursor?: string | null }>(params: T) {
+	const { fromCursor: _checkpoint, ...filters } = params;
+	return filters;
 }
 
 function firstWalkFromHeight(params: {
@@ -1451,14 +1470,7 @@ export class Index extends BaseClient {
 					...params,
 					fetchPage: ({ cursor, fromHeight, limit }) =>
 						this.listEvents({
-							eventType: params.eventType,
-							contractId: params.contractId,
-							assetIdentifier: params.assetIdentifier,
-							sender: params.sender,
-							recipient: params.recipient,
-							trait: params.trait,
-							toHeight: params.toHeight,
-							txContext: params.txContext,
+							...feedFilters(params),
 							cursor,
 							fromHeight,
 							limit,
@@ -1490,11 +1502,7 @@ export class Index extends BaseClient {
 				...params,
 				fetchPage: ({ cursor, fromHeight, limit }) =>
 					this.listContractCalls({
-						contractId: params.contractId,
-						functionName: params.functionName,
-						sender: params.sender,
-						trait: params.trait,
-						toHeight: params.toHeight,
+						...feedFilters(params),
 						cursor,
 						fromHeight,
 						limit,
@@ -1607,10 +1615,7 @@ export class Index extends BaseClient {
 					...params,
 					fetchPage: ({ cursor, fromHeight, limit }) =>
 						this.listSbtcDeposits({
-							confirmed: params.confirmed,
-							sender: params.sender,
-							bitcoinTxid: params.bitcoinTxid,
-							toHeight: params.toHeight,
+							...feedFilters(params),
 							cursor,
 							fromHeight,
 							limit,
@@ -1643,12 +1648,7 @@ export class Index extends BaseClient {
 					...params,
 					fetchPage: ({ cursor, fromHeight, limit }) =>
 						this.listSbtcEvents({
-							confirmed: params.confirmed,
-							topic: params.topic,
-							sender: params.sender,
-							requestId: params.requestId,
-							bitcoinTxid: params.bitcoinTxid,
-							toHeight: params.toHeight,
+							...feedFilters(params),
 							cursor,
 							fromHeight,
 							limit,

@@ -350,6 +350,41 @@ describe("index.contractCalls.consume", () => {
 		expect(urls[1]?.searchParams.get("from_height")).toBeNull();
 		expect(urls[1]?.searchParams.get("cursor")).toBe("1:1");
 	});
+
+	test("a fromCursor consume never sends from_cursor alongside cursor", async () => {
+		// fromCursor is the loop's starting checkpoint, not a filter. The API
+		// rejects cursor + from_cursor together, so leaking it into the page
+		// request would 400 every page after the first.
+		const pages = [
+			{
+				contract_calls: [call("2:0", 0, 2)],
+				next_cursor: "2:0",
+				tip: TIP,
+				reorgs: [],
+			},
+			{ contract_calls: [], next_cursor: null, tip: TIP, reorgs: [] },
+		];
+		const urls: URL[] = [];
+		globalThis.fetch = (async (input: string | URL | Request) => {
+			urls.push(new URL(input.toString()));
+			return jsonResponse(pages.shift());
+		}) as unknown as typeof fetch;
+
+		await new Index().contractCalls.consume({
+			fromCursor: "1:9",
+			contractId: "SP1.marketplace",
+			emptyBackoffMs: 0,
+			maxEmptyPolls: 1,
+			onBatch: () => undefined,
+		});
+
+		expect(urls.length).toBeGreaterThan(0);
+		for (const url of urls) {
+			expect(url.searchParams.get("from_cursor")).toBeNull();
+			expect(url.searchParams.get("contract_id")).toBe("SP1.marketplace");
+		}
+		expect(urls[0]?.searchParams.get("cursor")).toBe("1:9");
+	});
 });
 
 describe("index.sbtc consumers", () => {
