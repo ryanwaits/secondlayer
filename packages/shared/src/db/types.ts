@@ -872,6 +872,36 @@ export interface PendingForkBlocksTable {
 	received_at: Generated<Date>;
 }
 
+export type ObserverJournalStatus = "received" | "processed" | "failed";
+
+/**
+ * Exact observer callback receipt. `raw_body` is immutable evidence; the
+ * processing columns are updated only after the current derived-state write
+ * succeeds or fails.
+ */
+export interface ObserverJournalTable {
+	sequence: Generated<string>;
+	network: string;
+	path: string;
+	source: string | null;
+	received_at: Generated<Date>;
+	raw_body: ColumnType<Buffer, Buffer, Buffer>;
+	raw_body_sha256: string;
+	status: ColumnType<
+		ObserverJournalStatus,
+		ObserverJournalStatus | undefined,
+		ObserverJournalStatus
+	>;
+	semantic_sha256: string | null;
+	block_height: number | null;
+	block_hash: string | null;
+	burn_block_height: number | null;
+	burn_block_hash: string | null;
+	result: unknown | null;
+	error: string | null;
+	processed_at: Date | null;
+}
+
 export interface Database {
 	blocks: BlocksTable;
 	transactions: TransactionsTable;
@@ -935,6 +965,7 @@ export interface Database {
 	x402_balances: X402BalancesTable;
 	chain_read_cache: ChainReadCacheTable;
 	pending_fork_blocks: PendingForkBlocksTable;
+	observer_journal: ObserverJournalTable;
 }
 
 /** Prepaid x402 credit — one running USD-micros balance per payer principal. */

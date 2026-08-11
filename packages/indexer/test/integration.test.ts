@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import { sql } from "@secondlayer/shared/db";
+import { sha256Hex } from "../src/observer-journal.ts";
 import type { NewBlockPayload } from "../src/types/node-events.ts";
 
 const INDEXER_URL = process.env.INDEXER_URL || "http://localhost:3700";
@@ -27,6 +28,7 @@ describe.skipIf(!CAN_RUN)("Indexer Integration Test", () => {
 		await db.deleteFrom("transactions").execute();
 		await db.deleteFrom("blocks").execute();
 		await db.deleteFrom("index_progress").execute();
+		await db.deleteFrom("observer_journal").execute();
 	});
 
 	test("POST /health returns 200", async () => {
@@ -106,6 +108,24 @@ describe.skipIf(!CAN_RUN)("Indexer Integration Test", () => {
 		expect(progress?.highest_seen_block).toBe(142800);
 	});
 
+	test("POST /new_block preserves the exact body in the observer journal", async () => {
+		const body = JSON.stringify(fixture);
+		const db = getDb();
+		const receipt = await db
+			.selectFrom("observer_journal")
+			.selectAll()
+			.where("path", "=", "/new_block")
+			.orderBy("sequence", "desc")
+			.executeTakeFirst();
+
+		expect(receipt).toBeDefined();
+		expect(receipt?.status).toBe("processed");
+		expect(Buffer.isBuffer(receipt?.raw_body)).toBe(true);
+		expect((receipt?.raw_body as Buffer).toString("utf8")).toBe(body);
+		expect(receipt?.raw_body_sha256).toBe(sha256Hex(body));
+		expect(receipt?.semantic_sha256).toMatch(/^[a-f0-9]{64}$/);
+	});
+
 	test("duplicate POST is idempotent", async () => {
 		const response = await fetch(`${INDEXER_URL}/new_block`, {
 			method: "POST",
@@ -132,5 +152,6 @@ describe.skipIf(!CAN_RUN)("Indexer Integration Test", () => {
 		await db.deleteFrom("transactions").execute();
 		await db.deleteFrom("blocks").execute();
 		await db.deleteFrom("index_progress").execute();
+		await db.deleteFrom("observer_journal").execute();
 	});
 });

@@ -92,6 +92,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
       NETWORKS: ${NETWORKS:-mainnet}
+      # Durable exact observer receipts. Disable only for a deliberate
+      # compatibility/debug run; the default self-host profile keeps it on.
+      OBSERVER_JOURNAL_ENABLED: ${OBSERVER_JOURNAL_ENABLED:-true}
     ports:
       - "${INDEXER_PORT:-127.0.0.1:3700}:3700"
     depends_on:

@@ -31,6 +31,14 @@ import {
 	startMempoolSweep,
 } from "./mempool.ts";
 import {
+	type ObserverPath,
+	type ObserverReceipt,
+	appendObserverReceipt,
+	markObserverFailed,
+	markObserverProcessed,
+	parseObserverBody,
+} from "./observer-journal.ts";
+import {
 	startStreamsBulkPublisher,
 	streamsBulkPublisherState,
 } from "./streams-bulk/scheduler.ts";
@@ -47,6 +55,23 @@ import type {
 } from "./types/node-events.ts";
 
 const PORT = Number.parseInt(process.env.PORT || "3700");
+const OBSERVER_JOURNAL_ENABLED =
+	process.env.OBSERVER_JOURNAL_ENABLED !== "false";
+const NETWORK = process.env.STACKS_NETWORK || "mainnet";
+
+async function captureObserverRequest(
+	req: Request,
+	path: ObserverPath,
+	source: string | null,
+): Promise<ObserverReceipt> {
+	const body = new Uint8Array(await req.arrayBuffer());
+	return appendObserverReceipt(getSourceDb(), {
+		network: NETWORK,
+		path,
+		source,
+		body,
+	});
+}
 
 // Task 2.2: Startup integrity check
 async function runStartupIntegrityCheck() {
@@ -143,6 +168,11 @@ const server = Bun.serve({
 				lastBlockReceivedSecondsAgo: Math.round(
 					(Date.now() - tipFollowerState.lastBlockReceivedAt) / 1000,
 				),
+				observerJournal: {
+					enabled: OBSERVER_JOURNAL_ENABLED,
+					network: NETWORK,
+					paths: ["/new_block", "/new_burn_block"],
+				},
 				blocksFetchedViaPoll: tipFollowerState.blocksFetchedViaPoll,
 				streamsBulkPublisher: {
 					enabled: streamsBulkPublisherState.enabled,
@@ -236,15 +266,48 @@ const server = Bun.serve({
 		// New block event
 		"/new_block": {
 			POST: async (req) => {
+				let receipt: ObserverReceipt | null = null;
+				let derivedStateCommitted = false;
 				try {
 					// Skip recording for self-sourced blocks (tip-follower, auto-backfill)
 					const source = req.headers.get("X-Source");
 					if (!source) recordBlockReceived();
 
-					const payload = (await req.json()) as NewBlockPayload;
+					receipt = OBSERVER_JOURNAL_ENABLED
+						? await captureObserverRequest(
+								req,
+								"/new_block",
+								source ?? "stacks-node",
+							)
+						: null;
+					const payload = receipt
+						? parseObserverBody<NewBlockPayload>(receipt.body)
+						: ((await req.json()) as NewBlockPayload);
 					const result = await ingestNewBlock(payload);
+					derivedStateCommitted = true;
+					if (receipt) {
+						await markObserverProcessed(getSourceDb(), receipt, {
+							path: "/new_block",
+							payload,
+							result,
+						});
+					}
 					return Response.json(result);
 				} catch (error) {
+					if (receipt && !derivedStateCommitted) {
+						await markObserverFailed(getSourceDb(), receipt, error).catch(
+							(journalError) =>
+								logger.error("Failed to mark observer receipt", {
+									sequence: receipt?.sequence,
+									error: journalError,
+								}),
+						);
+					} else if (receipt) {
+						logger.error(
+							"Derived state committed but observer receipt could not be finalized",
+							{ sequence: receipt.sequence, error },
+						);
+					}
 					logger.error("Error processing new_block", {
 						error:
 							error instanceof Error
@@ -266,9 +329,29 @@ const server = Bun.serve({
 		// persistBurnBlockRewards for the full contract).
 		"/new_burn_block": {
 			POST: async (req) => {
+				let receipt: ObserverReceipt | null = null;
+				let derivedStateCommitted = false;
 				try {
-					const payload = (await req.json()) as NewBurnBlockPayload;
+					const source = req.headers.get("X-Source");
+					receipt = OBSERVER_JOURNAL_ENABLED
+						? await captureObserverRequest(
+								req,
+								"/new_burn_block",
+								source ?? "stacks-node",
+							)
+						: null;
+					const payload = receipt
+						? parseObserverBody<NewBurnBlockPayload>(receipt.body)
+						: ((await req.json()) as NewBurnBlockPayload);
 					const { rewards, slots } = await persistBurnBlockRewards(payload);
+					derivedStateCommitted = true;
+					if (receipt) {
+						await markObserverProcessed(getSourceDb(), receipt, {
+							path: "/new_burn_block",
+							payload,
+							result: { rewards, slots },
+						});
+					}
 					logger.debug("Received new burn block", {
 						height: payload.burn_block_height,
 						hash: payload.burn_block_hash,
@@ -277,6 +360,20 @@ const server = Bun.serve({
 					});
 					return Response.json({ status: "ok" });
 				} catch (error) {
+					if (receipt && !derivedStateCommitted) {
+						await markObserverFailed(getSourceDb(), receipt, error).catch(
+							(journalError) =>
+								logger.error("Failed to mark burn observer receipt", {
+									sequence: receipt?.sequence,
+									error: journalError,
+								}),
+						);
+					} else if (receipt) {
+						logger.error(
+							"Derived state committed but burn observer receipt could not be finalized",
+							{ sequence: receipt.sequence, error },
+						);
+					}
 					logger.error("Error processing new_burn_block", { error });
 					return Response.json(
 						{ status: "error", message: String(error) },

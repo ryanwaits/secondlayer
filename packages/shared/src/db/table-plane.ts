@@ -37,6 +37,8 @@ export const TABLE_TO_DB = {
 	chain_read_cache: "source",
 	// Staged fork contenders — raw chain data, resolved during ingest.
 	pending_fork_blocks: "source",
+	// Exact observer callback receipts — the replay authority sits with chain data.
+	observer_journal: "source",
 	// ── SOURCE: decoded (L2) ──
 	decoded_events: "source",
 	decoder_checkpoints: "source",

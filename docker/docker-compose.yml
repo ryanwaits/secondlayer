@@ -221,6 +221,9 @@ services:
       PORT: 3700
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
+      # Store exact observer request bodies before JSON parsing. This is the
+      # first layer of the replayable archive and lives in the source DB/WAL.
+      OBSERVER_JOURNAL_ENABLED: ${OBSERVER_JOURNAL_ENABLED:-true}
       # Streams bulk dump publisher. Gated on STREAMS_BULK_PUBLISHER_ENABLED; R2 creds required.
       STREAMS_BULK_PUBLISHER_ENABLED: ${STREAMS_BULK_PUBLISHER_ENABLED:-false}
       STREAMS_BULK_PUBLISHER_INTERVAL_MS: ${STREAMS_BULK_PUBLISHER_INTERVAL_MS:-60000}
