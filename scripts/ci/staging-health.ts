@@ -24,6 +24,9 @@ const API_URL = (
 	process.env.SECOND_LAYER_API_URL ||
 	"https://api.secondlayer.tools"
 ).replace(/\/$/, "");
+const INDEXER_URL = (
+	process.env.STAGING_INDEXER_URL || "http://127.0.0.1:3700"
+).replace(/\/$/, "");
 
 const STATUS_KEY =
 	process.env.STAGING_STATUS_API_KEY || process.env.SL_STATUS_API_KEY || "";
@@ -40,16 +43,19 @@ const DECODER_LAG_ALERT_SECONDS =
 	Number(process.env.DECODER_LAG_ALERT_SECONDS) || 1800;
 const ZERO_TIMESTAMP_LOOKBACK_BLOCKS =
 	Number(process.env.ZERO_TIMESTAMP_LOOKBACK_BLOCKS) || 5000;
+const OBSERVER_JOURNAL_MAX_RECEIVED_SECONDS =
+	Number(process.env.OBSERVER_JOURNAL_MAX_RECEIVED_SECONDS) || 900;
 
 const failures: string[] = [];
 const notices: string[] = [];
 
-async function fetchJson(
+async function fetchJsonFrom(
+	baseUrl: string,
 	label: string,
 	path: string,
 	token?: string,
 ): Promise<unknown | null> {
-	const url = `${API_URL}${path}`;
+	const url = `${baseUrl}${path}`;
 	const headers: Record<string, string> = { accept: "application/json" };
 	if (token) headers.Authorization = `Bearer ${token}`;
 	try {
@@ -68,6 +74,14 @@ async function fetchJson(
 		);
 		return null;
 	}
+}
+
+async function fetchJson(
+	label: string,
+	path: string,
+	token?: string,
+): Promise<unknown | null> {
+	return fetchJsonFrom(API_URL, label, path, token);
 }
 
 function asRecord(v: unknown): Record<string, unknown> {
@@ -200,6 +214,37 @@ async function checkAuthorizedStatus(): Promise<void> {
 	console.log("authorized status: database and index checked");
 }
 
+async function checkObserverJournal(): Promise<void> {
+	const body = await fetchJsonFrom(
+		INDEXER_URL,
+		"indexer integrity",
+		"/health/integrity",
+	);
+	if (!body) return;
+	const journal = asRecord(asRecord(body).observerJournal);
+	if (journal.enabled !== true) {
+		failures.push("observer journal disabled");
+		return;
+	}
+	const status = String(journal.status);
+	if (status === "unavailable") {
+		failures.push("observer journal unavailable");
+	} else if (status === "failed") {
+		failures.push(
+			`observer journal has ${String(journal.failed)} failed receipts`,
+		);
+	}
+	const age = Number(journal.oldestReceivedAgeSeconds);
+	if (Number.isFinite(age) && age > OBSERVER_JOURNAL_MAX_RECEIVED_SECONDS) {
+		failures.push(
+			`observer journal oldest pending receipt ${age}s > ${OBSERVER_JOURNAL_MAX_RECEIVED_SECONDS}s`,
+		);
+	}
+	console.log(
+		`observer journal: status='${status}' received=${String(journal.received)} failed=${String(journal.failed)}`,
+	);
+}
+
 async function checkZeroTimestampBlocks(): Promise<void> {
 	if (!DATABASE_URL) {
 		console.log(
@@ -244,6 +289,7 @@ export {};
 
 await checkPublicStatus();
 await checkAuthorizedStatus();
+await checkObserverJournal();
 await checkZeroTimestampBlocks();
 
 for (const notice of notices) console.log(notice);

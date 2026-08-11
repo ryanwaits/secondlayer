@@ -13,6 +13,7 @@ import {
 	withLeaderLock,
 } from "@secondlayer/shared/leader";
 import { logger } from "@secondlayer/shared/logger";
+import { sql } from "kysely";
 import {
 	contractRegistryState,
 	startContractRegistry,
@@ -71,6 +72,78 @@ async function captureObserverRequest(
 		source,
 		body,
 	});
+}
+
+async function getObserverJournalHealth(
+	db: ReturnType<typeof getSourceDb>,
+	network: string,
+): Promise<{
+	enabled: boolean;
+	status: "ok" | "pending" | "failed" | "disabled" | "unavailable";
+	received: number;
+	failed: number;
+	oldestReceivedAt: string | null;
+	oldestReceivedAgeSeconds: number | null;
+	error?: string;
+}> {
+	if (!OBSERVER_JOURNAL_ENABLED) {
+		return {
+			enabled: false,
+			status: "disabled",
+			received: 0,
+			failed: 0,
+			oldestReceivedAt: null,
+			oldestReceivedAgeSeconds: null,
+		};
+	}
+
+	try {
+		const row = await db
+			.selectFrom("observer_journal")
+			.select([
+				sql<number>`count(*) filter (where status = 'received')`.as(
+					"received_count",
+				),
+				sql<number>`count(*) filter (where status = 'failed')`.as(
+					"failed_count",
+				),
+				sql<Date | null>`min(received_at) filter (where status = 'received')`.as(
+					"oldest_received_at",
+				),
+			])
+			.where("network", "=", network)
+			.executeTakeFirst();
+		const received = Number(row?.received_count ?? 0);
+		const failed = Number(row?.failed_count ?? 0);
+		const oldestReceivedAt = row?.oldest_received_at
+			? new Date(row.oldest_received_at).toISOString()
+			: null;
+		const oldestReceivedAgeSeconds = oldestReceivedAt
+			? Math.max(
+					0,
+					Math.round((Date.now() - Date.parse(oldestReceivedAt)) / 1000),
+				)
+			: null;
+
+		return {
+			enabled: true,
+			status: failed > 0 ? "failed" : received > 0 ? "pending" : "ok",
+			received,
+			failed,
+			oldestReceivedAt,
+			oldestReceivedAgeSeconds,
+		};
+	} catch (error) {
+		return {
+			enabled: true,
+			status: "unavailable",
+			received: 0,
+			failed: 0,
+			oldestReceivedAt: null,
+			oldestReceivedAgeSeconds: null,
+			error: error instanceof Error ? error.message : String(error),
+		};
+	}
 }
 
 // Task 2.2: Startup integrity check
@@ -206,6 +279,7 @@ const server = Bun.serve({
 		"/health/integrity": async () => {
 			const db = getSourceDb();
 			const network = process.env.STACKS_NETWORK || "mainnet";
+			const observerJournal = await getObserverJournalHealth(db, network);
 
 			let lastContiguousBlock = 0;
 			let lastIndexedBlock = 0;
@@ -260,6 +334,7 @@ const server = Bun.serve({
 					unfillableHeights: integrityState.autoBackfillUnfillable.slice(0, 10),
 				},
 				brokenLinks: integrityState.brokenLinks.slice(0, 10),
+				observerJournal,
 			});
 		},
 

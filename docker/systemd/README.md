@@ -9,7 +9,7 @@ Install the backup + health units on the production host.
 | `secondlayer-backup-upload.{service,timer}` | rsync `$DATA_DIR/backups/` to Hetzner Storage Box | hourly at :45 (+ ≤5 min jitter) |
 | `secondlayer-health-alert.{service,timer}` | curl `/public/status` + `docker compose ps` → Slack on failure (one alert per incident, all-clear on recovery) | every 5 min |
 | `secondlayer-floor-audit.{service,timer}` | run `floor-audit.ts` in the decoder container → Slack if any decoder regressed below its genesis baseline or shipped unbaselined (one alert per incident, all-clear on recovery) | daily at 06:00 |
-| `secondlayer-staging-health.{service,timer}` | run `scripts/ci/staging-health.ts` on the host → Slack on stale/misshapen tip data: service states, decoder lag bands, streams lag, dumps freshness, zero-timestamp blocks (one alert per incident, all-clear on recovery) | every 30 min |
+| `secondlayer-staging-health.{service,timer}` | run `scripts/ci/staging-health.ts` on the host → Slack on stale/misshapen tip data: service states, decoder lag bands, streams lag, dumps freshness, observer-journal failures/stalls, zero-timestamp blocks (one alert per incident, all-clear on recovery) | every 30 min |
 
 The three health units answer different questions and none subsumes another:
 `health-alert` is liveness (does the API answer, are containers up),
@@ -28,7 +28,11 @@ Each service sources `/opt/secondlayer/docker/.env` for `DATA_DIR`,
 `staging-health` additionally builds a host-reachable SOURCE DB URL from
 `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` (override the target with
 `STAGING_HEALTH_DB_HOSTPORT`, default `127.0.0.1:5432`) and reads the optional
-`STAGING_STATUS_API_KEY` to unlock the authorized `/status` checks.
+`STAGING_STATUS_API_KEY` to unlock the authorized `/status` checks. It probes
+the indexer's `/health/integrity` at `STAGING_INDEXER_URL` (default
+`http://127.0.0.1:3700`) and fails on disabled/unavailable/failed receipts or a
+pending receipt older than `OBSERVER_JOURNAL_MAX_RECEIVED_SECONDS` (default
+900 seconds).
 
 ## Install
 
