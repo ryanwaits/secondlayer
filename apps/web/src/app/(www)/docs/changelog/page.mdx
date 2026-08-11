@@ -2,6 +2,40 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## CLI — August 2026
+
+### Mirror the PoX-5 feed in your own database
+
+`sl index codegen` refused `pox5_events` with `Unknown Index table` — the table
+was missing from the Index read contract, so the one stacking feed that is
+still growing after the epoch 4.0 activation was the one feed a BYO mirror
+couldn't hold. (The closed pox-4 era was covered the whole time.)
+
+All three targets now emit it:
+
+```bash
+sl index codegen --target kysely --tables pox5_events
+```
+
+You get `Pox5Events` for Kysely, `pox5Events` for Drizzle, and a
+`model Pox5Events` keyed on `cursor` for Prisma — 21 columns including the
+decoded `data` payload.
+
+## Index — August 2026
+
+### Filter FT transfers by asset from the MCP tool
+
+`index_ft_transfers` takes `assetIdentifier`, so an agent can ask for one
+token's transfers directly:
+
+```
+index_ft_transfers({ assetIdentifier: "SP…sbtc-token::sbtc-token" })
+```
+
+The filter was already on the API, the SDK, and the `index_nft_transfers`
+twin — only the FT tool's schema was missing it, which left agents scanning
+the full feed and paying per row to find one asset.
+
 ## SDK — August 2026
 
 ### `sbtc.deposits.consume` stops pretending to accept `fields`

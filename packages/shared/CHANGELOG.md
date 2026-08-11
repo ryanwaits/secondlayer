@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 7.6.0
+
+### Minor Changes
+
+- Register `pox5_events` in the Index read contract (`SOURCE_READ_COLUMNS` / `SOURCE_READ_TYPES` / `SOURCE_READ_PKS`). The API has read that table since PoX-5 activation, but it was never added to the registry, so `sl index codegen` refused it with `Unknown Index table "pox5_events"` — the live stacking data plane was the one Index feed a BYO mirror couldn't hold, while the closed pox-4 era was covered. All three codegen targets now emit it, and the table falls under the snapshot drift guard like every other read table.
+
 ## 7.5.1
 
 ### Patch Changes

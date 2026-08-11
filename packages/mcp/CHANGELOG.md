@@ -1,5 +1,16 @@
 # @secondlayer/mcp
 
+## 4.5.0
+
+### Minor Changes
+
+- `index_ft_transfers` accepts `assetIdentifier`. The filter exists on the API and the SDK and on the sibling `index_nft_transfers` tool, but was missing from the FT tool's input schema — so an agent asked for one token's transfers had to fall back to a full-feed scan, which bills per returned row.
+
+### Patch Changes
+
+- Updated dependencies
+  - @secondlayer/shared@7.6.0
+
 ## 4.4.0
 
 ### Minor Changes
