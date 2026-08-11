@@ -160,8 +160,10 @@ Conclusion: current code supplies the parsers, persistence, reorg logic, R2
 plumbing, signing primitives, an existing canonical Streams exporter, and a
 usable historical `/new_block` importer. The first implementation slice now
 retains exact observer bodies and processing receipts in the source database.
-The next slice audits and exports our own canonical DB; an external historical
-source is optional and only upgrades assurance.
+The canonical audit foundation is diagnostic until it receives an explicit
+expected finalized upper bound; it does not emit a signed report or populate
+the `v1` R2 tree yet. The next slice audits and exports our own canonical DB;
+an external historical source is optional and only upgrades assurance.
 
 ## Archive contract
 
