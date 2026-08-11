@@ -1,7 +1,7 @@
 # Secondlayer self-host pivot with live archive
 
 Status: proposal. Phase 1 implementation started with the exact observer receipt
-journal. Assumes no hosted users. The existing node,
+journal and canonical coverage audit foundation. Assumes no hosted users. The existing node,
 app server, indexer, databases, backups, and R2 remain running as private
 archive-production infrastructure until a separate consolidation is approved.
 
@@ -14,10 +14,11 @@ Secondlayer becomes one self-hosted product:
 > configured stage processed every block in scope.
 
 Secondlayer also operates one best-effort public utility: an immutable,
-full-genesis `/new_block` archive on R2, plus source-backed ranges for other
-observer paths. It is not a hosted API, account system, or SLA.
-Its assurance level is machine-readable: replayable first; upgraded to
-node-attested or observer-attested only when an independent source proves it.
+full-genesis canonical archive on R2, plus exact observer journal ranges from
+journal activation onward. It is not a hosted API, account system, or SLA.
+Its assurance level is machine-readable: `db-reconstructive` first,
+`node-attested` when local-node anchors pass, and `observer-attested` only when
+an independent historical source exists.
 
 Confirmed founder direction, 2026-08-11:
 
@@ -56,9 +57,9 @@ AX162-S: bitcoind ──▶ stacks-node ──observer──┐
 app server: API/indexer/decoders ─────────▶ Postgres + WAL/backups
                                               │ finalized ranges
                                               ▼
-                                    signed Cloudflare R2 archive
+                                    signed Cloudflare R2 canonical archive
 
-off-provider source mirror + observer journal ──rebuild──▶ R2
+WAL/DB backup + observer journal ──rebuild──▶ R2
 ```
 
 ### Product boundaries
@@ -72,7 +73,7 @@ off-provider source mirror + observer journal ──rebuild──▶ R2
 | Contract discovery, protocol datasets, local discovery | Hosted Explore becomes a local catalog | Cross-instance social/discovery semantics |
 | Operator-configured x402 | Operator owns recipients, assets, prices, and settlement policy | Secondlayer pricing/revenue authority |
 | REST/OpenAPI contracts and minimal SDK/CLI | One database and one network per instance | Multi-tenant provisioning and managed status |
-| Signed R2 raw archive and private publisher | Existing publisher topology stays operational | Hosted decoded/subgraph products |
+| Signed R2 canonical archive and private publisher | Existing publisher topology stays operational | Hosted decoded/subgraph products |
 
 Keep `/v1/streams`, `/v1/index`, and `/v1/subgraphs` initially. Renaming public
 routes is irreversible and provides little implementation savings. Stop
@@ -141,8 +142,9 @@ complete. Our retained AX publisher uses its own Stacks + Bitcoin nodes.
 
 | Artifact/capability | Exists now | Required work |
 | --- | --- | --- |
-| Historical `/new_block` source | `ArchiveReplayClient` streams Hiro raw bodies | Mirror/provenance, full path/era feasibility audit |
-| Block/tx/event reconstruction | Parser + atomic persistence + reorg handling | Replay from versioned envelope ledger; receipt digests |
+| Historical canonical data | Complete blocks/transactions/events in Postgres | Repeatable-read coverage audit, export, node anchors |
+| Historical `/new_block` replay | `ArchiveReplayClient` can consume Hiro raw bodies | Optional assurance upgrade only; never a baseline dependency |
+| Block/tx/event reconstruction | Parser + atomic persistence + reorg handling | Canonical R2 export and deterministic digests |
 | R2 upload and Parquet | Streams bulk exporter/uploader | Global journal partitions; bounded streaming; new schemas |
 | Signed manifests | ed25519 Streams manifests | Offline root/key registry; assurance ranges; atomic root |
 | Finalized-range selection | Existing burn-confirmation range logic | Canonical lineage, deep-reorg supersession, signed head |
@@ -150,16 +152,16 @@ complete. Our retained AX publisher uses its own Stacks + Bitcoin nodes.
 | `/new_burn_block` live parsing | Normalized reward/slot tables | Raw bytes, forks, global sequence, historical source/gap map |
 | Contract registry | Live node ABI fetch + DB rows | Versioned contract source/ABI input receipts |
 | sBTC settlement | Live Bitcoin RPC + DB rows | Versioned Bitcoin evidence receipts; dependency health |
-| Observer durability | DB-backed exact receipt journal; routes retain raw bytes before parse | R2/off-provider export, replay/outbox/recovery |
+| Observer durability | DB-backed exact receipt journal; routes retain raw bytes before parse | R2 journal export, replay/outbox/recovery |
 | Independent attestation | None | Node auditor, witness, trust policy, signed reports |
 | Transparent status/history | Partial local health | Signed R2 status, immutable reports/incidents, off-host checker |
 
 Conclusion: current code supplies the parsers, persistence, reorg logic, R2
-plumbing, signing primitives, and a usable historical `/new_block` importer. The
-first implementation slice now retains exact observer bodies and processing
-receipts in the source database. It does not yet contain the R2 export,
-off-provider source mirror, or independent evidence needed to publish the
-proposed archive claims.
+plumbing, signing primitives, an existing canonical Streams exporter, and a
+usable historical `/new_block` importer. The first implementation slice now
+retains exact observer bodies and processing receipts in the source database.
+The next slice audits and exports our own canonical DB; an external historical
+source is optional and only upgrades assurance.
 
 ## Archive contract
 
@@ -167,20 +169,21 @@ The existing `stacks-streams/mainnet/v0` archive is only a temporary comparison
 source. After `v1` acceptance and internal consumer cutover, delete all legacy
 prefixes. There is no public compatibility window because there are no users.
 
-The authoritative `v1` archive stores the exact accepted observer inputs, not a
-Postgres dump. Database tables and Parquet views are derivatives:
+The authoritative `v1` archive starts from a repeatable-read canonical Postgres
+snapshot, anchored to the local Stacks node where verified. It does not invent
+historical observer bodies. Exact observer journal objects are a separate
+dataset from journal activation onward:
 
 ```text
-secondlayer/mainnet/raw/v1/
+secondlayer/mainnet/canonical/v1/
 ├── latest.json                         signed root pointer
 ├── status.json                         signed/cache-short operational status
 ├── snapshots/<snapshot-digest>.json   signed immutable manifest
-├── sources/<source-digest>.zst         public copy of upstream evidence
+├── blocks/<range>-<digest>.parquet
+├── transactions/<range>-<digest>.parquet
+├── events/<range>-<digest>.parquet
 ├── journal/<seq-start>-<seq-end>-<digest>.jsonl.zst
 ├── head/<sequence>-<digest>.jsonl.zst  signed unfinalized observer tail
-├── indexes/blocks/<range>-<digest>.parquet
-├── indexes/transactions/<range>-<digest>.parquet
-├── indexes/events/<range>-<digest>.parquet
 ├── attestations/<snapshot>/<auditor>.json
 ├── reports/audits/<timestamp>-<digest>.json
 ├── reports/replays/<snapshot>-<runtime-digest>.json
@@ -189,53 +192,55 @@ secondlayer/mainnet/raw/v1/
 └── keys/registry.json
 ```
 
-Each envelope preserves path, publisher-global sequence, source id/version, receipt time, exact
-HTTP body bytes, raw-body SHA-256, canonical semantic digest, and extracted
-block/burn identities. Exact bytes are replay authority. Versioned semantic
-digests permit comparison across JSON formatting and observer schema versions.
-Every delivered canonical and orphan/reorg payload is append-only; finality marks
-a lineage canonical without deleting its alternatives. One global journal order
-is authoritative across paths; path/native-clock indexes never replace it.
+Canonical objects preserve block/transaction/event identities, original ordering,
+raw transaction data where stored, source snapshot metadata, and per-object
+digests. Journal objects additionally preserve path, publisher-global sequence,
+source id/version, receipt time, exact HTTP body bytes, raw-body SHA-256,
+canonical semantic digest, and extracted block/burn identities. Exact bytes are
+replay authority only for journal-covered ranges. Versioned semantic digests
+permit comparison across JSON formatting and schema versions.
 
-Persist full-genesis `/new_block`. Persist `/new_burn_block` from the earliest
-independently sourced range; earn full-genesis only if P0.9/P1.22 proves a valid
-source. Persist attachments if their current no-op behavior changes. Mempool add/drop inputs remain a bounded
-rolling journal and explicitly have no historical completeness claim. The
-producer manifest must add any future state-affecting observer path before a
-feature may consume it.
+Persist full-genesis canonical blocks/transactions/events from our own DB when
+coverage passes. Persist exact `/new_block` and `/new_burn_block` journal rows
+from journal activation onward. An independent historical observer source is
+optional; it upgrades a range to `observer-attested` but is not required for
+the baseline archive. Mempool add/drop inputs remain a bounded rolling journal
+with no historical completeness claim.
 
 Each snapshot records network, schema/digest versions, genesis identity, archive
 tip height/hash, source tip, finality rule, generation time, signer/key id, exact
 height partitions, zero-record ranges, row counts, byte sizes, and SHA-256
-digests. Every canonical height has exactly one finalized `/new_block` envelope,
+digests. Every canonical height has exactly one canonical block record,
 including zero-event blocks. Every transaction is present, including
 transactions with zero events. Transactions and events retain original order
 and parent identities. The manifest declares `assurance_ranges[]`, each keyed by
-observer path, native clock, exact range, digest spec, source, auditor/key, and
+dataset/path, native clock, exact range, digest spec, source, auditor/key, and
 level. Overall readiness is the minimum assurance required by enabled stages:
 
-- `replayable`: exact stored observer inputs are contiguous and produce two
-  deterministic clean-room rebuilds.
-- `node_attested`: per-height block/transaction/event semantic digests match an
-  independently synced node replay for the supported eras.
-- `observer_attested`: digests match independently retained raw observer history.
+- `db-reconstructive`: canonical exports from one repeatable-read DB snapshot
+  restore deterministically; this does not prove omitted historical callbacks.
+- `node-attested`: canonical block/transaction/event digests also match the
+  operator's independently synced local node for the supported range.
+- `observer-attested`: digests match independently retained raw observer history.
 
 Publish three separate results: canonical-chain completeness, delivered-callback
 log completeness including forks/duplicates, and downstream-stage completeness.
 Never collapse them into one green status.
 
 Normalized indexes accelerate scans but are never the recovery authority. They
-can be regenerated from envelopes. No full Postgres dump, decoded table, subgraph
-table, or delivery history is required in R2. Those are rebuilt locally. A
+can be regenerated from canonical exports and journal rows. No full Postgres
+dump, decoded table, subgraph table, or delivery history is required in R2. Those
+are rebuilt locally. A
 subscription created later does not retroactively emit webhooks unless the
 operator explicitly requests a replay.
 
-R2 `v1` stays raw-only. Built-in stages that read outside observer payloads must
-create versioned local input receipts. Contract source/ABI reads require Stacks
-RPC; sBTC settlement requires Bitcoin RPC. Arbitrary user-subgraph chain reads
-remain instance-owned through height-pinned replay plus local backup/effect
-receipts. `archive-only` cannot claim parity for those stages or live side
-effects; a normal live self-host with the documented node inputs can.
+R2 `v1` starts canonical-first. Built-in stages that read outside canonical
+chain data must create versioned local input receipts. Contract source/ABI reads
+require Stacks RPC; sBTC settlement requires Bitcoin RPC. Arbitrary
+user-subgraph chain reads remain instance-owned through height-pinned replay plus
+local backup/effect receipts. `archive-only` cannot claim parity for those
+stages or live side effects; a normal live self-host with the documented node
+inputs can.
 
 Files are content-addressed and append-only. `latest.json` changes only after
 all referenced objects exist and the root signature verifies. A finality breach
@@ -253,47 +258,55 @@ archive-to-node seam must pass before imported rows become trusted.
 R2 is a public distribution copy, not the sole source of truth. Retain this
 independent regeneration set while the current infrastructure remains:
 
-1. Immutable historical source object plus provenance, mirrored outside R2.
+1. Publisher Postgres plus WAL/physical backups for fast operational restore.
 2. Exact live observer journal, fsynced before acknowledgement and backed up
    independently of R2.
-3. Publisher Postgres plus WAL/physical backups for fast operational restore.
-4. Stacks and Bitcoin chainstate/RPC for semantic re-execution and anchoring.
-5. R2 objects, manifests, and indexes as the cheap public bootstrap copy.
+3. Stacks and Bitcoin chainstate/RPC for semantic re-execution and anchoring.
+4. R2 objects, manifests, and indexes as the cheap public bootstrap copy.
+5. Optional independently captured observer source, mirrored with provenance,
+   only when stronger historical callback assurance is needed.
 
-The node alone is not assumed to reproduce exact historical callback bytes.
-An R2-loss drill rebuilds envelope objects from items 1–2, validates semantic
-digests against item 4, regenerates indexes/manifests, then republishes R2. Keep
+The node alone is not assumed to reproduce exact historical callback bytes, and
+the canonical DB is not treated as proof that callbacks were never omitted. An
+R2-loss drill restores the DB/WAL snapshot, re-exports canonical objects, adds
+journal objects from item 2, validates semantic digests against item 3, and
+republishes R2. If an optional source exists, compare it as a separate audit.
+Keep
 at least three recoverable copies across two failure domains, with one off-host
 and off-provider. No app-server or node cancellation is in this plan.
 
 ### Full backfill and verification flow
 
-Initial historical source candidate: Hiro's raw event-observer export already
-consumed by `ArchiveReplayClient`. Treat its mutable `latest` URL as an import
-source only: mirror one immutable object, compute our digest, record provenance,
-and remove all runtime dependence on Hiro. Use Stacks `/v3/blocks/replay` only as
-an independent semantic auditor for versions/eras proven by tests.
+Baseline backfill uses our own canonical Postgres snapshot and the local Stacks
+node. No Hiro download is required. An optional independently captured observer
+source may later upgrade selected ranges to `observer-attested`; it is not a
+runtime dependency or a prerequisite for publishing the canonical archive.
 
-1. Mirror the independent historical observer export once; pin its source URL,
-   object digest, capture range, format, and license/provenance.
-2. Convert every accepted path into immutable envelope partitions. Never derive
-   the authority from the current Secondlayer database.
-3. Validate `/new_block` over Stacks height and `/new_burn_block` over burn height;
-   check ancestry, anchors, ordered transaction ids/raw bytes/results, and events.
-4. Benchmark node-replay throughput/ETA by era. Use it where feasible. Treat a
-   fresh genesis sync with witness capture as an audit route only after proving
-   stacks-core emits the required historical callbacks during that sync.
-   Snapshot-started nodes do not independently attest pre-snapshot history.
-5. Replay envelopes through Secondlayer into an empty database. Verify raw and
-   observer-derived stages. Test RPC-dependent stages separately with pinned
-   Stacks/Bitcoin inputs and local receipts; do not attribute them to R2 alone.
-6. Run a second clean-room replay with a separately built binary/database. Both
-   final databases must produce the same versioned range and final-state digests;
-   preserve signed reference reports in R2 for future regression comparisons.
-7. Start the local observer spool before the long import. Import the finalized
-   snapshot, then signed head, then locally spooled inputs, then enter live mode.
-8. Publish `latest.json` only when the entire contiguous range passes. Never
-   advance it around a bad or missing partition.
+1. Run one repeatable-read DB audit from expected genesis through the finalized
+   tip: prefix/suffix, gaps, ancestry, canonical counts, zero-event coverage,
+   raw transaction coverage, and exact journal range. Sign the report as
+   `db-reconstructive` and fail closed on continuity defects.
+2. Stream that same snapshot into immutable canonical block, transaction, and
+   event partitions. Preserve source snapshot id, row counts, ordering, and
+   stable per-range digests; never claim exact historical callback bytes here.
+3. Anchor canonical identities and semantic digests against the local Stacks
+   node for empirically supported ranges. Publish `node-attested` only after
+   throughput, height, fork, and mismatch behavior is measured.
+4. If an independent observer source is available, mirror it with immutable
+   provenance and compare path/native-clock ranges. Publish
+   `observer-attested` only for ranges it actually covers; unsupported burn
+   ranges and historical callback gaps remain explicit.
+5. Start the local observer spool before any long import. Import the finalized
+   canonical snapshot, then signed head, then locally spooled journal inputs,
+   then enter live mode. Exact envelope replay claims start at journal activation.
+6. Replay canonical partitions through Secondlayer into an empty database. Test
+   RPC-dependent stages separately with pinned Stacks/Bitcoin inputs and local
+   receipts; do not attribute those stages to R2 alone.
+7. Run a second clean-room canonical replay from a separately built
+   binary/database. Compare versioned range/final-state digests and preserve
+   signed reference reports in R2 for future regression comparisons.
+8. Publish `latest.json` only when the entire contiguous canonical range passes.
+   Never advance it around a bad or missing partition.
 
 ### Transparent best-effort operation
 
@@ -419,7 +432,8 @@ Goal: unchanged runnable system plus a signed product/architecture boundary.
 
 - **P0.1 Target ADR.** Record one product, one-network instances, every current
   data/runtime service enabled, external Stacks default, bundled node profiles,
-  R2-only public data edge, and observer-envelope archive. Validate: founder approval;
+  R2-only public data edge, and canonical archive plus journal contract. Validate:
+  founder approval;
   dependent tickets blocked on changes.
 - **P0.2 Zero-user evidence.** Inventory accounts, keys, paid balances, private
   subgraphs, subscriptions, webhook targets, and authenticated/anonymous traffic.
@@ -439,10 +453,11 @@ Goal: unchanged runnable system plus a signed product/architecture boundary.
 - **P0.8 Cost/resource baseline.** Capture invoices, containers, disk/RAM/CPU,
   DB/table sizes, R2 size/operations, ingest rates, archive lag, and restore time.
   Validate: reproducible dated report.
-- **P0.9 Historical-source feasibility.** Inspect the actual upstream export by
-  observer path, native clock, schema era, first/last identity, count, forks,
-  duplicates, gaps, object stability, and license. Validate: streamed full-source
-  report; every missing input becomes an explicit start/out-of-scope decision.
+- **P0.9 Canonical DB coverage feasibility.** Run a repeatable-read audit from
+  expected genesis through tip: prefix/suffix, gaps, ancestry, canonical counts,
+  raw transaction coverage, and journal range. Validate: signed
+  `db-reconstructive` report; optional external source remains a later assurance
+  upgrade, not a baseline dependency.
 - **P0.10 Archive RFC.** Freeze `v1` schemas, paths, signatures, finality,
   assurance levels, exact-body and semantic digest specs, supersession, zero-row
   partitions, importer promotion, public status, and legacy-prefix deletion.
@@ -470,8 +485,9 @@ first post-approval change; P0.14 follows it before Phase 1.
 
 ## Phase 1 — Full-genesis block archive and live journal
 
-Goal: current infrastructure publishes a signed, exact-input `v1` archive while
-the old deployment remains the regression oracle.
+Goal: current infrastructure publishes a signed canonical `v1` archive plus an
+exact observer journal from activation onward while the old deployment remains
+the regression oracle.
 
 - **P1.1 Raw scope migration.** Add network/genesis/start/provenance scope.
   Validate: fresh, imported, forward-only, and conflicting-network fixtures.
@@ -487,18 +503,19 @@ the old deployment remains the regression oracle.
 - **P1.4 Observer route closure.** Classify `/new_block`, `/new_burn_block`,
   attachments, mempool add/drop, and any node-version path; reject unclassified
   state-affecting input. Validate: `events_keys=["*"]` route corpus.
-- **P1.5 Historical source mirror.** Pin and mirror the independent genesis event
-  export with object digest, range, format, operator, license, and retrieval date.
-  Validate: immutable R2 plus off-provider copy and reproducible source inventory.
-- **P1.6 Historical converter.** Stream legacy TSV/event formats into bounded,
-  content-addressed envelope partitions without loading a full range in memory.
-  Validate: exact body round-trip and restart/resume on the full source.
+- **P1.5 Canonical snapshot exporter.** Stream one repeatable-read Postgres
+  snapshot into versioned canonical block/transaction/event partitions. Validate:
+  bounded memory, row ordering, zero-row ranges, restart/resume, and provenance.
+- **P1.6 Canonical digest/index builder.** Build stable per-height and
+  per-partition digests/index rows from the canonical stream. Validate:
+  byte-identical regeneration and count/digest agreement.
 - **P1.7 Semantic digest specification.** Version canonical byte encodings for
   block/burn identity, ordered tx ids/raw/results, and ordered event identity/data.
   Validate: cross-runtime test vectors and property tests.
-- **P1.8 Raw invariant scanner.** Scan explicit `[genesis,F]` for missing
-  prefix/suffix, ancestry, duplicates, zero-event blocks/txs, ordering, burn
-  anchors, and conflicting sources. Validate: every seeded defect is exact.
+- **P1.8 Canonical invariant scanner.** Scan explicit `[genesis,F]` for missing
+  prefix/suffix, ancestry, duplicates, zero-event blocks/txs, ordering, and
+  conflicting canonical rows. Validate: every seeded defect is exact; do not
+  infer omitted historical callbacks from this scan.
 - **P1.9 Node replay auditor.** Adapt authenticated Stacks block replay into the
   semantic digest model for every empirically supported era. Never synthesize an
   observer body. Validate: version/era matrix, heavy block, timeout, bad auth,
@@ -506,12 +523,12 @@ the old deployment remains the regression oracle.
 - **P1.10 Canonical/finality builder.** Preserve all observed forks; select and
   seal canonical lineage only below the approved Bitcoin boundary. Validate:
   shallow/deep reorg and finalized-breach supersession.
-- **P1.11 Envelope partition publisher.** Stream multipart uploads, make objects
+- **P1.11 Canonical partition publisher.** Stream multipart uploads, make objects
   immutable/cache-forever, and resume from the first missing partition. Validate:
   low-memory, retry, collision, partial upload, and idempotency.
-- **P1.12 Derived scan indexes.** Generate blocks/transactions/events Parquet
-  solely from one envelope partition stream. Validate: indexes regenerate
-  byte-identically and match envelope counts/digests, including empty cases.
+- **P1.12 Derived scan indexes.** Generate any lookup indexes solely from one
+  canonical partition stream. Validate: indexes regenerate byte-identically and
+  match canonical counts/digests, including empty cases.
 - **P1.13 Snapshot manifest.** Build signed immutable manifests and atomic
   `latest.json`. Validate: missing object, wrong digest, bad signature, partial
   publish, or noncontiguous range never becomes latest.
@@ -521,41 +538,46 @@ the old deployment remains the regression oracle.
 - **P1.15 Transparent status.** Publish cache-short `status.json` from verified
   state only. Validate: fresh, expected-finality-lag, stale, gap, failed-audit,
   source-down, and key-rotation snapshots tell the truth.
-- **P1.16 Archive importer.** Resume/idempotently replay envelope partitions,
-  atomically promote verified ranges, and record provenance. Validate: interrupt,
+- **P1.16 Archive importer.** Resume/idempotently replay canonical partitions and
+  journal objects, atomically promote verified ranges, and record provenance. Validate: interrupt,
   duplicate, truncation, wrong network/genesis/schema, and fork conflict.
-- **P1.17 Bootstrap live seam.** Start local spool first; import finalized archive,
-  signed head, and local spool in order; then switch to live processing. Validate:
+- **P1.17 Bootstrap live seam.** Start local spool first; import finalized
+  canonical archive, signed head, and local spool in order; then switch to live
+  processing. Validate:
   node advances throughout a multi-hour import with no omission/duplicate.
-- **P1.18 Archive verifier.** Implement quick/deep library and `sl archive verify`
-  with stable JSON/exit codes. Validate: independent signature/object/range/digest
+- **P1.18 Archive verification library.** Implement quick/deep signature,
+  object, range, and digest checks with stable result codes. Validate: independent
   fault matrix.
-- **P1.19 Raw verifier.** Implement `sl verify raw [--deep] [--anchor node]`.
-  Validate: offline says unanchored; stale/forked node never reports green.
-- **P1.20 Genesis production build.** Build staging `v1` from the mirrored raw
-  observer source, not the current Secondlayer DB. Compare the DB only as a
-  regression oracle. Validate: complete provenance and per-era assurance map.
-- **P1.21 Independent node audit.** Benchmark authenticated replay throughput and
-  publish ETA, supported eras, mismatches, and unsupported ranges separately for
-  blocks, transactions, and events. Validate: a seeded source omission is found.
-- **P1.22 Independent observer audit.** Compare each available path/range against
-  a separately operated raw capture. Prove whether fresh-sync witness callbacks
-  include historical data before using that method. Validate: no same-source
-  circular proof; unattested eras stay explicitly unattested.
-- **P1.23 Clean-room raw replay A.** Replay staging into an empty DB and verify
-  envelopes, canonical raw state, derived scan indexes, and retained raw routes.
-  Validate: signed report with runtime/image/config/producer digests.
-- **P1.24 Clean-room raw replay B.** Repeat from a separate build and empty DB;
-  compare versioned range/final-state digests and publish the signed accepted
-  reference under `reports/replays/`. Validate: deterministic raw reconstruction.
+- **P1.19 Archive verifier CLI.** Implement `sl verify archive [--deep]
+  [--anchor node]`; keep `sl verify raw` as an explicit journal-era alias only
+  while compatibility remains. Validate: offline says unanchored; stale/forked
+  node never reports green.
+- **P1.20 Genesis production build.** Build staging `v1` from a repeatable-read
+  canonical DB snapshot, with local node anchor metadata and journal activation
+  boundary. Validate: complete provenance and per-range assurance map.
+- **P1.21 Independent node audit.** Benchmark node semantic comparison
+  throughput/ETA and publish supported ranges, mismatches, and unsupported paths
+  separately for blocks, transactions, and events. Validate: a seeded canonical
+  mismatch is found; this is an assurance upgrade, not a baseline blocker.
+- **P1.22 Optional observer audit.** If an independent historical observer source
+  exists, compare each covered path/native-clock range and publish provenance,
+  license, gaps, and unsupported burn ranges. A fresh-sync witness is usable only
+  after proving stacks-core emits historical callbacks during sync. Validate:
+  unattested ranges stay explicitly unattested.
+- **P1.23 Clean-room canonical replay A.** Replay staging canonical partitions
+  into an empty DB and verify canonical state, derived scan indexes, and retained
+  raw routes. Validate: signed report with runtime/image/config/producer digests.
+- **P1.24 Clean-room canonical replay B.** Repeat from a separate build and empty
+  DB; compare versioned range/final-state digests and publish the signed accepted
+  reference under `reports/replays/`. Validate: deterministic canonical rebuild.
 - **P1.25 Derived-stage acceptance.** Test decoded families, each built-in
   contract/protocol producer, canonical sample subgraphs, and seeded subscription
   decision/outbox/retry/DLQ independently. Pin external RPC inputs and state what
   R2 alone cannot rebuild. Validate: one report per service; no vacuous pass.
-- **P1.26 R2-loss drill.** Rebuild a separate staging prefix from the off-provider
-  historical source plus backed-up live journal; node-anchor semantic digests,
-  regenerate all derived objects, then compare manifests. Validate: R2 is not a
-  circular dependency and corruption/loss is recoverable.
+- **P1.26 R2-loss drill.** Restore the off-provider DB/WAL snapshot, re-export
+  canonical partitions, add the backed-up live journal, node-anchor semantic
+  digests, regenerate derived objects, then compare manifests. Validate: R2 is
+  not a circular dependency and corruption/loss is recoverable.
 - **P1.27 Live append soak.** Publish signed head and finalized partitions for
   seven days. Validate: freshness objective, reorg, source restart, and manifest
   monotonicity; intentionally stale state remains explicit.
@@ -566,9 +588,9 @@ the old deployment remains the regression oracle.
 Demo: an empty database rebuilds genesis-to-finalized-tip from R2, consumes the
 verified head path while the node advances, and joins live ingest with no gap.
 
-**Approval gate B1 — usable archive:** exact-envelope authority, two raw clean
-replays, proven archive/head/spool seam, transparent freshness, off-provider
-source/journal recovery, and successful R2-loss drill.
+**Approval gate B1 — usable archive:** canonical DB/node authority, two canonical
+clean replays, proven archive/head/spool seam, transparent freshness,
+off-provider DB/WAL/journal recovery, and successful R2-loss drill.
 
 **Quality gate B2 — earned assurance:** node and observer attestations plus
 service-specific reference reports publish by path/range as they pass. B2 is
@@ -607,11 +629,12 @@ except for the archive durability additions proven in Phase 1.
 - **P2.8 Hosted secret cleanup.** Rotate/remove only customer-facing billing,
   account, email, and public API credentials. Preserve node, DB, WAL, R2 writer,
   signing, monitoring, and recovery secrets. Validate: secret manifest review.
-- **P2.9 Private recovery bundle.** Document the exact historical source mirror,
-  observer journal, DB/WAL backups, node chainstate, R2 copy, owners, retention,
+- **P2.9 Private recovery bundle.** Document the observer journal, DB/WAL
+  backups, node chainstate, R2 copy, optional external source, owners, retention,
   and restore order. Validate: no recovery path relies only on R2 or only on node.
 - **P2.10 Withdrawal drill.** Exercise public-route denial, internal publishing,
-  R2 bootstrap, off-provider source restore, and rollback of routing only.
+  R2 bootstrap, off-provider DB/WAL and journal restore, and rollback of routing
+  only.
   Validate: no data movement, writer cutover, or provider cancellation occurs.
 - **P2.11 Legacy R2 deletion.** After `v1` acceptance and every internal consumer
   cutover, delete deprecated prefixes and credentials. Validate: inventory and
@@ -813,7 +836,7 @@ Goal: repository and deployments describe only self-hosting plus the raw publish
   Validate: maintained core build and examples.
 
 Demo: repository search finds no hosted authority; only the self-host runtime and
-raw archive publisher remain.
+canonical archive publisher remain.
 
 **Approval gate G:** deletion manifest reviewed before destructive schema, secret,
 provider, or package removal.
@@ -852,8 +875,9 @@ configured finalized height.
 
 1. Approve Phase 0 before changing public positioning.
 2. Rewrite `STRATEGY.md`/`AGENTS.md` immediately after Gate A.
-3. Make R2 exact-input replayable and independently rebuildable in Phase 1;
-   publish stronger audit claims only as each path/range earns them.
+3. Make the R2 canonical archive and journal-era exact inputs independently
+   rebuildable in Phase 1; publish stronger audit claims only as each path/range
+   earns them.
 4. Withdraw hosted compute in Phase 2 without moving or cancelling infrastructure.
 5. Establish accountless behavior before process consolidation.
 6. Land coverage before claiming verified self-hosting or deleting old paths.
@@ -871,9 +895,10 @@ canonical chain, under which code/config/handler version, from which provenance?
 - Private publisher: current topology remains green and externally unreachable.
 - Default self-host containers: two (`postgres`, runtime) plus operator's node.
 - Default self-host required non-secret config: six values or fewer.
-- Full-genesis exact `/new_block` envelopes rebuild observer-derived state. RPC-
-  dependent and side-effecting stages declare their additional local inputs;
-  per-era/path assurance and unsupported ranges are public.
+- Full-genesis canonical blocks/transactions/events rebuild product data. Exact
+  observer envelopes rebuild observer-derived state from journal activation
+  onward. RPC-dependent and side-effecting stages declare their additional local
+  inputs; per-era/path assurance and unsupported ranges are public.
 - Empty DB restores from R2, joins the node at one verified seam, and catches up.
 - No account/signup/billing/project concept in install, CLI, API, schema, or docs.
 - Every current chain-data feature/service is runnable in the default image.

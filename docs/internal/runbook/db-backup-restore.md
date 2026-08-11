@@ -50,13 +50,22 @@ node data; lvremove + vgremove + pvremove of `nvme2n1p4`/`nvme3n1p4`).
 
 ### Node chainstate — intentionally NOT backed up
 The stacks-node + bitcoind chainstate (~2 TB) on the separate node-server
-(`37.27.171.220`) is **public, reconstructible** data. Recovery = restore from a
-Hiro chainstate snapshot (`archive.hiro.so`, hours) or network re-sync (2–4 days).
-A ~$31/mo R2 copy of re-derivable data isn't justified — only the irreplaceable
-platform Postgres warrants the R2 backup above.
+(`37.27.171.220`) is **public, reconstructible** data. Recovery is a network
+re-sync or an operator-chosen chainstate snapshot. A provider snapshot may be a
+speed optimization, but it is not a Secondlayer archive authority or a required
+dependency; the canonical R2 utility is rebuilt from Postgres/WAL plus the local
+node anchor.
 
 ### Last resort — cold rebuild from chain
-`packages/indexer/src/bulk-backfill.ts` with `BACKFILL_SOURCE=archive` rebuilds `blocks`/`transactions`/`events` from Hiro's ~25GB event archive (`archive.hiro.so`), replaying gap heights through the indexer's `/new_block`. Slow (hours) but zero external dependency. Run it **inside** the indexer container (`localhost:3700` ingest), with `ARCHIVE_DIR=/data/archive`, `BACKFILL_FROM`/`BACKFILL_TO` set explicitly. (Fixed 2026-05-30 — it previously crashed on large gap sets.)
+Restore Postgres with WAL-G first. If no usable database backup remains, resync
+the local Stacks node and let the indexer ingest the canonical chain; this
+rebuilds canonical blocks/transactions/events but does not retroactively prove
+exact observer callback bytes before journal activation. `BACKFILL_SOURCE=archive`
+remains an optional legacy/provider import path for explicit gap repair, not the
+baseline R2 source of truth. Run it **inside** the indexer container
+(`localhost:3700` ingest), with `ARCHIVE_DIR=/data/archive`,
+`BACKFILL_FROM`/`BACKFILL_TO` set explicitly. (Fixed 2026-05-30 — it previously
+crashed on large gap sets.)
 
 ## Restore drill (WAL-G)
 
