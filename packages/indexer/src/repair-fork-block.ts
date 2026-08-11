@@ -106,6 +106,20 @@ async function main() {
 		return;
 	}
 
+	// One repair per height at a time. Two concurrent applies interleave their
+	// delete/re-ingest transactions and die on the events→transactions FK (seen
+	// live 2026-08-11 when a "killed" ssh repair kept running server-side and a
+	// retry raced it). Session-scoped: released automatically when this process
+	// exits, however it exits.
+	const lock = await sql<{ acquired: boolean }>`
+		SELECT pg_try_advisory_lock(hashtext('repair-fork-block'), ${height}) AS acquired
+	`.execute(db);
+	if (!lock.rows[0]?.acquired) {
+		throw new Error(
+			`another repair-fork-block --apply is already running for ${height} — refusing`,
+		);
+	}
+
 	// Clear the losing block's rows so ingest sees a clean height and takes the
 	// normal path rather than staging a contender. Children first: neither FK
 	// cascades.
