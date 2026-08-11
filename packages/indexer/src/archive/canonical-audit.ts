@@ -1,6 +1,11 @@
+import {
+	DEFAULT_BTC_CONFIRMATIONS,
+	finalizedBurnHeight,
+} from "@secondlayer/shared";
 import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
+import { getFinalizedStacksHeight } from "../streams-tip.ts";
 
 export const CANONICAL_AUDIT_SCHEMA_VERSION = 1;
 
@@ -366,14 +371,50 @@ function nullableNumber(
 	return value === null || value === undefined ? null : Number(value);
 }
 
+/**
+ * `STACKS_EXPECTED_TO_BLOCK=auto` — bound the audit at the burn-confirmation
+ * finality boundary instead of a hand-picked height, so a scheduled run always
+ * audits genesis→finalized without an operator refreshing the number. Uses the
+ * same rule as the streams-bulk publisher: burn tip − N confirmations, mapped
+ * to the highest Stacks height anchored at or below it.
+ */
+async function resolveAutoExpectedToBlock(): Promise<number> {
+	const db = getSourceDb();
+	const confirmations =
+		parseOptionalInteger(process.env.CANONICAL_AUDIT_BTC_CONFIRMATIONS) ??
+		DEFAULT_BTC_CONFIRMATIONS;
+	const burnTip = await db
+		.selectFrom("blocks")
+		.select(({ fn }) => fn.max("burn_block_height").as("burn_tip"))
+		.where("canonical", "=", true)
+		.executeTakeFirst();
+	const tip = Number(burnTip?.burn_tip ?? 0);
+	if (!Number.isSafeInteger(tip) || tip <= 0) {
+		throw new Error("no canonical blocks to derive a finalized bound from");
+	}
+	const finalized = await getFinalizedStacksHeight(
+		finalizedBurnHeight(tip, confirmations),
+		db,
+	);
+	if (finalized <= 0) {
+		throw new Error("no finalized canonical height yet — cannot bound audit");
+	}
+	return finalized;
+}
+
 async function main(): Promise<void> {
 	const network = process.env.STACKS_NETWORK ?? "mainnet";
+	const expectedToRaw = process.env.STACKS_EXPECTED_TO_BLOCK;
+	const expectedToBlock =
+		expectedToRaw === "auto"
+			? await resolveAutoExpectedToBlock()
+			: parseOptionalInteger(expectedToRaw);
 	const report = await auditCanonicalCoverage({
 		network,
 		expectedFromBlock: parseOptionalInteger(
 			process.env.STACKS_EXPECTED_FROM_BLOCK,
 		),
-		expectedToBlock: parseOptionalInteger(process.env.STACKS_EXPECTED_TO_BLOCK),
+		expectedToBlock,
 	});
 	console.log(JSON.stringify(report, null, 2));
 	if (!report.continuity.complete) process.exitCode = 2;
