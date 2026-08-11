@@ -184,6 +184,34 @@ export async function reclaimLinkedOrphans(
 		if (rows.length > 0) reclaimed.push(height);
 	}
 	reclaimed.sort((a, b) => a - b);
+
+	// The child-side proof above is one-directional: it shows the reclaimed run
+	// is ON the canonical chain, not that the row BELOW it is. If the lowest
+	// reclaimed block names a parent we do not hold canonically, the fork-point
+	// row underneath was overwritten by a losing contender — reclaiming was still
+	// right (the chain is the chain), but the row below needs out-of-band repair,
+	// and silence here is how five fork points stayed corrupted for months.
+	const lowest = reclaimed[0];
+	if (lowest !== undefined) {
+		const { rows: mismatch } = await sql<{ height: number }>`
+			SELECT reclaimed.height
+			  FROM blocks AS reclaimed
+			  JOIN blocks AS below
+			    ON below.height = reclaimed.height - 1
+			   AND below.canonical = true
+			 WHERE reclaimed.height = ${lowest}
+			   AND reclaimed.parent_hash <> below.hash
+		`.execute(db);
+		if (mismatch.length > 0) {
+			logger.error(
+				"Reclaimed block does not link to the canonical row below it — fork-point row likely wrong",
+				{
+					height: lowest,
+					repair: `repair-fork-block.ts --height ${lowest - 1}`,
+				},
+			);
+		}
+	}
 	return reclaimed;
 }
 

@@ -1,6 +1,7 @@
 import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database, InsertEvent } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
+import { LocalClient } from "@secondlayer/shared/node/local-client";
 import type { Kysely } from "kysely";
 import {
 	clearStagedForks,
@@ -72,6 +73,7 @@ export async function recordDeadLetterEvents(
 // Out-of-order tracking (ephemeral, resets on restart).
 let lastSeenHeight = 0;
 let blocksReceivedOutOfOrder = 0;
+let parentHashMismatches = 0;
 
 export function initIngestState(highestSeenBlock: number): void {
 	lastSeenHeight = highestSeenBlock;
@@ -80,8 +82,9 @@ export function initIngestState(highestSeenBlock: number): void {
 export function getIngestTelemetry(): {
 	lastSeenHeight: number;
 	blocksReceivedOutOfOrder: number;
+	parentHashMismatches: number;
 } {
-	return { lastSeenHeight, blocksReceivedOutOfOrder };
+	return { lastSeenHeight, blocksReceivedOutOfOrder, parentHashMismatches };
 }
 
 export type IngestResult = {
@@ -119,8 +122,34 @@ export async function ingestNewBlock(
 			loser: settled.incumbentHash,
 			decidedBy: payload.block_hash,
 		});
+		// Capture the incumbent before the sweep hides it: once the contender
+		// overwrites this height the deposed block's payload is unrecoverable (the
+		// node never re-sends it), so a chain that settles BACK onto the incumbent's
+		// branch could never restore this row. Five fork points sat corrupted for
+		// months exactly this way under the pre-staging code. Staging the deposed
+		// block as a contender gives the flip-back the same one-block settlement
+		// path a normal fork gets.
+		const deposed = await new LocalClient().getBlockForReplay(
+			db,
+			settled.height,
+		);
 		await handleReorg(settled.height, settled.incumbentHash, settled.blockHash);
 		await clearStagedForks(db, settled.height);
+		if (deposed && deposed.block_hash === settled.incumbentHash) {
+			await stageForkContender(db, {
+				height: settled.height,
+				blockHash: deposed.block_hash,
+				parentHash: deposed.parent_block_hash,
+				incumbentHash: settled.blockHash,
+				payload: deposed,
+			});
+		} else {
+			logger.warn("Deposed incumbent could not be staged for flip-back", {
+				height: settled.height,
+				incumbent: settled.incumbentHash,
+				reconstructed: deposed?.block_hash ?? null,
+			});
+		}
 		// Replays through this same path, so a fork several blocks deep unwinds
 		// one height at a time. Each step is strictly lower, so this terminates.
 		await ingestNewBlock(settled.payload as NewBlockPayload);
@@ -201,10 +230,15 @@ export async function ingestNewBlock(
 				parentHeight: payload.block_height - 1,
 			});
 		} else if (parentRow.hash !== payload.parent_block_hash) {
-			logger.warn("Parent hash mismatch", {
+			// The block is still persisted (availability over strictness), but a
+			// mismatch here means the row below is off the chain this block extends —
+			// every fork-point corruption to date announced itself in this log line.
+			parentHashMismatches++;
+			logger.error("Parent hash mismatch — fork-point row likely wrong", {
 				height: payload.block_height,
 				expectedParent: payload.parent_block_hash,
 				storedParent: parentRow.hash,
+				repair: `repair-fork-block.ts --height ${payload.block_height - 1}`,
 			});
 		}
 	}
