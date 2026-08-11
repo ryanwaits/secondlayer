@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the Secondlayer canonical archive coverage audit daily
+
+[Timer]
+OnCalendar=*-*-* 06:30:00
+AccuracySec=1m
+Persistent=true
+Unit=secondlayer-canonical-audit.service
+
+[Install]
+WantedBy=timers.target

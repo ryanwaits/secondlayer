@@ -10,11 +10,15 @@ Install the backup + health units on the production host.
 | `secondlayer-health-alert.{service,timer}` | curl `/public/status` + `docker compose ps` → Slack on failure (one alert per incident, all-clear on recovery) | every 5 min |
 | `secondlayer-floor-audit.{service,timer}` | run `floor-audit.ts` in the decoder container → Slack if any decoder regressed below its genesis baseline or shipped unbaselined (one alert per incident, all-clear on recovery) | daily at 06:00 |
 | `secondlayer-staging-health.{service,timer}` | run `scripts/ci/staging-health.ts` on the host → Slack on stale/misshapen tip data: service states, decoder lag bands, streams lag, dumps freshness, observer-journal failures/stalls, zero-timestamp blocks (one alert per incident, all-clear on recovery) | every 30 min |
+| `secondlayer-canonical-audit.{service,timer}` | run `archive/canonical-audit.ts` in the indexer container bounded genesis→finalized (`STACKS_EXPECTED_TO_BLOCK=auto`) → Slack unless the canonical chain is complete, gap-free, link-consistent, duplicate-free; report JSON preserved under `$DATA_DIR/audits/` (one alert per incident, all-clear on recovery) | daily at 06:30 |
 
-The three health units answer different questions and none subsumes another:
+The four health units answer different questions and none subsumes another:
 `health-alert` is liveness (does the API answer, are containers up),
-`staging-health` is freshness/shape at the TIP, `floor-audit` is completeness
-down to GENESIS.
+`staging-health` is freshness/shape at the TIP, `floor-audit` is decoded-plane
+completeness down to GENESIS, `canonical-audit` is canonical-chain integrity
+(gaps, parent links, duplicates) from genesis to the finality boundary — the
+check that would have caught the 2026-08-11 fork-point corruptions in hours
+instead of months.
 
 `staging-health` previously ran as a `*/30` cron in the `Staging Health` GitHub
 workflow. Hosted runners were never assigned to most firings — the job sat
@@ -43,7 +47,8 @@ sudo systemctl enable --now \
   secondlayer-backup-upload.timer \
   secondlayer-health-alert.timer \
   secondlayer-floor-audit.timer \
-  secondlayer-staging-health.timer
+  secondlayer-staging-health.timer \
+  secondlayer-canonical-audit.timer
 ```
 
 ## Verify
@@ -63,4 +68,5 @@ sudo systemctl start secondlayer-backup-upload.service
 sudo systemctl start secondlayer-health-alert.service
 sudo systemctl start secondlayer-floor-audit.service
 sudo systemctl start secondlayer-staging-health.service
+sudo systemctl start secondlayer-canonical-audit.service
 ```
