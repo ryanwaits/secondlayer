@@ -37,6 +37,7 @@ export function registerIndexTools(
 		contractId?: string;
 		sender?: string;
 		recipient?: string;
+		assetIdentifier?: string;
 		fromHeight?: number;
 		toHeight?: number;
 		cursor?: string;
@@ -52,6 +53,12 @@ export function registerIndexTools(
 				.string()
 				.optional()
 				.describe("Filter by recipient principal"),
+			assetIdentifier: z
+				.string()
+				.optional()
+				.describe(
+					"Filter by asset identifier (contract::asset), e.g. SP…sbtc-token::sbtc-token",
+				),
 		},
 		async (params) =>
 			jsonResponse(await clientProvider().index.ftTransfers.list(params)),

@@ -4,6 +4,10 @@ import { registerIndexTools } from "./index.ts";
 
 interface RegisteredTool {
 	name: string;
+	/** The advertised input shape — what an agent can actually pass. Zod runs at
+	 *  the MCP protocol boundary, not in the handler, so a filter missing here is
+	 *  unreachable no matter what the handler forwards. */
+	schema: Record<string, unknown>;
 	handler: (args: Record<string, unknown>) => Promise<{
 		content: Array<{ type: "text"; text: string }>;
 		isError?: boolean;
@@ -15,10 +19,10 @@ function fakeServer(tools: RegisteredTool[]): McpServer {
 		tool: (
 			name: string,
 			_description: string,
-			_schema: Record<string, unknown>,
+			schema: Record<string, unknown>,
 			handler: RegisteredTool["handler"],
 		) => {
-			tools.push({ name, handler });
+			tools.push({ name, schema, handler });
 		},
 	} as unknown as McpServer;
 }
@@ -70,10 +74,35 @@ describe("index MCP tools", () => {
 			"index_transactions",
 		]);
 
+		// The FT and NFT transfer tools wrap the same wire shape, so they must
+		// advertise the same filters. Without assetIdentifier an agent can't ask
+		// for one token's transfers and pays for a full-feed scan instead.
+		for (const name of ["index_ft_transfers", "index_nft_transfers"]) {
+			const schema = tools.find((t) => t.name === name)?.schema;
+			expect(Object.keys(schema ?? {}).sort()).toEqual([
+				"assetIdentifier",
+				"contractId",
+				"cursor",
+				"fromHeight",
+				"limit",
+				"recipient",
+				"sender",
+				"toHeight",
+			]);
+		}
+
 		await tools
 			.find((t) => t.name === "index_ft_transfers")
-			?.handler({ sender: "SP1", limit: 5 });
-		expect(calls.ft).toEqual({ sender: "SP1", limit: 5 });
+			?.handler({
+				sender: "SP1",
+				assetIdentifier: "SP1.sbtc-token::sbtc-token",
+				limit: 5,
+			});
+		expect(calls.ft).toEqual({
+			sender: "SP1",
+			assetIdentifier: "SP1.sbtc-token::sbtc-token",
+			limit: 5,
+		});
 
 		// trait flows through the working paths (events + contract-calls)
 		await tools
