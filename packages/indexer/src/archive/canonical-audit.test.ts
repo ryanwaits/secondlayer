@@ -18,6 +18,7 @@ describe("canonical coverage continuity", () => {
 			}),
 		).toEqual({
 			healthy: false,
+			complete: false,
 			start_mismatch: true,
 			prefix_gap: { from_block: 0, to_block: 2 },
 			suffix_gap: null,
@@ -48,6 +49,7 @@ describe("canonical coverage continuity", () => {
 			}),
 		).toMatchObject({
 			healthy: false,
+			complete: false,
 			start_mismatch: false,
 			suffix_gap: null,
 			suffix_checked: false,
@@ -55,6 +57,46 @@ describe("canonical coverage continuity", () => {
 			broken_link_count: 1,
 			first_broken_link_height: 42,
 		});
+	});
+
+	test("treats a missing parent height as a gap", () => {
+		expect(
+			summarizeCanonicalContinuity({
+				fromBlock: 0,
+				toBlock: 10,
+				expectedFromBlock: 0,
+				expectedToBlock: 10,
+				gapCount: 1,
+				missingBlocks: 1,
+				firstGap: { from_block: 7, to_block: 7 },
+				brokenLinkCount: 0,
+				firstBrokenLinkHeight: null,
+				duplicateHeightCount: 0,
+				firstDuplicateHeight: null,
+			}),
+		).toMatchObject({
+			healthy: false,
+			complete: false,
+			gap_count: 1,
+			first_gap: { from_block: 7, to_block: 7 },
+		});
+	});
+
+	test("labels an unbounded contiguous prefix as incomplete", () => {
+		expect(
+			summarizeCanonicalContinuity({
+				fromBlock: 0,
+				toBlock: 100,
+				expectedFromBlock: 0,
+				gapCount: 0,
+				missingBlocks: 0,
+				firstGap: null,
+				brokenLinkCount: 0,
+				firstBrokenLinkHeight: null,
+				duplicateHeightCount: 0,
+				firstDuplicateHeight: null,
+			}),
+		).toMatchObject({ healthy: true, complete: false, suffix_checked: false });
 	});
 
 	test("reports a checked finalized suffix gap", () => {
@@ -74,6 +116,7 @@ describe("canonical coverage continuity", () => {
 			}),
 		).toMatchObject({
 			healthy: false,
+			complete: false,
 			start_mismatch: false,
 			suffix_gap: { from_block: 9, to_block: 10 },
 			suffix_checked: true,
@@ -98,6 +141,7 @@ describe("canonical coverage continuity", () => {
 			}),
 		).toMatchObject({
 			healthy: false,
+			complete: false,
 			duplicate_height_count: 1,
 			first_duplicate_height: 7,
 		});
@@ -119,6 +163,7 @@ describe("canonical coverage continuity", () => {
 			}),
 		).toMatchObject({
 			healthy: false,
+			complete: false,
 			start_mismatch: false,
 			prefix_gap: null,
 		});

@@ -33,6 +33,7 @@ export type CanonicalCoverageAudit = {
 
 export type CanonicalContinuity = {
 	healthy: boolean;
+	complete: boolean;
 	start_mismatch: boolean;
 	prefix_gap: { from_block: number; to_block: number } | null;
 	suffix_gap: { from_block: number; to_block: number } | null;
@@ -82,15 +83,18 @@ export function summarizeCanonicalContinuity(input: {
 		? suffixGap.to_block - suffixGap.from_block + 1
 		: 0;
 
+	const healthy =
+		input.fromBlock !== null &&
+		input.fromBlock === input.expectedFromBlock &&
+		prefixGap === null &&
+		suffixGap === null &&
+		input.gapCount === 0 &&
+		input.brokenLinkCount === 0 &&
+		input.duplicateHeightCount === 0;
+
 	return {
-		healthy:
-			input.fromBlock !== null &&
-			input.fromBlock === input.expectedFromBlock &&
-			prefixGap === null &&
-			suffixGap === null &&
-			input.gapCount === 0 &&
-			input.brokenLinkCount === 0 &&
-			input.duplicateHeightCount === 0,
+		healthy,
+		complete: healthy && input.expectedToBlock !== undefined,
 		start_mismatch:
 			input.fromBlock !== null && input.fromBlock !== input.expectedFromBlock,
 		prefix_gap: prefixGap,
@@ -121,7 +125,9 @@ type CountRow = { count: string | number };
  *
  * This intentionally reports `db-reconstructive`: it proves the exported
  * canonical tables are internally complete, not that an observer callback was
- * never omitted before the durable journal existed.
+ * never omitted before the durable journal existed. Without `expectedToBlock`,
+ * the result is a contiguous-prefix diagnostic and `continuity.complete` is
+ * false.
  */
 export async function auditCanonicalCoverage(
 	options: CanonicalCoverageAuditOptions,
@@ -257,6 +263,8 @@ async function summarizeBrokenLinks(db: Kysely<Database>): Promise<{
 	broken_link_count: number;
 	first_broken_link_height: number | null;
 }> {
+	// Missing parent heights are reported by summarizeGaps. This query covers
+	// the distinct case where both rows exist but the child's parent hash differs.
 	const { rows } = await sql<{
 		broken_link_count: string | number;
 		first_broken_link_height: string | null;
@@ -368,7 +376,7 @@ async function main(): Promise<void> {
 		expectedToBlock: parseOptionalInteger(process.env.STACKS_EXPECTED_TO_BLOCK),
 	});
 	console.log(JSON.stringify(report, null, 2));
-	if (!report.continuity.healthy) process.exitCode = 2;
+	if (!report.continuity.complete) process.exitCode = 2;
 }
 
 function parseOptionalInteger(value: string | undefined): number | undefined {
