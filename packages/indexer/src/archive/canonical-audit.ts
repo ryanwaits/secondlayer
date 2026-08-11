@@ -138,15 +138,29 @@ export async function auditCanonicalCoverage(
 	options: CanonicalCoverageAuditOptions,
 ): Promise<CanonicalCoverageAudit> {
 	const db = options.db ?? getSourceDb();
-	const expectedFromBlock = options.expectedFromBlock ?? 0;
-	const expectedToBlock = options.expectedToBlock;
-	const generatedAt = options.generatedAt ?? new Date().toISOString();
 
 	return db.transaction().execute(async (tx) => {
 		await sql`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY`.execute(
 			tx,
 		);
+		return auditCanonicalCoverageInSnapshot(tx, options);
+	});
+}
 
+/**
+ * The audit body, for callers that already hold a repeatable-read snapshot —
+ * the archive exporter runs this inside the SAME snapshot it exports from, so
+ * the audit verdict and the exported bytes describe one database state.
+ */
+export async function auditCanonicalCoverageInSnapshot(
+	tx: Kysely<Database>,
+	options: Omit<CanonicalCoverageAuditOptions, "db">,
+): Promise<CanonicalCoverageAudit> {
+	const expectedFromBlock = options.expectedFromBlock ?? 0;
+	const expectedToBlock = options.expectedToBlock;
+	const generatedAt = options.generatedAt ?? new Date().toISOString();
+
+	{
 		const coverage = await sql<{
 			from_block: string | null;
 			to_block: string | null;
@@ -203,7 +217,7 @@ export async function auditCanonicalCoverage(
 			continuity,
 			observer_journal: journal,
 		};
-	});
+	}
 }
 
 async function countCanonicalRows(
@@ -371,35 +385,46 @@ function nullableNumber(
 	return value === null || value === undefined ? null : Number(value);
 }
 
+export type FinalizedBound = {
+	toBlock: number;
+	burnTip: number;
+	finalizedBurnHeight: number;
+	confirmations: number;
+};
+
 /**
- * `STACKS_EXPECTED_TO_BLOCK=auto` — bound the audit at the burn-confirmation
- * finality boundary instead of a hand-picked height, so a scheduled run always
- * audits genesis→finalized without an operator refreshing the number. Uses the
- * same rule as the streams-bulk publisher: burn tip − N confirmations, mapped
- * to the highest Stacks height anchored at or below it.
+ * Bound an audit or export at the burn-confirmation finality boundary instead
+ * of a hand-picked height, so a scheduled run always covers genesis→finalized
+ * without an operator refreshing the number. Uses the same rule as the
+ * streams-bulk publisher: burn tip − N confirmations, mapped to the highest
+ * Stacks height anchored at or below it.
  */
-async function resolveAutoExpectedToBlock(): Promise<number> {
-	const db = getSourceDb();
+export async function resolveFinalizedBound(
+	db: Kysely<Database> = getSourceDb(),
+): Promise<FinalizedBound> {
 	const confirmations =
 		parseOptionalInteger(process.env.CANONICAL_AUDIT_BTC_CONFIRMATIONS) ??
 		DEFAULT_BTC_CONFIRMATIONS;
-	const burnTip = await db
+	const burnTipRow = await db
 		.selectFrom("blocks")
 		.select(({ fn }) => fn.max("burn_block_height").as("burn_tip"))
 		.where("canonical", "=", true)
 		.executeTakeFirst();
-	const tip = Number(burnTip?.burn_tip ?? 0);
-	if (!Number.isSafeInteger(tip) || tip <= 0) {
+	const burnTip = Number(burnTipRow?.burn_tip ?? 0);
+	if (!Number.isSafeInteger(burnTip) || burnTip <= 0) {
 		throw new Error("no canonical blocks to derive a finalized bound from");
 	}
-	const finalized = await getFinalizedStacksHeight(
-		finalizedBurnHeight(tip, confirmations),
-		db,
-	);
+	const finalizedBurn = finalizedBurnHeight(burnTip, confirmations);
+	const finalized = await getFinalizedStacksHeight(finalizedBurn, db);
 	if (finalized <= 0) {
 		throw new Error("no finalized canonical height yet — cannot bound audit");
 	}
-	return finalized;
+	return {
+		toBlock: finalized,
+		burnTip,
+		finalizedBurnHeight: finalizedBurn,
+		confirmations,
+	};
 }
 
 async function main(): Promise<void> {
@@ -407,7 +432,7 @@ async function main(): Promise<void> {
 	const expectedToRaw = process.env.STACKS_EXPECTED_TO_BLOCK;
 	const expectedToBlock =
 		expectedToRaw === "auto"
-			? await resolveAutoExpectedToBlock()
+			? (await resolveFinalizedBound()).toBlock
 			: parseOptionalInteger(expectedToRaw);
 	const report = await auditCanonicalCoverage({
 		network,
