@@ -58,7 +58,8 @@ interface RepairTx {
 	tx_index: number;
 	raw_tx: string;
 	raw_result: string | null;
-	function_args: string | null;
+	/** jsonb — an array of hex Clarity values. Only tested for presence here. */
+	function_args: string[] | null;
 	type: string;
 	contract_id: string | null;
 	function_name: string | null;
@@ -455,7 +456,7 @@ async function main() {
 						tx_index: tx.tx_index as number,
 						raw_tx: tx.raw_tx as string,
 						raw_result: tx.raw_result as string | null,
-						function_args: tx.function_args as string | null,
+						function_args: tx.function_args as string[] | null,
 						type: tx.type as string,
 						contract_id: tx.contract_id as string | null,
 						function_name: tx.function_name as string | null,
@@ -498,13 +499,15 @@ async function main() {
 					continue;
 
 				const updateData: {
-					function_args?: string;
+					function_args?: string[];
 					raw_result?: string;
 					contract_id?: string;
 					function_name?: string;
 				} = {};
 				if (repair.function_args) {
-					updateData.function_args = JSON.stringify(repair.function_args);
+					// jsonb: write the array itself, never a pre-serialized string —
+					// stringifying here is what double-encoded the column originally.
+					updateData.function_args = repair.function_args;
 				}
 				if (repair.raw_result) {
 					updateData.raw_result = repair.raw_result;

@@ -271,7 +271,11 @@ export async function parseTransaction(
 		status: tx.status ?? "success",
 		contract_id: contractId,
 		function_name: functionName,
-		function_args: functionArgs ? JSON.stringify(functionArgs) : null,
+		// `function_args` is jsonb: hand postgres the array itself. Passing a
+		// pre-serialized string makes the driver encode it a second time, storing
+		// a JSON *string* containing JSON — which is how all 14.4M pre-2026-08-12
+		// rows ended up as `jsonb_typeof = 'string'` instead of 'array'.
+		function_args: functionArgs ?? null,
 		raw_result: tx.raw_result ?? null,
 		raw_tx: tx.raw_tx,
 	};
