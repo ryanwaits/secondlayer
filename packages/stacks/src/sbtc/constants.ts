@@ -7,8 +7,8 @@
  * - `sbtc-registry` — emits all protocol-state print events (deposits, withdrawals,
  *   signer-set rotations, governance).
  *
- * Verified against the deployed mainnet contracts via Hiro's
- * `/v2/contracts/source/...` endpoint.
+ * Verified against the deployed contracts via Hiro's
+ * `/v2/contracts/interface/...` endpoint (both networks, 2026-08-12).
  */
 export const SBTC_CONTRACTS = {
 	mainnet: {
@@ -18,7 +18,10 @@ export const SBTC_CONTRACTS = {
 		registry: "sbtc-registry",
 	},
 	testnet: {
-		address: "SN3R84XZYA63QS28932XQF3G1J8R9PC3W76P9CSQS",
+		// The testnet reset retired `SN3R84XZYA63QS28932XQF3G1J8R9PC3W76P9CSQS`,
+		// which this pointed at until 2026-08-12 — every testnet call resolved to
+		// a contract that 404s. This deployment carries the live signer set.
+		address: "SN3VMHXEN64ZZF71JQ5VESXDWTR301XTTXGF4J8F1",
 		token: "sbtc-token",
 		deposit: "sbtc-deposit",
 		registry: "sbtc-registry",
