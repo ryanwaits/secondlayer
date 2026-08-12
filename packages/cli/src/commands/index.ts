@@ -17,3 +17,4 @@ export { registerLogoutCommand } from "./logout.ts";
 export { registerProjectCommand } from "./project.ts";
 export { registerVerifyCommand } from "./verify.ts";
 export { registerRepairCommand } from "./repair.ts";
+export { registerBootstrapCommand } from "./bootstrap.ts";

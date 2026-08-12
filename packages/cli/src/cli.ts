@@ -3,6 +3,7 @@ import { type Command, program } from "commander";
 import pkg from "../package.json" with { type: "json" };
 import {
 	registerAccountCommand,
+	registerBootstrapCommand,
 	registerCodegenCommand,
 	registerConfigCommand,
 	registerContextCommand,
@@ -135,6 +136,7 @@ registerStatusCommand(program);
 registerDoctorCommand(program);
 registerConfigCommand(program);
 registerContextCommand(program);
+registerBootstrapCommand(program);
 registerVerifyCommand(program);
 registerRepairCommand(program);
 
