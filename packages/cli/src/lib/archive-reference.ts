@@ -1,6 +1,12 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import {
+	type KeyRegistry,
+	checkKeyTrust,
+	publicKeyFor,
+	verifyRegistry,
+} from "@secondlayer/shared/archive/key-registry";
 import type { RangeDigest } from "@secondlayer/shared/archive/range-digest";
 import { verifyStreamsBulkManifestSignature } from "@secondlayer/shared/streams-bulk-manifest";
 
@@ -185,6 +191,65 @@ export async function resolvePublicKey(
 		// Offline is a legitimate state, reported as `unanchored` by the caller.
 		return undefined;
 	}
+}
+
+/**
+ * Resolve a manifest's signing key through the archive's root-signed key
+ * registry, when one is published.
+ *
+ * This is stronger than fetching a bare signing key over HTTPS: that only
+ * proves whoever serves the endpoint chose the key. The registry is signed by
+ * an offline root, so a compromised publishing host cannot nominate its own
+ * signer, and a leaked key can be marked compromised without waiting for
+ * consumers to update.
+ *
+ * Returns null when no registry is published, so callers fall back to the
+ * existing behaviour rather than hard-failing an archive that predates it.
+ */
+export async function resolveKeyThroughRegistry(params: {
+	root: string;
+	isRemote: boolean;
+	keyId: string | undefined;
+	signedAt: string | undefined;
+	rootPublicKeyPem: string | undefined;
+}): Promise<{ publicKeyPem: string; trusted: true } | SignatureResult | null> {
+	if (!params.keyId || !params.rootPublicKeyPem) return null;
+	let registry: KeyRegistry;
+	try {
+		if (params.isRemote) {
+			const response = await fetch(
+				`${params.root.replace(/\/$/, "")}/keys/registry.json`,
+				{ signal: AbortSignal.timeout(10_000) },
+			);
+			if (!response.ok) return null;
+			registry = (await response.json()) as KeyRegistry;
+		} else {
+			registry = JSON.parse(
+				await readFile(join(params.root, "keys", "registry.json"), "utf8"),
+			) as KeyRegistry;
+		}
+	} catch {
+		// No registry published (or unreachable) — not an error yet.
+		return null;
+	}
+
+	const rootCheck = verifyRegistry(registry, params.rootPublicKeyPem);
+	if (!rootCheck.trusted) {
+		return { verified: false, reason: rootCheck.detail };
+	}
+	const trust = checkKeyTrust(
+		registry,
+		params.keyId,
+		params.signedAt ?? new Date().toISOString(),
+	);
+	if (!trust.trusted) {
+		return { verified: false, reason: trust.detail };
+	}
+	const pem = publicKeyFor(registry, params.keyId);
+	if (!pem) {
+		return { verified: false, reason: `key ${params.keyId} has no public key` };
+	}
+	return { publicKeyPem: pem, trusted: true };
 }
 
 /**

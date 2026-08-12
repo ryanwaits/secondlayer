@@ -32,6 +32,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/streams-bulk-manifest.ts",
 		"src/archive/range-digest.ts",
 		"src/archive/copy-loader.ts",
+		"src/archive/key-registry.ts",
 		"src/errors.ts",
 		"src/constants.ts",
 		"src/x402.ts",

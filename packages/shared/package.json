@@ -108,6 +108,10 @@
 			"types": "./dist/src/streams-bulk-manifest.d.ts",
 			"import": "./dist/src/streams-bulk-manifest.js"
 		},
+		"./archive/key-registry": {
+			"types": "./dist/src/archive/key-registry.d.ts",
+			"import": "./dist/src/archive/key-registry.js"
+		},
 		"./archive/copy-loader": {
 			"types": "./dist/src/archive/copy-loader.d.ts",
 			"import": "./dist/src/archive/copy-loader.js"
