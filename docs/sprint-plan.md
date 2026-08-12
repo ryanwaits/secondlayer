@@ -543,6 +543,20 @@ the regression oracle.
 - **P1.16 Archive importer.** Resume/idempotently replay canonical partitions and
   journal objects, atomically promote verified ranges, and record provenance. Validate: interrupt,
   duplicate, truncation, wrong network/genesis/schema, and fork conflict.
+- **P1.16a Importer COPY throughput.** The proof importer
+  (`restore-snapshot.ts`, 2026-08-12) restores via batched multi-row INSERTs at
+  roughly 2k rows/s — a full-genesis restore (~240M rows) would take days, which
+  is fine for a one-off proof but disqualifying for the self-host bootstrap
+  product. Replace the insert lane with Postgres `COPY FROM STDIN` (binary or
+  text) streamed straight off the Parquet reader, keeping everything else:
+  digest verification before first write, empty-target guard, FK order
+  (blocks→transactions→events), partition-grid alignment, and the re-export
+  digest proof. Expected ~10x (measure, don't assume). Consider deferring index
+  builds until after load (`CREATE INDEX` post-COPY) — schema migrations create
+  indexes up front, and index maintenance dominates bulk-insert cost. Validate:
+  the existing restore-proof test matrix passes unchanged; benchmark
+  rows/s INSERT vs COPY on the dense 0–500k range; interrupted COPY leaves a
+  resumable, non-corrupt target.
 - **P1.17 Bootstrap live seam.** Start local spool first; import finalized
   canonical archive, signed head, and local spool in order; then switch to live
   processing. Validate:
