@@ -1,7 +1,9 @@
-import { once } from "node:events";
 import { join } from "node:path";
-import type { Writable } from "node:stream";
 import { ParquetReader } from "@dsnp/parquetjs";
+import {
+	copyStatement,
+	writeRowsToCopyStream,
+} from "@secondlayer/shared/archive/copy-loader";
 import { closeDb, getRawClient, getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
@@ -65,88 +67,17 @@ async function* readPartitionRows(path: string): AsyncGenerator<ParquetRecord> {
 	}
 }
 
-function asNumber(value: unknown): number {
-	return typeof value === "bigint" ? Number(value) : Number(value as number);
-}
-
-function asText(value: unknown): string {
-	return Buffer.isBuffer(value) ? value.toString("utf8") : String(value);
-}
-
-function asOptionalText(value: unknown): string | null {
-	return value === null || value === undefined ? null : asText(value);
-}
-
-/**
- * CSV field encoding for `COPY ... WITH (FORMAT csv, NULL '\N')`: every
- * present value is quoted (embedded quotes doubled), so a value that happens
- * to equal the literal NULL marker can never be misread as SQL NULL — only an
- * actually-absent value is written unquoted as `\N`.
- */
-function csvField(value: string | number | null | undefined): string {
-	if (value === null || value === undefined) return "\\N";
-	const text = typeof value === "number" ? String(value) : value;
-	return `"${text.replace(/"/g, '""')}"`;
-}
-
-function toCsvLine(dataset: CanonicalDataset, row: ParquetRecord): string {
-	if (dataset === "blocks") {
-		return [
-			csvField(asNumber(row.height)),
-			csvField(asText(row.hash)),
-			csvField(asText(row.parent_hash)),
-			csvField(asNumber(row.burn_block_height)),
-			csvField(asOptionalText(row.burn_block_hash)),
-			csvField(asOptionalText(row.index_block_hash)),
-			csvField(asNumber(row.timestamp)),
-		].join(",");
-	}
-	if (dataset === "transactions") {
-		return [
-			csvField(asText(row.tx_id)),
-			csvField(asNumber(row.block_height)),
-			csvField(asNumber(row.tx_index)),
-			csvField(asText(row.type)),
-			csvField(asText(row.sender)),
-			csvField(asText(row.status)),
-			csvField(asOptionalText(row.contract_id)),
-			csvField(asOptionalText(row.function_name)),
-			csvField(asOptionalText(row.function_args_json)),
-			csvField(asOptionalText(row.raw_result)),
-			csvField(asText(row.raw_tx)),
-		].join(",");
-	}
-	return [
-		csvField(asText(row.tx_id)),
-		csvField(asNumber(row.block_height)),
-		csvField(asNumber(row.event_index)),
-		csvField(asText(row.event_type)),
-		csvField(asText(row.data_json)),
-	].join(",");
-}
-
-/**
- * `canonical` is not archived (every exported block is canonical by
- * definition) and defaults to `true` in the schema, so it's omitted from the
- * COPY column list rather than carried as dead weight through every row.
- */
-async function openCopyWritable(
-	rawClient: ReturnType<typeof getRawClient>,
-	dataset: CanonicalDataset,
-): Promise<Writable> {
-	if (dataset === "blocks") {
-		return rawClient`COPY blocks (height, hash, parent_hash, burn_block_height, burn_block_hash, index_block_hash, timestamp) FROM STDIN WITH (FORMAT csv, NULL '\\N')`.writable();
-	}
-	if (dataset === "transactions") {
-		return rawClient`COPY transactions (tx_id, block_height, tx_index, type, sender, status, contract_id, function_name, function_args, raw_result, raw_tx) FROM STDIN WITH (FORMAT csv, NULL '\\N')`.writable();
-	}
-	return rawClient`COPY events (tx_id, block_height, event_index, type, data) FROM STDIN WITH (FORMAT csv, NULL '\\N')`.writable();
-}
-
 const PROGRESS_LOG_ROWS = 500_000;
 
-/** Stream one partition file straight onto a COPY connection. Returns the row
- *  count written, so the caller can cross-check it against the manifest. */
+/**
+ * Stream one partition file straight onto a COPY connection. Returns the row
+ * count written, so the caller can cross-check it against the manifest.
+ *
+ * The wire format lives in `@secondlayer/shared/archive/copy-loader` because
+ * `sl bootstrap` restores the same archive rows into a user's database — two
+ * CSV encoders for one on-disk format is exactly the kind of duplication that
+ * drifts silently and corrupts data years later.
+ */
 async function copyPartitionFile(params: {
 	rawClient: ReturnType<typeof getRawClient>;
 	dataset: CanonicalDataset;
@@ -154,30 +85,19 @@ async function copyPartitionFile(params: {
 	path: string;
 	log: (message: string) => void;
 }): Promise<number> {
-	const writable = await openCopyWritable(params.rawClient, params.dataset);
-	let count = 0;
-	try {
-		for await (const row of readPartitionRows(params.path)) {
-			const line = `${toCsvLine(params.dataset, row)}\n`;
-			if (!writable.write(line)) {
-				await once(writable, "drain");
-			}
-			count++;
-			if (count % PROGRESS_LOG_ROWS === 0) {
-				params.log(
-					`  ${params.dataset} ${params.partition.from_block}-${params.partition.to_block}: ${count}/${params.partition.row_count} rows`,
-				);
-			}
-		}
-		await new Promise<void>((resolve, reject) => {
-			writable.end((error?: Error | null) =>
-				error ? reject(error) : resolve(),
-			);
-		});
-	} catch (error) {
-		writable.destroy(error instanceof Error ? error : new Error(String(error)));
-		throw error;
-	}
+	const writable = await params.rawClient
+		.unsafe(copyStatement(params.dataset))
+		.writable();
+	const count = await writeRowsToCopyStream({
+		writable,
+		dataset: params.dataset,
+		rows: readPartitionRows(params.path),
+		progressEvery: PROGRESS_LOG_ROWS,
+		onProgress: (rows) =>
+			params.log(
+				`  ${params.dataset} ${params.partition.from_block}-${params.partition.to_block}: ${rows}/${params.partition.row_count} rows`,
+			),
+	});
 	if (count !== params.partition.row_count) {
 		throw new Error(
 			`COPY wrote ${count} rows for ${params.partition.path}, manifest declares ${params.partition.row_count}`,
