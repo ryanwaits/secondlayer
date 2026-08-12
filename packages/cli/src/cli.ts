@@ -14,6 +14,7 @@ import {
 	registerLoginCommand,
 	registerLogoutCommand,
 	registerProjectCommand,
+	registerRepairCommand,
 	registerStatusCommand,
 	registerStreamsCommand,
 	registerSubgraphsCommand,
@@ -135,6 +136,7 @@ registerDoctorCommand(program);
 registerConfigCommand(program);
 registerContextCommand(program);
 registerVerifyCommand(program);
+registerRepairCommand(program);
 
 // Account
 program.commandsGroup("Account:");
