@@ -553,10 +553,18 @@ the regression oracle.
   (blocks→transactions→events), partition-grid alignment, and the re-export
   digest proof. Expected ~10x (measure, don't assume). Consider deferring index
   builds until after load (`CREATE INDEX` post-COPY) — schema migrations create
-  indexes up front, and index maintenance dominates bulk-insert cost. Validate:
+  indexes up front, and index maintenance dominates bulk-insert cost. Include a
+  disk-headroom guard in every bulk archive lane (restore, export, COPY import):
+  check free space before starting and between partitions, and PAUSE below a
+  threshold (default ~100GB, configurable) rather than crash, resuming when
+  space returns — the 2026-08-12 restore hit ENOSPC when the nightly
+  `pg_basebackup` spike (~150GB transient) overlapped bulk inserts on the disk
+  prod Postgres shares; a guard that waits out the spike protects prod
+  mechanically instead of via a backup-window scheduling rule. Validate:
   the existing restore-proof test matrix passes unchanged; benchmark
   rows/s INSERT vs COPY on the dense 0–500k range; interrupted COPY leaves a
-  resumable, non-corrupt target.
+  resumable, non-corrupt target; a simulated low-disk condition pauses the
+  import and resumes without corruption instead of failing.
 - **P1.17 Bootstrap live seam.** Start local spool first; import finalized
   canonical archive, signed head, and local spool in order; then switch to live
   processing. Validate:
