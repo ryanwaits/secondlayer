@@ -108,6 +108,10 @@
 			"types": "./dist/src/streams-bulk-manifest.d.ts",
 			"import": "./dist/src/streams-bulk-manifest.js"
 		},
+		"./archive/copy-loader": {
+			"types": "./dist/src/archive/copy-loader.d.ts",
+			"import": "./dist/src/archive/copy-loader.js"
+		},
 		"./archive/range-digest": {
 			"types": "./dist/src/archive/range-digest.d.ts",
 			"import": "./dist/src/archive/range-digest.js"
