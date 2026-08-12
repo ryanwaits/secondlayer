@@ -160,6 +160,41 @@ describe.skipIf(!HAS_DB)("canonical snapshot restore proof", () => {
 		expect(result.proof.reExportedPartitions).toBe(result.partitionsRead);
 	});
 
+	test("resume completes an interrupted restore and still proves digests", async () => {
+		if (!db) throw new Error("missing db");
+		const { dir, manifest } = await exportSeeded();
+
+		await wipe();
+		await restoreCanonicalSnapshot({
+			dir,
+			manifest,
+			db,
+			range: { fromBlock: 0, toBlock: 9 },
+			proofDir: await makeDir("proof"),
+		});
+		// Simulate the interruption: one events partition loses a row (a torn
+		// partition), another dataset is already complete.
+		await sql`DELETE FROM events WHERE block_height = 2 AND event_index = 0`.execute(
+			db,
+		);
+
+		const result = await restoreCanonicalSnapshot({
+			dir,
+			manifest,
+			db,
+			range: { fromBlock: 0, toBlock: 9 },
+			proofDir: await makeDir("proof-resume"),
+			resume: true,
+		});
+		expect(result.restored).toEqual({
+			blocks: 10,
+			transactions: 2,
+			events: 2,
+		});
+		expect(result.proof.auditComplete).toBe(true);
+		expect(result.proof.digestMismatches).toEqual([]);
+	});
+
 	test("refuses a non-empty restore target", async () => {
 		if (!db) throw new Error("missing db");
 		const { dir, manifest } = await exportSeeded();

@@ -134,6 +134,36 @@ async function insertBatch(
 		.execute();
 }
 
+async function partitionRowCount(
+	db: Kysely<Database>,
+	dataset: CanonicalDataset,
+	partition: CanonicalPartition,
+): Promise<number> {
+	const table = dataset === "blocks" ? "blocks" : dataset;
+	const column = dataset === "blocks" ? "height" : "block_height";
+	const row = await db
+		.selectFrom(table)
+		.select(({ fn }) => fn.countAll<string>().as("count"))
+		.where(column, ">=", partition.from_block)
+		.where(column, "<=", partition.to_block)
+		.executeTakeFirst();
+	return Number(row?.count ?? 0);
+}
+
+async function deletePartitionRows(
+	db: Kysely<Database>,
+	dataset: CanonicalDataset,
+	partition: CanonicalPartition,
+): Promise<void> {
+	const table = dataset === "blocks" ? "blocks" : dataset;
+	const column = dataset === "blocks" ? "height" : "block_height";
+	await db
+		.deleteFrom(table)
+		.where(column, ">=", partition.from_block)
+		.where(column, "<=", partition.to_block)
+		.execute();
+}
+
 function partitionsInRange(
 	manifest: CanonicalSnapshotManifest,
 	dataset: CanonicalDataset,
@@ -156,6 +186,9 @@ export async function restoreCanonicalSnapshot(params: {
 	range: RestoreRange;
 	/** Where the proof re-export writes its regenerated partitions. */
 	proofDir: string;
+	/** Continue an interrupted restore of the SAME snapshot: complete
+	 *  partitions are skipped, a partial one is deleted and reloaded. */
+	resume?: boolean;
 	log?: (message: string) => void;
 }): Promise<RestoreResult> {
 	const { dir, manifest, db, range } = params;
@@ -172,14 +205,16 @@ export async function restoreCanonicalSnapshot(params: {
 		);
 	}
 
-	const existing = await db
-		.selectFrom("blocks")
-		.select(({ fn }) => fn.countAll<string>().as("count"))
-		.executeTakeFirst();
-	if (Number(existing?.count ?? 0) > 0) {
-		throw new Error(
-			"restore target is not empty — refusing to mix archive rows into an existing database",
-		);
+	if (!params.resume) {
+		const existing = await db
+			.selectFrom("blocks")
+			.select(({ fn }) => fn.countAll<string>().as("count"))
+			.executeTakeFirst();
+		if (Number(existing?.count ?? 0) > 0) {
+			throw new Error(
+				"restore target is not empty — refusing to mix archive rows into an existing database (use resume to continue an interrupted restore of the same snapshot)",
+			);
+		}
 	}
 
 	// Verify every needed object BEFORE the first insert.
@@ -201,6 +236,22 @@ export async function restoreCanonicalSnapshot(params: {
 	const restored = { blocks: 0, transactions: 0, events: 0 };
 	for (const dataset of datasets) {
 		for (const partition of partitionsInRange(manifest, dataset, range)) {
+			if (params.resume) {
+				const state = await partitionRowCount(db, dataset, partition);
+				if (state === partition.row_count) {
+					restored[dataset] += state;
+					continue;
+				}
+				if (state > 0) {
+					// A torn partition: batches are atomic but the partition isn't.
+					// Reload it whole — deleting children-first is unnecessary within
+					// one dataset because FKs only point across datasets.
+					log(
+						`resume: reloading partial ${dataset} partition ${partition.from_block}-${partition.to_block} (${state}/${partition.row_count} rows)`,
+					);
+					await deletePartitionRows(db, dataset, partition);
+				}
+			}
 			let batch: ParquetRecord[] = [];
 			for await (const row of readPartitionRows(join(dir, partition.path))) {
 				batch.push(row);
@@ -284,19 +335,22 @@ function parseCliArgs(argv: string[]): {
 	from: number;
 	to: number | undefined;
 	proofDir: string;
+	resume: boolean;
 } {
 	let manifestPath: string | undefined;
 	let from = 0;
 	let to: number | undefined;
 	let proofDir = "./canonical-v1-restore-proof";
+	let resume = false;
 	for (let i = 0; i < argv.length; i++) {
 		const arg = argv[i];
 		if (arg === "--manifest") manifestPath = argv[++i];
 		else if (arg === "--from-block") from = Number(argv[++i]);
 		else if (arg === "--to-block") to = Number(argv[++i]);
 		else if (arg === "--proof-out") proofDir = argv[++i] ?? proofDir;
+		else if (arg === "--resume") resume = true;
 	}
-	return { manifestPath, from, to, proofDir };
+	return { manifestPath, from, to, proofDir, resume };
 }
 
 async function main(): Promise<void> {
@@ -317,6 +371,7 @@ async function main(): Promise<void> {
 		db: getSourceDb(),
 		range: { fromBlock: args.from, toBlock: args.to },
 		proofDir: args.proofDir,
+		resume: args.resume,
 		log: (message) => console.error(message),
 	});
 	console.log(JSON.stringify(result, null, 2));
