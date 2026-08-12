@@ -21,7 +21,12 @@ sl subgraphs unpublish   # make a subgraph private again
 sl subgraphs ls          # list your deployments
 sl subscriptions create  # wire a webhook to a subgraph table
 sl context               # headless orientation snapshot
+sl verify                # check your chain data against a signed archive
+sl repair                # replace ranges that diverge from the archive
+sl bootstrap             # restore history instead of syncing from genesis
 ```
+
+[Verified archive](/docs/archive) covers the last three.
 
 <Callout type="note" title="Chain subscriptions use a different surface">
 

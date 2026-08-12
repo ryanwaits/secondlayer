@@ -52,6 +52,7 @@ export const DOCS_NAV: DocsNavGroup[] = [
 			{ title: "API reference", href: "/docs/api-reference" },
 			{ title: "SDK reference", href: "/docs/sdk-reference" },
 			{ title: "Verification", href: "/docs/verification" },
+			{ title: "Verified archive", href: "/docs/archive" },
 			{ title: "Bitcoin SPV", href: "/docs/bitcoin-spv" },
 			{ title: "sBTC settlement", href: "/docs/sbtc-settlement" },
 			{ title: "Contract discovery", href: "/docs/contracts" },
