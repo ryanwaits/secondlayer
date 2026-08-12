@@ -48,8 +48,10 @@ function camelizeKeys(obj: unknown): unknown {
  * Decode function_args (hex-encoded ClarityValues) to an array of JS values.
  * Returns decoded values via cvToValue.
  *
- * postgres.js returns JSONB columns as JSON strings rather than parsed objects —
- * parse the string first before checking Array.isArray.
+ * The string branch is legacy tolerance, not driver behaviour: rows written
+ * before 2026-08-12 hold a jsonb *string* containing JSON because the writer
+ * pre-serialized the array (see backfill-function-args.ts). Correct rows arrive
+ * as arrays. Keep both paths until every environment has been backfilled.
  */
 function decodeFunctionArgs(args: unknown): unknown[] {
 	let parsed = args;

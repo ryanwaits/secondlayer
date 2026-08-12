@@ -146,8 +146,9 @@ function parseTrait(
 	return trait;
 }
 
-/** function_args is a JSONB array of hex-encoded ClarityValues (postgres.js may
- *  hand it back as an object or a JSON string). Decode each to JSON-safe JS. */
+/** function_args is a JSONB array of hex-encoded ClarityValues. The string
+ *  branch covers pre-2026-08-12 rows that were stored double-encoded (see
+ *  backfill-function-args.ts); post-backfill rows arrive as arrays. */
 function decodeArgs(raw: unknown): unknown[] {
 	let parsed = raw;
 	if (typeof parsed === "string") {

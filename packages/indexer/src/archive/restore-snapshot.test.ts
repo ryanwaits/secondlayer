@@ -64,7 +64,7 @@ describe.skipIf(!HAS_DB)("canonical snapshot restore proof", () => {
 					status: "success",
 					contract_id: "SP1.c",
 					function_name: "f",
-					function_args: JSON.stringify(["u1"]),
+					function_args: ["u1"],
 					raw_tx: "0x00",
 				},
 				{

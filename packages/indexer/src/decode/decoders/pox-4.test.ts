@@ -40,8 +40,14 @@ function poxAddrCV(versionByte: number, hashbytes: Uint8Array) {
 	});
 }
 
-function makeArgs(...cvs: Parameters<typeof serializeCV>[0][]): string {
-	return JSON.stringify(cvs.map((cv) => hex(serializeCV(cv))));
+/**
+ * Args as the decoder actually receives them in production: a real array of
+ * hex Clarity values (the pox-4 decoder is fed `function_args_hex` from the
+ * Index API). Fixtures previously JSON-stringified this, exercising only the
+ * legacy-tolerance branch that prod never takes.
+ */
+function makeArgs(...cvs: Parameters<typeof serializeCV>[0][]): string[] {
+	return cvs.map((cv) => hex(serializeCV(cv)));
 }
 
 function fixtureTx(overrides: Partial<Pox4TxRow> = {}): Pox4TxRow {
@@ -50,7 +56,7 @@ function fixtureTx(overrides: Partial<Pox4TxRow> = {}): Pox4TxRow {
 		block_height: 1_000_000,
 		tx_index: 0,
 		function_name: "stack-stx",
-		function_args: "[]",
+		function_args: [],
 		raw_result: hex(serializeCV(responseOkCV(trueCV()))),
 		sender: CALLER,
 		block_time: new Date("2026-05-07T00:00:00.000Z"),
@@ -199,7 +205,7 @@ describe("decodePox4Tx — solo + delegate", () => {
 	test("revoke-delegate-stx sets stacker = caller, no other fields", () => {
 		const row = fixtureTx({
 			function_name: "revoke-delegate-stx",
-			function_args: "[]",
+			function_args: [],
 		});
 		const decoded = decodePox4Tx(row);
 		expect(decoded?.stacker).toBe(CALLER);
