@@ -4,6 +4,37 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## CLI — August 2026
 
+### Check your chain data against a signed archive
+
+`sl verify` tells you whether your history is intact. It compares your database
+against a signed canonical archive and names the exact height ranges that
+diverge — missing blocks, broken parent links, duplicate heights, forks left on
+the losing branch.
+
+```bash
+sl verify --against https://archive.secondlayer.tools/.../latest.json
+```
+
+It is read-only and nothing leaves your machine: only digests are compared. The
+full mainnet chain — 8.7M blocks — checks in well under a minute.
+
+When something is wrong, `sl repair` fixes it. It shows you a plan first, names
+every height it would change, and refuses any archive object that does not match
+its signed digest.
+
+```bash
+sl repair --against <archive>            # plan
+sl repair --against <archive> --apply    # fix
+```
+
+And `sl bootstrap` stands up a fresh instance from the archive instead of
+replaying the chain from genesis — it shows you both timings before it starts,
+then restores and verifies itself.
+
+All three exit with stable codes for CI: `0` clean, `1` divergence found, `2`
+unable to verify. That last one never reports as success — not being able to
+check is different from being fine.
+
 ### Mirror the PoX-5 feed in your own database
 
 `sl index codegen` refused `pox5_events` with `Unknown Index table` — the table

@@ -1,5 +1,30 @@
 # @secondlayer/cli
 
+## 9.8.0
+
+### Minor Changes
+
+- Add `sl verify`, `sl repair`, and `sl bootstrap` for working with signed
+  canonical archives.
+
+  `sl verify` compares your chain data against a signed archive and names any
+  height ranges that diverge. It is read-only and nothing leaves your machine —
+  only digests are compared — and it checks the full mainnet chain in well under
+  a minute. `sl repair` replaces divergent ranges from the archive, dry-run by
+  default and refusing any object that does not match its signed digest.
+  `sl bootstrap` restores history into an empty instance instead of replaying
+  from genesis, showing you both timings before it starts.
+
+  All three accept the archive's `latest.json` directly, and exit with stable
+  codes: 0 clean, 1 divergence found, 2 unable to verify.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies [0354546]
+  - @secondlayer/subgraphs@3.26.4
+  - @secondlayer/shared@7.7.0
+
 ## 9.7.0
 
 ### Minor Changes

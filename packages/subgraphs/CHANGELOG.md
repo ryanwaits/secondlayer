@@ -1,5 +1,15 @@
 # @secondlayer/subgraphs
 
+## 3.26.4
+
+### Patch Changes
+
+- Clarify that `function_args` decoding tolerates a legacy double-encoded shape
+  for rows written before the indexer stored the column correctly. No behaviour
+  change — the handler already accepted both shapes.
+- Updated dependencies [0354546]
+  - @secondlayer/shared@7.7.0
+
 ## 3.26.3
 
 ### Patch Changes

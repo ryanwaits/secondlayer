@@ -1,5 +1,12 @@
 # @secondlayer/shared
 
+## 7.7.0
+
+### Minor Changes
+
+- 0354546: Persist exact Stacks observer callback bodies and processing receipts in the
+  chain database for replay and integrity auditing.
+
 ## 7.6.0
 
 ### Minor Changes
