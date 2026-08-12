@@ -55,6 +55,7 @@ function baseManifest(
 		partition_size_blocks: 10,
 		partitions,
 		zero_record_ranges: [],
+		range_digests: [],
 		assurance_ranges: [],
 		audit: { continuity: { complete: true } } as never,
 		signature: "test-signature",

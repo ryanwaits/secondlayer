@@ -2,6 +2,10 @@ import { createHash } from "node:crypto";
 import { mkdir, rename, stat, unlink } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { ParquetSchema, ParquetWriter } from "@dsnp/parquetjs";
+import {
+	type RangeDigest,
+	computeRangeDigests,
+} from "@secondlayer/shared/archive/range-digest";
 import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { signStreamsBulkManifest } from "@secondlayer/shared/streams-bulk-manifest";
@@ -123,6 +127,13 @@ export type CanonicalSnapshotManifest = {
 	partition_size_blocks: number;
 	partitions: CanonicalPartition[];
 	zero_record_ranges: ZeroRecordRange[];
+	/**
+	 * Cheap SQL-computed digests over the same partition grid. These let a
+	 * consumer verify their database in seconds without regenerating Parquet —
+	 * the per-object sha256s above can only be checked by a full local export,
+	 * which is too slow to be anyone's first experience of verification.
+	 */
+	range_digests: RangeDigest[];
 	assurance_ranges: Array<{
 		dataset: CanonicalDataset;
 		from_block: number;
@@ -208,6 +219,7 @@ export async function exportCanonicalSnapshot(
 
 		const partitions: CanonicalPartition[] = [];
 		const zeroRecordRanges: ZeroRecordRange[] = [];
+		const rangeDigests: RangeDigest[] = [];
 		const counts = { blocks: 0, transactions: 0, events: 0 };
 
 		for (
@@ -239,6 +251,19 @@ export async function exportCanonicalSnapshot(
 					counts[dataset] += written.row_count;
 				}
 			}
+			// Blocks ONLY, and deliberately so. Measured on production
+			// 2026-08-12: a blocks digest costs ~0.5s per 50k-block partition
+			// (~90s for all of history), while an events digest costs ~98s per
+			// partition — roughly five hours added to every export, to verify the
+			// dataset where identity drift matters least. `blocks` carries the
+			// entire corruption class we have actually hit (gaps, broken parent
+			// links, duplicate heights, wrong fork points), so it is what quick
+			// verification checks. Transaction/event coverage is verifiable from
+			// `partitions[].row_count` above at no extra cost, and byte-level
+			// certainty remains available through the per-object sha256s.
+			rangeDigests.push(
+				...(await computeRangeDigests(tx, start, end, ["blocks"])),
+			);
 		}
 
 		// Exported row totals must equal the audited totals — a mismatch means
@@ -278,6 +303,7 @@ export async function exportCanonicalSnapshot(
 			partition_size_blocks: partitionSize,
 			partitions,
 			zero_record_ranges: zeroRecordRanges,
+			range_digests: rangeDigests,
 			assurance_ranges: (["blocks", "transactions", "events"] as const).map(
 				(dataset) => ({
 					dataset,
