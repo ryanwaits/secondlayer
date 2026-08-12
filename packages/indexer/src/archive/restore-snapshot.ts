@@ -1,6 +1,8 @@
+import { once } from "node:events";
 import { join } from "node:path";
+import type { Writable } from "node:stream";
 import { ParquetReader } from "@dsnp/parquetjs";
-import { closeDb, getSourceDb } from "@secondlayer/shared/db";
+import { closeDb, getRawClient, getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
 import { readJsonFile, sha256File } from "../streams-bulk/file.ts";
@@ -24,9 +26,13 @@ import {
  * is resuming, and every partition file is re-hashed against the manifest
  * before a single row is inserted. A tampered object can never enter the
  * restore target.
+ *
+ * Loading uses `COPY ... FROM STDIN`, not row-by-row INSERTs: the 2026-08-12
+ * proof run measured ~2k rows/s on batched inserts, which would take days for
+ * a full-genesis restore. COPY streams the Parquet reader straight onto the
+ * wire — one statement per partition, one row conversion, no per-row
+ * round-trip.
  */
-
-const INSERT_BATCH_ROWS = 2_000;
 
 export type RestoreRange = { fromBlock: number; toBlock: number };
 
@@ -71,67 +77,113 @@ function asOptionalText(value: unknown): string | null {
 	return value === null || value === undefined ? null : asText(value);
 }
 
-async function insertBatch(
-	db: Kysely<Database>,
-	dataset: CanonicalDataset,
-	rows: ParquetRecord[],
-): Promise<void> {
-	if (rows.length === 0) return;
+/**
+ * CSV field encoding for `COPY ... WITH (FORMAT csv, NULL '\N')`: every
+ * present value is quoted (embedded quotes doubled), so a value that happens
+ * to equal the literal NULL marker can never be misread as SQL NULL — only an
+ * actually-absent value is written unquoted as `\N`.
+ */
+function csvField(value: string | number | null | undefined): string {
+	if (value === null || value === undefined) return "\\N";
+	const text = typeof value === "number" ? String(value) : value;
+	return `"${text.replace(/"/g, '""')}"`;
+}
+
+function toCsvLine(dataset: CanonicalDataset, row: ParquetRecord): string {
 	if (dataset === "blocks") {
-		await db
-			.insertInto("blocks")
-			.values(
-				rows.map((row) => ({
-					height: asNumber(row.height),
-					hash: asText(row.hash),
-					parent_hash: asText(row.parent_hash),
-					burn_block_height: asNumber(row.burn_block_height),
-					burn_block_hash: asOptionalText(row.burn_block_hash),
-					index_block_hash: asOptionalText(row.index_block_hash),
-					timestamp: asNumber(row.timestamp),
-					canonical: true,
-				})),
-			)
-			.execute();
-		return;
+		return [
+			csvField(asNumber(row.height)),
+			csvField(asText(row.hash)),
+			csvField(asText(row.parent_hash)),
+			csvField(asNumber(row.burn_block_height)),
+			csvField(asOptionalText(row.burn_block_hash)),
+			csvField(asOptionalText(row.index_block_hash)),
+			csvField(asNumber(row.timestamp)),
+		].join(",");
 	}
 	if (dataset === "transactions") {
-		await db
-			.insertInto("transactions")
-			.values(
-				rows.map((row) => ({
-					tx_id: asText(row.tx_id),
-					block_height: asNumber(row.block_height),
-					tx_index: asNumber(row.tx_index),
-					type: asText(row.type),
-					sender: asText(row.sender),
-					status: asText(row.status),
-					contract_id: asOptionalText(row.contract_id),
-					function_name: asOptionalText(row.function_name),
-					function_args:
-						row.function_args_json === null ||
-						row.function_args_json === undefined
-							? null
-							: JSON.parse(asText(row.function_args_json)),
-					raw_result: asOptionalText(row.raw_result),
-					raw_tx: asText(row.raw_tx),
-				})),
-			)
-			.execute();
-		return;
+		return [
+			csvField(asText(row.tx_id)),
+			csvField(asNumber(row.block_height)),
+			csvField(asNumber(row.tx_index)),
+			csvField(asText(row.type)),
+			csvField(asText(row.sender)),
+			csvField(asText(row.status)),
+			csvField(asOptionalText(row.contract_id)),
+			csvField(asOptionalText(row.function_name)),
+			csvField(asOptionalText(row.function_args_json)),
+			csvField(asOptionalText(row.raw_result)),
+			csvField(asText(row.raw_tx)),
+		].join(",");
 	}
-	await db
-		.insertInto("events")
-		.values(
-			rows.map((row) => ({
-				tx_id: asText(row.tx_id),
-				block_height: asNumber(row.block_height),
-				event_index: asNumber(row.event_index),
-				type: asText(row.event_type),
-				data: JSON.parse(asText(row.data_json)),
-			})),
-		)
-		.execute();
+	return [
+		csvField(asText(row.tx_id)),
+		csvField(asNumber(row.block_height)),
+		csvField(asNumber(row.event_index)),
+		csvField(asText(row.event_type)),
+		csvField(asText(row.data_json)),
+	].join(",");
+}
+
+/**
+ * `canonical` is not archived (every exported block is canonical by
+ * definition) and defaults to `true` in the schema, so it's omitted from the
+ * COPY column list rather than carried as dead weight through every row.
+ */
+async function openCopyWritable(
+	rawClient: ReturnType<typeof getRawClient>,
+	dataset: CanonicalDataset,
+): Promise<Writable> {
+	if (dataset === "blocks") {
+		return rawClient`COPY blocks (height, hash, parent_hash, burn_block_height, burn_block_hash, index_block_hash, timestamp) FROM STDIN WITH (FORMAT csv, NULL '\\N')`.writable();
+	}
+	if (dataset === "transactions") {
+		return rawClient`COPY transactions (tx_id, block_height, tx_index, type, sender, status, contract_id, function_name, function_args, raw_result, raw_tx) FROM STDIN WITH (FORMAT csv, NULL '\\N')`.writable();
+	}
+	return rawClient`COPY events (tx_id, block_height, event_index, type, data) FROM STDIN WITH (FORMAT csv, NULL '\\N')`.writable();
+}
+
+const PROGRESS_LOG_ROWS = 500_000;
+
+/** Stream one partition file straight onto a COPY connection. Returns the row
+ *  count written, so the caller can cross-check it against the manifest. */
+async function copyPartitionFile(params: {
+	rawClient: ReturnType<typeof getRawClient>;
+	dataset: CanonicalDataset;
+	partition: CanonicalPartition;
+	path: string;
+	log: (message: string) => void;
+}): Promise<number> {
+	const writable = await openCopyWritable(params.rawClient, params.dataset);
+	let count = 0;
+	try {
+		for await (const row of readPartitionRows(params.path)) {
+			const line = `${toCsvLine(params.dataset, row)}\n`;
+			if (!writable.write(line)) {
+				await once(writable, "drain");
+			}
+			count++;
+			if (count % PROGRESS_LOG_ROWS === 0) {
+				params.log(
+					`  ${params.dataset} ${params.partition.from_block}-${params.partition.to_block}: ${count}/${params.partition.row_count} rows`,
+				);
+			}
+		}
+		await new Promise<void>((resolve, reject) => {
+			writable.end((error?: Error | null) =>
+				error ? reject(error) : resolve(),
+			);
+		});
+	} catch (error) {
+		writable.destroy(error instanceof Error ? error : new Error(String(error)));
+		throw error;
+	}
+	if (count !== params.partition.row_count) {
+		throw new Error(
+			`COPY wrote ${count} rows for ${params.partition.path}, manifest declares ${params.partition.row_count}`,
+		);
+	}
+	return count;
 }
 
 async function partitionRowCount(
@@ -189,10 +241,15 @@ export async function restoreCanonicalSnapshot(params: {
 	/** Continue an interrupted restore of the SAME snapshot: complete
 	 *  partitions are skipped, a partial one is deleted and reloaded. */
 	resume?: boolean;
+	/** Raw postgres.js client used for `COPY ... FROM STDIN`. Defaults to the
+	 *  same source-role connection `db` normally resolves to; only override
+	 *  when `db` was NOT built from `getSourceDb()` (e.g. a custom test pool). */
+	rawClient?: ReturnType<typeof getRawClient>;
 	log?: (message: string) => void;
 }): Promise<RestoreResult> {
 	const { dir, manifest, db, range } = params;
 	const log = params.log ?? (() => {});
+	const rawClient = params.rawClient ?? getRawClient("source");
 
 	if (
 		range.fromBlock % manifest.partition_size_blocks !== 0 ||
@@ -252,17 +309,14 @@ export async function restoreCanonicalSnapshot(params: {
 					await deletePartitionRows(db, dataset, partition);
 				}
 			}
-			let batch: ParquetRecord[] = [];
-			for await (const row of readPartitionRows(join(dir, partition.path))) {
-				batch.push(row);
-				if (batch.length >= INSERT_BATCH_ROWS) {
-					await insertBatch(db, dataset, batch);
-					restored[dataset] += batch.length;
-					batch = [];
-				}
-			}
-			await insertBatch(db, dataset, batch);
-			restored[dataset] += batch.length;
+			const count = await copyPartitionFile({
+				rawClient,
+				dataset,
+				partition,
+				path: join(dir, partition.path),
+				log,
+			});
+			restored[dataset] += count;
 		}
 		log(`restored ${restored[dataset]} ${dataset} rows`);
 	}

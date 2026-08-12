@@ -160,6 +160,97 @@ describe.skipIf(!HAS_DB)("canonical snapshot restore proof", () => {
 		expect(result.proof.reExportedPartitions).toBe(result.partitionsRead);
 	});
 
+	test("COPY encoding survives commas, quotes, and nulls intact", async () => {
+		if (!db) throw new Error("missing db");
+		// Stress the CSV encoder directly, not just via the digest proof: a
+		// contract_id containing CSV-special characters, a JSON payload with
+		// embedded quotes/commas/backslashes, and an all-null transaction.
+		await db
+			.insertInto("transactions")
+			.values([
+				{
+					tx_id: "0xtcsv",
+					block_height: 8,
+					tx_index: 0,
+					type: "contract_call",
+					sender: "SP1",
+					status: "success",
+					contract_id: 'SP1.c,"weird"',
+					function_name: "f",
+					// jsonb columns must receive the actual value, not a pre-serialized
+					// string — postgres.js serializes whatever it's given, so a
+					// pre-stringified value gets JSON-encoded a second time. See
+					// packages/indexer/src/parser.ts:274 for the production bug this
+					// mirrors: 100% of transactions.function_args in prod (14.4M rows)
+					// are double-encoded because of exactly this mistake.
+					function_args: ['a"b', "c,d", "e\\f"],
+					raw_result: null,
+					raw_tx: "0x02",
+				},
+				{
+					tx_id: "0xtnull",
+					block_height: 8,
+					tx_index: 1,
+					type: "token_transfer",
+					sender: "SP3",
+					status: "success",
+					contract_id: null,
+					function_name: null,
+					function_args: null,
+					raw_result: null,
+					raw_tx: "0x03",
+				},
+			])
+			.execute();
+		await db
+			.insertInto("events")
+			.values({
+				tx_id: "0xtcsv",
+				block_height: 8,
+				event_index: 0,
+				type: "contract_event",
+				data: { note: 'has "quotes", a comma, and a\nnewline' },
+			})
+			.execute();
+
+		const { dir, manifest } = await exportSeeded();
+		await wipe();
+		await restoreCanonicalSnapshot({
+			dir,
+			manifest,
+			db,
+			range: { fromBlock: 0, toBlock: 9 },
+			proofDir: await makeDir("proof"),
+		});
+
+		const csvTx = await db
+			.selectFrom("transactions")
+			.selectAll()
+			.where("tx_id", "=", "0xtcsv")
+			.executeTakeFirstOrThrow();
+		expect(csvTx.contract_id).toBe('SP1.c,"weird"');
+		expect(csvTx.function_args).toEqual(['a"b', "c,d", "e\\f"]);
+		expect(csvTx.raw_result).toBeNull();
+
+		const nullTx = await db
+			.selectFrom("transactions")
+			.selectAll()
+			.where("tx_id", "=", "0xtnull")
+			.executeTakeFirstOrThrow();
+		expect(nullTx.contract_id).toBeNull();
+		expect(nullTx.function_name).toBeNull();
+		expect(nullTx.function_args).toBeNull();
+
+		const csvEvent = await db
+			.selectFrom("events")
+			.selectAll()
+			.where("tx_id", "=", "0xtcsv")
+			.executeTakeFirstOrThrow();
+		expect(csvEvent.data).toEqual({
+			note: 'has "quotes", a comma, and a\nnewline',
+		});
+	});
+
 	test("resume completes an interrupted restore and still proves digests", async () => {
 		if (!db) throw new Error("missing db");
 		const { dir, manifest } = await exportSeeded();

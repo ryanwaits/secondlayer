@@ -543,17 +543,22 @@ the regression oracle.
 - **P1.16 Archive importer.** Resume/idempotently replay canonical partitions and
   journal objects, atomically promote verified ranges, and record provenance. Validate: interrupt,
   duplicate, truncation, wrong network/genesis/schema, and fork conflict.
-- **P1.16a Importer COPY throughput.** The proof importer
-  (`restore-snapshot.ts`, 2026-08-12) restores via batched multi-row INSERTs at
-  roughly 2k rows/s — a full-genesis restore (~240M rows) would take days, which
-  is fine for a one-off proof but disqualifying for the self-host bootstrap
-  product. Replace the insert lane with Postgres `COPY FROM STDIN` (binary or
-  text) streamed straight off the Parquet reader, keeping everything else:
-  digest verification before first write, empty-target guard, FK order
-  (blocks→transactions→events), partition-grid alignment, and the re-export
-  digest proof. Expected ~10x (measure, don't assume). Consider deferring index
-  builds until after load (`CREATE INDEX` post-COPY) — schema migrations create
-  indexes up front, and index maintenance dominates bulk-insert cost. Include a
+- **P1.16a Importer COPY throughput.** DONE (2026-08-12): `restore-snapshot.ts`
+  now streams `COPY ... FROM STDIN WITH (FORMAT csv, NULL '\N')` straight off
+  the Parquet reader instead of batched multi-row INSERTs (which measured
+  ~2k rows/s — a full-genesis restore at that rate would take days). Every
+  present field is CSV-quoted (embedded quotes doubled) so no value can be
+  misread as the NULL marker; `canonical` is omitted from the blocks COPY list
+  and left to its schema default. Kept unchanged: digest verification before
+  first write, empty-target guard, FK order (blocks→transactions→events),
+  partition-grid alignment, resume (torn-partition reload), and the re-export
+  digest proof — all 6 tests pass including a dedicated CSV-encoder stress case
+  (commas/quotes/nulls/embedded-newline JSON). Benchmarked (not assumed):
+  ~64k rows/s on a 10k-block synthetic COPY vs. ~2k rows/s baseline — >10x.
+  Remaining: deferring index builds until after load (`CREATE INDEX`
+  post-COPY) — schema migrations create indexes up front, and index
+  maintenance likely dominates bulk-load cost at full-genesis scale; not yet
+  measured. Include a
   disk-headroom guard in every bulk archive lane (restore, export, COPY import):
   check free space before starting and between partitions, and PAUSE below a
   threshold (default ~100GB, configurable) rather than crash, resuming when
