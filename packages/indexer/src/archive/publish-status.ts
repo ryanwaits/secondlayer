@@ -36,7 +36,9 @@ async function readLatestAudit(): Promise<{
 	complete: boolean;
 	checkedAt: string;
 } | null> {
-	const dir = process.env.CANONICAL_AUDIT_REPORT_DIR ?? "/data/audits";
+	// Default matches where `canonical-audit-alert.sh` writes: inside the
+	// archive volume, which is the only host path mounted into this container.
+	const dir = process.env.CANONICAL_AUDIT_REPORT_DIR ?? "/data/archive/audits";
 	try {
 		const { readdir, readFile } = await import("node:fs/promises");
 		const files = (await readdir(dir))

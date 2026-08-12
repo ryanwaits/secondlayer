@@ -20,7 +20,11 @@ AUDIT_CMD="${CANONICAL_AUDIT_CMD:-bun run packages/indexer/src/archive/canonical
 # wrapper exits non-zero (124) and pages, rather than blocking forever.
 AUDIT_TIMEOUT="${CANONICAL_AUDIT_TIMEOUT:-900}"
 STATE_FILE="${CANONICAL_AUDIT_STATE_FILE:-/var/run/secondlayer-canonical-audit.state}"
-REPORT_DIR="${CANONICAL_AUDIT_REPORT_DIR:-/opt/secondlayer/data/audits}"
+# Inside the archive volume on purpose: that path is mounted into the indexer
+# container, so `publish-status.ts` can read these reports and surface a failed
+# audit. A directory the container cannot see makes `failed-audit` unreachable,
+# which is the one state this whole object exists to report.
+REPORT_DIR="${CANONICAL_AUDIT_REPORT_DIR:-/opt/secondlayer/data/archive/audits}"
 WEBHOOK="${SLACK_WEBHOOK_URL:-}"
 
 post_slack() {
