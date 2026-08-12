@@ -18,6 +18,7 @@ import {
 	registerStreamsCommand,
 	registerSubgraphsCommand,
 	registerSubscriptionsCommand,
+	registerVerifyCommand,
 	registerWhoamiCommand,
 } from "./commands/index.ts";
 
@@ -133,6 +134,7 @@ registerStatusCommand(program);
 registerDoctorCommand(program);
 registerConfigCommand(program);
 registerContextCommand(program);
+registerVerifyCommand(program);
 
 // Account
 program.commandsGroup("Account:");
