@@ -108,6 +108,10 @@
 			"types": "./dist/src/streams-bulk-manifest.d.ts",
 			"import": "./dist/src/streams-bulk-manifest.js"
 		},
+		"./archive/status": {
+			"types": "./dist/src/archive/status.d.ts",
+			"import": "./dist/src/archive/status.js"
+		},
 		"./archive/key-registry": {
 			"types": "./dist/src/archive/key-registry.d.ts",
 			"import": "./dist/src/archive/key-registry.js"
