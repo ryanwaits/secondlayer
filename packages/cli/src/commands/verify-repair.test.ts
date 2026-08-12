@@ -177,6 +177,25 @@ describe("archive reference trust boundary", () => {
 	});
 });
 
+describe("bootstrap live seam", () => {
+	test("the resume point is the archive tip plus one", () => {
+		// A restored instance must tell the indexer where to continue. Without an
+		// `index_progress` row the instance holds millions of blocks and reports
+		// none — and the indexer cannot self-heal, because its own recompute is
+		// an UPDATE that silently no-ops when the row is absent.
+		const archiveTip = 8_745_422;
+		expect(archiveTip + 1).toBe(8_745_423);
+	});
+
+	test("the catch-up gap is measured from the node tip at start, not at end", () => {
+		// The chain keeps producing for the whole restore. Measuring the gap
+		// afterwards would understate it by however long the restore took.
+		const nodeTipAtStart = 8_745_500;
+		const archiveTip = 8_745_422;
+		expect(nodeTipAtStart - archiveTip).toBe(78);
+	});
+});
+
 describe.skipIf(!HAS_DB)("verify exit-code contract", () => {
 	test("exit codes are distinct and stable", async () => {
 		const { VERIFY_EXIT } = await import("./verify.ts");

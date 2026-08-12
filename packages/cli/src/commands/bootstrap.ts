@@ -10,7 +10,7 @@ import {
 	writeRowsToCopyStream,
 } from "@secondlayer/shared/archive/copy-loader";
 import { computeRangeDigest } from "@secondlayer/shared/archive/range-digest";
-import { getDb, getRawClient } from "@secondlayer/shared/db";
+import { getDb, getRawClient, sql } from "@secondlayer/shared/db";
 import type { Command } from "commander";
 import {
 	type ArchivePartition,
@@ -62,6 +62,27 @@ const BLOCKS_PER_DAY_ESTIMATE = 5_400;
 /** Conservative COPY throughput floor, measured at ~64k rows/s on commodity
  *  hardware; halved here so the ETA reads pessimistic rather than optimistic. */
 const RESTORE_ROWS_PER_SECOND = 30_000;
+
+/**
+ * The node's current Stacks tip, or null when it cannot be reached. A missing
+ * node is not fatal — the restore is still valid, the operator just does not
+ * learn the catch-up range — so this never throws.
+ */
+async function readNodeTip(): Promise<number | null> {
+	const url = process.env.STACKS_NODE_RPC_URL ?? "http://localhost:20443";
+	try {
+		const response = await fetch(`${url.replace(/\/$/, "")}/v2/info`, {
+			signal: AbortSignal.timeout(5_000),
+		});
+		if (!response.ok) return null;
+		const info = (await response.json()) as { stacks_tip_height?: number };
+		return typeof info.stacks_tip_height === "number"
+			? info.stacks_tip_height
+			: null;
+	} catch {
+		return null;
+	}
+}
 
 function formatDuration(seconds: number): string {
 	if (seconds < 90) return `${Math.round(seconds)}s`;
@@ -230,6 +251,11 @@ Exit codes:
 					}
 				}
 
+				// Read the node's tip BEFORE loading. The chain keeps producing for
+				// the whole restore, so the catch-up range is measured from where
+				// the chain was when we started, not where it ends up.
+				const nodeTipAtStart = await readNodeTip();
+
 				// FK order is not optional: transactions reference blocks, events
 				// reference transactions.
 				const order: ArchiveDataset[] = ["blocks", "transactions", "events"];
@@ -277,6 +303,34 @@ Exit codes:
 					}
 				}
 
+				// Hand the indexer its resume point. Without this the instance holds
+				// millions of blocks while `index_progress` says nothing, and the
+				// indexer's own `recomputeContiguous` cannot fix it — that is an
+				// UPDATE, so with no row it silently no-ops and the instance looks
+				// empty to every consumer that reads progress.
+				const network = process.env.STACKS_NETWORK ?? "mainnet";
+				await sql`
+					INSERT INTO index_progress (
+						network, last_indexed_block, last_contiguous_block,
+						highest_seen_block, updated_at
+					) VALUES (
+						${network}, ${tipHeight}, ${tipHeight}, ${tipHeight}, NOW()
+					)
+					ON CONFLICT (network) DO UPDATE SET
+						last_indexed_block = GREATEST(index_progress.last_indexed_block, EXCLUDED.last_indexed_block),
+						last_contiguous_block = GREATEST(index_progress.last_contiguous_block, EXCLUDED.last_contiguous_block),
+						highest_seen_block = GREATEST(index_progress.highest_seen_block, EXCLUDED.highest_seen_block),
+						updated_at = NOW()
+				`.execute(db);
+
+				const seam =
+					nodeTipAtStart !== null && nodeTipAtStart > tipHeight
+						? {
+								nodeTip: nodeTipAtStart,
+								gap: nodeTipAtStart - tipHeight,
+							}
+						: null;
+
 				const elapsed = (Date.now() - startedAt) / 1000;
 				const report = {
 					status: divergent === 0 ? "restored" : "divergent",
@@ -286,6 +340,9 @@ Exit codes:
 					ranges_verified: referenceDigests.length,
 					divergent_ranges: divergent,
 					elapsed_seconds: Math.round(elapsed),
+					resume_from: tipHeight + 1,
+					node_tip_at_start: nodeTipAtStart,
+					catch_up_blocks: seam?.gap ?? null,
 				};
 
 				output({
@@ -308,9 +365,30 @@ Exit codes:
 							console.error("");
 							console.error(
 								dim(
-									`Your instance holds history through ${tipHeight.toLocaleString()}. Start the indexer to continue from there.`,
+									`Your instance holds history through ${tipHeight.toLocaleString()} and will resume at ${(tipHeight + 1).toLocaleString()}.`,
 								),
 							);
+							if (seam) {
+								// The chain kept moving during the restore. Naming the gap
+								// is the difference between "start the indexer" and knowing
+								// whether anything was missed.
+								console.error(
+									dim(
+										`The chain advanced to ${seam.nodeTip.toLocaleString()} while restoring — ${seam.gap.toLocaleString()} blocks to catch up.`,
+									),
+								);
+								console.error(
+									dim(
+										"  Start the indexer; it backfills that range before following the tip.",
+									),
+								);
+							} else {
+								console.error(
+									dim(
+										"  Start the indexer to continue from there. (Node unreachable — catch-up range unknown.)",
+									),
+								);
+							}
 						} else {
 							warn(
 								`Restored ${loaded.blocks.toLocaleString()} blocks but ${divergent} ranges do not match the archive.`,
