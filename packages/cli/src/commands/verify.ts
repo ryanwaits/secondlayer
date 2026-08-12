@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises";
 import {
 	type RangeComparison,
 	type RangeDigest,
@@ -6,8 +5,12 @@ import {
 	computeRangeDigest,
 } from "@secondlayer/shared/archive/range-digest";
 import { getDb } from "@secondlayer/shared/db";
-import { verifyStreamsBulkManifestSignature } from "@secondlayer/shared/streams-bulk-manifest";
 import type { Command } from "commander";
+import {
+	checkSignature,
+	loadReference,
+	resolvePublicKey,
+} from "../lib/archive-reference.ts";
 import {
 	dim,
 	formatTable,
@@ -50,106 +53,12 @@ export const VERIFY_EXIT = {
 	UNANCHORED: 2,
 } as const;
 
-/** The subset of the canonical snapshot manifest verification depends on. */
-type ArchiveManifest = {
-	network?: string;
-	coverage?: { from_block: number; to_block: number };
-	partition_size_blocks?: number;
-	range_digests?: RangeDigest[];
-	partitions?: Array<{
-		dataset: string;
-		from_block: number;
-		to_block: number;
-		row_count: number;
-	}>;
-	signature?: string;
-	key_id?: string;
-	[key: string]: unknown;
-};
-
 function parseHeight(value: string, flag: string): number {
 	const parsed = Number(value);
 	if (!Number.isSafeInteger(parsed) || parsed < 0) {
 		throw new Error(`${flag} must be a non-negative integer, got "${value}"`);
 	}
 	return parsed;
-}
-
-async function loadManifest(
-	source: string,
-): Promise<{ manifest: ArchiveManifest; origin: string }> {
-	if (/^https?:\/\//.test(source)) {
-		const response = await fetch(source, {
-			signal: AbortSignal.timeout(30_000),
-		});
-		if (!response.ok) {
-			throw new Error(
-				`could not fetch manifest (${response.status} ${response.statusText})`,
-			);
-		}
-		return {
-			manifest: (await response.json()) as ArchiveManifest,
-			origin: source,
-		};
-	}
-	const raw = await readFile(source, "utf8");
-	return { manifest: JSON.parse(raw) as ArchiveManifest, origin: source };
-}
-
-/**
- * Signature check is mandatory unless explicitly waived. An unsigned or
- * unverifiable reference is worthless as a source of truth — comparing against
- * it would produce a confident answer with nothing behind it.
- */
-function checkSignature(
-	manifest: ArchiveManifest,
-	publicKeyPem: string | undefined,
-	insecure: boolean,
-): { verified: boolean; reason?: string } {
-	if (insecure) return { verified: false, reason: "signature check skipped" };
-	if (!manifest.signature) {
-		return { verified: false, reason: "manifest carries no signature" };
-	}
-	if (!publicKeyPem) {
-		return {
-			verified: false,
-			reason: "no public key available to verify with",
-		};
-	}
-	try {
-		return {
-			verified: verifyStreamsBulkManifestSignature(
-				manifest as Record<string, unknown>,
-				publicKeyPem,
-			),
-			reason: "signature did not verify",
-		};
-	} catch (err) {
-		return {
-			verified: false,
-			reason: err instanceof Error ? err.message : "signature check failed",
-		};
-	}
-}
-
-async function resolvePublicKey(
-	explicitPem: string | undefined,
-	apiUrl: string,
-): Promise<string | undefined> {
-	if (explicitPem) return explicitPem;
-	try {
-		const response = await fetch(
-			`${apiUrl.replace(/\/$/, "")}/public/streams/signing-key`,
-			{ signal: AbortSignal.timeout(10_000) },
-		);
-		if (!response.ok) return undefined;
-		const body = (await response.json()) as { public_key_pem?: string };
-		return body.public_key_pem;
-	} catch {
-		// Offline is a legitimate state, not an error — the caller reports
-		// `unanchored` rather than failing outright.
-		return undefined;
-	}
 }
 
 function statusLabel(status: RangeComparison["status"]): string {
@@ -206,7 +115,7 @@ Exit codes:
 					throw new Error("--to-block must be >= --from-block");
 				}
 
-				const { manifest, origin } = await loadManifest(opts.against);
+				const { manifest, origin } = await loadReference(opts.against);
 				const publicKey = await resolvePublicKey(
 					opts.publicKey,
 					process.env.SL_API_URL ?? "https://api.secondlayer.tools",
