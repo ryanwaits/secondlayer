@@ -42,34 +42,91 @@ export type LoadedReference = {
 	isRemote: boolean;
 };
 
+/**
+ * The archive root, `latest.json`, is a signed POINTER at a snapshot manifest,
+ * not a manifest itself. It is also the only URL a user can be expected to
+ * know, so every command accepts it and follows it — anything else makes the
+ * obvious command fail with an error about digests, which reads as "this tool
+ * is broken" rather than "you passed the wrong file".
+ */
+type LatestPointer = {
+	snapshot_path?: string;
+	snapshot_digest?: string;
+};
+
+function isLatestPointer(value: ArchiveManifest): boolean {
+	const pointer = value as LatestPointer;
+	return (
+		typeof pointer.snapshot_path === "string" &&
+		(value.partitions === undefined || value.partitions.length === 0)
+	);
+}
+
+async function fetchJson(url: string): Promise<unknown> {
+	const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+	if (!response.ok) {
+		throw new Error(
+			`could not fetch manifest (${response.status} ${response.statusText})`,
+		);
+	}
+	return response.json();
+}
+
 export async function loadReference(source: string): Promise<LoadedReference> {
-	if (/^https?:\/\//.test(source)) {
-		const response = await fetch(source, {
-			signal: AbortSignal.timeout(30_000),
-		});
-		if (!response.ok) {
+	const isRemote = /^https?:\/\//.test(source);
+	let manifest: ArchiveManifest;
+	let root: string;
+
+	if (isRemote) {
+		manifest = (await fetchJson(source)) as ArchiveManifest;
+		const url = new URL(source);
+		// Both `<root>/latest.json` and `<root>/snapshots/<digest>.json` resolve
+		// their partition paths against `<root>`.
+		url.pathname = url.pathname
+			.replace(/\/snapshots\/[^/]+$/, "")
+			.replace(/\/[^/]+\.json$/, "");
+		root = url.toString();
+	} else {
+		const path = resolve(source);
+		manifest = JSON.parse(await readFile(path, "utf8")) as ArchiveManifest;
+		root = isLatestPointer(manifest) ? dirname(path) : dirname(dirname(path));
+	}
+
+	if (!isLatestPointer(manifest)) {
+		return { manifest, origin: source, root, isRemote };
+	}
+
+	// Follow the pointer, then prove it led where it claimed. A tampered
+	// pointer could otherwise redirect to a different — and still validly
+	// signed — snapshot, which is a downgrade attack rather than a forgery.
+	const pointer = manifest as ArchiveManifest & LatestPointer;
+	const snapshotPath = pointer.snapshot_path as string;
+	const resolved = isRemote
+		? ((await fetchJson(
+				`${root.replace(/\/$/, "")}/${snapshotPath}`,
+			)) as ArchiveManifest)
+		: (JSON.parse(
+				await readFile(join(root, snapshotPath), "utf8"),
+			) as ArchiveManifest);
+
+	if (pointer.snapshot_digest) {
+		const digest = createHash("sha256")
+			.update(
+				JSON.stringify(
+					(({ signature: _s, key_id: _k, ...rest }) => rest)(
+						resolved as Record<string, unknown>,
+					),
+				),
+			)
+			.digest("hex");
+		if (digest !== pointer.snapshot_digest) {
 			throw new Error(
-				`could not fetch manifest (${response.status} ${response.statusText})`,
+				`pointer/snapshot mismatch: latest.json names ${pointer.snapshot_digest}, resolved manifest hashes to ${digest}`,
 			);
 		}
-		const url = new URL(source);
-		// .../<root>/snapshots/<digest>.json → .../<root>
-		url.pathname = url.pathname.replace(/\/snapshots\/[^/]+$/, "");
-		return {
-			manifest: (await response.json()) as ArchiveManifest,
-			origin: source,
-			root: url.toString(),
-			isRemote: true,
-		};
 	}
-	const path = resolve(source);
-	const raw = await readFile(path, "utf8");
-	return {
-		manifest: JSON.parse(raw) as ArchiveManifest,
-		origin: path,
-		root: dirname(dirname(path)),
-		isRemote: false,
-	};
+
+	return { manifest: resolved, origin: source, root, isRemote };
 }
 
 export type SignatureResult = { verified: boolean; reason?: string };

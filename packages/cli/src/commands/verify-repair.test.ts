@@ -110,6 +110,61 @@ describe("archive reference trust boundary", () => {
 		expect(reference.root).toBe(dir);
 	});
 
+	test("a latest.json pointer is followed to its snapshot manifest", async () => {
+		const { mkdir } = await import("node:fs/promises");
+		await mkdir(join(dir, "snapshots"), { recursive: true });
+		const snapshot = {
+			partitions: [
+				{
+					dataset: "blocks",
+					from_block: 0,
+					to_block: 9,
+					path: "blocks/x.parquet",
+					row_count: 10,
+					byte_size: 1,
+					sha256: "s",
+				},
+			],
+			range_digests: [{ dataset: "blocks", from_block: 0, to_block: 9 }],
+		};
+		await writeFile(
+			join(dir, "snapshots", "abc.json"),
+			JSON.stringify(snapshot),
+		);
+		// The pointer is the only URL a user can be expected to know, so passing
+		// it must work rather than erroring about missing digests.
+		await writeFile(
+			join(dir, "latest.json"),
+			JSON.stringify({ snapshot_path: "snapshots/abc.json" }),
+		);
+
+		const reference = await loadReference(join(dir, "latest.json"));
+		expect(reference.manifest.partitions).toHaveLength(1);
+		expect(reference.manifest.range_digests).toHaveLength(1);
+		expect(reference.root).toBe(dir);
+	});
+
+	test("a pointer that names a different snapshot than it resolves is refused", async () => {
+		const { mkdir } = await import("node:fs/promises");
+		await mkdir(join(dir, "snapshots"), { recursive: true });
+		await writeFile(
+			join(dir, "snapshots", "abc.json"),
+			JSON.stringify({ partitions: [{ dataset: "blocks" }] }),
+		);
+		// A tampered pointer redirecting to a different — possibly still validly
+		// signed — snapshot is a downgrade attack, not a forgery.
+		await writeFile(
+			join(dir, "latest.json"),
+			JSON.stringify({
+				snapshot_path: "snapshots/abc.json",
+				snapshot_digest: "0".repeat(64),
+			}),
+		);
+		expect(loadReference(join(dir, "latest.json"))).rejects.toThrow(
+			/pointer\/snapshot mismatch/,
+		);
+	});
+
 	test("a remote reference strips the snapshots path segment", async () => {
 		// No network: exercise the URL derivation the same way loadReference does.
 		const url = new URL(
