@@ -1,0 +1,22 @@
+{
+	"schema_version": 1,
+	"id": "2026-08-12-function-args-double-encoded",
+	"date": "2026-08-12",
+	"title": "Contract call arguments stored double-encoded since migration 0021",
+	"severity": "P3",
+	"affects_archive": true,
+	"summary": "Every contract-call transaction stored its arguments as a JSON string containing JSON, rather than as a JSON array — 14,439,077 rows. Anything treating the column as an array received a string.",
+	"detection": "Found while writing a CSV-encoding stress test for the archive restore path. An assertion that arguments round-tripped as an array failed; checking production showed 100% of non-null rows were string-typed.",
+	"root_cause": "The ingest writer passed an already-serialized value into a jsonb column. The driver serializes whatever it is given, so the value was encoded twice. The adjacent event payload column did this correctly, which is why only one column was affected. A second writer in the repair tooling made the same mistake and would have re-introduced it.",
+	"impact": "Readers that treated the column as an array got a string. In practice every reader in our codebase already tolerated both shapes, so no downstream data was wrong — but the shape published in webhook payloads contradicted its own declared type.",
+	"fix": [
+		"Both writers corrected to pass the array itself",
+		"All 14,439,077 rows converted in place, batched and idempotent so concurrent live ingest could not be corrupted",
+		"Test fixtures reseeded in the real shape — they had encoded the bug as expected behaviour"
+	],
+	"prevention": [
+		"Regression tests pin the writer's output shape and the backfill's idempotence, including an argument whose own content is JSON",
+		"Comments that misattributed the behaviour to the database driver were corrected; that explanation is how the defect survived review"
+	],
+	"verification": "Zero string-typed rows remain. Newly ingested rows are verified array-typed."
+}

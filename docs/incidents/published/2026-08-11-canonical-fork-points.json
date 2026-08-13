@@ -1,0 +1,25 @@
+{
+	"schema_version": 1,
+	"id": "2026-08-11-canonical-fork-points",
+	"date": "2026-08-11",
+	"title": "Five canonical fork points left on losing reorg branches",
+	"severity": "P3",
+	"affects_archive": true,
+	"summary": "Five heights in our canonical chain held blocks from reorg branches the network abandoned. Each height's child named a parent we no longer had. The defect was present for four months and nothing detected it until the archive audit was written.",
+	"detection": "The canonical coverage audit, run for the first time, reported 5 broken parent links. No prior check covered chain ancestry.",
+	"root_cause": "Reorg handling before 2026-07-30 adopted any same-height hash mismatch immediately, so transient miner races caused adoption of losing contenders. Once adopted, the original block was unrecoverable — its payload was overwritten and a Stacks node does not re-send blocks it has already delivered.",
+	"affected_heights": [7662338, 7884701, 8501111, 8524836, 8567288],
+	"window": { "first": "2026-04-19", "last": "2026-07-16" },
+	"impact": "Reads at those five heights returned a block the network had discarded. One height served 1,282 decoded event rows derived from the orphaned block. No archive had been published from the affected data.",
+	"fix": [
+		"Each height repaired against the canonical chain and confirmed by the child block that names it",
+		"Decoded rows rebuilt for the repaired heights",
+		"Root-cause gap closed: a settled fork now stages the deposed block, so the chain can flip back"
+	],
+	"prevention": [
+		"Bounded canonical audit runs nightly with alerting; every report is retained",
+		"The ingest parent-hash mismatch check is now an error with a repair pointer — it had logged all five as warnings while they happened",
+		"Fork repairs take a per-height lock after two concurrent repairs collided"
+	],
+	"verification": "The audit reports complete coverage genesis to the finality boundary with zero gaps, zero broken links, and zero duplicate heights."
+}
