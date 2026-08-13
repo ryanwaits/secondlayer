@@ -140,6 +140,10 @@
 			"types": "./dist/src/archive/semantic-digest-builder.d.ts",
 			"import": "./dist/src/archive/semantic-digest-builder.js"
 		},
+		"./archive/per-height-digest": {
+			"types": "./dist/src/archive/per-height-digest.d.ts",
+			"import": "./dist/src/archive/per-height-digest.js"
+		},
 		"./errors": {
 			"types": "./dist/src/errors.d.ts",
 			"import": "./dist/src/errors.js"

@@ -33,6 +33,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/archive/range-digest.ts",
 		"src/archive/semantic-digest.ts",
 		"src/archive/semantic-digest-builder.ts",
+		"src/archive/per-height-digest.ts",
 		"src/archive/copy-loader.ts",
 		"src/archive/key-registry.ts",
 		"src/archive/status.ts",
