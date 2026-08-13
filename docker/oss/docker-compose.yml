@@ -57,6 +57,10 @@ services:
       # it. The process refuses this bind without INSTANCE_TOKEN / API_KEY.
       LISTEN_HOST: "0.0.0.0"
       INSTANCE_TOKEN: ${INSTANCE_TOKEN:-}
+      SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY:-}
+      STREAMS_SIGNING_PRIVATE_KEY: ${STREAMS_SIGNING_PRIVATE_KEY:-}
+      SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY: ${SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY:-}
+      ALLOW_UNSIGNED_WEBHOOKS: ${ALLOW_UNSIGNED_WEBHOOKS:-false}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
       DATA_DIR: /data
@@ -87,6 +91,7 @@ services:
       dockerfile: docker/Dockerfile
       target: indexer
     environment:
+      INSTANCE_MODE: oss
       DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
       PORT: 3700
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -217,7 +222,7 @@ services:
       # applies). Defaulted on here so `docker compose up` boots out of the box.
       STREAMS_SIGNING_PRIVATE_KEY: ${STREAMS_SIGNING_PRIVATE_KEY:-}
       SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY: ${SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY:-}
-      ALLOW_UNSIGNED_WEBHOOKS: ${ALLOW_UNSIGNED_WEBHOOKS:-true}
+      ALLOW_UNSIGNED_WEBHOOKS: ${ALLOW_UNSIGNED_WEBHOOKS:-false}
     depends_on:
       migrate:
         condition: service_completed_successfully

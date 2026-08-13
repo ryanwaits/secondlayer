@@ -29,10 +29,11 @@ clarinet project.
 ## Quick start (app services only)
 
 ```bash
-cp .env.example .env
-# Edit .env — set POSTGRES_PASSWORD and INSTANCE_TOKEN (`openssl rand -hex 32`).
+sl instance init --network mainnet
+# Copy the generated .env.local values into docker/oss/.env
+# (INSTANCE_TOKEN, SECONDLAYER_SECRETS_KEY, STREAMS_SIGNING_PRIVATE_KEY).
 
-docker compose up -d postgres migrate api indexer decoder subgraph-processor subscription-processor
+docker compose --env-file .env up -d postgres migrate api indexer decoder subgraph-processor subscription-processor
 ```
 
 `decoder` populates the semantic `decoded_events` table (transfers, mints,
@@ -44,25 +45,19 @@ across both `api` and `subscription-processor`, set a shared
 `SECONDLAYER_SECRETS_KEY` in `.env` (see `.env.example`). Omit both services for
 raw-events-only indexing.
 
-Then provision the owner account and API key — there is no signup flow on a
-single-tenant box, and without a key `sl subgraphs deploy` dead-ends at
-"claim an account":
+Writes stay tokened. `sl instance init` sets `SL_API_KEY` to the instance
+token. Loopback reads stay open.
 
 ```bash
-docker compose run --rm api bun run scripts/oss-bootstrap.ts
-```
-
-It prints the key once (only its hash is stored) and is safe to re-run — the
-account is reused and a fresh key is minted. Then:
-
-```bash
-export SL_API_KEY=sk-sl_...        # from the command above
-export SL_API_URL=http://localhost:3800
+export SL_API_URL=http://127.0.0.1:3800
+export SL_API_KEY=<INSTANCE_TOKEN>
 sl subgraphs deploy ./subgraph.config.ts
 ```
 
-Streams reads accept a seeded static key (`sk-sl_streams_enterprise_test`) or
-any key from the bootstrap above.
+Local catalog: `http://127.0.0.1:3800/console` and `GET /v1/instance`.
+
+Streams reads accept the instance token or the seeded static key
+(`sk-sl_streams_enterprise_test`).
 
 To check the install end to end — migrations, an empty-chain response, labelled
 Streams filters, Index field selection, a subgraph deploy, and a sink consumer
