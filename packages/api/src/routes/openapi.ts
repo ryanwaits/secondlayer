@@ -821,10 +821,26 @@ export function openapiSpec(
 	mode: InstanceMode = getInstanceMode(),
 ): typeof OPENAPI_SPEC {
 	if (mode === "platform") return OPENAPI_SPEC;
-	const paths = { ...OPENAPI_SPEC.paths };
+	const paths: Record<string, unknown> = { ...OPENAPI_SPEC.paths };
 	for (const key of HOSTED_OPENAPI_PATHS) {
 		delete paths[key];
 	}
+	paths["/v1/instance"] = {
+		get: {
+			tags: ["instance"],
+			summary: "Local instance catalog",
+			description:
+				"Instance status, local subgraphs, subscriptions, and default features. No signup or pricing.",
+			responses: { "200": { description: "Catalog" } },
+		},
+	};
+	paths["/v1/instance/features"] = {
+		get: {
+			tags: ["instance"],
+			summary: "Default feature manifest",
+			responses: { "200": { description: "Features" } },
+		},
+	};
 	return {
 		openapi: OPENAPI_SPEC.openapi,
 		info: {

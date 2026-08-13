@@ -20,6 +20,10 @@ import billingRouter from "./routes/billing.ts";
 import contractsRouter from "./routes/contracts.ts";
 import indexRouter from "./routes/index.ts";
 import insightsRouter from "./routes/insights.ts";
+import {
+	createInstanceCatalogRouter,
+	renderLocalConsole,
+} from "./routes/instance-catalog.ts";
 import nodeRouter from "./routes/node.ts";
 import openApiRouter from "./routes/openapi.ts";
 import projectsRouter from "./routes/projects.ts";
@@ -151,6 +155,10 @@ export function createApiApp(mode: InstanceMode): Hono {
 		app.route("/api/projects", projectsRouter);
 	}
 	app.route("/", statusRouter);
+	app.route("/v1/instance", createInstanceCatalogRouter());
+	if (mode === "oss") {
+		app.get("/console", (c) => c.html(renderLocalConsole()));
+	}
 	app.route("/v1", v1IndexRouter);
 	app.route("/v1/openapi.json", openApiRouter);
 	app.route("/v1/streams", streamsRouter);

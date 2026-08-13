@@ -44,7 +44,18 @@ describe("route manifest", () => {
 			"index",
 			"streams",
 			"subgraphs",
+			"instance",
 		]);
+		const features = await app.request("/v1/instance/features");
+		expect(features.status).toBe(200);
+		const featureBody = (await features.json()) as {
+			features: { signup: boolean; pricing: boolean };
+		};
+		expect(featureBody.features.signup).toBe(false);
+		expect(featureBody.features.pricing).toBe(false);
+		const consolePage = await app.request("/console");
+		expect(consolePage.status).toBe(200);
+		expect(await consolePage.text()).toContain("No signup");
 		const specRes = await app.request("/v1/openapi.json");
 		expect(specRes.status).toBe(200);
 		const spec = (await specRes.json()) as {

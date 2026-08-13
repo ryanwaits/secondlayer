@@ -23,6 +23,13 @@ const RETAINED_SURFACES = [
 			"Custom indexed views. Unique local name. Cursor envelope: { rows, next_cursor, tip }.",
 		auth: "open on this instance",
 	},
+	{
+		name: "instance",
+		path: "/v1/instance",
+		description:
+			"Local catalog: instance status, subgraphs, subscriptions, and default features. No signup or pricing.",
+		auth: "open on this instance",
+	},
 ] as const;
 
 const HOSTED_SURFACES = [
