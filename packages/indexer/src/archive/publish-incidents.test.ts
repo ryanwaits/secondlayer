@@ -112,8 +112,12 @@ describe("loading", () => {
 	});
 
 	test("loads the real published reports", async () => {
-		// Guards the actual files we ship, not a fixture.
-		const reports = await loadReports("docs/incidents/published");
+		// Guards the actual files we ship, not a fixture. Resolved from this
+		// file, not the CWD — package test runners set CWD to the package dir.
+		const repoRoot = join(import.meta.dir, "..", "..", "..", "..");
+		const reports = await loadReports(
+			join(repoRoot, "docs", "incidents", "published"),
+		);
 		expect(reports.length).toBeGreaterThanOrEqual(2);
 		for (const r of reports) {
 			expect(r.root_cause).toBeTruthy();
