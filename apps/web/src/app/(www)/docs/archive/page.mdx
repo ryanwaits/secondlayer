@@ -100,6 +100,7 @@ Immutable, digest-addressed Parquet partitions on R2, published from a repeatabl
 | `latest.json` | Signed pointer at the current snapshot. Start here. |
 | `snapshots/<digest>.json` | Signed manifest: coverage, counts, per-object digests, finality rule, audit. |
 | `blocks/`, `transactions/`, `events/` | Range-partitioned Parquet, digest in the filename. |
+| `attestations/<digest>/node.json` | Signed independent node audit for that snapshot: per-height matches, mismatches, and datasets a stacks-node cannot cover on its own. Present only for snapshots whose ranges have been node-attested. |
 
 Historical partitions never change, so publishing is append-only. Every partition carries a SHA-256 over its Parquet bytes and a semantic-v1 digest (`sha256:semantic-v1`) over its canonical byte encoding, both listed in the manifest under `partitions[]` and `partition_semantic_digests[]`. The byte digest proves capture fidelity to one source; the semantic digest is what an independently-run node (or a foreign runtime speaking the same spec) computes to prove it observed the same chain. The manifest itself is ed25519-signed.
 
@@ -108,7 +109,7 @@ Historical partitions never change, so publishing is append-only. Every partitio
 | Level | Means |
 | --- | --- |
 | `db-reconstructive` | Exports from one repeatable-read snapshot restore deterministically. Does not prove no historical callback was omitted. |
-| `node-attested` | Digests also match an independently synced node for the covered range. |
+| `node-attested` | Block identities (`hash`, `index_block_hash`) also match an independently synced stacks-node for the covered range. Transactions and events remain `db-reconstructive` — the node does not expose execution `raw_result` or events. |
 | `observer-attested` | Digests match independently retained raw observer history. |
 
 The manifest states its level per range. Today's archive is `db-reconstructive`.
