@@ -47,6 +47,7 @@ import { getPrintSchemaBody } from "../index/print-schema.ts";
 import { getAccountId, getApiKeyId } from "../lib/ownership.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import { SubgraphRegistryCache } from "../subgraphs/cache.ts";
+import { commerceGatesEnabled } from "../subgraphs/deploy-auth.ts";
 import { hasNonReplayableWrites } from "../subgraphs/handler-replay-safety.ts";
 import { deployAccountId, deploySchemaName } from "../subgraphs/namespace.ts";
 import { classifyOperationWeight } from "../subgraphs/operation-weight.ts";
@@ -551,14 +552,10 @@ export async function runSubgraphDeploy(
 	const existing = await getSubgraph(db, name, accountId);
 	const schemaName = deploySchemaName(name, accountId, existing?.schema_name);
 
-	// Deploying provisions a hosted tenant (index + storage + compute), so it's
-	// a paid action: a free (plan 'none') account must start a 14-day trial
-	// first. Gate NEW deploys only — redeploys of an already-owned subgraph are
-	// grandfathered so existing free tenants don't brick. dryRun returned above,
-	// so authoring/preview stays free. x402-paid deploys (identity set) already
-	// paid at the rail, so they skip the gate. Shares the exempt-account
-	// allowlist (seeded Explore subgraphs).
-	if (!existing && !identity) {
+	// Hosted deploy is a paid action: free (plan 'none') must start a trial.
+	// Gate NEW deploys only — redeploys are grandfathered. OSS has no plan,
+	// quota, or trial; skip the whole branch.
+	if (commerceGatesEnabled() && !existing && !identity) {
 		const deployPolicy = await resolveDeployPolicy(db, accountId ?? undefined);
 		if (!deployPolicy.deployAllowed) {
 			return c.json(
@@ -634,7 +631,9 @@ export async function runSubgraphDeploy(
 	// itself: both the registered start_block and the stored definition JSON
 	// come from def.startBlock (deployer regData), so this is the one spot
 	// that is authoritative for every deploy surface.
-	const genesisPolicy = await resolveGenesisPolicy(db, accountId ?? undefined);
+	const genesisPolicy = commerceGatesEnabled()
+		? await resolveGenesisPolicy(db, accountId ?? undefined)
+		: { genesisAllowed: true as const, reason: "non-platform" as const };
 	let startBlockClamped = false;
 	if (!genesisPolicy.genesisAllowed) {
 		const clampRes = clampDeployStartBlock({
@@ -754,8 +753,9 @@ export async function runSubgraphDeploy(
 	}
 
 	// Paid (wallet-ghost) deploys expire unless renewed or claimed.
+	// OSS has no expiry — hosted TTL is a commerce gate.
 	let expiresAt: Date | undefined;
-	if (identity?.paidTtlMs) {
+	if (commerceGatesEnabled() && identity?.paidTtlMs) {
 		expiresAt = new Date(Date.now() + identity.paidTtlMs);
 		await updateSubgraphExpiry(db, name, accountId ?? "", expiresAt);
 	}
@@ -1116,7 +1116,9 @@ app.post("/:subgraphName/reindex", async (c) => {
 	// plan-policy floor, not a user-supplied range: it raises the runtime's walk
 	// start so the definition.startBlock-genesis fallback can't fire for clamped
 	// accounts, and it never bounds the end.
-	const reindexPolicy = await resolveGenesisPolicy(db, accountId ?? undefined);
+	const reindexPolicy = commerceGatesEnabled()
+		? await resolveGenesisPolicy(db, accountId ?? undefined)
+		: { genesisAllowed: true as const };
 	const startBlockFloor = reindexPolicy.genesisAllowed
 		? undefined
 		: (toBlockNumber(subgraph.start_block) ?? 0);
@@ -1221,8 +1223,10 @@ app.post("/:subgraphName/backfill", async (c) => {
 		);
 	}
 
-	// Backfill is inherently historical — free tier indexes forward only.
-	const backfillPolicy = await resolveGenesisPolicy(db, accountId ?? undefined);
+	// Backfill is inherently historical — hosted free tier indexes forward only.
+	const backfillPolicy = commerceGatesEnabled()
+		? await resolveGenesisPolicy(db, accountId ?? undefined)
+		: { genesisAllowed: true as const };
 	if (!backfillPolicy.genesisAllowed) {
 		return c.json(
 			{

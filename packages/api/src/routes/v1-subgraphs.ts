@@ -12,6 +12,7 @@ import { sql } from "kysely";
 import { getClientIp } from "../auth/http.ts";
 import { hashToken } from "../auth/keys.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
+import { commerceGatesEnabled } from "../subgraphs/deploy-auth.ts";
 import { resolveReadableSubgraph } from "../subgraphs/namespace.ts";
 import {
 	SubgraphNotFoundError,
@@ -162,7 +163,7 @@ const app = new Hono<V1SubgraphsEnv>();
 // Identity is the settled payer principal → one wallet-ghost account per
 // principal. Plan 'none' means the genesis clamp keeps these forward-only;
 // the 7-day TTL (renewable, cleared on claim) bounds abandoned tables.
-// Managed plane only — BYO needs a claimed account.
+// Managed/platform only — OSS deploy is POST /api/subgraphs with no rail.
 
 export const PAID_DEPLOY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -254,7 +255,9 @@ export function registerPaidWriteRoutes(
 	});
 }
 
-registerPaidWriteRoutes(app);
+if (commerceGatesEnabled()) {
+	registerPaidWriteRoutes(app);
+}
 
 // ── Auth (optional bearer) ──────────────────────────────────────────────
 
