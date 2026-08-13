@@ -1,6 +1,7 @@
 import { type Kysely, sql } from "kysely";
 import type postgres from "postgres";
 import { decryptSecret, encryptSecret } from "../../crypto/secrets.ts";
+import { isPlatformMode } from "../../mode.ts";
 import { getDb, getRawClient, getRawClientFor, getTargetDb } from "../index.ts";
 import { jsonb } from "../jsonb.ts";
 import type { Database, Subgraph } from "../types.ts";
@@ -55,6 +56,12 @@ export function pgSchemaName(subgraphName: string): string {
 	return `subgraph_${safeName}`;
 }
 
+/** OSS writes empty account_id — name is the local unique key. */
+export function localSubgraphAccountId(accountId?: string): string {
+	if (!isPlatformMode()) return "";
+	return accountId ?? "";
+}
+
 /**
  * Account-scoped schema name. Matches migration 0028's rename pattern:
  *   subgraph_{first8charsOfAccountId, dashes-as-underscores}_{name}
@@ -88,34 +95,61 @@ export async function registerSubgraph(
 		databaseUrlEnc?: Buffer | null;
 	},
 ): Promise<Subgraph> {
+	const accountId = localSubgraphAccountId(data.accountId);
+	const values = {
+		name: data.name,
+		version: data.version,
+		definition: jsonb<Record<string, unknown>>(data.definition),
+		schema_hash: data.schemaHash,
+		handler_path: data.handlerPath,
+		account_id: accountId,
+		handler_code: data.handlerCode ?? null,
+		source_code: data.sourceCode ?? null,
+		schema_name: data.schemaName ?? null,
+		start_block: data.startBlock ?? 0,
+		database_url_enc: data.databaseUrlEnc ?? null,
+	};
+	const updateSet = {
+		version: data.version,
+		definition: jsonb<Record<string, unknown>>(data.definition),
+		schema_hash: data.schemaHash,
+		handler_path: data.handlerPath,
+		handler_code: data.handlerCode ?? null,
+		source_code: data.sourceCode ?? null,
+		schema_name: data.schemaName ?? null,
+		start_block: data.startBlock ?? 0,
+		database_url_enc: data.databaseUrlEnc ?? null,
+		updated_at: new Date(),
+	};
+
+	// OSS: name is unique. Upsert by name so leftover rows with a non-empty
+	// account_id (pre-local-namespace deploys) don't insert a second row.
+	if (!isPlatformMode()) {
+		const existing = await db
+			.selectFrom("subgraphs")
+			.select("id")
+			.where("name", "=", data.name)
+			.executeTakeFirst();
+		if (existing) {
+			return await db
+				.updateTable("subgraphs")
+				.set({ ...updateSet, account_id: "" })
+				.where("id", "=", existing.id)
+				.returningAll()
+				.executeTakeFirstOrThrow();
+		}
+		return await db
+			.insertInto("subgraphs")
+			.values(values)
+			.returningAll()
+			.executeTakeFirstOrThrow();
+	}
+
 	return await db
 		.insertInto("subgraphs")
-		.values({
-			name: data.name,
-			version: data.version,
-			definition: jsonb<Record<string, unknown>>(data.definition),
-			schema_hash: data.schemaHash,
-			handler_path: data.handlerPath,
-			account_id: data.accountId ?? "",
-			handler_code: data.handlerCode ?? null,
-			source_code: data.sourceCode ?? null,
-			schema_name: data.schemaName ?? null,
-			start_block: data.startBlock ?? 0,
-			database_url_enc: data.databaseUrlEnc ?? null,
-		})
+		.values(values)
 		.onConflict((oc) =>
-			oc.columns(["name", "account_id"]).doUpdateSet({
-				version: data.version,
-				definition: jsonb<Record<string, unknown>>(data.definition),
-				schema_hash: data.schemaHash,
-				handler_path: data.handlerPath,
-				handler_code: data.handlerCode ?? null,
-				source_code: data.sourceCode ?? null,
-				schema_name: data.schemaName ?? null,
-				start_block: data.startBlock ?? 0,
-				database_url_enc: data.databaseUrlEnc ?? null,
-				updated_at: new Date(),
-			}),
+			oc.columns(["name", "account_id"]).doUpdateSet(updateSet),
 		)
 		.returningAll()
 		.executeTakeFirstOrThrow();
@@ -128,7 +162,7 @@ export async function getSubgraph(
 ): Promise<Subgraph | null> {
 	let query = db.selectFrom("subgraphs").selectAll().where("name", "=", name);
 
-	if (accountId !== undefined) {
+	if (isPlatformMode() && accountId !== undefined) {
 		query = query.where("account_id", "=", accountId);
 	}
 
@@ -140,7 +174,7 @@ export async function listSubgraphs(
 	accountId?: string,
 ): Promise<Subgraph[]> {
 	let query = db.selectFrom("subgraphs").selectAll();
-	if (accountId !== undefined) {
+	if (isPlatformMode() && accountId !== undefined) {
 		query = query.where("account_id", "=", accountId);
 	}
 	return query.execute();

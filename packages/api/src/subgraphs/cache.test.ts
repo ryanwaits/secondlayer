@@ -79,3 +79,27 @@ describe("SubgraphRegistryCache visibility resolution (platform mode)", () => {
 		expect(cache.getPublicByName("shared-name")?.account_id).toBe("acct-a");
 	});
 });
+
+describe("SubgraphRegistryCache local namespace (oss)", () => {
+	let prevMode: string | undefined;
+
+	beforeEach(() => {
+		prevMode = process.env.INSTANCE_MODE;
+		process.env.INSTANCE_MODE = "oss";
+	});
+
+	afterEach(() => {
+		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
+		else process.env.INSTANCE_MODE = prevMode;
+	});
+
+	it("get and getAll key by name, including private rows", async () => {
+		const cache = new SubgraphRegistryCache(async () => [
+			sg({ name: "closed", account_id: "acct-a", visibility: "private" }),
+		]);
+		await cache.refresh();
+		expect(cache.get("closed")?.name).toBe("closed");
+		expect(cache.get("closed", "acct-b")?.name).toBe("closed");
+		expect(cache.getAll().map((s) => s.name)).toEqual(["closed"]);
+	});
+});

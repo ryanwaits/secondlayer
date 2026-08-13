@@ -29,7 +29,6 @@ import {
 	findPublicSubgraphByName,
 	getSubgraph,
 	listSubgraphs,
-	pgSchemaNameFor,
 	updateSubgraphExpiry,
 	updateSubgraphStatus,
 	updateSubgraphVisibility,
@@ -49,6 +48,7 @@ import { getAccountId, getApiKeyId } from "../lib/ownership.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import { SubgraphRegistryCache } from "../subgraphs/cache.ts";
 import { hasNonReplayableWrites } from "../subgraphs/handler-replay-safety.ts";
+import { deployAccountId, deploySchemaName } from "../subgraphs/namespace.ts";
 import { classifyOperationWeight } from "../subgraphs/operation-weight.ts";
 import {
 	clampDeployStartBlock,
@@ -481,9 +481,8 @@ export async function runSubgraphDeploy(
 	}
 
 	const apiKeyId = identity ? undefined : getApiKeyId(c);
-	const accountId = identity?.accountId ?? getAccountId(c);
-
-	const schemaName = pgSchemaNameFor(accountId ?? "", name);
+	const accountId = deployAccountId(identity?.accountId ?? getAccountId(c));
+	const planSchemaName = deploySchemaName(name, accountId);
 
 	const { deploySchema, renderDeployPlan } = await import(
 		"@secondlayer/subgraphs"
@@ -523,7 +522,7 @@ export async function runSubgraphDeploy(
 			);
 		}
 		if (parsed.data.dryRun) {
-			const plan = renderDeployPlan(def, schemaName);
+			const plan = renderDeployPlan(def, planSchemaName);
 			return c.json({
 				dryRun: true,
 				connection: "ok",
@@ -538,7 +537,7 @@ export async function runSubgraphDeploy(
 		databaseUrlEnc = encryptDatabaseUrl(byoUrl);
 		byoDataDb = getDb(byoUrl);
 	} else if (parsed.data.dryRun) {
-		const plan = renderDeployPlan(def, schemaName);
+		const plan = renderDeployPlan(def, planSchemaName);
 		return c.json({
 			dryRun: true,
 			schemaName: plan.schemaName,
@@ -550,6 +549,7 @@ export async function runSubgraphDeploy(
 	}
 
 	const existing = await getSubgraph(db, name, accountId);
+	const schemaName = deploySchemaName(name, accountId, existing?.schema_name);
 
 	// Deploying provisions a hosted tenant (index + storage + compute), so it's
 	// a paid action: a free (plan 'none') account must start a 14-day trial
@@ -588,43 +588,44 @@ export async function runSubgraphDeploy(
 		}
 	}
 
-	// Visibility: explicit wins; otherwise redeploys keep what they have, new
-	// managed deploys are public (shareable /v1 URL), new BYO deploys are
-	// private (public reads would hit the user's own Postgres). Public names
-	// are a single global namespace — claim-on-publish, first come.
-	const desiredVisibility =
-		parsed.data.visibility ??
-		(existing ? undefined : byoUrl ? "private" : "public");
-	// Private visibility is a Pro feature. Gate transitions to private only —
-	// already-private subgraphs are grandfathered and unchanged redeploys pass.
-	if (desiredVisibility === "private" && existing?.visibility !== "private") {
-		const privacy = await resolvePrivateVisibilityPolicy(
-			db,
-			accountId ?? undefined,
-		);
-		if (!privacy.privateAllowed) {
-			return c.json(
-				{
-					error:
-						"Private subgraphs require a paid plan. Free-tier deploys are public; upgrade to make this subgraph private.",
-					code: "PLAN_REQUIRED",
-					required_plan: "launch",
-					upgrade_url: "https://secondlayer.tools/platform/billing",
-				},
-				403,
+	// Visibility is a hosted concern. OSS names are unique locally and
+	// always readable — skip public/private claim and plan gates.
+	const desiredVisibility = isPlatformMode()
+		? (parsed.data.visibility ??
+			(existing ? undefined : byoUrl ? "private" : "public"))
+		: undefined;
+	if (isPlatformMode()) {
+		// Private visibility is a Pro feature. Gate transitions to private only —
+		// already-private subgraphs are grandfathered and unchanged redeploys pass.
+		if (desiredVisibility === "private" && existing?.visibility !== "private") {
+			const privacy = await resolvePrivateVisibilityPolicy(
+				db,
+				accountId ?? undefined,
 			);
+			if (!privacy.privateAllowed) {
+				return c.json(
+					{
+						error:
+							"Private subgraphs require a paid plan. Free-tier deploys are public; upgrade to make this subgraph private.",
+						code: "PLAN_REQUIRED",
+						required_plan: "launch",
+						upgrade_url: "https://secondlayer.tools/platform/billing",
+					},
+					403,
+				);
+			}
 		}
-	}
-	if (desiredVisibility === "public" && existing?.visibility !== "public") {
-		const claimed = await findPublicSubgraphByName(db, name);
-		if (claimed && claimed.account_id !== (accountId ?? "")) {
-			return c.json(
-				{
-					error: `Public name "${name}" is already taken. Pick another name or deploy with visibility "private".`,
-					code: "PUBLIC_NAME_TAKEN",
-				},
-				409,
-			);
+		if (desiredVisibility === "public" && existing?.visibility !== "public") {
+			const claimed = await findPublicSubgraphByName(db, name);
+			if (claimed && claimed.account_id !== (accountId ?? "")) {
+				return c.json(
+					{
+						error: `Public name "${name}" is already taken. Pick another name or deploy with visibility "private".`,
+						code: "PUBLIC_NAME_TAKEN",
+					},
+					409,
+				);
+			}
 		}
 	}
 
@@ -985,6 +986,15 @@ app.post("/bundle", async (c) => {
 // on /v1/subgraphs/:name. Unpublish releases the claim; reads fall back to
 // the owning account's bearer key.
 app.post("/:subgraphName/publish", async (c) => {
+	if (!isPlatformMode()) {
+		return c.json(
+			{
+				error: "This instance has no public namespace.",
+				code: "NOT_SUPPORTED",
+			},
+			404,
+		);
+	}
 	const { subgraphName } = c.req.param();
 	const accountId = getAccountId(c);
 	const subgraph = getOwnedSubgraph(subgraphName, accountId);
@@ -1031,6 +1041,15 @@ app.post("/:subgraphName/publish", async (c) => {
 });
 
 app.post("/:subgraphName/unpublish", async (c) => {
+	if (!isPlatformMode()) {
+		return c.json(
+			{
+				error: "This instance has no public namespace.",
+				code: "NOT_SUPPORTED",
+			},
+			404,
+		);
+	}
 	const { subgraphName } = c.req.param();
 	const accountId = getAccountId(c);
 	const subgraph = getOwnedSubgraph(subgraphName, accountId);

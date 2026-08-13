@@ -135,6 +135,63 @@ describe.skipIf(SKIP)("Subgraphs Queries", () => {
 		const result = await deleteSubgraph(db, "nonexistent");
 		expect(result).toBeNull();
 	});
+
+	test("OSS get/list ignore account_id", async () => {
+		process.env.INSTANCE_MODE = "oss";
+		const db = getDb();
+		await registerSubgraph(db, { ...testDef, name: "legacy-named" });
+		await db
+			.updateTable("subgraphs")
+			.set({ account_id: "acct-leftover" })
+			.where("name", "=", "legacy-named")
+			.execute();
+
+		const found = await getSubgraph(db, "legacy-named", "someone-else");
+		expect(found?.name).toBe("legacy-named");
+		expect(found?.account_id).toBe("acct-leftover");
+
+		const listed = await listSubgraphs(db, "someone-else");
+		expect(listed.map((s) => s.name)).toContain("legacy-named");
+	});
+
+	test("OSS register upserts by name and clears leftover account_id", async () => {
+		process.env.INSTANCE_MODE = "oss";
+		const db = getDb();
+		await registerSubgraph(db, { ...testDef, name: "legacy-named" });
+		await db
+			.updateTable("subgraphs")
+			.set({ account_id: "acct-leftover" })
+			.where("name", "=", "legacy-named")
+			.execute();
+
+		const updated = await registerSubgraph(db, {
+			...testDef,
+			name: "legacy-named",
+			version: "2.0.0",
+			schemaHash: "next",
+		});
+		expect(updated.version).toBe("2.0.0");
+		expect(updated.account_id).toBe("");
+		expect(updated.schema_hash).toBe("next");
+
+		const all = await listSubgraphs(db);
+		expect(all.filter((s) => s.name === "legacy-named")).toHaveLength(1);
+	});
+
+	test("OSS delete removes a leftover-account row by name", async () => {
+		process.env.INSTANCE_MODE = "oss";
+		const db = getDb();
+		await registerSubgraph(db, { ...testDef, name: "legacy-named" });
+		await db
+			.updateTable("subgraphs")
+			.set({ account_id: "acct-leftover" })
+			.where("name", "=", "legacy-named")
+			.execute();
+
+		const deleted = await deleteSubgraph(db, "legacy-named", "someone-else");
+		expect(deleted?.name).toBe("legacy-named");
+		expect(await getSubgraph(db, "legacy-named")).toBeNull();
+	});
 });
 
 /**

@@ -5,12 +5,14 @@ import {
 	RateLimitError,
 	ValidationError,
 } from "@secondlayer/shared/errors";
+import { isPlatformMode } from "@secondlayer/shared/mode";
 import { TYPE_MAP } from "@secondlayer/subgraphs/schema";
 import { Hono } from "hono";
 import { sql } from "kysely";
 import { getClientIp } from "../auth/http.ts";
 import { hashToken } from "../auth/keys.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
+import { resolveReadableSubgraph } from "../subgraphs/namespace.ts";
 import {
 	SubgraphNotFoundError,
 	handleRowById,
@@ -136,8 +138,9 @@ function buildSortedKeysetPredicate(
  *
  * Posture matches the other /v1 surfaces — wildcard CORS, anon reads allowed,
  * cursor envelope. Resolution rules:
- *   - anon          → public subgraphs only; private names 404 (no existence leak)
- *   - sk-sl_ bearer → the key's account's subgraphs (public or private) first,
+ *   - oss           → unique local name; visibility is ignored
+ *   - platform anon → public subgraphs only; private names 404 (no existence leak)
+ *   - platform key  → the key's account's subgraphs (public or private) first,
  *                     then any public subgraph
  *
  * The authed /api/subgraphs surface (dashboard, deploys, ops) is unchanged.
@@ -305,17 +308,13 @@ app.use("*", async (c, next) => {
 
 // ── Resolution ──────────────────────────────────────────────────────────
 
-function resolveReadableSubgraph(
+function requireReadableSubgraph(
 	name: string,
 	accountId: string | undefined,
 ): Subgraph {
-	if (accountId) {
-		const own = cache.get(name, accountId);
-		if (own) return own;
-	}
-	const pub = cache.getPublicByName(name);
-	if (pub) return pub;
-	throw new SubgraphNotFoundError(name);
+	const subgraph = resolveReadableSubgraph(cache, name, accountId);
+	if (!subgraph) throw new SubgraphNotFoundError(name);
+	return subgraph;
 }
 
 // ── Discovery ───────────────────────────────────────────────────────────
@@ -430,16 +429,22 @@ app.get("/", async (c) => {
 	]);
 	const seen = new Set<string>();
 	const out = [];
-	if (accountId) {
-		for (const v of cache.getAll(accountId)) {
-			seen.add(`${v.account_id}:${v.name}`);
+	if (!isPlatformMode()) {
+		for (const v of cache.getAll()) {
+			out.push(summarize(v, undefined, chainTip, rowCounts));
+		}
+	} else {
+		if (accountId) {
+			for (const v of cache.getAll(accountId)) {
+				seen.add(`${v.account_id}:${v.name}`);
+				out.push(summarize(v, accountId, chainTip, rowCounts));
+			}
+		}
+		for (const v of cache.getAll()) {
+			if (v.visibility !== "public") continue;
+			if (seen.has(`${v.account_id}:${v.name}`)) continue;
 			out.push(summarize(v, accountId, chainTip, rowCounts));
 		}
-	}
-	for (const v of cache.getAll()) {
-		if (v.visibility !== "public") continue;
-		if (seen.has(`${v.account_id}:${v.name}`)) continue;
-		out.push(summarize(v, accountId, chainTip, rowCounts));
 	}
 	const body = {
 		subgraphs: out,
@@ -465,7 +470,7 @@ app.get("/", async (c) => {
 
 app.get("/:subgraphName", async (c) => {
 	const { subgraphName } = c.req.param();
-	const subgraph = resolveReadableSubgraph(subgraphName, c.get("v1AccountId"));
+	const subgraph = requireReadableSubgraph(subgraphName, c.get("v1AccountId"));
 	const schema = getSubgraphSchema(subgraph);
 	const chainTip = await getChainTip();
 	const lastProcessed = Number(subgraph.last_processed_block) || 0;
@@ -523,7 +528,7 @@ app.get("/:subgraphName", async (c) => {
 
 app.get("/:subgraphName/openapi.json", async (c) => {
 	const { subgraphName } = c.req.param();
-	const subgraph = resolveReadableSubgraph(subgraphName, c.get("v1AccountId"));
+	const subgraph = requireReadableSubgraph(subgraphName, c.get("v1AccountId"));
 	const detail = await buildSubgraphDetailFromRow(subgraph);
 	const { generateSubgraphOpenApi } = await import(
 		"@secondlayer/shared/subgraphs/spec"
@@ -533,7 +538,7 @@ app.get("/:subgraphName/openapi.json", async (c) => {
 
 app.get("/:subgraphName/schema.json", async (c) => {
 	const { subgraphName } = c.req.param();
-	const subgraph = resolveReadableSubgraph(subgraphName, c.get("v1AccountId"));
+	const subgraph = requireReadableSubgraph(subgraphName, c.get("v1AccountId"));
 	const detail = await buildSubgraphDetailFromRow(subgraph);
 	const { generateSubgraphAgentSchema } = await import(
 		"@secondlayer/shared/subgraphs/spec"
@@ -543,7 +548,7 @@ app.get("/:subgraphName/schema.json", async (c) => {
 
 app.get("/:subgraphName/docs.md", async (c) => {
 	const { subgraphName } = c.req.param();
-	const subgraph = resolveReadableSubgraph(subgraphName, c.get("v1AccountId"));
+	const subgraph = requireReadableSubgraph(subgraphName, c.get("v1AccountId"));
 	const detail = await buildSubgraphDetailFromRow(subgraph);
 	const { generateSubgraphMarkdown } = await import(
 		"@secondlayer/shared/subgraphs/spec"
@@ -557,26 +562,26 @@ app.get("/:subgraphName/docs.md", async (c) => {
 
 app.get("/:subgraphName/:tableName/count", async (c) => {
 	const { subgraphName, tableName } = c.req.param();
-	const subgraph = resolveReadableSubgraph(subgraphName, c.get("v1AccountId"));
+	const subgraph = requireReadableSubgraph(subgraphName, c.get("v1AccountId"));
 	return handleTableCount(c, subgraph, tableName);
 });
 
 app.get("/:subgraphName/:tableName/aggregate", async (c) => {
 	const { subgraphName, tableName } = c.req.param();
-	const subgraph = resolveReadableSubgraph(subgraphName, c.get("v1AccountId"));
+	const subgraph = requireReadableSubgraph(subgraphName, c.get("v1AccountId"));
 	return handleTableAggregate(c, subgraph, tableName);
 });
 
 app.get("/:subgraphName/:tableName/stream", (c) => {
 	const { subgraphName, tableName } = c.req.param();
-	const subgraph = resolveReadableSubgraph(subgraphName, c.get("v1AccountId"));
+	const subgraph = requireReadableSubgraph(subgraphName, c.get("v1AccountId"));
 	return handleTableStream(c, subgraph, tableName);
 });
 
 app.get("/:subgraphName/:tableName/:id", async (c) => {
 	const { subgraphName, tableName, id } = c.req.param();
 	if (id === "count" || id === "stream" || id === "aggregate") return;
-	const subgraph = resolveReadableSubgraph(subgraphName, c.get("v1AccountId"));
+	const subgraph = requireReadableSubgraph(subgraphName, c.get("v1AccountId"));
 	return handleRowById(c, subgraph, tableName, id);
 });
 
@@ -589,7 +594,7 @@ app.get("/:subgraphName/:tableName/:id", async (c) => {
 // work as on /api.
 app.get("/:subgraphName/:tableName", async (c) => {
 	const { subgraphName, tableName } = c.req.param();
-	const subgraph = resolveReadableSubgraph(subgraphName, c.get("v1AccountId"));
+	const subgraph = requireReadableSubgraph(subgraphName, c.get("v1AccountId"));
 
 	const tableDef = getSubgraphSchema(subgraph)[tableName];
 	if (!tableDef) {
