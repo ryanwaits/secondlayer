@@ -46,6 +46,19 @@ export type DiskGuardOptions = {
 const DEFAULT_MIN_FREE_BYTES = 100 * 1024 ** 3;
 const DEFAULT_POLL_MS = 60_000;
 const DEFAULT_MAX_WAIT_MS = 2 * 3_600_000;
+/**
+ * A threshold larger than a share of the whole disk is unsatisfiable, not
+ * protective: on a 14GB CI runner or a modest VPS, demanding 100GB free would
+ * block forever waiting for space that machine can never have. The absolute
+ * default is tuned for the production host; this keeps it from becoming a wall
+ * everywhere else.
+ */
+const MAX_THRESHOLD_FRACTION_OF_DISK = 0.25;
+
+function effectiveThreshold(configured: number, totalBytes: number): number {
+	if (!Number.isFinite(totalBytes) || totalBytes <= 0) return configured;
+	return Math.min(configured, totalBytes * MAX_THRESHOLD_FRACTION_OF_DISK);
+}
 
 export class DiskSpaceExhausted extends Error {
 	constructor(free: number, required: number, waitedMs: number) {
@@ -76,9 +89,10 @@ export async function waitForDiskSpace(
 	let waited = 0;
 	while (true) {
 		const space = await readSpace(options.path);
-		if (space.freeBytes >= minFree) return;
+		const threshold = effectiveThreshold(minFree, space.totalBytes);
+		if (space.freeBytes >= threshold) return;
 		if (waited >= maxWaitMs) {
-			throw new DiskSpaceExhausted(space.freeBytes, minFree, waited);
+			throw new DiskSpaceExhausted(space.freeBytes, threshold, waited);
 		}
 		options.onPause?.(space, waited);
 		await sleep(pollMs);

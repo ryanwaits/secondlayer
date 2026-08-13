@@ -73,4 +73,42 @@ describe("disk guard", () => {
 		await waitForDiskSpace(h.options);
 		expect(h.pauses).toHaveLength(0);
 	});
+
+	test("never demands more than a share of the whole disk", async () => {
+		// A 14GB CI runner or a modest VPS can never satisfy a 100GB threshold.
+		// Blocking there is not protection, it is an unsatisfiable wall — and it
+		// would stop `sl bootstrap` on exactly the machines most likely to use it.
+		const pauses: number[] = [];
+		await waitForDiskSpace({
+			path: "/",
+			minFreeBytes: 100 * GB,
+			pollMs: 1,
+			maxWaitMs: 10,
+			onPause: (space) => pauses.push(space.freeBytes),
+			sleep: async () => {},
+			// 14GB disk with 6GB free: far below 100GB, but well above 25% of 14GB.
+			readSpace: async () => ({ freeBytes: 6 * GB, totalBytes: 14 * GB }),
+		});
+		expect(pauses).toHaveLength(0);
+	});
+
+	test("still blocks on a small disk that is genuinely full", async () => {
+		// The cap must not disable the guard — 0.2GB free on a 14GB disk is
+		// below 25%, so it still waits.
+		const pauses: number[] = [];
+		expect(
+			waitForDiskSpace({
+				path: "/",
+				minFreeBytes: 100 * GB,
+				pollMs: 1,
+				maxWaitMs: 2,
+				onPause: (space) => pauses.push(space.freeBytes),
+				sleep: async () => {},
+				readSpace: async () => ({
+					freeBytes: 0.2 * GB,
+					totalBytes: 14 * GB,
+				}),
+			}),
+		).rejects.toThrow(DiskSpaceExhausted);
+	});
 });
