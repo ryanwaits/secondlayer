@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the Secondlayer canonical archive publish cycle weekly
+
+[Timer]
+OnCalendar=Sun *-*-* 08:00:00
+AccuracySec=5m
+Persistent=true
+Unit=secondlayer-archive-publish.service
+
+[Install]
+WantedBy=timers.target

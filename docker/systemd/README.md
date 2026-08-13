@@ -10,7 +10,14 @@ Install the backup + health units on the production host.
 | `secondlayer-health-alert.{service,timer}` | curl `/public/status` + `docker compose ps` → Slack on failure (one alert per incident, all-clear on recovery) | every 5 min |
 | `secondlayer-floor-audit.{service,timer}` | run `floor-audit.ts` in the decoder container → Slack if any decoder regressed below its genesis baseline or shipped unbaselined (one alert per incident, all-clear on recovery) | daily at 06:00 |
 | `secondlayer-staging-health.{service,timer}` | run `scripts/ci/staging-health.ts` on the host → Slack on stale/misshapen tip data: service states, decoder lag bands, streams lag, dumps freshness, observer-journal failures/stalls, zero-timestamp blocks (one alert per incident, all-clear on recovery) | every 30 min |
-| `secondlayer-canonical-audit.{service,timer}` | run `archive/canonical-audit.ts` in the indexer container bounded genesis→finalized (`STACKS_EXPECTED_TO_BLOCK=auto`) → Slack unless the canonical chain is complete, gap-free, link-consistent, duplicate-free; report JSON preserved under `$DATA_DIR/audits/` (one alert per incident, all-clear on recovery) | daily at 06:30 |
+| `secondlayer-canonical-audit.{service,timer}` | run `archive/canonical-audit.ts` in the indexer container bounded genesis→finalized (`STACKS_EXPECTED_TO_BLOCK=auto`) → Slack unless the canonical chain is complete, gap-free, link-consistent, duplicate-free; report JSON preserved under `$DATA_DIR/archive/audits/` (one alert per incident, all-clear on recovery) | daily at 06:30 |
+| `secondlayer-archive-publish.{service,timer}` | full archive cycle: export → upload → promote `latest.json` → refresh status, each step gating the next; Slack on failure (one alert per incident, all-clear on recovery) | weekly, Sunday 08:00 |
+| `secondlayer-archive-status.{service,timer}` | refresh `status.json` only — the archive's liveness signal, which must keep moving between weekly publishes so consumers can tell "nothing new to publish" from "the publisher died" | hourly |
+
+The two archive units are production, not monitoring: `archive-publish` is what
+keeps the public archive moving (published once, it falls ~5,400 blocks behind
+per day), and `archive-status` keeps its freshness signal honest between
+publishes.
 
 The four health units answer different questions and none subsumes another:
 `health-alert` is liveness (does the API answer, are containers up),
@@ -48,7 +55,9 @@ sudo systemctl enable --now \
   secondlayer-health-alert.timer \
   secondlayer-floor-audit.timer \
   secondlayer-staging-health.timer \
-  secondlayer-canonical-audit.timer
+  secondlayer-canonical-audit.timer \
+  secondlayer-archive-publish.timer \
+  secondlayer-archive-status.timer
 ```
 
 ## Verify
@@ -69,4 +78,6 @@ sudo systemctl start secondlayer-health-alert.service
 sudo systemctl start secondlayer-floor-audit.service
 sudo systemctl start secondlayer-staging-health.service
 sudo systemctl start secondlayer-canonical-audit.service
+sudo systemctl start secondlayer-archive-status.service
+sudo systemctl start secondlayer-archive-publish.service   # ~2.5h, exports the full chain
 ```

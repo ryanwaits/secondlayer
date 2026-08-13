@@ -1,0 +1,11 @@
+[Unit]
+Description=Secondlayer canonical archive publish cycle (export, upload, promote, status)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/opt/secondlayer/docker/.env
+ExecStart=/opt/secondlayer/docker/scripts/archive-publish.sh
+StandardOutput=append:/var/log/secondlayer-archive-publish.log
+StandardError=append:/var/log/secondlayer-archive-publish.log

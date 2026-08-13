@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh the Secondlayer archive status object hourly
+
+[Timer]
+OnCalendar=hourly
+AccuracySec=5m
+Persistent=true
+Unit=secondlayer-archive-status.service
+
+[Install]
+WantedBy=timers.target
