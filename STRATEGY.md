@@ -25,8 +25,8 @@ schema. Built on Streams (our decoder is a Streams consumer). App index
 without writing decoders.
 
 **Subgraphs** — your schema on your instance. `defineSubgraph()` in one TypeScript
-file → deploy → Postgres tables behind the same `/v1` read API. Monetization is
-not the subgraph — it is the archive work that fills it.
+file → deploy → Postgres tables behind the same `/v1` read API. We do not host
+subgraphs. Monetization is the archive work that fills them, not the query API.
 
 **Streams** — the raw signed event firehose + parquet dumps. The inputs, not our
 decoding: cursor-paginated REST, SSE tail, signed manifests, replay from any
@@ -37,8 +37,9 @@ internal data plane the decoders and subgraphs ride.
 
 - **Subscriptions** — webhooks on any subgraph table or raw chain event. The
   push channel for the products. Keeps its name; never a nav-level product.
-- **Explore** — the public directory of subgraphs. Social proof + distribution;
-  every card is a live API.
+- **Subgraph templates** — example definitions in `subgraphs/` (sBTC, PoX, BNS,
+  …). Operators copy them onto their instance. Not a hosted directory. Explore
+  as our live catalog is withdrawn as a product.
 - **Contract discovery** — `/v1/contracts`: find deployed contracts by trait
   (SIP-009/010/013), pull ABIs. Connective tissue: feeds scaffold and Index queries.
 - **Verification** — what we hand you is signed and the SDK verifies by default:
@@ -72,8 +73,8 @@ our decoder is itself a Streams consumer. Subgraphs is the Index loop, on your
 machine. We sell archive bootstrap, not hosted compute.
 
 One line for docs: *Reading decoded data? Index. Building your own app index on
-decoded rows? Also Index — walk + cursors + reorgs[]. Your schema hosted?
-Subgraphs. Raw inputs? Streams.*
+decoded rows? Also Index — walk + cursors + reorgs[]. Your schema on your
+instance? Subgraphs. Raw inputs? Streams.*
 
 ## The golden path
 
@@ -96,16 +97,18 @@ Meter unit is still open (bytes vs rows vs height-range). Charge at fetch
 time with a gated archive URL — partitions stay content-addressed; unpaid
 clients do not get the objects. No $99/mo Pro SKU.
 
-Existing hosted compute stays up until the self-host product replaces it.
-Do not delete billing code in Phase 6 if this meter still needs it; strip
-monthly-plan UX, keep a meter.
+We do not host public subgraphs, an Explore catalog, or a public query API.
+Leftover hosted deploys are not a product; do not add more. Do not delete
+billing code in Phase 6 if the archive meter still needs it; strip monthly-plan
+UX, keep a meter.
 
 ## x402 (experimental)
 
-The pay-per-call rail (HTTP 402, STX/sBTC/USDCx) is live as a **beta** for the
-agent-native thesis: agents pay per call with no signup. Deliberately down-low —
-documented at `/docs/x402`, discoverable via OpenAPI `x-x402` + `.well-known`,
-absent from the pricing hero. It leads our agent story; it is not a revenue line.
+Operator-owned optional paywall on *their* instance (HTTP 402, STX/sBTC/USDCx).
+Off by default. They set recipients, assets, prices, and settlement. We are
+not the merchant. Parked until public-read bind exists (writes tokened, `/v1`
+open). Not a Secondlayer revenue line. Hosted prices, wallet-ghosts, and
+7-day TTL must not ship in OSS.
 
 ## Operating rules
 
@@ -119,7 +122,7 @@ absent from the pricing hero. It leads our agent story; it is not a revenue line
 - **Demand before supply** — features unfreeze on a named external request, not
   on taxonomy or completeness arguments.
 - **GTM is founder-led** — the prospect universe is ~30-80 funded Stacks teams.
-  Explore-seeded subgraphs of *their* contracts are the outbound asset.
+  Templates of *their* contracts, run on their instance, are the outbound asset.
 
 ## Team & infra reality
 

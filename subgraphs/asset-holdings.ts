@@ -1,6 +1,9 @@
 import { defineSubgraph } from "@secondlayer/subgraphs";
 
 /**
+ * Template: per-holder FT + STX balances. Deploy on your instance.
+ * Not a hosted Secondlayer API.
+ *
  * Unified per-holder balance tracking across FT (incl. sBTC) + STX in one schema.
  * Replaces `token-balances.ts` (FT-only) so discovery can rank audit targets by
  * real $-at-risk instead of a single token's raw amount. NFTs are intentionally

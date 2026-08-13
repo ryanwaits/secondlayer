@@ -1,5 +1,6 @@
 // ───────────────────────────────────────────────────────────────────
-// Canonical source for the HOSTED PUBLIC `sbtc-flows` subgraph.
+// Template for the `sbtc-flows` subgraph. Deploy on your instance.
+// Not a hosted Secondlayer API.
 //
 // Recovered into git 2026-06-20 from the deployed source-capture
 // (GET /api/subgraphs/sbtc-flows/source) — it had been deployed from a

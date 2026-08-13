@@ -10,9 +10,10 @@ Operating instructions for AI coding agents working in this repo. Read this and
 Secondlayer is a self-hosted Stacks data runtime. Three capabilities — **Index**
 (decoded chain data over REST), **Subgraphs** (your schema on your instance),
 and **Streams** (raw signed firehose + dumps) — plus features (Subscriptions,
-Explore, Contract discovery, Verification) and channels (REST/OpenAPI, CLI, SDK,
-MCP). We publish a signed R2 archive and meter bootstrap/backfill. `STRATEGY.md`
-wins taxonomy, pricing, and what's frozen.
+subgraph templates, Contract discovery, Verification) and channels (REST/OpenAPI,
+CLI, SDK, MCP). We publish a signed R2 archive and meter bootstrap/backfill.
+We do not host public subgraphs or an Explore catalog. `STRATEGY.md` wins
+taxonomy, pricing, and what's frozen.
 
 ```
 secondlayer/
@@ -32,7 +33,7 @@ secondlayer/
 │   ├── stacks/        ← chain primitives SDK (/clarity load-bearing; nonce coordination supported; rest of wallet half frozen)
 │   └── shared/        ← db, schemas, vocab single-sourcing
 ├── apps/web/          ← www marketing + docs + /platform console
-├── subgraphs/         ← canonical source for the hosted public subgraphs (sBTC, Explore, …)
+├── subgraphs/         ← example subgraph templates (sBTC, PoX, BNS, …). Not hosted.
 ├── contracts/         ← reference Clarity contracts (Clarinet project; e.g. spv-adapter)
 ├── examples/          ← runnable end-to-end examples for devs
 ├── docker/            ← Dockerfiles, compose stacks, Caddy (dev + Hetzner prod)

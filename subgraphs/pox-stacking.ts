@@ -1,5 +1,6 @@
 // ───────────────────────────────────────────────────────────────────
-// Canonical source for the HOSTED PUBLIC `pox-stacking` subgraph.
+// Template for the `pox-stacking` subgraph. Deploy on your instance.
+// Not a hosted Secondlayer API.
 //
 // Recovered into git 2026-06-20; redesigned per
 // docs/sprints/pox-stacking-redesign/spec.md. The deployed v1.0.0 was a stub

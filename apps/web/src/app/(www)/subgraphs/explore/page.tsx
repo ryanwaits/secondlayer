@@ -9,15 +9,14 @@ import { FEATURED } from "./types";
 export const metadata: Metadata = socialMeta({
 	title: "Explore Subgraphs | secondlayer",
 	description:
-		"Public subgraphs deployed on Secondlayer — live, custom indexed views of Stacks, readable by anyone. No key needed.",
+		"Example subgraph templates you run on your instance. Secondlayer does not host a public catalog.",
 	image: "/og/explore.png",
 	path: "/subgraphs/explore",
 });
 
 export const revalidate = 30;
 
-// R1 curation: hardcoded featured allowlist (first-party seeds). Curation =
-// git commit until non-first-party listings exist; then a featured flag.
+// Leftover hosted listing. Not a product. Templates: repo subgraphs/.
 
 const fmt = new Intl.NumberFormat("en-US");
 
@@ -112,9 +111,8 @@ export default async function ExplorePage() {
 			<section className="explore-hero">
 				<h1>Explore</h1>
 				<p>
-					Public subgraphs deployed on Secondlayer — custom indexed views of
-					Stacks, readable by anyone. Every card is a live API. Copy the
-					endpoint and you&apos;re querying.
+					Example subgraphs you run on your instance. Copy a template from the
+					repo and deploy. Secondlayer does not host a public catalog.
 				</p>
 				<Link href="/sbtc" className="explore-feature-link">
 					<span className="explore-pill-dot" />

@@ -1,5 +1,6 @@
 // ───────────────────────────────────────────────────────────────────
-// Canonical source for the HOSTED PUBLIC `bns-names` subgraph.
+// Template for the `bns-names` subgraph. Deploy on your instance.
+// Not a hosted Secondlayer API.
 //
 // Recovered into git 2026-06-20 from the deployed source-capture
 // (GET /api/subgraphs/bns-names/source) — deployed from an uncommitted local

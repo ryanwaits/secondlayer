@@ -46,7 +46,6 @@ export interface ExploreDetail {
 	docs: { openapi: string; schema: string; markdown: string };
 }
 
-/** Curated first-party seeds — the only listings attributed "by secondlayer".
- *  Names absent from the live /v1/subgraphs response are filtered downstream,
- *  so this stays in sync by listing only currently-deployed public subgraphs. */
+/** Leftover hosted names that still appear if the platform API lists them.
+ *  Not a product. Templates live in repo `subgraphs/`. Do not add names. */
 export const FEATURED = ["sbtc-flows", "pox-stacking", "bns-names"];

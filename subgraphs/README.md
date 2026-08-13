@@ -1,31 +1,24 @@
-# Hosted public subgraphs — canonical source
+# Subgraph templates
 
-Source of truth for the **hosted, public** subgraphs that power secondlayer's own
-surfaces (the sBTC explorer, Explore directory, etc.). This is distinct from:
+Example `defineSubgraph()` sources. Copy onto your instance and deploy. Not a
+hosted catalog — Secondlayer does not run these as a public API.
+
+Distinct from:
 
 - `bench/subgraphs/` — throwaway benchmarking subgraphs.
 - `examples/` — standalone tutorials a user clones (`sales-index`, `indexer-from-zero`).
 
-**Rule (per `docs/internal/charter/index-vs-subgraphs.md`):** our product pages run on
-the subgraphs we sell. Every hosted public subgraph must have its source committed here
-and be deployed *from this tree* — never from an out-of-tree local file. Edit here, then
-`sl subgraphs deploy subgraphs/<name>.ts`.
+| Template | What it indexes |
+|---|---|
+| `sbtc-flows` | sBTC registry deposits / withdrawals |
+| `pox-stacking` | PoX stacking and delegation |
+| `bns-names` | BNS-V2 names |
+| `contract-deployments` | Every contract deploy |
+| `asset-holdings` | Per-holder FT + STX balances |
 
-## Recovery status
+```bash
+sl subgraphs deploy subgraphs/<name>.ts
+```
 
-These were all deployed from local files that were never committed (git-orphan gap found
-2026-06-20). Recovering each from its deployed source-capture
-(`GET /api/subgraphs/<name>/source`):
-
-| Subgraph | Source committed | Deployed `start_block` | Drift vs source |
-|---|---|---|---|
-| `sbtc-flows` | ✅ `sbtc-flows.ts` | 5,143,314 | source declares `860000` |
-| `pox-stacking` | ✅ `pox-stacking.ts` | 5,143,314 | source declares none (genesis) |
-| `bns-names` | ✅ `bns-names.ts` | 5,143,314 | source declares none (genesis) |
-| `contract-deployments` | ✅ `contract-deployments.ts` | genesis (deployed 2026-07-03) | none |
-| `asset-holdings` | ✅ `asset-holdings.ts` | 0 (genesis) | none (source declares no start_block) |
-
-All three deploy `start_block`s were set by a `--start-block 5143314` override, not the
-source. Reconcile (align source ⇄ deployment) on each subgraph's next redeploy.
-
-`asset-holdings` — per-holder balances across FT (incl. sBTC) + STX.
+against your local `SL_API_URL`. Leftover hosted deploys of these names are
+not a product; do not add more.

@@ -1,10 +1,10 @@
 // ───────────────────────────────────────────────────────────────────
-// Canonical source for the HOSTED PUBLIC `contract-deployments` subgraph.
+// Template for the `contract-deployments` subgraph. Deploy on your instance.
+// Not a hosted Secondlayer API.
 //
 // Tracks every smart contract deployment on Stacks — contract_id and name
 // are both `search: true` so `_search` does fuzzy matching against either.
-// Mirrors packages/subgraphs/examples/contract-deployments.ts (kept there
-// as the tutorial copy; this file is the deployed source of truth).
+// Mirrors packages/subgraphs/examples/contract-deployments.ts (tutorial copy).
 // ───────────────────────────────────────────────────────────────────
 
 import { defineSubgraph } from "@secondlayer/subgraphs";
