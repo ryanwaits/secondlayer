@@ -2,6 +2,20 @@
 
 Check your chain history against a signed canonical archive, repair what diverges, or restore a fresh instance from it.
 
+## Which command
+
+| Job | Command |
+| --- | --- |
+| Check identity columns | `sl verify --against <latest.json>` |
+| Also check payload columns | `sl verify --against <latest.json> --semantic` |
+| Plan a repair | `sl repair --against <archive>` |
+| Write the repair | `sl repair --against <archive> --apply` |
+| Restore a fresh instance | `sl bootstrap --against <archive>` |
+| Read the node attestation | `GET attestations/<digest>/node.json` |
+| Read operational status | `GET status.json` |
+
+`<latest.json>` is the signed pointer. Start there.
+
 ## Check your data
 
 ```bash
@@ -41,12 +55,12 @@ Equal row counts with differing data means the same heights hold different block
 | `--against <manifest>` | Archive `latest.json`, a snapshot manifest URL, or a local path. Required. |
 | `--from-block <n>` / `--to-block <n>` | Limit the checked range. |
 | `--counts` | Also compare transaction and event row counts. Slower. |
-| `--semantic` | Recompute per-partition semantic digests locally and compare. The strongest check, and the slowest — full re-stream of every partition in range. |
+| `--semantic` | Recompute per-partition semantic digests locally and compare. Catches divergence in `raw_tx`, event `data`, and `function_args` that identity-only digests skip. |
 | `--public-key <pem>` | Pin the signing key instead of fetching it. |
 | `--insecure` | Compare without verifying the signature. Result is unverified. |
 | `--json` | Machine-readable report on stdout. |
 
-The default fast check compares SQL-computed range digests over identity columns (~90 s for the full mainnet chain). `--semantic` recomputes the same canonical byte encoding the archive publishes and catches divergence in payload columns (`raw_tx`, event `data`, `function_args`) that identity-only digests skip. Use it when the fast check is clean but the archive has been rebuilt or a foreign runtime is in play.
+Default pass: identity columns (~90 s for mainnet). `--semantic` after a rebuild or against a foreign runtime.
 
 ## Repair what diverges
 
@@ -63,7 +77,7 @@ HEIGHT   ACTION   LOCAL         ARCHIVE
 8501111  replace  0xd4deb46c6d  0xedb6ba8322
 ```
 
-Every partition is hashed against the digest the signed manifest declares before a single row is read from it. One transaction per partition, so an interrupted repair leaves no half-corrected range.
+Each partition is hashed against the signed digest before any row is read. One transaction per partition — an interrupted repair leaves no half-corrected range.
 
 <Callout type="warning" title="Heights the archive doesn't have">
 
@@ -100,20 +114,22 @@ Immutable, digest-addressed Parquet partitions on R2, published from a repeatabl
 | `latest.json` | Signed pointer at the current snapshot. Start here. |
 | `snapshots/<digest>.json` | Signed manifest: coverage, counts, per-object digests, finality rule, audit. |
 | `blocks/`, `transactions/`, `events/` | Range-partitioned Parquet, digest in the filename. |
-| `digests/<range>-<sha16>.parquet` | Per-height digest sidecar for the matching partition: one row per height with the block digest and rolled-up transaction and event digests. Verify one block without downloading the raw partition. |
-| `attestations/<digest>/node.json` | Signed independent node audit for that snapshot: per-height matches, mismatches, and datasets a stacks-node cannot cover on its own. Present only for snapshots whose ranges have been node-attested. |
+| `digests/<range>-<sha16>.parquet` | Per-height sidecar: one row per height with the block digest and rolled-up transaction and event digests. |
+| `attestations/<digest>/node.json` | Signed independent node audit. `coverage` is the attested window; `stats` is exact; `mismatches[]` is a capped sample. |
+| `status.json` | Short-cache operational state: `fresh`, `lagging`, `stale`, `gap`, `failed-audit`, `source-unavailable`. |
+| `reports/incidents/` | Signed incident reports, newest first via `index.json`. |
 
-Historical partitions never change, so publishing is append-only. Every partition carries a SHA-256 over its Parquet bytes and a semantic-v1 digest (`sha256:semantic-v1`) over its canonical byte encoding, both listed in the manifest under `partitions[]` and `partition_semantic_digests[]`. The byte digest proves capture fidelity to one source; the semantic digest is what an independently-run node (or a foreign runtime speaking the same spec) computes to prove it observed the same chain. The manifest itself is ed25519-signed.
+Publishing is append-only. Each partition carries a SHA-256 over its bytes and a semantic-v1 digest over its canonical encoding. The manifest is ed25519-signed.
 
 ## Assurance levels
 
 | Level | Means |
 | --- | --- |
 | `db-reconstructive` | Exports from one repeatable-read snapshot restore deterministically. Does not prove no historical callback was omitted. |
-| `node-attested` | Block identities (`hash`, `index_block_hash`) also match an independently synced stacks-node for the covered range. Transactions and events remain `db-reconstructive` — the node does not expose execution `raw_result` or events. |
+| `node-attested` | Block identities (`hash`, `index_block_hash`) also match an independently synced stacks-node for the window in `node.json`. Transactions and events stay `db-reconstructive` — the node does not expose execution `raw_result` or events. |
 | `observer-attested` | Digests match independently retained raw observer history. |
 
-The manifest states its level per range. Today's archive is `db-reconstructive`.
+The manifest states its level per range. Most of the chain is `db-reconstructive`. A published `node.json` upgrades only the listed `coverage` window.
 
 <Callout type="note" title="Not an SLA">
 

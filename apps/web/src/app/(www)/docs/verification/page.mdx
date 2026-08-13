@@ -4,7 +4,7 @@ Prove a transaction is in a Stacks (Nakamoto) block, and that the cycle's signer
 
 ## The trust spectrum
 
-- **Anchored**: `txid` → merkle path → the header's `tx_merkle_root`, plus header self-consistency (`block_hash`, `index_block_hash` from `raw_header`). Any Stacks node can corroborate it.
+- **Anchored**: `txid` → merkle path → the header's `tx_merkle_root`, plus header self-consistency (`block_hash`, `index_block_hash` from `raw_header`). Epoch 4.0 headers (version 1, from height 8,665,568) include a `problematic_txs` vector in that preimage. Any Stacks node can corroborate it.
 - **Consensus**: also recovers the header's signer signatures and confirms **≥70% of the reward cycle's signer weight** signed the block. Fully trustless when you supply the reward set yourself (see [Fully trustless](#fully-trustless)).
 
 ## Fetch a proof

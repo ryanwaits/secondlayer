@@ -48,6 +48,16 @@ All three exit with stable codes for CI: `0` clean, `1` divergence found, `2`
 unable to verify. That last one never reports as success — not being able to
 check is different from being fine.
 
+`sl verify --semantic` recomputes each partition's `sha256:semantic-v1` digest
+locally and compares it to the manifest. The default pass hashes identity
+columns; `--semantic` also catches divergence in `raw_tx`, event `data`, and
+`function_args`.
+
+A published `attestations/<digest>/node.json` is an independent stacks-node
+audit of that snapshot. `coverage` is the attested window; `stats` is exact;
+`mismatches[]` is a capped sample. Transactions and events stay
+`db-reconstructive` — the node does not expose them.
+
 ### Mirror the PoX-5 feed in your own database
 
 `sl index codegen` refused `pox5_events` with `Unknown Index table` — the table

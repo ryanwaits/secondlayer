@@ -3,6 +3,8 @@
 How to establish and operate the archive's trust root. The verification code is
 complete (`packages/shared/src/archive/key-registry.ts`, 13 fixtures); what
 remains is a ceremony, and a ceremony done casually defeats the entire model.
+Producer commands (export, node-audit, publish) live in
+[canonical-archive.md](./canonical-archive.md).
 
 Read the whole document before running any command. Steps 1–3 happen once and
 are hard to undo correctly.

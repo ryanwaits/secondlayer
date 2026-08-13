@@ -151,6 +151,8 @@ Use a tag cut **after** commit `169b0967` (the OSS read-parity fix); older image
 
 ## Genesis sync
 
+Or restore with `sl bootstrap` — [verified archive](/docs/archive#restore-a-fresh-instance).
+
 ```bash
 # Start with the tip follower off so it doesn't interfere with IBD:
 TIP_FOLLOWER_ENABLED=false docker compose up -d postgres migrate api indexer subgraph-processor
