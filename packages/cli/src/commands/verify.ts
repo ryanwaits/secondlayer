@@ -4,6 +4,12 @@ import {
 	compareRangeDigests,
 	computeRangeDigest,
 } from "@secondlayer/shared/archive/range-digest";
+import type { PartitionSemanticDigest } from "@secondlayer/shared/archive/semantic-digest";
+import {
+	type PartitionSemanticComparison,
+	comparePartitionSemanticDigests,
+	computePartitionSemanticDigest,
+} from "@secondlayer/shared/archive/semantic-digest-builder";
 import { getDb } from "@secondlayer/shared/db";
 import type { Command } from "commander";
 import {
@@ -81,6 +87,10 @@ export function registerVerifyCommand(program: Command): void {
 		.option("--from-block <n>", "first height to check")
 		.option("--to-block <n>", "last height to check")
 		.option("--counts", "also compare transaction/event row counts (slower)")
+		.option(
+			"--semantic",
+			"also recompute per-partition semantic digests locally and compare (slow: full re-stream)",
+		)
 		.option("--public-key <pem>", "pin the signing key instead of fetching it")
 		.option("--insecure", "skip the manifest signature check (not recommended)")
 		.option("--json", "Output as JSON")
@@ -203,13 +213,74 @@ Exit codes:
 					}
 				}
 
-				const all = [...comparisons, ...countChecks];
+				const semanticChecks: PartitionSemanticComparison[] = [];
+				const referenceSemantic: PartitionSemanticDigest[] = (
+					manifest.partition_semantic_digests ?? []
+				).filter((d) => {
+					if (fromBlock !== undefined && d.to_block < fromBlock) return false;
+					if (toBlock !== undefined && d.from_block > toBlock) return false;
+					return true;
+				});
+				if (opts.semantic) {
+					if (referenceSemantic.length === 0) {
+						warn(
+							"Reference publishes no semantic digests; --semantic had nothing to compare.",
+						);
+					} else {
+						note(
+							`Recomputing ${referenceSemantic.length} partition semantic digests (this is the slow pass).`,
+						);
+						const localSemantic: PartitionSemanticDigest[] = [];
+						let semanticDone = 0;
+						for (const partition of referenceSemantic) {
+							localSemantic.push(
+								await computePartitionSemanticDigest(
+									db,
+									partition.dataset,
+									partition.from_block,
+									partition.to_block,
+								),
+							);
+							semanticDone++;
+							if (
+								semanticDone % 5 === 0 ||
+								semanticDone === referenceSemantic.length
+							) {
+								note(
+									`  checked ${semanticDone}/${referenceSemantic.length} partitions`,
+								);
+							}
+						}
+						semanticChecks.push(
+							...comparePartitionSemanticDigests(
+								localSemantic,
+								referenceSemantic,
+							),
+						);
+					}
+				}
+
+				const all = [
+					...comparisons,
+					...countChecks,
+					...semanticChecks.map((s) => ({
+						dataset: s.dataset,
+						from_block: s.from_block,
+						to_block: s.to_block,
+						status: s.status,
+						expected_digest: s.expected_digest,
+						actual_digest: s.actual_digest,
+						expected_rows: s.expected_rows,
+						actual_rows: s.actual_rows,
+					})),
+				];
 				const diverged = all.filter((c) => c.status !== "match");
 				const report = {
 					status: diverged.length === 0 ? "clean" : "diverged",
 					reference: origin,
 					signature_verified: signature.verified,
 					ranges_checked: all.length,
+					semantic_checks: semanticChecks.length,
 					divergent_ranges: diverged,
 				};
 

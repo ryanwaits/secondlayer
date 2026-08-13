@@ -8,6 +8,7 @@ import {
 	verifyRegistry,
 } from "@secondlayer/shared/archive/key-registry";
 import type { RangeDigest } from "@secondlayer/shared/archive/range-digest";
+import type { PartitionSemanticDigest } from "@secondlayer/shared/archive/semantic-digest";
 import { verifyStreamsBulkManifestSignature } from "@secondlayer/shared/streams-bulk-manifest";
 
 /**
@@ -34,6 +35,7 @@ export type ArchiveManifest = {
 	coverage?: { from_block: number; to_block: number };
 	partition_size_blocks?: number;
 	range_digests?: RangeDigest[];
+	partition_semantic_digests?: PartitionSemanticDigest[];
 	partitions?: ArchivePartition[];
 	signature?: string;
 	key_id?: string;
