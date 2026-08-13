@@ -3,6 +3,7 @@ import { stat } from "node:fs/promises";
 import { join } from "node:path";
 import { HeadObjectCommand, NotFound, type S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
+import { createProgressReporter } from "@secondlayer/shared/archive/progress";
 import { readJsonFile, sha256File } from "../streams-bulk/file.ts";
 import {
 	createStreamsBulkS3Client,
@@ -169,6 +170,11 @@ export async function uploadCanonicalSnapshot(params: {
 	let uploaded = 0;
 	let skipped = 0;
 	let uploadedBytes = 0;
+	const progress = createProgressReporter({
+		label: "upload",
+		total: manifest.partitions.length,
+		write: (line) => log(line.trim()),
+	});
 
 	for (const [index, partition] of manifest.partitions.entries()) {
 		const key = `${CANONICAL_ARCHIVE_PREFIX}/${partition.path}`;
@@ -212,11 +218,13 @@ export async function uploadCanonicalSnapshot(params: {
 		}
 		uploaded++;
 		uploadedBytes += partition.byte_size;
-		if ((index + 1) % 25 === 0 || index + 1 === manifest.partitions.length) {
-			log(
-				`${index + 1}/${manifest.partitions.length} partitions (${uploaded} uploaded, ${skipped} skipped)`,
-			);
-		}
+		// Time-based: a count-based line every 25 partitions cannot distinguish
+		// "died immediately" from "died at 90%", which is exactly the ambiguity
+		// a killed upload left on 2026-08-12.
+		progress.tick(
+			index + 1,
+			`${uploaded} uploaded, ${skipped} skipped, ${(uploadedBytes / 1e9).toFixed(1)} GB`,
+		);
 	}
 
 	// Manifest last: its presence certifies the objects above it.

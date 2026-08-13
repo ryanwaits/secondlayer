@@ -108,6 +108,10 @@
 			"types": "./dist/src/streams-bulk-manifest.d.ts",
 			"import": "./dist/src/streams-bulk-manifest.js"
 		},
+		"./archive/progress": {
+			"types": "./dist/src/archive/progress.d.ts",
+			"import": "./dist/src/archive/progress.js"
+		},
 		"./archive/status": {
 			"types": "./dist/src/archive/status.d.ts",
 			"import": "./dist/src/archive/status.js"

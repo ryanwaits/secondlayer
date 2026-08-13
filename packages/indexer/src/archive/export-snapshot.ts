@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, rename, stat, unlink } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { ParquetSchema, ParquetWriter } from "@dsnp/parquetjs";
+import { createProgressReporter } from "@secondlayer/shared/archive/progress";
 import {
 	type RangeDigest,
 	computeRangeDigests,
@@ -222,6 +223,17 @@ export async function exportCanonicalSnapshot(
 		const rangeDigests: RangeDigest[] = [];
 		const counts = { blocks: 0, transactions: 0, events: 0 };
 
+		// A silent multi-hour job is indistinguishable from a hung one. Progress
+		// goes to stderr so the JSON summary on stdout stays pipeable.
+		const totalRanges = Math.ceil(
+			(bound.toBlock - fromBlock + 1) / partitionSize,
+		);
+		const progress = createProgressReporter({
+			label: "export",
+			total: totalRanges,
+		});
+		let rangesDone = 0;
+
 		for (
 			let start = fromBlock;
 			start <= bound.toBlock;
@@ -264,7 +276,16 @@ export async function exportCanonicalSnapshot(
 			rangeDigests.push(
 				...(await computeRangeDigests(tx, start, end, ["blocks"])),
 			);
+
+			rangesDone++;
+			progress.tick(
+				rangesDone,
+				`through ${end} · ${counts.events.toLocaleString()} events`,
+			);
 		}
+		progress.finish(
+			`${counts.blocks.toLocaleString()} blocks, ${counts.events.toLocaleString()} events`,
+		);
 
 		// Exported row totals must equal the audited totals — a mismatch means
 		// the export itself dropped or duplicated rows, and nothing signed may
