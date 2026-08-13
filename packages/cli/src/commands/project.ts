@@ -28,7 +28,7 @@ interface ProjectSummary {
  */
 export function registerProjectCommand(program: Command): void {
 	const project = program
-		.command("projects")
+		.command("projects", { hidden: true })
 		.alias("project")
 		.description("Manage your Secondlayer project");
 

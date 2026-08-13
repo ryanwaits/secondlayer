@@ -18,8 +18,9 @@ import {
 	checkSignature,
 	fetchVerifiedPartition,
 	loadReference,
-	resolvePublicKey,
+	resolveArchivePublicKey,
 } from "../lib/archive-reference.ts";
+import { partitionIsLoaded, planTornImport } from "../lib/bootstrap-resume.ts";
 import {
 	bold,
 	dim,
@@ -30,6 +31,7 @@ import {
 	success,
 	warn,
 } from "../lib/output.ts";
+import { isOssMode } from "../lib/resolve-auth.ts";
 
 /**
  * `sl bootstrap` — stand up a Secondlayer instance from a verified archive
@@ -141,12 +143,8 @@ async function loadPartition(
 	return written;
 }
 
-export function registerBootstrapCommand(program: Command): void {
-	program
-		.command("bootstrap")
-		.description(
-			"Restore chain history from a verified archive instead of syncing from genesis",
-		)
+export function attachBootstrapCommand(cmd: Command): Command {
+	return cmd
 		.requiredOption(
 			"--against <manifest>",
 			"archive manifest: an https URL or a local file path",
@@ -170,10 +168,13 @@ Exit codes:
 		.action(async (opts) => {
 			try {
 				const reference = await loadReference(opts.against);
-				const publicKey = await resolvePublicKey(
-					opts.publicKey,
-					process.env.SL_API_URL ?? "https://api.secondlayer.tools",
-				);
+				const publicKey = await resolveArchivePublicKey({
+					explicitPem: opts.publicKey,
+					envPem:
+						process.env.ARCHIVE_SIGNING_PUBLIC_KEY ??
+						process.env.STREAMS_SIGNING_PUBLIC_KEY,
+					allowHostedApi: !isOssMode(),
+				});
 				const signature = checkSignature(reference.manifest, publicKey, false);
 				// No --insecure here. Bootstrap writes an entire chain history into a
 				// database; doing that from an unverified source would poison the
@@ -189,21 +190,57 @@ Exit codes:
 				}
 
 				const db = getDb();
-				const existing = await db
-					.selectFrom("blocks")
-					.select(({ fn }) => fn.countAll<string>().as("count"))
+				const progress = await db
+					.selectFrom("index_progress")
+					.select("network")
 					.executeTakeFirst();
-				if (Number(existing?.count ?? 0) > 0) {
-					printError("This database already holds blocks.", {
+				const maxHeightRow = await db
+					.selectFrom("blocks")
+					.select(({ fn }) => fn.max("height").as("max"))
+					.executeTakeFirst();
+				const maxBlockHeight =
+					maxHeightRow?.max === null || maxHeightRow?.max === undefined
+						? null
+						: Number(maxHeightRow.max);
+
+				const toBlock =
+					opts.toBlock === undefined ? undefined : Number(opts.toBlock);
+				const declared = (reference.manifest.partitions ?? []).filter(
+					(p) => toBlock === undefined || p.to_block <= toBlock,
+				);
+				const resume = planTornImport({
+					hasIndexProgress: !!progress,
+					maxBlockHeight,
+					partitions: declared,
+				});
+				if (resume.action === "refuse") {
+					printError(resume.reason, {
 						hint: "Bootstrap is for a fresh instance. To fix an existing one, use `sl repair`.",
 					});
 					process.exit(BOOTSTRAP_EXIT.REFUSED);
 				}
-
-				const toBlock =
-					opts.toBlock === undefined ? undefined : Number(opts.toBlock);
-				const partitions = (reference.manifest.partitions ?? []).filter(
-					(p) => toBlock === undefined || p.to_block <= toBlock,
+				if (resume.action === "resume" && resume.truncateFrom !== null) {
+					await sql`DELETE FROM events WHERE block_height >= ${resume.truncateFrom}`.execute(
+						db,
+					);
+					await sql`DELETE FROM transactions WHERE block_height >= ${resume.truncateFrom}`.execute(
+						db,
+					);
+					await sql`DELETE FROM blocks WHERE height >= ${resume.truncateFrom}`.execute(
+						db,
+					);
+					note(
+						`Resuming torn import: truncated from height ${resume.truncateFrom}.`,
+					);
+				} else if (resume.action === "resume") {
+					note(
+						`Resuming import after sealed height ${resume.skipThrough.toLocaleString()}.`,
+					);
+				}
+				const partitions = declared.filter(
+					(p) =>
+						resume.action === "fresh" ||
+						!partitionIsLoaded(p, resume.skipThrough),
 				);
 				if (partitions.length === 0) {
 					printError("The archive has no partitions for that range.", {
@@ -414,4 +451,14 @@ Exit codes:
 				process.exit(BOOTSTRAP_EXIT.REFUSED);
 			}
 		});
+}
+
+export function registerBootstrapCommand(program: Command): void {
+	attachBootstrapCommand(
+		program
+			.command("bootstrap", { hidden: true })
+			.description(
+				"Restore chain history from a verified archive instead of syncing from genesis",
+			),
+	);
 }

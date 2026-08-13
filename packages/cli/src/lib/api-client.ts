@@ -17,7 +17,7 @@ import type {
 } from "@secondlayer/shared/subgraphs/spec";
 import { CliHttpError, httpPlatform } from "./http.ts";
 import { printError } from "./output.ts";
-import { resolveApiUrl, resolveAuth } from "./resolve-auth.ts";
+import { isOssMode, resolveApiUrl, resolveAuth } from "./resolve-auth.ts";
 
 export { ApiError };
 export type { SubgraphQueryParams } from "@secondlayer/shared/schemas";
@@ -51,7 +51,9 @@ export function handleApiError(err: unknown, action: string): never {
 		status === 401
 	) {
 		printError("Authentication required.", {
-			hint: "Run `sl login` to re-authenticate.",
+			hint: isOssMode()
+				? "Set SL_API_KEY / INSTANCE_TOKEN from `sl instance init`."
+				: "Run `sl login` to re-authenticate.",
 		});
 		process.exit(1);
 	}

@@ -18,7 +18,7 @@ import { ByoBreakingChangeError } from "@secondlayer/sdk";
 import type { SubgraphDetail } from "@secondlayer/shared/schemas";
 import { TRAIT_STANDARDS } from "@secondlayer/stacks/clarity";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
-import type { Command } from "commander";
+import { type Command, Option } from "commander";
 import { generateSubgraphScaffold } from "../generators/subgraph-scaffold.ts";
 import { generateSubgraphConsumer } from "../generators/subgraphs.ts";
 import {
@@ -60,6 +60,7 @@ import {
 	yellow,
 } from "../lib/output.ts";
 import { requireAuth } from "../lib/require-auth.ts";
+import { isOssMode } from "../lib/resolve-auth.ts";
 import { resolveAuth } from "../lib/resolve-auth.ts";
 import { parseApiResponse } from "../parsers/clarity.ts";
 import {
@@ -941,9 +942,11 @@ Examples:
 			"--strict",
 			"Run `tsc --noEmit` against the handler before deploy (slower; catches TS type errors)",
 		)
-		.option(
-			"--visibility <visibility>",
-			"Read visibility: public (anon /v1 reads, global name claim) or private (your key only). Defaults: managed → public, BYO → private.",
+		.addOption(
+			new Option(
+				"--visibility <visibility>",
+				"Hosted only. Public/private namespace.",
+			).hideHelp(),
 		)
 		.option(
 			"--allow-uncommitted",
@@ -1000,8 +1003,8 @@ Examples:
 					}
 
 					const config = await loadConfig();
-					if (config.network !== "local") {
-						// Remote deploys hit the platform API; prompt for login if no
+					if (config.network !== "local" && !isOssMode()) {
+						// Hosted deploys hit the platform API; prompt for login if no
 						// session rather than failing with a generic 401 mid-flow.
 						await requireAuth();
 					}
@@ -1964,7 +1967,7 @@ Examples:
 
 	// --- publish / unpublish ---
 	subgraphs
-		.command("publish <name>")
+		.command("publish <name>", { hidden: true })
 		.description(
 			"Make a subgraph publicly readable on /v1/subgraphs/<name> (claims the name globally, no key needed to read)",
 		)
@@ -1990,7 +1993,7 @@ Examples:
 		});
 
 	subgraphs
-		.command("unpublish <name>")
+		.command("unpublish <name>", { hidden: true })
 		.description(
 			"Make a subgraph private again — reads require your API key, the public name claim is released",
 		)

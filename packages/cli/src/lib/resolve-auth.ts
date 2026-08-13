@@ -36,6 +36,10 @@ export async function resolveAuth(): Promise<ResolvedAuth> {
 		return { apiUrl, ephemeralKey: envKey, fromEnv: true };
 	}
 
+	if (isOssMode()) {
+		return { apiUrl, ephemeralKey: "", fromEnv: true };
+	}
+
 	const session = await readSession();
 	if (!session) {
 		const err = new Error("Not logged in — run `sl login`");

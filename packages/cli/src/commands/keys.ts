@@ -12,7 +12,9 @@ import { resolveEnvKey } from "../lib/resolve-auth.ts";
 const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
 
 export function registerKeysCommand(program: Command): void {
-	const keys = program.command("keys").description("Manage API keys");
+	const keys = program
+		.command("keys", { hidden: true })
+		.description("Manage API keys");
 
 	keys
 		.command("create")

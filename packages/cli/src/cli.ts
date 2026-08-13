@@ -10,6 +10,7 @@ import {
 	registerDevnetCommand,
 	registerDoctorCommand,
 	registerIndexCommand,
+	registerInstanceCommand,
 	registerKeysCommand,
 	registerLocalCommand,
 	registerLoginCommand,
@@ -29,9 +30,7 @@ const { version } = pkg;
 program
 	.name("secondlayer")
 	.alias("sl")
-	.description(
-		"SecondLayer CLI — dedicated Stacks indexing + real-time subgraphs",
-	)
+	.description("Secondlayer CLI — self-hosted Stacks data runtime")
 	.version(version)
 	.option("--network <network>", "Override network (local, testnet, mainnet)")
 	.option("--api-key <key>", "API credential (overrides SL_API_KEY)")
@@ -52,15 +51,16 @@ program.addHelpText(
 	"after",
 	`
 Quickstart:
-  $ sl login                        # Authenticate (magic-link email)
+  $ sl instance init --network mainnet
+  $ sl instance bootstrap --against <manifest>
   $ sl subgraphs create my-watcher --template sip-010-balances
   $ sl subgraphs deploy subgraphs/my-watcher.ts
-  $ sl subgraphs status my-watcher
 `,
 );
 
 // Getting started
 program.commandsGroup("Getting started:");
+registerInstanceCommand(program);
 program
 	.command("init")
 	.description("Initialize a new secondlayer.config.ts file")

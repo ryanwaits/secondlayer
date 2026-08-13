@@ -50,6 +50,14 @@ describe("resolveAuth", () => {
 		const auth = await resolveAuth();
 		expect(auth.apiUrl).toBe("http://localhost:3800");
 	});
+
+	it("OSS with no key does not require login", async () => {
+		process.env.SL_API_URL = "http://127.0.0.1:3800";
+		const auth = await resolveAuth();
+		expect(auth.apiUrl).toBe("http://127.0.0.1:3800");
+		expect(auth.ephemeralKey).toBe("");
+		expect(auth.fromEnv).toBe(true);
+	});
 });
 
 describe("isOssMode", () => {

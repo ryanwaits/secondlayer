@@ -1,4 +1,4 @@
-import { resolveApiUrl, resolveAuth } from "./resolve-auth.ts";
+import { isOssMode, resolveApiUrl, resolveAuth } from "./resolve-auth.ts";
 
 /**
  * Typed HTTP client for the platform API.
@@ -94,7 +94,9 @@ export async function httpPlatform<T>(
 			401,
 			"SESSION_EXPIRED",
 			{ error: "Not logged in" },
-			"Not logged in — run `sl login`",
+			isOssMode()
+				? "Not authenticated — set SL_API_KEY from `sl instance init`"
+				: "Not logged in — run `sl login`",
 		);
 	}
 	return request<T>(`${auth.apiUrl}${path}`, {

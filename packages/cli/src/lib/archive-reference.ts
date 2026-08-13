@@ -176,6 +176,16 @@ export function checkSignature(
 	}
 }
 
+const HOSTED_API = "https://api.secondlayer.tools";
+
+export function isHostedApiUrl(url: string): boolean {
+	try {
+		return new URL(url).hostname === "api.secondlayer.tools";
+	} catch {
+		return false;
+	}
+}
+
 export async function resolvePublicKey(
 	explicitPem: string | undefined,
 	apiUrl: string,
@@ -193,6 +203,23 @@ export async function resolvePublicKey(
 		// Offline is a legitimate state, reported as `unanchored` by the caller.
 		return undefined;
 	}
+}
+
+/**
+ * Archive verify key. OSS never fetches api.secondlayer.tools — pin
+ * `--public-key` or ARCHIVE_SIGNING_PUBLIC_KEY after the first verify.
+ */
+export async function resolveArchivePublicKey(input: {
+	explicitPem?: string;
+	envPem?: string;
+	allowHostedApi?: boolean;
+}): Promise<string | undefined> {
+	if (input.explicitPem) return input.explicitPem;
+	if (input.envPem) return input.envPem;
+	if (input.allowHostedApi) {
+		return resolvePublicKey(undefined, HOSTED_API);
+	}
+	return undefined;
 }
 
 /**

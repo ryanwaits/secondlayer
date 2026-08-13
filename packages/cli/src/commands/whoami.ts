@@ -7,7 +7,7 @@ import { resolveAuth } from "../lib/resolve-auth.ts";
 
 export function registerWhoamiCommand(program: Command): void {
 	program
-		.command("whoami")
+		.command("whoami", { hidden: true })
 		.description("Show the active account, credential source, and project")
 		.option("--json", "Output as JSON")
 		.action(async (options: { json?: boolean }) => {

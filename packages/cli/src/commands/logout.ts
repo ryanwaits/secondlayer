@@ -5,7 +5,7 @@ import { clearSession, readSession } from "../lib/session.ts";
 
 export function registerLogoutCommand(program: Command): void {
 	program
-		.command("logout")
+		.command("logout", { hidden: true })
 		.description("Log out and revoke the local session")
 		.action(async () => {
 			const session = await readSession();

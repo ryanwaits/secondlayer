@@ -1,5 +1,6 @@
 import { runLoginFlow } from "../commands/login.ts";
 import { info } from "./output.ts";
+import { isOssMode } from "./resolve-auth.ts";
 import { readSession } from "./session.ts";
 
 /**
@@ -11,6 +12,7 @@ import { readSession } from "./session.ts";
  * server-side; the next API call will fail with 401 and the user can re-login.
  */
 export async function requireAuth(): Promise<void> {
+	if (isOssMode()) return;
 	const session = await readSession();
 	if (session) return;
 	info("You're not logged in. Starting login flow.");

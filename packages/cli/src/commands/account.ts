@@ -81,7 +81,7 @@ async function applyProfileUpdate(
 
 export function registerAccountCommand(program: Command): void {
 	const account = program
-		.command("account")
+		.command("account", { hidden: true })
 		.description("Manage your account profile");
 
 	addBillingCommand(account);
