@@ -4,24 +4,17 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
 	type NodeAttestation,
-	runNodeReplayAudit,
 	writeNodeAttestation,
 } from "./node-replay-auditor.ts";
 
 /**
- * These tests exercise the audit report shape end-to-end (write path) and a
- * DB-backed smoke of the walk when DATABASE_URL is present. A full-fidelity
- * node/DB integration is covered by the CLI entrypoint against staging.
+ * These tests exercise the audit report shape end-to-end (write path). A
+ * full-fidelity node + DB integration is covered by the CLI entrypoint
+ * against staging — running it here would require both a live stacks-node
+ * and a canonical DB seeded with known heights, which no CI environment
+ * currently provides. Keeping a "DB smoke" here made the suite flake
+ * whenever the DB didn't happen to hold the hard-coded height range.
  */
-
-const HAS_DB = !!process.env.DATABASE_URL;
-
-// The auditor takes `fetchImpl?: typeof fetch` — a real `typeof fetch` also
-// carries a `preconnect` method that our throwing stub does not. Cast at the
-// boundary so the test doesn't stub out an unused API.
-const throwingFetch = (async () => {
-	throw new Error("connect refused (test)");
-}) as unknown as typeof fetch;
 
 /**
  * The auditor's SQL uses the `sql` template tag which routes through kysely's
@@ -86,29 +79,5 @@ describe("writeNodeAttestation", () => {
 		};
 		const path = await writeNodeAttestation(dir, pending);
 		expect(path).toEndWith("/attestations/pending/node.json");
-	});
-});
-
-describe.skipIf(!HAS_DB)("runNodeReplayAudit against a real DB", () => {
-	// Full integration is exercised by the CLI entrypoint against staging.
-	// This suite exists so a local `bun test` with DATABASE_URL set can smoke
-	// the walk on a single height, catching regressions in the cursor loop
-	// without needing a live node (fetch throws → recorded as unavailable).
-	test("records node-unavailable when fetch throws, does not crash", async () => {
-		const doc = await runNodeReplayAudit({
-			network: process.env.STACKS_NETWORK ?? "mainnet",
-			nodeUrl: "http://127.0.0.1:1",
-			fromBlock: 992_000,
-			toBlock: 992_009,
-			fetchImpl: throwingFetch,
-			maxSampleMatches: 0,
-		});
-		expect(doc.stats.matches).toBe(0);
-		expect(doc.stats.node_unavailable).toBeGreaterThan(0);
-		const first = doc.unavailable[0];
-		expect(first?.status).toBe("node-unavailable");
-		if (first?.status === "node-unavailable") {
-			expect(first.reason).toContain("connect refused");
-		}
 	});
 });
