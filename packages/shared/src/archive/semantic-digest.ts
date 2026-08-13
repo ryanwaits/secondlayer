@@ -184,23 +184,34 @@ function encodeEvent(row: EventDigestInput): string {
  * The encoded byte form is stable across runtimes; the sha256 is stable
  * across CPU architectures. Never mutate an encoder without a v-bump.
  */
-export const semanticDigest = {
+export interface SemanticDigestV1 {
+	readonly spec: SemanticDigestSpec;
+	readonly encodeBlock: (row: BlockDigestInput) => string;
+	readonly encodeTransaction: (row: TransactionDigestInput) => string;
+	readonly encodeEvent: (row: EventDigestInput) => string;
+	readonly block: (row: BlockDigestInput) => string;
+	readonly transaction: (row: TransactionDigestInput) => string;
+	readonly event: (row: EventDigestInput) => string;
+}
+
+export interface SemanticDigestApi {
+	readonly v1: SemanticDigestV1;
+}
+
+export const semanticDigest: SemanticDigestApi = {
 	v1: {
 		spec: SEMANTIC_DIGEST_SPEC_V1,
 		encodeBlock,
 		encodeTransaction,
 		encodeEvent,
-		block(row: BlockDigestInput): string {
-			return sha256Hex(textEncoder.encode(encodeBlock(row)));
-		},
-		transaction(row: TransactionDigestInput): string {
-			return sha256Hex(textEncoder.encode(encodeTransaction(row)));
-		},
-		event(row: EventDigestInput): string {
-			return sha256Hex(textEncoder.encode(encodeEvent(row)));
-		},
+		block: (row: BlockDigestInput): string =>
+			sha256Hex(textEncoder.encode(encodeBlock(row))),
+		transaction: (row: TransactionDigestInput): string =>
+			sha256Hex(textEncoder.encode(encodeTransaction(row))),
+		event: (row: EventDigestInput): string =>
+			sha256Hex(textEncoder.encode(encodeEvent(row))),
 	},
-} as const;
+};
 
 /**
  * Streaming rollup — feed rows one at a time in their declared order, read the
