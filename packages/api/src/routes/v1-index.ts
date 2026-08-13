@@ -1,4 +1,60 @@
+import { isPlatformMode } from "@secondlayer/shared/mode";
 import { Hono } from "hono";
+
+const RETAINED_SURFACES = [
+	{
+		name: "index",
+		path: "/v1/index",
+		description:
+			"Decoded chain events via /v1/index/events?event_type=… (stx/ft/nft transfers, mints, burns, stacking locks, and contract prints), with typed ft-transfers/nft-transfers aliases.",
+		auth: "open on this instance",
+	},
+	{
+		name: "streams",
+		path: "/v1/streams",
+		description:
+			"Raw, ordered, cursor-paginated firehose with reorg awareness.",
+		auth: "open on this instance",
+	},
+	{
+		name: "subgraphs",
+		path: "/v1/subgraphs",
+		description:
+			"Custom indexed views. Unique local name. Cursor envelope: { rows, next_cursor, tip }.",
+		auth: "open on this instance",
+	},
+] as const;
+
+const HOSTED_SURFACES = [
+	{
+		name: "index",
+		path: "/v1/index",
+		description:
+			"Decoded chain events via /v1/index/events?event_type=… (stx/ft/nft transfers, mints, burns, stacking locks, and contract prints), with typed ft-transfers/nft-transfers aliases.",
+		auth: "optional bearer for higher tier; anon allowed",
+	},
+	{
+		name: "streams",
+		path: "/v1/streams",
+		description:
+			"Raw, ordered, cursor-paginated firehose with reorg awareness.",
+		auth: "bearer required (Build+ tier)",
+	},
+	{
+		name: "subgraphs",
+		path: "/v1/subgraphs",
+		description:
+			"Custom indexed views (deployed subgraphs). Public subgraphs are anon-readable; private ones need the owning account's bearer key. Cursor envelope: { rows, next_cursor, tip }.",
+		auth: "none for public subgraphs; bearer for private",
+	},
+	{
+		name: "api-keys",
+		path: "/v1/api-keys",
+		description:
+			"POST to mint a scoped streams/index read key so an agent can self-provision access. Returns the key once.",
+		auth: "bearer required (account-level owner key)",
+	},
+] as const;
 
 /** GET /v1 — surface discovery. Lists the three public surfaces and where
  *  their per-surface indexes / OpenAPI live. Anonymous, no rate limit. */
@@ -7,36 +63,7 @@ export function createV1IndexRouter() {
 
 	router.get("/", (c) =>
 		c.json({
-			surfaces: [
-				{
-					name: "index",
-					path: "/v1/index",
-					description:
-						"Decoded chain events via /v1/index/events?event_type=… (stx/ft/nft transfers, mints, burns, stacking locks, and contract prints), with typed ft-transfers/nft-transfers aliases.",
-					auth: "optional bearer for higher tier; anon allowed",
-				},
-				{
-					name: "streams",
-					path: "/v1/streams",
-					description:
-						"Raw, ordered, cursor-paginated firehose with reorg awareness.",
-					auth: "bearer required (Build+ tier)",
-				},
-				{
-					name: "subgraphs",
-					path: "/v1/subgraphs",
-					description:
-						"Custom indexed views (deployed subgraphs). Public subgraphs are anon-readable; private ones need the owning account's bearer key. Cursor envelope: { rows, next_cursor, tip }.",
-					auth: "none for public subgraphs; bearer for private",
-				},
-				{
-					name: "api-keys",
-					path: "/v1/api-keys",
-					description:
-						"POST to mint a scoped streams/index read key so an agent can self-provision access. Returns the key once.",
-					auth: "bearer required (account-level owner key)",
-				},
-			],
+			surfaces: isPlatformMode() ? HOSTED_SURFACES : RETAINED_SURFACES,
 			openapi: "/v1/openapi.json",
 			envelope_examples: {
 				cursor_paginated: {

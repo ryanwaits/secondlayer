@@ -10,16 +10,17 @@
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { OPENAPI_SPEC } from "../src/routes/openapi.ts";
+import { openapiSpec } from "../src/routes/openapi.ts";
 
 const OUT = join(
 	import.meta.dir,
 	"../../../apps/web/src/generated/openapi.json",
 );
 
+const spec = openapiSpec("oss");
 await mkdir(dirname(OUT), { recursive: true });
-await writeFile(OUT, `${JSON.stringify(OPENAPI_SPEC, null, "\t")}\n`);
+await writeFile(OUT, `${JSON.stringify(spec, null, "\t")}\n`);
 
 console.log(
-	`✓ apps/web/src/generated/openapi.json — ${Object.keys(OPENAPI_SPEC.paths).length} paths`,
+	`✓ apps/web/src/generated/openapi.json — ${Object.keys(spec.paths).length} paths`,
 );

@@ -1,4 +1,7 @@
+import type { InstanceMode } from "@secondlayer/shared/mode";
+import { getInstanceMode } from "@secondlayer/shared/mode";
 import { Hono } from "hono";
+import { HOSTED_OPENAPI_PATHS } from "../route-manifest.ts";
 import { MAX_LIMIT } from "./subgraph-query-helpers.ts";
 
 /** `contract_id` on the two consume-able feeds accepts a comma-separated set,
@@ -813,6 +816,29 @@ export const OPENAPI_SPEC = {
 	},
 };
 
+/** OSS drops hosted x402 / paid-deploy paths and the x-x402 extension. */
+export function openapiSpec(
+	mode: InstanceMode = getInstanceMode(),
+): typeof OPENAPI_SPEC {
+	if (mode === "platform") return OPENAPI_SPEC;
+	const paths = { ...OPENAPI_SPEC.paths };
+	for (const key of HOSTED_OPENAPI_PATHS) {
+		delete paths[key];
+	}
+	return {
+		openapi: OPENAPI_SPEC.openapi,
+		info: {
+			...OPENAPI_SPEC.info,
+			description:
+				"This instance: Index (decoded chain events), Streams (raw firehose), Subgraphs (your schema). Cursor format is `<block_height>:<event_index>` on Index/Streams; opaque on Subgraphs.",
+		},
+		servers: [{ url: "/", description: "This instance" }],
+		tags: OPENAPI_SPEC.tags,
+		components: OPENAPI_SPEC.components,
+		paths,
+	} as typeof OPENAPI_SPEC;
+}
+
 function qp(
 	name: string,
 	type: string,
@@ -890,7 +916,7 @@ function jsonError() {
 
 export function createOpenApiRouter() {
 	const router = new Hono();
-	router.get("/", (c) => c.json(OPENAPI_SPEC));
+	router.get("/", (c) => c.json(openapiSpec()));
 	return router;
 }
 
