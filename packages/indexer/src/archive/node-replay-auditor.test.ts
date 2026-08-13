@@ -3,7 +3,10 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+	type BlockCheck,
 	type NodeAttestation,
+	emptyAuditBuckets,
+	recordAuditOutcome,
 	writeNodeAttestation,
 } from "./node-replay-auditor.ts";
 
@@ -79,5 +82,76 @@ describe("writeNodeAttestation", () => {
 		};
 		const path = await writeNodeAttestation(dir, pending);
 		expect(path).toEndWith("/attestations/pending/node.json");
+	});
+});
+
+function mismatchAt(height: number): BlockCheck {
+	return {
+		height,
+		status: "mismatch",
+		expected_hash: "aa",
+		actual_hash: "bb",
+		expected_index_block_hash: "cc",
+		actual_index_block_hash: "dd",
+		mismatches: ["hash"],
+	};
+}
+
+function unavailableAt(height: number): BlockCheck {
+	return {
+		height,
+		status: "node-unavailable",
+		expected_hash: "aa",
+		expected_index_block_hash: "cc",
+		reason: "timeout",
+	};
+}
+
+function matchAt(height: number): BlockCheck {
+	return {
+		height,
+		status: "match",
+		expected_hash: "aa",
+		actual_hash: "aa",
+		expected_index_block_hash: "cc",
+		actual_index_block_hash: "cc",
+	};
+}
+
+describe("recordAuditOutcome", () => {
+	test("stats keep counting after the mismatch list hits the cap", () => {
+		const buckets = emptyAuditBuckets();
+		for (let height = 1; height <= 250; height++) {
+			recordAuditOutcome(buckets, mismatchAt(height), 200, 5);
+		}
+		expect(buckets.mismatchCount).toBe(250);
+		expect(buckets.mismatches).toHaveLength(200);
+		expect(buckets.mismatches[0]?.height).toBe(1);
+		expect(buckets.mismatches[199]?.height).toBe(200);
+		expect(buckets.matches).toBe(0);
+		expect(buckets.unavailableCount).toBe(0);
+	});
+
+	test("stats keep counting after the unavailable list hits the cap", () => {
+		const buckets = emptyAuditBuckets();
+		for (let height = 1; height <= 210; height++) {
+			recordAuditOutcome(buckets, unavailableAt(height), 200, 5);
+		}
+		expect(buckets.unavailableCount).toBe(210);
+		expect(buckets.unavailable).toHaveLength(200);
+		expect(buckets.unavailable[0]?.height).toBe(1);
+		expect(buckets.unavailable[199]?.height).toBe(200);
+	});
+
+	test("sample_matches stays bounded while the match counter is exact", () => {
+		const buckets = emptyAuditBuckets();
+		for (let height = 1; height <= 12; height++) {
+			recordAuditOutcome(buckets, matchAt(height), 200, 5);
+		}
+		expect(buckets.matches).toBe(12);
+		expect(buckets.sampleMatches).toHaveLength(5);
+		expect(buckets.sampleMatches.map((row) => row.height)).toEqual([
+			1, 2, 3, 4, 5,
+		]);
 	});
 });

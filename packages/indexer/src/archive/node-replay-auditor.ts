@@ -127,6 +127,57 @@ const DEFAULT_MAX_SAMPLES = 5;
 const DEFAULT_PROGRESS_EVERY = 1_000;
 const DEFAULT_CONCURRENCY = 8;
 
+/** Exact counters plus capped evidence lists for one audit run. */
+export type AuditOutcomeBuckets = {
+	matches: number;
+	mismatchCount: number;
+	unavailableCount: number;
+	mismatches: BlockCheck[];
+	unavailable: BlockCheck[];
+	sampleMatches: BlockCheck[];
+};
+
+export function emptyAuditBuckets(): AuditOutcomeBuckets {
+	return {
+		matches: 0,
+		mismatchCount: 0,
+		unavailableCount: 0,
+		mismatches: [],
+		unavailable: [],
+		sampleMatches: [],
+	};
+}
+
+/**
+ * Record one height. Lists stay capped so a catastrophic run cannot emit a
+ * gigabyte of JSON; counters stay exact so `stats` cannot lie by omission.
+ */
+export function recordAuditOutcome(
+	buckets: AuditOutcomeBuckets,
+	result: BlockCheck,
+	maxMismatches: number,
+	maxSamples: number,
+): void {
+	if (result.status === "match") {
+		buckets.matches += 1;
+		if (buckets.sampleMatches.length < maxSamples) {
+			buckets.sampleMatches.push(result);
+		}
+		return;
+	}
+	if (result.status === "mismatch") {
+		buckets.mismatchCount += 1;
+		if (buckets.mismatches.length < maxMismatches) {
+			buckets.mismatches.push(result);
+		}
+		return;
+	}
+	buckets.unavailableCount += 1;
+	if (buckets.unavailable.length < maxMismatches) {
+		buckets.unavailable.push(result);
+	}
+}
+
 /**
  * Compare the local canonical index at [fromBlock, toBlock] against a
  * stacks-node's block identities. Returns the attestation document.
@@ -140,10 +191,7 @@ export async function runNodeReplayAudit(
 	const progressEvery = options.progressEvery ?? DEFAULT_PROGRESS_EVERY;
 	const concurrency = Math.max(1, options.concurrency ?? DEFAULT_CONCURRENCY);
 
-	const mismatches: BlockCheck[] = [];
-	const unavailable: BlockCheck[] = [];
-	const sampleMatches: BlockCheck[] = [];
-	let matches = 0;
+	const buckets = emptyAuditBuckets();
 
 	// Walk heights in ascending order via a cursor rather than SELECT * — a
 	// full-chain audit touches ~9M rows and OOM on materializing them.
@@ -217,17 +265,6 @@ export async function runNodeReplayAudit(
 		}
 	};
 
-	const recordResult = (result: BlockCheck): void => {
-		if (result.status === "match") {
-			matches += 1;
-			if (sampleMatches.length < maxSamples) sampleMatches.push(result);
-		} else if (result.status === "mismatch") {
-			if (mismatches.length < maxMismatches) mismatches.push(result);
-		} else {
-			if (unavailable.length < maxMismatches) unavailable.push(result);
-		}
-	};
-
 	while (cursor < options.toBlock) {
 		type Row = {
 			height: string | number;
@@ -259,7 +296,7 @@ export async function runNodeReplayAudit(
 			const chunk = normalized.slice(i, i + concurrency);
 			const results = await Promise.all(chunk.map(checkOne));
 			for (const result of results) {
-				recordResult(result);
+				recordAuditOutcome(buckets, result, maxMismatches, maxSamples);
 				checked += 1;
 				if (checked % progressEvery === 0 || checked === totalHeights) {
 					options.onProgress?.(checked, totalHeights);
@@ -269,23 +306,9 @@ export async function runNodeReplayAudit(
 		cursor = Number(rows[rows.length - 1]?.height ?? cursor);
 	}
 
-	// Count-only totals — never trust `mismatches.length` since it's capped.
-	let totalMismatches = mismatches.length;
-	let totalUnavailable = unavailable.length;
-	if (totalMismatches >= maxMismatches || totalUnavailable >= maxMismatches) {
-		const totals = await countMismatchesAgainstNode({
-			db,
-			nodeUrl: options.nodeUrl,
-			fromBlock: options.fromBlock,
-			toBlock: options.toBlock,
-			fetchImpl: options.fetchImpl,
-		}).catch(() => null);
-		if (totals) {
-			totalMismatches = totals.mismatches;
-			totalUnavailable = totals.unavailable;
-		}
-	}
-
+	// Counters are exact; `mismatches[]` / `unavailable[]` are capped evidence.
+	// Reporting `.length` of a capped list undercounted ~83k post-fork
+	// mismatches as 200 on 2026-08-13.
 	let doc: NodeAttestation = {
 		schema_version: NODE_ATTESTATION_SCHEMA_VERSION,
 		kind: NODE_ATTESTATION_KIND,
@@ -312,13 +335,13 @@ export async function runNodeReplayAudit(
 		],
 		stats: {
 			blocks_checked: checked,
-			matches,
-			mismatches: totalMismatches,
-			node_unavailable: totalUnavailable,
+			matches: buckets.matches,
+			mismatches: buckets.mismatchCount,
+			node_unavailable: buckets.unavailableCount,
 		},
-		mismatches,
-		unavailable,
-		sample_matches: sampleMatches,
+		mismatches: buckets.mismatches,
+		unavailable: buckets.unavailable,
+		sample_matches: buckets.sampleMatches,
 	};
 
 	if (options.signingPrivateKeyPem) {
@@ -349,24 +372,6 @@ export async function writeNodeAttestation(
 
 function normalizeHash(value: string): string {
 	return (value.startsWith("0x") ? value.slice(2) : value).toLowerCase();
-}
-
-/**
- * Fallback total-count pass, used only when the sampled mismatch/unavailable
- * list hits the reporting cap and the true totals matter for `stats`. Kept
- * separate from the main loop so callers can skip it in ordinary runs.
- */
-async function countMismatchesAgainstNode(_params: {
-	db: Kysely<Database>;
-	nodeUrl: string;
-	fromBlock: number;
-	toBlock: number;
-	fetchImpl?: typeof fetch;
-}): Promise<{ mismatches: number; unavailable: number } | null> {
-	// Placeholder: a real full count re-walks the range with a cheaper batch of
-	// requests. Left null so `stats` reflects the sampled floor rather than a
-	// fabricated total. Explicit floor > fake ceiling.
-	return null;
 }
 
 function parseCliArgs(argv: string[]): {
