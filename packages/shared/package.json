@@ -144,6 +144,10 @@
 			"types": "./dist/src/archive/per-height-digest.d.ts",
 			"import": "./dist/src/archive/per-height-digest.js"
 		},
+		"./archive/derived-stage-report": {
+			"types": "./dist/src/archive/derived-stage-report.d.ts",
+			"import": "./dist/src/archive/derived-stage-report.js"
+		},
 		"./errors": {
 			"types": "./dist/src/errors.d.ts",
 			"import": "./dist/src/errors.js"
