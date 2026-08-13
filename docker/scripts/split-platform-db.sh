@@ -47,6 +47,7 @@ done
 # set of TABLE_TO_DB (packages/shared/src/db/table-plane.ts) — the canonical
 # source of truth; table-plane.test.ts asserts this list matches it.
 CONTROL_TABLES=(
+  instances
   accounts
   tenants
   projects

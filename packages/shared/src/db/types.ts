@@ -257,6 +257,13 @@ export interface ApiKeysTable {
 	created_at: Generated<Date>;
 }
 
+/** Singleton self-host / publisher identity. Network is immutable. */
+export interface InstancesTable {
+	id: Generated<string>;
+	network: string;
+	created_at: Generated<Date>;
+}
+
 export interface AccountsTable {
 	id: Generated<string>;
 	/** NULL for unclaimed ghost accounts (anonymous self-serve keys). */
@@ -914,6 +921,7 @@ export interface Database {
 	contracts: ContractsTable;
 	subgraphs: SubgraphsTable;
 	api_keys: ApiKeysTable;
+	instances: InstancesTable;
 	accounts: AccountsTable;
 	sessions: SessionsTable;
 	magic_links: MagicLinksTable;

@@ -2,11 +2,9 @@
 /**
  * OSS bootstrap — provision the local owner account and print its API key.
  *
- * A self-hosted instance has no signup flow: magic-link login needs an email
- * provider, and the accountless deploy path is gated on the x402 rail nobody
- * runs at home. Without this, `sl subgraphs deploy` against your own stack
- * dead-ends at "claim an account", which is meaningless on a single-tenant box
- * you already own.
+ * Pins the singleton instance (immutable network) then mints a local owner
+ * key so `sl subgraphs deploy` works. Deploy still uses an account row until
+ * the accountless namespace lands; the instance itself does not need one.
  *
  * Idempotent: re-running reuses the existing local account and mints a fresh
  * key (the previous one keeps working until you revoke it).
@@ -17,11 +15,19 @@
  */
 import { closeDb, getDb } from "@secondlayer/shared/db";
 import { mintApiKey } from "../packages/api/src/auth/mint.ts";
+import {
+	ensureInstance,
+	instanceNetworkFromEnv,
+} from "../packages/shared/src/db/queries/instance.ts";
 
 const LOCAL_ACCOUNT_EMAIL = "owner@localhost";
 
 async function main() {
 	const db = getDb();
+
+	const instance = await ensureInstance(db, {
+		network: instanceNetworkFromEnv(),
+	});
 
 	const existing = await db
 		.selectFrom("accounts")
@@ -53,6 +59,7 @@ async function main() {
 	});
 
 	console.log(`
+Instance ${instance.id}  network=${instance.network}
 Local owner account ${existing ? "reused" : "created"}: ${account.id}
 
   API key (shown once — only its hash is stored):

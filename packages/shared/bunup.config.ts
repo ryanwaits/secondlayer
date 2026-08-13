@@ -5,6 +5,7 @@ const config: DefineConfigItem = defineConfig({
 	entry: [
 		"src/index.ts",
 		"src/db/index.ts",
+		"src/db/queries/instance.ts",
 		"src/db/queries/integrity.ts",
 		"src/db/queries/chain-reorgs.ts",
 		"src/db/queries/contracts.ts",

@@ -39,7 +39,7 @@ them on SOURCE avoids cross-DB reads.
 
 Written by `api`, `worker`, `subgraph-processor`.
 
-- Accounts/auth/billing: `accounts`, `api_keys`, `sessions`, `magic_links`,
+- Accounts/auth/billing: `instances`, `accounts`, `api_keys`, `sessions`, `magic_links`,
   `usage_daily`, `usage_snapshots`, `account_insights`, `account_agent_runs`,
   `processed_stripe_events`, `tenants`, `tenant_usage_monthly`,
   `tenant_compute_addons`, `account_spend_caps`, `provisioning_audit_log`,

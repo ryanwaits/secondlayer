@@ -58,6 +58,7 @@ export const TABLE_TO_DB = {
 	bns_names: "source",
 	bns_namespaces: "source",
 	// ── TARGET: accounts / auth / billing ──
+	instances: "target",
 	accounts: "target",
 	api_keys: "target",
 	sessions: "target",
