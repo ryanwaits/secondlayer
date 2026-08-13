@@ -13,6 +13,7 @@ import {
 	toggleSubscriptionStatus,
 	updateSubscription,
 } from "@secondlayer/shared/db/queries/subscriptions";
+import { isPlatformMode } from "@secondlayer/shared/mode";
 import {
 	type ChainTrigger,
 	CreateSubscriptionRequestSchema,
@@ -190,9 +191,10 @@ app.post("/", async (c) => {
 		);
 	}
 
-	// Plan quota: free (plan 'none') 0 / Pro 25 / Scale+ unlimited. Counts
-	// existing rows at create time only — pausing or deleting frees a slot.
-	const quota = await resolveSubscriptionQuota(getDb(), accountId || undefined);
+	// Plan quota: hosted only. OSS has no account or plan.
+	const quota = isPlatformMode()
+		? await resolveSubscriptionQuota(getDb(), accountId || undefined)
+		: null;
 	if (quota !== null) {
 		const rows = await listSubscriptions(getDb(), accountId);
 		if (rows.length >= quota) {

@@ -1,6 +1,7 @@
 import { type Kysely, sql } from "kysely";
 import { generateSecret } from "../../crypto/hmac.ts";
 import { decryptSecret, encryptSecret } from "../../crypto/secrets.ts";
+import { isPlatformMode } from "../../mode.ts";
 import type {
 	Database,
 	InsertSubscription,
@@ -53,7 +54,7 @@ export async function createSubscription(
 	const signingSecret = generateSecret();
 	const kind: SubscriptionKind = input.kind ?? "subgraph";
 	const row: InsertSubscription = {
-		account_id: input.accountId,
+		account_id: isPlatformMode() ? input.accountId : "",
 		project_id: input.projectId ?? null,
 		name: input.name,
 		status: "active",
@@ -91,8 +92,8 @@ export async function listSubscriptions(
 	let q = db
 		.selectFrom("subscriptions")
 		.selectAll()
-		.where("account_id", "=", accountId)
 		.orderBy("created_at", "desc");
+	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
 	if (opts?.limit !== undefined) q = q.limit(opts.limit);
 	if (opts?.offset !== undefined) q = q.offset(opts.offset);
 	return q.execute();
@@ -119,13 +120,9 @@ export async function getSubscription(
 	accountId: string,
 	id: string,
 ): Promise<Subscription | null> {
-	const row = await db
-		.selectFrom("subscriptions")
-		.selectAll()
-		.where("account_id", "=", accountId)
-		.where("id", "=", id)
-		.executeTakeFirst();
-	return row ?? null;
+	let q = db.selectFrom("subscriptions").selectAll().where("id", "=", id);
+	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
+	return (await q.executeTakeFirst()) ?? null;
 }
 
 export async function getSubscriptionByName(
@@ -133,13 +130,9 @@ export async function getSubscriptionByName(
 	accountId: string,
 	name: string,
 ): Promise<Subscription | null> {
-	const row = await db
-		.selectFrom("subscriptions")
-		.selectAll()
-		.where("account_id", "=", accountId)
-		.where("name", "=", name)
-		.executeTakeFirst();
-	return row ?? null;
+	let q = db.selectFrom("subscriptions").selectAll().where("name", "=", name);
+	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
+	return (await q.executeTakeFirst()) ?? null;
 }
 
 export interface UpdateSubscriptionInput {
@@ -171,14 +164,9 @@ export async function updateSubscription(
 	if (patch.timeoutMs !== undefined) update.timeout_ms = patch.timeoutMs;
 	if (patch.concurrency !== undefined) update.concurrency = patch.concurrency;
 
-	const row = await db
-		.updateTable("subscriptions")
-		.set(update)
-		.where("account_id", "=", accountId)
-		.where("id", "=", id)
-		.returningAll()
-		.executeTakeFirst();
-	return row ?? null;
+	let q = db.updateTable("subscriptions").set(update).where("id", "=", id);
+	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
+	return (await q.returningAll().executeTakeFirst()) ?? null;
 }
 
 export async function toggleSubscriptionStatus(
@@ -187,7 +175,7 @@ export async function toggleSubscriptionStatus(
 	id: string,
 	status: SubscriptionStatus,
 ): Promise<Subscription | null> {
-	const row = await db
+	let q = db
 		.updateTable("subscriptions")
 		.set({
 			status,
@@ -199,11 +187,9 @@ export async function toggleSubscriptionStatus(
 					}
 				: {}),
 		})
-		.where("account_id", "=", accountId)
-		.where("id", "=", id)
-		.returningAll()
-		.executeTakeFirst();
-	return row ?? null;
+		.where("id", "=", id);
+	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
+	return (await q.returningAll().executeTakeFirst()) ?? null;
 }
 
 export async function deleteSubscription(
@@ -211,11 +197,9 @@ export async function deleteSubscription(
 	accountId: string,
 	id: string,
 ): Promise<boolean> {
-	const res = await db
-		.deleteFrom("subscriptions")
-		.where("account_id", "=", accountId)
-		.where("id", "=", id)
-		.executeTakeFirst();
+	let q = db.deleteFrom("subscriptions").where("id", "=", id);
+	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
+	const res = await q.executeTakeFirst();
 	return Number(res.numDeletedRows ?? 0) > 0;
 }
 
@@ -230,16 +214,15 @@ export async function rotateSubscriptionSecret(
 	id: string,
 ): Promise<RotateSecretResult | null> {
 	const signingSecret = generateSecret();
-	const row = await db
+	let q = db
 		.updateTable("subscriptions")
 		.set({
 			signing_secret_enc: encryptSecret(signingSecret),
 			updated_at: new Date(),
 		})
-		.where("account_id", "=", accountId)
-		.where("id", "=", id)
-		.returningAll()
-		.executeTakeFirst();
+		.where("id", "=", id);
+	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
+	const row = await q.returningAll().executeTakeFirst();
 	if (!row) return null;
 	return { subscription: row, signingSecret };
 }

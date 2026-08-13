@@ -21,8 +21,11 @@ import {
 } from "./subscriptions.ts";
 
 // Requires local Postgres via `bun run db` and migrations applied.
-// INSTANCE_MODE=oss so the crypto/secrets bootstrap doesn't throw.
-process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
+// Account-scope tests need platform mode. Crypto still boots in tests.
+process.env.INSTANCE_MODE = "platform";
+process.env.SECONDLAYER_SECRETS_KEY =
+	process.env.SECONDLAYER_SECRETS_KEY ??
+	"0000000000000000000000000000000000000000000000000000000000000000";
 process.env.DATABASE_URL =
 	process.env.DATABASE_URL ??
 	"postgresql://postgres:postgres@127.0.0.1:5440/secondlayer";
@@ -193,5 +196,40 @@ describe("subscriptions queries", () => {
 		const fetched = await getSubscription(db, accountId, subscription.id);
 		expect(fetched?.kind).toBe("chain");
 		expect(fetched?.triggers).toEqual(triggers);
+	});
+});
+
+describe("subscriptions local namespace (oss)", () => {
+	const prevMode = process.env.INSTANCE_MODE;
+
+	afterAll(() => {
+		process.env.INSTANCE_MODE = prevMode;
+	});
+
+	it("get/list/delete by name without an account", async () => {
+		process.env.INSTANCE_MODE = "oss";
+		await db
+			.deleteFrom("subscriptions")
+			.where("name", "=", "local-sub")
+			.execute();
+		const { subscription } = await createSubscription(db, {
+			accountId: "acct-leftover",
+			name: "local-sub",
+			subgraphName: "sg",
+			tableName: "t",
+			url: "https://example.com/hook",
+		});
+		expect(subscription.account_id).toBe("");
+
+		const found = await getSubscription(db, "someone-else", subscription.id);
+		expect(found?.name).toBe("local-sub");
+		const byName = await getSubscriptionByName(db, "someone-else", "local-sub");
+		expect(byName?.id).toBe(subscription.id);
+		const listed = await listSubscriptions(db, "someone-else");
+		expect(listed.some((s) => s.name === "local-sub")).toBe(true);
+
+		expect(await deleteSubscription(db, "someone-else", subscription.id)).toBe(
+			true,
+		);
 	});
 });
