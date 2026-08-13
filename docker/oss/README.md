@@ -30,7 +30,7 @@ clarinet project.
 
 ```bash
 cp .env.example .env
-# Edit .env — set POSTGRES_PASSWORD at minimum.
+# Edit .env — set POSTGRES_PASSWORD and INSTANCE_TOKEN (`openssl rand -hex 32`).
 
 docker compose up -d postgres migrate api indexer decoder subgraph-processor subscription-processor
 ```
@@ -72,9 +72,9 @@ writing to your own Postgres:
 bun run self-host:smoke
 ```
 
-The API is now at `http://localhost:3800`. By default it's open (OSS mode
-default). To require a Bearer key on every request, set `API_KEY` in `.env`
-and uncomment the line in `docker-compose.yml`.
+The API is now at `http://localhost:3800`. The container listens on `0.0.0.0`
+and **refuses to start without `INSTANCE_TOKEN`**. Host publish defaults to
+loopback (`127.0.0.1:3800`). Pass the token as `Authorization: Bearer …`.
 
 To point the indexer at an external Stacks node's event observer, configure
 that node's Config.toml with `endpoint = "<your-host>:3700"`.
@@ -112,7 +112,7 @@ With the CLI (`bun add -g @secondlayer/cli`):
 ```bash
 # Point the CLI at the local OSS API — no session needed.
 export SL_API_URL=http://localhost:3800
-export SL_API_KEY=<your-key>   # only if API_KEY is set in the OSS .env
+export SL_API_KEY=<INSTANCE_TOKEN>
 
 sl subgraphs deploy ./my-subgraph.ts
 ```
@@ -150,5 +150,5 @@ docker compose up -d
 - `POSTGRES_PORT` and `INDEXER_PORT` default to `127.0.0.1:...` (localhost
   only). Remove the prefix to expose them, but consider whether you really
   need to.
-- Set `API_KEY` in `.env` if the API is reachable from untrusted networks.
+- Set `INSTANCE_TOKEN` in `.env` (`openssl rand -hex 32`). Compose will not start the API without it.
 - Don't publish port 8332 (bitcoind RPC) to the internet. Keep it localhost.

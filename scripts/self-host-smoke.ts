@@ -375,7 +375,10 @@ async function main() {
 	// The whole point of self-hosting is deploying your own subgraph, and that
 	// needs an owner key — there is no signup flow on a single-tenant box.
 	console.log("\nsubgraphs: deploy");
-	const key = await bootstrapKey(db);
+	const key =
+		process.env.INSTANCE_TOKEN ??
+		process.env.API_KEY ??
+		(await bootstrapKey(db));
 	check("owner key provisioned", !!key);
 
 	// Delete first so the smoke is repeatable: a prior run leaves the subgraph

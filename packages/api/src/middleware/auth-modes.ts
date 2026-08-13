@@ -1,15 +1,24 @@
 import { AuthenticationError } from "@secondlayer/shared/errors";
 import type { MiddlewareHandler } from "hono";
+import { resolveInstanceToken } from "../instance-bind.ts";
 
 /**
  * OSS-mode auth factories.
  *
  * - `noAuth()` — pass-through; no auth context set.
- * - `staticKeyAuth(key)` — pass-through when `API_KEY` env is unset; otherwise
- *   requires `Authorization: Bearer $API_KEY`.
+ * - `instanceTokenAuth()` — pass-through when no instance token is set;
+ *   otherwise requires `Authorization: Bearer $INSTANCE_TOKEN` (API_KEY alias).
  *
  * Platform mode uses `requireAuth()` from `packages/api/src/auth` directly.
  */
+
+const SKIP_PREFIXES = ["/health", "/public"];
+
+export function shouldSkipInstanceAuth(path: string): boolean {
+	return SKIP_PREFIXES.some(
+		(prefix) => path === prefix || path.startsWith(`${prefix}/`),
+	);
+}
 
 /** Pass-through middleware — used in OSS mode when no key is configured. */
 export function noAuth(): MiddlewareHandler {
@@ -19,14 +28,17 @@ export function noAuth(): MiddlewareHandler {
 }
 
 /**
- * Simple shared-key auth for OSS instances that want a password gate.
- * When `API_KEY` is unset or empty, behaves like `noAuth()`.
+ * Shared instance token. Unset → open (only legal on a loopback bind).
+ * `API_KEY` is accepted as an alias of `INSTANCE_TOKEN`.
  */
-export function staticKeyAuth(): MiddlewareHandler {
+export function instanceTokenAuth(): MiddlewareHandler {
 	return async (c, next) => {
-		const expected = process.env.API_KEY?.trim();
+		if (shouldSkipInstanceAuth(c.req.path)) {
+			await next();
+			return;
+		}
+		const expected = resolveInstanceToken();
 		if (!expected) {
-			// No key configured → pass through (same as noAuth).
 			await next();
 			return;
 		}
@@ -36,8 +48,13 @@ export function staticKeyAuth(): MiddlewareHandler {
 		}
 		const provided = auth.slice(7);
 		if (provided !== expected) {
-			throw new AuthenticationError("Invalid API key");
+			throw new AuthenticationError("Invalid instance token");
 		}
 		await next();
 	};
+}
+
+/** @deprecated Use `instanceTokenAuth`. */
+export function staticKeyAuth(): MiddlewareHandler {
+	return instanceTokenAuth();
 }

@@ -36,7 +36,7 @@ git clone https://github.com/ryanwaits/secondlayer.git
 cd secondlayer/docker/oss
 
 cp .env.example .env
-# Edit .env — set POSTGRES_PASSWORD at minimum.
+# Edit .env — set POSTGRES_PASSWORD and INSTANCE_TOKEN (`openssl rand -hex 32`).
 
 docker compose up -d postgres migrate api indexer subgraph-processor
 ```
@@ -101,8 +101,8 @@ Core env vars (`.env`):
 | `POSTGRES_PASSWORD` | `changeme_postgres_password` | **Change before exposing publicly** |
 | `POSTGRES_USER` / `POSTGRES_DB` | `secondlayer` | |
 | `POSTGRES_PORT` | `127.0.0.1:5432` | Remove `127.0.0.1:` prefix to expose |
-| `API_PORT` | `3800` | |
-| `API_KEY` | _(unset)_ | Set to require a Bearer token on every request |
+| `API_PORT` | `127.0.0.1:3800` | Drop the `127.0.0.1:` prefix to publish on all host interfaces |
+| `INSTANCE_TOKEN` | _(required in compose)_ | Bearer token. `API_KEY` is an alias. Loopback-only binds may omit it |
 | `INDEXER_PORT` | `127.0.0.1:3700` | Localhost-only; stacks-node uses docker network |
 | `NETWORKS` | `mainnet` | `testnet` or comma-separated for multi-network |
 | `LOG_LEVEL` | `info` | |
@@ -186,7 +186,7 @@ curl http://localhost:3700/health | jq   # Indexer
 **Security checklist:**
 - Change `POSTGRES_PASSWORD` and `BITCOIN_RPC_PASSWORD` before any public exposure
 - `POSTGRES_PORT` and `INDEXER_PORT` default to `127.0.0.1:...`; keep it that way unless you know what you're opening
-- Set `API_KEY` if the API is reachable from untrusted networks
+- Set `INSTANCE_TOKEN` — compose refuses to start the API on `0.0.0.0` without it
 - Never publish port 8332 (bitcoind RPC) to the internet
 
 **Deploy a subgraph against your local instance:**

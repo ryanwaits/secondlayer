@@ -53,6 +53,10 @@ services:
       INSTANCE_MODE: oss
       DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
       PORT: 3800
+      # Container must listen on all interfaces so sibling services can reach
+      # it. The process refuses this bind without INSTANCE_TOKEN / API_KEY.
+      LISTEN_HOST: "0.0.0.0"
+      INSTANCE_TOKEN: ${INSTANCE_TOKEN:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
       DATA_DIR: /data
@@ -60,12 +64,8 @@ services:
       # (GET /v1/index/transactions/:id/proof). Unset → that endpoint returns
       # a clean 503; nothing else is affected.
       STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-}
-      # Optional: uncomment to require a Bearer key on every request.
-      # When unset, the API is open to localhost (bind POSTGRES_PORT/API_PORT
-      # to 127.0.0.1 if running on a public host).
-      # API_KEY: ${API_KEY:-}
     ports:
-      - "${API_PORT:-3800}:3800"
+      - "${API_PORT:-127.0.0.1:3800}:3800"
     volumes:
       - subgraphs_data:/data/subgraphs
     depends_on:

@@ -9,8 +9,13 @@ import {
 	rateLimit,
 	requireAuth,
 } from "./auth/index.ts";
+import {
+	assertInstanceBindAuth,
+	resolveInstanceToken,
+	resolveListenHost,
+} from "./instance-bind.ts";
 import { requireAdmin } from "./middleware/admin.ts";
-import { staticKeyAuth } from "./middleware/auth-modes.ts";
+import { instanceTokenAuth } from "./middleware/auth-modes.ts";
 import { errorHandler } from "./middleware/error.ts";
 import { requestLogger } from "./middleware/logging.ts";
 import { countApiRequests } from "./middleware/usage.ts";
@@ -136,11 +141,11 @@ app.notFound((c) =>
 
 /**
  * Resource auth middleware applied per instance mode.
- * - oss: `staticKeyAuth` (pass-through unless `API_KEY` env is set)
+ * - oss: instance token (pass-through unless INSTANCE_TOKEN / API_KEY is set)
  * - platform: `requireAuth` (magic-link sessions + sk-sl_ API keys)
  */
 function resourceAuth(): MiddlewareHandler {
-	if (mode === "oss") return staticKeyAuth();
+	if (mode === "oss") return instanceTokenAuth();
 	return requireAuth();
 }
 
@@ -259,8 +264,24 @@ if (mode === "platform") {
 
 // Start server
 const PORT = Number.parseInt(process.env.PORT || "3800");
+const listenHost = mode === "oss" ? resolveListenHost() : "0.0.0.0";
+if (mode === "oss") {
+	try {
+		assertInstanceBindAuth({
+			host: listenHost,
+			token: resolveInstanceToken(),
+		});
+	} catch (err) {
+		logger.error(err instanceof Error ? err.message : String(err));
+		process.exit(1);
+	}
+}
 
-logger.info("Starting API service", { port: PORT, mode });
+logger.info("Starting API service", {
+	port: PORT,
+	hostname: listenHost,
+	mode,
+});
 
 // Start subgraph registry cache (LISTEN for subgraph_changes) — runs in all
 // modes post shared-rip; subgraphs live on the platform DB too.
@@ -273,6 +294,7 @@ startSubgraphCache().catch((err) => {
 assertDbSplit();
 const server = Bun.serve({
 	port: PORT,
+	hostname: listenHost,
 	fetch: app.fetch,
 	// Bun's default `idleTimeout` is 10s. We have legitimate long-tail
 	// requests that exceed that:
