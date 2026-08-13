@@ -1,5 +1,24 @@
 # @secondlayer/cli
 
+## 9.9.0
+
+### Minor Changes
+
+- Add `sl faucet sbtc` to mint mock sBTC on your local devnet. Works because the
+  contracts you deployed make you the signer set on your own chain — no Bitcoin,
+  no regtest, no hosted dispenser. Refuses any network but devnet.
+
+### Patch Changes
+
+- eb42d3f: `sl bootstrap` now records where the indexer should resume and reports how far
+  the chain moved while restoring. A restored instance previously held its full
+  history while reporting no progress at all, because nothing wrote the resume
+  point and the indexer's own recompute could not create it.
+- Updated dependencies
+- Updated dependencies [43a0a62]
+  - @secondlayer/shared@7.8.0
+  - @secondlayer/stacks@3.3.1
+
 ## 9.8.0
 
 ### Minor Changes

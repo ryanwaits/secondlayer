@@ -1,5 +1,19 @@
 # @secondlayer/shared
 
+## 7.8.0
+
+### Minor Changes
+
+- Add archive trust and observability primitives: a root-signed key registry that
+  distinguishes a rotated key (its past signatures stay valid) from a compromised
+  one (they do not), an operational status model that separates expected finality
+  lag from genuine staleness, and time-based progress reporting for long jobs.
+
+### Patch Changes
+
+- Updated dependencies [43a0a62]
+  - @secondlayer/stacks@3.3.1
+
 ## 7.7.0
 
 ### Minor Changes

@@ -4,6 +4,19 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## CLI — August 2026
 
+### Mint mock sBTC on your devnet
+
+`sl faucet sbtc` gives you sBTC to test against, locally:
+
+```bash
+sl faucet sbtc --to ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+```
+
+No Bitcoin, no regtest, no waiting on someone else's faucet. The sBTC contracts
+you deployed make you the signer set on your own chain, so minting is just a
+contract call. Refuses any network but devnet — elsewhere the signer set isn't
+yours.
+
 ### Check your chain data against a signed archive
 
 `sl verify` tells you whether your history is intact. It compares your database

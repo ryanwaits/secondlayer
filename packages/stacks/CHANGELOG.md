@@ -1,5 +1,13 @@
 # @secondlayer/stacks
 
+## 3.3.1
+
+### Patch Changes
+
+- 43a0a62: Point the testnet sBTC constants at the live deployment. The testnet reset
+  retired the previous address, so every testnet sBTC call resolved to a contract
+  that no longer exists.
+
 ## 3.3.0
 
 ### Minor Changes
