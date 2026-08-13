@@ -1,5 +1,14 @@
 # @secondlayer/cli
 
+## 9.10.0
+
+### Minor Changes
+
+- dca1886: Move the sBTC faucet under `sl devnet faucet`. It reads your Clarinet project's
+  `Devnet.toml` and signs as that deployer, so it belongs with the other devnet
+  commands — and a top-level `sl faucet` implied it could serve testnet, which it
+  cannot.
+
 ## 9.9.0
 
 ### Minor Changes
