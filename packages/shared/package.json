@@ -132,6 +132,14 @@
 			"types": "./dist/src/archive/range-digest.d.ts",
 			"import": "./dist/src/archive/range-digest.js"
 		},
+		"./archive/semantic-digest": {
+			"types": "./dist/src/archive/semantic-digest.d.ts",
+			"import": "./dist/src/archive/semantic-digest.js"
+		},
+		"./archive/semantic-digest-builder": {
+			"types": "./dist/src/archive/semantic-digest-builder.d.ts",
+			"import": "./dist/src/archive/semantic-digest-builder.js"
+		},
 		"./errors": {
 			"types": "./dist/src/errors.d.ts",
 			"import": "./dist/src/errors.js"
