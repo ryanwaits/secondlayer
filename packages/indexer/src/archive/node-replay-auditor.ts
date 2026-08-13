@@ -111,11 +111,21 @@ export interface NodeReplayAuditOptions {
 	/** Log progress every N heights. */
 	progressEvery?: number;
 	onProgress?: (checked: number, total: number) => void;
+	/**
+	 * Max in-flight `/v3/blocks/{ibh}` fetches at any moment. Sequential (1)
+	 * bounds a full-chain audit at days; 8 cuts that to hours. Every request
+	 * is a read of an immutable file the node already has on disk, so the
+	 * node handles this fine — but a hosted stacks-node under other load
+	 * may want a lower value. Ordering of `sample_matches` is preserved
+	 * regardless.
+	 */
+	concurrency?: number;
 }
 
 const DEFAULT_MAX_MISMATCHES = 200;
 const DEFAULT_MAX_SAMPLES = 5;
 const DEFAULT_PROGRESS_EVERY = 1_000;
+const DEFAULT_CONCURRENCY = 8;
 
 /**
  * Compare the local canonical index at [fromBlock, toBlock] against a
@@ -128,6 +138,7 @@ export async function runNodeReplayAudit(
 	const maxMismatches = options.maxMismatchesReported ?? DEFAULT_MAX_MISMATCHES;
 	const maxSamples = options.maxSampleMatches ?? DEFAULT_MAX_SAMPLES;
 	const progressEvery = options.progressEvery ?? DEFAULT_PROGRESS_EVERY;
+	const concurrency = Math.max(1, options.concurrency ?? DEFAULT_CONCURRENCY);
 
 	const mismatches: BlockCheck[] = [];
 	const unavailable: BlockCheck[] = [];
@@ -140,6 +151,82 @@ export async function runNodeReplayAudit(
 	const totalHeights = options.toBlock - options.fromBlock + 1;
 	let checked = 0;
 	const BATCH_ROWS = 500;
+
+	// Per-row check: no shared mutable state, safe to run concurrently. Returns
+	// a `BlockCheck` describing what we found for that height. The caller
+	// merges into the outer accumulators in height-ascending order so the
+	// bounded `sample_matches`, `mismatches`, and `unavailable` lists stay
+	// deterministic regardless of network completion order.
+	const checkOne = async (row: {
+		height: number;
+		expectedHash: string;
+		expectedIbh: string | null;
+	}): Promise<BlockCheck> => {
+		const { height, expectedHash, expectedIbh } = row;
+		if (!expectedIbh) {
+			return {
+				height,
+				status: "node-unavailable",
+				expected_hash: expectedHash,
+				expected_index_block_hash: "",
+				reason: "local canonical row has no index_block_hash",
+			};
+		}
+		try {
+			const fetched = await fetchNakamotoBlock({
+				nodeUrl: options.nodeUrl,
+				blockId: expectedIbh,
+				fetchImpl: options.fetchImpl,
+			});
+			const actualHash = normalizeHash(fetched.blockHash);
+			const actualIbh = normalizeHash(fetched.indexBlockHash);
+			const expected = normalizeHash(expectedHash);
+			const expectedIbhNorm = normalizeHash(expectedIbh);
+			const hashOk = actualHash === expected;
+			const ibhOk = actualIbh === expectedIbhNorm;
+			if (hashOk && ibhOk) {
+				return {
+					height,
+					status: "match",
+					expected_hash: expected,
+					actual_hash: actualHash,
+					expected_index_block_hash: expectedIbhNorm,
+					actual_index_block_hash: actualIbh,
+				};
+			}
+			const which: Array<"hash" | "index_block_hash"> = [];
+			if (!hashOk) which.push("hash");
+			if (!ibhOk) which.push("index_block_hash");
+			return {
+				height,
+				status: "mismatch",
+				expected_hash: expected,
+				actual_hash: actualHash,
+				expected_index_block_hash: expectedIbhNorm,
+				actual_index_block_hash: actualIbh,
+				mismatches: which,
+			};
+		} catch (err) {
+			return {
+				height,
+				status: "node-unavailable",
+				expected_hash: expectedHash,
+				expected_index_block_hash: expectedIbh,
+				reason: err instanceof Error ? err.message : String(err),
+			};
+		}
+	};
+
+	const recordResult = (result: BlockCheck): void => {
+		if (result.status === "match") {
+			matches += 1;
+			if (sampleMatches.length < maxSamples) sampleMatches.push(result);
+		} else if (result.status === "mismatch") {
+			if (mismatches.length < maxMismatches) mismatches.push(result);
+		} else {
+			if (unavailable.length < maxMismatches) unavailable.push(result);
+		}
+	};
 
 	while (cursor < options.toBlock) {
 		type Row = {
@@ -158,78 +245,25 @@ export async function runNodeReplayAudit(
 		`.execute(db);
 		if (rows.length === 0) break;
 
-		for (const row of rows) {
-			const height = Number(row.height);
-			const expectedHash = row.hash;
-			const expectedIbh = row.index_block_hash;
-			if (!expectedIbh) {
-				// A canonical row missing its ibh means our own data cannot say what
-				// the node should return. Report as unavailable rather than pretend.
-				unavailable.push({
-					height,
-					status: "node-unavailable",
-					expected_hash: expectedHash,
-					expected_index_block_hash: "",
-					reason: "local canonical row has no index_block_hash",
-				});
-				checked += 1;
-				continue;
-			}
-			try {
-				const fetched = await fetchNakamotoBlock({
-					nodeUrl: options.nodeUrl,
-					blockId: expectedIbh,
-					fetchImpl: options.fetchImpl,
-				});
-				const actualHash = normalizeHash(fetched.blockHash);
-				const actualIbh = normalizeHash(fetched.indexBlockHash);
-				const expected = normalizeHash(expectedHash);
-				const expectedIbhNorm = normalizeHash(expectedIbh);
-				const hashOk = actualHash === expected;
-				const ibhOk = actualIbh === expectedIbhNorm;
-				if (hashOk && ibhOk) {
-					matches += 1;
-					if (sampleMatches.length < maxSamples) {
-						sampleMatches.push({
-							height,
-							status: "match",
-							expected_hash: expected,
-							actual_hash: actualHash,
-							expected_index_block_hash: expectedIbhNorm,
-							actual_index_block_hash: actualIbh,
-						});
-					}
-				} else if (mismatches.length < maxMismatches) {
-					const which: Array<"hash" | "index_block_hash"> = [];
-					if (!hashOk) which.push("hash");
-					if (!ibhOk) which.push("index_block_hash");
-					mismatches.push({
-						height,
-						status: "mismatch",
-						expected_hash: expected,
-						actual_hash: actualHash,
-						expected_index_block_hash: expectedIbhNorm,
-						actual_index_block_hash: actualIbh,
-						mismatches: which,
-					});
-				} else {
-					// Cap the reported list — the truth is in `stats`.
-				}
-			} catch (err) {
-				if (unavailable.length < maxMismatches) {
-					unavailable.push({
-						height,
-						status: "node-unavailable",
-						expected_hash: expectedHash,
-						expected_index_block_hash: expectedIbh,
-						reason: err instanceof Error ? err.message : String(err),
-					});
-				}
-			}
+		const normalized = rows.map((row) => ({
+			height: Number(row.height),
+			expectedHash: row.hash,
+			expectedIbh: row.index_block_hash,
+		}));
 
-			checked += 1;
-			if (checked % progressEvery === 0 || checked === totalHeights) {
-				options.onProgress?.(checked, totalHeights);
+		// Fire up to `concurrency` fetches at a time. `Promise.all` inside a
+		// chunk preserves per-chunk input order in the resolved array, which is
+		// how we keep `sample_matches` etc. deterministic across runs. The gap
+		// between chunks is small so throughput ≈ concurrency × single-request.
+		for (let i = 0; i < normalized.length; i += concurrency) {
+			const chunk = normalized.slice(i, i + concurrency);
+			const results = await Promise.all(chunk.map(checkOne));
+			for (const result of results) {
+				recordResult(result);
+				checked += 1;
+				if (checked % progressEvery === 0 || checked === totalHeights) {
+					options.onProgress?.(checked, totalHeights);
+				}
 			}
 		}
 		cursor = Number(rows[rows.length - 1]?.height ?? cursor);
@@ -341,12 +375,14 @@ function parseCliArgs(argv: string[]): {
 	outDir: string;
 	nodeUrl: string;
 	snapshotDigest: string | null;
+	concurrency: number;
 } {
 	let fromBlock = 0;
 	let toBlock = 0;
 	let outDir = "./canonical-v1-staging";
 	let nodeUrl = process.env.STACKS_NODE_RPC_URL ?? "http://localhost:20443";
 	let snapshotDigest: string | null = null;
+	let concurrency = DEFAULT_CONCURRENCY;
 	for (let i = 0; i < argv.length; i++) {
 		const arg = argv[i];
 		if (arg === "--from-block") fromBlock = Number(argv[++i]);
@@ -354,13 +390,19 @@ function parseCliArgs(argv: string[]): {
 		else if (arg === "--out") outDir = argv[++i] ?? outDir;
 		else if (arg === "--node-url") nodeUrl = argv[++i] ?? nodeUrl;
 		else if (arg === "--snapshot") snapshotDigest = argv[++i] ?? null;
+		else if (arg === "--concurrency") concurrency = Number(argv[++i]);
 	}
 	if (toBlock <= 0 || toBlock < fromBlock) {
 		throw new Error(
 			"--from-block and --to-block are required, with --to-block >= --from-block",
 		);
 	}
-	return { fromBlock, toBlock, outDir, nodeUrl, snapshotDigest };
+	if (!Number.isFinite(concurrency) || concurrency < 1) {
+		throw new Error(
+			`--concurrency must be a positive integer, got ${concurrency}`,
+		);
+	}
+	return { fromBlock, toBlock, outDir, nodeUrl, snapshotDigest, concurrency };
 }
 
 async function main(): Promise<void> {
@@ -377,6 +419,7 @@ async function main(): Promise<void> {
 		fromBlock: args.fromBlock,
 		toBlock: args.toBlock,
 		snapshotDigest: args.snapshotDigest,
+		concurrency: args.concurrency,
 		signingPrivateKeyPem: process.env.STREAMS_SIGNING_PRIVATE_KEY,
 		onProgress: (checked, total) => {
 			process.stderr.write(`  ${checked}/${total} blocks checked\n`);
