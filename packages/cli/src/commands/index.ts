@@ -18,4 +18,3 @@ export { registerProjectCommand } from "./project.ts";
 export { registerVerifyCommand } from "./verify.ts";
 export { registerRepairCommand } from "./repair.ts";
 export { registerBootstrapCommand } from "./bootstrap.ts";
-export { registerFaucetCommand } from "./faucet.ts";

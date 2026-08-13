@@ -71,10 +71,14 @@ const SERVICES = [
 	"migrate",
 ];
 
+import { registerFaucetCommand } from "./faucet.ts";
+
 export function registerDevnetCommand(program: Command): void {
 	const devnet = program
 		.command("devnet")
 		.description("Run Secondlayer services against a local Clarinet devnet");
+
+	registerFaucetCommand(devnet);
 
 	devnet
 		.command("connect")
