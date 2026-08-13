@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, rename, stat, unlink } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { ParquetSchema, ParquetWriter } from "@dsnp/parquetjs";
+import { waitForDiskSpace } from "@secondlayer/shared/archive/disk-guard";
 import { createProgressReporter } from "@secondlayer/shared/archive/progress";
 import {
 	type RangeDigest,
@@ -240,6 +241,17 @@ export async function exportCanonicalSnapshot(
 			start += partitionSize
 		) {
 			const end = Math.min(start + partitionSize - 1, bound.toBlock);
+
+			// Checked per partition, not once at startup: the nightly backup's
+			// ~150GB spike arrives mid-job, which is how two bulk jobs hit ENOSPC
+			// on 2026-08-12 after starting with comfortable headroom.
+			await waitForDiskSpace({
+				path: options.outDir,
+				onPause: (space, waitedMs) =>
+					process.stderr.write(
+						`  paused: ${(space.freeBytes / 1024 ** 3).toFixed(1)}GB free, waiting for space (${Math.round(waitedMs / 60_000)}m)\n`,
+					),
+			});
 			for (const dataset of [
 				"blocks",
 				"transactions",
