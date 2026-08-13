@@ -11,6 +11,7 @@ import {
 } from "@secondlayer/platform/db/queries/usage";
 import { DECODED_EVENT_TYPES } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
+import { isPlatformMode } from "@secondlayer/shared/mode";
 import { Hono, type MiddlewareHandler } from "hono";
 import { streamSSE } from "hono/streaming";
 import { validateQueryParams } from "../middleware/validation.ts";
@@ -146,8 +147,10 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	const responseCache = opts.responseCache ?? new StreamsResponseCache();
 	const recordEventsReturned =
 		opts.recordEventsReturned ??
-		((accountId, quantity) =>
-			incrementStreamsEventsReturned(getDb(), accountId, quantity));
+		(async (accountId, quantity) => {
+			if (!isPlatformMode()) return;
+			await incrementStreamsEventsReturned(getDb(), accountId, quantity);
+		});
 	const router = new Hono<StreamsEnv>();
 
 	// Discovery endpoint — anonymous, lists routes + envelope shape.

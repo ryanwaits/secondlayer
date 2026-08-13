@@ -264,6 +264,10 @@ if (commerceGatesEnabled()) {
 // Anon is the default; a presented key must be valid (silent fallthrough to
 // anon would make private reads "work" with a typo'd key — fail loud instead).
 app.use("*", async (c, next) => {
+	if (!isPlatformMode()) {
+		await next();
+		return;
+	}
 	const authHeader = c.req.header("authorization");
 	if (!authHeader?.startsWith("Bearer ")) {
 		await next();
@@ -294,6 +298,10 @@ const KEYED_RATE_LIMIT_PER_SECOND = 50;
 const WINDOW_MS = 1_000;
 
 app.use("*", async (c, next) => {
+	if (!isPlatformMode()) {
+		await next();
+		return;
+	}
 	const accountId = c.get("v1AccountId");
 	const [bucket, limit] = accountId
 		? [`subgraphs:${accountId}`, KEYED_RATE_LIMIT_PER_SECOND]

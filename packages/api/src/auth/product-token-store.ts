@@ -4,6 +4,7 @@ import {
 } from "@secondlayer/platform/pricing";
 import { logger } from "@secondlayer/shared";
 import { getDb as defaultGetDb } from "@secondlayer/shared/db";
+import { isPlatformMode } from "@secondlayer/shared/mode";
 import { hashToken } from "./keys.ts";
 
 export type ProductTier = "free" | "build" | "scale" | "enterprise";
@@ -117,6 +118,10 @@ export function createRuntimeProductTokenStore<TTenant extends ProductTenant>(
 			const seeded = await opts.staticTokens.get(rawToken);
 			if (seeded) return seeded;
 			if (!rawToken.startsWith("sk-sl_")) return undefined;
+			// OSS has no product keys. Injected lookupApiKey is tests only.
+			if (!isPlatformMode() && opts.lookupApiKey === undefined) {
+				return undefined;
+			}
 
 			const key = await lookupApiKey(hashToken(rawToken), opts.product, getDb);
 			if (!key || key.status !== "active") return undefined;

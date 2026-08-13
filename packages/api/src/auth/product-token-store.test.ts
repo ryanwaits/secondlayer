@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { generateApiKey, hashToken } from "./keys.ts";
 import {
 	type ProductTenant,
@@ -168,5 +168,26 @@ describe("runtime product token store", () => {
 		expect(accountPlanToProductTier("builder")).toBe("build");
 		// Unknown plan → safe free default (and logs a drift alarm).
 		expect(accountPlanToProductTier("platinum")).toBe("free");
+	});
+
+	describe("OSS", () => {
+		let prevMode: string | undefined;
+		beforeEach(() => {
+			prevMode = process.env.INSTANCE_MODE;
+			process.env.INSTANCE_MODE = "oss";
+		});
+		afterEach(() => {
+			if (prevMode === undefined) delete process.env.INSTANCE_MODE;
+			else process.env.INSTANCE_MODE = prevMode;
+		});
+
+		test("does not look up product keys", async () => {
+			const store = createRuntimeProductTokenStore({
+				staticTokens: new Map(),
+				requiredScope: REQUIRED_SCOPE,
+				product: "index",
+			});
+			await expect(store.get("sk-sl_whatever")).resolves.toBeUndefined();
+		});
 	});
 });

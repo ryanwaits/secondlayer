@@ -1,6 +1,7 @@
 import { incrementIndexDecodedEventsReturned } from "@secondlayer/platform/db/queries/usage";
 import { getDb } from "@secondlayer/shared/db";
 import { readChainReorgsForHeightRange } from "@secondlayer/shared/db/queries/chain-reorgs";
+import { isPlatformMode } from "@secondlayer/shared/mode";
 import { type Context, Hono, type MiddlewareHandler } from "hono";
 import {
 	MUTABLE_CACHE_CONTROL,
@@ -217,6 +218,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 	 * pages. Call AFTER the cache check — a 304 must not meter.
 	 */
 	const meterRows = async (c: Context<IndexEnv>, rows: { length: number }) => {
+		if (!isPlatformMode()) return;
 		const accountId = c.get("indexTenant")?.account_id;
 		if (!accountId || rows.length === 0) return;
 		await recordDecodedEventsReturned(accountId, rows.length);
