@@ -15,6 +15,10 @@ import {
 import { logger } from "@secondlayer/shared/logger";
 import { sql } from "kysely";
 import {
+	consumeBootstrapSpool,
+	isBootstrapSpoolMode,
+} from "./consume-spool.ts";
+import {
 	contractRegistryState,
 	startContractRegistry,
 } from "./contracts/scheduler.ts";
@@ -222,6 +226,7 @@ async function runStartupIntegrityCheck() {
 }
 
 await runStartupIntegrityCheck();
+await consumeBootstrapSpool();
 
 assertDbSplit();
 logger.info("Starting indexer service", { port: PORT });
@@ -358,6 +363,22 @@ const server = Bun.serve({
 					const payload = receipt
 						? parseObserverBody<NewBlockPayload>(receipt.body)
 						: ((await req.json()) as NewBlockPayload);
+					if (await isBootstrapSpoolMode()) {
+						if (!receipt) {
+							return Response.json(
+								{
+									status: "error",
+									message: "Bootstrap spool requires OBSERVER_JOURNAL_ENABLED",
+								},
+								{ status: 503 },
+							);
+						}
+						return Response.json({
+							status: "spooled",
+							sequence: receipt.sequence,
+							block_height: payload.block_height,
+						});
+					}
 					const result = await ingestNewBlock(payload);
 					derivedStateCommitted = true;
 					if (receipt) {
