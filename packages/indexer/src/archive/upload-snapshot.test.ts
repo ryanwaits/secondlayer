@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type { S3Client } from "@aws-sdk/client-s3";
+import { SEMANTIC_DIGEST_SPEC_V1 } from "@secondlayer/shared/archive/semantic-digest";
 import type { CanonicalSnapshotManifest } from "./export-snapshot.ts";
 import {
 	uploadCanonicalSnapshot,
@@ -56,6 +57,7 @@ function baseManifest(
 		partitions,
 		zero_record_ranges: [],
 		range_digests: [],
+		partition_semantic_digests: [],
 		assurance_ranges: [],
 		audit: { continuity: { complete: true } } as never,
 		signature: "test-signature",
@@ -111,6 +113,8 @@ beforeEach(async () => {
 			path: "blocks/0-9-aaaa.parquet",
 			row_count: 10,
 			...a,
+			semantic_digest: "sem-a",
+			semantic_digest_spec: SEMANTIC_DIGEST_SPEC_V1,
 		},
 		{
 			dataset: "events",
@@ -119,6 +123,8 @@ beforeEach(async () => {
 			path: "events/0-9-bbbb.parquet",
 			row_count: 3,
 			...b,
+			semantic_digest: "sem-b",
+			semantic_digest_spec: SEMANTIC_DIGEST_SPEC_V1,
 		},
 	]);
 });

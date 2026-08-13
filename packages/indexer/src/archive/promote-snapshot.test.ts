@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { S3Client } from "@aws-sdk/client-s3";
+import { SEMANTIC_DIGEST_SPEC_V1 } from "@secondlayer/shared/archive/semantic-digest";
 import type { CanonicalSnapshotManifest } from "./export-snapshot.ts";
 import {
 	type CanonicalLatestPointer,
@@ -47,6 +48,8 @@ function manifest(
 				row_count: 100,
 				byte_size: 10,
 				sha256: "a",
+				semantic_digest: "sem-a",
+				semantic_digest_spec: SEMANTIC_DIGEST_SPEC_V1,
 			},
 			{
 				dataset: "blocks",
@@ -56,10 +59,13 @@ function manifest(
 				row_count: 100,
 				byte_size: 20,
 				sha256: "b",
+				semantic_digest: "sem-b",
+				semantic_digest_spec: SEMANTIC_DIGEST_SPEC_V1,
 			},
 		],
 		zero_record_ranges: [],
 		range_digests: [],
+		partition_semantic_digests: [],
 		assurance_ranges: [],
 		audit: {} as never,
 		signature: "sig",
@@ -108,6 +114,8 @@ describe("promotion guards", () => {
 					row_count: 100,
 					byte_size: 1,
 					sha256: "a",
+					semantic_digest: "sem-a",
+					semantic_digest_spec: SEMANTIC_DIGEST_SPEC_V1,
 				},
 				{
 					dataset: "blocks",
@@ -117,6 +125,8 @@ describe("promotion guards", () => {
 					row_count: 100,
 					byte_size: 1,
 					sha256: "c",
+					semantic_digest: "sem-c",
+					semantic_digest_spec: SEMANTIC_DIGEST_SPEC_V1,
 				},
 			],
 		});
@@ -136,6 +146,8 @@ describe("promotion guards", () => {
 					row_count: 100,
 					byte_size: 1,
 					sha256: "a",
+					semantic_digest: "sem-a",
+					semantic_digest_spec: SEMANTIC_DIGEST_SPEC_V1,
 				},
 			],
 			zero_record_ranges: [

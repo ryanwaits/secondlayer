@@ -8,6 +8,12 @@ import {
 	type RangeDigest,
 	computeRangeDigests,
 } from "@secondlayer/shared/archive/range-digest";
+import {
+	type PartitionSemanticDigest,
+	SEMANTIC_DIGEST_SPEC_V1,
+	SemanticDigestRollup,
+	semanticDigest,
+} from "@secondlayer/shared/archive/semantic-digest";
 import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { signStreamsBulkManifest } from "@secondlayer/shared/streams-bulk-manifest";
@@ -98,7 +104,17 @@ export type CanonicalPartition = {
 	path: string;
 	row_count: number;
 	byte_size: number;
+	/** sha256 of the Parquet object bytes — exact-body fidelity to this
+	 *  encoding. Cannot prove two independent nodes agree; see the semantic
+	 *  digest for that. */
 	sha256: string;
+	/** sha256 of the concatenated per-row semantic-v1 digests in stream
+	 *  order. Two runtimes speaking v1 agree here even if their Parquet
+	 *  encoders differ. `null` on a zero-row partition (impossible today
+	 *  because zero-row ranges are shipped as ZeroRecordRange, not as a
+	 *  written partition, but kept in the type as a safety net). */
+	semantic_digest: string | null;
+	semantic_digest_spec: typeof SEMANTIC_DIGEST_SPEC_V1;
 };
 
 export type ZeroRecordRange = {
@@ -136,13 +152,21 @@ export type CanonicalSnapshotManifest = {
 	 * which is too slow to be anyone's first experience of verification.
 	 */
 	range_digests: RangeDigest[];
+	/**
+	 * Per-partition semantic-v1 rollups. Same partition grid as `partitions`
+	 * but hashed at the chain-identity level instead of the byte-encoding
+	 * level. This is what a foreign runtime (or a re-implementation of the
+	 * exporter) uses to prove it observed the same chain, since two honest
+	 * runtimes can produce byte-different Parquets from identical rows.
+	 */
+	partition_semantic_digests: PartitionSemanticDigest[];
 	assurance_ranges: Array<{
 		dataset: CanonicalDataset;
 		from_block: number;
 		to_block: number;
 		level: "db-reconstructive";
 		source: "postgres-canonical-snapshot";
-		digest_spec: "sha256:parquet-object";
+		digest_spec: "sha256:parquet-object" | typeof SEMANTIC_DIGEST_SPEC_V1;
 	}>;
 	audit: CanonicalCoverageAudit;
 	signature?: string;
@@ -337,15 +361,26 @@ export async function exportCanonicalSnapshot(
 			partitions,
 			zero_record_ranges: zeroRecordRanges,
 			range_digests: rangeDigests,
-			assurance_ranges: (["blocks", "transactions", "events"] as const).map(
-				(dataset) => ({
-					dataset,
-					from_block: fromBlock,
-					to_block: bound.toBlock,
-					level: "db-reconstructive" as const,
-					source: "postgres-canonical-snapshot" as const,
-					digest_spec: "sha256:parquet-object" as const,
-				}),
+			partition_semantic_digests: partitions.map((p) => ({
+				dataset: p.dataset,
+				from_block: p.from_block,
+				to_block: p.to_block,
+				row_count: p.row_count,
+				digest: p.semantic_digest,
+				digest_spec: SEMANTIC_DIGEST_SPEC_V1,
+			})),
+			assurance_ranges: (["blocks", "transactions", "events"] as const).flatMap(
+				(dataset) =>
+					(["sha256:parquet-object", SEMANTIC_DIGEST_SPEC_V1] as const).map(
+						(digest_spec) => ({
+							dataset,
+							from_block: fromBlock,
+							to_block: bound.toBlock,
+							level: "db-reconstructive" as const,
+							source: "postgres-canonical-snapshot" as const,
+							digest_spec,
+						}),
+					),
 			),
 			audit,
 		};
@@ -437,16 +472,18 @@ async function writeDatasetPartition(params: {
 		tmpPath,
 		{ rowGroupSize: PARQUET_ROW_GROUP_SIZE },
 	);
+	const rollup = SemanticDigestRollup.forDataset(dataset);
 	let rowCount = 0;
 	try {
-		for await (const row of streamDatasetRows(
+		for await (const { parquetRow, rowDigest } of streamDatasetRows(
 			tx,
 			dataset,
 			fromBlock,
 			toBlock,
 			params.batchRows ?? READ_BATCH_ROWS,
 		)) {
-			await writer.appendRow(row);
+			await writer.appendRow(parquetRow);
+			rollup.appendRowDigest(rowDigest);
 			rowCount++;
 		}
 	} finally {
@@ -474,10 +511,13 @@ async function writeDatasetPartition(params: {
 		row_count: rowCount,
 		byte_size: size,
 		sha256,
+		semantic_digest: rollup.digest(),
+		semantic_digest_spec: SEMANTIC_DIGEST_SPEC_V1,
 	};
 }
 
 type ParquetRow = Record<string, string | number | null>;
+type StreamedRow = { parquetRow: ParquetRow; rowDigest: string };
 
 /**
  * Total-order row stream for one dataset over a height range. Ordering is part
@@ -485,6 +525,10 @@ type ParquetRow = Record<string, string | number | null>;
  * by (height, tx_index, tx_id), events by (height, event_index, tx_id).
  * Transactions and events join canonical blocks so non-canonical residue at a
  * height can never leak into an archive object.
+ *
+ * The semantic-v1 row digest is computed HERE — before JSON payload columns
+ * get stringified for Parquet — so the canonical byte encoding sees the
+ * original object shape, not a runtime-specific serialization.
  */
 async function* streamDatasetRows(
 	tx: Kysely<Database>,
@@ -492,7 +536,7 @@ async function* streamDatasetRows(
 	fromBlock: number,
 	toBlock: number,
 	batchRows: number,
-): AsyncGenerator<ParquetRow> {
+): AsyncGenerator<StreamedRow> {
 	if (dataset === "blocks") {
 		let last = fromBlock - 1;
 		while (true) {
@@ -515,7 +559,7 @@ async function* streamDatasetRows(
 				.execute();
 			if (rows.length === 0) return;
 			for (const row of rows) {
-				yield {
+				const parquetRow = {
 					height: Number(row.height),
 					hash: row.hash,
 					parent_hash: row.parent_hash,
@@ -524,6 +568,16 @@ async function* streamDatasetRows(
 					index_block_hash: row.index_block_hash ?? null,
 					timestamp: Number(row.timestamp),
 				};
+				const rowDigest = semanticDigest.v1.block({
+					height: parquetRow.height,
+					hash: parquetRow.hash,
+					parent_hash: parquetRow.parent_hash,
+					burn_block_height: parquetRow.burn_block_height,
+					burn_block_hash: parquetRow.burn_block_hash,
+					index_block_hash: parquetRow.index_block_hash,
+					timestamp: parquetRow.timestamp,
+				});
+				yield { parquetRow, rowDigest };
 			}
 			last = Number(rows[rows.length - 1]?.height);
 		}
@@ -559,9 +613,23 @@ async function* streamDatasetRows(
 			const rows: TxRow[] = result.rows;
 			if (rows.length === 0) return;
 			for (const row of rows) {
-				yield {
+				const blockHeight = Number(row.block_height);
+				const rowDigest = semanticDigest.v1.transaction({
 					tx_id: row.tx_id,
-					block_height: Number(row.block_height),
+					block_height: blockHeight,
+					tx_index: row.tx_index,
+					type: row.type,
+					sender: row.sender,
+					status: row.status,
+					contract_id: row.contract_id,
+					function_name: row.function_name,
+					function_args: row.function_args ?? null,
+					raw_result: row.raw_result,
+					raw_tx: row.raw_tx,
+				});
+				const parquetRow = {
+					tx_id: row.tx_id,
+					block_height: blockHeight,
 					tx_index: row.tx_index,
 					type: row.type,
 					sender: row.sender,
@@ -575,6 +643,7 @@ async function* streamDatasetRows(
 					raw_result: row.raw_result,
 					raw_tx: row.raw_tx,
 				};
+				yield { parquetRow, rowDigest };
 			}
 			const tail = rows[rows.length - 1];
 			if (tail) {
@@ -610,13 +679,22 @@ async function* streamDatasetRows(
 		const rows: EventRow[] = result.rows;
 		if (rows.length === 0) return;
 		for (const row of rows) {
-			yield {
+			const blockHeight = Number(row.block_height);
+			const rowDigest = semanticDigest.v1.event({
 				tx_id: row.tx_id,
-				block_height: Number(row.block_height),
+				block_height: blockHeight,
+				event_index: row.event_index,
+				type: row.type,
+				data: row.data ?? null,
+			});
+			const parquetRow = {
+				tx_id: row.tx_id,
+				block_height: blockHeight,
 				event_index: row.event_index,
 				event_type: row.type,
 				data_json: JSON.stringify(row.data ?? null),
 			};
+			yield { parquetRow, rowDigest };
 		}
 		const tail = rows[rows.length - 1];
 		if (tail) {
