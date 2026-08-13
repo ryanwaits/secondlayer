@@ -9,6 +9,7 @@ import {
 	registerContextCommand,
 	registerDevnetCommand,
 	registerDoctorCommand,
+	registerFaucetCommand,
 	registerIndexCommand,
 	registerKeysCommand,
 	registerLocalCommand,
@@ -129,6 +130,7 @@ Examples:
 program.commandsGroup("Local development:");
 registerLocalCommand(program);
 registerDevnetCommand(program);
+registerFaucetCommand(program);
 
 // Diagnostics
 program.commandsGroup("Diagnostics:");
