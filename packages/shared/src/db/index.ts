@@ -3,6 +3,7 @@ import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
 import { isProductionEnv } from "../env.ts";
 import { logger } from "../logger.ts";
+import { isPlatformMode } from "../mode.ts";
 import type { Database } from "./types.ts";
 
 export type { Database } from "./types.ts";
@@ -64,13 +65,20 @@ function evictIfNeeded(): void {
 		.catch(() => {});
 }
 
+/** OSS: one application URL. SOURCE_/TARGET_ are hosted split only. */
+export function applicationDatabaseUrl(): string {
+	return process.env.DATABASE_URL || DEFAULT_URL;
+}
+
 function resolveSourceUrl(): string {
+	if (!isPlatformMode()) return applicationDatabaseUrl();
 	return (
 		process.env.SOURCE_DATABASE_URL || process.env.DATABASE_URL || DEFAULT_URL
 	);
 }
 
 function resolveTargetUrl(): string {
+	if (!isPlatformMode()) return applicationDatabaseUrl();
 	return (
 		process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL || DEFAULT_URL
 	);

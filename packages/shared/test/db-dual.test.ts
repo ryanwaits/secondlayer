@@ -15,6 +15,7 @@ const ENV_KEYS = [
 	"DATABASE_URL",
 	"SOURCE_DATABASE_URL",
 	"TARGET_DATABASE_URL",
+	"INSTANCE_MODE",
 ] as const;
 
 const saved: Record<string, string | undefined> = {};
@@ -67,6 +68,7 @@ describe("dual-DB getters", () => {
 	});
 
 	test("dual-URL mode: distinct URLs → distinct Kysely instances", async () => {
+		process.env.INSTANCE_MODE = "platform";
 		process.env.DATABASE_URL = "postgres://postgres:x@localhost:5432/fallback";
 		process.env.SOURCE_DATABASE_URL =
 			"postgres://postgres:x@localhost:5432/db_source";
@@ -78,6 +80,7 @@ describe("dual-DB getters", () => {
 	});
 
 	test("getRawClient(role): source vs. target pool separation", async () => {
+		process.env.INSTANCE_MODE = "platform";
 		process.env.SOURCE_DATABASE_URL =
 			"postgres://postgres:x@localhost:5432/db_source";
 		process.env.TARGET_DATABASE_URL =
@@ -88,6 +91,7 @@ describe("dual-DB getters", () => {
 	});
 
 	test("getRawClient() defaults to target role", async () => {
+		process.env.INSTANCE_MODE = "platform";
 		process.env.SOURCE_DATABASE_URL =
 			"postgres://postgres:x@localhost:5432/db_source";
 		process.env.TARGET_DATABASE_URL =
@@ -95,6 +99,26 @@ describe("dual-DB getters", () => {
 
 		const { getRawClient } = await import("../src/db/index.ts");
 		expect(getRawClient()).toBe(getRawClient("target"));
+	});
+
+	test("OSS ignores SOURCE_/TARGET_ — one application URL", async () => {
+		process.env.INSTANCE_MODE = "oss";
+		process.env.DATABASE_URL = "postgres://postgres:x@localhost:5432/app";
+		process.env.SOURCE_DATABASE_URL =
+			"postgres://postgres:x@localhost:5432/db_source";
+		process.env.TARGET_DATABASE_URL =
+			"postgres://postgres:x@localhost:5432/db_target";
+
+		const { getSourceDb, getTargetDb, getDb, getDbSplitStatus } = await import(
+			"../src/db/index.ts"
+		);
+		expect(getSourceDb()).toBe(getTargetDb());
+		expect(getTargetDb()).toBe(getDb());
+		const status = getDbSplitStatus();
+		expect(status.active).toBe(false);
+		expect(status.mode).toBe("single");
+		expect(status.sourceDb).toBe("localhost:5432/app");
+		expect(status.targetDb).toBe("localhost:5432/app");
 	});
 
 	test("getDb(connectionString) bypasses env resolution", async () => {
@@ -122,6 +146,7 @@ describe("getDbSplitStatus", () => {
 	});
 
 	test("dual-URL mode: active, mode=split, distinct DBs", async () => {
+		process.env.INSTANCE_MODE = "platform";
 		process.env.SOURCE_DATABASE_URL =
 			"postgres://postgres:x@postgres:5432/secondlayer";
 		process.env.TARGET_DATABASE_URL =
@@ -218,6 +243,7 @@ describe("assertDbSplit", () => {
 	});
 
 	test("split prod with one var unset + DATABASE_URL absent → DEFAULT_URL, no throw", async () => {
+		process.env.INSTANCE_MODE = "platform";
 		unsetEnv("DATABASE_URL");
 		unsetEnv("TARGET_DATABASE_URL");
 		process.env.SOURCE_DATABASE_URL =
@@ -233,6 +259,7 @@ describe("assertDbSplit", () => {
 	});
 
 	test("active split never throws", async () => {
+		process.env.INSTANCE_MODE = "platform";
 		unsetEnv("DATABASE_URL");
 		process.env.SOURCE_DATABASE_URL =
 			"postgres://postgres:x@postgres:5432/secondlayer";
