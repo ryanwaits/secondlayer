@@ -66,6 +66,7 @@ function manifest(
 		zero_record_ranges: [],
 		range_digests: [],
 		partition_semantic_digests: [],
+		digest_index: [],
 		assurance_ranges: [],
 		audit: {} as never,
 		signature: "sig",

@@ -59,35 +59,39 @@ export async function verifyLocalSnapshot(
 	manifest: CanonicalSnapshotManifest,
 ): Promise<VerifyFailure[]> {
 	const failures: VerifyFailure[] = [];
-	for (const partition of manifest.partitions) {
-		const path = join(dir, partition.path);
+	const toCheck: Array<{ path: string; byte_size: number; sha256: string }> = [
+		...manifest.partitions,
+		...(manifest.digest_index ?? []),
+	];
+	for (const object of toCheck) {
+		const path = join(dir, object.path);
 		let size: number;
 		try {
 			size = (await stat(path)).size;
 		} catch {
 			failures.push({
-				path: partition.path,
+				path: object.path,
 				reason: "missing",
-				expected: `${partition.byte_size} bytes`,
+				expected: `${object.byte_size} bytes`,
 				actual: "absent",
 			});
 			continue;
 		}
-		if (size !== partition.byte_size) {
+		if (size !== object.byte_size) {
 			failures.push({
-				path: partition.path,
+				path: object.path,
 				reason: "size-mismatch",
-				expected: String(partition.byte_size),
+				expected: String(object.byte_size),
 				actual: String(size),
 			});
 			continue;
 		}
 		const digest = await sha256File(path);
-		if (digest !== partition.sha256) {
+		if (digest !== object.sha256) {
 			failures.push({
-				path: partition.path,
+				path: object.path,
 				reason: "digest-mismatch",
-				expected: partition.sha256,
+				expected: object.sha256,
 				actual: digest,
 			});
 		}
@@ -170,13 +174,17 @@ export async function uploadCanonicalSnapshot(params: {
 	let uploaded = 0;
 	let skipped = 0;
 	let uploadedBytes = 0;
+	const toUpload: Array<{ path: string; byte_size: number; sha256: string }> = [
+		...manifest.partitions,
+		...(manifest.digest_index ?? []),
+	];
 	const progress = createProgressReporter({
 		label: "upload",
-		total: manifest.partitions.length,
+		total: toUpload.length,
 		write: (line) => log(line.trim()),
 	});
 
-	for (const [index, partition] of manifest.partitions.entries()) {
+	for (const [index, partition] of toUpload.entries()) {
 		const key = `${CANONICAL_ARCHIVE_PREFIX}/${partition.path}`;
 		const existingSize = await headObjectSize({ client, bucket, key });
 		if (existingSize === partition.byte_size) {

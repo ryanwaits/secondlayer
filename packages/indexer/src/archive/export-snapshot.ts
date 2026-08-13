@@ -3,6 +3,10 @@ import { mkdir, rename, stat, unlink } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { ParquetSchema, ParquetWriter } from "@dsnp/parquetjs";
 import { waitForDiskSpace } from "@secondlayer/shared/archive/disk-guard";
+import {
+	type DigestIndexPartition,
+	PerHeightDigestAccumulator,
+} from "@secondlayer/shared/archive/per-height-digest";
 import { createProgressReporter } from "@secondlayer/shared/archive/progress";
 import {
 	type RangeDigest,
@@ -57,6 +61,16 @@ const INT32_FIELD = { type: "INT32", compression: "SNAPPY" } as const;
 const INT64_FIELD = { type: "INT64", compression: "SNAPPY" } as const;
 
 export type CanonicalDataset = "blocks" | "transactions" | "events";
+
+/** Fixed schema for the per-height digest sidecar. Row order is height asc. */
+function createDigestIndexParquetSchema(): ParquetSchema {
+	return new ParquetSchema({
+		height: INT64_FIELD,
+		block_digest: STRING_FIELD,
+		transactions_rollup: { ...STRING_FIELD, optional: true },
+		events_rollup: { ...STRING_FIELD, optional: true },
+	});
+}
 
 export function createCanonicalParquetSchema(
 	dataset: CanonicalDataset,
@@ -160,6 +174,12 @@ export type CanonicalSnapshotManifest = {
 	 * runtimes can produce byte-different Parquets from identical rows.
 	 */
 	partition_semantic_digests: PartitionSemanticDigest[];
+	/**
+	 * Per-height digest sidecars — one Parquet per partition, addressable by
+	 * height. Enables "verify one block" without downloading a whole raw
+	 * partition. Same partition grid as `partitions[]`.
+	 */
+	digest_index: DigestIndexPartition[];
 	assurance_ranges: Array<{
 		dataset: CanonicalDataset;
 		from_block: number;
@@ -246,6 +266,7 @@ export async function exportCanonicalSnapshot(
 		const partitions: CanonicalPartition[] = [];
 		const zeroRecordRanges: ZeroRecordRange[] = [];
 		const rangeDigests: RangeDigest[] = [];
+		const digestIndex: DigestIndexPartition[] = [];
 		const counts = { blocks: 0, transactions: 0, events: 0 };
 
 		// A silent multi-hour job is indistinguishable from a hung one. Progress
@@ -276,6 +297,7 @@ export async function exportCanonicalSnapshot(
 						`  paused: ${(space.freeBytes / 1024 ** 3).toFixed(1)}GB free, waiting for space (${Math.round(waitedMs / 60_000)}m)\n`,
 					),
 			});
+			const perHeight = new PerHeightDigestAccumulator();
 			for (const dataset of [
 				"blocks",
 				"transactions",
@@ -287,6 +309,7 @@ export async function exportCanonicalSnapshot(
 					fromBlock: start,
 					toBlock: end,
 					outDir: options.outDir,
+					perHeight,
 				});
 				if (written === null) {
 					zeroRecordRanges.push({
@@ -299,6 +322,15 @@ export async function exportCanonicalSnapshot(
 					counts[dataset] += written.row_count;
 				}
 			}
+			// The digest sidecar is written AFTER the three datasets so its
+			// row set is naturally consistent with the partition contents.
+			const sidecar = await writeDigestIndexPartition({
+				outDir: options.outDir,
+				fromBlock: start,
+				toBlock: end,
+				rows: perHeight.drain(start, end),
+			});
+			if (sidecar) digestIndex.push(sidecar);
 			// Blocks ONLY, and deliberately so. Measured on production
 			// 2026-08-12: a blocks digest costs ~0.5s per 50k-block partition
 			// (~90s for all of history), while an events digest costs ~98s per
@@ -369,6 +401,7 @@ export async function exportCanonicalSnapshot(
 				digest: p.semantic_digest,
 				digest_spec: SEMANTIC_DIGEST_SPEC_V1,
 			})),
+			digest_index: digestIndex,
 			assurance_ranges: (["blocks", "transactions", "events"] as const).flatMap(
 				(dataset) =>
 					(["sha256:parquet-object", SEMANTIC_DIGEST_SPEC_V1] as const).map(
@@ -458,8 +491,11 @@ async function writeDatasetPartition(params: {
 	toBlock: number;
 	outDir: string;
 	batchRows?: number;
+	/** Shared with sibling dataset writes so one partition's per-height
+	 *  digest sidecar can be emitted after all three datasets finish. */
+	perHeight?: PerHeightDigestAccumulator;
 }): Promise<CanonicalPartition | null> {
-	const { tx, dataset, fromBlock, toBlock } = params;
+	const { tx, dataset, fromBlock, toBlock, perHeight } = params;
 	const tmpPath = join(
 		params.outDir,
 		dataset,
@@ -475,7 +511,7 @@ async function writeDatasetPartition(params: {
 	const rollup = SemanticDigestRollup.forDataset(dataset);
 	let rowCount = 0;
 	try {
-		for await (const { parquetRow, rowDigest } of streamDatasetRows(
+		for await (const { parquetRow, rowDigest, height } of streamDatasetRows(
 			tx,
 			dataset,
 			fromBlock,
@@ -484,6 +520,15 @@ async function writeDatasetPartition(params: {
 		)) {
 			await writer.appendRow(parquetRow);
 			rollup.appendRowDigest(rowDigest);
+			if (perHeight) {
+				if (dataset === "blocks") {
+					perHeight.setBlockDigest(height, rowDigest);
+				} else if (dataset === "transactions") {
+					perHeight.appendTransactionDigest(height, rowDigest);
+				} else {
+					perHeight.appendEventDigest(height, rowDigest);
+				}
+			}
 			rowCount++;
 		}
 	} finally {
@@ -517,7 +562,62 @@ async function writeDatasetPartition(params: {
 }
 
 type ParquetRow = Record<string, string | number | null>;
-type StreamedRow = { parquetRow: ParquetRow; rowDigest: string };
+type StreamedRow = {
+	parquetRow: ParquetRow;
+	rowDigest: string;
+	height: number;
+};
+
+async function writeDigestIndexPartition(params: {
+	outDir: string;
+	fromBlock: number;
+	toBlock: number;
+	rows: ReadonlyArray<{
+		height: number;
+		block_digest: string;
+		transactions_rollup: string | null;
+		events_rollup: string | null;
+	}>;
+}): Promise<DigestIndexPartition | null> {
+	if (params.rows.length === 0) return null;
+	const tmpPath = join(
+		params.outDir,
+		"digests",
+		`.tmp-${params.fromBlock}-${params.toBlock}.parquet`,
+	);
+	await mkdir(dirname(tmpPath), { recursive: true });
+	const writer = await ParquetWriter.openFile(
+		createDigestIndexParquetSchema(),
+		tmpPath,
+		{ rowGroupSize: PARQUET_ROW_GROUP_SIZE },
+	);
+	try {
+		for (const row of params.rows) {
+			await writer.appendRow({
+				height: row.height,
+				block_digest: row.block_digest,
+				transactions_rollup: row.transactions_rollup,
+				events_rollup: row.events_rollup,
+			});
+		}
+	} finally {
+		await writer.close();
+	}
+	const sha256 = await sha256File(tmpPath);
+	const objectName = `${params.fromBlock}-${params.toBlock}-${sha256.slice(0, 16)}.parquet`;
+	const finalPath = join(params.outDir, "digests", objectName);
+	await rename(tmpPath, finalPath);
+	const { size } = await stat(finalPath);
+	return {
+		from_block: params.fromBlock,
+		to_block: params.toBlock,
+		path: `digests/${objectName}`,
+		row_count: params.rows.length,
+		byte_size: size,
+		sha256,
+		digest_spec: SEMANTIC_DIGEST_SPEC_V1,
+	};
+}
 
 /**
  * Total-order row stream for one dataset over a height range. Ordering is part
@@ -577,7 +677,7 @@ async function* streamDatasetRows(
 					index_block_hash: parquetRow.index_block_hash,
 					timestamp: parquetRow.timestamp,
 				});
-				yield { parquetRow, rowDigest };
+				yield { parquetRow, rowDigest, height: parquetRow.height };
 			}
 			last = Number(rows[rows.length - 1]?.height);
 		}
@@ -643,7 +743,7 @@ async function* streamDatasetRows(
 					raw_result: row.raw_result,
 					raw_tx: row.raw_tx,
 				};
-				yield { parquetRow, rowDigest };
+				yield { parquetRow, rowDigest, height: blockHeight };
 			}
 			const tail = rows[rows.length - 1];
 			if (tail) {
@@ -694,7 +794,7 @@ async function* streamDatasetRows(
 				event_type: row.type,
 				data_json: JSON.stringify(row.data ?? null),
 			};
-			yield { parquetRow, rowDigest };
+			yield { parquetRow, rowDigest, height: blockHeight };
 		}
 		const tail = rows[rows.length - 1];
 		if (tail) {
