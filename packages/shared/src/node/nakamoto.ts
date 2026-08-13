@@ -3,11 +3,10 @@ import { createHash } from "node:crypto";
 /**
  * Nakamoto block-header parsing + consensus hashing for trustless verification.
  *
- * Every constant here is verified bit-exact against mainnet `stacks-node
- * 3.4.0.0.3` (see docs/design/trustless-verification-proofs.md, Appendix). This
- * Building block for transaction-inclusion / block-canonicity proofs: fetch a
- * raw `/v3/blocks/{id}` body, parse the header, and recompute the block_hash,
- * index_block_hash, and tx_merkle_root the chain itself commits to.
+ * Version 0 is bit-exact against mainnet `stacks-node 3.4.0.0.3`. Version 1
+ * (Epoch 4.0 / PoX-5, first mainnet height 8,665,568) appends
+ * `problematic_txs` after `pox_treatment` and includes those bytes in the
+ * signer-signature-hash preimage. Pre-4.0 hashes are unchanged.
  */
 
 /** SHA-512/256 — the hash Stacks uses everywhere (NOT truncated SHA-512). */
@@ -28,6 +27,22 @@ const TIMESTAMP_OFF = 133;
 const MINER_SIG_OFF = 141;
 const SIGNER_VEC_OFF = 206; // u32 count, then 65 bytes per signer
 const SIG_LEN = 65;
+const PROBLEMATIC_TX_MARKER_LEN = 5; // u32 tx_index ‖ u8 category
+
+/** Pre-Epoch-4.0 Nakamoto header. Omits `problematic_txs`. */
+export const NAKAMOTO_BLOCK_VERSION = 0;
+/** Epoch 4.0+ header. Serializes and hashes `problematic_txs`. */
+export const NAKAMOTO_BLOCK_VERSION_EPOCH_4 = 1;
+
+export type ProblematicTxMarker = {
+	txIndex: number;
+	category: number;
+};
+
+/** Low 7 bits are the header version; high bit 0x80 is the shadow-block flag. */
+export function versionIncludesProblematicTxs(version: number): boolean {
+	return (version & 0x7f) >= NAKAMOTO_BLOCK_VERSION_EPOCH_4;
+}
 
 export interface NakamotoBlockHeader {
 	version: number;
@@ -49,8 +64,14 @@ export interface NakamotoBlockHeader {
 	/** Full serialized pox_treatment BitVec bytes (u16 bits ‖ u32 len ‖ data). */
 	poxTreatment: Uint8Array;
 	/**
+	 * Epoch 4.0+ marker list. Empty (and absent from the wire) on version 0.
+	 * An empty list still serializes as a u32 count of 0 on version 1+.
+	 */
+	problematicTxs: ProblematicTxMarker[];
+	/**
 	 * Exact bytes whose SHA512/256 IS the block_hash / signer_signature_hash:
-	 * the header with the signer_signature vector omitted (header[0:206] ‖ pox).
+	 * header minus the signer_signature vector. Version 0 is
+	 * prefix[0:206] ‖ pox; version 1+ is prefix[0:206] ‖ pox ‖ problematic_txs.
 	 */
 	signerSignatureHashPreimage: Uint8Array;
 	/** Offset at which the tx `Vec` begins (= total header byte length). */
@@ -69,8 +90,12 @@ export function parseNakamotoBlockHeader(raw: Uint8Array): NakamotoBlockHeader {
 	if (raw.length < PREFIX_LEN + 4) {
 		throw new Error("raw block too short for a Nakamoto header");
 	}
+	const version = raw[0];
 	const signerCount = u32(raw, SIGNER_VEC_OFF);
 	const sigsStart = SIGNER_VEC_OFF + 4;
+	if (sigsStart + signerCount * SIG_LEN > raw.length) {
+		throw new Error("raw block truncated in signer_signature vector");
+	}
 	const signerSignatures: string[] = [];
 	for (let i = 0; i < signerCount; i++) {
 		const off = sigsStart + i * SIG_LEN;
@@ -78,17 +103,52 @@ export function parseNakamotoBlockHeader(raw: Uint8Array): NakamotoBlockHeader {
 	}
 	// pox_treatment: u16 num_bits ‖ u32 data_len ‖ data[data_len].
 	const poxOff = sigsStart + signerCount * SIG_LEN;
+	if (poxOff + 6 > raw.length) {
+		throw new Error("raw block truncated in pox_treatment");
+	}
 	const poxDataLen = u32(raw, poxOff + 2);
 	const poxEnd = poxOff + 6 + poxDataLen;
+	if (poxEnd > raw.length) {
+		throw new Error("raw block truncated in pox_treatment data");
+	}
 	const poxTreatment = raw.subarray(poxOff, poxEnd);
 
-	// block_hash preimage = header minus signer_signature = prefix[0:206] ‖ pox.
-	const preimage = new Uint8Array(PREFIX_LEN + poxTreatment.length);
+	// Epoch 4.0+ (version low-7-bits >= 1): Vec<ProblematicTxMarker>
+	// after pox_treatment. Version 0 omits the field entirely so pre-fork
+	// hashes stay byte-identical.
+	let headerEnd = poxEnd;
+	const problematicTxs: ProblematicTxMarker[] = [];
+	if (versionIncludesProblematicTxs(version)) {
+		if (poxEnd + 4 > raw.length) {
+			throw new Error("raw block truncated in problematic_txs count");
+		}
+		const markerCount = u32(raw, poxEnd);
+		headerEnd = poxEnd + 4 + markerCount * PROBLEMATIC_TX_MARKER_LEN;
+		if (headerEnd > raw.length) {
+			throw new Error("raw block truncated in problematic_txs list");
+		}
+		for (let i = 0; i < markerCount; i++) {
+			const off = poxEnd + 4 + i * PROBLEMATIC_TX_MARKER_LEN;
+			problematicTxs.push({
+				txIndex: u32(raw, off),
+				category: raw[off + 4] ?? 0,
+			});
+		}
+	}
+
+	// block_hash preimage = header minus signer_signature.
+	// v0: prefix[0:206] ‖ pox
+	// v1: prefix[0:206] ‖ pox ‖ problematic_txs (count + markers)
+	const markersBytes = raw.subarray(poxEnd, headerEnd);
+	const preimage = new Uint8Array(
+		PREFIX_LEN + poxTreatment.length + markersBytes.length,
+	);
 	preimage.set(raw.subarray(0, PREFIX_LEN), 0);
 	preimage.set(poxTreatment, PREFIX_LEN);
+	preimage.set(markersBytes, PREFIX_LEN + poxTreatment.length);
 
 	return {
-		version: raw[0],
+		version,
 		chainLength: u64(raw, 1),
 		burnSpent: u64(raw, 9),
 		consensusHash: toHex(
@@ -105,8 +165,9 @@ export function parseNakamotoBlockHeader(raw: Uint8Array): NakamotoBlockHeader {
 		minerSignature: toHex(raw.subarray(MINER_SIG_OFF, MINER_SIG_OFF + SIG_LEN)),
 		signerSignatures,
 		poxTreatment,
+		problematicTxs,
 		signerSignatureHashPreimage: preimage,
-		headerByteLength: poxEnd,
+		headerByteLength: headerEnd,
 	};
 }
 

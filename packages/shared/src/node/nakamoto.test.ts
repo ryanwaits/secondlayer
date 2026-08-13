@@ -1,13 +1,16 @@
 import { describe, expect, test } from "bun:test";
+import epoch4 from "./__fixtures__/nakamoto-block-epoch4.json";
 import fixture from "./__fixtures__/nakamoto-block.json";
 import {
 	nakamotoBlockHash,
 	nakamotoBlockId,
 	parseNakamotoBlockHeader,
+	sha512_256,
 	stacksTxid,
 	txMerkleProof,
 	txMerkleRoot,
 	verifyTxMerkleProof,
+	versionIncludesProblematicTxs,
 } from "./nakamoto.ts";
 
 // Real mainnet block (stacks-node 3.4.0.0.3) captured offline. These assertions
@@ -26,6 +29,7 @@ describe("Nakamoto header parsing + consensus hashing", () => {
 		expect(header.txMerkleRoot).toBe(e.txMerkleRoot);
 		expect(header.timestamp).toBe(BigInt(e.timestamp));
 		expect(header.signerSignatures).toHaveLength(e.signerCount);
+		expect(header.problematicTxs).toEqual([]);
 		// header_byte_length points exactly at the tx Vec count (= txCount).
 		const txCount = new DataView(
 			raw.buffer,
@@ -71,5 +75,50 @@ describe("Nakamoto header parsing + consensus hashing", () => {
 		// consensus ‖ block (the reversed order) must fail.
 		const wrong = nakamotoBlockId(e.consensusHash, e.blockHash);
 		expect(wrong).not.toBe(e.indexBlockHash);
+	});
+});
+
+describe("Epoch 4.0 Nakamoto header (problematic_txs)", () => {
+	const raw = Uint8Array.from(Buffer.from(epoch4.rawBlockHex, "hex"));
+	const e4 = epoch4.expect;
+	const header = parseNakamotoBlockHeader(raw);
+
+	test("version 1 is the Epoch 4.0 header and includes an empty marker list", () => {
+		expect(header.version).toBe(e4.version);
+		expect(versionIncludesProblematicTxs(header.version)).toBe(true);
+		expect(header.chainLength).toBe(BigInt(e4.chainLength));
+		expect(header.consensusHash).toBe(e4.consensusHash);
+		expect(header.txMerkleRoot).toBe(e4.txMerkleRoot);
+		expect(header.timestamp).toBe(BigInt(e4.timestamp));
+		expect(header.signerSignatures).toHaveLength(e4.signerCount);
+		expect(header.problematicTxs).toEqual([]);
+		const txCount = new DataView(
+			raw.buffer,
+			raw.byteOffset + header.headerByteLength,
+			4,
+		).getUint32(0);
+		expect(txCount).toBe(e4.txCount);
+	});
+
+	test("block_hash includes the serialized problematic_txs field", () => {
+		expect(nakamotoBlockHash(header)).toBe(e4.blockHash);
+	});
+
+	test("index_block_hash matches the node's identity", () => {
+		expect(nakamotoBlockId(e4.blockHash, e4.consensusHash)).toBe(
+			e4.indexBlockHash,
+		);
+	});
+
+	test("omitting the empty marker vec does NOT reproduce the block_hash", () => {
+		// This is the 2026-08-13 auditor miss: v1 headers always serialize a
+		// u32 count, even when the list is empty. Dropping those 4 bytes is a
+		// different preimage.
+		const withoutMarkers = header.signerSignatureHashPreimage.subarray(
+			0,
+			header.signerSignatureHashPreimage.length - 4,
+		);
+		const wrong = Buffer.from(sha512_256(withoutMarkers)).toString("hex");
+		expect(wrong).not.toBe(e4.blockHash);
 	});
 });
