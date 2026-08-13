@@ -7,12 +7,12 @@ Operating instructions for AI coding agents working in this repo. Read this and
 
 ## Repo orientation
 
-Secondlayer is the hosted indexer for Stacks. Three products — **Index** (decoded
-chain data over REST, keyless), **Subgraphs** (your schema on our indexer), and
-**Streams** (raw signed firehose + dumps for build-your-own-indexer devs) — plus
-features (Subscriptions, Explore, Contract discovery, Verification) and channels
-(REST/OpenAPI, CLI, SDK, MCP). `STRATEGY.md` is the source of truth for product
-taxonomy, pricing, and what's frozen.
+Secondlayer is a self-hosted Stacks data runtime. Three capabilities — **Index**
+(decoded chain data over REST), **Subgraphs** (your schema on your instance),
+and **Streams** (raw signed firehose + dumps) — plus features (Subscriptions,
+Explore, Contract discovery, Verification) and channels (REST/OpenAPI, CLI, SDK,
+MCP). We publish a signed R2 archive and meter bootstrap/backfill. `STRATEGY.md`
+wins taxonomy, pricing, and what's frozen.
 
 ```
 secondlayer/

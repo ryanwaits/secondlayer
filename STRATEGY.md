@@ -7,26 +7,26 @@
 
 ## The product, one sentence
 
-Secondlayer is the hosted indexer for Stacks: curl decoded chain data keyless in
-ten seconds, or deploy a one-file TypeScript indexer and get your own hosted
-Postgres tables behind a public REST API — no node, no infra.
+Secondlayer is a self-hosted Stacks data runtime: run it beside your node,
+bootstrap verified history, query decoded data, deploy TypeScript subgraphs.
+We operate one public utility — a signed canonical archive on R2 — and we
+sell metered access to the expensive bits: bootstrap, backfill, reindex.
 
 ## Three products
 
 Everything we market is one of these three. Everything else is a feature of them.
 
-**Index** — indexer-as-a-service. We run the chain indexer; you query decoded
-Stacks data (events, transfers, blocks, transactions) over REST with a cursor
-envelope — keyless — or build your own app index on the same rows: a
-checkpointed `consume()` loop with automatic cursor rewind on reorg (`onReorg`
-rolls back your own rows), `walk()` sweeps,
+**Index** — decoded chain data on your instance. Query events, transfers,
+blocks, transactions over REST with a cursor envelope — or build your own app
+index on the same rows: a checkpointed `consume()` loop with automatic cursor
+rewind on reorg (`onReorg` rolls back your own rows), `walk()` sweeps,
 `from_height=0` backfill, `/canonical`, `sl index codegen` for your mirror
-schema. Built on Streams (our decoder is a Streams consumer). For app devs and agents: answers tonight, or an app index
+schema. Built on Streams (our decoder is a Streams consumer). App index
 without writing decoders.
 
-**Subgraphs** — your schema on our indexer. `defineSubgraph()` in one TypeScript
-file → deploy → hosted Postgres tables behind the same public `/v1` read API.
-The monetization core: private subgraphs, genesis backfill, and scale live here.
+**Subgraphs** — your schema on your instance. `defineSubgraph()` in one TypeScript
+file → deploy → Postgres tables behind the same `/v1` read API. Monetization is
+not the subgraph — it is the archive work that fills it.
 
 **Streams** — the raw signed event firehose + parquet dumps. The inputs, not our
 decoding: cursor-paginated REST, SSE tail, signed manifests, replay from any
@@ -68,8 +68,8 @@ This distinction is load-bearing; keep it crisp everywhere:
 
 Both are indexer products at different levels: Streams is raw, low-level
 indexing — Index is app-level indexing on decoded rows. Streams powers Index:
-our decoder is itself a Streams consumer. Subgraphs is the Index loop, hosted.
-We sell the primitives we build on.
+our decoder is itself a Streams consumer. Subgraphs is the Index loop, on your
+machine. We sell archive bootstrap, not hosted compute.
 
 One line for docs: *Reading decoded data? Index. Building your own app index on
 decoded rows? Also Index — walk + cursors + reorgs[]. Your schema hosted?
@@ -77,20 +77,28 @@ Subgraphs. Raw inputs? Streams.*
 
 ## The golden path
 
-Homepage curl → decoded JSON in <10s, keyless → `sl subgraphs create` from a
-template → edit one file → deploy (recent-block start by default) → output
-prints the public curl URL for your new table → attach a webhook. Five concepts:
-decoded event + cursor, the subgraph file, deploy, public table URL, webhook.
+`docker compose up` → `sl instance bootstrap` from the official archive →
+`sl subgraphs create` → deploy → curl your table on localhost → attach a
+webhook. Forward-only from your own node is free and skips bootstrap.
 
 ## Pricing
 
-Three lines; every claim enforced in code or it doesn't go on the page.
+Not a monthly service. The runtime is MIT. We run the archive; we meter the
+bytes and rebuild work that come off it.
 
-- **Free** — keyless reads, public subgraphs, forward-only indexing.
-- **Pro $99/mo** — private subgraphs, genesis backfill, 250 rps, webhooks at scale.
-- **Enterprise** — contact us. (Scale exists in code for manual deals only.)
+| Billable | Not billable |
+| --- | --- |
+| Official-archive bootstrap (genesis or a large range) | Self-host runtime, compose, CLI |
+| Data-avail backfill / reindex that reads our archive | Forward-only indexing from the operator's node |
+| | `sl verify` / `sl repair` against public manifests |
 
-No metered billing until ≥10 paying accounts; invoice overage manually.
+Meter unit is still open (bytes vs rows vs height-range). Charge at fetch
+time with a gated archive URL — partitions stay content-addressed; unpaid
+clients do not get the objects. No $99/mo Pro SKU.
+
+Existing hosted compute stays up until the self-host product replaces it.
+Do not delete billing code in Phase 6 if this meter still needs it; strip
+monthly-plan UX, keep a meter.
 
 ## x402 (experimental)
 
