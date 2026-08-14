@@ -5,7 +5,7 @@ import { Hono } from "hono";
  * Minimal Standard Webhooks receiver.
  *
  * The signing secret was shown ONCE when you ran `sl subscriptions create`.
- * If you lost it, rotate it from the dashboard: `/subscriptions/<id>` → rotate.
+ * If you lost it: sl subscriptions rotate-secret {{NAME}}
  */
 
 const SIGNING_SECRET = process.env.SIGNING_SECRET;

@@ -72,7 +72,6 @@ import {
 import { StacksApiClient } from "../utils/api.ts";
 import { formatCode } from "../utils/format.ts";
 import { inferNetwork } from "../utils/network.ts";
-import { deriveBaseUrl } from "../utils/urls.ts";
 
 /** Import the handler file; if it fails with ERR_MODULE_NOT_FOUND for
  *  `@secondlayer/subgraphs` (the required SDK), offer to install it before
@@ -1172,12 +1171,8 @@ Examples:
 						const printDeployFooter = async () => {
 							try {
 								const { apiUrl } = await resolveAuth();
-								const baseUrl = deriveBaseUrl(apiUrl);
 								const firstTable = Object.keys(effectiveDef.schema ?? {})[0];
 								const isPublic = result.visibility === "public";
-								info(
-									`  Dashboard: ${baseUrl}/platform/subgraphs/${effectiveDef.name}`,
-								);
 								if (isPublic && firstTable) {
 									info(
 										`  Read:      ${apiUrl}/v1/subgraphs/${effectiveDef.name}/${firstTable}`,

@@ -6,7 +6,7 @@ to your business logic. No framework lock-in.
 ## Run
 
 `.env` is written for you at `sl subscriptions create` time with the signing
-secret already populated.
+secret already populated. Lost it: `sl subscriptions rotate-secret {{NAME}}`.
 
 ```bash
 bun install

@@ -21,7 +21,6 @@ import { parseSubscriptionFilter } from "../lib/filter-params.ts";
 import { blue, error, info, success, warn } from "../lib/output.ts";
 import { resolveAuth } from "../lib/resolve-auth.ts";
 import { validateSubscriptionTargetFromApi } from "../lib/subscription-validation.ts";
-import { deriveBaseUrl } from "../utils/urls.ts";
 
 /**
  * `sl subscriptions create <name> --runtime <runtime>`
@@ -290,14 +289,13 @@ export async function createSubscription(
 				`Subscription provisioning failed: ${err instanceof Error ? err.message : String(err)}`,
 			);
 			info(
-				"Template copied, but the subscription was not created. Provision it in the dashboard, or remove the template directory and rerun this command after fixing the API error.",
+				"Template copied, but the subscription was not created. Fix the API error, remove the template directory, and rerun.",
 			);
 		}
 	}
 
 	// Write the signing secret to .env (creates if missing — all 4 templates
 	// now ship .env.example; even if a template doesn't, we still write).
-	let subscriptionId: string | undefined;
 	let subscriptionStatus: string | undefined;
 	if (sl) {
 		try {
@@ -306,7 +304,6 @@ export async function createSubscription(
 				(list as { data?: Array<{ name: string; id: string; status: string }> })
 					.data ?? [];
 			const created = rows.find((s) => s.name === name);
-			subscriptionId = created?.id;
 			subscriptionStatus = created?.status;
 		} catch {
 			// best-effort; don't block on read-back
@@ -344,17 +341,6 @@ export async function createSubscription(
 		process.exit(1);
 	}
 
-	// Success footer — dashboard URL, resume hint if paused, run instructions.
-	let dashboardLine = "";
-	try {
-		const { apiUrl } = await resolveAuth();
-		const base = deriveBaseUrl(apiUrl);
-		dashboardLine = subscriptionId
-			? `Dashboard: ${base}/platform/subgraphs/${subgraph}/subscriptions/${subscriptionId}\n  `
-			: `Dashboard: ${base}/platform/subgraphs/${subgraph}/subscriptions\n  `;
-	} catch {
-		// dashboard URL is decorative; don't block on it
-	}
 	const pausedLine =
 		subscriptionStatus === "paused"
 			? `Subscription is paused. Resume:\n  sl subscriptions resume ${name}\n  `
@@ -363,7 +349,7 @@ export async function createSubscription(
 		opts.scaffold === false
 			? `View deliveries:\n  sl subscriptions get ${name}`
 			: `cd ${name}\n  bun install\n  bun run dev`;
-	success(`Done. Next:\n  ${dashboardLine}${pausedLine}${runHint}`);
+	success(`Done. Next:\n  ${pausedLine}${runHint}`);
 }
 
 /**
@@ -427,18 +413,8 @@ export async function createChainSubscription(
 
 	info(`Signing secret (store securely): ${signingSecret}`);
 
-	let dashboardLine = "";
-	try {
-		const { apiUrl } = await resolveAuth();
-		const base = deriveBaseUrl(apiUrl);
-		dashboardLine = `Dashboard: ${base}/platform/subscriptions/${subscriptionId}\n  `;
-	} catch {
-		// dashboard URL is decorative; don't block on it
-	}
 	console.log();
-	success(
-		`Done. Next:\n  ${dashboardLine}View deliveries:\n  sl subscriptions get ${name}`,
-	);
+	success(`Done. Next:\n  View deliveries:\n  sl subscriptions get ${name}`);
 }
 
 export async function getSubscriptionClient(): Promise<SecondLayer> {

@@ -81,7 +81,8 @@ Reads emit JSON to stdout (`--json` accepted across all read commands); `-o/--ou
 
 | Command | What it does |
 |---|---|
-| `sl subscriptions create <name> --runtime <inngest\|trigger\|cloudflare\|node> [--auth-token <token>] [--filter key=value]` | Scaffold a receiver wired to a new subscription |
+| `sl subscriptions create <name> --subgraph <name> --table <name> [--runtime <inngest\|trigger\|cloudflare\|node>] [--url <url>]` | Subgraph subscription (optional local receiver scaffold) |
+| `sl subscriptions create <name> --url <url> --trigger '<json>'` | Chain subscription (repeat `--trigger` or pass `--triggers-file`) |
 | `sl subscriptions list` / `get <id\|name>` | List or show config + delivery state |
 | `sl subscriptions update <id\|name> --url <url> [--filter key.gte=value]` | Patch URL, filter, format, retry, etc. |
 | `sl subscriptions pause/resume <id\|name>` | Stop or restart delivery |
@@ -95,13 +96,11 @@ Read/action commands support `--json`. Destructive commands prompt unless
 `-y` / `--yes`. Filters are schema-aware: unknown tables/columns, bad operators,
 and non-scalar columns are rejected before the API call.
 
-Subscriptions are polymorphic — **subgraph** (fires on a subgraph table's rows)
-or **chain** (fires on raw chain events with no subgraph). `sl subscriptions
-create` makes subgraph subscriptions only (via the `--subgraph`/`--table`
-flags). Create chain subscriptions — a webhook on a contract / event / function /
-trait — via the SDK, REST, or MCP with a `triggers` array. Every other
-`sl subscriptions` command (list/get/update/pause/resume/delete/doctor/test/
-deliveries/...) operates on both kinds.
+Subscriptions are **subgraph** (a table's rows) or **chain** (raw events, no
+subgraph). `sl subscriptions create` with `--subgraph`/`--table` makes the
+first. Pass `--trigger` or `--triggers-file` for the second. SDK, REST, and
+MCP take the same `triggers` array. Every other `sl subscriptions` command
+operates on both kinds.
 
 ### Other
 
