@@ -21,11 +21,45 @@ describe("minimal config", () => {
 		if (result.ok) expect(result.config.NETWORK).toBe("mainnet");
 	});
 
-	test("unknown keys are rejected before ingest", () => {
-		const result = parseRuntimeConfig({ ...good, L2_FOO: "1" });
+	test("a misspelled key in our namespace is rejected before ingest", () => {
+		const result = parseRuntimeConfig({ ...good, SUBGRAPH_SORCE: "1" });
 		expect(result.ok).toBe(false);
 		if (!result.ok)
-			expect(result.errors.some((e) => e.includes("L2_FOO"))).toBe(true);
+			expect(result.errors.some((e) => e.includes("SUBGRAPH_SORCE"))).toBe(
+				true,
+			);
+	});
+
+	test("ambient container environ does not fail the boot", () => {
+		const result = parseRuntimeConfig({
+			...good,
+			PATH: "/usr/local/bin:/usr/bin",
+			HOME: "/root",
+			HOSTNAME: "8f2c1a9d41e0",
+			PWD: "/app",
+			SHLVL: "1",
+			PORT: "3800",
+			NODE: "/usr/local/bin/node",
+			BUN_INSTALL_BIN: "/root/.bun/bin",
+			BUN_RUNTIME_TRANSPILER_CACHE_PATH: "0",
+			TERM: "xterm",
+			LANG: "C.UTF-8",
+		});
+		expect(result.ok).toBe(true);
+	});
+
+	test("keys the shipped compose sets are known", () => {
+		const result = parseRuntimeConfig({
+			...good,
+			STREAMS_API_URL: "http://127.0.0.1:3800",
+			STREAMS_INTERNAL_API_KEY: "",
+			SUBGRAPH_SOURCE: "streams-index",
+			SUBGRAPH_INDEX_API_URL: "http://127.0.0.1:3800",
+			SBTC_DECODER_ENABLED: "true",
+			POX4_DECODER_ENABLED: "true",
+			BNS_DECODER_ENABLED: "false",
+		});
+		expect(result.ok).toBe(true);
 	});
 
 	test("full mode without bitcoin password is contradictory", () => {

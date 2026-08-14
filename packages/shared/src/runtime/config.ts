@@ -64,7 +64,40 @@ const KNOWN = new Set<string>([
 	"ALLOW_UNSIGNED_WEBHOOKS",
 	"OBSERVER_JOURNAL_ENABLED",
 	"STACKS_NETWORK",
+	// Set by the shipped image/compose (docker/oss/docker-compose.yml).
+	"STREAMS_API_URL",
+	"STREAMS_INTERNAL_API_KEY",
+	"SUBGRAPH_SOURCE",
+	"SUBGRAPH_INDEX_API_URL",
+	"SBTC_DECODER_ENABLED",
+	"POX4_DECODER_ENABLED",
+	"BNS_DECODER_ENABLED",
 ]);
+
+/**
+ * Namespaces the unknown-key refusal patrols. A real container environ
+ * carries dozens of ambient ALL_CAPS vars (PATH, HOME, HOSTNAME, PORT,
+ * BUN_*, …) that are not config and must not fail the boot — the refusal
+ * exists to catch a misspelled *Secondlayer* key, so it only fires inside
+ * our own vocabulary. Required keys are validated separately, so a typo'd
+ * required key still fails via its missing-value error.
+ */
+const OWN_PREFIXES = [
+	"SECONDLAYER_",
+	"STACKS_",
+	"BITCOIN_",
+	"STREAMS_",
+	"SUBGRAPH_",
+	"OBSERVER_",
+	"INSTANCE_",
+	"ARCHIVE_",
+	"X402_",
+] as const;
+
+function isOwnNamespace(key: string): boolean {
+	if (KNOWN.has(key)) return true;
+	return OWN_PREFIXES.some((prefix) => key.startsWith(prefix));
+}
 
 export function parseRuntimeConfig(
 	env: Record<string, string | undefined>,
@@ -73,7 +106,7 @@ export function parseRuntimeConfig(
 	for (const key of Object.keys(env)) {
 		if (env[key] === undefined) continue;
 		if (key.startsWith("SL_") || key.startsWith("POSTGRES_")) continue;
-		if (!KNOWN.has(key) && isRuntimeish(key)) {
+		if (!KNOWN.has(key) && isRuntimeish(key) && isOwnNamespace(key)) {
 			errors.push(`unknown config ${key}`);
 		}
 	}
