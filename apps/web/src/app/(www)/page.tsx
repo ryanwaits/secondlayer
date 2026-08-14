@@ -5,6 +5,7 @@ import { readStatusSnapshot } from "@/lib/status-snapshot";
 import type { SystemStatus } from "@/lib/types";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CreditsBuy } from "./credits-buy";
 
 export const metadata: Metadata = socialMeta({
 	title: "secondlayer — self-hosted Stacks data",
@@ -124,6 +125,7 @@ export function HomeView({ status }: { status: SystemStatus | null }) {
 							</tr>
 						</tbody>
 					</table>
+					<CreditsBuy />
 					<p className="home-land-more">
 						<Link href="/docs/archive">
 							Verified archive <span className="ar">→</span>
