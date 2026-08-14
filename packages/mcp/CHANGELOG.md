@@ -1,5 +1,11 @@
 # @secondlayer/mcp
 
+## 4.5.3
+
+### Patch Changes
+
+- 7b85602: `sl status` and `sl doctor` read `/public/status` on the local instance. MCP no longer registers hosted account tools.
+
 ## 4.5.2
 
 ### Patch Changes
