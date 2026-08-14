@@ -84,6 +84,14 @@ describe("package exports", () => {
 		expect(mod.planRepair).toBeDefined();
 	});
 
+	test("runtime export", async () => {
+		const mod = await import("@secondlayer/shared/runtime");
+		expect(mod.createSupervisor).toBeDefined();
+		expect(mod.parseRuntimeConfig).toBeDefined();
+		expect(mod.isolateHandler).toBeDefined();
+		expect(mod.planUpgrade).toBeDefined();
+	});
+
 	test("node export", async () => {
 		const mod = await import("@secondlayer/shared/node");
 		expect(mod).toBeDefined();

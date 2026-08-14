@@ -37,6 +37,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/archive/per-height-digest.ts",
 		"src/archive/derived-stage-report.ts",
 		"src/coverage/index.ts",
+		"src/runtime/index.ts",
 		"src/archive/copy-loader.ts",
 		"src/archive/key-registry.ts",
 		"src/archive/status.ts",

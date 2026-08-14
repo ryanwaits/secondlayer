@@ -37,7 +37,7 @@ export function migrationTargets(): MigrationTarget[] {
 	return out;
 }
 
-async function runMigrations() {
+export async function runMigrations() {
 	const targets = migrationTargets();
 	if (targets.length === 0) {
 		console.error(
@@ -113,6 +113,7 @@ async function migrateOne(connectionString: string) {
 		console.log("✅ Migrations completed successfully");
 	} catch (error) {
 		console.error("❌ Migration failed:", error);
+		if (!import.meta.main) throw error;
 		// Dump active sessions on failure to diagnose lock contention remotely.
 		try {
 			const { rows } = await sql<{

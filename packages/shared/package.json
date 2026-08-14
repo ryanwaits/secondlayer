@@ -156,6 +156,10 @@
 			"types": "./dist/src/coverage/index.d.ts",
 			"import": "./dist/src/coverage/index.js"
 		},
+		"./runtime": {
+			"types": "./dist/src/runtime/index.d.ts",
+			"import": "./dist/src/runtime/index.js"
+		},
 		"./errors": {
 			"types": "./dist/src/errors.d.ts",
 			"import": "./dist/src/errors.js"
