@@ -1,22 +1,25 @@
 import { ConsoleShell } from "@/components/console/shell";
 import type { InstanceMeta } from "@/components/console/sidebar";
 import { apiRequest } from "@/lib/api";
+import { assertConsoleAccess } from "@/lib/gate";
 import { PreferencesProvider } from "@/lib/preferences";
 import { QueryProvider } from "@/lib/queries/provider";
 import { TopbarProvider } from "@/lib/topbar-context";
 import type { HealthInfo, InstanceSummary } from "@/lib/types";
 
 /**
- * Console chrome. No session check — access is the token gate in middleware,
- * and identity is the instance itself: the sidebar footer carries
- * network · mode, image sha, and instance id from `/v1/instance` + `/health`.
- * Both fetches are best-effort; an unreachable runtime renders dashes.
+ * Console chrome. No session — access is the token gate (proxy + the layout
+ * backstop below), and identity is the instance itself: the sidebar footer
+ * carries network · mode, image sha, and instance id from `/v1/instance` +
+ * `/health`. Both fetches are best-effort; an unreachable runtime renders
+ * dashes.
  */
 export default async function ConsoleLayout({
 	children,
 }: {
 	children: React.ReactNode;
 }) {
+	await assertConsoleAccess();
 	const [instanceResult, healthResult] = await Promise.allSettled([
 		apiRequest<InstanceSummary>("/v1/instance"),
 		apiRequest<HealthInfo>("/health"),
