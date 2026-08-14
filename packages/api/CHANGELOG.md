@@ -1,5 +1,28 @@
 # @secondlayer/api
 
+## 1.27.0
+
+### Minor Changes
+
+- 478c7b4: Add `/v1/instance` catalog and `/console` for a local operator view. No signup, pricing, or public directory.
+- 8166b03: Self-host deploy, reindex, and backfill no longer consult plan, trial, quota, expiry, or hosted x402.
+- 0011ab2: Resolve self-host subgraphs by unique local name. Deploy, read, and delete no longer require an account.
+- 25bf154: Self-host reads skip product keys, usage writes, and Redis rate limits.
+- 6ab9f12: Self-host subscriptions resolve by local name. Create, deliver, and delete need no account.
+- 98d7577: Self-host no longer mounts hosted account, billing, key, or x402 routes. OpenAPI matches the retained surface.
+
+### Patch Changes
+
+- Updated dependencies [1956a4d]
+- Updated dependencies [541a849]
+- Updated dependencies [7ab92b0]
+- Updated dependencies [0011ab2]
+- Updated dependencies [6ab9f12]
+- Updated dependencies [775c360]
+  - @secondlayer/indexer@1.13.0
+  - @secondlayer/shared@7.9.0
+  - @secondlayer/platform@0.1.37
+
 ## 1.26.5
 
 ### Patch Changes

@@ -1,5 +1,21 @@
 # @secondlayer/cli
 
+## 10.0.0
+
+### Major Changes
+
+- a2a1364: Replace `sl instance init|bootstrap|observer` with top-level `sl init`, `sl bootstrap`, and `sl observer`. `sl init` writes `.env.local` (token, secrets key, webhook signing key) instead of `secondlayer.config.ts`. No alias. Hide hosted login, account, keys, and project commands from help.
+
+### Patch Changes
+
+- 4ded75f: Devnet compose sets LISTEN_HOST=0.0.0.0 and a local INSTANCE_TOKEN so the API can start under the self-host bind rule.
+- Updated dependencies [541a849]
+- Updated dependencies [7ab92b0]
+- Updated dependencies [0011ab2]
+- Updated dependencies [6ab9f12]
+- Updated dependencies [775c360]
+  - @secondlayer/shared@7.9.0
+
 ## 9.10.0
 
 ### Minor Changes

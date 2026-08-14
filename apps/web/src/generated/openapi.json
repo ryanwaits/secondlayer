@@ -3011,6 +3011,33 @@
 					}
 				}
 			}
+		},
+		"/v1/instance": {
+			"get": {
+				"tags": [
+					"instance"
+				],
+				"summary": "Local instance catalog",
+				"description": "Instance status, local subgraphs, subscriptions, and default features. No signup or pricing.",
+				"responses": {
+					"200": {
+						"description": "Catalog"
+					}
+				}
+			}
+		},
+		"/v1/instance/features": {
+			"get": {
+				"tags": [
+					"instance"
+				],
+				"summary": "Default feature manifest",
+				"responses": {
+					"200": {
+						"description": "Features"
+					}
+				}
+			}
 		}
 	}
 }

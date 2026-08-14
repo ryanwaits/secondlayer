@@ -1,5 +1,20 @@
 # @secondlayer/indexer
 
+## 1.13.0
+
+### Minor Changes
+
+- 1956a4d: Spool observer inputs during archive import and consume the journal before live tailing.
+
+### Patch Changes
+
+- Updated dependencies [541a849]
+- Updated dependencies [7ab92b0]
+- Updated dependencies [0011ab2]
+- Updated dependencies [6ab9f12]
+- Updated dependencies [775c360]
+  - @secondlayer/shared@7.9.0
+
 ## 1.12.7
 
 ### Patch Changes

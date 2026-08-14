@@ -1,5 +1,18 @@
 # @secondlayer/shared
 
+## 7.9.0
+
+### Minor Changes
+
+- 7ab92b0: Add a singleton `instances` row with an immutable network. Self-host identity no longer requires an account.
+- 0011ab2: Resolve self-host subgraphs by unique local name. Deploy, read, and delete no longer require an account.
+- 6ab9f12: Self-host subscriptions resolve by local name. Create, deliver, and delete need no account.
+- 775c360: Self-host uses one application database URL. SOURCE*/TARGET* split is hosted-only.
+
+### Patch Changes
+
+- 541a849: Parse Epoch 4.0 Nakamoto headers. Version 1 appends `problematic_txs` after `pox_treatment` and includes those bytes in the signer-signature-hash preimage, so post-fork block identities recompute.
+
 ## 7.8.0
 
 ### Minor Changes
