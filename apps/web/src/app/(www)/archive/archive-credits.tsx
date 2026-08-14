@@ -32,7 +32,8 @@ export function ArchiveCredits() {
 				body: JSON.stringify({ email, amount }),
 			});
 			const data = (await res.json()) as { url?: string; error?: string };
-			if (!res.ok || !data.url) throw new Error(data.error ?? "Checkout failed");
+			if (!res.ok || !data.url)
+				throw new Error(data.error ?? "Checkout failed");
 			window.location.assign(data.url);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "Checkout failed");
@@ -112,8 +113,14 @@ export function ArchiveCredits() {
 					</label>
 
 					<div className="acr-actions">
-						<button type="submit" className="acr-continue" disabled={busy || !isPack}>
-							{busy ? "Opening Stripe…" : `Continue to Stripe · $${isPack ? amount : "—"}`}
+						<button
+							type="submit"
+							className="acr-continue"
+							disabled={busy || !isPack}
+						>
+							{busy
+								? "Opening Stripe…"
+								: `Continue to Stripe · $${isPack ? amount : "—"}`}
 						</button>
 						{!isPack ? (
 							<p className="acr-note">
