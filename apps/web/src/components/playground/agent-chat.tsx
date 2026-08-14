@@ -368,110 +368,26 @@ function PromptCard({ label, text }: { label: string; text: string }) {
 	);
 }
 
-/** Quiet payoff — a text link that reveals the inline keygen on intent. */
 function KeyPayoff({ blurb }: { blurb: string }) {
-	const [step, setStep] = useState<"link" | "email" | "done">("link");
-	const [email, setEmail] = useState("");
-
-	if (step === "done") {
-		return (
-			<div className="ac-gen-done">
-				<span className="ac-ok">✓</span> key created —{" "}
-				<code>sl_live_8f3c…a91d</code>. Drop it in{" "}
-				<code>SECONDLAYER_API_KEY</code>.
-			</div>
-		);
-	}
-	if (step === "email") {
-		return (
-			<form
-				className="ac-pay-form"
-				onSubmit={(e) => {
-					e.preventDefault();
-					setStep("done");
-				}}
-			>
-				<input
-					className="ac-gen-input"
-					type="email"
-					placeholder="you@email.com"
-					autoComplete="email"
-					value={email}
-					onChange={(e) => setEmail(e.target.value)}
-				/>
-				<button type="submit" className="ac-gen-go">
-					Create key
-				</button>
-			</form>
-		);
-	}
 	return (
 		<div className="ac-pay">
-			<button
-				type="button"
-				className="ac-pay-link"
-				onClick={() => setStep("email")}
-			>
-				Generate an API key →
-			</button>
-			<span>{blurb}</span>
+			<span>
+				{blurb} Loopback needs no key. Writes use <code>INSTANCE_TOKEN</code>{" "}
+				from <code>sl init</code>.
+			</span>
 		</div>
 	);
 }
 
 function DeployCard({ name }: { name: string }) {
-	const [step, setStep] = useState<"cta" | "email" | "done">("cta");
-	const [email, setEmail] = useState("");
-
-	if (step === "done") {
-		return (
-			<div className="ac-gen-done">
-				<span className="ac-ok">✓</span> subgraphs/{name} deployed under your
-				account, backfilling now.
-			</div>
-		);
-	}
 	return (
 		<div className="ac-gen">
 			<div className="ac-gen-head">
 				<span className="ac-gen-title">Deploy this subgraph</span>
 				<span className="ac-gen-name">subgraphs/{name}</span>
 			</div>
-			{step === "cta" ? (
-				<>
-					<p className="ac-gen-sub">
-						Deploy it to hosted Postgres + a public read API. We create your
-						account and keep the sandbox.
-					</p>
-					<button
-						type="button"
-						className="ac-gen-go"
-						onClick={() => setStep("email")}
-					>
-						Deploy
-					</button>
-				</>
-			) : (
-				<form
-					className="ac-gen-form"
-					onSubmit={(e) => {
-						e.preventDefault();
-						setStep("done");
-					}}
-				>
-					<input
-						className="ac-gen-input"
-						type="email"
-						placeholder="you@email.com"
-						autoComplete="email"
-						value={email}
-						onChange={(e) => setEmail(e.target.value)}
-					/>
-					<button type="submit" className="ac-gen-go">
-						Create account & deploy
-					</button>
-				</form>
-			)}
+			<p className="ac-gen-sub">On your instance. No hosted account.</p>
+			<pre className="ac-gen-name">sl subgraphs deploy subgraphs/{name}.ts</pre>
 		</div>
 	);
 }
