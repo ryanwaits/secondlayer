@@ -11,27 +11,56 @@ bun add -g @secondlayer/cli
 ## Common commands
 
 ```bash
-sl init                  # write .env.local (token, secrets, signing key)
-sl bootstrap             # restore history instead of syncing from genesis
-sl observer              # print the Stacks events_observer stanza
-sl subgraphs create      # scaffold a subgraph
-                         #   --from-contract <id> infers typed print payloads (no login needed)
-sl subgraphs deploy      # deploy a subgraph from a config
-                         #   --visibility public|private (managed → public, BYO → private)
-sl subgraphs publish     # claim the global public name (409 PUBLIC_NAME_TAKEN if claimed)
-sl subgraphs unpublish   # make a subgraph private again
-sl subgraphs ls          # list your deployments
-sl subscriptions create  # wire a webhook to a subgraph table
-sl context               # headless orientation snapshot
-sl verify                # check your chain data against a signed archive
-sl repair                # replace ranges that diverge from the archive
+sl init --network mainnet
+sl bootstrap --against <manifest>
+sl observer
+sl subgraphs create --from-contract <id>
+sl subgraphs deploy
+sl subgraphs list
+sl subscriptions create
+sl context
+sl verify
+sl repair
 ```
 
-[Verified archive](/docs/archive) covers the last three.
+[Verified archive](/docs/archive) covers the last two. [Self-host](/docs/self-host) is the compose loop.
 
 <Callout type="note" title="Chain subscriptions use a different surface">
 
-[Direct chain subscriptions](/docs/subscriptions#direct-chain-subscriptions-no-subgraph) (webhooks on raw chain events with no subgraph) are created over the SDK, REST, or MCP instead. They take a `triggers` array rather than a table.
+[Direct chain subscriptions](/docs/subscriptions#direct-chain-subscriptions-no-subgraph) go through the SDK, REST, or MCP. They take a `triggers` array, not a table.
+
+</Callout>
+
+## Local runtime
+
+Write keys, restore history, print the observer stanza.
+
+```bash
+sl init --network mainnet
+sl bootstrap --against https://archive.secondlayer.tools/.../snapshots/<digest>.json
+sl observer --mode indexer
+```
+
+| Command | Flag | Default | Notes |
+| --- | --- | --- | --- |
+| `sl init` | `--network` | `STACKS_NETWORK` or `mainnet` | `mainnet`, `testnet`, or `devnet` |
+| | `--api-url` | `http://127.0.0.1:3800` | Local API |
+| | `--force` | off | Overwrite generated values in `.env.local` |
+| `sl bootstrap` | `--against` | required | Manifest URL or file |
+| | `--to-block` | archive tip | Stop early |
+| | `--public-key` | resolved | Pin the signing key |
+| | `-y, --yes` | off | Skip confirm |
+| | `--json` | off | Machine output |
+| `sl observer` | `--mode` | `indexer` | `indexer` retries; `signer-shared` does not |
+| | `--endpoint` | `indexer:3700` (`127.0.0.1:3700` on devnet) | `host:port` only — no URL |
+| | `--recovery` | required for signer-shared | `journal` or `archive` |
+| | `--network` | `STACKS_NETWORK` or `mainnet` | Loopback refused except devnet |
+
+`sl bootstrap` refuses a non-empty database. Fix an existing instance with [`sl repair`](/docs/archive). Exit `0` restored, `1` diverged, `2` refused.
+
+<Callout type="note" title="Signer-shared nodes skip retries">
+
+`--mode signer-shared` requires `--recovery journal` or `--recovery archive`. Missed blocks refill from that source.
 
 </Callout>
 
@@ -42,41 +71,21 @@ sl subgraphs create sbtc-registry \
   --from-contract SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry
 ```
 
-Infers each print topic's real payload shape from indexed history and writes a typed definition — see [print schemas](/docs/index#print-schemas). Anonymous, no login needed. Pass `--table-per-topic` for a normalized table per topic instead of one wide table.
+Infers each print topic's payload from indexed history — see [print schemas](/docs/index#print-schemas). Anonymous. `--table-per-topic` emits one table per topic.
 
-`sl subgraphs codegen <file> --payloads` emits a `.d.ts` of per-topic payload types (a discriminated union per source) next to the definition.
-
-<Callout type="note" title="Payload codegen is print-only">
-
-`--payloads` is incompatible with `--target`/`--models-only`/`--env` (those are ORM-only).
-
-</Callout>
-
-<Callout type="note" title="Deploy-time warnings">
-
-`sl subgraphs deploy` also prints advisory `warnings` when a handler reads an
-`event.data` field never observed on-chain for its source's topic. Warn-only,
-never blocks.
-
-</Callout>
+`sl subgraphs codegen <file> --payloads` emits a `.d.ts` next to the definition. Incompatible with `--target` / `--models-only` / `--env`. Deploy `warnings` on unobserved `event.data` fields are advisory.
 
 <Callout type="warning" title="Commit your definition before deploying">
 
-`sl subgraphs deploy` checks whether the source file is committed to git. Deploy
-an uncommitted file and the only copy of that definition is a row in the
-database — nothing to review, diff, or restore from.
+`sl subgraphs deploy` checks the source file is committed. An uncommitted deploy leaves the only copy in the database.
 
-In a terminal you get a prompt. In scripts and CI it fails. Pass
-`--allow-uncommitted` to override; it logs that the check was skipped, so the
-choice shows up in CI output. Deploys from outside a git repo, and `--dry-run`,
-skip the check entirely.
+A terminal prompts. Scripts and CI fail. `--allow-uncommitted` overrides and logs the skip. Outside a git repo, and `--dry-run`, skip the check.
 
 </Callout>
 
 ## Generate typed contract clients
 
-Turn Clarity contracts into typed TypeScript — local `.clar` files, deployed
-contracts, or a whole Clarinet project.
+Turn Clarity contracts into typed TypeScript — local `.clar` files, deployed contracts, or a Clarinet project.
 
 ```bash
 sl contracts generate ./contracts/token.clar -o ./src/generated.ts
@@ -84,9 +93,7 @@ sl contracts generate SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault -o ./
 sl contracts generate --watch    # regenerate on .clar / config / Clarinet.toml changes
 ```
 
-Deployed contract ids fetch the real ABI from the network (address prefix picks
-mainnet vs testnet). Config-driven projects use a `secondlayer.config.ts` and
-regenerate with plain `sl contracts generate`:
+Deployed contract ids fetch the ABI (address prefix picks the network). Config-driven projects regenerate with `sl contracts generate`:
 
 ```ts
 // secondlayer.config.ts
@@ -105,20 +112,18 @@ export default defineConfig({
 | `react()` | Typed React hooks per contract |
 | `testing()` | Clarinet SDK test helpers |
 
-Output ships named type aliases per function (`TokenTransferArgs`,
-`TokenTransferResult`) and an ABI const branded with `TypedAbi`. Feed it to
-`getContract` from [`@secondlayer/stacks`](/docs/stacks#also-in-the-box) for
-named-alias hovers.
+Named aliases per function (`TokenTransferArgs`) plus a `TypedAbi` const. Feed it to `getContract` from [`@secondlayer/stacks`](/docs/stacks#also-in-the-box).
 
 ## Frozen features
 
-These work but get no further investment. The supported dev loop is hosted (`sl subgraphs create` → `deploy` against a recent block).
+These work but get no further investment.
 
-- `sl subgraphs codegen --target prisma|drizzle|kysely` generates a typed ORM schema for a subgraph's tables (BYO-database). See [Subgraphs](/docs/subgraphs#use-your-own-database--orm).
-- `sl local` — superseded by [`sl devnet`](/docs/devnet), the supported local loop. Hidden, and prints a deprecation notice on use.
+- `sl subgraphs codegen --target prisma|drizzle|kysely` — BYO ORM schema. See [Subgraphs](/docs/subgraphs#use-your-own-database--orm).
+- `sl subgraphs publish` / `unpublish` are hidden. Visibility is on [Subgraphs](/docs/subgraphs#visibility--publishing) and deploy `--visibility`.
+- `sl local` — superseded by [`sl devnet`](/docs/devnet). Hidden.
 
 
 export const metadata = {
 	title: "CLI — Secondlayer Docs",
-	description: "Manage subgraphs and subscriptions from your terminal with sl.",
+	description: "Init a local runtime, bootstrap history, deploy subgraphs, and attach webhooks with sl.",
 };

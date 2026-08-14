@@ -49,14 +49,13 @@ curl http://localhost:3800/health
 
 The API is open by default. For a Bearer token, set `API_KEY` in `.env` and uncomment the matching line in `docker-compose.yml`.
 
-**Point an existing Stacks node at the indexer** by adding this to its `Config.toml`:
+**Point an existing Stacks node at the indexer** with `sl observer`, then paste the stanza into `Config.toml`:
 
-```toml
-[[events_observer]]
-endpoint = "your-server:3700"
-events_keys = ["*"]
-timeout_ms = 30000
+```bash
+sl observer --mode indexer --endpoint indexer:3700
 ```
+
+Indexer mode retries delivery (`timeout_ms = 2000`). Signer-shared nodes skip retries and need `--recovery journal` or `--recovery archive`. Flags live on [CLI](/docs/cli#local-runtime).
 
 ---
 

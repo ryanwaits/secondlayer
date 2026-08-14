@@ -269,11 +269,11 @@ Inspect the account state first. If the subgraph and table are already clear, as
 		audience: "Developers who want terminal-first workflows",
 		surface: "marketing",
 		description:
-			"Use `sl` to inspect projects, deploy subgraphs, and manage subscriptions.",
+			"Use `sl` to init a runtime, deploy subgraphs, and manage subscriptions.",
 		tags: ["cli", "subgraphs", "subscriptions"],
 		build: () =>
 			withSetup(
-				"/secondlayer Operate this project through the `sl` CLI. Inspect the current project, subgraphs, and subscriptions with JSON output first. Then help me run the exact `sl` commands for the task, including human confirmation before delete, reindex, rotate-secret, replay, or requeue.",
+				"/secondlayer Operate this project through the `sl` CLI. For a local instance start with `sl init`, `sl bootstrap`, and `sl observer`. Inspect subgraphs and subscriptions with JSON output first. Then help me run the exact `sl` commands for the task, including human confirmation before delete, reindex, rotate-secret, replay, or requeue.",
 			),
 	},
 	{

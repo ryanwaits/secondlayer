@@ -31,6 +31,7 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 
 ## Table of contents
 
+- [Local runtime](#local-runtime) — `init`, `bootstrap`, `observer`
 - [Auth](#auth) — `login`, `logout`, `whoami`, `keys create`
 - [Projects](#projects) — `projects create|list|use|get`
 - [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `reindex`, `backfill`, `cancel`, `gaps`, `query`, `delete`, `scaffold`, `client`, `codegen`
@@ -42,7 +43,64 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 - [Config](#config) — `config get|set|reset|delete`
 - [Status](#status) — top-level `status`
 - [Doctor](#doctor) — top-level `doctor`
-- [Contracts generate](#contracts-generate) — `contracts generate` (alias `contracts gen`), `init`
+- [Contracts generate](#contracts-generate) — `contracts generate` (alias `contracts gen`)
+
+---
+
+## Local runtime
+
+Accountless. These are the top-level verbs for a machine you operate. `sl instance` is gone.
+
+### sl init
+
+Write `.env.local` (instance token, secrets key, webhook signing key). Idempotent.
+
+Usage: `sl init [--network <network>] [--api-url <url>] [--force]`
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--network <network>` | `STACKS_NETWORK` or `mainnet` | `mainnet`, `testnet`, or `devnet`. |
+| `--api-url <url>` | `http://127.0.0.1:3800` | Local API URL written as `SL_API_URL`. |
+| `--force` | off | Overwrite generated values even if `.env.local` exists. |
+
+Does **not** write `secondlayer.config.ts` — that file is for `sl contracts generate`.
+
+Example: `sl init --network mainnet`
+
+### sl bootstrap
+
+Restore chain history from a verified archive into an empty database. Refuses a non-empty target — use `sl repair` instead.
+
+Usage: `sl bootstrap --against <manifest> [--to-block <n>] [--public-key <pem>] [-y] [--json]`
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--against <manifest>` | required | Archive manifest: https URL or local file path. |
+| `--to-block <n>` | archive tip | Stop at this height. |
+| `--public-key <pem>` | resolved | Pin the signing key instead of fetching it. |
+| `-y, --yes` | off | Skip the confirmation prompt. |
+| `--json` | off | Machine output. |
+
+Exit codes: `0` restored and verified, `1` restore completed but verification diverged, `2` refused (non-empty target or untrusted reference).
+
+OSS never fetches `api.secondlayer.tools` for the public key.
+
+Example: `sl bootstrap --against ./snapshot.json --to-block 4000000 --yes`
+
+### sl observer
+
+Print the Stacks `[[events_observer]]` stanza.
+
+Usage: `sl observer [--mode indexer|signer-shared] [--endpoint host:port] [--recovery journal|archive] [--network <network>]`
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--mode <mode>` | `indexer` | `indexer` retries delivery (`timeout_ms = 2000`). `signer-shared` skips retries (`timeout_ms = 500`, `disable_retries = true`). |
+| `--endpoint <host:port>` | `indexer:3700` (`127.0.0.1:3700` on devnet) | Node callback. `host:port` only — no URL, no unix socket. Loopback refused except on `devnet`. |
+| `--recovery <source>` | required for signer-shared | `journal` or `archive`. |
+| `--network <network>` | `STACKS_NETWORK` or `mainnet` | `mainnet`, `testnet`, or `devnet`. |
+
+Example: `sl observer --mode indexer --endpoint indexer:3700`
 
 ---
 
@@ -192,13 +250,9 @@ Remote deploy (non-local): bundles handler via `@secondlayer/bundler`, POSTs to 
 
 Example: `sl subgraphs deploy subgraphs/my-watcher.ts --start-block 100000`
 
-### sl subgraphs publish / unpublish
+### sl subgraphs publish / unpublish (hidden)
 
-Flip a deployed subgraph's read visibility.
-
-Usage: `sl subgraphs publish <name>` / `sl subgraphs unpublish <name>`
-
-`publish` claims the name in the single global public namespace and opens anon /v1 reads — a taken name fails with `409 PUBLIC_NAME_TAKEN`. `unpublish` returns it to private (owner-key reads only).
+Hidden. Prefer deploy `--visibility`. `publish` claims the global public name (`409 PUBLIC_NAME_TAKEN` if taken). `unpublish` returns it to private.
 
 ### sl subgraphs list
 
@@ -1157,10 +1211,4 @@ Examples:
 - `sl contracts generate SP2C2YFP12AJZB1M6DY7SF9A3PRHWKGYGVWQKW3.my-token -o ./src/generated.ts`
 - `sl contracts generate` (uses config file)
 
-### sl init
-
-Initialize a new `secondlayer.config.ts` file.
-
-Usage: `sl init`
-
-No flags. If `Clarinet.toml` exists in cwd, generates a config with the `clarinet()` plugin pre-wired. Errors if config already exists.
+`sl init` is the local-runtime command (writes `.env.local`). It does not create `secondlayer.config.ts` — write that file by hand for `sl contracts generate`.

@@ -62,6 +62,16 @@ sl subscriptions create my-hook \
 
 ## Commands
 
+### Local runtime
+
+No account. Writes `.env.local`, restores history, prints the Stacks observer stanza.
+
+| Command | What it does |
+|---|---|
+| `sl init [--network mainnet\|testnet\|devnet] [--api-url <url>] [--force]` | Write `.env.local` (token, secrets key, webhook signing key). Idempotent |
+| `sl bootstrap --against <manifest> [--to-block <n>] [--public-key <pem>] [-y] [--json]` | Restore chain history from a verified archive into an empty database. Exit `0` restored, `1` diverged, `2` refused |
+| `sl observer [--mode indexer\|signer-shared] [--endpoint host:port] [--recovery journal\|archive] [--network …]` | Print the `[[events_observer]]` stanza. Signer-shared requires `--recovery` |
+
 ### Auth & project
 
 | Command | What it does |
@@ -90,10 +100,10 @@ scoped reads and cannot mint (403). Minted keys inherit your plan's tier.
 | `sl subgraphs create <name>` | Scaffold a definition file |
 | `sl subgraphs scaffold <SP...::contract> [-o <path>] [--no-install]` | Generate a subgraph from a deployed contract |
 | `sl subgraphs deploy <file> [--start-block <n>] [--visibility public\|private]` | Deploy; `--start-block` overrides the definition. Managed deploys default `public`, BYO default `private` |
-| `sl subgraphs publish <name>` / `unpublish <name>` | Flip visibility; publish claims the global public name (409 `PUBLIC_NAME_TAKEN` if claimed) |
+| `sl subgraphs list` | List deployments (`ls` alias) |
 | `sl subgraphs dev <file>` | Watch + hot-redeploy |
 | `sl subgraphs query <name> <table>` | Query a table with filters, sort, pagination |
-| `sl subgraphs list` / `status <name>` / `gaps <name>` | Inspect deployments |
+| `sl subgraphs status <name>` / `gaps <name>` | Inspect a deployment |
 | `sl subgraphs spec <nameOrFile> [--format openapi\|agent\|markdown]` | Export API docs for a deployed subgraph or a local definition file |
 | `sl subgraphs deploy <file> --database-url <url>` | BYO: write the subgraph's rows to your own Postgres |
 | `sl subgraphs codegen <file> --target prisma\|drizzle [-o <path>]` | Generate an ORM schema for the subgraph's tables (BYO DB) |
@@ -141,9 +151,6 @@ deliveries/...) operates on both kinds.
 |---|---|
 | `sl contracts generate [files...]` (alias `gen`) | Generate TS interfaces from Clarity contracts |
 | `sl context` | Print a headless orientation snapshot — account, Streams + Index tips, your subgraphs, subscriptions, and in-flight reindex operations. CLI counterpart to the MCP `secondlayer://context` resource |
-| `sl init` | Write `.env.local` (token, secrets key, webhook signing key) |
-| `sl bootstrap` | Restore chain history from a verified archive |
-| `sl observer` | Print the Stacks `events_observer` stanza |
 | `sl doctor` / `sl status` | Reachability + health checks |
 | `sl account get` / `sl account update` | Show or update display name / bio / slug |
 | `sl account billing` | Show plan, subscription, trial, discounts |

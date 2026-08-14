@@ -338,12 +338,12 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 	],
 
 	"/docs/cli": [
-		variant("cli-operate"),
 		card(
-			"Orient with sl context",
-			"A headless snapshot before you act.",
-			"/secondlayer Run `sl context` and summarize my account, the live Streams and Index tips, my subgraphs and subscriptions, and any in-flight reindex ops — then recommend the next `sl` command for what I'm doing.",
+			"Stand up a local runtime",
+			"Init, bootstrap, print the observer stanza.",
+			"/secondlayer Help me run a local Secondlayer instance with no account: `sl init --network mainnet` writes `.env.local`, `sl bootstrap --against <manifest>` restores verified history into an empty database, and `sl observer --mode indexer` prints the `[[events_observer]]` stanza. Explain flags, exit codes, and when to use `--mode signer-shared --recovery journal`.",
 		),
+		variant("cli-operate"),
 		card(
 			"Scaffold from a contract",
 			"Typed print payloads, no login required.",
@@ -425,7 +425,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Bring up the stack",
 			"Run app services with Docker Compose.",
-			"/secondlayer Help me self-host Secondlayer: clone the repo, `cd docker/oss`, `cp .env.example .env` (set `POSTGRES_PASSWORD`), then `docker compose up -d postgres migrate api indexer subgraph-processor` and verify `curl http://localhost:3800/health`. Show me how to point an existing stacks-node at the indexer on `:3700` via `events_observer`.",
+			"/secondlayer Help me self-host Secondlayer: clone the repo, `cd docker/oss`, `sl init --network mainnet` (copy `.env.local` into `.env`), then `docker compose up -d postgres migrate api indexer subgraph-processor` and verify `curl http://localhost:3800/health`. Point an existing stacks-node at the indexer with `sl observer --mode indexer --endpoint indexer:3700` and paste the stanza into `Config.toml`.",
 		),
 		card(
 			"Run published images",
