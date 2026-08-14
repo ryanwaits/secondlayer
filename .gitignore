@@ -33,8 +33,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Test coverage
-coverage/
+# Test coverage reports (repo root only — do not ignore src/coverage/)
+/coverage/
 .nyc_output/
 
 # Environment variables. Ignore the whole family — `.env`, `.env.local`,
