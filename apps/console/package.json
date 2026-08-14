@@ -1,0 +1,24 @@
+{
+	"name": "@secondlayer/console",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"dev": "next dev --turbopack --port 3801",
+		"build": "next build",
+		"start": "next start --port 3801",
+		"test": "bun test",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@tanstack/react-query": "5.90.21",
+		"next": "16.2.12",
+		"react": "19.2.4",
+		"react-dom": "19.2.4"
+	},
+	"devDependencies": {
+		"@types/node": "^22.15.0",
+		"@types/react": "^19.1.0",
+		"@types/react-dom": "^19.1.0",
+		"typescript": "^5.8.0"
+	}
+}

@@ -1,0 +1,68 @@
+/* Token gate — the one screen outside the console shell. */
+.token-gate {
+	min-height: 100vh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background-image: radial-gradient(
+		circle,
+		var(--dot-color) 0.5px,
+		transparent 0.5px
+	);
+	background-size: 8px 8px;
+}
+.token-gate form {
+	width: min(380px, calc(100vw - 48px));
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	background: var(--bg);
+	padding: 28px;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+.token-gate h1 {
+	font-family: var(--font-heading-stack);
+	font-size: 20px;
+	font-weight: 500;
+	letter-spacing: -0.02em;
+	margin: 0;
+}
+.token-gate p {
+	font-size: 13px;
+	line-height: 1.6;
+	color: var(--text-muted);
+	margin: 0;
+}
+.token-gate code {
+	font-family: var(--font-mono-stack);
+	font-size: 12px;
+	color: var(--text-main);
+}
+.token-gate .token-error {
+	color: var(--red);
+}
+.token-gate input[type="password"] {
+	height: 40px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--bg);
+	color: var(--text-main);
+	font-family: var(--font-mono-stack);
+	font-size: 13px;
+	padding: 0 12px;
+}
+.token-gate input[type="password"]:focus {
+	outline: none;
+	border-color: var(--border-hover);
+}
+.token-gate button {
+	height: 38px;
+	border: 1px solid var(--text-main);
+	border-radius: 999px;
+	background: var(--text-main);
+	color: var(--bg);
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+}

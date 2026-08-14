@@ -1,0 +1,173 @@
+/* ═══════════════════════════════════════════════════════════════ */
+/* Console tokens — the quiet-install system, console register.    */
+/* Locked 2026-08-14: no Sunset in console chrome (beige washes    */
+/* carry active states), dataviz rides the blue ramp, semantic     */
+/* colors are for status states only, weights are 400/500.         */
+/* ═══════════════════════════════════════════════════════════════ */
+
+:root {
+	/* ground */
+	--bg: #ffffff;
+	--bg-base: #ffffff;
+	--bg-elevated: #ffffff;
+	--bg-chrome: #f8f6f2;
+
+	/* ink ramp */
+	--text-main: #0a0a0a;
+	--text-muted: rgba(10, 10, 10, 0.5);
+	--text-dim: rgba(10, 10, 10, 0.25);
+	--ink-demoted: #7d8187;
+
+	/* hairlines */
+	--border: rgba(10, 10, 10, 0.1);
+	--border-hover: rgba(10, 10, 10, 0.2);
+	--focus-ring: rgba(0, 0, 0, 0.22);
+
+	/* warm washes — the console's active/hover surface */
+	--code-bg: rgba(166, 138, 76, 0.1);
+	--code-block-bg: #fdfdfc;
+	--nudge-bg: rgba(166, 138, 76, 0.06);
+	--palette-item-hover: rgba(166, 138, 76, 0.1);
+	--dot-color: rgba(0, 0, 0, 0.1);
+
+	/* Sunset stays defined for the rare shared component, but console
+	 * chrome must not spend it — active states use --code-bg. */
+	--accent: #ff5c0a;
+	--accent-contrast: #ffffff;
+	--accent-bg: rgba(255, 92, 10, 0.06);
+	--accent-border: rgba(255, 92, 10, 0.2);
+	--accent-glow: rgba(255, 92, 10, 0.06);
+
+	/* dataviz ramp */
+	--accent-blue: #2563eb;
+	--accent-blue-bg: rgba(37, 99, 235, 0.08);
+	--accent-blue-border: rgba(37, 99, 235, 0.33);
+
+	/* semantic status */
+	--green: #22c55e;
+	--green-bg: rgba(34, 197, 94, 0.08);
+	--yellow: #eab308;
+	--yellow-bg: rgba(234, 179, 8, 0.08);
+	--red: #ef4444;
+	--red-bg: rgba(239, 68, 68, 0.08);
+	--blue: #3b82f6;
+	--blue-bg: rgba(59, 130, 246, 0.08);
+	--teal: #1588b2;
+	--teal-bg: rgba(21, 136, 178, 0.08);
+
+	/* type — next/font exposes the loaded families on these vars */
+	--font-sans-stack: var(--font-public-sans, "Public Sans"), ui-sans-serif,
+		system-ui, sans-serif;
+	--font-heading-stack: var(--font-sora, "Sora"), ui-sans-serif, system-ui,
+		sans-serif;
+	--font-mono-stack: var(--font-fira-code, "Fira Code"), ui-monospace,
+		"SFMono-Regular", Consolas, monospace;
+	--font-heading: var(--font-heading-stack);
+	--font-mono: var(--font-mono-stack);
+
+	/* motion */
+	--duration-snappy: 200ms;
+	--duration-smooth: 500ms;
+	--ease-snappy: cubic-bezier(0.4, 0, 0.2, 1);
+	--ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--bg: #111111;
+		--bg-base: #111111;
+		--bg-elevated: #1a1a1a;
+		--bg-chrome: #0c0c0c;
+
+		--text-main: #ececec;
+		--text-muted: rgba(255, 255, 255, 0.6);
+		--text-dim: rgba(255, 255, 255, 0.28);
+		--ink-demoted: #aab0ba;
+
+		--border: #2e2e2e;
+		--border-hover: #3a3a3a;
+		--focus-ring: rgba(255, 255, 255, 0.26);
+
+		--code-bg: rgba(242, 237, 229, 0.08);
+		--code-block-bg: #151515;
+		--nudge-bg: rgba(242, 237, 229, 0.05);
+		--palette-item-hover: rgba(242, 237, 229, 0.08);
+		--dot-color: rgba(255, 255, 255, 0.07);
+
+		--accent-bg: rgba(255, 92, 10, 0.12);
+		--accent-border: rgba(255, 92, 10, 0.28);
+		--accent-glow: rgba(255, 92, 10, 0.08);
+
+		--accent-blue: #8aa7f8;
+		--accent-blue-bg: rgba(138, 167, 248, 0.1);
+		--accent-blue-border: rgba(138, 167, 248, 0.4);
+
+		--green-bg: rgba(34, 197, 94, 0.1);
+		--yellow-bg: rgba(234, 179, 8, 0.1);
+		--red-bg: rgba(239, 68, 68, 0.1);
+		--blue: #60a5fa;
+		--blue-bg: rgba(96, 165, 250, 0.1);
+		--teal: #1ea8d8;
+		--teal-bg: rgba(30, 168, 216, 0.1);
+	}
+}
+
+:root[data-theme="dark"] {
+	--bg: #111111;
+	--bg-base: #111111;
+	--bg-elevated: #1a1a1a;
+	--bg-chrome: #0c0c0c;
+
+	--text-main: #ececec;
+	--text-muted: rgba(255, 255, 255, 0.6);
+	--text-dim: rgba(255, 255, 255, 0.28);
+	--ink-demoted: #aab0ba;
+
+	--border: #2e2e2e;
+	--border-hover: #3a3a3a;
+	--focus-ring: rgba(255, 255, 255, 0.26);
+
+	--code-bg: rgba(242, 237, 229, 0.08);
+	--code-block-bg: #151515;
+	--nudge-bg: rgba(242, 237, 229, 0.05);
+	--palette-item-hover: rgba(242, 237, 229, 0.08);
+	--dot-color: rgba(255, 255, 255, 0.07);
+
+	--accent-bg: rgba(255, 92, 10, 0.12);
+	--accent-border: rgba(255, 92, 10, 0.28);
+	--accent-glow: rgba(255, 92, 10, 0.08);
+
+	--accent-blue: #8aa7f8;
+	--accent-blue-bg: rgba(138, 167, 248, 0.1);
+	--accent-blue-border: rgba(138, 167, 248, 0.4);
+
+	--green-bg: rgba(34, 197, 94, 0.1);
+	--yellow-bg: rgba(234, 179, 8, 0.1);
+	--red-bg: rgba(239, 68, 68, 0.1);
+	--blue: #60a5fa;
+	--blue-bg: rgba(96, 165, 250, 0.1);
+	--teal: #1ea8d8;
+	--teal-bg: rgba(30, 168, 216, 0.1);
+}
+
+* {
+	box-sizing: border-box;
+}
+html,
+body {
+	margin: 0;
+	padding: 0;
+}
+body {
+	background: var(--bg);
+	color: var(--text-main);
+	font-family: var(--font-sans-stack);
+	font-size: 16px;
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
+}
+:focus-visible {
+	outline: 2px solid var(--focus-ring);
+	outline-offset: 2px;
+	border-radius: 4px;
+}
