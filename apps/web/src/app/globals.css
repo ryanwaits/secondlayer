@@ -8234,9 +8234,53 @@ body:has(.marketing-nav) .auth-bar {
 	color: var(--text-muted);
 	font-variant-numeric: tabular-nums;
 }
+.mnav-burger {
+	display: none;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	height: 44px;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	background: transparent;
+	color: var(--text-main);
+	cursor: pointer;
+}
+/* While the sheet is open the bar goes opaque and drops its blur —
+   backdrop-filter would otherwise become the containing block for the
+   fixed sheet and collapse it into the 64px bar. */
+.marketing-nav:has(.mnav-sheet) {
+	background: var(--bg);
+	-webkit-backdrop-filter: none;
+	backdrop-filter: none;
+}
+.mnav-sheet {
+	position: fixed;
+	inset: 64px 0 0 0;
+	background: var(--bg);
+	display: flex;
+	flex-direction: column;
+	padding: 1rem 1.5rem;
+	z-index: 60;
+}
+.mnav-sheet a {
+	padding: 16px 4px;
+	font-size: 1.25rem;
+	font-weight: 500;
+	color: var(--text-main);
+	text-decoration: none;
+	border-bottom: 1px solid var(--border);
+	font-variant-numeric: tabular-nums;
+}
 @media (max-width: 640px) {
-	.mnav-plain {
+	/* Grok-style mobile bar: logo mark + burger only. */
+	.mnav-plain,
+	.mnav-pill.mnav-gh,
+	.marketing-nav-brand span {
 		display: none;
+	}
+	.mnav-burger {
+		display: inline-flex;
 	}
 }
 
@@ -8488,11 +8532,6 @@ body:has(.marketing-nav) .auth-bar {
 		grid-template-columns: 1fr;
 	}
 }
-@media (max-width: 640px) {
-	.mnav-plain {
-		display: none;
-	}
-}
 
 /* ── desktop group panels ─────────────────────────────────────────────
    Four of the five top-level entries open one of these. Absolutely
@@ -8669,8 +8708,7 @@ body:has(.marketing-nav) .auth-bar {
 	}
 }
 
-/* burger + bar CTA are the mobile chrome — desktop shows the link row */
-.mnav-burger,
+/* legacy bar CTA stays retired */
 .mnav-bar-cta {
 	display: none;
 }
@@ -8680,37 +8718,9 @@ body:has(.marketing-nav) .auth-bar {
 		display: none;
 	}
 
-	.mnav-burger {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 32px;
-		height: 32px;
-		flex: none;
-		/* bar gap is 2px — this brings the CTA→burger gap to ~12px */
-		margin-left: 10px;
-		border: 1px solid var(--border);
-		background: var(--bg-elevated);
-		color: var(--text-main);
-		cursor: pointer;
-		border-radius: 6px;
-	}
-	.mnav-bar-cta {
-		display: inline-flex;
-		text-decoration: none;
-	}
 }
 
 /* full-screen "notebook index" sheet (mobile only — opened via .mnav-burger) */
-.mnav-sheet {
-	position: fixed;
-	inset: 0;
-	z-index: 220;
-	background: var(--bg);
-	display: flex;
-	flex-direction: column;
-	animation: mnav-in 0.2s var(--ease-smooth) both;
-}
 .mnav-sheet-bar {
 	flex: none;
 	display: flex;
@@ -8994,6 +9004,28 @@ body:has(.marketing-nav) .auth-bar {
 	text-wrap: balance;
 	font-style: normal;
 }
+@media (max-width: 640px) {
+	.home-hero h1 {
+		font-size: 2.375rem;
+	}
+	.home-announce {
+		font-size: 0.8125rem;
+		gap: 8px;
+	}
+	.home-announce-msg span {
+		display: none;
+	}
+	.home-hero-links {
+		gap: 0;
+	}
+	.home-hero-links a {
+		font-size: 0.84375rem;
+		padding: 0 7px;
+	}
+	.home-hero-links a::after {
+		margin-left: 5px;
+	}
+}
 .home-h1-dim {
 	color: var(--ink-demoted);
 	font-weight: 500;
@@ -9097,7 +9129,7 @@ body:has(.marketing-nav) .auth-bar {
 /* feature stack */
 .home-stack {
 	display: grid;
-	grid-template-columns: 1fr;
+	grid-template-columns: minmax(0, 1fr);
 	gap: 0;
 	max-width: 1200px;
 	margin: 0 auto;
@@ -9304,7 +9336,7 @@ body:has(.marketing-nav) .auth-bar {
 
 @media (min-width: 901px) {
 	.home-stack {
-		grid-template-columns: 1fr 1.3fr;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
 		gap: 64px;
 		align-items: start;
 	}
