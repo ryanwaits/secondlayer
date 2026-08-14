@@ -2,7 +2,7 @@
 
 REST API for Second Layer.
 
-Base URL: `https://api.secondlayer.tools`
+Base URL: `http://127.0.0.1:3800`
 
 ## Which API should I use?
 
@@ -14,14 +14,11 @@ Base URL: `https://api.secondlayer.tools`
 
 ## Authentication
 
-Product endpoints require a Bearer token:
+Loopback reads need no key. Writes use `INSTANCE_TOKEN` from `sl init`.
 
 ```bash
-curl -H "Authorization: Bearer sk-sl_..." \
-  https://api.secondlayer.tools/v1/streams/tip
+curl http://127.0.0.1:3800/v1/streams/tip
 ```
-
-Get a session token via the CLI: `sl login`
 
 ## Stacks Streams
 
@@ -71,7 +68,7 @@ self-verifying: a consumer recomputes everything client-side and trusts nothing
 Second Layer returned. Open beta — no read auth.
 
 ```bash
-curl https://api.secondlayer.tools/v1/index/transactions/0x.../proof
+curl http://127.0.0.1:3800/v1/index/transactions/0x.../proof
 ```
 
 200 response:
@@ -167,13 +164,13 @@ routes use the same authentication and ownership checks as
 
 ```bash
 curl -H "Authorization: Bearer sk-sl_..." \
-  https://api.secondlayer.tools/api/subgraphs/token-transfers/openapi.json
+  http://127.0.0.1:3800/api/subgraphs/token-transfers/openapi.json
 
 curl -H "Authorization: Bearer sk-sl_..." \
-  https://api.secondlayer.tools/api/subgraphs/token-transfers/schema.json
+  http://127.0.0.1:3800/api/subgraphs/token-transfers/schema.json
 
 curl -H "Authorization: Bearer sk-sl_..." \
-  https://api.secondlayer.tools/api/subgraphs/token-transfers/docs.md
+  http://127.0.0.1:3800/api/subgraphs/token-transfers/docs.md
 ```
 
 Formats:
@@ -213,7 +210,7 @@ mutually exclusive.
 
 ```bash
 curl -X POST -H "Authorization: Bearer sk-sl_..." \
-  https://api.secondlayer.tools/api/subscriptions \
+  http://127.0.0.1:3800/api/subscriptions \
   -d '{
     "name": "amm-swaps",
     "url": "https://my-app.com/webhook",

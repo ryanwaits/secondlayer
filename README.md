@@ -1,49 +1,36 @@
 # Secondlayer
 
-[![Status](https://img.shields.io/badge/status-public-111111)](https://secondlayer.tools/status)
-
-The hosted indexer for Stacks. Curl decoded chain data keyless in ten seconds
-(**Index**), deploy a one-file TypeScript indexer and get hosted Postgres
-tables behind a public REST API (**Subgraphs**), or consume the raw signed
-event firehose + parquet dumps to build your own (**Streams**) — no node, no
-infra. Webhooks and an MCP server included. See [STRATEGY.md](STRATEGY.md).
+Self-hosted Stacks data runtime. Postgres plus one container: raw Streams,
+decoded Index, your Subgraphs, and webhooks. Bootstrap from the signed
+archive. See [STRATEGY.md](STRATEGY.md).
 
 ```bash
-curl "https://api.secondlayer.tools/v1/index/events?event_type=ft_transfer&limit=5"
+curl "http://127.0.0.1:3800/v1/index/events?event_type=ft_transfer&limit=5"
 ```
 
-- **Hosted** — managed platform, free during open beta. Reads are public; a key
-  gates writes.
-- **Self-host** — the whole stack is MIT-licensed. `docker compose up` runs
-  indexer + API + processor on your own hardware.
-
-## Quickstart (hosted)
+## Quickstart
 
 ```bash
 bun add -g @secondlayer/cli
-
-sl login
-sl project create my-app && sl project use my-app
+sl init --network mainnet
+cd docker/oss && docker compose up -d
+sl observer --mode indexer --endpoint secondlayer:3700
+sl bootstrap --against <manifest>
+sl verify all --against <manifest>
 
 # Index a contract into a typed, queryable Postgres table
+export SL_API_URL=http://127.0.0.1:3800
 sl subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts
 sl subgraphs deploy subgraphs/my-contract.ts --start-block <recent-block>
 sl subgraphs query my-contract <table> --sort _block_height --order desc
-
-# Push new rows to a webhook
-sl subscriptions create my-hook --runtime node \
-  --subgraph my-contract --table <table> --url https://<host>/webhook
 ```
 
-Subscriptions are polymorphic. The above is a **subgraph** subscription (fires on
-a subgraph table's rows). A **chain** subscription fires on raw chain events with
-no subgraph — a turnkey webhook on a contract, event, function, or trait — and is
-created via the SDK, REST, or MCP with a `triggers` array:
+A **chain** subscription fires on raw events with no subgraph — SDK, REST, or MCP:
 
 ```typescript
 import { SecondLayer, trigger } from "@secondlayer/sdk";
 
-const sl = new SecondLayer({ apiKey: "sk-sl_..." });
+const sl = new SecondLayer({ apiKey: process.env.INSTANCE_TOKEN });
 const { subscription, signingSecret } = await sl.subscriptions.create({
   name: "amm-swaps",
   url: "https://my-app.com/webhook",
@@ -51,13 +38,12 @@ const { subscription, signingSecret } = await sl.subscriptions.create({
 });
 ```
 
-Full walkthrough → [QUICKSTART](packages/subgraphs/QUICKSTART.md) ·
-commands → [CLI reference](packages/cli/README.md).
+Docs → [self-host](https://www.secondlayer.tools/docs/self-host) ·
+CLI → [packages/cli/README.md](packages/cli/README.md).
 
-## Read it from anywhere
+## Read it from your instance
 
-Reads are public for **public** subgraphs (managed deploys default public; private
-ones need the owner's `sk-sl_` key); the SDK defaults to `https://api.secondlayer.tools`.
+SDK default is `http://127.0.0.1:3800` (or `SL_API_URL`).
 
 ```typescript
 import { SecondLayer } from "@secondlayer/sdk";
@@ -70,42 +56,42 @@ const { rows, next_cursor, tip } = await sl.subgraphs.rows("my-contract", "<tabl
 ```
 
 ```bash
-curl "https://api.secondlayer.tools/v1/subgraphs/my-contract/<table>?_limit=25"
+curl "http://127.0.0.1:3800/v1/subgraphs/my-contract/<table>?_limit=25"
 ```
 
 Pages are `_id`-keyset: pass `?cursor=<next_cursor>` to resume, `_order=asc|desc`
 for direction.
 
-**MCP** — point any MCP client at `bunx -p @secondlayer/mcp secondlayer-mcp`
-(`SECONDLAYER_API_URL=https://api.secondlayer.tools`). Set `SL_API_KEY` to
+**MCP** — `bunx -p @secondlayer/mcp secondlayer-mcp` (default local API).
+Set `SL_API_KEY` to the `INSTANCE_TOKEN` from `sl init` for writes.
 enable writes (deploy/manage). See [MCP README](packages/mcp/README.md).
 
 ## Packages
 
-Two TypeScript SDKs, one chooser: **`@secondlayer/sdk`** talks to the platform
-(query subgraphs, manage webhooks/keys); **`@secondlayer/stacks`** is low-level
+Two TypeScript SDKs, one chooser: **`@secondlayer/sdk`** talks to this instance
+(query subgraphs, manage webhooks); **`@secondlayer/stacks`** is low-level
 chain primitives (Clarity decoding, reads). Most apps only need `sdk`.
 
 | Package | Description |
 |---|---|
-| [`@secondlayer/cli`](packages/cli/README.md) | `sl` binary — auth, projects, subgraph deploy, Clarity code-gen |
-| [`@secondlayer/sdk`](packages/sdk/README.md) | TypeScript SDK — typed subgraph queries, webhooks |
-| [`@secondlayer/mcp`](packages/mcp/README.md) | MCP server — subgraphs + scaffolding for AI agents |
-| [`@secondlayer/stacks`](packages/stacks/README.md) | viem-style Stacks client — public/wallet, BNS, AI-SDK tools |
-| [`@secondlayer/subgraphs`](packages/subgraphs/README.md) | `defineSubgraph()` — declarative schema, triggers + handlers |
+| [`@secondlayer/cli`](packages/cli/README.md) | `sl` binary — init, bootstrap, verify, deploy |
+| [`@secondlayer/sdk`](packages/sdk/README.md) | TypeScript SDK — Streams, Index, subgraphs, webhooks |
+| [`@secondlayer/mcp`](packages/mcp/README.md) | MCP server — instance tools for agents |
+| [`@secondlayer/stacks`](packages/stacks/README.md) | viem-style Stacks client — public/wallet, BNS |
+| [`@secondlayer/subgraphs`](packages/subgraphs/README.md) | `defineSubgraph()` — schema, triggers, handlers |
 | [`@secondlayer/shared`](packages/shared/README.md) | Shared db, schemas, crypto helpers |
-| [`@secondlayer/api`](packages/api/README.md) | REST API — hosted + self-host modes |
+| [`@secondlayer/api`](packages/api/README.md) | REST API for the instance |
 
 ## Self-host
 
 ```bash
 git clone https://github.com/ryanwaits/secondlayer
-cd secondlayer
-cp docker/.env.example docker/.env   # fill in secrets
-docker compose -f docker/docker-compose.yml up -d
+cd secondlayer/docker/oss
+sl init --network mainnet
+docker compose up -d
 ```
 
-[OSS quickstart](docker/oss/README.md) · operations & backups in [docker/docs/](docker/docs/).
+[OSS quickstart](docker/oss/README.md).
 
 ## Development
 

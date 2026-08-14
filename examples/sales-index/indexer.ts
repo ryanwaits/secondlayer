@@ -8,9 +8,8 @@ import pg from "pg";
 // checkpoint; reorgs roll back automatically. Kill it anywhere — rows and
 // cursor commit in ONE transaction, so nothing is ever half-written.
 //
-// Hosted note: genesis backfill (`fromHeight: 0`) reaches full history on a
-// paid plan or with pay-as-you-go credits; free/keyless reads cover the last
-// 24h. Self-hosted instances are unbounded.
+// Default API is http://127.0.0.1:3800 (or SL_API_URL). History is whatever
+// this instance has bootstrapped.
 const MARKETPLACE = "SPNWZ5V2TPWGQGVDR6T7B6RQ4XMGZ4PXTEE0VQ0S.marketplace-v4";
 
 interface Database {

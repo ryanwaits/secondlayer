@@ -14,25 +14,14 @@ bun add @secondlayer/sdk
 import { SecondLayer } from "@secondlayer/sdk";
 
 const sl = new SecondLayer({
-  apiKey: "sk-sl_...",                          // or `sl login` session token
-  baseUrl: "https://api.secondlayer.tools",     // default
+  apiKey: process.env.INSTANCE_TOKEN, // from sl init; omit on loopback
+  // default baseUrl: http://127.0.0.1:3800  (or SL_API_URL)
 });
 ```
 
-`sl.contracts`, `sl.index`, and `sl.subgraphs` reads are anonymous
-— no key needed (`sl.index` rejects free-tier keys — Build+ for keyed access).
-**`sl.streams` reads require a bearer token** (`apiKey`) and resolve a per-tier tenant; a
-publicly-known free-tier token exists but a bearer is always required. Writes
-require an `sk-sl_` API key, created in the platform console at
-https://secondlayer.tools/platform/api-keys. (Public Streams bulk dumps —
-`client.dumps`, `events.replay` — need no key.)
-
-**API keys.** Each `sk-sl_` key has a `product`. An **`account`** key (dashboard
-default) grants both `streams:read` and `index:read` and is the only key that can
-mint new keys; **`streams`** / **`index`** keys are scoped, read-only, and cannot
-mint. Mint scoped keys programmatically with `sl.apiKeys.create({ product })`
-(needs an account/owner key) — the returned `key` is shown once and inherits your
-plan's tier.
+Reads hit your instance. Writes use `INSTANCE_TOKEN` from `sl init` when the
+API is bound beyond loopback. Public archive dumps (`client.dumps`) need no
+instance key.
 
 ## Mental model
 
@@ -43,14 +32,14 @@ Everything is indexing — the question is how much of the indexer you run:
   with the checkpointed `consume()` loop (automatic reorg rewind), `walk()`
   sweeps, and resumable cursors on every page.
 - `sl.subgraphs` — deploy your own indexer (one `defineSubgraph()` file via the
-  CLI), then read your hosted tables here. We run the loop.
+  CLI), then read the tables on this instance.
 - `sl.streams` — the raw ordered event firehose Index itself is built on, with
   a checkpointed `consume()` and dumps `replay()` for building from zero.
 - `sl.contracts` — find deployed contracts by trait (SIP-009/010/013).
 
 ## Streams
 
-Typed HTTP client for the raw event firehose. Reads require a bearer token (`apiKey`).
+Typed HTTP client for the raw event firehose. Loopback reads need no key.
 
 ```typescript
 const tip = await sl.streams.tip();
@@ -73,7 +62,7 @@ console.log({ tip, firstCursor: page.events[0]?.cursor });
 import { createStreamsClient } from "@secondlayer/sdk";
 
 const streams = createStreamsClient({
-  apiKey: process.env.SL_API_KEY!, // sk-sl_... — required for reads
+  // apiKey: process.env.INSTANCE_TOKEN, // when the API is bound beyond loopback
   // verify: true,                 // verify ed25519 X-Signature on every read
   //                               // (auto-fetches the public key; { publicKey } pins a PEM)
   // dumpsBaseUrl: process.env.SL_STREAMS_DUMPS_URL, // required to use client.dumps
@@ -289,7 +278,7 @@ client-side and trusts nothing the API returned.
 import { verifyTransactionProof, fetchRewardSet } from "@secondlayer/sdk";
 
 const proof = await fetch(
-  `https://api.secondlayer.tools/v1/index/transactions/${txid}/proof`,
+  `http://127.0.0.1:3800/v1/index/transactions/${txid}/proof`,
 ).then((r) => r.json());
 
 const result = verifyTransactionProof(proof); // anchored + consensus (embedded set)

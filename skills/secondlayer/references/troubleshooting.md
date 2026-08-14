@@ -87,8 +87,8 @@ sl streams tip                      # baseline reachability
 
 | Symptom | Cause | Action |
 |---|---|---|
-| `401 Unauthorized` | Missing `SL_API_KEY` | Export it; or pass via `createStreamsClient({ apiKey })`. |
-| `402 UPGRADE_REQUIRED` on Index or Streams | Read reached past the free 24h window (free Streams retention 1 day) | Top up pay-as-you-go credits (`POST /api/billing/topup`, packs $10–$100 — reads beyond the window at $5/1M rows, hard-capped by balance), or start a paid plan. |
+| `401 Unauthorized` | API bound beyond loopback without `INSTANCE_TOKEN` | Export `SL_API_KEY` from `sl init`; or pass `createStreamsClient({ apiKey })`. |
+| Empty / short history | Instance not bootstrapped to the height you asked for | `sl bootstrap --against <manifest>` then `sl verify all --against <manifest>`. |
 | `429 Too Many Requests` | Hit rate limit | SDK throws `RateLimitError` with `retryAfter`. Back off; use `events.consume` instead of polling `events.list`. |
 | Consumer stops processing | Aborted by signal OR `mode: "bounded"` reached end | Restart with last saved cursor. |
 | `next_cursor: null` reached | Caught up to tip (with `mode: "bounded"`) | Switch to `mode: "tail"` to keep polling. |
@@ -117,19 +117,13 @@ try {
 
 The Streams errors do **not** extend `ApiError` — check them separately when wrapping Streams calls.
 
-## CLI: session expired / project not selected / instance suspended
+## CLI: instance not reachable
 
-CLI returns typed errors with action hints:
-
-| Error code | Hint |
+| Error | Hint |
 |---|---|
-| `SESSION_EXPIRED` | `sl login` |
-| `NO_ACTIVE_PROJECT` | `sl projects use <slug>` |
-| `NO_TENANT_FOR_PROJECT` | `sl projects create <name>` (no project provisioned yet) |
-| `TENANT_SUSPENDED` | Contact support (`sl account billing` to check plan state) |
-| `PLAN_REQUIRED` | Deploying a subgraph or creating a webhook needs a paid plan or 14-day trial — start one (`sl account billing` / dashboard). |
-| `UPGRADE_REQUIRED` | Read reached past the free 24h window — top up pay-as-you-go credits or start a plan. |
-| `KEY_ROTATED` | Handled transparently (CLI re-mints + retries once) |
+| Can't reach `/public/status` | `sl start --print` and bring the one-box container up |
+| `401` on a write | Set `SL_API_KEY` to the `INSTANCE_TOKEN` from `sl init` |
+| Empty history | `sl bootstrap --against <manifest>` |
 
 ## Stacks SDK: contract calls failing
 

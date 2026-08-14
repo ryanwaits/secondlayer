@@ -17,8 +17,8 @@ The `sl` binary (alias `secondlayer`) is the official CLI for Secondlayer — de
 | Var | Used by | Purpose |
 | --- | --- | --- |
 | `SL_API_URL` | subscriptions, create | Override tenant API base URL. |
-| `SL_API_KEY` | subscriptions, create, streams, MCP, SDK | API key for tenant/platform API auth (write scope) and Streams reads (issued in dashboard). |
-| `SL_PLATFORM_API_URL` | doctor (hosted) | Override platform API URL (default `https://api.secondlayer.tools`). |
+| `SL_API_KEY` | writes, MCP, SDK | `INSTANCE_TOKEN` from `sl init`. Loopback reads need no token. |
+| `SL_PLATFORM_API_URL` | alias of `SL_API_URL` | Same default: `http://127.0.0.1:3800`. |
 | `HIRO_API_KEY` / `STACKS_NODE_API_KEY` | subgraphs scaffold, contracts generate | API key passed to Hiro Stacks RPC when fetching contract ABIs. |
 | `SIGNING_SECRET` | subscriptions test | Standard-Webhooks signing secret used to sign test fixtures. |
 | `STACKS_NETWORK` | global | Network override (set by `--network`). |
@@ -704,12 +704,8 @@ Example: `SIGNING_SECRET=whsec_… sl subscriptions test my-sub --post`
 
 ## Index
 
-Query the decoded L2 layer (`/v1/index`). Anonymous reads are allowed, and a
-**free-tier key works too** (free-tier rate limit; a minted free key is never
-slower than anonymous). The key is optional — passed through from `SL_API_KEY`
-when present. Free/anonymous reads cover the recent 24h window; older history
-needs pay-as-you-go credits (`POST /api/billing/topup`) or a paid plan, else a
-read below the window returns `402 UPGRADE_REQUIRED`.
+Query decoded Index (`/v1/index`). Loopback reads need no key. History is
+whatever this instance has bootstrapped.
 
 - `sl index ft-transfers [--contract-id] [--sender] [--recipient] [--from-height] [--to-height] [--cursor] [--limit] [--json]`
 - `sl index nft-transfers [… --asset-identifier]`
@@ -725,7 +721,7 @@ Mirrors `sl.index.{ftTransfers,nftTransfers,events,contractCalls}` in the SDK.
 
 ## Streams
 
-Read raw chain events from Streams at `api.secondlayer.tools`. **Requires `SL_API_KEY`** (issue at https://www.secondlayer.tools/platform/api-keys, product: Streams). Base URL defaults to `https://api.secondlayer.tools`; override via `SL_API_URL`.
+Read raw chain events from Streams on this instance. Default API is `http://127.0.0.1:3800`. Loopback reads need no key. Override via `SL_API_URL`.
 
 Valid event types: `stx_transfer`, `stx_mint`, `stx_burn`, `stx_lock`, `ft_transfer`, `ft_mint`, `ft_burn`, `nft_transfer`, `nft_mint`, `nft_burn`, `print`.
 
@@ -1220,7 +1216,7 @@ Usage: `sl status`
 | --- | --- |
 | `--json` | Output as JSON. |
 
-GETs `/status` from the platform. Prints DB status, per-network index progress with chain-tip progress bar, gap summary, and active subgraph count. On failure: in local mode suggests `sl local up`; in hosted mode reports connectivity issue.
+GETs `/public/status` on this instance. Prints liveness and tip. On failure: check `sl start --print` and that the one-box container is up.
 
 ---
 
@@ -1236,9 +1232,7 @@ Usage: `sl doctor`
 | --- | --- |
 | `--json` | Output as JSON. |
 
-Local mode: checks node (RPC, peers, version, chain ID), Docker containers, dev services, Postgres, config paths, disk space, log sizes.
-
-Hosted mode: checks platform API reachability, session auth, account info, index progress.
+Checks `/public/status` on this instance, then local Docker / Postgres / config when present.
 
 ---
 

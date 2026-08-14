@@ -10,51 +10,27 @@ sl --version
 
 ## Auth
 
-Two ways to authenticate:
+Default API is `http://127.0.0.1:3800`. Override with `SL_API_URL`.
 
-- **Interactive (`sl login`)** — magic-link email → 6-digit code → session
-  written to `~/.secondlayer/session.json`. Used for day-to-day CLI work.
-- **Machine / CI** — set `SL_API_KEY` to an API key created in the platform
-  console at https://secondlayer.tools/platform/api-keys. Keys are prefixed
-  `sk-sl_`. For a persisted headless login: `echo "$SL_API_KEY" | sl login --with-token`.
+Writes against a published bind use `INSTANCE_TOKEN` from `sl init` as
+`SL_API_KEY`. Loopback reads need no token.
 
 ```bash
-# interactive
-sl login
-
-# machine / CI
-export SL_API_KEY=sk-sl_xxxxxxxx
+export SL_API_URL=http://127.0.0.1:3800
+export SL_API_KEY=<INSTANCE_TOKEN>
 ```
-
-`sl whoami` shows the active account, the effective API URL, and the credential
-source (and exits non-zero when not logged in). The global `--api-key` /
-`--api-url` flags (and `SL_API_KEY` / `SL_API_URL`) apply to every command.
-
-During open beta, reads are public (no key needed) — for subgraphs that means
-**public** subgraphs only (managed deploys default public; BYO deploys and all
-pre-existing subgraphs are private, readable with your key). Writes — deploying,
-publishing, or managing subgraphs and subscriptions — require a session or an
-`sk-sl_` key.
 
 ## Quickstart
 
 ```bash
 bun add -g @secondlayer/cli
-sl login
-sl projects create my-app
-sl projects use my-app
+sl init --network mainnet
+sl start --print
+# docker compose -f docker/oss/docker-compose.yml up -d
 
-# scaffold + deploy a subgraph from a deployed contract
 sl subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts
 sl subgraphs deploy subgraphs/my-contract.ts --start-block <recent-block>
 sl subgraphs query my-contract <table> --sort _block_height --order desc
-
-# wire a webhook receiver
-sl subscriptions create my-hook \
-  --runtime node \
-  --subgraph my-contract \
-  --table <table> \
-  --url https://<receiver-host>/webhook
 ```
 
 `sl subgraphs scaffold` writes the definition file, creates/updates
@@ -74,27 +50,6 @@ No account. Writes `.env.local`, restores history, prints the Stacks observer st
 | `sl observer [--mode indexer\|signer-shared] [--endpoint host:port] [--recovery journal\|archive] [--network …]` | Print the `[[events_observer]]` stanza. Signer-shared requires `--recovery` |
 | `sl verify [all\|raw\|decode:<name>\|subgraph:<name>] --against <manifest> [--quick\|--deep\|--anchor]` | Compare local data to a signed archive. Default target `raw`. Exit `0` clean, `1` diverged, `2` unanchored |
 | `sl repair --against <archive> [--apply]` | Plan (default) or apply an archive repair |
-
-### Auth & project
-
-| Command | What it does |
-|---|---|
-| `sl login` / `sl logout` | Start or revoke a session |
-| `sl whoami` | Print account, credential source, and active project |
-| `sl keys create --product streams [--name <name>]` | Mint a scoped `streams`/`index` read key; prints the `sk-sl_` key **once**. Needs an account key in `SL_API_KEY` |
-| `sl projects create [name]` | Create a project |
-| `sl projects list` | List projects |
-| `sl projects use <slug>` | Bind cwd to a project (writes `./.secondlayer/project`) |
-| `sl projects get` | Show resolved project + source file |
-| `sl projects delete <slug>` (alias `rm`) | Delete a project (`-y` to skip confirm) |
-
-Project binding is per-directory: `.secondlayer/project` in cwd takes
-precedence over `~/.secondlayer/config.json:defaultProject`. The walk-up stops
-at `.git`.
-
-**Key products:** an `account` key (dashboard default) grants both `streams:read`
-and `index:read` and is the only key that can mint; `streams`/`index` keys are
-scoped reads and cannot mint (403). Minted keys inherit your plan's tier.
 
 ### Subgraphs
 
@@ -153,19 +108,17 @@ deliveries/...) operates on both kinds.
 | Command | What it does |
 |---|---|
 | `sl contracts generate [files...]` (alias `gen`) | Generate TS interfaces from Clarity contracts |
-| `sl context` | Print a headless orientation snapshot — account, Streams + Index tips, your subgraphs, subscriptions, and in-flight reindex operations. CLI counterpart to the MCP `secondlayer://context` resource |
+| `sl context` | Instance snapshot — Streams + Index tips, subgraphs, subscriptions |
 | `sl doctor` / `sl status` | Reachability + health checks |
-| `sl account get` / `sl account update` | Show or update display name / bio / slug |
-| `sl account billing` | Show plan, subscription, trial, discounts |
 | `sl config get/set/reset/delete` | Inspect or reset local config |
 
 ## Environment variables
 
 | Var | Purpose |
 |---|---|
-| `SL_API_KEY` | An `sk-sl_` API key (or session token) for machine/CI use; bypasses platform resolution |
-| `SL_API_URL` | Point at an OSS or internal API directly, bypassing the platform |
-| `SL_PLATFORM_API_URL` | Override the platform API base (default `https://api.secondlayer.tools`) |
+| `SL_API_KEY` | `INSTANCE_TOKEN` from `sl init` for writes. Loopback reads need no token |
+| `SL_API_URL` | Instance API. Default `http://127.0.0.1:3800` |
+| `SL_PLATFORM_API_URL` | Alias of `SL_API_URL` |
 | `STACKS_NETWORK` | Default network (also via `--network <local\|testnet\|mainnet>`) |
 | `HIRO_API_KEY` | Used by `sl contracts generate` for remote contract fetches |
 

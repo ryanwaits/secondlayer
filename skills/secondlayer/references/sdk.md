@@ -2,15 +2,9 @@
 
 Source of truth: `packages/sdk/src/`. Function signatures below are copied verbatim — match them exactly when generating code.
 
-**Auth model:** `sl.contracts.*`, `sl.index.*` are **anonymous** — no API key required. `sl.subgraphs.rows()` (the open /v1 read) is anonymous for **public** subgraphs only; **private** subgraphs (incl. all pre-existing ones — migrated private) need the owner's `sk-sl_` key, anon → 404. The /api-backed read methods (list/get/openapi/schema/markdown/queryTable/queryTableCount/gaps/getSource) sit on the authed control plane (note: `sl.index.*` accepts free-tier keys at the free-tier rate limit — a minted free key is never slower than anonymous). Free/anonymous reads cover the **recent 24h window**; reaching older history is pay-as-you-go credits or a paid plan (a read below the window throws `ApiError` with code `UPGRADE_REQUIRED`). **`sl.streams.*` reads REQUIRE a bearer token** and resolve a per-tier tenant (free/build/scale/enterprise); a publicly-known free-tier token exists but a bearer is always required. Write paths (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) **require `apiKey`**. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no key.
+**Auth model:** default `baseUrl` is `http://127.0.0.1:3800` (or `SL_API_URL`). Loopback reads on `sl.contracts.*`, `sl.index.*`, `sl.streams.*`, and `sl.subgraphs.rows()` need no key. History is whatever this instance has bootstrapped. Writes (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) use `INSTANCE_TOKEN` from `sl init` as `apiKey` when the API is bound beyond loopback. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no instance key.
 
-**Key products & scope:** every `sk-sl_` key (set as `SL_API_KEY`) has a `product` that scopes it. An **`account`** key is the owner key — it grants BOTH `streams:read` and `index:read`, and is the **only** key allowed to mint new keys. A **`streams`** or **`index`** key is a scoped single-product read key and **cannot mint** (403). Dashboard keys default to `account`. Mint scoped keys programmatically with `sl.apiKeys.create({ product })` (requires an account/owner key); minted keys are always scoped and inherit your account plan's tier (never escalatable):
-
-```ts
-const { key, prefix, id, product, tier, createdAt } =
-  await sl.apiKeys.create({ product: "streams", name: "ci" });
-// `key` (sk-sl_…) is returned ONCE — store it now. `product` defaults to "streams" (or "index").
-```
+Writes use `INSTANCE_TOKEN` from `sl init` as `SL_API_KEY`. There is no hosted account or dashboard key.
 
 ---
 
@@ -31,7 +25,7 @@ import { SecondLayer } from "@secondlayer/sdk";
 ```ts
 // packages/sdk/src/base.ts
 // Construct with `new SecondLayer(opts?)` — opts is Partial<SecondLayerOptions>,
-// so every field is optional; baseUrl defaults to https://api.secondlayer.tools.
+// so every field is optional; baseUrl defaults to http://127.0.0.1:3800.
 export interface SecondLayerOptions {
   /** Base URL of the Secondlayer platform API (trailing slashes are stripped). */
   baseUrl: string;
@@ -50,10 +44,10 @@ export type FetchLike = (
 ```
 
 ```ts
-// All options are optional. Default baseUrl = "https://api.secondlayer.tools".
+// All options are optional. Default baseUrl = "http://127.0.0.1:3800".
 const sl = new SecondLayer({
   apiKey: process.env.SL_API_KEY,           // optional for read-only methods
-  baseUrl: "https://api.secondlayer.tools", // default
+  // baseUrl defaults to http://127.0.0.1:3800
   // fetchImpl: customFetch,                // optional, for edge runtimes
   // origin: "cli",                         // default; "mcp" | "session"
 });
@@ -111,7 +105,7 @@ import type {
   NftTransferEvent,
 } from "@secondlayer/sdk/streams";
 
-const streams = createStreamsClient({ apiKey: process.env.SL_API_KEY }); // bearer required for reads
+const streams = createStreamsClient(); // default http://127.0.0.1:3800
 ```
 
 ```ts
@@ -136,8 +130,8 @@ The root `@secondlayer/sdk` re-exports everything above plus `SecondLayer`, `Ind
 
 ```ts
 type CreateStreamsClientOptions = {
-  apiKey?: string;          // bearer — REQUIRED for reads (per-tier tenant)
-  baseUrl?: string;         // default https://api.secondlayer.tools
+  apiKey?: string;          // INSTANCE_TOKEN when the API is bound beyond loopback
+  baseUrl?: string;         // default http://127.0.0.1:3800
   fetchImpl?: FetchLike;
   /** Verify the ed25519 response signature on every read. Default OFF.
    *  `true` auto-fetches the public key from /public/streams/signing-key;

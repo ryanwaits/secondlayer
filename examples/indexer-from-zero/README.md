@@ -4,10 +4,9 @@ Build an indexer from the raw inputs on [Secondlayer Streams](https://secondlaye
 
 ```bash
 bun install
-SL_API_KEY=sk-sl_…  SL_STREAMS_DUMPS_URL=…  bun run indexer.ts
+# live tail defaults to http://127.0.0.1:3800 (or SL_API_URL)
+SL_STREAMS_DUMPS_URL=…  bun run indexer.ts
 ```
-
-A free key takes one curl, no signup: `curl -X POST https://api.secondlayer.tools/v1/keys`.
 
 What it demonstrates:
 

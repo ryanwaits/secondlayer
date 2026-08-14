@@ -39,9 +39,7 @@ export const OPENAPI_SPEC = {
 		description:
 			"Public surfaces: Index (decoded chain events — stx/ft/nft transfers, mints, burns, prints, stacking; anon-readable), Streams (raw firehose, bearer), Subgraphs (public subgraphs anon-readable, private with the owning account's bearer; `{ rows, next_cursor, tip }` envelope with `_id` keyset cursor, or a composite keyset cursor when `_sort` is used). Cursor format is `<block_height>:<event_index>` on Index/Streams; opaque on Subgraphs.",
 	},
-	servers: [
-		{ url: "https://api.secondlayer.tools", description: "Production" },
-	],
+	servers: [{ url: "http://127.0.0.1:3800", description: "Local instance" }],
 	tags: [
 		{
 			name: "index",

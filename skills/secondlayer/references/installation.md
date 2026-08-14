@@ -29,56 +29,29 @@ If `sl` is not found after `bun add -g @secondlayer/cli`, ensure Bun's global bi
 export PATH="$HOME/.bun/bin:$PATH"
 ```
 
-## Authenticate the CLI
+## Start a local instance
 
 ```bash
-sl login
+sl init --network mainnet
+sl start --print
+# docker compose -f docker/oss/docker-compose.yml up -d
 ```
 
-Flow: prompts for email → mails a 6-digit code → prompts for the code → writes `~/.secondlayer/session.json` (token, email, accountId, expiresAt). The server auto-extends the session on every subsequent request — a 90-day sliding window.
-
-Check who you are:
+`sl init` writes `.env.local` (`INSTANCE_TOKEN`, secrets key, webhook signing key). Loopback reads need no token. For writes against a published bind:
 
 ```bash
-sl whoami
-```
-
-`sl whoami` prints the effective API URL and credential source, and exits non-zero when not logged in — handy as a CI auth check.
-
-Log out (revokes the session server-side and clears the local file):
-
-```bash
-sl logout
-```
-
-**Headless / CI auth** (no magic-link prompt): pipe an API key into `--with-token`:
-
-```bash
-echo "$SL_API_KEY" | sl login --with-token
+export SL_API_URL=http://127.0.0.1:3800
+export SL_API_KEY=<INSTANCE_TOKEN>
 ```
 
 `--api-key <key>` and `--api-url <url>` are global flags available on every command, overriding `SL_API_KEY` / `SL_API_URL` for that one invocation.
-
-## Create a project and bind a directory to it
-
-A **project** owns billing and dedicated infrastructure. You bind a working directory to a project so every `sl` command in that directory targets the same backend.
-
-```bash
-sl projects create my-app
-sl projects use my-app
-sl projects get
-```
-
-`sl projects use` writes `./.secondlayer/project` in the current directory. That file takes precedence over the global default in `~/.secondlayer/config.json`. The CLI walks up parent directories looking for it, stopping at `.git`.
-
-For an open-beta tenant you don't need an explicit instance step — the project comes with shared platform access.
 
 ## Environment variables
 
 | Variable | Read by | Purpose |
 |---|---|---|
-| `SL_API_URL` | All SDK + CLI calls | Override platform API base. Default: `https://api.secondlayer.tools`. |
-| `SL_API_KEY` | CLI (when bypassing session), MCP, SDK, `sl streams *`, `createStreamsClient` | API key for tenant/platform writes and Streams reads. CI / agent shortcut; prefer session-based `sl login` for humans. Issued from the dashboard. |
+| `SL_API_URL` | All SDK + CLI calls | Override instance API. Default: `http://127.0.0.1:3800`. |
+| `SL_API_KEY` | CLI writes, MCP, SDK | `INSTANCE_TOKEN` from `sl init`. Loopback reads need no token. |
 | `HIRO_API_KEY` | `sl contracts generate`, `sl subgraphs scaffold` | Stacks node API key for ABI fetches against Hiro RPC. |
 | `SIGNING_SECRET` | `sl subscriptions test` fallback | If `--signing-secret` not passed. |
 | `STACKS_NETWORK` | `sl contracts generate` and some local commands | `local`, `testnet`, or `mainnet`. |
@@ -89,18 +62,13 @@ For an open-beta tenant you don't need an explicit instance step — the project
 ```typescript
 import { SecondLayer } from "@secondlayer/sdk";
 
-const sl = new SecondLayer({
-  apiKey: process.env.SECONDLAYER_API_KEY, // optional for read-only public endpoints
-});
+const sl = new SecondLayer(); // http://127.0.0.1:3800 or SL_API_URL
 
-// Read tip of the chain (Streams reads require apiKey)
 const tip = await sl.streams.tip();
-
-// List your subgraphs (requires apiKey)
 const { data } = await sl.subgraphs.list();
 ```
 
-Read auth: **`sl.index` reads are anonymous** (`sl.index.ftTransfers.list`), or use any key incl. free-tier (free-tier rate limit). Free/anonymous reads cover the **recent 24h window**; older history is pay-as-you-go credits (`POST /api/billing/topup`) or a paid plan, else a read below the window errors `UPGRADE_REQUIRED`. Subgraph reads are anonymous only for **public** subgraphs on /v1 (`sl.subgraphs.rows`); **private** subgraphs — including all pre-existing ones after the migration — require the owner's `sk-sl_` key. **`sl.streams.*` reads require an apiKey** (per-tier tenant; a publicly-known free-tier token exists but a bearer is always required) — public Streams bulk dumps (`client.dumps`, `events.replay`) need no key. **Writes need an apiKey** (`sl.subgraphs.deploy`, `sl.subscriptions.create`, `sl.subgraphs.delete`, `sl.subscriptions.rotateSecret`). Don't fabricate auth steps for the anonymous read calls.
+Loopback reads need no key. History is whatever this instance has bootstrapped. Writes (`sl.subgraphs.deploy`, `sl.subscriptions.create`, …) use `INSTANCE_TOKEN` as `apiKey` when the API is bound beyond loopback. Public Streams dumps (`client.dumps`, `events.replay`) need no instance key.
 
 ## Stacks client quickstart
 
@@ -133,7 +101,7 @@ my-app/
 ├── src/
 │   └── ...                  # Your app code, imports @secondlayer/sdk / @secondlayer/stacks
 ├── package.json             # Deps on @secondlayer/sdk, @secondlayer/subgraphs, @secondlayer/stacks
-└── .env                     # SECONDLAYER_API_KEY, SL_API_KEY, SIGNING_SECRET, ...
+└── .env.local               # INSTANCE_TOKEN, SL_API_URL, SIGNING_SECRET, ...
 ```
 
 Subgraph files live under `subgraphs/` by convention but the CLI accepts any path: `sl subgraphs deploy any/path/file.ts`.

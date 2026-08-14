@@ -62,5 +62,5 @@ SPV trust-minimizes **verification**, not **custody**.
 
 | Env | Default |
 | --- | --- |
-| `SL_API_URL` | `https://api.secondlayer.tools` |
+| `SL_API_URL` | `http://127.0.0.1:3800` |
 | `ESPLORA_URL` | `https://blockstream.info/api` |

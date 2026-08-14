@@ -6,13 +6,12 @@
 // join key is what makes the proof in `prove.ts` possible without re-indexing
 // anything.
 //
-// Reads are anonymous (no key) but cover the recent ~24h window; a pinned
-// historical deposit is the fallback so the demo always has something to prove.
+// Reads default to the local instance (http://127.0.0.1:3800 or SL_API_URL).
+// A pinned historical deposit is the fallback so the demo always has a row.
 
 import { Index } from "@secondlayer/sdk";
 
-const API = process.env.SL_API_URL ?? "https://api.secondlayer.tools";
-const sl = new Index({ baseUrl: API });
+const sl = new Index(); // http://127.0.0.1:3800 or SL_API_URL
 
 export interface Deposit {
 	/** Bitcoin funding txid, display order, no `0x`. */

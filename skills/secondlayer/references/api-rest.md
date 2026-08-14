@@ -7,26 +7,23 @@ The Secondlayer platform API is the source of truth that the SDK and CLI sit on 
 ## Base URL
 
 ```
-https://api.secondlayer.tools
+http://127.0.0.1:3800
 ```
 
 Override with `SL_API_URL` env var or `baseUrl` SDK option.
 
 ## Authentication
 
-| Endpoint family | Auth required for reads? | Auth required for writes? | Header |
-|---|---|---|---|
-| `/v1/contracts` | No (open) | n/a (read-only) | none |
-| `/v1/streams/*` | **Yes** (Streams API key) | n/a (read-only) | `Authorization: Bearer <SL_API_KEY>` |
-| `/v1/index/*` | No (anonymous OK) — **free-tier keys allowed** (free-tier rate limit, 10 req/s; a minted free key is never slower than anonymous). Free/anon reads cover the recent 24h window — older history → `402 UPGRADE_REQUIRED` (pay-as-you-go credits or a plan) | n/a (read-only) | `Authorization: Bearer <key>` if you have one |
-| `/v1/subgraphs/*` | No for **public** subgraphs (anon, wildcard CORS; anon 100 rps / keyed 50 rps); **private** subgraphs need the owner's `sk-sl_` key — anon → 404 | n/a (read-only) | `Authorization: Bearer <apiKey>` for private |
-| `/api/subgraphs/*` | **Yes** (session or key — control plane) | Yes | `Authorization: Bearer <apiKey>` |
-| `/api/subscriptions/*` | Yes | Yes | `Authorization: Bearer <apiKey>` |
-| `/v1/api-keys` | n/a | **Yes** (account-level owner key) | `Authorization: Bearer <account key>` |
+Default base is the local instance. Loopback reads need no key. Writes use `INSTANCE_TOKEN` from `sl init` as `Authorization: Bearer`.
 
-API key formats:
-- `sk-sl_*` — service / API key (long-lived, from dashboard)
-- Session JWT — short-lived, from `sl login` (CLI auto-mints 5-minute ephemeral tenant JWTs per call)
+| Endpoint family | Reads | Writes | Header |
+|---|---|---|---|
+| `/v1/contracts` | Open | n/a | none |
+| `/v1/streams/*` | Loopback open | n/a | `Authorization: Bearer <INSTANCE_TOKEN>` beyond loopback |
+| `/v1/index/*` | Loopback open. History is whatever this instance has bootstrapped. | n/a | none on loopback |
+| `/v1/subgraphs/*` | Open on this instance | n/a | none on loopback |
+| `/api/subgraphs/*` | `INSTANCE_TOKEN` | Yes | `Authorization: Bearer <INSTANCE_TOKEN>` |
+| `/api/subscriptions/*` | `INSTANCE_TOKEN` | Yes | `Authorization: Bearer <INSTANCE_TOKEN>` |
 
 ## Response envelopes
 
@@ -53,7 +50,7 @@ Common error codes: `NOT_FOUND`, `UNAUTHORIZED`, `VALIDATION_ERROR`, `VERSION_CO
 
 ---
 
-## `/v1/streams` — raw L1 events
+## `/v1/streams` — raw events
 
 ### `GET /v1/streams/tip`
 
@@ -61,7 +58,7 @@ Returns current canonical tip.
 
 ```bash
 curl -H "Authorization: Bearer $SL_API_KEY" \
-  https://api.secondlayer.tools/v1/streams/tip
+  http://127.0.0.1:3800/v1/streams/tip
 ```
 
 Response: `{ block_height, block_hash, burn_block_height, finalized_height, lag_seconds }`. `finalized_height` is the highest block past the burn-confirmation finality boundary (Bitcoin-anchored, ~6 burn confirmations) — blocks at or below it are immutable.
@@ -83,13 +80,13 @@ Cursor-paginated firehose of decoded events.
 | `asset_identifier` | string | Exact FT/NFT asset identifier |
 | `limit` | number | 1-1000, default 100 |
 
-Each event includes `finalized` (true when its block is past the finality boundary). `contract_id`/`sender`/`recipient`/`asset_identifier` are inclusion payload filters (a comma list matches any value); event types lacking the field simply don't match. Free keys read the recent 24h window (free retention 1 day); a read below it returns `402 UPGRADE_REQUIRED` — see [Pay-as-you-go credits](#pay-as-you-go-credits).
+Each event includes `finalized` (true when its block is past the finality boundary). `contract_id`/`sender`/`recipient`/`asset_identifier` are inclusion payload filters (a comma list matches any value); event types lacking the field simply don't match. History is whatever this instance has bootstrapped.
 
 ```bash
 curl -H "Authorization: Bearer $SL_API_KEY" \
-  "https://api.secondlayer.tools/v1/streams/events?types=ft_transfer&sender=SP1...,SP2...&limit=50"
+  "http://127.0.0.1:3800/v1/streams/events?types=ft_transfer&sender=SP1...,SP2...&limit=50"
 curl -H "Authorization: Bearer $SL_API_KEY" \
-  "https://api.secondlayer.tools/v1/streams/events?not_types=print&contract_id=SP1....token,SP2....token"
+  "http://127.0.0.1:3800/v1/streams/events?not_types=print&contract_id=SP1....token,SP2....token"
 ```
 
 **Caching & proofs:** a closed, fully-finalized page (`to_height` ≤ `finalized_height`) is served `Cache-Control: public, max-age=31536000, immutable` with a weak `ETag` (honors `If-None-Match` → `304`); tip-spanning/default requests are `private, max-age=2`. Response signing is **enabled in prod**: every read carries an `X-Signature` (ed25519 over the exact response body) + `X-Signature-KeyId`; fetch the public key at `GET /public/streams/signing-key` and verify, or use the SDK `verify` option.
@@ -137,7 +134,7 @@ Your own Streams consumption + tier limits: `{ product, tier, limits: { rate_lim
 
 ## `/v1/index` — decoded chain layer (events, contract calls, blocks, transactions, stacking, mempool)
 
-The decoded read layer over Stacks: events + contract calls, plus the canonical block-hash map, blocks, full transaction documents, PoX-4 stacking, and mempool (pending txs). `GET /v1/index` returns route discovery — including `event_types` and a machine-readable `event_type_filters` map (per type: `columns`, `allowed_filters`, `equality_filters`, `required_non_null`), so an agent can learn what each event type accepts at runtime. `GET /v1/streams` similarly lists `event_types` + structured `filters`. Read with no key, or any key incl. free-tier (free/anon reads cover the recent 24h window — older history → `402 UPGRADE_REQUIRED`, see [Pay-as-you-go credits](#pay-as-you-go-credits)). Query params are snake_case; the list envelope is the standard cursor shape (`<data>`, `next_cursor`, `tip`, and `reorgs` where applicable).
+The decoded read layer over Stacks: events + contract calls, plus the canonical block-hash map, blocks, full transaction documents, PoX-4 stacking, and mempool (pending txs). `GET /v1/index` returns route discovery — including `event_types` and a machine-readable `event_type_filters` map (per type: `columns`, `allowed_filters`, `equality_filters`, `required_non_null`), so an agent can learn what each event type accepts at runtime. `GET /v1/streams` similarly lists `event_types` + structured `filters`. Loopback reads need no key. History is whatever this instance has bootstrapped. Query params are snake_case; the list envelope is the standard cursor shape (`<data>`, `next_cursor`, `tip`, and `reorgs` where applicable).
 
 ### `GET /v1/index/events`
 
@@ -157,7 +154,7 @@ Decoded events for a chosen `event_type` — flat objects discriminated by `even
 Allowed filters vary by `event_type` — `stx_*` have no `contract_id`; mints have no `sender`, burns no `recipient`; `print` filters by `contract_id` only. An unknown param for the chosen type → 400.
 
 ```bash
-curl "https://api.secondlayer.tools/v1/index/events?event_type=stx_transfer&limit=20"
+curl "http://127.0.0.1:3800/v1/index/events?event_type=stx_transfer&limit=20"
 ```
 
 `print` rows carry `payload: { topic, value, raw_value }`, where `value` is the Clarity value decoded to JSON (uints as strings, buffers as `0x…` hex). `/v1/index/ft-transfers` and `/v1/index/nft-transfers` remain as typed aliases for `event_type=ft_transfer` / `nft_transfer`.
@@ -178,7 +175,7 @@ Decoded `contract_call` transactions. Cursor is `<block_height>:<tx_index>` (a d
 Each row: `{ cursor, block_height, tx_id, tx_index, contract_id, function_name, sender, status, args, result, result_hex }` — `args` are the positional function arguments decoded to JSON, `result` the decoded return value.
 
 ```bash
-curl "https://api.secondlayer.tools/v1/index/contract-calls?function_name=transfer&limit=20"
+curl "http://127.0.0.1:3800/v1/index/contract-calls?function_name=transfer&limit=20"
 ```
 
 ### `GET /v1/index/canonical`
@@ -211,38 +208,7 @@ Every Index read sets `Cache-Control`: `public, max-age=31536000, immutable` onc
 
 ---
 
-## `/v1/api-keys` — self-provision a scoped key
-
-`POST /v1/api-keys` lets a headless agent mint its own **scoped** `streams`/`index` read key — no dashboard. Requires an **account-level (owner) key** in the `Authorization` header; a scoped key cannot mint (403). The minted key always inherits the account plan's tier and can never be an account/superkey. Per-IP rate limited and bounded by the account's active-key ceiling.
-
-```bash
-curl -X POST "https://api.secondlayer.tools/v1/api-keys" \
-  -H "Authorization: Bearer <account key>" \
-  -H "Content-Type: application/json" \
-  -d '{"product":"streams","name":"ci"}'
-# → 201 { "key":"sk-sl_…", "prefix":"sk-sl_…", "id":"…", "product":"streams", "tier":null, "createdAt":"…" }
-```
-
-`product` defaults to `streams` (or `index`). The plaintext `key` is returned **once** — store it immediately. SDK: `sl.apiKeys.create({ product })`. CLI: `sl keys create --product streams`. MCP: `account_create_key`.
-
----
-
-## Pay-as-you-go credits
-
-Free and anonymous reads cover only the **recent 24-hour window** (~last 17,280 blocks); a read whose `from_height`/`cursor` falls below it returns `402 UPGRADE_REQUIRED`. To read older history without a plan, top up **prepaid credits with a card**:
-
-```bash
-curl -X POST "https://api.secondlayer.tools/api/billing/topup" \
-  -H "Authorization: Bearer <key>" \
-  -H "Content-Type: application/json" \
-  -d '{"amount_usd": 25}'   # packs: 10 / 25 / 50 / 100
-```
-
-With a positive balance the account goes pay-as-you-go: it reads **beyond the 24h window, unthrottled, debited $5 per 1,000,000 rows** (5 USD-micros/row), across **both Index and Streams** from one shared balance. The prepaid balance is the **hard cap** — when it runs out, reads fall back to the free window (no surprise bills). This is the card-funded peer to the x402 agent rail. Credits cover reads only — deploying a subgraph or creating a webhook still needs a paid plan or 14-day trial (free → `403 PLAN_REQUIRED`).
-
----
-
-## `/v1/subgraphs` — subgraph reads (public surface)
+## `/v1/subgraphs` — subgraph reads
 
 Anon for **public** subgraphs (managed deploys default public; BYO deploys and pre-existing subgraphs default private). Private subgraphs read with the owning account's `sk-sl_` bearer — anon requests get 404 (no existence leak).
 
@@ -274,7 +240,7 @@ Query rows. Envelope:
 **`_offset` and `_sort` are rejected with 400 on /v1.**
 
 ```bash
-curl "https://api.secondlayer.tools/v1/subgraphs/stx-transfers/transfers?_order=desc&_limit=10&amount.gte=1000000"
+curl "http://127.0.0.1:3800/v1/subgraphs/stx-transfers/transfers?_order=desc&_limit=10&amount.gte=1000000"
 ```
 
 ### `GET /v1/subgraphs/{name}/{table}/count`
@@ -315,7 +281,7 @@ Query rows. Schema-aware filters.
 | `<column>.gte` / `.lte` / `.gt` / `.lt` / `.neq` | scalar | Comparison filter |
 
 ```bash
-curl "https://api.secondlayer.tools/api/subgraphs/stx-transfers/transfers?_sort=_block_height&_order=desc&_limit=10&amount.gte=1000000"
+curl "http://127.0.0.1:3800/api/subgraphs/stx-transfers/transfers?_sort=_block_height&_order=desc&_limit=10&amount.gte=1000000"
 ```
 
 ### `GET /api/subgraphs/{name}/{table}/count`

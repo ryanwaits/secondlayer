@@ -2,7 +2,7 @@
 
 The **Index API** is a read-only, fully-decoded view of the Stacks chain — canonical blocks, full transaction documents, and decoded PoX-4 stacking actions — served over plain HTTP `GET`. Every endpoint is anonymous-readable in open beta (no key required), uses `snake_case` query params, and returns a standard cursor envelope. Finalized pages are aggressively cacheable (immutable + ETag), so syncing the chain is cheap.
 
-This guide is runnable against production right now. Paste any block and you should see live data.
+This guide is runnable against a local instance (`sl init` + `docker/oss`). History is whatever this instance has bootstrapped.
 
 ---
 
@@ -11,7 +11,7 @@ This guide is runnable against production right now. Paste any block and you sho
 **Base URL**
 
 ```
-https://api.secondlayer.tools
+http://127.0.0.1:3800
 ```
 
 **SDK install** (`@secondlayer/sdk@6.3.0` or later)
@@ -21,27 +21,16 @@ bun add @secondlayer/sdk
 # or: npm i @secondlayer/sdk
 ```
 
-**Auth** — reads are anonymous, or use any key incl. free-tier (free-tier rate limit; a minted free key is never slower than anonymous). Free/anonymous reads cover the **recent 24-hour window**; reaching older history is pay-as-you-go credits (`POST /api/billing/topup`) or a paid plan — a read below the window returns `402 UPGRADE_REQUIRED`.
+**Auth** — loopback reads need no key.
 
 ```ts
 import { SecondLayer } from "@secondlayer/sdk";
 
-// No key — works for all reads:
-const sl = new SecondLayer();
-
-// Or with a key for a higher rate tier:
-const sl = new SecondLayer({ apiKey: process.env.SL_API_KEY });
+const sl = new SecondLayer(); // http://127.0.0.1:3800 or SL_API_URL
 ```
 
-For curl, pass the key (if you have one) as a bearer token:
-
 ```bash
-# anonymous (open beta):
-curl -s "https://api.secondlayer.tools/v1/index/blocks?limit=2"
-
-# with a key:
-curl -s -H "Authorization: Bearer $SL_API_KEY" \
-  "https://api.secondlayer.tools/v1/index/blocks?limit=2"
+curl -s "http://127.0.0.1:3800/v1/index/blocks?limit=2"
 ```
 
 ### Shared params (all Index endpoints)
@@ -51,7 +40,7 @@ curl -s -H "Authorization: Bearer $SL_API_KEY" \
 | `limit` | `200` | max `1000` |
 | `cursor` / `from_cursor` | — | resume from a `next_cursor` you got back |
 | `from_height` / `to_height` | — | inclusive block-height range |
-| (none) | — | with no cursor/`from_height`, you get the last ~1 day. Free/anon reads are capped to this 24h window; older history needs credits or a plan (else `402 UPGRADE_REQUIRED`) |
+| (none) | — | with no cursor/`from_height`, you get the most recent page on this instance |
 
 ### The response envelope
 
@@ -79,7 +68,7 @@ Every list response looks like:
 A lean block-hash map over a height range — just enough to follow the one canonical chain: height, block hash, parent hash, and the burn block it anchors to. No `reorgs[]`, no extra columns. This is the cheapest way to sync, and the endpoint you build a follower on top of.
 
 ```bash
-curl -s "https://api.secondlayer.tools/v1/index/canonical?from_height=147294&to_height=147300&limit=5"
+curl -s "http://127.0.0.1:3800/v1/index/canonical?from_height=147294&to_height=147300&limit=5"
 ```
 
 ```jsonc
@@ -117,9 +106,9 @@ for await (const row of sl.index.canonical.walk({ fromHeight: 147294, toHeight: 
 Canonical blocks with timestamps. Same shape as `/canonical` plus `block_time` and a `canonical` flag. Fetch a single block by height (always canonical) or by block hash (any block — check the `canonical` flag to know whether it's on the active chain). A missing block returns `404`.
 
 ```bash
-curl -s "https://api.secondlayer.tools/v1/index/blocks?limit=2"
-curl -s "https://api.secondlayer.tools/v1/index/blocks/147294"        # by height -> { block, tip }
-curl -s "https://api.secondlayer.tools/v1/index/blocks/0x0bc44ee8..."  # by hash; inspect `canonical`
+curl -s "http://127.0.0.1:3800/v1/index/blocks?limit=2"
+curl -s "http://127.0.0.1:3800/v1/index/blocks/147294"        # by height -> { block, tip }
+curl -s "http://127.0.0.1:3800/v1/index/blocks/0x0bc44ee8..."  # by hash; inspect `canonical`
 ```
 
 ```ts
@@ -140,10 +129,10 @@ if (byHash && !byHash.block.canonical) console.log("orphaned block");
 Full transaction documents — the columnar fields plus `raw_tx`-decoded enrichment: `fee`, `nonce`, `sponsored`, `anchor_mode`, `post_condition_mode`, `post_conditions[]`, and a payload sub-object keyed by `tx_type` (`token_transfer` / `contract_call` / `smart_contract` / `coinbase` / `tenure_change`). Filter with `type`, `sender`, and `contract_id`. Cursor is `block_height:tx_index`; the envelope carries `reorgs: []`. Single get returns `{ transaction, tip }`, `404` if absent.
 
 ```bash
-curl -s "https://api.secondlayer.tools/v1/index/transactions?type=contract_call&limit=1"
-curl -s "https://api.secondlayer.tools/v1/index/transactions?type=token_transfer&limit=1"
-curl -s "https://api.secondlayer.tools/v1/index/transactions/0xad7bf70f..."   # -> { transaction, tip }
-curl -s "https://api.secondlayer.tools/v1/index/transactions?sender=SP17R9...&limit=10"
+curl -s "http://127.0.0.1:3800/v1/index/transactions?type=contract_call&limit=1"
+curl -s "http://127.0.0.1:3800/v1/index/transactions?type=token_transfer&limit=1"
+curl -s "http://127.0.0.1:3800/v1/index/transactions/0xad7bf70f..."   # -> { transaction, tip }
+curl -s "http://127.0.0.1:3800/v1/index/transactions?sender=SP17R9...&limit=10"
 ```
 
 ```jsonc
@@ -190,8 +179,8 @@ if (one && one.transaction.tx_type === "contract_call") {
 Decoded PoX-4 stacking actions — every call to the PoX contract, decoded into typed fields. Filter by `function_name` (e.g. `stack-stx`, `delegate-stx`, `delegate-stack-stx`, `revoke-delegate-stx`), `stacker`, or `caller`. Each row carries `caller`, `stacker`, `delegate_to`, `amount_ustx`, `lock_period`, `pox_addr {version, hashbytes, btc}`, `start_cycle` / `end_cycle` / `reward_cycle`, `signer_key`, and `result_ok`. Fields that don't apply to a given function (or that come from a failed call) are `null`. Full history is backfilled — 134k+ actions back to block 147,294.
 
 ```bash
-curl -s "https://api.secondlayer.tools/v1/index/stacking?function_name=delegate-stack-stx&from_height=7184000&to_height=7185000&limit=1"
-curl -s "https://api.secondlayer.tools/v1/index/stacking?stacker=SP4VG5YE...&limit=10"
+curl -s "http://127.0.0.1:3800/v1/index/stacking?function_name=delegate-stack-stx&from_height=7184000&to_height=7185000&limit=1"
+curl -s "http://127.0.0.1:3800/v1/index/stacking?stacker=SP4VG5YE...&limit=10"
 ```
 
 ```jsonc
@@ -235,10 +224,10 @@ Pending (unconfirmed) transactions, captured straight from the node's mempool. S
 > **Completeness caveat.** This is a **single-node, go-forward** view: the node's observer pushes each tx once, when it's new *after* the indexer connected, so a freshly (re)deployed indexer starts empty and accumulates over uptime (it isn't a globally-aggregated mempool). It's strong for "did my tx land / is it still pending / did it confirm", per-node pending state, and pending-by-sender/contract feeds; weaker for exhaustive MEV/front-running (which wants every node's view). It is intentionally **not** a 1:1 mirror of a long-running explorer's full active set — the node exposes no full-pending-set dump RPC, and a cross-host sync of its internal mempool (mostly stale, never-minable txs) was evaluated and rejected as not worth the coupling.
 
 ```bash
-curl -s "https://api.secondlayer.tools/v1/index/mempool?limit=2"
-curl -s "https://api.secondlayer.tools/v1/index/mempool?type=contract_call&sender=SP17R9...&limit=10"
-curl -s "https://api.secondlayer.tools/v1/index/mempool?contract_id=SP….amm-v2&limit=10"  # pending calls to one contract
-curl -s "https://api.secondlayer.tools/v1/index/mempool/0xpending..."   # -> { transaction, tip }; 404 once mined
+curl -s "http://127.0.0.1:3800/v1/index/mempool?limit=2"
+curl -s "http://127.0.0.1:3800/v1/index/mempool?type=contract_call&sender=SP17R9...&limit=10"
+curl -s "http://127.0.0.1:3800/v1/index/mempool?contract_id=SP….amm-v2&limit=10"  # pending calls to one contract
+curl -s "http://127.0.0.1:3800/v1/index/mempool/0xpending..."   # -> { transaction, tip }; 404 once mined
 ```
 
 ```jsonc
@@ -278,15 +267,15 @@ A matching `If-None-Match` on a finalized page returns `304 Not Modified` with n
 
 ```bash
 # 1. Fetch a finalized range and read the headers:
-curl -si "https://api.secondlayer.tools/v1/index/canonical?from_height=147294&to_height=147300&limit=5" \
+curl -si "http://127.0.0.1:3800/v1/index/canonical?from_height=147294&to_height=147300&limit=5" \
   | grep -i -E '^(HTTP|cache-control|etag)'
 # -> HTTP/2 200 | cache-control: public, max-age=31536000, immutable | etag: W/"..."
 
 # 2. Replay with If-None-Match and get a 304:
-ETAG=$(curl -si "https://api.secondlayer.tools/v1/index/canonical?from_height=147294&to_height=147300&limit=5" \
+ETAG=$(curl -si "http://127.0.0.1:3800/v1/index/canonical?from_height=147294&to_height=147300&limit=5" \
   | grep -i '^etag:' | tr -d '\r' | awk '{print $2}')
 curl -si -H "If-None-Match: $ETAG" \
-  "https://api.secondlayer.tools/v1/index/canonical?from_height=147294&to_height=147300&limit=5" \
+  "http://127.0.0.1:3800/v1/index/canonical?from_height=147294&to_height=147300&limit=5" \
   | grep -i -E '^(HTTP|cache-control|etag)'
 # -> HTTP/2 304
 ```
