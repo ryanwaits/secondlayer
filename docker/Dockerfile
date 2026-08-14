@@ -194,3 +194,44 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
 
 CMD ["bun", "run", "packages/shared/src/runtime/serve.ts"]
 
+# =============================================================================
+# Console builder — the console app has no workspace deps, so it gets its own
+# minimal install instead of the server-side deps/builder chain.
+# =============================================================================
+FROM base AS console-builder
+
+COPY package.json bun.lock ./
+COPY apps/console/package.json ./apps/console/
+RUN bun install
+
+COPY apps/console ./apps/console
+
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN bun run --filter '@secondlayer/console' build
+
+# =============================================================================
+# Console UI — Next standalone bundle served with node. The standalone output
+# mirrors the workspace root, so the server entry nests under apps/console.
+# SL_API_URL / INSTANCE_TOKEN / CONSOLE_TOKEN are read at runtime, not baked in.
+# =============================================================================
+FROM node:22-alpine AS console
+
+WORKDIR /app
+
+RUN apk add --no-cache curl
+
+COPY --from=console-builder /app/apps/console/.next/standalone ./
+COPY --from=console-builder /app/apps/console/.next/static ./apps/console/.next/static
+
+ENV NODE_ENV=production
+ENV PORT=3801
+ENV HOSTNAME=0.0.0.0
+
+EXPOSE 3801
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD curl -f http://localhost:3801/console || exit 1
+
+CMD ["node", "apps/console/server.js"]
+

@@ -6,7 +6,9 @@
 
 node_modules
 packages/*/node_modules
+apps/*/node_modules
 tools/ops/*/node_modules
+apps/*/.next
 
 dist
 packages/*/dist

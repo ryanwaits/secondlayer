@@ -7,6 +7,7 @@
 # Optional chain:
 #   docker compose --profile stacks-node up -d    # bundled stacks-node + public Bitcoin
 #   docker compose --profile full-node up -d      # bundled stacks-node + bitcoind
+#   docker compose --profile console up -d        # web console UI on :3801
 #
 # Multi-service split (legacy): docker-compose.split.yml
 
@@ -76,6 +77,30 @@ services:
       start_period: 40s
       retries: 3
     restart: unless-stopped
+
+  console:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      target: console
+    environment:
+      SL_API_URL: http://secondlayer:3800
+      INSTANCE_TOKEN: ${INSTANCE_TOKEN:-}
+      CONSOLE_TOKEN: ${CONSOLE_TOKEN:-}
+      NODE_ENV: production
+    ports:
+      - "${CONSOLE_PORT:-3801}:3801"
+    depends_on:
+      secondlayer:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3801/console"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    restart: unless-stopped
+    profiles: ["console"]
 
   bitcoind:
     image: kylemanna/bitcoind:latest
