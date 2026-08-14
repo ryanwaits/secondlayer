@@ -8,7 +8,10 @@ if (!projectToken || !host) {
 		const missingVariable = !projectToken
 			? "NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"
 			: "NEXT_PUBLIC_POSTHOG_HOST";
-		throw new Error(
+		// A throw here is an unhandled rejection during client module evaluation,
+		// which aborts Next's bootstrap and leaves the whole page unhydrated.
+		// Warn loudly instead — missed analytics must not take down the site.
+		console.error(
 			`${missingVariable} variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once ${missingVariable} is configured`,
 		);
 	}
