@@ -521,6 +521,59 @@ function ArtPricing() {
 	);
 }
 
+function ArtArchive() {
+	return (
+		<div
+			style={{
+				position: "absolute",
+				top: 0,
+				left: 0,
+				right: 0,
+				bottom: 0,
+				display: "flex",
+			}}
+		>
+			<Card style={{ position: "absolute", top: 140, left: 745, width: 780 }}>
+				<Line
+					tokens={[
+						["$ ", DIM],
+						["secondlayer verify all \\", BASE],
+					]}
+				/>
+				<Line
+					indent={4}
+					tokens={[
+						["--against ", KW],
+						["…/latest.json", STR],
+					]}
+				/>
+				<Line
+					tokens={[
+						["✓ ", KW],
+						["175 ranges match the archive", BASE],
+					]}
+				/>
+				<Line indent={2} tokens={[["reference signature verified", DIM]]} />
+			</Card>
+			<Card style={{ position: "absolute", top: 400, left: 950, width: 620 }}>
+				<Line tokens={[["latest.json", KW]]} />
+				<Line
+					tokens={[
+						["snapshot ", DIM],
+						["canonical-v1 · #8,748,855", BASE],
+					]}
+				/>
+				<Line
+					tokens={[
+						["sha256 ", DIM],
+						["a2c22b25…", STR],
+					]}
+				/>
+			</Card>
+		</div>
+	);
+}
+
 function ArtHome() {
 	return (
 		<div
@@ -772,10 +825,18 @@ const CARDS: CardSpec[] = [
 	{
 		file: "home.png",
 		eyebrow: null,
-		line1: "Your indexer.",
-		line2: "Our decoders.",
-		mutedLine2: false,
+		line1: "Self-hosted",
+		line2: "Stacks runtime.",
+		mutedLine2: true,
 		artifact: <ArtHome />,
+	},
+	{
+		file: "archive.png",
+		eyebrow: "ARCHIVE",
+		line1: "The verified",
+		line2: "Stacks archive.",
+		mutedLine2: true,
+		artifact: <ArtArchive />,
 	},
 	{
 		file: "streams.png",
