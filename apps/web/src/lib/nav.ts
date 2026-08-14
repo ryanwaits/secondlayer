@@ -52,6 +52,7 @@ export const NAV: NavEntry[] = [
 export const DOCS_STRIP: NavLink[] = [
 	{ label: "Home", href: "/" },
 	{ label: "Archive", href: "/archive" },
+	{ label: "Docs", href: "/docs" },
 	{ label: "Blog", href: "/writing" },
 ];
 

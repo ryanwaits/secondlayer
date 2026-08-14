@@ -41,6 +41,8 @@ export function AuthBar() {
 
 	if (loading) return null;
 	if (isPlatform) return null;
+	// The docs shell's top strip already carries Home/Docs/Archive/Blog/GitHub.
+	if (pathname.startsWith("/docs")) return null;
 
 	if (account) {
 		return (
