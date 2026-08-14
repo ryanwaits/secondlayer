@@ -31,7 +31,7 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 
 ## Table of contents
 
-- [Local runtime](#local-runtime) — `init`, `bootstrap`, `observer`, `verify`, `repair`
+- [Local runtime](#local-runtime) — `init`, `start`, `bootstrap`, `observer`, `verify`, `repair`
 - [Auth](#auth) — `login`, `logout`, `whoami`, `keys create`
 - [Projects](#projects) — `projects create|list|use|get`
 - [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `reindex`, `backfill`, `cancel`, `gaps`, `query`, `delete`, `scaffold`, `client`, `codegen`
@@ -66,6 +66,16 @@ Usage: `sl init [--network <network>] [--api-url <url>] [--force]`
 Does **not** write `secondlayer.config.ts` — that file is for `sl contracts generate`.
 
 Example: `sl init --network mainnet`
+
+### sl start
+
+Validate one-box config and print the compose command.
+
+Usage: `sl start [--print]`
+
+Requires `NETWORK`, `DATABASE_URL`, `NODE_MODE` (`external` | `stacks` | `full`). Defaults: `DATA_DIR=/data`, `API_PORT=3800`, `INDEXER_PORT=3700`.
+
+Example: `sl start --print`
 
 ### sl bootstrap
 

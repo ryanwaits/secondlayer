@@ -4,6 +4,16 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## CLI — August 2026
 
+### One container next to Postgres
+
+Self-host is `postgres` + `secondlayer`. `sl start --print` writes the compose line. `NETWORK`, `DATABASE_URL`, `NODE_MODE`, `DATA_DIR`, `API_PORT`, and `INDEXER_PORT` are the required non-secrets. Optional `--profile stacks-node` or `full-node` bundles chain daemons.
+
+```bash
+sl init --network mainnet
+docker compose -f docker/oss/docker-compose.yml up -d
+sl verify all --against <manifest>
+```
+
 ### Point verify at raw, a decoder, or a subgraph
 
 `sl verify` takes `all`, `raw`, `decode:<name>`, or `subgraph:<name>`. Default is raw. `--quick` hashes identity columns. `--deep` also recomputes semantic digests. `--anchor` requires a verified archive signature.

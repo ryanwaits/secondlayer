@@ -443,7 +443,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Bring up the stack",
 			"Run app services with Docker Compose.",
-			"/secondlayer Help me self-host Secondlayer: clone the repo, `cd docker/oss`, `sl init --network mainnet` (copy `.env.local` into `.env`), then `docker compose up -d postgres migrate api indexer subgraph-processor` and verify `curl http://localhost:3800/health`. Point an existing stacks-node at the indexer with `sl observer --mode indexer --endpoint indexer:3700` and paste the stanza into `Config.toml`.",
+			"/secondlayer Help me self-host Secondlayer: clone the repo, `cd docker/oss`, `sl init --network mainnet` (copy `.env.local` into `.env`), then `docker compose up -d` (postgres + one secondlayer container) and verify `curl http://localhost:3800/health`. Point an existing stacks-node at the indexer with `sl observer --mode indexer --endpoint secondlayer:3700` and paste the stanza into `Config.toml`.",
 		),
 		card(
 			"Run published images",

@@ -1,221 +1,102 @@
 # Self-host
 
-The whole Secondlayer stack is MIT-licensed. `docker compose up` runs the indexer, API, and subgraph processor on your own hardware, with every surface: Index, Streams, Subgraphs, Subscriptions.
+Postgres plus one Secondlayer container. You run the node, or bundle it.
 
----
-
-## Prerequisites
-
-**Docker + Docker Compose** (v2) is the only hard requirement. You also need a Stacks node for the event feed — run one yourself, or point the indexer at an existing node's event observer.
-
-**Hardware — app services only** (external Stacks node):
-- 8 GB RAM, 100 GB SSD, any modern CPU
-- The database grows ~1 GB per 100K blocks; mainnet at ~7M+ blocks is 70+ GB today
-
-**Hardware — full stack** (bitcoind + stacks-node bundled):
-- 128 GB RAM (bitcoind 32 GB, stacks-node 64 GB, headroom for PG/indexer)
-- 2 TB NVMe SSD (Bitcoin IBD ~700 GB, Stacks ~200 GB, plus subgraph data)
-- 8+ cores, 1 Gbps network recommended (IBD downloads 700+ GB)
-
-OSS runs on a **single Postgres instance**; the source/target DB split in `docker/SCHEMA_SPLIT.md` is a hosted-scale concern you don't need.
-
-<Callout type="warning" title="No light mode">
-
-There's no light mode that fetches from Hiro's REST API; it's too slow to index anything useful. Run the full chain, point at an external node, or use [hosted](https://secondlayer.tools).
-
-</Callout>
-
-**Local contract development**: `sl devnet connect` wires up a [Clarinet devnet](https://docs.hiro.so/stacks/clarinet) in one step — no mainnet node.
-
----
-
-## Quick start (app services)
+## Quick start
 
 ```bash
-git clone https://github.com/ryanwaits/secondlayer.git
-cd secondlayer/docker/oss
-
 sl init --network mainnet
-# Copy .env.local values into .env (INSTANCE_TOKEN, SECONDLAYER_SECRETS_KEY, STREAMS_SIGNING_PRIVATE_KEY).
+# Copy .env.local secrets into docker/oss/.env
 
-docker compose up -d postgres migrate api indexer subgraph-processor
-```
-
-The API is now at `http://localhost:3800`. Health check:
-
-```bash
-curl http://localhost:3800/health
-```
-
-The API is open by default. For a Bearer token, set `API_KEY` in `.env` and uncomment the matching line in `docker-compose.yml`.
-
-**Point an existing Stacks node at the indexer** with `sl observer`, then paste the stanza into `Config.toml`:
-
-```bash
-sl observer --mode indexer --endpoint indexer:3700
-```
-
-Indexer mode retries delivery (`timeout_ms = 2000`). Signer-shared nodes skip retries and need `--recovery journal` or `--recovery archive`. Flags live on [CLI](/docs/cli#local-runtime).
-
----
-
-## Full stack (with chain nodes)
-
-To bundle bitcoind + stacks-node:
-
-```bash
-cp .env.example .env
-# Set POSTGRES_PASSWORD and BITCOIN_RPC_PASSWORD (strong random).
-# Update bitcoin.conf and Config.toml to match the RPC password.
-
-# Stage bitcoin.conf before first start:
-mkdir -p ./data/bitcoin
-cp bitcoin.conf ./data/bitcoin/bitcoin.conf
-sudo chown -R 1000:1000 ./data/bitcoin
-
-# 1. Start bitcoind — IBD takes 1–3 days.
-docker compose --profile node up -d bitcoind
-
-# 2. Wait for IBD past Stacks genesis (~block 666050):
-docker compose exec bitcoind bitcoin-cli \
-  -rpcuser=stacks -rpcpassword=$BITCOIN_RPC_PASSWORD getblockcount
-
-# 3. Start stacks-node once bitcoind is past 666050:
-docker compose --profile node up -d stacks-node
-
-# 4. Start app services:
-docker compose up -d postgres migrate api indexer subgraph-processor
-```
-
----
-
-## Configuration
-
-OSS mode sets `INSTANCE_MODE=oss`, which disables the platform-only layer. Single-tenant; the operator owns access control.
-
-Core env vars (`.env`):
-
-| Variable | Default | Notes |
-| --- | --- | --- |
-| `POSTGRES_PASSWORD` | `changeme_postgres_password` | **Change before exposing publicly** |
-| `POSTGRES_USER` / `POSTGRES_DB` | `secondlayer` | |
-| `POSTGRES_PORT` | `127.0.0.1:5432` | Remove `127.0.0.1:` prefix to expose |
-| `API_PORT` | `127.0.0.1:3800` | Drop the `127.0.0.1:` prefix to publish on all host interfaces |
-| `INSTANCE_TOKEN` | _(required in compose)_ | Bearer token. `API_KEY` is an alias. Loopback-only binds may omit it |
-| `INDEXER_PORT` | `127.0.0.1:3700` | Localhost-only; stacks-node uses docker network |
-| `NETWORKS` | `mainnet` | `testnet` or comma-separated for multi-network |
-| `LOG_LEVEL` | `info` | |
-
-Indexer-specific (for advanced tuning):
-
-| Variable | Default | Notes |
-| --- | --- | --- |
-| `TIP_FOLLOWER_ENABLED` | `true` | Disable during genesis sync (see below) |
-| `TIP_FOLLOWER_TIMEOUT` | `60` | Seconds of node silence before polling |
-| `HIRO_API_URL` | `https://api.mainnet.hiro.so` | Gap-fill fallback only |
-| `HIRO_API_KEY` | _(unset)_ | Optional — improves gap-fill rate limits |
-
-Subgraph handlers that read the chain (`ctx.client.contract(...).read`) need a
-Nakamoto node — the same one you already run, not a new service:
-
-| Variable | Default | Notes |
-| --- | --- | --- |
-| `STACKS_NODE_RPC_URL` | _(unset)_ | Unset → a handler that reads throws naming this var; handlers that don't read are unaffected |
-| `SUBGRAPH_CHAIN_READ_CONCURRENCY` | `4` | Max concurrent node reads across all handlers in the process |
-
-Results are memoized in the `chain_read_cache` table on the chain database — no
-Redis, no extra container.
-
----
-
-## Run from published images
-
-```bash
-# ghcr.io/ryanwaits/secondlayer-{api,indexer,worker,decoder,subgraph-processor,subscription-processor}
-
-docker pull ghcr.io/ryanwaits/secondlayer-api:latest
-docker pull ghcr.io/ryanwaits/secondlayer-indexer:latest
-docker pull ghcr.io/ryanwaits/secondlayer-subgraph-processor:latest
-```
-
-Images publish on every `v*` git tag. Pin `v1.2.3` in production, not `:latest`. The compose file builds from source by default; swap its `build:` block for `image:` to use the pulled images.
-
-<Callout type="warning" title="Use a tag after the read-parity fix">
-
-Use a tag cut **after** commit `169b0967` (the OSS read-parity fix); older images returned `402 UPGRADE_REQUIRED` on reads.
-
-</Callout>
-
----
-
-## Genesis sync
-
-Or restore with `sl bootstrap` — [verified archive](/docs/archive#restore-a-fresh-instance).
-
-```bash
-# Start with the tip follower off so it doesn't interfere with IBD:
-TIP_FOLLOWER_ENABLED=false docker compose up -d postgres migrate api indexer subgraph-processor
-
-# Check sync progress (compare to chain tip):
-curl http://localhost:3700/public/status | jq .chainTip
-
-# Once caught up, re-enable:
-TIP_FOLLOWER_ENABLED=true docker compose up -d --force-recreate indexer
-```
-
-The indexer integrity loop runs every 5 min and auto-fills gaps from the local DB or Hiro's API as a fallback.
-
----
-
-## Operations
-
-**Upgrade:**
-```bash
-git pull
-docker compose build
-docker compose up -d   # the migrate service runs automatically and applies new migrations
-```
-
-**Health checks:**
-```bash
-curl http://localhost:3800/health | jq   # API
-curl http://localhost:3700/health | jq   # Indexer
-```
-
-**Security checklist:**
-- Change `POSTGRES_PASSWORD` and `BITCOIN_RPC_PASSWORD` before any public exposure
-- `POSTGRES_PORT` and `INDEXER_PORT` default to `127.0.0.1:...`; keep it that way unless you know what you're opening
-- Set `INSTANCE_TOKEN` — compose refuses to start the API on `0.0.0.0` without it
-- Never publish port 8332 (bitcoind RPC) to the internet
-
-**Verify against a signed archive:**
-```bash
+cd docker/oss
+docker compose up -d
+sl observer --mode indexer --endpoint secondlayer:3700
+sl bootstrap --against <manifest>
 sl verify all --against <manifest>
 ```
 
-Flags and exit codes live on [Verified archive](/docs/archive#flags).
+API: `http://127.0.0.1:3800`. Health: `curl http://localhost:3800/health`.
 
-**Deploy a subgraph against your local instance:**
+<Callout type="warning" title="No light mode">
+
+No Hiro-REST backfill. Run a node, bundle one, or restore from the [archive](/docs/archive).
+
+</Callout>
+
+## Profiles
+
+| Profile | What runs |
+| --- | --- |
+| default | `postgres` + `secondlayer` (API, ingest, decoder, subgraph, webhooks) |
+| `stacks-node` | + bundled Stacks, public Bitcoin |
+| `full-node` | + bundled Stacks and bitcoind |
+
 ```bash
-export SL_API_URL=http://localhost:3800
-export SL_API_KEY=<your-key>   # only if API_KEY is set
+docker compose --profile stacks-node up -d
+docker compose --profile full-node up -d
+```
 
+`NODE_MODE` is `external` | `stacks` | `full`. `full` needs `BITCOIN_RPC_PASSWORD`.
+
+## Config
+
+Six required non-secrets. Secrets come from `sl init`.
+
+| Key | Default | Notes |
+| --- | --- | --- |
+| `NETWORK` | `mainnet` | `mainnet`, `testnet`, `devnet` |
+| `DATABASE_URL` | compose | Injected; one Postgres |
+| `NODE_MODE` | `external` | `external`, `stacks`, `full` |
+| `DATA_DIR` | `/data` | Handler + runtime files |
+| `API_PORT` | `3800` | Published as `127.0.0.1:3800` |
+| `INDEXER_PORT` | `3700` | Observer bind |
+
+Unknown keys and contradictions fail before ingest. `sl start --print` shows the compose line.
+
+## Verify and repair
+
+```bash
+sl verify all --against <manifest>
+sl repair --against <manifest>          # plan
+sl repair --against <manifest> --apply
+```
+
+[Verified archive](/docs/archive#flags) owns flags and exit codes.
+
+## Backup and upgrade
+
+| Job | Rule |
+| --- | --- |
+| Backup | DB + pinned config + encrypted keys + handler manifests + height scope |
+| Restore | wiped host + `sl verify all` must be green |
+| Upgrade | pin image → preflight disk/schema → backup → migrate → health → verify |
+| Rollback | previous image; schema migrations are forward-only |
+
+## Guardrails
+
+App-only floor: 4 GB RAM, 80 GB disk. Full-node floor: 96 GB RAM, 1.5 TB disk. Postgres `max_connections` ≥ 50. Constrained boxes fail at start.
+
+## Operations
+
+```bash
+docker compose pull && docker compose up -d
+curl http://localhost:3800/health
+export SL_API_URL=http://localhost:3800
 sl subgraphs deploy ./my-subgraph.ts
 ```
 
----
+Keep `POSTGRES_PORT` / `INDEXER_PORT` on loopback. Set `INSTANCE_TOKEN` before binding `0.0.0.0`.
 
 ## What's not included
 
-- **Auth/keys**: `API_KEY` is one shared bearer token; layer your own reverse proxy for finer control.
-- **Billing, credits, x402**: no metering; reads are unbounded single-tenant.
-- **Multi-tenant**: one operator, one Postgres, one set of subgraphs.
-- **Explore**: not a hosted catalog. Templates are in repo `subgraphs/`.
+- Hosted accounts, billing, or a Secondlayer-operated subgraph
+- Multi-tenant catalog
+- Archive publisher (separate image)
 
-Support is **community/best-effort** — file issues at [github.com/ryanwaits/secondlayer](https://github.com/ryanwaits/secondlayer).
+Support is community — [github.com/ryanwaits/secondlayer](https://github.com/ryanwaits/secondlayer).
 
 export const metadata = {
 	title: "Self-host — Secondlayer Docs",
 	description:
-		"Run the full Secondlayer stack on your own hardware — indexer, API, subgraphs, and subscriptions — with Docker Compose.",
+		"Run Secondlayer as Postgres plus one container. Bootstrap from the archive, verify, and deploy subgraphs on your machine.",
 };
