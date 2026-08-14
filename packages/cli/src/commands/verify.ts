@@ -10,6 +10,11 @@ import {
 	comparePartitionSemanticDigests,
 	computePartitionSemanticDigest,
 } from "@secondlayer/shared/archive/semantic-digest-builder";
+import {
+	datasetMatchesTarget,
+	parseVerifyTarget,
+	reportVerify,
+} from "@secondlayer/shared/coverage";
 import { getDb } from "@secondlayer/shared/db";
 import type { Command } from "commander";
 import {
@@ -80,6 +85,10 @@ export function registerVerifyCommand(program: Command): void {
 		.description(
 			"Compare local chain data against a signed archive (read-only; nothing is uploaded)",
 		)
+		.argument("[target]", "all | raw | decode:<name> | subgraph:<name>", "raw")
+		.option("--quick", "coverage/identity only (default)")
+		.option("--deep", "include semantic / scratch replay where available")
+		.option("--anchor", "require a verified archive signature")
 		.requiredOption(
 			"--against <manifest>",
 			"archive manifest: an https URL or a local file path",
@@ -99,16 +108,20 @@ export function registerVerifyCommand(program: Command): void {
 			`
 Examples:
   $ sl verify --against https://archive.secondlayer.tools/.../snapshots/<digest>.json
-  $ sl verify --against ./snapshot.json --from-block 8000000 --to-block 8499999
-  $ sl verify --against ./snapshot.json --counts --json
+  $ sl verify raw --against ./snapshot.json --from-block 8000000 --to-block 8499999
+  $ sl verify all --against ./snapshot.json --json
+  $ sl verify decode:ft_transfer --against ./snapshot.json --quick
+  $ sl verify subgraph:sbtc --against ./snapshot.json --deep
 
 Exit codes:
   0  local data matches the archive
   1  divergence found (divergent ranges are listed)
   2  unanchored — reference unavailable or unverifiable`,
 		)
-		.action(async (opts) => {
+		.action(async (targetArg, opts) => {
 			try {
+				const target = parseVerifyTarget(targetArg);
+				const mode = opts.deep ? "deep" : opts.anchor ? "anchor" : "quick";
 				const fromBlock =
 					opts.fromBlock === undefined
 						? undefined
@@ -139,6 +152,12 @@ Exit codes:
 					output({
 						json: opts.json,
 						data: {
+							...reportVerify({
+								target,
+								mode,
+								anchored: false,
+								detail: signature.reason,
+							}),
 							status: "unanchored",
 							reference: origin,
 							reason: signature.reason,
@@ -149,6 +168,7 @@ Exit codes:
 				}
 
 				const reference = (manifest.range_digests ?? []).filter((d) => {
+					if (!datasetMatchesTarget(d.dataset, target)) return false;
 					if (fromBlock !== undefined && d.to_block < fromBlock) return false;
 					if (toBlock !== undefined && d.from_block > toBlock) return false;
 					return true;
@@ -275,8 +295,14 @@ Exit codes:
 					})),
 				];
 				const diverged = all.filter((c) => c.status !== "match");
+				const verdict = reportVerify({
+					target,
+					mode,
+					diverged: diverged.length > 0,
+				});
 				const report = {
-					status: diverged.length === 0 ? "clean" : "diverged",
+					...verdict,
+					status: verdict.status,
 					reference: origin,
 					signature_verified: signature.verified,
 					ranges_checked: all.length,
