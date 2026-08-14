@@ -21,7 +21,7 @@ Check your chain history against a signed canonical archive, repair what diverge
 ## Check your data
 
 ```bash
-secondlayer verify raw --against https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev/secondlayer/mainnet/canonical/v1/latest.json
+secondlayer verify raw --against https://archive.secondlayer.tools/latest.json
 ```
 
 Read-only. Digests stay on your machine. Default target is `raw`.
@@ -116,6 +116,10 @@ signature  verified
 ```
 
 Refuses a database that already holds blocks — use `secondlayer repair` for an existing instance. `--to-block <n>` stops early; `-y` skips the prompt.
+
+## Credits
+
+Bootstrap, backfill, and reindex fetch from the archive metered per unit; verification is free. Buy with `secondlayer credits buy` — packs and balance: [archive credits](/docs/authentication#archive-credits).
 
 ## What the archive is
 

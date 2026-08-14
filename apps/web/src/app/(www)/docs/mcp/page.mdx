@@ -12,34 +12,25 @@ The server ships as `@secondlayer/mcp` and speaks **stdio**. Add it to any MCP c
     "secondlayer": {
       "command": "npx",
       "args": ["-y", "@secondlayer/mcp"],
-      "env": { "SL_API_KEY": "sk-sl_..." }
+      "env": {
+        "SL_API_URL": "http://127.0.0.1:3800",
+        "INSTANCE_TOKEN": "..."
+      }
     }
   }
 }
 ```
 
-`SL_API_KEY` is optional; leave it out for anonymous reads (see [Authentication](#authentication)).
+`INSTANCE_TOKEN` is optional on loopback; a non-loopback bind requires it (see [Authentication](#authentication)).
 
 An HTTP transport (`@secondlayer/mcp-http`) adds session management and optional `SECONDLAYER_MCP_SECRET` bearer auth for hosting the server behind a URL.
-
-### Pay-per-call (x402)
-
-For accountless usage, set a Stacks key and the server auto-pays HTTP 402 challenges per call:
-
-```bash
-X402_PRIVATE_KEY=...          # signs x402 payments
-X402_TOPUP_USD=5.00           # optional: auto top-up the prepaid balance
-X402_TOPUP_WHEN_BELOW=$0.50   # optional: top-up threshold
-```
 
 ## Authentication
 
 | Surface | Reads | Writes |
 | --- | --- | --- |
-| Index | Anonymous or any key; see [Authentication](/docs/authentication) | — |
-| Contracts, Scaffold | Public, no key | — |
-| Subgraphs | Public subgraphs keyless; private need your key | Need your key |
-| Streams, Subscriptions, Account | Need your key | Need your key |
+| Index, Streams, Contracts, Scaffold | Open on loopback | — |
+| Subgraphs, Subscriptions | Open on loopback | `INSTANCE_TOKEN` |
 
 ## Start here
 
@@ -47,7 +38,7 @@ Read these **resources** before calling tools:
 
 | Resource | What it returns |
 | --- | --- |
-| `secondlayer://context` | Live snapshot: your subgraphs, subscriptions, account, chain tips, auth state, and what you can do. **Read first.** |
+| `secondlayer://context` | Live snapshot: your subgraphs, subscriptions, chain tips, auth state, and what you can do. **Read first.** |
 | `secondlayer://filters` | Event filter types and the fields each accepts |
 | `secondlayer://column-types` | Subgraph column types, SQL mappings, and options |
 | `secondlayer://traits` | SIP standards you can classify and scaffold against (sip-009/010/013) |
@@ -57,7 +48,7 @@ For Index specifically, call `index_discover` to learn every event type, its col
 
 ## Tools
 
-Thirty-three tools across six domains. Reads are cursor-paginated; writes that kick off work (reindex, backfill, replay, deploy) return an `operationId` to poll.
+Twenty-nine tools across five domains. Reads are cursor-paginated; writes that kick off work (reindex, backfill, replay, deploy) return an `operationId` to poll.
 
 ### Index — decoded reads
 
@@ -77,7 +68,7 @@ Thirty-three tools across six domains. Reads are cursor-paginated; writes that k
 
 | Tool | What it does |
 | --- | --- |
-| `subgraphs_deploy` | Deploy from `defineSubgraph()` source (managed or BYO Postgres; `dryRun` previews DDL) |
+| `subgraphs_deploy` | Deploy from `defineSubgraph()` source (instance Postgres or your own via database URL; `dryRun` previews DDL) |
 | `subgraphs_list` | List your deployed subgraphs |
 | `subgraphs_get` | Full detail: schema, health, table columns |
 | `subgraphs_query` | Query a table with operator filters (`amount.gte`, `name.like`, …) |
@@ -85,8 +76,6 @@ Thirty-three tools across six domains. Reads are cursor-paginated; writes that k
 | `subgraphs_backfill` | Non-destructive forward fill of a block range |
 | `subgraphs_reindex` | Drop + rebuild the whole subgraph, start block to chain tip (no range) |
 | `subgraphs_stop` | Cancel an in-flight reindex/backfill |
-| `subgraphs_publish` | Claim the global public name; anon-readable at `/v1/subgraphs/<name>` |
-| `subgraphs_unpublish` | Make it private again |
 | `subgraphs_delete` | Delete a subgraph and its data |
 
 ### Streams — raw firehose
@@ -115,16 +104,9 @@ Thirty-three tools across six domains. Reads are cursor-paginated; writes that k
 | `get_contract_abi` | Fetch a deployed contract's full ABI from the registry |
 | `scaffold_from_contract` | Generate a subgraph scaffold from a contract's ABI |
 
-### Account
-
-| Tool | What it does |
-| --- | --- |
-| `account_whoami` | The authenticated account's email and plan |
-| `account_create_key` | Mint a scoped streams/index read key (returned once) |
-
 ## Notes
 
-- **One-time secrets.** `account_create_key` and `subscriptions_create` return a key/secret exactly once: forward it to the user.
+- **One-time secrets.** `subscriptions_create` returns its signing secret exactly once: forward it to the user.
 - **Cursors are opaque** and per-keyspace: contract-call cursors are not interchangeable with event cursors.
 - **Tail without streaming.** For subgraph tables, sort `_id` desc for the latest, then poll forward with `{"_id.gt": "<last id>"}`, order asc.
 - See the [REST API](/docs/rest-api) for the underlying endpoints.
@@ -132,5 +114,5 @@ Thirty-three tools across six domains. Reads are cursor-paginated; writes that k
 export const metadata = {
 	title: "MCP — Secondlayer Docs",
 	description:
-		"The Secondlayer MCP server: stdio and HTTP transports, resources, and 33 tools for Index, Subgraphs, Streams, Subscriptions, contracts, and account.",
+		"The Secondlayer MCP server: stdio and HTTP transports, resources, and 29 tools for Index, Subgraphs, Streams, Subscriptions, and contracts.",
 };

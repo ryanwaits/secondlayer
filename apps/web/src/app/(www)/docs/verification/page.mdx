@@ -10,10 +10,10 @@ Prove a transaction is in a Stacks (Nakamoto) block, and that the cycle's signer
 ## Fetch a proof
 
 ```bash
-curl "https://api.secondlayer.tools/v1/index/transactions/0x<tx_id>/proof"
+curl "http://127.0.0.1:3800/v1/index/transactions/0x<tx_id>/proof"
 ```
 
-Open during beta, no key required. A `200` returns the raw transaction, raw header, merkle path, and — only when the reward set could be resolved — `consensus`:
+An open read on your instance. A `200` returns the raw transaction, raw header, merkle path, and — only when the reward set could be resolved — `consensus`:
 
 ```json
 {
@@ -52,7 +52,7 @@ Without `consensus` the proof is anchored-only.
 import { verifyTransactionProof } from "@secondlayer/sdk";
 
 const proof = await fetch(
-  `https://api.secondlayer.tools/v1/index/transactions/${txid}/proof`,
+  `http://127.0.0.1:3800/v1/index/transactions/${txid}/proof`,
 ).then((r) => r.json());
 
 const result = verifyTransactionProof(proof);

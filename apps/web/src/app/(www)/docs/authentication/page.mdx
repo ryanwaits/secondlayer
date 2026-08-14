@@ -1,12 +1,12 @@
-# Authentication
+# Instance token & archive credits
 
-Loopback reads need no key. Writes and bind-beyond-loopback use the instance token from `secondlayer init`. Archive restore and backfill are a separate card credit.
+Your instance has one token, not accounts. Loopback reads need no key; writes and bind-beyond-loopback use the `INSTANCE_TOKEN` from `secondlayer init`. Archive restore and backfill are a separate card credit.
 
 | Surface | Key | Behavior |
 | --- | --- | --- |
-| Index / Streams / public subgraphs on `127.0.0.1` | None | Local instance |
+| Index / Streams / subgraphs on `127.0.0.1` | None | Local instance, free and unlimited |
 | Writes (`subgraphs deploy`, subscriptions) | `INSTANCE_TOKEN` | From `secondlayer init` |
-| Official-archive bootstrap / R2 backfill | Card credits | [Buy](/#history) or `secondlayer credits buy` |
+| [Archive](/docs/archive) bootstrap / backfill | Card credits | `secondlayer credits buy` |
 
 ```bash
 # Local read — no key
@@ -17,17 +17,18 @@ curl http://127.0.0.1:3800/v1/streams/tip \
   -H "Authorization: Bearer $INSTANCE_TOKEN"
 ```
 
-The CLI and MCP read `SL_API_KEY` / `INSTANCE_TOKEN`. The SDK takes it explicitly: `new SecondLayer({ apiKey: process.env.INSTANCE_TOKEN })`. Default `baseUrl` is `http://127.0.0.1:3800`.
+The CLI and MCP read `INSTANCE_TOKEN` (`SL_API_KEY` is a legacy alias). The SDK takes it explicitly: `new SecondLayer({ apiKey: process.env.INSTANCE_TOKEN })`. Default `baseUrl` is `http://127.0.0.1:3800` (`SL_API_URL` overrides).
 
 ## Archive credits
 
-Large restore and backfill off our R2 is metered. Packs are $10, $25, $50, or $100. The prepaid balance is the hard cap.
+Bootstrap, backfill, and reindex from the [signed public archive](/docs/archive) are metered per unit; verification is free. Packs are $10, $25, $50, or $100. The prepaid balance is the hard cap.
 
 ```bash
 secondlayer credits buy --email you@example.com --pack 25
-SL_API_URL=https://api.secondlayer.tools secondlayer login
 secondlayer credits balance
 ```
+
+`credits buy` opens a one-time card checkout against [archive.secondlayer.tools](https://archive.secondlayer.tools) — no account, no login.
 
 Auto-refill is off until you set it: `secondlayer credits refill --below 5 --pack 25`.
 
@@ -38,5 +39,5 @@ A **signing secret** (`whsec_…`) is per-subscription and verifies an incoming 
 export const metadata = {
 	title: "Authentication — Secondlayer Docs",
 	description:
-		"Instance tokens from secondlayer init, keyless loopback reads, and archive credits for R2 restore.",
+		"Instance tokens from secondlayer init, keyless loopback reads, and archive credits for bootstrap and backfill.",
 };

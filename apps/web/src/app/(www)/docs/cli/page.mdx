@@ -29,7 +29,7 @@ secondlayer credits balance
 secondlayer credits refill --below 5 --pack 25
 ```
 
-[Verified archive](/docs/archive) owns `secondlayer verify` / `secondlayer repair`. [Self-host](/docs/self-host) is the compose loop.
+[Verified archive](/docs/archive) owns `secondlayer verify` / `secondlayer repair`. [Self-host](/docs/self-host) is the compose loop. `secondlayer credits *` meters archive bootstrap and backfill — [archive credits](/docs/authentication#archive-credits).
 
 <Callout type="note" title="Chain subscriptions">
 
@@ -52,6 +52,8 @@ secondlayer observer --mode indexer
 | `secondlayer init` | `--network` | `STACKS_NETWORK` or `mainnet` | `mainnet`, `testnet`, or `devnet` |
 | | `--api-url` | `http://127.0.0.1:3800` | Local API |
 | | `--force` | off | Overwrite generated values in `.env.local` |
+| `secondlayer start` | `--print` | off | Validate runtime config; `--print` emits the compose invocation only |
+| `secondlayer status` | `--json` | off | Local instance health from `/public/status` |
 | `secondlayer bootstrap` | `--against` | required | Manifest URL or file |
 | | `--to-block` | archive tip | Stop early |
 | | `--public-key` | resolved | Pin the signing key |
@@ -127,7 +129,6 @@ Named aliases per function (`TokenTransferArgs`) plus a `TypedAbi` const. Feed i
 These work but get no further investment.
 
 - `secondlayer subgraphs codegen --target prisma|drizzle|kysely` — BYO ORM schema. See [Subgraphs](/docs/subgraphs#use-your-own-database--orm).
-- `secondlayer subgraphs publish` / `unpublish` are hidden. Visibility is on [Subgraphs](/docs/subgraphs#visibility--publishing) and deploy `--visibility`.
 - `secondlayer local` — superseded by [`secondlayer devnet`](/docs/devnet). Hidden.
 
 

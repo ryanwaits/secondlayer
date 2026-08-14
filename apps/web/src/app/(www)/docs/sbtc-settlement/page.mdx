@@ -1,6 +1,6 @@
 # sBTC settlement
 
-Accepted isn't received. A `withdrawal-accept` event only means the signers *committed* to a Bitcoin sweep; Secondlayer verifies that `sweep_txid` against its own Bitcoin node and surfaces the result on the decoded sBTC feed.
+Accepted isn't received. A `withdrawal-accept` event only means the signers *committed* to a Bitcoin sweep; your instance verifies that `sweep_txid` against your bitcoind — the bundled full-node profile or an external `BITCOIN_RPC` — and surfaces the result on the decoded sBTC feed.
 
 Deposits need no such check — `completed-deposit` fires only after the signers see the BTC confirmations.
 
@@ -30,10 +30,10 @@ Every peg-out lifecycle carries a `settlement` object. `GET /v1/index/sbtc/withd
 
 ```bash
 # only peg-outs whose BTC sweep is confirmed
-curl "https://api.secondlayer.tools/v1/index/sbtc/withdrawals?settlement_confirmed=true"
+curl "http://127.0.0.1:3800/v1/index/sbtc/withdrawals?settlement_confirmed=true"
 
 # the complete "not done" bucket — not yet confirmed, or no sweep yet
-curl "https://api.secondlayer.tools/v1/index/sbtc/withdrawals?settlement_confirmed=false"
+curl "http://127.0.0.1:3800/v1/index/sbtc/withdrawals?settlement_confirmed=false"
 ```
 
 ## Mirror the peg into your own tables
@@ -103,7 +103,7 @@ See [Subscriptions](/docs/subscriptions) for delivery formats, signature verific
 
 <Callout type="info" title="What this proves — and what it doesn't">
 
-Settlement is verified against our own Bitcoin node, not a custody guarantee — a signer set still controls the pegged UTXO.
+Settlement is verified against your instance's bitcoind, not a custody guarantee — a signer set still controls the pegged UTXO.
 
 </Callout>
 

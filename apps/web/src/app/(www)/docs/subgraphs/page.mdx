@@ -160,7 +160,7 @@ the first answer forever, so it is opt-in and never inferred.
 </Callout>
 
 Self-hosting: set `STACKS_NODE_RPC_URL` on the subgraph processor — the node you
-already run, not a new service. See [self-host](/docs/self-host#configuration).
+already run, not a new service. See [self-host](/docs/self-host#config).
 
 ## Testing a handler before you deploy
 
@@ -231,17 +231,15 @@ Deploys return advisory `warnings` when a handler reads an `event.data` field ne
 
 ## Deploy
 
-First deploy backfills from `startBlock`; new blocks stream in after. Needs a paid plan or a 14-day trial — free accounts get `403 PLAN_REQUIRED`.
+First deploy backfills from `startBlock`; new blocks stream in after. History below your instance's bootstrap floor is a metered [archive backfill](/docs/authentication#archive-credits).
 
 ```bash
 secondlayer subgraphs deploy ./subgraph.config.ts
 ```
 
 ```text
-Read:      https://api.secondlayer.tools/v1/subgraphs/gamma-sales/sales
+Read:      http://127.0.0.1:3800/v1/subgraphs/gamma-sales/sales
 ```
-
-With the x402 rail on, `POST /v1/subgraphs` takes a payment instead of a key — wallet-owned, forward-only, expiring. See [x402](/docs/x402#deploy-a-subgraph).
 
 <Callout type="tip" title="Tip-first deploys">
 
@@ -260,28 +258,13 @@ Rows Indexed       4,874
 Table Rows         balances: 4874
 ```
 
-## Visibility & publishing
-
-- Managed deploys default **public** — anon-readable on `/v1`.
-- `--database-url` deploys default **private**.
-- Private reads need the owner's `sk-sl_` bearer; anon gets `404`, no existence leak.
-- Public names are one global namespace, claimed on publish; taken → `409 PUBLIC_NAME_TAKEN`.
-
-```bash
-secondlayer subgraphs deploy ./subgraph.config.ts --visibility private
-secondlayer subgraphs publish sbtc-flows     # make public
-secondlayer subgraphs unpublish sbtc-flows   # make private again
-```
-
-SDK: `sl.subgraphs.publish(name)` / `unpublish(name)`. MCP: `subgraphs_publish` / `subgraphs_unpublish`, plus `visibility` on `subgraphs_deploy`.
-
 ## Read your table
 
 Typed from the SDK, or REST at `/v1/subgraphs` with wildcard CORS. Pages are `_id`-keyset: `?cursor=<next_cursor>` resumes, `_order=asc|desc` sets direction. Sort by one column instead with `?_sort=<column>&_order=asc|desc` — the cursor pairs that column with `_id` as a tiebreaker, so pages stay stable even when values tie. Multi-column `_sort=a,b` and `jsonb` columns are rejected with `400`, and so is `_offset`. Full grammar: [REST API](/docs/rest-api).
 
 ```bash
 # top holders by amount, paginated
-curl https://api.secondlayer.tools/v1/subgraphs/asset-holdings/holdings \
+curl http://127.0.0.1:3800/v1/subgraphs/asset-holdings/holdings \
   -G -d "_limit=5" -d "_sort=amount" -d "_order=desc"
 ```
 
@@ -299,7 +282,7 @@ const { rows, next_cursor, tip } = await sl.subgraphs.rows(
 ```
 
 ```bash
-curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers \
+curl http://127.0.0.1:3800/v1/subgraphs/sbtc-flows/transfers \
   -G -d "_limit=10" -d "_order=desc"
 ```
 
@@ -319,7 +302,7 @@ curl https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers \
 }
 ```
 
-`GET /v1/subgraphs` lists public subgraphs (yours too with a bearer); `GET /v1/subgraphs/sbtc-flows` returns metadata. Row-by-id `/:table/:id`, counts `/:table/count`, rollups `/:table/aggregate` — see [aggregates](/docs/rest-api#aggregates) and the [API reference](/docs/api-reference).
+`GET /v1/subgraphs` lists your instance's subgraphs; `GET /v1/subgraphs/sbtc-flows` returns metadata. Row-by-id `/:table/:id`, counts `/:table/count`, rollups `/:table/aggregate` — see [aggregates](/docs/rest-api#aggregates) and the [API reference](/docs/api-reference).
 
 ## Index by standard, not by address
 
@@ -332,14 +315,14 @@ sources: {
 },
 ```
 
-Traits: `sip-009`, `sip-010`, `sip-013`. On paid plans a reindex backfills each contract from its deploy block; without a plan it clamps to the registered start. [Contract discovery](/docs/contracts) queries the set directly.
+Traits: `sip-009`, `sip-010`, `sip-013`. A reindex backfills each contract from its deploy block; history below your bootstrap floor is a metered [archive backfill](/docs/authentication#archive-credits). [Contract discovery](/docs/contracts) queries the set directly.
 
 ## Stream rows in real time
 
 Tail a table over Server-Sent Events from the tip, or `?since=<block_height>` to replay a height then tail live. Column filters work as query params.
 
 ```bash
-curl -N https://api.secondlayer.tools/v1/subgraphs/sbtc-flows/transfers/stream \
+curl -N http://127.0.0.1:3800/v1/subgraphs/sbtc-flows/transfers/stream \
   -G -d "since=8050000"
 ```
 
@@ -356,7 +339,7 @@ It uses the global `EventSource` — browser or **Node ≥ 22** only. Wire contr
 
 ## Use your own database + ORM
 
-`--database-url` lands rows in **your** Postgres, then codegen a typed ORM schema:
+Subgraphs run on your instance's bundled Postgres by default. `--database-url` lands rows in a **separate** Postgres you point at instead, then codegen a typed ORM schema:
 
 ```bash
 secondlayer subgraphs deploy ./subgraph.config.ts --database-url "$DATABASE_URL"
@@ -370,7 +353,7 @@ Generators: `--target prisma|drizzle|kysely`. Secondlayer owns the DDL — treat
 
 <Callout type="danger" title="Breaking changes never drop your data">
 
-A breaking change (removed table/column, changed column type, forced reindex) auto-reindexes managed subgraphs by dropping and rebuilding the schema. On a BYO database that drop would destroy your data, so the deploy is **refused** (`422`) — nothing on your database is touched.
+A breaking change (removed table/column, changed column type, forced reindex) auto-reindexes subgraphs on the bundled instance database by dropping and rebuilding the schema. On a `--database-url` database that drop would destroy data Secondlayer doesn't own, so the deploy is **refused** (`422`) — nothing on your database is touched.
 
 </Callout>
 

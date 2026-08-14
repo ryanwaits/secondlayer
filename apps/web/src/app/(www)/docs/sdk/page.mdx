@@ -24,7 +24,7 @@ const sl = new SecondLayer({
 - `sl.streams`: raw, ordered chain events (cursor-paginated, replayable).
 - `sl.index`: decoded rows: FT/NFT transfers, all event types, contract calls, and `printSchema(contractId)` (empirical per-topic [print payload schemas](/docs/index#print-schemas); resolves `null` when the contract has no print history).
 - `sl.contracts`: find deployed contracts by trait (SIP-009/010/013).
-- `sl.subgraphs`: your app-specific tables, plus open `/v1` reads (`rows`) and visibility (`publish`/`unpublish`).
+- `sl.subgraphs`: your app-specific tables, plus open `/v1` reads (`rows`).
 - `sl.subscriptions`: create and manage webhook subscriptions (subgraph rows or raw chain events).
 
 ```ts
@@ -59,7 +59,7 @@ Prove client-side that a transaction is in a Stacks (Nakamoto) block and that â‰
 import { verifyTransactionProof, fetchRewardSet } from "@secondlayer/sdk";
 
 const proof = await fetch(
-  `https://api.secondlayer.tools/v1/index/transactions/${txid}/proof`,
+  `http://127.0.0.1:3800/v1/index/transactions/${txid}/proof`,
 ).then((r) => r.json());
 
 const result = verifyTransactionProof(proof); // reward set embedded in the proof
@@ -99,7 +99,7 @@ await sl.index.contractCalls.consume({
 ```
 
 - **Reorgs** rewind the cursor to the fork point automatically; `onReorg` fires so you roll back committed rows from `fork_point_height` up.
-- **`fromHeight: 0`** backfills from genesis on your instance. Official-archive restore is [metered](/#history).
+- **`fromHeight: 0`** backfills from genesis on your instance. Official-archive restore is [metered](/docs/authentication#archive-credits).
 - **`finalizedOnly`** holds delivery to rows at or below `tip.finalized_height`.
 
 A [sink](/docs/sinks) removes the checkpoint, transaction, and rollback code
@@ -163,8 +163,7 @@ const { rows, next_cursor, tip } = await sl.subgraphs.rows("sbtc-flows", "transf
 });
 ```
 
-- `sl.subgraphs.rows(name, table, opts)` returns `{ rows, next_cursor, tip }` from the open `/v1` read. Anonymous works for public subgraphs; pass your key for private ones.
-- `sl.subgraphs.publish(name)` returns `{ name, visibility: "public", url }`, or throws `409 PUBLIC_NAME_TAKEN`. `sl.subgraphs.unpublish(name)` makes it private again.
+- `sl.subgraphs.rows(name, table, opts)` returns `{ rows, next_cursor, tip }` from the open `/v1` read. Keyless on loopback; pass `INSTANCE_TOKEN` on a non-loopback bind.
 - `sl.subgraphs.typed(def)` (or `getSubgraph(def, opts)`) turns a `defineSubgraph()` definition into typed table clients.
 - `subgraph.<table>.subscribe(onRow, { where?, since?, onError? })` streams new rows over SSE and returns an unsubscribe function; `since: <block_height>` replays from that height, then tails live. See [Subgraphs](/docs/subgraphs).
 

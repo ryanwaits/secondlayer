@@ -4,7 +4,7 @@ Raw chain event firehose: cursor-paginated, idempotent, replayable. Build an ind
 
 <Callout type="note" title="Auth">
 
-Streams reads need an API key (`Authorization: Bearer`), and free keys stop at the recent window — see [Authentication](/docs/authentication#pay-as-you-go-credits).
+Reads on your instance are free and unlimited; loopback needs no token, a non-loopback bind needs `INSTANCE_TOKEN`. Cold history beyond what your instance holds restores from the signed archive — [archive credits](/docs/authentication#archive-credits).
 
 </Callout>
 
@@ -65,8 +65,7 @@ Runnable end to end, dumps through live tail: the [`indexer-from-zero` example](
 ## Read it directly
 
 ```bash
-curl -H "Authorization: Bearer $SL_API_KEY" \
-  "https://api.secondlayer.tools/v1/streams/events?types=ft_transfer&limit=100"
+curl "http://127.0.0.1:3800/v1/streams/events?types=ft_transfer&limit=100"
 ```
 
 Pass the response's `next_cursor` back as `cursor`. Narrow with `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier`, `filters`, and `from_height`/`to_height` — exact-match, and event types without a given field don't match. Full grammar: [API reference](/docs/api-reference).
@@ -104,9 +103,8 @@ and keep the checkpoint.
 Over REST it's one JSON query param, and each event echoes the labels it hit:
 
 ```bash
-curl -H "Authorization: Bearer $SL_API_KEY" -G \
-  --data-urlencode 'filters={"peg":{"types":["ft_transfer"]}}' \
-  "https://api.secondlayer.tools/v1/streams/events"
+curl -G --data-urlencode 'filters={"peg":{"types":["ft_transfer"]}}' \
+  "http://127.0.0.1:3800/v1/streams/events"
 ```
 
 ```json
@@ -120,8 +118,7 @@ Deliveries are idempotent, so retries never double-count. Fully-finalized pages 
 ## Real-time firehose (SSE)
 
 ```bash
-curl -N -H "Authorization: Bearer $SL_API_KEY" \
-  "https://api.secondlayer.tools/v1/streams/events/stream?types=ft_transfer"
+curl -N "http://127.0.0.1:3800/v1/streams/events/stream?types=ft_transfer"
 ```
 
 `GET /v1/streams/events/stream` takes the same filters as `/events`, a start position via `cursor` (or `from_cursor`) or `from_height`, and a `ping` keepalive every 20s. With none it live-tails from the reorg-clamped tip. Wire contract: [REST API](/docs/rest-api#streaming-sse).
@@ -132,7 +129,7 @@ The server polls roughly every 1.5s from a tip held a couple of blocks back for 
 
 </Callout>
 
-`client.events.subscribe(...)` carries your Bearer key, auto-reconnects from the last delivered cursor, and verifies per-frame signatures — see the [SDK](/docs/sdk#subscribe-to-the-live-stream-sse). Fan out to your backend instead with [Subscriptions](/docs/subscriptions).
+`client.events.subscribe(...)` auto-reconnects from the last delivered cursor and verifies per-frame signatures — see the [SDK](/docs/sdk#subscribe-to-the-live-stream-sse). Fan out to your backend instead with [Subscriptions](/docs/subscriptions).
 
 ### Per-frame signatures
 

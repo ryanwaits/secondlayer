@@ -2,9 +2,9 @@
 
 Decoded Stacks data, kept indexed. No decoders to write, no node to run — you write the loop and own the tables.
 
-<Callout type="note" title="Keys and history">
+<Callout type="note" title="History">
 
-Reads need no key. Free and anonymous reads cover the recent 24-hour window; a `from_height`/`cursor` below it returns `402 UPGRADE_REQUIRED` ([Authentication](/docs/authentication#pay-as-you-go-credits)). `from_height=0` reaches full history.
+Reads on your instance are free and unlimited. `from_height=0` reaches whatever history your instance holds; restoring more from the signed archive is metered ([archive credits](/docs/authentication#archive-credits)).
 
 </Callout>
 
@@ -138,7 +138,7 @@ for (const block of canonical) {
 Clarity ABIs don't describe `print` payloads, and the shape varies **per topic** within one contract.
 
 ```bash
-curl "https://api.secondlayer.tools/v1/index/contracts/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry/print-schema"
+curl "http://127.0.0.1:3800/v1/index/contracts/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry/print-schema"
 ```
 
 ```json
@@ -169,16 +169,16 @@ Sampled from indexed prints, raw Clarity hex deserialized for exact types, unifi
 
 - Optional fields report an `optional_some_rate`.
 - Payloads with no `topic` string, or that aren't tuples, land under the `"*"` pseudo-topic with `non_tuple` set.
-- Anonymous, unmetered, cached five minutes (`max-age=300` + weak `ETag`).
+- Cached five minutes (`max-age=300` + weak `ETag`).
 
 Backs `secondlayer subgraphs create <name> --from-contract <contract_id>` — see [Subgraphs](/docs/subgraphs#typed-print-payloads).
 
 ## Read it directly
 
-No install, no key:
+Straight off your instance:
 
 ```bash
-curl "https://api.secondlayer.tools/v1/index/events?event_type=stx_transfer&limit=20"
+curl "http://127.0.0.1:3800/v1/index/events?event_type=stx_transfer&limit=20"
 ```
 
 | Endpoint | Returns | Filters beyond the common set |
@@ -193,7 +193,6 @@ On both feeds `contract_id` also takes a comma-separated set (`?contract_id=SP1.
 | `/v1/index/stacking` | Decoded PoX-4 stacking actions (stack-stx, delegate-stx, …) (historical — era ended at Epoch 4.0; live: `/v1/index/pox5/events`) | `function_name`, `stacker`, `caller` |
 | `/v1/index/pox5/events` | Decoded PoX-5 print events, all 19 topics ([PoX-5](/docs/pox5)) | `topic`, `staker`, `signer`, `signer_manager`, `bond_index`, `reward_cycle` |
 | `/v1/index/mempool` · `/{tx_id}` | Pending transactions — no `block_height`/`result`, plus `received_at`; `404`s once mined, never cached | `sender`, `type`, `contract_id`, `function_name` |
-| `/v1/index/usage` | Your own consumption and tier limits | — |
 
 `tx_context=true` joins the submitting transaction into every event — `tx_sender`, `tx_type`, `tx_status`, `tx_contract_id`, `tx_function_name` — collapsing an N+1 walk into one pass. For `print` events, `tx_sender` is the only place the sender lives.
 
@@ -206,7 +205,6 @@ Built on [Streams](/docs/streams): our decoder reads the same raw firehose you c
 ```bash
 secondlayer index transactions get 0x<tx_id>
 secondlayer index mempool --contract-id SP….token
-secondlayer index usage
 ```
 
 MCP exposes the same families as tools: `index_events`, `index_transactions`, `index_stacking`, `index_mempool`, `index_blocks`, and the rest.

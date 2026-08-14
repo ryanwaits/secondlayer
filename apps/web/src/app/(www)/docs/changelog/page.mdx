@@ -46,8 +46,6 @@ secondlayer observer
 ```
 
 No login. No project. `secondlayer instance` is gone — those three verbs are top-level.
-Hosted account commands still work if you know them; they no longer appear in
-`--help`.
 
 ### Mint mock sBTC on your devnet
 
@@ -211,7 +209,7 @@ busy contract used to mean pulling every pending call to it and filtering
 client-side; now you ask for the one you care about:
 
 ```bash
-curl https://api.secondlayer.tools/v1/index/mempool \
+curl http://127.0.0.1:3800/v1/index/mempool \
   -G -d "contract_id=SP….my-dao" -d "function_name=execute-proposal"
 ```
 
@@ -335,7 +333,7 @@ of dialect. The contract's 13 invariants are documented on the interface and
 mechanically probed by a conformance kit at `@secondlayer/sdk/sinks/testing`
 — torn batches, cursor replay, inclusive `>=` rollback, lock contention —
 the same kit every shipped sink passes in CI.
-[Write your own sink](/docs/custom-sinks).
+[Write your own sink](/docs/sinks#write-your-own).
 
 Append-only stores (ClickHouse, parquet) declare
 `capabilities: { finalizedOnly: true }`: the consume loop refuses to follow

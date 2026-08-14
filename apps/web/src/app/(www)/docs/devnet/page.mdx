@@ -55,10 +55,10 @@ clarinet devnet start
 
 ## Deploy a subgraph against it
 
-Point the CLI at the local API — no login, no API key, the local stack accepts a dummy key:
+Point the CLI at the local API — no login, no token on loopback:
 
 ```bash
-SL_API_URL=http://localhost:3800 SL_API_KEY=dummy secondlayer subgraphs deploy ./subgraph.ts
+SL_API_URL=http://localhost:3800 secondlayer subgraphs deploy ./subgraph.ts
 ```
 
 Fire a contract call in your devnet and the matching rows land in your subgraph's tables.
