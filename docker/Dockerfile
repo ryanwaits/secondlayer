@@ -183,7 +183,10 @@ COPY --from=builder /app/packages/platform ./packages/platform
 COPY --from=builder /app/package.json ./
 
 ENV NODE_ENV=production
-ENV PORT=3800
+# No generic PORT here: the one-box supervisor runs three planes in one
+# environ, and each must fall back to its own namespaced port
+# (API_PORT 3800 / INDEXER_PORT 3700 / decoder 3710). A shared PORT makes
+# whichever plane starts first squat the API's bind.
 ENV INSTANCE_MODE=oss
 ENV NODE_MODE=external
 

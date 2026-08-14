@@ -59,7 +59,11 @@ import type {
 	NewMempoolTxPayload,
 } from "./types/node-events.ts";
 
-const PORT = Number.parseInt(process.env.PORT || "3700");
+// INDEXER_PORT first: in the one-box runtime both planes share one environ,
+// so a generic PORT (set by the image for the API) must not move this bind.
+const PORT = Number.parseInt(
+	process.env.INDEXER_PORT || process.env.PORT || "3700",
+);
 const OBSERVER_JOURNAL_ENABLED =
 	process.env.OBSERVER_JOURNAL_ENABLED !== "false";
 const NETWORK = process.env.STACKS_NETWORK || "mainnet";

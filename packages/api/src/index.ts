@@ -43,8 +43,11 @@ if (
 
 const app = createApiApp(mode);
 
-// Start server
-const PORT = Number.parseInt(process.env.PORT || "3800");
+// Start server. API_PORT first: in the one-box runtime both planes share one
+// environ, so a generic PORT would collide with the indexer's bind.
+const PORT = Number.parseInt(
+	process.env.API_PORT || process.env.PORT || "3800",
+);
 const listenHost = mode === "oss" ? resolveListenHost() : "0.0.0.0";
 if (mode === "oss") {
 	try {

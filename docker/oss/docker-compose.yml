@@ -43,7 +43,6 @@ services:
       DATA_DIR: /data
       API_PORT: "3800"
       INDEXER_PORT: "3700"
-      PORT: 3800
       LISTEN_HOST: "0.0.0.0"
       INSTANCE_TOKEN: ${INSTANCE_TOKEN:-}
       SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY:-}
@@ -92,7 +91,9 @@ services:
       - "${CONSOLE_PORT:-3801}:3801"
     depends_on:
       secondlayer:
-        condition: service_healthy
+        # started, not healthy: the console is the tool you reach for when
+        # the instance is sick — it must come up while the runtime is red.
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3801/console"]
       interval: 30s
