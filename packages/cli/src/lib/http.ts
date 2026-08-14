@@ -95,7 +95,7 @@ export async function httpPlatform<T>(
 			"SESSION_EXPIRED",
 			{ error: "Not logged in" },
 			isOssMode()
-				? "Not authenticated — set SL_API_KEY from `sl instance init`"
+				? "Not authenticated — set SL_API_KEY from `sl init`"
 				: "Not logged in — run `sl login`",
 		);
 	}

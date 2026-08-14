@@ -52,7 +52,7 @@ export function handleApiError(err: unknown, action: string): never {
 	) {
 		printError("Authentication required.", {
 			hint: isOssMode()
-				? "Set SL_API_KEY / INSTANCE_TOKEN from `sl instance init`."
+				? "Set SL_API_KEY / INSTANCE_TOKEN from `sl init`."
 				: "Run `sl login` to re-authenticate.",
 		});
 		process.exit(1);

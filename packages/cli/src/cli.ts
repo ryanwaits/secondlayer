@@ -10,11 +10,12 @@ import {
 	registerDevnetCommand,
 	registerDoctorCommand,
 	registerIndexCommand,
-	registerInstanceCommand,
+	registerInitCommand,
 	registerKeysCommand,
 	registerLocalCommand,
 	registerLoginCommand,
 	registerLogoutCommand,
+	registerObserverCommand,
 	registerProjectCommand,
 	registerRepairCommand,
 	registerStatusCommand,
@@ -51,8 +52,8 @@ program.addHelpText(
 	"after",
 	`
 Quickstart:
-  $ sl instance init --network mainnet
-  $ sl instance bootstrap --against <manifest>
+  $ sl init --network mainnet
+  $ sl bootstrap --against <manifest>
   $ sl subgraphs create my-watcher --template sip-010-balances
   $ sl subgraphs deploy subgraphs/my-watcher.ts
 `,
@@ -60,14 +61,9 @@ Quickstart:
 
 // Getting started
 program.commandsGroup("Getting started:");
-registerInstanceCommand(program);
-program
-	.command("init")
-	.description("Initialize a new secondlayer.config.ts file")
-	.action(async () => {
-		const { init } = await import("./commands/init");
-		await init();
-	});
+registerInitCommand(program);
+registerBootstrapCommand(program);
+registerObserverCommand(program);
 registerLoginCommand(program);
 registerLogoutCommand(program);
 registerWhoamiCommand(program);
@@ -136,7 +132,6 @@ registerStatusCommand(program);
 registerDoctorCommand(program);
 registerConfigCommand(program);
 registerContextCommand(program);
-registerBootstrapCommand(program);
 registerVerifyCommand(program);
 registerRepairCommand(program);
 

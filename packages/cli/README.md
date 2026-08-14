@@ -141,7 +141,9 @@ deliveries/...) operates on both kinds.
 |---|---|
 | `sl contracts generate [files...]` (alias `gen`) | Generate TS interfaces from Clarity contracts |
 | `sl context` | Print a headless orientation snapshot — account, Streams + Index tips, your subgraphs, subscriptions, and in-flight reindex operations. CLI counterpart to the MCP `secondlayer://context` resource |
-| `sl init` | Scaffold `secondlayer.config.ts` |
+| `sl init` | Write `.env.local` (token, secrets key, webhook signing key) |
+| `sl bootstrap` | Restore chain history from a verified archive |
+| `sl observer` | Print the Stacks `events_observer` stanza |
 | `sl doctor` / `sl status` | Reachability + health checks |
 | `sl account get` / `sl account update` | Show or update display name / bio / slug |
 | `sl account billing` | Show plan, subscription, trial, discounts |
@@ -173,7 +175,7 @@ sl contracts generate --watch   # regenerate on .clar / config / Clarinet.toml c
 Config-driven:
 
 ```bash
-sl init                # creates secondlayer.config.ts
+# write a secondlayer.config.ts, then:
 sl contracts generate  # regenerates from the config
 ```
 

@@ -35,8 +35,8 @@ There's no light mode that fetches from Hiro's REST API; it's too slow to index 
 git clone https://github.com/ryanwaits/secondlayer.git
 cd secondlayer/docker/oss
 
-cp .env.example .env
-# Edit .env — set POSTGRES_PASSWORD and INSTANCE_TOKEN (`openssl rand -hex 32`).
+sl init --network mainnet
+# Copy .env.local values into .env (INSTANCE_TOKEN, SECONDLAYER_SECRETS_KEY, STREAMS_SIGNING_PRIVATE_KEY).
 
 docker compose up -d postgres migrate api indexer subgraph-processor
 ```

@@ -1,6 +1,6 @@
 # CLI
 
-The `sl` command-line tool: authenticate once, manage subgraphs and subscriptions from your terminal.
+The `sl` command-line tool: init a local runtime, bootstrap history, deploy subgraphs, attach webhooks.
 
 ## Install
 
@@ -11,7 +11,9 @@ bun add -g @secondlayer/cli
 ## Common commands
 
 ```bash
-sl login                 # authenticate (opens the browser)
+sl init                  # write .env.local (token, secrets, signing key)
+sl bootstrap             # restore history instead of syncing from genesis
+sl observer              # print the Stacks events_observer stanza
 sl subgraphs create      # scaffold a subgraph
                          #   --from-contract <id> infers typed print payloads (no login needed)
 sl subgraphs deploy      # deploy a subgraph from a config
@@ -23,7 +25,6 @@ sl subscriptions create  # wire a webhook to a subgraph table
 sl context               # headless orientation snapshot
 sl verify                # check your chain data against a signed archive
 sl repair                # replace ranges that diverge from the archive
-sl bootstrap             # restore history instead of syncing from genesis
 ```
 
 [Verified archive](/docs/archive) covers the last three.
@@ -84,7 +85,7 @@ sl contracts generate --watch    # regenerate on .clar / config / Clarinet.toml 
 ```
 
 Deployed contract ids fetch the real ABI from the network (address prefix picks
-mainnet vs testnet). Config-driven projects scaffold with `sl init` and
+mainnet vs testnet). Config-driven projects use a `secondlayer.config.ts` and
 regenerate with plain `sl contracts generate`:
 
 ```ts

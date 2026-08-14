@@ -29,7 +29,7 @@ clarinet project.
 ## Quick start (app services only)
 
 ```bash
-sl instance init --network mainnet
+sl init --network mainnet
 # Copy the generated .env.local values into docker/oss/.env
 # (INSTANCE_TOKEN, SECONDLAYER_SECRETS_KEY, STREAMS_SIGNING_PRIVATE_KEY).
 
@@ -45,8 +45,8 @@ across both `api` and `subscription-processor`, set a shared
 `SECONDLAYER_SECRETS_KEY` in `.env` (see `.env.example`). Omit both services for
 raw-events-only indexing.
 
-Writes stay tokened. `sl instance init` sets `SL_API_KEY` to the instance
-token. Loopback reads stay open.
+Writes stay tokened. `sl init` sets `SL_API_KEY` to the instance token.
+Loopback reads stay open.
 
 ```bash
 export SL_API_URL=http://127.0.0.1:3800

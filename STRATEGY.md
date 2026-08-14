@@ -78,7 +78,7 @@ instance? Subgraphs. Raw inputs? Streams.*
 
 ## The golden path
 
-`docker compose up` → `sl instance bootstrap` from the official archive →
+`docker compose up` → `sl bootstrap` from the official archive →
 `sl subgraphs create` → deploy → curl your table on localhost → attach a
 webhook. Forward-only from your own node is free and skips bootstrap.
 

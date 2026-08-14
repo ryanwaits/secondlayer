@@ -456,7 +456,7 @@ Exit codes:
 export function registerBootstrapCommand(program: Command): void {
 	attachBootstrapCommand(
 		program
-			.command("bootstrap", { hidden: true })
+			.command("bootstrap")
 			.description(
 				"Restore chain history from a verified archive instead of syncing from genesis",
 			),
