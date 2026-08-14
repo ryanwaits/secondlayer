@@ -1,78 +1,42 @@
 # Authentication
 
-Reads are public during the open beta. API keys gate writes and scope which surfaces a key can read.
+Loopback reads need no key. Writes and bind-beyond-loopback use the instance token from `sl init`. Archive restore and backfill are a separate card credit.
 
-| Surface | Key needed | Behavior |
+| Surface | Key | Behavior |
 | --- | --- | --- |
-| Index reads (`/v1/index/*`) | None | Anonymous-readable; contracts fully open |
-| Public subgraphs (`/v1/subgraphs`) | None | Managed deploys default public, anon-readable |
-| Private / BYO subgraphs (`/v1/subgraphs`) | Owner's `sk-sl_` key | Anon requests `404` |
-| Dashboard (`/api/subgraphs`) | Session or key | Always requires auth |
-| Streams firehose + all writes | Key | Deploy / publish / subscriptions all keyed |
-
-Free and anonymous reads cover the recent 24-hour window; older history needs [pay-as-you-go credits](#pay-as-you-go-credits) or a plan, and a read below the window returns `402 UPGRADE_REQUIRED`.
-
-<Callout type="note" title="Pay per call instead">
-
-Keyless reads and `POST /v1/subgraphs` also accept an [x402 payment](/docs/x402) — no account at all.
-
-</Callout>
+| Index / Streams / public subgraphs on `127.0.0.1` | None | Local instance |
+| Writes (`subgraphs deploy`, subscriptions) | `INSTANCE_TOKEN` | From `sl init` |
+| Official-archive bootstrap / R2 backfill | Card credits | [Buy](/#history) or `sl credits buy` |
 
 ```bash
-# Public read — no key
-curl https://api.secondlayer.tools/v1/index/events?limit=5
+# Local read — no key
+curl http://127.0.0.1:3800/v1/index/events?limit=5
 
-# Keyed request — bearer token
-curl https://api.secondlayer.tools/v1/streams/tip \
-  -H "Authorization: Bearer $SL_API_KEY"
+# Write — instance token
+curl http://127.0.0.1:3800/v1/streams/tip \
+  -H "Authorization: Bearer $INSTANCE_TOKEN"
 ```
 
-## API keys
+The CLI and MCP read `SL_API_KEY` / `INSTANCE_TOKEN`. The SDK takes it explicitly: `new SecondLayer({ apiKey: process.env.INSTANCE_TOKEN })`. Default `baseUrl` is `http://127.0.0.1:3800`.
 
-A key looks like `sk-sl_…`. The CLI and MCP server read `SL_API_KEY` automatically; the SDK takes it explicitly: `new SecondLayer({ apiKey: process.env.SL_API_KEY })`.
+## Archive credits
 
-| Product | Reads | Can mint new keys? | Tier | Use it as |
-| --- | --- | --- | --- | --- |
-| `account` | Streams **and** Index | Yes | your account plan | your **owner** key |
-| `streams` | Streams only | No (`403`) | inherits your plan | a scoped key |
-| `index` | Index only | No (`403`) | inherits your plan | a scoped key |
-
-Tiers (`free` · `build` · `scale` · `enterprise`) set rate limit and, for Streams, history retention. Free reads Index and Streams at 10 req/s, never slower than anonymous.
-
-Keep keys server-side. Local instance keys come from `sl init`.
-
-## Creating a key
-
-Console keys default to `account`. Mint a **scoped** key for agents and CI with an `account` key — minted keys are never `account`, never a higher tier than your plan.
+Large restore and backfill off our R2 is metered. Packs are $10, $25, $50, or $100. The prepaid balance is the hard cap.
 
 ```bash
-curl -X POST https://api.secondlayer.tools/v1/api-keys \
-  -H "Authorization: Bearer $OWNER_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{ "product": "streams", "name": "ci" }'
-# → 201 { "key": "sk-sl_…", "product": "streams", "tier": null, ... }
+sl credits buy --email you@example.com --pack 25
+SL_API_URL=https://api.secondlayer.tools sl login
+sl credits balance
 ```
 
-The plaintext `key` is returned **once**. Same mint elsewhere: `sl.apiKeys.create({ product })` (SDK), `sl keys create --product streams` (CLI), `account_create_key` (MCP).
-
-### No account yet?
-
-Self-host reads need no key. Large restore and backfill off our R2 is metered — buy credits on the [landing](/#history) or `sl credits buy --email you@example.com --pack 25`.
-
-## Pay-as-you-go credits
-
-Top up prepaid credits with a card — packs of $10, $25, $50, or $100. A positive balance pays for official-archive bootstrap and R2 backfill. The balance is the hard cap.
-
-## Session tokens
-
-`sl login` issues a **session token** (`ss-sl_…`) instead of a long-lived key; the server extends its expiry on each use. One session is shared by the SDK, CLI, and MCP server. Prefer it for interactive CLI use; reserve `sk-sl_` keys for servers and agents.
+Auto-refill is off until you set it: `sl credits refill --below 5 --pack 25`.
 
 ## Webhook signing secrets
 
-A **signing secret** (`whsec_…`) is per-subscription and verifies an incoming webhook came from Secondlayer (`verifyWebhookSignature`) — see [Subscriptions](/docs/subscriptions). Never in `Authorization`. Rotate with `sl subscriptions rotate-secret`.
+A **signing secret** (`whsec_…`) is per-subscription and verifies an incoming webhook came from your instance (`verifyWebhookSignature`) — see [Subscriptions](/docs/subscriptions). Never in `Authorization`. Rotate with `sl subscriptions rotate-secret`.
 
 export const metadata = {
 	title: "Authentication — Secondlayer Docs",
 	description:
-		"API keys, key products (account vs scoped streams/index), tiers, session tokens, and webhook signing secrets.",
+		"Instance tokens from sl init, keyless loopback reads, and archive credits for R2 restore.",
 };

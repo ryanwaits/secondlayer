@@ -1,18 +1,18 @@
 import { SurfaceCards } from "./surface-cards";
 import { QuickstartPanel } from "./quickstart-panel";
 
-# Your indexer, on our decoders
+# Your indexer, on your machine
 
-We run the chain indexer and the decoder. You write the loop, own the database, and deploy it wherever your code already runs.
+Run the runtime beside your node. Query decoded data. Deploy TypeScript subgraphs.
 
 ## What are you building?
 
 | You want | Use | What you write | Where it runs |
 | --- | --- | --- | --- |
-| Your app's own index | **Index** | A `consume()` loop: `onBatch` writes rows, `onReorg` rolls them back. `sl index codegen` emits the mirror schema so your tables can't drift. | Your process, your database — [deploy it](/docs/deploy) to Railway, Fly, or a box you own. |
-| Your own tables with zero ops | **Subgraphs** | One TypeScript file — sources, schema, handlers. | We run the loop: hosted Postgres, public reads, backfill and reorgs included. |
+| Your app's own index | **Index** | A `consume()` loop: `onBatch` writes rows, `onReorg` rolls them back. `sl index codegen` emits the mirror schema so your tables can't drift. | Your instance — [self-host](/docs/self-host). |
+| Your own tables | **Subgraphs** | One TypeScript file — sources, schema, handlers. | Your instance. Postgres you operate. |
 | To build from the raw inputs | **Streams** | A consumer over the signed raw firehose: bulk dumps, replay, automatic reorg rewind. | Your process. This is what Index itself is built on. |
-| An answer right now, no install | **Index** | Nothing — one keyless request returns decoded JSON with a resume cursor, the chain tip, and overlapping `reorgs[]`. | Your terminal. See the [API reference](/docs/api-reference). |
+| An answer from a running box | **Index** | Nothing — one request returns decoded JSON with a resume cursor, the chain tip, and overlapping `reorgs[]`. | `http://127.0.0.1:3800`. See the [API reference](/docs/api-reference). |
 
 ## Pick your surface
 
@@ -25,5 +25,5 @@ We run the chain indexer and the decoder. You write the loop, own the database, 
 export const metadata = {
 	title: "Docs — Secondlayer",
 	description:
-		"You write the loop, we hand you decoded Stacks events with cursors and reorgs already handled — and you deploy it wherever your code already runs.",
+		"Self-hosted Stacks data: run it beside your node, query decoded rows, deploy TypeScript subgraphs.",
 };

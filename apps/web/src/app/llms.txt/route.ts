@@ -1,53 +1,27 @@
-const LLMS_TXT = `# Secondlayer — the hosted indexer for Stacks
+const LLMS_TXT = `# Secondlayer — self-hosted Stacks data
 
-> Everything is indexing: raw chain events (Streams), decoded rows you can
-> query or build your own app index on (Index), your own hosted indexed views
-> (Subgraphs), and webhooks (Subscriptions). Streams powers Index — our decoder
-> is itself a Streams consumer.
-> One REST surface at https://api.secondlayer.tools. Public reads need no key.
+> Postgres plus one container beside your node. Three surfaces on that
+> instance: raw signed firehose (Streams), decoded rows (Index), your schema
+> (Subgraphs). The signed archive is public to check. Large restore and
+> backfill off our R2 is metered.
 
 ## Start here
-- OpenAPI: https://api.secondlayer.tools/v1/openapi.json
-- Public subgraph directory (no key): https://api.secondlayer.tools/v1/subgraphs
-- Per-subgraph agent docs: https://api.secondlayer.tools/v1/subgraphs/{name}/docs.md
-- MCP server: npx -y @secondlayer/mcp  (reads need zero setup; call the
-  "capabilities" resource for the current tool list)
-- Self-host: bun add -g @secondlayer/cli && sl init --network mainnet
-
-## Pay per call (x402 — experimental beta, for agents without accounts)
-- Capability advertisement: https://api.secondlayer.tools/v1/x402/supported
-- Paid reads: /v1/index/* and /v1/streams/* (x402 v2, network stacks:1,
-  sponsored transfers — you hold sBTC/STX/USDCx, never gas; $0.001/call floor).
-  Index: first 1,000 reads/day/IP free before any 402. Streams: one payment
-  opens a session (PAYMENT-SESSION voucher, up to 500 calls / 1h).
-- Paid writes: POST /v1/subgraphs ($2) deploys a subgraph owned by the paying
-  wallet (live indexing from deploy, 7-day TTL); POST /v1/subgraphs/{name}/renew
-  ($0.50) extends it a week. Claiming the account clears the expiry.
-- Prepaid credit: POST /v1/x402/deposit?usd=N (min $0.25, max $100/deposit)
-  loads a tab with one on-chain payment and returns a PAYMENT-BALANCE token;
-  calls carrying it debit the tab (X-BALANCE-REMAINING-USD on responses).
-  GET /v1/x402/balance reads the tab.
-- SDK: withX402(fetch, { account, balanceToken?, topUp? }) auto-pays 402s,
-  replays session vouchers, spends the prepaid tab, and can top itself up
-  autonomously (topUp: { usd, whenBelow }).
+- Install: bun add -g @secondlayer/cli && sl init --network mainnet
+- Local API: http://127.0.0.1:3800  (SDK/CLI default)
+- OpenAPI on your instance: http://127.0.0.1:3800/v1/openapi.json
+- Docs: https://secondlayer.tools/docs
+- Archive credits: sl credits buy --email you@example.com --pack 25
 
 ## Auth model
-- Anonymous: rate-limited public reads (Index, public Subgraphs).
-- sk-sl_ API key: instance writes and scoped reads. Local keys come from
-  sl init. Archive restore/backfill is metered via card credits.
-- Tip-first deploys: pass backfillMode "concurrent" (CLI --tip-first) and a
-  subgraph serves live rows in seconds while history backfills behind it
-  (order-tolerant handlers only). Status reports queue position + event-based
-  progress + ETA while syncing.
-- Wallet continuity: a claimed account can link its paying wallet
-  (POST /api/wallet/link, signed message) — x402 spend history attaches and
-  any wallet-owned subgraphs become permanent.
+- Loopback reads: no key.
+- Writes and bind-beyond-loopback: INSTANCE_TOKEN from sl init (or SL_API_KEY).
+- Archive restore/backfill: card credits on https://api.secondlayer.tools
+  (sl credits buy / balance). Auto-refill is off until you set it.
 
 ## Batch
 - POST /v1/batch — up to 10 public /v1 reads in one round trip
   ({"requests":[{"path":"/v1/index/events","params":{...}}, ...]}); results
-  return in order with per-item status. Credentials (API key, PAYMENT-BALANCE,
-  PAYMENT-SESSION) forward to every item.
+  return in order with per-item status.
 
 ## Docs
 - https://secondlayer.tools/docs (append ?mode=agent for the agent view —

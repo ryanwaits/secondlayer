@@ -99,7 +99,7 @@ await sl.index.contractCalls.consume({
 ```
 
 - **Reorgs** rewind the cursor to the fork point automatically; `onReorg` fires so you roll back committed rows from `fork_point_height` up.
-- **`fromHeight: 0`** backfills from genesis (hosted: paid plan or pay-as-you-go credits; free/keyless reads cover the last 24h).
+- **`fromHeight: 0`** backfills from genesis on your instance. Official-archive restore is [metered](/#history).
 - **`finalizedOnly`** holds delivery to rows at or below `tip.finalized_height`.
 
 A [sink](/docs/sinks) removes the checkpoint, transaction, and rollback code
