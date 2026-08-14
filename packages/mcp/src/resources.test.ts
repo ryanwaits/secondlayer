@@ -231,9 +231,6 @@ describe("filters ↔ subgraphs SubgraphFilter validator", () => {
 // channel exposing golden-path tools only; the periphery lives behind REST /v1
 // + OpenAPI). Adding or removing a tool must update this list deliberately.
 const GOLDEN_PATH_TOOLS = [
-	// account
-	"account_create_key",
-	"account_whoami",
 	// index reads
 	"batch_query",
 	"codegen_index_schema",

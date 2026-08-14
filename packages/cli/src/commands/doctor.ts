@@ -1,8 +1,7 @@
 import type { Command } from "commander";
-import { getAccountProfile } from "../lib/api-client.ts";
 import { getDataDir, loadConfig } from "../lib/config.ts";
 import { checkHealth } from "../lib/health.ts";
-import { CliHttpError, httpPlatform } from "../lib/http.ts";
+import { httpPlatformAnon } from "../lib/http.ts";
 import { type Network, getChainIdHex } from "../lib/network.ts";
 import {
 	blue,
@@ -14,6 +13,7 @@ import {
 	warn,
 	yellow,
 } from "../lib/output.ts";
+import { resolveApiUrl } from "../lib/resolve-auth.ts";
 
 export function registerDoctorCommand(program: Command): void {
 	program
@@ -24,54 +24,29 @@ export function registerDoctorCommand(program: Command): void {
 			const config = await loadConfig();
 			if (config.network === "local") {
 				await runLocalDoctor(options.json);
-			} else {
-				await runHostedDoctor(options.json);
+				return;
 			}
+			await runInstanceDoctor(options.json);
 		});
 }
 
-async function runHostedDoctor(jsonOutput?: boolean): Promise<void> {
+async function runInstanceDoctor(jsonOutput?: boolean): Promise<void> {
 	const config = await loadConfig();
-	const apiUrl =
-		process.env.SL_PLATFORM_API_URL ??
-		process.env.SL_API_URL ??
-		"http://127.0.0.1:3800";
+	const apiUrl = resolveApiUrl();
 	const issues: string[] = [];
 
 	const results: Record<string, unknown> = { network: config.network, apiUrl };
 
-	// Platform health — session-scoped.
 	let apiHealthy = false;
 	let statusData: Record<string, unknown> | null = null;
 	try {
-		statusData = await httpPlatform<Record<string, unknown>>("/status");
+		statusData =
+			await httpPlatformAnon<Record<string, unknown>>("/public/status");
 		apiHealthy = true;
-	} catch (err) {
-		if (err instanceof CliHttpError) {
-			if (err.code === "SESSION_EXPIRED") {
-				issues.push("Not authenticated. Run: sl login");
-			} else {
-				issues.push(`API error: ${err.code}`);
-			}
-		} else {
-			issues.push(`Cannot reach API at ${apiUrl}`);
-		}
+	} catch {
+		issues.push(`Cannot reach ${apiUrl}/public/status`);
 	}
 	results.apiHealthy = apiHealthy;
-
-	// Auth — session-scoped.
-	let authOk = false;
-	let account: { email?: string; plan?: string } | null = null;
-	try {
-		account = await getAccountProfile();
-		authOk = true;
-	} catch (err) {
-		if (err instanceof CliHttpError && err.code === "SESSION_EXPIRED") {
-			issues.push("Not authenticated. Run: sl login");
-		}
-	}
-	results.authOk = authOk;
-	results.account = account;
 
 	if (jsonOutput) {
 		console.log(
@@ -92,40 +67,15 @@ async function runHostedDoctor(jsonOutput?: boolean): Promise<void> {
 	);
 	console.log("");
 
-	// Auth
-	console.log(blue("Auth"));
-	if (authOk && account) {
-		console.log(`  ${green("✓")} Authenticated`);
-		console.log(
-			formatKeyValue([
-				["  Email", account.email ?? dim("unknown")],
-				["  Plan", account.plan ?? dim("unknown")],
-			]),
-		);
-	} else {
-		console.log(`  ${red("✗")} Not authenticated`);
-	}
-	console.log("");
-
-	// Index progress from /status
 	if (statusData) {
-		const progress = statusData.indexProgress as
-			| Array<{
-					network: string;
-					lastIndexedBlock: number;
-					highestSeenBlock: number;
-			  }>
-			| undefined;
-		if (progress?.length) {
-			console.log(blue("Index Progress"));
-			for (const p of progress) {
-				const behind = p.highestSeenBlock - p.lastIndexedBlock;
-				const behindStr =
-					behind > 0 ? yellow(` (${behind} behind)`) : green(" (synced)");
-				console.log(`  ${p.network}: block ${p.lastIndexedBlock}${behindStr}`);
-			}
-			console.log("");
-		}
+		const tip = statusData.chainTip;
+		const streams = statusData.streams as { status?: string } | undefined;
+		const index = statusData.index as { status?: string } | undefined;
+		console.log(blue("Instance"));
+		if (typeof tip === "number") console.log(`  tip: ${tip.toLocaleString()}`);
+		if (streams?.status) console.log(`  streams: ${streams.status}`);
+		if (index?.status) console.log(`  index: ${index.status}`);
+		console.log("");
 	}
 
 	// Issues

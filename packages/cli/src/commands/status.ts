@@ -1,141 +1,80 @@
 import type { Command } from "commander";
-import { loadConfig } from "../lib/config.ts";
-import { CliHttpError, httpPlatform } from "../lib/http.ts";
-import {
-	blue,
-	dim,
-	formatKeyValue,
-	green,
-	output,
-	red,
-	yellow,
-} from "../lib/output.ts";
+import { httpPlatformAnon } from "../lib/http.ts";
+import { blue, dim, green, output, red, yellow } from "../lib/output.ts";
+import { resolveApiUrl } from "../lib/resolve-auth.ts";
 
 export function registerStatusCommand(program: Command): void {
 	program
 		.command("status")
-		.description("Show system status")
+		.description("Show local instance status")
 		.option("--json", "Output as JSON")
 		.action(async (options: { json?: boolean }) => {
-			const config = await loadConfig();
-
 			try {
-				const local =
-					process.env.INSTANCE_MODE === "oss" ||
-					(process.env.SL_API_URL ?? "").includes("127.0.0.1") ||
-					(process.env.SL_API_URL ?? "").includes("localhost");
-				const status = local
-					? await httpPlatform<Record<string, unknown>>("/public/status")
-					: await httpPlatform<Record<string, unknown>>("/status");
-
+				const status =
+					await httpPlatformAnon<Record<string, unknown>>("/public/status");
 				output({
 					json: options.json,
 					data: status,
-					human: () => printStatus(status),
+					human: () => printPublicStatus(status),
 				});
-			} catch (err) {
-				if (err instanceof CliHttpError && err.code === "SESSION_EXPIRED") {
-					console.error("Not logged in. Run: sl login");
-					process.exit(1);
-				}
+			} catch {
 				console.log("");
 				console.log(blue("System Status"));
 				console.log(`  ${red("NOT RUNNING")}`);
 				console.log("");
-				if (config.network === "local") {
-					console.log(dim("  API service is not running."));
-					console.log(dim("  Start with: sl local start"));
-				} else {
-					console.log(dim("  Can't reach the platform API."));
-					console.log(dim("  Check your connection or try again."));
-				}
+				console.log(dim(`  Can't reach ${resolveApiUrl()}/public/status.`));
+				console.log(dim("  Start with: docker compose up -d"));
 				console.log("");
 				process.exit(1);
 			}
 		});
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-function printStatus(status: any): void {
+function printPublicStatus(status: Record<string, unknown>): void {
+	const overall = String(status.status ?? "unknown");
+	const color = overall === "healthy" ? green : red;
 	console.log("");
-
-	// Overall status
-	const statusColor = status.status === "healthy" ? green : red;
 	console.log(blue("System Status"));
-	console.log(
-		`  ${statusColor(status.status.toUpperCase())}${status.network ? dim(` (${status.network})`) : ""}`,
-	);
+	console.log(`  ${color(overall.toUpperCase())}`);
 	console.log("");
-
-	// Database
-	console.log(blue("Database"));
-	const dbColor = status.database.status === "ok" ? green : red;
-	console.log(`  Status: ${dbColor(status.database.status)}`);
-	console.log("");
-
-	// Index Progress
-	console.log(blue("Index Progress"));
-	if (status.indexProgress.length === 0) {
-		console.log(dim("  No data indexed yet"));
-	} else {
-		for (const p of status.indexProgress) {
-			const behind = p.highestSeenBlock - p.lastIndexedBlock;
-			const behindStr =
-				behind > 0 ? yellow(` (${behind} behind)`) : green(" (synced)");
-			console.log(`  ${p.network}: block ${p.lastIndexedBlock}${behindStr}`);
-
-			// Chain tip progress bar
-			if (status.chainTip && status.chainTip > 0) {
-				const pct = Math.min((p.lastIndexedBlock / status.chainTip) * 100, 100);
-				const barWidth = 30;
-				const filled = Math.round((pct / 100) * barWidth);
-				const empty = barWidth - filled;
-				const bar = `${"█".repeat(filled)}${"░".repeat(empty)}`;
-				const pctStr = `${pct.toFixed(1)}%`;
-				const color = pct >= 99.9 ? green : pct >= 50 ? yellow : red;
-				console.log(
-					`  ${dim("chain:")} ${color(bar)} ${color(pctStr)} ${dim(`(tip: ${status.chainTip.toLocaleString()})`)}`,
-				);
-			}
-
-			// Contiguous + integrity info
-			const contiguous = p.lastContiguousBlock ?? 0;
-			if (status.integrity === "complete") {
-				console.log(
-					`  ${dim("contiguous:")} ${contiguous} ${green("(complete)")}`,
-				);
-			} else {
-				const gapCount = status.gaps?.length ?? 0;
-				const missing = status.totalMissingBlocks ?? 0;
-				console.log(
-					`  ${dim("contiguous:")} ${contiguous} ${yellow(`(${gapCount} gaps, ${missing} missing blocks)`)}`,
-				);
-				if (status.gaps) {
-					for (const gap of status.gaps.slice(0, 5)) {
-						const range =
-							gap.gapStart === gap.gapEnd
-								? `${gap.gapStart}`
-								: `${gap.gapStart}-${gap.gapEnd}`;
-						console.log(
-							`    ${dim("gap:")} ${range} ${dim(`(${gap.size} block${gap.size > 1 ? "s" : ""})`)}`,
-						);
-					}
-				}
-			}
+	const tip = status.chainTip;
+	if (typeof tip === "number") {
+		console.log(blue("Chain"));
+		console.log(`  tip: ${tip.toLocaleString()}`);
+		const integrity = status.chainIntegrity as { ok?: boolean } | undefined;
+		if (integrity) {
+			console.log(
+				`  integrity: ${integrity.ok ? green("ok") : yellow("check")}`,
+			);
 		}
-	}
-	console.log("");
-
-	// Subgraphs (hosted mode)
-	if (status.activeSubgraphs !== undefined) {
-		console.log(blue("Activity"));
-		console.log(
-			formatKeyValue([
-				["  Active Subgraphs", status.activeSubgraphs.toString()],
-			]),
-		);
 		console.log("");
 	}
-
-	console.log(dim(`Last updated: ${status.timestamp}`));
+	const streams = status.streams as
+		| { status?: string; tip?: { lag_seconds?: number } }
+		| undefined;
+	if (streams) {
+		console.log(blue("Streams"));
+		console.log(`  ${streams.status ?? "unknown"}`);
+		if (typeof streams.tip?.lag_seconds === "number") {
+			console.log(`  lag: ${streams.tip.lag_seconds}s`);
+		}
+		console.log("");
+	}
+	const index = status.index as
+		| { status?: string; decoders?: Array<{ decoder: string; status: string }> }
+		| undefined;
+	if (index) {
+		console.log(blue("Index"));
+		console.log(`  ${index.status ?? "unknown"}`);
+		const bad = (index.decoders ?? []).filter((d) => d.status !== "ok");
+		if (bad.length > 0) {
+			for (const d of bad.slice(0, 8)) {
+				console.log(`  ${yellow(d.decoder)} ${d.status}`);
+			}
+		}
+		console.log("");
+	}
+	if (typeof status.timestamp === "string") {
+		console.log(dim(`Last updated: ${status.timestamp}`));
+	}
 }

@@ -3,7 +3,6 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerResources } from "./resources.ts";
-import { registerAccountTools } from "./tools/account.ts";
 import { registerCodegenTools } from "./tools/codegen.ts";
 import { registerContractTools } from "./tools/contracts.ts";
 import { registerIndexTools } from "./tools/index.ts";
@@ -26,7 +25,6 @@ export function createServer(): McpServer {
 	registerScaffoldTools(server);
 	registerSubgraphTools(server);
 	registerSubscriptionTools(server);
-	registerAccountTools(server);
 	registerIndexTools(server);
 	registerStreamsTools(server);
 	registerContractTools(server);

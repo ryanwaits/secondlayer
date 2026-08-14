@@ -81,8 +81,7 @@ export function getClient(): SecondLayer {
 // Appended to 401/403 errors raised on keyless requests — the operation needs
 // a write/account key, so point at where to get one.
 export const keyHint =
-	" — set SL_API_KEY to an sk-sl_ API key from " +
-	"https://secondlayer.tools/platform/api-keys for write and account operations";
+	" — set SL_API_KEY from `sl init` (INSTANCE_TOKEN) for writes";
 
 /** Raw fetch helper for API endpoints not covered by the SDK. */
 export async function apiRequest<T>(

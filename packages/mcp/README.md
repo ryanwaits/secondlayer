@@ -63,17 +63,13 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 | **Streams** (1) | `streams_dumps` |
 | **Contracts** (2) | `contracts_find`, `get_contract_abi` |
 | **Scaffold** (1) | `scaffold_from_contract` |
-| **Account** (2) | `account_whoami`, `account_create_key` |
 
 Periphery surfaces (single block/tx lookups, mempool, stacking, proofs, usage,
 codegen, billing/caps, projects, live Streams reads, delivery forensics) are
 REST-only: see the OpenAPI spec at the API host.
 
-`account_create_key` mints a scoped `streams`/`index` read key — requires an
-account/owner key and returns the `sk-sl_` key **once**. **Key products:** an
-`account` key (dashboard default) grants both `streams:read` and `index:read` and
-is the only key that can mint; `streams`/`index` keys are scoped reads and cannot
-mint (403).
+Account tools are unmounted. Point the server at your instance with `SL_API_URL`
+(default `http://127.0.0.1:3800`). Writes use `INSTANCE_TOKEN` from `sl init`.
 
 ### `subscriptions_create` kinds
 
