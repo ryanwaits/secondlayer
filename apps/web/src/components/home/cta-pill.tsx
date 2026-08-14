@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 
-const INSTALL_CMD = "bun add -g @secondlayer/cli";
+const INSTALL_CMD = "curl -fsSL https://secondlayer.tools/install.sh | bash";
+/** What the pill shows — the pipe doubles as the divider before the copy icon. */
+const SHOWN_CMD = "curl -fsSL https://secondlayer.tools/install.sh";
 
 /** Hero CTA — copyable CLI install command. */
 export function CtaPill() {
@@ -24,7 +26,7 @@ export function CtaPill() {
 			aria-label={copied ? "Copied install command" : "Copy install command"}
 		>
 			<span className="p">$</span>
-			<span className="home-cmd-label">{INSTALL_CMD}</span>
+			<span className="home-cmd-label">{SHOWN_CMD}</span>
 			<span className="home-cmd-rule" aria-hidden="true" />
 			<span className="home-cmd-ic" aria-hidden="true">
 				{copied ? (

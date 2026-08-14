@@ -1,5 +1,6 @@
 "use client";
 
+import { InstallMenu } from "@/components/install-menu";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -54,15 +55,15 @@ export function MarketingNav({ stars = null }: { stars?: number | null }) {
 				<span>secondlayer</span>
 			</Link>
 			<span className="marketing-nav-spacer" />
-			<Link href="/docs" className="mnav-plain">
-				Docs
-			</Link>
 			<Link
 				href="/archive"
 				className="mnav-plain"
 				aria-current={pathname === "/archive" ? "page" : undefined}
 			>
 				Archive
+			</Link>
+			<Link href="/docs" className="mnav-plain">
+				Docs
 			</Link>
 			<Link
 				href="/writing"
@@ -105,6 +106,7 @@ export function MarketingNav({ stars = null }: { stars?: number | null }) {
 					</>
 				) : null}
 			</a>
+			<InstallMenu />
 			<button
 				type="button"
 				className="mnav-burger"
@@ -130,8 +132,8 @@ export function MarketingNav({ stars = null }: { stars?: number | null }) {
 			</button>
 			{open ? (
 				<div className="mnav-sheet">
-					<Link href="/docs">Docs</Link>
 					<Link href="/archive">Archive</Link>
+					<Link href="/docs">Docs</Link>
 					<Link href="/writing">Blog</Link>
 					<a
 						href={GITHUB_URL}
