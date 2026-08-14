@@ -13,7 +13,7 @@ export type FetchLike = (
 ) => Promise<Response>;
 
 export interface SecondLayerOptions {
-	/** Base URL of the Secondlayer platform API (trailing slashes are stripped). */
+	/** Base URL of the instance API (trailing slashes are stripped). */
 	baseUrl: string;
 	/** Bearer token for authenticated requests. */
 	apiKey?: string;

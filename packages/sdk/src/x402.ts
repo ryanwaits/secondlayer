@@ -12,6 +12,7 @@ import {
 	signTransactionWithAccount,
 } from "@secondlayer/stacks/transactions";
 import { buildExactTransfer } from "@secondlayer/stacks/x402";
+import { resolveBaseUrl } from "./base.ts";
 
 /**
  * Client for the x402 pay-per-request rail. Turns a 402 challenge into a signed
@@ -240,7 +241,7 @@ export type X402Fetch = (
  *
  * @example
  * const x402fetch = withX402(fetch, { account });
- * const res = await x402fetch("https://api.secondlayer.tools/v1/index/events?event_type=ft_transfer");
+ * const res = await x402fetch("http://127.0.0.1:3800/v1/index/events?event_type=ft_transfer");
  */
 export function withX402(
 	baseFetch: typeof fetch,
@@ -338,7 +339,8 @@ export function withX402(
 }
 
 export type X402ClientOptions = WithX402Options & {
-	baseUrl: string;
+	/** Instance API. Defaults to {@link resolveBaseUrl}. */
+	baseUrl?: string;
 	/** Override the underlying fetch (tests). */
 	fetch?: typeof fetch;
 };
@@ -366,12 +368,12 @@ export type X402Client = {
  * parsed JSON plus the settlement receipt.
  *
  * @example
- * const sl = createX402Client({ account, baseUrl: "https://api.secondlayer.tools" });
+ * const sl = createX402Client({ account, baseUrl: "http://127.0.0.1:3800" });
  * const { data, payment } = await sl.get("/v1/index/events", { query: { event_type: "ft_transfer" } });
  */
 export function createX402Client(opts: X402ClientOptions): X402Client {
 	const f = withX402(opts.fetch ?? fetch, opts);
-	const base = opts.baseUrl.replace(/\/$/, "");
+	const base = resolveBaseUrl(opts.baseUrl);
 
 	async function request<T>(
 		method: "GET" | "POST",

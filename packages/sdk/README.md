@@ -520,8 +520,8 @@ few hundredths of a cent per request from a Stacks wallet. Payment is **gasless*
 (you sign; we sponsor the STX fee) and uses standard **x402 v2** on `stacks:1`.
 Supported assets: **sBTC** (default), **USDCx**, **STX**.
 
-> Keyed (`sk-sl_`) requests bypass x402 and bill through your plan — x402 is for
-> accountless callers.
+> Keyed (`INSTANCE_TOKEN`) requests skip x402. The rail is for accountless
+> callers on an instance that has it enabled.
 
 Drop-in `fetch` that pays on `402` automatically:
 
@@ -536,7 +536,7 @@ const x402fetch = withX402(fetch, {
 });
 
 const res = await x402fetch(
-  "https://api.secondlayer.tools/v1/index/events?event_type=ft_transfer",
+  "http://127.0.0.1:3800/v1/index/events?event_type=ft_transfer",
 );
 const data = await res.json();
 readX402Receipt(res); // { success, txid, payer, network } | null
@@ -547,7 +547,7 @@ Or a small client returning `{ data, payment }`:
 ```typescript
 import { createX402Client } from "@secondlayer/sdk";
 
-const sl = createX402Client({ account, baseUrl: "https://api.secondlayer.tools" });
+const sl = createX402Client({ account }); // baseUrl defaults to http://127.0.0.1:3800
 const { data, payment } = await sl.get("/v1/index/events", {
   query: { event_type: "ft_transfer" },
 });
