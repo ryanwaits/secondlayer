@@ -32,10 +32,10 @@ It works, and it's right for a one-shot export or an analysis script. As a live 
 
 ## Build your index on it
 
-`sl index codegen` emits the mirror schema so your tables can't drift:
+`secondlayer index codegen` emits the mirror schema so your tables can't drift:
 
 ```bash
-sl index codegen --target kysely   # also: prisma, drizzle, json-schema
+secondlayer index codegen --target kysely   # also: prisma, drizzle, json-schema
 ```
 
 `consume()` is a checkpointed consumer with automatic reorg rewind. Write rows in `onBatch`, return the cursor you committed; crash anywhere and the next run resumes from your checkpoint.
@@ -171,7 +171,7 @@ Sampled from indexed prints, raw Clarity hex deserialized for exact types, unifi
 - Payloads with no `topic` string, or that aren't tuples, land under the `"*"` pseudo-topic with `non_tuple` set.
 - Anonymous, unmetered, cached five minutes (`max-age=300` + weak `ETag`).
 
-Backs `sl subgraphs create <name> --from-contract <contract_id>` — see [Subgraphs](/docs/subgraphs#typed-print-payloads).
+Backs `secondlayer subgraphs create <name> --from-contract <contract_id>` — see [Subgraphs](/docs/subgraphs#typed-print-payloads).
 
 ## Read it directly
 
@@ -204,9 +204,9 @@ Built on [Streams](/docs/streams): our decoder reads the same raw firehose you c
 ## From the CLI and MCP
 
 ```bash
-sl index transactions get 0x<tx_id>
-sl index mempool --contract-id SP….token
-sl index usage
+secondlayer index transactions get 0x<tx_id>
+secondlayer index mempool --contract-id SP….token
+secondlayer index usage
 ```
 
 MCP exposes the same families as tools: `index_events`, `index_transactions`, `index_stacking`, `index_mempool`, `index_blocks`, and the rest.

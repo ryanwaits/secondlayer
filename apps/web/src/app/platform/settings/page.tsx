@@ -83,8 +83,8 @@ export default function SettingsPage() {
 								/>
 							</label>
 							<div className="settings-hint">
-								Used by <code>sl project use &lt;slug&gt;</code>. Cannot be
-								changed after creation.
+								Used by <code>secondlayer project use &lt;slug&gt;</code>.
+								Cannot be changed after creation.
 							</div>
 						</div>
 						<div className="settings-field">

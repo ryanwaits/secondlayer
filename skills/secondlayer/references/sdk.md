@@ -2,9 +2,9 @@
 
 Source of truth: `packages/sdk/src/`. Function signatures below are copied verbatim — match them exactly when generating code.
 
-**Auth model:** default `baseUrl` is `http://127.0.0.1:3800` (or `SL_API_URL`). Loopback reads on `sl.contracts.*`, `sl.index.*`, `sl.streams.*`, and `sl.subgraphs.rows()` need no key. History is whatever this instance has bootstrapped. Writes (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) use `INSTANCE_TOKEN` from `sl init` as `apiKey` when the API is bound beyond loopback. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no instance key.
+**Auth model:** default `baseUrl` is `http://127.0.0.1:3800` (or `SL_API_URL`). Loopback reads on `sl.contracts.*`, `sl.index.*`, `sl.streams.*`, and `sl.subgraphs.rows()` need no key. History is whatever this instance has bootstrapped. Writes (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) use `INSTANCE_TOKEN` from `secondlayer init` as `apiKey` when the API is bound beyond loopback. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no instance key.
 
-Writes use `INSTANCE_TOKEN` from `sl init` as `SL_API_KEY`. There is no hosted account or dashboard key.
+Writes use `INSTANCE_TOKEN` from `secondlayer init` as `SL_API_KEY`. There is no hosted account or dashboard key.
 
 ---
 
@@ -833,7 +833,7 @@ interface DeploySubgraphResponse {
 deploy(data: DeploySubgraphRequest): Promise<DeploySubgraphResponse>
 ```
 
-In practice, prefer the `sl subgraphs deploy` CLI — it bundles the TypeScript module and computes `sources`/`handlerCode` for you.
+In practice, prefer the `secondlayer subgraphs deploy` CLI — it bundles the TypeScript module and computes `sources`/`handlerCode` for you.
 
 ### `reindex`, `backfill`, `stop` — need `apiKey`
 
@@ -907,7 +907,7 @@ bundle(data: { code: string }): Promise<BundleSubgraphResponse> // needs apiKey
 
 ### `typed(def)` — inferred row types from a `defineSubgraph()` literal
 
-> **If you only have a deployed subgraph (no local source file):** run `sl subgraphs generate <name> -o src/client.ts` first. It introspects the deployed schema and writes a typed module you can import directly. Use `typed()` only when you already have the `defineSubgraph(...)` literal in scope (you wrote the subgraph in this project).
+> **If you only have a deployed subgraph (no local source file):** run `secondlayer subgraphs generate <name> -o src/client.ts` first. It introspects the deployed schema and writes a typed module you can import directly. Use `typed()` only when you already have the `defineSubgraph(...)` literal in scope (you wrote the subgraph in this project).
 
 ```ts
 typed<T extends { name: string; schema: Record<string, unknown> }>(

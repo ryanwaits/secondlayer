@@ -84,7 +84,7 @@ Contracts / Scaffold:
 - `get_contract_abi` — fetch one contract's metadata + full ABI
 - `scaffold_from_contract` — generate a deploy-ready subgraph from a deployed contract
 
-Account tools are unmounted on a local instance. Set `SL_API_KEY` to the `INSTANCE_TOKEN` from `sl init` for writes.
+Account tools are unmounted on a local instance. Set `SL_API_KEY` to the `INSTANCE_TOKEN` from `secondlayer init` for writes.
 
 Resources:
 

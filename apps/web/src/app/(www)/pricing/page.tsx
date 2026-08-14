@@ -16,7 +16,7 @@ export const metadata: Metadata = socialMeta({
 const FREE = [
 	"Postgres plus one container",
 	"Forward-only from your node",
-	"sl verify and sl repair against the public archive",
+	"secondlayer verify and secondlayer repair against the public archive",
 	"Index, Streams, Subgraphs, and webhooks on your instance",
 ];
 
@@ -34,7 +34,7 @@ const FAQ = [
 	},
 	{
 		q: "How do I buy credits?",
-		a: "The form on this page, the History block on the home page, or sl credits buy --email you@example.com --pack 25.",
+		a: "The form on this page, the History block on the home page, or secondlayer credits buy --email you@example.com --pack 25.",
 	},
 	{
 		q: "Is there a hosted plan?",

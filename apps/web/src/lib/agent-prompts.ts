@@ -81,8 +81,8 @@ const SUBSCRIPTIONS_INTRO =
 export const AGENT_SETUP = `Ensure setup once, skipping any step already done:
 - Skill: \`bunx skills add ryanwaits/secondlayer --skill secondlayer -y\`
 - CLI: \`bun add -g @secondlayer/cli\`
-- Auth: \`sl login\` then \`sl whoami\`
-- Plan: \`sl billing\`; if there is no active plan or trial, start one from the Billing page`;
+- Auth: \`secondlayer login\` then \`secondlayer whoami\`
+- Plan: \`secondlayer billing\`; if there is no active plan or trial, start one from the Billing page`;
 
 function withSetup(body: string): string {
 	return `${AGENT_SETUP}
@@ -191,7 +191,7 @@ export const AGENT_PROMPTS: AgentPromptDefinition[] = [
 		build: () =>
 			withSetup(`${SUBGRAPHS_INTRO}
 
-/secondlayer Help me create a subgraph from a Stacks contract. Ask me for the contract id and the events or function calls I care about. Scaffold with \`sl subgraphs scaffold\` so the module package and dependencies are prepared, explain the generated named sources and tables, let me review or customize the handlers, deploy with \`sl subgraphs deploy\`, query recent rows, then ask whether I want a subscription webhook.`),
+/secondlayer Help me create a subgraph from a Stacks contract. Ask me for the contract id and the events or function calls I care about. Scaffold with \`secondlayer subgraphs scaffold\` so the module package and dependencies are prepared, explain the generated named sources and tables, let me review or customize the handlers, deploy with \`secondlayer subgraphs deploy\`, query recent rows, then ask whether I want a subscription webhook.`),
 	},
 	{
 		id: "subgraph-alex-swaps",
@@ -269,11 +269,11 @@ Inspect the account state first. If the subgraph and table are already clear, as
 		audience: "Developers who want terminal-first workflows",
 		surface: "marketing",
 		description:
-			"Use `sl` to init a runtime, deploy subgraphs, and manage subscriptions.",
+			"Use `secondlayer` to init a runtime, deploy subgraphs, and manage subscriptions.",
 		tags: ["cli", "subgraphs", "subscriptions"],
 		build: () =>
 			withSetup(
-				"/secondlayer Operate this project through the `sl` CLI. For a local instance start with `sl init`, `sl bootstrap`, and `sl observer`. After restore, `sl verify all --against <manifest>` (or `raw` / `decode:<name>` / `subgraph:<name>`) compares local data to the signed archive — `--deep` for semantic digests. Inspect subgraphs and subscriptions with JSON output first. Then help me run the exact `sl` commands for the task, including human confirmation before delete, reindex, rotate-secret, replay, or requeue.",
+				"/secondlayer Operate this project through the `secondlayer` CLI. For a local instance start with `secondlayer init`, `secondlayer bootstrap`, and `secondlayer observer`. After restore, `secondlayer verify all --against <manifest>` (or `raw` / `decode:<name>` / `subgraph:<name>`) compares local data to the signed archive — `--deep` for semantic digests. Inspect subgraphs and subscriptions with JSON output first. Then help me run the exact `secondlayer` commands for the task, including human confirmation before delete, reindex, rotate-secret, replay, or requeue.",
 			),
 	},
 	{

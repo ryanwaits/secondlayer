@@ -259,7 +259,7 @@ export default async function SubgraphDetailPage({
 							<EmptyState
 								title="No subscriptions yet"
 								message="Subscriptions push new rows to your endpoint as they're indexed — standard webhooks, Inngest, Trigger, or Cloudflare."
-								command={`sl subscriptions create <name> --subgraph ${name}`}
+								command={`secondlayer subscriptions create <name> --subgraph ${name}`}
 								docHref="/docs/subscriptions"
 								docLabel="Subscriptions guide →"
 								ghostRows={3}

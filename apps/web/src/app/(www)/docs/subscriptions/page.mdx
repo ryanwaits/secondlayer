@@ -5,7 +5,7 @@ A subscription fires a signed HTTP POST at your endpoint for every matching subg
 ## Create a subscription
 
 ```bash
-sl subscriptions create sbtc-webhook \
+secondlayer subscriptions create sbtc-webhook \
   --no-scaffold \
   --subgraph sbtc-flows \
   --table transfers \
@@ -122,7 +122,7 @@ sBTC peg triggers — `sbtcDeposit`, `sbtcWithdrawalCreate`, `sbtcWithdrawalAcce
 `POST /api/subscriptions` accepts the same array. From the CLI, pass `--trigger` (repeatable, one JSON object each) or `--triggers-file` (a JSON array) instead of `--subgraph`/`--table`:
 
 ```bash
-sl subscriptions create amm-swaps \
+secondlayer subscriptions create amm-swaps \
   --url https://my-app.com/webhook \
   --trigger '{"type":"contract_call","contractId":"SP....amm","functionName":"swap-*"}' \
   --trigger '{"type":"sbtc_deposit"}'
@@ -316,7 +316,7 @@ A reorg delivers `chain.reorg.rollback` so you can undo anything committed off a
 
 ## Test delivery
 
-`sl subscriptions test <idOrName> --post` sends a logged test delivery:
+`secondlayer subscriptions test <idOrName> --post` sends a logged test delivery:
 
 ```json
 {

@@ -1,6 +1,6 @@
 # CLI
 
-The `sl` command-line tool: init a local runtime, bootstrap history, deploy subgraphs, attach webhooks.
+The `secondlayer` command-line tool: init a local runtime, bootstrap history, deploy subgraphs, attach webhooks.
 
 ## Install
 
@@ -8,26 +8,28 @@ The `sl` command-line tool: init a local runtime, bootstrap history, deploy subg
 bun add -g @secondlayer/cli
 ```
 
+The binary is `secondlayer`. `sl` is a short alias.
+
 ## Common commands
 
 ```bash
-sl init --network mainnet
-sl start --print
-sl bootstrap --against <manifest>
-sl observer
-sl subgraphs create --from-contract <id>
-sl subgraphs deploy
-sl subgraphs list
-sl subscriptions create
-sl context
-sl verify all --against <manifest>
-sl repair --against <archive>
-sl credits buy --email you@example.com --pack 25
-sl credits balance
-sl credits refill --below 5 --pack 25
+secondlayer init --network mainnet
+secondlayer start --print
+secondlayer bootstrap --against <manifest>
+secondlayer observer
+secondlayer subgraphs create --from-contract <id>
+secondlayer subgraphs deploy
+secondlayer subgraphs list
+secondlayer subscriptions create
+secondlayer context
+secondlayer verify all --against <manifest>
+secondlayer repair --against <archive>
+secondlayer credits buy --email you@example.com --pack 25
+secondlayer credits balance
+secondlayer credits refill --below 5 --pack 25
 ```
 
-[Verified archive](/docs/archive) owns `sl verify` / `sl repair`. [Self-host](/docs/self-host) is the compose loop.
+[Verified archive](/docs/archive) owns `secondlayer verify` / `secondlayer repair`. [Self-host](/docs/self-host) is the compose loop.
 
 <Callout type="note" title="Chain subscriptions">
 
@@ -40,29 +42,29 @@ sl credits refill --below 5 --pack 25
 Write keys, restore history, print the observer stanza.
 
 ```bash
-sl init --network mainnet
-sl bootstrap --against https://archive.secondlayer.tools/.../snapshots/<digest>.json
-sl observer --mode indexer
+secondlayer init --network mainnet
+secondlayer bootstrap --against https://archive.secondlayer.tools/.../snapshots/<digest>.json
+secondlayer observer --mode indexer
 ```
 
 | Command | Flag | Default | Notes |
 | --- | --- | --- | --- |
-| `sl init` | `--network` | `STACKS_NETWORK` or `mainnet` | `mainnet`, `testnet`, or `devnet` |
+| `secondlayer init` | `--network` | `STACKS_NETWORK` or `mainnet` | `mainnet`, `testnet`, or `devnet` |
 | | `--api-url` | `http://127.0.0.1:3800` | Local API |
 | | `--force` | off | Overwrite generated values in `.env.local` |
-| `sl bootstrap` | `--against` | required | Manifest URL or file |
+| `secondlayer bootstrap` | `--against` | required | Manifest URL or file |
 | | `--to-block` | archive tip | Stop early |
 | | `--public-key` | resolved | Pin the signing key |
 | | `-y, --yes` | off | Skip confirm |
 | | `--json` | off | Machine output |
-| `sl observer` | `--mode` | `indexer` | `indexer` retries; `signer-shared` does not |
+| `secondlayer observer` | `--mode` | `indexer` | `indexer` retries; `signer-shared` does not |
 | | `--endpoint` | `indexer:3700` (`127.0.0.1:3700` on devnet) | `host:port` only — no URL |
 | | `--recovery` | required for signer-shared | `journal` or `archive` |
 | | `--network` | `STACKS_NETWORK` or `mainnet` | Loopback refused except devnet |
 
-`sl bootstrap` refuses a non-empty database. Fix an existing instance with [`sl repair`](/docs/archive). Exit `0` restored, `1` diverged, `2` refused.
+`secondlayer bootstrap` refuses a non-empty database. Fix an existing instance with [`secondlayer repair`](/docs/archive). Exit `0` restored, `1` diverged, `2` refused.
 
-`sl verify [target]` compares local data to a signed archive. Target is `all`, `raw` (default), `decode:<name>`, or `subgraph:<name>`. `--quick` is identity; `--deep` is semantic; `--anchor` requires a verified signature. Flags live on [Verified archive](/docs/archive#flags).
+`secondlayer verify [target]` compares local data to a signed archive. Target is `all`, `raw` (default), `decode:<name>`, or `subgraph:<name>`. `--quick` is identity; `--deep` is semantic; `--anchor` requires a verified signature. Flags live on [Verified archive](/docs/archive#flags).
 
 <Callout type="note" title="Signer-shared nodes skip retries">
 
@@ -73,17 +75,17 @@ sl observer --mode indexer
 ## Scaffold from a contract
 
 ```bash
-sl subgraphs create sbtc-registry \
+secondlayer subgraphs create sbtc-registry \
   --from-contract SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry
 ```
 
 Infers each print topic's payload from indexed history — see [print schemas](/docs/index#print-schemas). Anonymous. `--table-per-topic` emits one table per topic.
 
-`sl subgraphs codegen <file> --payloads` emits a `.d.ts` next to the definition. Incompatible with `--target` / `--models-only` / `--env`. Deploy `warnings` on unobserved `event.data` fields are advisory.
+`secondlayer subgraphs codegen <file> --payloads` emits a `.d.ts` next to the definition. Incompatible with `--target` / `--models-only` / `--env`. Deploy `warnings` on unobserved `event.data` fields are advisory.
 
 <Callout type="warning" title="Commit your definition before deploying">
 
-`sl subgraphs deploy` checks the source file is committed. An uncommitted deploy leaves the only copy in the database.
+`secondlayer subgraphs deploy` checks the source file is committed. An uncommitted deploy leaves the only copy in the database.
 
 A terminal prompts. Scripts and CI fail. `--allow-uncommitted` overrides and logs the skip. Outside a git repo, and `--dry-run`, skip the check.
 
@@ -94,12 +96,12 @@ A terminal prompts. Scripts and CI fail. `--allow-uncommitted` overrides and log
 Turn Clarity contracts into typed TypeScript — local `.clar` files, deployed contracts, or a Clarinet project.
 
 ```bash
-sl contracts generate ./contracts/token.clar -o ./src/generated.ts
-sl contracts generate SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault -o ./src/generated.ts
-sl contracts generate --watch    # regenerate on .clar / config / Clarinet.toml changes
+secondlayer contracts generate ./contracts/token.clar -o ./src/generated.ts
+secondlayer contracts generate SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault -o ./src/generated.ts
+secondlayer contracts generate --watch    # regenerate on .clar / config / Clarinet.toml changes
 ```
 
-Deployed contract ids fetch the ABI (address prefix picks the network). Config-driven projects regenerate with `sl contracts generate`:
+Deployed contract ids fetch the ABI (address prefix picks the network). Config-driven projects regenerate with `secondlayer contracts generate`:
 
 ```ts
 // secondlayer.config.ts
@@ -124,9 +126,9 @@ Named aliases per function (`TokenTransferArgs`) plus a `TypedAbi` const. Feed i
 
 These work but get no further investment.
 
-- `sl subgraphs codegen --target prisma|drizzle|kysely` — BYO ORM schema. See [Subgraphs](/docs/subgraphs#use-your-own-database--orm).
-- `sl subgraphs publish` / `unpublish` are hidden. Visibility is on [Subgraphs](/docs/subgraphs#visibility--publishing) and deploy `--visibility`.
-- `sl local` — superseded by [`sl devnet`](/docs/devnet). Hidden.
+- `secondlayer subgraphs codegen --target prisma|drizzle|kysely` — BYO ORM schema. See [Subgraphs](/docs/subgraphs#use-your-own-database--orm).
+- `secondlayer subgraphs publish` / `unpublish` are hidden. Visibility is on [Subgraphs](/docs/subgraphs#visibility--publishing) and deploy `--visibility`.
+- `secondlayer local` — superseded by [`secondlayer devnet`](/docs/devnet). Hidden.
 
 
 export const metadata = {

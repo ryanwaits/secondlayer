@@ -82,7 +82,7 @@ describe("home snippets", () => {
 		expect(TESTING_SNIPPET).toContain('from "@secondlayer/subgraphs/testing"');
 		expect(TESTING_SNIPPET).toContain("createTestContext(");
 		expect(TESTING_SNIPPET).toContain("buildEvent(");
-		expect(TESTING_RUN.cmd).toContain("sl subgraphs test");
+		expect(TESTING_RUN.cmd).toContain("secondlayer subgraphs test");
 	});
 
 	test("snippets use the real mainnet sBTC identifiers", () => {

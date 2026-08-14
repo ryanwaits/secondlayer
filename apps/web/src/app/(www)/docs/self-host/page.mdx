@@ -5,14 +5,14 @@ Postgres plus one Secondlayer container. You run the node, or bundle it.
 ## Quick start
 
 ```bash
-sl init --network mainnet
+secondlayer init --network mainnet
 # Copy .env.local secrets into docker/oss/.env
 
 cd docker/oss
 docker compose up -d
-sl observer --mode indexer --endpoint secondlayer:3700
-sl bootstrap --against <manifest>
-sl verify all --against <manifest>
+secondlayer observer --mode indexer --endpoint secondlayer:3700
+secondlayer bootstrap --against <manifest>
+secondlayer verify all --against <manifest>
 ```
 
 API: `http://127.0.0.1:3800`. Health: `curl http://localhost:3800/health`.
@@ -40,7 +40,7 @@ docker compose --profile full-node up -d
 
 ## Config
 
-Six required non-secrets. Secrets come from `sl init`.
+Six required non-secrets. Secrets come from `secondlayer init`.
 
 | Key | Default | Notes |
 | --- | --- | --- |
@@ -51,14 +51,14 @@ Six required non-secrets. Secrets come from `sl init`.
 | `API_PORT` | `3800` | Published as `127.0.0.1:3800` |
 | `INDEXER_PORT` | `3700` | Observer bind |
 
-Unknown keys and contradictions fail before ingest. `sl start --print` shows the compose line.
+Unknown keys and contradictions fail before ingest. `secondlayer start --print` shows the compose line.
 
 ## Verify and repair
 
 ```bash
-sl verify all --against <manifest>
-sl repair --against <manifest>          # plan
-sl repair --against <manifest> --apply
+secondlayer verify all --against <manifest>
+secondlayer repair --against <manifest>          # plan
+secondlayer repair --against <manifest> --apply
 ```
 
 [Verified archive](/docs/archive#flags) owns flags and exit codes.
@@ -68,7 +68,7 @@ sl repair --against <manifest> --apply
 | Job | Rule |
 | --- | --- |
 | Backup | DB + pinned config + encrypted keys + handler manifests + height scope |
-| Restore | wiped host + `sl verify all` must be green |
+| Restore | wiped host + `secondlayer verify all` must be green |
 | Upgrade | pin image → preflight disk/schema → backup → migrate → health → verify |
 | Rollback | previous image; schema migrations are forward-only |
 
@@ -82,7 +82,7 @@ App-only floor: 4 GB RAM, 80 GB disk. Full-node floor: 96 GB RAM, 1.5 TB disk. P
 docker compose pull && docker compose up -d
 curl http://localhost:3800/health
 export SL_API_URL=http://localhost:3800
-sl subgraphs deploy ./my-subgraph.ts
+secondlayer subgraphs deploy ./my-subgraph.ts
 ```
 
 Keep `POSTGRES_PORT` / `INDEXER_PORT` on loopback. Set `INSTANCE_TOKEN` before binding `0.0.0.0`.

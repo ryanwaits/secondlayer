@@ -8,7 +8,7 @@ Reference for writing `subgraphs/<name>.ts` files. Every type signature below is
 
 A subgraph is a single TypeScript file that exports `defineSubgraph({ name, sources, schema, handlers })` as its default export. `sources` is a named object of event filters; `schema` declares Postgres tables; `handlers` are functions keyed by source name that run once per matching event (batched per block). Secondlayer materializes the schema into Postgres, runs your handlers against the Stacks event stream (live + backfill), and exposes each table as a REST endpoint at `/v1/subgraphs/<name>/<table>` (anon for public subgraphs, `{ rows, next_cursor, tip }` cursor envelope; `/api/subgraphs` is the authed control plane).
 
-Deploy with `sl subgraphs deploy <file>`; the runtime owns ingestion, retries, and gap handling. Deploy-time `--visibility public|private` sets read visibility (managed default public, BYO default private).
+Deploy with `secondlayer subgraphs deploy <file>`; the runtime owns ingestion, retries, and gap handling. Deploy-time `--visibility public|private` sets read visibility (managed default public, BYO default private).
 
 ---
 
@@ -1178,7 +1178,7 @@ validateSubgraphDefinition(def); // throws ZodError on invalid input
 - Filter `type` must be one of the 13 supported filter types.
 - `startBlock` must be a non-negative integer.
 
-The CLI runs validation on `sl subgraphs deploy` — bad definitions never reach the runtime.
+The CLI runs validation on `secondlayer subgraphs deploy` — bad definitions never reach the runtime.
 
 ---
 

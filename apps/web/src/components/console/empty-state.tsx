@@ -18,7 +18,7 @@ export function EmptyState({
 	 *  message+action layout used by not-found pages. */
 	title?: string;
 	message: string;
-	/** Rich mode: a copyable CLI command (e.g. `sl subgraphs deploy …`). */
+	/** Rich mode: a copyable CLI command (e.g. `secondlayer subgraphs deploy …`). */
 	command?: string;
 	docHref?: string;
 	docLabel?: string;

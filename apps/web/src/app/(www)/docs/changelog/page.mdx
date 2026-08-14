@@ -12,49 +12,49 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ### Buy archive credits from the CLI
 
-`sl credits buy --email you@example.com --pack 25` opens a one-time card checkout. `sl credits balance` shows the prepaid amount. `sl credits refill --below 5 --pack 25` turns on auto-refill; default is off.
+`secondlayer credits buy --email you@example.com --pack 25` opens a one-time card checkout. `secondlayer credits balance` shows the prepaid amount. `secondlayer credits refill --below 5 --pack 25` turns on auto-refill; default is off.
 
 ### One container next to Postgres
 
-Self-host is `postgres` + `secondlayer`. `sl start --print` writes the compose line. `NETWORK`, `DATABASE_URL`, `NODE_MODE`, `DATA_DIR`, `API_PORT`, and `INDEXER_PORT` are the required non-secrets. Optional `--profile stacks-node` or `full-node` bundles chain daemons.
+Self-host is `postgres` + `secondlayer`. `secondlayer start --print` writes the compose line. `NETWORK`, `DATABASE_URL`, `NODE_MODE`, `DATA_DIR`, `API_PORT`, and `INDEXER_PORT` are the required non-secrets. Optional `--profile stacks-node` or `full-node` bundles chain daemons.
 
 ```bash
-sl init --network mainnet
+secondlayer init --network mainnet
 docker compose -f docker/oss/docker-compose.yml up -d
-sl verify all --against <manifest>
+secondlayer verify all --against <manifest>
 ```
 
 ### Point verify at raw, a decoder, or a subgraph
 
-`sl verify` takes `all`, `raw`, `decode:<name>`, or `subgraph:<name>`. Default is raw. `--quick` hashes identity columns. `--deep` also recomputes semantic digests. `--anchor` requires a verified archive signature.
+`secondlayer verify` takes `all`, `raw`, `decode:<name>`, or `subgraph:<name>`. Default is raw. `--quick` hashes identity columns. `--deep` also recomputes semantic digests. `--anchor` requires a verified archive signature.
 
 ```bash
-sl verify decode:ft_transfer --against ./snapshot.json --deep
+secondlayer verify decode:ft_transfer --against ./snapshot.json --deep
 ```
 
 A target with no matching archive dataset exits `2` — not being able to check is not a pass.
 
 ### Run the runtime without an account
 
-`sl init` writes the keys for a machine you operate. `sl bootstrap` restores
-verified history. `sl observer` prints the stanza your Stacks node posts to.
+`secondlayer init` writes the keys for a machine you operate. `secondlayer bootstrap` restores
+verified history. `secondlayer observer` prints the stanza your Stacks node posts to.
 
 ```bash
-sl init --network mainnet
-sl bootstrap --against <manifest>
-sl observer
+secondlayer init --network mainnet
+secondlayer bootstrap --against <manifest>
+secondlayer observer
 ```
 
-No login. No project. `sl instance` is gone — those three verbs are top-level.
+No login. No project. `secondlayer instance` is gone — those three verbs are top-level.
 Hosted account commands still work if you know them; they no longer appear in
 `--help`.
 
 ### Mint mock sBTC on your devnet
 
-`sl devnet faucet` gives you sBTC to test against, locally:
+`secondlayer devnet faucet` gives you sBTC to test against, locally:
 
 ```bash
-sl devnet faucet --to ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+secondlayer devnet faucet --to ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
 ```
 
 No Bitcoin, no regtest, no waiting on someone else's faucet. The sBTC contracts
@@ -64,28 +64,28 @@ yours.
 
 ### Check your chain data against a signed archive
 
-`sl verify` tells you whether your history is intact. It compares your database
+`secondlayer verify` tells you whether your history is intact. It compares your database
 against a signed canonical archive and names the exact height ranges that
 diverge — missing blocks, broken parent links, duplicate heights, forks left on
 the losing branch.
 
 ```bash
-sl verify --against https://archive.secondlayer.tools/.../latest.json
+secondlayer verify --against https://archive.secondlayer.tools/.../latest.json
 ```
 
 It is read-only and nothing leaves your machine: only digests are compared. The
 full mainnet chain — 8.7M blocks — checks in well under a minute.
 
-When something is wrong, `sl repair` fixes it. It shows you a plan first, names
+When something is wrong, `secondlayer repair` fixes it. It shows you a plan first, names
 every height it would change, and refuses any archive object that does not match
 its signed digest.
 
 ```bash
-sl repair --against <archive>            # plan
-sl repair --against <archive> --apply    # fix
+secondlayer repair --against <archive>            # plan
+secondlayer repair --against <archive> --apply    # fix
 ```
 
-And `sl bootstrap` stands up a fresh instance from the archive instead of
+And `secondlayer bootstrap` stands up a fresh instance from the archive instead of
 replaying the chain from genesis — it shows you both timings before it starts,
 then restores and verifies itself.
 
@@ -93,7 +93,7 @@ All three exit with stable codes for CI: `0` clean, `1` divergence found, `2`
 unable to verify. That last one never reports as success — not being able to
 check is different from being fine.
 
-`sl verify --semantic` recomputes each partition's `sha256:semantic-v1` digest
+`secondlayer verify --semantic` recomputes each partition's `sha256:semantic-v1` digest
 locally and compares it to the manifest. The default pass hashes identity
 columns; `--semantic` also catches divergence in `raw_tx`, event `data`, and
 `function_args`.
@@ -105,7 +105,7 @@ audit of that snapshot. `coverage` is the attested window; `stats` is exact;
 
 ### Mirror the PoX-5 feed in your own database
 
-`sl index codegen` refused `pox5_events` with `Unknown Index table` — the table
+`secondlayer index codegen` refused `pox5_events` with `Unknown Index table` — the table
 was missing from the Index read contract, so the one stacking feed that is
 still growing after the epoch 4.0 activation was the one feed a BYO mirror
 couldn't hold. (The closed pox-4 era was covered the whole time.)
@@ -113,7 +113,7 @@ couldn't hold. (The closed pox-4 era was covered the whole time.)
 All three targets now emit it:
 
 ```bash
-sl index codegen --target kysely --tables pox5_events
+secondlayer index codegen --target kysely --tables pox5_events
 ```
 
 You get `Pox5Events` for Kysely, `pox5Events` for Drizzle, and a
@@ -187,7 +187,7 @@ The `subgraphs_reindex` MCP tool drops the same two parameters.
 
 ### Reindex no longer takes a block range
 
-`sl subgraphs reindex` drops `--from-block` and `--to-block`, and the API
+`secondlayer subgraphs reindex` drops `--from-block` and `--to-block`, and the API
 rejects either with `400 REINDEX_RANGE_NOT_SUPPORTED`.
 
 A reindex drops your subgraph's tables and rebuilds them. The range only ever
@@ -198,7 +198,7 @@ Only counting rows against another source showed the history was gone.
 
 Reindex is now always the whole subgraph: every row dropped, rebuilt from your
 `startBlock` to chain tip. The confirmation prompt says so plainly. For a
-specific block range, use `sl subgraphs backfill --from-block <n> --to-block <n>`
+specific block range, use `secondlayer subgraphs backfill --from-block <n> --to-block <n>`
 — it never drops anything, and it already refuses handlers that would
 double-count on a replay.
 
@@ -216,7 +216,7 @@ curl https://api.secondlayer.tools/v1/index/mempool \
 ```
 
 It composes with `sender`, `type`, and the cursor like every other filter.
-`sl index mempool --function-name <name>` and `functionName` on the SDK's
+`secondlayer index mempool --function-name <name>` and `functionName` on the SDK's
 `mempool.list`/`walk` pass it through. A `(contract_id, function_name)` index
 backs it — which also puts an index behind plain `contract_id` filtering for the
 first time.
@@ -237,7 +237,7 @@ schema change, not on a plain redeploy.
 
 ### Deploy refuses a subgraph source that isn't committed
 
-`sl subgraphs deploy` now checks whether your definition file is committed to
+`secondlayer subgraphs deploy` now checks whether your definition file is committed to
 git before it deploys. If it's untracked or has uncommitted changes, you get a
 prompt in a terminal and a hard failure in scripts and CI — because a deployed
 definition whose source isn't in version control exists only as a database row,
@@ -546,7 +546,7 @@ consume loop never forwarded it, so it type-checked and was then dropped.
 ### MCP
 
 `codegen_index_schema` emits an ORM schema for the Index tables in-conversation
-— same generator as `sl codegen index`. `get_contract_abi` becomes
+— same generator as `secondlayer codegen index`. `get_contract_abi` becomes
 `contracts_get_abi` (the unprefixed name filed itself under a phantom "get"
 product in the capability listing); the old name keeps working until the next
 major.
@@ -644,8 +644,8 @@ instead of `undefined` at runtime.
 ### Run a handler before you deploy
 
 ```bash
-sl subgraphs test subgraphs/bns-names.ts --from 167484 --to 167600
-sl subgraphs test subgraphs/bns-names.ts --offline
+secondlayer subgraphs test subgraphs/bns-names.ts --from 167484 --to 167600
+secondlayer subgraphs test subgraphs/bns-names.ts --offline
 ```
 
 Real chain events, your local handler code, no deploy. The first run records
@@ -721,10 +721,10 @@ prints: {
 
 ### One verb for generating code
 
-`sl codegen contracts | subgraph | index | client | prints` replaces six
+`secondlayer codegen contracts | subgraph | index | client | prints` replaces six
 entry points under three verbs. `--target` means the same thing with the same
-default everywhere — previously `sl subgraphs codegen -o db.ts` wrote Prisma
-while the identical-looking `sl index codegen -o db.ts` wrote Kysely. Old
+default everywhere — previously `secondlayer subgraphs codegen -o db.ts` wrote Prisma
+while the identical-looking `secondlayer index codegen -o db.ts` wrote Kysely. Old
 paths still work, print a deprecation notice, and keep their original
 defaults so your output doesn't change.
 
@@ -1137,7 +1137,7 @@ through instead of erroring.
 
 ### Watch mode and dependency types for contract codegen
 
-`sl contracts generate --watch` regenerates your typed clients the moment a
+`secondlayer contracts generate --watch` regenerates your typed clients the moment a
 `.clar` file, your config, or `Clarinet.toml` changes — leave it running next
 to your editor. And the `clarinet()` plugin now types the contracts you depend
 on, not just the ones you wrote: everything under `[project.requirements]`
@@ -1167,7 +1167,7 @@ automatically — your fetched ABIs survive the round trip.
 - The burnchain reward tables (`burn_block_rewards`,
   `burn_block_reward_slots`) drop their never-enforced `canonical` column —
   replace-per-height is the documented reorg contract for burnchain data. If
-  your `sl index codegen` mirror includes these tables, re-run codegen and
+  your `secondlayer index codegen` mirror includes these tables, re-run codegen and
   drop the column; it was always `true`, so nothing is lost.
 
 ## SDK — July 2026
@@ -1175,7 +1175,7 @@ automatically — your fetched ABIs survive the round trip.
 ### Named types on hover, unsigned transactions on demand
 
 Your generated ABIs now carry their own type names. `getContract` picks up the
-`TypedAbi` brand emitted by `sl contracts generate`, so hovering
+`TypedAbi` brand emitted by `secondlayer contracts generate`, so hovering
 `contract.call.transfer` shows `TokenTransferArgs` — cmd-clickable, readable
 in errors — instead of a wall of inferred conditionals. Hand-written
 `as const` ABIs keep working exactly as before.

@@ -32,7 +32,7 @@ subgraph directory), Contract discovery (`/v1/contracts` trait filtering).
 
 | Package | Binary | Does | Users |
 |---|---|---|---|
-| `@secondlayer/cli` | `sl` | auth, projects, subgraph scaffold/deploy/query, Clarity codegen, subscriptions, data reads | engineers/ops |
+| `@secondlayer/cli` | `secondlayer` | auth, projects, subgraph scaffold/deploy/query, Clarity codegen, subscriptions, data reads | engineers/ops |
 | `@secondlayer/sdk` | — | TS client: query Index/Streams/Subgraphs, manage subscriptions, verify signatures | app code |
 | `@secondlayer/stacks` | — | viem-style Stacks SDK: contract reads, transfers, Clarity decoding, BNS, PoX, accounts, WalletConnect v2 | app devs |
 | `@secondlayer/mcp` | `secondlayer-mcp` | MCP server (scaffold + query for agents) | AI agents |
@@ -40,15 +40,15 @@ subgraph directory), Contract discovery (`/v1/contracts` trait filtering).
 
 Golden-path commands:
 ```bash
-sl login
-sl projects create my-app && sl projects use my-app
-sl subgraphs scaffold SP….contract -o subgraphs/x.ts
-sl subgraphs deploy subgraphs/x.ts --start-block <recent>
-sl subgraphs query x <table> --sort _block_height --order desc
-sl subscriptions create hook --subgraph x --table <t> --url https://…
-sl index ft-transfers --contract-id SP….token --limit 5
-sl streams tip
-sl contracts generate ./contracts/*.clar -o src/generated.ts   # Clarity → typed TS + React hooks
+secondlayer login
+secondlayer projects create my-app && secondlayer projects use my-app
+secondlayer subgraphs scaffold SP….contract -o subgraphs/x.ts
+secondlayer subgraphs deploy subgraphs/x.ts --start-block <recent>
+secondlayer subgraphs query x <table> --sort _block_height --order desc
+secondlayer subscriptions create hook --subgraph x --table <t> --url https://…
+secondlayer index ft-transfers --contract-id SP….token --limit 5
+secondlayer streams tip
+secondlayer contracts generate ./contracts/*.clar -o src/generated.ts   # Clarity → typed TS + React hooks
 ```
 
 ## Public surfaces (API)

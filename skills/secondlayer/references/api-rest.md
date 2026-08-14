@@ -14,7 +14,7 @@ Override with `SL_API_URL` env var or `baseUrl` SDK option.
 
 ## Authentication
 
-Default base is the local instance. Loopback reads need no key. Writes use `INSTANCE_TOKEN` from `sl init` as `Authorization: Bearer`.
+Default base is the local instance. Loopback reads need no key. Writes use `INSTANCE_TOKEN` from `secondlayer init` as `Authorization: Bearer`.
 
 | Endpoint family | Reads | Writes | Header |
 |---|---|---|---|
@@ -103,7 +103,7 @@ Match `key_id` against the `X-Signature-KeyId` header, then verify `X-Signature`
 
 ### `GET /public/streams/dumps/manifest`
 
-Parquet bulk-dump manifest (when enabled). Anonymous (no auth). Lists finalized event files for bulk backfill — each entry carries a `sha256` for integrity. Also exposes `latest_finalized_cursor` so you can seam a bulk backfill into a live tail with no gap/dupe. The SDK (`client.dumps`, `events.replay`) and CLI (`sl streams pull`) consume this directly.
+Parquet bulk-dump manifest (when enabled). Anonymous (no auth). Lists finalized event files for bulk backfill — each entry carries a `sha256` for integrity. Also exposes `latest_finalized_cursor` so you can seam a bulk backfill into a live tail with no gap/dupe. The SDK (`client.dumps`, `events.replay`) and CLI (`secondlayer streams pull`) consume this directly.
 
 ### `GET /v1/streams/events/{txId}`
 
@@ -252,7 +252,7 @@ Same filters apply; aggregate takes `_count` / `_sum` / `_countDistinct` etc.
 
 ### Publish / visibility
 
-Deploy with `--visibility public|private` (managed default public, BYO default private); flip later with `sl subgraphs publish|unpublish <name>`. Public names are a single global claim-on-publish namespace — taken name → `409 PUBLIC_NAME_TAKEN`.
+Deploy with `--visibility public|private` (managed default public, BYO default private); flip later with `secondlayer subgraphs publish|unpublish <name>`. Public names are a single global claim-on-publish namespace — taken name → `409 PUBLIC_NAME_TAKEN`.
 
 ---
 

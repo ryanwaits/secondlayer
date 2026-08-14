@@ -27,8 +27,8 @@ secondlayer/
 │   ├── platform/      ← accounts, plans, billing
 │   ├── worker/        ← crons (reconcile, sweeps, alerts)
 │   ├── mcp/ sdk/ cli/ ← clients (golden-path surface only — see parity firewall)
-│   ├── scaffold/      ← generates a subgraph definition from a contract ABI (powers `sl subgraphs scaffold`)
-│   ├── bundler/       ← compiles a subgraph definition into one deployable artifact (powers `sl subgraphs deploy`)
+│   ├── scaffold/      ← generates a subgraph definition from a contract ABI (powers `secondlayer subgraphs scaffold`)
+│   ├── bundler/       ← compiles a subgraph definition into one deployable artifact (powers `secondlayer subgraphs deploy`)
 │   ├── clarity-docs/  ← ClarityDoc comment standard + tooling for Clarity contracts
 │   ├── stacks/        ← chain primitives SDK (/clarity load-bearing; nonce coordination supported; rest of wallet half frozen)
 │   └── shared/        ← db, schemas, vocab single-sourcing

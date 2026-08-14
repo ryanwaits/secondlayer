@@ -1,12 +1,12 @@
 # Authentication
 
-Loopback reads need no key. Writes and bind-beyond-loopback use the instance token from `sl init`. Archive restore and backfill are a separate card credit.
+Loopback reads need no key. Writes and bind-beyond-loopback use the instance token from `secondlayer init`. Archive restore and backfill are a separate card credit.
 
 | Surface | Key | Behavior |
 | --- | --- | --- |
 | Index / Streams / public subgraphs on `127.0.0.1` | None | Local instance |
-| Writes (`subgraphs deploy`, subscriptions) | `INSTANCE_TOKEN` | From `sl init` |
-| Official-archive bootstrap / R2 backfill | Card credits | [Buy](/#history) or `sl credits buy` |
+| Writes (`subgraphs deploy`, subscriptions) | `INSTANCE_TOKEN` | From `secondlayer init` |
+| Official-archive bootstrap / R2 backfill | Card credits | [Buy](/#history) or `secondlayer credits buy` |
 
 ```bash
 # Local read — no key
@@ -24,19 +24,19 @@ The CLI and MCP read `SL_API_KEY` / `INSTANCE_TOKEN`. The SDK takes it explicitl
 Large restore and backfill off our R2 is metered. Packs are $10, $25, $50, or $100. The prepaid balance is the hard cap.
 
 ```bash
-sl credits buy --email you@example.com --pack 25
-SL_API_URL=https://api.secondlayer.tools sl login
-sl credits balance
+secondlayer credits buy --email you@example.com --pack 25
+SL_API_URL=https://api.secondlayer.tools secondlayer login
+secondlayer credits balance
 ```
 
-Auto-refill is off until you set it: `sl credits refill --below 5 --pack 25`.
+Auto-refill is off until you set it: `secondlayer credits refill --below 5 --pack 25`.
 
 ## Webhook signing secrets
 
-A **signing secret** (`whsec_…`) is per-subscription and verifies an incoming webhook came from your instance (`verifyWebhookSignature`) — see [Subscriptions](/docs/subscriptions). Never in `Authorization`. Rotate with `sl subscriptions rotate-secret`.
+A **signing secret** (`whsec_…`) is per-subscription and verifies an incoming webhook came from your instance (`verifyWebhookSignature`) — see [Subscriptions](/docs/subscriptions). Never in `Authorization`. Rotate with `secondlayer subscriptions rotate-secret`.
 
 export const metadata = {
 	title: "Authentication — Secondlayer Docs",
 	description:
-		"Instance tokens from sl init, keyless loopback reads, and archive credits for R2 restore.",
+		"Instance tokens from secondlayer init, keyless loopback reads, and archive credits for R2 restore.",
 };

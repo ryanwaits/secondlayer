@@ -166,8 +166,8 @@ export default async function ExplorePage() {
 							readable by anyone, no key needed. Be the first to publish one.
 						</p>
 						<div className="explore-empty-cmd">
-							<code>sl subgraphs deploy my-view.ts</code>
-							<CopyButton code="sl subgraphs deploy my-view.ts" />
+							<code>secondlayer subgraphs deploy my-view.ts</code>
+							<CopyButton code="secondlayer subgraphs deploy my-view.ts" />
 						</div>
 						<Link href="/docs/subgraphs" className="explore-empty-link">
 							Read the subgraphs guide →
@@ -192,7 +192,7 @@ export default async function ExplorePage() {
 
 					<div className="explore-listed">
 						<span className="lead">Get listed.</span>
-						<code>sl subgraphs publish &lt;name&gt;</code>
+						<code>secondlayer subgraphs publish &lt;name&gt;</code>
 						<span className="fine">
 							Managed deploys are public by default — publishing claims your
 							name globally and adds it here.

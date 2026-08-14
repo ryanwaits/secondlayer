@@ -35,7 +35,7 @@ await streams.events.replay({
 Plain parquet. Pull a verified range and query it locally:
 
 ```bash
-sl streams pull --to ./dump   # sha256-verified against the signed manifest
+secondlayer streams pull --to ./dump   # sha256-verified against the signed manifest
 
 duckdb -c "SELECT event_type, count(*) AS events
            FROM read_parquet('./dump/**/*.parquet')

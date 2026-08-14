@@ -12,23 +12,23 @@ curl "http://127.0.0.1:3800/v1/index/events?event_type=ft_transfer&limit=5"
 
 ```bash
 bun add -g @secondlayer/cli
-sl init --network mainnet
+secondlayer init --network mainnet
 cd docker/oss && docker compose up -d
-sl observer --mode indexer --endpoint secondlayer:3700
-sl bootstrap --against <manifest>
-sl verify all --against <manifest>
+secondlayer observer --mode indexer --endpoint secondlayer:3700
+secondlayer bootstrap --against <manifest>
+secondlayer verify all --against <manifest>
 
 # Index a contract into a typed, queryable Postgres table
 export SL_API_URL=http://127.0.0.1:3800
-sl subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts
-sl subgraphs deploy subgraphs/my-contract.ts --start-block <recent-block>
-sl subgraphs query my-contract <table> --sort _block_height --order desc
+secondlayer subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts
+secondlayer subgraphs deploy subgraphs/my-contract.ts --start-block <recent-block>
+secondlayer subgraphs query my-contract <table> --sort _block_height --order desc
 ```
 
 A **chain** subscription fires on raw events with no subgraph:
 
 ```bash
-sl subscriptions create amm-swaps \
+secondlayer subscriptions create amm-swaps \
   --url https://my-app.com/webhook \
   --trigger '{"type":"contract_call","contractId":"SP....amm","functionName":"swap-*"}'
 ```
@@ -58,7 +58,7 @@ Pages are `_id`-keyset: pass `?cursor=<next_cursor>` to resume, `_order=asc|desc
 for direction.
 
 **MCP** — `bunx -p @secondlayer/mcp secondlayer-mcp` (default local API).
-Set `SL_API_KEY` to the `INSTANCE_TOKEN` from `sl init` for writes.
+Set `SL_API_KEY` to the `INSTANCE_TOKEN` from `secondlayer init` for writes.
 enable writes (deploy/manage). See [MCP README](packages/mcp/README.md).
 
 ## Packages
@@ -69,7 +69,7 @@ chain primitives (Clarity decoding, reads). Most apps only need `sdk`.
 
 | Package | Description |
 |---|---|
-| [`@secondlayer/cli`](packages/cli/README.md) | `sl` binary — init, bootstrap, verify, deploy |
+| [`@secondlayer/cli`](packages/cli/README.md) | `secondlayer` binary — init, bootstrap, verify, deploy |
 | [`@secondlayer/sdk`](packages/sdk/README.md) | TypeScript SDK — Streams, Index, subgraphs, webhooks |
 | [`@secondlayer/mcp`](packages/mcp/README.md) | MCP server — instance tools for agents |
 | [`@secondlayer/stacks`](packages/stacks/README.md) | viem-style Stacks client — public/wallet, BNS |
@@ -82,7 +82,7 @@ chain primitives (Clarity decoding, reads). Most apps only need `sdk`.
 ```bash
 git clone https://github.com/ryanwaits/secondlayer
 cd secondlayer/docker/oss
-sl init --network mainnet
+secondlayer init --network mainnet
 docker compose up -d
 ```
 

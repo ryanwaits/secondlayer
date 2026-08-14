@@ -39,7 +39,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Sweep it into my database",
 			"Stand up a checkpointed consumer end to end.",
-			"/secondlayer Help me build my own index on Secondlayer: run `sl index codegen --target kysely` for the mirror schema, write a `consume()` loop that commits rows and the checkpoint in one transaction, handle `onReorg` by deleting from `fork_point_height` up, then point me at a deploy target.",
+			"/secondlayer Help me build my own index on Secondlayer: run `secondlayer index codegen --target kysely` for the mirror schema, write a `consume()` loop that commits rows and the checkpoint in one transaction, handle `onReorg` by deleting from `fork_point_height` up, then point me at a deploy target.",
 		),
 		variant("subgraph-create"),
 	],
@@ -48,12 +48,12 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Run the quickstart",
 			"Drive the five-command path to a live table.",
-			"/secondlayer Walk me through the quickstart end to end: `sl subgraphs create my-balances --template sip-010-balances`, then `sl subgraphs deploy subgraphs/my-balances.ts`, then curl `/v1/subgraphs/my-balances/balances` to confirm it's live and keyless.",
+			"/secondlayer Walk me through the quickstart end to end: `secondlayer subgraphs create my-balances --template sip-010-balances`, then `secondlayer subgraphs deploy subgraphs/my-balances.ts`, then curl `/v1/subgraphs/my-balances/balances` to confirm it's live and keyless.",
 		),
 		card(
 			"Verify my setup",
 			"Confirm CLI, auth, and plan before deploying.",
-			"/secondlayer Verify my Secondlayer setup before I deploy: run `sl whoami` to confirm auth, `sl doctor` to check the CLI and environment, and `sl billing` to confirm a plan or trial covers deploys — then tell me exactly what's missing and how to fix it.",
+			"/secondlayer Verify my Secondlayer setup before I deploy: run `secondlayer whoami` to confirm auth, `secondlayer doctor` to check the CLI and environment, and `secondlayer billing` to confirm a plan or trial covers deploys — then tell me exactly what's missing and how to fix it.",
 		),
 		variant("subgraph-create"),
 	],
@@ -62,17 +62,17 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Log in, scope a key",
 			"Authenticate, then pick the right key product.",
-			"/secondlayer Authenticate with `sl login`, confirm with `sl whoami`, then explain key products — `account` (owner; mints keys, reads both surfaces) vs scoped `streams` / `index` — and create the right one for what I'm doing. Reads are public; keys gate writes and scope reads.",
+			"/secondlayer Authenticate with `secondlayer login`, confirm with `secondlayer whoami`, then explain key products — `account` (owner; mints keys, reads both surfaces) vs scoped `streams` / `index` — and create the right one for what I'm doing. Reads are public; keys gate writes and scope reads.",
 		),
 		card(
 			"Mint a scoped CI key",
 			"Self-provision a scoped key without the dashboard.",
-			'/secondlayer Help me mint a scoped key for CI without the console: with my owner key, create one via `sl keys create --product streams` (or `POST /v1/api-keys` with `{ "product": "streams" }`), capture the plaintext key shown once, and set it as `SL_API_KEY`.',
+			'/secondlayer Help me mint a scoped key for CI without the console: with my owner key, create one via `secondlayer keys create --product streams` (or `POST /v1/api-keys` with `{ "product": "streams" }`), capture the plaintext key shown once, and set it as `SL_API_KEY`.',
 		),
 		card(
 			"Rotate a key or secret",
 			"Rotate an API key or webhook signing secret safely.",
-			"/secondlayer Help me rotate a secret. Instance tokens come from `sl init`. For a webhook signing secret run `sl subscriptions rotate-secret`. Then re-wire everywhere the old value was used and confirm nothing still references it.",
+			"/secondlayer Help me rotate a secret. Instance tokens come from `secondlayer init`. For a webhook signing secret run `secondlayer subscriptions rotate-secret`. Then re-wire everywhere the old value was used and confirm nothing still references it.",
 		),
 	],
 
@@ -85,7 +85,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Build a mirror index",
 			"Codegen the schema, run a checkpointed consumer with reorg rewind.",
-			"/secondlayer Help me build my own index on `/v1/index`: run `sl index codegen --target kysely` for the mirror schema, then wire `index.events.consume()` — write rows in `onBatch`, return the committed cursor, handle `onReorg` by deleting from the fork height, and set `fromHeight: 0` to backfill from genesis.",
+			"/secondlayer Help me build my own index on `/v1/index`: run `secondlayer index codegen --target kysely` for the mirror schema, then wire `index.events.consume()` — write rows in `onBatch`, return the committed cursor, handle `onReorg` by deleting from the fork height, and set `fromHeight: 0` to backfill from genesis.",
 		),
 		card(
 			"Inspect a print schema",
@@ -100,12 +100,12 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Deploy to your database",
 			"BYO Postgres + a typed ORM schema.",
-			'/secondlayer Help me deploy a subgraph to my own Postgres: `sl subgraphs deploy <file> --database-url "$DATABASE_URL"`, generate a typed schema with `sl subgraphs codegen --target prisma|drizzle|kysely`, treat the tables as read-only, and explain the 422 breaking-change refusal on incompatible redeploys.',
+			'/secondlayer Help me deploy a subgraph to my own Postgres: `secondlayer subgraphs deploy <file> --database-url "$DATABASE_URL"`, generate a typed schema with `secondlayer subgraphs codegen --target prisma|drizzle|kysely`, treat the tables as read-only, and explain the 422 breaking-change refusal on incompatible redeploys.',
 		),
 		card(
 			"Publish and watch",
 			"Make it public, then watch the backfill drain.",
-			"/secondlayer Publish my subgraph with `sl subgraphs publish <name>` (explain the public namespace and `409 PUBLIC_NAME_TAKEN`), then watch the genesis backfill with `sl subgraphs status <name>` while reads already serve on `/v1/subgraphs/<name>/<table>`.",
+			"/secondlayer Publish my subgraph with `secondlayer subgraphs publish <name>` (explain the public namespace and `409 PUBLIC_NAME_TAKEN`), then watch the genesis backfill with `secondlayer subgraphs status <name>` while reads already serve on `/v1/subgraphs/<name>/<table>`.",
 		),
 	],
 
@@ -134,7 +134,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Pull dumps for DuckDB",
 			"Query verified dumps locally, no indexer.",
-			"/secondlayer Help me pull Streams bulk dumps with `sl streams pull` (sha256-verified against the signed manifest) and query them locally in DuckDB with `read_parquet('./**/*.parquet')` — no indexer required.",
+			"/secondlayer Help me pull Streams bulk dumps with `secondlayer streams pull` (sha256-verified against the signed manifest) and query them locally in DuckDB with `read_parquet('./**/*.parquet')` — no indexer required.",
 		),
 	],
 
@@ -213,18 +213,18 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 	"/docs/archive": [
 		card(
 			"Check local data against the archive",
-			"Run sl verify on raw, a decoder, or a subgraph.",
-			"/secondlayer Help me verify my local Secondlayer database against a signed archive: `sl verify raw --against <latest.json>` for blocks/transactions/events, `sl verify decode:ft_transfer --against <latest.json> --deep` for one decoder, or `sl verify all`. Explain exit `0`/`1`/`2` and what `--quick`, `--deep`, and `--anchor` do.",
+			"Run secondlayer verify on raw, a decoder, or a subgraph.",
+			"/secondlayer Help me verify my local Secondlayer database against a signed archive: `secondlayer verify raw --against <latest.json>` for blocks/transactions/events, `secondlayer verify decode:ft_transfer --against <latest.json> --deep` for one decoder, or `secondlayer verify all`. Explain exit `0`/`1`/`2` and what `--quick`, `--deep`, and `--anchor` do.",
 		),
 		card(
 			"Repair what diverged",
 			"Plan first, then apply signed archive rows.",
-			"/secondlayer My `sl verify` exited 1. Show me `sl repair --against <archive>` (dry-run) then `--apply`. Name exact heights, refuse unsigned objects, and do not delete local heights the archive does not have.",
+			"/secondlayer My `secondlayer verify` exited 1. Show me `secondlayer repair --against <archive>` (dry-run) then `--apply`. Name exact heights, refuse unsigned objects, and do not delete local heights the archive does not have.",
 		),
 		card(
 			"Bootstrap a fresh instance",
 			"Restore history instead of syncing from genesis.",
-			"/secondlayer Stand up an empty instance from the archive: `sl bootstrap --against <manifest>`. Explain the two timings, that a non-empty database is refused (`sl repair` instead), and `--to-block` / `-y`.",
+			"/secondlayer Stand up an empty instance from the archive: `secondlayer bootstrap --against <manifest>`. Explain the two timings, that a non-empty database is refused (`secondlayer repair` instead), and `--to-block` / `-y`.",
 		),
 	],
 
@@ -301,7 +301,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Scaffold from a hit",
 			"Go from a registry result to a subgraph.",
-			"/secondlayer Pick a contract from `/v1/contracts` for the standard I name, then scaffold a subgraph from it with `sl subgraphs create <name> --from-contract <id>` and deploy.",
+			"/secondlayer Pick a contract from `/v1/contracts` for the standard I name, then scaffold a subgraph from it with `secondlayer subgraphs create <name> --from-contract <id>` and deploy.",
 		),
 	],
 
@@ -359,13 +359,13 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Stand up a local runtime",
 			"Init, bootstrap, print the observer stanza.",
-			"/secondlayer Help me run a local Secondlayer instance with no account: `sl init --network mainnet` writes `.env.local`, `sl bootstrap --against <manifest>` restores verified history into an empty database, and `sl observer --mode indexer` prints the `[[events_observer]]` stanza. Then `sl verify all --against <manifest>` checks the restore. Explain flags, exit codes, and when to use `--mode signer-shared --recovery journal`.",
+			"/secondlayer Help me run a local Secondlayer instance with no account: `secondlayer init --network mainnet` writes `.env.local`, `secondlayer bootstrap --against <manifest>` restores verified history into an empty database, and `secondlayer observer --mode indexer` prints the `[[events_observer]]` stanza. Then `secondlayer verify all --against <manifest>` checks the restore. Explain flags, exit codes, and when to use `--mode signer-shared --recovery journal`.",
 		),
 		variant("cli-operate"),
 		card(
 			"Scaffold from a contract",
 			"Typed print payloads, no login required.",
-			"/secondlayer Run `sl subgraphs create <name> --from-contract <contract-id>` to infer typed print payloads from indexed history, walk me through the generated `print_event` sources and wide table, then `sl subgraphs deploy` and query recent rows.",
+			"/secondlayer Run `secondlayer subgraphs create <name> --from-contract <contract-id>` to infer typed print payloads from indexed history, walk me through the generated `print_event` sources and wide table, then `secondlayer subgraphs deploy` and query recent rows.",
 		),
 	],
 
@@ -443,7 +443,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Bring up the stack",
 			"Run app services with Docker Compose.",
-			"/secondlayer Help me self-host Secondlayer: clone the repo, `cd docker/oss`, `sl init --network mainnet` (copy `.env.local` into `.env`), then `docker compose up -d` (postgres + one secondlayer container) and verify `curl http://localhost:3800/health`. Point an existing stacks-node at the indexer with `sl observer --mode indexer --endpoint secondlayer:3700` and paste the stanza into `Config.toml`.",
+			"/secondlayer Help me self-host Secondlayer: clone the repo, `cd docker/oss`, `secondlayer init --network mainnet` (copy `.env.local` into `.env`), then `docker compose up -d` (postgres + one secondlayer container) and verify `curl http://localhost:3800/health`. Point an existing stacks-node at the indexer with `secondlayer observer --mode indexer --endpoint secondlayer:3700` and paste the stanza into `Config.toml`.",
 		),
 		card(
 			"Run published images",
@@ -453,7 +453,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Sync from genesis",
 			"Backfill, then deploy against your instance.",
-			"/secondlayer Walk me through a genesis sync: start with `TIP_FOLLOWER_ENABLED=false`, track progress via `curl http://localhost:3700/health | jq .block_height` against the chain tip, re-enable the tip follower, `sl verify all --against <manifest>`, then deploy a subgraph against my local instance with `SL_API_URL=http://localhost:3800` and `sl subgraphs deploy`.",
+			"/secondlayer Walk me through a genesis sync: start with `TIP_FOLLOWER_ENABLED=false`, track progress via `curl http://localhost:3700/health | jq .block_height` against the chain tip, re-enable the tip follower, `secondlayer verify all --against <manifest>`, then deploy a subgraph against my local instance with `SL_API_URL=http://localhost:3800` and `secondlayer subgraphs deploy`.",
 		),
 	],
 
@@ -461,17 +461,17 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Spin up local devnet",
 			"Point a Clarinet project at a local Secondlayer stack.",
-			"/secondlayer From inside my Clarinet project, run `sl devnet connect` — explain that it patches `settings/Devnet.toml` to forward events to the local indexer on `:3700`, writes `.secondlayer/docker-compose.yml`, and brings the stack up. Then start the chain with `clarinet devnet start` and confirm the api is live at `http://localhost:3800`.",
+			"/secondlayer From inside my Clarinet project, run `secondlayer devnet connect` — explain that it patches `settings/Devnet.toml` to forward events to the local indexer on `:3700`, writes `.secondlayer/docker-compose.yml`, and brings the stack up. Then start the chain with `clarinet devnet start` and confirm the api is live at `http://localhost:3800`.",
 		),
 		card(
 			"Deploy against devnet",
 			"Run a subgraph on local devnet blocks, no keys.",
-			"/secondlayer Help me deploy a subgraph against my local devnet: `SL_API_URL=http://localhost:3800 SL_API_KEY=dummy sl subgraphs deploy ./subgraph.ts` (no login — the local stack accepts a dummy key). Then have me fire a contract call in the devnet and confirm the matching rows land by reading the subgraph's table.",
+			"/secondlayer Help me deploy a subgraph against my local devnet: `SL_API_URL=http://localhost:3800 SL_API_KEY=dummy secondlayer subgraphs deploy ./subgraph.ts` (no login — the local stack accepts a dummy key). Then have me fire a contract call in the devnet and confirm the matching rows land by reading the subgraph's table.",
 		),
 		card(
 			"Watch and tear down",
 			"Snapshot ingest, tail logs, then wipe the stack.",
-			"/secondlayer Walk me through watching the local stack: `sl devnet status -w` for live ingest lag and recent rows, `sl devnet logs indexer -f` to tail one service, then `sl devnet down` to stop — or `sl devnet down --purge` to wipe the local index volumes when I'm done.",
+			"/secondlayer Walk me through watching the local stack: `secondlayer devnet status -w` for live ingest lag and recent rows, `secondlayer devnet logs indexer -f` to tail one service, then `secondlayer devnet down` to stop — or `secondlayer devnet down --purge` to wipe the local index volumes when I'm done.",
 		),
 	],
 

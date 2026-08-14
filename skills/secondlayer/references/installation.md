@@ -6,7 +6,7 @@ Everything you need to install one or more Secondlayer packages, authenticate th
 
 | Package | Install | What it's for |
 |---|---|---|
-| `@secondlayer/cli` | `bun add -g @secondlayer/cli` | The `sl` binary. Auth, project management, subgraph deploy/query, subscription CRUD, streams, local dev, codegen. |
+| `@secondlayer/cli` | `bun add -g @secondlayer/cli` | The `secondlayer` binary. Auth, project management, subgraph deploy/query, subscription CRUD, streams, local dev, codegen. |
 | `@secondlayer/sdk` | `bun add @secondlayer/sdk` | TypeScript client for the Secondlayer platform API: `sl.streams`, `sl.index`, `sl.subgraphs`, `sl.subscriptions`. Webhook signature verification. |
 | `@secondlayer/subgraphs` | `bun add @secondlayer/subgraphs` | Author-side library for writing subgraph definitions (`defineSubgraph`, types, triggers). |
 | `@secondlayer/stacks` | `bun add @secondlayer/stacks` | viem-style Stacks chain client. Reads + signs txs. `Cl`, `Pc`, `getContract`, BNS / PoX / sBTC / StackingDAO. |
@@ -19,10 +19,12 @@ Pick only the packages your task needs. They have no shared runtime — each is 
 ## Verify the install
 
 ```bash
-sl --version
+secondlayer --version
 ```
 
-If `sl` is not found after `bun add -g @secondlayer/cli`, ensure Bun's global bin directory is on `PATH`:
+`sl` is a short alias of `secondlayer`.
+
+If `secondlayer` is not found after `bun add -g @secondlayer/cli`, ensure Bun's global bin directory is on `PATH`:
 
 ```bash
 # Add to ~/.zshrc or ~/.bashrc
@@ -32,12 +34,12 @@ export PATH="$HOME/.bun/bin:$PATH"
 ## Start a local instance
 
 ```bash
-sl init --network mainnet
-sl start --print
+secondlayer init --network mainnet
+secondlayer start --print
 # docker compose -f docker/oss/docker-compose.yml up -d
 ```
 
-`sl init` writes `.env.local` (`INSTANCE_TOKEN`, secrets key, webhook signing key). Loopback reads need no token. For writes against a published bind:
+`secondlayer init` writes `.env.local` (`INSTANCE_TOKEN`, secrets key, webhook signing key). Loopback reads need no token. For writes against a published bind:
 
 ```bash
 export SL_API_URL=http://127.0.0.1:3800
@@ -51,10 +53,10 @@ export SL_API_KEY=<INSTANCE_TOKEN>
 | Variable | Read by | Purpose |
 |---|---|---|
 | `SL_API_URL` | All SDK + CLI calls | Override instance API. Default: `http://127.0.0.1:3800`. |
-| `SL_API_KEY` | CLI writes, MCP, SDK | `INSTANCE_TOKEN` from `sl init`. Loopback reads need no token. |
-| `HIRO_API_KEY` | `sl contracts generate`, `sl subgraphs scaffold` | Stacks node API key for ABI fetches against Hiro RPC. |
-| `SIGNING_SECRET` | `sl subscriptions test` fallback | If `--signing-secret` not passed. |
-| `STACKS_NETWORK` | `sl contracts generate` and some local commands | `local`, `testnet`, or `mainnet`. |
+| `SL_API_KEY` | CLI writes, MCP, SDK | `INSTANCE_TOKEN` from `secondlayer init`. Loopback reads need no token. |
+| `HIRO_API_KEY` | `secondlayer contracts generate`, `secondlayer subgraphs scaffold` | Stacks node API key for ABI fetches against Hiro RPC. |
+| `SIGNING_SECRET` | `secondlayer subscriptions test` fallback | If `--signing-secret` not passed. |
+| `STACKS_NETWORK` | `secondlayer contracts generate` and some local commands | `local`, `testnet`, or `mainnet`. |
 | `SECONDLAYER_API_KEY` (in user code) | `new SecondLayer({ apiKey })` | What the SDK reads in your own code if you don't pass `apiKey` explicitly. (Naming is your choice; SDK takes the value via constructor.) |
 
 ## SDK quickstart
@@ -94,7 +96,7 @@ A typical Secondlayer project:
 ```
 my-app/
 ├── .secondlayer/
-│   └── project              # Binds this dir to a project (created by `sl projects use`)
+│   └── project              # Binds this dir to a project (created by `secondlayer projects use`)
 ├── subgraphs/
 │   ├── token-transfers.ts   # defineSubgraph(...) modules
 │   └── contract-events.ts
@@ -104,7 +106,7 @@ my-app/
 └── .env.local               # INSTANCE_TOKEN, SL_API_URL, SIGNING_SECRET, ...
 ```
 
-Subgraph files live under `subgraphs/` by convention but the CLI accepts any path: `sl subgraphs deploy any/path/file.ts`.
+Subgraph files live under `subgraphs/` by convention but the CLI accepts any path: `secondlayer subgraphs deploy any/path/file.ts`.
 
 ## Upgrading
 
@@ -113,4 +115,4 @@ bun add -g @secondlayer/cli@latest
 bun add @secondlayer/sdk@latest @secondlayer/subgraphs@latest @secondlayer/stacks@latest
 ```
 
-Major versions occasionally change `defineSubgraph` payload shapes or extension method signatures. Always re-run `sl subgraphs spec <file>` after a `@secondlayer/subgraphs` major bump to confirm your handlers still type-check.
+Major versions occasionally change `defineSubgraph` payload shapes or extension method signatures. Always re-run `secondlayer subgraphs spec <file>` after a `@secondlayer/subgraphs` major bump to confirm your handlers still type-check.

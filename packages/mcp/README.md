@@ -69,7 +69,7 @@ codegen, billing/caps, projects, live Streams reads, delivery forensics) are
 REST-only: see the OpenAPI spec at the API host.
 
 Account tools are unmounted. Point the server at your instance with `SL_API_URL`
-(default `http://127.0.0.1:3800`). Writes use `INSTANCE_TOKEN` from `sl init`.
+(default `http://127.0.0.1:3800`). Writes use `INSTANCE_TOKEN` from `secondlayer init`.
 
 ### `subscriptions_create` kinds
 

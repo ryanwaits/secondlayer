@@ -6,17 +6,17 @@ const LLMS_TXT = `# Secondlayer — self-hosted Stacks data
 > backfill off our R2 is metered.
 
 ## Start here
-- Install: bun add -g @secondlayer/cli && sl init --network mainnet
+- Install: bun add -g @secondlayer/cli && secondlayer init --network mainnet
 - Local API: http://127.0.0.1:3800  (SDK/CLI default)
 - OpenAPI on your instance: http://127.0.0.1:3800/v1/openapi.json
 - Docs: https://secondlayer.tools/docs
-- Archive credits: sl credits buy --email you@example.com --pack 25
+- Archive credits: secondlayer credits buy --email you@example.com --pack 25
 
 ## Auth model
 - Loopback reads: no key.
-- Writes and bind-beyond-loopback: INSTANCE_TOKEN from sl init (or SL_API_KEY).
+- Writes and bind-beyond-loopback: INSTANCE_TOKEN from secondlayer init (or SL_API_KEY).
 - Archive restore/backfill: card credits on https://api.secondlayer.tools
-  (sl credits buy / balance). Auto-refill is off until you set it.
+  (secondlayer credits buy / balance). Auto-refill is off until you set it.
 
 ## Batch
 - POST /v1/batch — up to 10 public /v1 reads in one round trip

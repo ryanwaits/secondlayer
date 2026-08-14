@@ -5,8 +5,8 @@
 // types `event.data` per topic (uses the same column-type vocab as `schema`),
 // so handlers need no `as` casts.
 //
-// Deploy:   sl subgraphs deploy examples/contract-events.ts
-// Query:    sl subgraphs query amm-events swaps --filter "pool=SP123.pool-a" --sort _block_height --order desc
+// Deploy:   secondlayer subgraphs deploy examples/contract-events.ts
+// Query:    secondlayer subgraphs query amm-events swaps --filter "pool=SP123.pool-a" --sort _block_height --order desc
 
 import { defineSubgraph } from "@secondlayer/subgraphs";
 

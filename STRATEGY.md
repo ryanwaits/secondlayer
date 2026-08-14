@@ -20,7 +20,7 @@ Everything we market is one of these three. Everything else is a feature of them
 blocks, transactions over REST with a cursor envelope — or build your own app
 index on the same rows: a checkpointed `consume()` loop with automatic cursor
 rewind on reorg (`onReorg` rolls back your own rows), `walk()` sweeps,
-`from_height=0` backfill, `/canonical`, `sl index codegen` for your mirror
+`from_height=0` backfill, `/canonical`, `secondlayer index codegen` for your mirror
 schema. Built on Streams (our decoder is a Streams consumer). App index
 without writing decoders.
 
@@ -78,8 +78,8 @@ instance? Subgraphs. Raw inputs? Streams.*
 
 ## The golden path
 
-`docker compose up` → `sl bootstrap` from the official archive →
-`sl subgraphs create` → deploy → curl your table on localhost → attach a
+`docker compose up` → `secondlayer bootstrap` from the official archive →
+`secondlayer subgraphs create` → deploy → curl your table on localhost → attach a
 webhook. Forward-only from your own node is free and skips bootstrap.
 
 ## Pricing
@@ -91,7 +91,7 @@ bytes and rebuild work that come off it.
 | --- | --- |
 | Official-archive bootstrap (genesis or a large range) | Self-host runtime, compose, CLI |
 | Data-avail backfill / reindex that reads our archive | Forward-only indexing from the operator's node |
-| | `sl verify` / `sl repair` against public manifests |
+| | `secondlayer verify` / `secondlayer repair` against public manifests |
 
 Meter unit is still open (bytes vs rows vs height-range). Charge at fetch
 time with a gated archive URL — partitions stay content-addressed; unpaid

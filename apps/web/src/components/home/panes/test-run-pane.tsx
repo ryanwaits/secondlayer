@@ -6,7 +6,7 @@ import { useInViewOnce, useStagedCycle } from "../use-demo";
 // Lines land in run order once the pane scrolls into view, then hold.
 const MARKS = [400, 1600, 2100, 3100, 4300, 5600];
 
-/** V3 right pane: the `sl subgraphs test` transcript, staged like a real run. */
+/** V3 right pane: the `secondlayer subgraphs test` transcript, staged like a real run. */
 export function TestRunPane() {
 	const { ref, inView } = useInViewOnce<HTMLDivElement>();
 	const { stage, cycle } = useStagedCycle(inView, MARKS, 14_000);

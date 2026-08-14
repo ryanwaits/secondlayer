@@ -119,7 +119,7 @@ export default async function DashboardPage() {
 							icon={<GridIcon />}
 							title="Index your first subgraph"
 							message="Subgraphs turn on-chain contract activity into live, decoded tables — queryable and yours. Deploy one to light up your dashboard."
-							command="sl subgraphs deploy my-view.ts"
+							command="secondlayer subgraphs deploy my-view.ts"
 							docHref="/docs/subgraphs"
 							docLabel="Read the quickstart →"
 							ghostRows={5}

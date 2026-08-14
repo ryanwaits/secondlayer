@@ -6,8 +6,8 @@
 //   - Upserted `balances` table (one row per holder, requires uniqueKeys)
 //   - patchOrInsert to atomically update both sides of a transfer
 //
-// Deploy:   sl subgraphs deploy examples/sip010-balances.ts
-// Query:    sl subgraphs query usda-token balances --sort balance --order desc --limit 20
+// Deploy:   secondlayer subgraphs deploy examples/sip010-balances.ts
+// Query:    secondlayer subgraphs query usda-token balances --sort balance --order desc --limit 20
 
 import { defineSubgraph } from "@secondlayer/subgraphs";
 

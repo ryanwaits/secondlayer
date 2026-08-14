@@ -68,7 +68,10 @@ export function CreditsBuy() {
 			</button>
 			{error && <p className="home-credits-err">{error}</p>}
 			<p className="home-credits-cli">
-				Or <code>sl credits buy --email you@example.com --pack {pack}</code>
+				Or{" "}
+				<code>
+					secondlayer credits buy --email you@example.com --pack {pack}
+				</code>
 			</p>
 		</form>
 	);

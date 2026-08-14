@@ -33,11 +33,11 @@ const SURFACES = [
 	},
 ] as const;
 
-const HOW = `sl init --network mainnet
+const HOW = `secondlayer init --network mainnet
 cd docker/oss && docker compose up -d
-sl observer --mode indexer --endpoint secondlayer:3700
-sl bootstrap --against <manifest>
-sl verify all --against <manifest>`;
+secondlayer observer --mode indexer --endpoint secondlayer:3700
+secondlayer bootstrap --against <manifest>
+secondlayer verify all --against <manifest>`;
 
 export default async function Home() {
 	const status = await readStatusSnapshot();
@@ -119,7 +119,8 @@ export function HomeView({ status }: { status: SystemStatus | null }) {
 							</tr>
 							<tr>
 								<td>
-									<code>sl verify</code> / <code>sl repair</code>
+									<code>secondlayer verify</code> /{" "}
+									<code>secondlayer repair</code>
 								</td>
 								<td> </td>
 							</tr>

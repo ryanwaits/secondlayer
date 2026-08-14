@@ -165,8 +165,8 @@ already run, not a new service. See [self-host](/docs/self-host#configuration).
 ## Testing a handler before you deploy
 
 ```bash
-sl subgraphs test subgraphs/bns-names.ts --from 167484 --to 167600
-sl subgraphs test subgraphs/bns-names.ts --offline   # replay the cassette
+secondlayer subgraphs test subgraphs/bns-names.ts --from 167484 --to 167600
+secondlayer subgraphs test subgraphs/bns-names.ts --offline   # replay the cassette
 ```
 
 Real chain events, your local handler code, no deploy. The first run records
@@ -221,11 +221,11 @@ Payload shape varies per topic, and a guessed field silently nulls forever. Scaf
 </Callout>
 
 ```bash
-sl subgraphs create sbtc-registry \
+secondlayer subgraphs create sbtc-registry \
   --from-contract SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry
 ```
 
-Scaffolds from the [print-schema endpoint](/docs/index#print-schemas): one `print_event` source per topic with its `prints` map, plus one wide table (`--table-per-topic` splits it per topic). `sl subgraphs codegen <file> --payloads` emits a `.d.ts` of the payload types.
+Scaffolds from the [print-schema endpoint](/docs/index#print-schemas): one `print_event` source per topic with its `prints` map, plus one wide table (`--table-per-topic` splits it per topic). `secondlayer subgraphs codegen <file> --payloads` emits a `.d.ts` of the payload types.
 
 Deploys return advisory `warnings` when a handler reads an `event.data` field never observed for its topic (pinned `contractId` sources only). If the source **declares** a `prints` map, the same finding is an error and the deploy is refused — you stated the shape, so a mismatch is a defect rather than a hint.
 
@@ -234,7 +234,7 @@ Deploys return advisory `warnings` when a handler reads an `event.data` field ne
 First deploy backfills from `startBlock`; new blocks stream in after. Needs a paid plan or a 14-day trial — free accounts get `403 PLAN_REQUIRED`.
 
 ```bash
-sl subgraphs deploy ./subgraph.config.ts
+secondlayer subgraphs deploy ./subgraph.config.ts
 ```
 
 ```text
@@ -249,7 +249,7 @@ With the x402 rail on, `POST /v1/subgraphs` takes a payment instead of a key —
 
 </Callout>
 
-`sl subgraphs status` — backfill draining while the table already serves reads:
+`secondlayer subgraphs status` — backfill draining while the table already serves reads:
 
 ```text
 Status             reindexing
@@ -268,9 +268,9 @@ Table Rows         balances: 4874
 - Public names are one global namespace, claimed on publish; taken → `409 PUBLIC_NAME_TAKEN`.
 
 ```bash
-sl subgraphs deploy ./subgraph.config.ts --visibility private
-sl subgraphs publish sbtc-flows     # make public
-sl subgraphs unpublish sbtc-flows   # make private again
+secondlayer subgraphs deploy ./subgraph.config.ts --visibility private
+secondlayer subgraphs publish sbtc-flows     # make public
+secondlayer subgraphs unpublish sbtc-flows   # make private again
 ```
 
 SDK: `sl.subgraphs.publish(name)` / `unpublish(name)`. MCP: `subgraphs_publish` / `subgraphs_unpublish`, plus `visibility` on `subgraphs_deploy`.
@@ -359,8 +359,8 @@ It uses the global `EventSource` — browser or **Node ≥ 22** only. Wire contr
 `--database-url` lands rows in **your** Postgres, then codegen a typed ORM schema:
 
 ```bash
-sl subgraphs deploy ./subgraph.config.ts --database-url "$DATABASE_URL"
-sl subgraphs codegen ./subgraph.config.ts --target prisma -o prisma/schema.prisma
+secondlayer subgraphs deploy ./subgraph.config.ts --database-url "$DATABASE_URL"
+secondlayer subgraphs codegen ./subgraph.config.ts --target prisma -o prisma/schema.prisma
 npx prisma generate
 ```
 

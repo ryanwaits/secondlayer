@@ -164,7 +164,7 @@ export const subgraphFork: PlaygroundConfig = {
 		cta: "Fork into your account",
 		success:
 			"Account created · subgraphs/sbtc-flows is deployed under your name, backfilling now.",
-		scaffold: "sl subgraphs scaffold sbtc-flows -o my-sbtc-flows.ts",
+		scaffold: "secondlayer subgraphs scaffold sbtc-flows -o my-sbtc-flows.ts",
 	},
 };
 

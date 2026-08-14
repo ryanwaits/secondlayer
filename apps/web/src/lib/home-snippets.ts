@@ -103,12 +103,12 @@ test("registers a name from a nested tuple", async () => {
   expect(await ctx.rows("names")).toMatchInlineSnapshot();
 });`;
 
-/** Testing section — the `sl subgraphs test` terminal transcript. */
+/** Testing section — the `secondlayer subgraphs test` terminal transcript. */
 export const TESTING_RUN = {
-	cmd: "sl subgraphs test subgraphs/bns-names.ts --from 167484 --to 167600",
+	cmd: "secondlayer subgraphs test subgraphs/bns-names.ts --from 167484 --to 167600",
 	ok: "✓ 41 events matched · 41 rows written · 1.2s",
 	cassette: "cassette: cassettes/bns-names.json",
-	offlineCmd: "sl subgraphs test subgraphs/bns-names.ts --offline",
+	offlineCmd: "secondlayer subgraphs test subgraphs/bns-names.ts --offline",
 	offlineOk: "✓ replayed cassette · 0 network calls",
 	guardNote: "# and the bug this gate exists for:",
 	guardErr: "✗ events matched, handlers wrote 0 rows",

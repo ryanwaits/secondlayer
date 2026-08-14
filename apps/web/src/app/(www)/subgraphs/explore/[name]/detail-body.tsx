@@ -64,8 +64,8 @@ export function DetailBody({
 
 	const scaffoldSource = detail.sources[0];
 	const scaffoldCmd = scaffoldSource
-		? `sl subgraphs scaffold ${scaffoldSource} -o my-${detail.name}.ts`
-		: `sl subgraphs create my-${detail.name}`;
+		? `secondlayer subgraphs scaffold ${scaffoldSource} -o my-${detail.name}.ts`
+		: `secondlayer subgraphs create my-${detail.name}`;
 
 	const idleSample = `{
   "rows": [ { "_id": …, "_block_height": …, … } ],
@@ -235,7 +235,9 @@ export function DetailBody({
 						<p className="fine">
 							Scaffolds a subgraph over the same contract — deploy under your
 							own name and it lands on Explore.{" "}
-							<em>View source · fork it with `sl subgraphs create`.</em>
+							<em>
+								View source · fork it with `secondlayer subgraphs create`.
+							</em>
 						</p>
 					</div>
 					<div className="explore-agents">

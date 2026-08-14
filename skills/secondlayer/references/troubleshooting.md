@@ -5,10 +5,10 @@ When the user says "it's not working", start here. Always inspect before mutatin
 ## Subgraph: behind, stalled, or in error
 
 ```bash
-sl subgraphs status <name>          # human-readable
-sl subgraphs status <name> --json   # machine-readable
-sl subgraphs list --json            # all subgraphs at once
-sl subgraphs gaps <name>            # specific missing block ranges
+secondlayer subgraphs status <name>          # human-readable
+secondlayer subgraphs status <name> --json   # machine-readable
+secondlayer subgraphs list --json            # all subgraphs at once
+secondlayer subgraphs gaps <name>            # specific missing block ranges
 ```
 
 Look at:
@@ -23,7 +23,7 @@ Look at:
 |---|---|---|
 | Stuck on `catching_up` for hours | Normal — first deploy from low `startBlock` | Wait; or redeploy with `--start-block <near tip>` to skip history. |
 | `error` status with handler exception | Bug in handler — bad type, missing field, missing `uniqueKeys` | Read `last_error`; fix handler; redeploy. 50+ consecutive errors flips status to `error`. |
-| Gaps after live tip caught up | Transient ingestion failure on specific ranges | `sl subgraphs backfill <name> --from-block <gap_start> --to-block <gap_end>`. |
+| Gaps after live tip caught up | Transient ingestion failure on specific ranges | `secondlayer subgraphs backfill <name> --from-block <gap_start> --to-block <gap_end>`. |
 | Schema mismatch error on deploy | Table/column changed in a breaking way | Deploy will auto-trigger reindex; confirm before allowing (drops the table). |
 | `upsert requires unique key` error | Schema declared `upsert` but missing `uniqueKeys` | Add `uniqueKeys: [["col_a"]]` to the table. |
 
@@ -31,7 +31,7 @@ Look at:
 
 ```bash
 # From CLI: read the source bundled when deployed
-sl subgraphs spec <name> --format markdown    # at minimum shows current schema
+secondlayer subgraphs spec <name> --format markdown    # at minimum shows current schema
 # From SDK: sl.subgraphs.getSource(name)
 ```
 
@@ -40,10 +40,10 @@ Compare the deployed bundle to your local file. If you don't have the local file
 ## Subscription: paused or failing
 
 ```bash
-sl subscriptions get <name>
-sl subscriptions doctor <name>      # all-in-one diagnosis
-sl subscriptions deliveries <name>  # last ~100 attempts
-sl subscriptions dead <name>        # exhausted retries
+secondlayer subscriptions get <name>
+secondlayer subscriptions doctor <name>      # all-in-one diagnosis
+secondlayer subscriptions deliveries <name>  # last ~100 attempts
+secondlayer subscriptions dead <name>        # exhausted retries
 ```
 
 `doctor` checks: subscription status + circuit breaker state, recent delivery successes/failures, dead-letter count, linked subgraph status + gaps. Outputs next-step hints.
@@ -52,9 +52,9 @@ sl subscriptions dead <name>        # exhausted retries
 
 | Symptom | Cause | Action |
 |---|---|---|
-| Subscription `paused` after deploy | 20 consecutive failures auto-paused it | Fix receiver → `sl subscriptions resume <name>`. |
+| Subscription `paused` after deploy | 20 consecutive failures auto-paused it | Fix receiver → `secondlayer subscriptions resume <name>`. |
 | All deliveries return 401 | Signature mismatch — wrong/outdated secret | Re-verify your secret. If rotated, deliveries with old secret 401. |
-| Receiver getting nothing | Filter too narrow OR linked subgraph not synced | Check `sl subgraphs status <linked>`. Try widening or removing the filter temporarily. |
+| Receiver getting nothing | Filter too narrow OR linked subgraph not synced | Check `secondlayer subgraphs status <linked>`. Try widening or removing the filter temporarily. |
 | Receiver timing out | Doing work synchronously in the handler | Return 2xx immediately; queue the work. Retries fire 30s → 2m → 10m → 1h → 6h → 24h → 72h. |
 | Verification fails for all requests | Verifying re-stringified JSON, not raw body | Use the raw request body bytes/string for HMAC, not `JSON.stringify(req.body)`. |
 
@@ -70,11 +70,11 @@ If you're verifying from a non-TS language, see `references/api-rest.md` "Webhoo
 
 ```bash
 # Requeue one specific dead row after fixing receiver
-sl subscriptions dead <name>
-sl subscriptions requeue <name> <outbox-id>
+secondlayer subscriptions dead <name>
+secondlayer subscriptions requeue <name> <outbox-id>
 
 # Replay a historical range (max 100k blocks)
-sl subscriptions replay <name> --from-block 180000 --to-block 181000
+secondlayer subscriptions replay <name> --from-block 180000 --to-block 181000
 ```
 
 **Don't replay** until: you've inspected `deliveries` to confirm what failed, you've fixed the receiver, and the user has confirmed the exact block range.
@@ -82,13 +82,13 @@ sl subscriptions replay <name> --from-block 180000 --to-block 181000
 ## Streams: connection or auth issues
 
 ```bash
-sl streams tip                      # baseline reachability
+secondlayer streams tip                      # baseline reachability
 ```
 
 | Symptom | Cause | Action |
 |---|---|---|
-| `401 Unauthorized` | API bound beyond loopback without `INSTANCE_TOKEN` | Export `SL_API_KEY` from `sl init`; or pass `createStreamsClient({ apiKey })`. |
-| Empty / short history | Instance not bootstrapped to the height you asked for | `sl bootstrap --against <manifest>` then `sl verify all --against <manifest>`. |
+| `401 Unauthorized` | API bound beyond loopback without `INSTANCE_TOKEN` | Export `SL_API_KEY` from `secondlayer init`; or pass `createStreamsClient({ apiKey })`. |
+| Empty / short history | Instance not bootstrapped to the height you asked for | `secondlayer bootstrap --against <manifest>` then `secondlayer verify all --against <manifest>`. |
 | `429 Too Many Requests` | Hit rate limit | SDK throws `RateLimitError` with `retryAfter`. Back off; use `events.consume` instead of polling `events.list`. |
 | Consumer stops processing | Aborted by signal OR `mode: "bounded"` reached end | Restart with last saved cursor. |
 | `next_cursor: null` reached | Caught up to tip (with `mode: "bounded"`) | Switch to `mode: "tail"` to keep polling. |
@@ -121,9 +121,9 @@ The Streams errors do **not** extend `ApiError` — check them separately when w
 
 | Error | Hint |
 |---|---|
-| Can't reach `/public/status` | `sl start --print` and bring the one-box container up |
-| `401` on a write | Set `SL_API_KEY` to the `INSTANCE_TOKEN` from `sl init` |
-| Empty history | `sl bootstrap --against <manifest>` |
+| Can't reach `/public/status` | `secondlayer start --print` and bring the one-box container up |
+| `401` on a write | Set `SL_API_KEY` to the `INSTANCE_TOKEN` from `secondlayer init` |
+| Empty history | `secondlayer bootstrap --against <manifest>` |
 
 ## Stacks SDK: contract calls failing
 

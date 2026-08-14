@@ -6,13 +6,13 @@ Check your chain history against a signed canonical archive, repair what diverge
 
 | Job | Command |
 | --- | --- |
-| Check raw identity columns | `sl verify raw --against <latest.json>` |
-| Check every published dataset | `sl verify all --against <latest.json>` |
-| Check one decoder | `sl verify decode:ft_transfer --against <latest.json>` |
-| Also check payload columns | `sl verify --against <latest.json> --deep` |
-| Plan a repair | `sl repair --against <archive>` |
-| Write the repair | `sl repair --against <archive> --apply` |
-| Restore a fresh instance | `sl bootstrap --against <archive>` |
+| Check raw identity columns | `secondlayer verify raw --against <latest.json>` |
+| Check every published dataset | `secondlayer verify all --against <latest.json>` |
+| Check one decoder | `secondlayer verify decode:ft_transfer --against <latest.json>` |
+| Also check payload columns | `secondlayer verify --against <latest.json> --deep` |
+| Plan a repair | `secondlayer repair --against <archive>` |
+| Write the repair | `secondlayer repair --against <archive> --apply` |
+| Restore a fresh instance | `secondlayer bootstrap --against <archive>` |
 | Read the node attestation | `GET attestations/<digest>/node.json` |
 | Read operational status | `GET status.json` |
 
@@ -21,7 +21,7 @@ Check your chain history against a signed canonical archive, repair what diverge
 ## Check your data
 
 ```bash
-sl verify raw --against https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev/secondlayer/mainnet/canonical/v1/latest.json
+secondlayer verify raw --against https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev/secondlayer/mainnet/canonical/v1/latest.json
 ```
 
 Read-only. Digests stay on your machine. Default target is `raw`.
@@ -77,8 +77,8 @@ Equal row counts with differing data means the same heights hold different block
 ## Repair what diverges
 
 ```bash
-sl repair --against <archive>            # plan
-sl repair --against <archive> --apply    # write it
+secondlayer repair --against <archive>            # plan
+secondlayer repair --against <archive> --apply    # write it
 ```
 
 Dry-run by default. The plan names exact heights, not ranges:
@@ -102,7 +102,7 @@ Decoded rows are not rebuilt. Re-run your decoders for repaired ranges.
 ## Restore a fresh instance
 
 ```bash
-sl bootstrap --against <archive>
+secondlayer bootstrap --against <archive>
 ```
 
 Shows both timings before it starts, then restores and verifies itself:
@@ -115,7 +115,7 @@ signature  verified
   restore from archive ~2.3 hours
 ```
 
-Refuses a database that already holds blocks — use `sl repair` for an existing instance. `--to-block <n>` stops early; `-y` skips the prompt.
+Refuses a database that already holds blocks — use `secondlayer repair` for an existing instance. `--to-block <n>` stops early; `-y` skips the prompt.
 
 ## What the archive is
 

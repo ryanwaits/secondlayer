@@ -13,7 +13,7 @@ mock.module("./credits-buy", () => ({
 	CreditsBuy: () => (
 		<form className="home-credits">
 			<button type="submit">Buy $25 credits</button>
-			<p>sl credits buy</p>
+			<p>secondlayer credits buy</p>
 		</form>
 	),
 }));
@@ -31,7 +31,7 @@ describe("www marketing routes", () => {
 		expect(html).toContain("Large restore and backfill off our R2 is metered.");
 		expect(html).toContain("Official-archive bootstrap");
 		expect(html).toContain("Buy $25 credits");
-		expect(html).toContain("sl credits buy");
+		expect(html).toContain("secondlayer credits buy");
 		expect(html).toContain('href="/docs/streams"');
 		expect(html).toContain('href="/docs/index"');
 		expect(html).toContain('href="/docs/subgraphs"');

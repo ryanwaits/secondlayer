@@ -130,7 +130,7 @@ export function AgentChat({
 					<i />
 					<i />
 				</div>
-				<div className="ac-title">sl — agent</div>
+				<div className="ac-title">secondlayer — agent</div>
 			</div>
 
 			<div className="ac-term" ref={termRef}>
@@ -373,7 +373,7 @@ function KeyPayoff({ blurb }: { blurb: string }) {
 		<div className="ac-pay">
 			<span>
 				{blurb} Loopback needs no key. Writes use <code>INSTANCE_TOKEN</code>{" "}
-				from <code>sl init</code>.
+				from <code>secondlayer init</code>.
 			</span>
 		</div>
 	);
@@ -387,7 +387,9 @@ function DeployCard({ name }: { name: string }) {
 				<span className="ac-gen-name">subgraphs/{name}</span>
 			</div>
 			<p className="ac-gen-sub">On your instance. No hosted account.</p>
-			<pre className="ac-gen-name">sl subgraphs deploy subgraphs/{name}.ts</pre>
+			<pre className="ac-gen-name">
+				secondlayer subgraphs deploy subgraphs/{name}.ts
+			</pre>
 		</div>
 	);
 }

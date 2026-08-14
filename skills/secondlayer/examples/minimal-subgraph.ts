@@ -1,8 +1,8 @@
 // Minimal subgraph: index every STX transfer into a table.
 //
-// Deploy:   sl subgraphs deploy examples/minimal-subgraph.ts --start-block <recent>
-// Status:   sl subgraphs status stx-transfers -w
-// Query:    sl subgraphs query stx-transfers transfers --sort _block_height --order desc --limit 10
+// Deploy:   secondlayer subgraphs deploy examples/minimal-subgraph.ts --start-block <recent>
+// Status:   secondlayer subgraphs status stx-transfers -w
+// Query:    secondlayer subgraphs query stx-transfers transfers --sort _block_height --order desc --limit 10
 
 import { defineSubgraph } from "@secondlayer/subgraphs";
 

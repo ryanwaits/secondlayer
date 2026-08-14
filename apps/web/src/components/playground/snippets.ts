@@ -30,7 +30,7 @@ for await (const t of index.ftTransfers.walk({ contractId }))
 		{
 			label: "CLI",
 			lang: "bash",
-			code: "sl index events --event-type ft_transfer --contract …sbtc-token --json | jq",
+			code: "secondlayer index events --event-type ft_transfer --contract …sbtc-token --json | jq",
 		},
 	],
 	streams: [
@@ -45,7 +45,7 @@ for await (const t of index.ftTransfers.walk({ contractId }))
 			code: `for await (const batch of sl.streams.consume({ cursor }))
   await handle(batch.events); // ordered, reorg-aware`,
 		},
-		{ label: "CLI", lang: "bash", code: "sl streams tail --json" },
+		{ label: "CLI", lang: "bash", code: "secondlayer streams tail --json" },
 	],
 	subgraphs: [],
 };

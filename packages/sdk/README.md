@@ -14,12 +14,12 @@ bun add @secondlayer/sdk
 import { SecondLayer } from "@secondlayer/sdk";
 
 const sl = new SecondLayer({
-  apiKey: process.env.INSTANCE_TOKEN, // from sl init; omit on loopback
+  apiKey: process.env.INSTANCE_TOKEN, // from secondlayer init; omit on loopback
   // default baseUrl: http://127.0.0.1:3800  (or SL_API_URL)
 });
 ```
 
-Reads hit your instance. Writes use `INSTANCE_TOKEN` from `sl init` when the
+Reads hit your instance. Writes use `INSTANCE_TOKEN` from `secondlayer init` when the
 API is bound beyond loopback. Public archive dumps (`client.dumps`) need no
 instance key.
 

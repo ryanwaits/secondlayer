@@ -17,7 +17,7 @@ Distinct from:
 | `asset-holdings` | Per-holder FT + STX balances |
 
 ```bash
-sl subgraphs deploy subgraphs/<name>.ts
+secondlayer subgraphs deploy subgraphs/<name>.ts
 ```
 
 against your local `SL_API_URL`. Leftover hosted deploys of these names are

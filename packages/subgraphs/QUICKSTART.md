@@ -24,7 +24,7 @@ A **subscription** is a signed webhook delivery rule. It comes in two kinds:
   subgraph row. This quickstart uses this kind.
 - **chain** — fires on raw chain events with no subgraph (pass a `triggers`
   array instead of a subgraph/table). Forward-looking — starts at the chain tip,
-  never backfills. Create with `sl subscriptions create … --trigger`, or the
+  never backfills. Create with `secondlayer subscriptions create … --trigger`, or the
   same `triggers` array on the SDK / REST. See the
   [SDK README](../sdk/README.md#chain-subscriptions).
 
@@ -36,14 +36,14 @@ dead-letter requeue, and (subgraph) historical replay.
 ```bash
 bun add -g @secondlayer/cli
 
-sl login
-sl project create my-app
-sl project use my-app
-sl whoami
+secondlayer login
+secondlayer project create my-app
+secondlayer project use my-app
+secondlayer whoami
 ```
 
-`sl login` authenticates an interactive session; the CLI uses that session and
-your active project for all `sl subgraphs` and `sl subscriptions` commands.
+`secondlayer login` authenticates an interactive session; the CLI uses that session and
+your active project for all `secondlayer subgraphs` and `secondlayer subscriptions` commands.
 
 For machine, REST, or SDK access, create an API key (prefixed `sk-sl_`) in the
 platform console at https://secondlayer.tools/platform/api-keys, then export it:
@@ -65,7 +65,7 @@ Rotate or revoke keys in the same console.
 Scaffold from a contract ABI when you have a specific contract:
 
 ```bash
-sl subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts
+secondlayer subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts
 ```
 
 The scaffolder creates or updates the module `package.json` in the output
@@ -113,14 +113,14 @@ deploy-time only; it does not rewrite the source file. Omit `--start-block` to
 use the file's `startBlock` as the source of truth.
 
 ```bash
-sl subgraphs deploy subgraphs/stx-transfers.ts --start-block <recent-block>
-sl subgraphs status stx-transfers
+secondlayer subgraphs deploy subgraphs/stx-transfers.ts --start-block <recent-block>
+secondlayer subgraphs status stx-transfers
 ```
 
 ## 3. Query Rows
 
 ```bash
-sl subgraphs query stx-transfers transfers \
+secondlayer subgraphs query stx-transfers transfers \
   --sort _block_height \
   --order desc \
   --limit 10
@@ -129,7 +129,7 @@ sl subgraphs query stx-transfers transfers \
 Add filters as rows arrive:
 
 ```bash
-sl subgraphs query stx-transfers transfers \
+secondlayer subgraphs query stx-transfers transfers \
   --filter sender=SP... \
   --filter amount.gte=1000000 \
   --sort _block_height \
@@ -154,7 +154,7 @@ HTTPS POSTs.
 Standard Webhooks receiver:
 
 ```bash
-sl subscriptions create transfer-hook \
+secondlayer subscriptions create transfer-hook \
   --runtime node \
   --subgraph stx-transfers \
   --table transfers \
@@ -172,7 +172,7 @@ secret is shown once by the API and written into the generated `.env`.
 Trigger.dev receiver:
 
 ```bash
-sl subscriptions create transfer-trigger \
+secondlayer subscriptions create transfer-trigger \
   --runtime trigger \
   --subgraph stx-transfers \
   --table transfers \
@@ -183,7 +183,7 @@ sl subscriptions create transfer-trigger \
 Cloudflare Workflows receiver:
 
 ```bash
-sl subscriptions create transfer-workflow \
+secondlayer subscriptions create transfer-workflow \
   --runtime cloudflare \
   --subgraph stx-transfers \
   --table transfers \
@@ -194,31 +194,31 @@ sl subscriptions create transfer-workflow \
 Patch an existing receiver without touching JSON:
 
 ```bash
-sl subscriptions update transfer-trigger --auth-token tr_secret_next
-sl subscriptions update transfer-hook --url https://<new-host>/webhook
+secondlayer subscriptions update transfer-trigger --auth-token tr_secret_next
+secondlayer subscriptions update transfer-hook --url https://<new-host>/webhook
 ```
 
 ## 5. Inspect Deliveries
 
 ```bash
-sl subscriptions list
-sl subscriptions get transfer-hook
-sl subscriptions deliveries transfer-hook
-sl subscriptions doctor transfer-hook
+secondlayer subscriptions list
+secondlayer subscriptions get transfer-hook
+secondlayer subscriptions deliveries transfer-hook
+secondlayer subscriptions doctor transfer-hook
 ```
 
 Generate a signed test request for a Standard Webhooks receiver:
 
 ```bash
-sl subscriptions test transfer-hook --signing-secret "$SIGNING_SECRET"
-sl subscriptions test transfer-hook --signing-secret "$SIGNING_SECRET" --post
+secondlayer subscriptions test transfer-hook --signing-secret "$SIGNING_SECRET"
+secondlayer subscriptions test transfer-hook --signing-secret "$SIGNING_SECRET" --post
 ```
 
 Replay a historical range after a receiver changes or misses events. Replay
 scans existing subgraph rows in the range and enqueues replay deliveries:
 
 ```bash
-sl subscriptions replay transfer-hook \
+secondlayer subscriptions replay transfer-hook \
   --from-block 123000 \
   --to-block 124000
 ```

@@ -19,7 +19,7 @@ This is the local path; map your predicates over with [Migrating from Chainhook]
 From inside your Clarinet project:
 
 ```bash
-sl devnet connect
+secondlayer devnet connect
 ```
 
 - Patches `settings/Devnet.toml` so the devnet node forwards events to the local indexer (`stacks_node_events_observers = ["host.docker.internal:3700"]`).
@@ -58,7 +58,7 @@ clarinet devnet start
 Point the CLI at the local API — no login, no API key, the local stack accepts a dummy key:
 
 ```bash
-SL_API_URL=http://localhost:3800 SL_API_KEY=dummy sl subgraphs deploy ./subgraph.ts
+SL_API_URL=http://localhost:3800 SL_API_KEY=dummy secondlayer subgraphs deploy ./subgraph.ts
 ```
 
 Fire a contract call in your devnet and the matching rows land in your subgraph's tables.
@@ -66,7 +66,7 @@ Fire a contract call in your devnet and the matching rows land in your subgraph'
 ## Watch it work
 
 ```bash
-sl devnet status
+secondlayer devnet status
 ```
 
 ```text
@@ -86,14 +86,14 @@ Add `-w` to refresh every 2s, or `--limit <n>` to change how many recent rows sh
 Tail logs for the whole stack or one service (`indexer`, `api`, `subgraph-processor`, `postgres`):
 
 ```bash
-sl devnet logs indexer -f
+secondlayer devnet logs indexer -f
 ```
 
 ## Tear down
 
 ```bash
-sl devnet down            # stop the stack
-sl devnet down --purge    # stop and wipe the local index volumes
+secondlayer devnet down            # stop the stack
+secondlayer devnet down --purge    # stop and wipe the local index volumes
 ```
 
 export const metadata = {

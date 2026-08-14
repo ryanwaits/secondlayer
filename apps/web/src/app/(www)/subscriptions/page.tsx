@@ -159,7 +159,9 @@ export default function SubscriptionsPage() {
 									<i />
 									<i />
 								</div>
-								<div className="pp-title">sl subscriptions logs sbtc-hook</div>
+								<div className="pp-title">
+									secondlayer subscriptions logs sbtc-hook
+								</div>
 							</div>
 							<div className="pp-term">
 								<div>
@@ -217,8 +219,8 @@ export default function SubscriptionsPage() {
 						<div className="pp-vis">
 							<div className="pp-cli">
 								<div>
-									<span className="pfx">$</span> sl subscriptions create
-									sbtc-webhook \
+									<span className="pfx">$</span> secondlayer subscriptions
+									create sbtc-webhook \
 								</div>
 								<div className="mut">
 									&nbsp;&nbsp;&nbsp;--subgraph sbtc-flows \
@@ -243,8 +245,8 @@ export default function SubscriptionsPage() {
 						<div className="pp-vis">
 							<div className="pp-cli">
 								<div>
-									<span className="pfx">$</span> sl subscriptions create
-									amm-swaps \
+									<span className="pfx">$</span> secondlayer subscriptions
+									create amm-swaps \
 								</div>
 								<div className="mut">
 									&nbsp;&nbsp;&nbsp;--url https://my-app.com/webhook \
@@ -495,10 +497,10 @@ export default function SubscriptionsPage() {
 							<span className="k">And locally</span>
 							<h4>Devnet is a first-class target</h4>
 							<p>
-								<code>sl devnet connect</code> wires a Clarinet devnet in one
-								step, so you can fire real subscriptions at a local contract and
-								watch them land — signatures, retries, replay and all — before
-								anything touches mainnet.
+								<code>secondlayer devnet connect</code> wires a Clarinet devnet
+								in one step, so you can fire real subscriptions at a local
+								contract and watch them land — signatures, retries, replay and
+								all — before anything touches mainnet.
 							</p>
 						</div>
 					</div>

@@ -15,13 +15,13 @@ No Hiro-REST "light" mode.
 ## Quick start
 
 ```bash
-sl init --network mainnet
+secondlayer init --network mainnet
 # Copy INSTANCE_TOKEN, SECONDLAYER_SECRETS_KEY, STREAMS_SIGNING_PRIVATE_KEY into .env
 
 docker compose up -d
-sl observer --mode indexer --endpoint secondlayer:3700
-sl bootstrap --against <manifest>
-sl verify all --against <manifest>
+secondlayer observer --mode indexer --endpoint secondlayer:3700
+secondlayer bootstrap --against <manifest>
+secondlayer verify all --against <manifest>
 ```
 
 API: `http://127.0.0.1:3800`. Observer: `127.0.0.1:3700`.
@@ -32,6 +32,6 @@ API: `http://127.0.0.1:3800`. Observer: `127.0.0.1:3700`.
 | Bundled Stacks, public Bitcoin | `docker compose --profile stacks-node up -d` |
 | Bundled Stacks + bitcoind | `docker compose --profile full-node up -d` |
 
-Required non-secrets: `NETWORK`, `DATABASE_URL` (compose sets it), `NODE_MODE`, `DATA_DIR`, `API_PORT`, `INDEXER_PORT`. Secrets come from `sl init`.
+Required non-secrets: `NETWORK`, `DATABASE_URL` (compose sets it), `NODE_MODE`, `DATA_DIR`, `API_PORT`, `INDEXER_PORT`. Secrets come from `secondlayer init`.
 
 Split multi-container layout: `docker-compose.split.yml`.

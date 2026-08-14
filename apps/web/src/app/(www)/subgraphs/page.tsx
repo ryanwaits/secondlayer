@@ -190,11 +190,11 @@ export default async function SubgraphsPage() {
 									<i />
 									<i />
 								</div>
-								<div className="pp-title">sl — subgraphs</div>
+								<div className="pp-title">secondlayer — subgraphs</div>
 							</div>
 							<div className="pp-term">
 								<div>
-									<span className="pfx">$</span> sl subgraphs test
+									<span className="pfx">$</span> secondlayer subgraphs test
 									stx-transfers.ts --from 8249600
 								</div>
 								<div>
@@ -202,7 +202,7 @@ export default async function SubgraphsPage() {
 									<span className="mut">cassette recorded</span>
 								</div>
 								<div>
-									<span className="pfx">$</span> sl subgraphs deploy
+									<span className="pfx">$</span> secondlayer subgraphs deploy
 									stx-transfers.ts --visibility public
 								</div>
 								<div>

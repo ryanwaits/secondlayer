@@ -17,6 +17,6 @@ What it demonstrates:
 No indexer at all? The dumps are plain parquet:
 
 ```bash
-sl streams pull --to ./dump
+secondlayer streams pull --to ./dump
 duckdb -c "SELECT event_type, count(*) FROM read_parquet('./dump/**/*.parquet') GROUP BY 1 ORDER BY 2 DESC;"
 ```

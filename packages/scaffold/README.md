@@ -2,7 +2,7 @@
 
 Generates a [Secondlayer](https://github.com/ryanwaits/secondlayer) subgraph definition from a Clarity contract ABI. Given a contract's public functions and event maps, it emits a ready-to-edit `defineSubgraph(...)` TypeScript module with inferred table schemas.
 
-Powers `sl subgraphs scaffold <contract>` in [`@secondlayer/cli`](https://www.npmjs.com/package/@secondlayer/cli) and the scaffold tool in [`@secondlayer/mcp`](https://www.npmjs.com/package/@secondlayer/mcp).
+Powers `secondlayer subgraphs scaffold <contract>` in [`@secondlayer/cli`](https://www.npmjs.com/package/@secondlayer/cli) and the scaffold tool in [`@secondlayer/mcp`](https://www.npmjs.com/package/@secondlayer/mcp).
 
 ## Install
 

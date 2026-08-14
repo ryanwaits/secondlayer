@@ -9,7 +9,7 @@ Run the runtime beside your node. Query decoded data. Deploy TypeScript subgraph
 
 | You want | Use | What you write | Where it runs |
 | --- | --- | --- | --- |
-| Your app's own index | **Index** | A `consume()` loop: `onBatch` writes rows, `onReorg` rolls them back. `sl index codegen` emits the mirror schema so your tables can't drift. | Your instance — [self-host](/docs/self-host). |
+| Your app's own index | **Index** | A `consume()` loop: `onBatch` writes rows, `onReorg` rolls them back. `secondlayer index codegen` emits the mirror schema so your tables can't drift. | Your instance — [self-host](/docs/self-host). |
 | Your own tables | **Subgraphs** | One TypeScript file — sources, schema, handlers. | Your instance. Postgres you operate. |
 | To build from the raw inputs | **Streams** | A consumer over the signed raw firehose: bulk dumps, replay, automatic reorg rewind. | Your process. This is what Index itself is built on. |
 | An answer from a running box | **Index** | Nothing — one request returns decoded JSON with a resume cursor, the chain tip, and overlapping `reorgs[]`. | `http://127.0.0.1:3800`. See the [API reference](/docs/api-reference). |

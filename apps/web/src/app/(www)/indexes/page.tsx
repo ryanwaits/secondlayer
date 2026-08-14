@@ -182,7 +182,7 @@ export default function IndexPage() {
 						<div className="pp-vis">
 							<div className="pp-cli">
 								<div>
-									<span className="pfx">$</span> sl index events \
+									<span className="pfx">$</span> secondlayer index events \
 								</div>
 								<div>&nbsp;&nbsp;--event-type stx_transfer --json</div>
 								<div className="mut">&nbsp;&nbsp;| jq '.events | length'</div>

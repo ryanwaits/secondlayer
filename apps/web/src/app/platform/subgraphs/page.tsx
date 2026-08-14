@@ -159,7 +159,7 @@ export default async function SubgraphsPage() {
 													borderRadius: 3,
 												}}
 											>
-												sl subgraphs scaffold SP123.contract --output
+												secondlayer subgraphs scaffold SP123.contract --output
 												subgraphs/my-subgraph.ts
 											</code>{" "}
 											to create the file and install dependencies, then deploy
@@ -172,7 +172,7 @@ export default async function SubgraphsPage() {
 													borderRadius: 3,
 												}}
 											>
-												sl subgraphs deploy subgraphs/my-subgraph.ts
+												secondlayer subgraphs deploy subgraphs/my-subgraph.ts
 											</code>
 											.
 										</div>

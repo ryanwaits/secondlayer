@@ -2,7 +2,7 @@
 
 Bundles a [Secondlayer](https://github.com/ryanwaits/secondlayer) subgraph definition into a single deployable artifact. It compiles a `defineSubgraph(...)` TypeScript module (and its imports) with esbuild, then extracts the subgraph's `name`, `sources`, `schema`, and handler code ready for deployment.
 
-Used internally by [`@secondlayer/cli`](https://www.npmjs.com/package/@secondlayer/cli) and [`@secondlayer/mcp`](https://www.npmjs.com/package/@secondlayer/mcp) when you run `sl subgraphs deploy`.
+Used internally by [`@secondlayer/cli`](https://www.npmjs.com/package/@secondlayer/cli) and [`@secondlayer/mcp`](https://www.npmjs.com/package/@secondlayer/mcp) when you run `secondlayer subgraphs deploy`.
 
 ## Install
 

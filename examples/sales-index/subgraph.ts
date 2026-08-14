@@ -2,7 +2,7 @@ import { defineSubgraph } from "@secondlayer/subgraphs";
 
 // The same sales index as ./indexer.ts — but Secondlayer runs the loop.
 // One file in: hosted Postgres tables, a public REST API, backfill, and
-// reorg handling out. Deploy with `sl subgraphs deploy subgraph.ts`.
+// reorg handling out. Deploy with `secondlayer subgraphs deploy subgraph.ts`.
 const MARKETPLACE = "SPNWZ5V2TPWGQGVDR6T7B6RQ4XMGZ4PXTEE0VQ0S.marketplace-v4";
 
 export default defineSubgraph({
