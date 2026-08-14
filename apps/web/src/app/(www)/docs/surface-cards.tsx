@@ -12,7 +12,7 @@ interface Surface {
 	wide?: boolean;
 }
 
-/** Three products, then their features — mirrors STRATEGY.md's taxonomy.
+/** The four surfaces of a self-hosted instance.
  *  Each card leads with the call you write, not the endpoint you hit.
  *  Subscriptions spans the full row. */
 const SURFACES: Surface[] = [
@@ -28,7 +28,7 @@ const SURFACES: Surface[] = [
 		n: "02",
 		name: "Subgraphs",
 		href: "/docs/subgraphs",
-		desc: "Your schema on our indexer — one TypeScript file, hosted tables, public API. The loop above, run for you.",
+		desc: "Your schema on your instance — one TypeScript file, tables in your Postgres, served from your API. The loop above, run for you.",
 		lang: "ts",
 		call: "defineSubgraph({ … })",
 	},
