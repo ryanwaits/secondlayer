@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
 import openapiRouter from "../src/routes/openapi.ts";
 import x402Router from "../src/routes/x402.ts";
@@ -22,7 +22,14 @@ function buildApp() {
 }
 
 describe("x402 discovery", () => {
+	const prevMode = process.env.INSTANCE_MODE;
+	process.env.INSTANCE_MODE = "platform";
 	const app = buildApp();
+
+	afterAll(() => {
+		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
+		else process.env.INSTANCE_MODE = prevMode;
+	});
 
 	test("GET /v1/x402/supported advertises the rail", async () => {
 		const res = await app.request("/v1/x402/supported");

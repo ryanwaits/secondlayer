@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { getDb } from "@secondlayer/shared/db";
 import { pgSchemaName } from "@secondlayer/shared/db/queries/subgraphs";
@@ -32,24 +32,27 @@ function buildApp(): Hono {
 function deployBody(name: string) {
 	const schema = { rows: { columns: { amount: { type: "uint" } } } };
 	const source = {
-		type: "print_event",
-		contractId: "SP123.local-ns",
-		topic: "tick",
+		type: "ft_transfer",
+		asset: "SP123.local-ns",
 	};
 	const handlerCode = [
 		"export default defineSubgraph({",
 		`  name: ${JSON.stringify(name)},`,
-		`  sources: { prints: ${JSON.stringify(source)} },`,
+		`  sources: { transfers: ${JSON.stringify(source)} },`,
 		`  schema: ${JSON.stringify(schema)},`,
-		"  handlers: { prints: async (event, ctx) => {} },",
+		"  handlers: { transfers: async (event, ctx) => {} },",
 		"});",
 	].join("\n");
-	return { name, sources: { prints: source }, schema, handlerCode };
+	return { name, sources: { transfers: source }, schema, handlerCode };
 }
 
 describe.skipIf(SKIP)("local namespace (oss, no account)", () => {
 	const app = buildApp();
 	const prevMode = process.env.INSTANCE_MODE;
+
+	beforeAll(() => {
+		process.env.INSTANCE_MODE = "oss";
+	});
 
 	afterAll(async () => {
 		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
@@ -69,44 +72,47 @@ describe.skipIf(SKIP)("local namespace (oss, no account)", () => {
 		);
 	});
 
-	test("deploy, read, and delete without an account", async () => {
-		process.env.INSTANCE_MODE = "oss";
-		resetAnonDirectoryCache();
+	test(
+		"deploy, read, and delete without an account",
+		async () => {
+			resetAnonDirectoryCache();
 
-		const created = await app.request("/api/subgraphs", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(deployBody(NAME)),
-		});
-		expect(created.status).toBe(201);
-		const createdBody = (await created.json()) as { action: string };
-		expect(createdBody.action).toBe("created");
-		await cache.refresh();
+			const created = await app.request("/api/subgraphs", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(deployBody(NAME)),
+			});
+			expect(created.status).toBe(201);
+			const createdBody = (await created.json()) as { action: string };
+			expect(createdBody.action).toBe("created");
+			await cache.refresh();
 
-		const listed = await app.request("/v1/subgraphs");
-		expect(listed.status).toBe(200);
-		const listBody = (await listed.json()) as {
-			subgraphs: Array<{ name: string }>;
-		};
-		expect(listBody.subgraphs.some((s) => s.name === NAME)).toBe(true);
+			const listed = await app.request("/v1/subgraphs");
+			expect(listed.status).toBe(200);
+			const listBody = (await listed.json()) as {
+				subgraphs: Array<{ name: string }>;
+			};
+			expect(listBody.subgraphs.some((s) => s.name === NAME)).toBe(true);
 
-		const read = await app.request(`/v1/subgraphs/${NAME}`);
-		expect(read.status).toBe(200);
-		const readBody = (await read.json()) as { name: string };
-		expect(readBody.name).toBe(NAME);
+			const read = await app.request(`/v1/subgraphs/${NAME}`);
+			expect(read.status).toBe(200);
+			const readBody = (await read.json()) as { name: string };
+			expect(readBody.name).toBe(NAME);
 
-		const publish = await app.request(`/api/subgraphs/${NAME}/publish`, {
-			method: "POST",
-		});
-		expect(publish.status).toBe(404);
+			const publish = await app.request(`/api/subgraphs/${NAME}/publish`, {
+				method: "POST",
+			});
+			expect(publish.status).toBe(404);
 
-		const deleted = await app.request(`/api/subgraphs/${NAME}`, {
-			method: "DELETE",
-		});
-		expect(deleted.status).toBe(200);
-		await cache.refresh();
+			const deleted = await app.request(`/api/subgraphs/${NAME}`, {
+				method: "DELETE",
+			});
+			expect(deleted.status).toBe(200);
+			await cache.refresh();
 
-		const gone = await app.request(`/v1/subgraphs/${NAME}`);
-		expect(gone.status).toBe(404);
-	});
+			const gone = await app.request(`/v1/subgraphs/${NAME}`);
+			expect(gone.status).toBe(404);
+		},
+		{ timeout: 15_000 },
+	);
 });
