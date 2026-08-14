@@ -8,9 +8,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = socialMeta({
-	title: "Stacks Subgraphs | secondlayer",
+	title: "Subgraphs · secondlayer",
 	description:
-		"You shape it, we run it. Pick events and write handlers in one TypeScript file — get typed Postgres tables, a public REST API, and genesis backfill, hosted or bring your own database.",
+		"One TypeScript file becomes a whole indexer: typed Postgres tables, a REST API, and genesis backfill, running reorg-safe on your own instance.",
 	image: "/og/subgraphs.png",
 	path: "/subgraphs",
 });
@@ -87,14 +87,14 @@ export default async function SubgraphsPage() {
 					<span className="arr">→</span>
 				</Link>
 				<h1>
-					You shape it.
+					One file.
 					<br />
-					We run it.
+					A whole indexer.
 				</h1>
 				<p className="pp-sub">
 					Pick your events, write handlers, deploy — one TypeScript file. Out
-					comes typed Postgres tables and a public REST API, backfilled from
-					genesis and reorg-safe. We host it, or bring your own database.
+					come typed Postgres tables and a REST API on your instance,
+					backfilled from genesis and reorg-safe.
 				</p>
 				<div className="pp-ctas">
 					<Link href="/docs/subgraphs" className="pp-btn pp-btn-ink">

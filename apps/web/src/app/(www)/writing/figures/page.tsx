@@ -39,7 +39,7 @@ import type { ReactNode } from "react";
 import { SelectivityExplorer } from "../(post)/checkpoint-receipt-not-bookmark/selectivity-explorer";
 
 export const metadata: Metadata = {
-	title: "Figure library — secondlayer writings",
+	title: "Figure library · secondlayer blog",
 	description:
 		"The reusable visual vocabulary for writings posts: every figure a post can reach for, as live reference implementations.",
 	robots: { index: false, follow: false },

@@ -16,7 +16,7 @@ import {
 } from "./shared";
 
 export const metadata: Metadata = socialMeta({
-	title: "sBTC Peg Explorer | secondlayer",
+	title: "sBTC Peg Explorer · secondlayer",
 	description:
 		"Etherscan for the sBTC bridge — live peg-in deposits and peg-out withdrawals with lifecycle status, built only on the keyless /v1/index/sbtc/* API. No key required.",
 	image: "/og/index.png",

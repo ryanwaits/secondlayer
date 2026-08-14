@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = socialMeta({
-	title: "secondlayer — self-hosted Stacks data",
+	title: "secondlayer · self-hosted Stacks runtime",
 	description:
 		"Postgres plus one container beside your node. The signed archive is public to check. Large restore and backfill off our R2 is metered.",
 	image: "/og/home.png",
@@ -20,11 +20,11 @@ export function HomeView() {
 	return (
 		<div className="home">
 			<section className="home-hero">
-				<Link href="/docs/self-host" className="home-announce">
+				<Link href="/archive" className="home-announce">
 					<span className="home-announce-tag">NEW</span>
 					<span className="home-announce-msg">
-						<b>Postgres plus one container</b>
-						<span> beside your node</span>
+						<b>The verified archive is live</b>
+						<span> · public to check</span>
 					</span>
 					<span className="home-announce-go" aria-hidden="true">
 						›
@@ -41,7 +41,7 @@ export function HomeView() {
 				</p>
 				<CtaPill />
 				<p className="home-caption">
-					Free to self-host. Archive restore is metered.
+					Free to self-host. Restore off our R2 is metered.
 				</p>
 				<nav className="home-hero-links">
 					<Link href="/docs">

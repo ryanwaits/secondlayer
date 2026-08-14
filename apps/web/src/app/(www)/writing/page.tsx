@@ -6,7 +6,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
 	...socialMeta({
-		title: "Writing — secondlayer",
+		title: "Blog · secondlayer",
 		description:
 			"Long-form, mechanism-first posts on indexers, consumers, and the systems underneath: how they work and what to expect from them.",
 		image: "/og/writing.png",

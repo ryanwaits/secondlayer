@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = socialMeta({
-	title: "Streams | secondlayer",
+	title: "Streams · secondlayer",
 	description:
 		"The raw event firehose for Stacks — ordered, cursor-paginated, reorg-aware. Consume over SSE, REST, or signed bulk dumps. x402-compatible.",
 	image: "/og/streams.png",

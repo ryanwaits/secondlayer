@@ -3,9 +3,9 @@ import type { Metadata } from "next";
 import { ArchiveCredits } from "./archive-credits";
 
 export const metadata: Metadata = socialMeta({
-	title: "secondlayer — the verified archive",
+	title: "Archive · secondlayer",
 	description:
-		"Genesis to tip, signed and public to check. Verify free. Bootstrap, backfill, and gap repair off our R2 are metered.",
+		"Genesis to tip, signed and public to check. Verify is free. Restore and backfill off our R2 are metered.",
 	image: "/og/pricing.png",
 	path: "/archive",
 });

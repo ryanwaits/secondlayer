@@ -5,9 +5,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = socialMeta({
-	title: "Subscriptions | secondlayer",
+	title: "Subscriptions · secondlayer",
 	description:
-		"Signed webhooks for matched subgraph rows or raw chain events — retried, replayable, and rolled back on a reorg. Hosted, or self-hosted on your own hardware.",
+		"Signed webhooks for matched subgraph rows or raw chain events — retried, replayable, and rolled back on a reorg, from the stack you run.",
 	image: "/og/subscriptions.png",
 	path: "/subscriptions",
 });
@@ -110,19 +110,18 @@ export default function SubscriptionsPage() {
 		<main className="pp">
 			<header className="pp-hero">
 				<Link href="/docs/subscriptions" className="pp-pill">
-					<span className="dot" /> Seventeen triggers, no subgraph required{" "}
+					<span className="dot" /> Eighteen triggers, no subgraph required{" "}
 					<span className="arr">→</span>
 				</Link>
 				<h1>
 					Only what matches.
 					<br />
-					On our infra or yours.
+					Straight to your endpoint.
 				</h1>
 				<p className="pp-sub">
 					A subscription POSTs matching subgraph rows — or raw chain events with
-					no subgraph at all — straight to your endpoint. Signed, retried,
-					rolled back on a fork. Run it hosted, or bring the whole stack up on
-					your own hardware.
+					no subgraph at all — to any endpoint you name. Signed, retried, and
+					rolled back on a fork, from the stack you run.
 				</p>
 				<div className="pp-ctas">
 					<Link href="/docs/subscriptions" className="pp-btn pp-btn-ink">

@@ -34,7 +34,7 @@ const FAQ = [
 	},
 	{
 		q: "How do I buy credits?",
-		a: "The form on this page, the History block on the home page, or secondlayer credits buy --email you@example.com --pack 25.",
+		a: "The form on this page, the Archive page, or secondlayer credits buy --email you@example.com --pack 25.",
 	},
 	{
 		q: "Is there a hosted plan?",

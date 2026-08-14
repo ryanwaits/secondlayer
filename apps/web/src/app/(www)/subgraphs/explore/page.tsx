@@ -7,7 +7,7 @@ import type { ExploreList, ExploreSummary } from "./types";
 import { FEATURED } from "./types";
 
 export const metadata: Metadata = socialMeta({
-	title: "Explore Subgraphs | secondlayer",
+	title: "Explore Subgraphs · secondlayer",
 	description:
 		"Example subgraph templates you run on your instance. Secondlayer does not host a public catalog.",
 	image: "/og/explore.png",

@@ -73,7 +73,7 @@ const SECTIONS: Section[] = [
 		id: "history",
 		title: "History",
 		pitch:
-			"Follow your node for free. Or restore from the signed archive. The signed archive is public to check. Large restore and backfill off our R2 is metered.",
+			"Follow your node for free, or restore from the signed archive — public to check, metered to pull from our R2.",
 		items: [
 			{
 				label: "Free",
@@ -110,7 +110,7 @@ const SECTIONS: Section[] = [
 		id: "deploy",
 		title: "Deploy",
 		pitch:
-			"One TypeScript file. Your schema goes live on your instance, behind an endpoint you can share.",
+			"One TypeScript file. Your schema goes live on your instance, behind its own endpoint.",
 		items: [
 			{
 				label: "Deploy",

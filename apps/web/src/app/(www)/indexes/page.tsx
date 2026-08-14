@@ -6,7 +6,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = socialMeta({
-	title: "Index | secondlayer",
+	title: "Index · secondlayer",
 	description:
 		"Decoded Stacks events and contract calls — normalized, filterable, cursor-paginated. Write a checkpointed consumer, keep the rows in your own database, and run it wherever your code already runs. No node required.",
 	image: "/og/index.png",
@@ -99,8 +99,8 @@ export default function IndexPage() {
 	return (
 		<main className="pp">
 			<header className="pp-hero">
-				<Link href="/docs/index" className="pp-pill">
-					<span className="dot" /> Open beta — reads need no key{" "}
+				<Link href="/archive" className="pp-pill">
+					<span className="dot" /> Backfilled from the verified archive{" "}
 					<span className="arr">→</span>
 				</Link>
 				<h1>
