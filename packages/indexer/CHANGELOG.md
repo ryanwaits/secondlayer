@@ -1,5 +1,26 @@
 # @secondlayer/indexer
 
+## 1.13.1
+
+### Patch Changes
+
+- e17aee3: Adopt the atomic decoder adapter for STX, FT, NFT, and print producers. Omission and version decode faults are recorded with the batch.
+- e17aee3: Adopt the atomic decoder adapter for sBTC, PoX-4/5, and BNS. Reorgs drop coverage receipts and segments at the fork.
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [ed5d295]
+  - @secondlayer/shared@7.10.0
+
 ## 1.13.0
 
 ### Minor Changes

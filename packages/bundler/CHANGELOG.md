@@ -1,5 +1,11 @@
 # @secondlayer/bundler
 
+## 0.5.0
+
+### Minor Changes
+
+- 309f4dc: Infer conservative subgraph repair modes. Chain reads, accumulators, and unknown ops default to full_reindex.
+
 ## 0.4.1
 
 ### Patch Changes

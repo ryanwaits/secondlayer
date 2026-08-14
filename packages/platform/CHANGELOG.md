@@ -1,5 +1,24 @@
 # @secondlayer/platform
 
+## 0.1.38
+
+### Patch Changes
+
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [ed5d295]
+  - @secondlayer/shared@7.10.0
+
 ## 0.1.37
 
 ### Patch Changes

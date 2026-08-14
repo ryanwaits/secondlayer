@@ -1,5 +1,31 @@
 # @secondlayer/cli
 
+## 10.1.0
+
+### Minor Changes
+
+- ed5d295: Add `sl verify all|raw|decode:<name>|subgraph:<name>` plus `--quick/--deep/--anchor` with shared 0/1/2 exits.
+
+### Patch Changes
+
+- 993f1b8: Document top-level `sl init`, `sl bootstrap`, and `sl observer`; drop hidden publish from the command list.
+- Updated dependencies [309f4dc]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [ed5d295]
+  - @secondlayer/bundler@0.5.0
+  - @secondlayer/shared@7.10.0
+
 ## 10.0.0
 
 ### Major Changes

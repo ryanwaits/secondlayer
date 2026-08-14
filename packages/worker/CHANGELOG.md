@@ -1,5 +1,25 @@
 # @secondlayer/worker
 
+## 1.2.40
+
+### Patch Changes
+
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [ed5d295]
+  - @secondlayer/shared@7.10.0
+  - @secondlayer/platform@0.1.38
+
 ## 1.2.39
 
 ### Patch Changes

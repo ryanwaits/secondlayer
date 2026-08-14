@@ -1,5 +1,30 @@
 # @secondlayer/api
 
+## 1.27.1
+
+### Patch Changes
+
+- Updated dependencies [309f4dc]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [e17aee3]
+- Updated dependencies [e17aee3]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [ed5d295]
+  - @secondlayer/bundler@0.5.0
+  - @secondlayer/shared@7.10.0
+  - @secondlayer/indexer@1.13.1
+  - @secondlayer/platform@0.1.38
+
 ## 1.27.0
 
 ### Minor Changes

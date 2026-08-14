@@ -1,5 +1,26 @@
 # @secondlayer/mcp
 
+## 4.5.1
+
+### Patch Changes
+
+- Updated dependencies [309f4dc]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [0d582a6]
+- Updated dependencies [ed5d295]
+  - @secondlayer/bundler@0.5.0
+  - @secondlayer/shared@7.10.0
+
 ## 4.5.0
 
 ### Minor Changes

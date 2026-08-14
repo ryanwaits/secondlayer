@@ -1,5 +1,23 @@
 # @secondlayer/shared
 
+## 7.10.0
+
+### Minor Changes
+
+- 0d582a6: Add the coverage evaluator: one library for stage dependencies, native clocks, declared ranges, freshness, and state.
+- 0d582a6: Add the coverage runner state machine: ordered acks, retry/halt, versioning, resume, and reorg invalidation.
+- 0d582a6: Add the coverage kernel tables (registry, runs, receipts, segments, failures) on the source plane.
+- 0d582a6: Add the atomic decoder adapter: output, checkpoint, receipt, and failure commit in one transaction.
+- 0d582a6: Add the decoder clock: pair Streams cursor order with per-block receipts, including no-match blocks.
+- 0d582a6: Add stateful deep verify: scratch replay vs final-row digest, and detect a seeded historical mutation.
+- 0d582a6: Add canonical effect-manifest hashing so retry and key-order stay stable and historical defects differ.
+- 0d582a6: Add queue coverage for decision, outbox, delivery, rollback, DLQ, and replay with fences and dedupe.
+- 0d582a6: Add the repair planner: dry-run by default, apply only registered safe modes, refuse unproven range_safe and source gaps.
+- 0d582a6: Add the segment sealer: compact only finalized contiguous receipts and drop sealed ranges that a reorg invalidates.
+- 0d582a6: Add sparse proofs: skipped ranges ack without handlers and must agree with sequential chain/effect/row digests.
+- 0d582a6: Add the atomic subgraph adapter: effects, rows, journal, cursor, receipt, and failure in one transaction.
+- ed5d295: Add `sl verify all|raw|decode:<name>|subgraph:<name>` plus `--quick/--deep/--anchor` with shared 0/1/2 exits.
+
 ## 7.9.0
 
 ### Minor Changes
