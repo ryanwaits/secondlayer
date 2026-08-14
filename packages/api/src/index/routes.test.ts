@@ -481,8 +481,13 @@ describe("Stacks Index gateway middleware", () => {
 });
 
 describe("Index PoX-5 events route", () => {
+	const prevMode = process.env.INSTANCE_MODE;
 	beforeEach(() => {
 		process.env.INSTANCE_MODE = "platform";
+	});
+	afterAll(() => {
+		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
+		else process.env.INSTANCE_MODE = prevMode;
 	});
 
 	const POX5_EVENT = {
