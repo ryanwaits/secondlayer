@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 10.3.2
+
+### Patch Changes
+
+- 435af59: Document the `secondlayer` binary; `sl` stays as a short alias.
+
 ## 10.3.1
 
 ### Patch Changes
