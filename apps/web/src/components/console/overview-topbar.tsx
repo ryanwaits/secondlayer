@@ -10,13 +10,9 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { useRef, useState } from "react";
 
-/** Breadcrumb crumb linking back to the Settings section. */
+/** Breadcrumb crumb for the Settings section (no settings index page). */
 export function SettingsCrumb() {
-	return (
-		<Link href="/settings" className="overview-breadcrumb-link">
-			Settings
-		</Link>
-	);
+	return <span className="overview-breadcrumb-link">Settings</span>;
 }
 
 function formatBlock(n: number) {

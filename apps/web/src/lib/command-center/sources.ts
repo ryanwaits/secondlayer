@@ -62,7 +62,7 @@ async function getJson<T>(url: string): Promise<T | null> {
 	}
 }
 
-function toItems(p: Payload, authed: boolean): CommandItem[] {
+function toItems(p: Payload): CommandItem[] {
 	const ownNames = new Set(p.own.map((s) => s.name));
 	const items: CommandItem[] = [];
 
@@ -102,7 +102,7 @@ function toItems(p: Payload, authed: boolean): CommandItem[] {
 			label: s.name,
 			sub: formatRows(s.total_rows),
 			badge: badgeFor(s.status),
-			href: authed ? `/subgraphs/${s.name}` : `/subgraphs/explore/${s.name}`,
+			href: `/subgraphs/${s.name}`,
 		});
 	}
 
@@ -117,7 +117,7 @@ export function useCommandSources(open: boolean): CommandItem[] {
 	useEffect(() => {
 		if (!open) return;
 		// Paint instantly from the last payload, then revalidate once.
-		setItems(toItems(readCache(), !!account));
+		setItems(toItems(readCache()));
 		if (fetched) return;
 		setFetched(true);
 
@@ -137,7 +137,7 @@ export function useCommandSources(open: boolean): CommandItem[] {
 				pub: pub?.subgraphs ?? readCache().pub,
 			};
 			writeCache(fresh);
-			setItems(toItems(fresh, !!account));
+			setItems(toItems(fresh));
 		})();
 	}, [open, account, fetched]);
 

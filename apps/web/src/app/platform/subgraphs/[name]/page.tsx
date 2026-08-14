@@ -150,16 +150,7 @@ export default async function SubgraphDetailPage({
 								{subgraph.visibility ?? "private"}
 							</span>
 						</div>
-						<div className="sg-hdr-actions">
-							{subgraph.visibility === "public" && (
-								<Link
-									href={`/subgraphs/explore/${name}`}
-									className="sg-hdr-btn"
-								>
-									View public page
-								</Link>
-							)}
-						</div>
+						<div className="sg-hdr-actions" />
 					</div>
 
 					{/* Endpoint bar */}

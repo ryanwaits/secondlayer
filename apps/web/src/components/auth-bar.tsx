@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-const PLATFORM_PATHS = ["/platform", "/api-keys", "/billing", "/settings"];
+const PLATFORM_PATHS = ["/platform", "/billing"];
 const DUAL_PATHS = ["/subgraphs"];
 
 export function AuthBar() {

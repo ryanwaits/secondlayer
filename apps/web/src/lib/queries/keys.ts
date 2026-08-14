@@ -8,22 +8,5 @@ export const queryKeys = {
 		tableDataPage: (name: string, table: string, page: number) =>
 			["subgraphs", name, "tableData", table, page] as const,
 	},
-	keys: {
-		all: ["keys"] as const,
-	},
-	insights: {
-		all: ["insights"] as const,
-		byCategory: (category: string) => ["insights", category] as const,
-		byResource: (category: string, resourceId: string) =>
-			["insights", category, resourceId] as const,
-	},
 	status: ["status"] as const,
-	admin: {
-		accounts: ["admin", "accounts"] as const,
-		stats: ["admin", "stats"] as const,
-	},
-	projects: {
-		all: ["projects"] as const,
-		detail: (slug: string) => ["projects", slug] as const,
-	},
 };

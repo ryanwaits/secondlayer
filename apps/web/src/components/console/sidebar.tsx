@@ -4,7 +4,6 @@ import { useAuth } from "@/lib/auth";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ProjectSwitcher } from "./project-switcher";
 import { UserModal } from "./user-modal";
 
 interface NavItem {
@@ -24,11 +23,7 @@ const NAV_ITEMS: NavItem[] = [
 	},
 ];
 
-const SETTINGS_CHILDREN = [
-	{ href: "/settings", label: "Project" },
-	{ href: "/api-keys", label: "API Keys" },
-	{ href: "/billing", label: "Credits" },
-];
+const SETTINGS_CHILDREN = [{ href: "/billing", label: "Archive credits" }];
 
 const ICONS: Record<string, React.ReactNode> = {
 	home: (
@@ -102,11 +97,7 @@ function isActive(pathname: string, href: string) {
 
 function isSettingsActive(pathname: string) {
 	const clean = pathname.replace(/^\/platform/, "");
-	return (
-		clean.startsWith("/settings") ||
-		clean.startsWith("/api-keys") ||
-		clean.startsWith("/billing")
-	);
+	return clean.startsWith("/billing");
 }
 
 export function ConsoleSidebar() {
@@ -261,18 +252,19 @@ export function ConsoleSidebar() {
 					</button>
 				</div>
 
-				{/* Project switcher + avatar */}
-				<ProjectSwitcher
-					avatar={
-						<button
-							type="button"
-							className="org-avatar"
-							onClick={() => setUserModalOpen(true)}
-						>
-							{initial}
-						</button>
-					}
-				/>
+				{/* Avatar */}
+				<div className="sidebar-org">
+					<span className="org-trigger org-static">
+						<span className="org-name">{account?.email ?? ""}</span>
+					</span>
+					<button
+						type="button"
+						className="org-avatar"
+						onClick={() => setUserModalOpen(true)}
+					>
+						{initial}
+					</button>
+				</div>
 			</nav>
 
 			{/* User modal */}

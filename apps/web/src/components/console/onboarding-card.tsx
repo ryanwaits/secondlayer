@@ -14,25 +14,6 @@ const CARDS = [
 				stroke="currentColor"
 				strokeWidth="1.5"
 			>
-				<rect x="4" y="4" width="16" height="16" rx="2" />
-				<path d="M9 12l2 2 4-4" />
-			</svg>
-		),
-		title: "Create API key",
-		desc: "Create and manage access keys to integrate Secondlayer into your app.",
-		href: "/platform/api-keys",
-	},
-	{
-		icon: (
-			<svg
-				aria-hidden="true"
-				width="24"
-				height="24"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				strokeWidth="1.5"
-			>
 				<circle cx="12" cy="12" r="8" />
 				<path d="M12 8v4l2 2" />
 			</svg>
