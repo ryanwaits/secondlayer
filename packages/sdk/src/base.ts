@@ -27,7 +27,17 @@ export interface SecondLayerOptions {
 	origin?: "cli" | "mcp" | "session";
 }
 
-const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
+/** Product default: the local one-box API. Override with `baseUrl` or `SL_API_URL`. */
+export const LOCAL_API_URL = "http://127.0.0.1:3800";
+
+export function resolveBaseUrl(explicit?: string): string {
+	if (explicit && explicit.length > 0) return explicit.replace(/\/+$/, "");
+	if (typeof process !== "undefined") {
+		const fromEnv = process.env?.SL_API_URL || process.env?.SECONDLAYER_API_URL;
+		if (fromEnv) return fromEnv.replace(/\/+$/, "");
+	}
+	return LOCAL_API_URL;
+}
 
 /** Resolve the credential a client should use. An explicit `apiKey` option
  *  always wins — including an explicit `""`, which is how you opt a client
@@ -70,7 +80,7 @@ export abstract class BaseClient {
 	protected fetchImpl: FetchLike;
 
 	constructor(options: Partial<SecondLayerOptions> = {}) {
-		this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
+		this.baseUrl = resolveBaseUrl(options.baseUrl);
 		this.apiKey = resolveApiKey(options.apiKey);
 		this.origin = options.origin ?? "cli";
 		// Bind the global so a bare `fetch` reference doesn't lose its Request

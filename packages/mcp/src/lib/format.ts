@@ -7,7 +7,9 @@ export function formatSubgraphSummary(s: {
 	visibility?: "public" | "private";
 }) {
 	const apiUrl =
-		process.env.SECONDLAYER_API_URL || "https://api.secondlayer.tools";
+		process.env.SECONDLAYER_API_URL ||
+		process.env.SL_API_URL ||
+		"http://127.0.0.1:3800";
 	return {
 		name: s.name,
 		status: s.status,

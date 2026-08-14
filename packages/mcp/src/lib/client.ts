@@ -61,13 +61,16 @@ function buildFetchImpl(): typeof fetch | undefined {
 export function getClient(): SecondLayer {
 	if (!instance) {
 		const apiKey = readApiKey();
-		const baseUrl = process.env.SECONDLAYER_API_URL;
+		const baseUrl =
+			process.env.SECONDLAYER_API_URL ||
+			process.env.SL_API_URL ||
+			"http://127.0.0.1:3800";
 		const dumpsBaseUrl = process.env.SL_STREAMS_DUMPS_URL;
 		const fetchImpl = buildFetchImpl();
 		instance = new SecondLayer({
 			...(apiKey ? { apiKey } : {}),
 			origin: "mcp",
-			...(baseUrl ? { baseUrl } : {}),
+			baseUrl,
 			...(dumpsBaseUrl ? { dumpsBaseUrl } : {}),
 			...(fetchImpl ? { fetchImpl } : {}),
 		});
@@ -89,7 +92,9 @@ export async function apiRequest<T>(
 ): Promise<T> {
 	const apiKey = readApiKey();
 	const baseUrl =
-		process.env.SECONDLAYER_API_URL || "https://api.secondlayer.tools";
+		process.env.SECONDLAYER_API_URL ||
+		process.env.SL_API_URL ||
+		"http://127.0.0.1:3800";
 	const res = await fetch(`${baseUrl}${path}`, {
 		method,
 		headers: {

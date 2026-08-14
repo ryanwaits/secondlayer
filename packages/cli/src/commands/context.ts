@@ -1,9 +1,7 @@
 import { SecondLayer } from "@secondlayer/sdk";
 import type { Command } from "commander";
 import { error as logError, output, writeData } from "../lib/output.ts";
-import { resolveEnvKey } from "../lib/resolve-auth.ts";
-
-const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
+import { resolveApiUrl, resolveEnvKey } from "../lib/resolve-auth.ts";
 
 export function registerContextCommand(program: Command): void {
 	program
@@ -15,7 +13,7 @@ export function registerContextCommand(program: Command): void {
 		.action(async (o: { json?: boolean }) => {
 			try {
 				const sl = new SecondLayer({
-					baseUrl: process.env.SL_API_URL ?? DEFAULT_BASE_URL,
+					baseUrl: resolveApiUrl(),
 					apiKey: resolveEnvKey(),
 				});
 				const snapshot = await sl.context();

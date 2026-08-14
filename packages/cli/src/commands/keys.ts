@@ -7,9 +7,7 @@ import {
 	success,
 	writeData,
 } from "../lib/output.ts";
-import { resolveEnvKey } from "../lib/resolve-auth.ts";
-
-const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
+import { resolveApiUrl, resolveEnvKey } from "../lib/resolve-auth.ts";
 
 export function registerKeysCommand(program: Command): void {
 	const keys = program
@@ -38,7 +36,7 @@ export function registerKeysCommand(program: Command): void {
 			}
 			try {
 				const sl = new SecondLayer({
-					baseUrl: process.env.SL_API_URL ?? DEFAULT_BASE_URL,
+					baseUrl: resolveApiUrl(),
 					apiKey,
 				});
 				const minted = await sl.apiKeys.create({

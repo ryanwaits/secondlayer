@@ -8,17 +8,20 @@ export interface ResolvedAuth {
 	fromEnv: boolean;
 }
 
-const DEFAULT_API_URL = "https://api.secondlayer.tools";
+export const LOCAL_API_URL = "http://127.0.0.1:3800";
+export const ARCHIVE_OPS_API_URL = "https://api.secondlayer.tools";
 
 /**
  * Resolve the API endpoint. Independent of the credential: setting only
- * SL_API_URL redirects the endpoint while keeping the session token, so
- * `SL_API_URL=http://localhost… sl …` hits local instead of silently prod.
+ * SL_API_URL redirects the endpoint while keeping the session token.
+ * Default is the local one-box API.
  */
 export function resolveApiUrl(): string {
 	return (
-		process.env.SL_API_URL ?? process.env.SL_PLATFORM_API_URL ?? DEFAULT_API_URL
-	);
+		process.env.SL_API_URL ??
+		process.env.SL_PLATFORM_API_URL ??
+		LOCAL_API_URL
+	).replace(/\/+$/, "");
 }
 
 /**
@@ -56,5 +59,9 @@ export async function resolveAuth(): Promise<ResolvedAuth> {
  * so the two never disagree.
  */
 export function isOssMode(): boolean {
-	return !!process.env.SL_API_URL;
+	try {
+		return new URL(resolveApiUrl()).hostname !== "api.secondlayer.tools";
+	} catch {
+		return true;
+	}
 }

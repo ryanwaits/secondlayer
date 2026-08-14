@@ -11,29 +11,16 @@ import type {
 import { STREAMS_EVENT_TYPES } from "@secondlayer/shared";
 import type { Command } from "commander";
 import { error as logError, note, writeData } from "../lib/output.ts";
-import { resolveEnvKey } from "../lib/resolve-auth.ts";
-
-const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
+import { resolveApiUrl, resolveEnvKey } from "../lib/resolve-auth.ts";
 
 // Single-sourced from @secondlayer/shared so the CLI can't advertise a stale
 // subset of the Streams event vocab (drift test in streams.test.ts).
 export const VALID_TYPES: readonly StreamsEventType[] = STREAMS_EVENT_TYPES;
 
-function readApiKey(): string {
-	const key = resolveEnvKey();
-	if (!key) {
-		logError(
-			"No API key set. Export SL_API_KEY (issue one at https://www.secondlayer.tools/platform/api-keys).",
-		);
-		process.exit(1);
-	}
-	return key;
-}
-
 function client(): ReturnType<typeof createStreamsClient> {
 	return createStreamsClient({
-		baseUrl: process.env.SL_API_URL ?? DEFAULT_BASE_URL,
-		apiKey: readApiKey(),
+		baseUrl: resolveApiUrl(),
+		apiKey: resolveEnvKey() ?? "",
 	});
 }
 
@@ -50,7 +37,7 @@ function dumpsClient(
 		process.exit(1);
 	}
 	return createStreamsClient({
-		baseUrl: process.env.SL_API_URL ?? DEFAULT_BASE_URL,
+		baseUrl: resolveApiUrl(),
 		apiKey: resolveEnvKey() ?? "",
 		dumpsBaseUrl,
 	});
@@ -107,7 +94,7 @@ function parseHeight(
 export function registerStreamsCommand(program: Command): void {
 	const streams = program
 		.command("streams")
-		.description("Read raw chain events from Streams (requires SL_API_KEY)");
+		.description("Read raw chain events from Streams");
 
 	streams
 		.command("tip")

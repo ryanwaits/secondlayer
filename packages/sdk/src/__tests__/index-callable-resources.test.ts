@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { resolveBaseUrl } from "../base.ts";
 import { SecondLayer } from "../index.ts";
 
 const originalFetch = globalThis.fetch;
@@ -85,9 +86,7 @@ describe("Index callable resources", () => {
 
 		await sl.index.ftTransfers();
 		const request = requests[0];
-		expect(request?.url.startsWith("https://api.secondlayer.tools/")).toBe(
-			true,
-		);
+		expect(request?.url.startsWith(`${resolveBaseUrl()}/`)).toBe(true);
 		expect(request?.headers.get("Authorization")).toBeNull();
 	});
 });

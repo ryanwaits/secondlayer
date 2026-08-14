@@ -81,13 +81,16 @@ describe("isOssMode", () => {
 	});
 
 	it("is true whenever SL_API_URL points the CLI at a custom endpoint", () => {
-		// Regression: must not disagree with resolveAuth — SL_API_URL alone used
-		// to flip isOssMode true while resolveAuth still hit prod with a session.
 		process.env.SL_API_URL = "http://localhost:3800";
 		expect(isOssMode()).toBe(true);
 	});
 
-	it("is false with no endpoint override", () => {
+	it("defaults to the local one-box API (self-host)", () => {
+		expect(isOssMode()).toBe(true);
+	});
+
+	it("is false only when pointed at archive-ops", () => {
+		process.env.SL_API_URL = "https://api.secondlayer.tools";
 		expect(isOssMode()).toBe(false);
 	});
 });

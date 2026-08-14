@@ -33,7 +33,9 @@ export function registerDoctorCommand(program: Command): void {
 async function runHostedDoctor(jsonOutput?: boolean): Promise<void> {
 	const config = await loadConfig();
 	const apiUrl =
-		process.env.SL_PLATFORM_API_URL ?? "https://api.secondlayer.tools";
+		process.env.SL_PLATFORM_API_URL ??
+		process.env.SL_API_URL ??
+		"http://127.0.0.1:3800";
 	const issues: string[] = [];
 
 	const results: Record<string, unknown> = { network: config.network, apiUrl };

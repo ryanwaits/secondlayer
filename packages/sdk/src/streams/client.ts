@@ -1,5 +1,5 @@
 import { ed25519 } from "@secondlayer/shared";
-import { buildQuery } from "../base.ts";
+import { buildQuery, resolveBaseUrl } from "../base.ts";
 import type { IndexEvent } from "../index-api/client.ts";
 import type { ConsumerSink } from "../sinks/types.ts";
 import {
@@ -92,8 +92,6 @@ function streamsFilters(params: {
 		filters: params.filters,
 	};
 }
-
-const DEFAULT_STREAMS_BASE_URL = "https://api.secondlayer.tools";
 
 export type CreateStreamsClientOptions = {
 	apiKey: string;
@@ -189,7 +187,7 @@ async function mapStreamsError(response: Response): Promise<never> {
 export function createStreamsClient(
 	options: CreateStreamsClientOptions,
 ): StreamsClient {
-	const baseUrl = normalizeBaseUrl(options.baseUrl ?? DEFAULT_STREAMS_BASE_URL);
+	const baseUrl = normalizeBaseUrl(resolveBaseUrl(options.baseUrl));
 	const fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
 	const verify = options.verify;
 	// On by default, but lenient: the hosted API signs every response, while a

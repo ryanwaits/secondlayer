@@ -9,10 +9,8 @@ import {
 	success,
 	writeData,
 } from "../lib/output.ts";
-import { resolveEnvKey } from "../lib/resolve-auth.ts";
+import { resolveApiUrl, resolveEnvKey } from "../lib/resolve-auth.ts";
 import { deprecatedCodegenNotice } from "./codegen.ts";
-
-const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
 
 /**
  * Index reads allow anonymous access, but free-tier API keys are rejected
@@ -21,7 +19,7 @@ const DEFAULT_BASE_URL = "https://api.secondlayer.tools";
  */
 function client(): Index {
 	return new Index({
-		baseUrl: process.env.SL_API_URL ?? DEFAULT_BASE_URL,
+		baseUrl: resolveApiUrl(),
 		apiKey: resolveEnvKey(),
 	});
 }
@@ -30,9 +28,7 @@ function fail(action: string, err: unknown): never {
 	const message = err instanceof Error ? err.message : String(err);
 	logError(`Failed to ${action}: ${message}`);
 	if (/\b403\b/.test(message) || /forbidden/i.test(message)) {
-		note(
-			"The Index API requires a Build+ tier key (free-tier keys are rejected).",
-		);
+		note("The local API refused this read. Check INSTANCE_TOKEN / SL_API_KEY.");
 	}
 	process.exit(1);
 }

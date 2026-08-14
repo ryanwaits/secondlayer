@@ -2,6 +2,12 @@
 
 Notable changes to the Secondlayer platform and SDKs.
 
+## SDK — August 2026
+
+### Default client hits your local API
+
+`new SecondLayer()` and `createStreamsClient()` now talk to `http://127.0.0.1:3800`. Override with `baseUrl` or `SL_API_URL`. Archive dumps stay on the public signed bucket.
+
 ## CLI — August 2026
 
 ### One container next to Postgres
