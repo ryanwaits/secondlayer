@@ -5,10 +5,9 @@ const BASE = "https://www.secondlayer.tools";
 
 const ROUTES = [
 	"/",
-	"/streams",
-	"/indexes",
-	"/subgraphs",
-	"/subscriptions",
+	"/docs",
+	"/docs/self-host",
+	"/docs/archive",
 	"/status",
 	"/writing",
 ] as const;

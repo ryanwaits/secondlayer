@@ -7,41 +7,36 @@ import { usePathname } from "next/navigation";
 
 const COLS: { title: string; links: { label: string; href: string }[] }[] = [
 	{
-		title: "Product",
+		title: "Runtime",
 		links: [
-			{ label: "Index", href: "/indexes" },
-			{ label: "Subgraphs", href: "/subgraphs" },
-			{ label: "Streams", href: "/streams" },
+			{ label: "Self-host", href: "/docs/self-host" },
+			{ label: "Archive", href: "/docs/archive" },
+			{ label: "Docs", href: "/docs" },
 		],
 	},
 	{
-		title: "Features",
+		title: "Surfaces",
 		links: [
-			{ label: "Subscriptions", href: "/subscriptions" },
-			{ label: "Explore", href: "/subgraphs/explore" },
-			{ label: "Contract discovery", href: "/docs/contracts" },
-			{ label: "Verification", href: "/docs/verification" },
+			{ label: "Index", href: "/docs/index" },
+			{ label: "Streams", href: "/docs/streams" },
+			{ label: "Subgraphs", href: "/docs/subgraphs" },
+			{ label: "Subscriptions", href: "/docs/subscriptions" },
 		],
 	},
 	{
 		title: "Developers",
 		links: [
-			{ label: "Docs", href: "/docs" },
-			{
-				label: "OpenAPI",
-				href: "https://api.secondlayer.tools/v1/openapi.json",
-			},
+			{ label: "CLI", href: "/docs/cli" },
+			{ label: "SDK", href: "/docs/sdk" },
 			{ label: "MCP", href: "/docs/mcp" },
 			{ label: "Status", href: "/status" },
 		],
 	},
 	{
-		title: "Resources",
+		title: "More",
 		links: [
-			{ label: "CLI", href: "/docs/cli" },
-			{ label: "SDK", href: "/docs/sdk" },
 			{ label: "Writing", href: "/writing" },
-			{ label: "Pricing", href: "/pricing" },
+			{ label: "Changelog", href: "/docs/changelog" },
 		],
 	},
 ];
@@ -78,7 +73,7 @@ export function SiteFooter({ status }: { status?: SystemStatus | null }) {
 							<span>secondlayer</span>
 						</p>
 						<p>
-							The hosted indexer for Stacks. Inspired by the ideas behind{" "}
+							Self-hosted Stacks data runtime. Inspired by the ideas behind{" "}
 							<a
 								href="https://paragraph.com/@aulneau/project-kourier"
 								target="_blank"

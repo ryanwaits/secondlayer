@@ -86,9 +86,43 @@ const nextConfig: NextConfig = {
 		// (The former /docs → / collapse was reverted: /docs is now the docs site.)
 		return [
 			{
-				// Index product page route renamed /index-api → /indexes.
 				source: "/index-api",
-				destination: "/indexes",
+				destination: "/docs/index",
+				permanent: true,
+			},
+			{
+				source: "/indexes",
+				destination: "/docs/index",
+				permanent: true,
+			},
+			{
+				source: "/streams",
+				destination: "/docs/streams",
+				permanent: true,
+			},
+			{
+				source: "/subgraphs/explore",
+				destination: "/docs/subgraphs",
+				permanent: true,
+			},
+			{
+				source: "/subgraphs/explore/:path*",
+				destination: "/docs/subgraphs",
+				permanent: true,
+			},
+			{
+				source: "/subscriptions",
+				destination: "/docs/subscriptions",
+				permanent: true,
+			},
+			{
+				source: "/sbtc",
+				destination: "/docs/sbtc-settlement",
+				permanent: true,
+			},
+			{
+				source: "/pricing",
+				destination: "/#history",
 				permanent: true,
 			},
 			{

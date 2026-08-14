@@ -1,7 +1,6 @@
 "use client";
 
 import { MobileNavCta } from "@/components/mobile-nav-cta";
-import { useAuth } from "@/lib/auth";
 import {
 	NAV,
 	type NavGroup,
@@ -10,7 +9,7 @@ import {
 	activeHref,
 	isGroup,
 } from "@/lib/nav";
-import { appHostname, appUrl, marketingUrl } from "@/lib/urls";
+import { appHostname, marketingUrl } from "@/lib/urls";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -65,7 +64,6 @@ export function MarketingNav({
 	liveSubgraphs = [],
 }: { liveSubgraphs?: NavSubgraph[] }) {
 	const pathname = usePathname();
-	const { account, loading, logout } = useAuth();
 
 	const [sheetOpen, setSheetOpen] = useState(false);
 	/** Index of the open desktop panel, or null. One at a time. */
@@ -257,7 +255,7 @@ export function MarketingNav({
 
 	return (
 		<>
-			<nav className="marketing-nav" aria-label="Products" ref={navRef}>
+			<nav className="marketing-nav" aria-label="Site" ref={navRef}>
 				<Brand href={navHref("/")} />
 
 				{NAV.map((entry, i) => {
@@ -421,33 +419,14 @@ export function MarketingNav({
 						})}
 					</nav>
 
-					{!loading && (
-						<div className="mnav-foot">
-							{account ? (
-								<>
-									<Link href={appUrl("/")} className="mnav-cta">
-										Platform
-									</Link>
-									<button
-										type="button"
-										className="mnav-login"
-										onClick={() => logout()}
-									>
-										Log out
-									</button>
-								</>
-							) : (
-								<>
-									<Link href={appUrl("/login")} className="mnav-cta">
-										Get an API key
-									</Link>
-									<Link href={appUrl("/login")} className="mnav-login">
-										Sign in
-									</Link>
-								</>
-							)}
-						</div>
-					)}
+					<div className="mnav-foot">
+						<Link href={navHref("/docs/self-host")} className="mnav-cta">
+							Self-host
+						</Link>
+						<Link href={navHref("/docs")} className="mnav-login">
+							Docs
+						</Link>
+					</div>
 				</div>
 			)}
 		</>

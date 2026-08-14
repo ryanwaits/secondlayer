@@ -10,7 +10,7 @@ import Link from "next/link";
  */
 export function DocsTopNav() {
 	return (
-		<nav className="docs-topnav" aria-label="Products">
+		<nav className="docs-topnav" aria-label="Site">
 			{DOCS_STRIP.map((p) => (
 				<Link key={p.href} href={p.href} className="docs-topnav-link">
 					{p.label}

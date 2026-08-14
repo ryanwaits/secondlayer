@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 
-const INSTALL_CMD = "bun add @secondlayer/sdk";
+const INSTALL_CMD = "bun add -g @secondlayer/cli";
 
-/** Hero CTA — copyable SDK install command. */
+/** Hero CTA — copyable CLI install command. */
 export function CtaPill() {
 	const [copied, setCopied] = useState(false);
 

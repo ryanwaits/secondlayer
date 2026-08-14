@@ -93,6 +93,11 @@ function marketingHostMiddleware(
 		const search = request.nextUrl.search;
 		return NextResponse.redirect(appUrl(`${pathname}${search}`));
 	}
+	// Product page is gone. Exact /subgraphs only — do not catch console
+	// /subgraphs/:name on a split-less preview (handled in legacy below).
+	if (pathname === "/subgraphs") {
+		return NextResponse.redirect(new URL("/docs/subgraphs", request.url));
+	}
 	return NextResponse.next();
 }
 
@@ -105,6 +110,9 @@ function legacyMiddleware(
 	if (!session) {
 		if (matches(pathname, AUTH_REQUIRED)) {
 			return NextResponse.redirect(new URL("/", request.url));
+		}
+		if (pathname === "/subgraphs") {
+			return NextResponse.redirect(new URL("/docs/subgraphs", request.url));
 		}
 		return NextResponse.next();
 	}
