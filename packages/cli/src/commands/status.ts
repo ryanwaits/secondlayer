@@ -20,7 +20,13 @@ export function registerStatusCommand(program: Command): void {
 			const config = await loadConfig();
 
 			try {
-				const status = await httpPlatform<Record<string, unknown>>("/status");
+				const local =
+					process.env.INSTANCE_MODE === "oss" ||
+					(process.env.SL_API_URL ?? "").includes("127.0.0.1") ||
+					(process.env.SL_API_URL ?? "").includes("localhost");
+				const status = local
+					? await httpPlatform<Record<string, unknown>>("/public/status")
+					: await httpPlatform<Record<string, unknown>>("/status");
 
 				output({
 					json: options.json,

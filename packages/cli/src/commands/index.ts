@@ -20,3 +20,4 @@ export { registerRepairCommand } from "./repair.ts";
 export { registerBootstrapCommand } from "./bootstrap.ts";
 export { registerInitCommand } from "./init.ts";
 export { registerObserverCommand } from "./observer.ts";
+export { registerStartCommand } from "./start.ts";

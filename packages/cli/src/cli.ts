@@ -18,6 +18,7 @@ import {
 	registerObserverCommand,
 	registerProjectCommand,
 	registerRepairCommand,
+	registerStartCommand,
 	registerStatusCommand,
 	registerStreamsCommand,
 	registerSubgraphsCommand,
@@ -64,6 +65,7 @@ program.commandsGroup("Getting started:");
 registerInitCommand(program);
 registerBootstrapCommand(program);
 registerObserverCommand(program);
+registerStartCommand(program);
 registerLoginCommand(program);
 registerLogoutCommand(program);
 registerWhoamiCommand(program);
