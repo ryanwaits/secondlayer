@@ -2,7 +2,10 @@ import { getDb } from "@secondlayer/shared/db";
 import { getInstance } from "@secondlayer/shared/db/queries/instance";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import { Hono } from "hono";
+import { sql } from "kysely";
 import { INSTANCE_FEATURE_MANIFEST } from "../instance-features.ts";
+
+const PROCESS_STARTED_AT = Date.now();
 
 export function createInstanceCatalogRouter() {
 	const app = new Hono();
@@ -13,6 +16,91 @@ export function createInstanceCatalogRouter() {
 			features: INSTANCE_FEATURE_MANIFEST,
 		}),
 	);
+
+	// Operational vitals for the console: process uptime, database footprint,
+	// 24h webhook delivery outcomes, and a rows-processed series derived from
+	// health snapshots. Everything here is cheap aggregates; an unreachable
+	// table degrades to null rather than failing the whole payload.
+	app.get("/metrics", async (c) => {
+		const db = getDb();
+		const uptimeSeconds = Math.floor((Date.now() - PROCESS_STARTED_AT) / 1000);
+
+		let dbSizeBytes: number | null = null;
+		try {
+			const size = await sql<{
+				bytes: string;
+			}>`SELECT pg_database_size(current_database())::text AS bytes`.execute(
+				db,
+			);
+			dbSizeBytes = size.rows[0] ? Number(size.rows[0].bytes) : null;
+		} catch {
+			dbSizeBytes = null;
+		}
+
+		let deliveries: {
+			total: number;
+			failed: number;
+			dlq: number;
+		} | null = null;
+		try {
+			const [counts, dead] = await Promise.all([
+				db
+					.selectFrom("subscription_deliveries")
+					.select([
+						db.fn.countAll<string>().as("total"),
+						db.fn
+							.count<string>(
+								sql`CASE WHEN status_code IS NULL OR status_code >= 400 THEN 1 END`,
+							)
+							.as("failed"),
+					])
+					.where("dispatched_at", ">", sql<Date>`NOW() - INTERVAL '24 hours'`)
+					.executeTakeFirst(),
+				db
+					.selectFrom("subscription_outbox")
+					.select(db.fn.countAll<string>().as("n"))
+					.where("status", "=", "dead")
+					.executeTakeFirst(),
+			]);
+			deliveries = {
+				total: Number(counts?.total ?? 0),
+				failed: Number(counts?.failed ?? 0),
+				dlq: Number(dead?.n ?? 0),
+			};
+		} catch {
+			deliveries = null;
+		}
+
+		// Total rows processed over recent snapshots, bucketed hourly — the
+		// overview sparkline. Per subgraph take the hour's max cumulative
+		// counter, then sum across subgraphs. Sparse snapshots → fewer points.
+		let rowsSeries: { t: string; rows: number }[] = [];
+		try {
+			const buckets = await sql<{ t: string; rows: string }>`
+				SELECT t::text AS t, SUM(max_rows)::text AS rows
+				FROM (
+					SELECT date_trunc('hour', captured_at) AS t,
+					       subgraph_id,
+					       MAX(total_processed) AS max_rows
+					FROM subgraph_health_snapshots
+					WHERE captured_at > NOW() - INTERVAL '24 hours'
+					GROUP BY 1, 2
+				) s
+				GROUP BY t
+				ORDER BY t
+			`.execute(db);
+			rowsSeries = buckets.rows.map((b) => ({ t: b.t, rows: Number(b.rows) }));
+		} catch {
+			rowsSeries = [];
+		}
+
+		return c.json({
+			uptime_s: uptimeSeconds,
+			db_size_bytes: dbSizeBytes,
+			deliveries_24h: deliveries,
+			rows_series: rowsSeries,
+		});
+	});
 
 	app.get("/", async (c) => {
 		const mode = getInstanceMode();
