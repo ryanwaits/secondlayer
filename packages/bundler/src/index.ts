@@ -9,3 +9,8 @@ export {
 export type { ExtractedSubgraph } from "./extract.ts";
 export { bundleSubgraphCode } from "./subgraph.ts";
 export type { SubgraphBundleResult } from "./subgraph.ts";
+export {
+	inferRepairMode,
+	inferRepairModeFromHandlers,
+} from "./repair-mode.ts";
+export type { InferredRepairMode, RepairModeEvidence } from "./repair-mode.ts";
