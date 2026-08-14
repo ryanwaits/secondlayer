@@ -2,17 +2,17 @@ import { ConsoleShell } from "@/components/console/shell";
 import type { InstanceMeta } from "@/components/console/sidebar";
 import { apiRequest } from "@/lib/api";
 import { assertConsoleAccess } from "@/lib/gate";
+import { InstanceMetaProvider } from "@/lib/instance-meta";
 import { PreferencesProvider } from "@/lib/preferences";
 import { QueryProvider } from "@/lib/queries/provider";
-import { TopbarProvider } from "@/lib/topbar-context";
 import type { HealthInfo, InstanceSummary } from "@/lib/types";
 
 /**
  * Console chrome. No session — access is the token gate (proxy + the layout
  * backstop below), and identity is the instance itself: the sidebar footer
  * carries network · mode, image sha, and instance id from `/v1/instance` +
- * `/health`. Both fetches are best-effort; an unreachable runtime renders
- * dashes.
+ * `/health`, and the topbar's network chip reads the same meta via context.
+ * Both fetches are best-effort; an unreachable runtime renders dashes.
  */
 export default async function ConsoleLayout({
 	children,
@@ -39,9 +39,9 @@ export default async function ConsoleLayout({
 	return (
 		<QueryProvider>
 			<PreferencesProvider>
-				<TopbarProvider>
+				<InstanceMetaProvider meta={meta}>
 					<ConsoleShell meta={meta}>{children}</ConsoleShell>
-				</TopbarProvider>
+				</InstanceMetaProvider>
 			</PreferencesProvider>
 		</QueryProvider>
 	);

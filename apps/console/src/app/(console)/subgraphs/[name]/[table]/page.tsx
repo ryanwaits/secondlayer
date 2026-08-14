@@ -2,7 +2,6 @@ import { CollapsibleSection } from "@/components/console/collapsible-section";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { ApiError, INSTANCE_API_URL, apiRequest } from "@/lib/api";
 import type { SubgraphDetail } from "@/lib/types";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SubgraphDataBrowser } from "../data-browser";
 
@@ -32,24 +31,11 @@ export default async function TableDetailPage({
 	return (
 		<>
 			<OverviewTopbar
-				path={
-					<>
-						<Link
-							href="/subgraphs"
-							style={{ color: "inherit", textDecoration: "none" }}
-						>
-							Subgraphs
-						</Link>{" "}
-						/{" "}
-						<Link
-							href={`/subgraphs/${name}`}
-							style={{ color: "inherit", textDecoration: "none" }}
-						>
-							{name}
-						</Link>
-					</>
-				}
-				page={table}
+				crumbs={[
+					{ label: "subgraphs", href: "/subgraphs" },
+					{ label: name, href: `/subgraphs/${name}` },
+					{ label: table },
+				]}
 			/>
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">

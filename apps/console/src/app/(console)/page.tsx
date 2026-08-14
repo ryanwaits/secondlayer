@@ -2,13 +2,14 @@ import { EmptyState } from "@/components/console/empty-state";
 import { LivePill } from "@/components/console/live-pill";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { apiRequest } from "@/lib/api";
-import { timeAgo } from "@/lib/format";
+import { compactCount, humanBytes, humanUptime, timeAgo } from "@/lib/format";
 import {
 	badgeClass,
 	getDisplayStatus,
 	statusLabel,
 } from "@/lib/intelligence/subgraphs";
 import type {
+	InstanceMetrics,
 	InstanceSummary,
 	SubgraphSummary,
 	SystemStatus,
@@ -33,11 +34,12 @@ function GridIcon() {
 }
 
 export default async function OverviewPage() {
-	const [subgraphsResult, statusResult, instanceResult] =
+	const [subgraphsResult, statusResult, instanceResult, metricsResult] =
 		await Promise.allSettled([
 			apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs"),
 			apiRequest<SystemStatus>("/status"),
 			apiRequest<InstanceSummary>("/v1/instance"),
+			apiRequest<InstanceMetrics>("/v1/instance/metrics"),
 		]);
 	const subgraphs =
 		subgraphsResult.status === "fulfilled" ? subgraphsResult.value.data : [];
@@ -45,6 +47,8 @@ export default async function OverviewPage() {
 		statusResult.status === "fulfilled" ? statusResult.value.chainTip : null;
 	const instance =
 		instanceResult.status === "fulfilled" ? instanceResult.value : null;
+	const metrics =
+		metricsResult.status === "fulfilled" ? metricsResult.value : null;
 	const unreachable =
 		subgraphsResult.status === "rejected" &&
 		instanceResult.status === "rejected";
@@ -85,31 +89,47 @@ export default async function OverviewPage() {
 	const processedBlocks = subgraphs
 		.map((s) => s.lastProcessedBlock)
 		.filter((b): b is number => b != null);
+	const lastIndexed =
+		processedBlocks.length > 0 ? Math.min(...processedBlocks) : null;
 	const behind =
-		chainTip != null && processedBlocks.length > 0
-			? Math.max(0, chainTip - Math.min(...processedBlocks))
+		chainTip != null && lastIndexed != null
+			? Math.max(0, chainTip - lastIndexed)
 			: null;
+
+	// Rows-processed sparkline — blue-ramp dataviz from real health snapshots.
+	// Fewer than 3 points isn't a trend; hide the bar row rather than fake one.
+	const series = metrics?.rows_series ?? [];
+	const sparkMax = series.reduce((m, p) => Math.max(m, p.rows), 0);
+	const showSpark = series.length >= 3 && sparkMax > 0;
+
+	const deliveries = metrics?.deliveries_24h ?? null;
 
 	return (
 		<>
-			<OverviewTopbar page="Overview" />
+			<OverviewTopbar crumbs={[{ label: "overview" }]} />
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">
-					<div className="dash-head">
-						<h1 className="dash-title">This instance</h1>
-					</div>
-
-					{/* Identity strip — /v1/instance, not a session. */}
+					{/* H1 + inline identity strip — /v1/instance, not a session. */}
 					<div className="ident">
-						<span className="kv">
-							network <b>{instance?.network ?? "—"}</b>
-						</span>
-						<span className="kv">
-							mode <b>{instance?.mode ?? "—"}</b>
-						</span>
-						{chainTip != null && (
+						<h2>This instance</h2>
+						{instance?.network && (
 							<span className="kv">
-								tip <b>#{chainTip.toLocaleString()}</b>
+								network <b>{instance.network}</b>
+							</span>
+						)}
+						{instance?.mode && (
+							<span className="kv">
+								mode <b>{instance.mode}</b>
+							</span>
+						)}
+						{metrics != null && (
+							<span className="kv">
+								uptime <b>{humanUptime(metrics.uptime_s)}</b>
+							</span>
+						)}
+						{metrics?.db_size_bytes != null && (
+							<span className="kv">
+								postgres <b>{humanBytes(metrics.db_size_bytes)}</b>
 							</span>
 						)}
 					</div>
@@ -129,35 +149,36 @@ export default async function OverviewPage() {
 					) : (
 						<>
 							<div className="ov-cards">
-								<Link className="ov-card" href="/subgraphs">
-									<div className="ov-card-label">
-										<span className="ov-card-dot" />
-										Indexing health
-									</div>
-									<div
-										className={`ov-card-value${totalErrors === 0 && successRate !== null ? " ok" : ""}`}
-									>
-										{successDisplay}
-									</div>
+								<div className="ov-card">
+									<div className="ov-card-label">Indexing health</div>
+									<div className="ov-card-value">{successDisplay}</div>
 									<div className="ov-card-sub">
-										<span className="live">
-											{counts.live}/{subgraphs.length} live
-										</span>{" "}
-										· {totalErrors.toLocaleString()} decode error
-										{totalErrors !== 1 ? "s" : ""}
+										{counts.live} live · {counts.syncing} syncing ·{" "}
+										{counts.error} error
 									</div>
-								</Link>
-								<Link className="ov-card" href="/subgraphs">
+								</div>
+								<div className="ov-card">
 									<div className="ov-card-label">Rows indexed</div>
-									<div className="ov-card-value">
-										{totalRows.toLocaleString()}
-									</div>
-									<div className="ov-card-sub">
-										across {subgraphs.length} subgraph
-										{subgraphs.length !== 1 ? "s" : ""}
-									</div>
-								</Link>
-								<Link className="ov-card" href="/subgraphs">
+									<div className="ov-card-value">{compactCount(totalRows)}</div>
+									{showSpark ? (
+										<div className="spark" aria-hidden="true">
+											{series.map((p) => (
+												<i
+													key={p.t}
+													style={{
+														height: `${Math.max(8, Math.round((p.rows / sparkMax) * 100))}%`,
+													}}
+												/>
+											))}
+										</div>
+									) : (
+										<div className="ov-card-sub">
+											across {subgraphs.length} subgraph
+											{subgraphs.length !== 1 ? "s" : ""}
+										</div>
+									)}
+								</div>
+								<div className="ov-card">
 									<div className="ov-card-label">Behind tip</div>
 									<div className="ov-card-value">
 										{behind === null ? (
@@ -173,10 +194,26 @@ export default async function OverviewPage() {
 									</div>
 									<div className="ov-card-sub">
 										{chainTip != null
-											? `tip ${chainTip.toLocaleString()}${behind && behind > 0 ? " · catching up" : ""}`
+											? `tip #${chainTip.toLocaleString()}${
+													lastIndexed != null
+														? ` · last indexed #${lastIndexed.toLocaleString()}`
+														: ""
+												}`
 											: "chain tip unavailable"}
 									</div>
-								</Link>
+								</div>
+								{deliveries !== null && (
+									<div className="ov-card">
+										<div className="ov-card-label">Deliveries · 24h</div>
+										<div className="ov-card-value">
+											{deliveries.total.toLocaleString()}
+										</div>
+										<div className="ov-card-sub">
+											{deliveries.failed.toLocaleString()} failed ·{" "}
+											{deliveries.dlq.toLocaleString()} in DLQ
+										</div>
+									</div>
+								)}
 							</div>
 
 							{errored.length > 0 && (
@@ -209,9 +246,7 @@ export default async function OverviewPage() {
 									<span className="t">
 										Subgraphs<span className="cnt">{subgraphs.length}</span>
 									</span>
-									<Link className="ov-section-link" href="/subgraphs">
-										Manage &rarr;
-									</Link>
+									<span className="r mono">sl subgraphs create</span>
 								</div>
 								<div className="dash-led">
 									{withStatus.map(({ sg }) => (

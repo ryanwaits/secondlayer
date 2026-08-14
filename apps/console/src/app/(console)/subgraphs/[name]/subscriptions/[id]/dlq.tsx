@@ -4,6 +4,11 @@ import { consoleFetch } from "@/lib/client-fetch";
 import type { DeadRow } from "@/lib/types";
 import { useEffect, useState } from "react";
 
+/**
+ * Dead letter queue: outbox rows that exhausted all retries. Owns its section
+ * head so the count stays live through requeues; the page renders the Replay
+ * panel directly beneath it inside the same section.
+ */
 export function Dlq({ subscriptionId }: { subscriptionId: string }) {
 	const [rows, setRows] = useState<DeadRow[] | null>(null);
 	const [err, setErr] = useState<string | null>(null);
@@ -46,54 +51,72 @@ export function Dlq({ subscriptionId }: { subscriptionId: string }) {
 		}
 	}
 
-	if (err) return <p style={{ color: "var(--error)" }}>{err}</p>;
-	if (rows === null) return <p className="detail-desc">Loading…</p>;
-	if (rows.length === 0) {
-		return (
+	let body: React.ReactNode;
+	if (err) {
+		body = <p style={{ color: "var(--error)" }}>{err}</p>;
+	} else if (rows === null) {
+		body = <p className="detail-desc">Loading…</p>;
+	} else if (rows.length === 0) {
+		body = (
 			<p className="detail-desc">
 				No dead rows. Delivery attempts that fail all 7 retries land here
 				awaiting manual requeue.
 			</p>
 		);
+	} else {
+		body = (
+			<div className="table-scroll">
+				<table className="sg">
+					<thead>
+						<tr>
+							<th>Event</th>
+							<th>Block</th>
+							<th>Failed</th>
+							<th>Payload</th>
+							<th />
+						</tr>
+					</thead>
+					<tbody>
+						{rows.map((r) => (
+							<tr key={r.id}>
+								<td className="mono">{r.eventType}</td>
+								<td className="mono">#{r.blockHeight.toLocaleString()}</td>
+								<td>
+									{r.failedAt ? new Date(r.failedAt).toLocaleString() : "—"}
+								</td>
+								<td className="mono">
+									{JSON.stringify(r.payload).slice(0, 60)}…
+								</td>
+								<td>
+									<button
+										type="button"
+										className="btn"
+										disabled={busy === r.id}
+										onClick={() => requeue(r.id)}
+									>
+										{busy === r.id ? "…" : "Requeue"}
+									</button>
+								</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</div>
+		);
 	}
 
 	return (
-		<table className="index-table">
-			<thead>
-				<tr>
-					<th>Event</th>
-					<th>Block</th>
-					<th>Failed</th>
-					<th>Payload</th>
-					<th />
-				</tr>
-			</thead>
-			<tbody>
-				{rows.map((r) => (
-					<tr key={r.id}>
-						<td>
-							<code>{r.eventType}</code>
-						</td>
-						<td>{r.blockHeight}</td>
-						<td>{r.failedAt ? new Date(r.failedAt).toLocaleString() : "—"}</td>
-						<td>
-							<code style={{ fontSize: 11 }}>
-								{JSON.stringify(r.payload).slice(0, 60)}…
-							</code>
-						</td>
-						<td>
-							<button
-								type="button"
-								className="btn-secondary"
-								disabled={busy === r.id}
-								onClick={() => requeue(r.id)}
-							>
-								{busy === r.id ? "…" : "Requeue"}
-							</button>
-						</td>
-					</tr>
-				))}
-			</tbody>
-		</table>
+		<>
+			<div className="sg-sec-head">
+				<span className="t">
+					Dead letter queue
+					{rows !== null && rows.length > 0 && (
+						<span className="cnt">{rows.length}</span>
+					)}
+				</span>
+				<span className="r">Replay a block range</span>
+			</div>
+			<div style={{ marginBottom: 16 }}>{body}</div>
+		</>
 	);
 }

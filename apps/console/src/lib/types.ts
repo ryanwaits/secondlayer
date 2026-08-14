@@ -22,12 +22,65 @@ export interface HealthInfo {
 	image_sha: string | null;
 }
 
+/** `GET /v1/instance/metrics` — operational vitals for the overview. */
+export interface InstanceMetrics {
+	uptime_s: number;
+	db_size_bytes: number | null;
+	deliveries_24h: { total: number; failed: number; dlq: number } | null;
+	rows_series: { t: string; rows: number }[];
+}
+
+/** `GET /v1/instance/features` — module manifest, flags may nest one level. */
+export interface InstanceFeatures {
+	mode: string;
+	features: Record<string, boolean | Record<string, boolean>>;
+}
+
 /** Trimmed `/status` view — the console reads tip + freshness only. */
 export interface SystemStatus {
 	status: string;
 	network?: string;
 	chainTip: number | null;
 	timestamp: string;
+}
+
+/**
+ * Fuller `/status` view for the Status and Verify screens. Everything beyond
+ * the trimmed shape is optional — an older runtime that omits a field simply
+ * hides that element.
+ */
+export interface StatusReport extends SystemStatus {
+	services?: { name: string; status: string }[];
+	streams?: {
+		status: string;
+		tip: {
+			block_height: number;
+			lag_seconds: number;
+			block_time?: string | null;
+		} | null;
+	};
+	indexProgress?: {
+		network: string;
+		lastIndexedBlock: number;
+		lastContiguousBlock: number;
+		highestSeenBlock: number;
+		updatedAt: string;
+	}[];
+	integrity?: string;
+	blocksReceivedOutOfOrder?: number;
+	activeSubgraphs?: number;
+	subgraphs?: {
+		name: string;
+		status: string;
+		lastProcessedBlock: number;
+		totalProcessed: number;
+		totalErrors: number;
+		errorRate: number;
+		lastError: string | null;
+		gapCount: number;
+		totalMissingBlocks: number;
+		integrity: string;
+	}[];
 }
 
 export interface SubgraphSummary {
@@ -143,8 +196,12 @@ export interface SubscriptionDetail extends SubscriptionSummary {
 
 export interface DeliveryRow {
 	id: string;
+	/** Lifetime delivery number, newest-first (#4,182 …). */
+	seq?: number;
 	attempt: number;
 	statusCode: number | null;
+	/** Null when the outbox row was already compacted away. */
+	blockHeight?: number | null;
 	errorMessage: string | null;
 	durationMs: number | null;
 	responseBody: string | null;

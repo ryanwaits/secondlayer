@@ -81,7 +81,6 @@ export function describeReplay(
 }
 
 export function ReplayDialog({ subscriptionId }: { subscriptionId: string }) {
-	const [open, setOpen] = useState(false);
 	const [fromBlock, setFromBlock] = useState("");
 	const [toBlock, setToBlock] = useState("");
 	const [busy, setBusy] = useState(false);
@@ -152,64 +151,32 @@ export function ReplayDialog({ subscriptionId }: { subscriptionId: string }) {
 		}
 	}
 
-	if (!open) {
-		return (
-			<button type="button" className="dash-btn" onClick={() => setOpen(true)}>
-				Replay range
-			</button>
-		);
-	}
-
 	return (
-		<div className="sg-reindex-form">
-			<div className="sg-reindex-fields">
-				<div className="sg-reindex-field">
-					<label className="sg-reindex-label" htmlFor="replay-from">
-						From block
-					</label>
-					<input
-						id="replay-from"
-						className="sg-reindex-input"
-						type="text"
-						inputMode="numeric"
-						placeholder="e.g. 8709410"
-						value={fromBlock}
-						onChange={(e) => setFromBlock(e.target.value)}
-					/>
-				</div>
-				<div className="sg-reindex-field">
-					<label className="sg-reindex-label" htmlFor="replay-to">
-						To block
-					</label>
-					<input
-						id="replay-to"
-						className="sg-reindex-input"
-						type="text"
-						inputMode="numeric"
-						placeholder="e.g. 8709415"
-						value={toBlock}
-						onChange={(e) => setToBlock(e.target.value)}
-					/>
-				</div>
-			</div>
-			<div style={{ display: "flex", gap: 8 }}>
+		<>
+			<div className="field">
+				<input
+					type="text"
+					inputMode="numeric"
+					placeholder="from block"
+					aria-label="From block"
+					value={fromBlock}
+					onChange={(e) => setFromBlock(e.target.value)}
+				/>
+				<input
+					type="text"
+					inputMode="numeric"
+					placeholder="to block"
+					aria-label="To block"
+					value={toBlock}
+					onChange={(e) => setToBlock(e.target.value)}
+				/>
 				<button
 					type="button"
-					className="sg-reindex-btn"
+					className="btn solid"
 					disabled={busy || !range.valid}
 					onClick={onReplay}
 				>
-					{busy ? "Enqueuing…" : "Enqueue replay"}
-				</button>
-				<button
-					type="button"
-					className="dash-btn"
-					onClick={() => {
-						setOpen(false);
-						setOutcome(null);
-					}}
-				>
-					Close
+					{busy ? "Enqueuing…" : "Replay range"}
 				</button>
 			</div>
 			{rangeTouched && !range.valid && (
@@ -220,6 +187,6 @@ export function ReplayDialog({ subscriptionId }: { subscriptionId: string }) {
 					{outcome.body}
 				</OperationResult>
 			)}
-		</div>
+		</>
 	);
 }

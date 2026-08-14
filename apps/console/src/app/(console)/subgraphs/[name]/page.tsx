@@ -1,14 +1,9 @@
-import { BreadcrumbDropdown } from "@/components/console/breadcrumb-dropdown";
 import { EmptyState } from "@/components/console/empty-state";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { ApiError, INSTANCE_API_URL, apiRequest } from "@/lib/api";
 import { timeAgo } from "@/lib/format";
 import { getDisplayStatus } from "@/lib/intelligence/subgraphs";
-import type {
-	SubgraphDetail,
-	SubgraphSummary,
-	SubscriptionSummary,
-} from "@/lib/types";
+import type { SubgraphDetail, SubscriptionSummary } from "@/lib/types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SubgraphLiveStatus } from "./live-status";
@@ -28,9 +23,8 @@ export default async function SubgraphDetailPage({
 }) {
 	const { name } = await params;
 
-	const [sgResult, listResult] = await Promise.allSettled([
+	const [sgResult] = await Promise.allSettled([
 		apiRequest<SubgraphDetail>(`/api/subgraphs/${encodeURIComponent(name)}`),
-		apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs"),
 	]);
 
 	if (sgResult.status === "rejected") {
@@ -39,8 +33,6 @@ export default async function SubgraphDetailPage({
 		throw sgResult.reason;
 	}
 	const subgraph: SubgraphDetail = sgResult.value;
-	const allSubgraphs: SubgraphSummary[] =
-		listResult.status === "fulfilled" ? listResult.value.data : [];
 
 	let subsForSubgraph: SubscriptionSummary[] = [];
 	try {
@@ -80,30 +72,10 @@ export default async function SubgraphDetailPage({
 				? "Syncing"
 				: "Live";
 
-	const dropdownItems = allSubgraphs.map((sg) => ({
-		name: sg.name,
-		href: `/subgraphs/${sg.name}`,
-	}));
-
 	return (
 		<>
 			<OverviewTopbar
-				path={
-					<Link
-						href="/subgraphs"
-						style={{ color: "inherit", textDecoration: "none" }}
-					>
-						Subgraphs
-					</Link>
-				}
-				page={
-					<BreadcrumbDropdown
-						current={name}
-						items={dropdownItems}
-						allHref="/subgraphs"
-						allLabel="View all subgraphs"
-					/>
-				}
+				crumbs={[{ label: "subgraphs", href: "/subgraphs" }, { label: name }]}
 			/>
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">

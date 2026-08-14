@@ -28,7 +28,7 @@ export default async function SubscriptionsPage() {
 
 	return (
 		<>
-			<OverviewTopbar page="Subscriptions" />
+			<OverviewTopbar crumbs={[{ label: "subscriptions" }]} />
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">
 					<div className="index-header">

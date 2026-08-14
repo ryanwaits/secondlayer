@@ -5,5 +5,4 @@ export const queryKeys = {
 		data: (name: string, table: string, page: number) =>
 			["subgraph-data", name, table, page] as const,
 	},
-	status: ["status"] as const,
 };

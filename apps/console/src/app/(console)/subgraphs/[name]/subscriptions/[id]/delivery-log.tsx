@@ -1,9 +1,18 @@
 "use client";
 
 import { consoleFetch } from "@/lib/client-fetch";
+import { timeAgo } from "@/lib/format";
 import type { DeliveryRow } from "@/lib/types";
 import { useEffect, useState } from "react";
 
+function isOk(d: DeliveryRow): boolean {
+	return d.statusCode !== null && d.statusCode >= 200 && d.statusCode < 400;
+}
+
+/**
+ * The last 100 delivery attempts, polling every 5s. Owns its section chrome
+ * so the head count tracks the live log rather than a stale server snapshot.
+ */
 export function DeliveryLog({ subscriptionId }: { subscriptionId: string }) {
 	const [rows, setRows] = useState<DeliveryRow[] | null>(null);
 	const [err, setErr] = useState<string | null>(null);
@@ -38,49 +47,75 @@ export function DeliveryLog({ subscriptionId }: { subscriptionId: string }) {
 		};
 	}, [subscriptionId]);
 
+	let body: React.ReactNode;
 	if (err) {
-		return <p style={{ color: "var(--error)" }}>{err}</p>;
-	}
-	if (rows === null) {
-		return <p className="detail-desc">Loading…</p>;
-	}
-	if (rows.length === 0) {
-		return (
+		body = <p style={{ color: "var(--error)" }}>{err}</p>;
+	} else if (rows === null) {
+		body = <p className="detail-desc">Loading…</p>;
+	} else if (rows.length === 0) {
+		body = (
 			<p className="detail-desc">
 				No deliveries yet. Fire an event matching this subscription's filter to
 				see attempts here.
 			</p>
 		);
+	} else {
+		body = (
+			<div className="table-scroll">
+				<table className="sg">
+					<thead>
+						<tr>
+							<th>#</th>
+							<th>Status</th>
+							<th>Block</th>
+							<th>Duration</th>
+							<th>Dispatched</th>
+							<th>Error</th>
+						</tr>
+					</thead>
+					<tbody>
+						{rows.map((d) => (
+							<tr key={d.id}>
+								<td className="mono">
+									{d.seq != null ? d.seq.toLocaleString() : d.attempt}
+								</td>
+								<td>
+									<span className={`code ${isOk(d) ? "ok" : "bad"}`}>
+										{d.statusCode ?? "—"}
+									</span>
+								</td>
+								<td className="mono">
+									{d.blockHeight != null
+										? `#${d.blockHeight.toLocaleString()}`
+										: "—"}
+								</td>
+								<td className="mono">
+									{d.durationMs != null
+										? `${d.durationMs.toLocaleString()}ms`
+										: "—"}
+								</td>
+								<td>{timeAgo(d.dispatchedAt)}</td>
+								<td>{d.errorMessage ?? "—"}</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</div>
+		);
 	}
 
 	return (
-		<table className="index-table">
-			<thead>
-				<tr>
-					<th>Attempt</th>
-					<th>Status</th>
-					<th>Duration</th>
-					<th>When</th>
-					<th>Response</th>
-				</tr>
-			</thead>
-			<tbody>
-				{rows.map((d) => (
-					<tr key={d.id}>
-						<td>{d.attempt}</td>
-						<td>
-							<code>{d.statusCode ?? d.errorMessage ?? "—"}</code>
-						</td>
-						<td>{d.durationMs != null ? `${d.durationMs}ms` : "—"}</td>
-						<td>{new Date(d.dispatchedAt).toLocaleTimeString()}</td>
-						<td>
-							<code style={{ fontSize: 11 }}>
-								{(d.responseBody ?? "").slice(0, 80) || "—"}
-							</code>
-						</td>
-					</tr>
-				))}
-			</tbody>
-		</table>
+		<section className="sg-sec">
+			<div className="sg-sec-head">
+				<span className="t">
+					Delivery log
+					{rows !== null && rows.length > 0 && (
+						<span className="cnt">{rows.length}</span>
+					)}
+				</span>
+				<span className="r">polling · 5s</span>
+			</div>
+			{body}
+		</section>
 	);
 }

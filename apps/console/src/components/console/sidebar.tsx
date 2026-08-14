@@ -28,6 +28,13 @@ const NAV_ITEMS: NavItem[] = [
 	{ href: "/subscriptions", label: "Subscriptions", icon: "subscription" },
 ];
 
+/** Instance surfaces — grouped under a mono-caps label, per the mock. */
+const INSTANCE_ITEMS: NavItem[] = [
+	{ href: "/status", label: "Status", icon: "status" },
+	{ href: "/verify", label: "Verify", icon: "verify" },
+	{ href: "/settings", label: "Settings", icon: "settings" },
+];
+
 const ICONS: Record<string, React.ReactNode> = {
 	overview: (
 		<svg
@@ -69,6 +76,47 @@ const ICONS: Record<string, React.ReactNode> = {
 			strokeWidth="1.3"
 		>
 			<path d="M2 8c2.5 0 2.5-5 5-5s2.5 10 5 10 2.5-5 2-5" />
+		</svg>
+	),
+	status: (
+		<svg
+			width="16"
+			height="16"
+			viewBox="0 0 16 16"
+			fill="none"
+			aria-hidden="true"
+			stroke="currentColor"
+			strokeWidth="1.3"
+		>
+			<circle cx="8" cy="8" r="6" />
+			<path d="M8 4.5V8l2.4 1.6" />
+		</svg>
+	),
+	verify: (
+		<svg
+			width="16"
+			height="16"
+			viewBox="0 0 16 16"
+			fill="none"
+			aria-hidden="true"
+			stroke="currentColor"
+			strokeWidth="1.3"
+		>
+			<path d="M3 13V7.5M8 13V3M13 13V9.5" />
+		</svg>
+	),
+	settings: (
+		<svg
+			width="16"
+			height="16"
+			viewBox="0 0 16 16"
+			fill="none"
+			aria-hidden="true"
+			stroke="currentColor"
+			strokeWidth="1.3"
+		>
+			<circle cx="8" cy="8" r="2.2" />
+			<path d="M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6l1.4 1.4M11 11l1.4 1.4M12.4 3.6L11 5M5 11l-1.4 1.4" />
 		</svg>
 	),
 };
@@ -113,6 +161,18 @@ export function ConsoleSidebar({ meta }: { meta: InstanceMeta }) {
 			{/* Main nav */}
 			<div className="sidebar-nav">
 				{NAV_ITEMS.map((item) => (
+					<Link
+						key={item.href}
+						href={item.href}
+						className={`sb-item${isActive(pathname, item.href) ? " active" : ""}`}
+					>
+						<span className="sb-item-icon">{ICONS[item.icon]}</span>
+						<span className="sb-item-label">{item.label}</span>
+					</Link>
+				))}
+
+				<div className="sb-group">Instance</div>
+				{INSTANCE_ITEMS.map((item) => (
 					<Link
 						key={item.href}
 						href={item.href}

@@ -16,7 +16,7 @@ export default async function SubgraphsPage() {
 
 	return (
 		<>
-			<OverviewTopbar page="Subgraphs" />
+			<OverviewTopbar crumbs={[{ label: "subgraphs" }]} />
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">
 					{subgraphs.length === 0 ? (

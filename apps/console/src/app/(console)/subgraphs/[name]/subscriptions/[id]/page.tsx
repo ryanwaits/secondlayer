@@ -1,14 +1,11 @@
-import { BreadcrumbDropdown } from "@/components/console/breadcrumb-dropdown";
-import { MetaGrid } from "@/components/console/meta-grid";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { ApiError, apiRequest } from "@/lib/api";
+import { timeAgo } from "@/lib/format";
 import type {
-	DeadRow,
+	DeliveryRow,
 	SubgraphDetail,
 	SubscriptionDetail,
-	SubscriptionSummary,
 } from "@/lib/types";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SubscriptionDangerZone, SubscriptionSettings } from "./actions";
 import { DeliveryLog } from "./delivery-log";
@@ -16,10 +13,15 @@ import { Diagnostics } from "./diagnostics";
 import { Dlq } from "./dlq";
 import { ReplayDialog } from "./replay-dialog";
 
-function statusBadgeClass(status: string) {
-	if (status === "active") return "active";
-	if (status === "paused") return "syncing";
-	return "error";
+function statusBadge(status: string): { cls: string; label: string } {
+	if (status === "active") return { cls: "active", label: "Live" };
+	if (status === "paused") return { cls: "syncing", label: "Paused" };
+	return { cls: "error", label: "Error" };
+}
+
+/** `https://ops.example.dev/hooks/sbtc` → `ops.example.dev/hooks/sbtc`. */
+function trimUrl(url: string): string {
+	return url.replace(/^[a-z]+:\/\//i, "");
 }
 
 export default async function SubscriptionDetailPage({
@@ -29,21 +31,19 @@ export default async function SubscriptionDetailPage({
 }) {
 	const { name, id } = await params;
 
-	let siblings: SubscriptionSummary[] = [];
-	let deadRows: DeadRow[] = [];
 	// A delivery problem and an indexing problem look identical from the
 	// delivery log alone, so diagnostics needs to know whether the source is
-	// keeping up. Best-effort: a failed fetch just hides that one chip.
+	// keeping up. Best-effort: a failed fetch just hides that one card.
 	let sourceLag: { behind: number; tip: number } | null = null;
+	let lastDelivery: DeliveryRow | null = null;
 
-	const [detailResult, listResult, deadResult, subgraphResult] =
+	const [detailResult, deliveriesResult, subgraphResult] =
 		await Promise.allSettled([
 			apiRequest<SubscriptionDetail>(
 				`/api/subscriptions/${encodeURIComponent(id)}`,
 			),
-			apiRequest<{ data: SubscriptionSummary[] }>("/api/subscriptions"),
-			apiRequest<{ data: DeadRow[] }>(
-				`/api/subscriptions/${encodeURIComponent(id)}/dead`,
+			apiRequest<{ data: DeliveryRow[] }>(
+				`/api/subscriptions/${encodeURIComponent(id)}/deliveries`,
 			),
 			apiRequest<SubgraphDetail>(`/api/subgraphs/${encodeURIComponent(name)}`),
 		]);
@@ -58,11 +58,8 @@ export default async function SubscriptionDetailPage({
 	}
 	const sub: SubscriptionDetail = detailResult.value;
 	if (sub.subgraphName !== name) notFound();
-	if (listResult.status === "fulfilled") {
-		siblings = listResult.value.data.filter((s) => s.subgraphName === name);
-	}
-	if (deadResult.status === "fulfilled") {
-		deadRows = deadResult.value.data;
+	if (deliveriesResult.status === "fulfilled") {
+		lastDelivery = deliveriesResult.value.data[0] ?? null;
 	}
 	if (subgraphResult.status === "fulfilled") {
 		const sg = subgraphResult.value;
@@ -73,178 +70,88 @@ export default async function SubscriptionDetailPage({
 		}
 	}
 
-	const dropdownItems = siblings.map((s) => ({
-		name: s.name,
-		href: `/subgraphs/${name}/subscriptions/${s.id}`,
-	}));
+	const badge = statusBadge(sub.status);
+	const lastDeliveryDisplay = lastDelivery
+		? `${timeAgo(lastDelivery.dispatchedAt)}${
+				lastDelivery.statusCode != null ? ` · ${lastDelivery.statusCode}` : ""
+			}`
+		: "never";
 
 	return (
 		<>
 			<OverviewTopbar
-				path={
-					<>
-						<Link
-							href="/subgraphs"
-							style={{ color: "inherit", textDecoration: "none" }}
-						>
-							Subgraphs
-						</Link>
-						{" / "}
-						<Link
-							href={`/subgraphs/${name}`}
-							style={{ color: "inherit", textDecoration: "none" }}
-						>
-							{name}
-						</Link>
-						{" / "}
-						<Link
-							href={`/subgraphs/${name}/subscriptions`}
-							style={{ color: "inherit", textDecoration: "none" }}
-						>
-							Subscriptions
-						</Link>
-					</>
-				}
-				page={
-					<BreadcrumbDropdown
-						current={sub.name}
-						items={dropdownItems}
-						allHref={`/subgraphs/${name}/subscriptions`}
-						allLabel="View all subscriptions"
-					/>
-				}
+				crumbs={[
+					{ label: "subgraphs", href: "/subgraphs" },
+					{ label: name, href: `/subgraphs/${name}` },
+					{
+						label: "subscriptions",
+						href: `/subgraphs/${name}/subscriptions`,
+					},
+					{ label: sub.name },
+				]}
 			/>
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">
-					<MetaGrid
-						items={[
-							{
-								label: "Status",
-								value: (
-									<span className={`badge ${statusBadgeClass(sub.status)}`}>
-										{sub.status}
-									</span>
-								),
-								tooltip: "Current delivery state of this subscription",
-							},
-							{
-								label: "Source",
-								value: `${sub.subgraphName}.${sub.tableName}`,
-								mono: true,
-								tooltip: "Subgraph table this subscription observes",
-							},
-							{
-								label: "Format",
-								value: sub.format,
-								mono: true,
-								tooltip: "Payload format sent to the receiver",
-							},
-							{
-								label: "Runtime",
-								value: sub.runtime ?? "—",
-								mono: true,
-								tooltip: "Receiver runtime adapter",
-							},
-							{
-								label: "URL",
-								value: sub.url,
-								mono: true,
-								copyValue: sub.url,
-								tooltip: "Delivery endpoint",
-								span: 2,
-							},
-							{
-								label: "Last delivery",
-								value: sub.lastDeliveryAt
-									? new Date(sub.lastDeliveryAt).toLocaleString()
-									: "—",
-								tooltip: "Most recent delivery attempt timestamp",
-							},
-							{
-								label: "Last success",
-								value: sub.lastSuccessAt
-									? new Date(sub.lastSuccessAt).toLocaleString()
-									: "—",
-								tooltip: "Most recent 2xx response from the receiver",
-							},
-							{
-								label: "Circuit failures",
-								value: sub.circuitFailures.toString(),
-								tooltip:
-									"Consecutive delivery failures. Circuit opens after threshold and pauses delivery.",
-							},
-							{
-								label: "Last error",
-								value: sub.lastError ?? "—",
-								tooltip: "Most recent delivery error message",
-								span: 2,
-							},
-						]}
-					/>
+					{/* 1 — identity: name, state, source */}
+					<div className="ident">
+						<h2>{sub.name}</h2>
+						<span className={`badge ${badge.cls}`}>{badge.label}</span>
+						<span className="kv">
+							{sub.subgraphName} · {sub.tableName}
+						</span>
+					</div>
 
-					{/* Evidence first: what happened, then why, then what you can do
-					    about it, then settings, then the irreversible thing. */}
-					<section className="sg-sec">
-						<div className="sg-sec-head">
-							<span className="t">Delivery log</span>
+					{/* 2 — meta cards */}
+					<div className="meta">
+						<div className="meta-card">
+							<div className="ov-label">Endpoint</div>
+							<div className="meta-v mono" title={sub.url}>
+								{trimUrl(sub.url)}
+							</div>
 						</div>
-						<p className="detail-desc" style={{ marginBottom: 12 }}>
-							Last 100 attempts, refreshing every 5s.
-						</p>
-						<DeliveryLog subscriptionId={sub.id} />
-					</section>
-
-					<section className="sg-sec">
-						<div className="sg-sec-head">
-							<span className="t">
-								Dead letter queue
-								{deadRows.length > 0 && (
-									<span className="cnt">{deadRows.length}</span>
-								)}
-							</span>
+						<div className="meta-card">
+							<div className="ov-label">Format</div>
+							<div className="meta-v">{sub.format}</div>
 						</div>
-						<p className="detail-desc" style={{ marginBottom: 12 }}>
-							Outbox rows that exhausted all retries. Requeue after fixing the
-							receiver.
-						</p>
-						<Dlq subscriptionId={sub.id} />
-					</section>
+						<div className="meta-card">
+							<div className="ov-label">Last delivery</div>
+							<div className="meta-v mono">{lastDeliveryDisplay}</div>
+						</div>
+						<div className="meta-card">
+							<div className="ov-label">Circuit failures</div>
+							<div className="meta-v mono">
+								{sub.circuitFailures} consecutive
+							</div>
+						</div>
+					</div>
 
+					{/* 3 — diagnostics, derived from the same attempts the log polls */}
 					<section className="sg-sec">
 						<div className="sg-sec-head">
-							<span className="t">
-								Diagnostics
-								{sub.circuitOpenedAt && (
-									<span className="cnt">circuit open</span>
-								)}
-							</span>
+							<span className="t">Diagnostics</span>
+							<span className="r">derived from the last 100 attempts</span>
 						</div>
 						<Diagnostics
 							subscriptionId={sub.id}
-							circuitFailures={sub.circuitFailures}
-							circuitOpenedAt={sub.circuitOpenedAt}
-							lastSuccessAt={sub.lastSuccessAt}
-							timeoutMs={sub.timeoutMs}
-							deadCount={deadRows.length}
+							subgraphName={sub.subgraphName}
 							sourceLag={sourceLag}
 						/>
 					</section>
 
+					{/* 4 — delivery log (owns its section head: live count) */}
+					<DeliveryLog subscriptionId={sub.id} />
+
+					{/* 5 — DLQ + replay, then pause/danger below */}
 					<section className="sg-sec">
-						<div className="sg-sec-head">
-							<span className="t">Replay</span>
-						</div>
-						<div className="sg-set-block">
-							<div className="sg-set-label">Replay block range</div>
-							<div className="sg-set-desc">
-								Re-emit rows from{" "}
-								<span className="mono">
-									{sub.subgraphName}.{sub.tableName}
-								</span>{" "}
-								in a block range. Replays drain at 10% of batch capacity so live
-								deliveries aren't starved. Receivers must be idempotent — dedup
-								on the <span className="mono">webhook-id</span> header.
-							</div>
+						<Dlq subscriptionId={sub.id} />
+						<div className="panel">
+							<h4>Replay</h4>
+							<p>
+								Re-dispatch deliveries for a block range. Rows are re-read from
+								your Postgres — no archive fetch, no charge. Receivers must be
+								idempotent: dedup on the{" "}
+								<span className="mono">webhook-id</span> header.
+							</p>
 							<ReplayDialog subscriptionId={sub.id} />
 						</div>
 					</section>

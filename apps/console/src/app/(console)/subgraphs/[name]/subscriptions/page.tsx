@@ -1,8 +1,7 @@
-import { BreadcrumbDropdown } from "@/components/console/breadcrumb-dropdown";
 import { EmptyState } from "@/components/console/empty-state";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { apiRequest } from "@/lib/api";
-import type { SubgraphSummary, SubscriptionSummary } from "@/lib/types";
+import type { SubscriptionSummary } from "@/lib/types";
 import Link from "next/link";
 
 function statusBadge(status: string) {
@@ -19,50 +18,22 @@ export default async function SubgraphSubscriptionsPage({
 	const { name } = await params;
 
 	let subs: SubscriptionSummary[] = [];
-	let allSubgraphs: SubgraphSummary[] = [];
 
-	const [subsResult, listResult] = await Promise.allSettled([
+	const [subsResult] = await Promise.allSettled([
 		apiRequest<{ data: SubscriptionSummary[] }>("/api/subscriptions"),
-		apiRequest<{ data: SubgraphSummary[] }>("/api/subgraphs"),
 	]);
 	if (subsResult.status === "fulfilled") {
 		subs = subsResult.value.data.filter((s) => s.subgraphName === name);
 	}
-	allSubgraphs = listResult.status === "fulfilled" ? listResult.value.data : [];
-
-	const dropdownItems = allSubgraphs.map((sg) => ({
-		name: sg.name,
-		href: `/subgraphs/${sg.name}`,
-	}));
 
 	return (
 		<>
 			<OverviewTopbar
-				path={
-					<>
-						<Link
-							href="/subgraphs"
-							style={{ color: "inherit", textDecoration: "none" }}
-						>
-							Subgraphs
-						</Link>
-						{" / "}
-						<BreadcrumbDropdown
-							current={name}
-							items={dropdownItems}
-							allHref="/subgraphs"
-							allLabel="View all subgraphs"
-						/>
-					</>
-				}
-				page={
-					<Link
-						href={`/subgraphs/${name}/subscriptions`}
-						style={{ color: "inherit", textDecoration: "none" }}
-					>
-						Subscriptions
-					</Link>
-				}
+				crumbs={[
+					{ label: "subgraphs", href: "/subgraphs" },
+					{ label: name, href: `/subgraphs/${name}` },
+					{ label: "subscriptions" },
+				]}
 			/>
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">
