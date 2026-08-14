@@ -1,5 +1,16 @@
 # @secondlayer/cli
 
+## 10.3.0
+
+### Minor Changes
+
+- Add `sl credits buy`, `balance`, and `refill` against the archive merchant API.
+
+### Patch Changes
+
+- Updated dependencies
+  - @secondlayer/shared@7.11.1
+
 ## 10.2.1
 
 ### Patch Changes

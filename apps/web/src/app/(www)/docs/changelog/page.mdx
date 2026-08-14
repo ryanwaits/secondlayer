@@ -10,6 +10,10 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## CLI — August 2026
 
+### Buy archive credits from the CLI
+
+`sl credits buy --email you@example.com --pack 25` opens a one-time card checkout. `sl credits balance` shows the prepaid amount. `sl credits refill --below 5 --pack 25` turns on auto-refill; default is off.
+
 ### One container next to Postgres
 
 Self-host is `postgres` + `secondlayer`. `sl start --print` writes the compose line. `NETWORK`, `DATABASE_URL`, `NODE_MODE`, `DATA_DIR`, `API_PORT`, and `INDEXER_PORT` are the required non-secrets. Optional `--profile stacks-node` or `full-node` bundles chain daemons.
