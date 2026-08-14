@@ -78,11 +78,10 @@ export function ArchiveCredits() {
 								/>
 							</span>
 						</label>
-						<div
-							className="acr-packs"
-							role="group"
-							aria-label="Credit pack templates"
-						>
+						<fieldset className="acr-packs">
+							<legend className="acr-visually-hidden">
+								Credit pack templates
+							</legend>
 							{PACKS.map((p) => (
 								<button
 									key={p}
@@ -97,7 +96,7 @@ export function ArchiveCredits() {
 									${p}
 								</button>
 							))}
-						</div>
+						</fieldset>
 					</div>
 
 					<label className="acr-email">

@@ -88,13 +88,12 @@ export default async function SubgraphsPage() {
 				</Link>
 				<h1>
 					One file.
-					<br />
-					A whole indexer.
+					<br />A whole indexer.
 				</h1>
 				<p className="pp-sub">
 					Pick your events, write handlers, deploy — one TypeScript file. Out
-					come typed Postgres tables and a REST API on your instance,
-					backfilled from genesis and reorg-safe.
+					come typed Postgres tables and a REST API on your instance, backfilled
+					from genesis and reorg-safe.
 				</p>
 				<div className="pp-ctas">
 					<Link href="/docs/subgraphs" className="pp-btn pp-btn-ink">

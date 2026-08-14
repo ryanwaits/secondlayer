@@ -8460,6 +8460,17 @@ body:has(.marketing-nav) .auth-bar {
 .acr-packs {
 	display: flex;
 	gap: 8px;
+	border: none;
+	margin: 0;
+	padding: 0;
+}
+.acr-visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
 }
 .acr-packs button {
 	height: 40px;
@@ -8717,7 +8728,6 @@ body:has(.marketing-nav) .auth-bar {
 	.marketing-nav .mnav-group {
 		display: none;
 	}
-
 }
 
 /* full-screen "notebook index" sheet (mobile only — opened via .mnav-burger) */
