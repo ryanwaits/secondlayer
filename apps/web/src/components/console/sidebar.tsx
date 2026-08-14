@@ -27,7 +27,7 @@ const NAV_ITEMS: NavItem[] = [
 const SETTINGS_CHILDREN = [
 	{ href: "/settings", label: "Project" },
 	{ href: "/api-keys", label: "API Keys" },
-	{ href: "/billing", label: "Billing" },
+	{ href: "/billing", label: "Credits" },
 ];
 
 const ICONS: Record<string, React.ReactNode> = {

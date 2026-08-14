@@ -565,7 +565,7 @@ app.get("/portal", async (c) => {
 
 	if (!account.stripe_customer_id) {
 		return c.json(
-			{ error: "No active subscription. Upgrade to access billing portal." },
+			{ error: "No billing customer yet. Buy credits first." },
 			400,
 		);
 	}

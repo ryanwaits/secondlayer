@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth";
-import { appHostname, appUrl } from "@/lib/urls";
+import { appHostname } from "@/lib/urls";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -52,9 +52,6 @@ export function AuthBar() {
 				>
 					Sign out
 				</button>
-				<Link href={appUrl("/")} className="auth-bar-cta">
-					Platform
-				</Link>
 			</div>
 		);
 	}

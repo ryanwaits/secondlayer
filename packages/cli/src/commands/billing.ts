@@ -49,7 +49,7 @@ async function runBillingStatus(json?: boolean): Promise<void> {
 export function addBillingCommand(parent: Command): void {
 	parent
 		.command("billing")
-		.description("Show your plan, Stripe subscription, trial, and discounts")
+		.description("Show archive credit balance (hidden; use sl credits)")
 		.option("--json", "Output as JSON")
 		.action((options: { json?: boolean }) => runBillingStatus(options.json));
 }
@@ -62,10 +62,8 @@ function renderBillingStatus(res: BillingStatusResponse): void {
 	if (!res.subscription) {
 		console.log(
 			formatKeyValue([
-				["Plan", "Free"],
-				["Reads", dim("10 req/s · last ~24h window")],
-				["Subgraphs", dim("upgrade to deploy / go private")],
-				["Upgrade", dim("https://secondlayer.tools/platform/billing")],
+				["Credits", dim("sl credits balance")],
+				["Buy", dim("sl credits buy --email you@example.com --pack 25")],
 			]),
 		);
 		return;
