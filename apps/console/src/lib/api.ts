@@ -28,7 +28,7 @@ export class ApiError extends Error {
  * route: a segment that decodes to ".", "..", or contains a "/" can pop or
  * widen path segments once the WHATWG URL parser resolves it.
  */
-function assertSafePath(path: string): void {
+export function assertSafePath(path: string): void {
 	const pathname = path.split("?")[0] ?? "";
 	for (const segment of pathname.split("/")) {
 		if (!segment) continue;
