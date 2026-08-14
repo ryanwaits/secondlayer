@@ -45,7 +45,7 @@ export function SiteFooter({ status }: { status?: SystemStatus | null }) {
 			<div className="site-footer-in">
 				<div className="site-footer-grid">
 					<div className="site-footer-brand">
-						<p className="b">
+						<Link href="/" className="b">
 							<svg
 								viewBox="4 7 40 28"
 								width="22"
@@ -63,7 +63,7 @@ export function SiteFooter({ status }: { status?: SystemStatus | null }) {
 								/>
 							</svg>
 							<span>secondlayer</span>
-						</p>
+						</Link>
 						<p>
 							Self-hosted Stacks data runtime. Inspired by the ideas behind{" "}
 							<a
@@ -75,6 +75,14 @@ export function SiteFooter({ status }: { status?: SystemStatus | null }) {
 								Project Kourier
 							</a>
 							.
+						</p>
+						<p className="site-footer-copy">
+							<span>© {new Date().getFullYear()} Secondlayer</span>
+							{/* mobile home of the floating status pill (hidden ≤640px) */}
+							<Link href="/status" className="footer-status" data-state={state}>
+								<span className="footer-status-dot" aria-hidden="true" />
+								{summaryLabel(state)}
+							</Link>
 						</p>
 					</div>
 					<div className="site-footer-cols">
@@ -99,14 +107,6 @@ export function SiteFooter({ status }: { status?: SystemStatus | null }) {
 							</div>
 						))}
 					</div>
-				</div>
-				<div className="site-footer-base">
-					<span>© {new Date().getFullYear()} Secondlayer</span>
-					{/* mobile home of the floating status pill (hidden ≤640px) */}
-					<Link href="/status" className="footer-status" data-state={state}>
-						<span className="footer-status-dot" aria-hidden="true" />
-						{summaryLabel(state)}
-					</Link>
 				</div>
 			</div>
 		</footer>

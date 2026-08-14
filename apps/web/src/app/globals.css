@@ -50,13 +50,16 @@
 	--red-bg: rgba(239, 68, 68, 0.08);
 	--blue: #3b82f6;
 	--blue-bg: rgba(59, 130, 246, 0.08);
+	--accent-blue: #2563eb;
+	--accent-blue-bg: rgba(37, 99, 235, 0.08);
+	--accent-blue-border: rgba(37, 99, 235, 0.33);
 	--teal: #1588b2;
 	--teal-bg: rgba(21, 136, 178, 0.08);
 
 	/* Writings figure library — role pair validated for light (#fff cards) */
 	--fig-role-a: #2563eb;
-	--fig-role-b: #d97706;
-	--fig-role-b-bg: rgba(217, 119, 6, 0.08);
+	--fig-role-b: #0a0a0a;
+	--fig-role-b-bg: rgba(10, 10, 10, 0.06);
 	--fig-alarm: #dc2626;
 	--fig-ok: #15803d;
 	--fig-faint: rgba(0, 0, 0, 0.42);
@@ -139,13 +142,16 @@
 		--red-bg: rgba(239, 68, 68, 0.08);
 		--blue: #60a5fa;
 		--blue-bg: rgba(96, 165, 250, 0.08);
+		--accent-blue: #8aa7f8;
+		--accent-blue-bg: rgba(138, 167, 248, 0.1);
+		--accent-blue-border: rgba(138, 167, 248, 0.4);
 		--teal: #1ea8d8;
 		--teal-bg: rgba(30, 168, 216, 0.1);
 
 		/* Figure role pair validated for dark (#1a1a1a cards) — NOT --accent */
 		--fig-role-a: #5e81ea;
-		--fig-role-b: #bd8412;
-		--fig-role-b-bg: rgba(189, 132, 18, 0.14);
+		--fig-role-b: #ececec;
+		--fig-role-b-bg: rgba(236, 236, 236, 0.1);
 		--fig-alarm: #ef6a6a;
 		--fig-ok: #4ade80;
 		--fig-faint: rgba(255, 255, 255, 0.38);
@@ -201,11 +207,14 @@ html.force-dark {
 	--red-bg: rgba(239, 68, 68, 0.08);
 	--blue: #60a5fa;
 	--blue-bg: rgba(96, 165, 250, 0.08);
+	--accent-blue: #8aa7f8;
+	--accent-blue-bg: rgba(138, 167, 248, 0.1);
+	--accent-blue-border: rgba(138, 167, 248, 0.4);
 	--teal: #1ea8d8;
 	--teal-bg: rgba(30, 168, 216, 0.1);
 	--fig-role-a: #5e81ea;
-	--fig-role-b: #bd8412;
-	--fig-role-b-bg: rgba(189, 132, 18, 0.14);
+	--fig-role-b: #ececec;
+	--fig-role-b-bg: rgba(236, 236, 236, 0.1);
 	--fig-alarm: #ef6a6a;
 	--fig-ok: #4ade80;
 	--fig-faint: rgba(255, 255, 255, 0.38);
@@ -260,11 +269,14 @@ html.force-light {
 	--red-bg: rgba(239, 68, 68, 0.08);
 	--blue: #3b82f6;
 	--blue-bg: rgba(59, 130, 246, 0.08);
+	--accent-blue: #2563eb;
+	--accent-blue-bg: rgba(37, 99, 235, 0.08);
+	--accent-blue-border: rgba(37, 99, 235, 0.33);
 	--teal: #1588b2;
 	--teal-bg: rgba(21, 136, 178, 0.08);
 	--fig-role-a: #2563eb;
-	--fig-role-b: #d97706;
-	--fig-role-b-bg: rgba(217, 119, 6, 0.08);
+	--fig-role-b: #0a0a0a;
+	--fig-role-b-bg: rgba(10, 10, 10, 0.06);
 	--fig-alarm: #dc2626;
 	--fig-ok: #15803d;
 	--fig-faint: rgba(0, 0, 0, 0.42);
@@ -5541,6 +5553,7 @@ html.force-dark .shiki span {
 	z-index: 30;
 	display: flex;
 	align-items: center;
+	justify-content: flex-end;
 	gap: 1.25rem;
 	height: 48px;
 	padding: 0 32px;
@@ -6014,6 +6027,26 @@ html.force-dark .shiki span {
 	transition: color 0.12s ease, border-color 0.12s ease;
 }
 .docs-toc a:hover {
+	color: var(--text-main);
+}
+.docs-toc-foot {
+	margin-top: 1rem;
+	padding-top: 0.85rem;
+	border-top: 1px solid var(--border);
+}
+.docs-toc-copy {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	padding: 4px 0;
+	border: none;
+	background: none;
+	cursor: pointer;
+	font-size: 12.5px;
+	color: var(--text-muted);
+	transition: color 0.12s ease;
+}
+.docs-toc-copy:hover {
 	color: var(--text-main);
 }
 .docs-toc a.h3 {
@@ -6916,7 +6949,7 @@ html.force-dark .shiki span {
 	margin: 0;
 }
 .callout-body a {
-	color: var(--accent);
+	color: var(--accent-blue);
 	text-decoration: underline;
 	text-underline-offset: 3px;
 }
@@ -8141,7 +8174,7 @@ html.force-dark .shiki span {
 	background: color-mix(in srgb, var(--bg) 85%, transparent);
 	-webkit-backdrop-filter: blur(12px);
 	backdrop-filter: blur(12px);
-	border-bottom: 0;
+	border-bottom: 1px solid var(--border);
 	transition: background-color 200ms var(--ease-snappy);
 }
 /* pages with the marketing bar start content below it (docs renders no
@@ -8181,6 +8214,10 @@ body:has(.marketing-nav) .auth-bar {
 	text-decoration: none;
 	padding: 8px 10px;
 	white-space: nowrap;
+}
+.mnav-plain[aria-current="page"] {
+	color: var(--text-main);
+	font-weight: 500;
 }
 @media (hover: hover) {
 	.mnav-plain:hover {
@@ -8234,6 +8271,103 @@ body:has(.marketing-nav) .auth-bar {
 	color: var(--text-muted);
 	font-variant-numeric: tabular-nums;
 }
+.imenu {
+	position: relative;
+	margin-left: 6px;
+}
+.imenu-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	height: 38px;
+	padding: 0 16px;
+	border: none;
+	border-radius: 999px;
+	background: var(--text-main);
+	color: var(--bg);
+	font-size: 0.875rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: opacity 150ms ease-out;
+}
+.imenu-btn:hover {
+	opacity: 0.85;
+}
+.imenu-chev {
+	transition: transform 150ms ease-out;
+}
+.imenu-chev[data-open] {
+	transform: rotate(180deg);
+}
+.imenu-panel {
+	position: absolute;
+	top: calc(100% + 10px);
+	right: 0;
+	width: 400px;
+	max-width: calc(100vw - 2rem);
+	background: var(--bg-elevated);
+	border: 1px solid var(--border);
+	border-radius: 14px;
+	padding: 8px;
+	box-shadow: 0 18px 44px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+	z-index: 80;
+}
+.imenu-head {
+	margin: 6px 10px 8px;
+	font-family: var(--font-mono-stack);
+	font-size: 0.65rem;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+.imenu-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	padding: 10px;
+	border: none;
+	border-radius: 8px;
+	background: transparent;
+	text-align: left;
+	cursor: pointer;
+}
+.imenu-row:hover {
+	background: color-mix(in srgb, var(--text-main) 4%, transparent);
+}
+.imenu-row-text {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-width: 0;
+	flex: 1;
+}
+.imenu-row-title {
+	font-size: 0.875rem;
+	font-weight: 500;
+	color: var(--text-main);
+}
+.imenu-row-cmd {
+	font-family: var(--font-mono-stack);
+	font-size: 0.75rem;
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.imenu-copy {
+	flex: none;
+	color: var(--text-muted);
+}
+.imenu-row:hover .imenu-copy {
+	color: var(--text-main);
+}
+@media (max-width: 640px) {
+	.imenu {
+		display: none;
+	}
+}
+
 .mnav-burger {
 	display: none;
 	align-items: center;
@@ -8289,7 +8423,7 @@ body:has(.marketing-nav) .auth-bar {
 	padding-bottom: 3rem;
 }
 .archive-body {
-	max-width: 768px;
+	max-width: 1200px;
 	margin: 0 auto;
 	padding: 0 1.5rem 6rem;
 	display: flex;
@@ -8309,9 +8443,16 @@ body:has(.marketing-nav) .auth-bar {
 .archive-cases {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 2.5rem 3.5rem;
-	border-top: 1px solid var(--border);
-	padding-top: 2.5rem;
+	gap: 1.5rem;
+}
+/* Grok-style soft cards: a quiet chrome fill, with the command sitting
+   inside on its own elevated surface. */
+.archive-case {
+	display: flex;
+	flex-direction: column;
+	border: 1px solid var(--border);
+	border-radius: 20px;
+	padding: 2rem 2.25rem 2.25rem;
 }
 .archive-credits h2 {
 	font-family: var(--font-heading-stack);
@@ -8340,8 +8481,8 @@ body:has(.marketing-nav) .auth-bar {
 	border-radius: 4px;
 }
 .archive-badge[data-kind="free"] {
-	color: var(--green);
-	background: var(--green-bg);
+	color: var(--accent-blue);
+	background: var(--accent-blue-bg);
 }
 .archive-badge[data-kind="metered"] {
 	color: var(--text-muted);
@@ -8353,18 +8494,27 @@ body:has(.marketing-nav) .auth-bar {
 	font-size: 0.9375rem;
 	line-height: 1.6;
 }
-.archive-case code {
-	display: inline-block;
-	margin-top: 0.85rem;
-	font-family: var(--font-mono-stack);
-	font-size: 0.78125rem;
-	color: var(--text-main);
-	background: var(--code-bg);
-	border-radius: 6px;
-	padding: 4px 9px;
-	max-width: 100%;
-	overflow-x: auto;
-	white-space: nowrap;
+/* Use-case commands ride the real CodeBlock (copy button + shiki) on the
+   elevated surface, sized so every line fits the column — no h-scroll. */
+.archive-case-cmd {
+	margin-top: auto;
+	padding-top: 1.5rem;
+}
+.archive-case-cmd .code-block-wrapper {
+	margin: 0;
+}
+.archive-case-cmd .code-block-wrapper pre {
+	background: var(--bg-elevated) !important;
+	border: 1px solid var(--border);
+	font-size: 0.8125rem;
+	line-height: 1.7;
+	padding: 16px 18px;
+	border-radius: 12px;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+.archive-case-cmd .copy-button {
+	background: var(--bg-elevated);
 }
 .archive-credits {
 	background: var(--bg-chrome);
@@ -8946,6 +9096,7 @@ body:has(.marketing-nav) .auth-bar {
 	flex-direction: column;
 }
 .home-hero {
+	position: relative;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -8953,6 +9104,25 @@ body:has(.marketing-nav) .auth-bar {
 	max-width: 768px;
 	margin: 0 auto;
 	padding: 8rem 1.5rem 7rem;
+}
+/* the field-notebook dot grid, back under the hero — full-bleed behind the
+   width-capped hero box, fading out toward the content below */
+.home-hero::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 100vw;
+	background-image: radial-gradient(
+		circle,
+		var(--dot-color) 0.5px,
+		transparent 0.5px
+	);
+	background-size: 8px 8px;
+	mask-image: linear-gradient(to bottom, black 70%, transparent);
+	z-index: -1;
+	pointer-events: none;
 }
 .home-announce {
 	display: inline-flex;
@@ -9104,7 +9274,7 @@ body:has(.marketing-nav) .auth-bar {
 	font-size: 0.9375rem;
 	line-height: 1.25;
 	color: var(--text-main);
-	background: transparent;
+	background: var(--bg-elevated);
 	border: 1px solid var(--border);
 	border-radius: 14px;
 	cursor: pointer;
@@ -9431,8 +9601,10 @@ body:has(.marketing-nav) .auth-bar {
 	font-weight: 500;
 	font-size: 1rem;
 	letter-spacing: -0.01em;
+	color: var(--text-main);
+	text-decoration: none;
 }
-.site-footer-brand p + p {
+.site-footer-brand .b + p {
 	margin-top: 0.5rem;
 	font-size: 0.8125rem;
 	color: var(--text-muted);
@@ -9478,19 +9650,13 @@ body:has(.marketing-nav) .auth-bar {
 		color: var(--text-main);
 	}
 }
-.site-footer-base {
-	margin-top: 3rem;
-	padding-top: 1.25rem;
-	border-top: 1px dotted var(--border);
+.site-footer-copy {
+	margin-top: 2.5rem;
 	display: flex;
-	justify-content: space-between;
-	gap: 1rem;
-	flex-wrap: wrap;
+	align-items: center;
+	gap: 1.25rem;
 	font-size: 0.71rem;
-	color: var(--text-muted);
-}
-.site-footer-base .m {
-	font-family: var(--font-mono-stack);
+	color: color-mix(in srgb, var(--text-muted) 55%, transparent);
 }
 /* On phones the floating status pill ate scarce space; it lives here in the
    footer base row instead. Desktop keeps the pill, so this stays hidden. */
@@ -12813,7 +12979,7 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 
 .writing-article p a,
 .writing-article li a {
-	color: var(--accent);
+	color: var(--accent-blue);
 	text-decoration: underline;
 	text-decoration-thickness: 1px;
 	text-underline-offset: 3px;
@@ -12843,6 +13009,8 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 .writing-article .code-block-wrapper pre {
 	font-size: 13.5px;
 	line-height: 1.6;
+	background: var(--bg-elevated) !important;
+	border: 1px solid var(--border);
 }
 
 .writing-article ul {
@@ -12872,7 +13040,7 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 	font-size: 12px;
 	letter-spacing: 0.16em;
 	text-transform: uppercase;
-	color: var(--accent);
+	color: var(--accent-blue);
 	margin-bottom: 20px;
 }
 
@@ -12983,7 +13151,10 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 }
 
 .writing-feature:hover .writing-feature-t {
-	color: var(--accent);
+	text-decoration: underline;
+	text-decoration-thickness: 2px;
+	text-underline-offset: 5px;
+	text-decoration-color: var(--border-hover);
 }
 
 .writing-feature-d {
@@ -13063,7 +13234,9 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 }
 
 .writing-rest-row:hover .t {
-	color: var(--accent);
+	text-decoration: underline;
+	text-underline-offset: 4px;
+	text-decoration-color: var(--border-hover);
 }
 
 .writing-rest-row .d {
@@ -13177,7 +13350,7 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 		margin-top: 0;
 	}
 	.writing-rail .no {
-		color: var(--accent);
+		color: var(--text-main);
 	}
 	.writing-rail span {
 		display: block;
@@ -13190,14 +13363,14 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 	}
 	.writing-rail .fig-ln:hover,
 	.writing-rail .fig-ln.on {
-		color: var(--accent);
+		color: var(--text-main);
 	}
 	.writing-rail .fig-ln b {
 		color: var(--text-muted);
 		font-weight: 500;
 	}
 	.writing-rail .fig-ln.on b {
-		color: var(--accent);
+		color: var(--text-main);
 	}
 	/* The rail carries what the inline eyebrow + meta row said. */
 	.writing-header .writing-eyebrow,
@@ -13270,7 +13443,9 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 }
 
 .writing-next-cell a.t:hover {
-	color: var(--accent);
+	text-decoration: underline;
+	text-underline-offset: 4px;
+	text-decoration-color: var(--border-hover);
 }
 
 .writing-next-cell .t.none {
@@ -13302,7 +13477,7 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 .writing-sub .rss {
 	font-family: var(--font-mono-stack);
 	font-size: 11.5px;
-	color: var(--accent);
+	color: var(--accent-blue);
 	white-space: nowrap;
 	text-decoration: none;
 }
@@ -13339,7 +13514,7 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 	font-family: var(--font-mono-stack);
 	font-size: 11px;
 	letter-spacing: 0.14em;
-	color: var(--accent);
+	color: var(--text-muted);
 	text-transform: uppercase;
 	white-space: nowrap;
 }
@@ -13383,14 +13558,14 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 }
 
 .fig-btn[aria-pressed="true"] {
-	color: var(--accent);
-	border-color: var(--accent-border);
-	background: var(--accent-bg);
+	color: var(--accent-blue);
+	border-color: var(--accent-blue-border);
+	background: var(--accent-blue-bg);
 }
 
 .fig-btn:focus-visible {
 	outline: none;
-	border-color: var(--accent);
+	border-color: var(--accent-blue);
 }
 
 /* ── B3 Timeline ─────────────────────────────────────────────────── */
@@ -13570,7 +13745,7 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 }
 
 .fig-squote figcaption a {
-	color: var(--accent);
+	color: var(--accent-blue);
 	text-decoration: none;
 }
 
@@ -13785,7 +13960,7 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 input[type="range"].fig-range {
 	width: 100%;
 	margin: 16px 0 6px;
-	accent-color: var(--accent);
+	accent-color: var(--accent-blue);
 	height: 28px;
 }
 
@@ -13962,8 +14137,8 @@ input[type="range"].fig-range {
 .fig-fld:hover,
 .fig-fld:focus-visible,
 .fig-fld.on {
-	background: var(--accent-bg);
-	outline: 1px solid var(--accent-border);
+	background: var(--accent-blue-bg);
+	outline: 1px solid var(--accent-blue-border);
 }
 
 .fig-notes {
@@ -13985,8 +14160,8 @@ input[type="range"].fig-range {
 
 .fig-note.on {
 	opacity: 1;
-	background: var(--accent-bg);
-	border-color: var(--accent-border);
+	background: var(--accent-blue-bg);
+	border-color: var(--accent-blue-border);
 }
 
 .fig-note b {
@@ -14008,7 +14183,7 @@ input[type="range"].fig-range {
 	padding: 0 2px;
 	cursor: pointer;
 	font: inherit;
-	color: var(--accent);
+	color: var(--accent-blue);
 	font-variant-position: super;
 }
 
@@ -14030,7 +14205,7 @@ input[type="range"].fig-range {
 .fig-snbody b {
 	font-family: var(--font-mono-stack);
 	font-size: 11px;
-	color: var(--accent);
+	color: var(--accent-blue);
 }
 
 .fig-acode {
@@ -14073,11 +14248,11 @@ input[type="range"].fig-range {
 .fig-aline:hover,
 .fig-aline:focus-visible,
 .fig-aline.on {
-	background: var(--accent-bg);
+	background: var(--accent-blue-bg);
 }
 
 .fig-aline:focus-visible {
-	outline: 1px solid var(--accent-border);
+	outline: 1px solid var(--accent-blue-border);
 	outline-offset: -1px;
 }
 
@@ -14159,18 +14334,18 @@ input[type="range"].fig-range {
 
 .fig-inv-head:hover .fig-inv-title,
 .fig-inv-head:focus-visible .fig-inv-title {
-	color: var(--accent);
+	color: var(--accent-blue);
 }
 
 .fig-inv-head:focus-visible {
-	outline: 1px solid var(--accent-border);
+	outline: 1px solid var(--accent-blue-border);
 	outline-offset: -1px;
 }
 
 .fig-inv-no {
 	font-family: var(--font-mono-stack);
 	font-size: 11px;
-	color: var(--accent);
+	color: var(--accent-blue);
 	letter-spacing: 0.08em;
 }
 
@@ -14210,7 +14385,7 @@ input[type="range"].fig-range {
 	padding: 0;
 	font: inherit;
 	color: inherit;
-	border-bottom: 1px dotted var(--accent);
+	border-bottom: 1px dotted var(--accent-blue);
 	cursor: help;
 	position: relative;
 }
@@ -14247,7 +14422,7 @@ input[type="range"].fig-range {
 .fig-term-def b {
 	font-family: var(--font-mono-stack);
 	font-size: 11px;
-	color: var(--accent);
+	color: var(--accent-blue);
 	display: block;
 	margin-bottom: 3px;
 	letter-spacing: 0.06em;
@@ -14405,7 +14580,7 @@ input[type="range"].fig-range {
 	width: 9px;
 	height: 9px;
 	border-radius: 50%;
-	background: var(--accent);
+	background: var(--accent-blue);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -14462,12 +14637,12 @@ input[type="range"].fig-range {
 }
 
 .fig-life-svg .lnode.active rect {
-	fill: var(--accent-bg);
-	stroke: var(--accent);
+	fill: var(--accent-blue-bg);
+	stroke: var(--accent-blue);
 }
 
 .fig-life-svg .lnode.active text {
-	fill: var(--accent);
+	fill: var(--accent-blue);
 	font-weight: 600;
 }
 
@@ -14480,7 +14655,7 @@ input[type="range"].fig-range {
 }
 
 .fig-life-svg .ledge.active {
-	stroke: var(--accent);
+	stroke: var(--accent-blue);
 	opacity: 1;
 }
 
@@ -14522,17 +14697,17 @@ input[type="range"].fig-range {
 }
 
 .fig-pipe-svg .pnode.data rect {
-	fill: var(--accent-bg);
-	stroke: var(--accent-border);
+	fill: var(--accent-blue-bg);
+	stroke: var(--accent-blue-border);
 }
 
 .fig-pipe-svg .pnode.data text {
-	fill: var(--accent);
+	fill: var(--accent-blue);
 }
 
 .fig-pipe-svg .pnode.api rect {
-	fill: var(--accent);
-	stroke: var(--accent);
+	fill: var(--accent-blue);
+	stroke: var(--accent-blue);
 }
 
 .fig-pipe-svg .pnode.api text,
@@ -14607,18 +14782,18 @@ input[type="range"].fig-range {
 
 .fig-seq-svg .msg:hover line,
 .fig-seq-svg .msg:focus-visible line {
-	stroke: var(--accent);
+	stroke: var(--accent-blue);
 	stroke-width: 1.8;
 }
 
 .fig-seq-svg .msg:hover circle,
 .fig-seq-svg .msg:focus-visible circle {
-	fill: var(--accent);
+	fill: var(--accent-blue);
 }
 
 .fig-seq-svg .msg:hover text,
 .fig-seq-svg .msg:focus-visible text {
-	fill: var(--accent);
+	fill: var(--accent-blue);
 	font-weight: 600;
 }
 
@@ -14657,14 +14832,14 @@ input[type="range"].fig-range {
 }
 
 .fig-layer.data {
-	background: var(--accent-bg);
-	border-color: var(--accent-border);
-	color: var(--accent);
+	background: var(--accent-blue-bg);
+	border-color: var(--accent-blue-border);
+	color: var(--accent-blue);
 }
 
 .fig-layer.api {
-	background: var(--accent);
-	border-color: var(--accent);
+	background: var(--accent-blue);
+	border-color: var(--accent-blue);
 	color: var(--bg-elevated);
 	font-weight: 600;
 }
@@ -14681,12 +14856,12 @@ input[type="range"].fig-range {
 
 .fig-layer.on {
 	transform: translateX(10px);
-	border-color: var(--accent);
+	border-color: var(--accent-blue);
 }
 
 .fig-layer:focus-visible {
 	outline: none;
-	border-color: var(--accent);
+	border-color: var(--accent-blue);
 }
 
 .fig-stack-note {
@@ -14715,12 +14890,12 @@ input[type="range"].fig-range {
 }
 
 .fig-tree-svg .tnode.lit rect {
-	fill: var(--accent-bg);
-	stroke: var(--accent);
+	fill: var(--accent-blue-bg);
+	stroke: var(--accent-blue);
 }
 
 .fig-tree-svg .tnode.lit text {
-	fill: var(--accent);
+	fill: var(--accent-blue);
 	font-weight: 600;
 }
 
@@ -14731,7 +14906,7 @@ input[type="range"].fig-range {
 }
 
 .fig-tree-svg .tedge.lit {
-	stroke: var(--accent);
+	stroke: var(--accent-blue);
 	stroke-width: 1.8;
 }
 
@@ -14848,7 +15023,7 @@ input[type="range"].fig-range {
 }
 
 .fig-staterow:focus-visible {
-	outline: 1px solid var(--accent-border);
+	outline: 1px solid var(--accent-blue-border);
 	outline-offset: 4px;
 	border-radius: 4px;
 }
@@ -14876,8 +15051,8 @@ input[type="range"].fig-range {
 }
 
 .fig-st.now.s-confirmed {
-	color: var(--accent);
-	background: var(--accent-bg);
+	color: var(--accent-blue);
+	background: var(--accent-blue-bg);
 }
 
 .fig-st.now.s-final {
@@ -15098,7 +15273,7 @@ input[type="range"].fig-range {
 
 .fig-sline.now {
 	opacity: 1;
-	background: var(--accent-bg);
+	background: var(--accent-blue-bg);
 	margin: 0 -8px;
 	padding: 0 8px;
 	border-radius: 4px;
@@ -15150,7 +15325,7 @@ input[type="range"].fig-range {
 
 .fig-popt:focus-visible {
 	outline: none;
-	border-color: var(--accent);
+	border-color: var(--accent-blue);
 }
 
 .fig-popt[data-state="right"] {
@@ -15168,8 +15343,8 @@ input[type="range"].fig-range {
 	display: none;
 	margin-top: 14px;
 	padding: 12px 14px;
-	border: 1px solid var(--accent-border);
-	background: var(--accent-bg);
+	border: 1px solid var(--accent-blue-border);
+	background: var(--accent-blue-bg);
 	border-radius: 6px;
 	font-size: 13.5px;
 	color: var(--text-muted);
@@ -15234,13 +15409,13 @@ input[type="range"].fig-range {
 }
 
 .fig-xchip.hot {
-	border-color: var(--accent);
-	color: var(--accent);
+	border-color: var(--accent-blue);
+	color: var(--accent-blue);
 }
 
 .fig-xchip:focus-visible {
 	outline: none;
-	border-color: var(--accent);
+	border-color: var(--accent-blue);
 }
 
 .fig-xval {
@@ -15251,9 +15426,9 @@ input[type="range"].fig-range {
 }
 
 .fig-xval.hot {
-	background: var(--accent-bg);
-	outline: 1px solid var(--accent-border);
-	color: var(--accent);
+	background: var(--accent-blue-bg);
+	outline: 1px solid var(--accent-blue-border);
+	color: var(--accent-blue);
 }
 
 /* ── Figure catalog (/writing/figures) ───────────────────────────── */
@@ -15407,7 +15582,7 @@ input[type="range"].fig-range {
 /* Static marker replacing the toggle button when the note lives in
    the margin (wide viewports). */
 .fig-snref-static {
-	color: var(--accent);
+	color: var(--accent-blue);
 	font-size: 0.75em;
 	padding: 0 2px;
 }
@@ -15430,8 +15605,8 @@ input[type="range"].fig-range {
 	float: left;
 	clear: both;
 	width: 100%;
-	border-left: 2px solid var(--accent-border);
-	background: var(--accent-bg);
+	border-left: 2px solid var(--accent-blue-border);
+	background: var(--accent-blue-bg);
 	border-radius: 0 6px 6px 0;
 	padding: 11px 14px;
 	margin: 10px 0 20px;
@@ -15484,7 +15659,7 @@ input[type="range"].fig-range {
 	font-family: var(--font-mono-stack);
 	font-size: 11px;
 	font-weight: 560;
-	color: var(--accent);
+	color: var(--accent-blue);
 }
 @media (prefers-color-scheme: dark) {
 	.fig-snpop-card {

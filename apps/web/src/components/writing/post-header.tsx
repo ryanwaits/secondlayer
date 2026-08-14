@@ -42,7 +42,7 @@ export function PostHeader({ slug }: { slug: string }) {
 			    back to the index at exactly the width most people read it. This
 			    crumb stays at every width. */}
 			<nav className="writing-crumb" aria-label="Breadcrumb">
-				<Link href="/writing">Writing</Link>
+				<Link href="/writing">Blog</Link>
 				<span className="sep">/</span>
 				{post.title}
 			</nav>
