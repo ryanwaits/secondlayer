@@ -455,6 +455,23 @@ export const OPENAPI_SPEC = {
 				responses: ok(),
 			},
 		},
+		"/v1/index/transactions/{tx_id}/proof": {
+			get: {
+				tags: ["index"],
+				summary:
+					"Trustless tx-inclusion proof (raw tx, Nakamoto header, merkle path)",
+				security: [{}, { bearerAuth: [] }],
+				parameters: [
+					{
+						name: "tx_id",
+						in: "path",
+						required: true,
+						schema: { type: "string" },
+					},
+				],
+				responses: ok(),
+			},
+		},
 		"/v1/index/stacking": {
 			get: {
 				tags: ["index"],
@@ -773,6 +790,21 @@ export const OPENAPI_SPEC = {
 					qp("contract_id", "string"),
 				],
 				responses: envelope(),
+			},
+		},
+		"/v1/streams/events/stream": {
+			get: {
+				tags: ["streams"],
+				summary: "SSE tail of the raw event firehose (same filters as /events)",
+				security: [{ bearerAuth: [] }],
+				parameters: [
+					{ $ref: "#/components/parameters/Cursor" },
+					qp("from_cursor", "string"),
+					qp("from_height", "integer"),
+					qp("types", "string"),
+					qp("contract_id", "string"),
+				],
+				responses: ok(),
 			},
 		},
 		"/v1/streams/reorgs": {

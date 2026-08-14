@@ -1601,6 +1601,48 @@
 				}
 			}
 		},
+		"/v1/index/transactions/{tx_id}/proof": {
+			"get": {
+				"tags": [
+					"index"
+				],
+				"summary": "Trustless tx-inclusion proof (raw tx, Nakamoto header, merkle path)",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "tx_id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/v1/index/stacking": {
 			"get": {
 				"tags": [
@@ -2891,6 +2933,74 @@
 						"description": "Tip unavailable",
 						"content": {
 							"application/json": {}
+						}
+					}
+				}
+			}
+		},
+		"/v1/streams/events/stream": {
+			"get": {
+				"tags": [
+					"streams"
+				],
+				"summary": "SSE tail of the raw event firehose (same filters as /events)",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/Cursor"
+					},
+					{
+						"name": "from_cursor",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "from_height",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						}
+					},
+					{
+						"name": "types",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "contract_id",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
 						}
 					}
 				}
