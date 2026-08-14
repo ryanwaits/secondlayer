@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 7.11.0
+
+### Minor Changes
+
+- 4297c87: One-box runtime: lifecycle modules, supervisor, handler isolation, embedded migrate, minimal config, status, backup, upgrade, and guardrails. `sl start` prints the compose command.
+
 ## 7.10.0
 
 ### Minor Changes

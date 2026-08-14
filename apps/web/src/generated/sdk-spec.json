@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "6.53.0",
+	"version": "6.54.0",
 	"areas": [
 		{
 			"name": "Client",
@@ -46,12 +46,28 @@
 					"line": 48
 				},
 				{
+					"name": "LOCAL_API_URL",
+					"kind": "variable",
+					"summary": "Product default: the local one-box API.",
+					"signature": null,
+					"file": "src/base.ts",
+					"line": 31
+				},
+				{
 					"name": "resolveApiKey",
 					"kind": "function",
 					"summary": "Resolve the credential a client should use.",
 					"signature": "resolveApiKey(apiKey?: string): null | string",
 					"file": "src/base.ts",
-					"line": 39
+					"line": 49
+				},
+				{
+					"name": "resolveBaseUrl",
+					"kind": "function",
+					"summary": "",
+					"signature": "resolveBaseUrl(explicit?: string): string",
+					"file": "src/base.ts",
+					"line": 33
 				},
 				{
 					"name": "SecondLayer",
@@ -1010,7 +1026,7 @@
 					"summary": "",
 					"signature": "createStreamsClient(options: CreateStreamsClientOptions): StreamsClient",
 					"file": "src/streams/client.ts",
-					"line": 189
+					"line": 187
 				},
 				{
 					"name": "Cursor",

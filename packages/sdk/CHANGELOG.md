@@ -1,5 +1,16 @@
 # @secondlayer/sdk
 
+## 6.54.0
+
+### Minor Changes
+
+- be501f6: Default the SDK, CLI, and MCP to the local one-box API (`http://127.0.0.1:3800`). Override with `SL_API_URL`. Archive key fetches stay on the ops URL.
+
+### Patch Changes
+
+- Updated dependencies [4297c87]
+  - @secondlayer/shared@7.11.0
+
 ## 6.53.0
 
 ### Minor Changes

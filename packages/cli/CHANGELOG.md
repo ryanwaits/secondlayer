@@ -1,5 +1,19 @@
 # @secondlayer/cli
 
+## 10.2.0
+
+### Minor Changes
+
+- be501f6: Default the SDK, CLI, and MCP to the local one-box API (`http://127.0.0.1:3800`). Override with `SL_API_URL`. Archive key fetches stay on the ops URL.
+- 4297c87: One-box runtime: lifecycle modules, supervisor, handler isolation, embedded migrate, minimal config, status, backup, upgrade, and guardrails. `sl start` prints the compose command.
+
+### Patch Changes
+
+- Updated dependencies [be501f6]
+- Updated dependencies [4297c87]
+  - @secondlayer/sdk@6.54.0
+  - @secondlayer/shared@7.11.0
+
 ## 10.1.0
 
 ### Minor Changes
