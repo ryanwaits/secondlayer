@@ -14,6 +14,10 @@ bootstrap/backfill/reindex draws [credits](/docs/authentication#archive-credits)
 
 ## CLI — August 2026
 
+### A console for your instance
+
+Your instance gets a web console — fleet health, subgraph detail, table browsing, webhook delivery logs — as one more container in your compose. `docker compose --profile console up -d` starts it; `secondlayer console` opens it. Loopback is open; anything past it takes your instance token, and serving it on your own domain is a reverse-proxy block away. See [Run Secondlayer](/docs/self-host#console-optional).
+
 ### Buy archive credits from the CLI
 
 `secondlayer credits buy --email you@example.com --pack 25` opens a one-time card checkout. `secondlayer credits balance` shows the prepaid amount. `secondlayer credits refill --below 5 --pack 25` turns on auto-refill; default is off.

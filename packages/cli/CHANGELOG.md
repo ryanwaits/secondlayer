@@ -1,5 +1,18 @@
 # @secondlayer/cli
 
+## 10.4.0
+
+### Minor Changes
+
+- `secondlayer console` opens the console for your instance — resolves the URL
+  from `SL_API_URL` (or `--url`), checks reachability, and opens the browser;
+  `--no-open` prints the URL. `secondlayer start` now hints the console profile.
+
+### Patch Changes
+
+- Updated dependencies
+  - @secondlayer/shared@7.11.2
+
 ## 10.3.2
 
 ### Patch Changes

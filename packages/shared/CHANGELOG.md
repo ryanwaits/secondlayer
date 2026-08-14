@@ -1,5 +1,13 @@
 # @secondlayer/shared
 
+## 7.11.2
+
+### Patch Changes
+
+- Runtime config validation no longer refuses ambient container environment
+  variables (`PATH`, `HOME`, `HOSTNAME`, …). The unknown-key refusal now patrols
+  only Secondlayer namespaces, and the keys the shipped compose sets are known.
+
 ## 7.11.1
 
 ### Patch Changes

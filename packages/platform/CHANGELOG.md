@@ -1,5 +1,12 @@
 # @secondlayer/platform
 
+## 0.1.41
+
+### Patch Changes
+
+- Updated dependencies
+  - @secondlayer/shared@7.11.2
+
 ## 0.1.40
 
 ### Patch Changes

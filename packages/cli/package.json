@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/cli",
-	"version": "10.3.2",
+	"version": "10.4.0",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryanwaits/secondlayer.git",
@@ -44,7 +44,7 @@
 		"@secondlayer/bundler": "^0.5.0",
 		"@secondlayer/scaffold": "^1.5.1",
 		"@secondlayer/sdk": "^6.54.1",
-		"@secondlayer/shared": "^7.11.1",
+		"@secondlayer/shared": "^7.11.2",
 		"@secondlayer/stacks": "^3.3.1",
 		"@secondlayer/subgraphs": "^3.26.4",
 		"esbuild": "^0.27.4",
