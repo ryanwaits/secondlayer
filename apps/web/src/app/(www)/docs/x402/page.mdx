@@ -67,7 +67,7 @@ Decided per request, in this order:
 
 | Caller | Result |
 | --- | --- |
-| Valid `sk-sl_` key | Never a 402; usage bills against your [plan](/pricing) |
+| Valid `sk-sl_` key | Never a 402; settled on your instance |
 | Rail off (no funded `X402_SPONSOR_KEY`) | Keyless Index free, Streams key-mandatory. Live state: `GET /.well-known/x402` (`enabled: true` \| `false`) |
 | Keyless `/v1/index`, first 1,000 reads per IP per day | `200` |
 | Keyless `/v1/index` past that, or any keyless `/v1/streams` | `402` quote |

@@ -9709,10 +9709,9 @@ html.force-dark .shiki span {
 .prc-cta-band {
 	margin-top: 1.5rem;
 	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	justify-content: space-between;
-	gap: 1.25rem 2rem;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 1.25rem;
 	border: 1px solid var(--border);
 	border-radius: 14px;
 	background: var(--bg-elevated, var(--bg));
@@ -9738,14 +9737,9 @@ html.force-dark .shiki span {
 .prc-split {
 	margin-top: 1rem;
 	display: grid;
-	grid-template-columns: 1fr 1fr 1fr;
+	grid-template-columns: 1fr 1fr;
 	gap: 1.1rem;
 	align-items: stretch;
-}
-@media (max-width: 960px) {
-	.prc-split {
-		grid-template-columns: 1fr 1fr;
-	}
 }
 @media (max-width: 820px) {
 	.prc-split {
@@ -9859,20 +9853,10 @@ html.force-dark .shiki span {
 	text-decoration: none;
 }
 
-/* ── Enterprise + x402: two columns on one row (x402 left | ent right) ── */
 .prc-below {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 1.5rem 2.5rem;
 	margin-top: 2rem;
 	border-top: 1px solid var(--border);
 	padding-top: 1.3rem;
-}
-@media (max-width: 700px) {
-	.prc-below {
-		grid-template-columns: 1fr;
-		gap: 1.25rem;
-	}
 }
 .prc-xfoot {
 	display: block;

@@ -512,14 +512,9 @@ function ArtPricing() {
 				style={{ top: 148, left: 730 }}
 			/>
 			<PlanCard
-				eyebrow="PRO · MOST TEAMS"
-				price="$79"
-				per="/mo"
-				bullets={[
-					"250 req/s",
-					"Public + private subgraphs",
-					"Genesis backfills",
-				]}
+				eyebrow="ARCHIVE CREDITS"
+				price="$10–$100"
+				bullets={["R2 restore", "R2 backfill", "Prepaid cap"]}
 				faded
 				style={{ top: 372, left: 1010 }}
 			/>
@@ -815,8 +810,8 @@ const CARDS: CardSpec[] = [
 	{
 		file: "pricing.png",
 		eyebrow: "PRICING",
-		line1: "Host it yourself.",
-		line2: "Or don't.",
+		line1: "Runtime is free.",
+		line2: "Archive work is metered.",
 		mutedLine2: true,
 		artifact: <ArtPricing />,
 	},
