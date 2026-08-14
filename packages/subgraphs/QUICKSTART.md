@@ -24,7 +24,8 @@ A **subscription** is a signed webhook delivery rule. It comes in two kinds:
   subgraph row. This quickstart uses this kind.
 - **chain** — fires on raw chain events with no subgraph (pass a `triggers`
   array instead of a subgraph/table). Forward-looking — starts at the chain tip,
-  never backfills. Created via the SDK, REST, or MCP. See the
+  never backfills. Create with `sl subscriptions create … --trigger`, or the
+  same `triggers` array on the SDK / REST. See the
   [SDK README](../sdk/README.md#chain-subscriptions).
 
 Both POST to your receiver with retries, circuit breaking, delivery logs,

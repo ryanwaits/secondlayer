@@ -25,17 +25,12 @@ sl subgraphs deploy subgraphs/my-contract.ts --start-block <recent-block>
 sl subgraphs query my-contract <table> --sort _block_height --order desc
 ```
 
-A **chain** subscription fires on raw events with no subgraph — SDK, REST, or MCP:
+A **chain** subscription fires on raw events with no subgraph:
 
-```typescript
-import { SecondLayer, trigger } from "@secondlayer/sdk";
-
-const sl = new SecondLayer({ apiKey: process.env.INSTANCE_TOKEN });
-const { subscription, signingSecret } = await sl.subscriptions.create({
-  name: "amm-swaps",
-  url: "https://my-app.com/webhook",
-  triggers: [trigger.contractCall({ contractId: "SP....amm", functionName: "swap-*" })],
-});
+```bash
+sl subscriptions create amm-swaps \
+  --url https://my-app.com/webhook \
+  --trigger '{"type":"contract_call","contractId":"SP....amm","functionName":"swap-*"}'
 ```
 
 Docs → [self-host](https://www.secondlayer.tools/docs/self-host) ·

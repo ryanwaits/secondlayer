@@ -29,9 +29,9 @@ sl credits refill --below 5 --pack 25
 
 [Verified archive](/docs/archive) owns `sl verify` / `sl repair`. [Self-host](/docs/self-host) is the compose loop.
 
-<Callout type="note" title="Chain subscriptions use a different surface">
+<Callout type="note" title="Chain subscriptions">
 
-[Direct chain subscriptions](/docs/subscriptions#direct-chain-subscriptions-no-subgraph) go through the SDK, REST, or MCP. They take a `triggers` array, not a table.
+[Direct chain subscriptions](/docs/subscriptions#direct-chain-subscriptions-no-subgraph) take `--trigger` / `--triggers-file` instead of `--subgraph` / `--table`. SDK and REST accept the same `triggers` array.
 
 </Callout>
 
