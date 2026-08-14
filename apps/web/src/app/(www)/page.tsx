@@ -20,29 +20,16 @@ export function HomeView() {
 	return (
 		<div className="home">
 			<section className="home-hero">
-				<Link href="/archive" className="home-announce">
-					<span className="home-announce-tag">NEW</span>
-					<span className="home-announce-msg">
-						<b>The verified archive is live</b>
-						<span> · public to check</span>
-					</span>
-					<span className="home-announce-go" aria-hidden="true">
-						›
-					</span>
-				</Link>
 				<h1>
 					Self-hosted
 					<br />
 					<span className="home-h1-dim">Stacks runtime.</span>
 				</h1>
 				<p className="home-sub">
-					Decoded data, TypeScript subgraphs, and verified history, running
-					beside your node.
+					Raw and decoded events, subgraphs, webhooks, and verified history,
+					running beside your node.
 				</p>
 				<CtaPill />
-				<p className="home-caption">
-					Free to self-host. Restore off our R2 is metered.
-				</p>
 				<nav className="home-hero-links">
 					<Link href="/docs">
 						Read Docs <span className="home-hero-ch" aria-hidden="true" />
@@ -61,7 +48,8 @@ export function HomeView() {
 			<section className="home-final">
 				<h2>Your node. Your schema.</h2>
 				<p className="home-sub">
-					Docs for the surfaces. Archive for the check.
+					One container beside your node. Every row lands in your DB, checkable
+					against the signed archive.
 				</p>
 				<CtaPill />
 				<div className="home-final-btns">

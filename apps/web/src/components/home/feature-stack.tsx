@@ -229,11 +229,14 @@ function Terminal({
 	term,
 	className,
 	playKey = null,
+	idle = false,
 }: {
 	term: Term;
 	className?: string;
 	/** Changing key replays the session; null renders it finished (static). */
 	playKey?: string | number | null;
+	/** The stack hasn't been scrolled to yet: an empty prompt, waiting. */
+	idle?: boolean;
 }) {
 	const { typed, shown, done } = useSession(term, playKey);
 	const typing = playKey !== null && typed < term.cmd.length;
@@ -252,14 +255,17 @@ function Terminal({
 			<div className="home-term-body">
 				<p className="home-term-prompt" data-shown="">
 					<span className="home-term-gt">❯</span>
-					{term.cmd.slice(0, typed)}
+					{idle ? "" : term.cmd.slice(0, typed)}
 					{typing ? <span className="home-term-cursor" /> : null}
+					{idle ? <span className="home-term-cursor" data-blink="" /> : null}
 				</p>
 				{term.lines.map((line, i) => (
 					<p
 						key={`${line.kind ?? "t"}:${line.text}`}
 						className={line.kind ? `home-term-${line.kind}` : undefined}
-						data-shown={playKey === null || i < shown ? "" : undefined}
+						data-shown={
+							!idle && (playKey === null || i < shown) ? "" : undefined
+						}
 					>
 						{line.kind === "prompt" ? (
 							<span className="home-term-gt">❯</span>
@@ -267,7 +273,7 @@ function Terminal({
 						{line.text}
 					</p>
 				))}
-				{playKey === null || done ? (
+				{!idle && (playKey === null || done) ? (
 					<p className="home-term-prompt" data-shown="">
 						<span className="home-term-gt">❯</span>
 						<span className="home-term-cursor" data-blink="" />
@@ -283,13 +289,24 @@ export function FeatureStack({
 }: {
 	historyExtra?: ReactNode;
 }) {
-	const [active, setActive] = useState(0);
+	// null = the stack hasn't been scrolled to yet; the stage terminal idles
+	// so the first session doesn't play while the hero is still on screen.
+	const [active, setActive] = useState<number | null>(null);
 	const refs = useRef<Array<HTMLElement | null>>([]);
 
 	useEffect(() => {
 		let raf = 0;
 		const pick = () => {
 			raf = 0;
+			const first = refs.current[0];
+			if (
+				first &&
+				first.getBoundingClientRect().top > window.innerHeight * 0.85
+			) {
+				setActive(null);
+				for (const el of refs.current) el?.removeAttribute("data-in");
+				return;
+			}
 			const mid = window.innerHeight / 2;
 			let best = 0;
 			let bestDist = Number.POSITIVE_INFINITY;
@@ -365,8 +382,9 @@ export function FeatureStack({
 			</div>
 			<div className="home-stack-stage" aria-hidden="true">
 				<Terminal
-					term={SECTIONS[active]?.term ?? SECTIONS[0].term}
+					term={SECTIONS[active ?? 0].term}
 					playKey={active}
+					idle={active === null}
 				/>
 			</div>
 		</div>
