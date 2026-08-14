@@ -1,9 +1,6 @@
 import { CtaPill } from "@/components/home/cta-pill";
 import { FeatureStack } from "@/components/home/feature-stack";
-import { HomeStatusBadge } from "@/components/status/home-status-badge";
 import { socialMeta } from "@/lib/og";
-import { readStatusSnapshot } from "@/lib/status-snapshot";
-import type { SystemStatus } from "@/lib/types";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -15,16 +12,13 @@ export const metadata: Metadata = socialMeta({
 	path: "/",
 });
 
-export default async function Home() {
-	const status = await readStatusSnapshot();
-	return <HomeView status={status} />;
+export default function Home() {
+	return <HomeView />;
 }
 
-export function HomeView({ status }: { status: SystemStatus | null }) {
+export function HomeView() {
 	return (
 		<div className="home">
-			<HomeStatusBadge status={status} />
-
 			<section className="home-hero">
 				<Link href="/docs/self-host" className="home-announce">
 					<span className="home-announce-tag">NEW</span>

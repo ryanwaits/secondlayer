@@ -37,7 +37,7 @@ const { HomeView } = await import("./page");
 
 describe("www marketing routes", () => {
 	test("/ renders the self-host landing", () => {
-		const html = renderToStaticMarkup(<HomeView status={null} />);
+		const html = renderToStaticMarkup(<HomeView />);
 		expect(html).toContain('class="home"');
 		expect(html).toContain("Self-hosted");
 		expect(html).toContain("Stacks runtime.");
