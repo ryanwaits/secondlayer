@@ -14,8 +14,12 @@ import { deploySchema } from "../src/schema/deployer.ts";
 import type { SubgraphDefinition } from "../src/types.ts";
 
 // Requires local Postgres via `bun run db` and migrations applied.
-// INSTANCE_MODE=oss so the crypto/secrets bootstrap doesn't throw.
-process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
+// Hosted contract: two subscriptions may share a name across accounts.
+// Pin platform so createSubscription keeps account_id (OSS writes "").
+process.env.INSTANCE_MODE = "platform";
+if (!process.env.SECONDLAYER_SECRETS_KEY) {
+	process.env.SECONDLAYER_SECRETS_KEY = "a".repeat(64);
+}
 
 const SKIP = !process.env.DATABASE_URL;
 
@@ -48,7 +52,7 @@ async function cleanup() {
 		.execute();
 	await db
 		.deleteFrom("subscriptions")
-		.where("account_id", "=", ACCOUNT_ID)
+		.where("subgraph_name", "=", SUBGRAPH_NAME)
 		.execute();
 	await db.deleteFrom("subgraphs").execute();
 }
