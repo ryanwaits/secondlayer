@@ -12,8 +12,8 @@ import type { PartitionSemanticDigest } from "@secondlayer/shared/archive/semant
 import { verifyStreamsBulkManifestSignature } from "@secondlayer/shared/streams-bulk-manifest";
 
 /**
- * Loading and trusting an archive reference — shared by `sl verify` and
- * `sl repair` so the two can never disagree about what "the archive says".
+ * Loading and trusting an archive reference — shared by `secondlayer verify` and
+ * `secondlayer repair` so the two can never disagree about what "the archive says".
  *
  * A reference is either an https URL or a local path to a snapshot manifest.
  * Partition objects live beside it at `<root>/<dataset>/<name>.parquet`, where

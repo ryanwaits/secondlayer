@@ -38,7 +38,7 @@ Subcommands:
   truncate  Truncate all indexed data
   resync    Reset database and restart indexer
 
-Run \`sl db\` with no subcommand to print an overview.`,
+Run \`secondlayer db\` with no subcommand to print an overview.`,
 		)
 		.hook("preAction", async () => {
 			await requireLocalNetwork();
@@ -161,13 +161,13 @@ async function showOverview(_limit: number): Promise<void> {
 			console.log("");
 		}
 
-		console.log(dim(`Use 'sl db blocks|txs|events' to see records`));
+		console.log(dim(`Use 'secondlayer db blocks|txs|events' to see records`));
 		console.log("");
 		process.exit(0);
 	} catch (err) {
 		error(`Failed to query database: ${err}`);
 		console.log(dim("\nMake sure PostgreSQL is running."));
-		console.log(dim("Run 'sl local start' to start all services."));
+		console.log(dim("Run 'secondlayer local start' to start all services."));
 		process.exit(1);
 	}
 }
@@ -420,7 +420,9 @@ async function resetDatabase(skipConfirm: boolean): Promise<void> {
 		success("Database reset complete");
 		console.log("");
 		console.log(
-			dim("Run 'sl local restart' to restart the indexer for fresh sync."),
+			dim(
+				"Run 'secondlayer local restart' to restart the indexer for fresh sync.",
+			),
 		);
 		console.log("");
 		process.exit(0);
@@ -503,7 +505,7 @@ async function resyncDatabase(
 
 			console.log(green("  ✓ Indexer stopped"));
 			console.log("");
-			info("Run 'sl local restart' to start fresh sync");
+			info("Run 'secondlayer local restart' to start fresh sync");
 		} else {
 			console.log("");
 			success("Database reset complete");
@@ -511,7 +513,7 @@ async function resyncDatabase(
 			if (!backfill) {
 				console.log(
 					dim(
-						"Indexer not running. Start with 'sl local start' to begin sync.",
+						"Indexer not running. Start with 'secondlayer local start' to begin sync.",
 					),
 				);
 			}
@@ -528,7 +530,7 @@ async function resyncDatabase(
 				warn(`Cannot reach Stacks node at ${nodeClient.getRpcUrl()}`);
 				console.log(
 					dim(
-						"Run 'sl sync --from 1 --to <tip>' manually once the node is available.",
+						"Run 'secondlayer sync --from 1 --to <tip>' manually once the node is available.",
 					),
 				);
 				console.log("");
@@ -540,7 +542,7 @@ async function resyncDatabase(
 			info(`Node tip: block ${tip}. Fetching blocks 1 to ${tip}...`);
 			console.log(
 				dim(
-					`This may take a while. Run 'sl sync --from 1 --to ${tip}' if interrupted.`,
+					`This may take a while. Run 'secondlayer sync --from 1 --to ${tip}' if interrupted.`,
 				),
 			);
 			console.log("");

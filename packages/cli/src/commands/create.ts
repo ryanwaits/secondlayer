@@ -23,7 +23,7 @@ import { resolveAuth } from "../lib/resolve-auth.ts";
 import { validateSubscriptionTargetFromApi } from "../lib/subscription-validation.ts";
 
 /**
- * `sl subscriptions create <name> --runtime <runtime>`
+ * `secondlayer subscriptions create <name> --runtime <runtime>`
  *
  * Copies a runtime template into `./{name}/`, string-replaces the template
  * variables, and provisions the subscription via the SDK so the emitter
@@ -343,17 +343,17 @@ export async function createSubscription(
 
 	const pausedLine =
 		subscriptionStatus === "paused"
-			? `Subscription is paused. Resume:\n  sl subscriptions resume ${name}\n  `
+			? `Subscription is paused. Resume:\n  secondlayer subscriptions resume ${name}\n  `
 			: "";
 	const runHint =
 		opts.scaffold === false
-			? `View deliveries:\n  sl subscriptions get ${name}`
+			? `View deliveries:\n  secondlayer subscriptions get ${name}`
 			: `cd ${name}\n  bun install\n  bun run dev`;
 	success(`Done. Next:\n  ${pausedLine}${runHint}`);
 }
 
 /**
- * `sl subscriptions create <name> --url <url> --trigger '<json>'`
+ * `secondlayer subscriptions create <name> --url <url> --trigger '<json>'`
  *
  * Chain-subscription path: no subgraph, no scaffold — provisions a direct
  * chain-level subscription (a `triggers` array) over the session-authed SDK.
@@ -414,7 +414,9 @@ export async function createChainSubscription(
 	info(`Signing secret (store securely): ${signingSecret}`);
 
 	console.log();
-	success(`Done. Next:\n  View deliveries:\n  sl subscriptions get ${name}`);
+	success(
+		`Done. Next:\n  View deliveries:\n  secondlayer subscriptions get ${name}`,
+	);
 }
 
 export async function getSubscriptionClient(): Promise<SecondLayer> {
@@ -480,10 +482,10 @@ Examples:
 		});
 }
 
-/** Canonical home: `sl subscriptions create <name>`. */
+/** Canonical home: `secondlayer subscriptions create <name>`. */
 export function addSubscriptionsCreateCommand(subscriptions: Command): void {
 	addSubscriptionScaffold(subscriptions, "create <name>", {
 		description: "Create a subscription receiver for a runtime",
-		examplePrefix: "sl subscriptions create",
+		examplePrefix: "secondlayer subscriptions create",
 	});
 }

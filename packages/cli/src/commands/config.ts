@@ -58,9 +58,9 @@ export function registerConfigCommand(program: Command): void {
 			"after",
 			`
 Examples:
-  $ sl config set network local
-  $ sl config set ports.api 3800
-  $ sl config set database.url postgres://localhost:5432/secondlayer_dev`,
+  $ secondlayer config set network local
+  $ secondlayer config set ports.api 3800
+  $ secondlayer config set database.url postgres://localhost:5432/secondlayer_dev`,
 		)
 		.action(
 			async (key: string, value: string, options: { validate: boolean }) => {
@@ -197,7 +197,7 @@ async function printConfigTree(cfg: Config): Promise<void> {
 						const status = node.running ? green("●") : dim("○");
 						console.log(dim(`    ${status} ${node.path} (${node.network})`));
 					}
-					console.log(dim("  Run 'sl init' to configure"));
+					console.log(dim("  Run 'secondlayer init' to configure"));
 				}
 			} catch {}
 		}

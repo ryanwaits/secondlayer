@@ -28,9 +28,9 @@ import {
 } from "../lib/output.ts";
 
 /**
- * `sl repair` — replace local chain data that diverges from a signed archive.
+ * `secondlayer repair` — replace local chain data that diverges from a signed archive.
  *
- * This is the other half of `sl verify`: verification tells an operator they
+ * This is the other half of `secondlayer verify`: verification tells an operator they
  * are broken, repair fixes it. Everything about the flow assumes the operator
  * is nervous, because they should be — this writes to a live database.
  *
@@ -236,9 +236,9 @@ export function registerRepairCommand(program: Command): void {
 			"after",
 			`
 Examples:
-  $ sl repair --against ./snapshot.json                      # plan only
-  $ sl repair --against ./snapshot.json --apply              # write the fix
-  $ sl repair --against ./snapshot.json --from-block 8500000 --to-block 8549999
+  $ secondlayer repair --against ./snapshot.json                      # plan only
+  $ secondlayer repair --against ./snapshot.json --apply              # write the fix
+  $ secondlayer repair --against ./snapshot.json --from-block 8500000 --to-block 8549999
 
 Exit codes:
   0  nothing to repair, or the repair completed and re-verified clean

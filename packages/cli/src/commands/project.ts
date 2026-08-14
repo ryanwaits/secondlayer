@@ -20,10 +20,10 @@ interface ProjectSummary {
 }
 
 /**
- * `sl project` — account-scoped project context.
+ * `secondlayer project` — account-scoped project context.
  *
  * Accounts are single-project: the project is auto-provisioned by the platform
- * API, so there's no create/delete here. `sl project use <slug>` writes
+ * API, so there's no create/delete here. `secondlayer project use <slug>` writes
  * `./.secondlayer/project` in cwd so subsequent commands auto-resolve to it.
  */
 export function registerProjectCommand(program: Command): void {
@@ -88,7 +88,7 @@ export function registerProjectCommand(program: Command): void {
 			} catch (err) {
 				if (err instanceof CliHttpError && err.status === 404) {
 					logError(
-						`Project "${slug}" not found — run 'sl project list' to see available projects`,
+						`Project "${slug}" not found — run 'secondlayer project list' to see available projects`,
 					);
 					process.exit(1);
 				}
@@ -121,7 +121,11 @@ export function registerProjectCommand(program: Command): void {
 				human: () => {
 					if (!active) {
 						info("No active project.");
-						info(dim("Run 'sl project use <slug>' to bind this directory."));
+						info(
+							dim(
+								"Run 'secondlayer project use <slug>' to bind this directory.",
+							),
+						);
 						return;
 					}
 					console.log(active.slug);
@@ -134,7 +138,7 @@ export function registerProjectCommand(program: Command): void {
 function handleProjectError(err: unknown): never {
 	if (err instanceof CliHttpError) {
 		if (err.code === "SESSION_EXPIRED") {
-			logError("Session expired. Run: sl login");
+			logError("Session expired. Run: secondlayer login");
 			process.exit(1);
 		}
 		logError(err.message);

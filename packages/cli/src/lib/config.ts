@@ -37,7 +37,7 @@ export const ConfigSchema = z.object({
 	database: DatabaseSchema.default({ type: "docker" as const }),
 	/**
 	 * Fallback project slug when no per-directory `.secondlayer/project` file
-	 * is found. Set via `sl project use <slug> --global` (future flag) or
+	 * is found. Set via `secondlayer project use <slug> --global` (future flag) or
 	 * edited directly. Per-directory binding always wins.
 	 */
 	defaultProject: z.string().optional(),
@@ -357,12 +357,14 @@ export function getDefaultConfig(): Config {
 export async function requireLocalNetwork(): Promise<Config> {
 	const config = await loadConfig();
 	if (config.network !== "local") {
-		console.error(`Error: 'sl local' commands require local mode.`);
+		console.error(`Error: 'secondlayer local' commands require local mode.`);
 		console.error(`  Current context: ${config.network} (hosted)`);
 		console.error("");
-		console.error("  To check system status, use: sl status");
+		console.error("  To check system status, use: secondlayer status");
 		console.error("");
-		console.error("  To switch to local mode: sl config set network local");
+		console.error(
+			"  To switch to local mode: secondlayer config set network local",
+		);
 		process.exit(1);
 	}
 	return config;

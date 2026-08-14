@@ -11,7 +11,7 @@ import { findClarinetProject } from "../lib/devnet-config.ts";
 import { dim, note, output, printError, success } from "../lib/output.ts";
 
 /**
- * `sl faucet sbtc` — mint mock sBTC on a LOCAL devnet.
+ * `secondlayer faucet sbtc` — mint mock sBTC on a LOCAL devnet.
  *
  * The trick is that sBTC's `protocol-mint` gates on a same-deployer `.`
  * reference: `sbtc-registry` records whoever deployed it as the signer
@@ -97,10 +97,10 @@ function parseAmount(value: string | undefined): bigint {
 }
 
 /**
- * Mounted under `sl devnet` rather than top level, because it is devnet
+ * Mounted under `secondlayer devnet` rather than top level, because it is devnet
  * infrastructure and not merely devnet-restricted: it discovers a Clarinet
  * project, reads `settings/Devnet.toml`, and signs as that project's deployer.
- * A top-level `sl faucet` would also imply it can serve the far more common
+ * A top-level `secondlayer faucet` would also imply it can serve the far more common
  * ask — testnet sBTC — which it cannot, because that signer set is not ours.
  */
 export function registerFaucetCommand(devnetCommand: Command): void {
@@ -125,8 +125,8 @@ export function registerFaucetCommand(devnetCommand: Command): void {
 			"after",
 			`
 Examples:
-  $ sl devnet faucet --to ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
-  $ sl devnet faucet --to ST2... --amount 5000000
+  $ secondlayer devnet faucet --to ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+  $ secondlayer devnet faucet --to ST2... --amount 5000000
 
 Requires a devnet running with the sBTC contract set deployed by your
 Clarinet deployer — that deployer is the signer set on your own chain, which
@@ -139,9 +139,12 @@ is what makes minting possible without Bitcoin.`,
 				// else this same call is a real protocol call against a chain we do
 				// not control, and it would fail — loudly here is better.
 				if (network !== "devnet" && network !== "local") {
-					printError(`sl devnet faucet only works on devnet, not ${network}.`, {
-						hint: "Mock sBTC is mintable because you deployed the contracts. On testnet or mainnet the signer set is not yours.",
-					});
+					printError(
+						`secondlayer devnet faucet only works on devnet, not ${network}.`,
+						{
+							hint: "Mock sBTC is mintable because you deployed the contracts. On testnet or mainnet the signer set is not yours.",
+						},
+					);
 					process.exit(2);
 				}
 

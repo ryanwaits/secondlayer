@@ -26,14 +26,14 @@ export type { SubgraphQueryParams } from "@secondlayer/shared/schemas";
 function nextStepHint(status: number | undefined): string | undefined {
 	if (status === undefined) return undefined;
 	if (status === 403)
-		return "You may not have access — check your active project with `sl whoami`.";
+		return "You may not have access — check your active project with `secondlayer whoami`.";
 	if (status === 404)
 		return "Check the name/slug — run the matching `list` command to see what exists.";
 	if (status === 400 || status === 422)
 		return "Check the command arguments and flags — see `--help` for the expected format.";
 	if (status === 429) return "Rate limited — wait a moment and retry.";
 	if (status >= 500)
-		return "Server error — retry shortly, or check `sl status`.";
+		return "Server error — retry shortly, or check `secondlayer status`.";
 	return undefined;
 }
 
@@ -52,8 +52,8 @@ export function handleApiError(err: unknown, action: string): never {
 	) {
 		printError("Authentication required.", {
 			hint: isOssMode()
-				? "Set SL_API_KEY / INSTANCE_TOKEN from `sl init`."
-				: "Run `sl login` to re-authenticate.",
+				? "Set SL_API_KEY / INSTANCE_TOKEN from `secondlayer init`."
+				: "Run `secondlayer login` to re-authenticate.",
 		});
 		process.exit(1);
 	}
@@ -217,7 +217,7 @@ export async function getContractPrintSchema(
 	contractId: string,
 ): Promise<PrintSchemaResponse | null> {
 	// Open read — when no session/key resolves, fall back to an anonymous
-	// client instead of demanding `sl login`.
+	// client instead of demanding `secondlayer login`.
 	let client: SecondLayer;
 	try {
 		client = await getPlatformClient();

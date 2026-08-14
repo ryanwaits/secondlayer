@@ -1,6 +1,6 @@
 // Color is gated once at module load: honor FORCE_COLOR / NO_COLOR
 // (https://no-color.org), otherwise enable only when stdout is a TTY. Piping
-// (`sl … | jq`) sets isTTY false, so data on stdout stays free of ANSI bytes.
+// (`secondlayer … | jq`) sets isTTY false, so data on stdout stays free of ANSI bytes.
 const colorEnabled = (() => {
 	const { FORCE_COLOR, NO_COLOR } = process.env;
 	if (FORCE_COLOR !== undefined && FORCE_COLOR !== "0") return true;

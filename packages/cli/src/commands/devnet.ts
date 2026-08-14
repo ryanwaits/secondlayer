@@ -103,7 +103,7 @@ export function registerDevnetCommand(program: Command): void {
 	devnet
 		.command("down")
 		.description(
-			"Stop the local Secondlayer stack started by `sl devnet connect`",
+			"Stop the local Secondlayer stack started by `secondlayer devnet connect`",
 		)
 		.option("--project <dir>", "Clarinet project directory")
 		.option("--purge", "Also remove volumes (wipes the local index)")
@@ -215,9 +215,9 @@ export async function connect(options: ConnectOptions): Promise<void> {
 		`  ${yellow("clarinet devnet start")}   ${dim("# auto-deploys + streams to the indexer")}`,
 	);
 	console.log(
-		`  ${yellow("SL_API_URL=http://localhost:3800 SL_API_KEY=dummy sl subgraphs deploy ./subgraph.ts")}`,
+		`  ${yellow("SL_API_URL=http://localhost:3800 SL_API_KEY=dummy secondlayer subgraphs deploy ./subgraph.ts")}`,
 	);
-	console.log(dim("\nStop with: sl devnet down"));
+	console.log(dim("\nStop with: secondlayer devnet down"));
 }
 
 export async function down(options: DownOptions): Promise<void> {
@@ -225,7 +225,7 @@ export async function down(options: DownOptions): Promise<void> {
 	const composePath = join(project, COMPOSE_REL);
 	if (!existsSync(composePath)) {
 		error(
-			`No ${COMPOSE_REL} in ${project} — nothing to stop. Run \`sl devnet connect\` first.`,
+			`No ${COMPOSE_REL} in ${project} — nothing to stop. Run \`secondlayer devnet connect\` first.`,
 		);
 		process.exit(1);
 	}
@@ -249,7 +249,9 @@ async function logs(
 	const project = resolveProject(options.project);
 	const composePath = join(project, COMPOSE_REL);
 	if (!existsSync(composePath)) {
-		error(`No ${COMPOSE_REL} in ${project} — run \`sl devnet connect\` first.`);
+		error(
+			`No ${COMPOSE_REL} in ${project} — run \`secondlayer devnet connect\` first.`,
+		);
 		process.exit(1);
 	}
 	if (service && !SERVICES.includes(service)) {
@@ -313,7 +315,9 @@ async function renderStatus(limit: number): Promise<string> {
 	);
 	if (!health) {
 		out.push("");
-		out.push(dim("  indexer unreachable — is `sl devnet connect` running?"));
+		out.push(
+			dim("  indexer unreachable — is `secondlayer devnet connect` running?"),
+		);
 		return out.join("\n");
 	}
 
@@ -334,7 +338,9 @@ async function renderStatus(limit: number): Promise<string> {
 	out.push("");
 	out.push(bold("SUBGRAPHS"));
 	if (subs.length === 0) {
-		out.push(dim("  none deployed — sl subgraphs deploy ./subgraph.ts"));
+		out.push(
+			dim("  none deployed — secondlayer subgraphs deploy ./subgraph.ts"),
+		);
 	} else {
 		for (const sg of subs) {
 			const st =
@@ -387,7 +393,9 @@ async function status(options: StatusOptions): Promise<void> {
 	const tick = async () => {
 		const body = await renderStatus(limit);
 		process.stdout.write("\x1b[2J\x1b[H"); // clear + home
-		console.log(`${dim("sl devnet status")}  ${dim("· ctrl-c to stop")}\n`);
+		console.log(
+			`${dim("secondlayer devnet status")}  ${dim("· ctrl-c to stop")}\n`,
+		);
 		console.log(body);
 	};
 	await tick();

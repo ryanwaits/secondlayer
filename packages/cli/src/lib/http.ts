@@ -102,8 +102,8 @@ export async function httpPlatform<T>(
 			"SESSION_EXPIRED",
 			{ error: "Not logged in" },
 			isOssMode()
-				? "Not authenticated — set SL_API_KEY from `sl init`"
-				: "Not logged in — run `sl login`",
+				? "Not authenticated — set SL_API_KEY from `secondlayer init`"
+				: "Not logged in — run `secondlayer login`",
 		);
 	}
 	return request<T>(`${auth.apiUrl}${path}`, {
@@ -113,7 +113,7 @@ export async function httpPlatform<T>(
 }
 
 /**
- * Platform API request without auth — used by `sl login` before a session
+ * Platform API request without auth — used by `secondlayer login` before a session
  * exists (magic-link + verify endpoints). Honors SL_API_URL / SL_PLATFORM_API_URL.
  */
 export async function httpPlatformAnon<T>(
@@ -150,7 +150,7 @@ export async function httpArchiveOps<T>(
 			401,
 			"SESSION_EXPIRED",
 			{ error: "Not logged in" },
-			"Not logged in — run `SL_API_URL=https://api.secondlayer.tools sl login`",
+			"Not logged in — run `SL_API_URL=https://api.secondlayer.tools secondlayer login`",
 		);
 	}
 	return request<T>(`${resolveArchiveOpsUrl()}${path}`, {

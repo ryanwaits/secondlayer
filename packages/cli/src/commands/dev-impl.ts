@@ -66,9 +66,13 @@ export async function isDevAlreadyRunning(): Promise<boolean> {
 		printRunningServices(running);
 		console.log("");
 		console.log(dim("Commands:"));
-		console.log(`  ${green("sl local logs")}     ${dim("View logs")}`);
-		console.log(`  ${green("sl local stop")}     ${dim("Stop all services")}`);
-		console.log(`  ${green("sl local status")}   ${dim("Show status")}`);
+		console.log(`  ${green("secondlayer local logs")}     ${dim("View logs")}`);
+		console.log(
+			`  ${green("secondlayer local stop")}     ${dim("Stop all services")}`,
+		);
+		console.log(
+			`  ${green("secondlayer local status")}   ${dim("Show status")}`,
+		);
 		return true;
 	}
 	return false;
@@ -266,9 +270,15 @@ export async function runBackground(options: DevOptions): Promise<void> {
 		success("Dev environment started in background");
 		console.log("");
 		console.log(dim("Commands:"));
-		console.log(`  ${green("sl local logs -f")}   ${dim("Follow logs")}`);
-		console.log(`  ${green("sl local stop")}      ${dim("Stop all services")}`);
-		console.log(`  ${green("sl local status")}    ${dim("Show status")}`);
+		console.log(
+			`  ${green("secondlayer local logs -f")}   ${dim("Follow logs")}`,
+		);
+		console.log(
+			`  ${green("secondlayer local stop")}      ${dim("Stop all services")}`,
+		);
+		console.log(
+			`  ${green("secondlayer local status")}    ${dim("Show status")}`,
+		);
 		console.log("");
 
 		// Exit explicitly - spawned processes keep event loop alive
@@ -434,7 +444,7 @@ export async function showLogs(options: {
 	const state = await loadDevState();
 	if (!state || Object.keys(state.services).length === 0) {
 		error("Dev environment is not running");
-		console.log(dim("Start with: sl local start"));
+		console.log(dim("Start with: secondlayer local start"));
 		process.exit(1);
 	}
 
@@ -644,7 +654,7 @@ export async function restartDev(): Promise<void> {
 	const state = await loadDevState();
 	if (!state) {
 		info("Dev environment is not running");
-		console.log(dim("Start with: sl local start"));
+		console.log(dim("Start with: secondlayer local start"));
 		return;
 	}
 
@@ -788,7 +798,7 @@ export async function showDevStatus(): Promise<void> {
 	const state = await loadDevState();
 	if (!state) {
 		info("Dev environment is not running");
-		console.log(dim("Start with: sl local start"));
+		console.log(dim("Start with: secondlayer local start"));
 		return;
 	}
 

@@ -738,10 +738,10 @@ export function registerSubgraphsCommand(program: Command): void {
 			"after",
 			`
 Examples:
-  $ sl subgraphs create my-graph
-  $ sl subgraphs create token-balances --template sip-010-balances
-  $ sl subgraphs create sbtc-flows --from-contract SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry
-  $ sl subgraphs create sbtc-flows --from-contract SM3....sbtc-registry --table-per-topic`,
+  $ secondlayer subgraphs create my-graph
+  $ secondlayer subgraphs create token-balances --template sip-010-balances
+  $ secondlayer subgraphs create sbtc-flows --from-contract SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry
+  $ secondlayer subgraphs create sbtc-flows --from-contract SM3....sbtc-registry --table-per-topic`,
 		)
 		.action(
 			async (
@@ -823,7 +823,7 @@ Examples:
 				} else if (slug !== "basic") {
 					info(`Template: ${slug} — ${SUBGRAPH_TEMPLATE_DESCRIPTIONS[slug]}`);
 				}
-				info(`Next: sl subgraphs deploy subgraphs/${name}.ts`);
+				info(`Next: secondlayer subgraphs deploy subgraphs/${name}.ts`);
 			},
 		);
 
@@ -1185,7 +1185,7 @@ Examples:
 										`  REST:      ${apiUrl}/api/subgraphs/${effectiveDef.name}/${firstTable}`,
 									);
 									info(
-										`  Publish:   sl subgraphs publish ${effectiveDef.name} (open anon /v1 reads)`,
+										`  Publish:   secondlayer subgraphs publish ${effectiveDef.name} (open anon /v1 reads)`,
 									);
 								}
 								if (result.reindexStarted) {
@@ -1197,10 +1197,12 @@ Examples:
 										`  Reindex:  ${denom} started in the background — check status in ~30s for an ETA`,
 									);
 								}
-								info(`  Watch:     sl subgraphs status ${effectiveDef.name}`);
+								info(
+									`  Watch:     secondlayer subgraphs status ${effectiveDef.name}`,
+								);
 								if (firstTable) {
 									info(
-										`  Webhook:   sl subscriptions create ${effectiveDef.name}-hook --subgraph ${effectiveDef.name} --table ${firstTable} --url <your-endpoint>`,
+										`  Webhook:   secondlayer subscriptions create ${effectiveDef.name}-hook --subgraph ${effectiveDef.name} --table ${firstTable} --url <your-endpoint>`,
 									);
 								}
 							} catch {
@@ -1445,7 +1447,7 @@ Examples:
 				);
 
 				if (sync && sync.gaps.count > 0) {
-					console.log(dim(`\nRun: sl subgraphs gaps ${name}`));
+					console.log(dim(`\nRun: secondlayer subgraphs gaps ${name}`));
 				}
 
 				// Show table endpoints
@@ -1563,8 +1565,10 @@ Examples:
 				command: Command,
 			) => {
 				deprecatedCodegenNotice(
-					"sl subgraphs codegen",
-					options.payloads ? "sl codegen prints" : "sl codegen subgraph",
+					"secondlayer subgraphs codegen",
+					options.payloads
+						? "secondlayer codegen prints"
+						: "secondlayer codegen subgraph",
 				);
 				// Keeps `prisma` as its default so existing scripts don't change
 				// output; the canonical verb defaults to kysely everywhere.
@@ -1589,8 +1593,8 @@ Examples:
 			"after",
 			`
 Examples:
-  $ sl subgraphs test subgraphs/bns-names.ts --from 167484 --to 167600
-  $ sl subgraphs test subgraphs/bns-names.ts --offline`,
+  $ secondlayer subgraphs test subgraphs/bns-names.ts --from 167484 --to 167600
+  $ secondlayer subgraphs test subgraphs/bns-names.ts --offline`,
 		)
 		.action(async (file: string, options) => {
 			const { runSubgraphTest } = await import("./subgraph-test.ts");
@@ -1609,10 +1613,10 @@ Examples:
 			`
 Reindex is always whole-subgraph: it drops every row and rebuilds from the
 subgraph's start block to chain tip. To process a specific block range without
-dropping anything, use "sl subgraphs backfill".
+dropping anything, use "secondlayer subgraphs backfill".
 
 Examples:
-  $ sl subgraphs reindex my-graph -y`,
+  $ secondlayer subgraphs reindex my-graph -y`,
 		)
 		.action(
 			async (
@@ -1677,7 +1681,7 @@ Examples:
 			"after",
 			`
 Examples:
-  $ sl subgraphs backfill my-graph --from-block 150000 --to-block 160000`,
+  $ secondlayer subgraphs backfill my-graph --from-block 150000 --to-block 160000`,
 		)
 		.action(
 			async (
@@ -1809,9 +1813,9 @@ Examples:
 			"after",
 			`
 Examples:
-  $ sl subgraphs query my-graph balances --filter holder=SP2J6ZY... --limit 50
-  $ sl subgraphs query my-graph transfers --filter amount.gte=1000 --sort _block_height --order desc
-  $ sl subgraphs query my-graph balances --count`,
+  $ secondlayer subgraphs query my-graph balances --filter holder=SP2J6ZY... --limit 50
+  $ secondlayer subgraphs query my-graph transfers --filter amount.gte=1000 --sort _block_height --order desc
+  $ secondlayer subgraphs query my-graph balances --count`,
 		)
 		.action(
 			async (
@@ -2021,9 +2025,9 @@ Examples:
 			"after",
 			`
 Examples:
-  $ sl subgraphs scaffold SP3D6PV2ACBPEKYJTCMH7HEN02KP87QSP8KTEH335.megapont-ape-club-nft -o subgraphs/apes.ts
-  $ sl subgraphs scaffold SP00...token --functions transfer,mint -o subgraphs/token.ts
-  $ sl subgraphs scaffold --trait sip-010 -o subgraphs/all-ft.ts`,
+  $ secondlayer subgraphs scaffold SP3D6PV2ACBPEKYJTCMH7HEN02KP87QSP8KTEH335.megapont-ape-club-nft -o subgraphs/apes.ts
+  $ secondlayer subgraphs scaffold SP00...token --functions transfer,mint -o subgraphs/token.ts
+  $ secondlayer subgraphs scaffold --trait sip-010 -o subgraphs/all-ft.ts`,
 		)
 		.action(
 			async (
@@ -2104,7 +2108,7 @@ Examples:
 							process.exit(1);
 						}
 					}
-					info(`Next: sl subgraphs deploy ${options.output}`);
+					info(`Next: secondlayer subgraphs deploy ${options.output}`);
 				} catch (err) {
 					error(`Failed to scaffold subgraph: ${err}`);
 					process.exit(1);
@@ -2118,14 +2122,17 @@ Examples:
 		.description("Generate a typed query client for a deployed subgraph")
 		.option("-o, --output <path>", "Output file path (required)")
 		.action(async (subgraphName: string, options: { output?: string }) => {
-			deprecatedCodegenNotice("sl subgraphs client", "sl codegen client");
+			deprecatedCodegenNotice(
+				"secondlayer subgraphs client",
+				"secondlayer codegen client",
+			);
 			await runSubgraphClientCodegen(subgraphName, options);
 		});
 }
 
 /**
  * Typed query-client codegen for a deployed subgraph. Shared by the canonical
- * `sl codegen client` and the deprecated `sl subgraphs client` alias.
+ * `secondlayer codegen client` and the deprecated `secondlayer subgraphs client` alias.
  */
 export async function runSubgraphClientCodegen(
 	subgraphName: string,
@@ -2170,7 +2177,7 @@ export interface SubgraphSchemaCodegenOptions {
 
 /**
  * ORM-schema (or print-payload) codegen for a subgraph file. Shared by the
- * canonical `sl codegen subgraph` and the deprecated `sl subgraphs codegen`
+ * canonical `secondlayer codegen subgraph` and the deprecated `secondlayer subgraphs codegen`
  * alias, so the two can never drift.
  *
  * `defaultTarget` differs by entry point on purpose: the canonical verb uses

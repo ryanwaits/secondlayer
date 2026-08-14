@@ -134,10 +134,10 @@ export function registerStreamsCommand(program: Command): void {
 			"after",
 			`
 Examples:
-  $ sl streams events --types stx_transfer,print --limit 50
-  $ sl streams events --not-types print --contract-id SP00....token,SP01....token
-  $ sl streams events --sender SP1...,SP2... --from-block 150000 --to-block 160000
-  $ sl streams events --cursor 150000:3`,
+  $ secondlayer streams events --types stx_transfer,print --limit 50
+  $ secondlayer streams events --not-types print --contract-id SP00....token,SP01....token
+  $ secondlayer streams events --sender SP1...,SP2... --from-block 150000 --to-block 160000
+  $ secondlayer streams events --cursor 150000:3`,
 		)
 		.action(
 			async (options: {
@@ -206,8 +206,8 @@ Examples:
 			"after",
 			`
 Examples:
-  $ sl streams consume --types print --cursor 150000:0
-  $ sl streams consume --not-types print --sender SP1...,SP2... --batch-size 500 --max-pages 10`,
+  $ secondlayer streams consume --types print --cursor 150000:0
+  $ secondlayer streams consume --not-types print --sender SP1...,SP2... --batch-size 500 --max-pages 10`,
 		)
 		.action(
 			async (options: {
@@ -293,8 +293,8 @@ Examples:
 			"after",
 			`
 Examples:
-  $ sl streams pull --to ./dump
-  $ sl streams pull --to ./dump --from-block 150000 --to-block 200000`,
+  $ secondlayer streams pull --to ./dump
+  $ secondlayer streams pull --to ./dump --from-block 150000 --to-block 200000`,
 		)
 		.action(
 			async (options: {

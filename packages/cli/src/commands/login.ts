@@ -18,12 +18,14 @@ async function readStdin(): Promise<string> {
 /**
  * Non-interactive login: read an API key from stdin, verify it against the
  * account endpoint, and persist it as the stored credential. For CI/headless
- * use, e.g. `echo "$SL_API_KEY" | sl login --with-token`.
+ * use, e.g. `echo "$SL_API_KEY" | secondlayer login --with-token`.
  */
 async function runTokenLogin(): Promise<void> {
 	const token = await readStdin();
 	if (!token) {
-		logError('No token on stdin. Usage: echo "$KEY" | sl login --with-token');
+		logError(
+			'No token on stdin. Usage: echo "$KEY" | secondlayer login --with-token',
+		);
 		process.exit(1);
 	}
 
@@ -55,7 +57,7 @@ async function runTokenLogin(): Promise<void> {
 }
 
 /**
- * `sl login` — magic-link email flow.
+ * `secondlayer login` — magic-link email flow.
  *
  * Flow: email → POST /api/auth/magic-link → prompt 6-digit code → POST
  * /api/auth/verify → write session. Server auto-extends session on every
@@ -71,7 +73,7 @@ export async function runLoginFlow(
 			if (!process.stdin.isTTY) {
 				info(
 					dim(
-						"Run 'sl logout' first, or re-run with --force to switch accounts.",
+						"Run 'secondlayer logout' first, or re-run with --force to switch accounts.",
 					),
 				);
 				return;
@@ -82,13 +84,13 @@ export async function runLoginFlow(
 					default: false,
 				});
 				if (!proceed) {
-					info(dim("Run 'sl logout' to sign out."));
+					info(dim("Run 'secondlayer logout' to sign out."));
 					return;
 				}
 			} catch {
 				info(
 					dim(
-						"Run 'sl logout' first, or re-run with --force to switch accounts.",
+						"Run 'secondlayer logout' first, or re-run with --force to switch accounts.",
 					),
 				);
 				return;
@@ -144,7 +146,7 @@ export async function runLoginFlow(
 			expiresAt: sessionExpiry(),
 		});
 		success(`Logged in as ${verified.account.email}`);
-		info(dim("Run 'sl whoami' to see your account status."));
+		info(dim("Run 'secondlayer whoami' to see your account status."));
 	} catch (err) {
 		if (err instanceof CliHttpError) {
 			logError(err.message);
@@ -165,8 +167,8 @@ export function registerLoginCommand(program: Command): void {
 			"after",
 			`
 Examples:
-  $ sl login
-  $ echo "$SL_API_KEY" | sl login --with-token`,
+  $ secondlayer login
+  $ echo "$SL_API_KEY" | secondlayer login --with-token`,
 		)
 		.action((opts: { force?: boolean; withToken?: boolean }) =>
 			opts.withToken ? runTokenLogin() : runLoginFlow({ force: opts.force }),

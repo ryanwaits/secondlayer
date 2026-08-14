@@ -34,7 +34,7 @@ import {
 import { isOssMode } from "../lib/resolve-auth.ts";
 
 /**
- * `sl bootstrap` — stand up a Secondlayer instance from a verified archive
+ * `secondlayer bootstrap` — stand up a Secondlayer instance from a verified archive
  * instead of replaying the chain from genesis.
  *
  * This exists because the honest alternative is measured in days. Replaying
@@ -46,8 +46,8 @@ import { isOssMode } from "../lib/resolve-auth.ts";
  * It refuses to touch a non-empty database. Bootstrapping is a first-run
  * operation, and merging archive history into an instance that already holds
  * data is how you get a chain that looks complete and isn't — exactly the
- * failure `sl verify` exists to catch. An operator repairing an existing
- * instance wants `sl repair`, which is targeted and reversible in a way this
+ * failure `secondlayer verify` exists to catch. An operator repairing an existing
+ * instance wants `secondlayer repair`, which is targeted and reversible in a way this
  * is not.
  */
 
@@ -157,8 +157,8 @@ export function attachBootstrapCommand(cmd: Command): Command {
 			"after",
 			`
 Examples:
-  $ sl bootstrap --against https://archive.secondlayer.tools/.../snapshots/<digest>.json
-  $ sl bootstrap --against ./snapshot.json --to-block 4000000 --yes
+  $ secondlayer bootstrap --against https://archive.secondlayer.tools/.../snapshots/<digest>.json
+  $ secondlayer bootstrap --against ./snapshot.json --to-block 4000000 --yes
 
 Exit codes:
   0  restored and verified
@@ -215,7 +215,7 @@ Exit codes:
 				});
 				if (resume.action === "refuse") {
 					printError(resume.reason, {
-						hint: "Bootstrap is for a fresh instance. To fix an existing one, use `sl repair`.",
+						hint: "Bootstrap is for a fresh instance. To fix an existing one, use `secondlayer repair`.",
 					});
 					process.exit(BOOTSTRAP_EXIT.REFUSED);
 				}
@@ -431,7 +431,9 @@ Exit codes:
 								`Restored ${loaded.blocks.toLocaleString()} blocks but ${divergent} ranges do not match the archive.`,
 							);
 							console.error(
-								dim("  Investigate with: sl verify --against <manifest>"),
+								dim(
+									"  Investigate with: secondlayer verify --against <manifest>",
+								),
 							);
 						}
 					},

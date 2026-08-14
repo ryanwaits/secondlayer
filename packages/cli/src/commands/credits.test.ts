@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { Command } from "commander";
 import { registerCreditsCommand } from "./credits.ts";
 
-describe("sl credits", () => {
+describe("secondlayer credits", () => {
 	test("registers buy and balance", () => {
 		const program = new Command();
 		registerCreditsCommand(program);

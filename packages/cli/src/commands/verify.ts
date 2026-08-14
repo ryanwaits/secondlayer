@@ -36,7 +36,7 @@ import {
 } from "../lib/output.ts";
 
 /**
- * `sl verify` — compare local chain data against a signed archive manifest.
+ * `secondlayer verify` — compare local chain data against a signed archive manifest.
  *
  * The point of this command is that it is FREE, READ-ONLY, and FAST. Nothing
  * leaves the machine: the archive publishes digests, we compute the same
@@ -107,11 +107,11 @@ export function registerVerifyCommand(program: Command): void {
 			"after",
 			`
 Examples:
-  $ sl verify --against https://archive.secondlayer.tools/.../snapshots/<digest>.json
-  $ sl verify raw --against ./snapshot.json --from-block 8000000 --to-block 8499999
-  $ sl verify all --against ./snapshot.json --json
-  $ sl verify decode:ft_transfer --against ./snapshot.json --quick
-  $ sl verify subgraph:sbtc --against ./snapshot.json --deep
+  $ secondlayer verify --against https://archive.secondlayer.tools/.../snapshots/<digest>.json
+  $ secondlayer verify raw --against ./snapshot.json --from-block 8000000 --to-block 8499999
+  $ secondlayer verify all --against ./snapshot.json --json
+  $ secondlayer verify decode:ft_transfer --against ./snapshot.json --quick
+  $ secondlayer verify subgraph:sbtc --against ./snapshot.json --deep
 
 Exit codes:
   0  local data matches the archive
@@ -352,7 +352,7 @@ Exit codes:
 						if (first) {
 							console.error(
 								dim(
-									`  sl repair --from-block ${first.from_block} --to-block ${first.to_block}`,
+									`  secondlayer repair --from-block ${first.from_block} --to-block ${first.to_block}`,
 								),
 							);
 						}

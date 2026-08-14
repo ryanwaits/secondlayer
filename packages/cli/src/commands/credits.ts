@@ -69,7 +69,7 @@ async function runBuy(opts: {
 			console.log(res.url);
 			console.log(
 				dim(
-					"After payment: SL_API_URL=https://api.secondlayer.tools sl login && sl credits balance",
+					"After payment: SL_API_URL=https://api.secondlayer.tools secondlayer login && secondlayer credits balance",
 				),
 			);
 		},
@@ -103,7 +103,10 @@ async function runBalance(opts: { json?: boolean }): Promise<void> {
 							? `on — below $${refill.belowUsd} buy $${refill.packUsd}`
 							: dim("off"),
 					],
-					["Buy", dim("sl credits buy --email you@example.com --pack 25")],
+					[
+						"Buy",
+						dim("secondlayer credits buy --email you@example.com --pack 25"),
+					],
 				]),
 			);
 		},

@@ -115,7 +115,10 @@ export function registerIndexCommand(program: Command): void {
 		.option("--env <var>", "Prisma datasource url env var", "DATABASE_URL")
 		.option("-o, --output <path>", "Write to a file (defaults to stdout)")
 		.action(async (o: IndexCodegenOptions) => {
-			deprecatedCodegenNotice("sl index codegen", "sl codegen index");
+			deprecatedCodegenNotice(
+				"secondlayer index codegen",
+				"secondlayer codegen index",
+			);
 			await runIndexCodegen(o);
 		});
 
@@ -369,7 +372,7 @@ export interface IndexCodegenOptions {
 
 /**
  * Typed-schema codegen for the Index domain tables. Shared by the canonical
- * `sl codegen index` and the deprecated `sl index codegen` alias so the two
+ * `secondlayer codegen index` and the deprecated `secondlayer index codegen` alias so the two
  * can never drift.
  */
 export async function runIndexCodegen(o: IndexCodegenOptions): Promise<void> {

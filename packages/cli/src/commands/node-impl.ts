@@ -138,12 +138,14 @@ export async function runSetupWizard(): Promise<void> {
 	console.log("");
 	console.log(dim("Next steps:"));
 	console.log(
-		`  ${green("sl local node start")}${dim("  - Start the Stacks node")}`,
+		`  ${green("secondlayer local node start")}${dim("  - Start the Stacks node")}`,
 	);
 	console.log(
-		`  ${green("sl local node status")}${dim(" - Check sync progress")}`,
+		`  ${green("secondlayer local node status")}${dim(" - Check sync progress")}`,
 	);
-	console.log(`  ${green("sl local node logs")}${dim("   - View logs")}`);
+	console.log(
+		`  ${green("secondlayer local node logs")}${dim("   - View logs")}`,
+	);
 	console.log("");
 }
 
@@ -157,7 +159,7 @@ export async function startNode(
 
 	if (!nodePath) {
 		error("Node not configured");
-		console.log(dim("Run 'sl local node setup' or use --path flag"));
+		console.log(dim("Run 'secondlayer local node setup' or use --path flag"));
 		process.exit(1);
 	}
 
@@ -170,8 +172,8 @@ export async function startNode(
 	// Check if already running
 	if (await isNodeRunning()) {
 		info("Node is already running");
-		console.log(dim("Run 'sl local node logs' to view output"));
-		console.log(dim("Run 'sl local node stop' to stop"));
+		console.log(dim("Run 'secondlayer local node logs' to view output"));
+		console.log(dim("Run 'secondlayer local node stop' to stop"));
 		return;
 	}
 
@@ -206,7 +208,7 @@ export async function startNode(
 	// Optionally start indexer
 	if (withIndexer) {
 		const port = config.ports?.indexer || 3700;
-		console.log(dim("Tip: Start indexer with: sl local start"));
+		console.log(dim("Tip: Start indexer with: secondlayer local start"));
 		console.log(
 			dim(
 				`    Or manually: PORT=${port} bun run packages/indexer/src/index.ts`,
@@ -217,9 +219,11 @@ export async function startNode(
 
 	console.log(dim("Next steps:"));
 	console.log(
-		`  ${green("sl local node status")}${dim(" - Check sync progress")}`,
+		`  ${green("secondlayer local node status")}${dim(" - Check sync progress")}`,
 	);
-	console.log(`  ${green("sl local node logs -f")}${dim(" - Follow logs")}`);
+	console.log(
+		`  ${green("secondlayer local node logs -f")}${dim(" - Follow logs")}`,
+	);
 	console.log("");
 }
 
@@ -269,7 +273,7 @@ export async function restartNode(
 
 	if (!nodePath) {
 		error("Node not configured");
-		console.log(dim("Run 'sl local node setup' or use --path flag"));
+		console.log(dim("Run 'secondlayer local node setup' or use --path flag"));
 		process.exit(1);
 	}
 
@@ -318,9 +322,11 @@ export async function restartNode(
 	console.log("");
 	console.log(dim("Next steps:"));
 	console.log(
-		`  ${green("sl local node status")}${dim(" - Check sync progress")}`,
+		`  ${green("secondlayer local node status")}${dim(" - Check sync progress")}`,
 	);
-	console.log(`  ${green("sl local node logs -f")}${dim(" - Follow logs")}`);
+	console.log(
+		`  ${green("secondlayer local node logs -f")}${dim(" - Follow logs")}`,
+	);
 	console.log("");
 }
 
@@ -334,7 +340,7 @@ export async function showStatus(
 
 	if (!nodePath) {
 		error("Node not configured");
-		console.log(dim("Run 'sl local node setup' or use --path flag"));
+		console.log(dim("Run 'secondlayer local node setup' or use --path flag"));
 		process.exit(1);
 	}
 
@@ -472,7 +478,7 @@ export async function showStatus(
 			console.log(
 				`  ${dim("-")} ${dim(`Not running (expected on port ${indexerPort})`)}`,
 			);
-			console.log(dim("    Start with: sl local start"));
+			console.log(dim("    Start with: secondlayer local start"));
 			console.log("");
 		}
 	}
@@ -487,7 +493,7 @@ export async function showConfig(): Promise<void> {
 
 	if (!config.node?.installPath) {
 		warn("Node not configured");
-		console.log(dim("Run 'sl local node setup' to configure"));
+		console.log(dim("Run 'secondlayer local node setup' to configure"));
 		console.log("");
 		return;
 	}
@@ -501,7 +507,7 @@ export async function showConfig(): Promise<void> {
 	);
 	console.log("");
 	console.log(dim("Config file: ~/.secondlayer/config.json"));
-	console.log(dim("Run 'sl local node config --edit' to modify"));
+	console.log(dim("Run 'secondlayer local node config --edit' to modify"));
 	console.log("");
 }
 
@@ -532,7 +538,7 @@ export async function showConfigCheck(indexerPort: number): Promise<void> {
 		}
 	} catch {
 		warn(`Indexer not detected on port ${indexerPort}`);
-		console.log(dim("Start with: sl local start"));
+		console.log(dim("Start with: secondlayer local start"));
 	}
 	console.log("");
 }

@@ -60,7 +60,7 @@ export async function stackStart(options: {
 		const nodePath = config.node?.installPath;
 		if (!nodePath) {
 			warn(
-				"No node configured, skipping. Run 'sl local node setup' to configure.",
+				"No node configured, skipping. Run 'secondlayer local node setup' to configure.",
 			);
 		} else if (await isNodeRunning()) {
 			info("Node already running");
@@ -111,7 +111,7 @@ export async function stackStart(options: {
 		if (await isDevRunning()) {
 			info("Dev services already running");
 		} else {
-			// Delegate to `sl dev start` via subprocess
+			// Delegate to `secondlayer dev start` via subprocess
 			const args = [
 				"bun",
 				"run",
@@ -134,7 +134,7 @@ export async function stackStart(options: {
 
 	console.log("");
 	success("Stack started");
-	console.log(dim("Run 'sl status' to check health"));
+	console.log(dim("Run 'secondlayer status' to check health"));
 	console.log("");
 }
 

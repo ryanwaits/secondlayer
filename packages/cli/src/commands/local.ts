@@ -428,7 +428,7 @@ async function showNodeLogs(options: {
 }): Promise<void> {
 	if (!(await isNodeRunning())) {
 		error("Node is not running");
-		console.log(dim("Run 'sl local node start' first"));
+		console.log(dim("Run 'secondlayer local node start' first"));
 		process.exit(1);
 	}
 

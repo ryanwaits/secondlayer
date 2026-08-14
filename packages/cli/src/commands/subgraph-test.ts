@@ -10,12 +10,12 @@ import {
 import { error, info, success, warn } from "../lib/output.ts";
 
 /**
- * `sl subgraphs test` — run a subgraph's handlers against real chain data
+ * `secondlayer subgraphs test` — run a subgraph's handlers against real chain data
  * WITHOUT deploying.
  *
  * The verb is `test`, not `replay`: `replay` already means "re-deliver
  * historical rows to a webhook" in two places in this CLI
- * (`sl subscriptions replay`, `@secondlayer/subgraphs/runtime/replay`), and
+ * (`secondlayer subscriptions replay`, `@secondlayer/subgraphs/runtime/replay`), and
  * overloading it would be a third meaning for the same word.
  *
  * Until now the only feedback loop was production, and it showed: three of
@@ -169,7 +169,7 @@ export async function runSubgraphTest(
 	} else {
 		if (options.offline) {
 			error(
-				"No usable cassette for --offline. Record one first: sl subgraphs test <file> --from <h> --to <h>",
+				"No usable cassette for --offline. Record one first: secondlayer subgraphs test <file> --from <h> --to <h>",
 			);
 			process.exit(1);
 		}

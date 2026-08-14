@@ -16,7 +16,7 @@ export function registerWhoamiCommand(program: Command): void {
 			try {
 				auth = await resolveAuth();
 			} catch {
-				error("Not logged in. Run: sl login");
+				error("Not logged in. Run: secondlayer login");
 				process.exit(1);
 			}
 
@@ -28,7 +28,7 @@ export function registerWhoamiCommand(program: Command): void {
 				);
 			} catch (err) {
 				if (err instanceof CliHttpError && err.code === "SESSION_EXPIRED") {
-					error("Session expired. Run: sl login");
+					error("Session expired. Run: secondlayer login");
 					process.exit(1);
 				}
 				throw err;
@@ -63,7 +63,10 @@ export function registerWhoamiCommand(program: Command): void {
 						rows.push(["Project", active.slug]);
 						rows.push(["Project source", dim(active.resolvedFrom)]);
 					} else {
-						rows.push(["Project", dim("(none — run `sl project use <slug>`)")]);
+						rows.push([
+							"Project",
+							dim("(none — run `secondlayer project use <slug>`)"),
+						]);
 					}
 					console.log(formatKeyValue(rows));
 				},

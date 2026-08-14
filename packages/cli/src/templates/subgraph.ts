@@ -1,8 +1,8 @@
 /**
  * Subgraph scaffold templates.
  *
- * `sl subgraphs create <name>` — emits the basic blank.
- * `sl subgraphs create <name> --template <slug>` — emits a starter that
+ * `secondlayer subgraphs create <name>` — emits the basic blank.
+ * `secondlayer subgraphs create <name> --template <slug>` — emits a starter that
  * compiles + runs zero-config.
  *
  * Each template mirrors a curated public subgraph so that the
@@ -54,7 +54,7 @@ export function generateSubgraphTemplate(
 
 /**
  * Header comment shown at the top of every scaffolded subgraph file. Five
- * numbered steps a new user follows after `sl subgraphs create`. Mirrors the
+ * numbered steps a new user follows after `secondlayer subgraphs create`. Mirrors the
  * "30-minute quickstart" section in /docs/subgraphs.
  */
 function nextStepsHeader(name: string): string {
@@ -63,12 +63,12 @@ function nextStepsHeader(name: string): string {
 //
 //   1. Edit the source filter + schema below to match what you want to track.
 //   2. Edit the handler at the bottom — it runs once per matching event.
-//   3. Deploy:   sl subgraphs deploy ${name}.ts
+//   3. Deploy:   secondlayer subgraphs deploy ${name}.ts
 //      (You'll be prompted to log in if this is your first remote deploy.)
-//   4. Wait for sync:   sl subgraphs status ${name}
+//   4. Wait for sync:   secondlayer subgraphs status ${name}
 //      Mainnet backfill from genesis can take an hour or more depending on
 //      your filter scope. Use --start-block to skip ahead.
-//   5. Query:    sl subgraphs query ${name} <table-name>
+//   5. Query:    secondlayer subgraphs query ${name} <table-name>
 //      Or hit the auto-generated REST endpoint listed in the deploy output.
 //
 // Bind a typed Subscription to any table you write here — see

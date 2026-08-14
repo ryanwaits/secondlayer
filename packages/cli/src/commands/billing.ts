@@ -49,7 +49,9 @@ async function runBillingStatus(json?: boolean): Promise<void> {
 export function addBillingCommand(parent: Command): void {
 	parent
 		.command("billing")
-		.description("Show archive credit balance (hidden; use sl credits)")
+		.description(
+			"Show archive credit balance (hidden; use secondlayer credits)",
+		)
 		.option("--json", "Output as JSON")
 		.action((options: { json?: boolean }) => runBillingStatus(options.json));
 }
@@ -62,8 +64,11 @@ function renderBillingStatus(res: BillingStatusResponse): void {
 	if (!res.subscription) {
 		console.log(
 			formatKeyValue([
-				["Credits", dim("sl credits balance")],
-				["Buy", dim("sl credits buy --email you@example.com --pack 25")],
+				["Credits", dim("secondlayer credits balance")],
+				[
+					"Buy",
+					dim("secondlayer credits buy --email you@example.com --pack 25"),
+				],
 			]),
 		);
 		return;

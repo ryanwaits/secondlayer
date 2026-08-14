@@ -15,7 +15,7 @@ const contractFetch = got.extend({
 /**
  * Stacks contract client for fetching ABIs via the SecondLayer contract
  * registry (/v1/contracts/:id?include=abi). Mainnet/testnet only — no shipped
- * `sl` command resolves a devnet network, so there's no direct-RPC fallback.
+ * `secondlayer` command resolves a devnet network, so there's no direct-RPC fallback.
  */
 export class StacksApiClient {
 	private baseUrl: string;

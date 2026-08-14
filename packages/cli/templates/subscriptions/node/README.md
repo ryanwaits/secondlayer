@@ -5,8 +5,8 @@ to your business logic. No framework lock-in.
 
 ## Run
 
-`.env` is written for you at `sl subscriptions create` time with the signing
-secret already populated. Lost it: `sl subscriptions rotate-secret {{NAME}}`.
+`.env` is written for you at `secondlayer subscriptions create` time with the signing
+secret already populated. Lost it: `secondlayer subscriptions rotate-secret {{NAME}}`.
 
 ```bash
 bun install

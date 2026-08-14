@@ -12,7 +12,7 @@ export function markFrozen(cmd: Command): Command {
 		if (warned) return;
 		warned = true;
 		process.stderr.write(
-			`⚠ \`sl ${cmd.name()}\` is frozen — no further investment; it may be removed in a future major. The hosted dev loop (sl subgraphs create/deploy) is the supported path.\n`,
+			`⚠ \`secondlayer ${cmd.name()}\` is frozen — no further investment; it may be removed in a future major. The hosted dev loop (secondlayer subgraphs create/deploy) is the supported path.\n`,
 		);
 	};
 	cmd.hook("preAction", warn);

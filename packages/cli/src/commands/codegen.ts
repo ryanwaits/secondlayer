@@ -2,13 +2,13 @@ import type { Command } from "commander";
 import { warn } from "../lib/output.ts";
 
 /**
- * `sl codegen …` — the one place code is generated.
+ * `secondlayer codegen …` — the one place code is generated.
  *
- * There used to be six entry points under three verbs (`sl contracts
- * generate`, `sl subgraphs codegen`, `sl index codegen`, `sl subgraphs
- * scaffold`, `sl subgraphs create --from-contract`, `sl subgraphs client`),
- * with the SAME flag carrying opposite defaults: `sl subgraphs codegen -o
- * db.ts` wrote Prisma while the muscle-memory-identical `sl index codegen -o
+ * There used to be six entry points under three verbs (`secondlayer contracts
+ * generate`, `secondlayer subgraphs codegen`, `secondlayer index codegen`, `secondlayer subgraphs
+ * scaffold`, `secondlayer subgraphs create --from-contract`, `secondlayer subgraphs client`),
+ * with the SAME flag carrying opposite defaults: `secondlayer subgraphs codegen -o
+ * db.ts` wrote Prisma while the muscle-memory-identical `secondlayer index codegen -o
  * db.ts` wrote Kysely. There was no mental model for "generate something".
  *
  * Every subcommand here takes `-o/--output` and, where an ORM applies, the

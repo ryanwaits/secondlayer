@@ -39,7 +39,7 @@ program
 	.option("--api-key <key>", "API credential (overrides SL_API_KEY)")
 	.option("--api-url <url>", "API endpoint (overrides SL_API_URL)")
 	.showSuggestionAfterError(true)
-	.showHelpAfterError("(run `sl --help` to see available commands)");
+	.showHelpAfterError("(run `secondlayer --help` to see available commands)");
 
 // Funnel global flags into the env vars the auth/network layers already read,
 // so a flag transparently takes precedence over its env var for every command.
@@ -54,10 +54,10 @@ program.addHelpText(
 	"after",
 	`
 Quickstart:
-  $ sl init --network mainnet
-  $ sl bootstrap --against <manifest>
-  $ sl subgraphs create my-watcher --template sip-010-balances
-  $ sl subgraphs deploy subgraphs/my-watcher.ts
+  $ secondlayer init --network mainnet
+  $ secondlayer bootstrap --against <manifest>
+  $ secondlayer subgraphs create my-watcher --template sip-010-balances
+  $ secondlayer subgraphs deploy subgraphs/my-watcher.ts
 `,
 );
 
@@ -81,13 +81,13 @@ registerIndexCommand(program);
 // Project & codegen
 program.commandsGroup("Project & codegen:");
 registerProjectCommand(program);
-// Canonical codegen verb. The per-product paths below (`sl contracts
-// generate`, `sl subgraphs codegen`, `sl index codegen`, …) remain as
+// Canonical codegen verb. The per-product paths below (`secondlayer contracts
+// generate`, `secondlayer subgraphs codegen`, `secondlayer index codegen`, …) remain as
 // deprecated aliases until the next major.
 registerCodegenCommand(program);
 
 // Clarity → TypeScript codegen. Shared options + action so it mounts as
-// the canonical `sl contracts generate`.
+// the canonical `secondlayer contracts generate`.
 const configureGenerate = (cmd: Command): Command =>
 	cmd
 		.option("-c, --config <path>", "Path to config file")
@@ -99,7 +99,10 @@ const configureGenerate = (cmd: Command): Command =>
 		.option("-w, --watch", "Watch for changes")
 		.action(async (files, options) => {
 			const { deprecatedCodegenNotice } = await import("./commands/codegen.ts");
-			deprecatedCodegenNotice("sl contracts generate", "sl codegen contracts");
+			deprecatedCodegenNotice(
+				"secondlayer contracts generate",
+				"secondlayer codegen contracts",
+			);
 			options.out = options.output;
 			const { generate } = await import("./commands/generate");
 			await generate(files, options);
@@ -117,9 +120,9 @@ configureGenerate(
 	"after",
 	`
 Examples:
-  $ sl contracts generate
-  $ sl contracts generate ./contracts/pool.clar -o ./src/generated.ts
-  $ sl contracts generate --config secondlayer.config.ts --watch`,
+  $ secondlayer contracts generate
+  $ secondlayer contracts generate ./contracts/pool.clar -o ./src/generated.ts
+  $ secondlayer contracts generate --config secondlayer.config.ts --watch`,
 );
 
 // Local development. `devnet` (Clarinet devnet → local Secondlayer stack) is the

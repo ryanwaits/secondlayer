@@ -45,7 +45,7 @@ export async function resolveAuth(): Promise<ResolvedAuth> {
 
 	const session = await readSession();
 	if (!session) {
-		const err = new Error("Not logged in — run `sl login`");
+		const err = new Error("Not logged in — run `secondlayer login`");
 		(err as unknown as { code: string }).code = "SESSION_EXPIRED";
 		throw err;
 	}

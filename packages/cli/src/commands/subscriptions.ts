@@ -260,11 +260,13 @@ export function buildDoctorReport(input: {
 	const hints: string[] = [];
 	if (input.subscription.status === "paused") {
 		hints.push(
-			`Resume when the receiver is healthy: sl subscriptions resume ${input.subscription.id}`,
+			`Resume when the receiver is healthy: secondlayer subscriptions resume ${input.subscription.id}`,
 		);
 	}
 	if (input.subscription.lastError) {
-		hints.push("Run sl subscriptions test to reproduce the receiver request.");
+		hints.push(
+			"Run secondlayer subscriptions test to reproduce the receiver request.",
+		);
 	}
 	if (
 		input.subscription.circuitOpenedAt ||
@@ -276,12 +278,12 @@ export function buildDoctorReport(input: {
 	}
 	if (input.dead.length > 0) {
 		hints.push(
-			`Dead-letter rows exist; inspect with sl subscriptions dead ${input.subscription.id} and requeue selected rows.`,
+			`Dead-letter rows exist; inspect with secondlayer subscriptions dead ${input.subscription.id} and requeue selected rows.`,
 		);
 	}
 	if (subgraph?.gapCount && subgraph.gapCount > 0) {
 		hints.push(
-			`Linked subgraph has gaps; run sl subgraphs gaps ${input.subscription.subgraphName}.`,
+			`Linked subgraph has gaps; run secondlayer subgraphs gaps ${input.subscription.subgraphName}.`,
 		);
 	}
 	if (subgraph?.syncStatus === "catching_up") {
@@ -673,9 +675,9 @@ export function registerSubscriptionsCommand(program: Command): void {
 			"after",
 			`
 Examples:
-  $ sl subscriptions update my-sub --url https://example.com/hook
-  $ sl subscriptions update my-sub --filter amount.gte=1000 --max-retries 5
-  $ sl subscriptions update my-sub --clear-filter`,
+  $ secondlayer subscriptions update my-sub --url https://example.com/hook
+  $ secondlayer subscriptions update my-sub --filter amount.gte=1000 --max-retries 5
+  $ secondlayer subscriptions update my-sub --clear-filter`,
 		)
 		.action(async (idOrName: string, options: UpdateOptions) => {
 			try {
@@ -853,7 +855,7 @@ Examples:
 			"after",
 			`
 Examples:
-  $ sl subscriptions replay my-sub --from-block 150000 --to-block 160000 -y`,
+  $ secondlayer subscriptions replay my-sub --from-block 150000 --to-block 160000 -y`,
 		)
 		.action(
 			async (

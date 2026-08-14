@@ -7,13 +7,13 @@ import { z } from "zod";
 /**
  * Per-directory active-project binding (Supabase-style).
  *
- * `sl project use <slug>` writes `./.secondlayer/project` in cwd. The
+ * `secondlayer project use <slug>` writes `./.secondlayer/project` in cwd. The
  * resolver walks up from cwd to find the nearest file, stopping at the
  * first `.git` directory so we never accidentally cross repo boundaries.
  * If no per-dir file is found, falls back to `~/.secondlayer/config.json:
  * defaultProject`.
  *
- * `sl projects get` prints `{slug} (from {resolvedFrom})` so the user
+ * `secondlayer projects get` prints `{slug} (from {resolvedFrom})` so the user
  * can always sanity-check which file won.
  */
 
