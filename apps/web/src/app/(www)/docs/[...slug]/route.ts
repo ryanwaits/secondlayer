@@ -4,8 +4,8 @@ import { docsPages, readDocsMarkdown } from "@/lib/docs-source";
  * `GET /docs/<page>.md` — the markdown behind any docs page.
  *
  * An agent that wants one page shouldn't have to fetch `llms-full.txt` and
- * find it, nor scrape the HTML. Appending `.md` to any docs URL returns
- * exactly that page's source.
+ * find it, nor parse the rendered HTML. Appending `.md` to any docs URL
+ * returns exactly that page's source.
  *
  * Only `.md` requests reach this handler; every other path under /docs is an
  * MDX page and is matched first by the more specific route.
