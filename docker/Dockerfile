@@ -163,3 +163,34 @@ HEALTHCHECK NONE
 
 CMD ["bun", "run", "packages/subgraphs/src/subscription-service.ts"]
 
+# =============================================================================
+# One-box self-host runtime — postgres is the only sibling.
+# Publisher/archive stays on the dedicated indexer/publisher images.
+# =============================================================================
+FROM base AS runtime
+
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/packages/stacks ./packages/stacks
+COPY --from=builder /app/packages/shared ./packages/shared
+COPY --from=builder /app/packages/subgraphs ./packages/subgraphs
+COPY --from=builder /app/packages/bundler ./packages/bundler
+COPY --from=builder /app/packages/indexer ./packages/indexer
+COPY --from=builder /app/packages/sdk ./packages/sdk
+COPY --from=builder /app/packages/api ./packages/api
+COPY --from=builder /app/packages/platform ./packages/platform
+COPY --from=builder /app/package.json ./
+
+ENV NODE_ENV=production
+ENV PORT=3800
+ENV INSTANCE_MODE=oss
+ENV NODE_MODE=external
+
+EXPOSE 3800 3700 3710
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:3800/health || exit 1
+
+CMD ["bun", "run", "packages/shared/src/runtime/serve.ts"]
+
