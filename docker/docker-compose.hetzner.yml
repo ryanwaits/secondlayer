@@ -133,6 +133,7 @@ services:
       - caddy_data:/data
       - caddy_config:/config
       - caddy_logs:/var/log/caddy
+      - ${DATA_DIR:-/opt/secondlayer/data}/archive/canonical-v1-staging:/srv/archive:ro
     environment:
       BASE_DOMAIN: ${BASE_DOMAIN:-secondlayer.tools}
       CADDY_ACME_EMAIL: ${CADDY_ACME_EMAIL:-ryan.waits@gmail.com}
