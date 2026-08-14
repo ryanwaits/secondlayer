@@ -4,6 +4,10 @@ import { getDb } from "@secondlayer/shared/db";
 import { pgSchemaName } from "@secondlayer/shared/db/queries/subgraphs";
 import { Hono } from "hono";
 import { sql } from "kysely";
+import {
+	type PrintSchemaBody,
+	printSchemaCache,
+} from "../src/index/print-schema.ts";
 import { errorHandler } from "../src/middleware/error.ts";
 import subgraphsRouter, {
 	cache,
@@ -32,18 +36,19 @@ function buildApp(): Hono {
 function deployBody(name: string) {
 	const schema = { rows: { columns: { amount: { type: "uint" } } } };
 	const source = {
-		type: "ft_transfer",
-		asset: "SP123.local-ns",
+		type: "print_event",
+		contractId: "SP123.local-ns",
+		topic: "tick",
 	};
 	const handlerCode = [
 		"export default defineSubgraph({",
 		`  name: ${JSON.stringify(name)},`,
-		`  sources: { transfers: ${JSON.stringify(source)} },`,
+		`  sources: { prints: ${JSON.stringify(source)} },`,
 		`  schema: ${JSON.stringify(schema)},`,
-		"  handlers: { transfers: async (event, ctx) => {} },",
+		"  handlers: { prints: async (event, ctx) => {} },",
 		"});",
 	].join("\n");
-	return { name, sources: { transfers: source }, schema, handlerCode };
+	return { name, sources: { prints: source }, schema, handlerCode };
 }
 
 describe.skipIf(SKIP)("local namespace (oss, no account)", () => {
@@ -52,6 +57,24 @@ describe.skipIf(SKIP)("local namespace (oss, no account)", () => {
 
 	beforeAll(() => {
 		process.env.INSTANCE_MODE = "oss";
+		const body: PrintSchemaBody = {
+			contract_id: "SP123.local-ns",
+			topics: [
+				{
+					topic: "tick",
+					count: 1,
+					first_height: 1,
+					last_height: 1,
+					non_tuple: false,
+					fields: [],
+				},
+			],
+			sampled: false,
+			total_events: 1,
+			total_events_capped: false,
+			sample: { size: 1, newest_height: 1, oldest_height: 1 },
+		};
+		printSchemaCache.set("SP123.local-ns", body);
 	});
 
 	afterAll(async () => {

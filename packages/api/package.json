@@ -9,7 +9,7 @@
 		"dev": "bun run --watch src/index.ts",
 		"openapi": "bun scripts/sync-openapi.ts",
 		"typecheck": "tsc --noEmit",
-		"test": "INSTANCE_MODE=platform bun test",
+		"test": "INSTANCE_MODE=platform bun test --max-concurrency 1",
 		"stripe:setup": "bun run scripts/stripe-setup.ts"
 	},
 	"dependencies": {

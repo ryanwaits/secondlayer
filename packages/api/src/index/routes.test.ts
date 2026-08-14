@@ -481,6 +481,10 @@ describe("Stacks Index gateway middleware", () => {
 });
 
 describe("Index PoX-5 events route", () => {
+	beforeEach(() => {
+		process.env.INSTANCE_MODE = "platform";
+	});
+
 	const POX5_EVENT = {
 		cursor: "9000:0",
 		block_height: 9000,

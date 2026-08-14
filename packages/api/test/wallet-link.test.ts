@@ -36,7 +36,12 @@ function appAs(accountId: string, verifyResult = true) {
 }
 
 describe.skipIf(SKIP)("wallet→account continuity", () => {
+	const prevMode = process.env.INSTANCE_MODE;
+	process.env.INSTANCE_MODE = "platform";
+
 	afterAll(async () => {
+		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
+		else process.env.INSTANCE_MODE = prevMode;
 		const db = getDb();
 		await db.deleteFrom("subgraphs").where("name", "=", SUBGRAPH).execute();
 		await db

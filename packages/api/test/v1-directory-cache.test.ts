@@ -26,9 +26,17 @@ function buildApp(): Hono {
 describe.skipIf(SKIP)("anon /v1/subgraphs directory cache", () => {
 	const createdAccountIds: string[] = [];
 	let apiKeyRaw: string;
+	const prevMode = process.env.INSTANCE_MODE;
+	process.env.INSTANCE_MODE = "platform";
 
 	beforeEach(() => {
+		process.env.INSTANCE_MODE = "platform";
 		resetAnonDirectoryCache();
+	});
+
+	afterAll(() => {
+		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
+		else process.env.INSTANCE_MODE = prevMode;
 	});
 
 	afterAll(async () => {
