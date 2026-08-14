@@ -3,10 +3,10 @@
  *
  * Run from apps/web:  bun scripts/generate-og.tsx
  *
- * Each card is a 1200×630 light "field-notebook" frame: blue logo + wordmark,
- * an uppercase product eyebrow, a two-beat headline bottom-left, and a dimmed
- * product-specific artifact creeping in from the right. Data-driven, so a copy
- * change is one edit + a re-run instead of a hand-built image.
+ * Each card is a 1200×630 "quiet install page" frame (DESIGN.md, Grok Build
+ * school): ink logo + wordmark, a mono product eyebrow, a two-beat
+ * Sora headline, and a dimmed product artifact in Fira Code creeping
+ * in from the right. Data-driven, so a copy change is one edit + a re-run.
  */
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -16,28 +16,29 @@ import { POSTS } from "../src/lib/writing";
 const FONT_DIR = join(process.cwd(), "src/assets/og-fonts");
 const OUT_DIR = join(process.cwd(), "public/og");
 
-const [sora, fira, firaMed] = await Promise.all([
+const [sora, soraMed, fira, firaMed] = await Promise.all([
 	readFile(join(FONT_DIR, "Sora-SemiBold.ttf")),
+	readFile(join(FONT_DIR, "Sora-Medium.woff")),
 	readFile(join(FONT_DIR, "FiraCode-Regular.ttf")),
 	readFile(join(FONT_DIR, "FiraCode-Medium.ttf")),
 ]);
 
 const SIZE = { width: 1200, height: 630 };
 
-// palette
-const PAPER = "#fafafa";
-const INK = "#111111";
-const MUTED2 = "#555555"; // headline second beat
-const HAIR = "#e5e5e5";
-const ACCENT = "#2563eb";
-// artifact (dimmed, recedes behind the headline)
-const BASE = "rgba(17,17,17,0.34)";
-const STR = "rgba(17,17,17,0.42)";
-const KW = "rgba(37,99,235,0.6)";
-const DIM = "rgba(17,17,17,0.22)";
-const CARD_BG = "rgba(255,255,255,0.62)";
-const CARD_BORDER = "rgba(17,17,17,0.06)";
-const CARD_SHADOW = "0 16px 36px rgba(17,17,17,0.05)";
+// palette — DESIGN.md tokens (quiet install page)
+const PAPER = "#ffffff";
+const INK = "#0a0a0a";
+const MUTED2 = "#7d8187"; // headline second beat (the one picked gray)
+const HAIR = "rgba(10,10,10,0.1)";
+const ACCENT = "#ff5c0a"; // sunset
+// artifact (dimmed, recedes behind the headline) — ink alpha ramp, monochrome
+const BASE = "rgba(10,10,10,0.34)";
+const STR = "rgba(10,10,10,0.42)";
+const KW = "rgba(10,10,10,0.55)";
+const DIM = "rgba(10,10,10,0.22)";
+const CARD_BG = "rgba(248,246,242,0.85)";
+const CARD_BORDER = "rgba(10,10,10,0.08)";
+const CARD_SHADOW = "0 16px 36px rgba(10,10,10,0.05)";
 
 // Non-breaking space: satori collapses regular spaces at span boundaries, so
 // inter-token whitespace ("await streams") would vanish. Fira Code is
@@ -81,8 +82,8 @@ function Card({
 				display: "flex",
 				flexDirection: "column",
 				background: CARD_BG,
-				border: `1.5px solid ${CARD_BORDER}`,
-				borderRadius: 16,
+				border: `1px solid ${CARD_BORDER}`,
+				borderRadius: 12,
 				boxShadow: CARD_SHADOW,
 				padding: "22px 28px",
 				fontSize: 26,
@@ -140,9 +141,7 @@ function ArtStreams() {
 				<Line
 					indent={2}
 					tokens={[
-						["onReorg: ", BASE],
-						["async", KW],
-						[" (reorg) => ", BASE],
+						["onReorg: async (reorg) => ", BASE],
 						["rollbackAbove", KW],
 						["(reorg.fo…", BASE],
 					]}
@@ -427,8 +426,8 @@ function PlanCard({
 	style?: React.CSSProperties;
 	faded?: boolean;
 }) {
-	const text = faded ? "rgba(17,17,17,0.4)" : "rgba(17,17,17,0.62)";
-	const ink = faded ? "rgba(17,17,17,0.62)" : INK;
+	const text = faded ? "rgba(10,10,10,0.4)" : "rgba(10,10,10,0.62)";
+	const ink = faded ? "rgba(10,10,10,0.62)" : INK;
 	return (
 		<Card
 			style={{
@@ -444,7 +443,7 @@ function PlanCard({
 					fontFamily: "Sora",
 					fontSize: 17,
 					letterSpacing: 1.6,
-					color: "rgba(17,17,17,0.42)",
+					color: "rgba(10,10,10,0.42)",
 				}}
 			>
 				{eyebrow}
@@ -658,7 +657,7 @@ function Frame(spec: CardSpec) {
 					right: 0,
 					bottom: 0,
 					background:
-						"radial-gradient(circle at 90% 6%, rgba(37,99,235,0.045), rgba(37,99,235,0) 42%)",
+						"radial-gradient(circle at 90% 6%, rgba(255,92,10,0.04), rgba(255,92,10,0) 42%)",
 				}}
 			/>
 
@@ -683,7 +682,7 @@ function Frame(spec: CardSpec) {
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "space-between",
-					borderBottom: `1.5px solid ${HAIR}`,
+					borderBottom: `1px solid ${HAIR}`,
 					paddingBottom: 22,
 				}}
 			>
@@ -697,14 +696,15 @@ function Frame(spec: CardSpec) {
 					>
 						<polygon
 							points="8,23 28,15 40,23 20,31"
-							fill={ACCENT}
+							fill={INK}
 							opacity={0.24}
 						/>
-						<polygon points="8,19 28,11 40,19 20,27" fill={ACCENT} />
+						<polygon points="8,19 28,11 40,19 20,27" fill={INK} />
 					</svg>
 					<span
 						style={{
 							fontFamily: "Sora",
+							fontWeight: 500,
 							fontSize: 30,
 							color: INK,
 							letterSpacing: -0.5,
@@ -716,10 +716,10 @@ function Frame(spec: CardSpec) {
 				{spec.eyebrow ? (
 					<span
 						style={{
-							fontFamily: "Sora",
+							fontFamily: "Fira Code",
 							fontSize: 20,
 							letterSpacing: 2,
-							color: "rgba(17,17,17,0.5)",
+							color: "rgba(10,10,10,0.4)",
 						}}
 					>
 						{spec.eyebrow}
@@ -741,10 +741,11 @@ function Frame(spec: CardSpec) {
 					<span
 						style={{
 							fontFamily: "Sora",
+							fontWeight: 500,
 							fontSize: size,
 							color: INK,
 							lineHeight: 1.04,
-							letterSpacing: -size * 0.03,
+							letterSpacing: -size * 0.025,
 						}}
 					>
 						{spec.line1}
@@ -752,10 +753,11 @@ function Frame(spec: CardSpec) {
 					<span
 						style={{
 							fontFamily: "Sora",
+							fontWeight: 500,
 							fontSize: size,
 							color: spec.mutedLine2 ? MUTED2 : INK,
 							lineHeight: 1.04,
-							letterSpacing: -size * 0.03,
+							letterSpacing: -size * 0.025,
 						}}
 					>
 						{spec.line2}
@@ -818,6 +820,12 @@ const CARDS: CardSpec[] = [
 ];
 
 const fonts = [
+	{
+		name: "Sora",
+		data: soraMed,
+		weight: 500 as const,
+		style: "normal" as const,
+	},
 	{ name: "Sora", data: sora, weight: 600 as const, style: "normal" as const },
 	{
 		name: "Fira Code",
@@ -867,7 +875,7 @@ function WritingFrame({
 					right: 0,
 					bottom: 0,
 					background:
-						"radial-gradient(circle at 90% 6%, rgba(37,99,235,0.045), rgba(37,99,235,0) 42%)",
+						"radial-gradient(circle at 90% 6%, rgba(255,92,10,0.04), rgba(255,92,10,0) 42%)",
 				}}
 			/>
 			<div
@@ -876,7 +884,7 @@ function WritingFrame({
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "space-between",
-					borderBottom: `1.5px solid ${HAIR}`,
+					borderBottom: `1px solid ${HAIR}`,
 					paddingBottom: 22,
 				}}
 			>
@@ -890,14 +898,15 @@ function WritingFrame({
 					>
 						<polygon
 							points="8,23 28,15 40,23 20,31"
-							fill={ACCENT}
+							fill={INK}
 							opacity={0.24}
 						/>
-						<polygon points="8,19 28,11 40,19 20,27" fill={ACCENT} />
+						<polygon points="8,19 28,11 40,19 20,27" fill={INK} />
 					</svg>
 					<span
 						style={{
 							fontFamily: "Sora",
+							fontWeight: 500,
 							fontSize: 30,
 							color: INK,
 							letterSpacing: -0.5,
@@ -931,10 +940,11 @@ function WritingFrame({
 				<span
 					style={{
 						fontFamily: "Sora",
+						fontWeight: 500,
 						fontSize: title.length > 44 ? 62 : 72,
 						color: INK,
 						lineHeight: 1.08,
-						letterSpacing: -2,
+						letterSpacing: -1.8,
 						maxWidth: 1000,
 					}}
 				>
@@ -944,7 +954,7 @@ function WritingFrame({
 					style={{
 						fontFamily: "Fira Code",
 						fontSize: 22,
-						color: "rgba(17,17,17,0.42)",
+						color: "rgba(10,10,10,0.42)",
 					}}
 				>
 					{meta.replace(/ /g, NB)}

@@ -4276,10 +4276,10 @@ html.force-light .tabbed-code-tab.active {
 	color: var(--text-main);
 }
 .logo-primary {
-	fill: var(--accent);
+	fill: var(--text-main);
 }
 .logo-echo {
-	fill: var(--accent);
+	fill: var(--text-main);
 	opacity: 0.24;
 }
 .sidebar-nav {

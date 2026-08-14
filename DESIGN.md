@@ -1,290 +1,398 @@
 ---
 name: Secondlayer
-description: Editorial-grade Stacks data platform — one tinted-neutral token set, two registers (essay-like marketing + a dense data console).
+description: Self-hosted Stacks data platform — Grok Build-school shell on the house type stack (Sora + Public Sans + Fira Code); one alpha-ramp ink, one accent, terminal as the product stage.
+register: brand
 colors:
-  ink: "#111111"
-  paper: "#fafafa"
-  paper-elevated: "#ffffff"
-  chrome: "#f0f0f0"
-  hairline: "#e5e5e5"
-  hairline-hover: "#dddddd"
-  text-muted: "#000000a6"
-  text-dim: "#0000001f"
-  signal-blue: "#2563eb"
-  signal-blue-dark: "#8aa7f8"
-  marker-pink: "#ff00aa"
-  success-green: "#22c55e"
-  warning-yellow: "#eab308"
-  danger-red: "#ef4444"
-  info-blue: "#3b82f6"
-  accent-teal: "#1588b2"
+  paper: "#ffffff"
+  card: "#f8f6f2"
+  ink: "#0a0a0a"
+  ink-hover: "#1f2228"
+  ink-demoted: "#7d8187"
+  fog: "#7d8288"
+  pewter: "#aab0ba"
+  dove: "#d5d9e2"
+  accent: "#ff5c0a"
+  accent-hover: "#ffc285"
+  terminal-bg: "#151515"
+  terminal-raise: "#202020"
+  terminal-fg: "#d7d1c9"
+  terminal-muted: "#8d867e"
+  terminal-bright: "#f2ede5"
+  terminal-teal: "#29c6be"
+  error: "#ef4444"
+  success: "#22c55e"
+  warning: "#eab308"
 typography:
   display:
     fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "clamp(2.75rem, 6vw, 4.5rem)"
-    fontWeight: 520
-    lineHeight: 0.95
-    letterSpacing: "0"
+    fontSize: "clamp(2.25rem, 6vw, 3.75rem)"
+    fontWeight: 500
+    lineHeight: 1.0
+    letterSpacing: "-0.025em"
   headline:
     fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "1.75rem"
-    fontWeight: 560
-    lineHeight: 1
-    letterSpacing: "0"
-  title:
+    fontSize: "clamp(1.875rem, 4vw, 3rem)"
+    fontWeight: 400
+    lineHeight: 1.0
+    letterSpacing: "-0.025em"
+  section:
     fontFamily: "Sora, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "0.9375rem"
-    fontWeight: 540
-    lineHeight: "normal"
-    letterSpacing: "-0.01875rem"
+    fontSize: "1.875rem"
+    fontWeight: 400
+    lineHeight: 1.2
+    letterSpacing: "-0.025em"
+  subhead:
+    fontFamily: "Public Sans, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "1.125rem"
+    fontWeight: 400
+    lineHeight: 1.625
+    letterSpacing: "0"
   body:
     fontFamily: "Public Sans, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "1rem"
+    fontWeight: 400
+    lineHeight: 1.5
+    letterSpacing: "0"
+  list:
+    fontFamily: "Public Sans, ui-sans-serif, system-ui, sans-serif"
     fontSize: "0.875rem"
-    fontWeight: 460
-    lineHeight: "1.43"
-    letterSpacing: "-0.00563rem"
-  label:
+    fontWeight: 400
+    lineHeight: 1.625
+    letterSpacing: "0"
+  caption:
+    fontFamily: "Public Sans, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "0.75rem"
+    fontWeight: 400
+    lineHeight: 1.33
+    letterSpacing: "0"
+  mono:
     fontFamily: "Fira Code, SFMono-Regular, Consolas, monospace"
-    fontSize: "0.6875rem"
-    fontWeight: 560
-    lineHeight: 1
-    letterSpacing: "0.05em"
-  note:
-    fontFamily: "Caveat, cursive"
-    fontSize: "1.375rem"
-    fontWeight: 460
-    lineHeight: 1.2
+    fontSize: "0.875rem"
+    fontWeight: 400
+    lineHeight: 1.43
+    letterSpacing: "0"
+  terminal:
+    fontFamily: "Fira Code, SFMono-Regular, Consolas, monospace"
+    fontSize: "0.75rem"
+    fontWeight: 400
+    lineHeight: 1.625
     letterSpacing: "0"
 rounded:
-  sm: "3px"
-  md: "6px"
-  lg: "8px"
-  xl: "10px"
+  sm: "4px"
+  md: "8px"
+  xl: "12px"
   full: "999px"
 spacing:
   xxs: "0.5rem"
   xs: "1rem"
   sm: "1.5rem"
   md: "2rem"
-  lg: "2.5rem"
-  xl: "3rem"
-  xxl: "3.5rem"
+  lg: "3rem"
+  xl: "4rem"
+  section: "3rem"
+  block: "50vh"
 components:
-  button-accent:
-    backgroundColor: "{colors.signal-blue}"
-    textColor: "{colors.paper-elevated}"
-    rounded: "{rounded.md}"
-    padding: "5px 14px"
-  button-ink:
+  button-solid:
     backgroundColor: "{colors.ink}"
     textColor: "{colors.paper}"
-    rounded: "{rounded.md}"
-    padding: "6px 12px"
-  button-ghost:
+    rounded: "{rounded.full}"
+    padding: "0 22px"
+    height: "44px"
+  button-outline:
     backgroundColor: "transparent"
     textColor: "{colors.ink}"
-    rounded: "{rounded.md}"
-    padding: "6px 12px"
-  button-accent-soft:
-    backgroundColor: "#2563eb0f"
-    textColor: "{colors.signal-blue}"
-    rounded: "{rounded.md}"
-    padding: "6px 12px"
-  input:
+    border: "1px solid rgba(10,10,10,0.1)"
+    rounded: "{rounded.full}"
+    padding: "0 22px"
+    height: "44px"
+  announce-pill:
     backgroundColor: "transparent"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.md}"
-    padding: "6px 10px"
-  badge-state:
-    backgroundColor: "#22c55e14"
-    textColor: "{colors.success-green}"
+    border: "1px solid rgba(10,10,10,0.08)"
+    rounded: "{rounded.full}"
+    padding: "6px 6px 6px 10px"
+  command-pill:
+    backgroundColor: "transparent"
+    border: "1px solid rgba(10,10,10,0.1)"
+    rounded: "{rounded.xl}"
+    padding: "12px 16px"
+  terminal-window:
+    backgroundColor: "{colors.terminal-bg}"
+    border: "1px solid rgba(255,255,255,0.08)"
+    rounded: "{rounded.xl}"
+  terminal-inner:
+    backgroundColor: "{colors.terminal-raise}"
+    border: "1px solid rgba(255,255,255,0.08)"
     rounded: "{rounded.sm}"
-    padding: "2px 6px"
-  callout:
-    backgroundColor: "#2563eb0f"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.md}"
-    padding: "1rem"
-  dataset-endpoint:
-    backgroundColor: "{colors.chrome}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.md}"
-    padding: "3px 9px"
+    padding: "8px 16px"
 ---
 
 # Design System: Secondlayer
 
 ## 1. Overview
 
-**Creative North Star: "The Field Notebook"**
+**Creative North Star: "The Quiet Install Page"**
 
-Secondlayer reads like an engineer's annotated notebook: dense, legible, and quietly opinionated. The emotional target is **calm infrastructure** and **quiet competence** — trustworthy rather than clever, the UI disappearing into the work. Long-form pages are set as essays in Sora over Public Sans, ruled with hairlines and dashed em-dash bullets, and marked up by hand in Caveat cursive, the way you'd circle a number in a margin. The product console is the same notebook flipped to its data pages: tabular Fira Code figures, ruled rows, and small uppercase labels. One token set, two registers. The marketing surface (`app/(www)`) is where *design is the product* and follows **benji.org** (editorial, refined type, generous whitespace, restrained motion); the authed console (`app/platform`) is where *design serves the data* and follows **LiveKit** (dense, functional, mono-accented, clean borders, light/dark parity). They never look like two apps because they share a single `:root` — never swap their density.
+Secondlayer's brand surface follows the Grok Build school (x.ai/build, studied 2026-08-14): a
+near-silent white page, the house type doing all the talking at restrained weights, and the
+product itself — a dark terminal — as the only image on the page. The page whispers; the
+terminal demonstrates. Nothing decorates.
 
-The system is built on tinted near-neutrals (warm paper, near-black ink) carrying ~95% of every screen, with exactly one chromatic voice (Signal Blue) doing the pointing and a single Marker Pink reserved for one human flourish per page. Depth comes from hairlines and whitespace, not drop shadows. The four reflexes it refuses, by name: crypto/web3 neon, generic SaaS template, heavy enterprise, and playful/consumer (see Do's and Don'ts).
+This replaces the previous "Field Notebook" editorial surface (hairline-rule chunking, Caveat
+hand-annotations). **The type stack is retained** — Sora display, Public Sans body, Fira Code
+mono — dressed in the new shell. The hand-annotation layer is **retired** (Caveat stays
+installed, opt-in only, never default). Reference captures of the
+source shell (stills + scroll-animation frame video) live in `design/reference/xai-build/`.
+The reference mockup implementing this system end-to-end is the "Beside Your Node" artifact.
 
-**Key Characteristics:**
-- Editorial restraint: hairline rules, generous measure (65–75ch), no decorative containers.
-- Hand-annotation layer (Caveat cursive labels, rough-notation circles, Marker Pink): **OPT-IN ONLY** — never include in mockups, showcases, or new pages unless explicitly requested. See The Opt-In Annotation Rule.
-- One accent that points (Signal Blue). Marker Pink exists in the token set but is opt-in (see below).
-- Light by default, with a true dark theme via `prefers-color-scheme` plus explicit `.force-light` / `.force-dark` overrides.
-- Monospace as a first-class voice for data, code, identifiers, and numerals.
+**Key characteristics:**
+- House pairing, restrained weights: Sora (display, 400/500) over Public Sans (body, 400/500),
+  Fira Code for data. Hierarchy is size + one weight step + alpha demotion, never 600+.
+- Ink is an alpha ramp, not a gray ramp. Muted text is `ink` at 50/45/40/25% alpha, so it stays
+  optically tinted by whatever sits behind it.
+- Hairlines are alpha too: `ink/8` and `ink/10` on light, `white/8` on dark.
+- The terminal is the imagery. No illustrations, no screenshots-in-browser-frames, no photos.
+  The dark TUI window carries every feature demonstration.
+- Motion is one idea: scroll-position opacity. Everything else is instant.
 
 ## 2. Colors
 
-Tinted near-neutrals do the work; chromatic color is rationed. The palette is defined twice in `:root` (light and dark) and switched by `prefers-color-scheme` or a `.force-*` class on `<html>`.
+Extracted verbatim from the source's `:root` (HSL triplets) and re-tokened for Secondlayer.
 
-### Primary
-- **Signal Blue** (#2563eb light / #8aa7f8 dark): the single pointing color. Links, focus states, primary CTAs, selected rows, callout accents, the logo fill. It marks the one actionable or important thing in view. Its softer forms ship as `accent-bg` (#2563eb0f) and `accent-border` (#2563eb33) for tinted fills.
+### Ground
+- **Paper** `#ffffff` (`0 0% 100%`): the page. Pure white, deliberately — the terminal supplies
+  all the darkness the page needs.
+- **Card / Ivory** `#f8f6f2` (`40 18% 97%`): the only raised-surface tint, warm not cool.
+- **Ink / Jet** `#0a0a0a` (`0 0% 4%`): all primary text and solid buttons. Hover state is
+  **Umbra** `#1f2228` (`221 12% 14%`).
 
-### Secondary
-- **Marker Pink** (#ff00aa, both themes): the human flourish — a dashed underline, a hand-drawn circle, a single editorial highlight. **Opt-in only:** never appears in a mockup or new page unless explicitly requested. When requested, once per page at most, treated like a marker swipe, never a brand fill.
+### The alpha ramp (signature)
+Muted text is never a picked gray. It is `ink` at fixed alphas:
+- `ink/50` — subheads
+- `ink/45` — checklists, feature pitches
+- `ink/40` — captions, `$` prompts, placeholder
+- `ink/25` — ghost chrome (theme toggle, "built with" pill)
+- Demoted headline line: solid `#7d8187` (the one picked gray — used only for the second line
+  of a two-line hero headline)
 
-### Neutral
-- **Ink** (#111111 light / #ececec dark): primary text and the fill of ink-button CTAs.
-- **Paper** (#fafafa light / #111111 dark): the page. Warm, never pure white.
-- **Paper Elevated** (#ffffff / #1a1a1a): cards, panels, status blocks, raised surfaces.
-- **Chrome** (#f0f0f0 / #0c0c0c): inset surfaces, code chips, tab backgrounds.
-- **Text Muted** (rgba black 0.65 / white 0.6): secondary copy, metadata, labels, and muted code-example tokens (JSON keys/punctuation). Tuned to ≈6–7:1 so it clears WCAG AA in both themes and reads legibly inside code examples.
-- **Text Dim** (rgba 0.10–0.12): faintest support text and disabled marks.
-- **Hairline** (#e5e5e5 / #2e2e2e): every border, divider, and rule. The structural backbone of the whole system.
+### Structural neutrals (borders, scrollbars, dark-mode ramp)
+`dove #d5d9e2` (222 19% 86%) · `pewter #aab0ba` (213 12% 70%) · `fog #7d8288` (216 4% 51%) ·
+`steel` (216 4% 22%) · `evenfall` (214 16% 28%) · `midnight` (214 58% 9%). Borders on light
+surfaces prefer `ink/8`–`ink/10` alpha over `dove`; `dove` is for scrollbar thumbs and inputs.
 
-### Tertiary (semantic, console + status only)
-- **Success Green** (#22c55e), **Warning Yellow** (#eab308), **Danger Red** (#ef4444), **Info Blue** (#3b82f6), **Accent Teal** (#1588b2): each pairs with an 8%-alpha background (`*-bg`) for status badges, dots, blocks, and inline messages. Never decorative; strictly state.
+### Accent
+- **Sunset** `#ff5c0a` (`22 100% 51.6%`), hover **Dawn** `#ffc285` (`37 100% 76%`): the single
+  chromatic voice — the NEW chip outline and the rare inline highlight (never the logo,
+  which stays neutral ink).
+  Footprint ≤5% of any screen. This replaces Signal Blue as the brand accent. If a future
+  re-brand swaps the accent hue, only this slot moves; everything else is ink-on-paper.
 
-### Named Rules
-**The One Voice Rule.** Signal Blue covers ≤10% of any screen. If two things are blue, neither reads as the signal. Demote one to ink.
+### Terminal palette (dark, warm-tinted — never reused on the light page)
+- Window `#151515`, inner raised surfaces `#202020`, borders `rgba(255,255,255,0.08)`.
+- Text ramp: base `#d7d1c9` (warm off-white), muted `#8d867e`, bright `#f2ede5`.
+- One accent inside the terminal: teal `#29c6be` (prompt arrows, links). Semantic greens/reds
+  only as state.
+- Traffic dots, exact: red `#ff5f57`, yellow `#febc2e`, green `#28c840`, 9px circles.
 
-**The Opt-In Annotation Rule.** The entire hand-annotation layer — Marker Pink, Caveat cursive notes, rough-notation circles, cursive diagram captions (`sl-diagram-note`) — is NOT part of the default page recipe. Do not add any of it to mockups, showcases, artifacts, or new pages. It is added only as a separate, explicit step when someone asks for it. Existing product surfaces that already use it are grandfathered.
+### Semantic (console + states only)
+success `#22c55e` · warning `#eab308` · error `#ef4444`. Paired with 8%-alpha backgrounds;
+never decorative.
 
-**The Pink-Once Rule.** When hand annotation IS requested, Marker Pink appears at most once per page, and only as a hand-gesture (underline, circle, highlight). Never as a button, fill, or second accent.
-
-**The Tinted-Neutral Rule.** No `#000`, no `#fff`. Paper is warm (#fafafa), elevated surfaces are pure white only as a deliberate lift; ink is #111, never pure black.
+### Named rules
+**The One-Accent Rule.** Sunset appears in at most one place per viewport. The logo is
+neutral ink and does not spend the accent. Two orange things = zero signals.
+**The Alpha-Muted Rule.** Do not invent grays for secondary text; use the ink alphas above.
+**The Warm-Terminal Rule.** Terminal text is the warm ramp (`#d7d1c9` family), never pure white
+or cool gray. This warmth is what keeps the dark window from reading generic.
 
 ## 3. Typography
 
-**Display Font:** Sora (with ui-sans-serif, system-ui fallback) — all headings `h1`–`h4`.
-**Body Font:** Public Sans (with ui-sans-serif, system-ui fallback) — prose and UI text.
-**Mono Font:** Fira Code (with SFMono-Regular, Consolas fallback) — code, data, identifiers, numerals, labels.
-**Note Font:** Caveat (cursive) — hand annotations only; opt-in (see The Opt-In Annotation Rule), never in default mockups.
+**Display:** Sora — retained house display face, worn lighter than before: 500 for the hero,
+400 for every other heading (the old 520–560 weights are retired).
+**Body:** Public Sans — 400/500 only.
+**Mono:** Fira Code — retained for commands, data, and the terminal stage.
+**Caveat:** installed but opt-in annotation-only; never on default surfaces.
+The source's proprietary faces (`universalSans`/`universalSansDisplay`, Geist Mono) inform
+sizing, tracking, and weight discipline only — the faces themselves stay ours.
 
-**Character:** Sora's geometric headlines sit over Public Sans body tuned unusually tight (weight 460, letter-spacing -0.00563rem) so dense pages stay calm and even-toned. Fira Code carries anything that is data, and Caveat is the one handwritten voice that keeps the whole thing from feeling machine-made.
+### Scale (extracted @1440)
+- **Hero display** — Sora 60px / 1.0, weight 500, letter-spacing −0.025em (−1.5px @60). Two lines max; line 2 optionally demoted to `#7d8187`.
+  `text-wrap: balance`. Mobile floor 36px.
+- **Closing headline** — 48px / 1.0, weight **400**, −0.025em. One line.
+- **Section heading** — 30px / 1.2, weight **400**, −0.025em, paired with a 28px line icon at
+  `gap 12px`. (Display headings at ≤48px drop to weight 400 — the weight-500 treatment is for
+  the hero only.)
+- **Subhead** — 18px / 29.25px (1.625), `ink/50`, max-width 576px.
+- **Body** — 16px / 24px, weight 400.
+- **Checklist / feature list** — 14px / 22.75px (1.625), `ink/45`, 14px check glyph `#999`,
+  10px gap, 8px between rows.
+- **Caption** — 12px, `ink/40` (e.g. "Free to self-host" under the command pill).
+- **Mono command** — 14px / 20px Fira Code, `$` prompt at `ink/40`.
+- **Terminal body** — 12px / 19.5px (1.625); terminal inner chrome 11px / 17.875px.
 
-### Hierarchy
-- **Display** (Sora 520, clamp(2.75rem→4.5rem), line-height 0.95): the status page state and the rare hero number. Big, tight, confident.
-- **Headline** (Sora 560, 1.75rem, line-height 1): status states, major section openers.
-- **Title** (Sora 540, 0.9375rem, letter-spacing -0.01875rem): page titles and the section-heading-over-a-rule pattern. Notably small for a "title" — hierarchy here is weight and rule, not size.
-- **Body** (Public Sans 460, 0.875rem / 14px, line-height 20px): all prose. Measure capped at 65–75ch (`max-width: 70ch` on article layout). Steps up to 15px on mobile for readability.
-- **Label** (Fira Code 560, 0.6875rem / 11px, letter-spacing 0.04–0.06em, uppercase): eyebrows, status text, table headers (10px), callout labels. Mono + uppercase + tracking is the signature label treatment.
-- **Note** (Caveat 460, 18–22px): margin annotations and the beta bracket. Slightly rotated (-2deg to +2deg) when overlaid.
+### Named rules
+**The Two-Weight Rule.** 400 and 500 are the entire weight vocabulary on brand surfaces (Sora
+and Public Sans alike). Emphasis beyond that is size or alpha, never 600+.
+**The Tight-Display Rule.** Everything ≥30px carries −0.025em tracking. Body carries none.
+**The Mono-Is-Data Rule** (kept from v1). Values, hashes, endpoints, heights, commands: Fira
+Code with `tabular-nums`. Prose never mono; data never proportional.
 
-### Named Rules
-**The Weight-Not-Size Rule.** Hierarchy is carried by weight (460 → 560 → 650) and hairline rules, not by dramatic size jumps. Titles can be 15px; the rule under them does the framing.
+## 4. Shell & Layout
 
-**The Mono-Is-Data Rule.** Anything that is a value, hash, endpoint, count, or identifier is set in Fira Code with `font-variant-numeric: tabular-nums`. Prose is never mono; data is never proportional.
+### Header
+Fixed, `height 64px`, full-width, background `paper/85` + `backdrop-blur 12px`, no border at
+rest, `transition 200ms`. Contents: wordmark left; center nav links 16px/400 (Products,
+Developers, Company, Pricing pattern); right: outline pill + solid pill pair. Solid CTA may be
+a split button (label + chevron cell).
 
-## 4. Elevation
+### Containers
+- Hero and closing copy: `max-width 768px`, centered, text-center.
+- Page content: `max-width 1200px`.
+- Feature grid: `grid-cols [1fr 1.3fr]`, `gap 64px`. Copy left, terminal right.
 
-Flat by default. Depth is expressed through hairline borders, inset chrome backgrounds, and whitespace, not shadows. The vast majority of surfaces (cards, status blocks, tables, forms) have a 1px hairline and no shadow at all.
+### Hero rhythm (top → bottom, extracted)
+announcement pill (38px tall, radius-full, border `ink/8`, pad `6px 6px 6px 10px`, gap 10px;
+NEW chip = accent-outline pill 26px) → **44px** → display headline → **24px** (`mt-6`) →
+subhead → **40px** → command pill (46px tall: mono 14px, pad `12px 16px`, radius 12px, border
+`ink/10`, hover `ink/20`, copy icon behind a hairline divider) → **12px** (`mt-3`) → caption
+12px `ink/40` → **28px** → hero link row (16px/400, `›` suffix in a fixed-width slot; hover =
+soft `ink/5` radius-full pill behind the link and the chevron morphs to `→`; hover styles
+gated behind `@media (hover: hover)`). First section starts ~64–80px below the header.
 
-Shadow and `backdrop-filter: blur()` are reserved exclusively for **floating, dismissible chrome** that sits above the page: the home status panel, the expanded auth-bar notify field, and the command palette. When something casts a shadow, it is telling you it is temporary and on top.
+### Feature stack (the scroll section)
+- Left column: N copy blocks, each `min-height 50vh`, flex-centered, `padding-y 48px`.
+  Block = icon+heading row → pitch (`ink/45`, `mt-5`) → checklist (`space-y-2`).
+- Right column: **one** sticky terminal window, `position: sticky; top: calc(50vh − H/2)` where
+  H = window height (440px → `top: calc(50vh − 220px)`), so it stays optically centered while
+  the copy column scrolls.
+- Mobile: terminal instances render inline under each copy block (`mt-6`), sticky column hidden.
 
-### Shadow Vocabulary
-- **Floating panel** (`box-shadow: 0 18px 44px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.08)`): the home status popover. Paired with `backdrop-filter: blur(16px)`.
-- **Lifted badge** (`box-shadow: 0 12px 32px rgba(0,0,0,0.1)`): the status badge in its open/expanded state.
-- **Soft notify** (`box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)`): the auth-bar email-capture field when expanded. Dark theme deepens these to 0.2 / 0.1.
+### Closing CTA
+Centered 768px: headline 48/400 → subhead → command pill → **36px** → button pair (outline
+"Read docs" + solid "Get started", both 44px radius-full, gap 14px).
 
-### Named Rules
-**The Flat-By-Default Rule.** Surfaces are flat at rest. A shadow is a statement that an element is floating and dismissible. If it does not float, it has no shadow, only a hairline.
+### Footer
+Top hairline. Left identity block (wordmark, © line) + **dashed** vertical rule
+(`border-l border-dashed ink/10`) + link-column grid: columns ~104px wide, `gap 40px 56px`,
+groups may stack two-deep (Products + Download, Company + Trust). Column headings 16px ink;
+links 16px `fog`, hover ink, 4–6px row rhythm. Bottom-left ghosts at `ink/25`: theme toggle,
+"built with" pill (10px/500, radius-full, border `ink/6`).
 
-## 5. Components
+### Scrollbar
+6px, thumb `dove`, track `paper`.
+
+## 5. Motion
+
+One mechanism owns the page: **scroll-position opacity**.
+
+- Feature copy blocks idle at `opacity 0.2` and lift to `1` when the block enters the
+  viewport-center band (IntersectionObserver, `rootMargin` ≈ −35%/−35%).
+- Transition: `opacity 500ms cubic-bezier(0.4, 0, 0.2, 1)`. Opacity only — no translate, no
+  scale.
+- The sticky terminal swaps its content per active section **instantly** (no crossfade); the
+  fading copy provides all the perceived motion. See
+  `design/reference/xai-build/xai-scroll-sequence.webm` and `still-transition.png` for the
+  captured behavior mid-swap.
+- Header transitions at 200ms. Hovers are color/border/opacity at 150–200ms ease-out.
+- Everything else is instant. `prefers-reduced-motion`: copy blocks render at full opacity,
+  transitions off.
+
+**The One-Motion Rule.** If a proposed animation is not the scroll-opacity mechanism, a hover
+color shift, or the header retract, it does not ship on brand surfaces.
+
+## 6. Components
+
+### Logo
+The layered-parallelogram mark is **neutral ink** — like the source's own mark, it never
+carries the accent. Fill `#0a0a0a` on light, warm bright `#f2ede5` on dark, echo layer at 24%
+opacity. In app code the fill rides `var(--text-main)` (`.logo-primary` / `.logo-echo`); the
+static exports are `public/logo-light.svg` / `public/logo-dark.svg`. Wordmark beside it is
+ink, 16px/500, −0.01em.
 
 ### Buttons
-Four button registers share a 6px radius, ~12px mono-adjacent sans label, and snappy easing.
-- **Accent (marketing CTA, `.auth-bar-cta`):** Signal Blue fill, white text, weight 560, padding 5px 14px. Hover drops opacity to 0.9. The "notify me / get a key" moment.
-- **Ink (console primary, `.dash-btn.primary` / `.login-submit`):** Ink fill, paper text, weight 500. The dominant primary action inside the product. Hover → opacity 0.85.
-- **Ghost (console default, `.dash-btn`):** Transparent, hairline border, ink text, weight 500. Hover lifts the border to `text-muted`. The workhorse.
-- **Accent-soft (`.btn-primary`):** `accent-bg` fill, `accent-border` stroke, Signal Blue text. A quieter affirmative than the ink fill, used for in-context confirms. Danger variant swaps to red-bg / red.
-- **Disabled:** opacity 0.4–0.45, `not-allowed`. No other treatment.
+- **Solid** (primary): ink fill, paper text, 44px, radius-full, pad `0 22px`, 15–16px/500.
+  Hover → umbra. Nav-sized variant 38px.
+- **Outline**: transparent, border `ink/10`, hover border `ink/20`. Same geometry.
+- **Split CTA**: solid pill with a chevron cell separated by a `paper/20` hairline.
+- Focus: `:focus-visible` 2px ink outline, 3px offset — never animated, never a glow.
 
-### Chips & Badges
-- **Status badge (`.dash-badge`):** uppercase Fira-adjacent 11px, weight 560, letter-spacing 0.04em, 3px radius, 2px 6px padding. Color + 8%-alpha background by state: active=green, syncing/reindexing=sky, paused/stalled=yellow, failed/error=red, inactive=muted, free=Signal Blue. Pill, not box.
-- **Dataset endpoint chip (`.dataset-endpoint`):** mono 0.72rem on Chrome background, 1px hairline, 6px radius. Wraps long parquet paths as whole units. Carries a tiny uppercase mono label.
-- **Status dot (`.dot`):** 6px circle, green/yellow/red/muted. The lightest-weight state signal; pairs with text.
+### Announcement pill (hero)
+Radius-full container, border `ink/8`, 38px: accent-outline NEW chip (26px, 11.5px/600 caps) +
+16px message (`b` 500 + `ink/50` detail) + 28px circular chevron button.
 
-### Cards / Containers
-- **Corner style:** 8px (`lg`) for status blocks and panels; 6px (`md`) for chips, inputs, code, callouts; 10px (`xl`) for the agent-prompt and login inputs.
-- **Background:** Paper Elevated (#fff) for raised blocks, Chrome for inset/code.
-- **Border:** 1px hairline, always. This is the primary container affordance.
-- **Shadow strategy:** none, unless floating (see Elevation).
-- **Internal padding:** the spacing scale, typically `sm` (1.5rem) for blocks, `xs` (1rem) for callouts and code.
-- **Do not nest cards.** Sections are separated by hairline rules and whitespace, not by boxing things inside boxes.
+### Command pill
+46px, radius 12px, border `ink/10` hover `ink/20`: `$ ` at `ink/40` + Geist Mono 14px command +
+hairline divider + copy icon button (aria-labelled, 44px hit area). Click copies, icon swaps to
+a check for 1.2s, no toast.
 
-### Inputs / Fields
-- **Console input (`.dash-input`):** Fira Code 13px, transparent background, 1px hairline, 6px radius, 6px 10px padding. Focus removes the outline and lifts the border to `text-muted`. No glow.
-- **Login input (`.login-input`):** Public Sans 14px, 10px radius, 12px 16px padding, border → `text-muted` on focus.
-- **The signature focus treatment is a border-color shift, not a ring or glow.** A 2px `focus-ring` outline exists only for keyboard `:focus-visible` accessibility.
+### Checklist
+No bullets, no rules: 14px check glyph `#999` + 14px/1.625 text at `ink/45`, `gap 10px`,
+rows `space-y-2`. Items state facts, never invented metrics.
 
-### Navigation
-- **Marketing sidebar (`.nav-list`):** Public Sans 14px, `text-muted` default, lifting to ink + weight 600 on hover/active. Floating fixed sidebar on desktop; collapses into a labeled "Contents" hairline card on mobile, with active items marked by Signal Blue and a `→` glyph.
-- **Auth bar (`.auth-bar`):** fixed top-right, 48px tall. Mono uppercase 11px nav links with keyboard-shortcut hints (hidden on touch), an expandable email-capture field, and the accent CTA.
+### Terminal window (the product stage)
+`#151515`, border `white/8`, radius 12px, self-contained:
+- Title bar: pad `8px 12px`, 9px traffic dots (exact hexes above), 12px mono path, right-aligned
+  meta.
+- Body: pad 14px, Fira Code 12/19.5, warm ramp text, teal prompt `❯`.
+- Inner prompt/input rows: `#202020`, border `white/8`, radius 4px, pad `8px 16px`, 11px.
+- Diff/success highlight: green text on 8–14% green wash, full-bleed line.
+This is a **product depiction** (the sl CLI), not decorative chrome — it must always show
+plausible real output (real heights, real commands). Never wrap it in a fake browser frame.
 
-### Section Heading (signature)
-Text overlaid on a horizontal hairline: the rule runs full width, the heading sits on top with a Paper background masking the line behind it (`.section-heading-wrap`). Sora 560, 0.875rem. This, not boxes, is how the editorial surface chunks content.
+### Nav
+Wordmark + dropdown labels (16px/400, chevron 12px) + text links + button pair. Dropdowns open
+instantly, close on `Esc` and outside-click, items 16px with 8px pad rows.
 
-### Hand Annotation (opt-in — never default)
-**Do not build this into mockups or new pages unless explicitly requested** (The Opt-In Annotation Rule). Where it already exists in the product: Caveat cursive labels (`.notation-label`, `.beta-bracket-label`) and rough-notation SVG circles (`.badge-new`), positioned in the margin and rotated -2deg to +2deg. The NEW badge animates its stroke in over 400ms. **All rough-notation SVGs are hidden below 768px** (their computed bounds break on narrow screens); the cursive labels reflow inline instead.
+### Footer link column
+Heading 16px ink 400 (not bold — column position does the work), links 16px `fog` hover ink.
 
-### Data Table (signature, console)
-`.dash-data-table`: full Fira Code 12px, `border-collapse`, hairline row dividers, no outer border. Headers are 10px uppercase mono `text-muted` with 0.06em tracking. Rows tint on hover (`rgba(0,0,0,0.02)`) and on selection (`accent-bg`). Cells truncate with ellipsis at 200px and expand a `row-detail` JSON `<pre>` on click. This is the "data page" of the notebook.
+### OG share cards
+1200×630, generated by `apps/web/scripts/generate-og.tsx` (`bun run og`): white paper, ink
+logo + wordmark over an `ink/10` header rule, Sora headline (line 2 demoted to
+`#7d8187`), Fira Code for all code/data artifacts in the ink alpha ramp, a faint sunset
+radial wash top-right. Same tokens as the site — an OG card is a page in miniature.
 
-### Floating Status Panel (signature)
-`.home-status-shell`: a bottom-right pill badge that expands into a blurred, shadowed panel of per-service health rows (glyph + name/detail + mono value), a colored progress bar, and a footer link. The one place the system uses real elevation, blur, and orchestrated motion together.
+## 7. Registers
 
-### Agent Prompt Block (signature)
-`.agent-prompt`: a copyable "hand this to your agent" card. 12px (`xl`+) radius, 1px hairline, Paper background. A Sora 16px/600 title (`agent-prompt-title`, letter-spacing -0.02em) sits in a header above a nested code block that reuses `.code-block-wrapper` (Shiki + hover copy button) but with an 8px inner radius and clipped corners. Long prompts collapse: `agent-prompt-collapsed` applies a `linear-gradient` mask fading the bottom to transparent (60% → 0), and a floating `agent-prompt-toggle` pill (mono 11px, 6px radius, one of the few shadowed elements: `0 2px 8px rgba(0,0,0,0.1)`) toggles `max-height` over 0.3s. Embodies "show, don't tell": the artifact you'd actually paste, not a description of it.
+- **Brand register** (`app/(www)`, landing, docs shells): everything above.
+- **Product register** (`app/platform`, console): keeps its density and data-table DNA, adopts
+  the new palette (paper/ink/alpha ramp) and the two-weight rule. Console tables:
+  12px Fira Code rows, 10px caps headers at `ink/40` with 0.06em tracking, hairline `ink/8`
+  dividers, hover wash `ink/2`. Density never leaks into brand; whitespace never leaks into
+  console.
 
-### Service Flow Diagram (signature)
-`.sl-diagram-figure`: a per-product pipeline rendered as inline SVG, one per service (index, subgraphs, subscriptions, streams), never a generic graphic. The `.sl-diagram-frame` is a 14px-radius hairline card with a radial `accent-glow` wash (top-right) over a masked 30px grid (`background-size: 30px 30px`, radially masked so it fades at the edges). Inside, nodes come in three semantic classes:
-- **Default node** (`.node`): Chrome fill, hairline stroke. Upstream/neutral stages.
-- **Data node** (`.node.data`): `accent-bg` fill, `accent-border` stroke, Signal Blue title. A shaped/decoded data layer.
-- **API node** (`.node.api`): solid Signal Blue fill, paper-contrast text. The Secondlayer surface itself, the one filled node.
+## 8. Do's and Don'ts
 
-Node titles are Sora 13px/600; sublabels and edge labels are Fira Code (8–8.5px). Edges are thin strokes (`.edge` muted at 0.6 opacity, `.edge.acc` Signal Blue at 0.5) with arrowhead markers. The cursive `sl-diagram-note` caption is part of the opt-in hand-annotation layer — do not add it to new diagrams unless asked. **The node coloring is meaningful, not decorative:** the single filled accent node is always the product surface in the pipeline.
+### Do
+- Set every muted text via the ink alpha ramp (50/45/40/25).
+- Use radius-full for every pill-shaped interactive; 12px for cards/terminal/command; 4px inside
+  terminals.
+- Keep the terminal warm (`#d7d1c9` ramp) with a single teal accent.
+- Put real CLI output in every terminal (heights, commands, verify results). Honest copy only —
+  no invented metrics, counts, or logos.
+- Ship the scroll-opacity mechanism exactly: 0.2 ↔ 1, 500ms, opacity only, reduced-motion safe.
+- Keep hero headlines ≤2 lines, ≤50 chars, weight 500; demote line 2 to `#7d8187` when two-toned.
 
-### Dataset Sandbox (signature)
-`.dataset-sandbox`: an inline, runnable query playground embedded in dataset, docs, and streams pages (one shared component, 7 mounts). It is the place the product register surfaces inside the editorial column, structured as a **notebook cell**: a shaded request "input" strip stacked flush above a lifted response "output", with the response as the hero.
-- **Request strip (`.dataset-sandbox-req`):** Chrome-inset, hairline, radius `lg` on top only. One line carries the `GET` method (Signal Blue), the live URL path (query string in muted), and a compact accent Send button. Below a dashed divider, filters are **compact inline chips** (`.dataset-sandbox-filter`: label fused to a borderless control); a set chip lifts its label and border to Signal Blue. On write-gated endpoints, a demoted API-key line tucks under another dashed divider, with the inline create-key flow opening in place.
-- **Response zone (`.dataset-sandbox-res`):** Paper-Elevated, hairline, radius `lg` on the bottom only, so it reads as one cell with the request. A quiet mono meta line leads: a state dot (`ok` green / `err` red / `idle` dim) + status + latency + row count, with an always-visible copy button. The body is the existing `CollapsibleJsonTree`.
-- **States:** idle renders a **dimmed, static sample** of the response envelope (teaches the shape) plus a `Press Send` hint; loading is an animated shimmer skeleton; success is the live tree; empty (`200` + `[]`) adds a recovery nudge; error shows a red mono message and, on `401/403` write-gated endpoints, an inline "Create a key" path. The curl/fetch snippets demote to a single quiet `<details>` disclosure below.
+### Don't
+- **No new families.** The stack is Sora + Public Sans + Fira Code, full stop. No serif
+  display, no Caveat on default surfaces, no font additions.
+- **No hand-annotation layer.** Marker Pink, rough-notation circles, cursive notes: retired.
+- **No crypto/web3 neon**, no gradient text, no glassmorphism (the 12px header blur is the one
+  sanctioned blur), no card grids of identical feature tiles, no hero-metric blocks.
+- **No solid-gray muted text** where an ink alpha should be; no cool grays inside the terminal.
+- **No motion beyond the mechanism** — no fade-up-on-scroll for every element, no parallax, no
+  bouncy hovers, no `transition: all`.
+- **No borders heavier than 1px**; no shadows on static surfaces (terminal and dropdowns may
+  carry one soft shadow; nothing else).
 
-### Named Rules
-**The Idle-Teaches Rule.** An idle data surface renders a dimmed, *static* sample of what's coming, never an animated skeleton. Animation is reserved for loading; if idle animates, it reads as "already running" and teaches nothing.
+## 9. Provenance
 
-**The One-Cell Rule.** Request and response are a single unit: the input strip is shaded and the output is lifted, joined by shared corners (top radius on the request, bottom radius on the response). They are never two separate cards.
-
-## 6. Do's and Don'ts
-
-### Do:
-- **Do** ration Signal Blue to ≤10% of any screen (The One Voice Rule). It points at the one thing that matters.
-- **Do** separate content with hairlines (1px `--border`) and whitespace. The section-heading-over-a-rule is the canonical chunking device.
-- **Do** set all data, identifiers, hashes, endpoints, and numerals in Fira Code with `tabular-nums`.
-- **Do** keep prose to a 65–75ch measure and body weight 460. Calm, even color on the page.
-- **Do** express depth with borders and inset Chrome backgrounds. Reserve shadow + blur for floating, dismissible chrome only.
-- **Do** leave the hand-annotation layer (Caveat, Marker Pink, rough-notation) OUT of mockups and new pages — it is opt-in, added only when explicitly requested.
-- **Do** ease with the project curves: `--ease-snappy` (cubic-bezier(0.175,0.885,0.32,1.1)) for state feedback, `--ease-smooth` (cubic-bezier(0.19,1,0.22,1)) for transitions.
-- **Do** pair every status hue (green/yellow/red/teal) with text or an icon. Never encode meaning in color alone.
-- **Do** provide deliberate, visible custom focus states. The console suppresses native focus rings, so a `:focus-visible` affordance is mandatory, not optional. Maintain AA contrast in both light and dark.
-- **Do** respect `prefers-reduced-motion` everywhere; motion is decoration the product can do without.
-
-### Don't:
-- **Don't** drift toward **crypto / web3 neon**: no neon-on-black, glows, 3D coins, gradient-mesh heroes, "degen" energy. This is the first reflex for a chain product; refuse it.
-- **Don't** build the **generic SaaS template**: no hero-metric blocks, no identical feature-card grids, no gradient-text headings, no Inter-on-cream sameness.
-- **Don't** go **heavy enterprise**: no navy-and-gold corporate, legalese, stock photography, or bloated marketing chrome.
-- **Don't** go **playful / consumer**: no rounded blobs, mascots, cartoon palettes, or oversized friendly emoji.
-- **Don't** use `#000` or `#fff` as text or page color. Paper is #fafafa, ink is #111.
-- **Don't** add Marker Pink or Caveat annotations unprompted — the whole layer is opt-in. Even when requested: never a second accent or a button, one human gesture per page, maximum.
-- **Don't** nest cards or box content that a hairline and whitespace would separate better.
-- **Don't** add focus glows or rings to inputs. Focus is a border-color shift (plus the mandatory a11y `:focus-visible` outline).
-- **Don't** use bounce or elastic easing, and never animate layout properties. Ease-out only.
-- **Don't** let two elements compete as "the signal." If everything is blue, nothing is.
-- **Don't** swap the two registers' density: editorial whitespace stays on `(www)`, console density stays on `platform`.
+Extracted live from https://x.ai/build on 2026-08-14 via agent-browser (computed styles +
+stylesheet tokens), supplemented by 4 user-supplied captures. Source fonts are proprietary
+(`universalSans`, `universalSansDisplay`, Geist Mono); the house stack (Sora + Public Sans +
+Fira Code) is retained by decision — the extraction contributes sizing, tracking, weight
+discipline, spacing, color, and motion only. Structural
+facts (grid `1fr/1.3fr` gap 64, sticky `top: calc(50vh − 220px)`, fade `opacity .2 → 1 @ 500ms
+cubic-bezier(0.4,0,0.2,1)`, header `64px + blur 12px @ 85% paper`) are measured, not eyeballed.
+Reference captures: `design/reference/xai-build/` (hero, skills-active, transition, close,
+footer stills + assembled scroll-sequence webm). The DNA is structural; copy, content, and
+product voice remain Secondlayer's.

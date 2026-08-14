@@ -86,3 +86,6 @@ cassettes/
 
 # Local bb visual artifacts
 .bb-artifacts/
+
+# local archive manifest pulled for verify runs — never commit
+/snapshot-*.json
