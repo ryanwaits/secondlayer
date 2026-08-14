@@ -1,50 +1,59 @@
 # Gate G deletion manifest
 
-Status: DRAFT for founder approval. Scope: P6.1–P6.4, P6.6–P6.12 (P6.5 satisfied —
-console shipped as `apps/console`, live at console.secondlayer.tools 2026-08-14).
-Rule: nothing in Slice C/D executes before its interlock clears. The meter survives.
+Status: DRAFT v2 — founder direction 2026-08-14: KEEP magic-link/accounts/sessions;
+consolidate them to serve the metered archive only. Deletion scope narrows to
+tenancy, plans, and hosted-console surface. Scope: P6.1–P6.4, P6.6–P6.12 (P6.5
+satisfied — console shipped as `apps/console`, live at console.secondlayer.tools
+2026-08-14). Rule: nothing in Slice C/D executes before its interlock clears.
 
-## 0. Decisions required before execution
+## 0. Decisions
 
-- **D1 — Credits balance read.** Today `GET /api/billing/status` needs a magic-link
-  session; deleting auth makes balances write-only for guests. Options:
-  (a) signed receipt token issued at checkout (stateless, no login) — recommended;
-  (b) email one-time code (keeps an auth-ish flow alive);
-  (c) accept loss (balance visible only via Stripe receipts). Affects
-  `billing.ts:{248,426,546,594,606}`, `cli credits status/refill`.
-- **D2 — Metered-archive mode.** `INSTANCE_MODE=oss` no-ops every read gate
-  (`read-credits.ts:66`, `index/free-window.ts`, `streams/retention.ts`,
-  `*/rate-limit.ts`) — credits become sellable but unspendable. Need a third mode
-  (`archive-ops`) or a `METERED_READS=true` flag for OUR public archive API only.
-  Self-host stays ungated.
-- **D3 — x402.** Retarget as operator-owned module (P6.2 letter) or park-delete
-  `src/x402/*` + `x402_payments`/`x402_balances` + reconcile job + Redis nonce store.
-  STRATEGY says parked/not-a-revenue-line; deleting is smaller.
-- **D4 — BYO/multi-ORM.** drizzle/prisma codegen is a live CLI capability; BYO tests
-  are skip-gated. Keep codegen, delete BYO deploy path? Or freeze both.
-- **D5 — Spend-cap alert job.** Keep (retarget email) or delete with caps.
+- **D1 — RESOLVED (founder, 2026-08-14): keep magic-link + accounts.** Auth is
+  retargeted, not deleted: it becomes the metered-archive account system (balance,
+  refill, caps, key management). No receipt-token build.
+- **D2 — APPROVED IN PRINCIPLE: metered-archive mode.** Design a mode/flag for OUR
+  public archive API where the read gates stay armed (`read-credits.ts:66`,
+  `index/free-window.ts`, `streams/retention.ts`, `*/rate-limit.ts`) while
+  self-host stays ungated. Design doc precedes Slice C.
+- **D3 — OPEN — x402.** Retarget as operator-owned module or park-delete
+  `src/x402/*` + `x402_payments`/`x402_balances` + reconcile job + Redis nonce
+  store. STRATEGY says parked/not-a-revenue-line; deleting is smaller.
+- **D4 — OPEN — BYO/multi-ORM.** Keep drizzle/prisma codegen (live CLI
+  capability), delete the skip-gated BYO deploy path? Or freeze both.
+- **D5 — leaning KEEP (caps are part of the retained account stuff).**
 
-## 1. Meter carve-out (KEEP — the commercial spine)
+## 1. Metered-archive account system (KEEP + CONSOLIDATE — the commercial spine)
 
-Minimal surviving model: `accounts(id,email,stripe_customer_id,created_at)` +
-`api_keys(slim)` + `account_credits` + `processed_stripe_events` (+
-`account_spend_caps` if D5 keeps caps).
+Survives whole: `accounts`, `sessions`, `magic_links`, `api_keys`,
+`account_credits`, `processed_stripe_events`, `account_spend_caps`;
+`routes/auth.ts` (magic link/verify/logout), `auth/email.ts` (Resend),
+`requireAuth()` (both `ss-sl_` and `sk-sl_` paths), `auth/keys.ts`,
+key mint (`auth/routes.ts` — simplified: no plan ceilings/tier mapping),
+`routes/accounts.ts` `GET/PATCH /me` (drop `/usage*`), CLI
+`login/logout/whoami/credits`. Web keeps `/login`, `/verify`, `/api/auth/*`,
+`lib/auth.tsx` + auth-bar (now guarding only future credits/account surface).
 
-- Extract into a dedicated meter module (new `packages/api/src/credits/` or
-  `packages/shared`): `routes/public-credits.ts` (as-is);
-  `createCreditsCheckoutSession`/`ensureStripeCustomer`/`CREDIT_PACKS_USD` out of
-  `billing.ts`; webhook handlers `checkout.session.completed` +
-  `payment_intent.succeeded` out of `webhooks-stripe.ts`;
-  `platform/db/queries/account-credits.ts` (all 8 exports); `accounts.ts` slim four
-  (`upsertAccount`, `getAccountById`, `setStripeCustomerId`,
-  `getAccountByStripeCustomerId`); `read-credits.ts` + both credits-gates;
-  `index/auth.ts` + `streams/auth.ts` key→account resolution; `ip-rate-limit.ts`
-  (+ store) guarding checkout; `worker/jobs/credits-refill.ts`; `lib/stripe.ts`
-  minus `resolveSubscriptionItem`.
-- `apps/web` keeps `/api/public/credits/checkout` proxy + a stripped `lib/api.ts`
-  `apiRequest` (no sessionToken) for the live `/archive` checkout.
+Consolidation (refactor, not delete): strip plan/tier vocabulary out of the kept
+auth (`resolveMintTier` ceilings, `accounts.plan`, tier params in mint);
+`api_keys.tier` collapses to the single metered tier the credit gates expect;
+`billing.ts` drops `/upgrade`, `/resolve`, `/cancel`, `/portal` and the
+subscription half of `/status` — keeps balance/topup/refill/caps;
+`webhooks-stripe.ts` drops `invoice.paid` + `customer.subscription.*` — keeps
+`checkout.session.completed` + `payment_intent.succeeded`.
+
+- `packages/platform` becomes the slimmed meter/account package (keep it — no
+  extraction churn): KEEP `db/queries/accounts.ts` (incl. magic-link fns and
+  `updateAccountProfile`; drop `setAccountPlan`, `isSlugTaken`),
+  `account-credits.ts` (all 8 exports), `account-spend-caps.ts`,
+  `schemas/accounts.ts`; DELETE `usage.ts`, `projects.ts`, `pricing.ts`.
+- Also kept: `read-credits.ts` + both credits-gates; `index/auth.ts` +
+  `streams/auth.ts` key→account resolution; `ip-rate-limit.ts` (+ store);
+  `worker/jobs/credits-refill.ts`; `lib/stripe.ts` minus
+  `resolveSubscriptionItem`; `routes/public-credits.ts` as-is.
+- `apps/web` keeps `/api/public/credits/checkout` proxy and `lib/api.ts`
+  (sessionToken path stays — auth survives) for the live `/archive` checkout.
 - Env that stays: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`
-  (reindex-notify only).
+  (magic-link + reindex-notify).
 
 ## 2. Slice A — safe now (no prod interlock)
 
@@ -56,32 +65,37 @@ Dead code, zero consumers verified:
 - DB tables with zero live refs (DROP in Slice D, delist now): `tenant_usage_monthly`,
   `tenant_compute_addons`, `provisioning_audit_log`, `subgraph_usage_daily`.
 
-apps/web hosted UI (superseded by live apps/console — P6.1/P6.7 web half):
-- DELETE `src/app/login/`, `src/app/verify/`, `src/app/api/auth/**`,
-  `src/lib/auth.tsx`, `src/components/auth-bar.tsx` (+ AuthProvider mount in
-  `app/layout.tsx` — one edit, touches marketing), middleware host-split (all three
-  branches; keep only `/subgraphs → /docs/subgraphs` redirect; drop `lib/urls.ts`
-  `appHostname`), `src/app/platform/**` (24 files), `src/components/console/**`
-  EXCEPT `logo.tsx` + `agent-prompt.tsx` (relocate — marketing imports),
-  `src/app/api/{subgraphs,subscriptions,status,insights,node,discovery,billing}/**`
-  (old-console-only; discovery also trims palette source `command-center/sources.ts:132`),
-  session helpers in `lib/api.ts`, dead `lib/queries/*` + `lib/intelligence/*` after.
+apps/web hosted-CONSOLE surface (superseded by live apps/console — P6.7 web half;
+auth pages SURVIVE per D1):
+- KEEP: `src/app/login/`, `src/app/verify/`, `src/app/api/auth/**`,
+  `src/lib/auth.tsx`, `src/components/auth-bar.tsx` — they now guard the metered
+  account surface (credits balance/keys), not a console.
+- DELETE: `src/app/platform/**` (24 files), `src/components/console/**` EXCEPT
+  `logo.tsx` + `agent-prompt.tsx` (relocate — marketing imports), middleware
+  host-split app.secondlayer.tools branch (login lives on the main domain; keep
+  the `/subgraphs → /docs/subgraphs` redirect),
+  `src/app/api/{subgraphs,subscriptions,status,insights,node,discovery}/**`
+  (old-console-only; discovery also trims palette source
+  `command-center/sources.ts:132`), dead `lib/queries/*` + `lib/intelligence/*`
+  after. `src/app/api/billing/{topup,resolve}` move to whatever minimal credits
+  page replaces the console billing screen (or delete if CLI-only).
 - Post-slice validation: `bun run build` in apps/web; route/link scan shows no
-  /login, /platform, app.secondlayer.tools; `/archive` checkout still works.
-- Note: app.secondlayer.tools DNS/Vercel host mapping retires with this slice.
-- CLI `login/logout/account/whoami/keys/project` commands (P6.8) can also go now —
-  BUT `credits status/refill` inherit D1; sequence those with D1's resolution.
+  /platform or app.secondlayer.tools; `/archive` checkout + `/login` still work.
+- CLI: DELETE `account/keys/project` commands (P6.8); KEEP
+  `login/logout/whoami/credits` (metered-account verbs).
 
-## 3. Slice B — meter extraction + platform package deletion
+## 3. Slice B — meter consolidation + platform package slimming
 
-Order: (1) retire `worker/jobs/ghost-sweep.ts` FIRST (it deletes `accounts` rows);
-(2) build the meter module (§1); (3) repoint `route-manifest.ts` — reclassify
-`/api/public/credits/checkout` + `/api/webhooks/stripe` as RETAINED and fix
-`route-manifest.test.ts` (this is the P6.1/P6.2 validation instrument — update
-before the scans); (4) delete `packages/platform` (remaining exports: `usage`,
-`projects`, `pricing`, `schemas/accounts`, magic-link/plan halves of `accounts.ts`,
-`account-spend-caps` per D5); (5) worker keeps `credits-refill` (+`x402-reconcile`
-per D3, `spend-cap-alert` per D5) — package does NOT empty out.
+Order: (1) `worker/jobs/ghost-sweep.ts` — retire with D3 if ghosts die; otherwise
+keep but scope it to `ghost=true` rows only (it must never touch checkout
+accounts); (2) consolidate the kept auth/billing surface (§1 refactor: strip
+plans/tiers, slim billing + webhook); (3) repoint `route-manifest.ts` — reclassify
+the KEPT surface (`/api/auth/*`, `/api/billing/{status,topup,refill,caps}`,
+`/api/public/credits/*`, `/api/webhooks/stripe`, `/api/keys`, `/api/accounts/me`)
+as RETAINED-METER and fix `route-manifest.test.ts` (the P6.1/P6.2 validation
+instrument — update before the scans); (4) slim `packages/platform` to the meter
+package (delete `usage.ts`, `projects.ts`, `pricing.ts`); (5) worker keeps
+`credits-refill` (+`x402-reconcile` per D3, `spend-cap-alert` per D5).
 
 ## 4. Slice C — prod flip preconditions (separate approved migration)
 
@@ -100,24 +114,29 @@ The flip plan must resolve, in one window:
 - `subscriptions.account_id`/`subgraphs` ownership columns become nullable/ignored,
   not dropped.
 
-## 5. Slice D — destructive (post-flip only)
+## 5. Slice D — destructive (post-flip only; auth is NOT in this slice)
 
-- DELETE routers/middleware: `routes/{auth,accounts,admin,projects,insights,wallet}.ts`,
-  `auth/{routes,mint,email,ghost,rate-limit,product-token-store}.ts`,
-  `routes/v1-api-keys.ts`, `middleware/{admin,usage}.ts`, `index/usage.ts`,
+- DELETE routers/middleware: `routes/{admin,projects,insights,wallet}.ts`,
+  `middleware/{admin,usage}.ts`, `index/usage.ts`, `accounts.ts` `/usage*` routes,
   plan/tier authority (`index/tiers.ts`, `streams/tiers.ts`, `lib/tier-mapping.ts`,
-  `subgraphs/plan-limits.ts`), billing/webhook subscription halves,
-  `requireAuth()` LAST (console must already be on instanceTokenAuth).
-- DROP control tables: `sessions`, `magic_links`, `claim_tokens`, `projects`,
-  `team_members`, `team_invitations`, `usage_daily`, `usage_snapshots`,
-  `account_insights`, `account_agent_runs`, `tenants`, `instances` (verify vs
-  `/v1/instance` first), + the four zero-ref tables (§2). Keep meter + product
-  tables (`table-plane.ts` updated in the same change — it's compile-enforced).
-- Archive ~50 hosted-era migrations outside the fresh-install path (P6.6 letter:
-  clean baseline == upgraded schema; prove with the existing migration parity test).
-- CLI: delete hosted commands per Slice A note + D1.
+  `auth/product-token-store.ts`, `auth/rate-limit.ts` account-plan limiter,
+  `subgraphs/plan-limits.ts`, `auth/mint.ts` ceilings), billing `/upgrade
+  /resolve /cancel /portal` + webhook subscription handlers,
+  `routes/v1-api-keys.ts` + `auth/ghost.ts` per D3. `requireAuth`, sessions,
+  magic links, key mint (simplified) all SURVIVE.
+- DROP control tables: `projects`, `team_members`, `team_invitations`,
+  `usage_daily`, `usage_snapshots`, `account_insights`, `account_agent_runs`,
+  `tenants`, `instances` (verify vs `/v1/instance` first), the four zero-ref
+  tables (§2), `claim_tokens` per D3. KEEP `sessions`, `magic_links`, meter +
+  product tables (`table-plane.ts` updated in the same change — compile-enforced).
+- `accounts` slims columns (drop `plan`/`slug`-era fields), stays a first-class
+  table.
+- Archive hosted-era migrations that only ever created now-dropped tables (P6.6
+  letter: clean baseline == upgraded schema; prove with the migration parity test).
 - Validation: import/route/export scans green against the UPDATED route manifest;
-  `bun run self-host:smoke`; fresh `secondlayer init` → bootstrap → deploy → query.
+  `bun run self-host:smoke`; fresh `secondlayer init` → bootstrap → deploy →
+  query; magic-link login + credits balance/topup still green against the
+  metered archive API.
 
 ## 6. Slice E — isolation + periphery (parallel-safe after B)
 
@@ -138,22 +157,24 @@ The flip plan must resolve, in one window:
 
 ## 7. DO-NOT-DELETE (standing)
 
-Meter tables + module (§1); `api_keys` while prod console rides an `sk-sl_` key;
+Metered-account system whole (§1: accounts, sessions, magic links, api_keys,
+auth routes, requireAuth, key mint, web login/verify, CLI login/credits);
 `docker/oss/**`; archive publisher + neutral archive primitives
 (`packages/shared/src/archive/`); `restore-snapshot.ts`; systemd archive timers;
 Stripe checkout/webhook (payment kinds); `RESEND_API_KEY` (reindex-notify);
 `ip-rate-limit` on public checkout; the internal ops compose/Caddy/scripts
 (P2.12 infra freeze — separate approval to change).
 
-## Interlocks (ordered, from the inventory)
+## Interlocks (ordered, v2 — auth survives, so the set shrinks)
 
-1. `api_keys`/`accounts`/`requireAuth` untouchable until prod API runs the
-   self-host auth and console switches tokens.
-2. `ghost-sweep` retires before any `accounts` slimming.
-3. Mode flip disarms meter gates — D2 lands first.
-4. Mode flip changes subgraph naming/scoping — reconciliation written first.
-5. Mode flip collapses the DB split — reconcile `shared/db/index.ts`.
-6. Redis boot-guard retires with the flip.
-7. `route-manifest.ts` reclassification precedes all deletion scans.
-8. `apps/web/lib/api.ts` split (checkout keeps a stripped apiRequest) precedes
-   web proxy deletion.
+1. `ghost-sweep` scoped/retired before any `accounts` column slimming (it must
+   never touch checkout accounts).
+2. Mode flip disarms meter gates — D2's metered-archive mode lands first; with
+   auth kept, the prod console may simply keep its `sk-sl_` key (no token switch
+   required).
+3. Mode flip changes subgraph naming/scoping — reconciliation written first.
+4. Mode flip collapses the DB split — reconcile `shared/db/index.ts`.
+5. Redis boot-guard retires with the flip.
+6. `route-manifest.ts` reclassification precedes all deletion scans.
+7. apps/web platform-screen deletion must not touch the kept auth pages or the
+   `/archive` checkout proxy.
