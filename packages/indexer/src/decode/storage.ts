@@ -269,6 +269,16 @@ export async function handleDecodedEventsReorg(
 		.where("block_height", ">=", blockHeight)
 		.executeTakeFirst();
 
+	// Coverage receipts/segments for the orphaned fork must not stay green.
+	await db
+		.deleteFrom("stage_block_receipts")
+		.where("block_height", ">=", blockHeight)
+		.execute();
+	await db
+		.deleteFrom("coverage_segments")
+		.where("to_height", ">=", blockHeight)
+		.execute();
+
 	const checkpoints = {} as Record<DecoderName, string | null>;
 	for (const decoderName of decoderNames) {
 		const checkpoint = await readCanonicalCheckpointBeforeBlock(
@@ -313,6 +323,8 @@ async function readCanonicalCheckpointBeforeBlock(
 /**
  * Commit a decoder's rows and its checkpoint in ONE transaction.
  *
+ * Coverage receipts/failures go through `commitDecoderAdapter` in
+ * `@secondlayer/shared/coverage` — same atomicity, plus the kernel tables.
  * These used to be two separate awaits on a bare handle: rows landed, then the
  * checkpoint. A crash in between re-delivers the batch on resume, which is
  * survivable here only because every decoded write is an idempotent upsert on

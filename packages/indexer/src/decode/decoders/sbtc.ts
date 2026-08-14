@@ -14,6 +14,12 @@ import {
 	type SbtcEventTopic,
 } from "@secondlayer/stacks/sbtc";
 import type { Kysely } from "kysely";
+import {
+	classifyGenericDecodeFault,
+	commitDecoderStageBatch,
+	failureFromFaults,
+	planGenericDecoderReceipts,
+} from "../generic-commit.ts";
 import { defaultInternalStreamsApiKey } from "../internal-auth.ts";
 import {
 	SBTC_DECODER_NAME,
@@ -23,7 +29,7 @@ import {
 	writeSbtcEvents,
 	writeSbtcTokenEvents,
 } from "../sbtc-storage.ts";
-import { commitDecodedBatch, readDecoderCheckpoint } from "../storage.ts";
+import { readDecoderCheckpoint } from "../storage.ts";
 
 export { SBTC_DECODER_NAME, SBTC_TOKEN_DECODER_NAME };
 
@@ -116,6 +122,17 @@ export async function consumeSbtcRegistryDecodedEvents(
 		contractId: registryContractId(),
 		onBatch: async (events, envelope) => {
 			const rows: SbtcEventRow[] = [];
+			const clock: {
+				cursor: string;
+				block_height: number;
+				block_hash: string;
+				matched: boolean;
+			}[] = [];
+			const faults: {
+				cursor: string;
+				class: ReturnType<typeof classifyGenericDecodeFault>;
+				error: string;
+			}[] = [];
 			for (const event of events) {
 				try {
 					if (
@@ -123,26 +140,53 @@ export async function consumeSbtcRegistryDecodedEvents(
 						event.contract_id === null ||
 						!SBTC_REGISTRY_CONTRACTS.includes(event.contract_id)
 					) {
+						clock.push({
+							cursor: event.cursor,
+							block_height: event.block_height,
+							block_hash: event.block_hash,
+							matched: false,
+						});
 						continue;
 					}
 					const row = decodeRegistryPrint(event);
 					if (row) rows.push(row);
+					clock.push({
+						cursor: event.cursor,
+						block_height: event.block_height,
+						block_hash: event.block_hash,
+						matched: Boolean(row),
+					});
 				} catch (error) {
+					const fault = classifyGenericDecodeFault(error);
 					logger.warn("decoder.decode_skipped", {
 						decoder: decoderName,
 						cursor: event.cursor,
 						tx_id: event.tx_id,
 						event_type: event.event_type,
+						fault,
 						error: String(error),
+					});
+					clock.push({
+						cursor: event.cursor,
+						block_height: event.block_height,
+						block_hash: event.block_hash,
+						matched: false,
+					});
+					faults.push({
+						cursor: event.cursor,
+						class: fault,
+						error: error instanceof Error ? error.message : String(error),
 					});
 				}
 			}
 
-			await commitDecodedBatch({
+			await commitDecoderStageBatch({
 				db,
 				decoderName,
-				cursor: envelope.next_cursor,
-				write: async (tx) => {
+				checkpointCursor: envelope.next_cursor,
+				receipts: planGenericDecoderReceipts(clock),
+				failure: failureFromFaults(faults),
+				writeOutput: async (tx) => {
 					if (rows.length > 0) await writeSbtcEvents(rows, { db: tx });
 				},
 			});
@@ -187,6 +231,17 @@ export async function consumeSbtcTokenDecodedEvents(
 		contractId: tokenContractId(),
 		onBatch: async (events, envelope) => {
 			const rows: SbtcTokenEventRow[] = [];
+			const clock: {
+				cursor: string;
+				block_height: number;
+				block_hash: string;
+				matched: boolean;
+			}[] = [];
+			const faults: {
+				cursor: string;
+				class: ReturnType<typeof classifyGenericDecodeFault>;
+				error: string;
+			}[] = [];
 			for (const event of events) {
 				try {
 					if (
@@ -195,26 +250,53 @@ export async function consumeSbtcTokenDecodedEvents(
 							event.event_type !== "ft_burn") ||
 						!isSbtcTokenAsset(event)
 					) {
+						clock.push({
+							cursor: event.cursor,
+							block_height: event.block_height,
+							block_hash: event.block_hash,
+							matched: false,
+						});
 						continue;
 					}
 					const row = decodeTokenEvent(event);
 					if (row) rows.push(row);
+					clock.push({
+						cursor: event.cursor,
+						block_height: event.block_height,
+						block_hash: event.block_hash,
+						matched: Boolean(row),
+					});
 				} catch (error) {
+					const fault = classifyGenericDecodeFault(error);
 					logger.warn("decoder.decode_skipped", {
 						decoder: decoderName,
 						cursor: event.cursor,
 						tx_id: event.tx_id,
 						event_type: event.event_type,
+						fault,
 						error: String(error),
+					});
+					clock.push({
+						cursor: event.cursor,
+						block_height: event.block_height,
+						block_hash: event.block_hash,
+						matched: false,
+					});
+					faults.push({
+						cursor: event.cursor,
+						class: fault,
+						error: error instanceof Error ? error.message : String(error),
 					});
 				}
 			}
 
-			await commitDecodedBatch({
+			await commitDecoderStageBatch({
 				db,
 				decoderName,
-				cursor: envelope.next_cursor,
-				write: async (tx) => {
+				checkpointCursor: envelope.next_cursor,
+				receipts: planGenericDecoderReceipts(clock),
+				failure: failureFromFaults(faults),
+				writeOutput: async (tx) => {
 					if (rows.length > 0) await writeSbtcTokenEvents(rows, { db: tx });
 				},
 			});

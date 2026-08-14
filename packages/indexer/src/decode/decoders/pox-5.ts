@@ -13,13 +13,19 @@ import {
 	POX5_EVENT_TOPICS,
 } from "@secondlayer/stacks/pox5";
 import type { Kysely } from "kysely";
+import {
+	classifyGenericDecodeFault,
+	commitDecoderStageBatch,
+	failureFromFaults,
+	planGenericDecoderReceipts,
+} from "../generic-commit.ts";
 import { defaultInternalStreamsApiKey } from "../internal-auth.ts";
 import {
 	POX5_DECODER_NAME,
 	type Pox5EventRow,
 	writePox5Events,
 } from "../pox5-storage.ts";
-import { commitDecodedBatch, readDecoderCheckpoint } from "../storage.ts";
+import { readDecoderCheckpoint } from "../storage.ts";
 
 export { POX5_DECODER_NAME };
 
@@ -83,32 +89,70 @@ export async function consumePox5DecodedEvents(
 		contractId: POX5_CONTRACT,
 		onBatch: async (events, envelope) => {
 			const rows: Pox5EventRow[] = [];
+			const clock: {
+				cursor: string;
+				block_height: number;
+				block_hash: string;
+				matched: boolean;
+			}[] = [];
+			const faults: {
+				cursor: string;
+				class: ReturnType<typeof classifyGenericDecodeFault>;
+				error: string;
+			}[] = [];
 			for (const event of events) {
 				try {
 					if (
 						event.event_type !== "print" ||
 						event.contract_id !== POX5_CONTRACT
 					) {
+						clock.push({
+							cursor: event.cursor,
+							block_height: event.block_height,
+							block_hash: event.block_hash,
+							matched: false,
+						});
 						continue;
 					}
 					const row = decodePox5Print(event);
 					if (row) rows.push(row);
+					clock.push({
+						cursor: event.cursor,
+						block_height: event.block_height,
+						block_hash: event.block_hash,
+						matched: Boolean(row),
+					});
 				} catch (error) {
+					const fault = classifyGenericDecodeFault(error);
 					logger.warn("decoder.decode_skipped", {
 						decoder: decoderName,
 						cursor: event.cursor,
 						tx_id: event.tx_id,
 						event_type: event.event_type,
+						fault,
 						error: String(error),
+					});
+					clock.push({
+						cursor: event.cursor,
+						block_height: event.block_height,
+						block_hash: event.block_hash,
+						matched: false,
+					});
+					faults.push({
+						cursor: event.cursor,
+						class: fault,
+						error: error instanceof Error ? error.message : String(error),
 					});
 				}
 			}
 
-			await commitDecodedBatch({
+			await commitDecoderStageBatch({
 				db,
 				decoderName,
-				cursor: envelope.next_cursor,
-				write: async (tx) => {
+				checkpointCursor: envelope.next_cursor,
+				receipts: planGenericDecoderReceipts(clock),
+				failure: failureFromFaults(faults),
+				writeOutput: async (tx) => {
 					if (rows.length > 0) await writePox5Events(rows, { db: tx });
 				},
 			});

@@ -21,6 +21,12 @@ import {
 import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
+import {
+	classifyGenericDecodeFault,
+	commitGenericDecoderBatch,
+	failureFromFaults,
+	planGenericDecoderReceipts,
+} from "./generic-commit.ts";
 import { defaultInternalStreamsApiKey } from "./internal-auth.ts";
 import {
 	FT_BURN_DECODER_NAME,
@@ -34,14 +40,12 @@ import {
 	STX_LOCK_DECODER_NAME,
 	STX_MINT_DECODER_NAME,
 	STX_TRANSFER_DECODER_NAME,
-	commitDecodedBatch,
 	readDecoderCheckpoint,
-	writeDecodedEvents,
 } from "./storage.ts";
 
 export {
-	FT_TRANSFER_DECODER_NAME,
 	DECODER_NAMES,
+	FT_TRANSFER_DECODER_NAME,
 	NFT_TRANSFER_DECODER_NAME,
 } from "./storage.ts";
 
@@ -61,152 +65,14 @@ type DecodedEventConsumeOpts = {
 		cursor: string | null;
 		lagSeconds: number;
 	}) => void | Promise<void>;
+	/** Test hook: decode and plan the batch without opening a database. */
+	skipPersist?: boolean;
 };
-
-export async function consumeFtTransferDecodedEvents(opts?: {
-	db?: Kysely<Database>;
-	streamsClient?: StreamsClient;
-	fromCursor?: string | null;
-	batchSize?: number;
-	emptyBackoffMs?: number;
-	maxPages?: number;
-	maxEmptyPolls?: number;
-	signal?: AbortSignal;
-	decoderName?: string;
-	types?: readonly StreamsEventType[];
-	onProgress?: (stats: {
-		decoded: number;
-		cursor: string | null;
-		lagSeconds: number;
-	}) => void | Promise<void>;
-}): Promise<{ cursor: string | null; pages: number; decoded: number }> {
-	const db = opts?.db;
-	const decoderName = opts?.decoderName ?? FT_TRANSFER_DECODER_NAME;
-	const streamsClient = opts?.streamsClient ?? createInternalStreamsClient();
-	const startCursor =
-		opts?.fromCursor !== undefined
-			? opts.fromCursor
-			: await readDecoderCheckpoint({ db, decoderName });
-	let decoded = 0;
-
-	const result = await streamsClient.events.consume({
-		fromCursor: startCursor,
-		batchSize: opts?.batchSize ?? 500,
-		emptyBackoffMs: opts?.emptyBackoffMs,
-		maxPages: opts?.maxPages,
-		maxEmptyPolls: opts?.maxEmptyPolls,
-		signal: opts?.signal,
-		types: opts?.types ?? ["ft_transfer"],
-		onBatch: async (events, envelope) => {
-			const rows = events.flatMap((event) => {
-				if (event.event_type !== "ft_transfer") return [];
-				try {
-					return [decodeFtTransfer(event)];
-				} catch (error) {
-					logger.warn("decoder.decode_skipped", {
-						decoder: decoderName,
-						cursor: event.cursor,
-						tx_id: event.tx_id,
-						error: String(error),
-					});
-					return [];
-				}
-			});
-			await commitDecodedBatch({
-				db,
-				decoderName,
-				cursor: envelope.next_cursor,
-				write: (tx) => writeDecodedEvents(rows, { db: tx }),
-			});
-			decoded += rows.length;
-			await opts?.onProgress?.({
-				decoded: rows.length,
-				cursor: envelope.next_cursor,
-				lagSeconds: envelope.tip.lag_seconds,
-			});
-			return envelope.next_cursor;
-		},
-	});
-
-	return { cursor: result.cursor, pages: result.pages, decoded };
-}
-
-export async function consumeNftTransferDecodedEvents(opts?: {
-	db?: Kysely<Database>;
-	streamsClient?: StreamsClient;
-	fromCursor?: string | null;
-	batchSize?: number;
-	emptyBackoffMs?: number;
-	maxPages?: number;
-	maxEmptyPolls?: number;
-	signal?: AbortSignal;
-	decoderName?: string;
-	types?: readonly StreamsEventType[];
-	onProgress?: (stats: {
-		decoded: number;
-		cursor: string | null;
-		lagSeconds: number;
-	}) => void | Promise<void>;
-}): Promise<{ cursor: string | null; pages: number; decoded: number }> {
-	const db = opts?.db;
-	const decoderName = opts?.decoderName ?? NFT_TRANSFER_DECODER_NAME;
-	const streamsClient = opts?.streamsClient ?? createInternalStreamsClient();
-	const startCursor =
-		opts?.fromCursor !== undefined
-			? opts.fromCursor
-			: await readDecoderCheckpoint({ db, decoderName });
-	let decoded = 0;
-
-	const result = await streamsClient.events.consume({
-		fromCursor: startCursor,
-		batchSize: opts?.batchSize ?? 500,
-		emptyBackoffMs: opts?.emptyBackoffMs,
-		maxPages: opts?.maxPages,
-		maxEmptyPolls: opts?.maxEmptyPolls,
-		signal: opts?.signal,
-		// Server-side filter — without this the streams query scans every
-		// event type in the cursor range, which times out the API on big
-		// backlogs and stalls the NFT decoder. Mirrors FT's default.
-		types: opts?.types ?? ["nft_transfer"],
-		onBatch: async (events, envelope) => {
-			const rows = events.flatMap((event) => {
-				if (event.event_type !== "nft_transfer") return [];
-				try {
-					return [decodeNftTransfer(event)];
-				} catch (error) {
-					logger.warn("decoder.decode_skipped", {
-						decoder: decoderName,
-						cursor: event.cursor,
-						tx_id: event.tx_id,
-						error: String(error),
-					});
-					return [];
-				}
-			});
-			await commitDecodedBatch({
-				db,
-				decoderName,
-				cursor: envelope.next_cursor,
-				write: (tx) => writeDecodedEvents(rows, { db: tx }),
-			});
-			decoded += rows.length;
-			await opts?.onProgress?.({
-				decoded: rows.length,
-				cursor: envelope.next_cursor,
-				lagSeconds: envelope.tip.lag_seconds,
-			});
-			return envelope.next_cursor;
-		},
-	});
-
-	return { cursor: result.cursor, pages: result.pages, decoded };
-}
 
 /**
  * Generic decoded-event consumer: server-side filtered by a single Streams
- * event type, decoded via the supplied SDK decoder, written to decoded_events.
- * Mirrors the ft/nft consumers (try/catch-per-event, checkpoint, progress) and
- * backs every type added after the original two.
+ * event type, decoded via the supplied SDK decoder, committed through the
+ * atomic adapter (output + checkpoint + receipt + omission/version failure).
  */
 async function consumeDecodedEvents(
 	config: {
@@ -234,26 +100,74 @@ async function consumeDecodedEvents(
 		signal: opts?.signal,
 		types: opts?.types ?? [config.streamsType],
 		onBatch: async (events, envelope) => {
+			const faults: {
+				cursor: string;
+				class: ReturnType<typeof classifyGenericDecodeFault>;
+				error: string;
+			}[] = [];
+			const clockEvents: {
+				cursor: string;
+				block_height: number;
+				block_hash: string;
+				matched: boolean;
+			}[] = [];
 			const rows = events.flatMap((event) => {
-				if (event.event_type !== config.streamsType) return [];
+				if (event.event_type !== config.streamsType) {
+					clockEvents.push({
+						cursor: event.cursor,
+						block_height: event.block_height,
+						block_hash: event.block_hash,
+						matched: false,
+					});
+					faults.push({
+						cursor: event.cursor,
+						class: "omission",
+						error: `event_type ${event.event_type} omitted by ${config.streamsType} decoder`,
+					});
+					return [];
+				}
 				try {
-					return [config.decode(event)];
+					const row = config.decode(event);
+					clockEvents.push({
+						cursor: event.cursor,
+						block_height: event.block_height,
+						block_hash: event.block_hash,
+						matched: true,
+					});
+					return [row];
 				} catch (error) {
+					const fault = classifyGenericDecodeFault(error);
 					logger.warn("decoder.decode_skipped", {
 						decoder: decoderName,
 						cursor: event.cursor,
 						tx_id: event.tx_id,
+						fault,
 						error: String(error),
+					});
+					clockEvents.push({
+						cursor: event.cursor,
+						block_height: event.block_height,
+						block_hash: event.block_hash,
+						matched: false,
+					});
+					faults.push({
+						cursor: event.cursor,
+						class: fault,
+						error: error instanceof Error ? error.message : String(error),
 					});
 					return [];
 				}
 			});
-			await commitDecodedBatch({
-				db,
-				decoderName,
-				cursor: envelope.next_cursor,
-				write: (tx) => writeDecodedEvents(rows, { db: tx }),
-			});
+			if (!opts?.skipPersist) {
+				await commitGenericDecoderBatch({
+					db,
+					decoderName,
+					checkpointCursor: envelope.next_cursor,
+					rows,
+					receipts: planGenericDecoderReceipts(clockEvents),
+					failure: failureFromFaults(faults),
+				});
+			}
 			decoded += rows.length;
 			await opts?.onProgress?.({
 				decoded: rows.length,
@@ -266,6 +180,30 @@ async function consumeDecodedEvents(
 
 	return { cursor: result.cursor, pages: result.pages, decoded };
 }
+
+export const consumeFtTransferDecodedEvents = (
+	opts?: DecodedEventConsumeOpts,
+) =>
+	consumeDecodedEvents(
+		{
+			streamsType: "ft_transfer",
+			defaultDecoderName: FT_TRANSFER_DECODER_NAME,
+			decode: decodeFtTransfer,
+		},
+		opts,
+	);
+
+export const consumeNftTransferDecodedEvents = (
+	opts?: DecodedEventConsumeOpts,
+) =>
+	consumeDecodedEvents(
+		{
+			streamsType: "nft_transfer",
+			defaultDecoderName: NFT_TRANSFER_DECODER_NAME,
+			decode: decodeNftTransfer,
+		},
+		opts,
+	);
 
 export const consumeStxTransferDecodedEvents = (
 	opts?: DecodedEventConsumeOpts,

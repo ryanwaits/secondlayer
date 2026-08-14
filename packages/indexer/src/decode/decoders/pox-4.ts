@@ -7,17 +7,19 @@ import { cvToValue, deserializeCV } from "@secondlayer/stacks/clarity";
 import { POX_CONTRACTS } from "@secondlayer/stacks/pox";
 import { formatBtcAddress } from "@secondlayer/stacks/sbtc";
 import type { Kysely } from "kysely";
+import {
+	classifyGenericDecodeFault,
+	commitDecoderStageBatch,
+	failureFromFaults,
+	planGenericDecoderReceipts,
+} from "../generic-commit.ts";
 import { createInternalIndexClient } from "../index-client.ts";
 import {
 	POX4_DECODER_NAME,
 	type Pox4CallRow,
 	writePox4Calls,
 } from "../pox4-storage.ts";
-import {
-	commitDecodedBatch,
-	readDecoderCheckpoint,
-	writeDecoderCheckpoint,
-} from "../storage.ts";
+import { readDecoderCheckpoint, writeDecoderCheckpoint } from "../storage.ts";
 
 export { POX4_DECODER_NAME };
 
@@ -142,14 +144,46 @@ export async function consumePox4DecodedEvents(
 		}
 
 		const decodedRows: Pox4CallRow[] = [];
+		const clock: {
+			cursor: string;
+			block_height: number;
+			block_hash: string;
+			matched: boolean;
+		}[] = [];
+		const faults: {
+			cursor: string;
+			class: ReturnType<typeof classifyGenericDecodeFault>;
+			error: string;
+		}[] = [];
 		for (const row of rows) {
+			const height = Number(row.block_height);
+			const cursorAt = `${height}:${Number(row.tx_index)}`;
 			try {
 				const decodedRow = decodePox4Tx(row);
 				if (decodedRow) decodedRows.push(decodedRow);
+				clock.push({
+					cursor: cursorAt,
+					block_height: height,
+					block_hash: `pox4:${height}`,
+					matched: Boolean(decodedRow),
+				});
 			} catch (err) {
+				const fault = classifyGenericDecodeFault(err);
 				logger.warn("PoX-4 decoder: failed to decode tx", {
 					tx_id: row.tx_id,
+					fault,
 					error: err instanceof Error ? err.message : err,
+				});
+				clock.push({
+					cursor: cursorAt,
+					block_height: height,
+					block_hash: `pox4:${height}`,
+					matched: false,
+				});
+				faults.push({
+					cursor: cursorAt,
+					class: fault,
+					error: err instanceof Error ? err.message : String(err),
 				});
 			}
 		}
@@ -158,11 +192,13 @@ export async function consumePox4DecodedEvents(
 		if (!last) break;
 		cursor = encodePox4Cursor(Number(last.block_height), Number(last.tx_index));
 
-		await commitDecodedBatch({
+		await commitDecoderStageBatch({
 			db: targetDb,
 			decoderName,
-			cursor,
-			write: async (tx) => {
+			checkpointCursor: cursor,
+			receipts: planGenericDecoderReceipts(clock),
+			failure: failureFromFaults(faults),
+			writeOutput: async (tx) => {
 				if (decodedRows.length > 0)
 					await writePox4Calls(decodedRows, { db: tx });
 			},

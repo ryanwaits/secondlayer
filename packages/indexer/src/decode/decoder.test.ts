@@ -5,8 +5,17 @@ import type {
 	StreamsEventType,
 } from "@secondlayer/sdk";
 import {
+	consumeFtBurnDecodedEvents,
+	consumeFtMintDecodedEvents,
 	consumeFtTransferDecodedEvents,
+	consumeNftBurnDecodedEvents,
+	consumeNftMintDecodedEvents,
 	consumeNftTransferDecodedEvents,
+	consumePrintDecodedEvents,
+	consumeStxBurnDecodedEvents,
+	consumeStxLockDecodedEvents,
+	consumeStxMintDecodedEvents,
+	consumeStxTransferDecodedEvents,
 } from "./decoder.ts";
 
 function streamsClientSpy(
@@ -104,34 +113,37 @@ function streamsClientOnBatchSpy(events: StreamsEvent[]): StreamsClient {
 	};
 }
 
+const GENERIC_PRODUCERS: {
+	type: StreamsEventType;
+	run: typeof consumeFtTransferDecodedEvents;
+}[] = [
+	{ type: "ft_transfer", run: consumeFtTransferDecodedEvents },
+	{ type: "nft_transfer", run: consumeNftTransferDecodedEvents },
+	{ type: "stx_transfer", run: consumeStxTransferDecodedEvents },
+	{ type: "stx_mint", run: consumeStxMintDecodedEvents },
+	{ type: "stx_burn", run: consumeStxBurnDecodedEvents },
+	{ type: "stx_lock", run: consumeStxLockDecodedEvents },
+	{ type: "ft_mint", run: consumeFtMintDecodedEvents },
+	{ type: "ft_burn", run: consumeFtBurnDecodedEvents },
+	{ type: "nft_mint", run: consumeNftMintDecodedEvents },
+	{ type: "nft_burn", run: consumeNftBurnDecodedEvents },
+	{ type: "print", run: consumePrintDecodedEvents },
+];
+
 describe("L2 decoder Streams filters", () => {
-	test("FT decoder requests only ft_transfer Streams events by default", async () => {
-		let seenTypes: readonly StreamsEventType[] | undefined;
-
-		await consumeFtTransferDecodedEvents({
-			streamsClient: streamsClientSpy((types) => {
-				seenTypes = types;
-			}),
-			fromCursor: "1:0",
-			maxPages: 1,
+	for (const producer of GENERIC_PRODUCERS) {
+		test(`${producer.type} decoder requests only that Streams type`, async () => {
+			let seenTypes: readonly StreamsEventType[] | undefined;
+			await producer.run({
+				streamsClient: streamsClientSpy((types) => {
+					seenTypes = types;
+				}),
+				fromCursor: "1:0",
+				maxPages: 1,
+			});
+			expect(seenTypes).toEqual([producer.type]);
 		});
-
-		expect(seenTypes).toEqual(["ft_transfer"]);
-	});
-
-	test("NFT decoder requests only nft_transfer Streams events by default", async () => {
-		let seenTypes: readonly StreamsEventType[] | undefined;
-
-		await consumeNftTransferDecodedEvents({
-			streamsClient: streamsClientSpy((types) => {
-				seenTypes = types;
-			}),
-			fromCursor: "1:0",
-			maxPages: 1,
-		});
-
-		expect(seenTypes).toEqual(["nft_transfer"]);
-	});
+	}
 
 	test("FT decoder skips a poison event instead of throwing", async () => {
 		const poison = {
@@ -153,6 +165,7 @@ describe("L2 decoder Streams filters", () => {
 			streamsClient: streamsClientOnBatchSpy([poison]),
 			fromCursor: "1:0",
 			maxPages: 1,
+			skipPersist: true,
 		});
 
 		expect(result.decoded).toBe(0);
