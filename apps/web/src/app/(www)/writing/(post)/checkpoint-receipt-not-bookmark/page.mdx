@@ -193,7 +193,7 @@ The behaviors that follow from this design, so none of them read as failures:
 - **Restart prints the same cursor when the feed is quiet.** The checkpoint is the receipt for the last delivered row; it moves when delivery moves. Resuming re-verifies the empty range in one query.
 - **A caught-up tail is silent.** No matching events means no output and no checkpoint writes; `idle_s` and `ok` on the health endpoint are the proof of life, not the log.
 - **`blocks_behind` falls during a backfill and reads ~0 at the tail**, even while event age grows. Different facts.
-- **Checkpoint writes are transactional with your rows.** A crash mid-batch leaves neither rows nor cursor; the batch is simply re-read. That contract, and how to implement it for your own store, is the [sink interface](/docs/custom-sinks).
+- **Checkpoint writes are transactional with your rows.** A crash mid-batch leaves neither rows nor cursor; the batch is simply re-read. That contract, and how to implement it for your own store, is the [sink interface](/docs/sinks).
 
 ## The general principle
 

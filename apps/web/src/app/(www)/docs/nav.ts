@@ -13,9 +13,10 @@ export const DOCS_NAV: DocsNavGroup[] = [
 		label: "Getting started",
 		items: [
 			{ title: "Introduction", href: "/docs" },
+			{ title: "Run Secondlayer", href: "/docs/self-host" },
 			{ title: "Quickstart", href: "/docs/quickstart" },
 			{ title: "Devnet", href: "/docs/devnet" },
-			{ title: "Authentication", href: "/docs/authentication" },
+			{ title: "Instance token & credits", href: "/docs/authentication" },
 		],
 	},
 	{
@@ -27,22 +28,23 @@ export const DOCS_NAV: DocsNavGroup[] = [
 			{ title: "Streams", href: "/docs/streams" },
 			{ title: "SDK", href: "/docs/sdk" },
 			{ title: "Sinks", href: "/docs/sinks" },
-			{ title: "Write your own sink", href: "/docs/custom-sinks" },
 			{ title: "Filters", href: "/docs/filters" },
 			{ title: "CLI", href: "/docs/cli" },
 			{ title: "MCP", href: "/docs/mcp" },
 		],
 	},
 	{
+		label: "Archive",
+		items: [
+			{ title: "Verified archive", href: "/docs/archive" },
+			{ title: "Verification", href: "/docs/verification" },
+		],
+	},
+	{
 		label: "Deploy",
 		items: [
-			{ title: "Overview", href: "/docs/deploy" },
-			{ title: "Railway", href: "/docs/deploy/railway" },
-			{ title: "Render", href: "/docs/deploy/render" },
-			{ title: "Fly", href: "/docs/deploy/fly" },
-			{ title: "Vercel", href: "/docs/deploy/vercel" },
+			{ title: "Deploy your app", href: "/docs/deploy" },
 			{ title: "Docker and EC2", href: "/docs/deploy/docker" },
-			{ title: "Run the platform yourself", href: "/docs/self-host" },
 		],
 	},
 	{
@@ -51,16 +53,18 @@ export const DOCS_NAV: DocsNavGroup[] = [
 			{ title: "REST API", href: "/docs/rest-api" },
 			{ title: "API reference", href: "/docs/api-reference" },
 			{ title: "SDK reference", href: "/docs/sdk-reference" },
-			{ title: "Verification", href: "/docs/verification" },
-			{ title: "Verified archive", href: "/docs/archive" },
+			{ title: "Changelog", href: "/docs/changelog" },
+		],
+	},
+	{
+		label: "Chain",
+		items: [
 			{ title: "Bitcoin SPV", href: "/docs/bitcoin-spv" },
 			{ title: "sBTC settlement", href: "/docs/sbtc-settlement" },
+			{ title: "PoX-5 staking", href: "/docs/pox5" },
 			{ title: "Contract discovery", href: "/docs/contracts" },
 			{ title: "Stacks SDK", href: "/docs/stacks" },
-			{ title: "PoX-5 staking", href: "/docs/pox5" },
 			{ title: "Migrating from Chainhook", href: "/docs/migrate-chainhook" },
-			{ title: "x402 (experimental)", href: "/docs/x402" },
-			{ title: "Changelog", href: "/docs/changelog" },
 		],
 	},
 ];

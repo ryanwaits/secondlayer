@@ -8,6 +8,7 @@ const ROUTES = [
 	"/docs",
 	"/docs/self-host",
 	"/docs/archive",
+	"/archive",
 	"/status",
 	"/writing",
 ] as const;

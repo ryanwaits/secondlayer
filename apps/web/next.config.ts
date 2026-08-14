@@ -122,7 +122,40 @@ const nextConfig: NextConfig = {
 			},
 			{
 				source: "/claim/:token",
-				destination: "/#history",
+				destination: "/archive",
+				permanent: true,
+			},
+			// 2026-08 self-host docs consolidation: platform-specific consumer
+			// deploys folded into /docs/deploy, custom sinks into /docs/sinks,
+			// x402 into the self-host page.
+			{
+				source: "/docs/deploy/railway",
+				destination: "/docs/deploy",
+				permanent: true,
+			},
+			{
+				source: "/docs/deploy/render",
+				destination: "/docs/deploy",
+				permanent: true,
+			},
+			{
+				source: "/docs/deploy/fly",
+				destination: "/docs/deploy",
+				permanent: true,
+			},
+			{
+				source: "/docs/deploy/vercel",
+				destination: "/docs/deploy",
+				permanent: true,
+			},
+			{
+				source: "/docs/custom-sinks",
+				destination: "/docs/sinks",
+				permanent: true,
+			},
+			{
+				source: "/docs/x402",
+				destination: "/docs/self-host",
 				permanent: true,
 			},
 			{

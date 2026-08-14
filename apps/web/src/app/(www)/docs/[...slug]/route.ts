@@ -14,7 +14,9 @@ export const dynamicParams = false;
 
 export function generateStaticParams() {
 	return docsPages().map((page) => ({
-		slug: `${page.href.replace(/^\/docs\/?/, "") || "index"}.md`.split("/"),
+		slug: `${page.href.replace(/^\/docs\/?/, "") || "introduction"}.md`.split(
+			"/",
+		),
 	}));
 }
 
@@ -29,9 +31,10 @@ export async function GET(
 	}
 
 	const bare = path.slice(0, -3);
-	// `/docs/index.md` is the introduction (`/docs`), not the Index product
-	// page — the introduction has no slug of its own.
-	const href = bare === "index" ? "/docs" : `/docs/${bare}`;
+	// The introduction (`/docs`) has no slug of its own, so it serves as
+	// `introduction.md`; `index.md` is the Index product page, as the
+	// append-.md contract promises.
+	const href = bare === "introduction" ? "/docs" : `/docs/${bare}`;
 	const markdown = await readDocsMarkdown(href);
 	if (markdown === null) {
 		return new Response("Not found", { status: 404 });

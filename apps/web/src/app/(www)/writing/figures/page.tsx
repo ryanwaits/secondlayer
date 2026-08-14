@@ -1505,7 +1505,7 @@ export default function FigureLibraryPage() {
 			>
 				<CopyBlock
 					title="Build a checkpointed indexer"
-					code={`Read /docs/custom-sinks and implement a ConsumerSink for my store.
+					code={`Read /docs/sinks and implement a ConsumerSink for my store.
 Hold the 13 invariants; start from the bun:sqlite reference sink.
 Run the conformance kit (attachSinkConformance) before wiring it in.`}
 				/>
