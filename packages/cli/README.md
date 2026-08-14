@@ -71,6 +71,8 @@ No account. Writes `.env.local`, restores history, prints the Stacks observer st
 | `sl init [--network mainnet\|testnet\|devnet] [--api-url <url>] [--force]` | Write `.env.local` (token, secrets key, webhook signing key). Idempotent |
 | `sl bootstrap --against <manifest> [--to-block <n>] [--public-key <pem>] [-y] [--json]` | Restore chain history from a verified archive into an empty database. Exit `0` restored, `1` diverged, `2` refused |
 | `sl observer [--mode indexer\|signer-shared] [--endpoint host:port] [--recovery journal\|archive] [--network …]` | Print the `[[events_observer]]` stanza. Signer-shared requires `--recovery` |
+| `sl verify [all\|raw\|decode:<name>\|subgraph:<name>] --against <manifest> [--quick\|--deep\|--anchor]` | Compare local data to a signed archive. Default target `raw`. Exit `0` clean, `1` diverged, `2` unanchored |
+| `sl repair --against <archive> [--apply]` | Plan (default) or apply an archive repair |
 
 ### Auth & project
 

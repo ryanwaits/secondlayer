@@ -19,11 +19,11 @@ sl subgraphs deploy
 sl subgraphs list
 sl subscriptions create
 sl context
-sl verify
-sl repair
+sl verify all --against <manifest>
+sl repair --against <archive>
 ```
 
-[Verified archive](/docs/archive) covers the last two. [Self-host](/docs/self-host) is the compose loop.
+[Verified archive](/docs/archive) owns `sl verify` / `sl repair`. [Self-host](/docs/self-host) is the compose loop.
 
 <Callout type="note" title="Chain subscriptions use a different surface">
 
@@ -57,6 +57,8 @@ sl observer --mode indexer
 | | `--network` | `STACKS_NETWORK` or `mainnet` | Loopback refused except devnet |
 
 `sl bootstrap` refuses a non-empty database. Fix an existing instance with [`sl repair`](/docs/archive). Exit `0` restored, `1` diverged, `2` refused.
+
+`sl verify [target]` compares local data to a signed archive. Target is `all`, `raw` (default), `decode:<name>`, or `subgraph:<name>`. `--quick` is identity; `--deep` is semantic; `--anchor` requires a verified signature. Flags live on [Verified archive](/docs/archive#flags).
 
 <Callout type="note" title="Signer-shared nodes skip retries">
 

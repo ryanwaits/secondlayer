@@ -31,7 +31,7 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 
 ## Table of contents
 
-- [Local runtime](#local-runtime) — `init`, `bootstrap`, `observer`
+- [Local runtime](#local-runtime) — `init`, `bootstrap`, `observer`, `verify`, `repair`
 - [Auth](#auth) — `login`, `logout`, `whoami`, `keys create`
 - [Projects](#projects) — `projects create|list|use|get`
 - [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `reindex`, `backfill`, `cancel`, `gaps`, `query`, `delete`, `scaffold`, `client`, `codegen`
@@ -101,6 +101,49 @@ Usage: `sl observer [--mode indexer|signer-shared] [--endpoint host:port] [--rec
 | `--network <network>` | `STACKS_NETWORK` or `mainnet` | `mainnet`, `testnet`, or `devnet`. |
 
 Example: `sl observer --mode indexer --endpoint indexer:3700`
+
+### sl verify
+
+Compare local chain data against a signed archive. Read-only. Nothing is uploaded.
+
+Usage: `sl verify [target] --against <manifest> [--quick] [--deep] [--anchor] [--from-block <n>] [--to-block <n>] [--counts] [--semantic] [--public-key <pem>] [--insecure] [--json]`
+
+`target` is `all`, `raw` (default), `decode:<name>`, or `subgraph:<name>`.
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--against <manifest>` | required | Archive manifest: https URL or local file path. |
+| `--quick` | on | Identity-column digests only. |
+| `--deep` | off | Also recompute semantic digests. |
+| `--anchor` | off | Require a verified archive signature. |
+| `--from-block <n>` / `--to-block <n>` | full manifest | Limit the checked range. |
+| `--counts` | off | Also compare transaction/event row counts. |
+| `--semantic` | off | Alias of `--deep`. |
+| `--public-key <pem>` | resolved | Pin the signing key. |
+| `--insecure` | off | Skip signature check. Result is unverified. |
+| `--json` | off | Machine output. |
+
+Exit codes: `0` clean, `1` diverged, `2` unanchored (reference unreachable, signature failed, or no matching dataset).
+
+Example: `sl verify decode:ft_transfer --against ./snapshot.json --deep`
+
+### sl repair
+
+Replace local chain data that diverges from a signed archive. Dry-run by default.
+
+Usage: `sl repair --against <archive> [--apply] [--from-block <n>] [--to-block <n>] [--public-key <pem>] [--json]`
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--against <archive>` | required | Archive manifest URL or path. |
+| `--apply` | off | Write the repair. Without it, print the plan only. |
+| `--from-block <n>` / `--to-block <n>` | full archive | Limit the repaired range. |
+| `--public-key <pem>` | resolved | Pin the signing key. |
+| `--json` | off | Machine output. |
+
+Exit codes: `0` ok, `1` divergence remains, `2` unanchored.
+
+Example: `sl repair --against ./snapshot.json` then `sl repair --against ./snapshot.json --apply`
 
 ---
 

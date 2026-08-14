@@ -6,8 +6,10 @@ Check your chain history against a signed canonical archive, repair what diverge
 
 | Job | Command |
 | --- | --- |
-| Check identity columns | `sl verify --against <latest.json>` |
-| Also check payload columns | `sl verify --against <latest.json> --semantic` |
+| Check raw identity columns | `sl verify raw --against <latest.json>` |
+| Check every published dataset | `sl verify all --against <latest.json>` |
+| Check one decoder | `sl verify decode:ft_transfer --against <latest.json>` |
+| Also check payload columns | `sl verify --against <latest.json> --deep` |
 | Plan a repair | `sl repair --against <archive>` |
 | Write the repair | `sl repair --against <archive> --apply` |
 | Restore a fresh instance | `sl bootstrap --against <archive>` |
@@ -19,10 +21,19 @@ Check your chain history against a signed canonical archive, repair what diverge
 ## Check your data
 
 ```bash
-sl verify --against https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev/secondlayer/mainnet/canonical/v1/latest.json
+sl verify raw --against https://pub-08fa583203de40b2b154e6a56624adc2.r2.dev/secondlayer/mainnet/canonical/v1/latest.json
 ```
 
-Read-only. Nothing leaves your machine — your database computes digests locally and only those are compared. The full mainnet chain checks in well under a minute.
+Read-only. Digests stay on your machine. Default target is `raw`.
+
+| Target | Checks |
+| --- | --- |
+| `raw` | `blocks`, `transactions`, `events` |
+| `all` | Every dataset the manifest publishes |
+| `decode:<name>` | That decoder's datasets |
+| `subgraph:<name>` | That subgraph's datasets |
+
+No matching dataset in the manifest is exit `2`.
 
 Clean output exits `0`. Divergence names the ranges:
 
@@ -53,14 +64,15 @@ Equal row counts with differing data means the same heights hold different block
 | Flag | Effect |
 | --- | --- |
 | `--against <manifest>` | Archive `latest.json`, a snapshot manifest URL, or a local path. Required. |
+| `--quick` | Identity columns only. Default. |
+| `--deep` | Also recompute semantic digests (`raw_tx`, event `data`, `function_args`). |
+| `--anchor` | Require a verified archive signature. |
 | `--from-block <n>` / `--to-block <n>` | Limit the checked range. |
 | `--counts` | Also compare transaction and event row counts. Slower. |
-| `--semantic` | Recompute per-partition semantic digests locally and compare. Catches divergence in `raw_tx`, event `data`, and `function_args` that identity-only digests skip. |
+| `--semantic` | Alias of `--deep`. |
 | `--public-key <pem>` | Pin the signing key instead of fetching it. |
 | `--insecure` | Compare without verifying the signature. Result is unverified. |
 | `--json` | Machine-readable report on stdout. |
-
-Default pass: identity columns (~90 s for mainnet). `--semantic` after a rebuild or against a foreign runtime.
 
 ## Repair what diverges
 

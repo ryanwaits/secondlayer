@@ -210,6 +210,24 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		),
 	],
 
+	"/docs/archive": [
+		card(
+			"Check local data against the archive",
+			"Run sl verify on raw, a decoder, or a subgraph.",
+			"/secondlayer Help me verify my local Secondlayer database against a signed archive: `sl verify raw --against <latest.json>` for blocks/transactions/events, `sl verify decode:ft_transfer --against <latest.json> --deep` for one decoder, or `sl verify all`. Explain exit `0`/`1`/`2` and what `--quick`, `--deep`, and `--anchor` do.",
+		),
+		card(
+			"Repair what diverged",
+			"Plan first, then apply signed archive rows.",
+			"/secondlayer My `sl verify` exited 1. Show me `sl repair --against <archive>` (dry-run) then `--apply`. Name exact heights, refuse unsigned objects, and do not delete local heights the archive does not have.",
+		),
+		card(
+			"Bootstrap a fresh instance",
+			"Restore history instead of syncing from genesis.",
+			"/secondlayer Stand up an empty instance from the archive: `sl bootstrap --against <manifest>`. Explain the two timings, that a non-empty database is refused (`sl repair` instead), and `--to-block` / `-y`.",
+		),
+	],
+
 	"/docs/verification": [
 		card(
 			"Verify a tx proof",
@@ -341,7 +359,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Stand up a local runtime",
 			"Init, bootstrap, print the observer stanza.",
-			"/secondlayer Help me run a local Secondlayer instance with no account: `sl init --network mainnet` writes `.env.local`, `sl bootstrap --against <manifest>` restores verified history into an empty database, and `sl observer --mode indexer` prints the `[[events_observer]]` stanza. Explain flags, exit codes, and when to use `--mode signer-shared --recovery journal`.",
+			"/secondlayer Help me run a local Secondlayer instance with no account: `sl init --network mainnet` writes `.env.local`, `sl bootstrap --against <manifest>` restores verified history into an empty database, and `sl observer --mode indexer` prints the `[[events_observer]]` stanza. Then `sl verify all --against <manifest>` checks the restore. Explain flags, exit codes, and when to use `--mode signer-shared --recovery journal`.",
 		),
 		variant("cli-operate"),
 		card(
@@ -435,7 +453,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Sync from genesis",
 			"Backfill, then deploy against your instance.",
-			"/secondlayer Walk me through a genesis sync: start with `TIP_FOLLOWER_ENABLED=false`, track progress via `curl http://localhost:3700/health | jq .block_height` against the chain tip, re-enable the tip follower, then deploy a subgraph against my local instance with `SL_API_URL=http://localhost:3800` and `sl subgraphs deploy`.",
+			"/secondlayer Walk me through a genesis sync: start with `TIP_FOLLOWER_ENABLED=false`, track progress via `curl http://localhost:3700/health | jq .block_height` against the chain tip, re-enable the tip follower, `sl verify all --against <manifest>`, then deploy a subgraph against my local instance with `SL_API_URL=http://localhost:3800` and `sl subgraphs deploy`.",
 		),
 	],
 

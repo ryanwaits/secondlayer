@@ -237,11 +237,12 @@ Exit codes:
 				const referenceSemantic: PartitionSemanticDigest[] = (
 					manifest.partition_semantic_digests ?? []
 				).filter((d) => {
+					if (!datasetMatchesTarget(d.dataset, target)) return false;
 					if (fromBlock !== undefined && d.to_block < fromBlock) return false;
 					if (toBlock !== undefined && d.from_block > toBlock) return false;
 					return true;
 				});
-				if (opts.semantic) {
+				if (opts.semantic || opts.deep) {
 					if (referenceSemantic.length === 0) {
 						warn(
 							"Reference publishes no semantic digests; --semantic had nothing to compare.",

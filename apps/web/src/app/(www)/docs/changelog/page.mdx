@@ -4,6 +4,16 @@ Notable changes to the Secondlayer platform and SDKs.
 
 ## CLI — August 2026
 
+### Point verify at raw, a decoder, or a subgraph
+
+`sl verify` takes `all`, `raw`, `decode:<name>`, or `subgraph:<name>`. Default is raw. `--quick` hashes identity columns. `--deep` also recomputes semantic digests. `--anchor` requires a verified archive signature.
+
+```bash
+sl verify decode:ft_transfer --against ./snapshot.json --deep
+```
+
+A target with no matching archive dataset exits `2` — not being able to check is not a pass.
+
 ### Run the runtime without an account
 
 `sl init` writes the keys for a machine you operate. `sl bootstrap` restores

@@ -188,6 +188,13 @@ curl http://localhost:3700/health | jq   # Indexer
 - Set `INSTANCE_TOKEN` — compose refuses to start the API on `0.0.0.0` without it
 - Never publish port 8332 (bitcoind RPC) to the internet
 
+**Verify against a signed archive:**
+```bash
+sl verify all --against <manifest>
+```
+
+Flags and exit codes live on [Verified archive](/docs/archive#flags).
+
 **Deploy a subgraph against your local instance:**
 ```bash
 export SL_API_URL=http://localhost:3800

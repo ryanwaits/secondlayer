@@ -273,7 +273,7 @@ Inspect the account state first. If the subgraph and table are already clear, as
 		tags: ["cli", "subgraphs", "subscriptions"],
 		build: () =>
 			withSetup(
-				"/secondlayer Operate this project through the `sl` CLI. For a local instance start with `sl init`, `sl bootstrap`, and `sl observer`. Inspect subgraphs and subscriptions with JSON output first. Then help me run the exact `sl` commands for the task, including human confirmation before delete, reindex, rotate-secret, replay, or requeue.",
+				"/secondlayer Operate this project through the `sl` CLI. For a local instance start with `sl init`, `sl bootstrap`, and `sl observer`. After restore, `sl verify all --against <manifest>` (or `raw` / `decode:<name>` / `subgraph:<name>`) compares local data to the signed archive — `--deep` for semantic digests. Inspect subgraphs and subscriptions with JSON output first. Then help me run the exact `sl` commands for the task, including human confirmation before delete, reindex, rotate-secret, replay, or requeue.",
 			),
 	},
 	{
