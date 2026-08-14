@@ -64,3 +64,13 @@ archive.{$BASE_DOMAIN:secondlayer.tools} {
 	@immutable not path /latest.json
 	header @immutable Cache-Control "public, max-age=31536000, immutable"
 }
+
+# Self-hosted console. The app self-gates (CONSOLE_TOKEN cookie) and serves
+# everything under /console (Next basePath); the bare host redirects there.
+console.{$BASE_DOMAIN:secondlayer.tools} {
+	header -Server
+	header X-Content-Type-Options nosniff
+
+	redir / /console 308
+	reverse_proxy console:3801
+}

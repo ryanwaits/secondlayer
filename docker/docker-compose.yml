@@ -491,6 +491,27 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Self-hosted console UI (console.secondlayer.tools). Reads the API over the
+  # compose network with a bearer from .env: against a platform-mode API that's
+  # an `sk-sl_` account key (CONSOLE_UPSTREAM_API_KEY); on a self-host runtime
+  # it's the instance token. CONSOLE_TOKEN gates browser access. Started, not
+  # healthy: the console is the tool you reach for when the API is red.
+  console:
+    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-console:${DEPLOY_IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: console
+    environment:
+      SL_API_URL: ${CONSOLE_UPSTREAM_API_URL:-http://api:3800}
+      INSTANCE_TOKEN: ${CONSOLE_UPSTREAM_API_KEY:-}
+      CONSOLE_TOKEN: ${CONSOLE_TOKEN:-}
+      NODE_ENV: production
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   postgres_platform_data:
