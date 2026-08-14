@@ -13,8 +13,10 @@
  */
 
 import {
+	getCreditRefill,
 	getCredits,
 	getMonthlyCreditsSpend,
+	setCreditRefill,
 } from "@secondlayer/platform/db/queries/account-credits";
 import {
 	getCaps,
@@ -429,6 +431,7 @@ app.get("/status", async (c) => {
 	const account = await getAccountById(db, accountId);
 	if (!account) return c.json({ error: "Account not found" }, 404);
 
+	const refill = await getCreditRefill(db, accountId);
 	const base = {
 		plan: account.plan,
 		stripeCustomerId: account.stripe_customer_id ?? null,
@@ -438,6 +441,14 @@ app.get("/status", async (c) => {
 		creditsSpentThisMonthUsdMicros: (
 			await getMonthlyCreditsSpend(db, accountId)
 		).toString(),
+		refill: {
+			belowUsd:
+				refill.belowUsdMicros != null
+					? Number(refill.belowUsdMicros) / 1_000_000
+					: null,
+			packUsd: refill.packUsd,
+			lastAt: refill.lastAt?.toISOString() ?? null,
+		},
 	};
 
 	if (!account.stripe_customer_id) {
@@ -523,6 +534,61 @@ app.get("/status", async (c) => {
 		});
 		return c.json({ ...base, subscription: null });
 	}
+});
+
+/**
+ * POST /api/billing/refill
+ *   { belowUsd: number | null, packUsd?: 10|25|50|100 }
+ *
+ * Opt-in auto-refill. Default is off (`belowUsd: null`). Requires a saved
+ * card from a prior checkout (`setup_future_usage: off_session`).
+ */
+app.post("/refill", async (c) => {
+	const accountId = getAccountId(c);
+	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
+
+	const body = (await c.req.json().catch(() => {
+		throw new InvalidJSONError();
+	})) as { belowUsd?: unknown; packUsd?: unknown };
+
+	if (body.belowUsd === null) {
+		const refill = await setCreditRefill(getDb(), accountId, {
+			belowUsdMicros: null,
+			packUsd: null,
+		});
+		return c.json({
+			belowUsd: null,
+			packUsd: null,
+			lastAt: refill.lastAt?.toISOString() ?? null,
+		});
+	}
+
+	const belowUsd =
+		typeof body.belowUsd === "number" ? body.belowUsd : Number(body.belowUsd);
+	if (!Number.isFinite(belowUsd) || belowUsd < 1) {
+		return c.json({ error: "belowUsd must be at least 1" }, 400);
+	}
+
+	const packRaw =
+		typeof body.packUsd === "number"
+			? body.packUsd
+			: Number(body.packUsd ?? 25);
+	if (!isCreditPack(packRaw)) {
+		return c.json(
+			{ error: `packUsd must be one of ${CREDIT_PACKS_USD.join(", ")}` },
+			400,
+		);
+	}
+
+	const refill = await setCreditRefill(getDb(), accountId, {
+		belowUsdMicros: BigInt(Math.round(belowUsd * 1_000_000)),
+		packUsd: packRaw,
+	});
+	return c.json({
+		belowUsd,
+		packUsd: packRaw,
+		lastAt: refill.lastAt?.toISOString() ?? null,
+	});
 });
 
 app.get("/caps", async (c) => {

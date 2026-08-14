@@ -21,6 +21,11 @@ interface CheckoutResponse {
 interface BillingStatusResponse {
 	creditsUsdMicros?: string;
 	plan?: string;
+	refill?: {
+		belowUsd: number | null;
+		packUsd: number | null;
+		lastAt: string | null;
+	};
 }
 
 function parsePack(raw: string): number {
@@ -88,9 +93,16 @@ async function runBalance(opts: { json?: boolean }): Promise<void> {
 		json: opts.json,
 		data: { creditsUsd: usd, creditsUsdMicros: micros.toString() },
 		human: () => {
+			const refill = res.refill;
 			console.log(
 				formatKeyValue([
 					["Balance", `$${usd.toFixed(2)}`],
+					[
+						"Refill",
+						refill?.belowUsd != null
+							? `on — below $${refill.belowUsd} buy $${refill.packUsd}`
+							: dim("off"),
+					],
 					["Buy", dim("sl credits buy --email you@example.com --pack 25")],
 				]),
 			);
@@ -118,4 +130,70 @@ export function registerCreditsCommand(program: Command): void {
 		.description("Show prepaid archive credit balance")
 		.option("--json", "Output as JSON")
 		.action((opts: { json?: boolean }) => runBalance(opts));
+
+	credits
+		.command("refill")
+		.description("Opt-in auto-refill when the balance drops under a threshold")
+		.option("--below <usd>", "Trigger when balance is under this USD amount")
+		.option("--pack <usd>", `Pack to buy (${PACKS.join(", ")})`, "25")
+		.option("--off", "Turn auto-refill off")
+		.option("--json", "Output as JSON")
+		.action(
+			(opts: {
+				below?: string;
+				pack: string;
+				off?: boolean;
+				json?: boolean;
+			}) => runRefill(opts),
+		);
+}
+
+async function runRefill(opts: {
+	below?: string;
+	pack: string;
+	off?: boolean;
+	json?: boolean;
+}): Promise<void> {
+	if (!opts.off && opts.below === undefined) {
+		await runBalance(opts);
+		return;
+	}
+
+	const body = opts.off
+		? { belowUsd: null }
+		: { belowUsd: Number(opts.below), packUsd: parsePack(opts.pack) };
+
+	if (
+		!opts.off &&
+		(!Number.isFinite(body.belowUsd) || (body.belowUsd ?? 0) < 1)
+	) {
+		logError("--below must be at least 1");
+		process.exit(1);
+	}
+
+	let res: { belowUsd: number | null; packUsd: number | null };
+	try {
+		res = await httpArchiveOps("/api/billing/refill", {
+			method: "POST",
+			body,
+		});
+	} catch (err) {
+		if (err instanceof CliHttpError) {
+			logError(err.message);
+			process.exit(1);
+		}
+		throw err;
+	}
+
+	output({
+		json: opts.json,
+		data: res,
+		human: () => {
+			if (res.belowUsd == null) {
+				success("Auto-refill off");
+				return;
+			}
+			success(`Auto-refill on — below $${res.belowUsd} buy $${res.packUsd}`);
+		},
+	});
 }

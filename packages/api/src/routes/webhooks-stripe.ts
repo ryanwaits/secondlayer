@@ -141,6 +141,12 @@ export async function processStripeEvent(
 				event.data.object as Stripe.Checkout.Session,
 				event.id,
 			);
+		} else if (event.type === "payment_intent.succeeded") {
+			await onPaymentIntentSucceeded(
+				trx,
+				event.data.object as Stripe.PaymentIntent,
+				event.id,
+			);
 		}
 		return "processed";
 	});
@@ -296,6 +302,30 @@ async function onCheckoutCompleted(
 	const usdMicros = BigInt(cents) * 10_000n;
 	const balance = await creditCredits(db, accountId, usdMicros);
 	logger.info("Credited account from top-up", {
+		eventId,
+		accountId,
+		cents,
+		balanceUsdMicros: balance.toString(),
+	});
+}
+
+/** Off-session auto-refill. Checkout top-ups stay on checkout.session.completed. */
+async function onPaymentIntentSucceeded(
+	db: Kysely<Database>,
+	intent: Stripe.PaymentIntent,
+	eventId: string,
+): Promise<void> {
+	if (intent.metadata?.kind !== "credits_refill") return;
+	const accountId = intent.metadata.secondlayer_account_id;
+	if (!accountId) {
+		logger.warn("credits refill: no account_id in payment intent", { eventId });
+		return;
+	}
+	const cents = intent.amount_received || intent.amount;
+	if (cents <= 0) return;
+	const usdMicros = BigInt(cents) * 10_000n;
+	const balance = await creditCredits(db, accountId, usdMicros);
+	logger.info("Credited account from refill", {
 		eventId,
 		accountId,
 		cents,

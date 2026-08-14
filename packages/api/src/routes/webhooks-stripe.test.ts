@@ -40,6 +40,27 @@ afterAll(async () => {
 	}
 });
 
+function makeRefillEvent(
+	eventId: string,
+	accountId: string,
+	amount: number,
+): Stripe.Event {
+	return {
+		id: eventId,
+		type: "payment_intent.succeeded",
+		data: {
+			object: {
+				amount,
+				amount_received: amount,
+				metadata: {
+					kind: "credits_refill",
+					secondlayer_account_id: accountId,
+				},
+			} as unknown as Stripe.PaymentIntent,
+		},
+	} as Stripe.Event;
+}
+
 function makeCheckoutEvent(
 	eventId: string,
 	accountId: string,
@@ -99,6 +120,31 @@ describe("processStripeEvent", () => {
 		expect(BigInt(credits?.balance_usd_micros ?? "0")).toBe(50_000_000n);
 
 		// Cleanup
+		await cleanupEvents(eventId);
+		await cleanupAccount(accountId);
+	});
+
+	test("refill payment_intent.succeeded credits the account", async () => {
+		if (!HAS_DB) return;
+
+		const accountId = await makeAccount(
+			`webhook-test-refill-${Date.now()}@test.invalid`,
+		);
+		const eventId = `evt_refill_${crypto.randomUUID()}`;
+		await cleanupEvents(eventId);
+		await cleanupAccount(accountId);
+
+		const outcome = await processStripeEvent(
+			db,
+			makeRefillEvent(eventId, accountId, 2500),
+		);
+		expect(outcome).toBe("processed");
+		const credits = await db
+			.selectFrom("account_credits")
+			.select("balance_usd_micros")
+			.where("account_id", "=", accountId)
+			.executeTakeFirst();
+		expect(BigInt(credits?.balance_usd_micros ?? "0")).toBe(25_000_000n);
 		await cleanupEvents(eventId);
 		await cleanupAccount(accountId);
 	});

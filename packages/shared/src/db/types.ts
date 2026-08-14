@@ -1228,6 +1228,10 @@ export interface AccountCreditsTable {
 	/** Month bucket ("YYYY-MM") the spend counter applies to. */
 	spent_month: string | null;
 	spent_month_usd_micros: Generated<string | number | bigint>;
+	/** Null = auto-refill off. */
+	refill_below_usd_micros: string | number | bigint | null;
+	refill_pack_usd: number | null;
+	refill_last_at: Date | null;
 	updated_at: Generated<Date>;
 }
 

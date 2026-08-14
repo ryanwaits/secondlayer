@@ -11,5 +11,6 @@ describe("sl credits", () => {
 		const names = (credits?.commands ?? []).map((c) => c.name());
 		expect(names).toContain("buy");
 		expect(names).toContain("balance");
+		expect(names).toContain("refill");
 	});
 });

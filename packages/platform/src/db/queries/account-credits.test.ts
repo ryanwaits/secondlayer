@@ -10,9 +10,11 @@ import { getDb } from "@secondlayer/shared/db";
 import {
 	creditCredits,
 	debitCredits,
+	getCreditRefill,
 	getCredits,
 	getMonthlyCreditsSpend,
 	recordCreditsSpend,
+	setCreditRefill,
 } from "./account-credits.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -98,5 +100,27 @@ describe.skipIf(!HAS_DB)("recordCreditsSpend / getMonthlyCreditsSpend", () => {
 		await recordCreditsSpend(db, accountId, 9_000n, thisMonth);
 		const spent = await getMonthlyCreditsSpend(db, accountId, nextMonth);
 		expect(spent).toBe(0n);
+	});
+});
+
+describe.skipIf(!HAS_DB)("credit refill settings", () => {
+	test("defaults off and can be enabled then cleared", async () => {
+		expect(await getCreditRefill(db, accountId)).toEqual({
+			belowUsdMicros: null,
+			packUsd: null,
+			lastAt: null,
+		});
+		const on = await setCreditRefill(db, accountId, {
+			belowUsdMicros: 5_000_000n,
+			packUsd: 25,
+		});
+		expect(on.belowUsdMicros).toBe(5_000_000n);
+		expect(on.packUsd).toBe(25);
+		const off = await setCreditRefill(db, accountId, {
+			belowUsdMicros: null,
+			packUsd: null,
+		});
+		expect(off.belowUsdMicros).toBeNull();
+		expect(off.packUsd).toBeNull();
 	});
 });
