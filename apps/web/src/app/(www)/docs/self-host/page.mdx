@@ -1,6 +1,6 @@
-# Self-host
+# Run Secondlayer
 
-Postgres plus one Secondlayer container. You run the node, or bundle it.
+Postgres plus one Secondlayer container on your box. You run the node, or bundle it.
 
 ## Quick start
 
@@ -85,18 +85,21 @@ export SL_API_URL=http://localhost:3800
 secondlayer subgraphs deploy ./my-subgraph.ts
 ```
 
-Keep `POSTGRES_PORT` / `INDEXER_PORT` on loopback. Set `INSTANCE_TOKEN` before binding `0.0.0.0`.
+Keep `POSTGRES_PORT` / `INDEXER_PORT` on loopback. Set `INSTANCE_TOKEN` before binding `0.0.0.0`. Consumers running elsewhere: [Deploy](/docs/deploy).
 
-## What's not included
+## Charging for your own API (x402, experimental)
 
-- Hosted accounts, billing, or a Secondlayer-operated subgraph
+Your instance's public reads can be metered with [x402](https://www.x402.org) — an HTTP 402 quote per keyless call, settled on Stacks. You are the merchant: your wallet, your prices, your revenue. Off by default; the rail stays dark until you fund `X402_SPONSOR_KEY`. Nothing hosted is involved.
+
+## Not in the box
+
 - Multi-tenant catalog
 - Archive publisher (separate image)
 
 Support is community — [github.com/ryanwaits/secondlayer](https://github.com/ryanwaits/secondlayer).
 
 export const metadata = {
-	title: "Self-host — Secondlayer Docs",
+	title: "Run Secondlayer — Secondlayer Docs",
 	description:
-		"Run Secondlayer as Postgres plus one container. Bootstrap from the archive, verify, and deploy subgraphs on your machine.",
+		"Run Secondlayer as Postgres plus one container. Bootstrap from the archive, verify, deploy subgraphs, and query localhost.",
 };
