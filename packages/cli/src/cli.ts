@@ -7,6 +7,7 @@ import {
 	registerCodegenCommand,
 	registerConfigCommand,
 	registerContextCommand,
+	registerCreditsCommand,
 	registerDevnetCommand,
 	registerDoctorCommand,
 	registerIndexCommand,
@@ -139,6 +140,7 @@ registerRepairCommand(program);
 
 // Account
 program.commandsGroup("Account:");
+registerCreditsCommand(program);
 registerAccountCommand(program);
 registerKeysCommand(program);
 

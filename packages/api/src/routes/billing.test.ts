@@ -4,6 +4,7 @@ import type Stripe from "stripe";
 import {
 	type StripeClient,
 	ensureStripeCustomer,
+	isCreditPack,
 	isResourceMissing,
 } from "./billing.ts";
 
@@ -64,6 +65,14 @@ function makeStubStripe(opts: {
 	} as unknown as StripeClient;
 	return { stripe, calls };
 }
+
+describe("isCreditPack", () => {
+	test("accepts the four packs", () => {
+		expect(isCreditPack(10)).toBe(true);
+		expect(isCreditPack(25)).toBe(true);
+		expect(isCreditPack(7)).toBe(false);
+	});
+});
 
 describe("isResourceMissing", () => {
 	test("matches Stripe's resource_missing code", () => {

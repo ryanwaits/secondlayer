@@ -15,6 +15,7 @@ export const HOSTED_ROUTE_FIXTURES = [
 	{ method: "GET", path: "/api/admin" },
 	{ method: "POST", path: "/api/auth/login" },
 	{ method: "POST", path: "/api/webhooks/stripe" },
+	{ method: "POST", path: "/api/public/credits/checkout" },
 	{ method: "POST", path: "/v1/api-keys" },
 	{ method: "GET", path: "/x402/supported" },
 	{ method: "GET", path: "/v1/x402/supported" },

@@ -1,4 +1,11 @@
-import { isOssMode, resolveApiUrl, resolveAuth } from "./resolve-auth.ts";
+import {
+	ARCHIVE_OPS_API_URL,
+	isOssMode,
+	resolveApiUrl,
+	resolveAuth,
+	resolveEnvKey,
+} from "./resolve-auth.ts";
+import { readSession } from "./session.ts";
 
 /**
  * Typed HTTP client for the platform API.
@@ -114,4 +121,40 @@ export async function httpPlatformAnon<T>(
 	opts: HttpOptions = {},
 ): Promise<T> {
 	return request<T>(`${resolveApiUrl()}${path}`, opts);
+}
+
+/** Merchant API that sells archive credits. Not the operator's loopback box. */
+export function resolveArchiveOpsUrl(): string {
+	return (process.env.SL_CREDITS_API_URL ?? ARCHIVE_OPS_API_URL).replace(
+		/\/+$/,
+		"",
+	);
+}
+
+export async function httpArchiveOpsAnon<T>(
+	path: string,
+	opts: HttpOptions = {},
+): Promise<T> {
+	return request<T>(`${resolveArchiveOpsUrl()}${path}`, opts);
+}
+
+export async function httpArchiveOps<T>(
+	path: string,
+	opts: HttpOptions = {},
+): Promise<T> {
+	const envKey = resolveEnvKey();
+	const session = envKey ? null : await readSession();
+	const bearer = envKey ?? session?.token;
+	if (!bearer) {
+		throw new CliHttpError(
+			401,
+			"SESSION_EXPIRED",
+			{ error: "Not logged in" },
+			"Not logged in — run `SL_API_URL=https://api.secondlayer.tools sl login`",
+		);
+	}
+	return request<T>(`${resolveArchiveOpsUrl()}${path}`, {
+		...opts,
+		bearer,
+	});
 }

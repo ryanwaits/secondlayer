@@ -42,8 +42,13 @@ import { InvalidJSONError } from "../middleware/error.ts";
 
 const app = new Hono();
 
-/** Prepaid dev-credit top-up packs (USD). Min $10 — card fees make sub-$10 lossy. */
-const CREDIT_PACKS_USD = [10, 25, 50, 100] as const;
+/** Prepaid archive-credit packs (USD). Min $10 — card fees make sub-$10 lossy. */
+export const CREDIT_PACKS_USD = [10, 25, 50, 100] as const;
+export type CreditPackUsd = (typeof CREDIT_PACKS_USD)[number];
+
+export function isCreditPack(n: number): n is CreditPackUsd {
+	return (CREDIT_PACKS_USD as readonly number[]).includes(n);
+}
 
 function dashboardBaseUrl(): string {
 	return process.env.DASHBOARD_URL ?? "https://secondlayer.tools";
@@ -104,6 +109,49 @@ export async function ensureStripeCustomer(
 		stripeCustomerId: customer.id,
 	});
 	return customer.id;
+}
+
+export async function createCreditsCheckoutSession(opts: {
+	stripe: StripeClient;
+	db: ReturnType<typeof getDb>;
+	account: AccountRow;
+	usd: CreditPackUsd;
+	successUrl: string;
+	cancelUrl: string;
+}): Promise<string | null> {
+	const stripeCustomerId = await ensureStripeCustomer(
+		opts.stripe,
+		opts.db,
+		opts.account,
+	);
+	const session = await opts.stripe.checkout.sessions.create({
+		mode: "payment",
+		customer: stripeCustomerId,
+		line_items: [
+			{
+				price_data: {
+					currency: "usd",
+					unit_amount: opts.usd * 100,
+					product_data: { name: `Secondlayer archive credits — $${opts.usd}` },
+				},
+				quantity: 1,
+			},
+		],
+		success_url: opts.successUrl,
+		cancel_url: opts.cancelUrl,
+		metadata: {
+			secondlayer_account_id: opts.account.id,
+			kind: "credits_topup",
+		},
+		payment_intent_data: {
+			setup_future_usage: "off_session",
+			metadata: {
+				secondlayer_account_id: opts.account.id,
+				kind: "credits_topup",
+			},
+		},
+	});
+	return session.url;
 }
 
 app.post("/upgrade", async (c) => {
@@ -204,7 +252,7 @@ app.post("/topup", async (c) => {
 	})) as { amount?: unknown };
 
 	const usd = typeof body.amount === "number" ? body.amount : Number.NaN;
-	if (!(CREDIT_PACKS_USD as readonly number[]).includes(usd)) {
+	if (!isCreditPack(usd)) {
 		return c.json(
 			{ error: `amount must be one of ${CREDIT_PACKS_USD.join(", ")} (USD)` },
 			400,
@@ -221,32 +269,15 @@ app.post("/topup", async (c) => {
 	const account = await getAccountById(db, accountId);
 	if (!account) return c.json({ error: "Account not found" }, 404);
 
-	const stripeCustomerId = await ensureStripeCustomer(stripe, db, account);
-
-	const session = await stripe.checkout.sessions.create({
-		mode: "payment",
-		customer: stripeCustomerId,
-		line_items: [
-			{
-				price_data: {
-					currency: "usd",
-					unit_amount: usd * 100,
-					product_data: { name: `Secondlayer usage credits — $${usd}` },
-				},
-				quantity: 1,
-			},
-		],
-		success_url: `${dashboardBaseUrl()}/platform/billing?topup=success`,
-		cancel_url: `${dashboardBaseUrl()}/platform/billing?topup=cancelled`,
-		// The webhook reads these to credit the right account. Mirror onto the
-		// PaymentIntent so the credit survives if we ever switch event source.
-		metadata: { secondlayer_account_id: account.id, kind: "credits_topup" },
-		payment_intent_data: {
-			metadata: { secondlayer_account_id: account.id, kind: "credits_topup" },
-		},
+	const url = await createCreditsCheckoutSession({
+		stripe,
+		db,
+		account,
+		usd,
+		successUrl: `${dashboardBaseUrl()}/platform/billing?topup=success`,
+		cancelUrl: `${dashboardBaseUrl()}/platform/billing?topup=cancelled`,
 	});
-
-	return c.json({ url: session.url });
+	return c.json({ url });
 });
 
 /**
