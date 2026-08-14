@@ -1,11 +1,11 @@
 import { CtaPill } from "@/components/home/cta-pill";
+import { FeatureStack } from "@/components/home/feature-stack";
 import { HomeStatusBadge } from "@/components/status/home-status-badge";
 import { socialMeta } from "@/lib/og";
 import { readStatusSnapshot } from "@/lib/status-snapshot";
 import type { SystemStatus } from "@/lib/types";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CreditsBuy } from "./credits-buy";
 
 export const metadata: Metadata = socialMeta({
 	title: "secondlayer — self-hosted Stacks data",
@@ -14,30 +14,6 @@ export const metadata: Metadata = socialMeta({
 	image: "/og/home.png",
 	path: "/",
 });
-
-const SURFACES = [
-	{
-		name: "Streams",
-		what: "Raw signed firehose and parquet dumps",
-		href: "/docs/streams",
-	},
-	{
-		name: "Index",
-		what: "Decoded events, transfers, blocks, transactions",
-		href: "/docs/index",
-	},
-	{
-		name: "Subgraphs",
-		what: "Your schema on this instance",
-		href: "/docs/subgraphs",
-	},
-] as const;
-
-const HOW = `secondlayer init --network mainnet
-cd docker/oss && docker compose up -d
-secondlayer observer --mode indexer --endpoint secondlayer:3700
-secondlayer bootstrap --against <manifest>
-secondlayer verify all --against <manifest>`;
 
 export default async function Home() {
 	const status = await readStatusSnapshot();
@@ -50,113 +26,56 @@ export function HomeView({ status }: { status: SystemStatus | null }) {
 			<HomeStatusBadge status={status} />
 
 			<section className="home-hero">
-				<Link href="/docs/self-host" className="home-pill">
-					<span className="home-pill-dot" />
-					Postgres plus one container
-					<span className="home-pill-arr">→</span>
+				<Link href="/docs/self-host" className="home-announce">
+					<span className="home-announce-tag">NEW</span>
+					<span className="home-announce-msg">
+						<b>Postgres plus one container</b>
+						<span> beside your node</span>
+					</span>
+					<span className="home-announce-go" aria-hidden="true">
+						›
+					</span>
 				</Link>
 				<h1>
 					Self-hosted
 					<br />
-					Stacks data.
+					<span className="home-h1-dim">Stacks runtime.</span>
 				</h1>
 				<p className="home-sub">
-					Run it beside your node. Bootstrap verified history. Query decoded
-					data. Deploy TypeScript subgraphs.
+					Decoded data, TypeScript subgraphs, and verified history, running
+					beside your node.
 				</p>
-				<div className="home-ctas">
-					<CtaPill />
-					<Link href="/docs/self-host" className="home-ghost-cta">
-						Self-host <span className="ar">→</span>
+				<CtaPill />
+				<p className="home-caption">
+					Free to self-host. Archive restore is metered.
+				</p>
+				<nav className="home-hero-links">
+					<Link href="/docs">
+						Read Docs <span className="home-hero-ch" aria-hidden="true" />
 					</Link>
-				</div>
+					<Link href="/docs/changelog">
+						Changelog <span className="home-hero-ch" aria-hidden="true" />
+					</Link>
+					<Link href="/docs/self-host">
+						Self-host <span className="home-hero-ch" aria-hidden="true" />
+					</Link>
+				</nav>
 			</section>
 
-			<section className="home-land">
-				<div className="home-wrap">
-					<h2>What you run</h2>
-					<p>
-						One runtime. Three surfaces. Not hosted products — capabilities on
-						the machine you operate.
-					</p>
-					<ul className="home-land-list">
-						{SURFACES.map((s) => (
-							<li key={s.name}>
-								<Link href={s.href}>
-									<span className="n">{s.name}</span>
-									<span className="w">{s.what}</span>
-									<span className="ar">→</span>
-								</Link>
-							</li>
-						))}
-					</ul>
-				</div>
-			</section>
-
-			<section className="home-land" id="history">
-				<div className="home-wrap">
-					<h2>History</h2>
-					<p>
-						Follow your node for free. Or restore from the signed archive. The
-						signed archive is public to check. Large restore and backfill off
-						our R2 is metered.
-					</p>
-					<table className="home-land-table">
-						<thead>
-							<tr>
-								<th>Free</th>
-								<th>Metered</th>
-							</tr>
-						</thead>
-						<tbody>
-							<tr>
-								<td>Runtime, compose, CLI</td>
-								<td>Official-archive bootstrap</td>
-							</tr>
-							<tr>
-								<td>Forward-only from your node</td>
-								<td>Backfill / reindex that reads our R2</td>
-							</tr>
-							<tr>
-								<td>
-									<code>secondlayer verify</code> /{" "}
-									<code>secondlayer repair</code>
-								</td>
-								<td> </td>
-							</tr>
-						</tbody>
-					</table>
-					<CreditsBuy />
-					<p className="home-land-more">
-						<Link href="/docs/archive">
-							Verified archive <span className="ar">→</span>
-						</Link>
-					</p>
-				</div>
-			</section>
-
-			<section className="home-land">
-				<div className="home-wrap">
-					<h2>How</h2>
-					<p>Bootstrap is optional if you only follow the node forward.</p>
-					<pre className="home-land-pre">
-						<code>{HOW}</code>
-					</pre>
-				</div>
-			</section>
+			<FeatureStack />
 
 			<section className="home-final">
-				<h2>
-					Your node.
-					<br />
-					Your schema.
-				</h2>
+				<h2>Your node. Your schema.</h2>
 				<p className="home-sub">
 					Docs for the surfaces. Archive for the check.
 				</p>
-				<div className="home-ctas">
-					<Link href="/docs" className="home-ghost-cta">
-						Read the docs <span className="ar">→</span>
+				<CtaPill />
+				<div className="home-final-btns">
+					<Link href="/docs" className="home-btn-outline">
+						Read docs
+					</Link>
+					<Link href="/docs/self-host" className="home-btn-solid">
+						Get started
 					</Link>
 				</div>
 			</section>
