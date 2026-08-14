@@ -383,18 +383,43 @@ app.get("/:id/deliveries", async (c) => {
 	const sub = await getSubscription(getDb(), accountId, c.req.param("id"));
 	if (!sub) return c.json({ error: "Subscription not found" }, 404);
 
-	const rows = await getDb()
-		.selectFrom("subscription_deliveries")
-		.selectAll()
-		.where("subscription_id", "=", sub.id)
-		.orderBy("dispatched_at", "desc")
-		.limit(100)
-		.execute();
+	const db = getDb();
+	const [rows, totalRow] = await Promise.all([
+		db
+			.selectFrom("subscription_deliveries as d")
+			.leftJoin("subscription_outbox as o", "o.id", "d.outbox_id")
+			.select([
+				"d.id",
+				"d.attempt",
+				"d.status_code",
+				"d.error_message",
+				"d.duration_ms",
+				"d.response_body",
+				"d.dispatched_at",
+				"o.block_height",
+			])
+			.where("d.subscription_id", "=", sub.id)
+			.orderBy("d.dispatched_at", "desc")
+			.limit(100)
+			.execute(),
+		db
+			.selectFrom("subscription_deliveries")
+			.select(db.fn.countAll<string>().as("n"))
+			.where("subscription_id", "=", sub.id)
+			.executeTakeFirst(),
+	]);
+	// `seq` numbers deliveries newest-first from the lifetime total, so the log
+	// reads like a ledger (#4,182 …) even though only the last 100 are returned.
+	const total = Number(totalRow?.n ?? rows.length);
 	return c.json({
-		data: rows.map((r) => ({
+		total,
+		data: rows.map((r, i) => ({
 			id: r.id,
+			seq: total - i,
 			attempt: r.attempt,
 			statusCode: r.status_code,
+			// Null when the outbox row was already compacted away.
+			blockHeight: r.block_height === null ? null : Number(r.block_height),
 			errorMessage: r.error_message,
 			durationMs: r.duration_ms,
 			responseBody: r.response_body,
