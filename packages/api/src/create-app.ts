@@ -33,7 +33,6 @@ import subgraphsRouter from "./routes/subgraphs.ts";
 import subscriptionsRouter from "./routes/subscriptions.ts";
 import v1ApiKeysRouter from "./routes/v1-api-keys.ts";
 import v1IndexRouter from "./routes/v1-index.ts";
-import v1KeysRouter from "./routes/v1-keys.ts";
 import v1SubgraphsRouter from "./routes/v1-subgraphs.ts";
 import walletRouter from "./routes/wallet.ts";
 import webhooksStripeRouter from "./routes/webhooks-stripe.ts";
@@ -180,7 +179,6 @@ export function createApiApp(mode: InstanceMode): Hono {
 			}),
 		);
 		app.route("/v1/api-keys", v1ApiKeysRouter);
-		app.route("/v1/keys", v1KeysRouter);
 	}
 
 	return app;

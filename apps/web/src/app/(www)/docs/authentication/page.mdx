@@ -57,17 +57,11 @@ The plaintext `key` is returned **once**. Same mint elsewhere: `sl.apiKeys.creat
 
 ### No account yet?
 
-`POST https://api.secondlayer.tools/v1/keys` with no `Authorization` header mints a read-only free-tier **ghost key**, capped at 3 mints per IP per day: `201 { "key": "sk-sl_…", "tier": "free", "scopes": ["streams:read", "index:read"], "claim_url": "…" }`.
-
-<Callout type="note">
-
-Every non-GET returns `403 GHOST_KEY_READ_ONLY` until you claim the account via `claim_url`. Distinct from the owner-key mint at `/v1/api-keys` above.
-
-</Callout>
+Self-host reads need no key. Large restore and backfill off our R2 is metered — buy credits on the [landing](/#history).
 
 ## Pay-as-you-go credits
 
-Top up prepaid credits with a card — packs of $10, $25, $50, or $100 via `POST /api/billing/topup`. A positive balance reads beyond the free window, unthrottled, debited **$5 per 1,000,000 rows** (5 USD-micros per row) across Index and Streams from one shared balance. The balance is the hard cap: spent, reads fall back to the free window. Credits cover reads, not writes — a subgraph deploy or a webhook still needs a paid plan or the 14-day trial.
+Top up prepaid credits with a card — packs of $10, $25, $50, or $100. A positive balance pays for official-archive bootstrap and R2 backfill. The balance is the hard cap.
 
 ## Session tokens
 

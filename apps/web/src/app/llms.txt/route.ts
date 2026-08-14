@@ -12,9 +12,7 @@ const LLMS_TXT = `# Secondlayer — the hosted indexer for Stacks
 - Per-subgraph agent docs: https://api.secondlayer.tools/v1/subgraphs/{name}/docs.md
 - MCP server: npx -y @secondlayer/mcp  (reads need zero setup; call the
   "capabilities" resource for the current tool list)
-- Mint a free API key, no signup: POST https://api.secondlayer.tools/v1/keys
-- Deploy your own indexer (keyed): npm i -g @secondlayer/cli, then
-  sl subgraphs scaffold <contract_id> -o my-view.ts && sl subgraphs deploy my-view.ts
+- Self-host: bun add -g @secondlayer/cli && sl init --network mainnet
 
 ## Pay per call (x402 — experimental beta, for agents without accounts)
 - Capability advertisement: https://api.secondlayer.tools/v1/x402/supported
@@ -35,8 +33,8 @@ const LLMS_TXT = `# Secondlayer — the hosted indexer for Stacks
 
 ## Auth model
 - Anonymous: rate-limited public reads (Index, public Subgraphs).
-- sk-sl_ API key: raises limits, unlocks Streams reads; writes need a claimed
-  account. Ghost keys (POST /v1/keys) are read-only until claimed by email.
+- sk-sl_ API key: instance writes and scoped reads. Local keys come from
+  sl init. Archive restore/backfill is metered via card credits.
 - Tip-first deploys: pass backfillMode "concurrent" (CLI --tip-first) and a
   subgraph serves live rows in seconds while history backfills behind it
   (order-tolerant handlers only). Status reports queue position + event-based

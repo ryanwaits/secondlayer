@@ -4,7 +4,7 @@ import { createStreamsClient } from "@secondlayer/sdk";
 // then a checkpointed live tail with automatic reorg rewind. This is the
 // same firehose Secondlayer's own decoder runs on.
 //
-//   SL_API_KEY            sk-sl_… (free ghost key: POST /v1/keys, no signup)
+//   SL_API_KEY            sk-sl_… (from `sl init` on a self-hosted instance)
 //   SL_STREAMS_DUMPS_URL  public dumps base URL (manifest is ed25519-signed)
 
 const streams = createStreamsClient({

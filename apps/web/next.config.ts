@@ -126,6 +126,11 @@ const nextConfig: NextConfig = {
 				permanent: true,
 			},
 			{
+				source: "/claim/:token",
+				destination: "/#history",
+				permanent: true,
+			},
+			{
 				source: "/workflows",
 				destination: "/docs/subscriptions",
 				permanent: true,
