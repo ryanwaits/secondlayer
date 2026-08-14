@@ -1,7 +1,5 @@
 "use client";
 
-import { healthState, summaryLabel } from "@/lib/status-snapshot";
-import type { SystemStatus } from "@/lib/types";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -21,7 +19,6 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
 			{ label: "CLI", href: "/docs/cli" },
 			{ label: "SDK", href: "/docs/sdk" },
 			{ label: "MCP", href: "/docs/mcp" },
-			{ label: "Status", href: "/status" },
 		],
 	},
 	{
@@ -34,11 +31,9 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
 ];
 
 /** Marketing-page footer (dotted rules, Field Notebook). Hidden on docs. */
-export function SiteFooter({ status }: { status?: SystemStatus | null }) {
+export function SiteFooter() {
 	const pathname = usePathname();
 	if (pathname.startsWith("/docs")) return null;
-
-	const state = healthState(status ?? null);
 
 	return (
 		<footer className="site-footer">
@@ -78,11 +73,6 @@ export function SiteFooter({ status }: { status?: SystemStatus | null }) {
 						</p>
 						<p className="site-footer-copy">
 							<span>© {new Date().getFullYear()} Secondlayer</span>
-							{/* mobile home of the floating status pill (hidden ≤640px) */}
-							<Link href="/status" className="footer-status" data-state={state}>
-								<span className="footer-status-dot" aria-hidden="true" />
-								{summaryLabel(state)}
-							</Link>
 						</p>
 					</div>
 					<div className="site-footer-cols">

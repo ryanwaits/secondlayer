@@ -125,6 +125,18 @@ const nextConfig: NextConfig = {
 				destination: "/archive",
 				permanent: true,
 			},
+			// Hosted-era surfaces removed 2026-08: no plans to sell hosted, so
+			// pricing and status land on the archive (the paid surface).
+			{
+				source: "/pricing",
+				destination: "/archive",
+				permanent: true,
+			},
+			{
+				source: "/status",
+				destination: "/archive",
+				permanent: true,
+			},
 			// 2026-08 self-host docs consolidation: platform-specific consumer
 			// deploys folded into /docs/deploy, custom sinks into /docs/sinks,
 			// x402 into the self-host page.
