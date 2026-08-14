@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/cli",
-	"version": "10.3.0",
+	"version": "10.3.1",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryanwaits/secondlayer.git",
@@ -43,7 +43,7 @@
 		"@inquirer/prompts": "^8.2.0",
 		"@secondlayer/bundler": "^0.5.0",
 		"@secondlayer/scaffold": "^1.5.1",
-		"@secondlayer/sdk": "^6.54.0",
+		"@secondlayer/sdk": "^6.54.1",
 		"@secondlayer/shared": "^7.11.1",
 		"@secondlayer/stacks": "^3.3.1",
 		"@secondlayer/subgraphs": "^3.26.4",

@@ -1,5 +1,13 @@
 # @secondlayer/cli
 
+## 10.3.1
+
+### Patch Changes
+
+- 69bab4d: Point subscription create/rotate and subgraph deploy copy at the local CLI, not /platform.
+- Updated dependencies [5c5fddc]
+  - @secondlayer/sdk@6.54.1
+
 ## 10.3.0
 
 ### Minor Changes

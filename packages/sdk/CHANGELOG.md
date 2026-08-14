@@ -1,5 +1,11 @@
 # @secondlayer/sdk
 
+## 6.54.1
+
+### Patch Changes
+
+- 5c5fddc: `createX402Client` defaults `baseUrl` to the local instance.
+
 ## 6.54.0
 
 ### Minor Changes
