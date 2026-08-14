@@ -121,6 +121,7 @@ jobs:
           - decoder
           - subgraph-processor
           - subscription-processor
+          - console
         # Thin targets (FROM api / FROM indexer) reuse the base image's build
         # cache scope so they don't rebuild the whole chain.
         include:

@@ -73,11 +73,11 @@ fi
 [ -n "$_DEPLOY_SHA_OVERRIDE" ] && DEPLOY_SHA="$_DEPLOY_SHA_OVERRIDE"
 unset _DEPLOY_IMAGE_OWNER_OVERRIDE _DEPLOY_IMAGE_TAG_OVERRIDE _DEPLOY_SHA_OVERRIDE
 
-APP_SERVICES="api indexer decoder subgraph-processor subscription-processor worker caddy"
+APP_SERVICES="api indexer decoder subgraph-processor subscription-processor worker console caddy"
 # api recreates separately (rolling, replica-by-replica behind Caddy) so its
 # cached read plane never goes fully dark on a code-only deploy. Everything else
 # recreates in bulk.
-APP_SERVICES_NO_API="indexer decoder subgraph-processor subscription-processor worker caddy"
+APP_SERVICES_NO_API="indexer decoder subgraph-processor subscription-processor worker console caddy"
 DEPLOY_IMAGE_OWNER="${DEPLOY_IMAGE_OWNER:-secondlayer-labs}"
 DEPLOY_IMAGE_TAG="${DEPLOY_IMAGE_TAG:-${DEPLOY_SHA:-latest}}"
 DEPLOY_STATE_DIR="${DEPLOY_STATE_DIR:-/opt/secondlayer/data/deploy}"
