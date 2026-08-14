@@ -2,6 +2,7 @@ export { registerAccountCommand } from "./account.ts";
 export { registerCreditsCommand } from "./credits.ts";
 export { registerCodegenCommand } from "./codegen.ts";
 export { registerConfigCommand } from "./config.ts";
+export { registerConsoleCommand } from "./console.ts";
 export { registerContextCommand } from "./context.ts";
 export { registerStatusCommand } from "./status.ts";
 export { registerSubscriptionsCommand } from "./subscriptions.ts";

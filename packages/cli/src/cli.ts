@@ -6,6 +6,7 @@ import {
 	registerBootstrapCommand,
 	registerCodegenCommand,
 	registerConfigCommand,
+	registerConsoleCommand,
 	registerContextCommand,
 	registerCreditsCommand,
 	registerDevnetCommand,
@@ -67,6 +68,7 @@ registerInitCommand(program);
 registerBootstrapCommand(program);
 registerObserverCommand(program);
 registerStartCommand(program);
+registerConsoleCommand(program);
 registerLoginCommand(program);
 registerLogoutCommand(program);
 registerWhoamiCommand(program);

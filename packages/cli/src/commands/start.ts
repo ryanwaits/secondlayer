@@ -1,6 +1,6 @@
 import { parseRuntimeConfig } from "@secondlayer/shared/runtime";
 import type { Command } from "commander";
-import { printError, success } from "../lib/output.ts";
+import { note, printError, success } from "../lib/output.ts";
 
 export function registerStartCommand(program: Command): void {
 	program
@@ -43,5 +43,8 @@ export function registerStartCommand(program: Command): void {
 				`config ok (${parsed.config.NETWORK}, ${parsed.config.NODE_MODE})`,
 			);
 			console.log(cmd);
+			note(
+				"  console UI (optional): add --profile console, then `secondlayer console`",
+			);
 		});
 }
