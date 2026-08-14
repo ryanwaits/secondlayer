@@ -61,9 +61,14 @@ export function AuthBar() {
 			<Link href="/docs" className="auth-bar-nav-link">
 				<span className="auth-bar-nav-label">Docs</span>
 			</Link>
-			<Link href="/docs/self-host" className="auth-bar-cta">
-				Self-host
-			</Link>
+			<a
+				href="https://github.com/ryanwaits/secondlayer"
+				className="auth-bar-cta"
+				target="_blank"
+				rel="noopener noreferrer"
+			>
+				GitHub
+			</a>
 		</div>
 	);
 }

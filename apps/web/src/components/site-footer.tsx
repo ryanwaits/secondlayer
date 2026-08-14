@@ -7,14 +7,6 @@ import { usePathname } from "next/navigation";
 
 const COLS: { title: string; links: { label: string; href: string }[] }[] = [
 	{
-		title: "Runtime",
-		links: [
-			{ label: "Self-host", href: "/docs/self-host" },
-			{ label: "Archive", href: "/docs/archive" },
-			{ label: "Docs", href: "/docs" },
-		],
-	},
-	{
 		title: "Surfaces",
 		links: [
 			{ label: "Index", href: "/docs/index" },
@@ -33,9 +25,9 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
 		],
 	},
 	{
-		title: "More",
+		title: "Resources",
 		links: [
-			{ label: "Writing", href: "/writing" },
+			{ label: "Blog", href: "/writing" },
 			{ label: "Changelog", href: "/docs/changelog" },
 		],
 	},

@@ -51,8 +51,8 @@ export const NAV: NavEntry[] = [
  */
 export const DOCS_STRIP: NavLink[] = [
 	{ label: "Home", href: "/" },
-	{ label: "Archive", href: "/docs/archive" },
-	{ label: "Writing", href: "/writing" },
+	{ label: "Archive", href: "/archive" },
+	{ label: "Blog", href: "/writing" },
 ];
 
 function matches(pathname: string, href: string): boolean {
