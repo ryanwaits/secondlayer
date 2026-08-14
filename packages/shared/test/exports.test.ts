@@ -70,6 +70,20 @@ describe("package exports", () => {
 		expect(mod).toBeDefined();
 	});
 
+	test("coverage export", async () => {
+		const mod = await import("@secondlayer/shared/coverage");
+		expect(mod.evaluateCoverage).toBeDefined();
+		expect(mod.applyRunnerEvent).toBeDefined();
+		expect(mod.planDecoderReceipts).toBeDefined();
+		expect(mod.commitDecoderAdapter).toBeDefined();
+		expect(mod.mergeRanges).toBeDefined();
+		expect(mod.sealFinalizedRange).toBeDefined();
+		expect(mod.hashEffectManifest).toBeDefined();
+		expect(mod.commitSubgraphAdapter).toBeDefined();
+		expect(mod.parseVerifyTarget).toBeDefined();
+		expect(mod.planRepair).toBeDefined();
+	});
+
 	test("node export", async () => {
 		const mod = await import("@secondlayer/shared/node");
 		expect(mod).toBeDefined();

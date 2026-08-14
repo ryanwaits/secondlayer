@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
 	EMPTY_RANGE_EVENT_INDEX_SENTINEL,
+	blockEndCursor,
+	compareStreamsCursor,
 	decodeStreamsCursor,
 	encodeStreamsCursor,
+	isEmptyRangeCursor,
 } from "../src/streams-cursor.ts";
 
 describe("streams cursor codec", () => {
@@ -25,5 +28,17 @@ describe("streams cursor codec", () => {
 
 	test("sentinel fits in postgres int4", () => {
 		expect(EMPTY_RANGE_EVENT_INDEX_SENTINEL).toBe(2_147_483_647);
+	});
+
+	test("compare is height then index, sentinel is last in the block", () => {
+		const a = { block_height: 10, event_index: 2 };
+		const b = { block_height: 10, event_index: 5 };
+		const c = { block_height: 11, event_index: 0 };
+		expect(compareStreamsCursor(a, b)).toBeLessThan(0);
+		expect(compareStreamsCursor(b, a)).toBeGreaterThan(0);
+		expect(compareStreamsCursor(a, a)).toBe(0);
+		expect(compareStreamsCursor(b, c)).toBeLessThan(0);
+		expect(isEmptyRangeCursor(blockEndCursor(10))).toBe(true);
+		expect(compareStreamsCursor(b, blockEndCursor(10))).toBeLessThan(0);
 	});
 });

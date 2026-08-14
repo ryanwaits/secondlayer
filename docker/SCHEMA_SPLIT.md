@@ -24,8 +24,11 @@ Written by the `indexer` and `decoder` services. Read by the public API.
 
 - Raw chain: `blocks`, `transactions`, `events`, `transactions_archive`,
   `events_archive`, `mempool_transactions`, `dead_letter_events`,
-  `index_progress`, `contracts`, `chain_reorgs`, `service_heartbeats`
-- Decoded (L2): `decoded_events`, `decoder_checkpoints`, `pox4_calls`,
+  `index_progress`, `contracts`, `chain_reorgs`, `service_heartbeats`,
+  `observer_journal`, `pending_fork_blocks`, `chain_read_cache`
+- Coverage: `stage_registry`, `stage_runs`, `stage_block_receipts`,
+  `coverage_segments`, `stage_failures`
+- Decoded: `decoded_events`, `decoder_checkpoints`, `pox4_calls`,
   `pox4_cycles_daily`, `pox4_signers_daily`, `burn_block_rewards`,
   `burn_block_reward_slots`, `sbtc_events`, `sbtc_token_events`,
   `sbtc_supply_snapshots`, `bns_name_events`, `bns_namespace_events`,

@@ -5,6 +5,25 @@ import type {
 	Selectable,
 	Updateable,
 } from "kysely";
+import type {
+	FailureClass,
+	FailureUnit,
+	NativeClock,
+	RepairMode,
+	RetryState,
+	RunStatus,
+	StageKind,
+} from "../coverage/constraints.ts";
+
+export type {
+	FailureClass,
+	FailureUnit,
+	NativeClock,
+	RepairMode,
+	RetryState,
+	RunStatus,
+	StageKind,
+} from "../coverage/constraints.ts";
 
 // ── Table interfaces ──────────────────────────────────────────────────
 
@@ -909,6 +928,77 @@ export interface ObserverJournalTable {
 	processed_at: Date | null;
 }
 
+/** Declared coverage stage. Identity is the `id` string (`raw`, `decode:stx`, …). */
+export interface StageRegistryTable {
+	id: string;
+	kind: StageKind;
+	depends_on: string | null;
+	native_clock: NativeClock;
+	producer_version: string;
+	repair_mode: RepairMode;
+	enabled: Generated<boolean>;
+	created_at: Generated<Date>;
+}
+
+/** One versioned sweep of a stage. */
+export interface StageRunsTable {
+	id: Generated<string>;
+	stage_id: string;
+	code_hash: string;
+	config_hash: string;
+	handler_hash: string | null;
+	target_height: number | null;
+	target_cursor: string | null;
+	status: RunStatus;
+	complete_through: number | null;
+	started_at: Generated<Date>;
+	finished_at: Date | null;
+}
+
+/** Per-block acknowledgement. Unique on (stage, height, hash). */
+export interface StageBlockReceiptsTable {
+	id: Generated<string>;
+	stage_id: string;
+	run_id: string | null;
+	block_height: number;
+	block_hash: string;
+	input_count: number;
+	input_digest: string;
+	effect_digest: string;
+	finalized: Generated<boolean>;
+	compacted_at: Date | null;
+	created_at: Generated<Date>;
+}
+
+/** Compacted finalized range. Only sealed after receipts in the range finalize. */
+export interface CoverageSegmentsTable {
+	id: Generated<string>;
+	stage_id: string;
+	from_height: number;
+	to_height: number;
+	chain_digest: string;
+	input_digest: string;
+	output_digest: string;
+	sealed_at: Generated<Date>;
+}
+
+/** Exact unit or range that failed, plus retry/retention state. */
+export interface StageFailuresTable {
+	id: Generated<string>;
+	stage_id: string;
+	run_id: string | null;
+	unit_kind: FailureUnit;
+	from_height: number | null;
+	to_height: number | null;
+	class: FailureClass;
+	retry_state: RetryState;
+	retry_count: Generated<number>;
+	last_error: string | null;
+	created_at: Generated<Date>;
+	resolved_at: Date | null;
+	retain_until: Generated<Date>;
+}
+
 export interface Database {
 	blocks: BlocksTable;
 	transactions: TransactionsTable;
@@ -974,6 +1064,11 @@ export interface Database {
 	chain_read_cache: ChainReadCacheTable;
 	pending_fork_blocks: PendingForkBlocksTable;
 	observer_journal: ObserverJournalTable;
+	stage_registry: StageRegistryTable;
+	stage_runs: StageRunsTable;
+	stage_block_receipts: StageBlockReceiptsTable;
+	coverage_segments: CoverageSegmentsTable;
+	stage_failures: StageFailuresTable;
 }
 
 /** Prepaid x402 credit — one running USD-micros balance per payer principal. */

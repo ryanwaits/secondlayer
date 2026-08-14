@@ -39,7 +39,13 @@ export const TABLE_TO_DB = {
 	pending_fork_blocks: "source",
 	// Exact observer callback receipts — the replay authority sits with chain data.
 	observer_journal: "source",
-	// ── SOURCE: decoded (L2) ──
+	// Coverage kernel — attests the chain it sits next to.
+	stage_registry: "source",
+	stage_runs: "source",
+	stage_block_receipts: "source",
+	coverage_segments: "source",
+	stage_failures: "source",
+	// ── SOURCE: decoded ──
 	decoded_events: "source",
 	decoder_checkpoints: "source",
 	pox4_calls: "source",

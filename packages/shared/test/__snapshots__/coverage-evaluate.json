@@ -1,0 +1,598 @@
+{
+	"complete": {
+		"schema_version": 1,
+		"network": "mainnet",
+		"generated_at": "2026-08-13T12:00:00.000Z",
+		"source_tip": 100,
+		"finalized_height": 100,
+		"stages": [
+			{
+				"stage_id": "raw",
+				"kind": "raw",
+				"native_clock": "block",
+				"depends_on": null,
+				"source_tip": 100,
+				"finalized_height": 100,
+				"recorded_target": 100,
+				"state": "complete",
+				"detail": "processed every unit through the recorded target",
+				"complete_through": 100,
+				"declared_range": {
+					"from_height": 0,
+					"to_height": 100
+				},
+				"gaps": [],
+				"caught_up": true,
+				"blocked_by": null
+			}
+		],
+		"evaluation_order": ["raw"],
+		"cycles": []
+	},
+	"lagging": {
+		"schema_version": 1,
+		"network": "mainnet",
+		"generated_at": "2026-08-13T12:00:00.000Z",
+		"source_tip": 140,
+		"finalized_height": 100,
+		"stages": [
+			{
+				"stage_id": "raw",
+				"kind": "raw",
+				"native_clock": "block",
+				"depends_on": null,
+				"source_tip": 140,
+				"finalized_height": 100,
+				"recorded_target": 100,
+				"state": "lagging",
+				"detail": "40 blocks behind the chain tip",
+				"complete_through": 100,
+				"declared_range": {
+					"from_height": 0,
+					"to_height": 100
+				},
+				"gaps": [],
+				"caught_up": true,
+				"blocked_by": null
+			}
+		],
+		"evaluation_order": ["raw"],
+		"cycles": []
+	},
+	"stale": {
+		"schema_version": 1,
+		"network": "mainnet",
+		"generated_at": "2026-08-13T12:00:00.000Z",
+		"source_tip": 10000,
+		"finalized_height": 9000,
+		"stages": [
+			{
+				"stage_id": "raw",
+				"kind": "raw",
+				"native_clock": "block",
+				"depends_on": null,
+				"source_tip": 10000,
+				"finalized_height": 9000,
+				"recorded_target": 100,
+				"state": "stale",
+				"detail": "8900 blocks behind the finalized height, beyond the 256 threshold",
+				"complete_through": 100,
+				"declared_range": {
+					"from_height": 0,
+					"to_height": 100
+				},
+				"gaps": [],
+				"caught_up": false,
+				"blocked_by": null
+			}
+		],
+		"evaluation_order": ["raw"],
+		"cycles": []
+	},
+	"stale-clock": {
+		"schema_version": 1,
+		"network": "mainnet",
+		"generated_at": "2026-08-13T12:00:00.000Z",
+		"source_tip": 100,
+		"finalized_height": 100,
+		"stages": [
+			{
+				"stage_id": "raw",
+				"kind": "raw",
+				"native_clock": "block",
+				"depends_on": null,
+				"source_tip": 100,
+				"finalized_height": 100,
+				"recorded_target": 100,
+				"state": "stale",
+				"detail": "source observation is 7200s old, beyond the 300s freshness objective",
+				"complete_through": 100,
+				"declared_range": {
+					"from_height": 0,
+					"to_height": 100
+				},
+				"gaps": [],
+				"caught_up": false,
+				"blocked_by": null
+			}
+		],
+		"evaluation_order": ["raw"],
+		"cycles": []
+	},
+	"gap": {
+		"schema_version": 1,
+		"network": "mainnet",
+		"generated_at": "2026-08-13T12:00:00.000Z",
+		"source_tip": 100,
+		"finalized_height": 100,
+		"stages": [
+			{
+				"stage_id": "raw",
+				"kind": "raw",
+				"native_clock": "block",
+				"depends_on": null,
+				"source_tip": 100,
+				"finalized_height": 100,
+				"recorded_target": 100,
+				"state": "gap",
+				"detail": "missing 41–79",
+				"complete_through": 40,
+				"declared_range": {
+					"from_height": 0,
+					"to_height": 100
+				},
+				"gaps": [
+					{
+						"from_height": 41,
+						"to_height": 79
+					}
+				],
+				"caught_up": false,
+				"blocked_by": null
+			}
+		],
+		"evaluation_order": ["raw"],
+		"cycles": []
+	},
+	"syncing": {
+		"schema_version": 1,
+		"network": "mainnet",
+		"generated_at": "2026-08-13T12:00:00.000Z",
+		"source_tip": 100,
+		"finalized_height": 100,
+		"stages": [
+			{
+				"stage_id": "raw",
+				"kind": "raw",
+				"native_clock": "block",
+				"depends_on": null,
+				"source_tip": 100,
+				"finalized_height": 100,
+				"recorded_target": 100,
+				"state": "syncing",
+				"detail": "contiguous from start, not yet through the recorded target",
+				"complete_through": 40,
+				"declared_range": {
+					"from_height": 0,
+					"to_height": 100
+				},
+				"gaps": [
+					{
+						"from_height": 41,
+						"to_height": 100
+					}
+				],
+				"caught_up": false,
+				"blocked_by": null
+			}
+		],
+		"evaluation_order": ["raw"],
+		"cycles": []
+	},
+	"failed": {
+		"schema_version": 1,
+		"network": "mainnet",
+		"generated_at": "2026-08-13T12:00:00.000Z",
+		"source_tip": 100,
+		"finalized_height": 100,
+		"stages": [
+			{
+				"stage_id": "raw",
+				"kind": "raw",
+				"native_clock": "block",
+				"depends_on": null,
+				"source_tip": 100,
+				"finalized_height": 100,
+				"recorded_target": 100,
+				"state": "failed",
+				"detail": "open crash failure (halted)",
+				"complete_through": null,
+				"declared_range": null,
+				"gaps": [],
+				"caught_up": false,
+				"blocked_by": null
+			}
+		],
+		"evaluation_order": ["raw"],
+		"cycles": []
+	},
+	"unverified_import": {
+		"schema_version": 1,
+		"network": "mainnet",
+		"generated_at": "2026-08-13T12:00:00.000Z",
+		"source_tip": 100,
+		"finalized_height": 100,
+		"stages": [
+			{
+				"stage_id": "raw",
+				"kind": "raw",
+				"native_clock": "block",
+				"depends_on": null,
+				"source_tip": 100,
+				"finalized_height": 100,
+				"recorded_target": 100,
+				"state": "unverified_import",
+				"detail": "imported data has not been audited",
+				"complete_through": null,
+				"declared_range": null,
+				"gaps": [],
+				"caught_up": false,
+				"blocked_by": null
+			}
+		],
+		"evaluation_order": ["raw"],
+		"cycles": []
+	},
+	"unanchored": {
+		"schema_version": 1,
+		"network": "mainnet",
+		"generated_at": "2026-08-13T12:00:00.000Z",
+		"source_tip": 100,
+		"finalized_height": 100,
+		"stages": [
+			{
+				"stage_id": "raw",
+				"kind": "raw",
+				"native_clock": "block",
+				"depends_on": null,
+				"source_tip": 100,
+				"finalized_height": 100,
+				"recorded_target": 100,
+				"state": "unanchored",
+				"detail": "receipts are missing a block hash or node anchor",
+				"complete_through": null,
+				"declared_range": null,
+				"gaps": [],
+				"caught_up": false,
+				"blocked_by": null
+			}
+		],
+		"evaluation_order": ["raw"],
+		"cycles": []
+	},
+	"source_unavailable": {
+		"schema_version": 1,
+		"network": "mainnet",
+		"generated_at": "2026-08-13T12:00:00.000Z",
+		"source_tip": null,
+		"finalized_height": null,
+		"stages": [
+			{
+				"stage_id": "raw",
+				"kind": "raw",
+				"native_clock": "block",
+				"depends_on": null,
+				"source_tip": null,
+				"finalized_height": null,
+				"recorded_target": null,
+				"state": "source_unavailable",
+				"detail": "the chain source could not be reached, so the declared range is unknown",
+				"complete_through": null,
+				"declared_range": null,
+				"gaps": [],
+				"caught_up": false,
+				"blocked_by": null
+			}
+		],
+		"evaluation_order": ["raw"],
+		"cycles": []
+	},
+	"out_of_scope": {
+		"schema_version": 1,
+		"network": "mainnet",
+		"generated_at": "2026-08-13T12:00:00.000Z",
+		"source_tip": 100,
+		"finalized_height": 100,
+		"stages": [
+			{
+				"stage_id": "raw",
+				"kind": "raw",
+				"native_clock": "block",
+				"depends_on": null,
+				"source_tip": 100,
+				"finalized_height": 100,
+				"recorded_target": 100,
+				"state": "out_of_scope",
+				"detail": "recorded target is below the instance start",
+				"complete_through": null,
+				"declared_range": null,
+				"gaps": [],
+				"caught_up": false,
+				"blocked_by": null
+			}
+		],
+		"evaluation_order": ["raw"],
+		"cycles": []
+	},
+	"disabled": {
+		"schema_version": 1,
+		"network": "mainnet",
+		"generated_at": "2026-08-13T12:00:00.000Z",
+		"source_tip": 100,
+		"finalized_height": 100,
+		"stages": [
+			{
+				"stage_id": "raw",
+				"kind": "raw",
+				"native_clock": "block",
+				"depends_on": null,
+				"source_tip": 100,
+				"finalized_height": 100,
+				"recorded_target": 100,
+				"state": "disabled",
+				"detail": "stage is disabled",
+				"complete_through": null,
+				"declared_range": null,
+				"gaps": [],
+				"caught_up": false,
+				"blocked_by": null
+			}
+		],
+		"evaluation_order": ["raw"],
+		"cycles": []
+	},
+	"dep-cap": {
+		"schema_version": 1,
+		"network": "mainnet",
+		"generated_at": "2026-08-13T12:00:00.000Z",
+		"source_tip": 100,
+		"finalized_height": 100,
+		"stages": [
+			{
+				"stage_id": "decode:stx",
+				"kind": "decode",
+				"native_clock": "block",
+				"depends_on": "raw",
+				"source_tip": 100,
+				"finalized_height": 100,
+				"recorded_target": 100,
+				"state": "syncing",
+				"detail": "contiguous from start, not yet through the recorded target",
+				"complete_through": 50,
+				"declared_range": {
+					"from_height": 0,
+					"to_height": 100
+				},
+				"gaps": [],
+				"caught_up": false,
+				"blocked_by": null
+			},
+			{
+				"stage_id": "raw",
+				"kind": "raw",
+				"native_clock": "block",
+				"depends_on": null,
+				"source_tip": 100,
+				"finalized_height": 100,
+				"recorded_target": 100,
+				"state": "syncing",
+				"detail": "contiguous from start, not yet through the recorded target",
+				"complete_through": 50,
+				"declared_range": {
+					"from_height": 0,
+					"to_height": 100
+				},
+				"gaps": [
+					{
+						"from_height": 51,
+						"to_height": 100
+					}
+				],
+				"caught_up": false,
+				"blocked_by": null
+			}
+		],
+		"evaluation_order": ["raw", "decode:stx"],
+		"cycles": []
+	},
+	"cursor-complete": {
+		"schema_version": 1,
+		"network": "mainnet",
+		"generated_at": "2026-08-13T12:00:00.000Z",
+		"source_tip": 100,
+		"finalized_height": 100,
+		"stages": [
+			{
+				"stage_id": "raw",
+				"kind": "raw",
+				"native_clock": "cursor",
+				"depends_on": null,
+				"source_tip": 100,
+				"finalized_height": 100,
+				"recorded_target": 100,
+				"state": "complete",
+				"detail": "processed every unit through the recorded target",
+				"complete_through": 100,
+				"declared_range": {
+					"from_height": 0,
+					"to_height": 100
+				},
+				"gaps": [],
+				"caught_up": true,
+				"blocked_by": null
+			}
+		],
+		"evaluation_order": ["raw"],
+		"cycles": []
+	},
+	"queue-syncing": {
+		"schema_version": 1,
+		"network": "mainnet",
+		"generated_at": "2026-08-13T12:00:00.000Z",
+		"source_tip": 100,
+		"finalized_height": 100,
+		"stages": [
+			{
+				"stage_id": "deliver",
+				"kind": "queue",
+				"native_clock": "queue",
+				"depends_on": null,
+				"source_tip": 100,
+				"finalized_height": 100,
+				"recorded_target": 100,
+				"state": "syncing",
+				"detail": "contiguous from start, not yet through the recorded target",
+				"complete_through": 100,
+				"declared_range": {
+					"from_height": 0,
+					"to_height": 100
+				},
+				"gaps": [],
+				"caught_up": false,
+				"blocked_by": null
+			}
+		],
+		"evaluation_order": ["deliver"],
+		"cycles": []
+	},
+	"queue-complete": {
+		"schema_version": 1,
+		"network": "mainnet",
+		"generated_at": "2026-08-13T12:00:00.000Z",
+		"source_tip": 100,
+		"finalized_height": 100,
+		"stages": [
+			{
+				"stage_id": "deliver",
+				"kind": "queue",
+				"native_clock": "queue",
+				"depends_on": null,
+				"source_tip": 100,
+				"finalized_height": 100,
+				"recorded_target": 100,
+				"state": "complete",
+				"detail": "processed every unit through the recorded target",
+				"complete_through": 100,
+				"declared_range": {
+					"from_height": 0,
+					"to_height": 100
+				},
+				"gaps": [],
+				"caught_up": true,
+				"blocked_by": null
+			}
+		],
+		"evaluation_order": ["deliver"],
+		"cycles": []
+	},
+	"cycle": {
+		"schema_version": 1,
+		"network": "mainnet",
+		"generated_at": "2026-08-13T12:00:00.000Z",
+		"source_tip": 100,
+		"finalized_height": 100,
+		"stages": [
+			{
+				"stage_id": "a",
+				"kind": "raw",
+				"native_clock": "block",
+				"depends_on": "b",
+				"source_tip": 100,
+				"finalized_height": 100,
+				"recorded_target": 100,
+				"state": "failed",
+				"detail": "dependency cycle",
+				"complete_through": null,
+				"declared_range": null,
+				"gaps": [],
+				"caught_up": false,
+				"blocked_by": null
+			},
+			{
+				"stage_id": "b",
+				"kind": "raw",
+				"native_clock": "block",
+				"depends_on": "a",
+				"source_tip": 100,
+				"finalized_height": 100,
+				"recorded_target": 100,
+				"state": "failed",
+				"detail": "dependency cycle",
+				"complete_through": null,
+				"declared_range": null,
+				"gaps": [],
+				"caught_up": false,
+				"blocked_by": null
+			}
+		],
+		"evaluation_order": [],
+		"cycles": [["a", "b"]]
+	},
+	"missing-dep": {
+		"schema_version": 1,
+		"network": "mainnet",
+		"generated_at": "2026-08-13T12:00:00.000Z",
+		"source_tip": 100,
+		"finalized_height": 100,
+		"stages": [
+			{
+				"stage_id": "decode:stx",
+				"kind": "decode",
+				"native_clock": "block",
+				"depends_on": "raw",
+				"source_tip": 100,
+				"finalized_height": 100,
+				"recorded_target": 100,
+				"state": "failed",
+				"detail": "depends on unknown stage raw",
+				"complete_through": null,
+				"declared_range": null,
+				"gaps": [],
+				"caught_up": false,
+				"blocked_by": null
+			}
+		],
+		"evaluation_order": ["decode:stx"],
+		"cycles": []
+	},
+	"complete-not-caught-up": {
+		"schema_version": 1,
+		"network": "mainnet",
+		"generated_at": "2026-08-13T12:00:00.000Z",
+		"source_tip": 200,
+		"finalized_height": 200,
+		"stages": [
+			{
+				"stage_id": "raw",
+				"kind": "raw",
+				"native_clock": "block",
+				"depends_on": null,
+				"source_tip": 200,
+				"finalized_height": 200,
+				"recorded_target": 100,
+				"state": "complete",
+				"detail": "processed every unit through the recorded target",
+				"complete_through": 100,
+				"declared_range": {
+					"from_height": 0,
+					"to_height": 100
+				},
+				"gaps": [],
+				"caught_up": false,
+				"blocked_by": null
+			}
+		],
+		"evaluation_order": ["raw"],
+		"cycles": []
+	}
+}

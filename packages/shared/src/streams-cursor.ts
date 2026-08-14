@@ -52,3 +52,28 @@ export function decodeStreamsCursor(cursor: string): StreamsCursor {
 
 	return decoded;
 }
+
+export function compareStreamsCursor(
+	a: StreamsCursor,
+	b: StreamsCursor,
+): number {
+	if (a.block_height !== b.block_height) {
+		return a.block_height < b.block_height ? -1 : 1;
+	}
+	if (a.event_index !== b.event_index) {
+		return a.event_index < b.event_index ? -1 : 1;
+	}
+	return 0;
+}
+
+export function isEmptyRangeCursor(cursor: StreamsCursor): boolean {
+	return cursor.event_index === EMPTY_RANGE_EVENT_INDEX_SENTINEL;
+}
+
+/** Exclusive end of every event that can live in `height`. */
+export function blockEndCursor(height: number): StreamsCursor {
+	return {
+		block_height: height,
+		event_index: EMPTY_RANGE_EVENT_INDEX_SENTINEL,
+	};
+}
