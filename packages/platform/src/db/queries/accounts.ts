@@ -34,14 +34,12 @@ export async function updateAccountProfile(
 	data: {
 		display_name?: string;
 		bio?: string;
-		slug?: string;
 		notify_reindex_complete?: boolean;
 	},
 ): Promise<Account> {
 	const set: Record<string, unknown> = {};
 	if (data.display_name !== undefined) set.display_name = data.display_name;
 	if (data.bio !== undefined) set.bio = data.bio;
-	if (data.slug !== undefined) set.slug = data.slug;
 	if (data.notify_reindex_complete !== undefined)
 		set.notify_reindex_complete = data.notify_reindex_complete;
 
@@ -66,25 +64,6 @@ export async function setStripeCustomerId(
 		.execute();
 }
 
-/**
- * Set the plan tier on an account. Called by the Stripe webhook on
- * subscription lifecycle events + by the billing page's fast-resolve
- * after a successful Checkout redirect. Returns true if a row was
- * updated (account exists).
- */
-export async function setAccountPlan(
-	db: Kysely<Database>,
-	accountId: string,
-	plan: string,
-): Promise<boolean> {
-	const result = await db
-		.updateTable("accounts")
-		.set({ plan })
-		.where("id", "=", accountId)
-		.executeTakeFirst();
-	return (result.numUpdatedRows ?? 0n) > 0n;
-}
-
 /** Resolve an account by its Stripe customer id. Null if no match. */
 export async function getAccountByStripeCustomerId(
 	db: Kysely<Database>,
@@ -96,20 +75,6 @@ export async function getAccountByStripeCustomerId(
 		.where("stripe_customer_id", "=", stripeCustomerId)
 		.executeTakeFirst();
 	return row ?? null;
-}
-
-export async function isSlugTaken(
-	db: Kysely<Database>,
-	slug: string,
-	excludeAccountId: string,
-): Promise<boolean> {
-	const row = await db
-		.selectFrom("accounts")
-		.select("id")
-		.where("slug", "=", slug)
-		.where("id", "!=", excludeAccountId)
-		.executeTakeFirst();
-	return !!row;
 }
 
 export async function createMagicLink(

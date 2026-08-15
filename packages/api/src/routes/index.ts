@@ -1,5 +1,3 @@
-import { incrementIndexDecodedEventsReturned } from "@secondlayer/platform/db/queries/usage";
-import { getDb } from "@secondlayer/shared/db";
 import { readChainReorgsForHeightRange } from "@secondlayer/shared/db/queries/chain-reorgs";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import { type Context, Hono, type MiddlewareHandler } from "hono";
@@ -97,7 +95,6 @@ import {
 	type StackingReader,
 	getStackingResponse,
 } from "../index/stacking.ts";
-import { INDEX_TIER_CONFIG } from "../index/tiers.ts";
 import {
 	type IndexTip,
 	type IndexTipProvider,
@@ -116,7 +113,6 @@ import {
 	getTransactionsResponse,
 	readTransactionById,
 } from "../index/transactions.ts";
-import { type UsageReader, readUsage } from "../index/usage.ts";
 import { validateQueryParams } from "../middleware/validation.ts";
 import {
 	DEFAULT_STREAMS_REORGS_READER,
@@ -154,7 +150,6 @@ export type IndexRouterOptions = {
 	readStacking?: StackingReader;
 	readPoxCycles?: PoxCyclesReader;
 	readPoxCycle?: PoxCycleReader;
-	readUsage?: UsageReader;
 	readTransactionProof?: TransactionProofReader;
 	readPox5Events?: Pox5EventsReader;
 	readSbtcEvents?: SbtcEventsReader;
@@ -169,10 +164,6 @@ export type IndexRouterOptions = {
 	readPrintSchema?: PrintSchemaReader;
 	/** Injectable so tests don't share the process-wide schema memo. */
 	printSchemaCache?: PrintSchemaCache;
-	recordDecodedEventsReturned?: (
-		accountId: string,
-		quantity: number,
-	) => Promise<void>;
 	/** Pre-built x402 middleware to mount (accountless pay-per-call). Omit to
 	 *  disable. Composed at the app root so the route stays free of env +
 	 *  facilitator wiring; tests pass a fake-backed instance. */
@@ -207,21 +198,17 @@ function applyIndexCache(
 export function createIndexRouter(opts: IndexRouterOptions = {}) {
 	const getTip = opts.getTip ?? getIndexTip;
 	const readReorgs = opts.readReorgs ?? DEFAULT_STREAMS_REORGS_READER;
-	const recordDecodedEventsReturned =
-		opts.recordDecodedEventsReturned ??
-		((accountId, quantity) =>
-			incrementIndexDecodedEventsReturned(getDb(), accountId, quantity));
 
 	/**
-	 * Meter one page of decoded rows against the calling tenant: usage counter
-	 * plus credit debit, always together. No-op for anonymous callers and empty
-	 * pages. Call AFTER the cache check — a 304 must not meter.
+	 * Debit one page of decoded rows against a credited (pay-as-you-go) caller.
+	 * Usage counters died with the plan/usage surface (gate-g Slice D) — the
+	 * credit debit is the only per-row consequence left. No-op for anonymous
+	 * callers and empty pages. Call AFTER the cache check — a 304 must not debit.
 	 */
 	const meterRows = async (c: Context<IndexEnv>, rows: { length: number }) => {
 		if (!isPlatformMode()) return;
 		const accountId = c.get("indexTenant")?.account_id;
 		if (!accountId || rows.length === 0) return;
-		await recordDecodedEventsReturned(accountId, rows.length);
 		await debitCreditedRead(c, rows.length);
 	};
 
@@ -403,12 +390,6 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					description:
 						"Empirical per-topic print payload schemas for a contract, inferred from sampled canonical print events. Returns contract_id, topics[] ({topic, count, first_height, last_height, non_tuple, fields[] with name/camel_name/clarity_type/ts_type/column_type/always_present}), sample, tip. Anon ok, unmetered.",
 				},
-				{
-					path: "/v1/index/usage",
-					method: "GET",
-					description:
-						"Your own Index consumption (decoded events today + this month) and tier limits. Requires a key (anon → 401).",
-				},
 			],
 			auth: "optional bearer for higher rate-limit tier; anon allowed",
 			cursor: {
@@ -437,31 +418,6 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 	// accountless caller is no longer "free"). Mounted before the routes, so it
 	// never gates the open `/` info endpoint registered above.
 	router.use("*", indexFreeWindow({ getTip }));
-
-	// An agent's own Index consumption + tier limits. Index reads allow anon, but
-	// usage needs an identity — a keyed (Build+) request. Anon → 401.
-	router.get("/usage", async (c) => {
-		const tenant = c.get("indexTenant");
-		if (!tenant?.account_id) {
-			return c.json(
-				{ error: "Usage requires an API key (Build+ tier)", code: "AUTH" },
-				401,
-			);
-		}
-		const usage = await (opts.readUsage ?? readUsage)(tenant.account_id);
-		return c.json({
-			product: "index",
-			tier: tenant.tier,
-			limits: {
-				rate_limit_per_second:
-					INDEX_TIER_CONFIG[tenant.tier].rateLimitPerSecond,
-			},
-			usage: {
-				decoded_events_today: usage.indexDecodedEventsToday,
-				decoded_events_this_month: usage.indexDecodedEventsThisMonth,
-			},
-		});
-	});
 
 	router.get("/events", async (c) => {
 		const query = new URL(c.req.url).searchParams;

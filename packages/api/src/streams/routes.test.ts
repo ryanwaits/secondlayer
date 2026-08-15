@@ -62,7 +62,6 @@ function createMeteredApp(opts: {
 	readBlockEvents?: NonNullable<
 		Parameters<typeof createStreamsRouter>[0]
 	>["readBlockEvents"];
-	recordEventsReturned: (accountId: string, quantity: number) => Promise<void>;
 }) {
 	const app = new Hono();
 	app.onError(errorHandler);
@@ -113,7 +112,6 @@ function createMeteredApp(opts: {
 			readEventsByTxId: opts.readEventsByTxId,
 			readBlockEvents: opts.readBlockEvents,
 			readReorgs: async () => [],
-			recordEventsReturned: opts.recordEventsReturned,
 		}),
 	);
 	return app;
@@ -569,142 +567,10 @@ describe("Stacks Streams gateway middleware", () => {
 		expect(seenFromHeight).toBeUndefined();
 	});
 
-	test("meters successful authenticated Streams events returned", async () => {
-		const metered: Array<{ accountId: string; quantity: number }> = [];
-		const app = createMeteredApp({
-			recordEventsReturned: async (accountId, quantity) => {
-				metered.push({ accountId, quantity });
-			},
-			readEvents: async () => ({
-				events: [
-					{
-						cursor: "9999:0",
-						block_height: 9999,
-						block_hash: TEST_TIP.block_hash,
-						burn_block_height: TEST_TIP.burn_block_height,
-						tx_id: "0x01",
-						tx_index: 0,
-						event_index: 0,
-						event_type: "stx_transfer",
-						contract_id: null,
-						payload: {},
-						ts: "2026-05-02T21:43:00.000Z",
-					},
-					{
-						cursor: "9999:1",
-						block_height: 9999,
-						block_hash: TEST_TIP.block_hash,
-						burn_block_height: TEST_TIP.burn_block_height,
-						tx_id: "0x02",
-						tx_index: 1,
-						event_index: 1,
-						event_type: "print",
-						contract_id: "SP123.contract",
-						payload: {},
-						ts: "2026-05-02T21:43:01.000Z",
-					},
-				],
-				next_cursor: "9999:1",
-			}),
-		});
-
-		const res = await app.request("/v1/streams/events", {
-			headers: authHeaders("sk-sl_metered_streams"),
-		});
-
-		expect(res.status).toBe(200);
-		expect(metered).toEqual([{ accountId: "acct_streams", quantity: 2 }]);
-	});
-
-	test("does not meter static keys, failed auth, wrong scope, or /tip", async () => {
-		const metered: Array<{ accountId: string; quantity: number }> = [];
-		const app = createMeteredApp({
-			recordEventsReturned: async (accountId, quantity) => {
-				metered.push({ accountId, quantity });
-			},
-			readEvents: async () => ({
-				events: [
-					{
-						cursor: "9999:0",
-						block_height: 9999,
-						block_hash: TEST_TIP.block_hash,
-						burn_block_height: TEST_TIP.burn_block_height,
-						tx_id: "0x01",
-						tx_index: 0,
-						event_index: 0,
-						event_type: "stx_transfer",
-						contract_id: null,
-						payload: {},
-						ts: "2026-05-02T21:43:00.000Z",
-					},
-				],
-				next_cursor: "9999:0",
-			}),
-		});
-
-		await app.request("/v1/streams/events", {
-			headers: authHeaders("sk-sl_unmetered_streams"),
-		});
-		await app.request("/v1/streams/events");
-		await app.request("/v1/streams/events", {
-			headers: authHeaders("sk-sl_metered_wrong_scope"),
-		});
-		await app.request("/v1/streams/tip", {
-			headers: authHeaders("sk-sl_metered_streams"),
-		});
-
-		expect(metered).toEqual([]);
-	});
-
-	test("meters /events/:tx_id reads (parity with /events)", async () => {
-		const metered: Array<{ accountId: string; quantity: number }> = [];
-		const app = createMeteredApp({
-			recordEventsReturned: async (accountId, quantity) => {
-				metered.push({ accountId, quantity });
-			},
-			readEventsByTxId: async ({ txId }) => ({
-				events: [
-					streamsEvent({ tx_id: txId, cursor: "100:0", event_index: 0 }),
-					streamsEvent({ tx_id: txId, cursor: "100:1", event_index: 1 }),
-				],
-			}),
-		});
-
-		const res = await app.request("/v1/streams/events/0xtx", {
-			headers: authHeaders("sk-sl_metered_streams"),
-		});
-
-		expect(res.status).toBe(200);
-		expect(metered).toEqual([{ accountId: "acct_streams", quantity: 2 }]);
-	});
-
-	test("meters /blocks/:heightOrHash/events reads (parity with /events)", async () => {
-		const metered: Array<{ accountId: string; quantity: number }> = [];
-		const app = createMeteredApp({
-			recordEventsReturned: async (accountId, quantity) => {
-				metered.push({ accountId, quantity });
-			},
-			readBlockEvents: async () => ({
-				events: [streamsEvent({ block_hash: "0xblock" })],
-			}),
-		});
-
-		const res = await app.request("/v1/streams/blocks/0xblock/events", {
-			headers: authHeaders("sk-sl_metered_streams"),
-		});
-
-		expect(res.status).toBe(200);
-		expect(metered).toEqual([{ accountId: "acct_streams", quantity: 1 }]);
-	});
-
-	test("free tier hitting /events/:tx_id past retention gets 403 before metering", async () => {
-		const metered: Array<{ accountId: string; quantity: number }> = [];
+	test("free tier hitting /events/:tx_id past retention gets 403", async () => {
 		// streamsEvent defaults to block 100; free-tier cutoff is tip - 1 day
 		// (182_720), so 100 is past the live window → 403.
 		const app = createMeteredApp({
-			recordEventsReturned: async (accountId, quantity) => {
-				metered.push({ accountId, quantity });
-			},
 			readEventsByTxId: async ({ txId }) => ({
 				events: [streamsEvent({ tx_id: txId })],
 			}),
@@ -717,15 +583,10 @@ describe("Stacks Streams gateway middleware", () => {
 		expect(res.status).toBe(403);
 		const body = (await res.json()) as { details?: { reason?: string } };
 		expect(body.details?.reason).toBe("RETENTION");
-		expect(metered).toEqual([]);
 	});
 
 	test("free tier hitting /blocks/:heightOrHash/events past retention gets 403", async () => {
-		const metered: Array<{ accountId: string; quantity: number }> = [];
 		const app = createMeteredApp({
-			recordEventsReturned: async (accountId, quantity) => {
-				metered.push({ accountId, quantity });
-			},
 			readBlockEvents: async () => ({
 				events: [streamsEvent({ block_hash: "0xblock" })],
 			}),
@@ -738,6 +599,5 @@ describe("Stacks Streams gateway middleware", () => {
 		expect(res.status).toBe(403);
 		const body = (await res.json()) as { details?: { reason?: string } };
 		expect(body.details?.reason).toBe("RETENTION");
-		expect(metered).toEqual([]);
 	});
 });

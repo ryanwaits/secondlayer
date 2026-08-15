@@ -35,7 +35,6 @@ import {
 	type TransactionProofReader,
 	type TransactionProofResponse,
 } from "./transaction-proof.ts";
-import type { UsageReader } from "./usage.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 const BUILD_KEY = "sk-sl_index_build_test";
@@ -78,58 +77,6 @@ function createApp(readFtTransfers: FtTransfersReader = EMPTY_READER) {
 			readFtTransfers,
 			readNftTransfers: EMPTY_NFT_READER,
 			readReorgs: async () => [],
-		}),
-	);
-	return app;
-}
-
-function createMeteredIndexApp(opts: {
-	readFtTransfers?: FtTransfersReader;
-	readNftTransfers?: NftTransfersReader;
-	recordDecodedEventsReturned: (
-		accountId: string,
-		quantity: number,
-	) => Promise<void>;
-}) {
-	const app = new Hono();
-	app.onError(errorHandler);
-	const tokens: IndexTokenStore = new Map([
-		[
-			"sk-sl_metered_index",
-			{
-				tenant_id: "account:acct_index",
-				account_id: "acct_index",
-				tier: "build",
-				scopes: [INDEX_READ_SCOPE],
-			},
-		],
-		[
-			"sk-sl_unmetered_index",
-			{
-				tenant_id: "tenant_static_index",
-				tier: "build",
-				scopes: [INDEX_READ_SCOPE],
-			},
-		],
-		[
-			"sk-sl_metered_index_wrong_scope",
-			{
-				tenant_id: "account:acct_index",
-				account_id: "acct_index",
-				tier: "build",
-				scopes: [],
-			},
-		],
-	]);
-	app.route(
-		"/v1/index",
-		createIndexRouter({
-			tokens,
-			getTip: () => TIP,
-			readFtTransfers: opts.readFtTransfers ?? EMPTY_READER,
-			readNftTransfers: opts.readNftTransfers ?? EMPTY_NFT_READER,
-			readReorgs: async () => [],
-			recordDecodedEventsReturned: opts.recordDecodedEventsReturned,
 		}),
 	);
 	return app;
@@ -275,76 +222,6 @@ describe("Stacks Index gateway middleware", () => {
 		}
 	});
 
-	test("meters successful authenticated Index decoded events returned", async () => {
-		const metered: Array<{ accountId: string; quantity: number }> = [];
-		const app = createMeteredIndexApp({
-			recordDecodedEventsReturned: async (accountId, quantity) => {
-				metered.push({ accountId, quantity });
-			},
-			readFtTransfers: async () => ({
-				events: [
-					{
-						cursor: "10:0",
-						block_height: 10,
-						tx_id: "0x01",
-						tx_index: 0,
-						event_index: 0,
-						event_type: "ft_transfer",
-						contract_id: "SP123.token",
-						asset_identifier: "SP123.token::coin",
-						sender: "SP123.sender",
-						recipient: "SP123.recipient",
-						amount: "1",
-					},
-				],
-				next_cursor: "10:0",
-			}),
-			readNftTransfers: async () => ({
-				events: [
-					{
-						cursor: "11:0",
-						block_height: 11,
-						tx_id: "0x02",
-						tx_index: 0,
-						event_index: 0,
-						event_type: "nft_transfer",
-						contract_id: "SP123.nft",
-						asset_identifier: "SP123.nft::item",
-						sender: "SP123.sender",
-						recipient: "SP123.recipient",
-						value: "u1",
-					},
-					{
-						cursor: "11:1",
-						block_height: 11,
-						tx_id: "0x03",
-						tx_index: 1,
-						event_index: 1,
-						event_type: "nft_transfer",
-						contract_id: "SP123.nft",
-						asset_identifier: "SP123.nft::item",
-						sender: "SP123.sender",
-						recipient: "SP123.recipient",
-						value: "u2",
-					},
-				],
-				next_cursor: "11:1",
-			}),
-		});
-
-		await app.request("/v1/index/ft-transfers", {
-			headers: authHeaders("sk-sl_metered_index"),
-		});
-		await app.request("/v1/index/nft-transfers", {
-			headers: authHeaders("sk-sl_metered_index"),
-		});
-
-		expect(metered).toEqual([
-			{ accountId: "acct_index", quantity: 1 },
-			{ accountId: "acct_index", quantity: 2 },
-		]);
-	});
-
 	test("GET /events requires event_type", async () => {
 		const app = new Hono();
 		app.onError(errorHandler);
@@ -436,48 +313,6 @@ describe("Stacks Index gateway middleware", () => {
 		expect(body.contract_calls).toHaveLength(1);
 		expect(body.reorgs).toEqual([]);
 	});
-
-	test("does not meter static keys, failed auth, wrong scope, or rate limit responses", async () => {
-		const metered: Array<{ accountId: string; quantity: number }> = [];
-		const app = createMeteredIndexApp({
-			recordDecodedEventsReturned: async (accountId, quantity) => {
-				metered.push({ accountId, quantity });
-			},
-			readFtTransfers: async () => ({
-				events: [
-					{
-						cursor: "10:0",
-						block_height: 10,
-						tx_id: "0x01",
-						tx_index: 0,
-						event_index: 0,
-						event_type: "ft_transfer",
-						contract_id: "SP123.token",
-						asset_identifier: "SP123.token::coin",
-						sender: "SP123.sender",
-						recipient: "SP123.recipient",
-						amount: "1",
-					},
-				],
-				next_cursor: "10:0",
-			}),
-		});
-
-		await app.request("/v1/index/ft-transfers", {
-			headers: authHeaders("sk-sl_unmetered_index"),
-		});
-		await app.request("/v1/index/ft-transfers");
-		await app.request("/v1/index/ft-transfers", {
-			headers: authHeaders("sk-sl_metered_index_wrong_scope"),
-		});
-		for (let i = 0; i < 51; i++) {
-			await app.request("/v1/index/ft-transfers", {
-				headers: authHeaders("sk-sl_unmetered_index"),
-			});
-		}
-
-		expect(metered).toEqual([]);
-	});
 });
 
 describe("Index PoX-5 events route", () => {
@@ -516,10 +351,6 @@ describe("Index PoX-5 events route", () => {
 	function pox5App(
 		overrides: {
 			tokens?: IndexTokenStore;
-			recordDecodedEventsReturned?: (
-				accountId: string,
-				quantity: number,
-			) => Promise<void>;
 		} = {},
 	) {
 		const app = new Hono();
@@ -566,31 +397,6 @@ describe("Index PoX-5 events route", () => {
 	test("rejects an unknown query filter", async () => {
 		const res = await pox5App().request("/v1/index/pox5/events?sender=x");
 		expect(res.status).toBe(400);
-	});
-
-	test("meters the returned row count for an authenticated account", async () => {
-		const metered: Array<{ accountId: string; quantity: number }> = [];
-		const tokens: IndexTokenStore = new Map([
-			[
-				"sk-sl_metered_pox5",
-				{
-					tenant_id: "account:acct_pox5",
-					account_id: "acct_pox5",
-					tier: "build",
-					scopes: [INDEX_READ_SCOPE],
-				},
-			],
-		]);
-		const res = await pox5App({
-			tokens,
-			recordDecodedEventsReturned: async (accountId, quantity) => {
-				metered.push({ accountId, quantity });
-			},
-		}).request("/v1/index/pox5/events", {
-			headers: authHeaders("sk-sl_metered_pox5"),
-		});
-		expect(res.status).toBe(200);
-		expect(metered).toEqual([{ accountId: "acct_pox5", quantity: 1 }]);
 	});
 });
 
@@ -910,73 +716,6 @@ describe("Index /pox/cycles/:reward_cycle route (fake reader)", () => {
 		}).request("/v1/index/pox/cycles/-1");
 		expect(res.status).toBe(400);
 		expect(called).toBe(false);
-	});
-});
-
-describe("Index /usage route (fake reader)", () => {
-	const FAKE_USAGE = {
-		streamsEventsToday: 1,
-		streamsEventsThisMonth: 2,
-		indexDecodedEventsToday: 5,
-		indexDecodedEventsThisMonth: 120,
-	};
-
-	function usageApp(
-		overrides: {
-			tokens?: IndexTokenStore;
-			readUsage?: UsageReader;
-		} = {},
-	) {
-		const app = new Hono();
-		app.onError(errorHandler);
-		app.route(
-			"/v1/index",
-			createIndexRouter({
-				getTip: () => TIP,
-				readReorgs: async () => [],
-				readUsage: async () => FAKE_USAGE,
-				...overrides,
-			}),
-		);
-		return app;
-	}
-
-	test("401s an anonymous request", async () => {
-		let called = false;
-		const res = await usageApp({
-			readUsage: async () => {
-				called = true;
-				return FAKE_USAGE;
-			},
-		}).request("/v1/index/usage");
-		expect(res.status).toBe(401);
-		expect(called).toBe(false);
-	});
-
-	test("200s an authenticated request with the injected usage", async () => {
-		const tokens: IndexTokenStore = new Map([
-			[
-				"sk-sl_usage_test",
-				{
-					tenant_id: "account:acct_usage",
-					account_id: "acct_usage",
-					tier: "build",
-					scopes: [INDEX_READ_SCOPE],
-				},
-			],
-		]);
-		const res = await usageApp({ tokens }).request("/v1/index/usage", {
-			headers: authHeaders("sk-sl_usage_test"),
-		});
-		expect(res.status).toBe(200);
-		const body = (await res.json()) as {
-			usage: {
-				decoded_events_today: number;
-				decoded_events_this_month: number;
-			};
-		};
-		expect(body.usage.decoded_events_today).toBe(5);
-		expect(body.usage.decoded_events_this_month).toBe(120);
 	});
 });
 

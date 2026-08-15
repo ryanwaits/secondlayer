@@ -4,17 +4,9 @@
 	"private": true,
 	"type": "module",
 	"exports": {
-		"./pricing": {
-			"types": "./dist/pricing.d.ts",
-			"import": "./dist/pricing.js"
-		},
 		"./db/queries/accounts": {
 			"types": "./dist/db/queries/accounts.d.ts",
 			"import": "./dist/db/queries/accounts.js"
-		},
-		"./db/queries/usage": {
-			"types": "./dist/db/queries/usage.d.ts",
-			"import": "./dist/db/queries/usage.js"
 		},
 		"./db/queries/account-spend-caps": {
 			"types": "./dist/db/queries/account-spend-caps.d.ts",
@@ -23,10 +15,6 @@
 		"./db/queries/account-credits": {
 			"types": "./dist/db/queries/account-credits.d.ts",
 			"import": "./dist/db/queries/account-credits.js"
-		},
-		"./db/queries/projects": {
-			"types": "./dist/db/queries/projects.d.ts",
-			"import": "./dist/db/queries/projects.js"
 		},
 		"./schemas/accounts": {
 			"types": "./dist/schemas/accounts.d.ts",

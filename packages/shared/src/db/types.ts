@@ -295,7 +295,6 @@ export interface AccountsTable {
 	display_name: string | null;
 	bio: string | null;
 	avatar_url: string | null;
-	slug: string | null;
 	stripe_customer_id: string | null;
 	/** Opt-out toggle for the subgraph reindex-completion email. Defaults true. */
 	notify_reindex_complete: Generated<boolean>;
@@ -314,20 +313,6 @@ export interface SessionsTable {
 	created_at: Generated<Date>;
 }
 
-/**
- * One-time claim tokens for ghost accounts. The raw token only ever appears in
- * the claim URL returned at mint time; we store its sha256. A used token marks
- * the account as claimed (or merged into an existing account).
- */
-export interface ClaimTokensTable {
-	id: Generated<string>;
-	account_id: string;
-	token_hash: string;
-	created_at: Generated<Date>;
-	expires_at: Date;
-	used_at: Date | null;
-}
-
 export interface MagicLinksTable {
 	id: Generated<string>;
 	email: string;
@@ -337,51 +322,6 @@ export interface MagicLinksTable {
 	used_at: Date | null;
 	failed_attempts: Generated<number>;
 	created_at: Generated<Date>;
-}
-
-export interface UsageDailyTable {
-	account_id: string;
-	tenant_id: string | null;
-	date: string;
-	api_requests: Generated<number>;
-	deliveries: Generated<number>;
-	streams_events_returned: Generated<number>;
-	index_decoded_events_returned: Generated<number>;
-}
-
-export interface UsageSnapshotsTable {
-	id: Generated<string>;
-	account_id: string;
-	measured_at: Generated<Date>;
-	storage_bytes: Generated<number>;
-}
-
-export interface AccountInsightsTable {
-	id: Generated<string>;
-	account_id: string;
-	category: string;
-	insight_type: string;
-	resource_id: string | null;
-	severity: string;
-	title: string;
-	body: string;
-	data: unknown;
-	dismissed_at: Date | null;
-	expires_at: Date | null;
-	created_at: Generated<Date>;
-}
-
-export interface AccountAgentRunsTable {
-	id: Generated<string>;
-	account_id: string;
-	started_at: Generated<Date>;
-	completed_at: Date | null;
-	status: Generated<string>;
-	input_tokens: Generated<number>;
-	output_tokens: Generated<number>;
-	cost_usd: Generated<number>;
-	insights_created: Generated<number>;
-	error: string | null;
 }
 
 export interface SubgraphProcessingStatsTable {
@@ -417,45 +357,6 @@ export interface SubgraphHealthSnapshotsTable {
 	total_errors: number;
 	last_processed_block: number | null;
 	captured_at: Generated<Date>;
-}
-
-export interface SubgraphUsageDailyTable {
-	subgraph_id: string;
-	date: string;
-	query_count: Generated<number>;
-}
-
-export interface ProjectsTable {
-	id: Generated<string>;
-	name: string;
-	slug: string;
-	account_id: string;
-	settings: Generated<Record<string, unknown>>;
-	network: Generated<string>;
-	node_rpc: string | null;
-	created_at: Generated<Date>;
-	updated_at: Generated<Date>;
-}
-
-export interface TeamMembersTable {
-	id: Generated<string>;
-	project_id: string;
-	account_id: string;
-	role: Generated<string>;
-	invited_by: string | null;
-	created_at: Generated<Date>;
-}
-
-export interface TeamInvitationsTable {
-	id: Generated<string>;
-	project_id: string;
-	email: string;
-	role: Generated<string>;
-	token: string;
-	invited_by: string | null;
-	expires_at: Date;
-	accepted_at: Date | null;
-	created_at: Generated<Date>;
 }
 
 export interface ProcessedStripeEventsTable {
@@ -1015,27 +916,14 @@ export interface Database {
 	accounts: AccountsTable;
 	sessions: SessionsTable;
 	magic_links: MagicLinksTable;
-	claim_tokens: ClaimTokensTable;
-	usage_daily: UsageDailyTable;
-	usage_snapshots: UsageSnapshotsTable;
-	account_insights: AccountInsightsTable;
-	account_agent_runs: AccountAgentRunsTable;
 	subgraph_health_snapshots: SubgraphHealthSnapshotsTable;
 	subgraph_processing_stats: SubgraphProcessingStatsTable;
 	subgraph_table_snapshots: SubgraphTableSnapshotsTable;
 	subgraph_gaps: SubgraphGapsTable;
 	subgraph_operations: SubgraphOperationsTable;
-	subgraph_usage_daily: SubgraphUsageDailyTable;
-	projects: ProjectsTable;
-	team_members: TeamMembersTable;
-	team_invitations: TeamInvitationsTable;
 	processed_stripe_events: ProcessedStripeEventsTable;
-	tenants: TenantsTable;
-	tenant_usage_monthly: TenantUsageMonthlyTable;
-	tenant_compute_addons: TenantComputeAddonsTable;
 	account_spend_caps: AccountSpendCapsTable;
 	account_credits: AccountCreditsTable;
-	provisioning_audit_log: ProvisioningAuditLogTable;
 	subscriptions: SubscriptionsTable;
 	subscription_outbox: SubscriptionOutboxTable;
 	subscription_deliveries: SubscriptionDeliveriesTable;
@@ -1114,90 +1002,6 @@ export interface X402PaymentsTable {
 	credited_at: Generated<Date> | null;
 }
 
-// --- Tenants (dedicated hosting) ---
-
-export type TenantStatus =
-	| "provisioning"
-	| "active"
-	| "limit_warning"
-	| "paused_limit"
-	| "suspended"
-	| "error"
-	| "deleted";
-
-export interface TenantsTable {
-	id: Generated<string>;
-	account_id: string;
-	slug: string;
-	status: ColumnType<TenantStatus, TenantStatus | undefined, TenantStatus>;
-	plan: string;
-	cpus: ColumnType<number, number | string, number | string>;
-	memory_mb: number;
-	storage_limit_mb: number;
-	storage_used_mb: number | null;
-	pg_container_id: string | null;
-	api_container_id: string | null;
-	processor_container_id: string | null;
-	target_database_url_enc: Buffer;
-	tenant_jwt_secret_enc: Buffer;
-	anon_key_enc: Buffer;
-	service_key_enc: Buffer;
-	api_url_internal: string;
-	api_url_public: string;
-	suspended_at: Date | null;
-	last_health_check_at: Date | null;
-	last_active_at: Generated<Date>;
-	service_gen: Generated<number>;
-	anon_gen: Generated<number>;
-	project_id: string | null;
-	created_at: Generated<Date>;
-	updated_at: Generated<Date>;
-}
-
-export type Tenant = Selectable<TenantsTable>;
-export type InsertTenant = Insertable<TenantsTable>;
-export type UpdateTenant = Updateable<TenantsTable>;
-
-// --- Tenant monthly usage snapshots (for future billing) ---
-
-export interface TenantUsageMonthlyTable {
-	id: Generated<string>;
-	tenant_id: string;
-	period_month: Date;
-	storage_peak_mb: Generated<number>;
-	storage_avg_mb: Generated<number>;
-	storage_last_mb: Generated<number>;
-	measurements: Generated<number>;
-	first_at: Generated<Date>;
-	last_at: Generated<Date>;
-}
-
-export type TenantUsageMonthly = Selectable<TenantUsageMonthlyTable>;
-export type InsertTenantUsageMonthly = Insertable<TenantUsageMonthlyTable>;
-export type UpdateTenantUsageMonthly = Updateable<TenantUsageMonthlyTable>;
-
-// --- Tenant compute add-ons (Sprint C.1) ---
-//
-// Compute extras purchased on top of a plan's base spec. Each row = one
-// add-on bundle. Effective compute for a tenant = plan base +
-// SUM(*_delta columns where effective_until IS NULL OR > now()).
-
-export interface TenantComputeAddonsTable {
-	id: Generated<string>;
-	tenant_id: string;
-	memory_mb_delta: Generated<number>;
-	cpu_delta: Generated<number | string>;
-	storage_mb_delta: Generated<number>;
-	effective_from: Generated<Date>;
-	effective_until: Date | null;
-	stripe_subscription_item_id: string | null;
-	created_at: Generated<Date>;
-}
-
-export type TenantComputeAddon = Selectable<TenantComputeAddonsTable>;
-export type InsertTenantComputeAddon = Insertable<TenantComputeAddonsTable>;
-export type UpdateTenantComputeAddon = Updateable<TenantComputeAddonsTable>;
-
 // --- Account spend caps (soft cap + threshold alerts) ---
 //
 // One row per account. Null caps = "no cap" for that dimension.
@@ -1238,38 +1042,6 @@ export interface AccountCreditsTable {
 export type AccountCredits = Selectable<AccountCreditsTable>;
 export type InsertAccountCredits = Insertable<AccountCreditsTable>;
 export type UpdateAccountCredits = Updateable<AccountCreditsTable>;
-
-// --- Provisioning audit log ---
-
-export type ProvisioningAuditEvent =
-	| "provision.start"
-	| "provision.success"
-	| "provision.failure"
-	| "suspend"
-	| "resume"
-	| "resize"
-	| "keys.rotate"
-	| "bastion.key.upload"
-	| "bastion.key.revoke"
-	| "teardown";
-
-export type ProvisioningAuditStatus = "ok" | "error";
-
-export interface ProvisioningAuditLogTable {
-	id: Generated<string>;
-	tenant_id: string | null;
-	tenant_slug: string | null;
-	account_id: string | null;
-	actor: string;
-	event: ProvisioningAuditEvent;
-	status: ProvisioningAuditStatus;
-	detail: unknown | null;
-	error: string | null;
-	created_at: Generated<Date>;
-}
-
-export type ProvisioningAuditLog = Selectable<ProvisioningAuditLogTable>;
-export type InsertProvisioningAuditLog = Insertable<ProvisioningAuditLogTable>;
 
 // ── Convenience types ─────────────────────────────────────────────────
 
@@ -1314,20 +1086,8 @@ export type InsertAccount = Insertable<AccountsTable>;
 export type MagicLink = Selectable<MagicLinksTable>;
 export type InsertMagicLink = Insertable<MagicLinksTable>;
 
-export type ClaimToken = Selectable<ClaimTokensTable>;
-export type InsertClaimToken = Insertable<ClaimTokensTable>;
-
 export type Session = Selectable<SessionsTable>;
 export type InsertSession = Insertable<SessionsTable>;
-
-export type UsageDaily = Selectable<UsageDailyTable>;
-export type UsageSnapshot = Selectable<UsageSnapshotsTable>;
-
-export type AccountInsight = Selectable<AccountInsightsTable>;
-export type InsertAccountInsight = Insertable<AccountInsightsTable>;
-
-export type AccountAgentRun = Selectable<AccountAgentRunsTable>;
-export type InsertAccountAgentRun = Insertable<AccountAgentRunsTable>;
 
 export type SubgraphHealthSnapshot = Selectable<SubgraphHealthSnapshotsTable>;
 export type InsertSubgraphHealthSnapshot =
@@ -1335,19 +1095,6 @@ export type InsertSubgraphHealthSnapshot =
 
 export type SubgraphGap = Selectable<SubgraphGapsTable>;
 export type InsertSubgraphGap = Insertable<SubgraphGapsTable>;
-
-export type SubgraphUsageDaily = Selectable<SubgraphUsageDailyTable>;
-export type InsertSubgraphUsageDaily = Insertable<SubgraphUsageDailyTable>;
-
-export type Project = Selectable<ProjectsTable>;
-export type InsertProject = Insertable<ProjectsTable>;
-export type UpdateProject = Updateable<ProjectsTable>;
-
-export type TeamMember = Selectable<TeamMembersTable>;
-export type InsertTeamMember = Insertable<TeamMembersTable>;
-
-export type TeamInvitation = Selectable<TeamInvitationsTable>;
-export type InsertTeamInvitation = Insertable<TeamInvitationsTable>;
 
 // ── Subscriptions (subgraph event subscriptions) ─────────────────────
 

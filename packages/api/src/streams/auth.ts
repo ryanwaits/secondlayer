@@ -7,7 +7,7 @@ import {
 	AuthorizationError,
 } from "@secondlayer/shared/errors";
 import type { MiddlewareHandler } from "hono";
-import { createRuntimeProductTokenStore } from "../auth/product-token-store.ts";
+import { createApiKeyTokenStore } from "../auth/api-key-store.ts";
 import type { StreamsTier } from "./tiers.ts";
 import type { StreamsTip } from "./tip.ts";
 
@@ -39,7 +39,7 @@ export type StreamsTokenStore = {
 // Static seed tokens cover internal callers (the L2 decoder uses Streams
 // to feed its own indexer), public-good evaluation, post-deploy smoke, and
 // test fixtures. Production traffic from real customers resolves against
-// api_keys via createRuntimeProductTokenStore. The `_status_public` token
+// api_keys via createApiKeyTokenStore (api_keys.tier). The `_status_public` token
 // is publicly known and intentionally evaluated as the free tier.
 export const DEFAULT_STREAMS_TOKENS: StreamsTokenStore = new Map([
 	[
@@ -102,7 +102,7 @@ export const DEFAULT_STREAMS_TOKENS: StreamsTokenStore = new Map([
 );
 
 export const DEFAULT_STREAMS_TOKEN_STORE: StreamsTokenStore =
-	createRuntimeProductTokenStore({
+	createApiKeyTokenStore({
 		staticTokens: DEFAULT_STREAMS_TOKENS,
 		requiredScope: STREAMS_READ_SCOPE,
 		product: "streams",

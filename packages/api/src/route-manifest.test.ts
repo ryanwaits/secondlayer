@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createApiApp } from "./create-app.ts";
 import { HOSTED_OPENAPI_PATHS } from "./route-manifest.ts";
 import {
+	DELETED_ROUTE_FIXTURES,
 	HOSTED_ROUTE_FIXTURES,
 	RETAINED_METER_ROUTE_FIXTURES,
 	RETAINED_ROUTE_FIXTURES,
@@ -28,6 +29,24 @@ describe("route manifest", () => {
 			expect(res.status, `${method} ${path}`).toBe(404);
 			const body = (await res.json()) as { code: string };
 			expect(body.code).toBe("NOT_FOUND");
+		}
+	});
+
+	// Gate-g Slice D removed this surface from the codebase entirely: it must
+	// never resolve in ANY mode. Auth-gated prefixes (/api/accounts/*, the
+	// key-mandatory /v1/streams/*) 401 in middleware before routing, so "not
+	// mounted" means 401-or-404 — never a success.
+	test("deleted Slice D routes are gone in both modes", async () => {
+		for (const mode of ["oss", "platform"] as const) {
+			process.env.INSTANCE_MODE = mode;
+			const app = createApiApp(mode);
+			for (const { method, path } of DELETED_ROUTE_FIXTURES) {
+				const res = await app.request(path, { method });
+				expect(
+					[401, 404],
+					`${mode} ${method} ${path} → ${res.status}`,
+				).toContain(res.status);
+			}
 		}
 	});
 

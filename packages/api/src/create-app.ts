@@ -1,41 +1,29 @@
 import type { InstanceMode } from "@secondlayer/shared/mode";
 import { Hono, type MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
-import {
-	ipRateLimit,
-	keysRouter,
-	rateLimit,
-	requireAuth,
-} from "./auth/index.ts";
-import { requireAdmin } from "./middleware/admin.ts";
+import { ipRateLimit, keysRouter, requireAuth } from "./auth/index.ts";
 import { instanceTokenAuth } from "./middleware/auth-modes.ts";
 import { errorHandler } from "./middleware/error.ts";
 import { requestLogger } from "./middleware/logging.ts";
-import { countApiRequests } from "./middleware/usage.ts";
 import accountsRouter from "./routes/accounts.ts";
-import adminRouter from "./routes/admin.ts";
 import authRouter from "./routes/auth.ts";
 import { createBatchRouter } from "./routes/batch.ts";
 import billingRouter from "./routes/billing.ts";
 import contractsRouter from "./routes/contracts.ts";
 import indexRouter from "./routes/index.ts";
-import insightsRouter from "./routes/insights.ts";
 import {
 	createInstanceCatalogRouter,
 	renderLocalConsole,
 } from "./routes/instance-catalog.ts";
 import nodeRouter from "./routes/node.ts";
 import openApiRouter from "./routes/openapi.ts";
-import projectsRouter from "./routes/projects.ts";
 import publicCreditsRouter from "./routes/public-credits.ts";
 import statusRouter from "./routes/status.ts";
 import streamsRouter from "./routes/streams.ts";
 import subgraphsRouter from "./routes/subgraphs.ts";
 import subscriptionsRouter from "./routes/subscriptions.ts";
-import v1ApiKeysRouter from "./routes/v1-api-keys.ts";
 import v1IndexRouter from "./routes/v1-index.ts";
 import v1SubgraphsRouter from "./routes/v1-subgraphs.ts";
-import walletRouter from "./routes/wallet.ts";
 import webhooksStripeRouter from "./routes/webhooks-stripe.ts";
 import x402Router from "./routes/x402.ts";
 import { apiTelemetry } from "./telemetry/api.ts";
@@ -56,14 +44,6 @@ const PLATFORM_PATHS = [
 	"/api/accounts/*",
 	"/api/billing",
 	"/api/billing/*",
-	"/api/wallet",
-	"/api/wallet/*",
-	"/api/insights",
-	"/api/insights/*",
-	"/api/projects",
-	"/api/projects/*",
-	"/api/tenants",
-	"/api/tenants/*",
 	"/api/auth/logout",
 	"/api/subgraphs",
 	"/api/subgraphs/*",
@@ -130,18 +110,11 @@ export function createApiApp(mode: InstanceMode): Hono {
 		app.route("/api/webhooks/stripe", webhooksStripeRouter);
 		app.use("/api/public/credits/*", ipRateLimit(20));
 		app.route("/api/public/credits", publicCreditsRouter);
-		app.use("/api/admin/*", requireAuth());
-		app.use("/api/admin/*", requireAdmin());
-		app.route("/api/admin", adminRouter);
 	}
 
 	const paths = mode === "platform" ? PLATFORM_PATHS : DEDICATED_PATHS;
 	for (const path of paths) {
 		app.use(path, resourceAuth);
-		if (mode === "platform") {
-			app.use(path, rateLimit());
-			app.use(path, countApiRequests());
-		}
 	}
 
 	app.route("/api/subgraphs", subgraphsRouter);
@@ -152,9 +125,6 @@ export function createApiApp(mode: InstanceMode): Hono {
 	if (mode === "platform") {
 		app.route("/api/accounts", accountsRouter);
 		app.route("/api/billing", billingRouter);
-		app.route("/api/wallet", walletRouter);
-		app.route("/api/insights", insightsRouter);
-		app.route("/api/projects", projectsRouter);
 	}
 	app.route("/", statusRouter);
 	app.route("/v1/instance", createInstanceCatalogRouter());
@@ -181,7 +151,6 @@ export function createApiApp(mode: InstanceMode): Hono {
 				docs: "https://secondlayer.tools/pricing#pay-per-call",
 			}),
 		);
-		app.route("/v1/api-keys", v1ApiKeysRouter);
 	}
 
 	return app;

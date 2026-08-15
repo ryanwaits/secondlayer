@@ -5,13 +5,7 @@ import {
 	readCanonicalStreamsBlockEvents,
 	readCanonicalStreamsEventsByTxId,
 } from "@secondlayer/indexer/streams-events";
-import {
-	getProductUsage,
-	incrementStreamsEventsReturned,
-} from "@secondlayer/platform/db/queries/usage";
 import { DECODED_EVENT_TYPES } from "@secondlayer/shared";
-import { getDb } from "@secondlayer/shared/db";
-import { isPlatformMode } from "@secondlayer/shared/mode";
 import { Hono, type MiddlewareHandler } from "hono";
 import { streamSSE } from "hono/streaming";
 import { validateQueryParams } from "../middleware/validation.ts";
@@ -58,10 +52,7 @@ import {
 	streamsRetentionWindow,
 } from "../streams/retention.ts";
 import { getStreamsSigner, respondSignedJson } from "../streams/signing.ts";
-import {
-	STREAMS_TIER_CONFIG,
-	getStreamsRetentionCutoff,
-} from "../streams/tiers.ts";
+import { getStreamsRetentionCutoff } from "../streams/tiers.ts";
 import { type StreamsTipProvider, getStreamsTip } from "../streams/tip.ts";
 import { isX402Enabled } from "../x402/facilitator.ts";
 import { x402PaymentRequired } from "../x402/middleware.ts";
@@ -131,7 +122,6 @@ export type StreamsRouterOptions = {
 	readCanonicalBlock?: StreamsCanonicalBlockReader;
 	readReorgs?: StreamsReorgsReader;
 	readReorgsSince?: StreamsReorgsSinceReader;
-	recordEventsReturned?: (accountId: string, quantity: number) => Promise<void>;
 	responseCache?: StreamsResponseCache;
 	/** Pre-built x402 middleware to mount (accountless pay-per-call). Omit to
 	 *  disable. Composed at the app root; its presence also flips Streams from
@@ -145,12 +135,6 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	// One cache per router: a single shared instance in production (the router is
 	// built once at startup), and isolated per app in tests.
 	const responseCache = opts.responseCache ?? new StreamsResponseCache();
-	const recordEventsReturned =
-		opts.recordEventsReturned ??
-		(async (accountId, quantity) => {
-			if (!isPlatformMode()) return;
-			await incrementStreamsEventsReturned(getDb(), accountId, quantity);
-		});
 	const router = new Hono<StreamsEnv>();
 
 	// Discovery endpoint — anonymous, lists routes + envelope shape.
@@ -194,13 +178,6 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 					description:
 						"Current chain tip: { block_height, block_hash, burn_block_height, finalized_height, lag_seconds }.",
 				},
-				{
-					path: "/v1/streams/usage",
-					method: "GET",
-					description:
-						"Your own Streams consumption (events today + this month) and tier limits (rate limit, retention).",
-					auth: "bearer (Build+ tier)",
-				},
 			],
 			cursor: {
 				format: "<block_height>:<event_index>",
@@ -235,35 +212,6 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	router.use("*", streamsCreditsGate());
 	router.use("*", streamsRateLimit());
 	router.use("/events", streamsRetentionWindow({ getTip }));
-
-	// An agent's own Streams consumption + tier limits. Streams is key-mandatory,
-	// so account_id is always present here; guard anyway.
-	router.get("/usage", async (c) => {
-		const tenant = c.get("streamsTenant");
-		if (!tenant?.account_id) {
-			return c.json({ error: "Usage requires an API key", code: "AUTH" }, 401);
-		}
-		const usage = await getProductUsage(getDb(), tenant.account_id);
-		const limits = STREAMS_TIER_CONFIG[tenant.tier];
-		const tip = await getTip();
-		const oldest = getStreamsRetentionCutoff(tenant.tier, tip.block_height);
-		return c.json({
-			product: "streams",
-			tier: tenant.tier,
-			limits: {
-				rate_limit_per_second: limits.rateLimitPerSecond,
-				retention_days: limits.retentionDays,
-				// Oldest height/cursor still seekable on the live API at this tip.
-				// null = unlimited retention (no floor).
-				oldest_seekable_height: oldest,
-				oldest_cursor: oldest !== null ? `${oldest}:0` : null,
-			},
-			usage: {
-				events_today: usage.streamsEventsToday,
-				events_this_month: usage.streamsEventsThisMonth,
-			},
-		});
-	});
 
 	router.get("/events", async (c) => {
 		const query = new URL(c.req.url).searchParams;
@@ -308,7 +256,6 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		}
 		const accountId = c.get("streamsTenant")?.account_id;
 		if (accountId && response.events.length > 0) {
-			await recordEventsReturned(accountId, response.events.length);
 			await debitStreamsCreditedRead(c, response.events.length);
 		}
 		return respondSignedJson(c, response);
@@ -368,7 +315,6 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 				}
 				if (response.events.length > 0) {
 					if (accountId) {
-						await recordEventsReturned(accountId, response.events.length);
 						await debitStreamsCreditedRead(c, response.events.length);
 					}
 					lastBeat = Date.now();
@@ -447,7 +393,6 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		);
 		const accountId = c.get("streamsTenant")?.account_id;
 		if (accountId) {
-			await recordEventsReturned(accountId, result.events.length);
 			await debitStreamsCreditedRead(c, result.events.length);
 		}
 		return respondSignedJson(c, {
@@ -503,7 +448,6 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		);
 		const accountId = c.get("streamsTenant")?.account_id;
 		if (accountId) {
-			await recordEventsReturned(accountId, result.events.length);
 			await debitStreamsCreditedRead(c, result.events.length);
 		}
 		return respondSignedJson(c, {

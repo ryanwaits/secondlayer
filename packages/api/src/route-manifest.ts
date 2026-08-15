@@ -4,9 +4,12 @@
  * OSS mounts only retained routes. Hosted prefixes 404.
  * Platform keeps both.
  *
- * Three fixture classes:
- *  - HOSTED_ROUTE_FIXTURES — hosted-only surface slated for deletion
- *    (gate-g manifest Slices A/D). 404 in oss.
+ * Four fixture classes:
+ *  - HOSTED_ROUTE_FIXTURES — hosted-only surface (x402 pay-per-call rail,
+ *    operator-owned per D3). 404 in oss.
+ *  - DELETED_ROUTE_FIXTURES — hosted-control surface removed by gate-g
+ *    Slice D. Must 404 in EVERY mode, forever — reappearance is a
+ *    regression.
  *  - RETAINED_METER_ROUTE_FIXTURES — the kept metered-archive account
  *    surface (gate-g manifest §1/§3). Mounted only in platform/archive
  *    mode, so it also 404s in oss, but it is NOT a deletion candidate —
@@ -15,17 +18,27 @@
  *    in oss.
  */
 export const HOSTED_ROUTE_FIXTURES = [
+	{ method: "GET", path: "/x402/supported" },
+	{ method: "GET", path: "/v1/x402/supported" },
+	{ method: "GET", path: "/.well-known/x402" },
+	{ method: "POST", path: "/v1/x402/deposit" },
+	{ method: "GET", path: "/v1/x402/balance" },
+] as const;
+
+/** Gate-g Slice D deletions — 404 in both oss and platform/archive mode. */
+export const DELETED_ROUTE_FIXTURES = [
 	{ method: "GET", path: "/api/wallet" },
 	{ method: "GET", path: "/api/insights" },
 	{ method: "GET", path: "/api/projects" },
 	{ method: "GET", path: "/api/tenants" },
 	{ method: "GET", path: "/api/admin" },
 	{ method: "POST", path: "/v1/api-keys" },
-	{ method: "GET", path: "/x402/supported" },
-	{ method: "GET", path: "/v1/x402/supported" },
-	{ method: "GET", path: "/.well-known/x402" },
-	{ method: "POST", path: "/v1/x402/deposit" },
-	{ method: "GET", path: "/v1/x402/balance" },
+	{ method: "GET", path: "/api/accounts/usage" },
+	{ method: "GET", path: "/api/accounts/usage/products" },
+	{ method: "GET", path: "/v1/index/usage" },
+	{ method: "GET", path: "/v1/streams/usage" },
+	{ method: "POST", path: "/api/auth/claim" },
+	{ method: "POST", path: "/api/auth/claim/verify" },
 ] as const;
 
 /** Kept meter surface (manifest §3): auth, credits billing, checkout,

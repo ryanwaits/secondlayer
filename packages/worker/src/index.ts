@@ -1,9 +1,7 @@
 import { getEnv, logger } from "@secondlayer/shared";
 import { assertDbSplit } from "@secondlayer/shared/db";
 import { startCreditsRefillCron } from "./jobs/credits-refill.ts";
-import { startGhostSweepCron } from "./jobs/ghost-sweep.ts";
 import { startSpendCapAlertCron } from "./jobs/spend-cap-alert.ts";
-import { startSubgraphExpirySweepCron } from "./jobs/subgraph-expiry-sweep.ts";
 import { startX402ReconcileCron } from "./jobs/x402-reconcile.ts";
 
 let running = true;
@@ -16,8 +14,6 @@ async function runWorker() {
 	const stops = [
 		startSpendCapAlertCron(),
 		startX402ReconcileCron(),
-		startGhostSweepCron(),
-		startSubgraphExpirySweepCron(),
 		startCreditsRefillCron(),
 	];
 

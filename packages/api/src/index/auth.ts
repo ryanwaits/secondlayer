@@ -7,7 +7,7 @@ import {
 	defaultInternalIndexApiKey,
 } from "@secondlayer/shared/index-internal-auth";
 import type { MiddlewareHandler } from "hono";
-import { createRuntimeProductTokenStore } from "../auth/product-token-store.ts";
+import { createApiKeyTokenStore } from "../auth/api-key-store.ts";
 import type { IndexTier } from "./tiers.ts";
 import type { IndexTip } from "./tip.ts";
 
@@ -37,7 +37,7 @@ export type IndexTokenStore = {
 };
 
 // Static seed tokens cover post-deploy smoke and test fixtures; production
-// customer traffic resolves via createRuntimeProductTokenStore (api_keys).
+// customer traffic resolves via createApiKeyTokenStore (api_keys.tier).
 export const DEFAULT_INDEX_TOKENS: IndexTokenStore = new Map([
 	[
 		"sk-sl_index_free_test",
@@ -95,7 +95,7 @@ export const DEFAULT_INDEX_TOKENS: IndexTokenStore = new Map([
 );
 
 export const DEFAULT_INDEX_TOKEN_STORE: IndexTokenStore =
-	createRuntimeProductTokenStore({
+	createApiKeyTokenStore({
 		staticTokens: DEFAULT_INDEX_TOKENS,
 		requiredScope: INDEX_READ_SCOPE,
 		product: "index",

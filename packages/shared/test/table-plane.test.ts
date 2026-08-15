@@ -31,13 +31,18 @@ describe("TABLE_TO_DB registry", () => {
 		}
 	});
 
-	test("'target' set matches the cutover script's CONTROL_TABLES", () => {
+	// The 2026-06-05 cutover script is a frozen historical artifact (P2.12 infra
+	// freeze): it may still list control tables that were since DROPPED (gate-g
+	// Slice D — projects/tenants/usage/etc.), but every live target table must
+	// have been carried across by it.
+	test("every live 'target' table is covered by the cutover script's CONTROL_TABLES", () => {
 		const registryTarget = Object.entries(TABLE_TO_DB)
 			.filter(([, plane]) => plane === "target")
-			.map(([table]) => table)
-			.sort();
-		const control = parseControlTables().sort();
-		expect(control).toEqual(registryTarget);
+			.map(([table]) => table);
+		const control = new Set(parseControlTables());
+		for (const table of registryTarget) {
+			expect(control.has(table), table).toBe(true);
+		}
 	});
 
 	test("no table is mapped to more than one plane", () => {

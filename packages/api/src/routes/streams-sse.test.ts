@@ -63,7 +63,6 @@ describe("GET /events/stream (SSE)", () => {
 					: { events: [], next_cursor: null };
 			},
 			readReorgs: async () => [],
-			recordEventsReturned: async () => {},
 			responseCache: new StreamsResponseCache(),
 		});
 
