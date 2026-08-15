@@ -15,12 +15,15 @@ satisfied — console shipped as `apps/console`, live at console.secondlayer.too
   public archive API where the read gates stay armed (`read-credits.ts:66`,
   `index/free-window.ts`, `streams/retention.ts`, `*/rate-limit.ts`) while
   self-host stays ungated. Design doc precedes Slice C.
-- **D3 — OPEN — x402.** Retarget as operator-owned module or park-delete
-  `src/x402/*` + `x402_payments`/`x402_balances` + reconcile job + Redis nonce
-  store. STRATEGY says parked/not-a-revenue-line; deleting is smaller.
-- **D4 — OPEN — BYO/multi-ORM.** Keep drizzle/prisma codegen (live CLI
-  capability), delete the skip-gated BYO deploy path? Or freeze both.
-- **D5 — leaning KEEP (caps are part of the retained account stuff).**
+- **D3 — RESOLVED (2026-08-14): RETARGET.** x402 survives as an operator-owned
+  module: operator wallet/prices, off by default, no Secondlayer pricing
+  authority. `x402_payments`/`x402_balances`, reconcile job, Redis nonce store
+  stay; the hosted wallet-ghost deploy path (`v1-api-keys.ts`, `auth/ghost.ts`,
+  `claim_tokens`) still deletes in Slice D.
+- **D4 — RESOLVED (2026-08-14): keep drizzle/prisma CODEGEN; delete the
+  skip-gated BYO deploy path (Slice E).**
+- **D5 — RESOLVED (2026-08-14): KEEP spend-cap alerts (retained account
+  surface).**
 
 ## 1. Metered-archive account system (KEEP + CONSOLIDATE — the commercial spine)
 
