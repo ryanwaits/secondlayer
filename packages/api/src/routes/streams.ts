@@ -6,7 +6,7 @@ import {
 	readCanonicalStreamsEventsByTxId,
 } from "@secondlayer/indexer/streams-events";
 import { DECODED_EVENT_TYPES } from "@secondlayer/shared";
-import { Hono, type MiddlewareHandler } from "hono";
+import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { validateQueryParams } from "../middleware/validation.ts";
 import {
@@ -54,8 +54,6 @@ import {
 import { getStreamsSigner, respondSignedJson } from "../streams/signing.ts";
 import { getStreamsRetentionCutoff } from "../streams/tiers.ts";
 import { type StreamsTipProvider, getStreamsTip } from "../streams/tip.ts";
-import { isX402Enabled } from "../x402/facilitator.ts";
-import { x402PaymentRequired } from "../x402/middleware.ts";
 
 const STREAMS_EVENTS_ALLOWED = [
 	"cursor",
@@ -123,10 +121,6 @@ export type StreamsRouterOptions = {
 	readReorgs?: StreamsReorgsReader;
 	readReorgsSince?: StreamsReorgsSinceReader;
 	responseCache?: StreamsResponseCache;
-	/** Pre-built x402 middleware to mount (accountless pay-per-call). Omit to
-	 *  disable. Composed at the app root; its presence also flips Streams from
-	 *  key-mandatory to keyless-allowed (the bearerAuth anon fall-through). */
-	x402Middleware?: MiddlewareHandler;
 };
 
 export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
@@ -193,22 +187,17 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		}),
 	);
 
-	// x402 rail: an injected middleware means the rail is live — accountless
-	// callers pay per call (keyed callers bypass) and bearerAuth allows the
-	// keyless fall-through. Absent → Streams stays key-mandatory. The enable
-	// decision lives at the app root, not here.
-	const x402On = Boolean(opts.x402Middleware);
+	// Streams is key-mandatory: there is no accountless read path.
 	router.use(
 		"*",
 		streamsBearerAuth({
 			tokens: opts.tokens ?? DEFAULT_STREAMS_TOKEN_STORE,
-			allowAnon: x402On,
+			allowAnon: false,
 		}),
 	);
-	if (opts.x402Middleware) router.use("*", opts.x402Middleware);
 	// Credits gate: a free account with a prepaid balance goes pay-as-you-go —
 	// flags the request so the rate limiter + retention gate let it through and
-	// the post-read step debits per row. Runs after auth + x402, before both.
+	// the post-read step debits per row. Runs after auth, before both.
 	router.use("*", streamsCreditsGate());
 	router.use("*", streamsRateLimit());
 	router.use("/events", streamsRetentionWindow({ getTip }));
@@ -488,15 +477,4 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	return router;
 }
 
-// Composition root: decide x402 from env here, keeping the route factory pure.
-export default createStreamsRouter({
-	x402Middleware: isX402Enabled()
-		? x402PaymentRequired({
-				surface: "streams",
-				// One payment buys a polling session: tip-followers settle once
-				// per ~500 polls/hour instead of every request.
-				session: { ttlMs: 60 * 60 * 1000, maxCalls: 500 },
-				balanceDrawdown: true,
-			})
-		: undefined,
-});
+export default createStreamsRouter({});

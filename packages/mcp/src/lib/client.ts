@@ -1,5 +1,4 @@
-import { SecondLayer, readX402Receipt, withX402 } from "@secondlayer/sdk";
-import { privateKeyToAccount } from "@secondlayer/stacks/accounts";
+import { SecondLayer } from "@secondlayer/sdk";
 
 let instance: SecondLayer | null = null;
 
@@ -18,46 +17,6 @@ function readApiKey(): string | undefined {
  * (deploy/reindex/delete) and account tools hit the API without a key and get
  * a 401, surfaced with a key hint via `keyHint` below.
  */
-/**
- * When `X402_PRIVATE_KEY` is set (a Stacks key holding an accepted token),
- * wrap fetch so 402 challenges on paid surfaces are paid automatically —
- * sponsored transfers, so the wallet never needs STX for gas. Each paid
- * call logs its settlement receipt to stderr (stdio-transport safe).
- */
-function buildFetchImpl(): typeof fetch | undefined {
-	const key = process.env.X402_PRIVATE_KEY;
-	if (!key) return undefined;
-	const account = privateKeyToAccount(key);
-	// Optional treasury policy: deposit X402_TOPUP_USD whenever the prepaid
-	// tab drops below X402_TOPUP_WHEN_BELOW (defaults $0.50). Without it,
-	// every paid call settles individually.
-	const topUpUsd = Number(process.env.X402_TOPUP_USD ?? "");
-	const paid = withX402(fetch, {
-		account,
-		...(Number.isFinite(topUpUsd) && topUpUsd > 0
-			? {
-					topUp: {
-						usd: topUpUsd,
-						whenBelow: Number(process.env.X402_TOPUP_WHEN_BELOW ?? "0.5"),
-					},
-				}
-			: {}),
-	});
-	const wrapped = async (input: string | URL, init?: RequestInit) => {
-		const res = await paid(input, init);
-		const receipt = readX402Receipt(res);
-		if (receipt) {
-			console.error(
-				`[x402] paid call settled tier=${receipt.state ?? "confirmed"} txid=${receipt.txid}`,
-			);
-		}
-		return res;
-	};
-	// SecondLayer only ever calls fetchImpl(url, init); Bun's `typeof fetch`
-	// additionally carries `preconnect`, hence the cast.
-	return wrapped as unknown as typeof fetch;
-}
-
 export function getClient(): SecondLayer {
 	if (!instance) {
 		const apiKey = readApiKey();
@@ -66,13 +25,11 @@ export function getClient(): SecondLayer {
 			process.env.SL_API_URL ||
 			"http://127.0.0.1:3800";
 		const dumpsBaseUrl = process.env.SL_STREAMS_DUMPS_URL;
-		const fetchImpl = buildFetchImpl();
 		instance = new SecondLayer({
 			...(apiKey ? { apiKey } : {}),
 			origin: "mcp",
 			baseUrl,
 			...(dumpsBaseUrl ? { dumpsBaseUrl } : {}),
-			...(fetchImpl ? { fetchImpl } : {}),
 		});
 	}
 	return instance;

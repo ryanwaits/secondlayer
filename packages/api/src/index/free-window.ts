@@ -30,10 +30,6 @@ export function indexFreeWindow(opts: {
 		const tier = c.get("indexTenant")?.tier; // undefined = anonymous / keyless
 		// Paid tiers read all history; only free + anon are windowed.
 		if (tier !== undefined && tier !== "free") return next();
-		// An x402-paid call (per-call settle or prepaid-balance drawdown) already
-		// paid for this read — let it through. The x402 middleware runs first and
-		// sets `x402Payer` only on a paid call, never on the free-quota path.
-		if (c.get("x402Payer" as never)) return next();
 		// A credited free account is pay-as-you-go: read history, debited per row.
 		if (c.get("credited")) return next();
 

@@ -136,21 +136,40 @@ describe("route manifest", () => {
 		).toBe(true);
 	});
 
-	test("platform OpenAPI keeps hosted x402 paths", () => {
-		const spec = openapiSpec("platform");
-		expect(spec).toBe(OPENAPI_SPEC);
-		for (const path of HOSTED_OPENAPI_PATHS) {
-			expect(spec.paths[path], path).toBeDefined();
-		}
+	test("platform OpenAPI is the unfiltered spec", () => {
+		expect(openapiSpec("platform")).toBe(OPENAPI_SPEC);
 	});
 
-	test("OSS OpenAPI drops hosted paths", () => {
+	test("OSS OpenAPI drops hosted paths and keeps the public surface", () => {
 		const spec = openapiSpec("oss");
-		expect(spec["x-x402"]).toBeUndefined();
 		for (const path of HOSTED_OPENAPI_PATHS) {
 			expect(spec.paths[path], path).toBeUndefined();
 		}
 		expect(spec.paths["/v1/index"]).toBeDefined();
 		expect(spec.paths["/v1/subgraphs"]).toBeDefined();
+	});
+
+	/**
+	 * The x402 rail was deleted, not gated. These loops would pass vacuously
+	 * against the now-empty HOSTED_OPENAPI_PATHS, so name the paths directly —
+	 * a reintroduction has to fail a test, not slip through an empty list.
+	 */
+	test("the deleted x402 surface is absent from BOTH modes", () => {
+		const x402Paths = [
+			"/v1/x402/supported",
+			"/v1/x402/deposit",
+			"/v1/x402/balance",
+			"/v1/subgraphs/deploy-paid",
+		];
+		for (const mode of ["platform", "oss"] as const) {
+			const spec = openapiSpec(mode) as unknown as {
+				paths: Record<string, unknown>;
+				"x-x402"?: unknown;
+			};
+			expect(spec["x-x402"], mode).toBeUndefined();
+			for (const path of x402Paths) {
+				expect(spec.paths[path], `${mode} ${path}`).toBeUndefined();
+			}
+		}
 	});
 });

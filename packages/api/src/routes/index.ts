@@ -1,6 +1,6 @@
 import { readChainReorgsForHeightRange } from "@secondlayer/shared/db/queries/chain-reorgs";
 import { isPlatformMode } from "@secondlayer/shared/mode";
-import { type Context, Hono, type MiddlewareHandler } from "hono";
+import { type Context, Hono } from "hono";
 import {
 	MUTABLE_CACHE_CONTROL,
 	cacheControl,
@@ -118,8 +118,6 @@ import {
 	DEFAULT_STREAMS_REORGS_READER,
 	type StreamsReorgsReader,
 } from "../streams/reorgs.ts";
-import { isX402Enabled } from "../x402/facilitator.ts";
-import { x402PaymentRequired } from "../x402/middleware.ts";
 
 const INDEX_COMMON = [
 	"limit",
@@ -164,10 +162,6 @@ export type IndexRouterOptions = {
 	readPrintSchema?: PrintSchemaReader;
 	/** Injectable so tests don't share the process-wide schema memo. */
 	printSchemaCache?: PrintSchemaCache;
-	/** Pre-built x402 middleware to mount (accountless pay-per-call). Omit to
-	 *  disable. Composed at the app root so the route stays free of env +
-	 *  facilitator wiring; tests pass a fake-backed instance. */
-	x402Middleware?: MiddlewareHandler;
 };
 
 /**
@@ -408,15 +402,10 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 	// flags the request so the rate limiter + free-window gate let it through and
 	// the post-read step debits per row. Runs after auth, before both.
 	router.use("*", indexCreditsGate());
-	// x402 rail: mount the injected middleware if present (accountless callers pay
-	// per call; keyed callers + the open-beta anon path are unaffected when off).
-	// Whether it's enabled is decided at the app root, not here.
-	if (opts.x402Middleware) router.use("*", opts.x402Middleware);
 	router.use("*", indexRateLimit());
 	// Free + keyless reads are windowed to the recent 24h; deeper history is a
-	// paid action. Runs after auth (needs the resolved tier) + x402 (a paid
-	// accountless caller is no longer "free"). Mounted before the routes, so it
-	// never gates the open `/` info endpoint registered above.
+	// paid action. Runs after auth (needs the resolved tier). Mounted before the
+	// routes, so it never gates the open `/` info endpoint registered above.
 	router.use("*", indexFreeWindow({ getTip }));
 
 	router.get("/events", async (c) => {
@@ -930,15 +919,4 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 	return router;
 }
 
-// Composition root: decide x402 from env here, keeping the route factory pure.
-export default createIndexRouter({
-	x402Middleware: isX402Enabled()
-		? x402PaymentRequired({
-				surface: "index",
-				// First 1,000 anonymous reads per IP per day stay free even with
-				// the rail on — the keyless-reads promise survives the flip.
-				freeQuota: { limit: 1_000, windowMs: 24 * 60 * 60 * 1000 },
-				balanceDrawdown: true,
-			})
-		: undefined,
-});
+export default createIndexRouter({});

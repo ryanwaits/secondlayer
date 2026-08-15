@@ -14,15 +14,15 @@ Compose project lives at `/opt/secondlayer/docker` on app-server.
 | Container | Role |
 |---|---|
 | `secondlayer-postgres-1` | **Chain DB** — blocks, transactions, raw events, `decoded_events`. Bind mount `/opt/secondlayer/data/postgres` (~200GB, genesis→tip). |
-| `secondlayer-postgres-platform-1` | **Control-plane DB** (`secondlayer_platform`) — accounts, api_keys, subgraph registry + tenant schemas, x402 ledger/balances, sessions. Bind mount `/opt/secondlayer/data/postgres-platform`. |
+| `secondlayer-postgres-platform-1` | **Control-plane DB** (`secondlayer_platform`) — accounts, api_keys, subgraph registry + tenant schemas, sessions. Bind mount `/opt/secondlayer/data/postgres-platform`. |
 | `secondlayer-api-<N>` ×2 | The two API replicas behind Caddy (`api.secondlayer.tools`). `<N>` is Compose's instance counter and **increments every rolling deploy** (e.g. 94/95 → 98/99). Always exactly two; the suffix means nothing. |
 | `secondlayer-caddy-1` | Load balancer + TLS in front of the api replicas. |
 | `secondlayer-indexer-1` | Chain ingestion (event-observer receiver) + Streams bulk/R2 exports. |
 | `secondlayer-decoder-1` | Decodes raw events → `decoded_events` (the Index plane). Backfills via `packages/indexer/src/decode/BACKFILL.md`. |
 | `secondlayer-subgraph-processor-1` | Subgraph indexing: catch-up follower + operations runner (deploy/reindex/backfill ops). Sparse reindex + boot-time stranded-reindex sweep live here. |
 | `secondlayer-subscription-processor-1/-2` | Webhook delivery plane: leader-elected trigger evaluator + competing-consumer emitters. Replica 2 = failover + throughput. |
-| `secondlayer-worker-1` | Crons: metering, ghost sweep, x402 reconciler, subgraph-expiry sweep. |
-| `secondlayer-redis-1` | Rate limits, x402 nonce/strike stores. |
+| `secondlayer-worker-1` | Crons: credits refill, spend-cap alerts. |
+| `secondlayer-redis-1` | Rate limits. |
 | `secondlayer-walg-backup-1` | WAL-G postgres backups (chain DB WAL archiving → `/opt/secondlayer/data/wal_archive`). |
 | `secondlayer-agent` | Log watcher → Slack alerts (the thing that pages you). No DB of its own. |
 | `secondlayer-migrate-1` | One-shot migration runner, re-run by every deploy. **`Exited (0)` is its healthy state.** |

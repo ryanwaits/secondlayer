@@ -28,7 +28,6 @@ import {
 	findPublicSubgraphByName,
 	getSubgraph,
 	listSubgraphs,
-	updateSubgraphExpiry,
 	updateSubgraphStatus,
 	updateSubgraphVisibility,
 } from "@secondlayer/shared/db/queries/subgraphs";
@@ -46,7 +45,6 @@ import { getPrintSchemaBody } from "../index/print-schema.ts";
 import { getAccountId, getApiKeyId } from "../lib/ownership.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import { SubgraphRegistryCache } from "../subgraphs/cache.ts";
-import { commerceGatesEnabled } from "../subgraphs/deploy-auth.ts";
 import { hasNonReplayableWrites } from "../subgraphs/handler-replay-safety.ts";
 import { deployAccountId, deploySchemaName } from "../subgraphs/namespace.ts";
 import { classifyOperationWeight } from "../subgraphs/operation-weight.ts";
@@ -363,13 +361,12 @@ export function hasDeployStartBlockChanged(input: {
 app.post("/", (c) => runSubgraphDeploy(c));
 
 /**
- * Deploy handler, shared by the authed `/api/subgraphs` POST and the x402-paid
- * `/v1/subgraphs` POST. `identity` overrides the request-resolved account for
- * paid deploys (wallet-ghost owner) and `paidTtlMs` stamps `expires_at`.
+ * Deploy handler for the authed `/api/subgraphs` POST. `identity` overrides the
+ * request-resolved account.
  */
 export async function runSubgraphDeploy(
 	c: Context,
-	identity?: { accountId: string; paidTtlMs?: number },
+	identity?: { accountId: string },
 ): Promise<Response> {
 	const body = await c.req.json().catch(() => {
 		throw new InvalidJSONError();
@@ -609,14 +606,6 @@ export async function runSubgraphDeploy(
 		}
 	}
 
-	// Paid (wallet-ghost) deploys expire unless renewed or claimed.
-	// OSS has no expiry — hosted TTL is a commerce gate.
-	let expiresAt: Date | undefined;
-	if (commerceGatesEnabled() && identity?.paidTtlMs) {
-		expiresAt = new Date(Date.now() + identity.paidTtlMs);
-		await updateSubgraphExpiry(db, name, accountId ?? "", expiresAt);
-	}
-
 	await cache.refresh();
 
 	// Auto-trigger initial population (reindex: drop + rebuild) for new deploys
@@ -731,7 +720,6 @@ export async function runSubgraphDeploy(
 			...(tipFirstHistory
 				? { live_from: tipFirstAnchor, history: tipFirstHistory }
 				: {}),
-			...(expiresAt ? { expires_at: expiresAt.toISOString() } : {}),
 			message: `Subgraph "${name}" ${result.action}`,
 			...(printFieldWarnings.length > 0 || (result.warnings?.length ?? 0) > 0
 				? { warnings: [...printFieldWarnings, ...(result.warnings ?? [])] }

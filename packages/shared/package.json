@@ -20,13 +20,13 @@
 			"types": "./dist/src/db/index.d.ts",
 			"import": "./dist/src/db/index.js"
 		},
-		"./db/queries/sync-scope": {
-			"types": "./dist/src/db/queries/sync-scope.d.ts",
-			"import": "./dist/src/db/queries/sync-scope.js"
-		},
 		"./db/queries/instance": {
 			"types": "./dist/src/db/queries/instance.d.ts",
 			"import": "./dist/src/db/queries/instance.js"
+		},
+		"./db/queries/sync-scope": {
+			"types": "./dist/src/db/queries/sync-scope.d.ts",
+			"import": "./dist/src/db/queries/sync-scope.js"
 		},
 		"./db/queries/integrity": {
 			"types": "./dist/src/db/queries/integrity.d.ts",
@@ -171,10 +171,6 @@
 		"./errors": {
 			"types": "./dist/src/errors.d.ts",
 			"import": "./dist/src/errors.js"
-		},
-		"./x402": {
-			"types": "./dist/src/x402.d.ts",
-			"import": "./dist/src/x402.js"
 		},
 		"./crypto/secrets": {
 			"types": "./dist/src/crypto/secrets.d.ts",

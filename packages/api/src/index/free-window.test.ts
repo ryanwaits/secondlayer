@@ -13,8 +13,8 @@ const TIP: IndexTip = {
 };
 const CUTOFF = TIP_HEIGHT - INDEX_FREE_WINDOW_BLOCKS;
 
-/** Mount the gate behind an optional tier/x402/credited seed, with a stub /events route. */
-function app(seed?: { tier?: string; x402Payer?: string; credited?: boolean }) {
+/** Mount the gate behind an optional tier/credited seed, with a stub /events route. */
+function app(seed?: { tier?: string; credited?: boolean }) {
 	const a = new Hono<IndexEnv>();
 	a.onError(errorHandler);
 	a.use("*", async (c, next) => {
@@ -25,7 +25,6 @@ function app(seed?: { tier?: string; x402Payer?: string; credited?: boolean }) {
 				scopes: [],
 			});
 		}
-		if (seed?.x402Payer) c.set("x402Payer" as never, seed.x402Payer as never);
 		if (seed?.credited)
 			c.set("credited", { accountId: "acct", balance: 10_000n });
 		await next();
@@ -87,13 +86,6 @@ describe("indexFreeWindow", () => {
 
 	test("paid tier (build): deep from_height passes", async () => {
 		const res = await app({ tier: "build" }).request("/events?from_height=1");
-		expect(res.status).toBe(200);
-	});
-
-	test("x402-paid caller: deep from_height passes", async () => {
-		const res = await app({ x402Payer: "SP123" }).request(
-			"/events?from_height=1",
-		);
 		expect(res.status).toBe(200);
 	});
 

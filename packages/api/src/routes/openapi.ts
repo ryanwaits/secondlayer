@@ -18,21 +18,6 @@ const CONTRACT_ID_PARAM = qp(
  *  apps/web writes it to src/generated/openapi.json. */
 export const OPENAPI_SPEC = {
 	openapi: "3.1.0",
-	"x-x402": {
-		supported: "/v1/x402/supported",
-		paidSurfaces: [
-			"/v1/index/*",
-			"/v1/streams/*",
-			"POST /v1/subgraphs",
-			"POST /v1/subgraphs/{name}/renew",
-		],
-		paymentHeader: "PAYMENT-SIGNATURE",
-		receiptHeader: "PAYMENT-RESPONSE",
-		sessionHeader: "PAYMENT-SESSION",
-		balanceHeader: "PAYMENT-BALANCE",
-		status: "experimental",
-		note: "Experimental beta — surfaces and prices may change. When the pay-per-call rail is enabled, accountless requests on paid surfaces receive HTTP 402 with an accepts[] quote (x402 v2, network stacks:1). Sponsored transfers: the payer holds tokens, never gas. Index grants 1,000 free reads/day/IP before the 402; a paid Streams call opens a 500-call/1h session; a paid POST /v1/subgraphs deploys a wallet-owned subgraph (7-day TTL, renewable); POST /v1/x402/deposit loads a prepaid tab whose PAYMENT-BALANCE token debits per call with no on-chain round trip.",
-	},
 	info: {
 		title: "Secondlayer Public API",
 		version: "1.0.0",
@@ -126,38 +111,11 @@ export const OPENAPI_SPEC = {
 	},
 	paths: {
 		"/v1": { get: { summary: "Surface discovery", responses: ok() } },
-		"/v1/x402/supported": {
-			get: {
-				summary: "x402 pay-per-call capability advertisement",
-				description:
-					"Scheme, network (CAIP-2), priced surfaces, accepted assets, free-quota/session metadata, and the per-call USD floor for the pay-per-call rail. Public, no auth.",
-			},
-		},
-		"/v1/subgraphs/deploy-paid": {
-			post: {
-				summary: "x402-paid subgraph deploy (actual path: POST /v1/subgraphs)",
-				description:
-					"Accountless deploy: pay the subgraph-deploy quote via x402 and the subgraph is owned by the paying wallet principal — live indexing from deploy (forward-only), expires in 7 days unless renewed (POST /v1/subgraphs/{name}/renew, subgraph-renew quote) or the account is claimed. Managed plane only.",
-			},
-		},
 		"/v1/batch": {
 			post: {
 				summary: "Batch public reads",
 				description:
 					"Up to 10 public /v1 reads in one round trip. Body: { requests: [{ path, params? }] }. Each item keeps its own auth/quota/pay-per-call semantics; forwarded credentials apply to every item; results return in order with per-item status.",
-			},
-		},
-		"/v1/x402/deposit": {
-			post: {
-				summary: "Load a prepaid x402 tab",
-				description:
-					"Pay once on-chain (?usd=<amount>, $0.25–$100, confirmed tier) and receive a PAYMENT-BALANCE token; subsequent Index/Streams calls carrying it debit the tab instantly. Responses report X-BALANCE-REMAINING-USD.",
-			},
-		},
-		"/v1/x402/balance": {
-			get: {
-				summary: "Read a prepaid tab",
-				description: "Current balance for the PAYMENT-BALANCE token presented.",
 			},
 		},
 		"/v1/openapi.json": {
@@ -846,7 +804,7 @@ export const OPENAPI_SPEC = {
 	},
 };
 
-/** OSS drops hosted x402 / paid-deploy paths and the x-x402 extension. */
+/** OSS drops any hosted-only paths (currently none) and rewrites `/v1/instance`. */
 export function openapiSpec(
 	mode: InstanceMode = getInstanceMode(),
 ): typeof OPENAPI_SPEC {

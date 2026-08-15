@@ -28,10 +28,6 @@
 			"types": "./dist/subgraphs/index.d.ts",
 			"import": "./dist/subgraphs/index.js"
 		},
-		"./x402": {
-			"types": "./dist/x402.d.ts",
-			"import": "./dist/x402.js"
-		},
 		"./sinks/core": {
 			"types": "./dist/sinks/core.d.ts",
 			"import": "./dist/sinks/core.js"

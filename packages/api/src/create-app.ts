@@ -25,7 +25,6 @@ import subscriptionsRouter from "./routes/subscriptions.ts";
 import v1IndexRouter from "./routes/v1-index.ts";
 import v1SubgraphsRouter from "./routes/v1-subgraphs.ts";
 import webhooksStripeRouter from "./routes/webhooks-stripe.ts";
-import x402Router from "./routes/x402.ts";
 import { apiTelemetry } from "./telemetry/api.ts";
 
 const DEDICATED_PATHS = [
@@ -141,17 +140,5 @@ export function createApiApp(mode: InstanceMode): Hono {
 		"/v1/batch",
 		createBatchRouter((path, init) => Promise.resolve(app.request(path, init))),
 	);
-	if (mode === "platform") {
-		app.route("/x402", x402Router);
-		app.route("/v1/x402", x402Router);
-		app.get("/.well-known/x402", (c) =>
-			c.json({
-				x402Version: 2,
-				supported: "/v1/x402/supported",
-				docs: "https://secondlayer.tools/pricing#pay-per-call",
-			}),
-		);
-	}
-
 	return app;
 }

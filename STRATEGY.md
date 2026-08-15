@@ -102,13 +102,15 @@ Leftover hosted deploys are not a product; do not add more. Do not delete
 billing code in Phase 6 if the archive meter still needs it; strip monthly-plan
 UX, keep a meter.
 
-## x402 (experimental)
+## x402 — deleted
 
-Operator-owned optional paywall on *their* instance (HTTP 402, STX/sBTC/USDCx).
-Off by default. They set recipients, assets, prices, and settlement. We are
-not the merchant. Parked until public-read bind exists (writes tokened, `/v1`
-open). Not a Secondlayer revenue line. Hosted prices, wallet-ghosts, and
-7-day TTL must not ship in OSS.
+The pay-per-call rail is gone (~4,650 LOC across api/sdk/shared/stacks/worker,
+plus the wallet-ghost accounts and the 7-day paid-deploy TTL). It was never a
+Secondlayer revenue line, and in practice it shipped the three things this file
+forbade in OSS: a hardcoded USD price catalog with no operator override, ghost
+accounts, and the TTL. Do not reintroduce it as a Secondlayer-operated rail. An
+operator-owned paywall on *their* instance remains a legitimate idea, but it
+belongs behind a named external request, with the operator as the merchant.
 
 ## Operating rules
 

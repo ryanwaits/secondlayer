@@ -127,14 +127,11 @@ secondlayer console   # opens http://localhost:3801/console
 
 The console reads your instance over the compose network. Access is token-gated the moment a token is set: open on loopback, `CONSOLE_TOKEN` (falls back to `INSTANCE_TOKEN`) for anything beyond it. Serving it on your own domain — `console.example.com` behind Caddy, Cloudflare Access, or a tailnet — is a reverse-proxy block; recipes ship in `docker/oss/README.md`.
 
-## Charging for your own API (x402, experimental)
-
-Your instance's public reads can be metered with [x402](https://www.x402.org) — an HTTP 402 quote per keyless call, settled on Stacks. You are the merchant: your wallet, your prices, your revenue. Off by default; the rail stays dark until you fund `X402_SPONSOR_KEY`. Nothing hosted is involved.
-
 ## Not in the box
 
 - Multi-tenant catalog
 - Archive publisher (separate image)
+- Pay-per-call metering on your instance (the x402 rail was removed)
 
 Support is community — [github.com/ryanwaits/secondlayer](https://github.com/ryanwaits/secondlayer).
 

@@ -22,7 +22,7 @@ secondlayer/
 ├── docs/              ← audits, specs, guides, sprints (historical)
 ├── packages/          ← the 13 workspace packages (all of them)
 │   ├── indexer/       ← block follower, decoders; writes raw + decoded planes
-│   ├── api/           ← public HTTPS surface (/v1: index, subgraphs, streams, x402)
+│   ├── api/           ← public HTTPS surface (/v1: index, subgraphs, streams)
 │   ├── subgraphs/     ← subgraph compiler + runtime
 │   ├── platform/      ← accounts, plans, billing
 │   ├── worker/        ← crons (reconcile, sweeps, alerts)
@@ -35,12 +35,10 @@ secondlayer/
 ├── apps/web/          ← www marketing + docs + /platform console
 ├── subgraphs/         ← example subgraph templates (sBTC, PoX, BNS, …). Not hosted.
 ├── contracts/         ← reference Clarity contracts (Clarinet project; e.g. spv-adapter)
-├── examples/          ← runnable end-to-end examples for devs
 ├── docker/            ← Dockerfiles, compose stacks, Caddy (dev + Hetzner prod)
 ├── scripts/           ← ops/dev/CI one-offs (seeds, backfills, dry-runs)
 ├── tools/             ← non-workspace internal tooling (tools/ops/konsole)
 ├── bench/             ← throwaway benchmarking subgraphs
-├── spike/             ← subgraph-isolation PoC (load-bearing for the open f060 sandbox spike)
 └── release-hold/      ← changesets parked out of the next release on purpose (see its README)
 ```
 
