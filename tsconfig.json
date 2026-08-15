@@ -21,8 +21,5 @@
 		"jsx": "react-jsx",
 		"noEmit": true
 	},
-	"exclude": [
-		"apps/**",
-		"tmp/**"
-	]
+	"exclude": ["apps/**", "tmp/**"]
 }
