@@ -181,8 +181,8 @@ const supply = await token.vars.totalSupply.get()
 ## Frozen commands
 
 Local-dev periphery: still functional, hidden from `secondlayer --help`, no further
-investment — may be removed in a future major. The hosted dev loop
-(`secondlayer subgraphs create/deploy`) is the supported path.
+investment — may be removed in a future major. `secondlayer subgraphs
+create/deploy` against your own instance is the supported path.
 
 - `secondlayer local up/down/start/stop/restart/status/logs` — local stack + dev services
 - `secondlayer local node ...` — local Stacks node management

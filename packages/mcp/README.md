@@ -1,11 +1,11 @@
 # @secondlayer/mcp
 
-MCP server for Secondlayer, the hosted indexer for Stacks — Index (decoded
-rows), Subgraphs (your schema, hosted), and Streams (raw inputs). Exposes the
-golden-path tools only — Index reads, the subgraph lifecycle, subscriptions,
-contract discovery/scaffolding, and key self-provisioning. Everything else
-(single-record lookups, mempool, stacking, proofs, codegen, credits,
-live Streams reads) is available over REST `/v1` + OpenAPI.
+Gives your coding agent direct access to the Stacks data on your own instance —
+Index (decoded rows), Subgraphs (tables you define, served from your instance),
+and Streams (raw inputs). Exposes the golden-path tools only: Index reads, the
+subgraph lifecycle, subscriptions, and contract discovery/scaffolding.
+Everything else (single-record lookups, mempool, stacking, proofs, codegen,
+credits, live Streams reads) is available over REST `/v1` + OpenAPI.
 
 ## Install
 
@@ -15,7 +15,7 @@ bun add @secondlayer/mcp
 
 ## Auth
 
-Most reads are public — `index_*` and `contracts_find` work with no key. Subgraph tools need an `SL_API_KEY`; separately, **public** subgraphs are anon-readable over HTTP at `GET /v1/subgraphs/<name>/<table>` (`{ rows, next_cursor, tip }` cursor envelope), while private ones need the owning account's key (anon → 404). `streams_dumps` needs no key — the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. Writes (deploy, reindex, delete, subscriptions) and account tools need a key: create one (prefixed `sk-sl_`) from your account console at https://console.secondlayer.tools and set it as `SL_API_KEY`. Read `secondlayer://context` first — it reports auth state and read-auth tiers.
+Most reads are public — `index_*` and `contracts_find` work with no key. Subgraph tools need an `SL_API_KEY`; separately, **public** subgraphs are anon-readable over HTTP at `GET /v1/subgraphs/<name>/<table>` (`{ rows, next_cursor, tip }` cursor envelope), while private ones need the owning account's key (anon → 404). `streams_dumps` needs no key — the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. Writes (deploy, reindex, delete, subscriptions) need a key: set `SL_API_KEY` to the `INSTANCE_TOKEN` that `secondlayer init` wrote for your instance. Read `secondlayer://context` first — it reports auth state and read-auth tiers.
 
 ## Quick Start — Stdio (IDE)
 
@@ -48,7 +48,7 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `SL_API_KEY` | Writes only | — | An `sk-sl_` API key from your account console (https://console.secondlayer.tools). Required for write/account tools; reads are public. |
+| `SL_API_KEY` | Writes only | — | The `INSTANCE_TOKEN` from `secondlayer init`. Required for write tools; reads are public. |
 | `SECONDLAYER_API_URL` | No | `https://api.secondlayer.tools` | Base API URL. Point at a local instance for dev. |
 | `SECONDLAYER_MCP_PORT` | No | `3100` | HTTP transport port. |
 | `SECONDLAYER_MCP_SECRET` | No | — | Bearer token for HTTP auth. Disabled if unset. |

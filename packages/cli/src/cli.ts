@@ -34,7 +34,7 @@ const { version } = pkg;
 program
 	.name("secondlayer")
 	.alias("sl")
-	.description("Secondlayer CLI — self-hosted Stacks data runtime")
+	.description("Secondlayer CLI — run a Stacks index on your own hardware")
 	.version(version)
 	.option("--network <network>", "Override network (local, testnet, mainnet)")
 	.option("--api-key <key>", "API credential (overrides SL_API_KEY)")
@@ -73,8 +73,8 @@ registerLoginCommand(program);
 registerLogoutCommand(program);
 registerWhoamiCommand(program);
 
-// Data products
-program.commandsGroup("Data products:");
+// Your data — the three surfaces, plus webhook delivery over them.
+program.commandsGroup("Your data:");
 registerSubgraphsCommand(program);
 registerSubscriptionsCommand(program);
 registerStreamsCommand(program);
@@ -145,8 +145,8 @@ registerBackupCommand(program);
 registerRestoreCommand(program);
 registerUninstallCommand(program);
 
-// Account
-program.commandsGroup("Account:");
+// Archive — the history plane. Credits pay for pulling it.
+program.commandsGroup("Archive:");
 registerCreditsCommand(program);
 
 program.parse();
