@@ -21,13 +21,11 @@ if [ -f .env ]; then
 fi
 
 APP_SERVICES="api indexer decoder subgraph-processor subscription-processor worker caddy"
-PLATFORM_SERVICES="provisioner"
-TENANT_API_DIGEST_LABEL="org.opencontainers.image.secondlayer.api-source-digest"
 DEPLOY_STATE_DIR="${DEPLOY_STATE_DIR:-/opt/secondlayer/data/deploy}"
 CURRENT_PATH="${DEPLOY_STATE_DIR}/current"
 PREVIOUS_PATH="${DEPLOY_STATE_DIR}/previous"
 
-DEPLOY_IMAGE_OWNER="${DEPLOY_IMAGE_OWNER:-${PROVISIONER_IMAGE_OWNER:-secondlayer-labs}}"
+DEPLOY_IMAGE_OWNER="${DEPLOY_IMAGE_OWNER:-secondlayer-labs}"
 ROLLBACK_IMAGE_TAG="${ROLLBACK_IMAGE_TAG:-}"
 
 if [ -z "$ROLLBACK_IMAGE_TAG" ]; then
@@ -40,13 +38,9 @@ fi
 
 DEPLOY_IMAGE_TAG="$ROLLBACK_IMAGE_TAG"
 export DEPLOY_IMAGE_OWNER DEPLOY_IMAGE_TAG
-export PROVISIONER_IMAGE_OWNER="$DEPLOY_IMAGE_OWNER"
-export PROVISIONER_IMAGE_TAG="$DEPLOY_IMAGE_TAG"
-TENANT_API_IMAGE="ghcr.io/${DEPLOY_IMAGE_OWNER}/secondlayer-api:${DEPLOY_IMAGE_TAG}"
 
 echo "Rollback image owner: ${DEPLOY_IMAGE_OWNER}"
 echo "Rollback image tag: ${DEPLOY_IMAGE_TAG}"
-echo "Tenant API image: ${TENANT_API_IMAGE}"
 echo "Rollback is image-only. Migrations will not run."
 
 # Optional single-service rollback. Pin ONE dedicated-image service to
@@ -85,12 +79,10 @@ fi
 
 # Pull exact images before changing any running containers.
 $COMPOSE pull api indexer decoder subgraph-processor subscription-processor worker migrate
-$COMPOSE --profile platform pull provisioner
 
 # Recreate only runtime services. --no-deps prevents compose from starting the
 # migrate dependency as part of rollback.
 $COMPOSE up -d --no-build --no-deps --force-recreate --remove-orphans $APP_SERVICES
-$COMPOSE --profile platform up -d --no-build --no-deps --force-recreate --remove-orphans $PLATFORM_SERVICES
 
 check_health() {
 	local name=$1 url=$2 retries=5 delay=5
@@ -110,7 +102,6 @@ check_health() {
 sleep 5
 check_health api http://localhost:3800/health
 check_health indexer http://localhost:3700/health
-check_health provisioner http://localhost:3850/health
 
 check_container_health() {
 	local service=$1
@@ -131,52 +122,6 @@ check_container_health() {
 }
 
 check_container_health decoder
-
-refresh_active_tenants() {
-	if [ -z "${PROVISIONER_SECRET:-}" ]; then
-		echo "PROVISIONER_SECRET unset; skipping tenant runtime refresh"
-		return 0
-	fi
-
-	local target_digest
-	target_digest=$(docker image inspect "$TENANT_API_IMAGE" \
-		--format "{{ index .Config.Labels \"${TENANT_API_DIGEST_LABEL}\" }}" \
-		2>/dev/null || true)
-
-	if [ -z "$target_digest" ] || [ "$target_digest" = "<no value>" ]; then
-		echo "Target tenant API image has no source digest label; refreshing active tenants"
-	else
-		echo "Tenant API target digest: ${target_digest}"
-	fi
-
-	echo "Checking active tenant runtimes..."
-	local slugs
-	slugs=$(docker exec secondlayer-postgres-1 psql \
-		-U "${POSTGRES_USER:-secondlayer}" \
-		-d "${POSTGRES_DB:-secondlayer}" \
-		-Atc "SELECT slug FROM tenants WHERE status = 'active' ORDER BY slug;" \
-		2>/dev/null || true)
-
-	if [ -z "$slugs" ]; then
-		echo "No active tenants to refresh."
-		return 0
-	fi
-
-	while IFS= read -r slug; do
-		[ -z "$slug" ] && continue
-		echo "Refreshing tenant ${slug} to rollback image..."
-		if ! curl -sfS \
-			-X POST "http://localhost:3850/tenants/${slug}/resume" \
-			-H "x-provisioner-secret: ${PROVISIONER_SECRET}" \
-			>/dev/null; then
-			echo "Tenant ${slug} refresh failed"
-		fi
-	done <<< "$slugs"
-
-	return 0
-}
-
-refresh_active_tenants
 
 record_successful_rollback() {
 	mkdir -p "$DEPLOY_STATE_DIR"
