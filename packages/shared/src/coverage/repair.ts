@@ -1,6 +1,16 @@
 /**
- * Repair planner/executor — dry-run by default; mutation requires apply.
- * Only registered safe modes run. Unsafe ranges are refused.
+ * Repair SAFETY GATE — decides whether a proposed repair is allowed to run.
+ * Only registered safe modes pass; unsafe ranges and mode/defect mismatches are
+ * refused.
+ *
+ * This file plans and refuses. It does not repair. The executor that actually
+ * writes is `secondlayer repair --apply` (packages/cli/src/commands/repair.ts),
+ * which rewrites blocks from a signed archive inside a transaction.
+ *
+ * There used to be an `applyRepair` here that returned `{applied: true}`
+ * without touching anything. It was removed in 2026-08 rather than
+ * implemented: a second executor would have been a fake one, and drills that
+ * "recovered" through it would have proven nothing.
  */
 
 import type { RepairMode } from "./constraints.ts";
@@ -69,21 +79,4 @@ export function planRepair(input: {
 		safe: true,
 		reason: `dry-run ${input.mode} for ${input.defect}`,
 	};
-}
-
-export type RepairApplyResult =
-	| { ok: true; applied: boolean; plan: RepairPlan }
-	| { ok: false; reason: string; plan: RepairPlan };
-
-export function applyRepair(
-	plan: RepairPlan,
-	opts?: { apply?: boolean },
-): RepairApplyResult {
-	if (!plan.safe) {
-		return { ok: false, reason: plan.reason, plan };
-	}
-	if (!opts?.apply) {
-		return { ok: true, applied: false, plan };
-	}
-	return { ok: true, applied: true, plan };
 }

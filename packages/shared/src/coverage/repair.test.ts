@@ -1,8 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { applyRepair, planRepair } from "./repair.ts";
+import { planRepair } from "./repair.ts";
 
-describe("repair planner", () => {
-	test("defaults to a dry-run and mutates only with apply", () => {
+/**
+ * These cover the gate only. The executor lives in the CLI
+ * (`secondlayer repair --apply`) and is exercised end to end there — this file
+ * previously also asserted an `applyRepair` that returned success without
+ * writing anything, which proved only that a constant is a constant.
+ */
+describe("repair safety gate", () => {
+	test("a registered mode with a matching defect is allowed", () => {
 		const plan = planRepair({
 			stage_id: "raw",
 			range: { from_height: 1, to_height: 10 },
@@ -10,14 +16,12 @@ describe("repair planner", () => {
 			defect: "source_gap",
 		});
 		expect(plan.safe).toBe(true);
-		const dry = applyRepair(plan);
-		expect(dry.ok).toBe(true);
-		expect(dry.ok && dry.applied).toBe(false);
-		const applied = applyRepair(plan, { apply: true });
-		expect(applied.ok && applied.applied).toBe(true);
+		expect(plan.reason).toContain("archive_replay");
 	});
 
 	test("refuses an unproven range_safe mode", () => {
+		// `range_safe` claims a range needs no rework; without proof that claim
+		// would silently skip repairing real damage.
 		const plan = planRepair({
 			stage_id: "subgraph:x",
 			range: { from_height: 1, to_height: 2 },
@@ -25,10 +29,45 @@ describe("repair planner", () => {
 			defect: "gap",
 		});
 		expect(plan.safe).toBe(false);
-		expect(applyRepair(plan, { apply: true }).ok).toBe(false);
+		expect(plan.reason).toContain("proven");
 	});
 
-	test("each supported defect has a safe mode that returns green", () => {
+	test("refuses an inverted range", () => {
+		const plan = planRepair({
+			stage_id: "raw",
+			range: { from_height: 10, to_height: 1 },
+			mode: "full_reindex",
+			defect: "gap",
+		});
+		expect(plan.safe).toBe(false);
+	});
+
+	test("refuses an unregistered mode", () => {
+		const plan = planRepair({
+			stage_id: "raw",
+			range: { from_height: 1, to_height: 2 },
+			// Deliberately outside SAFE_REPAIR_MODES.
+			mode: "unsafe_mode" as never,
+			defect: "gap",
+		});
+		expect(plan.safe).toBe(false);
+		expect(plan.reason).toContain("not registered");
+	});
+
+	test("a source gap may only be repaired from the archive", () => {
+		// Reindexing cannot invent history the instance never had; only a
+		// replay from the signed archive can.
+		const reindex = planRepair({
+			stage_id: "raw",
+			range: { from_height: 1, to_height: 2 },
+			mode: "full_reindex",
+			defect: "source_gap",
+		});
+		expect(reindex.safe).toBe(false);
+		expect(reindex.reason).toContain("archive_replay");
+	});
+
+	test("each supported defect has a mode that passes the gate", () => {
 		const cases = [
 			{ defect: "gap" as const, mode: "full_reindex" as const },
 			{ defect: "digest_mismatch" as const, mode: "full_reindex" as const },
@@ -45,8 +84,6 @@ describe("repair planner", () => {
 				defect: c.defect,
 			});
 			expect(plan.safe).toBe(true);
-			const result = applyRepair(plan, { apply: true });
-			expect(result.ok).toBe(true);
 		}
 	});
 });

@@ -131,8 +131,8 @@ export type {
 	QueueStage,
 	QueueState,
 } from "./queue.ts";
-export { SAFE_REPAIR_MODES, applyRepair, planRepair } from "./repair.ts";
-export type { RepairApplyResult, RepairDefect, RepairPlan } from "./repair.ts";
+export { SAFE_REPAIR_MODES, planRepair } from "./repair.ts";
+export type { RepairDefect, RepairPlan } from "./repair.ts";
 export {
 	VERIFY_EXIT,
 	datasetMatchesTarget,
