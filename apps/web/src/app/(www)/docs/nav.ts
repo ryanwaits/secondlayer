@@ -49,6 +49,7 @@ export const DOCS_NAV: DocsNavGroup[] = [
 			{ title: "Filters", href: "/docs/filters" },
 			{ title: "CLI", href: "/docs/cli" },
 			{ title: "MCP", href: "/docs/mcp" },
+			{ title: "Console", href: "/docs/console" },
 		],
 	},
 	{

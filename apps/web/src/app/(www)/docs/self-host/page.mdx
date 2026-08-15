@@ -118,14 +118,14 @@ Keep `POSTGRES_PORT` / `INDEXER_PORT` on loopback. Set `INSTANCE_TOKEN` before b
 
 ## Console (optional)
 
-A web UI for your instance — fleet health, subgraph detail, table browsing, webhook delivery logs. One more container, off by default:
+A web UI for your instance, off by default:
 
 ```bash
 docker compose --profile console up -d
 secondlayer console   # opens http://localhost:3801/console
 ```
 
-The console reads your instance over the compose network. Access is token-gated the moment a token is set: open on loopback, `CONSOLE_TOKEN` (falls back to `INSTANCE_TOKEN`) for anything beyond it. Serving it on your own domain — `console.example.com` behind Caddy, Cloudflare Access, or a tailnet — is a reverse-proxy block; recipes ship in `docker/oss/README.md`.
+Screens, the token gate, and reverse-proxy recipes: [Console](/docs/console).
 
 ## Not in the box
 
