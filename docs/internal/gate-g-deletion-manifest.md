@@ -100,9 +100,14 @@ instrument — update before the scans); (4) slim `packages/platform` to the met
 package (delete `usage.ts`, `projects.ts`, `pricing.ts`); (5) worker keeps
 `credits-refill` (+`x402-reconcile` per D3, `spend-cap-alert` per D5).
 
-## 4. Slice C — prod flip preconditions (separate approved migration)
+## 4. Slice C — EXECUTED 2026-08-14 (metered-archive rename)
 
-The flip plan must resolve, in one window:
+Executed per the approved metered-archive-mode.md: `INSTANCE_MODE=archive`
+aliases platform (normalized in `shared/mode.ts`; declared mode surfaces on
+`/v1/instance`), `isMeteredReads()` added with `METERED_READS` override. Prod
+env set to `archive` and services recreated 2026-08-14; verified: mode
+"archive", authless /api 401, anonymous recent read 200, console gate 307,
+health ok. The oss-flip preconditions below are OBSOLETE (no flip happens):
 - D2 metered-archive mode implemented and deployed for api.secondlayer.tools.
 - `console.secondlayer.tools` switched from `sk-sl_` key to `instanceTokenAuth`.
 - Subgraph semantics: `subgraphs/{namespace,cache}.ts` +
