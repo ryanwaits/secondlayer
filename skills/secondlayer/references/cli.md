@@ -269,11 +269,12 @@ Usage: `secondlayer subgraphs create <name>`
 
 | Flag | Default | Description |
 | --- | --- | --- |
-| `--template <slug>` | `basic` | Foundation Dataset starter. One of: `basic`, `sip-010-balances`, `sbtc-flows`, `pox-stacking`, `bns-names`. |
+| `--from-contract <contractId>` | — | Generate sources/schema/handlers from the contract's observed print events (requires network). |
+| `--table-per-topic` | off | With `--from-contract`: one table per print topic instead of a single wide table. |
 
-Writes to `subgraphs/<name>.ts` (creates `subgraphs/` if missing). Errors if the file already exists.
+With no flags it writes an empty starter. Writes to `subgraphs/<name>.ts` (creates `subgraphs/` if missing). Errors if the file already exists.
 
-Example: `secondlayer subgraphs create my-watcher --template sip-010-balances`
+Example: `secondlayer subgraphs create my-watcher --from-contract SP3....my-contract`
 
 ### secondlayer subgraphs dev
 

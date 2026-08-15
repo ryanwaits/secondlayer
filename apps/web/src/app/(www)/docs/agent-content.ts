@@ -48,7 +48,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Run the quickstart",
 			"Drive the golden path to a live table.",
-			"/secondlayer Walk me through the quickstart end to end: `secondlayer init` + `docker compose up -d`, `secondlayer bootstrap` for verified history, `secondlayer subgraphs create my-balances --template sip-010-balances`, `secondlayer subgraphs deploy subgraphs/my-balances.ts`, then curl `http://127.0.0.1:3800/v1/subgraphs/my-balances/balances` to confirm it's live — no token on loopback.",
+			"/secondlayer Walk me through the quickstart end to end: `secondlayer init` + `docker compose up -d`, `secondlayer bootstrap` for verified history, `secondlayer subgraphs create my-balances --from-contract <my contract id>`, `secondlayer subgraphs deploy subgraphs/my-balances.ts`, then curl `http://127.0.0.1:3800/v1/subgraphs/my-balances/balances` to confirm it's live — no token on loopback.",
 		),
 		card(
 			"Verify my setup",

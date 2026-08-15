@@ -38,10 +38,10 @@ export const QUICKSTART_STEPS: QuickstartStep[] = [
 	{
 		n: "04",
 		tab: "Create",
-		title: "Create from a template",
-		desc: "Scaffolds a one-file subgraph (schema, triggers, and handler), ready to edit or deploy as-is.",
+		title: "Create from your contract",
+		desc: "Infers schema, triggers, and handler from the contract's observed print events, into one file ready to edit or deploy as-is.",
 		kw: "secondlayer",
-		rest: " subgraphs create my-balances --template sip-010-balances",
+		rest: " subgraphs create my-balances --from-contract SP....my-contract",
 	},
 	{
 		n: "05",

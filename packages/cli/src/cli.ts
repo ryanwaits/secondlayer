@@ -57,7 +57,7 @@ program.addHelpText(
 Quickstart:
   $ secondlayer init --network mainnet
   $ secondlayer bootstrap --against <manifest>
-  $ secondlayer subgraphs create my-watcher --template sip-010-balances
+  $ secondlayer subgraphs create my-watcher --from-contract SP....my-contract
   $ secondlayer subgraphs deploy subgraphs/my-watcher.ts
 `,
 );
