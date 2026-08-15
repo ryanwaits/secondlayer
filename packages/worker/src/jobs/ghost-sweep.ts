@@ -9,6 +9,11 @@
  *   - no api_key with last_used_at in the last 30 days (an actively used ghost
  *     key keeps the account alive even past the claim-URL expiry)
  *
+ * Hard safety guards (paying-customer firewall — a swept account must have no
+ * commercial footprint whatsoever):
+ *   - stripe_customer_id IS NULL (any Stripe linkage means checkout happened)
+ *   - no account_credits balance > 0 (prepaid money must never be deleted)
+ *
  * The DELETE cascades api_keys + claim_tokens (+ usage rows) via FK
  * ON DELETE CASCADE — no manual child cleanup.
  */
@@ -31,6 +36,21 @@ export async function sweepGhostAccounts(
 		.deleteFrom("accounts")
 		.where("ghost", "=", true)
 		.where("created_at", "<", cutoff)
+		// Never touch an account with any Stripe linkage — a customer id means a
+		// checkout happened (or was attempted) against this account.
+		.where("stripe_customer_id", "is", null)
+		// Never delete prepaid money: any positive credits balance keeps the
+		// account, ghost or not.
+		.where(({ not, exists, selectFrom }) =>
+			not(
+				exists(
+					selectFrom("account_credits")
+						.select("account_credits.account_id")
+						.whereRef("account_credits.account_id", "=", "accounts.id")
+						.where("account_credits.balance_usd_micros", ">", "0"),
+				),
+			),
+		)
 		.where(({ not, exists, selectFrom }) =>
 			not(
 				exists(

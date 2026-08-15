@@ -19,6 +19,7 @@ async function makeAccount(over: {
 	ghost: boolean;
 	createdAt: Date;
 	email?: string | null;
+	stripeCustomerId?: string | null;
 }): Promise<string> {
 	const row = await db
 		.insertInto("accounts")
@@ -26,11 +27,23 @@ async function makeAccount(over: {
 			email: over.email ?? null,
 			ghost: over.ghost,
 			created_at: over.createdAt,
+			stripe_customer_id: over.stripeCustomerId ?? null,
 		})
 		.returning("id")
 		.executeTakeFirstOrThrow();
 	ids.push(row.id);
 	return row.id;
+}
+
+async function addCredits(accountId: string, usdMicros: bigint) {
+	await db
+		.insertInto("account_credits")
+		.values({
+			account_id: accountId,
+			balance_usd_micros: usdMicros.toString(),
+			updated_at: new Date(),
+		})
+		.execute();
 }
 
 async function addKey(accountId: string, lastUsedAt: Date | null) {
@@ -119,5 +132,29 @@ describe("sweepGhostAccounts", () => {
 		await addKey(staleUse, new Date(now.getTime() - 35 * DAY));
 		const deleted2 = await sweepGhostAccounts(db, now);
 		expect(deleted2).toContain(staleUse);
+	});
+
+	test("never deletes a ghost with a Stripe customer id", async () => {
+		const paying = await makeAccount({
+			ghost: true,
+			createdAt: oldDate,
+			stripeCustomerId: `cus_sweep_${crypto.randomUUID().slice(0, 8)}`,
+		});
+		const deleted = await sweepGhostAccounts(db, now);
+		expect(deleted).not.toContain(paying);
+	});
+
+	test("never deletes a ghost with a positive credits balance", async () => {
+		const funded = await makeAccount({ ghost: true, createdAt: oldDate });
+		await addCredits(funded, 5_000n);
+		const deleted = await sweepGhostAccounts(db, now);
+		expect(deleted).not.toContain(funded);
+	});
+
+	test("a zero-balance credits row does not protect an expired ghost", async () => {
+		const drained = await makeAccount({ ghost: true, createdAt: oldDate });
+		await addCredits(drained, 0n);
+		const deleted = await sweepGhostAccounts(db, now);
+		expect(deleted).toContain(drained);
 	});
 });

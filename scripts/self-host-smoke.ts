@@ -127,7 +127,6 @@ async function bootstrapKey(db: Kysely<Database>): Promise<string> {
 		accountId: account.id,
 		name: "self-host smoke",
 		product: "account",
-		tier: "enterprise",
 		ip: "127.0.0.1",
 	});
 	return minted.key;

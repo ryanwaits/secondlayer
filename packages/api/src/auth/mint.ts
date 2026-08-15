@@ -3,7 +3,13 @@ import { AuthorizationError } from "@secondlayer/shared/errors";
 import { generateApiKey } from "./keys.ts";
 
 export type MintProduct = "account" | "streams" | "index";
-export type MintTier = "free" | "build" | "scale" | "enterprise";
+
+/**
+ * The single tier every minted key gets. Plan/tier selection is retired —
+ * the metered archive has one tier, and the credit-gated read path
+ * (`lib/read-credits.ts` — `tier === "free"`) meters exactly this value.
+ */
+export const DEFAULT_MINT_TIER = "free";
 
 /**
  * Cap on active (non-revoked) keys per account. A backstop against key-spray
@@ -54,18 +60,6 @@ export function resolveMintProduct(
 	return requested ?? "streams";
 }
 
-/**
- * Tier of the key to mint. Only sessions may pin a tier; non-session callers
- * get `null` so the key inherits the account plan at lookup time (an agent
- * can't mint itself an enterprise key).
- */
-export function resolveMintTier(
-	caller: MintCaller,
-	requested: MintTier | undefined,
-): MintTier | null {
-	return caller.isSession ? (requested ?? null) : null;
-}
-
 /** Throw if the account is already at its active-key ceiling. */
 export async function assertUnderKeyCeiling(
 	db: ReturnType<typeof getDb>,
@@ -93,14 +87,14 @@ export type MintedKey = {
 	createdAt: string;
 };
 
-/** Insert a new key and return the plaintext ONCE (only the hash is stored). */
+/** Insert a new key and return the plaintext ONCE (only the hash is stored).
+ * Every key is minted at `DEFAULT_MINT_TIER` — there is no tier selection. */
 export async function mintApiKey(
 	db: ReturnType<typeof getDb>,
 	input: {
 		accountId: string;
 		name?: string | null;
 		product: MintProduct;
-		tier: MintTier | null;
 		ip: string;
 	},
 ): Promise<MintedKey> {
@@ -115,7 +109,7 @@ export async function mintApiKey(
 			account_id: input.accountId,
 			status: "active",
 			product: input.product,
-			tier: input.tier,
+			tier: DEFAULT_MINT_TIER,
 		})
 		.returningAll()
 		.executeTakeFirstOrThrow();

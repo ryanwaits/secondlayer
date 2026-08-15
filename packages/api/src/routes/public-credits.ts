@@ -63,8 +63,8 @@ app.post("/checkout", async (c) => {
 		db,
 		account,
 		usd,
-		successUrl: `${dashboardBaseUrl()}/#history?topup=success`,
-		cancelUrl: `${dashboardBaseUrl()}/#history?topup=cancelled`,
+		successUrl: `${dashboardBaseUrl()}/archive?topup=success`,
+		cancelUrl: `${dashboardBaseUrl()}/archive?topup=cancelled`,
 	});
 	if (!url) return c.json({ error: "checkout_failed" }, 502);
 	return c.json({ url });

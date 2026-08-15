@@ -3,6 +3,7 @@ import { createApiApp } from "./create-app.ts";
 import { HOSTED_OPENAPI_PATHS } from "./route-manifest.ts";
 import {
 	HOSTED_ROUTE_FIXTURES,
+	RETAINED_METER_ROUTE_FIXTURES,
 	RETAINED_ROUTE_FIXTURES,
 } from "./route-manifest.ts";
 import { OPENAPI_SPEC, openapiSpec } from "./routes/openapi.ts";
@@ -27,6 +28,47 @@ describe("route manifest", () => {
 			expect(res.status, `${method} ${path}`).toBe(404);
 			const body = (await res.json()) as { code: string };
 			expect(body.code).toBe("NOT_FOUND");
+		}
+	});
+
+	// The retained meter surface is platform/archive-mode only: it must 404 in
+	// oss like the hosted surface, but it is NOT a deletion candidate — the
+	// separate fixture list is what deletion scans key off.
+	test("OSS retained-meter routes 404 (mounted only in platform mode)", async () => {
+		process.env.INSTANCE_MODE = "oss";
+		const app = createApiApp("oss");
+		for (const { method, path } of RETAINED_METER_ROUTE_FIXTURES) {
+			const res = await app.request(path, { method });
+			expect(res.status, `${method} ${path}`).toBe(404);
+			const body = (await res.json()) as { code: string };
+			expect(body.code).toBe("NOT_FOUND");
+		}
+	});
+
+	test("retained-meter fixtures cover the kept account surface", () => {
+		const paths = RETAINED_METER_ROUTE_FIXTURES.map((r) => r.path);
+		expect(paths).toContain("/api/auth/login");
+		expect(paths).toContain("/api/billing/status");
+		expect(paths).toContain("/api/billing/topup");
+		expect(paths).toContain("/api/billing/refill");
+		expect(paths).toContain("/api/billing/caps");
+		expect(paths).toContain("/api/public/credits/checkout");
+		expect(paths).toContain("/api/webhooks/stripe");
+		expect(paths).toContain("/api/keys");
+		expect(paths).toContain("/api/accounts/me");
+		// Retired billing plan routes must never reappear in any fixture list.
+		const all = [
+			...HOSTED_ROUTE_FIXTURES,
+			...RETAINED_METER_ROUTE_FIXTURES,
+			...RETAINED_ROUTE_FIXTURES,
+		].map((r) => r.path);
+		for (const dead of [
+			"/api/billing/upgrade",
+			"/api/billing/resolve",
+			"/api/billing/cancel",
+			"/api/billing/portal",
+		]) {
+			expect(all).not.toContain(dead);
 		}
 	});
 

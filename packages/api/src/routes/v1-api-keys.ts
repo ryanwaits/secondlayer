@@ -45,7 +45,6 @@ app.post("/", requireAuth(), async (c) => {
 		accountId,
 		name: parsed.name,
 		product: parsed.product,
-		tier: null,
 		ip: getClientIp(c),
 	});
 

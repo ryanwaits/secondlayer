@@ -149,6 +149,31 @@ describe("processStripeEvent", () => {
 		await cleanupAccount(accountId);
 	});
 
+	test("unhandled event type (legacy subscription lifecycle) is acked with marker and no effect", async () => {
+		if (!HAS_DB) return;
+
+		// Prod Stripe may still deliver subscription events for pre-retirement
+		// data — they must be marked processed (so the route 200s), never 500.
+		const eventId = `evt_legacy_sub_${crypto.randomUUID()}`;
+		await cleanupEvents(eventId);
+
+		const outcome = await processStripeEvent(db, {
+			id: eventId,
+			type: "customer.subscription.updated",
+			data: { object: {} as unknown as Stripe.Subscription },
+		} as Stripe.Event);
+		expect(outcome).toBe("processed");
+
+		const marker = await db
+			.selectFrom("processed_stripe_events")
+			.select("event_id")
+			.where("event_id", "=", eventId)
+			.executeTakeFirst();
+		expect(marker?.event_id).toBe(eventId);
+
+		await cleanupEvents(eventId);
+	});
+
 	test("atomic rollback: failed handler rolls back marker row", async () => {
 		if (!HAS_DB) return;
 

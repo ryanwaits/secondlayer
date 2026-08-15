@@ -3,24 +3,21 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { getClientIp } from "./http.ts";
 import { requireAuth } from "./middleware.ts";
-import {
-	assertCanMint,
-	mintApiKey,
-	resolveMintProduct,
-	resolveMintTier,
-} from "./mint.ts";
+import { assertCanMint, mintApiKey, resolveMintProduct } from "./mint.ts";
 
+// No tier field: every key mints at the single metered tier (see mint.ts).
+// A legacy `tier` in the body is silently stripped by zod.
 const CreateKeySchema = z.object({
 	name: z.string().max(255).optional(),
 	product: z.enum(["account", "streams", "index"]).default("account"),
-	tier: z.enum(["free", "build", "scale", "enterprise"]).optional(),
 });
 
 const app = new Hono();
 
 // Create key (requires auth — tied to account). Owner-gated: only a dashboard
 // session or an account-product key may mint, and non-session callers are
-// confined to scoped keys with an inherited tier (see mint.ts).
+// confined to scoped keys (see mint.ts). All keys mint at the single
+// metered tier.
 app.post("/", requireAuth(), async (c) => {
 	const body = await c.req.json().catch(() => ({}));
 	const parsed = CreateKeySchema.parse(body);
@@ -37,7 +34,6 @@ app.post("/", requireAuth(), async (c) => {
 		accountId,
 		name: parsed.name,
 		product: resolveMintProduct(caller, parsed.product),
-		tier: resolveMintTier(caller, parsed.tier),
 		ip: getClientIp(c),
 	});
 

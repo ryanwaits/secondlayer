@@ -83,7 +83,6 @@ export function createV1KeysRouter(opts?: {
 			accountId: account.id,
 			name: "ghost",
 			product: "account",
-			tier: "free",
 			ip,
 		});
 

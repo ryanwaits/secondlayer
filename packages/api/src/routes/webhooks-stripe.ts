@@ -1,9 +1,15 @@
 /**
- * Stripe webhook endpoint.
+ * Stripe webhook endpoint — credits payments only.
  *
  * Signature is verified against STRIPE_WEBHOOK_SECRET — bodies that don't
- * verify are rejected 400 (Stripe will retry). Verified events are
- * audited; subscription lifecycle events write `accounts.plan`.
+ * verify are rejected 400 (Stripe will retry). Verified events are audited
+ * via `processed_stripe_events`; only `checkout.session.completed` (prepaid
+ * top-up) and `payment_intent.succeeded` (auto-refill) have effects.
+ *
+ * Any other event type — including subscription lifecycle events Stripe may
+ * still send for pre-retirement data (invoice.paid,
+ * customer.subscription.*) — is acked 2xx with just the idempotency marker,
+ * so Stripe never retries events we deliberately no longer handle.
  *
  * Important: Hono's default body parser reads JSON, but Stripe signatures
  * are computed over the RAW bytes. We use `c.req.text()` then verify
@@ -11,11 +17,6 @@
  */
 
 import { creditCredits } from "@secondlayer/platform/db/queries/account-credits";
-import { clearFreeze } from "@secondlayer/platform/db/queries/account-spend-caps";
-import {
-	getAccountByStripeCustomerId,
-	setAccountPlan,
-} from "@secondlayer/platform/db/queries/accounts";
 import { logger } from "@secondlayer/shared";
 import type { Database } from "@secondlayer/shared/db";
 import { getDb } from "@secondlayer/shared/db";
@@ -26,7 +27,6 @@ import {
 	getStripeOrNull,
 	getStripeWebhookSecretOrNull,
 } from "../lib/stripe.ts";
-import { getTierForPriceId } from "../lib/tier-mapping.ts";
 
 const app = new Hono();
 
@@ -113,29 +113,7 @@ export async function processStripeEvent(
 			.executeTakeFirst();
 		if ((inserted.numInsertedOrUpdatedRows ?? 0n) === 0n) return "duplicate";
 
-		if (event.type === "invoice.paid") {
-			const invoice = event.data.object as Stripe.Invoice;
-			const customerId =
-				typeof invoice.customer === "string"
-					? invoice.customer
-					: invoice.customer?.id;
-			if (customerId) await onInvoicePaid(trx, customerId);
-		} else if (
-			event.type === "customer.subscription.created" ||
-			event.type === "customer.subscription.updated"
-		) {
-			await onSubscriptionActive(
-				trx,
-				event.data.object as Stripe.Subscription,
-				event.id,
-			);
-		} else if (event.type === "customer.subscription.deleted") {
-			await onSubscriptionDeleted(
-				trx,
-				event.data.object as Stripe.Subscription,
-				event.id,
-			);
-		} else if (event.type === "checkout.session.completed") {
+		if (event.type === "checkout.session.completed") {
 			await onCheckoutCompleted(
 				trx,
 				event.data.object as Stripe.Checkout.Session,
@@ -148,125 +126,9 @@ export async function processStripeEvent(
 				event.id,
 			);
 		}
+		// Every other event type (incl. legacy subscription lifecycle) falls
+		// through: marker persisted, effectless, acked 2xx by the route.
 		return "processed";
-	});
-}
-
-/** invoice.paid — clear any cap freeze at cycle rollover. */
-async function onInvoicePaid(
-	db: Kysely<Database>,
-	stripeCustomerId: string,
-): Promise<void> {
-	const account = await getAccountByStripeCustomerId(db, stripeCustomerId);
-	if (!account) {
-		logger.warn("invoice.paid: no account matches stripe_customer_id", {
-			stripeCustomerId,
-		});
-		return;
-	}
-	await clearFreeze(db, account.id);
-	logger.info("Cleared spend-cap freeze on invoice.paid", {
-		accountId: account.id,
-	});
-}
-
-/**
- * customer.subscription.{created,updated} — resolve first line-item
- * price id to a tier and write `accounts.plan`.
- *
- * Status filter:
- *   active / trialing → set plan to tier
- *   canceled / unpaid / incomplete_expired → set no-plan and suspend tenant
- *   past_due / incomplete → no-op (don't demote mid-dispute)
- */
-async function onSubscriptionActive(
-	db: Kysely<Database>,
-	sub: Stripe.Subscription,
-	eventId: string,
-): Promise<void> {
-	const customerId =
-		typeof sub.customer === "string" ? sub.customer : sub.customer.id;
-
-	const account = await getAccountByStripeCustomerId(db, customerId);
-	if (!account) {
-		logger.warn("stripe.webhook.subscription.no_account", {
-			eventId,
-			customerId,
-		});
-		return;
-	}
-
-	const status = sub.status;
-	const firstItem = sub.items.data[0];
-	const priceId = firstItem?.price.id;
-
-	if (!priceId) {
-		logger.warn("stripe.webhook.subscription.no_price", {
-			eventId,
-			subscriptionId: sub.id,
-		});
-		return;
-	}
-
-	if (status === "active" || status === "trialing") {
-		const tier = getTierForPriceId(priceId);
-		if (!tier) {
-			logger.warn("stripe.webhook.subscription.unknown_price", {
-				eventId,
-				priceId,
-				subscriptionId: sub.id,
-				status,
-			});
-			return;
-		}
-		await setAccountPlan(db, account.id, tier);
-		logger.info("stripe.webhook.subscription.resolved", {
-			eventId,
-			accountId: account.id,
-			tier,
-			status,
-		});
-	} else if (
-		status === "canceled" ||
-		status === "unpaid" ||
-		status === "incomplete_expired"
-	) {
-		await setAccountPlan(db, account.id, "none");
-		logger.info("stripe.webhook.subscription.reverted", {
-			eventId,
-			accountId: account.id,
-			status,
-		});
-	} else {
-		logger.info("stripe.webhook.subscription.skipped", {
-			eventId,
-			accountId: account.id,
-			status,
-			reason: "status not actionable",
-		});
-	}
-}
-
-/** customer.subscription.deleted — remove plan. Tenant-suspend removed post shared-rip. */
-async function onSubscriptionDeleted(
-	db: Kysely<Database>,
-	sub: Stripe.Subscription,
-	eventId: string,
-): Promise<void> {
-	const customerId =
-		typeof sub.customer === "string" ? sub.customer : sub.customer.id;
-	const account = await getAccountByStripeCustomerId(db, customerId);
-	if (!account) {
-		logger.warn("stripe.webhook.subscription.no_account", {
-			eventId,
-			customerId,
-		});
-		return;
-	}
-	await setAccountPlan(db, account.id, "none");
-	logger.info("stripe.webhook.subscription.deleted", {
-		eventId,
-		accountId: account.id,
 	});
 }
 

@@ -54,7 +54,6 @@ async function main() {
 		accountId: account.id,
 		name: "self-host owner key",
 		product: "account",
-		tier: "enterprise",
 		ip: "127.0.0.1",
 	});
 

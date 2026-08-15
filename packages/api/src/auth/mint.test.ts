@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { assertCanMint, resolveMintProduct, resolveMintTier } from "./mint.ts";
+import {
+	DEFAULT_MINT_TIER,
+	assertCanMint,
+	resolveMintProduct,
+} from "./mint.ts";
 
 describe("assertCanMint (owner-gate)", () => {
 	it("allows a dashboard session", () => {
@@ -52,20 +56,8 @@ describe("resolveMintProduct", () => {
 	});
 });
 
-describe("resolveMintTier", () => {
-	it("lets a session pin a tier", () => {
-		expect(resolveMintTier({ isSession: true }, "enterprise")).toBe(
-			"enterprise",
-		);
-		expect(resolveMintTier({ isSession: true }, undefined)).toBeNull();
-	});
-
-	it("forces null tier for non-session callers (inherit account plan)", () => {
-		expect(
-			resolveMintTier(
-				{ isSession: false, apiKeyProduct: "account" },
-				"enterprise",
-			),
-		).toBeNull();
+describe("DEFAULT_MINT_TIER", () => {
+	it("is the tier the credit-gated read path meters (read-credits.ts)", () => {
+		expect(DEFAULT_MINT_TIER).toBe("free");
 	});
 });

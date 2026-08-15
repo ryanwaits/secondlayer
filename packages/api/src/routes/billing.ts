@@ -1,15 +1,16 @@
 /**
- * Billing routes — session-authed entry points for upgrade + portal.
+ * Billing routes — the metered-archive credits surface. Session-authed
+ * upstream via `requireAuth`.
  *
- *   POST /api/billing/upgrade   body: { tier: "launch" | "scale", interval?: "month" | "year" }
- *     Returns a Stripe Checkout Session URL. Lazy-creates the Stripe
- *     customer if this account has never upgraded before.
+ *   GET   /api/billing/status   credits balance + refill config snapshot
+ *   POST  /api/billing/topup    one-time prepaid credit pack → Stripe Checkout
+ *   POST  /api/billing/refill   opt-in auto-refill threshold
+ *   GET   /api/billing/caps     monthly spend cap + alert threshold
+ *   PATCH /api/billing/caps
  *
- *   GET  /api/billing/portal
- *     Returns a Stripe Billing Portal URL so the customer can update
- *     their card, download invoices, or cancel.
- *
- * Both are session-authed upstream via `requireAuth`.
+ * Subscription plumbing (/upgrade, /resolve, /cancel, /portal and the
+ * subscription half of /status) was removed with the plan/tier retirement —
+ * credits are the only paid rail (gate-g-deletion-manifest.md §1).
  */
 
 import {
@@ -24,7 +25,6 @@ import {
 } from "@secondlayer/platform/db/queries/account-spend-caps";
 import {
 	getAccountById,
-	setAccountPlan,
 	setStripeCustomerId,
 } from "@secondlayer/platform/db/queries/accounts";
 import { logger } from "@secondlayer/shared";
@@ -32,14 +32,6 @@ import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { getAccountId } from "../lib/ownership.ts";
 import { getStripeOrNull } from "../lib/stripe.ts";
-import {
-	type BillingInterval,
-	UPGRADEABLE_TIERS,
-	getPriceIdForTier,
-	getTierForPriceId,
-	isSelfServeTier,
-	isUpgradeableTier,
-} from "../lib/tier-mapping.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
 const app = new Hono();
@@ -156,87 +148,6 @@ export async function createCreditsCheckoutSession(opts: {
 	return session.url;
 }
 
-app.post("/upgrade", async (c) => {
-	const accountId = getAccountId(c);
-	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
-
-	const body = (await c.req.json().catch(() => {
-		throw new InvalidJSONError();
-	})) as { tier?: unknown; interval?: unknown };
-
-	if (typeof body.tier !== "string" || !isUpgradeableTier(body.tier)) {
-		return c.json(
-			{
-				error: `tier must be one of ${UPGRADEABLE_TIERS.join(", ")}. Enterprise subscriptions are custom-quoted — contact sales.`,
-			},
-			400,
-		);
-	}
-
-	// Currently launch + scale are self-serve; enterprise never reaches here
-	// (rejected above by isUpgradeableTier). Kept as a guard for any future
-	// upgradeable-but-not-self-serve tier.
-	if (!isSelfServeTier(body.tier)) {
-		return c.json(
-			{
-				error:
-					"That plan is custom-quoted — contact sales at https://secondlayer.tools to set up a subscription.",
-				code: "CONTACT_SALES",
-			},
-			400,
-		);
-	}
-
-	const interval: BillingInterval = body.interval === "year" ? "year" : "month";
-	const priceId = getPriceIdForTier(body.tier, interval);
-	if (!priceId) {
-		logger.error("Upgrade attempted without configured price id", {
-			tier: body.tier,
-			interval,
-		});
-		return c.json(
-			{ error: "Billing is not fully configured yet. Contact support." },
-			503,
-		);
-	}
-
-	const stripe = getStripeOrNull();
-	if (!stripe) {
-		logger.info("Upgrade called but Stripe not configured");
-		return c.json({ error: "billing_not_configured" }, 503);
-	}
-
-	const db = getDb();
-	const account = await getAccountById(db, accountId);
-	if (!account) return c.json({ error: "Account not found" }, 404);
-
-	const stripeCustomerId = await ensureStripeCustomer(stripe, db, account);
-
-	// Stripe-hosted redirects bypass our Next middleware, so the return
-	// URLs must use the raw filesystem path (/platform/billing) rather
-	// than the clean URL (/billing) that only works through the middleware
-	// rewrite when navigated client-side.
-	const session = await stripe.checkout.sessions.create({
-		mode: "subscription",
-		customer: stripeCustomerId,
-		payment_method_collection: "always",
-		allow_promotion_codes: true,
-		line_items: [{ price: priceId, quantity: 1 }],
-		success_url: `${dashboardBaseUrl()}/platform/billing?upgrade=success`,
-		cancel_url: `${dashboardBaseUrl()}/platform/billing?upgrade=cancelled`,
-		subscription_data: {
-			trial_period_days: 14,
-			metadata: {
-				secondlayer_account_id: account.id,
-				tier: body.tier,
-				interval,
-			},
-		},
-	});
-
-	return c.json({ url: session.url });
-});
-
 /**
  * POST /api/billing/topup   body: { amount: 10 | 25 | 50 | 100 }
  *
@@ -276,152 +187,22 @@ app.post("/topup", async (c) => {
 		db,
 		account,
 		usd,
-		successUrl: `${dashboardBaseUrl()}/platform/billing?topup=success`,
-		cancelUrl: `${dashboardBaseUrl()}/platform/billing?topup=cancelled`,
+		successUrl: `${dashboardBaseUrl()}/archive?topup=success`,
+		cancelUrl: `${dashboardBaseUrl()}/archive?topup=cancelled`,
 	});
 	return c.json({ url });
 });
 
 /**
- * POST /api/billing/resolve
- *
- * Called by the billing page's "fast-resolve" after a successful Checkout
- * redirect. Does a one-shot Stripe read of the customer's active
- * subscription, reverse-looks up the tier, writes `accounts.plan` if
- * different, returns the resolved plan.
- *
- * Eliminates the webhook race on the happy path — if Stripe hasn't fired
- * `customer.subscription.created` by the time the user lands on the
- * success URL, we catch up synchronously.
- *
- * Returns 200 always (even when nothing resolved): `{plan, resolved}`.
- * Caller falls back to whatever `accounts.plan` already was.
- */
-app.post("/resolve", async (c) => {
-	const accountId = getAccountId(c);
-	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
-
-	const db = getDb();
-	const account = await getAccountById(db, accountId);
-	if (!account) return c.json({ error: "Account not found" }, 404);
-
-	if (!account.stripe_customer_id) {
-		return c.json({ plan: account.plan, resolved: false });
-	}
-
-	try {
-		const stripe = getStripeOrNull();
-		if (!stripe) {
-			return c.json({ plan: account.plan, resolved: false });
-		}
-		// status:"all" + explicit pick — a fresh trial checkout is `trialing`,
-		// which a status:"active" filter silently misses (resolve would no-op
-		// for every new trial signup and leave the plan to the webhook race).
-		const subs = await stripe.subscriptions.list({
-			customer: account.stripe_customer_id,
-			status: "all",
-			limit: 5,
-		});
-		const sub = subs.data.find(
-			(s) => s.status === "active" || s.status === "trialing",
-		);
-		if (!sub) return c.json({ plan: account.plan, resolved: false });
-
-		const priceId = sub.items.data[0]?.price.id;
-		if (!priceId) return c.json({ plan: account.plan, resolved: false });
-
-		const tier = getTierForPriceId(priceId);
-		if (!tier) return c.json({ plan: account.plan, resolved: false });
-
-		if (account.plan !== tier) {
-			await setAccountPlan(db, account.id, tier);
-			logger.info("billing.resolve.plan_updated", {
-				accountId: account.id,
-				from: account.plan,
-				to: tier,
-			});
-		}
-		return c.json({ plan: tier, resolved: true });
-	} catch (err) {
-		logger.warn("billing.resolve.stripe_failed", {
-			accountId: account.id,
-			error: err instanceof Error ? err.message : String(err),
-		});
-		return c.json({ plan: account.plan, resolved: false });
-	}
-});
-
-/**
- * POST /api/billing/cancel
- *
- * In-app downgrade: schedule the live subscription to cancel at period end
- * (`cancel_at_period_end = true`). Keeps Pro through the paid-for window, then
- * Stripe fires `customer.subscription.deleted` and the webhook drops the plan
- * to Free — no proration, no immediate cutoff. Idempotent: a second call on an
- * already-ending sub is a no-op. The billing page reads `cancelAtPeriodEnd`
- * back as the "ending" state ("Resume Pro" re-opens it in the portal).
- */
-app.post("/cancel", async (c) => {
-	const accountId = getAccountId(c);
-	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
-
-	const db = getDb();
-	const account = await getAccountById(db, accountId);
-	if (!account) return c.json({ error: "Account not found" }, 404);
-	if (!account.stripe_customer_id) {
-		return c.json({ error: "No active subscription to cancel." }, 400);
-	}
-
-	const stripe = getStripeOrNull();
-	if (!stripe) {
-		logger.info("Cancel called but Stripe not configured");
-		return c.json({ error: "billing_not_configured" }, 503);
-	}
-
-	const subs = await stripe.subscriptions.list({
-		customer: account.stripe_customer_id,
-		status: "all",
-		limit: 5,
-	});
-	const sub = subs.data.find(
-		(s) => s.status === "active" || s.status === "trialing",
-	);
-	if (!sub) {
-		return c.json({ error: "No active subscription to cancel." }, 400);
-	}
-
-	const toIso = (epoch: number | null | undefined) =>
-		epoch ? new Date(epoch * 1000).toISOString() : null;
-
-	if (sub.cancel_at_period_end) {
-		return c.json({ cancelAtPeriodEnd: true, cancelAt: toIso(sub.cancel_at) });
-	}
-
-	const updated = await stripe.subscriptions.update(sub.id, {
-		cancel_at_period_end: true,
-	});
-	logger.info("billing.cancel.scheduled", {
-		accountId: account.id,
-		subscriptionId: sub.id,
-	});
-	return c.json({
-		cancelAtPeriodEnd: true,
-		cancelAt: toIso(updated.cancel_at),
-	});
-});
-
-/**
  * GET /api/billing/status
  *
- * Read-only snapshot of an account's billing state — plan from the DB
- * plus the latest Stripe subscription (status, trial end, current period
- * end, discount). Lets a customer verify post-checkout that the webhook
- * landed and the gate has cleared, without having to retry `sl instance
- * create` blindly.
+ * Read-only snapshot of the account's credits state — prepaid balance,
+ * this month's PAYG draw-down, and the auto-refill config. Pure DB read;
+ * never talks to Stripe, so it can never block or 500 on Stripe weather.
  *
- * Falls back to DB-only response when Stripe is unconfigured or the
- * customer has never upgraded. Stripe read failures degrade to DB-only
- * rather than 500ing — billing introspection should never block.
+ * `subscription` is always null — subscriptions were retired with plans;
+ * the field is kept so existing clients (CLI `credits balance`) keep
+ * parsing.
  */
 app.get("/status", async (c) => {
 	const accountId = getAccountId(c);
@@ -432,12 +213,11 @@ app.get("/status", async (c) => {
 	if (!account) return c.json({ error: "Account not found" }, 404);
 
 	const refill = await getCreditRefill(db, accountId);
-	const base = {
+	return c.json({
 		plan: account.plan,
 		stripeCustomerId: account.stripe_customer_id ?? null,
 		creditsUsdMicros: (await getCredits(db, accountId)).toString(),
-		// Real PAYG draw-down this month (reads beyond the free window). Display-
-		// only on the billing page; never folds into the subscription invoice.
+		// Real PAYG draw-down this month (reads beyond the free window).
 		creditsSpentThisMonthUsdMicros: (
 			await getMonthlyCreditsSpend(db, accountId)
 		).toString(),
@@ -449,91 +229,8 @@ app.get("/status", async (c) => {
 			packUsd: refill.packUsd,
 			lastAt: refill.lastAt?.toISOString() ?? null,
 		},
-	};
-
-	if (!account.stripe_customer_id) {
-		return c.json({ ...base, subscription: null });
-	}
-
-	const stripe = getStripeOrNull();
-	if (!stripe) return c.json({ ...base, subscription: null });
-
-	try {
-		const subs = await stripe.subscriptions.list({
-			customer: account.stripe_customer_id,
-			status: "all",
-			limit: 5,
-			expand: ["data.discounts.source.coupon", "data.discounts.promotion_code"],
-		});
-		// Prefer the live one (active/trialing); fall back to most recent so
-		// canceled accounts still see history rather than `null`.
-		const sub =
-			subs.data.find((s) => s.status === "active" || s.status === "trialing") ??
-			subs.data[0];
-		if (!sub) return c.json({ ...base, subscription: null });
-
-		const item = sub.items.data[0];
-		const priceId = item?.price.id ?? null;
-		const tier = priceId ? getTierForPriceId(priceId) : null;
-		const interval = item?.price.recurring?.interval ?? null;
-		const amountCents = item?.price.unit_amount ?? null;
-		const toIso = (epoch: number | null | undefined) =>
-			epoch ? new Date(epoch * 1000).toISOString() : null;
-
-		// Stripe returns `discounts` as `Array<string | Discount>`. With
-		// `expand[]=data.discounts.source.coupon` the Discount is hydrated
-		// and `source.coupon` is the full Coupon. Walk both narrows.
-		const firstDiscount = sub.discounts?.find(
-			(d): d is Exclude<typeof d, string> => typeof d !== "string",
-		);
-		const coupon =
-			firstDiscount && typeof firstDiscount.source.coupon !== "string"
-				? firstDiscount.source.coupon
-				: null;
-		const promoCode =
-			firstDiscount && typeof firstDiscount.promotion_code !== "string"
-				? (firstDiscount.promotion_code?.code ?? null)
-				: null;
-		const discount = coupon
-			? {
-					name: coupon.name ?? null,
-					code: promoCode,
-					percentOff: coupon.percent_off ?? null,
-					amountOff: coupon.amount_off ?? null,
-					duration: coupon.duration,
-				}
-			: null;
-
-		// `current_period_end` lives on the subscription in older API
-		// versions and on each item in newer ones — read both.
-		const currentPeriodEnd =
-			(sub as unknown as { current_period_end?: number }).current_period_end ??
-			(item as unknown as { current_period_end?: number } | undefined)
-				?.current_period_end ??
-			null;
-
-		return c.json({
-			...base,
-			subscription: {
-				id: sub.id,
-				status: sub.status,
-				tier,
-				interval,
-				amountCents,
-				trialEnd: toIso(sub.trial_end),
-				currentPeriodEnd: toIso(currentPeriodEnd),
-				cancelAt: toIso(sub.cancel_at),
-				cancelAtPeriodEnd: sub.cancel_at_period_end,
-				discount,
-			},
-		});
-	} catch (err) {
-		logger.warn("billing.status.stripe_failed", {
-			accountId,
-			error: err instanceof Error ? err.message : String(err),
-		});
-		return c.json({ ...base, subscription: null });
-	}
+		subscription: null,
+	});
 });
 
 /**
@@ -650,38 +347,6 @@ app.patch("/caps", async (c) => {
 		frozenAt: updated.frozen_at,
 		alertSentAt: updated.alert_sent_at,
 	});
-});
-
-app.get("/portal", async (c) => {
-	const accountId = getAccountId(c);
-	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
-
-	const db = getDb();
-	const account = await getAccountById(db, accountId);
-	if (!account) return c.json({ error: "Account not found" }, 404);
-
-	if (!account.stripe_customer_id) {
-		return c.json(
-			{ error: "No billing customer yet. Buy credits first." },
-			400,
-		);
-	}
-
-	const stripe = getStripeOrNull();
-	if (!stripe) {
-		logger.info("Portal called but Stripe not configured");
-		return c.json({ error: "billing_not_configured" }, 503);
-	}
-	// Validate/self-heal the stored id before opening the portal — a stale
-	// (e.g. test-mode) customer would otherwise surface a raw Stripe 400 here,
-	// the one billing path with no graceful degrade.
-	const customerId = await ensureStripeCustomer(stripe, db, account);
-	const session = await stripe.billingPortal.sessions.create({
-		customer: customerId,
-		return_url: `${dashboardBaseUrl()}/platform/billing`,
-	});
-
-	return c.json({ url: session.url });
 });
 
 export default app;
