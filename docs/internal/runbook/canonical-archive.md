@@ -14,7 +14,7 @@ container `/data/archive/canonical-v1-staging`, host
 
 | Job | Command |
 | --- | --- |
-| Weekly publish | `docker/scripts/archive-publish.sh` (timer `secondlayer-archive-publish`) |
+| Twice-weekly publish | `docker/scripts/archive-publish.sh` (timer `secondlayer-archive-publish`, Wed + Sun 08:00) |
 | Refresh status only | `bun run packages/indexer/src/archive/publish-status.ts --apply` |
 | Node-audit a range | `bun run packages/indexer/src/archive/node-replay-auditor.ts` |
 | Ship a signed attestation | `bun run packages/indexer/src/archive/publish-attestation.ts --attestation <path>` |
@@ -57,6 +57,38 @@ Export flags (if you run the exporter directly):
 
 Do not promote a snapshot whose `canonical-audit` inside the same export is
 not `continuity.complete`.
+
+## Two surfaces, one archive
+
+The archive is published to **two** places and both have to move:
+
+| Surface | What it is | Written by |
+| --- | --- | --- |
+| R2 bucket | Durable copy under `secondlayer/mainnet/canonical/v1/` | `upload-snapshot`, `promote-snapshot`, `publish-status` |
+| Served tree | `archive.secondlayer.tools`, Caddy static root over the staging dir bind-mounted at `/srv/archive` | the exporter (partitions), plus the pointer mirror below |
+
+Partitions land in the served tree because the exporter writes them there. The
+two mutable pointers do not: `latest.json` and `status.json` are PUT to the
+bucket, and reach the served tree only through `ARCHIVE_PUBLIC_DIR`
+(`/data/archive/canonical-v1-staging`, set on the indexer service). Unset it and
+the tree silently keeps serving whatever pointer it already had — which is how
+`status.json` 404'd publicly for its entire life while the hourly refresh
+reported success.
+
+## Freshness cadence and thresholds
+
+`status.json` calls the archive `stale` after 5 days without a promotion or
+60k blocks behind finalized. The publish timer runs Wed + Sun, so the longest
+healthy gap is 4 days.
+
+**These two numbers are one setting.** A threshold below the cadence reports
+`stale` on a healthy week and trains everyone to ignore the field (2026-08-15:
+a weekly timer against a 48-hour objective, paging for a fault that did not
+exist). A threshold above a full missed cycle stops catching real outages. If
+you change the timer, change `DEFAULT_MAX_SECONDS_SINCE_PROMOTION` in
+`packages/shared/src/archive/status.ts` with it — the archive produces roughly
+7-9k blocks/day, so also check the result still lands inside the 60k height
+rule.
 
 ## Node-audit a range
 
