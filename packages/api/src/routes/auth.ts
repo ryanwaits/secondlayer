@@ -110,7 +110,6 @@ app.post("/verify", async (c) => {
 		account: {
 			id: account.id,
 			email: account.email,
-			plan: account.plan,
 		},
 	});
 });

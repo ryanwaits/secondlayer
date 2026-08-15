@@ -134,10 +134,9 @@ function coalesceFailedBlocks(
 
 export interface ReindexOptions {
 	/**
-	 * Policy floor on the walk's first block — NOT a caller-supplied range.
-	 * Free-tier accounts may not reindex below their registered `start_block`
-	 * (see `resolveGenesisPolicy` on the API side); this raises the walk start
-	 * and can never lower it. There is deliberately no `toBlock` counterpart:
+	 * Floor on the walk's first block — NOT a caller-supplied range. When set
+	 * (e.g. an op row carrying a `from_block`), it raises the walk start and
+	 * can never lower it. There is deliberately no `toBlock` counterpart:
 	 * a reindex always runs to chain tip. See {@link resolveBlockRange}.
 	 */
 	startBlockFloor?: number;

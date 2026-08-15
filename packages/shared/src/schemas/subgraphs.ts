@@ -69,10 +69,8 @@ export interface DeploySubgraphResponse {
 	version: string;
 	visibility?: "public" | "private";
 	message: string;
-	/** Effective indexing start height after plan policy. */
+	/** Effective indexing start height. */
 	start_block?: number;
-	/** True when the free-tier forward-only policy adjusted the start. */
-	start_block_clamped?: boolean;
 	operationId?: string;
 	reindexStarted?: boolean;
 	/** Bounded candidate-event denominator for the reindex just started, when the
@@ -106,7 +104,6 @@ export interface SubgraphSummary {
 	progress: number;
 	blocksRemaining?: number;
 	syncMode?: "sync" | "reindex";
-	resourceWarning?: SubgraphResourceWarning;
 	gapCount: number;
 	/** history_filling = expected gaps while a tip-first backfill op runs. */
 	integrity: "complete" | "gaps_detected" | "history_filling";
@@ -156,7 +153,6 @@ export interface SubgraphSyncInfo {
 	estimatedEvents?: number;
 	processedEvents?: number;
 	etaSeconds?: number | null;
-	resourceWarning?: SubgraphResourceWarning;
 	gaps: {
 		count: number;
 		totalMissingBlocks: number;
@@ -164,15 +160,6 @@ export interface SubgraphSyncInfo {
 	};
 	/** history_filling = expected gaps while a tip-first backfill op runs. */
 	integrity: "complete" | "gaps_detected" | "history_filling";
-}
-
-export interface SubgraphResourceWarning {
-	code: string;
-	message: string;
-	plan?: string;
-	blockRange: number;
-	processorMemoryMb: number;
-	recommendedPlan: "launch";
 }
 
 export interface SubgraphDetail {

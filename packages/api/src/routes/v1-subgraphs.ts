@@ -161,8 +161,8 @@ const app = new Hono<V1SubgraphsEnv>();
 // POST /v1/subgraphs/:name/renew — pay $0.50, extend its expiry a week.
 //
 // Identity is the settled payer principal → one wallet-ghost account per
-// principal. Plan 'none' means the genesis clamp keeps these forward-only;
-// the 7-day TTL (renewable, cleared on claim) bounds abandoned tables.
+// principal. The 7-day TTL (renewable, cleared on claim) bounds abandoned
+// tables.
 // Managed/platform only — OSS deploy is POST /api/subgraphs with no rail.
 
 export const PAID_DEPLOY_TTL_MS = 7 * 24 * 60 * 60 * 1000;

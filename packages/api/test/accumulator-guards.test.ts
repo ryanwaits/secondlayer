@@ -28,7 +28,7 @@ describe.skipIf(SKIP)("accumulator backfill guards", () => {
 		process.env.INSTANCE_MODE = "platform";
 		await db
 			.insertInto("accounts")
-			.values({ id: ACCOUNT, email: `${ACCOUNT}@t.local`, plan: "scale" })
+			.values({ id: ACCOUNT, email: `${ACCOUNT}@t.local` })
 			.execute();
 		for (const [name, code] of [
 			[

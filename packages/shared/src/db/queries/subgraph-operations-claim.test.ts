@@ -11,8 +11,8 @@ const SKIP = !process.env.DATABASE_URL;
 const RUNNER = "claim-test-runner";
 
 describe.skipIf(SKIP)("claimSubgraphOperation budget + ordering", () => {
-	const accFree = crypto.randomUUID();
-	const accEnterprise = crypto.randomUUID();
+	const accA = crypto.randomUUID();
+	const accB = crypto.randomUUID();
 	const names: string[] = [];
 
 	async function subgraphFor(account: string): Promise<string> {
@@ -42,12 +42,8 @@ describe.skipIf(SKIP)("claimSubgraphOperation budget + ordering", () => {
 		await db
 			.insertInto("accounts")
 			.values([
-				{ id: accFree, email: `${accFree}@t.local`, plan: "none" },
-				{
-					id: accEnterprise,
-					email: `${accEnterprise}@t.local`,
-					plan: "enterprise",
-				},
+				{ id: accA, email: `${accA}@t.local` },
+				{ id: accB, email: `${accB}@t.local` },
 			])
 			.execute();
 	});
@@ -62,46 +58,43 @@ describe.skipIf(SKIP)("claimSubgraphOperation budget + ordering", () => {
 			.deleteFrom("subgraphs")
 			.where("name", "like", "claim-test-%")
 			.execute();
-		await db
-			.deleteFrom("accounts")
-			.where("id", "in", [accFree, accEnterprise])
-			.execute();
+		await db.deleteFrom("accounts").where("id", "in", [accA, accB]).execute();
 	});
 
 	test("heavy ops stop claiming at the budget; light flow past queued heavy", async () => {
 		const db = getDb();
 		// budget=2: two heavy claims succeed, third heavy blocked, light passes.
 		const ids = await Promise.all([
-			subgraphFor(accFree),
-			subgraphFor(accFree),
-			subgraphFor(accFree),
-			subgraphFor(accFree),
+			subgraphFor(accA),
+			subgraphFor(accA),
+			subgraphFor(accA),
+			subgraphFor(accA),
 		]);
 		await createSubgraphOperation(db, {
 			subgraphId: ids[0] as string,
 			subgraphName: names[0] as string,
-			accountId: accFree,
+			accountId: accA,
 			kind: "reindex",
 			weight: "heavy",
 		});
 		await createSubgraphOperation(db, {
 			subgraphId: ids[1] as string,
 			subgraphName: names[1] as string,
-			accountId: accFree,
+			accountId: accA,
 			kind: "reindex",
 			weight: "heavy",
 		});
 		await createSubgraphOperation(db, {
 			subgraphId: ids[2] as string,
 			subgraphName: names[2] as string,
-			accountId: accFree,
+			accountId: accA,
 			kind: "reindex",
 			weight: "heavy",
 		});
 		await createSubgraphOperation(db, {
 			subgraphId: ids[3] as string,
 			subgraphName: names[3] as string,
-			accountId: accFree,
+			accountId: accA,
 			kind: "reindex",
 			weight: "light",
 		});
@@ -118,74 +111,45 @@ describe.skipIf(SKIP)("claimSubgraphOperation budget + ordering", () => {
 		expect(fourth).toBeNull();
 	});
 
-	test("plan rank breaks ties: enterprise claims before free at equal fairness", async () => {
-		const db = getDb();
-		// Equalize fairness: clear test 1's running ops so both accounts are at 0.
-		await db
-			.updateTable("subgraph_operations")
-			.set({ status: "completed", finished_at: new Date() })
-			.where("subgraph_name", "like", "claim-test-%")
-			.execute();
-		const freeId = await subgraphFor(accFree);
-		const entId = await subgraphFor(accEnterprise);
-		// free op created FIRST — plan rank must still win at equal running-count
-		await createSubgraphOperation(db, {
-			subgraphId: freeId,
-			subgraphName: names[names.length - 2] as string,
-			accountId: accFree,
-			kind: "reindex",
-			weight: "light",
-		});
-		await createSubgraphOperation(db, {
-			subgraphId: entId,
-			subgraphName: names[names.length - 1] as string,
-			accountId: accEnterprise,
-			kind: "reindex",
-			weight: "light",
-		});
-		const claimed = await claimSubgraphOperation(db, RUNNER);
-		expect(claimed?.account_id).toBe(accEnterprise);
-	});
-
-	test("queue positions mirror claim order across accounts", async () => {
+	test("queue positions mirror claim order across accounts (FIFO, no plan rank)", async () => {
 		const db = getDb();
 		await db
 			.updateTable("subgraph_operations")
 			.set({ status: "completed", finished_at: new Date() })
 			.where("subgraph_name", "like", "claim-test-%")
 			.execute();
-		const a = await subgraphFor(accFree);
-		const b = await subgraphFor(accEnterprise);
-		const c2 = await subgraphFor(accFree);
+		const a = await subgraphFor(accA);
+		const b = await subgraphFor(accB);
+		const c2 = await subgraphFor(accA);
 		const opA = await createSubgraphOperation(db, {
 			subgraphId: a,
 			subgraphName: names[names.length - 3] as string,
-			accountId: accFree,
+			accountId: accA,
 			kind: "reindex",
 			weight: "light",
 		});
 		const opB = await createSubgraphOperation(db, {
 			subgraphId: b,
 			subgraphName: names[names.length - 2] as string,
-			accountId: accEnterprise,
+			accountId: accB,
 			kind: "reindex",
 			weight: "light",
 		});
 		const opC = await createSubgraphOperation(db, {
 			subgraphId: c2,
 			subgraphName: names[names.length - 1] as string,
-			accountId: accFree,
+			accountId: accA,
 			kind: "reindex",
 			weight: "light",
 		});
-		// plan rank: enterprise first; then free FIFO
-		expect(await getOperationQueuePosition(db, opB.id)).toBe(1);
-		expect(await getOperationQueuePosition(db, opA.id)).toBe(2);
+		// No plan rank exists: at equal fairness the queue is pure FIFO.
+		expect(await getOperationQueuePosition(db, opA.id)).toBe(1);
+		expect(await getOperationQueuePosition(db, opB.id)).toBe(2);
 		expect(await getOperationQueuePosition(db, opC.id)).toBe(3);
 		// claim order matches the advertised positions
 		const first = await claimSubgraphOperation(db, RUNNER);
-		expect(first?.id).toBe(opB.id);
+		expect(first?.id).toBe(opA.id);
 		// running op no longer has a position
-		expect(await getOperationQueuePosition(db, opB.id)).toBeNull();
+		expect(await getOperationQueuePosition(db, opA.id)).toBeNull();
 	});
 });

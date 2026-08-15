@@ -31,9 +31,9 @@ async function runTokenLogin(): Promise<void> {
 
 	// Verify by hitting the account endpoint with the provided key.
 	process.env.SL_API_KEY = token;
-	let account: { id: string; email: string; plan: string };
+	let account: { id: string; email: string };
 	try {
-		account = await httpPlatform<{ id: string; email: string; plan: string }>(
+		account = await httpPlatform<{ id: string; email: string }>(
 			"/api/accounts/me",
 		);
 	} catch (err) {
@@ -133,7 +133,7 @@ export async function runLoginFlow(
 	try {
 		const verified = await httpPlatformAnon<{
 			sessionToken: string;
-			account: { id: string; email: string; plan: string };
+			account: { id: string; email: string };
 		}>("/api/auth/verify", {
 			method: "POST",
 			body: { email, code },

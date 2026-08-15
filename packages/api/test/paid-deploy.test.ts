@@ -48,11 +48,10 @@ describe.skipIf(SKIP)("x402-paid subgraph writes", () => {
 		accountId = first.id;
 		const row = await db
 			.selectFrom("accounts")
-			.select(["ghost", "plan"])
+			.select(["ghost"])
 			.where("id", "=", accountId)
 			.executeTakeFirstOrThrow();
 		expect(row.ghost).toBe(true);
-		expect(row.plan).toBe("none"); // genesis clamp applies by construction
 	});
 
 	test("paid deploy route threads the wallet identity into the deploy", async () => {

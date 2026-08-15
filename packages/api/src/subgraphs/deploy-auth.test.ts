@@ -13,12 +13,12 @@ describe("commerceGatesEnabled", () => {
 		else process.env.INSTANCE_MODE = prevMode;
 	});
 
-	test("OSS has no plan, trial, quota, expiry, or ghost gates", () => {
+	test("OSS has no paid-deploy expiry or ghost gates", () => {
 		process.env.INSTANCE_MODE = "oss";
 		expect(commerceGatesEnabled()).toBe(false);
 	});
 
-	test("platform keeps hosted deploy authorization", () => {
+	test("platform keeps the x402 paid-deploy expiry gate", () => {
 		process.env.INSTANCE_MODE = "platform";
 		expect(commerceGatesEnabled()).toBe(true);
 	});

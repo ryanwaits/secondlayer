@@ -8,8 +8,7 @@ import type { Kysely } from "kysely";
  * Stacks principal that paid. Each principal maps to exactly one ghost
  * account (`accounts.wallet_principal`, partial unique index), so repeat
  * deploys land under the same owner and the registry/cache/visibility
- * machinery all behave as if it were any other account. Plan stays 'none' →
- * the genesis clamp keeps paid deploys forward-only by construction.
+ * machinery all behave as if it were any other account.
  */
 export async function resolveWalletAccount(
 	db: Kysely<Database>,

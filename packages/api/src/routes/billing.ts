@@ -214,7 +214,6 @@ app.get("/status", async (c) => {
 
 	const refill = await getCreditRefill(db, accountId);
 	return c.json({
-		plan: account.plan,
 		stripeCustomerId: account.stripe_customer_id ?? null,
 		creditsUsdMicros: (await getCredits(db, accountId)).toString(),
 		// Real PAYG draw-down this month (reads beyond the free window).

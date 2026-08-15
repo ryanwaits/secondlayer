@@ -31,7 +31,7 @@ async function main() {
 
 	const existing = await db
 		.selectFrom("accounts")
-		.select(["id", "plan"])
+		.select(["id"])
 		.where("email", "=", LOCAL_ACCOUNT_EMAIL)
 		.executeTakeFirst();
 
@@ -43,11 +43,8 @@ async function main() {
 				email: LOCAL_ACCOUNT_EMAIL,
 				ghost: false,
 				display_name: "Self-hosted owner",
-				// Self-host is unmetered: plan gates exist to bill hosted tenants,
-				// and on your own hardware they should never say "upgrade".
-				plan: "enterprise",
 			})
-			.returning(["id", "plan"])
+			.returning(["id"])
 			.executeTakeFirstOrThrow());
 
 	const minted = await mintApiKey(db, {

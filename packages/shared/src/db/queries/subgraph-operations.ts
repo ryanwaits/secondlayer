@@ -179,7 +179,6 @@ export async function claimSubgraphOperation(
 				WHERE status = 'running'
 				GROUP BY account_id
 			) rc ON so.account_id = rc.account_id
-			LEFT JOIN accounts a ON a.id::text = so.account_id
 			WHERE
 				(
 					so.status = 'queued'
@@ -207,12 +206,6 @@ export async function claimSubgraphOperation(
 				)
 			ORDER BY
 				COALESCE(rc.cnt, 0) ASC,
-				CASE COALESCE(a.plan, 'none')
-					WHEN 'enterprise' THEN 0
-					WHEN 'scale' THEN 1
-					WHEN 'launch' THEN 2
-					ELSE 3
-				END,
 				CASE WHEN so.status = 'queued' THEN 0 ELSE 1 END,
 				so.created_at ASC
 			FOR UPDATE OF so SKIP LOCKED
@@ -335,9 +328,9 @@ export async function failSubgraphOperation(
 
 /**
  * 1-based position of a queued operation under the claim ordering (fairness →
- * plan rank → queued-first → FIFO). The heavy-budget admission filter is NOT
- * applied — a heavy op's eligibility depends on runtime budget state — so the
- * position is approximate; render it as "~N". Returns null unless queued.
+ * queued-first → FIFO). The heavy-budget admission filter is NOT applied — a
+ * heavy op's eligibility depends on runtime budget state — so the position is
+ * approximate; render it as "~N". Returns null unless queued.
  */
 export async function getOperationQueuePosition(
 	db: Kysely<Database>,
@@ -350,12 +343,6 @@ export async function getOperationQueuePosition(
 				ROW_NUMBER() OVER (
 					ORDER BY
 						COALESCE(rc.cnt, 0) ASC,
-						CASE COALESCE(a.plan, 'none')
-							WHEN 'enterprise' THEN 0
-							WHEN 'scale' THEN 1
-							WHEN 'launch' THEN 2
-							ELSE 3
-						END,
 						CASE WHEN so.status = 'queued' THEN 0 ELSE 1 END,
 						so.created_at ASC
 				) AS rn
@@ -366,7 +353,6 @@ export async function getOperationQueuePosition(
 				WHERE status = 'running'
 				GROUP BY account_id
 			) rc ON so.account_id = rc.account_id
-			LEFT JOIN accounts a ON a.id::text = so.account_id
 			WHERE so.status = 'queued'
 		)
 		SELECT rn FROM candidates WHERE id = ${operationId}

@@ -1158,12 +1158,6 @@ Examples:
 							...(visibility ? { visibility } : {}),
 						});
 
-						if (result.start_block_clamped) {
-							info(
-								`  Free tier indexes forward from deploy (start block ${result.start_block}) — upgrade for genesis backfill.`,
-							);
-						}
-
 						// Advisory deploy lints (e.g. handler reads a print field never
 						// observed on-chain) — surface but never block.
 						for (const w of result.warnings ?? []) warn(w);

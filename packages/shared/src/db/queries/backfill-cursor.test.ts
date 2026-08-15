@@ -18,7 +18,7 @@ describe.skipIf(SKIP)("backfill op cursor", () => {
 		const db = getDb();
 		await db
 			.insertInto("accounts")
-			.values({ id: ACCOUNT, email: `${ACCOUNT}@t.local`, plan: "scale" })
+			.values({ id: ACCOUNT, email: `${ACCOUNT}@t.local` })
 			.execute();
 		await registerSubgraph(db, {
 			name: SG,

@@ -40,7 +40,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			if (account) {
 				posthog.identify(account.id, {
 					email: account.email,
-					plan: account.plan,
 					...(account.displayName ? { name: account.displayName } : {}),
 				});
 			}
@@ -83,7 +82,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		setAccount(account);
 		posthog.identify(account.id, {
 			email: account.email,
-			plan: account.plan,
 			...(account.displayName ? { name: account.displayName } : {}),
 		});
 		return { account, apiKey: data.apiKey };

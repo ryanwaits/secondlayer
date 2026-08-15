@@ -20,7 +20,6 @@ interface CheckoutResponse {
 
 interface BillingStatusResponse {
 	creditsUsdMicros?: string;
-	plan?: string;
 	refill?: {
 		belowUsd: number | null;
 		packUsd: number | null;

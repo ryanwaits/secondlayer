@@ -232,7 +232,6 @@ export async function getContractPrintSchema(
 export interface AccountProfile {
 	id: string;
 	email: string;
-	plan: string;
 	displayName: string | null;
 	bio: string | null;
 	slug: string | null;

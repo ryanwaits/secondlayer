@@ -7,7 +7,7 @@ import {
 	verifySessionVoucher,
 } from "./session.ts";
 
-/** Monthly spend above this triggers the "Pro removes the meter" nudge. */
+/** Monthly spend above this triggers the prepaid-credits nudge. */
 export const UPGRADE_HINT_THRESHOLD_USD = 25;
 
 /**
@@ -169,7 +169,7 @@ export async function getMonthlySpend(
 export function upgradeHint(spentUsdMicros: bigint): string | undefined {
 	const spentUsd = Number(spentUsdMicros) / 1_000_000;
 	if (spentUsd < UPGRADE_HINT_THRESHOLD_USD) return undefined;
-	return `You have spent $${spentUsd.toFixed(2)} via x402 this month — the Pro plan ($79/mo) removes the meter entirely.`;
+	return `You have spent $${spentUsd.toFixed(2)} via x402 this month — claim an account and top up prepaid credits to skip per-request payments.`;
 }
 
 /** Attach a wallet's historical on-chain payments to a claimed account. */

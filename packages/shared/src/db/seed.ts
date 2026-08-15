@@ -73,12 +73,7 @@ const accountEmails = [
 
 const accountRows = await db
 	.insertInto("accounts")
-	.values(
-		accountEmails.map((email, i) => ({
-			email,
-			plan: i === 0 ? "pro" : i < 3 ? "builder" : "free",
-		})),
-	)
+	.values(accountEmails.map((email) => ({ email })))
 	.onConflict((oc) =>
 		oc.column("email").doUpdateSet({ email: sql`accounts.email` }),
 	)

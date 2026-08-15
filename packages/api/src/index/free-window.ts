@@ -63,7 +63,7 @@ export function indexFreeWindow(opts: {
 					reason: "UPGRADE_REQUIRED",
 					oldest_seekable_height: cutoff,
 					oldest_cursor: `${cutoff}:0`,
-					hint: "Add an API key on a paid plan, or top up usage credits, to read older history.",
+					hint: "Add an API key, or top up usage credits, to read older history.",
 				},
 			);
 		}

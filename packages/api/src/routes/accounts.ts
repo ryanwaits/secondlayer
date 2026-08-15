@@ -26,7 +26,6 @@ app.get("/me", async (c) => {
 	return c.json({
 		id: account.id,
 		email: account.email,
-		plan: account.plan,
 		displayName: account.display_name,
 		bio: account.bio,
 		avatarUrl: account.avatar_url,

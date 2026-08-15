@@ -291,7 +291,6 @@ export interface AccountsTable {
 	ghost: Generated<boolean>;
 	/** Stacks principal owning a wallet-ghost account (x402-paid deploys). */
 	wallet_principal: string | null;
-	plan: Generated<string>;
 	display_name: string | null;
 	bio: string | null;
 	avatar_url: string | null;

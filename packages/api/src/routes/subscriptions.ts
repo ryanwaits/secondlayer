@@ -13,7 +13,6 @@ import {
 	toggleSubscriptionStatus,
 	updateSubscription,
 } from "@secondlayer/shared/db/queries/subscriptions";
-import { isPlatformMode } from "@secondlayer/shared/mode";
 import {
 	type ChainTrigger,
 	CreateSubscriptionRequestSchema,
@@ -28,7 +27,6 @@ import { replaySubscription } from "@secondlayer/subgraphs/runtime/replay";
 import { Hono } from "hono";
 import { getTenantScopedAccountId } from "../lib/request-scope.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
-import { resolveSubscriptionQuota } from "../subgraphs/plan-limits.ts";
 
 /**
  * Subscription CRUD routes. Platform mode scopes by accountId from auth.
@@ -189,25 +187,6 @@ app.post("/", async (c) => {
 			{ error: `Subscription "${input.name}" already exists` },
 			409,
 		);
-	}
-
-	// Plan quota: hosted only. OSS has no account or plan.
-	const quota = isPlatformMode()
-		? await resolveSubscriptionQuota(getDb(), accountId || undefined)
-		: null;
-	if (quota !== null) {
-		const rows = await listSubscriptions(getDb(), accountId);
-		if (rows.length >= quota) {
-			return c.json(
-				{
-					error: `Subscription limit reached (${quota} on your plan). Upgrade for more.`,
-					code: "PLAN_REQUIRED",
-					limit: quota,
-					upgrade_url: "https://secondlayer.tools/platform/billing",
-				},
-				403,
-			);
-		}
 	}
 
 	try {

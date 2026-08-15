@@ -21,11 +21,9 @@ export function registerWhoamiCommand(program: Command): void {
 			}
 
 			// Identity comes from the API so it's correct in env-key mode too.
-			let account: { email: string; plan: string };
+			let account: { email: string };
 			try {
-				account = await httpPlatform<{ email: string; plan: string }>(
-					"/api/accounts/me",
-				);
+				account = await httpPlatform<{ email: string }>("/api/accounts/me");
 			} catch (err) {
 				if (err instanceof CliHttpError && err.code === "SESSION_EXPIRED") {
 					error("Session expired. Run: secondlayer login");
@@ -46,7 +44,6 @@ export function registerWhoamiCommand(program: Command): void {
 				json: options.json,
 				data: {
 					email: account.email,
-					plan: account.plan,
 					apiUrl: auth.apiUrl,
 					authSource,
 					project: active
@@ -56,7 +53,6 @@ export function registerWhoamiCommand(program: Command): void {
 				human: () => {
 					const rows: [string, string][] = [];
 					rows.push(["Email", account.email]);
-					rows.push(["Plan", account.plan]);
 					rows.push(["API URL", auth.apiUrl]);
 					rows.push(["Auth", dim(authSource)]);
 					if (active) {

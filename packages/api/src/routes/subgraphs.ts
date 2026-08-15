@@ -51,13 +51,6 @@ import { commerceGatesEnabled } from "../subgraphs/deploy-auth.ts";
 import { hasNonReplayableWrites } from "../subgraphs/handler-replay-safety.ts";
 import { deployAccountId, deploySchemaName } from "../subgraphs/namespace.ts";
 import { classifyOperationWeight } from "../subgraphs/operation-weight.ts";
-import {
-	clampDeployStartBlock,
-	resolveDeployPolicy,
-	resolveGenesisPolicy,
-	resolvePrivateVisibilityPolicy,
-	resolveSlotQuota,
-} from "../subgraphs/plan-limits.ts";
 import { lintPrintFields } from "../subgraphs/print-lint.ts";
 import {
 	SubgraphNotFoundError,
@@ -455,8 +448,7 @@ export async function runSubgraphDeploy(
 	// Best-effort print-field lint: flag `.data.<field>` reads in pinned
 	// print_event handlers that were never observed on-chain for that
 	// contract/topic. Advisory only — lookup failures skip the lint entirely.
-	// (Runs before the dryRun returns so plans carry the warnings too; the
-	// genesis clamp below only moves startBlock and can't change the lint.)
+	// (Runs before the dryRun returns so dry-run plans carry the warnings too.)
 	let printFieldWarnings: string[] = [];
 	let printFieldErrors: string[] = [];
 	try {
@@ -552,66 +544,13 @@ export async function runSubgraphDeploy(
 	const existing = await getSubgraph(db, name, accountId);
 	const schemaName = deploySchemaName(name, accountId, existing?.schema_name);
 
-	// Hosted deploy is a paid action: free (plan 'none') must start a trial.
-	// Gate NEW deploys only — redeploys are grandfathered. OSS has no plan,
-	// quota, or trial; skip the whole branch.
-	if (commerceGatesEnabled() && !existing && !identity) {
-		const deployPolicy = await resolveDeployPolicy(db, accountId ?? undefined);
-		if (!deployPolicy.deployAllowed) {
-			return c.json(
-				{
-					error:
-						"Deploying a subgraph runs it on our infrastructure — start a 14-day trial (card required, cancel anytime) to deploy. Keyless reads stay free.",
-					code: "PLAN_REQUIRED",
-					required_plan: "launch",
-					trial: true,
-					upgrade_url: "https://secondlayer.tools/platform/billing",
-				},
-				403,
-			);
-		}
-		const slotQuota = await resolveSlotQuota(db, accountId ?? undefined);
-		if (!slotQuota.allowed) {
-			return c.json(
-				{
-					error: `You've reached your subgraph limit (${slotQuota.current}/${slotQuota.limit}). Upgrade your plan to deploy more.`,
-					code: "SUBGRAPH_SLOT_LIMIT",
-					current: slotQuota.current,
-					limit: slotQuota.limit,
-					upgrade_url: "https://secondlayer.tools/platform/billing",
-				},
-				403,
-			);
-		}
-	}
-
 	// Visibility is a hosted concern. OSS names are unique locally and
-	// always readable — skip public/private claim and plan gates.
+	// always readable — skip the public-name claim check.
 	const desiredVisibility = isPlatformMode()
 		? (parsed.data.visibility ??
 			(existing ? undefined : byoUrl ? "private" : "public"))
 		: undefined;
 	if (isPlatformMode()) {
-		// Private visibility is a Pro feature. Gate transitions to private only —
-		// already-private subgraphs are grandfathered and unchanged redeploys pass.
-		if (desiredVisibility === "private" && existing?.visibility !== "private") {
-			const privacy = await resolvePrivateVisibilityPolicy(
-				db,
-				accountId ?? undefined,
-			);
-			if (!privacy.privateAllowed) {
-				return c.json(
-					{
-						error:
-							"Private subgraphs require a paid plan. Free-tier deploys are public; upgrade to make this subgraph private.",
-						code: "PLAN_REQUIRED",
-						required_plan: "launch",
-						upgrade_url: "https://secondlayer.tools/platform/billing",
-					},
-					403,
-				);
-			}
-		}
 		if (desiredVisibility === "public" && existing?.visibility !== "public") {
 			const claimed = await findPublicSubgraphByName(db, name);
 			if (claimed && claimed.account_id !== (accountId ?? "")) {
@@ -624,29 +563,6 @@ export async function runSubgraphDeploy(
 				);
 			}
 		}
-	}
-
-	// Free-tier (plan 'none', incl. ghosts) indexes forward from deploy-time
-	// tip only — genesis backfill is paid. The clamp rewrites the definition
-	// itself: both the registered start_block and the stored definition JSON
-	// come from def.startBlock (deployer regData), so this is the one spot
-	// that is authoritative for every deploy surface.
-	const genesisPolicy = commerceGatesEnabled()
-		? await resolveGenesisPolicy(db, accountId ?? undefined)
-		: { genesisAllowed: true as const, reason: "non-platform" as const };
-	let startBlockClamped = false;
-	if (!genesisPolicy.genesisAllowed) {
-		const clampRes = clampDeployStartBlock({
-			genesisAllowed: false,
-			requested: def.startBlock,
-			existingStartBlock:
-				existing != null
-					? (toBlockNumber(existing.start_block) ?? 0)
-					: undefined,
-			chainTip,
-		});
-		startBlockClamped = clampRes.clamped;
-		def = { ...def, startBlock: clampRes.startBlock };
 	}
 
 	const deployStartBlock = resolveDeployStartBlock(def);
@@ -668,13 +584,6 @@ export async function runSubgraphDeploy(
 			existingStartBlock,
 			definitionStartBlock: def.startBlock,
 		});
-	// Clamped redeploy that lands exactly on the registered start is a no-op
-	// for history — suppress the explicit-startBlock force-reindex signal.
-	const clampPreservedExisting =
-		startBlockClamped === false &&
-		!genesisPolicy.genesisAllowed &&
-		existing != null &&
-		def.startBlock === existingStartBlock;
 	// Tip-first redeploys must refuse breaking changes BEFORE any DDL runs —
 	// deploySchema applies the new schema as a side effect of detecting it.
 	const tipFirst = def.backfillMode === "concurrent" && !byoUrl;
@@ -720,9 +629,7 @@ export async function runSubgraphDeploy(
 		version: parsed.data.version,
 		handlerCode: parsed.data.handlerCode,
 		sourceCode: parsed.data.sourceCode,
-		forceReindex:
-			(parsed.data.startBlock !== undefined && !clampPreservedExisting) ||
-			startBlockChanged,
+		forceReindex: parsed.data.startBlock !== undefined || startBlockChanged,
 		dataDb: byoDataDb,
 		databaseUrlEnc,
 	});
@@ -794,7 +701,6 @@ export async function runSubgraphDeploy(
 	if (
 		tipFirst &&
 		needsPopulation &&
-		genesisPolicy.genesisAllowed &&
 		tipFirstAnchor > 0 &&
 		(deployStartBlock ?? 1) < tipFirstAnchor
 	) {
@@ -876,7 +782,6 @@ export async function runSubgraphDeploy(
 			version: result.version,
 			visibility: desiredVisibility ?? existing?.visibility ?? "private",
 			start_block: deployStartBlock,
-			...(startBlockClamped ? { start_block_clamped: true } : {}),
 			...(tipFirstHistory
 				? { live_from: tipFirstAnchor, history: tipFirstHistory }
 				: {}),
@@ -1055,25 +960,8 @@ app.post("/:subgraphName/unpublish", async (c) => {
 	const subgraph = getOwnedSubgraph(subgraphName, accountId);
 
 	if (subgraph.visibility !== "private") {
-		const db = getDb();
-		const privacy = await resolvePrivateVisibilityPolicy(
-			db,
-			subgraph.account_id,
-		);
-		if (!privacy.privateAllowed) {
-			return c.json(
-				{
-					error:
-						"Private subgraphs require a paid plan. Upgrade to unpublish this subgraph.",
-					code: "PLAN_REQUIRED",
-					required_plan: "launch",
-					upgrade_url: "https://secondlayer.tools/platform/billing",
-				},
-				403,
-			);
-		}
 		await updateSubgraphVisibility(
-			db,
+			getDb(),
 			subgraphName,
 			subgraph.account_id,
 			"private",
@@ -1112,21 +1000,10 @@ app.post("/:subgraphName/reindex", async (c) => {
 	const db = getDb();
 	const chainTip = await getChainTip();
 
-	// Free tier may reprocess its own indexed range, never below it. This is a
-	// plan-policy floor, not a user-supplied range: it raises the runtime's walk
-	// start so the definition.startBlock-genesis fallback can't fire for clamped
-	// accounts, and it never bounds the end.
-	const reindexPolicy = commerceGatesEnabled()
-		? await resolveGenesisPolicy(db, accountId ?? undefined)
-		: { genesisAllowed: true as const };
-	const startBlockFloor = reindexPolicy.genesisAllowed
-		? undefined
-		: (toBlockNumber(subgraph.start_block) ?? 0);
-
 	try {
 		const reindexWeight = await classifyOperationWeight(
 			parseProbeTargets(subgraph.sparse_probe_targets),
-			startBlockFloor ?? 1,
+			1,
 			chainTip,
 		);
 		const operation = await createSubgraphOperation(db, {
@@ -1134,7 +1011,6 @@ app.post("/:subgraphName/reindex", async (c) => {
 			subgraphName,
 			accountId,
 			kind: "reindex",
-			fromBlock: startBlockFloor,
 			weight: reindexWeight.weight,
 			estimatedEvents: reindexWeight.estimatedEvents,
 		});
@@ -1142,7 +1018,7 @@ app.post("/:subgraphName/reindex", async (c) => {
 
 		return c.json({
 			message: `Reindex queued for subgraph "${subgraphName}"`,
-			fromBlock: startBlockFloor ?? toBlockNumber(subgraph.start_block) ?? 1,
+			fromBlock: toBlockNumber(subgraph.start_block) ?? 1,
 			toBlock: "chain tip",
 			operationId: operation.id,
 			status: "queued",
@@ -1220,21 +1096,6 @@ app.post("/:subgraphName/backfill", async (c) => {
 				code: "BACKFILL_NON_REPLAYABLE_HANDLER",
 			},
 			422,
-		);
-	}
-
-	// Backfill is inherently historical — hosted free tier indexes forward only.
-	const backfillPolicy = commerceGatesEnabled()
-		? await resolveGenesisPolicy(db, accountId ?? undefined)
-		: { genesisAllowed: true as const };
-	if (!backfillPolicy.genesisAllowed) {
-		return c.json(
-			{
-				error:
-					"Historical backfill requires a paid plan — free-tier subgraphs index forward from deploy. Upgrade to backfill history.",
-				code: "GENESIS_BACKFILL_REQUIRES_PLAN",
-			},
-			403,
 		);
 	}
 

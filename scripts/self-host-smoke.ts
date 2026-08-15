@@ -119,7 +119,6 @@ async function bootstrapKey(db: Kysely<Database>): Promise<string> {
 				email: "owner@localhost",
 				ghost: false,
 				display_name: "Self-hosted owner",
-				plan: "enterprise",
 			})
 			.returning(["id"])
 			.executeTakeFirstOrThrow());

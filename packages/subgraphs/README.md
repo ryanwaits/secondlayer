@@ -91,10 +91,9 @@ Delivery bodies and response previews land in `subscription_deliveries`. Rows wh
 | `SECONDLAYER_EMIT_OUTBOX` | `true` | Set `false` to bypass outbox emission on every block (kill-switch). |
 | `SECONDLAYER_ALLOW_PRIVATE_EGRESS` | `false` | Allow the emitter to deliver to private IP ranges (localhost, 10/8, 172.16/12, 192.168/16, link-local, v6 mapped). Leave off in production. |
 | `SECONDLAYER_SECRETS_KEY` | — | 32-byte hex key for the AES-GCM envelope around subscription signing secrets. OSS mode auto-generates + persists to `.env.local`. |
-| `TENANT_PLAN` | unset | Dedicated hosting plan injected by the provisioner. Unset and paid plans use standard batches. |
-| `SUBGRAPH_REINDEX_BATCH_SIZE` | plan-based | Override the default historical block batch size used by reindex/backfill. |
-| `SUBGRAPH_REINDEX_MIN_BATCH_SIZE` | plan-based | Override the adaptive lower bound for reindex/backfill batches. |
-| `SUBGRAPH_REINDEX_MAX_BATCH_SIZE` | plan-based | Override the adaptive upper bound for reindex/backfill batches. |
+| `SUBGRAPH_REINDEX_BATCH_SIZE` | adaptive | Override the default historical block batch size used by reindex/backfill. |
+| `SUBGRAPH_REINDEX_MIN_BATCH_SIZE` | adaptive | Override the adaptive lower bound for reindex/backfill batches. |
+| `SUBGRAPH_REINDEX_MAX_BATCH_SIZE` | adaptive | Override the adaptive upper bound for reindex/backfill batches. |
 | `DATABASE_MAX_POOLS` | `25` | Max cached connection pools. With BYO subgraphs (one pool per user DB) the least-recently-used pool is evicted past this cap; the source/target pools are never evicted. |
 | `DATABASE_IDLE_TIMEOUT` | `300` | Seconds before idle connections are closed (`0` = never). Keeps a fleet of BYO pools from pinning connections. |
 

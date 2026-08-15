@@ -20,10 +20,8 @@ function jsonResponse(body: unknown, status = 200): Response {
 const account = {
 	id: "acct_1",
 	email: "person@example.com",
-	plan: "free",
 	displayName: null,
 	bio: null,
-	slug: null,
 	avatarUrl: null,
 	createdAt: "2026-01-01T00:00:00.000Z",
 };

@@ -1,10 +1,8 @@
 export interface Account {
 	id: string;
 	email: string;
-	plan: string;
 	displayName: string | null;
 	bio: string | null;
-	slug: string | null;
 	avatarUrl: string | null;
 	createdAt: string;
 }
@@ -43,14 +41,6 @@ export interface SubgraphSummary {
 	lastErrorAt?: string | null;
 	updatedAt?: string | null;
 	subscriptionCount?: number;
-	resourceWarning?: {
-		code: string;
-		message: string;
-		plan?: string;
-		blockRange: number;
-		processorMemoryMb: number;
-		recommendedPlan: "launch";
-	};
 	createdAt: string;
 }
 
@@ -65,17 +55,6 @@ export interface AccountInsight {
 	data: Record<string, unknown>;
 	createdAt: string;
 	expiresAt: string | null;
-}
-
-export interface Project {
-	id: string;
-	name: string;
-	slug: string;
-	network: string;
-	nodeRpc: string | null;
-	settings: Record<string, unknown>;
-	createdAt: string;
-	updatedAt: string;
 }
 
 export interface SystemStatus {
@@ -139,15 +118,6 @@ export interface IndexFreshnessStatus {
 }
 
 // ── Admin ──
-
-export interface AdminAccount {
-	id: string;
-	email: string;
-	plan: string;
-	createdAt: string;
-	subgraphCount: number;
-	lastActive: string | null;
-}
 
 export interface AdminStats {
 	totalAccounts: number;
