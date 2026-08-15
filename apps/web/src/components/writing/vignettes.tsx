@@ -1,10 +1,31 @@
 import { Timeline } from "@/components/figures";
+import { MissingPanel } from "./missing-panel";
 
 /**
- * Signature-figure vignettes for the /writing front page: each post's most
- * characteristic figure, rendered small as the feature art. Real library
- * components with real data — the figures ARE the imagery. Add a case per
- * post; returning null drops the feature's figure column gracefully.
+ * Slugs that have a vignette below. The feature layout needs to know BEFORE
+ * render whether a figure column exists — a `<PostVignette />` element is
+ * truthy even when the component returns null, so testing the element drops
+ * an empty box into the page instead of collapsing the column.
+ */
+const WITH_VIGNETTE = new Set([
+	"checkpoint-receipt-not-bookmark",
+	"not-in-anyones-api",
+]);
+
+export function hasVignette(slug: string): boolean {
+	return WITH_VIGNETTE.has(slug);
+}
+
+/**
+ * Feature art for the /writing front page. Two kinds live here:
+ *
+ * - A **hero** built for the slot: its own artwork, no caption, not a figure
+ *   from the post (see `missing-panel.tsx`). This is the default for new posts.
+ * - A **signature figure** lifted from the post and rendered small, captioned
+ *   "Fig. N from the post". Older pattern; fine when the post's best figure
+ *   genuinely is its cover.
+ *
+ * Add a case per post, and add its slug to WITH_VIGNETTE above.
  */
 export function PostVignette({ slug }: { slug: string }) {
 	switch (slug) {
@@ -34,6 +55,9 @@ export function PostVignette({ slug }: { slug: string }) {
 					<div className="writing-vignette-cap">Fig. 1 from the post</div>
 				</div>
 			);
+		case "not-in-anyones-api":
+			// Hero, not a figure: no caption, nothing lifted from the post.
+			return <MissingPanel />;
 		default:
 			return null;
 	}

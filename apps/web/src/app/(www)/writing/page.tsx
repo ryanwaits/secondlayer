@@ -1,4 +1,4 @@
-import { PostVignette } from "@/components/writing/vignettes";
+import { PostVignette, hasVignette } from "@/components/writing/vignettes";
 import { socialMeta } from "@/lib/og";
 import { type WritingPost, getVisiblePosts } from "@/lib/writing";
 import type { Metadata } from "next";
@@ -28,11 +28,11 @@ function monthLabel(date: string): string {
 }
 
 function FeaturePost({ post }: { post: WritingPost }) {
-	const vignette = <PostVignette slug={post.slug} />;
+	const figured = hasVignette(post.slug);
 	return (
 		<Link
 			href={`/writing/${post.slug}`}
-			className={`writing-feature${vignette ? "" : " no-fig"}`}
+			className={`writing-feature${figured ? "" : " no-fig"}`}
 		>
 			<span className="writing-feature-main">
 				<span className="writing-feature-no">
@@ -47,7 +47,11 @@ function FeaturePost({ post }: { post: WritingPost }) {
 					{post.readingTime} · {post.tags.join(" · ")}
 				</span>
 			</span>
-			{vignette && <span className="writing-feature-fig">{vignette}</span>}
+			{figured && (
+				<span className="writing-feature-fig">
+					<PostVignette slug={post.slug} />
+				</span>
+			)}
 		</Link>
 	);
 }

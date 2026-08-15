@@ -3,7 +3,8 @@ import Link from "next/link";
 
 /**
  * Continuum footer: the post ends by handing you the next one. Prev/next
- * come free from the registry order; a quiet subscribe row closes out.
+ * come free from the registry order. The feed still exists at /feed.xml and
+ * is advertised via <link rel="alternate"> — it just isn't sold in the body.
  */
 export function PostFooter({ slug }: { slug: string }) {
 	const { prev, next } = getAdjacentPosts(slug);
@@ -47,14 +48,6 @@ export function PostFooter({ slug }: { slug: string }) {
 						</>
 					)}
 				</div>
-			</div>
-			<div className="writing-sub">
-				<span className="txt">
-					New posts land in the feed the day they publish.
-				</span>
-				<a className="rss" href="/feed.xml">
-					rss · /feed.xml
-				</a>
 			</div>
 		</footer>
 	);
