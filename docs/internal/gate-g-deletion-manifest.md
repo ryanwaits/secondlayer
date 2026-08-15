@@ -1,6 +1,6 @@
 # Gate G deletion manifest
 
-Status: DRAFT v2 — founder direction 2026-08-14: KEEP magic-link/accounts/sessions;
+Status: EXECUTED (Slices A–E complete 2026-08-15; deferred tails tracked below). Original direction 2026-08-14: KEEP magic-link/accounts/sessions;
 consolidate them to serve the metered archive only. Deletion scope narrows to
 tenancy, plans, and hosted-console surface. Scope: P6.1–P6.4, P6.6–P6.12 (P6.5
 satisfied — console shipped as `apps/console`, live at console.secondlayer.tools
@@ -122,7 +122,7 @@ health ok. The oss-flip preconditions below are OBSOLETE (no flip happens):
 - `subscriptions.account_id`/`subgraphs` ownership columns become nullable/ignored,
   not dropped.
 
-## 5. Slice D — destructive (post-flip only; auth is NOT in this slice)
+## 5. Slice D — EXECUTED 2026-08-15 (incl. founder addendum: ALL plan gating removed, deploys open; migrations 0118/0119 applied to prod; pre-drop dump banked)
 
 - DELETE routers/middleware: `routes/{admin,projects,insights,wallet}.ts`,
   `middleware/{admin,usage}.ts`, `index/usage.ts`, `accounts.ts` `/usage*` routes,
@@ -146,7 +146,7 @@ health ok. The oss-flip preconditions below are OBSOLETE (no flip happens):
   query; magic-link login + credits balance/topup still green against the
   metered archive API.
 
-## 6. Slice E — isolation + periphery (parallel-safe after B)
+## 6. Slice E — EXECUTED 2026-08-15 (deferred: stacks extraction, migration archiving, indexer's narrow SDK streams-client dep — accepted; x402 operator-owned polish)
 
 - P6.9: move `@secondlayer/sdk/streams/rows` primitives (`StreamsEvent`,
   `StreamsEventType`, `DecodedEventRow`) into `@secondlayer/shared`; SDK re-exports;
