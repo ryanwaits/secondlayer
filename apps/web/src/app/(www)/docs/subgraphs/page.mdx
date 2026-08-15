@@ -337,6 +337,20 @@ const unsubscribe = subgraph.transfers.subscribe(
 
 It uses the global `EventSource` — browser or **Node ≥ 22** only. Wire contract: [Streaming (SSE)](/docs/rest-api#streaming-sse).
 
+## Get told when it changes
+
+SSE holds a connection open, which is fine for a browser and wrong for a queue or a serverless function. To have rows delivered instead, point a subscription at any table in this subgraph:
+
+```bash
+secondlayer subscriptions create sbtc-webhook \
+  --no-scaffold \
+  --subgraph sbtc-flows \
+  --table transfers \
+  --url https://your-app.com/webhooks/sbtc
+```
+
+Deliveries are signed, retried, and land in a dead-letter queue you can inspect and requeue. Full options, the delivery envelope, and signature verification: [Subscriptions](/docs/subscriptions).
+
 ## Typed ORM schemas (codegen)
 
 Subgraph rows live in your instance's Postgres. `codegen` emits a typed ORM schema for a subgraph's tables so your app reads them with Prisma, Drizzle, or Kysely:

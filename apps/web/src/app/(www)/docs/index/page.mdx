@@ -200,6 +200,18 @@ Every list response carries the collection, an opaque `next_cursor`, the chain `
 
 Built on [Streams](/docs/streams): our decoder reads the same raw firehose you can.
 
+## Get told when it changes
+
+A `consume()` loop pulls. If you'd rather be pushed — into a queue, a serverless function, another service — a subscription POSTs matching chain events to your URL as they land, with no polling loop to run:
+
+```bash
+secondlayer subscriptions create amm-swaps \
+  --url https://my-app.com/webhook \
+  --trigger '{"type":"contract_call","contractId":"SP....amm","functionName":"swap-*"}'
+```
+
+Deliveries are signed, retried, and land in a dead-letter queue you can inspect and requeue. Full trigger grammar and the delivery envelope: [Subscriptions](/docs/subscriptions).
+
 ## From the CLI and MCP
 
 ```bash
