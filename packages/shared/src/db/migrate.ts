@@ -1,6 +1,13 @@
 import { promises as fs } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { FileMigrationProvider, Kysely, Migrator, sql } from "kysely";
+import {
+	FileMigrationProvider,
+	Kysely,
+	type MigrationProvider,
+	type MigrationResultSet,
+	Migrator,
+	sql,
+} from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
 import { type MigrationRole, setMigrationRole } from "./migration-role.ts";
@@ -35,6 +42,48 @@ export function migrationTargets(): MigrationTarget[] {
 	if (source) out.push({ url: source, role: "source" });
 	if (target) out.push({ url: target, role: "target" });
 	return out;
+}
+
+/** The on-disk migration set (`packages/shared/migrations`), in filename order. */
+export function fileMigrationProvider(): MigrationProvider {
+	return new FileMigrationProvider({
+		fs,
+		path: { join },
+		migrationFolder: migrationsFolder,
+	});
+}
+
+/** Every migration name in execution order, without touching a database. */
+export async function migrationNames(): Promise<string[]> {
+	const migrations = await fileMigrationProvider().getMigrations();
+	return Object.keys(migrations).sort();
+}
+
+export interface FileMigrationOptions {
+	/**
+	 * Apply migrations only up to and including this name instead of running to
+	 * latest. Deploys always run to latest; partial application exists so an
+	 * upgrade can be reproduced faithfully — build a database at a released
+	 * revision, then finish it — which is what the schema-parity proof needs.
+	 */
+	through?: string;
+}
+
+/**
+ * Apply the on-disk migrations to `db`. Returns kysely's result set rather than
+ * throwing so callers decide how loud to be about a failure.
+ */
+export function runFileMigrations<DB>(
+	db: Kysely<DB>,
+	options: FileMigrationOptions = {},
+): Promise<MigrationResultSet> {
+	const migrator = new Migrator({
+		db: db as Kysely<unknown>,
+		provider: fileMigrationProvider(),
+	});
+	return options.through === undefined
+		? migrator.migrateToLatest()
+		: migrator.migrateTo(options.through);
 }
 
 export async function runMigrations() {
@@ -92,17 +141,8 @@ async function migrateOne(connectionString: string) {
 		console.log("📋 no kysely_migration table yet (first run)");
 	}
 
-	const migrator = new Migrator({
-		db,
-		provider: new FileMigrationProvider({
-			fs,
-			path: { join },
-			migrationFolder: migrationsFolder,
-		}),
-	});
-
 	try {
-		const { error, results } = await migrator.migrateToLatest();
+		const { error, results } = await runFileMigrations(db);
 		for (const r of results ?? []) {
 			if (r.status === "Success") console.log(`✅ ${r.migrationName}`);
 			else if (r.status === "Error") console.error(`❌ ${r.migrationName}`);
