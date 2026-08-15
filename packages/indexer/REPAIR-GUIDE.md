@@ -2,6 +2,16 @@
 
 Repairs missing `function_args` and `raw_result` for contract_call transactions using Hiro API.
 
+## Prerequisites
+
+Export both before running any command below. Never inline a key into a command
+you might paste into an issue, a doc, or this file.
+
+```bash
+export HIRO_API_KEY=...   # https://platform.hiro.so
+export DATABASE_URL=postgresql://<user>:<pass>@127.0.0.1:5432/secondlayer
+```
+
 ## Current State Check
 
 First, check how many transactions need repair:
@@ -30,8 +40,8 @@ Run in dry-run mode first to verify the approach:
 cd /opt/secondlayer
 
 # Dry run - logs only, no DB changes
-HIRO_API_KEY=4ec363c60b6aca08ece1c145ac2879d5 \
-DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/secondlayer \
+HIRO_API_KEY="$HIRO_API_KEY" \
+DATABASE_URL="$DATABASE_URL" \
 REPAIR_FROM=7429554 \
 REPAIR_TEST_BLOCKS=100 \
 REPAIR_BATCH_SIZE=5 \
@@ -64,8 +74,8 @@ cd /opt/secondlayer
 rm -f repair-progress.json
 
 # Run with actual DB updates
-HIRO_API_KEY=4ec363c60b6aca08ece1c145ac2879d5 \
-DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/secondlayer \
+HIRO_API_KEY="$HIRO_API_KEY" \
+DATABASE_URL="$DATABASE_URL" \
 REPAIR_FROM=7429554 \
 REPAIR_TEST_BLOCKS=100 \
 REPAIR_BATCH_SIZE=5 \
@@ -90,8 +100,8 @@ Once the 100-block test is verified, you have options:
 
 ```bash
 # Resume from where test left off (automatic resume)
-HIRO_API_KEY=4ec363c60b6aca08ece1c145ac2879d5 \
-DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/secondlayer \
+HIRO_API_KEY="$HIRO_API_KEY" \
+DATABASE_URL="$DATABASE_URL" \
 REPAIR_TEST_BLOCKS=500 \
 REPAIR_BATCH_SIZE=10 \
 bun run packages/indexer/src/repair-transactions.ts
@@ -106,8 +116,8 @@ bun run packages/indexer/src/repair-transactions.ts
 rm -f repair-progress.json
 
 # Run entire 7.4M range
-HIRO_API_KEY=4ec363c60b6aca08ece1c145ac2879d5 \
-DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/secondlayer \
+HIRO_API_KEY="$HIRO_API_KEY" \
+DATABASE_URL="$DATABASE_URL" \
 REPAIR_FROM=7429554 \
 REPAIR_TO=7440670 \
 REPAIR_BATCH_SIZE=10 \
