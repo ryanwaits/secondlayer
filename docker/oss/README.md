@@ -13,7 +13,8 @@ Mainnet is the large one: the reference index measures ~500 GB at 8.77M blocks
 
 ## Full stack (bitcoind + stacks-node)
 
-- 128 GB RAM, 3 TB NVMe
+- Floor: 96 GB RAM, 2.5 TB NVMe
+- Recommended: 128 GB RAM, 3 TB NVMe
 
 The chain dominates: Stacks chainstate alone measures 1.3 TB, plus bitcoind,
 plus the index above.
