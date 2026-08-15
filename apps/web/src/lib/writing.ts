@@ -52,6 +52,18 @@ export const POSTS: WritingPost[] = [
 		],
 		status: "published",
 	},
+	{
+		slug: "not-in-anyones-api",
+		number: 2,
+		title: "The data your app needs isn't in anyone's API",
+		dek: "Public APIs index what's general, and your contract is specific by definition. Here's why that gap never closes on its own, what it leaves you with, and what we built instead.",
+		date: "2026-08-15",
+		tags: ["indexers", "stacks"],
+		readingTime: "6 min",
+		notes: "popover",
+		figures: ["the one choice"],
+		status: "draft",
+	},
 ];
 
 const SHOW_DRAFTS = process.env.NODE_ENV !== "production";
