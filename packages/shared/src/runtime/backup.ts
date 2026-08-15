@@ -1,6 +1,17 @@
 /**
  * Backup bundle — consistent DB, pinned config, encrypted keys, handler
  * manifests, and scope. Restore onto a wiped host must deep-verify green.
+ *
+ * PLANNER ONLY — THIS DOES NOT BACK ANYTHING UP. `restoreBackup` returns
+ * `deep_green` from its own argument; it never reads a dump, writes a database,
+ * or verifies a restore. Nothing in the product calls it.
+ *
+ * Treating this shape as a shipped feature is not hypothetical: the self-host
+ * docs published this step list as an operator procedure until 2026-08-15, so
+ * readers believed there was a backup command behind it. Real self-host backup
+ * guidance is `pg_dump` plus the `.env` secrets (see docs/self-host); real
+ * production backup is the shell in `docker/scripts/`. If you wire this up,
+ * make it do the work first and delete this notice.
  */
 
 export const BACKUP_PARTS = [

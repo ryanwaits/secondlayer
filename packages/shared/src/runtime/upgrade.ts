@@ -1,6 +1,15 @@
 /**
  * Upgrade contract — pin image, preflight schema/disk, backup first,
  * migrate, health/verify, document rollback limits.
+ *
+ * PLANNER ONLY — `applyUpgrade` returns `{applied:true}` without pulling an
+ * image, running a preflight, or migrating anything. Nothing in the product
+ * calls it. The upgrade operators actually perform is `docker compose pull &&
+ * up -d`, with migrations applied at boot by the runtime entrypoint.
+ *
+ * Same caution as the sibling backup planner: this step list was published as
+ * an operator procedure in the self-host docs until 2026-08-15. Make it do the
+ * work before presenting it as one.
  */
 
 export const UPGRADE_STEPS = [
