@@ -80,6 +80,9 @@ const KNOWN = new Set<string>([
 	// Escape hatch for the boot-time resource preflight. Setting it is exactly
 	// the moment an operator must not also be told it is an unknown key.
 	"SECONDLAYER_ALLOW_UNDERSIZED",
+	// Forward-only instances declare where their history starts; refusing it as
+	// unknown would block the only way to say "the prefix is absent on purpose".
+	"SECONDLAYER_SYNC_START_HEIGHT",
 ]);
 
 /**
