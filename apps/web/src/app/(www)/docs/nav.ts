@@ -7,15 +7,28 @@ export interface DocsNavGroup {
 	items: DocsNavItem[];
 }
 
-/** Sidebar information architecture for the docs site. */
+/**
+ * Sidebar information architecture for the docs site.
+ *
+ * Ordered by what a reader does, not by what we built:
+ *
+ * - **Start** gets them running. Devnet used to sit here in slot 4, ahead of
+ *   the instance token — it's a local-development concern, so it moved to
+ *   Operate.
+ * - **Build** is the three surfaces in fork order (keep your own API → take the
+ *   generated one → decode it yourself), with Subscriptions last because it's a
+ *   delivery mode over the first two, never a fourth peer.
+ * - **Tools** are the ways you reach those surfaces. SDK concepts (Sinks,
+ *   Filters) sit with the SDK rather than competing with the surfaces in Build.
+ * - **Operate / Reference / Chain** are lookup, not learning.
+ */
 export const DOCS_NAV: DocsNavGroup[] = [
 	{
-		label: "Getting started",
+		label: "Start",
 		items: [
 			{ title: "Introduction", href: "/docs" },
 			{ title: "Run Secondlayer", href: "/docs/self-host" },
 			{ title: "Quickstart", href: "/docs/quickstart" },
-			{ title: "Devnet", href: "/docs/devnet" },
 			{ title: "Instance token & credits", href: "/docs/authentication" },
 		],
 	},
@@ -24,8 +37,13 @@ export const DOCS_NAV: DocsNavGroup[] = [
 		items: [
 			{ title: "Index", href: "/docs/index" },
 			{ title: "Subgraphs", href: "/docs/subgraphs" },
-			{ title: "Subscriptions", href: "/docs/subscriptions" },
 			{ title: "Streams", href: "/docs/streams" },
+			{ title: "Subscriptions", href: "/docs/subscriptions" },
+		],
+	},
+	{
+		label: "Tools",
+		items: [
 			{ title: "SDK", href: "/docs/sdk" },
 			{ title: "Sinks", href: "/docs/sinks" },
 			{ title: "Filters", href: "/docs/filters" },
@@ -34,17 +52,13 @@ export const DOCS_NAV: DocsNavGroup[] = [
 		],
 	},
 	{
-		label: "Archive",
+		label: "Operate",
 		items: [
 			{ title: "Verified archive", href: "/docs/archive" },
 			{ title: "Verification", href: "/docs/verification" },
-		],
-	},
-	{
-		label: "Deploy",
-		items: [
 			{ title: "Deploy your app", href: "/docs/deploy" },
 			{ title: "Docker and EC2", href: "/docs/deploy/docker" },
+			{ title: "Devnet", href: "/docs/devnet" },
 		],
 	},
 	{

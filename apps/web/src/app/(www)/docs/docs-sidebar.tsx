@@ -74,10 +74,13 @@ export function DocsSidebar() {
 					<Logo size={22} />
 					<span>secondlayer</span>
 				</Link>
-				{/* Product links live up here on mobile (the topnav strip is gone);
-				    desktop keeps them in the fixed top nav, so this group hides. */}
+				{/* Site links live up here on mobile (the topnav strip is gone);
+				    desktop keeps them in the fixed top nav, so this group hides.
+				    Labeled "Site" because that's what it is — Home, Archive, Docs,
+				    Blog. It said "Products" until 2026-08, which told a mobile
+				    reader our products were "Home" and "Blog". */}
 				<div className="docs-nav-group docs-nav-products">
-					<div className="docs-nav-grouplabel">Products</div>
+					<div className="docs-nav-grouplabel">Site</div>
 					<div className="docs-nav-products-grid">
 						{DOCS_STRIP.map((p) => (
 							<Link key={p.href} href={p.href} className="docs-nav-item">
