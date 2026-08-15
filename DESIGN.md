@@ -128,6 +128,35 @@ components:
 
 # Design System: Secondlayer
 
+## 0. Token names ≠ CSS variable names
+
+The `colors:` block above is the brand palette. **Most of those names do not exist
+as CSS custom properties.** `globals.css` was written with its own vocabulary, so
+`var(--pewter)` resolves to nothing, silently voiding the whole declaration with
+no error in the console. Writing CSS from this document without checking has cost
+real time more than once.
+
+Map before you write. Grep `apps/web/src/app/globals.css` for the real name.
+
+| This doc | Actual CSS variable | Note |
+| --- | --- | --- |
+| `paper` | `--bg`, `--bg-elevated` | |
+| `card` | `--bg-chrome`, `--term-raise` | |
+| `ink` | `--text-main`, `--text-prose` | |
+| `ink-hover` | `--term-fg` (light theme) | |
+| `ink-demoted` | `--ink-demoted` | matches |
+| `pewter` | `--ink-demoted` **in dark theme** | same variable as `ink-demoted`, different theme |
+| `accent` | `--accent` | matches |
+| `accent-hover` | `--accent-hover` | matches |
+| `terminal-*` | `--term-*` | the `--term-*` set **in dark theme**; in light, `--term-bg` is `#ffffff` |
+| `error` / `success` / `warning` | `--red` / `--green` / `--yellow` | |
+| `fog`, `dove` | **no variable exists** | use the hex as a literal, and say why in a comment |
+
+Two of these are outright traps: `pewter` and `ink-demoted` are the *same*
+variable in different themes, and the `terminal-*` palette describes how
+`--term-*` renders in **dark** — a light-theme editor surface is white, not
+`#151515`.
+
 ## 1. Overview
 
 **Creative North Star: "The Quiet Install Page"**
