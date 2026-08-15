@@ -1,5 +1,6 @@
-import { getDb } from "@secondlayer/shared/db";
+import { getDb, getSourceDb } from "@secondlayer/shared/db";
 import { getInstance } from "@secondlayer/shared/db/queries/instance";
+import { resolveSyncScope } from "@secondlayer/shared/db/queries/sync-scope";
 import { getDeclaredInstanceMode } from "@secondlayer/shared/mode";
 import { Hono } from "hono";
 import { sql } from "kysely";
@@ -118,11 +119,24 @@ export function createInstanceCatalogRouter() {
 				.select(["name", "status", "kind"])
 				.orderBy("name")
 				.execute();
+			const network =
+				instance?.network ?? process.env.STACKS_NETWORK ?? "mainnet";
+			// The declared scope answers "does this instance claim genesis?", which
+			// a consumer cannot infer from the catalog otherwise. It reads the
+			// SOURCE plane (the chain the scope describes) and degrades to null on
+			// its own — a pre-migration instance must still get its catalog.
+			let scope: Awaited<ReturnType<typeof resolveSyncScope>> | null = null;
+			try {
+				scope = await resolveSyncScope(getSourceDb(), network);
+			} catch {
+				scope = null;
+			}
 			return c.json({
 				mode,
-				network: instance?.network ?? process.env.STACKS_NETWORK ?? "mainnet",
+				network,
 				instance_id: instance?.id ?? null,
 				features,
+				scope,
 				subgraphs: subgraphs.map((row) => ({
 					name: row.name,
 					status: row.status,
@@ -146,6 +160,7 @@ export function createInstanceCatalogRouter() {
 				network: process.env.STACKS_NETWORK ?? "mainnet",
 				instance_id: null,
 				features,
+				scope: null,
 				subgraphs: [],
 				subscriptions: [],
 				console: {

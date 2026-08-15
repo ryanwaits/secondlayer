@@ -14,6 +14,7 @@ import type {
 	RunStatus,
 	StageKind,
 } from "../coverage/constraints.ts";
+import type { BootstrapSource } from "../coverage/evaluate.ts";
 
 export type {
 	FailureClass,
@@ -899,6 +900,21 @@ export interface StageFailuresTable {
 	retain_until: Generated<Date>;
 }
 
+/**
+ * The instance's declared scope — one row per network. `start_height` is what
+ * makes missing history below it deliberate rather than a gap.
+ */
+export interface SyncScopesTable {
+	network: string;
+	start_height: number;
+	target_height: number | null;
+	bootstrap_source: BootstrapSource;
+	bootstrap_manifest_digest: string | null;
+	genesis_hash: string | null;
+	created_at: Generated<Date>;
+	updated_at: Generated<Date>;
+}
+
 export interface Database {
 	blocks: BlocksTable;
 	transactions: TransactionsTable;
@@ -951,6 +967,7 @@ export interface Database {
 	chain_read_cache: ChainReadCacheTable;
 	pending_fork_blocks: PendingForkBlocksTable;
 	observer_journal: ObserverJournalTable;
+	sync_scopes: SyncScopesTable;
 	stage_registry: StageRegistryTable;
 	stage_runs: StageRunsTable;
 	stage_block_receipts: StageBlockReceiptsTable;

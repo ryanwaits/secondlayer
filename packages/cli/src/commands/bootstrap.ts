@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,8 +12,10 @@ import {
 } from "@secondlayer/shared/archive/copy-loader";
 import { computeRangeDigest } from "@secondlayer/shared/archive/range-digest";
 import { getDb, getRawClient, sql } from "@secondlayer/shared/db";
+import { upsertSyncScope } from "@secondlayer/shared/db/queries/sync-scope";
 import type { Command } from "commander";
 import {
+	type ArchiveManifest,
 	type ArchivePartition,
 	type LoadedReference,
 	checkSignature,
@@ -64,6 +67,36 @@ const BLOCKS_PER_DAY_ESTIMATE = 5_400;
 /** Conservative COPY throughput floor, measured at ~64k rows/s on commodity
  *  hardware; halved here so the ETA reads pessimistic rather than optimistic. */
 const RESTORE_ROWS_PER_SECOND = 30_000;
+
+/**
+ * Where the restored history actually begins and ends.
+ *
+ * The load loop only ever tracks the high-water mark, which is the wrong end
+ * for a scope: the tip says how far the instance is caught up, while the LOW
+ * bound is what makes everything under it deliberately absent instead of
+ * missing. A `--from-block` restore has no genesis at all, so reading the
+ * start off the tip would declare a scope that covers history the instance
+ * never loaded.
+ */
+export function archiveScopeBounds(
+	partitions: readonly { from_block: number; to_block: number }[],
+): { start_height: number; tip_height: number } | null {
+	if (partitions.length === 0) return null;
+	return {
+		start_height: Math.min(...partitions.map((p) => p.from_block)),
+		tip_height: Math.max(...partitions.map((p) => p.to_block)),
+	};
+}
+
+/**
+ * The archive's identity: sha256 over the manifest minus its signature
+ * envelope — the same recipe the publisher addresses snapshots with, so the
+ * digest recorded in the scope is the one printed on the archive.
+ */
+function manifestDigest(manifest: ArchiveManifest): string {
+	const { signature: _signature, key_id: _keyId, ...payload } = manifest;
+	return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+}
 
 /**
  * The node's current Stacks tip, or null when it cannot be reached. A missing
@@ -150,6 +183,10 @@ export function attachBootstrapCommand(cmd: Command): Command {
 			"archive manifest: an https URL or a local file path",
 		)
 		.option("--to-block <n>", "stop at this height instead of the archive tip")
+		.option(
+			"--from-block <n>",
+			"forward-only: restore from this height instead of genesis; earlier history is declared out of scope",
+		)
 		.option("--public-key <pem>", "pin the signing key instead of fetching it")
 		.option("-y, --yes", "skip the confirmation prompt")
 		.option("--json", "Output as JSON")
@@ -159,6 +196,7 @@ export function attachBootstrapCommand(cmd: Command): Command {
 Examples:
   $ secondlayer bootstrap --against https://archive.secondlayer.tools/.../snapshots/<digest>.json
   $ secondlayer bootstrap --against ./snapshot.json --to-block 4000000 --yes
+  $ secondlayer bootstrap --against ./snapshot.json --from-block 8000000 --yes
 
 Exit codes:
   0  restored and verified
@@ -205,8 +243,15 @@ Exit codes:
 
 				const toBlock =
 					opts.toBlock === undefined ? undefined : Number(opts.toBlock);
+				// Whole partitions only: a partition straddling the requested start
+				// would load blocks below the height the operator declared, and the
+				// scope would then claim less history than the database holds.
+				const fromBlock =
+					opts.fromBlock === undefined ? undefined : Number(opts.fromBlock);
 				const declared = (reference.manifest.partitions ?? []).filter(
-					(p) => toBlock === undefined || p.to_block <= toBlock,
+					(p) =>
+						(toBlock === undefined || p.to_block <= toBlock) &&
+						(fromBlock === undefined || p.from_block >= fromBlock),
 				);
 				const resume = planTornImport({
 					hasIndexProgress: !!progress,
@@ -249,6 +294,11 @@ Exit codes:
 					process.exit(BOOTSTRAP_EXIT.REFUSED);
 				}
 
+				// Bounds come from everything the run declares, not the resume
+				// remainder: a resumed import still starts where the archive starts.
+				const scopeBounds = archiveScopeBounds(declared);
+				const startHeight = scopeBounds?.start_height ?? 0;
+
 				const totalRows = partitions.reduce((sum, p) => sum + p.row_count, 0);
 				const totalBytes = partitions.reduce((sum, p) => sum + p.byte_size, 0);
 				const tipHeight = Math.max(...partitions.map((p) => p.to_block));
@@ -261,7 +311,10 @@ Exit codes:
 					console.error(
 						formatKeyValue([
 							["archive", reference.origin],
-							["coverage", `genesis → ${tipHeight.toLocaleString()}`],
+							[
+								"coverage",
+								`${startHeight === 0 ? "genesis" : startHeight.toLocaleString()} → ${tipHeight.toLocaleString()}`,
+							],
 							["rows", totalRows.toLocaleString()],
 							["download", `${(totalBytes / 1e9).toFixed(1)} GB`],
 							["signature", "verified"],
@@ -360,6 +413,30 @@ Exit codes:
 						updated_at = NOW()
 				`.execute(db);
 
+				// Declare the scope. Without it an instance restored from a
+				// forward-only archive reads as a chain missing its first N million
+				// blocks; with it, that prefix is `out_of_scope` and the coverage
+				// report stops crying gap over history nobody asked for.
+				const genesisRow =
+					startHeight === 0
+						? await db
+								.selectFrom("blocks")
+								.select("hash")
+								.where("canonical", "=", true)
+								.where("height", "=", 0)
+								.executeTakeFirst()
+						: undefined;
+				await upsertSyncScope(db, {
+					network,
+					start_height: startHeight,
+					target_height: null,
+					bootstrap: {
+						source: "archive",
+						manifest_digest: manifestDigest(reference.manifest),
+						genesis_hash: genesisRow?.hash ?? null,
+					},
+				});
+
 				const seam =
 					nodeTipAtStart !== null && nodeTipAtStart > tipHeight
 						? {
@@ -372,6 +449,7 @@ Exit codes:
 				const report = {
 					status: divergent === 0 ? "restored" : "divergent",
 					archive: reference.origin,
+					start_height: startHeight,
 					tip_height: tipHeight,
 					rows: loaded,
 					ranges_verified: referenceDigests.length,
@@ -405,6 +483,13 @@ Exit codes:
 									`Your instance holds history through ${tipHeight.toLocaleString()} and will resume at ${(tipHeight + 1).toLocaleString()}.`,
 								),
 							);
+							if (startHeight > 0) {
+								console.error(
+									dim(
+										`  Scope starts at ${startHeight.toLocaleString()} — earlier history is declared out of scope, not missing.`,
+									),
+								);
+							}
 							if (seam) {
 								// The chain kept moving during the restore. Naming the gap
 								// is the difference between "start the indexer" and knowing
