@@ -1,8 +1,9 @@
+# syntax=docker/dockerfile:1
+
 # SHARED between deployments: the self-host oss compose (docker/oss/) and the
 # internal archive-ops compose (docker/) both build from this one file's
 # targets. Per the de-hosting manifest this is deliberate — one build surface,
 # two configurations — so changes here must keep both consumers green.
-# syntax=docker/dockerfile:1
 
 # =============================================================================
 # Base stage - common dependencies
