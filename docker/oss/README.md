@@ -19,6 +19,10 @@ Mainnet is the large one: the reference index measures ~500 GB at 8.77M blocks
 The chain dominates: Stacks chainstate alone measures 1.3 TB, plus bitcoind,
 plus the index above.
 
+The runtime enforces these floors at start and refuses to boot below them.
+`SECONDLAYER_ALLOW_UNDERSIZED=true` downgrades the refusal to a warning, so a
+box that is already undersized can still be restarted.
+
 No Hiro-REST "light" mode.
 
 ## Quick start

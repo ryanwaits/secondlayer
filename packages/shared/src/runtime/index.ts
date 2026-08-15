@@ -63,6 +63,19 @@ export type {
 } from "./backup.ts";
 export { UPGRADE_STEPS, applyUpgrade, planUpgrade } from "./upgrade.ts";
 export type { UpgradePlan, UpgradeStep } from "./upgrade.ts";
-export { FLOORS, preflightResources } from "./guardrails.ts";
-export type { GuardrailResult, ResourceSnapshot } from "./guardrails.ts";
+export { FLOORS, diskFloorGb, preflightResources } from "./guardrails.ts";
+export type {
+	DiskEstimates,
+	GuardrailNetwork,
+	GuardrailResult,
+	ResourceSnapshot,
+} from "./guardrails.ts";
+export {
+	UNDERSIZED_OVERRIDE,
+	decidePreflight,
+	runPreflight,
+} from "./preflight.ts";
+export type { PreflightDecision } from "./preflight.ts";
+export { measureResources } from "./resources.ts";
+export type { MeasuredResources } from "./resources.ts";
 export { MODULE_COMMANDS, commandFor } from "./commands.ts";

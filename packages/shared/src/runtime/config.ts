@@ -77,6 +77,9 @@ const KNOWN = new Set<string>([
 	// their valid config is a typo unless they are named here.
 	"ARCHIVE_DIR",
 	"ARCHIVE_PUBLIC_DIR",
+	// Escape hatch for the boot-time resource preflight. Setting it is exactly
+	// the moment an operator must not also be told it is an unknown key.
+	"SECONDLAYER_ALLOW_UNDERSIZED",
 ]);
 
 /**

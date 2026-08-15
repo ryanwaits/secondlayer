@@ -51,6 +51,23 @@ export function planServe(): { modules: ModuleId[]; config: typeof parsed } {
 }
 
 if (import.meta.main) {
+	// Resource preflight before migrations: a box that cannot hold the index
+	// should be told so before it spends hours acquiring one.
+	const { runPreflight } = await import("./preflight.ts");
+	const { getDb, sql } = await import("../db/index.ts");
+	const decision = await runPreflight({
+		dataDir: parsed.config.DATA_DIR,
+		mode: parsed.config.NODE_MODE,
+		network: parsed.config.NETWORK,
+		query: async (statement) => {
+			const result = await sql.raw(statement).execute(getDb());
+			return result.rows as Array<Record<string, unknown>>;
+		},
+		env,
+	});
+	for (const message of decision.messages) console.error(message);
+	if (decision.action === "refuse") process.exit(1);
+
 	const { runMigrations } = await import("../db/migrate.ts");
 	try {
 		await runMigrations();

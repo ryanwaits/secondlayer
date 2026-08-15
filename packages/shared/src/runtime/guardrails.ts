@@ -82,8 +82,13 @@ export function diskFloorGb(
 	return network === "mainnet" ? FLOORS.mainnetAppDiskGb : FLOORS.appDiskGb;
 }
 
+/**
+ * A dimension the caller could not measure is absent, not zero. Skipping it
+ * keeps an unreadable `statfs` from presenting as a 0 GB disk and refusing a
+ * perfectly adequate box.
+ */
 export function preflightResources(
-	snap: ResourceSnapshot,
+	snap: Partial<ResourceSnapshot>,
 	mode: "external" | "stacks" | "full",
 	// Defaults to the strictest network: an unspecified caller should be told it
 	// needs more disk than it does, never less.
@@ -92,17 +97,20 @@ export function preflightResources(
 	const errors: string[] = [];
 	const ramFloor = mode === "full" ? FLOORS.fullRamMb : FLOORS.appRamMb;
 	const diskFloor = diskFloorGb(mode, network);
-	if (snap.ramMb < ramFloor) {
+	if (snap.ramMb !== undefined && snap.ramMb < ramFloor) {
 		errors.push(
 			`RAM ${snap.ramMb}MB below ${ramFloor}MB for NODE_MODE=${mode}`,
 		);
 	}
-	if (snap.diskGb < diskFloor) {
+	if (snap.diskGb !== undefined && snap.diskGb < diskFloor) {
 		errors.push(
 			`disk ${snap.diskGb}GB below ${diskFloor}GB for NODE_MODE=${mode} on ${network}`,
 		);
 	}
-	if (snap.postgresMaxConnections < FLOORS.postgresMaxConnections) {
+	if (
+		snap.postgresMaxConnections !== undefined &&
+		snap.postgresMaxConnections < FLOORS.postgresMaxConnections
+	) {
 		errors.push(
 			`Postgres max_connections ${snap.postgresMaxConnections} below ${FLOORS.postgresMaxConnections}`,
 		);
