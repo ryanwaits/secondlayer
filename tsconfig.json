@@ -23,9 +23,6 @@
 	},
 	"exclude": [
 		"apps/**",
-		"examples/**",
-		"packages/*/templates/**",
-		"tmp/**",
-		"spike/**"
+		"tmp/**"
 	]
 }
