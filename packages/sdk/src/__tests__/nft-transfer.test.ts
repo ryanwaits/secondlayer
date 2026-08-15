@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { decodeNftTransfer, isNftTransfer } from "../streams/nft-transfer.ts";
+import { decodeNftTransfer, isNftTransfer } from "../streams/rows.ts";
 import type { StreamsEvent } from "../streams/types.ts";
 
 const EVENT: StreamsEvent = {

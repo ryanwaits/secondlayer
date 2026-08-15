@@ -1,12 +1,11 @@
-import {
-	type StreamsClient,
-	type StreamsEvent,
-	type StreamsEventType,
-	createStreamsClient,
-} from "@secondlayer/sdk";
+import { type StreamsClient, createStreamsClient } from "@secondlayer/sdk";
 import type { Pox5EventTopic } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
+import type {
+	StreamsEvent,
+	StreamsEventType,
+} from "@secondlayer/shared/streams-rows";
 import { cvToValue, deserializeCV } from "@secondlayer/stacks/clarity";
 import {
 	POX5_CONTRACT_ID_MAINNET,

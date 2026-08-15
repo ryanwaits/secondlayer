@@ -174,8 +174,6 @@ export async function buildContext(
 				? snap.subgraphs.map(formatSubgraphSummary)
 				: unavailable,
 			subscriptions: orNull(snap?.subscriptions),
-			projects: orNull(snap?.projects),
-			apiKeys: orNull(snap?.apiKeys),
 			activeOperations: orNull(snap?.activeOperations),
 		},
 		whatYouCanDo: buildCapabilities(),

@@ -63,7 +63,6 @@ function realCtx(): SubgraphContext {
 		BLOCK,
 		TX,
 		false,
-		false,
 	);
 }
 

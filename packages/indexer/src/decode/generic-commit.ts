@@ -3,7 +3,6 @@
  * (sBTC/PoX/BNS) producers share the atomic decoder adapter here.
  */
 
-import type { DecodedEventRow } from "@secondlayer/sdk/streams/rows";
 import {
 	type DecoderAdapterFailure,
 	type DecoderAdapterReceipt,
@@ -12,6 +11,7 @@ import {
 } from "@secondlayer/shared/coverage";
 import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
+import type { DecodedEventRow } from "@secondlayer/shared/streams-rows";
 import type { Kysely } from "kysely";
 import { writeDecodedEvents } from "./storage.ts";
 

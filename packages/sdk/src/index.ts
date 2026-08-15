@@ -2,19 +2,10 @@ export { SecondLayer } from "./client.ts";
 export type {
 	ActiveSubgraphOperation,
 	ContextAccount,
-	ContextApiKey,
-	ContextProject,
 	ContextSnapshot,
 } from "./client.ts";
 export type { SecondLayerOptions } from "./base.ts";
 export { LOCAL_API_URL, resolveApiKey, resolveBaseUrl } from "./base.ts";
-export {
-	ApiKeys,
-	type ApiKeySummary,
-	type CreateApiKeyParams,
-	type CreateApiKeyResponse,
-	type ScopedKeyProduct,
-} from "./api-keys/client.ts";
 export {
 	Contracts,
 	type ContractConformance,
@@ -76,7 +67,6 @@ export type {
 	IndexStackingAction,
 	IndexTip,
 	IndexTransaction,
-	IndexUsage,
 	MempoolEnvelope,
 	MempoolListParams,
 	MempoolTransactionEnvelope,
@@ -132,15 +122,6 @@ export type {
 	TransactionsListParams,
 	TransactionsWalkParams,
 } from "./index-api/index.ts";
-export { Projects } from "./projects/client.ts";
-export type {
-	CreateProjectParams,
-	Project,
-	ProjectInvitation,
-	ProjectTeam,
-	ProjectTeamMember,
-	UpdateProjectParams,
-} from "./projects/client.ts";
 export { Subgraphs, getSubgraph } from "./subgraphs/index.ts";
 export type { SubgraphOperationStatus } from "./subgraphs/client.ts";
 export type {
@@ -180,13 +161,9 @@ export {
 	ApiError,
 	SecondLayerError,
 	VersionConflictError,
-	ByoBreakingChangeError,
 	parseRetryAfter,
 } from "./errors.ts";
-export type {
-	ByoBreakingChangeDetails,
-	SecondLayerErrorOptions,
-} from "./errors.ts";
+export type { SecondLayerErrorOptions } from "./errors.ts";
 export {
 	verifyWebhookSignature,
 	verifySecondlayerSignature,
@@ -317,7 +294,6 @@ export type {
 	StreamsReorgsListEnvelope,
 	StreamsReorgsListParams,
 	StreamsTip,
-	StreamsUsage,
 } from "./streams/index.ts";
 export {
 	withX402,

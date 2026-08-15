@@ -198,30 +198,6 @@ export class Subgraphs extends BaseClient {
 	}
 
 	/**
-	 * Publish: claim the name in the global public namespace and open anon
-	 * reads on /v1/subgraphs/:name. 409 PUBLIC_NAME_TAKEN if another account
-	 * holds the public name.
-	 */
-	async publish(
-		name: string,
-	): Promise<{ name: string; visibility: "public"; url: string }> {
-		return this.request<{ name: string; visibility: "public"; url: string }>(
-			"POST",
-			`/api/subgraphs/${name}/publish`,
-		);
-	}
-
-	/** Make reads private again (owning account's bearer key required). */
-	async unpublish(
-		name: string,
-	): Promise<{ name: string; visibility: "private" }> {
-		return this.request<{ name: string; visibility: "private" }>(
-			"POST",
-			`/api/subgraphs/${name}/unpublish`,
-		);
-	}
-
-	/**
 	 * Open /v1 read: cursor-paginated rows. Anon works for public subgraphs;
 	 * pass an apiKey on the client for private ones. Resume with the returned
 	 * `next_cursor`.

@@ -44,19 +44,6 @@ export interface SubgraphSummary {
 	createdAt: string;
 }
 
-export interface AccountInsight {
-	id: string;
-	category: string;
-	insightType: string;
-	resourceId: string | null;
-	severity: "info" | "warning" | "danger";
-	title: string;
-	body: string;
-	data: Record<string, unknown>;
-	createdAt: string;
-	expiresAt: string | null;
-}
-
 export interface SystemStatus {
 	status: "healthy" | "degraded";
 	chainTip: number | null;
@@ -115,15 +102,6 @@ export interface IndexDecoderFreshness {
 export interface IndexFreshnessStatus {
 	status: "ok" | "degraded" | "unavailable";
 	decoders: IndexDecoderFreshness[];
-}
-
-// ── Admin ──
-
-export interface AdminStats {
-	totalAccounts: number;
-	totalSubgraphs: number;
-	activeSubgraphs: number;
-	errorSubgraphs: number;
 }
 
 export interface SubgraphFilter {

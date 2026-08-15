@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import type { StreamsClient } from "@secondlayer/sdk";
 import type {
-	StreamsClient,
 	StreamsEvent,
 	StreamsEventType,
-} from "@secondlayer/sdk";
+} from "@secondlayer/shared/streams-rows";
 import {
 	consumeFtBurnDecodedEvents,
 	consumeFtMintDecodedEvents,
@@ -69,12 +69,6 @@ function streamsClientSpy(
 			is_canonical: true,
 		}),
 		tip: async () => tip(),
-		usage: async () => ({
-			product: "streams",
-			tier: "build",
-			limits: { rate_limit_per_second: 50, retention_days: 30 },
-			usage: { events_today: 0, events_this_month: 0 },
-		}),
 	};
 }
 

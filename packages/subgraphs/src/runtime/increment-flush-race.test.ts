@@ -94,7 +94,6 @@ function ctxOn(db: any, height: number) {
 		// biome-ignore lint/suspicious/noExplicitAny: minimal tx meta
 		{ tx_id: `0xrace${height}` } as any,
 		false,
-		false,
 	);
 }
 

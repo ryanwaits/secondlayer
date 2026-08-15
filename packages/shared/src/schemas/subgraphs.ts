@@ -13,19 +13,11 @@ export interface DeploySubgraphRequest {
 	startBlock?: number;
 	/** Original TypeScript source, persisted so chat can read/diff/edit later. */
 	sourceCode?: string;
-	/**
-	 * BYO data plane: a user-owned Postgres connection string. When set, the
-	 * subgraph's schema, handler writes, and serving reads live in this DB instead
-	 * of the managed one. Stored encrypted at rest, never returned.
-	 */
-	databaseUrl?: string;
-	/** Validate the connection + print the DDL/grant plan without deploying. */
+	/** Validate the definition + print the DDL plan without deploying. */
 	dryRun?: boolean;
 	/**
-	 * Read visibility. Server-side defaults: managed deploys → public (anon
-	 * reads on /v1/subgraphs, name claimed in the global public namespace);
-	 * BYO-database deploys → private (public reads hit the user's own
-	 * Postgres, so going public is an explicit choice).
+	 * Read visibility. Server-side default: deploys → public (anon reads on
+	 * /v1/subgraphs, name claimed in the global public namespace).
 	 */
 	visibility?: "public" | "private";
 }
@@ -50,14 +42,6 @@ export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> =
 		sourceCode: z
 			.string()
 			.max(1_048_576, "source code exceeds 1MB limit")
-			.optional(),
-		databaseUrl: z
-			.string()
-			.url()
-			.refine(
-				(u) => u.startsWith("postgres://") || u.startsWith("postgresql://"),
-				"must be a postgres:// connection string",
-			)
 			.optional(),
 		dryRun: z.boolean().optional(),
 		visibility: z.enum(["public", "private"]).optional(),

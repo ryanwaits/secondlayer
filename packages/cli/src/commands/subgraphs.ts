@@ -13,8 +13,6 @@ import {
 	generatePrintPayloadTypes,
 	generatePrintSchemaSubgraph,
 } from "@secondlayer/scaffold";
-import type { ByoBreakingChangeDetails } from "@secondlayer/sdk";
-import { ByoBreakingChangeError } from "@secondlayer/sdk";
 import type { SubgraphDetail } from "@secondlayer/shared/schemas";
 import { TRAIT_STANDARDS } from "@secondlayer/stacks/clarity";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
@@ -33,12 +31,10 @@ import {
 	getSubgraphOpenApi,
 	handleApiError,
 	listSubgraphsApi,
-	publishSubgraphApi,
 	querySubgraphTable,
 	querySubgraphTableCount,
 	reindexSubgraphApi,
 	stopSubgraphApi,
-	unpublishSubgraphApi,
 } from "../lib/api-client.ts";
 import type { SubgraphQueryParams } from "../lib/api-client.ts";
 import { deprecatedCodegenNotice } from "./codegen.ts";
@@ -586,32 +582,6 @@ function printSubgraphDeployPreview(
 	info(`Dry run only. No ${deployTarget} changes were made.`);
 }
 
-/**
- * Render a refused BYO breaking-change deploy: the breaking reasons plus the
- * exact DROP + rebuild DDL to run manually on the user's own database. No data
- * was dropped — the server refused; this only shows what a rebuild would take.
- */
-function printByoBreakingPlan(details: ByoBreakingChangeDetails): void {
-	error("Refusing breaking schema change on BYO subgraph (no data dropped).");
-	console.log("\nBreaking changes:");
-	for (const r of details.reasons) console.log(`  ${red("✗")} ${r}`);
-	console.log("\nTo rebuild manually, run on YOUR database:");
-	console.log(`  ${details.plan.dropStatement}`);
-	console.log(`  ${details.plan.statements.join(";\n  ")}`);
-	console.log("\nGrant (first deploy only):");
-	for (const line of details.plan.grantScript.split("\n")) {
-		console.log(`  ${dim(line)}`);
-	}
-	console.log(
-		`\n${yellow("This DROPS all rows in that schema, then rebuilds it. Re-deploy after.")}`,
-	);
-	console.log(
-		dim(
-			"(--force destructive rebuild not yet supported — manual DROP required.)",
-		),
-	);
-}
-
 function formatDuration(seconds: number): string {
 	if (seconds < 90) return `${Math.max(1, Math.round(seconds))}s`;
 	if (seconds < 5400) return `${Math.round(seconds / 60)}m`;
@@ -934,10 +904,6 @@ Examples:
 		.option("--dry-run", "Validate and preview deploy without writing changes")
 		.option("-y, --yes", "Skip the reindex confirmation prompt")
 		.option(
-			"--database-url <url>",
-			"BYO data plane: write the subgraph's schema/rows to your own Postgres. With --dry-run, prints the DDL + grant script and verifies the connection.",
-		)
-		.option(
 			"--strict",
 			"Run `tsc --noEmit` against the handler before deploy (slower; catches TS type errors)",
 		)
@@ -960,7 +926,6 @@ Examples:
 					dryRun?: boolean;
 					yes?: boolean;
 					strict?: boolean;
-					databaseUrl?: string;
 					visibility?: string;
 					allowUncommitted?: boolean;
 				},
@@ -1009,16 +974,6 @@ Examples:
 					}
 					const dryRun = options.dryRun;
 					const visibility = parseVisibilityOption(options.visibility);
-					if (visibility === "public" && options.databaseUrl && !options.yes) {
-						const confirmed = await confirm({
-							message:
-								"⚠  Public BYO subgraph: anonymous reads will query YOUR database. Continue?",
-						});
-						if (!confirmed) {
-							info("Aborted.");
-							process.exit(0);
-						}
-					}
 					const startBlock = parseStartBlockOption(options.startBlock);
 					if (startBlock !== undefined) {
 						warn(
@@ -1133,11 +1088,6 @@ Examples:
 								}
 							}
 						}
-						if (options.databaseUrl) {
-							info(
-								"BYO data plane: schema + rows will live in your database. The server verifies the connection before deploying.",
-							);
-						}
 						const result = await deploySubgraphApi({
 							name: effectiveDef.name,
 							version: undefined,
@@ -1151,9 +1101,6 @@ Examples:
 							sourceCode: source,
 							...(deployStartBlock !== undefined
 								? { startBlock: deployStartBlock }
-								: {}),
-							...(options.databaseUrl
-								? { databaseUrl: options.databaseUrl }
 								: {}),
 							...(visibility ? { visibility } : {}),
 						});
@@ -1177,9 +1124,6 @@ Examples:
 								} else if (firstTable) {
 									info(
 										`  REST:      ${apiUrl}/api/subgraphs/${effectiveDef.name}/${firstTable}`,
-									);
-									info(
-										`  Publish:   secondlayer subgraphs publish ${effectiveDef.name} (open anon /v1 reads)`,
 									);
 								}
 								if (result.reindexStarted) {
@@ -1307,25 +1251,6 @@ Examples:
 						await closeDb();
 					}
 				} catch (err) {
-					// Remote deploy: the SDK throws the typed error (same module → instanceof).
-					if (err instanceof ByoBreakingChangeError) {
-						printByoBreakingPlan(err.details);
-						process.exit(1);
-					}
-					// Local deploy throws the subgraphs-bundle class — match it by shape
-					// to avoid a cross-package instanceof. (Local BYO is unreachable today;
-					// guard is defensive for when --database-url reaches local deploy.)
-					if (
-						err &&
-						typeof err === "object" &&
-						(err as { code?: unknown }).code === "BYO_BREAKING_CHANGE" &&
-						(err as { details?: unknown }).details
-					) {
-						printByoBreakingPlan(
-							(err as { details: ByoBreakingChangeDetails }).details,
-						);
-						process.exit(1);
-					}
 					error(`Failed to deploy subgraph: ${err}`);
 					process.exit(1);
 				}
@@ -1957,48 +1882,6 @@ Examples:
 				}
 			},
 		);
-
-	// --- publish / unpublish ---
-	subgraphs
-		.command("publish <name>", { hidden: true })
-		.description(
-			"Make a subgraph publicly readable on /v1/subgraphs/<name> (claims the name globally, no key needed to read)",
-		)
-		.action(async (name: string) => {
-			try {
-				await requireAuth();
-				const result = await publishSubgraphApi(name);
-				success(`Subgraph "${name}" is now public`);
-				try {
-					const { apiUrl } = await resolveAuth();
-					info(`  Share: ${apiUrl}${result.url} (no key needed)`);
-				} catch {}
-			} catch (err) {
-				const status = (err as { status?: number } | undefined)?.status;
-				if (status === 409) {
-					error(
-						`Public name "${name}" is already taken by another account. Rename the subgraph (redeploy under a new name) or keep it private.`,
-					);
-					process.exit(1);
-				}
-				handleApiError(err, "publish subgraph");
-			}
-		});
-
-	subgraphs
-		.command("unpublish <name>", { hidden: true })
-		.description(
-			"Make a subgraph private again — reads require your API key, the public name claim is released",
-		)
-		.action(async (name: string) => {
-			try {
-				await requireAuth();
-				await unpublishSubgraphApi(name);
-				success(`Subgraph "${name}" is now private (reads need your key)`);
-			} catch (err) {
-				handleApiError(err, "unpublish subgraph");
-			}
-		});
 
 	// --- scaffold ---
 	subgraphs

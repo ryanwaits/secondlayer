@@ -54,9 +54,8 @@ export SL_API_URL="$SECONDLAYER_API_URL"
 export SL_API_KEY="sk-sl_..."
 ```
 
-Managed deploys default **public** — anon-readable on `/v1/subgraphs`, no key.
-BYO-database deploys default **private**; read those on `/v1` with your `sk-sl_`
-bearer. Writes (deploy, publish/unpublish, manage, subscriptions) require an
+Deploys default **public** — anon-readable on `/v1/subgraphs`, no key.
+Writes (deploy, manage, subscriptions) require an
 `sk-sl_` key. (`SECONDLAYER_API_KEY` is a deprecated alias of `SL_API_KEY`.)
 Rotate or revoke keys in the same console.
 

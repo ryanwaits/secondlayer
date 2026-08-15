@@ -1,14 +1,10 @@
-import type { ByoBreakingChangeDetails } from "@secondlayer/shared/errors";
-
-export type { ByoBreakingChangeDetails };
-
 const DOCS_BASE = "https://www.secondlayer.tools";
 
 /** Options accepted by every error in the family. */
 export interface SecondLayerErrorOptions {
 	cause?: Error;
 	details?: string;
-	/** Stable machine-readable code (e.g. `UPGRADE_REQUIRED`, `BYO_BREAKING_CHANGE`). */
+	/** Stable machine-readable code (e.g. `UPGRADE_REQUIRED`). */
 	code?: string;
 	/** Docs page that explains this failure and its fix. */
 	docsUrl?: string;
@@ -24,10 +20,9 @@ export interface SecondLayerErrorOptions {
  * Root of the SDK error family. Implements the same protocol as `BaseError`
  * in `@secondlayer/stacks` (`shortMessage`, `cause`, `toJSON`) so a failed
  * chain read and a failed platform read serialize and introspect identically.
- * It intentionally does NOT extend that class: `BaseError.details` is a
- * `string`, while {@link ByoBreakingChangeError.details} is the documented
- * structured migration plan — and cross-package `instanceof` is unreliable
- * under per-package bundling anyway (match on `code`/`name` across packages).
+ * It intentionally does NOT extend that class: cross-package `instanceof` is
+ * unreliable under per-package bundling anyway (match on `code`/`name` across
+ * packages).
  *
  * `retryable` is the signal the consume loops act on: 429/5xx/network are
  * retryable, 4xx and body-serialization failures are not.
@@ -108,7 +103,7 @@ function statusRetryable(status: number): boolean {
 
 /** Docs page for a status/code pair, when one exists. */
 function docsFor(status: number, code?: string): string | undefined {
-	if (code === "UPGRADE_REQUIRED" || code === "PLAN_REQUIRED" || status === 402)
+	if (code === "UPGRADE_REQUIRED" || status === 402)
 		return `${DOCS_BASE}/docs/authentication#pay-as-you-go-credits`;
 	if (status === 429 || status === 401)
 		return `${DOCS_BASE}/docs/authentication`;
@@ -215,53 +210,4 @@ export class VersionConflictError extends ApiError {
 		super(409, message, { currentVersion, expectedVersion });
 		this.name = "VersionConflictError";
 	}
-}
-
-/**
- * Thrown when a BYO subgraph deploy is refused for a breaking schema change.
- * The deploy did NOT run — `details.plan` carries the DROP + rebuild DDL to run
- * manually on your own database, plus the breaking `reasons` and the `diff`.
- * The same DDL is surfaced on `metaMessages`, so a bare `console.error(err)`
- * already shows the operator what to run.
- *
- * @example
- * ```ts
- * try {
- *   await client.subgraphs.deploy(bundle);
- * } catch (err) {
- *   if (err instanceof ByoBreakingChangeError) {
- *     console.log(err.details.plan.dropStatement);
- *     console.log(err.details.plan.statements.join(";\n"));
- *   }
- * }
- * ```
- */
-export class ByoBreakingChangeError extends ApiError {
-	readonly details: ByoBreakingChangeDetails;
-	constructor(message: string, details: ByoBreakingChangeDetails) {
-		super(422, message, details, "BYO_BREAKING_CHANGE", {
-			metaMessages: [
-				"Review and run manually on your database:",
-				details.plan.dropStatement,
-				...details.plan.statements,
-			],
-		});
-		this.name = "ByoBreakingChangeError";
-		this.details = details;
-	}
-}
-
-/** Narrow an unknown error body's `details` to {@link ByoBreakingChangeDetails}. */
-export function isByoBreakingDetails(
-	x: unknown,
-): x is ByoBreakingChangeDetails {
-	if (!x || typeof x !== "object") return false;
-	const d = x as Record<string, unknown>;
-	const plan = d.plan as Record<string, unknown> | undefined;
-	return (
-		Array.isArray(d.reasons) &&
-		!!plan &&
-		typeof plan === "object" &&
-		typeof plan.dropStatement === "string"
-	);
 }

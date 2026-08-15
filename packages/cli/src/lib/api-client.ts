@@ -15,7 +15,7 @@ import type {
 	SubgraphAgentSchema,
 	SubgraphSpecOptions,
 } from "@secondlayer/shared/subgraphs/spec";
-import { CliHttpError, httpPlatform } from "./http.ts";
+import { CliHttpError } from "./http.ts";
 import { printError } from "./output.ts";
 import { isOssMode, resolveApiUrl, resolveAuth } from "./resolve-auth.ts";
 
@@ -171,18 +171,6 @@ export async function deploySubgraphApi(
 	return (await getPlatformClient()).subgraphs.deploy(data);
 }
 
-export async function publishSubgraphApi(
-	name: string,
-): Promise<{ name: string; visibility: "public"; url: string }> {
-	return (await getPlatformClient()).subgraphs.publish(name);
-}
-
-export async function unpublishSubgraphApi(
-	name: string,
-): Promise<{ name: string; visibility: "private" }> {
-	return (await getPlatformClient()).subgraphs.unpublish(name);
-}
-
 export async function querySubgraphTable(
 	name: string,
 	table: string,
@@ -225,38 +213,4 @@ export async function getContractPrintSchema(
 		client = new SecondLayer({ baseUrl: resolveApiUrl() });
 	}
 	return client.index.printSchema(contractId);
-}
-
-// ── Account (platform-scoped, session-authed) ──────────────────────────
-
-export interface AccountProfile {
-	id: string;
-	email: string;
-	displayName: string | null;
-	bio: string | null;
-	slug: string | null;
-	avatarUrl: string | null;
-	notifyReindexComplete: boolean;
-	createdAt: string;
-}
-
-export async function getAccountProfile(): Promise<AccountProfile> {
-	return httpPlatform<AccountProfile>("/api/accounts/me");
-}
-
-export async function updateAccountProfile(data: {
-	display_name?: string;
-	bio?: string;
-	slug?: string;
-	notify_reindex_complete?: boolean;
-}): Promise<{
-	id: string;
-	email: string;
-	displayName: string | null;
-	bio: string | null;
-	slug: string | null;
-	avatarUrl: string | null;
-	notifyReindexComplete: boolean;
-}> {
-	return httpPlatform("/api/accounts/me", { method: "PATCH", body: data });
 }

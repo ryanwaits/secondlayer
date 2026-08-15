@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import {
 	ApiError,
 	AuthError,
-	ByoBreakingChangeError,
 	RateLimitError,
 	SecondLayerError,
 	ValidationError,
@@ -90,30 +89,6 @@ describe("one error family", () => {
 		expect(upgrade.docsUrl).toContain("/docs/authentication");
 		expect(upgrade.message).toContain("Docs: ");
 		expect(upgrade.shortMessage).toBe("below the free window");
-	});
-
-	test("ByoBreakingChangeError carries the DDL on metaMessages", () => {
-		const err = new ByoBreakingChangeError("refused", {
-			reasons: ["t: removed columns [x]"],
-			diff: {
-				addedTables: [],
-				removedTables: [],
-				addedColumns: {},
-				breakingChanges: ["t: removed columns [x]"],
-			},
-			plan: {
-				schemaName: "subgraph_t",
-				dropStatement: 'DROP SCHEMA IF EXISTS "subgraph_t" CASCADE;',
-				statements: ["CREATE SCHEMA subgraph_t"],
-				grantScript: "",
-			},
-		});
-		expect(err.metaMessages?.join("\n")).toContain("DROP SCHEMA");
-		// A bare console.error(err) shows the operator what to run.
-		expect(err.message).toContain("DROP SCHEMA");
-		// The documented structured surface is untouched.
-		expect(err.details.plan.dropStatement).toContain("DROP SCHEMA");
-		expect(err.code).toBe("BYO_BREAKING_CHANGE");
 	});
 
 	test("toJSON serializes the whole protocol", () => {

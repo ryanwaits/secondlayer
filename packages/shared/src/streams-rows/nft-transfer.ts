@@ -4,9 +4,9 @@ import {
 	requireHexValue,
 	requireString,
 } from "./_payload.ts";
-import type { StreamsEvent } from "./types.ts";
+import type { StreamsEvent } from "./events.ts";
 
-export type { NftTransferPayload } from "./types.ts";
+export type { NftTransferPayload } from "./events.ts";
 
 export type NftTransferEvent = Extract<
 	StreamsEvent,

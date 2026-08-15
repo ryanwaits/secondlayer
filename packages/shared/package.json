@@ -112,6 +112,10 @@
 			"types": "./dist/src/streams-bulk-manifest.d.ts",
 			"import": "./dist/src/streams-bulk-manifest.js"
 		},
+		"./streams-rows": {
+			"types": "./dist/src/streams-rows/index.d.ts",
+			"import": "./dist/src/streams-rows/index.js"
+		},
 		"./archive/disk-guard": {
 			"types": "./dist/src/archive/disk-guard.d.ts",
 			"import": "./dist/src/archive/disk-guard.js"

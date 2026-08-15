@@ -26,7 +26,6 @@ function ctxAt(height: number) {
 		// biome-ignore lint/suspicious/noExplicitAny: minimal tx meta
 		{ tx_id: `0xtest${height}` } as any,
 		false,
-		false,
 	);
 }
 

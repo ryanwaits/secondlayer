@@ -49,7 +49,7 @@ describe("secondlayer://context", () => {
 	it("assembles live state from the SDK context snapshot", async () => {
 		const client = {
 			context: async () => ({
-				account: { email: "a@b.com", plan: "build" },
+				account: { email: "a@b.com" },
 				streamsTip: {
 					block_height: 100,
 					block_hash: "0xabc",
@@ -66,15 +66,6 @@ describe("secondlayer://context", () => {
 					},
 				],
 				subscriptions: { count: 2, byStatus: { active: 1, paused: 1 } },
-				projects: [{ name: "My App", slug: "my-app", network: "mainnet" }],
-				apiKeys: [
-					{
-						prefix: "sk-sl_a",
-						name: "ci",
-						status: "active",
-						product: "streams",
-					},
-				],
 				activeOperations: [],
 			}),
 		} as unknown as Client;
@@ -82,17 +73,11 @@ describe("secondlayer://context", () => {
 		const ctx = await buildContext({ clientProvider: () => client });
 
 		expect(Array.isArray(ctx.whatExists.subgraphs)).toBe(true);
-		expect(ctx.whatExists.projects).toEqual([
-			{ name: "My App", slug: "my-app", network: "mainnet" },
-		]);
-		expect(ctx.whatExists.apiKeys).toEqual([
-			{ prefix: "sk-sl_a", name: "ci", status: "active", product: "streams" },
-		]);
 		expect(ctx.whatExists.subscriptions).toEqual({
 			count: 2,
 			byStatus: { active: 1, paused: 1 },
 		});
-		expect(ctx.whatExists.account).toEqual({ email: "a@b.com", plan: "build" });
+		expect(ctx.whatExists.account).toEqual({ email: "a@b.com" });
 		expect(ctx.whatExists.streamsTip).toEqual({
 			block_height: 100,
 			block_hash: "0xabc",
@@ -112,8 +97,6 @@ describe("secondlayer://context", () => {
 				indexTip: null,
 				subgraphs: [],
 				subscriptions: null,
-				projects: null,
-				apiKeys: null,
 				activeOperations: null,
 			}),
 		} as unknown as Client;
@@ -122,8 +105,6 @@ describe("secondlayer://context", () => {
 
 		expect(ctx.whatExists.subgraphs).toEqual([]);
 		expect(ctx.whatExists.subscriptions).toBe("unavailable: set SL_API_KEY");
-		expect(ctx.whatExists.projects).toBe("unavailable: set SL_API_KEY");
-		expect(ctx.whatExists.apiKeys).toBe("unavailable: set SL_API_KEY");
 		expect(ctx.whatExists.account).toBe("unavailable: set SL_API_KEY");
 		expect(ctx.whatExists.streamsTip).toBe("unavailable: set SL_API_KEY");
 	});
@@ -255,11 +236,9 @@ const GOLDEN_PATH_TOOLS = [
 	"subgraphs_gaps",
 	"subgraphs_get",
 	"subgraphs_list",
-	"subgraphs_publish",
 	"subgraphs_query",
 	"subgraphs_reindex",
 	"subgraphs_stop",
-	"subgraphs_unpublish",
 	// subscriptions
 	"subscriptions_create",
 	"subscriptions_delete",

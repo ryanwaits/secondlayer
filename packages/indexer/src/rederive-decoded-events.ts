@@ -1,3 +1,6 @@
+import { decodeStreamsCursor } from "@secondlayer/shared";
+import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
+import { logger } from "@secondlayer/shared/logger";
 /**
  * One-time, bounded re-derivation of `decoded_events` for a block range.
  *
@@ -28,7 +31,10 @@
  * events_logical_id_uniq is VALID. See
  * `docs/internal/audits/decoded-events-supply-shortfall-2026-06-15.md`.
  */
-import type { StreamsEvent, StreamsEventType } from "@secondlayer/sdk";
+import type {
+	StreamsEvent,
+	StreamsEventType,
+} from "@secondlayer/shared/streams-rows";
 import {
 	type DecodedEventRow,
 	decodeFtBurn,
@@ -42,10 +48,7 @@ import {
 	decodeStxLock,
 	decodeStxMint,
 	decodeStxTransfer,
-} from "@secondlayer/sdk/streams/rows";
-import { decodeStreamsCursor } from "@secondlayer/shared";
-import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
-import { logger } from "@secondlayer/shared/logger";
+} from "@secondlayer/shared/streams-rows";
 import { writeDecodedEvents } from "./decode/storage.ts";
 import { readCanonicalStreamsEvents } from "./streams-events.ts";
 

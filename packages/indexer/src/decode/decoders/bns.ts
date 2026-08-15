@@ -1,8 +1,4 @@
-import {
-	type StreamsClient,
-	type StreamsEvent,
-	createStreamsClient,
-} from "@secondlayer/sdk";
+import { type StreamsClient, createStreamsClient } from "@secondlayer/sdk";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type {
 	BnsMarketplaceAction,
@@ -11,6 +7,7 @@ import type {
 } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
+import type { StreamsEvent } from "@secondlayer/shared/streams-rows";
 import { cvToValue, deserializeCV } from "@secondlayer/stacks/clarity";
 import type { Kysely } from "kysely";
 import {

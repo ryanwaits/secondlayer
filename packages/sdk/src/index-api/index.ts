@@ -55,7 +55,6 @@ export type {
 	IndexStackingAction,
 	IndexTip,
 	IndexTransaction,
-	IndexUsage,
 	MempoolEnvelope,
 	MempoolListParams,
 	MempoolTransactionEnvelope,

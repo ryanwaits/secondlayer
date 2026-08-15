@@ -1,5 +1,5 @@
 import type { Subgraph } from "@secondlayer/shared/db";
-import { resolveSubgraphRawClient } from "@secondlayer/shared/db/queries/subgraphs";
+import { getRawClient } from "@secondlayer/shared/db";
 import type { Context } from "hono";
 import { streamSSE } from "hono/streaming";
 import {
@@ -28,14 +28,13 @@ export class SubgraphNotFoundError extends Error {
 	}
 }
 
-// Serving reads route to the subgraph's data plane: the user's DB for BYO, else
-// the managed target. resolveSubgraphRawClient handles both (cached by URL).
+// Serving reads route to the managed target DB.
 export async function querySubgraph(
-	subgraph: Subgraph,
+	_subgraph: Subgraph,
 	text: string,
 	params: unknown[] = [],
 ) {
-	const client = resolveSubgraphRawClient(subgraph);
+	const client = getRawClient("target");
 	// biome-ignore lint/suspicious/noExplicitAny: postgres client requires any[]
 	return client.unsafe(text, params as any[]);
 }

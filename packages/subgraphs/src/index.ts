@@ -99,7 +99,6 @@ export {
 } from "./schema/index-codegen.ts";
 export { pgSchemaName } from "./schema/utils.ts";
 export {
-	ByoBreakingChangeError,
 	deploySchema,
 	diffSchema,
 	hasBreakingChanges,
@@ -121,7 +120,6 @@ export type {
 	ColumnDiff,
 	DeployPlan,
 	DeployDiff,
-	ByoMigrationPlan,
 } from "./schema/deployer.ts";
 export type { GeneratedSQL } from "./schema/generator.ts";
 export type {

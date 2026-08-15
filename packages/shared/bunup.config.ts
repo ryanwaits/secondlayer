@@ -30,6 +30,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/logger.ts",
 		"src/leader.ts",
 		"src/streams-bulk-manifest.ts",
+		"src/streams-rows/index.ts",
 		"src/archive/range-digest.ts",
 		"src/archive/semantic-digest.ts",
 		"src/archive/semantic-digest-builder.ts",

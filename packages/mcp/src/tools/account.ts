@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { apiRequest, getClient } from "../lib/client.ts";
+import { apiRequest } from "../lib/client.ts";
 import { jsonResponse } from "../lib/format.ts";
 import { defineTool } from "../lib/tool.ts";
 
@@ -8,10 +8,10 @@ export function registerAccountTools(server: McpServer) {
 	defineTool<Record<string, never>>(
 		server,
 		"account_whoami",
-		"Show the authenticated account's email and plan.",
+		"Show the authenticated account's email.",
 		{},
 		async () => {
-			const result = await apiRequest<{ email: string; plan: string }>(
+			const result = await apiRequest<{ email: string }>(
 				"GET",
 				"/api/accounts/me",
 			);
@@ -31,6 +31,6 @@ export function registerAccountTools(server: McpServer) {
 			name: z.string().optional().describe("Optional label for the key"),
 		},
 		async ({ product, name }) =>
-			jsonResponse(await getClient().apiKeys.create({ product, name })),
+			jsonResponse(await apiRequest("POST", "/api/keys", { product, name })),
 	);
 }

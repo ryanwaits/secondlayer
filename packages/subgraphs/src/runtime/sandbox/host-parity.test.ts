@@ -188,7 +188,6 @@ async function runInProcess(def: SubgraphDefinition): Promise<PathOutcome> {
 				BLOCK,
 				{ ...INITIAL_TX },
 				false,
-				false,
 			);
 			result = await runHandlers(def, MATCHED, ctx);
 			if (ctx.pendingOps > 0) manifest = await ctx.flush();
@@ -213,7 +212,6 @@ async function runSandboxed(def: SubgraphDefinition): Promise<PathOutcome> {
 				def.schema,
 				BLOCK,
 				{ ...INITIAL_TX },
-				false,
 				false,
 			);
 			result = await runHandlersSandboxed({
@@ -303,7 +301,6 @@ describe.skipIf(SKIP)(
 						block2,
 						{ ...INITIAL_TX },
 						false,
-						false,
 					);
 					run2 = await runHandlersSandboxed({
 						subgraphName: "host-parity",
@@ -335,7 +332,6 @@ describe.skipIf(SKIP)(
 						def.schema,
 						block3,
 						{ ...INITIAL_TX },
-						false,
 						false,
 					);
 					const run3 = await runHandlersSandboxed({
@@ -375,7 +371,6 @@ describe.skipIf(SKIP)(
 								BLOCK,
 								{ ...INITIAL_TX },
 								false,
-								false,
 							);
 							await runHandlersSandboxed({
 								subgraphName: "host-parity-broken",
@@ -403,7 +398,6 @@ describe.skipIf(SKIP)(
 								def.schema,
 								BLOCK,
 								{ ...INITIAL_TX },
-								false,
 								false,
 							);
 							await runHandlersSandboxed({

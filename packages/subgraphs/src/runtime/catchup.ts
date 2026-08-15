@@ -125,8 +125,8 @@ export async function withSubgraphBlockLock<T>(
  * lock keyed `subgraph-block:<name>`, held for the duration of `fn`.
  *
  * Held, not merely acquired: each block's own write transaction is opened
- * INSIDE `processBlock` (block-processor.ts — `targetDb.transaction()` for
- * managed subgraphs, `route.dataDb.transaction()` for BYO), and that boundary
+ * INSIDE `processBlock` (block-processor.ts — `targetDb.transaction()`), and
+ * that boundary
  * is load-bearing for the f069 replay guard, so the lock cannot be taken on
  * the writing connection. Instead this wraps the write in a separate
  * lock-holding transaction on the target DB, exactly as the reorg lock does
@@ -135,8 +135,8 @@ export async function withSubgraphBlockLock<T>(
  * Transaction-scoped rather than session-scoped so a crashed walk can never
  * strand the lock.
  *
- * The lock lives on the target DB even for BYO subgraphs — same as the reorg
- * lock — because it coordinates control-plane walkers, not data-plane rows.
+ * The lock lives on the target DB — same as the reorg lock — because it
+ * coordinates control-plane walkers, not data-plane rows.
  *
  * Connection budget: this holds one pooled target-DB connection while `fn`
  * takes another for the write, so an in-flight block costs 2 of

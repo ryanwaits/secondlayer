@@ -74,15 +74,7 @@ class InMemorySubgraphContext extends SubgraphContext {
 	constructor(schema: SubgraphSchema, block: BlockMeta, tx: TxMeta) {
 		// `db` is never touched: `readRows` is overridden below, and the test
 		// context never flushes SQL.
-		super(
-			undefined as never,
-			TEST_SCHEMA_NAME,
-			schema,
-			block,
-			tx,
-			false,
-			false,
-		);
+		super(undefined as never, TEST_SCHEMA_NAME, schema, block, tx, false);
 	}
 
 	/** The one seam: committed rows come from memory, not Postgres. */

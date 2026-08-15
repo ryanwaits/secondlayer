@@ -110,14 +110,6 @@ export class SubgraphContext {
 	 *  the SAME overlay this class uses — never a second implementation. */
 	protected readonly ops: WriteOp[] = [];
 	/**
-	 * BYO data plane: handler writes land in a user-owned DB whose flush can't
-	 * share the managed block transaction, so a crash replays the block. When
-	 * set, flush() prepends a replace-per-height DELETE for every inserted table
-	 * (`_block_height = N` → re-INSERT), making block reprocessing idempotent.
-	 * Non-idempotent `update` handlers are rejected at deploy, not here.
-	 */
-	private readonly byo: boolean;
-	/**
 	 * Record pre-images of keyed mutations into the schema's `_journal` so a
 	 * reorg can restore prior row states (fix-f040 B2). Enabled on the live
 	 * path only — deep reindex/backfill heights are past finality, and the
@@ -134,7 +126,6 @@ export class SubgraphContext {
 		subgraphSchema: SubgraphSchema,
 		block: BlockMeta,
 		tx: TxMeta,
-		byo = false,
 		journal = false,
 	) {
 		this.db = db;
@@ -142,7 +133,6 @@ export class SubgraphContext {
 		this.subgraphSchema = subgraphSchema;
 		this.block = block;
 		this._tx = tx;
-		this.byo = byo;
 		this.journal = journal;
 	}
 
@@ -821,20 +811,6 @@ export class SubgraphContext {
 	/** Build SQL statements from write ops, batching compatible INSERTs. */
 	private buildStatements(ops: WriteOp[]): FlushStatement[] {
 		const statements: FlushStatement[] = [];
-
-		// BYO replace-per-height: clear this block's prior inserts before
-		// re-inserting so a replayed block (no cross-DB tx) stays idempotent.
-		// One DELETE per distinct inserted table; upserts/updates self-heal.
-		if (this.byo) {
-			const insertTables = new Set<string>();
-			for (const op of ops)
-				if (op.kind === "insert") insertTables.add(op.table);
-			for (const table of insertTables) {
-				statements.push(
-					`DELETE FROM "${this.pgSchemaName}"."${table}" WHERE "_block_height" = ${this.block.height}`,
-				);
-			}
-		}
 
 		// Group consecutive inserts by batch key
 		type InsertBatch = {

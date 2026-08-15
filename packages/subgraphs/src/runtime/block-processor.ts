@@ -1,13 +1,10 @@
-import { secretsKeyAvailable } from "@secondlayer/shared/crypto/secrets";
 import { type Database, getTargetDb } from "@secondlayer/shared/db";
 import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
 import { advanceOperationCursor } from "@secondlayer/shared/db/queries/subgraph-operations";
 import {
-	isByoSubgraph,
 	recordLiveError,
 	recordLiveProgress,
 	recordSubgraphProcessed,
-	resolveSubgraphDb,
 	rewindLiveProgress,
 	updateSubgraphStatus,
 } from "@secondlayer/shared/db/queries/subgraphs";
@@ -35,22 +32,20 @@ import {
 import { matcher } from "./subscription-state.ts";
 
 /**
- * The data-plane route for a subgraph: which schema its tables live in, the DB
- * those writes/reads land on (the user's DB when BYO, else the managed target),
- * and whether it's BYO. Cached per subgraph to avoid a per-block lookup +
- * decrypt; invalidated on redeploy (the connection can change) via
+ * The data-plane route for a subgraph: which schema its tables live in and the
+ * managed target DB the writes/reads land on. Cached per subgraph to avoid a
+ * per-block lookup; invalidated on redeploy via
  * {@link invalidateSubgraphRoute}.
  *
  * Also carries the f071 Stage A sandbox-dispatch inputs
  * (`sandboxWorkers`/`handlerCode`/`version`) — cheap to keep alongside the
  * route since `resolveRoute` already selects the full `subgraphs` row; kept
  * in lockstep with the same cache invalidation edge (redeploys change
- * `handler_code`/`version` together with the connection).
+ * `handler_code`/`version` together).
  */
 interface SubgraphRoute {
 	schemaName: string;
 	dataDb: Kysely<Database>;
-	byo: boolean;
 	/** `subgraphs.sandbox_workers` — combined with the global env gate by
 	 *  `sandboxEnabled()`. Default false for every row; nothing in committed
 	 *  code sets it true (f071 Stage A stays dark). */
@@ -59,23 +54,6 @@ interface SubgraphRoute {
 	version: string;
 }
 const routeCache = new Map<string, SubgraphRoute>();
-
-/** f072: thrown by `resolveRoute` when a BYO subgraph needs its user-DB
- *  connection decrypted but this process holds no `SECONDLAYER_SECRETS_KEY`
- *  — the subgraph processor deliberately does not hold the master key (it
- *  runs untrusted handler code in-process, every block; see f049 site 3 /
- *  the sandbox spike doc's D3). Deny by default, fail loud: this must NEVER
- *  be caught and silently rerouted to the managed target DB, since that
- *  would write a tenant's rows into ours — far worse than halting the
- *  block. */
-export class ByoKeyUnavailableError extends Error {
-	constructor(subgraphName: string) {
-		super(
-			`subgraph ${subgraphName} is BYO (database_url_enc set) but this process has no SECONDLAYER_SECRETS_KEY — the subgraph processor deliberately does not hold it (f072). Route BYO subgraphs to a process that does, or unset BYO.`,
-		);
-		this.name = "ByoKeyUnavailableError";
-	}
-}
 
 async function resolveRoute(
 	subgraphName: string,
@@ -88,17 +66,9 @@ async function resolveRoute(
 		.selectAll()
 		.where("name", "=", subgraphName)
 		.executeTakeFirst();
-	const byo = row ? isByoSubgraph(row) : false;
-	// f072: check BEFORE the decrypt-on-access below (`resolveSubgraphDb` ->
-	// `decryptSecret`) so a missing key fails loud with a named, actionable
-	// error instead of secrets.ts's generic "not set" throw.
-	if (row && byo && !secretsKeyAvailable()) {
-		throw new ByoKeyUnavailableError(subgraphName);
-	}
 	const route: SubgraphRoute = {
 		schemaName: row?.schema_name ?? pgSchemaName(subgraphName),
-		dataDb: row && byo ? resolveSubgraphDb(row) : targetDb,
-		byo,
+		dataDb: targetDb,
 		sandboxWorkers: row?.sandbox_workers === true,
 		handlerCode: row?.handler_code ?? null,
 		version: row?.version ?? "",
@@ -121,7 +91,7 @@ async function resolveRoute(
 /** Drop a subgraph's cached route — call on redeploy/delete (conn may
  *  change). Also evicts any warm sandbox subprocess for this subgraph
  *  (f071 Stage A `host.ts`) on the same edge: a redeploy can change
- *  `handler_code`/`version`/the BYO connection together, and a stale warm
+ *  `handler_code`/`version` together, and a stale warm
  *  subprocess must not survive past this invalidation any more than the
  *  cached route does. A no-op today since nothing sets `sandbox_workers`,
  *  but keeps the pool's documented invalidation contract honest for when it
@@ -514,8 +484,8 @@ export async function processBlock(
 		return result;
 	}
 
-	// 4. Data plane (managed target DB, or the user's DB when BYO) — resolved
-	// above, since factory-set resolution needs the schema name.
+	// 4. Data plane (managed target DB) — resolved above, since factory-set
+	// resolution needs the schema name.
 	const blockMeta: BlockMeta = {
 		height: block.height,
 		hash: block.hash,
@@ -562,14 +532,8 @@ export async function processBlock(
 			// (f069): a racing writer that already committed a higher cursor for
 			// this height means OUR writes must not stand — abort the whole tx
 			// so ctx.increment deltas already flushed above roll back with it.
-			// BYO exception: phase A already committed to the user's DB by the
-			// time this runs (phase B) — there is nothing left to roll back, so
-			// throwing here would only turn an already-irreversible double-apply
-			// into an uncaught error. BYO's cursor stays advisory, as documented
-			// where phase A/B is split above; the CHECK-constraint guards are
-			// BYO's load-bearing protection, not this cursor.
 			const advanced = await recordLiveProgress(tx, subgraphName, blockHeight);
-			if (!advanced && flushedWrites && !route.byo) {
+			if (!advanced && flushedWrites) {
 				throw new LiveCursorRaceLostError(subgraphName, blockHeight);
 			}
 		}
@@ -588,253 +552,162 @@ export async function processBlock(
 		}
 	};
 
-	if (route.byo) {
-		// BYO: no cross-DB transaction possible. Phase A commits handler writes to
-		// the user DB first (replace-per-height makes a replay idempotent); phase
-		// B then records outbox + progress on the managed DB. If phase A throws,
-		// progress never advances and the block replays — safe by construction.
-		// atomicProgress: the checkpoint lands in phase B (post-commit), so it
-		// can lag phase A but never lead it; the replay window that leaves is
-		// covered by replace-per-height + the deploy-time handler restrictions.
-		// Op-cursor mode is ADVISORY here for the same reason: phase-A user-DB
-		// writes can never roll back on a lost race, so the guards
-		// (BYO_NON_IDEMPOTENT_HANDLER) are the load-bearing protection.
-		if (statusMode(opts)) {
-			const row = await targetDb
-				.selectFrom("subgraphs")
-				.select("last_processed_block")
-				.where("name", "=", subgraphName)
-				.executeTakeFirst();
-			if (row && Number(row.last_processed_block) >= blockHeight) {
-				result.skipped = true;
-				return result;
-			}
-		} else if (opCursorMode(opts)) {
-			const om = opCursorMode(opts) as { operationId: string };
-			const row = await targetDb
-				.selectFrom("subgraph_operations")
-				.select("cursor_block")
-				.where("id", "=", om.operationId)
-				.executeTakeFirst();
-			if (
-				row?.cursor_block != null &&
-				Number(row.cursor_block) >= blockHeight
-			) {
-				result.skipped = true;
-				return result;
-			}
-		}
-		let runResult = { processed: 0, errors: 0 };
-		let manifest: Awaited<ReturnType<SubgraphContext["flush"]>> | undefined;
-		await route.dataDb
-			.transaction()
-			.execute(async (tx: Transaction<Database>) => {
-				const ctx = new SubgraphContext(
-					tx,
-					schemaName,
-					subgraph.schema,
-					blockMeta,
-					initialTx,
-					true,
-					journalEnabled(opts),
-				);
-				const handlerStart = performance.now();
-				runResult = await runHandlers(subgraph, matched, ctx);
-				handlerMs = performance.now() - handlerStart;
-				if (ctx.pendingOps > 0) {
-					const flushStart = performance.now();
-					manifest = await ctx.flush();
-					flushMs = performance.now() - flushStart;
+	// Managed: a single atomic transaction on the target DB.
+	try {
+		await targetDb.transaction().execute(async (tx: Transaction<Database>) => {
+			// Replay guard (sequential walks only): committed writes always carry
+			// their checkpoint (below), so a block at/below the cursor has already
+			// been applied — running it again would double-apply deltas.
+			const opMode = opCursorMode(opts);
+			const sm = statusMode(opts);
+			const rewind = isReorgRewind(opts);
+			if (sm) {
+				const row = await tx
+					.selectFrom("subgraphs")
+					.select("last_processed_block")
+					.where("name", "=", subgraphName)
+					.executeTakeFirst();
+				if (row && Number(row.last_processed_block) >= blockHeight) {
+					result.skipped = true;
+					return;
 				}
-			});
-		result.processed = runResult.processed;
-		result.errors = runResult.errors;
+			} else if (opMode) {
+				// Fast path only — the conditional advance below is the guarantee.
+				const row = await tx
+					.selectFrom("subgraph_operations")
+					.select("cursor_block")
+					.where("id", "=", opMode.operationId)
+					.executeTakeFirst();
+				if (
+					row?.cursor_block != null &&
+					Number(row.cursor_block) >= blockHeight
+				) {
+					result.skipped = true;
+					return;
+				}
+			} else if (!rewind) {
+				// f069: the same fast-path guard, now armed on the live path.
+				// Fast path only — the conditional `recordLiveProgress` advance
+				// below (via applyProgress) is the actual guarantee; this SELECT,
+				// taken before handlers run, cannot see a same-height race that
+				// commits between here and there. Never checked when `rewind` is
+				// set: a reorg's fork block is, by construction, at or below the
+				// current cursor, and must run anyway.
+				const row = await tx
+					.selectFrom("subgraphs")
+					.select("last_processed_block")
+					.where("name", "=", subgraphName)
+					.executeTakeFirst();
+				if (row && Number(row.last_processed_block) >= blockHeight) {
+					result.skipped = true;
+					return;
+				}
+			}
 
-		// Persist factory discoveries only after the block's writes commit, so
-		// a failed block doesn't leave addresses claimed for a block that
-		// produced nothing. Stamped with this height, so the reorg handler
-		// rolls them back with everything else.
+			const ctx = new SubgraphContext(
+				tx,
+				schemaName,
+				subgraph.schema,
+				blockMeta,
+				initialTx,
+				journalEnabled(opts),
+			);
+
+			// f071 Stage A: dark, flag-gated dispatch. `sandboxEnabled` requires
+			// BOTH the global env gate AND this subgraph's `sandbox_workers`
+			// column — nothing in committed code sets that column, so this
+			// branch is unreached in production today; `runHandlers` (below)
+			// is what actually executes, byte-identical to before this plan.
+			// When it IS reached: `runHandlersSandboxed` runs handlers in the
+			// sandbox subprocess but replays their decided ops onto THIS same
+			// `ctx`, bound to THIS same open transaction, before returning —
+			// so the flush/manifest/outbox flow and the f069 guard placement
+			// below are unaffected either way (see `host.ts`'s docblock).
+			const handlerStart = performance.now();
+			const runResult = sandboxEnabled({
+				sandbox_workers: route.sandboxWorkers,
+			})
+				? await runHandlersSandboxed({
+						subgraphName,
+						version: route.version,
+						handlerCode: route.handlerCode,
+						hostCtx: ctx,
+						block: blockMeta,
+						matched,
+					})
+				: await runHandlers(subgraph, matched, ctx);
+			handlerMs = performance.now() - handlerStart;
+
+			result.processed = runResult.processed;
+			result.errors = runResult.errors;
+
+			let flushedWrites = false;
+			if (ctx.pendingOps > 0) {
+				const flushStart = performance.now();
+				const manifest = await ctx.flush();
+				flushedWrites = manifest.count > 0;
+				if (manifest.count > 0) {
+					await emitSubscriptionOutbox(
+						tx,
+						subgraphName,
+						manifest,
+						matcher,
+						block.height,
+					);
+				}
+				flushMs = performance.now() - flushStart;
+			}
+
+			// Checkpoint travels with the writes it covers — a crash can never
+			// leave committed deltas ahead of the checkpoint (fix-f040 B3).
+			if (sm && flushedWrites) {
+				await updateSubgraphStatus(tx, subgraphName, sm.status, blockHeight);
+			} else if (opMode && flushedWrites) {
+				const advanced = await advanceOperationCursor(
+					tx,
+					opMode.operationId,
+					blockHeight,
+				);
+				if (!advanced) {
+					// A racing writer (zombie/claimer) already covered this height —
+					// abort OUR writes; the winner's commit stands.
+					throw new CursorRaceLostError(opMode.operationId, blockHeight);
+				}
+			}
+
+			await applyProgress(tx, runResult, flushedWrites);
+		});
+	} catch (err) {
+		if (
+			err instanceof CursorRaceLostError ||
+			err instanceof LiveCursorRaceLostError
+		) {
+			// Success-shaped: the block IS committed (by the winner). Surfacing
+			// this as an error would mint a false gap row and re-invite the
+			// double-apply through gap repair.
+			logger.warn("cursor race lost — block already covered", {
+				subgraph: subgraphName,
+				blockHeight,
+				error: err.message,
+			});
+			result.skipped = true;
+			return result;
+		}
+		throw err;
+	}
+
+	// Persist factory discoveries only after the block's writes commit, so a
+	// failed block doesn't leave addresses claimed for a block that produced
+	// nothing. Stamped with this height, so the reorg handler rolls them back
+	// with everything else. Idempotent (ON CONFLICT DO NOTHING), so a
+	// guard-skipped block replaying here is harmless.
+	if (!result.skipped) {
 		await persistFactoryDiscoveries(
 			schemaName,
 			route.dataDb,
 			blockHeight,
 			discovered,
 		);
-
-		// Phase B (managed) — only reached after phase A commits.
-		await targetDb.transaction().execute(async (tx: Transaction<Database>) => {
-			if (manifest && manifest.count > 0) {
-				await emitSubscriptionOutbox(
-					tx,
-					subgraphName,
-					manifest,
-					matcher,
-					block.height,
-				);
-			}
-			const byoSm = statusMode(opts);
-			const byoOm = opCursorMode(opts);
-			if (byoSm && manifest && manifest.count > 0) {
-				await updateSubgraphStatus(tx, subgraphName, byoSm.status, blockHeight);
-			} else if (byoOm && manifest && manifest.count > 0) {
-				// Advisory: phase A already committed; a lost race here just means
-				// the cursor was covered by another writer — nothing to undo.
-				await advanceOperationCursor(tx, byoOm.operationId, blockHeight);
-			}
-			await applyProgress(tx, runResult, manifest ? manifest.count > 0 : false);
-		});
-	} else {
-		// Managed: a single atomic transaction on the target DB.
-		try {
-			await targetDb
-				.transaction()
-				.execute(async (tx: Transaction<Database>) => {
-					// Replay guard (sequential walks only): committed writes always carry
-					// their checkpoint (below), so a block at/below the cursor has already
-					// been applied — running it again would double-apply deltas.
-					const opMode = opCursorMode(opts);
-					const sm = statusMode(opts);
-					const rewind = isReorgRewind(opts);
-					if (sm) {
-						const row = await tx
-							.selectFrom("subgraphs")
-							.select("last_processed_block")
-							.where("name", "=", subgraphName)
-							.executeTakeFirst();
-						if (row && Number(row.last_processed_block) >= blockHeight) {
-							result.skipped = true;
-							return;
-						}
-					} else if (opMode) {
-						// Fast path only — the conditional advance below is the guarantee.
-						const row = await tx
-							.selectFrom("subgraph_operations")
-							.select("cursor_block")
-							.where("id", "=", opMode.operationId)
-							.executeTakeFirst();
-						if (
-							row?.cursor_block != null &&
-							Number(row.cursor_block) >= blockHeight
-						) {
-							result.skipped = true;
-							return;
-						}
-					} else if (!rewind) {
-						// f069: the same fast-path guard, now armed on the live path.
-						// Fast path only — the conditional `recordLiveProgress` advance
-						// below (via applyProgress) is the actual guarantee; this SELECT,
-						// taken before handlers run, cannot see a same-height race that
-						// commits between here and there. Never checked when `rewind` is
-						// set: a reorg's fork block is, by construction, at or below the
-						// current cursor, and must run anyway.
-						const row = await tx
-							.selectFrom("subgraphs")
-							.select("last_processed_block")
-							.where("name", "=", subgraphName)
-							.executeTakeFirst();
-						if (row && Number(row.last_processed_block) >= blockHeight) {
-							result.skipped = true;
-							return;
-						}
-					}
-
-					const ctx = new SubgraphContext(
-						tx,
-						schemaName,
-						subgraph.schema,
-						blockMeta,
-						initialTx,
-						false,
-						journalEnabled(opts),
-					);
-
-					// f071 Stage A: dark, flag-gated dispatch. `sandboxEnabled` requires
-					// BOTH the global env gate AND this subgraph's `sandbox_workers`
-					// column — nothing in committed code sets that column, so this
-					// branch is unreached in production today; `runHandlers` (below)
-					// is what actually executes, byte-identical to before this plan.
-					// When it IS reached: `runHandlersSandboxed` runs handlers in the
-					// sandbox subprocess but replays their decided ops onto THIS same
-					// `ctx`, bound to THIS same open transaction, before returning —
-					// so the flush/manifest/outbox flow and the f069 guard placement
-					// below are unaffected either way (see `host.ts`'s docblock).
-					const handlerStart = performance.now();
-					const runResult = sandboxEnabled({
-						sandbox_workers: route.sandboxWorkers,
-					})
-						? await runHandlersSandboxed({
-								subgraphName,
-								version: route.version,
-								handlerCode: route.handlerCode,
-								hostCtx: ctx,
-								block: blockMeta,
-								matched,
-							})
-						: await runHandlers(subgraph, matched, ctx);
-					handlerMs = performance.now() - handlerStart;
-
-					result.processed = runResult.processed;
-					result.errors = runResult.errors;
-
-					let flushedWrites = false;
-					if (ctx.pendingOps > 0) {
-						const flushStart = performance.now();
-						const manifest = await ctx.flush();
-						flushedWrites = manifest.count > 0;
-						if (manifest.count > 0) {
-							await emitSubscriptionOutbox(
-								tx,
-								subgraphName,
-								manifest,
-								matcher,
-								block.height,
-							);
-						}
-						flushMs = performance.now() - flushStart;
-					}
-
-					// Checkpoint travels with the writes it covers — a crash can never
-					// leave committed deltas ahead of the checkpoint (fix-f040 B3).
-					if (sm && flushedWrites) {
-						await updateSubgraphStatus(
-							tx,
-							subgraphName,
-							sm.status,
-							blockHeight,
-						);
-					} else if (opMode && flushedWrites) {
-						const advanced = await advanceOperationCursor(
-							tx,
-							opMode.operationId,
-							blockHeight,
-						);
-						if (!advanced) {
-							// A racing writer (zombie/claimer) already covered this height —
-							// abort OUR writes; the winner's commit stands.
-							throw new CursorRaceLostError(opMode.operationId, blockHeight);
-						}
-					}
-
-					await applyProgress(tx, runResult, flushedWrites);
-				});
-		} catch (err) {
-			if (
-				err instanceof CursorRaceLostError ||
-				err instanceof LiveCursorRaceLostError
-			) {
-				// Success-shaped: the block IS committed (by the winner). Surfacing
-				// this as an error would mint a false gap row and re-invite the
-				// double-apply through gap repair.
-				logger.warn("cursor race lost — block already covered", {
-					subgraph: subgraphName,
-					blockHeight,
-					error: err.message,
-				});
-				result.skipped = true;
-				return result;
-			}
-			throw err;
-		}
 	}
 
 	const totalMs = performance.now() - blockStart;

@@ -1,9 +1,9 @@
+import { getSourceDb } from "@secondlayer/shared/db";
+import type { Database } from "@secondlayer/shared/db/schema";
 import type {
 	DecodedEventColumns,
 	DecodedEventRow,
-} from "@secondlayer/sdk/streams/rows";
-import { getSourceDb } from "@secondlayer/shared/db";
-import type { Database } from "@secondlayer/shared/db/schema";
+} from "@secondlayer/shared/streams-rows";
 import type { Generated, Kysely } from "kysely";
 
 export const FT_TRANSFER_DECODER_NAME = "decode.ft_transfer.v1";

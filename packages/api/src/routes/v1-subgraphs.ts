@@ -201,21 +201,6 @@ export function registerPaidWriteRoutes(
 		if (!payer) {
 			throw new AuthenticationError("Paid deploy requires a settled payment");
 		}
-		// Peek the body for BYO — paid deploys are managed-plane only.
-		const body = await c.req.raw
-			.clone()
-			.json()
-			.catch(() => ({}));
-		if (
-			body &&
-			typeof body === "object" &&
-			"databaseUrl" in body &&
-			body.databaseUrl
-		) {
-			throw new ValidationError(
-				"BYO databases need a claimed account — paid deploys run on the managed plane",
-			);
-		}
 		const account = await resolveWalletAccount(getDb(), payer);
 		return deploy(c, { accountId: account.id, paidTtlMs: PAID_DEPLOY_TTL_MS });
 	});
@@ -371,10 +356,7 @@ function summarize(
 		owned: v.account_id === ownedBy,
 		version: v.version,
 		created_at: v.created_at.toISOString(),
-		// null for BYO — rows live in the user's DB, pg_stat can't see them.
-		total_rows: v.database_url_enc
-			? null
-			: (rowCounts.get(subgraphSchemaName(v)) ?? 0),
+		total_rows: rowCounts.get(subgraphSchemaName(v)) ?? 0,
 		sources: extractSources(v),
 		last_processed_block: lastProcessed,
 		blocks_behind: Math.max(0, chainTip - lastProcessed),

@@ -19,9 +19,11 @@ export {
 // `@secondlayer/sdk/streams/rows` subpath at the next major, so reaching for
 // the storage shape is a deliberate act rather than the first thing autocomplete
 // offers. Import from there today.
-export { decodeFtTransfer, isFtTransfer } from "./ft-transfer.ts";
-export { decodeNftTransfer, isNftTransfer } from "./nft-transfer.ts";
 export {
+	decodeFtTransfer,
+	isFtTransfer,
+	decodeNftTransfer,
+	isNftTransfer,
 	decodeStxBurn,
 	decodeStxLock,
 	decodeStxMint,
@@ -30,8 +32,6 @@ export {
 	isStxLock,
 	isStxMint,
 	isStxTransfer,
-} from "./stx-events.ts";
-export {
 	decodeFtBurn,
 	decodeFtMint,
 	decodeNftBurn,
@@ -40,50 +40,27 @@ export {
 	isFtMint,
 	isNftBurn,
 	isNftMint,
-} from "./token-mint-burn.ts";
-export { decodePrint, isPrint } from "./print.ts";
-import type { DecodedFtTransfer } from "./ft-transfer.ts";
-import type { DecodedNftTransfer } from "./nft-transfer.ts";
-import type { DecodedPrint } from "./print.ts";
-import type {
-	DecodedStxBurn,
-	DecodedStxLock,
-	DecodedStxMint,
-	DecodedStxTransfer,
-} from "./stx-events.ts";
-import type {
-	DecodedFtBurn,
-	DecodedFtMint,
-	DecodedNftBurn,
-	DecodedNftMint,
-} from "./token-mint-burn.ts";
-
-export type DecodedEventRow =
-	| DecodedFtTransfer
-	| DecodedNftTransfer
-	| DecodedStxTransfer
-	| DecodedStxMint
-	| DecodedStxBurn
-	| DecodedStxLock
-	| DecodedFtMint
-	| DecodedFtBurn
-	| DecodedNftMint
-	| DecodedNftBurn
-	| DecodedPrint;
-export type { DecodedEventColumns } from "./_payload.ts";
+	decodePrint,
+	isPrint,
+} from "@secondlayer/shared/streams-rows";
 export type {
+	DecodedEventColumns,
+	DecodedEventRow,
+	DecodedFtBurn,
+	DecodedFtBurnPayload,
+	DecodedFtMint,
+	DecodedFtMintPayload,
 	DecodedFtTransfer,
 	DecodedFtTransferPayload,
-	FtTransferEvent,
-	FtTransferPayload,
-} from "./ft-transfer.ts";
-export type {
+	DecodedNftBurn,
+	DecodedNftBurnPayload,
+	DecodedNftMint,
+	DecodedNftMintPayload,
 	DecodedNftTransfer,
 	DecodedNftTransferPayload,
-	NftTransferEvent,
-	NftTransferPayload,
-} from "./nft-transfer.ts";
-export type {
+	DecodedPrint,
+	DecodedPrintPayload,
+	DecodedPrintValue,
 	DecodedStxBurn,
 	DecodedStxBurnPayload,
 	DecodedStxLock,
@@ -92,22 +69,11 @@ export type {
 	DecodedStxMintPayload,
 	DecodedStxTransfer,
 	DecodedStxTransferPayload,
-} from "./stx-events.ts";
-export type {
-	DecodedFtBurn,
-	DecodedFtBurnPayload,
-	DecodedFtMint,
-	DecodedFtMintPayload,
-	DecodedNftBurn,
-	DecodedNftBurnPayload,
-	DecodedNftMint,
-	DecodedNftMintPayload,
-} from "./token-mint-burn.ts";
-export type {
-	DecodedPrint,
-	DecodedPrintPayload,
-	DecodedPrintValue,
-} from "./print.ts";
+	FtTransferEvent,
+	FtTransferPayload,
+	NftTransferEvent,
+	NftTransferPayload,
+} from "@secondlayer/shared/streams-rows";
 export { STREAMS_EVENT_TYPES } from "./types.ts";
 export { Cursor } from "./cursor.ts";
 export type {
@@ -136,5 +102,4 @@ export type {
 	StreamsReorgsListEnvelope,
 	StreamsReorgsListParams,
 	StreamsTip,
-	StreamsUsage,
 } from "./types.ts";

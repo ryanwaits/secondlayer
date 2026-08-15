@@ -5,7 +5,7 @@ import {
 	requireAmountField,
 	requireString,
 } from "./_payload.ts";
-import type { StreamsEvent } from "./types.ts";
+import type { StreamsEvent } from "./events.ts";
 
 export type DecodedStxTransferPayload = {
 	sender: string;

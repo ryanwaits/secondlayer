@@ -4,9 +4,9 @@ import {
 	requireAmount,
 	requireString,
 } from "./_payload.ts";
-import type { StreamsEvent } from "./types.ts";
+import type { StreamsEvent } from "./events.ts";
 
-export type { FtTransferPayload } from "./types.ts";
+export type { FtTransferPayload } from "./events.ts";
 
 export type FtTransferEvent = Extract<
 	StreamsEvent,

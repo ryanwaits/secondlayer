@@ -2,7 +2,6 @@ import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { getDb, sql } from "@secondlayer/shared/db";
 import type { Database, Event, Transaction } from "@secondlayer/shared/db";
-import { encryptDatabaseUrl } from "@secondlayer/shared/db/queries/subgraphs";
 import type { Kysely } from "kysely";
 import { emitJournalDDL } from "../schema/generator.ts";
 import type {
@@ -11,7 +10,7 @@ import type {
 	SubgraphSchema,
 } from "../types.ts";
 import type { PreloadedBlockData } from "./block-processor.ts";
-import { ByoKeyUnavailableError, processBlock } from "./block-processor.ts";
+import { processBlock } from "./block-processor.ts";
 import type { SubgraphContext } from "./context.ts";
 
 /**
@@ -19,13 +18,8 @@ import type { SubgraphContext } from "./context.ts";
  * — it runs untrusted handler code, in-process, every block, and the key was
  * the thing that made the sandbox spike's two documented-open vectors
  * (same-UID `Bun.file()` reads, `/proc/<pid>/environ` on Linux) dangerous to
- * the master secret. These tests prove the two halves of that change:
- *
- *   1. The 100% of production that is managed subgraphs is unaffected by
- *      the key's absence — this is the regression that matters.
- *   2. A BYO row (never seen in production, but must not be silently
- *      mishandled if one ever appears) fails LOUD, named, and never falls
- *      back to writing a tenant's rows into the managed DB.
+ * the master secret. This test proves managed subgraphs are unaffected by
+ * the key's absence — the regression that matters.
  */
 
 process.env.DATABASE_URL =
@@ -219,62 +213,5 @@ describe("managed subgraphs are unaffected by the processor holding no master ke
 		expect(result.skipped).toBe(false);
 		expect(result.errors).toBe(0);
 		expect(await balanceOf(pgSchema, A)).toBe(7n);
-	});
-});
-
-describe("a BYO subgraph without a key fails loud instead of silently using the managed DB", () => {
-	it("throws a named error identifying the subgraph, and writes nothing to the managed schema", async () => {
-		// Encrypt the fixture connection string BEFORE the key is removed below
-		// — real deploy-time encryption always happens long before a block
-		// reaches this processor, so a key must be resolvable here regardless
-		// of what the guard assertion does to it afterward.
-		const fakeUserDbUrl = "postgresql://user:pass@example.invalid:5432/tenant";
-		const originalKey = process.env[KEY_ENV];
-		if (!originalKey) process.env[KEY_ENV] = "ab".repeat(32);
-		const databaseUrlEnc = encryptDatabaseUrl(fakeUserDbUrl);
-		if (!originalKey) delete process.env[KEY_ENV];
-
-		const pgSchema = `sg_nokey_byo_${randomUUID().slice(0, 8)}`;
-		const def = makeMintDef(`nokey-byo-${randomUUID().slice(0, 8)}`);
-		createdSubgraphNames.push(def.name);
-		await db
-			.insertInto("subgraphs")
-			.values({
-				name: def.name,
-				status: "active",
-				definition: def as unknown as Record<string, unknown>,
-				schema_hash: "test",
-				handler_path: "test",
-				schema_name: pgSchema,
-				account_id: accountId,
-				last_processed_block: 0,
-				database_url_enc: databaseUrlEnc,
-			})
-			.execute();
-
-		const A = "SP2TX6EG1TX6P1YXRRX1CBS7HK9GC9VPABPJ1E665";
-		const err = await withoutKey(() =>
-			processBlock(def, def.name, 1, {
-				preloaded: makeMintBlock(1, A, "9"),
-			}),
-		).catch((e) => e);
-
-		expect(err).toBeInstanceOf(ByoKeyUnavailableError);
-		expect((err as Error).message).toContain(def.name);
-
-		// Never fell back to the managed DB: no schema was ever created there
-		// for this subgraph, and its cursor never advanced.
-		const { rows } = await sql
-			.raw(
-				`SELECT 1 FROM information_schema.schemata WHERE schema_name = '${pgSchema}'`,
-			)
-			.execute(db);
-		expect(rows.length).toBe(0);
-		const row = await db
-			.selectFrom("subgraphs")
-			.select("last_processed_block")
-			.where("name", "=", def.name)
-			.executeTakeFirstOrThrow();
-		expect(Number(row.last_processed_block)).toBe(0);
 	});
 });

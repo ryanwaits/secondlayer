@@ -17,28 +17,6 @@ export const ErrorCodes = {
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
 
-/**
- * Structured payload carried on a refused BYO breaking-change deploy. Single-sourced
- * here so subgraphs (thrower), api (body), sdk (typed error), and cli (renderer) all
- * agree on shape. The deploy is still refused — this only describes the manual
- * DROP + rebuild the user must run themselves.
- */
-export interface ByoBreakingChangeDetails {
-	reasons: string[];
-	diff: {
-		addedTables: string[];
-		removedTables: string[];
-		addedColumns: Record<string, string[]>;
-		breakingChanges: string[];
-	};
-	plan: {
-		schemaName: string;
-		dropStatement: string;
-		statements: string[];
-		grantScript: string;
-	};
-}
-
 /** Base error class for all Secondlayer errors. */
 export class SecondLayerError extends Error {
 	public code: ErrorCode;
@@ -184,7 +162,6 @@ export const CODE_TO_STATUS: Record<
 	NO_TENANT_FOR_PROJECT: 404,
 	INSTANCE_EXISTS: 409,
 	SUBGRAPH_NOT_FOUND: 404,
-	BYO_BREAKING_CHANGE: 422,
 	PUBLIC_NAME_TAKEN: 409,
 	GHOST_KEY_READ_ONLY: 403,
 } as const;

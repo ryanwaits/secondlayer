@@ -1,6 +1,6 @@
-import { decodeClarityValue, toJsonSafe } from "../clarity.ts";
 import { decodedRow, optionalString } from "./_payload.ts";
-import type { StreamsEvent } from "./types.ts";
+import { decodeClarityValue, toJsonSafe } from "./clarity.ts";
+import type { StreamsEvent } from "./events.ts";
 
 /** Decoded form of a Clarity `print` event:
  *  - `topic`: the print topic, when the contract emits a `{ topic, ... }` tuple

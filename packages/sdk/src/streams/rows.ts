@@ -11,13 +11,18 @@
  * `decode(event)` for one call returning the same flat, `event_type`-
  * discriminated row Index serves, or `decoded: true` on
  * `streams.events.consume` so decoding never appears in your handler at all.
- * Those exist precisely so an 11-branch guard+decode dispatch is not the
- * default experience.
+ *
+ * The primitives themselves live in `@secondlayer/shared/streams-rows`
+ * (canonical home, shared with the indexer); this subpath re-exports them
+ * unchanged.
  */
-export { decodeFtTransfer, isFtTransfer } from "./ft-transfer.ts";
-export { decodeNftTransfer, isNftTransfer } from "./nft-transfer.ts";
-export { decodePrint, isPrint } from "./print.ts";
 export {
+	decodeFtTransfer,
+	isFtTransfer,
+	decodeNftTransfer,
+	isNftTransfer,
+	decodePrint,
+	isPrint,
 	decodeStxBurn,
 	decodeStxLock,
 	decodeStxMint,
@@ -26,8 +31,6 @@ export {
 	isStxLock,
 	isStxMint,
 	isStxTransfer,
-} from "./stx-events.ts";
-export {
 	decodeFtBurn,
 	decodeFtMint,
 	decodeNftBurn,
@@ -36,28 +39,23 @@ export {
 	isFtMint,
 	isNftBurn,
 	isNftMint,
-} from "./token-mint-burn.ts";
+} from "@secondlayer/shared/streams-rows";
 
-export type { DecodedEventColumns } from "./_payload.ts";
 export type {
+	DecodedEventColumns,
+	DecodedEventRow,
+	DecodedFtBurn,
+	DecodedFtMint,
 	DecodedFtTransfer,
 	DecodedFtTransferPayload,
-} from "./ft-transfer.ts";
-export type {
+	DecodedNftBurn,
+	DecodedNftMint,
 	DecodedNftTransfer,
 	DecodedNftTransferPayload,
-} from "./nft-transfer.ts";
-export type { DecodedPrint, DecodedPrintPayload } from "./print.ts";
-export type {
+	DecodedPrint,
+	DecodedPrintPayload,
 	DecodedStxBurn,
 	DecodedStxLock,
 	DecodedStxMint,
 	DecodedStxTransfer,
-} from "./stx-events.ts";
-export type {
-	DecodedFtBurn,
-	DecodedFtMint,
-	DecodedNftBurn,
-	DecodedNftMint,
-} from "./token-mint-burn.ts";
-export type { DecodedEventRow } from "./index.ts";
+} from "@secondlayer/shared/streams-rows";

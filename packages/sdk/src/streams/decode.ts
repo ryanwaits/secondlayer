@@ -1,10 +1,10 @@
-import type { IndexEvent } from "../index-api/client.ts";
 import {
 	optionalString,
 	requireAmountField,
 	requireHexValue,
 	requireString,
-} from "./_payload.ts";
+} from "@secondlayer/shared/streams-rows";
+import type { IndexEvent } from "../index-api/client.ts";
 import type { StreamsEvent } from "./types.ts";
 
 /**

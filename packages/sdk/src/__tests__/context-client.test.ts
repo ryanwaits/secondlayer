@@ -24,8 +24,7 @@ describe("SecondLayer.context()", () => {
 				),
 			);
 			const p = url.pathname;
-			if (p === "/api/accounts/me")
-				return json({ email: "a@b.com", plan: "scale" });
+			if (p === "/api/accounts/me") return json({ email: "a@b.com" });
 			if (p === "/v1/streams/tip")
 				return json({
 					block_height: 100,
@@ -60,55 +59,18 @@ describe("SecondLayer.context()", () => {
 						{ status: "paused" },
 					],
 				});
-			if (p === "/api/projects")
-				return json({
-					projects: [
-						{
-							id: "p1",
-							name: "My App",
-							slug: "my-app",
-							network: "mainnet",
-							nodeRpc: null,
-							settings: null,
-							createdAt: "",
-							updatedAt: "",
-						},
-					],
-				});
-			if (p === "/api/keys")
-				return json({
-					keys: [
-						{
-							id: "k1",
-							prefix: "sk-sl_a",
-							name: "ci",
-							status: "active",
-							product: "streams",
-							tier: "build",
-							createdAt: "",
-							lastUsedAt: null,
-						},
-					],
-				});
 			throw new Error(`unexpected path ${p}`);
 		}) as typeof fetch;
 
 		const snap = await new SecondLayer({ apiKey: "sk-test" }).context();
 
-		expect(snap.account).toEqual({ email: "a@b.com", plan: "scale" });
+		expect(snap.account).toEqual({ email: "a@b.com" });
 		expect(snap.streamsTip?.block_height).toBe(100);
 		expect(snap.indexTip?.block_height).toBe(99);
 		expect(snap.subscriptions).toEqual({
 			count: 3,
 			byStatus: { active: 2, paused: 1 },
 		});
-		// Projects/keys are mapped to compact, plaintext-free shapes.
-		expect(snap.projects).toEqual([
-			{ name: "My App", slug: "my-app", network: "mainnet" },
-		]);
-		expect(snap.apiKeys).toEqual([
-			{ prefix: "sk-sl_a", name: "ci", status: "active", product: "streams" },
-		]);
 		// Only the reindexing subgraph is probed for an in-flight operation.
 		expect(snap.activeOperations).toEqual([
 			{
@@ -128,8 +90,6 @@ describe("SecondLayer.context()", () => {
 		expect(snap.account).toBeNull();
 		expect(snap.streamsTip).toBeNull();
 		expect(snap.subgraphs).toBeNull();
-		expect(snap.projects).toBeNull();
-		expect(snap.apiKeys).toBeNull();
 		expect(snap.activeOperations).toBeNull();
 	});
 });

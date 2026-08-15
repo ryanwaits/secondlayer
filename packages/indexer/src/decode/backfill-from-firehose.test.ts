@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { StreamsEvent } from "@secondlayer/sdk";
+import type { StreamsEvent } from "@secondlayer/shared/streams-rows";
 import type {
 	ReadCanonicalStreamsEventsParams,
 	ReadCanonicalStreamsEventsResult,

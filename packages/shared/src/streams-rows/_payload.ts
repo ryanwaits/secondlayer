@@ -1,4 +1,4 @@
-import type { StreamsEvent } from "./types.ts";
+import type { StreamsEvent } from "./events.ts";
 
 /** Superset of the columns the decoded_events table holds. Every decoded
  *  event's `decoded_payload` is assignable to this, so the indexer's writer

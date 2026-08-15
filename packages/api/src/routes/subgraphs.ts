@@ -6,7 +6,7 @@ import {
 	extractSubgraphDefinition,
 } from "@secondlayer/bundler";
 import { getErrorMessage, logger } from "@secondlayer/shared";
-import { getDb, getRawClientFor, getSourceDb } from "@secondlayer/shared/db";
+import { getDb, getSourceDb } from "@secondlayer/shared/db";
 import type { Subgraph, SubgraphOperation } from "@secondlayer/shared/db";
 import {
 	countSubgraphMissingBlocks,
@@ -25,7 +25,6 @@ import {
 	waitForSubgraphOperationsClear,
 } from "@secondlayer/shared/db/queries/subgraph-operations";
 import {
-	encryptDatabaseUrl,
 	findPublicSubgraphByName,
 	getSubgraph,
 	listSubgraphs,
@@ -482,54 +481,8 @@ export async function runSubgraphDeploy(
 	);
 	const db = getDb();
 
-	// ── BYO data plane ──────────────────────────────────────────────────────
-	// When a databaseUrl is supplied, the schema/writes/reads live in the user's
-	// DB. Reject handlers whose writes can't survive at-least-once replay, verify
-	// the connection, and (for --dry-run) return the DDL/grant plan without
-	// touching anything.
-	const byoUrl = parsed.data.databaseUrl;
-	let databaseUrlEnc: Buffer | undefined;
-	let byoDataDb: ReturnType<typeof getDb> | undefined;
-	if (byoUrl) {
-		if (hasNonReplayableWrites(handlerCode, parsed.data.sourceCode)) {
-			return c.json(
-				{
-					error:
-						"BYO subgraphs require idempotent handlers: ctx.update / ctx.patchOrInsert / " +
-						"ctx.increment can double-apply on block replay (no cross-DB transaction). " +
-						"Use ctx.insert or ctx.upsert with a unique key instead.",
-					code: "BYO_NON_IDEMPOTENT_HANDLER",
-				},
-				400,
-			);
-		}
-		try {
-			await getRawClientFor(byoUrl)`SELECT 1`;
-		} catch (err) {
-			return c.json(
-				{
-					error: `Could not connect to your database: ${getErrorMessage(err)}`,
-					code: "BYO_CONNECT_FAILED",
-				},
-				400,
-			);
-		}
-		if (parsed.data.dryRun) {
-			const plan = renderDeployPlan(def, planSchemaName);
-			return c.json({
-				dryRun: true,
-				connection: "ok",
-				schemaName: plan.schemaName,
-				statements: plan.statements,
-				grantScript: plan.grantScript,
-				...(printFieldWarnings.length > 0
-					? { warnings: printFieldWarnings }
-					: {}),
-			});
-		}
-		databaseUrlEnc = encryptDatabaseUrl(byoUrl);
-		byoDataDb = getDb(byoUrl);
-	} else if (parsed.data.dryRun) {
+	// Dry run: return the DDL plan without touching anything.
+	if (parsed.data.dryRun) {
 		const plan = renderDeployPlan(def, planSchemaName);
 		return c.json({
 			dryRun: true,
@@ -547,8 +500,7 @@ export async function runSubgraphDeploy(
 	// Visibility is a hosted concern. OSS names are unique locally and
 	// always readable — skip the public-name claim check.
 	const desiredVisibility = isPlatformMode()
-		? (parsed.data.visibility ??
-			(existing ? undefined : byoUrl ? "private" : "public"))
+		? (parsed.data.visibility ?? (existing ? undefined : "public"))
 		: undefined;
 	if (isPlatformMode()) {
 		if (desiredVisibility === "public" && existing?.visibility !== "public") {
@@ -586,7 +538,7 @@ export async function runSubgraphDeploy(
 		});
 	// Tip-first redeploys must refuse breaking changes BEFORE any DDL runs —
 	// deploySchema applies the new schema as a side effect of detecting it.
-	const tipFirst = def.backfillMode === "concurrent" && !byoUrl;
+	const tipFirst = def.backfillMode === "concurrent";
 	// Tip-first history fills are backfill walks over already-live heights —
 	// delta handlers would double-apply (no op-scoped cursor yet). Covers new
 	// deploys, redeploys adding deltas, and blocking→concurrent flips.
@@ -630,8 +582,6 @@ export async function runSubgraphDeploy(
 		handlerCode: parsed.data.handlerCode,
 		sourceCode: parsed.data.sourceCode,
 		forceReindex: parsed.data.startBlock !== undefined || startBlockChanged,
-		dataDb: byoDataDb,
-		databaseUrlEnc,
 	});
 
 	if (desiredVisibility && desiredVisibility !== existing?.visibility) {
@@ -669,16 +619,12 @@ export async function runSubgraphDeploy(
 
 	await cache.refresh();
 
-	// Auto-trigger initial population for new deploys and breaking schema changes.
-	// Managed → reindex (drops + rebuilds). BYO → backfill (forward fill, no drop):
-	// reindex is blocked on BYO since dropping the user's schema from a background
-	// job is destructive. A BYO backfill needs a concrete range, so it only runs
-	// once there's a chain tip; otherwise forward catch-up populates as blocks land.
+	// Auto-trigger initial population (reindex: drop + rebuild) for new deploys
+	// and breaking schema changes.
 	let operationId: string | undefined;
 	let reindexEstimatedEvents: number | undefined;
 	const needsPopulation =
 		result.action === "created" || result.action === "reindexed";
-	const startByoBackfill = byoUrl && needsPopulation && chainTip > 0;
 	// Persist the sparse probe pairs so reindex/backfill routes and the
 	// boot-resume sweep can classify op weight without re-importing handlers.
 	const probeTargets = canSparseScan(def) ? sparseProbeTargets(def) : null;
@@ -740,7 +686,7 @@ export async function runSubgraphDeploy(
 			}
 			throw err;
 		}
-	} else if ((needsPopulation && !byoUrl) || startByoBackfill) {
+	} else if (needsPopulation) {
 		try {
 			const populationWeight = await classifyOperationWeight(
 				probeTargets,
@@ -751,7 +697,7 @@ export async function runSubgraphDeploy(
 				subgraphId: result.subgraphId,
 				subgraphName: name,
 				accountId,
-				kind: byoUrl ? "backfill" : "reindex",
+				kind: "reindex",
 				fromBlock: deployStartBlock,
 				toBlock: chainTip > 0 ? chainTip : undefined,
 				weight: populationWeight.weight,

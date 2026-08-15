@@ -93,9 +93,9 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		variant("subgraph-create"),
 		variant("subgraph-alex-swaps"),
 		card(
-			"Deploy to your database",
-			"BYO Postgres + a typed ORM schema.",
-			'/secondlayer Help me deploy a subgraph to my own Postgres: `secondlayer subgraphs deploy <file> --database-url "$DATABASE_URL"`, generate a typed schema with `secondlayer subgraphs codegen --target prisma|drizzle|kysely`, treat the tables as read-only, and explain the 422 breaking-change refusal on incompatible redeploys.',
+			"Typed ORM schema",
+			"Codegen a Prisma/Drizzle/Kysely schema for a subgraph.",
+			"/secondlayer Help me generate a typed ORM schema for my subgraph with `secondlayer subgraphs codegen --target prisma|drizzle|kysely`, wire it into my app, and treat the tables as read-only.",
 		),
 		card(
 			"Watch the backfill",

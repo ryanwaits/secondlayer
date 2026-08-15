@@ -5,7 +5,7 @@ import {
 	requireHexValue,
 	requireString,
 } from "./_payload.ts";
-import type { StreamsEvent } from "./types.ts";
+import type { StreamsEvent } from "./events.ts";
 
 export type DecodedFtMintPayload = {
 	asset_identifier: string;

@@ -1,5 +1,4 @@
 import type { Database } from "@secondlayer/shared/db";
-import type { ByoBreakingChangeDetails } from "@secondlayer/shared/errors";
 import { type Kysely, sql } from "kysely";
 import type {
 	SubgraphDefinition,
@@ -202,34 +201,6 @@ export interface DeployDiff {
 	addedUniqueKeys?: Record<string, string[][]>;
 }
 
-export interface ByoMigrationPlan {
-	schemaName: string;
-	dropStatement: string;
-	statements: string[];
-	grantScript: string;
-}
-
-/**
- * Thrown when a BYO subgraph deploy is refused for a breaking schema change.
- * Plain `Error` with a literal `code` (not `SecondLayerError`) so the API
- * middleware matches it by code across bundle boundaries — bunup duplicates
- * classes per package, breaking cross-bundle `instanceof`. The refusal stands;
- * `details` carries the reviewable DROP + rebuild the user must run manually.
- */
-export class ByoBreakingChangeError extends Error {
-	readonly code = "BYO_BREAKING_CHANGE" as const;
-	readonly details: ByoBreakingChangeDetails;
-
-	constructor(reasons: string[], diff: DeployDiff, plan: ByoMigrationPlan) {
-		super(
-			"Breaking schema change on a BYO subgraph would drop data in your " +
-				"database. Review the plan and run the DROP + rebuild DDL manually.",
-		);
-		this.name = "ByoBreakingChangeError";
-		this.details = { reasons, diff, plan };
-	}
-}
-
 /**
  * Map a raw `TableDiff` (+ breaking reasons) into the wire `DeployDiff`. `null`
  * diff (e.g. same-hash force reindex, where no schema diff exists) → empty
@@ -253,17 +224,15 @@ function toDeployDiff(diff: TableDiff | null, reasons: string[]): DeployDiff {
 
 export interface DeployPlan {
 	schemaName: string;
-	/** `DROP SCHEMA … CASCADE` a destructive rebuild would run first (shown, never auto-run on BYO). */
+	/** `DROP SCHEMA … CASCADE` a destructive rebuild would run first. */
 	dropStatement: string;
-	/** DDL Secondlayer will run against your database. */
+	/** DDL the deploy will run. */
 	statements: string[];
-	/** Least-privilege grant script to run once, before deploying. */
-	grantScript: string;
 }
 
 /**
- * Render the DDL + grant script a BYO deploy would run, without executing.
- * Powers `--dry-run`: the user reviews exactly what touches their DB first.
+ * Render the DDL a deploy would run, without executing.
+ * Powers `--dry-run`: the user reviews exactly what a deploy does first.
  */
 export function renderDeployPlan(
 	def: SubgraphDefinition,
@@ -273,14 +242,7 @@ export function renderDeployPlan(
 	const { statements } = generateSubgraphSQL(def, schemaName);
 	const schema = schemaName ?? pgSchemaName(def.name);
 	const dropStatement = `DROP SCHEMA IF EXISTS "${schema}" CASCADE;`;
-	const grantScript = [
-		"-- Run once on YOUR database as an owner/superuser, replacing <role>",
-		"-- with the role whose credentials you give Secondlayer.",
-		"-- Secondlayer then creates and owns only this one schema:",
-		"GRANT CREATE ON DATABASE current_database() TO <role>;",
-		`-- (after first deploy <role> owns "${schema}"; no further grants needed)`,
-	].join("\n");
-	return { schemaName: schema, dropStatement, statements, grantScript };
+	return { schemaName: schema, dropStatement, statements };
 }
 
 /**
@@ -302,14 +264,6 @@ export async function deploySchema(
 		version?: string;
 		handlerCode?: string;
 		sourceCode?: string;
-		/**
-		 * BYO data plane: when set, schema DDL (CREATE/ALTER/index) runs against
-		 * the user-owned DB while the subgraphs registry row stays on `db`
-		 * (managed). Defaults to `db` — managed deploys are unchanged.
-		 */
-		dataDb?: AnyDb;
-		/** Encrypted user-DB connection string to persist on the registry row. */
-		databaseUrlEnc?: Buffer | null;
 	},
 ): Promise<{
 	action: "created" | "unchanged" | "handler_updated" | "updated" | "reindexed";
@@ -326,22 +280,7 @@ export async function deploySchema(
 		"@secondlayer/shared/db/queries/subgraphs"
 	);
 
-	// DDL target: the user's DB for BYO, else the managed DB. The registry
-	// (getSubgraph/registerSubgraph) always stays on `db`.
-	const ddlDb = opts?.dataDb ?? db;
-	const byo = opts?.dataDb != null;
-	const refuseDestructiveOnByo = (
-		reasons: string[],
-		diff: TableDiff | null,
-	): never => {
-		const plan = renderDeployPlan(def, opts?.schemaName);
-		throw new ByoBreakingChangeError(reasons, toDeployDiff(diff, reasons), {
-			schemaName: plan.schemaName,
-			dropStatement: plan.dropStatement,
-			statements: plan.statements,
-			grantScript: plan.grantScript,
-		});
-	};
+	const ddlDb = db;
 
 	const existing = await getSubgraph(db, def.name, opts?.accountId);
 
@@ -370,13 +309,11 @@ export async function deploySchema(
 		sourceCode: opts?.sourceCode,
 		schemaName,
 		startBlock: def.startBlock,
-		databaseUrlEnc: opts?.databaseUrlEnc ?? null,
 	};
 
 	if (existing) {
 		// Guard against zombie rows: registry entry exists but PG schema was dropped
-		// (e.g. partial delete or manual cleanup). Treat as a new subgraph. The
-		// schema lives on the data-plane DB (user DB for BYO), so check there.
+		// (e.g. partial delete or manual cleanup). Treat as a new subgraph.
 		const schemaExists = await sql<{ exists: boolean }>`
 			SELECT EXISTS (
 				SELECT 1 FROM information_schema.schemata
@@ -426,7 +363,6 @@ export async function deploySchema(
 
 		if (existing.schema_hash === hash && opts?.forceReindex) {
 			// Same schema but force reindex requested — drop and recreate.
-			if (byo) refuseDestructiveOnByo(["force reindex"], null);
 			await sql
 				.raw(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`)
 				.execute(ddlDb);
@@ -446,12 +382,6 @@ export async function deploySchema(
 
 			if (breaking || opts?.forceReindex) {
 				// Breaking change or forced: drop schema, recreate, register
-				if (byo) {
-					refuseDestructiveOnByo(
-						reasons.length > 0 ? reasons : ["force reindex"],
-						diff,
-					);
-				}
 				await sql
 					.raw(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`)
 					.execute(ddlDb);

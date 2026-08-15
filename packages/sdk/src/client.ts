@@ -1,11 +1,9 @@
 import type { SubgraphSummary } from "@secondlayer/shared/schemas";
-import { ApiKeys } from "./api-keys/client.ts";
 import { BaseClient, resolveApiKey } from "./base.ts";
 import type { SecondLayerOptions } from "./base.ts";
 import { Contracts } from "./contracts/client.ts";
 import { Index } from "./index-api/client.ts";
 import type { IndexTip } from "./index-api/client.ts";
-import { Projects } from "./projects/client.ts";
 import { createStreamsClient } from "./streams/client.ts";
 import type { StreamsClient, StreamsTip } from "./streams/types.ts";
 import { Subgraphs } from "./subgraphs/client.ts";
@@ -14,22 +12,6 @@ import { Subscriptions } from "./subscriptions/client.ts";
 
 export interface ContextAccount {
 	email: string;
-	plan: string;
-}
-
-/** Compact project view for {@link ContextSnapshot}. */
-export interface ContextProject {
-	name: string;
-	slug: string;
-	network: string;
-}
-
-/** Compact API-key view for {@link ContextSnapshot} — never the plaintext. */
-export interface ContextApiKey {
-	prefix: string;
-	name: string | null;
-	status: string;
-	product: string;
 }
 
 export interface ActiveSubgraphOperation {
@@ -51,10 +33,6 @@ export interface ContextSnapshot {
 	indexTip: IndexTip | null;
 	subgraphs: SubgraphSummary[] | null;
 	subscriptions: { count: number; byStatus: Record<string, number> } | null;
-	/** The account's projects (null when unreadable — e.g. a scoped key). */
-	projects: ContextProject[] | null;
-	/** The account's API keys, metadata only (null when unreadable). */
-	apiKeys: ContextApiKey[] | null;
 	/** In-flight reindex operations (bounded to subgraphs reporting `reindexing`). */
 	activeOperations: ActiveSubgraphOperation[] | null;
 }
@@ -65,8 +43,6 @@ export class SecondLayer extends BaseClient {
 	readonly contracts: Contracts;
 	readonly subgraphs: Subgraphs;
 	readonly subscriptions: Subscriptions;
-	readonly apiKeys: ApiKeys;
-	readonly projects: Projects;
 
 	constructor(options: Partial<SecondLayerOptions> = {}) {
 		super(options);
@@ -80,8 +56,6 @@ export class SecondLayer extends BaseClient {
 		this.contracts = new Contracts(options);
 		this.subgraphs = new Subgraphs(options);
 		this.subscriptions = new Subscriptions(options);
-		this.apiKeys = new ApiKeys(options);
-		this.projects = new Projects(options);
 	}
 
 	/**
@@ -109,23 +83,14 @@ export class SecondLayer extends BaseClient {
 		const safe = <T>(p: Promise<T>): Promise<T | null> =>
 			p.then((v) => v).catch(() => null);
 
-		const [
-			account,
-			streamsTip,
-			indexEnv,
-			subgraphsRes,
-			subscriptionsRes,
-			projectsRes,
-			apiKeysRes,
-		] = await Promise.all([
-			safe(this.request<ContextAccount>("GET", "/api/accounts/me")),
-			safe(this.streams.tip()),
-			safe(this.index.canonical.list({ limit: 1 })),
-			safe(this.subgraphs.list()),
-			safe(this.subscriptions.list()),
-			safe(this.projects.list()),
-			safe(this.apiKeys.list()),
-		]);
+		const [account, streamsTip, indexEnv, subgraphsRes, subscriptionsRes] =
+			await Promise.all([
+				safe(this.request<ContextAccount>("GET", "/api/accounts/me")),
+				safe(this.streams.tip()),
+				safe(this.index.canonical.list({ limit: 1 })),
+				safe(this.subgraphs.list()),
+				safe(this.subscriptions.list()),
+			]);
 
 		const subgraphs = subgraphsRes?.data ?? null;
 
@@ -166,31 +131,12 @@ export class SecondLayer extends BaseClient {
 			);
 		}
 
-		const projects: ContextProject[] | null = projectsRes
-			? projectsRes.projects.map((p) => ({
-					name: p.name,
-					slug: p.slug,
-					network: p.network,
-				}))
-			: null;
-
-		const apiKeys: ContextApiKey[] | null = apiKeysRes
-			? apiKeysRes.keys.map((k) => ({
-					prefix: k.prefix,
-					name: k.name,
-					status: k.status,
-					product: k.product,
-				}))
-			: null;
-
 		return {
 			account,
 			streamsTip,
 			indexTip: indexEnv?.tip ?? null,
 			subgraphs,
 			subscriptions,
-			projects,
-			apiKeys,
 			activeOperations,
 		};
 	}

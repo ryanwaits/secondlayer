@@ -2,7 +2,7 @@
 
 Typed on-chain indexing for Stacks. Declare event filters + column schema with `defineSubgraph()`; the runtime decodes blocks, matches filters, runs your handlers inside a transactional context, and exposes the result as a Postgres schema you query over REST or SQL.
 
-Subgraphs have a visibility: managed deploys default `visibility: public` — anon-readable at `/v1/subgraphs/<name>/<table>`, in a single global public namespace claimed on publish (409 `PUBLIC_NAME_TAKEN` if the name is taken). BYO-database deploys default private. Override with `--visibility public|private` at deploy, or flip later with `secondlayer subgraphs publish|unpublish <name>`.
+Subgraphs have a visibility: deploys default `visibility: public` — anon-readable at `/v1/subgraphs/<name>/<table>`, in a single global public namespace (409 `PUBLIC_NAME_TAKEN` if the name is taken). Override with `--visibility public|private` at deploy.
 
 Subgraph rows fan out to HTTP subscribers through a post-flush outbox emitter — signed Standard Webhooks POSTs with retries, circuit breaker, and replay.
 
@@ -94,62 +94,10 @@ Delivery bodies and response previews land in `subscription_deliveries`. Rows wh
 | `SUBGRAPH_REINDEX_BATCH_SIZE` | adaptive | Override the default historical block batch size used by reindex/backfill. |
 | `SUBGRAPH_REINDEX_MIN_BATCH_SIZE` | adaptive | Override the adaptive lower bound for reindex/backfill batches. |
 | `SUBGRAPH_REINDEX_MAX_BATCH_SIZE` | adaptive | Override the adaptive upper bound for reindex/backfill batches. |
-| `DATABASE_MAX_POOLS` | `25` | Max cached connection pools. With BYO subgraphs (one pool per user DB) the least-recently-used pool is evicted past this cap; the source/target pools are never evicted. |
-| `DATABASE_IDLE_TIMEOUT` | `300` | Seconds before idle connections are closed (`0` = never). Keeps a fleet of BYO pools from pinning connections. |
+| `DATABASE_MAX_POOLS` | `25` | Max cached connection pools; the least-recently-used pool is evicted past this cap. The source/target pools are never evicted. |
+| `DATABASE_IDLE_TIMEOUT` | `300` | Seconds before idle connections are closed (`0` = never). |
 
-## Bring your own database (BYO data plane)
-
-There are three tiers, not two:
-
-| Tier | Indexer / decode | Handler exec | Database | Serving API |
-| --- | --- | --- | --- | --- |
-| Managed (default) | ours | ours | ours | ours |
-| **BYO data plane** | ours | ours | **yours** | **yours** |
-| Self-host | yours | yours | yours | yours |
-
-With BYO, the managed pipeline (ingest → decode → match → run your handler) is
-unchanged, but your handler's rows land in **your** Postgres and the serving API
-reads from there. Deploy with a connection string:
-
-```bash
-secondlayer subgraphs deploy subgraphs/my.ts --database-url "postgres://user:pass@your-host:5432/db"
-```
-
-BYO deploys default `visibility: private` (managed deploys default public);
-pass `--visibility public` or `secondlayer subgraphs publish <name>` to open reads.
-
-The connection string is stored encrypted at rest (AES-GCM, keyed by
-`SECONDLAYER_SECRETS_KEY`) and never returned in API responses. The server
-verifies the connection before deploying. Once deployed, query the
-`subgraph_…` schema directly with any ORM/GraphQL/REST — we're no longer in the
-serving path.
-
-**Preview before it touches your DB.** `POST /api/subgraphs` with
-`{"dryRun": true, "databaseUrl": "…"}` returns the exact DDL plus a grant
-script and verifies the connection — without writing anything.
-
-**Constraints (v1):**
-
-- **Idempotent handlers only.** A BYO block write can't share the managed
-  transaction, so a crash replays the block (at-least-once). `ctx.insert` and
-  `ctx.upsert` (with a unique key) are safe — flush is replace-per-height. A
-  deploy with non-idempotent `ctx.update` / `ctx.patchOrInsert` is rejected.
-- **No reindex.** A breaking change (removed table/column, changed type, or a
-  forced reindex) would drop + rebuild the schema in your DB, so the deploy is
-  refused with HTTP `422` — nothing is touched. The refusal carries a migration
-  plan: the SDK throws a typed `ByoBreakingChangeError` (`details.reasons` +
-  `details.plan` with `dropStatement`/`statements`/`grantScript`) and the CLI
-  prints the exact `DROP SCHEMA … CASCADE` + rebuild DDL to run yourself, then
-  re-deploy. A destructive `--force` rebuild on your DB is not yet supported.
-- **Delete leaves your data.** Deleting the subgraph removes our registry row
-  (and the stored connection) and pauses subscriptions, but never drops the
-  schema in your database.
-
-**Recommended:** give Secondlayer a least-privilege role scoped to its own
-schema, and point `--database-url` at a session-mode pooler endpoint
-(PgBouncer/Neon/Supabase) rather than raw Postgres.
-
-### ORM codegen
+## ORM codegen
 
 Once rows land in your DB, generate a typed schema for your ORM:
 

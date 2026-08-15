@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { ByoBreakingChangeError } from "@secondlayer/sdk";
 import { registerSubgraphTools } from "./subgraphs.ts";
 
 interface RegisteredTool {
@@ -166,7 +165,7 @@ describe("subgraph MCP tools", () => {
 		expect(result.content[0]?.text).toContain('"totalMissingBlocks": 11');
 	});
 
-	it("subgraphs_deploy forwards databaseUrl and dryRun, returns the BYO preview", async () => {
+	it("subgraphs_deploy forwards dryRun and returns the DDL preview", async () => {
 		const tools: RegisteredTool[] = [];
 		let captured: Record<string, unknown> | undefined;
 		registerSubgraphTools(
@@ -179,10 +178,8 @@ describe("subgraph MCP tools", () => {
 							// The server returns the dry-run preview shape (not DeploySubgraphResponse).
 							return {
 								dryRun: true,
-								connection: "ok",
 								schemaName: "subgraph_dex",
 								statements: ["CREATE TABLE ..."],
-								grantScript: "GRANT ...",
 							};
 						},
 					},
@@ -194,56 +191,11 @@ describe("subgraph MCP tools", () => {
 
 		const result = await deploy.handler({
 			code: DEPLOY_SOURCE,
-			databaseUrl: "postgres://user:pass@host:5432/db",
 			dryRun: true,
 		});
 		expect(result.isError).toBeUndefined();
-		expect(captured?.databaseUrl).toBe("postgres://user:pass@host:5432/db");
 		expect(captured?.dryRun).toBe(true);
 		expect(result.content[0]?.text).toContain('"dryRun": true');
 		expect(result.content[0]?.text).toContain("subgraph_dex");
-	});
-
-	it("subgraphs_deploy surfaces a refused BYO breaking change as an actionable result", async () => {
-		const tools: RegisteredTool[] = [];
-		registerSubgraphTools(
-			fakeServer(tools),
-			() =>
-				({
-					subgraphs: {
-						deploy: async () => {
-							throw new ByoBreakingChangeError("breaking change", {
-								reasons: ["column dropped"],
-								diff: {
-									addedTables: [],
-									removedTables: [],
-									addedColumns: {},
-									breakingChanges: ["column dropped"],
-								},
-								plan: {
-									schemaName: "subgraph_dex",
-									dropStatement: "DROP SCHEMA subgraph_dex CASCADE;",
-									statements: ["CREATE TABLE ..."],
-									grantScript: "GRANT ...",
-								},
-							});
-						},
-					},
-				}) as never,
-		);
-
-		const deploy = tools.find((tool) => tool.name === "subgraphs_deploy");
-		if (!deploy) throw new Error("subgraphs_deploy not registered");
-
-		const result = await deploy.handler({
-			code: DEPLOY_SOURCE,
-			databaseUrl: "postgres://user:pass@host:5432/db",
-		});
-		// Actionable, not a failure — the agent needs the migration plan.
-		expect(result.isError).toBeUndefined();
-		expect(result.content[0]?.text).toContain('"byoBreakingChange": true');
-		expect(result.content[0]?.text).toContain(
-			"DROP SCHEMA subgraph_dex CASCADE;",
-		);
 	});
 });

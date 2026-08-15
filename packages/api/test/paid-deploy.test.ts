@@ -77,27 +77,6 @@ describe.skipIf(SKIP)("x402-paid subgraph writes", () => {
 		expect(seen?.paidTtlMs).toBeGreaterThan(0);
 	});
 
-	test("paid deploy rejects BYO databases", async () => {
-		const app = new Hono();
-		app.onError(errorHandler);
-		registerPaidWriteRoutes(app as never, {
-			x402DeployMiddleware: settledAs(PAYER),
-			x402RenewMiddleware: settledAs(PAYER),
-			// biome-ignore lint/suspicious/noExplicitAny: stub
-			deploy: (async () => Response.json({ ok: true })) as any,
-		});
-		const res = await app.request("/", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				name: SUBGRAPH,
-				handlerCode: "x",
-				databaseUrl: "postgres://their-db",
-			}),
-		});
-		expect(res.status).toBe(400);
-	});
-
 	test("renew extends expiry from max(now, current)", async () => {
 		const db = getDb();
 		const initialExpiry = new Date(Date.now() + 60_000);
