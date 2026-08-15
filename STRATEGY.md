@@ -3,7 +3,6 @@
 > Single source of truth for what we build and why. Supersedes the former
 > VISION / PRODUCT / PRODUCTS / ROADMAP / ARCHITECTURE docs (deleted 2026-06-11;
 > see git history). If marketing, docs, or code contradict this file, this file wins.
-> Grounding analysis: `docs/internal/audits/focus-audit-2026-06-10.md` (internal, untracked).
 
 ## The product, one sentence
 
@@ -11,6 +10,52 @@ Secondlayer is a self-hosted Stacks data runtime: run it beside your node,
 bootstrap verified history, query decoded data, deploy TypeScript subgraphs.
 We operate one public utility — a signed canonical archive on R2 — and we
 sell metered access to the expensive bits: bootstrap, backfill, reindex.
+
+That sentence is for us. What we say to a reader is in **Voice** below.
+
+## Voice
+
+Canonical for every reader-facing surface: marketing, docs prose, blog, npm
+descriptions, CLI `--help`, MCP tool descriptions, READMEs. Code blocks,
+tables, and CLI examples stay exactly as technical as they need to be. Prose
+carries the why, examples carry the how.
+
+**The anchor** (set 2026-08-15, after the positioning audit):
+
+> Any serious app needs data a general-purpose API can't serve, and shouldn't
+> have to. This is the layer underneath, so you can shape it yourself.
+
+"…and shouldn't have to" is load-bearing. The gap is structurally correct, not
+somebody's failure. A general API indexes what's general, and your contract is
+specific by definition. Never name a competitor to make the point.
+
+**Six rules. Each is checkable, so a reviewer can reject a line without
+arguing taste.**
+
+1. **Lead with the reader's job, not an architecture noun.** Banned as openers:
+   runtime, surface, firehose, plane, decoded events, cursor envelope. The test:
+   read it to someone who has never heard of Stacks indexing. "…what is that?"
+   fails; "oh, I've had that problem" passes.
+2. **Possessives track operation, not authorship.** If the sentence were true,
+   would we have an uptime obligation? "Our archive" passes: we run it. "Our
+   REST" fails: it runs on their box. Say *generated*, *out of the box*, *an
+   API you didn't write*. Same for "our API", "our endpoints", "our instance".
+3. **Never borrow a vocabulary another category owns.** `ask · any question ·
+   answered · chat · prompt · copilot` reads as an LLM product. We ship a
+   database. Check the category a line implies, not only what it means.
+4. **Say the tradeoff out loud.** "Subgraphs gives you a REST API you didn't
+   write. That's the point, and the tradeoff." Naming a limit earns more trust
+   than hiding it, and pre-empts the "it forced its API on me" review.
+5. **No em dashes in prose.** Commas, periods, or parentheses.
+6. **Never make the reader pick a door.** One fork, on a criterion they already
+   know about themselves ("Do you already have an API layer?"), never a menu of
+   our product nouns. "Pick your surface" was the failure this replaced.
+
+**Also:** the business model never appears in a first sentence. Price belongs
+on the page about price.
+
+Tooling that applies this: the `write-docs` skill (docs pages) and the
+`writing` skill (blog). Both defer to this section.
 
 ## Three products
 
@@ -37,9 +82,11 @@ internal data plane the decoders and subgraphs ride.
 
 - **Subscriptions** — webhooks on any subgraph table or raw chain event. The
   push channel for the products. Keeps its name; never a nav-level product.
-- **Subgraph templates** — example definitions in `subgraphs/` (sBTC, PoX, BNS,
-  …). Operators copy them onto their instance. Not a hosted directory. Explore
-  as our live catalog is withdrawn as a product.
+- **Subgraph scaffolding** — `secondlayer subgraphs create --from-contract <id>`
+  infers sources, schema, and handlers from a contract's observed print events.
+  With no flag it emits one empty starter. The five hand-written templates and
+  the `subgraphs/` directory were retired 2026-08-15; new examples, when they
+  come back, are written against the self-host path.
 - **Contract discovery** — `/v1/contracts`: find deployed contracts by trait
   (SIP-009/010/013), pull ABIs. Connective tissue: feeds scaffold and Index queries.
 - **Verification** — what we hand you is signed and the SDK verifies by default:
