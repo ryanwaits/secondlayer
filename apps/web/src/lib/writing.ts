@@ -62,7 +62,7 @@ export const POSTS: WritingPost[] = [
 		readingTime: "6 min",
 		notes: "popover",
 		figures: ["the one choice"],
-		status: "draft",
+		status: "published",
 	},
 ];
 
