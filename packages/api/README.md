@@ -110,9 +110,8 @@ Proof errors:
 
 ## Stacks Subgraphs
 
-Reads live on `/v1/subgraphs` — anon for **public** subgraphs (managed deploys
-default public; BYO deploys default private), owner `sk-sl_` bearer for private
-(anon → 404). Wildcard CORS.
+Reads live on `/v1/subgraphs` — anon for **public** subgraphs (deploys
+default public), owner `sk-sl_` bearer for private (anon → 404). Wildcard CORS.
 
 ```
 GET /v1/subgraphs                       # list public (+ caller's own with bearer)
@@ -130,8 +129,7 @@ GET /v1/subgraphs/:name/docs.md
 Row routes return `{ rows, next_cursor, tip }` with `_id` keyset pagination —
 pass `?cursor=<next_cursor>` to resume, `_order=asc|desc` for direction
 (`_offset`/`_sort` rejected with 400). Visibility: deploy with
-`--visibility public|private`, flip later with `sl subgraphs publish|unpublish`;
-public names are a single global claim-on-publish namespace
+`--visibility public|private`; public names are a single global namespace
 (409 `PUBLIC_NAME_TAKEN`).
 
 Management stays on `/api/subgraphs` (session or key):

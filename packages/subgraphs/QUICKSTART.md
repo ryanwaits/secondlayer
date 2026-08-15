@@ -2,7 +2,7 @@
 
 The shortest complete loop for a hosted beta user:
 
-1. Log in and pick a project.
+1. Log in.
 2. Deploy a subgraph from a recent block so rows appear quickly.
 3. Query the generated table.
 4. Add a receiver subscription.
@@ -31,22 +31,20 @@ A **subscription** is a signed webhook delivery rule. It comes in two kinds:
 Both POST to your receiver with retries, circuit breaking, delivery logs,
 dead-letter requeue, and (subgraph) historical replay.
 
-## 1. Log In And Pick A Project
+## 1. Log In
 
 ```bash
 bun add -g @secondlayer/cli
 
 secondlayer login
-secondlayer project create my-app
-secondlayer project use my-app
 secondlayer whoami
 ```
 
-`secondlayer login` authenticates an interactive session; the CLI uses that session and
-your active project for all `secondlayer subgraphs` and `secondlayer subscriptions` commands.
+`secondlayer login` authenticates an interactive session; the CLI uses that session
+for all `secondlayer subgraphs` and `secondlayer subscriptions` commands.
 
 For machine, REST, or SDK access, create an API key (prefixed `sk-sl_`) in the
-platform console at https://secondlayer.tools/platform/api-keys, then export it:
+account console at https://console.secondlayer.tools, then export it:
 
 ```bash
 export SECONDLAYER_API_URL="https://api.secondlayer.tools"

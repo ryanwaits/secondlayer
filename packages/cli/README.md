@@ -59,14 +59,13 @@ No account. Writes `.env.local`, restores history, prints the Stacks observer st
 |---|---|
 | `secondlayer subgraphs create <name>` | Scaffold a definition file |
 | `secondlayer subgraphs scaffold <SP...::contract> [-o <path>] [--no-install]` | Generate a subgraph from a deployed contract |
-| `secondlayer subgraphs deploy <file> [--start-block <n>] [--visibility public\|private]` | Deploy; `--start-block` overrides the definition. Managed deploys default `public`, BYO default `private` |
+| `secondlayer subgraphs deploy <file> [--start-block <n>] [--visibility public\|private]` | Deploy; `--start-block` overrides the definition. Deploys default `public` |
 | `secondlayer subgraphs list` | List deployments (`ls` alias) |
 | `secondlayer subgraphs dev <file>` | Watch + hot-redeploy |
 | `secondlayer subgraphs query <name> <table>` | Query a table with filters, sort, pagination |
 | `secondlayer subgraphs status <name>` / `gaps <name>` | Inspect a deployment |
 | `secondlayer subgraphs spec <nameOrFile> [--format openapi\|agent\|markdown]` | Export API docs for a deployed subgraph or a local definition file |
-| `secondlayer subgraphs deploy <file> --database-url <url>` | BYO: write the subgraph's rows to your own Postgres |
-| `secondlayer subgraphs codegen <file> --target prisma\|drizzle [-o <path>]` | Generate an ORM schema for the subgraph's tables (BYO DB) |
+| `secondlayer subgraphs codegen <file> --target prisma\|drizzle [-o <path>]` | Generate a typed ORM schema for the subgraph's tables |
 | `secondlayer subgraphs client <name> -o <path>` | Generate a typed query client for a deployed subgraph |
 | `secondlayer subgraphs reindex/backfill/cancel/delete <name>` | Manage processing |
 
@@ -74,7 +73,7 @@ No account. Writes `.env.local`, restores history, prints the Stacks observer st
 
 | Command | What it does |
 |---|---|
-| `secondlayer index ft-transfers` / `nft-transfers` / `events --event-type <t>` / `contract-calls` | Decoded Index layer. Anonymous reads OK; free-tier keys rejected (Build+ for keyed) |
+| `secondlayer index ft-transfers` / `nft-transfers` / `events --event-type <t>` / `contract-calls` | Decoded Index layer. Anonymous reads OK |
 | `secondlayer streams tip` / `events` / `consume` / `reorgs` / `canonical <h>` / `pull` | Raw chain event firehose. **Requires `SL_API_KEY`** |
 
 Reads emit JSON to stdout (`--json` accepted across all read commands); `-o/--output` is a file path, not a format.

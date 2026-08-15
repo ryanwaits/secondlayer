@@ -4,7 +4,7 @@ MCP server for Secondlayer, the hosted indexer for Stacks — Index (decoded
 rows), Subgraphs (your schema, hosted), and Streams (raw inputs). Exposes the
 golden-path tools only — Index reads, the subgraph lifecycle, subscriptions,
 contract discovery/scaffolding, and key self-provisioning. Everything else
-(single-record lookups, mempool, stacking, proofs, codegen, billing, projects,
+(single-record lookups, mempool, stacking, proofs, codegen, credits,
 live Streams reads) is available over REST `/v1` + OpenAPI.
 
 ## Install
@@ -15,7 +15,7 @@ bun add @secondlayer/mcp
 
 ## Auth
 
-Most reads are public — `index_*` and `contracts_find` work with no key. Subgraph tools need an `SL_API_KEY`; separately, **public** subgraphs are anon-readable over HTTP at `GET /v1/subgraphs/<name>/<table>` (`{ rows, next_cursor, tip }` cursor envelope), while private ones need the owning account's key (anon → 404). `streams_dumps` needs no key — the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. (Index tools reject free-tier keys — Build+ for keyed access.) Writes (deploy, publish/unpublish, reindex, delete, subscriptions) and account tools need a key: create one (prefixed `sk-sl_`) in the platform console at https://secondlayer.tools/platform/api-keys and set it as `SL_API_KEY`. Read `secondlayer://context` first — it reports auth state and read-auth tiers.
+Most reads are public — `index_*` and `contracts_find` work with no key. Subgraph tools need an `SL_API_KEY`; separately, **public** subgraphs are anon-readable over HTTP at `GET /v1/subgraphs/<name>/<table>` (`{ rows, next_cursor, tip }` cursor envelope), while private ones need the owning account's key (anon → 404). `streams_dumps` needs no key — the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. Writes (deploy, reindex, delete, subscriptions) and account tools need a key: create one (prefixed `sk-sl_`) from your account console at https://console.secondlayer.tools and set it as `SL_API_KEY`. Read `secondlayer://context` first — it reports auth state and read-auth tiers.
 
 ## Quick Start — Stdio (IDE)
 
@@ -48,7 +48,7 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `SL_API_KEY` | Writes only | — | An `sk-sl_` API key from the platform console (https://secondlayer.tools/platform/api-keys). Required for write/account tools; reads are public. |
+| `SL_API_KEY` | Writes only | — | An `sk-sl_` API key from your account console (https://console.secondlayer.tools). Required for write/account tools; reads are public. |
 | `SECONDLAYER_API_URL` | No | `https://api.secondlayer.tools` | Base API URL. Point at a local instance for dev. |
 | `SECONDLAYER_MCP_PORT` | No | `3100` | HTTP transport port. |
 | `SECONDLAYER_MCP_SECRET` | No | — | Bearer token for HTTP auth. Disabled if unset. |
@@ -58,14 +58,14 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 | Domain | Tools |
 | --- | --- |
 | **Index** (9) | `index_events`, `index_ft_transfers`, `index_nft_transfers`, `index_contract_calls`, `index_blocks`, `index_transactions`, `index_print_schema`, `index_discover`, `batch_query` |
-| **Subgraphs** (11) | `subgraphs_list`, `subgraphs_get`, `subgraphs_deploy`, `subgraphs_publish`, `subgraphs_unpublish`, `subgraphs_delete`, `subgraphs_query`, `subgraphs_backfill`, `subgraphs_reindex`, `subgraphs_stop`, `subgraphs_gaps` |
+| **Subgraphs** (9) | `subgraphs_list`, `subgraphs_get`, `subgraphs_deploy`, `subgraphs_delete`, `subgraphs_query`, `subgraphs_backfill`, `subgraphs_reindex`, `subgraphs_stop`, `subgraphs_gaps` |
 | **Subscriptions** (7) | `subscriptions_create`, `subscriptions_list`, `subscriptions_get`, `subscriptions_update`, `subscriptions_delete`, `subscriptions_test`, `subscriptions_replay` |
 | **Streams** (1) | `streams_dumps` |
 | **Contracts** (2) | `contracts_find`, `get_contract_abi` |
 | **Scaffold** (1) | `scaffold_from_contract` |
 
-Periphery surfaces (single block/tx lookups, mempool, stacking, proofs, usage,
-codegen, billing/caps, projects, live Streams reads, delivery forensics) are
+Periphery surfaces (single block/tx lookups, mempool, stacking, proofs,
+codegen, credits/caps, live Streams reads, delivery forensics) are
 REST-only: see the OpenAPI spec at the API host.
 
 Account tools are unmounted. Point the server at your instance with `SL_API_URL`
@@ -81,7 +81,7 @@ subgraph (e.g. `[{ "type": "contract_call", "contractId": "SP....amm",
 
 ### Subgraph visibility
 
-`subgraphs_deploy` takes a `visibility` param (`public` | `private`; defaults: managed → public, BYO `databaseUrl` → private). Flip later with `subgraphs_publish` / `subgraphs_unpublish` — publishing claims the name in the single global public namespace (409 `PUBLIC_NAME_TAKEN` if claimed). Public subgraphs are anon-readable at `GET /v1/subgraphs/<name>/<table>`.
+Deploys default `public` — the name is claimed in a single global public namespace (409 `PUBLIC_NAME_TAKEN` if claimed). Public subgraphs are anon-readable at `GET /v1/subgraphs/<name>/<table>`.
 
 ### `subgraphs_query` enhancements
 
