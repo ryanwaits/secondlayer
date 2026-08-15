@@ -7,7 +7,7 @@ import Link from "next/link";
 export const metadata: Metadata = socialMeta({
 	title: "secondlayer · self-hosted Stacks data runtime",
 	description:
-		"Decoded Stacks data in your own database — backfilled from genesis, reorg-safe, kept current. Get tables and a REST API out of the box, or stream rows into your own schema.",
+		"Any serious app needs data a general-purpose API can't serve, and shouldn't have to. Secondlayer is the layer underneath: decoded Stacks data in your own database, shaped by you.",
 	image: "/og/home.png",
 	path: "/",
 });
@@ -26,9 +26,9 @@ export function HomeView() {
 					<span className="home-h1-dim">in your own database.</span>
 				</h1>
 				<p className="home-sub">
-					Backfilled from genesis, reorg-safe, kept current. Get tables and a
-					REST API out of the box, or stream rows into your own schema —
-					Postgres, SQLite, or anything you already run.
+					Any serious app needs data a general-purpose API can&rsquo;t serve,
+					and shouldn&rsquo;t have to. This is the layer underneath, so you can
+					shape it yourself.
 				</p>
 				<CtaPill />
 				<nav className="home-hero-links">

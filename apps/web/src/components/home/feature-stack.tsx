@@ -27,27 +27,24 @@ type Section = {
 const SECTIONS: Section[] = [
 	{
 		id: "run",
-		title: "Do you already have an API layer?",
+		title: "What you run",
 		pitch:
-			"The decoding, the reorg handling, and the history are done either way. All that's left to choose is who shapes the read API.",
+			"Already have an API layer? Use Index. Would rather not build one? Use Subgraphs. Both ride on Streams.",
 		items: [
 			{
 				href: "/docs/index",
-				label: "Yes — Index",
-				detail:
-					"Rows land in your schema — Postgres, SQLite, anything — through a consumer loop that checkpoints and rolls back atomically.",
+				label: "Index",
+				detail: "Rows into a schema you define",
 			},
 			{
 				href: "/docs/subgraphs",
-				label: "No — Subgraphs",
-				detail:
-					"Describe the table in one TypeScript file. You get the table and a REST API over it, on your instance.",
+				label: "Subgraphs",
+				detail: "One file. Table plus REST API",
 			},
 			{
 				href: "/docs/streams",
-				label: "Decoding it yourself — Streams",
-				detail:
-					"The raw signed event feed both of the above are built on. Replay from any height.",
+				label: "Streams",
+				detail: "The raw signed feed underneath",
 			},
 		],
 		term: {
