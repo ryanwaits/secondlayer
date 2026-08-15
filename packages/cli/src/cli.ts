@@ -24,6 +24,7 @@ import {
 	registerStreamsCommand,
 	registerSubgraphsCommand,
 	registerSubscriptionsCommand,
+	registerUninstallCommand,
 	registerVerifyCommand,
 	registerWhoamiCommand,
 } from "./commands/index.ts";
@@ -142,6 +143,7 @@ registerVerifyCommand(program);
 registerRepairCommand(program);
 registerBackupCommand(program);
 registerRestoreCommand(program);
+registerUninstallCommand(program);
 
 // Account
 program.commandsGroup("Account:");

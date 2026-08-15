@@ -70,6 +70,18 @@ export type {
 	BackupPlan,
 	RestorePrecheck,
 } from "./backup.ts";
+export {
+	PRESERVED,
+	REMOVABLE,
+	planUninstall,
+	uninstallCommand,
+} from "./uninstall.ts";
+export type {
+	Preserved,
+	Removable,
+	UninstallDecision,
+	UninstallPlan,
+} from "./uninstall.ts";
 export { UPGRADE_STEPS, applyUpgrade, planUpgrade } from "./upgrade.ts";
 export type { UpgradePlan, UpgradeStep } from "./upgrade.ts";
 export { FLOORS, diskFloorGb, preflightResources } from "./guardrails.ts";

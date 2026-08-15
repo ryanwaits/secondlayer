@@ -17,6 +17,7 @@ export { registerLogoutCommand } from "./logout.ts";
 export { registerVerifyCommand } from "./verify.ts";
 export { registerRepairCommand } from "./repair.ts";
 export { registerBootstrapCommand } from "./bootstrap.ts";
+export { registerUninstallCommand } from "./uninstall.ts";
 export {
 	registerBackupCommand,
 	registerRestoreCommand,
