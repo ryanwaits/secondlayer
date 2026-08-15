@@ -1,8 +1,16 @@
 # Secondlayer
 
-Self-hosted Stacks data runtime. Postgres plus one container: raw Streams,
-decoded Index, your Subgraphs, and webhooks. Bootstrap from the signed
-archive. See [STRATEGY.md](STRATEGY.md).
+Your app needs Stacks data that no public API has — your contract, your
+schema, your uptime. Today that means writing an indexer.
+
+Secondlayer is the runtime instead: decoded chain data in your own database,
+backfilled from genesis, reorg-safe, kept current. Get tables and a REST API
+out of the box, or stream rows into your own schema — Postgres, SQLite, or
+anything you already run — and serve them however you already serve things.
+
+The instance itself is Postgres plus one container, on your hardware.
+
+See [STRATEGY.md](STRATEGY.md).
 
 ```bash
 curl "http://127.0.0.1:3800/v1/index/events?event_type=ft_transfer&limit=5"

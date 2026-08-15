@@ -27,24 +27,27 @@ type Section = {
 const SECTIONS: Section[] = [
 	{
 		id: "run",
-		title: "What you run",
+		title: "Do you already have an API layer?",
 		pitch:
-			"One runtime. Three surfaces. Not hosted products — capabilities on the machine you operate.",
+			"The decoding, the reorg handling, and the history are done either way. All that's left to choose is who shapes the read API.",
 		items: [
 			{
-				href: "/docs/streams",
-				label: "Streams",
-				detail: "Raw signed firehose and parquet dumps",
-			},
-			{
 				href: "/docs/index",
-				label: "Index",
-				detail: "Decoded events, transfers, blocks, transactions",
+				label: "Yes — Index",
+				detail:
+					"Rows land in your schema — Postgres, SQLite, anything — through a consumer loop that checkpoints and rolls back atomically.",
 			},
 			{
 				href: "/docs/subgraphs",
-				label: "Subgraphs",
-				detail: "Your schema on this instance",
+				label: "No — Subgraphs",
+				detail:
+					"Describe the table in one TypeScript file. You get the table and a REST API over it, on your instance.",
+			},
+			{
+				href: "/docs/streams",
+				label: "Decoding it yourself — Streams",
+				detail:
+					"The raw signed event feed both of the above are built on. Replay from any height.",
 			},
 		],
 		term: {
@@ -73,7 +76,7 @@ const SECTIONS: Section[] = [
 		id: "history",
 		title: "History",
 		pitch:
-			"Follow your node for free, or restore from the signed archive — public to check, metered to pull from our R2.",
+			"Getting the past is the hard part. Follow your node forward for free, or restore verified history from the signed archive in hours instead of days.",
 		items: [
 			{
 				label: "Free",
@@ -110,7 +113,7 @@ const SECTIONS: Section[] = [
 		id: "deploy",
 		title: "Deploy",
 		pitch:
-			"One TypeScript file. Your schema goes live on your instance, behind its own endpoint.",
+			"One TypeScript file. Your table goes live on your instance, with a REST API you didn't write. Want your own API shape instead? Use Index and keep your schema.",
 		items: [
 			{
 				label: "Deploy",

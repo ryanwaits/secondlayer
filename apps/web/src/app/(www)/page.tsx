@@ -5,9 +5,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = socialMeta({
-	title: "secondlayer · self-hosted Stacks runtime",
+	title: "secondlayer · self-hosted Stacks data runtime",
 	description:
-		"Postgres plus one container beside your node. The signed archive is public to check. Large restore and backfill off our R2 is metered.",
+		"Decoded Stacks data in your own database — backfilled from genesis, reorg-safe, kept current. Get tables and a REST API out of the box, or stream rows into your own schema.",
 	image: "/og/home.png",
 	path: "/",
 });
@@ -21,13 +21,14 @@ export function HomeView() {
 		<div className="home">
 			<section className="home-hero">
 				<h1>
-					Self-hosted
+					Decoded chain data,
 					<br />
-					<span className="home-h1-dim">Stacks runtime.</span>
+					<span className="home-h1-dim">in your own database.</span>
 				</h1>
 				<p className="home-sub">
-					Raw and decoded events, subgraphs, webhooks, and verified history,
-					running beside your node.
+					Backfilled from genesis, reorg-safe, kept current. Get tables and a
+					REST API out of the box, or stream rows into your own schema —
+					Postgres, SQLite, or anything you already run.
 				</p>
 				<CtaPill />
 				<nav className="home-hero-links">
@@ -46,10 +47,10 @@ export function HomeView() {
 			<FeatureStack />
 
 			<section className="home-final">
-				<h2>Your node. Your schema.</h2>
+				<h2>Your node. Your database.</h2>
 				<p className="home-sub">
-					One container beside your node. Every row lands in your DB, checkable
-					against the signed archive.
+					One container beside your node. Every row lands in Postgres you
+					operate, checkable against the signed archive.
 				</p>
 				<CtaPill />
 				<div className="home-final-btns">
