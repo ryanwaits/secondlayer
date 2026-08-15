@@ -1,6 +1,6 @@
 # Deploy your consumer
 
-A `consume()` loop is a long-running process with a database and a checkpoint. It runs anywhere that can reach your instance.
+Run your consumer anywhere that can reach your instance: same box, Railway, Render, or Fly, on one Dockerfile.
 
 ## What you're deploying
 
@@ -13,7 +13,7 @@ Four files, whatever the target:
 | `health.ts` | `GET /health` on `PORT`, so the platform can tell live from wedged |
 | `Dockerfile` | One image; every target below takes it unchanged |
 
-Runnable original: [`sales-index`](https://github.com/ryanwaits/secondlayer/tree/main/examples/sales-index). The loop lives in [Index](/docs/index#build-your-index-on-it); the checkpoint, transaction, and reorg contract live in [Sinks](/docs/sinks).
+The loop lives in [Index](/docs/index#build-your-index-on-it); the checkpoint, transaction, and reorg contract live in [Sinks](/docs/sinks).
 
 ## Point it at your instance
 

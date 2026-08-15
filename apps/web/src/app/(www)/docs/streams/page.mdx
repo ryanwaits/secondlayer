@@ -1,10 +1,10 @@
 # Streams
 
-Raw chain event firehose: cursor-paginated, idempotent, replayable. Build an indexer from zero — this is what Index itself runs on.
+The raw firehose, for when you want to decode it yourself. Most people want [Index](/docs/index); this is what Index is built on.
 
 <Callout type="note" title="Auth">
 
-Reads on your instance are free and unlimited; loopback needs no token, a non-loopback bind needs `INSTANCE_TOKEN`. Cold history beyond what your instance holds restores from the signed archive — [archive credits](/docs/authentication#archive-credits).
+Loopback needs no token; a non-loopback bind needs `INSTANCE_TOKEN`. Cold history beyond what your instance holds restores from the signed archive ([archive credits](/docs/authentication#archive-credits)).
 
 </Callout>
 
@@ -60,7 +60,7 @@ The bulk manifest is itself ed25519-signed and verified before any per-file `sha
 
 </Callout>
 
-Runnable end to end, dumps through live tail: the [`indexer-from-zero` example](https://github.com/ryanwaits/secondlayer/tree/main/examples/indexer-from-zero). Where to run it: [Deploy](/docs/deploy).
+Where to run it: [Deploy](/docs/deploy).
 
 ## Read it directly
 
