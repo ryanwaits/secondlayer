@@ -21,22 +21,3 @@ export function getStripe(): Stripe | null {
 	});
 	return instance;
 }
-
-/**
- * Should we push Stripe meter events for this tenant?
- *
- * No for:
- *   - Tenants whose account has no Stripe customer id (free tier — the
- *     whole point of lazy customer creation)
- *   - Enterprise tenants without a subscription id (custom-quoted; not
- *     self-serve metered)
- *
- * Yes for:
- *   - Anything with a stripe_customer_id. Current that's Pro; later
- *     Enterprise once manual setup attaches metered prices.
- */
-export function shouldMeterTenant(input: {
-	stripeCustomerId: string | null;
-}): boolean {
-	return !!input.stripeCustomerId;
-}
