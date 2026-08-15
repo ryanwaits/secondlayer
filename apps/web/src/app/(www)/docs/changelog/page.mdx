@@ -12,6 +12,12 @@ bootstrap/backfill/reindex draws [credits](/docs/authentication#archive-credits)
 
 `new SecondLayer()` and `createStreamsClient()` now talk to `http://127.0.0.1:3800`. Override with `baseUrl` or `SL_API_URL`. Archive dumps stay on the public signed bucket.
 
+## SDK — August 2026
+
+### One account model: yours
+
+Plans, tiers, projects, and API-key tiers are gone from every surface. Deploys are open on any instance — no trial, no quota, no visibility flag — and the only thing that costs money is archive data: bootstrapping, backfilling, or reading history beyond the recent window, drawn from prepaid [archive credits](/docs/authentication#archive-credits). Removed with them: `client.apiKeys`, `client.projects`, `index.usage()`, `subgraphs.publish()`, and BYO `databaseUrl` deploys (typed ORM codegen for drizzle/prisma/kysely stays). Your schema, your Postgres, your instance — the SDK now assumes nothing else.
+
 ## CLI — August 2026
 
 ### A console for your instance

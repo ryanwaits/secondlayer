@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/scaffold",
-	"version": "1.5.2",
+	"version": "1.5.3",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -27,7 +27,7 @@
 	},
 	"dependencies": {
 		"@secondlayer/stacks": "^3.3.0",
-		"@secondlayer/subgraphs": "^3.23.1"
+		"@secondlayer/subgraphs": "^4.0.0"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

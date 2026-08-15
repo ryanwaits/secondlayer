@@ -1,5 +1,28 @@
 # @secondlayer/shared
 
+## 8.0.0
+
+### Major Changes
+
+- Self-host consolidation. Plans, tiers, tenancy, and the hosted directory are
+  gone everywhere — deploys are open on every instance, and archive credits are
+  the only paid surface.
+
+  Breaking removals:
+
+  - SDK: `client.apiKeys`, `client.projects`, `index.usage()`, streams
+    `usage()`, `subgraphs.publish()/unpublish()`, `ByoBreakingChangeError` and
+    the BYO deploy option (`databaseUrl`); `ContextSnapshot` drops
+    `projects`/`apiKeys`, `ContextAccount` drops `plan`.
+  - CLI: `account`, `keys`, `project`, `subgraphs publish/unpublish` commands
+    and the `--database-url` deploy flag.
+  - MCP: `subgraphs_publish`/`subgraphs_unpublish` tools and BYO deploy params.
+  - subgraphs: BYO data-plane (deploy to an external Postgres) removed;
+    drizzle/prisma/kysely schema codegen stays.
+  - shared: BYO helpers (`encryptDatabaseUrl`, `resolveSubgraphDb`, …) removed;
+    streams row primitives now live at `@secondlayer/shared/streams-rows`
+    (SDK re-exports unchanged).
+
 ## 7.11.2
 
 ### Patch Changes

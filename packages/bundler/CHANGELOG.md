@@ -1,5 +1,12 @@
 # @secondlayer/bundler
 
+## 0.5.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @secondlayer/subgraphs@4.0.0
+
 ## 0.5.0
 
 ### Minor Changes
