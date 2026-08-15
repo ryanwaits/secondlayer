@@ -59,12 +59,7 @@ import { requireAuth } from "../lib/require-auth.ts";
 import { isOssMode } from "../lib/resolve-auth.ts";
 import { resolveAuth } from "../lib/resolve-auth.ts";
 import { parseApiResponse } from "../parsers/clarity.ts";
-import {
-	SUBGRAPH_TEMPLATE_DESCRIPTIONS,
-	SUBGRAPH_TEMPLATE_SLUGS,
-	type SubgraphTemplateSlug,
-	generateSubgraphTemplate,
-} from "../templates/subgraph.ts";
+import { generateSubgraphStarter } from "../templates/subgraph.ts";
 import { StacksApiClient } from "../utils/api.ts";
 import { formatCode } from "../utils/format.ts";
 import { inferNetwork } from "../utils/network.ts";
@@ -693,10 +688,6 @@ export function registerSubgraphsCommand(program: Command): void {
 		.command("create <name>")
 		.description("Create a new subgraph definition file")
 		.option(
-			"--template <slug>",
-			`Starter template (one of: ${SUBGRAPH_TEMPLATE_SLUGS.join(", ")})`,
-		)
-		.option(
 			"--from-contract <contractId>",
 			"Generate sources/schema/handlers from the contract's observed print events (requires network)",
 		)
@@ -709,7 +700,6 @@ export function registerSubgraphsCommand(program: Command): void {
 			`
 Examples:
   $ secondlayer subgraphs create my-graph
-  $ secondlayer subgraphs create token-balances --template sip-010-balances
   $ secondlayer subgraphs create sbtc-flows --from-contract SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry
   $ secondlayer subgraphs create sbtc-flows --from-contract SM3....sbtc-registry --table-per-topic`,
 		)
@@ -717,27 +707,12 @@ Examples:
 			async (
 				name: string,
 				opts: {
-					template?: string;
 					fromContract?: string;
 					tablePerTopic?: boolean;
 				},
 			) => {
-				if (opts.fromContract && opts.template) {
-					error("--from-contract and --template are mutually exclusive");
-					process.exit(1);
-				}
 				if (opts.tablePerTopic && !opts.fromContract) {
 					error("--table-per-topic requires --from-contract");
-					process.exit(1);
-				}
-
-				const slug = (opts.template ?? "basic") as SubgraphTemplateSlug;
-				if (!opts.fromContract && !SUBGRAPH_TEMPLATE_SLUGS.includes(slug)) {
-					error(
-						`Unknown template "${opts.template}". Available templates:\n${SUBGRAPH_TEMPLATE_SLUGS.map(
-							(s) => `  ${s.padEnd(20)} ${SUBGRAPH_TEMPLATE_DESCRIPTIONS[s]}`,
-						).join("\n")}`,
-					);
 					process.exit(1);
 				}
 
@@ -776,7 +751,7 @@ Examples:
 						}),
 					);
 				} else {
-					content = generateSubgraphTemplate(name, slug);
+					content = generateSubgraphStarter(name);
 				}
 
 				if (!existsSync(dir)) {
@@ -790,8 +765,6 @@ Examples:
 					info(
 						`Schema inferred from ${opts.fromContract} print events (${opts.tablePerTopic ? "table per topic" : "single wide table"})`,
 					);
-				} else if (slug !== "basic") {
-					info(`Template: ${slug} — ${SUBGRAPH_TEMPLATE_DESCRIPTIONS[slug]}`);
 				}
 				info(`Next: secondlayer subgraphs deploy subgraphs/${name}.ts`);
 			},

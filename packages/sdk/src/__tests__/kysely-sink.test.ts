@@ -346,24 +346,10 @@ describe.skipIf(!dbUp)("kyselySink acceptance (fork at block 102)", () => {
 	});
 });
 
-describe("sales-index example stays small", () => {
-	test("the flagship example is one file under 70 code lines", async () => {
-		// The sink exists to delete user code. This gate keeps the flagship
-		// example honest: if it creeps back toward the 167-line pre-sink
-		// version, the abstraction has failed.
-		const source = await Bun.file(
-			new URL("../../../../examples/sales-index/indexer.ts", import.meta.url),
-		).text();
-		const codeLines = source
-			.split("\n")
-			.filter((line) => line.trim() !== "" && !line.trim().startsWith("//"));
-		expect(codeLines.length).toBeLessThanOrEqual(70);
-		// And the hard parts stay deleted:
-		expect(source).not.toContain("onReorg");
-		expect(source).not.toContain("checkpoints");
-		expect(source).not.toContain("loadCheckpoint");
-	});
-});
+// NOTE: a "flagship example stays under 70 code lines" gate lived here and was
+// removed with examples/. The invariant it protected is real — the sink exists
+// to delete user code — so restore this gate against the new example when the
+// self-host-aligned examples land.
 
 describe("sink initialization", () => {
 	test("an explicit fromCursor still initializes the sink", async () => {
