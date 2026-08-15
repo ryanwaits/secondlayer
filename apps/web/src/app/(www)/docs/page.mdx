@@ -5,6 +5,14 @@ import { QuickstartPanel } from "./quickstart-panel";
 
 Run it beside your node. Backfilled from genesis, reorg-safe, kept current.
 
+## Why this exists
+
+Every serious Stacks app eventually needs data that no public API will ever build for it, because the data is specific to your contract. Positions per user. Volume per pool. Whatever your product is actually about.
+
+Today that means writing an indexer. Not the fun part of it either — event ingestion, Clarity decoding, reorg rollback, backfilling years of history, and then operating the thing forever. It's a few weeks to get right and it never stops being yours.
+
+That work is what Secondlayer is. The chain data arrives decoded, backfilled, and reorg-safe, in a database you run. What you write is the part that's actually about your app.
+
 ## Do you already have an API layer?
 
 That's the only choice you have to make. The decoding, the reorg handling, and the history are done either way — all that's left is who shapes the read API.
