@@ -1,6 +1,6 @@
 import { getDb } from "@secondlayer/shared/db";
 import { getInstance } from "@secondlayer/shared/db/queries/instance";
-import { getInstanceMode } from "@secondlayer/shared/mode";
+import { getDeclaredInstanceMode } from "@secondlayer/shared/mode";
 import { Hono } from "hono";
 import { sql } from "kysely";
 import { INSTANCE_FEATURE_MANIFEST } from "../instance-features.ts";
@@ -12,7 +12,7 @@ export function createInstanceCatalogRouter() {
 
 	app.get("/features", (c) =>
 		c.json({
-			mode: getInstanceMode(),
+			mode: getDeclaredInstanceMode(),
 			features: INSTANCE_FEATURE_MANIFEST,
 		}),
 	);
@@ -103,7 +103,7 @@ export function createInstanceCatalogRouter() {
 	});
 
 	app.get("/", async (c) => {
-		const mode = getInstanceMode();
+		const mode = getDeclaredInstanceMode();
 		const features = INSTANCE_FEATURE_MANIFEST;
 		try {
 			const db = getDb();
