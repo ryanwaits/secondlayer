@@ -1,6 +1,6 @@
 # SDK
 
-`@secondlayer/sdk` is a typed TypeScript client for every Secondlayer surface, plus webhook verification, proofs, and checkpointed consumers.
+Talk to your instance from TypeScript without hand-writing cursor walks, reorg rewind, or signature checks.
 
 Every export, with signatures: [SDK reference](/docs/sdk-reference).
 
@@ -87,7 +87,7 @@ await sl.index.contractCalls.consume({
   contractId: "SP...marketplace-v4",
   functionName: "purchase-asset",
   fromCursor: await loadCheckpoint(), // null on first run
-  fromHeight: 0,                      // first run: backfill from genesis
+  fromHeight: 0,                      // first run: backfill as far as the instance holds
   onBatch: async (calls, envelope, ctx) => {
     await commitRowsAndCheckpoint(calls, ctx.cursor);
     return ctx.cursor;
@@ -99,7 +99,7 @@ await sl.index.contractCalls.consume({
 ```
 
 - **Reorgs** rewind the cursor to the fork point automatically; `onReorg` fires so you roll back committed rows from `fork_point_height` up.
-- **`fromHeight: 0`** backfills from genesis on your instance. Official-archive restore is [metered](/docs/authentication#archive-credits).
+- **`fromHeight: 0`** backfills as far back as your instance holds. Official-archive restore is [metered](/docs/authentication#archive-credits).
 - **`finalizedOnly`** holds delivery to rows at or below `tip.finalized_height`.
 
 A [sink](/docs/sinks) removes the checkpoint, transaction, and rollback code
@@ -117,7 +117,7 @@ await sl.index.contractCalls.consume({
 });
 ```
 
-See [Sinks](/docs/sinks), [Index, Build your index on it](/docs/index#build-your-index-on-it), and the runnable [`sales-index` example](https://github.com/ryanwaits/secondlayer/tree/main/examples/sales-index).
+See [Sinks](/docs/sinks), [Index, Build your index on it](/docs/index#build-your-index-on-it).
 
 ## Subscribe to the live stream (SSE)
 

@@ -1,6 +1,6 @@
 # MCP
 
-The whole Secondlayer surface as Model Context Protocol tools, over one connection, with the same auth as the SDK and CLI.
+Point Claude Code, Cursor, or any MCP client at your instance so it can read and operate it directly.
 
 ## Connect
 
@@ -48,7 +48,7 @@ For Index specifically, call `index_discover` to learn every event type, its col
 
 ## Tools
 
-Twenty-nine tools across five domains. Reads are cursor-paginated; writes that kick off work (reindex, backfill, replay, deploy) return an `operationId` to poll.
+Reads are cursor-paginated; writes that kick off work (reindex, backfill, replay, deploy) return an `operationId` to poll.
 
 ### Index — decoded reads
 
@@ -101,7 +101,7 @@ Twenty-nine tools across five domains. Reads are cursor-paginated; writes that k
 | Tool | What it does |
 | --- | --- |
 | `contracts_find` | Discover deployed contracts conforming to a trait (sip-010/009/013) |
-| `get_contract_abi` | Fetch a deployed contract's full ABI from the registry |
+| `contracts_get_abi` | Fetch a deployed contract's full ABI from the registry |
 | `scaffold_from_contract` | Generate a subgraph scaffold from a contract's ABI |
 
 ## Notes
@@ -114,5 +114,5 @@ Twenty-nine tools across five domains. Reads are cursor-paginated; writes that k
 export const metadata = {
 	title: "MCP — Secondlayer Docs",
 	description:
-		"The Secondlayer MCP server: stdio and HTTP transports, resources, and 29 tools for Index, Subgraphs, Streams, Subscriptions, and contracts.",
+		"The Secondlayer MCP server: stdio and HTTP transports, resources, and tools for Index, Subgraphs, Streams, Subscriptions, and contracts.",
 };

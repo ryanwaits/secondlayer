@@ -1,10 +1,10 @@
 # Index
 
-Decoded Stacks data, kept indexed. No decoders to write, no node to run — you write the loop and own the tables.
+Decoded rows you sweep into your own tables. You write the loop; the decoding, the backfill, and the reorg rewind are done.
 
 <Callout type="note" title="History">
 
-Reads on your instance are free and unlimited. `from_height=0` reaches whatever history your instance holds; restoring more from the signed archive is metered ([archive credits](/docs/authentication#archive-credits)).
+Reads hit your own Postgres: no meter, no rate limit. `from_height=0` reaches whatever history your instance holds; restoring more from the signed archive is metered ([archive credits](/docs/authentication#archive-credits)).
 
 </Callout>
 
@@ -75,7 +75,7 @@ await index.events.consume({
 | `signal` | Checked at the top of the loop, so the in-flight batch always commits — see [Deploy](/docs/deploy#handle-sigterm) |
 | `index.contractCalls.consume()` | Same loop for decoded calls; already carries `sender`/`function_name`, so it needs no `txContext` |
 
-Runnable, ~50 lines: the [`sales-index` example](https://github.com/ryanwaits/secondlayer/tree/main/examples/sales-index). Where to run it: [Deploy](/docs/deploy).
+Where to run it: [Deploy](/docs/deploy).
 
 ### Progress on every batch
 
@@ -186,7 +186,6 @@ curl "http://127.0.0.1:3800/v1/index/events?event_type=stx_transfer&limit=20"
 | `/v1/index/events` | Decoded events for a chosen `event_type` (+ `ft-transfers` / `nft-transfers` aliases) | `event_type` required; `asset_identifier` on `nft_*`; `contract_id` + decoded `payload` on `print`; no `contract_id` on `stx_*` |
 | `/v1/index/contract-calls` | Decoded contract-call transactions with `args` and `result` | `function_name`, `sender`, `trait`; cursors are a separate keyspace from events |
 
-On both feeds `contract_id` also takes a comma-separated set (`?contract_id=SP1.a,SP1.b`, max 20) — one cursor over a protocol's contracts instead of one consumer each. For "every contract of a standard" reach for `trait` instead; it picks up contracts deployed after you ship.
 | `/v1/index/transactions` · `/{tx_id}` | Full transaction documents (fee, nonce, sponsored, post-conditions, decoded payload) | `type`, `sender`, `contract_id`; `/{tx_id}/proof` returns an inclusion proof ([Verification](/docs/verification)) |
 | `/v1/index/blocks` · `/{height_or_hash}` | Decoded blocks, list or single | — |
 | `/v1/index/canonical` | Canonical block-hash map, one row per height, orphans excluded | `from_height` |
@@ -194,11 +193,13 @@ On both feeds `contract_id` also takes a comma-separated set (`?contract_id=SP1.
 | `/v1/index/pox5/events` | Decoded PoX-5 print events, all 19 topics ([PoX-5](/docs/pox5)) | `topic`, `staker`, `signer`, `signer_manager`, `bond_index`, `reward_cycle` |
 | `/v1/index/mempool` · `/{tx_id}` | Pending transactions — no `block_height`/`result`, plus `received_at`; `404`s once mined, never cached | `sender`, `type`, `contract_id`, `function_name` |
 
-`tx_context=true` joins the submitting transaction into every event — `tx_sender`, `tx_type`, `tx_status`, `tx_contract_id`, `tx_function_name` — collapsing an N+1 walk into one pass. For `print` events, `tx_sender` is the only place the sender lives.
+On the events and contract-call feeds, `contract_id` also takes a comma-separated set (`?contract_id=SP1.a,SP1.b`, max 20): one cursor over a protocol's contracts instead of one consumer each. For "every contract of a standard" use `trait`, which picks up contracts deployed after you ship.
+
+`tx_context=true` collapses an N+1 walk into one pass: every event carries `tx_sender`, `tx_type`, `tx_status`, `tx_contract_id`, `tx_function_name`. For `print` events, `tx_sender` is the only place the sender lives.
 
 Every list response carries the collection, an opaque `next_cursor`, the chain `tip`, and `reorgs`. Full parameter grammar and response bodies: [API reference](/docs/api-reference). `GET /v1/index` describes itself at runtime, so an agent can learn each `event_type` without docs.
 
-Built on [Streams](/docs/streams): our decoder reads the same raw firehose you can.
+Built on [Streams](/docs/streams): the decoder on your instance reads the same raw firehose you can.
 
 ## Get told when it changes
 
