@@ -17,7 +17,6 @@ on:
       - "*.md"
       - "docs/**"
       - "docker/docs/**"
-      - "packages/clarity-docs/**"
       - "packages/*/README.md"
       - "packages/*/CHANGELOG.md"
       - "tools/ops/*/README.md"

@@ -35,7 +35,6 @@ COPY packages/subgraphs/package.json ./packages/subgraphs/
 COPY packages/cli/package.json ./packages/cli/
 COPY packages/sdk/package.json ./packages/sdk/
 COPY packages/stacks/package.json ./packages/stacks/
-COPY packages/clarity-docs/package.json ./packages/clarity-docs/
 COPY packages/bundler/package.json ./packages/bundler/
 COPY packages/scaffold/package.json ./packages/scaffold/
 COPY packages/platform/package.json ./packages/platform/
