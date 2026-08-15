@@ -1,6 +1,7 @@
 {
 	"name": "@secondlayer/scaffold",
 	"version": "1.5.4",
+	"description": "Generate a Secondlayer table definition from a deployed Stacks contract.",
 	"license": "MIT",
 	"repository": {
 		"type": "git",

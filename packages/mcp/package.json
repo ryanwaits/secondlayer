@@ -1,6 +1,7 @@
 {
 	"name": "@secondlayer/mcp",
 	"version": "6.0.0",
+	"description": "Give your coding agent direct access to your Stacks data — find contracts, query rows, deploy tables.",
 	"license": "MIT",
 	"repository": {
 		"type": "git",

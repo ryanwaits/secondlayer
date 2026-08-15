@@ -1,13 +1,13 @@
 {
 	"name": "@secondlayer/cli",
 	"version": "12.0.0",
+	"description": "Run a Stacks index on your own hardware — set it up, restore verified history, and keep it current.",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryanwaits/secondlayer.git",
 		"directory": "packages/cli"
 	},
 	"homepage": "https://github.com/ryanwaits/secondlayer/tree/main/packages/cli#readme",
-	"description": "CLI for subgraphs and blockchain indexing on Stacks",
 	"type": "module",
 	"bin": {
 		"secondlayer": "./dist/cli.js",

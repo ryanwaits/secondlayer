@@ -1,6 +1,7 @@
 {
 	"name": "@secondlayer/bundler",
 	"version": "0.5.1",
+	"description": "Compile a Secondlayer table definition into a deployable artifact.",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
