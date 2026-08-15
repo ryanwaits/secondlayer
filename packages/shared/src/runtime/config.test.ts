@@ -62,6 +62,18 @@ describe("minimal config", () => {
 		expect(result.ok).toBe(true);
 	});
 
+	test("archive publishing keys are known", () => {
+		// Both live in the ARCHIVE_ namespace the refusal patrols, so an operator
+		// publishing an archive from a one-box runtime would otherwise be told
+		// their working config was a typo.
+		const result = parseRuntimeConfig({
+			...good,
+			ARCHIVE_DIR: "/data/archive",
+			ARCHIVE_PUBLIC_DIR: "/data/archive/canonical-v1-staging",
+		});
+		expect(result.ok).toBe(true);
+	});
+
 	test("full mode without bitcoin password is contradictory", () => {
 		const result = parseRuntimeConfig({ ...good, NODE_MODE: "full" });
 		expect(result.ok).toBe(false);

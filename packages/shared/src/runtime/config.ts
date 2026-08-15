@@ -72,6 +72,11 @@ const KNOWN = new Set<string>([
 	"SBTC_DECODER_ENABLED",
 	"POX4_DECODER_ENABLED",
 	"BNS_DECODER_ENABLED",
+	// Archive publishing. Both sit inside the ARCHIVE_ namespace the refusal
+	// patrols, so an operator who sets them on a one-box runtime would be told
+	// their valid config is a typo unless they are named here.
+	"ARCHIVE_DIR",
+	"ARCHIVE_PUBLIC_DIR",
 ]);
 
 /**

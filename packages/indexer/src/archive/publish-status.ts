@@ -29,6 +29,7 @@ import {
 } from "../streams-bulk/upload.ts";
 import { resolveFinalizedBound } from "./canonical-audit.ts";
 import type { CanonicalLatestPointer } from "./promote-snapshot.ts";
+import { mirrorToPublicArchive } from "./public-mirror.ts";
 import { CANONICAL_ARCHIVE_PREFIX } from "./upload-snapshot.ts";
 
 /** Most recent audit report written by the nightly job, if readable. */
@@ -139,6 +140,16 @@ async function main(): Promise<void> {
 	console.error(
 		`\nPublished status (${status.state}) to ${CANONICAL_ARCHIVE_PREFIX}/status.json`,
 	);
+
+	// The served tree is a separate surface from the bucket. Publishing to one
+	// and not the other is how `status.json` came to 404 publicly while the
+	// hourly refresh reported success.
+	const mirrored = await mirrorToPublicArchive({
+		name: "status.json",
+		value: status,
+	});
+	if (mirrored) console.error(`Mirrored status to ${mirrored}`);
+
 	await closeDb();
 }
 

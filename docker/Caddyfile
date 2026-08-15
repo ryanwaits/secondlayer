@@ -58,11 +58,22 @@ archive.{$BASE_DOMAIN:secondlayer.tools} {
 	root * /srv/archive
 	file_server
 
-	@latest path /latest.json
-	header @latest Cache-Control "public, max-age=60"
+	# The two mutable pointers. `status.json` exists to report an outage, so
+	# caching it long would launder the outage into apparent health — the exact
+	# failure it is published to prevent.
+	@mutable path /latest.json /status.json
+	header @mutable Cache-Control "public, max-age=60"
 
-	@immutable not path /latest.json
+	@immutable not path /latest.json /status.json
 	header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+	# Errors must not inherit the immutable header from the path they were
+	# requested at: a 404 cached for a year outlives the fix for whatever made
+	# the object missing.
+	handle_errors {
+		header Cache-Control "no-store"
+		respond "{err.status_code} {err.status_text}" {err.status_code}
+	}
 }
 
 # Self-hosted console. The app self-gates (CONSOLE_TOKEN cookie) and serves

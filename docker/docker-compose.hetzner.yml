@@ -110,6 +110,10 @@ services:
       AUTO_BACKFILL_ENABLED: ${AUTO_BACKFILL_ENABLED:-true}
       BACKFILL_INCLUDE_RAW_TX: ${BACKFILL_INCLUDE_RAW_TX:-true}
       ARCHIVE_DIR: /data/archive
+      # The staging dir doubles as the public archive tree (caddy bind-mounts it
+      # read-only at /srv/archive), so promote/status mirror their pointers here
+      # as well as to the bucket. Same directory, container-side path.
+      ARCHIVE_PUBLIC_DIR: /data/archive/canonical-v1-staging
     volumes:
       - ${DATA_DIR:-/opt/secondlayer/data}/archive:/data/archive
 

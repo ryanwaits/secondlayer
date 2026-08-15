@@ -41,6 +41,7 @@ import {
 	type CanonicalSnapshotManifest,
 	manifestDigest,
 } from "./export-snapshot.ts";
+import { mirrorToPublicArchive } from "./public-mirror.ts";
 import { CANONICAL_ARCHIVE_PREFIX } from "./upload-snapshot.ts";
 
 export const LATEST_SCHEMA_VERSION = 1;
@@ -328,6 +329,14 @@ async function main(): Promise<void> {
 		value: pointer,
 	});
 	console.log(`\nPromoted ${snapshotDigest} to ${latestKey}`);
+
+	// Mirror last, after the bucket PUT has succeeded: the served tree must never
+	// advertise a snapshot the durable copy does not have.
+	const mirrored = await mirrorToPublicArchive({
+		name: "latest.json",
+		value: pointer,
+	});
+	if (mirrored) console.log(`Mirrored pointer to ${mirrored}`);
 }
 
 if (import.meta.main) {
