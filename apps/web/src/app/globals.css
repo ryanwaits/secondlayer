@@ -13127,9 +13127,20 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 	border-bottom: 1px solid var(--border);
 }
 
+/* Rules only where they separate two things. An odd row with nothing beside it
+   drew a divider dividing nothing, and the last row's bottom rule closed the
+   pair into a half-box: with a single older post that reads as a stray frame. */
 .writing-rest-row:nth-child(odd) {
-	border-right: 1px solid var(--border);
 	padding-right: 28px;
+}
+
+.writing-rest-row:nth-child(odd):not(:last-child) {
+	border-right: 1px solid var(--border);
+}
+
+.writing-rest-row:last-child,
+.writing-rest-row:nth-last-child(2):nth-child(odd) {
+	border-bottom: none;
 }
 
 @media (max-width: 760px) {
@@ -15597,197 +15608,117 @@ input[type="range"].fig-range {
 	}
 }
 
-/* ── Writing hero art: "missing panel" ───────────────────────────────────
-   Feature art for the /writing latest-post slot (and wide/OG crops). Not a
-   figure: no caption, nothing lifted from a post. Four elements only, sized in
-   container-relative units so the same component holds at ~350px and wide.
-   The two filled panels fill on a loop; the empty one never does. */
+/* ── Writing hero art: contract in an editor ─────────────────────────────
+   Feature art for the /writing latest-post slot. Not a figure: no caption,
+   nothing lifted from the post. Chrome mirrors .home-term so the site reads
+   as one product; ground uses the neutral theme palette (card/dove/pewter)
+   with the accent held to the single print-line marker, per DESIGN.md's 5%
+   accent rule. Type is clamped, not pure cqw: a wide crop was rendering the
+   labels at 30px. */
 .mpx {
-	--mpx-ground: #f6f4f1;
-	--mpx-win: #ffffff;
-	--mpx-bar: #e6e4e1;
-	--mpx-soft: #efedea;
-	--mpx-ink: #1a1a1a;
-	--mpx-muted: #8b8781;
-	--mpx-edge: rgba(0, 0, 0, 0.07);
-	--mpx-warm: #ffd4b8;
-	--mpx-rose: #ffc6d2;
-	--mpx-sun: #ffe6c2;
 	position: relative;
 	aspect-ratio: 16 / 10;
 	border-radius: 14px;
 	overflow: hidden;
-	background: var(--mpx-ground);
 	container-type: inline-size;
-}
-@media (prefers-color-scheme: dark) {
-	:root:not([data-theme="light"]) .mpx {
-		--mpx-ground: #171715;
-		--mpx-win: #201f1d;
-		--mpx-bar: #34322f;
-		--mpx-soft: #2a2926;
-		--mpx-ink: #ece8e1;
-		--mpx-muted: #8d867e;
-		--mpx-edge: rgba(255, 255, 255, 0.08);
-		--mpx-warm: #5c3620;
-		--mpx-rose: #55272f;
-		--mpx-sun: #4b3b20;
-	}
-}
-:root[data-theme="dark"] .mpx {
-	--mpx-ground: #171715;
-	--mpx-win: #201f1d;
-	--mpx-bar: #34322f;
-	--mpx-soft: #2a2926;
-	--mpx-ink: #ece8e1;
-	--mpx-muted: #8d867e;
-	--mpx-edge: rgba(255, 255, 255, 0.08);
-	--mpx-warm: #5c3620;
-	--mpx-rose: #55272f;
-	--mpx-sun: #4b3b20;
-}
-
-.mpx-blob {
-	position: absolute;
-	border-radius: 50%;
-	filter: blur(14cqw);
-	pointer-events: none;
-}
-.mpx-blob-a {
-	width: 55cqw;
-	height: 55cqw;
-	left: -14cqw;
-	top: -16cqw;
-	background: var(--mpx-warm);
-}
-.mpx-blob-b {
-	width: 48cqw;
-	height: 48cqw;
-	right: -12cqw;
-	top: -8cqw;
-	background: var(--mpx-rose);
-}
-.mpx-blob-c {
-	width: 60cqw;
-	height: 40cqw;
-	left: 26cqw;
-	bottom: -18cqw;
-	background: var(--mpx-sun);
+	/* Full-bleed mesh, brand palette only. Layered radials rather than blurred
+	   divs: a blurred circle has an edge where its box ends, which read as a
+	   hard seam ~60% across.
+	   Literals, not var(): DESIGN.md names these tokens (paper/card/pewter/
+	   dove) but globals.css does not define them, so `var(--pewter)` silently
+	   voided the whole background. The values are DESIGN.md's, with alpha:
+	   accent-hover #ffc285 carries the warm field, pewter #aab0ba and dove
+	   #d5d9e2 cool the opposite corner. The accent itself never appears here,
+	   only in the print-line marker, per the ~5% footprint rule. */
+	background: radial-gradient(
+			90% 80% at 0% 0%,
+			rgba(255, 194, 133, 0.95) 0%,
+			rgba(255, 194, 133, 0.5) 38%,
+			transparent 72%
+		),
+		radial-gradient(
+			85% 75% at 100% 6%,
+			rgba(170, 176, 186, 0.55) 0%,
+			rgba(170, 176, 186, 0.25) 40%,
+			transparent 70%
+		),
+		radial-gradient(
+			95% 72% at 28% 100%,
+			rgba(255, 194, 133, 0.85) 0%,
+			rgba(255, 194, 133, 0.4) 42%,
+			transparent 76%
+		),
+		radial-gradient(
+			70% 60% at 90% 95%,
+			rgba(213, 217, 226, 0.7) 0%,
+			transparent 68%
+		), var(--bg-chrome);
 }
 
+/* The window sits ON the mesh and is cropped by the bottom edge, the way the
+   reference does it. Floating it centered with padding turned the gradient
+   into a margin instead of a ground. */
+/* The window sits ON the mesh, cropped by the bottom edge, the way the
+   reference does it. No border and no drop shadow: both read as a halo
+   against a soft gradient. The mesh itself provides the separation. */
 .mpx-win {
 	position: absolute;
-	left: 9cqw;
-	right: 9cqw;
-	top: 13cqw;
+	left: 5cqw;
+	right: 5cqw;
+	top: 9cqw;
 	bottom: 0;
-	background: var(--mpx-win);
-	border-radius: 2.4cqw 2.4cqw 0 0;
-	box-shadow: 0 0 0 1px var(--mpx-edge), 0 3cqw 6cqw rgba(0, 0, 0, 0.1);
-	padding: 4cqw 4.4cqw;
-	display: flex;
-	flex-direction: column;
-	gap: 3cqw;
-}
-.mpx-head {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
+	background: var(--term-bg);
+	border-radius: 1.8cqw 1.8cqw 0 0;
+	overflow: hidden;
+	text-align: left;
 }
 .mpx-bar {
-	display: block;
-	border-radius: 1cqw;
-	background: var(--mpx-bar);
-}
-.mpx-title {
-	width: 34%;
-	height: 2.4cqw;
-}
-.mpx-chip {
-	width: 13%;
-	height: 3.4cqw;
-	border-radius: 1.7cqw;
-	background: var(--mpx-soft);
-}
-.mpx-row {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 2.6cqw;
-}
-.mpx-panel {
-	background: var(--mpx-soft);
-	border-radius: 1.8cqw;
-	padding: 2.8cqw 3cqw;
 	display: flex;
-	flex-direction: column;
-	gap: 2cqw;
-}
-.mpx-cap {
-	width: 52%;
-	height: 1.9cqw;
-}
-.mpx-fill {
-	display: block;
-	height: 3.6cqw;
-	border-radius: 1cqw;
-	background: var(--mpx-bar);
-	width: 0;
-	animation: mpx-grow 6s ease-in-out infinite;
-}
-.mpx-fill-1 {
-	--mpx-to: 74%;
-	animation-delay: 0.25s;
-}
-.mpx-fill-2 {
-	--mpx-to: 56%;
-	animation-delay: 0.75s;
-}
-@keyframes mpx-grow {
-	0% {
-		width: 0;
-	}
-	18% {
-		width: var(--mpx-to);
-	}
-	72% {
-		width: var(--mpx-to);
-	}
-	88% {
-		width: 0;
-	}
-	100% {
-		width: 0;
-	}
-}
-
-/* The point. Dashed, empty, never fills, and the only real words here. */
-.mpx-void {
-	flex: 1;
-	border: 0.28cqw dashed var(--mpx-muted);
-	border-radius: 1.8cqw;
-	display: flex;
-	flex-direction: column;
 	align-items: center;
-	justify-content: center;
-	gap: 0.8cqw;
-	min-height: 12cqw;
+	gap: 2cqw;
+	padding: 2cqw 2.6cqw;
+	font-family: var(--font-mono-stack);
+	font-size: clamp(9px, 2cqw, 13px);
+	color: var(--term-muted);
 }
-.mpx-void-label {
-	font-family: var(--font-mono-stack, ui-monospace, monospace);
-	font-size: 2.5cqw;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	color: var(--mpx-ink);
+.mpx-dots {
+	display: flex;
+	gap: 1.2cqw;
+	flex: none;
 }
-.mpx-void-none {
-	font-family: var(--font-mono-stack, ui-monospace, monospace);
-	font-size: 2.3cqw;
-	color: var(--mpx-muted);
+/* Neutral, not traffic-light: the shell is chrome, not a status indicator. */
+.mpx-dots i {
+	display: block;
+	width: clamp(5px, 1.5cqw, 9px);
+	height: clamp(5px, 1.5cqw, 9px);
+	border-radius: 999px;
+	background: var(--border-hover);
+}
+.mpx-path {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.mpx-meta {
+	flex: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
-	.mpx-fill {
-		animation: none;
-		width: var(--mpx-to);
-	}
+/* Shiki output, sized up so the contract is actually readable in the card. */
+.mpx-code {
+	padding: 1cqw 2.6cqw 2.4cqw;
+	overflow: hidden;
+}
+.mpx-code pre {
+	margin: 0;
+	background: transparent !important;
+	overflow: hidden;
+}
+.mpx-code code {
+	display: block;
+	white-space: pre;
+	font-family: var(--font-mono-stack);
+	font-size: clamp(8.5px, 2.15cqw, 14px);
+	line-height: 1.95;
 }

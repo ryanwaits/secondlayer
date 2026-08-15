@@ -1,49 +1,57 @@
+import { highlight } from "@/lib/highlight";
+
 /**
  * Hero art for "The data your app needs isn't in anyone's API".
  *
- * Not a figure. It has no caption, nothing is lifted from the post, and it
- * lives in the /writing feature slot (and any wide/OG crop of it).
+ * Not a figure: no caption, nothing lifted from the post. It lives in the
+ * /writing feature slot and any wide crop of it.
  *
- * Register: product-marketing UI abstraction. Grayed placeholder chrome over a
- * soft gradient ground, cropped by the card edge. The argument is the one panel
- * with nothing in it.
+ * The argument, drawn: a real Clarity contract emits a real print event, and
+ * the line beneath says nobody indexes it. Real contract source rather than
+ * abstracted UI bars, because the reader is a developer and the code IS the
+ * thing they recognize.
  *
- * Composition constraints, learned the hard way: this renders at ~350px in the
- * feature card AND wide for OG, so it carries only four elements (header, two
- * filled panels, one empty) sized in container-relative units. An earlier
- * version had a sidebar and collapsed into slivers at card width.
+ * Highlighted by the site's own Shiki pipeline (`lib/highlight`, which already
+ * registers `clarity`), so the colors match every docs code block. Hand-rolled
+ * spans would have drifted from the docs on the first theme change.
  *
- * Motion: the two filled panels fill, staggered, then the loop rests. The empty
- * one never does, which is the whole joke. Disabled under prefers-reduced-motion.
+ * Static, neutral shell dots, no marker rail.
  */
-export function MissingPanel() {
+/**
+ * Closing parens are broken onto their own lines and aligned under their
+ * opener rather than stacked `)))` at the end. Idiomatic Clarity stacks them;
+ * at hero size the stack reads as a typo, and the aligned form lets the eye
+ * match each block at a glance.
+ */
+const SOURCE = `(define-public (deposit (amount uint))
+  (begin
+    (try! (stx-transfer? amount tx-sender pool))
+    (print { topic: "deposit", who: tx-sender })
+    (ok true)
+  )
+)`;
+
+export async function MissingPanel() {
+	const html = await highlight(SOURCE, "clarity");
+
 	return (
 		<div className="mpx">
-			<div className="mpx-blob mpx-blob-a" />
-			<div className="mpx-blob mpx-blob-b" />
-			<div className="mpx-blob mpx-blob-c" />
-
 			<div className="mpx-win">
-				<div className="mpx-head">
-					<span className="mpx-bar mpx-title" />
-					<span className="mpx-chip" />
+				<div className="mpx-bar">
+					<span className="mpx-dots">
+						<i />
+						<i />
+						<i />
+					</span>
+					<span className="mpx-path">pool.clar</span>
+					<span className="mpx-meta">clarity</span>
 				</div>
 
-				<div className="mpx-row">
-					<div className="mpx-panel">
-						<span className="mpx-bar mpx-cap" />
-						<span className="mpx-fill mpx-fill-1" />
-					</div>
-					<div className="mpx-panel">
-						<span className="mpx-bar mpx-cap" />
-						<span className="mpx-fill mpx-fill-2" />
-					</div>
-				</div>
-
-				<div className="mpx-void">
-					<span className="mpx-void-label">Positions</span>
-					<span className="mpx-void-none">no data</span>
-				</div>
+				<div
+					className="mpx-code"
+					// biome-ignore lint/security/noDangerouslySetInnerHtml: shiki-highlighted server-rendered HTML, same pipeline as docs code blocks
+					dangerouslySetInnerHTML={{ __html: html }}
+				/>
 			</div>
 		</div>
 	);
