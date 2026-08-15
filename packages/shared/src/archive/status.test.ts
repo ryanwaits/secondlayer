@@ -67,6 +67,29 @@ describe("archive status", () => {
 		expect(status.detail).toContain("freshness objective");
 	});
 
+	test("the longest gap in a healthy publish week is NOT stale", () => {
+		// The publisher runs Wed + Sun, so a promotion can be four days old with
+		// nothing wrong. A threshold below the cadence would report `stale` every
+		// single week — the 2026-08-15 page, where the alert was structurally
+		// guaranteed rather than describing a real fault.
+		const fourDaysBefore = new Date(
+			NOW.getTime() - 4 * 24 * 3_600 * 1_000,
+		).toISOString();
+		const status = deriveArchiveStatus(inputs({ promotedAt: fourDaysBefore }));
+		expect(status.state).toBe("lagging");
+	});
+
+	test("a missed publish cycle still goes stale", () => {
+		// The flip side: the threshold must stay under a full missed cycle, so a
+		// skipped run is caught days before the next scheduled attempt.
+		const sixDaysBefore = new Date(
+			NOW.getTime() - 6 * 24 * 3_600 * 1_000,
+		).toISOString();
+		const status = deriveArchiveStatus(inputs({ promotedAt: sixDaysBefore }));
+		expect(status.state).toBe("stale");
+		expect(status.detail).toContain("6d ago");
+	});
+
 	test("a failed audit outranks freshness", () => {
 		// Current-and-wrong is worse than behind-and-correct.
 		const status = deriveArchiveStatus(

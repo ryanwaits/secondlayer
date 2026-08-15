@@ -88,7 +88,35 @@ export type StatusInputs = {
 };
 
 const DEFAULT_MAX_BLOCKS_BEHIND_FINALIZED = 60_000;
-const DEFAULT_MAX_SECONDS_SINCE_PROMOTION = 48 * 3_600;
+/**
+ * Must exceed the publish cadence, or the archive reports `stale` on every
+ * healthy cycle and the signal means nothing.
+ *
+ * The publisher runs Wed + Sun, so the longest gap between promotions in a
+ * healthy week is 4 days. Five days leaves a day of grace for a slow export or
+ * timer jitter, and still fires two days before the next scheduled attempt
+ * whenever a cycle is actually missed.
+ *
+ * It also lands just inside the height rule: at the observed ~7–9k blocks/day
+ * the archive is ~45k blocks behind finalized at the five-day mark, so age
+ * trips first and reports the more diagnostic message ("publishing stopped")
+ * rather than the symptom.
+ */
+const DEFAULT_MAX_SECONDS_SINCE_PROMOTION = 5 * 24 * 3_600;
+
+/**
+ * Durations here run to days, and "beyond the 120h objective" makes a reader do
+ * arithmetic before they can tell whether that is alarming.
+ */
+function formatAge(seconds: number): string {
+	const hours = seconds / 3_600;
+	if (hours < 48) return `${Math.round(hours)}h`;
+	const days = hours / 24;
+	// One decimal only when it changes the reading: 4d and 4.5d are different
+	// facts during an incident, 5.0d is noise.
+	const rounded = Math.round(days * 10) / 10;
+	return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)}d`;
+}
 
 /**
  * Derive status from measurements. Pure, so every state below is reachable in
@@ -178,7 +206,7 @@ export function deriveArchiveStatus(inputs: StatusInputs): ArchiveStatus {
 		return {
 			...base,
 			state: "stale",
-			detail: `last promotion was ${Math.round(secondsSincePromotion / 3_600)}h ago, beyond the ${Math.round(maxAge / 3_600)}h freshness objective`,
+			detail: `last promotion was ${formatAge(secondsSincePromotion)} ago, beyond the ${formatAge(maxAge)} freshness objective`,
 		};
 	}
 

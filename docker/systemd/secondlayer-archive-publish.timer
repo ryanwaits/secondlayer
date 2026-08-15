@@ -1,8 +1,13 @@
 [Unit]
-Description=Run the Secondlayer canonical archive publish cycle weekly
+Description=Run the Secondlayer canonical archive publish cycle twice weekly
 
 [Timer]
-OnCalendar=Sun *-*-* 08:00:00
+# Wed + Sun: the longest gap between promotions is 4 days, which sits inside
+# both freshness rules in status.json (5-day promotion age, 60k blocks behind
+# finalized). A weekly cadence could not — it aged past the age rule on day 5
+# and past the height rule on day ~7, so the archive reported `stale` every
+# week whether or not anything was wrong.
+OnCalendar=Wed,Sun *-*-* 08:00:00
 AccuracySec=5m
 Persistent=true
 Unit=secondlayer-archive-publish.service

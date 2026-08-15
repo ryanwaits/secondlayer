@@ -2,7 +2,7 @@
 # Canonical archive publish cycle: export → upload → promote → status.
 #
 # The archive is only useful if it keeps moving. Published once, it falls
-# ~5,400 blocks behind per day and `status.json` — the freshness signal — goes
+# ~7-9k blocks behind per day and `status.json` — the freshness signal — goes
 # stale itself, because nothing regenerates it. This is what turns "we
 # published an archive" into "we operate one".
 #
@@ -10,11 +10,13 @@
 # promotion has its own refusal gates (signature, coverage contiguity, object
 # presence, no regression) that this script deliberately does not bypass.
 #
-# Cadence note: partitions are 50k blocks and the chain produces ~5,400/day, so
-# a new COMPLETE partition lands roughly every 9 days. Running weekly means most
-# cycles re-export the same content and promote the same digest — which is
-# harmless and idempotent (the uploader skips unchanged objects, promotion sees
-# no regression). The status refresh is the part that matters every time.
+# Cadence note: partitions are 50k blocks and the chain produces ~7-9k/day, so
+# a new COMPLETE partition lands roughly every 6 days. Running twice weekly
+# (Wed + Sun) means some cycles re-export the same content and promote the same
+# digest — which is harmless and idempotent (the uploader skips unchanged
+# objects, promotion sees no regression). Promoting on that cadence is what
+# keeps the freshness clock inside its objective; the cheaper hourly status
+# refresh reports the clock but cannot advance it.
 #
 # Requires SLACK_WEBHOOK_URL via the systemd unit's EnvironmentFile.
 set -uo pipefail
