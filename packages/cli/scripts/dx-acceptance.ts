@@ -1,26 +1,20 @@
 /**
  * DX acceptance: sl --help lists init/bootstrap/observer and does not
- * advertise hosted login/account/billing/keys/projects.
+ * advertise the hosted login verb or retired hosted commands.
  *
  *   bun packages/cli/scripts/dx-acceptance.ts
  */
 import { Command } from "commander";
-import { registerAccountCommand } from "../src/commands/account.ts";
 import { registerBootstrapCommand } from "../src/commands/bootstrap.ts";
 import { registerInitCommand } from "../src/commands/init.ts";
-import { registerKeysCommand } from "../src/commands/keys.ts";
 import { registerLoginCommand } from "../src/commands/login.ts";
 import { registerObserverCommand } from "../src/commands/observer.ts";
-import { registerProjectCommand } from "../src/commands/project.ts";
 
 const program = new Command().name("sl");
 registerInitCommand(program);
 registerBootstrapCommand(program);
 registerObserverCommand(program);
 registerLoginCommand(program);
-registerAccountCommand(program);
-registerKeysCommand(program);
-registerProjectCommand(program);
 
 const help = program.helpInformation();
 const must = ["init", "bootstrap", "observer"];

@@ -2,7 +2,6 @@
 import { type Command, program } from "commander";
 import pkg from "../package.json" with { type: "json" };
 import {
-	registerAccountCommand,
 	registerBootstrapCommand,
 	registerCodegenCommand,
 	registerConfigCommand,
@@ -13,12 +12,10 @@ import {
 	registerDoctorCommand,
 	registerIndexCommand,
 	registerInitCommand,
-	registerKeysCommand,
 	registerLocalCommand,
 	registerLoginCommand,
 	registerLogoutCommand,
 	registerObserverCommand,
-	registerProjectCommand,
 	registerRepairCommand,
 	registerStartCommand,
 	registerStatusCommand,
@@ -82,7 +79,6 @@ registerIndexCommand(program);
 
 // Project & codegen
 program.commandsGroup("Project & codegen:");
-registerProjectCommand(program);
 // Canonical codegen verb. The per-product paths below (`secondlayer contracts
 // generate`, `secondlayer subgraphs codegen`, `secondlayer index codegen`, …) remain as
 // deprecated aliases until the next major.
@@ -146,7 +142,5 @@ registerRepairCommand(program);
 // Account
 program.commandsGroup("Account:");
 registerCreditsCommand(program);
-registerAccountCommand(program);
-registerKeysCommand(program);
 
 program.parse();

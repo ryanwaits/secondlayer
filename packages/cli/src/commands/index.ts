@@ -1,4 +1,3 @@
-export { registerAccountCommand } from "./account.ts";
 export { registerCreditsCommand } from "./credits.ts";
 export { registerCodegenCommand } from "./codegen.ts";
 export { registerConfigCommand } from "./config.ts";
@@ -10,13 +9,11 @@ export { registerDevnetCommand } from "./devnet.ts";
 export { registerSubgraphsCommand } from "./subgraphs.ts";
 export { registerStreamsCommand } from "./streams.ts";
 export { registerIndexCommand } from "./index-api.ts";
-export { registerKeysCommand } from "./keys.ts";
 export { registerDoctorCommand } from "./doctor.ts";
 export { registerLocalCommand } from "./local.ts";
 export { registerWhoamiCommand } from "./whoami.ts";
 export { registerLoginCommand } from "./login.ts";
 export { registerLogoutCommand } from "./logout.ts";
-export { registerProjectCommand } from "./project.ts";
 export { registerVerifyCommand } from "./verify.ts";
 export { registerRepairCommand } from "./repair.ts";
 export { registerBootstrapCommand } from "./bootstrap.ts";
