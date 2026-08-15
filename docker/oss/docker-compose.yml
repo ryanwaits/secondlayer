@@ -11,9 +11,14 @@
 #
 # Multi-service split (legacy): docker-compose.split.yml
 
+# Third-party images are digest-pinned (`tag@sha256:...`). Tags are mutable, so
+# an unpinned stack silently changes underneath an operator between `up -d`
+# runs — the exact failure mode that makes a self-hosted deployment
+# irreproducible. The tag is kept for human readability; Docker resolves the
+# digest. Re-resolve with `docker buildx imagetools inspect <image>:<tag>`.
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:17-alpine@sha256:d4bb0a8c1b7bb2e29f976d099e7bfb9a5d8858cffe9e46b35cd302cd1f1f8168
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-secondlayer}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secondlayer}
@@ -104,7 +109,12 @@ services:
     profiles: ["console"]
 
   bitcoind:
-    image: kylemanna/bitcoind:latest
+    # Upstream publishes no version tags — only `latest` and an abandoned 1.0.0
+    # — so the digest IS the version pin here. `latest` is retained only as the
+    # lookup path; the digest makes it immutable and stops a rebuilt upstream
+    # image from swapping the bitcoind binary under a running node.
+    # Digest below = kylemanna/bitcoind:latest as published 2026-07-20.
+    image: kylemanna/bitcoind:latest@sha256:86bbcaa99bf3bf3d5df7fd6d9217b3a41194db4c4e34385064f2cfc9fa7bdf91
     volumes:
       - ${BITCOIN_DATA_DIR:-./data/bitcoin}:/bitcoin/.bitcoin
     ports:
@@ -124,7 +134,9 @@ services:
     profiles: ["full-node"]
 
   stacks-node:
-    image: ghcr.io/stacks-network/stacks-core:4.0.1
+    # Consensus-critical: a moved tag here is a node running different fork
+    # rules than the indexer was tested against. Digest-pinned to 4.0.1.
+    image: ghcr.io/stacks-network/stacks-core:4.0.1@sha256:ceb768f881ef52a1d2792a2b4a89d81e092b1df11293b04c31ce36613c3f9711
     volumes:
       - ${STACKS_DATA_DIR:-./data/stacks}:/stacks-blockchain/data
       - ./Config.toml:/stacks-blockchain/Config.toml:ro

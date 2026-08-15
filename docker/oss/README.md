@@ -89,3 +89,61 @@ Team-scoped console logins (per-user tokens) are deliberately not a feature
 yet — one instance, one token, your proxy decides who reaches it.
 
 Split multi-container layout: `docker-compose.split.yml`.
+
+## Verifying what you pulled
+
+Every published image is signed with [cosign](https://docs.sigstore.dev/) using
+keyless (OIDC) signing — there is no long-lived key, and the signing identity is
+the workflow that built it. Tagged releases also ship a `checksums.txt`
+inventory of the exact image digests, plus its detached signature.
+
+Get `checksums.txt`, `checksums.txt.sig`, and `checksums.txt.pem` from the
+GitHub release for the tag (or from the `checksums` artifact on the
+corresponding **OSS Images** workflow run).
+
+**1. Verify the inventory**
+
+```bash
+cosign verify-blob checksums.txt \
+  --signature checksums.txt.sig \
+  --certificate checksums.txt.pem \
+  --certificate-identity-regexp '^https://github\.com/ryanwaits/secondlayer/\.github/workflows/oss-images\.yml@refs/tags/v' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+`checksums.txt` lists one `<digest>  <image>` pair per service.
+
+**2. Verify the image signature**
+
+```bash
+IMAGE=ghcr.io/ryanwaits/secondlayer-api
+DIGEST=$(grep " $IMAGE$" checksums.txt | cut -d' ' -f1)
+
+cosign verify "$IMAGE@$DIGEST" \
+  --certificate-identity-regexp '^https://github\.com/ryanwaits/secondlayer/\.github/workflows/oss-images\.yml@refs/tags/v' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+**3. Check the digest you actually pulled**
+
+Tags are mutable; digests are not. Pull by digest, then confirm what landed
+locally matches the inventory:
+
+```bash
+docker pull "$IMAGE@$DIGEST"
+docker image inspect "$IMAGE@$DIGEST" --format '{{index .RepoDigests 0}}'
+```
+
+**4. Inspect the SBOM and provenance**
+
+Each image carries an SBOM and max-mode SLSA provenance as OCI attestations, so
+you can see what is inside it and what built it:
+
+```bash
+cosign download sbom "$IMAGE@$DIGEST"
+docker buildx imagetools inspect "$IMAGE@$DIGEST" --format '{{ json .Provenance }}'
+```
+
+Third-party images in `docker-compose.yml` (postgres, stacks-core, bitcoind) are
+digest-pinned in this repo but signed by their own publishers, not by us — the
+pin is what guarantees you get the bytes this release was tested against.

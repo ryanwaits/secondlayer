@@ -91,6 +91,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
 
       - name: Build and push
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -101,7 +102,134 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             SECONDLAYER_API_SOURCE_DIGEST=${{ steps.api-source.outputs.digest }}
+          # SBOM + max provenance: a self-hoster running our image needs to be
+          # able to answer "what is in this, and what built it" without trusting
+          # us. Both are pushed to ghcr as OCI attestations alongside the image,
+          # which means the pushed artifact is an image index rather than a bare
+          # manifest — Docker 20.10+/BuildKit handle that transparently.
+          sbom: true
+          provenance: mode=max
           cache-from: |
             type=gha,scope=${{ matrix.service }}
             ${{ matrix.base && format('type=gha,scope={0}', matrix.base) || '' }}
           cache-to: type=gha,scope=${{ matrix.service }},mode=max
+
+      # One file per matrix leg; the release job merges them into the manifest.
+      # Recorded unconditionally so a workflow_dispatch run still shows what it
+      # published — only the release/signing job is gated on tags.
+      - name: Record published digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p digests
+          printf '%s  %s\n' \
+            '${{ steps.build.outputs.digest }}' \
+            '${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/secondlayer-${{ matrix.service }}' \
+            > "digests/${{ matrix.service }}.txt"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v7
+        with:
+          name: digest-${{ matrix.service }}
+          path: digests/${{ matrix.service }}.txt
+          retention-days: 7
+          if-no-files-found: error
+
+  # Inventory + signature for a tagged release. Split out of the matrix so
+  # checksums.txt covers every service in one signed document, and so signing
+  # credentials (OIDC) live in exactly one job.
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # attach checksums.txt to the GitHub release
+      packages: write # cosign pushes signatures beside the images in ghcr
+      id-token: write # keyless signing: mint the OIDC token cosign exchanges
+
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v8
+        with:
+          pattern: digest-*
+          merge-multiple: true
+          path: digests
+
+      - name: Build checksums.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "# Secondlayer OSS images — ${GITHUB_REF_NAME}"
+            echo "# commit: ${GITHUB_SHA}"
+            echo "# run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo "#"
+            echo "# <digest>  <image>   — pull by digest, never by tag:"
+            echo "#   docker pull <image>@<digest>"
+            # Sorted so the file is byte-stable across runs regardless of the
+            # order the matrix legs happened to finish in.
+            LC_ALL=C sort digests/*.txt
+          } > checksums.txt
+          cat checksums.txt
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v4.1.2
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Keyless (Fulcio/Rekor): no long-lived key to rotate or leak. The
+      # signing identity is this workflow file at this ref, which is what
+      # `cosign verify` checks — see docker/oss/README.md.
+      - name: Sign images
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Skip comment lines; sign each image by digest, never by tag.
+          # `|| true` because grep exits 1 on no match, which pipefail would
+          # turn into a failed step.
+          { grep -v '^#' checksums.txt || true; } | while read -r digest image; do
+            [ -n "${digest:-}" ] || continue
+            echo "signing ${image}@${digest}"
+            cosign sign --yes "${image}@${digest}"
+          done
+
+      - name: Sign checksums.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          cosign sign-blob --yes \
+            --output-signature checksums.txt.sig \
+            --output-certificate checksums.txt.pem \
+            checksums.txt
+
+      - name: Upload signed manifest
+        uses: actions/upload-artifact@v7
+        with:
+          name: checksums
+          path: |
+            checksums.txt
+            checksums.txt.sig
+            checksums.txt.pem
+          if-no-files-found: error
+
+      # Best-effort: the tag may be pushed before the GitHub release exists.
+      # A missing release must not fail a run whose images already published.
+      - name: Attach to GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No checkout in this job, so gh has no git remote to infer from.
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" \
+              checksums.txt checksums.txt.sig checksums.txt.pem --clobber
+          else
+            echo "No GitHub release for $GITHUB_REF_NAME; artifacts remain on the workflow run."
+          fi
