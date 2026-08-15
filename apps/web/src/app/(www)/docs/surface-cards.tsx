@@ -9,18 +9,19 @@ interface Surface {
 	lang: string;
 	/** The call you actually write — the SDK entry point, not an endpoint. */
 	call: string;
-	wide?: boolean;
 }
 
-/** The four surfaces of a self-hosted instance.
- *  Each card leads with the call you write, not the endpoint you hit.
- *  Subscriptions spans the full row. */
+/** The three surfaces of a self-hosted instance, in fork order: keep your own
+ *  API, take the generated one, or decode it yourself. Each card leads with the
+ *  call you write, not the endpoint you hit. Subscriptions is deliberately not
+ *  here — it's a delivery mode both Index and Subgraphs use, documented inside
+ *  each, never a fourth peer. */
 const SURFACES: Surface[] = [
 	{
 		n: "01",
 		name: "Index",
 		href: "/docs/index",
-		desc: "Decoded blocks, transactions, and events — swept into your own tables, backfilled from genesis, reorgs rolled back for you.",
+		desc: "Decoded blocks, transactions, and events — swept into tables you define, backfilled from genesis, reorgs rolled back for you.",
 		lang: "ts",
 		call: "sl.index.events.consume()",
 	},
@@ -28,7 +29,7 @@ const SURFACES: Surface[] = [
 		n: "02",
 		name: "Subgraphs",
 		href: "/docs/subgraphs",
-		desc: "Your schema on your instance — one TypeScript file, tables in your Postgres, served from your API. The loop above, run for you.",
+		desc: "One TypeScript file, tables in your Postgres, and a REST API over them you didn't write. The loop above, run for you.",
 		lang: "ts",
 		call: "defineSubgraph({ … })",
 	},
@@ -40,15 +41,6 @@ const SURFACES: Surface[] = [
 		lang: "ts",
 		call: "sl.streams.events.consume()",
 	},
-	{
-		n: "04",
-		name: "Subscriptions",
-		href: "/docs/subscriptions",
-		desc: "The push channel — matched rows or chain events to your webhook, signed. No polling loop to babysit.",
-		lang: "ts",
-		call: "sl.subscriptions.create()",
-		wide: true,
-	},
 ];
 
 /** "Pick your surface" card grid for the docs intro. Replaces the prior
@@ -57,11 +49,7 @@ export function SurfaceCards() {
 	return (
 		<div className="docs-surfaces">
 			{SURFACES.map((s) => (
-				<Link
-					key={s.href}
-					href={s.href}
-					className={`docs-surface${s.wide ? " wide" : ""}`}
-				>
+				<Link key={s.href} href={s.href} className="docs-surface">
 					<span className="docs-surface-num">{s.n}</span>
 					<span className="docs-surface-name">
 						{s.name}

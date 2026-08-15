@@ -1,20 +1,21 @@
 import { SurfaceCards } from "./surface-cards";
 import { QuickstartPanel } from "./quickstart-panel";
 
-# Your indexer, on your machine
+# Decoded chain data, in your own database
 
-Run the runtime beside your node. Query decoded data. Deploy TypeScript subgraphs.
+Run it beside your node. Backfilled from genesis, reorg-safe, kept current.
 
-## What are you building?
+## Do you already have an API layer?
 
-| You want | Use | What you write | Where it runs |
-| --- | --- | --- | --- |
-| Your app's own index | **Index** | A `consume()` loop: `onBatch` writes rows, `onReorg` rolls them back. `secondlayer index codegen` emits the mirror schema so your tables can't drift. | Your instance — [self-host](/docs/self-host). |
-| Your own tables | **Subgraphs** | One TypeScript file — sources, schema, handlers. | Your instance. Postgres you operate. |
-| To build from the raw inputs | **Streams** | A consumer over the signed raw firehose: bulk dumps, replay, automatic reorg rewind. | Your process. This is what Index itself is built on. |
-| An answer from a running box | **Index** | Nothing — one request returns decoded JSON with a resume cursor, the chain tip, and overlapping `reorgs[]`. | `http://127.0.0.1:3800`. See the [API reference](/docs/api-reference). |
+That's the only choice you have to make. The decoding, the reorg handling, and the history are done either way — all that's left is who shapes the read API.
 
-## Pick your surface
+| Your situation | What you write | Called |
+| --- | --- | --- |
+| **Yes** — you run tRPC, GraphQL, Rails, something | A `consume()` loop: `onBatch` writes rows into your schema, `onReorg` rolls them back. `secondlayer index codegen` emits the mirror schema so your tables can't drift. Serve them however you already serve things. | **[Index](/docs/index)** |
+| **No** — and you'd rather not build one | One TypeScript file: sources, schema, handlers. You get the table *and* a REST API over it, on your instance. | **[Subgraphs](/docs/subgraphs)** |
+| **I want to decode it myself** | A consumer over the signed raw firehose: bulk dumps, replay, automatic reorg rewind. This is what Index itself is built on. | **[Streams](/docs/streams)** |
+
+Subgraphs gives you a REST API you didn't write. That's the point — and the tradeoff. If you need your own API shape, don't use Subgraphs; use Index and keep your schema.
 
 <SurfaceCards />
 
