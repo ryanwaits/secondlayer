@@ -25,7 +25,7 @@ resuming from 8637064:1
 
 Which is fine, except it printed the same thing yesterday, and the chain tip is forty thousand blocks past that cursor now. It's tempting to read this as a stuck consumer: surely "continue where you left off" should mean the *last place you checked*, not the last place you found something.
 
-It isn't stuck, and the distinction between those two places is the single most useful thing to understand about how checkpointed consumers work. This guide walks the whole mechanism: what the three heights on the health endpoint mean, what a poll actually costs, why the checkpoint stays parked on a quiet feed, and what behavior to expect from your own consumers.
+It isn't stuck, and the distinction between those two places is the single most useful thing to understand about how checkpointed consumers work.
 
 ## Three heights, three facts
 
@@ -59,7 +59,7 @@ A consumer's health endpoint reports three different heights, and the whole stor
 	/>
 </FigShell>
 
-On a busy feed all three heights travel together, which is why the distinction is easy to never notice: it only becomes visible when a filter goes quiet. The backlog is zero either way. What follows explains why that's true, and why the parked cursor is the correct durable state.
+On a busy feed all three heights travel together, which is why the distinction is easy to never notice: it only becomes visible when a filter goes quiet. The backlog is zero either way, and the parked cursor is the correct durable state.
 
 ## What a poll actually is
 
@@ -109,7 +109,7 @@ When the answer is "no rows," the consumer has not skipped forty thousand blocks
 	/>
 </FigShell>
 
-The gap between cursor and tip contains, provably per the index, nothing addressed to this consumer. Re-asking is free. Everything else in this guide follows from that.
+The gap between cursor and tip contains, provably per the index, nothing addressed to this consumer. Re-asking is free. Everything else follows from that.
 
 ## Receipts and bookmarks
 
@@ -199,7 +199,7 @@ The behaviors that follow from this design, so none of them read as failures:
 
 Checkpoint design compresses to one question: *what can you afford to lose?* Facts that are expensive to lose (delivered data) get durable, transactional storage. Facts that are free to re-derive (where the scan had gotten to) get recomputed and merely *reported*. Most of the confusing surfaces in distributed systems are two facts with different loss-costs wearing the same name, and most of the fix is giving them different names.
 
-There's plenty this guide skips: exactly-once delivery (a lie, but a useful one: cursors as idempotency keys get you the honest version), what reorg rollback actually deletes, and why the cursor commits in the same transaction as your rows rather than after them. Those live in the [sinks docs](/docs/sinks).
+There's plenty I've skipped: exactly-once delivery (a lie, but a useful one: cursors as idempotency keys get you the honest version), what reorg rollback actually deletes, and why the cursor commits in the same transaction as your rows rather than after them. Those live in the [sinks docs](/docs/sinks).
 
 Anyway: if your indexer greets you with the same cursor every restart, you can now read it as the receipt it is. And when a number on a dashboard feels wrong, it's worth asking which fact it's actually measuring.
 

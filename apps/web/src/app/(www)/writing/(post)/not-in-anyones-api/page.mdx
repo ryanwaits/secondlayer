@@ -7,7 +7,7 @@ export const metadata = postMeta("not-in-anyones-api");
 
 <PostHeader slug="not-in-anyones-api" />
 
-You're a few weeks into building something on Stacks. The contract works. The wallet connects. Now you want the screen every app eventually needs — the one that shows a user what they've done. Their deposits. Their position over time. Their share of the pool.
+You're a few weeks into building something on Stacks. The contract works. The wallet connects. Now you want the screen every app eventually needs: the one that shows a user what they've done. Their deposits. Their position over time. Their share of the pool.
 
 So you go looking for that data, and it isn't anywhere.
 
@@ -17,7 +17,7 @@ The public API has transfers. It has blocks and transactions and balances. What 
 
 The first time this happens it feels like a gap someone forgot to fill. It isn't. It's the shape of the thing.
 
-A public API indexes what's general — the stuff every app on the chain has in common. That's a real service and it's genuinely useful, right up until your question stops being general. Nobody is going to build a `positions` table for a contract only you deployed, and you wouldn't want them to<Sidenote n={1}>It's the same reason your app has its own database rather than sharing one with every other app on the internet: a schema built for everybody fits nobody in particular.</Sidenote>. It'd be a table designed by someone who has never seen your product.
+A public API indexes what's general, the stuff every app on the chain has in common. That's a real service and it's genuinely useful, right up until your question stops being general. Nobody is going to build a `positions` table for a contract only you deployed, and you wouldn't want them to<Sidenote n={1}>It's the same reason your app has its own database rather than sharing one with every other app on the internet: a schema built for everybody fits nobody in particular.</Sidenote>. It'd be a table designed by someone who has never seen your product.
 
 Which leaves you with two options, and they're both worse than they look.
 
@@ -76,7 +76,7 @@ export default defineSubgraph({
 });
 ```
 
-Deploy it and the table fills itself — backfilled from history, current with the tip, correct across reorgs. Then it's a table in Postgres, and you query it the way you query any table you own.
+Deploy it and the table fills itself: backfilled from history, current with the tip, correct across reorgs. Then it's a table in Postgres, and you query it the way you query any table you own.
 
 ## The only choice you have to make
 
@@ -97,7 +97,7 @@ There's one fork, and you already know your answer to it.
 				body: (
 					<p>
 						Then you don't want ours. Write a consume loop and the rows land in
-						your schema — your tables, your URLs, your auth. Served the way you
+						your schema: your tables, your URLs, your auth. Served the way you
 						already serve things.
 					</p>
 				),
@@ -124,7 +124,7 @@ I'd rather put that trade in front of you than have you find it in week three. A
 
 ## What it costs
 
-The runtime is MIT. Running it, indexing forward from your own node, deploying tables, all of it — free, and free in the boring sense where there's no tier above it.
+The runtime is MIT. Running it, indexing forward from your own node, deploying tables, all of it free, and free in the boring sense where there's no tier above it.
 
 What costs money is history. We operate a signed archive of the whole chain, and pulling a large restore or a deep backfill out of it is the metered part. You can verify the archive for free, replay it for free, and check our work against it for free. You pay when you want us to hand you 243 million rows instead of you spending two weeks producing them yourself.
 
@@ -132,7 +132,7 @@ That's the split, and it's deliberate: you're never paying for queries against y
 
 ## What it isn't
 
-It's not a hosted API. There's no endpoint of ours in your critical path — the thing runs on your box, and if we disappeared tomorrow your app would keep serving.
+It's not a hosted API. There's no endpoint of ours in your critical path. The thing runs on your box, and if we disappeared tomorrow your app would keep serving.
 
 It's not a chatbot or a natural-language layer. You write TypeScript and SQL, same as always.
 
@@ -140,6 +140,6 @@ And it's not a replacement for your database. It fills one.
 
 There's a lot I've skipped. How the archive is signed and what verification actually proves, what happens during a reorg in enough detail to be useful, why Postgres sits underneath all of it. Those are their own posts and I'd rather write them properly than gesture at them here.
 
-But if you've hit the moment I opened with — the screen you can't build because the data isn't anywhere — that's the entire problem this exists to remove. Go [run it](/docs/self-host) and see if it holds up.
+But if you've hit the moment I opened with, the screen you can't build because the data isn't anywhere, that's the entire problem this exists to remove. Go [run it](/docs/self-host) and see if it holds up.
 
 <PostFooter slug="not-in-anyones-api" />
