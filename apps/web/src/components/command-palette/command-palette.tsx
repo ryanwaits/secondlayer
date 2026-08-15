@@ -1,22 +1,9 @@
 "use client";
 
 import { useAuth } from "@/lib/auth";
-import {
-	type CommandItem,
-	DOCS_ITEMS,
-	NAV_ITEMS,
-} from "@/lib/command-center/items";
-import {
-	frecencyBoosts,
-	recentIds,
-	recordSelection,
-} from "@/lib/command-center/recents";
-import {
-	type ResultGroup,
-	type ScoredItem,
-	rankCommandItems,
-} from "@/lib/command-center/search";
-import { useCommandSources } from "@/lib/command-center/sources";
+import { DOCS_ITEMS, NAV_ITEMS } from "@/lib/command-center/items";
+import { frecencyBoosts, recordSelection } from "@/lib/command-center/recents";
+import { type ScoredItem, rankCommandItems } from "@/lib/command-center/search";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -34,32 +21,17 @@ export function CommandPalette() {
 	const [selectedIdx, setSelectedIdx] = useState(0);
 	const inputRef = useRef<HTMLInputElement>(null);
 
-	const resources = useCommandSources(open);
 	// Frecency reads localStorage — refresh once per palette open, not per key.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: boosts refresh on open
 	const boosts = useMemo(() => frecencyBoosts(), [open]);
 
 	const t0 = performance.now();
 	const { groups, flat } = useMemo(() => {
-		const all = [...NAV_ITEMS, ...resources, ...DOCS_ITEMS];
-		if (query.trim()) return rankCommandItems(query, all, boosts);
-		// Empty state: nav shortcuts (recents-boosted) + last-used resources.
-		const ranked = rankCommandItems("", NAV_ITEMS, boosts);
-		const byId = new Map(resources.map((i) => [i.id, i]));
-		const recents: ScoredItem[] = recentIds(20)
-			.map((id) => byId.get(id))
-			.filter((i): i is CommandItem => !!i)
-			.slice(0, 3)
-			.map((item) => ({ item, score: 0, range: null }));
-		if (recents.length > 0) {
-			const groups: ResultGroup[] = [
-				...ranked.groups,
-				{ group: "your subgraphs", items: recents },
-			];
-			return { groups, flat: [...ranked.flat, ...recents] };
-		}
-		return ranked;
-	}, [query, resources, boosts]);
+		if (query.trim())
+			return rankCommandItems(query, [...NAV_ITEMS, ...DOCS_ITEMS], boosts);
+		// Empty state: nav shortcuts (recents-boosted).
+		return rankCommandItems("", NAV_ITEMS, boosts);
+	}, [query, boosts]);
 	const ms = performance.now() - t0;
 
 	const openPalette = useCallback(() => {
@@ -169,7 +141,7 @@ export function CommandPalette() {
 						ref={inputRef}
 						className="palette-input"
 						type="text"
-						placeholder="Search subgraphs, subscriptions, docs…"
+						placeholder="Search pages and docs…"
 						value={query}
 						onChange={(e) => setQuery(e.target.value)}
 					/>

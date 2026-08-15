@@ -41,12 +41,11 @@
     },
     "apps/web": {
       "name": "@secondlayer/web",
-      "version": "0.6.18",
+      "version": "0.6.19",
       "dependencies": {
         "@mdx-js/loader": "^3.1.1",
         "@mdx-js/react": "^3.1.1",
         "@next/mdx": "16.2.10",
-        "@secondlayer/platform": "workspace:*",
         "@secondlayer/sdk": "workspace:*",
         "@secondlayer/stacks": "workspace:*",
         "@tanstack/react-query": "5.90.21",
@@ -68,7 +67,7 @@
     },
     "packages/api": {
       "name": "@secondlayer/api",
-      "version": "1.27.3",
+      "version": "1.27.4",
       "dependencies": {
         "@secondlayer/bundler": "^0.4.0",
         "@secondlayer/indexer": "^1.12.7",
@@ -107,7 +106,7 @@
     },
     "packages/cli": {
       "name": "@secondlayer/cli",
-      "version": "10.3.2",
+      "version": "10.4.0",
       "bin": {
         "secondlayer": "./dist/cli.js",
         "sl": "./dist/cli.js",
@@ -183,7 +182,7 @@
     },
     "packages/platform": {
       "name": "@secondlayer/platform",
-      "version": "0.1.40",
+      "version": "0.1.41",
       "dependencies": {
         "@secondlayer/shared": "workspace:*",
         "kysely": "0.28.17",
@@ -210,7 +209,7 @@
       "name": "@secondlayer/sdk",
       "version": "6.54.1",
       "dependencies": {
-        "@secondlayer/shared": "^7.4.0",
+        "@secondlayer/shared": "^7.11.0",
         "@secondlayer/stacks": "^3.2.0",
         "@secondlayer/subgraphs": "^3.26.3",
       },
@@ -235,9 +234,9 @@
     },
     "packages/shared": {
       "name": "@secondlayer/shared",
-      "version": "7.11.1",
+      "version": "7.11.2",
       "dependencies": {
-        "@secondlayer/stacks": "^3.0.0",
+        "@secondlayer/stacks": "^3.3.1",
         "kysely": "0.28.17",
         "kysely-postgres-js": "3.0.0",
         "postgres": "^3.4.6",
@@ -274,7 +273,7 @@
       "name": "@secondlayer/subgraphs",
       "version": "3.26.4",
       "dependencies": {
-        "@secondlayer/shared": "^7.5.1",
+        "@secondlayer/shared": "^7.7.0",
         "@secondlayer/stacks": "^3.0.0",
         "esbuild": "^0.27.4",
         "kysely": "0.28.17",
@@ -287,7 +286,7 @@
     },
     "packages/worker": {
       "name": "@secondlayer/worker",
-      "version": "1.2.42",
+      "version": "1.2.43",
       "dependencies": {
         "@secondlayer/platform": "workspace:*",
         "@secondlayer/shared": "^7.5.1",

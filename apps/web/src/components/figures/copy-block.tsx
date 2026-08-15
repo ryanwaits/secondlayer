@@ -1,6 +1,6 @@
 "use client";
 
-import { AgentPromptBlock } from "@/components/console/agent-prompt";
+import { AgentPromptBlock } from "@/components/agent-prompt";
 
 /**
  * D7 CopyBlock — ADOPTS the production agent-prompt block (one

@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
 			{
 				userAgent: "*",
 				allow: "/",
-				disallow: ["/admin/", "/platform/", "/login", "/verify"],
+				disallow: ["/admin/", "/login", "/verify"],
 			},
 		],
 		sitemap: "https://www.secondlayer.tools/sitemap.xml",

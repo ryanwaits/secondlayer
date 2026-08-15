@@ -23,15 +23,6 @@ export const actions: Action[] = [
 		category: "Platform",
 		href: "/subgraphs",
 	},
-	// Settings
-	{
-		id: "billing",
-		label: "Archive credits",
-		keywords: ["credits", "archive", "topup"],
-		category: "Settings",
-		href: "/billing",
-	},
-
 	// Account
 	{
 		id: "logout",

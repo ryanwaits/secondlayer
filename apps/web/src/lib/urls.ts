@@ -1,7 +1,6 @@
-// Host-split URL helpers. The authenticated console lives on app.secondlayer.tools
-// and marketing on secondlayer.tools. Both run from this one Next.js app; which
-// host a request lands on is decided in middleware. These helpers build the
-// cross-host links.
+// Cross-host URL helpers. The hosted console moved to its own app; these
+// helpers remain for the kept auth surface (auth-bar links to the app host
+// when one is configured, auth flows link back to marketing).
 //
 // Every helper is a no-op until the matching NEXT_PUBLIC_*_URL env is set:
 // `appUrl("/login")` returns a plain relative "/login" when unconfigured, so the

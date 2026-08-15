@@ -1,146 +1,18 @@
-import { appHostname, appUrl } from "@/lib/urls";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Paths that have both marketing (unauthed) and platform (authed) versions
-const DUAL_PATHS = ["/subgraphs"];
-// Public marketing routes that sit *underneath* a DUAL_PATH prefix. They live in
-// the (www) group and have no /platform counterpart, so the rewrite below would
-// send /subgraphs/explore to /platform/subgraphs/explore, match it against
-// /platform/subgraphs/[name] with name="explore", resolve no subgraph, and 404.
-// Checked before the rewrite so Explore stays reachable while signed in.
-const MARKETING_ONLY = ["/subgraphs/explore"];
-// Paths that require authentication
-const AUTH_REQUIRED = ["/api-keys", "/billing", "/settings", "/admin"];
-// Public auth pages — reachable without a session on the app host
-const PUBLIC_AUTH_PATHS = ["/login", "/verify"];
-
-function matches(pathname: string, prefixes: string[]): boolean {
-	return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-}
-
-/** Exported for tests: these must never be rewritten into /platform. */
-export function isMarketingOnlyPath(pathname: string): boolean {
-	return matches(pathname, MARKETING_ONLY);
-}
-
+// The /subgraphs product page is gone — the old marketing URL redirects to its
+// docs home. The hosted console moved to apps/console, so the old host-split
+// and session-gated rewrites are gone with it.
 export function middleware(request: NextRequest) {
-	const session = request.cookies.get("sl_session");
-	const { pathname } = request.nextUrl;
-	const appHost = appHostname();
-
-	// Host-split disabled (env unset) or unknown host (e.g. Vercel preview):
-	// fall back to the single-domain path-based routing.
-	if (!appHost) return legacyMiddleware(request, session, pathname);
-
-	const host = request.headers.get("host");
-	if (host === appHost) return appHostMiddleware(request, session, pathname);
-
-	// Any other host on a split deployment (apex, www) is marketing.
-	return marketingHostMiddleware(request, session, pathname);
-}
-
-// app.secondlayer.tools — the authenticated console.
-function appHostMiddleware(
-	request: NextRequest,
-	session: ReturnType<NextRequest["cookies"]["get"]>,
-	pathname: string,
-) {
-	if (matches(pathname, PUBLIC_AUTH_PATHS)) {
-		// Already signed in — skip the login screen.
-		if (session) return NextResponse.redirect(new URL("/", request.url));
-		return NextResponse.next();
-	}
-
-	if (!session) {
-		return NextResponse.redirect(new URL("/login", request.url));
-	}
-
-	if (pathname === "/") {
-		return NextResponse.rewrite(new URL("/platform", request.url));
-	}
-
-	// /platform/* and /admin/* are served from their own filesystem paths.
-	if (pathname === "/platform" || pathname.startsWith("/platform/")) {
-		return NextResponse.next();
-	}
-	if (pathname === "/admin" || pathname.startsWith("/admin/")) {
-		return NextResponse.next();
-	}
-
-	// Marketing routes nested under a console prefix serve from (www) as-is.
-	if (isMarketingOnlyPath(pathname)) return NextResponse.next();
-
-	// Clean console paths -> /platform/* filesystem (admin keeps its own root).
-	for (const prefix of [...DUAL_PATHS, ...AUTH_REQUIRED]) {
-		if (prefix === "/admin") continue;
-		if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
-			return NextResponse.rewrite(new URL(`/platform${pathname}`, request.url));
-		}
-	}
-
-	return NextResponse.next();
-}
-
-// secondlayer.tools / www — marketing. Authenticated-only paths bounce to the app host.
-function marketingHostMiddleware(
-	request: NextRequest,
-	_session: ReturnType<NextRequest["cookies"]["get"]>,
-	pathname: string,
-) {
-	const authOnly = ["/platform", ...AUTH_REQUIRED, ...PUBLIC_AUTH_PATHS];
-	if (matches(pathname, authOnly)) {
-		const search = request.nextUrl.search;
-		return NextResponse.redirect(appUrl(`${pathname}${search}`));
-	}
-	// Product page is gone. Exact /subgraphs only — do not catch console
-	// /subgraphs/:name on a split-less preview (handled in legacy below).
-	if (pathname === "/subgraphs") {
+	if (request.nextUrl.pathname === "/subgraphs") {
 		return NextResponse.redirect(new URL("/docs/subgraphs", request.url));
 	}
 	return NextResponse.next();
 }
 
-// Pre-split single-domain behavior (Vercel previews, local without env).
-function legacyMiddleware(
-	request: NextRequest,
-	session: ReturnType<NextRequest["cookies"]["get"]>,
-	pathname: string,
-) {
-	if (!session) {
-		if (matches(pathname, AUTH_REQUIRED)) {
-			return NextResponse.redirect(new URL("/", request.url));
-		}
-		if (pathname === "/subgraphs") {
-			return NextResponse.redirect(new URL("/docs/subgraphs", request.url));
-		}
-		return NextResponse.next();
-	}
-
-	if (pathname === "/") {
-		return NextResponse.rewrite(new URL("/platform", request.url));
-	}
-
-	if (pathname === "/admin" || pathname.startsWith("/admin/")) {
-		return NextResponse.next();
-	}
-
-	if (isMarketingOnlyPath(pathname)) return NextResponse.next();
-
-	for (const prefix of [...DUAL_PATHS, ...AUTH_REQUIRED]) {
-		if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
-			return NextResponse.rewrite(new URL(`/platform${pathname}`, request.url));
-		}
-	}
-
-	return NextResponse.next();
-}
-
 export const config = {
-	// Run on everything except API routes (auth/verify must not be redirected)
-	// and static assets.
-	// Note the trailing slash on `api/`: anchoring to the segment is required so
-	// clean console paths that merely start with "api" (e.g. /api-keys) still
-	// hit the rewrite instead of falling through to a 404.
-	matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|.*\\..*).*)"],
+	// Exact match only: nested paths like /subgraphs/anything are ordinary
+	// routes (or 404s), not redirect targets.
+	matcher: ["/subgraphs"],
 };

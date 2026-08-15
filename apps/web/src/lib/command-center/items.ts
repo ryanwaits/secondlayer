@@ -81,28 +81,3 @@ export const DOCS_FALLBACK: CommandItem = {
 	href: "/docs",
 	newTab: true,
 };
-
-const STATUS_TONE: Record<string, "live" | "warn" | "muted"> = {
-	active: "live",
-	live: "live",
-	synced: "live",
-	syncing: "warn",
-	reindexing: "warn",
-	backfilling: "warn",
-	paused: "warn",
-	stalled: "warn",
-	failed: "warn",
-	error: "warn",
-};
-
-export function badgeFor(
-	status: string | undefined,
-): CommandItem["badge"] | undefined {
-	if (!status) return undefined;
-	return { text: status, tone: STATUS_TONE[status] ?? "muted" };
-}
-
-export function formatRows(n: number | undefined): string | undefined {
-	if (n == null) return undefined;
-	return `${n.toLocaleString("en-US")} rows`;
-}

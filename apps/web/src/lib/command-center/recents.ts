@@ -45,10 +45,3 @@ export function frecencyBoosts(): Map<string, number> {
 	}
 	return map;
 }
-
-/** Most recently selected ids, newest first. */
-export function recentIds(limit: number): string[] {
-	return load()
-		.slice(0, limit)
-		.map((r) => r.id);
-}

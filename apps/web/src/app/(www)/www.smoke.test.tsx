@@ -24,15 +24,6 @@ mock.module("@/components/home/feature-stack", () => ({
 	),
 }));
 
-mock.module("./credits-buy", () => ({
-	CreditsBuy: () => (
-		<form className="home-credits">
-			<button type="submit">Buy $25 credits</button>
-			<p>secondlayer credits buy</p>
-		</form>
-	),
-}));
-
 const { HomeView } = await import("./page");
 
 describe("www marketing routes", () => {

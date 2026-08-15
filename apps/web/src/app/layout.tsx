@@ -1,8 +1,6 @@
 import { AuthBar } from "@/components/auth-bar";
 import { LazyCommandPalette } from "@/components/command-palette/lazy";
 import { AuthProvider } from "@/lib/auth";
-import { PreferencesProvider } from "@/lib/preferences";
-import { QueryProvider } from "@/lib/queries/provider";
 import type { Metadata, Viewport } from "next";
 import { Caveat, Fira_Code, Public_Sans, Sora } from "next/font/google";
 import "./globals.css";
@@ -67,15 +65,11 @@ export default function RootLayout({
 			<body
 				className={`${publicSans.className} ${sora.variable} ${publicSans.variable} ${firaCode.variable} ${caveat.variable}`}
 			>
-				<QueryProvider>
-					<AuthProvider>
-						<PreferencesProvider>
-							{children}
-							<AuthBar />
-							<LazyCommandPalette />
-						</PreferencesProvider>
-					</AuthProvider>
-				</QueryProvider>
+				<AuthProvider>
+					{children}
+					<AuthBar />
+					<LazyCommandPalette />
+				</AuthProvider>
 			</body>
 		</html>
 	);

@@ -9388,9 +9388,6 @@ body:has(.marketing-nav) .auth-bar {
 .home-stack-list .w {
 	color: var(--text-muted);
 }
-.home-stack-block .home-credits {
-	margin-top: 1.5rem;
-}
 .home-term-mobile {
 	margin-top: 24px;
 	display: flex;
@@ -10114,89 +10111,6 @@ body:has(.marketing-nav) .auth-bar {
 	color: var(--text-muted);
 	font-weight: 500;
 	border-top: none;
-}
-.home-credits {
-	margin-top: 1.5rem;
-	display: grid;
-	gap: 0.85rem;
-	max-width: 24rem;
-}
-.home-credits-email {
-	display: grid;
-	gap: 0.35rem;
-	font-family: var(--font-mono-stack);
-	font-size: 0.71rem;
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
-	color: var(--text-muted);
-}
-.home-credits-email input {
-	height: 2.5rem;
-	padding: 0 0.75rem;
-	border: 1px solid var(--border);
-	border-radius: 8px;
-	background: var(--bg);
-	color: var(--text-main);
-	font-family: var(--font-mono-stack);
-	font-size: 0.875rem;
-	text-transform: none;
-	letter-spacing: 0;
-}
-.home-credits-packs {
-	border: 0;
-	padding: 0;
-	margin: 0;
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.4rem;
-}
-.home-credits-packs legend {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	overflow: hidden;
-	clip: rect(0 0 0 0);
-}
-.home-credits-packs button {
-	height: 2rem;
-	padding: 0 0.7rem;
-	border: 1px solid var(--border);
-	border-radius: 999px;
-	background: transparent;
-	color: var(--text-muted);
-	font-family: var(--font-mono-stack);
-	font-size: 0.8125rem;
-	cursor: pointer;
-}
-.home-credits-packs button.on {
-	border-color: var(--text-main);
-	color: var(--text-main);
-}
-.home-credits-buy {
-	height: 2.5rem;
-	padding: 0 1rem;
-	border: 0;
-	border-radius: 999px;
-	background: var(--text-main);
-	color: var(--bg);
-	font-size: 0.875rem;
-	font-weight: 560;
-	cursor: pointer;
-	justify-self: start;
-}
-.home-credits-buy:disabled {
-	opacity: 0.6;
-	cursor: wait;
-}
-.home-credits-err {
-	margin: 0;
-	color: var(--text-main);
-	font-size: 0.8125rem;
-}
-.home-credits-cli {
-	margin: 0;
-	color: var(--text-muted);
-	font-size: 0.8125rem;
 }
 .home-land-more {
 	margin-top: 1.25rem;
@@ -11124,7 +11038,7 @@ html.force-dark .pp {
 	}
 }
 
-/* console-detail primitives (real /platform look) */
+/* console-detail primitives (product-preview console look) */
 .pp-console {
 	flex: 1;
 	min-width: 0;

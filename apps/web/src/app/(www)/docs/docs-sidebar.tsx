@@ -1,6 +1,6 @@
 "use client";
 
-import { Logo } from "@/components/console/logo";
+import { Logo } from "@/components/logo";
 import { MobileNavCta } from "@/components/mobile-nav-cta";
 import { DOCS_STRIP } from "@/lib/nav";
 import Link from "next/link";
