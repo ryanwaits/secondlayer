@@ -1,6 +1,6 @@
 # Metered-archive mode (D2 design note)
 
-Status: draft for approval. Companion to `gate-g-deletion-manifest.md` (D2).
+Status: APPROVED (founder, 2026-08-14). Slice C = env rename per below. Companion to `gate-g-deletion-manifest.md` (D2).
 
 ## The problem
 

@@ -11,7 +11,7 @@ satisfied — console shipped as `apps/console`, live at console.secondlayer.too
 - **D1 — RESOLVED (founder, 2026-08-14): keep magic-link + accounts.** Auth is
   retargeted, not deleted: it becomes the metered-archive account system (balance,
   refill, caps, key management). No receipt-token build.
-- **D2 — APPROVED IN PRINCIPLE: metered-archive mode.** Design a mode/flag for OUR
+- **D2 — RESOLVED (founder, 2026-08-14): metered-archive mode = RENAME, not flip (see metered-archive-mode.md).** Design a mode/flag for OUR
   public archive API where the read gates stay armed (`read-credits.ts:66`,
   `index/free-window.ts`, `streams/retention.ts`, `*/rate-limit.ts`) while
   self-host stays ungated. Design doc precedes Slice C.
