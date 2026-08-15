@@ -1,5 +1,52 @@
 # @secondlayer/cli
 
+## 12.0.0
+
+### Major Changes
+
+- 6206048: Remove the x402 pay-per-call rail.
+
+  **Breaking.** These published entry points are gone:
+
+  - `@secondlayer/sdk` — the `x402` root exports (`withX402`, `createX402Client`, `payAndRetry`, `buildSignedX402Payment`, `readX402Challenge`, `readX402Receipt`, `selectOffer`, `resolveAccountNonce`, `X402SpendGuardError`, `DEFAULT_PREFER_ASSETS`, and their types) and the `@secondlayer/sdk/x402` subpath
+  - `@secondlayer/stacks` — the `@secondlayer/stacks/x402` subpath
+  - `@secondlayer/shared` — the `@secondlayer/shared/x402` subpath
+  - `@secondlayer/mcp` — `X402_PRIVATE_KEY` autopay and the `payPerCall` block in `secondlayer://context`
+  - REST — `/v1/x402/*`, `/x402/*`, `/.well-known/x402`, and the x402-paid `POST /v1/subgraphs` + `/v1/subgraphs/{name}/renew` writes, plus the `x-x402` OpenAPI extension
+
+  Also removed with it: wallet-ghost accounts and the 7-day paid-deploy TTL.
+  The rail was never a Secondlayer revenue line, and in practice it shipped a
+  hardcoded USD price catalog with no operator override — the opposite of the
+  "the operator is the merchant" intent.
+
+  `@secondlayer/cli` majors for the retired `subgraphs create --template` flag
+  and its five starter templates; `create` now emits a single inline starter, and
+  `--from-contract` remains the recommended path.
+
+### Minor Changes
+
+- Forward-only installs and real backup/restore.
+
+  - **Sync scope** — an instance records where its history starts, so a
+    forward-only install can say "the prefix is absent on purpose" instead of
+    reading as a gap. Declared via `SECONDLAYER_SYNC_START_HEIGHT`.
+  - **`secondlayer backup` / `restore`** — encrypted bundles with a secrets-key
+    canary, so a restore fails loudly on the wrong key rather than silently
+    producing undecryptable subscription secrets.
+  - **Boot-time resource floors** — the runtime refuses to start under the
+    documented RAM/disk minimums, with `SECONDLAYER_ALLOW_UNDERSIZED` as the
+    operator override.
+
+### Patch Changes
+
+- Updated dependencies [6206048]
+- Updated dependencies
+  - @secondlayer/sdk@8.0.0
+  - @secondlayer/stacks@4.0.0
+  - @secondlayer/shared@9.0.0
+  - @secondlayer/scaffold@1.5.4
+  - @secondlayer/subgraphs@4.0.1
+
 ## 11.0.0
 
 ### Major Changes

@@ -41,14 +41,13 @@
     },
     "apps/web": {
       "name": "@secondlayer/web",
-      "version": "0.6.19",
+      "version": "0.6.21",
       "dependencies": {
         "@mdx-js/loader": "^3.1.1",
         "@mdx-js/react": "^3.1.1",
         "@next/mdx": "16.2.10",
         "@secondlayer/sdk": "workspace:*",
         "@secondlayer/stacks": "workspace:*",
-        "@tanstack/react-query": "5.90.21",
         "next": "16.2.12",
         "posthog-js": "^1.407.2",
         "react": "19.2.4",
@@ -67,7 +66,7 @@
     },
     "packages/api": {
       "name": "@secondlayer/api",
-      "version": "1.27.4",
+      "version": "1.27.6",
       "dependencies": {
         "@secondlayer/bundler": "^0.4.0",
         "@secondlayer/indexer": "^1.12.7",
@@ -87,7 +86,7 @@
     },
     "packages/bundler": {
       "name": "@secondlayer/bundler",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "dependencies": {
         "@secondlayer/subgraphs": "^3.24.1",
         "esbuild": "^0.27.4",
@@ -97,16 +96,9 @@
         "@types/bun": "latest",
       },
     },
-    "packages/clarity-docs": {
-      "name": "@secondlayer/clarity-docs",
-      "version": "0.3.13",
-      "dependencies": {
-        "@secondlayer/stacks": "^3.0.0",
-      },
-    },
     "packages/cli": {
       "name": "@secondlayer/cli",
-      "version": "10.4.0",
+      "version": "12.0.0",
       "bin": {
         "secondlayer": "./dist/cli.js",
         "sl": "./dist/cli.js",
@@ -142,7 +134,7 @@
     },
     "packages/indexer": {
       "name": "@secondlayer/indexer",
-      "version": "1.13.1",
+      "version": "1.13.3",
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1042.0",
         "@aws-sdk/lib-storage": "^3.1108.0",
@@ -158,7 +150,7 @@
     },
     "packages/mcp": {
       "name": "@secondlayer/mcp",
-      "version": "4.5.3",
+      "version": "6.0.0",
       "bin": {
         "mcp": "./dist/bin.js",
         "secondlayer-mcp": "./dist/bin.js",
@@ -182,7 +174,7 @@
     },
     "packages/platform": {
       "name": "@secondlayer/platform",
-      "version": "0.1.41",
+      "version": "0.1.43",
       "dependencies": {
         "@secondlayer/shared": "workspace:*",
         "kysely": "0.28.17",
@@ -195,7 +187,7 @@
     },
     "packages/scaffold": {
       "name": "@secondlayer/scaffold",
-      "version": "1.5.2",
+      "version": "1.5.4",
       "dependencies": {
         "@secondlayer/stacks": "^3.3.0",
         "@secondlayer/subgraphs": "^3.23.1",
@@ -207,11 +199,11 @@
     },
     "packages/sdk": {
       "name": "@secondlayer/sdk",
-      "version": "6.54.1",
+      "version": "8.0.0",
       "dependencies": {
-        "@secondlayer/shared": "^7.11.0",
-        "@secondlayer/stacks": "^3.2.0",
-        "@secondlayer/subgraphs": "^3.26.3",
+        "@secondlayer/shared": "^9.0.0",
+        "@secondlayer/stacks": "^4.0.0",
+        "@secondlayer/subgraphs": "^4.0.1",
       },
       "devDependencies": {
         "@openpkg-ts/cli": "^0.11.3",
@@ -234,9 +226,9 @@
     },
     "packages/shared": {
       "name": "@secondlayer/shared",
-      "version": "7.11.2",
+      "version": "9.0.0",
       "dependencies": {
-        "@secondlayer/stacks": "^3.3.1",
+        "@secondlayer/stacks": "^4.0.0",
         "kysely": "0.28.17",
         "kysely-postgres-js": "3.0.0",
         "postgres": "^3.4.6",
@@ -249,7 +241,7 @@
     },
     "packages/stacks": {
       "name": "@secondlayer/stacks",
-      "version": "3.3.1",
+      "version": "4.0.0",
       "dependencies": {
         "@noble/ciphers": "2.1.1",
         "@noble/curves": "2.0.1",
@@ -271,10 +263,10 @@
     },
     "packages/subgraphs": {
       "name": "@secondlayer/subgraphs",
-      "version": "3.26.4",
+      "version": "4.0.1",
       "dependencies": {
-        "@secondlayer/shared": "^7.7.0",
-        "@secondlayer/stacks": "^3.0.0",
+        "@secondlayer/shared": "^9.0.0",
+        "@secondlayer/stacks": "^4.0.0",
         "esbuild": "^0.27.4",
         "kysely": "0.28.17",
         "zod": "^4.3.6",
@@ -286,7 +278,7 @@
     },
     "packages/worker": {
       "name": "@secondlayer/worker",
-      "version": "1.2.43",
+      "version": "1.2.45",
       "dependencies": {
         "@secondlayer/platform": "workspace:*",
         "@secondlayer/shared": "^7.5.1",
@@ -810,8 +802,6 @@
     "@secondlayer/api": ["@secondlayer/api@workspace:packages/api"],
 
     "@secondlayer/bundler": ["@secondlayer/bundler@workspace:packages/bundler"],
-
-    "@secondlayer/clarity-docs": ["@secondlayer/clarity-docs@workspace:packages/clarity-docs"],
 
     "@secondlayer/cli": ["@secondlayer/cli@workspace:packages/cli"],
 

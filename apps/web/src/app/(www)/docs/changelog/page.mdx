@@ -8,6 +8,26 @@ bootstrap/backfill/reindex draws [credits](/docs/authentication#archive-credits)
 
 ## SDK — August 2026
 
+### Pay-per-call is gone
+
+The x402 rail is removed. Reads on your instance were never metered by us, and the rail shipped a hardcoded price list you couldn't override — the opposite of "you are the merchant." Removed from the SDK: `withX402`, `createX402Client`, `payAndRetry`, `buildSignedX402Payment`, `readX402Challenge`, `readX402Receipt`, `selectOffer`, `resolveAccountNonce`, `X402SpendGuardError`, and the `@secondlayer/sdk/x402` subpath. Also gone: `@secondlayer/stacks/x402`, `@secondlayer/shared/x402`, the `/v1/x402/*` routes, and wallet-owned deploys with their 7-day expiry. Archive credits are unchanged and remain the only thing that costs money.
+
+## CLI — August 2026
+
+### Back up and restore your instance
+
+`secondlayer backup` writes an encrypted bundle; `secondlayer restore` reads it back. Both carry a secrets-key canary, so restoring with the wrong key fails immediately instead of leaving you with subscription secrets nobody can decrypt.
+
+### Forward-only installs stop looking broken
+
+An instance now records where its history starts. If you never bootstrapped genesis, the missing prefix reads as deliberate rather than as a gap in every check. Set `SECONDLAYER_SYNC_START_HEIGHT` to declare it.
+
+### One starter, generated from your contract
+
+`secondlayer subgraphs create` no longer ships five opinionated templates behind `--template`. It emits a single starter, and the path worth using is `--from-contract <id>`, which infers sources, schema, and handlers from the contract's observed print events.
+
+## SDK — August 2026
+
 ### Default client hits your local API
 
 `new SecondLayer()` and `createStreamsClient()` now talk to `http://127.0.0.1:3800`. Override with `baseUrl` or `SL_API_URL`. Archive dumps stay on the public signed bucket.
