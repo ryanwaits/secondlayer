@@ -17,7 +17,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
-import { getDb, sql } from "@secondlayer/shared/db";
+import { closeDb, getDb, sql } from "@secondlayer/shared/db";
 import {
 	type BackupManifest,
 	decryptBundle,
@@ -114,6 +114,9 @@ export function attachBackupCommand(cmd: Command): Command {
 		.action(async (opts) => {
 			try {
 				await runBackup(opts);
+				// The pool keeps the event loop alive; without this the process never
+				// exits and any non-interactive caller hangs forever.
+				await closeDb();
 			} catch (error) {
 				printError(error instanceof Error ? error.message : String(error));
 				process.exit(BACKUP_EXIT.FAILED);
@@ -230,6 +233,7 @@ export function attachRestoreCommand(cmd: Command): Command {
 		.action(async (opts) => {
 			try {
 				await runRestore(opts);
+				await closeDb();
 			} catch (error) {
 				printError(error instanceof Error ? error.message : String(error));
 				process.exit(BACKUP_EXIT.FAILED);
