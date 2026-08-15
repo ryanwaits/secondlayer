@@ -54,12 +54,21 @@ export type {
 	RuntimeStatusReport,
 	StatusPlane,
 } from "./status.ts";
-export { BACKUP_PARTS, planBackup, restoreBackup } from "./backup.ts";
+export {
+	BACKUP_MANIFEST_VERSION,
+	BACKUP_PARTS,
+	decryptBundle,
+	encryptBundle,
+	keyMatchesCanary,
+	planBackup,
+	precheckRestore,
+	sealKeyCanary,
+} from "./backup.ts";
 export type {
 	BackupManifest,
 	BackupPart,
 	BackupPlan,
-	RestoreResult,
+	RestorePrecheck,
 } from "./backup.ts";
 export { UPGRADE_STEPS, applyUpgrade, planUpgrade } from "./upgrade.ts";
 export type { UpgradePlan, UpgradeStep } from "./upgrade.ts";

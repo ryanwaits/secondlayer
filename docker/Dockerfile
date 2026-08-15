@@ -8,7 +8,12 @@
 # =============================================================================
 # Base stage - common dependencies
 # =============================================================================
-FROM oven/bun:1.3.10-alpine AS base
+# Digest-pinned: a mutable tag lets the same commit produce a different image
+# tomorrow, which breaks reproducibility and makes an attestation meaningless.
+# The tag stays alongside the digest so a human can still read the version;
+# Docker resolves by digest and ignores the tag. To bump, resolve the new
+# digest with `docker buildx imagetools inspect oven/bun:<tag>`.
+FROM oven/bun:1.3.10-alpine@sha256:32f1fcccb1523960b254c4f80973bee1a910d60be000a45c20c9129a1efcffee AS base
 
 WORKDIR /app
 
@@ -223,7 +228,10 @@ RUN bun run --filter '@secondlayer/console' build
 # mirrors the workspace root, so the server entry nests under apps/console.
 # SL_API_URL / INSTANCE_TOKEN / CONSOLE_TOKEN are read at runtime, not baked in.
 # =============================================================================
-FROM node:22-alpine AS console
+# Digest-pinned for the same reason as the base stage above. `node:22-alpine`
+# is a rolling tag that moves on every 22.x patch — without the digest the
+# console image drifts independently of this repo's commits.
+FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS console
 
 WORKDIR /app
 

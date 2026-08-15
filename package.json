@@ -26,6 +26,7 @@
 		"test": "bun run --filter '*' --sequential test",
 		"test:cli": "bun run --filter @secondlayer/cli test",
 		"test:ops": "bun test tools/ops/agent tools/ops/konsole",
+		"soak:report": "bun run scripts/ops/soak-report.ts",
 		"self-host:bootstrap": "bun run scripts/oss-bootstrap.ts",
 		"self-host:smoke": "bun run scripts/self-host-smoke.ts",
 		"test:smoke": "bun test tests/smoke",

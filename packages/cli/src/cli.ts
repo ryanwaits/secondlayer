@@ -2,6 +2,7 @@
 import { type Command, program } from "commander";
 import pkg from "../package.json" with { type: "json" };
 import {
+	registerBackupCommand,
 	registerBootstrapCommand,
 	registerCodegenCommand,
 	registerConfigCommand,
@@ -17,6 +18,7 @@ import {
 	registerLogoutCommand,
 	registerObserverCommand,
 	registerRepairCommand,
+	registerRestoreCommand,
 	registerStartCommand,
 	registerStatusCommand,
 	registerStreamsCommand,
@@ -138,6 +140,8 @@ registerConfigCommand(program);
 registerContextCommand(program);
 registerVerifyCommand(program);
 registerRepairCommand(program);
+registerBackupCommand(program);
+registerRestoreCommand(program);
 
 // Account
 program.commandsGroup("Account:");
