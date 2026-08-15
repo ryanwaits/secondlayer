@@ -4,11 +4,19 @@ Postgres + one Secondlayer container. Optional bundled Stacks / Bitcoin.
 
 ## App services (external node)
 
-- 8 GB RAM, 100 GB SSD
+- Mainnet, full history: 8 GB RAM, 600 GB SSD
+- Testnet/devnet: 8 GB RAM, 100 GB SSD
+
+Mainnet is the large one: the reference index measures ~500 GB at 8.77M blocks
+(~250 GB of blocks/transactions/events, the rest decoded). Budget ~3 GB per
+100k blocks for core datasets, ~6 GB with a broad decoder set.
 
 ## Full stack (bitcoind + stacks-node)
 
-- 128 GB RAM, 2 TB NVMe
+- 128 GB RAM, 3 TB NVMe
+
+The chain dominates: Stacks chainstate alone measures 1.3 TB, plus bitcoind,
+plus the index above.
 
 No Hiro-REST "light" mode.
 

@@ -63,24 +63,43 @@ secondlayer repair --against <manifest> --apply
 
 [Verified archive](/docs/archive#flags) owns flags and exit codes.
 
-## Backup and upgrade
-
-| Job | Rule |
-| --- | --- |
-| Backup | DB + pinned config + encrypted keys + handler manifests + height scope |
-| Restore | wiped host + `secondlayer verify all` must be green |
-| Upgrade | pin image → preflight disk/schema → backup → migrate → health → verify |
-| Rollback | previous image; schema migrations are forward-only |
-
-## Guardrails
-
-App-only floor: 4 GB RAM, 80 GB disk. Full-node floor: 96 GB RAM, 1.5 TB disk. Postgres `max_connections` ≥ 50. Constrained boxes fail at start.
-
-## Operations
+## Upgrade
 
 ```bash
 docker compose pull && docker compose up -d
 curl http://localhost:3800/health
+```
+
+Migrations run at start under an advisory lock, and are forward-only. To roll back, pin the previous image tag — a schema that has already migrated forward stays migrated, so roll back the image, not the database.
+
+## Backup
+
+There is no `secondlayer backup` command yet. Back up with Postgres' own tools plus the files `secondlayer init` generated:
+
+```bash
+pg_dump -Fc "$DATABASE_URL" > secondlayer-$(date +%F).dump   # the index
+cp docker/oss/.env  ./secondlayer-env-backup                 # secrets: keys + token
+```
+
+`.env` holds `INSTANCE_TOKEN`, `SECONDLAYER_SECRETS_KEY`, and `STREAMS_SIGNING_PRIVATE_KEY`. Losing it costs you more than losing the index — the index can be rebuilt from the [archive](/docs/archive), the keys cannot. Store it somewhere the database backup is not.
+
+To restore, bring up an empty Postgres, `pg_restore` into it, put `.env` back, and confirm with `secondlayer verify all --against <manifest>` before trusting the result.
+
+## Guardrails
+
+Mainnet full history is large: the reference index measures ~500 GB, of which ~250 GB is `blocks`, `transactions`, and `events` and the rest is the decoded plane. Budget roughly 3 GB per 100k blocks for core datasets, or 6 GB with a broad decoder set, and remember those are averages over history that is much denser at the tip.
+
+| Setup | RAM | Disk |
+| --- | --- | --- |
+| App services, external node, mainnet | 4 GB | 600 GB |
+| App services, external node, testnet/devnet | 4 GB | 80 GB |
+| Bundled node, mainnet | 96 GB | 2.5 TB |
+
+Postgres `max_connections` ≥ 50. The bundled-node figure is dominated by the chain itself — Stacks chainstate alone measures 1.3 TB, and bitcoind is additional.
+
+## Operations
+
+```bash
 export SL_API_URL=http://localhost:3800
 secondlayer subgraphs deploy ./my-subgraph.ts
 ```

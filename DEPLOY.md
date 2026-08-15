@@ -134,10 +134,14 @@ All need `DATABASE_URL`. The indexer needs a public URL for event observer.
 
 ## Database Sizing
 
-- ~10 KB per block (compressed)
-- ~1 GB per 100K blocks
-- Mainnet ~7M+ blocks = ~70+ GB
-- Recommend starting with 100 GB
+Measured on the mainnet reference index at 8.77M blocks (2026-08-15):
+
+- `blocks` + `transactions` + `events`: ~250 GB → **~3 GB per 100K blocks**
+- With a broad decoder set (`decoded_events` adds ~250 GB): ~500 GB → **~6 GB per 100K blocks**
+- Recommend starting with 600 GB for mainnet full history
+
+Averages over all history. Recent heights are far denser than early ones, so
+treat these as a floor for future growth. Testnet/devnet are a fraction of this.
 
 ---
 
