@@ -5580,6 +5580,13 @@ html.force-dark .shiki span {
 .docs-topnav-link:hover {
 	color: var(--text-main);
 }
+/* GitHub sits in the same quiet strip as its siblings; the icon is the only
+   thing distinguishing it, so keep it on the text baseline. */
+.docs-topnav-gh {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
 .docs-topnav-link[aria-current="page"] {
 	color: var(--text-main);
 	font-weight: 500;
@@ -6012,14 +6019,20 @@ html.force-dark .shiki span {
 	margin-bottom: 0;
 }
 
+/* Pinned under the topnav and out of the content's scroll, like .docs-nav on
+   the left. It sticks at 48px rather than 0 because .docs-shell's 48px
+   padding-top is where this column already starts: with top:0 the element had
+   to travel that 48px before it caught, so it visibly drifted up with the body
+   on every page. Matching the two numbers means zero drift. Height subtracts
+   the same 48px, so the box ends at the viewport bottom instead of hanging
+   past it and clipping the tail of a long list. */
 .docs-toc {
 	position: sticky;
-	top: 0;
+	top: 48px;
 	align-self: start;
-	height: 100vh;
+	height: calc(100vh - 48px);
 	overflow-y: auto;
-	/* top padding clears the fixed global AuthBar in the top-right corner */
-	padding: 64px 22px 40px;
+	padding: 24px 22px 40px;
 }
 .docs-toc-label {
 	font-family: var(--font-mono-stack);
