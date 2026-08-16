@@ -6,10 +6,14 @@ const HAS_DB = !!process.env.DATABASE_URL;
 const H = 990001;
 const NETWORK = "persist-test";
 
-function payload(hash: string, txId: string): PersistBlockInput {
+function payload(
+	hash: string,
+	txId: string,
+	height: number = H,
+): PersistBlockInput {
 	return {
 		block: {
-			height: H,
+			height,
 			hash,
 			parent_hash: "0xparent",
 			burn_block_height: 1,
@@ -20,7 +24,7 @@ function payload(hash: string, txId: string): PersistBlockInput {
 		txs: [
 			{
 				tx_id: txId,
-				block_height: H,
+				block_height: height,
 				tx_index: 0,
 				type: "contract_call",
 				sender: "SP1",
@@ -33,13 +37,13 @@ function payload(hash: string, txId: string): PersistBlockInput {
 		evts: [
 			{
 				tx_id: txId,
-				block_height: H,
+				block_height: height,
 				event_index: 0,
 				type: "stx_transfer_event",
 				data: { amount: "1" },
 			},
 		],
-		blockHeight: H,
+		blockHeight: height,
 		network: NETWORK,
 	};
 }
@@ -49,20 +53,29 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 
 	beforeEach(async () => {
 		if (!db) return;
-		await db.deleteFrom("events").where("block_height", "=", H).execute();
-		await db.deleteFrom("transactions").where("block_height", "=", H).execute();
-		await db.deleteFrom("blocks").where("height", "=", H).execute();
+		await db
+			.deleteFrom("events")
+			.where("block_height", "in", [H, H + 1])
+			.execute();
+		await db
+			.deleteFrom("transactions")
+			.where("block_height", "in", [H, H + 1])
+			.execute();
+		await db
+			.deleteFrom("blocks")
+			.where("height", "in", [H, H + 1])
+			.execute();
 		await db
 			.deleteFrom("index_progress")
 			.where("network", "=", NETWORK)
 			.execute();
 		await db
 			.deleteFrom("events_archive")
-			.where("block_height", "=", H)
+			.where("block_height", "in", [H, H + 1])
 			.execute();
 		await db
 			.deleteFrom("transactions_archive")
-			.where("block_height", "=", H)
+			.where("block_height", "in", [H, H + 1])
 			.execute();
 	});
 
@@ -129,5 +142,54 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 			.where("block_height", "=", H)
 			.execute();
 		expect(archivedTxs).toHaveLength(0);
+	});
+
+	test("a reorg replace at a height whose tx was re-mined elsewhere does not violate events_tx_id_fkey", async () => {
+		if (!db) throw new Error("missing db");
+
+		// T is first seen at H.
+		await persistBlock(db, payload("0xblockA", "0xtxT", H));
+		// T is re-mined at H+1. Its tx row hits onConflict-doNothing and keeps
+		// block_height = H, but its new events are written at H+1.
+		await persistBlock(db, payload("0xblockC", "0xtxT", H + 1));
+
+		// Precondition: confirm the desync actually exists before relying on it.
+		const txT = await db
+			.selectFrom("transactions")
+			.select(["tx_id", "block_height"])
+			.where("tx_id", "=", "0xtxT")
+			.executeTakeFirst();
+		expect(Number(txT?.block_height)).toBe(H);
+		const evtsAtHPlus1 = await db
+			.selectFrom("events")
+			.select(["tx_id"])
+			.where("tx_id", "=", "0xtxT")
+			.where("block_height", "=", H + 1)
+			.execute();
+		expect(evtsAtHPlus1).toHaveLength(1);
+
+		// Reorg replace at H: must not throw events_tx_id_fkey even though T's
+		// row at H has events lingering at H+1.
+		await persistBlock(db, payload("0xblockB", "0xtxOther", H));
+
+		const remaining = await db
+			.selectFrom("transactions")
+			.select(["tx_id"])
+			.where("tx_id", "=", "0xtxT")
+			.where("block_height", "=", H)
+			.execute();
+		expect(remaining).toHaveLength(0);
+
+		// Documented trade-off: the delete is scoped by tx identity, so replacing
+		// H also removes T's events at H+1. That is what stops the FK violation,
+		// and it is why a production reorg recovery must re-ingest the
+		// neighbouring height rather than assume it is intact.
+		const strandedAtHPlus1 = await db
+			.selectFrom("events")
+			.select(["tx_id"])
+			.where("tx_id", "=", "0xtxT")
+			.where("block_height", "=", H + 1)
+			.execute();
+		expect(strandedAtHPlus1).toHaveLength(0);
 	});
 });

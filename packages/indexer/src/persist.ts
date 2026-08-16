@@ -107,9 +107,28 @@ export async function persistBlock(
 		// Delete events before transactions: events.tx_id references
 		// transactions.tx_id with no ON DELETE CASCADE, so dropping the parent
 		// rows first would violate the FK.
+		//
+		// Height alone is not enough. `transactions.tx_id` is a PK, so a
+		// transaction re-mined at a new height across a fork keeps its
+		// first-seen `block_height` (the insert below is onConflict-doNothing)
+		// while its events are written at each delivered height. Those stragglers
+		// survive a delete-by-height and then block the transaction delete —
+		// which halted mainnet ingest for 8h on 2026-08-16 over two rows.
 		await tx
 			.deleteFrom("events")
-			.where("block_height", "=", blockHeight)
+			.where((eb) =>
+				eb.or([
+					eb("block_height", "=", blockHeight),
+					eb(
+						"tx_id",
+						"in",
+						eb
+							.selectFrom("transactions")
+							.select("tx_id")
+							.where("block_height", "=", blockHeight),
+					),
+				]),
+			)
 			.execute();
 		await tx
 			.deleteFrom("transactions")
