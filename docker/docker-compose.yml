@@ -147,6 +147,11 @@ services:
       STREAMS_INTERNAL_API_KEY: ${STREAMS_INTERNAL_API_KEY:-}
       STREAMS_SIGNING_PRIVATE_KEY: ${STREAMS_SIGNING_PRIVATE_KEY:-}
       STREAMS_BULK_PUBLIC_BASE_URL: ${STREAMS_BULK_PUBLIC_BASE_URL:-}
+      # Archive fetch gate: presigning needs the same R2 credentials the publisher uses.
+      STREAMS_BULK_R2_ENDPOINT: ${STREAMS_BULK_R2_ENDPOINT:-}
+      STREAMS_BULK_R2_ACCESS_KEY_ID: ${STREAMS_BULK_R2_ACCESS_KEY_ID:-}
+      STREAMS_BULK_R2_SECRET_ACCESS_KEY: ${STREAMS_BULK_R2_SECRET_ACCESS_KEY:-}
+      STREAMS_BULK_R2_BUCKET: ${STREAMS_BULK_R2_BUCKET:-}
       # Signed-header source for transaction proofs (GET /v1/index/transactions/:id/proof).
       # Unset → the proof endpoint returns a clean 503 PROOF_NODE_UNAVAILABLE. Set to a
       # Nakamoto node reachable from this container to enable proofs in prod.
