@@ -367,7 +367,7 @@ of dialect. The contract's 13 invariants are documented on the interface and
 mechanically probed by a conformance kit at `@secondlayer/sdk/sinks/testing`
 — torn batches, cursor replay, inclusive `>=` rollback, lock contention —
 the same kit every shipped sink passes in CI.
-[Write your own sink](/docs/sinks#write-your-own).
+[Write your own sink](/docs/sinks/custom).
 
 Append-only stores (ClickHouse, parquet) declare
 `capabilities: { finalizedOnly: true }`: the consume loop refuses to follow

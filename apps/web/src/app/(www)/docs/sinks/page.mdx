@@ -1,8 +1,6 @@
 # Sinks
 
-A sink is the destination your consume loop writes through. It owns the three
-things everyone gets subtly wrong — the checkpoint, the transaction boundary,
-and the reorg rollback — so your handler only inserts rows.
+A sink is the destination your consume loop writes through. It owns the checkpoint, the transaction boundary, and the reorg rollback, so your handler only inserts rows.
 
 ## The problem it removes
 
@@ -21,8 +19,8 @@ your data:
 ```
 
 Miss the shared transaction and you double-count on restart. Use `>` instead of
-`>=` and one block of orphaned rows survives the fork. Skip `onReorg` and there
-is no error — just rows from a chain that no longer exists.
+`>=` and one block of orphaned rows survives the fork. Skip `onReorg` and
+nothing errors; you keep rows from a chain that no longer exists.
 
 ## With a sink
 
@@ -51,15 +49,15 @@ await sl.streams.events.consume({
 });
 ```
 
-That is the whole indexer. `ctx.tx` is the sink's transaction — write only
-through it, and rows plus checkpoint commit together. `onBatch`'s return value
-is ignored: the sink owns the cursor.
+That is the whole indexer. Write only through `ctx.tx`, the sink's transaction,
+and rows plus checkpoint commit together. `onBatch`'s return value is ignored:
+the sink owns the cursor.
 
 <Callout type="warning" title="A sink without reorg handling would be a no-op">
 
 The consume loop gates all reorg handling on `onReorg` being present. A sink
 injects its own, so rollback happens whether or not you wrote one. Pass your
-own `onReorg` and yours runs — you own the rollback.
+own and yours runs instead.
 
 </Callout>
 
@@ -69,16 +67,16 @@ own `onReorg` and yours runs — you own the rollback.
 | --- | --- | --- |
 | `kyselySink` | `@secondlayer/sdk/sinks/kysely` | Postgres via [Kysely](https://kysely.dev) |
 | `drizzleSink` | `@secondlayer/sdk/sinks/drizzle` | Postgres or SQLite via [drizzle](https://orm.drizzle.team) |
-| `bunSqliteSink` | `@secondlayer/sdk/sinks/bun-sqlite` | `bun:sqlite` — one file, zero dependencies |
+| `bunSqliteSink` | `@secondlayer/sdk/sinks/bun-sqlite` | `bun:sqlite` (one file, zero dependencies) |
 
-Any other store: [write your own](#write-your-own) on the same base and prove it with the conformance kit.
+Any other store: [write your own](/docs/sinks/custom) and prove it with the conformance kit.
 
 ## Keyed on the query builder, not the driver
 
 `kyselySink(db, …)` takes a [Kysely](https://kysely.dev) instance because a bare
-`pg.Pool` carries no schema type — `tables` couldn't be checked and `ctx.tx`
-would be `any` at the exact place correctness matters. `drizzleSink` plays the
-same trick with your schema objects.
+`pg.Pool` carries no schema type: `tables` would go unchecked and `ctx.tx`
+would be `any` exactly where correctness matters. `drizzleSink` does the same
+with your schema objects.
 
 kysely and drizzle-orm are optional peer dependencies; the root entry stays
 dependency-free.
@@ -87,19 +85,18 @@ dependency-free.
 
 v1 rolls back by deleting rows at `height >= fork_point_height`. That is correct
 for append-only projections, and it is why `height` is required. A declared
-table lacking the column is a type error when your Kysely schema knows it, and
-a loud throw on the first cursor load otherwise — you find out before the first
-batch, not at reorg time when rollback deletes nothing.
+table missing that column fails before the first batch: a type error when your
+Kysely schema knows it, a loud throw on the first cursor load otherwise.
 
-Aggregates — running balances, counters — are not append-only, so a delete
-cannot reverse them. Use a [Subgraph](/docs/subgraphs) for those: its runtime
-journals pre-images and restores them on rewind.
+Aggregates like running balances are not append-only, so a delete cannot
+reverse them. Use a [Subgraph](/docs/subgraphs) instead: its runtime journals
+pre-images and restores them on rewind.
 
 ## Resuming
 
-The sink loads its committed cursor on start; a restart continues with no
-arguments. An explicit `fromCursor` overrides the position — useful for
-replaying a range — and the sink still initializes.
+The sink loads its committed cursor on start, so a restart continues with no
+arguments. An explicit `fromCursor` overrides the position for replaying a
+range; the sink still initializes.
 
 ## Health and shutdown
 
@@ -118,130 +115,7 @@ await sl.streams.events.consume({
 ```
 
 `consumerHealth` returns a `record` to feed from `onProgress` and a `handler`
-you mount yourself — the SDK never starts a server for you.
-
-## Write your own
-
-`createSink(driver, options)` from `@secondlayer/sdk/sinks/core` owns the transaction sequences and guards; your driver only speaks your database's dialect.
-
-### The contract
-
-Three methods, thirteen invariants — each silent in production when violated; the kit tests them mechanically.
-
-```ts
-interface ConsumerSink<Tx> {
-  loadCursor(): Promise<string | null>;
-  commitBatch(cursor: string, write: (tx: Tx) => Promise<void> | void): Promise<void>;
-  rollback(forkPointHeight: number, rewindCursor: string): Promise<void>;
-}
-```
-
-| # | Invariant |
-| --- | --- |
-| 1 | `loadCursor` runs once, before the first page — it is the init hook |
-| 2 | Replay is deterministic: same cursor, same rows — `cursor` is an idempotency key |
-| 3 | Delivery is at-least-once: a lost commit outcome is re-committed with the same cursor |
-| 4 | Rows and cursor commit in ONE transaction |
-| 5 | A throw from `write` aborts the whole transaction |
-| 6 | The lent `tx` is the real transaction — every handler write goes through it |
-| 7 | Committing the same cursor twice must not corrupt state |
-| 8 | Rollback's delete and cursor rewind commit in ONE transaction |
-| 9 | Delete AT OR ABOVE `forkPointHeight` — `>=`, the new chain re-supplies the fork block |
-| 10 | Rollback may be re-applied after a crash; the second pass is a no-op |
-| 11 | Scope the undo by `forkPointHeight`, never by `rewindCursor` |
-| 12 | Throw, don't swallow; no internal retry |
-| 13 | One writer per checkpoint id; a lock must fail loudly, never block |
-
-### The driver
-
-A complete [postgres.js](https://github.com/porsager/postgres) sink:
-
-```ts
-import postgres from "postgres";
-import { createSink, quoteIdent, type SinkDriver } from "@secondlayer/sdk/sinks/core";
-
-type Tx = postgres.TransactionSql;
-
-export function postgresJsSink(
-  sql: postgres.Sql,
-  options: { id: string; tables: readonly string[]; height: string },
-) {
-  const cp = quoteIdent("sl_consumer_checkpoints");
-  const driver: SinkDriver<Tx> = {
-    transact: (fn) => sql.begin((tx) => fn(tx as Tx)) as Promise<never>,
-    async ensureCheckpointStore() {
-      await sql.unsafe(`CREATE TABLE IF NOT EXISTS ${cp} (id text PRIMARY KEY, cursor text NOT NULL)`);
-    },
-    async readCursor() {
-      const rows = await sql.unsafe(`SELECT cursor FROM ${cp} WHERE id = $1`, [options.id]);
-      return rows[0]?.cursor ?? null;
-    },
-    async writeCursor(tx, cursor) {
-      await tx.unsafe(
-        `INSERT INTO ${cp} (id, cursor) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET cursor = excluded.cursor`,
-        [options.id, cursor],
-      );
-    },
-    async deleteAtOrAbove(tx, table, height) {
-      await tx.unsafe(
-        `DELETE FROM ${quoteIdent(table)} WHERE ${quoteIdent(options.height)} >= $1`,
-        [height],
-      );
-    },
-    async hasColumn(table, column) {
-      const rows = await sql`SELECT EXISTS (SELECT 1 FROM information_schema.columns
-        WHERE table_name = ${table} AND column_name = ${column}) AS ok`;
-      return rows[0]?.ok === true;
-    },
-  };
-  return createSink(driver, { label: "postgresJsSink", ...options });
-}
-```
-
-Identifiers arrive pre-validated (`[A-Za-z_][A-Za-z0-9_]*`), safe to interpolate after `quoteIdent`. Values stay bound parameters. `acquireLock` is the optional seventh method — throw when another writer holds your id.
-
-### Prove it
-
-`@secondlayer/sdk/sinks/testing` probes every invariant against your real store — torn batches, cursor replay, inclusive `>=`, mismatched rollback pairs, lock contention.
-
-```ts
-import { test } from "bun:test";
-import { attachSinkConformance } from "@secondlayer/sdk/sinks/testing";
-
-attachSinkConformance(test, {
-  makeSink: () => postgresJsSink(sql, { id: "conformance", tables: ["rows"], height: "height" }),
-  reset: () => sql`TRUNCATE rows, sl_consumer_checkpoints`,
-  insertRow: (tx, height, key) =>
-    tx`INSERT INTO rows (key, height) VALUES (${key}, ${height}) ON CONFLICT DO NOTHING`,
-  readRows: () => sql`SELECT height, key FROM rows`,
-  readCursor: async () =>
-    (await sql`SELECT cursor FROM sl_consumer_checkpoints WHERE id = 'conformance'`)[0]?.cursor ?? null,
-});
-```
-
-One probe per test; the `test` argument accepts bun:test, vitest, or jest. Every shipped sink passes this exact kit in CI. `insertRow` must be replay-safe — upsert keyed on `key`.
-
-### Append-only stores
-
-A store that can't delete (ClickHouse, parquet, an append log) can't implement `rollback`. Declare it:
-
-```ts
-const sink: ConsumerSink<MyWriter> = {
-  capabilities: { finalizedOnly: true },
-  // rollback is never called — throw if reached
-  ...
-};
-```
-
-The loop refuses to run without `finalizedOnly: true` — at startup, before data flows. Finalized rows never reorg; deterministic replay makes `cursor` a dedup token for exactly-once reads.
-
-### Store caveats
-
-| Store | Caveat |
-| --- | --- |
-| Prisma | `$transaction` defaults to a 5s interactive timeout — raise it; writes through the GLOBAL client escape the lent `tx` silently |
-| libsql / Turso remote | 5s write lock; remote statement-per-request can't hold the commit transaction open — local files only |
-| ClickHouse / parquet | No deletes: `capabilities: { finalizedOnly: true }`, dedup on `cursor` |
+you mount yourself; the SDK never starts a server for you.
 
 export const metadata = {
 	title: "Sinks — Secondlayer Docs",

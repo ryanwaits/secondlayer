@@ -74,7 +74,11 @@ export const DOCS_NAV: DocsNavGroup[] = [
 		label: "Tools",
 		items: [
 			{ title: "SDK", href: "/docs/sdk" },
-			{ title: "Sinks", href: "/docs/sinks" },
+			{
+				title: "Sinks",
+				href: "/docs/sinks",
+				items: [{ title: "Write your own", href: "/docs/sinks/custom" }],
+			},
 			{ title: "Filters", href: "/docs/filters" },
 			{ title: "CLI", href: "/docs/cli" },
 			{ title: "MCP", href: "/docs/mcp" },
