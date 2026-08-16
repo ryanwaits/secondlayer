@@ -6,6 +6,7 @@ import { instanceTokenAuth } from "./middleware/auth-modes.ts";
 import { errorHandler } from "./middleware/error.ts";
 import { requestLogger } from "./middleware/logging.ts";
 import accountsRouter from "./routes/accounts.ts";
+import archiveRouter from "./routes/archive.ts";
 import authRouter from "./routes/auth.ts";
 import { createBatchRouter } from "./routes/batch.ts";
 import billingRouter from "./routes/billing.ts";
@@ -43,6 +44,8 @@ const PLATFORM_PATHS = [
 	"/api/accounts/*",
 	"/api/billing",
 	"/api/billing/*",
+	"/api/archive",
+	"/api/archive/*",
 	"/api/auth/logout",
 	"/api/subgraphs",
 	"/api/subgraphs/*",
@@ -124,6 +127,7 @@ export function createApiApp(mode: InstanceMode): Hono {
 	if (mode === "platform") {
 		app.route("/api/accounts", accountsRouter);
 		app.route("/api/billing", billingRouter);
+		app.route("/api/archive", archiveRouter);
 	}
 	app.route("/", statusRouter);
 	app.route("/v1/instance", createInstanceCatalogRouter());

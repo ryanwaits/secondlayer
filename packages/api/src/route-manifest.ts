@@ -53,6 +53,8 @@ export const RETAINED_METER_ROUTE_FIXTURES = [
 	{ method: "POST", path: "/api/webhooks/stripe" },
 	{ method: "GET", path: "/api/keys" },
 	{ method: "GET", path: "/api/accounts/me" },
+	{ method: "POST", path: "/api/archive/quote" },
+	{ method: "POST", path: "/api/archive/fetch" },
 ] as const;
 
 export const RETAINED_ROUTE_FIXTURES = [

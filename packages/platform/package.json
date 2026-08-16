@@ -16,6 +16,10 @@
 			"types": "./dist/db/queries/account-credits.d.ts",
 			"import": "./dist/db/queries/account-credits.js"
 		},
+		"./db/queries/archive-fetches": {
+			"types": "./dist/db/queries/archive-fetches.d.ts",
+			"import": "./dist/db/queries/archive-fetches.js"
+		},
 		"./schemas/accounts": {
 			"types": "./dist/schemas/accounts.d.ts",
 			"import": "./dist/schemas/accounts.js"

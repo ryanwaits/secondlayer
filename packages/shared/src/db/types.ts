@@ -973,6 +973,7 @@ export interface Database {
 	stage_block_receipts: StageBlockReceiptsTable;
 	coverage_segments: CoverageSegmentsTable;
 	stage_failures: StageFailuresTable;
+	archive_fetches: ArchiveFetchesTable;
 }
 
 /** Prepaid x402 credit — one running USD-micros balance per payer principal. */
@@ -1058,6 +1059,25 @@ export interface AccountCreditsTable {
 export type AccountCredits = Selectable<AccountCreditsTable>;
 export type InsertAccountCredits = Insertable<AccountCreditsTable>;
 export type UpdateAccountCredits = Updateable<AccountCreditsTable>;
+
+/**
+ * Archive fetch charge log (design-f089 gate). Append-only: one row per
+ * priced attempt to fetch a partition object. `usd_micros` is 0 for
+ * free rows (24h re-issue, monthly repair allowance).
+ */
+export interface ArchiveFetchesTable {
+	id: Generated<string>;
+	account_id: string;
+	path: string;
+	dataset: string;
+	usd_micros: string | number | bigint;
+	via_allowance: Generated<boolean>;
+	charged_at: Generated<Date>;
+}
+
+export type ArchiveFetch = Selectable<ArchiveFetchesTable>;
+export type InsertArchiveFetch = Insertable<ArchiveFetchesTable>;
+export type UpdateArchiveFetch = Updateable<ArchiveFetchesTable>;
 
 // ── Convenience types ─────────────────────────────────────────────────
 

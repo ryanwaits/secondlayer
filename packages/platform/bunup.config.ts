@@ -5,6 +5,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/db/queries/accounts.ts",
 		"src/db/queries/account-spend-caps.ts",
 		"src/db/queries/account-credits.ts",
+		"src/db/queries/archive-fetches.ts",
 		"src/schemas/accounts.ts",
 	],
 	format: ["esm"],

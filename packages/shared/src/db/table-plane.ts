@@ -89,6 +89,8 @@ export const TABLE_TO_DB = {
 	x402_payments: "target",
 	x402_balances: "target",
 	account_credits: "target",
+	// ── TARGET: archive fetch gate (design-f089) ──
+	archive_fetches: "target",
 	// ── BOTH ──
 	service_heartbeats: "both",
 } satisfies Record<keyof Database, DbPlane>;
