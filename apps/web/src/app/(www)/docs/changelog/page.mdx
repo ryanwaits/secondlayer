@@ -14,6 +14,21 @@ The x402 rail is removed. Reads on your instance were never metered by us, and t
 
 ## CLI — August 2026
 
+### Uninstall without losing your index
+
+`secondlayer uninstall` stops the stack and leaves your data where it is. Containers, networks, and the handler cache come down; the index, chainstate, secrets, and backups stay. It prints the plan and changes nothing until you pass `--apply`.
+
+```bash
+secondlayer uninstall            # dry run: what would go, what would stay
+secondlayer uninstall --apply
+```
+
+Wiping the volumes is a separate, guarded decision: `--purge` refuses to run unless `--backup <dir>` points at a bundle proving your keys exist somewhere else.
+
+### Backup and restore exit when they finish
+
+Both commands close the database pool, so they return to your shell instead of hanging after the work is done. Scripts and CI jobs that waited on them no longer need a timeout.
+
 ### Back up and restore your instance
 
 `secondlayer backup` writes an encrypted bundle; `secondlayer restore` reads it back. Both carry a secrets-key canary, so restoring with the wrong key fails immediately instead of leaving you with subscription secrets nobody can decrypt.

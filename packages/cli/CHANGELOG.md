@@ -1,5 +1,20 @@
 # @secondlayer/cli
 
+## 12.1.0
+
+### Minor Changes
+
+- `secondlayer uninstall` tears the stack down without taking your data with it. Containers, networks, and the handler cache go; the index, chainstate, secrets, and backups stay. It dry-runs by default and needs `--apply` to act. `--purge` destroys the volumes too, and refuses to run unless `--backup <dir>` proves the keys exist somewhere else.
+
+  `secondlayer backup` and `secondlayer restore` now close the database pool, so both exit instead of hanging after the work is done.
+
+### Patch Changes
+
+- Updated dependencies
+  - @secondlayer/shared@10.0.0
+  - @secondlayer/sdk@8.0.1
+  - @secondlayer/subgraphs@4.0.2
+
 ## 12.0.0
 
 ### Major Changes

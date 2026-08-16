@@ -1,5 +1,13 @@
 # @secondlayer/shared
 
+## 10.0.0
+
+### Major Changes
+
+- Removed `applyRepair` and the `RepairApplyResult` type from `@secondlayer/shared/coverage`. The executor was a no-op; `planRepair` and `SAFE_REPAIR_MODES` are unchanged, so the safety gate that decides whether a repair is allowed still works exactly as before. Callers that imported `applyRepair` were running nothing and can drop the call.
+
+  Adds `@secondlayer/shared/runtime` uninstall planning: `planUninstall`, `uninstallCommand`, the `PRESERVED` and `REMOVABLE` sets, and their types.
+
 ## 9.0.0
 
 ### Major Changes

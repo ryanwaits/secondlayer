@@ -1,5 +1,14 @@
 # @secondlayer/mcp
 
+## 6.0.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @secondlayer/shared@10.0.0
+  - @secondlayer/sdk@8.0.1
+  - @secondlayer/subgraphs@4.0.2
+
 ## 6.0.0
 
 ### Major Changes
