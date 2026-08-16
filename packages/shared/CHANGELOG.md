@@ -1,5 +1,12 @@
 # @secondlayer/shared
 
+## 10.0.1
+
+### Patch Changes
+
+- 3bdff96: Add the `archive_fetches` table (migration 0121) — the charge log for the archive fetch gate — and register it in `table-plane.ts` as a control-plane table.
+- cc511a7: Fix the stale `platform` mode docblock in `mode.ts` — it still described projects/admin, which were deleted; now describes what platform mode actually serves (accounts, credits, metered `/v1` reads).
+
 ## 10.0.0
 
 ### Major Changes

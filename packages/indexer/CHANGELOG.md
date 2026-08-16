@@ -1,5 +1,16 @@
 # @secondlayer/indexer
 
+## 1.13.5
+
+### Patch Changes
+
+- f5e5f88: The daily canonical-audit now checks a bounded trailing window for tx/event height desync (an event's `block_height` disagreeing with its own transaction's), reporting a new `tx_event_height_desync` block in the report JSON and feeding the overall health verdict. The host health-check script gains a second, CRITICAL-tier check on canonical tip progress that re-pages every 30 minutes while ingest stays stalled, instead of a single alert per incident.
+- 7258c54: Fix a block-ingest perf regression: the reorg-safe events delete in `persistBlock` OR'd a block-height predicate with a tx-id subquery in a single statement, which made Postgres seq-scan the entire events table on every block instead of using either index. Split into two sequential deletes (by height, then by tx id) so each uses its own index; semantics are unchanged.
+- 85bf4f6: Fix a reorg replace that could halt ingest: `persistBlock` deleted events by block height only, but the FK is on tx id. A transaction re-mined at a new height across a fork keeps its first-seen `block_height` while its events land at the new height, so those stragglers survived the delete-by-height and blocked the transaction delete with `events_tx_id_fkey`. The delete now also scopes by the tx ids being replaced.
+- Updated dependencies [3bdff96]
+- Updated dependencies [cc511a7]
+  - @secondlayer/shared@10.0.1
+
 ## 1.13.4
 
 ### Patch Changes

@@ -1,5 +1,25 @@
 # @secondlayer/api
 
+## 1.28.0
+
+### Minor Changes
+
+- 3bdff96: Add the archive fetch gate: `POST /api/archive/quote` (free price preview) and `POST /api/archive/fetch` (charges credits, returns presigned R2 URLs). Pricing derives the dataset from the R2 object key server-side — never from a client-sent field — so a caller can't underpay by claiming a cheaper dataset. Platform mode only; self-host instances don't mount this router.
+- cc511a7: Retire the four-rung paid tier ladder (`free`/`build`/`scale`/`enterprise`) on Index and Streams. There are now exactly two kinds of caller: a metered `free` account and a first-party `internal` service credential — no paid ladder, no meter bypass. Deletes the six hardcoded `*_build_test`/`*_scale_test`/`*_enterprise_test` bearer tokens that granted unmetered access with no `account_id`. A database key with a legacy paid-tier pin on `api_keys.tier` now always resolves to `free`; the column stays but is no longer authority. Index rate-limit 429s no longer advertise an upgrade path (`upgrade_url`/`required_tier`) to a product that no longer exists.
+
+### Patch Changes
+
+- ab01982: `POST /api/archive/quote` and `POST /api/archive/fetch` now accept manifest-relative partition paths (`<dataset>/<from>-<to>-<hash16>.parquet`) in addition to full R2 object keys. The CLI never learns the archive's R2 key prefix; the server resolves a relative path to the full key at presign time.
+- Updated dependencies [3bdff96]
+- Updated dependencies [3bdff96]
+- Updated dependencies [f5e5f88]
+- Updated dependencies [cc511a7]
+- Updated dependencies [7258c54]
+- Updated dependencies [85bf4f6]
+  - @secondlayer/platform@0.2.0
+  - @secondlayer/shared@10.0.1
+  - @secondlayer/indexer@1.13.5
+
 ## 1.27.7
 
 ### Patch Changes

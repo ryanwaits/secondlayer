@@ -1,5 +1,17 @@
 # @secondlayer/platform
 
+## 0.2.0
+
+### Minor Changes
+
+- 3bdff96: Add `db/queries/archive-fetches` — the charge log query module backing the archive fetch gate's 24h re-issue window and monthly free-repair allowance.
+
+### Patch Changes
+
+- Updated dependencies [3bdff96]
+- Updated dependencies [cc511a7]
+  - @secondlayer/shared@10.0.1
+
 ## 0.1.44
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # @secondlayer/cli
 
+## 12.2.0
+
+### Minor Changes
+
+- ab01982: `secondlayer bootstrap` and `secondlayer repair` now quote and meter partition fetches against the official hosted archive (`archive.secondlayer.tools`): a free price preview prints into the existing plan output, the operator confirms (or passes `-y`, which skips only the prompt, never the quote or the balance check), and only then are partitions fetched through short-lived presigned URLs. Fetching from any other manifest, a mirror, a teammate's box, a local file, stays free and never contacts a Secondlayer server. `secondlayer verify` is unaffected; it never touches partition bytes.
+
+### Patch Changes
+
+- Updated dependencies [3bdff96]
+- Updated dependencies [cc511a7]
+  - @secondlayer/shared@10.0.1
+
 ## 12.1.0
 
 ### Minor Changes

@@ -14,6 +14,10 @@ The x402 rail is removed. Reads on your instance were never metered by us, and t
 
 ## CLI — August 2026
 
+### Archive fetches now quote before they charge
+
+Point `secondlayer bootstrap` or `secondlayer repair` at the official archive and you see the price before anything is charged: partitions, dollars, and your balance, in the same confirm prompt you already use. Fetches pull signed partitions over short-lived presigned URLs and every partition is digest-checked before a row is written. Your first six repair bundles each month are free. Your own mirrors and local archives never touch the gate, and `secondlayer verify` stays free with no account, always. The tradeoff is plain: restoring from our archive costs credits; everything you run yourself costs nothing.
+
 ### Uninstall without losing your index
 
 `secondlayer uninstall` stops the stack and leaves your data where it is. Containers, networks, and the handler cache come down; the index, chainstate, secrets, and backups stay. It prints the plan and changes nothing until you pass `--apply`.
