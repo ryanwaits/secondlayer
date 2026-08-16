@@ -1,6 +1,6 @@
 # Docker and EC2
 
-No platform, no config schema — a container and something that restarts it.
+No platform, no config schema: a container and something that restarts it.
 
 ## Compose
 
@@ -32,11 +32,11 @@ docker compose up -d
 docker compose logs -f indexer
 ```
 
-`restart: unless-stopped` covers crashes and host reboots. Docker's own `healthcheck` reports status but won't restart a wedged container on its own — pair it with a supervisor or an external probe if you want that.
+`restart: unless-stopped` covers crashes and host reboots. Docker's own `healthcheck` reports status but won't restart a wedged container on its own, so pair it with a supervisor or an external probe if you want that.
 
 <Callout type="tip" title="Stop grace period">
 
-`docker compose stop` sends `SIGTERM` and kills after 10s by default. A batch mid-commit against a slow database can exceed that — raise it with `stop_grace_period: 60s` on the service.
+`docker compose stop` sends `SIGTERM` and kills after 10s by default. A batch mid-commit against a slow database can exceed that, so raise it with `stop_grace_period: 60s` on the service.
 
 </Callout>
 

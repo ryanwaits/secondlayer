@@ -10,7 +10,7 @@ Loopback needs no token; a non-loopback bind needs `INSTANCE_TOKEN`. Cold histor
 
 ## Build an indexer on it
 
-`events.consume` is the checkpointed consumer with automatic reorg rewind — see [Index](/docs/index#build-your-index-on-it). Reorgs rewind to the fork point and re-deliver, inclusive of the fork block; delivery is at-least-once, so keep writes idempotent.
+`events.consume` is the checkpointed consumer with automatic reorg rewind; see [Index](/docs/index#build-your-index-on-it). Reorgs rewind to the fork point and re-deliver, inclusive of the fork block; delivery is at-least-once, so keep writes idempotent.
 
 For cold history, `events.replay` backfills from the signed bulk dumps, then tails live from the manifest's `latest_finalized_cursor`, no gap or dupe at the seam:
 
@@ -68,12 +68,12 @@ Where to run it: [Deploy](/docs/deploy).
 curl "http://127.0.0.1:3800/v1/streams/events?types=ft_transfer&limit=100"
 ```
 
-Pass the response's `next_cursor` back as `cursor`. Narrow with `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier`, `filters`, and `from_height`/`to_height` — exact-match, and event types without a given field don't match. Full grammar: [API reference](/docs/api-reference).
+Pass the response's `next_cursor` back as `cursor`. Narrow with `types`, `not_types`, `contract_id`, `sender`, `recipient`, `asset_identifier`, `filters`, and `from_height`/`to_height`: exact-match, and event types without a given field don't match. Full grammar: [API reference](/docs/api-reference).
 
 ### Two concerns, one loop
 
 A flat filter is one AND-ed set, so tracking sBTC mints *and* treasury spends
-meant two consume loops, two cursors, two checkpoints — or fetching the union
+meant two consume loops, two cursors, two checkpoints, or fetching the union
 and throwing half of it away. `filters` names each concern and the server ORs
 them into a single scan:
 
@@ -129,7 +129,7 @@ The server polls roughly every 1.5s from a tip held a couple of blocks back for 
 
 </Callout>
 
-`client.events.subscribe(...)` auto-reconnects from the last delivered cursor and verifies per-frame signatures — see the [SDK](/docs/sdk#subscribe-to-the-live-stream-sse). Fan out to your backend instead with [Subscriptions](/docs/subscriptions).
+`client.events.subscribe(...)` auto-reconnects from the last delivered cursor and verifies per-frame signatures; see the [SDK](/docs/sdk#subscribe-to-the-live-stream-sse). Fan out to your backend instead with [Subscriptions](/docs/subscriptions).
 
 ### Per-frame signatures
 

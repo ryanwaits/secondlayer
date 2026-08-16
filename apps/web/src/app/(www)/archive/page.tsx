@@ -28,7 +28,7 @@ const USE_CASES: UseCase[] = [
 	{
 		title: "Bootstrap a fresh box",
 		badge: "metered",
-		body: "Stand up a new instance from the archive instead of replaying the chain — genesis to tip arrives as verified partitions.",
+		body: "Stand up a new instance from the archive instead of replaying the chain: genesis to tip arrives as verified partitions.",
 		cmd: "secondlayer bootstrap \\\n  --against https://archive.secondlayer.tools/latest.json",
 	},
 	{
@@ -83,7 +83,7 @@ export default function ArchivePage() {
 						<h2>Archive credits</h2>
 						<p>
 							Metered runs draw from a prepaid balance. Pick a pack, pay through
-							Stripe, and the CLI picks it up on the next run — your email is
+							Stripe, and the CLI picks it up on the next run, and your email is
 							the whole account.
 						</p>
 					</div>

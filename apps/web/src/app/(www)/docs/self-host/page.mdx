@@ -70,7 +70,7 @@ docker compose pull && docker compose up -d
 curl http://localhost:3800/health
 ```
 
-Migrations run at start under an advisory lock, and are forward-only. To roll back, pin the previous image tag — a schema that has already migrated forward stays migrated, so roll back the image, not the database.
+Migrations run at start under an advisory lock, and are forward-only. To roll back, pin the previous image tag, though a schema that has already migrated forward stays migrated, so roll back the image, not the database.
 
 ## Backup
 
@@ -81,7 +81,7 @@ pg_dump -Fc "$DATABASE_URL" > secondlayer-$(date +%F).dump   # the index
 cp docker/oss/.env  ./secondlayer-env-backup                 # secrets: keys + token
 ```
 
-`.env` holds `INSTANCE_TOKEN`, `SECONDLAYER_SECRETS_KEY`, and `STREAMS_SIGNING_PRIVATE_KEY`. Losing it costs you more than losing the index — the index can be rebuilt from the [archive](/docs/archive), the keys cannot. Store it somewhere the database backup is not.
+`.env` holds `INSTANCE_TOKEN`, `SECONDLAYER_SECRETS_KEY`, and `STREAMS_SIGNING_PRIVATE_KEY`. Losing it costs you more than losing the index, because the index can be rebuilt from the [archive](/docs/archive), the keys cannot. Store it somewhere the database backup is not.
 
 To restore, bring up an empty Postgres, `pg_restore` into it, put `.env` back, and confirm with `secondlayer verify all --against <manifest>` before trusting the result.
 
@@ -95,9 +95,9 @@ Mainnet full history is large: the reference index measures ~500 GB, of which ~2
 | App services, external node, testnet/devnet | 4 GB | 80 GB |
 | Bundled node, mainnet | 96 GB | 2.5 TB |
 
-Postgres `max_connections` ≥ 50. The bundled-node figure is dominated by the chain itself — Stacks chainstate alone measures 1.3 TB, and bitcoind is additional.
+Postgres `max_connections` ≥ 50. The bundled-node figure is dominated by the chain itself: Stacks chainstate alone measures 1.3 TB, and bitcoind is additional.
 
-The runtime checks RAM, disk, and `max_connections` at start and refuses to boot below these floors, so an undersized box is told before it spends hours acquiring an index it cannot hold. Disk is measured as total filesystem capacity, not free space — a healthy instance legitimately fills most of its disk. If a dimension can't be measured, it's reported and skipped rather than assumed bad.
+The runtime checks RAM, disk, and `max_connections` at start and refuses to boot below these floors, so an undersized box is told before it spends hours acquiring an index it cannot hold. Disk is measured as total filesystem capacity, not free space, since a healthy instance legitimately fills most of its disk. If a dimension can't be measured, it's reported and skipped rather than assumed bad.
 
 To run below a floor anyway:
 
@@ -105,7 +105,7 @@ To run below a floor anyway:
 SECONDLAYER_ALLOW_UNDERSIZED=true
 ```
 
-That downgrades the refusal to a warning at every start. It exists so a box that was already undersized can still come back up after an upgrade — you keep the ability to run your own hardware, you just do it knowingly.
+That downgrades the refusal to a warning at every start. It exists so a box that was already undersized can still come back up after an upgrade: you keep the ability to run your own hardware, you just do it knowingly.
 
 ## Operations
 
@@ -133,7 +133,7 @@ Screens, the token gate, and reverse-proxy recipes: [Console](/docs/console).
 - Archive publisher (separate image)
 - Pay-per-call metering on your instance (the x402 rail was removed)
 
-Support is community — [github.com/ryanwaits/secondlayer](https://github.com/ryanwaits/secondlayer).
+Support is community: [github.com/ryanwaits/secondlayer](https://github.com/ryanwaits/secondlayer).
 
 export const metadata = {
 	title: "Run Secondlayer — Secondlayer Docs",

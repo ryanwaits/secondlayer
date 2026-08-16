@@ -47,7 +47,7 @@ RANGE              DATASET  STATUS        EXPECTED  LOCAL
 These ranges hold different data than the signed archive.
 ```
 
-Equal row counts with differing data means the same heights hold different blocks — a fork point left on the losing branch.
+Equal row counts with differing data means the same heights hold different blocks: a fork point left on the losing branch.
 
 ### Exit codes
 
@@ -55,7 +55,7 @@ Equal row counts with differing data means the same heights hold different block
 | --- | --- |
 | `0` | Local data matches the archive. |
 | `1` | Divergence found; every divergent range is listed. |
-| `2` | Unanchored — the archive was unreachable or its signature failed. |
+| `2` | Unanchored: the archive was unreachable or its signature failed. |
 
 `2` is never success. Not being able to check differs from being fine.
 
@@ -89,11 +89,11 @@ HEIGHT   ACTION   LOCAL         ARCHIVE
 8501111  replace  0xd4deb46c6d  0xedb6ba8322
 ```
 
-Each partition is hashed against the signed digest before any row is read. One transaction per partition — an interrupted repair leaves no half-corrected range.
+Each partition is hashed against the signed digest before any row is read. One transaction per partition, so an interrupted repair leaves no half-corrected range.
 
 <Callout type="warning" title="Heights the archive doesn't have">
 
-Local heights absent from the archive are reported, never deleted — transactions and events reference them.
+Local heights absent from the archive are reported, never deleted, because transactions and events reference them.
 
 </Callout>
 
@@ -115,15 +115,15 @@ signature  verified
   restore from archive ~2.3 hours
 ```
 
-Refuses a database that already holds blocks — use `secondlayer repair` for an existing instance. `--to-block <n>` stops early; `-y` skips the prompt.
+Refuses a database that already holds blocks; use `secondlayer repair` for an existing instance. `--to-block <n>` stops early; `-y` skips the prompt.
 
 ## Credits
 
-Bootstrap, backfill, and reindex fetch from the archive metered per unit; verification is free. Buy with `secondlayer credits buy` — packs and balance: [archive credits](/docs/authentication#archive-credits).
+Bootstrap, backfill, and reindex fetch from the archive metered per unit; verification is free. Buy with `secondlayer credits buy`; packs and balance: [archive credits](/docs/authentication#archive-credits).
 
 ## What the archive is
 
-Immutable, digest-addressed Parquet partitions on R2, published from a repeatable-read snapshot of a production Stacks index. Three datasets — blocks, transactions, events — partitioned by height.
+Immutable, digest-addressed Parquet partitions on R2, published from a repeatable-read snapshot of a production Stacks index. Three datasets (blocks, transactions, events), partitioned by height.
 
 | Object | Contents |
 | --- | --- |
@@ -142,7 +142,7 @@ Publishing is append-only. Each partition carries a SHA-256 over its bytes and a
 | Level | Means |
 | --- | --- |
 | `db-reconstructive` | Exports from one repeatable-read snapshot restore deterministically. Does not prove no historical callback was omitted. |
-| `node-attested` | Block identities (`hash`, `index_block_hash`) also match an independently synced stacks-node for the window in `node.json`. Transactions and events stay `db-reconstructive` — the node does not expose execution `raw_result` or events. |
+| `node-attested` | Block identities (`hash`, `index_block_hash`) also match an independently synced stacks-node for the window in `node.json`. Transactions and events stay `db-reconstructive`: the node does not expose execution `raw_result` or events. |
 | `observer-attested` | Digests match independently retained raw observer history. |
 
 The manifest states its level per range. Most of the chain is `db-reconstructive`. A published `node.json` upgrades only the listed `coverage` window.

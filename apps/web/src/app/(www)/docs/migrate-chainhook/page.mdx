@@ -1,6 +1,6 @@
 # Migrating from Chainhook
 
-Self-hosted Chainhook (v1) is archived; hosted Chainhook (v2) skips devnet. Secondlayer [subscriptions](/docs/subscriptions) replace both — signed, retried webhooks on raw chain events.
+Self-hosted Chainhook (v1) is archived; hosted Chainhook (v2) skips devnet. Secondlayer [subscriptions](/docs/subscriptions) replace both: signed, retried webhooks on raw chain events.
 
 ## Hosted or self-hosted
 
@@ -48,11 +48,11 @@ Each `if_this` scope maps to a `trigger.*` factory. `*` wildcards are allowed on
 | --- | --- |
 | `contract_call` (`contract_identifier`, `method`) | `trigger.contractCall({ contractId, functionName, caller, trait })` |
 | `print_event` (`contract_identifier`, `contains` / `matches_regex`) | `trigger.printEvent({ contractId, topic, trait })` |
-| `ft_event` — `mint` / `transfer` / `burn` | `trigger.ftMint` / `trigger.ftTransfer` / `trigger.ftBurn` (`assetIdentifier`, `minAmount`, `trait`) |
-| `nft_event` — `mint` / `transfer` / `burn` | `trigger.nftMint` / `trigger.nftTransfer` / `trigger.nftBurn` (`assetIdentifier`, `trait`) |
-| `stx_event` — `mint` / `transfer` / `lock` | `trigger.stxMint` / `trigger.stxTransfer` / `trigger.stxLock` (`recipient`, `sender`, `minAmount`) |
+| `ft_event`: `mint` / `transfer` / `burn` | `trigger.ftMint` / `trigger.ftTransfer` / `trigger.ftBurn` (`assetIdentifier`, `minAmount`, `trait`) |
+| `nft_event`: `mint` / `transfer` / `burn` | `trigger.nftMint` / `trigger.nftTransfer` / `trigger.nftBurn` (`assetIdentifier`, `trait`) |
+| `stx_event`: `mint` / `transfer` / `lock` | `trigger.stxMint` / `trigger.stxTransfer` / `trigger.stxLock` (`recipient`, `sender`, `minAmount`) |
 | `contract_deployment` (`deployer`, `implement_trait`) | `trigger.contractDeploy({ deployer, contractName })`, or scope by `trait` |
-| `txid` | No trigger — query [Index](/docs/index) by transaction instead |
+| `txid` | No trigger; query [Index](/docs/index) by transaction instead |
 
 Every field is in the [full trigger reference](/docs/subscriptions#triggers).
 
@@ -62,20 +62,20 @@ Chainhook's `apply` / `rollback` becomes `chain.{type}.apply` per matched event,
 
 <Callout type="note" title="Verify the signature">
 
-Every delivery is HMAC-signed (Standard Webhooks) and carries a universal ed25519 signature — verify with `verifyWebhookSignature` before trusting the payload ([how](/docs/subscriptions/deliveries#verify-the-signature)). Where Chainhook used a bearer token, here the signature is the auth.
+Every delivery is HMAC-signed (Standard Webhooks) and carries a universal ed25519 signature, so verify with `verifyWebhookSignature` before trusting the payload ([how](/docs/subscriptions/deliveries#verify-the-signature)). Where Chainhook used a bearer token, here the signature is the auth.
 
 </Callout>
 
 ## Forward-only by default
 
-A chain subscription starts at the chain tip — no `start_block` scan. For history, [`replay`](/docs/subscriptions#replay) over an existing subscription: idempotent, capped at 100,000 blocks, never moves the live cursor.
+A chain subscription starts at the chain tip, with no `start_block` scan. For history, [`replay`](/docs/subscriptions#replay) over an existing subscription: idempotent, capped at 100,000 blocks, never moves the live cursor.
 
 ## Test it on devnet first
 
-Run the loop locally before mainnet — deploy a subgraph and fire subscriptions against your Clarinet devnet. See [Devnet](/docs/devnet).
+Run the loop locally before mainnet: deploy a subgraph and fire subscriptions against your Clarinet devnet. See [Devnet](/docs/devnet).
 
 export const metadata = {
 	title: "Migrating from Chainhook — Secondlayer Docs",
 	description:
-		"Map your Chainhook predicates to Secondlayer subscriptions — covering both hosted Chainhook (v2) and self-hosted v1, with signed, retried delivery.",
+		"Map your Chainhook predicates to Secondlayer subscriptions, covering both hosted Chainhook (v2) and self-hosted v1, with signed, retried delivery.",
 };

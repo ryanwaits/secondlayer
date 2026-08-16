@@ -1,8 +1,8 @@
 # sBTC settlement
 
-Accepted isn't received. A `withdrawal-accept` event only means the signers *committed* to a Bitcoin sweep; your instance verifies that `sweep_txid` against your bitcoind — the bundled full-node profile or an external `BITCOIN_RPC` — and surfaces the result on the decoded sBTC feed.
+Accepted isn't received. A `withdrawal-accept` event only means the signers *committed* to a Bitcoin sweep; your instance verifies that `sweep_txid` against your bitcoind (the bundled full-node profile or an external `BITCOIN_RPC`) and surfaces the result on the decoded sBTC feed.
 
-Deposits need no such check — `completed-deposit` fires only after the signers see the BTC confirmations.
+Deposits need no such check: `completed-deposit` fires only after the signers see the BTC confirmations.
 
 ## Settlement on a withdrawal
 
@@ -22,7 +22,7 @@ Every peg-out lifecycle carries a `settlement` object. `GET /v1/index/sbtc/withd
 }
 ```
 
-`settlement_confirmed` is `true` past the confirmation threshold, `false` while the sweep is still shallow, `null` when there's no settlement record yet (no sweep observed — not a denial).
+`settlement_confirmed` is `true` past the confirmation threshold, `false` while the sweep is still shallow, `null` when there's no settlement record yet (no sweep observed, not a denial).
 
 ## Filtering the list
 
@@ -38,7 +38,7 @@ curl "http://127.0.0.1:3800/v1/index/sbtc/withdrawals?settlement_confirmed=false
 
 ## Mirror the peg into your own tables
 
-`sbtc.events.consume()` is the checkpointed sweep over the raw peg log — all six topics, or one:
+`sbtc.events.consume()` is the checkpointed sweep over the raw peg log: all six topics, or one:
 
 ```ts
 await sl.index.sbtc.events.consume({
@@ -77,7 +77,7 @@ await client.subscriptions.create({
 
 - Scope with `requestId` / `sweepTxid`.
 - Fires **once** per sweep, when `btc_confirmations` first crosses the threshold (default 6).
-- **Forward-only** — settlements confirmed after you subscribe, never a backfill.
+- **Forward-only**: settlements confirmed after you subscribe, never a backfill.
 - A Bitcoin reorg that un-confirms a sweep never re-fires it; the read self-corrects.
 
 Delivery is the standard `chain.{type}.apply` envelope; `event` carries the settlement specifics:
@@ -101,9 +101,9 @@ Delivery is the standard `chain.{type}.apply` envelope; `event` carries the sett
 
 See [Subscriptions](/docs/subscriptions) for delivery formats, signature verification, and the full trigger list.
 
-<Callout type="info" title="What this proves — and what it doesn't">
+<Callout type="info" title="What this proves, and what it doesn't">
 
-Settlement is verified against your instance's bitcoind, not a custody guarantee — a signer set still controls the pegged UTXO.
+Settlement is verified against your instance's bitcoind, not a custody guarantee: a signer set still controls the pegged UTXO.
 
 </Callout>
 

@@ -28,13 +28,13 @@ secondlayer credits buy --email you@example.com --pack 25
 secondlayer credits balance
 ```
 
-`credits buy` opens a one-time card checkout against [archive.secondlayer.tools](https://archive.secondlayer.tools) — no account, no login.
+`credits buy` opens a one-time card checkout against [archive.secondlayer.tools](https://archive.secondlayer.tools), with no account and no login.
 
 Auto-refill is off until you set it: `secondlayer credits refill --below 5 --pack 25`.
 
 ## Webhook signing secrets
 
-A **signing secret** (`whsec_…`) is per-subscription and verifies an incoming webhook came from your instance (`verifyWebhookSignature`) — see [Subscriptions](/docs/subscriptions). Never in `Authorization`. Rotate with `secondlayer subscriptions rotate-secret`.
+A **signing secret** (`whsec_…`) is per-subscription and verifies an incoming webhook came from your instance (`verifyWebhookSignature`); see [Subscriptions](/docs/subscriptions). Never in `Authorization`. Rotate with `secondlayer subscriptions rotate-secret`.
 
 export const metadata = {
 	title: "Authentication — Secondlayer Docs",

@@ -29,7 +29,7 @@ secondlayer credits balance
 secondlayer credits refill --below 5 --pack 25
 ```
 
-[Verified archive](/docs/archive) owns `secondlayer verify` / `secondlayer repair`. [Self-host](/docs/self-host) is the compose loop. `secondlayer credits *` meters archive bootstrap and backfill — [archive credits](/docs/authentication#archive-credits).
+[Verified archive](/docs/archive) owns `secondlayer verify` / `secondlayer repair`. [Self-host](/docs/self-host) is the compose loop. `secondlayer credits *` meters archive bootstrap and backfill; [archive credits](/docs/authentication#archive-credits).
 
 <Callout type="note" title="Chain subscriptions">
 
@@ -60,7 +60,7 @@ secondlayer observer --mode indexer
 | | `-y, --yes` | off | Skip confirm |
 | | `--json` | off | Machine output |
 | `secondlayer observer` | `--mode` | `indexer` | `indexer` retries; `signer-shared` does not |
-| | `--endpoint` | `indexer:3700` (`127.0.0.1:3700` on devnet) | `host:port` only — no URL |
+| | `--endpoint` | `indexer:3700` (`127.0.0.1:3700` on devnet) | `host:port` only, no URL |
 | | `--recovery` | required for signer-shared | `journal` or `archive` |
 | | `--network` | `STACKS_NETWORK` or `mainnet` | Loopback refused except devnet |
 
@@ -81,7 +81,7 @@ secondlayer subgraphs create sbtc-registry \
   --from-contract SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry
 ```
 
-Infers each print topic's payload from indexed history — see [print schemas](/docs/index#print-schemas). Anonymous. `--table-per-topic` emits one table per topic.
+Infers each print topic's payload from indexed history; see [print schemas](/docs/index#print-schemas). Anonymous. `--table-per-topic` emits one table per topic.
 
 `secondlayer subgraphs codegen <file> --payloads` emits a `.d.ts` next to the definition. Incompatible with `--target` / `--models-only` / `--env`. Deploy `warnings` on unobserved `event.data` fields are advisory.
 
@@ -95,7 +95,7 @@ A terminal prompts. Scripts and CI fail. `--allow-uncommitted` overrides and log
 
 ## Generate typed contract clients
 
-Turn Clarity contracts into typed TypeScript — local `.clar` files, deployed contracts, or a Clarinet project.
+Turn Clarity contracts into typed TypeScript: local `.clar` files, deployed contracts, or a Clarinet project.
 
 ```bash
 secondlayer contracts generate ./contracts/token.clar -o ./src/generated.ts
@@ -118,7 +118,7 @@ export default defineConfig({
 
 | Plugin | What it adds |
 |---|---|
-| `clarinet()` | Real ABIs from your Clarinet project via Simnet — typed clients for `[project.requirements]` dependency contracts too (`includeRequirements: false` to opt out) |
+| `clarinet()` | Real ABIs from your Clarinet project via Simnet; typed clients for `[project.requirements]` dependency contracts too (`includeRequirements: false` to opt out) |
 | `react()` | Typed React hooks per contract |
 | `testing()` | Clarinet SDK test helpers |
 
@@ -128,8 +128,8 @@ Named aliases per function (`TokenTransferArgs`) plus a `TypedAbi` const. Feed i
 
 These work but get no further investment.
 
-- `secondlayer subgraphs codegen --target prisma|drizzle|kysely` — typed ORM schema. See [Subgraphs](/docs/subgraphs/reading#typed-orm-schemas-codegen).
-- `secondlayer local` — superseded by [`secondlayer devnet`](/docs/devnet). Hidden.
+- `secondlayer subgraphs codegen --target prisma|drizzle|kysely`: typed ORM schema. See [Subgraphs](/docs/subgraphs/reading#typed-orm-schemas-codegen).
+- `secondlayer local`: superseded by [`secondlayer devnet`](/docs/devnet). Hidden.
 
 
 export const metadata = {

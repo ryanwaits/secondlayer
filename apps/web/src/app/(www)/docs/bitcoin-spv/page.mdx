@@ -1,17 +1,17 @@
 # Bitcoin SPV
 
-Prove a Bitcoin payment happened — inside a Stacks contract, with no oracle.
+Prove a Bitcoin payment happened inside a Stacks contract, with no oracle.
 
-<Banner label="SIP-044 / Clarity 6" title="On-chain at Epoch 4.0 — Bitcoin block 960,230">
+<Banner label="SIP-044 / Clarity 6" title="On-chain at Epoch 4.0, Bitcoin block 960,230">
 
-Proof construction, Clarity codecs, and byte handling work **today** against live Bitcoin. The on-chain calls hit the SIP-044 built-ins, which exist once **Clarity 6 / Stacks Epoch 4.0** activates on mainnet. Run the round-trip locally any time in **Clarinet ≥ 3.21 simnet** — no node.
+Proof construction, Clarity codecs, and byte handling work **today** against live Bitcoin. The on-chain calls hit the SIP-044 built-ins, which exist once **Clarity 6 / Stacks Epoch 4.0** activates on mainnet. Run the round-trip locally any time in **Clarinet ≥ 3.21 simnet**, no node.
 
 </Banner>
 
 ## The two halves
 
 - **On-chain (the node):** `get-bitcoin-tx-output?` parses one output of a serialized BTC tx; `verify-merkle-proof` proves it committed in a block.
-- **Off-chain (`@secondlayer/stacks/bitcoin`):** shape the data those built-ins demand — right merkle proof, internal byte order, witness stripped — and decode the results.
+- **Off-chain (`@secondlayer/stacks/bitcoin`):** shape the data those built-ins demand (right merkle proof, internal byte order, witness stripped) and decode the results.
 
 Unlocks:
 
@@ -29,7 +29,7 @@ Unlocks:
 bun add @secondlayer/stacks
 ```
 
-Subpath import — tree-shakes out if unused.
+Subpath import; tree-shakes out if unused.
 
 ```ts
 import { buildTxProof, verifyBitcoinPayment } from "@secondlayer/stacks/bitcoin";
@@ -72,7 +72,7 @@ const result = await verifyBitcoinPayment(client, {
 
 <Callout type="note" title="`contract` is optional on mainnet">
 
-Omit it and the reference adapter resolves automatically. Pass it to use your own verifier — or on any network without a published adapter, where the call throws until you do.
+Omit it and the reference adapter resolves automatically. Pass it to use your own verifier, or on any network without a published adapter, where the call throws until you do.
 
 </Callout>
 
@@ -94,14 +94,14 @@ const proof = await buildTxProof(source, {
 | Source | Use |
 | --- | --- |
 | `bitcoinRpcSource({ url, auth })` | Your own Bitcoin Core node (`-txindex`). Trustless, the default. |
-| `esploraSource({ url })` | Any Esplora REST endpoint — blockstream, mempool.space, self-hosted. Hosted fallback. |
+| `esploraSource({ url })` | Any Esplora REST endpoint: blockstream, mempool.space, self-hosted. Hosted fallback. |
 | `fallbackProofSource([primary, …])` | Chain them: try your node, fall back to hosted. |
 
 Also exported: `parseBitcoinTx`, `parseBlockHeader`, `stripWitness`, `doubleSha256`, `reverseBytes`, `buildMerkleProof`, `merkleRoot`.
 
 ## Encode for Clarity
 
-Internal byte order, flat args, `tx-count` (not tree depth) — the foot-gun this module absorbs.
+Internal byte order, flat args, `tx-count` (not tree depth): the foot-gun this module absorbs.
 
 ```ts
 import {
@@ -120,22 +120,22 @@ const spk = parseOutputScript(out.script);     // { type: "p2pkh" | "p2wpkh" | "
 
 ## The reference adapter
 
-Built-ins are callable only from *inside* a contract, never over RPC. The reference [`spv-adapter`](https://github.com/ryanwaits/secondlayer/blob/main/contracts/contracts/spv-adapter.clar) wraps them — read-only, no state, no custody, at `clarity_version = 6` / `epoch = "4.0"`. Copy it, or ship your own with the same shape.
+Built-ins are callable only from *inside* a contract, never over RPC. The reference [`spv-adapter`](https://github.com/ryanwaits/secondlayer/blob/main/contracts/contracts/spv-adapter.clar) wraps them: read-only, no state, no custody, at `clarity_version = 6` / `epoch = "4.0"`. Copy it, or ship your own with the same shape.
 
 | Network | Adapter |
 | --- | --- |
 | Mainnet | `SP2M1DE95TS0QBM4K893X6ST49FFJ53CCX9CYWNVY.spv-adapter`, live at Epoch 4.0 |
-| Testnet | None — testnet has no Epoch 4.0, so the built-ins don't exist. Pass your own `contract`. |
+| Testnet | None: testnet has no Epoch 4.0, so the built-ins don't exist. Pass your own `contract`. |
 | Devnet | Deploy it yourself; set `epoch_4_0` in `settings/Devnet.toml`. |
 
 `SPV_ADAPTER_CONTRACTS` and `getSpvAdapter(network)` expose the principal to pin it yourself.
 
 | Function | Wraps |
 | --- | --- |
-| `get-tx-output` | `get-bitcoin-tx-output?` — parse one output |
-| `verify-merkle` | `verify-merkle-proof` — membership under a supplied root |
+| `get-tx-output` | `get-bitcoin-tx-output?`, parses one output |
+| `verify-merkle` | `verify-merkle-proof`, membership under a supplied root |
 | `header-merkle-root` | slice the merkle root out of an 80-byte header |
-| `was-tx-mined` | composed: authenticate the header against `get-burn-block-info?`, then prove inclusion — atomically |
+| `was-tx-mined` | composed: authenticate the header against `get-burn-block-info?`, then prove inclusion, atomically |
 
 `was-tx-mined` returns:
 
@@ -155,7 +155,7 @@ const verifier = bitcoinVerifier(client, {
 const mined = await verifier.wasTxMined(proof);
 ```
 
-To gate value on a proof, call the same built-ins from a `define-public` in your own contract — consensus-enforced, not a read-only query.
+To gate value on a proof, call the same built-ins from a `define-public` in your own contract, which is consensus-enforced rather than a read-only query.
 
 ## Run it in Clarinet simnet
 
@@ -172,7 +172,7 @@ Drive it with [`@stacks/clarinet-sdk`](https://www.npmjs.com/package/@stacks/cla
 
 ## Gate on activation
 
-SIP-044 rides the same Epoch 4.0 fork as `pox-5` — Bitcoin block **960,230** on mainnet, exported as `EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET`. `isClarity6Active` compares the node's burn height against it.
+SIP-044 rides the same Epoch 4.0 fork as `pox-5`: Bitcoin block **960,230** on mainnet, exported as `EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET`. `isClarity6Active` compares the node's burn height against it.
 
 ```ts
 import { isClarity6Active } from "@secondlayer/stacks/bitcoin";
@@ -188,7 +188,7 @@ const onDevnet = await isClarity6Active(devnetClient, { activationBurnHeight: 12
 
 <Callout type="note" title="SPV trust-minimizes verification, not custody">
 
-Both prove a Bitcoin fact to a contract; neither moves or guards funds. Out-of-range heights — before the chain launched, or newer than the node's last-processed burn block — also return `(err u1)`, so a very recent tx may need to wait. Flash blocks (Bitcoin blocks with no Stacks block) are *not* a gap: `get-burn-block-info? header-hash` is indexed by burn height.
+Both prove a Bitcoin fact to a contract; neither moves or guards funds. Out-of-range heights (before the chain launched, or newer than the node's last-processed burn block) also return `(err u1)`, so a very recent tx may need to wait. Flash blocks (Bitcoin blocks with no Stacks block) are *not* a gap: `get-burn-block-info? header-hash` is indexed by burn height.
 
 </Callout>
 

@@ -1,6 +1,6 @@
 # Console
 
-A web UI for your instance — subgraph tables, webhook deliveries, sync status, archive coverage.
+A web UI for your instance: subgraph tables, webhook deliveries, sync status, archive coverage.
 
 ## Start it
 
@@ -11,13 +11,13 @@ docker compose --profile console up -d
 secondlayer console   # opens http://localhost:3801/console
 ```
 
-Port `3801`, override with `CONSOLE_PORT`. It reads your instance over the compose network — nothing leaves your box.
+Port `3801`, override with `CONSOLE_PORT`. It reads your instance over the compose network, so nothing leaves your box.
 
 ## What's in it
 
 | Screen | What you get |
 | --- | --- |
-| Overview | Instance health at a glance — tips, decoder lag, active subgraphs |
+| Overview | Instance health at a glance: tips, decoder lag, active subgraphs |
 | Subgraphs | Every deployed subgraph, its status, and its version |
 | Subgraph detail | Tables, row counts, and the reindex/backfill controls |
 | Table browser | Paginated rows for any table, no `curl` |
@@ -60,7 +60,7 @@ example.com {
 | Alternative | How |
 | --- | --- |
 | Cloudflare Access | Put the `/console` path behind an Access policy; the origin stays token-gated underneath |
-| Tailscale | Don't publish the port at all — bind to the tailnet and skip public exposure |
+| Tailscale | Don't publish the port at all; bind to the tailnet and skip public exposure |
 
 Per-user console logins are deliberately not a feature. One instance, one token; your proxy decides who reaches it.
 

@@ -50,7 +50,7 @@ For Index specifically, call `index_discover` to learn every event type, its col
 
 Reads are cursor-paginated; writes that kick off work (reindex, backfill, replay, deploy) return an `operationId` to poll.
 
-### Index — decoded reads
+### Index: decoded reads
 
 | Tool | What it does |
 | --- | --- |
@@ -64,7 +64,7 @@ Reads are cursor-paginated; writes that kick off work (reindex, backfill, replay
 | `index_print_schema` | Per-topic print payload schemas for a contract, inferred from on-chain history; read before writing `print_event` handlers |
 | `batch_query` | Up to 10 public `/v1` reads in one round trip |
 
-### Subgraphs — your own indexer
+### Subgraphs: your own indexer
 
 | Tool | What it does |
 | --- | --- |
@@ -78,13 +78,13 @@ Reads are cursor-paginated; writes that kick off work (reindex, backfill, replay
 | `subgraphs_stop` | Cancel an in-flight reindex/backfill |
 | `subgraphs_delete` | Delete a subgraph and its data |
 
-### Streams — raw firehose
+### Streams: raw firehose
 
 | Tool | What it does |
 | --- | --- |
 | `streams_dumps` | List the signed bulk dumps manifest (cold backfill). Live Streams reads are REST-only at `/v1/streams/*`. |
 
-### Subscriptions — webhooks
+### Subscriptions: webhooks
 
 | Tool | What it does |
 | --- | --- |

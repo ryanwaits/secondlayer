@@ -14,9 +14,9 @@ Every feed offers the same three verbs. They are not interchangeable.
 
 | Verb | Gives you | Follows cursors | Checkpoints | Reorgs | Ends |
 | --- | --- | --- | --- | --- | --- |
-| `list()` | One page plus the envelope | No — you pass `cursor` back | No | Reports `reorgs[]`; you act | Immediately |
+| `list()` | One page plus the envelope | No; you pass `cursor` back | No | Reports `reorgs[]`; you act | Immediately |
 | `walk()` | An async iterable of rows | Yes, automatically | No | Ignored | On catching the tip |
-| `consume()` | A loop calling your `onBatch` | Yes, automatically | Yes — you commit the cursor | Rewinds and fires `onReorg` | Never; tails until aborted |
+| `consume()` | A loop calling your `onBatch` | Yes, automatically | Yes; you commit the cursor | Rewinds and fires `onReorg` | Never; tails until aborted |
 
 ```ts
 const { rows, next_cursor } = await sl.index.blocks.list({ limit: 10 }); // one page
@@ -69,10 +69,10 @@ await index.events.consume({
 | Option | Effect |
 | --- | --- |
 | `eventType` | A literal narrows the rows: `"ft_transfer"` hands `onBatch` typed `amount`/`sender`, `"print"` hands it `payload.topic`. No discriminant check to write |
-| `contractId` | One id, or an array to follow a whole protocol on one cursor — `["…sbtc-token", "…sbtc-registry"]`, up to 20. Mutually exclusive with `trait` |
+| `contractId` | One id, or an array to follow a whole protocol on one cursor: `["…sbtc-token", "…sbtc-registry"]`, up to 20. Mutually exclusive with `trait` |
 | `txContext: true` | Same on `walk` and `list`; every row carries its submitting tx, so no per-event `/v1/index/transactions` call |
 | `finalizedOnly: true` | Holds delivery to rows at or below `tip.finalized_height`; finalized data never reorgs, so `onReorg` is unnecessary |
-| `signal` | Checked at the top of the loop, so the in-flight batch always commits — see [Deploy](/docs/deploy#handle-sigterm) |
+| `signal` | Checked at the top of the loop, so the in-flight batch always commits; see [Deploy](/docs/deploy#handle-sigterm) |
 | `index.contractCalls.consume()` | Same loop for decoded calls; already carries `sender`/`function_name`, so it needs no `txContext` |
 
 Where to run it: [Deploy](/docs/deploy).
@@ -84,10 +84,10 @@ Where to run it: [Deploy](/docs/deploy).
 | Field | Is |
 | --- | --- |
 | `cursor` | The checkpoint to commit alongside your rows |
-| `height` | Highest canonical block a row was DELIVERED from — event recency, parks on a quiet filter |
-| `scannedHeight` | Highest block VERIFIED — an empty page proves nothing matches up to the tip; rolled back on a reorg |
+| `height` | Highest canonical block a row was DELIVERED from; event recency, parks on a quiet filter |
+| `scannedHeight` | Highest block VERIFIED; an empty page proves nothing matches up to the tip; rolled back on a reorg |
 | `tipHeight` | Chain tip as of this page's read |
-| `blocksBehind` | `tipHeight - scannedHeight`, floored at `0` — real backlog; `~0` for a caught-up tail even when `height` is old |
+| `blocksBehind` | `tipHeight - scannedHeight`, floored at `0`; real backlog, `~0` for a caught-up tail even when `height` is old |
 
 Want the loop run for you instead: [Subgraphs](/docs/subgraphs).
 
@@ -189,9 +189,9 @@ curl "http://127.0.0.1:3800/v1/index/events?event_type=stx_transfer&limit=20"
 | `/v1/index/transactions` · `/{tx_id}` | Full transaction documents (fee, nonce, sponsored, post-conditions, decoded payload) | `type`, `sender`, `contract_id`; `/{tx_id}/proof` returns an inclusion proof ([Verification](/docs/verification)) |
 | `/v1/index/blocks` · `/{height_or_hash}` | Decoded blocks, list or single | — |
 | `/v1/index/canonical` | Canonical block-hash map, one row per height, orphans excluded | `from_height` |
-| `/v1/index/stacking` | Decoded PoX-4 stacking actions (stack-stx, delegate-stx, …) (historical — era ended at Epoch 4.0; live: `/v1/index/pox5/events`) | `function_name`, `stacker`, `caller` |
+| `/v1/index/stacking` | Decoded PoX-4 stacking actions (stack-stx, delegate-stx, …) (historical: era ended at Epoch 4.0; live: `/v1/index/pox5/events`) | `function_name`, `stacker`, `caller` |
 | `/v1/index/pox5/events` | Decoded PoX-5 print events, all 19 topics ([PoX-5](/docs/pox5)) | `topic`, `staker`, `signer`, `signer_manager`, `bond_index`, `reward_cycle` |
-| `/v1/index/mempool` · `/{tx_id}` | Pending transactions — no `block_height`/`result`, plus `received_at`; `404`s once mined, never cached | `sender`, `type`, `contract_id`, `function_name` |
+| `/v1/index/mempool` · `/{tx_id}` | Pending transactions: no `block_height`/`result`, plus `received_at`; `404`s once mined, never cached | `sender`, `type`, `contract_id`, `function_name` |
 
 On the events and contract-call feeds, `contract_id` also takes a comma-separated set (`?contract_id=SP1.a,SP1.b`, max 20): one cursor over a protocol's contracts instead of one consumer each. For "every contract of a standard" use `trait`, which picks up contracts deployed after you ship.
 
@@ -225,5 +225,5 @@ MCP exposes the same families as tools: `index_events`, `index_transactions`, `i
 export const metadata = {
 	title: "Index — Secondlayer Docs",
 	description:
-		"Decoded Stacks data, kept indexed: sweep it into your own tables with a checkpointed consumer, cursors, reorg rewind, and codegen — or read it keyless.",
+		"Decoded Stacks data, kept indexed: sweep it into your own tables with a checkpointed consumer, cursors, reorg rewind, and codegen, or read it keyless.",
 };

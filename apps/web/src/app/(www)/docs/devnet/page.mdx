@@ -1,6 +1,6 @@
 # Devnet
 
-Run the full Secondlayer stack — Postgres, indexer, API, subgraph processor — against your local Clarinet devnet. No cloud, no keys.
+Run the full Secondlayer stack (Postgres, indexer, API, subgraph processor) against your local Clarinet devnet. No cloud, no keys.
 
 <Callout type="note" title="Coming from Chainhook?">
 
@@ -33,7 +33,7 @@ Secondlayer stack up
 ```
 
 <Callout type="tip" title="Patch config without starting Docker">
-Pass `--no-up` to write `settings/Devnet.toml` and the compose file without starting containers — then bring it up yourself with `docker compose -f .secondlayer/docker-compose.yml up -d`.
+Pass `--no-up` to write `settings/Devnet.toml` and the compose file without starting containers, then bring it up yourself with `docker compose -f .secondlayer/docker-compose.yml up -d`.
 </Callout>
 
 ### Options
@@ -55,7 +55,7 @@ clarinet devnet start
 
 ## Deploy a subgraph against it
 
-Point the CLI at the local API — no login, no token on loopback:
+Point the CLI at the local API, with no login and no token on loopback:
 
 ```bash
 SL_API_URL=http://localhost:3800 secondlayer subgraphs deploy ./subgraph.ts
@@ -99,5 +99,5 @@ secondlayer devnet down --purge    # stop and wipe the local index volumes
 export const metadata = {
 	title: "Devnet — Secondlayer Docs",
 	description:
-		"Run the full Secondlayer stack against your local Clarinet devnet — deploy contracts and watch subgraphs index them, no cloud, no keys.",
+		"Run the full Secondlayer stack against your local Clarinet devnet: deploy contracts and watch subgraphs index them, no cloud, no keys.",
 };

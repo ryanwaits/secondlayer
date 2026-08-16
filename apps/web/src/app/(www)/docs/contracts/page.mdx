@@ -1,6 +1,6 @@
 # Contract discovery
 
-Find every contract conforming to a token standard — all SIP-010 tokens, all SIP-009 NFTs — without maintaining a list of addresses.
+Find every contract conforming to a token standard (all SIP-010 tokens, all SIP-009 NFTs) without maintaining a list of addresses.
 
 Secondlayer classifies each deployed contract two ways: **declared**, by parsing the source's `(impl-trait …)`, and **inferred**, by statically matching the ABI shape (catching contracts that conform without declaring).
 
@@ -36,7 +36,7 @@ Served from your instance's `/v1`.
 | `limit` | 1–500, default 100. |
 | `cursor` | Resume token from the previous response's `next_cursor` (`null` on the last page). |
 
-A subgraph source can target a trait instead of a contract and index the whole standard, including contracts deployed later — see [Index by standard](/docs/subgraphs#index-by-standard-not-by-address).
+A subgraph source can target a trait instead of a contract and index the whole standard, including contracts deployed later; see [Index by standard](/docs/subgraphs#index-by-standard-not-by-address).
 
 export const metadata = {
 	title: "Contract discovery — Secondlayer Docs",

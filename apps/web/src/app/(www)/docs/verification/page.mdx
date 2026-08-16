@@ -13,7 +13,7 @@ Prove a transaction is in a Stacks (Nakamoto) block, and that the cycle's signer
 curl "http://127.0.0.1:3800/v1/index/transactions/0x<tx_id>/proof"
 ```
 
-An open read on your instance. A `200` returns the raw transaction, raw header, merkle path, and — only when the reward set could be resolved — `consensus`:
+An open read on your instance. A `200` returns the raw transaction, raw header, merkle path, and (only when the reward set could be resolved) `consensus`:
 
 ```json
 {
@@ -94,7 +94,7 @@ const trustless = verifyTransactionProof(proof, { rewardSet });
 // trustless.rewardSetSource === "provided"
 ```
 
-> Verification uses Node's crypto (via `@secondlayer/shared`) — server-side only.
+> Verification uses Node's crypto (via `@secondlayer/shared`), so server-side only.
 
 ## Reference
 

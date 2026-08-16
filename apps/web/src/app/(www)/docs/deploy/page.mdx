@@ -8,7 +8,7 @@ Four files, whatever the target:
 
 | File | Does |
 | --- | --- |
-| `indexer.ts` | The `consume()` loop — `onBatch` writes rows, `onReorg` rolls them back |
+| `indexer.ts` | The `consume()` loop: `onBatch` writes rows, `onReorg` rolls them back |
 | `schema.ts` | Your tables, plus the checkpoint that makes a restart free |
 | `health.ts` | `GET /health` on `PORT`, so the platform can tell live from wedged |
 | `Dockerfile` | One image; every target below takes it unchanged |
@@ -17,7 +17,7 @@ The loop lives in [Index](/docs/index#build-your-index-on-it); the checkpoint, t
 
 ## Point it at your instance
 
-Your instance is the source — [run it first](/docs/self-host). The consumer needs a reachable URL:
+Your instance is the source, so [run it first](/docs/self-host). The consumer needs a reachable URL:
 
 ```bash
 SL_API_URL=http://127.0.0.1:3800        # same box as the instance
@@ -25,18 +25,18 @@ SL_API_URL=http://indexer.tailnet:3800  # tailnet or private network
 INSTANCE_TOKEN=…                        # required once the API binds past loopback
 ```
 
-Loopback reads are open. Any other bind needs `INSTANCE_TOKEN` set on the instance and in the consumer's env — see [Authentication](/docs/authentication).
+Loopback reads are open. Any other bind needs `INSTANCE_TOKEN` set on the instance and in the consumer's env; see [Authentication](/docs/authentication).
 
 ## Pick a target
 
 | Target | Process model | The one thing to get right |
 | --- | --- | --- |
-| **Same box** | Compose service or systemd unit | Zero network hop — [Docker and systemd](/docs/deploy/docker) |
+| **Same box** | Compose service or systemd unit | Zero network hop. [Docker and systemd](/docs/deploy/docker) |
 | **Railway** | Persistent container | `railway.json` with `healthcheckPath: "/health"`; `PORT` arrives injected |
-| **Render** | Persistent container | `type: web`, never Background Worker — workers get no health check and no `PORT`; keep the public route read-only |
-| **Fly** | Persistent VM | `auto_stop_machines = false`, `min_machines_running = 1` — scale-to-zero suspends an outbound-only loop minutes after deploy. Or skip persistence: run `mode: "bounded"` on a schedule |
+| **Render** | Persistent container | `type: web`, never Background Worker: workers get no health check and no `PORT`; keep the public route read-only |
+| **Fly** | Persistent VM | `auto_stop_machines = false`, `min_machines_running = 1`, since scale-to-zero suspends an outbound-only loop minutes after deploy. Or skip persistence: run `mode: "bounded"` on a schedule |
 
-Same Dockerfile everywhere. The remote targets only work if they can reach your instance — a public bind with `INSTANCE_TOKEN`, or a shared private network.
+Same Dockerfile everywhere. The remote targets only work if they can reach your instance: a public bind with `INSTANCE_TOKEN`, or a shared private network.
 
 ## Make writes idempotent
 
@@ -46,7 +46,7 @@ Delivery is at-least-once. A process killed between the read and the commit re-r
 .onConflict((oc) => oc.column("tx_id").doNothing())
 ```
 
-A [sink](/docs/sinks) commits rows and checkpoint in one transaction and injects the reorg rollback — use one rather than hand-rolling the contract.
+A [sink](/docs/sinks) commits rows and checkpoint in one transaction and injects the reorg rollback, so use one rather than hand-rolling the contract.
 
 ## Bind a port
 
@@ -59,7 +59,7 @@ const health = consumerHealth({ staleAfterMs: 120_000 });
 Bun.serve({ port: Number(process.env.PORT ?? 8080), fetch: health.handler });
 ```
 
-Feed `health.record` from `onProgress` — wiring in [Sinks](/docs/sinks#health-and-shutdown). Gate on freshness, not lag: a genesis backfill sits millions of blocks behind the tip and is perfectly healthy. A wedged loop stops reporting pages — that's the restartable signal.
+Feed `health.record` from `onProgress`; wiring in [Sinks](/docs/sinks#health-and-shutdown). Gate on freshness, not lag: a genesis backfill sits millions of blocks behind the tip and is perfectly healthy. A wedged loop stops reporting pages, which is the restartable signal.
 
 ## Handle SIGTERM
 
@@ -77,13 +77,13 @@ await index.contractCalls.consume({
 
 <Callout type="warning" title="PID 1 has to be your process">
 
-A shell-form `CMD` makes `/bin/sh` PID 1, which swallows `SIGTERM` — the loop never hears it and the platform hard-kills after its grace period. Use exec form: `CMD ["bun", "run", "indexer.ts"]`.
+A shell-form `CMD` makes `/bin/sh` PID 1, which swallows `SIGTERM`, so the loop never hears it and the platform hard-kills after its grace period. Use exec form: `CMD ["bun", "run", "indexer.ts"]`.
 
 </Callout>
 
 ## Bring your database
 
-`DATABASE_URL` is the consumer's own Postgres, separate from the instance's. Any Postgres works; keep it in the same region — the loop commits a transaction per batch, so round-trip latency sets the backfill ceiling.
+`DATABASE_URL` is the consumer's own Postgres, separate from the instance's. Any Postgres works; keep it in the same region, since the loop commits a transaction per batch, so round-trip latency sets the backfill ceiling.
 
 <Callout type="note" title="Backfill depth is your instance's history">
 
@@ -94,5 +94,5 @@ A shell-form `CMD` makes `/bin/sh` PID 1, which swallows `SIGTERM` — the loop 
 export const metadata = {
 	title: "Deploy — Secondlayer Docs",
 	description:
-		"Where to run a checkpointed consumer against your own instance: same box, Railway, Render, or Fly — with the health, shutdown, and idempotency rules that make redeploys safe.",
+		"Where to run a checkpointed consumer against your own instance: same box, Railway, Render, or Fly, with the health, shutdown, and idempotency rules that make redeploys safe.",
 };
