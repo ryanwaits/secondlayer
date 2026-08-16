@@ -1,0 +1,71 @@
+# Reading rows
+
+A deployed subgraph serves its tables four ways: paged REST, a live stream, a webhook, and a typed ORM schema over the same Postgres.
+
+## Pages, cursors, and sorting
+
+Pages are `_id`-keyset: `?cursor=<next_cursor>` resumes, `_order=asc|desc` sets direction. Sort by one column instead with `?_sort=<column>&_order=asc|desc`, and the cursor pairs that column with `_id` as a tiebreaker, so pages stay stable even when values tie. Multi-column `_sort=a,b` and `jsonb` columns are rejected with `400`, and so is `_offset`. Full grammar: [REST API](/docs/rest-api).
+
+```bash
+# top holders by amount, paginated
+curl http://127.0.0.1:3800/v1/subgraphs/asset-holdings/holdings \
+  -G -d "_limit=5" -d "_sort=amount" -d "_order=desc"
+```
+
+Mark a column `indexed: true` if you plan to sort on it. Sorted reads get a
+`(column, _id)` index that matches the page order, so deep pages stay flat
+instead of re-sorting every tie group. Existing tables pick that index up on
+their next reindex or schema change.
+
+`GET /v1/subgraphs` lists your instance's subgraphs; `GET /v1/subgraphs/sbtc-flows` returns metadata. Row-by-id `/:table/:id`, counts `/:table/count`, rollups `/:table/aggregate`: see [aggregates](/docs/rest-api#aggregates) and the [API reference](/docs/api-reference).
+
+## Stream rows in real time
+
+Tail a table over Server-Sent Events from the tip, or `?since=<block_height>` to replay a height then tail live. Column filters work as query params.
+
+```bash
+curl -N http://127.0.0.1:3800/v1/subgraphs/sbtc-flows/transfers/stream \
+  -G -d "since=8050000"
+```
+
+`subscribe` wraps it with the same `where` filters as `findMany` and returns an unsubscribe:
+
+```ts
+const unsubscribe = subgraph.transfers.subscribe(
+  (row) => console.log(row),
+  { where: { sender: "SP3PE7Q9...X44J" }, since: 8050000, onError: console.error },
+);
+```
+
+It uses the global `EventSource`, so browser or **Node ≥ 22** only. Wire contract: [Streaming (SSE)](/docs/rest-api#streaming-sse).
+
+## Get told when it changes
+
+SSE holds a connection open, which is fine for a browser and wrong for a queue or a serverless function. To have rows delivered instead, point a subscription at any table in the subgraph:
+
+```bash
+secondlayer subscriptions create sbtc-webhook \
+  --no-scaffold \
+  --subgraph sbtc-flows \
+  --table transfers \
+  --url https://your-app.com/webhooks/sbtc
+```
+
+Deliveries are signed, retried, and land in a dead-letter queue you can inspect and requeue. Full options, the delivery envelope, and signature verification: [Subscriptions](/docs/subscriptions).
+
+## Typed ORM schemas (codegen)
+
+Subgraph rows live in your instance's Postgres. `codegen` emits a typed ORM schema for a subgraph's tables so your app reads them with Prisma, Drizzle, or Kysely:
+
+```bash
+secondlayer subgraphs codegen ./subgraph.config.ts --target prisma -o prisma/schema.prisma
+npx prisma generate
+```
+
+Generators: `--target prisma|drizzle|kysely`. Secondlayer owns the DDL, so treat the tables as read-only: verify with `prisma db pull`, never `migrate`.
+
+export const metadata = {
+	title: "Reading rows — Secondlayer Docs",
+	description:
+		"Read a Stacks subgraph table: keyset pages and sorting, SSE streams, webhook delivery, and typed Prisma/Drizzle/Kysely schemas.",
+};

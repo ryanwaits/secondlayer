@@ -1,0 +1,109 @@
+# Writing handlers
+
+A handler turns one matched event into rows. Accumulating a value, reading contract state, and typing a `print` payload each behave differently than they look.
+
+## Counters and balances: use `increment`
+
+`ctx.increment(table, key, deltas)` applies a **delta** in one atomic
+statement (upserting the row on the table's `uniqueKeys`). Reach for it
+whenever a value accumulates:
+
+```ts
+ctx.increment("balances", { holder }, { amount: -amount });
+```
+
+The read-modify-write it replaces (`findOne` → compute → `upsert`) looks
+equivalent and isn't. Two events touching the same row in one block both read
+the stale value and the second write wins, so updates are silently lost. It is
+also not replay-safe: under `backfillMode: "concurrent"` the history fill
+revisits blocks, and a non-commutative handler double-counts. Deltas commute,
+so order doesn't matter, and a reorg rewind reverses them cleanly.
+
+## Reading the chain from a handler
+
+Some facts aren't in any event. A token's `decimals`, a pool's reserves, an
+NFT's metadata URI: those live in contract state, and without them `amount` is
+a bare integer nobody can render. `ctx.client` calls read-only functions for
+you:
+
+```ts
+import { readContractAt } from "@secondlayer/subgraphs";
+
+const SIP010 = { functions: [ /* get-decimals, get-symbol … */ ] } as const;
+
+handlers: {
+  transfer: async (event, ctx) => {
+    const token = readContractAt(ctx, contractId, SIP010, {
+      cache: "contract-constant",
+    });
+    const decimals = await token.read.getDecimals({}); // bigint — typed from the ABI
+  },
+},
+```
+
+Same shape as [`getContract`](/docs/stacks), minus `call`: a handler indexes the
+chain, it never writes to it.
+
+**Every read is pinned to the block being processed.** The call carries that
+block's `index_block_hash`, so reprocessing the same blocks produces
+byte-identical rows. A block whose id was never persisted **throws** rather
+than falling back to the node's tip, which would make the same reindex return
+different values.
+
+<Callout type="tip" title="Declare what can't change">
+
+Results are cached in Postgres, keyed by block, which dedupes reads across
+events but still costs one call per block. For values that genuinely cannot
+change, pass `cache: "contract-constant"` and it is fetched **once**, ever.
+That is what makes a full backfill affordable. Declaring it on a value that
+does change pins the first answer forever, so it is opt-in and never inferred.
+
+</Callout>
+
+Self-hosting: set `STACKS_NODE_RPC_URL` on the subgraph processor, pointing at
+the node you already run rather than a new service. See
+[self-host](/docs/self-host#config).
+
+## Typed print payloads
+
+Clarity ABIs don't describe `print` payloads, so `event.data` is untyped. A `prints` map types it, discriminated on `event.topic`:
+
+```ts
+sources: {
+  registry: {
+    type: "print_event",
+    contractId: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry",
+    topic: "completed-deposit",
+    prints: {
+      "completed-deposit": { bitcoinTxid: "text", amount: "uint" },
+    },
+  },
+},
+handlers: {
+  registry: (event, ctx) => {
+    event.data.bitcoinTxid; // string — typed, no casting
+    event.data.amount;      // bigint
+  },
+},
+```
+
+<Callout type="warning" title="Don't guess print fields">
+
+Payload shape varies per topic, and a guessed field silently nulls forever. Scaffold from the contract's **observed** history instead.
+
+</Callout>
+
+```bash
+secondlayer subgraphs create sbtc-registry \
+  --from-contract SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry
+```
+
+Scaffolds from the [print-schema endpoint](/docs/index#print-schemas): one `print_event` source per topic with its `prints` map, plus one wide table (`--table-per-topic` splits it per topic). `secondlayer subgraphs codegen <file> --payloads` emits a `.d.ts` of the payload types.
+
+Deploys return advisory `warnings` when a handler reads an `event.data` field never observed for its topic (pinned `contractId` sources only). If the source **declares** a `prints` map, the same finding is an error and the deploy is refused: you stated the shape, so a mismatch is a defect rather than a hint.
+
+export const metadata = {
+	title: "Writing handlers — Secondlayer Docs",
+	description:
+		"Handler rules for Stacks subgraphs: atomic increments, block-pinned contract reads, and typed print payloads.",
+};
