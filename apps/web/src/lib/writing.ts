@@ -37,8 +37,8 @@ export const POSTS: WritingPost[] = [
 	{
 		slug: "checkpoint-receipt-not-bookmark",
 		number: 1,
-		title: "The checkpoint is a receipt, not a bookmark",
-		dek: "Restart a consumer and it logs the same cursor it logged an hour ago, forty thousand blocks behind the tip. Nothing is stuck. Here's how to read every number your indexer reports, and why the design works this way.",
+		title: "Why your indexer resumes from the same block",
+		dek: "Restart a consumer and it logs the same cursor it logged an hour ago, forty thousand blocks behind the tip. It's caught up: the checkpoint marks the last row it kept, and the other numbers on the health endpoint measure something else.",
 		date: "2026-08-01",
 		tags: ["indexers", "checkpoints"],
 		readingTime: "8 min",

@@ -1433,10 +1433,10 @@ export default function FigureLibraryPage() {
 					]}
 					reveal={
 						<>
-							<b>The same cursor.</b> The checkpoint is a receipt for the last
-							delivered row, and nothing was delivered while the contract was
-							quiet. The first poll re-verifies the empty range in one seek; the
-							scan position is recomputed, not stored.
+							The checkpoint comes back with the same cursor, because it is a
+							receipt for the last delivered row and nothing was delivered while
+							the contract was quiet. The first poll re-verifies the empty range
+							in one seek; the scan position is recomputed, not stored.
 						</>
 					}
 				/>

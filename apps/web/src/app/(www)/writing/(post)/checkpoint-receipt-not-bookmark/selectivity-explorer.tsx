@@ -25,7 +25,7 @@ function layout(selectivity: number) {
 }
 
 /**
- * Fig 5 of "The checkpoint is a receipt, not a bookmark": filter
+ * Fig 5 of "Why your indexer resumes from the same block": filter
  * selectivity splits/merges the receipt and bookmark pointers. The one
  * explorer of the post, composed from the library's D1 primitives.
  */

@@ -25,9 +25,9 @@ resuming from 8637064:1
 
 Which is fine, except it printed the same thing yesterday, and the chain tip is forty thousand blocks past that cursor now. It's tempting to read this as a stuck consumer: surely "continue where you left off" should mean the *last place you checked*, not the last place you found something.
 
-It isn't stuck, and the distinction between those two places is the single most useful thing to understand about how checkpointed consumers work.
+The consumer is caught up. Those really are two different places, and expecting the checkpoint to track the last place you *looked* rather than the last place you *kept something* is where the confusion starts.
 
-## Three heights, three facts
+## What the health endpoint is telling you
 
 A consumer's health endpoint reports three different heights, and the whole story lives in the gaps between them:
 
@@ -63,7 +63,7 @@ On a busy feed all three heights travel together, which is why the distinction i
 
 ## What a poll actually is
 
-The key fact behind everything else: a consumer never reads blocks. Not on restart, not ever. The server already read every block, decoded every event, and filed the results in a sorted index: a card catalog that took millions of blocks of effort to build, maintained so nobody has to walk the shelves again. The consumer's entire relationship with the chain is one question, asked every 500 milliseconds:
+A consumer never reads blocks, on restart or at any other time. The server already read every block, decoded every event, and filed the results in a sorted index: a card catalog that took millions of blocks of effort to build, maintained so nobody has to walk the shelves again. The consumer's entire relationship with the chain is one question, asked every 500 milliseconds:
 
 ```
 GET /v1/index/contract-calls
@@ -89,12 +89,12 @@ GET /v1/index/contract-calls
 	/>
 </FigShell>
 
-When the answer is "no rows," the consumer has not skipped forty thousand blocks of work. There was never forty thousand blocks of work. There was one question, and the answer was no. And because a seek costs the same at any cursor age<Sidenote n={1}>B-tree index on (filter, cursor); the seek is O(log n) over the *event* count, not the block count, so cursor age never enters the cost.</Sidenote>, restarting "from" 8,637,064 costs exactly what polling from the tip would cost:
+When the answer is "no rows," the consumer has not skipped forty thousand blocks of work; there was no work sitting there to skip, just one question with a short answer. And because a seek costs the same at any cursor age<Sidenote n={1}>B-tree index on (filter, cursor); the seek is O(log n) over the *event* count, not the block count, so cursor age never enters the cost.</Sidenote>, restarting "from" 8,637,064 costs exactly what polling from the tip would cost:
 
 <FigShell
 	n={3}
 	title="Index seeks per restart, by cursor age"
-	caption="A deliberately boring chart. Four cursor ages, four identical bars: the flatness is the finding. A client-side block walker's version of this chart would be off the page by row three."
+	caption="Four cursor ages, four identical bars. The flatness is the finding; a client-side block walker's version of this chart would be off the page by row three."
 >
 	<BarChart
 		ariaLabel="Bar chart of index seeks needed to resume, for cursors aged one hour, one day, one week, and forty thousand blocks. Every bar is identical at exactly one seek."
@@ -109,11 +109,11 @@ When the answer is "no rows," the consumer has not skipped forty thousand blocks
 	/>
 </FigShell>
 
-The gap between cursor and tip contains, provably per the index, nothing addressed to this consumer. Re-asking is free. Everything else follows from that.
+The gap between cursor and tip contains, provably per the index, nothing addressed to this consumer, which is why re-asking about it costs nothing.
 
 ## Receipts and bookmarks
 
-There are two things a checkpoint could record. A **bookmark** says *where I was looking*. A **receipt** says *what I have safely stored*. They sound interchangeable. They are not, and the difference is what each one costs when the process dies.
+There are two things a checkpoint could record. A **bookmark** says *where I was looking*. A **receipt** says *what I have safely stored*. They sound interchangeable, and on a busy feed they behave identically, so the difference only surfaces in what each one costs when the process dies.
 
 <FigShell
 	n={4}
@@ -166,7 +166,7 @@ That quote is about reorgs, and it reveals the receipt's second property: it poi
 
 ## One pointer, or two
 
-If your instinct says the checkpoint should advance through empty ranges anyway, that instinct probably comes from systems where it does, and in those systems, it should. Subsquid processors and graph-node subgraphs checkpoint the last *processed block*. Kafka consumers commit offsets that march through every message. Not design mistakes: the same rule applied to a different shape of work. In those systems **the client does the walking**: the traversal is real, client-side work, and losing your place means redoing it.
+If your instinct says the checkpoint should advance through empty ranges anyway, that instinct probably comes from systems where it does, and in those systems, it should. Subsquid processors and graph-node subgraphs checkpoint the last *processed block*. Kafka consumers commit offsets that march through every message. Those are the same rule applied to a different shape of work, because in those systems **the client does the walking**: the traversal is real, client-side work, and losing your place means redoing it.
 
 <FigShell
 	n={5}
@@ -176,13 +176,13 @@ If your instinct says the checkpoint should advance through empty ranges anyway,
 	<SelectivityExplorer />
 </FigShell>
 
-Here's the unification, and it's the one idea to leave with. **A receipt and a bookmark are the same pointer whenever everything is delivered.** Kafka delivers every offset; a block walker processes every block; the two coincide and nobody needs two words. They only *split* when a server-side filter makes delivery sparse: when the catalog walks so you don't have to, and "the last thing you gave me" falls behind "the last thing you checked." The split is the visible seam of moving the walk server-side. It shows up in a log line and looks like a bug; it's the design working.
+So the two pointers are really one pointer whenever everything gets delivered. Kafka delivers every offset, a block walker processes every block, the two coincide, and nobody needs two words for them. They only *split* when a server-side filter makes delivery sparse, which is exactly when the catalog is doing the walking for you and "the last thing you gave me" falls behind "the last thing you checked." That gap in the log line is the seam where the walk moved off your machine.
 
 ## Two definitions of "behind"
 
 The split also means there are two honest ways to measure distance from the tip, and they diverge exactly when the feed goes quiet. **Event age** (`tip − last_delivered_height`) is how old the newest matching event is: on our quiet marketplace it climbs all day <InlineSpark points={[0, 1, 2, 3, 4]} tone="b" title="Sparkline: event age climbing steadily near thirty-nine thousand" /> and that is a fact about the *contract*, not the consumer. **Backlog** (`tip − scanned_height`) is how much verified ground the consumer still has to cover: it falls through a backfill and holds at zero <InlineSpark points={[10, 6, 3, 1, 0.5, 0.5]} tone="a" title="Sparkline: backlog falling steeply then flat at zero" /> once caught up. This is what `blocks_behind` reports.
 
-The distinction matters most for monitoring. A dashboard that alerts on event age will page someone about a consumer doing exactly its job. Gate liveness on `ok` (page recency) and capacity on `blocks_behind` (backlog); read `last_delivered_height` as what it is: the age of your data, driven by the chain, not by your infrastructure.
+The distinction matters most for monitoring. A dashboard that alerts on event age will page someone about a consumer doing exactly its job. Gate liveness on `ok` (page recency) and capacity on `blocks_behind` (backlog); read `last_delivered_height` as the age of your data, which the chain controls and your infrastructure doesn't.
 
 `scanned_height` is also conservative on purpose. A capped server scan only claims the cursor it returned; `finalizedOnly` consumers stop at the finalized boundary, because the unfinalized tail is deliberately re-read until it settles; and a reorg rolls the verified position back below the fork, because the new chain above it is unread.
 
@@ -192,15 +192,15 @@ The behaviors that follow from this design, so none of them read as failures:
 
 - **Restart prints the same cursor when the feed is quiet.** The checkpoint is the receipt for the last delivered row; it moves when delivery moves. Resuming re-verifies the empty range in one query.
 - **A caught-up tail is silent.** No matching events means no output and no checkpoint writes; `idle_s` and `ok` on the health endpoint are the proof of life, not the log.
-- **`blocks_behind` falls during a backfill and reads ~0 at the tail**, even while event age grows. Different facts.
+- **`blocks_behind` falls during a backfill and reads ~0 at the tail**, even while event age grows, because the two numbers measure different things.
 - **Checkpoint writes are transactional with your rows.** A crash mid-batch leaves neither rows nor cursor; the batch is simply re-read. That contract, and how to implement it for your own store, is the [sink interface](/docs/sinks).
 
-## The general principle
+## Cheap facts and expensive facts
 
-Checkpoint design compresses to one question: *what can you afford to lose?* Facts that are expensive to lose (delivered data) get durable, transactional storage. Facts that are free to re-derive (where the scan had gotten to) get recomputed and merely *reported*. Most of the confusing surfaces in distributed systems are two facts with different loss-costs wearing the same name, and most of the fix is giving them different names.
+Checkpoint design mostly comes down to one question: what can you afford to lose? Facts that are expensive to lose (delivered data) get durable, transactional storage. Facts that are free to re-derive (where the scan had gotten to) get recomputed and merely *reported*. When a surface like this is confusing, it is often two facts with different loss-costs sharing one name, and giving them separate names is most of the fix.
 
 There's plenty I've skipped: exactly-once delivery (a lie, but a useful one: cursors as idempotency keys get you the honest version), what reorg rollback actually deletes, and why the cursor commits in the same transaction as your rows rather than after them. Those live in the [sinks docs](/docs/sinks).
 
-Anyway: if your indexer greets you with the same cursor every restart, you can now read it as the receipt it is. And when a number on a dashboard feels wrong, it's worth asking which fact it's actually measuring.
+Anyway: next time a dashboard number feels wrong, it's worth asking which fact it's actually measuring before assuming something broke.
 
 <PostFooter slug="checkpoint-receipt-not-bookmark" />
