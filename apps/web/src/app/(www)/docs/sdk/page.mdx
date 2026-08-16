@@ -22,7 +22,7 @@ const sl = new SecondLayer({
 ## One client, every surface
 
 - `sl.streams`: raw, ordered chain events (cursor-paginated, replayable).
-- `sl.index`: decoded rows: FT/NFT transfers, all event types, contract calls, and `printSchema(contractId)` (empirical per-topic [print payload schemas](/docs/index#print-schemas); resolves `null` when the contract has no print history).
+- `sl.index`: decoded rows: FT/NFT transfers, all event types, contract calls, and `printSchema(contractId)`.
 - `sl.contracts`: find deployed contracts by trait (SIP-009/010/013).
 - `sl.subgraphs`: your app-specific tables, plus open `/v1` reads (`rows`).
 - `sl.subscriptions`: create and manage webhook subscriptions (subgraph rows or raw chain events).
@@ -36,47 +36,24 @@ const page = await sl.streams.events.list({
 });
 ```
 
-## Subscribe to chain events
+Each surface documents its own calls:
 
-`sl.subscriptions.create({ name, url, triggers })` opens a webhook on raw chain events, no subgraph. Build `triggers` with the `trigger.*` factories: `contractCall`, `contractDeploy`, `printEvent`, the `stx*`/`ft*`/`nft*` transfer/mint/burn variants, and the sBTC peg triggers. Full catalog and envelope: [Subscriptions](/docs/subscriptions#direct-chain-subscriptions-no-subgraph).
+| Task | Call | Documented in |
+| --- | --- | --- |
+| Webhook on raw chain events | `sl.subscriptions.create({ name, url, triggers })` | [Subscriptions](/docs/subscriptions#direct-chain-subscriptions-no-subgraph) |
+| Re-deliver history | `sl.subscriptions.replay(id, { fromBlock, toBlock })` | [Replay](/docs/subscriptions#replay) |
+| Check a delivery signature | `verifyWebhookSignature`, `verifySecondlayerSignature` | [Receiving deliveries](/docs/subscriptions/deliveries#verify-the-signature) |
+| Prove a tx is in a block | `verifyTransactionProof`, `fetchRewardSet` | [Verification](/docs/verification) |
+| Tail the live firehose | `sl.streams.events.subscribe(opts)` | [Streams](/docs/streams#real-time-firehose-sse) |
+| Read subgraph tables | `sl.subgraphs.rows`, `sl.subgraphs.typed` | [Subgraphs](/docs/subgraphs#read-your-table) |
+| Stream or roll up rows | `subgraph.<table>.subscribe`, `.aggregate` | [Reading rows](/docs/subgraphs/reading) |
+| Let a sink own the transaction | `kyselySink`, `drizzleSink`, `bunSqliteSink` | [Sinks](/docs/sinks) |
 
-`sl.subscriptions.replay(id, { fromBlock, toBlock }): Promise<{ replayId, enqueuedCount, scannedCount }>` re-delivers historical matches — see [Replay](/docs/subscriptions#replay).
+<Callout type="warning" title="trigger.* is not on.*">
 
-> Don't confuse `trigger.*` (from `@secondlayer/sdk`, for chain subscriptions) with `on.*` (from `@secondlayer/stacks`, for subgraph sources in a handler config): they configure different things.
+`trigger.*` (from `@secondlayer/sdk`) configures chain subscriptions. `on.*` (from `@secondlayer/stacks`) configures subgraph sources in a handler config. They configure different things.
 
-## Verify webhooks
-
-- `verifyWebhookSignature(rawBody, headers, secret, toleranceSeconds = 300)` — the per-subscription HMAC; `toleranceSeconds` bounds replay drift.
-- `verifySecondlayerSignature(rawBody, headers, publicKeyPem): boolean` — the universal ed25519 signature. Fetch the key from `GET /public/streams/signing-key`, which returns `{ algorithm, key_id, public_key_pem }`.
-
-Both are canonical in [Subscriptions](/docs/subscriptions/deliveries#verify-the-signature).
-
-## Transaction-inclusion proofs
-
-Prove client-side that a transaction is in a Stacks (Nakamoto) block and that ≥70% of the reward cycle's signer weight attested to it.
-
-```ts
-import { verifyTransactionProof, fetchRewardSet } from "@secondlayer/sdk";
-
-const proof = await fetch(
-  `http://127.0.0.1:3800/v1/index/transactions/${txid}/proof`,
-).then((r) => r.json());
-
-const result = verifyTransactionProof(proof); // reward set embedded in the proof
-
-// Fully trustless: resolve the reward set from your own node
-const rewardSet = await fetchRewardSet({
-  nodeUrl: "https://your-stacks-node:20443",
-  cycle: proof.consensus.reward_cycle,
-});
-const trustless = verifyTransactionProof(proof, { rewardSet });
-```
-
-- `verifyTransactionProof(proof, opts?: { rewardSet?: RewardSet })` returns a `TransactionProofVerifyResult`: `{ level: "anchored" | "consensus", txidMatches, includedInHeader, headerSelfConsistent, signerWeightBps?, thresholdMet?, rewardSetSource?, ok, errors }`.
-- `fetchRewardSet({ nodeUrl, cycle, fetchImpl? })` resolves the reward set from `/v3/stacker_set/{cycle}` on a node you trust, returning `RewardSet | null`.
-- Exported types: `TransactionProof`, `TransactionProofVerifyResult`, `RewardSet`.
-
-Verification uses Node's crypto — server-side only. See [Verification](/docs/verification) for trust levels and the proof endpoint.
+</Callout>
 
 ## Checkpointed consumer
 
@@ -98,46 +75,9 @@ await sl.index.contractCalls.consume({
 });
 ```
 
-- **Reorgs** rewind the cursor to the fork point automatically; `onReorg` fires so you roll back committed rows from `fork_point_height` up.
-- **`fromHeight: 0`** backfills as far back as your instance holds. Official-archive restore is [metered](/docs/authentication#archive-credits).
-- **`finalizedOnly`** holds delivery to rows at or below `tip.finalized_height`.
+Reorgs rewind the cursor to the fork point and fire `onReorg`. `finalizedOnly` holds delivery to rows at or below `tip.finalized_height`, and `fromHeight: 0` backfills as far as your instance holds ([archive restore](/docs/authentication#archive-credits) is metered past that). Full options and the batch envelope: [Index](/docs/index#build-your-index-on-it).
 
-A [sink](/docs/sinks) removes the checkpoint, transaction, and rollback code
-above entirely — it owns all three, and your handler only inserts rows:
-
-```ts
-import { kyselySink } from "@secondlayer/sdk/sinks/kysely";
-
-await sl.index.contractCalls.consume({
-  contractId: "SP...marketplace-v4",
-  sink: kyselySink(db, { id: "sales", tables: ["sales"], height: "height" }),
-  onBatch: async (calls, _envelope, ctx) => {
-    for (const call of calls) await ctx.tx.insertInto("sales").values(...).execute();
-  },
-});
-```
-
-See [Sinks](/docs/sinks), [Index, Build your index on it](/docs/index#build-your-index-on-it).
-
-## Subscribe to the live stream (SSE)
-
-`subscribe({ fromCursor?, types?, notTypes?, contractId?, sender?, recipient?, assetIdentifier?, signal?, onEvent, onError? }): () => void` opens the [Streams SSE firehose](/docs/streams#real-time-firehose-sse). Fetch-based (browser and Node 18+), auto-reconnects from the last delivered cursor until you abort via `signal`, and returns an unsubscribe function.
-
-```ts
-const controller = new AbortController();
-
-const unsubscribe = sl.streams.events.subscribe({
-  types: ["ft_transfer"],
-  contractId: "SP000000000000000000002Q6VF78.sbtc-token",
-  signal: controller.signal,
-  onEvent: (event) => {},
-  onError: (err) => {}, // optional — reconnection is automatic
-});
-
-unsubscribe();
-```
-
-### Signature verification
+## Verifying responses
 
 `createStreamsClient({ apiKey })` verifies both REST reads (`X-Signature`) and SSE frames. The key is fetched once from `/public/streams/signing-key`; a rotated `X-Signature-KeyId` triggers a single refresh.
 
@@ -153,30 +93,6 @@ unsubscribe();
 `new SecondLayer()` does not accept `verify`; use `createStreamsClient` when you need it.
 
 </Callout>
-
-## Subgraph tables
-
-```ts
-const { rows, next_cursor, tip } = await sl.subgraphs.rows("sbtc-flows", "transfers", {
-  order: "desc",
-  limit: 25,
-});
-```
-
-- `sl.subgraphs.rows(name, table, opts)` returns `{ rows, next_cursor, tip }` from the open `/v1` read. Keyless on loopback; pass `INSTANCE_TOKEN` on a non-loopback bind.
-- `sl.subgraphs.typed(def)` (or `getSubgraph(def, opts)`) turns a `defineSubgraph()` definition into typed table clients.
-- `subgraph.<table>.subscribe(onRow, { where?, since?, onError? })` streams new rows over SSE and returns an unsubscribe function; `since: <block_height>` replays from that height, then tails live. See [Subgraphs](/docs/subgraphs).
-
-> Unlike the fetch-based Streams `subscribe`, the row stream uses the global `EventSource`, so it requires the browser or **Node ≥ 22** (it throws otherwise). Its frames are bare rows and aren't signed.
-
-## Aggregate subgraph rows
-
-`subgraph.<table>.aggregate(spec)` runs scalar aggregates over an optional `where` filter. The result shape is inferred from the spec: only the keys you ask for appear, no `as const` needed.
-
-- **`sum`/`min`/`max`** accept numeric columns only (enforced at compile time) and return lossless strings.
-- **`count`/`countDistinct`** return numbers.
-
-Full parameter set: [REST API aggregates](/docs/rest-api#aggregates).
 
 export const metadata = {
 	title: "SDK — Secondlayer Docs",
