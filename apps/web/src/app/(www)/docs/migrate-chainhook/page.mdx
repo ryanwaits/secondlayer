@@ -58,11 +58,11 @@ Every field is in the [full trigger reference](/docs/subscriptions#triggers).
 
 ## Delivery: apply and rollback
 
-Chainhook's `apply` / `rollback` becomes `chain.{type}.apply` per matched event, plus `chain.reorg.rollback` when a block is orphaned. Full envelopes: [delivery reference](/docs/subscriptions#delivery-envelope).
+Chainhook's `apply` / `rollback` becomes `chain.{type}.apply` per matched event, plus `chain.reorg.rollback` when a block is orphaned. Full envelopes: [delivery reference](/docs/subscriptions/deliveries#delivery-envelope).
 
 <Callout type="note" title="Verify the signature">
 
-Every delivery is HMAC-signed (Standard Webhooks) and carries a universal ed25519 signature — verify with `verifyWebhookSignature` before trusting the payload ([how](/docs/subscriptions#verify-the-signature)). Where Chainhook used a bearer token, here the signature is the auth.
+Every delivery is HMAC-signed (Standard Webhooks) and carries a universal ed25519 signature — verify with `verifyWebhookSignature` before trusting the payload ([how](/docs/subscriptions/deliveries#verify-the-signature)). Where Chainhook used a bearer token, here the signature is the auth.
 
 </Callout>
 

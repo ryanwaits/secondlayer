@@ -49,7 +49,7 @@ const page = await sl.streams.events.list({
 - `verifyWebhookSignature(rawBody, headers, secret, toleranceSeconds = 300)` — the per-subscription HMAC; `toleranceSeconds` bounds replay drift.
 - `verifySecondlayerSignature(rawBody, headers, publicKeyPem): boolean` — the universal ed25519 signature. Fetch the key from `GET /public/streams/signing-key`, which returns `{ algorithm, key_id, public_key_pem }`.
 
-Both are canonical in [Subscriptions](/docs/subscriptions#verify-the-signature).
+Both are canonical in [Subscriptions](/docs/subscriptions/deliveries#verify-the-signature).
 
 ## Transaction-inclusion proofs
 

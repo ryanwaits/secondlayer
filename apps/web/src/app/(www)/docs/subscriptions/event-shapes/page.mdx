@@ -1,0 +1,90 @@
+# Event shapes
+
+What `data.event` holds, per trigger. Three shapes: event-level, tx-level, and sBTC.
+
+## Event-level triggers
+
+For `stx_*`, `ft_*`, `nft_*`, and `print_event`, `data.event` is `{ tx_id, type, event_index, data }`:
+
+| Trigger | `event.type` | `event.data` fields |
+| --- | --- | --- |
+| `stx_transfer` | `stx_transfer_event` | `sender?, recipient?, amount, memo` |
+| `stx_mint` | `stx_mint_event` | `recipient?, amount` |
+| `stx_burn` | `stx_burn_event` | `sender?, amount` |
+| `stx_lock` | `stx_lock_event` | `locked_address, locked_amount, unlock_height` |
+| `ft_transfer` | `ft_transfer_event` | `asset_identifier, sender?, recipient?, amount` |
+| `ft_mint` | `ft_mint_event` | `asset_identifier, recipient?, amount` |
+| `ft_burn` | `ft_burn_event` | `asset_identifier, sender?, amount` |
+| `nft_transfer` | `nft_transfer_event` | `asset_identifier, sender?, recipient?, raw_value` |
+| `nft_mint` | `nft_mint_event` | `asset_identifier, recipient?, raw_value` |
+| `nft_burn` | `nft_burn_event` | `asset_identifier, sender?, raw_value` |
+| `print_event` | `contract_event` | `topic, contract_identifier, value, raw_value` |
+
+<Callout type="warning" title="Three traps in this table">
+
+- Fields marked `?` are **omitted entirely** when not applicable, and `JSON.stringify` drops them. A `stx_mint` delivery has no `sender` key at all; it is never sent as `sender: null`.
+- NFT deliveries carry only `raw_value` (canonical hex of the token-id Clarity value). There is no decoded `value` field on `nft_*` events.
+- `print_event`'s delivered `event.type` is the node's raw name `contract_event`, not `print_event_event`. Its contract field is `contract_identifier`, not `contract_id`.
+
+</Callout>
+
+```json
+"event": {
+  "type": "contract_event",
+  "event_index": 0,
+  "tx_id": "0x…",
+  "data": {
+    "topic": "print",
+    "contract_identifier": "SP….registry",
+    "value": { "updated": true },
+    "raw_value": "0x0c00000001…"
+  }
+}
+```
+
+## Tx-level triggers: `contract_call` / `contract_deploy`
+
+`data.event` is flat, with no nested `.data`:
+
+```json
+"event": {
+  "tx_id": "0x…",
+  "type": "contract_call",
+  "sender": "SP…",
+  "status": "success",
+  "contract_id": "SP….amm",
+  "function_name": "swap-x-for-y",
+  "function_args": ["0x0100000000000000000000000000002710"],
+  "result_hex": "0x0703"
+}
+```
+
+<Callout type="warning" title="function_args are raw hex">
+
+`function_args` are RAW, undecoded Clarity-value hex strings in call order, so decode them yourself with `decodeClarityValue` from `@secondlayer/sdk`. For a `contract_deploy` trigger, `event.type` is `smart_contract` (the underlying Stacks tx type) rather than `contract_deploy`, and `function_name`/`function_args`/`result_hex` are all `null` (no function call to report).
+
+</Callout>
+
+## sBTC triggers
+
+The five sBTC triggers deliver a flat, already-typed `event` keyed by `topic`:
+
+```json
+"event": {
+  "topic": "completed-deposit",
+  "request_id": 42,
+  "sender": "SP…",
+  "amount": "5000000",
+  "bitcoin_txid": "…",
+  "block_height": 123456,
+  "tx_id": "0x…"
+}
+```
+
+`topic` is `completed-deposit`, `withdrawal-create`, `withdrawal-accept`, `withdrawal-reject`, or `withdrawal-swept-confirmed`. The settlement event instead carries `sweep_txid, btc_confirmations, btc_block_height, confirmed_at, amount, sender`, with no `bitcoin_txid`/`block_height`/`tx_id`.
+
+export const metadata = {
+	title: "Event shapes — Secondlayer Docs",
+	description:
+		"Per-trigger shape of data.event in a Stacks chain subscription delivery: event-level, tx-level, and sBTC payloads.",
+};

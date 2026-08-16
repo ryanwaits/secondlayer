@@ -57,7 +57,17 @@ export const DOCS_NAV: DocsNavGroup[] = [
 				],
 			},
 			{ title: "Streams", href: "/docs/streams" },
-			{ title: "Subscriptions", href: "/docs/subscriptions" },
+			{
+				title: "Subscriptions",
+				href: "/docs/subscriptions",
+				items: [
+					{
+						title: "Receiving deliveries",
+						href: "/docs/subscriptions/deliveries",
+					},
+					{ title: "Event shapes", href: "/docs/subscriptions/event-shapes" },
+				],
+			},
 		],
 	},
 	{

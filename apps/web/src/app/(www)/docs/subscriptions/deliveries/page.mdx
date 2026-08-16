@@ -1,0 +1,143 @@
+# Receiving deliveries
+
+Check the signature, decode the body, and undo anything a reorg orphans.
+
+## Verify the signature
+
+On the default `standard-webhooks` format, every delivery carries a per-subscription HMAC. Pass the **raw body first**.
+
+```ts
+import { verifyWebhookSignature } from "@secondlayer/sdk";
+
+const valid = verifyWebhookSignature(rawBody, req.headers, secret);
+if (!valid) return new Response("bad signature", { status: 401 });
+```
+
+**Every** delivery, in every format, also carries an ed25519 signature over `` `${webhook-id}.${rawBody}` ``. For `raw`, `cloudevents`, `trigger`, `cloudflare`, and `inngest`, which have no HMAC, it is the only auth.
+
+| Header | Purpose |
+| --- | --- |
+| `webhook-id` | Unique delivery id (also the signed prefix) |
+| `x-secondlayer-signature` | ed25519 signature, base64 |
+| `x-secondlayer-signature-keyid` | Id of the signing key used |
+
+```ts
+import { verifySecondlayerSignature } from "@secondlayer/sdk";
+
+// Public key (ed25519, SPKI PEM) from GET /public/streams/signing-key
+const valid = verifySecondlayerSignature(rawBody, req.headers, publicKeyPem);
+if (!valid) return new Response("bad signature", { status: 401 });
+```
+
+Fetch the public key once and cache it; rotate on the `keyid` header. Failed deliveries retry with backoff, then the circuit opens so a downed endpoint can't block the queue.
+
+## Delivery envelope
+
+A matched event delivers `chain.{trigger}.apply`. On `standard-webhooks` the body is `{ type, timestamp, data }`:
+
+```json
+{
+  "type": "chain.stx_transfer.apply",
+  "timestamp": "2026-05-01T12:00:00.000Z",
+  "data": {
+    "action": "apply",
+    "trigger": "stx_transfer",
+    "tx_id": "0x…",
+    "block_hash": "0x…",
+    "block_height": 8445086,
+    "canonical": true,
+    "event": {
+      "type": "stx_transfer_event",
+      "event_index": 2240,
+      "tx_id": "0x…",
+      "data": { "memo": "", "amount": "1853058049", "sender": "SM….pool", "recipient": "SP…" }
+    }
+  }
+}
+```
+
+Other formats carry the exact same `data` value under a different key:
+
+| Format | Where `data` lives |
+| --- | --- |
+| `raw` | the body IS `data`, no wrapper |
+| `cloudevents` | `{ specversion, type, source, id, time, datacontenttype, data }` |
+| `inngest` | a JSON array: `[{ name, data, id, ts, v }]` |
+| `trigger` | `{ payload: data, options: { idempotencyKey } }`; the key is `payload`, not `data` |
+| `cloudflare` | `{ params: { ...data, _type, _outboxId } }`, spread flat rather than nested |
+
+<Callout type="warning" title="This is not a Streams event">
+
+A chain-subscription delivery and a [Streams](/docs/streams) event are structurally unrelated, so don't parse one as the other. Streams events are `{ event_type, payload, cursor, block_height, … }`; a chain-subscription delivery is `{ type, timestamp, data: { trigger, event } }`.
+
+</Callout>
+
+Verify the signature, then decode:
+
+```ts
+import {
+  decodeChainWebhook,
+  decodeClarityValue,
+  verifyWebhookSignature,
+} from "@secondlayer/sdk";
+
+const valid = verifyWebhookSignature(rawBody, req.headers, secret);
+if (!valid) return new Response("bad signature", { status: 401 });
+
+const delivery = decodeChainWebhook(rawBody); // throws if the body isn't a chain.* delivery
+
+if ("trigger" in delivery.data) {
+  switch (delivery.data.trigger) {
+    case "stx_transfer":
+      delivery.data.event.data.amount; // fully typed
+      break;
+    case "contract_call":
+      // event is flat here (no nested `.data`); function_args are raw hex
+      delivery.data.event.function_args?.map(decodeClarityValue);
+      break;
+  }
+}
+```
+
+`decodeChainWebhook` narrows to `ChainWebhookDelivery`, a discriminated union keyed on `data.trigger` (both exported from `@secondlayer/sdk`). It understands only the `standard-webhooks` envelope, so unwrap other formats first.
+
+<Callout type="tip" title="Discriminate on data.trigger, never event.type">
+
+`event.type` is NOT a consistent trigger name: it's `stx_transfer_event` for `stx_transfer`, the bare Stacks tx type (`contract_call`) for `contract_call`, and the node's raw event name (`contract_event`) for `print_event`. `data.trigger` is the one field that's always the trigger you subscribed with; switch on it, not `event.type`.
+
+</Callout>
+
+Delivery is at-least-once. Key your state on `(tx_id, event_index, block_hash)`: one tx can fire multiple event-level deliveries sharing a `tx_id`, so `event_index` (`-1` for tx-level triggers) keeps them distinct.
+
+Per-trigger shapes for `data.event`: [Event shapes](/docs/subscriptions/event-shapes).
+
+## Reorg rollback
+
+A reorg delivers `chain.reorg.rollback` so you can undo anything committed off an orphaned block. Each entry is `{ tx_id, event }`, carrying the event body from the original apply:
+
+```json
+{
+  "type": "chain.reorg.rollback",
+  "timestamp": "2026-05-01T12:00:00.000Z",
+  "data": {
+    "action": "rollback",
+    "fork_point_height": 123450,
+    "orphaned": [
+      { "tx_id": "0x…", "event": { "type": "stx_transfer_event", "event_index": 2240, "tx_id": "0x…", "data": { "…": "…" } } }
+    ],
+    "truncated": false
+  }
+}
+```
+
+<Callout type="warning" title="orphaned is capped at 500">
+
+`orphaned` is capped at 500 entries per subscription. If `truncated` is `true`, treat everything you committed at or above `fork_point_height` as orphaned rather than relying on the list. Entries carry no `trigger` tag, because a rollback lists every previously-delivered apply regardless of which trigger matched, so you must know what you subscribed to in order to read an entry's shape.
+
+</Callout>
+
+export const metadata = {
+	title: "Receiving deliveries — Secondlayer Docs",
+	description:
+		"Verify webhook signatures, decode the chain delivery envelope, and handle reorg rollbacks on your endpoint.",
+};
