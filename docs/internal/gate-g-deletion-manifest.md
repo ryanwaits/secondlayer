@@ -163,6 +163,35 @@ health ok. The oss-flip preconditions below are OBSOLETE (no flip happens):
   `examples/*` (not in build graph) — build or delete; delete
   `docker/{STRIPE_MIGRATION.md,SCHEMA_SPLIT.md}` with the schema drop.
 
+### Tail audit 2026-08-15 (post-Slice-E)
+
+Checked each tail against the tree rather than the plan. Three are closed and
+one instruction turned out to be wrong:
+
+- **P6.9 — CLOSED, accepted as written.** `packages/indexer/src/decode/**` still
+  imports the streams-row primitives from the SDK. The header already records
+  the narrow dep as accepted, so the move is not pending work.
+- **P6.10 — DONE.** `docker/Dockerfile` carries the shared-surface note; it was
+  documented rather than split, as directed.
+- **P6.11 — DONE.** `packages/indexer/src/archive/publisher-boundary.test.ts`
+  is the lint/test asserting the import boundary.
+- **P6.12 — partially done, and one item RETRACTED.**
+  - `packages/clarity-docs`, `routes/wallet.ts`, and
+    `docker/STRIPE_MIGRATION.md` are gone. `packages/stacks` is extracted and
+    published (`@secondlayer/stacks@4.0.0`).
+  - `examples/` deleted: its sources went in the x402/template sweep and only
+    orphaned `node_modules` remained (23,642 files, 360 MB, zero tracked by
+    git).
+  - **Do NOT delete `docker/SCHEMA_SPLIT.md`.** That instruction assumed the
+    source/target split died with the schema drop. It did not:
+    `getSourceDb()`/`getTargetDb()` are live across
+    `packages/shared/src/db/**`, six files read `SOURCE_DATABASE_URL`,
+    `packages/shared/src/db/table-plane.ts` names the doc as the mirror of the
+    canonical `TABLE_TO_DB` registry, and
+    `docs/internal/runbook/db-source-target-cutover.md` sends operators to it.
+    Deleting it would strip the prose half of a drift-checked contract and
+    break a runbook link.
+
 ## 7. DO-NOT-DELETE (standing)
 
 Metered-account system whole (§1: accounts, sessions, magic links, api_keys,
