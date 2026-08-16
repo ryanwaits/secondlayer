@@ -25,6 +25,7 @@ export type CanonicalCoverageAudit = {
 		events: number;
 	};
 	continuity: CanonicalContinuity;
+	tx_event_height_desync: TxEventHeightDesync;
 	observer_journal: {
 		available: boolean;
 		sequence_from: string | null;
@@ -51,6 +52,32 @@ export type CanonicalContinuity = {
 	duplicate_height_count: number;
 	first_duplicate_height: number | null;
 };
+
+export type TxEventHeightDesync = {
+	healthy: boolean;
+	count: number;
+	floor_height: number;
+};
+
+/**
+ * Trailing window (in blocks) the desync check is bounded to. Desync — an
+ * event's block_height disagreeing with its own transaction's block_height —
+ * only ever arises near the tip during forks; the unbounded join was
+ * measured to time out (>120s) on the 207M-row events table, so this checks
+ * a bounded trailing window instead of the whole chain.
+ */
+export const TX_EVENT_HEIGHT_DESYNC_WINDOW_BLOCKS = 200_000;
+
+/**
+ * The floor height for the bounded desync window, clamped so it can never go
+ * negative (small chains, e.g. in tests) and never exceed the tip itself.
+ */
+export function computeDesyncFloorHeight(
+	tipHeight: number,
+	windowBlocks: number = TX_EVENT_HEIGHT_DESYNC_WINDOW_BLOCKS,
+): number {
+	return Math.max(0, tipHeight - windowBlocks);
+}
 
 export function summarizeCanonicalContinuity(input: {
 	fromBlock: number | null;
@@ -186,6 +213,8 @@ export async function auditCanonicalCoverageInSnapshot(
 		const gaps = await summarizeGaps(tx);
 		const brokenLinks = await summarizeBrokenLinks(tx);
 		const duplicateHeights = await summarizeDuplicateHeights(tx);
+		const desyncFloorHeight = computeDesyncFloorHeight(toBlock ?? 0);
+		const desync = await summarizeTxEventHeightDesync(tx, desyncFloorHeight);
 
 		const journal = await readObserverJournal(tx, options.network);
 		const continuity = summarizeCanonicalContinuity({
@@ -215,6 +244,11 @@ export async function auditCanonicalCoverageInSnapshot(
 				events: eventCount,
 			},
 			continuity,
+			tx_event_height_desync: {
+				healthy: desync.count === 0,
+				count: desync.count,
+				floor_height: desyncFloorHeight,
+			},
 			observer_journal: journal,
 		};
 	}
@@ -330,6 +364,27 @@ async function summarizeDuplicateHeights(db: Kysely<Database>): Promise<{
 	};
 }
 
+/**
+ * The tx/event height-desync invariant: an event's block_height must agree
+ * with its own transaction's block_height. This is the invariant behind the
+ * 2026-08-16 incident's crash half (fixed as the reorg-replace delete fix);
+ * this check gives it a standing audit instead of no monitoring at all.
+ * Bounded to the trailing window — see TX_EVENT_HEIGHT_DESYNC_WINDOW_BLOCKS.
+ */
+async function summarizeTxEventHeightDesync(
+	db: Kysely<Database>,
+	floorHeight: number,
+): Promise<{ count: number }> {
+	const { rows } = await sql<CountRow>`
+		SELECT COUNT(*) AS count
+		FROM transactions t
+		JOIN events e ON e.tx_id = t.tx_id
+		WHERE e.block_height <> t.block_height
+			AND t.block_height > ${floorHeight}
+		`.execute(db);
+	return { count: Number(rows[0]?.count ?? 0) };
+}
+
 async function readObserverJournal(
 	db: Kysely<Database>,
 	network: string,
@@ -442,7 +497,8 @@ async function main(): Promise<void> {
 		expectedToBlock,
 	});
 	console.log(JSON.stringify(report, null, 2));
-	if (!report.continuity.complete) process.exitCode = 2;
+	if (!report.continuity.complete || !report.tx_event_height_desync.healthy)
+		process.exitCode = 2;
 }
 
 function parseOptionalInteger(value: string | undefined): number | undefined {
