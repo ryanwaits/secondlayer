@@ -4,7 +4,7 @@ Stake STX, register for BTC-paired bonds, build L1 lockup scripts, and manage si
 
 <Banner label="SIP-045 / Epoch 4.0" title="Ship before the fork, live at Bitcoin block 960,230">
 
-Epoch 4.0 activates at Bitcoin block **960,230** (~July 29, 2026). The module is pinned against the final `pox-5` contract in **stacks-core 4.0.0**, interface-checked in Clarinet simnet, script and grant-hash ports byte-compared against the contract's own read-onlys in CI. Everything off-chain works **today**; contract calls go live when the chain crosses the activation height, and your code finds that out by asking the chain, not a constant.
+Epoch 4.0 activates at Bitcoin block **960,230** (~July 29, 2026). The module is pinned against the final `pox-5` contract in **stacks-core 4.0.0**, interface-checked in Clarinet simnet, with script and grant-hash ports byte-compared against the contract's own read-onlys in CI. Everything off-chain works **today**; contract calls go live once the chain crosses the activation height, which your code learns by asking the chain rather than a constant.
 
 </Banner>
 
@@ -49,7 +49,7 @@ Every action routes through the same pipeline as `callContract`: fee tiers (`min
 
 ## Gate on activation
 
-`isActive()` and `getActivation()` read `/v2/pox` `contract_versions`: the node reports where `pox-5` activates on *its* network, so the same code is correct on mainnet, testnet, and devnet.
+`isActive()` and `getActivation()` read `/v2/pox` `contract_versions`: the node reports where `pox-5` activates on *its* network, so one code path is correct everywhere.
 
 ```ts
 const activation = await client.pox5.getActivation();
