@@ -1,9 +1,22 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
-import { generateKeyPairSync } from "node:crypto";
+import { createHash, generateKeyPairSync } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { checkSignature, loadReference } from "../lib/archive-reference.ts";
+import {
+	type ArchiveGateDeps,
+	createGatedFetcher,
+	formatInsufficientMessage,
+	isOfficialArchive,
+	quoteArchiveFetch,
+	shouldPromptForGatedFetch,
+} from "../lib/archive-gate.ts";
+import {
+	type ArchivePartition,
+	checkSignature,
+	fetchVerifiedPartition,
+	loadReference,
+} from "../lib/archive-reference.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 
@@ -193,6 +206,267 @@ describe("bootstrap live seam", () => {
 		const nodeTipAtStart = 8_745_500;
 		const archiveTip = 8_745_422;
 		expect(nodeTipAtStart - archiveTip).toBe(78);
+	});
+});
+
+/**
+ * feat-f091: the archive fetch gate wired into bootstrap/repair's shared
+ * fetch choke point (`fetchVerifiedPartition`) and the quote/confirm
+ * decision both commands make (`../lib/archive-gate.ts`).
+ *
+ * `bootstrap.ts`/`repair.ts` are not exercised end-to-end here — their
+ * `.action()` reaches a real Postgres connection before the gate logic even
+ * runs (index_progress/blocks reads), and per this file's own boundary
+ * (see the top comment) that database path belongs to the archive suites
+ * in `@secondlayer/indexer`, not the CLI package. What matters here, and
+ * what these tests prove instead: the two primitives the commands compose
+ * — `fetchVerifiedPartition`'s gate seam and `archive-gate.ts`'s quote
+ * client — behave exactly as the DX contract requires, pure-logic style,
+ * with no database.
+ */
+function stubGateDeps(
+	impl: (path: string, opts?: unknown) => Promise<unknown>,
+): ArchiveGateDeps & { calls: string[] } {
+	const calls: string[] = [];
+	return {
+		calls,
+		httpArchiveOps: (async (path: string, opts?: unknown) => {
+			calls.push(path);
+			return impl(path, opts);
+		}) as ArchiveGateDeps["httpArchiveOps"],
+	};
+}
+
+function testPartition(
+	overrides: Partial<ArchivePartition> = {},
+): ArchivePartition {
+	return {
+		dataset: "blocks",
+		from_block: 0,
+		to_block: 49_999,
+		path: "blocks/0-49999-0000000000000001.parquet",
+		row_count: 1,
+		byte_size: 1,
+		sha256: "",
+		...overrides,
+	};
+}
+
+describe("archive fetch gate — case 1: mirror never reaches the gate", () => {
+	test("a mirror (non-official) origin is never gated; fetchVerifiedPartition uses the free path unchanged", async () => {
+		const bytes = Buffer.from("mirror-partition-bytes");
+		const digest = createHash("sha256").update(bytes).digest("hex");
+		const server = Bun.serve({
+			port: 0,
+			fetch: () => new Response(bytes),
+		});
+		try {
+			const root = `http://127.0.0.1:${server.port}`;
+			const reference = {
+				manifest: {},
+				origin: `${root}/latest.json`,
+				root,
+				isRemote: true,
+			};
+			// The billing-boundary predicate must say no for a mirror...
+			expect(isOfficialArchive(reference)).toBe(false);
+			// ...which means the command never builds a gate at all: calling
+			// fetchVerifiedPartition with NO gate argument is exactly what a
+			// mirror reference gets, and it must still work, byte-for-byte.
+			const partition = testPartition({ sha256: digest });
+			const result = await fetchVerifiedPartition(reference, partition);
+			expect(result.equals(bytes)).toBe(true);
+		} finally {
+			server.stop(true);
+		}
+	});
+});
+
+describe("archive fetch gate — case 2: official host, sufficient balance", () => {
+	test("gated fetch resolves a presigned URL and still digest-verifies the bytes", async () => {
+		const bytes = Buffer.from("gated-partition-bytes");
+		const digest = createHash("sha256").update(bytes).digest("hex");
+		const server = Bun.serve({
+			port: 0,
+			fetch: () => new Response(bytes),
+		});
+		try {
+			const partition = testPartition({
+				path: "blocks/0-49999-0000000000000002.parquet",
+				sha256: digest,
+			});
+			const deps = stubGateDeps(async (path, opts) => {
+				if (path === "/api/archive/quote") {
+					return {
+						partitions: 1,
+						bundles: 1,
+						usd_micros: 50_000,
+						usd: "0.05",
+						free_allowance_applied_micros: 0,
+						allowance_remaining_bundles: 6,
+						balance_usd_micros: 10_000_000,
+						sufficient: true,
+					};
+				}
+				const requested = (opts as { body: { paths: string[] } }).body.paths;
+				return {
+					urls: requested.map((p) => ({
+						path: p,
+						url: `http://127.0.0.1:${server.port}/${p}`,
+						expires_at: new Date(Date.now() + 900_000).toISOString(),
+						charged_usd_micros: 50_000,
+					})),
+					charged_total_usd_micros: 50_000,
+					balance_after_usd_micros: 9_950_000,
+				};
+			});
+
+			const quoteResult = await quoteArchiveFetch(
+				[partition.path],
+				"bootstrap",
+				deps,
+			);
+			expect(quoteResult.ok).toBe(true);
+			if (!quoteResult.ok) throw new Error("expected an ok quote");
+			expect(quoteResult.quote.sufficient).toBe(true);
+
+			const gate = createGatedFetcher([partition.path], "bootstrap", deps);
+			const reference = {
+				manifest: {},
+				origin: "https://archive.secondlayer.tools/latest.json",
+				root: "https://archive.secondlayer.tools",
+				isRemote: true,
+			};
+			expect(isOfficialArchive(reference)).toBe(true);
+
+			const result = await fetchVerifiedPartition(reference, partition, gate);
+			expect(result.equals(bytes)).toBe(true);
+			expect(deps.calls).toEqual(["/api/archive/quote", "/api/archive/fetch"]);
+		} finally {
+			server.stop(true);
+		}
+	});
+});
+
+describe("archive fetch gate — case 3: insufficient balance exits before any /fetch call", () => {
+	test("sufficient:false never triggers a /fetch call; the message carries the shortfall and the buy command", async () => {
+		const deps = stubGateDeps(async (path) => {
+			if (path === "/api/archive/quote") {
+				return {
+					partitions: 1,
+					bundles: 1,
+					usd_micros: 150_000,
+					usd: "0.15",
+					free_allowance_applied_micros: 0,
+					allowance_remaining_bundles: 6,
+					balance_usd_micros: 10_000,
+					sufficient: false,
+				};
+			}
+			throw new Error("must not call /fetch when the quote is insufficient");
+		});
+
+		const result = await quoteArchiveFetch(
+			["events/0-49999-0000000000000003.parquet"],
+			"bootstrap",
+			deps,
+		);
+		expect(result.ok).toBe(true);
+		if (!result.ok) throw new Error("expected an ok quote");
+		expect(result.quote.sufficient).toBe(false);
+
+		const message = formatInsufficientMessage(result.quote);
+		expect(message).toContain("secondlayer credits buy");
+		expect(message).toBe(
+			"Insufficient archive credits: quote $0.15, balance $0.01, short $0.14. Buy more with `secondlayer credits buy`.",
+		);
+
+		// The whole point: only the free quote ran. No gate was ever built, so
+		// no `/api/archive/fetch` call — and therefore no charge — happened.
+		expect(deps.calls).toEqual(["/api/archive/quote"]);
+	});
+});
+
+describe("archive fetch gate — case 4: expired presigned URL recovers once", () => {
+	test("a 403 on the presigned URL triggers exactly one re-issue; the fresh bytes are still digest-checked", async () => {
+		const bytes = Buffer.from("expired-then-fresh-bytes");
+		const digest = createHash("sha256").update(bytes).digest("hex");
+		let hits = 0;
+		const server = Bun.serve({
+			port: 0,
+			fetch: () => {
+				hits++;
+				return hits === 1
+					? new Response("expired", { status: 403 })
+					: new Response(bytes);
+			},
+		});
+		try {
+			const partition = testPartition({
+				path: "blocks/0-49999-0000000000000004.parquet",
+				sha256: digest,
+			});
+			let getUrlCalls = 0;
+			const gate = {
+				async getUrl(path: string) {
+					getUrlCalls++;
+					return `http://127.0.0.1:${server.port}/${path}`;
+				},
+			};
+			const reference = {
+				manifest: {},
+				origin: "https://archive.secondlayer.tools/latest.json",
+				root: "https://archive.secondlayer.tools",
+				isRemote: true,
+			};
+			const result = await fetchVerifiedPartition(reference, partition, gate);
+			expect(result.equals(bytes)).toBe(true);
+			expect(hits).toBe(2);
+			expect(getUrlCalls).toBe(2);
+		} finally {
+			server.stop(true);
+		}
+	});
+
+	test("a digest mismatch still throws even after a successful gated (re-issued) fetch", async () => {
+		const bytes = Buffer.from("tampered-bytes");
+		const server = Bun.serve({ port: 0, fetch: () => new Response(bytes) });
+		try {
+			const partition = testPartition({
+				path: "blocks/0-49999-0000000000000005.parquet",
+				sha256: "0".repeat(64),
+			});
+			const gate = {
+				async getUrl(path: string) {
+					return `http://127.0.0.1:${server.port}/${path}`;
+				},
+			};
+			const reference = {
+				manifest: {},
+				origin: "https://archive.secondlayer.tools/latest.json",
+				root: "https://archive.secondlayer.tools",
+				isRemote: true,
+			};
+			expect(
+				fetchVerifiedPartition(reference, partition, gate),
+			).rejects.toThrow(/failed verification/);
+		} finally {
+			server.stop(true);
+		}
+	});
+});
+
+describe("archive fetch gate — case 5: -y skips only the prompt, never the quote", () => {
+	test("shouldPromptForGatedFetch is false only for -y or --json, independent of quoting", () => {
+		// The quote line and the sufficiency check run unconditionally, above
+		// and before this decision is even consulted (see bootstrap.ts/
+		// repair.ts: `quoteArchiveFetch` + `formatQuoteValue` are called before
+		// this guard, never inside it) — this function controls ONLY whether
+		// the interactive confirm() prompt itself runs.
+		expect(shouldPromptForGatedFetch({})).toBe(true);
+		expect(shouldPromptForGatedFetch({ yes: true })).toBe(false);
+		expect(shouldPromptForGatedFetch({ json: true })).toBe(false);
+		expect(shouldPromptForGatedFetch({ yes: true, json: true })).toBe(false);
 	});
 });
 

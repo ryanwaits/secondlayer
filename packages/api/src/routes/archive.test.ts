@@ -19,6 +19,7 @@ import {
 	type ArchiveRouterOptions,
 	createArchiveRouter,
 	deriveDatasetFromPath,
+	resolveObjectKey,
 } from "./archive.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -41,6 +42,17 @@ function partitionPath(
 	suffix = "0000000000000000",
 ): string {
 	return `${PREFIX}/${dataset}/${from}-${to}-${suffix}.parquet`;
+}
+
+/** The manifest-relative form the CLI actually sends (`export-snapshot.ts`'s
+ *  `partition.path` — no archive prefix). */
+function relativePartitionPath(
+	dataset: "blocks" | "transactions" | "events",
+	from: number,
+	to: number,
+	suffix = "0000000000000000",
+): string {
+	return `${dataset}/${from}-${to}-${suffix}.parquet`;
 }
 
 const accountIds: string[] = [];
@@ -128,9 +140,18 @@ describe.skipIf(!HAS_DB)(
 			);
 		});
 
-		test("rejects a key missing the archive prefix", () => {
+		test("accepts a manifest-relative path (no archive prefix)", () => {
+			// The signed manifest's `partition.path` is relative — the CLI never
+			// learns the R2 prefix, so this bare form must resolve identically
+			// to its full-key twin.
 			expect(
 				deriveDatasetFromPath("blocks/0-50000-0000000000000000.parquet"),
+			).toBe("blocks");
+		});
+
+		test("rejects a relative path with a bogus dataset segment", () => {
+			expect(
+				deriveDatasetFromPath("mempool/0-50000-0000000000000000.parquet"),
 			).toBeNull();
 		});
 
@@ -164,6 +185,18 @@ describe.skipIf(!HAS_DB)(
 	},
 );
 
+describe.skipIf(!HAS_DB)("resolveObjectKey", () => {
+	test("passes an already-prefixed key through unchanged", () => {
+		const key = partitionPath("blocks", 0, 50_000);
+		expect(resolveObjectKey(key)).toBe(key);
+	});
+
+	test("prepends the archive prefix to a relative path", () => {
+		const relative = relativePartitionPath("blocks", 0, 50_000);
+		expect(resolveObjectKey(relative)).toBe(`${PREFIX}/${relative}`);
+	});
+});
+
 describe.skipIf(!HAS_DB)("POST /quote", () => {
 	test("prices a mixed batch correctly", async () => {
 		const accountId = await makeAccount();
@@ -193,6 +226,38 @@ describe.skipIf(!HAS_DB)("POST /quote", () => {
 		expect(body.usd_micros).toBe(500_000);
 		expect(body.usd).toBe("0.50");
 		expect(body.sufficient).toBe(true);
+	});
+
+	test("a manifest-relative path quotes identically to its full-key twin", async () => {
+		const fullAccountId = await makeAccount();
+		const relativeAccountId = await makeAccount();
+		await creditCredits(db, fullAccountId, 10_000_000n);
+		await creditCredits(db, relativeAccountId, 10_000_000n);
+
+		const suffix = "5000000000000001";
+		const fullRes = await postJson(
+			buildTestApp({ accountId: fullAccountId }),
+			"/quote",
+			{
+				flow: "bootstrap",
+				paths: [partitionPath("events", 0, 50_000, suffix)],
+			},
+		);
+		const relativeRes = await postJson(
+			buildTestApp({ accountId: relativeAccountId }),
+			"/quote",
+			{
+				flow: "bootstrap",
+				paths: [relativePartitionPath("events", 0, 50_000, suffix)],
+			},
+		);
+
+		expect(fullRes.status).toBe(200);
+		expect(relativeRes.status).toBe(200);
+		const fullBody = (await fullRes.json()) as { usd_micros: number };
+		const relativeBody = (await relativeRes.json()) as { usd_micros: number };
+		expect(relativeBody.usd_micros).toBe(fullBody.usd_micros);
+		expect(relativeBody.usd_micros).toBe(150_000);
 	});
 
 	test("malformed path → 400", async () => {
@@ -233,6 +298,46 @@ describe.skipIf(!HAS_DB)("POST /fetch", () => {
 
 		const balance = await getCredits(db, accountId);
 		expect(balance).toBe(9_800_000n);
+	});
+
+	test("a manifest-relative path fetches identically to its full-key twin, and the presigned key carries the prefix", async () => {
+		const accountId = await makeAccount();
+		await creditCredits(db, accountId, 10_000_000n);
+		const presignCalls: string[] = [];
+		const app = buildTestApp({ accountId, presignCalls });
+
+		const relative = relativePartitionPath(
+			"blocks",
+			0,
+			50_000,
+			"5500000000000001",
+		);
+		const res = await postJson(app, "/fetch", {
+			flow: "bootstrap",
+			paths: [relative],
+		});
+
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			urls: Array<{ path: string; charged_usd_micros: number }>;
+			charged_total_usd_micros: number;
+		};
+		expect(body.urls).toHaveLength(1);
+		expect(body.urls[0]?.path).toBe(relative);
+		expect(body.charged_total_usd_micros).toBe(50_000);
+		// The server presigns the FULL R2 key — the CLI never learns the prefix.
+		expect(presignCalls).toEqual([`${PREFIX}/${relative}`]);
+	});
+
+	test("a relative path with a bogus dataset segment → 400", async () => {
+		const accountId = await makeAccount();
+		const app = buildTestApp({ accountId });
+
+		const res = await postJson(app, "/fetch", {
+			flow: "bootstrap",
+			paths: ["mempool/0-50000-0000000000000000.parquet"],
+		});
+		expect(res.status).toBe(400);
 	});
 
 	test("a duplicate path within one batch is charged once, not twice", async () => {

@@ -51,7 +51,44 @@ No account. Writes `.env.local`, restores history, prints the Stacks observer st
 | `secondlayer bootstrap --against <manifest> [--to-block <n>] [--public-key <pem>] [-y] [--json]` | Restore chain history from a verified archive into an empty database. Exit `0` restored, `1` diverged, `2` refused |
 | `secondlayer observer [--mode indexer\|signer-shared] [--endpoint host:port] [--recovery journal\|archive] [--network …]` | Print the `[[events_observer]]` stanza. Signer-shared requires `--recovery` |
 | `secondlayer verify [all\|raw\|decode:<name>\|subgraph:<name>] --against <manifest> [--quick\|--deep\|--anchor]` | Compare local data to a signed archive. Default target `raw`. Exit `0` clean, `1` diverged, `2` unanchored |
-| `secondlayer repair --against <archive> [--apply]` | Plan (default) or apply an archive repair |
+| `secondlayer repair --against <archive> [--apply] [-y]` | Plan (default) or apply an archive repair |
+
+Bootstrap and repair against the official hosted archive (`archive.secondlayer.tools`)
+are metered per partition; against any other manifest (a mirror, a teammate's
+box, a local file) they are free. See [Metered fetches](#metered-fetches).
+
+### Metered fetches
+
+`secondlayer bootstrap` and `secondlayer repair` pull partitions from the
+signed archive instead of replaying the chain, and that pull costs money only
+when it targets the official hosted archive. Point `--against` at a mirror or
+a local manifest and nothing is charged, nothing is even contacted beyond
+that manifest, because self-hosting the archive is a supported way to use
+these commands, not a workaround.
+
+Against the official host, both commands quote before they charge:
+
+1. The manifest's partition list is priced with a free, no-write call
+   (`POST /api/archive/quote`).
+2. The quote prints into the existing plan output, for example
+   `metered: 528 partitions ≈ $44.00 · balance $50.00`, or for `repair`
+   inside its monthly allowance, `metered: free (4 of 6 monthly repair
+   fetches remaining)`.
+3. You confirm, or pass `-y` to skip the prompt. `-y` never skips the quote
+   or the balance check: if the balance is short, the command exits before
+   any partition is fetched and prints the shortfall and
+   `secondlayer credits buy`.
+4. Only then does the command fetch, and only the partitions it actually
+   reads are charged.
+
+A partition already charged in the last 24 hours re-presigns for free, so a
+resumed or retried bootstrap never pays twice for the same bytes. `repair`
+gets 6 free range-bundles a month; `bootstrap` does not, since it is the
+whole-chain operation the free tier exists to not subsidize.
+
+`secondlayer verify` is unaffected: it reads manifests and digests, never
+partition bytes, and stays free and anonymous no matter which archive it
+points at.
 
 ### Subgraphs
 

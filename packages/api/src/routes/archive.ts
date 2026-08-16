@@ -76,6 +76,29 @@ function archiveKeyPrefix(): string {
 export const ARCHIVE_PARTITION_KEY_RE =
 	/^(blocks|transactions|events)\/\d+-\d+-[0-9a-f]{16}\.parquet$/;
 
+/**
+ * The signed manifest's `partition.path` is relative
+ * (`<dataset>/<from>-<to>-<hash16>.parquet` — `export-snapshot.ts:555`); the
+ * CLI never learns the R2 prefix, so it sends that relative form as-is. A
+ * full R2 key (already carrying the prefix) is accepted unchanged too, so
+ * older callers and direct-key tests still work. Strips the prefix when
+ * present, then matches the bare partition shape either way.
+ */
+function stripArchivePrefix(path: string): string {
+	const prefix = archiveKeyPrefix();
+	return path.startsWith(`${prefix}/`) ? path.slice(prefix.length + 1) : path;
+}
+
+/**
+ * Resolve a path (relative or already-prefixed) to the full R2 object key
+ * used at presign time. Already-prefixed paths pass through unchanged;
+ * relative paths get the archive prefix prepended.
+ */
+export function resolveObjectKey(path: string): string {
+	const prefix = archiveKeyPrefix();
+	return path.startsWith(`${prefix}/`) ? path : `${prefix}/${path}`;
+}
+
 /** Batch cap for `/fetch` — the CLI pages larger restores across calls. */
 const MAX_FETCH_BATCH = 64;
 
@@ -87,9 +110,7 @@ const ALLOWANCE_MONTHLY_PARTITIONS = 18;
  *  doesn't match the archive prefix + partition shape. Never trust a
  *  client-sent dataset field — this is the sole authority. */
 export function deriveDatasetFromPath(path: string): ArchiveDataset | null {
-	const prefix = archiveKeyPrefix();
-	if (!path.startsWith(`${prefix}/`)) return null;
-	const rest = path.slice(prefix.length + 1);
+	const rest = stripArchivePrefix(path);
 	const match = ARCHIVE_PARTITION_KEY_RE.exec(rest);
 	return match ? (match[1] as ArchiveDataset) : null;
 }
@@ -347,6 +368,10 @@ export function createArchiveRouter(options: ArchiveRouterOptions = {}): Hono {
 					}
 					await recordCreditsSpend(trx, accountId, total, nowTs);
 				}
+				// Charge-log rows store the path AS SENT (relative or full-key) —
+				// not the resolved object key — so the 24h re-issue window
+				// (`recentChargedPaths`) matches whatever form the CLI re-sends on
+				// retry/resume, without needing to normalize both sides.
 				for (const p of priced) {
 					await recordFetch(
 						trx,
@@ -381,7 +406,10 @@ export function createArchiveRouter(options: ArchiveRouterOptions = {}): Hono {
 		const urls = await Promise.all(
 			priced.map(async (p) => ({
 				path: p.path,
-				url: await presign({ bucket: config.bucket, key: p.path }),
+				url: await presign({
+					bucket: config.bucket,
+					key: resolveObjectKey(p.path),
+				}),
 				expires_at: expiresAt,
 				charged_usd_micros: Number(p.usdMicros),
 			})),

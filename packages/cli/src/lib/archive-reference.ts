@@ -282,16 +282,65 @@ export async function resolveKeyThroughRegistry(params: {
 }
 
 /**
+ * The gate parameter's shape, kept structural rather than imported from
+ * `archive-gate.ts` so the two modules stay decoupled — `archive-gate.ts`'s
+ * `createGatedFetcher` return value satisfies this by structure alone.
+ * `forceRefresh` backs expiry recovery (see below): a second call for the
+ * same path after a downstream 403, asking for a fresh presigned URL rather
+ * than whatever the gate has cached.
+ */
+export type ArchiveFetchGate = {
+	getUrl(path: string, opts?: { forceRefresh?: boolean }): Promise<string>;
+};
+
+/** One retry on an expired presigned URL, then the error surfaces. Isolated
+ *  so `fetchVerifiedPartition` reads as "get the bytes" regardless of which
+ *  path produced them. */
+async function fetchViaGate(
+	gate: ArchiveFetchGate,
+	partition: ArchivePartition,
+	retried: boolean,
+): Promise<Buffer> {
+	const url = await gate.getUrl(
+		partition.path,
+		retried ? { forceRefresh: true } : undefined,
+	);
+	const response = await fetch(url, { signal: AbortSignal.timeout(300_000) });
+	if (response.status === 403 && !retried) {
+		// Presigned URLs expire in 900s; a long-running restore can outlast one.
+		// Free within the server's 24h re-issue window — re-issuing costs
+		// nothing, so this is a retry, not a failure.
+		return fetchViaGate(gate, partition, true);
+	}
+	if (!response.ok) {
+		throw new Error(
+			`could not fetch ${partition.path} (${response.status} ${response.statusText})`,
+		);
+	}
+	return Buffer.from(await response.arrayBuffer());
+}
+
+/**
  * Fetch a partition and refuse it unless its bytes hash to the digest the
  * signed manifest declares. This is the step that makes repair safe: data only
  * enters a live database after proving it is the data the archive signed.
+ *
+ * `gate`, when present, replaces the free remote fetch with a metered one —
+ * bytes come from `gate.getUrl(partition.path)` (a presigned R2 URL) instead
+ * of `reference.root + path`. Everything else, including the digest check
+ * below, is unchanged; a presigned URL serving wrong bytes must still fail
+ * loudly. Absent `gate`, behavior is byte-for-byte what it was before this
+ * parameter existed.
  */
 export async function fetchVerifiedPartition(
 	reference: LoadedReference,
 	partition: ArchivePartition,
+	gate?: ArchiveFetchGate,
 ): Promise<Buffer> {
 	let bytes: Buffer;
-	if (reference.isRemote) {
+	if (gate) {
+		bytes = await fetchViaGate(gate, partition, false);
+	} else if (reference.isRemote) {
 		const url = `${reference.root.replace(/\/$/, "")}/${partition.path}`;
 		const response = await fetch(url, { signal: AbortSignal.timeout(300_000) });
 		if (!response.ok) {

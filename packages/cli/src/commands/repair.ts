@@ -2,6 +2,7 @@ import { unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ParquetReader } from "@dsnp/parquetjs";
+import { confirm } from "@inquirer/prompts";
 import {
 	type RangeDigest,
 	compareRangeDigests,
@@ -9,6 +10,16 @@ import {
 } from "@secondlayer/shared/archive/range-digest";
 import { getDb, sql } from "@secondlayer/shared/db";
 import type { Command } from "commander";
+import {
+	ARCHIVE_GATE_NOT_CONFIGURED_MESSAGE,
+	type ArchiveGate,
+	createGatedFetcher,
+	formatInsufficientMessage,
+	formatQuoteValue,
+	isOfficialArchive,
+	quoteArchiveFetch,
+	shouldPromptForGatedFetch,
+} from "../lib/archive-gate.ts";
 import {
 	type ArchivePartition,
 	type LoadedReference,
@@ -129,8 +140,9 @@ async function planRange(
 	db: ReturnType<typeof getDb>,
 	reference: LoadedReference,
 	partition: ArchivePartition,
+	gate: ArchiveGate | undefined,
 ): Promise<{ fixes: BlockFix[]; extraHeights: number[] }> {
-	const bytes = await fetchVerifiedPartition(reference, partition);
+	const bytes = await fetchVerifiedPartition(reference, partition, gate);
 	const archiveBlocks = await readBlocksPartition(
 		bytes,
 		`${partition.from_block}-${partition.to_block}`,
@@ -178,9 +190,10 @@ async function applyFixes(
 	reference: LoadedReference,
 	partition: ArchivePartition,
 	fixes: readonly BlockFix[],
+	gate: ArchiveGate | undefined,
 ): Promise<number> {
 	if (fixes.length === 0) return 0;
-	const bytes = await fetchVerifiedPartition(reference, partition);
+	const bytes = await fetchVerifiedPartition(reference, partition, gate);
 	const archiveBlocks = await readBlocksPartition(
 		bytes,
 		`apply-${partition.from_block}`,
@@ -231,6 +244,7 @@ export function registerRepairCommand(program: Command): void {
 		.option("--to-block <n>", "last height to consider")
 		.option("--apply", "write the repair (default is a dry-run plan)")
 		.option("--public-key <pem>", "pin the signing key instead of fetching it")
+		.option("-y, --yes", "skip the confirmation prompt for a metered fetch")
 		.option("--json", "Output as JSON")
 		.addHelpText(
 			"after",
@@ -331,6 +345,42 @@ Exit codes:
 						),
 				);
 
+				// Metered fetches apply ONLY against the official hosted archive. A
+				// mirror, a teammate's box, or a local directory never reaches this
+				// module's HTTP seam — self-hosting is the product working as
+				// designed, not a billing leak. Repair reads partition bytes to
+				// build the plan even in dry-run, so the gate engages here, before
+				// any partition is read — not only when `--apply` writes.
+				let gate: ArchiveGate | undefined;
+				if (isOfficialArchive(reference)) {
+					const paths = partitions.map((p) => p.path);
+					const result = await quoteArchiveFetch(paths, "repair");
+					if (!result.ok) {
+						printError(
+							result.kind === "not_configured"
+								? ARCHIVE_GATE_NOT_CONFIGURED_MESSAGE
+								: result.message,
+						);
+						process.exit(REPAIR_EXIT.UNANCHORED);
+					}
+					if (!result.quote.sufficient) {
+						printError(formatInsufficientMessage(result.quote));
+						process.exit(REPAIR_EXIT.UNANCHORED);
+					}
+					note(`  metered: ${formatQuoteValue(result.quote, "repair")}`);
+					if (shouldPromptForGatedFetch(opts)) {
+						const proceed = await confirm({
+							message: `Fetch ${partitions.length} partition(s) from the archive?`,
+							default: true,
+						});
+						if (!proceed) {
+							note("Nothing was fetched.");
+							process.exit(REPAIR_EXIT.UNANCHORED);
+						}
+					}
+					gate = createGatedFetcher(paths, "repair");
+				}
+
 				const allFixes: BlockFix[] = [];
 				const allExtra: number[] = [];
 				const planned: Array<{
@@ -345,6 +395,7 @@ Exit codes:
 						db,
 						reference,
 						partition,
+						gate,
 					);
 					planned.push({ partition, fixes });
 					allFixes.push(...fixes);
@@ -354,7 +405,7 @@ Exit codes:
 				let applied = 0;
 				if (opts.apply) {
 					for (const { partition, fixes } of planned) {
-						applied += await applyFixes(db, reference, partition, fixes);
+						applied += await applyFixes(db, reference, partition, fixes, gate);
 					}
 				}
 

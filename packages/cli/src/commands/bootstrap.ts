@@ -15,6 +15,16 @@ import { getDb, getRawClient, sql } from "@secondlayer/shared/db";
 import { upsertSyncScope } from "@secondlayer/shared/db/queries/sync-scope";
 import type { Command } from "commander";
 import {
+	ARCHIVE_GATE_NOT_CONFIGURED_MESSAGE,
+	type ArchiveGate,
+	createGatedFetcher,
+	formatInsufficientMessage,
+	formatQuoteValue,
+	isOfficialArchive,
+	quoteArchiveFetch,
+	shouldPromptForGatedFetch,
+} from "../lib/archive-gate.ts";
+import {
 	type ArchiveManifest,
 	type ArchivePartition,
 	type LoadedReference,
@@ -155,8 +165,9 @@ async function loadPartition(
 	reference: LoadedReference,
 	partition: ArchivePartition,
 	rawClient: ReturnType<typeof getRawClient>,
+	gate: ArchiveGate | undefined,
 ): Promise<number> {
-	const bytes = await fetchVerifiedPartition(reference, partition);
+	const bytes = await fetchVerifiedPartition(reference, partition, gate);
 	const writable = await rawClient
 		.unsafe(copyStatement(partition.dataset as ArchiveDataset))
 		.writable();
@@ -305,6 +316,32 @@ Exit codes:
 				const restoreSeconds = totalRows / RESTORE_ROWS_PER_SECOND;
 				const genesisSeconds = (tipHeight / BLOCKS_PER_DAY_ESTIMATE) * 86_400;
 
+				// Metered fetches apply ONLY against the official hosted archive. A
+				// mirror, a teammate's box, or a local directory never reaches this
+				// module's HTTP seam — self-hosting is the product working as
+				// designed, not a billing leak.
+				const gated = isOfficialArchive(reference);
+				let quoteLine: string | undefined;
+				let gate: ArchiveGate | undefined;
+				if (gated) {
+					const paths = partitions.map((p) => p.path);
+					const result = await quoteArchiveFetch(paths, "bootstrap");
+					if (!result.ok) {
+						printError(
+							result.kind === "not_configured"
+								? ARCHIVE_GATE_NOT_CONFIGURED_MESSAGE
+								: result.message,
+						);
+						process.exit(BOOTSTRAP_EXIT.REFUSED);
+					}
+					if (!result.quote.sufficient) {
+						printError(formatInsufficientMessage(result.quote));
+						process.exit(BOOTSTRAP_EXIT.REFUSED);
+					}
+					quoteLine = formatQuoteValue(result.quote, "bootstrap");
+					gate = createGatedFetcher(paths, "bootstrap");
+				}
+
 				// Lead with the comparison — it is the reason this command exists.
 				if (!opts.json) {
 					console.error("");
@@ -318,6 +355,9 @@ Exit codes:
 							["rows", totalRows.toLocaleString()],
 							["download", `${(totalBytes / 1e9).toFixed(1)} GB`],
 							["signature", "verified"],
+							...(quoteLine
+								? ([["metered", quoteLine]] as [string, string][])
+								: []),
 						]),
 					);
 					console.error("");
@@ -330,7 +370,7 @@ Exit codes:
 					console.error("");
 				}
 
-				if (!opts.yes && !opts.json) {
+				if (shouldPromptForGatedFetch(opts)) {
 					const proceed = await confirm({
 						message: "Restore from the verified archive?",
 						default: true,
@@ -362,6 +402,7 @@ Exit codes:
 							reference,
 							partition,
 							rawClient,
+							gate,
 						);
 						const done = index + 1;
 						if (done % 10 === 0 || done === datasetPartitions.length) {
@@ -458,6 +499,7 @@ Exit codes:
 					resume_from: tipHeight + 1,
 					node_tip_at_start: nodeTipAtStart,
 					catch_up_blocks: seam?.gap ?? null,
+					metered: quoteLine ?? null,
 				};
 
 				output({
