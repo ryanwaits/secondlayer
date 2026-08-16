@@ -1,17 +1,15 @@
-export type IndexTier = "free" | "build" | "scale" | "enterprise";
+export type IndexTier = "free" | "internal";
 
 export type IndexTierConfig = {
 	rateLimitPerSecond: number | null;
 };
 
-// Paid must never be slower than anonymous: free keyed matches the anon
-// limit, Pro (build) buys real headroom over it. Free is severely throttled —
-// it's the tip-only demo, not a bulk-read budget; volume goes prepaid or flat.
+// Keyed must never be slower than anonymous: free matches the anon limit.
+// Free is severely throttled — it's the tip-only demo, not a bulk-read
+// budget; volume goes through prepaid credits. Internal is unthrottled.
 export const INDEX_TIER_CONFIG: Record<IndexTier, IndexTierConfig> = {
 	free: { rateLimitPerSecond: 10 },
-	build: { rateLimitPerSecond: 250 },
-	scale: { rateLimitPerSecond: 500 },
-	enterprise: { rateLimitPerSecond: null },
+	internal: { rateLimitPerSecond: null },
 };
 
 // Shared global limit for anonymous open-beta reads. Clients always see

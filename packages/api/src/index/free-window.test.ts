@@ -84,8 +84,10 @@ describe("indexFreeWindow", () => {
 		expect(res.status).toBe(200);
 	});
 
-	test("paid tier (build): deep from_height passes", async () => {
-		const res = await app({ tier: "build" }).request("/events?from_height=1");
+	test("internal tier: deep from_height passes", async () => {
+		const res = await app({ tier: "internal" }).request(
+			"/events?from_height=1",
+		);
 		expect(res.status).toBe(200);
 	});
 

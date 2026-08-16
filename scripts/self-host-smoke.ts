@@ -29,9 +29,13 @@ const DB_URL =
 	process.env.SMOKE_DATABASE_URL ??
 	"postgres://secondlayer:secondlayer@127.0.0.1:5432/secondlayer";
 
-// A seeded static token, so Streams is reachable on a fresh install without
-// first creating an account. Documented in docker/oss/README.md.
-const STREAMS_KEY = "sk-sl_streams_enterprise_test";
+// STREAMS_INTERNAL_API_KEY is unset on a fresh OSS compose install, so the API
+// seeds the internal-tier tenant under its hardcoded fallback literal
+// (packages/indexer/src/decode/internal-auth.ts). That gives Streams reachable
+// on a fresh install with no account, and — unlike the free tier — unlimited
+// retention, which this smoke needs: it reads HEIGHT below, far outside the
+// free tier's 1-day window.
+const STREAMS_KEY = "sk-sl_streams_decode_internal";
 
 const HEIGHT = 900_001;
 /** Mirrors STREAMS_TIP_REORG_MARGIN_BLOCKS in packages/api/src/streams/tiers.ts. */

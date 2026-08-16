@@ -2,10 +2,18 @@
 set -euo pipefail
 
 API_URL="${SECOND_LAYER_API_URL:-https://api.secondlayer.tools}"
-STREAMS_KEY="${STREAMS_SMOKE_KEY:-sk-sl_streams_build_test}"
+# No paid tier ladder left to default this to — /v1/streams/events?limit=1
+# carries no from_height/cursor, so it never touches the retention gate and
+# a free-tier key exercises the same code path a "build" key used to.
+STREAMS_KEY="${STREAMS_SMOKE_KEY:-sk-sl_streams_free_test}"
 STREAMS_STATUS_KEY="${STREAMS_STATUS_SMOKE_KEY:-sk-sl_streams_status_public}"
 STREAMS_WRONG_SCOPE_KEY="${STREAMS_WRONG_SCOPE_SMOKE_KEY:-sk-sl_streams_wrong_scope_test}"
-INDEX_KEY="${INDEX_SMOKE_KEY:-sk-sl_index_build_test}"
+# No default: the checks below that use this key exist specifically to prove
+# an authenticated, non-free-tier caller works — that's redundant with the
+# free-tier checks unless the key is actually elevated. No paid ladder
+# survives to fabricate one, so this only runs when a real key is wired in as
+# a CI secret; otherwise those checks are skipped (not guessed) below.
+INDEX_KEY="${INDEX_SMOKE_KEY:-}"
 INDEX_FREE_KEY="${INDEX_FREE_SMOKE_KEY:-sk-sl_index_free_test}"
 INDEX_WRONG_SCOPE_KEY="${INDEX_WRONG_SCOPE_SMOKE_KEY:-sk-sl_index_wrong_scope_test}"
 TIMEOUT_SECONDS="${SMOKE_TIMEOUT_SECONDS:-15}"
@@ -187,7 +195,7 @@ check_json_field "public status node health" "/public/status" "" "node.status"
 check_json_field "public status service health" "/public/status" "" "services"
 check_public_status_services_ok
 
-check_status "streams events build" "200" "/v1/streams/events?limit=1" "$STREAMS_KEY"
+check_status "streams events free" "200" "/v1/streams/events?limit=1" "$STREAMS_KEY"
 # Streams is key-mandatory — there is no accountless read path since the x402
 # rail was removed, so a keyless read is an auth failure, not a payment offer.
 check_status "streams events keyless → 401" "401" "/v1/streams/events?limit=1"
@@ -199,17 +207,26 @@ check_status "streams tip public" "200" "/v1/streams/tip" "$STREAMS_STATUS_KEY"
 check_status "streams tip keyless → 401" "401" "/v1/streams/tip"
 check_json_field "streams tip shape" "/v1/streams/tip" "$STREAMS_STATUS_KEY" "lag_seconds"
 
-check_status "index ft transfers build" "200" "/v1/index/ft-transfers?limit=1" "$INDEX_KEY"
+# These two checks exist to prove an authenticated, non-free-tier caller
+# works — redundant with the "free" checks below unless the key is actually
+# elevated. No paid ladder survives to fabricate one, so they only run when
+# INDEX_SMOKE_KEY is wired in as a real CI secret; otherwise skip, not guess.
+if [[ -n "$INDEX_KEY" ]]; then
+	check_status "index ft transfers (elevated key)" "200" "/v1/index/ft-transfers?limit=1" "$INDEX_KEY"
+	check_json_field "index ft transfers envelope (elevated key)" "/v1/index/ft-transfers?limit=1" "$INDEX_KEY" "reorgs"
+	check_status "index nft transfers (elevated key)" "200" "/v1/index/nft-transfers?limit=1" "$INDEX_KEY"
+	check_json_field "index nft transfers envelope (elevated key)" "/v1/index/nft-transfers?limit=1" "$INDEX_KEY" "reorgs"
+else
+	echo "index ft/nft transfers (elevated key): skipped (INDEX_SMOKE_KEY unset — no paid tier ladder left to default to)"
+fi
+
 check_status "index ft transfers anon" "200" "/v1/index/ft-transfers?limit=1"
 check_status "index ft transfers free" "200" "/v1/index/ft-transfers?limit=1" "$INDEX_FREE_KEY"
 check_status "index ft transfers wrong scope" "403" "/v1/index/ft-transfers?limit=1" "$INDEX_WRONG_SCOPE_KEY"
-check_json_field "index ft transfers envelope" "/v1/index/ft-transfers?limit=1" "$INDEX_KEY" "reorgs"
 
-check_status "index nft transfers build" "200" "/v1/index/nft-transfers?limit=1" "$INDEX_KEY"
 check_status "index nft transfers anon" "200" "/v1/index/nft-transfers?limit=1"
 check_status "index nft transfers free" "200" "/v1/index/nft-transfers?limit=1" "$INDEX_FREE_KEY"
 check_status "index nft transfers wrong scope" "403" "/v1/index/nft-transfers?limit=1" "$INDEX_WRONG_SCOPE_KEY"
-check_json_field "index nft transfers envelope" "/v1/index/nft-transfers?limit=1" "$INDEX_KEY" "reorgs"
 
 # Phase 2: bulk dumps (datasets product removed 2026-06-11)
 check_json_field "public status streams dumps" "/public/status" "" "streams.dumps"

@@ -18,7 +18,7 @@ const TIP: StreamsTip = {
 const TOKENS: StreamsTokenStore = new Map([
 	[
 		"sk-sl_build",
-		{ tenant_id: "t", tier: "build" as const, scopes: [STREAMS_READ_SCOPE] },
+		{ tenant_id: "t", tier: "free" as const, scopes: [STREAMS_READ_SCOPE] },
 	],
 ]);
 

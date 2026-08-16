@@ -22,24 +22,24 @@ import { createStreamsRouter } from "../routes/streams.ts";
 import { STREAMS_READ_SCOPE, type StreamsTokenStore } from "./auth.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
-const INTERNAL_STREAMS_KEY = "sk-sl_streams_decode_enterprise_test";
+const INTERNAL_STREAMS_KEY = "sk-sl_streams_decode_internal_test";
 const INTERNAL_STREAMS_TOKENS: StreamsTokenStore = new Map([
 	[
 		INTERNAL_STREAMS_KEY,
 		{
 			tenant_id: "tenant_streams_decode_internal",
-			tier: "enterprise",
+			tier: "internal",
 			scopes: [STREAMS_READ_SCOPE],
 		},
 	],
 ]);
-const INDEX_KEY = "sk-sl_index_build_test";
+const INDEX_KEY = "sk-sl_index_internal_test";
 const INDEX_TOKENS: IndexTokenStore = new Map([
 	[
 		INDEX_KEY,
 		{
-			tenant_id: "tenant_index_build",
-			tier: "build",
+			tenant_id: "tenant_index_internal",
+			tier: "internal",
 			scopes: [INDEX_READ_SCOPE],
 		},
 	],

@@ -59,34 +59,10 @@ export const DEFAULT_STREAMS_TOKENS: StreamsTokenStore = new Map([
 		},
 	],
 	[
-		"sk-sl_streams_build_test",
-		{
-			tenant_id: "tenant_streams_build",
-			tier: "build",
-			scopes: [STREAMS_READ_SCOPE],
-		},
-	],
-	[
-		"sk-sl_streams_scale_test",
-		{
-			tenant_id: "tenant_streams_scale",
-			tier: "scale",
-			scopes: [STREAMS_READ_SCOPE],
-		},
-	],
-	[
-		"sk-sl_streams_enterprise_test",
-		{
-			tenant_id: "tenant_streams_enterprise",
-			tier: "enterprise",
-			scopes: [STREAMS_READ_SCOPE],
-		},
-	],
-	[
 		"sk-sl_streams_wrong_scope_test",
 		{
 			tenant_id: "tenant_streams_wrong_scope",
-			tier: "build",
+			tier: "free",
 			scopes: [],
 		},
 	],
@@ -96,7 +72,7 @@ export const DEFAULT_STREAMS_TOKENS: StreamsTokenStore = new Map([
 	defaultInternalStreamsApiKey(),
 	{
 		tenant_id: INTERNAL_STREAMS_TENANT_ID,
-		tier: "enterprise",
+		tier: "internal",
 		scopes: [STREAMS_READ_SCOPE],
 	},
 );

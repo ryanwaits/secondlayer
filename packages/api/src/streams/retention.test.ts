@@ -16,15 +16,15 @@ const TIP: StreamsTip = {
 // Free retention = 1 day, so anything older than tip - 17,280 is gated.
 const DEEP = TIP.block_height - STREAMS_BLOCKS_PER_DAY - 1;
 
-/** Free-tier streams tenant; `credited` optionally pre-set. */
-function app(seed?: { credited?: boolean }) {
+/** Streams tenant (default `free`); `credited` optionally pre-set. */
+function app(seed?: { credited?: boolean; tier?: "free" | "internal" }) {
 	const a = new Hono<StreamsEnv>();
 	a.onError(errorHandler);
 	a.use("*", async (c, next) => {
 		c.set("streamsTenant", {
 			tenant_id: "t",
 			account_id: "acct",
-			tier: "free",
+			tier: seed?.tier ?? "free",
 			scopes: [],
 		});
 		if (seed?.credited)
@@ -54,5 +54,19 @@ describe("streamsRetentionWindow + credits bypass", () => {
 			`/events?from_height=${DEEP}`,
 		);
 		expect(res.status).toBe(200);
+	});
+
+	test("internal tenant: deep read bypasses the retention cutoff (no ladder to buy through)", async () => {
+		const res = await app({ tier: "internal" }).request(
+			`/events?from_height=${DEEP}`,
+		);
+		expect(res.status).toBe(200);
+	});
+
+	test("free tenant (no credits): deep read stays gated, not bypassed", async () => {
+		const res = await app({ tier: "free" }).request(
+			`/events?from_height=${DEEP}`,
+		);
+		expect(res.status).toBe(403);
 	});
 });

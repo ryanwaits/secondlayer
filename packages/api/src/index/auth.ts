@@ -48,48 +48,24 @@ export const DEFAULT_INDEX_TOKENS: IndexTokenStore = new Map([
 		},
 	],
 	[
-		"sk-sl_index_build_test",
-		{
-			tenant_id: "tenant_index_build",
-			tier: "build",
-			scopes: [INDEX_READ_SCOPE],
-		},
-	],
-	[
-		"sk-sl_index_scale_test",
-		{
-			tenant_id: "tenant_index_scale",
-			tier: "scale",
-			scopes: [INDEX_READ_SCOPE],
-		},
-	],
-	[
-		"sk-sl_index_enterprise_test",
-		{
-			tenant_id: "tenant_index_enterprise",
-			tier: "enterprise",
-			scopes: [INDEX_READ_SCOPE],
-		},
-	],
-	[
 		"sk-sl_index_wrong_scope_test",
 		{
 			tenant_id: "tenant_index_wrong_scope",
-			tier: "build",
+			tier: "free",
 			scopes: [],
 		},
 	],
 ]);
 
 // First-party internal consumer (subgraph processor PublicApiBlockSource).
-// Enterprise tier + NO account_id → reads are unmetered (metering gates on
+// Internal tier + NO account_id → reads are unmetered (metering gates on
 // account_id). Key resolves from INDEX_INTERNAL_API_KEY env. Mirrors the
 // Streams internal tenant seed.
 (DEFAULT_INDEX_TOKENS as unknown as Map<string, IndexTenant>).set(
 	defaultInternalIndexApiKey(),
 	{
 		tenant_id: INDEX_INTERNAL_TENANT_ID,
-		tier: "enterprise",
+		tier: "internal",
 		scopes: [INDEX_READ_SCOPE],
 	},
 );

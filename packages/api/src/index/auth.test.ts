@@ -3,10 +3,10 @@ import { defaultInternalIndexApiKey } from "@secondlayer/shared/index-internal-a
 import { DEFAULT_INDEX_TOKENS, INDEX_READ_SCOPE } from "./auth.ts";
 
 describe("index internal token", () => {
-	test("internal key resolves to an unmetered enterprise tenant", async () => {
+	test("internal key resolves to an unmetered internal tenant", async () => {
 		const tenant = await DEFAULT_INDEX_TOKENS.get(defaultInternalIndexApiKey());
 		expect(tenant).toBeDefined();
-		expect(tenant?.tier).toBe("enterprise");
+		expect(tenant?.tier).toBe("internal");
 		// No account_id → Index metering (`accountId && …`) never fires for the
 		// internal consumer, so PublicApiBlockSource reads are unmetered.
 		expect(tenant?.account_id).toBeUndefined();

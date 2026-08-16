@@ -65,18 +65,6 @@ export function indexRateLimit(): MiddlewareHandler<IndexEnv> {
 			c.header("X-RateLimit-Limit", String(limit));
 			c.header("X-RateLimit-Remaining", "0");
 			c.header("X-RateLimit-Reset", String(result.resetAt));
-			// Free-tier 429s point at the upgrade path instead of a bare error.
-			if (tenant.tier === "free") {
-				return c.json(
-					{
-						error: `Free tier is limited to ${limit} req/s on the Index surface. Upgrade for more headroom.`,
-						code: "RATE_LIMIT_ERROR",
-						required_tier: "build",
-						upgrade_url: "https://secondlayer.tools/platform/billing",
-					},
-					429,
-				);
-			}
 			throw new RateLimitError("Rate limit exceeded");
 		}
 

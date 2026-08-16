@@ -4,9 +4,22 @@ import { decodeFtTransfer, isFtTransfer } from "@secondlayer/sdk/streams/rows";
 import { Hono } from "hono";
 import { errorHandler } from "../middleware/error.ts";
 import { createStreamsRouter } from "../routes/streams.ts";
+import { STREAMS_READ_SCOPE, type StreamsTokenStore } from "./auth.ts";
 import type { StreamsEventsReader } from "./events.ts";
 
-const BUILD_KEY = "sk-sl_streams_build_test";
+// No paid ladder left in the default seeds; inject an "internal" tenant
+// (unlimited retention) through the `tokens` seam instead of a static token.
+const INTERNAL_KEY = "sk-sl_streams_internal_fixture";
+const TEST_TOKENS: StreamsTokenStore = new Map([
+	[
+		INTERNAL_KEY,
+		{
+			tenant_id: "tenant_streams_internal_fixture",
+			tier: "internal",
+			scopes: [STREAMS_READ_SCOPE],
+		},
+	],
+]);
 const TIP = {
 	block_height: 10,
 	block_hash: "0x01",
@@ -42,6 +55,7 @@ function createApp(readEvents: StreamsEventsReader) {
 	app.route(
 		"/v1/streams",
 		createStreamsRouter({
+			tokens: TEST_TOKENS,
 			getTip: () => TIP,
 			readEvents,
 			readReorgs: async () => [],
@@ -63,7 +77,7 @@ describe("@secondlayer/sdk Streams integration", () => {
 			};
 		});
 		const client = createStreamsClient({
-			apiKey: BUILD_KEY,
+			apiKey: INTERNAL_KEY,
 			baseUrl: "http://secondlayer.test",
 			fetchImpl: async (input, init) => {
 				const request =
@@ -74,12 +88,12 @@ describe("@secondlayer/sdk Streams integration", () => {
 			},
 		});
 
-		// Tip now advertises the seekable floor; build-tier retention exceeds this
-		// tiny test tip so the cutoff clamps to 0.
+		// Tip now advertises the seekable floor; internal tier has no retention
+		// cutoff at all (unlimited), so there's no floor to report.
 		await expect(client.tip()).resolves.toEqual({
 			...TIP,
-			oldest_seekable_height: 0,
-			oldest_cursor: "0:0",
+			oldest_seekable_height: null,
+			oldest_cursor: null,
 		});
 
 		const envelope = await client.events.list({

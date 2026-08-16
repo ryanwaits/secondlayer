@@ -52,8 +52,9 @@ export function isOverMonthlyCreditCap(
 
 /**
  * A free-tier account with enough prepaid balance → pay-as-you-go, else
- * undefined. Only free-tier account-backed callers qualify: paid tiers already
- * have full history + headroom; anon / x402 callers have no account credits.
+ * undefined. Only free-tier account-backed callers qualify: internal
+ * (first-party service) callers already have unmetered headroom; anon / x402
+ * callers have no account credits.
  *
  * Spend cap: once this month's credit spend reaches the account's monthly cap,
  * stop crediting so reads fall back to the free window — the hard stop the
@@ -63,7 +64,7 @@ export async function resolveCreditedAccount(
 	accountId: string | undefined,
 	tier: string | undefined,
 ): Promise<Credited | undefined> {
-	if (!isPlatformMode() || !accountId || tier !== "free") return undefined;
+	if (!isPlatformMode() || !accountId || tier === "internal") return undefined;
 	const db = getDb();
 	const balance = await getCredits(db, accountId);
 	if (balance < MIN_CREDITED_USD_MICROS) return undefined;

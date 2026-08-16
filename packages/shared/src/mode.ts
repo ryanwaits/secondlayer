@@ -5,9 +5,10 @@
  *   (projects, admin). Everything runs against a single `DATABASE_URL`.
  *   Intended for `docker compose up`.
  *
- * - `platform`: control-plane mode. Magic-link auth, API keys, projects,
- *   admin. Serves the dashboard + CLI against a single shared DB. Post
- *   2026-05-14 shared-rip this also serves subgraphs + subscriptions.
+ * - `platform`: the metered archive deployment. Magic-link auth, API keys,
+ *   accounts, credits, and metered `/v1` reads (Index + Streams + subgraphs)
+ *   against a single shared DB. No paid tier ladder — one metered `free`
+ *   tier plus first-party internal service credentials.
  */
 
 export type InstanceMode = "oss" | "platform";

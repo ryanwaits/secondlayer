@@ -2,9 +2,10 @@ import { getDb as defaultGetDb } from "@secondlayer/shared/db";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import { hashToken } from "./keys.ts";
 
-/** Single metered-tier vocabulary. `free` is the metered default; the paid
- *  values survive only as per-key pins on legacy `api_keys.tier` rows. */
-export type ProductTier = "free" | "build" | "scale" | "enterprise";
+/** Two kinds of caller: `free` is the single metered tier every minted key
+ *  gets (see auth/mint.ts), `internal` is a first-party service credential
+ *  that is neither throttled nor metered. There is no paid ladder. */
+export type ProductTier = "free" | "internal";
 
 export type ProductTenant<TTier extends ProductTier = ProductTier> = {
 	tenant_id: string;
@@ -53,15 +54,18 @@ async function lookupAccountApiKey(
 	if (!row) return null;
 	return {
 		account_id: row.account_id,
+		// DB-backed keys are always the single metered tier. Legacy `build`/
+		// `scale`/`enterprise` pins on old rows are not authority — the paid
+		// ladder was retired and the column is vestigial.
 		status: row.status,
-		tier: (row.tier as ProductTier | null) ?? null,
+		tier: "free",
 	};
 }
 
 /**
  * Runtime token store for the metered archive: static seed tokens first, then
- * `api_keys` by hash. Tier is the key's own `api_keys.tier` column (minted
- * `free`; legacy paid pins honored) — there is no account-plan authority.
+ * `api_keys` by hash. Every DB-backed key resolves to the single metered
+ * `free` tier — legacy paid pins on `api_keys.tier` are not honored.
  */
 export function createApiKeyTokenStore<TTenant extends ProductTenant>(
 	opts: ApiKeyTokenStoreOptions<TTenant>,

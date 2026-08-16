@@ -1,12 +1,16 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { getDb } from "@secondlayer/shared/db";
 import { createApiKeyTokenStore } from "./api-key-store.ts";
+import { hashToken } from "./keys.ts";
+
+const HAS_DB = !!process.env.DATABASE_URL;
 
 const STATIC = new Map([
 	[
 		"sk-sl_static_seed",
 		{
 			tenant_id: "tenant_static",
-			tier: "enterprise" as const,
+			tier: "free" as const,
 			scopes: ["index:read"],
 		},
 	],
@@ -41,25 +45,64 @@ describe("createApiKeyTokenStore", () => {
 		expect(called).toBe(false);
 	});
 
-	test("tier comes from the api_keys.tier column", async () => {
-		const store = createApiKeyTokenStore({
-			staticTokens: new Map(),
-			requiredScope: "streams:read",
-			product: "streams",
-			lookupApiKey: async () => ({
-				account_id: "acct_1",
-				status: "active",
-				tier: "build",
-			}),
-		});
-		const tenant = await store.get("sk-sl_key");
-		expect(tenant).toEqual({
-			tenant_id: "account:acct_1",
-			account_id: "acct_1",
-			tier: "build",
-			scopes: ["streams:read"],
-		});
-	});
+	describe.skipIf(!HAS_DB)(
+		"DB-backed lookup (default lookupAccountApiKey)",
+		() => {
+			const db = getDb();
+			const TEST_EMAIL = `api-key-store-test-${Date.now()}@example.com`;
+			let accountId: string;
+			let prevMode: string | undefined;
+
+			beforeAll(async () => {
+				// The default DB lookup path is platform-only; oss short-circuits it.
+				prevMode = process.env.INSTANCE_MODE;
+				process.env.INSTANCE_MODE = "platform";
+				const row = await db
+					.insertInto("accounts")
+					.values({ email: TEST_EMAIL })
+					.returning("id")
+					.executeTakeFirstOrThrow();
+				accountId = row.id;
+			});
+
+			afterAll(async () => {
+				if (prevMode === undefined) delete process.env.INSTANCE_MODE;
+				else process.env.INSTANCE_MODE = prevMode;
+				await db
+					.deleteFrom("api_keys")
+					.where("account_id", "=", accountId)
+					.execute();
+				await db.deleteFrom("accounts").where("id", "=", accountId).execute();
+			});
+
+			test("a legacy paid-tier pin on the DB row resolves to free, not the pin", async () => {
+				const raw = "sk-sl_legacy_enterprise_pin_test";
+				await db
+					.insertInto("api_keys")
+					.values({
+						key_hash: hashToken(raw),
+						key_prefix: "sk-sl_legacy",
+						account_id: accountId,
+						ip_address: "test",
+						product: "streams",
+						// Legacy pin from before the paid ladder was retired. The DB
+						// column stays wide (out of scope for this plan) but the
+						// resolver must never treat it as authority.
+						tier: "enterprise",
+						status: "active",
+					})
+					.execute();
+
+				const store = createApiKeyTokenStore({
+					staticTokens: new Map(),
+					requiredScope: "streams:read",
+					product: "streams",
+				});
+				const tenant = await store.get(raw);
+				expect(tenant?.tier).toBe("free");
+			});
+		},
+	);
 
 	test("null key tier defaults to free (read-credits gate contract)", async () => {
 		const store = createApiKeyTokenStore({
@@ -84,7 +127,7 @@ describe("createApiKeyTokenStore", () => {
 			lookupApiKey: async () => ({
 				account_id: "acct_3",
 				status: "revoked",
-				tier: "build",
+				tier: "free",
 			}),
 		});
 		expect(await store.get("sk-sl_key")).toBeUndefined();

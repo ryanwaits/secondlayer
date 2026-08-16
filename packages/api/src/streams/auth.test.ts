@@ -11,7 +11,7 @@ import {
 const tokens: StreamsTokenStore = {
 	get: async (raw) =>
 		raw === "good-key"
-			? { tenant_id: "t1", tier: "build", scopes: ["streams:read"] }
+			? { tenant_id: "t1", tier: "free", scopes: ["streams:read"] }
 			: undefined,
 };
 

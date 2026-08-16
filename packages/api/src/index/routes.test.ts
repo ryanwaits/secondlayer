@@ -37,10 +37,23 @@ import {
 } from "./transaction-proof.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
-const BUILD_KEY = "sk-sl_index_build_test";
 const FREE_KEY = "sk-sl_index_free_test";
-const SCALE_KEY = "sk-sl_index_scale_test";
 const WRONG_SCOPE_KEY = "sk-sl_index_wrong_scope_test";
+
+// No paid ladder left in the default seeds, so tests that need an unthrottled
+// (non-free) caller inject their own "internal" tenant through the `tokens`
+// seam rather than relying on a deleted static token.
+const INTERNAL_KEY = "sk-sl_index_internal_fixture";
+const TEST_INDEX_TOKENS: IndexTokenStore = new Map([
+	[
+		INTERNAL_KEY,
+		{
+			tenant_id: "tenant_index_internal_fixture",
+			tier: "internal",
+			scopes: [INDEX_READ_SCOPE],
+		},
+	],
+]);
 const TIP: IndexTip = {
 	block_height: 10_000,
 	finalized_height: 9_994,
@@ -67,12 +80,16 @@ function authHeaders(token: string) {
 	return { Authorization: `Bearer ${token}` };
 }
 
-function createApp(readFtTransfers: FtTransfersReader = EMPTY_READER) {
+function createApp(
+	readFtTransfers: FtTransfersReader = EMPTY_READER,
+	tokens?: IndexTokenStore,
+) {
 	const app = new Hono();
 	app.onError(errorHandler);
 	app.route(
 		"/v1/index",
 		createIndexRouter({
+			tokens,
 			getTip: () => TIP,
 			readFtTransfers,
 			readNftTransfers: EMPTY_NFT_READER,
@@ -121,13 +138,27 @@ describe("Stacks Index gateway middleware", () => {
 		expect(res.status).toBe(200);
 	});
 
-	test("tier ladder: paid is never slower than anonymous", () => {
+	test("free-tier 429 body carries no upgrade copy — no paid ladder to advertise", async () => {
+		const app = createApp();
+		for (let i = 0; i < 10; i++) {
+			await app.request("/v1/index/ft-transfers", {
+				headers: authHeaders(FREE_KEY),
+			});
+		}
+		const res = await app.request("/v1/index/ft-transfers", {
+			headers: authHeaders(FREE_KEY),
+		});
+		expect(res.status).toBe(429);
+		const body = (await res.json()) as Record<string, unknown>;
+		expect(body).not.toHaveProperty("upgrade_url");
+		expect(body).not.toHaveProperty("required_tier");
+	});
+
+	test("tier config: free is never slower than anonymous, no paid ladder", () => {
 		expect(
 			INDEX_TIER_CONFIG.free.rateLimitPerSecond ?? Number.POSITIVE_INFINITY,
 		).toBeGreaterThanOrEqual(INDEX_ANON_RATE_LIMIT_PER_SECOND);
-		expect(INDEX_TIER_CONFIG.build.rateLimitPerSecond).toBe(250);
-		expect(INDEX_TIER_CONFIG.scale.rateLimitPerSecond).toBe(500);
-		expect(INDEX_TIER_CONFIG.enterprise.rateLimitPerSecond).toBeNull();
+		expect(INDEX_TIER_CONFIG.internal.rateLimitPerSecond).toBeNull();
 	});
 
 	test("wrong scope is rejected", async () => {
@@ -139,40 +170,37 @@ describe("Stacks Index gateway middleware", () => {
 		expect(body.error).toContain(INDEX_READ_SCOPE);
 	});
 
-	test("nft-transfers uses the same paid Index gateway", async () => {
-		const res = await createApp().request("/v1/index/nft-transfers", {
-			headers: authHeaders(SCALE_KEY),
-		});
+	test("nft-transfers uses the same Index gateway for an internal caller", async () => {
+		const res = await createApp(undefined, TEST_INDEX_TOKENS).request(
+			"/v1/index/nft-transfers",
+			{
+				headers: authHeaders(INTERNAL_KEY),
+			},
+		);
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as { events: unknown[]; reorgs: unknown[] };
 		expect(body.events).toEqual([]);
 		expect(body.reorgs).toEqual([]);
 	});
 
-	test("build tier gets 250 req/s on Index", async () => {
-		const app = createApp();
-		for (let i = 0; i < 250; i++) {
+	test("internal tier is unthrottled past the free 10 req/s ceiling", async () => {
+		const app = createApp(undefined, TEST_INDEX_TOKENS);
+		for (let i = 0; i < 20; i++) {
 			const res = await app.request("/v1/index/ft-transfers", {
-				headers: authHeaders(BUILD_KEY),
+				headers: authHeaders(INTERNAL_KEY),
 			});
 			expect(res.status).toBe(200);
 		}
-
-		const res = await app.request("/v1/index/ft-transfers", {
-			headers: authHeaders(BUILD_KEY),
-		});
-		expect(res.status).toBe(429);
-		expect(res.headers.get("X-RateLimit-Limit")).toBe("250");
 	});
 
 	test("Index bucket is separate from Streams bucket", async () => {
-		const sharedKey = "sk-shared-build";
+		const sharedKey = "sk-shared-internal";
 		const streamsTokens: StreamsTokenStore = new Map([
 			[
 				sharedKey,
 				{
-					tenant_id: "tenant_shared_build",
-					tier: "build",
+					tenant_id: "tenant_shared_internal",
+					tier: "internal",
 					scopes: [STREAMS_READ_SCOPE],
 				},
 			],
@@ -181,8 +209,8 @@ describe("Stacks Index gateway middleware", () => {
 			[
 				sharedKey,
 				{
-					tenant_id: "tenant_shared_build",
-					tier: "build",
+					tenant_id: "tenant_shared_internal",
+					tier: "internal",
 					scopes: [INDEX_READ_SCOPE],
 				},
 			],

@@ -22,9 +22,22 @@ import type { StreamsTip } from "./tip.ts";
 
 const FREE_KEY = "sk-sl_streams_free_test";
 const STATUS_KEY = "sk-sl_streams_status_public";
-const BUILD_KEY = "sk-sl_streams_build_test";
-const ENTERPRISE_KEY = "sk-sl_streams_enterprise_test";
 const WRONG_SCOPE_KEY = "sk-sl_streams_wrong_scope_test";
+
+// No paid ladder left in the default seeds, so tests that need an unthrottled,
+// unretained (non-free) caller inject their own "internal" tenant through the
+// `tokens` seam rather than relying on a deleted static token.
+const INTERNAL_KEY = "sk-sl_streams_internal_fixture";
+const TEST_TOKENS: StreamsTokenStore = new Map([
+	[
+		INTERNAL_KEY,
+		{
+			tenant_id: "tenant_streams_internal_fixture",
+			tier: "internal",
+			scopes: [STREAMS_READ_SCOPE],
+		},
+	],
+]);
 
 const TEST_TIP: StreamsTip = {
 	block_height: 200_000,
@@ -40,12 +53,16 @@ const EMPTY_EVENTS_READER: StreamsEventsReader = async () => ({
 	next_cursor: null,
 });
 
-function createApp(readEvents: StreamsEventsReader = EMPTY_EVENTS_READER) {
+function createApp(
+	readEvents: StreamsEventsReader = EMPTY_EVENTS_READER,
+	tokens?: StreamsTokenStore,
+) {
 	const app = new Hono();
 	app.onError(errorHandler);
 	app.route(
 		"/v1/streams",
 		createStreamsRouter({
+			tokens,
 			getTip: () => TEST_TIP,
 			readEvents,
 			readReorgs: async () => [],
@@ -71,7 +88,7 @@ function createMeteredApp(opts: {
 			{
 				tenant_id: "account:acct_streams",
 				account_id: "acct_streams",
-				tier: "build",
+				tier: "free",
 				scopes: [STREAMS_READ_SCOPE],
 			},
 		],
@@ -79,7 +96,7 @@ function createMeteredApp(opts: {
 			"sk-sl_unmetered_streams",
 			{
 				tenant_id: "tenant_static",
-				tier: "build",
+				tier: "free",
 				scopes: [STREAMS_READ_SCOPE],
 			},
 		],
@@ -88,7 +105,7 @@ function createMeteredApp(opts: {
 			{
 				tenant_id: "account:acct_streams",
 				account_id: "acct_streams",
-				tier: "build",
+				tier: "free",
 				scopes: [],
 			},
 		],
@@ -171,29 +188,28 @@ describe("Stacks Streams gateway middleware", () => {
 		expect(res.headers.get("X-RateLimit-Limit")).toBe("10");
 	});
 
-	test("Build-tier key passes through at 250 req/s", async () => {
-		const app = createApp();
+	test("Internal-tier key is unthrottled past the free 10 req/s ceiling", async () => {
+		const app = createApp(undefined, TEST_TOKENS);
 
-		for (let i = 0; i < 250; i++) {
+		for (let i = 0; i < 20; i++) {
 			const res = await app.request("/v1/streams/events", {
-				headers: authHeaders(BUILD_KEY),
+				headers: authHeaders(INTERNAL_KEY),
 			});
 			expect(res.status).toBe(200);
 		}
 	});
 
-	test("tier ladder values are the published offer", () => {
-		expect(STREAMS_TIER_CONFIG.build.rateLimitPerSecond).toBe(250);
-		expect(STREAMS_TIER_CONFIG.scale.rateLimitPerSecond).toBe(500);
-		expect(STREAMS_TIER_CONFIG.enterprise.rateLimitPerSecond).toBeNull();
+	test("tier config is metered free vs unmetered internal, no paid ladder", () => {
+		expect(STREAMS_TIER_CONFIG.free.rateLimitPerSecond).toBe(10);
+		expect(STREAMS_TIER_CONFIG.internal.rateLimitPerSecond).toBeNull();
 	});
 
 	test("finalized closed range is cacheable as immutable", async () => {
-		const app = createApp();
+		const app = createApp(undefined, TEST_TOKENS);
 		// TEST_TIP.finalized_height = 199_994; a closed range below it is immutable.
 		const res = await app.request(
 			"/v1/streams/events?from_height=199990&to_height=199994",
-			{ headers: authHeaders(BUILD_KEY) },
+			{ headers: authHeaders(INTERNAL_KEY) },
 		);
 		expect(res.status).toBe(200);
 		expect(res.headers.get("Cache-Control")).toContain("immutable");
@@ -204,31 +220,36 @@ describe("Stacks Streams gateway middleware", () => {
 		const app = createApp(async () => {
 			reads++;
 			return { events: [], next_cursor: null };
-		});
+		}, TEST_TOKENS);
 		const path = "/v1/streams/events?from_height=199990&to_height=199994";
-		await app.request(path, { headers: authHeaders(BUILD_KEY) });
-		await app.request(path, { headers: authHeaders(BUILD_KEY) });
+		await app.request(path, { headers: authHeaders(INTERNAL_KEY) });
+		await app.request(path, { headers: authHeaders(INTERNAL_KEY) });
 		expect(reads).toBe(1);
 	});
 
 	test("If-None-Match on a finalized page returns 304", async () => {
-		const app = createApp();
+		const app = createApp(undefined, TEST_TOKENS);
 		const path = "/v1/streams/events?from_height=199990&to_height=199994";
-		const first = await app.request(path, { headers: authHeaders(BUILD_KEY) });
+		const first = await app.request(path, {
+			headers: authHeaders(INTERNAL_KEY),
+		});
 		expect(first.status).toBe(200);
 		const etag = first.headers.get("ETag");
 		expect(etag).toBeTruthy();
 
 		const second = await app.request(path, {
-			headers: { ...authHeaders(BUILD_KEY), "If-None-Match": etag as string },
+			headers: {
+				...authHeaders(INTERNAL_KEY),
+				"If-None-Match": etag as string,
+			},
 		});
 		expect(second.status).toBe(304);
 	});
 
 	test("default tip-spanning request is private and short-lived", async () => {
-		const app = createApp();
+		const app = createApp(undefined, TEST_TOKENS);
 		const res = await app.request("/v1/streams/events", {
-			headers: authHeaders(BUILD_KEY),
+			headers: authHeaders(INTERNAL_KEY),
 		});
 		expect(res.status).toBe(200);
 		expect(res.headers.get("Cache-Control")).toBe("private, max-age=2");
@@ -300,6 +321,7 @@ describe("Stacks Streams gateway middleware", () => {
 		app.route(
 			"/v1/streams",
 			createStreamsRouter({
+				tokens: TEST_TOKENS,
 				getTip: () => TEST_TIP,
 				readEvents: EMPTY_EVENTS_READER,
 				readReorgs: async () => [],
@@ -314,7 +336,7 @@ describe("Stacks Streams gateway middleware", () => {
 		);
 
 		const res = await app.request("/v1/streams/canonical/100", {
-			headers: authHeaders(BUILD_KEY),
+			headers: authHeaders(INTERNAL_KEY),
 		});
 
 		expect(res.status).toBe(200);
@@ -334,6 +356,7 @@ describe("Stacks Streams gateway middleware", () => {
 		app.route(
 			"/v1/streams",
 			createStreamsRouter({
+				tokens: TEST_TOKENS,
 				getTip: () => TEST_TIP,
 				readEvents: EMPTY_EVENTS_READER,
 				readEventsByTxId: async ({ txId }) => ({
@@ -357,7 +380,7 @@ describe("Stacks Streams gateway middleware", () => {
 		);
 
 		const res = await app.request("/v1/streams/events/0xtx", {
-			headers: authHeaders(BUILD_KEY),
+			headers: authHeaders(INTERNAL_KEY),
 		});
 
 		expect(res.status).toBe(200);
@@ -377,6 +400,7 @@ describe("Stacks Streams gateway middleware", () => {
 		app.route(
 			"/v1/streams",
 			createStreamsRouter({
+				tokens: TEST_TOKENS,
 				getTip: () => TEST_TIP,
 				readEvents: EMPTY_EVENTS_READER,
 				readBlockEvents: async ({ blockHash }) => {
@@ -388,7 +412,7 @@ describe("Stacks Streams gateway middleware", () => {
 		);
 
 		const res = await app.request("/v1/streams/blocks/0xblock/events", {
-			headers: authHeaders(BUILD_KEY),
+			headers: authHeaders(INTERNAL_KEY),
 		});
 
 		expect(res.status).toBe(200);
@@ -403,6 +427,7 @@ describe("Stacks Streams gateway middleware", () => {
 		app.route(
 			"/v1/streams",
 			createStreamsRouter({
+				tokens: TEST_TOKENS,
 				getTip: () => TEST_TIP,
 				readEvents: EMPTY_EVENTS_READER,
 				readReorgs: async () => [],
@@ -429,7 +454,7 @@ describe("Stacks Streams gateway middleware", () => {
 
 		const res = await app.request(
 			"/v1/streams/reorgs?since=2026-05-03T00:00:00.000Z&limit=2",
-			{ headers: authHeaders(BUILD_KEY) },
+			{ headers: authHeaders(INTERNAL_KEY) },
 		);
 
 		expect(res.status).toBe(200);
@@ -456,11 +481,11 @@ describe("Stacks Streams gateway middleware", () => {
 	});
 
 	test("/events rejects from_height with cursor", async () => {
-		const app = createApp();
+		const app = createApp(undefined, TEST_TOKENS);
 		const res = await app.request(
 			"/v1/streams/events?cursor=9999:0&from_height=9999",
 			{
-				headers: authHeaders(BUILD_KEY),
+				headers: authHeaders(INTERNAL_KEY),
 			},
 		);
 
@@ -470,9 +495,9 @@ describe("Stacks Streams gateway middleware", () => {
 	});
 
 	test("/events rejects malformed cursors", async () => {
-		const app = createApp();
+		const app = createApp(undefined, TEST_TOKENS);
 		const res = await app.request("/v1/streams/events?cursor=0001:0", {
-			headers: authHeaders(BUILD_KEY),
+			headers: authHeaders(INTERNAL_KEY),
 		});
 
 		expect(res.status).toBe(400);
@@ -481,24 +506,27 @@ describe("Stacks Streams gateway middleware", () => {
 	});
 
 	test("/events clamps limit to 1000", async () => {
-		const app = createApp(async ({ limit }) => ({
-			events: Array.from({ length: limit }, (_, i) => ({
-				cursor: `1:${i}`,
-				block_height: 1,
-				block_hash: TEST_TIP.block_hash,
-				burn_block_height: TEST_TIP.burn_block_height,
-				tx_id: `0x${i}`,
-				tx_index: i,
-				event_index: i,
-				event_type: "stx_transfer",
-				contract_id: null,
-				payload: {},
-				ts: "2026-05-02T21:43:00.000Z",
-			})),
-			next_cursor: "1:999",
-		}));
+		const app = createApp(
+			async ({ limit }) => ({
+				events: Array.from({ length: limit }, (_, i) => ({
+					cursor: `1:${i}`,
+					block_height: 1,
+					block_hash: TEST_TIP.block_hash,
+					burn_block_height: TEST_TIP.burn_block_height,
+					tx_id: `0x${i}`,
+					tx_index: i,
+					event_index: i,
+					event_type: "stx_transfer",
+					contract_id: null,
+					payload: {},
+					ts: "2026-05-02T21:43:00.000Z",
+				})),
+				next_cursor: "1:999",
+			}),
+			TEST_TOKENS,
+		);
 		const res = await app.request("/v1/streams/events?limit=5000", {
-			headers: authHeaders(BUILD_KEY),
+			headers: authHeaders(INTERNAL_KEY),
 		});
 
 		expect(res.status).toBe(200);
@@ -529,11 +557,11 @@ describe("Stacks Streams gateway middleware", () => {
 				],
 				next_cursor: "9999:0",
 			};
-		});
+		}, TEST_TOKENS);
 
 		const startedAt = performance.now();
 		const res = await app.request("/v1/streams/events", {
-			headers: authHeaders(BUILD_KEY),
+			headers: authHeaders(INTERNAL_KEY),
 		});
 		const elapsedMs = performance.now() - startedAt;
 
@@ -556,10 +584,10 @@ describe("Stacks Streams gateway middleware", () => {
 			seenAfter = after;
 			seenFromHeight = fromHeight;
 			return { events: [], next_cursor: null };
-		});
+		}, TEST_TOKENS);
 
 		const res = await app.request("/v1/streams/events?from_cursor=0:0", {
-			headers: authHeaders(ENTERPRISE_KEY),
+			headers: authHeaders(INTERNAL_KEY),
 		});
 
 		expect(res.status).toBe(200);

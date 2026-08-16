@@ -31,7 +31,7 @@ const EVENT = {
 const TOKENS: StreamsTokenStore = {
 	get: () => ({
 		tenant_id: "tenant_test",
-		tier: "build",
+		tier: "free",
 		scopes: [STREAMS_READ_SCOPE],
 	}),
 };

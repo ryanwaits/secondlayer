@@ -1,4 +1,4 @@
-export type StreamsTier = "free" | "build" | "scale" | "enterprise";
+export type StreamsTier = "free" | "internal";
 
 export type StreamsTierConfig = {
 	rateLimitPerSecond: number | null;
@@ -34,9 +34,7 @@ export const STREAMS_ANON_RATE_LIMIT_PER_SECOND = 50;
 
 export const STREAMS_TIER_CONFIG: Record<StreamsTier, StreamsTierConfig> = {
 	free: { rateLimitPerSecond: 10, retentionDays: 1 },
-	build: { rateLimitPerSecond: 250, retentionDays: 30 },
-	scale: { rateLimitPerSecond: 500, retentionDays: 90 },
-	enterprise: { rateLimitPerSecond: null, retentionDays: null },
+	internal: { rateLimitPerSecond: null, retentionDays: null },
 };
 
 export function getStreamsRetentionCutoff(
