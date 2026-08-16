@@ -114,20 +114,23 @@ export async function persistBlock(
 		// while its events are written at each delivered height. Those stragglers
 		// survive a delete-by-height and then block the transaction delete —
 		// which halted mainnet ingest for 8h on 2026-08-16 over two rows.
+		//
+		// Two statements, not one OR'd predicate: an OR across block_height and
+		// tx_id defeats both indexes and seq-scans the whole events table
+		// (~105M rows) on every block. Split, each side uses its own index.
 		await tx
 			.deleteFrom("events")
-			.where((eb) =>
-				eb.or([
-					eb("block_height", "=", blockHeight),
-					eb(
-						"tx_id",
-						"in",
-						eb
-							.selectFrom("transactions")
-							.select("tx_id")
-							.where("block_height", "=", blockHeight),
-					),
-				]),
+			.where("block_height", "=", blockHeight)
+			.execute();
+		await tx
+			.deleteFrom("events")
+			.where(
+				"tx_id",
+				"in",
+				tx
+					.selectFrom("transactions")
+					.select("tx_id")
+					.where("block_height", "=", blockHeight),
 			)
 			.execute();
 		await tx
