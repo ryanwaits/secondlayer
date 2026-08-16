@@ -81,6 +81,11 @@ export function getChangelogEntries(): ChangelogEntry[] {
 		const slug = slugger.slug(text);
 
 		if (level === 2) {
+			// The em dash in `## Product — Month Year` is a delimiter, not
+			// punctuation. House style bans em dashes in prose, and a sweep that
+			// treats these headings as prose leaves every `date` empty and every
+			// `productLabel` holding the whole string, which silently empties the
+			// marketing pages' highlights rather than throwing. Keep the dash.
 			const [label, when] = text.split(/\s+—\s+/);
 			productLabel = (label ?? text).trim();
 			product = productLabel.toLowerCase();
