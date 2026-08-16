@@ -27,8 +27,11 @@ import v1SubgraphsRouter from "./routes/v1-subgraphs.ts";
 import webhooksStripeRouter from "./routes/webhooks-stripe.ts";
 import { apiTelemetry } from "./telemetry/api.ts";
 
-const DEDICATED_PATHS = [
-	"/status",
+/** Routes that run an operator's workload — deploying and executing handler
+ *  code, delivering webhooks. Self-host only: the archive deployment serves
+ *  data, it does not run anyone's workload (STRATEGY.md, "We do not host
+ *  public subgraphs"). */
+const WORKLOAD_PATHS = [
 	"/api/subgraphs",
 	"/api/subgraphs/*",
 	"/api/subscriptions",
@@ -37,17 +40,13 @@ const DEDICATED_PATHS = [
 	"/api/node/*",
 ];
 
-const PLATFORM_PATHS = [
-	"/status",
+/** Account-scoped archive surface: who you are, what you owe, what you hold. */
+const ACCOUNT_PATHS = [
 	"/api/accounts",
 	"/api/accounts/*",
 	"/api/billing",
 	"/api/billing/*",
 	"/api/auth/logout",
-	"/api/subgraphs",
-	"/api/subgraphs/*",
-	"/api/subscriptions",
-	"/api/subscriptions/*",
 ];
 
 const PUBLIC_EXPOSE_HEADERS = [
@@ -111,17 +110,17 @@ export function createApiApp(mode: InstanceMode): Hono {
 		app.route("/api/public/credits", publicCreditsRouter);
 	}
 
-	const paths = mode === "platform" ? PLATFORM_PATHS : DEDICATED_PATHS;
-	for (const path of paths) {
-		app.use(path, resourceAuth);
-	}
+	app.use("/status", resourceAuth);
 
-	app.route("/api/subgraphs", subgraphsRouter);
-	app.route("/api/subscriptions", subscriptionsRouter);
 	if (mode !== "platform") {
+		for (const path of WORKLOAD_PATHS) app.use(path, resourceAuth);
+		app.route("/api/subgraphs", subgraphsRouter);
+		app.route("/api/subscriptions", subscriptionsRouter);
 		app.route("/api/node", nodeRouter);
 	}
+
 	if (mode === "platform") {
+		for (const path of ACCOUNT_PATHS) app.use(path, resourceAuth);
 		app.route("/api/accounts", accountsRouter);
 		app.route("/api/billing", billingRouter);
 	}

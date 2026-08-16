@@ -6,6 +6,7 @@ import {
 	HOSTED_ROUTE_FIXTURES,
 	RETAINED_METER_ROUTE_FIXTURES,
 	RETAINED_ROUTE_FIXTURES,
+	WORKLOAD_ROUTE_FIXTURES,
 } from "./route-manifest.ts";
 import { OPENAPI_SPEC, openapiSpec } from "./routes/openapi.ts";
 
@@ -64,6 +65,63 @@ describe("route manifest", () => {
 		}
 	});
 
+	// Workload routes (subgraphs, subscriptions, node) deploy and execute
+	// customer-authored handler code and drive outbound webhook delivery. The
+	// archive deployment serves data and does not run anyone's workload
+	// (STRATEGY.md, "We do not host public subgraphs"), so these must 404
+	// there — not 401. 404 means the route does not exist, so there is
+	// nothing to authenticate against and nothing to probe.
+	test("platform workload routes 404 (mounted only in oss)", async () => {
+		process.env.INSTANCE_MODE = "platform";
+		const app = createApiApp("platform");
+		for (const { method, path } of WORKLOAD_ROUTE_FIXTURES) {
+			const res = await app.request(path, { method });
+			expect(res.status, `${method} ${path}`).toBe(404);
+			const body = (await res.json()) as { code: string };
+			expect(body.code).toBe("NOT_FOUND");
+		}
+	});
+
+	// "archive" aliases "platform" (packages/shared/src/mode.ts) and the alias
+	// must not drift: a declared INSTANCE_MODE=archive must resolve to the
+	// same no-workload behavior as platform.
+	test("archive mode behaves like platform for workload routes", async () => {
+		process.env.INSTANCE_MODE = "archive";
+		const app = createApiApp("platform");
+		for (const { method, path } of WORKLOAD_ROUTE_FIXTURES) {
+			const res = await app.request(path, { method });
+			expect(res.status, `${method} ${path}`).toBe(404);
+			const body = (await res.json()) as { code: string };
+			expect(body.code).toBe("NOT_FOUND");
+		}
+		// Guard against over-deletion: /v1/subgraphs is the public read path,
+		// a separate router mounted under /v1, and must keep working on the
+		// archive deployment.
+		const v1Res = await app.request("/v1/subgraphs");
+		expect(v1Res.status).not.toBe(404);
+	});
+
+	test("oss workload routes stay mounted", async () => {
+		process.env.INSTANCE_MODE = "oss";
+		const app = createApiApp("oss");
+		for (const { method, path } of WORKLOAD_ROUTE_FIXTURES) {
+			const res = await app.request(path, { method });
+			if (path === "/api/node") {
+				// nodeRouter has no handler for its own root — only
+				// /api/node/contracts/:id/abi — so the bare path 404s whether
+				// mounted or not. That's the router's pre-existing shape, not a
+				// signal about mounting, so it's asserted separately rather than
+				// folded into the "not 404" check below.
+				expect(res.status, `${method} ${path}`).toBe(404);
+				continue;
+			}
+			// Real handlers respond: 200/401/405 for a route that exists, or 400
+			// when a handler validates its body (e.g. the bundle route rejects an
+			// empty POST) — anything but 404, which would mean unmounted.
+			expect([200, 400, 401, 405], `${method} ${path}`).toContain(res.status);
+		}
+	});
+
 	test("retained-meter fixtures cover the kept account surface", () => {
 		const paths = RETAINED_METER_ROUTE_FIXTURES.map((r) => r.path);
 		expect(paths).toContain("/api/auth/login");
@@ -80,6 +138,7 @@ describe("route manifest", () => {
 			...HOSTED_ROUTE_FIXTURES,
 			...RETAINED_METER_ROUTE_FIXTURES,
 			...RETAINED_ROUTE_FIXTURES,
+			...WORKLOAD_ROUTE_FIXTURES,
 		].map((r) => r.path);
 		for (const dead of [
 			"/api/billing/upgrade",
