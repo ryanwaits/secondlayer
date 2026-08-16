@@ -1,7 +1,7 @@
 # Changelog
 
 Notable changes to Secondlayer and its SDKs. Entries dated before August 2026
-describe the hosted service as it worked then — per-row read metering, API
+describe the hosted service as it worked then: per-row read metering, API
 keys, `402` past the free window. That service is withdrawn; on a self-hosted
 instance reads are yours and unmetered, and only archive
 bootstrap/backfill/reindex draws [credits](/docs/authentication#archive-credits).
@@ -10,7 +10,7 @@ bootstrap/backfill/reindex draws [credits](/docs/authentication#archive-credits)
 
 ### Pay-per-call is gone
 
-The x402 rail is removed. Reads on your instance were never metered by us, and the rail shipped a hardcoded price list you couldn't override — the opposite of "you are the merchant." Removed from the SDK: `withX402`, `createX402Client`, `payAndRetry`, `buildSignedX402Payment`, `readX402Challenge`, `readX402Receipt`, `selectOffer`, `resolveAccountNonce`, `X402SpendGuardError`, and the `@secondlayer/sdk/x402` subpath. Also gone: `@secondlayer/stacks/x402`, `@secondlayer/shared/x402`, the `/v1/x402/*` routes, and wallet-owned deploys with their 7-day expiry. Archive credits are unchanged and remain the only thing that costs money.
+The x402 rail is removed. Reads on your instance were never metered by us, and the rail shipped a hardcoded price list you couldn't override, the opposite of "you are the merchant." Removed from the SDK: `withX402`, `createX402Client`, `payAndRetry`, `buildSignedX402Payment`, `readX402Challenge`, `readX402Receipt`, `selectOffer`, `resolveAccountNonce`, `X402SpendGuardError`, and the `@secondlayer/sdk/x402` subpath. Also gone: `@secondlayer/stacks/x402`, `@secondlayer/shared/x402`, the `/v1/x402/*` routes, and wallet-owned deploys with their 7-day expiry. Archive credits are unchanged and remain the only thing that costs money.
 
 ## CLI — August 2026
 
@@ -36,13 +36,13 @@ An instance now records where its history starts. If you never bootstrapped gene
 
 ### One account model: yours
 
-Plans, tiers, projects, and API-key tiers are gone from every surface. Deploys are open on any instance — no trial, no quota, no visibility flag — and the only thing that costs money is archive data: bootstrapping, backfilling, or reading history beyond the recent window, drawn from prepaid [archive credits](/docs/authentication#archive-credits). Removed with them: `client.apiKeys`, `client.projects`, `index.usage()`, `subgraphs.publish()`, and BYO `databaseUrl` deploys (typed ORM codegen for drizzle/prisma/kysely stays). Your schema, your Postgres, your instance — the SDK now assumes nothing else.
+Plans, tiers, projects, and API-key tiers are gone from every surface. Deploys are open on any instance (no trial, no quota, no visibility flag), and the only thing that costs money is archive data: bootstrapping, backfilling, or reading history beyond the recent window, drawn from prepaid [archive credits](/docs/authentication#archive-credits). Removed with them: `client.apiKeys`, `client.projects`, `index.usage()`, `subgraphs.publish()`, and BYO `databaseUrl` deploys (typed ORM codegen for drizzle/prisma/kysely stays). Your schema, your Postgres, your instance: the SDK now assumes nothing else.
 
 ## CLI — August 2026
 
 ### A console for your instance
 
-Your instance gets a web console — fleet health, subgraph detail, table browsing, webhook delivery logs — as one more container in your compose. `docker compose --profile console up -d` starts it; `secondlayer console` opens it. Loopback is open; anything past it takes your instance token, and serving it on your own domain is a reverse-proxy block away. See [Run Secondlayer](/docs/self-host#console-optional).
+Your instance gets a web console (fleet health, subgraph detail, table browsing, webhook delivery logs) as one more container in your compose. `docker compose --profile console up -d` starts it; `secondlayer console` opens it. Loopback is open; anything past it takes your instance token, and serving it on your own domain is a reverse-proxy block away. See [Run Secondlayer](/docs/self-host#console-optional).
 
 ### Buy archive credits from the CLI
 
@@ -66,7 +66,7 @@ secondlayer verify all --against <manifest>
 secondlayer verify decode:ft_transfer --against ./snapshot.json --deep
 ```
 
-A target with no matching archive dataset exits `2` — not being able to check is not a pass.
+A target with no matching archive dataset exits `2`: not being able to check is not a pass.
 
 ### Run the runtime without an account
 
@@ -79,7 +79,7 @@ secondlayer bootstrap --against <manifest>
 secondlayer observer
 ```
 
-No login. No project. `secondlayer instance` is gone — those three verbs are top-level.
+No login. No project. `secondlayer instance` is gone; those three verbs are top-level.
 
 ### Mint mock sBTC on your devnet
 
@@ -91,14 +91,14 @@ secondlayer devnet faucet --to ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
 
 No Bitcoin, no regtest, no waiting on someone else's faucet. The sBTC contracts
 you deployed make you the signer set on your own chain, so minting is just a
-contract call. Refuses any network but devnet — elsewhere the signer set isn't
+contract call. Refuses any network but devnet, since elsewhere the signer set isn't
 yours.
 
 ### Check your chain data against a signed archive
 
 `secondlayer verify` tells you whether your history is intact. It compares your database
 against a signed canonical archive and names the exact height ranges that
-diverge — missing blocks, broken parent links, duplicate heights, forks left on
+diverge: missing blocks, broken parent links, duplicate heights, forks left on
 the losing branch.
 
 ```bash
@@ -106,7 +106,7 @@ secondlayer verify --against https://archive.secondlayer.tools/.../latest.json
 ```
 
 It is read-only and nothing leaves your machine: only digests are compared. The
-full mainnet chain — 8.7M blocks — checks in well under a minute.
+full mainnet chain, 8.7M blocks, checks in well under a minute.
 
 When something is wrong, `secondlayer repair` fixes it. It shows you a plan first, names
 every height it would change, and refuses any archive object that does not match
@@ -118,11 +118,11 @@ secondlayer repair --against <archive> --apply    # fix
 ```
 
 And `secondlayer bootstrap` stands up a fresh instance from the archive instead of
-replaying the chain from genesis — it shows you both timings before it starts,
+replaying the chain from genesis, and it shows you both timings before it starts,
 then restores and verifies itself.
 
 All three exit with stable codes for CI: `0` clean, `1` divergence found, `2`
-unable to verify. That last one never reports as success — not being able to
+unable to verify. That last one never reports as success: not being able to
 check is different from being fine.
 
 `secondlayer verify --semantic` recomputes each partition's `sha256:semantic-v1` digest
@@ -133,11 +133,11 @@ columns; `--semantic` also catches divergence in `raw_tx`, event `data`, and
 A published `attestations/<digest>/node.json` is an independent stacks-node
 audit of that snapshot. `coverage` is the attested window; `stats` is exact;
 `mismatches[]` is a capped sample. Transactions and events stay
-`db-reconstructive` — the node does not expose them.
+`db-reconstructive`: the node does not expose them.
 
 ### Mirror the PoX-5 feed in your own database
 
-`secondlayer index codegen` refused `pox5_events` with `Unknown Index table` — the table
+`secondlayer index codegen` refused `pox5_events` with `Unknown Index table`: the table
 was missing from the Index read contract, so the one stacking feed that is
 still growing after the epoch 4.0 activation was the one feed a BYO mirror
 couldn't hold. (The closed pox-4 era was covered the whole time.)
@@ -149,7 +149,7 @@ secondlayer index codegen --target kysely --tables pox5_events
 ```
 
 You get `Pox5Events` for Kysely, `pox5Events` for Drizzle, and a
-`model Pox5Events` keyed on `cursor` for Prisma — 21 columns including the
+`model Pox5Events` keyed on `cursor` for Prisma, 21 columns including the
 decoded `data` payload.
 
 ## Index — August 2026
@@ -164,7 +164,7 @@ index_ft_transfers({ assetIdentifier: "SP…sbtc-token::sbtc-token" })
 ```
 
 The filter was already on the API, the SDK, and the `index_nft_transfers`
-twin — only the FT tool's schema was missing it, which left agents scanning
+twin; only the FT tool's schema was missing it, which left agents scanning
 the full feed and paying per row to find one asset.
 
 ## SDK — August 2026
@@ -172,7 +172,7 @@ the full feed and paying per row to find one asset.
 ### `sbtc.deposits.consume` stops pretending to accept `fields`
 
 `index.sbtc.deposits.consume({ fields: [...] })` type-checked and then ignored
-you — the consume loop built its page request field by field and never
+you: the consume loop built its page request field by field and never
 forwarded the projection, so you got full rows back either way. The option is
 gone, so passing it is a compile error instead of a silent no-op. For a
 projected read, use `sbtc.deposits.list` or `.walk`, which have always applied
@@ -185,7 +185,7 @@ what you asked for and what the loop requests.
 ### Contract names with underscores work everywhere
 
 `my_contract` is a legal Clarity contract name, but the principal validation
-rejected it — so passing `SP….my_contract` as a principal argument threw, both
+rejected it, so passing `SP….my_contract` as a principal argument threw, both
 in `@secondlayer/stacks` and in the contract interfaces the CLI generates.
 Those contracts are now usable.
 
@@ -206,7 +206,7 @@ Generated files keep the old behavior until you re-run `secondlayer generate`.
 ### `subgraphs.reindex()` takes just a name
 
 `reindex(name)` no longer accepts `fromBlock` or `toBlock`. The API stopped
-supporting a ranged reindex — it answers `400 REINDEX_RANGE_NOT_SUPPORTED` — so
+supporting a ranged reindex: it answers `400 REINDEX_RANGE_NOT_SUPPORTED`, so
 the old signature type-checked and then failed at runtime.
 
 Reindex is always the whole subgraph: dropped and rebuilt from your `startBlock`
@@ -223,15 +223,14 @@ The `subgraphs_reindex` MCP tool drops the same two parameters.
 rejects either with `400 REINDEX_RANGE_NOT_SUPPORTED`.
 
 A reindex drops your subgraph's tables and rebuilds them. The range only ever
-controlled the rebuild — never the drop — so a narrow range didn't reindex those
+controlled the rebuild, never the drop, so a narrow range didn't reindex those
 blocks, it kept them and threw away the rest. The subgraph then looked fine:
 status back to `active`, cursor at chain tip, no gaps recorded, nothing logged.
 Only counting rows against another source showed the history was gone.
 
 Reindex is now always the whole subgraph: every row dropped, rebuilt from your
 `startBlock` to chain tip. The confirmation prompt says so plainly. For a
-specific block range, use `secondlayer subgraphs backfill --from-block <n> --to-block <n>`
-— it never drops anything, and it already refuses handlers that would
+specific block range, use `secondlayer subgraphs backfill --from-block <n> --to-block <n>`. It never drops anything, and it already refuses handlers that would
 double-count on a replay.
 
 ## Index — August 2026
@@ -250,7 +249,7 @@ curl http://127.0.0.1:3800/v1/index/mempool \
 It composes with `sender`, `type`, and the cursor like every other filter.
 `secondlayer index mempool --function-name <name>` and `functionName` on the SDK's
 `mempool.list`/`walk` pass it through. A `(contract_id, function_name)` index
-backs it — which also puts an index behind plain `contract_id` filtering for the
+backs it, which also puts an index behind plain `contract_id` filtering for the
 first time.
 
 ## Subgraphs — August 2026
@@ -259,7 +258,7 @@ first time.
 
 Indexed columns now get a `(column, _id)` index alongside the single-column one,
 matching how `/v1` orders sorted reads. On a low-cardinality column, a deep page
-went from ~17.5 ms and 8,557 buffer reads to ~0.09 ms and 14 — Postgres walks
+went from ~17.5 ms and 8,557 buffer reads to ~0.09 ms and 14: Postgres walks
 the index in final order instead of re-sorting each tie group.
 
 New tables get it on deploy. Existing tables pick it up on their next reindex or
@@ -271,7 +270,7 @@ schema change, not on a plain redeploy.
 
 `secondlayer subgraphs deploy` now checks whether your definition file is committed to
 git before it deploys. If it's untracked or has uncommitted changes, you get a
-prompt in a terminal and a hard failure in scripts and CI — because a deployed
+prompt in a terminal and a hard failure in scripts and CI, because a deployed
 definition whose source isn't in version control exists only as a database row,
 with nothing to review, diff, or restore from.
 
@@ -285,11 +284,11 @@ repo, and `--dry-run`, are unaffected.
 
 Your subgraph's accumulator tables are guarded against a class of drift that
 processor restarts could cause: if two catch-up walkers ever overlap on the
-same block — a restart mid-walk, a leadership handoff — only one commit
+same block (a restart mid-walk, a leadership handoff), only one commit
 stands. The block's writes and its checkpoint advance travel in one
 transaction with a conditional cursor, so a duplicate application aborts
 cleanly and a stale walker can no longer rewind progress and trigger
-re-walks. Reorg rewinds still work exactly as before — they take a dedicated
+re-walks. Reorg rewinds still work exactly as before; they take a dedicated
 path that serializes across processes.
 
 None of this changes your handler code. `ctx.increment` and friends behave
@@ -301,7 +300,7 @@ identically; the guarantee is in the runtime underneath them.
 
 `/v1/index/transactions` and `/v1/index/mempool` now return the SIP-045
 staking and pox post-conditions that arrived with epoch 4.0. Before this, a
-`stake` call's post-conditions came back as an empty array — the same answer
+`stake` call's post-conditions came back as an empty array, the same answer
 you'd get for a transaction that genuinely carried none.
 
 Both types sit on `post_conditions` alongside `stx`/`ft`/`nft`: `staking`
@@ -309,8 +308,8 @@ carries a principal, an `amount` (a string, like every other amount), and the
 fungible condition code; `pox` carries a principal and one of
 `will_not_perform`, `may_perform`, or `will_perform`. `IndexPostCondition` in
 the SDK gains both members. Post-conditions are decoded from `raw_tx` at read
-time, so every staking transaction already indexed reads correctly now — no
-reindex, no migration.
+time, so every staking transaction already indexed reads correctly now, with no
+reindex and no migration.
 
 ## Web — August 2026
 
@@ -319,8 +318,8 @@ reindex, no migration.
 [/writing](/writing) now leads with the newest post and its signature figure
 rendered live as the feature art (the figures are the thumbnails); older
 posts drop into a two-column ledger beneath. Posts gain a right-hand meta
-rail on wide screens — number, date, reading time, and a figure index that
-jumps straight to each figure — and every post now ends with a
+rail on wide screens: number, date, reading time, and a figure index that
+jumps straight to each figure, and every post now ends with a
 previous/next pair and the [feed](/feed.xml), so the writing hands you the
 next piece instead of just stopping. Margin sidenotes moved to the left
 margin to make room.
@@ -330,13 +329,13 @@ margin to make room.
 The site grows a [/writing](/writing) section for long-form, mechanism-first
 guides that don't fit the docs register. The first post,
 [Why your indexer resumes from the same block](/writing/resuming-from-the-same-block),
-walks how consume loops, sinks, and checkpoints work — what the three
+walks how consume loops, sinks, and checkpoints work: what the three
 heights on the health endpoint mean, what a poll costs, and why the cursor
 parks on a quiet feed.
 
-Posts are built from a 34-component figure library — annotated payloads,
+Posts are built from a 34-component figure library: annotated payloads,
 position tracks, sequence diagrams, hand-built SVG charts with
-collision-managed labels, and one interactive explorer per post — all on the
+collision-managed labels, and one interactive explorer per post, all on the
 site's tokens in both themes, with reduced-motion and keyboard support
 throughout. The whole vocabulary is browsable at
 [/writing/figures](/writing/figures). There's an [RSS feed](/feed.xml) too.
@@ -346,7 +345,7 @@ throughout. The whole vocabulary is browsable at
 ### blocks_behind now means backlog, not event age
 
 Your consumer on a quiet contract used to report tens of thousands of
-blocks "behind" while fully caught up — the number measured how old the
+blocks "behind" while fully caught up: the number measured how old the
 last matching event was, and it only grew. Now `ctx.blocksBehind` (and
 `consumerHealth`'s `blocks_behind`) is `tip - scannedHeight`: the highest
 block the sweep has *verified*, where an empty page counts as the server
@@ -358,20 +357,20 @@ roll the verified position back below the fork.
 
 ### Bring any database: sinks are now an open surface
 
-Three sinks ship — `kyselySink`, `drizzleSink` (Postgres and SQLite, with
+Three sinks ship: `kyselySink`, `drizzleSink` (Postgres and SQLite, with
 your schema typing `ctx.tx`), and `bunSqliteSink` (one file, zero
-dependencies, no docker) — and the machinery behind them is yours to build
+dependencies, no docker), and the machinery behind them is yours to build
 on. `createSink(driver)` from `@secondlayer/sdk/sinks/core` owns the
 transaction sequences that make a sink correct; your driver is seven methods
 of dialect. The contract's 13 invariants are documented on the interface and
-mechanically probed by a conformance kit at `@secondlayer/sdk/sinks/testing`
-— torn batches, cursor replay, inclusive `>=` rollback, lock contention —
-the same kit every shipped sink passes in CI.
+mechanically probed by a conformance kit at `@secondlayer/sdk/sinks/testing`,
+covering torn batches, cursor replay, inclusive `>=` rollback, and lock
+contention. It is the same kit every shipped sink passes in CI.
 [Write your own sink](/docs/sinks/custom).
 
 Append-only stores (ClickHouse, parquet) declare
 `capabilities: { finalizedOnly: true }`: the consume loop refuses to follow
-the unfinalized tip at startup — loudly — instead of corrupting at the first
+the unfinalized tip at startup, loudly, instead of corrupting at the first
 fork. The Postgres advisory lock also moves to an int8 hash, so two
 unrelated sink ids can no longer collide into a false "another consumer"
 409.
@@ -379,7 +378,7 @@ unrelated sink ids can no longer collide into a false "another consumer"
 ### The type spelling you meant now works on both feeds
 
 `/v1/streams/events?event_type=print` and `/v1/index/events?types=print` both
-work now — each surface accepts the other's spelling for a single type. Ask
+work now: each surface accepts the other's spelling for a single type. Ask
 the Index for a type *set* and it refuses with the reason: Index pagination
 is keyed per event type, by design (a design we wrote down this week). The
 CLI takes both flags on both commands.
@@ -387,15 +386,15 @@ CLI takes both flags on both commands.
 Streams consumers also close two gaps: the top-level `consume()` iterator
 takes the labelled `filters` map, `replay()` can narrow its live tail, and a
 literal `types: ["ft_transfer"]` now narrows row types at compile time the
-way labels always did. And subgraph factory sources — a router plus pools
-created after you deploy — can now be authored through the `on.*` filter
+way labels always did. And subgraph factory sources (a router plus pools
+created after you deploy) can now be authored through the `on.*` filter
 vocabulary; every non-subgraph projection refuses the field loudly.
 
 ### Filter renames stop pretending to be capability gaps
 
 `on.stxLock({ lockedAddress }).toIndexParams()` works now: the Index stores
 the locked address as the row's `sender`, so the field is a rename, not
-something the surface can't do. Same for `caller` on contract-call reads —
+something the surface can't do. Same for `caller` on contract-call reads:
 the endpoint filters by tx sender, which is the caller. And `trait` with
 `contractId` fails at projection time with the fix in the message, instead of
 as a server 400 after the request already left.
@@ -413,12 +412,12 @@ the wire as a literal match that returns zero rows.
 We ran the whole surface from a fresh repo with one API key, the way you
 would. What broke got fixed the same day:
 
-- `on.ftTransfer({ assetIdentifier })` projected a filter the Index refused —
+- `on.ftTransfer({ assetIdentifier })` projected a filter the Index refused:
   the server accepted `asset_identifier` for nft event reads but not ft. It
   now works on all six token event types, and `ftTransfers.list` takes
   `assetIdentifier` directly.
 - `pox5/events` and `sbtc/deposits` 500'd, and `transactions` returned a
-  corrupt cursor, when `fields` omitted the index column — pagination
+  corrupt cursor, when `fields` omitted the index column, because pagination
   machinery was reading projected rows. Cursors and reorg spans now always
   come from the raw rows.
 - `/v1/subgraphs/<name>/<table>?_fields=…` without `_id` returned a full page
@@ -435,20 +434,20 @@ const { events } = await sl.index.ftTransfers.list({
 events[0].tx_id; // ✗ not requested, not fetched, not in the type
 ```
 
-`ft-transfers` and `nft-transfers` — almost certainly the highest-traffic
-Index reads — now take `fields`, with the same contract as everywhere else:
+`ft-transfers` and `nft-transfers`, almost certainly the highest-traffic
+Index reads, now take `fields`, with the same contract as everywhere else:
 requested columns come back, a misspelled one is refused, and the row type
 narrows to match. `cursor`/`block_height` always survive, plus `event_type`
 because it is the row's discriminant. Omitting `block_time` also lets the
 server skip the `blocks` join entirely.
 
 We previously wrote here that these rows were "5-8 columns" and not worth
-projecting. That was a measurement error — we counted only the type-specific
+projecting. That was a measurement error: we counted only the type-specific
 columns and missed the 12-column base they extend. A transfer row is 17
 columns wide, wider than the withdrawals we did project. Corrected.
 
 `blocks` alone stays unprojected, now for a checked reason: it is 8 columns
-read off a single table — `block_time` is a column of the row itself, so
+read off a single table: `block_time` is a column of the row itself, so
 unlike the event feeds there is no join for a projection to skip.
 
 ### Field projection across the Index surface
@@ -469,7 +468,7 @@ would leave a row you cannot paginate or identify.
 
 `blocks`, `ft_transfers`, and `nft_transfers` did not take `fields` in this
 release. The "5-8 columns" rationale originally published here undercounted
-the transfer rows — see the correction above; both transfer feeds have since
+the transfer rows; see the correction above. Both transfer feeds have since
 gained `fields`.
 
 ### Field projection reaches sBTC deposits
@@ -496,7 +495,7 @@ cannot be projected away.
 A block arriving for a height we already hold no longer replaces it on sight.
 The node's event observer emits competing blocks at the same height routinely,
 so a hash mismatch says "someone built a different block here", not "the chain
-moved" — and only the second justifies orphaning indexed data. Guessing picked
+moved", and only the second justifies orphaning indexed data. Guessing picked
 the losing fork twice in one week.
 
 The contender is now staged and the **next block decides**: a block names
@@ -508,7 +507,7 @@ wrong chain until someone noticed.
 
 `findBrokenLinks` reports canonical heights whose block does not descend from
 the one below it, surfaced as a `chain_unlinked` status. The previous check only
-asked whether every height was *present* — which a chain on a losing fork
+asked whether every height was *present*, which a chain on a losing fork
 answers yes to.
 
 Orphaned blocks the canonical chain still links to are now reclaimed
@@ -518,7 +517,7 @@ an orphaned block at `h` as its parent, that block is on-chain by definition.
 ### Status reports progress, not just liveness
 
 `/public/status` reported `subgraph_processor: ok` through a seventeen-hour
-stall — the loop was ticking and heartbeating while making no progress. It now
+stall: the loop was ticking and heartbeating while making no progress. It now
 also checks how far the furthest-behind subgraph trails the tip.
 
 ### Decoded rows and their checkpoint commit together
@@ -540,7 +539,7 @@ on.ftTransfer({ assetIdentifier: `${SBTC}::sbtc-token` }).toIndexParams({ limit:
 ```
 
 The name used to hold a second, older set of factories keyed on snake_case
-**database column** names and typed `Record<string, …>` — so a typo compiled and
+**database column** names and typed `Record<string, …>`, so a typo compiled and
 silently matched nothing. They had no consumers, and they are gone, along with
 the `Filter` / `FilterClause` / `FilterOperator` / `FilterPrimitive` /
 `SubscriptionFilterSpec` / `BnsAction` / `FactoryTarget` / `PoxFunction` types.
@@ -554,7 +553,7 @@ onto the surface you're calling.
 ### Field projection narrows everywhere it applies
 
 `events.walk({ fields })` now narrows its row type the way `events.list` already
-did — it was forwarding `fields` to the wire, so it yielded stripped rows while
+did; it was forwarding `fields` to the wire, so it yielded stripped rows while
 the type promised every column. The callable `index.events({ fields })`
 shorthand narrows too. `events.consume` no longer accepts `fields` at all: the
 consume loop never forwarded it, so it type-checked and was then dropped.
@@ -563,13 +562,13 @@ consume loop never forwarded it, so it type-checked and was then dropped.
 
 ### The docs, as text an agent can read
 
-- **`/llms-full.txt`** — every docs page in one markdown file, sidebar-ordered,
+- **`/llms-full.txt`**: every docs page in one markdown file, sidebar-ordered,
   each passage tagged with the page it came from.
-- **Any page as markdown** — append `.md` to a docs URL
+- **Any page as markdown**: append `.md` to a docs URL
   (`/docs/streams.md`). Generated from the MDX itself, so it can't drift.
 - **`?mode=agent` now works.** It was advertised in `llms.txt` but only ever
   set from localStorage, so the URL did nothing. Agent mode also stopped
-  replacing the page — you get the prompt deck *and* the reference content.
+  replacing the page, so you get the prompt deck *and* the reference content.
 - **`AGENTS.md` ships inside `@secondlayer/sdk`** with the five facts you
   can't infer from the types: reads need no key, cursors are opaque, reorg
   rollback is `>=` not `>`, rows and cursor commit in one transaction, and
@@ -577,8 +576,8 @@ consume loop never forwarded it, so it type-checked and was then dropped.
 
 ### MCP
 
-`codegen_index_schema` emits an ORM schema for the Index tables in-conversation
-— same generator as `secondlayer codegen index`. `get_contract_abi` becomes
+`codegen_index_schema` emits an ORM schema for the Index tables in-conversation,
+from the same generator as `secondlayer codegen index`. `get_contract_abi` becomes
 `contracts_get_abi` (the unprefixed name filed itself under a phantom "get"
 product in the capability listing); the old name keeps working until the next
 major.
@@ -596,7 +595,7 @@ const token = readContractAt(ctx, contractId, SIP010, {
 const decimals = await token.read.getDecimals({}); // bigint, typed from the ABI
 ```
 
-Some facts aren't in any event — a token's `decimals`, a pool's reserves — so
+Some facts aren't in any event (a token's `decimals`, a pool's reserves), so
 `amount` stayed a bare integer nobody could render. Now a handler can ask the
 contract, with the ABI's camelCased read methods and no `call` (a handler
 indexes the chain, it never writes to it).
@@ -605,13 +604,13 @@ indexes the chain, it never writes to it).
   `index_block_hash`, so a handler is a pure function of its block and a
   reindex produces byte-identical rows. A block whose id was never persisted
   throws rather than silently reading at the node's tip.
-- **Cached in Postgres**, keyed on the block id — so a reorg-replaced block
+- **Cached in Postgres**, keyed on the block id, so a reorg-replaced block
   can't inherit the orphaned fork's answer. Pass
   `cache: "contract-constant"` for values that genuinely can't change and it
   is fetched once, ever; that is what makes a full backfill affordable.
 - Unit tests stay offline: `createTestContext(schema, { reads })` stubs reads
   by `"<contract>.<function-name>"`.
-- Self-hosting needs `STACKS_NODE_RPC_URL` on the subgraph processor — the
+- Self-hosting needs `STACKS_NODE_RPC_URL` on the subgraph processor: the
   node you already run, not a new service.
 
 The `sip-010-balances` starter now labels tokens with their real symbol and
@@ -635,7 +634,7 @@ await sl.streams.events.consume({
 ```
 
 A flat filter is one AND-ed set, so two unrelated concerns meant two consume
-loops, two cursors, and two checkpoints — or fetching the union and discarding
+loops, two cursors, and two checkpoints, or fetching the union and discarding
 half of it. Name each concern and the server ORs them into a single scan.
 
 - Each label's declared `types` narrows its handler, so `event.payload` is
@@ -660,13 +659,13 @@ events[0].asset_identifier; // ✗ not requested, not fetched, not in the type
 ```
 
 The server projects the SELECT, so an unrequested column is physically
-absent — and now the row type says so, making a read of one a compile error
+absent, and now the row type says so, making a read of one a compile error
 instead of `undefined` at runtime.
 
 - Omitting `block_time` lets the server skip the `blocks` join entirely. It
   is not a stored column but a `to_timestamp()` off a join taken on every
   read, so this is a planner-level saving on wide sweeps.
-- `cursor`, `block_height`, and `event_type` always come back — pagination
+- `cursor`, `block_height`, and `event_type` always come back, because pagination
   and the union discriminant don't depend on what you asked for. Reorg
   reporting is unaffected too.
 - It does not change your bill: Index meters per row, not per field.
@@ -683,11 +682,11 @@ secondlayer subgraphs test subgraphs/bns-names.ts --offline
 Real chain events, your local handler code, no deploy. The first run records
 a cassette so later runs are offline and free; changing a source filter
 discards it rather than passing against data your subgraph would no longer
-request. If events arrive and your handlers write nothing, it fails — that is
+request. If events arrive and your handlers write nothing, it fails, and that is
 the shape of the field-mapping bug that ships a 0-row subgraph.
 
 For unit tests, `@secondlayer/subgraphs/testing` gives you the same context
-the runtime uses, backed by memory — so read-your-writes, `increment` deltas,
+the runtime uses, backed by memory, so read-your-writes, `increment` deltas,
 and upsert merging behave exactly as they do in production.
 
 ### Index a contract set, including one that grows
@@ -710,8 +709,8 @@ discovered set rolls back on a reorg like any other chain-derived state.
 ### Hoistable schemas, and balances that don't lose updates
 
 `defineSchema()` lets you pull the schema out of the call and keep helpers
-fully typed. The `sip-010-balances` starter no longer reaches for `ctx: any`
-— it moves balances with `ctx.increment`, which applies a delta atomically
+fully typed. The `sip-010-balances` starter no longer reaches for `ctx: any`;
+it moves balances with `ctx.increment`, which applies a delta atomically
 instead of a read-modify-write that silently loses same-block updates.
 
 Source filters are now validated as a real discriminated union, so a field
@@ -725,7 +724,7 @@ nothing forever.
 `prints` could only describe flat fields, so a nested payload had to be
 declared `"jsonb"`. That is how a handler reading flat `data.name`
 type-checked, deployed, and decoded to null on every event while BNS-V2
-emitted `name` as a nested tuple — zero rows chain-wide, while the subgraph
+emitted `name` as a nested tuple: zero rows chain-wide, while the subgraph
 tailed happily at the tip.
 
 ```ts
@@ -741,7 +740,7 @@ prints: {
 ```
 
 - Declaring `prints` also turns on runtime validation: an event that does not
-  match is skipped and logged instead of written as nulls. It never throws —
+  match is skipped and logged instead of written as nulls. It never throws, since
   a block that can't advance would wedge your checkpoint.
 - Deploy now refuses (rather than warns) when a handler on a `prints`-declaring
   source reads a field no observed event carries.
@@ -755,7 +754,7 @@ prints: {
 
 `secondlayer codegen contracts | subgraph | index | client | prints` replaces six
 entry points under three verbs. `--target` means the same thing with the same
-default everywhere — previously `secondlayer subgraphs codegen -o db.ts` wrote Prisma
+default everywhere; previously `secondlayer subgraphs codegen -o db.ts` wrote Prisma
 while the identical-looking `secondlayer index codegen -o db.ts` wrote Kysely. Old
 paths still work, print a deprecation notice, and keep their original
 defaults so your output doesn't change.
@@ -763,15 +762,15 @@ defaults so your output doesn't change.
 - Scaffolds now emit the contract's `as const` ABI and reference it, so
   handlers read `event.input.tokenId` instead of `event.args[0] as bigint`.
 - Generated row types are derived from the schema instead of a second
-  hand-written map that answered `uint` with `number` — which didn't compile
+  hand-written map that answered `uint` with `number`, which didn't compile
   against the client it shipped beside, and truncated `uint128`.
 
 ## SDK — July 2026
 
 ### Sinks: your indexer is one file now
 
-`kyselySink` owns the three hard parts of a durable indexer — checkpoint
-persistence, rows+cursor atomicity, and reorg rollback — so your handler is
+`kyselySink` owns the three hard parts of a durable indexer (checkpoint
+persistence, rows+cursor atomicity, and reorg rollback), so your handler is
 just the writes:
 
 ```ts
@@ -789,22 +788,22 @@ await new Index().contractCalls.consume({
 
 - Rows and cursor commit in one transaction; a crash mid-batch aborts both
   and the batch is simply re-read. Reorg rollback is automatic and
-  unconditional — forgetting `onReorg` can no longer skip reorgs silently.
+  unconditional, so forgetting `onReorg` can no longer skip reorgs silently.
 - `ctx.tx` is a fully typed `Transaction<DB>`; a table missing the height
   column fails loudly at startup, not silently at reorg time.
 - `consumerHealth()` answers your platform's liveness probe (page recency,
-  never lag — a genesis backfill is millions behind and healthy) and
+  never lag, since a genesis backfill is millions behind and healthy) and
   `shutdownSignal()` finishes the in-flight batch on SIGTERM.
 - On Streams, `decoded: true` delivers events as the same flat rows Index
-  serves — the eleven guard+decode pairs are deprecated.
+  serves; the eleven guard+decode pairs are deprecated.
 - The flagship sales-index example dropped from 167 lines across three files
   to one 61-line file, and CI keeps it that way.
 
-### Write the filter once — `on.*`
+### Write the filter once: `on.*`
 
 One chain event used to be spelled differently on every surface: `eventType`
 on Index, `types` arrays on Streams, a `sources` entry on subgraphs, a
-trigger object on subscriptions — with three incompatible `minAmount` types
+trigger object on subscriptions, with three incompatible `minAmount` types
 among them. The new `@secondlayer/stacks/filters` module is the single
 spelling, projected explicitly to each surface:
 
@@ -819,7 +818,7 @@ sl.subscriptions.create({ name, url, triggers: [usdc.toChainTrigger()] });
 defineSubgraph({ sources: { usdc: usdc.toSubgraphSource() } });
 ```
 
-- A surface a filter can't reach is a missing method — a compile error, not
+- A surface a filter can't reach is a missing method: a compile error, not
   a runtime surprise. A field a surface can't express throws at projection
   time with a message naming the surface that supports it.
 - Amounts are `bigint` end to end and stringify at exactly one boundary, so
@@ -833,7 +832,7 @@ defineSubgraph({ sources: { usdc: usdc.toSubgraphSource() } });
 ### Add an index without losing your data
 
 Flipping `indexed: true` (or `search`) on a column of a populated subgraph now
-builds the index in place with `CREATE INDEX CONCURRENTLY` — it no longer
+builds the index in place with `CREATE INDEX CONCURRENTLY`, so it no longer
 counts as a breaking change, so it no longer costs a `DROP SCHEMA` and a full
 reindex. The most routine operation in an indexer's life is now a few seconds
 of DDL instead of hours of backfill.
@@ -843,8 +842,8 @@ of DDL instead of hours of backfill.
   as breaking. Previously a `uniqueKeys` addition reported success, created
   nothing, and every later `upsert` failed against a constraint that didn't
   exist.
-- Handler-only redeploys now warn that new logic applies from the current tip
-  — rows already indexed keep the previous handler's output unless you
+- Handler-only redeploys now warn that new logic applies from the current tip:
+  rows already indexed keep the previous handler's output unless you
   reindex.
 - The CLI confirms destructive deploys **before** sending the request. The
   old prompt fired after the server had already dropped your data.
@@ -853,7 +852,7 @@ of DDL instead of hours of backfill.
 
 Requesting specific fields now narrows the row type to exactly those columns.
 The server always projected the SELECT, so unrequested fields were physically
-absent while TypeScript promised they existed — reading one is now a compile
+absent while TypeScript promised they existed, so reading one is now a compile
 error instead of a runtime `undefined`.
 
 ## SDK — July 2026
@@ -861,7 +860,7 @@ error instead of a runtime `undefined`.
 ### A 429 no longer kills your backfill
 
 Both consume loops now retry the page fetch on rate limits, server errors,
-and network failures — honoring the server's `Retry-After` — so one transient
+and network failures, honoring the server's `Retry-After`, so one transient
 error hours into a genesis sweep no longer costs you the process. Retry wraps
 only the fetch: your `onBatch`/`onReorg` code and real 4xx mistakes still
 fail fast.
@@ -882,7 +881,7 @@ delivered. The filtered unfinalized tail is re-read once it settles; a cursor
 above it would have dropped those events forever, with reorg handling skipped
 in that mode. The loop now catches the one wrong return it can detect.
 
-- `fetchImpl` is honored by every platform client — inject a fetch for tests,
+- `fetchImpl` is honored by every platform client, so you can inject a fetch for tests,
   proxies, or an x402-wrapped payer without monkey-patching the global.
 - x402 payments and proof verification no longer touch `Buffer`, so both work
   on edge runtimes like Cloudflare Workers.
@@ -892,7 +891,7 @@ in that mode. The loop now catches the one wrong return it can detect.
 ### Read PoX-5 events at `/v1/index/pox5/events`
 
 The decoded pox-5 log is now queryable. One row per print event across all 19
-topics, with the full decoded tuple in `data` — so nested shapes like
+topics, with the full decoded tuple in `data`, so nested shapes like
 `btc-lockup`, `bond-rewards`, and `bond-periods` come through intact rather
 than flattened away.
 
@@ -902,13 +901,13 @@ than flattened away.
 - `?confirmed=true` clamps the window to the finality boundary, so settlement
   consumers only see rows past the reorg margin.
 - Every response carries `tip` and a `reorgs[]` array for the page's height
-  range — reconcile anything you already committed from a fork.
+  range, so you can reconcile anything you already committed from a fork.
 
 ### PoX-5 events, decoded from activation block one
 
 The indexer now ships a PoX-5 decoder alongside the existing PoX-4 dataset.
-Every print event the new `pox-5` boot contract emits — all 19 topics, from
-`stake` and `register-for-bond` through `claim-rewards` and signer grants —
+Every print event the new `pox-5` boot contract emits, all 19 topics, from
+`stake` and `register-for-bond` through `claim-rewards` and signer grants,
 lands in a queryable `pox5_events` dataset with typed columns for stakers,
 signers, bonds, amounts, and cycle windows, plus the full event tuple as JSON.
 
@@ -916,7 +915,7 @@ signers, bonds, amounts, and cycle windows, plus the full event tuple as JSON.
   Epoch 4.0 fork activates at Bitcoin block 960,230. Your first pox-5 event
   is decoded the moment it exists.
 - Self-hosting? Raw events are always stored, so upgrading after the fork
-  backfills the dataset with zero data loss — no re-sync from your node.
+  backfills the dataset with zero data loss, and no re-sync from your node.
 - `@secondlayer/stacks` now exports `POX5_EVENT_TOPICS`, `Pox5EventTopic`,
   and `POX5_CONTRACT_ID_MAINNET` for building your own event tooling against
   the same verified topic set.
@@ -934,7 +933,7 @@ so following one topic no longer means pulling all six.
   the registry contract and matching topics yourself, losing the typed columns.
 - `withdrawals` has no `consume` on purpose: the row is a lifecycle aggregate
   that mutates as a peg-out settles, and a forward-only cursor would commit it
-  once and never see it change. Consume the append-only events instead — see
+  once and never see it change. Consume the append-only events instead; see
   [sBTC settlement](/docs/sbtc-settlement#mirror-the-peg-into-your-own-tables).
 
 ### Follow a whole protocol on one cursor
@@ -943,7 +942,7 @@ so following one topic no longer means pulling all six.
 sBTC is four contracts; a `v3` → `v4` migration is two. One consumer, one
 checkpoint, one answer to "how far is my index complete".
 
-- Up to 20 ids, still mutually exclusive with `trait` — reach for `trait` when
+- Up to 20 ids, still mutually exclusive with `trait`; reach for `trait` when
   you mean "every contract of a standard", since it picks up contracts
   deployed after you ship.
 
@@ -954,7 +953,7 @@ literal, so `consume({ eventType: "ft_transfer" })` hands `onBatch` an
 `IndexFtTransfer[]` with `amount` and `sender` reachable directly.
 
 - The `if (e.event_type !== "ft_transfer") continue` line every handler opened
-  with — written only to satisfy the compiler — is gone.
+  with, written only to satisfy the compiler, is gone.
 - A non-literal `eventType` still yields the union, so dynamic callers are
   untouched.
 
@@ -967,21 +966,21 @@ still moving" no longer means tracking it yourself.
 - `height` survives empty pages, so a consumer caught up at the tip keeps
   reporting its position instead of dropping to nothing.
 - After a reorg it rolls back with the chain, to the last block still
-  canonical — the case a hand-rolled `at(-1)` gets wrong.
+  canonical, the case a hand-rolled `at(-1)` gets wrong.
 - Wire it straight into a health check: see [Deploy](/docs/deploy#bind-a-port)
   for why your process needs one and what to gate it on.
 
 ### Prove a Bitcoin payment without naming a contract
 
 `verifyBitcoinPayment` resolves the reference `spv-adapter` on mainnet, so
-`contract` is now optional. Build a proof, pass it, get `verified` — no adapter
+`contract` is now optional. Build a proof, pass it, get `verified`, with no adapter
 principal to look up, and no verifier contract of your own to deploy first.
 
 - The adapter is a read-only wrapper over the SIP-044 built-ins, so it goes
   live with the Epoch 4.0 fork at Bitcoin block 960,230. Reads before the fork
   still need Clarinet simnet.
 - Stacks testnet has no Epoch 4.0, so the built-ins don't exist there. Pass an
-  explicit `contract` on testnet — the thrown error now says exactly that
+  explicit `contract` on testnet, and the thrown error now says exactly that
   instead of telling you to wait for an activation that isn't coming.
 - `SPV_ADAPTER_CONTRACTS` and `getSpvAdapter(network)` expose the principal if
   you'd rather pin it yourself.
@@ -990,7 +989,7 @@ principal to look up, and no verifier contract of your own to deploy first.
 
 `EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET` is Bitcoin block 960,230. Epoch 4.0
 carries both SIP-044 (the Bitcoin SPV built-ins) and SIP-045 (`pox-5` Bitcoin
-Staking) — one fork, one height — so the bitcoin and pox5 modules read it from
+Staking) share one fork and one height, so the bitcoin and pox5 modules read it from
 the same place and can't drift apart.
 
 - Only mainnet has a fixed height. Elsewhere, read it from the node with
@@ -998,7 +997,7 @@ the same place and can't drift apart.
 
 ### Clients pick up `SL_API_KEY` from your environment
 
-Export `SL_API_KEY` and `new Index()` uses it — the same variable the CLI and
+Export `SL_API_KEY` and `new Index()` uses it, the same variable the CLI and
 MCP server already read. No more constructing a client keyless by accident,
 then hitting `402 PAYMENT_REQUIRED` the first time you reach past the free
 24-hour window.
@@ -1016,14 +1015,14 @@ union but none of its members. Every variant is exported from the package root:
 `IndexStxBurn`, `IndexStxLock`, `IndexFtMint`, `IndexFtBurn`, `IndexNftMint`,
 `IndexNftBurn`, and `IndexPrint`.
 
-- Write the handler signature you actually want —
-  `function onTransfer(e: IndexFtTransfer)` — instead of taking `IndexEvent`
+- Write the handler signature you actually want,
+  `function onTransfer(e: IndexFtTransfer)`, instead of taking `IndexEvent`
   and re-narrowing inside every function.
 - The `consumeIndexFeed` types come with it: `IndexFeedItem`,
   `IndexFeedEnvelope`, and `IndexFeedFetcher` are all importable from
   `@secondlayer/sdk`, so you can type a custom fetcher or hold a feed item in a
   variable without reaching into a subpath.
-- Purely additive — nothing was renamed or removed.
+- Purely additive: nothing was renamed or removed.
 
 ### PoX-5 events from `sl.index.pox5`
 
@@ -1031,7 +1030,7 @@ The decoded pox-5 feed has a typed client. `sl.index.pox5.events.list()` for a
 page, `.walk()` to stream every event across pages without writing cursor
 logic yourself.
 
-- Filters map to the endpoint one-to-one — `topic`, `staker`, `signer`,
+- Filters map to the endpoint one-to-one: `topic`, `staker`, `signer`,
   `signerManager`, `bondIndex`, `rewardCycle`, plus `confirmed` to stay behind
   the finality boundary.
 - `amount_ustx` and `amount_sats` stay strings, so stacking amounts past
@@ -1043,12 +1042,12 @@ logic yourself.
 
 `decodeChainWebhook` is now reachable from the SDK root. Verify a delivery's
 signature, hand the same raw body to the decoder, and switch on
-`data.trigger` with your event fully narrowed — no hand-rolled parser, no
+`data.trigger` with your event fully narrowed, with no hand-rolled parser and no
 guessing which fields a `print_event` versus a `contract_call` delivery
 carries.
 
 - The result type comes with it: `import type { ChainWebhookDelivery }` from
-  `@secondlayer/sdk` alone. Every piece the union composes is exported too —
+  `@secondlayer/sdk` alone. Every piece the union composes is exported too:
   the per-trigger `Chain*Data` shapes, `ChainEventEnvelope`,
   `ChainTxLevelEvent`, `ChainReorgRollbackDelivery`, and the sBTC deposit and
   withdrawal payloads.
@@ -1061,8 +1060,8 @@ carries.
 ### PoX-5 calls, fully typed
 
 Every `client.pox5.*` action and read now runs through the module's committed
-pox-5 ABI: arguments are checked at compile time — a wrong name or type is a
-`tsc` error, not a failed transaction — and reads return plain JS values
+pox-5 ABI: arguments are checked at compile time, so a wrong name or type is a
+`tsc` error rather than a failed transaction, and reads return plain JS values
 instead of raw Clarity envelopes.
 
 - Reads decode for you: `uint` becomes `bigint`, tuples become camelCase
@@ -1072,14 +1071,14 @@ instead of raw Clarity envelopes.
 - One breaking change: the 12 individual reads no longer return
   `ClarityValue`. `getStakerState` is unchanged.
 - The ABI is machine-extracted from the `pox-5` boot contract and guarded by
-  a simnet drift test — a stacks-core contract change fails our build, not
+  a simnet drift test, so a stacks-core contract change fails our build, not
   your integration.
 
 ### Typed Clarity narrowing, cheaper signing
 
 `cvToJSON` returns `any`, which switches the compiler off at the exact boundary
-where Clarity meets your code. Five new helpers — `cvToBigInt`, `cvToString`,
-`cvToBuffer`, `cvToBoolean`, `cvToPrincipal` — narrow a `ClarityValue` to a
+where Clarity meets your code. Five new helpers (`cvToBigInt`, `cvToString`,
+`cvToBuffer`, `cvToBoolean`, `cvToPrincipal`) narrow a `ClarityValue` to a
 typed primitive or throw with a message naming the mismatch, so a wrong
 assumption fails at the call site instead of three functions later.
 
@@ -1089,13 +1088,13 @@ assumption fails at the call site instead of three functions later.
 - Multi-sig metadata survives the wallet round-trip: `_multisig` signer keys
   set at build time carry through provider signing, so auto-detection keeps
   working after `stx_signTransaction` returns.
-- `cvToJSON` and `cvToValue` are untouched — existing code keeps working.
+- `cvToJSON` and `cvToValue` are untouched, so existing code keeps working.
 
 ### PoX-5 Bitcoin Staking, two weeks before the fork
 
 Build against SIP-045 today: the new `@secondlayer/stacks/pox5` module ships
-every staking flow — bonds, STX staking, L1 lockup scripts, signer-key
-grants — pinned against the final `pox-5` contract in stacks-core 4.0.0.
+every staking flow (bonds, STX staking, L1 lockup scripts, signer-key
+grants), pinned against the final `pox-5` contract in stacks-core 4.0.0.
 Your integration gates itself: `client.pox5.isActive()` asks the chain, so
 code you ship now simply switches on when Bitcoin block 960,230 lands
 (~July 29).
@@ -1122,17 +1121,17 @@ request as real data.
 - `getContractSource` and `getRawBlock` read straight from a stacks-node
   (Clarity source, raw block headers) for cases the indexed extended API
   can't serve.
-- `getAccountHistory`, `getMempoolStats`, and `getNftHoldings` — promoted out
+- `getAccountHistory`, `getMempoolStats`, and `getNftHoldings`, promoted out
   of the AI-tools layer into first-class actions, also available on
   `client.*`.
 - The HTTP transport throws a typed error on any failed request and now
-  retries rate limits (429), not just server errors — a 404 body no longer
+  retries rate limits (429), not just server errors, so a 404 body no longer
   gets parsed as if it were a successful response.
 
 ### Bitcoin addresses without the Bitcoin baggage
 
-Derive your paired BTC account — the `bc1q…`/`bc1p…` addresses Leather and
-Xverse show next to your Stacks address — from the same mnemonic, with zero
+Derive your paired BTC account, the `bc1q…`/`bc1p…` addresses Leather and
+Xverse show next to your Stacks address, from the same mnemonic, with zero
 new dependencies. And ask the chain, not a config file, where sBTC deposits
 go: `client.sbtc.getSignersAddress()` derives the signers' taproot address
 from the on-chain registry, encoded for whatever network your client points
@@ -1141,17 +1140,17 @@ at.
 - `mnemonicToBitcoinKeys` covers BIP84 (native segwit) and BIP86 (taproot)
   paths, validated against the official spec vectors.
 - Pubkey→address helpers (`publicKeyToP2trAddress`, `taprootTweakPubkey`)
-  ship in `@secondlayer/stacks/bitcoin` — pure derivation, no tx signing.
+  ship in `@secondlayer/stacks/bitcoin`: pure derivation, no tx signing.
 - Network-aware end to end: mainnet, testnet, and regtest encodings, so a
   devnet integration never shows you a mainnet address by mistake.
 
 ### Send, price, and confirm transactions in one flow
 
 Pass `fee: 'min' | 'low' | 'mid' | 'high'` to any send action and await the
-result with `client.waitForTransactionReceipt({ txid, confirmations })` — no
+result with `client.waitForTransactionReceipt({ txid, confirmations })`, with no
 more hand-rolled fee estimates or polling loops. `'min'` is the node's relay
 floor (1 uSTX per byte), computed offline, and it's also the automatic
-fallback when the node can't produce an estimate — your broadcast goes
+fallback when the node can't produce an estimate, so your broadcast goes
 through instead of erroring.
 
 - `waitForTransactionReceipt` returns a normalized receipt with the decoded
@@ -1159,7 +1158,7 @@ through instead of erroring.
   recounts confirmations if a reorg moves your transaction.
 - Status sources are pluggable: the default reads any extended-API host;
   `indexTxSource()` reads Secondlayer's index and gets the chain tip in the
-  same response — N-confirmation waits cost one request per poll.
+  same response, so N-confirmation waits cost one request per poll.
 - `sendTransaction({ wait: 2 })` broadcasts and confirms in one call; x402
   settlement can now await the payment landing before reporting it.
 - Broadcast rejections are typed: `BroadcastError.reason` narrows across all
@@ -1170,16 +1169,16 @@ through instead of erroring.
 ### Watch mode and dependency types for contract codegen
 
 `secondlayer contracts generate --watch` regenerates your typed clients the moment a
-`.clar` file, your config, or `Clarinet.toml` changes — leave it running next
+`.clar` file, your config, or `Clarinet.toml` changes, so leave it running next
 to your editor. And the `clarinet()` plugin now types the contracts you depend
 on, not just the ones you wrote: everything under `[project.requirements]`
 gets a typed client by default (`includeRequirements: false` to opt out).
 
 - Generated output now ships named type aliases per function
   (`TokenTransferArgs`, `TokenTransferResult`) and a `TypedAbi`-branded ABI
-  const — hovers and type errors name your types instead of dumping expanded
+  const, so hovers and type errors name your types instead of dumping expanded
   conditionals.
-- Generated imports target real `@secondlayer/stacks` subpaths — previously
+- Generated imports target real `@secondlayer/stacks` subpaths; previously
   emitted root imports didn't resolve.
 - Breaking: the `actions()` codegen plugin is gone. It generated code against
   an API surface that no longer exists; the generated contract objects and
@@ -1192,12 +1191,12 @@ gets a typed client by default (`includeRequirements: false` to opt out).
 `GET /v1/contracts/:contractId` no longer serves contracts that were reorged
 out of the canonical chain. A reorg flips the registry row non-canonical, and
 the moment the deploy reappears on the new fork, discovery restores it
-automatically — your fetched ABIs survive the round trip.
+automatically, so your fetched ABIs survive the round trip.
 
 - Trait discovery (`/v1/contracts?trait=`) and as-of-block trait resolution
   already excluded reorged-out contracts; the by-id read now agrees with them.
 - The burnchain reward tables (`burn_block_rewards`,
-  `burn_block_reward_slots`) drop their never-enforced `canonical` column —
+  `burn_block_reward_slots`) drop their never-enforced `canonical` column;
   replace-per-height is the documented reorg contract for burnchain data. If
   your `secondlayer index codegen` mirror includes these tables, re-run codegen and
   drop the column; it was always `true`, so nothing is lost.
@@ -1208,24 +1207,24 @@ automatically — your fetched ABIs survive the round trip.
 
 Your generated ABIs now carry their own type names. `getContract` picks up the
 `TypedAbi` brand emitted by `secondlayer contracts generate`, so hovering
-`contract.call.transfer` shows `TokenTransferArgs` — cmd-clickable, readable
-in errors — instead of a wall of inferred conditionals. Hand-written
+`contract.call.transfer` shows `TokenTransferArgs`, cmd-clickable and readable
+in errors, instead of a wall of inferred conditionals. Hand-written
 `as const` ABIs keep working exactly as before.
 
 - New `contract.buildCall.*` namespace builds unsigned transactions for
-  wallet-signs-later flows — never broadcasts; fee and nonce auto-resolve when
+  wallet-signs-later flows; it never broadcasts, and fee and nonce auto-resolve when
   you omit them. Plus `publicKeyToAddress` in `@secondlayer/stacks/utils`.
 - `jsToClarityValue` takes pre-built ClarityValues anywhere, and buffer args
   accept hex strings, `Uint8Array`, or tagged `{ type, value }` objects.
-- Read methods on `(response ok err)` outputs now type as the `ok` value —
-  no more `unknown` leaking out of typed reads.
+- Read methods on `(response ok err)` outputs now type as the `ok` value,
+  so no more `unknown` leaks out of typed reads.
 
 ### SIP-045 staking post-conditions, ready before the fork
 
 `@secondlayer/stacks@2.10.0` speaks the Epoch 4.0 wire format ahead of the
 Bitcoin Staking hard fork (SIP-045, targeted ~July 29). The transaction codec
-decodes and encodes the two new post-condition types — `0x03` Staking and
-`0x04` PoX — byte-identical to the reference implementation, so your decoders
+decodes and encodes the two new post-condition types (`0x03` Staking and
+`0x04` PoX), byte-identical to the reference implementation, so your decoders
 don't break the day pox-5 transactions hit the chain.
 
 - Protect staking calls with `staking-postcondition` (principal + amount bound,
@@ -1234,7 +1233,7 @@ don't break the day pox-5 transactions hit the chain.
   evaluated on `unstake`, `announce-l1-early-exit`, and other non-locking PoX
   calls).
 - The deserializer now fails loud on unknown post-condition types instead of
-  silently misreading everything after them — malformed or future-format
+  silently misreading everything after them, so malformed or future-format
   transactions surface as errors, not corrupt data.
 - `ClarityVersion.Clarity6` ships for Epoch 4.0 contract deploys (SIP-044).
 
