@@ -36,7 +36,7 @@ import {
 } from "@/components/figures";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { SelectivityExplorer } from "../(post)/checkpoint-receipt-not-bookmark/selectivity-explorer";
+import { SelectivityExplorer } from "../(post)/resuming-from-the-same-block/selectivity-explorer";
 
 export const metadata: Metadata = {
 	title: "Figure library · secondlayer blog",

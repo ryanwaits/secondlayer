@@ -35,7 +35,7 @@ export type WritingPost = {
 
 export const POSTS: WritingPost[] = [
 	{
-		slug: "checkpoint-receipt-not-bookmark",
+		slug: "resuming-from-the-same-block",
 		number: 1,
 		title: "Why your indexer resumes from the same block",
 		dek: "Restart a consumer and it logs the same cursor it logged an hour ago, forty thousand blocks behind the tip. It's caught up: the checkpoint marks the last row it kept, and the other numbers on the health endpoint measure something else.",
