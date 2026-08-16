@@ -171,7 +171,7 @@ Sampled from indexed prints, raw Clarity hex deserialized for exact types, unifi
 - Payloads with no `topic` string, or that aren't tuples, land under the `"*"` pseudo-topic with `non_tuple` set.
 - Cached five minutes (`max-age=300` + weak `ETag`).
 
-Backs `secondlayer subgraphs create <name> --from-contract <contract_id>` — see [Subgraphs](/docs/subgraphs/handlers#typed-print-payloads).
+Backs `secondlayer subgraphs create <name> --from-contract <contract_id>`; see [Subgraphs](/docs/subgraphs/handlers#typed-print-payloads).
 
 ## Read it directly
 
@@ -197,13 +197,13 @@ On the events and contract-call feeds, `contract_id` also takes a comma-separate
 
 `tx_context=true` collapses an N+1 walk into one pass: every event carries `tx_sender`, `tx_type`, `tx_status`, `tx_contract_id`, `tx_function_name`. For `print` events, `tx_sender` is the only place the sender lives.
 
-Every list response carries the collection, an opaque `next_cursor`, the chain `tip`, and `reorgs`. Full parameter grammar and response bodies: [API reference](/docs/api-reference). `GET /v1/index` describes itself at runtime, so an agent can learn each `event_type` without docs.
+Every list response carries the collection, an opaque `next_cursor`, the chain `tip`, and `reorgs`. Full grammar and response bodies: [API reference](/docs/api-reference). `GET /v1/index` describes itself at runtime, so an agent can learn each `event_type` without docs.
 
 Built on [Streams](/docs/streams): the decoder on your instance reads the same raw firehose you can.
 
 ## Get told when it changes
 
-A `consume()` loop pulls. If you'd rather be pushed — into a queue, a serverless function, another service — a subscription POSTs matching chain events to your URL as they land, with no polling loop to run:
+A `consume()` loop pulls. To be pushed instead, into a queue or a serverless function, a subscription POSTs matching chain events to your URL as they land:
 
 ```bash
 secondlayer subscriptions create amm-swaps \
