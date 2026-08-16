@@ -238,10 +238,10 @@ jobs:
           # silent-redeploy-old-SHA failure mode where deploy.sh used to source .env
           # after env vars were set, letting the previous deploy's tag win.
           EXPECTED_DEPLOY_SHA: ${{ github.sha }}
-          STREAMS_SMOKE_KEY: ${{ secrets.STREAMS_SMOKE_KEY || 'sk-sl_streams_build_test' }}
+          STREAMS_SMOKE_KEY: ${{ secrets.STREAMS_SMOKE_KEY || 'sk-sl_streams_free_test' }}
           STREAMS_STATUS_SMOKE_KEY: ${{ secrets.STREAMS_STATUS_SMOKE_KEY || 'sk-sl_streams_status_public' }}
           STREAMS_WRONG_SCOPE_SMOKE_KEY: ${{ secrets.STREAMS_WRONG_SCOPE_SMOKE_KEY || 'sk-sl_streams_wrong_scope_test' }}
-          INDEX_SMOKE_KEY: ${{ secrets.INDEX_SMOKE_KEY || 'sk-sl_index_build_test' }}
+          INDEX_SMOKE_KEY: ${{ secrets.INDEX_SMOKE_KEY }}
           INDEX_FREE_SMOKE_KEY: ${{ secrets.INDEX_FREE_SMOKE_KEY || 'sk-sl_index_free_test' }}
           INDEX_WRONG_SCOPE_SMOKE_KEY: ${{ secrets.INDEX_WRONG_SCOPE_SMOKE_KEY || 'sk-sl_index_wrong_scope_test' }}
         run: bash scripts/ci/post-deploy-smoke.sh
