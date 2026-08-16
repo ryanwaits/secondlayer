@@ -1,4 +1,4 @@
-import { DOCS_NAV } from "@/app/(www)/docs/nav";
+import { docsNavPages } from "@/app/(www)/docs/nav";
 import { actions } from "@/lib/actions/registry";
 
 /**
@@ -56,21 +56,19 @@ const DOCS_KEYWORDS: Record<string, string[]> = {
 	"/docs/subgraphs": ["indexer", "deploy", "tables"],
 };
 
-export const DOCS_ITEMS: CommandItem[] = DOCS_NAV.flatMap((group) =>
-	group.items.map((item) => ({
-		id: `docs:${item.href}`,
-		group: "docs" as const,
-		label: item.title,
-		sub: group.label.toLowerCase(),
-		href: item.href,
-		newTab: true,
-		keywords: [
-			"docs",
-			group.label.toLowerCase(),
-			...(DOCS_KEYWORDS[item.href] ?? []),
-		],
-	})),
-);
+export const DOCS_ITEMS: CommandItem[] = docsNavPages().map((page) => ({
+	id: `docs:${page.href}`,
+	group: "docs" as const,
+	label: page.title,
+	sub: page.group.toLowerCase(),
+	href: page.href,
+	newTab: true,
+	keywords: [
+		"docs",
+		page.group.toLowerCase(),
+		...(DOCS_KEYWORDS[page.href] ?? []),
+	],
+}));
 
 /** Fallback row when nothing matches — discovery never dead-ends. */
 export const DOCS_FALLBACK: CommandItem = {

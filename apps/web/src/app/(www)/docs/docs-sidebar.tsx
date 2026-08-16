@@ -92,15 +92,36 @@ export function DocsSidebar() {
 				{DOCS_NAV.map((group) => (
 					<div className="docs-nav-group" key={group.label}>
 						<div className="docs-nav-grouplabel">{group.label}</div>
-						{group.items.map((item) => (
-							<Link
-								key={item.href}
-								href={item.href}
-								className={`docs-nav-item${pathname === item.href ? " active" : ""}`}
-							>
-								{item.title}
-							</Link>
-						))}
+						{group.items.map((item) => {
+							// Sub-pages show only while the reader is somewhere under the
+							// parent, so a page with children costs one row like any other
+							// until it's the one being read.
+							const inSection =
+								pathname === item.href || pathname.startsWith(`${item.href}/`);
+							return (
+								<div key={item.href} className="docs-nav-branch">
+									<Link
+										href={item.href}
+										className={`docs-nav-item${pathname === item.href ? " active" : ""}`}
+									>
+										{item.title}
+									</Link>
+									{item.items && inSection && (
+										<div className="docs-nav-children">
+											{item.items.map((child) => (
+												<Link
+													key={child.href}
+													href={child.href}
+													className={`docs-nav-item docs-nav-child${pathname === child.href ? " active" : ""}`}
+												>
+													{child.title}
+												</Link>
+											))}
+										</div>
+									)}
+								</div>
+							);
+						})}
 					</div>
 				))}
 			</aside>

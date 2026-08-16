@@ -5687,6 +5687,19 @@ html.force-dark .shiki span {
 	font-weight: 500;
 }
 
+/* Sub-pages of a docs page. A hairline rail carries the indent so the nesting
+   reads without a disclosure caret — these only render while the reader is
+   already inside the section, so there is nothing to toggle. */
+.docs-nav-children {
+	margin: 2px 0 4px 16px;
+	padding-left: 10px;
+	border-left: 1px solid var(--border);
+}
+.docs-nav-item.docs-nav-child {
+	font-size: 13px;
+	padding-block: 4px;
+}
+
 .docs-content {
 	/* generous sidebar→content gutter; grows a touch on wide screens */
 	padding: 40px 48px 120px clamp(48px, 6vw, 96px);

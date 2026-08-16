@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { DOCS_NAV } from "@/app/(www)/docs/nav";
+import { docsNavPages } from "@/app/(www)/docs/nav";
 
 /**
  * Reads the docs' own MDX as plain markdown, so an agent can fetch a page
@@ -16,15 +16,9 @@ const DOCS_ROOT = join(process.cwd(), "src", "app", "(www)", "docs");
 
 export type DocsPage = { href: string; title: string; group: string };
 
-/** Every page in the sidebar, in sidebar order. */
+/** Every page in the sidebar, in sidebar order, sub-pages included. */
 export function docsPages(): DocsPage[] {
-	return DOCS_NAV.flatMap((group) =>
-		group.items.map((item) => ({
-			href: item.href,
-			title: item.title,
-			group: group.label,
-		})),
-	);
+	return docsNavPages();
 }
 
 /** `/docs/subgraphs` → `<docs>/subgraphs/page.mdx`; `/docs` → `<docs>/page.mdx`. */

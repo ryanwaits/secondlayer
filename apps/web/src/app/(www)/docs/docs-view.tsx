@@ -4,16 +4,11 @@ import { usePathname } from "next/navigation";
 import { type ReactNode, useState } from "react";
 import { AgentView } from "./agent-view";
 import { useDocsMode } from "./docs-mode";
-import { DOCS_NAV } from "./nav";
+import { docsNavPages } from "./nav";
 
 function lookup(pathname: string) {
-	for (const group of DOCS_NAV) {
-		for (const item of group.items) {
-			if (item.href === pathname)
-				return { group: group.label, title: item.title };
-		}
-	}
-	return null;
+	const page = docsNavPages().find((p) => p.href === pathname);
+	return page ? { group: page.group, title: page.title } : null;
 }
 
 function CopyPageButton() {
