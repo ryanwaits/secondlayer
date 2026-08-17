@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,6 +9,7 @@ import {
 	buildSuccessSummary,
 	composeProfileArgs,
 	guardrailPreview,
+	isBunRuntime,
 	resolveNonInteractiveConfig,
 	resolveSecrets,
 	writeSetupFiles,
@@ -16,6 +18,25 @@ import {
 function tmpDir(): string {
 	return mkdtempSync(join(tmpdir(), "sl-setup-"));
 }
+
+describe("isBunRuntime", () => {
+	test("true under bun (this test file's own runtime)", () => {
+		expect(isBunRuntime()).toBe(true);
+	});
+
+	test("false under node — the exact case OpenTUI can't initialize in", () => {
+		// This is the regression this function exists to catch: the published
+		// CLI runs under node via its shebang, and OpenTUI's native FFI loader
+		// throws there. Spawn a real node process to prove the check agrees.
+		const src = `
+			const v = process.versions;
+			const isBun = typeof v === "object" && v !== null && typeof v.bun === "string";
+			process.stdout.write(String(isBun));
+		`;
+		const result = spawnSync("node", ["-e", src]);
+		expect(result.stdout?.toString()).toBe("false");
+	});
+});
 
 describe("resolveNonInteractiveConfig — flag validation", () => {
 	test("fails fast naming --network when it's missing", () => {

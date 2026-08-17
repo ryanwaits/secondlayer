@@ -1,11 +1,16 @@
 import type { Command } from "commander";
 import { bold, dim, note, printError, success, warn } from "../lib/output.ts";
 import {
+	SetupCancelledError,
+	promptSetupConfig,
+} from "../lib/setup-prompts.ts";
+import {
 	DEFAULT_ARCHIVE_MANIFEST,
 	MissingSetupFlagError,
 	type ResolvedSetupConfig,
 	type SetupEvent,
 	type SetupFlags,
+	isBunRuntime,
 	resolveNonInteractiveConfig,
 	runSetup,
 } from "../lib/setup-wizard.ts";
@@ -19,16 +24,24 @@ import {
  * This file owns flag parsing and rendering ONLY. Every actual step —
  * generating secrets, writing compose/.env, bringing docker up, shelling out
  * to bootstrap/verify — lives in `lib/setup-wizard.ts` as plain functions, so
- * this (non-interactive) path and the TUI (`setup-tui.tsx`) can never quietly
- * diverge on what "setup" does.
+ * none of this file's three ways of driving it (plain non-interactive, the
+ * OpenTUI wizard, the `@inquirer/prompts` fallback) can quietly diverge on
+ * what "setup" does.
  *
  * Non-interactive is not a fallback — it is the point. `!isTTY` or `--yes`
- * skips the TUI entirely and drives the exact same steps from flags, printing
- * plain progress lines and never blocking on input, so an autonomous agent can
- * drive this command exactly as well as a human at a terminal.
+ * skips prompting entirely and drives the exact same steps from flags,
+ * printing plain progress lines and never blocking on input, so an autonomous
+ * agent can drive this command exactly as well as a human at a terminal.
+ *
+ * The OpenTUI wizard is Bun-only today — its native renderer's FFI loader
+ * throws under node, and the published CLI runs under node via its shebang
+ * (`cli.ts`). So an interactive session only attempts OpenTUI when actually
+ * running under Bun, and falls back to `@inquirer/prompts` otherwise (or if
+ * OpenTUI still throws for some other reason) — a real terminal session
+ * should never hard-crash just because the fancy renderer isn't available.
  */
 
-function renderNonInteractive(event: SetupEvent): void {
+function renderProgress(event: SetupEvent): void {
 	switch (event.type) {
 		case "step-start":
 			note(`→ ${event.step}`);
@@ -48,6 +61,34 @@ function renderNonInteractive(event: SetupEvent): void {
 	}
 }
 
+/** Shared by the non-interactive and `@inquirer/prompts` paths: given an
+ *  already-resolved config, run every step and render its progress. */
+async function executeAndRender(config: ResolvedSetupConfig): Promise<void> {
+	console.error(bold("Secondlayer setup"));
+	console.error(
+		dim(
+			`  network=${config.network} node-mode=${config.nodeMode} dir=${config.dir}`,
+		),
+	);
+	console.error("");
+
+	let failed = false;
+	const result = await runSetup(config, (event) => {
+		if (event.type === "step-error") failed = true;
+		renderProgress(event);
+	});
+
+	if (!result.ok) {
+		process.exit(1);
+	}
+	if (failed) {
+		warn("Setup finished with at least one step reporting an error above.");
+	}
+	console.error("");
+	if (result.summary) console.log(result.summary);
+	process.exit(failed ? 1 : 0);
+}
+
 async function runNonInteractive(flags: SetupFlags): Promise<void> {
 	let config: ResolvedSetupConfig;
 	try {
@@ -60,30 +101,24 @@ async function runNonInteractive(flags: SetupFlags): Promise<void> {
 		}
 		process.exit(1);
 	}
+	await executeAndRender(config);
+}
 
-	console.error(bold("Secondlayer setup"));
-	console.error(
-		dim(
-			`  network=${config.network} node-mode=${config.nodeMode} dir=${config.dir}`,
-		),
-	);
-	console.error("");
-
-	let failed = false;
-	const result = await runSetup(config, (event) => {
-		if (event.type === "step-error") failed = true;
-		renderNonInteractive(event);
-	});
-
-	if (!result.ok) {
+/** `@inquirer/prompts` fallback: gathers the same decisions the OpenTUI
+ *  wizard would, then runs through the exact same non-interactive body. */
+async function runPromptedInteractive(flags: SetupFlags): Promise<void> {
+	let config: ResolvedSetupConfig;
+	try {
+		config = await promptSetupConfig(flags);
+	} catch (err) {
+		if (err instanceof SetupCancelledError) {
+			note(err.message);
+			process.exit(0);
+		}
+		printError(err instanceof Error ? err.message : String(err));
 		process.exit(1);
 	}
-	if (failed) {
-		warn("Setup finished with at least one step reporting an error above.");
-	}
-	console.error("");
-	if (result.summary) console.log(result.summary);
-	process.exit(failed ? 1 : 0);
+	await executeAndRender(config);
 }
 
 export function registerSetupCommand(program: Command): void {
@@ -153,7 +188,22 @@ decision with no safe default (--network, --node-mode, and --against unless
 				await runNonInteractive(flags);
 				return;
 			}
-			const { runSetupTui } = await import("../lib/setup-tui.tsx");
-			await runSetupTui(flags);
+			if (!isBunRuntime()) {
+				// OpenTUI's renderer can't init under node — don't even attempt it.
+				await runPromptedInteractive(flags);
+				return;
+			}
+			try {
+				const { runSetupTui } = await import("../lib/setup-tui.tsx");
+				await runSetupTui(flags);
+			} catch (err) {
+				// Defensive: catches any other OpenTUI init failure (not just the
+				// node-runtime case already routed around above) so a real
+				// terminal session degrades to prompts instead of crashing.
+				warn(
+					`Interactive TUI unavailable (${err instanceof Error ? err.message : String(err)}) — falling back to guided prompts.`,
+				);
+				await runPromptedInteractive(flags);
+			}
 		});
 }

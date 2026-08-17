@@ -194,6 +194,24 @@ export function guardrailPreview(
 }
 
 /**
+ * OpenTUI's native renderer is Bun-only today — its FFI loader throws
+ * "OpenTUI native FFI is not available for this runtime yet" under node.
+ * The published CLI runs under node via its shebang (see the note on
+ * `checkDocker` below for the same constraint), so `commands/setup.ts` uses
+ * this to decide whether to even attempt the OpenTUI wizard versus falling
+ * back to an `@inquirer/prompts` flow that drives the same `runSetup` steps.
+ */
+export function isBunRuntime(): boolean {
+	return (
+		typeof process !== "undefined" &&
+		typeof process.versions === "object" &&
+		process.versions !== null &&
+		typeof (process.versions as Record<string, string | undefined>).bun ===
+			"string"
+	);
+}
+
+/**
  * child_process (not `Bun.$`, and not `lib/docker.ts`'s `isDockerAvailable`,
  * which is built on `Bun.$`) so this works under both node and bun — the
  * published CLI runs under node via its shebang, where `Bun.$` doesn't exist.
