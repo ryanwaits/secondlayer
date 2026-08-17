@@ -7,8 +7,12 @@
  * It mirrors `docker/oss/docker-compose.yml`, with two devnet-specific changes:
  *   - the indexer's Hiro-mainnet fallbacks are disabled (it's fed by the devnet
  *     node's event observer, and any "gap" would otherwise pull mainnet blocks);
- *   - the indexer port binds on all interfaces so the devnet's stacks-node
+ *   - the indexer port publishes on all interfaces so the devnet's stacks-node
  *     container can reach it via `host.docker.internal:3700`.
+ *
+ * The API is published on loopback only, and told so via `API_PUBLISH_ADDR`,
+ * so `/v1` reads on a devnet need no credential — the "no keys" the docs
+ * promise. See `apiPublish` below.
  */
 
 /** ghcr namespace the OSS images publish under (oss-images.yml). */
@@ -16,9 +20,14 @@ export const DEFAULT_IMAGE_OWNER = "ryanwaits";
 export const DEFAULT_IMAGE_TAG = "latest";
 
 /**
- * Local-dev instance token — not a production secret. Required because the api
- * container listens on 0.0.0.0, and it is the value a devnet client must send
- * as `INSTANCE_TOKEN`, so the compose file and the "next steps" hint share it.
+ * Local-dev instance token — not a production secret.
+ *
+ * It has to be here: the api container listens on 0.0.0.0 (nothing published
+ * can reach it otherwise) and the boot guard reads the *listen* host, so a
+ * tokenless container refuses to start. It is not what gates reads — the API
+ * is published on loopback, so `/v1` is keyless — it is the credential every
+ * write (`/api/subgraphs`, `/api/subscriptions`, `/api/node`) must send. The
+ * compose file and the "next steps" hint share this value so they can't drift.
  */
 export const DEV_INSTANCE_TOKEN = "dev-instance-token";
 
@@ -34,6 +43,14 @@ export function buildDevnetCompose(opts: DevnetComposeOptions = {}): string {
 	const tag = opts.imageTag ?? DEFAULT_IMAGE_TAG;
 	const apiPort = opts.apiPort ?? 3800;
 	const indexerPort = opts.indexerPort ?? 3700;
+
+	// The one publish spec for the api, used verbatim by both `ports:` and
+	// `API_PUBLISH_ADDR` so the two can never disagree — same trick
+	// `docker/oss/docker-compose.yml` plays with `${API_PORT}`. In a container
+	// the listen host cannot say who may reach the API (it must be 0.0.0.0 or
+	// the published port never arrives), so the publish spec is the answer the
+	// read plane consults. Loopback here → keyless `/v1` reads on devnet.
+	const apiPublish = `127.0.0.1:${apiPort}`;
 
 	const apiImage = `ghcr.io/${owner}/secondlayer-api:${tag}`;
 	const indexerImage = `ghcr.io/${owner}/secondlayer-indexer:${tag}`;
@@ -80,7 +97,13 @@ services:
       INSTANCE_MODE: oss
       DATABASE_URL: ${dbUrl}
       PORT: 3800
+      # 0.0.0.0 is forced: a container process that binds loopback is
+      # unreachable through a published port. The real reach is the publish
+      # spec below, handed over verbatim so /v1 reads stay keyless on devnet.
       LISTEN_HOST: "0.0.0.0"
+      API_PUBLISH_ADDR: "${apiPublish}"
+      # Boot guard reads LISTEN_HOST, so a token is required to start at all.
+      # It gates writes only — reads are open on this loopback publish.
       INSTANCE_TOKEN: ${DEV_INSTANCE_TOKEN}
       NODE_ENV: production
       DATA_DIR: /data
@@ -90,7 +113,7 @@ services:
       # Local-dev fixed value; not a production secret.
       SECONDLAYER_SECRETS_KEY: ${DEV_SECRETS_KEY}
     ports:
-      - "${apiPort}:3800"
+      - "${apiPublish}:3800"
     volumes:
       - subgraphs_data:/data/subgraphs
     depends_on:
@@ -121,8 +144,10 @@ services:
       # Fed by the devnet node's event observer — never reach out to Hiro mainnet.
       AUTO_BACKFILL_ENABLED: "false"
       TIP_FOLLOWER_ENABLED: "false"
-    # Bind on all interfaces so the devnet's stacks-node container can POST to
-    # host.docker.internal:3700.
+    # Deliberately published on every interface, unlike the api: the devnet's
+    # stacks-node runs in its own container and POSTs events to
+    # host.docker.internal:3700, which resolves to the host gateway address,
+    # not 127.0.0.1. A loopback publish here would drop every block.
     ports:
       - "${indexerPort}:3700"
     extra_hosts:

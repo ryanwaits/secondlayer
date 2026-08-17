@@ -13,6 +13,7 @@ import {
 	findClarinetProject,
 } from "../lib/devnet-config.ts";
 import { bold, cyan, dim, error, green, red, yellow } from "../lib/output.ts";
+import { resolveEnvKey } from "../lib/resolve-auth.ts";
 
 const COMPOSE_REL = join(".secondlayer", "docker-compose.yml");
 
@@ -218,6 +219,11 @@ export async function connect(options: ConnectOptions): Promise<void> {
 	console.log(
 		`  ${yellow(`SL_API_URL=http://localhost:3800 INSTANCE_TOKEN=${DEV_INSTANCE_TOKEN} secondlayer subgraphs deploy ./subgraph.ts`)}`,
 	);
+	console.log(
+		dim(
+			`\nThe api is published on 127.0.0.1 only: /v1 reads need no credential.\nWrites (deploys, subscriptions) send INSTANCE_TOKEN=${DEV_INSTANCE_TOKEN}.`,
+		),
+	);
 	console.log(dim("\nStop with: secondlayer devnet down"));
 }
 
@@ -274,11 +280,22 @@ async function logs(
 // biome-ignore lint/suspicious/noExplicitAny: parses untyped local API JSON
 async function jget(url: string): Promise<any | null> {
 	try {
-		const r = await fetch(url, { signal: AbortSignal.timeout(1500) });
+		const r = await fetch(url, {
+			signal: AbortSignal.timeout(1500),
+			// `/api/*` is the write plane: it requires the instance token even on
+			// loopback, so a bare GET would 401 and status would report an empty
+			// stack. `/health` ignores the header, `/v1` reads don't need it.
+			headers: { authorization: `Bearer ${statusToken()}` },
+		});
 		return r.ok ? await r.json() : null;
 	} catch {
 		return null;
 	}
+}
+
+/** The generated stack's token, unless the caller exported their own. */
+function statusToken(): string {
+	return resolveEnvKey() ?? DEV_INSTANCE_TOKEN;
 }
 
 // System columns the subgraph runtime adds — hidden from the activity summary.
