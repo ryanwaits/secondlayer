@@ -37,17 +37,23 @@ program
 	.description("Secondlayer CLI — run a Stacks index on your own hardware")
 	.version(version)
 	.option("--network <network>", "Override network (local, testnet, mainnet)")
-	.option("--api-key <key>", "API credential (overrides SL_API_KEY)")
+	.option("--api-key <key>", "API credential (overrides INSTANCE_TOKEN)")
 	.option("--api-url <url>", "API endpoint (overrides SL_API_URL)")
 	.showSuggestionAfterError(true)
 	.showHelpAfterError("(run `secondlayer --help` to see available commands)");
 
 // Funnel global flags into the env vars the auth/network layers already read,
 // so a flag transparently takes precedence over its env var for every command.
+// `--api-key` writes BOTH credential vars: the flag must win regardless of the
+// INSTANCE_TOKEN > SL_API_KEY precedence, and writing the same value to both
+// keeps the SDK's conflict warning quiet.
 program.hook("preAction", (thisCommand) => {
 	const { network, apiKey, apiUrl } = thisCommand.opts();
 	if (network) process.env.STACKS_NETWORK = network;
-	if (apiKey) process.env.SL_API_KEY = apiKey;
+	if (apiKey) {
+		process.env.INSTANCE_TOKEN = apiKey;
+		process.env.SL_API_KEY = apiKey;
+	}
 	if (apiUrl) process.env.SL_API_URL = apiUrl;
 });
 

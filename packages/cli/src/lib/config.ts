@@ -188,8 +188,8 @@ function applyEnvOverrides(config: Config): Config {
 		}
 	}
 
-	// Note: SL_API_KEY + SL_API_URL are read by `resolve-auth.ts`
-	// (CI/OSS bypass). Not stored in config — env-only.
+	// Note: INSTANCE_TOKEN (or its legacy alias SL_API_KEY) + SL_API_URL are
+	// read by `resolve-auth.ts` (CI/OSS bypass). Not stored in config — env-only.
 
 	// SL_DATA_DIR
 	if (process.env.SL_DATA_DIR) {

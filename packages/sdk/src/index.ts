@@ -5,7 +5,12 @@ export type {
 	ContextSnapshot,
 } from "./client.ts";
 export type { SecondLayerOptions } from "./base.ts";
-export { LOCAL_API_URL, resolveApiKey, resolveBaseUrl } from "./base.ts";
+export {
+	CREDENTIAL_ENV_VARS,
+	LOCAL_API_URL,
+	resolveApiKey,
+	resolveBaseUrl,
+} from "./base.ts";
 export {
 	Contracts,
 	type ContractConformance,

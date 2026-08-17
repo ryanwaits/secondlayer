@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import type { Command } from "commander";
 import {
 	DEFAULT_IMAGE_TAG,
+	DEV_INSTANCE_TOKEN,
 	buildDevnetCompose,
 } from "../lib/devnet-compose.ts";
 import {
@@ -215,7 +216,7 @@ export async function connect(options: ConnectOptions): Promise<void> {
 		`  ${yellow("clarinet devnet start")}   ${dim("# auto-deploys + streams to the indexer")}`,
 	);
 	console.log(
-		`  ${yellow("SL_API_URL=http://localhost:3800 SL_API_KEY=dummy secondlayer subgraphs deploy ./subgraph.ts")}`,
+		`  ${yellow(`SL_API_URL=http://localhost:3800 INSTANCE_TOKEN=${DEV_INSTANCE_TOKEN} secondlayer subgraphs deploy ./subgraph.ts`)}`,
 	);
 	console.log(dim("\nStop with: secondlayer devnet down"));
 }

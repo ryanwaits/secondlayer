@@ -226,8 +226,8 @@ export async function runSubgraphTest(
 					error(
 						`Blocks ${fromHeight}–${toHeight} are below the free read window.${
 							details?.oldest_seekable_height
-								? ` Try --from ${details.oldest_seekable_height}, or add a paid API key (SL_API_KEY) to test against older history.`
-								: " Add a paid API key (SL_API_KEY) to test against older history."
+								? ` Try --from ${details.oldest_seekable_height}, or add a paid API key (INSTANCE_TOKEN) to test against older history.`
+								: " Add a paid API key (INSTANCE_TOKEN) to test against older history."
 						}`,
 					);
 					process.exit(1);

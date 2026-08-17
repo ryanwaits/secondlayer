@@ -1,14 +1,15 @@
-import { SecondLayer } from "@secondlayer/sdk";
+import { SecondLayer, resolveApiKey } from "@secondlayer/sdk";
 
 let instance: SecondLayer | null = null;
 
 /**
- * Read the API key from env. `SL_API_KEY` is the single credential var, matching
- * the CLI and SDK. (The former `SL_SERVICE_KEY` / `SECONDLAYER_API_KEY` aliases
+ * Read the credential from env: `INSTANCE_TOKEN` first, then its legacy alias
+ * `SL_API_KEY`. Delegated to the SDK so the MCP server, CLI, and SDK resolve
+ * identically. (The former `SL_SERVICE_KEY` / `SECONDLAYER_API_KEY` aliases
  * were removed.)
  */
-function readApiKey(): string | undefined {
-	return process.env.SL_API_KEY;
+export function readApiKey(): string | undefined {
+	return resolveApiKey();
 }
 
 /**
@@ -38,7 +39,7 @@ export function getClient(): SecondLayer {
 // Appended to 401/403 errors raised on keyless requests — the operation needs
 // a write/account key, so point at where to get one.
 export const keyHint =
-	" — set SL_API_KEY from `sl init` (INSTANCE_TOKEN) for writes";
+	" — set INSTANCE_TOKEN from `sl init` for writes (SL_API_KEY is a legacy alias)";
 
 /** Raw fetch helper for API endpoints not covered by the SDK. */
 export async function apiRequest<T>(

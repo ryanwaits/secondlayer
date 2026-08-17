@@ -27,7 +27,7 @@ function fail(action: string, err: unknown): never {
 	const message = err instanceof Error ? err.message : String(err);
 	logError(`Failed to ${action}: ${message}`);
 	if (/\b403\b/.test(message) || /forbidden/i.test(message)) {
-		note("The local API refused this read. Check INSTANCE_TOKEN / SL_API_KEY.");
+		note("The local API refused this read. Check INSTANCE_TOKEN.");
 	}
 	process.exit(1);
 }

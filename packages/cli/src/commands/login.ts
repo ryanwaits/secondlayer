@@ -18,7 +18,7 @@ async function readStdin(): Promise<string> {
 /**
  * Non-interactive login: read an API key from stdin, verify it against the
  * account endpoint, and persist it as the stored credential. For CI/headless
- * use, e.g. `echo "$SL_API_KEY" | secondlayer login --with-token`.
+ * use, e.g. `echo "$INSTANCE_TOKEN" | secondlayer login --with-token`.
  */
 async function runTokenLogin(): Promise<void> {
 	const token = await readStdin();
@@ -29,7 +29,10 @@ async function runTokenLogin(): Promise<void> {
 		process.exit(1);
 	}
 
-	// Verify by hitting the account endpoint with the provided key.
+	// Verify by hitting the account endpoint with the provided key. Both
+	// credential vars are set so the piped token beats anything already
+	// exported, whichever name it was exported under.
+	process.env.INSTANCE_TOKEN = token;
 	process.env.SL_API_KEY = token;
 	let account: { id: string; email: string };
 	try {
@@ -168,7 +171,7 @@ export function registerLoginCommand(program: Command): void {
 			`
 Examples:
   $ secondlayer login
-  $ echo "$SL_API_KEY" | secondlayer login --with-token`,
+  $ echo "$INSTANCE_TOKEN" | secondlayer login --with-token`,
 		)
 		.action((opts: { force?: boolean; withToken?: boolean }) =>
 			opts.withToken ? runTokenLogin() : runLoginFlow({ force: opts.force }),

@@ -12,7 +12,7 @@ import { readSession } from "./session.ts";
  *
  * `httpPlatform` resolves auth via `resolveAuth` (env API key or stored session
  * token) and targets `resolveAuth().apiUrl`, so global `--api-key`/`--api-url`
- * and `SL_API_KEY`/`SL_API_URL` apply uniformly. With a session token the
+ * and `INSTANCE_TOKEN`/`SL_API_URL` apply uniformly. With a session token the
  * server auto-extends the 90d expiry on every request (sliding window in
  * packages/api/src/auth/middleware.ts), so no refresh logic lives here.
  *
@@ -102,7 +102,7 @@ export async function httpPlatform<T>(
 			"SESSION_EXPIRED",
 			{ error: "Not logged in" },
 			isOssMode()
-				? "Not authenticated — set SL_API_KEY from `secondlayer init`"
+				? "Not authenticated — set INSTANCE_TOKEN from `secondlayer init`"
 				: "Not logged in — run `secondlayer login`",
 		);
 	}

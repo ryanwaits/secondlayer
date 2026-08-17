@@ -1,3 +1,4 @@
+import { resolveApiKey } from "@secondlayer/sdk";
 import { readSession } from "./session.ts";
 
 export interface ResolvedAuth {
@@ -25,10 +26,20 @@ export function resolveApiUrl(): string {
 }
 
 /**
- * Resolve an env-provided credential. `SL_API_KEY` is the only accepted var.
+ * Resolve an env-provided credential. Precedence, highest first:
+ *
+ *   1. the global `--api-key` flag, which `cli.ts` funnels into both env vars
+ *      below so it beats whatever is already exported;
+ *   2. `INSTANCE_TOKEN` — the canonical credential var, written by
+ *      `secondlayer init` and validated by the instance API;
+ *   3. `SL_API_KEY` — legacy alias for the same value.
+ *
+ * Empty values count as unset. Delegated to the SDK's `resolveApiKey` so the
+ * CLI, SDK, and MCP server can never disagree about which var wins; that helper
+ * also warns when the two env vars hold different values.
  */
 export function resolveEnvKey(): string | undefined {
-	return process.env.SL_API_KEY;
+	return resolveApiKey();
 }
 
 export async function resolveAuth(): Promise<ResolvedAuth> {

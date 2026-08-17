@@ -238,11 +238,25 @@ describe("BaseClient", () => {
 	});
 
 	describe("resolveApiKey", () => {
-		const original = process.env.SL_API_KEY;
+		const originalLegacy = process.env.SL_API_KEY;
+		const originalToken = process.env.INSTANCE_TOKEN;
+
+		beforeEach(() => {
+			delete process.env.SL_API_KEY;
+			delete process.env.INSTANCE_TOKEN;
+		});
 
 		afterEach(() => {
-			if (original === undefined) delete process.env.SL_API_KEY;
-			else process.env.SL_API_KEY = original;
+			if (originalLegacy === undefined) delete process.env.SL_API_KEY;
+			else process.env.SL_API_KEY = originalLegacy;
+			if (originalToken === undefined) delete process.env.INSTANCE_TOKEN;
+			else process.env.INSTANCE_TOKEN = originalToken;
+		});
+
+		test("falls back to INSTANCE_TOKEN when no apiKey is passed", () => {
+			process.env.INSTANCE_TOKEN = "sk-sl_instance_token";
+			expect(resolveApiKey()).toBe("sk-sl_instance_token");
+			expect(new TestClient().authHeader()).toBe("Bearer sk-sl_instance_token");
 		});
 
 		test("falls back to SL_API_KEY when no apiKey is passed", () => {
@@ -251,22 +265,70 @@ describe("BaseClient", () => {
 			expect(new TestClient().authHeader()).toBe("Bearer sk-sl_from_env");
 		});
 
-		test("an explicit apiKey wins over the environment", () => {
+		test("INSTANCE_TOKEN wins when both env vars are set", () => {
+			process.env.INSTANCE_TOKEN = "sk-sl_instance_token";
+			process.env.SL_API_KEY = "sk-sl_legacy_alias";
+			expect(resolveApiKey()).toBe("sk-sl_instance_token");
+		});
+
+		test("an empty INSTANCE_TOKEN falls through to SL_API_KEY", () => {
+			process.env.INSTANCE_TOKEN = "";
+			process.env.SL_API_KEY = "sk-sl_from_env";
+			expect(resolveApiKey()).toBe("sk-sl_from_env");
+		});
+
+		test("an explicit apiKey wins over both env vars", () => {
+			process.env.INSTANCE_TOKEN = "sk-sl_instance_token";
 			process.env.SL_API_KEY = "sk-sl_from_env";
 			expect(resolveApiKey("sk-sl_explicit")).toBe("sk-sl_explicit");
 		});
 
 		test("an explicit empty string opts back into keyless", () => {
-			process.env.SL_API_KEY = "sk-sl_from_env";
+			process.env.INSTANCE_TOKEN = "sk-sl_instance_token";
 			expect(resolveApiKey("")).toBe("");
 			expect(new TestClient({ apiKey: "" }).authHeader()).toBeUndefined();
 		});
 
-		test("resolves to undefined when SL_API_KEY is unset or empty", () => {
-			delete process.env.SL_API_KEY;
+		test("resolves to undefined when both env vars are unset or empty", () => {
 			expect(resolveApiKey()).toBeUndefined();
+			process.env.INSTANCE_TOKEN = "";
 			process.env.SL_API_KEY = "";
 			expect(resolveApiKey()).toBeUndefined();
+		});
+
+		test("warns once when both env vars are set to different values", () => {
+			const original = console.warn;
+			const warnings: string[] = [];
+			console.warn = (...args: unknown[]) => {
+				warnings.push(args.join(" "));
+			};
+			try {
+				process.env.INSTANCE_TOKEN = "sk-sl_conflict_token";
+				process.env.SL_API_KEY = "sk-sl_conflict_legacy";
+				resolveApiKey();
+				resolveApiKey();
+			} finally {
+				console.warn = original;
+			}
+			expect(warnings).toHaveLength(1);
+			expect(warnings[0]).toContain("INSTANCE_TOKEN");
+			expect(warnings[0]).toContain("SL_API_KEY");
+		});
+
+		test("stays quiet when both env vars agree", () => {
+			const original = console.warn;
+			const warnings: string[] = [];
+			console.warn = (...args: unknown[]) => {
+				warnings.push(args.join(" "));
+			};
+			try {
+				process.env.INSTANCE_TOKEN = "sk-sl_same_value";
+				process.env.SL_API_KEY = "sk-sl_same_value";
+				expect(resolveApiKey()).toBe("sk-sl_same_value");
+			} finally {
+				console.warn = original;
+			}
+			expect(warnings).toHaveLength(0);
 		});
 	});
 

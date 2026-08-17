@@ -62,7 +62,7 @@ export function handleApiError(err: unknown, action: string): never {
 	) {
 		printError("Authentication required.", {
 			hint: isOssMode()
-				? "Set SL_API_KEY / INSTANCE_TOKEN from `secondlayer init`."
+				? "Set INSTANCE_TOKEN from `secondlayer init` (SL_API_KEY is a legacy alias)."
 				: "Run `secondlayer login` to re-authenticate.",
 		});
 		process.exit(1);
@@ -110,7 +110,7 @@ export async function assertOk(res: Response): Promise<void> {
 }
 
 /**
- * SDK client targeting the platform API. Honors SL_API_URL / SL_API_KEY for
+ * SDK client targeting the platform API. Honors SL_API_URL / INSTANCE_TOKEN for
  * CI/OSS; otherwise uses the active session token.
  */
 async function getPlatformClient(): Promise<SecondLayer> {
