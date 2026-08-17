@@ -73,7 +73,7 @@ const js = clarityValueToJS(abiType, cv);
 import type { TypedAbi, ContractTypes, AbiTypesOf } from "@secondlayer/stacks/clarity";
 ```
 
-`sl contracts generate` emits named per-function type aliases plus a
+`sl codegen contracts` emits named per-function type aliases plus a
 `<Contract>Types` bundle, and brands the generated ABI const with
 `TypedAbi<typeof abi, Types>`. The brand is a phantom property — zero runtime
 cost — that brand-aware consumers (`getContract`) resolve via `AbiTypesOf` to

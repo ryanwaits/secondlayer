@@ -70,7 +70,7 @@ Reads are cursor-paginated; writes that kick off work (reindex, backfill, replay
 | --- | --- |
 | `subgraphs_deploy` | Deploy from `defineSubgraph()` source (instance Postgres or your own via database URL; `dryRun` previews DDL) |
 | `subgraphs_list` | List your deployed subgraphs |
-| `subgraphs_get` | Full detail: schema, health, table columns |
+| `subgraphs_status` | Full detail: schema, health, table columns |
 | `subgraphs_query` | Query a table with operator filters (`amount.gte`, `name.like`, …) |
 | `subgraphs_gaps` | List missing block ranges |
 | `subgraphs_backfill` | Non-destructive forward fill of a block range |
@@ -102,7 +102,7 @@ Reads are cursor-paginated; writes that kick off work (reindex, backfill, replay
 | --- | --- |
 | `contracts_find` | Discover deployed contracts conforming to a trait (sip-010/009/013) |
 | `contracts_get_abi` | Fetch a deployed contract's full ABI from the registry |
-| `scaffold_from_contract` | Generate a subgraph scaffold from a contract's ABI |
+| `subgraphs_scaffold` | Generate a subgraph scaffold from a contract's ABI |
 
 ## Notes
 

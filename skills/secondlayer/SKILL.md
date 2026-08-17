@@ -9,7 +9,7 @@ Secondlayer is a self-hosted Stacks data runtime. Postgres plus one container.
 
 | Surface | Package / Surface | What it does |
 |---|---|---|
-| **Raw (Streams)** | `@secondlayer/sdk` → `sl.streams` · REST `/v1/streams` · `secondlayer streams` | Cursor-paginated firehose of raw Stacks events (transfers, mints, burns, prints) with reorg awareness, Bitcoin-anchored finality (`finalized` per event, `finalized_height` on tip), `types`/`not_types` + `sender`/`recipient`/`contract_id` (single or comma-list) payload filters, signed responses (ed25519 `X-Signature`, opt-in SDK `verify`), and public bulk parquet dumps (`client.dumps` / `events.replay` / `secondlayer streams pull`). |
+| **Raw (Streams)** | `@secondlayer/sdk` → `sl.streams` · REST `/v1/streams` · `secondlayer streams` | Cursor-paginated firehose of raw Stacks events (transfers, mints, burns, prints) with reorg awareness, Bitcoin-anchored finality (`finalized` per event, `finalized_height` on tip), `types`/`not_types` + `sender`/`recipient`/`contract_id` (single or comma-list) payload filters, signed responses (ed25519 `X-Signature`, opt-in SDK `verify`), and public bulk parquet dumps (`client.dumps` / `events.replay` / `secondlayer streams dumps`). |
 | **Decoded (Index)** | `@secondlayer/sdk` → `sl.index` · REST `/v1/index` · `secondlayer index` | Decoded SIP-010 (FT) and SIP-009 (NFT) transfers, all event types (`stx_*`, ft/nft mint/burn, print) via `events`, and decoded `contract-calls` — filtered by principal/contract/height. |
 | **Your schema (Subgraphs)** | `@secondlayer/subgraphs` + CLI · REST `/v1/subgraphs` (reads) · `/api/subgraphs` (writes) | TypeScript-authored indexers: declare filters + schema + handlers; the instance materializes Postgres tables and exposes REST. |
 | **Webhooks** | `sl.subscriptions` · REST `/api/subscriptions` · `secondlayer subscriptions` | Standard-Webhooks-signed deliveries. Two kinds: **subgraph** subscriptions fire on every row written by a subgraph; **chain** subscriptions fire on raw chain events directly (no subgraph) via `triggers` (contract call / event type / trait). |
@@ -43,7 +43,7 @@ These are small enough to keep in the router. Everything else is in a reference 
 - **Binary:** `secondlayer` (`sl` is a short alias). Install: `bun add -g @secondlayer/cli`.
 - **Default API:** `http://127.0.0.1:3800`. Override with `SL_API_URL`.
 - **CLI auth:** `secondlayer init` writes `INSTANCE_TOKEN`. Set `SL_API_KEY` to that token for writes. No Secondlayer account.
-- **Streams / Index:** local instance reads. Loopback needs no key. Public archive dumps (`secondlayer streams pull`) are a separate signed bucket.
+- **Streams / Index:** local instance reads. Loopback needs no key. Public archive dumps (`secondlayer streams dumps`) are a separate signed bucket.
 - **Package manager:** prefer `bun` and `bunx`. Most package.json files in user projects declare `bun` as `packageManager`.
 - **Network inference:** addresses starting `SP`/`SM` → mainnet, `ST`/`SN` → testnet. CLI infers this automatically when scaffolding.
 
@@ -83,7 +83,7 @@ Reads are not uniformly open — know the tier before querying:
 | Subgraph deploy errors `upsert requires unique key` | Schema declared `upsert` writes but `uniqueKeys` missing | Add `uniqueKeys: [["col_a", "col_b"]]` to the table |
 | Subscription paused after 20 failures | Receiver returning 4xx/5xx or timing out | `secondlayer subscriptions doctor <name>`; fix receiver; `secondlayer subscriptions resume <name>` |
 | `ApiError 401` from SDK | Missing `apiKey` on a write, or the API is bound beyond loopback | Pass `INSTANCE_TOKEN` from `secondlayer init` as `apiKey` / `SL_API_KEY` |
-| `tsc` errors after `getContract` upgrade | ABI shape changed, regenerate | `secondlayer subgraphs client <name> -o ...` or refresh ABI |
+| `tsc` errors after `getContract` upgrade | ABI shape changed, regenerate | `secondlayer codegen client <name> -o ...` or refresh ABI |
 | Webhook receiver getting unsigned bodies | `format` not set to `standard-webhooks` | `secondlayer subscriptions update <name> --format standard-webhooks` |
 | Subgraph "stuck" right after deploy | Catching up from `startBlock` | Normal; watch `secondlayer subgraphs status <name> -w`. Use `--start-block` near tip for fast first deploy |
 

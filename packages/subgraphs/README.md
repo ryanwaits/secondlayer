@@ -102,8 +102,8 @@ Delivery bodies and response previews land in `subscription_deliveries`. Rows wh
 Once rows land in your DB, generate a typed schema for your ORM:
 
 ```bash
-secondlayer subgraphs codegen subgraphs/my.ts --target prisma  -o prisma/schema.prisma
-secondlayer subgraphs codegen subgraphs/my.ts --target drizzle -o db/schema.ts
+secondlayer codegen subgraph subgraphs/my.ts --target prisma  -o prisma/schema.prisma
+secondlayer codegen subgraph subgraphs/my.ts --target drizzle -o db/schema.ts
 ```
 
 Prisma and Drizzle have first-class generators (`generatePrismaSchema` /

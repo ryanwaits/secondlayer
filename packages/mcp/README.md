@@ -15,7 +15,7 @@ bun add @secondlayer/mcp
 
 ## Auth
 
-Most reads are public — `index_*` and `contracts_find` work with no key. Subgraph tools need an `SL_API_KEY`; separately, **public** subgraphs are anon-readable over HTTP at `GET /v1/subgraphs/<name>/<table>` (`{ rows, next_cursor, tip }` cursor envelope), while private ones need the owning account's key (anon → 404). `streams_dumps` needs no key — the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. Writes (deploy, reindex, delete, subscriptions) need a key: set `SL_API_KEY` to the `INSTANCE_TOKEN` that `secondlayer init` wrote for your instance. Read `secondlayer://context` first — it reports auth state and read-auth tiers.
+Most reads are public — `index_*` and `contracts_find` work with no key. Subgraph tools need an `SL_API_KEY`; separately, **public** subgraphs are anon-readable over HTTP at `GET /v1/subgraphs/<name>/<table>` (`{ rows, next_cursor, tip }` cursor envelope), while private ones need the owning account's key (anon → 404). `streams_dumps` needs no key — the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. Every other `streams_*` tool is key-mandatory (keyless → 401). Writes (deploy, reindex, delete, subscriptions) need a key: set `SL_API_KEY` to the `INSTANCE_TOKEN` that `secondlayer init` wrote for your instance. Read `secondlayer://context` first — it reports auth state and read-auth tiers.
 
 ## Quick Start — Stdio (IDE)
 
@@ -58,18 +58,22 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 | Domain | Tools |
 | --- | --- |
 | **Index** (9) | `index_events`, `index_ft_transfers`, `index_nft_transfers`, `index_contract_calls`, `index_blocks`, `index_transactions`, `index_print_schema`, `index_discover`, `batch_query` |
-| **Subgraphs** (9) | `subgraphs_list`, `subgraphs_get`, `subgraphs_deploy`, `subgraphs_delete`, `subgraphs_query`, `subgraphs_backfill`, `subgraphs_reindex`, `subgraphs_stop`, `subgraphs_gaps` |
-| **Subscriptions** (7) | `subscriptions_create`, `subscriptions_list`, `subscriptions_get`, `subscriptions_update`, `subscriptions_delete`, `subscriptions_test`, `subscriptions_replay` |
-| **Streams** (1) | `streams_dumps` |
-| **Contracts** (2) | `contracts_find`, `get_contract_abi` |
-| **Scaffold** (1) | `scaffold_from_contract` |
+| **Subgraphs** (14) | `subgraphs_list`, `subgraphs_status`, `subgraphs_spec`, `subgraphs_scaffold`, `subgraphs_deploy`, `subgraphs_delete`, `subgraphs_query`, `subgraphs_backfill`, `subgraphs_reindex`, `subgraphs_stop`, `subgraphs_operations`, `subgraphs_gaps`, `subgraphs_publish`, `subgraphs_unpublish` |
+| **Subscriptions** (13) | `subscriptions_create`, `subscriptions_list`, `subscriptions_get`, `subscriptions_update`, `subscriptions_delete`, `subscriptions_test`, `subscriptions_pause`, `subscriptions_resume`, `subscriptions_rotate_secret`, `subscriptions_deliveries`, `subscriptions_dead`, `subscriptions_requeue`, `subscriptions_replay` |
+| **Streams** (7) | `streams_tip`, `streams_events`, `streams_events_by_tx`, `streams_block_events`, `streams_canonical`, `streams_reorgs`, `streams_dumps` |
+| **Contracts** (2) | `contracts_find`, `contracts_get_abi` |
+| **Account** (2) | `account_whoami`, `account_create_key` |
+
+Verify after mutating: `subgraphs_operations` for deploy/reindex/backfill/stop,
+`subscriptions_deliveries` for create/test/replay.
 
 Periphery surfaces (single block/tx lookups, mempool, stacking, proofs,
-codegen, credits/caps, live Streams reads, delivery forensics) are
-REST-only: see the OpenAPI spec at the API host.
+credits/caps, live Streams SSE) are REST-only: see the OpenAPI spec at the API
+host. Following the chain over MCP means polling `streams_events` with a cursor.
 
-Account tools are unmounted. Point the server at your instance with `SL_API_URL`
-(default `http://127.0.0.1:3800`). Writes use `INSTANCE_TOKEN` from `secondlayer init`.
+Point the server at your instance with `SL_API_URL` (default
+`http://127.0.0.1:3800`). Writes and account tools use `INSTANCE_TOKEN` from
+`secondlayer init`.
 
 ### `subscriptions_create` kinds
 

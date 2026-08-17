@@ -58,7 +58,7 @@ Deliveries are signed, retried, and land in a dead-letter queue you can inspect 
 Subgraph rows live in your instance's Postgres. `codegen` emits a typed ORM schema for a subgraph's tables so your app reads them with Prisma, Drizzle, or Kysely:
 
 ```bash
-secondlayer subgraphs codegen ./subgraph.config.ts --target prisma -o prisma/schema.prisma
+secondlayer codegen subgraph ./subgraph.config.ts --target prisma -o prisma/schema.prisma
 npx prisma generate
 ```
 

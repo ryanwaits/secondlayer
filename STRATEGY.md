@@ -65,7 +65,7 @@ Everything we market is one of these three. Everything else is a feature of them
 blocks, transactions over REST with a cursor envelope — or build your own app
 index on the same rows: a checkpointed `consume()` loop with automatic cursor
 rewind on reorg (`onReorg` rolls back your own rows), `walk()` sweeps,
-`from_height=0` backfill, `/canonical`, `secondlayer index codegen` for your mirror
+`from_height=0` backfill, `/canonical`, `secondlayer codegen index` for your mirror
 schema. Built on Streams (our decoder is a Streams consumer). App index
 without writing decoders.
 

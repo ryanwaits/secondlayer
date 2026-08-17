@@ -54,9 +54,9 @@ export SL_API_KEY=<INSTANCE_TOKEN>
 |---|---|---|
 | `SL_API_URL` | All SDK + CLI calls | Override instance API. Default: `http://127.0.0.1:3800`. |
 | `SL_API_KEY` | CLI writes, MCP, SDK | `INSTANCE_TOKEN` from `secondlayer init`. Loopback reads need no token. |
-| `HIRO_API_KEY` | `secondlayer contracts generate`, `secondlayer subgraphs scaffold` | Stacks node API key for ABI fetches against Hiro RPC. |
+| `HIRO_API_KEY` | `secondlayer codegen contracts`, `secondlayer subgraphs scaffold` | Stacks node API key for ABI fetches against Hiro RPC. |
 | `SIGNING_SECRET` | `secondlayer subscriptions test` fallback | If `--signing-secret` not passed. |
-| `STACKS_NETWORK` | `secondlayer contracts generate` and some local commands | `local`, `testnet`, or `mainnet`. |
+| `STACKS_NETWORK` | `secondlayer codegen contracts` and some local commands | `local`, `testnet`, or `mainnet`. |
 | `SECONDLAYER_API_KEY` (in user code) | `new SecondLayer({ apiKey })` | What the SDK reads in your own code if you don't pass `apiKey` explicitly. (Naming is your choice; SDK takes the value via constructor.) |
 
 ## SDK quickstart

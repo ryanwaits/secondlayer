@@ -19,7 +19,7 @@ That's the only choice you have to make. The decoding, the reorg handling, and t
 
 | Your situation | What you write | Called |
 | --- | --- | --- |
-| **Yes** — you run tRPC, GraphQL, Rails, something | A `consume()` loop: `onBatch` writes rows into your schema, `onReorg` rolls them back. `secondlayer index codegen` emits the mirror schema so your tables can't drift. Serve them however you already serve things. | **[Index](/docs/index)** |
+| **Yes** — you run tRPC, GraphQL, Rails, something | A `consume()` loop: `onBatch` writes rows into your schema, `onReorg` rolls them back. `secondlayer codegen index` emits the mirror schema so your tables can't drift. Serve them however you already serve things. | **[Index](/docs/index)** |
 | **No** — and you'd rather not build one | One TypeScript file: sources, schema, handlers. You get the table *and* a REST API over it, on your instance. | **[Subgraphs](/docs/subgraphs)** |
 | **I want to decode it myself** | A consumer over the signed raw firehose: bulk dumps, replay, automatic reorg rewind. This is what Index itself is built on. | **[Streams](/docs/streams)** |
 

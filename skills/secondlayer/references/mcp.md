@@ -1,10 +1,10 @@
 # MCP
 
 `@secondlayer/mcp` exposes the golden-path Secondlayer tools to MCP-capable
-agents: Index reads, the subgraph lifecycle, subscriptions, contract
-discovery/scaffolding, and key self-provisioning. Periphery surfaces (single
-block/tx lookups, mempool, stacking, proofs, codegen, billing, projects, live
-Streams reads, delivery forensics) are REST-only — see the `/v1` OpenAPI spec.
+agents: Index reads, Streams reads, the subgraph lifecycle, subscriptions,
+contract discovery/scaffolding, and key self-provisioning. Periphery surfaces
+(single block/tx lookups, mempool, stacking, proofs, billing, projects) are
+REST-only — see the `/v1` OpenAPI spec.
 
 ## Stdio Setup
 
@@ -54,13 +54,16 @@ Index (decoded — loopback reads need no key; history is whatever this instance
 Subgraphs:
 
 - `subgraphs_list`
-- `subgraphs_get`
+- `subgraphs_status`
 - `subgraphs_deploy` — accepts a `visibility` param (`public` | `private`; managed default public, BYO default private)
-- `subgraphs_publish` / `subgraphs_unpublish` — flip visibility; publish claims the global public name (409 `PUBLIC_NAME_TAKEN`)
+- `subgraphs_publish` / `subgraphs_unpublish` — flip visibility; publish claims the global public name (409 `PUBLIC_NAME_TAKEN`) and opens anon reads; verify with `subgraphs_status`
+- `subgraphs_scaffold` — generate a deploy-ready subgraph from a deployed contract
+- `subgraphs_spec` — self-describing spec: `agent` JSON schema (default), `openapi`, or `markdown`
 - `subgraphs_query`
 - `subgraphs_backfill`
 - `subgraphs_reindex`
 - `subgraphs_stop`
+- `subgraphs_operations` — operation history, or one by `operationId`; **the verify call** after deploy/reindex/backfill/stop
 - `subgraphs_gaps`
 - `subgraphs_delete`
 
@@ -73,18 +76,33 @@ Subscriptions:
 - `subscriptions_delete`
 - `subscriptions_test`
 - `subscriptions_replay`
+- `subscriptions_pause` / `subscriptions_resume` — stop/restart deliveries (resume also clears a tripped circuit); verify with `subscriptions_get`
+- `subscriptions_rotate_secret` — new `signingSecret`, returned once; old signatures stop verifying immediately
+- `subscriptions_deliveries` — recent attempts (status, error, duration); **the verify call** after create/test/replay
+- `subscriptions_dead` — dead-letter queue (exhausted retries) with each row's `outboxId`
+- `subscriptions_requeue` — retry one dead row by `outboxId`; fix the receiver first
 
-Streams (loopback reads need no key):
+Streams (API key required — keyless calls 401):
 
-- `streams_dumps` — bulk parquet dumps manifest (cold backfill path); live Streams reads are REST-only
+- `streams_tip` — chain tip, finalized height, retention floor
+- `streams_events` — one page of raw events; poll with `cursor` = prior `next_cursor` to follow the chain (no open-stream tool; SSE is REST-only). Always narrow — an unfiltered page is the firehose, billed per row
+- `streams_events_by_tx` — every event from one transaction
+- `streams_block_events` — every event in one block (height or hash)
+- `streams_canonical` — canonical block at a height; confirm a consumed height wasn't reorged
+- `streams_reorgs` — reorgs since a timestamp/token; resume with `next_since`
+- `streams_dumps` — bulk parquet dumps manifest (cold backfill path)
 
-Contracts / Scaffold:
+Contracts:
 
 - `contracts_find` — discover contracts conforming to a trait
-- `get_contract_abi` — fetch one contract's metadata + full ABI
-- `scaffold_from_contract` — generate a deploy-ready subgraph from a deployed contract
+- `contracts_get_abi` — fetch one contract's metadata + full ABI
 
-Account tools are unmounted on a local instance. Set `SL_API_KEY` to the `INSTANCE_TOKEN` from `secondlayer init` for writes.
+Account (needs an account-level key; unmounted on instances without accounts):
+
+- `account_whoami` — the authenticated account's email
+- `account_create_key` — mint a scoped streams/index read key; returned once
+
+Set `SL_API_KEY` to the `INSTANCE_TOKEN` from `secondlayer init` for writes.
 
 Resources:
 
@@ -97,6 +115,7 @@ Resources:
 ## Agent Rules
 
 - Inspect before mutating.
-- Human-confirm delete, reindex, and replay.
+- Verify after mutating: `subgraphs_operations` for deploy/reindex/backfill/stop, `subscriptions_deliveries` for create/test/replay.
+- Human-confirm delete, reindex, replay, publish, and secret rotation.
 - Treat returned `signingSecret` and `key` values as one-time secrets.
 - Use `index_discover` / `contracts_find` to learn the vocabulary before querying.

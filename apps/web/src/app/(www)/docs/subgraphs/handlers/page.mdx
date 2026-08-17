@@ -98,7 +98,7 @@ secondlayer subgraphs create sbtc-registry \
   --from-contract SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry
 ```
 
-Scaffolds from the [print-schema endpoint](/docs/index#print-schemas): one `print_event` source per topic with its `prints` map, plus one wide table (`--table-per-topic` splits it per topic). `secondlayer subgraphs codegen <file> --payloads` emits a `.d.ts` of the payload types.
+Scaffolds from the [print-schema endpoint](/docs/index#print-schemas): one `print_event` source per topic with its `prints` map, plus one wide table (`--table-per-topic` splits it per topic). `secondlayer codegen prints <file>` emits a `.d.ts` of the payload types.
 
 Deploys return advisory `warnings` when a handler reads an `event.data` field never observed for its topic (pinned `contractId` sources only). If the source **declares** a `prints` map, the same finding is an error and the deploy is refused: you stated the shape, so a mismatch is a defect rather than a hint.
 

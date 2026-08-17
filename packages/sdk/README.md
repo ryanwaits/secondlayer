@@ -345,7 +345,7 @@ Subgraphs and subscriptions live on the platform API alongside Streams and Index
 const { data } = await sl.subgraphs.list();
 
 // Get
-const subgraph = await sl.subgraphs.get("my-subgraph");
+const subgraph = await sl.subgraphs.status("my-subgraph");
 
 // Open read (/v1) — keyless for public subgraphs; pass apiKey for your private ones
 const { rows, next_cursor, tip } = await sl.subgraphs.rows("my-subgraph", "transfers", {
@@ -467,14 +467,14 @@ await sl.subscriptions.update(id, { filter: { amount: { gte: "1000000" } } });
 await sl.subscriptions.pause(id);
 await sl.subscriptions.resume(id);
 await sl.subscriptions.rotateSecret(id); // returns new signing secret once
-const { data: deliveries } = await sl.subscriptions.recentDeliveries(id);
+const { data: deliveries } = await sl.subscriptions.deliveries(id);
 
 // Replay historical block range
 await sl.subscriptions.replay(id, { fromBlock: 180000, toBlock: 181000 });
 
 // Dead-letter inspection + requeue
 const { data: dead } = await sl.subscriptions.dead(id);
-await sl.subscriptions.requeueDead(id, outboxId);
+await sl.subscriptions.requeue(id, outboxId);
 ```
 
 ### Verifying deliveries
@@ -561,7 +561,7 @@ is rolling out). Discover capabilities at `GET /x402/supported`.
 import { ApiError } from "@secondlayer/sdk";
 
 try {
-  await sl.subgraphs.get("nonexistent");
+  await sl.subgraphs.status("nonexistent");
 } catch (err) {
   if (err instanceof ApiError) {
     console.log(err.status);  // 404

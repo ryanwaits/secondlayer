@@ -83,7 +83,7 @@ secondlayer subgraphs create sbtc-registry \
 
 Infers each print topic's payload from indexed history; see [print schemas](/docs/index#print-schemas). Anonymous. `--table-per-topic` emits one table per topic.
 
-`secondlayer subgraphs codegen <file> --payloads` emits a `.d.ts` next to the definition. Incompatible with `--target` / `--models-only` / `--env`. Deploy `warnings` on unobserved `event.data` fields are advisory.
+`secondlayer codegen prints <file>` emits a `.d.ts` next to the definition. Incompatible with `--target` / `--models-only` / `--env`. Deploy `warnings` on unobserved `event.data` fields are advisory.
 
 <Callout type="warning" title="Commit your definition before deploying">
 
@@ -98,12 +98,12 @@ A terminal prompts. Scripts and CI fail. `--allow-uncommitted` overrides and log
 Turn Clarity contracts into typed TypeScript: local `.clar` files, deployed contracts, or a Clarinet project.
 
 ```bash
-secondlayer contracts generate ./contracts/token.clar -o ./src/generated.ts
-secondlayer contracts generate SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault -o ./src/generated.ts
-secondlayer contracts generate --watch    # regenerate on .clar / config / Clarinet.toml changes
+secondlayer codegen contracts ./contracts/token.clar -o ./src/generated.ts
+secondlayer codegen contracts SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault -o ./src/generated.ts
+secondlayer codegen contracts --watch    # regenerate on .clar / config / Clarinet.toml changes
 ```
 
-Deployed contract ids fetch the ABI (address prefix picks the network). Config-driven projects regenerate with `secondlayer contracts generate`:
+Deployed contract ids fetch the ABI (address prefix picks the network). Config-driven projects regenerate with `secondlayer codegen contracts`:
 
 ```ts
 // secondlayer.config.ts
@@ -128,7 +128,7 @@ Named aliases per function (`TokenTransferArgs`) plus a `TypedAbi` const. Feed i
 
 These work but get no further investment.
 
-- `secondlayer subgraphs codegen --target prisma|drizzle|kysely`: typed ORM schema. See [Subgraphs](/docs/subgraphs/reading#typed-orm-schemas-codegen).
+- `secondlayer codegen subgraph --target prisma|drizzle|kysely`: typed ORM schema. See [Subgraphs](/docs/subgraphs/reading#typed-orm-schemas-codegen).
 - `secondlayer local`: superseded by [`secondlayer devnet`](/docs/devnet). Hidden.
 
 

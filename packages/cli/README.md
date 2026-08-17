@@ -102,16 +102,16 @@ points at.
 | `secondlayer subgraphs query <name> <table>` | Query a table with filters, sort, pagination |
 | `secondlayer subgraphs status <name>` / `gaps <name>` | Inspect a deployment |
 | `secondlayer subgraphs spec <nameOrFile> [--format openapi\|agent\|markdown]` | Export API docs for a deployed subgraph or a local definition file |
-| `secondlayer subgraphs codegen <file> --target prisma\|drizzle [-o <path>]` | Generate a typed ORM schema for the subgraph's tables |
-| `secondlayer subgraphs client <name> -o <path>` | Generate a typed query client for a deployed subgraph |
-| `secondlayer subgraphs reindex/backfill/cancel/delete <name>` | Manage processing |
+| `secondlayer codegen subgraph <file> --target kysely\|prisma\|drizzle [-o <path>]` | Generate a typed ORM schema for the subgraph's tables |
+| `secondlayer codegen client <name> -o <path>` | Generate a typed query client for a deployed subgraph |
+| `secondlayer subgraphs reindex/backfill/stop/delete <name>` | Manage processing |
 
 ### Data products (reads)
 
 | Command | What it does |
 |---|---|
 | `secondlayer index ft-transfers` / `nft-transfers` / `events --event-type <t>` / `contract-calls` | Decoded Index layer. Anonymous reads OK |
-| `secondlayer streams tip` / `events` / `consume` / `reorgs` / `canonical <h>` / `pull` | Raw chain event firehose. **Requires `SL_API_KEY`** |
+| `secondlayer streams tip` / `events` / `consume` / `reorgs` / `canonical <h>` / `dumps` | Raw chain event firehose. **Requires `SL_API_KEY`** |
 
 Reads emit JSON to stdout (`--json` accepted across all read commands); `-o/--output` is a file path, not a format.
 
@@ -144,7 +144,7 @@ operates on both kinds.
 
 | Command | What it does |
 |---|---|
-| `secondlayer contracts generate [files...]` (alias `gen`) | Generate TS interfaces from Clarity contracts |
+| `secondlayer codegen contracts [files...]` | Generate TS interfaces from Clarity contracts |
 | `secondlayer context` | Instance snapshot — Streams + Index tips, subgraphs, subscriptions |
 | `secondlayer doctor` / `secondlayer status` | Reachability + health checks |
 | `secondlayer config get/set/reset/delete` | Inspect or reset local config |
@@ -157,26 +157,26 @@ operates on both kinds.
 | `SL_API_URL` | Instance API. Default `http://127.0.0.1:3800` |
 | `SL_PLATFORM_API_URL` | Alias of `SL_API_URL` |
 | `STACKS_NETWORK` | Default network (also via `--network <local\|testnet\|mainnet>`) |
-| `HIRO_API_KEY` | Used by `secondlayer contracts generate` for remote contract fetches |
+| `HIRO_API_KEY` | Used by `secondlayer codegen contracts` for remote contract fetches |
 
-## Code generation (`secondlayer contracts generate`)
+## Code generation (`secondlayer codegen contracts`)
 
 Generate type-safe interfaces, functions, and optional React hooks from Clarity
 contracts — local `.clar` files, deployed contracts (network inferred from
 address prefix), or globs.
 
 ```bash
-secondlayer contracts generate ./contracts/token.clar -o ./src/generated.ts
-secondlayer contracts generate SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault -o ./src/generated.ts
-secondlayer contracts generate "./contracts/*.clar" -o ./src/generated.ts
-secondlayer contracts generate --watch   # regenerate on .clar / config / Clarinet.toml changes
+secondlayer codegen contracts ./contracts/token.clar -o ./src/generated.ts
+secondlayer codegen contracts SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault -o ./src/generated.ts
+secondlayer codegen contracts "./contracts/*.clar" -o ./src/generated.ts
+secondlayer codegen contracts --watch   # regenerate on .clar / config / Clarinet.toml changes
 ```
 
 Config-driven:
 
 ```bash
 # write a secondlayer.config.ts, then:
-secondlayer contracts generate  # regenerates from the config
+secondlayer codegen contracts  # regenerates from the config
 ```
 
 ```typescript

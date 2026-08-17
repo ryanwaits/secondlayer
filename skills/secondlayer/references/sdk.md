@@ -2,7 +2,7 @@
 
 Source of truth: `packages/sdk/src/`. Function signatures below are copied verbatim — match them exactly when generating code.
 
-**Auth model:** default `baseUrl` is `http://127.0.0.1:3800` (or `SL_API_URL`). Loopback reads on `sl.contracts.*`, `sl.index.*`, `sl.streams.*`, and `sl.subgraphs.rows()` need no key. History is whatever this instance has bootstrapped. Writes (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) use `INSTANCE_TOKEN` from `secondlayer init` as `apiKey` when the API is bound beyond loopback. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no instance key.
+**Auth model:** default `baseUrl` is `http://127.0.0.1:3800` (or `SL_API_URL`). Loopback reads on `sl.contracts.*`, `sl.index.*`, `sl.streams.*`, and `sl.subgraphs.rows()` need no key. History is whatever this instance has bootstrapped. Writes (`subgraphs.deploy/publish/unpublish/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) use `INSTANCE_TOKEN` from `secondlayer init` as `apiKey` when the API is bound beyond loopback. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no instance key.
 
 Writes use `INSTANCE_TOKEN` from `secondlayer init` as `SL_API_KEY`. There is no hosted account or dashboard key.
 
@@ -720,13 +720,13 @@ interface SubgraphSummary {
 }
 ```
 
-### `get(name)`
+### `status(name)`
 
 ```ts
-get(name: string): Promise<SubgraphDetail>
+status(name: string): Promise<SubgraphDetail>
 ```
 
-`SubgraphDetail` adds `health`, `sync`, and a `tables` map keyed by table name with `endpoint`, `columns`, `rowCount`, `example`, `indexes`, `uniqueKeys`. See `packages/shared/src/schemas/subgraphs.ts`.
+The verify step after `deploy`/`reindex`/`backfill` — poll until `sync` catches the tip. `SubgraphDetail` adds `health`, `sync`, and a `tables` map keyed by table name with `endpoint`, `columns`, `rowCount`, `example`, `indexes`, `uniqueKeys`. See `packages/shared/src/schemas/subgraphs.ts`.
 
 ### `openapi(name, options?)`, `schema(name, options?)`, `markdown(name, options?)`
 
@@ -768,7 +768,7 @@ publish(name: string): Promise<{ name: string; visibility: "public"; url: string
 unpublish(name: string): Promise<{ name: string; visibility: "private" }>
 ```
 
-`publish` claims the global public name — 409 `PUBLIC_NAME_TAKEN` if claimed. Deploy also accepts `visibility?: "public" | "private"` (managed default public, BYO default private).
+`publish` claims the global public name — 409 `PUBLIC_NAME_TAKEN` if claimed, 404 `NOT_SUPPORTED` on an instance with no public namespace. `unpublish` only closes the anon read; data and indexing are untouched. Both are idempotent. Deploy also accepts `visibility?: "public" | "private"` (managed default public, BYO default private).
 
 ### `queryTable(name, table, params?)`
 
@@ -1202,7 +1202,7 @@ interface RotateSecretResponse {
 rotateSecret(id: string): Promise<RotateSecretResponse>
 ```
 
-### `recentDeliveries(id)`, `dead(id)`
+### `deliveries(id)`, `dead(id)`
 
 ```ts
 interface DeliveryRow {
@@ -1226,8 +1226,8 @@ interface DeadRow {
   createdAt: string;
 }
 
-recentDeliveries(id: string): Promise<{ data: DeliveryRow[] }>
-dead(id: string):             Promise<{ data: DeadRow[] }>
+deliveries(id: string): Promise<{ data: DeliveryRow[] }>  // last 100, newest first
+dead(id: string):       Promise<{ data: DeadRow[] }>
 ```
 
 ### `replay(id, range)`
@@ -1249,15 +1249,15 @@ const { enqueuedCount } = await sl.subscriptions.replay(sub.id, {
 });
 ```
 
-### `requeueDead(id, outboxId)`
+### `requeue(id, outboxId)`
 
 ```ts
-requeueDead(id: string, outboxId: string): Promise<{ ok: true }>
+requeue(id: string, outboxId: string): Promise<{ ok: true }>
 ```
 
 ```ts
 const { data: dead } = await sl.subscriptions.dead(sub.id);
-for (const row of dead) await sl.subscriptions.requeueDead(sub.id, row.id);
+for (const row of dead) await sl.subscriptions.requeue(sub.id, row.id);
 ```
 
 ---

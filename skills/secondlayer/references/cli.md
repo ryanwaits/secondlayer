@@ -19,13 +19,13 @@ The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlay
 | `SL_API_URL` | subscriptions, create | Override tenant API base URL. |
 | `SL_API_KEY` | writes, MCP, SDK | `INSTANCE_TOKEN` from `secondlayer init`. Loopback reads need no token. |
 | `SL_PLATFORM_API_URL` | alias of `SL_API_URL` | Same default: `http://127.0.0.1:3800`. |
-| `HIRO_API_KEY` / `STACKS_NODE_API_KEY` | subgraphs scaffold, contracts generate | API key passed to Hiro Stacks RPC when fetching contract ABIs. |
+| `HIRO_API_KEY` / `STACKS_NODE_API_KEY` | subgraphs scaffold, codegen contracts | API key passed to Hiro Stacks RPC when fetching contract ABIs. |
 | `SIGNING_SECRET` | subscriptions test | Standard-Webhooks signing secret used to sign test fixtures. |
 | `STACKS_NETWORK` | global | Network override (set by `--network`). |
-| `SL_STREAMS_DUMPS_URL` | streams pull | Public bulk-dump bucket base URL (dumps are public — no API key). Alternative to `--dumps-url`. |
+| `SL_STREAMS_DUMPS_URL` | streams dumps | Public bulk-dump bucket base URL (dumps are public — no API key). Alternative to `--dumps-url`. |
 | `DATABASE_URL` | local db | Postgres URL for local indexer DB; defaults to `postgres://postgres:postgres@localhost:5432/secondlayer_dev`. |
 | `INDEXER_URL` | local db resync --backfill | Local indexer URL; defaults to `http://localhost:<config.ports.indexer>`. |
-| `DEBUG` | contracts generate | When set, prints stack traces on failure. |
+| `DEBUG` | codegen contracts | When set, prints stack traces on failure. |
 
 Global flags `--api-key <key>` and `--api-url <url>` are available on every command and override `SL_API_KEY` / `SL_API_URL` for that invocation.
 
@@ -34,16 +34,16 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 - [Local runtime](#local-runtime) — `init`, `start`, `bootstrap`, `observer`, `verify`, `repair`
 - [Auth](#auth) — `login`, `logout`, `whoami`, `keys create`
 - [Projects](#projects) — `projects create|list|use|get`
-- [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `reindex`, `backfill`, `cancel`, `gaps`, `query`, `delete`, `scaffold`, `client`, `codegen`
+- [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `source`, `reindex`, `backfill`, `stop`, `operations`, `publish`, `unpublish`, `gaps`, `query`, `delete`, `scaffold`
 - [Subscriptions](#subscriptions) — `create`, `list`, `get`, `update`, `pause`, `resume`, `delete`, `rotate-secret`, `deliveries`, `dead`, `requeue`, `replay`, `doctor`, `test`
-- [Streams](#streams) — `tip`, `events`, `consume`, `reorgs`, `canonical`, `pull`
+- [Streams](#streams) — `tip`, `events`, `consume`, `reorgs`, `canonical`, `dumps`
 - [Local](#local) — `local up|down|restart|status|logs`, `local node …`, `local db …`
 - [Devnet](#devnet) — `local up --devnet` / `local down --devnet`, `devnet status|logs` (run services against a Clarinet devnet)
 - [Account](#account) — `account get`, `account update`, `account billing`
 - [Config](#config) — `config get|set|reset|delete`
 - [Status](#status) — top-level `status`
 - [Doctor](#doctor) — top-level `doctor`
-- [Contracts generate](#contracts-generate) — `contracts generate` (alias `contracts gen`)
+- [Codegen](#codegen) — `codegen contracts|subgraph|index|client|prints`
 
 ---
 
@@ -63,7 +63,7 @@ Usage: `secondlayer init [--network <network>] [--api-url <url>] [--force]`
 | `--api-url <url>` | `http://127.0.0.1:3800` | Local API URL written as `SL_API_URL`. |
 | `--force` | off | Overwrite generated values even if `.env.local` exists. |
 
-Does **not** write `secondlayer.config.ts` — that file is for `secondlayer contracts generate`.
+Does **not** write `secondlayer.config.ts` — that file is for `secondlayer codegen contracts`.
 
 Example: `secondlayer init --network mainnet`
 
@@ -304,9 +304,13 @@ Remote deploy (non-local): bundles handler via `@secondlayer/bundler`, POSTs to 
 
 Example: `secondlayer subgraphs deploy subgraphs/my-watcher.ts --start-block 100000`
 
-### secondlayer subgraphs publish / unpublish (hidden)
+### secondlayer subgraphs publish / unpublish
 
-Hidden. Prefer deploy `--visibility`. `publish` claims the global public name (`409 PUBLIC_NAME_TAKEN` if taken). `unpublish` returns it to private.
+Flip a deployed subgraph's read visibility. `publish` claims the global public name and opens anonymous `/v1/subgraphs/<name>` reads (`409 PUBLIC_NAME_TAKEN` if another account holds it — rename to publish). `unpublish` releases the name and restricts reads to your API key; rows are untouched. Hosted platform only (`404 NOT_SUPPORTED` elsewhere). Equivalent to deploy `--visibility`, after the fact.
+
+Usage: `secondlayer subgraphs publish <name>` / `secondlayer subgraphs unpublish <name>`
+
+No flags.
 
 ### secondlayer subgraphs list
 
@@ -373,13 +377,38 @@ Usage: `secondlayer subgraphs backfill <name> --from-block <block> --to-block <b
 | `--from-block <block>` | yes | Start block height. |
 | `--to-block <block>` | yes | End block height. |
 
-### secondlayer subgraphs cancel
+### secondlayer subgraphs stop
 
-Cancel a running reindex or backfill operation.
+Stop a running reindex or backfill operation. Rows already written stay — stopping cancels the operation, it does not roll it back.
 
-Usage: `secondlayer subgraphs cancel <name>`
+Usage: `secondlayer subgraphs stop <name>`
 
 No flags.
+
+### secondlayer subgraphs operations
+
+Operation history — the verify step for `deploy`, `reindex`, and `backfill`. Every reindexing deploy, reindex, and backfill enqueues a tracked operation; this shows whether it is queued, running, completed, cancelled, or failed (with the error). Pass an operation id for the single-operation view.
+
+Usage: `secondlayer subgraphs operations <name> [operationId]`
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--json` | false | Output as JSON (`{ operations: [...] }`, or the single operation). |
+
+Example: `secondlayer subgraphs operations my-watcher --json`
+
+### secondlayer subgraphs source
+
+Print the source of the **deployed** definition, which is not always what is on disk. Subgraphs deployed before source capture return no source (redeploy to make them recoverable) and the command exits non-zero.
+
+Usage: `secondlayer subgraphs source <name>`
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `-o, --output <path>` | (stdout) | Write the source to a file. |
+| `--json` | false | Full response (`name`, `version`, `sourceCode`, `readOnly`, `updatedAt`). |
+
+Example: `secondlayer subgraphs source my-watcher -o subgraphs/my-watcher.ts`
 
 ### secondlayer subgraphs gaps
 
@@ -448,46 +477,6 @@ secondlayer subgraphs scaffold SM3VD….sbtc-token -o subgraphs/sbtc.ts        #
 secondlayer subgraphs scaffold SP….amm --functions swap,add-liquidity -o subgraphs/amm.ts
 secondlayer subgraphs scaffold --trait sip-010 -o subgraphs/all-tokens.ts    # all SIP-010 tokens
 ```
-
-### secondlayer subgraphs client
-
-Generate a typed TypeScript query client for a deployed subgraph. (Formerly
-`secondlayer subgraphs generate` — still accepted as a deprecated alias.)
-
-Usage: `secondlayer subgraphs client <subgraphName>`
-
-| Flag | Required | Description |
-| --- | --- | --- |
-| `-o, --output <path>` | yes | Output file path. |
-
-Fetches subgraph metadata, emits typed query client. For an ORM schema on your
-own database instead, see `secondlayer subgraphs codegen`.
-
-Example: `secondlayer subgraphs client my-watcher -o ./src/generated/my-watcher.ts`
-
-### secondlayer subgraphs codegen
-
-Generate an ORM schema (Prisma or Drizzle) for a subgraph's tables — the
-companion to BYO database (`secondlayer subgraphs deploy --database-url`). Point the ORM
-at your own Postgres for a fully-typed client with relations and joins.
-
-Usage: `secondlayer subgraphs codegen <file>`
-
-| Flag | Default | Description |
-| --- | --- | --- |
-| `--target <orm>` | `prisma` | `prisma` or `drizzle`. (Kysely: run `kysely-codegen` against your DB.) |
-| `--schema <name>` | `subgraph_<name>` | Postgres schema the tables live in. |
-| `--env <var>` | `DATABASE_URL` | datasource url env var (Prisma only). |
-| `--models-only` | — | Emit only Prisma models (compose via `prismaSchemaFolder`). |
-| `-o, --output <path>` | stdout | Write to a file. |
-
-The output mirrors the deployed DDL, so the subgraph owns the schema: run
-`prisma db pull` / `drizzle-kit pull` to verify (it should be a no-op), never
-`prisma migrate` / `drizzle-kit push`. Tables are processor-written — query them
-read-only. `uint`→`Decimal`/`numeric` and the `BigInt` id need `.toString()` for
-JSON. Relations require `relations` metadata on the subgraph schema.
-
-Example: `secondlayer subgraphs codegen subgraphs/dex.ts --target prisma -o prisma/schema.prisma`
 
 ---
 
@@ -794,11 +783,11 @@ No flags.
 
 Example: `secondlayer streams canonical 150000`
 
-### secondlayer streams pull
+### secondlayer streams dumps
 
 Download finalized bulk parquet dumps locally and verify each file's sha256 against the manifest. Dumps are **public** — no API key needed; pass `--dumps-url` or set `SL_STREAMS_DUMPS_URL`.
 
-Usage: `secondlayer streams pull --to <dir>`
+Usage: `secondlayer streams dumps --to <dir>`
 
 | Flag | Default | Description |
 | --- | --- | --- |
@@ -807,7 +796,7 @@ Usage: `secondlayer streams pull --to <dir>`
 | `--from-block <n>` | — | Only pull dumps covering blocks ≥ n. |
 | `--to-block <n>` | — | Only pull dumps covering blocks ≤ n. |
 
-Example: `secondlayer streams pull --to ./dumps --dumps-url https://dumps.secondlayer.tools --from-block 100000 --to-block 200000`
+Example: `secondlayer streams dumps --to ./dumps --dumps-url https://dumps.secondlayer.tools --from-block 100000 --to-block 200000`
 
 ---
 
@@ -1237,13 +1226,16 @@ Checks `/public/status` on this instance, then local Docker / Postgres / config 
 
 ---
 
-## Contracts generate
+## Codegen
 
-### secondlayer contracts generate
+Every generated artifact lives under one verb. `-o, --output <path>` is always a
+file path; where an ORM applies, `--target` defaults to `kysely`.
 
-Generate TypeScript interfaces from Clarity contracts. Alias: `contracts gen`.
+### secondlayer codegen contracts
 
-Usage: `secondlayer contracts generate [files...]`
+Generate TypeScript interfaces from Clarity contracts.
+
+Usage: `secondlayer codegen contracts [files...]`
 
 | Flag | Description |
 | --- | --- |
@@ -1255,8 +1247,77 @@ Usage: `secondlayer contracts generate [files...]`
 Accepts `.clar` file paths, glob patterns, or deployed contract IDs (`SP…/ST…/SM…/SN….<name>`). When invoked with no positional args, reads `secondlayer.config.ts`.
 
 Examples:
-- `secondlayer contracts generate ./contracts/*.clar -o ./src/generated.ts`
-- `secondlayer contracts generate SP2C2YFP12AJZB1M6DY7SF9A3PRHWKGYGVWQKW3.my-token -o ./src/generated.ts`
-- `secondlayer contracts generate` (uses config file)
+- `secondlayer codegen contracts ./contracts/*.clar -o ./src/generated.ts`
+- `secondlayer codegen contracts SP2C2YFP12AJZB1M6DY7SF9A3PRHWKGYGVWQKW3.my-token -o ./src/generated.ts`
+- `secondlayer codegen contracts` (uses config file)
 
-`secondlayer init` is the local-runtime command (writes `.env.local`). It does not create `secondlayer.config.ts` — write that file by hand for `secondlayer contracts generate`.
+`secondlayer init` is the local-runtime command (writes `.env.local`). It does not create `secondlayer.config.ts` — write that file by hand for `secondlayer codegen contracts`.
+
+### secondlayer codegen subgraph
+
+Generate an ORM schema for a subgraph's tables — the companion to BYO database
+(`secondlayer subgraphs deploy --database-url`). Point the ORM at your own
+Postgres for a fully-typed client with relations and joins.
+
+Usage: `secondlayer codegen subgraph <file>`
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--target <orm>` | `kysely` | `kysely`, `prisma`, or `drizzle`. |
+| `--schema <name>` | `subgraph_<name>` | Postgres schema the tables live in. |
+| `--env <var>` | `DATABASE_URL` | datasource url env var (Prisma only). |
+| `--models-only` | — | Emit only Prisma models (compose via `prismaSchemaFolder`). |
+| `-o, --output <path>` | stdout | Write to a file. |
+
+The output mirrors the deployed DDL, so the subgraph owns the schema: run
+`prisma db pull` / `drizzle-kit pull` to verify (it should be a no-op), never
+`prisma migrate` / `drizzle-kit push`. Tables are processor-written — query them
+read-only. `uint`→`Decimal`/`numeric` and the `BigInt` id need `.toString()` for
+JSON. Relations require `relations` metadata on the subgraph schema.
+
+Example: `secondlayer codegen subgraph subgraphs/dex.ts --target prisma -o prisma/schema.prisma`
+
+### secondlayer codegen index
+
+Generate a typed schema for the Index domain tables — point it at your BYO
+database mirror.
+
+Usage: `secondlayer codegen index`
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--target <orm>` | `kysely` | `kysely`, `prisma`, `drizzle`, or `json-schema`. |
+| `--schema <name>` | — | Postgres schema to qualify table names with. |
+| `--tables <list>` | all | Comma-separated subset of Index tables. |
+| `--env <var>` | `DATABASE_URL` | Prisma datasource url env var. |
+| `-o, --output <path>` | stdout | Write to a file. |
+
+Example: `secondlayer codegen index --target kysely -o src/db/index-schema.ts`
+
+### secondlayer codegen client
+
+Generate a typed TypeScript query client for a deployed subgraph.
+
+Usage: `secondlayer codegen client <subgraphName>`
+
+| Flag | Required | Description |
+| --- | --- | --- |
+| `-o, --output <path>` | yes | Output file path. |
+
+Fetches subgraph metadata, emits a typed query client. For an ORM schema on your
+own database instead, see `secondlayer codegen subgraph`.
+
+Example: `secondlayer codegen client my-watcher -o ./src/generated/my-watcher.ts`
+
+### secondlayer codegen prints
+
+Emit a `.d.ts` of print payload types for a subgraph's pinned `print_event`
+sources, inferred from observed on-chain events (requires network).
+
+Usage: `secondlayer codegen prints <file>`
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `-o, --output <path>` | stdout | Write to a file. |
+
+Example: `secondlayer codegen prints subgraphs/dex.ts -o subgraphs/dex.prints.d.ts`

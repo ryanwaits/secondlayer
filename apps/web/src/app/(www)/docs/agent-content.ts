@@ -39,7 +39,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Sweep it into my database",
 			"Stand up a checkpointed consumer end to end.",
-			"/secondlayer Help me build my own index on Secondlayer: run `secondlayer index codegen --target kysely` for the mirror schema, write a `consume()` loop that commits rows and the checkpoint in one transaction, handle `onReorg` by deleting from `fork_point_height` up, then point me at a deploy target.",
+			"/secondlayer Help me build my own index on Secondlayer: run `secondlayer codegen index --target kysely` for the mirror schema, write a `consume()` loop that commits rows and the checkpoint in one transaction, handle `onReorg` by deleting from `fork_point_height` up, then point me at a deploy target.",
 		),
 		variant("subgraph-create"),
 	],
@@ -80,7 +80,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Build a mirror index",
 			"Codegen the schema, run a checkpointed consumer with reorg rewind.",
-			"/secondlayer Help me build my own index on `/v1/index`: run `secondlayer index codegen --target kysely` for the mirror schema, then wire `index.events.consume()` — write rows in `onBatch`, return the committed cursor, handle `onReorg` by deleting from the fork height, and set `fromHeight: 0` to backfill from genesis.",
+			"/secondlayer Help me build my own index on `/v1/index`: run `secondlayer codegen index --target kysely` for the mirror schema, then wire `index.events.consume()` — write rows in `onBatch`, return the committed cursor, handle `onReorg` by deleting from the fork height, and set `fromHeight: 0` to backfill from genesis.",
 		),
 		card(
 			"Inspect a print schema",
@@ -95,7 +95,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Typed ORM schema",
 			"Codegen a Prisma/Drizzle/Kysely schema for a subgraph.",
-			"/secondlayer Help me generate a typed ORM schema for my subgraph with `secondlayer subgraphs codegen --target prisma|drizzle|kysely`, wire it into my app, and treat the tables as read-only.",
+			"/secondlayer Help me generate a typed ORM schema for my subgraph with `secondlayer codegen subgraph --target prisma|drizzle|kysely`, wire it into my app, and treat the tables as read-only.",
 		),
 		card(
 			"Watch the backfill",
@@ -129,7 +129,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Pull dumps for DuckDB",
 			"Query verified dumps locally, no indexer.",
-			"/secondlayer Help me pull Streams bulk dumps with `secondlayer streams pull` (sha256-verified against the signed manifest) and query them locally in DuckDB with `read_parquet('./**/*.parquet')` — no indexer required.",
+			"/secondlayer Help me pull Streams bulk dumps with `secondlayer streams dumps` (sha256-verified against the signed manifest) and query them locally in DuckDB with `read_parquet('./**/*.parquet')` — no indexer required.",
 		),
 	],
 

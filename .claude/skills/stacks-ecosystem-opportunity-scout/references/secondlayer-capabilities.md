@@ -48,7 +48,7 @@ secondlayer subgraphs query x <table> --sort _block_height --order desc
 secondlayer subscriptions create hook --subgraph x --table <t> --url https://…
 secondlayer index ft-transfers --contract-id SP….token --limit 5
 secondlayer streams tip
-secondlayer contracts generate ./contracts/*.clar -o src/generated.ts   # Clarity → typed TS + React hooks
+secondlayer codegen contracts ./contracts/*.clar -o src/generated.ts   # Clarity → typed TS + React hooks
 ```
 
 ## Public surfaces (API)

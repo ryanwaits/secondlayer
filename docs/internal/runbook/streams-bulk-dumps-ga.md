@@ -3,7 +3,7 @@
 How to take the bulk parquet dump publisher from staging to GA. The pipeline is
 feature-complete (`packages/indexer/src/streams-bulk/`); GA is an ops flip plus
 publishing the public base URL. Client tooling already exists:
-`client.dumps.*` and `client.events.replay()` (SDK), `sl streams pull` (CLI).
+`client.dumps.*` and `client.events.replay()` (SDK), `sl streams dumps` (CLI).
 
 ## 1. Provision R2 (or S3-compatible) storage
 
@@ -37,7 +37,7 @@ curl -s https://api.secondlayer.tools/public/streams/dumps/manifest | jq '.cover
 curl -s https://api.secondlayer.tools/public/status | jq '.streams.dumps'
 
 # End-to-end client pull (no API key needed; dumps are public):
-SL_STREAMS_DUMPS_URL=<public-base> sl streams pull --to ./dump --to-block 9999
+SL_STREAMS_DUMPS_URL=<public-base> sl streams dumps --to ./dump --to-block 9999
 ```
 
 Expect a manifest with real `files[]`, a non-null `latest_finalized_cursor`, and

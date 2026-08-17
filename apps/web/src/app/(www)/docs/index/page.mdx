@@ -32,10 +32,10 @@ It works, and it's right for a one-shot export or an analysis script. As a live 
 
 ## Build your index on it
 
-`secondlayer index codegen` emits the mirror schema so your tables can't drift:
+`secondlayer codegen index` emits the mirror schema so your tables can't drift:
 
 ```bash
-secondlayer index codegen --target kysely   # also: prisma, drizzle, json-schema
+secondlayer codegen index --target kysely   # also: prisma, drizzle, json-schema
 ```
 
 `consume()` is a checkpointed consumer with automatic reorg rewind. Write rows in `onBatch`, return the cursor you committed; crash anywhere and the next run resumes from your checkpoint.

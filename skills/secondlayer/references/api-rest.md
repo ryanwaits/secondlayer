@@ -103,7 +103,7 @@ Match `key_id` against the `X-Signature-KeyId` header, then verify `X-Signature`
 
 ### `GET /public/streams/dumps/manifest`
 
-Parquet bulk-dump manifest (when enabled). Anonymous (no auth). Lists finalized event files for bulk backfill — each entry carries a `sha256` for integrity. Also exposes `latest_finalized_cursor` so you can seam a bulk backfill into a live tail with no gap/dupe. The SDK (`client.dumps`, `events.replay`) and CLI (`secondlayer streams pull`) consume this directly.
+Parquet bulk-dump manifest (when enabled). Anonymous (no auth). Lists finalized event files for bulk backfill — each entry carries a `sha256` for integrity. Also exposes `latest_finalized_cursor` so you can seam a bulk backfill into a live tail with no gap/dupe. The SDK (`client.dumps`, `events.replay`) and CLI (`secondlayer streams dumps`) consume this directly.
 
 ### `GET /v1/streams/events/{txId}`
 
