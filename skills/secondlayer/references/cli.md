@@ -10,15 +10,15 @@ The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlay
 | `--version` | Print CLI version. |
 | `--help` | Show help. |
 
-**Output contract (for scripting/agents):** data goes to **stdout**, status/chrome to **stderr** (color auto-disables when piped). On platform read commands `--json` selects the full JSON envelope; `secondlayer streams`/`secondlayer index` already emit JSON to stdout (the `--json` flag is accepted there for uniformity). `-o, --output <path>` always means a **file path** (codegen/spec), never a format selector.
+**Output contract (for scripting/agents):** data goes to **stdout**, status/chrome to **stderr** (color auto-disables when piped). On instance read commands `--json` selects the full JSON envelope; `secondlayer streams`/`secondlayer index` already emit JSON to stdout (the `--json` flag is accepted there for uniformity). `-o, --output <path>` always means a **file path** (codegen/spec), never a format selector.
 
 ## Environment variables
 
 | Var | Used by | Purpose |
 | --- | --- | --- |
-| `SL_API_URL` | subscriptions, create | Override tenant API base URL. |
-| `SL_API_KEY` | writes, MCP, SDK | `INSTANCE_TOKEN` from `secondlayer init`. Loopback reads need no token. |
-| `SL_PLATFORM_API_URL` | alias of `SL_API_URL` | Same default: `http://127.0.0.1:3800`. |
+| `SL_API_URL` | every command that calls the instance | Override the instance API base URL. Default `http://127.0.0.1:3800`. |
+| `SL_API_KEY` | writes, MCP, SDK | The `INSTANCE_TOKEN` from `secondlayer init`. The only credential env var the CLI reads. Loopback reads on a tokenless instance need no value. |
+| `SL_PLATFORM_API_URL` | legacy alias of `SL_API_URL` | Same default: `http://127.0.0.1:3800`. |
 | `HIRO_API_KEY` / `STACKS_NODE_API_KEY` | subgraphs scaffold, codegen contracts | API key passed to Hiro Stacks RPC when fetching contract ABIs. |
 | `SIGNING_SECRET` | subscriptions test | Standard-Webhooks signing secret used to sign test fixtures. |
 | `STACKS_NETWORK` | global | Network override (set by `--network`). |
@@ -31,15 +31,14 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 
 ## Table of contents
 
-- [Local runtime](#local-runtime) — `init`, `start`, `bootstrap`, `observer`, `verify`, `repair`
-- [Auth](#auth) — `login`, `logout`, `whoami`, `keys create`
-- [Projects](#projects) — `projects create|list|use|get`
-- [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `source`, `reindex`, `backfill`, `stop`, `operations`, `publish`, `unpublish`, `gaps`, `query`, `delete`, `scaffold`
+- [Local runtime](#local-runtime) — `init`, `start`, `console`, `bootstrap`, `observer`, `verify`, `repair`, `backup`, `restore`, `uninstall`
+- [Credits](#credits) — `credits buy|balance|refill`
+- [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `source`, `reindex`, `backfill`, `stop`, `operations`, `gaps`, `query`, `delete`, `scaffold`
 - [Subscriptions](#subscriptions) — `create`, `list`, `get`, `update`, `pause`, `resume`, `delete`, `rotate-secret`, `deliveries`, `dead`, `requeue`, `replay`, `doctor`, `test`
+- [Index](#index) — `ft-transfers`, `nft-transfers`, `events`, `contract-calls`
 - [Streams](#streams) — `tip`, `events`, `consume`, `reorgs`, `canonical`, `dumps`
 - [Local](#local) — `local up|down|restart|status|logs`, `local node …`, `local db …`
 - [Devnet](#devnet) — `local up --devnet` / `local down --devnet`, `devnet status|logs` (run services against a Clarinet devnet)
-- [Account](#account) — `account get`, `account update`, `account billing`
 - [Config](#config) — `config get|set|reset|delete`
 - [Status](#status) — top-level `status`
 - [Doctor](#doctor) — top-level `doctor`
@@ -49,7 +48,7 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 
 ## Local runtime
 
-Accountless. These are the top-level verbs for a machine you operate. `secondlayer instance` is gone.
+Accountless. These are the top-level verbs for a machine you operate. There is no login, no project, and no `secondlayer instance`.
 
 ### secondlayer init
 
@@ -77,6 +76,19 @@ Requires `NETWORK`, `DATABASE_URL`, `NODE_MODE` (`external` | `stacks` | `full`)
 
 Example: `secondlayer start --print`
 
+### secondlayer console
+
+Open the instance's web console (a container behind the `console` compose profile — `docker compose --profile console up -d`).
+
+Usage: `secondlayer console [--url <url>] [--no-open]`
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--url <url>` | `http://localhost:3801/console` | Console URL. |
+| `--no-open` | (opens a browser) | Print the URL instead. |
+
+Loopback is open; anything past it takes `CONSOLE_TOKEN`, which falls back to `INSTANCE_TOKEN`. There are no per-user console logins — one instance, one token.
+
 ### secondlayer bootstrap
 
 Restore chain history from a verified archive into an empty database. Refuses a non-empty target — use `secondlayer repair` instead.
@@ -94,6 +106,8 @@ Usage: `secondlayer bootstrap --against <manifest> [--to-block <n>] [--public-ke
 Exit codes: `0` restored and verified, `1` restore completed but verification diverged, `2` refused (non-empty target or untrusted reference).
 
 OSS never fetches `api.secondlayer.tools` for the public key.
+
+Against the official archive, the confirm prompt quotes partitions, dollars, and your credit balance before anything is charged; your own mirrors and local archives never touch the gate. See [Credits](#credits).
 
 Example: `secondlayer bootstrap --against ./snapshot.json --to-block 4000000 --yes`
 
@@ -155,111 +169,57 @@ Exit codes: `0` ok, `1` divergence remains, `2` unanchored.
 
 Example: `secondlayer repair --against ./snapshot.json` then `secondlayer repair --against ./snapshot.json --apply`
 
----
+### secondlayer backup / restore
 
-## Auth
+`backup` writes an encrypted bundle (index, keys, scope); `restore` reads it back. Both carry a secrets-key canary, so restoring with the wrong key fails immediately.
 
-Magic-link email session. Session token is written to a local file managed by `~/.config/secondlayer` (or platform equivalent). Server auto-extends on every authed request.
+Usage: `secondlayer backup --out <dir> [--passphrase <p>] [--no-secrets] [--json]`
+Usage: `secondlayer restore --from <dir> [--passphrase <p>] [--apply] [--force] [--json]`
 
-### secondlayer login
+`restore` is a dry run until `--apply`, and refuses a database that already holds chain data unless `--force`. `SECONDLAYER_BACKUP_PASSPHRASE` substitutes for `--passphrase`.
 
-Magic-link email login (interactive only).
+### secondlayer uninstall
 
-Usage: `secondlayer login`
+Stop the stack and leave the data. Containers, networks, and the handler cache come down; the index, chainstate, secrets, and backups stay.
 
-No flags. Prompts for email, POSTs `/api/auth/magic-link`, then prompts for a 6-digit code and POSTs `/api/auth/verify`. On success writes session to disk. In dev mode the server echoes the code in the response.
+Usage: `secondlayer uninstall [--apply] [--compose <file>] [--purge --backup <dir>] [--yes] [--json]`
 
-Example: `secondlayer login`
-
-### secondlayer logout
-
-Log out and revoke the local session.
-
-Usage: `secondlayer logout`
-
-No flags. POSTs `/api/auth/logout`; clears local session even if the server call fails.
-
-### secondlayer whoami
-
-Show current authenticated account + active project, plus the effective API URL and credential source.
-
-Usage: `secondlayer whoami`
-
-No flags. Reads local session (or `SL_API_KEY`), calls `/api/accounts/me`, and prints email, plan, the active project (from `./.secondlayer/project`, walking up the directory tree, falling back to global `defaultProject`), the effective API URL, and where the credential came from. **Exits non-zero when not logged in** — useful as a CI auth check.
-
-Headless / CI login (no magic-link prompt): pipe a key into `--with-token`:
-
-```bash
-echo "$SL_API_KEY" | secondlayer login --with-token
-```
-
-### secondlayer keys create
-
-Mint a **scoped** read key without the dashboard.
-
-Usage: `secondlayer keys create --product streams [--name <name>]`
-
-`--product` is `streams` or `index` (single-product, read-only). Prints the new `sk-sl_…` key **once** — store it immediately. **Requires an account/owner key** in `SL_API_KEY` (or session): a scoped key cannot mint (403). Minted keys inherit your account plan's tier and can never be an account key.
-
-**Key products:** an `account` key (dashboard default) grants both `streams:read` and `index:read` and is the only key that can mint; `streams`/`index` keys are scoped reads and cannot mint.
+Dry run by default — prints the plan and changes nothing until `--apply`. `--purge` also destroys the volumes and refuses to run unless `--backup <dir>` points at a bundle proving your keys exist elsewhere.
 
 ---
 
-## Projects
+## Credits
 
-Account-scoped project management. Each project maps 1:1 to a dedicated tenant. Binding a project to a directory writes `./.secondlayer/project` (recommend adding `.secondlayer/` to `.gitignore` — it's account-personal).
+Archive fetches are the only thing that costs money. Credits are a prepaid card balance, not a credential: no account, no login. Verification is always free.
 
-### secondlayer projects create
+### secondlayer credits buy
 
-Create a new project.
+Open a one-time card checkout against `archive.secondlayer.tools`.
 
-Usage: `secondlayer projects create [name]`
+Usage: `secondlayer credits buy --email <email> [--pack <usd>] [--json]`
 
-| Flag | Description |
-| --- | --- |
-| `--slug <slug>` | Explicit URL slug (defaults to slugified name). Must be 2-63 chars, `[a-z0-9-]`, start/end with alphanumeric. |
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--email <email>` | required | Receipt email. |
+| `--pack <usd>` | `25` | One of `10`, `25`, `50`, `100`. |
 
-Prompts for a name if not provided. POSTs `/api/projects`. First project becomes the global `defaultProject`.
+### secondlayer credits balance
 
-Example: `secondlayer projects create "My Watcher" --slug my-watcher`
+Show the prepaid balance. Usage: `secondlayer credits balance [--json]`
 
-### secondlayer projects list
+### secondlayer credits refill
 
-List projects in your account.
+Opt-in auto-refill; off until you set it.
 
-Usage: `secondlayer projects list`
+Usage: `secondlayer credits refill --below <usd> [--pack <usd>] [--off] [--json]`
 
-No flags. GETs `/api/projects`. Marks the active project with `*`.
-
-### secondlayer projects use
-
-Bind this directory to a project (writes `./.secondlayer/project`).
-
-Usage: `secondlayer projects use <slug>`
-
-No flags. Verifies project exists via `GET /api/projects/:slug` before writing the binding file.
-
-Example: `secondlayer projects use my-watcher`
-
-### secondlayer projects get
-
-Show the active project for this directory.
-
-Usage: `secondlayer projects get`
-
-No flags. Prints the active slug and resolution source (`.secondlayer/project` in cwd / parent dir / global default).
-
-### secondlayer projects delete
-
-Delete a project. Alias: `rm`.
-
-Usage: `secondlayer projects delete <slug>` (`-y, --yes` to skip confirmation; refuses to prompt on non-TTY stdin). Deleting your only/last project is rejected by the API.
+`bootstrap` and `repair` draw credits per partition bundle fetched from the official archive and quote the price against your balance before charging. The first six repair bundles each month are free, and the prepaid balance is a hard cap.
 
 ---
 
 ## Subgraphs
 
-Manage materialized subgraphs. Most subcommands hit the active tenant's API (resolved via session + active project) and require `secondlayer login` unless `--service-key`/`SL_API_KEY` is set. Local deploys (`network=local`) skip auth and write to the local Postgres dev DB.
+Manage materialized subgraphs. Subcommands hit your instance at `SL_API_URL`; writes send `SL_API_KEY` (the `INSTANCE_TOKEN` from `secondlayer init`) as the bearer. A tokenless loopback instance needs no key at all. Local deploys (`network=local`) write straight to the local Postgres dev DB.
 
 ### secondlayer subgraphs create
 
@@ -295,22 +255,19 @@ Usage: `secondlayer subgraphs deploy <file>`
 | Flag | Default | Description |
 | --- | --- | --- |
 | `--start-block <n>` | (from definition) | Override definition's `startBlock` for this deploy (nonneg integer). |
-| `--visibility <public\|private>` | managed → `public`, BYO → `private` | Read visibility: `public` = anon /v1 reads + global name claim; `private` = your key only. |
+| `--tip-first` | false | Go live at chain tip immediately; history backfills behind you. Requires order-tolerant handlers (commutative or insert-only writes). |
 | `--dry-run` | false | Validate and preview without writing. |
 | `-y, --yes` | false | Skip confirmation prompt for reindex operations (DROP + reindex). |
 | `--strict` | false | Run `bunx tsc --noEmit` on handler before deploy. |
+| `--allow-uncommitted` | false | Deploy a definition file that is untracked or dirty in git. |
 
-Remote deploy (non-local): bundles handler via `@secondlayer/bundler`, POSTs to tenant API. Server returns one of `unchanged`, `handler_updated`, `created`, `updated`, `reindexed`. **Destructive (`reindexed`) deploys prompt for confirmation** unless `-y` is set. Local deploy: writes to local DB via `deploySchema()`.
+Deploy bundles the handler via `@secondlayer/bundler` and POSTs it to the instance. Server returns one of `unchanged`, `handler_updated`, `created`, `updated`, `reindexed`. **Destructive (`reindexed`) deploys prompt for confirmation** unless `-y` is set. Local deploy: writes to local DB via `deploySchema()`.
+
+Deploy refuses a definition file that isn't committed to git — a prompt in a terminal, a hard failure in CI — because a deployed definition whose source isn't in version control exists only as a database row. `--allow-uncommitted` overrides it and prints a line saying so. Deploys from outside a git repo, and `--dry-run`, are unaffected.
+
+Deploys are open on any instance: no trial, no quota, and no visibility flag. Reads are open on `/v1/subgraphs/*`; who can reach the instance is your bind and your reverse proxy, not a per-subgraph setting.
 
 Example: `secondlayer subgraphs deploy subgraphs/my-watcher.ts --start-block 100000`
-
-### secondlayer subgraphs publish / unpublish
-
-Flip a deployed subgraph's read visibility. `publish` claims the global public name and opens anonymous `/v1/subgraphs/<name>` reads (`409 PUBLIC_NAME_TAKEN` if another account holds it — rename to publish). `unpublish` releases the name and restricts reads to your API key; rows are untouched. Hosted platform only (`404 NOT_SUPPORTED` elsewhere). Equivalent to deploy `--visibility`, after the fact.
-
-Usage: `secondlayer subgraphs publish <name>` / `secondlayer subgraphs unpublish <name>`
-
-No flags.
 
 ### secondlayer subgraphs list
 
@@ -354,17 +311,17 @@ secondlayer subgraphs spec subgraphs/my-watcher.ts                              
 
 ### secondlayer subgraphs reindex
 
-**DESTRUCTIVE.** Reindex a subgraph from historical blocks (drops existing rows in range, reprocesses).
+**DESTRUCTIVE.** Drop every row and rebuild the subgraph from its `startBlock` to chain tip.
 
 Usage: `secondlayer subgraphs reindex <name>`
 
 | Flag | Description |
 | --- | --- |
-| `--from-block <block>` | Start block height (integer). |
-| `--to-block <block>` | End block height (integer). |
 | `-y, --yes` | Skip the confirmation prompt. |
 
-Prompts for confirmation by default (default answer: **no**). Non-TTY environments must pass `-y` or the command exits non-zero. Added in `@secondlayer/cli` 5.5.0; older versions ran silently.
+Reindex is always whole-subgraph — there is no `--from-block`/`--to-block`, and the API answers `400 REINDEX_RANGE_NOT_SUPPORTED`. For a specific range use `secondlayer subgraphs backfill`, which never drops anything.
+
+Prompts for confirmation by default (default answer: **no**). Non-TTY environments must pass `-y` or the command exits non-zero.
 
 ### secondlayer subgraphs backfill
 
@@ -482,7 +439,7 @@ secondlayer subgraphs scaffold --trait sip-010 -o subgraphs/all-tokens.ts    # a
 
 ## Subscriptions
 
-Manage subgraph table subscriptions (webhook deliveries). Alias: `subs`. All subcommands accept `--service-key <key>` (overrides `SL_API_KEY`) and `--base-url <url>` (overrides `SL_API_URL`). Without those, the CLI resolves credentials from the active project via `secondlayer login`.
+Manage subgraph table subscriptions (webhook deliveries). Alias: `subs`. All subcommands accept `--service-key <key>` (overrides `SL_API_KEY`) and `--base-url <url>` (overrides `SL_API_URL`). Without those, the CLI uses `SL_API_KEY` / `SL_API_URL` from the environment.
 
 Subscription references (`<idOrName>`) accept the subscription UUID or its name. Ambiguous names error out — use the ID.
 
@@ -957,7 +914,7 @@ Usage: `secondlayer local up --devnet`
 Then run your normal `clarinet devnet start` — deployed contracts and their events stream into the local indexer (api at `http://localhost:3800`, indexer at `http://localhost:3700`). Deploy a subgraph against it with:
 
 ```bash
-SL_API_URL=http://localhost:3800 SL_API_KEY=dummy secondlayer subgraphs deploy ./subgraph.ts
+SL_API_URL=http://localhost:3800 SL_API_KEY=dev-instance-token secondlayer subgraphs deploy ./subgraph.ts
 ```
 
 To see rows appear you need a real contract-call transaction — `clarinet console` runs against simnet, not your running devnet, so it won't broadcast on-chain. Fire one with `@stacks/transactions` (uses the well-known devnet deployer key):
@@ -1034,6 +991,7 @@ Usage: `secondlayer devnet logs [service]` — `service` is optional, one of `in
 
 ```bash
 curl -X POST http://localhost:3800/api/subscriptions \
+  -H 'Authorization: Bearer dev-instance-token' \
   -H 'Content-Type: application/json' \
   -d '{"name":"my-hook","subgraphName":"my-app","tableName":"counter_calls","url":"http://host.docker.internal:9999/hook"}'
 ```
@@ -1115,44 +1073,9 @@ Usage: `secondlayer local db resync`
 
 ---
 
-## Account
-
-Manage your public account profile.
-
-### secondlayer account get
-
-Show your account profile.
-
-Usage: `secondlayer account get [--json]`
-
-### secondlayer account update
-
-Update your public profile.
-
-Usage: `secondlayer account update`
-
-| Flag | Description |
-| --- | --- |
-| `--name <name>` | Set display name. |
-| `--bio <bio>` | Set bio. |
-| `--slug <slug>` | Set public URL slug. |
-| `--json` | Output as JSON. |
-
----
-
-### secondlayer account billing
-
-Show your current plan, Stripe subscription, trial, and discounts.
-
-Usage: `secondlayer account billing`
-
-No flags. GETs `/api/billing/status`.
-
----
-
 ## Config
 
-Manage CLI configuration (`~/.config/secondlayer/config.json` or platform equivalent — see `secondlayer config get` output for actual path).
+Manage CLI configuration (`~/.config/secondlayer/config.json` or the OS equivalent — see `secondlayer config get` output for the actual path).
 
 ### secondlayer config get
 
@@ -1255,8 +1178,7 @@ Examples:
 
 ### secondlayer codegen subgraph
 
-Generate an ORM schema for a subgraph's tables — the companion to BYO database
-(`secondlayer subgraphs deploy --database-url`). Point the ORM at your own
+Generate an ORM schema for a subgraph's tables. Point the ORM at the instance's
 Postgres for a fully-typed client with relations and joins.
 
 Usage: `secondlayer codegen subgraph <file>`

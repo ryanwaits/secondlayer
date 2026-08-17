@@ -2,9 +2,9 @@
 
 Source of truth: `packages/sdk/src/`. Function signatures below are copied verbatim — match them exactly when generating code.
 
-**Auth model:** default `baseUrl` is `http://127.0.0.1:3800` (or `SL_API_URL`). Loopback reads on `sl.contracts.*`, `sl.index.*`, `sl.streams.*`, and `sl.subgraphs.rows()` need no key. History is whatever this instance has bootstrapped. Writes (`subgraphs.deploy/publish/unpublish/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) use `INSTANCE_TOKEN` from `secondlayer init` as `apiKey` when the API is bound beyond loopback. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no instance key.
+**Auth model:** default `baseUrl` is `http://127.0.0.1:3800` (or `SL_API_URL`). Loopback reads on `sl.contracts.*`, `sl.index.*`, `sl.streams.*`, and `sl.subgraphs.rows()` need no key. History is whatever this instance has bootstrapped. Writes (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) use `INSTANCE_TOKEN` from `secondlayer init` as `apiKey`. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no instance key.
 
-Writes use `INSTANCE_TOKEN` from `secondlayer init` as `SL_API_KEY`. There is no hosted account or dashboard key.
+Your instance has one token, not accounts: there is no login, no project, no dashboard key, and no key tier. Pass `INSTANCE_TOKEN` as `apiKey`, or export it as `SL_API_KEY` and the client picks it up (`resolveApiKey`). Once an instance has a token configured — mandatory for any non-loopback bind — it wants the bearer on every call, reads included.
 
 ---
 
@@ -27,7 +27,7 @@ import { SecondLayer } from "@secondlayer/sdk";
 // Construct with `new SecondLayer(opts?)` — opts is Partial<SecondLayerOptions>,
 // so every field is optional; baseUrl defaults to http://127.0.0.1:3800.
 export interface SecondLayerOptions {
-  /** Base URL of the Secondlayer platform API (trailing slashes are stripped). */
+  /** Base URL of the instance API (trailing slashes are stripped). */
   baseUrl: string;
   /** Bearer token for authenticated requests. */
   apiKey?: string;
@@ -71,7 +71,7 @@ deployed contracts conforming to a trait.
 ## 3. Subpath exports
 
 ```ts
-// @secondlayer/sdk/streams — bare streams client, no platform wrappers
+// @secondlayer/sdk/streams — bare streams client, none of the SecondLayer wrappers
 import {
   createStreamsClient,
   decodeFtTransfer,
@@ -692,7 +692,7 @@ const { contracts, next_cursor } = await sl.contracts.list({
 
 ## 6. `sl.subgraphs`
 
-`rows()` (open /v1 read) is anonymous for **public** subgraphs; private subgraphs need the owner's `apiKey` (anon → 404). **Write methods (`deploy`, `publish`, `unpublish`, `reindex`, `backfill`, `stop`, `delete`, `bundle`) require `apiKey`.**
+`rows()` (open /v1 read) needs no key on a loopback instance — there is no per-subgraph public/private flag. **Write methods (`deploy`, `reindex`, `backfill`, `stop`, `delete`, `bundle`) require `apiKey`.**
 
 ### `list()`
 
@@ -759,16 +759,7 @@ interface SubgraphRowsEnvelope<T = unknown> {
 }
 ```
 
-Hits `GET /v1/subgraphs/<name>/<table>` — anon for public subgraphs, owner `apiKey` for private. `_id` keyset pagination: pass `cursor: next_cursor` to resume, `order: "asc" | "desc"` for direction. No `offset`/`sort` on /v1.
-
-### `publish(name)` / `unpublish(name)` — need `apiKey`
-
-```ts
-publish(name: string): Promise<{ name: string; visibility: "public"; url: string }>
-unpublish(name: string): Promise<{ name: string; visibility: "private" }>
-```
-
-`publish` claims the global public name — 409 `PUBLIC_NAME_TAKEN` if claimed, 404 `NOT_SUPPORTED` on an instance with no public namespace. `unpublish` only closes the anon read; data and indexing are untouched. Both are idempotent. Deploy also accepts `visibility?: "public" | "private"` (managed default public, BYO default private).
+Hits `GET /v1/subgraphs/<name>/<table>` — no key on a loopback instance, `apiKey` past that. `_id` keyset pagination: pass `cursor: next_cursor` to resume, `order: "asc" | "desc"` for direction. No `offset`/`sort` on /v1.
 
 ### `queryTable(name, table, params?)`
 
@@ -846,10 +837,12 @@ interface ReindexResponse {
   status?: "queued" | "running" | "cancel_requested";
 }
 
-reindex(name: string, options?: { fromBlock?: number; toBlock?: number }): Promise<ReindexResponse>
+reindex(name: string): Promise<ReindexResponse>
 backfill(name: string, options: { fromBlock: number; toBlock: number }): Promise<ReindexResponse>
 stop(name: string): Promise<{ message: string; operationId?: string; status?: string }>
 ```
+
+`reindex` takes a name and nothing else: it always drops the whole subgraph and rebuilds from `startBlock` to tip. A range would only narrow the rebuild, never the drop. For a range, `backfill` — it never drops anything.
 
 ### `gaps(name, opts?)`
 
@@ -1266,7 +1259,7 @@ for (const row of dead) await sl.subscriptions.requeue(sub.id, row.id);
 
 All errors live in `@secondlayer/sdk`.
 
-### Platform: `ApiError`, `VersionConflictError`
+### Instance API: `ApiError`, `VersionConflictError`
 
 Thrown by `sl.index.*`, `sl.subgraphs.*`, `sl.subscriptions.*`.
 

@@ -1,6 +1,6 @@
 # Index API Quickstart
 
-The **Index API** is a read-only, fully-decoded view of the Stacks chain — canonical blocks, full transaction documents, and decoded PoX-4 stacking actions — served over plain HTTP `GET`. Every endpoint is anonymous-readable in open beta (no key required), uses `snake_case` query params, and returns a standard cursor envelope. Finalized pages are aggressively cacheable (immutable + ETag), so syncing the chain is cheap.
+The **Index API** is a read-only, fully-decoded view of the Stacks chain — canonical blocks, full transaction documents, and decoded PoX-4 stacking actions — served over plain HTTP `GET`. Loopback reads need no key, every endpoint uses `snake_case` query params, and every response is a standard cursor envelope. Finalized pages are aggressively cacheable (immutable + ETag), so syncing the chain is cheap.
 
 This guide is runnable against a local instance (`secondlayer init` + `docker/oss`). History is whatever this instance has bootstrapped.
 

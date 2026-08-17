@@ -87,7 +87,7 @@ secondlayer streams tip                      # baseline reachability
 
 | Symptom | Cause | Action |
 |---|---|---|
-| `401 Unauthorized` | API bound beyond loopback without `INSTANCE_TOKEN` | Export `SL_API_KEY` from `secondlayer init`; or pass `createStreamsClient({ apiKey })`. |
+| `401 Unauthorized` | The instance has `INSTANCE_TOKEN` configured (always true past a loopback bind), and the call carried no bearer | Export `SL_API_KEY` = the `INSTANCE_TOKEN` from `.env.local`; or pass `createStreamsClient({ apiKey })`. Reads are gated by it too, not just writes. |
 | Empty / short history | Instance not bootstrapped to the height you asked for | `secondlayer bootstrap --against <manifest>` then `secondlayer verify all --against <manifest>`. |
 | `429 Too Many Requests` | Hit rate limit | SDK throws `RateLimitError` with `retryAfter`. Back off; use `events.consume` instead of polling `events.list`. |
 | Consumer stops processing | Aborted by signal OR `mode: "bounded"` reached end | Restart with last saved cursor. |
@@ -122,8 +122,8 @@ The Streams errors do **not** extend `ApiError` — check them separately when w
 | Error | Hint |
 |---|---|
 | Can't reach `/public/status` | `secondlayer start --print` and bring the one-box container up |
-| `401` on a write | Set `SL_API_KEY` to the `INSTANCE_TOKEN` from `secondlayer init` |
-| Empty history | `secondlayer bootstrap --against <manifest>` |
+| `401` on any call | Set `SL_API_KEY` to the `INSTANCE_TOKEN` from `.env.local`. There is no `secondlayer login` — one instance, one token |
+| Empty history | `secondlayer bootstrap --against <manifest>`. Against the official archive this quotes a price in credits and waits for confirmation; your own mirror is free |
 
 ## Stacks SDK: contract calls failing
 

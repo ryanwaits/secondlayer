@@ -11,8 +11,9 @@ import { SecondLayer } from "@secondlayer/sdk";
 import mySubgraph from "./minimal-subgraph";
 
 const sl = new SecondLayer({
-  // API key NOT required for queries in open beta.
-  apiKey: process.env.SECONDLAYER_API_KEY,
+  // Loopback reads need no key. Set this to your INSTANCE_TOKEN if the
+  // instance has one configured (mandatory past a loopback bind).
+  apiKey: process.env.SL_API_KEY,
 });
 
 // --- Untyped query ---

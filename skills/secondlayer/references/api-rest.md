@@ -1,6 +1,6 @@
 # REST API
 
-The Secondlayer platform API is the source of truth that the SDK and CLI sit on top of. Use it directly from non-TypeScript clients (curl, Python, Go), webhooks-only setups, or anywhere you can't run the SDK.
+Your instance's HTTP API — the surface the SDK and CLI sit on top of. Use it directly from non-TypeScript clients (curl, Python, Go), webhooks-only setups, or anywhere you can't run the SDK.
 
 > If you're in TypeScript, prefer `@secondlayer/sdk` — it handles cursors, retries, typed responses. See `references/sdk.md`.
 
@@ -14,7 +14,7 @@ Override with `SL_API_URL` env var or `baseUrl` SDK option.
 
 ## Authentication
 
-Default base is the local instance. Loopback reads need no key. Writes use `INSTANCE_TOKEN` from `secondlayer init` as `Authorization: Bearer`.
+Your instance has **one token, not accounts**: the `INSTANCE_TOKEN` that `secondlayer init` writes. Loopback reads need no key. Writes send it as `Authorization: Bearer`.
 
 | Endpoint family | Reads | Writes | Header |
 |---|---|---|---|
@@ -24,6 +24,10 @@ Default base is the local instance. Loopback reads need no key. Writes use `INST
 | `/v1/subgraphs/*` | Open on this instance | n/a | none on loopback |
 | `/api/subgraphs/*` | `INSTANCE_TOKEN` | Yes | `Authorization: Bearer <INSTANCE_TOKEN>` |
 | `/api/subscriptions/*` | `INSTANCE_TOKEN` | Yes | `Authorization: Bearer <INSTANCE_TOKEN>` |
+
+The gate is instance-wide, not per-route. An instance with `INSTANCE_TOKEN` configured — mandatory for any non-loopback bind — requires the bearer on **every** route except `/health` and `/public/*`, reads included. An instance with no token set is fully open and may only bind loopback. Send the token whenever you have it; the read examples below omit it because they assume a tokenless loopback instance.
+
+Archive credits are a separate prepaid card balance, not a credential — no account, no login, no header.
 
 ## Response envelopes
 
@@ -46,7 +50,7 @@ Errors use HTTP status + a JSON body:
 { "error": "NOT_FOUND", "message": "Subgraph not found" }
 ```
 
-Common error codes: `NOT_FOUND`, `UNAUTHORIZED`, `VALIDATION_ERROR`, `VERSION_CONFLICT`, `RATE_LIMITED`, `SESSION_EXPIRED`, `TENANT_SUSPENDED`.
+Common error codes: `NOT_FOUND`, `UNAUTHORIZED`, `VALIDATION_ERROR`, `VERSION_CONFLICT`, `RATE_LIMITED`.
 
 ---
 
@@ -57,8 +61,7 @@ Common error codes: `NOT_FOUND`, `UNAUTHORIZED`, `VALIDATION_ERROR`, `VERSION_CO
 Returns current canonical tip.
 
 ```bash
-curl -H "Authorization: Bearer $SL_API_KEY" \
-  http://127.0.0.1:3800/v1/streams/tip
+curl http://127.0.0.1:3800/v1/streams/tip
 ```
 
 Response: `{ block_height, block_hash, burn_block_height, finalized_height, lag_seconds }`. `finalized_height` is the highest block past the burn-confirmation finality boundary (Bitcoin-anchored, ~6 burn confirmations) — blocks at or below it are immutable.
@@ -83,11 +86,11 @@ Cursor-paginated firehose of decoded events.
 Each event includes `finalized` (true when its block is past the finality boundary). `contract_id`/`sender`/`recipient`/`asset_identifier` are inclusion payload filters (a comma list matches any value); event types lacking the field simply don't match. History is whatever this instance has bootstrapped.
 
 ```bash
-curl -H "Authorization: Bearer $SL_API_KEY" \
-  "http://127.0.0.1:3800/v1/streams/events?types=ft_transfer&sender=SP1...,SP2...&limit=50"
-curl -H "Authorization: Bearer $SL_API_KEY" \
-  "http://127.0.0.1:3800/v1/streams/events?not_types=print&contract_id=SP1....token,SP2....token"
+curl "http://127.0.0.1:3800/v1/streams/events?types=ft_transfer&sender=SP1...,SP2...&limit=50"
+curl "http://127.0.0.1:3800/v1/streams/events?not_types=print&contract_id=SP1....token,SP2....token"
 ```
+
+On an instance that has `INSTANCE_TOKEN` set, add `-H "Authorization: Bearer $SL_API_KEY"` to these — the same header every write carries.
 
 **Caching & proofs:** a closed, fully-finalized page (`to_height` ≤ `finalized_height`) is served `Cache-Control: public, max-age=31536000, immutable` with a weak `ETag` (honors `If-None-Match` → `304`); tip-spanning/default requests are `private, max-age=2`. Response signing is **enabled in prod**: every read carries an `X-Signature` (ed25519 over the exact response body) + `X-Signature-KeyId`; fetch the public key at `GET /public/streams/signing-key` and verify, or use the SDK `verify` option.
 
@@ -125,10 +128,6 @@ Recent chain reorgs.
 |---|---|---|
 | `since` | ISO 8601 | Required. Reorgs detected after this timestamp. |
 | `limit` | number | Page size |
-
-### `GET /v1/streams/usage` *(auth)*
-
-Your own Streams consumption + tier limits: `{ product, tier, limits: { rate_limit_per_second, retention_days }, usage: { events_today, events_this_month } }`. SDK: `sl.streams.usage()`. MCP: `streams_usage`.
 
 ---
 
@@ -192,15 +191,11 @@ Full transaction documents: the columnar fields plus enrichment decoded from `ra
 
 ### `GET /v1/index/stacking`
 
-Decoded PoX-4 stacking actions (`stack-stx`, `delegate-stx`, …). Filter `function_name`/`stacker`/`caller`. Each row carries `caller`, `stacker`, `delegate_to`, `amount_ustx`, `lock_period`, `pox_addr` (`{version, hashbytes, btc}`), `start_cycle`/`end_cycle`/`reward_cycle`, `signer_key`, `result_ok`. Returns `[]` plus a `notes` hint when the platform's PoX-4 decoder is disabled.
+Decoded PoX-4 stacking actions (`stack-stx`, `delegate-stx`, …). Filter `function_name`/`stacker`/`caller`. Each row carries `caller`, `stacker`, `delegate_to`, `amount_ustx`, `lock_period`, `pox_addr` (`{version, hashbytes, btc}`), `start_cycle`/`end_cycle`/`reward_cycle`, `signer_key`, `result_ok`. Returns `[]` plus a `notes` hint when this instance's PoX-4 decoder is disabled.
 
 ### `GET /v1/index/mempool` and `GET /v1/index/mempool/{tx_id}`
 
 Pending (unconfirmed) transactions. Same `raw_tx`-decoded enrichment as `/transactions` (`fee`, `nonce`, `sponsored`, `post_conditions`, payload sub-object) but pre-chain — no `block_height`/`tx_index`/`result`/`events`, plus `received_at`. Filter `sender`/`type`. Cursor is the mempool sequence integer (not `block_height:tx_index`). Rows are evicted on confirmation or drop, so the single form 404s once a tx mines. **Never cacheable** — always `private, max-age=2`, no ETag (the one volatile Index surface).
-
-### `GET /v1/index/usage` *(auth)*
-
-Your own Index consumption + tier limits: `{ product, tier, limits: { rate_limit_per_second }, usage: { decoded_events_today, decoded_events_this_month } }`. Requires a key (any tier incl. free) — anonymous reads return 401. SDK: `sl.index.usage()`. MCP: `index_usage`.
 
 ### Caching
 
@@ -210,11 +205,11 @@ Every Index read sets `Cache-Control`: `public, max-age=31536000, immutable` onc
 
 ## `/v1/subgraphs` — subgraph reads
 
-Anon for **public** subgraphs (managed deploys default public; BYO deploys and pre-existing subgraphs default private). Private subgraphs read with the owning account's `sk-sl_` bearer — anon requests get 404 (no existence leak).
+Open reads on your instance, with wildcard CORS on loopback. There is no per-subgraph public/private flag: every subgraph on the instance is readable by anyone who can reach the instance, which your bind and reverse proxy decide. Past loopback, that means the `INSTANCE_TOKEN` bearer.
 
 ### `GET /v1/subgraphs`
 
-List public subgraphs (+ your own with a bearer).
+List this instance's subgraphs.
 
 ### `GET /v1/subgraphs/{name}`
 
@@ -250,17 +245,13 @@ curl "http://127.0.0.1:3800/v1/subgraphs/stx-transfers/transfers?_order=desc&_li
 
 Same filters apply; aggregate takes `_count` / `_sum` / `_countDistinct` etc.
 
-### Publish / visibility
-
-Deploy with `--visibility public|private` (managed default public, BYO default private); flip later with `secondlayer subgraphs publish|unpublish <name>`. Public names are a single global claim-on-publish namespace — taken name → `409 PUBLIC_NAME_TAKEN`.
-
 ---
 
 ## `/api/subgraphs` — subgraph management *(auth — control plane)*
 
 ### `GET /api/subgraphs`
 
-List deployed subgraphs (project-scoped).
+List deployed subgraphs.
 
 ### `GET /api/subgraphs/{name}`
 
@@ -300,7 +291,7 @@ Deploy / update a subgraph. Body contains bundled handler code + definition.
 
 ### `POST /api/subgraphs/{name}/reindex` *(auth)*
 
-Body: `{ fromBlock?, toBlock? }`. **Destructive** — drops + reprocesses.
+No body. **Destructive** — drops every row and rebuilds from `startBlock` to tip. A `fromBlock`/`toBlock` is refused with `400 REINDEX_RANGE_NOT_SUPPORTED`; use `/backfill` for a range.
 
 ### `POST /api/subgraphs/{name}/backfill` *(auth)*
 
@@ -336,7 +327,7 @@ Returns bundled source code, version, deployment metadata. Useful for re-generat
 
 ### `GET /api/subscriptions`
 
-List subscriptions for the active tenant.
+List this instance's subscriptions.
 
 ### `GET /api/subscriptions/{id}`
 
@@ -517,6 +508,6 @@ Exhausted rows land in `/dead` and can be requeued individually.
 
 ## Rate limits
 
-Open-beta default: generous but not unmetered. The SDK throws `RateLimitError` (status 429) with a `retryAfter` header. Back off and retry.
+Reads on your own instance are not metered and not billed — the ceiling is your Postgres. The API can still answer `429` under load; the SDK throws `RateLimitError` with a `retryAfter` header. Back off and retry.
 
 For sustained high-throughput streaming, prefer `events.consume` / `events.stream` from the SDK — they checkpoint and batch automatically.

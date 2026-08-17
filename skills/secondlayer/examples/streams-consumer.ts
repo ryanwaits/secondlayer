@@ -14,14 +14,16 @@
 //     a batch is an idempotent no-op
 //   * rows carry block_height so a reorg can delete everything above the fork
 //
-// Run:  SL_API_KEY=sk-sl_... bun examples/streams-consumer.ts
+// Run:  bun examples/streams-consumer.ts
+//       (loopback reads need no key; export SL_API_KEY=<INSTANCE_TOKEN> if your
+//        instance has one configured)
 
 import { Database } from "bun:sqlite";
 import { createStreamsClient } from "@secondlayer/sdk/streams";
 import type { StreamsEvent } from "@secondlayer/sdk/streams";
 
 const streams = createStreamsClient({
-	apiKey: process.env.SL_API_KEY!,
+	apiKey: process.env.SL_API_KEY ?? "", // "" = keyless, fine on a loopback instance
 });
 
 // --- Store -----------------------------------------------------------------

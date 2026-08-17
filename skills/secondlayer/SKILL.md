@@ -24,8 +24,8 @@ Before doing the task, load the smallest set of reference files that cover it. R
 
 | If the user wants to… | Load |
 |---|---|
-| Install the CLI, log in, set up env vars, install an SDK package | `references/installation.md` |
-| Run any `secondlayer` command (subgraphs, subscriptions, streams, projects, local, account) | `references/cli.md` |
+| Install the CLI, stand up an instance, set up env vars, install an SDK package | `references/installation.md` |
+| Run any `secondlayer` command (init, bootstrap, verify, subgraphs, subscriptions, streams, credits, local) | `references/cli.md` |
 | Call this instance from TypeScript (`new SecondLayer(...)`, `sl.streams`, `sl.subgraphs`, `sl.subscriptions`, `sl.index`) | `references/sdk.md` |
 | Write or edit a subgraph file (`defineSubgraph`, sources, schema, handlers, `ctx.*`) | `references/subgraph-authoring.md` |
 | Read or call a Clarity contract, sign STX/contract transactions, work with Clarity values, post-conditions, accounts, transports | `references/stacks.md` |
@@ -42,27 +42,31 @@ These are small enough to keep in the router. Everything else is in a reference 
 
 - **Binary:** `secondlayer` (`sl` is a short alias). Install: `bun add -g @secondlayer/cli`.
 - **Default API:** `http://127.0.0.1:3800`. Override with `SL_API_URL`.
-- **CLI auth:** `secondlayer init` writes `INSTANCE_TOKEN`. Set `SL_API_KEY` to that token for writes. No Secondlayer account.
+- **One token, no accounts.** `secondlayer init` writes `INSTANCE_TOKEN` into `.env.local`. Loopback reads need no key; writes and any bind beyond loopback take it. The CLI, MCP, and SDK read that value from `SL_API_KEY` (a legacy variable name — the value is the instance token) or `--api-key`. There is no login, no project, no API-key tier.
 - **Streams / Index:** local instance reads. Loopback needs no key. Public archive dumps (`secondlayer streams dumps`) are a separate signed bucket.
+- **Only archive fetches cost money.** `secondlayer bootstrap` / `repair` against the official archive draw prepaid credits and quote the price before charging; `secondlayer verify` is always free. Nothing you run yourself is metered.
 - **Package manager:** prefer `bun` and `bunx`. Most package.json files in user projects declare `bun` as `packageManager`.
 - **Network inference:** addresses starting `SP`/`SM` → mainnet, `ST`/`SN` → testnet. CLI infers this automatically when scaffolding.
 
-## Read-auth tiers
-
-Reads are not uniformly open — know the tier before querying:
+## Read auth by surface
 
 | Surface | Auth |
 | --- | --- |
 | Contracts (`/v1/contracts`, `sl.contracts`) | **Open** — no key |
 | Index (`/v1/index`, `sl.index`, `secondlayer index`) | Loopback reads need no key. History is whatever this instance has bootstrapped. |
 | Streams (`/v1/streams`, `sl.streams`, `secondlayer streams`) | Loopback reads need no key. Public archive dumps need no instance key. |
-| Subgraphs | Reads on this instance are open on `/v1/subgraphs/*`. Writes use `INSTANCE_TOKEN` from `secondlayer init` as `SL_API_KEY`. |
+| Subgraphs | Reads on this instance are open on `/v1/subgraphs/*`. Writes use `INSTANCE_TOKEN`. |
+
+The gate is instance-wide, not per-surface: an instance with `INSTANCE_TOKEN`
+configured requires `Authorization: Bearer <INSTANCE_TOKEN>` on **every** route
+except `/health` and `/public/*`, reads included. An instance with no token is
+fully open and may only bind loopback. Send the token whenever you have it.
 
 ## Default working loop
 
-0. **Discover what exists.** Don't assume — enumerate at runtime: `sl.contracts.list({ trait })` for contracts implementing a trait, and (over MCP) read `secondlayer://context` for your subgraphs/subscriptions/account + capabilities.
+0. **Discover what exists.** Don't assume — enumerate at runtime: `sl.contracts.list({ trait })` for contracts implementing a trait, and (over MCP) read `secondlayer://context` for this instance's subgraphs/subscriptions + capabilities.
 1. **Identify the surface.** Is this a subgraph (your schema)? A decoded-events query (`sl.index`)? A raw stream consumer? A direct contract call? Pick the right tool — don't reach for a subgraph when `sl.index.ftTransfers.list({ recipient })` does the job in one HTTP call.
-2. **Inspect first.** Before changing anything tenant-scoped, run a read (`secondlayer subgraphs list`, `secondlayer subscriptions get …`). Confirms auth + state, prevents accidental overwrites.
+2. **Inspect first.** Before changing anything on the instance, run a read (`secondlayer subgraphs list`, `secondlayer subscriptions get …`). Confirms auth + state, prevents accidental overwrites.
 3. **Scaffold the smallest correct thing.** Use `secondlayer subgraphs scaffold <contract>` or `secondlayer subscriptions create <name>` rather than hand-writing boilerplate. Both generate code that's already 1:1 with current package APIs.
 4. **Validate locally.** For subgraphs: `secondlayer subgraphs spec <file>` to preview generated schema and API without deploying. For SDK code: type-check.
 5. **Confirm before destructive actions.** Always pause to confirm: `secondlayer subgraphs delete`, `secondlayer subgraphs reindex` (drops + reprocesses), `secondlayer subscriptions rotate-secret`, `secondlayer subscriptions replay`, `secondlayer subscriptions requeue`. The CLI prompts by default; if running in non-TTY, pass `-y` only with explicit user consent.
@@ -82,7 +86,7 @@ Reads are not uniformly open — know the tier before querying:
 |---|---|---|
 | Subgraph deploy errors `upsert requires unique key` | Schema declared `upsert` writes but `uniqueKeys` missing | Add `uniqueKeys: [["col_a", "col_b"]]` to the table |
 | Subscription paused after 20 failures | Receiver returning 4xx/5xx or timing out | `secondlayer subscriptions doctor <name>`; fix receiver; `secondlayer subscriptions resume <name>` |
-| `ApiError 401` from SDK | Missing `apiKey` on a write, or the API is bound beyond loopback | Pass `INSTANCE_TOKEN` from `secondlayer init` as `apiKey` / `SL_API_KEY` |
+| `ApiError 401` from SDK | The instance has `INSTANCE_TOKEN` set (always true past loopback) and the call carried no key | Pass `INSTANCE_TOKEN` from `.env.local` as `apiKey` / `SL_API_KEY` |
 | `tsc` errors after `getContract` upgrade | ABI shape changed, regenerate | `secondlayer codegen client <name> -o ...` or refresh ABI |
 | Webhook receiver getting unsigned bodies | `format` not set to `standard-webhooks` | `secondlayer subscriptions update <name> --format standard-webhooks` |
 | Subgraph "stuck" right after deploy | Catching up from `startBlock` | Normal; watch `secondlayer subgraphs status <name> -w`. Use `--start-block` near tip for fast first deploy |
