@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/cli",
-	"version": "13.0.0",
+	"version": "13.0.1",
 	"description": "Run a Stacks index on your own hardware — set it up, restore verified history, and keep it current.",
 	"repository": {
 		"type": "git",

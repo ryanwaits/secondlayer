@@ -26,6 +26,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
+import { createServer } from "node:net";
 import { join, resolve as resolvePath } from "node:path";
 import type { InstanceNetwork } from "@secondlayer/shared/db/queries/instance";
 import { FLOORS, diskFloorGb } from "@secondlayer/shared/runtime";
@@ -105,6 +106,7 @@ export interface ResolvedSetupConfig {
 	nodeMode: NodeMode;
 	apiPort: string;
 	indexerPort: string;
+	postgresPort: string;
 	dir: string;
 	against?: string;
 	skipBootstrap: boolean;
@@ -161,6 +163,7 @@ export function resolveNonInteractiveConfig(
 		nodeMode,
 		apiPort: flags.apiPort ?? "127.0.0.1:3800",
 		indexerPort: "127.0.0.1:3700",
+		postgresPort: "127.0.0.1:5432",
 		dir,
 		against: flags.against,
 		skipBootstrap: !!flags.skipBootstrap,
@@ -220,6 +223,77 @@ export function isBunRuntime(): boolean {
 export async function checkDocker(): Promise<boolean> {
 	const probe = spawnSync("docker", ["info"], { stdio: "ignore" });
 	return !probe.error && probe.status === 0;
+}
+
+/** True if `host:port` can be bound right now — i.e. nothing local already
+ *  owns it. Used to catch host-port collisions before `docker compose up`
+ *  hits them as an opaque "port is already allocated" failure. */
+function isPortFree(host: string, port: number): Promise<boolean> {
+	return new Promise((resolvePromise) => {
+		const srv = createServer();
+		srv.once("error", () => resolvePromise(false));
+		srv.once("listening", () => srv.close(() => resolvePromise(true)));
+		srv.listen(port, host);
+	});
+}
+
+/** Publish specs in this file are `host:port` (e.g. "127.0.0.1:3800") or a
+ *  bare port. `lastIndexOf` rather than `split` so an IPv6 host wouldn't
+ *  break this (not used today, but cheap to not paint into a corner). */
+function parsePublishSpec(spec: string): { host: string; port: number } {
+	const idx = spec.lastIndexOf(":");
+	if (idx === -1) return { host: "127.0.0.1", port: Number(spec) };
+	return { host: spec.slice(0, idx), port: Number(spec.slice(idx + 1)) };
+}
+
+/**
+ * Host ports Docker has already published to *some* container, regardless
+ * of which host IP they're bound to. This matters because Docker's own NAT
+ * allocator refuses to publish a port on 127.0.0.1 if another container
+ * already holds it on 0.0.0.0 — but a bare OS socket bind to 127.0.0.1
+ * still *succeeds* in that situation (BSD permits a specific-address bind
+ * alongside an existing wildcard one), so `isPortFree` alone misses it. A
+ * dev box with more than one docker-compose stack running hits this for
+ * real, not just in theory. Best-effort: an unreachable/absent docker CLI
+ * just yields an empty set, same as the rest of preflight already assumes
+ * docker is reachable by this point.
+ */
+function dockerPublishedHostPorts(): Set<number> {
+	const probe = spawnSync("docker", ["ps", "--format", "{{.Ports}}"], {
+		encoding: "utf8",
+	});
+	const ports = new Set<number>();
+	if (probe.error || probe.status !== 0 || !probe.stdout) return ports;
+	for (const match of probe.stdout.matchAll(/:(\d+)->/g)) {
+		ports.add(Number(match[1]));
+	}
+	return ports;
+}
+
+/**
+ * Finds a free host port for a publish spec, starting at the requested port
+ * and walking upward. Local dev machines routinely already have a Postgres
+ * on 5432, or another docker-compose stack already running — failing the
+ * whole guided setup over that instead of routing around it would make
+ * `secondlayer setup` less guided than the five manual commands it replaced.
+ */
+export async function resolveAvailablePublishSpec(
+	spec: string,
+	claimedByDocker: Set<number> = new Set(),
+	maxAttempts = 20,
+): Promise<{ spec: string; remapped: boolean }> {
+	const { host, port } = parsePublishSpec(spec);
+	for (let attempt = 0; attempt < maxAttempts; attempt++) {
+		const candidate = port + attempt;
+		if (claimedByDocker.has(candidate)) continue;
+		if (await isPortFree(host, candidate)) {
+			return { spec: `${host}:${candidate}`, remapped: attempt > 0 };
+		}
+	}
+	// Nothing free nearby — hand back the original and let `docker compose
+	// up`'s own error surface, rather than silently wandering far from the
+	// port the operator asked for.
+	return { spec, remapped: false };
 }
 
 // ---------------------------------------------------------------------------
@@ -329,7 +403,7 @@ function renderSetupEnv(
 		"POSTGRES_USER=secondlayer",
 		`POSTGRES_PASSWORD=${secrets.postgresPassword}`,
 		"POSTGRES_DB=secondlayer",
-		"POSTGRES_PORT=127.0.0.1:5432",
+		`POSTGRES_PORT=${config.postgresPort}`,
 		"# The instance credential. The API validates bearer tokens against it,",
 		"# and the CLI/SDK/MCP read it first when authenticating.",
 		`INSTANCE_TOKEN=${i.INSTANCE_TOKEN}`,
@@ -604,9 +678,14 @@ export interface SetupResult {
 }
 
 export async function runSetup(
-	config: ResolvedSetupConfig,
+	initialConfig: ResolvedSetupConfig,
 	emit: SetupEmit,
 ): Promise<SetupResult> {
+	// Preflight can route around busy ports (see below), which replaces this
+	// with a corrected config every later step reads — a local `let` so that
+	// doesn't mean reassigning the function's own parameter.
+	let config = initialConfig;
+
 	emit({ type: "step-start", step: "preflight" });
 	if (!(await checkDocker())) {
 		emit({
@@ -617,6 +696,43 @@ export async function runSetup(
 		});
 		return { ok: false, config };
 	}
+
+	// Route around ports that are already taken locally instead of letting
+	// `docker compose up` fail opaquely on "port is already allocated" —
+	// mainnet/testnet dev boxes commonly already run a local Postgres on
+	// 5432. Every step from here on reads the actually-bindable ports.
+	const claimedByDocker = dockerPublishedHostPorts();
+	const ports = {
+		api: await resolveAvailablePublishSpec(config.apiPort, claimedByDocker),
+		indexer: await resolveAvailablePublishSpec(
+			config.indexerPort,
+			claimedByDocker,
+		),
+		postgres: await resolveAvailablePublishSpec(
+			config.postgresPort,
+			claimedByDocker,
+		),
+	};
+	config = {
+		...config,
+		apiPort: ports.api.spec,
+		indexerPort: ports.indexer.spec,
+		postgresPort: ports.postgres.spec,
+	};
+	for (const [label, result] of [
+		["api", ports.api],
+		["indexer", ports.indexer],
+		["postgres", ports.postgres],
+	] as const) {
+		if (result.remapped) {
+			emit({
+				type: "step-log",
+				step: "preflight",
+				line: `${label} port was already in use locally, using ${result.spec} instead`,
+			});
+		}
+	}
+
 	const floors = guardrailPreview(config.nodeMode, config.network);
 	emit({
 		type: "step-done",

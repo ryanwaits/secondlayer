@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 13.0.1
+
+### Patch Changes
+
+- `secondlayer setup` no longer fails on a busy host port. Preflight now checks the API, indexer, and Postgres ports it's about to publish and routes around anything already taken — a locally-running Postgres on 5432, or another docker-compose stack already holding a port Docker has published elsewhere — before `docker compose up` gets a chance to fail on it with an opaque "port is already allocated". Any port that gets remapped is logged during preflight, and the success summary reflects the actual bound `api` URL.
+
 ## 13.0.0
 
 ### Major Changes

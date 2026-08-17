@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync } from "node:fs";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -10,6 +11,7 @@ import {
 	composeProfileArgs,
 	guardrailPreview,
 	isBunRuntime,
+	resolveAvailablePublishSpec,
 	resolveNonInteractiveConfig,
 	resolveSecrets,
 	writeSetupFiles,
@@ -141,6 +143,82 @@ describe("composeProfileArgs", () => {
 	});
 	test("full adds its bundled-node (stacks-node + bitcoind) profile", () => {
 		expect(composeProfileArgs("full")).toEqual(["--profile", "full-node"]);
+	});
+});
+
+describe("resolveAvailablePublishSpec — port-collision routing", () => {
+	// Reproduces the real bug: `docker compose up` failing opaquely with
+	// "Bind for 127.0.0.1:5432 failed: port is already allocated" because a
+	// local (non-Docker) Postgres was already listening there. This binds a
+	// real listener on a real port first, then asserts setup routes around
+	// it rather than handing that same busy port to docker compose.
+	function listenOnFreePort(): Promise<{
+		port: number;
+		close: () => Promise<void>;
+	}> {
+		return new Promise((resolvePromise, reject) => {
+			const srv = createServer();
+			srv.once("error", reject);
+			srv.listen(0, "127.0.0.1", () => {
+				const address = srv.address();
+				if (address === null || typeof address === "string") {
+					reject(new Error("expected a bound TCP address"));
+					return;
+				}
+				resolvePromise({
+					port: address.port,
+					close: () => new Promise((res) => srv.close(() => res())),
+				});
+			});
+		});
+	}
+
+	test("a busy port is remapped to the next free one", async () => {
+		const busy = await listenOnFreePort();
+		try {
+			const result = await resolveAvailablePublishSpec(
+				`127.0.0.1:${busy.port}`,
+			);
+			expect(result.remapped).toBe(true);
+			expect(result.spec).not.toBe(`127.0.0.1:${busy.port}`);
+			expect(result.spec.startsWith("127.0.0.1:")).toBe(true);
+		} finally {
+			await busy.close();
+		}
+	});
+
+	test("a free port is left exactly as requested", async () => {
+		const free = await listenOnFreePort();
+		const port = free.port;
+		await free.close();
+
+		const result = await resolveAvailablePublishSpec(`127.0.0.1:${port}`);
+		expect(result).toEqual({ spec: `127.0.0.1:${port}`, remapped: false });
+	});
+
+	test("skips a port Docker already published even though a raw bind to it succeeds", async () => {
+		// Reproduces a second, subtler real failure found while smoke-testing
+		// the fix above on a box with other docker-compose stacks running:
+		// Docker's own NAT allocator refuses to publish a port on 127.0.0.1 if
+		// another container already holds it on 0.0.0.0, but a bare OS socket
+		// bind to 127.0.0.1 still succeeds there (BSD allows a specific-address
+		// bind alongside an existing wildcard one) — so `isPortFree` alone
+		// reported the port free right before `docker compose up` failed on it
+		// for real. `claimedByDocker` is the fix: it's consulted independently
+		// of the OS-level bind check.
+		const free = await listenOnFreePort();
+		const port = free.port;
+		await free.close();
+		// `port` really is free at the OS level (just closed above) — the only
+		// reason it should be skipped is that it's in `claimedByDocker`.
+		const claimedByDocker = new Set([port]);
+
+		const result = await resolveAvailablePublishSpec(
+			`127.0.0.1:${port}`,
+			claimedByDocker,
+		);
+		expect(result.remapped).toBe(true);
+		expect(result.spec).not.toBe(`127.0.0.1:${port}`);
 	});
 });
 

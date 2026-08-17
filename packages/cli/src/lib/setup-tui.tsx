@@ -273,6 +273,7 @@ function App({ flags }: { flags: SetupFlags }) {
 					nodeMode,
 					apiPort: flags.apiPort ?? "127.0.0.1:3800",
 					indexerPort: "127.0.0.1:3700",
+					postgresPort: "127.0.0.1:5432",
 					dir: flags.dir ?? process.cwd(),
 					against: skipBootstrap ? undefined : against,
 					skipBootstrap,
