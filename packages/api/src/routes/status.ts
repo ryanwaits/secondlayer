@@ -7,6 +7,7 @@ import {
 import { getDb, getDbSplitStatus, getSourceDb } from "@secondlayer/shared/db";
 import { checkChainDataIntegrity } from "@secondlayer/shared/db/queries/integrity";
 import { getGapSummaryBySubgraph } from "@secondlayer/shared/db/queries/subgraph-gaps";
+import { getInstanceMode } from "@secondlayer/shared/mode";
 import { Hono } from "hono";
 import { sql } from "kysely";
 import {
@@ -219,6 +220,7 @@ app.get("/health", async (c) => {
 
 app.get("/public/status", async (c) => {
 	const db = getDb();
+	const mode = getInstanceMode();
 	// Chain + decoded tables (blocks, decoder_checkpoints) live on SOURCE; read
 	// them from there. Under the active DB split getDb() is TARGET (control plane),
 	// where those tables exist but are empty — reading them via getDb() falsely
@@ -329,7 +331,14 @@ app.get("/public/status", async (c) => {
 					: "unavailable",
 		},
 		{ name: "decoder", status: serviceStatusFromPublicIndex(index) },
-		{ name: "subgraph_processor", status: subgraphProcessorStatus },
+		...(mode !== "platform"
+			? [
+					{
+						name: "subgraph_processor" as const,
+						status: subgraphProcessorStatus,
+					},
+				]
+			: []),
 	];
 
 	// Chain-data integrity: catches a wrong/empty Postgres volume being served
@@ -363,7 +372,9 @@ app.get("/public/status", async (c) => {
 		node: {
 			status: nodeStatusFromStreamsTip(streamsTip),
 		},
-		subgraphProcessor: subgraphProcessorDetail,
+		...(mode !== "platform"
+			? { subgraphProcessor: subgraphProcessorDetail }
+			: {}),
 		services,
 		timestamp: new Date().toISOString(),
 	});
@@ -401,6 +412,7 @@ app.get("/public/streams/signing-key", (c) => {
 
 app.get("/status", async (c) => {
 	const db = getDb();
+	const mode = getInstanceMode();
 	// index_progress + decoder_checkpoints are chain/decoded → SOURCE. subgraphs
 	// + subgraph_gaps + service_heartbeats are control plane → getDb()/TARGET.
 	const sourceDb = getSourceDb();
@@ -533,7 +545,14 @@ app.get("/status", async (c) => {
 					: "unavailable",
 		},
 		{ name: "decoder", status: serviceStatusFromPublicIndex(index) },
-		{ name: "subgraph_processor", status: subgraphProcessorStatus },
+		...(mode !== "platform"
+			? [
+					{
+						name: "subgraph_processor" as const,
+						status: subgraphProcessorStatus,
+					},
+				]
+			: []),
 	];
 
 	return c.json({

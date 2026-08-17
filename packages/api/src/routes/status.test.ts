@@ -1,10 +1,10 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import {
 	type DecodersHealth,
 	getEnabledDecoderNames,
 } from "@secondlayer/indexer/decode/health";
 import type { StreamsTip } from "../streams/tip.ts";
-import {
+import statusApp, {
 	NODE_LAG_DEGRADED_SECONDS,
 	nodeStatusFromStreamsTip,
 	publicIndexStatusFromL2Health,
@@ -199,5 +199,66 @@ describe("/status node status", () => {
 	test("no tip is unavailable, not degraded", () => {
 		// We could not observe the node — that is not a confirmed problem.
 		expect(nodeStatusFromStreamsTip(null)).toBe("unavailable");
+	});
+});
+
+describe("/status and /public/status subgraph_processor gating", () => {
+	const ORIGINAL_INSTANCE_MODE = process.env.INSTANCE_MODE;
+
+	afterEach(() => {
+		if (ORIGINAL_INSTANCE_MODE === undefined) {
+			delete process.env.INSTANCE_MODE;
+		} else {
+			process.env.INSTANCE_MODE = ORIGINAL_INSTANCE_MODE;
+		}
+	});
+
+	test("platform mode: subgraph_processor is absent from both endpoints", async () => {
+		process.env.INSTANCE_MODE = "platform";
+
+		const publicRes = await statusApp.request("/public/status");
+		expect(publicRes.status).toBe(200);
+		const publicBody = (await publicRes.json()) as {
+			services: Array<{ name: string }>;
+			subgraphProcessor?: unknown;
+		};
+		expect(
+			publicBody.services.some((s) => s.name === "subgraph_processor"),
+		).toBe(false);
+		expect(publicBody.subgraphProcessor).toBeUndefined();
+		expect(JSON.stringify(publicBody)).not.toContain("subgraph_processor");
+
+		const statusRes = await statusApp.request("/status");
+		expect(statusRes.status).toBe(200);
+		const statusBody = (await statusRes.json()) as {
+			services: Array<{ name: string }>;
+		};
+		expect(
+			statusBody.services.some((s) => s.name === "subgraph_processor"),
+		).toBe(false);
+	});
+
+	test("oss mode (default): subgraph_processor is present on both endpoints, unchanged", async () => {
+		delete process.env.INSTANCE_MODE;
+
+		const publicRes = await statusApp.request("/public/status");
+		expect(publicRes.status).toBe(200);
+		const publicBody = (await publicRes.json()) as {
+			services: Array<{ name: string }>;
+			subgraphProcessor?: unknown;
+		};
+		expect(
+			publicBody.services.some((s) => s.name === "subgraph_processor"),
+		).toBe(true);
+		expect(publicBody.subgraphProcessor).toBeDefined();
+
+		const statusRes = await statusApp.request("/status");
+		expect(statusRes.status).toBe(200);
+		const statusBody = (await statusRes.json()) as {
+			services: Array<{ name: string }>;
+		};
+		expect(
+			statusBody.services.some((s) => s.name === "subgraph_processor"),
+		).toBe(true);
 	});
 });
