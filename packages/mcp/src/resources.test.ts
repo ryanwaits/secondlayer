@@ -86,7 +86,9 @@ describe("secondlayer://context", () => {
 		});
 		expect(ctx.whatExists.activeOperations).toEqual([]);
 		expect(ctx.whatYouCanDo.products.length).toBeGreaterThan(0);
-		expect(ctx.readAuthTiers.streams).toContain("SL_API_KEY");
+		// Streams reads follow the same loopback rule as every other read plane;
+		// the resource must not tell an agent a key is unconditionally required.
+		expect(ctx.readAuthTiers.streams).toContain("loopback");
 	});
 
 	it("degrades gracefully when a field is unavailable (never throws)", async () => {
@@ -104,9 +106,11 @@ describe("secondlayer://context", () => {
 		const ctx = await buildContext({ clientProvider: () => client });
 
 		expect(ctx.whatExists.subgraphs).toEqual([]);
-		expect(ctx.whatExists.subscriptions).toBe("unavailable: set SL_API_KEY");
-		expect(ctx.whatExists.account).toBe("unavailable: set SL_API_KEY");
-		expect(ctx.whatExists.streamsTip).toBe("unavailable: set SL_API_KEY");
+		expect(ctx.whatExists.subscriptions).toBe(
+			"unavailable: set INSTANCE_TOKEN",
+		);
+		expect(ctx.whatExists.account).toBe("unavailable: set INSTANCE_TOKEN");
+		expect(ctx.whatExists.streamsTip).toBe("unavailable: set INSTANCE_TOKEN");
 	});
 });
 

@@ -22,7 +22,7 @@ export function registerAccountTools(server: McpServer) {
 	defineTool<{ product?: "streams" | "index"; name?: string }>(
 		server,
 		"account_create_key",
-		"Mint a scoped streams/index read API key so the agent can self-provision access. Requires an account-level (owner) API key. The returned `key` is shown ONCE — forward it to the user to set as SL_API_KEY.",
+		"Mint a scoped streams/index read key. Only the metered archive deployment can do this — a self-hosted instance has no account system and returns 404, so on your own instance use the INSTANCE_TOKEN from `secondlayer init` instead. The returned `key` is shown ONCE.",
 		{
 			product: z
 				.enum(["streams", "index"])

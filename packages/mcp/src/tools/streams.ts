@@ -39,7 +39,7 @@ export function registerStreamsTools(
 	}>(
 		server,
 		"streams_events",
-		"List raw chain events from Streams — ONE page per call, newest filters applied server-side. Returns { events, next_cursor, tip, reorgs }. To follow the chain live, poll this tool with `cursor` set to the previous response's `next_cursor` (input is exclusive, so no duplicates); there is no open-stream tool because a tool call cannot hold a connection. ALWAYS narrow with types/contractId/sender/recipient — an unfiltered page is the full firehose and is billed per row. Requires SL_API_KEY.",
+		"List raw chain events from Streams — ONE page per call, newest filters applied server-side. Returns { events, next_cursor, tip, reorgs }. To follow the chain live, poll this tool with `cursor` set to the previous response's `next_cursor` (input is exclusive, so no duplicates); there is no open-stream tool because a tool call cannot hold a connection. ALWAYS narrow with types/contractId/sender/recipient — an unfiltered page is the full firehose.",
 		{
 			cursor: z
 				.string()
@@ -97,7 +97,7 @@ export function registerStreamsTools(
 	defineTool<{ txId: string }>(
 		server,
 		"streams_events_by_tx",
-		"List every event emitted by a single transaction, in emission order. Use it to explain one transaction end to end after finding it in streams_events or the Index. Requires SL_API_KEY.",
+		"List every event emitted by a single transaction, in emission order. Use it to explain one transaction end to end after finding it in streams_events or the Index.",
 		{
 			txId: z.string().describe("Transaction id (0x-prefixed)"),
 		},
@@ -108,7 +108,7 @@ export function registerStreamsTools(
 	defineTool<{ heightOrHash: string | number }>(
 		server,
 		"streams_block_events",
-		"List every event in one block, addressed by block height or block hash. Use it to audit a block a consumer flagged, or to diff what a reorg replaced. Requires SL_API_KEY.",
+		"List every event in one block, addressed by block height or block hash. Use it to audit a block a consumer flagged, or to diff what a reorg replaced.",
 		{
 			heightOrHash: z
 				.union([z.number().int().nonnegative(), z.string()])

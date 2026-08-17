@@ -4,7 +4,7 @@ import { TRAIT_STANDARDS } from "@secondlayer/stacks/clarity";
 import { filterFieldsByType } from "@secondlayer/subgraphs";
 import { TYPE_MAP } from "@secondlayer/subgraphs/schema";
 import type { ColumnType } from "@secondlayer/subgraphs/types";
-import { getClient } from "./lib/client.ts";
+import { getClient, readApiKey } from "./lib/client.ts";
 import { formatSubgraphSummary } from "./lib/format.ts";
 import { getRegisteredToolNames } from "./lib/tool.ts";
 
@@ -118,10 +118,11 @@ export function buildCapabilities() {
 /** Per-product read-auth tiers — what an agent must know before reading. */
 const READ_AUTH_TIERS = {
 	index:
-		"anonymous reads allowed; free-tier API keys are rejected (Build+ required)",
-	streams: "API key required (SL_API_KEY) — keyless calls return 401",
+		"keyless while the API is only reachable on loopback; the instance token is required once it is published past loopback",
+	streams:
+		"keyless while the API is only reachable on loopback; the instance token is required once it is published past loopback",
 	subgraphs:
-		"public subgraphs anon-readable at /v1/subgraphs/<name>/<table> ({ rows, next_cursor, tip } cursor envelope); private subgraphs need the owning account's API key (anon → 404); writes require an API key",
+		"reads at /v1/subgraphs/<name>/<table> ({ rows, next_cursor, tip } cursor envelope) follow the same loopback rule as the other read planes; writes always require the instance token",
 };
 
 type ContextDeps = {
@@ -139,7 +140,7 @@ type ContextDeps = {
 export async function buildContext(
 	deps: ContextDeps = { clientProvider: getClient },
 ) {
-	const unavailable = "unavailable: set SL_API_KEY";
+	const unavailable = "unavailable: set INSTANCE_TOKEN";
 	const orNull = <T>(v: T | null | undefined) => (v == null ? unavailable : v);
 
 	const snap = await deps
@@ -149,7 +150,7 @@ export async function buildContext(
 
 	return {
 		authState: {
-			apiKeySet: Boolean(process.env.SL_API_KEY),
+			apiKeySet: Boolean(readApiKey()),
 		},
 		whatExists: {
 			account: orNull(snap?.account),
