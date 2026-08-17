@@ -19,6 +19,7 @@ import {
 	registerObserverCommand,
 	registerRepairCommand,
 	registerRestoreCommand,
+	registerSetupCommand,
 	registerStartCommand,
 	registerStatusCommand,
 	registerStreamsCommand,
@@ -61,15 +62,19 @@ program.addHelpText(
 	"after",
 	`
 Quickstart:
-  $ secondlayer init --network mainnet
-  $ secondlayer bootstrap --against <manifest>
+  $ secondlayer setup
   $ secondlayer subgraphs create my-watcher --from-contract SP....my-contract
   $ secondlayer subgraphs deploy subgraphs/my-watcher.ts
+
+Manual / scripted setup, one step at a time:
+  $ secondlayer init --network mainnet
+  $ secondlayer bootstrap --against <manifest>
 `,
 );
 
 // Getting started
 program.commandsGroup("Getting started:");
+registerSetupCommand(program);
 registerInitCommand(program);
 registerBootstrapCommand(program);
 registerObserverCommand(program);
