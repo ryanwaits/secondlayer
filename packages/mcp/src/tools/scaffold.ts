@@ -39,8 +39,8 @@ export function registerScaffoldTools(
 ) {
 	defineTool<{ contractId: string; subgraphName?: string }>(
 		server,
-		"scaffold_from_contract",
-		"Generate a subgraph scaffold from a deployed Stacks contract. Fetches the ABI automatically.",
+		"subgraphs_scaffold",
+		"Generate a subgraph scaffold from a deployed Stacks contract. Fetches the ABI automatically. Returns TypeScript source — review it, then pass it to subgraphs_deploy.",
 		{
 			contractId: z
 				.string()

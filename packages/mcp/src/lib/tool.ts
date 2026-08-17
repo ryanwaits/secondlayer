@@ -34,14 +34,6 @@ export function defineTool<T>(
 	description: string,
 	schema: Record<string, unknown>,
 	handler: (args: T) => Promise<ToolResult> | ToolResult,
-	options: {
-		/**
-		 * Pre-rename tool names kept callable for existing agent configs. They
-		 * are registered but NOT added to the capability listing, so a rename
-		 * doesn't advertise two names for one tool.
-		 */
-		aliases?: readonly string[];
-	} = {},
 ): void {
 	const wrappedHandler = async (args: T): Promise<ToolResult> => {
 		try {
@@ -79,12 +71,4 @@ export function defineTool<T>(
 		schema,
 		wrappedHandler,
 	);
-	for (const alias of options.aliases ?? []) {
-		(server.tool as (...args: unknown[]) => unknown)(
-			alias,
-			`Deprecated alias for \`${name}\`. ${description}`,
-			schema,
-			wrappedHandler,
-		);
-	}
 }

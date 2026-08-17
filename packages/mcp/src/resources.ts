@@ -64,12 +64,12 @@ export const COLUMN_TYPES: Array<Record<string, unknown>> = [
 // drift behind the actual surface.
 const PRODUCT_BLURBS: Record<string, string> = {
 	index: "decoded events, transfers, contract calls, blocks, transactions",
-	streams: "bulk parquet dumps of the raw chain event firehose",
+	streams:
+		"raw chain event firehose — cursor-paginated reads, tip/canonical/reorg checks, bulk parquet dumps",
 	contracts: "trait-based contract discovery and ABIs",
-	subgraphs: "author/deploy/query custom indexes",
+	subgraphs: "author/scaffold/deploy/query custom indexes",
 	subscriptions: "webhook delivery on subgraph rows or raw chain events",
 	account: "identity and self-provisioned API keys",
-	scaffold: "generate deploy-ready subgraph code from a deployed contract",
 	codegen: "ORM schemas for the tables you read",
 };
 
@@ -80,7 +80,6 @@ const PRODUCT_ORDER = [
 	"subgraphs",
 	"subscriptions",
 	"account",
-	"scaffold",
 	"codegen",
 ];
 

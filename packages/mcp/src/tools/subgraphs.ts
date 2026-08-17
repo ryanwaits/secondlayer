@@ -29,12 +29,35 @@ export function registerSubgraphTools(
 
 	defineTool<{ name: string }>(
 		server,
-		"subgraphs_get",
+		"subgraphs_status",
 		"Get full details of a subgraph including schema, health, and table columns.",
 		{ name: z.string().describe("Subgraph name") },
 		async ({ name }) => {
-			const detail = await clientProvider().subgraphs.get(name);
+			const detail = await clientProvider().subgraphs.status(name);
 			return jsonResponse(detail);
+		},
+	);
+
+	defineTool<{ name: string; format?: "agent" | "openapi" | "markdown" }>(
+		server,
+		"subgraphs_spec",
+		"Fetch a subgraph's self-describing spec — the tables, columns, filters, and read URLs a consumer needs, without guessing. `agent` (default) returns the compact JSON schema built for tool use, `openapi` the OpenAPI document for the subgraph's read routes, `markdown` human-readable docs. Read it before writing queries against an unfamiliar subgraph.",
+		{
+			name: z.string().describe("Subgraph name"),
+			format: z
+				.enum(["agent", "openapi", "markdown"])
+				.optional()
+				.describe(
+					"agent = JSON schema for tool use (default), openapi = OpenAPI JSON, markdown = docs.md",
+				),
+		},
+		async ({ name, format }) => {
+			const client = clientProvider();
+			if (format === "openapi")
+				return jsonResponse(await client.subgraphs.openapi(name));
+			if (format === "markdown")
+				return textResponse(await client.subgraphs.markdown(name));
+			return jsonResponse(await client.subgraphs.schema(name));
 		},
 	);
 
@@ -118,7 +141,7 @@ export function registerSubgraphTools(
 	defineTool<{ name: string }>(
 		server,
 		"subgraphs_reindex",
-		"Reindex a subgraph: drops and rebuilds the whole subgraph from its start block to chain tip. Takes no block range — use subgraphs_backfill to process a specific range. Returns an operationId — check subgraphs_get (health) or the REST operations endpoint to track progress to completion.",
+		"Reindex a subgraph: drops and rebuilds the whole subgraph from its start block to chain tip. Takes no block range — use subgraphs_backfill to process a specific range. Returns an operationId — check subgraphs_status (health) or the REST operations endpoint to track progress to completion.",
 		{
 			name: z.string().describe("Subgraph name"),
 		},
@@ -131,7 +154,7 @@ export function registerSubgraphTools(
 	defineTool<{ name: string; fromBlock: number; toBlock: number }>(
 		server,
 		"subgraphs_backfill",
-		"Backfill a subgraph over a block range. Non-destructive forward fill (does not drop existing data) — unlike subgraphs_reindex, and the only data-fill path for BYO subgraphs (reindex is blocked there). Both blocks required. Returns an operationId — check subgraphs_get (health) or the REST operations endpoint to track progress.",
+		"Backfill a subgraph over a block range. Non-destructive forward fill (does not drop existing data) — unlike subgraphs_reindex, and the only data-fill path for BYO subgraphs (reindex is blocked there). Both blocks required. Returns an operationId — check subgraphs_status (health) or the REST operations endpoint to track progress.",
 		{
 			name: z.string().describe("Subgraph name"),
 			fromBlock: z
@@ -153,7 +176,7 @@ export function registerSubgraphTools(
 	defineTool<{ name: string }>(
 		server,
 		"subgraphs_stop",
-		"Cancel an in-flight reindex or backfill operation for a subgraph. Returns the stop request status; check subgraphs_get (health) or the REST operations endpoint to confirm it reaches a terminal state.",
+		"Cancel an in-flight reindex or backfill operation for a subgraph. Returns the stop request status; check subgraphs_status (health) or the REST operations endpoint to confirm it reaches a terminal state.",
 		{ name: z.string().describe("Subgraph name") },
 		async ({ name }) => {
 			const result = await clientProvider().subgraphs.stop(name);
@@ -197,6 +220,47 @@ export function registerSubgraphTools(
 			});
 			return jsonResponse(result);
 		},
+	);
+
+	defineTool<{ name: string; operationId?: string }>(
+		server,
+		"subgraphs_operations",
+		"Operation history for a subgraph (deploy/reindex/backfill/stop), newest first — status, block range, progress, and error. THIS IS THE VERIFY CALL: after subgraphs_deploy, subgraphs_reindex, subgraphs_backfill, or subgraphs_stop, poll it with the returned operationId until `status` is terminal (completed/failed/cancelled) before reporting success. Omit operationId for the recent history.",
+		{
+			name: z.string().describe("Subgraph name"),
+			operationId: z
+				.string()
+				.optional()
+				.describe(
+					"Fetch one operation by id (the operationId returned by reindex/backfill/stop); omit for recent history",
+				),
+		},
+		async ({ name, operationId }) => {
+			const client = clientProvider();
+			return jsonResponse(
+				operationId
+					? await client.subgraphs.getOperation(name, operationId)
+					: await client.subgraphs.operations(name),
+			);
+		},
+	);
+
+	defineTool<{ name: string }>(
+		server,
+		"subgraphs_publish",
+		"Publish a subgraph: claims its name in the global public namespace and opens anonymous reads at /v1/subgraphs/<name>/<table>. Returns { name, visibility, url }; 409 PUBLIC_NAME_TAKEN if another account holds the name (rename to publish). Verify with subgraphs_status — it reports visibility. Platform instances only.",
+		{ name: z.string().describe("Subgraph name") },
+		async ({ name }) =>
+			jsonResponse(await clientProvider().subgraphs.publish(name)),
+	);
+
+	defineTool<{ name: string }>(
+		server,
+		"subgraphs_unpublish",
+		"Unpublish a subgraph: releases the public name claim and closes anonymous reads — the subgraph goes back to the owning account's API key. Data is untouched. Verify with subgraphs_status (visibility returns to private). Platform instances only.",
+		{ name: z.string().describe("Subgraph name") },
+		async ({ name }) =>
+			jsonResponse(await clientProvider().subgraphs.unpublish(name)),
 	);
 
 	defineTool<{ name: string }>(

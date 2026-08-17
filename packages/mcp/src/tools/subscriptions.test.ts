@@ -68,6 +68,12 @@ describe("subscription MCP tools", () => {
 			"subscriptions_update",
 			"subscriptions_delete",
 			"subscriptions_test",
+			"subscriptions_pause",
+			"subscriptions_resume",
+			"subscriptions_rotate_secret",
+			"subscriptions_deliveries",
+			"subscriptions_dead",
+			"subscriptions_requeue",
 			"subscriptions_replay",
 		]);
 
@@ -79,6 +85,81 @@ describe("subscription MCP tools", () => {
 		await byName.subscriptions_delete?.({ id: "sub-1" });
 
 		expect(calls).toEqual(["get:sub-1", "test:sub-1", "delete:sub-1"]);
+	});
+
+	it("pauses, resumes, and rotates the signing secret for one subscription", async () => {
+		const tools: RegisteredTool[] = [];
+		const calls: string[] = [];
+		const client = {
+			subscriptions: {
+				pause: async (id: string) => {
+					calls.push(`pause:${id}`);
+					return { id, status: "paused" };
+				},
+				resume: async (id: string) => {
+					calls.push(`resume:${id}`);
+					return { id, status: "active" };
+				},
+				rotateSecret: async (id: string) => {
+					calls.push(`rotate:${id}`);
+					return { signingSecret: "whsec_new" };
+				},
+			},
+		};
+		registerSubscriptionTools(fakeServer(tools), () => client as never);
+		const byName = Object.fromEntries(
+			tools.map((tool) => [tool.name, tool.handler]),
+		);
+
+		const paused = await byName.subscriptions_pause?.({ id: "sub-1" });
+		const resumed = await byName.subscriptions_resume?.({ id: "sub-1" });
+		const rotated = await byName.subscriptions_rotate_secret?.({ id: "sub-1" });
+
+		expect(calls).toEqual(["pause:sub-1", "resume:sub-1", "rotate:sub-1"]);
+		expect(paused?.content[0]?.text).toContain('"status": "paused"');
+		expect(resumed?.content[0]?.text).toContain('"status": "active"');
+		expect(rotated?.content[0]?.text).toContain("whsec_new");
+	});
+
+	it("reads deliveries and the dead-letter queue, then requeues one dead row", async () => {
+		const tools: RegisteredTool[] = [];
+		const calls: string[] = [];
+		const client = {
+			subscriptions: {
+				deliveries: async (id: string) => {
+					calls.push(`deliveries:${id}`);
+					return { data: [{ id: "d1", statusCode: 200, attempt: 1 }] };
+				},
+				dead: async (id: string) => {
+					calls.push(`dead:${id}`);
+					return { data: [{ outboxId: "ob-1", lastError: "timeout" }] };
+				},
+				requeue: async (id: string, outboxId: string) => {
+					calls.push(`requeue:${id}:${outboxId}`);
+					return { ok: true };
+				},
+			},
+		};
+		registerSubscriptionTools(fakeServer(tools), () => client as never);
+		const byName = Object.fromEntries(
+			tools.map((tool) => [tool.name, tool.handler]),
+		);
+
+		const deliveries = await byName.subscriptions_deliveries?.({ id: "sub-1" });
+		const dead = await byName.subscriptions_dead?.({ id: "sub-1" });
+		const requeued = await byName.subscriptions_requeue?.({
+			id: "sub-1",
+			outboxId: "ob-1",
+		});
+
+		expect(calls).toEqual([
+			"deliveries:sub-1",
+			"dead:sub-1",
+			"requeue:sub-1:ob-1",
+		]);
+		expect(deliveries?.content[0]?.text).toContain('"statusCode": 200');
+		expect(dead?.content[0]?.text).toContain("timeout");
+		expect(requeued?.content[0]?.text).toContain('"ok": true');
 	});
 
 	it("forwards authConfig, name (rename), and replay force", async () => {

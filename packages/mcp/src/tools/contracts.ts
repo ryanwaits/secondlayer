@@ -45,7 +45,7 @@ export function registerContractTools(
 	defineTool<{ contractId: string }>(
 		server,
 		"contracts_get_abi",
-		"Fetch a single deployed contract's ABI from the registry (prod-safe). Returns the contract's metadata + full ABI (functions, maps, variables, fungible/non-fungible tokens). Returns not_found if the contract isn't in the registry. Use it to inspect a contract before scaffold_from_contract.",
+		"Fetch a single deployed contract's ABI from the registry (prod-safe). Returns the contract's metadata + full ABI (functions, maps, variables, fungible/non-fungible tokens). Returns not_found if the contract isn't in the registry. Use it to inspect a contract before subgraphs_scaffold.",
 		{
 			contractId: z
 				.string()
@@ -68,9 +68,5 @@ export function registerContractTools(
 						true,
 					);
 		},
-		// Renamed from `get_contract_abi`, which had no product prefix and so
-		// grouped the capability listing under a phantom "get" product. The old
-		// name stays callable for existing agent configs until the major.
-		{ aliases: ["get_contract_abi"] },
 	);
 }

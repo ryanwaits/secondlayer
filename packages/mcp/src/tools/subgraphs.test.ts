@@ -165,6 +165,117 @@ describe("subgraph MCP tools", () => {
 		expect(result.content[0]?.text).toContain('"totalMissingBlocks": 11');
 	});
 
+	it("subgraphs_operations lists history and fetches one operation by id", async () => {
+		const tools: RegisteredTool[] = [];
+		const calls: string[] = [];
+		registerSubgraphTools(
+			fakeServer(tools),
+			() =>
+				({
+					subgraphs: {
+						operations: async (name: string) => {
+							calls.push(`list:${name}`);
+							return {
+								operations: [{ id: "op_1", status: "running" }],
+							};
+						},
+						getOperation: async (name: string, operationId: string) => {
+							calls.push(`get:${name}:${operationId}`);
+							return { id: operationId, status: "completed" };
+						},
+					},
+				}) as never,
+		);
+
+		const operations = tools.find(
+			(tool) => tool.name === "subgraphs_operations",
+		);
+		if (!operations) throw new Error("subgraphs_operations not registered");
+
+		const list = await operations.handler({ name: "dex" });
+		expect(list.isError).toBeUndefined();
+		expect(list.content[0]?.text).toContain('"status": "running"');
+
+		const one = await operations.handler({ name: "dex", operationId: "op_1" });
+		expect(one.content[0]?.text).toContain('"status": "completed"');
+		expect(calls).toEqual(["list:dex", "get:dex:op_1"]);
+	});
+
+	it("subgraphs_spec serves the agent schema by default and switches on format", async () => {
+		const tools: RegisteredTool[] = [];
+		const calls: string[] = [];
+		registerSubgraphTools(
+			fakeServer(tools),
+			() =>
+				({
+					subgraphs: {
+						schema: async (name: string) => {
+							calls.push(`schema:${name}`);
+							return { name, tables: { swaps: { columns: {} } } };
+						},
+						openapi: async (name: string) => {
+							calls.push(`openapi:${name}`);
+							return { openapi: "3.1.0", info: { title: name } };
+						},
+						markdown: async (name: string) => {
+							calls.push(`markdown:${name}`);
+							return `# ${name}`;
+						},
+					},
+				}) as never,
+		);
+
+		const spec = tools.find((tool) => tool.name === "subgraphs_spec");
+		if (!spec) throw new Error("subgraphs_spec not registered");
+
+		const agent = await spec.handler({ name: "dex" });
+		expect(agent.content[0]?.text).toContain('"swaps"');
+
+		const openapi = await spec.handler({ name: "dex", format: "openapi" });
+		expect(openapi.content[0]?.text).toContain('"openapi": "3.1.0"');
+
+		const markdown = await spec.handler({ name: "dex", format: "markdown" });
+		expect(markdown.content[0]?.text).toBe("# dex");
+
+		expect(calls).toEqual(["schema:dex", "openapi:dex", "markdown:dex"]);
+	});
+
+	it("subgraphs_publish and subgraphs_unpublish flip the read surface's visibility", async () => {
+		const tools: RegisteredTool[] = [];
+		const calls: string[] = [];
+		registerSubgraphTools(
+			fakeServer(tools),
+			() =>
+				({
+					subgraphs: {
+						publish: async (name: string) => {
+							calls.push(`publish:${name}`);
+							return {
+								name,
+								visibility: "public",
+								url: `/v1/subgraphs/${name}`,
+							};
+						},
+						unpublish: async (name: string) => {
+							calls.push(`unpublish:${name}`);
+							return { name, visibility: "private" };
+						},
+					},
+				}) as never,
+		);
+
+		const byName = Object.fromEntries(
+			tools.map((tool) => [tool.name, tool.handler]),
+		);
+		const published = await byName.subgraphs_publish?.({ name: "dex" });
+		const unpublished = await byName.subgraphs_unpublish?.({ name: "dex" });
+
+		expect(calls).toEqual(["publish:dex", "unpublish:dex"]);
+		expect(published?.content[0]?.text).toContain('"visibility": "public"');
+		expect(published?.content[0]?.text).toContain("/v1/subgraphs/dex");
+		expect(unpublished?.content[0]?.text).toContain('"visibility": "private"');
+	});
+
 	it("subgraphs_deploy forwards dryRun and returns the DDL preview", async () => {
 		const tools: RegisteredTool[] = [];
 		let captured: Record<string, unknown> | undefined;

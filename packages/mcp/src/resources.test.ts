@@ -223,30 +223,49 @@ const GOLDEN_PATH_TOOLS = [
 	"index_nft_transfers",
 	"index_print_schema",
 	"index_transactions",
-	// contracts / scaffold
+	// contracts
 	"contracts_find",
 	"contracts_get_abi",
-	"scaffold_from_contract",
 	// streams
+	"streams_block_events",
+	"streams_canonical",
 	"streams_dumps",
+	"streams_events",
+	"streams_events_by_tx",
+	"streams_reorgs",
+	"streams_tip",
 	// subgraphs lifecycle
 	"subgraphs_backfill",
 	"subgraphs_delete",
 	"subgraphs_deploy",
 	"subgraphs_gaps",
-	"subgraphs_get",
+	"subgraphs_status",
 	"subgraphs_list",
+	"subgraphs_operations",
+	"subgraphs_publish",
 	"subgraphs_query",
 	"subgraphs_reindex",
+	"subgraphs_scaffold",
+	"subgraphs_spec",
 	"subgraphs_stop",
+	"subgraphs_unpublish",
 	// subscriptions
 	"subscriptions_create",
+	"subscriptions_dead",
+	"subscriptions_deliveries",
 	"subscriptions_delete",
 	"subscriptions_get",
 	"subscriptions_list",
+	"subscriptions_pause",
 	"subscriptions_replay",
+	"subscriptions_requeue",
+	"subscriptions_resume",
+	"subscriptions_rotate_secret",
 	"subscriptions_test",
 	"subscriptions_update",
+	// account
+	"account_create_key",
+	"account_whoami",
 ];
 
 describe("capabilities ↔ tool registry", () => {

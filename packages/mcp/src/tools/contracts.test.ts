@@ -46,12 +46,9 @@ describe("contracts MCP tool", () => {
 				>,
 		);
 
-		// `get_contract_abi` is the pre-rename alias — still callable, so it is
-		// registered, but `contracts_get_abi` is the advertised name.
 		expect(tools.map((t) => t.name).sort()).toEqual([
 			"contracts_find",
 			"contracts_get_abi",
-			"get_contract_abi",
 		]);
 		const res = await tools
 			.find((t) => t.name === "contracts_find")
@@ -63,7 +60,7 @@ describe("contracts MCP tool", () => {
 		expect(res?.content[0]?.text).toContain("SP1.token");
 	});
 
-	it("get_contract_abi fetches a single contract's ABI (includeAbi)", async () => {
+	it("contracts_get_abi fetches a single contract's ABI (includeAbi)", async () => {
 		const tools: RegisteredTool[] = [];
 		let captured: { id: string; opts: unknown } | undefined;
 		const client = {
@@ -82,14 +79,14 @@ describe("contracts MCP tool", () => {
 				>,
 		);
 		const res = await tools
-			.find((t) => t.name === "get_contract_abi")
+			.find((t) => t.name === "contracts_get_abi")
 			?.handler({ contractId: "SP1.token" });
 		expect(captured).toEqual({ id: "SP1.token", opts: { includeAbi: true } });
 		expect(res?.isError).toBeUndefined();
 		expect(res?.content[0]?.text).toContain("abi");
 	});
 
-	it("get_contract_abi → not_found when absent", async () => {
+	it("contracts_get_abi → not_found when absent", async () => {
 		const tools: RegisteredTool[] = [];
 		registerContractTools(
 			fakeServer(tools),
@@ -99,7 +96,7 @@ describe("contracts MCP tool", () => {
 				>,
 		);
 		const res = await tools
-			.find((t) => t.name === "get_contract_abi")
+			.find((t) => t.name === "contracts_get_abi")
 			?.handler({ contractId: "SP1.missing" });
 		expect(res?.isError).toBe(true);
 		expect(res?.content[0]?.text).toContain("not_found");

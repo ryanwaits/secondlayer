@@ -24,7 +24,7 @@ function fakeServer(tools: RegisteredTool[]): McpServer {
 }
 
 describe("scaffold MCP tools", () => {
-	it("registers only scaffold_from_contract and generates source from the registry ABI", async () => {
+	it("registers subgraphs_scaffold and generates source from the registry ABI", async () => {
 		const tools: RegisteredTool[] = [];
 		const client = {
 			contracts: {
@@ -55,10 +55,10 @@ describe("scaffold MCP tools", () => {
 				>,
 		);
 
-		expect(tools.map((t) => t.name)).toEqual(["scaffold_from_contract"]);
+		expect(tools.map((t) => t.name)).toEqual(["subgraphs_scaffold"]);
 
 		const res = await tools
-			.find((t) => t.name === "scaffold_from_contract")
+			.find((t) => t.name === "subgraphs_scaffold")
 			?.handler({ contractId: "SP1.dex" });
 		expect(res?.isError).toBeUndefined();
 		expect(res?.content[0]?.text).toContain("defineSubgraph(");
