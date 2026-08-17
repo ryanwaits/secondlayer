@@ -4,7 +4,7 @@
  * OSS mounts only retained routes. Hosted prefixes 404.
  * Platform keeps both.
  *
- * Four fixture classes:
+ * Five fixture classes:
  *  - HOSTED_ROUTE_FIXTURES — hosted-only surface. Empty since the x402
  *    pay-per-call rail was deleted; kept as a named seam so a future
  *    hosted-only route has somewhere to land.
@@ -17,6 +17,11 @@
  *    deletion scans must treat it as retained.
  *  - RETAINED_ROUTE_FIXTURES — mode-independent surface that stays up
  *    in oss.
+ *  - WORKLOAD_ROUTE_FIXTURES — deploying and executing handler code,
+ *    delivering webhooks, driving the node. Mounted in oss only; 404s in
+ *    platform/archive, where the box serves data and does not run anyone's
+ *    workload. Not a deletion candidate — deletion scans must treat it as
+ *    retained.
  */
 export const HOSTED_ROUTE_FIXTURES = [] as const;
 
@@ -70,7 +75,15 @@ export const RETAINED_ROUTE_FIXTURES = [
 	{ method: "GET", path: "/v1/instance/features" },
 	{ method: "GET", path: "/console" },
 	{ method: "POST", path: "/v1/batch" },
+] as const;
+
+/** Workload surface: deploying and executing handler code, delivering
+ *  webhooks, driving the node. Mounted in oss only — the archive deployment
+ *  serves data and does not run anyone's workload. 404s in platform/archive.
+ *  Not a deletion candidate: deletion scans must treat these as retained. */
+export const WORKLOAD_ROUTE_FIXTURES = [
 	{ method: "GET", path: "/api/subgraphs" },
+	{ method: "POST", path: "/api/subgraphs/bundle" },
 	{ method: "GET", path: "/api/subscriptions" },
 	{ method: "GET", path: "/api/node" },
 ] as const;
