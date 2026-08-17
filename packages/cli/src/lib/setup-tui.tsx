@@ -2,10 +2,11 @@
 import {
 	CliRenderEvents,
 	type SelectOption,
+	type ThemeMode,
 	createCliRenderer,
 } from "@opentui/core";
 import { createRoot, useKeyboard, useRenderer } from "@opentui/react";
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { parseInstanceNetwork } from "./instance-init.ts";
 import { DEFAULT_IMAGE_OWNER, DEFAULT_IMAGE_TAG } from "./oss-compose.ts";
 import {
@@ -28,20 +29,31 @@ import {
  * hands it to the same `runSetup()` the non-interactive path calls. Nothing
  * about what setup DOES is decided in this file.
  *
- * Palette: this repo's DESIGN.md (§ Terminal palette, § Named rules) already
- * defines the terminal identity for the whole brand — window/raise/text-ramp
- * hex values, the Warm-Terminal Rule (text is the warm `#d7d1c9` family, never
- * cool gray), and the One-Accent Rule (teal is the terminal's one accent —
- * "prompt arrows, links" — sunset orange is spent elsewhere and never reused
- * here). This file reuses those values exactly; it does not invent its own.
- * States DESIGN.md doesn't name (select/focus/pending/skipped) extend its
- * stated logic rather than picking new hues: teal for anything interactive or
- * in motion, muted for anything waiting, the documented semantic colors for
- * done/error, each with the documented 8%-alpha treatment where it reads as a
- * background rather than decoration.
+ * Palette: this repo's DESIGN.md (§ Terminal palette, § Named rules, §
+ * Structural neutrals, and the light/dark crosswalk table) already defines
+ * the terminal identity for the whole brand, in both themes — this file
+ * reuses those values exactly; it does not invent its own.
+ *
+ * Dark: window/raise/text-ramp hex values, the Warm-Terminal Rule (text is
+ * the warm `#d7d1c9` family, never cool gray), and the One-Accent Rule (teal
+ * is the terminal's one accent — "prompt arrows, links" — sunset orange is
+ * spent elsewhere and never reused here).
+ *
+ * Light: this is a REAL terminal (an operator's own emulator), not the
+ * marketing site's fixed-dark decorative one, so it has to answer to the
+ * operator's actual theme — DESIGN.md's crosswalk table says as much
+ * ("a light-theme editor surface is white, not #151515") and gives the exact
+ * mapping: `--term-bg` (light) = paper `#ffffff`, `--term-fg` (light) =
+ * `ink-hover #1f2228` (not plain `ink` — that's reserved for the brighter,
+ * more emphatic tone here, mirroring how dark's `bright` is brighter than
+ * its `fg`). Borders on light surfaces are documented as `ink` at 8–10%
+ * alpha, explicitly NOT `dove` ("dove is for scrollbar thumbs and inputs").
+ * Teal stays the one accent in both themes — it's this tool's own identity,
+ * not something that should flip with the operator's terminal background;
+ * stated here as a deliberate choice, not an oversight.
  */
 
-const colors = {
+const DARK_COLORS = {
 	bg: "#151515",
 	raise: "#202020",
 	fg: "#d7d1c9",
@@ -59,6 +71,48 @@ const colors = {
 	successBg: "#22c55e14",
 	errorBg: "#ef444414",
 } as const;
+
+const LIGHT_COLORS = {
+	bg: "#ffffff", // paper
+	raise: "#f8f6f2", // card
+	fg: "#1f2228", // ink-hover — DESIGN.md's documented light --term-fg
+	muted: "#7d8288", // fog — general secondary/UI text
+	bright: "#0a0a0a", // ink — more emphatic than ink-hover, mirrors dark's ramp
+	accent: "#29c6be", // same teal — this tool's identity, not theme-bound
+	success: "#22c55e",
+	warning: "#eab308",
+	error: "#ef4444",
+	// ink/8% — "borders on light surfaces prefer ink/8–ink/10 alpha over dove"
+	borderIdle: "#0A0A0A14",
+	successBg: "#22c55e14",
+	errorBg: "#ef444414",
+} as const;
+
+type Palette = Record<keyof typeof DARK_COLORS, string>;
+
+const ColorsContext = createContext<Palette>(DARK_COLORS);
+
+/** OpenTUI queries the real terminal's OSC 10/11 colors and classifies the
+ *  result — this is the operator's actual theme, not an inference. Falls
+ *  back to dark (DESIGN.md's default terminal identity) until the query
+ *  resolves or if the terminal never answers it. */
+function useTerminalThemeMode(): ThemeMode {
+	const renderer = useRenderer();
+	const [mode, setMode] = useState<ThemeMode>(renderer.themeMode ?? "dark");
+	useEffect(() => {
+		let cancelled = false;
+		renderer.waitForThemeMode(500).then((resolved) => {
+			if (!cancelled && resolved) setMode(resolved);
+		});
+		const onThemeMode = (next: ThemeMode) => setMode(next);
+		renderer.on(CliRenderEvents.THEME_MODE, onThemeMode);
+		return () => {
+			cancelled = true;
+			renderer.off(CliRenderEvents.THEME_MODE, onThemeMode);
+		};
+	}, [renderer]);
+	return mode;
+}
 
 type Stage =
 	| "welcome"
@@ -139,6 +193,8 @@ function useSpinner(active: boolean): string {
 
 function App({ flags }: { flags: SetupFlags }) {
 	const renderer = useRenderer();
+	const themeMode = useTerminalThemeMode();
+	const colors = themeMode === "light" ? LIGHT_COLORS : DARK_COLORS;
 	const [stage, setStage] = useState<Stage>("welcome");
 	const [network, setNetwork] = useState<
 		ResolvedSetupConfig["network"] | undefined
@@ -263,92 +319,94 @@ function App({ flags }: { flags: SetupFlags }) {
 	}, [stage, config]);
 
 	return (
-		<box
-			style={{
-				border: true,
-				borderStyle: "single",
-				borderColor: colors.borderIdle,
-				backgroundColor: colors.bg,
-				padding: 1,
-			}}
-			title="secondlayer setup"
-		>
-			<box style={{ flexDirection: "column" }}>
-				{stage === "welcome" && <Welcome />}
-				{stage === "network" && (
-					<Picker
-						title="Network"
-						options={NETWORK_OPTIONS}
-						onSelect={(value) => afterNetwork(parseInstanceNetwork(value))}
-					/>
-				)}
-				{stage === "nodeMode" && (
-					<Picker
-						title="Node mode"
-						options={NODE_MODE_OPTIONS}
-						subtitle={formatFloor(preview)}
-						onChange={(value) =>
-							setPreview(
-								guardrailPreview(
-									parseSetupNodeMode(value),
-									network ?? "mainnet",
-								),
-							)
-						}
-						onSelect={(value) => afterNodeMode(parseSetupNodeMode(value))}
-					/>
-				)}
-				{stage === "manifestChoice" && (
-					<Picker
-						title="Bootstrap from"
-						options={[
-							{
-								name: "Hosted archive (recommended)",
-								description: DEFAULT_ARCHIVE_MANIFEST,
-								value: "hosted",
-							},
-							{
-								name: "Custom manifest URL or path",
-								description: "Enter your own",
-								value: "custom",
-							},
-							{
-								name: "Sync from genesis",
-								description: "Skip bootstrap — slower, no download",
-								value: "skip",
-							},
-						]}
-						onSelect={(value) => {
-							if (value === "hosted") {
-								setAgainst(DEFAULT_ARCHIVE_MANIFEST);
-								setStage("confirm");
-							} else if (value === "skip") {
-								setSkipBootstrap(true);
-								setStage("confirm");
-							} else {
-								setStage("manifestInput");
+		<ColorsContext.Provider value={colors}>
+			<box
+				style={{
+					border: true,
+					borderStyle: "single",
+					borderColor: colors.borderIdle,
+					backgroundColor: colors.bg,
+					padding: 1,
+				}}
+				title="secondlayer setup"
+			>
+				<box style={{ flexDirection: "column" }}>
+					{stage === "welcome" && <Welcome />}
+					{stage === "network" && (
+						<Picker
+							title="Network"
+							options={NETWORK_OPTIONS}
+							onSelect={(value) => afterNetwork(parseInstanceNetwork(value))}
+						/>
+					)}
+					{stage === "nodeMode" && (
+						<Picker
+							title="Node mode"
+							options={NODE_MODE_OPTIONS}
+							subtitle={formatFloor(preview)}
+							onChange={(value) =>
+								setPreview(
+									guardrailPreview(
+										parseSetupNodeMode(value),
+										network ?? "mainnet",
+									),
+								)
 							}
-						}}
-					/>
-				)}
-				{stage === "manifestInput" && (
-					<ManifestInput
-						onSubmit={(value) => {
-							setAgainst(value.trim() || DEFAULT_ARCHIVE_MANIFEST);
-							setStage("confirm");
-						}}
-					/>
-				)}
-				{stage === "confirm" && config && (
-					<Confirm config={config} onConfirm={() => setStage("running")} />
-				)}
-				{stage === "running" && <RunningView events={events} log={log} />}
-				{stage === "done" && summary && <Done summary={summary} />}
-				{stage === "error" && (
-					<ErrorView message={fatal ?? "Setup failed."} log={log} />
-				)}
+							onSelect={(value) => afterNodeMode(parseSetupNodeMode(value))}
+						/>
+					)}
+					{stage === "manifestChoice" && (
+						<Picker
+							title="Bootstrap from"
+							options={[
+								{
+									name: "Hosted archive (recommended)",
+									description: DEFAULT_ARCHIVE_MANIFEST,
+									value: "hosted",
+								},
+								{
+									name: "Custom manifest URL or path",
+									description: "Enter your own",
+									value: "custom",
+								},
+								{
+									name: "Sync from genesis",
+									description: "Skip bootstrap — slower, no download",
+									value: "skip",
+								},
+							]}
+							onSelect={(value) => {
+								if (value === "hosted") {
+									setAgainst(DEFAULT_ARCHIVE_MANIFEST);
+									setStage("confirm");
+								} else if (value === "skip") {
+									setSkipBootstrap(true);
+									setStage("confirm");
+								} else {
+									setStage("manifestInput");
+								}
+							}}
+						/>
+					)}
+					{stage === "manifestInput" && (
+						<ManifestInput
+							onSubmit={(value) => {
+								setAgainst(value.trim() || DEFAULT_ARCHIVE_MANIFEST);
+								setStage("confirm");
+							}}
+						/>
+					)}
+					{stage === "confirm" && config && (
+						<Confirm config={config} onConfirm={() => setStage("running")} />
+					)}
+					{stage === "running" && <RunningView events={events} log={log} />}
+					{stage === "done" && summary && <Done summary={summary} />}
+					{stage === "error" && (
+						<ErrorView message={fatal ?? "Setup failed."} log={log} />
+					)}
+				</box>
 			</box>
-		</box>
+		</ColorsContext.Provider>
 	);
 }
 
@@ -375,6 +433,7 @@ function safeParseNodeMode(
 }
 
 function Welcome() {
+	const colors = useContext(ColorsContext);
 	return (
 		<box style={{ flexDirection: "column" }}>
 			<text fg={colors.bright}>Guided self-host setup.</text>
@@ -401,6 +460,7 @@ function Picker({
 	onChange?: (value: string) => void;
 	onSelect: (value: string) => void;
 }) {
+	const colors = useContext(ColorsContext);
 	return (
 		<box style={{ flexDirection: "column" }}>
 			<text fg={colors.bright}>{title}</text>
@@ -431,6 +491,7 @@ function Picker({
 }
 
 function ManifestInput({ onSubmit }: { onSubmit: (value: string) => void }) {
+	const colors = useContext(ColorsContext);
 	return (
 		<box style={{ flexDirection: "column" }}>
 			<text fg={colors.bright}>Manifest URL or local path</text>
@@ -457,6 +518,7 @@ function Confirm({
 	config: ResolvedSetupConfig;
 	onConfirm: () => void;
 }) {
+	const colors = useContext(ColorsContext);
 	useKeyboard((key) => {
 		if (key.eventType === "release") return;
 		if (key.name === "return") onConfirm();
@@ -491,6 +553,7 @@ const STEP_LABEL: Record<SetupStep, string> = {
 const STEP_ORDER = Object.keys(STEP_LABEL) as SetupStep[];
 
 function RunningView({ events, log }: { events: SetupEvent[]; log: string[] }) {
+	const colors = useContext(ColorsContext);
 	const latestByStep = new Map<SetupStep, SetupEvent>();
 	for (const e of events) latestByStep.set(e.step, e);
 
@@ -560,6 +623,7 @@ function RunningView({ events, log }: { events: SetupEvent[]; log: string[] }) {
 }
 
 function Done({ summary }: { summary: string }) {
+	const colors = useContext(ColorsContext);
 	return (
 		<box style={{ flexDirection: "column" }}>
 			<box style={{ backgroundColor: colors.successBg, padding: 1 }}>
@@ -571,6 +635,7 @@ function Done({ summary }: { summary: string }) {
 }
 
 function ErrorView({ message, log }: { message: string; log: string[] }) {
+	const colors = useContext(ColorsContext);
 	return (
 		<box style={{ flexDirection: "column" }}>
 			<box style={{ backgroundColor: colors.errorBg, padding: 1 }}>
