@@ -60,7 +60,7 @@ Usage: `secondlayer setup [--network mainnet|testnet|devnet] [--node-mode extern
 | Flag | Default | Description |
 | --- | --- | --- |
 | `--network <network>` | none — required | `mainnet`, `testnet`, or `devnet`. No safe default: different disk floors, irreversible-ish choice. |
-| `--node-mode <mode>` | none — required | `external` (you run the Stacks node), `stacks` (bundled node, public Bitcoin), or `full` (bundled node + bitcoind). |
+| `--node-mode <mode>` | none — required | `external` (you run the Stacks node) or `stacks` (same — no bundled bitcoind, no bundled-stacks-only compose profile), or `full` (bundled Stacks node + bitcoind). |
 | `--api-port <spec>` | `127.0.0.1:3800` | API publish spec, matching `docker/oss/docker-compose.yml`'s default. |
 | `--dir <path>` | cwd | Target directory for `docker-compose.yml` and `.env`. |
 | `--against <manifest>` | suggested: `https://archive.secondlayer.tools/latest.json` | Archive manifest to bootstrap from. Required unless `--skip-bootstrap`. |

@@ -148,7 +148,7 @@ export function parseRuntimeConfig(
 	}
 	if (mode === "stacks" && env.BITCOIN_RPC_PASSWORD) {
 		errors.push(
-			"NODE_MODE=stacks uses public Bitcoin; drop BITCOIN_RPC_PASSWORD",
+			"NODE_MODE=stacks runs no bundled bitcoind; drop BITCOIN_RPC_PASSWORD",
 		);
 	}
 

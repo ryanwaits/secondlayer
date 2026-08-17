@@ -28,12 +28,12 @@ export function registerStartCommand(program: Command): void {
 				});
 				process.exit(1);
 			}
+			// NODE_MODE=stacks adds no profile: there is no bundled-stacks-only
+			// compose profile (a bundled stacks-node needs Bitcoin data from
+			// somewhere, and this compose doesn't wire a public RPC default for
+			// it), so `stacks` means "bring your own node," same as `external`.
 			const extra =
-				parsed.config.NODE_MODE === "full"
-					? " --profile full-node"
-					: parsed.config.NODE_MODE === "stacks"
-						? " --profile stacks-node"
-						: "";
+				parsed.config.NODE_MODE === "full" ? " --profile full-node" : "";
 			const cmd = `docker compose -f docker/oss/docker-compose.yml${extra} up -d`;
 			if (opts.print) {
 				console.log(cmd);

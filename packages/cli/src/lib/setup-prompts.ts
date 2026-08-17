@@ -47,7 +47,8 @@ const NODE_MODE_DESCRIPTIONS: Record<
 > = {
 	external:
 		"You run the Stacks node; paste an observer stanza into its Config.toml.",
-	stacks: "Bundled Stacks node, public Bitcoin.",
+	stacks:
+		"You run the Stacks node yourself, no bundled bitcoind (same as external).",
 	full: "Bundled Stacks node + bitcoind.",
 };
 

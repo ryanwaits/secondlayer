@@ -371,7 +371,10 @@ export async function writeSetupFiles(
 
 	const result: WrittenSetupFiles = { composePath, envPath };
 
-	if (config.nodeMode === "stacks" || config.nodeMode === "full") {
+	// `full` only: no compose profile mounts Config.toml for `stacks` mode
+	// anymore — see `composeProfileArgs` — so writing one for it would be
+	// dead output nothing reads.
+	if (config.nodeMode === "full") {
 		const configTomlPath = join(config.dir, "Config.toml");
 		await writeFile(
 			configTomlPath,
@@ -397,11 +400,18 @@ export async function writeSetupFiles(
 // Step 4: docker compose up
 // ---------------------------------------------------------------------------
 
-/** `--profile` flag for the chosen node mode — mirrors how `start.ts` derives
- *  it from NODE_MODE. `external` adds nothing (default profile only). */
+/**
+ * `--profile` flag for the chosen node mode — mirrors how `start.ts` derives
+ * it from NODE_MODE. `external` adds nothing (default profile only).
+ *
+ * `stacks` also adds nothing: there is no bundled-stacks-node-only compose
+ * profile (a stacks-node needs Bitcoin data from somewhere, and this compose
+ * doesn't wire a public RPC default) — `NODE_MODE=stacks` means "I run my
+ * own stacks-node, no bundled bitcoind," same as `external` at the compose
+ * level. Only `full` bundles a node (stacks-node + bitcoind together).
+ */
 export function composeProfileArgs(nodeMode: NodeMode): string[] {
 	if (nodeMode === "full") return ["--profile", "full-node"];
-	if (nodeMode === "stacks") return ["--profile", "stacks-node"];
 	return [];
 }
 

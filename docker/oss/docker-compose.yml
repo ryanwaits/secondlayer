@@ -5,9 +5,12 @@
 #   docker compose up -d
 #
 # Optional chain:
-#   docker compose --profile stacks-node up -d    # bundled stacks-node + public Bitcoin
 #   docker compose --profile full-node up -d      # bundled stacks-node + bitcoind
 #   docker compose --profile console up -d        # web console UI on :3801
+#
+# There is no bundled-stacks-node-only profile: a stacks-node needs Bitcoin
+# data from somewhere, and we don't wire a public RPC default for it — the
+# only bundled node option is full-node (stacks-node + bitcoind together).
 #
 # Multi-service split (legacy): docker-compose.split.yml
 
@@ -165,7 +168,13 @@ services:
       - "20444:20444"
     restart: unless-stopped
     command: ["stacks-node", "start", "--config", "/stacks-blockchain/Config.toml"]
-    profiles: ["stacks-node", "full-node"]
+    # full-node only: a bundled stacks-node needs Bitcoin data from
+    # somewhere, and the only source this compose wires up is the bundled
+    # bitcoind below (also full-node-only). A standalone "stacks-node,
+    # public Bitcoin" profile used to exist here but never pointed the
+    # node's Config.toml at any real public Bitcoin RPC — every operator
+    # who ran it got a container that couldn't sync.
+    profiles: ["full-node"]
 
 volumes:
   postgres_data:

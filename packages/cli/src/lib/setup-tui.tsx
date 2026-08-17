@@ -56,7 +56,7 @@ const NODE_MODE_OPTIONS = SETUP_NODE_MODES.map((mode) => ({
 		mode === "external"
 			? "You run the Stacks node; paste an observer stanza into its Config.toml."
 			: mode === "stacks"
-				? "Bundled Stacks node, public Bitcoin."
+				? "You run the Stacks node yourself, no bundled bitcoind (same as external — no bundled-stacks-only profile exists)."
 				: "Bundled Stacks node + bitcoind.",
 	value: mode,
 }));

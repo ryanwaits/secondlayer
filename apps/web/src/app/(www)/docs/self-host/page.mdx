@@ -53,15 +53,13 @@ No Hiro-REST backfill. Run a node, bundle one, or restore from the [archive](/do
 | Profile | What runs |
 | --- | --- |
 | default | `postgres` + `secondlayer` (API, ingest, decoder, subgraph, webhooks) |
-| `stacks-node` | + bundled Stacks, public Bitcoin |
-| `full-node` | + bundled Stacks and bitcoind |
+| `full-node` | + bundled Stacks node and bitcoind |
 
 ```bash
-docker compose --profile stacks-node up -d
 docker compose --profile full-node up -d
 ```
 
-`NODE_MODE` is `external` | `stacks` | `full`. `full` needs `BITCOIN_RPC_PASSWORD`.
+`NODE_MODE` is `external` | `stacks` | `full`. `full` needs `BITCOIN_RPC_PASSWORD` and runs the `full-node` profile above. `stacks` behaves like `external` — bring your own Stacks node — there's no bundled-stacks-only profile, since a bundled node needs Bitcoin data from somewhere and we don't wire a public RPC default for it.
 
 ## Config
 

@@ -133,8 +133,13 @@ describe("composeProfileArgs", () => {
 	test("external adds no profile flag", () => {
 		expect(composeProfileArgs("external")).toEqual([]);
 	});
-	test("stacks and full add their bundled-node profiles", () => {
-		expect(composeProfileArgs("stacks")).toEqual(["--profile", "stacks-node"]);
+	test("stacks also adds no profile flag — no bundled-stacks-only profile exists", () => {
+		// There is nothing to wire a bundled stacks-node's Bitcoin data from
+		// without also bundling bitcoind, so `stacks` behaves like `external`
+		// at the compose level: bring your own node.
+		expect(composeProfileArgs("stacks")).toEqual([]);
+	});
+	test("full adds its bundled-node (stacks-node + bitcoind) profile", () => {
 		expect(composeProfileArgs("full")).toEqual(["--profile", "full-node"]);
 	});
 });
@@ -218,7 +223,10 @@ describe("writeSetupFiles", () => {
 		expect(files.configTomlPath).toBeUndefined();
 	});
 
-	test("bundled node modes also write Config.toml (and bitcoin.conf for full)", async () => {
+	test("stacks mode writes no bundled-node files — no compose profile mounts them", async () => {
+		// `stacks` behaves like `external` at the compose level (see
+		// composeProfileArgs): no profile bundles a stacks-node for it, so
+		// writing a Config.toml nothing will ever read would be dead output.
 		const dir = tmpDir();
 		const stacksConfig = resolveNonInteractiveConfig({
 			network: "mainnet",
@@ -233,9 +241,11 @@ describe("writeSetupFiles", () => {
 			force: false,
 		});
 		const stacksFiles = await writeSetupFiles(stacksConfig, stacksSecrets);
-		expect(stacksFiles.configTomlPath).toBeDefined();
+		expect(stacksFiles.configTomlPath).toBeUndefined();
 		expect(stacksFiles.bitcoinConfPath).toBeUndefined();
+	});
 
+	test("full mode writes both Config.toml and bitcoin.conf", async () => {
 		const fullDir = tmpDir();
 		const fullConfig = resolveNonInteractiveConfig({
 			network: "mainnet",

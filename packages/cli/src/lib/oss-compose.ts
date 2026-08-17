@@ -177,7 +177,10 @@ services:
       - "20444:20444"
     restart: unless-stopped
     command: ["stacks-node", "start", "--config", "/stacks-blockchain/Config.toml"]
-    profiles: ["stacks-node", "full-node"]
+    # full-node only — see docker/oss/docker-compose.yml. No standalone
+    # "stacks-node, public Bitcoin" profile: nothing here wires the node at
+    # a real public Bitcoin RPC, so that combination never actually synced.
+    profiles: ["full-node"]
 
 volumes:
   postgres_data:
