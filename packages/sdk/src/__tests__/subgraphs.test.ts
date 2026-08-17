@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { ApiError } from "../errors.ts";
 import { Subgraphs } from "../subgraphs/client.ts";
 
 const BASE_URL = "http://localhost:3800";
@@ -215,67 +214,13 @@ describe("Subgraphs", () => {
 		);
 	});
 
-	test("publish POSTs to the visibility endpoint and returns the anon url", async () => {
-		globalThis.fetch = mockFetch({
-			ok: true,
-			status: 200,
-			body: {
-				name: "my-subgraph",
-				visibility: "public",
-				url: "/v1/subgraphs/my-subgraph",
-			},
-		});
-
-		const result = await subgraphs.publish("my-subgraph");
-
-		expect(result).toEqual({
-			name: "my-subgraph",
-			visibility: "public",
-			url: "/v1/subgraphs/my-subgraph",
-		});
-		const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
-		const [calledUrl, calledOpts] = fetchMock.mock.calls[0] as [
-			string,
-			RequestInit,
-		];
-		expect(calledUrl).toBe(`${BASE_URL}/api/subgraphs/my-subgraph/publish`);
-		expect(calledOpts.method).toBe("POST");
-	});
-
-	test("unpublish POSTs to the visibility endpoint", async () => {
-		globalThis.fetch = mockFetch({
-			ok: true,
-			status: 200,
-			body: { name: "my-subgraph", visibility: "private" },
-		});
-
-		const result = await subgraphs.unpublish("my-subgraph");
-
-		expect(result).toEqual({ name: "my-subgraph", visibility: "private" });
-		const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
-		const [calledUrl, calledOpts] = fetchMock.mock.calls[0] as [
-			string,
-			RequestInit,
-		];
-		expect(calledUrl).toBe(`${BASE_URL}/api/subgraphs/my-subgraph/unpublish`);
-		expect(calledOpts.method).toBe("POST");
-	});
-
-	test("publish surfaces a taken public name as an ApiError with its code", async () => {
-		globalThis.fetch = mockFetch({
-			ok: false,
-			status: 409,
-			body: {
-				error: 'Public name "my-subgraph" is already taken.',
-				code: "PUBLIC_NAME_TAKEN",
-			},
-		});
-
-		const error = await subgraphs.publish("my-subgraph").catch((err) => err);
-
-		expect(error).toBeInstanceOf(ApiError);
-		expect((error as ApiError).status).toBe(409);
-		expect((error as ApiError).code).toBe("PUBLIC_NAME_TAKEN");
+	// Publishing claimed a subgraph name in a hosted global namespace. A
+	// self-hosted instance has no such namespace, so the verb was removed
+	// rather than shimmed — it must not come back on the client.
+	test("the public-namespace claim verbs are gone from the client", () => {
+		const client = subgraphs as unknown as Record<string, unknown>;
+		expect(client.publish).toBeUndefined();
+		expect(client.unpublish).toBeUndefined();
 	});
 
 	test("status reads the same detail endpoint as get", async () => {

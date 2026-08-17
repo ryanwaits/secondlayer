@@ -46,8 +46,8 @@ describe("CLI help snapshot", () => {
 		expect(subgraphsHelp).not.toMatch(/^\s+cancel\b/m);
 		expect(subgraphsHelp).toMatch(/^\s+operations\b/m);
 		expect(subgraphsHelp).toMatch(/^\s+source\b/m);
-		expect(subgraphsHelp).toMatch(/^\s+publish\b/m);
-		expect(subgraphsHelp).toMatch(/^\s+unpublish\b/m);
+		expect(subgraphsHelp).not.toMatch(/^\s+publish\b/m);
+		expect(subgraphsHelp).not.toMatch(/^\s+unpublish\b/m);
 
 		const streamsHelp =
 			program.commands.find((c) => c.name() === "streams")?.helpInformation() ??
@@ -70,6 +70,8 @@ describe("CLI help snapshot", () => {
 		expect(names("subgraphs")).not.toContain("cancel");
 		expect(names("subgraphs")).not.toContain("codegen");
 		expect(names("subgraphs")).not.toContain("client");
+		expect(names("subgraphs")).not.toContain("publish");
+		expect(names("subgraphs")).not.toContain("unpublish");
 		expect(names("streams")).not.toContain("pull");
 		expect(names("index")).not.toContain("codegen");
 		expect(program.commands.map((c) => c.name())).not.toContain("contracts");

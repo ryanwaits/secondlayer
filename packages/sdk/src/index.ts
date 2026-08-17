@@ -123,11 +123,7 @@ export type {
 	TransactionsWalkParams,
 } from "./index-api/index.ts";
 export { Subgraphs, getSubgraph } from "./subgraphs/index.ts";
-export type {
-	SubgraphOperationStatus,
-	SubgraphPublishResult,
-	SubgraphUnpublishResult,
-} from "./subgraphs/client.ts";
+export type { SubgraphOperationStatus } from "./subgraphs/client.ts";
 export type {
 	SubgraphAgentSchema,
 	SubgraphSpecFormat,

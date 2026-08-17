@@ -34,9 +34,9 @@ describe("route manifest", () => {
 	});
 
 	// Gate-g Slice D removed this surface from the codebase entirely: it must
-	// never resolve in ANY mode. Auth-gated prefixes (/api/accounts/*, the
-	// key-mandatory /v1/streams/*) 401 in middleware before routing, so "not
-	// mounted" means 401-or-404 — never a success.
+	// never resolve in ANY mode. Auth-gated prefixes (/api/accounts/*, and any
+	// /v1 path once the bind is public) 401 in middleware before routing, so
+	// "not mounted" means 401-or-404 — never a success.
 	test("deleted Slice D routes are gone in both modes", async () => {
 		for (const mode of ["oss", "platform"] as const) {
 			process.env.INSTANCE_MODE = mode;

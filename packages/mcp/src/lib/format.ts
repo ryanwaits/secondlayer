@@ -4,22 +4,12 @@ export function formatSubgraphSummary(s: {
 	status: string;
 	tables: string[] | Record<string, unknown>;
 	lastProcessedBlock: number;
-	visibility?: "public" | "private";
 }) {
-	const apiUrl =
-		process.env.SECONDLAYER_API_URL ||
-		process.env.SL_API_URL ||
-		"http://127.0.0.1:3800";
 	return {
 		name: s.name,
 		status: s.status,
 		tables: Array.isArray(s.tables) ? s.tables : Object.keys(s.tables),
 		lastProcessedBlock: s.lastProcessedBlock,
-		...(s.visibility ? { visibility: s.visibility } : {}),
-		// Public subgraphs are anon-readable — surface the shareable /v1 URL.
-		...(s.visibility === "public"
-			? { publicUrl: `${apiUrl}/v1/subgraphs/${s.name}` }
-			: {}),
 	};
 }
 

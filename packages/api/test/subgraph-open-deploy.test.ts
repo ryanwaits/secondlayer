@@ -12,9 +12,9 @@ import subgraphsRouter, {
 /**
  * Deploys are open on every instance — authorization never consults a plan,
  * trial, or quota. A bare platform-mode account (accounts carry no plan
- * column at all) deploys from genesis, backfills history, and flips to
- * private without hitting any commerce gate. The only metered surface is
- * archive-data access, which lives elsewhere.
+ * column at all) deploys from genesis and backfills history without hitting
+ * any commerce gate. The only metered surface is archive-data access, which
+ * lives elsewhere.
  */
 
 const SKIP = !process.env.DATABASE_URL;
@@ -131,12 +131,15 @@ describe.skipIf(SKIP)("open deploy (platform, no plan gates)", () => {
 		expect(body.code).not.toBe("PLAN_REQUIRED");
 	});
 
-	test("private visibility needs no plan", async () => {
-		const res = await app.request(`/subgraphs/${NAME}/unpublish`, {
-			method: "POST",
-		});
-		expect(res.status).toBe(200);
-		const body = (await res.json()) as { visibility: string };
-		expect(body.visibility).toBe("private");
+	// Publishing claimed a name in a hosted global namespace, which a
+	// self-hosted instance does not have. The routes were deleted, so they
+	// must 404 rather than answer — in every mode, forever.
+	test("the public-namespace claim routes are gone", async () => {
+		for (const verb of ["publish", "unpublish"]) {
+			const res = await app.request(`/subgraphs/${NAME}/${verb}`, {
+				method: "POST",
+			});
+			expect(res.status, verb).toBe(404);
+		}
 	});
 });

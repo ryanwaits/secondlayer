@@ -32,13 +32,6 @@ export type SubgraphSourceResponse = Awaited<
 	ReturnType<Subgraphs["getSource"]>
 >;
 
-/** Public-namespace state after a publish/unpublish. `url` is set on publish. */
-export interface SubgraphVisibilityResponse {
-	name: string;
-	visibility: "public" | "private";
-	url?: string;
-}
-
 /** Map an HTTP status to an actionable next-step hint, when one is obvious. */
 function nextStepHint(status: number | undefined): string | undefined {
 	if (status === undefined) return undefined;
@@ -232,18 +225,6 @@ export async function getSubgraphSourceApi(
 	name: string,
 ): Promise<SubgraphSourceResponse> {
 	return (await getPlatformClient()).subgraphs.getSource(name);
-}
-
-export async function publishSubgraphApi(
-	name: string,
-): Promise<SubgraphVisibilityResponse> {
-	return (await getPlatformClient()).subgraphs.publish(name);
-}
-
-export async function unpublishSubgraphApi(
-	name: string,
-): Promise<SubgraphVisibilityResponse> {
-	return (await getPlatformClient()).subgraphs.unpublish(name);
 }
 
 // ── Index ───────────────────────────────────────────────────────────────

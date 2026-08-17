@@ -15,11 +15,6 @@ export interface DeploySubgraphRequest {
 	sourceCode?: string;
 	/** Validate the definition + print the DDL plan without deploying. */
 	dryRun?: boolean;
-	/**
-	 * Read visibility. Server-side default: deploys → public (anon reads on
-	 * /v1/subgraphs, name claimed in the global public namespace).
-	 */
-	visibility?: "public" | "private";
 }
 
 export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> =
@@ -44,14 +39,12 @@ export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> =
 			.max(1_048_576, "source code exceeds 1MB limit")
 			.optional(),
 		dryRun: z.boolean().optional(),
-		visibility: z.enum(["public", "private"]).optional(),
 	});
 
 export interface DeploySubgraphResponse {
 	action: "created" | "unchanged" | "handler_updated" | "updated" | "reindexed";
 	subgraphId: string;
 	version: string;
-	visibility?: "public" | "private";
 	message: string;
 	/** Effective indexing start height. */
 	start_block?: number;

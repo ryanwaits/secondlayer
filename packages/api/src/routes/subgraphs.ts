@@ -25,11 +25,9 @@ import {
 	waitForSubgraphOperationsClear,
 } from "@secondlayer/shared/db/queries/subgraph-operations";
 import {
-	findPublicSubgraphByName,
 	getSubgraph,
 	listSubgraphs,
 	updateSubgraphStatus,
-	updateSubgraphVisibility,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import {
@@ -494,26 +492,6 @@ export async function runSubgraphDeploy(
 	const existing = await getSubgraph(db, name, accountId);
 	const schemaName = deploySchemaName(name, accountId, existing?.schema_name);
 
-	// Visibility is a hosted concern. OSS names are unique locally and
-	// always readable — skip the public-name claim check.
-	const desiredVisibility = isPlatformMode()
-		? (parsed.data.visibility ?? (existing ? undefined : "public"))
-		: undefined;
-	if (isPlatformMode()) {
-		if (desiredVisibility === "public" && existing?.visibility !== "public") {
-			const claimed = await findPublicSubgraphByName(db, name);
-			if (claimed && claimed.account_id !== (accountId ?? "")) {
-				return c.json(
-					{
-						error: `Public name "${name}" is already taken. Pick another name or deploy with visibility "private".`,
-						code: "PUBLIC_NAME_TAKEN",
-					},
-					409,
-				);
-			}
-		}
-	}
-
 	const deployStartBlock = resolveDeployStartBlock(def);
 	if (chainTip > 0 && deployStartBlock > chainTip) {
 		return c.json(
@@ -580,31 +558,6 @@ export async function runSubgraphDeploy(
 		sourceCode: parsed.data.sourceCode,
 		forceReindex: parsed.data.startBlock !== undefined || startBlockChanged,
 	});
-
-	if (desiredVisibility && desiredVisibility !== existing?.visibility) {
-		try {
-			await updateSubgraphVisibility(
-				db,
-				name,
-				accountId ?? "",
-				desiredVisibility,
-			);
-		} catch (err) {
-			// Race on the partial unique index: another account claimed the public
-			// name between our check and this write. Deploy itself succeeded —
-			// surface the conflict, leave the subgraph private.
-			if (/subgraphs_public_name_uidx/.test(getErrorMessage(err))) {
-				return c.json(
-					{
-						error: `Deployed, but public name "${name}" was just claimed by another account. The subgraph is private; rename to go public.`,
-						code: "PUBLIC_NAME_TAKEN",
-					},
-					409,
-				);
-			}
-			throw err;
-		}
-	}
 
 	await cache.refresh();
 
@@ -715,7 +668,6 @@ export async function runSubgraphDeploy(
 			action: result.action,
 			subgraphId: result.subgraphId,
 			version: result.version,
-			visibility: desiredVisibility ?? existing?.visibility ?? "private",
 			start_block: deployStartBlock,
 			...(tipFirstHistory
 				? { live_from: tipFirstAnchor, history: tipFirstHistory }
@@ -817,93 +769,6 @@ app.post("/bundle", async (c) => {
 		logger.warn("Subgraph bundle failed", { origin, error: message });
 		return c.json({ ok: false, error: message, code: "BUNDLE_FAILED" }, 400);
 	}
-});
-
-// ── Visibility (publish / unpublish) ──────────────────────────────────
-
-// Publish = claim the name in the global public namespace + open anon reads
-// on /v1/subgraphs/:name. Unpublish releases the claim; reads fall back to
-// the owning account's bearer key.
-app.post("/:subgraphName/publish", async (c) => {
-	if (!isPlatformMode()) {
-		return c.json(
-			{
-				error: "This instance has no public namespace.",
-				code: "NOT_SUPPORTED",
-			},
-			404,
-		);
-	}
-	const { subgraphName } = c.req.param();
-	const accountId = getAccountId(c);
-	const subgraph = getOwnedSubgraph(subgraphName, accountId);
-	const db = getDb();
-
-	if (subgraph.visibility !== "public") {
-		const claimed = await findPublicSubgraphByName(db, subgraphName);
-		if (claimed && claimed.account_id !== subgraph.account_id) {
-			return c.json(
-				{
-					error: `Public name "${subgraphName}" is already taken. Rename the subgraph to publish it.`,
-					code: "PUBLIC_NAME_TAKEN",
-				},
-				409,
-			);
-		}
-		try {
-			await updateSubgraphVisibility(
-				db,
-				subgraphName,
-				subgraph.account_id,
-				"public",
-			);
-		} catch (err) {
-			if (/subgraphs_public_name_uidx/.test(getErrorMessage(err))) {
-				return c.json(
-					{
-						error: `Public name "${subgraphName}" was just claimed by another account.`,
-						code: "PUBLIC_NAME_TAKEN",
-					},
-					409,
-				);
-			}
-			throw err;
-		}
-		await cache.refresh();
-	}
-
-	return c.json({
-		name: subgraphName,
-		visibility: "public",
-		url: `/v1/subgraphs/${subgraphName}`,
-	});
-});
-
-app.post("/:subgraphName/unpublish", async (c) => {
-	if (!isPlatformMode()) {
-		return c.json(
-			{
-				error: "This instance has no public namespace.",
-				code: "NOT_SUPPORTED",
-			},
-			404,
-		);
-	}
-	const { subgraphName } = c.req.param();
-	const accountId = getAccountId(c);
-	const subgraph = getOwnedSubgraph(subgraphName, accountId);
-
-	if (subgraph.visibility !== "private") {
-		await updateSubgraphVisibility(
-			getDb(),
-			subgraphName,
-			subgraph.account_id,
-			"private",
-		);
-		await cache.refresh();
-	}
-
-	return c.json({ name: subgraphName, visibility: "private" });
 });
 
 // ── Reindex / backfill operations ─────────────────────────────────────

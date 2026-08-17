@@ -242,13 +242,11 @@ const GOLDEN_PATH_TOOLS = [
 	"subgraphs_status",
 	"subgraphs_list",
 	"subgraphs_operations",
-	"subgraphs_publish",
 	"subgraphs_query",
 	"subgraphs_reindex",
 	"subgraphs_scaffold",
 	"subgraphs_spec",
 	"subgraphs_stop",
-	"subgraphs_unpublish",
 	// subscriptions
 	"subscriptions_create",
 	"subscriptions_dead",

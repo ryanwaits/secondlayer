@@ -19,7 +19,7 @@ export function registerSubgraphTools(
 	defineTool<Record<string, never>>(
 		server,
 		"subgraphs_list",
-		"List all deployed subgraphs. Returns summary fields only, including visibility — public subgraphs are anon-readable at /v1/subgraphs/<name>.",
+		"List all deployed subgraphs. Returns summary fields only; read rows with subgraphs_query.",
 		{},
 		async () => {
 			const { data } = await clientProvider().subgraphs.list();
@@ -243,24 +243,6 @@ export function registerSubgraphTools(
 					: await client.subgraphs.operations(name),
 			);
 		},
-	);
-
-	defineTool<{ name: string }>(
-		server,
-		"subgraphs_publish",
-		"Publish a subgraph: claims its name in the global public namespace and opens anonymous reads at /v1/subgraphs/<name>/<table>. Returns { name, visibility, url }; 409 PUBLIC_NAME_TAKEN if another account holds the name (rename to publish). Verify with subgraphs_status — it reports visibility. Platform instances only.",
-		{ name: z.string().describe("Subgraph name") },
-		async ({ name }) =>
-			jsonResponse(await clientProvider().subgraphs.publish(name)),
-	);
-
-	defineTool<{ name: string }>(
-		server,
-		"subgraphs_unpublish",
-		"Unpublish a subgraph: releases the public name claim and closes anonymous reads — the subgraph goes back to the owning account's API key. Data is untouched. Verify with subgraphs_status (visibility returns to private). Platform instances only.",
-		{ name: z.string().describe("Subgraph name") },
-		async ({ name }) =>
-			jsonResponse(await clientProvider().subgraphs.unpublish(name)),
 	);
 
 	defineTool<{ name: string }>(

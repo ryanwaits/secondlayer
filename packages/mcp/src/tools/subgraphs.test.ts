@@ -240,40 +240,18 @@ describe("subgraph MCP tools", () => {
 		expect(calls).toEqual(["schema:dex", "openapi:dex", "markdown:dex"]);
 	});
 
-	it("subgraphs_publish and subgraphs_unpublish flip the read surface's visibility", async () => {
+	// Publishing claimed a subgraph name in a hosted global namespace. A
+	// self-hosted instance has no such namespace, so the tools were deleted
+	// rather than left answering NOT_SUPPORTED — an agent should not see a
+	// verb it can never use.
+	it("registers no public-namespace tools", () => {
 		const tools: RegisteredTool[] = [];
-		const calls: string[] = [];
-		registerSubgraphTools(
-			fakeServer(tools),
-			() =>
-				({
-					subgraphs: {
-						publish: async (name: string) => {
-							calls.push(`publish:${name}`);
-							return {
-								name,
-								visibility: "public",
-								url: `/v1/subgraphs/${name}`,
-							};
-						},
-						unpublish: async (name: string) => {
-							calls.push(`unpublish:${name}`);
-							return { name, visibility: "private" };
-						},
-					},
-				}) as never,
-		);
+		registerSubgraphTools(fakeServer(tools), () => ({}) as never);
 
-		const byName = Object.fromEntries(
-			tools.map((tool) => [tool.name, tool.handler]),
-		);
-		const published = await byName.subgraphs_publish?.({ name: "dex" });
-		const unpublished = await byName.subgraphs_unpublish?.({ name: "dex" });
-
-		expect(calls).toEqual(["publish:dex", "unpublish:dex"]);
-		expect(published?.content[0]?.text).toContain('"visibility": "public"');
-		expect(published?.content[0]?.text).toContain("/v1/subgraphs/dex");
-		expect(unpublished?.content[0]?.text).toContain('"visibility": "private"');
+		const names = tools.map((tool) => tool.name);
+		expect(names).not.toContain("subgraphs_publish");
+		expect(names).not.toContain("subgraphs_unpublish");
+		expect(names.join(" ")).not.toContain("visibility");
 	});
 
 	it("subgraphs_deploy forwards dryRun and returns the DDL preview", async () => {

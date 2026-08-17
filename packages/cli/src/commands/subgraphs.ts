@@ -16,7 +16,7 @@ import {
 import type { SubgraphDetail } from "@secondlayer/shared/schemas";
 import { TRAIT_STANDARDS } from "@secondlayer/stacks/clarity";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
-import { type Command, Option } from "commander";
+import type { Command } from "commander";
 import { generateSubgraphScaffold } from "../generators/subgraph-scaffold.ts";
 import { generateSubgraphConsumer } from "../generators/subgraphs.ts";
 import {
@@ -34,12 +34,10 @@ import {
 	handleApiError,
 	listSubgraphOperationsApi,
 	listSubgraphsApi,
-	publishSubgraphApi,
 	querySubgraphTable,
 	querySubgraphTableCount,
 	reindexSubgraphApi,
 	stopSubgraphApi,
-	unpublishSubgraphApi,
 } from "../lib/api-client.ts";
 import type {
 	SubgraphOperationStatus,
@@ -65,7 +63,7 @@ import {
 	yellow,
 } from "../lib/output.ts";
 import { requireAuth } from "../lib/require-auth.ts";
-import { isOssMode } from "../lib/resolve-auth.ts";
+import { isOssMode, resolveApiUrl } from "../lib/resolve-auth.ts";
 import { resolveAuth } from "../lib/resolve-auth.ts";
 import { parseApiResponse } from "../parsers/clarity.ts";
 import { generateSubgraphStarter } from "../templates/subgraph.ts";
@@ -142,14 +140,6 @@ export function parseStartBlockOption(value?: string): number | undefined {
 		throw new Error("--start-block must be a safe integer");
 	}
 	return parsed;
-}
-
-export function parseVisibilityOption(
-	value?: string,
-): "public" | "private" | undefined {
-	if (value === undefined) return undefined;
-	if (value === "public" || value === "private") return value;
-	throw new Error('--visibility must be "public" or "private"');
 }
 
 export interface PinnedPrintSource {
@@ -932,12 +922,6 @@ Examples:
 			"--strict",
 			"Run `tsc --noEmit` against the handler before deploy (slower; catches TS type errors)",
 		)
-		.addOption(
-			new Option(
-				"--visibility <visibility>",
-				"Hosted only. Public/private namespace.",
-			).hideHelp(),
-		)
 		.option(
 			"--allow-uncommitted",
 			"Deploy even though the source file is not committed to git (the deployed definition will exist only in the database)",
@@ -951,7 +935,6 @@ Examples:
 					dryRun?: boolean;
 					yes?: boolean;
 					strict?: boolean;
-					visibility?: string;
 					allowUncommitted?: boolean;
 				},
 			) => {
@@ -998,7 +981,6 @@ Examples:
 						await requireAuth();
 					}
 					const dryRun = options.dryRun;
-					const visibility = parseVisibilityOption(options.visibility);
 					const startBlock = parseStartBlockOption(options.startBlock);
 					if (startBlock !== undefined) {
 						warn(
@@ -1127,7 +1109,6 @@ Examples:
 							...(deployStartBlock !== undefined
 								? { startBlock: deployStartBlock }
 								: {}),
-							...(visibility ? { visibility } : {}),
 						});
 
 						// Advisory deploy lints (e.g. handler reads a print field never
@@ -1138,15 +1119,7 @@ Examples:
 							try {
 								const { apiUrl } = await resolveAuth();
 								const firstTable = Object.keys(effectiveDef.schema ?? {})[0];
-								const isPublic = result.visibility === "public";
-								if (isPublic && firstTable) {
-									info(
-										`  Read:      ${apiUrl}/v1/subgraphs/${effectiveDef.name}/${firstTable}`,
-									);
-									info(
-										`  Share:     ${apiUrl}/v1/subgraphs/${effectiveDef.name} (public — no key needed)`,
-									);
-								} else if (firstTable) {
+								if (firstTable) {
 									info(
 										`  REST:      ${apiUrl}/api/subgraphs/${effectiveDef.name}/${firstTable}`,
 									);
@@ -1451,9 +1424,10 @@ Examples:
 			) => {
 				try {
 					const format = parseSubgraphSpecFormat(options.format);
-					const specOptions = options.server
-						? { serverUrl: options.server }
-						: undefined;
+					// Without this the spec advertises the shared default rather
+					// than the instance the CLI is pointed at, so a generated
+					// client silently talks to the wrong host.
+					const specOptions = { serverUrl: options.server ?? resolveApiUrl() };
 					const absPath = resolve(nameOrFile);
 					// A `.ts` argument is unambiguously a local file — if it's
 					// missing, fail clearly rather than treating the path as a
@@ -1773,57 +1747,6 @@ Examples:
 				}
 			},
 		);
-
-	// --- publish / unpublish ---
-	subgraphs
-		.command("publish <name>")
-		.description(
-			"Claim the public name and open anonymous /v1 reads for a subgraph",
-		)
-		.addHelpText(
-			"after",
-			`
-Publishing claims <name> in the global public namespace — anyone can read the
-subgraph's tables without a key. Names are first-come; a taken name has to be
-renamed before it can be published. Hosted platform only.
-
-Examples:
-  $ secondlayer subgraphs publish my-graph
-  $ secondlayer subgraphs unpublish my-graph   # take it private again`,
-		)
-		.action(async (name: string) => {
-			try {
-				const result = await publishSubgraphApi(name);
-				success(`Subgraph "${result.name}" is public`);
-				const { apiUrl } = await resolveAuth();
-				info(
-					`  Read: ${apiUrl}${result.url ?? `/v1/subgraphs/${result.name}`}`,
-				);
-			} catch (err) {
-				handleApiError(err, "publish subgraph");
-			}
-		});
-
-	subgraphs
-		.command("unpublish <name>")
-		.description("Release the public name and restrict reads to your API key")
-		.addHelpText(
-			"after",
-			`
-Rows are untouched — only anonymous access goes away, and the public name is
-released for anyone else to claim.
-
-Examples:
-  $ secondlayer subgraphs unpublish my-graph`,
-		)
-		.action(async (name: string) => {
-			try {
-				const result = await unpublishSubgraphApi(name);
-				success(`Subgraph "${result.name}" is private — key required to read`);
-			} catch (err) {
-				handleApiError(err, "unpublish subgraph");
-			}
-		});
 
 	// --- gaps ---
 	subgraphs

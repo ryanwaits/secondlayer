@@ -9,7 +9,8 @@
  *    pay-per-call rail was deleted; kept as a named seam so a future
  *    hosted-only route has somewhere to land.
  *  - DELETED_ROUTE_FIXTURES — hosted-control surface removed by gate-g
- *    Slice D, plus the x402 rail. Must 404 in EVERY mode, forever —
+ *    Slice D, plus the x402 rail and the subgraph public-namespace
+ *    (publish/unpublish) claim. Must 404 in EVERY mode, forever —
  *    reappearance is a regression.
  *  - RETAINED_METER_ROUTE_FIXTURES — the kept metered-archive account
  *    surface (gate-g manifest §1/§3). Mounted only in platform/archive
@@ -44,6 +45,10 @@ export const DELETED_ROUTE_FIXTURES = [
 	{ method: "GET", path: "/v1/streams/usage" },
 	{ method: "POST", path: "/api/auth/claim" },
 	{ method: "POST", path: "/api/auth/claim/verify" },
+	// Publishing claimed a name in a hosted global namespace. Self-hosted
+	// instances have no such namespace, so the verb has nothing to mean.
+	{ method: "POST", path: "/api/subgraphs/:subgraphName/publish" },
+	{ method: "POST", path: "/api/subgraphs/:subgraphName/unpublish" },
 ] as const;
 
 /** Kept meter surface (manifest §3): auth, credits billing, checkout,

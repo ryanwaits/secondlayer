@@ -21,19 +21,10 @@ import {
 	ormFlagsConflictingWithPayloads,
 	parseStartBlockOption,
 	parseSubgraphSpecFormat,
-	parseVisibilityOption,
 	registerSubgraphsCommand,
 } from "../src/commands/subgraphs.ts";
 
 describe("subgraphs command helpers", () => {
-	it("parses deploy --visibility as public|private", () => {
-		expect(parseVisibilityOption()).toBeUndefined();
-		expect(parseVisibilityOption("public")).toBe("public");
-		expect(parseVisibilityOption("private")).toBe("private");
-		expect(() => parseVisibilityOption("Public")).toThrow();
-		expect(() => parseVisibilityOption("open")).toThrow();
-	});
-
 	it("parses deploy --start-block as a nonnegative integer", () => {
 		expect(parseStartBlockOption()).toBeUndefined();
 		expect(parseStartBlockOption("0")).toBe(0);
@@ -296,12 +287,23 @@ describe("subgraphs command surface", () => {
 		return subgraphs.commands;
 	};
 
-	it("exposes the operation, source, and visibility verbs", () => {
+	it("exposes the operation and source verbs", () => {
 		const names = subcommands().map((c) => c.name());
 		expect(names).toContain("operations");
 		expect(names).toContain("source");
-		expect(names).toContain("publish");
-		expect(names).toContain("unpublish");
+	});
+
+	// Publishing claimed a name in a hosted global namespace; a self-hosted
+	// instance has no such namespace. The verbs were deleted, not deprecated.
+	it("no longer registers the public-namespace verbs", () => {
+		const names = subcommands().flatMap((c) => [c.name(), ...c.aliases()]);
+		expect(names).not.toContain("publish");
+		expect(names).not.toContain("unpublish");
+	});
+
+	it("no longer accepts --visibility on deploy", () => {
+		const deploy = subcommands().find((c) => c.name() === "deploy");
+		expect(deploy?.options.map((o) => o.long)).not.toContain("--visibility");
 	});
 
 	it("takes an optional operation id for a single operation", () => {
