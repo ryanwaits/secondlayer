@@ -22,20 +22,27 @@ export function registerObserverCommand(program: Command): void {
 			"--recovery <source>",
 			"Required for signer-shared: journal or archive",
 		)
-		.option(
-			"--network <network>",
-			"mainnet, testnet, or devnet",
-			process.env.STACKS_NETWORK ?? "mainnet",
+		// --network is deliberately NOT declared here — see the identical note
+		// in commands/init.ts: it collides with cli.ts's global `--network`,
+		// which silently wins and leaves a command-local option `undefined`.
+		// Read the global preAction hook's STACKS_NETWORK instead.
+		.addHelpText(
+			"after",
+			`
+--network <mainnet|testnet|devnet> is the top-level global flag (see
+\`secondlayer --help\`) — default mainnet, same as before.
+`,
 		)
 		.action(
 			(opts: {
 				mode: string;
 				endpoint?: string;
-				network: string;
 				recovery?: string;
 			}) => {
 				const mode = parseObserverMode(opts.mode);
-				const network = parseInstanceNetwork(opts.network);
+				const network = parseInstanceNetwork(
+					process.env.STACKS_NETWORK ?? "mainnet",
+				);
 				const endpoint = opts.endpoint ?? defaultObserverEndpoint(network);
 				const recovery = opts.recovery
 					? parseRecoverySource(opts.recovery)

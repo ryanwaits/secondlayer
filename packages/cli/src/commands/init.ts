@@ -14,15 +14,27 @@ export function registerInitCommand(program: Command): void {
 		.description(
 			"Write local env (token, secrets key, webhook signing key). Idempotent.",
 		)
-		.option(
-			"--network <network>",
-			"mainnet, testnet, or devnet",
-			process.env.STACKS_NETWORK ?? "mainnet",
-		)
+		// --network is deliberately NOT declared here: cli.ts already registers
+		// a global `--network <network>` on `program`, and Commander resolves a
+		// repeated flag onto the ancestor that declared it first — a second,
+		// command-local `--network` would silently receive `undefined` instead
+		// of the value the operator passed, and fall back to this option's own
+		// default every time (that was happening here). The global `preAction`
+		// hook writes the parsed value to STACKS_NETWORK before this action
+		// runs; read it from there instead. Same fix `commands/setup.ts` uses.
 		.option("--api-url <url>", "Local API URL", "http://127.0.0.1:3800")
 		.option("--force", "Overwrite generated values even if .env.local exists")
-		.action((opts: { network: string; apiUrl: string; force?: boolean }) => {
-			const network = parseInstanceNetwork(opts.network);
+		.addHelpText(
+			"after",
+			`
+--network <mainnet|testnet|devnet> is the top-level global flag (see
+\`secondlayer --help\`) — default mainnet, same as before.
+`,
+		)
+		.action((opts: { apiUrl: string; force?: boolean }) => {
+			const network = parseInstanceNetwork(
+				process.env.STACKS_NETWORK ?? "mainnet",
+			);
 			const existing = opts.force ? {} : loadExistingInstanceEnv(process.cwd());
 			const env = buildInstanceEnv({
 				network,
