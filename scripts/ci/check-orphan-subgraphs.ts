@@ -1,27 +1,29 @@
 #!/usr/bin/env bun
 /**
- * Orphan-subgraph guard — fails when a deployed first-party subgraph has no
- * committed source in this repo.
+ * Orphan-subgraph guard — fails when the archive box is running any
+ * first-party subgraph at all.
  *
- * It has happened twice: `contract-deployments` (recovered, see
- * plans/archive/chore-f058-commit-orphan-subgraph-source.md) and
- * `asset-holdings` (found orphaned 2026-08-02, 28,028 rows, source only ever
- * lived as two database columns). Without a check this is invisible until
- * someone happens to look.
+ * The Hetzner box publishes an archive and serves data; it does not run
+ * anyone's workload. Any first-party subgraph deployed there is itself the
+ * anomaly, whatever its source — the repo-root `subgraphs/` tree that used
+ * to hold first-party source was retired 2026-08-15 (STRATEGY.md:87-89), and
+ * first-party subgraphs no longer belong on this box under any form.
  *
  * The `subgraphs` table holds every subgraph, including customer/tenant
- * ones — those legitimately have no source here. Scope is limited to the
- * first-party `account_id` (see FIRST_PARTY_ACCOUNT_ID below), never to
- * `visibility` alone, since a customer can publish a public subgraph too.
+ * ones — those legitimately run elsewhere and are out of scope here. Scope
+ * is limited to the first-party `account_id` (see FIRST_PARTY_ACCOUNT_ID
+ * below), never to `visibility` alone, since a customer can publish a public
+ * subgraph too.
  *
  * `subgraphs` is a control-plane table (packages/shared/migrations/0075_...),
  * so under the source/target DB split it lives on TARGET, not SOURCE — see
  * packages/shared/src/db/migration-role.ts:1-23.
  *
  * What fails vs. what merely notices:
- *   - Deployed first-party subgraph with no committed source → fail.
- *   - Committed source with no deployed counterpart → notice (probably just
- *     written but not deployed yet).
+ *   - Any deployed first-party subgraph → fail. (This is a detector, not a
+ *     control — sec-f081 is what makes deploying one impossible through the
+ *     API. This guard also catches one created some other way, e.g. a
+ *     direct DB insert or an ops script.)
  *   - No DB connection string configured → notice + skip, NOT a failure.
  *     This is deliberate: the scheduled workflow lands green before the
  *     PLATFORM_DATABASE_URL secret exists, and starts doing real work the
@@ -34,8 +36,7 @@
  * reach prod Postgres directly — CI populates the file via an SSH step
  * against the deploy host instead (see orphan-subgraph-guard.yml).
  */
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
 
 const NAMES_FILE = process.env.ORPHAN_DEPLOYED_NAMES_FILE || "";
 const DB_URL =
@@ -43,28 +44,8 @@ const DB_URL =
 const FIRST_PARTY_ACCOUNT_ID =
 	process.env.FIRST_PARTY_ACCOUNT_ID || "005f2b11-9fb0-4dda-aef4-a80428426d9d";
 
-const SUBGRAPHS_DIR = join(import.meta.dir, "..", "..", "subgraphs");
-
 const failures: string[] = [];
 const notices: string[] = [];
-
-function committedSubgraphFiles(dir: string): string[] {
-	return readdirSync(dir).filter(
-		(f) => f.endsWith(".ts") && !f.endsWith(".test.ts"),
-	);
-}
-
-function isCovered(
-	deployedName: string,
-	files: string[],
-	dir: string,
-): boolean {
-	if (files.includes(`${deployedName}.ts`)) return true;
-	const pattern = new RegExp(
-		`name:\\s*["']${deployedName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["']`,
-	);
-	return files.some((f) => pattern.test(readFileSync(join(dir, f), "utf8")));
-}
 
 /** Reads names from ORPHAN_DEPLOYED_NAMES_FILE (one per line, blanks
  *  dropped). Bypasses the DB entirely — used when CI populates the file
@@ -115,24 +96,10 @@ async function checkOrphanSubgraphs(): Promise<void> {
 		return;
 	}
 
-	const files = committedSubgraphFiles(SUBGRAPHS_DIR);
-
-	for (const name of deployedNames) {
-		if (!isCovered(name, files, SUBGRAPHS_DIR)) {
-			failures.push(
-				`${name}: deployed but no committed source. Recover with: echo "SELECT source_code FROM subgraphs WHERE name='${name}';" | psql "$TARGET_DATABASE_URL" > subgraphs/${name}.ts`,
-			);
-		}
-	}
-
-	const deployedSet = new Set(deployedNames);
-	for (const file of files) {
-		const contents = readFileSync(join(SUBGRAPHS_DIR, file), "utf8");
-		const match = contents.match(/name:\s*["']([^"']+)["']/);
-		const declaredName = match ? match[1] : file.replace(/\.ts$/, "");
-		if (!deployedSet.has(declaredName)) {
-			notices.push(`${file}: committed but not deployed (no matching row)`);
-		}
+	if (deployedNames.length > 0) {
+		failures.push(
+			`archive deployment is running ${deployedNames.length} first-party subgraph(s): ${deployedNames.join(", ")}. The archive box publishes data; it does not run workloads. Move these to a self-hosted instance or delete them.`,
+		);
 	}
 
 	console.log(

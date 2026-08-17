@@ -1,4 +1,4 @@
-name: Orphan Subgraph Guard
+name: Archive No-Workload Guard
 
 on:
   workflow_dispatch:
@@ -46,7 +46,7 @@ jobs:
           ssh -i "$KEYFILE" -o StrictHostKeyChecking=accept-new "root@${DEPLOY_HOST}" \
             "docker exec -i secondlayer-postgres-platform-1 psql -U secondlayer -d secondlayer_platform -tAc \"SELECT name FROM subgraphs WHERE account_id='${FIRST_PARTY_ACCOUNT_ID}' ORDER BY name\"" \
             > /tmp/deployed-names.txt
-      - name: Check for orphaned subgraph sources
+      - name: Check archive box runs no first-party subgraphs
         env:
           ORPHAN_DEPLOYED_NAMES_FILE: /tmp/deployed-names.txt
           FIRST_PARTY_ACCOUNT_ID: ${{ vars.FIRST_PARTY_ACCOUNT_ID }}
