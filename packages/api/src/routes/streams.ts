@@ -142,14 +142,14 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 						"Raw event firehose. Cursor-paginated. Returns events[], next_cursor, tip, reorgs[].",
 					event_types: DECODED_EVENT_TYPES,
 					filters: STREAMS_EVENTS_FILTER_SPEC,
-					auth: "bearer (Build+ tier)",
+					auth: "bearer required, metered per row",
 				},
 				{
 					path: "/v1/streams/reorgs",
 					method: "GET",
 					description: "Chain reorg history. since=<iso|cursor>.",
 					filters: ["since", "limit"],
-					auth: "bearer (Build+ tier)",
+					auth: "bearer required, metered per row",
 				},
 				{
 					path: "/v1/streams/canonical/:height",

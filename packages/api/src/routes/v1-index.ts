@@ -45,7 +45,7 @@ const HOSTED_SURFACES = [
 		path: "/v1/streams",
 		description:
 			"Raw, ordered, cursor-paginated firehose with reorg awareness.",
-		auth: "bearer required (Build+ tier)",
+		auth: "bearer required, metered per row",
 	},
 	{
 		name: "subgraphs",
