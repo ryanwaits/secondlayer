@@ -12,7 +12,7 @@ export async function validateSubscriptionTargetFromApi(
 		filter?: Record<string, unknown>;
 	},
 ): Promise<void> {
-	const subgraph = await client.subgraphs.get(input.subgraphName);
+	const subgraph = await client.subgraphs.status(input.subgraphName);
 	const errors = validateSubscriptionFilterForTable({
 		subgraphName: input.subgraphName,
 		tableName: input.tableName,

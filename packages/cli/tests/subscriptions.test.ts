@@ -259,7 +259,7 @@ describe("subscriptions command helpers", () => {
 	it("rejects schema-aware filter mistakes before create/update", async () => {
 		const client = {
 			subgraphs: {
-				get: async () => ({
+				status: async () => ({
 					tables: {
 						transfers: {
 							columns: {

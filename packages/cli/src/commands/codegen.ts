@@ -1,20 +1,13 @@
 import type { Command } from "commander";
-import { warn } from "../lib/output.ts";
 
 /**
  * `secondlayer codegen …` — the one place code is generated.
  *
- * There used to be six entry points under three verbs (`secondlayer contracts
- * generate`, `secondlayer subgraphs codegen`, `secondlayer index codegen`, `secondlayer subgraphs
- * scaffold`, `secondlayer subgraphs create --from-contract`, `secondlayer subgraphs client`),
- * with the SAME flag carrying opposite defaults: `secondlayer subgraphs codegen -o
- * db.ts` wrote Prisma while the muscle-memory-identical `secondlayer index codegen -o
- * db.ts` wrote Kysely. There was no mental model for "generate something".
- *
- * Every subcommand here takes `-o/--output` and, where an ORM applies, the
- * same `--target` with the same default (`kysely`). The old paths keep
- * working as hidden aliases (with their original defaults, so existing
- * scripts don't silently change output) until the next major.
+ * Code generation used to be spread across six per-product entry points under
+ * three verbs, with the SAME flag carrying opposite ORM defaults depending on
+ * which one you reached for. There was no mental model for "generate
+ * something". Every subcommand here takes `-o/--output` and, where an ORM
+ * applies, the same `--target` with the same default (`kysely`).
  */
 export function registerCodegenCommand(program: Command): void {
 	const codegen = program
@@ -105,14 +98,4 @@ export function registerCodegenCommand(program: Command): void {
 			const { runPayloadsCodegen } = await import("./subgraphs.ts");
 			await runPayloadsCodegen(file, options.output);
 		});
-}
-
-/** One-line notice printed by a deprecated codegen path. */
-export function deprecatedCodegenNotice(
-	oldPath: string,
-	newPath: string,
-): void {
-	warn(
-		`\`${oldPath}\` is deprecated — use \`${newPath}\`. (The new verb defaults --target to kysely everywhere; this alias keeps its original default so your output does not change.)`,
-	);
 }

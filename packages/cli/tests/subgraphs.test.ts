@@ -9,15 +9,20 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { Command } from "commander";
 import {
 	collectPinnedPrintSources,
 	createSubgraphDeployPreview,
 	ensureScaffoldPackageJson,
+	formatOperationProgress,
+	formatOperationRange,
 	installScaffoldDependencies,
+	operationDetailPairs,
 	ormFlagsConflictingWithPayloads,
 	parseStartBlockOption,
 	parseSubgraphSpecFormat,
 	parseVisibilityOption,
+	registerSubgraphsCommand,
 } from "../src/commands/subgraphs.ts";
 
 describe("subgraphs command helpers", () => {
@@ -233,5 +238,82 @@ exit 42
 
 		expect(result).toBe("skipped");
 		expect(called).toBe(false);
+	});
+
+	it("labels an unbounded operation range as the whole subgraph", () => {
+		expect(formatOperationRange({ fromBlock: null, toBlock: null })).toBe(
+			"whole subgraph",
+		);
+		expect(formatOperationRange({ fromBlock: 100, toBlock: 200 })).toBe(
+			"100 → 200",
+		);
+		expect(formatOperationRange({ fromBlock: 100, toBlock: null })).toBe(
+			"100 → tip",
+		);
+	});
+
+	it("shows an unknown operation progress as a dash, never 0%", () => {
+		expect(formatOperationProgress(null)).toBe("—");
+		expect(formatOperationProgress(0)).toBe("0.0%");
+		expect(formatOperationProgress(0.4237)).toBe("42.4%");
+		expect(formatOperationProgress(1)).toBe("100.0%");
+	});
+
+	it("surfaces the failure reason in a single operation view", () => {
+		const pairs = operationDetailPairs({
+			id: "op-1",
+			subgraphName: "my-graph",
+			kind: "backfill",
+			status: "failed",
+			fromBlock: 10,
+			toBlock: 20,
+			processedBlocks: 5,
+			progress: 0.5,
+			error: "handler threw",
+			startedAt: "2026-08-16T00:00:00.000Z",
+			finishedAt: null,
+			createdAt: "2026-08-16T00:00:00.000Z",
+			updatedAt: "2026-08-16T00:00:01.000Z",
+		});
+		expect(Object.fromEntries(pairs)).toMatchObject({
+			ID: "op-1",
+			Kind: "backfill",
+			Status: "failed",
+			Range: "10 → 20",
+			Progress: "50.0%",
+			Error: "handler threw",
+			Finished: "—",
+		});
+	});
+});
+
+describe("subgraphs command surface", () => {
+	const subcommands = () => {
+		const program = new Command();
+		registerSubgraphsCommand(program);
+		const subgraphs = program.commands.find((c) => c.name() === "subgraphs");
+		if (!subgraphs) throw new Error("subgraphs command not registered");
+		return subgraphs.commands;
+	};
+
+	it("exposes the operation, source, and visibility verbs", () => {
+		const names = subcommands().map((c) => c.name());
+		expect(names).toContain("operations");
+		expect(names).toContain("source");
+		expect(names).toContain("publish");
+		expect(names).toContain("unpublish");
+	});
+
+	it("takes an optional operation id for a single operation", () => {
+		const operations = subcommands().find((c) => c.name() === "operations");
+		expect(operations?.usage()).toContain("[operationId]");
+	});
+
+	it("stops an operation under `stop`, with `cancel` removed", () => {
+		const commands = subcommands();
+		expect(commands.find((c) => c.name() === "stop")).toBeDefined();
+		expect(commands.flatMap((c) => [c.name(), ...c.aliases()])).not.toContain(
+			"cancel",
+		);
 	});
 });

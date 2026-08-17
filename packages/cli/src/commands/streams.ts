@@ -277,8 +277,56 @@ Examples:
 			}
 		});
 
+	// --- dumps ---
+	const runDumps = async (options: {
+		to: string;
+		dumpsUrl?: string;
+		fromBlock?: string;
+		toBlock?: string;
+	}): Promise<void> => {
+		try {
+			const fromBlock = parseHeight(options.fromBlock, "--from-block");
+			const toBlock = parseHeight(options.toBlock, "--to-block");
+			const dumps = dumpsClient(options.dumpsUrl).dumps;
+			const manifest = await dumps.list();
+			const files = manifest.files.filter(
+				(f) =>
+					(fromBlock === undefined || f.to_block >= fromBlock) &&
+					(toBlock === undefined || f.from_block <= toBlock),
+			);
+			if (files.length === 0) {
+				note("# no dump files match the requested range");
+				return;
+			}
+			note(`# downloading ${files.length} file(s) to ${options.to}`);
+			for (const file of files) {
+				const bytes = await dumps.download(file);
+				const dest = join(options.to, file.path);
+				await mkdir(dirname(dest), { recursive: true });
+				await writeFile(dest, bytes);
+				process.stderr.write(
+					`# ${file.path} (${file.row_count} rows, ${bytes.byteLength} bytes)\n`,
+				);
+			}
+			writeData(
+				JSON.stringify(
+					{
+						files: files.length,
+						to: options.to,
+						latest_finalized_cursor: manifest.latest_finalized_cursor,
+					},
+					null,
+					2,
+				),
+			);
+		} catch (err) {
+			logError(err instanceof Error ? err.message : String(err));
+			process.exit(1);
+		}
+	};
+
 	streams
-		.command("pull")
+		.command("dumps")
 		.description(
 			"Download finalized bulk parquet dumps to a local dir (verifies sha256)",
 		)
@@ -293,57 +341,10 @@ Examples:
 			"after",
 			`
 Examples:
-  $ secondlayer streams pull --to ./dump
-  $ secondlayer streams pull --to ./dump --from-block 150000 --to-block 200000`,
+  $ secondlayer streams dumps --to ./dump
+  $ secondlayer streams dumps --to ./dump --from-block 150000 --to-block 200000`,
 		)
-		.action(
-			async (options: {
-				to: string;
-				dumpsUrl?: string;
-				fromBlock?: string;
-				toBlock?: string;
-			}) => {
-				try {
-					const fromBlock = parseHeight(options.fromBlock, "--from-block");
-					const toBlock = parseHeight(options.toBlock, "--to-block");
-					const dumps = dumpsClient(options.dumpsUrl).dumps;
-					const manifest = await dumps.list();
-					const files = manifest.files.filter(
-						(f) =>
-							(fromBlock === undefined || f.to_block >= fromBlock) &&
-							(toBlock === undefined || f.from_block <= toBlock),
-					);
-					if (files.length === 0) {
-						note("# no dump files match the requested range");
-						return;
-					}
-					note(`# downloading ${files.length} file(s) to ${options.to}`);
-					for (const file of files) {
-						const bytes = await dumps.download(file);
-						const dest = join(options.to, file.path);
-						await mkdir(dirname(dest), { recursive: true });
-						await writeFile(dest, bytes);
-						process.stderr.write(
-							`# ${file.path} (${file.row_count} rows, ${bytes.byteLength} bytes)\n`,
-						);
-					}
-					writeData(
-						JSON.stringify(
-							{
-								files: files.length,
-								to: options.to,
-								latest_finalized_cursor: manifest.latest_finalized_cursor,
-							},
-							null,
-							2,
-						),
-					);
-				} catch (err) {
-					logError(err instanceof Error ? err.message : String(err));
-					process.exit(1);
-				}
-			},
-		);
+		.action(runDumps);
 
 	streams
 		.command("canonical <height>")

@@ -1,5 +1,9 @@
 import { ApiError, SecondLayer } from "@secondlayer/sdk";
-import type { PrintSchemaResponse } from "@secondlayer/sdk";
+import type {
+	PrintSchemaResponse,
+	SubgraphOperationStatus,
+	Subgraphs,
+} from "@secondlayer/sdk";
 import type {
 	ReindexResponse,
 	SubgraphDetail,
@@ -21,6 +25,19 @@ import { isOssMode, resolveApiUrl, resolveAuth } from "./resolve-auth.ts";
 
 export { ApiError };
 export type { SubgraphQueryParams } from "@secondlayer/shared/schemas";
+export type { SubgraphOperationStatus } from "@secondlayer/sdk";
+
+/** Deployed source of a subgraph, as returned by GET /api/subgraphs/:name/source. */
+export type SubgraphSourceResponse = Awaited<
+	ReturnType<Subgraphs["getSource"]>
+>;
+
+/** Public-namespace state after a publish/unpublish. `url` is set on publish. */
+export interface SubgraphVisibilityResponse {
+	name: string;
+	visibility: "public" | "private";
+	url?: string;
+}
 
 /** Map an HTTP status to an actionable next-step hint, when one is obvious. */
 function nextStepHint(status: number | undefined): string | undefined {
@@ -115,7 +132,7 @@ export async function listSubgraphsApi(): Promise<{ data: SubgraphSummary[] }> {
 }
 
 export async function getSubgraphApi(name: string): Promise<SubgraphDetail> {
-	return (await getPlatformClient()).subgraphs.get(name);
+	return (await getPlatformClient()).subgraphs.status(name);
 }
 
 export async function getSubgraphOpenApi(
@@ -196,6 +213,37 @@ export async function getSubgraphGaps(
 	opts?: { limit?: number; offset?: number; resolved?: boolean },
 ): Promise<SubgraphGapsResponse> {
 	return (await getPlatformClient()).subgraphs.gaps(name, opts);
+}
+
+export async function listSubgraphOperationsApi(
+	name: string,
+): Promise<{ operations: SubgraphOperationStatus[] }> {
+	return (await getPlatformClient()).subgraphs.operations(name);
+}
+
+export async function getSubgraphOperationApi(
+	name: string,
+	operationId: string,
+): Promise<SubgraphOperationStatus> {
+	return (await getPlatformClient()).subgraphs.getOperation(name, operationId);
+}
+
+export async function getSubgraphSourceApi(
+	name: string,
+): Promise<SubgraphSourceResponse> {
+	return (await getPlatformClient()).subgraphs.getSource(name);
+}
+
+export async function publishSubgraphApi(
+	name: string,
+): Promise<SubgraphVisibilityResponse> {
+	return (await getPlatformClient()).subgraphs.publish(name);
+}
+
+export async function unpublishSubgraphApi(
+	name: string,
+): Promise<SubgraphVisibilityResponse> {
+	return (await getPlatformClient()).subgraphs.unpublish(name);
 }
 
 // ── Index ───────────────────────────────────────────────────────────────

@@ -1,9 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { Command } from "commander";
 import { registerBootstrapCommand } from "../src/commands/bootstrap.ts";
+import { registerCodegenCommand } from "../src/commands/codegen.ts";
+import { registerIndexCommand } from "../src/commands/index-api.ts";
 import { registerInitCommand } from "../src/commands/init.ts";
 import { registerLoginCommand } from "../src/commands/login.ts";
 import { registerObserverCommand } from "../src/commands/observer.ts";
+import { registerStreamsCommand } from "../src/commands/streams.ts";
+import { registerSubgraphsCommand } from "../src/commands/subgraphs.ts";
 
 /**
  * DX acceptance: top-level help shows init/bootstrap/observer and hides the
@@ -27,5 +31,71 @@ describe("CLI help snapshot", () => {
 		expect(help).not.toMatch(/^\s+account\b/m);
 		expect(help).not.toMatch(/^\s+keys\b/m);
 		expect(help).not.toMatch(/^\s+projects\b/m);
+	});
+
+	test("renamed verbs advertise the canonical name and hide the old spelling", () => {
+		const program = new Command().name("sl");
+		registerSubgraphsCommand(program);
+		registerStreamsCommand(program);
+
+		const subgraphsHelp =
+			program.commands
+				.find((c) => c.name() === "subgraphs")
+				?.helpInformation() ?? "";
+		expect(subgraphsHelp).toMatch(/^\s+stop\b/m);
+		expect(subgraphsHelp).not.toMatch(/^\s+cancel\b/m);
+		expect(subgraphsHelp).toMatch(/^\s+operations\b/m);
+		expect(subgraphsHelp).toMatch(/^\s+source\b/m);
+		expect(subgraphsHelp).toMatch(/^\s+publish\b/m);
+		expect(subgraphsHelp).toMatch(/^\s+unpublish\b/m);
+
+		const streamsHelp =
+			program.commands.find((c) => c.name() === "streams")?.helpInformation() ??
+			"";
+		expect(streamsHelp).toMatch(/^\s+dumps\b/m);
+		expect(streamsHelp).not.toMatch(/^\s+pull\b/m);
+	});
+
+	test("the removed per-product spellings are not registered at all", () => {
+		const program = new Command().name("sl");
+		registerSubgraphsCommand(program);
+		registerStreamsCommand(program);
+		registerIndexCommand(program);
+
+		const names = (parent: string): string[] =>
+			program.commands
+				.find((c) => c.name() === parent)
+				?.commands.flatMap((c) => [c.name(), ...c.aliases()]) ?? [];
+
+		expect(names("subgraphs")).not.toContain("cancel");
+		expect(names("subgraphs")).not.toContain("codegen");
+		expect(names("subgraphs")).not.toContain("client");
+		expect(names("streams")).not.toContain("pull");
+		expect(names("index")).not.toContain("codegen");
+		expect(program.commands.map((c) => c.name())).not.toContain("contracts");
+	});
+
+	test("codegen carries every generated artifact", () => {
+		const program = new Command().name("sl");
+		registerCodegenCommand(program);
+
+		const codegen = program.commands.find((c) => c.name() === "codegen");
+		expect(codegen?.commands.map((c) => c.name()).sort()).toEqual([
+			"client",
+			"contracts",
+			"index",
+			"prints",
+			"subgraph",
+		]);
+
+		const contracts = codegen?.commands.find((c) => c.name() === "contracts");
+		// The retired `contracts generate` accepted these four flags; the
+		// canonical verb has to cover all of them or the removal drops a feature.
+		expect(contracts?.options.map((o) => o.long).sort()).toEqual([
+			"--api-key",
+			"--config",
+			"--output",
+			"--watch",
+		]);
 	});
 });

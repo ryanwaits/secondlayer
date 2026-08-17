@@ -796,7 +796,7 @@ Examples:
 			try {
 				const client = await getSubscriptionClient();
 				const { id } = await resolveSubscriptionRef(client, idOrName);
-				const { data } = await client.subscriptions.recentDeliveries(id);
+				const { data } = await client.subscriptions.deliveries(id);
 				if (options.json) printJson(data);
 				else printDeliveries(data);
 			} catch (err) {
@@ -835,7 +835,7 @@ Examples:
 						options.yes,
 					);
 					if (!ok) return;
-					const res = await client.subscriptions.requeueDead(id, outboxId);
+					const res = await client.subscriptions.requeue(id, outboxId);
 					if (options.json) printJson(res);
 					else success(`Requeued ${blue(outboxId)}`);
 				} catch (err) {
@@ -917,10 +917,10 @@ Examples:
 				const client = await getSubscriptionClient();
 				const { id, detail } = await resolveSubscriptionRef(client, idOrName);
 				const [deliveries, dead, subgraph] = await Promise.allSettled([
-					client.subscriptions.recentDeliveries(id),
+					client.subscriptions.deliveries(id),
 					client.subscriptions.dead(id),
 					detail.subgraphName
-						? client.subgraphs.get(detail.subgraphName)
+						? client.subgraphs.status(detail.subgraphName)
 						: Promise.resolve(null),
 				]);
 				const report = buildDoctorReport({
@@ -958,7 +958,7 @@ Examples:
 				const client = await getSubscriptionClient();
 				const { detail } = await resolveSubscriptionRef(client, idOrName);
 				const subgraph = detail.subgraphName
-					? await client.subgraphs.get(detail.subgraphName).catch(() => null)
+					? await client.subgraphs.status(detail.subgraphName).catch(() => null)
 					: null;
 				const row = await representativeRow(client, detail, subgraph);
 				const fixture = buildSubscriptionTestFixture({

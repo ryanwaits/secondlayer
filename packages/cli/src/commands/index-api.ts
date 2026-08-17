@@ -10,7 +10,6 @@ import {
 	writeData,
 } from "../lib/output.ts";
 import { resolveApiUrl, resolveEnvKey } from "../lib/resolve-auth.ts";
-import { deprecatedCodegenNotice } from "./codegen.ts";
 
 /**
  * Index reads allow anonymous access, but free-tier API keys are rejected
@@ -95,32 +94,6 @@ export function registerIndexCommand(program: Command): void {
 	const index = program
 		.command("index")
 		.description("Query the decoded Index layer (events + contract calls)");
-
-	// Codegen needs no API call — it emits from the static read-column registry.
-	index
-		.command("codegen")
-		.description(
-			"Generate a typed schema (Prisma, Kysely, Drizzle, or JSON-Schema) for the Index domain tables — point it at your BYO database mirror",
-		)
-		.option(
-			"--target <orm>",
-			"prisma | kysely | drizzle | json-schema",
-			"kysely",
-		)
-		.option("--schema <name>", "Postgres schema to qualify table names with")
-		.option(
-			"--tables <list>",
-			"Comma-separated subset of Index tables (default: all)",
-		)
-		.option("--env <var>", "Prisma datasource url env var", "DATABASE_URL")
-		.option("-o, --output <path>", "Write to a file (defaults to stdout)")
-		.action(async (o: IndexCodegenOptions) => {
-			deprecatedCodegenNotice(
-				"secondlayer index codegen",
-				"secondlayer codegen index",
-			);
-			await runIndexCodegen(o);
-		});
 
 	const rangeFlags = (cmd: Command): Command =>
 		cmd
@@ -370,11 +343,7 @@ export interface IndexCodegenOptions {
 	output?: string;
 }
 
-/**
- * Typed-schema codegen for the Index domain tables. Shared by the canonical
- * `secondlayer codegen index` and the deprecated `secondlayer index codegen` alias so the two
- * can never drift.
- */
+/** Typed-schema codegen for the Index domain tables, behind `secondlayer codegen index`. */
 export async function runIndexCodegen(o: IndexCodegenOptions): Promise<void> {
 	try {
 		const target = o.target ?? "kysely";

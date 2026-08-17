@@ -29,15 +29,22 @@ import {
 	getSubgraphGaps,
 	getSubgraphMarkdown,
 	getSubgraphOpenApi,
+	getSubgraphOperationApi,
+	getSubgraphSourceApi,
 	handleApiError,
+	listSubgraphOperationsApi,
 	listSubgraphsApi,
+	publishSubgraphApi,
 	querySubgraphTable,
 	querySubgraphTableCount,
 	reindexSubgraphApi,
 	stopSubgraphApi,
+	unpublishSubgraphApi,
 } from "../lib/api-client.ts";
-import type { SubgraphQueryParams } from "../lib/api-client.ts";
-import { deprecatedCodegenNotice } from "./codegen.ts";
+import type {
+	SubgraphOperationStatus,
+	SubgraphQueryParams,
+} from "../lib/api-client.ts";
 type SubgraphSpecFormat = "openapi" | "agent" | "markdown";
 import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
 import { parseQueryFilters } from "../lib/filter-params.ts";
@@ -50,9 +57,11 @@ import {
 	formatTable,
 	green,
 	info,
+	output,
 	red,
 	success,
 	warn,
+	writeData,
 	yellow,
 } from "../lib/output.ts";
 import { requireAuth } from "../lib/require-auth.ts";
@@ -575,6 +584,49 @@ function printSubgraphDeployPreview(
 
 	const deployTarget = context.bundled ? "tenant API" : "local database";
 	info(`Dry run only. No ${deployTarget} changes were made.`);
+}
+
+/** Block range of an operation; reindex ops leave both ends open (whole chain). */
+export function formatOperationRange(op: {
+	fromBlock: number | null;
+	toBlock: number | null;
+}): string {
+	if (op.fromBlock === null && op.toBlock === null) return "whole subgraph";
+	return `${op.fromBlock ?? "start"} → ${op.toBlock ?? "tip"}`;
+}
+
+/** `progress` is null until the API knows a denominator — say so, don't fake 0%. */
+export function formatOperationProgress(progress: number | null): string {
+	if (progress === null) return "—";
+	return `${(progress * 100).toFixed(1)}%`;
+}
+
+function colorOperationStatus(
+	status: SubgraphOperationStatus["status"],
+): string {
+	if (status === "completed") return green(status);
+	if (status === "failed") return red(status);
+	if (status === "cancelled") return yellow(status);
+	return status;
+}
+
+/** Key/value view of a single operation, including the failure reason. */
+export function operationDetailPairs(
+	op: SubgraphOperationStatus,
+): [string, string][] {
+	return [
+		["ID", op.id],
+		["Subgraph", op.subgraphName],
+		["Kind", op.kind],
+		["Status", op.status],
+		["Range", formatOperationRange(op)],
+		["Progress", formatOperationProgress(op.progress)],
+		["Processed Blocks", op.processedBlocks?.toLocaleString() ?? "—"],
+		["Error", op.error ?? "none"],
+		["Created", op.createdAt],
+		["Started", op.startedAt ?? "—"],
+		["Finished", op.finishedAt ?? "—"],
+	];
 }
 
 function formatDuration(seconds: number): string {
@@ -1429,47 +1481,6 @@ Examples:
 			},
 		);
 
-	// --- codegen (ORM schema for BYO database) ---
-	subgraphs
-		.command("codegen <file>")
-		.description(
-			"Generate an ORM schema (Prisma, Drizzle, or Kysely) for a subgraph's tables — point it at your BYO database",
-		)
-		.option("--target <orm>", "ORM target: prisma | drizzle | kysely", "prisma")
-		.option(
-			"--schema <name>",
-			"Postgres schema name (defaults to subgraph_<name>)",
-		)
-		.option("--env <var>", "datasource url env var", "DATABASE_URL")
-		.option(
-			"--models-only",
-			"Emit only Prisma models (compose via prismaSchemaFolder)",
-		)
-		.option(
-			"--payloads",
-			"Emit a .d.ts of print payload types for pinned print_event sources, inferred from observed on-chain events (requires network)",
-		)
-		.option("-o, --output <path>", "Write to a file (defaults to stdout)")
-		.action(
-			async (
-				file: string,
-				options: SubgraphSchemaCodegenOptions,
-				command: Command,
-			) => {
-				deprecatedCodegenNotice(
-					"secondlayer subgraphs codegen",
-					options.payloads
-						? "secondlayer codegen prints"
-						: "secondlayer codegen subgraph",
-				);
-				// Keeps `prisma` as its default so existing scripts don't change
-				// output; the canonical verb defaults to kysely everywhere.
-				await runSubgraphSchemaCodegen(file, options, (key) =>
-					command.getOptionValueSource(key),
-				);
-			},
-		);
-
 	// --- test (run handlers against real chain data, no deploy) ---
 	subgraphs
 		.command("test <file>")
@@ -1617,8 +1628,18 @@ Examples:
 
 	// --- stop ---
 	subgraphs
-		.command("cancel <name>")
-		.description("Cancel a running reindex or backfill operation")
+		.command("stop <name>")
+		.description("Stop a running reindex or backfill operation")
+		.addHelpText(
+			"after",
+			`
+Stopping leaves the rows already written in place — it cancels the operation,
+it does not roll it back. Re-run reindex or backfill to finish the work.
+
+Examples:
+  $ secondlayer subgraphs stop my-graph
+  $ secondlayer subgraphs operations my-graph   # confirm it went to cancelled`,
+		)
 		.action(async (name: string) => {
 			try {
 				info(`Stopping operation for subgraph "${name}"...`);
@@ -1626,6 +1647,181 @@ Examples:
 				success(result.message);
 			} catch (err) {
 				handleApiError(err, "stop subgraph operation");
+			}
+		});
+
+	// --- operations ---
+	subgraphs
+		.command("operations <name> [operationId]")
+		.description(
+			"Show a subgraph's operation history — the verify step for deploy, reindex, and backfill",
+		)
+		.option("--json", "Output as JSON")
+		.addHelpText(
+			"after",
+			`
+Every deploy that reindexes, every reindex, and every backfill enqueues a
+tracked operation. This is where you check whether it ran, is still queued, or
+failed — and why. Pass an operation id for a single one.
+
+Examples:
+  $ secondlayer subgraphs operations my-graph
+  $ secondlayer subgraphs operations my-graph --json
+  $ secondlayer subgraphs operations my-graph 0f1c9d2e-4b7a-...`,
+		)
+		.action(
+			async (
+				name: string,
+				operationId: string | undefined,
+				options: { json?: boolean },
+			) => {
+				try {
+					if (operationId) {
+						const op = await getSubgraphOperationApi(name, operationId);
+						output({
+							json: options.json,
+							data: op,
+							human: () =>
+								console.log(formatKeyValue(operationDetailPairs(op))),
+						});
+						return;
+					}
+
+					const { operations } = await listSubgraphOperationsApi(name);
+					output({
+						json: options.json,
+						data: { operations },
+						human: () => {
+							if (operations.length === 0) {
+								console.log(dim("No operations recorded"));
+								return;
+							}
+							console.log(
+								formatTable(
+									["ID", "Kind", "Status", "Range", "Progress", "Started"],
+									operations.map((op) => [
+										op.id,
+										op.kind,
+										colorOperationStatus(op.status),
+										formatOperationRange(op),
+										formatOperationProgress(op.progress),
+										op.startedAt
+											? op.startedAt.replace("T", " ").slice(0, 19)
+											: dim("—"),
+									]),
+								),
+							);
+							console.log(dim(`\n${operations.length} operation(s)`));
+							const failed = operations.filter((op) => op.error);
+							for (const op of failed) {
+								console.log(dim(`\n${op.id}: ${op.error}`));
+							}
+						},
+					});
+				} catch (err) {
+					handleApiError(err, "get subgraph operations");
+				}
+			},
+		);
+
+	// --- source ---
+	subgraphs
+		.command("source <name>")
+		.description("Print the source of a deployed subgraph definition")
+		.option("-o, --output <path>", "Write the source to a file")
+		.option("--json", "Output the full response as JSON")
+		.addHelpText(
+			"after",
+			`
+Recovers the definition that is actually deployed, which is not always what is
+on disk. Subgraphs deployed before source capture return no source — redeploy
+to make them recoverable.
+
+Examples:
+  $ secondlayer subgraphs source my-graph
+  $ secondlayer subgraphs source my-graph -o subgraphs/my-graph.ts`,
+		)
+		.action(
+			async (name: string, options: { output?: string; json?: boolean }) => {
+				try {
+					const result = await getSubgraphSourceApi(name);
+
+					if (options.json) {
+						writeData(JSON.stringify(result, null, 2));
+						return;
+					}
+
+					if (result.sourceCode === null) {
+						error(
+							`No source stored for "${name}"${result.reason ? ` — ${result.reason}` : ""}`,
+						);
+						process.exit(1);
+					}
+
+					if (options.output) {
+						const outPath = resolve(options.output);
+						const dir = resolve(outPath, "..");
+						if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+						await writeTextFile(outPath, result.sourceCode);
+						success(`Wrote ${name} v${result.version} source to ${outPath}`);
+						return;
+					}
+
+					writeData(result.sourceCode);
+				} catch (err) {
+					handleApiError(err, "get subgraph source");
+				}
+			},
+		);
+
+	// --- publish / unpublish ---
+	subgraphs
+		.command("publish <name>")
+		.description(
+			"Claim the public name and open anonymous /v1 reads for a subgraph",
+		)
+		.addHelpText(
+			"after",
+			`
+Publishing claims <name> in the global public namespace — anyone can read the
+subgraph's tables without a key. Names are first-come; a taken name has to be
+renamed before it can be published. Hosted platform only.
+
+Examples:
+  $ secondlayer subgraphs publish my-graph
+  $ secondlayer subgraphs unpublish my-graph   # take it private again`,
+		)
+		.action(async (name: string) => {
+			try {
+				const result = await publishSubgraphApi(name);
+				success(`Subgraph "${result.name}" is public`);
+				const { apiUrl } = await resolveAuth();
+				info(
+					`  Read: ${apiUrl}${result.url ?? `/v1/subgraphs/${result.name}`}`,
+				);
+			} catch (err) {
+				handleApiError(err, "publish subgraph");
+			}
+		});
+
+	subgraphs
+		.command("unpublish <name>")
+		.description("Release the public name and restrict reads to your API key")
+		.addHelpText(
+			"after",
+			`
+Rows are untouched — only anonymous access goes away, and the public name is
+released for anyone else to claim.
+
+Examples:
+  $ secondlayer subgraphs unpublish my-graph`,
+		)
+		.action(async (name: string) => {
+			try {
+				const result = await unpublishSubgraphApi(name);
+				success(`Subgraph "${result.name}" is private — key required to read`);
+			} catch (err) {
+				handleApiError(err, "unpublish subgraph");
 			}
 		});
 
@@ -1965,25 +2161,9 @@ Examples:
 				}
 			},
 		);
-
-	// --- client ---
-	subgraphs
-		.command("client <subgraphName>")
-		.description("Generate a typed query client for a deployed subgraph")
-		.option("-o, --output <path>", "Output file path (required)")
-		.action(async (subgraphName: string, options: { output?: string }) => {
-			deprecatedCodegenNotice(
-				"secondlayer subgraphs client",
-				"secondlayer codegen client",
-			);
-			await runSubgraphClientCodegen(subgraphName, options);
-		});
 }
 
-/**
- * Typed query-client codegen for a deployed subgraph. Shared by the canonical
- * `secondlayer codegen client` and the deprecated `secondlayer subgraphs client` alias.
- */
+/** Typed query-client codegen for a deployed subgraph, behind `secondlayer codegen client`. */
 export async function runSubgraphClientCodegen(
 	subgraphName: string,
 	options: { output?: string },
@@ -2026,19 +2206,15 @@ export interface SubgraphSchemaCodegenOptions {
 }
 
 /**
- * ORM-schema (or print-payload) codegen for a subgraph file. Shared by the
- * canonical `secondlayer codegen subgraph` and the deprecated `secondlayer subgraphs codegen`
- * alias, so the two can never drift.
- *
- * `defaultTarget` differs by entry point on purpose: the canonical verb uses
- * `kysely` (one default across every codegen surface), while the deprecated
- * alias keeps `prisma` so existing scripts don't silently change output.
+ * ORM-schema (or print-payload) codegen for a subgraph file, behind
+ * `secondlayer codegen subgraph`. `kysely` is the default target across every
+ * codegen surface.
  */
 export async function runSubgraphSchemaCodegen(
 	file: string,
 	options: SubgraphSchemaCodegenOptions,
 	optionSource: (key: string) => string | undefined,
-	defaultTarget: "prisma" | "kysely" = "prisma",
+	defaultTarget: "prisma" | "kysely" = "kysely",
 ): Promise<void> {
 	if (options.payloads) {
 		const conflicts = ormFlagsConflictingWithPayloads(optionSource);
