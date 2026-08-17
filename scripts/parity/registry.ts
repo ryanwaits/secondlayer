@@ -41,6 +41,19 @@ export interface Capability {
 	verify?: string;
 	/** Error codes this capability can raise, keyed to their recovery edge. */
 	recovery?: Record<string, Recovery>;
+	/**
+	 * The capability is being withdrawn from the product. Its absence from a
+	 * door is the goal, not a gap, and conformance must not push it onto the
+	 * doors that still lack it.
+	 *
+	 * This exists because the audit made that exact mistake: it read
+	 * publish/unpublish off live HTTP routes, scored the absence elsewhere as a
+	 * gap, and spread a retiring capability to three more surfaces before anyone
+	 * checked the changelog. A conformance gate mirrors whatever it is pointed
+	 * at, so a stale source of truth propagates rather than gets caught.
+	 * Set this the moment a capability is slated for removal.
+	 */
+	retiring?: string;
 	surfaces: Partial<Record<Door, string | string[] | null>>;
 	naReason?: Partial<Record<Door, string>>;
 }
@@ -425,6 +438,8 @@ export const capabilities: Capability[] = [
 		id: "subgraphs.publish",
 		title: "Publish / unpublish publicly",
 		kind: "write",
+		retiring:
+			"a hosted-namespace concept; the changelog lists subgraphs.publish() as removed with the account model and the sprint plan collapses public/private to local instance access. Delete the routes and all four surfaces together.",
 		recovery: {
 			PUBLIC_NAME_TAKEN: {
 				capability: "subgraphs.list",

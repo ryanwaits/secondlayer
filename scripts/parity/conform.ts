@@ -6,7 +6,10 @@
  *   phantom    registry claims an identifier no extract contains
  *   unclaimed  an extract item in a covered family that no capability claims
  *   gap        a capability declares a door as null (missing by admission)
- *   broken     a verify edge that names a nonexistent capability
+ *   broken     a verify or recovery edge naming a nonexistent capability
+ *   retiring   a withdrawn capability still carried by a door — the inverse of
+ *              a gap, so conformance drives it toward zero doors rather than
+ *              spreading it to more
  *
  * Also computes skill/docs coverage per capability from out/docs.json and
  * writes the full matrix to out/matrix.json for downstream rendering.
@@ -127,7 +130,7 @@ function mentionedIn(cap: Capability, files: DocsFile[]): boolean {
 
 // ── checks ─────────────────────────────────────────────────────────────────
 interface Finding {
-	type: "phantom" | "unclaimed" | "gap" | "broken";
+	type: "phantom" | "unclaimed" | "gap" | "broken" | "retiring";
 	door?: string;
 	detail: string;
 }
@@ -185,7 +188,7 @@ for (const cap of capabilities) {
 				);
 			}
 		}
-		if (cap.surfaces[door] === null) {
+		if (cap.surfaces[door] === null && !cap.retiring) {
 			findings.push({
 				type: "gap",
 				door,
@@ -198,6 +201,17 @@ for (const cap of capabilities) {
 			type: "broken",
 			detail: `${cap.id} verify edge names unknown capability "${cap.verify}"`,
 		});
+	}
+	if (cap.retiring) {
+		// Inverted: for a withdrawn capability, every door that still carries it
+		// is work remaining, and the count is the progress bar.
+		const still = DOORS.filter((d) => claimedIds(cap, d).length > 0);
+		if (still.length > 0) {
+			findings.push({
+				type: "retiring",
+				detail: `${cap.id} still present on ${still.join(", ")} — ${cap.retiring}`,
+			});
+		}
 	}
 	for (const [code, recovery] of Object.entries(cap.recovery ?? {})) {
 		if (!capabilityIds.has(recovery.capability)) {
@@ -304,7 +318,13 @@ console.log(
 console.log(
 	`  registry ${capabilities.length} capabilities across ${FAMILIES.join(" · ")}`,
 );
-for (const type of ["phantom", "broken", "unclaimed", "gap"] as const) {
+for (const type of [
+	"phantom",
+	"broken",
+	"retiring",
+	"unclaimed",
+	"gap",
+] as const) {
 	for (const finding of byType(type)) {
 		console.log(`✗ ${type.padEnd(9)} ${finding.detail}`);
 	}
@@ -325,7 +345,7 @@ if (findings.length === 0) {
 	console.log("✓ conform passed — every door agrees with the registry");
 } else {
 	console.log(
-		`${findings.length} findings (${byType("gap").length} gaps, ${byType("unclaimed").length} unclaimed, ${byType("phantom").length} phantom, ${byType("broken").length} broken) · conform failed`,
+		`${findings.length} findings (${byType("gap").length} gaps, ${byType("retiring").length} retiring, ${byType("unclaimed").length} unclaimed, ${byType("phantom").length} phantom, ${byType("broken").length} broken) · conform failed`,
 	);
 	process.exit(1);
 }
