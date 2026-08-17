@@ -30,6 +30,14 @@
 					"line": 30
 				},
 				{
+					"name": "CREDENTIAL_ENV_VARS",
+					"kind": "variable",
+					"summary": "Credential env vars, highest precedence first.",
+					"signature": null,
+					"file": "src/base.ts",
+					"line": 39
+				},
+				{
 					"name": "LOCAL_API_URL",
 					"kind": "variable",
 					"summary": "Product default: the local one-box API.",
@@ -43,7 +51,7 @@
 					"summary": "Resolve the credential a client should use.",
 					"signature": "resolveApiKey(apiKey?: string): null | string",
 					"file": "src/base.ts",
-					"line": 42
+					"line": 64
 				},
 				{
 					"name": "resolveBaseUrl",
@@ -949,7 +957,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/subgraphs/spec.d.ts",
-					"line": 83
+					"line": 92
 				},
 				{
 					"name": "SubgraphOperationStatus",
