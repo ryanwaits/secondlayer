@@ -81,6 +81,14 @@ services:
     ports:
       - "${API_PORT:-127.0.0.1:3800}:3800"
       - "${INDEXER_PORT:-127.0.0.1:3700}:3700"
+    # `secondlayer observer` (and the wizard's printed stanza) default the
+    # endpoint to `indexer:3700` for a bundled/external node reaching this
+    # service over the docker network — this alias is what makes that
+    # default actually resolve, without renaming the service itself.
+    networks:
+      default:
+        aliases:
+          - indexer
     volumes:
       - subgraphs_data:/data/subgraphs
     depends_on:

@@ -103,6 +103,13 @@ services:
     ports:
       - "\${API_PORT:-127.0.0.1:3800}:3800"
       - "\${INDEXER_PORT:-127.0.0.1:3700}:3700"
+    # \`secondlayer observer\`'s default endpoint is \`indexer:3700\` — this
+    # alias is what makes that default actually resolve on this network,
+    # without renaming the service. Mirrors docker/oss/docker-compose.yml.
+    networks:
+      default:
+        aliases:
+          - indexer
     volumes:
       - subgraphs_data:/data/subgraphs
     depends_on:
