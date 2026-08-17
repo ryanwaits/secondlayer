@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import { ipRateLimit, keysRouter, requireAuth } from "./auth/index.ts";
 import { v1InstanceGate } from "./auth/read-plane.ts";
 import { instanceTokenAuth } from "./middleware/auth-modes.ts";
+import { requireJsonWrites } from "./middleware/csrf.ts";
 import { errorHandler } from "./middleware/error.ts";
 import { requestLogger } from "./middleware/logging.ts";
 import accountsRouter from "./routes/accounts.ts";
@@ -100,6 +101,15 @@ export function createApiApp(mode: InstanceMode): Hono {
 	app.use("/health", publicCors);
 	app.use("/public/*", publicCors);
 	app.use("/api/*", platformCors);
+	// CSRF: every write under `/api` must declare `Content-Type:
+	// application/json`, which a browser cannot set cross-origin without a
+	// preflight the CORS policy above gets to refuse. Mounted on the whole
+	// prefix rather than route by route so a new `/api` write is covered the
+	// day it is added; `middleware/csrf.ts` exempts the Stripe webhook, which
+	// authenticates with a signature over raw bytes. Runs ahead of auth so a
+	// mis-shaped write is told what is wrong instead of being told it is
+	// unauthorized.
+	app.use("/api/*", requireJsonWrites());
 	app.use("*", requestLogger);
 	app.use("*", apiTelemetry());
 	app.onError(errorHandler);

@@ -147,7 +147,7 @@ export class TenantSuspendedError extends SecondLayerError {
 // the equation.
 export const CODE_TO_STATUS: Record<
 	string,
-	400 | 401 | 402 | 403 | 404 | 409 | 422 | 423 | 429 | 503
+	400 | 401 | 402 | 403 | 404 | 409 | 415 | 422 | 423 | 429 | 503
 > = {
 	// The chain plane has no data yet — a fresh self-host install before the
 	// first block lands. Retryable, and not the operator's mistake, so it is a
@@ -166,6 +166,10 @@ export const CODE_TO_STATUS: Record<
 	INSTANCE_EXISTS: 409,
 	SUBGRAPH_NOT_FOUND: 404,
 	GHOST_KEY_READ_ONLY: 403,
+	// A write that did not declare `Content-Type: application/json`. Shaped
+	// like something a browser could have forged cross-origin without a CORS
+	// preflight — see the API's `middleware/csrf.ts`.
+	UNSUPPORTED_MEDIA_TYPE: 415,
 } as const;
 
 export function getErrorMessage(err: unknown): string {
