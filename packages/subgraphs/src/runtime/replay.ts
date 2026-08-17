@@ -135,7 +135,12 @@ export async function replaySubscription(
 
 	let scanned = 0;
 	let enqueued = 0;
-	let offset = 0;
+	// Keyset pagination, not a positional skip-count: `_created_at` is written
+	// as the literal NOW() (one value per transaction, so identical for every
+	// row in a block), which makes (_block_height, _created_at) non-unique.
+	// Paging by skip-count over a non-unique sort lets tied rows reorder
+	// between pages and drop rows silently. `_id` is BIGSERIAL and total.
+	let lastId = 0n;
 
 	while (true) {
 		const { rows } = await sql<
@@ -143,8 +148,9 @@ export async function replaySubscription(
 		>`SELECT * FROM ${sql.raw(`"${schema}"."${tableName}"`)}
 			WHERE _block_height >= ${sql.lit(input.fromBlock)}
 				AND _block_height <= ${sql.lit(input.toBlock)}
-			ORDER BY _block_height, _created_at
-			LIMIT ${sql.lit(BATCH_SIZE)} OFFSET ${sql.lit(offset)}`.execute(db);
+				AND _id > ${sql.lit(lastId)}
+			ORDER BY _id ASC
+			LIMIT ${sql.lit(BATCH_SIZE)}`.execute(db);
 
 		if (rows.length === 0) break;
 		scanned += rows.length;
@@ -175,8 +181,8 @@ export async function replaySubscription(
 			.executeTakeFirst();
 		enqueued += Number(result.numInsertedOrUpdatedRows ?? 0);
 
+		lastId = BigInt(String(rows[rows.length - 1]?._id));
 		if (rows.length < BATCH_SIZE) break;
-		offset += BATCH_SIZE;
 	}
 
 	logger.info("Replay enqueued", {
