@@ -918,6 +918,8 @@ Then run your normal `clarinet devnet start` — deployed contracts and their ev
 SL_API_URL=http://localhost:3800 INSTANCE_TOKEN=dev-instance-token secondlayer subgraphs deploy ./subgraph.ts
 ```
 
+The generated compose publishes the api on `127.0.0.1` only and hands it that same spec as `API_PUBLISH_ADDR`, so `/v1` reads on a devnet are keyless. `dev-instance-token` is the stack's fixed local token: writes (deploys, subscriptions) send it, and the container needs it to boot at all, since it listens on `0.0.0.0` behind the loopback publish. The indexer is the one port published on every interface — the devnet's stacks-node container POSTs to `host.docker.internal:3700`, which is not loopback.
+
 To see rows appear you need a real contract-call transaction — `clarinet console` runs against simnet, not your running devnet, so it won't broadcast on-chain. Fire one with `@stacks/transactions` (uses the well-known devnet deployer key):
 
 ```ts
@@ -947,7 +949,7 @@ const tx = await makeContractCall({
 console.log(await broadcastTransaction({ transaction: tx, network: "devnet" }));
 ```
 
-The row shows up at `GET http://localhost:3800/v1/subgraphs/<name>/<table>` within ~5s.
+The row shows up at `GET http://localhost:3800/v1/subgraphs/<name>/<table>` within ~5s — no `Authorization` header needed.
 
 ### secondlayer local down --devnet
 

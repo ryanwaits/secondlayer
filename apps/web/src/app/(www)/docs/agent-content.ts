@@ -417,7 +417,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Deploy against devnet",
 			"Run a subgraph on local devnet blocks.",
-			"/secondlayer Help me deploy a subgraph against my local devnet: `SL_API_URL=http://localhost:3800 INSTANCE_TOKEN=dev-instance-token secondlayer subgraphs deploy ./subgraph.ts` — the generated devnet stack ships that fixed local token, and deploys are writes, so they carry it. Then have me fire a contract call in the devnet and confirm the matching rows land by reading the subgraph's table.",
+			"/secondlayer Help me deploy a subgraph against my local devnet: `SL_API_URL=http://localhost:3800 INSTANCE_TOKEN=dev-instance-token secondlayer subgraphs deploy ./subgraph.ts` — the generated devnet stack ships that fixed local token, and deploys are writes, so they carry it. Then have me fire a contract call in the devnet and confirm the matching rows land by reading the subgraph's table with plain `curl` — the stack publishes the api on 127.0.0.1, so `/v1` reads need no token.",
 		),
 		card(
 			"Watch and tear down",
