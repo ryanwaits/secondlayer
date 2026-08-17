@@ -8,6 +8,12 @@ import {
 } from "@secondlayer/shared/index-internal-auth";
 import type { MiddlewareHandler } from "hono";
 import { createApiKeyTokenStore } from "../auth/api-key-store.ts";
+import {
+	allowsAnonymousRead,
+	bearerToken,
+	invalidCredentialError,
+	missingCredentialError,
+} from "../auth/read-plane.ts";
 import type { IndexTier } from "./tiers.ts";
 import type { IndexTip } from "./tip.ts";
 
@@ -80,33 +86,48 @@ export const DEFAULT_INDEX_TOKEN_STORE: IndexTokenStore =
 export function indexBearerAuth(opts?: {
 	tokens?: IndexTokenStore;
 	requiredScope?: string;
+	/** Override the read-plane policy (`allowsAnonymousRead`). Tests pin it;
+	 *  routes should let the policy decide. */
+	allowAnon?: boolean;
 }): MiddlewareHandler<IndexEnv> {
 	const tokens = opts?.tokens ?? DEFAULT_INDEX_TOKEN_STORE;
 	const requiredScope = opts?.requiredScope ?? INDEX_READ_SCOPE;
 
 	return async (c, next) => {
-		const authHeader = c.req.header("authorization");
+		// Same rule as Streams and subgraphs: open on a loopback bind, instance
+		// token past it. The metered archive keeps its open anon reads.
+		const allowAnon = opts?.allowAnon ?? allowsAnonymousRead();
 		const apiKeyHeader = c.req.header("x-api-key");
+		const rawToken = bearerToken(c);
 
-		// Reject x-api-key header explicitly so clients get a signal rather than
-		// silently falling through to anon. Only Bearer is the supported format.
-		if (!authHeader && apiKeyHeader) {
-			throw new AuthenticationError(
-				"Use Authorization: Bearer <key>, not X-API-Key",
-			);
+		if (rawToken === null) {
+			if (allowAnon) {
+				await next();
+				return;
+			}
+			// X-API-Key is never a credential here; say so rather than leaving
+			// the caller to guess why their key did nothing.
+			throw apiKeyHeader
+				? new AuthenticationError(
+						"Use Authorization: Bearer <key>, not X-API-Key",
+						{
+							hint: "Send the instance token as `Authorization: Bearer $INSTANCE_TOKEN`.",
+							env_var: "INSTANCE_TOKEN",
+						},
+					)
+				: missingCredentialError();
 		}
 
-		// Open-beta: no header = anon read. Keys still validated when presented so
-		// metering + tier checks continue to work for paid-tier resurrection.
-		if (!authHeader?.startsWith("Bearer ")) {
-			await next();
-			return;
-		}
-
-		const rawToken = authHeader.slice(7);
 		const tenant = await tokens.get(rawToken);
 		if (!tenant) {
-			throw new AuthenticationError("Invalid API key");
+			// A credential we don't recognize is never fatal where anonymous
+			// access already works — presenting a key must not turn a 200 into
+			// a 401. It just buys nothing.
+			if (allowAnon) {
+				await next();
+				return;
+			}
+			throw invalidCredentialError();
 		}
 
 		if (!tenant.scopes.includes(requiredScope)) {

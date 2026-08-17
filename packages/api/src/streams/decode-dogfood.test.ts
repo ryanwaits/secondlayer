@@ -233,16 +233,27 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 		});
 	}
 
-	test("rejects the decoder when its internal Streams key is not authorized", async () => {
+	test("rejects a decoder key the instance does not know once bound past loopback", async () => {
 		if (!db) throw new Error("missing db");
 
-		await expect(
-			consumeFtTransferDecodedEvents({
-				db,
-				streamsClient: inProcessClient("sk-sl_streams_bad_internal_test"),
-				maxPages: 1,
-			}),
-		).rejects.toThrow("API key");
+		// On a loopback bind an unrecognized key is ignored, not fatal (the read
+		// is anonymous anyway). Binding past loopback is what makes credentials
+		// mandatory, so that is where a bad decoder key must fail.
+		const prevHost = process.env.LISTEN_HOST;
+		process.env.LISTEN_HOST = "0.0.0.0";
+		try {
+			await expect(
+				consumeFtTransferDecodedEvents({
+					db,
+					streamsClient: inProcessClient("sk-sl_streams_bad_internal_test"),
+					maxPages: 1,
+				}),
+			).rejects.toThrow(/key/i);
+		} finally {
+			if (prevHost === undefined)
+				Reflect.deleteProperty(process.env, "LISTEN_HOST");
+			else process.env.LISTEN_HOST = prevHost;
+		}
 	});
 
 	test("consumes /events in-process and writes decoded ft_transfer rows", async () => {

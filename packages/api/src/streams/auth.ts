@@ -2,12 +2,15 @@ import {
 	INTERNAL_STREAMS_TENANT_ID,
 	defaultInternalStreamsApiKey,
 } from "@secondlayer/indexer/decode/internal-auth";
-import {
-	AuthenticationError,
-	AuthorizationError,
-} from "@secondlayer/shared/errors";
+import { AuthorizationError } from "@secondlayer/shared/errors";
 import type { MiddlewareHandler } from "hono";
 import { createApiKeyTokenStore } from "../auth/api-key-store.ts";
+import {
+	allowsAnonymousRead,
+	bearerToken,
+	invalidCredentialError,
+	missingCredentialError,
+} from "../auth/read-plane.ts";
 import type { StreamsTier } from "./tiers.ts";
 import type { StreamsTip } from "./tip.ts";
 
@@ -22,7 +25,8 @@ export type StreamsTenant = {
 
 export type StreamsEnv = {
 	Variables: {
-		streamsTenant: StreamsTenant;
+		/** Unset on an anonymous loopback read — Streams has no tenant then. */
+		streamsTenant?: StreamsTenant;
 		streamsTip: StreamsTip;
 		/** Set by the credits gate when a free account is on pay-as-you-go:
 		 *  bypasses retention + rate limit, debited per row read. */
@@ -87,30 +91,37 @@ export const DEFAULT_STREAMS_TOKEN_STORE: StreamsTokenStore =
 export function streamsBearerAuth(opts?: {
 	tokens?: StreamsTokenStore;
 	requiredScope?: string;
-	/** When true, a request with no Bearer key falls through (no tenant) instead
-	 *  of 401 — the x402 middleware then gates it. Streams is key-mandatory unless
-	 *  the x402 rail is live, so this is enabled only alongside x402. */
+	/** Override the read-plane policy (`allowsAnonymousRead`). Tests pin it;
+	 *  routes should let the policy decide. */
 	allowAnon?: boolean;
 }): MiddlewareHandler<StreamsEnv> {
 	const tokens = opts?.tokens ?? DEFAULT_STREAMS_TOKEN_STORE;
 	const requiredScope = opts?.requiredScope ?? STREAMS_READ_SCOPE;
-	const allowAnon = opts?.allowAnon ?? false;
 
 	return async (c, next) => {
-		const authHeader = c.req.header("authorization");
-		if (!authHeader?.startsWith("Bearer ")) {
-			// Accountless: defer to x402 (pay-per-call) instead of rejecting.
+		// Same rule as Index and subgraphs: open on a loopback bind, instance
+		// token past it. `platform: false` keeps the metered archive keyed.
+		const allowAnon =
+			opts?.allowAnon ?? allowsAnonymousRead({ platform: false });
+		const rawToken = bearerToken(c);
+		if (rawToken === null) {
 			if (allowAnon) {
 				await next();
 				return;
 			}
-			throw new AuthenticationError("Missing or invalid Authorization header");
+			throw missingCredentialError();
 		}
 
-		const rawToken = authHeader.slice(7);
 		const tenant = await tokens.get(rawToken);
 		if (!tenant) {
-			throw new AuthenticationError("Invalid API key");
+			// A credential we don't recognize is never fatal where anonymous
+			// access already works — presenting a key must not turn a 200 into
+			// a 401. It just buys nothing.
+			if (allowAnon) {
+				await next();
+				return;
+			}
+			throw invalidCredentialError();
 		}
 
 		if (!tenant.scopes.includes(requiredScope)) {

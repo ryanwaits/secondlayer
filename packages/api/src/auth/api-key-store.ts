@@ -1,6 +1,8 @@
 import { getDb as defaultGetDb } from "@secondlayer/shared/db";
 import { isPlatformMode } from "@secondlayer/shared/mode";
+import { instanceTokenMatches } from "../instance-bind.ts";
 import { hashToken } from "./keys.ts";
+import { INSTANCE_TENANT_ID } from "./read-plane.ts";
 
 /** Two kinds of caller: `free` is the single metered tier every minted key
  *  gets (see auth/mint.ts), `internal` is a first-party service credential
@@ -63,9 +65,10 @@ async function lookupAccountApiKey(
 }
 
 /**
- * Runtime token store for the metered archive: static seed tokens first, then
- * `api_keys` by hash. Every DB-backed key resolves to the single metered
- * `free` tier — legacy paid pins on `api_keys.tier` are not honored.
+ * Runtime token store: static seed tokens (first-party service credentials)
+ * first, then the instance token, then `api_keys` by hash on the metered
+ * archive. Every DB-backed key resolves to the single metered `free` tier —
+ * legacy paid pins on `api_keys.tier` are not honored.
  */
 export function createApiKeyTokenStore<TTenant extends ProductTenant>(
 	opts: ApiKeyTokenStoreOptions<TTenant>,
@@ -77,6 +80,20 @@ export function createApiKeyTokenStore<TTenant extends ProductTenant>(
 		async get(rawToken: string): Promise<TTenant | undefined> {
 			const seeded = await opts.staticTokens.get(rawToken);
 			if (seeded) return seeded;
+			// The instance's own token authenticates every plane. A self-hosted
+			// instance has one credential (bare hex from `secondlayer init`), not
+			// a per-product `sk-sl_` key, so it must be resolved before the
+			// prefix guard below — that guard is what made the documented token
+			// unusable against the whole `/v1` plane.
+			if (instanceTokenMatches(rawToken)) {
+				return {
+					tenant_id: INSTANCE_TENANT_ID,
+					// No account_id: the operator's own reads are never metered
+					// and never throttled.
+					tier: "internal",
+					scopes: [opts.requiredScope],
+				} as unknown as TTenant;
+			}
 			if (!rawToken.startsWith("sk-sl_")) return undefined;
 			// OSS has no product keys. Injected lookupApiKey is tests only.
 			if (!isPlatformMode() && opts.lookupApiKey === undefined) {

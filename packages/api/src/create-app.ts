@@ -2,6 +2,7 @@ import type { InstanceMode } from "@secondlayer/shared/mode";
 import { Hono, type MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
 import { ipRateLimit, keysRouter, requireAuth } from "./auth/index.ts";
+import { v1InstanceGate } from "./auth/read-plane.ts";
 import { instanceTokenAuth } from "./middleware/auth-modes.ts";
 import { errorHandler } from "./middleware/error.ts";
 import { requestLogger } from "./middleware/logging.ts";
@@ -91,6 +92,11 @@ export function createApiApp(mode: InstanceMode): Hono {
 	});
 
 	app.use("/v1/*", publicCors);
+	// Self-host: the read plane is open on a loopback bind and needs the
+	// instance token past it. Index/Streams/subgraphs enforce this themselves
+	// (they also accept first-party service credentials); this closes the
+	// remaining /v1 leaves — contracts, the instance catalog, openapi, batch.
+	if (mode === "oss") app.use("/v1/*", v1InstanceGate());
 	app.use("/health", publicCors);
 	app.use("/public/*", publicCors);
 	app.use("/api/*", platformCors);

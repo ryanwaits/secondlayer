@@ -1,10 +1,6 @@
 import { getDb } from "@secondlayer/shared/db";
 import type { Subgraph } from "@secondlayer/shared/db";
-import {
-	AuthenticationError,
-	RateLimitError,
-	ValidationError,
-} from "@secondlayer/shared/errors";
+import { RateLimitError, ValidationError } from "@secondlayer/shared/errors";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import { TYPE_MAP } from "@secondlayer/subgraphs/schema";
 import { Hono } from "hono";
@@ -12,6 +8,13 @@ import { sql } from "kysely";
 import { getClientIp } from "../auth/http.ts";
 import { hashToken } from "../auth/keys.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
+import {
+	allowsAnonymousRead,
+	bearerToken,
+	invalidCredentialError,
+	missingCredentialError,
+} from "../auth/read-plane.ts";
+import { instanceTokenMatches } from "../instance-bind.ts";
 import { resolveReadableSubgraph } from "../subgraphs/namespace.ts";
 import {
 	SubgraphNotFoundError,
@@ -150,25 +153,41 @@ type V1SubgraphsEnv = {
 
 const app = new Hono<V1SubgraphsEnv>();
 
-// ── Auth (optional bearer) ──────────────────────────────────────────────
+// ── Auth ────────────────────────────────────────────────────────────────
 
-// Anon is the default; a presented key must be valid (silent fallthrough to
-// anon would make private reads "work" with a typo'd key — fail loud instead).
+// Same rule as Index and Streams: open on a loopback bind, instance token
+// past it, and a credential we don't recognize is ignored rather than fatal
+// wherever anonymous access already works. (This plane used to skip auth
+// entirely off-platform, so a public bind served every local subgraph.)
 app.use("*", async (c, next) => {
+	const allowAnon = allowsAnonymousRead();
+	const raw = bearerToken(c);
+
+	// The operator's own token reads everything this instance holds.
+	if (raw !== null && instanceTokenMatches(raw)) {
+		await next();
+		return;
+	}
+	if (raw === null && !allowAnon) throw missingCredentialError();
+
 	if (!isPlatformMode()) {
+		if (raw !== null && !allowAnon) throw invalidCredentialError();
 		await next();
 		return;
 	}
-	const authHeader = c.req.header("authorization");
-	if (!authHeader?.startsWith("Bearer ")) {
+
+	if (raw === null) {
 		await next();
 		return;
 	}
-	const raw = authHeader.slice(7);
+	// Metered archive: an account key widens the read to that account's
+	// private subgraphs. Anything else reads as anon (public subgraphs only).
 	if (!raw.startsWith("sk-sl_")) {
-		throw new AuthenticationError(
-			"Use an sk-sl_ API key (session tokens are dashboard-only)",
-		);
+		if (allowAnon) {
+			await next();
+			return;
+		}
+		throw invalidCredentialError();
 	}
 	const key = await getDb()
 		.selectFrom("api_keys")
@@ -176,7 +195,11 @@ app.use("*", async (c, next) => {
 		.where("key_hash", "=", hashToken(raw))
 		.executeTakeFirst();
 	if (!key || key.status !== "active") {
-		throw new AuthenticationError("Invalid API key");
+		if (allowAnon) {
+			await next();
+			return;
+		}
+		throw invalidCredentialError();
 	}
 	c.set("v1AccountId", key.account_id);
 	await next();

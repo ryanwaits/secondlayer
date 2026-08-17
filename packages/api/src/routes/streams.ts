@@ -187,13 +187,13 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		}),
 	);
 
-	// Streams is key-mandatory: there is no accountless read path.
+	// Streams reads follow the same rule as Index and subgraphs: open on a
+	// loopback bind, instance token past it. (It was key-mandatory in every
+	// mode, which contradicted every doc page and left the internal decoder
+	// key as the only credential a caller could actually use.)
 	router.use(
 		"*",
-		streamsBearerAuth({
-			tokens: opts.tokens ?? DEFAULT_STREAMS_TOKEN_STORE,
-			allowAnon: false,
-		}),
+		streamsBearerAuth({ tokens: opts.tokens ?? DEFAULT_STREAMS_TOKEN_STORE }),
 	);
 	// Credits gate: a free account with a prepaid balance goes pay-as-you-go —
 	// flags the request so the rate limiter + retention gate let it through and

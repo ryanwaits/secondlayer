@@ -76,8 +76,11 @@ export class DatabaseError extends SecondLayerError {
 }
 
 export class AuthenticationError extends SecondLayerError {
-	constructor(message: string) {
-		super("AUTHENTICATION_ERROR", message);
+	/** `details` is merged into the HTTP body — use it to carry the recovery
+	 *  hint (which credential, where it comes from) instead of a bare "invalid
+	 *  key" the caller cannot act on. */
+	constructor(message: string, details?: Record<string, unknown>) {
+		super("AUTHENTICATION_ERROR", message, undefined, details);
 	}
 }
 
@@ -162,7 +165,6 @@ export const CODE_TO_STATUS: Record<
 	NO_TENANT_FOR_PROJECT: 404,
 	INSTANCE_EXISTS: 409,
 	SUBGRAPH_NOT_FOUND: 404,
-	PUBLIC_NAME_TAKEN: 409,
 	GHOST_KEY_READ_ONLY: 403,
 } as const;
 

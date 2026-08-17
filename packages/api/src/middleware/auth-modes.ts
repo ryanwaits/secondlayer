@@ -1,6 +1,13 @@
-import { AuthenticationError } from "@secondlayer/shared/errors";
 import type { MiddlewareHandler } from "hono";
-import { resolveInstanceToken } from "../instance-bind.ts";
+import {
+	bearerToken,
+	invalidCredentialError,
+	missingCredentialError,
+} from "../auth/read-plane.ts";
+import {
+	instanceTokenMatches,
+	resolveInstanceToken,
+} from "../instance-bind.ts";
 
 /**
  * OSS-mode auth factories.
@@ -30,6 +37,10 @@ export function noAuth(): MiddlewareHandler {
 /**
  * Shared instance token. Unset → open (only legal on a loopback bind).
  * `API_KEY` is accepted as an alias of `INSTANCE_TOKEN`.
+ *
+ * Mounted on the write plane (`/api/subgraphs`, `/api/subscriptions`,
+ * `/api/node`) and `/status`, never on `/v1` — the read plane's rule lives in
+ * `auth/read-plane.ts` and keeps loopback reads keyless.
  */
 export function instanceTokenAuth(): MiddlewareHandler {
 	return async (c, next) => {
@@ -42,14 +53,9 @@ export function instanceTokenAuth(): MiddlewareHandler {
 			await next();
 			return;
 		}
-		const auth = c.req.header("authorization");
-		if (!auth?.startsWith("Bearer ")) {
-			throw new AuthenticationError("Missing or invalid Authorization header");
-		}
-		const provided = auth.slice(7);
-		if (provided !== expected) {
-			throw new AuthenticationError("Invalid instance token");
-		}
+		const provided = bearerToken(c);
+		if (provided === null) throw missingCredentialError();
+		if (!instanceTokenMatches(provided)) throw invalidCredentialError();
 		await next();
 	};
 }
