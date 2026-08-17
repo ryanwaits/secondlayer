@@ -5,7 +5,7 @@ import { processStripeEvent } from "./webhooks-stripe.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 
-const db = getDb();
+const db = HAS_DB ? getDb() : (null as never);
 
 // Track seeded account ids for cleanup
 const seededAccountIds: string[] = [];
@@ -83,10 +83,8 @@ function makeCheckoutEvent(
 	} as Stripe.Event;
 }
 
-describe("processStripeEvent", () => {
+describe.skipIf(!HAS_DB)("processStripeEvent", () => {
 	test("happy path: credits account and inserts marker row", async () => {
-		if (!HAS_DB) return;
-
 		const accountId = await makeAccount(
 			`webhook-test-happy-${Date.now()}@test.invalid`,
 		);
@@ -125,8 +123,6 @@ describe("processStripeEvent", () => {
 	});
 
 	test("refill payment_intent.succeeded credits the account", async () => {
-		if (!HAS_DB) return;
-
 		const accountId = await makeAccount(
 			`webhook-test-refill-${Date.now()}@test.invalid`,
 		);
@@ -150,8 +146,6 @@ describe("processStripeEvent", () => {
 	});
 
 	test("unhandled event type (legacy subscription lifecycle) is acked with marker and no effect", async () => {
-		if (!HAS_DB) return;
-
 		// Prod Stripe may still deliver subscription events for pre-retirement
 		// data — they must be marked processed (so the route 200s), never 500.
 		const eventId = `evt_legacy_sub_${crypto.randomUUID()}`;
@@ -175,8 +169,6 @@ describe("processStripeEvent", () => {
 	});
 
 	test("atomic rollback: failed handler rolls back marker row", async () => {
-		if (!HAS_DB) return;
-
 		// Use a non-existent account id — account_credits FK will throw
 		const badAccountId = "00000000-0000-0000-0000-000000000000";
 		const eventId = `evt_rollback_${crypto.randomUUID()}`;
@@ -198,8 +190,6 @@ describe("processStripeEvent", () => {
 	});
 
 	test("duplicate: second call returns 'duplicate' without reapplying effect", async () => {
-		if (!HAS_DB) return;
-
 		const accountId = await makeAccount(
 			`webhook-test-dup-${Date.now()}@test.invalid`,
 		);

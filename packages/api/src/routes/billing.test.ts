@@ -10,7 +10,7 @@ import {
 
 const HAS_DB = !!process.env.DATABASE_URL;
 
-const db = getDb();
+const db = HAS_DB ? getDb() : (null as never);
 
 // Track seeded account ids for cleanup
 const seededAccountIds: string[] = [];
@@ -94,10 +94,8 @@ describe("isResourceMissing", () => {
 	});
 });
 
-describe("ensureStripeCustomer", () => {
+describe.skipIf(!HAS_DB)("ensureStripeCustomer", () => {
 	test("new customer: no stored id -> creates once and persists it", async () => {
-		if (!HAS_DB) return;
-
 		const email = `billing-test-new-${Date.now()}@test.invalid`;
 		await makeAccount(email);
 		const account = await getAccountRow(email);
@@ -121,8 +119,6 @@ describe("ensureStripeCustomer", () => {
 	});
 
 	test("existing valid customer: reuses it, never creates", async () => {
-		if (!HAS_DB) return;
-
 		const email = `billing-test-valid-${Date.now()}@test.invalid`;
 		await makeAccount(email, "cus_existing_valid");
 		const account = await getAccountRow(email);
@@ -146,8 +142,6 @@ describe("ensureStripeCustomer", () => {
 	});
 
 	test("existing-but-missing (retrieve throws resource_missing): recreates once", async () => {
-		if (!HAS_DB) return;
-
 		const email = `billing-test-missing-throw-${Date.now()}@test.invalid`;
 		await makeAccount(email, "cus_stale_throws");
 		const account = await getAccountRow(email);
@@ -174,8 +168,6 @@ describe("ensureStripeCustomer", () => {
 	});
 
 	test("existing-but-deleted (retrieve resolves { deleted: true }): recreates once, no throw path", async () => {
-		if (!HAS_DB) return;
-
 		const email = `billing-test-missing-deleted-${Date.now()}@test.invalid`;
 		await makeAccount(email, "cus_stale_deleted");
 		const account = await getAccountRow(email);
@@ -197,8 +189,6 @@ describe("ensureStripeCustomer", () => {
 	});
 
 	test("propagates a non-resource_missing retrieve error without creating", async () => {
-		if (!HAS_DB) return;
-
 		const email = `billing-test-other-error-${Date.now()}@test.invalid`;
 		await makeAccount(email, "cus_other_error");
 		const account = await getAccountRow(email);

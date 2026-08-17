@@ -47,13 +47,12 @@ describe("isOverMonthlyCreditCap", () => {
 	});
 });
 
-describe("debitCreditedRows (DB)", () => {
+describe.skipIf(!HAS_DB)("debitCreditedRows (DB)", () => {
 	const TEST_EMAIL = `read-credits-test-${Date.now()}@example.com`;
 	let accountId: string;
-	const db = getDb();
+	const db = HAS_DB ? getDb() : (null as never);
 
 	beforeAll(async () => {
-		if (!HAS_DB) return;
 		const row = await db
 			.insertInto("accounts")
 			.values({ email: TEST_EMAIL })
@@ -63,7 +62,6 @@ describe("debitCreditedRows (DB)", () => {
 	});
 
 	afterAll(async () => {
-		if (!HAS_DB) return;
 		await db
 			.deleteFrom("account_credits")
 			.where("account_id", "=", accountId)
@@ -72,8 +70,6 @@ describe("debitCreditedRows (DB)", () => {
 	});
 
 	test("debit and record move together (standard rate)", async () => {
-		if (!HAS_DB) return;
-
 		await db
 			.deleteFrom("account_credits")
 			.where("account_id", "=", accountId)
@@ -94,8 +90,6 @@ describe("debitCreditedRows (DB)", () => {
 	});
 
 	test("insufficient balance: neither balance nor spend changes", async () => {
-		if (!HAS_DB) return;
-
 		await db
 			.deleteFrom("account_credits")
 			.where("account_id", "=", accountId)
@@ -114,8 +108,6 @@ describe("debitCreditedRows (DB)", () => {
 	});
 
 	test("volume rate applies past commit threshold", async () => {
-		if (!HAS_DB) return;
-
 		await db
 			.deleteFrom("account_credits")
 			.where("account_id", "=", accountId)
