@@ -38,6 +38,7 @@ import {
 	querySubgraphTableCount,
 	reindexSubgraphApi,
 	stopSubgraphApi,
+	withErrorHandling,
 } from "../lib/api-client.ts";
 import type {
 	SubgraphOperationStatus,
@@ -728,7 +729,9 @@ export function registerSubgraphsCommand(program: Command): void {
 	// --- new ---
 	subgraphs
 		.command("create <name>")
-		.description("Create a new subgraph definition file")
+		.description(
+			"Start here: create a new subgraph definition file (see also: subgraphs scaffold)",
+		)
 		.option(
 			"--from-contract <contractId>",
 			"Generate sources/schema/handlers from the contract's observed print events (requires network)",
@@ -740,6 +743,15 @@ export function registerSubgraphsCommand(program: Command): void {
 		.addHelpText(
 			"after",
 			`
+create is the default way to start a subgraph. It writes subgraphs/<name>.ts —
+an empty starter, or with --from-contract a schema inferred from the print
+events that contract has already emitted into your index.
+
+Use "secondlayer subgraphs scaffold" instead when you need what create cannot
+infer: typed contract_call tables generated from a contract's ABI (read from a
+Stacks node, so it works before your index holds that contract's history), or a
+trait-wide source with --trait sip-010.
+
 Examples:
   $ secondlayer subgraphs create my-graph
   $ secondlayer subgraphs create sbtc-flows --from-contract SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry
@@ -1473,9 +1485,14 @@ Examples:
   $ secondlayer subgraphs test subgraphs/bns-names.ts --from 167484 --to 167600
   $ secondlayer subgraphs test subgraphs/bns-names.ts --offline`,
 		)
+		// Wrapped: an escaping rejection here used to print the SDK's stack trace
+		// through packages/sdk/dist. Bundler, import, and cassette failures now
+		// take the same actionable path every other command's errors take.
 		.action(async (file: string, options) => {
 			const { runSubgraphTest } = await import("./subgraph-test.ts");
-			await runSubgraphTest(file, options);
+			await withErrorHandling(runSubgraphTest, {
+				action: `test ${file}`,
+			})(file, options);
 		});
 
 	// --- reindex ---
@@ -1978,7 +1995,9 @@ Examples:
 	// --- scaffold ---
 	subgraphs
 		.command("scaffold [contractAddress]")
-		.description("Scaffold a defineSubgraph() file from a contract or trait")
+		.description(
+			"Generate a defineSubgraph() file from a contract ABI or trait (start with: subgraphs create)",
+		)
 		.option("-o, --output <path>", "Output file path (required)")
 		.option("-k, --api-key <key>", "Stacks node API key for direct RPC URLs")
 		.option(
@@ -1993,6 +2012,13 @@ Examples:
 		.addHelpText(
 			"after",
 			`
+"secondlayer subgraphs create <name>" is the documented starting point. Reach
+for scaffold when you need what create cannot infer: typed contract_call tables
+from the contract's ABI, or a trait-wide source (--trait sip-010). scaffold
+reads the ABI from a Stacks node, so it does not need your index to hold that
+contract's history yet, and it writes a package.json and installs dependencies
+next to the output file.
+
 Examples:
   $ secondlayer subgraphs scaffold SP3D6PV2ACBPEKYJTCMH7HEN02KP87QSP8KTEH335.megapont-ape-club-nft -o subgraphs/apes.ts
   $ secondlayer subgraphs scaffold SP00...token --functions transfer,mint -o subgraphs/token.ts

@@ -1,13 +1,13 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { Index } from "@secondlayer/sdk";
+import { Index, resolveApiKey, resolveBaseUrl } from "@secondlayer/sdk";
 import type { IndexEvent } from "@secondlayer/sdk";
 import {
 	DECODED_EVENT_TYPES,
 	type DecodedEventType,
 } from "@secondlayer/stacks/filters";
-import { error, info, success, warn } from "../lib/output.ts";
+import { error, info, printError, success, warn } from "../lib/output.ts";
 
 /**
  * `secondlayer subgraphs test` — run a subgraph's handlers against real chain data
@@ -102,6 +102,101 @@ function eventTypeFor(filter: { type: string }): DecodedEventType | null {
 	return DECODED_EVENT_TYPES.includes(candidate as DecodedEventType)
 		? (candidate as DecodedEventType)
 		: null;
+}
+
+/** Where the metered reads this command makes actually go. Resolved through
+ *  the SDK's own resolver so the message can never name a different endpoint
+ *  than the one that was called. */
+function indexApiUrl(): string {
+	return resolveBaseUrl();
+}
+
+export interface IndexReadContext {
+	/** Subgraph source whose fetch failed. */
+	source: string;
+	fromHeight: number;
+	toHeight: number;
+	apiUrl: string;
+	/** The subgraph file under test, so the next command is copy-pasteable. */
+	file: string;
+}
+
+export interface IndexReadFailure {
+	message: string;
+	hint?: string;
+}
+
+/**
+ * Map a failed Index read onto a message that names the read, the endpoint, and
+ * a next command. Exported because the diagnosis is the product here: this
+ * command previously printed the SDK's stack trace and blamed credentials for
+ * failures that had nothing to do with them.
+ */
+export function indexReadFailure(
+	err: unknown,
+	ctx: IndexReadContext,
+): IndexReadFailure {
+	const e = err as {
+		status?: number;
+		body?: { details?: unknown };
+		message?: string;
+	};
+	const status = typeof e?.status === "number" ? e.status : undefined;
+	const range = `blocks ${ctx.fromHeight}–${ctx.toHeight}`;
+	const where = `reading source "${ctx.source}" (${range}) from ${ctx.apiUrl}`;
+	const offlineHint = `Replay a recorded cassette instead of reading: secondlayer subgraphs test ${ctx.file} --offline`;
+
+	if (status === 402) {
+		const details = e.body?.details as
+			| { oldest_seekable_height?: number }
+			| undefined;
+		return {
+			message: `Blocks ${ctx.fromHeight}–${ctx.toHeight} are below the free read window.`,
+			hint: details?.oldest_seekable_height
+				? `Try --from ${details.oldest_seekable_height}, or add a paid API key (INSTANCE_TOKEN) to test against older history.`
+				: "Add a paid API key (INSTANCE_TOKEN) to test against older history.",
+		};
+	}
+
+	if (status === 401 || status === 403) {
+		// The credential and endpoint come from INSTANCE_TOKEN / SL_API_URL for
+		// this read exactly as they do for `subgraphs deploy`, so say which one
+		// is missing rather than asserting the key is bad.
+		const credential = resolveApiKey()
+			? "INSTANCE_TOKEN is set in this shell"
+			: "no INSTANCE_TOKEN is set in this shell";
+		return {
+			message: `Index read rejected (HTTP ${status}) while ${where}.`,
+			hint: `${credential}. This read uses the same SL_API_URL + INSTANCE_TOKEN pair as \`secondlayer subgraphs deploy\` — confirm both point at the instance you deployed to (\`secondlayer status\`), then retry. ${offlineHint}`,
+		};
+	}
+
+	if (status === 404) {
+		return {
+			message: `Index read returned 404 while ${where}.`,
+			hint: `${ctx.apiUrl} answered but serves no /v1/index/events — check SL_API_URL points at a Secondlayer instance, not a Stacks node.`,
+		};
+	}
+
+	if (status === 429) {
+		return {
+			message: `Rate limited while ${where}.`,
+			hint: `Wait a moment and retry, or narrow the range with --to. ${offlineHint}`,
+		};
+	}
+
+	if (status !== undefined && status >= 500) {
+		return {
+			message: `Index read failed with HTTP ${status} while ${where}.`,
+			hint: `The instance is reachable but erroring — check it with \`secondlayer status\`, then retry. ${offlineHint}`,
+		};
+	}
+
+	const detail = err instanceof Error ? err.message : String(err);
+	return {
+		message: `Index read failed while ${where}: ${detail}`,
+		hint: `Confirm the instance is up and reachable: secondlayer status. ${offlineHint}`,
+	};
 }
 
 export interface SubgraphTestOptions {
@@ -216,23 +311,20 @@ export async function runSubgraphTest(
 				});
 				events[name] = envelope.events;
 			} catch (err) {
-				// The common first-run failure is reading below the free window.
-				// Say what to do instead of printing a stack.
-				const e = err as { status?: number; body?: { details?: unknown } };
-				if (e?.status === 402) {
-					const details = e.body?.details as
-						| { oldest_seekable_height?: number }
-						| undefined;
-					error(
-						`Blocks ${fromHeight}–${toHeight} are below the free read window.${
-							details?.oldest_seekable_height
-								? ` Try --from ${details.oldest_seekable_height}, or add a paid API key (INSTANCE_TOKEN) to test against older history.`
-								: " Add a paid API key (INSTANCE_TOKEN) to test against older history."
-						}`,
-					);
-					process.exit(1);
-				}
-				throw err;
+				// Every failure of this read used to escape as an unhandled
+				// rejection: the CLI printed a stack through `packages/sdk/dist`
+				// and, on a 401, blamed a credential that had deployed a subgraph
+				// ninety seconds earlier. Name the read, the endpoint, and a next
+				// command instead.
+				const failure = indexReadFailure(err, {
+					source: name,
+					fromHeight,
+					toHeight,
+					apiUrl: indexApiUrl(),
+					file,
+				});
+				printError(failure.message, { hint: failure.hint });
+				process.exit(1);
 			}
 		}
 

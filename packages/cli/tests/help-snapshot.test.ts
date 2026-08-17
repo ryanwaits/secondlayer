@@ -14,6 +14,19 @@ import { registerSubgraphsCommand } from "../src/commands/subgraphs.ts";
  * hosted login verb; retired hosted verbs (instance/account/keys/projects)
  * never reappear.
  */
+/** The help screen as a user sees it, including `addHelpText` blocks. */
+function renderHelp(command: Command | undefined): string {
+	if (!command) return "";
+	let out = "";
+	command.configureOutput({
+		writeOut: (str) => {
+			out += str;
+		},
+	});
+	command.outputHelp();
+	return out;
+}
+
 describe("CLI help snapshot", () => {
 	test("init, bootstrap, and observer are listed; hosted verbs are absent", () => {
 		const program = new Command().name("sl");
@@ -75,6 +88,24 @@ describe("CLI help snapshot", () => {
 		expect(names("streams")).not.toContain("pull");
 		expect(names("index")).not.toContain("codegen");
 		expect(program.commands.map((c) => c.name())).not.toContain("contracts");
+	});
+
+	test("one starting command is named the default and each overlapping one points at the other", () => {
+		// `create` and `scaffold` both start a subgraph, and an agent reading
+		// either screen used to have no way to choose without opening the other.
+		const program = new Command().name("sl");
+		registerSubgraphsCommand(program);
+		const subgraphs = program.commands.find((c) => c.name() === "subgraphs");
+
+		const create = subgraphs?.commands.find((c) => c.name() === "create");
+		const scaffold = subgraphs?.commands.find((c) => c.name() === "scaffold");
+		expect(create?.description()).toContain("Start here");
+		expect(create?.description()).toContain("subgraphs scaffold");
+		expect(scaffold?.description()).toContain("subgraphs create");
+
+		// `helpInformation()` omits addHelpText blocks, so render the real screen.
+		expect(renderHelp(create)).toContain("secondlayer subgraphs scaffold");
+		expect(renderHelp(scaffold)).toContain("secondlayer subgraphs create");
 	});
 
 	test("codegen carries every generated artifact", () => {
