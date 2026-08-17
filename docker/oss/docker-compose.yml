@@ -48,7 +48,18 @@ services:
       DATA_DIR: /data
       API_PORT: "3800"
       INDEXER_PORT: "3700"
+      # In a container the listen host cannot express who can reach the API:
+      # it must be 0.0.0.0 or Docker's published port never arrives. The real
+      # answer is the publish spec below, so hand the API the same value it is
+      # published with. Loopback default -> keyless local reads stay open;
+      # override API_PORT with 0.0.0.0:3800 (or any other host) in .env and
+      # every /v1 request needs INSTANCE_TOKEN.
+      #
+      # NOTE: API_PORT above is the *container* port the process listens on;
+      # ${API_PORT} in `ports:`/here is the *publish spec* the operator sets in
+      # .env. Same name, two meanings — do not collapse them.
       LISTEN_HOST: "0.0.0.0"
+      API_PUBLISH_ADDR: ${API_PORT:-127.0.0.1:3800}
       INSTANCE_TOKEN: ${INSTANCE_TOKEN:-}
       SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY:-}
       STREAMS_SIGNING_PRIVATE_KEY: ${STREAMS_SIGNING_PRIVATE_KEY:-}

@@ -56,6 +56,10 @@ services:
       # Container must listen on all interfaces so sibling services can reach
       # it. The process refuses this bind without INSTANCE_TOKEN / API_KEY.
       LISTEN_HOST: "0.0.0.0"
+      # Same interpolation as the `ports:` entry below, so the two cannot drift:
+      # it tells the API how the operator actually published the port, which is
+      # what decides whether loopback reads stay keyless.
+      API_PUBLISH_ADDR: ${API_PORT:-127.0.0.1:3800}
       INSTANCE_TOKEN: ${INSTANCE_TOKEN:-}
       SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY:-}
       STREAMS_SIGNING_PRIVATE_KEY: ${STREAMS_SIGNING_PRIVATE_KEY:-}
