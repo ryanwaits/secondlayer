@@ -21,7 +21,7 @@ The CLI and MCP read `INSTANCE_TOKEN` (`SL_API_KEY` is a legacy alias). The SDK 
 
 ## Archive credits
 
-Bootstrap, backfill, and reindex from the [signed public archive](/docs/archive) are metered per unit; verification is free. Packs are $10, $25, $50, or $100. The prepaid balance is the hard cap.
+Bootstrap, backfill, and reindex from the [signed public archive](/docs/archive) draw credits per partition bundle fetched; verification is always free, no account needed. `bootstrap` and `repair` show the price, in dollars, against your balance in the same confirm prompt you already use, before anything is charged. Every partition arrives over a short-lived presigned URL and is digest-checked before a row is written. Your first six repair bundles each month are free. Packs are $10, $25, $50, or $100. The prepaid balance is the hard cap.
 
 ```bash
 secondlayer credits buy --email you@example.com --pack 25

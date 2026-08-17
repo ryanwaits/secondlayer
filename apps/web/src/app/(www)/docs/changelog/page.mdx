@@ -6,6 +6,12 @@ keys, `402` past the free window. That service is withdrawn; on a self-hosted
 instance reads are yours and unmetered, and only archive
 bootstrap/backfill/reindex draws [credits](/docs/authentication#archive-credits).
 
+## Subgraphs — August 2026
+
+### Hosted subgraphs and subscriptions are retired
+
+`/api/subgraphs` and `/api/subscriptions` now 404 wherever the archive used to run them. Deploying handler code and delivering webhooks was never something a shared box should have been doing on your behalf. Self-host and nothing changes: it's still your subgraph, your subscription, your infrastructure end to end.
+
 ## SDK — August 2026
 
 ### Pay-per-call is gone
