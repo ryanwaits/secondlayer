@@ -44,6 +44,7 @@ services:
       NETWORK: ${NETWORK:-${STACKS_NETWORK:-mainnet}}
       STACKS_NETWORK: ${STACKS_NETWORK:-mainnet}
       NODE_MODE: ${NODE_MODE:-external}
+      SECONDLAYER_ALLOW_UNDERSIZED: ${SECONDLAYER_ALLOW_UNDERSIZED:-false}
       DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
       DATA_DIR: /data
       API_PORT: "3800"
