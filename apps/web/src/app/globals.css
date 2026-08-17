@@ -12767,7 +12767,12 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 	color: var(--accent);
 	background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
-.apiref-verb-post {
+/* Every mutating verb reads as ink; only GET keeps the accent, so the write
+   plane is distinguishable at a glance from the reads it sits beside. */
+.apiref-verb-post,
+.apiref-verb-put,
+.apiref-verb-patch,
+.apiref-verb-delete {
 	color: var(--text);
 	background: color-mix(in srgb, var(--text) 10%, transparent);
 }

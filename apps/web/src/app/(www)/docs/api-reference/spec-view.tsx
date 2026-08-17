@@ -15,12 +15,25 @@ type Param = {
 	$ref?: string;
 };
 
+type BodySchema = {
+	type?: string;
+	required?: string[];
+	properties?: Record<
+		string,
+		{ type?: string; description?: string; enum?: string[] }
+	>;
+};
+
 type Operation = {
 	tags?: string[];
 	summary?: string;
 	description?: string;
 	security?: Array<Record<string, unknown>>;
 	parameters?: Param[];
+	requestBody?: {
+		required?: boolean;
+		content?: Record<string, { schema?: BodySchema }>;
+	};
 	responses?: Record<string, { description?: string }>;
 };
 
@@ -62,6 +75,11 @@ function Endpoint({
 }) {
 	const params = (op.parameters ?? []).map(resolve);
 	const codes = Object.keys(op.responses ?? {});
+	// Writes carry their shape in the body, not the query string — without this
+	// every deploy and create endpoint renders as if it took no input.
+	const body = op.requestBody?.content?.["application/json"]?.schema;
+	const bodyFields = Object.entries(body?.properties ?? {});
+	const bodyRequired = new Set(body?.required ?? []);
 	return (
 		<div className="apiref-op">
 			<div className="apiref-op-head">
@@ -100,6 +118,36 @@ function Endpoint({
 								<td>
 									{p.description ?? (p.in === "path" ? "Path segment" : "")}
 								</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			) : null}
+
+			{bodyFields.length > 0 ? (
+				<table className="apiref-params">
+					<thead>
+						<tr>
+							<th>Body field</th>
+							<th>Type</th>
+							<th>Notes</th>
+						</tr>
+					</thead>
+					<tbody>
+						{bodyFields.map(([name, field]) => (
+							<tr key={`body:${name}`}>
+								<td>
+									<code>{name}</code>
+									{bodyRequired.has(name) ? (
+										<span className="apiref-required">required</span>
+									) : null}
+								</td>
+								<td className="apiref-type">
+									{field.enum
+										? field.enum.join(" · ")
+										: (field.type ?? "string")}
+								</td>
+								<td>{field.description ?? ""}</td>
 							</tr>
 						))}
 					</tbody>
