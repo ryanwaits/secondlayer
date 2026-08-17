@@ -74,17 +74,6 @@ function buildProgram(): Command {
 	registerStreamsCommand(program);
 	registerIndexCommand(program);
 	registerCodegenCommand(program);
-
-	// `contracts generate` is defined inline in cli.ts (not via a register
-	// function); mirror its structure here. Keep in sync with cli.ts.
-	const contracts = program
-		.command("contracts")
-		.description("Work with Clarity contracts");
-	contracts
-		.command("generate [files...]")
-		.aliases(["gen"])
-		.description("Generate TypeScript interfaces from Clarity contracts");
-
 	registerLocalCommand(program);
 	registerDevnetCommand(program);
 	registerStatusCommand(program);
@@ -117,19 +106,6 @@ function hasAction(cmd: Command): boolean {
 	);
 }
 
-/**
- * Runtime-deprecated aliases. Their deprecation lives in
- * `deprecatedCodegenNotice(...)` calls inside action closures, which commander
- * metadata can't surface — keep in sync with the callers in
- * packages/cli/src/commands/{subgraphs,index-api}.ts and cli.ts.
- */
-const DEPRECATED_IDS = new Set([
-	"subgraphs codegen",
-	"subgraphs client",
-	"index codegen",
-	"contracts generate",
-]);
-
 function collectLeaves(
 	cmd: Command,
 	path: string[],
@@ -145,7 +121,7 @@ function collectLeaves(
 				id,
 				group: subPath[0] ?? "",
 				description: sub.description(),
-				hidden: hidden || DEPRECATED_IDS.has(id),
+				hidden,
 			});
 		}
 		if (sub.commands.length > 0) {

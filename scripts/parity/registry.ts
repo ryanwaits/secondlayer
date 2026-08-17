@@ -10,9 +10,28 @@
  *   - string / string[]  the verb exists on that door under these identifiers
  *   - null               GAP: the verb should exist on that door and does not
  *   - key absent         intentionally not on that door; say why in `naReason`
+ *
+ * The registry is also the naming authority: a door's spelling should be a
+ * mechanical transform of the capability id (CLI kebab-spaced, SDK dot-camel,
+ * MCP snake; HTTP exempt because paths name resources, not verbs). `conform.ts`
+ * reports every departure as naming drift. Renames are hard: the old spelling
+ * is deleted in the same change that introduces the canonical one, and the
+ * break is recorded in a changeset. No alias layer, so a door has exactly one
+ * name for a verb and the drift list can actually reach zero.
  */
 
 export type Door = "cli" | "sdk" | "mcp" | "http";
+
+/**
+ * What an agent should do next when a call fails. `capability` must name a
+ * capability in this file; `hint` is the one-line instruction every surface
+ * renders in its own idiom (CLI prints the command, HTTP returns the
+ * reference, MCP names the tool, docs deep-link the page).
+ */
+export interface Recovery {
+	capability: string;
+	hint: string;
+}
 
 export interface Capability {
 	id: string;
@@ -20,6 +39,8 @@ export interface Capability {
 	kind: "read" | "write" | "lifecycle";
 	/** Read capability an agent calls to confirm this write landed. */
 	verify?: string;
+	/** Error codes this capability can raise, keyed to their recovery edge. */
+	recovery?: Record<string, Recovery>;
 	surfaces: Partial<Record<Door, string | string[] | null>>;
 	naReason?: Partial<Record<Door, string>>;
 }
@@ -29,8 +50,6 @@ export interface Capability {
  * reason they are excluded. Anything else unclaimed is a conformance finding.
  */
 export const EXCLUDED: Record<string, string> = {
-	"cli:subgraphs codegen": "deprecated alias of `codegen subgraph`",
-	"cli:subgraphs client": "deprecated alias of `codegen client`",
 	"sdk:trigger":
 		"chain-trigger builder DSL; authoring helper for subscriptions.create",
 	"sdk:trigger.*": "chain-trigger builder members (17); same as trigger",
@@ -58,18 +77,18 @@ export const capabilities: Capability[] = [
 		surfaces: {
 			cli: "streams tip",
 			sdk: "streams.tip",
-			mcp: null,
+			mcp: "streams_tip",
 			http: "GET /v1/streams/tip",
 		},
 	},
 	{
-		id: "streams.events.list",
+		id: "streams.events",
 		title: "List events (one page)",
 		kind: "read",
 		surfaces: {
 			cli: "streams events",
 			sdk: "streams.events.list",
-			mcp: null,
+			mcp: "streams_events",
 			http: "GET /v1/streams/events",
 		},
 	},
@@ -80,12 +99,12 @@ export const capabilities: Capability[] = [
 		surfaces: {
 			cli: "streams events by-tx",
 			sdk: "streams.events.byTxId",
-			mcp: null,
+			mcp: "streams_events_by_tx",
 			http: "GET /v1/streams/events/:tx_id",
 		},
 	},
 	{
-		id: "streams.follow",
+		id: "streams.consume",
 		title: "Follow events live",
 		kind: "read",
 		surfaces: {
@@ -97,8 +116,10 @@ export const capabilities: Capability[] = [
 				"streams.events.stream",
 				"streams.events.replay",
 			],
-			mcp: null,
 			http: "GET /v1/streams/events/stream",
+		},
+		naReason: {
+			mcp: "a tool call cannot hold a stream open; agents poll streams_events with a cursor",
 		},
 	},
 	{
@@ -108,7 +129,7 @@ export const capabilities: Capability[] = [
 		surfaces: {
 			cli: "streams reorgs",
 			sdk: "streams.reorgs.list",
-			mcp: null,
+			mcp: "streams_reorgs",
 			http: "GET /v1/streams/reorgs",
 		},
 	},
@@ -119,7 +140,7 @@ export const capabilities: Capability[] = [
 		surfaces: {
 			cli: "streams canonical",
 			sdk: "streams.canonical",
-			mcp: null,
+			mcp: "streams_canonical",
 			http: "GET /v1/streams/canonical/:height",
 		},
 	},
@@ -130,7 +151,7 @@ export const capabilities: Capability[] = [
 		surfaces: {
 			cli: "streams block-events",
 			sdk: "streams.blocks.events",
-			mcp: null,
+			mcp: "streams_block_events",
 			http: "GET /v1/streams/blocks/:heightOrHash/events",
 		},
 	},
@@ -139,7 +160,7 @@ export const capabilities: Capability[] = [
 		title: "Bulk parquet dumps",
 		kind: "read",
 		surfaces: {
-			cli: "streams pull",
+			cli: "streams dumps",
 			sdk: [
 				"streams.dumps.list",
 				"streams.dumps.fileUrl",
@@ -158,7 +179,7 @@ export const capabilities: Capability[] = [
 		verify: "subgraphs.status",
 		surfaces: {
 			cli: ["subgraphs create", "subgraphs scaffold"],
-			mcp: "scaffold_from_contract",
+			mcp: "subgraphs_scaffold",
 		},
 		naReason: {
 			sdk: "authoring is local codegen; lives in @secondlayer/scaffold",
@@ -191,6 +212,24 @@ export const capabilities: Capability[] = [
 		id: "subgraphs.deploy",
 		title: "Deploy a subgraph",
 		kind: "write",
+		recovery: {
+			VERSION_CONFLICT: {
+				capability: "subgraphs.status",
+				hint: "read the live version, then redeploy against it",
+			},
+			PAYMENT_REQUIRED: {
+				capability: "subgraphs.list",
+				hint: "top up credits or free capacity by deleting an unused subgraph",
+			},
+			VALIDATION_ERROR: {
+				capability: "subgraphs.spec",
+				hint: "compare the handler against the schema the spec declares",
+			},
+			GHOST_KEY_READ_ONLY: {
+				capability: "subgraphs.list",
+				hint: "this key is read-only; issue a key with subgraphs write scope",
+			},
+		},
 		verify: "subgraphs.status",
 		surfaces: {
 			cli: "subgraphs deploy",
@@ -216,8 +255,8 @@ export const capabilities: Capability[] = [
 		kind: "read",
 		surfaces: {
 			cli: "subgraphs status",
-			sdk: ["subgraphs.get", "getSubgraph"],
-			mcp: "subgraphs_get",
+			sdk: ["subgraphs.status", "getSubgraph"],
+			mcp: "subgraphs_status",
 			http: [
 				"GET /api/subgraphs/:subgraphName",
 				"GET /v1/subgraphs/:subgraphName",
@@ -231,7 +270,7 @@ export const capabilities: Capability[] = [
 		surfaces: {
 			cli: "subgraphs spec",
 			sdk: ["subgraphs.schema", "subgraphs.openapi", "subgraphs.markdown"],
-			mcp: null,
+			mcp: "subgraphs_spec",
 			http: [
 				"GET /api/subgraphs/:subgraphName/schema.json",
 				"GET /api/subgraphs/:subgraphName/openapi.json",
@@ -279,17 +318,29 @@ export const capabilities: Capability[] = [
 		surfaces: {
 			cli: null,
 			sdk: "subgraphs.typed.subscribe",
-			mcp: null,
 			http: [
 				"GET /api/subgraphs/:subgraphName/:tableName/stream",
 				"GET /v1/subgraphs/:subgraphName/:tableName/stream",
 			],
+		},
+		naReason: {
+			mcp: "a tool call cannot hold a stream open; agents poll subgraphs_query",
 		},
 	},
 	{
 		id: "subgraphs.reindex",
 		title: "Reindex a subgraph",
 		kind: "write",
+		recovery: {
+			SUBGRAPH_NOT_FOUND: {
+				capability: "subgraphs.list",
+				hint: "deploy the subgraph before reindexing it",
+			},
+			PAYMENT_REQUIRED: {
+				capability: "subgraphs.operations",
+				hint: "a reindex is already consuming budget; wait for it or stop it",
+			},
+		},
 		verify: "subgraphs.operations",
 		surfaces: {
 			cli: "subgraphs reindex",
@@ -302,6 +353,16 @@ export const capabilities: Capability[] = [
 		id: "subgraphs.backfill",
 		title: "Backfill a range",
 		kind: "write",
+		recovery: {
+			VALIDATION_ERROR: {
+				capability: "subgraphs.gaps",
+				hint: "request a range the gap report actually reports missing",
+			},
+			SUBGRAPH_NOT_FOUND: {
+				capability: "subgraphs.list",
+				hint: "deploy the subgraph before backfilling it",
+			},
+		},
 		verify: "subgraphs.operations",
 		surfaces: {
 			cli: "subgraphs backfill",
@@ -312,11 +373,11 @@ export const capabilities: Capability[] = [
 	},
 	{
 		id: "subgraphs.stop",
-		title: "Stop / cancel an operation",
+		title: "Stop a running operation",
 		kind: "write",
 		verify: "subgraphs.operations",
 		surfaces: {
-			cli: "subgraphs cancel",
+			cli: "subgraphs stop",
 			sdk: "subgraphs.stop",
 			mcp: "subgraphs_stop",
 			http: "POST /api/subgraphs/:subgraphName/stop",
@@ -338,9 +399,9 @@ export const capabilities: Capability[] = [
 		title: "Operation history (the verify target)",
 		kind: "read",
 		surfaces: {
-			cli: null,
+			cli: "subgraphs operations",
 			sdk: ["subgraphs.operations", "subgraphs.getOperation"],
-			mcp: null,
+			mcp: "subgraphs_operations",
 			http: [
 				"GET /api/subgraphs/:subgraphName/operations",
 				"GET /api/subgraphs/:subgraphName/operations/:operationId",
@@ -352,21 +413,29 @@ export const capabilities: Capability[] = [
 		title: "Retrieve deployed source",
 		kind: "read",
 		surfaces: {
-			cli: null,
+			cli: "subgraphs source",
 			sdk: "subgraphs.getSource",
-			mcp: null,
 			http: "GET /api/subgraphs/:subgraphName/source",
+		},
+		naReason: {
+			mcp: "agents read source from the local project, not the deployment",
 		},
 	},
 	{
 		id: "subgraphs.publish",
 		title: "Publish / unpublish publicly",
 		kind: "write",
+		recovery: {
+			PUBLIC_NAME_TAKEN: {
+				capability: "subgraphs.list",
+				hint: "choose a public name no other subgraph holds",
+			},
+		},
 		verify: "subgraphs.status",
 		surfaces: {
-			cli: null,
-			sdk: null,
-			mcp: null,
+			cli: ["subgraphs publish", "subgraphs unpublish"],
+			sdk: ["subgraphs.publish", "subgraphs.unpublish"],
+			mcp: ["subgraphs_publish", "subgraphs_unpublish"],
 			http: [
 				"POST /api/subgraphs/:subgraphName/publish",
 				"POST /api/subgraphs/:subgraphName/unpublish",
@@ -391,6 +460,12 @@ export const capabilities: Capability[] = [
 		id: "subscriptions.create",
 		title: "Create a subscription",
 		kind: "write",
+		recovery: {
+			VALIDATION_ERROR: {
+				capability: "subscriptions.test",
+				hint: "verify the endpoint accepts a signed test delivery first",
+			},
+		},
 		verify: "subscriptions.get",
 		surfaces: {
 			cli: "subscriptions create",
@@ -453,7 +528,7 @@ export const capabilities: Capability[] = [
 		surfaces: {
 			cli: "subscriptions pause",
 			sdk: "subscriptions.pause",
-			mcp: null,
+			mcp: "subscriptions_pause",
 			http: "POST /api/subscriptions/:id/pause",
 		},
 	},
@@ -465,7 +540,7 @@ export const capabilities: Capability[] = [
 		surfaces: {
 			cli: "subscriptions resume",
 			sdk: "subscriptions.resume",
-			mcp: null,
+			mcp: "subscriptions_resume",
 			http: "POST /api/subscriptions/:id/resume",
 		},
 	},
@@ -477,7 +552,7 @@ export const capabilities: Capability[] = [
 		surfaces: {
 			cli: "subscriptions rotate-secret",
 			sdk: "subscriptions.rotateSecret",
-			mcp: null,
+			mcp: "subscriptions_rotate_secret",
 			http: "POST /api/subscriptions/:id/rotate-secret",
 		},
 	},
@@ -497,6 +572,16 @@ export const capabilities: Capability[] = [
 		id: "subscriptions.replay",
 		title: "Replay past deliveries",
 		kind: "write",
+		recovery: {
+			SUBGRAPH_NOT_FOUND: {
+				capability: "subscriptions.list",
+				hint: "confirm the subscription id before replaying",
+			},
+			RATE_LIMIT_ERROR: {
+				capability: "subscriptions.deliveries",
+				hint: "deliveries are still draining; re-check before replaying again",
+			},
+		},
 		verify: "subscriptions.deliveries",
 		surfaces: {
 			cli: "subscriptions replay",
@@ -511,8 +596,8 @@ export const capabilities: Capability[] = [
 		kind: "read",
 		surfaces: {
 			cli: "subscriptions deliveries",
-			sdk: "subscriptions.recentDeliveries",
-			mcp: null,
+			sdk: "subscriptions.deliveries",
+			mcp: "subscriptions_deliveries",
 			http: "GET /api/subscriptions/:id/deliveries",
 		},
 	},
@@ -523,7 +608,7 @@ export const capabilities: Capability[] = [
 		surfaces: {
 			cli: "subscriptions dead",
 			sdk: "subscriptions.dead",
-			mcp: null,
+			mcp: "subscriptions_dead",
 			http: "GET /api/subscriptions/:id/dead",
 		},
 	},
@@ -534,8 +619,8 @@ export const capabilities: Capability[] = [
 		verify: "subscriptions.deliveries",
 		surfaces: {
 			cli: "subscriptions requeue",
-			sdk: "subscriptions.requeueDead",
-			mcp: null,
+			sdk: "subscriptions.requeue",
+			mcp: "subscriptions_requeue",
 			http: "POST /api/subscriptions/:id/dead/:outboxId/requeue",
 		},
 	},

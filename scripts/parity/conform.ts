@@ -172,7 +172,14 @@ for (const cap of capabilities) {
 		{
 			const ids = claimedIds(cap, door);
 			const expected = expectedSpelling(door, cap.id);
-			if (ids.length > 0 && expected && !ids.includes(expected)) {
+			// A method family (`streams.dumps.list|fileUrl|download`) spells the
+			// verb correctly and then namespaces beneath it — that is structure,
+			// not drift. Only a different verb counts.
+			const isFamily =
+				expected != null &&
+				ids.length > 0 &&
+				ids.every((id) => id.startsWith(`${expected}.`));
+			if (ids.length > 0 && expected && !ids.includes(expected) && !isFamily) {
 				namingDrift.push(
 					`${cap.id} ${door}: expected "${expected}", found "${ids.join('", "')}"`,
 				);
@@ -191,6 +198,14 @@ for (const cap of capabilities) {
 			type: "broken",
 			detail: `${cap.id} verify edge names unknown capability "${cap.verify}"`,
 		});
+	}
+	for (const [code, recovery] of Object.entries(cap.recovery ?? {})) {
+		if (!capabilityIds.has(recovery.capability)) {
+			findings.push({
+				type: "broken",
+				detail: `${cap.id} recovery for ${code} names unknown capability "${recovery.capability}"`,
+			});
+		}
 	}
 }
 
@@ -226,6 +241,23 @@ for (const door of DOORS) {
 const skillFiles: DocsFile[] = docs.skill?.files ?? [];
 const sitePages: DocsFile[] = docs.site?.pages ?? [];
 
+/**
+ * Docs that describe a capability the product does not have. The reverse of a
+ * coverage gap, and the more dangerous direction: an agent reading a phantom
+ * reference will call something that cannot exist. Report-only, because the
+ * mention extraction is heuristic — MCP tool names are the one token shape
+ * precise enough to check without false positives.
+ */
+const phantomDocs: string[] = [];
+for (const file of [...skillFiles, ...sitePages]) {
+	const where = file.path ?? file.slug ?? "unknown";
+	for (const tool of file.mentions?.mcp ?? []) {
+		if (!extractIds.mcp.has(tool)) {
+			phantomDocs.push(`${where} documents mcp "${tool}" — no such tool`);
+		}
+	}
+}
+
 type CellState = "present" | "gap" | "na";
 interface MatrixRow {
 	id: string;
@@ -259,7 +291,7 @@ const matrix: MatrixRow[] = capabilities.map((cap) => {
 
 await Bun.write(
 	join(OUT, "matrix.json"),
-	`${JSON.stringify({ generated: "conform.ts", families: FAMILIES, findings, namingDrift, matrix }, null, "\t")}\n`,
+	`${JSON.stringify({ generated: "conform.ts", families: FAMILIES, findings, namingDrift, phantomDocs, matrix }, null, "\t")}\n`,
 );
 
 // ── report ─────────────────────────────────────────────────────────────────
@@ -279,6 +311,9 @@ for (const type of ["phantom", "broken", "unclaimed", "gap"] as const) {
 }
 for (const drift of namingDrift) {
 	console.log(`~ naming    ${drift}`);
+}
+for (const phantom of phantomDocs) {
+	console.log(`~ docs      ${phantom}`);
 }
 const docsGaps = matrix.filter((r) => r.cells.docs?.state === "gap").length;
 const skillGaps = matrix.filter((r) => r.cells.skill?.state === "gap").length;

@@ -15,6 +15,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerResources } from "../../packages/mcp/src/resources.ts";
+import { registerAccountTools } from "../../packages/mcp/src/tools/account.ts";
 import { registerCodegenTools } from "../../packages/mcp/src/tools/codegen.ts";
 import { registerContractTools } from "../../packages/mcp/src/tools/contracts.ts";
 import { registerIndexTools } from "../../packages/mcp/src/tools/index.ts";
@@ -68,9 +69,8 @@ function freshServer(): McpServer {
 }
 
 // Mirror of the registration order in packages/mcp/src/server.ts.
-// (registerAccountTools exists in src/tools/account.ts but is NOT wired into
-// createServer(), so it is intentionally absent here.)
 const GROUPS: Array<[group: string, register: (server: McpServer) => void]> = [
+	["account", registerAccountTools],
 	["scaffold", registerScaffoldTools],
 	["subgraphs", registerSubgraphTools],
 	["subscriptions", registerSubscriptionTools],
