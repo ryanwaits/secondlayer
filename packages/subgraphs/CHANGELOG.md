@@ -1,5 +1,12 @@
 # @secondlayer/subgraphs
 
+## 4.0.3
+
+### Patch Changes
+
+- ec4f170: The live catch-up path now records a `subgraph_gaps` row (reason `processing_error`) whenever a block processes with handler errors, in the same transaction as the cursor advance. Previously a handler that threw had its writes rolled back but the cursor still moved past the block, silently dropping those events with nothing repairable recorded — the reindex/backfill paths already wrote gap rows, only the live path never did.
+- 82370a1: Subscription replay now pages historical rows by an `_id` keyset instead of `LIMIT/OFFSET`. `_created_at` is written as the SQL literal `NOW()`, so every row a subgraph writes for one block shares the exact same value — `ORDER BY _block_height, _created_at` has no tiebreaker across a page boundary, and Postgres can return tied rows in a different order per query. With `OFFSET` pagination that meant rows could be silently skipped (repeats were absorbed by the dedup constraint, but skips were data loss) for any block that wrote more than 500 rows to one table. `_id` is `BIGSERIAL` and total, so paging by it can't drop rows.
+
 ## 4.0.2
 
 ### Patch Changes
