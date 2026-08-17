@@ -1,5 +1,9 @@
 /** @jsxImportSource @opentui/react */
-import { type SelectOption, createCliRenderer } from "@opentui/core";
+import {
+	CliRenderEvents,
+	type SelectOption,
+	createCliRenderer,
+} from "@opentui/core";
 import { createRoot, useKeyboard, useRenderer } from "@opentui/react";
 import { useEffect, useRef, useState } from "react";
 import { parseInstanceNetwork } from "./instance-init.ts";
@@ -23,7 +27,38 @@ import {
  * — the same shape `resolveNonInteractiveConfig` builds from flags — and then
  * hands it to the same `runSetup()` the non-interactive path calls. Nothing
  * about what setup DOES is decided in this file.
+ *
+ * Palette: this repo's DESIGN.md (§ Terminal palette, § Named rules) already
+ * defines the terminal identity for the whole brand — window/raise/text-ramp
+ * hex values, the Warm-Terminal Rule (text is the warm `#d7d1c9` family, never
+ * cool gray), and the One-Accent Rule (teal is the terminal's one accent —
+ * "prompt arrows, links" — sunset orange is spent elsewhere and never reused
+ * here). This file reuses those values exactly; it does not invent its own.
+ * States DESIGN.md doesn't name (select/focus/pending/skipped) extend its
+ * stated logic rather than picking new hues: teal for anything interactive or
+ * in motion, muted for anything waiting, the documented semantic colors for
+ * done/error, each with the documented 8%-alpha treatment where it reads as a
+ * background rather than decoration.
  */
+
+const colors = {
+	bg: "#151515",
+	raise: "#202020",
+	fg: "#d7d1c9",
+	muted: "#8d867e",
+	bright: "#f2ede5",
+	accent: "#29c6be",
+	success: "#22c55e",
+	warning: "#eab308",
+	error: "#ef4444",
+	// rgba(255,255,255,0.08) from DESIGN.md, expressed as 8-digit hex (the
+	// format parseColor actually accepts — it has no rgba() string parser).
+	borderIdle: "#FFFFFF14",
+	// Semantic colors "paired with 8%-alpha backgrounds; never decorative"
+	// per DESIGN.md — same derivation, foreground-over-nothing at 8% alpha.
+	successBg: "#22c55e14",
+	errorBg: "#ef444414",
+} as const;
 
 type Stage =
 	| "welcome"
@@ -63,6 +98,43 @@ const NODE_MODE_OPTIONS = SETUP_NODE_MODES.map((mode) => ({
 
 function formatFloor(f: GuardrailPreview): string {
 	return `needs ≥ ${(f.ramFloorMb / 1024).toFixed(0)}GB RAM, ≥ ${f.diskFloorGb}GB disk`;
+}
+
+// A per-stage opacity crossfade, and a running-view progress-fill bar, were
+// both here and got cut, not just left out. Both relied on the same pattern:
+// repeated `.add()` calls against one reused `useTimeline()` instance, once
+// per unrelated trigger event (once per stage change; once per step
+// completing). That pattern reliably broke rendering after the second or
+// third call in a real pty test — the timeline instance appears to stop
+// ticking new work once its own `loop:false` window elapses, so later
+// content rendered blank. Confirmed by removing the crossfade and
+// re-running: every stage rendered correctly. The progress-fill bar was cut
+// alongside it on the same evidence, even though it happened not to fail in
+// that particular run — the run only exercised ~4 of 8 steps before hitting
+// the (expected, unrelated) docker-pull failure, the same call-count range
+// where the crossfade still appeared fine before breaking. Shipping it
+// unverified past that range wasn't worth the risk for a bar that duplicates
+// information the step list (✓/✗/spinner per row) already shows. Terminal
+// state changes are already instant; losing either loses no information
+// (Emil's own rule — cut motion before adding it). The spinner below is
+// unaffected — it's a plain `setInterval`, no `useTimeline`/`Timeline.add()`
+// involved, and it rendered correctly throughout.
+
+/** Braille spinner for the one step that's actively running — the only
+ *  per-frame animation outside the crossfade. Off entirely once nothing in
+ *  `events` is mid-flight, so it never runs during a static screen. */
+const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+function useSpinner(active: boolean): string {
+	const [frame, setFrame] = useState(0);
+	useEffect(() => {
+		if (!active) return;
+		const id = setInterval(
+			() => setFrame((f) => (f + 1) % SPINNER_FRAMES.length),
+			80,
+		);
+		return () => clearInterval(id);
+	}, [active]);
+	return SPINNER_FRAMES[frame];
 }
 
 function App({ flags }: { flags: SetupFlags }) {
@@ -191,86 +263,90 @@ function App({ flags }: { flags: SetupFlags }) {
 	}, [stage, config]);
 
 	return (
-		<box style={{ flexDirection: "column", padding: 1 }}>
-			<box
-				style={{ border: true, borderStyle: "single", borderColor: "#666" }}
-				title="secondlayer setup"
-			>
-				<box style={{ flexDirection: "column", padding: 1 }}>
-					{stage === "welcome" && <Welcome />}
-					{stage === "network" && (
-						<Picker
-							title="Network"
-							options={NETWORK_OPTIONS}
-							onSelect={(value) => afterNetwork(parseInstanceNetwork(value))}
-						/>
-					)}
-					{stage === "nodeMode" && (
-						<Picker
-							title="Node mode"
-							options={NODE_MODE_OPTIONS}
-							subtitle={formatFloor(preview)}
-							onChange={(value) =>
-								setPreview(
-									guardrailPreview(
-										parseSetupNodeMode(value),
-										network ?? "mainnet",
-									),
-								)
-							}
-							onSelect={(value) => afterNodeMode(parseSetupNodeMode(value))}
-						/>
-					)}
-					{stage === "manifestChoice" && (
-						<Picker
-							title="Bootstrap from"
-							options={[
-								{
-									name: "Hosted archive (recommended)",
-									description: DEFAULT_ARCHIVE_MANIFEST,
-									value: "hosted",
-								},
-								{
-									name: "Custom manifest URL or path",
-									description: "Enter your own",
-									value: "custom",
-								},
-								{
-									name: "Sync from genesis",
-									description: "Skip bootstrap — slower, no download",
-									value: "skip",
-								},
-							]}
-							onSelect={(value) => {
-								if (value === "hosted") {
-									setAgainst(DEFAULT_ARCHIVE_MANIFEST);
-									setStage("confirm");
-								} else if (value === "skip") {
-									setSkipBootstrap(true);
-									setStage("confirm");
-								} else {
-									setStage("manifestInput");
-								}
-							}}
-						/>
-					)}
-					{stage === "manifestInput" && (
-						<ManifestInput
-							onSubmit={(value) => {
-								setAgainst(value.trim() || DEFAULT_ARCHIVE_MANIFEST);
+		<box
+			style={{
+				border: true,
+				borderStyle: "single",
+				borderColor: colors.borderIdle,
+				backgroundColor: colors.bg,
+				padding: 1,
+			}}
+			title="secondlayer setup"
+		>
+			<box style={{ flexDirection: "column" }}>
+				{stage === "welcome" && <Welcome />}
+				{stage === "network" && (
+					<Picker
+						title="Network"
+						options={NETWORK_OPTIONS}
+						onSelect={(value) => afterNetwork(parseInstanceNetwork(value))}
+					/>
+				)}
+				{stage === "nodeMode" && (
+					<Picker
+						title="Node mode"
+						options={NODE_MODE_OPTIONS}
+						subtitle={formatFloor(preview)}
+						onChange={(value) =>
+							setPreview(
+								guardrailPreview(
+									parseSetupNodeMode(value),
+									network ?? "mainnet",
+								),
+							)
+						}
+						onSelect={(value) => afterNodeMode(parseSetupNodeMode(value))}
+					/>
+				)}
+				{stage === "manifestChoice" && (
+					<Picker
+						title="Bootstrap from"
+						options={[
+							{
+								name: "Hosted archive (recommended)",
+								description: DEFAULT_ARCHIVE_MANIFEST,
+								value: "hosted",
+							},
+							{
+								name: "Custom manifest URL or path",
+								description: "Enter your own",
+								value: "custom",
+							},
+							{
+								name: "Sync from genesis",
+								description: "Skip bootstrap — slower, no download",
+								value: "skip",
+							},
+						]}
+						onSelect={(value) => {
+							if (value === "hosted") {
+								setAgainst(DEFAULT_ARCHIVE_MANIFEST);
 								setStage("confirm");
-							}}
-						/>
-					)}
-					{stage === "confirm" && config && (
-						<Confirm config={config} onConfirm={() => setStage("running")} />
-					)}
-					{stage === "running" && <RunningView events={events} log={log} />}
-					{stage === "done" && summary && <Done summary={summary} />}
-					{stage === "error" && (
-						<ErrorView message={fatal ?? "Setup failed."} log={log} />
-					)}
-				</box>
+							} else if (value === "skip") {
+								setSkipBootstrap(true);
+								setStage("confirm");
+							} else {
+								setStage("manifestInput");
+							}
+						}}
+					/>
+				)}
+				{stage === "manifestInput" && (
+					<ManifestInput
+						onSubmit={(value) => {
+							setAgainst(value.trim() || DEFAULT_ARCHIVE_MANIFEST);
+							setStage("confirm");
+						}}
+					/>
+				)}
+				{stage === "confirm" && config && (
+					<Confirm config={config} onConfirm={() => setStage("running")} />
+				)}
+				{stage === "running" && <RunningView events={events} log={log} />}
+				{stage === "done" && summary && <Done summary={summary} />}
+				{stage === "error" && (
+					<ErrorView message={fatal ?? "Setup failed."} log={log} />
+				)}
 			</box>
 		</box>
 	);
@@ -301,8 +377,8 @@ function safeParseNodeMode(
 function Welcome() {
 	return (
 		<box style={{ flexDirection: "column" }}>
-			<text fg="#FFFFFF">Guided self-host setup.</text>
-			<text fg="#888">
+			<text fg={colors.bright}>Guided self-host setup.</text>
+			<text fg={colors.muted}>
 				{"\n"}This writes secrets, a docker-compose file, and .env into a target
 				directory, brings the stack up, and (optionally) restores verified
 				history from the archive.
@@ -327,13 +403,21 @@ function Picker({
 }) {
 	return (
 		<box style={{ flexDirection: "column" }}>
-			<text fg="#FFFF00">{title}</text>
-			{subtitle && <text fg="#51cf66">{subtitle}</text>}
+			<text fg={colors.bright}>{title}</text>
+			{subtitle && <text fg={colors.accent}>{subtitle}</text>}
 			<select
 				style={{ height: options.length * 2 + 1 }}
 				options={options}
 				focused
 				showDescription
+				backgroundColor="transparent"
+				textColor={colors.fg}
+				focusedBackgroundColor={colors.raise}
+				focusedTextColor={colors.bright}
+				selectedBackgroundColor={colors.raise}
+				selectedTextColor={colors.accent}
+				descriptionColor={colors.muted}
+				selectedDescriptionColor={colors.fg}
 				onChange={(_index: number, option: SelectOption | null) => {
 					if (option) onChange?.(String(option.value));
 				}}
@@ -341,7 +425,7 @@ function Picker({
 					if (option) onSelect(String(option.value));
 				}}
 			/>
-			<text fg="#555">{"\n"}↑↓ to move, enter to choose</text>
+			<text fg={colors.muted}>{"\n"}↑↓ to move, enter to choose</text>
 		</box>
 	);
 }
@@ -349,14 +433,19 @@ function Picker({
 function ManifestInput({ onSubmit }: { onSubmit: (value: string) => void }) {
 	return (
 		<box style={{ flexDirection: "column" }}>
-			<text fg="#FFFF00">Manifest URL or local path</text>
-			<text fg="#888">Suggested: {DEFAULT_ARCHIVE_MANIFEST}</text>
+			<text fg={colors.bright}>Manifest URL or local path</text>
+			<text fg={colors.muted}>Suggested: {DEFAULT_ARCHIVE_MANIFEST}</text>
 			<input
 				focused
 				placeholder={DEFAULT_ARCHIVE_MANIFEST}
+				textColor={colors.fg}
+				focusedTextColor={colors.accent}
+				placeholderColor={colors.muted}
 				onSubmit={(value: unknown) => onSubmit(String(value ?? ""))}
 			/>
-			<text fg="#555">{"\n"}enter to accept (blank = suggested default)</text>
+			<text fg={colors.muted}>
+				{"\n"}enter to accept (blank = suggested default)
+			</text>
 		</box>
 	);
 }
@@ -374,8 +463,8 @@ function Confirm({
 	});
 	return (
 		<box style={{ flexDirection: "column" }}>
-			<text fg="#FFFF00">Ready</text>
-			<text fg="#CCCCCC">
+			<text fg={colors.bright}>Ready</text>
+			<text fg={colors.fg}>
 				{"\n"}network {config.network}
 				{"\n"}node mode {config.nodeMode}
 				{"\n"}dir {config.dir}
@@ -384,7 +473,7 @@ function Confirm({
 				{config.skipBootstrap ? "skip (sync from genesis)" : config.against}
 				{"\n"}image ghcr.io/{config.owner}/secondlayer-runtime:{config.imageTag}
 			</text>
-			<text fg="#51cf66">{"\n"}Press Enter to start.</text>
+			<text fg={colors.accent}>{"\n"}Press Enter to start.</text>
 		</box>
 	);
 }
@@ -399,18 +488,26 @@ const STEP_LABEL: Record<SetupStep, string> = {
 	verify: "Verify",
 	summary: "Summary",
 };
+const STEP_ORDER = Object.keys(STEP_LABEL) as SetupStep[];
 
 function RunningView({ events, log }: { events: SetupEvent[]; log: string[] }) {
 	const latestByStep = new Map<SetupStep, SetupEvent>();
 	for (const e of events) latestByStep.set(e.step, e);
 
+	const anyActive = STEP_ORDER.some(
+		(step) => latestByStep.get(step)?.type === "step-start",
+	);
+	const spinner = useSpinner(anyActive);
+
 	return (
 		<box style={{ flexDirection: "column" }}>
-			{Object.keys(STEP_LABEL).map((step) => {
-				const e = latestByStep.get(step as SetupStep);
-				const symbol =
-					!e || e.type === "step-start"
-						? "…"
+			{STEP_ORDER.map((step) => {
+				const e = latestByStep.get(step);
+				const active = e?.type === "step-start";
+				const symbol = !e
+					? "·"
+					: active
+						? spinner
 						: e.type === "step-done"
 							? "✓"
 							: e.type === "step-skip"
@@ -418,17 +515,18 @@ function RunningView({ events, log }: { events: SetupEvent[]; log: string[] }) {
 								: e.type === "step-error"
 									? "✗"
 									: " ";
-				const color =
-					e?.type === "step-done"
-						? "#51cf66"
+				const color = active
+					? colors.accent
+					: e?.type === "step-done"
+						? colors.success
 						: e?.type === "step-error"
-							? "#ff6b6b"
+							? colors.error
 							: e?.type === "step-skip"
-								? "#888"
-								: "#FFD43B";
+								? colors.muted
+								: colors.muted;
 				return (
 					<text key={step} fg={color}>
-						{symbol} {STEP_LABEL[step as SetupStep]}
+						{symbol} {STEP_LABEL[step]}
 					</text>
 				);
 			})}
@@ -436,7 +534,7 @@ function RunningView({ events, log }: { events: SetupEvent[]; log: string[] }) {
 				style={{
 					border: true,
 					borderStyle: "single",
-					borderColor: "#444",
+					borderColor: colors.borderIdle,
 					marginTop: 1,
 					height: 10,
 				}}
@@ -444,10 +542,13 @@ function RunningView({ events, log }: { events: SetupEvent[]; log: string[] }) {
 			>
 				<box style={{ flexDirection: "column", padding: 1 }}>
 					{log.length === 0 ? (
-						<text fg="#555">waiting…</text>
+						<text fg={colors.muted}>waiting…</text>
 					) : (
 						log.map((line, i) => (
-							<text key={`${i}:${line}`} fg="#AAAAAA">
+							<text
+								key={`${i}:${line}`}
+								fg={line.startsWith("ERROR:") ? colors.error : colors.fg}
+							>
 								{line}
 							</text>
 						))
@@ -461,8 +562,10 @@ function RunningView({ events, log }: { events: SetupEvent[]; log: string[] }) {
 function Done({ summary }: { summary: string }) {
 	return (
 		<box style={{ flexDirection: "column" }}>
-			<text fg="#51cf66">{summary}</text>
-			<text fg="#555">{"\n"}press enter or q to exit</text>
+			<box style={{ backgroundColor: colors.successBg, padding: 1 }}>
+				<text fg={colors.success}>{summary}</text>
+			</box>
+			<text fg={colors.muted}>{"\n"}press enter or q to exit</text>
 		</box>
 	);
 }
@@ -470,18 +573,51 @@ function Done({ summary }: { summary: string }) {
 function ErrorView({ message, log }: { message: string; log: string[] }) {
 	return (
 		<box style={{ flexDirection: "column" }}>
-			<text fg="#ff6b6b">{message}</text>
+			<box style={{ backgroundColor: colors.errorBg, padding: 1 }}>
+				<text fg={colors.error}>{message}</text>
+			</box>
 			{log.slice(-10).map((line, i) => (
-				<text key={`${i}:${line}`} fg="#888">
+				<text key={`${i}:${line}`} fg={colors.muted}>
 					{line}
 				</text>
 			))}
-			<text fg="#555">{"\n"}press enter or q to exit</text>
+			<text fg={colors.muted}>{"\n"}press enter or q to exit</text>
 		</box>
 	);
 }
 
+/**
+ * Resolves once the session genuinely ends, rejects if OpenTUI's renderer
+ * hits a render or handler error mid-session — not right after mount, which
+ * is all the previous version waited for. That gap is exactly how a crash
+ * that happens after the welcome screen (picking a network, submitting the
+ * confirm screen, anything mid-interaction) used to skip past
+ * `commands/setup.ts`'s catch block entirely and dump a raw stack trace over
+ * a half-drawn TUI instead of degrading to the `@inquirer/prompts` fallback.
+ */
 export async function runSetupTui(flags: SetupFlags): Promise<void> {
 	const renderer = await createCliRenderer({ exitOnCtrlC: true });
 	createRoot(renderer).render(<App flags={flags} />);
+
+	return new Promise<void>((resolve, reject) => {
+		let settled = false;
+		const onDestroy = () => {
+			if (settled) return;
+			settled = true;
+			resolve();
+		};
+		const onError = (event: { error?: Error }) => {
+			if (settled) return;
+			settled = true;
+			try {
+				renderer.destroy();
+			} catch {
+				// already tearing down — nothing more to do
+			}
+			reject(event.error ?? new Error("OpenTUI renderer error"));
+		};
+		renderer.once(CliRenderEvents.DESTROY, onDestroy);
+		renderer.once(CliRenderEvents.RENDER_ERROR, onError);
+		renderer.once(CliRenderEvents.HANDLER_ERROR, onError);
+	});
 }

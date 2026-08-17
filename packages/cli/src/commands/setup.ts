@@ -195,11 +195,13 @@ decision with no safe default (--network, --node-mode, and --against unless
 			}
 			try {
 				const { runSetupTui } = await import("../lib/setup-tui.tsx");
+				// `runSetupTui`'s promise stays pending for the whole interactive
+				// session (not just past mount) — it settles on a clean exit, and
+				// rejects if OpenTUI hits a render/handler error at any point during
+				// the session, so a crash after the welcome screen lands here too,
+				// not just an init-time failure.
 				await runSetupTui(flags);
 			} catch (err) {
-				// Defensive: catches any other OpenTUI init failure (not just the
-				// node-runtime case already routed around above) so a real
-				// terminal session degrades to prompts instead of crashing.
 				warn(
 					`Interactive TUI unavailable (${err instanceof Error ? err.message : String(err)}) — falling back to guided prompts.`,
 				);
