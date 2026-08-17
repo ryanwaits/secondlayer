@@ -938,6 +938,10 @@ Examples:
 			"--allow-uncommitted",
 			"Deploy even though the source file is not committed to git (the deployed definition will exist only in the database)",
 		)
+		.addHelpText(
+			"after",
+			"\nBy default the source file must be committed to git — otherwise the\ndeployed definition's only copy is the row in the database. Pass\n--allow-uncommitted to deploy anyway.",
+		)
 		.action(
 			async (
 				file: string,
