@@ -2,6 +2,8 @@
  * Docker availability helpers
  */
 
+import { spawnSync } from "node:child_process";
+
 export class DockerNotAvailableError extends Error {
 	constructor(message: string) {
 		super(message);
@@ -9,16 +11,24 @@ export class DockerNotAvailableError extends Error {
 	}
 }
 
+// child_process (not `Bun.$`) so this works under both node and bun — the
+// published CLI runs under node via its shebang, where `Bun.$` doesn't exist
+// and every call below silently reported Docker as unreachable regardless of
+// its actual state. Same fix `devnet.ts`'s `ensureDocker` and
+// `setup-wizard.ts`'s `checkDocker` already apply, for the same reason.
+function run(command: string, args: string[]): { ok: boolean; stdout: string } {
+	const result = spawnSync(command, args, { encoding: "utf8" });
+	return {
+		ok: !result.error && result.status === 0,
+		stdout: result.stdout ?? "",
+	};
+}
+
 /**
  * Check if Docker is available and running
  */
 export async function isDockerAvailable(): Promise<boolean> {
-	try {
-		const result = await Bun.$`docker info`.quiet().nothrow();
-		return result.exitCode === 0;
-	} catch {
-		return false;
-	}
+	return run("docker", ["info"]).ok;
 }
 
 /**
@@ -26,8 +36,7 @@ export async function isDockerAvailable(): Promise<boolean> {
  */
 export async function requireDocker(): Promise<void> {
 	// First check if docker command exists
-	const whichResult = await Bun.$`which docker`.quiet().nothrow();
-	if (whichResult.exitCode !== 0) {
+	if (!run("which", ["docker"]).ok) {
 		throw new DockerNotAvailableError(
 			"Docker is not installed.\n\n" +
 				"Install Docker:\n" +
@@ -53,22 +62,24 @@ export async function requireDocker(): Promise<void> {
  * Check if a container is running
  */
 export async function isContainerRunning(name: string): Promise<boolean> {
-	const result = await Bun.$`docker ps -q -f name=${name}`.quiet().nothrow();
-	return result.stdout.toString().trim().length > 0;
+	return (
+		run("docker", ["ps", "-q", "-f", `name=${name}`]).stdout.trim().length > 0
+	);
 }
 
 /**
  * Check if a container exists (running or stopped)
  */
 export async function containerExists(name: string): Promise<boolean> {
-	const result = await Bun.$`docker ps -aq -f name=${name}`.quiet().nothrow();
-	return result.stdout.toString().trim().length > 0;
+	return (
+		run("docker", ["ps", "-aq", "-f", `name=${name}`]).stdout.trim().length > 0
+	);
 }
 
 /**
  * Stop and remove a container
  */
 export async function removeContainer(name: string): Promise<void> {
-	await Bun.$`docker stop ${name}`.quiet().nothrow();
-	await Bun.$`docker rm ${name}`.quiet().nothrow();
+	run("docker", ["stop", name]);
+	run("docker", ["rm", name]);
 }
