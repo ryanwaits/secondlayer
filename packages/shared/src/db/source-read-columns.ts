@@ -274,7 +274,7 @@ export interface IndexColumn {
 
 // The portable TS/SQL type for every column in SOURCE_READ_COLUMNS, single-sourced
 // from the `Database` interface (the producer's typed schema). This is what lets
-// `sl index codegen` emit a typed ORM/JSON-Schema for the public Index domain so a
+// `sl codegen index` emit a typed ORM/JSON-Schema for the public Index domain so a
 // BYO database mirror is fully typed and can't drift from the API. The drift test
 // (source-read-columns.test.ts) asserts this covers exactly SOURCE_READ_COLUMNS;
 // the `satisfies` clause guarantees a type entry for every read table.

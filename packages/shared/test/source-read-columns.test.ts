@@ -29,7 +29,7 @@ describe("SOURCE_READ_COLUMNS drift guard", () => {
 });
 
 // SOURCE_READ_TYPES carries the portable type for every read column (drives
-// `sl index codegen`). It must cover exactly SOURCE_READ_COLUMNS — a column added
+// `sl codegen index`). It must cover exactly SOURCE_READ_COLUMNS — a column added
 // to the read contract without a type here (or vice versa) makes codegen emit a
 // wrong/partial schema. The `satisfies` clause guarantees table-key parity at
 // compile time; this asserts per-column parity at runtime.
