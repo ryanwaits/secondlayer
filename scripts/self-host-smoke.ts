@@ -105,9 +105,11 @@ async function get(path: string, key?: string): Promise<HttpResult> {
 }
 
 /**
- * Provision (or reuse) the local owner account and mint a key — the same path
- * `scripts/oss-bootstrap.ts` gives an operator, inlined so the smoke is one
- * command.
+ * Provision (or reuse) the local owner account and mint a key, inlined so the
+ * smoke is one command. This is the legacy account+API-key credential model,
+ * kept here only for this script's own DB-level checks — it is not how an
+ * operator authenticates today (see `secondlayer init` / `secondlayer setup`,
+ * which mint `INSTANCE_TOKEN`).
  */
 async function bootstrapKey(db: Kysely<Database>): Promise<string> {
 	const existing = await db
