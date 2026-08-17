@@ -3,7 +3,7 @@
 	"info": {
 		"title": "Secondlayer Public API",
 		"version": "1.0.0",
-		"description": "This instance: Index (decoded chain events), Streams (raw firehose), Subgraphs (your schema). Cursor format is `<block_height>:<event_index>` on Index/Streams; opaque on Subgraphs."
+		"description": "This instance: Index (decoded chain events), Streams (raw firehose), Subgraphs (the schemas you deployed), and the `/api` write plane that deploys and drives them. Cursor format is `<block_height>:<event_index>` on Index/Streams; opaque on Subgraphs. Auth is one credential: the instance token minted by `secondlayer init` (`INSTANCE_TOKEN`; `SL_API_KEY`/`API_KEY` are legacy aliases), sent as `Authorization: Bearer $INSTANCE_TOKEN`. `/v1` reads need no credential while the API is reachable only over loopback and require the token on every request once it is published past loopback — one rule, identical on Index, Streams, and Subgraphs, which is why every read below lists bearer auth as optional. Writes under `/api` require the token whenever one is set, and must send `Content-Type: application/json` (anything else is refused with 415 `UNSUPPORTED_MEDIA_TYPE`)."
 	},
 	"servers": [
 		{
@@ -18,11 +18,27 @@
 		},
 		{
 			"name": "streams",
-			"description": "Raw firehose, bearer"
+			"description": "Raw event firehose, chain tip, and reorg history"
 		},
 		{
 			"name": "subgraphs",
-			"description": "Deployed subgraph reads — public anon, private bearer"
+			"description": "Reads over deployed subgraphs — rows, counts, aggregates, generated schema and docs"
+		},
+		{
+			"name": "deployments",
+			"description": "Deploy, reindex, backfill, stop, and delete subgraphs on this instance (write plane, `/api`)"
+		},
+		{
+			"name": "subscriptions",
+			"description": "Webhook subscriptions: create, update, pause, replay, and inspect deliveries (write plane, `/api`)"
+		},
+		{
+			"name": "node",
+			"description": "Proxy to the Stacks node this instance follows"
+		},
+		{
+			"name": "instance",
+			"description": "What this instance is, holds, and has enabled"
 		}
 	],
 	"components": {
@@ -30,7 +46,8 @@
 			"bearerAuth": {
 				"type": "http",
 				"scheme": "bearer",
-				"bearerFormat": "sk-sl_*"
+				"bearerFormat": "hex",
+				"description": "The instance token from `secondlayer init` — 32 random bytes, hex-encoded, read from `INSTANCE_TOKEN` (`SL_API_KEY`/`API_KEY` are legacy aliases). There is no signup and no second key type: one instance, one token. Optional on `/v1` reads served over a loopback bind, required on every request once the instance is reachable past loopback, and required on every `/api` write whenever a token is set."
 			}
 		},
 		"schemas": {
@@ -166,6 +183,12 @@
 		"/v1": {
 			"get": {
 				"summary": "Surface discovery",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -182,6 +205,16 @@
 								}
 							}
 						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
 					}
 				}
 			}
@@ -189,12 +222,13 @@
 		"/v1/batch": {
 			"post": {
 				"summary": "Batch public reads",
-				"description": "Up to 10 public /v1 reads in one round trip. Body: { requests: [{ path, params? }] }. Each item keeps its own auth/quota/pay-per-call semantics; forwarded credentials apply to every item; results return in order with per-item status."
-			}
-		},
-		"/v1/openapi.json": {
-			"get": {
-				"summary": "This document",
+				"description": "Up to 10 `/v1` reads in one round trip. Body: `{ requests: [{ path, params? }] }`. Each item keeps its own auth semantics; a forwarded credential applies to every item; results return in order with per-item status. Read-only, so the `/api` JSON content-type guard does not apply.",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -203,6 +237,55 @@
 						}
 					},
 					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/openapi.json": {
+			"get": {
+				"summary": "This document",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
 						"description": "Error",
 						"content": {
 							"application/json": {
@@ -220,7 +303,13 @@
 				"tags": [
 					"subgraphs"
 				],
-				"summary": "List readable subgraphs (public + your own with a bearer key)",
+				"summary": "List the subgraphs this instance serves",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -229,6 +318,16 @@
 						}
 					},
 					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
 						"description": "Error",
 						"content": {
 							"application/json": {
@@ -247,6 +346,12 @@
 					"subgraphs"
 				],
 				"summary": "Subgraph metadata: tables, columns, sync tip, doc links",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
 				"parameters": [
 					{
 						"name": "name",
@@ -265,6 +370,16 @@
 						}
 					},
 					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
 						"description": "Error",
 						"content": {
 							"application/json": {
@@ -315,6 +430,16 @@
 								}
 							}
 						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
 					}
 				}
 			}
@@ -357,6 +482,16 @@
 								}
 							}
 						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
 					}
 				}
 			}
@@ -391,6 +526,16 @@
 						}
 					},
 					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
 						"description": "Error",
 						"content": {
 							"application/json": {
@@ -537,6 +682,12 @@
 					"subgraphs"
 				],
 				"summary": "Count rows matching filters",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
 				"parameters": [
 					{
 						"name": "name",
@@ -563,6 +714,16 @@
 						}
 					},
 					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
 						"description": "Error",
 						"content": {
 							"application/json": {
@@ -581,6 +742,12 @@
 					"subgraphs"
 				],
 				"summary": "Scalar aggregates (_count/_countDistinct/_sum/_min/_max) over filtered rows",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
 				"parameters": [
 					{
 						"name": "name",
@@ -607,6 +774,16 @@
 						}
 					},
 					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
 						"description": "Error",
 						"content": {
 							"application/json": {
@@ -625,6 +802,12 @@
 					"subgraphs"
 				],
 				"summary": "SSE tail of new rows (?since=<block> to replay)",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
 				"parameters": [
 					{
 						"name": "name",
@@ -659,6 +842,16 @@
 								}
 							}
 						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
 					}
 				}
 			}
@@ -669,6 +862,12 @@
 					"index"
 				],
 				"summary": "Index discovery",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -677,6 +876,16 @@
 						}
 					},
 					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
 						"description": "Error",
 						"content": {
 							"application/json": {
@@ -1432,6 +1641,16 @@
 								}
 							}
 						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
 					}
 				}
 			}
@@ -1597,6 +1816,16 @@
 								}
 							}
 						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
 					}
 				}
 			}
@@ -1631,6 +1860,16 @@
 						}
 					},
 					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
 						"description": "Error",
 						"content": {
 							"application/json": {
@@ -2532,6 +2771,16 @@
 								}
 							}
 						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
 					}
 				}
 			}
@@ -2574,6 +2823,16 @@
 								}
 							}
 						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
 					}
 				}
 			}
@@ -2600,6 +2859,16 @@
 						}
 					},
 					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
 						"description": "Error",
 						"content": {
 							"application/json": {
@@ -2757,6 +3026,16 @@
 								}
 							}
 						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
 					}
 				}
 			}
@@ -2799,6 +3078,16 @@
 								}
 							}
 						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
 					}
 				}
 			}
@@ -2809,6 +3098,12 @@
 					"streams"
 				],
 				"summary": "Streams discovery",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -2817,6 +3112,16 @@
 						}
 					},
 					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
 						"description": "Error",
 						"content": {
 							"application/json": {
@@ -2836,6 +3141,7 @@
 				],
 				"summary": "Raw event firehose",
 				"security": [
+					{},
 					{
 						"bearerAuth": []
 					}
@@ -2945,6 +3251,7 @@
 				],
 				"summary": "SSE tail of the raw event firehose (same filters as /events)",
 				"security": [
+					{},
 					{
 						"bearerAuth": []
 					}
@@ -3002,6 +3309,16 @@
 								}
 							}
 						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
 					}
 				}
 			}
@@ -3013,6 +3330,7 @@
 				],
 				"summary": "Chain reorg history",
 				"security": [
+					{},
 					{
 						"bearerAuth": []
 					}
@@ -3046,6 +3364,16 @@
 								}
 							}
 						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
 					}
 				}
 			}
@@ -3057,6 +3385,7 @@
 				],
 				"summary": "Canonical block by height",
 				"security": [
+					{},
 					{
 						"bearerAuth": []
 					}
@@ -3087,6 +3416,16 @@
 								}
 							}
 						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
 					}
 				}
 			}
@@ -3098,6 +3437,7 @@
 				],
 				"summary": "Current chain tip",
 				"security": [
+					{},
 					{
 						"bearerAuth": []
 					}
@@ -3118,6 +3458,1864 @@
 								}
 							}
 						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subgraphs": {
+			"get": {
+				"tags": [
+					"deployments"
+				],
+				"summary": "List deployed subgraphs with status, sync lag, and row counts",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"tags": [
+					"deployments"
+				],
+				"summary": "Deploy or redeploy a subgraph",
+				"description": "Takes bundled handler code (see `/api/subgraphs/bundle`) plus the schema and sources extracted from it. Redeploying the same name updates in place; the response `action` says what happened (`created`, `unchanged`, `handler_updated`, `updated`, `reindexed`). `dryRun` validates without writing.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": [
+									"name",
+									"sources",
+									"schema",
+									"handlerCode"
+								],
+								"properties": {
+									"name": {
+										"type": "string",
+										"maxLength": 63,
+										"pattern": "^[a-z0-9-]+$",
+										"description": "Lowercase alphanumeric and hyphens."
+									},
+									"sources": {
+										"type": "object",
+										"description": "At least one event source, keyed by name. Extracted from the handler module."
+									},
+									"schema": {
+										"type": "object",
+										"description": "Table definitions."
+									},
+									"handlerCode": {
+										"type": "string",
+										"description": "Bundled handler module, 1 MB max."
+									},
+									"startBlock": {
+										"type": "integer",
+										"minimum": 0,
+										"description": "First block to index. Rejected (400 `START_BLOCK_PAST_TIP`) when it is past the chain tip."
+									},
+									"version": {
+										"type": "string"
+									},
+									"description": {
+										"type": "string"
+									},
+									"sourceCode": {
+										"type": "string",
+										"description": "Unbundled source, kept for `sl subgraph source`."
+									},
+									"dryRun": {
+										"type": "boolean"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subgraphs/bundle": {
+			"post": {
+				"tags": [
+					"deployments"
+				],
+				"summary": "Bundle subgraph source into deployable handler code",
+				"description": "Compiles a subgraph module and returns `{ name, sources, schema, handlerCode }` ready to POST to `/api/subgraphs`. Deploys nothing.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": [
+									"code"
+								],
+								"properties": {
+									"code": {
+										"type": "string",
+										"description": "Subgraph module source."
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"413": {
+						"description": "Bundle exceeds the size limit (`BUNDLE_TOO_LARGE`)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subgraphs/{name}": {
+			"get": {
+				"tags": [
+					"deployments"
+				],
+				"summary": "Deployed subgraph detail: definition, status, operations",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "name",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"tags": [
+					"deployments"
+				],
+				"summary": "Delete a subgraph and drop its schema",
+				"description": "Cancels any running operation, waits for the processor to release it, then drops the Postgres schema and the registry row. Irreversible.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "name",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "force",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "boolean"
+						},
+						"description": "Proceed even when an active operation has not cleared."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subgraphs/{name}/reindex": {
+			"post": {
+				"tags": [
+					"deployments"
+				],
+				"summary": "Queue a full reindex (drops and rebuilds the schema)",
+				"description": "Always rebuilds the whole subgraph from its start block — a `fromBlock`/`toBlock` body is rejected with 400 `REINDEX_RANGE_NOT_SUPPORTED` rather than silently destroying everything outside the range; use `backfill` for a range. Returns an `operationId` to poll on `/api/subgraphs/{name}/operations`.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "name",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "A reindex or backfill is already running (`OPERATION_IN_PROGRESS`)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subgraphs/{name}/backfill": {
+			"post": {
+				"tags": [
+					"deployments"
+				],
+				"summary": "Queue a non-destructive backfill over a block range",
+				"description": "Re-runs handlers over `[fromBlock, toBlock]` without dropping data. Refused with 422 when the handlers apply deltas (`ctx.increment`/`patchOrInsert`/`update`), which would double-count on blocks already processed.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "name",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": [
+									"fromBlock",
+									"toBlock"
+								],
+								"properties": {
+									"fromBlock": {
+										"type": "integer"
+									},
+									"toBlock": {
+										"type": "integer"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "A reindex or backfill is already running (`OPERATION_IN_PROGRESS`)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"422": {
+						"description": "Handlers apply deltas and cannot be replayed (`BACKFILL_NON_REPLAYABLE_HANDLER`)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subgraphs/{name}/stop": {
+			"post": {
+				"tags": [
+					"deployments"
+				],
+				"summary": "Request cancellation of the running reindex or backfill",
+				"description": "Body-less. Marks the active operation `cancel_requested`; the processor releases it at its next checkpoint.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "name",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "No active operation (`NO_OPERATION`)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subgraphs/{name}/operations": {
+			"get": {
+				"tags": [
+					"deployments"
+				],
+				"summary": "Reindex/backfill history with queue position and progress",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "name",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subgraphs/{name}/operations/{operation_id}": {
+			"get": {
+				"tags": [
+					"deployments"
+				],
+				"summary": "One operation by id (poll a queued reindex or backfill)",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "name",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "operation_id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subgraphs/{name}/gaps": {
+			"get": {
+				"tags": [
+					"deployments"
+				],
+				"summary": "Block ranges this subgraph has not processed",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "name",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "_limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						},
+						"description": "Page size, 1–1000."
+					},
+					{
+						"name": "_offset",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						}
+					},
+					{
+						"name": "resolved",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "\"true\" for resolved gaps, \"all\" for both; unresolved only by default."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subscriptions": {
+			"get": {
+				"tags": [
+					"subscriptions"
+				],
+				"summary": "List webhook subscriptions",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "_limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						},
+						"description": "Page size, 1–200 (default 50)."
+					},
+					{
+						"name": "_offset",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"tags": [
+					"subscriptions"
+				],
+				"summary": "Create a webhook subscription",
+				"description": "Two mutually exclusive modes: a subgraph subscription (`subgraphName` + `tableName`, optional column `filter`) or a chain subscription (`triggers`). Responds 201 with the signing secret — the only time it is returned in full.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": [
+									"name",
+									"url"
+								],
+								"properties": {
+									"name": {
+										"type": "string"
+									},
+									"url": {
+										"type": "string",
+										"description": "HTTPS delivery target."
+									},
+									"subgraphName": {
+										"type": "string"
+									},
+									"tableName": {
+										"type": "string"
+									},
+									"filter": {
+										"type": "object",
+										"description": "Column filter on the subgraph table."
+									},
+									"triggers": {
+										"type": "array",
+										"items": {
+											"type": "object"
+										},
+										"description": "Chain-event triggers; mutually exclusive with `subgraphName`/`tableName`."
+									},
+									"format": {
+										"type": "string",
+										"default": "standard-webhooks"
+									},
+									"runtime": {
+										"type": [
+											"string",
+											"null"
+										]
+									},
+									"authConfig": {
+										"type": "object"
+									},
+									"maxRetries": {
+										"type": "integer",
+										"minimum": 0,
+										"maximum": 100
+									},
+									"timeoutMs": {
+										"type": "integer",
+										"minimum": 100,
+										"maximum": 300000
+									},
+									"concurrency": {
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 100
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"201": {
+						"description": "Created; body carries the signing secret once",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "A subscription with that name exists",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subscriptions/{id}": {
+			"get": {
+				"tags": [
+					"subscriptions"
+				],
+				"summary": "Subscription detail",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"tags": [
+					"subscriptions"
+				],
+				"summary": "Update a subscription",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"type": "string"
+									},
+									"url": {
+										"type": "string"
+									},
+									"filter": {
+										"type": "object"
+									},
+									"format": {
+										"type": "string"
+									},
+									"runtime": {
+										"type": [
+											"string",
+											"null"
+										]
+									},
+									"authConfig": {
+										"type": "object"
+									},
+									"maxRetries": {
+										"type": "integer"
+									},
+									"timeoutMs": {
+										"type": "integer"
+									},
+									"concurrency": {
+										"type": "integer"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"tags": [
+					"subscriptions"
+				],
+				"summary": "Delete a subscription",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subscriptions/{id}/pause": {
+			"post": {
+				"tags": [
+					"subscriptions"
+				],
+				"summary": "Pause delivery (body-less)",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subscriptions/{id}/resume": {
+			"post": {
+				"tags": [
+					"subscriptions"
+				],
+				"summary": "Resume delivery (body-less)",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subscriptions/{id}/rotate-secret": {
+			"post": {
+				"tags": [
+					"subscriptions"
+				],
+				"summary": "Rotate the signing secret (body-less)",
+				"description": "Returns the new secret once. Deliveries signed with the old secret stop verifying immediately.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subscriptions/{id}/test": {
+			"post": {
+				"tags": [
+					"subscriptions"
+				],
+				"summary": "Send a one-off test delivery (body-less)",
+				"description": "Builds a sample event in the subscription's format, posts it to the configured URL through the SSRF guard, and records it under deliveries.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subscriptions/{id}/deliveries": {
+			"get": {
+				"tags": [
+					"subscriptions"
+				],
+				"summary": "Last 100 delivery attempts, newest first",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subscriptions/{id}/dead": {
+			"get": {
+				"tags": [
+					"subscriptions"
+				],
+				"summary": "Dead-letter queue: events that exhausted their retries",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subscriptions/{id}/dead/{outbox_id}/requeue": {
+			"post": {
+				"tags": [
+					"subscriptions"
+				],
+				"summary": "Requeue one dead event at live priority (body-less)",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "outbox_id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subscriptions/{id}/replay": {
+			"post": {
+				"tags": [
+					"subscriptions"
+				],
+				"summary": "Replay a block range through a subscription",
+				"description": "Queues historical events for redelivery; replays drain through a 10% share of the outbox so live traffic keeps priority. 202 on accept.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": [
+									"fromBlock",
+									"toBlock"
+								],
+								"properties": {
+									"fromBlock": {
+										"type": "integer"
+									},
+									"toBlock": {
+										"type": "integer"
+									},
+									"force": {
+										"type": "string",
+										"description": "Suffix that makes the replay ids unique, so an already-replayed range can be sent again."
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"202": {
+						"description": "Replay queued",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/node/contracts/{contract_id}/abi": {
+			"get": {
+				"tags": [
+					"node"
+				],
+				"summary": "Clarity contract ABI, proxied from the local Stacks node",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "contract_id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Contract not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "The node did not answer",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
 					}
 				}
 			}
@@ -3129,9 +5327,38 @@
 				],
 				"summary": "Local instance catalog",
 				"description": "Instance status, local subgraphs, subscriptions, and default features. No signup or pricing.",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
 				"responses": {
 					"200": {
-						"description": "Catalog"
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
 					}
 				}
 			}
@@ -3142,9 +5369,38 @@
 					"instance"
 				],
 				"summary": "Default feature manifest",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
 				"responses": {
 					"200": {
-						"description": "Features"
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
 					}
 				}
 			}

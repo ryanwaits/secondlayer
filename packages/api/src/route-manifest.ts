@@ -94,3 +94,15 @@ export const WORKLOAD_ROUTE_FIXTURES = [
 ] as const;
 
 export const HOSTED_OPENAPI_PATHS = [] as const;
+
+/**
+ * Prefixes of the workload write plane, mirroring `WORKLOAD_PATHS` in
+ * `create-app.ts`. The OpenAPI document describes these on a self-hosted
+ * instance and drops every path under them in platform/archive mode, where
+ * the routes 404 (see WORKLOAD_ROUTE_FIXTURES).
+ */
+export const WORKLOAD_OPENAPI_PREFIXES = [
+	"/api/subgraphs",
+	"/api/subscriptions",
+	"/api/node",
+] as const;

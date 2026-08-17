@@ -195,8 +195,95 @@ describe("route manifest", () => {
 		).toBe(true);
 	});
 
-	test("platform OpenAPI is the unfiltered spec", () => {
-		expect(openapiSpec("platform")).toBe(OPENAPI_SPEC);
+	// The document describes a self-hosted instance; the metered archive is
+	// derived from it. Two things must differ there, or the archive publishes a
+	// description of endpoints it 404s and an auth rule it does not follow.
+	test("platform OpenAPI drops the workload plane and keeps Streams keyed", () => {
+		const spec = openapiSpec("platform");
+		for (const path of Object.keys(spec.paths)) {
+			expect(path.startsWith("/api/"), path).toBe(false);
+		}
+		expect(spec.paths["/v1/index/events"]).toBeDefined();
+		expect(spec.paths["/v1/streams/events"].get.security).toEqual([
+			{ bearerAuth: [] },
+		]);
+		// Deriving the platform variant must not mutate the shared document.
+		expect(OPENAPI_SPEC.paths["/v1/streams/events"].get.security).toEqual([
+			{},
+			{ bearerAuth: [] },
+		]);
+		expect(OPENAPI_SPEC.paths["/api/subgraphs"]).toBeDefined();
+	});
+
+	/**
+	 * One rule governs the whole `/v1` read plane — keyless while the API is
+	 * reachable only over loopback, instance token past it — so every read must
+	 * describe itself the same way: bearer offered, not required. A read that
+	 * declares a required bearer (as Streams used to) or declares nothing at all
+	 * describes an auth model the code does not enforce.
+	 */
+	test("every /v1 read declares the same optional bearer", () => {
+		const spec = openapiSpec("oss");
+		const reads = Object.entries(spec.paths).filter(([path]) =>
+			path.startsWith("/v1"),
+		);
+		expect(reads.length).toBeGreaterThan(20);
+		for (const [path, item] of reads) {
+			for (const [method, op] of Object.entries(
+				item as Record<string, { security?: unknown }>,
+			)) {
+				expect(op.security, `${method} ${path}`).toEqual([
+					{},
+					{ bearerAuth: [] },
+				]);
+			}
+		}
+	});
+
+	/**
+	 * The write plane is the only documented way to deploy anything, so it has
+	 * to be in the published document — carrying both gates a caller will hit:
+	 * the instance token and the JSON content-type guard (415).
+	 */
+	test("the OSS document describes the write plane with both write gates", () => {
+		const spec = openapiSpec("oss");
+		const writes = Object.entries(spec.paths).filter(([path]) =>
+			path.startsWith("/api/"),
+		);
+		expect(writes.map(([path]) => path)).toEqual(
+			expect.arrayContaining([
+				"/api/subgraphs",
+				"/api/subgraphs/{name}",
+				"/api/subgraphs/{name}/reindex",
+				"/api/subgraphs/{name}/backfill",
+				"/api/subgraphs/{name}/stop",
+				"/api/subscriptions",
+				"/api/subscriptions/{id}",
+			]),
+		);
+		for (const [path, item] of writes) {
+			for (const [method, op] of Object.entries(
+				item as Record<
+					string,
+					{ security?: unknown; responses?: Record<string, unknown> }
+				>,
+			)) {
+				expect(op.security, `${method} ${path}`).toEqual([{ bearerAuth: [] }]);
+				// GET is not a write, so the content-type guard does not apply.
+				if (method === "get") continue;
+				expect(op.responses?.["415"], `${method} ${path}`).toBeDefined();
+			}
+		}
+	});
+
+	// The platform key format was retired for self-hosted instances: one
+	// credential, the instance token. A document still advertising `sk-sl_*`
+	// sends operators looking for a signup that does not exist.
+	test("the OSS document describes the instance token, not a platform key", () => {
+		const spec = openapiSpec("oss");
+		expect(JSON.stringify(spec)).not.toContain("sk-sl_");
+		expect(spec.components.securitySchemes.bearerAuth.bearerFormat).toBe("hex");
+		expect(spec.info.description).toContain("INSTANCE_TOKEN");
 	});
 
 	test("OSS OpenAPI drops hosted paths and keeps the public surface", () => {
