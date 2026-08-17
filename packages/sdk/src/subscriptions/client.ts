@@ -93,7 +93,7 @@ export class Subscriptions extends BaseClient {
 	}
 
 	/** Send a one-off test webhook to the subscription's URL (built for its
-	 *  format, SSRF-guarded). Logged as a delivery row, visible via recentDeliveries. */
+	 *  format, SSRF-guarded). Logged as a delivery row, visible via deliveries. */
 	async test(id: string): Promise<SubscriptionTestResult> {
 		return this.request<SubscriptionTestResult>(
 			"POST",
@@ -101,7 +101,9 @@ export class Subscriptions extends BaseClient {
 		);
 	}
 
-	async recentDeliveries(id: string): Promise<{ data: DeliveryRow[] }> {
+	/** The last 100 delivery attempts, newest first. The server caps the window;
+	 *  there is nothing to page. */
+	async deliveries(id: string): Promise<{ data: DeliveryRow[] }> {
 		return this.request<{ data: DeliveryRow[] }>(
 			"GET",
 			`/api/subscriptions/${id}/deliveries`,
@@ -126,7 +128,9 @@ export class Subscriptions extends BaseClient {
 		);
 	}
 
-	async requeueDead(id: string, outboxId: string): Promise<{ ok: true }> {
+	/** Push one dead-lettered event back onto the delivery queue. `outboxId` is
+	 *  the `id` of a row from {@link dead}. */
+	async requeue(id: string, outboxId: string): Promise<{ ok: true }> {
 		return this.request<{ ok: true }>(
 			"POST",
 			`/api/subscriptions/${id}/dead/${outboxId}/requeue`,

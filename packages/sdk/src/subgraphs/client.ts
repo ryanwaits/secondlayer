@@ -64,6 +64,21 @@ export interface SubgraphRowsEnvelope<T = unknown> {
 	};
 }
 
+/** Result of claiming the global public name for a subgraph. `url` is the anon
+ *  /v1 read path the claim opens. */
+export interface SubgraphPublishResult {
+	name: string;
+	visibility: "public";
+	url: string;
+}
+
+/** Result of releasing the public claim. Reads fall back to the owning
+ *  account's bearer key, so there is no anon `url` to hand back. */
+export interface SubgraphUnpublishResult {
+	name: string;
+	visibility: "private";
+}
+
 export interface BundleSubgraphResponse {
 	ok: true;
 	name: string;
@@ -107,7 +122,12 @@ export class Subgraphs extends BaseClient {
 		return this.request<{ data: SubgraphSummary[] }>("GET", "/api/subgraphs");
 	}
 
-	async get(name: string): Promise<SubgraphDetail> {
+	/**
+	 * The subgraph's current state — health, sync position, tables. The verify
+	 * step after a deploy, reindex, or backfill: poll it until `sync` catches
+	 * the tip.
+	 */
+	async status(name: string): Promise<SubgraphDetail> {
 		return this.request<SubgraphDetail>("GET", `/api/subgraphs/${name}`);
 	}
 
@@ -194,6 +214,34 @@ export class Subgraphs extends BaseClient {
 		return this.request<{ message: string }>(
 			"DELETE",
 			`/api/subgraphs/${name}${qs}`,
+		);
+	}
+
+	/**
+	 * Claim the global public name and open anon /v1 reads on
+	 * `/v1/subgraphs/<name>`. Idempotent: republishing an already-public
+	 * subgraph returns the same result without touching the claim.
+	 *
+	 * Throws `ApiError` with code `PUBLIC_NAME_TAKEN` (409) when another
+	 * account already holds the name — rename the subgraph to publish it — and
+	 * `NOT_SUPPORTED` (404) on an instance that has no public namespace.
+	 */
+	async publish(name: string): Promise<SubgraphPublishResult> {
+		return this.request<SubgraphPublishResult>(
+			"POST",
+			`/api/subgraphs/${name}/publish`,
+		);
+	}
+
+	/**
+	 * Release the public claim. The subgraph keeps its data and keeps indexing;
+	 * only the anon read is closed, so /v1 reads then need the owning account's
+	 * apiKey. Idempotent, and `NOT_SUPPORTED` (404) where {@link publish} is.
+	 */
+	async unpublish(name: string): Promise<SubgraphUnpublishResult> {
+		return this.request<SubgraphUnpublishResult>(
+			"POST",
+			`/api/subgraphs/${name}/unpublish`,
 		);
 	}
 

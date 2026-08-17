@@ -117,7 +117,7 @@ function docsFor(status: number, code?: string): string | undefined {
  * @example
  * ```ts
  * try {
- *   await client.subgraphs.get("my-subgraph");
+ *   await client.subgraphs.status("my-subgraph");
  * } catch (err) {
  *   if (err instanceof ApiError && err.status === 404) {
  *     console.log("Subgraph not found");
