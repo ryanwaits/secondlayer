@@ -68,6 +68,18 @@ jobs:
           )"
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
 
+      # Multi-arch: self-hosters on Apple Silicon or arm64 servers (AWS
+      # Graviton, etc.) otherwise get "no matching manifest" and can't pull
+      # any image at all — confirmed by hitting exactly that pulling
+      # secondlayer-runtime on an arm64 host. QEMU emulates arm64 on the
+      # amd64 GitHub runner so buildx can cross-compile it; both this repo's
+      # digest-pinned base images (oven/bun, node:22-alpine) already publish
+      # arm64 manifests, so nothing else in the Dockerfile blocks this.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -98,6 +110,7 @@ jobs:
           file: docker/Dockerfile
           target: ${{ matrix.service }}
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
