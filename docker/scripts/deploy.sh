@@ -73,11 +73,11 @@ fi
 [ -n "$_DEPLOY_SHA_OVERRIDE" ] && DEPLOY_SHA="$_DEPLOY_SHA_OVERRIDE"
 unset _DEPLOY_IMAGE_OWNER_OVERRIDE _DEPLOY_IMAGE_TAG_OVERRIDE _DEPLOY_SHA_OVERRIDE
 
-APP_SERVICES="api indexer decoder subgraph-processor subscription-processor worker console caddy"
+APP_SERVICES="api indexer decoder worker console caddy"
 # api recreates separately (rolling, replica-by-replica behind Caddy) so its
 # cached read plane never goes fully dark on a code-only deploy. Everything else
 # recreates in bulk.
-APP_SERVICES_NO_API="indexer decoder subgraph-processor subscription-processor worker console caddy"
+APP_SERVICES_NO_API="indexer decoder worker console caddy"
 DEPLOY_IMAGE_OWNER="${DEPLOY_IMAGE_OWNER:-secondlayer-labs}"
 DEPLOY_IMAGE_TAG="${DEPLOY_IMAGE_TAG:-${DEPLOY_SHA:-latest}}"
 DEPLOY_STATE_DIR="${DEPLOY_STATE_DIR:-/opt/secondlayer/data/deploy}"
@@ -96,7 +96,7 @@ echo "Deploy image tag: ${DEPLOY_IMAGE_TAG}"
 # image for this SHA, fail while the current deployment is still running.
 # Skip the pull entirely when every required image is already cached locally
 # (no-op re-deploys, rollbacks to a recent SHA, CI pre-pull from build-images).
-_pull_services=(api indexer decoder subgraph-processor subscription-processor worker migrate)
+_pull_services=(api indexer decoder worker migrate)
 _expected_images=$($COMPOSE config --images "${_pull_services[@]}" 2>/dev/null | sort -u)
 _missing_images=()
 while IFS= read -r _img; do

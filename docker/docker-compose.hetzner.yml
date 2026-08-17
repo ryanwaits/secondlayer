@@ -146,40 +146,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  subgraph-processor:
-    environment:
-      # 8 slots; heavy (broad/non-sparse) ops budgeted to 2 by the claim query
-      # so whale syncs can't hold every slot — light contract-scoped syncs flow.
-      SUBGRAPH_OPERATION_CONCURRENCY: "8"
-      SUBGRAPH_HEAVY_OP_BUDGET: "2"
-      # Eligible subgraphs read chain data from the public microservices
-      # (Streams clock + Index data) instead of the indexer Postgres. Ineligible
-      # subgraphs transparently stay on the DB tap. Unset to roll back to db.
-      SUBGRAPH_SOURCE: streams-index
-    # streams-index routes the block source, reorg poll, and trigger evaluator
-    # over HTTP to api:3800, so the processor must wait for api like decoder
-    # does. Merges additively with the base migrate+postgres deps.
-    depends_on:
-      api:
-        condition: service_healthy
-
-  subscription-processor:
-    environment:
-      # Gates the chain-trigger evaluator + chain-reorg poll (both read the public
-      # Streams/Index plane over HTTP at api:3800). The outbox emitter runs
-      # regardless. Unset to roll the chain-subscription plane back to dormant.
-      SUBGRAPH_SOURCE: streams-index
-    depends_on:
-      api:
-        condition: service_healthy
-    deploy:
-      # N replicas scale webhook DELIVERY (the emitter is a competing-consumer via
-      # FOR UPDATE SKIP LOCKED) and add failover for the single-leader evaluator +
-      # chain-reorg rewind (a standby acquires the lock within pollMs if the leader
-      # dies). The evaluator itself stays single-leader, so this is throughput +
-      # availability, not faster evaluation.
-      replicas: ${SUBSCRIPTION_PROCESSOR_REPLICAS:-1}
-
 volumes:
   caddy_data:
   caddy_config:
