@@ -120,11 +120,35 @@ describe("startEmitter end-to-end", () => {
 			expect(parsed.type).toBe("bitcoin.transfers.created");
 			expect(parsed.data.sender).toBe("SP1");
 
-			const outboxRow = await db
+			// The receiver's `fetch` handler runs before the emitter even gets its
+			// HTTP response back, let alone before settleDelivered()'s DB
+			// transaction commits (emitter.ts:478-506) — so checking status once,
+			// right after the receiver sees the request, races that write. Poll
+			// instead, same pattern as the receipt wait above.
+			//
+			// Poll on `delivered_at`, not `status`: settleFailed() (a retryable
+			// failure, attempt < max_retries) resets status back to "pending" —
+			// the SAME value the row starts at — so status alone can't
+			// distinguish "not yet settled" from "settled as a failure that will
+			// retry." delivered_at is set ONLY by settleDelivered() and is never
+			// touched by settleFailed(), so it's unambiguous.
+			const settleStart = Date.now();
+			let outboxRow = await db
 				.selectFrom("subscription_outbox")
 				.selectAll()
 				.where("subscription_id", "=", subscription.id)
 				.executeTakeFirst();
+			while (
+				outboxRow?.delivered_at == null &&
+				Date.now() - settleStart < 5_000
+			) {
+				await new Promise((r) => setTimeout(r, 100));
+				outboxRow = await db
+					.selectFrom("subscription_outbox")
+					.selectAll()
+					.where("subscription_id", "=", subscription.id)
+					.executeTakeFirst();
+			}
 			expect(outboxRow?.status).toBe("delivered");
 			expect(outboxRow?.delivered_at).not.toBeNull();
 
