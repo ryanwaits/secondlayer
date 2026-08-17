@@ -34,6 +34,7 @@ import {
 	DeploySubgraphRequestSchema,
 	type SubgraphDetail,
 } from "@secondlayer/shared/schemas/subgraphs";
+import type { SubgraphSpecOptions } from "@secondlayer/shared/subgraphs/spec";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
 import { canSparseScan, sparseProbeTargets } from "@secondlayer/subgraphs";
 import { Hono } from "hono";
@@ -67,11 +68,6 @@ import {
 } from "./subgraph-query-helpers.ts";
 
 const app = new Hono();
-
-type SubgraphSpecOptions = {
-	serverUrl?: string;
-	generatedAt?: string;
-};
 
 // Resource limits are enforced by Docker compute caps (memory/CPU/storage).
 // No application-level count check — if a tenant hits their limits, PG
@@ -1310,12 +1306,17 @@ export function readSpecOptions(c: {
 		header(name: string): string | undefined;
 	};
 }): SubgraphSpecOptions {
+	// Self-hosted instances serve /v1/subgraphs reads by the loopback rule,
+	// never by the visibility column (v1-subgraphs.ts ignores it in oss mode),
+	// so the generated examples must point there regardless of what the row
+	// says. Only the metered platform still gates on the column.
+	const forcePublicRead = !isPlatformMode();
 	const server = c.req.query("server");
-	if (server) return { serverUrl: server };
+	if (server) return { serverUrl: server, forcePublicRead };
 	const url = new URL(c.req.url);
 	const proto =
 		c.req.header("x-forwarded-proto") ?? url.protocol.replace(":", "");
-	return { serverUrl: `${proto}://${url.host}` };
+	return { serverUrl: `${proto}://${url.host}`, forcePublicRead };
 }
 
 // Friendly redirect: /:subgraphName/openapi → /openapi.json (Scalar/Swagger

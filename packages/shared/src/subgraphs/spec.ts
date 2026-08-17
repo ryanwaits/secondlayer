@@ -5,6 +5,15 @@ export type SubgraphSpecFormat = "openapi" | "agent" | "markdown";
 export interface SubgraphSpecOptions {
 	serverUrl?: string;
 	generatedAt?: string;
+	/**
+	 * Self-hosted instances ignore the `visibility` column when deciding
+	 * whether a read needs a key (`/v1/subgraphs` auth is the loopback rule,
+	 * not the flag) — but this generator still branched on it, so a spec built
+	 * for a self-hosted deploy pointed readers at the authenticated `/api`
+	 * path for a read that was actually open. Callers on that mode should set
+	 * this so the generated URLs match the auth the API actually enforces.
+	 */
+	forcePublicRead?: boolean;
 }
 
 export interface SubgraphAgentSchema {
@@ -50,8 +59,11 @@ const BASE_QUERY_PARAMS = ["_limit", "_offset", "_sort", "_order", "_fields"];
 const PUBLIC_BASE_QUERY_PARAMS = ["_limit", "cursor", "_order", "_fields"];
 const COMPARISON_OPS = ["neq", "gt", "gte", "lt", "lte"];
 
-function isPublicRead(detail: SubgraphDetail): boolean {
-	return detail.visibility === "public";
+function isPublicRead(
+	detail: SubgraphDetail,
+	options: SubgraphSpecOptions,
+): boolean {
+	return options.forcePublicRead ?? detail.visibility === "public";
 }
 
 function generatedAt(options: SubgraphSpecOptions): string {
@@ -315,7 +327,7 @@ export function generateSubgraphAgentSchema(
 	options: SubgraphSpecOptions = {},
 ): SubgraphAgentSchema {
 	const serverUrl = normalizeServerUrl(options.serverUrl);
-	const publicRead = isPublicRead(detail);
+	const publicRead = isPublicRead(detail, options);
 	const tables: SubgraphAgentSchema["tables"] = {};
 	for (const [tableName, table] of Object.entries(detail.tables)) {
 		const path = tablePath(detail.name, tableName, publicRead);
@@ -366,7 +378,7 @@ export function generateSubgraphOpenApi(
 	options: SubgraphSpecOptions = {},
 ): Record<string, unknown> {
 	const serverUrl = normalizeServerUrl(options.serverUrl);
-	const publicRead = isPublicRead(detail);
+	const publicRead = isPublicRead(detail, options);
 	const paths: Record<string, unknown> = {};
 	const schemas: Record<string, unknown> = {};
 
@@ -488,7 +500,7 @@ export function generateSubgraphMarkdown(
 	options: SubgraphSpecOptions = {},
 ): string {
 	const agent = generateSubgraphAgentSchema(detail, options);
-	const publicRead = isPublicRead(detail);
+	const publicRead = isPublicRead(detail, options);
 	const lines = [
 		`# ${detail.name} Subgraph API`,
 		"",
