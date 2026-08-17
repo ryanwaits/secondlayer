@@ -124,6 +124,26 @@ export function output(opts: OutputOptions): void {
 	opts.human();
 }
 
+/**
+ * Soft-wrap prose to `width` columns. Only for explanatory sentences — lines
+ * holding a command stay unwrapped so they survive a copy-paste.
+ */
+export function wrapText(text: string, width = 76): string[] {
+	const words = text.split(/\s+/).filter(Boolean);
+	const lines: string[] = [];
+	let line = "";
+	for (const word of words) {
+		if (line.length === 0) line = word;
+		else if (line.length + 1 + word.length <= width) line += ` ${word}`;
+		else {
+			lines.push(line);
+			line = word;
+		}
+	}
+	if (line.length > 0) lines.push(line);
+	return lines;
+}
+
 // Strip ANSI codes for length calculation
 function stripAnsi(text: string): string {
 	return text.replace(ANSI_ESCAPE_PATTERN, "");

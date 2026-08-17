@@ -2,6 +2,12 @@ import type { Command } from "commander";
 import { getDataDir, loadConfig } from "../lib/config.ts";
 import { checkHealth } from "../lib/health.ts";
 import { httpPlatformAnon } from "../lib/http.ts";
+import {
+	type InstanceDiagnosis,
+	type InstanceIssue,
+	type PublicStatus,
+	diagnoseInstanceStatus,
+} from "../lib/instance-diagnosis.ts";
 import { type Network, getChainIdHex } from "../lib/network.ts";
 import {
 	blue,
@@ -11,6 +17,7 @@ import {
 	red,
 	success,
 	warn,
+	wrapText,
 	yellow,
 } from "../lib/output.ts";
 import { resolveApiUrl } from "../lib/resolve-auth.ts";
@@ -33,20 +40,36 @@ export function registerDoctorCommand(program: Command): void {
 async function runInstanceDoctor(jsonOutput?: boolean): Promise<void> {
 	const config = await loadConfig();
 	const apiUrl = resolveApiUrl();
-	const issues: string[] = [];
 
 	const results: Record<string, unknown> = { network: config.network, apiUrl };
 
 	let apiHealthy = false;
-	let statusData: Record<string, unknown> | null = null;
+	let statusData: PublicStatus | null = null;
+	let unreachableError: string | null = null;
 	try {
-		statusData =
-			await httpPlatformAnon<Record<string, unknown>>("/public/status");
+		statusData = await httpPlatformAnon<PublicStatus>("/public/status");
 		apiHealthy = true;
-	} catch {
-		issues.push(`Cannot reach ${apiUrl}/public/status`);
+	} catch (err) {
+		unreachableError = err instanceof Error ? err.message : String(err);
 	}
 	results.apiHealthy = apiHealthy;
+
+	// `doctor` and `status` read the same payload through the same diagnosis, so
+	// doctor can no longer report "All checks passed" while status reports
+	// DEGRADED — that contradiction left callers guessing whether to proceed.
+	const diagnosis = statusData ? diagnoseInstanceStatus(statusData) : null;
+	const issues: InstanceIssue[] = diagnosis
+		? diagnosis.issues
+		: [
+				{
+					title: `Cannot reach ${apiUrl}/public/status.`,
+					detail: unreachableError ?? undefined,
+					nextSteps: [
+						"Start the instance from docker/oss: docker compose up -d",
+						`If it runs elsewhere, point the CLI at it: SL_API_URL=<url> (currently ${apiUrl})`,
+					],
+				},
+			];
 
 	if (jsonOutput) {
 		console.log(
@@ -69,10 +92,15 @@ async function runInstanceDoctor(jsonOutput?: boolean): Promise<void> {
 
 	if (statusData) {
 		const tip = statusData.chainTip;
-		const streams = statusData.streams as { status?: string } | undefined;
-		const index = statusData.index as { status?: string } | undefined;
+		const streams = statusData.streams;
+		const index = statusData.index;
+		const blocks = statusData.chainIntegrity?.maxHeight;
 		console.log(blue("Instance"));
+		console.log(`  status: ${statusData.status ?? "unknown"}`);
 		if (typeof tip === "number") console.log(`  tip: ${tip.toLocaleString()}`);
+		if (typeof blocks === "number") {
+			console.log(`  blocks indexed: ${blocks.toLocaleString()}`);
+		}
 		if (streams?.status) console.log(`  streams: ${streams.status}`);
 		if (index?.status) console.log(`  index: ${index.status}`);
 		console.log("");
@@ -84,17 +112,34 @@ async function runInstanceDoctor(jsonOutput?: boolean): Promise<void> {
 		console.log(`  ${green("None")}`);
 	} else {
 		for (const issue of issues) {
-			console.log(`  ${red("•")} ${issue}`);
+			console.log(`  ${red("•")} ${issue.title}`);
+			for (const line of issue.detail ? wrapText(issue.detail, 72) : []) {
+				console.log(dim(`    ${line}`));
+			}
+			for (const step of issue.nextSteps) {
+				console.log(dim(`    → ${step}`));
+			}
 		}
 	}
 	console.log("");
 
 	if (issues.length > 0) {
-		warn(`${issues.length} issue(s) found`);
+		warn(
+			`${issues.length} issue${issues.length === 1 ? "" : "s"} found${doctorVerdictSuffix(diagnosis)}`,
+		);
 	} else {
 		success("All checks passed");
 	}
 	console.log("");
+}
+
+/** Why the run ended with issues, in the fewest words that stay true. */
+function doctorVerdictSuffix(diagnosis: InstanceDiagnosis | null): string {
+	if (!diagnosis) return " — the CLI could not reach this instance.";
+	if (diagnosis.state === "empty-index") {
+		return " — the instance is up but holds no chain data yet.";
+	}
+	return ` — the API reports status=${diagnosis.overall}.`;
 }
 
 async function runLocalDoctor(jsonOutput?: boolean): Promise<void> {

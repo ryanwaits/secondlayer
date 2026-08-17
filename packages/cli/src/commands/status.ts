@@ -1,6 +1,19 @@
 import type { Command } from "commander";
 import { httpPlatformAnon } from "../lib/http.ts";
-import { blue, dim, green, output, red, yellow } from "../lib/output.ts";
+import {
+	type InstanceDiagnosis,
+	type PublicStatus,
+	diagnoseInstanceStatus,
+} from "../lib/instance-diagnosis.ts";
+import {
+	blue,
+	dim,
+	green,
+	output,
+	red,
+	wrapText,
+	yellow,
+} from "../lib/output.ts";
 import { resolveApiUrl } from "../lib/resolve-auth.ts";
 
 export function registerStatusCommand(program: Command): void {
@@ -10,12 +23,13 @@ export function registerStatusCommand(program: Command): void {
 		.option("--json", "Output as JSON")
 		.action(async (options: { json?: boolean }) => {
 			try {
-				const status =
-					await httpPlatformAnon<Record<string, unknown>>("/public/status");
+				const status = await httpPlatformAnon<PublicStatus>("/public/status");
+				const diagnosis = diagnoseInstanceStatus(status);
 				output({
 					json: options.json,
-					data: status,
-					human: () => printPublicStatus(status),
+					// Additive: the raw payload is unchanged, `diagnosis` explains it.
+					data: { ...status, diagnosis },
+					human: () => printPublicStatus(status, diagnosis),
 				});
 			} catch {
 				console.log("");
@@ -30,7 +44,10 @@ export function registerStatusCommand(program: Command): void {
 		});
 }
 
-function printPublicStatus(status: Record<string, unknown>): void {
+function printPublicStatus(
+	status: PublicStatus,
+	diagnosis: InstanceDiagnosis,
+): void {
 	const overall = String(status.status ?? "unknown");
 	const color = overall === "healthy" ? green : red;
 	console.log("");
@@ -41,7 +58,7 @@ function printPublicStatus(status: Record<string, unknown>): void {
 	if (typeof tip === "number") {
 		console.log(blue("Chain"));
 		console.log(`  tip: ${tip.toLocaleString()}`);
-		const integrity = status.chainIntegrity as { ok?: boolean } | undefined;
+		const integrity = status.chainIntegrity;
 		if (integrity) {
 			console.log(
 				`  integrity: ${integrity.ok ? green("ok") : yellow("check")}`,
@@ -49,9 +66,7 @@ function printPublicStatus(status: Record<string, unknown>): void {
 		}
 		console.log("");
 	}
-	const streams = status.streams as
-		| { status?: string; tip?: { lag_seconds?: number } }
-		| undefined;
+	const streams = status.streams;
 	if (streams) {
 		console.log(blue("Streams"));
 		console.log(`  ${streams.status ?? "unknown"}`);
@@ -60,9 +75,7 @@ function printPublicStatus(status: Record<string, unknown>): void {
 		}
 		console.log("");
 	}
-	const index = status.index as
-		| { status?: string; decoders?: Array<{ decoder: string; status: string }> }
-		| undefined;
+	const index = status.index;
 	if (index) {
 		console.log(blue("Index"));
 		console.log(`  ${index.status ?? "unknown"}`);
@@ -70,6 +83,21 @@ function printPublicStatus(status: Record<string, unknown>): void {
 		if (bad.length > 0) {
 			for (const d of bad.slice(0, 8)) {
 				console.log(`  ${yellow(d.decoder)} ${d.status}`);
+			}
+		}
+		console.log("");
+	}
+	// A degraded verdict is useless without a cause and a next command — the
+	// most common one, a fresh instance with no blocks, is not a fault at all.
+	if (diagnosis.issues.length > 0) {
+		console.log(blue("Diagnosis"));
+		for (const issue of diagnosis.issues) {
+			console.log(`  ${yellow(issue.title)}`);
+			for (const line of issue.detail ? wrapText(issue.detail, 74) : []) {
+				console.log(dim(`  ${line}`));
+			}
+			for (const step of issue.nextSteps) {
+				console.log(dim(`    → ${step}`));
 			}
 		}
 		console.log("");
