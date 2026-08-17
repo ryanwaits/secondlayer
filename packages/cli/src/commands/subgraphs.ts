@@ -1132,8 +1132,11 @@ Examples:
 								const { apiUrl } = await resolveAuth();
 								const firstTable = Object.keys(effectiveDef.schema ?? {})[0];
 								if (firstTable) {
+									// /v1 is the documented read shape ({ rows, next_cursor, tip })
+									// and needs no key on loopback; /api is the authenticated
+									// control plane. Point people at the one the docs describe.
 									info(
-										`  REST:      ${apiUrl}/api/subgraphs/${effectiveDef.name}/${firstTable}`,
+										`  REST:      ${apiUrl}/v1/subgraphs/${effectiveDef.name}/${firstTable}`,
 									);
 								}
 								if (result.reindexStarted) {
