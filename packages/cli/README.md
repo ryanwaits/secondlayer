@@ -96,7 +96,7 @@ points at.
 |---|---|
 | `secondlayer subgraphs create <name>` | Scaffold a definition file |
 | `secondlayer subgraphs scaffold <SP...::contract> [-o <path>] [--no-install]` | Generate a subgraph from a deployed contract |
-| `secondlayer subgraphs deploy <file> [--start-block <n>] [--visibility public\|private]` | Deploy; `--start-block` overrides the definition. Deploys default `public` |
+| `secondlayer subgraphs deploy <file> [--start-block <n>]` | Deploy; `--start-block` overrides the definition |
 | `secondlayer subgraphs list` | List deployments (`ls` alias) |
 | `secondlayer subgraphs dev <file>` | Watch + hot-redeploy |
 | `secondlayer subgraphs query <name> <table>` | Query a table with filters, sort, pagination |

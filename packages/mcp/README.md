@@ -58,7 +58,7 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 | Domain | Tools |
 | --- | --- |
 | **Index** (9) | `index_events`, `index_ft_transfers`, `index_nft_transfers`, `index_contract_calls`, `index_blocks`, `index_transactions`, `index_print_schema`, `index_discover`, `batch_query` |
-| **Subgraphs** (14) | `subgraphs_list`, `subgraphs_status`, `subgraphs_spec`, `subgraphs_scaffold`, `subgraphs_deploy`, `subgraphs_delete`, `subgraphs_query`, `subgraphs_backfill`, `subgraphs_reindex`, `subgraphs_stop`, `subgraphs_operations`, `subgraphs_gaps`, `subgraphs_publish`, `subgraphs_unpublish` |
+| **Subgraphs** (12) | `subgraphs_list`, `subgraphs_status`, `subgraphs_spec`, `subgraphs_scaffold`, `subgraphs_deploy`, `subgraphs_delete`, `subgraphs_query`, `subgraphs_backfill`, `subgraphs_reindex`, `subgraphs_stop`, `subgraphs_operations`, `subgraphs_gaps` |
 | **Subscriptions** (13) | `subscriptions_create`, `subscriptions_list`, `subscriptions_get`, `subscriptions_update`, `subscriptions_delete`, `subscriptions_test`, `subscriptions_pause`, `subscriptions_resume`, `subscriptions_rotate_secret`, `subscriptions_deliveries`, `subscriptions_dead`, `subscriptions_requeue`, `subscriptions_replay` |
 | **Streams** (7) | `streams_tip`, `streams_events`, `streams_events_by_tx`, `streams_block_events`, `streams_canonical`, `streams_reorgs`, `streams_dumps` |
 | **Contracts** (2) | `contracts_find`, `contracts_get_abi` |
@@ -82,10 +82,6 @@ Subscriptions are polymorphic. Pass `subgraphName` + `tableName` for a
 a webhook on raw chain events (contract / event / function / trait) with no
 subgraph (e.g. `[{ "type": "contract_call", "contractId": "SP....amm",
 "functionName": "swap-*" }]`).
-
-### Subgraph visibility
-
-Deploys default `public` — the name is claimed in a single global public namespace (409 `PUBLIC_NAME_TAKEN` if claimed). Public subgraphs are anon-readable at `GET /v1/subgraphs/<name>/<table>`.
 
 ### `subgraphs_query` enhancements
 

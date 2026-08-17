@@ -370,8 +370,8 @@ const spec = await sl.subgraphs.openapi("my-subgraph");
 const source = await sl.subgraphs.getSource("my-subgraph");
 const gaps = await sl.subgraphs.gaps("my-subgraph");
 
-// Deploy — deploys default visibility "public" (409 PUBLIC_NAME_TAKEN if the name is claimed)
-const result = await sl.subgraphs.deploy({ name, sources, schema, handlerCode, visibility: "public" });
+// Deploy
+const result = await sl.subgraphs.deploy({ name, sources, schema, handlerCode });
 ```
 
 Stream rows live with the typed client — each table exposes `subscribe`

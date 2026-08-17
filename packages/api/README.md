@@ -128,9 +128,7 @@ GET /v1/subgraphs/:name/docs.md
 
 Row routes return `{ rows, next_cursor, tip }` with `_id` keyset pagination —
 pass `?cursor=<next_cursor>` to resume, `_order=asc|desc` for direction
-(`_offset`/`_sort` rejected with 400). Visibility: deploy with
-`--visibility public|private`; public names are a single global namespace
-(409 `PUBLIC_NAME_TAKEN`).
+(`_offset`/`_sort` rejected with 400).
 
 Management stays on `/api/subgraphs` (session or key):
 

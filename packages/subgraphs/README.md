@@ -2,8 +2,6 @@
 
 Typed on-chain indexing for Stacks. Declare event filters + column schema with `defineSubgraph()`; the runtime decodes blocks, matches filters, runs your handlers inside a transactional context, and exposes the result as a Postgres schema you query over REST or SQL.
 
-Subgraphs have a visibility: deploys default `visibility: public` — anon-readable at `/v1/subgraphs/<name>/<table>`, in a single global public namespace (409 `PUBLIC_NAME_TAKEN` if the name is taken). Override with `--visibility public|private` at deploy.
-
 Subgraph rows fan out to HTTP subscribers through a post-flush outbox emitter — signed Standard Webhooks POSTs with retries, circuit breaker, and replay.
 
 ## Install
