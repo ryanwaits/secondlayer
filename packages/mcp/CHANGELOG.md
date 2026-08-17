@@ -1,5 +1,51 @@
 # @secondlayer/mcp
 
+## 7.0.0
+
+### Major Changes
+
+- 00c009b: Remove the deprecated tool aliases and rename `subgraphs_get`, so every tool name is `<product>_<verb>` with no second spelling.
+
+  - `scaffold_from_contract` → `subgraphs_scaffold`
+  - `get_contract_abi` → `contracts_get_abi`
+  - `subgraphs_get` → `subgraphs_status` (the capability is one subgraph's status, matching `sl.subgraphs.status()` and `secondlayer subgraphs status`)
+
+  `subscriptions_get` and `contracts_get_abi` keep their names. Agent configs pinned to a removed name must be updated — the server no longer registers it.
+
+- eed233a: Remove subgraph publish/unpublish and the public/private visibility flag. Publishing claimed a name in a hosted global namespace; a self-hosted instance has no such namespace, so the verb had nothing to mean. There is no shim — the routes 404 and the calls are gone.
+
+  - CLI: `subgraphs publish`, `subgraphs unpublish`, and `subgraphs deploy --visibility` are unregistered. Deploy's success footer always prints the `/api/subgraphs` read path.
+  - SDK: `subgraphs.publish()` / `subgraphs.unpublish()` and the `SubgraphPublishResult` / `SubgraphUnpublishResult` types are removed. `deploy()` no longer accepts `visibility`, and its response no longer returns one.
+  - MCP: `subgraphs_publish` and `subgraphs_unpublish` are no longer registered, and `subgraphs_list` no longer reports `visibility` or a `publicUrl`.
+  - HTTP: `POST /api/subgraphs/:name/publish` and `.../unpublish` are deleted and pinned as deleted-route fixtures, so they must 404 in every mode. The `PUBLIC_NAME_TAKEN` (409) error code is retired with them.
+
+  Reads are unchanged: rows still come from `/api/subgraphs/<name>/<table>` on a self-hosted instance, and the open `/v1/subgraphs` directory still serves what it served.
+
+### Minor Changes
+
+- e1df36a: Read `INSTANCE_TOKEN` as the primary credential, matching what the docs have always said.
+
+  Precedence is now an explicit `apiKey` option, then `INSTANCE_TOKEN`, then `SL_API_KEY`. The old
+  variable keeps working, so existing setups are unaffected — but following the documentation now
+  works too. Before this, exporting `INSTANCE_TOKEN` authenticated as nobody with no error, which is
+  the quietest way a documented happy path can fail.
+
+  Setting both to different values warns once on stderr and `INSTANCE_TOKEN` wins; identical values
+  (what `secondlayer init` writes) never warn.
+
+  Note for releases: the CLI and MCP resolve the SDK through its built output, so the SDK bump must
+  ship before or with them.
+
+### Patch Changes
+
+- Updated dependencies [00c009b]
+- Updated dependencies [e1df36a]
+- Updated dependencies [eed233a]
+- Updated dependencies [e1df36a]
+  - @secondlayer/sdk@9.0.0
+  - @secondlayer/shared@11.0.0
+  - @secondlayer/subgraphs@4.0.4
+
 ## 6.0.1
 
 ### Patch Changes

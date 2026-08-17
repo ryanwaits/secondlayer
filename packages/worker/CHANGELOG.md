@@ -1,5 +1,13 @@
 # @secondlayer/worker
 
+## 1.2.48
+
+### Patch Changes
+
+- Updated dependencies [e1df36a]
+  - @secondlayer/shared@11.0.0
+  - @secondlayer/platform@0.2.1
+
 ## 1.2.47
 
 ### Patch Changes

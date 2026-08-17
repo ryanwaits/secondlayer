@@ -1,5 +1,69 @@
 # @secondlayer/cli
 
+## 13.0.0
+
+### Major Changes
+
+- 00c009b: Remove every deprecated command alias. There is no shim — the old spellings error out, and each capability now has exactly one door.
+
+  - `subgraphs cancel` → `subgraphs stop`
+  - `streams pull` → `streams dumps`
+  - `subgraphs codegen` → `codegen subgraph` (or `codegen prints` for `--payloads`)
+  - `subgraphs client` → `codegen client`
+  - `index codegen` → `codegen index`
+  - `contracts generate` / `contracts gen` → `codegen contracts` (the `contracts` group held nothing else, so it is gone too)
+
+  `codegen subgraph` defaults `--target` to `kysely`, the same default every other codegen surface uses — the retired `subgraphs codegen` alias kept `prisma`, so scripts that relied on the implicit default must now pass `--target prisma`.
+
+- eed233a: Remove subgraph publish/unpublish and the public/private visibility flag. Publishing claimed a name in a hosted global namespace; a self-hosted instance has no such namespace, so the verb had nothing to mean. There is no shim — the routes 404 and the calls are gone.
+
+  - CLI: `subgraphs publish`, `subgraphs unpublish`, and `subgraphs deploy --visibility` are unregistered. Deploy's success footer always prints the `/api/subgraphs` read path.
+  - SDK: `subgraphs.publish()` / `subgraphs.unpublish()` and the `SubgraphPublishResult` / `SubgraphUnpublishResult` types are removed. `deploy()` no longer accepts `visibility`, and its response no longer returns one.
+  - MCP: `subgraphs_publish` and `subgraphs_unpublish` are no longer registered, and `subgraphs_list` no longer reports `visibility` or a `publicUrl`.
+  - HTTP: `POST /api/subgraphs/:name/publish` and `.../unpublish` are deleted and pinned as deleted-route fixtures, so they must 404 in every mode. The `PUBLIC_NAME_TAKEN` (409) error code is retired with them.
+
+  Reads are unchanged: rows still come from `/api/subgraphs/<name>/<table>` on a self-hosted instance, and the open `/v1/subgraphs` directory still serves what it served.
+
+### Minor Changes
+
+- e1df36a: Read `INSTANCE_TOKEN` as the primary credential, matching what the docs have always said.
+
+  Precedence is now an explicit `apiKey` option, then `INSTANCE_TOKEN`, then `SL_API_KEY`. The old
+  variable keeps working, so existing setups are unaffected — but following the documentation now
+  works too. Before this, exporting `INSTANCE_TOKEN` authenticated as nobody with no error, which is
+  the quietest way a documented happy path can fail.
+
+  Setting both to different values warns once on stderr and `INSTANCE_TOKEN` wins; identical values
+  (what `secondlayer init` writes) never warn.
+
+  Note for releases: the CLI and MCP resolve the SDK through its built output, so the SDK bump must
+  ship before or with them.
+
+- e419e85: Add `secondlayer setup` — a guided self-host onboarding wizard.
+
+  Replaces the previous five-command, one-manual-copy-paste onboarding path with one command:
+  secrets generation, `docker-compose.yml` + `.env` written directly into a target directory (no
+  more copying secrets by hand), the stack brought up, the observer stanza printed for an external
+  node, and verified history restored and checked.
+
+  Interactive by default (a real terminal UI, built on `@opentui/react`); without a TTY, or with
+  `--yes`, it skips the prompts and runs the identical steps from flags — `--network`, `--node-mode`,
+  and `--against` (unless `--skip-bootstrap`) are required explicitly in that mode, so an agent can
+  drive it exactly as well as a human at a terminal.
+
+  `scripts/oss-bootstrap.ts` is removed — it minted an older account+API-key credential that no
+  longer matches how self-hosted instances authenticate.
+
+### Patch Changes
+
+- Updated dependencies [00c009b]
+- Updated dependencies [e1df36a]
+- Updated dependencies [eed233a]
+- Updated dependencies [e1df36a]
+  - @secondlayer/sdk@9.0.0
+  - @secondlayer/shared@11.0.0
+  - @secondlayer/subgraphs@4.0.4
+
 ## 12.2.0
 
 ### Minor Changes

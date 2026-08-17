@@ -6,6 +6,64 @@ keys, `402` past the free window. That service is withdrawn; on a self-hosted
 instance reads are yours and unmetered, and only archive
 bootstrap/backfill/reindex draws [credits](/docs/authentication#archive-credits).
 
+## CLI — August 2026
+
+### One command replaces the five-command setup
+
+`secondlayer setup` replaces the old five-command, one-manual-copy-paste onboarding path. Secrets get generated, `docker-compose.yml` and `.env` get written straight into your target directory, the stack comes up, and verified history gets restored and checked, all from one command.
+
+Interactive by default: a real terminal UI, built on `@opentui/react`. Without a TTY, or with `--yes`, it skips the prompts and runs the same steps from flags instead, `--network`, `--node-mode`, and `--against` (unless `--skip-bootstrap`) are required explicitly in that mode, so an agent drives it exactly as well as a human at a terminal.
+
+`scripts/oss-bootstrap.ts` is gone. It minted an older account and API-key credential that no longer matches how self-hosted instances authenticate.
+
+## Subgraphs — August 2026
+
+### Publish, unpublish, and the visibility flag are gone
+
+Publishing claimed a name in a hosted global namespace. A self-hosted instance has no such namespace, so the verb had nothing left to mean. There is no shim, the routes 404 and the calls are gone.
+
+- CLI: `subgraphs publish`, `subgraphs unpublish`, and `subgraphs deploy --visibility` are unregistered. Deploy's success footer always prints the `/api/subgraphs` read path.
+- SDK: `subgraphs.publish()` / `subgraphs.unpublish()` and the `SubgraphPublishResult` / `SubgraphUnpublishResult` types are removed. `deploy()` no longer accepts or returns `visibility`.
+- MCP: `subgraphs_publish` and `subgraphs_unpublish` are no longer registered, and `subgraphs_list` no longer reports `visibility` or a `publicUrl`.
+- HTTP: `POST /api/subgraphs/:name/publish` and `.../unpublish` are deleted and 404 in every mode. The `PUBLIC_NAME_TAKEN` error code retires with them.
+
+Reads are unchanged: rows still come from `/api/subgraphs/<name>/<table>` on your instance, and the open `/v1/subgraphs` directory still serves what it served. Generated subgraph specs now default their server URL to `http://127.0.0.1:3800` instead of the hosted API, so a spec produced on a self-hosted instance describes that instance.
+
+## CLI — August 2026
+
+### Deprecated CLI aliases are gone
+
+No shim, old spellings error instead of quietly working. One door per capability now:
+
+- `subgraphs cancel` → `subgraphs stop`
+- `streams pull` → `streams dumps`
+- `subgraphs codegen` → `codegen subgraph` (or `codegen prints` for `--payloads`)
+- `subgraphs client` → `codegen client`
+- `index codegen` → `codegen index`
+- `contracts generate` / `contracts gen` → `codegen contracts` (the `contracts` group held nothing else, so it's gone too)
+
+`codegen subgraph` now defaults `--target` to `kysely`, matching every other codegen surface. The retired alias defaulted to `prisma`, pass `--target prisma` if you relied on that.
+
+## SDK — August 2026
+
+### Deprecated SDK method names are gone
+
+Each call has one name now: `subscriptions.recentDeliveries()` is `subscriptions.deliveries()`, `subscriptions.requeueDead()` is `subscriptions.requeue()`, `subgraphs.get()` is `subgraphs.status()`. `subscriptions.get()`, `contracts.get()`, and the standalone `getSubgraph()` export are untouched.
+
+### INSTANCE_TOKEN is read as your primary credential
+
+Precedence is now an explicit `apiKey` option, then `INSTANCE_TOKEN`, then `SL_API_KEY`, matching what the docs have always said. Before this, exporting `INSTANCE_TOKEN` authenticated as nobody with no error, the quietest way a documented happy path can fail.
+
+`SL_API_KEY` still works, nothing breaks, but following the docs now works too. Setting both to different values warns once on stderr and `INSTANCE_TOKEN` wins; `secondlayer init` writes identical values, so it never warns.
+
+## Agents — August 2026
+
+### MCP
+
+Deprecated tool aliases are gone and `subgraphs_get` is renamed, every tool name is now `<product>_<verb>` with one spelling: `scaffold_from_contract` → `subgraphs_scaffold`, `get_contract_abi` → `contracts_get_abi` (last cycle's alias is retired for real now), `subgraphs_get` → `subgraphs_status` (matching `sl.subgraphs.status()` and `secondlayer subgraphs status`). Update any pinned tool name, the server no longer registers the old one.
+
+`INSTANCE_TOKEN` is also read as your primary credential here, see the SDK entry above, the precedence change applies wherever the MCP server resolves a token.
+
 ## Subgraphs — August 2026
 
 ### Hosted subgraphs and subscriptions are retired

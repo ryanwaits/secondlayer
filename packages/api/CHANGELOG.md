@@ -1,5 +1,24 @@
 # @secondlayer/api
 
+## 1.29.0
+
+### Minor Changes
+
+- 3a57e87: Stop mounting subgraph and subscription routes on platform/archive deployments. Deploying and executing handler code, and delivering webhooks, is self-host only now — the archive deployment serves data and does not run anyone's workload. `/api/subgraphs` and `/api/subscriptions` 404 in platform/archive mode; self-hosted `oss` instances are unaffected.
+
+### Patch Changes
+
+- 4c6e1ff: Stop reporting `subgraph_processor` as permanently `unavailable` on platform/archive deployments. The processor was retired there for good (ops-f087), so `/status` and `/public/status` now omit the `subgraph_processor` entry (and `/public/status`'s top-level `subgraphProcessor` object) in platform mode instead of reporting a false alarm forever. `oss` self-host deployments are unaffected — the heartbeat check still surfaces there exactly as before.
+- Updated dependencies [00c009b]
+- Updated dependencies [e1df36a]
+- Updated dependencies [eed233a]
+- Updated dependencies [e1df36a]
+  - @secondlayer/sdk@9.0.0
+  - @secondlayer/shared@11.0.0
+  - @secondlayer/indexer@1.13.6
+  - @secondlayer/platform@0.2.1
+  - @secondlayer/subgraphs@4.0.4
+
 ## 1.28.0
 
 ### Minor Changes
