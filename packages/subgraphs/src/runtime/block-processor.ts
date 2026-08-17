@@ -1,5 +1,6 @@
 import { type Database, getTargetDb } from "@secondlayer/shared/db";
 import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
+import { recordGapBatch } from "@secondlayer/shared/db/queries/subgraph-gaps";
 import { advanceOperationCursor } from "@secondlayer/shared/db/queries/subgraph-operations";
 import {
 	recordLiveError,
@@ -294,6 +295,11 @@ export interface ProcessBlockOptions {
 	 * forward write. Never set this outside `reorg.ts`.
 	 */
 	reorgRewind?: true;
+	/** The subgraph row's uuid. Required to record a gap row when a block
+	 *  processes with handler errors — `subgraph_gaps.subgraph_id` is NOT NULL.
+	 *  Absent on paths that pass `skipProgressUpdate` (they record gaps
+	 *  themselves, see reindex.ts). */
+	subgraphId?: string;
 }
 
 /** Thrown inside the block tx when a racing writer already covered this
@@ -535,6 +541,24 @@ export async function processBlock(
 			const advanced = await recordLiveProgress(tx, subgraphName, blockHeight);
 			if (!advanced && flushedWrites) {
 				throw new LiveCursorRaceLostError(subgraphName, blockHeight);
+			}
+		}
+		// A handler that threw had its writes rolled back (runner.ts
+		// ctx.rollbackTo) but the cursor still advances, so those events are
+		// gone unless something records where. Gap rows are what `/gaps` and
+		// backfill repair from — the reindex path has always written them
+		// (reindex.ts), the live path never did.
+		if (rr.errors > 0 && !rewind) {
+			if (opts?.subgraphId) {
+				await recordGapBatch(tx, opts.subgraphId, subgraphName, [
+					{ start: blockHeight, end: blockHeight, reason: "processing_error" },
+				]);
+			} else {
+				logger.warn("Block errors not recorded as a gap — no subgraphId", {
+					subgraph: subgraphName,
+					blockHeight,
+					errors: rr.errors,
+				});
 			}
 		}
 		if (rr.processed > 0 || rr.errors > 0) {

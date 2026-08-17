@@ -410,6 +410,7 @@ export async function catchUpSubgraph(
 						}
 						return processBlockWithRetry(subgraph, subgraphName, height, {
 							preloaded,
+							subgraphId: subgraphRow.id,
 						});
 					});
 				} catch (err) {
