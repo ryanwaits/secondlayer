@@ -58,8 +58,14 @@ function generatedAt(options: SubgraphSpecOptions): string {
 	return options.generatedAt ?? new Date().toISOString();
 }
 
+/**
+ * Callers that know their instance pass `serverUrl` (the API derives it from the
+ * request; the CLI from its resolved API URL). The fallback is the documented
+ * default bind, not a hosted host — a spec that advertises someone else's API
+ * produces a client that silently talks to the wrong place.
+ */
 function normalizeServerUrl(serverUrl?: string): string {
-	return (serverUrl ?? "https://api.secondlayer.tools").replace(/\/+$/, "");
+	return (serverUrl ?? "http://127.0.0.1:3800").replace(/\/+$/, "");
 }
 
 function tablePath(
