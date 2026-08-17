@@ -15,15 +15,15 @@
 //   * rows carry block_height so a reorg can delete everything above the fork
 //
 // Run:  bun examples/streams-consumer.ts
-//       (loopback reads need no key; export SL_API_KEY=<INSTANCE_TOKEN> if your
-//        instance has one configured)
+//       (loopback reads need no key; export INSTANCE_TOKEN if the API is
+//        reachable past loopback)
 
 import { Database } from "bun:sqlite";
 import { createStreamsClient } from "@secondlayer/sdk/streams";
 import type { StreamsEvent } from "@secondlayer/sdk/streams";
 
 const streams = createStreamsClient({
-	apiKey: process.env.SL_API_KEY ?? "", // "" = keyless, fine on a loopback instance
+	apiKey: process.env.INSTANCE_TOKEN ?? "", // "" = keyless, fine on a loopback instance
 });
 
 // --- Store -----------------------------------------------------------------

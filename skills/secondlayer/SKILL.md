@@ -42,7 +42,7 @@ These are small enough to keep in the router. Everything else is in a reference 
 
 - **Binary:** `secondlayer` (`sl` is a short alias). Install: `bun add -g @secondlayer/cli`.
 - **Default API:** `http://127.0.0.1:3800`. Override with `SL_API_URL`.
-- **One token, no accounts.** `secondlayer init` writes `INSTANCE_TOKEN` into `.env.local`. Loopback reads need no key; writes and any bind beyond loopback take it. The CLI, MCP, and SDK read that value from `SL_API_KEY` (a legacy variable name — the value is the instance token) or `--api-key`. There is no login, no project, no API-key tier.
+- **One token, no accounts.** `secondlayer init` writes `INSTANCE_TOKEN` into `.env.local`. Loopback reads need no key; writes take it always, and every read takes it once the API is reachable past loopback. The CLI, MCP, and SDK read `INSTANCE_TOKEN` (`SL_API_KEY` is a legacy alias for the same value) or `--api-key`. There is no login, no project, no API-key tier.
 - **Streams / Index:** local instance reads. Loopback needs no key. Public archive dumps (`secondlayer streams dumps`) are a separate signed bucket.
 - **Only archive fetches cost money.** `secondlayer bootstrap` / `repair` against the official archive draw prepaid credits and quote the price before charging; `secondlayer verify` is always free. Nothing you run yourself is metered.
 - **Package manager:** prefer `bun` and `bunx`. Most package.json files in user projects declare `bun` as `packageManager`.
@@ -52,15 +52,23 @@ These are small enough to keep in the router. Everything else is in a reference 
 
 | Surface | Auth |
 | --- | --- |
-| Contracts (`/v1/contracts`, `sl.contracts`) | **Open** — no key |
+| Contracts (`/v1/contracts`, `sl.contracts`) | Loopback reads need no key. |
 | Index (`/v1/index`, `sl.index`, `secondlayer index`) | Loopback reads need no key. History is whatever this instance has bootstrapped. |
 | Streams (`/v1/streams`, `sl.streams`, `secondlayer streams`) | Loopback reads need no key. Public archive dumps need no instance key. |
-| Subgraphs | Reads on this instance are open on `/v1/subgraphs/*`. Writes use `INSTANCE_TOKEN`. |
+| Subgraphs (`/v1/subgraphs/*`) | Loopback reads need no key. No public/private flag — every subgraph on the instance reads the same. Writes are `/api/subgraphs`, below. |
 
-The gate is instance-wide, not per-surface: an instance with `INSTANCE_TOKEN`
-configured requires `Authorization: Bearer <INSTANCE_TOKEN>` on **every** route
-except `/health` and `/public/*`, reads included. An instance with no token is
-fully open and may only bind loopback. Send the token whenever you have it.
+One rule for the whole `/v1` read plane, identical on all four: open while the
+API is reachable only from this box, `Authorization: Bearer <INSTANCE_TOKEN>` on
+every request past that. "Reachable only from this box" is the operator's
+declared publish/bind (`API_PUBLISH_ADDR`, else the listen host), never the
+caller's address. A token sent where anonymous access already works is used if
+it matches and **ignored** if it doesn't — presenting a key never turns a
+working read into a 401.
+
+Writes are the other rule: `/api/subgraphs`, `/api/subscriptions`, `/api/node`,
+and `/status` require the token whenever the instance has one, loopback
+included. An instance with no token set is fully open and may only bind
+loopback. Send the token whenever you have it.
 
 ## Default working loop
 
@@ -86,7 +94,7 @@ fully open and may only bind loopback. Send the token whenever you have it.
 |---|---|---|
 | Subgraph deploy errors `upsert requires unique key` | Schema declared `upsert` writes but `uniqueKeys` missing | Add `uniqueKeys: [["col_a", "col_b"]]` to the table |
 | Subscription paused after 20 failures | Receiver returning 4xx/5xx or timing out | `secondlayer subscriptions doctor <name>`; fix receiver; `secondlayer subscriptions resume <name>` |
-| `ApiError 401` from SDK | The instance has `INSTANCE_TOKEN` set (always true past loopback) and the call carried no key | Pass `INSTANCE_TOKEN` from `.env.local` as `apiKey` / `SL_API_KEY` |
+| `ApiError 401` from SDK | A write, or a read against an instance reachable past loopback, carried no bearer | Pass `INSTANCE_TOKEN` from `.env.local` as `apiKey`, or export it |
 | `tsc` errors after `getContract` upgrade | ABI shape changed, regenerate | `secondlayer codegen client <name> -o ...` or refresh ABI |
 | Webhook receiver getting unsigned bodies | `format` not set to `standard-webhooks` | `secondlayer subscriptions update <name> --format standard-webhooks` |
 | Subgraph "stuck" right after deploy | Catching up from `startBlock` | Normal; watch `secondlayer subgraphs status <name> -w`. Use `--start-block` near tip for fast first deploy |

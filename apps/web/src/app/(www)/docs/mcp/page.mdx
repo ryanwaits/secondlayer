@@ -21,7 +21,7 @@ The server ships as `@secondlayer/mcp` and speaks **stdio**. Add it to any MCP c
 }
 ```
 
-`INSTANCE_TOKEN` is optional on loopback; a non-loopback bind requires it (see [Authentication](#authentication)).
+`INSTANCE_TOKEN` is optional for reads on loopback; anything published past loopback requires it, and the write tools require it always (see [Authentication](#authentication)).
 
 An HTTP transport (`@secondlayer/mcp-http`) adds session management and optional `SECONDLAYER_MCP_SECRET` bearer auth for hosting the server behind a URL.
 
@@ -31,6 +31,8 @@ An HTTP transport (`@secondlayer/mcp-http`) adds session management and optional
 | --- | --- | --- |
 | Index, Streams, Contracts, Scaffold | Open on loopback | — |
 | Subgraphs, Subscriptions | Open on loopback | `INSTANCE_TOKEN` |
+
+One rule across all of them: reads are open while the API is published on loopback and take the token past it; writes take the token whenever the instance has one, loopback included. Set `INSTANCE_TOKEN` in the server's env and every tool works either way — a token sent on a read that didn't need it is ignored, never rejected.
 
 ## Start here
 

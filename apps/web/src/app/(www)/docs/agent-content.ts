@@ -61,8 +61,8 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 	"/docs/authentication": [
 		card(
 			"Understand instance auth",
-			"One token; loopback needs none.",
-			"/secondlayer Explain Secondlayer auth: calls from loopback (`http://127.0.0.1:3800`) need no credential; non-loopback requests send `Authorization: Bearer $INSTANCE_TOKEN` — the single token written by `secondlayer init`. Help me wire it into my client and CI.",
+			"One token; loopback reads need none.",
+			"/secondlayer Explain Secondlayer auth: `/v1` reads from loopback (`http://127.0.0.1:3800`) need no credential, past loopback they send `Authorization: Bearer $INSTANCE_TOKEN`, and writes (`/api/subgraphs`, `/api/subscriptions`, `/api/node`) send it always, loopback included — one token, written by `secondlayer init`. Help me wire it into my client and CI.",
 		),
 		card(
 			"Rotate a token or secret",
@@ -416,8 +416,8 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		),
 		card(
 			"Deploy against devnet",
-			"Run a subgraph on local devnet blocks, no token.",
-			"/secondlayer Help me deploy a subgraph against my local devnet: `SL_API_URL=http://localhost:3800 secondlayer subgraphs deploy ./subgraph.ts` — loopback needs no token. Then have me fire a contract call in the devnet and confirm the matching rows land by reading the subgraph's table.",
+			"Run a subgraph on local devnet blocks.",
+			"/secondlayer Help me deploy a subgraph against my local devnet: `SL_API_URL=http://localhost:3800 INSTANCE_TOKEN=dev-instance-token secondlayer subgraphs deploy ./subgraph.ts` — the generated devnet stack ships that fixed local token, and deploys are writes, so they carry it. Then have me fire a contract call in the devnet and confirm the matching rows land by reading the subgraph's table.",
 		),
 		card(
 			"Watch and tear down",

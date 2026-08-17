@@ -60,7 +60,7 @@ Any unrecognized query param returns `400`; the error suggests the closest valid
 | `GET /v1/subgraphs/:name` | Metadata: tables, columns, indexing tip |
 | `GET /v1/subgraphs/:name/:table` | Rows; `/count`, `/aggregate`, `/:id`, `/stream` (SSE) alongside |
 
-Reads are open on loopback with wildcard CORS; a non-loopback bind requires the `INSTANCE_TOKEN` bearer.
+Reads are open on loopback with wildcard CORS; published past loopback they require the `INSTANCE_TOKEN` bearer. Same rule on `/v1/index` and `/v1/streams` — there is no per-subgraph visibility flag, so who can reach the instance is what your publish spec and reverse proxy decide.
 
 Keyset pagination: `?cursor=<next_cursor>` resumes. By default the keyset is `_id`; add `?_sort=<column>&_order=asc|desc` to sort by one column instead (jsonb columns and multi-column `_sort=a,b` are rejected with `400`; the cursor pairs the sort column with `_id` as a tiebreaker, which only works for one column). `_order` on its own, with no `_sort`, is still `asc`/`desc` direction of the `_id` scan. The cursor's shape follows the sort: don't hand-construct one, and a cursor issued under one `_sort`/`_order` returns `400` if replayed under a different one. `_limit`, `_fields`, `_search`, and column filters work as everywhere else. `_offset` is **rejected with `400`**: deep `OFFSET` scans hurt on big tables.
 

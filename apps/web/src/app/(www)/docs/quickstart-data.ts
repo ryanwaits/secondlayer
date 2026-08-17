@@ -23,7 +23,7 @@ export const QUICKSTART_STEPS: QuickstartStep[] = [
 		n: "02",
 		tab: "Start",
 		title: "Start the one-box",
-		desc: "init writes config; compose brings up postgres + secondlayer beside your Stacks node. Your API is live at http://127.0.0.1:3800 — loopback needs no token.",
+		desc: "init writes config; compose brings up postgres + secondlayer beside your Stacks node. Your API is live at http://127.0.0.1:3800 — loopback reads need no token; export INSTANCE_TOKEN from .env.local before deploying.",
 		kw: "secondlayer",
 		rest: " init && docker compose up -d",
 	},

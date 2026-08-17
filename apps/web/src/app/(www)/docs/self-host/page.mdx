@@ -40,7 +40,7 @@ docker compose --profile full-node up -d
 
 ## Config
 
-Six required non-secrets. Secrets come from `secondlayer init`.
+Six required non-secrets, plus one compose derives for you. Secrets come from `secondlayer init`.
 
 | Key | Default | Notes |
 | --- | --- | --- |
@@ -48,10 +48,13 @@ Six required non-secrets. Secrets come from `secondlayer init`.
 | `DATABASE_URL` | compose | Injected; one Postgres |
 | `NODE_MODE` | `external` | `external`, `stacks`, `full` |
 | `DATA_DIR` | `/data` | Handler + runtime files |
-| `API_PORT` | `3800` | Published as `127.0.0.1:3800` |
+| `API_PORT` | `127.0.0.1:3800` | Publish spec for the API port |
 | `INDEXER_PORT` | `3700` | Observer bind |
+| `API_PUBLISH_ADDR` | compose | Injected from the same `API_PORT` value the port is published with |
 
 Unknown keys and contradictions fail before ingest. `secondlayer start --print` shows the compose line.
+
+`INSTANCE_TOKEN` is required in compose: the container process binds `0.0.0.0` — it has to, or the published port never reaches it — and an instance that binds past loopback with no token refuses to start. `API_PUBLISH_ADDR` is how the API learns which of those two facts to serve on: it carries the publish spec, so with the default `127.0.0.1:3800` the `/v1` reads stay keyless, and changing `API_PORT` to `0.0.0.0:3800` makes every `/v1` request carry the token. Writes take the token either way; see [Authentication](/docs/authentication).
 
 ## Verify and repair
 
@@ -74,16 +77,19 @@ Migrations run at start under an advisory lock, and are forward-only. To roll ba
 
 ## Backup
 
-There is no `secondlayer backup` command yet. Back up with Postgres' own tools plus the files `secondlayer init` generated:
+`secondlayer backup` writes one bundle: the index, plus the keys encrypted under a passphrase you supply.
 
 ```bash
-pg_dump -Fc "$DATABASE_URL" > secondlayer-$(date +%F).dump   # the index
-cp docker/oss/.env  ./secondlayer-env-backup                 # secrets: keys + token
+secondlayer backup --out ./backups/$(date +%F)
+secondlayer restore --from ./backups/2026-08-16            # dry run
+secondlayer restore --from ./backups/2026-08-16 --apply
 ```
 
-`.env` holds `INSTANCE_TOKEN`, `SECONDLAYER_SECRETS_KEY`, and `STREAMS_SIGNING_PRIVATE_KEY`. Losing it costs you more than losing the index, because the index can be rebuilt from the [archive](/docs/archive), the keys cannot. Store it somewhere the database backup is not.
+Pass `--passphrase`, or set `SECONDLAYER_BACKUP_PASSPHRASE`. `--no-secrets` writes a data-only bundle. A restore refuses before writing anything if the secrets key the instance will use is not the key the data was encrypted with, and `--force` is what lets it write over a database that already holds chain data.
 
-To restore, bring up an empty Postgres, `pg_restore` into it, put `.env` back, and confirm with `secondlayer verify all --against <manifest>` before trusting the result.
+The bundle carries `INSTANCE_TOKEN`, `SECONDLAYER_SECRETS_KEY`, and `STREAMS_SIGNING_PRIVATE_KEY`. Losing those costs you more than losing the index, because the index can be rebuilt from the [archive](/docs/archive), the keys cannot. Store the bundle somewhere your Postgres backups are not.
+
+Confirm any restore with `secondlayer verify all --against <manifest>` before trusting the result.
 
 ## Guardrails
 
@@ -111,10 +117,11 @@ That downgrades the refusal to a warning at every start. It exists so a box that
 
 ```bash
 export SL_API_URL=http://localhost:3800
+export INSTANCE_TOKEN=…            # from .env.local
 secondlayer subgraphs deploy ./my-subgraph.ts
 ```
 
-Keep `POSTGRES_PORT` / `INDEXER_PORT` on loopback. Set `INSTANCE_TOKEN` before binding `0.0.0.0`. Consumers running elsewhere: [Deploy](/docs/deploy).
+`subgraphs deploy` is a write, so it sends `INSTANCE_TOKEN` even here on loopback. Keep `POSTGRES_PORT` / `INDEXER_PORT` on loopback. Consumers running elsewhere: [Deploy](/docs/deploy).
 
 ## Console (optional)
 

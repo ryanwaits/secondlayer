@@ -1,23 +1,28 @@
 # Instance token & archive credits
 
-Your instance has one token, not accounts. Loopback reads need no key; writes and bind-beyond-loopback use the `INSTANCE_TOKEN` from `secondlayer init`. Archive restore and backfill are a separate card credit.
+Your instance has one token, not accounts. Loopback reads need no key; writes, and every read once the API is published past loopback, use the `INSTANCE_TOKEN` from `secondlayer init`. Archive restore and backfill are a separate card credit.
 
 | Surface | Key | Behavior |
 | --- | --- | --- |
 | Index / Streams / subgraphs on `127.0.0.1` | None | Your Postgres: no meter, no rate limit |
-| Writes (`subgraphs deploy`, subscriptions) | `INSTANCE_TOKEN` | From `secondlayer init` |
+| Any `/v1` read past loopback | `INSTANCE_TOKEN` | Same rule on all three surfaces |
+| Writes (`subgraphs deploy`, subscriptions, node) | `INSTANCE_TOKEN` | Loopback included |
 | [Archive](/docs/archive) bootstrap / backfill | Card credits | `secondlayer credits buy` |
 
 ```bash
 # Local read — no key
 curl http://127.0.0.1:3800/v1/index/events?limit=5
 
-# Write — instance token
-curl http://127.0.0.1:3800/v1/streams/tip \
+# Write — instance token, from 127.0.0.1 too
+curl -X POST http://127.0.0.1:3800/api/subgraphs/my-balances/reindex \
   -H "Authorization: Bearer $INSTANCE_TOKEN"
 ```
 
-The CLI and MCP read `INSTANCE_TOKEN` (`SL_API_KEY` is a legacy alias). The SDK takes it explicitly: `new SecondLayer({ apiKey: process.env.INSTANCE_TOKEN })`. Default `baseUrl` is `http://127.0.0.1:3800` (`SL_API_URL` overrides).
+Writes are not loopback-exempt. Once the instance has a token, `/api/subgraphs`, `/api/subscriptions`, `/api/node`, and `/status` require it on every call, including from the same box. Reads are the opposite: on loopback a token you send is used if it matches and ignored if it doesn't — presenting a key never turns a working read into a 401.
+
+**What counts as loopback** is how the API port is published, not who is calling. Compose hands the API its own publish spec as `API_PUBLISH_ADDR` (default `127.0.0.1:3800`); outside a container it falls back to the listen host. Publish on any other address and every `/v1` request needs the token — and an instance that binds past loopback with no token refuses to start.
+
+The CLI, MCP, and SDK all read `INSTANCE_TOKEN` (`SL_API_KEY` is a legacy alias, and the canonical name wins when both are set). The SDK also takes it explicitly: `new SecondLayer({ apiKey: process.env.INSTANCE_TOKEN })`. Default `baseUrl` is `http://127.0.0.1:3800` (`SL_API_URL` overrides).
 
 ## Archive credits
 

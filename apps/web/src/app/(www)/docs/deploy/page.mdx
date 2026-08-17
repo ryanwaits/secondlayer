@@ -22,10 +22,10 @@ Your instance is the source, so [run it first](/docs/self-host). The consumer ne
 ```bash
 SL_API_URL=http://127.0.0.1:3800        # same box as the instance
 SL_API_URL=http://indexer.tailnet:3800  # tailnet or private network
-INSTANCE_TOKEN=…                        # required once the API binds past loopback
+INSTANCE_TOKEN=…                        # required once the API is published past loopback
 ```
 
-Loopback reads are open. Any other bind needs `INSTANCE_TOKEN` set on the instance and in the consumer's env; see [Authentication](/docs/authentication).
+Loopback reads are open. Anything a consumer can reach from another box is past loopback, so it needs `INSTANCE_TOKEN` set on the instance and in the consumer's env; see [Authentication](/docs/authentication).
 
 ## Pick a target
 

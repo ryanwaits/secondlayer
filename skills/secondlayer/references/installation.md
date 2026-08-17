@@ -43,19 +43,20 @@ secondlayer start --print
 
 ```bash
 export SL_API_URL=http://127.0.0.1:3800
-export SL_API_KEY=<INSTANCE_TOKEN>   # SL_API_KEY is the env var name; the value is the instance token
+export INSTANCE_TOKEN=<token from .env.local>   # SL_API_KEY is the legacy alias
 ```
 
-Once an instance has `INSTANCE_TOKEN` set — mandatory for any non-loopback bind — it requires `Authorization: Bearer <INSTANCE_TOKEN>` on every route except `/health` and `/public/*`, reads included.
+Writes (`/api/subgraphs`, `/api/subscriptions`, `/api/node`, `/status`) send `Authorization: Bearer <INSTANCE_TOKEN>` whenever the instance has a token, loopback included. `/v1` reads send it once the API is published past loopback — mandatory there, since an instance that binds past loopback with no token refuses to start. `/health` and `/public/*` are always open.
 
-`--api-key <key>` and `--api-url <url>` are global flags available on every command, overriding `SL_API_KEY` / `SL_API_URL` for that one invocation.
+`--api-key <key>` and `--api-url <url>` are global flags available on every command, overriding `INSTANCE_TOKEN` / `SL_API_URL` for that one invocation.
 
 ## Environment variables
 
 | Variable | Read by | Purpose |
 |---|---|---|
 | `SL_API_URL` | All SDK + CLI calls | Override instance API. Default: `http://127.0.0.1:3800`. |
-| `SL_API_KEY` | CLI writes, MCP, SDK | The `INSTANCE_TOKEN` from `secondlayer init`. This is the only credential env var the CLI and MCP read. Loopback reads on a tokenless instance need no value. |
+| `INSTANCE_TOKEN` | CLI writes, MCP, SDK | The token `secondlayer init` writes — the instance's only credential. Loopback reads need no value. |
+| `SL_API_KEY` | legacy alias | Same value as `INSTANCE_TOKEN`, which wins when both are set. |
 | `HIRO_API_KEY` | `secondlayer codegen contracts`, `secondlayer subgraphs scaffold` | Stacks node API key for ABI fetches against Hiro RPC. |
 | `SIGNING_SECRET` | `secondlayer subscriptions test` fallback | If `--signing-secret` not passed. |
 | `STACKS_NETWORK` | `secondlayer codegen contracts` and some local commands | `local`, `testnet`, or `mainnet`. |
@@ -71,7 +72,7 @@ const tip = await sl.streams.tip();
 const { data } = await sl.subgraphs.list();
 ```
 
-Loopback reads need no key. History is whatever this instance has bootstrapped. Writes (`sl.subgraphs.deploy`, `sl.subscriptions.create`, …) pass `INSTANCE_TOKEN` as `apiKey` — either explicitly (`new SecondLayer({ apiKey: process.env.INSTANCE_TOKEN })`) or by exporting `SL_API_KEY`, which the SDK falls back to. Public Streams dumps (`client.dumps`, `events.replay`) need no instance key.
+Loopback reads need no key. History is whatever this instance has bootstrapped. Writes (`sl.subgraphs.deploy`, `sl.subscriptions.create`, …) pass `INSTANCE_TOKEN` as `apiKey` — either explicitly (`new SecondLayer({ apiKey: process.env.INSTANCE_TOKEN })`) or by exporting `INSTANCE_TOKEN`, which the SDK picks up (`SL_API_KEY` still works as the legacy alias). Public Streams dumps (`client.dumps`, `events.replay`) need no instance key.
 
 ## Stacks client quickstart
 

@@ -4,7 +4,7 @@ Source of truth: `packages/sdk/src/`. Function signatures below are copied verba
 
 **Auth model:** default `baseUrl` is `http://127.0.0.1:3800` (or `SL_API_URL`). Loopback reads on `sl.contracts.*`, `sl.index.*`, `sl.streams.*`, and `sl.subgraphs.rows()` need no key. History is whatever this instance has bootstrapped. Writes (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) use `INSTANCE_TOKEN` from `secondlayer init` as `apiKey`. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no instance key.
 
-Your instance has one token, not accounts: there is no login, no project, no dashboard key, and no key tier. Pass `INSTANCE_TOKEN` as `apiKey`, or export it as `SL_API_KEY` and the client picks it up (`resolveApiKey`). Once an instance has a token configured — mandatory for any non-loopback bind — it wants the bearer on every call, reads included.
+Your instance has one token, not accounts: there is no login, no project, no dashboard key, and no key tier. Pass `INSTANCE_TOKEN` as `apiKey`, or export `INSTANCE_TOKEN` and the client picks it up (`resolveApiKey`; `SL_API_KEY` is the legacy alias, and the canonical name wins when both are set). Writes always need it. Reads need it once the API is reachable past loopback — which is mandatory there, since an instance binding past loopback with no token refuses to start. Passing `apiKey` on a keyless loopback read is harmless: an unrecognized credential is ignored, not rejected.
 
 ---
 
@@ -46,7 +46,7 @@ export type FetchLike = (
 ```ts
 // All options are optional. Default baseUrl = "http://127.0.0.1:3800".
 const sl = new SecondLayer({
-  apiKey: process.env.SL_API_KEY,           // optional for read-only methods
+  apiKey: process.env.INSTANCE_TOKEN,           // optional for read-only methods
   // baseUrl defaults to http://127.0.0.1:3800
   // fetchImpl: customFetch,                // optional, for edge runtimes
   // origin: "cli",                         // default; "mcp" | "session"
@@ -130,7 +130,7 @@ The root `@secondlayer/sdk` re-exports everything above plus `SecondLayer`, `Ind
 
 ```ts
 type CreateStreamsClientOptions = {
-  apiKey?: string;          // INSTANCE_TOKEN when the API is bound beyond loopback
+  apiKey?: string;          // INSTANCE_TOKEN once the API is reachable past loopback
   baseUrl?: string;         // default http://127.0.0.1:3800
   fetchImpl?: FetchLike;
   /** Verify the ed25519 response signature on every read. Default OFF.
@@ -444,7 +444,7 @@ download(file: StreamsDumpFile): Promise<Uint8Array> // fetches + verifies sha25
 
 ```ts
 const streams = createStreamsClient({
-  apiKey: process.env.SL_API_KEY,
+  apiKey: process.env.INSTANCE_TOKEN,
   dumpsBaseUrl: process.env.SL_STREAMS_DUMPS_URL,
 });
 
@@ -675,7 +675,7 @@ Note `.walk()` defaults `fromHeight: 0` when neither `cursor` nor `fromCursor` i
 
 ## 5b. `sl.contracts` — contract discovery
 
-Typed client for `GET /v1/contracts` (public reads, no key). "Find all contracts
+Typed client for `GET /v1/contracts` (open reads — no key on loopback, `apiKey` past it). "Find all contracts
 conforming to a trait" — `trait` is required.
 
 ```ts
@@ -986,7 +986,7 @@ Equivalent helper for callers that don't have a `SecondLayer` instance:
 
 ```ts
 import { getSubgraph } from "@secondlayer/sdk";
-const client = getSubgraph(mySubgraph, { apiKey: process.env.SL_API_KEY });
+const client = getSubgraph(mySubgraph, { apiKey: process.env.INSTANCE_TOKEN });
 // also accepts an existing SecondLayer or Subgraphs instance
 ```
 

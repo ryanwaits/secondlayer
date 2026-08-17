@@ -17,7 +17,8 @@ The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlay
 | Var | Used by | Purpose |
 | --- | --- | --- |
 | `SL_API_URL` | every command that calls the instance | Override the instance API base URL. Default `http://127.0.0.1:3800`. |
-| `SL_API_KEY` | writes, MCP, SDK | The `INSTANCE_TOKEN` from `secondlayer init`. The only credential env var the CLI reads. Loopback reads on a tokenless instance need no value. |
+| `INSTANCE_TOKEN` | writes, MCP, SDK | The token `secondlayer init` writes. The instance's only credential. Required for every write, and for every read once the API is published past loopback; loopback reads need no value. |
+| `SL_API_KEY` | legacy alias of `INSTANCE_TOKEN` | Same value; `INSTANCE_TOKEN` wins when both are set. |
 | `SL_PLATFORM_API_URL` | legacy alias of `SL_API_URL` | Same default: `http://127.0.0.1:3800`. |
 | `HIRO_API_KEY` / `STACKS_NODE_API_KEY` | subgraphs scaffold, codegen contracts | API key passed to Hiro Stacks RPC when fetching contract ABIs. |
 | `SIGNING_SECRET` | subscriptions test | Standard-Webhooks signing secret used to sign test fixtures. |
@@ -27,7 +28,7 @@ The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlay
 | `INDEXER_URL` | local db resync --backfill | Local indexer URL; defaults to `http://localhost:<config.ports.indexer>`. |
 | `DEBUG` | codegen contracts | When set, prints stack traces on failure. |
 
-Global flags `--api-key <key>` and `--api-url <url>` are available on every command and override `SL_API_KEY` / `SL_API_URL` for that invocation.
+Global flags `--api-key <key>` and `--api-url <url>` are available on every command and override `INSTANCE_TOKEN` / `SL_API_URL` for that invocation.
 
 ## Table of contents
 
@@ -219,7 +220,7 @@ Usage: `secondlayer credits refill --below <usd> [--pack <usd>] [--off] [--json]
 
 ## Subgraphs
 
-Manage materialized subgraphs. Subcommands hit your instance at `SL_API_URL`; writes send `SL_API_KEY` (the `INSTANCE_TOKEN` from `secondlayer init`) as the bearer. A tokenless loopback instance needs no key at all. Local deploys (`network=local`) write straight to the local Postgres dev DB.
+Manage materialized subgraphs. Subcommands hit your instance at `SL_API_URL`; writes send `INSTANCE_TOKEN` as the bearer whenever the instance has one, loopback included. Only an instance with no token set at all needs no key. Local deploys (`network=local`) write straight to the local Postgres dev DB.
 
 ### secondlayer subgraphs create
 
@@ -265,7 +266,7 @@ Deploy bundles the handler via `@secondlayer/bundler` and POSTs it to the instan
 
 Deploy refuses a definition file that isn't committed to git — a prompt in a terminal, a hard failure in CI — because a deployed definition whose source isn't in version control exists only as a database row. `--allow-uncommitted` overrides it and prints a line saying so. Deploys from outside a git repo, and `--dry-run`, are unaffected.
 
-Deploys are open on any instance: no trial, no quota, and no visibility flag. Reads are open on `/v1/subgraphs/*`; who can reach the instance is your bind and your reverse proxy, not a per-subgraph setting.
+Deploys are open on any instance: no trial, no quota, and no visibility flag. Reads on `/v1/subgraphs/*` follow the same rule as Index and Streams — keyless while the API is published on loopback, `INSTANCE_TOKEN` past it. Who can reach the instance is your publish spec and your reverse proxy, not a per-subgraph setting.
 
 Example: `secondlayer subgraphs deploy subgraphs/my-watcher.ts --start-block 100000`
 
@@ -439,7 +440,7 @@ secondlayer subgraphs scaffold --trait sip-010 -o subgraphs/all-tokens.ts    # a
 
 ## Subscriptions
 
-Manage subgraph table subscriptions (webhook deliveries). Alias: `subs`. All subcommands accept `--service-key <key>` (overrides `SL_API_KEY`) and `--base-url <url>` (overrides `SL_API_URL`). Without those, the CLI uses `SL_API_KEY` / `SL_API_URL` from the environment.
+Manage subgraph table subscriptions (webhook deliveries). Alias: `subs`. All subcommands take the credential and endpoint from the global `--api-key` / `--api-url` flags, or from `INSTANCE_TOKEN` / `SL_API_URL` in the environment. These are writes, so they send the token even on loopback.
 
 Subscription references (`<idOrName>`) accept the subscription UUID or its name. Ambiguous names error out — use the ID.
 
@@ -459,8 +460,8 @@ Usage: `secondlayer subscriptions create <name>`
 | `-u, --url <url>` | Webhook URL. Prompts if omitted. Must be http/https. |
 | `--auth-token <token>` | Bearer token for receiver-side auth. |
 | `--filter <kv...>` | Repeatable. `key=value` with `.eq/.neq/.gt/.gte/.lt/.lte` suffixes. |
-| `--service-key <key>` | `SL_API_KEY` override. |
-| `--base-url <url>` | `SL_API_URL` override. |
+| `--api-key <key>` | `INSTANCE_TOKEN` override. |
+| `--api-url <url>` | `SL_API_URL` override. |
 | `--skip-api` | Copy template only; do NOT create the subscription via API. |
 | `--no-scaffold` | Skip the local runtime template directory (webhook-only setups — provisions subscription only). |
 
@@ -485,8 +486,8 @@ Usage: `secondlayer subscriptions list`
 | Flag | Description |
 | --- | --- |
 | `--json` | Output as JSON. |
-| `--service-key <key>` | `SL_API_KEY` override. |
-| `--base-url <url>` | `SL_API_URL` override. |
+| `--api-key <key>` | `INSTANCE_TOKEN` override. |
+| `--api-url <url>` | `SL_API_URL` override. |
 
 ### secondlayer subscriptions get
 
@@ -497,7 +498,7 @@ Usage: `secondlayer subscriptions get <idOrName>`
 | Flag | Description |
 | --- | --- |
 | `--json` | Output as JSON. |
-| `--service-key <key>` / `--base-url <url>` | API auth overrides. |
+| `--api-key <key>` / `--api-url <url>` | API auth overrides. |
 
 ### secondlayer subscriptions update
 
@@ -518,7 +519,7 @@ Usage: `secondlayer subscriptions update <idOrName>`
 | `--timeout-ms <n>` | Delivery timeout (ms, ≥ 100). |
 | `--concurrency <n>` | Per-subscription delivery concurrency (≥ 1). |
 | `--json` | Output as JSON. |
-| `--service-key <key>` / `--base-url <url>` | API auth overrides. |
+| `--api-key <key>` / `--api-url <url>` | API auth overrides. |
 
 If `--filter` is set, the new filter is validated against the target subgraph table before applying.
 
@@ -531,7 +532,7 @@ Usage: `secondlayer subscriptions pause <idOrName>`
 | Flag | Description |
 | --- | --- |
 | `--json` | Output as JSON. |
-| `--service-key <key>` / `--base-url <url>` | API auth overrides. |
+| `--api-key <key>` / `--api-url <url>` | API auth overrides. |
 
 ### secondlayer subscriptions resume
 
@@ -551,7 +552,7 @@ Usage: `secondlayer subscriptions delete <idOrName>`
 | --- | --- |
 | `-y, --yes` | Skip confirmation. |
 | `--json` | Output as JSON. |
-| `--service-key <key>` / `--base-url <url>` | API auth overrides. |
+| `--api-key <key>` / `--api-url <url>` | API auth overrides. |
 
 Refuses prompt without a TTY. 404 is treated as "already deleted" (idempotent).
 
@@ -565,7 +566,7 @@ Usage: `secondlayer subscriptions rotate-secret <idOrName>`
 | --- | --- |
 | `-y, --yes` | Skip confirmation. |
 | `--json` | Output as JSON. |
-| `--service-key <key>` / `--base-url <url>` | API auth overrides. |
+| `--api-key <key>` / `--api-url <url>` | API auth overrides. |
 
 Prints the new secret to stdout. Capture immediately.
 
@@ -578,7 +579,7 @@ Usage: `secondlayer subscriptions deliveries <idOrName>`
 | Flag | Description |
 | --- | --- |
 | `--json` | Output as JSON. |
-| `--service-key <key>` / `--base-url <url>` | API auth overrides. |
+| `--api-key <key>` / `--api-url <url>` | API auth overrides. |
 
 ### secondlayer subscriptions dead
 
@@ -589,7 +590,7 @@ Usage: `secondlayer subscriptions dead <idOrName>`
 | Flag | Description |
 | --- | --- |
 | `--json` | Output as JSON. |
-| `--service-key <key>` / `--base-url <url>` | API auth overrides. |
+| `--api-key <key>` / `--api-url <url>` | API auth overrides. |
 
 ### secondlayer subscriptions requeue
 
@@ -601,7 +602,7 @@ Usage: `secondlayer subscriptions requeue <idOrName> <outboxId>`
 | --- | --- |
 | `-y, --yes` | Skip confirmation. |
 | `--json` | Output as JSON. |
-| `--service-key <key>` / `--base-url <url>` | API auth overrides. |
+| `--api-key <key>` / `--api-url <url>` | API auth overrides. |
 
 ### secondlayer subscriptions replay
 
@@ -615,7 +616,7 @@ Usage: `secondlayer subscriptions replay <idOrName> --from-block <n> --to-block 
 | `--to-block <n>` | yes | End block (must be ≥ from). |
 | `-y, --yes` | no | Skip confirmation. |
 | `--json` | no | Output as JSON. |
-| `--service-key <key>` / `--base-url <url>` | no | API auth overrides. |
+| `--api-key <key>` / `--api-url <url>` | no | API auth overrides. |
 
 Returns `replayId`, `enqueuedCount`, `scannedCount`.
 
@@ -628,7 +629,7 @@ Usage: `secondlayer subscriptions doctor <idOrName>`
 | Flag | Description |
 | --- | --- |
 | `--json` | Output as JSON. |
-| `--service-key <key>` / `--base-url <url>` | API auth overrides. |
+| `--api-key <key>` / `--api-url <url>` | API auth overrides. |
 
 ### secondlayer subscriptions test
 
@@ -641,7 +642,7 @@ Usage: `secondlayer subscriptions test <idOrName>`
 | `--signing-secret <secret>` | Signing secret override (otherwise reads `SIGNING_SECRET`). Required if env unset. |
 | `--post` | Actually POST the fixture to the subscription URL. |
 | `--json` | Output as JSON (fixture + post result). |
-| `--service-key <key>` / `--base-url <url>` | API auth overrides. |
+| `--api-key <key>` / `--api-url <url>` | API auth overrides. |
 
 Fetches a recent row from the target table (falls back to synthetic row by column type), signs body with the secret, prints body / headers / curl invocation. With `--post`, POSTs and prints the receiver's status + first 2000 chars of body.
 
@@ -914,7 +915,7 @@ Usage: `secondlayer local up --devnet`
 Then run your normal `clarinet devnet start` — deployed contracts and their events stream into the local indexer (api at `http://localhost:3800`, indexer at `http://localhost:3700`). Deploy a subgraph against it with:
 
 ```bash
-SL_API_URL=http://localhost:3800 SL_API_KEY=dev-instance-token secondlayer subgraphs deploy ./subgraph.ts
+SL_API_URL=http://localhost:3800 INSTANCE_TOKEN=dev-instance-token secondlayer subgraphs deploy ./subgraph.ts
 ```
 
 To see rows appear you need a real contract-call transaction — `clarinet console` runs against simnet, not your running devnet, so it won't broadcast on-chain. Fire one with `@stacks/transactions` (uses the well-known devnet deployer key):

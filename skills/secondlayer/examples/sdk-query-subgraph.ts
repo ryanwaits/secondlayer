@@ -11,9 +11,9 @@ import { SecondLayer } from "@secondlayer/sdk";
 import mySubgraph from "./minimal-subgraph";
 
 const sl = new SecondLayer({
-  // Loopback reads need no key. Set this to your INSTANCE_TOKEN if the
-  // instance has one configured (mandatory past a loopback bind).
-  apiKey: process.env.SL_API_KEY,
+  // Loopback reads need no key. Set this once the API is reachable past
+  // loopback (mandatory there — the instance refuses to bind without a token).
+  apiKey: process.env.INSTANCE_TOKEN,
 });
 
 // --- Untyped query ---

@@ -15,7 +15,7 @@ are REST-only — see the `/v1` OpenAPI spec.
       "args": ["@secondlayer/mcp"],
       "env": {
         "SL_API_URL": "http://127.0.0.1:3800",
-        "SL_API_KEY": "<INSTANCE_TOKEN>"
+        "INSTANCE_TOKEN": "<from `secondlayer init`>"
       }
     }
   }
@@ -28,7 +28,7 @@ Restart the MCP client after changing the config.
 
 ```bash
 export SL_API_URL=http://127.0.0.1:3800
-export SL_API_KEY=<INSTANCE_TOKEN>
+export INSTANCE_TOKEN=<from `secondlayer init`>
 export SECONDLAYER_MCP_SECRET=local-bearer-secret
 bunx --package @secondlayer/mcp mcp-http
 ```
@@ -97,7 +97,7 @@ Contracts:
 - `contracts_find` — discover contracts conforming to a trait
 - `contracts_get_abi` — fetch one contract's metadata + full ABI
 
-Set `SL_API_KEY` to the `INSTANCE_TOKEN` from `secondlayer init` for writes, and for every call once the instance has a token configured. There is no account tool surface: one instance, one token, no per-user keys to mint.
+Set `INSTANCE_TOKEN` (`SL_API_KEY` is the legacy alias) to the token `secondlayer init` wrote. It is required for every write, and for every read once the instance is reachable past loopback; Index, Streams, and subgraph reads on a loopback instance need none. Setting it always is safe — a token sent on a read that didn't need it is ignored, not rejected. There is no account tool surface: one instance, one token, no per-user keys to mint.
 
 Resources:
 

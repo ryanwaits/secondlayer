@@ -47,6 +47,16 @@ API: `http://127.0.0.1:3800`. Observer: `127.0.0.1:3700`.
 
 Required non-secrets: `NETWORK`, `DATABASE_URL` (compose sets it), `NODE_MODE`, `DATA_DIR`, `API_PORT`, `INDEXER_PORT`. Secrets come from `secondlayer init`.
 
+`INSTANCE_TOKEN` is required here: the container process listens on `0.0.0.0`
+— it has to, or the published port never reaches it — and a bind past loopback
+with no token refuses to start. It does not follow that every call needs the
+token. `API_PORT` is a publish spec, and compose hands the API that same value
+as `API_PUBLISH_ADDR`, so with the default `127.0.0.1:3800` the `/v1` reads
+(index, streams, subgraphs alike) stay keyless, and setting `API_PORT` to
+`0.0.0.0:3800` makes each of them require `Authorization: Bearer
+$INSTANCE_TOKEN`. Writes — `/api/subgraphs`, `/api/subscriptions`,
+`/api/node`, `/status` — take the token either way, loopback included.
+
 ## Console (optional)
 
 Web UI for the one-box instance. Off by default — the two-container promise is unchanged.

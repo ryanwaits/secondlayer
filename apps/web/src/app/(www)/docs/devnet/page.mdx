@@ -1,6 +1,6 @@
 # Devnet
 
-Run the full Secondlayer stack (Postgres, indexer, API, subgraph processor) against your local Clarinet devnet. No cloud, no keys.
+Run the full Secondlayer stack (Postgres, indexer, API, subgraph processor) against your local Clarinet devnet. No cloud, no accounts.
 
 <Callout type="note" title="Coming from Chainhook?">
 
@@ -55,11 +55,15 @@ clarinet devnet start
 
 ## Deploy a subgraph against it
 
-Point the CLI at the local API, with no login and no token on loopback:
+Point the CLI at the local API. There is no login — the generated stack ships a fixed local token, `dev-instance-token`, and that is the whole credential:
 
 ```bash
-SL_API_URL=http://localhost:3800 secondlayer subgraphs deploy ./subgraph.ts
+SL_API_URL=http://localhost:3800 \
+INSTANCE_TOKEN=dev-instance-token \
+secondlayer subgraphs deploy ./subgraph.ts
 ```
+
+The devnet compose publishes `3800` on every interface, so `/v1` reads take the same bearer. It is a local-dev value, not a secret; a real instance gets its own from `secondlayer init`. See [Authentication](/docs/authentication).
 
 Fire a contract call in your devnet and the matching rows land in your subgraph's tables.
 
@@ -99,5 +103,5 @@ secondlayer devnet down --purge    # stop and wipe the local index volumes
 export const metadata = {
 	title: "Devnet — Secondlayer Docs",
 	description:
-		"Run the full Secondlayer stack against your local Clarinet devnet: deploy contracts and watch subgraphs index them, no cloud, no keys.",
+		"Run the full Secondlayer stack against your local Clarinet devnet: deploy contracts and watch subgraphs index them, no cloud, no accounts.",
 };

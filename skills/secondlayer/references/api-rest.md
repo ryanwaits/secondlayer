@@ -18,14 +18,22 @@ Your instance has **one token, not accounts**: the `INSTANCE_TOKEN` that `second
 
 | Endpoint family | Reads | Writes | Header |
 |---|---|---|---|
-| `/v1/contracts` | Open | n/a | none |
-| `/v1/streams/*` | Loopback open | n/a | `Authorization: Bearer <INSTANCE_TOKEN>` beyond loopback |
-| `/v1/index/*` | Loopback open. History is whatever this instance has bootstrapped. | n/a | none on loopback |
-| `/v1/subgraphs/*` | Open on this instance | n/a | none on loopback |
+| `/v1/contracts` | Loopback open | n/a | `Authorization: Bearer <INSTANCE_TOKEN>` past loopback |
+| `/v1/streams/*` | Loopback open | n/a | `Authorization: Bearer <INSTANCE_TOKEN>` past loopback |
+| `/v1/index/*` | Loopback open. History is whatever this instance has bootstrapped. | n/a | `Authorization: Bearer <INSTANCE_TOKEN>` past loopback |
+| `/v1/subgraphs/*` | Loopback open. No public/private flag. | n/a | `Authorization: Bearer <INSTANCE_TOKEN>` past loopback |
 | `/api/subgraphs/*` | `INSTANCE_TOKEN` | Yes | `Authorization: Bearer <INSTANCE_TOKEN>` |
 | `/api/subscriptions/*` | `INSTANCE_TOKEN` | Yes | `Authorization: Bearer <INSTANCE_TOKEN>` |
+| `/api/node/*`, `/status` | `INSTANCE_TOKEN` | Yes | `Authorization: Bearer <INSTANCE_TOKEN>` |
 
-The gate is instance-wide, not per-route. An instance with `INSTANCE_TOKEN` configured — mandatory for any non-loopback bind — requires the bearer on **every** route except `/health` and `/public/*`, reads included. An instance with no token set is fully open and may only bind loopback. Send the token whenever you have it; the read examples below omit it because they assume a tokenless loopback instance.
+Two rules, not one gate:
+
+- **`/v1` reads** — open while the API is reachable only from this box, bearer required on every request past that. "Reachable only from this box" is the operator's declared publish spec (`API_PUBLISH_ADDR`, which compose sets from the same value it publishes the port with) or, absent that, the listen host. Never the caller's address: a same-box reverse proxy makes every remote caller look like `127.0.0.1`. A token sent where anonymous access already works is used if it matches and **ignored** if it doesn't — sending a key never turns a `200` into a `401`.
+- **Writes (`/api/*`, `/status`)** — bearer required whenever the instance has a token, loopback included. Not loopback-exempt.
+
+An instance with no token set is fully open, and refuses to start if it binds past loopback. `/health` and `/public/*` are always open. Send the token whenever you have it; the read examples below omit it because they assume a loopback instance.
+
+Writes also have to declare their body: any `POST`/`PUT`/`PATCH`/`DELETE` under `/api` with a `Content-Type` other than `application/json` is refused `415 UNSUPPORTED_MEDIA_TYPE`. `curl -d` defaults to `application/x-www-form-urlencoded`, so always pass `-H 'Content-Type: application/json'`. A body-less action POST (`/stop`, `/pause`, `/rotate-secret`, `/reindex` with no options) may send no `Content-Type` at all.
 
 Archive credits are a separate prepaid card balance, not a credential — no account, no login, no header.
 
@@ -90,7 +98,7 @@ curl "http://127.0.0.1:3800/v1/streams/events?types=ft_transfer&sender=SP1...,SP
 curl "http://127.0.0.1:3800/v1/streams/events?not_types=print&contract_id=SP1....token,SP2....token"
 ```
 
-On an instance that has `INSTANCE_TOKEN` set, add `-H "Authorization: Bearer $SL_API_KEY"` to these — the same header every write carries.
+On an instance reachable past loopback, add `-H "Authorization: Bearer $INSTANCE_TOKEN"` to these — the same header every write carries.
 
 **Caching & proofs:** a closed, fully-finalized page (`to_height` ≤ `finalized_height`) is served `Cache-Control: public, max-age=31536000, immutable` with a weak `ETag` (honors `If-None-Match` → `304`); tip-spanning/default requests are `private, max-age=2`. Response signing is **enabled in prod**: every read carries an `X-Signature` (ed25519 over the exact response body) + `X-Signature-KeyId`; fetch the public key at `GET /public/streams/signing-key` and verify, or use the SDK `verify` option.
 
@@ -205,7 +213,7 @@ Every Index read sets `Cache-Control`: `public, max-age=31536000, immutable` onc
 
 ## `/v1/subgraphs` — subgraph reads
 
-Open reads on your instance, with wildcard CORS on loopback. There is no per-subgraph public/private flag: every subgraph on the instance is readable by anyone who can reach the instance, which your bind and reverse proxy decide. Past loopback, that means the `INSTANCE_TOKEN` bearer.
+Open reads on your instance, with wildcard CORS on `/v1`. There is no per-subgraph public/private flag — publish/unpublish and the visibility flag were removed. Every subgraph on the instance is readable by anyone who can reach the instance, which your publish spec and reverse proxy decide. Past loopback, that means the `INSTANCE_TOKEN` bearer.
 
 ### `GET /v1/subgraphs`
 
