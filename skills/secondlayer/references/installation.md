@@ -34,6 +34,26 @@ export PATH="$HOME/.bun/bin:$PATH"
 ## Start a local instance
 
 ```bash
+secondlayer setup
+```
+
+One guided command replaces the manual sequence: it picks network + node mode,
+generates secrets, writes `docker-compose.yml` and `.env` into a target
+directory, brings the stack up, prints the observer stanza (for an external
+node), and restores + verifies history from the archive. Without a TTY, or
+with `--yes`, it skips the prompts and requires `--network` and `--node-mode`
+(plus `--against`, unless `--skip-bootstrap`) as flags instead — the path an
+agent should drive:
+
+```bash
+secondlayer setup --yes \
+  --network mainnet --node-mode external \
+  --against https://archive.secondlayer.tools/latest.json
+```
+
+For manual, one-step-at-a-time control instead:
+
+```bash
 secondlayer init --network mainnet
 secondlayer start --print
 # docker compose -f docker/oss/docker-compose.yml up -d

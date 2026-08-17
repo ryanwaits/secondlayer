@@ -32,7 +32,7 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 
 ## Table of contents
 
-- [Local runtime](#local-runtime) — `init`, `start`, `console`, `bootstrap`, `observer`, `verify`, `repair`, `backup`, `restore`, `uninstall`
+- [Local runtime](#local-runtime) — `setup`, `init`, `start`, `console`, `bootstrap`, `observer`, `verify`, `repair`, `backup`, `restore`, `uninstall`
 - [Credits](#credits) — `credits buy|balance|refill`
 - [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `source`, `reindex`, `backfill`, `stop`, `operations`, `gaps`, `query`, `delete`, `scaffold`
 - [Subscriptions](#subscriptions) — `create`, `list`, `get`, `update`, `pause`, `resume`, `delete`, `rotate-secret`, `deliveries`, `dead`, `requeue`, `replay`, `doctor`, `test`
@@ -50,6 +50,28 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 ## Local runtime
 
 Accountless. These are the top-level verbs for a machine you operate. There is no login, no project, and no `secondlayer instance`.
+
+### secondlayer setup
+
+Guided self-host onboarding — one command in place of `init` → hand-copy 3 secrets into `docker/oss/.env` → `docker compose up -d` → `observer` → hand-paste into the node's `Config.toml` → `bootstrap` → `verify`. Generates secrets via the same functions `init` uses (idempotent, same re-run behavior), writes `docker-compose.yml` and the resolved `.env` into a target directory (no manual copy-paste), brings the stack up, prints the observer stanza (marked ACTION REQUIRED for `--node-mode external`, since the wizard cannot edit a node it doesn't control), and restores + verifies history from the archive.
+
+Usage: `secondlayer setup [--network mainnet|testnet|devnet] [--node-mode external|stacks|full] [--api-port <spec>] [--dir <path>] [--against <manifest>] [--skip-bootstrap] [--skip-verify] [--yes] [--force]`
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--network <network>` | none — required | `mainnet`, `testnet`, or `devnet`. No safe default: different disk floors, irreversible-ish choice. |
+| `--node-mode <mode>` | none — required | `external` (you run the Stacks node), `stacks` (bundled node, public Bitcoin), or `full` (bundled node + bitcoind). |
+| `--api-port <spec>` | `127.0.0.1:3800` | API publish spec, matching `docker/oss/docker-compose.yml`'s default. |
+| `--dir <path>` | cwd | Target directory for `docker-compose.yml` and `.env`. |
+| `--against <manifest>` | suggested: `https://archive.secondlayer.tools/latest.json` | Archive manifest to bootstrap from. Required unless `--skip-bootstrap`. |
+| `--skip-bootstrap` | off | Sync from genesis instead of restoring an archive. |
+| `--skip-verify` | off | Skip the post-bootstrap verify pass. |
+| `--yes` | off | Skip the interactive TUI; run from flags only, never prompt. Also implied by a non-TTY stdout (piped, CI, an agent). |
+| `--force` | off | Regenerate secrets even if a `.env` already exists in `--dir`. |
+
+With a TTY and no `--yes`, this launches an OpenTUI wizard: network → node mode (RAM/disk floor shown live per highlighted option) → bootstrap source → a confirm screen → a running view with a step list and scrolling log. Without a TTY, or with `--yes`, every decision with no safe default must come from a flag or the command fails fast naming exactly which one is missing — this is what lets an agent drive it exactly as well as a human at a terminal.
+
+Example: `secondlayer setup --yes --network mainnet --node-mode external --against https://archive.secondlayer.tools/latest.json`
 
 ### secondlayer init
 

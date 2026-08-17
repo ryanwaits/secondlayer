@@ -48,7 +48,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Run the quickstart",
 			"Drive the golden path to a live table.",
-			"/secondlayer Walk me through the quickstart end to end: `secondlayer init` + `docker compose up -d`, `secondlayer bootstrap` for verified history, `secondlayer subgraphs create my-balances --from-contract <my contract id>`, `secondlayer subgraphs deploy subgraphs/my-balances.ts`, then curl `http://127.0.0.1:3800/v1/subgraphs/my-balances/balances` to confirm it's live — no token on loopback.",
+			"/secondlayer Walk me through the quickstart end to end: `secondlayer setup` for the guided one-command install (secrets, docker-compose + .env, bootstrap from the archive, verify), `secondlayer subgraphs create my-balances --from-contract <my contract id>`, `secondlayer subgraphs deploy subgraphs/my-balances.ts`, then curl `http://127.0.0.1:3800/v1/subgraphs/my-balances/balances` to confirm it's live — no token on loopback.",
 		),
 		card(
 			"Verify my setup",
@@ -335,8 +335,8 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 	"/docs/cli": [
 		card(
 			"Stand up a local runtime",
-			"Init, bootstrap, print the observer stanza.",
-			"/secondlayer Help me run a local Secondlayer instance — no account, there are none: `secondlayer init --network mainnet` writes `.env.local`, `secondlayer bootstrap --against <manifest>` restores verified history into an empty database, and `secondlayer observer --mode indexer` prints the `[[events_observer]]` stanza. Then `secondlayer verify all --against <manifest>` checks the restore. Explain flags, exit codes, and when to use `--mode signer-shared --recovery journal`.",
+			"Guided setup, or init, bootstrap, print the observer stanza.",
+			"/secondlayer Help me run a local Secondlayer instance — no account, there are none: `secondlayer setup` walks through network/node-mode, writes secrets + docker-compose + .env, brings the stack up, restores verified history, and verifies it — or step by step, `secondlayer init --network mainnet` writes `.env.local`, `secondlayer bootstrap --against <manifest>` restores verified history into an empty database, and `secondlayer observer --mode indexer` prints the `[[events_observer]]` stanza, then `secondlayer verify all --against <manifest>` checks the restore. Explain flags, exit codes, and when to use `--mode signer-shared --recovery journal`.",
 		),
 		variant("cli-operate"),
 		card(
@@ -394,7 +394,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Bring up the stack",
 			"Run app services with Docker Compose.",
-			"/secondlayer Help me self-host Secondlayer: clone the repo, `cd docker/oss`, `secondlayer init --network mainnet` (copy `.env.local` into `.env`), then `docker compose up -d` (postgres + one secondlayer container) and verify `curl http://localhost:3800/health`. Point an existing stacks-node at the indexer with `secondlayer observer --mode indexer --endpoint secondlayer:3700` and paste the stanza into `Config.toml`.",
+			'/secondlayer Help me self-host Secondlayer: `bun add -g @secondlayer/cli`, then `secondlayer setup` — it writes secrets, docker-compose.yml, and .env into a target directory (no manual copy-paste), brings up postgres + the secondlayer container, and verifies `curl http://localhost:3800/health` for me. For an external node, it prints the observer stanza to paste into `Config.toml` (`endpoint = "secondlayer:3700"`); for a bundled node (`--node-mode stacks|full`) that step doesn\'t apply.',
 		),
 		card(
 			"Run published images",

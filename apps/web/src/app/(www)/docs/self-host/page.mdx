@@ -5,6 +5,33 @@ Two processes: Postgres and one container. No cluster, no queue. Bring your own 
 ## Quick start
 
 ```bash
+secondlayer setup
+```
+
+One guided command: generates secrets, writes `docker-compose.yml` + `.env`
+into a target directory (`--dir`, default cwd — no manual copy-paste), brings
+the stack up, prints the observer stanza for an external node, restores
+verified history from the archive, and verifies the result. Without a TTY (or
+with `--yes`), it skips the prompts and runs from flags instead:
+
+```bash
+secondlayer setup --yes \
+  --network mainnet --node-mode external \
+  --against https://archive.secondlayer.tools/latest.json
+```
+
+`--network` and `--node-mode` are always required in that mode — there's no
+safe default for either. `--skip-bootstrap` syncs from genesis instead of
+restoring an archive; `--skip-verify` skips the post-bootstrap check.
+
+API: `http://127.0.0.1:3800`. Health: `curl http://localhost:3800/health`.
+
+### Advanced / manual setup
+
+The same five steps `setup` runs, one at a time — useful for scripting a
+custom flow or debugging a step in isolation:
+
+```bash
 secondlayer init --network mainnet
 # Copy .env.local secrets into docker/oss/.env
 
@@ -14,8 +41,6 @@ secondlayer observer --mode indexer --endpoint secondlayer:3700
 secondlayer bootstrap --against <manifest>
 secondlayer verify all --against <manifest>
 ```
-
-API: `http://127.0.0.1:3800`. Health: `curl http://localhost:3800/health`.
 
 <Callout type="warning" title="No light mode">
 
