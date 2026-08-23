@@ -4,7 +4,7 @@ import type {
 	DecodedEventColumns,
 	DecodedEventRow,
 } from "@secondlayer/shared/streams-rows";
-import type { Generated, Kysely } from "kysely";
+import type { Kysely } from "kysely";
 
 export const FT_TRANSFER_DECODER_NAME = "decode.ft_transfer.v1";
 export const NFT_TRANSFER_DECODER_NAME = "decode.nft_transfer.v1";
@@ -83,43 +83,15 @@ export function getEnabledDecoderNames(
 	return names;
 }
 
-type L2Database = Database & {
-	decoded_events: {
-		cursor: string;
-		block_height: number;
-		tx_id: string;
-		tx_index: number;
-		event_index: number;
-		event_type: string;
-		microblock_hash: string | null;
-		canonical: Generated<boolean>;
-		contract_id: string | null;
-		sender: string | null;
-		recipient: string | null;
-		amount: string | null;
-		asset_identifier: string | null;
-		value: string | null;
-		memo: string | null;
-		payload: string | null;
-		source_cursor: string;
-		created_at: Generated<Date>;
-	};
-	decoder_checkpoints: {
-		decoder_name: string;
-		last_cursor: string | null;
-		updated_at: Generated<Date>;
-	};
-};
-
-function l2Db(db?: Kysely<Database>): Kysely<L2Database> {
-	return (db ?? getSourceDb()) as unknown as Kysely<L2Database>;
+function decodeDb(client?: Kysely<Database>): Kysely<Database> {
+	return client ?? getSourceDb();
 }
 
 export async function readDecoderCheckpoint(opts?: {
 	db?: Kysely<Database>;
 	decoderName?: string;
 }): Promise<string | null> {
-	const db = l2Db(opts?.db);
+	const db = decodeDb(opts?.db);
 	const row = await db
 		.selectFrom("decoder_checkpoints")
 		.select("last_cursor")
@@ -133,7 +105,7 @@ export async function writeDecoderCheckpoint(opts: {
 	db?: Kysely<Database>;
 	decoderName?: string;
 }): Promise<void> {
-	const db = l2Db(opts.db);
+	const db = decodeDb(opts.db);
 	const decoderName = opts.decoderName ?? FT_TRANSFER_DECODER_NAME;
 
 	await db
@@ -161,7 +133,7 @@ export async function bumpDecoderCheckpoint(opts: {
 	db?: Kysely<Database>;
 	decoderName: string;
 }): Promise<void> {
-	const db = l2Db(opts.db);
+	const db = decodeDb(opts.db);
 	await db
 		.updateTable("decoder_checkpoints")
 		.set({ updated_at: new Date() })
@@ -186,7 +158,7 @@ export async function writeDecodedEvents(
 	for (const event of events) byCursor.set(event.cursor, event);
 	const deduped = [...byCursor.values()];
 
-	const db = l2Db(opts?.db);
+	const db = decodeDb(opts?.db);
 	await db
 		.insertInto("decoded_events")
 		.values(
@@ -246,7 +218,7 @@ export async function handleDecodedEventsReorg(
 	checkpoints: Record<DecoderName, string | null>;
 	checkpoint: string | null;
 }> {
-	const db = l2Db(opts?.db);
+	const db = decodeDb(opts?.db);
 	const decoderNames = opts?.decoderNames ?? DECODER_NAMES;
 
 	// Hard-DELETE every decoded row at/above the fork, mirroring persistBlock's
@@ -260,7 +232,7 @@ export async function handleDecodedEventsReorg(
 	// upsert, so a later range re-derive resurrects them (the 2026-05-26 reorg left
 	// 57 stale rows + a +152,062-sat sBTC over-count exactly this way; see
 	// docs/internal/audits/decoded-events-reorg-reconciliation-2026-06-15.md). The
-	// L2 handler owns the whole table, so an unscoped delete-by-height is correct.
+	// decoder owns the whole table, so an unscoped delete-by-height is correct.
 	// Safe against the live decoder: this runs inside the leader-gated reorg tx and
 	// the checkpoints are rewound to < blockHeight in the same tx, so the next
 	// decode re-derives the new fork from a clean slate at the now-sole cursors.
@@ -307,7 +279,7 @@ async function readCanonicalCheckpointBeforeBlock(
 	eventType: string,
 	db?: Kysely<Database>,
 ): Promise<string | null> {
-	const row = await l2Db(db)
+	const row = await decodeDb(db)
 		.selectFrom("decoded_events")
 		.select("source_cursor")
 		.where("block_height", "<", blockHeight)

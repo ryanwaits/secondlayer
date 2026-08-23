@@ -84,7 +84,7 @@ export function subgraphProcessorVerdict(input: {
 }
 
 // Built per-request from env flags so the public status response surfaces
-// every enabled L2 decoder, not just the always-on ft + nft pair. The base
+// every enabled decoder, not just the always-on ft + nft pair. The base
 // decoders reuse the indexer's canonical event-type map (so they never drift);
 // the env-gated sbtc/pox4/bns decoders live in separate storage modules and
 // carry their public labels here.
@@ -103,7 +103,7 @@ function indexDecoders(): Array<{ decoder: string; eventType: string }> {
 	}));
 }
 
-export function publicIndexStatusFromL2Health(
+export function publicIndexStatusFromDecoderHealth(
 	health: DecodersHealth | null,
 ): PublicIndexStatus {
 	if (!health) {
@@ -230,7 +230,7 @@ app.get("/public/status", async (c) => {
 		dbResult,
 		indexerResult,
 		streamsTipResult,
-		l2DecodersResult,
+		decodersResult,
 		dumpsManifestResult,
 		subgraphProcessorHeartbeat,
 		chainIntegrityResult,
@@ -307,9 +307,9 @@ app.get("/public/status", async (c) => {
 	const subgraphProcessorStatus = subgraphProcessorDetail.status;
 	const streamsTip: StreamsTip | null = streamsTipForProgress;
 	const chainTip = streamsTip?.block_height ?? null;
-	const l2DecodersHealth: DecodersHealth | null =
-		l2DecodersResult.status === "fulfilled" ? l2DecodersResult.value : null;
-	const index = publicIndexStatusFromL2Health(l2DecodersHealth);
+	const decodersHealth: DecodersHealth | null =
+		decodersResult.status === "fulfilled" ? decodersResult.value : null;
+	const index = publicIndexStatusFromDecoderHealth(decodersHealth);
 	const dumps: StreamsDumpsFreshness = streamsDumpsFreshness({
 		manifest:
 			dumpsManifestResult.status === "fulfilled"
@@ -424,7 +424,7 @@ app.get("/status", async (c) => {
 		subgraphResult,
 		gapSummaryResult,
 		streamsTipResult,
-		l2DecodersResult,
+		decodersResult,
 		subgraphProcessorHeartbeat,
 	] = await Promise.allSettled([
 		sql`SELECT 1`.execute(db),
@@ -528,9 +528,9 @@ app.get("/status", async (c) => {
 			: "gaps_detected";
 	const streamsTip: StreamsTip | null =
 		streamsTipResult.status === "fulfilled" ? streamsTipResult.value : null;
-	const l2DecodersHealth: DecodersHealth | null =
-		l2DecodersResult.status === "fulfilled" ? l2DecodersResult.value : null;
-	const index = publicIndexStatusFromL2Health(l2DecodersHealth);
+	const decodersHealth: DecodersHealth | null =
+		decodersResult.status === "fulfilled" ? decodersResult.value : null;
+	const index = publicIndexStatusFromDecoderHealth(decodersHealth);
 	const services: PublicServiceHealth[] = [
 		{ name: "api", status: "ok" },
 		{

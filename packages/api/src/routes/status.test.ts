@@ -7,13 +7,14 @@ import type { StreamsTip } from "../streams/tip.ts";
 import statusApp, {
 	NODE_LAG_DEGRADED_SECONDS,
 	nodeStatusFromStreamsTip,
-	publicIndexStatusFromL2Health,
+	publicIndexStatusFromDecoderHealth,
 	subgraphProcessorVerdict,
 } from "./status.ts";
 
-// publicIndexStatusFromL2Health surfaces every enabled decoder, defaulting any
-// the L2 health snapshot omits to "unavailable". The fixtures below only carry
-// health for the always-on ft + nft pair, so the rest report unavailable.
+// publicIndexStatusFromDecoderHealth surfaces every enabled decoder, defaulting
+// any decoder the health snapshot omits to "unavailable". The fixtures below
+// only carry health for the always-on ft + nft pair, so the rest report
+// unavailable.
 const ENABLED_COUNT = getEnabledDecoderNames().length;
 import {
 	getApiTelemetrySnapshot,
@@ -51,7 +52,7 @@ const HEALTHY_INDEX: DecodersHealth = {
 
 describe("/status Index freshness", () => {
 	test("maps FT and NFT decoder health into the public shape", () => {
-		const status = publicIndexStatusFromL2Health(HEALTHY_INDEX);
+		const status = publicIndexStatusFromDecoderHealth(HEALTHY_INDEX);
 
 		// Every enabled decoder is surfaced; the two with health are "ok", the
 		// rest default to "unavailable" → overall degraded.
@@ -89,7 +90,7 @@ describe("/status Index freshness", () => {
 
 	test("marks unhealthy decoders as degraded", () => {
 		const [ftDecoder] = HEALTHY_INDEX.decoders;
-		const status = publicIndexStatusFromL2Health({
+		const status = publicIndexStatusFromDecoderHealth({
 			...HEALTHY_INDEX,
 			status: "unhealthy",
 			decoders: [{ ...ftDecoder, status: "unhealthy" }],
@@ -105,8 +106,8 @@ describe("/status Index freshness", () => {
 		).toBe(true);
 	});
 
-	test("falls back to unavailable when L2 health cannot be read", () => {
-		const status = publicIndexStatusFromL2Health(null);
+	test("falls back to unavailable when decoder health cannot be read", () => {
+		const status = publicIndexStatusFromDecoderHealth(null);
 
 		expect(status.status).toBe("unavailable");
 		expect(status.decoders).toHaveLength(ENABLED_COUNT);

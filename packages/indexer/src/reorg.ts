@@ -83,7 +83,9 @@ export async function handleReorg(
 		// (their handlers existed but were never called). Each hard-DELETEs >= H
 		// and rewinds its decoder checkpoint. Safe when a plane is disabled/empty
 		// (deletes 0 rows). See decoded-events-reorg-reconciliation audit.
-		const l2Reorg = await handleDecodedEventsReorg(blockHeight, { db: tx });
+		const decodedReorg = await handleDecodedEventsReorg(blockHeight, {
+			db: tx,
+		});
 		const sbtcReorg = await handleSbtcReorg(blockHeight, { db: tx });
 		const pox4Reorg = await handlePox4Reorg(blockHeight, { db: tx });
 		const pox5Reorg = await handlePox5Reorg(blockHeight, { db: tx });
@@ -103,7 +105,7 @@ export async function handleReorg(
 
 		logger.info("Reorganization handled", {
 			blockHeight,
-			l2Reorg,
+			decodedReorg,
 			sbtcReorg,
 			pox4Reorg,
 			pox5Reorg,
