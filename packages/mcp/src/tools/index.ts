@@ -45,7 +45,7 @@ export function registerIndexTools(
 	}>(
 		server,
 		"index_ft_transfers",
-		"List decoded SIP-010 fungible-token transfers from the Index (decoded layer). Anonymous reads allowed (free-tier API keys are rejected — Build+ required).",
+		"List decoded SIP-010 fungible-token transfers from Index. Reads are keyless.",
 		{
 			...rangeFilters,
 			sender: z.string().optional().describe("Filter by sender principal"),
@@ -76,7 +76,7 @@ export function registerIndexTools(
 	}>(
 		server,
 		"index_nft_transfers",
-		"List decoded SIP-009 non-fungible-token transfers from the Index. Anonymous reads allowed (free-tier keys rejected).",
+		"List decoded SIP-009 non-fungible-token transfers from Index. Reads are keyless.",
 		{
 			...rangeFilters,
 			sender: z.string().optional().describe("Filter by sender principal"),
@@ -179,7 +179,7 @@ export function registerIndexTools(
 	}>(
 		server,
 		"index_blocks",
-		"List decoded blocks from the Index. Anonymous reads allowed (free-tier keys rejected).",
+		"List decoded blocks from Index. Reads are keyless.",
 		{ ...heightFilters },
 		async (params) =>
 			jsonResponse(await clientProvider().index.blocks.list(params)),
@@ -196,7 +196,7 @@ export function registerIndexTools(
 	}>(
 		server,
 		"index_transactions",
-		"List decoded transactions from the Index. Filter by type, sender, or contract. Anonymous reads allowed (free-tier keys rejected).",
+		"List decoded transactions from Index. Filter by type, sender, or contract. Reads are keyless.",
 		{
 			...rangeFilters,
 			type: z.string().optional().describe("Filter by transaction type"),

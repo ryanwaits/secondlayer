@@ -12,9 +12,9 @@ import {
 import { resolveApiUrl, resolveEnvKey } from "../lib/resolve-auth.ts";
 
 /**
- * Index reads allow anonymous access, but free-tier API keys are rejected
- * (Build+ required). So the key is optional: pass it through when present,
- * and translate the 403 into an actionable hint.
+ * Index reads are keyless on /v1. Pass a key when present so the request
+ * shares the keyed rate limit; a 403 is an INSTANCE_TOKEN mismatch, not a
+ * missing paid plan.
  */
 function client(): Index {
 	return new Index({
@@ -93,7 +93,7 @@ function emitOne(doc: unknown, label: string, json?: boolean): void {
 export function registerIndexCommand(program: Command): void {
 	const index = program
 		.command("index")
-		.description("Query the decoded Index layer (events + contract calls)");
+		.description("Query decoded Index data (events + contract calls)");
 
 	const rangeFlags = (cmd: Command): Command =>
 		cmd
