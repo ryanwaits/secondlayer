@@ -9,7 +9,7 @@ Day-of operations + the 24h pre-launch dry run. Keep this open in a tab.
 | Surface | Where | How to reach |
 |---|---|---|
 | Web | Vercel (auto-deploys from `main`) | `https://www.secondlayer.tools/` |
-| API + indexer + l2-decoder + provisioner + agent + caddy + postgres | Hetzner box `app-server` | `ssh ryan@claude-mini` then `ssh app-server` |
+| API + indexer + decoder + provisioner + agent + caddy + postgres | Hetzner box `app-server` | `ssh ryan@claude-mini` then `ssh app-server` |
 | Repo on prod | `/opt/secondlayer` | `cd /opt/secondlayer/docker` for compose ops |
 | Container registry | GHCR | `ghcr.io/ryanwaits/secondlayer-{indexer,api,worker,agent,provisioner}:<sha>` |
 | Object store | Cloudflare R2 (parquet datasets, streams bulk dumps) | bucket envs in `/opt/secondlayer/docker/.env` |
@@ -55,7 +55,7 @@ Anything red → fix or document a contingency before T-0.
 2. Pin the thread.
 3. Tail prod for 4h:
    ```bash
-   ssh ryan@claude-mini "ssh app-server 'cd /opt/secondlayer/docker && docker compose logs -f --tail=50 api indexer l2-decoder' 2>&1" | grep -iE "error|warn|5\d\d "
+   ssh ryan@claude-mini "ssh app-server 'cd /opt/secondlayer/docker && docker compose logs -f --tail=50 api indexer decoder' 2>&1" | grep -iE "error|warn|5\d\d "
    ```
 4. Watch CPU/mem on Hetzner box (`htop` or whatever).
 5. Refresh `/public/status` every few minutes. If `status: degraded`, jump to symptom table.
@@ -70,7 +70,7 @@ Anything red → fix or document a contingency before T-0.
 | `api` service `unavailable` | `docker compose logs --tail=100 api` | usually a postgres connection blip; restart api: `docker compose restart api` |
 | `database` `unavailable` | `docker compose ps postgres` | restart postgres `docker compose restart postgres`; if disk-full, free space first |
 | `indexer` `unavailable` | `docker compose logs --tail=100 indexer` | restart `docker compose restart indexer` |
-| `l2_decoder` `degraded` (one decoder lagging) | `docker compose logs --tail=200 l2-decoder \| grep error` | restart `docker compose restart l2-decoder`; the C.5 healthcheck change makes "no events to process" report healthy, so `degraded` here means a decoder genuinely fell behind |
+| `decoder` `degraded` (one decoder lagging) | `docker compose logs --tail=200 decoder \| grep error` | restart `docker compose restart decoder`; the C.5 healthcheck change makes "no events to process" report healthy, so `degraded` here means a decoder genuinely fell behind |
 | Any decoder errors loop on `RangeError` / `TypeError` | logs again | latest indexer rev should be ≥1.3.6; if older container stuck, pull tag manually: `DEPLOY_IMAGE_OWNER=ryanwaits DEPLOY_IMAGE_TAG=<sha> docker compose up -d --no-deps <service>` |
 | Streams API returns 5xx | `docker compose logs --tail=100 api \| grep 5\d\d` | check rate-limit middleware (`SlidingWindow` is in-memory; restart api if stuck) |
 | Subscriptions deliveries failing | `/platform/subgraphs/<name>/subscriptions/<id>` shows DLQ counts | check user's webhook endpoint; if our side, `docker compose logs --tail=200 api \| grep emitter` |
@@ -92,7 +92,7 @@ git -C /opt/secondlayer log --oneline -10
 
 # 2. Roll containers back to the previous SHA's image
 DEPLOY_IMAGE_OWNER=ryanwaits DEPLOY_IMAGE_TAG=<prev-sha> \
-  docker compose up -d --no-deps api indexer l2-decoder
+  docker compose up -d --no-deps api indexer decoder
 
 # 3. Verify
 curl https://api.secondlayer.tools/public/status | jq .status
@@ -106,24 +106,24 @@ For web: revert via Vercel UI ("Promote to Production" on the previous deploymen
 
 ```bash
 # Restart all
-docker compose restart l2-decoder
+docker compose restart decoder
 
 # Restart only when stuck on a specific decoder error
-docker compose stop l2-decoder
-docker compose rm -f l2-decoder
-docker compose up -d l2-decoder
+docker compose stop decoder
+docker compose rm -f decoder
+docker compose up -d decoder
 
 # Watch the recreate
-docker compose logs -f --tail=20 l2-decoder | grep -iE "progress|error"
+docker compose logs -f --tail=20 decoder | grep -iE "progress|error"
 ```
 
 To reset a checkpoint (use sparingly — re-decodes from the new cursor):
 
 ```sql
 -- example: re-decode bns from genesis
-UPDATE l2_decoder_checkpoints
+UPDATE decoder_checkpoints
 SET last_cursor = '167537:0', updated_at = now()
-WHERE decoder_name = 'l2.bns.v1';
+WHERE decoder_name = 'decode.bns.v1';
 ```
 
 ---

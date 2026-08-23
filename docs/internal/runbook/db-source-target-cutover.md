@@ -53,7 +53,7 @@ triggers a Deploy with a 1–2 min 502.
    `subgraph_processing_stats`, `sessions`, `usage_*`) are written continuously,
    so a copy with the app live drifts by a row or two (the script will flag it).
    For a consistent cutover, stop the control-plane writers, run the copy, then
-   flip — chain ingest (indexer/l2-decoder) can keep running:
+   flip — chain ingest (indexer/decoder) can keep running:
    ```
    docker compose -f docker-compose.yml -f docker-compose.hetzner.yml \
      stop api subgraph-processor worker
@@ -100,10 +100,10 @@ SOURCE was already dropped (step 6), restore from the wal-g snapshot instead.
   "too many clients", scale api to 1 first (`API_REPLICAS=1`, `up -d api`), cut
   over, then scale back up.
 - **Readers must source-read chain/decoded.** Any reader that touches chain or
-  decoded tables (`blocks`, `l2_decoder_checkpoints`, `decoded_events`, …) must
+  decoded tables (`blocks`, `decoder_checkpoints`, `decoded_events`, …) must
   use `getSourceDb()`, not `getDb()`/`getTargetDb()` — under the active split the
   latter point at TARGET, where those tables exist but are empty (false
-  "degraded"). `/status` l2-health + chain-integrity were fixed for this.
+  "degraded"). `/status` decoder-health + chain-integrity were fixed for this.
 - **LISTEN/NOTIFY listener is split-aware (resolved 2026-06-05).**
   `queue/listener.ts` exports `sourceListenerUrl()` / `targetListenerUrl()`; the
   subgraph-processor binds `indexer:new_block`/`subgraph_reorg` to SOURCE and the
