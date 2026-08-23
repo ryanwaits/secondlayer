@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/sdk",
-	"version": "9.0.0",
+	"version": "9.0.1",
 	"description": "Decoded Stacks data in your own database — stream rows into your schema, or query the tables you defined.",
 	"license": "MIT",
 	"repository": {

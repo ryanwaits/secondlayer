@@ -1,5 +1,14 @@
 # @secondlayer/sdk
 
+## 9.0.1
+
+### Patch Changes
+
+- 071583d: Omit `Authorization` on keyless Streams calls instead of sending `Bearer `.
+
+  `new SecondLayer()` with no credential now matches Index: no placeholder
+  header. An empty Bearer is worse than none.
+
 ## 9.0.0
 
 ### Major Changes

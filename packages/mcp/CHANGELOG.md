@@ -1,5 +1,18 @@
 # @secondlayer/mcp
 
+## 7.0.1
+
+### Patch Changes
+
+- b41a0b7: Stop telling agents Index reads need Build+ or live on a "layer."
+
+  Index `/v1` reads are keyless. Free-tier keys are accepted at the free rate.
+  MCP tool descriptions and `secondlayer index --help` now say that instead of
+  pointing at a paid plan that does not exist.
+
+- Updated dependencies [071583d]
+  - @secondlayer/sdk@9.0.1
+
 ## 7.0.0
 
 ### Major Changes
