@@ -27,6 +27,10 @@ beforeAll(() => {
 				return Response.json({ error: "node unavailable" }, { status: 502 });
 			}
 
+			if (url.pathname === "/v1/contracts/SP123.unauth") {
+				return new Response("Unauthorized", { status: 401 });
+			}
+
 			return new Response("Not Found", { status: 404 });
 		},
 	});
@@ -64,5 +68,22 @@ describe("StacksApiClient", () => {
 			"Failed to fetch contract",
 		);
 		expect(failureRequests).toBe(1);
+	});
+
+	test("ABI 401 points at login or INSTANCE_TOKEN, not a deleted command", async () => {
+		const client = new StacksApiClient(
+			"mainnet",
+			undefined,
+			`http://localhost:${MOCK_PORT}`,
+		);
+
+		const err = await client.getContractInfo("SP123.unauth").then(
+			() => {
+				throw new Error("expected 401");
+			},
+			(e: unknown) => (e instanceof Error ? e.message : String(e)),
+		);
+		expect(err).not.toContain("auth login");
+		expect(err).toMatch(/secondlayer login|INSTANCE_TOKEN/);
 	});
 });

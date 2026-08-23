@@ -1268,8 +1268,7 @@ Examples:
 						await closeDb();
 					}
 				} catch (err) {
-					error(`Failed to deploy subgraph: ${err}`);
-					process.exit(1);
+					handleApiError(err, "deploy subgraph");
 				}
 			},
 		);

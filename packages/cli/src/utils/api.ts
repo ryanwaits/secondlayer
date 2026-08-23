@@ -1,6 +1,6 @@
 import type { AbiContract } from "@secondlayer/stacks/clarity";
 import got from "got";
-import { resolveAuth } from "../lib/resolve-auth.ts";
+import { isOssMode, resolveAuth } from "../lib/resolve-auth.ts";
 import type { NetworkName } from "../types/config";
 
 const contractFetch = got.extend({
@@ -66,7 +66,11 @@ export class StacksApiClient {
 			const message = error instanceof Error ? error.message : String(error);
 
 			if (statusCode === 401) {
-				throw new Error("Authentication required. Run: secondlayer auth login");
+				throw new Error(
+					isOssMode()
+						? "Authentication required. Set INSTANCE_TOKEN from `secondlayer init` (SL_API_KEY is a legacy alias)."
+						: "Authentication required. Run: secondlayer login",
+				);
 			}
 			if (statusCode === 404) {
 				throw new Error(`${resourceType} not found: ${resourceId}`);
