@@ -37,4 +37,32 @@ describe("SecondLayer root client", () => {
 		);
 		expect(requests[0]?.headers.get("Authorization")).toBe("Bearer sk-test");
 	});
+
+	test("keyless Streams calls omit Authorization instead of sending Bearer empty", async () => {
+		const requests: Request[] = [];
+		const sl = new SecondLayer({
+			apiKey: "",
+			baseUrl: "http://secondlayer.test",
+			fetchImpl: async (input, init) => {
+				const request =
+					input instanceof Request
+						? input
+						: new Request(input.toString(), init);
+				requests.push(request);
+				return new Response(
+					JSON.stringify({
+						block_height: 100,
+						block_hash: "0x01",
+						burn_block_height: 200,
+						burn_block_hash: null,
+						is_canonical: true,
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			},
+		});
+
+		await sl.streams.canonical(100);
+		expect(requests[0]?.headers.get("Authorization")).toBeNull();
+	});
 });

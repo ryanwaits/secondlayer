@@ -14,14 +14,14 @@ type VerificationKey = {
 /**
  * Subscribe to the Streams SSE push surface (`GET /v1/streams/events/stream`).
  *
- * A fetch-based reader (not `EventSource`) so it can send the mandatory
- * `Authorization` header — Streams is key-mandatory and `EventSource` can't set
- * headers. Works in browsers and Node 18+. Reconnects from the last delivered
- * cursor on a dropped connection until the caller's signal aborts.
+ * A fetch-based reader (not `EventSource`) so it can send `Authorization` when
+ * a key is present — `EventSource` can't set headers. Works in browsers and
+ * Node 18+. Reconnects from the last delivered cursor on a dropped connection
+ * until the caller's signal aborts.
  */
 export function subscribeStreamsEvents(opts: {
 	baseUrl: string;
-	apiKey: string;
+	apiKey?: string;
 	fetchImpl: FetchLike;
 	/**
 	 * `off` skips verification; `lenient` (default) verifies a frame when it
@@ -64,7 +64,7 @@ export function subscribeStreamsEvents(opts: {
 				})}`;
 				const res = await opts.fetchImpl(url, {
 					headers: {
-						Authorization: `Bearer ${opts.apiKey}`,
+						...(opts.apiKey ? { Authorization: `Bearer ${opts.apiKey}` } : {}),
 						Accept: "text/event-stream",
 					},
 					signal: controller.signal,

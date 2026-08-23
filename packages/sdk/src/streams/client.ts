@@ -93,7 +93,7 @@ function streamsFilters(params: {
 }
 
 export type CreateStreamsClientOptions = {
-	apiKey: string;
+	apiKey?: string;
 	baseUrl?: string;
 	fetchImpl?: FetchLike;
 	/**
@@ -247,7 +247,9 @@ export function createStreamsClient(
 
 	async function request<T>(path: string): Promise<T> {
 		const response = await fetchImpl(`${baseUrl}${path}`, {
-			headers: { Authorization: `Bearer ${options.apiKey}` },
+			headers: options.apiKey
+				? { Authorization: `Bearer ${options.apiKey}` }
+				: {},
 		});
 		if (!response.ok) await mapStreamsError(response);
 		const text = await response.text();

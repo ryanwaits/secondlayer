@@ -47,7 +47,7 @@ export class SecondLayer extends BaseClient {
 	constructor(options: Partial<SecondLayerOptions> = {}) {
 		super(options);
 		this.streams = createStreamsClient({
-			apiKey: resolveApiKey(options.apiKey) ?? "",
+			apiKey: resolveApiKey(options.apiKey),
 			baseUrl: options.baseUrl,
 			fetchImpl: options.fetchImpl,
 			dumpsBaseUrl: options.dumpsBaseUrl,
