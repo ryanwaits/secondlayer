@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/api",
-	"version": "1.29.0",
+	"version": "1.29.1",
 	"private": true,
 	"type": "module",
 	"main": "./src/index.ts",
@@ -16,7 +16,7 @@
 		"@aws-sdk/client-s3": "^3.1042.0",
 		"@aws-sdk/s3-request-presigner": "3.1042.0",
 		"@secondlayer/bundler": "^0.5.1",
-		"@secondlayer/indexer": "^1.13.6",
+		"@secondlayer/indexer": "^1.13.7",
 		"@secondlayer/platform": "workspace:*",
 		"@secondlayer/sdk": "^9.0.0",
 		"@secondlayer/shared": "^11.0.0",

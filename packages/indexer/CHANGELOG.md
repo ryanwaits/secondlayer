@@ -1,5 +1,15 @@
 # @secondlayer/indexer
 
+## 1.13.7
+
+### Patch Changes
+
+- 0b42b2f: Drop leftover `l2*` identifiers from the decode plane.
+
+  `Database` already has `decoded_events` and `decoder_checkpoints`, so the local
+  `L2Database` overlay and `as unknown as` cast are gone. Live names now match the
+  service (`decoder`), table (`decoder_checkpoints`), and AGENTS.md rule.
+
 ## 1.13.6
 
 ### Patch Changes
