@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "9.0.1",
+	"version": "9.0.2",
 	"areas": [
 		{
 			"name": "Client",
@@ -1010,7 +1010,7 @@
 					"summary": "",
 					"signature": "createStreamsClient(options: CreateStreamsClientOptions): StreamsClient",
 					"file": "src/streams/client.ts",
-					"line": 186
+					"line": 176
 				},
 				{
 					"name": "Cursor",
@@ -1018,7 +1018,7 @@
 					"summary": "Helpers for Streams cursors.",
 					"signature": null,
 					"file": "src/streams/cursor.ts",
-					"line": 17
+					"line": 16
 				},
 				{
 					"name": "decode",

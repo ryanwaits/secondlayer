@@ -1,5 +1,16 @@
 # @secondlayer/sdk
 
+## 9.0.2
+
+### Patch Changes
+
+- f15b229: Point `Cursor.parse` / `Cursor.atHeight` at the canonical Streams cursor codec.
+
+  The SDK helper now rejects the same non-canonical spellings the server 400s
+  (`"951475:"`, leading zeros, `"1e2:0"`) instead of treating them as real
+  positions. Rewind still returns `{ blockHeight, eventIndex }` and still throws
+  `ValidationError`.
+
 ## 9.0.1
 
 ### Patch Changes

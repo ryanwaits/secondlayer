@@ -1,5 +1,17 @@
 # @secondlayer/api
 
+## 1.29.2
+
+### Patch Changes
+
+- 28f426c: Label the default-on pox5 decoder as `pox5_event` on `/public/status`.
+
+  Without the map entry, `eventType` fell back to the checkpoint name
+  (`decode.pox5.v1`) while pox4 showed `pox4_call`.
+
+- Updated dependencies [f15b229]
+  - @secondlayer/sdk@9.0.2
+
 ## 1.29.1
 
 ### Patch Changes
