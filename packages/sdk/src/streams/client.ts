@@ -8,6 +8,7 @@ import {
 	iterateStreamsBatches,
 	streamStreamsEvents,
 } from "./consumer.ts";
+import { Cursor } from "./cursor.ts";
 import { decode } from "./decode.ts";
 import { createStreamsDumps } from "./dumps.ts";
 import {
@@ -43,19 +44,8 @@ import type {
 /** Parse a `<block>:<index>` cursor; null sorts before genesis. */
 function cursorTuple(cursor: string | null): [number, number] {
 	if (!cursor) return [-1, -1];
-	const parts = cursor.split(":");
-	const [block, index] = parts.map(Number);
-	if (
-		parts.length !== 2 ||
-		!Number.isInteger(block) ||
-		!Number.isInteger(index)
-	) {
-		throw new ValidationError(
-			`Invalid stream cursor "${cursor}"; expected "<block>:<index>" (e.g. "951475:3").`,
-			400,
-		);
-	}
-	return [block, index];
+	const { blockHeight, eventIndex } = Cursor.parse(cursor);
+	return [blockHeight, eventIndex];
 }
 
 /** The greater of two cursors (later in the stream). */

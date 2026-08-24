@@ -1,18 +1,17 @@
+import {
+	blockEndCursor,
+	decodeStreamsCursor,
+	encodeStreamsCursor,
+} from "@secondlayer/shared";
 import { ValidationError } from "./errors.ts";
-
-/**
- * Largest value the `event_index` / `tx_index` cursor component can take —
- * Postgres int4 max. Used as the foot-of-block sentinel in {@link Cursor.atHeight}
- * so a rewind cursor sorts just below `height:0`. Mirrors the same int4-max
- * sentinel the server uses for reorg height-range scans and empty-range advance.
- */
-const REWIND_FOOT_INDEX_SENTINEL = 2_147_483_647;
 
 /**
  * Helpers for Streams cursors. A cursor is the opaque `<block>:<index>` string
  * that marks a position in the event stream; treat the format as an
  * implementation detail and go through these helpers instead of string-building
- * it at call sites.
+ * it at call sites. Encode/decode and the rewind sentinel come from the
+ * canonical codec in `@secondlayer/shared` so the SDK cannot accept a spelling
+ * the server would 400, or rewind to a different foot than Index/Streams.
  */
 export const Cursor = {
 	/**
@@ -24,7 +23,7 @@ export const Cursor = {
 	 * is `height`: the new canonical block at `height` carries a fresh first
 	 * event at `(height, 0)` that the consumer MUST re-read.
 	 *
-	 * Encoded as `${height-1}:${SENTINEL}` rather than the seemingly-natural
+	 * Encoded as `blockEndCursor(height - 1)` rather than the seemingly-natural
 	 * `${height}:0` — that earlier form was an off-by-one: being exclusive, it
 	 * skipped `(height, 0)`, silently dropping the fork block's first row on
 	 * every reorg. The sentinel is int4 max (the `event_index`/`tx_index` column
@@ -34,25 +33,25 @@ export const Cursor = {
 	atHeight(height: number): string {
 		// Genesis can't reorg; degenerate-guard so `height - 1` never goes negative
 		// (the cursor parsers reject negative components).
-		if (height <= 0) return "0:0";
-		return `${height - 1}:${REWIND_FOOT_INDEX_SENTINEL}`;
+		if (height <= 0) {
+			return encodeStreamsCursor({ block_height: 0, event_index: 0 });
+		}
+		return encodeStreamsCursor(blockEndCursor(height - 1));
 	},
 
 	/** Parse a `<block>:<index>` cursor. Throws `ValidationError` if malformed. */
 	parse(cursor: string): { blockHeight: number; eventIndex: number } {
-		const parts = cursor.split(":");
-		const blockHeight = Number(parts[0]);
-		const eventIndex = Number(parts[1]);
-		if (
-			parts.length !== 2 ||
-			!Number.isInteger(blockHeight) ||
-			!Number.isInteger(eventIndex)
-		) {
+		try {
+			const decoded = decodeStreamsCursor(cursor);
+			return {
+				blockHeight: decoded.block_height,
+				eventIndex: decoded.event_index,
+			};
+		} catch {
 			throw new ValidationError(
 				`Invalid stream cursor "${cursor}"; expected "<block>:<index>" (e.g. "951475:3").`,
 				400,
 			);
 		}
-		return { blockHeight, eventIndex };
 	},
 };
