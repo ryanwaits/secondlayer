@@ -86,13 +86,14 @@ export function subgraphProcessorVerdict(input: {
 // Built per-request from env flags so the public status response surfaces
 // every enabled decoder, not just the always-on ft + nft pair. The base
 // decoders reuse the indexer's canonical event-type map (so they never drift);
-// the env-gated sbtc/pox4/bns decoders live in separate storage modules and
-// carry their public labels here.
+// the env-gated sbtc/pox4/pox5/bns decoders live in separate storage modules
+// and carry their public labels here.
 const DECODER_EVENT_TYPE: Record<string, string> = {
 	...DECODER_EVENT_TYPES,
 	"decode.sbtc.v1": "sbtc",
 	"decode.sbtc_token.v1": "sbtc_token",
 	"decode.pox4.v1": "pox4_call",
+	"decode.pox5.v1": "pox5_event",
 	"decode.bns.v1": "bns_print",
 };
 

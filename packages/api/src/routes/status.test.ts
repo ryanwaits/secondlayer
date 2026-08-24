@@ -78,6 +78,8 @@ describe("/status Index freshness", () => {
 			tipBlockHeight: 101,
 			lastDecodedAt: "2026-05-11T12:00:01.000Z",
 		});
+		expect(byDecoder.get("decode.pox4.v1")?.eventType).toBe("pox4_call");
+		expect(byDecoder.get("decode.pox5.v1")?.eventType).toBe("pox5_event");
 
 		// Decoders absent from the health snapshot default to unavailable.
 		const others = status.decoders.filter(
