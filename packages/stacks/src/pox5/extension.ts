@@ -1,4 +1,5 @@
 import { multicall } from "../actions/public/multicall.ts";
+import type { ProofSource } from "../bitcoin/proof.ts";
 import type { ClarityValue } from "../clarity/types.ts";
 import { Cl } from "../clarity/values.ts";
 import type { Client } from "../clients/types.ts";
@@ -9,6 +10,7 @@ import {
 	type ClaimRewardsParams,
 	type ClaimStakerRewardsForSignerParams,
 	type GrantSignerKeyParams,
+	type L1LockupOutput,
 	type RegisterForBondParams,
 	type RevokeSignerGrantParams,
 	type SetupBondParams,
@@ -51,6 +53,7 @@ import {
 	getPoxInfo,
 	isPox5Active,
 } from "./activation.ts";
+import { buildPox5LockProof } from "./lockProof.ts";
 import type {
 	BondAllowance,
 	BondMembership,
@@ -157,6 +160,13 @@ export type Pox5Actions = {
 		) => Promise<string>;
 		grantSignerKey: (params: GrantSignerKeyParams) => Promise<string>;
 		revokeSignerGrant: (params: RevokeSignerGrantParams) => Promise<string>;
+		buildLockProof: (opts: {
+			source: ProofSource;
+			txid: string;
+			lockScript: Uint8Array;
+			unlockBurnHeight: IntegerType;
+			vout?: number;
+		}) => Promise<L1LockupOutput>;
 	};
 };
 
@@ -219,6 +229,7 @@ export function pox5(): (client: Client) => Pox5Actions {
 				claimStakerRewardsForSigner(client, params),
 			grantSignerKey: (params) => grantSignerKey(client, params),
 			revokeSignerGrant: (params) => revokeSignerGrant(client, params),
+			buildLockProof: (opts) => buildPox5LockProof(opts),
 		},
 	});
 }

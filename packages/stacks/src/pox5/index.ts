@@ -82,6 +82,10 @@ export {
 	type UnstakeSbtcParams,
 	type UpdateBondRegistrationParams,
 } from "./actions.ts";
+export {
+	buildPox5LockProof,
+	spvProofToL1LockupOutput,
+} from "./lockProof.ts";
 export { pox5, type Pox5Actions, type StakerState } from "./extension.ts";
 
 /** The pox-5 ABI (curated to the 25 functions this module calls, verified
