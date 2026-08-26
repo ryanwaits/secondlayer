@@ -1,0 +1,13 @@
+{
+	"block_hash": "0x111aaa",
+	"block_height": 101,
+	"index_block_hash": "0x222bbb",
+	"parent_block_hash": "0x333ccc",
+	"parent_index_block_hash": "0x444ddd",
+	"burn_block_hash": "0x555eee",
+	"burn_block_height": 201,
+	"miner_txid": "0x666fff",
+	"burn_block_time": 1700000001,
+	"transactions": [],
+	"events": []
+}

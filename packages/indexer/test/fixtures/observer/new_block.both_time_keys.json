@@ -1,0 +1,14 @@
+{
+	"block_hash": "0xabc123",
+	"block_height": 102,
+	"index_block_hash": "0xdef456",
+	"parent_block_hash": "0x789abc",
+	"parent_index_block_hash": "0x456def",
+	"burn_block_hash": "0x321fed",
+	"burn_block_height": 202,
+	"miner_txid": "0x654cba",
+	"timestamp": 1700000002,
+	"burn_block_time": 1700000003,
+	"transactions": [],
+	"events": []
+}
