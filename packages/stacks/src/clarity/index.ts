@@ -47,6 +47,13 @@ export {
 export { serializeCV, serializeCVBytes } from "./serialize.ts";
 export { deserializeCV, deserializeCVBytes } from "./deserialize.ts";
 export {
+	SIP018_PREFIX,
+	hashStructuredData,
+	encodeStructuredData,
+	structuredDataHash,
+	signStructuredData,
+} from "./structuredData.ts";
+export {
 	prettyPrint,
 	cvToJSON,
 	cvToValue,

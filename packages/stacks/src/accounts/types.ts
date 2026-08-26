@@ -6,7 +6,7 @@ export type LocalAccount = {
 	publicKey: string;
 	/** Raw ECDSA sign over a hash */
 	sign(hash: Uint8Array): Uint8Array;
-	/** Sign a structured message (SIP-018) */
+	/** Sign a raw UTF-8 / byte message (`sha256(bytes)`). Not SIP-018. */
 	signMessage(message: string | Uint8Array): string;
 };
 

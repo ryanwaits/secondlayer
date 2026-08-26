@@ -1,7 +1,6 @@
 import { secp256k1 } from "@noble/curves/secp256k1.js";
-import { sha256 } from "@noble/hashes/sha2.js";
 import type { LocalAccount } from "../accounts/types.ts";
-import { serializeCVBytes } from "../clarity/serialize.ts";
+import { structuredDataHash } from "../clarity/structuredData.ts";
 import { Cl } from "../clarity/values.ts";
 import { bytesToHex, concatBytes, hexToBytes } from "../utils/encoding.ts";
 import { POX5_SIGNER_DOMAIN } from "./constants.ts";
@@ -21,29 +20,24 @@ export type SignerGrantOptions = {
 	chainId: number;
 };
 
-const SIP018_PREFIX = hexToBytes("534950303138"); // "SIP018"
-
 /**
  * The 32-byte hash a signer signs to grant their key — byte-identical to the
  * contract's `get-signer-grant-message-hash` read-only (which doubles as an
  * on-chain cross-check).
  */
 export function computeSignerGrantHash(opts: SignerGrantOptions): Uint8Array {
-	const domain = serializeCVBytes(
-		Cl.tuple({
+	return structuredDataHash({
+		domain: Cl.tuple({
 			name: Cl.stringAscii(POX5_SIGNER_DOMAIN.name),
 			version: Cl.stringAscii(POX5_SIGNER_DOMAIN.version),
 			"chain-id": Cl.uint(opts.chainId),
 		}),
-	);
-	const message = serializeCVBytes(
-		Cl.tuple({
+		message: Cl.tuple({
 			topic: Cl.stringAscii("grant-authorization"),
 			"signer-manager": Cl.principal(opts.signerManager),
 			"auth-id": Cl.uint(opts.authId),
 		}),
-	);
-	return sha256(concatBytes(SIP018_PREFIX, sha256(domain), sha256(message)));
+	});
 }
 
 /**
