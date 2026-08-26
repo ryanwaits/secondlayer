@@ -46,7 +46,9 @@ import {
 } from "./actions.ts";
 import {
 	type Pox5Activation,
+	type Pox5Info,
 	getPox5Activation,
+	getPoxInfo,
 	isPox5Active,
 } from "./activation.ts";
 import type {
@@ -111,6 +113,7 @@ export type Pox5Actions = {
 		// activation
 		isActive: () => Promise<boolean>;
 		getActivation: () => Promise<Pox5Activation | undefined>;
+		getPoxInfo: () => Promise<Pox5Info>;
 		contractId: () => string;
 		// batched state
 		getStakerState: (staker: string) => Promise<StakerState>;
@@ -180,6 +183,7 @@ export function pox5(): (client: Client) => Pox5Actions {
 		pox5: {
 			isActive: () => isPox5Active(client),
 			getActivation: () => getPox5Activation(client),
+			getPoxInfo: () => getPoxInfo(client),
 			contractId: () => pox5ContractId(client),
 			getStakerState: (staker) => getStakerState(client, staker),
 			getStakerInfo: (staker) => getStakerInfo(client, staker),

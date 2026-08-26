@@ -1,7 +1,10 @@
 import { getContract } from "../actions/getContract.ts";
 import type { FeeParam } from "../actions/wallet/utils.ts";
 import type { Client } from "../clients/types.ts";
-import type { PostCondition } from "../postconditions/types.ts";
+import type {
+	PostConditionInput,
+	PostConditionMode,
+} from "../postconditions/types.ts";
 import {
 	type IntegerType,
 	hexToBytes,
@@ -39,8 +42,8 @@ export function pox5ContractId(client: Client): string {
 type TxOptions = {
 	fee?: FeeParam;
 	nonce?: IntegerType;
-	postConditions?: PostCondition[];
-	postConditionMode?: "allow" | "deny";
+	postConditions?: PostConditionInput[];
+	postConditionMode?: PostConditionMode;
 };
 
 function getPox5Contract(client: Client) {
@@ -89,9 +92,30 @@ function optionalBytes(input?: Uint8Array | string): Uint8Array | null {
 	return input === undefined ? null : toBytes(input);
 }
 
+const MAX_LOCKUP_OUTPUTS = 10;
+const MAX_LEAF_HASHES = 14;
+
 /** Map `BtcLockup` to the ABI's `(response (tuple …) uint)` arg shape. */
 function btcLockupArg(lockup: BtcLockup) {
 	if ("sbtcSats" in lockup) return { err: intToBigInt(lockup.sbtcSats) };
+	if (lockup.l1Outputs.length === 0) {
+		throw new Error(
+			"registerForBond: l1Outputs is empty — nothing would be locked",
+		);
+	}
+	if (lockup.l1Outputs.length > MAX_LOCKUP_OUTPUTS) {
+		throw new Error(
+			`registerForBond: ${lockup.l1Outputs.length} lockup outputs; pox-5 accepts at most ${MAX_LOCKUP_OUTPUTS}`,
+		);
+	}
+	for (let i = 0; i < lockup.l1Outputs.length; i++) {
+		const n = lockup.l1Outputs[i]?.leafHashes.length ?? 0;
+		if (n > MAX_LEAF_HASHES) {
+			throw new Error(
+				`registerForBond: output ${i} has ${n} merkle siblings; pox-5 accepts at most ${MAX_LEAF_HASHES}`,
+			);
+		}
+	}
 	return {
 		ok: {
 			outputs: lockup.l1Outputs.map((o) => ({

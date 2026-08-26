@@ -16,13 +16,53 @@ export type Pox5Activation = {
 };
 
 type PoxInfoResponse = {
+	contract_id?: string;
 	current_burnchain_block_height?: number;
+	first_burnchain_block_height?: number;
+	pox_5_sbtc_contract?: string;
+	pox_5_sbtc_registry_contract?: string;
 	contract_versions?: Array<{
 		contract_id: string;
 		activation_burnchain_block_height: number;
 		first_reward_cycle_id: number;
 	}>;
 };
+
+/**
+ * `/v2/pox` fields a pox-5 integration actually needs. `sbtcContract` is
+ * compiled into the boot contract per network — never hardcode it.
+ */
+export type Pox5Info = {
+	contractId?: string;
+	currentBurnchainBlockHeight?: number;
+	firstBurnchainBlockHeight?: number;
+	/** Token principal pox-5 custodies. Read this for sBTC post-conditions. */
+	sbtcContract?: string;
+	sbtcRegistryContract?: string;
+	contractVersions: Array<{
+		contractId: string;
+		activationBurnchainBlockHeight: number;
+		firstRewardCycleId: number;
+	}>;
+};
+
+export async function getPoxInfo(client: Client): Promise<Pox5Info> {
+	const info = (await client.request("/v2/pox", {
+		method: "GET",
+	})) as PoxInfoResponse;
+	return {
+		contractId: info.contract_id,
+		currentBurnchainBlockHeight: info.current_burnchain_block_height,
+		firstBurnchainBlockHeight: info.first_burnchain_block_height,
+		sbtcContract: info.pox_5_sbtc_contract,
+		sbtcRegistryContract: info.pox_5_sbtc_registry_contract,
+		contractVersions: (info.contract_versions ?? []).map((v) => ({
+			contractId: v.contract_id,
+			activationBurnchainBlockHeight: v.activation_burnchain_block_height,
+			firstRewardCycleId: v.first_reward_cycle_id,
+		})),
+	};
+}
 
 /**
  * Read pox-5's activation entry from the node. Returns `undefined` when the

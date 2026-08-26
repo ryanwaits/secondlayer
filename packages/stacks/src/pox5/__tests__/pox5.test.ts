@@ -4,7 +4,7 @@ import { mainnet } from "../../chains/definitions.ts";
 import { createPublicClient } from "../../clients/createPublicClient.ts";
 import type { Client } from "../../clients/types.ts";
 import { custom } from "../../transports/custom.ts";
-import { getPox5Activation, isPox5Active } from "../activation.ts";
+import { getPox5Activation, getPoxInfo, isPox5Active } from "../activation.ts";
 import {
 	bondPeriodToBurnHeight,
 	bondPeriodToRewardCycle,
@@ -14,6 +14,7 @@ import {
 	isInPreparePhase,
 	rewardCycleToBurnHeight,
 } from "../cycles.ts";
+import { describePox5Error, parsePox5Error } from "../errors.ts";
 import {
 	computeSignerGrantHash,
 	signSignerGrant,
@@ -74,6 +75,32 @@ describe("activation gate", () => {
 	it("isPox5Active flips at the activation height", async () => {
 		expect(await isPox5Active(poxClient(withPox5(960_229)))).toBe(false);
 		expect(await isPox5Active(poxClient(withPox5(960_230)))).toBe(true);
+	});
+
+	it("getPoxInfo reads pox_5_sbtc_contract", async () => {
+		const info = await getPoxInfo(
+			poxClient({
+				...withPox5(960_230),
+				pox_5_sbtc_contract:
+					"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+			}),
+		);
+		expect(info.sbtcContract).toBe(
+			"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+		);
+	});
+});
+
+describe("pox-5 error codes", () => {
+	it("parses (err u7) and names BondNotFound", () => {
+		expect(parsePox5Error("(err u7)")).toBe(7);
+		expect(describePox5Error(7)?.name).toBe("ERR_BOND_NOT_FOUND");
+	});
+
+	it("parses a Clarity err uint", () => {
+		expect(
+			parsePox5Error({ type: "err", value: { type: "uint", value: 28n } }),
+		).toBe(28);
 	});
 });
 

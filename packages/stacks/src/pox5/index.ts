@@ -9,9 +9,17 @@
 export {
 	assertPox5Active,
 	getPox5Activation,
+	getPoxInfo,
 	isPox5Active,
 	type Pox5Activation,
+	type Pox5Info,
 } from "./activation.ts";
+export {
+	Pox5ErrorCode,
+	POX5_ERROR_NAMES,
+	parsePox5Error,
+	describePox5Error,
+} from "./errors.ts";
 export {
 	BITCOIN_LOCKTIME_THRESHOLD,
 	BOND_GAP_CYCLES,
