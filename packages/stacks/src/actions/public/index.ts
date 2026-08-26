@@ -19,6 +19,7 @@ export {
 	type GetContractSourceParams,
 	type ContractSourceResponse,
 } from "./getContractSource.ts";
+export { getDataVar, type GetDataVarParams } from "./getDataVar.ts";
 export { getMapEntry, type GetMapEntryParams } from "./getMapEntry.ts";
 export {
 	estimateFee,

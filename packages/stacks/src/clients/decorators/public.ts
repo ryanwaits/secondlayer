@@ -32,6 +32,10 @@ import {
 	getContractSource,
 } from "../../actions/public/getContractSource.ts";
 import {
+	type GetDataVarParams,
+	getDataVar,
+} from "../../actions/public/getDataVar.ts";
+import {
 	type GetMapEntryParams,
 	getMapEntry,
 } from "../../actions/public/getMapEntry.ts";
@@ -111,6 +115,7 @@ export type PublicActions = {
 	getContractSource: (
 		params: GetContractSourceParams,
 	) => Promise<ContractSourceResponse | null>;
+	getDataVar: (params: GetDataVarParams) => Promise<ClarityValue>;
 	getMapEntry: (params: GetMapEntryParams) => Promise<ClarityValue>;
 	estimateFee: (params: EstimateFeeParams) => Promise<FeeEstimation[]>;
 	multicall: <T extends boolean = true>(
@@ -156,6 +161,7 @@ export function publicActions(client: Client): PublicActions {
 		readContract: (params) => readContract(client, params),
 		getContractAbi: (params) => getContractAbi(client, params),
 		getContractSource: (params) => getContractSource(client, params),
+		getDataVar: (params) => getDataVar(client, params),
 		getMapEntry: (params) => getMapEntry(client, params),
 		estimateFee: (params) => estimateFee(client, params),
 		multicall: (params) => multicall(client, params),
