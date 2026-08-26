@@ -5,7 +5,13 @@ export * from "./db/index.ts";
 export * from "./errors.ts";
 export * from "./finality.ts";
 export * from "./streams-cursor.ts";
-export { getEnv, isPox4DecoderEnabled, isPox5DecoderEnabled } from "./env.ts";
+export {
+	getEnv,
+	isBnsDecoderEnabled,
+	isPox4DecoderEnabled,
+	isPox5DecoderEnabled,
+	isSbtcDecoderEnabled,
+} from "./env.ts";
 export { logger } from "./logger.ts";
 
 export * from "./schemas/index.ts";

@@ -1,3 +1,9 @@
+import {
+	isBnsDecoderEnabled,
+	isPox4DecoderEnabled,
+	isPox5DecoderEnabled,
+	isSbtcDecoderEnabled,
+} from "@secondlayer/shared";
 import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type {
@@ -68,18 +74,15 @@ export function getEnabledDecoderNames(
 		NFT_BURN_DECODER_NAME,
 		PRINT_DECODER_NAME,
 	];
-	// String literals here (not imports) to keep storage.ts free of cycles
-	// with sbtc-/pox4-/bns-storage.ts; the canonical defs live in those files.
-	// sbtc and pox4 default to enabled (see service.ts / isPox4DecoderEnabled) —
-	// only suppressed via explicit `*_DECODER_ENABLED=false`. Read the injected
-	// `env` (not global process.env) so this stays testable and consistent, and
-	// so /public/status surfaces the same decoder set the indexer actually runs.
-	if (env.SBTC_DECODER_ENABLED !== "false") {
+	// Decoder names stay string literals to keep storage.ts free of cycles
+	// with sbtc-/pox4-/bns-storage.ts. Enable flags are single-sourced in
+	// @secondlayer/shared so /public/status and the decoder process agree.
+	if (isSbtcDecoderEnabled(env)) {
 		names.push("decode.sbtc.v1", "decode.sbtc_token.v1");
 	}
-	if (env.POX4_DECODER_ENABLED !== "false") names.push("decode.pox4.v1");
-	if (env.POX5_DECODER_ENABLED !== "false") names.push("decode.pox5.v1");
-	if (env.BNS_DECODER_ENABLED === "true") names.push("decode.bns.v1");
+	if (isPox4DecoderEnabled(env)) names.push("decode.pox4.v1");
+	if (isPox5DecoderEnabled(env)) names.push("decode.pox5.v1");
+	if (isBnsDecoderEnabled(env)) names.push("decode.bns.v1");
 	return names;
 }
 

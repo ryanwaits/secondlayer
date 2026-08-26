@@ -1,6 +1,8 @@
 import {
+	isBnsDecoderEnabled,
 	isPox4DecoderEnabled,
 	isPox5DecoderEnabled,
+	isSbtcDecoderEnabled,
 } from "@secondlayer/shared";
 import { assertDbSplit, closeDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
@@ -34,12 +36,10 @@ import { bumpDecoderCheckpoint } from "./storage.ts";
 
 const PORT = Number.parseInt(process.env.PORT || "3710", 10);
 const controller = new AbortController();
-// sbtc defaults to enabled — the sBTC decoder fills the decoded_events table;
-// opt out with `SBTC_DECODER_ENABLED=false`.
-const SBTC_ENABLED = process.env.SBTC_DECODER_ENABLED !== "false";
+const SBTC_ENABLED = isSbtcDecoderEnabled();
 const POX4_ENABLED = isPox4DecoderEnabled();
 const POX5_ENABLED = isPox5DecoderEnabled();
-const BNS_ENABLED = process.env.BNS_DECODER_ENABLED === "true";
+const BNS_ENABLED = isBnsDecoderEnabled();
 // Opt-in (needs bitcoind RPC creds): the BTC L1 settlement confirmer for sBTC
 // withdrawals. Kept OUT of getEnabledDecoderNames/floor-audit — it has its own
 // health path (see settlement.ts).

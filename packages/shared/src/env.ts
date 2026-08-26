@@ -108,13 +108,15 @@ export function isProductionEnv(): boolean {
 	return process.env["NODE_ENV"] === "production";
 }
 
+type EnvMap = NodeJS.ProcessEnv;
+
 /**
  * PoX-4 stacking decoder is ON by default — `/v1/index/stacking` is part of the
  * public surface, so the decoder that fills `pox4_calls` runs unless explicitly
  * opted out with `POX4_DECODER_ENABLED=false` (mirrors the sBTC decoder policy).
  */
-export function isPox4DecoderEnabled(): boolean {
-	return process.env.POX4_DECODER_ENABLED !== "false";
+export function isPox4DecoderEnabled(env: EnvMap = process.env): boolean {
+	return env.POX4_DECODER_ENABLED !== "false";
 }
 
 /**
@@ -123,8 +125,18 @@ export function isPox4DecoderEnabled(): boolean {
  * hard fork (Bitcoin block 960,230), so pre-activation the decoder idles at
  * tip. Opt out with `POX5_DECODER_ENABLED=false`.
  */
-export function isPox5DecoderEnabled(): boolean {
-	return process.env.POX5_DECODER_ENABLED !== "false";
+export function isPox5DecoderEnabled(env: EnvMap = process.env): boolean {
+	return env.POX5_DECODER_ENABLED !== "false";
+}
+
+/** Default ON. Opt out with `SBTC_DECODER_ENABLED=false`. */
+export function isSbtcDecoderEnabled(env: EnvMap = process.env): boolean {
+	return env.SBTC_DECODER_ENABLED !== "false";
+}
+
+/** Default OFF. Opt in with `BNS_DECODER_ENABLED=true`. */
+export function isBnsDecoderEnabled(env: EnvMap = process.env): boolean {
+	return env.BNS_DECODER_ENABLED === "true";
 }
 
 // Export for testing

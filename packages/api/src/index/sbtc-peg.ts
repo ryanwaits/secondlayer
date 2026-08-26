@@ -1,3 +1,4 @@
+import { isSbtcDecoderEnabled } from "@secondlayer/shared";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { SbtcEventTopic } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
@@ -31,13 +32,7 @@ import type { IndexTip } from "./tip.ts";
  * and pagination never diverge from the rest of `/v1/index`.
  */
 
-// No `isSbtcDecoderEnabled()` helper exists in @secondlayer/shared (unlike
-// isPox4DecoderEnabled). Read the env directly, matching the indexer's inline
-// check. Not NODE_ENV, so the bundler doesn't constant-fold it; api runs from
-// source regardless.
-export function isSbtcDecoderEnabled(): boolean {
-	return process.env.SBTC_DECODER_ENABLED !== "false";
-}
+export { isSbtcDecoderEnabled };
 
 const SBTC_DISABLED_NOTE =
 	"sBTC decoding is disabled (SBTC_DECODER_ENABLED=false); the sBTC peg feed is empty until re-enabled.";

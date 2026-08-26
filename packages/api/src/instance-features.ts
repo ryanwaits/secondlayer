@@ -1,3 +1,9 @@
+import {
+	isBnsDecoderEnabled,
+	isPox4DecoderEnabled,
+	isSbtcDecoderEnabled,
+} from "@secondlayer/shared";
+
 /** Default modules on a standard OSS instance. Idle flags consume no work. */
 
 export const INSTANCE_FEATURE_MANIFEST = {
@@ -10,9 +16,9 @@ export const INSTANCE_FEATURE_MANIFEST = {
 	contractDiscovery: true,
 	verification: true,
 	protocolDatasets: {
-		sbtc: process.env.SBTC_DECODER_ENABLED !== "false",
-		pox: process.env.POX4_DECODER_ENABLED !== "false",
-		bns: process.env.BNS_DECODER_ENABLED === "true",
+		sbtc: isSbtcDecoderEnabled(),
+		pox: isPox4DecoderEnabled(),
+		bns: isBnsDecoderEnabled(),
 	},
 	signup: false,
 	pricing: false,
