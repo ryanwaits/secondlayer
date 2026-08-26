@@ -1,5 +1,8 @@
 import type { getDb } from "@secondlayer/shared/db";
-import { AuthorizationError } from "@secondlayer/shared/errors";
+import {
+	AuthorizationError,
+	ValidationError,
+} from "@secondlayer/shared/errors";
 import { generateApiKey } from "./keys.ts";
 
 export type MintProduct = "account" | "streams" | "index";
@@ -43,21 +46,21 @@ export function assertCanMint(caller: MintCaller): void {
 }
 
 /**
- * Product of the key to mint. Sessions (dashboard) may mint any product;
- * non-session (account-key) callers may only mint scoped read keys, never
- * another `account` superkey.
+ * Product of the key to mint. Sessions (dashboard) may mint any product.
+ * API-key callers mint `account` keys only — agents should omit `product`.
+ * Requesting streams/index from a key is rejected so they notice.
  */
 export function resolveMintProduct(
 	caller: MintCaller,
 	requested: MintProduct | undefined,
 ): MintProduct {
 	if (caller.isSession) return requested ?? "account";
-	if (requested && requested !== "streams" && requested !== "index") {
-		throw new AuthorizationError(
-			"API-key callers can only create scoped streams/index keys, not account keys.",
+	if (requested === "streams" || requested === "index") {
+		throw new ValidationError(
+			"API-key callers mint account keys only; omit product or pass account.",
 		);
 	}
-	return requested ?? "streams";
+	return "account";
 }
 
 /** Throw if the account is already at its active-key ceiling. */

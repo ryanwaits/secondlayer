@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { ValidationError } from "@secondlayer/shared/errors";
 import {
 	DEFAULT_MINT_TIER,
 	assertCanMint,
@@ -42,17 +43,18 @@ describe("resolveMintProduct", () => {
 	it("lets a session mint any product (incl. account)", () => {
 		expect(resolveMintProduct(session, "account")).toBe("account");
 		expect(resolveMintProduct(session, "streams")).toBe("streams");
+		expect(resolveMintProduct(session, "index")).toBe("index");
 		expect(resolveMintProduct(session, undefined)).toBe("account");
 	});
 
-	it("confines a non-session caller to scoped products", () => {
-		expect(resolveMintProduct(owner, "streams")).toBe("streams");
-		expect(resolveMintProduct(owner, "index")).toBe("index");
-		expect(resolveMintProduct(owner, undefined)).toBe("streams");
+	it("non-session account key mints account keys only", () => {
+		expect(resolveMintProduct(owner, undefined)).toBe("account");
+		expect(resolveMintProduct(owner, "account")).toBe("account");
 	});
 
-	it("rejects a non-session caller asking for an account key", () => {
-		expect(() => resolveMintProduct(owner, "account")).toThrow();
+	it("rejects a non-session caller asking for streams/index", () => {
+		expect(() => resolveMintProduct(owner, "streams")).toThrow(ValidationError);
+		expect(() => resolveMintProduct(owner, "index")).toThrow(ValidationError);
 	});
 });
 

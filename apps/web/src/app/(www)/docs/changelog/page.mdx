@@ -80,6 +80,8 @@ Deprecated tool aliases are gone and `subgraphs_get` is renamed, every tool name
 
 Account tools (`account_whoami`, `account_create_key`) register only when the server is pointed at `https://api.secondlayer.tools`. A self-hosted instance does not show them. Docs and client examples lead with `INSTANCE_TOKEN`; `SL_API_KEY` remains a legacy alias.
 
+`POST /api/keys` from an API key always mints an `account` key. Requesting `streams` or `index` on that path is a 400. Dashboard sessions can still mint scoped keys. Existing scoped rows still authenticate.
+
 ## Subgraphs — August 2026
 
 ### Hosted subgraphs and subscriptions are retired
