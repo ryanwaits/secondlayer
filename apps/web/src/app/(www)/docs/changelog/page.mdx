@@ -6,6 +6,16 @@ keys, `402` past the free window. That service is withdrawn; on a self-hosted
 instance reads are yours and unmetered, and only archive
 bootstrap/backfill/reindex draws [credits](/docs/authentication#archive-credits).
 
+## Stacks SDK — August 2026
+
+### Staking post-conditions, SIP-018, and Clarity 4 deploys
+
+You can write the Epoch 3.4 / 4.0 post-conditions the chain actually checks: `Pc.ustxToLock()`, `willPerformPox()`, NFT `maybe-sent`, and `postConditionMode: "originator"`. Hex PCs round-trip with `Pc.fromHex`. Contract deploys default to versioned Clarity 4, not an unversioned Clarity 1 payload.
+
+SIP-018 structured-data hashing matches the spec (`hashStructuredData` / `signStructuredData`). `signMessage({ domain })` previously omitted the inner hashes, so those signatures would not verify on-chain. The pox-5 grant helper was already correct.
+
+pox-5 adds `Pox5ErrorCode` (parse `(err u7)` to a name) and `getPoxInfo()`, which reads `sbtcContract` from `/v2/pox` so you do not hardcode the token principal.
+
 ## CLI — August 2026
 
 ### One command replaces the five-command setup
@@ -67,6 +77,8 @@ Precedence is now an explicit `apiKey` option, then `INSTANCE_TOKEN`, then `SL_A
 Deprecated tool aliases are gone and `subgraphs_get` is renamed, every tool name is now `<product>_<verb>` with one spelling: `scaffold_from_contract` → `subgraphs_scaffold`, `get_contract_abi` → `contracts_get_abi` (last cycle's alias is retired for real now), `subgraphs_get` → `subgraphs_status` (matching `sl.subgraphs.status()` and `secondlayer subgraphs status`). Update any pinned tool name, the server no longer registers the old one.
 
 `INSTANCE_TOKEN` is also read as your primary credential here, see the SDK entry above, the precedence change applies wherever the MCP server resolves a token.
+
+Account tools (`account_whoami`, `account_create_key`) register only when the server is pointed at `https://api.secondlayer.tools`. A self-hosted instance does not show them. Docs and client examples lead with `INSTANCE_TOKEN`; `SL_API_KEY` remains a legacy alias.
 
 ## Subgraphs — August 2026
 

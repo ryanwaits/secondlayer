@@ -1,5 +1,12 @@
 # @secondlayer/web
 
+## 0.6.26
+
+### Patch Changes
+
+- Updated dependencies [1d656b4]
+  - @secondlayer/stacks@4.1.0
+
 ## 0.6.25
 
 ### Patch Changes
