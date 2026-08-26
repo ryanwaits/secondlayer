@@ -18,6 +18,10 @@ Interactive by default: a real terminal UI, built on `@opentui/react`. Without a
 
 ## Subgraphs — August 2026
 
+### Experimental observer-http block source
+
+A subgraph processor can page raw `/new_block` bodies from the indexer's internal observer journal instead of Postgres or Streams+Index. Set `SUBGRAPH_SOURCE=observer-http` and `OBSERVER_HTTP_URL` at the processor. Default is still Postgres. The route is opt-in on the indexer (`OBSERVER_HTTP_EXPORT=1`) and is not a public `/v1` API.
+
 ### Publish, unpublish, and the visibility flag are gone
 
 Publishing claimed a name in a hosted global namespace. A self-hosted instance has no such namespace, so the verb had nothing left to mean. There is no shim, the routes 404 and the calls are gone.
