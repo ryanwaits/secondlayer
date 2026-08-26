@@ -1,5 +1,28 @@
 # @secondlayer/api
 
+## 1.29.3
+
+### Patch Changes
+
+- 7ff1050: Single-source sBTC/BNS/PoX decoder enable flags in `@secondlayer/shared`.
+
+  `/public/status`, the decoder process, and Index protocol feeds now share
+  `isSbtcDecoderEnabled` / `isBnsDecoderEnabled` / the existing PoX helpers,
+  so an inverted `=== "true"` vs `!== "false"` cannot drift across surfaces.
+
+- 9097c2c: Single-source the internal Index/Streams HTTP client.
+
+  Decoder and subgraph processor now share `createInternalIndexHttpClient()`
+  and the Streams key helper. Empty `STREAMS_INTERNAL_API_KEY` (compose
+  `${VAR:-}`) falls back to the seeded default instead of sending `Bearer `.
+
+- Updated dependencies [7ff1050]
+- Updated dependencies [9097c2c]
+  - @secondlayer/shared@11.0.1
+  - @secondlayer/indexer@1.13.8
+  - @secondlayer/subgraphs@4.0.5
+  - @secondlayer/platform@0.2.2
+
 ## 1.29.2
 
 ### Patch Changes

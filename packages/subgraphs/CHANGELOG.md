@@ -1,5 +1,19 @@
 # @secondlayer/subgraphs
 
+## 4.0.5
+
+### Patch Changes
+
+- 9097c2c: Single-source the internal Index/Streams HTTP client.
+
+  Decoder and subgraph processor now share `createInternalIndexHttpClient()`
+  and the Streams key helper. Empty `STREAMS_INTERNAL_API_KEY` (compose
+  `${VAR:-}`) falls back to the seeded default instead of sending `Bearer `.
+
+- Updated dependencies [7ff1050]
+- Updated dependencies [9097c2c]
+  - @secondlayer/shared@11.0.1
+
 ## 4.0.4
 
 ### Patch Changes
