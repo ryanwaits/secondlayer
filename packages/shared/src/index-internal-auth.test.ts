@@ -3,11 +3,10 @@ import {
 	defaultInternalIndexApiKey,
 	defaultInternalIndexBaseUrl,
 	defaultInternalStreamsApiKey,
+	requireInternalStreamsApiKey,
 } from "./index-internal-auth.ts";
 
 const saved = {
-	INDEX_INTERNAL_API_KEY: process.env.INDEX_INTERNAL_API_KEY,
-	STREAMS_INTERNAL_API_KEY: process.env.STREAMS_INTERNAL_API_KEY,
 	SUBGRAPH_INDEX_API_URL: process.env.SUBGRAPH_INDEX_API_URL,
 	STREAMS_API_URL: process.env.STREAMS_API_URL,
 };
@@ -24,28 +23,74 @@ afterEach(() => {
 });
 
 describe("internal Index/Streams credentials", () => {
-	test("empty STREAMS_INTERNAL_API_KEY falls back to the seeded default", () => {
-		setEnv("STREAMS_INTERNAL_API_KEY", "");
-		expect(defaultInternalStreamsApiKey()).toBe(
-			"sk-sl_streams_decode_internal",
+	test("STREAMS_INTERNAL_API_KEY wins over INSTANCE_TOKEN", () => {
+		expect(
+			defaultInternalStreamsApiKey({
+				STREAMS_INTERNAL_API_KEY: "sl-int_custom",
+				INSTANCE_TOKEN: "instance",
+			}),
+		).toBe("sl-int_custom");
+	});
+
+	test("empty STREAMS_INTERNAL_API_KEY falls through to INSTANCE_TOKEN", () => {
+		expect(
+			defaultInternalStreamsApiKey({
+				STREAMS_INTERNAL_API_KEY: "",
+				INSTANCE_TOKEN: "instance-token",
+			}),
+		).toBe("instance-token");
+	});
+
+	test("both empty → undefined", () => {
+		expect(
+			defaultInternalStreamsApiKey({
+				STREAMS_INTERNAL_API_KEY: "",
+				INSTANCE_TOKEN: "",
+			}),
+		).toBeUndefined();
+		expect(defaultInternalStreamsApiKey({})).toBeUndefined();
+	});
+
+	test("INDEX_INTERNAL_API_KEY wins over INSTANCE_TOKEN", () => {
+		expect(
+			defaultInternalIndexApiKey({
+				INDEX_INTERNAL_API_KEY: "sl-int_index",
+				INSTANCE_TOKEN: "instance",
+			}),
+		).toBe("sl-int_index");
+	});
+
+	test("empty INDEX_INTERNAL_API_KEY falls through to INSTANCE_TOKEN", () => {
+		expect(
+			defaultInternalIndexApiKey({
+				INDEX_INTERNAL_API_KEY: "  ",
+				INSTANCE_TOKEN: "instance-token",
+			}),
+		).toBe("instance-token");
+	});
+
+	test("both Index env empty → undefined", () => {
+		expect(
+			defaultInternalIndexApiKey({
+				INDEX_INTERNAL_API_KEY: "",
+				INSTANCE_TOKEN: "",
+			}),
+		).toBeUndefined();
+	});
+
+	test("requireInternalStreamsApiKey throws when both empty", () => {
+		expect(() => requireInternalStreamsApiKey({})).toThrow(
+			/STREAMS_INTERNAL_API_KEY.*INSTANCE_TOKEN/,
 		);
 	});
 
-	test("unset STREAMS_INTERNAL_API_KEY falls back to the seeded default", () => {
-		setEnv("STREAMS_INTERNAL_API_KEY", undefined);
-		expect(defaultInternalStreamsApiKey()).toBe(
-			"sk-sl_streams_decode_internal",
-		);
-	});
-
-	test("set STREAMS_INTERNAL_API_KEY wins", () => {
-		setEnv("STREAMS_INTERNAL_API_KEY", "sk-sl_custom");
-		expect(defaultInternalStreamsApiKey()).toBe("sk-sl_custom");
-	});
-
-	test("empty INDEX_INTERNAL_API_KEY falls back to the seeded default", () => {
-		setEnv("INDEX_INTERNAL_API_KEY", "");
-		expect(defaultInternalIndexApiKey()).toBe("sk-sl_index_internal");
+	test("requireInternalStreamsApiKey returns INSTANCE_TOKEN when internal env is empty", () => {
+		expect(
+			requireInternalStreamsApiKey({
+				STREAMS_INTERNAL_API_KEY: "",
+				INSTANCE_TOKEN: "instance-token",
+			}),
+		).toBe("instance-token");
 	});
 
 	test("empty SUBGRAPH_INDEX_API_URL falls through to STREAMS_API_URL", () => {

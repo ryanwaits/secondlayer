@@ -29,13 +29,12 @@ const DB_URL =
 	process.env.SMOKE_DATABASE_URL ??
 	"postgres://secondlayer:secondlayer@127.0.0.1:5432/secondlayer";
 
-// STREAMS_INTERNAL_API_KEY is unset on a fresh OSS compose install, so the API
-// seeds the internal-tier tenant under its hardcoded fallback literal
-// (packages/indexer/src/decode/internal-auth.ts). That gives Streams reachable
-// on a fresh install with no account, and — unlike the free tier — unlimited
-// retention, which this smoke needs: it reads HEIGHT below, far outside the
-// free tier's 1-day window.
-const STREAMS_KEY = "sk-sl_streams_decode_internal";
+// OSS authenticates decoder + this smoke with INSTANCE_TOKEN. The API no
+// longer seeds a committed STREAMS_INTERNAL_API_KEY fallback. Instance-token
+// reads are the internal tier (unlimited retention), which this smoke needs:
+// it reads HEIGHT below, far outside the free tier's 1-day window. Loopback
+// anonymous reads are also unmetered; a missing token just omits the header.
+const STREAMS_KEY = process.env.INSTANCE_TOKEN ?? process.env.API_KEY;
 
 const HEIGHT = 900_001;
 /** Mirrors STREAMS_TIP_REORG_MARGIN_BLOCKS in packages/api/src/streams/tiers.ts. */

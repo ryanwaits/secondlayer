@@ -199,12 +199,20 @@ describe("self-host auth model", () => {
 		});
 	});
 
-	test("the internal decoder key still reads Streams", async () => {
-		const key = defaultInternalStreamsApiKey();
-		for (const host of ["127.0.0.1", "0.0.0.0"]) {
-			const app = ossApp(host);
-			const res = await app.request("/v1/streams/tip", bearer(key));
-			expect(res.status, host).not.toBe(401);
+	test("the decoder credential still reads Streams", async () => {
+		const prevInternal = process.env.STREAMS_INTERNAL_API_KEY;
+		Reflect.deleteProperty(process.env, "STREAMS_INTERNAL_API_KEY");
+		try {
+			for (const host of ["127.0.0.1", "0.0.0.0"]) {
+				const app = ossApp(host);
+				const key = defaultInternalStreamsApiKey();
+				expect(key).toBe(TOKEN);
+				if (!key) throw new Error("expected INSTANCE_TOKEN");
+				const res = await app.request("/v1/streams/tip", bearer(key));
+				expect(res.status, host).not.toBe(401);
+			}
+		} finally {
+			restore("STREAMS_INTERNAL_API_KEY", prevInternal);
 		}
 	});
 

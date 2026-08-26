@@ -2,10 +2,7 @@ import {
 	AuthenticationError,
 	AuthorizationError,
 } from "@secondlayer/shared/errors";
-import {
-	INDEX_INTERNAL_TENANT_ID,
-	defaultInternalIndexApiKey,
-} from "@secondlayer/shared/index-internal-auth";
+import { INDEX_INTERNAL_TENANT_ID } from "@secondlayer/shared/index-internal-auth";
 import type { MiddlewareHandler } from "hono";
 import { createApiKeyTokenStore } from "../auth/api-key-store.ts";
 import {
@@ -65,16 +62,19 @@ export const DEFAULT_INDEX_TOKENS: IndexTokenStore = new Map([
 
 // First-party internal consumer (subgraph processor PublicApiBlockSource).
 // Internal tier + NO account_id → reads are unmetered (metering gates on
-// account_id). Key resolves from INDEX_INTERNAL_API_KEY env. Mirrors the
-// Streams internal tenant seed.
-(DEFAULT_INDEX_TOKENS as unknown as Map<string, IndexTenant>).set(
-	defaultInternalIndexApiKey(),
-	{
-		tenant_id: INDEX_INTERNAL_TENANT_ID,
-		tier: "internal",
-		scopes: [INDEX_READ_SCOPE],
-	},
-);
+// account_id). Seeded only when INDEX_INTERNAL_API_KEY is non-empty;
+// INSTANCE_TOKEN stays on the instanceTokenMatches path.
+const indexInternalKey = process.env.INDEX_INTERNAL_API_KEY?.trim();
+if (indexInternalKey) {
+	(DEFAULT_INDEX_TOKENS as unknown as Map<string, IndexTenant>).set(
+		indexInternalKey,
+		{
+			tenant_id: INDEX_INTERNAL_TENANT_ID,
+			tier: "internal",
+			scopes: [INDEX_READ_SCOPE],
+		},
+	);
+}
 
 export const DEFAULT_INDEX_TOKEN_STORE: IndexTokenStore =
 	createApiKeyTokenStore({

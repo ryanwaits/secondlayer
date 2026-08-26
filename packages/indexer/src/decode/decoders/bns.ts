@@ -28,7 +28,7 @@ import {
 	failureFromFaults,
 	planGenericDecoderReceipts,
 } from "../generic-commit.ts";
-import { defaultInternalStreamsApiKey } from "../internal-auth.ts";
+import { requireInternalStreamsApiKey } from "../internal-auth.ts";
 import { readDecoderCheckpoint, writeDecoderCheckpoint } from "../storage.ts";
 
 export { BNS_DECODER_NAME };
@@ -276,7 +276,7 @@ export async function consumeBnsDecodedEvents(
 function createInternalStreamsClient(): StreamsClient {
 	return createStreamsClient({
 		baseUrl: process.env.STREAMS_API_URL,
-		apiKey: defaultInternalStreamsApiKey(),
+		apiKey: requireInternalStreamsApiKey(),
 	});
 }
 

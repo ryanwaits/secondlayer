@@ -131,19 +131,19 @@ export type StreamsReorgRow = {
 export type IndexHttpOptions = {
 	/** Base URL for /v1/index (the decoded data plane). */
 	indexBaseUrl: string;
-	/** Bearer for /v1/index. Defaults to the internal enterprise key. */
+	/** Bearer for /v1/index. Empty/unset omits the header. */
 	indexApiKey?: string;
 	/** Base URL for /v1/streams (the canonical clock). */
 	streamsBaseUrl: string;
-	/** Bearer for /v1/streams (internal enterprise key). */
-	streamsApiKey: string;
+	/** Bearer for /v1/streams. Empty/unset omits the header. */
+	streamsApiKey?: string;
 };
 
 export class IndexHttpClient {
 	private readonly indexBaseUrl: string;
-	private readonly indexApiKey: string;
+	private readonly indexApiKey: string | undefined;
 	private readonly streamsBaseUrl: string;
-	private readonly streamsApiKey: string;
+	private readonly streamsApiKey: string | undefined;
 
 	constructor(opts: IndexHttpOptions) {
 		this.indexBaseUrl = opts.indexBaseUrl.replace(/\/+$/, "");
@@ -152,7 +152,7 @@ export class IndexHttpClient {
 		this.streamsApiKey = opts.streamsApiKey;
 	}
 
-	private async get<T>(url: string, apiKey: string): Promise<T> {
+	private async get<T>(url: string, apiKey: string | undefined): Promise<T> {
 		// Index reads are anon — omit the header entirely when no key is set, so
 		// an empty key reads anonymously rather than 401-ing as an invalid bearer.
 		const headers: Record<string, string> = apiKey
@@ -367,12 +367,13 @@ export class IndexHttpClient {
 	}
 }
 
-/** Decoder + subgraph processor client. One env contract, empty-key fallback. */
+/** Decoder + subgraph processor client. One env contract; omits bearer when no key. */
 export function createInternalIndexHttpClient(): IndexHttpClient {
 	const baseUrl = defaultInternalIndexBaseUrl();
 	return new IndexHttpClient({
 		indexBaseUrl: baseUrl,
 		streamsBaseUrl: baseUrl,
+		indexApiKey: defaultInternalIndexApiKey(),
 		streamsApiKey: defaultInternalStreamsApiKey(),
 	});
 }

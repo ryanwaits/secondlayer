@@ -1,8 +1,5 @@
 import { AuthorizationError } from "@secondlayer/shared/errors";
-import {
-	INTERNAL_STREAMS_TENANT_ID,
-	defaultInternalStreamsApiKey,
-} from "@secondlayer/shared/index-internal-auth";
+import { INTERNAL_STREAMS_TENANT_ID } from "@secondlayer/shared/index-internal-auth";
 import type { MiddlewareHandler } from "hono";
 import { createApiKeyTokenStore } from "../auth/api-key-store.ts";
 import {
@@ -40,11 +37,13 @@ export type StreamsTokenStore = {
 	): StreamsTenant | undefined | Promise<StreamsTenant | undefined>;
 };
 
-// Static seed tokens cover internal callers (the L2 decoder uses Streams
-// to feed its own indexer), public-good evaluation, post-deploy smoke, and
+// Static seed tokens cover public-good evaluation, post-deploy smoke, and
 // test fixtures. Production traffic from real customers resolves against
 // api_keys via createApiKeyTokenStore (api_keys.tier). The `_status_public` token
 // is publicly known and intentionally evaluated as the free tier.
+// The decoder's first-party key is seeded below only when
+// STREAMS_INTERNAL_API_KEY is non-empty — INSTANCE_TOKEN stays on the
+// instanceTokenMatches path (do not double-seed).
 export const DEFAULT_STREAMS_TOKENS: StreamsTokenStore = new Map([
 	[
 		"sk-sl_streams_free_test",
@@ -72,14 +71,17 @@ export const DEFAULT_STREAMS_TOKENS: StreamsTokenStore = new Map([
 	],
 ]);
 
-(DEFAULT_STREAMS_TOKENS as Map<string, StreamsTenant>).set(
-	defaultInternalStreamsApiKey(),
-	{
-		tenant_id: INTERNAL_STREAMS_TENANT_ID,
-		tier: "internal",
-		scopes: [STREAMS_READ_SCOPE],
-	},
-);
+const streamsInternalKey = process.env.STREAMS_INTERNAL_API_KEY?.trim();
+if (streamsInternalKey) {
+	(DEFAULT_STREAMS_TOKENS as Map<string, StreamsTenant>).set(
+		streamsInternalKey,
+		{
+			tenant_id: INTERNAL_STREAMS_TENANT_ID,
+			tier: "internal",
+			scopes: [STREAMS_READ_SCOPE],
+		},
+	);
+}
 
 export const DEFAULT_STREAMS_TOKEN_STORE: StreamsTokenStore =
 	createApiKeyTokenStore({

@@ -5,6 +5,7 @@ import { Hono } from "hono";
 import { type Kysely, sql } from "kysely";
 import { errorHandler } from "../../packages/api/src/middleware/error.ts";
 import { createStreamsRouter } from "../../packages/api/src/routes/streams.ts";
+import { STREAMS_READ_SCOPE } from "../../packages/api/src/streams/auth.ts";
 import { readCanonicalStreamsEvents } from "../../packages/indexer/src/streams-events.ts";
 import type { Database } from "../../packages/shared/src/db/types.ts";
 import {
@@ -20,6 +21,7 @@ const SERVICE_NAME = "decoder";
 const EXPECTED_EVENT_TYPE = "ft_transfer";
 const DECODER_NAME = "decode.ft_transfer.v1";
 const SMOKE_TIMEOUT_MS = 95_000;
+const SMOKE_STREAMS_KEY = "sk-sl_streams_decode_internal_test";
 
 describe("continuous service smoke: decoder", () => {
 	test(
@@ -54,7 +56,7 @@ describe("continuous service smoke: decoder", () => {
 							env: {
 								DATABASE_URL: smokeDb.url,
 								STREAMS_API_URL: `http://127.0.0.1:${apiPort}`,
-								STREAMS_INTERNAL_API_KEY: "sk-sl_streams_decode_internal",
+								STREAMS_INTERNAL_API_KEY: SMOKE_STREAMS_KEY,
 								PORT: String(servicePort),
 								DECODER_BATCH_SIZE: "1",
 								DECODER_EMPTY_BACKOFF_MS: "250",
@@ -91,6 +93,16 @@ function createStreamsApi(db: Kysely<Database>): Hono {
 	app.route(
 		"/v1/streams",
 		createStreamsRouter({
+			tokens: new Map([
+				[
+					SMOKE_STREAMS_KEY,
+					{
+						tenant_id: "tenant_streams_decode_internal",
+						tier: "internal",
+						scopes: [STREAMS_READ_SCOPE],
+					},
+				],
+			]),
 			getTip: async () => {
 				const tip = await db
 					.selectFrom("blocks")

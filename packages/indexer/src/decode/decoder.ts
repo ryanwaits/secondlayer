@@ -26,7 +26,7 @@ import {
 	failureFromFaults,
 	planGenericDecoderReceipts,
 } from "./generic-commit.ts";
-import { defaultInternalStreamsApiKey } from "./internal-auth.ts";
+import { requireInternalStreamsApiKey } from "./internal-auth.ts";
 import {
 	FT_BURN_DECODER_NAME,
 	FT_MINT_DECODER_NAME,
@@ -299,6 +299,6 @@ export const consumePrintDecodedEvents = (opts?: DecodedEventConsumeOpts) =>
 function createInternalStreamsClient(): StreamsClient {
 	return createStreamsClient({
 		baseUrl: process.env.STREAMS_API_URL,
-		apiKey: defaultInternalStreamsApiKey(),
+		apiKey: requireInternalStreamsApiKey(),
 	});
 }

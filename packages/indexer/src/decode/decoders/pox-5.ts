@@ -18,7 +18,7 @@ import {
 	failureFromFaults,
 	planGenericDecoderReceipts,
 } from "../generic-commit.ts";
-import { defaultInternalStreamsApiKey } from "../internal-auth.ts";
+import { requireInternalStreamsApiKey } from "../internal-auth.ts";
 import {
 	POX5_DECODER_NAME,
 	type Pox5EventRow,
@@ -171,7 +171,7 @@ export async function consumePox5DecodedEvents(
 function createInternalStreamsClient(): StreamsClient {
 	return createStreamsClient({
 		baseUrl: process.env.STREAMS_API_URL,
-		apiKey: defaultInternalStreamsApiKey(),
+		apiKey: requireInternalStreamsApiKey(),
 	});
 }
 

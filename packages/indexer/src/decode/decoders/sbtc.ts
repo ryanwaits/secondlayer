@@ -19,7 +19,7 @@ import {
 	failureFromFaults,
 	planGenericDecoderReceipts,
 } from "../generic-commit.ts";
-import { defaultInternalStreamsApiKey } from "../internal-auth.ts";
+import { requireInternalStreamsApiKey } from "../internal-auth.ts";
 import {
 	SBTC_DECODER_NAME,
 	SBTC_TOKEN_DECODER_NAME,
@@ -315,7 +315,7 @@ export async function consumeSbtcTokenDecodedEvents(
 function createInternalStreamsClient(): StreamsClient {
 	return createStreamsClient({
 		baseUrl: process.env.STREAMS_API_URL,
-		apiKey: defaultInternalStreamsApiKey(),
+		apiKey: requireInternalStreamsApiKey(),
 	});
 }
 

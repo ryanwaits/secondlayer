@@ -77,13 +77,17 @@ test("gives up after MAX_ATTEMPTS of persistent transport failure", async () => 
 	expect(calls).toBe(4);
 });
 
-test("createInternalIndexHttpClient sends the seeded Streams key when env is empty", async () => {
+test("createInternalIndexHttpClient omits bearer when internal env and INSTANCE_TOKEN are empty", async () => {
 	const saved = {
 		STREAMS_INTERNAL_API_KEY: process.env.STREAMS_INTERNAL_API_KEY,
+		INDEX_INTERNAL_API_KEY: process.env.INDEX_INTERNAL_API_KEY,
+		INSTANCE_TOKEN: process.env.INSTANCE_TOKEN,
 		SUBGRAPH_INDEX_API_URL: process.env.SUBGRAPH_INDEX_API_URL,
 		STREAMS_API_URL: process.env.STREAMS_API_URL,
 	};
 	process.env.STREAMS_INTERNAL_API_KEY = "";
+	process.env.INDEX_INTERNAL_API_KEY = "";
+	process.env.INSTANCE_TOKEN = "";
 	process.env.SUBGRAPH_INDEX_API_URL = "";
 	process.env.STREAMS_API_URL = "";
 
@@ -100,22 +104,47 @@ test("createInternalIndexHttpClient sends the seeded Streams key when env is emp
 	try {
 		await createInternalIndexHttpClient().getStreamsTip();
 		expect(captured.url).toBe("http://api:3800/v1/streams/tip");
-		expect(captured.auth).toBe("Bearer sk-sl_streams_decode_internal");
+		expect(captured.auth).toBeNull();
 	} finally {
-		if (saved.STREAMS_INTERNAL_API_KEY === undefined) {
-			delete process.env.STREAMS_INTERNAL_API_KEY;
-		} else {
-			process.env.STREAMS_INTERNAL_API_KEY = saved.STREAMS_INTERNAL_API_KEY;
-		}
-		if (saved.SUBGRAPH_INDEX_API_URL === undefined) {
-			delete process.env.SUBGRAPH_INDEX_API_URL;
-		} else {
-			process.env.SUBGRAPH_INDEX_API_URL = saved.SUBGRAPH_INDEX_API_URL;
-		}
-		if (saved.STREAMS_API_URL === undefined) {
-			delete process.env.STREAMS_API_URL;
-		} else {
-			process.env.STREAMS_API_URL = saved.STREAMS_API_URL;
-		}
+		restoreEnv(saved);
 	}
 });
+
+test("createInternalIndexHttpClient sends INSTANCE_TOKEN when STREAMS_INTERNAL_API_KEY is empty", async () => {
+	const saved = {
+		STREAMS_INTERNAL_API_KEY: process.env.STREAMS_INTERNAL_API_KEY,
+		INDEX_INTERNAL_API_KEY: process.env.INDEX_INTERNAL_API_KEY,
+		INSTANCE_TOKEN: process.env.INSTANCE_TOKEN,
+		SUBGRAPH_INDEX_API_URL: process.env.SUBGRAPH_INDEX_API_URL,
+		STREAMS_API_URL: process.env.STREAMS_API_URL,
+	};
+	process.env.STREAMS_INTERNAL_API_KEY = "";
+	process.env.INDEX_INTERNAL_API_KEY = "";
+	process.env.INSTANCE_TOKEN = "instance-token";
+	process.env.SUBGRAPH_INDEX_API_URL = "";
+	process.env.STREAMS_API_URL = "";
+
+	const captured = { auth: null as string | null, url: "" };
+	globalThis.fetch = (async (
+		input: string | URL | Request,
+		init?: RequestInit,
+	) => {
+		captured.url = String(input);
+		captured.auth = new Headers(init?.headers).get("authorization");
+		return okTip();
+	}) as unknown as typeof fetch;
+
+	try {
+		await createInternalIndexHttpClient().getStreamsTip();
+		expect(captured.auth).toBe("Bearer instance-token");
+	} finally {
+		restoreEnv(saved);
+	}
+});
+
+function restoreEnv(saved: Record<string, string | undefined>): void {
+	for (const [key, value] of Object.entries(saved)) {
+		if (value === undefined) delete process.env[key];
+		else process.env[key] = value;
+	}
+}
