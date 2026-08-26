@@ -66,8 +66,10 @@ function compareHeightSequence(
 	const ah = a.block_height as number;
 	const bh = b.block_height as number;
 	if (ah !== bh) return ah - bh;
-	if (a.sequence < b.sequence) return -1;
-	if (a.sequence > b.sequence) return 1;
+	const as = BigInt(a.sequence);
+	const bs = BigInt(b.sequence);
+	if (as < bs) return -1;
+	if (as > bs) return 1;
 	return 0;
 }
 

@@ -125,6 +125,32 @@ describe("observer export", () => {
 		expect(afterHash.map((r) => r.block_height)).toEqual([6, 7]);
 	});
 
+	test("same-height rows order by numeric sequence", () => {
+		// Insert out of string order so "10" < "9" would fail if compared as text.
+		const rows = [
+			row({
+				sequence: "10",
+				bodyText: '{"block_height":42,"index_block_hash":"0x10"}',
+				block_height: 42,
+			}),
+			row({
+				sequence: "9",
+				bodyText: '{"block_height":42,"index_block_hash":"0x9"}',
+				block_height: 42,
+			}),
+		];
+
+		const listed = filterObserverExportRows(rows, { limit: 10 });
+		expect(listed.map((r) => r.sequence)).toEqual(["9", "10"]);
+
+		const afterNine = filterObserverExportRows(rows, {
+			afterHeight: 42,
+			afterIndexBlockHash: "0x9",
+			limit: 10,
+		});
+		expect(afterNine.map((r) => r.sequence)).toEqual(["10"]);
+	});
+
 	test("skips status != processed", () => {
 		const rows = [
 			row({
