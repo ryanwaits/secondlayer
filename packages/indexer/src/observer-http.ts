@@ -1,17 +1,26 @@
 import { timingSafeEqual } from "node:crypto";
 import type {
 	ListObserverMessagesOpts,
+	ObserverTip,
 	SbaObserverMessage,
 } from "./observer-export.ts";
 import type { ObserverPath } from "./observer-journal.ts";
 
 /** Internal-only route. Not a public /v1 envelope. */
 export const OBSERVER_HTTP_EXPORT_PATH = "/internal/observer-events";
+export const OBSERVER_HTTP_TIP_PATH = `${OBSERVER_HTTP_EXPORT_PATH}/tip`;
 
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
 
 export type HandleObserverEventsDeps = {
 	list: (opts: ListObserverMessagesOpts) => Promise<SbaObserverMessage[]>;
+	network: string;
+	/** If non-null, require Authorization: Bearer with exact match. */
+	token: string | null;
+};
+
+export type HandleObserverTipDeps = {
+	tip: (opts: { network: string }) => Promise<ObserverTip>;
 	network: string;
 	/** If non-null, require Authorization: Bearer with exact match. */
 	token: string | null;
@@ -74,6 +83,18 @@ function parseBearer(req: Request): string {
 	return header.slice("Bearer ".length);
 }
 
+function unauthorizedIfNeeded(
+	req: Request,
+	token: string | null,
+): Response | null {
+	if (token === null) return null;
+	const provided = parseBearer(req);
+	if (!bearerMatches(provided, token)) {
+		return Response.json({ error: "Unauthorized" }, { status: 401 });
+	}
+	return null;
+}
+
 function nextCursor(
 	events: readonly SbaObserverMessage[],
 ): ObserverEventsNext | null {
@@ -86,16 +107,23 @@ function nextCursor(
 	};
 }
 
+export async function handleObserverTip(
+	req: Request,
+	deps: HandleObserverTipDeps,
+): Promise<Response> {
+	const denied = unauthorizedIfNeeded(req, deps.token);
+	if (denied) return denied;
+
+	const tip = await deps.tip({ network: deps.network });
+	return Response.json(tip);
+}
+
 export async function handleObserverEvents(
 	req: Request,
 	deps: HandleObserverEventsDeps,
 ): Promise<Response> {
-	if (deps.token !== null) {
-		const provided = parseBearer(req);
-		if (!bearerMatches(provided, deps.token)) {
-			return Response.json({ error: "Unauthorized" }, { status: 401 });
-		}
-	}
+	const denied = unauthorizedIfNeeded(req, deps.token);
+	if (denied) return denied;
 
 	const url = new URL(req.url);
 

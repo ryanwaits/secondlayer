@@ -120,6 +120,41 @@ export function filterObserverExportRows(
 	return filtered.slice(0, opts.limit);
 }
 
+export type ObserverTip = {
+	block_height: number;
+	index_block_hash: string | null;
+};
+
+/** Highest processed `/new_block` height. Empty journal → height 0. */
+export async function getObserverTip(
+	db: Kysely<Database>,
+	opts: { network: string },
+): Promise<ObserverTip> {
+	const row = await db
+		.selectFrom("observer_journal")
+		.select(["raw_body", "block_height"])
+		.where("network", "=", opts.network)
+		.where("status", "=", "processed")
+		.where("path", "=", "/new_block")
+		.where("block_height", "is not", null)
+		.orderBy("block_height", "desc")
+		.orderBy("sequence", "desc")
+		.limit(1)
+		.executeTakeFirst();
+
+	if (!row || row.block_height == null) {
+		return { block_height: 0, index_block_hash: null };
+	}
+
+	const payload = parseObserverBody<Record<string, unknown>>(row.raw_body);
+	const indexBlockHash = payload.index_block_hash;
+	return {
+		block_height: row.block_height,
+		index_block_hash:
+			typeof indexBlockHash === "string" ? indexBlockHash : null,
+	};
+}
+
 export async function listObserverMessages(
 	db: Kysely<Database>,
 	opts: ListObserverMessagesOpts,

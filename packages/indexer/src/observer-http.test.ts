@@ -6,7 +6,9 @@ import {
 } from "./observer-export.ts";
 import {
 	OBSERVER_HTTP_EXPORT_PATH,
+	OBSERVER_HTTP_TIP_PATH,
 	handleObserverEvents,
+	handleObserverTip,
 	resolveObserverHttpBindHost,
 	shouldRegisterObserverHttpExport,
 } from "./observer-http.ts";
@@ -242,5 +244,45 @@ describe("handleObserverEvents", () => {
 		expect(res.status).toBe(400);
 		const body = (await res.json()) as { error: string };
 		expect(body.error).toBe("invalid after_height");
+	});
+});
+
+describe("handleObserverTip", () => {
+	test("empty tip → block_height 0, index_block_hash null", async () => {
+		const res = await handleObserverTip(req(OBSERVER_HTTP_TIP_PATH), {
+			tip: async () => ({ block_height: 0, index_block_hash: null }),
+			network: "mainnet",
+			token: null,
+		});
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({
+			block_height: 0,
+			index_block_hash: null,
+		});
+	});
+
+	test("tip from injected dep returning a message", async () => {
+		const res = await handleObserverTip(req(OBSERVER_HTTP_TIP_PATH), {
+			tip: async () => ({
+				block_height: 101,
+				index_block_hash: "0x222bbb",
+			}),
+			network: "mainnet",
+			token: null,
+		});
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({
+			block_height: 101,
+			index_block_hash: "0x222bbb",
+		});
+	});
+
+	test("token set without Bearer → 401", async () => {
+		const res = await handleObserverTip(req(OBSERVER_HTTP_TIP_PATH), {
+			tip: async () => ({ block_height: 1, index_block_hash: "0x1" }),
+			network: "mainnet",
+			token: "secret",
+		});
+		expect(res.status).toBe(401);
 	});
 });

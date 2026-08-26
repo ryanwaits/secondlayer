@@ -60,3 +60,21 @@ re-suffixing event `type`, the `stx_lock` field remap, and decoding nft/print
 values from the canonical hex (`raw_value` / `function_args_hex`) rather than the
 node's verbose serde-tagged form. Validated end-to-end by the golden-diff over
 real prod blocks.
+
+## Experimental: observer-http
+
+Experimental. Not the production default. Default remains Postgres.
+
+`SUBGRAPH_SOURCE=observer-http` pages the indexer's internal observer journal
+HTTP (`/internal/observer-events`) for raw `/new_block` bodies and maps them to
+`BlockData`. It does not use `/v1/streams`.
+
+```
+SUBGRAPH_SOURCE=observer-http
+OBSERVER_HTTP_URL=http://127.0.0.1:3700
+# optional, when the indexer export requires Bearer auth:
+OBSERVER_HTTP_EXPORT_TOKEN=<token>
+```
+
+Requires the indexer with `OBSERVER_HTTP_EXPORT=1`. The same wire a future Labs
+HTTP can sit on; the mapper stays in this package.

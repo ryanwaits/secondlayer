@@ -35,9 +35,10 @@ import {
 	removeMempoolTxs,
 	startMempoolSweep,
 } from "./mempool.ts";
-import { listObserverMessages } from "./observer-export.ts";
+import { getObserverTip, listObserverMessages } from "./observer-export.ts";
 import {
 	handleObserverEvents,
+	handleObserverTip,
 	resolveObserverHttpBindHost,
 	shouldRegisterObserverHttpExport,
 } from "./observer-http.ts";
@@ -261,6 +262,14 @@ const observerExportRoute = observerExportEnabled
 				GET: (req: Request) =>
 					handleObserverEvents(req, {
 						list: (opts) => listObserverMessages(getSourceDb(), opts),
+						network: NETWORK,
+						token: observerExportToken || null,
+					}),
+			},
+			"/internal/observer-events/tip": {
+				GET: (req: Request) =>
+					handleObserverTip(req, {
+						tip: () => getObserverTip(getSourceDb(), { network: NETWORK }),
 						network: NETWORK,
 						token: observerExportToken || null,
 					}),

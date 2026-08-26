@@ -9,6 +9,7 @@ import {
 import { logger } from "@secondlayer/shared/logger";
 import type { SubgraphDefinition, SubgraphFilter } from "../types.ts";
 import { type BlockData, loadBlockRange } from "./batch-loader.ts";
+import { ObserverHttpBlockSource } from "./observer-http-source.ts";
 import {
 	reconstructBlock,
 	reconstructEvent,
@@ -352,10 +353,23 @@ export function buildHttpClient(): IndexHttpClient {
 
 /**
  * Resolve the block source for a subgraph. `SUBGRAPH_SOURCE=streams-index`
- * opts eligible subgraphs onto the public Streams clock + Index data; everything
- * else (and the default) stays on the Postgres tap.
+ * opts eligible subgraphs onto the public Streams clock + Index data;
+ * `SUBGRAPH_SOURCE=observer-http` pages internal observer-events (experimental).
+ * Default stays on the Postgres tap.
  */
 export function resolveBlockSource(subgraph?: SubgraphDefinition): BlockSource {
+	if (process.env.SUBGRAPH_SOURCE === "observer-http") {
+		const baseUrl = process.env.OBSERVER_HTTP_URL;
+		if (!baseUrl) {
+			throw new Error(
+				"SUBGRAPH_SOURCE=observer-http requires OBSERVER_HTTP_URL",
+			);
+		}
+		return new ObserverHttpBlockSource({
+			baseUrl,
+			token: process.env.OBSERVER_HTTP_EXPORT_TOKEN || null,
+		});
+	}
 	if (
 		process.env.SUBGRAPH_SOURCE === "streams-index" &&
 		subgraph &&
