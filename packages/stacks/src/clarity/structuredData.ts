@@ -5,7 +5,7 @@ import { serializeCVBytes } from "./serialize.ts";
 import type { ClarityValue, TupleCV } from "./types.ts";
 
 /** asciiToBytes("SIP018") */
-export const SIP018_PREFIX = new Uint8Array([
+export const SIP018_PREFIX: Uint8Array = new Uint8Array([
 	0x53, 0x49, 0x50, 0x30, 0x31, 0x38,
 ]);
 

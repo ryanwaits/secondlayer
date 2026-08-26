@@ -7,6 +7,7 @@ import type {
 	FungibleComparator,
 	NftPostCondition,
 	NonFungibleComparator,
+	PostCondition,
 	PoxPostCondition,
 	StakingPostCondition,
 	StxPostCondition,
@@ -162,5 +163,5 @@ export const Pc = {
 	origin() {
 		return new PartialPcWithPrincipal("origin");
 	},
-	fromHex,
+	fromHex: (hex: string): PostCondition => fromHex(hex),
 };
