@@ -16,6 +16,8 @@ SIP-018 structured-data hashing matches the spec (`hashStructuredData` / `signSt
 
 pox-5 adds `Pox5ErrorCode` (parse `(err u7)` to a name) and `getPoxInfo()`, which reads `sbtcContract` from `/v2/pox` so you do not hardcode the token principal.
 
+`getDataVar({ contract, variableName })` reads a private data-var off the node (`GET /v2/data_var`) without a full `callReadOnly`.
+
 ## CLI — August 2026
 
 ### One command replaces the five-command setup

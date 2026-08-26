@@ -1,5 +1,18 @@
 # @secondlayer/mcp
 
+## 7.1.0
+
+### Minor Changes
+
+- a2ab70c: MCP account tools register only against the hosted archive. Docs and examples lead with INSTANCE_TOKEN.
+
+### Patch Changes
+
+- Updated dependencies [be9347d]
+- Updated dependencies [6aa8b40]
+  - @secondlayer/shared@11.1.0
+  - @secondlayer/stacks@4.2.0
+
 ## 7.0.1
 
 ### Patch Changes

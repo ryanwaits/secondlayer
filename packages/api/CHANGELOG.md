@@ -1,5 +1,21 @@
 # @secondlayer/api
 
+## 1.30.0
+
+### Minor Changes
+
+- 9442950: API-key callers mint account keys only; requesting streams/index is rejected.
+- be9347d: Internal Streams/Index credentials are env-only; OSS uses the instance token. Prefix `sl-int_` if you generate an archive key.
+
+### Patch Changes
+
+- Updated dependencies [be9347d]
+- Updated dependencies [6aa8b40]
+  - @secondlayer/shared@11.1.0
+  - @secondlayer/indexer@1.14.0
+  - @secondlayer/stacks@4.2.0
+  - @secondlayer/platform@0.2.3
+
 ## 1.29.3
 
 ### Patch Changes

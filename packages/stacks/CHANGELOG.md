@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 4.2.0
+
+### Minor Changes
+
+- 6aa8b40: Add getDataVar node read for private contract data-vars via GET /v2/data_var.
+
 ## 4.1.0
 
 ### Minor Changes

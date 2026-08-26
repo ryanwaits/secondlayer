@@ -1,5 +1,16 @@
 # @secondlayer/shared
 
+## 11.1.0
+
+### Minor Changes
+
+- be9347d: Internal Streams/Index credentials are env-only; OSS uses the instance token. Prefix `sl-int_` if you generate an archive key.
+
+### Patch Changes
+
+- Updated dependencies [6aa8b40]
+  - @secondlayer/stacks@4.2.0
+
 ## 11.0.1
 
 ### Patch Changes
