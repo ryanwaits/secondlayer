@@ -15,7 +15,7 @@ bun add @secondlayer/mcp
 
 ## Auth
 
-Most reads are public — `index_*` and `contracts_find` work with no key. Subgraph tools need an `SL_API_KEY`; separately, **public** subgraphs are anon-readable over HTTP at `GET /v1/subgraphs/<name>/<table>` (`{ rows, next_cursor, tip }` cursor envelope), while private ones need the owning account's key (anon → 404). `streams_dumps` needs no key — the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. Every other `streams_*` tool is key-mandatory (keyless → 401). Writes (deploy, reindex, delete, subscriptions) need a key: set `SL_API_KEY` to the `INSTANCE_TOKEN` that `secondlayer init` wrote for your instance. Read `secondlayer://context` first — it reports auth state and read-auth tiers.
+Most reads are public: `index_*` and `contracts_find` work with no key. Subgraph tools need an `INSTANCE_TOKEN` past loopback; separately, **public** subgraphs are anon-readable over HTTP at `GET /v1/subgraphs/<name>/<table>` (`{ rows, next_cursor, tip }` cursor envelope), while private ones need the instance token (anon → 404). `streams_dumps` needs no key: the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. Every other `streams_*` tool is key-mandatory (keyless → 401). Writes (deploy, reindex, delete, subscriptions) need a key: set `INSTANCE_TOKEN` from `secondlayer init`. `SL_API_KEY` is a legacy alias of `INSTANCE_TOKEN`. Read `secondlayer://context` first: it reports auth state and read-auth tiers.
 
 ## Quick Start — Stdio (IDE)
 
@@ -28,7 +28,8 @@ Add to your Claude Desktop or Cursor config:
       "command": "bunx",
       "args": ["-p", "@secondlayer/mcp", "secondlayer-mcp"],
       "env": {
-        "SL_API_KEY": "sk-sl_..."
+        "SL_API_URL": "http://127.0.0.1:3800",
+        "INSTANCE_TOKEN": "..."
       }
     }
   }
@@ -38,7 +39,8 @@ Add to your Claude Desktop or Cursor config:
 ## Quick Start — HTTP (Remote)
 
 ```bash
-export SL_API_KEY=sk-sl_...
+export SL_API_URL=http://127.0.0.1:3800
+export INSTANCE_TOKEN=<from secondlayer init>
 export SECONDLAYER_MCP_SECRET=your-secret
 bunx -p @secondlayer/mcp secondlayer-mcp-http
 # Listening on port 3100
@@ -48,8 +50,9 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `SL_API_KEY` | Writes only | — | The `INSTANCE_TOKEN` from `secondlayer init`. Required for write tools; reads are public. |
-| `SECONDLAYER_API_URL` | No | `https://api.secondlayer.tools` | Base API URL. Point at a local instance for dev. |
+| `INSTANCE_TOKEN` | Writes only | — | From `secondlayer init`. Required for write tools; reads are public. `SL_API_KEY` is a legacy alias. |
+| `SL_API_URL` | No | `http://127.0.0.1:3800` | Instance API. |
+| `SECONDLAYER_API_URL` | No | — | Overrides `SL_API_URL`. |
 | `SECONDLAYER_MCP_PORT` | No | `3100` | HTTP transport port. |
 | `SECONDLAYER_MCP_SECRET` | No | — | Bearer token for HTTP auth. Disabled if unset. |
 
@@ -62,7 +65,7 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 | **Subscriptions** (13) | `subscriptions_create`, `subscriptions_list`, `subscriptions_get`, `subscriptions_update`, `subscriptions_delete`, `subscriptions_test`, `subscriptions_pause`, `subscriptions_resume`, `subscriptions_rotate_secret`, `subscriptions_deliveries`, `subscriptions_dead`, `subscriptions_requeue`, `subscriptions_replay` |
 | **Streams** (7) | `streams_tip`, `streams_events`, `streams_events_by_tx`, `streams_block_events`, `streams_canonical`, `streams_reorgs`, `streams_dumps` |
 | **Contracts** (2) | `contracts_find`, `contracts_get_abi` |
-| **Account** (2) | `account_whoami`, `account_create_key` |
+| **Account** (2) | `account_whoami`, `account_create_key` (only when pointed at `https://api.secondlayer.tools`) |
 
 Verify after mutating: `subgraphs_operations` for deploy/reindex/backfill/stop,
 `subscriptions_deliveries` for create/test/replay.
@@ -72,8 +75,9 @@ credits/caps, live Streams SSE) are REST-only: see the OpenAPI spec at the API
 host. Following the chain over MCP means polling `streams_events` with a cursor.
 
 Point the server at your instance with `SL_API_URL` (default
-`http://127.0.0.1:3800`). Writes and account tools use `INSTANCE_TOKEN` from
-`secondlayer init`.
+`http://127.0.0.1:3800`). Writes use `INSTANCE_TOKEN` from
+`secondlayer init`. `account_*` tools appear only when the server is pointed at
+`https://api.secondlayer.tools`.
 
 ### `subscriptions_create` kinds
 

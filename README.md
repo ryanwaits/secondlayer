@@ -66,8 +66,8 @@ Pages are `_id`-keyset: pass `?cursor=<next_cursor>` to resume, `_order=asc|desc
 for direction.
 
 **MCP** — `bunx -p @secondlayer/mcp secondlayer-mcp` (default local API).
-Set `SL_API_KEY` to the `INSTANCE_TOKEN` from `secondlayer init` for writes.
-enable writes (deploy/manage). See [MCP README](packages/mcp/README.md).
+Set `INSTANCE_TOKEN` from `secondlayer init` for writes.
+See [MCP README](packages/mcp/README.md).
 
 ## Packages
 

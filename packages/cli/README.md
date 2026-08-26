@@ -14,12 +14,12 @@ secondlayer --version
 
 Default API is `http://127.0.0.1:3800`. Override with `SL_API_URL`.
 
-Writes against a published bind use `INSTANCE_TOKEN` from `secondlayer init` as
-`SL_API_KEY`. Loopback reads need no token.
+Writes against a published bind use `INSTANCE_TOKEN` from `secondlayer init`.
+Loopback reads need no token. `SL_API_KEY` is a legacy alias of `INSTANCE_TOKEN`.
 
 ```bash
 export SL_API_URL=http://127.0.0.1:3800
-export SL_API_KEY=<INSTANCE_TOKEN>
+export INSTANCE_TOKEN=<from secondlayer init>
 ```
 
 ## Quickstart
@@ -126,7 +126,7 @@ points at.
 | Command | What it does |
 |---|---|
 | `secondlayer index ft-transfers` / `nft-transfers` / `events --event-type <t>` / `contract-calls` | Decoded Index layer. Anonymous reads OK |
-| `secondlayer streams tip` / `events` / `consume` / `reorgs` / `canonical <h>` / `dumps` | Raw chain event firehose. **Requires `SL_API_KEY`** |
+| `secondlayer streams tip` / `events` / `consume` / `reorgs` / `canonical <h>` / `dumps` | Raw chain event firehose. **Requires `INSTANCE_TOKEN` past loopback** |
 
 Reads emit JSON to stdout (`--json` accepted across all read commands); `-o/--output` is a file path, not a format.
 
@@ -168,7 +168,8 @@ operates on both kinds.
 
 | Var | Purpose |
 |---|---|
-| `SL_API_KEY` | `INSTANCE_TOKEN` from `secondlayer init` for writes. Loopback reads need no token |
+| `INSTANCE_TOKEN` | From `secondlayer init` for writes. Loopback reads need no token |
+| `SL_API_KEY` | Legacy alias of `INSTANCE_TOKEN` |
 | `SL_API_URL` | Instance API. Default `http://127.0.0.1:3800` |
 | `SL_PLATFORM_API_URL` | Alias of `SL_API_URL` |
 | `STACKS_NETWORK` | Default network (also via `--network <local\|testnet\|mainnet>`) |

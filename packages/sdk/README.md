@@ -163,7 +163,6 @@ with `verifyDumpsManifest: false`.
 
 ```typescript
 const streams = createStreamsClient({
-  apiKey: process.env.SL_API_KEY!,
   dumpsBaseUrl: process.env.SL_STREAMS_DUMPS_URL!,
 });
 
@@ -338,7 +337,7 @@ Exported types: `TransactionProof`, `TransactionProofVerifyResult`, `RewardSet`.
 
 Deploy and query app-specific tables.
 
-Subgraphs and subscriptions live on the platform API alongside Streams and Index. Deploying and managing them needs your `sk-sl_` key — no extra setup, no tenant URL.
+Subgraphs and subscriptions live on the instance API alongside Streams and Index. Deploying and managing them needs your `INSTANCE_TOKEN` when the API is bound beyond loopback.
 
 ```typescript
 // List
@@ -435,7 +434,7 @@ to a SIP/trait (e.g. `"sip-010"`); amounts are non-negative integer strings
 ```typescript
 import { SecondLayer, trigger } from "@secondlayer/sdk";
 
-const sl = new SecondLayer({ apiKey: "sk-sl_..." });
+const sl = new SecondLayer({ apiKey: process.env.INSTANCE_TOKEN });
 
 const { subscription, signingSecret } = await sl.subscriptions.create({
   name: "amm-swaps",

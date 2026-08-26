@@ -38,7 +38,10 @@ program
 	.description("Secondlayer CLI — run a Stacks index on your own hardware")
 	.version(version)
 	.option("--network <network>", "Override network (local, testnet, mainnet)")
-	.option("--api-key <key>", "API credential (overrides INSTANCE_TOKEN)")
+	.option(
+		"--api-key <key>",
+		"Instance or archive credential (overrides INSTANCE_TOKEN)",
+	)
 	.option("--api-url <url>", "API endpoint (overrides SL_API_URL)")
 	.showSuggestionAfterError(true)
 	.showHelpAfterError("(run `secondlayer --help` to see available commands)");

@@ -4,6 +4,8 @@ import { registerAccountTools } from "./account.ts";
 
 interface RegisteredTool {
 	name: string;
+	description: string;
+	schema: Record<string, unknown>;
 	handler: (args: Record<string, unknown>) => Promise<{
 		content: Array<{ type: "text"; text: string }>;
 		isError?: boolean;
@@ -14,11 +16,11 @@ function fakeServer(tools: RegisteredTool[]): McpServer {
 	return {
 		tool: (
 			name: string,
-			_description: string,
-			_schema: Record<string, unknown>,
+			description: string,
+			schema: Record<string, unknown>,
 			handler: RegisteredTool["handler"],
 		) => {
-			tools.push({ name, handler });
+			tools.push({ name, description, schema, handler });
 		},
 	} as unknown as McpServer;
 }
@@ -58,5 +60,27 @@ describe("account MCP tools", () => {
 		expect(requests[0]?.method).toBe("GET");
 		expect(requests[0]?.url).toContain("/api/accounts/me");
 		expect(res?.content[0]?.text).toContain("a@b.com");
+	});
+
+	it("create_key POSTs /api/keys without a product field", async () => {
+		const tools: RegisteredTool[] = [];
+		registerAccountTools(fakeServer(tools));
+		const create = tools.find((t) => t.name === "account_create_key");
+		expect(create?.schema.product).toBeUndefined();
+		expect(create?.description).toContain("api.secondlayer.tools");
+
+		const bodies: unknown[] = [];
+		globalThis.fetch = (async (input, init) => {
+			const request =
+				input instanceof Request ? input : new Request(input.toString(), init);
+			bodies.push(JSON.parse((await request.text()) || "{}"));
+			return new Response(JSON.stringify({ key: "sk-sl_once" }), {
+				status: 200,
+				headers: { "Content-Type": "application/json" },
+			});
+		}) as typeof fetch;
+
+		await create?.handler({ name: "ops" });
+		expect(bodies[0]).toEqual({ name: "ops" });
 	});
 });

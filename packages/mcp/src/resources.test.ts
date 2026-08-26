@@ -265,9 +265,6 @@ const GOLDEN_PATH_TOOLS = [
 	"subscriptions_rotate_secret",
 	"subscriptions_test",
 	"subscriptions_update",
-	// account
-	"account_create_key",
-	"account_whoami",
 ];
 
 describe("capabilities ↔ tool registry", () => {
