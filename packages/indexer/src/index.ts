@@ -35,6 +35,12 @@ import {
 	removeMempoolTxs,
 	startMempoolSweep,
 } from "./mempool.ts";
+import { listObserverMessages } from "./observer-export.ts";
+import {
+	handleObserverEvents,
+	resolveObserverHttpBindHost,
+	shouldRegisterObserverHttpExport,
+} from "./observer-http.ts";
 import {
 	type ObserverPath,
 	type ObserverReceipt,
@@ -67,6 +73,20 @@ const PORT = Number.parseInt(
 const OBSERVER_JOURNAL_ENABLED =
 	process.env.OBSERVER_JOURNAL_ENABLED !== "false";
 const NETWORK = process.env.STACKS_NETWORK || "mainnet";
+
+const observerExportFlag = process.env.OBSERVER_HTTP_EXPORT;
+const observerExportToken = process.env.OBSERVER_HTTP_EXPORT_TOKEN;
+const observerExportBind = resolveObserverHttpBindHost(process.env);
+const observerExportEnabled = shouldRegisterObserverHttpExport({
+	exportFlag: observerExportFlag,
+	token: observerExportToken,
+	bindHost: observerExportBind,
+});
+if (observerExportFlag === "1" && !observerExportEnabled) {
+	logger.error(
+		"OBSERVER_HTTP_EXPORT=1 but bind is public and OBSERVER_HTTP_EXPORT_TOKEN is unset; not registering /internal/observer-events",
+	);
+}
 
 async function captureObserverRequest(
 	req: Request,
@@ -234,6 +254,19 @@ await consumeBootstrapSpool();
 
 assertDbSplit();
 logger.info("Starting indexer service", { port: PORT });
+
+const observerExportRoute = observerExportEnabled
+	? {
+			"/internal/observer-events": {
+				GET: (req: Request) =>
+					handleObserverEvents(req, {
+						list: (opts) => listObserverMessages(getSourceDb(), opts),
+						network: NETWORK,
+						token: observerExportToken || null,
+					}),
+			},
+		}
+	: null;
 
 const server = Bun.serve({
 	port: PORT,
@@ -529,6 +562,10 @@ const server = Bun.serve({
 		"/attachments/new": {
 			POST: () => Response.json({ status: "ok" }),
 		},
+
+		// Cast: conditional key would otherwise be `path?: … | undefined`, which
+		// Bun.serve Routes rejects. Runtime still omits the route when disabled.
+		...((observerExportRoute ?? {}) as Record<string, never>),
 	},
 
 	// Fallback for unmatched routes
