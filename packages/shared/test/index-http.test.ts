@@ -1,5 +1,8 @@
 import { afterEach, expect, test } from "bun:test";
-import { IndexHttpClient } from "../src/index-http.ts";
+import {
+	IndexHttpClient,
+	createInternalIndexHttpClient,
+} from "../src/index-http.ts";
 
 /**
  * Transport-retry behavior of IndexHttpClient — makes a single api-replica
@@ -72,4 +75,47 @@ test("gives up after MAX_ATTEMPTS of persistent transport failure", async () => 
 
 	await expect(client().getStreamsTip()).rejects.toThrow("ECONNREFUSED");
 	expect(calls).toBe(4);
+});
+
+test("createInternalIndexHttpClient sends the seeded Streams key when env is empty", async () => {
+	const saved = {
+		STREAMS_INTERNAL_API_KEY: process.env.STREAMS_INTERNAL_API_KEY,
+		SUBGRAPH_INDEX_API_URL: process.env.SUBGRAPH_INDEX_API_URL,
+		STREAMS_API_URL: process.env.STREAMS_API_URL,
+	};
+	process.env.STREAMS_INTERNAL_API_KEY = "";
+	process.env.SUBGRAPH_INDEX_API_URL = "";
+	process.env.STREAMS_API_URL = "";
+
+	const captured = { auth: null as string | null, url: "" };
+	globalThis.fetch = (async (
+		input: string | URL | Request,
+		init?: RequestInit,
+	) => {
+		captured.url = String(input);
+		captured.auth = new Headers(init?.headers).get("authorization");
+		return okTip();
+	}) as unknown as typeof fetch;
+
+	try {
+		await createInternalIndexHttpClient().getStreamsTip();
+		expect(captured.url).toBe("http://api:3800/v1/streams/tip");
+		expect(captured.auth).toBe("Bearer sk-sl_streams_decode_internal");
+	} finally {
+		if (saved.STREAMS_INTERNAL_API_KEY === undefined) {
+			delete process.env.STREAMS_INTERNAL_API_KEY;
+		} else {
+			process.env.STREAMS_INTERNAL_API_KEY = saved.STREAMS_INTERNAL_API_KEY;
+		}
+		if (saved.SUBGRAPH_INDEX_API_URL === undefined) {
+			delete process.env.SUBGRAPH_INDEX_API_URL;
+		} else {
+			process.env.SUBGRAPH_INDEX_API_URL = saved.SUBGRAPH_INDEX_API_URL;
+		}
+		if (saved.STREAMS_API_URL === undefined) {
+			delete process.env.STREAMS_API_URL;
+		} else {
+			process.env.STREAMS_API_URL = saved.STREAMS_API_URL;
+		}
+	}
 });

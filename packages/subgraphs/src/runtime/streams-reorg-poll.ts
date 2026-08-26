@@ -1,5 +1,8 @@
 import { getErrorMessage } from "@secondlayer/shared";
-import { IndexHttpClient } from "@secondlayer/shared/index-http";
+import {
+	type IndexHttpClient,
+	createInternalIndexHttpClient,
+} from "@secondlayer/shared/index-http";
 import { logger } from "@secondlayer/shared/logger";
 
 const POLL_MS = Number(process.env.SUBGRAPH_REORG_POLL_MS) || 15_000;
@@ -60,16 +63,7 @@ export async function pollReorgsOnce(
  * drive the same idempotent handler, so overlap is harmless.
  */
 export function startStreamsReorgPoll(onReorg: OnReorg): () => void {
-	const baseUrl =
-		process.env.SUBGRAPH_INDEX_API_URL ??
-		process.env.STREAMS_API_URL ??
-		"http://api:3800";
-	const http = new IndexHttpClient({
-		indexBaseUrl: baseUrl,
-		streamsBaseUrl: baseUrl,
-		streamsApiKey:
-			process.env.STREAMS_INTERNAL_API_KEY ?? "sk-sl_streams_decode_internal",
-	});
+	const http = createInternalIndexHttpClient();
 
 	let since = new Date(Date.now() - STARTUP_MARGIN_MS).toISOString();
 	let running = true;

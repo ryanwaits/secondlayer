@@ -1,7 +1,10 @@
 import { getSourceDb } from "@secondlayer/shared/db";
 import type { Pox4FunctionName } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
-import type { IndexHttpClient } from "@secondlayer/shared/index-http";
+import {
+	type IndexHttpClient,
+	createInternalIndexHttpClient,
+} from "@secondlayer/shared/index-http";
 import { logger } from "@secondlayer/shared/logger";
 import { cvToValue, deserializeCV } from "@secondlayer/stacks/clarity";
 import { POX_CONTRACTS } from "@secondlayer/stacks/pox";
@@ -13,7 +16,6 @@ import {
 	failureFromFaults,
 	planGenericDecoderReceipts,
 } from "../generic-commit.ts";
-import { createInternalIndexClient } from "../index-client.ts";
 import {
 	POX4_DECODER_NAME,
 	type Pox4CallRow,
@@ -89,7 +91,7 @@ export type Pox4TxRow = {
 export async function consumePox4DecodedEvents(
 	opts: ConsumePox4Options = {},
 ): Promise<{ cursor: string | null; pages: number; decoded: number }> {
-	const indexClient = opts.indexClient ?? createInternalIndexClient();
+	const indexClient = opts.indexClient ?? createInternalIndexHttpClient();
 	const targetDb = opts.targetDb ?? getSourceDb();
 	const decoderName = opts.decoderName ?? POX4_DECODER_NAME;
 	const batchSize = opts.batchSize ?? 500;

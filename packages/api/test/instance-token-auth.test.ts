@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
-import { defaultInternalStreamsApiKey } from "@secondlayer/indexer/decode/internal-auth";
+import { defaultInternalStreamsApiKey } from "@secondlayer/shared/index-internal-auth";
 import type { Hono } from "hono";
 import { createApiApp } from "../src/create-app.ts";
 

@@ -1,8 +1,8 @@
+import { AuthorizationError } from "@secondlayer/shared/errors";
 import {
 	INTERNAL_STREAMS_TENANT_ID,
 	defaultInternalStreamsApiKey,
-} from "@secondlayer/indexer/decode/internal-auth";
-import { AuthorizationError } from "@secondlayer/shared/errors";
+} from "@secondlayer/shared/index-internal-auth";
 import type { MiddlewareHandler } from "hono";
 import { createApiKeyTokenStore } from "../auth/api-key-store.ts";
 import {

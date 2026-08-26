@@ -1,4 +1,8 @@
-import { defaultInternalIndexApiKey } from "./index-internal-auth.ts";
+import {
+	defaultInternalIndexApiKey,
+	defaultInternalIndexBaseUrl,
+	defaultInternalStreamsApiKey,
+} from "./index-internal-auth.ts";
 
 /**
  * Low-level transport for the public Index (`/v1/index`) + Streams clock
@@ -361,4 +365,14 @@ export class IndexHttpClient {
 			this.streamsApiKey,
 		);
 	}
+}
+
+/** Decoder + subgraph processor client. One env contract, empty-key fallback. */
+export function createInternalIndexHttpClient(): IndexHttpClient {
+	const baseUrl = defaultInternalIndexBaseUrl();
+	return new IndexHttpClient({
+		indexBaseUrl: baseUrl,
+		streamsBaseUrl: baseUrl,
+		streamsApiKey: defaultInternalStreamsApiKey(),
+	});
 }

@@ -2,8 +2,9 @@ import { getSourceDb } from "@secondlayer/shared/db";
 import type { Transaction } from "@secondlayer/shared/db";
 import {
 	type IndexEventRow,
-	IndexHttpClient,
+	type IndexHttpClient,
 	type IndexTransactionRow,
+	createInternalIndexHttpClient,
 } from "@secondlayer/shared/index-http";
 import { logger } from "@secondlayer/shared/logger";
 import type { SubgraphDefinition, SubgraphFilter } from "../types.ts";
@@ -346,16 +347,7 @@ export function buildChainBlockSource(eventTypes: string[]): BlockSource {
 }
 
 export function buildHttpClient(): IndexHttpClient {
-	const baseUrl =
-		process.env.SUBGRAPH_INDEX_API_URL ??
-		process.env.STREAMS_API_URL ??
-		"http://api:3800";
-	return new IndexHttpClient({
-		indexBaseUrl: baseUrl,
-		streamsBaseUrl: baseUrl,
-		streamsApiKey:
-			process.env.STREAMS_INTERNAL_API_KEY ?? "sk-sl_streams_decode_internal",
-	});
+	return createInternalIndexHttpClient();
 }
 
 /**
