@@ -89,6 +89,18 @@ export {
 	buildPox5LockProof,
 	spvProofToL1LockupOutput,
 } from "./lockProof.ts";
+export {
+	type BuildReclaimOpts,
+	type FinalizeReclaimOpts,
+	type ReclaimOpts,
+	type ReclaimPath,
+	type ReclaimUtxo,
+	buildReclaim,
+	computeReclaimSighash,
+	finalizeReclaim,
+	reclaim,
+	signReclaim,
+} from "./reclaim.ts";
 export { pox5, type Pox5Actions, type StakerState } from "./extension.ts";
 
 /** The pox-5 ABI (curated to the 25 functions this module calls, verified
