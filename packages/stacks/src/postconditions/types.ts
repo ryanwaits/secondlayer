@@ -1,7 +1,7 @@
 import type { ClarityValue } from "../clarity/types.ts";
 
 export type FungibleComparator = "eq" | "gt" | "gte" | "lt" | "lte";
-export type NonFungibleComparator = "sent" | "not-sent";
+export type NonFungibleComparator = "sent" | "not-sent" | "maybe-sent";
 
 export type StxPostCondition = {
 	type: "stx-postcondition";
@@ -50,4 +50,7 @@ export type PostCondition =
 	| StakingPostCondition
 	| PoxPostCondition;
 
-export type PostConditionMode = "allow" | "deny";
+/** Serialized PC hex is accepted anywhere a `PostCondition` object is. */
+export type PostConditionInput = PostCondition | string;
+
+export type PostConditionMode = "allow" | "deny" | "originator";

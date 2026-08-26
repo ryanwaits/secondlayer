@@ -45,6 +45,7 @@ export type AnchorMode = (typeof AnchorMode)[keyof typeof AnchorMode];
 export const PostConditionModeWire = {
 	Allow: 0x01,
 	Deny: 0x02,
+	Originator: 0x03, // SIP-040, Epoch 3.4
 } as const;
 export type PostConditionModeWire =
 	(typeof PostConditionModeWire)[keyof typeof PostConditionModeWire];
@@ -82,6 +83,7 @@ export const FungibleConditionCode = {
 export const NonFungibleConditionCode = {
 	Sends: 0x10,
 	DoesNotSend: 0x11,
+	MaybeSent: 0x12, // SIP-040, Epoch 3.4
 } as const;
 
 // PoX condition codes (wire format, SIP-045)

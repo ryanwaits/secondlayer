@@ -1,6 +1,9 @@
 import type { ClarityValue } from "../../clarity/types.ts";
 import type { Client } from "../../clients/types.ts";
-import type { PostCondition } from "../../postconditions/types.ts";
+import type {
+	PostConditionInput,
+	PostConditionMode,
+} from "../../postconditions/types.ts";
 import { buildContractCall } from "../../transactions/build.ts";
 import { signTransactionWithAccount } from "../../transactions/signer.ts";
 import { parseContractId } from "../../utils/address.ts";
@@ -21,8 +24,8 @@ export type CallContractParams = {
 	functionArgs?: ClarityValue[];
 	fee?: FeeParam;
 	nonce?: IntegerType;
-	postConditionMode?: "allow" | "deny";
-	postConditions?: PostCondition[];
+	postConditionMode?: PostConditionMode;
+	postConditions?: PostConditionInput[];
 };
 
 /** Build, sign, and broadcast a contract call */

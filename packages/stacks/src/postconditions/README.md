@@ -37,7 +37,26 @@ Pc.principal("SP2J6...")
 Pc.principal("SP2J6...")
   .willNotSendAsset()
   .nft("SP2J6....my-nft::my-nft", Cl.uint(1));
+
+// Epoch 3.4: NFT may or may not be sent
+Pc.principal("SP2J6...")
+  .willMaybeSendAsset()
+  .nft("SP2J6....my-nft::my-nft", Cl.uint(1));
 ```
+
+## Staking / PoX (SIP-045)
+
+pox-5 locks STX natively — use a staking post-condition, not `.ustx()`.
+
+```typescript
+Pc.principal(staker).willSendEq(amountUstx).ustxToLock();
+Pc.principal(staker).willPerformPox();
+Pc.origin().willNotPerformPox();
+```
+
+`unstake` / `claimRewards` send an amount the contract computes at execution. Use `postConditionMode: "allow"` rather than guessing a bound.
+
+Hex PCs (Leather, stacks.js) round-trip: `Pc.fromHex(hex)` / `postConditionToHex(pc)`.
 
 ## Comparators
 

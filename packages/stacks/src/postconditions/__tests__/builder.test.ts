@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { Cl } from "../../clarity/values.ts";
 import { Pc } from "../builder.ts";
+import { postConditionToHex } from "../convert.ts";
 
 const ADDR = "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7";
 const CONTRACT_ID = `${ADDR}.my-token`;
@@ -190,6 +191,51 @@ describe("Pc nft post-conditions", () => {
 			asset: `${NFT_CONTRACT_ID}::my-nft`,
 			assetId: { type: "uint", value: 99n },
 		});
+	});
+
+	test("willMaybeSendAsset → nft", () => {
+		const pc = Pc.principal(ADDR)
+			.willMaybeSendAsset()
+			.nft(`${NFT_CONTRACT_ID}::my-nft`, Cl.uint(1));
+		expect(pc.condition).toBe("maybe-sent");
+	});
+});
+
+describe("Pc staking / pox post-conditions", () => {
+	test("willSendEq → ustxToLock", () => {
+		const pc = Pc.principal(ADDR).willSendEq(100_000_000_000n).ustxToLock();
+		expect(pc).toEqual({
+			type: "staking-postcondition",
+			address: ADDR,
+			condition: "eq",
+			amount: "100000000000",
+		});
+	});
+
+	test("willPerformPox / willNotPerformPox / mayPerformPox", () => {
+		expect(Pc.principal(ADDR).willPerformPox()).toEqual({
+			type: "pox-postcondition",
+			address: ADDR,
+			condition: "will-perform",
+		});
+		expect(Pc.origin().willNotPerformPox().condition).toBe("will-not-perform");
+		expect(Pc.principal(ADDR).mayPerformPox().condition).toBe("may-perform");
+	});
+
+	test("amount over u64 throws", () => {
+		expect(() =>
+			Pc.principal(ADDR)
+				.willSendEq(2n ** 64n)
+				.ustx(),
+		).toThrow(/u64 max/);
+	});
+});
+
+describe("Pc.fromHex / postConditionToHex", () => {
+	test("round-trips a staking PC", () => {
+		const pc = Pc.principal(ADDR).willSendLte(500000000000n).ustxToLock();
+		const hex = postConditionToHex(pc);
+		expect(Pc.fromHex(hex)).toEqual(pc);
 	});
 });
 

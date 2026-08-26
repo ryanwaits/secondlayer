@@ -1,5 +1,8 @@
 import type { Client } from "../../clients/types.ts";
-import type { PostCondition } from "../../postconditions/types.ts";
+import type {
+	PostConditionInput,
+	PostConditionMode,
+} from "../../postconditions/types.ts";
 import { buildContractDeploy } from "../../transactions/build.ts";
 import { signTransactionWithAccount } from "../../transactions/signer.ts";
 import type { ClarityVersion } from "../../transactions/types.ts";
@@ -21,8 +24,8 @@ export type DeployContractParams = {
 	clarityVersion?: ClarityVersion;
 	fee?: FeeParam;
 	nonce?: IntegerType;
-	postConditionMode?: "allow" | "deny";
-	postConditions?: PostCondition[];
+	postConditionMode?: PostConditionMode;
+	postConditions?: PostConditionInput[];
 };
 
 /** Build, sign, and broadcast a contract deploy */

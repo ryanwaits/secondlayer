@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { Pc } from "../../postconditions/builder.ts";
 import {
 	bytesToHex,
 	concatBytes,
@@ -12,6 +13,7 @@ import {
 	AnchorMode,
 	AuthType,
 	FungibleConditionCode,
+	NonFungibleConditionCode,
 	PostConditionModeWire,
 	PoxConditionCode,
 	RECOVERABLE_ECDSA_SIG_LENGTH_BYTES,
@@ -219,6 +221,31 @@ describe("SIP-045 post-conditions in buildContractCall", () => {
 				conditionCode: PoxConditionCode.WillNotPerform,
 			},
 		]);
+		expect(deserializeTransaction(serializeTransaction(tx))).toEqual(tx);
+	});
+
+	test("originator mode and maybe-sent NFT round-trip", async () => {
+		const tx = await buildContractCall({
+			contractAddress: "SP000000000000000000002Q6VF78",
+			contractName: "pox-5",
+			functionName: "stake",
+			functionArgs: [],
+			fee: 200n,
+			nonce: 1n,
+			publicKey: `02${"11".repeat(32)}`,
+			postConditionMode: "originator",
+			postConditions: [
+				Pc.principal(ADDR).willSendEq(1n).ustxToLock(),
+				Pc.principal(ADDR)
+					.willMaybeSendAsset()
+					.nft(`${ADDR}.nft::item`, { type: "uint", value: 1n }),
+			],
+		});
+		expect(tx.postConditionMode).toBe(PostConditionModeWire.Originator);
+		expect(tx.postConditions[1]?.type).toBe("nft");
+		expect(
+			(tx.postConditions[1] as { conditionCode: number }).conditionCode,
+		).toBe(NonFungibleConditionCode.MaybeSent);
 		expect(deserializeTransaction(serializeTransaction(tx))).toEqual(tx);
 	});
 });

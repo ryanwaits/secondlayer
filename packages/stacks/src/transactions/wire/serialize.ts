@@ -132,7 +132,7 @@ function serializeAssetInfo(asset: AssetInfoWire): Uint8Array {
 	);
 }
 
-function serializePostCondition(pc: PostConditionWire): Uint8Array {
+export function serializePostConditionWire(pc: PostConditionWire): Uint8Array {
 	// Wire order: asset_type first, then principal (per SIP-005)
 	const parts: Uint8Array[] = [];
 
@@ -177,9 +177,7 @@ function serializePostCondition(pc: PostConditionWire): Uint8Array {
 
 function serializePostConditions(pcs: PostConditionWire[]): Uint8Array {
 	const parts: Uint8Array[] = [writeUInt32BE(pcs.length)];
-	for (const pc of pcs) {
-		parts.push(serializePostCondition(pc));
-	}
+	for (const pc of pcs) parts.push(serializePostConditionWire(pc));
 	return concatBytes(...parts);
 }
 

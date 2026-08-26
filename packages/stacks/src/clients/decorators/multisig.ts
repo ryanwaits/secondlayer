@@ -6,7 +6,10 @@ import {
 } from "../../actions/wallet/sendTransaction.ts";
 import { setUnsignedFee } from "../../actions/wallet/utils.ts";
 import type { ClarityValue } from "../../clarity/types.ts";
-import type { PostCondition } from "../../postconditions/types.ts";
+import type {
+	PostConditionInput,
+	PostConditionMode,
+} from "../../postconditions/types.ts";
 import {
 	buildContractCall,
 	buildContractDeploy,
@@ -31,8 +34,8 @@ export type MultiSigTransferStxParams = {
 	memo?: string;
 	fee?: IntegerType;
 	nonce?: IntegerType;
-	postConditionMode?: "allow" | "deny";
-	postConditions?: PostCondition[];
+	postConditionMode?: PostConditionMode;
+	postConditions?: PostConditionInput[];
 };
 
 export type MultiSigCallContractParams = {
@@ -41,8 +44,8 @@ export type MultiSigCallContractParams = {
 	functionArgs?: ClarityValue[];
 	fee?: IntegerType;
 	nonce?: IntegerType;
-	postConditionMode?: "allow" | "deny";
-	postConditions?: PostCondition[];
+	postConditionMode?: PostConditionMode;
+	postConditions?: PostConditionInput[];
 };
 
 export type MultiSigDeployContractParams = {
@@ -51,8 +54,8 @@ export type MultiSigDeployContractParams = {
 	clarityVersion?: ClarityVersion;
 	fee?: IntegerType;
 	nonce?: IntegerType;
-	postConditionMode?: "allow" | "deny";
-	postConditions?: PostCondition[];
+	postConditionMode?: PostConditionMode;
+	postConditions?: PostConditionInput[];
 };
 
 export type MultiSigSendTransactionParams = {

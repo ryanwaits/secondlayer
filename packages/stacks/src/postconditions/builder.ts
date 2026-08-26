@@ -1,11 +1,14 @@
 import type { ClarityValue } from "../clarity/types.ts";
 import { parseContractId, validateStacksAddress } from "../utils/address.ts";
-import { type IntegerType, intToBigInt } from "../utils/encoding.ts";
+import type { IntegerType } from "../utils/encoding.ts";
+import { fromHex, parsePostConditionAmount } from "./convert.ts";
 import type {
 	FtPostCondition,
 	FungibleComparator,
 	NftPostCondition,
 	NonFungibleComparator,
+	PoxPostCondition,
+	StakingPostCondition,
 	StxPostCondition,
 } from "./types.ts";
 
@@ -33,6 +36,30 @@ class PartialPcWithPrincipal {
 	willNotSendAsset() {
 		return new PartialPcNftWithCode(this.address, "not-sent");
 	}
+	willMaybeSendAsset() {
+		return new PartialPcNftWithCode(this.address, "maybe-sent");
+	}
+	willPerformPox(): PoxPostCondition {
+		return {
+			type: "pox-postcondition",
+			address: this.address,
+			condition: "will-perform",
+		};
+	}
+	willNotPerformPox(): PoxPostCondition {
+		return {
+			type: "pox-postcondition",
+			address: this.address,
+			condition: "will-not-perform",
+		};
+	}
+	mayPerformPox(): PoxPostCondition {
+		return {
+			type: "pox-postcondition",
+			address: this.address,
+			condition: "may-perform",
+		};
+	}
 }
 
 class PartialPcFtWithCode {
@@ -47,7 +74,16 @@ class PartialPcFtWithCode {
 			type: "stx-postcondition",
 			address: this.address,
 			condition: this.code,
-			amount: intToBigInt(this.amount).toString(),
+			amount: parsePostConditionAmount(this.amount).toString(),
+		};
+	}
+
+	ustxToLock(): StakingPostCondition {
+		return {
+			type: "staking-postcondition",
+			address: this.address,
+			condition: this.code,
+			amount: parsePostConditionAmount(this.amount).toString(),
 		};
 	}
 
@@ -60,7 +96,7 @@ class PartialPcFtWithCode {
 			type: "ft-postcondition",
 			address: this.address,
 			condition: this.code,
-			amount: intToBigInt(this.amount).toString(),
+			amount: parsePostConditionAmount(this.amount).toString(),
 			asset: `${contractId}::${tokenName}`,
 		};
 	}
@@ -126,4 +162,5 @@ export const Pc = {
 	origin() {
 		return new PartialPcWithPrincipal("origin");
 	},
+	fromHex,
 };

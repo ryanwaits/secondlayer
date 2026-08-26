@@ -1,8 +1,11 @@
 import type { StacksChain } from "../chains/types.ts";
 import type { ClarityValue } from "../clarity/types.ts";
 import { Cl } from "../clarity/values.ts";
-import type { PostCondition } from "../postconditions/types.ts";
-import { parseContractId } from "../utils/address.ts";
+import { convertPostCondition, fromHex } from "../postconditions/convert.ts";
+import type {
+	PostConditionInput,
+	PostConditionMode,
+} from "../postconditions/types.ts";
 import { type IntegerType, intToBigInt } from "../utils/encoding.ts";
 import {
 	createSingleSigSpendingCondition,
@@ -13,14 +16,9 @@ import { createMultiSigSpendingCondition } from "./multisig.ts";
 import type { MultiSigHashMode, SpendingCondition } from "./types.ts";
 import {
 	AnchorMode,
-	type ClarityVersion,
-	FungibleConditionCode,
-	NonFungibleConditionCode,
+	ClarityVersion,
 	PayloadType,
 	PostConditionModeWire,
-	type PostConditionPrincipalWire,
-	type PostConditionWire,
-	PoxConditionCode,
 	type StacksTransaction,
 } from "./types.ts";
 
@@ -38,8 +36,8 @@ export type BuildTokenTransferOptions = MultiSigOptions & {
 	nonce: IntegerType;
 	publicKey?: string;
 	chain?: StacksChain;
-	postConditionMode?: "allow" | "deny";
-	postConditions?: PostCondition[];
+	postConditionMode?: PostConditionMode;
+	postConditions?: PostConditionInput[];
 	sponsored?: boolean;
 };
 
@@ -52,8 +50,8 @@ export type BuildContractCallOptions = MultiSigOptions & {
 	nonce: IntegerType;
 	publicKey?: string;
 	chain?: StacksChain;
-	postConditionMode?: "allow" | "deny";
-	postConditions?: PostCondition[];
+	postConditionMode?: PostConditionMode;
+	postConditions?: PostConditionInput[];
 	sponsored?: boolean;
 };
 
@@ -65,103 +63,25 @@ export type BuildContractDeployOptions = MultiSigOptions & {
 	nonce: IntegerType;
 	publicKey?: string;
 	chain?: StacksChain;
-	postConditionMode?: "allow" | "deny";
-	postConditions?: PostCondition[];
+	postConditionMode?: PostConditionMode;
+	postConditions?: PostConditionInput[];
 	sponsored?: boolean;
 };
 
-function resolvePcMode(mode?: "allow" | "deny"): PostConditionModeWire {
-	return mode === "allow"
-		? PostConditionModeWire.Allow
-		: PostConditionModeWire.Deny;
+function resolvePcMode(mode?: PostConditionMode): PostConditionModeWire {
+	if (mode === "allow") return PostConditionModeWire.Allow;
+	if (mode === "originator") return PostConditionModeWire.Originator;
+	return PostConditionModeWire.Deny;
 }
 
-function convertPostConditions(pcs?: PostCondition[]): PostConditionWire[] {
+function convertPostConditions(
+	pcs?: PostConditionInput[],
+): ReturnType<typeof convertPostCondition>[] {
 	if (!pcs || pcs.length === 0) return [];
-	return pcs.map(convertPostCondition);
+	return pcs.map((pc) =>
+		convertPostCondition(typeof pc === "string" ? fromHex(pc) : pc),
+	);
 }
-
-function resolvePrincipal(address: string): PostConditionPrincipalWire {
-	if (address === "origin") return { type: "origin" };
-	const [addr, name] = address.split(".");
-	if (name) {
-		// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-		return { type: "contract", address: addr!, contractName: name };
-	}
-	// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-	return { type: "standard", address: addr! };
-}
-
-const FUNGIBLE_CODE_MAP: Record<string, number> = {
-	eq: FungibleConditionCode.Equal,
-	gt: FungibleConditionCode.Greater,
-	gte: FungibleConditionCode.GreaterEqual,
-	lt: FungibleConditionCode.Less,
-	lte: FungibleConditionCode.LessEqual,
-};
-
-function convertPostCondition(pc: PostCondition): PostConditionWire {
-	switch (pc.type) {
-		case "stx-postcondition":
-			return {
-				type: "stx",
-				principal: resolvePrincipal(pc.address),
-				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-				conditionCode: FUNGIBLE_CODE_MAP[pc.condition]!,
-				amount: intToBigInt(pc.amount),
-			};
-		case "ft-postcondition": {
-			const [contractId, tokenName] = pc.asset.split("::");
-			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-			const [addr, name] = parseContractId(contractId!);
-			return {
-				type: "ft",
-				principal: resolvePrincipal(pc.address),
-				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-				asset: { address: addr, contractName: name, assetName: tokenName! },
-				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-				conditionCode: FUNGIBLE_CODE_MAP[pc.condition]!,
-				amount: intToBigInt(pc.amount),
-			};
-		}
-		case "nft-postcondition": {
-			const [contractId, tokenName] = pc.asset.split("::");
-			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-			const [addr, name] = parseContractId(contractId!);
-			return {
-				type: "nft",
-				principal: resolvePrincipal(pc.address),
-				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-				asset: { address: addr, contractName: name, assetName: tokenName! },
-				conditionCode:
-					pc.condition === "sent"
-						? NonFungibleConditionCode.Sends
-						: NonFungibleConditionCode.DoesNotSend,
-				assetId: pc.assetId,
-			};
-		}
-		case "staking-postcondition":
-			return {
-				type: "staking",
-				principal: resolvePrincipal(pc.address),
-				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-				conditionCode: FUNGIBLE_CODE_MAP[pc.condition]!,
-				amount: intToBigInt(pc.amount),
-			};
-		case "pox-postcondition":
-			return {
-				type: "pox",
-				principal: resolvePrincipal(pc.address),
-				conditionCode: POX_CODE_MAP[pc.condition],
-			};
-	}
-}
-
-const POX_CODE_MAP = {
-	"will-not-perform": PoxConditionCode.WillNotPerform,
-	"may-perform": PoxConditionCode.MayPerform,
-	"will-perform": PoxConditionCode.WillPerform,
-} as const;
 
 import type { Authorization } from "./types.ts";
 
@@ -272,7 +192,7 @@ export function buildContractDeploy(
 	const nonce = intToBigInt(options.nonce);
 
 	const spendingCondition = resolveSpendingCondition(options, nonce, fee);
-	const useVersioned = options.clarityVersion !== undefined;
+	const clarityVersion = options.clarityVersion ?? ClarityVersion.Clarity4;
 
 	const tx: StacksTransaction = {
 		version,
@@ -282,10 +202,8 @@ export function buildContractDeploy(
 		postConditionMode: resolvePcMode(options.postConditionMode),
 		postConditions: convertPostConditions(options.postConditions),
 		payload: {
-			payloadType: useVersioned
-				? PayloadType.VersionedSmartContract
-				: PayloadType.SmartContract,
-			clarityVersion: options.clarityVersion,
+			payloadType: PayloadType.VersionedSmartContract,
+			clarityVersion,
 			contractName: options.contractName,
 			codeBody: options.codeBody,
 		},

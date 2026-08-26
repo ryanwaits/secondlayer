@@ -1,5 +1,8 @@
 import type { Client } from "../../clients/types.ts";
-import type { PostCondition } from "../../postconditions/types.ts";
+import type {
+	PostConditionInput,
+	PostConditionMode,
+} from "../../postconditions/types.ts";
 import { buildTokenTransfer } from "../../transactions/build.ts";
 import { signTransactionWithAccount } from "../../transactions/signer.ts";
 import { validateStacksAddress } from "../../utils/address.ts";
@@ -20,8 +23,8 @@ export type TransferStxParams = {
 	memo?: string;
 	fee?: FeeParam;
 	nonce?: IntegerType;
-	postConditionMode?: "allow" | "deny";
-	postConditions?: PostCondition[];
+	postConditionMode?: PostConditionMode;
+	postConditions?: PostConditionInput[];
 };
 
 /** Build, sign, and broadcast an STX transfer */

@@ -20,7 +20,10 @@ import {
 } from "../clarity/bridge.ts";
 import type { ClarityValue } from "../clarity/types.ts";
 import type { Client } from "../clients/types.ts";
-import type { PostCondition } from "../postconditions/types.ts";
+import type {
+	PostConditionInput,
+	PostConditionMode,
+} from "../postconditions/types.ts";
 import { buildContractCall } from "../transactions/build.ts";
 import type { StacksTransaction } from "../transactions/types.ts";
 import { publicKeyToAddress } from "../utils/address.ts";
@@ -108,8 +111,8 @@ type MapMethods<C extends AbiContract> = [AbiTypesOf<C>] extends [never]
 export type ContractCallOptions = {
 	fee?: IntegerType;
 	nonce?: IntegerType;
-	postConditionMode?: "allow" | "deny";
-	postConditions?: PostCondition[];
+	postConditionMode?: PostConditionMode;
+	postConditions?: PostConditionInput[];
 };
 
 /**

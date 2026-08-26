@@ -138,63 +138,68 @@ function readPostConditionPrincipal(
 	}
 }
 
+function readPostCondition(r: BytesReader): PostConditionWire {
+	// Wire order: asset_type, then principal (per SIP-005 and stacks.js)
+	const assetType = r.readUInt8();
+	const principal = readPostConditionPrincipal(r);
+	switch (assetType) {
+		case AssetType.STX:
+			return {
+				type: "stx",
+				principal,
+				conditionCode: r.readUInt8(),
+				amount: r.readBigUInt64BE(),
+			};
+		case AssetType.Fungible:
+			return {
+				type: "ft",
+				principal,
+				asset: readAssetInfo(r),
+				conditionCode: r.readUInt8(),
+				amount: r.readBigUInt64BE(),
+			};
+		case AssetType.NonFungible:
+			return {
+				type: "nft",
+				principal,
+				asset: readAssetInfo(r),
+				assetId: readCV(r),
+				conditionCode: r.readUInt8(),
+			};
+		case AssetType.Staking:
+			return {
+				type: "staking",
+				principal,
+				conditionCode: r.readUInt8(),
+				amount: r.readBigUInt64BE(),
+			};
+		case AssetType.Pox:
+			return {
+				type: "pox",
+				principal,
+				conditionCode: r.readUInt8() as PoxConditionCode,
+			};
+		default:
+			throw new Error(
+				`Unknown post-condition asset type: 0x${assetType.toString(16).padStart(2, "0")}`,
+			);
+	}
+}
+
 function readPostConditions(r: BytesReader): PostConditionWire[] {
 	const count = r.readUInt32BE();
 	const pcs: PostConditionWire[] = [];
 	for (let i = 0; i < count; i++) {
-		// Wire order: asset_type, then principal (per SIP-005 and stacks.js)
-		const assetType = r.readUInt8();
-		const principal = readPostConditionPrincipal(r);
-		switch (assetType) {
-			case AssetType.STX:
-				pcs.push({
-					type: "stx",
-					principal,
-					conditionCode: r.readUInt8(),
-					amount: r.readBigUInt64BE(),
-				});
-				break;
-			case AssetType.Fungible:
-				pcs.push({
-					type: "ft",
-					principal,
-					asset: readAssetInfo(r),
-					conditionCode: r.readUInt8(),
-					amount: r.readBigUInt64BE(),
-				});
-				break;
-			case AssetType.NonFungible:
-				pcs.push({
-					type: "nft",
-					principal,
-					asset: readAssetInfo(r),
-					assetId: readCV(r),
-					conditionCode: r.readUInt8(),
-				});
-				break;
-			case AssetType.Staking:
-				// SIP-045: same body as STX (fungible condition code + amount)
-				pcs.push({
-					type: "staking",
-					principal,
-					conditionCode: r.readUInt8(),
-					amount: r.readBigUInt64BE(),
-				});
-				break;
-			case AssetType.Pox:
-				// SIP-045: PoX condition code only, no amount
-				pcs.push({
-					type: "pox",
-					principal,
-					conditionCode: r.readUInt8() as PoxConditionCode,
-				});
-				break;
-			default:
-				// An unknown asset type has an unknown body length; continuing would
-				// silently misalign every field after this point.
-				throw new Error(
-					`Unknown post-condition asset type: 0x${assetType.toString(16).padStart(2, "0")} (post-condition ${i + 1}/${count})`,
-				);
+		try {
+			pcs.push(readPostCondition(r));
+		} catch (e) {
+			if (
+				e instanceof Error &&
+				e.message.startsWith("Unknown post-condition asset type:")
+			) {
+				throw new Error(`${e.message} (post-condition ${i + 1}/${count})`);
+			}
+			throw e;
 		}
 	}
 	return pcs;
@@ -305,6 +310,14 @@ function readPayload(r: BytesReader): TransactionPayload {
 		default:
 			throw new Error(`Unknown payload type: ${payloadType}`);
 	}
+}
+
+export function deserializePostConditionWire(
+	input: string | Uint8Array,
+): PostConditionWire {
+	const bytes =
+		typeof input === "string" ? hexToBytes(without0x(input)) : input;
+	return readPostCondition(new BytesReader(bytes));
 }
 
 export function deserializeTransaction(

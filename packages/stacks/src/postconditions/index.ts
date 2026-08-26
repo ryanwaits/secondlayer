@@ -1,5 +1,6 @@
 export type {
 	PostCondition,
+	PostConditionInput,
 	StxPostCondition,
 	FtPostCondition,
 	NftPostCondition,
@@ -11,3 +12,9 @@ export type {
 	PostConditionMode,
 } from "./types.ts";
 export { Pc } from "./builder.ts";
+export {
+	fromHex,
+	postConditionToHex,
+	wireToPostCondition,
+	parsePostConditionAmount,
+} from "./convert.ts";

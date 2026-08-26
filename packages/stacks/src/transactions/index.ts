@@ -77,9 +77,13 @@ export {
 export {
 	serializeTransaction,
 	serializeTransactionHex,
+	serializePostConditionWire,
 } from "./wire/serialize.ts";
 
-export { deserializeTransaction } from "./wire/deserialize.ts";
+export {
+	deserializeTransaction,
+	deserializePostConditionWire,
+} from "./wire/deserialize.ts";
 
 export {
 	makeMultiSigAddress,

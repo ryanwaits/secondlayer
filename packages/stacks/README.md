@@ -130,6 +130,7 @@ Activation gating is chain-reported, not hardcoded: `client.pox5.isActive()` / `
 ```ts
 import { createWalletClient, http } from "@secondlayer/stacks";
 import { mainnet } from "@secondlayer/stacks/chains";
+import { Pc } from "@secondlayer/stacks/postconditions";
 import { pox5 } from "@secondlayer/stacks/pox5";
 
 const client = createWalletClient({ chain: mainnet, transport: http(), account })
@@ -142,6 +143,9 @@ if (await client.pox5.isActive()) {
     numCycles: 12,
     startBurnHeight: 960_231,
     fee: "low",
+    postConditions: [
+      Pc.principal(account.address).willSendEq(100_000_000_000n).ustxToLock(),
+    ],
   });
   await client.waitForTransactionReceipt({ txid });
 }
