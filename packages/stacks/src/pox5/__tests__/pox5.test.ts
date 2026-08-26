@@ -11,6 +11,7 @@ import {
 	bondPhaseAtHeight,
 	bondUnlockCycle,
 	burnHeightToRewardCycle,
+	computeBondUnlockHeight,
 	isInPreparePhase,
 	rewardCycleToBurnHeight,
 } from "../cycles.ts";
@@ -20,7 +21,12 @@ import {
 	signSignerGrant,
 	verifySignerGrant,
 } from "../grants.ts";
-import { buildLockupAddress, buildLockupScript } from "../script.ts";
+import {
+	buildDefaultStakerUnlockBytes,
+	buildLockupAddress,
+	buildLockupScript,
+	buildRegisterMetadata,
+} from "../script.ts";
 
 const ACCOUNT = privateKeyToAccount("11".repeat(32));
 
@@ -137,6 +143,13 @@ describe("cycle math", () => {
 		expect(isInPreparePhase(cycleStart + 2_000, params)).toBe(true);
 		expect(isInPreparePhase(cycleStart + 2_099, params)).toBe(true);
 	});
+
+	it("computeBondUnlockHeight is half a cycle before the bond period ends", () => {
+		expect(computeBondUnlockHeight(0, BOND)).toBe(
+			rewardCycleToBurnHeight(bondPeriodToRewardCycle(6, BOND), BOND) -
+				Math.floor(BOND.rewardCycleLength / 2),
+		);
+	});
 });
 
 describe("signer grants", () => {
@@ -227,5 +240,44 @@ describe("lockup addresses", () => {
 		expect(() =>
 			buildLockupScript({ ...OPTS, unlockBurnHeight: 500_000_000 }),
 		).toThrow(/timestamp/);
+	});
+
+	it("rejects unlock height 0", () => {
+		expect(() => buildLockupScript({ ...OPTS, unlockBurnHeight: 0 })).toThrow(
+			/ERR_INVALID_UNLOCK_HEIGHT/,
+		);
+	});
+
+	it("rejects negative unlock height", () => {
+		expect(() => buildLockupScript({ ...OPTS, unlockBurnHeight: -1 })).toThrow(
+			/ERR_INVALID_UNLOCK_HEIGHT/,
+		);
+	});
+
+	it("rejects a 33-byte key that is not compressed", () => {
+		expect(() => buildDefaultStakerUnlockBytes(`04${"11".repeat(32)}`)).toThrow(
+			/0x02 or 0x03/,
+		);
+	});
+
+	it("buildRegisterMetadata composes lock address and L1 unlock height", () => {
+		const earlyUnlockBytes = `21${"22".repeat(33)}ac`;
+		const meta = buildRegisterMetadata({
+			bondIndex: 0,
+			stxAddress: ACCOUNT.address,
+			bitcoinPublicKey: ACCOUNT.publicKey,
+			earlyUnlockBytes,
+			cycle: BOND,
+		});
+		const unlockBytes = buildDefaultStakerUnlockBytes(ACCOUNT.publicKey);
+		expect(meta.unlockHeight).toBe(computeBondUnlockHeight(0, BOND));
+		expect(meta.lockAddress).toBe(
+			buildLockupAddress({
+				stxAddress: ACCOUNT.address,
+				unlockBurnHeight: meta.unlockHeight,
+				stakerUnlockBytes: unlockBytes,
+				earlyUnlockBytes,
+			}),
+		);
 	});
 });

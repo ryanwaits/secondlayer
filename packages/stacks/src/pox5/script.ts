@@ -6,6 +6,7 @@ import { serializeCVBytes } from "../clarity/serialize.ts";
 import { Cl } from "../clarity/values.ts";
 import { concatBytes, hexToBytes } from "../utils/encoding.ts";
 import { BITCOIN_LOCKTIME_THRESHOLD, C_SCRIPT_NUM_MAX } from "./constants.ts";
+import { type BondCycleParams, computeBondUnlockHeight } from "./cycles.ts";
 
 /**
  * Byte-for-byte TypeScript mirrors of pox-5's Bitcoin-script helpers
@@ -115,6 +116,11 @@ function toBytes(input: Uint8Array | string): Uint8Array {
  */
 export function buildLockupScript(opts: BuildLockupScriptOptions): Uint8Array {
 	const height = BigInt(opts.unlockBurnHeight);
+	if (height <= 0n) {
+		throw new Error(
+			"unlockBurnHeight must be > 0 (contract rejects with ERR_INVALID_UNLOCK_HEIGHT)",
+		);
+	}
 	if (height >= BITCOIN_LOCKTIME_THRESHOLD) {
 		throw new Error(
 			"unlockBurnHeight >= 500,000,000 would be read by Bitcoin as a timestamp (contract rejects it)",
@@ -171,5 +177,49 @@ export function buildDefaultStakerUnlockBytes(
 	const pubkey = toBytes(publicKey);
 	if (pubkey.length !== 33)
 		throw new Error(`Expected 33-byte compressed pubkey, got ${pubkey.length}`);
+	const prefix = pubkey[0];
+	if (prefix !== 0x02 && prefix !== 0x03) {
+		throw new Error(
+			`Expected compressed pubkey prefix 0x02 or 0x03, got ${prefix}`,
+		);
+	}
 	return concatBytes(pushScriptBytes(pubkey), Uint8Array.of(0xac)); // OP_CHECKSIG
+}
+
+export type RegisterMetadata = {
+	lockAddress: string;
+	lockScript: Uint8Array;
+	outputScript: Uint8Array;
+	unlockBytes: Uint8Array;
+	unlockHeight: number;
+};
+
+/**
+ * One-call L1 register metadata: unlock height, staker subscript, lock
+ * script, P2WSH output, and address. Staker funds `lockAddress` then
+ * passes `lockScript` into the proof mapper.
+ */
+export function buildRegisterMetadata(opts: {
+	bondIndex: number;
+	stxAddress: string;
+	bitcoinPublicKey: Uint8Array | string;
+	earlyUnlockBytes: Uint8Array | string;
+	network?: BitcoinNetwork;
+	cycle: BondCycleParams;
+}): RegisterMetadata {
+	const unlockHeight = computeBondUnlockHeight(opts.bondIndex, opts.cycle);
+	const unlockBytes = buildDefaultStakerUnlockBytes(opts.bitcoinPublicKey);
+	const lockOpts: BuildLockupScriptOptions = {
+		stxAddress: opts.stxAddress,
+		unlockBurnHeight: unlockHeight,
+		stakerUnlockBytes: unlockBytes,
+		earlyUnlockBytes: opts.earlyUnlockBytes,
+	};
+	return {
+		lockAddress: buildLockupAddress(lockOpts, opts.network ?? "mainnet"),
+		lockScript: buildLockupScript(lockOpts),
+		outputScript: buildLockupOutputScript(lockOpts),
+		unlockBytes,
+		unlockHeight,
+	};
 }

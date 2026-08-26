@@ -74,6 +74,25 @@ export function bondUnlockCycle(
 }
 
 /**
+ * Minimum L1 CLTV height for bond `bondIndex` — half a cycle before the
+ * bond period ends. Mirrors `get-bond-l1-unlock-height`. Distinct from
+ * {@link bondUnlockCycle} (the STX unlock cycle).
+ */
+export function computeBondUnlockHeight(
+	bondIndex: number,
+	params: BondCycleParams,
+): number {
+	const endCycle = bondPeriodToRewardCycle(
+		bondIndex + BOND_LENGTH_CYCLES / BOND_GAP_CYCLES,
+		params,
+	);
+	return (
+		rewardCycleToBurnHeight(endCycle, params) -
+		Math.floor(params.rewardCycleLength / 2)
+	);
+}
+
+/**
  * Distribution-cycle index at `burnHeight` — distribution cycles are half a
  * reward cycle long. Mirrors `burn-height-to-distribution-index`.
  */
