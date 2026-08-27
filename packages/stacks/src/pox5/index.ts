@@ -34,6 +34,24 @@ export {
 	type Pox5EventTopic,
 } from "./constants.ts";
 export {
+	type EligibilityResult,
+	type EligibleAdminParams,
+	type EligibleClaimRewardsParams,
+	type EligibleGrantSignerKeyParams,
+	type EligibleRegisterForBondParams,
+	type EligibleStakeParams,
+	type EligibleUnstakeParams,
+	type EligibleUnstakeSbtcParams,
+	eligibleClaimRewards,
+	eligibleGrantSignerKey,
+	eligiblePauseRewards,
+	eligibleRegisterForBond,
+	eligibleSetBondAdmin,
+	eligibleStake,
+	eligibleUnstake,
+	eligibleUnstakeSbtc,
+} from "./eligibility.ts";
+export {
 	type BondCycleParams,
 	type BondPhase,
 	bondPeriodToBurnHeight,

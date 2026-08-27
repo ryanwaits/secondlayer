@@ -63,6 +63,24 @@ import {
 	getPoxInfo,
 	isPox5Active,
 } from "./activation.ts";
+import {
+	type EligibilityResult,
+	type EligibleAdminParams,
+	type EligibleClaimRewardsParams,
+	type EligibleGrantSignerKeyParams,
+	type EligibleRegisterForBondParams,
+	type EligibleStakeParams,
+	type EligibleUnstakeParams,
+	type EligibleUnstakeSbtcParams,
+	eligibleClaimRewards,
+	eligibleGrantSignerKey,
+	eligiblePauseRewards,
+	eligibleRegisterForBond,
+	eligibleSetBondAdmin,
+	eligibleStake,
+	eligibleUnstake,
+	eligibleUnstakeSbtc,
+} from "./eligibility.ts";
 import { buildPox5LockProof } from "./lockProof.ts";
 import type {
 	BondAllowance,
@@ -168,6 +186,29 @@ export type Pox5Actions = {
 			rewardCycle: IntegerType,
 			bondIndex?: IntegerType,
 		) => Promise<bigint>;
+		// eligibility preflights (never auto-called from wallet actions)
+		eligibleStake: (params: EligibleStakeParams) => Promise<EligibilityResult>;
+		eligibleRegisterForBond: (
+			params: EligibleRegisterForBondParams,
+		) => Promise<EligibilityResult>;
+		eligibleUnstake: (
+			params: EligibleUnstakeParams,
+		) => Promise<EligibilityResult>;
+		eligibleUnstakeSbtc: (
+			params: EligibleUnstakeSbtcParams,
+		) => Promise<EligibilityResult>;
+		eligibleClaimRewards: (
+			params: EligibleClaimRewardsParams,
+		) => Promise<EligibilityResult>;
+		eligibleGrantSignerKey: (
+			params: EligibleGrantSignerKeyParams,
+		) => Promise<EligibilityResult>;
+		eligibleSetBondAdmin: (
+			params: EligibleAdminParams,
+		) => Promise<EligibilityResult>;
+		eligiblePauseRewards: (
+			params: EligibleAdminParams,
+		) => Promise<EligibilityResult>;
 		// wallet actions (txids; pair with waitForTransactionReceipt)
 		setupBond: (params: SetupBondParams) => Promise<string>;
 		registerForBond: (params: RegisterForBondParams) => Promise<string>;
@@ -249,6 +290,16 @@ export function pox5(): (client: Client) => Pox5Actions {
 			getLastRewardComputeHeight: () => getLastRewardComputeHeight(client),
 			getTotalSharesStakedForCycle: (rewardCycle, bondIndex) =>
 				getTotalSharesStakedForCycle(client, rewardCycle, bondIndex),
+			eligibleStake: (params) => eligibleStake(client, params),
+			eligibleRegisterForBond: (params) =>
+				eligibleRegisterForBond(client, params),
+			eligibleUnstake: (params) => eligibleUnstake(client, params),
+			eligibleUnstakeSbtc: (params) => eligibleUnstakeSbtc(client, params),
+			eligibleClaimRewards: (params) => eligibleClaimRewards(client, params),
+			eligibleGrantSignerKey: (params) =>
+				eligibleGrantSignerKey(client, params),
+			eligibleSetBondAdmin: (params) => eligibleSetBondAdmin(client, params),
+			eligiblePauseRewards: (params) => eligiblePauseRewards(client, params),
 			setupBond: (params) => setupBond(client, params),
 			registerForBond: (params) => registerForBond(client, params),
 			updateBondRegistration: (params) =>
