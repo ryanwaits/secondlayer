@@ -1,0 +1,644 @@
+# Subset of hirosystems/stacks-blockchain-api OpenAPI
+# upstream tag: v9.0.2
+# source: https://raw.githubusercontent.com/hirosystems/stacks-blockchain-api/v9.0.2/openapi.yaml
+# not a full spec. additionalProperties: true is forbidden on the
+# objects we claim — we want missing required-fields to fail.
+#
+# Paths are the classic /extended/v1 shapes we serve on :3999.
+# Upstream v9.0.2 moved many of these to /extended/v2|/v3 or /v1/names.
+# See README.md for path mapping + honesty log.
+
+openapi: 3.0.3
+info:
+  title: Secondlayer /extended subset (SBA v9.0.2 tracking)
+  version: "9.0.2-subset"
+  description: >
+    Response schemas for the /extended view we ship. Not a full Labs spec.
+paths:
+  /extended/v1/status:
+    get:
+      summary: API status (classic path; upstream documents this on GET /extended)
+      responses:
+        "200":
+          description: Ready status; chain_tip omitted when tip height is 0 or block missing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Status"
+
+  /extended/v1/block:
+    get:
+      summary: List canonical blocks (limit/offset)
+      responses:
+        "200":
+          description: Offset page of blocks without txs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlockList"
+
+  /extended/v1/block/{hash}:
+    get:
+      summary: Single block by hash or height
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Block hash or decimal height
+      responses:
+        "200":
+          description: Block with txs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Block"
+
+  /extended/v1/tx:
+    get:
+      summary: List canonical transactions
+      responses:
+        "200":
+          description: Offset page of transactions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TxList"
+
+  /extended/v1/tx/{tx_id}:
+    get:
+      summary: Single transaction
+      parameters:
+        - name: tx_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Transaction projection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tx"
+
+  /extended/v1/tx/{tx_id}/events:
+    get:
+      summary: Events for a transaction (JSON array, not a page envelope)
+      parameters:
+        - name: tx_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Ordered event array
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TxEventArray"
+
+  /extended/v1/address/{principal}/transactions:
+    get:
+      summary: Transactions for a sender principal
+      parameters:
+        - name: principal
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Offset page of transactions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TxList"
+
+  /extended/v1/address/{principal}/stx:
+    get:
+      summary: STX totals for a principal
+      parameters:
+        - name: principal
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Classic STX totals subset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StxTotals"
+
+  /extended/v1/address/{principal}/ft:
+    get:
+      summary: FT holdings list (not in upstream as this path)
+      parameters:
+        - name: principal
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Our projection of decoded FT holdings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FtHoldingsList"
+
+  /extended/v1/address/{principal}/nft:
+    get:
+      summary: NFT holdings list (not in upstream as this path)
+      parameters:
+        - name: principal
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Our projection of decoded NFT holdings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NftHoldingsList"
+
+  /extended/v1/names:
+    get:
+      summary: BNS names for address (decoder-off → empty results)
+      responses:
+        "200":
+          description: Offset page; empty when BNS decoder off
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BnsNameList"
+
+  /extended/v1/names/{name}:
+    get:
+      summary: Single BNS name (decoder-off → {})
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Name row or empty object when decoder off
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BnsNameOrEmpty"
+
+  /extended/v1/tokens/nft/transfers:
+    get:
+      summary: NFT transfer events
+      responses:
+        "200":
+          description: Offset page of nft_transfer rows
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NftTransferList"
+
+components:
+  schemas:
+    OffsetPage:
+      type: object
+      additionalProperties: false
+      required: [limit, offset, total, results]
+      properties:
+        limit:
+          type: integer
+        offset:
+          type: integer
+        total:
+          type: integer
+        results:
+          type: array
+          items: {}
+
+    Status:
+      type: object
+      additionalProperties: false
+      required: [server_version, status]
+      properties:
+        server_version:
+          type: string
+        status:
+          type: string
+          enum: [ready]
+        chain_tip:
+          type: object
+          additionalProperties: false
+          required:
+            [block_height, block_hash, index_block_hash, burn_block_height]
+          properties:
+            block_height:
+              type: integer
+            block_hash:
+              type: string
+            index_block_hash:
+              type: ["string", "null"]
+            burn_block_height:
+              type: integer
+
+    BlockListItem:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          canonical,
+          height,
+          hash,
+          index_block_hash,
+          parent_block_hash,
+          parent_index_block_hash,
+          burn_block_hash,
+          burn_block_height,
+          burn_block_time,
+          burn_block_time_iso,
+        ]
+      properties:
+        canonical:
+          type: boolean
+        height:
+          type: integer
+        hash:
+          type: string
+        index_block_hash:
+          type: ["string", "null"]
+        parent_block_hash:
+          type: string
+        parent_index_block_hash:
+          type: ["string", "null"]
+        burn_block_hash:
+          type: ["string", "null"]
+        burn_block_height:
+          type: integer
+        burn_block_time:
+          type: integer
+        burn_block_time_iso:
+          type: string
+
+    Block:
+      allOf:
+        - $ref: "#/components/schemas/BlockListItem"
+        - type: object
+          additionalProperties: false
+          required: [txs, tx_count]
+          properties:
+            txs:
+              type: array
+              items:
+                type: string
+            tx_count:
+              type: integer
+
+    BlockList:
+      type: object
+      additionalProperties: false
+      required: [limit, offset, total, results]
+      properties:
+        limit:
+          type: integer
+        offset:
+          type: integer
+        total:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/BlockListItem"
+
+    Tx:
+      type: object
+      additionalProperties: false
+      required:
+        [tx_id, tx_index, tx_status, tx_type, sender_address, block_height]
+      properties:
+        tx_id:
+          type: string
+        tx_index:
+          type: integer
+        tx_status:
+          type: string
+        tx_type:
+          type: string
+        sender_address:
+          type: string
+        block_height:
+          type: integer
+        block_hash:
+          type: ["string", "null"]
+        burn_block_time:
+          type: ["integer", "null"]
+        canonical:
+          type: boolean
+        fee_rate:
+          type: string
+        nonce:
+          type: integer
+        sponsored:
+          type: boolean
+        anchor_mode:
+          type: ["string", "null"]
+        post_condition_mode:
+          type: ["string", "null"]
+        token_transfer:
+          type: object
+          additionalProperties: false
+          required: [recipient, amount, memo]
+          properties:
+            recipient:
+              type: string
+            amount:
+              type: string
+            memo:
+              type: string
+        contract_call:
+          type: object
+          additionalProperties: false
+          required: [contract_id, function_name]
+          properties:
+            contract_id:
+              type: string
+            function_name:
+              type: string
+        smart_contract:
+          type: object
+          additionalProperties: false
+          required: [contract_id, clarity_version]
+          properties:
+            contract_id:
+              type: ["string", "null"]
+            clarity_version:
+              type: ["integer", "null"]
+        coinbase:
+          type: object
+          additionalProperties: false
+          required: [alt_recipient]
+          properties:
+            alt_recipient:
+              type: ["string", "null"]
+        tenure_change:
+          type: object
+          additionalProperties: false
+          required: [cause]
+          properties:
+            cause:
+              type: integer
+
+    TxList:
+      type: object
+      additionalProperties: false
+      required: [limit, offset, total, results]
+      properties:
+        limit:
+          type: integer
+        offset:
+          type: integer
+        total:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tx"
+
+    TxEvent:
+      type: object
+      additionalProperties: false
+      required: [event_index, event_type, tx_id]
+      properties:
+        event_index:
+          type: integer
+        event_type:
+          type: string
+          enum:
+            [
+              stx_asset,
+              fungible_token_asset,
+              non_fungible_token_asset,
+              smart_contract_log,
+            ]
+        tx_id:
+          type: string
+        asset:
+          type: object
+          additionalProperties: false
+          properties:
+            asset_event_type:
+              type: string
+              enum: [transfer, mint, burn]
+            sender:
+              type: ["string", "null"]
+            recipient:
+              type: ["string", "null"]
+            amount:
+              type: ["string", "null"]
+            asset_id:
+              type: ["string", "null"]
+            value:
+              type: ["string", "null"]
+            memo:
+              type: ["string", "null"]
+        contract_log:
+          type: object
+          additionalProperties: false
+          required: [contract_id]
+          properties:
+            contract_id:
+              type: ["string", "null"]
+            topic: {}
+            value: {}
+
+    TxEventArray:
+      type: array
+      items:
+        $ref: "#/components/schemas/TxEvent"
+
+    StxTotals:
+      type: object
+      additionalProperties: false
+      required: [balance, total_sent, total_received]
+      properties:
+        balance:
+          type: string
+        total_sent:
+          type: string
+        total_received:
+          type: string
+        locked:
+          type: string
+        lock_tx_id:
+          type: string
+        unlock_height:
+          type: [integer, string]
+
+    FtHolding:
+      type: object
+      additionalProperties: false
+      required: [asset_identifier, balance]
+      properties:
+        asset_identifier:
+          type: string
+        balance:
+          type: string
+
+    FtHoldingsList:
+      type: object
+      additionalProperties: false
+      required: [limit, offset, total, results]
+      properties:
+        limit:
+          type: integer
+        offset:
+          type: integer
+        total:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/FtHolding"
+
+    NftHolding:
+      type: object
+      additionalProperties: false
+      required: [asset_identifier, value]
+      properties:
+        asset_identifier:
+          type: string
+        value:
+          type: string
+
+    NftHoldingsList:
+      type: object
+      additionalProperties: false
+      required: [limit, offset, total, results]
+      properties:
+        limit:
+          type: integer
+        offset:
+          type: integer
+        total:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/NftHolding"
+
+    BnsName:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          name,
+          namespace,
+          fqn,
+          owner,
+          bns_id,
+          topic,
+          tx_id,
+          block_height,
+          registered_at,
+          renewal_height,
+        ]
+      properties:
+        name:
+          type: string
+        namespace:
+          type: string
+        fqn:
+          type: string
+        owner:
+          type: ["string", "null"]
+        bns_id:
+          type: string
+        topic:
+          type: string
+        tx_id:
+          type: string
+        block_height:
+          type: integer
+        registered_at:
+          type: ["integer", "null"]
+        renewal_height:
+          type: ["integer", "null"]
+
+    BnsNameList:
+      type: object
+      additionalProperties: false
+      required: [limit, offset, total, results]
+      properties:
+        limit:
+          type: integer
+        offset:
+          type: integer
+        total:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/BnsName"
+
+    BnsNameOrEmpty:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          properties: {}
+        - $ref: "#/components/schemas/BnsName"
+
+    NftTransfer:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          sender,
+          recipient,
+          asset_identifier,
+          value,
+          tx_id,
+          block_height,
+          event_index,
+          asset_event_type,
+        ]
+      properties:
+        sender:
+          type: ["string", "null"]
+        recipient:
+          type: ["string", "null"]
+        asset_identifier:
+          type: string
+        value:
+          type: ["string", "null"]
+        tx_id:
+          type: string
+        block_height:
+          type: integer
+        event_index:
+          type: integer
+        asset_event_type:
+          type: string
+          enum: [transfer]
+
+    NftTransferList:
+      type: object
+      additionalProperties: false
+      required: [limit, offset, total, results]
+      properties:
+        limit:
+          type: integer
+        offset:
+          type: integer
+        total:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/NftTransfer"
