@@ -108,6 +108,22 @@ describe("createExtendedApp", () => {
 		expect(body.path).toBe("/extended/v1/status");
 	});
 
+	test("createApiApp 404s /extended/v1/block with v1 envelope", async () => {
+		const app = createApiApp("oss");
+		const res = await app.request("/extended/v1/block");
+		expect(res.status).toBe(404);
+		const body = (await res.json()) as { code: string };
+		expect(body.code).toBe("NOT_FOUND");
+	});
+
+	test("createApiApp 404s /extended/v1/tx with v1 envelope", async () => {
+		const app = createApiApp("oss");
+		const res = await app.request("/extended/v1/tx");
+		expect(res.status).toBe(404);
+		const body = (await res.json()) as { code: string };
+		expect(body.code).toBe("NOT_FOUND");
+	});
+
 	test("status handler does not import a node client", async () => {
 		// Contract: deps are injectable; default path uses Index tip + blocks table.
 		// Guard against accidental STACKS_NODE / StacksNodeClient coupling in this dir.

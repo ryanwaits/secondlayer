@@ -8,7 +8,21 @@ import {
 	missingCredentialError,
 } from "../auth/read-plane.ts";
 import { instanceTokenMatches } from "../instance-bind.ts";
+import {
+	type GetExtendedBlock,
+	type ListExtendedBlocks,
+	getExtendedBlock,
+	listExtendedBlocks,
+} from "./blocks.ts";
+import { parseExtendedPageQuery } from "./paginate.ts";
 import { type ExtendedStatusDeps, createStatusHandler } from "./status.ts";
+import {
+	type GetExtendedTransaction,
+	type ListExtendedTransactions,
+	getExtendedTransaction,
+	listExtendedTransactions,
+	parseTxHeightFilters,
+} from "./transactions.ts";
 
 const EXTENDED_EXPOSE_HEADERS = [
 	"X-RateLimit-Limit",
@@ -18,7 +32,12 @@ const EXTENDED_EXPOSE_HEADERS = [
 	"ETag",
 ];
 
-export type CreateExtendedAppOpts = ExtendedStatusDeps;
+export type CreateExtendedAppOpts = ExtendedStatusDeps & {
+	listBlocks?: ListExtendedBlocks;
+	getBlock?: GetExtendedBlock;
+	listTransactions?: ListExtendedTransactions;
+	getTransaction?: GetExtendedTransaction;
+};
 
 /**
  * Separate Hono for the optional `/extended` view (port :3999).
@@ -76,6 +95,50 @@ export function createExtendedApp(opts: CreateExtendedAppOpts = {}): Hono {
 
 	app.get("/extended/v1/status", createStatusHandler(opts));
 	app.get("/extended", (c) => c.json({ status: "/extended/v1/status" }));
+
+	const listBlocks = opts.listBlocks ?? listExtendedBlocks;
+	const getBlock = opts.getBlock ?? getExtendedBlock;
+	const listTxs = opts.listTransactions ?? listExtendedTransactions;
+	const getTx = opts.getTransaction ?? getExtendedTransaction;
+
+	app.get("/extended/v1/block", async (c) => {
+		const page = parseExtendedPageQuery(c.req.query());
+		const { results, total } = await listBlocks(page);
+		return c.json({
+			limit: page.limit,
+			offset: page.offset,
+			total,
+			results,
+		});
+	});
+
+	app.get("/extended/v1/block/:hash", async (c) => {
+		const block = await getBlock(c.req.param("hash"));
+		if (!block) return c.json({ error: "Not found" }, 404);
+		return c.json(block);
+	});
+
+	app.get("/extended/v1/tx", async (c) => {
+		const query = c.req.query();
+		const page = parseExtendedPageQuery(query);
+		const heights = parseTxHeightFilters(query);
+		const { results, total } = await listTxs({
+			...page,
+			...heights,
+		});
+		return c.json({
+			limit: page.limit,
+			offset: page.offset,
+			total,
+			results,
+		});
+	});
+
+	app.get("/extended/v1/tx/:tx_id", async (c) => {
+		const tx = await getTx(c.req.param("tx_id"));
+		if (!tx) return c.json({ error: "Not found" }, 404);
+		return c.json(tx);
+	});
 
 	return app;
 }
