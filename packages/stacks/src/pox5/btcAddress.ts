@@ -174,7 +174,10 @@ export function stringifyBtcAddress(
 	}
 }
 
-export const BtcAddress = {
+export const BtcAddress: {
+	parse: typeof parseBtcAddress;
+	stringify: typeof stringifyBtcAddress;
+} = {
 	parse: parseBtcAddress,
 	stringify: stringifyBtcAddress,
-} as const;
+};
