@@ -1,8 +1,8 @@
 # REST API
 
-Every surface on your instance answers with the same envelope, cursor, and filter grammar, so one client shape reads all of them. Served at `http://127.0.0.1:3800` (`SL_API_URL` overrides); tokens: [Authentication](/docs/authentication).
+Every `/v1` surface answers with the same envelope, cursor, and filter grammar, so one client shape reads Index, Streams, and subgraphs. Served at `http://127.0.0.1:3800` (`SL_API_URL` overrides); tokens: [Authentication](/docs/authentication).
 
-Per-endpoint parameters and response codes: [API reference](/docs/api-reference).
+Per-endpoint parameters and response codes: [API reference](/docs/api-reference). Optional `/extended` JSON on :3999 is a different shape: [Extended view](/docs/extended).
 
 ## Response envelope
 

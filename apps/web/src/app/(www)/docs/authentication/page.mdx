@@ -6,6 +6,7 @@ Your instance has one token, not accounts. Loopback reads need no key; writes, a
 | --- | --- | --- |
 | Index / Streams / subgraphs on `127.0.0.1` | None | Your Postgres: no meter, no rate limit |
 | Any `/v1` read past loopback | `INSTANCE_TOKEN` | Same rule on all three surfaces |
+| `/extended` reads | Same as `/v1` | Port 3999, off by default; [Extended view](/docs/extended) |
 | Writes (`subgraphs deploy`, subscriptions, node) | `INSTANCE_TOKEN` | Loopback included |
 | [Archive](/docs/archive) bootstrap / backfill | Card credits | `secondlayer credits buy` |
 

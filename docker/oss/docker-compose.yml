@@ -7,6 +7,7 @@
 # Optional chain:
 #   docker compose --profile full-node up -d      # bundled stacks-node + bitcoind
 #   docker compose --profile console up -d        # web console UI on :3801
+#   EXTENDED_VIEW=1                               # /extended JSON on :3999 (off by default)
 #
 # There is no bundled-stacks-node-only profile: a stacks-node needs Bitcoin
 # data from somewhere, and we don't wire a public RPC default for it — the
@@ -52,6 +53,12 @@ services:
       DATA_DIR: /data
       API_PORT: "3800"
       INDEXER_PORT: "3700"
+      # Optional /extended JSON view. Off unless EXTENDED_VIEW is exactly 1.
+      # Container listen port is 3999; published loopback-only below. The
+      # process does not bind 3999 until the flag is on, so the published
+      # port refuses connections by default.
+      EXTENDED_VIEW: ${EXTENDED_VIEW:-}
+      EXTENDED_PORT: "3999"
       # In a container the listen host cannot express who can reach the API:
       # it must be 0.0.0.0 or Docker's published port never arrives. The real
       # answer is the publish spec below, so hand the API the same value it is
@@ -85,6 +92,7 @@ services:
     ports:
       - "${API_PORT:-127.0.0.1:3800}:3800"
       - "${INDEXER_PORT:-127.0.0.1:3700}:3700"
+      - "127.0.0.1:3999:3999"
     # `secondlayer observer` (and the wizard's printed stanza) default the
     # endpoint to `indexer:3700` for a bundled/external node reaching this
     # service over the docker network — this alias is what makes that

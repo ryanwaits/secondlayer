@@ -1,0 +1,69 @@
+# Optional `/extended` JSON
+
+Clients that already call `/extended` keep that path. Same Postgres, off by default.
+
+<Callout type="note" title="Status only">
+
+`GET /extended/v1/status` is live. Blocks, txs, events, and address routes are not. Node RPC (`/v2`) stays on the node.
+
+</Callout>
+
+## Turn it on
+
+Only the value `1` enables it.
+
+```bash
+EXTENDED_VIEW=1
+curl http://127.0.0.1:3999/extended/v1/status
+```
+
+| Key | Default | Notes |
+| --- | --- | --- |
+| `EXTENDED_VIEW` | unset | Only `1` turns it on |
+| `EXTENDED_PORT` | `3999` | Positive integer |
+
+Same process as `/v1`, second bind. Compose publishes `127.0.0.1:3999` and leaves the flag off, so the port refuses until you set it in `.env`.
+
+```json
+{
+  "server_version": "secondlayer-extended/1.30.0",
+  "status": "ready",
+  "chain_tip": {
+    "block_height": 8054704,
+    "block_hash": "0xabc",
+    "index_block_hash": "0xdef",
+    "burn_block_height": 850000
+  }
+}
+```
+
+Empty chain omits `chain_tip`. `status` stays `"ready"`.
+
+## Isolation
+
+`/extended` is not mounted on `:3800`. `:3800/extended` 404s with the `/v1` body (`code: "NOT_FOUND"`). Errors on `:3999` are `{ "error": "Not found" }` with no `code`, `path`, or `next_cursor`.
+
+| Bind | Reads |
+| --- | --- |
+| Loopback | Open, no token |
+| Past loopback | `INSTANCE_TOKEN` |
+
+Same rule as `/v1`. Tokens: [Authentication](/docs/authentication).
+
+## What it is not
+
+Prefer [Index](/docs/index) unless you already have `/extended` clients.
+
+| Surface | Port | Job |
+| --- | --- | --- |
+| `/v1` | `3800` | Index, Streams, subgraphs. Envelope, cursors, signatures. |
+| `/extended` | `3999` | Optional JSON projection of Index rows. Off by default. |
+| Node RPC `/v2` | `20443` | Nonce, `call-read`, broadcast. Point those at the node. |
+
+No second Postgres. No extra API container.
+
+export const metadata = {
+	title: "Optional /extended JSON — Secondlayer Docs",
+	description:
+		"Keep /extended clients on your instance. Same Postgres, off by default, on :3999.",
+};

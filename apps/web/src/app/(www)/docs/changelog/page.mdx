@@ -6,6 +6,12 @@ keys, `402` past the free window. That service is withdrawn; on a self-hosted
 instance reads are yours and unmetered, and only archive
 bootstrap/backfill/reindex draws [credits](/docs/authentication#archive-credits).
 
+## Index — August 2026
+
+### Optional `/extended` JSON on :3999
+
+You can keep `/extended` clients pointed at your instance. Same Postgres, off by default (`EXTENDED_VIEW=1`), second bind on :3999. `/v1` is unchanged. Only `GET /extended/v1/status` is live; blocks, txs, and events are not on this listener yet. Node RPC stays on `:20443`.
+
 ## Stacks SDK — August 2026
 
 ### PoX-5 lock, reclaim, and eligibility

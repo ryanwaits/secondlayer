@@ -96,6 +96,7 @@ export const DOCS_NAV: DocsNavGroup[] = [
 				items: [{ title: "Docker and EC2", href: "/docs/deploy/docker" }],
 			},
 			{ title: "Devnet", href: "/docs/devnet" },
+			{ title: "Extended view", href: "/docs/extended" },
 		],
 	},
 	{
