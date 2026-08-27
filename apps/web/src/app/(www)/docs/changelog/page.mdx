@@ -8,6 +8,12 @@ bootstrap/backfill/reindex draws [credits](/docs/authentication#archive-credits)
 
 ## Stacks SDK — August 2026
 
+### PoX-5 lock, reclaim, and eligibility
+
+You can fund an L1 lockup, prove it, spend it, and check a stake before you pay the fee. `buildRegisterMetadata` produces the P2WSH address and lock script. `buildPox5LockProof` maps a SIP-044 proof onto `registerForBond`. `reclaim()` spends the same script (locktime or early-exit). `eligibleStake` / `eligibleRegisterForBond` / `eligibleClaimRewards` return `{ ok: true }` or a set of `Pox5ErrorCode` reasons.
+
+Signer calldata is a SIP-005 `pox-addr` tuple (`buildSignerCalldata`). `pauseRewards` is one-way. Import reclaim from `@secondlayer/stacks/pox5`; it is not on the Stacks wallet client.
+
 ### Staking post-conditions, SIP-018, and Clarity 4 deploys
 
 You can write the Epoch 3.4 / 4.0 post-conditions the chain actually checks: `Pc.ustxToLock()`, `willPerformPox()`, NFT `maybe-sent`, and `postConditionMode: "originator"`. Hex PCs round-trip with `Pc.fromHex`. Contract deploys default to versioned Clarity 4, not an unversioned Clarity 1 payload.

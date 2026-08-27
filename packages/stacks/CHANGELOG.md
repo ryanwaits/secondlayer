@@ -1,5 +1,17 @@
 # @secondlayer/stacks
 
+## 4.3.0
+
+### Minor Changes
+
+- bf9af7f: Prepare-aware pox-5 bond status and distribution-cycle inverses. `bondPhaseAtHeight` is unchanged.
+- 4a92474: PoX-5 earned-reward reads and admin actions (`set-bond-admin`, `set-pause-admin`, `pause-rewards`). `pause-rewards` is irreversible.
+- 06661a8: PoX-5 eligibility preflights (`eligibleStake`, `eligibleRegisterForBond`, `eligibleUnstake`, `eligibleUnstakeSbtc`, `eligibleClaimRewards`, `eligibleGrantSignerKey`, admin). Uncovered: `validate-stake!` trait and L1 merkle/script/amount/header checks.
+- aaf1a87: pox-5 L1 P2WSH reclaim (locktime and early-exit spends). Import from `@secondlayer/stacks/pox5`. Adds `@scure/btc-signer`.
+- 4e16447: Map SIP-044 SpvProof onto pox-5 L1LockupOutput (14-sibling cap).
+- 064413e: One-call pox-5 L1 register metadata plus script guards for unlock height 0 and uncompressed pubkeys.
+- 3fd9bf1: PoX-5 signer calldata encoder and Bitcoin address parse/stringify (SIP-005 pox-addr tuples).
+
 ## 4.2.0
 
 ### Minor Changes
