@@ -1,5 +1,4 @@
 import { describe, expect, mock, test } from "bun:test";
-import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 mock.module("@/components/home/cta-pill", () => ({
@@ -10,17 +9,14 @@ mock.module("@/components/home/cta-pill", () => ({
 	),
 }));
 
-mock.module("@/components/home/feature-stack", () => ({
-	FeatureStack: ({ historyExtra }: { historyExtra?: ReactNode }) => (
-		<div className="home-stack">
-			<a href="/docs/streams">Streams</a>
-			<a href="/docs/index">Index</a>
-			<a href="/docs/subgraphs">Subgraphs</a>
-			<p>The signed archive is public to check.</p>
-			<p>Large restore and backfill off our R2 is metered.</p>
-			<p>Official-archive bootstrap</p>
-			{historyExtra}
-		</div>
+// Server component with async shiki blocks; the smoke test pins the shell
+// around it, not its highlighting.
+mock.module("@/components/home/agent-quickstart", () => ({
+	AgentQuickstart: () => (
+		<section className="home-qs">
+			<a href="/docs/quickstart">Full quickstart</a>
+			<a href="/docs/mcp">MCP server</a>
+		</section>
 	),
 }));
 
@@ -39,12 +35,9 @@ describe("www marketing routes", () => {
 		expect(html).toContain('class="home-hero"');
 		expect(html).toContain("<h1>");
 		expect(html).toContain('class="home-sub"');
-		expect(html).toContain("The signed archive is public to check.");
-		expect(html).toContain("Large restore and backfill off our R2 is metered.");
-		expect(html).toContain("Official-archive bootstrap");
-		expect(html).toContain('href="/docs/streams"');
-		expect(html).toContain('href="/docs/index"');
-		expect(html).toContain('href="/docs/subgraphs"');
+		expect(html).toContain('class="home-qs"');
+		expect(html).toContain('href="/docs/quickstart"');
+		expect(html).toContain('href="/docs/mcp"');
 		expect(html).toContain('href="/docs/self-host"');
 	});
 

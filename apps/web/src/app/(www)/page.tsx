@@ -1,5 +1,5 @@
+import { AgentQuickstart } from "@/components/home/agent-quickstart";
 import { CtaPill } from "@/components/home/cta-pill";
-import { FeatureStack } from "@/components/home/feature-stack";
 import { socialMeta } from "@/lib/og";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -44,7 +44,7 @@ export function HomeView() {
 				</nav>
 			</section>
 
-			<FeatureStack />
+			<AgentQuickstart />
 
 			<section className="home-final">
 				<h2>Your node. Your database.</h2>
