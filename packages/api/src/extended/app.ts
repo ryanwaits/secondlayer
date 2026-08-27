@@ -1,4 +1,5 @@
-import { CODE_TO_STATUS } from "@secondlayer/shared/errors";
+import { isBnsDecoderEnabled } from "@secondlayer/shared";
+import { CODE_TO_STATUS, ValidationError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import {
@@ -9,11 +10,25 @@ import {
 } from "../auth/read-plane.ts";
 import { instanceTokenMatches } from "../instance-bind.ts";
 import {
+	type GetExtendedStx,
+	type ListExtendedFt,
+	type ListExtendedNft,
+	getExtendedStx,
+	listExtendedFt,
+	listExtendedNft,
+} from "./address.ts";
+import {
 	type GetExtendedBlock,
 	type ListExtendedBlocks,
 	getExtendedBlock,
 	listExtendedBlocks,
 } from "./blocks.ts";
+import {
+	type GetExtendedBnsName,
+	type ListExtendedBnsNames,
+	getExtendedBnsName,
+	listExtendedBnsNames,
+} from "./bns.ts";
 import { type ListExtendedTxEvents, listExtendedTxEvents } from "./events.ts";
 import { parseExtendedPageQuery } from "./paginate.ts";
 import { type ExtendedStatusDeps, createStatusHandler } from "./status.ts";
@@ -47,6 +62,13 @@ export type CreateExtendedAppOpts = ExtendedStatusDeps & {
 	getTransaction?: GetExtendedTransaction;
 	listTxEvents?: ListExtendedTxEvents;
 	listNftTransfers?: ListExtendedNftTransfers;
+	getStx?: GetExtendedStx;
+	listFt?: ListExtendedFt;
+	listNft?: ListExtendedNft;
+	getBnsName?: GetExtendedBnsName;
+	listBnsNames?: ListExtendedBnsNames;
+	/** When omitted, `isBnsDecoderEnabled()` is read at request time. */
+	bnsEnabled?: boolean;
 };
 
 /**
@@ -112,6 +134,14 @@ export function createExtendedApp(opts: CreateExtendedAppOpts = {}): Hono {
 	const getTx = opts.getTransaction ?? getExtendedTransaction;
 	const listTxEvents = opts.listTxEvents ?? listExtendedTxEvents;
 	const listNftTransfers = opts.listNftTransfers ?? listExtendedNftTransfers;
+	const getStx = opts.getStx ?? getExtendedStx;
+	const listFt = opts.listFt ?? listExtendedFt;
+	const listNft = opts.listNft ?? listExtendedNft;
+	const getBnsName = opts.getBnsName ?? getExtendedBnsName;
+	const listBnsNames = opts.listBnsNames ?? listExtendedBnsNames;
+
+	const bnsOn = (): boolean =>
+		opts.bnsEnabled !== undefined ? opts.bnsEnabled : isBnsDecoderEnabled();
 
 	app.get("/extended/v1/block", async (c) => {
 		const page = parseExtendedPageQuery(c.req.query());
@@ -172,6 +202,77 @@ export function createExtendedApp(opts: CreateExtendedAppOpts = {}): Hono {
 			total,
 			results,
 		});
+	});
+
+	app.get("/extended/v1/address/:principal/stx", async (c) => {
+		const totals = await getStx(c.req.param("principal"));
+		return c.json(totals);
+	});
+
+	app.get("/extended/v1/address/:principal/ft", async (c) => {
+		const page = parseExtendedPageQuery(c.req.query());
+		const { results, total } = await listFt({
+			principal: c.req.param("principal"),
+			...page,
+		});
+		return c.json({
+			limit: page.limit,
+			offset: page.offset,
+			total,
+			results,
+		});
+	});
+
+	app.get("/extended/v1/address/:principal/nft", async (c) => {
+		const page = parseExtendedPageQuery(c.req.query());
+		const { results, total } = await listNft({
+			principal: c.req.param("principal"),
+			...page,
+		});
+		return c.json({
+			limit: page.limit,
+			offset: page.offset,
+			total,
+			results,
+		});
+	});
+
+	// List before :name so ?address= is not captured as a path param.
+	app.get("/extended/v1/names", async (c) => {
+		if (!bnsOn()) {
+			const page = parseExtendedPageQuery(c.req.query());
+			return c.json({
+				limit: page.limit,
+				offset: page.offset,
+				total: 0,
+				results: [],
+			});
+		}
+		const query = c.req.query();
+		const address = query.address;
+		if (address === undefined || address === "") {
+			throw new ValidationError("address query parameter is required");
+		}
+		const page = parseExtendedPageQuery(query);
+		const { results, total } = await listBnsNames({
+			address,
+			...page,
+		});
+		return c.json({
+			limit: page.limit,
+			offset: page.offset,
+			total,
+			results,
+		});
+	});
+
+	app.get("/extended/v1/names/:name", async (c) => {
+		if (!bnsOn()) {
+			return c.json({});
+		}
+		const name = await getBnsName(c.req.param("name"));
+		if (!name) return c.json({ error: "Not found" }, 404);
+		return c.json(name);
 	});
 
 	app.get("/extended/v1/tokens/nft/transfers", async (c) => {
