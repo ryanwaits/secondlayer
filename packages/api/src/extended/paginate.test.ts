@@ -74,4 +74,23 @@ describe("parseExtendedPageQuery", () => {
 			ValidationError,
 		);
 	});
+
+	test("maxLimit 50 accepts limit 50", () => {
+		expect(parseExtendedPageQuery({ limit: "50" }, { maxLimit: 50 })).toEqual({
+			limit: 50,
+			offset: 0,
+		});
+	});
+
+	test("maxLimit 50 rejects limit 51", () => {
+		expect(() =>
+			parseExtendedPageQuery({ limit: "51" }, { maxLimit: 50 }),
+		).toThrow(ValidationError);
+	});
+
+	test("default maxLimit still 30 when opts omitted", () => {
+		expect(() => parseExtendedPageQuery({ limit: "50" })).toThrow(
+			ValidationError,
+		);
+	});
 });

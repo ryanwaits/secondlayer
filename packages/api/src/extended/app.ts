@@ -14,6 +14,7 @@ import {
 	getExtendedBlock,
 	listExtendedBlocks,
 } from "./blocks.ts";
+import { type ListExtendedTxEvents, listExtendedTxEvents } from "./events.ts";
 import { parseExtendedPageQuery } from "./paginate.ts";
 import { type ExtendedStatusDeps, createStatusHandler } from "./status.ts";
 import {
@@ -23,6 +24,10 @@ import {
 	listExtendedTransactions,
 	parseTxHeightFilters,
 } from "./transactions.ts";
+import {
+	type ListExtendedNftTransfers,
+	listExtendedNftTransfers,
+} from "./transfers.ts";
 
 const EXTENDED_EXPOSE_HEADERS = [
 	"X-RateLimit-Limit",
@@ -32,11 +37,16 @@ const EXTENDED_EXPOSE_HEADERS = [
 	"ETag",
 ];
 
+/** Event / nft-transfer list hard cap (Hiro event pages are small). */
+const EXTENDED_EVENT_MAX_LIMIT = 50;
+
 export type CreateExtendedAppOpts = ExtendedStatusDeps & {
 	listBlocks?: ListExtendedBlocks;
 	getBlock?: GetExtendedBlock;
 	listTransactions?: ListExtendedTransactions;
 	getTransaction?: GetExtendedTransaction;
+	listTxEvents?: ListExtendedTxEvents;
+	listNftTransfers?: ListExtendedNftTransfers;
 };
 
 /**
@@ -100,6 +110,8 @@ export function createExtendedApp(opts: CreateExtendedAppOpts = {}): Hono {
 	const getBlock = opts.getBlock ?? getExtendedBlock;
 	const listTxs = opts.listTransactions ?? listExtendedTransactions;
 	const getTx = opts.getTransaction ?? getExtendedTransaction;
+	const listTxEvents = opts.listTxEvents ?? listExtendedTxEvents;
+	const listNftTransfers = opts.listNftTransfers ?? listExtendedNftTransfers;
 
 	app.get("/extended/v1/block", async (c) => {
 		const page = parseExtendedPageQuery(c.req.query());
@@ -134,10 +146,53 @@ export function createExtendedApp(opts: CreateExtendedAppOpts = {}): Hono {
 		});
 	});
 
+	app.get("/extended/v1/tx/:tx_id/events", async (c) => {
+		const txId = c.req.param("tx_id");
+		const tx = await getTx(txId);
+		if (!tx) return c.json({ error: "Not found" }, 404);
+		const events = await listTxEvents(txId);
+		return c.json(events);
+	});
+
 	app.get("/extended/v1/tx/:tx_id", async (c) => {
 		const tx = await getTx(c.req.param("tx_id"));
 		if (!tx) return c.json({ error: "Not found" }, 404);
 		return c.json(tx);
+	});
+
+	app.get("/extended/v1/address/:principal/transactions", async (c) => {
+		const page = parseExtendedPageQuery(c.req.query());
+		const { results, total } = await listTxs({
+			...page,
+			sender: c.req.param("principal"),
+		});
+		return c.json({
+			limit: page.limit,
+			offset: page.offset,
+			total,
+			results,
+		});
+	});
+
+	app.get("/extended/v1/tokens/nft/transfers", async (c) => {
+		const query = c.req.query();
+		const page = parseExtendedPageQuery(query, {
+			maxLimit: EXTENDED_EVENT_MAX_LIMIT,
+		});
+		const assetIdentifier = query.asset_identifier;
+		const { results, total } = await listNftTransfers({
+			...page,
+			assetIdentifier:
+				assetIdentifier !== undefined && assetIdentifier !== ""
+					? assetIdentifier
+					: undefined,
+		});
+		return c.json({
+			limit: page.limit,
+			offset: page.offset,
+			total,
+			results,
+		});
 	});
 
 	return app;

@@ -10,12 +10,18 @@ export type ExtendedPageQuery = {
 	offset: number;
 };
 
+export type ParseExtendedPageOpts = {
+	/** Override hard cap (block/tx default 30; event pages use 50). */
+	maxLimit?: number;
+};
+
 /**
  * Parse limit/offset for `/extended` lists. Rejects cursor/from_cursor —
  * this surface is offset-paginated, not the Index cursor envelope.
  */
 export function parseExtendedPageQuery(
 	query: Record<string, string | undefined>,
+	opts?: ParseExtendedPageOpts,
 ): ExtendedPageQuery {
 	if (query.cursor !== undefined) {
 		throw new ValidationError("cursor is not supported; use limit and offset");
@@ -26,12 +32,13 @@ export function parseExtendedPageQuery(
 		);
 	}
 
+	const maxLimit = opts?.maxLimit ?? EXTENDED_MAX_LIMIT;
 	const limit = parseBoundInteger(
 		query.limit,
 		"limit",
 		EXTENDED_DEFAULT_LIMIT,
 		1,
-		EXTENDED_MAX_LIMIT,
+		maxLimit,
 	);
 	const offset = parseBoundInteger(query.offset, "offset", 0, 0, undefined);
 

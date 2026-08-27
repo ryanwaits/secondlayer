@@ -40,6 +40,8 @@ export type ListExtendedTransactionsQuery = {
 	offset: number;
 	fromHeight?: number;
 	toHeight?: number;
+	/** Match `transactions.sender` (address tx list). */
+	sender?: string;
 };
 
 export type ListExtendedTransactionsResult = {
@@ -174,6 +176,9 @@ export async function listExtendedTransactions(
 	}
 	if (q.toHeight !== undefined) {
 		predicates.push(sql`t.block_height <= ${q.toHeight}`);
+	}
+	if (q.sender !== undefined) {
+		predicates.push(sql`t.sender = ${q.sender}`);
 	}
 
 	const { rows: countRows } = await sql<{ count: string | number }>`
