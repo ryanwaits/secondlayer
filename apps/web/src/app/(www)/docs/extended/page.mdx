@@ -4,7 +4,7 @@ Clients that already call `/extended` keep that path. Same Postgres, off by defa
 
 <Callout type="note" title="Subset, not a drop-in replica">
 
-`status`, `block`, and `tx` are live. Events, address, tokens, and balances are not. Node RPC (`/v2`) stays on the node. Missing Hiro fields (`miner_txid`, `execution_cost_*`, `post_conditions`) are omitted, never zeroed.
+Balances, BNS, and node RPC (`/v2`) are not on this listener. Missing Hiro fields (`miner_txid`, `execution_cost_*`, `post_conditions`) are omitted, never zeroed.
 
 </Callout>
 
@@ -50,14 +50,18 @@ These paths answer on :3999.
 | `GET` | `/extended/v1/block/:hash` | One block by hash or height. Includes `txs` |
 | `GET` | `/extended/v1/tx` | List. Optional `from_height` / `to_height` |
 | `GET` | `/extended/v1/tx/:tx_id` | One transaction |
+| `GET` | `/extended/v1/tx/:tx_id/events` | JSON array, `event_index` order |
+| `GET` | `/extended/v1/address/:principal/transactions` | Txs where `sender` is the principal |
+| `GET` | `/extended/v1/tokens/nft/transfers` | `nft_transfer` rows. Optional `asset_identifier` |
 
 | Query | Default | Notes |
 | --- | --- | --- |
-| `limit` | 20 | Max 30. Over → 400 |
+| `limit` | 20 | Max 30 on block/tx lists; max 50 on nft transfers. Over → 400 |
 | `offset` | 0 | |
 | `from_height`, `to_height` | | `tx` list only |
+| `asset_identifier` | | nft transfers only |
 
-Lists use `{ limit, offset, total, results }`, not the `/v1` cursor envelope. `cursor` and `from_cursor` return 400.
+Lists use `{ limit, offset, total, results }`, not the `/v1` cursor envelope. `/tx/:tx_id/events` is a JSON array. `cursor` and `from_cursor` return 400.
 
 ## Isolation
 
