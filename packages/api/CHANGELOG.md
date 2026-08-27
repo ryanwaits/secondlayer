@@ -1,5 +1,11 @@
 # @secondlayer/api
 
+## 1.31.0
+
+### Minor Changes
+
+- 9a97473: Optional `/extended` JSON view on :3999, isolated from `/v1`. Off by default (`EXTENDED_VIEW=1`). Same Postgres. Blocks, txs, events, address holdings, decoder-gated BNS. `/v1` envelope unchanged.
+
 ## 1.30.0
 
 ### Minor Changes

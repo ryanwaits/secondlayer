@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 13.0.3
+
+### Patch Changes
+
+- 2c03ca9: Note the optional `/extended` view (`EXTENDED_VIEW=1`, :3999) after `secondlayer start`.
+
 ## 13.0.2
 
 ### Patch Changes
