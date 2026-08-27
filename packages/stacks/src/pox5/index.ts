@@ -106,6 +106,16 @@ export {
 	signReclaim,
 } from "./reclaim.ts";
 export { pox5, type Pox5Actions, type StakerState } from "./extension.ts";
+export {
+	BtcAddress,
+	type BtcAddressRepr,
+	parseBtcAddress,
+	stringifyBtcAddress,
+} from "./btcAddress.ts";
+export {
+	buildSignerCalldata,
+	parseSignerCalldata,
+} from "./signerCalldata.ts";
 
 /** The pox-5 ABI (curated to the 25 functions this module calls, verified
  *  against mainnet). `as const`, so a `contract_call` subgraph source that
