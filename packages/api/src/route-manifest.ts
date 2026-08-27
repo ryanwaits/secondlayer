@@ -82,6 +82,12 @@ export const RETAINED_ROUTE_FIXTURES = [
 	{ method: "POST", path: "/v1/batch" },
 ] as const;
 
+/** Optional `/extended` view — lives on :3999 via createExtendedApp, never on
+ *  createApiApp / :3800. Listed so tests assert the isolation contract. */
+export const EXTENDED_VIEW_FIXTURES = [
+	{ method: "GET", path: "/extended/v1/status" },
+] as const;
+
 /** Workload surface: deploying and executing handler code, delivering
  *  webhooks, driving the node. Mounted in oss only — the archive deployment
  *  serves data and does not run anyone's workload. 404s in platform/archive.

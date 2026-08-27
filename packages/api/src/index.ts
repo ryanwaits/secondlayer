@@ -2,6 +2,11 @@ import { logger } from "@secondlayer/shared";
 import { assertDbSplit, closeDb } from "@secondlayer/shared/db";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import { createApiApp } from "./create-app.ts";
+import { createExtendedApp } from "./extended/app.ts";
+import {
+	isExtendedViewEnabled,
+	resolveExtendedPort,
+} from "./extended/listen.ts";
 import {
 	assertInstanceBindAuth,
 	resolveInstanceToken,
@@ -95,11 +100,30 @@ const server = Bun.serve({
 	idleTimeout: 90,
 });
 
+// Optional `/extended` view on a separate port. Off by default. Never on :3800.
+let extendedServer: ReturnType<typeof Bun.serve> | null = null;
+if (mode === "oss" && isExtendedViewEnabled()) {
+	const extendedApp = createExtendedApp();
+	const extendedPort = resolveExtendedPort();
+	extendedServer = Bun.serve({
+		port: extendedPort,
+		hostname: listenHost,
+		fetch: extendedApp.fetch,
+		idleTimeout: 90,
+	});
+	logger.info("Starting extended view", {
+		port: extendedPort,
+		hostname: listenHost,
+		surface: "extended",
+	});
+}
+
 const shutdown = async () => {
 	logger.info("Shutting down API service...");
 
 	await stopSubgraphCache();
 	await closeDb();
+	extendedServer?.stop();
 	server.stop();
 	logger.info("API service stopped");
 	process.exit(0);

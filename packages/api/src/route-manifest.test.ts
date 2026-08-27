@@ -3,6 +3,7 @@ import { createApiApp } from "./create-app.ts";
 import { HOSTED_OPENAPI_PATHS } from "./route-manifest.ts";
 import {
 	DELETED_ROUTE_FIXTURES,
+	EXTENDED_VIEW_FIXTURES,
 	HOSTED_ROUTE_FIXTURES,
 	RETAINED_METER_ROUTE_FIXTURES,
 	RETAINED_ROUTE_FIXTURES,
@@ -193,6 +194,18 @@ describe("route manifest", () => {
 		expect(
 			RETAINED_ROUTE_FIXTURES.some((r) => r.path === "/v1/openapi.json"),
 		).toBe(true);
+	});
+
+	// `/extended` is a separate Hono on :3999 — never mounted on createApiApp.
+	test("extended view fixtures 404 on createApiApp", async () => {
+		process.env.INSTANCE_MODE = "oss";
+		const app = createApiApp("oss");
+		for (const { method, path } of EXTENDED_VIEW_FIXTURES) {
+			const res = await app.request(path, { method });
+			expect(res.status, `${method} ${path}`).toBe(404);
+			const body = (await res.json()) as { code: string };
+			expect(body.code).toBe("NOT_FOUND");
+		}
 	});
 
 	// The document describes a self-hosted instance; the metered archive is

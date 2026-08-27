@@ -96,6 +96,10 @@ internal data plane the decoders and subgraphs ride.
   `standard-webhooks` format adds a per-subscription HMAC). Index REST reads are
   not response-signed yet (deferred — see ROADMAP). The counterpart to "build
   your own" — replay and check us.
+- **Extended view** — optional `/extended` JSON projection of Index rows,
+  off by default (`EXTENDED_VIEW=1`), bound on :3999. Not a product. Not
+  the node RPC. Clients that already speak the Stacks Blockchain API keep
+  that path; `/v1` is unchanged.
 
 ### Channels (not features)
 
