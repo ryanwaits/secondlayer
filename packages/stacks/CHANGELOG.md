@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 4.3.1
+
+### Patch Changes
+
+- cc1c486: Annotate BtcAddress for bunup isolatedDeclarations (TS9013).
+
 ## 4.3.0
 
 ### Minor Changes
