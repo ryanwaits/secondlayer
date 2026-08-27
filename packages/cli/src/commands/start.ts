@@ -46,5 +46,8 @@ export function registerStartCommand(program: Command): void {
 			note(
 				"  console UI (optional): add --profile console, then `secondlayer console`",
 			);
+			note(
+				"  /extended view (optional): set EXTENDED_VIEW=1, then curl http://127.0.0.1:3999/extended/v1/status",
+			);
 		});
 }
