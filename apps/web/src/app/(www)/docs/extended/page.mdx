@@ -2,9 +2,9 @@
 
 Clients that already call `/extended` keep that path. Same Postgres, off by default.
 
-<Callout type="note" title="Status only">
+<Callout type="note" title="Subset, not a drop-in replica">
 
-`GET /extended/v1/status` is live. Blocks, txs, events, and address routes are not. Node RPC (`/v2`) stays on the node.
+`status`, `block`, and `tx` are live. Events, address, tokens, and balances are not. Node RPC (`/v2`) stays on the node. Missing Hiro fields (`miner_txid`, `execution_cost_*`, `post_conditions`) are omitted, never zeroed.
 
 </Callout>
 
@@ -38,6 +38,26 @@ Same process as `/v1`, second bind. Compose publishes `127.0.0.1:3999` and leave
 ```
 
 Empty chain omits `chain_tip`. `status` stays `"ready"`.
+
+## Routes
+
+These paths answer on :3999.
+
+| Method | Path | Returns |
+| --- | --- | --- |
+| `GET` | `/extended/v1/status` | `server_version`, `status`, optional `chain_tip` |
+| `GET` | `/extended/v1/block` | List, height desc |
+| `GET` | `/extended/v1/block/:hash` | One block by hash or height. Includes `txs` |
+| `GET` | `/extended/v1/tx` | List. Optional `from_height` / `to_height` |
+| `GET` | `/extended/v1/tx/:tx_id` | One transaction |
+
+| Query | Default | Notes |
+| --- | --- | --- |
+| `limit` | 20 | Max 30. Over → 400 |
+| `offset` | 0 | |
+| `from_height`, `to_height` | | `tx` list only |
+
+Lists use `{ limit, offset, total, results }`, not the `/v1` cursor envelope. `cursor` and `from_cursor` return 400.
 
 ## Isolation
 

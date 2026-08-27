@@ -438,9 +438,9 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 			"/secondlayer Explain the isolation contract: `/extended` is a separate listener on :3999, `:3800/extended` 404s with the `/v1` `{ code: NOT_FOUND }` body, and errors on :3999 are `{ error }` with no `code`, `path`, or `next_cursor`. Confirm I should not point `/v1` clients at 3999 or `/extended` clients at 3800.",
 		),
 		card(
-			"Do not send node RPC here",
-			"Nonce, call-read, and broadcast stay on the node.",
-			"/secondlayer I have a client that talks `/extended` and `/v2`. Point `/extended` reads at `http://127.0.0.1:3999` once `EXTENDED_VIEW=1`, and keep nonce, `call-read`, and broadcast on the Stacks node (`:20443`). Only `GET /extended/v1/status` is live; blocks, txs, events, and address routes are not served yet.",
+			"Query blocks and txs",
+			"Offset pages on :3999; keep node RPC on the node.",
+			"/secondlayer I have a client that talks `/extended` and `/v2`. Point `/extended` reads at `http://127.0.0.1:3999` once `EXTENDED_VIEW=1`: `GET /extended/v1/status`, `/extended/v1/block` and `/extended/v1/block/:hash`, `/extended/v1/tx` and `/extended/v1/tx/:tx_id`. Lists are `{ limit, offset, total, results }` (`limit` default 20, max 30; `cursor` is 400). Events, address, tokens, and balances are not on this listener. Keep nonce, `call-read`, and broadcast on the Stacks node (`:20443`).",
 		),
 	],
 
