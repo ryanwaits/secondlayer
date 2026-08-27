@@ -4,7 +4,7 @@ Clients that already call `/extended` keep that path. Same Postgres, off by defa
 
 <Callout type="note" title="Subset, not a drop-in replica">
 
-Balances, BNS, and node RPC (`/v2`) are not on this listener. Missing Hiro fields (`miner_txid`, `execution_cost_*`, `post_conditions`) are omitted, never zeroed.
+Node RPC (`/v2`) is not this listener: no nonce. The full account `/balances` document (miner rewards, token offering, metadata) is not shipped. BNS reads are empty until `BNS_DECODER_ENABLED=true`. Missing fields (`miner_txid`, `execution_cost_*`, `post_conditions`, `total_fees_sent`) are omitted, never zeroed.
 
 </Callout>
 
@@ -52,7 +52,12 @@ These paths answer on :3999.
 | `GET` | `/extended/v1/tx/:tx_id` | One transaction |
 | `GET` | `/extended/v1/tx/:tx_id/events` | JSON array, `event_index` order |
 | `GET` | `/extended/v1/address/:principal/transactions` | Txs where `sender` is the principal |
+| `GET` | `/extended/v1/address/:principal/stx` | Decoded STX totals as strings. No nonce |
+| `GET` | `/extended/v1/address/:principal/ft` | Per-asset FT nets |
+| `GET` | `/extended/v1/address/:principal/nft` | Held `{ asset_identifier, value }` |
 | `GET` | `/extended/v1/tokens/nft/transfers` | `nft_transfer` rows. Optional `asset_identifier` |
+| `GET` | `/extended/v1/names` | BNS by `?address=`. Empty if the decoder is off |
+| `GET` | `/extended/v1/names/:name` | One FQN. `{}` if the decoder is off |
 
 | Query | Default | Notes |
 | --- | --- | --- |

@@ -10,7 +10,7 @@ bootstrap/backfill/reindex draws [credits](/docs/authentication#archive-credits)
 
 ### Optional `/extended` JSON on :3999
 
-You can keep `/extended` clients pointed at your instance. Same Postgres, off by default (`EXTENDED_VIEW=1`), second bind on :3999. `/v1` is unchanged. `status`, `block`, `tx`, per-tx events, address tx lists, and nft transfers are live; balances and BNS are not. Node RPC stays on `:20443`.
+You can keep `/extended` clients pointed at your instance. Same Postgres, off by default (`EXTENDED_VIEW=1`), second bind on :3999. `/v1` is unchanged. `status`, `block`, `tx`, per-tx events, address txs, nft transfers, and decoded STX/FT/NFT holdings are live. BNS is empty until `BNS_DECODER_ENABLED=true`. No nonce; that stays on the node.
 
 ## Stacks SDK — August 2026
 
