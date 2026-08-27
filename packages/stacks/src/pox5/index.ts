@@ -88,6 +88,9 @@ export {
 	type UnstakeParams,
 	type UnstakeSbtcParams,
 	type UpdateBondRegistrationParams,
+	type PauseRewardsParams,
+	type SetBondAdminParams,
+	type SetPauseAdminParams,
 } from "./actions.ts";
 export {
 	buildPox5LockProof,
@@ -117,7 +120,7 @@ export {
 	parseSignerCalldata,
 } from "./signerCalldata.ts";
 
-/** The pox-5 ABI (curated to the 25 functions this module calls, verified
+/** The pox-5 ABI (curated to the 32 functions this module calls, verified
  *  against mainnet). `as const`, so a `contract_call` subgraph source that
  *  references it gets typed `event.input`. */
 export { POX5_ABI } from "./abi.ts";

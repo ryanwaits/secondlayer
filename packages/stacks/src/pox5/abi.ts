@@ -1,5 +1,5 @@
 /**
- * Curated pox-5 ABI — the 25 functions this module calls, subset of the full
+ * Curated pox-5 ABI — the 32 functions this module calls, subset of the full
  * boot-contract interface (88 functions). Regenerate when stacks-core bumps
  * pox-5: `bun spike/pox5-getContract/extract-abi.ts`, then re-curate.
  * Drift-guarded by __tests__/actions.simnet.test.ts.
@@ -123,6 +123,42 @@ export const POX5_ABI = {
 				{ name: "signer-key", type: { buff: { length: 33 } } },
 			],
 			outputs: { response: { ok: "bool", error: "uint128" } },
+		},
+		{
+			name: "get-earned",
+			access: "read-only",
+			args: [
+				{ name: "signer", type: "principal" },
+				{ name: "reward-cycle", type: "uint128" },
+				{ name: "bond-index", type: { optional: "uint128" } },
+			],
+			outputs: "uint128",
+		},
+		{
+			name: "get-earned-staker-rewards",
+			access: "read-only",
+			args: [
+				{ name: "signer", type: "principal" },
+				{ name: "reward-cycle", type: "uint128" },
+				{ name: "bond-index", type: { optional: "uint128" } },
+				{ name: "staker", type: "principal" },
+			],
+			outputs: "uint128",
+		},
+		{
+			name: "get-last-reward-compute-height",
+			access: "read-only",
+			args: [],
+			outputs: "uint128",
+		},
+		{
+			name: "get-total-shares-staked-for-cycle",
+			access: "read-only",
+			args: [
+				{ name: "reward-cycle", type: "uint128" },
+				{ name: "bond-index", type: { optional: "uint128" } },
+			],
+			outputs: "uint128",
 		},
 
 		// Public
@@ -576,6 +612,49 @@ export const POX5_ABI = {
 							{ name: "staker", type: "principal" },
 						],
 					},
+					error: "uint128",
+				},
+			},
+		},
+		{
+			name: "set-bond-admin",
+			access: "public",
+			args: [{ name: "new-admin", type: "principal" }],
+			outputs: {
+				response: {
+					ok: {
+						tuple: [
+							{ name: "new-admin", type: "principal" },
+							{ name: "old-admin", type: "principal" },
+						],
+					},
+					error: "uint128",
+				},
+			},
+		},
+		{
+			name: "set-pause-admin",
+			access: "public",
+			args: [{ name: "new-admin", type: "principal" }],
+			outputs: {
+				response: {
+					ok: {
+						tuple: [
+							{ name: "new-admin", type: "principal" },
+							{ name: "old-admin", type: "principal" },
+						],
+					},
+					error: "uint128",
+				},
+			},
+		},
+		{
+			name: "pause-rewards",
+			access: "public",
+			args: [],
+			outputs: {
+				response: {
+					ok: "bool",
 					error: "uint128",
 				},
 			},

@@ -242,6 +242,19 @@ describe("pox5 wallet actions match the boot contract interface", () => {
 				signerKey: `02${"11".repeat(32)}`,
 			}),
 		));
+
+	test("set-bond-admin", () =>
+		assertPinned("set-bond-admin", () =>
+			client.pox5.setBondAdmin({ newAdmin: ACCOUNT.address }),
+		));
+
+	test("set-pause-admin", () =>
+		assertPinned("set-pause-admin", () =>
+			client.pox5.setPauseAdmin({ newAdmin: ACCOUNT.address }),
+		));
+
+	test("pause-rewards", () =>
+		assertPinned("pause-rewards", () => client.pox5.pauseRewards()));
 });
 
 describe("pox5 reads match the boot contract interface", () => {
@@ -258,6 +271,10 @@ describe("pox5 reads match the boot contract interface", () => {
 		["verify-signer-key-grant", 2],
 		["current-pox-reward-cycle", 0],
 		["get-first-pox-5-reward-cycle", 0],
+		["get-earned", 3],
+		["get-earned-staker-rewards", 4],
+		["get-last-reward-compute-height", 0],
+		["get-total-shares-staked-for-cycle", 2],
 	];
 
 	test("every wrapped read exists as read_only with the expected arity", () => {
@@ -300,7 +317,7 @@ describe("pox5 committed ABI matches the boot contract interface", () => {
 	}
 
 	test("every curated function exists with matching access and args", () => {
-		expect(POX5_ABI.functions.length).toBe(25);
+		expect(POX5_ABI.functions.length).toBe(32);
 		for (const fn of POX5_ABI.functions) {
 			// biome-ignore lint/suspicious/noExplicitAny: clarinet interface JSON
 			const onchain = iface.functions.find((f: any) => f.name === fn.name);

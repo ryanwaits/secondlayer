@@ -11,8 +11,11 @@ import {
 	type ClaimStakerRewardsForSignerParams,
 	type GrantSignerKeyParams,
 	type L1LockupOutput,
+	type PauseRewardsParams,
 	type RegisterForBondParams,
 	type RevokeSignerGrantParams,
+	type SetBondAdminParams,
+	type SetPauseAdminParams,
 	type SetupBondParams,
 	type StakeParams,
 	type StakeUpdateParams,
@@ -27,17 +30,24 @@ import {
 	getBondL1UnlockHeight,
 	getBondMembership,
 	getCurrentRewardCycle,
+	getEarned,
+	getEarnedStakerRewards,
 	getFirstPox5RewardCycle,
+	getLastRewardComputeHeight,
 	getProtocolBond,
 	getSignerInfo,
 	getStakerCustodiedSbtc,
 	getStakerInfo,
 	getTotalSbtcStakedForBond,
+	getTotalSharesStakedForCycle,
 	grantSignerKey,
 	hasAnnouncedL1EarlyExit,
+	pauseRewards,
 	pox5ContractId,
 	registerForBond,
 	revokeSignerGrant,
+	setBondAdmin,
+	setPauseAdmin,
 	setupBond,
 	stake,
 	stakeUpdate,
@@ -142,6 +152,22 @@ export type Pox5Actions = {
 		) => Promise<boolean>;
 		getCurrentRewardCycle: () => Promise<bigint>;
 		getFirstRewardCycle: () => Promise<bigint>;
+		getEarned: (params: {
+			signer: string;
+			rewardCycle: IntegerType;
+			bondIndex?: IntegerType;
+		}) => Promise<bigint>;
+		getEarnedStakerRewards: (params: {
+			signer: string;
+			rewardCycle: IntegerType;
+			bondIndex?: IntegerType;
+			staker: string;
+		}) => Promise<bigint>;
+		getLastRewardComputeHeight: () => Promise<bigint>;
+		getTotalSharesStakedForCycle: (
+			rewardCycle: IntegerType,
+			bondIndex?: IntegerType,
+		) => Promise<bigint>;
 		// wallet actions (txids; pair with waitForTransactionReceipt)
 		setupBond: (params: SetupBondParams) => Promise<string>;
 		registerForBond: (params: RegisterForBondParams) => Promise<string>;
@@ -160,6 +186,9 @@ export type Pox5Actions = {
 		) => Promise<string>;
 		grantSignerKey: (params: GrantSignerKeyParams) => Promise<string>;
 		revokeSignerGrant: (params: RevokeSignerGrantParams) => Promise<string>;
+		setBondAdmin: (params: SetBondAdminParams) => Promise<string>;
+		setPauseAdmin: (params: SetPauseAdminParams) => Promise<string>;
+		pauseRewards: (params?: PauseRewardsParams) => Promise<string>;
 		buildLockProof: (opts: {
 			source: ProofSource;
 			txid: string;
@@ -214,6 +243,12 @@ export function pox5(): (client: Client) => Pox5Actions {
 				verifySignerKeyGrantOnChain(client, signerManager, signerKey),
 			getCurrentRewardCycle: () => getCurrentRewardCycle(client),
 			getFirstRewardCycle: () => getFirstPox5RewardCycle(client),
+			getEarned: (params) => getEarned(client, params),
+			getEarnedStakerRewards: (params) =>
+				getEarnedStakerRewards(client, params),
+			getLastRewardComputeHeight: () => getLastRewardComputeHeight(client),
+			getTotalSharesStakedForCycle: (rewardCycle, bondIndex) =>
+				getTotalSharesStakedForCycle(client, rewardCycle, bondIndex),
 			setupBond: (params) => setupBond(client, params),
 			registerForBond: (params) => registerForBond(client, params),
 			updateBondRegistration: (params) =>
@@ -229,6 +264,9 @@ export function pox5(): (client: Client) => Pox5Actions {
 				claimStakerRewardsForSigner(client, params),
 			grantSignerKey: (params) => grantSignerKey(client, params),
 			revokeSignerGrant: (params) => revokeSignerGrant(client, params),
+			setBondAdmin: (params) => setBondAdmin(client, params),
+			setPauseAdmin: (params) => setPauseAdmin(client, params),
+			pauseRewards: (params) => pauseRewards(client, params),
 			buildLockProof: (opts) => buildPox5LockProof(opts),
 		},
 	});

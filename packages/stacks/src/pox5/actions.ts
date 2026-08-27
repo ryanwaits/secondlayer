@@ -446,6 +446,41 @@ export function revokeSignerGrant(
 	);
 }
 
+export type SetBondAdminParams = TxOptions & { newAdmin: string };
+
+/** `set-bond-admin` — current bond-admin only. */
+export function setBondAdmin(
+	client: Client,
+	params: SetBondAdminParams,
+): Promise<string> {
+	const { newAdmin, ...tx } = params;
+	return getPox5Contract(client).call.setBondAdmin({ newAdmin }, tx);
+}
+
+export type SetPauseAdminParams = TxOptions & { newAdmin: string };
+
+/** `set-pause-admin` — current pause-admin only. */
+export function setPauseAdmin(
+	client: Client,
+	params: SetPauseAdminParams,
+): Promise<string> {
+	const { newAdmin, ...tx } = params;
+	return getPox5Contract(client).call.setPauseAdmin({ newAdmin }, tx);
+}
+
+export type PauseRewardsParams = TxOptions;
+
+/**
+ * `pause-rewards` — one-way. After this call succeeds, rewards stay paused
+ * (`ERR_REWARDS_PAUSED`); there is no unpause.
+ */
+export function pauseRewards(
+	client: Client,
+	params?: PauseRewardsParams,
+): Promise<string> {
+	return getPox5Contract(client).call.pauseRewards({}, params ?? {});
+}
+
 // ---------------------------------------------------------------------------
 // Reads (JS-mapped return types — see types.ts)
 // ---------------------------------------------------------------------------
@@ -562,4 +597,57 @@ export function getCurrentRewardCycle(client: Client): Promise<bigint> {
 /** `get-first-pox-5-reward-cycle`. */
 export function getFirstPox5RewardCycle(client: Client): Promise<bigint> {
 	return getPox5Contract(client).read.getFirstPox5RewardCycle({});
+}
+
+/** `get-earned` — claimable rewards for a signer in a cycle (optional bond). */
+export function getEarned(
+	client: Client,
+	params: {
+		signer: string;
+		rewardCycle: IntegerType;
+		bondIndex?: IntegerType;
+	},
+): Promise<bigint> {
+	return getPox5Contract(client).read.getEarned({
+		signer: params.signer,
+		rewardCycle: intToBigInt(params.rewardCycle),
+		bondIndex:
+			params.bondIndex === undefined ? null : intToBigInt(params.bondIndex),
+	});
+}
+
+/** `get-earned-staker-rewards` — a staker's share of a signer's cycle rewards. */
+export function getEarnedStakerRewards(
+	client: Client,
+	params: {
+		signer: string;
+		rewardCycle: IntegerType;
+		bondIndex?: IntegerType;
+		staker: string;
+	},
+): Promise<bigint> {
+	return getPox5Contract(client).read.getEarnedStakerRewards({
+		signer: params.signer,
+		rewardCycle: intToBigInt(params.rewardCycle),
+		bondIndex:
+			params.bondIndex === undefined ? null : intToBigInt(params.bondIndex),
+		staker: params.staker,
+	});
+}
+
+/** `get-last-reward-compute-height`. */
+export function getLastRewardComputeHeight(client: Client): Promise<bigint> {
+	return getPox5Contract(client).read.getLastRewardComputeHeight({});
+}
+
+/** `get-total-shares-staked-for-cycle`. */
+export function getTotalSharesStakedForCycle(
+	client: Client,
+	rewardCycle: IntegerType,
+	bondIndex?: IntegerType,
+): Promise<bigint> {
+	return getPox5Contract(client).read.getTotalSharesStakedForCycle({
+		rewardCycle: intToBigInt(rewardCycle),
+		bondIndex: bondIndex === undefined ? null : intToBigInt(bondIndex),
+	});
 }
