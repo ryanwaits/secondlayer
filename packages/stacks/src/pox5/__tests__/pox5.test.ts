@@ -9,9 +9,13 @@ import {
 	bondPeriodToBurnHeight,
 	bondPeriodToRewardCycle,
 	bondPhaseAtHeight,
+	bondStatusAtHeight,
 	bondUnlockCycle,
+	burnHeightToDistributionIndex,
 	burnHeightToRewardCycle,
 	computeBondUnlockHeight,
+	currentDistributionCycle,
+	distributionCycleToBurnHeight,
 	isInPreparePhase,
 	rewardCycleToBurnHeight,
 } from "../cycles.ts";
@@ -149,6 +153,29 @@ describe("cycle math", () => {
 			rewardCycleToBurnHeight(bondPeriodToRewardCycle(6, BOND), BOND) -
 				Math.floor(BOND.rewardCycleLength / 2),
 		);
+	});
+
+	it("round-trips distribution cycles and burn heights", () => {
+		const dist = burnHeightToDistributionIndex(960_230, POX);
+		expect(distributionCycleToBurnHeight(dist, POX)).toBeLessThanOrEqual(
+			960_230,
+		);
+		expect(distributionCycleToBurnHeight(dist + 1, POX)).toBeGreaterThan(
+			960_230,
+		);
+		expect(currentDistributionCycle(960_230, POX)).toBe(dist);
+	});
+
+	it("classifies prepare-aware bond status", () => {
+		const start = bondPeriodToBurnHeight(2, BOND);
+		const params = { ...BOND, prepareCycleLength: 100 };
+		expect(bondStatusAtHeight(2, start - 5 * 2_100, params)).toBe("too-early");
+		expect(bondStatusAtHeight(2, start - 2_100, params)).toBe("open");
+		// Prepare of the start cycle closes registration; coarse helper does not.
+		expect(bondStatusAtHeight(2, start - 100, params)).toBe("locked");
+		expect(bondPhaseAtHeight(2, start - 100, BOND)).toBe("open");
+		expect(bondStatusAtHeight(2, start + 2_100, params)).toBe("locked");
+		expect(bondStatusAtHeight(2, start + 13 * 2_100, params)).toBe("unlocked");
 	});
 });
 

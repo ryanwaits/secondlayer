@@ -46,6 +46,10 @@ export {
 	isInPreparePhase,
 	type PoxCycleParams,
 	rewardCycleToBurnHeight,
+	type BondStatusName,
+	bondStatusAtHeight,
+	currentDistributionCycle,
+	distributionCycleToBurnHeight,
 } from "./cycles.ts";
 export {
 	type BuildLockupScriptOptions,

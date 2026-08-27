@@ -106,6 +106,28 @@ export function burnHeightToDistributionIndex(
 	);
 }
 
+/** Burn height at the start of `distIndex`. Mirrors `distribution-cycle-to-burn-height`. */
+export function distributionCycleToBurnHeight(
+	distIndex: number,
+	params: PoxCycleParams,
+): number {
+	return (
+		params.firstBurnchainBlockHeight +
+		distIndex * Math.floor(params.rewardCycleLength / 2)
+	);
+}
+
+/**
+ * Distribution cycle containing `burnHeight`. Named after the contract's
+ * `current-distribution-cycle` but takes height as an argument — no clock.
+ */
+export function currentDistributionCycle(
+	burnHeight: number,
+	params: PoxCycleParams,
+): number {
+	return burnHeightToDistributionIndex(burnHeight, params);
+}
+
 /**
  * Whether `burnHeight` falls in a cycle's prepare phase (the final
  * `prepareCycleLength` blocks). pox-5 rejects `unstake-sbtc` and
@@ -137,6 +159,39 @@ export function bondPhaseAtHeight(
 	const unlock = bondUnlockCycle(bondIndex, params);
 	if (cycle < start - BOND_GAP_CYCLES) return "too-early";
 	if (cycle < start) return "open";
+	if (cycle < unlock) return "locked";
+	return "unlocked";
+}
+
+/**
+ * Prepare-aware bond lifecycle. `open` is the registerable window — it
+ * ends when the start cycle's prepare phase begins (`register-for-bond`
+ * then fails with `ERR_STAKE_IN_PREPARE_PHASE`). Coarse cycle buckets
+ * (whole pre-start cycle as `open`) stay on {@link BondPhase}.
+ *
+ * `eligible`/`missed`/`finished` are omitted: they are not contract
+ * states (registration is height-gated, not a per-staker enum).
+ */
+export type BondStatusName = "too-early" | "open" | "locked" | "unlocked";
+
+export function bondStatusAtHeight(
+	bondIndex: number,
+	burnHeight: number,
+	params: BondCycleParams & { prepareCycleLength: number },
+): BondStatusName {
+	const cycle = burnHeightToRewardCycle(burnHeight, params);
+	const start = bondPeriodToRewardCycle(bondIndex, params);
+	const unlock = bondUnlockCycle(bondIndex, params);
+	if (cycle < start - BOND_GAP_CYCLES) return "too-early";
+	if (cycle < start) {
+		// Prepare of the start cycle (last prepareCycleLength blocks of
+		// cycle start-1) permanently closes registration. Other prepares
+		// in the window still report `open`; st-022 layers isInPreparePhase.
+		if (cycle === start - 1 && isInPreparePhase(burnHeight, params)) {
+			return "locked";
+		}
+		return "open";
+	}
 	if (cycle < unlock) return "locked";
 	return "unlocked";
 }
