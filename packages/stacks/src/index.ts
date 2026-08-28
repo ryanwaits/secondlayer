@@ -72,6 +72,7 @@ export {
 export {
 	extendedApiSource,
 	indexTxSource,
+	IndexSourceConfigError,
 	type IndexTxSourceParams,
 	type TransactionReceipt,
 	type TransactionSnapshot,
@@ -160,5 +161,6 @@ export {
 	WaitForTransactionTimeoutError,
 	type TxRejectionReason,
 	HttpRequestError,
+	TimeoutError,
 	MalformedResponseError,
 } from "./errors/index.ts";

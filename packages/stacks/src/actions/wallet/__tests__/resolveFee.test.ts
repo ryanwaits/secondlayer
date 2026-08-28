@@ -3,6 +3,7 @@ import { privateKeyToAccount } from "../../../accounts/privateKeyToAccount.ts";
 import { mainnet } from "../../../chains/definitions.ts";
 import { createWalletClient } from "../../../clients/createWalletClient.ts";
 import type { Client } from "../../../clients/types.ts";
+import { HttpRequestError } from "../../../errors/http.ts";
 import { buildTokenTransfer } from "../../../transactions/build.ts";
 import type { StacksTransaction } from "../../../transactions/types.ts";
 import { deserializeTransaction } from "../../../transactions/wire/deserialize.ts";
@@ -20,6 +21,17 @@ import {
 
 const ACCOUNT = privateKeyToAccount("11".repeat(32));
 const TXID = `0x${"ab".repeat(32)}`;
+
+/** What a stacks-node sends when it has no fee history for the payload. */
+function noEstimateAvailable(): never {
+	throw new HttpRequestError(400, {
+		details: JSON.stringify({
+			error: "Estimation could not be performed",
+			reason: "NoEstimateAvailable",
+			reason_data: {},
+		}),
+	});
+}
 
 const THREE_ESTIMATES = {
 	estimations: [
@@ -87,28 +99,44 @@ describe("resolveFee", () => {
 		const client = estimatingClient(() => {
 			throw new Error("estimate must not be called");
 		});
-		expect(await resolveFee(client, buildUnsigned(), 123n)).toBe(123n);
-		expect(await resolveFee(client, buildUnsigned(), 456)).toBe(456n);
+		expect(await resolveFee(client, buildUnsigned(), 123n)).toEqual({
+			fee: 123n,
+		});
+		expect(await resolveFee(client, buildUnsigned(), 456)).toEqual({
+			fee: 456n,
+		});
 	});
 
 	it("maps low/mid/high to estimations[0/1/2]", async () => {
 		const client = estimatingClient(THREE_ESTIMATES);
 		const tx = buildUnsigned();
-		expect(await resolveFee(client, tx, "low")).toBe(100n);
-		expect(await resolveFee(client, tx, "mid")).toBe(250n);
-		expect(await resolveFee(client, tx, "high")).toBe(900n);
+		expect(await resolveFee(client, tx, "low")).toEqual({
+			fee: 100n,
+			tier: "low",
+		});
+		expect(await resolveFee(client, tx, "mid")).toEqual({
+			fee: 250n,
+			tier: "mid",
+		});
+		expect(await resolveFee(client, tx, "high")).toEqual({
+			fee: 900n,
+			tier: "high",
+		});
 	});
 
 	it("defaults to mid when fee is undefined", async () => {
 		const client = estimatingClient(THREE_ESTIMATES);
-		expect(await resolveFee(client, buildUnsigned(), undefined)).toBe(250n);
+		expect(await resolveFee(client, buildUnsigned(), undefined)).toEqual({
+			fee: 250n,
+			tier: "mid",
+		});
 	});
 
 	it("falls back to the nearest present estimation", async () => {
 		const client = estimatingClient({
 			estimations: [{ fee_rate: 1, fee: 100 }],
 		});
-		expect(await resolveFee(client, buildUnsigned(), "high")).toBe(100n);
+		expect((await resolveFee(client, buildUnsigned(), "high")).fee).toBe(100n);
 	});
 
 	it("min is the serialized byte length, no network call", async () => {
@@ -117,7 +145,10 @@ describe("resolveFee", () => {
 		});
 		const tx = buildUnsigned();
 		const expected = BigInt(serializeTransaction(tx).length);
-		expect(await resolveFee(client, tx, "min")).toBe(expected);
+		expect(await resolveFee(client, tx, "min")).toEqual({
+			fee: expected,
+			tier: "min",
+		});
 		expect(minimumFee(tx)).toBe(expected);
 	});
 
@@ -134,18 +165,40 @@ describe("resolveFee", () => {
 		expect(minimumFee(cheap)).toBe(minimumFee(pricey));
 	});
 
-	it("falls back to min when estimation throws", async () => {
-		const client = estimatingClient(() => {
-			throw new Error("NoEstimateAvailable");
-		});
+	it("falls back to min, and says so, when the node has no estimate", async () => {
+		const client = estimatingClient(noEstimateAvailable);
 		const tx = buildUnsigned();
-		expect(await resolveFee(client, tx, "mid")).toBe(minimumFee(tx));
+		expect(await resolveFee(client, tx, "mid")).toEqual({
+			fee: minimumFee(tx),
+			tier: "min",
+		});
 	});
 
 	it("falls back to min when estimation is empty", async () => {
 		const client = estimatingClient({ estimations: [] });
 		const tx = buildUnsigned();
-		expect(await resolveFee(client, tx, "high")).toBe(minimumFee(tx));
+		expect(await resolveFee(client, tx, "high")).toEqual({
+			fee: minimumFee(tx),
+			tier: "min",
+		});
+	});
+
+	it("rethrows a transport failure from the estimator instead of under-paying", async () => {
+		const client = estimatingClient(() => {
+			throw new HttpRequestError(503, { details: "upstream down" });
+		});
+		await expect(resolveFee(client, buildUnsigned(), "mid")).rejects.toThrow(
+			HttpRequestError,
+		);
+	});
+
+	it("rethrows a 400 that is not NoEstimateAvailable", async () => {
+		const client = estimatingClient(() => {
+			throw new HttpRequestError(400, { details: "bad payload" });
+		});
+		await expect(resolveFee(client, buildUnsigned(), "mid")).rejects.toThrow(
+			HttpRequestError,
+		);
 	});
 });
 
@@ -161,20 +214,16 @@ describe("fee tiers in wallet actions", () => {
 		expect(fees).toEqual([900n]);
 	});
 
-	it("transferStx with estimate failure broadcasts the min fee, not 0", async () => {
+	it("transferStx with NoEstimateAvailable broadcasts the min fee, not 0", async () => {
 		const fees: bigint[] = [];
-		const client = estimatingClient(() => {
-			throw new Error("NoEstimateAvailable");
-		}, fees);
+		const client = estimatingClient(noEstimateAvailable, fees);
 		await transferStx(client, { to: ACCOUNT.address, amount: 1000n });
 		expect(fees).toHaveLength(1);
 		expect(fees[0]).toBeGreaterThan(0n);
 	});
 
-	it("sponsorTransaction resolves min on estimate failure instead of 0n", async () => {
-		const client = estimatingClient(() => {
-			throw new Error("NoEstimateAvailable");
-		});
+	it("sponsorTransaction resolves min on NoEstimateAvailable instead of 0n", async () => {
+		const client = estimatingClient(noEstimateAvailable);
 		const { buildContractCall } = await import(
 			"../../../transactions/build.ts"
 		);

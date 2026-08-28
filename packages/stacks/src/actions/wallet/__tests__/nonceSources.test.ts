@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { Client } from "../../../clients/types.ts";
+import { HttpRequestError } from "../../../errors/http.ts";
 import {
 	type NonceManagerSource,
 	createNonceManager,
@@ -13,7 +14,25 @@ import {
 	nextFreeNonce,
 } from "../nonceSources.ts";
 
+import type { RequestOptions } from "../../../transports/types.ts";
+
 const client = { chain: { id: 1 } } as unknown as Client;
+
+/** Client whose transport IS the instance: index routes answer from `handler`. */
+function instanceClient(
+	handler: (path: string, options?: RequestOptions) => unknown,
+): Client {
+	return {
+		chain: { id: 1 },
+		transport: {
+			type: "custom",
+			config: { url: "http://instance.test" },
+			request: async () => ({}),
+		},
+		request: async (path: string, options?: RequestOptions) =>
+			handler(path, options),
+	} as unknown as Client;
+}
 const ADDR = "SP2C2YFP12AJZB4MABJBAJ55XECVS7E4PMMZ89YZR";
 
 /** Build a fetch stub returning JSON. `handler` inspects (url, init). */
@@ -79,47 +98,109 @@ describe("mempoolAwareSource", () => {
 
 describe("indexSource", () => {
 	it("computes the next nonce from /v1/index/mempool pending txs", async () => {
-		const fetchImpl = fetchStub((url) => {
-			expect(url).toContain("/v1/index/mempool");
-			expect(url).toContain(`sender=${ADDR}`);
-			return {
-				body: { mempool: [{ nonce: "5" }, { nonce: "6" }], next_cursor: null },
-			};
+		const idx = instanceClient((path) => {
+			expect(path).toContain("/v1/index/mempool?");
+			expect(path).toContain(`sender=${ADDR}`);
+			return { mempool: [{ nonce: "5" }, { nonce: "6" }], next_cursor: null };
 		});
-		const source = indexSource({ getConfirmed: async () => 5n, fetchImpl });
-		expect(await source.get({ client, address: ADDR })).toBe(7n);
+		const source = indexSource({ getConfirmed: async () => 5n });
+		expect(await source.get({ client: idx, address: ADDR })).toBe(7n);
 	});
 
 	it("pages through the mempool until next_cursor is null", async () => {
-		const fetchImpl = fetchStub((url) => {
-			if (url.includes("from_cursor=c1")) {
-				return { body: { mempool: [{ nonce: "6" }], next_cursor: null } };
+		const idx = instanceClient((path) => {
+			if (path.includes("from_cursor=c1")) {
+				return { mempool: [{ nonce: "6" }], next_cursor: null };
 			}
-			return { body: { mempool: [{ nonce: "5" }], next_cursor: "c1" } };
+			return { mempool: [{ nonce: "5" }], next_cursor: "c1" };
 		});
-		const source = indexSource({ getConfirmed: async () => 5n, fetchImpl });
-		expect(await source.get({ client, address: ADDR })).toBe(7n);
+		const source = indexSource({ getConfirmed: async () => 5n });
+		expect(await source.get({ client: idx, address: ADDR })).toBe(7n);
 	});
 
-	it("sends the api key when provided", async () => {
+	it("stops at maxPages without logging and returns the partial set", async () => {
+		let pages = 0;
+		const idx = instanceClient(() => {
+			pages++;
+			return { mempool: [{ nonce: String(4 + pages) }], next_cursor: "more" };
+		});
+		const source = indexSource({ getConfirmed: async () => 5n, maxPages: 2 });
+		expect(await source.get({ client: idx, address: ADDR })).toBe(7n);
+		expect(pages).toBe(2);
+	});
+
+	it("sends the instance token as a Bearer authorization header", async () => {
 		let seenAuth: string | undefined;
-		const fetchImpl = fetchStub((_url, init) => {
-			seenAuth = (init?.headers as Record<string, string>)?.authorization;
-			return { body: { mempool: [], next_cursor: null } };
+		const idx = instanceClient((_path, options) => {
+			seenAuth = options?.headers?.authorization;
+			return { mempool: [], next_cursor: null };
 		});
 		const source = indexSource({
 			getConfirmed: async () => 5n,
 			apiKey: "secret",
-			fetchImpl,
 		});
-		await source.get({ client, address: ADDR });
+		await source.get({ client: idx, address: ADDR });
 		expect(seenAuth).toBe("Bearer secret");
 	});
 
-	it("degrades to the confirmed floor on a non-ok response", async () => {
-		const fetchImpl = fetchStub(() => ({ status: 500, body: {} }));
-		const source = indexSource({ getConfirmed: async () => 5n, fetchImpl });
-		expect(await source.get({ client, address: ADDR })).toBe(5n);
+	it("degrades to the confirmed floor when the transport throws", async () => {
+		const idx = instanceClient(() => {
+			throw new Error("HTTP request failed with status 500");
+		});
+		const source = indexSource({ getConfirmed: async () => 5n });
+		expect(await source.get({ client: idx, address: ADDR })).toBe(5n);
+	});
+
+	it("rejects instead of degrading when no instance URL is known", async () => {
+		const bare = {
+			chain: { id: 1 },
+			transport: { type: "custom", config: {}, request: async () => ({}) },
+			request: async () => ({}),
+		} as unknown as Client;
+		const source = indexSource({ getConfirmed: async () => 5n });
+		await expect(source.get({ client: bare, address: ADDR })).rejects.toThrow(
+			/baseUrl/,
+		);
+	});
+
+	it("rejects instead of degrading when the transport is a Hiro host", async () => {
+		const hiro = {
+			chain: {
+				id: 1,
+				rpcUrls: { default: { http: ["https://api.mainnet.hiro.so"] } },
+			},
+			transport: {
+				type: "http",
+				config: { url: "https://api.mainnet.hiro.so" },
+				request: async () => ({}),
+			},
+			request: async () => ({}),
+		} as unknown as Client;
+		const source = indexSource({ getConfirmed: async () => 5n });
+		await expect(source.get({ client: hiro, address: ADDR })).rejects.toThrow(
+			/Hiro host/,
+		);
+	});
+
+	it("rejects instead of degrading when the host answers /v1/index with a non-JSON 404", async () => {
+		const node = instanceClient(() => {
+			throw new HttpRequestError(404, {
+				details: "404 Not Found",
+				url: "http://instance.test/v1/index/mempool",
+			});
+		});
+		const source = indexSource({ getConfirmed: async () => 5n });
+		await expect(source.get({ client: node, address: ADDR })).rejects.toThrow(
+			/does not serve \/v1\/index/,
+		);
+	});
+
+	it("treats a JSON 404 as an empty pending set", async () => {
+		const idx = instanceClient(() => {
+			throw new HttpRequestError(404, { details: '{"error":"not_found"}' });
+		});
+		const source = indexSource({ getConfirmed: async () => 5n });
+		expect(await source.get({ client: idx, address: ADDR })).toBe(5n);
 	});
 });
 

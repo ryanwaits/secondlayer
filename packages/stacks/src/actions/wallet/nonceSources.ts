@@ -1,5 +1,10 @@
 import type { Client } from "../../clients/types.ts";
 import { getNonce } from "../public/getNonce.ts";
+import {
+	IndexSourceConfigError,
+	indexNotFound,
+	indexRequestFn,
+} from "../public/txSources.ts";
 import type { NonceManagerSource } from "./nonceManager.ts";
 
 /**
@@ -12,7 +17,7 @@ import type { NonceManagerSource } from "./nonceManager.ts";
  * is pluggable, so you are never locked to any one provider:
  *
  *   - {@link mempoolAwareSource} — bring your own `getPending`.
- *   - {@link indexSource} — prebuilt over Secondlayer's `/v1/index/mempool`.
+ *   - {@link indexSource}: prebuilt over a Secondlayer instance's `/v1/index/mempool`.
  *   - {@link hiroNonceSource} — prebuilt over Hiro's `/extended` nonces endpoint.
  */
 
@@ -58,7 +63,9 @@ export type MempoolAwareSourceParams = {
 /**
  * Build a gap-filling, mempool-aware source from any `getPending`. The confirmed
  * floor defaults to the node read; if `getPending` throws, the source degrades
- * to confirmed-only rather than blocking a broadcast.
+ * to confirmed-only rather than blocking a broadcast. A misconfigured pending
+ * feed ({@link IndexSourceConfigError}) is rethrown: it would fail on every
+ * read, and degrading silently would hide that the mempool is never consulted.
  */
 export function mempoolAwareSource(
 	params: MempoolAwareSourceParams,
@@ -73,8 +80,9 @@ export function mempoolAwareSource(
 			let pending: bigint[] = [];
 			try {
 				pending = await params.getPending({ client, address });
-			} catch {
-				// Source unavailable — fall back to the confirmed floor. The local
+			} catch (error) {
+				if (error instanceof IndexSourceConfigError) throw error;
+				// Source unavailable: fall back to the confirmed floor. The local
 				// increment in the manager still prevents same-process collisions.
 				return confirmed;
 			}
@@ -84,12 +92,18 @@ export function mempoolAwareSource(
 }
 
 export type IndexSourceParams = {
-	/** Secondlayer Index base URL. Default `https://api.secondlayer.tools`. */
+	/**
+	 * URL of your Secondlayer instance. Without it the client's transport
+	 * URL is assumed to be the instance: a transport on a Hiro host throws
+	 * up front, and a host that answers `/v1/index` with a non-JSON 404
+	 * (a bare stacks-node) throws on the first read. Neither is degraded
+	 * to the confirmed floor. Pass it whenever the transport is not the
+	 * instance.
+	 */
 	baseUrl?: string;
-	/** Optional API key (keyless by default; supply to raise rate limits). */
+	/** Instance token, sent as `Authorization: Bearer`. */
 	apiKey?: string;
-	fetchImpl?: FetchImpl;
-	/** Max mempool pages to page through per address. Default 10 (×200 = 2000 txs). */
+	/** Max mempool pages to read per address. Default 10 (×200 = 2000 txs). */
 	maxPages?: number;
 	/** Override the confirmed floor (defaults to the node read). */
 	getConfirmed?: (args: { client: Client; address: string }) => Promise<bigint>;
@@ -101,44 +115,51 @@ type IndexMempoolResponse = {
 };
 
 /**
- * Mempool-aware source backed by Secondlayer's `/v1/index/mempool` (our node's
- * observed mempool). `baseUrl` is configurable — point it at any shape-compatible
- * endpoint. Note our mempool is a go-forward, single-node observed view (not a
- * globally-aggregated mempool), so it can lag or miss txs our node never saw.
+ * Mempool-aware source backed by a Secondlayer instance's `/v1/index/mempool`.
+ * Requests go through the transport layer (retries, timeout, typed errors).
+ * The instance's mempool is a go-forward view observed by its own node, so
+ * it can lag or miss transactions that node never saw; the manager's local
+ * increment still prevents same-process collisions. Past `maxPages` the
+ * pending set is truncated and the next free nonce may already be taken;
+ * a nonce conflict at broadcast then resets the manager. Transient failures
+ * (5xx, timeout) degrade to the confirmed floor; a missing or wrong instance
+ * URL throws so the misconfiguration is visible on the first read.
  */
 export function indexSource(
 	params: IndexSourceParams = {},
 ): NonceManagerSource {
-	const baseUrl = (params.baseUrl ?? "https://api.secondlayer.tools").replace(
-		/\/$/,
-		"",
-	);
-	const fetchImpl = resolveFetch(params.fetchImpl);
 	const maxPages = params.maxPages ?? 10;
+	const headers = params.apiKey
+		? { authorization: `Bearer ${params.apiKey}` }
+		: undefined;
 
-	return mempoolAwareSource({
+	const source = mempoolAwareSource({
 		getConfirmed: params.getConfirmed,
-		async getPending({ address }) {
+		async getPending({ client, address }) {
+			const request = indexRequestFn(client, params.baseUrl, "indexSource");
 			const out: bigint[] = [];
 			let cursor: string | undefined;
 			let pages = 0;
 
 			do {
-				const url = new URL(`${baseUrl}/v1/index/mempool`);
-				url.searchParams.set("sender", address);
-				url.searchParams.set("limit", "200");
-				if (cursor) url.searchParams.set("from_cursor", cursor);
-
-				const res = await fetchImpl(url, {
-					headers: params.apiKey
-						? { authorization: `Bearer ${params.apiKey}` }
-						: undefined,
+				const query = new URLSearchParams({
+					sender: address,
+					limit: "200",
 				});
-				if (!res.ok) {
-					throw new Error(`indexSource: /v1/index/mempool ${res.status}`);
-				}
+				if (cursor) query.set("from_cursor", cursor);
 
-				const data = (await res.json()) as IndexMempoolResponse;
+				let data: IndexMempoolResponse;
+				try {
+					data = (await request(`/v1/index/mempool?${query}`, {
+						method: "GET",
+						headers,
+					})) as IndexMempoolResponse;
+				} catch (error) {
+					// A JSON 404 is an instance with nothing for this sender; a
+					// non-JSON 404 is not an instance and throws a config error.
+					if (indexNotFound(error, "indexSource")) break;
+					throw error;
+				}
 				for (const tx of data.mempool ?? []) {
 					if (tx.nonce != null) out.push(BigInt(tx.nonce));
 				}
@@ -146,14 +167,18 @@ export function indexSource(
 				pages += 1;
 			} while (cursor && pages < maxPages);
 
-			if (cursor) {
-				console.warn(
-					`indexSource: stopped paging mempool for ${address} after ${maxPages} pages; pending set may be incomplete`,
-				);
-			}
 			return out;
 		},
 	});
+
+	return {
+		async get(args) {
+			// Resolve the instance before the degrade path so a missing or
+			// Hiro-pointed transport URL rejects instead of returning the floor.
+			indexRequestFn(args.client, params.baseUrl, "indexSource");
+			return source.get(args);
+		},
+	};
 }
 
 export type HiroNonceSourceParams = {

@@ -39,6 +39,13 @@ if v == false then redis.call('SET', KEYS[1], ARGV[1]); v = ARGV[1] end
 redis.call('INCR', KEYS[1])
 return v`;
 
+// Release path: roll back one step only if the counter still sits right
+// after the released nonce (ARGV[1] = nonce + 1, ARGV[2] = nonce). String
+// compare keeps bigint nonces exact without Lua number conversion.
+const RELEASE_IF_LATEST = `local v = redis.call('GET', KEYS[1])
+if v ~= false and v == ARGV[1] then redis.call('SET', KEYS[1], ARGV[2]) end
+return v`;
+
 /**
  * Redis-backed nonce store. The atomic reserve lives in a Lua `EVAL`, so it is
  * safe across processes sharing one Redis. The confirmed floor (`getFloor`) is
@@ -65,6 +72,15 @@ export function redisStore(params: RedisStoreParams): NonceStore {
 		},
 		async reset(key) {
 			await redis.send("DEL", [prefix + key]);
+		},
+		async release(key, nonce) {
+			await redis.send("EVAL", [
+				RELEASE_IF_LATEST,
+				"1",
+				prefix + key,
+				(nonce + 1n).toString(),
+				nonce.toString(),
+			]);
 		},
 		async peek(key) {
 			const v = await redis.send("GET", [prefix + key]);
@@ -128,6 +144,12 @@ export function postgresStore(params: PostgresStoreParams): NonceStore {
 		async reset(key) {
 			await ensureTable();
 			await sql`DELETE FROM stacks_nonce_state WHERE key = ${key}`;
+		},
+		async release(key, nonce) {
+			await ensureTable();
+			// Single conditional UPDATE: atomic under the row lock, no-op unless
+			// the released nonce is the latest one issued.
+			await sql`UPDATE stacks_nonce_state SET next = ${nonce.toString()} WHERE key = ${key} AND next = ${(nonce + 1n).toString()}`;
 		},
 		async peek(key) {
 			await ensureTable();

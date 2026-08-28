@@ -28,12 +28,11 @@ import { buildContractCall } from "../transactions/build.ts";
 import type { StacksTransaction } from "../transactions/types.ts";
 import { publicKeyToAddress } from "../utils/address.ts";
 import type { IntegerType } from "../utils/encoding.ts";
-import { estimateFee } from "./public/estimateFee.ts";
 import { getMapEntry } from "./public/getMapEntry.ts";
+import { getNonce } from "./public/getNonce.ts";
 import { readContract } from "./public/readContract.ts";
 import { callContract } from "./wallet/callContract.ts";
-import { resolveNonce } from "./wallet/nonceManager.ts";
-import { setUnsignedFee } from "./wallet/utils.ts";
+import { resolveFee, setUnsignedFee } from "./wallet/utils.ts";
 
 // --- Type helpers for unwrapping response types ---
 
@@ -116,9 +115,12 @@ export type ContractCallOptions = {
 };
 
 /**
- * Options for `buildCall.*` — building an unsigned transaction for
+ * Options for `buildCall.*`, building an unsigned transaction for
  * wallet-signs-later flows. `publicKey` defaults to the client account's
- * public key; `fee`/`nonce` are resolved from the network when omitted.
+ * public key. When omitted, `nonce` is the confirmed on-chain nonce read
+ * straight from the node (the client's nonce manager is never consumed for
+ * a transaction that may never be sent) and `fee` is the mid estimate,
+ * falling back to the relay floor only on `NoEstimateAvailable`.
  */
 export type ContractBuildCallOptions = ContractCallOptions & {
 	publicKey?: string;
@@ -261,7 +263,9 @@ export function getContract<const TAbi extends AbiContract>(
 				const network = client.chain?.network ?? "mainnet";
 				const nonce =
 					options?.nonce ??
-					(await resolveNonce(client, publicKeyToAddress(publicKey, network)));
+					(await getNonce(client, {
+						address: publicKeyToAddress(publicKey, network),
+					}));
 
 				const unsigned = buildContractCall({
 					contractAddress: address,
@@ -278,13 +282,8 @@ export function getContract<const TAbi extends AbiContract>(
 				});
 
 				if (options?.fee === undefined) {
-					const estimates = await estimateFee(client, {
-						transaction: unsigned,
-					});
-					const mid = estimates[1] ?? estimates[0];
-					if (mid) {
-						setUnsignedFee(unsigned, BigInt(mid.fee));
-					}
+					const { fee } = await resolveFee(client, unsigned, undefined);
+					setUnsignedFee(unsigned, fee);
 				}
 
 				return unsigned;

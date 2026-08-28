@@ -24,8 +24,13 @@ function createFakeRedis(backing = new Map<string, string>()): {
 					backing.delete(args[0]);
 					return 1;
 				case "EVAL": {
-					const [script, , key, arg] = args;
+					const [script, , key, arg, arg2] = args;
 					let v = backing.get(key);
+					if (script.includes("ARGV[2]")) {
+						// RELEASE_IF_LATEST: roll back only when v == nonce + 1.
+						if (v !== undefined && v === arg) backing.set(key, arg2);
+						return v ?? null;
+					}
 					if (v === undefined) {
 						// SEED_OR_TAKE seeds from ARGV[1]; TAKE_IF_PRESENT bails.
 						if (!script.includes("SET")) return null;
@@ -55,6 +60,15 @@ function createFakeSql(backing = new Map<string, bigint>()): {
 	const sql: SqlLike = async (strings, ...values) => {
 		const q = strings.join("?");
 		if (q.includes("CREATE TABLE")) return [];
+		if (q.includes("SET next = ?")) {
+			// Conditional release: UPDATE ... SET next = nonce WHERE key AND next = nonce + 1
+			const [nonce, key, expected] = values as [string, string, string];
+			const cur = backing.get(key);
+			if (cur !== undefined && cur === BigInt(expected)) {
+				backing.set(key, BigInt(nonce));
+			}
+			return [];
+		}
 		if (q.includes("UPDATE stacks_nonce_state")) {
 			const key = values[0] as string;
 			const cur = backing.get(key);
@@ -135,6 +149,29 @@ function runStoreContract(
 			]);
 			expect(new Set([a, b]).size).toBe(2);
 			expect([a, b].sort((x, y) => Number(x - y))).toEqual([5n, 6n]);
+		});
+
+		it("release hands back the latest issued nonce so the next reserve reuses it", async () => {
+			const { store } = makeStore();
+			expect(await store.reserve(KEY, floor)).toBe(5n);
+			expect(await store.reserve(KEY, floor)).toBe(6n);
+			await store.release?.(KEY, 6n);
+			expect(await store.reserve(KEY, floor)).toBe(6n);
+		});
+
+		it("release of a stale nonce is a no-op so a newer reservation is never clobbered", async () => {
+			const { store } = makeStore();
+			expect(await store.reserve(KEY, floor)).toBe(5n);
+			expect(await store.reserve(KEY, floor)).toBe(6n);
+			// 5 failed after 6 was issued: rolling back would reissue 6.
+			await store.release?.(KEY, 5n);
+			expect(await store.reserve(KEY, floor)).toBe(7n);
+		});
+
+		it("release on an untracked key is a no-op", async () => {
+			const { store } = makeStore();
+			await store.release?.(KEY, 5n);
+			expect(await store.reserve(KEY, floor)).toBe(5n);
 		});
 
 		it("reset re-syncs to the confirmed floor (dropped-tx / reorg recovery)", async () => {

@@ -61,7 +61,7 @@ multi-broadcast gap, which is why it lives here rather than being deferred to
 
 ## Fee tiers
 
-Every send action takes `fee` as an exact amount **or a named tier** — `'min' | 'low' | 'mid' | 'high'`. Tiers map to the node's three estimations; `'min'` is the minimum relay fee (1 uSTX per serialized byte), computed offline with no round-trip. Omitting `fee` estimates mid, and if the node can't produce an estimate (`NoEstimateAvailable`), the SDK falls back to `'min'` instead of failing.
+Every send action takes `fee` as an exact amount **or a named tier**: `'min' | 'low' | 'mid' | 'high'`. Tiers map to the node's three estimations; `'min'` is the minimum relay fee (1 uSTX per serialized byte), computed offline with no round-trip. Omitting `fee` estimates mid. When the node answers `NoEstimateAvailable` (a quiet chain or fresh devnet with no fee history), the SDK falls back to `'min'` instead of failing; `resolveFee` returns `{ fee, tier }` so you can see which happened. Any other estimator failure (timeout, 5xx, auth) throws rather than silently under-paying, and the nonce reserved for that send is handed back.
 
 ```ts
 await client.transferStx({ to, amount: 1000n, fee: "low" });
@@ -73,7 +73,7 @@ await client.callContract({ contract, functionName: "mint", fee: "min" });
 `waitForTransactionReceipt` polls until a transaction is mined (optionally N confirmations deep) and returns a normalized receipt with the decoded Clarity result. It rejects with typed errors when the tx aborts (`TransactionAbortedError`, receipt attached), drops from the mempool (`TransactionDroppedError`), or times out — and it re-reads block placement every cycle, so reorgs don't strand the wait.
 
 ```ts
-const { txid } = await client.callContract({ contract, functionName: "mint" });
+const txid = await client.callContract({ contract, functionName: "mint" });
 const receipt = await client.waitForTransactionReceipt({ txid, confirmations: 2 });
 receipt.result; // decoded ClarityValue
 
@@ -81,19 +81,20 @@ receipt.result; // decoded ClarityValue
 const { receipt } = await sendTransaction(client, { transaction, wait: 2 });
 ```
 
-Status reads are pluggable, like nonce sources: the default reads `/extended/v1/tx` on your transport host; `indexTxSource()` reads Secondlayer's index, which returns the chain tip in the same response — N-confirmation waits cost one request per poll. Rejection reasons are typed too: `BroadcastError.reason` is a literal union of all 26 stacks-node rejection strings (with `reasonData` and `txid` attached).
+Status reads are pluggable, like nonce sources: the default reads `/extended/v1/tx` on your transport host; `indexTxSource()` reads `/v1/index/transactions` on your Secondlayer instance, which returns the chain tip in the same response, so N-confirmation waits cost one request per poll. The index only knows mined transactions, so with this source the dropped-grace window defaults to the full `timeout` instead of 30s. Without `baseUrl` the transport URL is assumed to be your instance: a Hiro transport throws up front, and a host that answers `/v1/index` with a non-JSON 404 (a bare stacks-node) throws on the first poll instead of waiting out the timeout. A `baseUrl` other than the transport host reuses the transport's retry and timeout policy only; the transport's `apiKey` and `fetchOptions` stay with the transport host. Rejection reasons are typed too: `BroadcastError.reason` is a literal union of all 26 stacks-node rejection strings (with `reasonData` and `txid` attached).
 
 ## Errors
 
-The HTTP transport throws a typed `HttpRequestError` (`.status` attached) on any non-2xx response instead of handing back the error body as if it were a successful result — and it retries `429`s now, not just `5xx`/network errors. `MalformedResponseError` throws from `getBalance`, `getAccountInfo`, `getMapEntry`, `getBlockHeight`, and `getBurnBlockHeight` when the node's response is missing an expected field, instead of failing with an opaque native error (`BigInt(undefined)` and friends). Both are exported from `@secondlayer/stacks`.
+The HTTP transport throws a typed `HttpRequestError` (`.status`, `.url`, `.method` attached) on any non-2xx response instead of handing back the error body as if it were a successful result, and it retries `429`s, not just `5xx`/network errors. One `timeout` covers each attempt end to end, headers and body, so a stalled response rejects with `TimeoutError` (`.url`, `.method`, `.timeout`, `.attempt`) instead of hanging. Pass `signal` on any request to cancel from your side; a caller abort is never retried. Broadcasts are sent once (`retryCount: 0`): re-posting a transaction the node may already hold would surface as a nonce conflict, so a timed-out broadcast checks whether the node knows the tx before failing. `MalformedResponseError` throws from `getBalance`, `getAccountInfo`, `getMapEntry`, `getBlockHeight`, and `getBurnBlockHeight` when the node's response is missing an expected field, instead of failing with an opaque native error (`BigInt(undefined)` and friends). Both are exported from `@secondlayer/stacks`.
 
 ```ts
-import { HttpRequestError, MalformedResponseError } from "@secondlayer/stacks";
+import { HttpRequestError, MalformedResponseError, TimeoutError } from "@secondlayer/stacks";
 
 try {
   await client.getBalance({ address });
 } catch (e) {
   if (e instanceof HttpRequestError) e.status; // non-2xx from the node/API
+  if (e instanceof TimeoutError) e.url; // headers or body did not arrive in time
   if (e instanceof MalformedResponseError) { /* response shape didn't match */ }
 }
 ```
@@ -151,7 +152,7 @@ if (await client.pox5.isActive()) {
 }
 ```
 
-Every wallet action (`setupBond`, `registerForBond`, `stake`, `unstake`, `unstakeSbtc`, `claimRewards`, `grantSignerKey`, …) inherits fee tiers, nonce management, and typed errors from the client. `client.pox5.getStakerState(staker)` returns a staker's whole position — staker info, bond membership, custodied sBTC, current cycle — in ONE batched multicall. Individual reads return typed JS values decoded via the module's committed pox-5 ABI (bigints, camelCase tuples, `null` for absent optionals), and every action's arguments are checked against that ABI at compile time.
+Every wallet action (`setupBond`, `registerForBond`, `stake`, `unstake`, `unstakeSbtc`, `claimRewards`, `grantSignerKey`, …) inherits fee tiers, nonce management, and typed errors from the client. `client.pox5.getStakerState(staker)` returns a staker's whole position (staker info, bond membership, custodied sBTC, current cycle) in one call (four parallel reads under the hood; Stacks nodes have no batch RPC, and `multicall` caps reads in flight at 8 by default via `concurrency`). Individual reads return typed JS values decoded via the module's committed pox-5 ABI (bigints, camelCase tuples, `null` for absent optionals), and every action's arguments are checked against that ABI at compile time.
 
 ### Off-chain L1 tooling — works before activation
 
@@ -185,7 +186,7 @@ await Promise.all(
 );
 ```
 
-Passing an explicit `nonce` always bypasses the manager. The defaults are node-agnostic and in-memory — zero external dependencies.
+Passing an explicit `nonce` always bypasses the manager. The defaults are node-agnostic and in-memory, with zero external dependencies. A send that fails before the node accepts it (fee estimate outage, `FeeTooLow`, transport error) hands its nonce back, so the next send reuses it instead of leaving a gap the mempool cannot chain past. Custom stores opt in by implementing `release(key, nonce)`; the bundled memory, Redis and Postgres stores already do.
 
 ### Multiple processes / smart wallets
 
@@ -203,7 +204,7 @@ const nonceManager = createNonceManager({
 
 ### Mempool-aware sources (optional)
 
-By default the floor is the node's confirmed nonce. To make it mempool-aware — and to auto-fill the freed nonce of a dropped transaction — swap the source. `indexSource` reads Secondlayer's mempool, `hiroNonceSource` reads Hiro's, or bring your own pending feed with `mempoolAwareSource`:
+By default the floor is the node's confirmed nonce. To make it mempool-aware, and to auto-fill the freed nonce of a dropped transaction, swap the source. `indexSource` reads your Secondlayer instance's mempool through the client transport (retries, timeout and `Authorization: Bearer` included), `hiroNonceSource` reads Hiro's, or bring your own pending feed with `mempoolAwareSource`:
 
 ```ts
 import {
@@ -212,7 +213,10 @@ import {
   startNonceReconciler,
 } from "@secondlayer/stacks";
 
-// indexSource() | hiroNonceSource({ baseUrl }) | mempoolAwareSource({ getPending })
+// indexSource({ baseUrl?, apiKey? }) | hiroNonceSource({ baseUrl }) | mempoolAwareSource({ getPending })
+// baseUrl defaults to the transport URL; pass it when the transport is not your instance.
+// A missing URL, a Hiro transport, or a host without /v1/index rejects instead of
+// silently falling back to the confirmed nonce; a 5xx or timeout still degrades.
 const source = indexSource();
 const nonceManager = createNonceManager({ source });
 

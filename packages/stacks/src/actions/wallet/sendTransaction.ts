@@ -1,8 +1,10 @@
+import { getTransaction } from "../../actions/public/getTransaction.ts";
 import type { TransactionReceipt } from "../../actions/public/txSources.ts";
 import { waitForTransactionReceipt } from "../../actions/public/waitForTransactionReceipt.ts";
 import type { Client } from "../../clients/types.ts";
 import { HttpRequestError } from "../../errors/http.ts";
 import { BroadcastError } from "../../errors/transaction.ts";
+import { TimeoutError } from "../../errors/transport.ts";
 import { getTransactionId } from "../../transactions/signer.ts";
 import type { StacksTransaction } from "../../transactions/types.ts";
 import { serializeTransaction } from "../../transactions/wire/serialize.ts";
@@ -41,11 +43,17 @@ export async function sendTransaction(
 	}
 
 	// A stacks-node responds to a rejected broadcast with a non-2xx status
-	// (the transport now throws for that) but the rejection JSON — the thing
-	// this function actually needs — rides along as the error body.
+	// (the transport throws for that) but the rejection JSON, the thing this
+	// function actually needs, rides along as the error body. The broadcast
+	// is never retried at the transport level: the node may already hold the
+	// transaction, and a re-send would surface as a nonce conflict.
 	let data: Awaited<ReturnType<Client["request"]>>;
 	try {
-		data = await client.request("/v2/transactions", { method: "POST", body });
+		data = await client.request("/v2/transactions", {
+			method: "POST",
+			body,
+			retryCount: 0,
+		});
 	} catch (error) {
 		if (error instanceof HttpRequestError && error.details) {
 			try {
@@ -53,6 +61,13 @@ export async function sendTransaction(
 			} catch {
 				throw error;
 			}
+		} else if (error instanceof TimeoutError) {
+			// The deadline passed after the node may have accepted the tx. Ask
+			// before surfacing: a known tx means the broadcast succeeded.
+			const txid = getTransactionId(params.transaction);
+			const receipt = await getTransaction(client, { txid }).catch(() => null);
+			if (receipt === null) throw error;
+			data = { txid };
 		} else {
 			throw error;
 		}

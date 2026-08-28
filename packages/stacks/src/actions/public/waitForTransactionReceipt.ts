@@ -21,8 +21,9 @@ export type WaitForTransactionReceiptParams = {
 	pollingInterval?: number;
 	/**
 	 * How long a tx may be unknown to the source before it counts as dropped,
-	 * ms. Covers broadcast propagation lag and canonical-only sources that
-	 * can't see the mempool. Default 30_000.
+	 * ms. Covers broadcast propagation lag. Default 30_000, or the full
+	 * `timeout` for a canonical-only source (one that cannot see the
+	 * mempool, so "unknown" means "not mined yet" until the deadline).
 	 */
 	droppedGracePeriod?: number;
 	/** Where to read status from. Defaults to {@link extendedApiSource}. */
@@ -53,9 +54,10 @@ export async function waitForTransactionReceipt(
 		confirmations = 1,
 		timeout = 180_000,
 		pollingInterval = 3_000,
-		droppedGracePeriod = 30_000,
 	} = params;
 	const source = params.source ?? extendedApiSource();
+	const droppedGracePeriod =
+		params.droppedGracePeriod ?? (source.canonicalOnly ? timeout : 30_000);
 
 	const startedAt = Date.now();
 	let unknownSince: number | null = null;

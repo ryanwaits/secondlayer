@@ -1,4 +1,5 @@
 import { HttpRequestError } from "../errors/http.ts";
+import { TimeoutError } from "../errors/transport.ts";
 import type {
 	RequestFn,
 	RequestOptions,
@@ -36,13 +37,13 @@ function capDetails(body: string | undefined): string | undefined {
 	return `${head}... [truncated ${bytes.length - MAX_ERROR_DETAILS_BYTES} bytes]`;
 }
 
-/** 5xx and 429 are transient — worth a retry. Every other status is not. */
+/** 5xx and 429 are transient and worth a retry. Every other status is not. */
 function isRetryableStatus(status: number): boolean {
 	return status === 429 || status >= 500;
 }
 
-/** Retry-After above this cap falls back to the normal backoff — a node
- *  asking for minutes shouldn't stall a transport-level retry. */
+/** Retry-After above this cap falls back to the normal backoff: a node
+ *  asking for minutes should not stall a transport-level retry. */
 const MAX_RETRY_AFTER_MS = 60_000;
 
 /** Parse a `Retry-After` header (delta-seconds or HTTP-date) into a delay,
@@ -59,54 +60,169 @@ function retryAfterMs(response: Response): number | undefined {
 	return ms;
 }
 
-export async function fetchWithRetry(
+function abortReason(signal: AbortSignal): Error {
+	const reason = signal.reason;
+	if (reason instanceof Error) return reason;
+	return new DOMException(
+		typeof reason === "string" ? reason : "The operation was aborted",
+		"AbortError",
+	);
+}
+
+/** Sleep that wakes early (rejecting with the abort reason) when `signal` fires. */
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+	return new Promise((resolve, reject) => {
+		if (signal?.aborted) return reject(abortReason(signal));
+		const onAbort = () => {
+			clearTimeout(id);
+			reject(abortReason(signal as AbortSignal));
+		};
+		const id = setTimeout(() => {
+			signal?.removeEventListener("abort", onAbort);
+			resolve();
+		}, ms);
+		signal?.addEventListener("abort", onAbort, { once: true });
+	});
+}
+
+export type FetchWithRetryOptions<T> = {
+	/** Caller-side cancellation. Combined with the timeout; never retried. */
+	signal?: AbortSignal;
+	/**
+	 * Consume the response body inside the timeout window. Defaults to
+	 * returning the `Response` untouched, in which case the caller reads the
+	 * body outside the deadline.
+	 */
+	read?: (response: Response) => Promise<T>;
+};
+
+/**
+ * Fetch with linear backoff on network errors, timeouts, 429 and 5xx.
+ *
+ * One timeout covers each attempt end to end, headers and body: the timer is
+ * armed before `fetch` and cleared once the attempt settles (before any
+ * retry sleep, and in `finally`), so a body that never arrives rejects with
+ * {@link TimeoutError} rather than hanging the caller, and a rejected fetch
+ * never leaves a live timer behind.
+ * A caller abort (`signal`) rejects at once with the signal's reason and is
+ * not retried.
+ */
+export async function fetchWithRetry<T = Response>(
 	url: string,
 	options: RequestInit,
 	retryCount: number,
 	retryDelay: number,
 	timeout: number,
-): Promise<Response> {
+	extra: FetchWithRetryOptions<T> = {},
+): Promise<T> {
+	const { signal } = extra;
+	const read =
+		extra.read ?? (async (response: Response) => response as unknown as T);
+	const method = options.method ?? "GET";
 	let lastError: Error | undefined;
 
 	for (let attempt = 0; attempt <= retryCount; attempt++) {
+		if (signal?.aborted) throw abortReason(signal);
+
+		const controller = new AbortController();
+		let timedOut = false;
+		const timeoutId = setTimeout(() => {
+			timedOut = true;
+			controller.abort(new TimeoutError({ method, url, timeout, attempt }));
+		}, timeout);
+		const onCallerAbort = () =>
+			controller.abort(abortReason(signal as AbortSignal));
+		signal?.addEventListener("abort", onCallerAbort, { once: true });
+
+		// Rejects the moment the attempt is aborted, whether by the timer or by
+		// the caller, so a body read on a stalled stream cannot outlive the
+		// deadline even when the runtime does not tie the body to the signal.
+		const aborted = new Promise<never>((_, reject) => {
+			if (controller.signal.aborted) return reject(controller.signal.reason);
+			controller.signal.addEventListener(
+				"abort",
+				() => reject(controller.signal.reason),
+				{ once: true },
+			);
+		});
+
 		let response: Response;
 		try {
-			const controller = new AbortController();
-			const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-			response = await fetch(url, {
-				...options,
-				signal: controller.signal,
-			});
-
-			clearTimeout(timeoutId);
-		} catch (error) {
-			lastError = error instanceof Error ? error : new Error(String(error));
-			if (attempt < retryCount) {
-				await new Promise((r) => setTimeout(r, retryDelay * (attempt + 1)));
-				continue;
+			try {
+				response = await Promise.race([
+					fetch(url, { ...options, signal: controller.signal }),
+					aborted,
+				]);
+			} catch (error) {
+				if (signal?.aborted) throw abortReason(signal);
+				lastError = timedOut
+					? new TimeoutError({ method, url, timeout, attempt })
+					: error instanceof Error
+						? error
+						: new Error(String(error));
+				if (attempt < retryCount) {
+					clearTimeout(timeoutId);
+					await sleep(retryDelay * (attempt + 1), signal);
+					continue;
+				}
+				throw lastError;
 			}
-			throw lastError;
-		}
 
-		if (response.ok) {
-			return response;
-		}
+			if (response.ok) {
+				try {
+					return await Promise.race([read(response), aborted]);
+				} catch (error) {
+					response.body?.cancel().catch(() => {});
+					if (signal?.aborted) throw abortReason(signal);
+					if (!timedOut) throw error;
+					lastError = new TimeoutError({ method, url, timeout, attempt });
+					if (attempt < retryCount) {
+						clearTimeout(timeoutId);
+						await sleep(retryDelay * (attempt + 1), signal);
+						continue;
+					}
+					throw lastError;
+				}
+			}
 
-		const retryable = isRetryableStatus(response.status);
-		if (!retryable || attempt === retryCount) {
-			throw new HttpRequestError(response.status, {
-				details: capDetails(await response.text().catch(() => undefined)),
-			});
-		}
+			const retryable = isRetryableStatus(response.status);
+			if (!retryable || attempt === retryCount) {
+				const body = await Promise.race([
+					response.text().catch(() => undefined),
+					aborted.catch(() => undefined),
+				]);
+				throw new HttpRequestError(response.status, {
+					details: capDetails(body),
+					url,
+					method,
+				});
+			}
 
-		lastError = new HttpRequestError(response.status);
-		// A server-sent Retry-After (429/503) overrides the linear backoff.
-		const delay = retryAfterMs(response) ?? retryDelay * (attempt + 1);
-		await new Promise((r) => setTimeout(r, delay));
+			lastError = new HttpRequestError(response.status, { url, method });
+			// A server-sent Retry-After (429/503) overrides the linear backoff.
+			const delay = retryAfterMs(response) ?? retryDelay * (attempt + 1);
+			response.body?.cancel().catch(() => {});
+			// The attempt is over: a Retry-After longer than `timeout` must not
+			// let the attempt timer fire mid-sleep and flag a timeout that never
+			// happened.
+			clearTimeout(timeoutId);
+			await sleep(delay, signal);
+		} finally {
+			clearTimeout(timeoutId);
+			signal?.removeEventListener("abort", onCallerAbort);
+		}
 	}
 
 	throw lastError ?? new Error("Request failed");
+}
+
+/** Decode a 2xx body: JSON when the content type says so, text otherwise. */
+export async function readBody(response: Response): Promise<unknown> {
+	const contentType = response.headers.get("content-type") ?? "";
+	if (contentType.includes("application/json")) {
+		return response.json();
+	}
+	return response.text();
 }
 
 export function buildRequestFn(
@@ -143,18 +259,13 @@ export function buildRequestFn(
 			init.body = JSON.stringify(options.body);
 		}
 
-		const response = await fetchWithRetry(
+		return fetchWithRetry(
 			url,
 			init,
-			retryCount,
+			options?.retryCount ?? retryCount,
 			retryDelay,
 			timeout,
+			{ signal: options?.signal, read: readBody },
 		);
-
-		const contentType = response.headers.get("content-type") ?? "";
-		if (contentType.includes("application/json")) {
-			return response.json();
-		}
-		return response.text();
 	};
 }
