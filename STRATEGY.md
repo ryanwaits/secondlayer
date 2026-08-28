@@ -144,9 +144,11 @@ bytes and rebuild work that come off it.
 | Data-avail backfill / reindex that reads our archive | Forward-only indexing from the operator's node |
 | | `secondlayer verify` / `secondlayer repair` against public manifests |
 
-Meter unit is still open (bytes vs rows vs height-range). Charge at fetch
-time with a gated archive URL — partitions stay content-addressed; unpaid
-clients do not get the objects. No $99/mo Pro SKU.
+Meter unit is the bundle: one height-range partition set (blocks, transactions,
+events for that range) fetched off the archive. Quotes, balances and the monthly
+free-repair allowance count bundles. Charge at fetch time with a gated archive
+URL; partitions stay content-addressed; unpaid clients do not get the objects.
+No $99/mo Pro SKU.
 
 We do not host public subgraphs, an Explore catalog, or a public query API.
 Leftover hosted deploys are not a product; do not add more. Do not delete
