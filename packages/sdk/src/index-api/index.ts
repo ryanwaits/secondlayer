@@ -1,4 +1,4 @@
-export { Index } from "./client.ts";
+export { INDEX_MAX_PAGE_SIZE, Index } from "./client.ts";
 export { consumeIndexFeed } from "./consumer.ts";
 export type {
 	IndexConsumeOptions,
@@ -109,4 +109,5 @@ export type {
 	TransactionsEnvelope,
 	TransactionsListParams,
 	TransactionsWalkParams,
+	WalkOptions,
 } from "./client.ts";

@@ -104,7 +104,10 @@ transaction as the row writes.
 `walk()` iterates a fixed range for backfills and analysis. It does not surface
 reorgs and does not rewind. Anything writing durable state off the tip belongs
 in `consume()` with `onReorg` (or a sink). Use `walk()` for history that is
-already final.
+already final. `batchSize` tops out at 1000 (the largest page the Index
+serves); above that `walk()` throws `ValidationError` instead of paging in
+silently smaller steps. A walk ends only when the server stops advancing
+`next_cursor`, never on a short page.
 
 ## 6. `replay()` dump delivery is file-granular, at-least-once
 
@@ -134,9 +137,18 @@ onDumpFile: async (file, { from }) => {
   the SELECT server-side; unrequested columns are absent from the row *and* the
   type. `cursor`, `block_height`, and `event_type` always come back.
 - **Errors**: everything derives from `SecondLayerError` — `code`, `retryable`,
-  `retryAfterSeconds`, `docsUrl`, and `walk(predicate)` to find a cause. Retries
-  are built in (`retryCount`/`retryDelay`); `onError` is a void observer, not a
-  retry decision.
+  `retryAfterSeconds`, `docsUrl`, and `walk(predicate)` to find a cause.
+- **Retries**: `consume()` and `walk()` retry each page fetch on 429/5xx/network
+  (`retryCount` default 3, `retryDelay` default 1000 ms, `Retry-After` honored);
+  `onError` is a void observer, not a retry decision. One-shot reads (`list`,
+  `get`, `discover`) do not retry; wrap them yourself if a blip must not fail
+  the call. Index and REST requests (`Index`, `Contracts`, `Subgraphs`) time
+  out after `requestTimeoutMs` (default 30 s, `0` disables) as a retryable
+  `ApiError` with code `REQUEST_TIMEOUT`, so a hung socket trips the retry
+  policy instead of stalling a loop. Streams requests do not time out yet.
+  `signal` on `walk()` cancels the in-flight request and the walk rejects
+  with the signal's reason at every boundary, so a walk that returns without
+  throwing reached the end of the feed.
 
 ## More
 

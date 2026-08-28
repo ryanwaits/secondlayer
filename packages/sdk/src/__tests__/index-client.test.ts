@@ -149,6 +149,9 @@ describe("SecondLayer Index client", () => {
 				tip: TIP,
 				reorgs: [],
 			},
+			// A short page is not the tail: the walk asks once more and stops on
+			// the null cursor the server sends past the last row.
+			{ events: [], next_cursor: null, tip: TIP, reorgs: [] },
 		];
 		globalThis.fetch = (async (input, init) => {
 			const request =
@@ -172,6 +175,7 @@ describe("SecondLayer Index client", () => {
 		const firstUrl = new URL(requests[0]?.url ?? "");
 		const secondUrl = new URL(requests[1]?.url ?? "");
 		expect(seen).toEqual(["1:0", "1:1", "1:2"]);
+		expect(requests).toHaveLength(3);
 		expect(firstUrl.pathname).toBe("/v1/index/ft-transfers");
 		expect(firstUrl.searchParams.get("from_height")).toBe("0");
 		expect(firstUrl.searchParams.get("limit")).toBe("2");

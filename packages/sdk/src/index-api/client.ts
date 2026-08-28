@@ -1,10 +1,16 @@
 import type { Pox5EventTopic } from "@secondlayer/stacks/pox5";
 import type { SbtcEventTopic } from "@secondlayer/stacks/sbtc";
 import type { InferredTopicSchema } from "@secondlayer/subgraphs";
-import { BaseClient, buildQuery } from "../base.ts";
+import { BaseClient, abortError, buildQuery } from "../base.ts";
 import type { SecondLayerOptions } from "../base.ts";
+import { ValidationError } from "../errors.ts";
 import type { TransactionProof } from "../proofs.ts";
 import type { ConsumerSink } from "../sinks/types.ts";
+import {
+	type PageRetryOptions,
+	defaultSleep,
+	fetchPageWithRetry,
+} from "../streams/consumer.ts";
 import { type IndexConsumeOptions, consumeIndexFeed } from "./consumer.ts";
 
 export type IndexTip = {
@@ -95,10 +101,30 @@ export type FtTransfersListParams = {
 	toHeight?: number;
 };
 
-export type FtTransfersWalkParams = Omit<FtTransfersListParams, "limit"> & {
+/** Largest page any Index list route serves. The server clamps `limit` above
+ *  this without saying so, so `walk` refuses a bigger `batchSize` up front
+ *  rather than paging in silently smaller steps. */
+export const INDEX_MAX_PAGE_SIZE = 1000;
+
+/** Options every `walk*` feed shares on top of its list filters. Page fetches
+ *  retry with the same `retryCount`/`retryDelay`/`onError` vocabulary as
+ *  `consume()`; the tradeoff is that a walk can pause for the retry delays
+ *  instead of failing fast on the first 429. */
+export type WalkOptions = PageRetryOptions & {
+	/** Rows per page request. Default 200, max `INDEX_MAX_PAGE_SIZE` (1000). */
 	batchSize?: number;
+	/** Stops the walk. The iterator always rejects with the signal's reason (an
+	 *  `AbortError` by default), whether the abort lands during a page request
+	 *  (which is cancelled) or between yields, so a caller can tell a finished
+	 *  walk from a stopped one. */
 	signal?: AbortSignal;
 };
+
+/** Per-request signal the private list methods thread into `request`. */
+type RequestSignal = { signal?: AbortSignal };
+
+export type FtTransfersWalkParams = Omit<FtTransfersListParams, "limit"> &
+	WalkOptions;
 
 export type NftTransfer = {
 	cursor: string;
@@ -146,10 +172,8 @@ export type NftTransfersListParams = {
 	toHeight?: number;
 };
 
-export type NftTransfersWalkParams = Omit<NftTransfersListParams, "limit"> & {
-	batchSize?: number;
-	signal?: AbortSignal;
-};
+export type NftTransfersWalkParams = Omit<NftTransfersListParams, "limit"> &
+	WalkOptions;
 
 // ── Generic decoded events (/v1/index/events) ──────────────────────
 
@@ -326,10 +350,8 @@ export type EventsListParams<T extends IndexEventType = IndexEventType> = {
 export type EventsWalkParams<T extends IndexEventType = IndexEventType> = Omit<
 	EventsListParams<T>,
 	"limit"
-> & {
-	batchSize?: number;
-	signal?: AbortSignal;
-};
+> &
+	WalkOptions;
 
 export type EventsConsumeParams<
 	T extends IndexEventType = IndexEventType,
@@ -384,10 +406,8 @@ export type ContractCallsListParams = {
 	trait?: string;
 };
 
-export type ContractCallsWalkParams = Omit<ContractCallsListParams, "limit"> & {
-	batchSize?: number;
-	signal?: AbortSignal;
-};
+export type ContractCallsWalkParams = Omit<ContractCallsListParams, "limit"> &
+	WalkOptions;
 
 export type ContractCallsConsumeParams<TTx = never> = Omit<
 	ContractCallsListParams,
@@ -423,10 +443,8 @@ export type CanonicalListParams = {
 	toHeight?: number;
 };
 
-export type CanonicalWalkParams = Omit<CanonicalListParams, "limit"> & {
-	batchSize?: number;
-	signal?: AbortSignal;
-};
+export type CanonicalWalkParams = Omit<CanonicalListParams, "limit"> &
+	WalkOptions;
 
 // ── Blocks (/v1/index/blocks) ──────────────────────────────────────
 
@@ -462,10 +480,7 @@ export type BlocksListParams = {
 	toHeight?: number;
 };
 
-export type BlocksWalkParams = Omit<BlocksListParams, "limit"> & {
-	batchSize?: number;
-	signal?: AbortSignal;
-};
+export type BlocksWalkParams = Omit<BlocksListParams, "limit"> & WalkOptions;
 
 // ── Transactions (/v1/index/transactions) ──────────────────────────
 
@@ -588,10 +603,8 @@ export type TransactionsListParams = {
 	toHeight?: number;
 };
 
-export type TransactionsWalkParams = Omit<TransactionsListParams, "limit"> & {
-	batchSize?: number;
-	signal?: AbortSignal;
-};
+export type TransactionsWalkParams = Omit<TransactionsListParams, "limit"> &
+	WalkOptions;
 
 // ── Stacking (/v1/index/stacking) ──────────────────────────────────
 
@@ -642,10 +655,8 @@ export type StackingListParams = {
 	toHeight?: number;
 };
 
-export type StackingWalkParams = Omit<StackingListParams, "limit"> & {
-	batchSize?: number;
-	signal?: AbortSignal;
-};
+export type StackingWalkParams = Omit<StackingListParams, "limit"> &
+	WalkOptions;
 
 // ── Mempool (/v1/index/mempool) ────────────────────────────────────
 
@@ -698,10 +709,7 @@ export type MempoolListParams = {
 	functionName?: string;
 };
 
-export type MempoolWalkParams = Omit<MempoolListParams, "limit"> & {
-	batchSize?: number;
-	signal?: AbortSignal;
-};
+export type MempoolWalkParams = Omit<MempoolListParams, "limit"> & WalkOptions;
 
 // ── Print schema (/v1/index/contracts/:contract_id/print-schema) ───
 
@@ -924,10 +932,8 @@ export type SbtcDepositFields<F extends keyof IndexSbtcDeposit & string> = Pick<
 	(F | SbtcDepositAlwaysFields) & keyof IndexSbtcDeposit
 >;
 
-export type SbtcDepositsWalkParams = Omit<SbtcDepositsListParams, "limit"> & {
-	batchSize?: number;
-	signal?: AbortSignal;
-};
+export type SbtcDepositsWalkParams = Omit<SbtcDepositsListParams, "limit"> &
+	WalkOptions;
 
 /** SbtcWithdrawal columns that survive any projection. */
 export type SbtcWithdrawalAlwaysFields = "cursor" | "request_id";
@@ -963,10 +969,8 @@ export type SbtcWithdrawalsListParams = {
 export type SbtcWithdrawalsWalkParams = Omit<
 	SbtcWithdrawalsListParams,
 	"limit"
-> & {
-	batchSize?: number;
-	signal?: AbortSignal;
-};
+> &
+	WalkOptions;
 
 export type SbtcEventsListParams = {
 	cursor?: string | null;
@@ -981,10 +985,8 @@ export type SbtcEventsListParams = {
 	toHeight?: number;
 };
 
-export type SbtcEventsWalkParams = Omit<SbtcEventsListParams, "limit"> & {
-	batchSize?: number;
-	signal?: AbortSignal;
-};
+export type SbtcEventsWalkParams = Omit<SbtcEventsListParams, "limit"> &
+	WalkOptions;
 
 export type SbtcEventsConsumeParams<TTx = never> = Omit<
 	SbtcEventsListParams,
@@ -1107,10 +1109,8 @@ export type PoxCyclesListParams = {
 	limit?: number;
 };
 
-export type PoxCyclesWalkParams = Omit<PoxCyclesListParams, "limit"> & {
-	batchSize?: number;
-	signal?: AbortSignal;
-};
+export type PoxCyclesWalkParams = Omit<PoxCyclesListParams, "limit"> &
+	WalkOptions;
 
 /** `index.pox` — PoX reward-cycle aggregates. */
 export interface PoxResource {
@@ -1198,10 +1198,8 @@ export type Pox5EventsListParams = {
 	toHeight?: number;
 };
 
-export type Pox5EventsWalkParams = Omit<Pox5EventsListParams, "limit"> & {
-	batchSize?: number;
-	signal?: AbortSignal;
-};
+export type Pox5EventsWalkParams = Omit<Pox5EventsListParams, "limit"> &
+	WalkOptions;
 
 /** `index.pox5` — decoded PoX-5 print events, the staking primitive from the
  *  epoch 4.0 hard fork onward (PoX-4's `index.stacking` stream ends there). */
@@ -1232,7 +1230,7 @@ function feedFilters<T extends { fromCursor?: string | null }>(params: T) {
 }
 
 function firstWalkFromHeight(params: {
-	cursor?: string | null;
+	cursor?: string | number | null;
 	fromCursor?: string | null;
 	fromHeight?: number;
 }): number | undefined {
@@ -1267,11 +1265,12 @@ function indexPageQuery(params: {
 
 /** Pagination overrides `keysetWalk` applies to each page request; the original
  *  filter params are merged in by the per-resource list closure. */
-type PageParams = {
+type PageParams<C = string> = {
 	limit: number;
-	cursor?: string | null;
+	cursor?: C | null;
 	fromCursor?: string | null;
 	fromHeight?: number;
+	signal?: AbortSignal;
 };
 
 /**
@@ -1462,6 +1461,7 @@ export class Index extends BaseClient {
 							cursor,
 							fromHeight,
 							limit,
+							signal: params.signal,
 						}),
 					itemsOf: (envelope) => envelope.events,
 				}),
@@ -1494,6 +1494,7 @@ export class Index extends BaseClient {
 						cursor,
 						fromHeight,
 						limit,
+						signal: params.signal,
 					}),
 				itemsOf: (envelope) => envelope.contract_calls,
 			}),
@@ -1607,6 +1608,7 @@ export class Index extends BaseClient {
 							cursor,
 							fromHeight,
 							limit,
+							signal: params.signal,
 						}),
 					itemsOf: (envelope) => envelope.deposits,
 				}),
@@ -1640,6 +1642,7 @@ export class Index extends BaseClient {
 							cursor,
 							fromHeight,
 							limit,
+							signal: params.signal,
 						}),
 					itemsOf: (envelope) => envelope.events,
 				}),
@@ -1673,7 +1676,7 @@ export class Index extends BaseClient {
 	};
 
 	private async listFtTransfers(
-		params: FtTransfersListParams = {},
+		params: FtTransfersListParams & RequestSignal = {},
 	): Promise<FtTransfersEnvelope> {
 		return this.request<FtTransfersEnvelope>(
 			"GET",
@@ -1684,11 +1687,13 @@ export class Index extends BaseClient {
 				sender: params.sender,
 				recipient: params.recipient,
 			})}`,
+			undefined,
+			{ signal: params.signal },
 		);
 	}
 
 	private async listNftTransfers(
-		params: NftTransfersListParams = {},
+		params: NftTransfersListParams & RequestSignal = {},
 	): Promise<NftTransfersEnvelope> {
 		return this.request<NftTransfersEnvelope>(
 			"GET",
@@ -1699,47 +1704,82 @@ export class Index extends BaseClient {
 				sender: params.sender,
 				recipient: params.recipient,
 			})}`,
+			undefined,
+			{ signal: params.signal },
 		);
 	}
 
 	/** Shared keyset-pagination loop for every `walk*` feed: seed the cursor from
 	 *  `cursor`/`fromCursor` (and `fromHeight` 0 on the first page), then page until
-	 *  the cursor stops advancing or a short page signals the tail. `list` merges the
-	 *  resource's filter params; `itemsOf` selects the envelope's item array. PoX
-	 *  cycles use a numeric cursor and are walked separately. */
-	private async *keysetWalk<E extends { next_cursor: string | null }, T>(
-		params: {
-			cursor?: string | null;
+	 *  the server stops advancing the cursor (`next_cursor` null or unchanged). A
+	 *  short page is not a tail signal: the server clamps oversized limits without
+	 *  saying so, so trusting page length truncated backfills. The cost is one
+	 *  extra empty fetch at the end of feeds that never return a null cursor.
+	 *  `list` merges the resource's filter params; `itemsOf` selects the envelope's
+	 *  item array. Each page fetch retries under `fetchPageWithRetry`; the cursor
+	 *  is a string keyset for every feed except PoX cycles, which use a number. */
+	private async *keysetWalk<
+		E extends { next_cursor: C | null },
+		T,
+		C extends string | number = string,
+	>(
+		params: WalkOptions & {
+			cursor?: C | null;
 			fromCursor?: string | null;
 			fromHeight?: number;
-			batchSize?: number;
-			signal?: AbortSignal;
 		},
-		list: (page: PageParams) => Promise<E>,
+		list: (page: PageParams<C>) => Promise<E>,
 		itemsOf: (envelope: E) => T[],
 	): AsyncGenerator<T> {
 		const batchSize = params.batchSize ?? 200;
-		let cursor = params.cursor ?? params.fromCursor ?? null;
+		if (
+			!Number.isInteger(batchSize) ||
+			batchSize < 1 ||
+			batchSize > INDEX_MAX_PAGE_SIZE
+		) {
+			throw new ValidationError(
+				`walk batchSize must be an integer from 1 to ${INDEX_MAX_PAGE_SIZE} (the largest page the Index serves); got ${batchSize}.`,
+				400,
+			);
+		}
+		// `fromCursor` is a string keyset on every feed that accepts it; PoX
+		// cycles (numeric cursor) never pass one.
+		let cursor: C | null =
+			params.cursor ?? (params.fromCursor as C | null | undefined) ?? null;
 		let firstPage = true;
 
-		while (!params.signal?.aborted) {
-			const envelope = await list({
+		// Abort is a rejection at every boundary, never a clean return: a walk
+		// that ends without throwing has reached the end of the feed.
+		const throwIfAborted = () => {
+			if (params.signal?.aborted) throw params.signal.reason ?? abortError();
+		};
+
+		for (;;) {
+			throwIfAborted();
+			const page: PageParams<C> = {
 				limit: batchSize,
 				cursor: firstPage ? params.cursor : cursor,
 				fromCursor: firstPage ? params.fromCursor : undefined,
 				fromHeight: firstPage ? firstWalkFromHeight(params) : undefined,
+				signal: params.signal,
+			};
+			const envelope = await fetchPageWithRetry(() => list(page), {
+				retryCount: params.retryCount,
+				retryDelay: params.retryDelay,
+				onError: params.onError,
+				sleep: defaultSleep,
+				signal: params.signal,
 			});
 
 			const items = itemsOf(envelope);
 			for (const item of items) {
-				if (params.signal?.aborted) return;
+				throwIfAborted();
 				yield item;
 			}
 
 			const nextCursor = envelope.next_cursor;
-			if (!nextCursor || nextCursor === cursor || items.length < batchSize) {
-				return;
-			}
+			if (nextCursor === null || nextCursor === undefined) return;
+			if (nextCursor === cursor) return;
 
 			cursor = nextCursor;
 			firstPage = false;
@@ -1767,7 +1807,7 @@ export class Index extends BaseClient {
 	}
 
 	private async listEvents<T extends IndexEventType>(
-		params: EventsListParams<T>,
+		params: EventsListParams<T> & RequestSignal,
 	): Promise<EventsEnvelope<T>> {
 		return this.request<EventsEnvelope<T>>(
 			"GET",
@@ -1781,6 +1821,8 @@ export class Index extends BaseClient {
 				trait: params.trait,
 				tx_context: params.txContext ? "true" : undefined,
 			})}`,
+			undefined,
+			{ signal: params.signal },
 		);
 	}
 
@@ -1795,7 +1837,7 @@ export class Index extends BaseClient {
 	}
 
 	private async listContractCalls(
-		params: ContractCallsListParams = {},
+		params: ContractCallsListParams & RequestSignal = {},
 	): Promise<ContractCallsEnvelope> {
 		return this.request<ContractCallsEnvelope>(
 			"GET",
@@ -1806,6 +1848,8 @@ export class Index extends BaseClient {
 				sender: params.sender,
 				trait: params.trait,
 			})}`,
+			undefined,
+			{ signal: params.signal },
 		);
 	}
 
@@ -1820,11 +1864,13 @@ export class Index extends BaseClient {
 	}
 
 	private async listCanonical(
-		params: CanonicalListParams = {},
+		params: CanonicalListParams & RequestSignal = {},
 	): Promise<CanonicalEnvelope> {
 		return this.request<CanonicalEnvelope>(
 			"GET",
 			`/v1/index/canonical${buildQuery(indexPageQuery(params))}`,
+			undefined,
+			{ signal: params.signal },
 		);
 	}
 
@@ -1839,11 +1885,13 @@ export class Index extends BaseClient {
 	}
 
 	private async listBlocks(
-		params: BlocksListParams = {},
+		params: BlocksListParams & RequestSignal = {},
 	): Promise<BlocksEnvelope> {
 		return this.request<BlocksEnvelope>(
 			"GET",
 			`/v1/index/blocks${buildQuery(indexPageQuery(params))}`,
+			undefined,
+			{ signal: params.signal },
 		);
 	}
 
@@ -1865,7 +1913,7 @@ export class Index extends BaseClient {
 	}
 
 	private async listTransactions(
-		params: TransactionsListParams = {},
+		params: TransactionsListParams & RequestSignal = {},
 	): Promise<TransactionsEnvelope> {
 		return this.request<TransactionsEnvelope>(
 			"GET",
@@ -1875,6 +1923,8 @@ export class Index extends BaseClient {
 				sender: params.sender,
 				contract_id: params.contractId,
 			})}`,
+			undefined,
+			{ signal: params.signal },
 		);
 	}
 
@@ -1911,7 +1961,7 @@ export class Index extends BaseClient {
 	}
 
 	private async listStacking(
-		params: StackingListParams = {},
+		params: StackingListParams & RequestSignal = {},
 	): Promise<StackingEnvelope> {
 		return this.request<StackingEnvelope>(
 			"GET",
@@ -1921,6 +1971,8 @@ export class Index extends BaseClient {
 				stacker: params.stacker,
 				caller: params.caller,
 			})}`,
+			undefined,
+			{ signal: params.signal },
 		);
 	}
 
@@ -1935,7 +1987,7 @@ export class Index extends BaseClient {
 	}
 
 	private async listMempool(
-		params: MempoolListParams = {},
+		params: MempoolListParams & RequestSignal = {},
 	): Promise<MempoolEnvelope> {
 		return this.request<MempoolEnvelope>(
 			"GET",
@@ -1946,6 +1998,8 @@ export class Index extends BaseClient {
 				contract_id: params.contractId,
 				function_name: params.functionName,
 			})}`,
+			undefined,
+			{ signal: params.signal },
 		);
 	}
 
@@ -1970,7 +2024,7 @@ export class Index extends BaseClient {
 	}
 
 	private async listSbtcDeposits(
-		params: SbtcDepositsListParams = {},
+		params: SbtcDepositsListParams & RequestSignal = {},
 	): Promise<SbtcDepositsEnvelope> {
 		return this.request<SbtcDepositsEnvelope>(
 			"GET",
@@ -1980,6 +2034,8 @@ export class Index extends BaseClient {
 				sender: params.sender,
 				bitcoin_txid: params.bitcoinTxid,
 			})}`,
+			undefined,
+			{ signal: params.signal },
 		);
 	}
 
@@ -2003,7 +2059,7 @@ export class Index extends BaseClient {
 	}
 
 	private async listSbtcWithdrawals(
-		params: SbtcWithdrawalsListParams = {},
+		params: SbtcWithdrawalsListParams & RequestSignal = {},
 	): Promise<SbtcWithdrawalsEnvelope> {
 		return this.request<SbtcWithdrawalsEnvelope>(
 			"GET",
@@ -2015,6 +2071,8 @@ export class Index extends BaseClient {
 				request_id: params.requestId,
 				settlement_confirmed: params.settlementConfirmed,
 			})}`,
+			undefined,
+			{ signal: params.signal },
 		);
 	}
 
@@ -2038,7 +2096,7 @@ export class Index extends BaseClient {
 	}
 
 	private async listSbtcEvents(
-		params: SbtcEventsListParams = {},
+		params: SbtcEventsListParams & RequestSignal = {},
 	): Promise<SbtcEventsEnvelope> {
 		return this.request<SbtcEventsEnvelope>(
 			"GET",
@@ -2050,6 +2108,8 @@ export class Index extends BaseClient {
 				request_id: params.requestId,
 				bitcoin_txid: params.bitcoinTxid,
 			})}`,
+			undefined,
+			{ signal: params.signal },
 		);
 	}
 
@@ -2068,7 +2128,7 @@ export class Index extends BaseClient {
 	}
 
 	private async listPox5Events(
-		params: Pox5EventsListParams = {},
+		params: Pox5EventsListParams & RequestSignal = {},
 	): Promise<Pox5EventsEnvelope> {
 		return this.request<Pox5EventsEnvelope>(
 			"GET",
@@ -2082,6 +2142,8 @@ export class Index extends BaseClient {
 				bond_index: params.bondIndex,
 				reward_cycle: params.rewardCycle,
 			})}`,
+			undefined,
+			{ signal: params.signal },
 		);
 	}
 
@@ -2096,7 +2158,7 @@ export class Index extends BaseClient {
 	}
 
 	private async listPoxCycles(
-		params: PoxCyclesListParams = {},
+		params: PoxCyclesListParams & RequestSignal = {},
 	): Promise<PoxCyclesEnvelope> {
 		return this.request<PoxCyclesEnvelope>(
 			"GET",
@@ -2104,36 +2166,26 @@ export class Index extends BaseClient {
 				cursor: params.cursor,
 				limit: params.limit,
 			})}`,
+			undefined,
+			{ signal: params.signal },
 		);
 	}
 
-	// PoX cycles page by a numeric `reward_cycle` cursor (descending), not the
-	// string keyset the other feeds use — there is no from_cursor/from_height.
-	private async *walkPoxCycles(
+	// PoX cycles page by a numeric `reward_cycle` cursor (descending) with no
+	// from_cursor/from_height; the shared loop only ever sends `cursor`+`limit`.
+	private walkPoxCycles(
 		params: PoxCyclesWalkParams = {},
 	): AsyncGenerator<IndexPoxCycle> {
-		const batchSize = params.batchSize ?? 100;
-		let cursor = params.cursor ?? null;
-
-		while (!params.signal?.aborted) {
-			const envelope = await this.listPoxCycles({ cursor, limit: batchSize });
-
-			for (const cycle of envelope.cycles) {
-				if (params.signal?.aborted) return;
-				yield cycle;
-			}
-
-			const nextCursor = envelope.next_cursor;
-			if (
-				nextCursor === null ||
-				nextCursor === cursor ||
-				envelope.cycles.length < batchSize
-			) {
-				return;
-			}
-
-			cursor = nextCursor;
-		}
+		return this.keysetWalk<PoxCyclesEnvelope, IndexPoxCycle, number>(
+			params,
+			(page) =>
+				this.listPoxCycles({
+					cursor: page.cursor,
+					limit: page.limit,
+					signal: page.signal,
+				}),
+			(e) => e.cycles,
+		);
 	}
 
 	private async getPoxCycle(

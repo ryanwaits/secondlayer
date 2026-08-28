@@ -31,8 +31,13 @@ function mockFetch(response: {
 
 /** Minimal concrete subclass for testing BaseClient. */
 class TestClient extends BaseClient {
-	doRequest<T>(method: string, path: string, body?: unknown) {
-		return this.request<T>(method, path, body);
+	doRequest<T>(
+		method: string,
+		path: string,
+		body?: unknown,
+		opts?: { signal?: AbortSignal },
+	) {
+		return this.request<T>(method, path, body, opts);
 	}
 
 	authHeader() {
@@ -49,6 +54,64 @@ describe("BaseClient", () => {
 
 	afterEach(() => {
 		globalThis.fetch = originalFetch;
+	});
+
+	describe("request budget", () => {
+		test("a request that never responds rejects with a retryable timeout error", async () => {
+			globalThis.fetch = (() =>
+				new Promise<Response>(() => {})) as unknown as typeof fetch;
+			const slow = new TestClient({ baseUrl: BASE_URL, requestTimeoutMs: 10 });
+			await expect(slow.doRequest("GET", "/hang")).rejects.toMatchObject({
+				name: "ApiError",
+				code: "REQUEST_TIMEOUT",
+				retryable: true,
+				status: 0,
+			});
+		});
+
+		test("a body read that stalls past the budget times out too", async () => {
+			globalThis.fetch = (() =>
+				Promise.resolve({
+					ok: true,
+					status: 200,
+					headers: new Headers(),
+					json: () => new Promise(() => {}),
+					text: () => new Promise(() => {}),
+				} as Response)) as unknown as typeof fetch;
+			const slow = new TestClient({ baseUrl: BASE_URL, requestTimeoutMs: 10 });
+			await expect(slow.doRequest("GET", "/slow-body")).rejects.toMatchObject({
+				code: "REQUEST_TIMEOUT",
+			});
+		});
+
+		test("the caller's signal reaches fetch and an abort rejects with its reason", async () => {
+			let seen: AbortSignal | null | undefined;
+			globalThis.fetch = ((_input: unknown, init?: RequestInit) => {
+				seen = init?.signal;
+				return new Promise<Response>(() => {});
+			}) as unknown as typeof fetch;
+			const controller = new AbortController();
+			const pending = client.doRequest("GET", "/hang", undefined, {
+				signal: controller.signal,
+			});
+			setTimeout(() => controller.abort(), 5);
+			await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+			expect(seen).toBeInstanceOf(AbortSignal);
+		});
+
+		test("requestTimeoutMs 0 disables the budget", async () => {
+			globalThis.fetch = (() =>
+				new Promise<Response>((resolve) =>
+					setTimeout(() => resolve(Response.json({ ok: true })), 20),
+				)) as unknown as typeof fetch;
+			const patient = new TestClient({
+				baseUrl: BASE_URL,
+				requestTimeoutMs: 0,
+			});
+			await expect(patient.doRequest("GET", "/slow")).resolves.toEqual({
+				ok: true,
+			});
+		});
 	});
 
 	describe("fetchImpl", () => {

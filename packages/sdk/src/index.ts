@@ -4,9 +4,10 @@ export type {
 	ContextAccount,
 	ContextSnapshot,
 } from "./client.ts";
-export type { SecondLayerOptions } from "./base.ts";
+export type { RequestOptions, SecondLayerOptions } from "./base.ts";
 export {
 	CREDENTIAL_ENV_VARS,
+	DEFAULT_REQUEST_TIMEOUT_MS,
 	LOCAL_API_URL,
 	resolveApiKey,
 	resolveBaseUrl,
@@ -18,7 +19,11 @@ export {
 	type ContractSummary,
 	type ContractsEnvelope,
 } from "./contracts/client.ts";
-export { Index, consumeIndexFeed } from "./index-api/index.ts";
+export {
+	INDEX_MAX_PAGE_SIZE,
+	Index,
+	consumeIndexFeed,
+} from "./index-api/index.ts";
 export type {
 	BlockEnvelope,
 	BlocksEnvelope,
@@ -126,6 +131,7 @@ export type {
 	TransactionsEnvelope,
 	TransactionsListParams,
 	TransactionsWalkParams,
+	WalkOptions,
 } from "./index-api/index.ts";
 export { Subgraphs, getSubgraph } from "./subgraphs/index.ts";
 export type { SubgraphOperationStatus } from "./subgraphs/client.ts";
