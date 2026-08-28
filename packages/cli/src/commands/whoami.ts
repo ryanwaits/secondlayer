@@ -1,32 +1,40 @@
 import type { Command } from "commander";
+import { resolveApiUrl, resolveArchiveOpsUrl } from "../lib/api-url.ts";
 import { loadConfig } from "../lib/config.ts";
-import { CliHttpError, httpPlatform } from "../lib/http.ts";
+import {
+	ARCHIVE_LOGIN_COMMAND,
+	CliHttpError,
+	httpArchiveOps,
+	resolveArchiveOpsBearer,
+} from "../lib/http.ts";
 import { dim, error, formatKeyValue, output } from "../lib/output.ts";
 import { readActiveProject } from "../lib/project-file.ts";
-import { resolveAuth } from "../lib/resolve-auth.ts";
 
+/**
+ * `whoami` answers "which archive credits account will bootstrap, repair,
+ * and credits charge". The instance API has no accounts: past loopback it
+ * takes an instance token, and that token is never shown or sent here.
+ */
 export function registerWhoamiCommand(program: Command): void {
 	program
 		.command("whoami", { hidden: true })
-		.description("Show the active account, credential source, and project")
+		.description(
+			"Show the archive credits account, credential source, and project",
+		)
 		.option("--json", "Output as JSON")
 		.action(async (options: { json?: boolean }) => {
-			// Single source of truth for "who am I + where am I pointed".
-			let auth: Awaited<ReturnType<typeof resolveAuth>>;
-			try {
-				auth = await resolveAuth();
-			} catch {
-				error("Not logged in. Run: secondlayer login");
-				process.exit(1);
-			}
+			const creditsUrl = resolveArchiveOpsUrl();
+			// Credential source for display; httpArchiveOps resolves the bearer
+			// again for the request. Two cheap file reads, one code path.
+			const { source } = await resolveArchiveOpsBearer();
 
-			// Identity comes from the API so it's correct in env-key mode too.
+			// Identity comes from the merchant so it's correct in env-key mode too.
 			let account: { email: string };
 			try {
-				account = await httpPlatform<{ email: string }>("/api/accounts/me");
+				account = await httpArchiveOps<{ email: string }>("/api/accounts/me");
 			} catch (err) {
-				if (err instanceof CliHttpError && err.code === "SESSION_EXPIRED") {
-					error("Session expired. Run: secondlayer login");
+				if (err instanceof CliHttpError) {
+					error(err.message);
 					process.exit(1);
 				}
 				throw err;
@@ -38,13 +46,17 @@ export function registerWhoamiCommand(program: Command): void {
 				process.cwd(),
 				config.defaultProject,
 			);
-			const authSource = auth.fromEnv ? "API key (env)" : "session";
+			const authSource =
+				source === "env"
+					? "API key (env)"
+					: `session (${ARCHIVE_LOGIN_COMMAND})`;
 
 			output({
 				json: options.json,
 				data: {
 					email: account.email,
-					apiUrl: auth.apiUrl,
+					creditsUrl,
+					apiUrl: resolveApiUrl(),
 					authSource,
 					project: active
 						? { slug: active.slug, source: active.resolvedFrom }
@@ -53,16 +65,14 @@ export function registerWhoamiCommand(program: Command): void {
 				human: () => {
 					const rows: [string, string][] = [];
 					rows.push(["Email", account.email]);
-					rows.push(["API URL", auth.apiUrl]);
+					rows.push(["Credits API", creditsUrl]);
+					rows.push(["Instance API", resolveApiUrl()]);
 					rows.push(["Auth", dim(authSource)]);
 					if (active) {
 						rows.push(["Project", active.slug]);
 						rows.push(["Project source", dim(active.resolvedFrom)]);
 					} else {
-						rows.push([
-							"Project",
-							dim("(none — run `secondlayer project use <slug>`)"),
-						]);
+						rows.push(["Project", dim("(none)")]);
 					}
 					console.log(formatKeyValue(rows));
 				},

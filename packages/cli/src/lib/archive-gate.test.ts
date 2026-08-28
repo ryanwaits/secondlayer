@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
 	type ArchiveGateDeps,
 	type ArchiveQuote,
@@ -9,7 +12,7 @@ import {
 	isOfficialArchive,
 	quoteArchiveFetch,
 } from "./archive-gate.ts";
-import { CliHttpError } from "./http.ts";
+import { ARCHIVE_LOGIN_COMMAND, CliHttpError } from "./http.ts";
 
 /**
  * Pure-logic coverage for the CLI's archive gate client: the official-host
@@ -138,6 +141,41 @@ describe("quoteArchiveFetch", () => {
 			kind: "not_authed",
 			message: "Not logged in — run `secondlayer login`",
 		});
+	});
+
+	test("a merchant 401 through the real HTTP seam tells the reader to run the credits login, so bootstrap exits refused with the fix on screen", async () => {
+		const server = Bun.serve({
+			port: 0,
+			fetch: () =>
+				Response.json({ error: "Invalid token format" }, { status: 401 }),
+		});
+		const saved = {
+			SL_CREDITS_API_URL: process.env.SL_CREDITS_API_URL,
+			SL_API_KEY: process.env.SL_API_KEY,
+			INSTANCE_TOKEN: process.env.INSTANCE_TOKEN,
+			HOME: process.env.HOME,
+		};
+		// Isolated HOME so the developer's real session file never picks the bearer.
+		const home = await mkdtemp(join(tmpdir(), "sl-archive-gate-"));
+		process.env.HOME = home;
+		process.env.SL_CREDITS_API_URL = `http://127.0.0.1:${server.port}`;
+		process.env.SL_API_KEY = "sk-sl_stale";
+		Reflect.deleteProperty(process.env, "INSTANCE_TOKEN");
+		try {
+			const result = await quoteArchiveFetch(["a"], "bootstrap");
+			expect(result.ok).toBe(false);
+			if (result.ok) return;
+			expect(result.kind).toBe("not_authed");
+			if (result.kind !== "not_authed") return;
+			expect(result.message).toContain(ARCHIVE_LOGIN_COMMAND);
+		} finally {
+			server.stop(true);
+			await rm(home, { recursive: true, force: true });
+			for (const [k, v] of Object.entries(saved)) {
+				if (v === undefined) Reflect.deleteProperty(process.env, k);
+				else process.env[k] = v;
+			}
+		}
 	});
 
 	test("any other HTTP error maps to a generic typed error", async () => {
