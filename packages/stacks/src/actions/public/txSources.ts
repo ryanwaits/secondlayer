@@ -190,9 +190,10 @@ export function extendedApiSource(): TransactionStatusSource {
 		async get({ client, txid }) {
 			let data: Awaited<ReturnType<Client["request"]>>;
 			try {
-				data = await client.request(`/extended/v1/tx/${normalizeTxid(txid)}`, {
-					method: "GET",
-				});
+				data = await client.request(
+					`/extended/v1/tx/${encodeURIComponent(normalizeTxid(txid))}`,
+					{ method: "GET" },
+				);
 			} catch (error) {
 				if (error instanceof HttpRequestError && error.status === 404) {
 					return { receipt: null };

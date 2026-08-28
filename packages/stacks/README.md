@@ -38,6 +38,8 @@ const balance = await client.getBalance({
 | `@secondlayer/stacks/utils` | Encoding, hashing, addresses, unit formatting |
 | `@secondlayer/stacks/bitcoin` | Trust-minimized Bitcoin SPV — proof construction, Clarity codecs, verifier (SIP-044) |
 | `@secondlayer/stacks/pox5` | PoX-5 Bitcoin Staking (SIP-045) — bonds, staking, lockup scripts, signer grants |
+| `@secondlayer/stacks/sbtc` | `sbtc()` client extension: sBTC deposits, balances, withdrawals |
+| `@secondlayer/stacks/filters` | Event and transaction filter builders, re-exported from the root |
 
 ### Frozen modules
 
@@ -58,6 +60,15 @@ multi-broadcast gap, which is why it lives here rather than being deferred to
 | `@secondlayer/stacks/bns` | BNS name registration, resolution, zonefiles |
 | `@secondlayer/stacks/pox` | PoX stacking — solo and delegated |
 | `@secondlayer/stacks/stackingdao` | StackingDAO liquid staking (STX/stSTX) |
+
+### Deprecated: `/tools` and `/tools/btc`
+
+Give your agent Stacks reads through [`@secondlayer/mcp`](https://www.npmjs.com/package/@secondlayer/mcp) instead. The two AI SDK tool entries below still import, and stay until the next major, but they get no new tools. The tradeoff of keeping them: `ai` and `zod` are now optional peer dependencies, so a project that imports either entry installs both itself; a project that only reads contracts installs neither.
+
+| Module | Description |
+|---|---|
+| `@secondlayer/stacks/tools` | **Deprecated.** AI SDK `tool()` set for Stacks reads. Bare exports read `STACKS_NETWORK` (or `STACKS_CHAIN`) and `STACKS_NODE_RPC_URL`, `SL_API_URL` or `STACKS_RPC_URL`; `createStacksTools(client)` binds your own client |
+| `@secondlayer/stacks/tools/btc` | **Deprecated.** AI SDK `tool()` set for Bitcoin reads via mempool.space (`BTC_MEMPOOL_URL` overrides the host) |
 
 ## Fee tiers
 
@@ -85,10 +96,10 @@ Status reads are pluggable, like nonce sources: the default reads `/extended/v1/
 
 ## Errors
 
-The HTTP transport throws a typed `HttpRequestError` (`.status`, `.url`, `.method` attached) on any non-2xx response instead of handing back the error body as if it were a successful result, and it retries `429`s, not just `5xx`/network errors. One `timeout` covers each attempt end to end, headers and body, so a stalled response rejects with `TimeoutError` (`.url`, `.method`, `.timeout`, `.attempt`) instead of hanging. Pass `signal` on any request to cancel from your side; a caller abort is never retried. Broadcasts are sent once (`retryCount: 0`): re-posting a transaction the node may already hold would surface as a nonce conflict, so a timed-out broadcast checks whether the node knows the tx before failing. `MalformedResponseError` throws from `getBalance`, `getAccountInfo`, `getMapEntry`, `getBlockHeight`, and `getBurnBlockHeight` when the node's response is missing an expected field, instead of failing with an opaque native error (`BigInt(undefined)` and friends). Both are exported from `@secondlayer/stacks`.
+The HTTP transport throws a typed `HttpRequestError` (`.status`, `.url`, `.method` attached) on any non-2xx response instead of handing back the error body as if it were a successful result, and it retries `429`s, not just `5xx`/network errors. One `timeout` covers each attempt end to end, headers and body, so a stalled response rejects with `TimeoutError` (`.url`, `.method`, `.timeout`, `.attempt`) instead of hanging. Pass `signal` on any request to cancel from your side; a caller abort is never retried. Broadcasts are sent once (`retryCount: 0`): re-posting a transaction the node may already hold would surface as a nonce conflict, so a timed-out broadcast checks whether the node knows the tx before failing. `MalformedResponseError` throws from `getBalance`, `getAccountInfo`, `getMapEntry`, `getBlockHeight`, and `getBurnBlockHeight` when the node's response is missing an expected field, instead of failing with an opaque native error (`BigInt(undefined)` and friends). Both are exported from `@secondlayer/stacks`. Every error carries a stable `code` (`HTTP_REQUEST_ERROR`, `TIMEOUT_ERROR`, `MALFORMED_RESPONSE_ERROR`, ...) that also appears in `toJSON()`, so a handler can branch on it without an `instanceof` chain and without parsing a message that may be reworded.
 
 ```ts
-import { HttpRequestError, MalformedResponseError, TimeoutError } from "@secondlayer/stacks";
+import { BaseError, HttpRequestError, MalformedResponseError, TimeoutError } from "@secondlayer/stacks";
 
 try {
   await client.getBalance({ address });
@@ -96,6 +107,7 @@ try {
   if (e instanceof HttpRequestError) e.status; // non-2xx from the node/API
   if (e instanceof TimeoutError) e.url; // headers or body did not arrive in time
   if (e instanceof MalformedResponseError) { /* response shape didn't match */ }
+  if (e instanceof BaseError) e.code; // "TIMEOUT_ERROR", stable across releases and minification (derived from `name`, not the class)
 }
 ```
 
@@ -361,12 +373,12 @@ SDK (gzipped)                      23.8 KB              189 KB
 + WalletConnect v2                +25.5 KB          (included)
                         ───────────────────    ───────────────────
 Total                              46.1 KB              536 KB  ← 11.6x
-Dependencies                             6                 294  ← 49x
+Dependencies                             8                 294  ← 37x
 node_modules                          7 MB              351 MB  ← 50x
 Polyfills needed                      none       Buffer, crypto
 Packages to install                      1                  5+
 ```
 
-6 runtime deps, all `@noble`/`@scure`: `@noble/hashes`, `@noble/secp256k1`, `@noble/curves`, `@noble/ciphers`, `@scure/bip32`, `@scure/bip39`.
+8 runtime deps, all `@noble`/`@scure`: `@noble/hashes`, `@noble/secp256k1`, `@noble/curves`, `@noble/ciphers`, `@scure/base`, `@scure/bip32`, `@scure/bip39`, `@scure/btc-signer`. `ai` and `zod` are optional peers, pulled in only by the deprecated `/tools` entries.
 
 Connect and WalletConnect are separate entry points — import only what you use. An app that just reads contracts pays 23.8 KB. Full wallet connection + WC v2 pays 46.1 KB. The equivalent stacks.js setup is 536 KB regardless.

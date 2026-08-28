@@ -125,7 +125,7 @@ describe("request", () => {
 			expect(true).toBe(false); // should not reach
 		} catch (err) {
 			expect(err).toBeInstanceOf(JsonRpcError);
-			expect((err as JsonRpcError).code).toBe(-31001);
+			expect((err as JsonRpcError).rpcCode).toBe(-31001);
 		}
 	});
 

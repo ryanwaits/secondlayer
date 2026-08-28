@@ -9,7 +9,6 @@ export {
 	WaitForTransactionTimeoutError,
 	type TxRejectionReason,
 } from "./transaction.ts";
-export { ContractCallError, ReadOnlyCallError } from "./contract.ts";
 export { HttpRequestError } from "./http.ts";
 export { TimeoutError } from "./transport.ts";
 export { MalformedResponseError } from "./response.ts";

@@ -3,8 +3,13 @@
  * flows, BTC-collateralized lending, and anywhere a Stacks contract's
  * behaviour depends on BTC state.
  *
+ * @deprecated Point your agent at `@secondlayer/mcp` instead; this entry
+ * stays importable until the next major but gets no new tools. Installing
+ * it means installing `ai` and `zod` yourself: both are optional peers of
+ * the package, not dependencies.
+ *
  * Backed by mempool.space by default. Swap endpoints by setting
- * `BTC_MEMPOOL_URL` in the caller's env. Reads only — no BTC writes.
+ * `BTC_MEMPOOL_URL` in the caller's env. Reads only, no BTC writes.
  *
  *   import { generateText } from "ai"
  *   import { btcConfirmations, btcBalance } from "@secondlayer/stacks/tools/btc"

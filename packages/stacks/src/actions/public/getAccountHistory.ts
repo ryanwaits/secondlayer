@@ -18,7 +18,7 @@ export async function getAccountHistory(
 ): Promise<AccountHistoryResponse> {
 	const limit = Math.min(params.limit ?? 20, 50);
 	return client.request(
-		`/extended/v2/addresses/${params.address}/transactions?limit=${limit}`,
+		`/extended/v2/addresses/${encodeURIComponent(params.address)}/transactions?limit=${limit}`,
 		{ method: "GET" },
 	);
 }

@@ -13,9 +13,14 @@ export enum JsonRpcErrorCode {
 	UserRejection = -31001,
 }
 
+/**
+ * A wallet's JSON-RPC error. `rpcCode` is the wallet's numeric code (see
+ * {@link JsonRpcErrorCode}); `code` is the package-wide string identifier
+ * every `BaseError` carries.
+ */
 export class JsonRpcError extends ConnectError {
 	override name = "JsonRpcError";
-	code: number;
+	rpcCode: number;
 	data?: unknown;
 
 	constructor(
@@ -30,7 +35,7 @@ export class JsonRpcError extends ConnectError {
 					: JSON.stringify(options.data)
 				: undefined;
 		super(message, { cause: options?.cause, details });
-		this.code = code;
+		this.rpcCode = code;
 		this.data = options?.data;
 	}
 }

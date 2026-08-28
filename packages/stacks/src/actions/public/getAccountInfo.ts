@@ -16,9 +16,10 @@ export async function getAccountInfo(
 	client: Client,
 	params: GetAccountInfoParams,
 ): Promise<AccountInfo> {
-	const data = await client.request(`/v2/accounts/${params.address}?proof=1`, {
-		method: "GET",
-	});
+	const data = await client.request(
+		`/v2/accounts/${encodeURIComponent(params.address)}?proof=1`,
+		{ method: "GET" },
+	);
 	const balance = (data as { balance?: unknown })?.balance;
 	const nonce = (data as { nonce?: unknown })?.nonce;
 	if (

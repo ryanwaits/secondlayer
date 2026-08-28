@@ -255,17 +255,23 @@
         "@scure/bip32": "2.0.1",
         "@scure/bip39": "2.0.1",
         "@scure/btc-signer": "2.3.0",
-        "ai": "6.0.167",
-        "zod": "^4.3.6",
       },
       "devDependencies": {
         "@stacks/clarinet-sdk": "3.21.1",
         "@stacks/transactions": "7.0.6",
         "@types/bun": "latest",
+        "ai": "6.0.167",
+        "zod": "^4.3.6",
       },
       "peerDependencies": {
+        "ai": "^6",
         "typescript": "^5",
+        "zod": "^4",
       },
+      "optionalPeers": [
+        "ai",
+        "zod",
+      ],
     },
     "packages/subgraphs": {
       "name": "@secondlayer/subgraphs",

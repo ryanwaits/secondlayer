@@ -152,8 +152,6 @@ export {
 	BroadcastError,
 	SerializationError,
 	SigningError,
-	ContractCallError,
-	ReadOnlyCallError,
 	WebSocketError,
 	SimulationError,
 	TransactionAbortedError,
