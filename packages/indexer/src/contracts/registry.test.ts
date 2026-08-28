@@ -147,7 +147,11 @@ describe.skipIf(!HAS_DB)("discoverDeploys reorg re-canonicalization", () => {
 
 // processPendingAbis: real caller of @secondlayer/stacks's getContractAbi /
 // getContractSource against a live node. Mock server stands in for the node.
+// parseContractId now requires a c32-decodable principal — SP9 is not one.
 const ABI_MOCK_PORT = 19442;
+const ABI_ADDR = "SP000000000000000000002Q6VF78";
+const PENDING_OK = `${ABI_ADDR}.pending-ok`;
+const PENDING_MISSING = `${ABI_ADDR}.pending-missing`;
 let abiMockServer: ReturnType<typeof Bun.serve> | undefined;
 
 describe.skipIf(!HAS_DB)("processPendingAbis", () => {
@@ -158,7 +162,7 @@ describe.skipIf(!HAS_DB)("processPendingAbis", () => {
 		abiMockServer = Bun.serve({
 			port: ABI_MOCK_PORT,
 			routes: {
-				"/v2/contracts/interface/SP9/pending-ok": () =>
+				[`/v2/contracts/interface/${ABI_ADDR}/pending-ok`]: () =>
 					Response.json({
 						functions: [],
 						maps: [],
@@ -166,9 +170,9 @@ describe.skipIf(!HAS_DB)("processPendingAbis", () => {
 						fungible_tokens: [],
 						non_fungible_tokens: [],
 					}),
-				"/v2/contracts/source/SP9/pending-ok": () =>
+				[`/v2/contracts/source/${ABI_ADDR}/pending-ok`]: () =>
 					Response.json({
-						source: "(impl-trait 'SP9.trait.sip-010-trait)",
+						source: `(impl-trait '${ABI_ADDR}.sip-010-trait.sip-010-trait)`,
 						publish_height: 1,
 					}),
 			},
@@ -186,7 +190,7 @@ describe.skipIf(!HAS_DB)("processPendingAbis", () => {
 		if (!db) return;
 		await db
 			.deleteFrom("contracts")
-			.where("contract_id", "in", ["SP9.pending-ok", "SP9.pending-missing"])
+			.where("contract_id", "in", [PENDING_OK, PENDING_MISSING])
 			.execute();
 	});
 
@@ -194,7 +198,7 @@ describe.skipIf(!HAS_DB)("processPendingAbis", () => {
 		if (!db) return;
 		await db
 			.deleteFrom("contracts")
-			.where("contract_id", "in", ["SP9.pending-ok", "SP9.pending-missing"])
+			.where("contract_id", "in", [PENDING_OK, PENDING_MISSING])
 			.execute();
 	});
 
@@ -203,8 +207,8 @@ describe.skipIf(!HAS_DB)("processPendingAbis", () => {
 		await db
 			.insertInto("contracts")
 			.values({
-				contract_id: "SP9.pending-ok",
-				deployer: "SP9",
+				contract_id: PENDING_OK,
+				deployer: ABI_ADDR,
 				block_height: 999_999_001,
 				canonical: true,
 				abi_status: "pending",
@@ -216,7 +220,7 @@ describe.skipIf(!HAS_DB)("processPendingAbis", () => {
 		const row = await db
 			.selectFrom("contracts")
 			.select(["abi_status", "declared_traits"])
-			.where("contract_id", "=", "SP9.pending-ok")
+			.where("contract_id", "=", PENDING_OK)
 			.executeTakeFirstOrThrow();
 		expect(row.abi_status).toBe("fetched");
 		// parseDeclaredStandards normalizes to SIP labels, not the raw trait name.
@@ -228,8 +232,8 @@ describe.skipIf(!HAS_DB)("processPendingAbis", () => {
 		await db
 			.insertInto("contracts")
 			.values({
-				contract_id: "SP9.pending-missing",
-				deployer: "SP9",
+				contract_id: PENDING_MISSING,
+				deployer: ABI_ADDR,
 				block_height: 999_999_002,
 				canonical: true,
 				abi_status: "pending",
@@ -241,7 +245,7 @@ describe.skipIf(!HAS_DB)("processPendingAbis", () => {
 		const row = await db
 			.selectFrom("contracts")
 			.select(["abi_status"])
-			.where("contract_id", "=", "SP9.pending-missing")
+			.where("contract_id", "=", PENDING_MISSING)
 			.executeTakeFirstOrThrow();
 		expect(row.abi_status).toBe("failed");
 	});
