@@ -30,6 +30,7 @@
  * Default is a DRY RUN (decode + count, no writes). Pass --apply to write.
  */
 
+import { decodeStreamsCursor } from "@secondlayer/shared";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
@@ -237,14 +238,6 @@ export const BACKFILL_REGISTRY: readonly BackfillEntry[] = [
 	nftBurnEntry,
 ];
 
-function parseCursor(cursor: string): {
-	block_height: number;
-	event_index: number;
-} {
-	const [bh, ei] = cursor.split(":");
-	return { block_height: Number(bh), event_index: Number(ei) };
-}
-
 export type RunEntryStats = {
 	key: string;
 	scanned: number;
@@ -290,7 +283,7 @@ export async function runEntry(
 	if (opts.resume !== false && opts.apply) {
 		const cp = await readCp(cpName);
 		if (cp) {
-			after = parseCursor(cp);
+			after = decodeStreamsCursor(cp);
 			logger.info("backfill.resume", { key: entry.key, fromCursor: cp });
 		}
 	}
@@ -342,7 +335,7 @@ export async function runEntry(
 		// Checkpoint only after the batch is durably written, recording the cursor
 		// we've completed through — a resume re-fetches strictly after it.
 		if (opts.apply) await writeCp(cpName, page.next_cursor);
-		const next = parseCursor(page.next_cursor);
+		const next = decodeStreamsCursor(page.next_cursor);
 		if (page.events.length === 0 && next.block_height >= opts.toHeight) break;
 		after = next;
 	}

@@ -178,6 +178,25 @@ describe("backfill-from-firehose", () => {
 		expect(calls[0]?.fromHeight).toBeUndefined();
 	});
 
+	test("malformed checkpoint cursor throws, does not resume at NaN", async () => {
+		await expect(
+			backfillFromFirehose({
+				target: "sbtc",
+				apply: true,
+				fromHeight: 0,
+				toHeight: 8_300_000,
+				limit: 500,
+				maxBatches: 10,
+				deps: {
+					read: onePageReader([]).read,
+					net: "mainnet",
+					readCheckpoint: async () => "001:2",
+					writeCheckpoint: async () => {},
+				},
+			}),
+		).rejects.toThrow(/Invalid Streams cursor/);
+	});
+
 	test("--restart (resume:false) ignores the checkpoint", async () => {
 		const { read, calls } = onePageReader([]);
 		await backfillFromFirehose({
