@@ -178,11 +178,42 @@ export type StreamsEventsSubscribeParams = {
 	filters?: StreamsFilterMap;
 	/** Abort to unsubscribe (the returned function does the same). */
 	signal?: AbortSignal;
-	/** Called for each pushed event, in order. */
+	/**
+	 * Called for each pushed event, in order. The resume cursor advances only
+	 * after this resolves, so a handler that throws sees the same event again
+	 * on reconnect (at-least-once). Key durable writes by `cursor`.
+	 */
 	onEvent: (event: StreamsEvent) => void | Promise<void>;
-	/** Called on a connection error; the subscription auto-reconnects from the
-	 *  last delivered cursor unless the signal has aborted. */
+	/**
+	 * Called on every failure. Transport errors (dropped socket, 5xx, 429, a
+	 * stale connection, a throwing handler) reconnect from the last handled
+	 * cursor with exponential backoff. Errors that a retry cannot fix (401,
+	 * 4xx, a bad signature) end the subscription and reject its `done`.
+	 */
 	onError?: (err: unknown) => void;
+	/**
+	 * First reconnect pause in ms (default 1000). Doubles per consecutive
+	 * failure up to 30 s with jitter, resets once a frame arrives, and never
+	 * undercuts a `Retry-After`.
+	 */
+	reconnectDelayMs?: number;
+	/**
+	 * Reconnect when no frame (pings included) arrives for this long (default
+	 * 60000, three server heartbeats). Catches a half-open socket that never
+	 * errors; set it above your instance's heartbeat interval.
+	 */
+	staleAfterMs?: number;
+};
+
+/**
+ * Handle for a live subscription: call it to unsubscribe. `done` resolves
+ * after unsubscribe (or the signal aborting) and rejects with the error that
+ * ended the loop when a retry could not fix it, so a worker can `await`
+ * it instead of polling for silence.
+ */
+export type StreamsSubscription = {
+	(): void;
+	done: Promise<void>;
 };
 
 /**
@@ -588,9 +619,11 @@ export type StreamsClient = {
 		 * Subscribe to the real-time SSE push surface. Calls `onEvent` for each new
 		 * canonical event as the server pushes it (chain cadence, not poll-bounded),
 		 * and verifies each frame's inline ed25519 signature when the client was
-		 * created with `verify`. Returns an unsubscribe function.
+		 * created with `verify`. Returns an unsubscribe function whose `done`
+		 * settles when the loop ends. Not reorg-aware: an event delivered then
+		 * orphaned is never retracted. Durable writers use `consume()`.
 		 */
-		subscribe(params: StreamsEventsSubscribeParams): () => void;
+		subscribe(params: StreamsEventsSubscribeParams): StreamsSubscription;
 	};
 	blocks: {
 		events(heightOrHash: number | string): Promise<StreamsEventsListEnvelope>;

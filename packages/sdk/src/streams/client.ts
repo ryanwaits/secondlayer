@@ -1,10 +1,5 @@
 import { ed25519 } from "@secondlayer/shared";
-import {
-	buildQuery,
-	parseErrorEnvelope,
-	resolveApiKey,
-	resolveBaseUrl,
-} from "../base.ts";
+import { buildQuery, resolveApiKey, resolveBaseUrl } from "../base.ts";
 import type { IndexEvent } from "../index-api/client.ts";
 import type { ConsumerSink } from "../sinks/types.ts";
 import {
@@ -17,11 +12,10 @@ import { Cursor } from "./cursor.ts";
 import { decode } from "./decode.ts";
 import { createStreamsDumps } from "./dumps.ts";
 import {
-	AuthError,
-	RateLimitError,
 	StreamsServerError,
 	StreamsSignatureError,
 	ValidationError,
+	mapStreamsError,
 } from "./errors.ts";
 import { subscribeStreamsEvents } from "./subscribe.ts";
 import type {
@@ -128,44 +122,6 @@ export type CreateStreamsClientOptions = {
 
 function normalizeBaseUrl(baseUrl: string): string {
 	return baseUrl.replace(/\/+$/, "");
-}
-
-/** Map a non-OK Streams response onto the SDK error family. The server's
- *  `{error, code}` envelope survives on `message`/`code`/`body`, the same way
- *  it does on Index reads, so `err.code === "CURSOR_INVALID"` branches the
- *  same whichever client raised it. */
-async function mapStreamsError(response: Response): Promise<never> {
-	const { message, code, body } = parseErrorEnvelope(await response.text());
-
-	if (response.status === 401) {
-		throw new AuthError(message ?? "API key invalid or expired.", body, code);
-	}
-
-	if (response.status === 429) {
-		const retryAfter = response.headers.get("Retry-After") ?? undefined;
-		throw new RateLimitError(
-			message ?? "Rate limited. Try again later.",
-			retryAfter,
-			body,
-			code,
-		);
-	}
-
-	if (response.status >= 500) {
-		throw new StreamsServerError(
-			message ?? `Streams server returned ${response.status}.`,
-			response.status,
-			body,
-			code,
-		);
-	}
-
-	throw new ValidationError(
-		message ?? `Streams request returned ${response.status}.`,
-		response.status,
-		body,
-		code,
-	);
 }
 
 /** Loopback hosts, where plain http carries no more exposure than the box
@@ -526,6 +482,8 @@ export function createStreamsClient(
 					fetchImpl,
 					verify: verifyMode,
 					loadKey: loadKeyFor,
+					reconnectDelayMs: params.reconnectDelayMs,
+					staleAfterMs: params.staleAfterMs,
 					params,
 				});
 			},

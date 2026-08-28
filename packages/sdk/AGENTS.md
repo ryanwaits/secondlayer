@@ -99,12 +99,17 @@ await sl.streams.events.consume({
 Hand-rolling it is allowed, but the checkpoint write must be inside the same
 transaction as the row writes.
 
-## 5. `walk()` is not reorg-safe
+## 5. `walk()` and `events.subscribe()` are not reorg-safe
 
 `walk()` iterates a fixed range for backfills and analysis. It does not surface
-reorgs and does not rewind. Anything writing durable state off the tip belongs
-in `consume()` with `onReorg` (or a sink). Use `walk()` for history that is
-already final. `batchSize` tops out at 1000 (the largest page the Index
+reorgs and does not rewind. `streams.events.subscribe()` pushes events over
+SSE as they land and never retracts one that a reorg orphans. Anything writing
+durable state off the tip belongs in `consume()` with `onReorg` (or a sink).
+Use `walk()` for history that is already final and `subscribe()` for displays
+and notifications. `subscribe()` is at-least-once: the cursor advances after
+`onEvent` resolves, so a throwing handler sees the event again on reconnect;
+401/4xx/signature errors end the loop and reject `subscription.done`, transport
+errors reconnect with backoff. `batchSize` tops out at 1000 (the largest page the Index
 serves); above that `walk()` throws `ValidationError` instead of paging in
 silently smaller steps. A walk ends only when the server stops advancing
 `next_cursor`, never on a short page.

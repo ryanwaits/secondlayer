@@ -139,28 +139,39 @@ for await (const event of streams.events.stream({
 
 Real-time push (`events.subscribe`).
 
-Use `client.events.subscribe` for callback-style live delivery — it pushes each
+Use `client.events.subscribe` for callback-style live delivery: it pushes each
 event to `onEvent` as it lands. It's fetch-based (so it carries the Bearer key)
-and works in browsers and Node 18+. It auto-reconnects from the last delivered
-cursor on a dropped connection, and returns an unsubscribe function.
+and works in browsers and Node 18+. It reconnects from the last handled cursor
+after a dropped socket, a clean server close, or `staleAfterMs` (60 s) with no
+frame, backing off from `reconnectDelayMs` (1 s) up to 30 s with jitter and
+honoring `Retry-After`. Errors a retry cannot fix (401, other 4xx, a bad
+signature) end the loop: `onError` sees them and the handle's `done` rejects.
 
 ```typescript
-const unsubscribe = streams.events.subscribe({
+const subscription = streams.events.subscribe({
   types: ["ft_transfer"],          // notTypes / contractId / sender / recipient / assetIdentifier also filter
   // fromCursor: lastCursor,       // resume strictly after this cursor; omit to tail from the tip
   onEvent: async (event) => {
     console.log(event.cursor, event.tx_id);
   },
-  onError: (err) => console.error("reconnecting…", err),
+  onError: (err) => console.error("subscribe", err),
 });
 
+await subscription.done;          // rejects when the loop stopped on an unfixable error
 // later
-unsubscribe(); // or pass `signal` and abort it
+subscription();                   // unsubscribe, or pass `signal` and abort it
 ```
+
+The cursor advances only after `onEvent` resolves, so a handler that throws
+sees the same event again on reconnect (at-least-once). Key durable writes by
+`cursor`. `subscribe` is not reorg-aware: an event delivered then orphaned is
+never retracted, so anything writing durable state belongs in `consume()` with
+`onReorg` or a sink.
 
 Each pushed frame is `{ event, sig, key_id }`. When the client was created with
 `verify` (or `{ publicKey }`), the per-frame ed25519 signature is checked before
-`onEvent` runs; a bad/missing signature throws `StreamsSignatureError`.
+`onEvent` runs; a bad/missing signature ends the subscription with
+`StreamsSignatureError`.
 
 Bulk parquet dumps.
 
