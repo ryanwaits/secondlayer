@@ -37,7 +37,7 @@ describe("tuple field order", () => {
 		const onChain = simnet.execute(
 			"(to-consensus-buff? { a: u1, Z: u2, a-b: u4, a_b: u5 })",
 		).result;
-		expect(onChain.type).toBe("some");
+		expect(String(onChain.type)).toBe("some");
 		const theirs = (onChain as { value: { value: string } }).value.value;
 		expect(ours).toBe(theirs.replace(/^0x/, ""));
 		const at = (name: string) =>

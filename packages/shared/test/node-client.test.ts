@@ -38,7 +38,7 @@ beforeAll(() => {
 					txs: [],
 				}),
 			"/v2/blocks/999999": () => new Response("Not Found", { status: 404 }),
-			"/v2/contracts/interface/SP123/token": () =>
+			"/v2/contracts/interface/SP000000000000000000002Q6VF78/token": () =>
 				Response.json({ functions: [], maps: [], variables: [] }),
 		},
 		fetch() {
@@ -85,11 +85,15 @@ describe("StacksNodeClient", () => {
 	});
 
 	test("getContractAbi returns the ABI", async () => {
-		const abi = await client.getContractAbi("SP123.token");
+		const abi = await client.getContractAbi(
+			"SP000000000000000000002Q6VF78.token",
+		);
 		expect(abi).toEqual({ functions: [], maps: [], variables: [] });
 	});
 
 	test("getContractAbi throws on 404 (unknown contract)", async () => {
-		await expect(client.getContractAbi("SP123.missing")).rejects.toThrow();
+		await expect(
+			client.getContractAbi("SP000000000000000000002Q6VF78.missing"),
+		).rejects.toThrow();
 	});
 });

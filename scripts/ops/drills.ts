@@ -254,9 +254,9 @@ async function drillBrokenAncestry(): Promise<void> {
 async function drillPartialRestore(): Promise<void> {
 	console.log("\npartial restore");
 	await withDatabase("sld_torn", async (db) => {
-		// `dataset` is load-bearing: the planner only considers `blocks`
-		// partitions, so omitting it silently yields an empty set and a plan that
-		// truncates nothing.
+		// `dataset` is load-bearing: the planner keys every mark by dataset, so
+		// omitting it silently yields an empty set and a plan that truncates
+		// nothing.
 		const partitions = [
 			{ dataset: "blocks", from_block: 0, to_block: 99 },
 			{ dataset: "blocks", from_block: 100, to_block: 199 },
@@ -265,7 +265,7 @@ async function drillPartialRestore(): Promise<void> {
 
 		const fresh = planTornImport({
 			hasIndexProgress: false,
-			maxBlockHeight: null,
+			highWater: { blocks: null, transactions: null, events: null },
 			partitions,
 		});
 		record(
@@ -281,7 +281,7 @@ async function drillPartialRestore(): Promise<void> {
 
 		const torn = planTornImport({
 			hasIndexProgress: false,
-			maxBlockHeight: 149,
+			highWater: { blocks: 149, transactions: 149, events: 149 },
 			partitions,
 		});
 		const resumes = torn.action === "resume";
@@ -290,7 +290,7 @@ async function drillPartialRestore(): Promise<void> {
 			"a torn import plans a resume, not a fresh start",
 			resumes ? "pass" : "fail",
 			`action=${torn.action}${
-				resumes ? ` truncateFrom=${torn.truncateFrom}` : ""
+				resumes ? ` truncateFrom=${torn.truncateFrom.blocks}` : ""
 			}`,
 		);
 
@@ -298,30 +298,31 @@ async function drillPartialRestore(): Promise<void> {
 		// half-loaded rows survive as silent corruption under a "successful"
 		// bootstrap. Asserted exactly: a null truncateFrom means nothing gets
 		// discarded, which is the failure, not a pass.
-		const discards = torn.action === "resume" && torn.truncateFrom === 100;
+		const discards =
+			torn.action === "resume" && torn.truncateFrom.blocks === 100;
 		record(
 			"partial restore",
 			"the half-written partition is discarded from its start",
 			discards ? "pass" : "fail",
 			torn.action === "resume"
-				? `truncateFrom=${torn.truncateFrom} (want 100)`
+				? `truncateFrom=${torn.truncateFrom.blocks} (want 100)`
 				: "no resume plan",
 		);
 
 		// Everything below the tear was already sealed and must not be re-loaded.
-		const skips = torn.action === "resume" && torn.skipThrough === 99;
+		const skips = torn.action === "resume" && torn.skipThrough.blocks === 99;
 		record(
 			"partial restore",
 			"sealed partitions below the tear are skipped",
 			skips ? "pass" : "fail",
 			torn.action === "resume"
-				? `skipThrough=${torn.skipThrough} (want 99)`
+				? `skipThrough=${torn.skipThrough.blocks} (want 99)`
 				: "no resume plan",
 		);
 
 		const completed = planTornImport({
 			hasIndexProgress: true,
-			maxBlockHeight: 299,
+			highWater: { blocks: 299, transactions: 299, events: 299 },
 			partitions,
 		});
 		record(

@@ -42,7 +42,7 @@ function streamsClientSpy(
 			},
 			replay: async () => ({ cursor: null, pages: 0, emptyPolls: 0 }),
 			stream: async function* () {},
-			subscribe: () => () => {},
+			subscribe: () => Object.assign(() => {}, { done: Promise.resolve() }),
 		},
 		blocks: {
 			events: async () => ({
