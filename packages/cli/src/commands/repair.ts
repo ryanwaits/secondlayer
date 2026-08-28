@@ -27,6 +27,7 @@ import {
 	shouldPromptForGatedFetch,
 } from "../lib/archive-gate.ts";
 import {
+	ArchiveFetchError,
 	type ArchivePartition,
 	type LoadedReference,
 	checkSignature,
@@ -826,6 +827,15 @@ Exit codes:
 				);
 			} catch (err) {
 				const message = err instanceof Error ? err.message : String(err);
+				if (err instanceof ArchiveFetchError && err.transient) {
+					// The network gave out, not the archive. Heights already
+					// repaired are committed, so the remedy is a re-run, and the
+					// exit code says "unfinished", not "refused".
+					printError(message, {
+						hint: "The archive could not be reached. Re-run the same command to resume; heights already repaired are kept.",
+					});
+					process.exit(REPAIR_EXIT.DIVERGENCE_REMAINS);
+				}
 				// The hint has to match the failure or it sends people the wrong way:
 				// a digest mismatch is a corrupt/tampered archive, not a misconfigured
 				// connection string.

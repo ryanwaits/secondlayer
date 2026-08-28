@@ -3,10 +3,14 @@ import { mkdir, open, rename } from "node:fs/promises";
 import { dirname, isAbsolute, resolve, sep } from "node:path";
 import { createStreamsClient } from "@secondlayer/sdk";
 import type {
+	StreamsBatchContext,
 	StreamsCanonicalBlock,
 	StreamsDumpFile,
+	StreamsEvent,
 	StreamsEventType,
 	StreamsEventsEnvelope,
+	StreamsReorg,
+	StreamsReorgContext,
 	StreamsReorgsListEnvelope,
 	StreamsTip,
 } from "@secondlayer/sdk";
@@ -152,6 +156,52 @@ function parseLimit(value?: string): number | undefined {
 	return n;
 }
 
+/** `--max-pages` bounds a run; a value that is not a count would otherwise
+ *  make the loop stop before its first page and exit 0 with nothing
+ *  streamed, which reads as success. */
+export function parseMaxPages(value?: string): number | undefined {
+	if (value === undefined) return undefined;
+	const n = Number.parseInt(value, 10);
+	if (!Number.isFinite(n) || n < 1 || String(n) !== value.trim()) {
+		throw new Error("--max-pages must be a positive integer");
+	}
+	return n;
+}
+
+/**
+ * What `streams consume` writes per page and per reorg. Events go to stdout
+ * one per line; a reorg is one more line on the same stream, shaped
+ * `{"kind":"reorg",...}`, so a reader tailing the file learns that rows at or
+ * above `fork_point_height` are no longer canonical and the loop rewinds to
+ * re-deliver the canonical ones. The checkpoint printed to stderr is
+ * `ctx.cursor`, the position the loop itself resumes from, never the
+ * envelope's `next_cursor`.
+ */
+export function consumeHandlers(io: {
+	stdout: (line: string) => void;
+	stderr: (line: string) => void;
+}): {
+	onBatch: (
+		events: StreamsEvent[],
+		envelope: StreamsEventsEnvelope,
+		ctx: StreamsBatchContext,
+	) => void;
+	onReorg: (reorg: StreamsReorg, ctx: StreamsReorgContext) => void;
+} {
+	return {
+		onBatch: (events, _envelope, ctx) => {
+			for (const e of events) io.stdout(JSON.stringify(e));
+			if (ctx.cursor) io.stderr(`# next_cursor=${ctx.cursor}`);
+		},
+		onReorg: (reorg, ctx) => {
+			io.stdout(JSON.stringify({ kind: "reorg", ...reorg }));
+			io.stderr(
+				`# reorg at ${reorg.fork_point_height}; rewinding to ${ctx.cursor}`,
+			);
+		},
+	};
+}
+
 function parseHeight(
 	value: string | undefined,
 	name: string,
@@ -295,12 +345,14 @@ Examples:
 			}) => {
 				try {
 					const batchSize = parseLimit(options.batchSize) ?? 100;
-					const maxPages = options.maxPages
-						? Number.parseInt(options.maxPages, 10)
-						: undefined;
+					const maxPages = parseMaxPages(options.maxPages);
 					note(
-						"# streaming events to stdout (jsonl); next_cursor printed to stderr",
+						'# streaming events to stdout (jsonl); reorgs appear inline as {"kind":"reorg"}; next_cursor printed to stderr',
 					);
+					const handlers = consumeHandlers({
+						stdout: (line) => process.stdout.write(`${line}\n`),
+						stderr: (line) => process.stderr.write(`${line}\n`),
+					});
 					await client().events.consume({
 						fromCursor: options.cursor,
 						types: parseTypes(options.types),
@@ -311,15 +363,8 @@ Examples:
 						batchSize,
 						mode: "tail",
 						maxPages,
-						onBatch: (events, envelope) => {
-							for (const e of events) {
-								process.stdout.write(`${JSON.stringify(e)}\n`);
-							}
-							if (envelope.next_cursor) {
-								process.stderr.write(`# next_cursor=${envelope.next_cursor}\n`);
-							}
-							return envelope.next_cursor;
-						},
+						onBatch: handlers.onBatch,
+						onReorg: handlers.onReorg,
 					});
 				} catch (err) {
 					logError(err instanceof Error ? err.message : String(err));

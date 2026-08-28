@@ -24,6 +24,7 @@ import {
 	shouldPromptForGatedFetch,
 } from "../lib/archive-gate.ts";
 import {
+	ArchiveFetchError,
 	type ArchiveManifest,
 	type ArchivePartition,
 	type LoadedReference,
@@ -686,6 +687,15 @@ Exit codes:
 				);
 			} catch (err) {
 				const message = err instanceof Error ? err.message : String(err);
+				if (err instanceof ArchiveFetchError && err.transient) {
+					// The network gave out, not the archive. Everything loaded so far
+					// is on disk with its progress marker, so the remedy is a re-run,
+					// and the exit code says "unfinished", not "refused".
+					printError(message, {
+						hint: "The archive could not be reached. Re-run the same command to resume; datasets already loaded are kept.",
+					});
+					process.exit(BOOTSTRAP_EXIT.INCOMPLETE);
+				}
 				const hint = /^--verify must be/.test(message)
 					? "Pass --verify all (default) or --verify blocks."
 					: /pointer|leave the archive root/.test(message)

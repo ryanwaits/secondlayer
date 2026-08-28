@@ -77,6 +77,9 @@ import { inferNetwork } from "../utils/network.ts";
 /** Import the handler file; if it fails with ERR_MODULE_NOT_FOUND for
  *  `@secondlayer/subgraphs` (the required SDK), offer to install it before
  *  giving up. Other errors bubble. */
+/** Consecutive failed polls `status --watch` rides out before giving up. */
+const WATCH_TRANSIENT_FAILURE_LIMIT = 3;
+
 async function loadSubgraphWithDepCheck(
 	absPath: string,
 ): Promise<{ default?: SubgraphDefinition } & SubgraphDefinition> {
@@ -1337,8 +1340,11 @@ Examples:
 		.description("Show detailed subgraph status")
 		.option("-w, --watch", "Refresh every 2s until synced or Ctrl-C")
 		.action(async (name: string, options: { watch?: boolean }) => {
-			const renderOnce = async () => {
+			const renderOnce = async (opts: { clearScreen?: boolean } = {}) => {
 				const subgraph = await getSubgraphApi(name);
+				// Clear only once the poll has answered, so a failed poll leaves
+				// the last good snapshot on screen instead of a blank terminal.
+				if (opts.clearScreen) process.stdout.write("\x1Bc");
 
 				const rowCounts =
 					Object.entries(subgraph.tables)
@@ -1418,14 +1424,29 @@ Examples:
 					await renderOnce();
 					return;
 				}
+				// A watch runs through deploys and restarts of the instance it
+				// polls, so one failed poll is a warning, not the end. Three in a
+				// row means the instance is gone, and the error surfaces.
+				let consecutiveFailures = 0;
 				// eslint-disable-next-line no-constant-condition
 				while (true) {
-					// Clear screen so the latest snapshot replaces the previous one
-					// instead of accumulating noise.
-					process.stdout.write("\x1Bc");
-					const sg = await renderOnce();
-					if (sg && sg.status === "synced") {
-						console.log(dim("\nSynced — exiting watch."));
+					let sg: Awaited<ReturnType<typeof renderOnce>>;
+					try {
+						sg = await renderOnce({ clearScreen: true });
+						consecutiveFailures = 0;
+					} catch (err) {
+						consecutiveFailures += 1;
+						if (consecutiveFailures > WATCH_TRANSIENT_FAILURE_LIMIT) throw err;
+						console.log(
+							dim(
+								`poll failed (${consecutiveFailures}/${WATCH_TRANSIENT_FAILURE_LIMIT}): ${err instanceof Error ? err.message : String(err)}; retrying`,
+							),
+						);
+						await new Promise((res) => setTimeout(res, 2000));
+						continue;
+					}
+					if (sg?.sync?.status === "synced") {
+						console.log(dim("\nSynced, exiting watch."));
 						return;
 					}
 					await new Promise((res) => setTimeout(res, 2000));

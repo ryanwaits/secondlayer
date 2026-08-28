@@ -116,6 +116,8 @@ secondlayer restore --from ./backups/2026-08-16 --apply
 
 Pass `--passphrase`, or set `SECONDLAYER_BACKUP_PASSPHRASE`. `--no-secrets` writes a data-only bundle. A restore refuses before writing anything if the secrets key the instance will use is not the key the data was encrypted with, and `--force` is what lets it write over a database that already holds chain data.
 
+A restore is all or nothing: `pg_restore` runs in one transaction and stops on the first error, so a disk that fills mid-load leaves the target as it was rather than half replaced. The tradeoff is no parallel restore. After the load the canonical block range is compared with the manifest's scope; a dump that stops short of what it promised exits 1 instead of reporting success. The dump digest is streamed, so a multi-gigabyte bundle hashes without being read into memory.
+
 The bundle carries `INSTANCE_TOKEN`, `SECONDLAYER_SECRETS_KEY`, and `STREAMS_SIGNING_PRIVATE_KEY`. Losing those costs you more than losing the index, because the index can be rebuilt from the [archive](/docs/archive), the keys cannot. Store the bundle somewhere your Postgres backups are not.
 
 Confirm any restore with `secondlayer verify all --against <manifest>` before trusting the result.

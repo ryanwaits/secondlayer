@@ -959,10 +959,13 @@ Examples:
 
 				let postResult: { status: number; body: string } | null = null;
 				if (options.post && options.local) {
+					// A receiver that never answers would otherwise hold this command
+					// open forever; 15s is longer than any healthy webhook takes.
 					const res = await fetch(detail.url, {
 						method: "POST",
 						headers: fixture.headers,
 						body: fixture.body,
+						signal: AbortSignal.timeout(15_000),
 					});
 					postResult = {
 						status: res.status,

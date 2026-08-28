@@ -7,7 +7,6 @@
  * restore refuses before writing anything if the key the instance will actually
  * use is not the key the data was encrypted with.
  */
-import { createHash } from "node:crypto";
 import {
 	chmodSync,
 	existsSync,
@@ -28,6 +27,7 @@ import {
 	sealKeyCanary,
 } from "@secondlayer/shared/runtime";
 import type { Command } from "commander";
+import { sha256File } from "../lib/fs.ts";
 import { note, output, printError, success, warn } from "../lib/output.ts";
 
 export const BACKUP_EXIT = { OK: 0, FAILED: 1, REFUSED: 2 } as const;
@@ -56,10 +56,6 @@ function readSecretsKey(): string | undefined {
 	// opposite of what a backup should do.
 	const key = process.env.SECONDLAYER_SECRETS_KEY?.trim();
 	return key ? key : undefined;
-}
-
-function sha256File(path: string): string {
-	return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
 async function readScope(): Promise<{
@@ -122,7 +118,13 @@ export function pgDumpInvocation(
 	};
 }
 
-/** argv + env for `pg_restore` of `dumpPath` into `databaseUrl`, password off argv. */
+/**
+ * argv + env for `pg_restore` of `dumpPath` into `databaseUrl`, password off
+ * argv. `--single-transaction` plus `--exit-on-error` make the restore all or
+ * nothing: a disk that fills mid-COPY rolls the target back to what it held
+ * before, instead of leaving half the tables replaced. The tradeoff is no
+ * parallel restore (`-j` needs per-object transactions).
+ */
 export function pgRestoreInvocation(
 	databaseUrl: string,
 	dumpPath: string,
@@ -135,12 +137,49 @@ export function pgRestoreInvocation(
 			"--no-acl",
 			"--clean",
 			"--if-exists",
+			"--single-transaction",
+			"--exit-on-error",
 			"-d",
 			conn.url,
 			dumpPath,
 		],
 		env: conn.env,
 	};
+}
+
+/**
+ * Compare what the target holds after pg_restore with what the manifest
+ * promised. A dump that loaded cleanly but stops short of the scope's tip is
+ * how a truncated bundle passes its digest check and still leaves an
+ * instance behind: the digest proves the bytes, only the row bounds prove
+ * the data.
+ */
+export function checkRestoredScope(
+	manifest: Pick<BackupManifest, "scope">,
+	restored: { fromHeight: number; toHeight: number | null },
+): { ok: true } | { ok: false; reason: string } {
+	const want = manifest.scope;
+	if (want.to_height === null && restored.toHeight === null) {
+		// The backup was taken from a database with no canonical blocks, so an
+		// empty target is exactly what the manifest promised.
+		return { ok: true };
+	}
+	if (restored.toHeight === null) {
+		return {
+			ok: false,
+			reason: `the restore finished but the target holds no canonical blocks; the manifest promised ${want.from_height} through ${want.to_height ?? "?"}`,
+		};
+	}
+	if (
+		restored.fromHeight !== want.from_height ||
+		(want.to_height !== null && restored.toHeight !== want.to_height)
+	) {
+		return {
+			ok: false,
+			reason: `the restore finished with blocks ${restored.fromHeight} through ${restored.toHeight}, but the manifest promised ${want.from_height} through ${want.to_height ?? "?"}; the dump does not carry the scope it claims`,
+		};
+	}
+	return { ok: true };
 }
 
 async function runProcess(
@@ -237,7 +276,7 @@ async function runBackup(opts: {
 		...plan.manifest,
 		db: {
 			file: DB_FILE,
-			sha256: sha256File(dumpPath),
+			sha256: await sha256File(dumpPath),
 			bytes: statSync(dumpPath).size,
 			format: "pg_dump-custom",
 		},
@@ -322,7 +361,7 @@ async function runRestore(opts: {
 	) as BackupManifest;
 
 	const dumpPath = join(dir, manifest.db?.file ?? DB_FILE);
-	if (manifest.db && sha256File(dumpPath) !== manifest.db.sha256) {
+	if (manifest.db && (await sha256File(dumpPath)) !== manifest.db.sha256) {
 		printError(
 			"the database dump does not match the digest in the manifest; this bundle is corrupt or truncated",
 		);
@@ -425,6 +464,13 @@ async function runRestore(opts: {
 	);
 	if (!restore.ok) {
 		printError(restore.stderr);
+		process.exit(BACKUP_EXIT.FAILED);
+	}
+
+	const restored = await readScope();
+	const scopeCheck = checkRestoredScope(manifest, restored);
+	if (!scopeCheck.ok) {
+		printError(scopeCheck.reason);
 		process.exit(BACKUP_EXIT.FAILED);
 	}
 
