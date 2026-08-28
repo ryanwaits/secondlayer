@@ -1,8 +1,17 @@
-import { afterAll, beforeEach, describe, expect, test } from "bun:test";
+import {
+	afterAll,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	test,
+} from "bun:test";
+import { spawnSync } from "node:child_process";
 import { createHash, generateKeyPairSync } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { closeDb, getDb, sql } from "@secondlayer/shared/db";
 import {
 	type ArchiveGateDeps,
 	createGatedFetcher,
@@ -17,6 +26,15 @@ import {
 	fetchVerifiedPartition,
 	loadReference,
 } from "../lib/archive-reference.ts";
+import {
+	type WrittenArchive,
+	clearChain,
+	digestsFor,
+	fixtureChain,
+	seedChain,
+	writeArchive,
+} from "../lib/archive-test-fixture.ts";
+import { planChildRewrite } from "./repair.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 
@@ -688,5 +706,224 @@ describe.skipIf(!HAS_DB)("verify exit-code contract", () => {
 		expect(REPAIR_EXIT.OK).toBe(0);
 		expect(REPAIR_EXIT.DIVERGENCE_REMAINS).toBe(1);
 		expect(REPAIR_EXIT.UNANCHORED).toBe(2);
+	});
+});
+
+describe("repair rewrites a fixed block's transactions and events", () => {
+	const partitions: ArchivePartition[] = [
+		testPartition({
+			dataset: "blocks",
+			from_block: 0,
+			to_block: 9,
+			path: "b0",
+		}),
+		testPartition({
+			dataset: "transactions",
+			from_block: 0,
+			to_block: 9,
+			path: "t0",
+		}),
+		testPartition({
+			dataset: "events",
+			from_block: 0,
+			to_block: 9,
+			path: "e0",
+		}),
+		testPartition({
+			dataset: "blocks",
+			from_block: 10,
+			to_block: 19,
+			path: "b1",
+		}),
+	];
+
+	test("each fixed height is served by the child partition that contains it", () => {
+		const plan = planChildRewrite(partitions, [3, 7]);
+		expect([...plan.byPartition.keys()]).toEqual(["t0", "e0"]);
+		expect(plan.byPartition.get("t0")?.heights).toEqual([3, 7]);
+		expect(plan.missing).toEqual({ transactions: [], events: [] });
+		expect(plan.rewritable).toEqual([3, 7]);
+	});
+
+	test("a height with no transactions or events partition in the reference is reported as missing, per dataset", () => {
+		const plan = planChildRewrite(partitions, [3, 12]);
+		expect(plan.missing).toEqual({ transactions: [12], events: [12] });
+		expect(plan.byPartition.get("t0")?.heights).toEqual([3]);
+		expect(plan.rewritable).toEqual([3]);
+	});
+
+	test("a height covered by a transactions partition but no events partition is not rewritten underneath at all", () => {
+		// Events reference transactions; replacing one side alone cannot land.
+		const txOnly = partitions.concat(
+			testPartition({
+				dataset: "transactions",
+				from_block: 10,
+				to_block: 19,
+				path: "t1",
+			}),
+		);
+		const plan = planChildRewrite(txOnly, [12]);
+		expect(plan.rewritable).toEqual([]);
+		expect(plan.byPartition.size).toBe(0);
+		expect(plan.missing).toEqual({ transactions: [], events: [12] });
+	});
+});
+
+const REPAIR_CLI = join(import.meta.dir, "../cli.ts");
+
+function runRepair(args: string[], publicPem: string) {
+	return spawnSync(
+		process.execPath,
+		[
+			REPAIR_CLI,
+			"repair",
+			"--yes",
+			"--json",
+			"--public-key",
+			publicPem,
+			...args,
+		],
+		{
+			encoding: "utf8",
+			env: { ...process.env, NO_COLOR: "1", SL_API_URL: "http://127.0.0.1:1" },
+		},
+	);
+}
+
+describe.skipIf(!HAS_DB)("repair --apply against a real database", () => {
+	const ranges = [{ from_block: 0, to_block: 9 }];
+	const chain = fixtureChain(0, 9);
+	let archiveDir: string;
+	let full: WrittenArchive;
+	let blocksOnly: WrittenArchive;
+	let txOnly: WrittenArchive;
+
+	/** The local database after a fork: block 5 and its transaction and event
+	 *  carry the losing fork's identity. */
+	async function seedForked() {
+		const db = getDb();
+		await clearChain(db);
+		const forked = fixtureChain(0, 9);
+		const block = forked.blocks[5];
+		const tx = forked.transactions[5];
+		const event = forked.events[5];
+		if (!block || !tx || !event) throw new Error("fixture");
+		block.hash = "fork-hash-5";
+		tx.tx_id = "fork-tx-5";
+		event.tx_id = "fork-tx-5";
+		await seedChain(db, forked);
+	}
+
+	beforeAll(async () => {
+		const db = getDb();
+		archiveDir = await mkdtemp(join(tmpdir(), "sl-repair-db-"));
+		await clearChain(db);
+		await seedChain(db, chain);
+		const digests = await digestsFor(db, ranges);
+		full = await writeArchive(join(archiveDir, "full"), chain, ranges, digests);
+		blocksOnly = await writeArchive(
+			join(archiveDir, "blocks-only"),
+			chain,
+			ranges,
+			digests,
+			{ datasets: ["blocks"] },
+		);
+		txOnly = await writeArchive(
+			join(archiveDir, "tx-only"),
+			chain,
+			ranges,
+			digests,
+			{ datasets: ["blocks", "transactions"] },
+		);
+	});
+
+	afterAll(async () => {
+		await clearChain(getDb());
+		await closeDb();
+		if (archiveDir) await rm(archiveDir, { recursive: true, force: true });
+	});
+
+	test("a replaced block takes its transactions and events with it, and all three datasets re-verify clean", async () => {
+		await seedForked();
+		const res = runRepair(
+			["--against", full.manifestPath, "--apply"],
+			full.publicPem,
+		);
+		expect(res.status).toBe(0);
+		const report = JSON.parse(res.stdout);
+		expect(report.status).toBe("repaired");
+		expect(report.datasets_rewritten).toEqual([
+			"blocks",
+			"transactions",
+			"events",
+		]);
+		expect(report.rows_written).toEqual({
+			blocks: 1,
+			transactions: 1,
+			events: 1,
+		});
+		expect(report.remaining_by_dataset).toEqual({
+			blocks: 0,
+			transactions: 0,
+			events: 0,
+		});
+		const db = getDb();
+		const txs = await sql<{
+			tx_id: string;
+		}>`SELECT tx_id FROM transactions WHERE block_height = 5`.execute(db);
+		expect(txs.rows.map((r) => r.tx_id)).toEqual(["tx-5"]);
+		const events = await sql<{
+			tx_id: string;
+		}>`SELECT tx_id FROM events WHERE block_height = 5`.execute(db);
+		expect(events.rows.map((r) => r.tx_id)).toEqual(["tx-5"]);
+	});
+
+	test("a reference without child partitions rewrites blocks only, names the height, and exits incomplete", async () => {
+		await seedForked();
+		const res = runRepair(
+			["--against", blocksOnly.manifestPath, "--apply"],
+			blocksOnly.publicPem,
+		);
+		expect(res.status).toBe(1);
+		const report = JSON.parse(res.stdout);
+		expect(report.status).toBe("incomplete");
+		expect(report.datasets_rewritten).toEqual(["blocks"]);
+		expect(report.heights_missing_child_partitions).toEqual([5]);
+		expect(res.stderr).not.toContain("re-verified clean");
+		expect(res.stderr).toContain(
+			"secondlayer bootstrap --from-block 5 --to-block 5",
+		);
+		const db = getDb();
+		const txs = await sql<{
+			tx_id: string;
+		}>`SELECT tx_id FROM transactions WHERE block_height = 5`.execute(db);
+		// The stale fork transaction is neither deleted nor replaced: an
+		// orphan row is worse than a named, still-present one.
+		expect(txs.rows.map((r) => r.tx_id)).toEqual(["fork-tx-5"]);
+	});
+
+	test("a reference with transactions but no events partitions reports blocks as the only dataset rewritten", async () => {
+		await seedForked();
+		const res = runRepair(
+			["--against", txOnly.manifestPath, "--apply"],
+			txOnly.publicPem,
+		);
+		expect(res.status).toBe(1);
+		const report = JSON.parse(res.stdout);
+		expect(report.status).toBe("incomplete");
+		expect(report.datasets_rewritten).toEqual(["blocks"]);
+		expect(report.rows_written).toEqual({
+			blocks: 1,
+			transactions: 0,
+			events: 0,
+		});
+		expect(report.heights_missing_child_partitions).toEqual([5]);
+		expect(res.stderr).not.toContain("re-verified clean");
+		expect(res.stderr).toContain("no events partition");
+		const db = getDb();
+		const txs = await sql<{
+			tx_id: string;
+		}>`SELECT tx_id FROM transactions WHERE block_height = 5`.execute(db);
+		expect(txs.rows.map((r) => r.tx_id)).toEqual(["fork-tx-5"]);
 	});
 });

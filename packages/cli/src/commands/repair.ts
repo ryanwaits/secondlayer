@@ -3,11 +3,17 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ParquetReader } from "@dsnp/parquetjs";
 import {
+	type ArchiveDataset,
+	copyStatement,
+	writeRowsToCopyStream,
+} from "@secondlayer/shared/archive/copy-loader";
+import {
 	type RangeDigest,
+	type RangeDigestDataset,
 	compareRangeDigests,
 	computeRangeDigest,
 } from "@secondlayer/shared/archive/range-digest";
-import { getDb, sql } from "@secondlayer/shared/db";
+import { getDb, getRawClient } from "@secondlayer/shared/db";
 import type { Command } from "commander";
 import {
 	ARCHIVE_GATE_NOT_CONFIGURED_MESSAGE,
@@ -39,6 +45,7 @@ import {
 	warn,
 	writeData,
 } from "../lib/output.ts";
+import { readPartitionRows } from "../lib/parquet-rows.ts";
 import { isOssMode } from "../lib/resolve-auth.ts";
 
 /**
@@ -58,6 +65,11 @@ import { isOssMode } from "../lib/resolve-auth.ts";
  *  4. Rows present locally but absent from the archive are REPORTED, never
  *     deleted — they are referenced by transactions and events, and silently
  *     cascading through a live database is not a repair.
+ *  5. A fixed block takes its transactions and events with it. A block row
+ *     rewritten to the archive's hash while the old fork's transactions still
+ *     hang off that height is not repaired, it is inconsistent in a new way.
+ *     When the reference carries no child partition for a height, the block
+ *     is rewritten alone and the run says so and exits incomplete.
  */
 
 export const REPAIR_EXIT = {
@@ -188,14 +200,128 @@ async function planRange(
 	return { fixes, extraHeights };
 }
 
+type ChildDataset = "transactions" | "events";
+const CHILD_DATASETS: readonly ChildDataset[] = ["transactions", "events"];
+const REPAIR_DATASETS: readonly RangeDigestDataset[] = [
+	"blocks",
+	"transactions",
+	"events",
+];
+
+/**
+ * The child partition covering one height. The publisher partitions every
+ * dataset on the same boundaries, so a lookup by containment is exact, and a
+ * miss means the reference genuinely lacks that dataset for the height.
+ */
+export function childPartitionFor(
+	partitions: readonly ArchivePartition[],
+	dataset: ChildDataset,
+	height: number,
+): ArchivePartition | undefined {
+	return partitions.find(
+		(p) =>
+			p.dataset === dataset && p.from_block <= height && p.to_block >= height,
+	);
+}
+
+export type ChildRewritePlan = {
+	/** Partition path to the heights it must supply, per child dataset. */
+	byPartition: Map<string, { partition: ArchivePartition; heights: number[] }>;
+	/** Heights the reference cannot rewrite for that dataset. */
+	missing: Record<ChildDataset, number[]>;
+	/** Heights both child datasets can be rewritten for. A height with only
+	 *  one child partition is left alone underneath: events reference
+	 *  transactions, so rewriting one without the other cannot land. */
+	rewritable: number[];
+};
+
+/** Which child partitions a set of fixed heights needs, and which heights
+ *  the reference cannot serve. Pure so the incomplete path is testable. */
+export function planChildRewrite(
+	partitions: readonly ArchivePartition[],
+	heights: readonly number[],
+): ChildRewritePlan {
+	const missing: Record<ChildDataset, number[]> = {
+		transactions: [],
+		events: [],
+	};
+	const found = new Map<
+		number,
+		Partial<Record<ChildDataset, ArchivePartition>>
+	>();
+	for (const dataset of CHILD_DATASETS) {
+		for (const height of heights) {
+			const partition = childPartitionFor(partitions, dataset, height);
+			if (!partition) {
+				missing[dataset].push(height);
+				continue;
+			}
+			found.set(height, { ...found.get(height), [dataset]: partition });
+		}
+	}
+	const rewritable = heights.filter((h) => {
+		const entry = found.get(h);
+		return !!entry?.transactions && !!entry?.events;
+	});
+	const byPartition = new Map<
+		string,
+		{ partition: ArchivePartition; heights: number[] }
+	>();
+	for (const height of rewritable) {
+		for (const dataset of CHILD_DATASETS) {
+			const partition = found.get(height)?.[dataset];
+			if (!partition) continue;
+			const entry = byPartition.get(partition.path) ?? {
+				partition,
+				heights: [],
+			};
+			entry.heights.push(height);
+			byPartition.set(partition.path, entry);
+		}
+	}
+	return { byPartition, missing, rewritable };
+}
+
+async function* onlyHeights(
+	rows: AsyncIterable<Record<string, unknown>>,
+	heights: ReadonlySet<number>,
+): AsyncGenerator<Record<string, unknown>> {
+	for await (const row of rows) {
+		if (heights.has(asNumber(row.block_height))) yield row;
+	}
+}
+
+type AppliedFixes = {
+	blocks: number;
+	transactions: number;
+	events: number;
+	missing: Record<ChildDataset, number[]>;
+	/** Heights whose transactions and events were actually rewritten. */
+	rewritten: number[];
+};
+
+/**
+ * Write one partition's fixes in a single transaction: the block rows land,
+ * the old transactions and events at every fixed height are deleted, and the
+ * archive's rows for those heights are COPYed back in. A partition either
+ * lands whole or not at all, so an interrupted repair never leaves a
+ * half-corrected range, and no child row ever outlives its block's identity.
+ */
 async function applyFixes(
-	db: ReturnType<typeof getDb>,
+	rawClient: ReturnType<typeof getRawClient>,
 	reference: LoadedReference,
 	partition: ArchivePartition,
 	fixes: readonly BlockFix[],
 	gate: ArchiveGate | undefined,
-): Promise<number> {
-	if (fixes.length === 0) return 0;
+): Promise<AppliedFixes> {
+	const applied: AppliedFixes = {
+		blocks: 0,
+		transactions: 0,
+		events: 0,
+		missing: { transactions: [], events: [] },
+		rewritten: [],
+	};
+	if (fixes.length === 0) return applied;
 	const bytes = await fetchVerifiedPartition(reference, partition, gate);
 	const archiveBlocks = await readBlocksPartition(
 		bytes,
@@ -205,20 +331,38 @@ async function applyFixes(
 	const targets = fixes
 		.map((fix) => byHeight.get(fix.height))
 		.filter((b): b is ArchiveBlock => b !== undefined);
+	const heights = targets.map((b) => b.height);
 
-	// One transaction per partition: a partition either lands whole or not at
-	// all, so an interrupted repair never leaves a half-corrected range.
-	await db.transaction().execute(async (tx) => {
+	const children = planChildRewrite(
+		reference.manifest.partitions ?? [],
+		heights,
+	);
+	applied.missing = children.missing;
+	applied.rewritten = children.rewritable;
+	const rewritable = new Set(children.rewritable);
+	// Every child partition is fetched and digest-checked before the
+	// transaction opens, so a bad download never holds a write lock.
+	const childBytes = new Map<string, Buffer>();
+	for (const [path, { partition: child }] of children.byPartition) {
+		childBytes.set(path, await fetchVerifiedPartition(reference, child, gate));
+	}
+
+	await rawClient.begin(async (tx) => {
+		// Only heights the archive can refill lose their children: a stale
+		// fork transaction that stays put is named in the report, while a
+		// deleted one would be a hole nothing names.
+		for (const height of rewritable) {
+			await tx.unsafe("DELETE FROM events WHERE block_height = $1", [height]);
+			await tx.unsafe("DELETE FROM transactions WHERE block_height = $1", [
+				height,
+			]);
+		}
 		for (const block of targets) {
-			await sql`
-				INSERT INTO blocks (
+			await tx.unsafe(
+				`INSERT INTO blocks (
 					height, hash, parent_hash, burn_block_height,
 					burn_block_hash, index_block_hash, timestamp, canonical
-				) VALUES (
-					${block.height}, ${block.hash}, ${block.parent_hash},
-					${block.burn_block_height}, ${block.burn_block_hash},
-					${block.index_block_hash}, ${block.timestamp}, true
-				)
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, true)
 				ON CONFLICT (height) DO UPDATE SET
 					hash = EXCLUDED.hash,
 					parent_hash = EXCLUDED.parent_hash,
@@ -226,11 +370,76 @@ async function applyFixes(
 					burn_block_hash = EXCLUDED.burn_block_hash,
 					index_block_hash = EXCLUDED.index_block_hash,
 					timestamp = EXCLUDED.timestamp,
-					canonical = true
-			`.execute(tx);
+					canonical = true`,
+				[
+					block.height,
+					block.hash,
+					block.parent_hash,
+					block.burn_block_height,
+					block.burn_block_hash,
+					block.index_block_hash,
+					block.timestamp,
+				],
+			);
+		}
+		applied.blocks = targets.length;
+		// FK order: transactions before events.
+		for (const dataset of CHILD_DATASETS) {
+			for (const [path, { partition: child }] of children.byPartition) {
+				if (child.dataset !== dataset) continue;
+				const bytes = childBytes.get(path);
+				if (!bytes) continue;
+				const writable = await tx
+					.unsafe(copyStatement(dataset as ArchiveDataset))
+					.writable();
+				applied[dataset] += await writeRowsToCopyStream({
+					writable,
+					dataset,
+					rows: onlyHeights(
+						readPartitionRows(bytes, `repair-${dataset}-${child.from_block}`),
+						rewritable,
+					),
+				});
+			}
 		}
 	});
-	return targets.length;
+	return applied;
+}
+
+/** Re-verify every dataset the reference publishes digests for over the
+ *  repaired ranges. A repair that does not end in a clean verification is
+ *  not a repair, it is a hope; a repair verified on blocks alone is a
+ *  narrower hope. */
+async function reverify(
+	db: ReturnType<typeof getDb>,
+	reference: LoadedReference,
+	ranges: readonly { from_block: number; to_block: number }[],
+): Promise<Record<RangeDigestDataset, number>> {
+	const remaining: Record<RangeDigestDataset, number> = {
+		blocks: 0,
+		transactions: 0,
+		events: 0,
+	};
+	const published = reference.manifest.range_digests ?? [];
+	for (const dataset of REPAIR_DATASETS) {
+		const expected = published.filter(
+			(d) =>
+				d.dataset === dataset &&
+				ranges.some(
+					(r) => r.from_block === d.from_block && r.to_block === d.to_block,
+				),
+		);
+		const actual: RangeDigest[] = [];
+		for (const range of expected) {
+			actual.push(
+				await computeRangeDigest(db, dataset, range.from_block, range.to_block),
+			);
+		}
+		remaining[dataset] = compareRangeDigests(actual, expected).filter(
+			(c) => c.status !== "match",
+		).length;
+	}
+	return remaining;
 }
 
 export function registerRepairCommand(program: Command): void {
@@ -259,6 +468,11 @@ Examples:
   $ secondlayer repair --against ./snapshot.json                      # plan only
   $ secondlayer repair --against ./snapshot.json --apply              # write the fix
   $ secondlayer repair --against ./snapshot.json --from-block 8500000 --to-block 8549999
+
+A fixed block is rewritten together with its transactions and events from the
+archive's partitions for that height. When the reference carries no
+transactions or events partition for a height, the block is rewritten alone,
+the run names the height, and it exits 1.
 
 Exit codes:
   0  nothing to repair, or the repair completed and re-verified clean
@@ -355,6 +569,22 @@ Exit codes:
 							(d) => d.from_block === p.from_block && d.to_block === p.to_block,
 						),
 				);
+				// `--apply` also rewrites the transactions and events at every
+				// fixed height, so the quote covers the child partitions that
+				// overlap the divergent ranges. A dry-run reads blocks only.
+				const childPartitions = opts.apply
+					? (reference.manifest.partitions ?? []).filter(
+							(p) =>
+								(p.dataset === "transactions" || p.dataset === "events") &&
+								divergent.some(
+									(d) =>
+										p.from_block <= d.to_block && p.to_block >= d.from_block,
+								),
+						)
+					: [];
+				const fetchPaths = [...partitions, ...childPartitions].map(
+					(p) => p.path,
+				);
 
 				// Metered fetches apply ONLY against the official hosted archive. A
 				// mirror, a teammate's box, or a local directory never reaches this
@@ -365,7 +595,7 @@ Exit codes:
 				let gate: ArchiveGate | undefined;
 				let quoteLine: string | undefined;
 				if (isOfficialArchive(reference)) {
-					const paths = partitions.map((p) => p.path);
+					const paths = fetchPaths;
 					const result = await quoteArchiveFetch(paths, "repair");
 					if (!result.ok) {
 						printError(
@@ -390,7 +620,7 @@ Exit codes:
 							process.exit(REPAIR_EXIT.UNANCHORED);
 						}
 						const proceed = await confirmDestructive({
-							message: `Fetch ${partitions.length} partition(s) from the archive?`,
+							message: `Fetch ${fetchPaths.length} partition(s) from the archive?`,
 							yes: opts.yes,
 						});
 						if (!proceed) {
@@ -422,49 +652,99 @@ Exit codes:
 					allExtra.push(...extraHeights);
 				}
 
-				let applied = 0;
+				const applied = { blocks: 0, transactions: 0, events: 0 };
+				const missingChild: Record<ChildDataset, number[]> = {
+					transactions: [],
+					events: [],
+				};
+				let childrenRewritten = 0;
 				if (opts.apply) {
+					const rawClient = getRawClient("source");
 					for (const { partition, fixes } of planned) {
-						applied += await applyFixes(db, reference, partition, fixes, gate);
-					}
-				}
-
-				// Re-verify after writing: a repair that does not end in a clean
-				// verification is not a repair, it is a hope.
-				let remaining = divergent.length;
-				if (opts.apply) {
-					const after: RangeDigest[] = [];
-					for (const range of referenceDigests) {
-						after.push(
-							await computeRangeDigest(
-								db,
-								"blocks",
-								range.from_block,
-								range.to_block,
-							),
+						const result = await applyFixes(
+							rawClient,
+							reference,
+							partition,
+							fixes,
+							gate,
 						);
+						applied.blocks += result.blocks;
+						applied.transactions += result.transactions;
+						applied.events += result.events;
+						missingChild.transactions.push(...result.missing.transactions);
+						missingChild.events.push(...result.missing.events);
+						childrenRewritten += result.rewritten.length;
 					}
-					remaining = compareRangeDigests(after, referenceDigests).filter(
-						(c) => c.status !== "match",
-					).length;
 				}
+				const missingHeights = [
+					...new Set([...missingChild.transactions, ...missingChild.events]),
+				].sort((a, b) => a - b);
+				// What was actually written, not what the reference could serve:
+				// a height with a transactions partition but no events partition
+				// is left alone underneath, so neither child counts as rewritten.
+				const rewritten: RangeDigestDataset[] = opts.apply
+					? REPAIR_DATASETS.filter(
+							(d) => d === "blocks" || childrenRewritten > 0,
+						)
+					: [];
+
+				// Re-verify after writing, on every dataset the reference publishes
+				// digests for. Blocks alone would call a stale transactions table
+				// clean.
+				let remainingByDataset: Record<RangeDigestDataset, number> = {
+					blocks: divergent.length,
+					transactions: 0,
+					events: 0,
+				};
+				if (opts.apply) {
+					remainingByDataset = await reverify(db, reference, referenceDigests);
+				}
+				const remaining =
+					remainingByDataset.blocks +
+					remainingByDataset.transactions +
+					remainingByDataset.events;
+				const complete =
+					!!opts.apply && remaining === 0 && missingHeights.length === 0;
 
 				const report = {
-					status: opts.apply
-						? remaining === 0
-							? "repaired"
-							: "incomplete"
-						: "plan",
+					status: opts.apply ? (complete ? "repaired" : "incomplete") : "plan",
 					reference: reference.origin,
 					divergent_ranges: divergent.length,
 					blocks_to_replace: allFixes.filter((f) => f.kind === "replace")
 						.length,
 					blocks_to_insert: allFixes.filter((f) => f.kind === "insert").length,
 					local_only_heights: allExtra,
-					applied,
+					applied: applied.blocks,
+					rows_written: applied,
+					datasets_rewritten: rewritten,
+					heights_missing_child_partitions: missingHeights,
+					remaining_by_dataset: remainingByDataset,
 					fixes: allFixes,
 					metered: quoteLine ?? null,
 				};
+
+				// The remedy prints on stderr in every output mode: a script reading
+				// the JSON report gets the heights in
+				// `heights_missing_child_partitions`, and the operator watching the
+				// run sees the exact command either way.
+				if (missingHeights.length > 0) {
+					// Name the exact remedy: these heights are consistent on
+					// blocks and stale underneath, and nothing else says so.
+					for (const dataset of CHILD_DATASETS) {
+						const heights = missingChild[dataset];
+						if (heights.length === 0) continue;
+						warn(
+							`  the reference has no ${dataset} partition for ${heights.length} height(s): ${heights.slice(0, 5).join(", ")}${heights.length > 5 ? ", …" : ""}`,
+						);
+					}
+					for (const height of missingHeights.slice(0, 5)) {
+						console.error(
+							dim(
+								`  transactions/events at ${height}: run \`secondlayer bootstrap --from-block ${height} --to-block ${height}\``,
+							),
+						);
+					}
+				}
 
 				output({
 					json: opts.json,
@@ -473,13 +753,21 @@ Exit codes:
 						const replace = report.blocks_to_replace;
 						const insert = report.blocks_to_insert;
 						if (opts.apply) {
-							if (remaining === 0) {
+							const written = `${applied.blocks} blocks, ${applied.transactions} transactions, ${applied.events} events`;
+							if (complete) {
 								success(
-									`Repaired ${applied} blocks across ${divergent.length} ranges; re-verified clean.`,
+									`Repaired ${applied.blocks} heights across ${divergent.length} ranges (rewrote ${written}); re-verified clean on ${rewritten.join(", ")}.`,
+								);
+							} else if (remaining > 0) {
+								const byDataset = REPAIR_DATASETS.map(
+									(d) => `${remainingByDataset[d]} ${d}`,
+								).join(", ");
+								warn(
+									`Rewrote ${written} but ${remaining} ranges still diverge (${byDataset}).`,
 								);
 							} else {
 								warn(
-									`Applied ${applied} blocks but ${remaining} ranges still diverge.`,
+									`Rewrote ${written}; blocks re-verified clean, but transactions and events at ${missingHeights.length} height(s) were not rewritten.`,
 								);
 							}
 						} else {
@@ -534,9 +822,7 @@ Exit codes:
 				});
 
 				process.exit(
-					opts.apply && remaining === 0
-						? REPAIR_EXIT.OK
-						: REPAIR_EXIT.DIVERGENCE_REMAINS,
+					complete ? REPAIR_EXIT.OK : REPAIR_EXIT.DIVERGENCE_REMAINS,
 				);
 			} catch (err) {
 				const message = err instanceof Error ? err.message : String(err);

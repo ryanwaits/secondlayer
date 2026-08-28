@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { loadOrder } from "../commands/bootstrap.ts";
 import {
 	type ArchiveGateDeps,
 	type ArchiveQuote,
@@ -209,7 +210,7 @@ describe("createGatedFetcher — batch paging", () => {
 			urls: (opts as { body: { paths: string[] } }).body.paths.map((path) => ({
 				path,
 				url: `https://fake.r2.example/${path}?sig=x`,
-				expires_at: "2026-08-16T12:15:00.000Z",
+				expires_at: new Date(Date.now() + 900_000).toISOString(),
 				charged_usd_micros: 50_000,
 			})),
 			charged_total_usd_micros: 800_000,
@@ -231,7 +232,7 @@ describe("createGatedFetcher — batch paging", () => {
 			urls: (opts as { body: { paths: string[] } }).body.paths.map((path) => ({
 				path,
 				url: `https://fake.r2.example/${path}?sig=x`,
-				expires_at: "2026-08-16T12:15:00.000Z",
+				expires_at: new Date(Date.now() + 900_000).toISOString(),
 				charged_usd_micros: 50_000,
 			})),
 			charged_total_usd_micros: 0,
@@ -258,7 +259,7 @@ describe("createGatedFetcher — batch paging", () => {
 			urls: (opts as { body: { paths: string[] } }).body.paths.map((path) => ({
 				path,
 				url: `https://fake.r2.example/${path}?sig=x`,
-				expires_at: "2026-08-16T12:15:00.000Z",
+				expires_at: new Date(Date.now() + 900_000).toISOString(),
 				charged_usd_micros: 50_000,
 			})),
 			charged_total_usd_micros: 0,
@@ -283,7 +284,7 @@ describe("createGatedFetcher — batch paging", () => {
 				urls: requested.map((path) => ({
 					path,
 					url: `https://fake.r2.example/${path}?sig=${callCount}`,
-					expires_at: "2026-08-16T12:15:00.000Z",
+					expires_at: new Date(Date.now() + 900_000).toISOString(),
 					charged_usd_micros: 0,
 				})),
 				charged_total_usd_micros: 0,
@@ -304,6 +305,80 @@ describe("createGatedFetcher — batch paging", () => {
 		expect(
 			(deps.calls[1]?.opts as { body: { paths: string[] } }).body.paths,
 		).toEqual(["blocks/0.parquet"]);
+	});
+
+	test("a cached URL with under a minute to live is re-issued before it is handed out", async () => {
+		const paths = ["blocks/0.parquet", "blocks/1.parquet"];
+		let clock = 1_000_000;
+		let callCount = 0;
+		const deps = stubDeps(async (_p, opts) => {
+			callCount++;
+			const requested = (opts as { body: { paths: string[] } }).body.paths;
+			return {
+				urls: requested.map((path) => ({
+					path,
+					// Every issue lasts 900s from the moment the stub answers.
+					url: `https://fake.r2.example/${path}?sig=${callCount}`,
+					expires_at: new Date(clock + 900_000).toISOString(),
+					charged_usd_micros: 0,
+				})),
+				charged_total_usd_micros: 0,
+				balance_after_usd_micros: 0,
+			};
+		});
+		const fetcher = createGatedFetcher(paths, "bootstrap", deps, () => clock);
+
+		const first = await fetcher.getUrl("blocks/0.parquet");
+		expect(first).toBe("https://fake.r2.example/blocks/0.parquet?sig=1");
+		expect(deps.calls).toHaveLength(1);
+
+		// 30s left on the batch's URLs: too little for a slow COPY.
+		clock += 870_000;
+		const refreshed = await fetcher.getUrl("blocks/1.parquet");
+		expect(refreshed).toBe("https://fake.r2.example/blocks/1.parquet?sig=2");
+		expect(deps.calls).toHaveLength(2);
+		expect(
+			(deps.calls[1]?.opts as { body: { paths: string[] } }).body.paths,
+		).toEqual(["blocks/1.parquet"]);
+
+		// The re-issued URL is fresh, so the next call serves it from cache.
+		expect(await fetcher.getUrl("blocks/1.parquet")).toBe(refreshed);
+		expect(deps.calls).toHaveLength(2);
+	});
+
+	test("the first batch charged for a bootstrap holds only blocks paths when paths arrive in load order", async () => {
+		// 20 of each dataset, interleaved the way a manifest lists them; the
+		// batch size is 16 so an unordered list would mix datasets.
+		const manifestOrder = Array.from({ length: 20 }, (_, i) => i).flatMap(
+			(i) => [
+				{ dataset: "events", from_block: i * 10, path: `events/${i}.parquet` },
+				{ dataset: "blocks", from_block: i * 10, path: `blocks/${i}.parquet` },
+				{
+					dataset: "transactions",
+					from_block: i * 10,
+					path: `transactions/${i}.parquet`,
+				},
+			],
+		);
+		const paths = loadOrder(manifestOrder).map((p) => p.path);
+		const deps = stubDeps(async (_p, opts) => ({
+			urls: (opts as { body: { paths: string[] } }).body.paths.map((path) => ({
+				path,
+				url: `https://fake.r2.example/${path}?sig=x`,
+				expires_at: new Date(Date.now() + 900_000).toISOString(),
+				charged_usd_micros: 0,
+			})),
+			charged_total_usd_micros: 0,
+			balance_after_usd_micros: 0,
+		}));
+		const fetcher = createGatedFetcher(paths, "bootstrap", deps);
+
+		await fetcher.getUrl("blocks/0.parquet");
+		expect(deps.calls).toHaveLength(1);
+		const charged = (deps.calls[0]?.opts as { body: { paths: string[] } }).body
+			.paths;
+		expect(charged).toHaveLength(16);
+		expect(charged.every((p) => p.startsWith("blocks/"))).toBe(true);
 	});
 
 	test("a path outside the quoted batch throws rather than silently fetching everything", async () => {

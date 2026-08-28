@@ -66,10 +66,10 @@ No account. Writes `.env.local`, restores history, prints the Stacks observer st
 |---|---|
 | `secondlayer setup [--network …] [--node-mode external\|stacks\|full] [--api-port <spec>] [--dir <path>] [--against <manifest>] [--skip-bootstrap] [--skip-verify] [--yes] [--force]` | Guided self-host onboarding — secrets, compose + `.env`, docker up, observer stanza, bootstrap, verify. TUI when interactive; flags-only (no prompts) with `--yes` or no TTY |
 | `secondlayer init [--network mainnet\|testnet\|devnet] [--api-url <url>] [--force]` | Write `.env.local` (token, secrets key, webhook signing key). `--network` and `--api-url` are the global flags. Idempotent |
-| `secondlayer bootstrap --against <manifest> [--to-block <n>] [--public-key <pem>] [-y] [--json]` | Restore chain history from a verified archive into an empty database. Exit `0` restored, `1` diverged, `2` refused |
+| `secondlayer bootstrap --against <manifest> [--from-block <n>] [--to-block <n>] [--verify all\|blocks] [--public-key <pem>] [-y] [--json]` | Restore chain history from a verified archive into an empty database. A run that died mid-way resumes per dataset on re-run. After the load, digests for blocks, transactions, and events are checked over the restored range (`--verify blocks` skips the child datasets and the minutes they cost). Exit `0` restored, `1` diverged, `2` refused |
 | `secondlayer observer [--mode indexer\|signer-shared] [--endpoint host:port] [--recovery journal\|archive] [--network …]` | Print the `[[events_observer]]` stanza. Signer-shared requires `--recovery` |
 | `secondlayer verify [all\|raw\|decode:<name>\|subgraph:<name>] --against <manifest> [--quick\|--deep\|--anchor]` | Compare local data to a signed archive. Default target `raw`. Exit `0` clean, `1` diverged, `2` unanchored |
-| `secondlayer repair --against <archive> [--apply] [-y]` | Plan (default) or apply an archive repair |
+| `secondlayer repair --against <archive> [--apply] [-y]` | Plan (default) or apply an archive repair. A fixed block is rewritten with its transactions and events from the archive; when the reference has no child partition for a height, the block is rewritten alone, the height is named with a `bootstrap --from-block H --to-block H` remedy, and the exit is `1` |
 
 Bootstrap and repair against the official hosted archive (`archive.secondlayer.tools`)
 are metered per partition; against any other manifest (a mirror, a teammate's

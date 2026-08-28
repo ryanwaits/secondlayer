@@ -227,17 +227,30 @@ export type ArchiveGate = {
  *  restores show URL expiry churn, lower this further. */
 const FETCH_BATCH_SIZE = 16;
 
+/** A cached URL with less than this long to live is re-issued before it is
+ *  handed out, so a slow COPY never starts a download on a URL that expires
+ *  mid-transfer. Re-issue is free inside the server's 24h window. */
+export const PRESIGN_REFRESH_MARGIN_MS = 60_000;
+
+type CachedUrl = { url: string; expiresAt: number | null };
+
 /**
  * Build a lazy, paged URL source over `paths`: the first `getUrl` for an
  * un-fetched batch of 16 triggers that batch's charge+presign; every other
  * path in the batch is then served from cache with no further network call.
+ *
+ * `paths` must be in consumption order. The batches are contiguous slices,
+ * so a caller that lists paths the way it loads them gets each batch charged
+ * right before its bytes are used, and no URL sits expiring behind a
+ * long-running earlier batch.
  */
 export function createGatedFetcher(
 	paths: string[],
 	flow: ArchiveFlow,
 	deps: ArchiveGateDeps = defaultDeps,
+	now: () => number = Date.now,
 ): ArchiveGate {
-	const cache = new Map<string, string>();
+	const cache = new Map<string, CachedUrl>();
 	const batchOf = new Map<string, number>();
 	for (const [index, path] of paths.entries()) {
 		batchOf.set(path, Math.floor(index / FETCH_BATCH_SIZE));
@@ -250,26 +263,36 @@ export function createGatedFetcher(
 			"/api/archive/fetch",
 			{ method: "POST", body: { paths: batchPaths, flow } },
 		);
-		for (const u of body.urls) cache.set(u.path, u.url);
+		for (const u of body.urls) {
+			const parsed = Date.parse(u.expires_at);
+			cache.set(u.path, {
+				url: u.url,
+				expiresAt: Number.isFinite(parsed) ? parsed : null,
+			});
+		}
+	}
+
+	async function reissue(path: string, why: string): Promise<string> {
+		// Re-issuing is free within the server's 24h re-issue window for an
+		// already-charged path, so this never double-charges. It is noisy,
+		// not costly, which is why churn gets a debug line rather than a
+		// warning.
+		if (process.env.DEBUG) {
+			console.error(`[archive-gate] re-issuing ${why} URL for ${path}`);
+		}
+		await fetchAndCache([path]);
+		const fresh = cache.get(path);
+		if (!fresh) {
+			throw new Error(`archive gate: no URL returned for ${path}`);
+		}
+		return fresh.url;
 	}
 
 	return {
 		async getUrl(path, opts) {
 			if (opts?.forceRefresh) {
-				// Expiry recovery: the cached URL 403'd downstream. Re-issuing is
-				// free within the server's 24h re-issue window for an
-				// already-charged path, so this never double-charges — it is
-				// noisy, not costly, which is why churn gets a debug line rather
-				// than a warning.
-				if (process.env.DEBUG) {
-					console.error(`[archive-gate] re-issuing expired URL for ${path}`);
-				}
-				await fetchAndCache([path]);
-				const fresh = cache.get(path);
-				if (!fresh) {
-					throw new Error(`archive gate: no URL returned for ${path}`);
-				}
-				return fresh;
+				// Expiry recovery: the cached URL 403'd downstream.
+				return reissue(path, "expired");
 			}
 
 			const batchIndex = batchOf.get(path);
@@ -287,9 +310,17 @@ export function createGatedFetcher(
 				}
 				await inflight;
 			}
-			const url = cache.get(path);
-			if (!url) throw new Error(`archive gate: no URL returned for ${path}`);
-			return url;
+			const cached = cache.get(path);
+			if (!cached) {
+				throw new Error(`archive gate: no URL returned for ${path}`);
+			}
+			if (
+				cached.expiresAt !== null &&
+				cached.expiresAt - now() < PRESIGN_REFRESH_MARGIN_MS
+			) {
+				return reissue(path, "expiring");
+			}
+			return cached.url;
 		},
 	};
 }

@@ -106,14 +106,16 @@ Loopback is open; anything past it takes `CONSOLE_TOKEN`, which falls back to `I
 
 ### secondlayer bootstrap
 
-Restore chain history from a verified archive into an empty database. Refuses a non-empty target — use `secondlayer repair` instead.
+Restore chain history from a verified archive into an empty database. Refuses a target that already holds a completed bootstrap (`index_progress` present); use `secondlayer repair` for that. A run that died mid-way is resumed on re-run: each of blocks, transactions, and events keeps its own high-water mark, a torn partition is truncated and reloaded, sealed partitions are skipped, and a load that finished but never wrote progress is verified and finalized.
 
-Usage: `secondlayer bootstrap --against <manifest> [--to-block <n>] [--public-key <pem>] [-y] [--json]`
+Usage: `secondlayer bootstrap --against <manifest> [--from-block <n>] [--to-block <n>] [--verify all|blocks] [--public-key <pem>] [-y] [--json]`
 
 | Flag | Default | Description |
 | --- | --- | --- |
 | `--against <manifest>` | required | Archive manifest: https URL or local file path. |
+| `--from-block <n>` | genesis | Forward-only restore from this height; earlier history is declared out of scope, and only ranges at or above it are verified. |
 | `--to-block <n>` | archive tip | Stop at this height. |
+| `--verify <datasets>` | `all` | Digests checked after the load. `all` covers blocks, transactions, and events and adds minutes on a full chain; `blocks` checks block identity only. |
 | `--public-key <pem>` | resolved | Pin the signing key instead of fetching it. |
 | `-y, --yes` | off | Skip the confirmation prompt. |
 | `--json` | off | Machine output. Not consent: without `-y` it prints `{"code":"CONFIRMATION_REQUIRED","quote":…}` and exits 2. |
@@ -122,7 +124,9 @@ Exit codes: `0` restored and verified, `1` restore completed but verification di
 
 OSS never fetches `api.secondlayer.tools` for the public key.
 
-Against the official archive, the confirm prompt quotes partitions, dollars, and your credit balance before anything is charged; your own mirrors and local archives never touch the gate. See [Credits](#credits).
+Against the official archive, the confirm prompt quotes partitions, dollars, and your credit balance before anything is charged; your own mirrors and local archives never touch the gate. Presigned URLs are issued in load order (blocks, then transactions, then events) in batches of 16, so a charge lands right before its bytes are used, and a URL with under a minute left is re-issued before download. See [Credits](#credits).
+
+The JSON report carries `verified_datasets`, `ranges_verified`, `divergent_ranges`, and `divergent` (the ranges by dataset).
 
 Example: `secondlayer bootstrap --against ./snapshot.json --to-block 4000000 --yes`
 
@@ -168,7 +172,7 @@ Example: `secondlayer verify decode:ft_transfer --against ./snapshot.json --deep
 
 ### secondlayer repair
 
-Replace local chain data that diverges from a signed archive. Dry-run by default.
+Replace local chain data that diverges from a signed archive. Dry-run by default. With `--apply`, a fixed block is rewritten together with its transactions and events from the archive's partitions for that height, in one transaction per partition, and all three datasets are re-verified. When the reference carries no transactions or events partition for a height, the block is rewritten alone, the run names the height with the remedy `secondlayer bootstrap --from-block H --to-block H`, and it exits 1; the stale rows underneath stay in place rather than becoming an unnamed hole.
 
 Usage: `secondlayer repair --against <archive> [--apply] [--from-block <n>] [--to-block <n>] [--public-key <pem>] [-y] [--json]`
 
@@ -181,7 +185,9 @@ Usage: `secondlayer repair --against <archive> [--apply] [--from-block <n>] [--t
 | `-y, --yes` | off | Skip the confirmation prompt for a metered fetch. |
 | `--json` | off | Machine output; the report carries `metered`. Not consent: a metered fetch without `-y` prints `{"code":"CONFIRMATION_REQUIRED","quote":…}` and exits 2. |
 
-Exit codes: `0` ok, `1` divergence remains, `2` unanchored.
+Exit codes: `0` ok, `1` divergence remains (or transactions/events at some height could not be rewritten), `2` unanchored.
+
+The JSON report carries `rows_written` (per dataset), `datasets_rewritten`, `heights_missing_child_partitions`, and `remaining_by_dataset`.
 
 Example: `secondlayer repair --against ./snapshot.json` then `secondlayer repair --against ./snapshot.json --apply`
 
