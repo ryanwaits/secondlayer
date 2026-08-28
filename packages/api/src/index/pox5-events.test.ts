@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb, jsonb, sql } from "@secondlayer/shared/db";
 import type { Pox5EventTopic } from "@secondlayer/shared/db";
+import { POX5_EVENT_TOPICS } from "@secondlayer/stacks/pox5";
 import {
 	type Pox5EventsReader,
 	type ReadPox5EventsParams,
@@ -57,6 +58,16 @@ describe("PoX-5 events helpers", () => {
 				readPox5Events: EMPTY_EVENTS,
 			}),
 		).rejects.toThrow(/unknown topic: stack-stx/);
+	});
+
+	test("every stacks POX5_EVENT_TOPICS member is an accepted topic filter", async () => {
+		for (const topic of POX5_EVENT_TOPICS) {
+			await getPox5EventsResponse({
+				query: eventsParams(`?from_height=0&topic=${topic}`),
+				tip: TIP,
+				readPox5Events: EMPTY_EVENTS,
+			});
+		}
 	});
 
 	test("passes a valid topic through to the reader untouched", async () => {

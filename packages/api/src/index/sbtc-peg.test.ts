@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
 import type { SbtcEventTopic } from "@secondlayer/shared/db";
+import { SBTC_EVENT_TOPICS } from "@secondlayer/stacks/sbtc";
 import {
 	type ReadSbtcEventsParams,
 	type SbtcDepositsReader,
@@ -88,6 +89,16 @@ describe("sBTC peg helpers", () => {
 				readSbtcEvents: EMPTY_EVENTS,
 			}),
 		).rejects.toThrow(/unknown topic/);
+	});
+
+	test("every stacks SBTC_EVENT_TOPICS member is an accepted topic filter", async () => {
+		for (const topic of SBTC_EVENT_TOPICS) {
+			await getSbtcEventsResponse({
+				query: eventsParams(`?from_height=0&topic=${topic}`),
+				tip: TIP,
+				readSbtcEvents: EMPTY_EVENTS,
+			});
+		}
 	});
 
 	test("rejects an unknown withdrawal status", async () => {

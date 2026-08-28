@@ -3,6 +3,7 @@ import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Pox5EventTopic } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { ValidationError } from "@secondlayer/shared/errors";
+import { POX5_EVENT_TOPICS } from "@secondlayer/stacks/pox5";
 import type { Kysely, RawBuilder } from "kysely";
 import type { StreamsReorg, StreamsReorgsReader } from "../streams/reorgs.ts";
 import {
@@ -39,29 +40,9 @@ import type { IndexTip } from "./tip.ts";
 const POX5_DISABLED_NOTE =
 	"PoX-5 decoding is disabled (POX5_DECODER_ENABLED=false); the pox-5 feed is empty until re-enabled.";
 
-/** The `pox5_events` topic vocabulary — mirrors the DB CHECK constraint and
- *  `Pox5EventTopic`. A Set, so the guard stays O(1) instead of a 19-arm chain. */
-const POX5_TOPICS: ReadonlySet<string> = new Set<Pox5EventTopic>([
-	"set-bond-admin",
-	"set-pause-admin",
-	"pause-rewards",
-	"setup-bond",
-	"add-to-allowlist",
-	"register-for-bond",
-	"update-bond-registration",
-	"register-signer",
-	"stake",
-	"stake-update",
-	"announce-l1-early-exit",
-	"unstake-sbtc",
-	"unstake",
-	"calculate-rewards",
-	"bond-distribution",
-	"claim-rewards",
-	"claim-staker-rewards-for-signer",
-	"grant-signer-key",
-	"revoke-signer-grant",
-]);
+/** The `pox5_events` topic vocabulary — stacks const, same list the decoder
+ *  writes. A Set, so the guard stays O(1) instead of a 19-arm chain. */
+const POX5_TOPICS: ReadonlySet<string> = new Set(POX5_EVENT_TOPICS);
 
 function isPox5Topic(value: string): value is Pox5EventTopic {
 	return POX5_TOPICS.has(value);

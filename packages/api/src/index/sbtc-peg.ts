@@ -4,6 +4,7 @@ import type { SbtcEventTopic } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { ValidationError } from "@secondlayer/shared/errors";
 import { deserializeCVBytes } from "@secondlayer/stacks/clarity";
+import { SBTC_EVENT_TOPICS } from "@secondlayer/stacks/sbtc";
 import type { Kysely, RawBuilder } from "kysely";
 import type { StreamsReorg, StreamsReorgsReader } from "../streams/reorgs.ts";
 import {
@@ -38,6 +39,10 @@ const SBTC_DISABLED_NOTE =
 	"sBTC decoding is disabled (SBTC_DECODER_ENABLED=false); the sBTC peg feed is empty until re-enabled.";
 
 const DEPOSIT_TOPIC: SbtcEventTopic = "completed-deposit";
+
+/** The `sbtc_events` topic vocabulary — stacks const, same list the decoder
+ *  writes. */
+const SBTC_TOPICS: ReadonlySet<string> = new Set(SBTC_EVENT_TOPICS);
 
 export const SBTC_EVENTS_FILTERS = [
 	"limit",
@@ -411,14 +416,7 @@ export async function readSbtcEvents(
 }
 
 function isSbtcTopic(value: string): value is SbtcEventTopic {
-	return (
-		value === "completed-deposit" ||
-		value === "withdrawal-create" ||
-		value === "withdrawal-accept" ||
-		value === "withdrawal-reject" ||
-		value === "key-rotation" ||
-		value === "update-protocol-contract"
-	);
+	return SBTC_TOPICS.has(value);
 }
 
 export async function getSbtcEventsResponse(opts: {
