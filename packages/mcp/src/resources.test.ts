@@ -49,24 +49,30 @@ describe("secondlayer://context", () => {
 	it("assembles live state from the SDK context snapshot", async () => {
 		const client = {
 			context: async () => ({
-				account: { email: "a@b.com" },
+				account: { value: { email: "a@b.com" } },
 				streamsTip: {
-					block_height: 100,
-					block_hash: "0xabc",
-					burn_block_height: 50,
-					lag_seconds: 2,
-				},
-				indexTip: { block_height: 99, lag_seconds: 3 },
-				subgraphs: [
-					{
-						name: "swaps",
-						status: "running",
-						tables: ["t"],
-						lastProcessedBlock: 5,
+					value: {
+						block_height: 100,
+						block_hash: "0xabc",
+						burn_block_height: 50,
+						lag_seconds: 2,
 					},
-				],
-				subscriptions: { count: 2, byStatus: { active: 1, paused: 1 } },
-				activeOperations: [],
+				},
+				indexTip: { value: { block_height: 99, lag_seconds: 3 } },
+				subgraphs: {
+					value: [
+						{
+							name: "swaps",
+							status: "running",
+							tables: ["t"],
+							lastProcessedBlock: 5,
+						},
+					],
+				},
+				subscriptions: {
+					value: { count: 2, byStatus: { active: 1, paused: 1 } },
+				},
+				activeOperations: { value: [] },
 			}),
 		} as unknown as Client;
 
@@ -94,23 +100,35 @@ describe("secondlayer://context", () => {
 	it("degrades gracefully when a field is unavailable (never throws)", async () => {
 		const client = {
 			context: async () => ({
-				account: null,
-				streamsTip: null,
-				indexTip: null,
-				subgraphs: [],
-				subscriptions: null,
-				activeOperations: null,
+				account: { value: null },
+				streamsTip: {
+					value: null,
+					error: { message: "fetch failed", status: 0, retryable: true },
+				},
+				indexTip: { value: null },
+				subgraphs: { value: [] },
+				subscriptions: {
+					value: null,
+					error: {
+						message: "API key invalid or expired.",
+						code: "UNAUTHORIZED",
+						status: 401,
+						retryable: false,
+					},
+				},
+				activeOperations: { value: null },
 			}),
 		} as unknown as Client;
 
 		const ctx = await buildContext({ clientProvider: () => client });
 
 		expect(ctx.whatExists.subgraphs).toEqual([]);
+		// A field that failed says why; one that read nothing keeps the hint.
 		expect(ctx.whatExists.subscriptions).toBe(
-			"unavailable: set INSTANCE_TOKEN",
+			"unavailable: API key invalid or expired.",
 		);
 		expect(ctx.whatExists.account).toBe("unavailable: set INSTANCE_TOKEN");
-		expect(ctx.whatExists.streamsTip).toBe("unavailable: set INSTANCE_TOKEN");
+		expect(ctx.whatExists.streamsTip).toBe("unavailable: fetch failed");
 	});
 });
 

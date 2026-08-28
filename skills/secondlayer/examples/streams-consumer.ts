@@ -56,8 +56,9 @@ const upsertEvent = db.query(
      tx_id        = excluded.tx_id,
      payload      = excluded.payload`,
 );
-const deleteAboveHeight = db.query(
-	"DELETE FROM events WHERE block_height > $fork_point",
+// INCLUSIVE of the fork block: the new canonical chain re-supplies it.
+const deleteAtOrAboveHeight = db.query(
+	"DELETE FROM events WHERE block_height >= $fork_point",
 );
 const setCursor = db.query(
 	"UPDATE checkpoint SET cursor = $cursor WHERE id = 1",
@@ -86,12 +87,15 @@ const applyBatch = db.transaction(
 	},
 );
 
-// Roll a reorg back: drop every row above the fork point and persist the rewind
-// cursor in the same transaction, so the two commit together (crash-safe).
-const rollbackReorg = db.transaction((forkPoint: number, cursor: string) => {
-	deleteAboveHeight.run({ $fork_point: forkPoint });
-	setCursor.run({ $cursor: cursor });
-});
+// Roll a reorg back: drop every row at or above the fork point and persist the
+// rewind cursor (null = pre-genesis) in the same transaction, so the two commit
+// together (crash-safe).
+const rollbackReorg = db.transaction(
+	(forkPoint: number, cursor: string | null) => {
+		deleteAtOrAboveHeight.run({ $fork_point: forkPoint });
+		setCursor.run({ $cursor: cursor });
+	},
+);
 
 // --- Consumer --------------------------------------------------------------
 
@@ -119,10 +123,11 @@ await streams.events.consume({
 
 	// The SDK detects + dedups the reorg and hands you the rewind cursor; your
 	// only job is to roll the projection back to the fork point. The SDK then
-	// rewinds and re-reads the now-canonical events.
+	// rewinds and re-reads the now-canonical events. Forks above the
+	// checkpoint never reach here: nothing past them was written.
 	onReorg(reorg, { cursor }) {
 		rollbackReorg(reorg.fork_point_height, cursor);
-		console.warn(`reorg @ fork ${reorg.fork_point_height} — rolled back`);
+		console.warn(`reorg @ fork ${reorg.fork_point_height}: rolled back`);
 	},
 });
 

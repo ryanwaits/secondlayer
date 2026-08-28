@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { ContextField } from "@secondlayer/sdk";
 import { CHAIN_TRIGGER_FIELDS } from "@secondlayer/shared";
 import { TRAIT_STANDARDS } from "@secondlayer/stacks/clarity";
 import { filterFieldsByType } from "@secondlayer/subgraphs";
@@ -141,7 +142,13 @@ export async function buildContext(
 	deps: ContextDeps = { clientProvider: getClient },
 ) {
 	const unavailable = "unavailable: set INSTANCE_TOKEN";
-	const orNull = <T>(v: T | null | undefined) => (v == null ? unavailable : v);
+	// The SDK says why a field is missing; pass that reason through so the
+	// agent can tell an unreachable API from a rejected token.
+	const orNull = <T>(field: ContextField<T> | undefined) => {
+		if (!field) return unavailable;
+		if (field.value != null) return field.value;
+		return field.error ? `unavailable: ${field.error.message}` : unavailable;
+	};
 
 	const snap = await deps
 		.clientProvider()
@@ -156,9 +163,9 @@ export async function buildContext(
 			account: orNull(snap?.account),
 			streamsTip: orNull(snap?.streamsTip),
 			indexTip: orNull(snap?.indexTip),
-			subgraphs: snap?.subgraphs
-				? snap.subgraphs.map(formatSubgraphSummary)
-				: unavailable,
+			subgraphs: snap?.subgraphs.value
+				? snap.subgraphs.value.map(formatSubgraphSummary)
+				: orNull(snap?.subgraphs),
 			subscriptions: orNull(snap?.subscriptions),
 			activeOperations: orNull(snap?.activeOperations),
 		},

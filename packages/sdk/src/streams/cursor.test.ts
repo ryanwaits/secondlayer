@@ -28,8 +28,11 @@ describe("Cursor", () => {
 	});
 
 	test("atHeight uses the shared empty-range sentinel", () => {
-		expect(Cursor.atHeight(0)).toBe("0:0");
-		expect(Cursor.atHeight(-1)).toBe("0:0");
 		expect(Cursor.atHeight(100)).toBe(encodeStreamsCursor(blockEndCursor(99)));
+	});
+
+	test("atHeight(0) is null, the pre-genesis position, so the genesis event is not skipped", () => {
+		expect(Cursor.atHeight(0)).toBeNull();
+		expect(Cursor.atHeight(-1)).toBeNull();
 	});
 });

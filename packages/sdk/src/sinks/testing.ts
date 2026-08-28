@@ -194,6 +194,21 @@ export function sinkConformanceProbes<Tx>(
 			},
 		},
 		{
+			name: "rollback to genesis (null rewind) deletes every row and clears the checkpoint",
+			async run() {
+				const sink = await start();
+				await commit(sink, "11:0", [
+					[10, "a"],
+					[11, "b"],
+				]);
+				// A fork at block 0 has no cursor to rewind to: the checkpoint row
+				// goes away, so a restart resumes from the very beginning.
+				await sink.rollback(0, null);
+				expectRows("genesis rewind", await harness.readRows(), []);
+				expectCursor("genesis rewind", await harness.readCursor(), null);
+			},
+		},
+		{
 			name: "rollback then re-read: canonical rows land cleanly after the rewind",
 			async run() {
 				const sink = await start();

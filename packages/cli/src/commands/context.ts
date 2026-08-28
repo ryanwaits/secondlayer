@@ -1,4 +1,8 @@
-import { SecondLayer } from "@secondlayer/sdk";
+import {
+	type ContextField,
+	type ContextFieldError,
+	SecondLayer,
+} from "@secondlayer/sdk";
 import type { Command } from "commander";
 import { httpPlatformAnon } from "../lib/http.ts";
 import {
@@ -27,15 +31,26 @@ export function registerContextCommand(program: Command): void {
 				const sl = new SecondLayer({ baseUrl: apiUrl, apiKey });
 				const snapshot = await sl.context();
 
-				// The SDK degrades each read to `null`, so an all-null snapshot reads
-				// the same whether the instance is unbootstrapped, unauthorized, or
-				// down. Probe once and say which it is.
-				const diagnostics = await explain(
-					snapshot as unknown as Record<string, unknown>,
-					apiUrl,
-					apiKey,
-				);
-				const payload = { ...snapshot, diagnostics };
+				// Flatten the SDK's `{ value, error? }` fields: the printed snapshot
+				// keeps one key per field, and every failed read lands under
+				// `errors` with the code and status the API answered with.
+				const values: Record<string, unknown> = {};
+				const errors: Record<string, ContextFieldError> = {};
+				for (const [field, entry] of Object.entries(snapshot) as Array<
+					[string, ContextField<unknown>]
+				>) {
+					values[field] = entry.value;
+					if (entry.error) errors[field] = entry.error;
+				}
+
+				// A null still reads the same whether the instance is
+				// unbootstrapped, unauthorized, or down. Probe once and say which.
+				const diagnostics = await explain(values, apiUrl, apiKey);
+				const payload = {
+					...values,
+					...(Object.keys(errors).length > 0 ? { errors } : {}),
+					diagnostics,
+				};
 
 				output({
 					json: o.json,

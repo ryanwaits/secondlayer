@@ -117,6 +117,35 @@ describe("serializeWhere", () => {
 		});
 	});
 
+	describe("declared columns beat the unprefixed aliases", () => {
+		const withId = new Set(["id", "amount"]);
+		const withoutId = new Set(["amount"]);
+
+		test("id stays the user column when the table declares one", () => {
+			expect(serializeWhere({ id: 7 }, withId)).toEqual({ id: "7" });
+		});
+
+		test("id maps to _id when the table declares no id column", () => {
+			expect(serializeWhere({ id: 7 }, withoutId)).toEqual({ _id: "7" });
+		});
+
+		test("canonical _id always maps, even next to a user id column", () => {
+			expect(serializeWhere({ _id: 7 }, withId)).toEqual({ _id: "7" });
+		});
+
+		test("blockHeight stays the user column when declared", () => {
+			expect(
+				serializeWhere({ blockHeight: { gte: 5 } }, new Set(["blockHeight"])),
+			).toEqual({ "blockHeight.gte": "5" });
+		});
+
+		test("orderBy follows the same rule", () => {
+			expect(resolveOrderByColumn("id", withId)).toBe("id");
+			expect(resolveOrderByColumn("id", withoutId)).toBe("_id");
+			expect(resolveOrderByColumn("_id", withId)).toBe("_id");
+		});
+	});
+
 	describe("resolveOrderByColumn", () => {
 		test("_blockHeight → _block_height", () => {
 			expect(resolveOrderByColumn("_blockHeight")).toBe("_block_height");

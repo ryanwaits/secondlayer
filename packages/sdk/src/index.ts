@@ -1,12 +1,15 @@
-export { SecondLayer } from "./client.ts";
+export { SecondLayer, contextField } from "./client.ts";
 export type {
 	ActiveSubgraphOperation,
 	ContextAccount,
+	ContextField,
+	ContextFieldError,
 	ContextSnapshot,
 } from "./client.ts";
-export type { SecondLayerOptions } from "./base.ts";
+export type { RequestOptions, SecondLayerOptions } from "./base.ts";
 export {
 	CREDENTIAL_ENV_VARS,
+	DEFAULT_REQUEST_TIMEOUT_MS,
 	LOCAL_API_URL,
 	resolveApiKey,
 	resolveBaseUrl,
@@ -18,7 +21,11 @@ export {
 	type ContractSummary,
 	type ContractsEnvelope,
 } from "./contracts/client.ts";
-export { Index, consumeIndexFeed } from "./index-api/index.ts";
+export {
+	INDEX_MAX_PAGE_SIZE,
+	Index,
+	consumeIndexFeed,
+} from "./index-api/index.ts";
 export type {
 	BlockEnvelope,
 	BlocksEnvelope,
@@ -126,6 +133,7 @@ export type {
 	TransactionsEnvelope,
 	TransactionsListParams,
 	TransactionsWalkParams,
+	WalkOptions,
 } from "./index-api/index.ts";
 export { Subgraphs, getSubgraph } from "./subgraphs/index.ts";
 export type { SubgraphOperationStatus } from "./subgraphs/client.ts";
@@ -165,7 +173,6 @@ export {
 export {
 	ApiError,
 	SecondLayerError,
-	VersionConflictError,
 	parseRetryAfter,
 } from "./errors.ts";
 export type { SecondLayerErrorOptions } from "./errors.ts";
@@ -293,6 +300,7 @@ export type {
 	StreamsEventsListParams,
 	StreamsEventsStreamParams,
 	StreamsEventsSubscribeParams,
+	StreamsSubscription,
 	StreamsEventType,
 	StreamsReorg,
 	StreamsReorgContext,

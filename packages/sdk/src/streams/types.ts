@@ -178,11 +178,42 @@ export type StreamsEventsSubscribeParams = {
 	filters?: StreamsFilterMap;
 	/** Abort to unsubscribe (the returned function does the same). */
 	signal?: AbortSignal;
-	/** Called for each pushed event, in order. */
+	/**
+	 * Called for each pushed event, in order. The resume cursor advances only
+	 * after this resolves, so a handler that throws sees the same event again
+	 * on reconnect (at-least-once). Key durable writes by `cursor`.
+	 */
 	onEvent: (event: StreamsEvent) => void | Promise<void>;
-	/** Called on a connection error; the subscription auto-reconnects from the
-	 *  last delivered cursor unless the signal has aborted. */
+	/**
+	 * Called on every failure. Transport errors (dropped socket, 5xx, 429, a
+	 * stale connection, a throwing handler) reconnect from the last handled
+	 * cursor with exponential backoff. Errors that a retry cannot fix (401,
+	 * 4xx, a bad signature) end the subscription and reject its `done`.
+	 */
 	onError?: (err: unknown) => void;
+	/**
+	 * First reconnect pause in ms (default 1000). Doubles per consecutive
+	 * failure up to 30 s with jitter, resets once a frame arrives, and never
+	 * undercuts a `Retry-After`.
+	 */
+	reconnectDelayMs?: number;
+	/**
+	 * Reconnect when no frame (pings included) arrives for this long (default
+	 * 60000, three server heartbeats). Catches a half-open socket that never
+	 * errors; set it above your instance's heartbeat interval.
+	 */
+	staleAfterMs?: number;
+};
+
+/**
+ * Handle for a live subscription: call it to unsubscribe. `done` resolves
+ * after unsubscribe (or the signal aborting) and rejects with the error that
+ * ended the loop when a retry could not fix it, so a worker can `await`
+ * it instead of polling for silence.
+ */
+export type StreamsSubscription = {
+	(): void;
+	done: Promise<void>;
 };
 
 /**
@@ -247,7 +278,10 @@ export type StreamsBatchContext = ConsumerBatchContext;
  * The checkpoint for a reorg rollback. Persist `cursor` (the rewind position)
  * inside the same transaction as your rollback so the two commit atomically.
  */
-export type StreamsReorgContext = { cursor: string };
+/** `cursor` is the rewind position the loop resumes from after `onReorg`:
+ *  the foot of the fork point, or `null` for a fork at genesis. Persist it
+ *  in the same transaction as the rollback. */
+export type StreamsReorgContext = { cursor: string | null };
 
 export type StreamsEventsConsumeParams<
 	TTx = never,
@@ -337,15 +371,26 @@ export type StreamsEventsConsumeParams<
 		| Promise<string | null | undefined>;
 	/**
 	 * Roll your projection back to `reorg.fork_point_height`, persisting
-	 * `ctx.cursor` in the same transaction. Called once per *new* reorg
-	 * (deduped in-memory, fork-ascending) before the SDK rewinds and re-reads the
-	 * now-canonical events. Omit it to ignore reorgs (events stay canonical, but
-	 * stale rows from an orphaned fork are left in place).
+	 * `ctx.cursor` in the same transaction. Called once per *new* reorg at or
+	 * below the checkpoint (deduped in-memory, fork-ascending) before the SDK
+	 * rewinds and re-reads the now-canonical events. A reorg whose fork sits
+	 * above the checkpoint is not a rollback (nothing past it was written) and
+	 * is skipped. Omit it to ignore reorgs (events stay canonical, but stale
+	 * rows from an orphaned fork are left in place).
+	 *
+	 * With `onReorg` or a `sink` attached, every empty page also polls
+	 * `reorgs.list` (one extra request per idle poll) so a fork that lands
+	 * while the consumer idles at the tip is rolled back too.
 	 */
 	onReorg?: (
 		reorg: StreamsReorg,
 		ctx: StreamsReorgContext,
 	) => Promise<void> | void;
+	/** Deepest rewind one reorg may make below the checkpoint before the loop
+	 *  refuses with `ValidationError`. Default 1000 blocks. The fork point is
+	 *  server supplied and drives a delete on every declared table, so raise
+	 *  this only for a source you trust. */
+	maxRollbackDepth?: number;
 	/** Page-fetch retries after the first failure (429/5xx/network only —
 	 *  4xx and handler throws always propagate). Default 3; `0` disables. */
 	retryCount?: number;
@@ -411,8 +456,17 @@ export type StreamsEventsReplayParams = {
 	 * Called once per finalized dump file, in block order, before live tailing.
 	 * Process the parquet with your own tooling (e.g. DuckDB) — the SDK does not
 	 * decode parquet. Use `client.dumps.download(file)` to fetch + verify bytes.
+	 *
+	 * Delivery is file-granular and at-least-once: a file whose range straddles
+	 * `from` is handed over whole. `ctx.from` is that cursor (`null` from
+	 * genesis); skip rows at or below it, or key rows by `cursor` so a re-run
+	 * is an idempotent no-op. Files ending at or below `from` are not handed
+	 * over at all.
 	 */
-	onDumpFile: (file: StreamsDumpFile) => Promise<void> | void;
+	onDumpFile: (
+		file: StreamsDumpFile,
+		ctx: { from: string | null },
+	) => Promise<void> | void;
 	/** Called per live page after the dump phase, like `consume`. */
 	onBatch: (
 		events: StreamsEvent[],
@@ -565,9 +619,11 @@ export type StreamsClient = {
 		 * Subscribe to the real-time SSE push surface. Calls `onEvent` for each new
 		 * canonical event as the server pushes it (chain cadence, not poll-bounded),
 		 * and verifies each frame's inline ed25519 signature when the client was
-		 * created with `verify`. Returns an unsubscribe function.
+		 * created with `verify`. Returns an unsubscribe function whose `done`
+		 * settles when the loop ends. Not reorg-aware: an event delivered then
+		 * orphaned is never retracted. Durable writers use `consume()`.
 		 */
-		subscribe(params: StreamsEventsSubscribeParams): () => void;
+		subscribe(params: StreamsEventsSubscribeParams): StreamsSubscription;
 	};
 	blocks: {
 		events(heightOrHash: number | string): Promise<StreamsEventsListEnvelope>;

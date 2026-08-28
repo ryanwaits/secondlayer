@@ -10,7 +10,7 @@ import type {
 	SubscriptionTestResult,
 	UpdateSubscriptionRequest,
 } from "@secondlayer/shared/schemas/subscriptions";
-import { BaseClient } from "../base.ts";
+import { BaseClient, seg } from "../base.ts";
 
 export type {
 	ChainTrigger,
@@ -43,7 +43,10 @@ export class Subscriptions extends BaseClient {
 	}
 
 	async get(id: string): Promise<SubscriptionDetail> {
-		return this.request<SubscriptionDetail>("GET", `/api/subscriptions/${id}`);
+		return this.request<SubscriptionDetail>(
+			"GET",
+			`/api/subscriptions/${seg(id)}`,
+		);
 	}
 
 	async create(
@@ -62,7 +65,7 @@ export class Subscriptions extends BaseClient {
 	): Promise<SubscriptionDetail> {
 		return this.request<SubscriptionDetail>(
 			"PATCH",
-			`/api/subscriptions/${id}`,
+			`/api/subscriptions/${seg(id)}`,
 			patch,
 		);
 	}
@@ -70,25 +73,28 @@ export class Subscriptions extends BaseClient {
 	async pause(id: string): Promise<SubscriptionDetail> {
 		return this.request<SubscriptionDetail>(
 			"POST",
-			`/api/subscriptions/${id}/pause`,
+			`/api/subscriptions/${seg(id)}/pause`,
 		);
 	}
 
 	async resume(id: string): Promise<SubscriptionDetail> {
 		return this.request<SubscriptionDetail>(
 			"POST",
-			`/api/subscriptions/${id}/resume`,
+			`/api/subscriptions/${seg(id)}/resume`,
 		);
 	}
 
 	async delete(id: string): Promise<{ ok: true }> {
-		return this.request<{ ok: true }>("DELETE", `/api/subscriptions/${id}`);
+		return this.request<{ ok: true }>(
+			"DELETE",
+			`/api/subscriptions/${seg(id)}`,
+		);
 	}
 
 	async rotateSecret(id: string): Promise<RotateSecretResponse> {
 		return this.request<RotateSecretResponse>(
 			"POST",
-			`/api/subscriptions/${id}/rotate-secret`,
+			`/api/subscriptions/${seg(id)}/rotate-secret`,
 		);
 	}
 
@@ -97,7 +103,7 @@ export class Subscriptions extends BaseClient {
 	async test(id: string): Promise<SubscriptionTestResult> {
 		return this.request<SubscriptionTestResult>(
 			"POST",
-			`/api/subscriptions/${id}/test`,
+			`/api/subscriptions/${seg(id)}/test`,
 		);
 	}
 
@@ -106,7 +112,7 @@ export class Subscriptions extends BaseClient {
 	async deliveries(id: string): Promise<{ data: DeliveryRow[] }> {
 		return this.request<{ data: DeliveryRow[] }>(
 			"GET",
-			`/api/subscriptions/${id}/deliveries`,
+			`/api/subscriptions/${seg(id)}/deliveries`,
 		);
 	}
 
@@ -116,7 +122,7 @@ export class Subscriptions extends BaseClient {
 	): Promise<ReplayResult> {
 		return this.request<ReplayResult>(
 			"POST",
-			`/api/subscriptions/${id}/replay`,
+			`/api/subscriptions/${seg(id)}/replay`,
 			range,
 		);
 	}
@@ -124,7 +130,7 @@ export class Subscriptions extends BaseClient {
 	async dead(id: string): Promise<{ data: DeadRow[] }> {
 		return this.request<{ data: DeadRow[] }>(
 			"GET",
-			`/api/subscriptions/${id}/dead`,
+			`/api/subscriptions/${seg(id)}/dead`,
 		);
 	}
 
@@ -133,7 +139,7 @@ export class Subscriptions extends BaseClient {
 	async requeue(id: string, outboxId: string): Promise<{ ok: true }> {
 		return this.request<{ ok: true }>(
 			"POST",
-			`/api/subscriptions/${id}/dead/${outboxId}/requeue`,
+			`/api/subscriptions/${seg(id)}/dead/${seg(outboxId)}/requeue`,
 		);
 	}
 }

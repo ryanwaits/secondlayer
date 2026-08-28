@@ -96,7 +96,7 @@ secondlayer streams tip                      # baseline reachability
 ## SDK: catching errors correctly
 
 ```ts
-import { ApiError, VersionConflictError } from "@secondlayer/sdk";
+import { ApiError } from "@secondlayer/sdk";
 import {
   AuthError,
   RateLimitError,
@@ -107,8 +107,8 @@ import {
 try {
   await sl.subgraphs.deploy(input);
 } catch (err) {
-  if (err instanceof VersionConflictError) {
-    console.error(err.currentVersion, err.expectedVersion);
+  if (err instanceof ApiError && err.code === "OPERATION_IN_PROGRESS") {
+    // 409: a reindex or backfill is still running; poll sl.subgraphs.operations(name)
   } else if (err instanceof ApiError) {
     console.error(err.status, err.code, err.message, err.body);
   }

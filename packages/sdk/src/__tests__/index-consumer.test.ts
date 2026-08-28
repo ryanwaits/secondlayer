@@ -7,7 +7,7 @@ import type {
 	IndexReorg,
 	IndexTip,
 } from "../index.ts";
-import { Index } from "../index.ts";
+import { Index, ValidationError } from "../index.ts";
 
 const originalFetch = globalThis.fetch;
 
@@ -188,9 +188,11 @@ describe("index.events.consume", () => {
 		// the earlier `5:0` rewind silently dropped.
 		const rewind = "4:2147483647";
 		const byCursor: Record<string, EventsEnvelope> = {
-			null: {
-				events: [event("6:0", 0, 6)],
-				next_cursor: "6:0",
+			// Checkpoint at 9:0 sits ABOVE the fork, so the fork is a real
+			// rollback of rows already written.
+			"9:0": {
+				events: [event("10:0", 0, 10)],
+				next_cursor: "10:0",
 				tip: TIP,
 				reorgs: [r],
 			},
@@ -211,11 +213,11 @@ describe("index.events.consume", () => {
 			requested,
 		);
 
-		const rollbacks: Array<{ fork: number; cursor: string }> = [];
+		const rollbacks: Array<{ fork: number; cursor: string | null }> = [];
 		const applied: string[] = [];
 		const result = await client.events.consume({
 			eventType: "ft_transfer",
-			fromCursor: null,
+			fromCursor: "9:0",
 			emptyBackoffMs: 0,
 			maxEmptyPolls: 1,
 			onBatch: (events) => {
@@ -234,8 +236,133 @@ describe("index.events.consume", () => {
 		// Page that carried the fresh reorg is skipped; the re-read is applied —
 		// and it INCLUDES the fork-point's first event (5:0).
 		expect(applied).toEqual(["5:0", "6:0", "7:0"]);
-		expect(requested.cursors).toEqual([null, rewind, "7:0"]);
+		expect(requested.cursors).toEqual(["9:0", rewind, "7:0"]);
 		expect(result.cursor).toBe("7:0");
+	});
+
+	test("a fork above the checkpoint never rewinds: the page is delivered and the sink keeps its cursor", async () => {
+		// Checkpoint 100:5, page 101..200 reporting a fork at 150. Rewinding
+		// would commit 149:MAX to the sink and skip rows 101..149 for good.
+		const fork = reorg({
+			fork_point_height: 150,
+			orphaned_range: { from: "150:0", to: "160:0" },
+			new_canonical_tip: "161:0",
+		});
+		const tip = { ...TIP, block_height: 200 };
+		const requested = { cursors: [], fromHeights: [] } as {
+			cursors: Array<string | null>;
+			fromHeights: Array<string | null>;
+		};
+		let served = 0;
+		const client = clientFor(() => {
+			served++;
+			if (served === 1) {
+				return {
+					events: Array.from({ length: 100 }, (_, k) =>
+						event(`${101 + k}:0`, k, 101 + k),
+					),
+					next_cursor: "200:0",
+					tip,
+					reorgs: [fork],
+				};
+			}
+			return { events: [], next_cursor: "200:0", tip, reorgs: [fork] };
+		}, requested);
+
+		const rollbacks: Array<[number, string | null]> = [];
+		const committed: string[] = [];
+		let cursor: string | null = "100:5";
+		const delivered: string[] = [];
+		await client.events.consume({
+			eventType: "ft_transfer",
+			mode: "bounded",
+			sink: {
+				loadCursor: async () => cursor,
+				commitBatch: async (next, write) => {
+					await write(undefined as never);
+					cursor = next;
+					committed.push(next);
+				},
+				rollback: async (forkPoint, rewind) => {
+					rollbacks.push([forkPoint, rewind]);
+					cursor = rewind;
+				},
+			},
+			onBatch: (events) => {
+				delivered.push(...events.map((e) => e.cursor));
+			},
+		});
+
+		expect(rollbacks).toEqual([]);
+		expect(delivered).toHaveLength(100);
+		expect(delivered[0]).toBe("101:0");
+		expect(committed).toEqual(["200:0"]);
+		expect(cursor).toBe("200:0");
+		expect(requested.cursors).toEqual(["100:5", "200:0"]);
+	});
+
+	test("a malformed fork point is refused before the sink rolls anything back", async () => {
+		for (const fork_point_height of [Number.NaN, -1]) {
+			const client = clientFor(() => ({
+				events: [],
+				next_cursor: "10:0",
+				tip: TIP,
+				reorgs: [reorg({ fork_point_height })],
+			}));
+			const rollbacks: number[] = [];
+			await expect(
+				client.events.consume({
+					eventType: "ft_transfer",
+					maxPages: 2,
+					sink: {
+						loadCursor: async () => "10:0",
+						commitBatch: async (_c, write) => {
+							await write(undefined as never);
+						},
+						rollback: async (forkPoint) => {
+							rollbacks.push(forkPoint);
+						},
+					},
+					onBatch: () => undefined,
+				}),
+			).rejects.toBeInstanceOf(ValidationError);
+			expect(rollbacks).toEqual([]);
+		}
+	});
+
+	test("a rewind deeper than maxRollbackDepth is refused unless the ceiling is raised", async () => {
+		const deep = reorg({ fork_point_height: 10 });
+		const page = () => ({
+			events: [],
+			next_cursor: "5000:3",
+			tip: { ...TIP, block_height: 5000 },
+			reorgs: [deep],
+		});
+		const rollbacks: number[] = [];
+		await expect(
+			clientFor(page).events.consume({
+				eventType: "ft_transfer",
+				fromCursor: "5000:3",
+				maxPages: 2,
+				onBatch: () => undefined,
+				onReorg: (r) => {
+					rollbacks.push(r.fork_point_height);
+				},
+			}),
+		).rejects.toThrow(/maxRollbackDepth/);
+		expect(rollbacks).toEqual([]);
+
+		await clientFor(page).events.consume({
+			eventType: "ft_transfer",
+			fromCursor: "5000:3",
+			maxPages: 1,
+			maxRollbackDepth: 5000,
+			onBatch: () => undefined,
+			onReorg: (r) => {
+				rollbacks.push(r.fork_point_height);
+			},
+		});
+		expect(rollbacks).toEqual([10]);
 	});
 
 	test("finalizedOnly emits only rows at or below tip.finalized_height, checkpointing the last one", async () => {

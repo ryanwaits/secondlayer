@@ -4,20 +4,24 @@ Five facts that are load-bearing. Everything else you can infer from the types;
 these you cannot, and getting them wrong produces code that looks correct and
 silently loses or corrupts data.
 
-## 1. Reads need no key
+## 1. `/v1` reads are open on loopback; `/api` needs the token
 
-`/v1/index/*` and the public subgraph reads are open. Construct the client with
-no credentials and start reading:
+`sl.index.*`, `sl.streams.*`, `sl.subgraphs.rows`, and the typed `subscribe`
+read `/v1`, open on loopback. Construct the client with no credentials and start reading:
 
 ```ts
-import { Index } from "@secondlayer/sdk";
+import { SecondLayer } from "@secondlayer/sdk";
 
-const sl = new Index();
-const { events } = await sl.events.list({ eventType: "ft_transfer" });
+const sl = new SecondLayer();
+const { events } = await sl.index.events.list({ eventType: "ft_transfer" });
 ```
 
-Keys are for Streams, writes, and higher rate limits. Do not invent an
-`apiKey` requirement or send a placeholder — an empty Bearer is worse than none.
+Everything else under `sl.subgraphs.*` and all of `sl.subscriptions.*` calls
+`/api`, which needs `INSTANCE_TOKEN` as soon as one is configured, loopback
+included, and `secondlayer init` always configures one. `/v1` needs it too once
+the API is bound beyond loopback. Every client reads `INSTANCE_TOKEN` from the
+env when `apiKey` is omitted, so the golden path is: omit `apiKey`, export the
+token. Do not send a placeholder; an empty Bearer is worse than none.
 
 ## 2. Cursors are opaque
 
@@ -28,7 +32,7 @@ arithmetically. Pass back exactly what you were handed:
 ```ts
 let cursor: string | null = null;
 for (;;) {
-  const page = await sl.events.list({ eventType: "ft_transfer", cursor });
+  const page = await sl.index.events.list({ eventType: "ft_transfer", cursor });
   if (page.events.length === 0) break;
   cursor = page.next_cursor;      // ✓
   // cursor = `${lastHeight}:0`;  // ✗ — skips events, silently
@@ -49,9 +53,29 @@ consistent.
 ```ts
 onReorg: async (reorg, ctx) => {
   await tx.deleteFrom("my_rows").where("height", ">=", reorg.fork_point_height).execute();
-  await saveCursor(tx, ctx.cursor);
+  await saveCursor(tx, ctx.cursor); // string, or null for a fork at genesis
 },
 ```
+
+Three more reorg facts the loop enforces so you do not have to:
+
+- **Never rewinds forward.** A page read from below a fork still reports that
+  fork. Nothing past it has been written, so the loop skips the rollback and
+  delivers the page; `onReorg` fires only for forks at or below the checkpoint.
+- **Idle tip is covered (Streams).** A page only reports reorgs overlapping its
+  own span, so on every empty page the Streams loop also calls
+  `reorgs.list` (one extra request per idle poll) and rolls back anything it
+  finds. Index has no reorg list; a fork while idling is seen once a page
+  overlaps it.
+- **Rollback depth is capped.** The fork point is server supplied and drives a
+  `DELETE ... >= fork` on every declared table, so a rewind more than
+  `maxRollbackDepth` blocks (default 1000) below the checkpoint throws a
+  `ValidationError` before the sink runs. Raise it only for a source you trust.
+- **Rollback is at-least-once across restarts.** Applied reorgs are deduped in
+  memory only. A consumer restarted at a checkpoint below a recent fork's
+  orphaned tip sees that fork again, fires `onReorg` again, and re-reads.
+  Correct (the rollback is idempotent, the re-read is a no-op on keyed rows)
+  but not free: persist a checkpoint above the fork to stop it.
 
 ## 4. Rows and the cursor commit in ONE transaction
 
@@ -75,12 +99,34 @@ await sl.streams.events.consume({
 Hand-rolling it is allowed, but the checkpoint write must be inside the same
 transaction as the row writes.
 
-## 5. `walk()` is not reorg-safe
+## 5. `walk()` and `events.subscribe()` are not reorg-safe
 
 `walk()` iterates a fixed range for backfills and analysis. It does not surface
-reorgs and does not rewind. Anything writing durable state off the tip belongs
-in `consume()` with `onReorg` (or a sink). Use `walk()` for history that is
-already final.
+reorgs and does not rewind. `streams.events.subscribe()` pushes events over
+SSE as they land and never retracts one that a reorg orphans. Anything writing
+durable state off the tip belongs in `consume()` with `onReorg` (or a sink).
+Use `walk()` for history that is already final and `subscribe()` for displays
+and notifications. `subscribe()` is at-least-once: the cursor advances after
+`onEvent` resolves, so a throwing handler sees the event again on reconnect;
+401/4xx/signature errors end the loop and reject `subscription.done`, transport
+errors reconnect with backoff. `batchSize` tops out at 1000 (the largest page the Index
+serves); above that `walk()` throws `ValidationError` instead of paging in
+silently smaller steps. A walk ends only when the server stops advancing
+`next_cursor`, never on a short page.
+
+## 6. `replay()` dump delivery is file-granular, at-least-once
+
+`events.replay({ from })` hands `onDumpFile` every dump file ending above
+`from`, whole. The file that straddles `from` includes rows at or below it, so
+skip those with `ctx.from` (the same cursor) or key rows by `cursor` so a
+re-run is a no-op. Files ending at or below `from` are not delivered.
+
+```ts
+onDumpFile: async (file, { from }) => {
+  const rows = await readParquet(await streams.dumps.download(file));
+  await insert(rows.filter((r) => from === null || isAfter(r.cursor, from)));
+},
+```
 
 ---
 
@@ -96,9 +142,24 @@ already final.
   the SELECT server-side; unrequested columns are absent from the row *and* the
   type. `cursor`, `block_height`, and `event_type` always come back.
 - **Errors**: everything derives from `SecondLayerError` — `code`, `retryable`,
-  `retryAfterSeconds`, `docsUrl`, and `walk(predicate)` to find a cause. Retries
-  are built in (`retryCount`/`retryDelay`); `onError` is a void observer, not a
-  retry decision.
+  `retryAfterSeconds`, `docsUrl`, and `walk(predicate)` to find a cause. Every
+  failure status keeps the server's `{error, code}` envelope, Streams and Index
+  alike; a 409 `OPERATION_IN_PROGRESS` on deploy/reindex/backfill is a plain
+  `ApiError`. `context()` never throws: each field is `{ value, error? }`.
+- **Verification**: `verify: true` fetches the signing key once and caches
+  only a successful fetch (a 5xx there is a retryable `StreamsServerError`).
+  Over plain http off loopback it requires `verify: { publicKey }`.
+- **Retries**: `consume()` and `walk()` retry each page fetch on 429/5xx/network
+  (`retryCount` default 3, `retryDelay` default 1000 ms, `Retry-After` honored);
+  `onError` is a void observer, not a retry decision. One-shot reads (`list`,
+  `get`, `discover`) do not retry; wrap them yourself if a blip must not fail
+  the call. Index and REST requests (`Index`, `Contracts`, `Subgraphs`) time
+  out after `requestTimeoutMs` (default 30 s, `0` disables) as a retryable
+  `ApiError` with code `REQUEST_TIMEOUT`, so a hung socket trips the retry
+  policy instead of stalling a loop. Streams requests do not time out yet.
+  `signal` on `walk()` cancels the in-flight request and the walk rejects
+  with the signal's reason at every boundary, so a walk that returns without
+  throwing reached the end of the feed.
 
 ## More
 

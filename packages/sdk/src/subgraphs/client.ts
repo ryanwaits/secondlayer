@@ -23,8 +23,13 @@ import type {
 	SubscribeOptions,
 	WhereInput,
 } from "@secondlayer/subgraphs";
-import { BaseClient, buildQuery } from "../base.ts";
-import { resolveOrderByColumn, serializeWhere } from "./serialize.ts";
+import { BaseClient, buildQuery, seg } from "../base.ts";
+import { readSse } from "../streams/subscribe.ts";
+import {
+	type DeclaredColumns,
+	resolveOrderByColumn,
+	serializeWhere,
+} from "./serialize.ts";
 
 export interface SubgraphSource {
 	name: string;
@@ -76,6 +81,43 @@ export interface BundleSubgraphResponse {
 	bundleSize: number;
 }
 
+const SUBSCRIBE_RECONNECT_DELAY_MS = 1000;
+
+/** Column names a `defineSubgraph()` table declares, or undefined when the
+ *  schema entry is not in the `{ columns: {...} }` shape. */
+function declaredColumns(table: unknown): DeclaredColumns | undefined {
+	if (!table || typeof table !== "object") return undefined;
+	const columns = (table as { columns?: unknown }).columns;
+	if (!columns || typeof columns !== "object") return undefined;
+	return new Set(Object.keys(columns));
+}
+
+/** Block height of a streamed row. The server writes rows in their wire
+ *  shape (`_block_height`, bigint columns as strings); a caller-shaped row
+ *  may carry `_blockHeight`. Either form advances the reconnect cursor. */
+function rowBlockHeight(row: unknown): number | undefined {
+	const r = row as { _block_height?: unknown; _blockHeight?: unknown };
+	const raw = r._block_height ?? r._blockHeight;
+	if (typeof raw !== "number" && typeof raw !== "string") return undefined;
+	const height = Number(raw);
+	return Number.isFinite(height) ? height : undefined;
+}
+
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+	return new Promise((resolve) => {
+		if (signal.aborted) return resolve();
+		const onAbort = () => {
+			clearTimeout(timer);
+			resolve();
+		};
+		const timer = setTimeout(() => {
+			signal.removeEventListener("abort", onAbort);
+			resolve();
+		}, ms);
+		signal.addEventListener("abort", onAbort, { once: true });
+	});
+}
+
 function buildSubgraphQueryString(params: SubgraphQueryParams): string {
 	return buildQuery({
 		_sort: params.sort,
@@ -113,7 +155,7 @@ export class Subgraphs extends BaseClient {
 	 * the tip.
 	 */
 	async status(name: string): Promise<SubgraphDetail> {
-		return this.request<SubgraphDetail>("GET", `/api/subgraphs/${name}`);
+		return this.request<SubgraphDetail>("GET", `/api/subgraphs/${seg(name)}`);
 	}
 
 	async openapi(
@@ -122,7 +164,7 @@ export class Subgraphs extends BaseClient {
 	): Promise<Record<string, unknown>> {
 		return this.request<Record<string, unknown>>(
 			"GET",
-			`/api/subgraphs/${name}/openapi.json${buildSpecQueryString(options)}`,
+			`/api/subgraphs/${seg(name)}/openapi.json${buildSpecQueryString(options)}`,
 		);
 	}
 
@@ -132,26 +174,28 @@ export class Subgraphs extends BaseClient {
 	): Promise<SubgraphAgentSchema> {
 		return this.request<SubgraphAgentSchema>(
 			"GET",
-			`/api/subgraphs/${name}/schema.json${buildSpecQueryString(options)}`,
+			`/api/subgraphs/${seg(name)}/schema.json${buildSpecQueryString(options)}`,
 		);
 	}
 
 	async markdown(name: string, options?: SubgraphSpecOptions): Promise<string> {
 		return this.requestText(
 			"GET",
-			`/api/subgraphs/${name}/docs.md${buildSpecQueryString(options)}`,
+			`/api/subgraphs/${seg(name)}/docs.md${buildSpecQueryString(options)}`,
 		);
 	}
 
 	/**
 	 * Reindex always drops and rebuilds the whole subgraph, so it takes no
-	 * block range — the API rejects one with `REINDEX_RANGE_NOT_SUPPORTED`.
-	 * Use {@link backfill} to process a specific range.
+	 * block range; the API rejects one with `REINDEX_RANGE_NOT_SUPPORTED`.
+	 * Use {@link backfill} to process a specific range. While a reindex or
+	 * backfill is already running the API answers 409 with code
+	 * `OPERATION_IN_PROGRESS`; poll {@link operations} until it finishes.
 	 */
 	async reindex(name: string): Promise<ReindexResponse> {
 		return this.request<ReindexResponse>(
 			"POST",
-			`/api/subgraphs/${name}/reindex`,
+			`/api/subgraphs/${seg(name)}/reindex`,
 		);
 	}
 
@@ -162,16 +206,18 @@ export class Subgraphs extends BaseClient {
 			message: string;
 			operationId?: string;
 			status?: string;
-		}>("POST", `/api/subgraphs/${name}/stop`);
+		}>("POST", `/api/subgraphs/${seg(name)}/stop`);
 	}
 
+	/** Process one block range. 409 `OPERATION_IN_PROGRESS` while another
+	 *  reindex or backfill runs on this subgraph. */
 	async backfill(
 		name: string,
 		options: { fromBlock: number; toBlock: number },
 	): Promise<ReindexResponse> {
 		return this.request<ReindexResponse>(
 			"POST",
-			`/api/subgraphs/${name}/backfill`,
+			`/api/subgraphs/${seg(name)}/backfill`,
 			options,
 		);
 	}
@@ -187,7 +233,7 @@ export class Subgraphs extends BaseClient {
 		});
 		return this.request<SubgraphGapsResponse>(
 			"GET",
-			`/api/subgraphs/${name}/gaps${qs}`,
+			`/api/subgraphs/${seg(name)}/gaps${qs}`,
 		);
 	}
 
@@ -198,7 +244,7 @@ export class Subgraphs extends BaseClient {
 		const qs = buildQuery({ force: options?.force ? true : undefined });
 		return this.request<{ message: string }>(
 			"DELETE",
-			`/api/subgraphs/${name}${qs}`,
+			`/api/subgraphs/${seg(name)}${qs}`,
 		);
 	}
 
@@ -220,7 +266,7 @@ export class Subgraphs extends BaseClient {
 		const cursorQs = cursor ? `${sep}cursor=${encodeURIComponent(cursor)}` : "";
 		return this.request<SubgraphRowsEnvelope<T>>(
 			"GET",
-			`/v1/subgraphs/${name}/${table}${qs}${cursorQs}`,
+			`/v1/subgraphs/${seg(name)}/${seg(table)}${qs}${cursorQs}`,
 		);
 	}
 
@@ -230,7 +276,7 @@ export class Subgraphs extends BaseClient {
 	): Promise<{ operations: SubgraphOperationStatus[] }> {
 		return this.request<{ operations: SubgraphOperationStatus[] }>(
 			"GET",
-			`/api/subgraphs/${name}/operations`,
+			`/api/subgraphs/${seg(name)}/operations`,
 		);
 	}
 
@@ -242,16 +288,22 @@ export class Subgraphs extends BaseClient {
 	): Promise<SubgraphOperationStatus> {
 		return this.request<SubgraphOperationStatus>(
 			"GET",
-			`/api/subgraphs/${name}/operations/${operationId}`,
+			`/api/subgraphs/${seg(name)}/operations/${seg(operationId)}`,
 		);
 	}
 
+	/** Create or update a subgraph. A deploy that needs a rebuild queues one;
+	 *  if a reindex or backfill is already running the API answers 409 with
+	 *  code `OPERATION_IN_PROGRESS` (an `ApiError`, not a dedicated class). */
 	async deploy(data: DeploySubgraphRequest): Promise<DeploySubgraphResponse> {
 		return this.request<DeploySubgraphResponse>("POST", "/api/subgraphs", data);
 	}
 
 	async getSource(name: string): Promise<SubgraphSource> {
-		return this.request<SubgraphSource>("GET", `/api/subgraphs/${name}/source`);
+		return this.request<SubgraphSource>(
+			"GET",
+			`/api/subgraphs/${seg(name)}/source`,
+		);
 	}
 
 	/**
@@ -273,7 +325,7 @@ export class Subgraphs extends BaseClient {
 	): Promise<unknown[]> {
 		const result = await this.request<{ data: unknown[] } | unknown[]>(
 			"GET",
-			`/api/subgraphs/${name}/${table}${buildSubgraphQueryString(params)}`,
+			`/api/subgraphs/${seg(name)}/${seg(table)}${buildSubgraphQueryString(params)}`,
 		);
 		return Array.isArray(result) ? result : result.data;
 	}
@@ -285,7 +337,7 @@ export class Subgraphs extends BaseClient {
 	): Promise<{ count: number }> {
 		return this.request<{ count: number }>(
 			"GET",
-			`/api/subgraphs/${name}/${table}/count${buildSubgraphQueryString(params)}`,
+			`/api/subgraphs/${seg(name)}/${seg(table)}/count${buildSubgraphQueryString(params)}`,
 		);
 	}
 
@@ -296,7 +348,7 @@ export class Subgraphs extends BaseClient {
 	): Promise<SubgraphAggregateResponse> {
 		return this.request<SubgraphAggregateResponse>(
 			"GET",
-			`/api/subgraphs/${name}/${table}/aggregate${buildAggregateQueryString(params)}`,
+			`/api/subgraphs/${seg(name)}/${seg(table)}/aggregate${buildAggregateQueryString(params)}`,
 		);
 	}
 
@@ -317,14 +369,29 @@ export class Subgraphs extends BaseClient {
 	): InferSubgraphClient<T> {
 		const result: Record<string, unknown> = {};
 
-		for (const tableName of Object.keys(def.schema)) {
-			result[tableName] = this.createTableClient(def.name, tableName);
+		for (const [tableName, table] of Object.entries(def.schema)) {
+			result[tableName] = this.createTableClient(
+				def.name,
+				tableName,
+				declaredColumns(table),
+			);
 		}
 
 		return result as InferSubgraphClient<T>;
 	}
 
-	private createTableClient(subgraphName: string, tableName: string) {
+	/**
+	 * `columns` is the table's declared column set from `defineSubgraph()`.
+	 * Filters and orderBy always accept the canonical system names
+	 * `_id` / `_blockHeight` / `_txId` / `_createdAt`; the unprefixed
+	 * shorthands (`id`, `blockHeight`, ...) mean the system column only when
+	 * the table declares no column of that name.
+	 */
+	private createTableClient(
+		subgraphName: string,
+		tableName: string,
+		columns?: DeclaredColumns,
+	) {
 		const self = this;
 
 		return {
@@ -334,7 +401,7 @@ export class Subgraphs extends BaseClient {
 				} = {},
 			): Promise<TRow[]> {
 				const filters = options.where
-					? serializeWhere(options.where as Record<string, unknown>)
+					? serializeWhere(options.where as Record<string, unknown>, columns)
 					: undefined;
 
 				let sort: string | undefined;
@@ -349,7 +416,9 @@ export class Subgraphs extends BaseClient {
 						: (Object.entries(options.orderBy) as [string, "asc" | "desc"][]);
 					if (entries.length > 0) {
 						// Comma-joined parallel lists → `_sort=a,b&_order=asc,desc`.
-						sort = entries.map(([col]) => resolveOrderByColumn(col)).join(",");
+						sort = entries
+							.map(([col]) => resolveOrderByColumn(col, columns))
+							.join(",");
 						order = entries.map(([, dir]) => dir ?? "asc").join(",");
 					}
 				}
@@ -370,7 +439,7 @@ export class Subgraphs extends BaseClient {
 
 			async count<TRow>(where?: WhereInput<TRow>): Promise<number> {
 				const filters = where
-					? serializeWhere(where as Record<string, unknown>)
+					? serializeWhere(where as Record<string, unknown>, columns)
 					: undefined;
 
 				const result = await self.queryTableCount(subgraphName, tableName, {
@@ -383,7 +452,7 @@ export class Subgraphs extends BaseClient {
 				spec: A,
 			): Promise<AggregateResult<TRow, A>> {
 				const filters = spec.where
-					? serializeWhere(spec.where as Record<string, unknown>)
+					? serializeWhere(spec.where as Record<string, unknown>, columns)
 					: undefined;
 
 				const result = await self.queryTableAggregate(subgraphName, tableName, {
@@ -397,47 +466,63 @@ export class Subgraphs extends BaseClient {
 				return result as AggregateResult<TRow, A>;
 			},
 
+			/**
+			 * Tail rows as the subgraph writes them. Reads `/v1`, so it is keyless
+			 * on loopback like `rows`; fetch-based SSE, so it carries the client's
+			 * bearer token once the API is bound past loopback. Reconnects after a
+			 * dropped connection from the last delivered row's block height; rows
+			 * at that height can be delivered again, so key durable writes by
+			 * `_id`. Frames are unsigned rows in the server's wire shape
+			 * (`_block_height`, not `_blockHeight`).
+			 */
 			subscribe<TRow>(
 				onRow: (row: TRow) => void,
 				options: SubscribeOptions<TRow> = {},
 			): () => void {
 				const filters = options.where
-					? serializeWhere(options.where as Record<string, unknown>)
+					? serializeWhere(options.where as Record<string, unknown>, columns)
 					: {};
-				const qs = buildQuery({
-					...filters,
-					since: options.since ?? undefined,
-				});
-				const url = `${self.baseUrl}/api/subgraphs/${subgraphName}/${tableName}/stream${qs}`;
+				const controller = new AbortController();
+				let since: number | undefined = options.since ?? undefined;
 
-				type EventSourceLike = {
-					onmessage: ((ev: { data: string }) => void) | null;
-					onerror: ((ev: unknown) => void) | null;
-					close(): void;
-				};
-				const ES = (
-					globalThis as unknown as {
-						EventSource?: new (url: string) => EventSourceLike;
+				const run = async (): Promise<void> => {
+					while (!controller.signal.aborted) {
+						try {
+							const qs = buildQuery({ ...filters, since });
+							await readSse({
+								url: `${self.baseUrl}/v1/subgraphs/${seg(subgraphName)}/${seg(tableName)}/stream${qs}`,
+								headers: {
+									...BaseClient.authHeaders(self.apiKey),
+									"x-sl-origin": self.origin,
+								},
+								signal: controller.signal,
+								fetchImpl: self.fetchImpl,
+								onFrame: (frame) => {
+									if (frame.event === "ping" || !frame.data) return;
+									let row: TRow;
+									try {
+										row = JSON.parse(frame.data) as TRow;
+									} catch {
+										return; // ignore non-JSON frames (e.g. heartbeats)
+									}
+									const height = rowBlockHeight(row);
+									if (height !== undefined) since = height;
+									onRow(row);
+								},
+							});
+							// Clean end (server closed the stream): reconnect from `since`
+							// after the same pause as an error, so a server that closes at
+							// once (proxy timeout, empty 200) cannot spin a hot loop.
+							await sleep(SUBSCRIBE_RECONNECT_DELAY_MS, controller.signal);
+						} catch (err) {
+							if (controller.signal.aborted) return;
+							options.onError?.(err);
+							await sleep(SUBSCRIBE_RECONNECT_DELAY_MS, controller.signal);
+						}
 					}
-				).EventSource;
-				if (!ES) {
-					throw new Error(
-						"subscribe() needs a global EventSource (available in browsers and Node >= 22).",
-					);
-				}
-				const es = new ES(url);
-				es.onmessage = (ev) => {
-					try {
-						onRow(JSON.parse(ev.data) as TRow);
-					} catch {
-						// ignore non-JSON frames (e.g. heartbeats)
-					}
 				};
-				if (options.onError) {
-					const handler = options.onError;
-					es.onerror = (ev) => handler(ev);
-				}
-				return () => es.close();
+				void run();
+				return () => controller.abort();
 			},
 		};
 	}

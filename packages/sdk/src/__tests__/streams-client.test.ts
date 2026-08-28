@@ -195,6 +195,47 @@ describe("createStreamsClient", () => {
 		}
 	});
 
+	test("a 4xx keeps the server's code so callers branch on it", async () => {
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			fetchImpl: async () =>
+				jsonResponse(
+					{ error: "cursor is not valid", code: "CURSOR_INVALID" },
+					400,
+				),
+		});
+		try {
+			await client.events.list({ cursor: "nope" });
+			expect.unreachable("should have thrown");
+		} catch (err) {
+			expect(err).toBeInstanceOf(ValidationError);
+			expect((err as ValidationError).code).toBe("CURSOR_INVALID");
+			expect((err as ValidationError).shortMessage).toBe("cursor is not valid");
+			expect((err as ValidationError).body).toEqual({
+				error: "cursor is not valid",
+				code: "CURSOR_INVALID",
+			});
+		}
+	});
+
+	test("a 401 and a 5xx keep the server's code too", async () => {
+		const at = (status: number, code: string) =>
+			createStreamsClient({
+				baseUrl: "http://secondlayer.test",
+				fetchImpl: async () => jsonResponse({ error: "why", code }, status),
+			});
+		await expect(at(401, "TOKEN_REVOKED").tip()).rejects.toMatchObject({
+			name: "AuthError",
+			code: "TOKEN_REVOKED",
+		});
+		await expect(at(503, "INDEX_NOT_READY").tip()).rejects.toMatchObject({
+			name: "StreamsServerError",
+			code: "INDEX_NOT_READY",
+			retryable: true,
+		});
+	});
+
 	test("maps 400 to ValidationError", async () => {
 		const client = createStreamsClient({
 			apiKey: "bad-request",
@@ -379,7 +420,7 @@ describe("createStreamsClient verify", () => {
 		const body = JSON.stringify(envelope);
 		const client = createStreamsClient({
 			apiKey: "sk-test",
-			baseUrl: "http://secondlayer.test",
+			baseUrl: "https://secondlayer.test",
 			verify: { publicKey: publicKeyPem },
 			fetchImpl: async () =>
 				signedResponse(body, ed25519.signEd25519(body, priv)),
@@ -394,7 +435,7 @@ describe("createStreamsClient verify", () => {
 		const signature = ed25519.signEd25519(body, priv);
 		const client = createStreamsClient({
 			apiKey: "sk-test",
-			baseUrl: "http://secondlayer.test",
+			baseUrl: "https://secondlayer.test",
 			verify: { publicKey: publicKeyPem },
 			// Return a different body than what was signed.
 			fetchImpl: async () =>
@@ -408,7 +449,7 @@ describe("createStreamsClient verify", () => {
 	test("throws when the signature header is missing", async () => {
 		const client = createStreamsClient({
 			apiKey: "sk-test",
-			baseUrl: "http://secondlayer.test",
+			baseUrl: "https://secondlayer.test",
 			verify: { publicKey: publicKeyPem },
 			fetchImpl: async () =>
 				new Response(JSON.stringify(envelope), {
@@ -425,7 +466,7 @@ describe("createStreamsClient verify", () => {
 		const body = JSON.stringify(envelope);
 		const client = createStreamsClient({
 			apiKey: "sk-test",
-			baseUrl: "http://secondlayer.test",
+			baseUrl: "https://secondlayer.test",
 			verify: false,
 			// Tampered signature present, but verification is off → still resolves.
 			fetchImpl: async () => signedResponse(body, "not-a-real-signature"),
@@ -441,7 +482,7 @@ describe("createStreamsClient verify", () => {
 	test("default lenient: passes through an unsigned response", async () => {
 		const client = createStreamsClient({
 			apiKey: "sk-test",
-			baseUrl: "http://secondlayer.test",
+			baseUrl: "https://secondlayer.test",
 			fetchImpl: async () =>
 				new Response(JSON.stringify(envelope), {
 					status: 200,
@@ -458,7 +499,7 @@ describe("createStreamsClient verify", () => {
 		const keyId = ed25519.ed25519KeyId(publicKeyPem);
 		const client = createStreamsClient({
 			apiKey: "sk-test",
-			baseUrl: "http://secondlayer.test",
+			baseUrl: "https://secondlayer.test",
 			// no `verify` → lenient default
 			fetchImpl: async (input) =>
 				String(input).endsWith("/public/streams/signing-key")
@@ -488,7 +529,7 @@ describe("createStreamsClient verify", () => {
 		const body = JSON.stringify(envelope);
 		const client = createStreamsClient({
 			apiKey: "sk-test",
-			baseUrl: "http://secondlayer.test",
+			baseUrl: "https://secondlayer.test",
 			// no `verify` → lenient, but a present signature must still verify.
 			fetchImpl: async (input) =>
 				String(input).endsWith("/public/streams/signing-key")
@@ -555,7 +596,7 @@ describe("createStreamsClient verify key rotation", () => {
 		let current = keyA;
 		const client = createStreamsClient({
 			apiKey: "sk-test",
-			baseUrl: "http://secondlayer.test",
+			baseUrl: "https://secondlayer.test",
 			verify: true,
 			fetchImpl: async (input) =>
 				String(input).endsWith("/public/streams/signing-key")
@@ -579,7 +620,7 @@ describe("createStreamsClient verify key rotation", () => {
 		const rogue = serverKey();
 		const client = createStreamsClient({
 			apiKey: "sk-test",
-			baseUrl: "http://secondlayer.test",
+			baseUrl: "https://secondlayer.test",
 			verify: true,
 			// Endpoint serves `served`, but the response is signed by `rogue` and
 			// claims its id — one refetch still won't match, so fail closed.
@@ -598,12 +639,114 @@ describe("createStreamsClient verify key rotation", () => {
 		const rotated = serverKey();
 		const client = createStreamsClient({
 			apiKey: "sk-test",
-			baseUrl: "http://secondlayer.test",
+			baseUrl: "https://secondlayer.test",
 			verify: { publicKey: pinned.pem },
 			fetchImpl: async () => dataResponse(rotated),
 		});
 		await expect(client.events.list()).rejects.toBeInstanceOf(
 			StreamsSignatureError,
 		);
+	});
+
+	test("a failed key fetch is retryable and the next read fetches the key again", async () => {
+		const key = serverKey();
+		let keyFetches = 0;
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "https://secondlayer.test",
+			verify: true,
+			fetchImpl: async (input) => {
+				if (String(input).endsWith("/public/streams/signing-key")) {
+					keyFetches++;
+					return keyFetches === 1
+						? new Response("upstream down", { status: 503 })
+						: signingKeyResponse(key);
+				}
+				return dataResponse(key);
+			},
+		});
+		await expect(client.events.list()).rejects.toMatchObject({
+			name: "StreamsServerError",
+			retryable: true,
+			status: 503,
+		});
+		await expect(client.events.list()).resolves.toMatchObject({
+			next_cursor: null,
+		});
+		expect(keyFetches).toBe(2);
+		// The good key stays cached.
+		await client.events.list();
+		expect(keyFetches).toBe(2);
+	});
+
+	test("a dropped socket on the key fetch is retryable, not a signature failure", async () => {
+		const key = serverKey();
+		let first = true;
+		const client = createStreamsClient({
+			baseUrl: "https://secondlayer.test",
+			verify: true,
+			fetchImpl: async (input) => {
+				if (String(input).endsWith("/public/streams/signing-key")) {
+					if (first) {
+						first = false;
+						throw new TypeError("fetch failed");
+					}
+					return signingKeyResponse(key);
+				}
+				return dataResponse(key);
+			},
+		});
+		await expect(client.tip()).rejects.toMatchObject({
+			name: "StreamsServerError",
+			code: "SIGNING_KEY_UNAVAILABLE",
+			retryable: true,
+		});
+		await expect(client.tip()).resolves.toMatchObject({ next_cursor: null });
+	});
+});
+
+describe("createStreamsClient strict verify over plain http", () => {
+	test("refuses an unpinned strict client for a non-loopback http base", () => {
+		expect(() =>
+			createStreamsClient({
+				baseUrl: "http://10.0.0.5:3800",
+				verify: true,
+				fetchImpl: async () => jsonResponse({}),
+			}),
+		).toThrow(ValidationError);
+		expect(() =>
+			createStreamsClient({
+				baseUrl: "http://secondlayer.test",
+				verify: true,
+				fetchImpl: async () => jsonResponse({}),
+			}),
+		).toThrow(/publicKey/);
+	});
+
+	test("accepts strict over http on loopback, over https anywhere, and pinned anywhere", () => {
+		const { publicKeyPem } = ed25519.generateEd25519KeyPair();
+		const fetchImpl = async () => jsonResponse({});
+		for (const baseUrl of [
+			"http://127.0.0.1:3800",
+			"http://localhost:3800",
+			"http://[::1]:3800",
+			"https://secondlayer.test",
+		]) {
+			expect(() =>
+				createStreamsClient({ baseUrl, verify: true, fetchImpl }),
+			).not.toThrow();
+		}
+		expect(() =>
+			createStreamsClient({
+				baseUrl: "http://10.0.0.5:3800",
+				verify: { publicKey: publicKeyPem },
+				fetchImpl,
+			}),
+		).not.toThrow();
+		// Lenient (the default) is unchanged: it never fetches a key unless the
+		// server signs, so plain http stays usable for a self-host without a key.
+		expect(() =>
+			createStreamsClient({ baseUrl: "http://10.0.0.5:3800", fetchImpl }),
+		).not.toThrow();
 	});
 });

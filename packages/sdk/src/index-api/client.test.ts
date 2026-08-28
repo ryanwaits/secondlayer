@@ -362,7 +362,9 @@ describe("Index PoX-5 accessors", () => {
 			tip: {},
 			reorgs: [],
 		});
-		// Full page (2 of batchSize 2) → walk continues; short page → walk stops.
+		// Page length never ends a walk (the server clamps oversized limits
+		// silently); only a null or repeated next_cursor does, so the short
+		// second page costs one more fetch that comes back empty.
 		const bodies = [page("100:1", 2), page("200:1", 1)];
 		globalThis.fetch = mock((input: string | URL | Request) => {
 			urls.push(typeof input === "string" ? input : input.toString());
@@ -384,10 +386,11 @@ describe("Index PoX-5 accessors", () => {
 		)) {
 			seen.push(event);
 		}
-		expect(urls).toHaveLength(2);
+		expect(urls).toHaveLength(3);
 		expect(urls[0]).toContain("/v1/index/pox5/events");
 		// Second page resumes from the first page's next_cursor.
 		expect(urls[1]).toContain("cursor=100%3A1");
+		expect(urls[2]).toContain("cursor=200%3A1");
 		expect(seen).toHaveLength(3);
 	});
 });
@@ -706,6 +709,226 @@ describe("Index walk termination", () => {
 		}
 		expect(items).toEqual([]);
 		expect(urls.length).toBe(1);
+	});
+});
+
+describe("Index walk resilience", () => {
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+	});
+
+	const envelope = (ids: string[], next: string | null) => ({
+		events: ids.map((tx_id) => ({ tx_id })),
+		next_cursor: next,
+		tip: {},
+		reorgs: [],
+	});
+	const ok = (body: unknown) =>
+		Promise.resolve({
+			ok: true,
+			status: 200,
+			headers: new Headers({ "content-type": "application/json" }),
+			json: () => Promise.resolve(body),
+			text: () => Promise.resolve(JSON.stringify(body)),
+		} as Response);
+
+	test("walk yields every page when the server clamps pages below batchSize", async () => {
+		// Server caps every page at 2 rows no matter the requested limit and
+		// keeps sending a cursor until the feed is exhausted.
+		const pages = [
+			envelope(["0x1", "0x2"], "c2"),
+			envelope(["0x3", "0x4"], "c4"),
+			envelope(["0x5"], "c5"),
+			envelope([], null),
+		];
+		const urls: string[] = [];
+		globalThis.fetch = mock((input: string | URL | Request) => {
+			urls.push(typeof input === "string" ? input : input.toString());
+			return ok(pages[urls.length - 1] ?? envelope([], null));
+		}) as unknown as typeof fetch;
+
+		const ids: string[] = [];
+		for await (const ev of new Index({ baseUrl: BASE_URL }).ftTransfers.walk({
+			batchSize: 1000,
+		})) {
+			ids.push(ev.tx_id);
+		}
+		expect(ids).toEqual(["0x1", "0x2", "0x3", "0x4", "0x5"]);
+		expect(urls).toHaveLength(4);
+		expect(urls[0]).toContain("limit=1000");
+	});
+
+	test("walk rejects a batchSize above the 1000-row page cap with ValidationError", async () => {
+		const urls = recorder(envelope([], null));
+		const iterate = async () => {
+			for await (const _ of new Index({ baseUrl: BASE_URL }).events.walk({
+				eventType: "print",
+				batchSize: 5000,
+			})) {
+				// unreachable
+			}
+		};
+		await expect(iterate()).rejects.toMatchObject({
+			name: "ValidationError",
+			retryable: false,
+		});
+		await expect(iterate()).rejects.toThrow("1000");
+		expect(urls).toHaveLength(0);
+	});
+
+	test("pox.cycles.walk defaults to 200 per page like every other feed", async () => {
+		const urls = recorder({ cycles: [], next_cursor: null, tip: {} });
+		for await (const _ of new Index({ baseUrl: BASE_URL }).pox.cycles.walk()) {
+			// empty feed
+		}
+		expect(urls[0]).toContain("limit=200");
+	});
+
+	test("walk completes after a 503 page is retried", async () => {
+		const seen: unknown[] = [];
+		const bodies = [envelope(["0x1"], "c1"), null, envelope(["0x2"], null)];
+		let calls = 0;
+		globalThis.fetch = mock(() => {
+			const body = bodies[calls++];
+			if (body === null) {
+				return Promise.resolve({
+					ok: false,
+					status: 503,
+					headers: new Headers(),
+					json: () => Promise.resolve({}),
+					text: () => Promise.resolve("upstream unavailable"),
+				} as Response);
+			}
+			return ok(body);
+		}) as unknown as typeof fetch;
+
+		const ids: string[] = [];
+		for await (const ev of new Index({ baseUrl: BASE_URL }).ftTransfers.walk({
+			retryDelay: 1,
+			onError: (err) => seen.push(err),
+		})) {
+			ids.push(ev.tx_id);
+		}
+		expect(ids).toEqual(["0x1", "0x2"]);
+		expect(calls).toBe(3);
+		expect(seen).toHaveLength(1);
+		expect(seen[0]).toMatchObject({ status: 503, retryable: true });
+	});
+
+	test("walk gives up after retryCount failures and rethrows the last error", async () => {
+		globalThis.fetch = mock(() =>
+			Promise.resolve({
+				ok: false,
+				status: 503,
+				headers: new Headers(),
+				json: () => Promise.resolve({}),
+				text: () => Promise.resolve(""),
+			} as Response),
+		) as unknown as typeof fetch;
+		const iterate = async () => {
+			for await (const _ of new Index({ baseUrl: BASE_URL }).ftTransfers.walk({
+				retryCount: 1,
+				retryDelay: 1,
+			})) {
+				// never yields
+			}
+		};
+		await expect(iterate()).rejects.toMatchObject({ status: 503 });
+		expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+	});
+
+	test("aborting mid-walk cancels the in-flight page and rejects with AbortError", async () => {
+		const controller = new AbortController();
+		let calls = 0;
+		globalThis.fetch = mock((_input: unknown, init?: RequestInit) => {
+			calls++;
+			if (calls === 1) return ok(envelope(["0x1"], "c1"));
+			// Second page hangs; honour the signal like a real fetch would.
+			return new Promise<Response>((_, reject) => {
+				init?.signal?.addEventListener("abort", () =>
+					reject(init.signal?.reason),
+				);
+			});
+		}) as unknown as typeof fetch;
+
+		const ids: string[] = [];
+		const iterate = async () => {
+			for await (const ev of new Index({
+				baseUrl: BASE_URL,
+			}).ftTransfers.walk({ signal: controller.signal })) {
+				ids.push(ev.tx_id);
+				setTimeout(() => controller.abort(), 5);
+			}
+		};
+		await expect(iterate()).rejects.toMatchObject({ name: "AbortError" });
+		expect(ids).toEqual(["0x1"]);
+		expect(calls).toBe(2);
+	});
+
+	test("aborting between yields rejects instead of ending the walk cleanly", async () => {
+		const controller = new AbortController();
+		globalThis.fetch = mock(() =>
+			ok(envelope(["0x1", "0x2", "0x3"], null)),
+		) as unknown as typeof fetch;
+
+		const ids: string[] = [];
+		const iterate = async () => {
+			for await (const ev of new Index({
+				baseUrl: BASE_URL,
+			}).ftTransfers.walk({ signal: controller.signal })) {
+				ids.push(ev.tx_id);
+				controller.abort();
+			}
+		};
+		await expect(iterate()).rejects.toMatchObject({ name: "AbortError" });
+		expect(ids).toEqual(["0x1"]);
+		expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+	});
+
+	test("aborting before the first page rejects with the signal's reason", async () => {
+		const controller = new AbortController();
+		const reason = new Error("caller gave up");
+		controller.abort(reason);
+		globalThis.fetch = mock(() =>
+			ok(envelope(["0x1"], null)),
+		) as unknown as typeof fetch;
+
+		const iterate = async () => {
+			for await (const _ of new Index({
+				baseUrl: BASE_URL,
+			}).ftTransfers.walk({ signal: controller.signal })) {
+				// unreachable
+			}
+		};
+		await expect(iterate()).rejects.toBe(reason);
+		expect(globalThis.fetch).toHaveBeenCalledTimes(0);
+	});
+
+	test("a hung page request times out into a retryable error the walk retries", async () => {
+		let calls = 0;
+		globalThis.fetch = mock(() => {
+			calls++;
+			if (calls === 1) return new Promise<Response>(() => {});
+			return ok(envelope(["0x1"], null));
+		}) as unknown as typeof fetch;
+
+		const errors: unknown[] = [];
+		const ids: string[] = [];
+		for await (const ev of new Index({
+			baseUrl: BASE_URL,
+			requestTimeoutMs: 10,
+		}).ftTransfers.walk({
+			retryDelay: 1,
+			onError: (err) => errors.push(err),
+		})) {
+			ids.push(ev.tx_id);
+		}
+		expect(ids).toEqual(["0x1"]);
+		expect(errors).toHaveLength(1);
+		expect(errors[0]).toMatchObject({
+			code: "REQUEST_TIMEOUT",
+			retryable: true,
+		});
 	});
 });
 

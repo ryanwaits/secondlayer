@@ -151,17 +151,23 @@ export class ApiError extends SecondLayerError {
 	}
 }
 
-/** Thrown on a 401 — by both the platform clients and Streams. */
+/** Thrown on a 401 by both the instance clients and Streams. Carries the
+ *  server's `{error, code}` envelope when it sent one, so a revoked token reads
+ *  differently from a missing one. */
 export class AuthError extends ApiError {
 	override readonly status = 401 as const;
 
-	constructor(message = "API key invalid or expired.") {
-		super(401, message);
+	constructor(
+		message = "API key invalid or expired.",
+		body?: unknown,
+		code?: string,
+	) {
+		super(401, message, body, code);
 		this.name = "AuthError";
 	}
 }
 
-/** Thrown on a 429 — by both the platform clients and Streams. `retryable`,
+/** Thrown on a 429 by both the instance clients and Streams. `retryable`,
  *  with `retryAfterSeconds` parsed from the `Retry-After` header when sent. */
 export class RateLimitError extends ApiError {
 	override readonly status = 429 as const;
@@ -170,8 +176,10 @@ export class RateLimitError extends ApiError {
 		message = "Rate limited. Try again later.",
 		/** Raw `Retry-After` header value (seconds or HTTP-date). */
 		readonly retryAfter?: string,
+		body?: unknown,
+		code?: string,
 	) {
-		super(429, message, undefined, undefined, {
+		super(429, message, body, code, {
 			retryable: true,
 			retryAfterSeconds: parseRetryAfter(retryAfter),
 		});
@@ -179,10 +187,11 @@ export class RateLimitError extends ApiError {
 	}
 }
 
-/** Thrown on a 4xx the caller can fix (bad cursor, bad params). Never retried. */
+/** Thrown on a 4xx the caller can fix (bad cursor, bad params). Never retried.
+ *  `code` is the server's machine-readable code when the envelope carried one. */
 export class ValidationError extends ApiError {
-	constructor(message: string, status: number, body?: unknown) {
-		super(status, message, body, undefined, { retryable: false });
+	constructor(message: string, status: number, body?: unknown, code?: string) {
+		super(status, message, body, code, { retryable: false });
 		this.name = "ValidationError";
 	}
 }
@@ -195,19 +204,4 @@ export function parseRetryAfter(value?: string | null): number | undefined {
 	const date = Date.parse(value);
 	if (!Number.isNaN(date)) return Math.max(0, (date - Date.now()) / 1000);
 	return undefined;
-}
-
-/**
- * Thrown on optimistic-concurrency conflict when a deploy supplies an
- * `expectedVersion` that no longer matches the server's stored version.
- */
-export class VersionConflictError extends ApiError {
-	constructor(
-		public currentVersion: string,
-		public expectedVersion: string,
-		message = `Version conflict: expected ${expectedVersion}, current ${currentVersion}`,
-	) {
-		super(409, message, { currentVersion, expectedVersion });
-		this.name = "VersionConflictError";
-	}
 }

@@ -78,6 +78,77 @@ describe("streams.dumps", () => {
 		expect(bytes).toEqual(parquet);
 	});
 
+	test("download() hashes a 100MB body chunk by chunk without buffering it first", async () => {
+		const chunk = new Uint8Array(1024 * 1024);
+		for (let i = 0; i < chunk.length; i++) chunk[i] = i & 0xff;
+		const chunkCount = 100;
+		const hash = createHash("sha256");
+		for (let i = 0; i < chunkCount; i++) hash.update(chunk);
+		const big: StreamsDumpFile = {
+			...file,
+			byte_size: chunk.byteLength * chunkCount,
+			sha256: hash.digest("hex"),
+		};
+		let arrayBufferCalls = 0;
+		const c = client(async () => {
+			let sent = 0;
+			const body = new ReadableStream<Uint8Array>({
+				pull(controller) {
+					if (sent === chunkCount) {
+						controller.close();
+						return;
+					}
+					sent++;
+					controller.enqueue(chunk);
+				},
+			});
+			const res = new Response(body, { status: 200 });
+			Object.defineProperty(res, "arrayBuffer", {
+				value: async () => {
+					arrayBufferCalls++;
+					return new ArrayBuffer(0);
+				},
+			});
+			return res;
+		});
+		const bytes = await c.dumps.download(big);
+		expect(bytes.byteLength).toBe(big.byte_size);
+		expect(arrayBufferCalls).toBe(0);
+	});
+
+	test("download() retries once after a dropped socket or a 5xx", async () => {
+		let attempts = 0;
+		const c = client(async () => {
+			attempts++;
+			if (attempts === 1) throw new TypeError("fetch failed");
+			if (attempts === 2) return new Response("bad gateway", { status: 502 });
+			return new Response(parquet, { status: 200 });
+		});
+		const bytes = await c.dumps.download(file);
+		expect(bytes).toEqual(parquet);
+		expect(attempts).toBe(3);
+	});
+
+	test("download() retries a body that dies mid-transfer", async () => {
+		let attempts = 0;
+		const c = client(async () => {
+			attempts++;
+			if (attempts === 1) {
+				const body = new ReadableStream<Uint8Array>({
+					start(controller) {
+						controller.enqueue(parquet.slice(0, 2));
+						controller.error(new Error("ECONNRESET"));
+					},
+				});
+				return new Response(body, { status: 200 });
+			}
+			return new Response(parquet, { status: 200 });
+		});
+		const bytes = await c.dumps.download(file);
+		expect(bytes).toEqual(parquet);
+		expect(attempts).toBe(2);
+	});
+
 	test("download() throws on sha256 mismatch", async () => {
 		const c = client(
 			async () => new Response(new Uint8Array([9, 9, 9]), { status: 200 }),

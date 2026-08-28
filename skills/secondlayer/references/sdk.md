@@ -118,7 +118,7 @@ import type {
 } from "@secondlayer/sdk/subgraphs";
 ```
 
-The root `@secondlayer/sdk` re-exports everything above plus `SecondLayer`, `Index`, `Subgraphs`, `Subscriptions`, `ApiError`, `VersionConflictError`, `verifyWebhookSignature`, and all subscription/index/subgraph types.
+The root `@secondlayer/sdk` re-exports everything above plus `SecondLayer`, `Index`, `Subgraphs`, `Subscriptions`, `ApiError`, `verifyWebhookSignature`, and all subscription/index/subgraph types.
 
 ---
 
@@ -277,8 +277,9 @@ type StreamsEventsConsumeParams = {
   ) => void | string | null | undefined | Promise<void | string | null | undefined>;
   onReorg?: (
     reorg: StreamsReorg,
-    ctx: { cursor: string },         // rewind cursor to persist with the rollback
+    ctx: { cursor: string | null },  // rewind cursor to persist with the rollback; null = fork at genesis
   ) => void | Promise<void>;
+  maxRollbackDepth?: number;        // default 1000; a deeper rewind throws ValidationError before the sink runs
   emptyBackoffMs?: number;          // default 500
   maxPages?: number;
   maxEmptyPolls?: number;
@@ -315,6 +316,8 @@ await sl.streams.events.consume({
 ```
 
 Omit `onReorg` only if you don't store reorg-eligible (unfinalized) data — events stay canonical, but stale rows from an orphaned fork are left in place.
+
+Three rules the loop enforces: it never rewinds forward (`onReorg` fires only for forks at or below your checkpoint; a fork above it has nothing to undo, so the page is delivered instead of skipped); on every empty page it also polls `reorgs.list` so a fork that lands while idle at the tip is rolled back too (one extra request per idle poll); and a rewind deeper than `maxRollbackDepth` throws `ValidationError` before anything is deleted. Reorg dedup is in memory only, so a restart can re-fire `onReorg` for a fork already applied: keep the rollback idempotent.
 
 `finalizedOnly: true` is the zero-reorg path — it emits only immutable events and checkpoints at the last finalized one (so `ctx.cursor` is always safe to persist and `onReorg` is never needed), trading finality lag for simplicity:
 
@@ -457,12 +460,12 @@ for (const f of manifest.files) {
 
 ### `sl.streams.events.replay(params)` — bulk backfill then live tail
 
-Backfills from bulk dumps, then tails live from the manifest's `latest_finalized_cursor` — no gap or dupe at the seam. `onDumpFile` hands you each finalized parquet file to process with your own tooling (the SDK doesn't decode parquet); `onBatch` receives live events after the seam.
+Backfills from bulk dumps, then tails live from the manifest's `latest_finalized_cursor`, with no gap or dupe at the seam. `onDumpFile` hands you each finalized parquet file to process with your own tooling (the SDK doesn't decode parquet); `onBatch` receives live events after the seam. Dump delivery is file-granular and at-least-once: files ending at or below `from` are skipped, the file straddling `from` arrives whole, so drop rows at or below `ctx.from` (or key rows by `cursor`).
 
 ```ts
 type StreamsEventsReplayParams = {
   from?: "genesis" | string;                     // "genesis" (default) or a start cursor
-  onDumpFile: (file: StreamsDumpFile) => Promise<void> | void;
+  onDumpFile: (file: StreamsDumpFile, ctx: { from: string | null }) => Promise<void> | void;
   onBatch: (
     events: StreamsEvent[],
     envelope: StreamsEventsEnvelope,
@@ -475,9 +478,9 @@ replay(params: StreamsEventsReplayParams): Promise<StreamsEventsConsumeResult>
 ```ts
 await streams.events.replay({
   from: lastCheckpoint,
-  async onDumpFile(file) {
+  async onDumpFile(file, { from }) {
     const bytes = await streams.dumps.download(file);
-    await ingestParquet(bytes);            // your tooling
+    await ingestParquet(bytes, { after: from }); // your tooling; skip rows at or below `from`
   },
   async onBatch(events, envelope) {
     for (const ev of events) await handle(ev);
@@ -1259,7 +1262,7 @@ for (const row of dead) await sl.subscriptions.requeue(sub.id, row.id);
 
 All errors live in `@secondlayer/sdk`.
 
-### Instance API: `ApiError`, `VersionConflictError`
+### Instance API: `ApiError`
 
 Thrown by `sl.index.*`, `sl.subgraphs.*`, `sl.subscriptions.*`.
 
@@ -1268,36 +1271,31 @@ class ApiError extends Error {
   status: number;     // 0 for network/serialization failure
   body?: unknown;     // parsed JSON if available
   code?: string;      // stable machine code from server envelope, if any
-}
-
-class VersionConflictError extends ApiError {
-  status: 409;
-  currentVersion:  string;
-  expectedVersion: string;
+  retryable: boolean; // 429/5xx/network
+  retryAfterSeconds?: number;
 }
 ```
 
 Fires when:
 
-- `status === 0` — `fetch` rejected (network down) or the request body failed to serialize.
-- `status === 401` — missing/invalid `apiKey` on a write method.
-- `status === 429` — rate limited (`Retry-After` header reflected in `message`).
-- `status >= 500` — upstream server error.
-- `4xx` otherwise — the server's `{ error, code }` envelope is surfaced on `message`/`code`/`body`.
-- `VersionConflictError` — `subgraphs.deploy()` with optimistic `expectedVersion` that no longer matches.
+- `status === 0`: `fetch` rejected (network down), the request body failed to serialize, or `requestTimeoutMs` elapsed (`code: "REQUEST_TIMEOUT"`).
+- `status === 401`: missing/invalid `apiKey`; the server's `code` (e.g. `TOKEN_REVOKED`) is kept.
+- `status === 409`: `code: "OPERATION_IN_PROGRESS"` from `subgraphs.deploy/reindex/backfill` while another reindex or backfill runs; poll `subgraphs.operations(name)`.
+- `status === 429`: rate limited (`retryAfterSeconds` parsed from `Retry-After`).
+- `status >= 500`: upstream server error; the server's reason, `code`, and `Retry-After` are kept.
+- `4xx` otherwise: the server's `{ error, code }` envelope is surfaced on `message`/`code`/`body`.
 
 ```ts
-import { ApiError, VersionConflictError } from "@secondlayer/sdk";
+import { ApiError } from "@secondlayer/sdk";
 
 try {
   await sl.subgraphs.deploy(spec);
 } catch (err) {
-  if (err instanceof VersionConflictError) {
-    console.error(`expected ${err.expectedVersion}, server has ${err.currentVersion}`);
-  } else if (err instanceof ApiError) {
-    if (err.status === 401) await refreshApiKey();
-    if (err.status === 429) await wait(Number(err.message.match(/\d+/)?.[0] ?? 1) * 1000);
-    throw err;
+  if (err instanceof ApiError) {
+    if (err.code === "OPERATION_IN_PROGRESS") await waitForOperations(spec.name);
+    else if (err.status === 401) await refreshApiKey();
+    else if (err.retryable) await wait((err.retryAfterSeconds ?? 1) * 1000);
+    else throw err;
   }
 }
 ```

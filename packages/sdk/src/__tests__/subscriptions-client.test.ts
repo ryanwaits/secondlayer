@@ -79,3 +79,22 @@ describe("Subscriptions dead-letter requeue", () => {
 		).toBeUndefined();
 	});
 });
+
+describe("Subscriptions path segments", () => {
+	test("a subscription id with path and query characters is percent-encoded", async () => {
+		const requests = recordRequests({ ok: true });
+		const sl = new SecondLayer({ baseUrl: "http://sl.test", apiKey: "k" });
+		const hostile = "a/../b?x#y";
+		const encoded = encodeURIComponent(hostile);
+
+		await sl.subscriptions.pause(hostile);
+		await sl.subscriptions.requeue(hostile, hostile);
+
+		expect(new URL(requests[0].url).pathname).toBe(
+			`/api/subscriptions/${encoded}/pause`,
+		);
+		expect(new URL(requests[1].url).pathname).toBe(
+			`/api/subscriptions/${encoded}/dead/${encoded}/requeue`,
+		);
+	});
+});

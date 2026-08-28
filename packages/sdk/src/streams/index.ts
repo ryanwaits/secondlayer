@@ -96,6 +96,7 @@ export type {
 	StreamsEventsListParams,
 	StreamsEventsStreamParams,
 	StreamsEventsSubscribeParams,
+	StreamsSubscription,
 	StreamsEventType,
 	StreamsReorg,
 	StreamsReorgContext,

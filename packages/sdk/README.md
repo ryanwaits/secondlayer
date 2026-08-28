@@ -14,14 +14,19 @@ bun add @secondlayer/sdk
 import { SecondLayer } from "@secondlayer/sdk";
 
 const sl = new SecondLayer({
-  apiKey: process.env.INSTANCE_TOKEN, // from secondlayer init; omit on loopback
+  apiKey: process.env.INSTANCE_TOKEN, // from secondlayer init; read from the env when omitted
   // default baseUrl: http://127.0.0.1:3800  (or SL_API_URL)
 });
 ```
 
-Reads hit your instance. Writes use `INSTANCE_TOKEN` from `secondlayer init` when the
-API is bound beyond loopback. Public archive dumps (`client.dumps`) need no
-instance key.
+Auth, once: `sl.index`, `sl.streams`, `sl.subgraphs.rows`, and the typed
+`subscribe` read `/v1`, which is open on loopback and needs `INSTANCE_TOKEN`
+once the API is bound beyond it. Everything under `sl.subgraphs.*` and `sl.subscriptions.*` calls
+`/api`, which needs `INSTANCE_TOKEN` as soon as one is configured, loopback
+included, and `secondlayer init` always configures one. Every client, including
+`createStreamsClient`, reads `INSTANCE_TOKEN` from the env when `apiKey` is
+omitted; pass `apiKey: ""` to force a keyless call. Public archive dumps
+(`sl.streams.dumps`) need no instance key.
 
 ## Mental model
 
@@ -39,7 +44,7 @@ Everything is indexing — the question is how much of the indexer you run:
 
 ## Streams
 
-Typed HTTP client for the raw event firehose. Loopback reads need no key.
+Typed HTTP client for the raw event firehose. `/v1` reads need no key on loopback.
 
 ```typescript
 const tip = await sl.streams.tip();
@@ -62,7 +67,7 @@ console.log({ tip, firstCursor: page.events[0]?.cursor });
 import { createStreamsClient } from "@secondlayer/sdk";
 
 const streams = createStreamsClient({
-  // apiKey: process.env.INSTANCE_TOKEN, // when the API is bound beyond loopback
+  // apiKey: process.env.INSTANCE_TOKEN, // read from the env when omitted
   // verify: true,                 // verify ed25519 X-Signature on every read
   //                               // (auto-fetches the public key; { publicKey } pins a PEM)
   // dumpsBaseUrl: process.env.SL_STREAMS_DUMPS_URL, // required to use client.dumps
@@ -73,7 +78,16 @@ Verified responses: every Streams read is signed (ed25519 `X-Signature` +
 `X-Signature-KeyId`). Pass `verify: true` to check it on every read (or
 `{ publicKey }` to pin a PEM); a missing/bad signature throws
 `StreamsSignatureError`. The public key is at
-`GET /public/streams/signing-key`.
+`GET /public/streams/signing-key`. `verify` and `verifyDumpsManifest` are
+accepted by `new SecondLayer({...})` too and reach `sl.streams`.
+
+What `verify: true` proves depends on where the key came from. Over https, or
+on loopback, the key is fetched once from the instance and cached; a 5xx on
+that fetch surfaces as a retryable `StreamsServerError` and the next read
+fetches again. Over plain http to any other host the key travels the same
+unprotected path as the data, so the client refuses `verify: true` there and
+asks for `verify: { publicKey }` instead. The tradeoff: you copy the PEM once,
+and a server-side rotation then fails closed until you update it.
 
 Convenience reads:
 
@@ -125,28 +139,39 @@ for await (const event of streams.events.stream({
 
 Real-time push (`events.subscribe`).
 
-Use `client.events.subscribe` for callback-style live delivery — it pushes each
+Use `client.events.subscribe` for callback-style live delivery: it pushes each
 event to `onEvent` as it lands. It's fetch-based (so it carries the Bearer key)
-and works in browsers and Node 18+. It auto-reconnects from the last delivered
-cursor on a dropped connection, and returns an unsubscribe function.
+and works in browsers and Node 18+. It reconnects from the last handled cursor
+after a dropped socket, a clean server close, or `staleAfterMs` (60 s) with no
+frame, backing off from `reconnectDelayMs` (1 s) up to 30 s with jitter and
+honoring `Retry-After`. Errors a retry cannot fix (401, other 4xx, a bad
+signature) end the loop: `onError` sees them and the handle's `done` rejects.
 
 ```typescript
-const unsubscribe = streams.events.subscribe({
+const subscription = streams.events.subscribe({
   types: ["ft_transfer"],          // notTypes / contractId / sender / recipient / assetIdentifier also filter
   // fromCursor: lastCursor,       // resume strictly after this cursor; omit to tail from the tip
   onEvent: async (event) => {
     console.log(event.cursor, event.tx_id);
   },
-  onError: (err) => console.error("reconnecting…", err),
+  onError: (err) => console.error("subscribe", err),
 });
 
+await subscription.done;          // rejects when the loop stopped on an unfixable error
 // later
-unsubscribe(); // or pass `signal` and abort it
+subscription();                   // unsubscribe, or pass `signal` and abort it
 ```
+
+The cursor advances only after `onEvent` resolves, so a handler that throws
+sees the same event again on reconnect (at-least-once). Key durable writes by
+`cursor`. `subscribe` is not reorg-aware: an event delivered then orphaned is
+never retracted, so anything writing durable state belongs in `consume()` with
+`onReorg` or a sink.
 
 Each pushed frame is `{ event, sig, key_id }`. When the client was created with
 `verify` (or `{ publicKey }`), the per-frame ed25519 signature is checked before
-`onEvent` runs; a bad/missing signature throws `StreamsSignatureError`.
+`onEvent` runs; a bad/missing signature ends the subscription with
+`StreamsSignatureError`.
 
 Bulk parquet dumps.
 
@@ -173,18 +198,34 @@ for (const file of manifest.files) {
 }
 ```
 
+`download` hashes the body as it streams in and retries a dropped socket or
+5xx with the same policy `consume()` uses for pages, so a multi-hundred-MB
+file costs its own size in memory, not double, and one flaky fetch does not
+end a replay. The bytes are still returned whole; write them out per file.
+
+```typescript
+for (const file of (await streams.dumps.list()).files) {
+  await Bun.write(file.path.split("/").pop()!, await streams.dumps.download(file));
+}
+```
+
 Backfill then tail (`events.replay`).
 
 Backfills from bulk dumps, then tails live from the manifest's
-`latest_finalized_cursor` — no gap or dupe at the seam. `onDumpFile` hands you
+`latest_finalized_cursor`, with no gap or dupe at the seam. `onDumpFile` hands you
 each finalized file; `onBatch` receives live events after the seam.
+
+Dump delivery is file-granular and at-least-once: the file straddling `from`
+arrives whole, with `ctx.from` so you can skip rows at or below the checkpoint
+(or key rows by `cursor` and let the upsert dedupe). Files ending at or below
+`from` are not delivered.
 
 ```typescript
 await streams.events.replay({
   from: lastCheckpoint,
-  async onDumpFile(file) {
+  async onDumpFile(file, { from }) {
     const bytes = await streams.dumps.download(file);
-    await ingestParquet(bytes); // your tooling
+    await ingestParquet(bytes, { skipAtOrBelow: from }); // your tooling
   },
   async onBatch(events, envelope) {
     for (const event of events) await handle(event);
@@ -244,9 +285,12 @@ Checkpointed consumer — build your app index.
 
 `index.events.consume` / `index.contractCalls.consume` is the same contract as
 the Streams consumer: write your rows inside `onBatch`, return the cursor you
-committed, and reorgs rewind automatically to the fork point. `finalizedOnly`
-holds delivery to rows at or below `tip.finalized_height` (Index rows carry no
-per-event flag). Full runnable example: `examples/sales-index/`.
+committed, and reorgs rewind automatically to the fork point. Only forks at or
+below your checkpoint roll back (a fork above it has nothing to undo), and a
+rewind deeper than `maxRollbackDepth` (default 1000 blocks) is refused before
+anything is deleted. `finalizedOnly` holds delivery to rows at or below
+`tip.finalized_height` (Index rows carry no per-event flag). Walkthrough:
+[docs/index](https://www.secondlayer.tools/docs/index#build-your-index-on-it).
 
 ```typescript
 await sl.index.contractCalls.consume({
@@ -337,7 +381,7 @@ Exported types: `TransactionProof`, `TransactionProofVerifyResult`, `RewardSet`.
 
 Deploy and query app-specific tables.
 
-Subgraphs and subscriptions live on the instance API alongside Streams and Index. Deploying and managing them needs your `INSTANCE_TOKEN` when the API is bound beyond loopback.
+Subgraphs and subscriptions live on the instance API alongside Streams and Index. Everything here except `rows` and the typed `subscribe` calls `/api`, which needs `INSTANCE_TOKEN` once one is configured (init always configures one), loopback included.
 
 ```typescript
 // List
@@ -346,7 +390,7 @@ const { data } = await sl.subgraphs.list();
 // Get
 const subgraph = await sl.subgraphs.status("my-subgraph");
 
-// Open read (/v1) — keyless for public subgraphs; pass apiKey for your private ones
+// Open read (/v1): keyless on loopback; needs the token once the API is bound beyond it
 const { rows, next_cursor, tip } = await sl.subgraphs.rows("my-subgraph", "transfers", {
   order: "desc",
   limit: 50,
@@ -373,6 +417,12 @@ const gaps = await sl.subgraphs.gaps("my-subgraph");
 const result = await sl.subgraphs.deploy({ name, sources, schema, handlerCode });
 ```
 
+Filters and `orderBy` on the typed client name the system columns
+`_id`, `_blockHeight`, `_txId`, `_createdAt` (the canonical row shape). The
+unprefixed `id` / `blockHeight` / `txId` / `createdAt` shorthands mean the
+system column only when your table declares no column of that name; a declared
+`id` column is always your `id`.
+
 Stream rows live with the typed client — each table exposes `subscribe`
 alongside `findMany`/`count`:
 
@@ -392,10 +442,14 @@ const unsubscribe = subgraph.transfers.subscribe(
 unsubscribe();
 ```
 
-`subscribe` is an SSE stream over the global `EventSource` (available in
-browsers and Node ≥ 22; it throws if no `EventSource` is present). Frames are
-unsigned rows. `since: <block_height>` replays matching rows from that height,
-then tails the live edge; omit it to tail only.
+`subscribe` reads `/v1` like `rows`, so it is keyless on loopback; it is a
+fetch-based SSE stream, so it carries the client's bearer token once the API is
+bound past loopback, in browsers and Node 18+. Frames are unsigned rows in the
+wire shape (`_block_height`, bigint columns as strings). `since: <block_height>`
+replays matching rows from that height, then tails the live edge; omit it to
+tail only. A dropped connection reconnects from the last delivered row's
+`_block_height`, so rows at that height can arrive twice: key durable writes
+by `_id`.
 
 ## Subscriptions
 
@@ -571,7 +625,21 @@ try {
 }
 ```
 
-Tenant-resolution failures surface as `ApiError` with distinctive codes:
+Every failure status keeps the server's envelope: a 401 with
+`code: "TOKEN_REVOKED"` reads differently from a missing token, a 503 carries
+its reason and `retryAfterSeconds`, and Streams 4xx errors carry `code` the
+same way Index errors do (`err.code === "CURSOR_INVALID"`).
 
-- `code: "TENANT_SUSPENDED"` — your tenant is suspended (see `err.message` for the limit reason)
-- `code: "NO_TENANT"` — your account has no provisioned tenant yet
+Codes you will branch on:
+
+- `code: "OPERATION_IN_PROGRESS"` (409) from `subgraphs.deploy`, `reindex`, or
+  `backfill`: a reindex or backfill is already running for that subgraph. Poll
+  `subgraphs.operations(name)` and retry when it finishes. There is no
+  dedicated error class for this; it is an `ApiError` with `status === 409`.
+- `code: "REQUEST_TIMEOUT"` (status 0): the request outlived `requestTimeoutMs`.
+  Retryable.
+
+`sl.context()` never throws. Each field is `{ value, error? }`, so a `null`
+says why: `error.status === 0` means the API was unreachable,
+`error.code === "UNAUTHORIZED"` means the token was rejected, and no `error`
+at all means the read succeeded and found nothing.
