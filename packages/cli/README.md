@@ -39,7 +39,7 @@ RAM/disk floor shown live), generates secrets, writes `docker-compose.yml` and
 `.env` (including the `DATABASE_URL` every later `bootstrap`/`verify`/`repair`
 in that directory connects with) into a target directory, brings the stack up,
 prints the observer stanza for an external node, and restores + verifies
-history from the archive — the one-command replacement for `init` → hand-copy
+history from the archive: the one-command replacement for `init` → hand-copy
 secrets → `docker compose up` → `observer` → `bootstrap` → `verify`. `setup`
 is also the only way to bring the stack up: the old `secondlayer start`, which
 printed a compose line for a monorepo checkout, is gone. Without a TTY (or
