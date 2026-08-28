@@ -626,7 +626,10 @@ export function registerSubscriptionsCommand(program: Command): void {
 		.description("Update subscription config")
 		.option("--name <name>", "Rename subscription")
 		.option("--url <url>", "Webhook URL")
-		.option("--auth-token <token>", "Set bearer token auth config")
+		.option(
+			"--auth-token <token>",
+			"Set bearer token auth config; a flag lands in shell history and ps, so pass it here only for a throwaway token",
+		)
 		.option(
 			"--format <format>",
 			"standard-webhooks | inngest | trigger | cloudflare | cloudevents | raw",
@@ -917,7 +920,7 @@ Examples:
 		)
 		.option(
 			"--signing-secret <secret>",
-			"Signing secret override (--local only)",
+			"Signing secret override (--local only); prefer SIGNING_SECRET in env, a flag lands in shell history and ps",
 		)
 		.option(
 			"--post",

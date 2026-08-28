@@ -39,7 +39,7 @@ program
 	.option("--network <network>", "Override network (mainnet, testnet, devnet)")
 	.option(
 		"--api-key <key>",
-		"Instance or archive credential (overrides INSTANCE_TOKEN)",
+		"Instance or archive credential; prefer INSTANCE_TOKEN in env, a flag lands in shell history and ps",
 	)
 	.option("--api-url <url>", "API endpoint (overrides SL_API_URL)")
 	.showSuggestionAfterError(true)

@@ -7,7 +7,7 @@ The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlay
 | Flag | Description |
 | --- | --- |
 | `--network <network>` | Override network for this invocation (sets `STACKS_NETWORK`). Values: `mainnet`, `testnet`, `devnet`. |
-| `--api-key <key>` | Instance credential for this invocation (sets `INSTANCE_TOKEN`). |
+| `--api-key <key>` | Instance credential for this invocation (sets `INSTANCE_TOKEN`). Prefer the env var: a flag lands in shell history and `ps`. |
 | `--api-url <url>` | Instance API for this invocation (sets `SL_API_URL`). Also what `init` writes as `SL_API_URL`. |
 | `--version` | Print CLI version. |
 | `--help` | Show help. |
@@ -198,7 +198,7 @@ Example: `secondlayer repair --against ./snapshot.json` then `secondlayer repair
 Usage: `secondlayer backup --out <dir> [--passphrase <p>] [--no-secrets] [--json]`
 Usage: `secondlayer restore --from <dir> [--passphrase <p>] [--apply] [--force] [--json]`
 
-`restore` is a dry run until `--apply`, and refuses a database that already holds chain data unless `--force`. `SECONDLAYER_BACKUP_PASSPHRASE` substitutes for `--passphrase`.
+`restore` is a dry run until `--apply`, and refuses a database that already holds chain data unless `--force`. `SECONDLAYER_BACKUP_PASSPHRASE` substitutes for `--passphrase`, and is the form to prefer since a flag lands in shell history and `ps`. The database password rides in `PGPASSWORD`, never in the `pg_dump`/`pg_restore` argv.
 
 ### secondlayer uninstall
 

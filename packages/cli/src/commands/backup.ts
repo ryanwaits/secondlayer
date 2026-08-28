@@ -89,12 +89,76 @@ function requireDatabaseUrl(): string {
 	return url;
 }
 
+/**
+ * Split the password out of a Postgres URL so it rides in `PGPASSWORD`, which
+ * libpq reads, instead of in argv, which every local user reads via `ps`.
+ * A URL with no password comes back untouched.
+ */
+export function pgConnection(databaseUrl: string): {
+	url: string;
+	env: Record<string, string>;
+} {
+	let parsed: URL;
+	try {
+		parsed = new URL(databaseUrl);
+	} catch {
+		return { url: databaseUrl, env: {} };
+	}
+	if (!parsed.password) return { url: databaseUrl, env: {} };
+	const password = decodeURIComponent(parsed.password);
+	parsed.password = "";
+	return { url: parsed.toString(), env: { PGPASSWORD: password } };
+}
+
+/** argv + env for `pg_dump` of `databaseUrl` into `dumpPath`, password off argv. */
+export function pgDumpInvocation(
+	databaseUrl: string,
+	dumpPath: string,
+): { cmd: string[]; env: Record<string, string> } {
+	const conn = pgConnection(databaseUrl);
+	return {
+		cmd: ["pg_dump", "-Fc", "--no-owner", "--no-acl", "-f", dumpPath, conn.url],
+		env: conn.env,
+	};
+}
+
+/** argv + env for `pg_restore` of `dumpPath` into `databaseUrl`, password off argv. */
+export function pgRestoreInvocation(
+	databaseUrl: string,
+	dumpPath: string,
+): { cmd: string[]; env: Record<string, string> } {
+	const conn = pgConnection(databaseUrl);
+	return {
+		cmd: [
+			"pg_restore",
+			"--no-owner",
+			"--no-acl",
+			"--clean",
+			"--if-exists",
+			"-d",
+			conn.url,
+			dumpPath,
+		],
+		env: conn.env,
+	};
+}
+
 async function runProcess(
 	cmd: string[],
 	label: string,
+	env: Record<string, string> = {},
 ): Promise<{ ok: boolean; stderr: string }> {
-	const proc = Bun.spawn(cmd, { stdout: "pipe", stderr: "pipe" });
-	const stderr = await new Response(proc.stderr).text();
+	const proc = Bun.spawn(cmd, {
+		stdout: "pipe",
+		stderr: "pipe",
+		env: { ...process.env, ...env },
+	});
+	// Drain both pipes together: a child that fills stdout while we wait on
+	// stderr alone blocks on write and never exits.
+	const [stderr] = await Promise.all([
+		new Response(proc.stderr).text(),
+		new Response(proc.stdout).text(),
+	]);
 	const code = await proc.exited;
 	if (code !== 0) {
 		return { ok: false, stderr: `${label} exited ${code}: ${stderr.trim()}` };
@@ -107,7 +171,7 @@ export function attachBackupCommand(cmd: Command): Command {
 		.requiredOption("--out <dir>", "directory to write the bundle into")
 		.option(
 			"--passphrase <passphrase>",
-			"encrypt bundled secrets (or set SECONDLAYER_BACKUP_PASSPHRASE)",
+			"encrypt bundled secrets; prefer SECONDLAYER_BACKUP_PASSPHRASE in env, a flag lands in shell history and ps",
 		)
 		.option("--no-secrets", "omit keys; the bundle restores data only")
 		.option("--json", "Output as JSON")
@@ -162,10 +226,8 @@ async function runBackup(opts: {
 
 	console.error("dumping database…");
 	const dumpPath = join(outDir, DB_FILE);
-	const dump = await runProcess(
-		["pg_dump", "-Fc", "--no-owner", "--no-acl", "-f", dumpPath, databaseUrl],
-		"pg_dump",
-	);
+	const dumpCmd = pgDumpInvocation(databaseUrl, dumpPath);
+	const dump = await runProcess(dumpCmd.cmd, "pg_dump", dumpCmd.env);
 	if (!dump.ok) {
 		printError(dump.stderr);
 		process.exit(BACKUP_EXIT.FAILED);
@@ -225,7 +287,7 @@ export function attachRestoreCommand(cmd: Command): Command {
 		.requiredOption("--from <dir>", "bundle directory to restore from")
 		.option(
 			"--passphrase <passphrase>",
-			"decrypt bundled secrets (or set SECONDLAYER_BACKUP_PASSPHRASE)",
+			"decrypt bundled secrets; prefer SECONDLAYER_BACKUP_PASSPHRASE in env, a flag lands in shell history and ps",
 		)
 		.option("--apply", "actually restore (default is a dry run)")
 		.option("--force", "restore over a database that already holds chain data")
@@ -355,18 +417,11 @@ async function runRestore(opts: {
 	}
 
 	console.error("restoring database…");
+	const restoreCmd = pgRestoreInvocation(databaseUrl, dumpPath);
 	const restore = await runProcess(
-		[
-			"pg_restore",
-			"--no-owner",
-			"--no-acl",
-			"--clean",
-			"--if-exists",
-			"-d",
-			databaseUrl,
-			dumpPath,
-		],
+		restoreCmd.cmd,
 		"pg_restore",
+		restoreCmd.env,
 	);
 	if (!restore.ok) {
 		printError(restore.stderr);

@@ -1,4 +1,5 @@
 import {
+	chmodSync,
 	copyFileSync,
 	existsSync,
 	mkdirSync,
@@ -249,6 +250,39 @@ export function buildSubscriptionAuthConfig(
 	return { authType: "bearer", token };
 }
 
+/**
+ * Write SIGNING_SECRET into `<targetDir>/.env`, seeding from `.env.example`
+ * when present. The file holds a secret, so it is owner-only on every branch
+ * (copyFileSync keeps the template's mode, hence the chmod after the copy).
+ */
+export function writeSigningSecretEnv(
+	targetDir: string,
+	signingSecret: string,
+): string {
+	const envTarget = join(targetDir, ".env");
+	const envExample = join(targetDir, ".env.example");
+	if (existsSync(envExample) && !existsSync(envTarget)) {
+		copyFileSync(envExample, envTarget);
+		chmodSync(envTarget, 0o600);
+	}
+	if (!existsSync(envTarget)) {
+		writeFileSync(envTarget, `SIGNING_SECRET=${signingSecret}\n`, {
+			mode: 0o600,
+		});
+	} else {
+		const cur = readFileSync(envTarget, "utf8");
+		writeFileSync(
+			envTarget,
+			cur.match(/^SIGNING_SECRET=/m)
+				? cur.replace(/^SIGNING_SECRET=.*/m, `SIGNING_SECRET=${signingSecret}`)
+				: `${cur}\nSIGNING_SECRET=${signingSecret}\n`,
+			{ mode: 0o600 },
+		);
+		chmodSync(envTarget, 0o600);
+	}
+	return envTarget;
+}
+
 export async function createSubscription(
 	name: string,
 	opts: CreateSubscriptionOptions,
@@ -354,25 +388,7 @@ export async function createSubscription(
 		}
 	}
 	if (signingSecret && opts.scaffold !== false) {
-		const envTarget = join(targetDir, ".env");
-		const envExample = join(targetDir, ".env.example");
-		if (existsSync(envExample) && !existsSync(envTarget)) {
-			copyFileSync(envExample, envTarget);
-		}
-		if (!existsSync(envTarget)) {
-			writeFileSync(envTarget, `SIGNING_SECRET=${signingSecret}\n`);
-		} else {
-			const cur = readFileSync(envTarget, "utf8");
-			writeFileSync(
-				envTarget,
-				cur.match(/^SIGNING_SECRET=/m)
-					? cur.replace(
-							/^SIGNING_SECRET=.*/m,
-							`SIGNING_SECRET=${signingSecret}`,
-						)
-					: `${cur}\nSIGNING_SECRET=${signingSecret}\n`,
-			);
-		}
+		const envTarget = writeSigningSecretEnv(targetDir, signingSecret);
 		success(`Signing secret written to ${relative(process.cwd(), envTarget)}`);
 	} else if (signingSecret && opts.scaffold === false) {
 		// No scaffold dir to write to — surface the secret so the user can store it.
@@ -488,7 +504,10 @@ function addSubscriptionScaffold(
 		.option("-s, --subgraph <name>", "Subgraph to subscribe to")
 		.option("-t, --table <name>", "Table to subscribe to")
 		.option("-u, --url <url>", "Webhook URL")
-		.option("--auth-token <token>", "Bearer token for receiver API auth")
+		.option(
+			"--auth-token <token>",
+			"Bearer token for receiver API auth; a flag lands in shell history and ps, so set it in the receiver's env and pass it here only for a throwaway token",
+		)
 		.option(
 			"--filter <kv...>",
 			"Filter as key=value (supports .eq/.neq/.gt/.gte/.lt/.lte suffixes)",
