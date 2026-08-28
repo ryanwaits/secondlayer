@@ -10,6 +10,7 @@
  * config and `runSetup`. Nothing about what setup DOES lives here.
  */
 
+import { resolve as resolvePath } from "node:path";
 import { confirm, input, select } from "@inquirer/prompts";
 import { parseInstanceNetwork } from "./instance-init.ts";
 import { DEFAULT_IMAGE_OWNER, DEFAULT_IMAGE_TAG } from "./oss-compose.ts";
@@ -137,7 +138,7 @@ export async function promptSetupConfig(
 		apiPort: flags.apiPort ?? "127.0.0.1:3800",
 		indexerPort: "127.0.0.1:3700",
 		postgresPort: "127.0.0.1:5432",
-		dir: flags.dir ?? process.cwd(),
+		dir: resolvePath(flags.dir ?? process.cwd()),
 		against: skipBootstrap ? undefined : against,
 		skipBootstrap,
 		skipVerify: !!flags.skipVerify,

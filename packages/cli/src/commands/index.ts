@@ -25,4 +25,3 @@ export {
 export { registerInitCommand } from "./init.ts";
 export { registerObserverCommand } from "./observer.ts";
 export { registerSetupCommand } from "./setup.ts";
-export { registerStartCommand } from "./start.ts";

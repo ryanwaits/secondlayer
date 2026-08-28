@@ -2012,7 +2012,10 @@ Examples:
 			"Generate a defineSubgraph() file from a contract ABI or trait (start with: subgraphs create)",
 		)
 		.option("-o, --output <path>", "Output file path (required)")
-		.option("-k, --api-key <key>", "Stacks node API key for direct RPC URLs")
+		// No command-local `--api-key`: the global one on `program` shadows it
+		// (Commander binds a repeated flag to the ancestor), and the ABI comes
+		// from this instance's contract registry, which takes the instance
+		// credential the global flag / INSTANCE_TOKEN already carry.
 		.option(
 			"--functions <names>",
 			"Comma-separated public functions to index as typed contract_call tables",
@@ -2042,7 +2045,6 @@ Examples:
 				contractAddress: string | undefined,
 				options: {
 					output?: string;
-					apiKey?: string;
 					functions?: string;
 					trait?: string;
 					install?: boolean;
@@ -2078,8 +2080,7 @@ Examples:
 					} else {
 						const address = contractAddress as string;
 						const network = inferNetwork(address) ?? "mainnet";
-						const apiKey = options.apiKey ?? process.env.STACKS_NODE_API_KEY;
-						const client = new StacksApiClient(network, apiKey);
+						const client = new StacksApiClient(network);
 						info(
 							`Fetching ABI for ${address} via ${client.describeContractInfoSource()}...`,
 						);

@@ -5,6 +5,7 @@ import { ARCHIVE_ROOT_PUBLIC_KEY_PEM } from "@secondlayer/shared/archive/root-ke
 import { generateEd25519KeyPair } from "@secondlayer/shared/crypto/ed25519";
 import { INSTANCE_NETWORKS } from "@secondlayer/shared/db/queries/instance";
 import type { InstanceNetwork } from "@secondlayer/shared/db/queries/instance";
+import { printError } from "./output.ts";
 
 export const INSTANCE_ENV_FILE = ".env.local";
 
@@ -33,6 +34,25 @@ export function parseInstanceNetwork(value: string): InstanceNetwork {
 		return network as InstanceNetwork;
 	}
 	throw new Error(`network must be mainnet, testnet, or devnet (got ${value})`);
+}
+
+/**
+ * The network a command runs against, from the global `--network` flag (which
+ * `cli.ts` funnels into `STACKS_NETWORK`) or the environment. An unknown value
+ * is a one-line error and exit 1, not a stack trace: `local` is not a network
+ * this CLI knows, and a script that passed it should learn that from the
+ * first line of stderr.
+ */
+export function instanceNetworkFromEnv(fallback = "mainnet"): InstanceNetwork {
+	const raw = process.env.STACKS_NETWORK ?? fallback;
+	try {
+		return parseInstanceNetwork(raw);
+	} catch (err) {
+		printError(err instanceof Error ? err.message : String(err), {
+			hint: "Pass --network mainnet, --network testnet, or --network devnet.",
+		});
+		process.exit(1);
+	}
 }
 
 export function generateInstanceToken(): string {

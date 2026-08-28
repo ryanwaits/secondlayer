@@ -28,6 +28,7 @@ import { existsSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { join, resolve as resolvePath } from "node:path";
+import { closeDb, getRawClientFor } from "@secondlayer/shared/db";
 import type { InstanceNetwork } from "@secondlayer/shared/db/queries/instance";
 import { FLOORS, diskFloorGb } from "@secondlayer/shared/runtime";
 import type { NodeMode } from "@secondlayer/shared/runtime";
@@ -306,6 +307,11 @@ export interface SetupSecrets {
 	instance: InstanceEnv;
 	postgresPassword: string;
 	bitcoinRpcPassword?: string;
+	/** An operator-edited `DATABASE_URL` from a previous run. Kept verbatim so
+	 *  a re-run never silently points bootstrap back at the compose Postgres
+	 *  after someone moved the index elsewhere. A URL setup generated itself
+	 *  is not carried over: it follows the port the re-run actually binds. */
+	databaseUrl?: string;
 }
 
 function randomHex(bytes: number): string {
@@ -352,7 +358,50 @@ export function resolveSecrets(config: {
 		instance,
 		postgresPassword: existing.POSTGRES_PASSWORD || randomHex(24),
 		bitcoinRpcPassword: existing.BITCOIN_RPC_PASSWORD || randomHex(24),
+		databaseUrl: operatorEditedDatabaseUrl(existing),
 	};
+}
+
+/**
+ * The previous `.env`'s `DATABASE_URL`, only when it is not the one setup
+ * wrote from that file's own `POSTGRES_PASSWORD`/`POSTGRES_PORT`. A re-run
+ * can land Postgres on a different host port (the first run's container
+ * still holds the old one), so a generated URL must be rebuilt from the new
+ * port rather than kept. Anything else was the operator's choice and stays.
+ */
+function operatorEditedDatabaseUrl(
+	existing: ReturnType<typeof readEnvFile>,
+): string | undefined {
+	const url = existing.DATABASE_URL;
+	if (!url) return undefined;
+	if (existing.POSTGRES_PORT && existing.POSTGRES_PASSWORD) {
+		const generated = setupDatabaseUrl(
+			{ postgresPort: existing.POSTGRES_PORT },
+			{ postgresPassword: existing.POSTGRES_PASSWORD },
+		);
+		if (url === generated) return undefined;
+	}
+	return url;
+}
+
+export const SETUP_POSTGRES_USER = "secondlayer";
+export const SETUP_POSTGRES_DB = "secondlayer";
+
+/**
+ * The URL `bootstrap`, `verify`, `repair`, and `backup` connect with when run
+ * from the setup directory: the compose Postgres, published on the host at
+ * `postgresPort`. Without this, `getDb()` falls back to the shared dev URL
+ * (`postgres://postgres:postgres@localhost:5432/secondlayer_dev`) and the
+ * restore lands in whatever happens to be listening there, not the instance
+ * setup just started.
+ */
+export function setupDatabaseUrl(
+	config: Pick<ResolvedSetupConfig, "postgresPort">,
+	secrets: Pick<SetupSecrets, "postgresPassword" | "databaseUrl">,
+): string {
+	if (secrets.databaseUrl) return secrets.databaseUrl;
+	const password = encodeURIComponent(secrets.postgresPassword);
+	return `postgres://${SETUP_POSTGRES_USER}:${password}@${normalizeLoopbackHost(config.postgresPort)}/${SETUP_POSTGRES_DB}`;
 }
 
 function normalizeLoopbackHost(apiPort: string): string {
@@ -369,7 +418,11 @@ function readEnvFile(
 	envPath: string,
 ): Partial<
 	Record<
-		keyof InstanceEnv | "POSTGRES_PASSWORD" | "BITCOIN_RPC_PASSWORD",
+		| keyof InstanceEnv
+		| "POSTGRES_PASSWORD"
+		| "POSTGRES_PORT"
+		| "BITCOIN_RPC_PASSWORD"
+		| "DATABASE_URL",
 		string | null
 	>
 > {
@@ -377,7 +430,9 @@ function readEnvFile(
 	return {
 		...shared,
 		POSTGRES_PASSWORD: readEnvValue(envPath, "POSTGRES_PASSWORD"),
+		POSTGRES_PORT: readEnvValue(envPath, "POSTGRES_PORT"),
 		BITCOIN_RPC_PASSWORD: readEnvValue(envPath, "BITCOIN_RPC_PASSWORD"),
+		DATABASE_URL: readEnvValue(envPath, "DATABASE_URL"),
 	};
 }
 
@@ -404,10 +459,14 @@ function renderSetupEnv(
 		`NODE_MODE=${config.nodeMode}`,
 		`API_PORT=${config.apiPort}`,
 		`INDEXER_PORT=${config.indexerPort}`,
-		"POSTGRES_USER=secondlayer",
+		`POSTGRES_USER=${SETUP_POSTGRES_USER}`,
 		`POSTGRES_PASSWORD=${secrets.postgresPassword}`,
-		"POSTGRES_DB=secondlayer",
+		`POSTGRES_DB=${SETUP_POSTGRES_DB}`,
 		`POSTGRES_PORT=${config.postgresPort}`,
+		"# Where bootstrap, verify, repair, and backup connect from this directory:",
+		"# the compose Postgres above, published on the host. Point it elsewhere",
+		"# only if you moved the index.",
+		`DATABASE_URL=${escapeEnvValue(setupDatabaseUrl(config, secrets))}`,
 		"# The instance credential. The API validates bearer tokens against it,",
 		"# and the CLI/SDK/MCP read it first when authenticating.",
 		`INSTANCE_TOKEN=${i.INSTANCE_TOKEN}`,
@@ -499,17 +558,19 @@ export interface SpawnResult {
 	stderr: string;
 }
 
-function runStreaming(
+export function runStreaming(
 	command: string,
 	args: string[],
 	opts: {
 		cwd?: string;
+		env?: NodeJS.ProcessEnv;
 		onLine?: (line: string, stream: "stdout" | "stderr") => void;
 	},
 ): Promise<SpawnResult> {
 	return new Promise((resolvePromise, reject) => {
 		const child = spawn(command, args, {
 			cwd: opts.cwd,
+			env: opts.env ?? process.env,
 			stdio: ["ignore", "pipe", "pipe"],
 		});
 		let stdout = "";
@@ -618,24 +679,123 @@ function cliEntry(): string[] {
 	return [process.execPath, entry];
 }
 
+/** The keys the generated `.env` holds that the shelled-out `bootstrap` and
+ *  `verify` read from the environment, not from a file: which database to
+ *  write, which key to trust the archive under, and which instance to talk to. */
+const CHILD_ENV_KEYS = [
+	"DATABASE_URL",
+	"ARCHIVE_SIGNING_PUBLIC_KEY",
+	"SL_API_URL",
+	"INSTANCE_TOKEN",
+] as const;
+
+/**
+ * Environment for the bootstrap/verify children: the operator's shell plus
+ * the generated `.env`. The file wins for the keys it holds, because the
+ * shell's `DATABASE_URL` (a dev database, a previous instance) is exactly
+ * what a restore into this directory must not touch.
+ */
+export function buildChildEnv(
+	envPath: string,
+	base: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+	const env: NodeJS.ProcessEnv = { ...base };
+	for (const key of CHILD_ENV_KEYS) {
+		const value = readEnvValue(envPath, key);
+		if (value) env[key] = value;
+	}
+	return env;
+}
+
+/**
+ * `SELECT 1` against the URL bootstrap is about to use. A wrong password, a
+ * remapped port, or a Postgres that is still starting all fail here in one
+ * line, instead of after the archive quote is paid for.
+ */
+export async function checkDatabaseReachable(
+	databaseUrl: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+	try {
+		const client = getRawClientFor(databaseUrl);
+		await client`SELECT 1`;
+		return { ok: true };
+	} catch (err) {
+		return {
+			ok: false,
+			error: err instanceof Error ? err.message : String(err),
+		};
+	} finally {
+		await closeDb().catch(() => {});
+	}
+}
+
+/**
+ * The gate in front of `runBootstrap`: resolves the URL bootstrap will use,
+ * runs `SELECT 1` against it, and emits the step-error when it fails. Returns
+ * the URL to hand to bootstrap, or `null` when the child must not be spawned.
+ */
+export async function preflightBootstrapDatabase(
+	config: Pick<ResolvedSetupConfig, "postgresPort">,
+	secrets: Pick<SetupSecrets, "postgresPassword" | "databaseUrl">,
+	emit: SetupEmit,
+): Promise<string | null> {
+	const databaseUrl = setupDatabaseUrl(config, secrets);
+	const reachable = await checkDatabaseReachable(databaseUrl);
+	if (!reachable.ok) {
+		emit({
+			type: "step-error",
+			step: "bootstrap",
+			message: `Postgres at ${redactUrl(databaseUrl)} did not answer SELECT 1: ${reachable.error}. Check \`docker compose logs postgres\`, then re-run setup to resume.`,
+		});
+		return null;
+	}
+	emit({
+		type: "step-log",
+		step: "bootstrap",
+		line: `database ${redactUrl(databaseUrl)}`,
+	});
+	return databaseUrl;
+}
+
 export async function runBootstrap(
 	config: ResolvedSetupConfig,
 	against: string,
+	files: Pick<WrittenSetupFiles, "envPath">,
 	onLine?: (line: string, stream: "stdout" | "stderr") => void,
 ): Promise<SpawnResult> {
 	const [command, ...prefix] = cliEntry();
 	const args = [...prefix, "bootstrap", "--against", against, "--yes"];
-	return runStreaming(command, args, { cwd: config.dir, onLine });
+	return runStreaming(command, args, {
+		cwd: config.dir,
+		env: buildChildEnv(files.envPath),
+		onLine,
+	});
 }
 
 export async function runVerify(
 	config: ResolvedSetupConfig,
 	against: string,
+	files: Pick<WrittenSetupFiles, "envPath">,
 	onLine?: (line: string, stream: "stdout" | "stderr") => void,
 ): Promise<SpawnResult> {
 	const [command, ...prefix] = cliEntry();
 	const args = [...prefix, "verify", "all", "--against", against];
-	return runStreaming(command, args, { cwd: config.dir, onLine });
+	return runStreaming(command, args, {
+		cwd: config.dir,
+		env: buildChildEnv(files.envPath),
+		onLine,
+	});
+}
+
+/** A connection URL safe to print: password replaced, everything else kept. */
+export function redactUrl(url: string): string {
+	try {
+		const u = new URL(url);
+		if (u.password) u.password = "***";
+		return u.toString();
+	} catch {
+		return url;
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -829,7 +989,11 @@ export async function runSetup(
 		emit({ type: "step-skip", step: "bootstrap", reason: "--skip-bootstrap" });
 	} else if (config.against) {
 		emit({ type: "step-start", step: "bootstrap" });
-		const res = await runBootstrap(config, config.against, (line) =>
+		const databaseUrl = await preflightBootstrapDatabase(config, secrets, emit);
+		if (databaseUrl === null) {
+			return { ok: false, config, secrets, files, observer };
+		}
+		const res = await runBootstrap(config, config.against, files, (line) =>
 			emit({ type: "step-log", step: "bootstrap", line }),
 		);
 		if (res.code === 0) {
@@ -860,7 +1024,7 @@ export async function runSetup(
 		});
 	} else {
 		emit({ type: "step-start", step: "verify" });
-		const res = await runVerify(config, config.against, (line) =>
+		const res = await runVerify(config, config.against, files, (line) =>
 			emit({ type: "step-log", step: "verify", line }),
 		);
 		if (res.code === 0) {

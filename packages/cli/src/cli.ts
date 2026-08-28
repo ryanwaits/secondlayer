@@ -20,7 +20,6 @@ import {
 	registerRepairCommand,
 	registerRestoreCommand,
 	registerSetupCommand,
-	registerStartCommand,
 	registerStatusCommand,
 	registerStreamsCommand,
 	registerSubgraphsCommand,
@@ -37,7 +36,7 @@ program
 	.alias("sl")
 	.description("Secondlayer CLI — run a Stacks index on your own hardware")
 	.version(version)
-	.option("--network <network>", "Override network (local, testnet, mainnet)")
+	.option("--network <network>", "Override network (mainnet, testnet, devnet)")
 	.option(
 		"--api-key <key>",
 		"Instance or archive credential (overrides INSTANCE_TOKEN)",
@@ -81,7 +80,6 @@ registerSetupCommand(program);
 registerInitCommand(program);
 registerBootstrapCommand(program);
 registerObserverCommand(program);
-registerStartCommand(program);
 registerConsoleCommand(program);
 registerLoginCommand(program);
 registerLogoutCommand(program);

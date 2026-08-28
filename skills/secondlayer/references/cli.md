@@ -1,12 +1,14 @@
 # Secondlayer CLI (`secondlayer`) Reference
 
-The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlayer — dedicated Stacks indexing + real-time subgraphs. Install globally with `bun add -g @secondlayer/cli`. The binary is named `secondlayer`; `secondlayer` is a Commander alias for the same entry point. All commands accept a global `--network <network>` flag (`local`, `testnet`, `mainnet`) which is equivalent to setting `STACKS_NETWORK` before the call.
+The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlayer — dedicated Stacks indexing + real-time subgraphs. Install globally with `bun add -g @secondlayer/cli`. The binary is named `secondlayer`; `secondlayer` is a Commander alias for the same entry point. All commands accept a global `--network <network>` flag (`mainnet`, `testnet`, `devnet`) which is equivalent to setting `STACKS_NETWORK` before the call. `init`, `observer`, and `setup` exit 1 on any other value with a one-line error; other commands warn on stderr and keep the config default (`mainnet`).
 
 ## Global flags
 
 | Flag | Description |
 | --- | --- |
-| `--network <network>` | Override network for this invocation (sets `STACKS_NETWORK`). Values: `local`, `testnet`, `mainnet`. |
+| `--network <network>` | Override network for this invocation (sets `STACKS_NETWORK`). Values: `mainnet`, `testnet`, `devnet`. |
+| `--api-key <key>` | Instance credential for this invocation (sets `INSTANCE_TOKEN`). |
+| `--api-url <url>` | Instance API for this invocation (sets `SL_API_URL`). Also what `init` writes as `SL_API_URL`. |
 | `--version` | Print CLI version. |
 | `--help` | Show help. |
 
@@ -20,11 +22,11 @@ The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlay
 | `INSTANCE_TOKEN` | writes, MCP, SDK | The token `secondlayer init` writes. The instance's only credential. Required for every write, and for every read once the API is published past loopback; loopback reads need no value. |
 | `SL_API_KEY` | legacy alias of `INSTANCE_TOKEN` | Same value; `INSTANCE_TOKEN` wins when both are set. |
 | `SL_PLATFORM_API_URL` | legacy alias of `SL_API_URL` | Same default: `http://127.0.0.1:3800`. |
-| `HIRO_API_KEY` / `STACKS_NODE_API_KEY` | subgraphs scaffold, codegen contracts | API key passed to Hiro Stacks RPC when fetching contract ABIs. |
+| `HIRO_API_KEY` / `STACKS_NODE_API_KEY` | codegen contracts | API key passed to Hiro Stacks RPC when fetching contract ABIs. |
 | `SIGNING_SECRET` | subscriptions test | Standard-Webhooks signing secret used to sign test fixtures. |
 | `STACKS_NETWORK` | global | Network override (set by `--network`). |
 | `SL_STREAMS_DUMPS_URL` | streams dumps | Public bulk-dump bucket base URL (dumps are public — no API key). Alternative to `--dumps-url`. |
-| `DATABASE_URL` | local db | Postgres URL for local indexer DB; defaults to `postgres://postgres:postgres@localhost:5432/secondlayer_dev`. |
+| `DATABASE_URL` | bootstrap, verify, repair, backup, local db | Postgres URL. `secondlayer setup` writes it into `.env` pointing at the compose Postgres and passes it to the bootstrap/verify it runs; unset, it defaults to `postgres://postgres:postgres@localhost:5432/secondlayer_dev`. |
 | `INDEXER_URL` | local db resync --backfill | Local indexer URL; defaults to `http://localhost:<config.ports.indexer>`. |
 | `DEBUG` | codegen contracts | When set, prints stack traces on failure. |
 
@@ -32,7 +34,7 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 
 ## Table of contents
 
-- [Local runtime](#local-runtime) — `setup`, `init`, `start`, `console`, `bootstrap`, `observer`, `verify`, `repair`, `backup`, `restore`, `uninstall`
+- [Local runtime](#local-runtime) — `setup`, `init`, `console`, `bootstrap`, `observer`, `verify`, `repair`, `backup`, `restore`, `uninstall`
 - [Credits](#credits) — `credits buy|balance|refill`
 - [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `source`, `reindex`, `backfill`, `stop`, `operations`, `gaps`, `query`, `delete`, `scaffold`
 - [Subscriptions](#subscriptions) — `create`, `list`, `get`, `update`, `pause`, `resume`, `delete`, `rotate-secret`, `deliveries`, `dead`, `requeue`, `replay`, `doctor`, `test`
@@ -81,23 +83,13 @@ Usage: `secondlayer init [--network <network>] [--api-url <url>] [--force]`
 
 | Flag | Default | Description |
 | --- | --- | --- |
-| `--network <network>` | `STACKS_NETWORK` or `mainnet` | `mainnet`, `testnet`, or `devnet`. |
-| `--api-url <url>` | `http://127.0.0.1:3800` | Local API URL written as `SL_API_URL`. |
+| `--network <network>` | `STACKS_NETWORK` or `mainnet` | Global flag. `mainnet`, `testnet`, or `devnet`. |
+| `--api-url <url>` | `SL_API_URL` or `http://127.0.0.1:3800` | Global flag. Local API URL written as `SL_API_URL`. |
 | `--force` | off | Overwrite generated values even if `.env.local` exists. |
 
 Does **not** write `secondlayer.config.ts` — that file is for `secondlayer codegen contracts`.
 
 Example: `secondlayer init --network mainnet`
-
-### secondlayer start
-
-Validate one-box config and print the compose command.
-
-Usage: `secondlayer start [--print]`
-
-Requires `NETWORK`, `DATABASE_URL`, `NODE_MODE` (`external` | `stacks` | `full`). Defaults: `DATA_DIR=/data`, `API_PORT=3800`, `INDEXER_PORT=3700`.
-
-Example: `secondlayer start --print`
 
 ### secondlayer console
 
@@ -207,7 +199,7 @@ Stop the stack and leave the data. Containers, networks, and the handler cache c
 
 Usage: `secondlayer uninstall [--apply] [--compose <file>] [--purge --backup <dir>] [--yes] [--json]`
 
-Dry run by default — prints the plan and changes nothing until `--apply`. `--purge` also destroys the volumes and refuses to run unless `--backup <dir>` points at a bundle proving your keys exist elsewhere.
+Dry run by default — prints the plan and changes nothing until `--apply`. Run it from the directory `secondlayer setup` wrote: `--compose` defaults to `./docker-compose.yml` with `--env-file ./.env`, falling back to the repo's `docker/oss/docker-compose.yml` for a hand-run checkout. The dry run names the compose file, env file, and the file the keys were found in (`.env` or `.env.local`). `--purge` also destroys the volumes and refuses to run unless `--backup <dir>` points at a bundle proving your keys exist elsewhere.
 
 ---
 
@@ -448,7 +440,6 @@ Usage: `secondlayer subgraphs scaffold [contractAddress]`
 | `-o, --output <path>` | yes | Output file path. |
 | `--functions <a,b>` | no | Index these public functions as typed `contract_call` tables (positional arg decode) instead of the generic `calls` table. |
 | `--trait <std>` | no | Scaffold a **trait-scoped** source (`sip-009\|sip-010\|sip-013`) that indexes every conforming contract — no `<contractAddress>` needed. |
-| `--api-key <key>` | no | Stacks API key (fallback to `STACKS_NODE_API_KEY` / `HIRO_API_KEY`). |
 | `--no-install` | no | Skip `bun install` in output directory. |
 
 Examples:
@@ -1154,7 +1145,7 @@ Usage: `secondlayer status`
 | --- | --- |
 | `--json` | Output as JSON. |
 
-GETs `/public/status` on this instance. Prints liveness and tip. On failure: check `secondlayer start --print` and that the one-box container is up.
+GETs `/public/status` on this instance. Prints liveness and tip. On failure: check `docker compose ps` in the `secondlayer setup` directory and that the container is up.
 
 ---
 

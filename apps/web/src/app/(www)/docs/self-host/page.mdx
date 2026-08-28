@@ -75,7 +75,7 @@ Six required non-secrets, plus one compose derives for you. Secrets come from `s
 | `INDEXER_PORT` | `3700` | Observer bind |
 | `API_PUBLISH_ADDR` | compose | Injected from the same `API_PORT` value the port is published with |
 
-Unknown keys and contradictions fail before ingest. `secondlayer start --print` shows the compose line.
+Unknown keys and contradictions fail before ingest. From a checkout, `docker compose -f docker/oss/docker-compose.yml --env-file .env.local up -d` brings the stack up; `secondlayer setup` writes its own compose file and `.env` and runs the same command for you.
 
 `INSTANCE_TOKEN` is required in compose: the container process binds `0.0.0.0` — it has to, or the published port never reaches it — and an instance that binds past loopback with no token refuses to start. `API_PUBLISH_ADDR` is how the API learns which of those two facts to serve on: it carries the publish spec, so with the default `127.0.0.1:3800` the `/v1` reads stay keyless, and changing `API_PORT` to `0.0.0.0:3800` makes every `/v1` request carry the token. Writes take the token either way; see [Authentication](/docs/authentication).
 

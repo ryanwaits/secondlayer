@@ -1,19 +1,26 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { SetupEvent } from "./setup-wizard.ts";
 import {
 	DEFAULT_ARCHIVE_MANIFEST,
 	MissingSetupFlagError,
+	buildChildEnv,
 	buildSuccessSummary,
+	checkDatabaseReachable,
 	composeProfileArgs,
 	guardrailPreview,
 	isBunRuntime,
+	preflightBootstrapDatabase,
+	redactUrl,
 	resolveAvailablePublishSpec,
 	resolveNonInteractiveConfig,
 	resolveSecrets,
+	runStreaming,
+	setupDatabaseUrl,
 	writeSetupFiles,
 } from "./setup-wizard.ts";
 
@@ -340,6 +347,160 @@ describe("writeSetupFiles", () => {
 		const fullFiles = await writeSetupFiles(fullConfig, fullSecrets);
 		expect(fullFiles.configTomlPath).toBeDefined();
 		expect(fullFiles.bitcoinConfPath).toBeDefined();
+	});
+});
+
+describe("generated .env carries the database the compose Postgres actually runs", () => {
+	async function setupDir(postgresPort = "127.0.0.1:5432") {
+		const dir = tmpDir();
+		const config = {
+			...resolveNonInteractiveConfig({
+				network: "mainnet",
+				nodeMode: "external",
+				skipBootstrap: true,
+				dir,
+			}),
+			postgresPort,
+		};
+		const secrets = resolveSecrets({
+			dir,
+			network: config.network,
+			apiPort: config.apiPort,
+			force: false,
+		});
+		const files = await writeSetupFiles(config, secrets);
+		return { dir, config, secrets, files };
+	}
+
+	test(".env DATABASE_URL points at POSTGRES_USER/PASSWORD/PORT/DB from the same file", async () => {
+		const { config, secrets, files } = await setupDir("127.0.0.1:5433");
+		const env = readFileSync(files.envPath, "utf8");
+		const url = setupDatabaseUrl(config, secrets);
+		expect(url).toBe(
+			`postgres://secondlayer:${secrets.postgresPassword}@127.0.0.1:5433/secondlayer`,
+		);
+		expect(env).toContain(`DATABASE_URL=${url}`);
+		expect(env).toContain("POSTGRES_PORT=127.0.0.1:5433");
+	});
+
+	test("a DATABASE_URL the operator edited survives a re-run", async () => {
+		const { dir, config, files } = await setupDir();
+		const edited = "postgres://ops:pw@db.internal:5432/index";
+		writeFileSync(
+			files.envPath,
+			readFileSync(files.envPath, "utf8").replace(
+				/^DATABASE_URL=.*$/m,
+				`DATABASE_URL=${edited}`,
+			),
+		);
+		const again = resolveSecrets({
+			dir,
+			network: config.network,
+			apiPort: config.apiPort,
+			force: false,
+		});
+		expect(again.databaseUrl).toBe(edited);
+		expect(setupDatabaseUrl(config, again)).toBe(edited);
+		await writeSetupFiles(config, again);
+		expect(readFileSync(files.envPath, "utf8")).toContain(
+			`DATABASE_URL=${edited}`,
+		);
+	});
+
+	test("a generated DATABASE_URL follows the Postgres port a re-run binds", async () => {
+		// The first run's Postgres still holds 5432 on a re-run, so preflight
+		// remaps to 5433. Keeping the old URL would point bootstrap at
+		// whatever else answers on 5432 (a shared dev Postgres) instead of
+		// the compose Postgres that just came up on 5433.
+		const { dir, config, secrets, files } = await setupDir("127.0.0.1:5432");
+		const remapped = { ...config, postgresPort: "127.0.0.1:5433" };
+		const again = resolveSecrets({
+			dir,
+			network: config.network,
+			apiPort: config.apiPort,
+			force: false,
+		});
+		expect(again.databaseUrl).toBeUndefined();
+		expect(again.postgresPassword).toBe(secrets.postgresPassword);
+		const url = setupDatabaseUrl(remapped, again);
+		expect(url).toBe(
+			`postgres://secondlayer:${secrets.postgresPassword}@127.0.0.1:5433/secondlayer`,
+		);
+		await writeSetupFiles(remapped, again);
+		const env = readFileSync(files.envPath, "utf8");
+		expect(env).toContain("POSTGRES_PORT=127.0.0.1:5433");
+		expect(env).toContain(`DATABASE_URL=${url}`);
+	});
+
+	test("SELECT 1 against a Postgres that is not answering fails with the connection error", async () => {
+		const result = await checkDatabaseReachable(
+			"postgres://secondlayer:pw@127.0.0.1:1/secondlayer",
+		);
+		expect(result.ok).toBe(false);
+		if (result.ok) throw new Error("unreachable");
+		expect(result.error.length).toBeGreaterThan(0);
+	});
+
+	test("bootstrap is refused with a step-error, password redacted, when its database does not answer", async () => {
+		const events: SetupEvent[] = [];
+		const url = await preflightBootstrapDatabase(
+			{ postgresPort: "127.0.0.1:1" },
+			{ postgresPassword: "s3cret" },
+			(event) => events.push(event),
+		);
+		expect(url).toBeNull();
+		expect(events).toHaveLength(1);
+		const [event] = events;
+		expect(event?.type).toBe("step-error");
+		if (event?.type !== "step-error") throw new Error("unreachable");
+		expect(event.step).toBe("bootstrap");
+		expect(event.message).toContain("did not answer SELECT 1");
+		expect(event.message).toContain("secondlayer:***@127.0.0.1:1");
+		expect(event.message).not.toContain("s3cret");
+	});
+
+	test("the child env prefers the generated .env over the shell for the keys it holds", async () => {
+		const { config, secrets, files } = await setupDir();
+		const shell = {
+			PATH: process.env.PATH,
+			DATABASE_URL:
+				"postgres://postgres:postgres@localhost:5432/secondlayer_dev",
+			HOME: "/nowhere",
+		};
+		const env = buildChildEnv(files.envPath, shell);
+		expect(env.DATABASE_URL).toBe(setupDatabaseUrl(config, secrets));
+		expect(env.INSTANCE_TOKEN).toBe(secrets.instance.INSTANCE_TOKEN);
+		expect(env.ARCHIVE_SIGNING_PUBLIC_KEY).toBe(
+			secrets.instance.ARCHIVE_SIGNING_PUBLIC_KEY,
+		);
+		expect(env.SL_API_URL).toBe(secrets.instance.SL_API_URL);
+		expect(env.HOME).toBe("/nowhere");
+	});
+
+	test("the spawned bootstrap/verify child sees DATABASE_URL, not the parent's inherited env", async () => {
+		// The failure this pins: setup used to spawn the CLI with the parent's
+		// env only, so bootstrap restored into whatever DATABASE_URL the shell
+		// had (the shared dev URL by default), never the Postgres setup started.
+		const { config, secrets, files } = await setupDir();
+		const child = join(tmpDir(), "child.ts");
+		writeFileSync(
+			child,
+			"process.stdout.write(JSON.stringify({ DATABASE_URL: process.env.DATABASE_URL ?? null }));",
+		);
+		const res = await runStreaming(process.execPath, [child], {
+			cwd: config.dir,
+			env: buildChildEnv(files.envPath, { PATH: process.env.PATH }),
+		});
+		expect(res.code).toBe(0);
+		expect(JSON.parse(res.stdout)).toEqual({
+			DATABASE_URL: setupDatabaseUrl(config, secrets),
+		});
+	});
+
+	test("printing a database URL never prints its password", () => {
+		expect(redactUrl("postgres://secondlayer:s3cret@127.0.0.1:5432/db")).toBe(
+			"postgres://secondlayer:***@127.0.0.1:5432/db",
+		);
 	});
 });
 

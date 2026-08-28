@@ -31,7 +31,6 @@ import {
 	registerObserverCommand,
 	registerRepairCommand,
 	registerRestoreCommand,
-	registerStartCommand,
 	registerStatusCommand,
 	registerStreamsCommand,
 	registerSubgraphsCommand,
@@ -64,7 +63,6 @@ function buildProgram(): Command {
 	registerInitCommand(program);
 	registerBootstrapCommand(program);
 	registerObserverCommand(program);
-	registerStartCommand(program);
 	registerConsoleCommand(program);
 	registerLoginCommand(program);
 	registerLogoutCommand(program);

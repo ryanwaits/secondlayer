@@ -6,6 +6,7 @@ import { registerIndexCommand } from "../src/commands/index-api.ts";
 import { registerInitCommand } from "../src/commands/init.ts";
 import { registerLoginCommand } from "../src/commands/login.ts";
 import { registerObserverCommand } from "../src/commands/observer.ts";
+import { registerSetupCommand } from "../src/commands/setup.ts";
 import { registerStreamsCommand } from "../src/commands/streams.ts";
 import { registerSubgraphsCommand } from "../src/commands/subgraphs.ts";
 
@@ -44,6 +45,38 @@ describe("CLI help snapshot", () => {
 		expect(help).not.toMatch(/^\s+account\b/m);
 		expect(help).not.toMatch(/^\s+keys\b/m);
 		expect(help).not.toMatch(/^\s+projects\b/m);
+	});
+
+	test("the removed start verb is not registered; setup owns bringing the stack up", () => {
+		const program = new Command().name("sl");
+		registerSetupCommand(program);
+		registerInitCommand(program);
+		expect(program.commands.map((c) => c.name())).not.toContain("start");
+		expect(program.commands.map((c) => c.name())).toContain("setup");
+	});
+
+	test("setup --dir advertises '.' rather than the absolute cwd the help was rendered from", () => {
+		const program = new Command().name("sl");
+		registerSetupCommand(program);
+		const setup = program.commands.find((c) => c.name() === "setup");
+		const dir = setup?.options.find((o) => o.long === "--dir");
+		expect(dir?.defaultValue).toBe(".");
+	});
+
+	test("flags that the global options already own are not redeclared on subcommands", () => {
+		// A command-local copy of a global flag is bound by Commander to the
+		// ancestor, so the subcommand reads undefined and silently falls back
+		// to its own default. init --api-url and scaffold --api-key both did.
+		const program = new Command().name("sl");
+		registerInitCommand(program);
+		registerSubgraphsCommand(program);
+		const init = program.commands.find((c) => c.name() === "init");
+		expect(init?.options.map((o) => o.long)).not.toContain("--api-url");
+		expect(init?.options.map((o) => o.long)).not.toContain("--network");
+		const scaffold = program.commands
+			.find((c) => c.name() === "subgraphs")
+			?.commands.find((c) => c.name() === "scaffold");
+		expect(scaffold?.options.map((o) => o.long)).not.toContain("--api-key");
 	});
 
 	test("renamed verbs advertise the canonical name and hide the old spelling", () => {

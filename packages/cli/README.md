@@ -35,10 +35,13 @@ secondlayer subgraphs query my-contract <table> --sort _block_height --order des
 
 `secondlayer setup` is a guided wizard: it picks network + node mode (with the
 RAM/disk floor shown live), generates secrets, writes `docker-compose.yml` and
-`.env` into a target directory, brings the stack up, prints the observer
-stanza for an external node, and restores + verifies history from the
-archive — the one-command replacement for `init` → hand-copy secrets →
-`docker compose up` → `observer` → `bootstrap` → `verify`. Without a TTY (or
+`.env` (including the `DATABASE_URL` every later `bootstrap`/`verify`/`repair`
+in that directory connects with) into a target directory, brings the stack up,
+prints the observer stanza for an external node, and restores + verifies
+history from the archive — the one-command replacement for `init` → hand-copy
+secrets → `docker compose up` → `observer` → `bootstrap` → `verify`. `setup`
+is also the only way to bring the stack up: the old `secondlayer start`, which
+printed a compose line for a monorepo checkout, is gone. Without a TTY (or
 with `--yes`), it skips the interactive prompts and runs from flags instead;
 `--network` and `--node-mode` are then required, and `--against` is required
 unless you pass `--skip-bootstrap`:
@@ -61,8 +64,7 @@ No account. Writes `.env.local`, restores history, prints the Stacks observer st
 | Command | What it does |
 |---|---|
 | `secondlayer setup [--network …] [--node-mode external\|stacks\|full] [--api-port <spec>] [--dir <path>] [--against <manifest>] [--skip-bootstrap] [--skip-verify] [--yes] [--force]` | Guided self-host onboarding — secrets, compose + `.env`, docker up, observer stanza, bootstrap, verify. TUI when interactive; flags-only (no prompts) with `--yes` or no TTY |
-| `secondlayer init [--network mainnet\|testnet\|devnet] [--api-url <url>] [--force]` | Write `.env.local` (token, secrets key, webhook signing key). Idempotent |
-| `secondlayer start [--print]` | Validate one-box config and print `docker compose up` |
+| `secondlayer init [--network mainnet\|testnet\|devnet] [--api-url <url>] [--force]` | Write `.env.local` (token, secrets key, webhook signing key). `--network` and `--api-url` are the global flags. Idempotent |
 | `secondlayer bootstrap --against <manifest> [--to-block <n>] [--public-key <pem>] [-y] [--json]` | Restore chain history from a verified archive into an empty database. Exit `0` restored, `1` diverged, `2` refused |
 | `secondlayer observer [--mode indexer\|signer-shared] [--endpoint host:port] [--recovery journal\|archive] [--network …]` | Print the `[[events_observer]]` stanza. Signer-shared requires `--recovery` |
 | `secondlayer verify [all\|raw\|decode:<name>\|subgraph:<name>] --against <manifest> [--quick\|--deep\|--anchor]` | Compare local data to a signed archive. Default target `raw`. Exit `0` clean, `1` diverged, `2` unanchored |
@@ -172,7 +174,8 @@ operates on both kinds.
 | `SL_API_KEY` | Legacy alias of `INSTANCE_TOKEN` |
 | `SL_API_URL` | Instance API. Default `http://127.0.0.1:3800` |
 | `SL_PLATFORM_API_URL` | Alias of `SL_API_URL` |
-| `STACKS_NETWORK` | Default network (also via `--network <local\|testnet\|mainnet>`) |
+| `STACKS_NETWORK` | Default network (also via `--network <mainnet\|testnet\|devnet>`) |
+| `DATABASE_URL` | Postgres that `bootstrap`, `verify`, `repair`, and `backup` connect to. `secondlayer setup` writes it into `.env` pointing at the compose Postgres; unset, the shared dev URL `postgres://postgres:postgres@localhost:5432/secondlayer_dev` is used |
 | `HIRO_API_KEY` | Used by `secondlayer codegen contracts` for remote contract fetches |
 
 ## Code generation (`secondlayer codegen contracts`)
