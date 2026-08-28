@@ -1,5 +1,12 @@
 # @secondlayer/stacks
 
+## 4.3.2
+
+### Patch Changes
+
+- 531a5e9: PoX-5 `parseBtcAddress` verifies Base58Check on legacy P2PKH/P2SH instead of accepting any 25-byte decode.
+- 4a1c8d7: `formatBtcAddress` encodes legacy P2PKH/P2SH with `@scure/base` and portable `doubleSha256` instead of `Bun.CryptoHasher`.
+
 ## 4.3.1
 
 ### Patch Changes

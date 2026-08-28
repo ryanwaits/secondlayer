@@ -1,5 +1,14 @@
 # @secondlayer/indexer
 
+## 1.14.1
+
+### Patch Changes
+
+- f6c442b: Decoder firehose backfill decodes resume/page cursors with `decodeStreamsCursor` instead of `split` + `Number`.
+- Updated dependencies [531a5e9]
+- Updated dependencies [4a1c8d7]
+  - @secondlayer/stacks@4.3.2
+
 ## 1.14.0
 
 ### Minor Changes

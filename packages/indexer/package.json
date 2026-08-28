@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/indexer",
-	"version": "1.14.0",
+	"version": "1.14.1",
 	"private": true,
 	"type": "module",
 	"main": "./src/index.ts",
@@ -42,7 +42,7 @@
 		"@dsnp/parquetjs": "^1.8.8",
 		"@secondlayer/sdk": "^9.0.0",
 		"@secondlayer/shared": "^11.1.0",
-		"@secondlayer/stacks": "^4.2.0"
+		"@secondlayer/stacks": "^4.3.2"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

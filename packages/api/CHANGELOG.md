@@ -1,5 +1,16 @@
 # @secondlayer/api
 
+## 1.31.1
+
+### Patch Changes
+
+- 9f4a6c1: Index `?topic=` filters for PoX-5 and sBTC read from the stacks topic consts, so a new print cannot 400 after the decoder writes it.
+- Updated dependencies [f6c442b]
+- Updated dependencies [531a5e9]
+- Updated dependencies [4a1c8d7]
+  - @secondlayer/indexer@1.14.1
+  - @secondlayer/stacks@4.3.2
+
 ## 1.31.0
 
 ### Minor Changes
