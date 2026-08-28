@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { getEventListeners } from "node:events";
 import {
 	type StreamsEvent,
 	type StreamsEventsEnvelope,
@@ -6,6 +7,7 @@ import {
 	ValidationError,
 	createStreamsClient,
 } from "../index.ts";
+import { defaultSleep } from "../streams/consumer.ts";
 
 const TIP = {
 	block_height: 10,
@@ -1019,5 +1021,42 @@ describe("scanned position edge cases", () => {
 		// page advances the cursor to 9:0 without rows — verified through 9,
 		// NOT the tip. Only the echo page (nothing new) verifies to the tip.
 		expect(seen).toEqual([9, 9, TIP.block_height]);
+	});
+});
+
+describe("empty-poll sleeps", () => {
+	test("10k empty-poll sleeps add no abort listeners to the caller's signal", async () => {
+		const ac = new AbortController();
+		const before = getEventListeners(ac.signal, "abort").length;
+		await Promise.all(
+			Array.from({ length: 10_000 }, () => defaultSleep(0, ac.signal)),
+		);
+		expect(getEventListeners(ac.signal, "abort").length).toBe(before);
+	});
+
+	test("a caught-up tail leaves the signal as clean as it found it", async () => {
+		const ac = new AbortController();
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			fetchImpl: async () =>
+				new Response(
+					JSON.stringify({
+						events: [],
+						next_cursor: null,
+						tip: TIP,
+						reorgs: [],
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				),
+		});
+		const before = getEventListeners(ac.signal, "abort").length;
+		await client.events.consume({
+			onBatch: () => {},
+			emptyBackoffMs: 0,
+			maxEmptyPolls: 1_000,
+			signal: ac.signal,
+		});
+		expect(getEventListeners(ac.signal, "abort").length).toBe(before);
 	});
 });

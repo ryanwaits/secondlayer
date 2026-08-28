@@ -64,15 +64,14 @@ describe("SecondLayer.context()", () => {
 
 		const snap = await new SecondLayer({ apiKey: "sk-test" }).context();
 
-		expect(snap.account).toEqual({ email: "a@b.com" });
-		expect(snap.streamsTip?.block_height).toBe(100);
-		expect(snap.indexTip?.block_height).toBe(99);
+		expect(snap.account).toEqual({ value: { email: "a@b.com" } });
+		expect(snap.streamsTip.value?.block_height).toBe(100);
+		expect(snap.indexTip.value?.block_height).toBe(99);
 		expect(snap.subscriptions).toEqual({
-			count: 3,
-			byStatus: { active: 2, paused: 1 },
+			value: { count: 3, byStatus: { active: 2, paused: 1 } },
 		});
 		// Only the reindexing subgraph is probed for an in-flight operation.
-		expect(snap.activeOperations).toEqual([
+		expect(snap.activeOperations.value).toEqual([
 			{
 				subgraph: "swaps",
 				operationId: "op-1",
@@ -83,13 +82,40 @@ describe("SecondLayer.context()", () => {
 		]);
 	});
 
-	test("degrades to null per field when a read fails", async () => {
+	test("a failed read lands as null plus the error that produced it", async () => {
 		globalThis.fetch = (async (_input, _init) =>
-			new Response("nope", { status: 401 })) as typeof fetch;
+			new Response(
+				JSON.stringify({ error: "token revoked", code: "TOKEN_REVOKED" }),
+				{
+					status: 401,
+					headers: { "Content-Type": "application/json" },
+				},
+			)) as typeof fetch;
 		const snap = await new SecondLayer().context();
-		expect(snap.account).toBeNull();
-		expect(snap.streamsTip).toBeNull();
-		expect(snap.subgraphs).toBeNull();
-		expect(snap.activeOperations).toBeNull();
+		expect(snap.account.value).toBeNull();
+		expect(snap.account.error).toEqual({
+			message: "token revoked",
+			code: "TOKEN_REVOKED",
+			status: 401,
+			retryable: false,
+		});
+		expect(snap.streamsTip.value).toBeNull();
+		expect(snap.streamsTip.error?.status).toBe(401);
+		expect(snap.subgraphs.value).toBeNull();
+		expect(snap.subgraphs.error?.code).toBe("TOKEN_REVOKED");
+		// Operations are read per subgraph; with no list there is nothing to probe.
+		expect(snap.activeOperations.value).toBeNull();
+		expect(snap.activeOperations.error?.message).toContain("Not probed");
+	});
+
+	test("an unreachable API is reported as retryable on every field", async () => {
+		globalThis.fetch = (async () => {
+			throw new TypeError("fetch failed");
+		}) as unknown as typeof fetch;
+		const snap = await new SecondLayer().context();
+		expect(snap.indexTip.value).toBeNull();
+		expect(snap.indexTip.error?.status).toBe(0);
+		expect(snap.indexTip.error?.retryable).toBe(true);
+		expect(snap.streamsTip.error?.retryable).toBe(true);
 	});
 });

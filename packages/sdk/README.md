@@ -81,6 +81,14 @@ Verified responses: every Streams read is signed (ed25519 `X-Signature` +
 `GET /public/streams/signing-key`. `verify` and `verifyDumpsManifest` are
 accepted by `new SecondLayer({...})` too and reach `sl.streams`.
 
+What `verify: true` proves depends on where the key came from. Over https, or
+on loopback, the key is fetched once from the instance and cached; a 5xx on
+that fetch surfaces as a retryable `StreamsServerError` and the next read
+fetches again. Over plain http to any other host the key travels the same
+unprotected path as the data, so the client refuses `verify: true` there and
+asks for `verify: { publicKey }` instead. The tradeoff: you copy the PEM once,
+and a server-side rotation then fails closed until you update it.
+
 Convenience reads:
 
 ```typescript
@@ -176,6 +184,17 @@ const manifest = await streams.dumps.list();       // parse the manifest
 for (const file of manifest.files) {
   const bytes = await streams.dumps.download(file); // fetch + verify sha256
   await myParquetReader(bytes);
+}
+```
+
+`download` hashes the body as it streams in and retries a dropped socket or
+5xx with the same policy `consume()` uses for pages, so a multi-hundred-MB
+file costs its own size in memory, not double, and one flaky fetch does not
+end a replay. The bytes are still returned whole; write them out per file.
+
+```typescript
+for (const file of (await streams.dumps.list()).files) {
+  await Bun.write(file.path.split("/").pop()!, await streams.dumps.download(file));
 }
 ```
 
@@ -595,7 +614,21 @@ try {
 }
 ```
 
-Tenant-resolution failures surface as `ApiError` with distinctive codes:
+Every failure status keeps the server's envelope: a 401 with
+`code: "TOKEN_REVOKED"` reads differently from a missing token, a 503 carries
+its reason and `retryAfterSeconds`, and Streams 4xx errors carry `code` the
+same way Index errors do (`err.code === "CURSOR_INVALID"`).
 
-- `code: "TENANT_SUSPENDED"` — your tenant is suspended (see `err.message` for the limit reason)
-- `code: "NO_TENANT"` — your account has no provisioned tenant yet
+Codes you will branch on:
+
+- `code: "OPERATION_IN_PROGRESS"` (409) from `subgraphs.deploy`, `reindex`, or
+  `backfill`: a reindex or backfill is already running for that subgraph. Poll
+  `subgraphs.operations(name)` and retry when it finishes. There is no
+  dedicated error class for this; it is an `ApiError` with `status === 409`.
+- `code: "REQUEST_TIMEOUT"` (status 0): the request outlived `requestTimeoutMs`.
+  Retryable.
+
+`sl.context()` never throws. Each field is `{ value, error? }`, so a `null`
+says why: `error.status === 0` means the API was unreachable,
+`error.code === "UNAUTHORIZED"` means the token was rejected, and no `error`
+at all means the read succeeded and found nothing.

@@ -1,5 +1,10 @@
 import { ed25519 } from "@secondlayer/shared";
-import { buildQuery, resolveApiKey, resolveBaseUrl } from "../base.ts";
+import {
+	buildQuery,
+	parseErrorEnvelope,
+	resolveApiKey,
+	resolveBaseUrl,
+} from "../base.ts";
 import type { IndexEvent } from "../index-api/client.ts";
 import type { ConsumerSink } from "../sinks/types.ts";
 import {
@@ -125,54 +130,60 @@ function normalizeBaseUrl(baseUrl: string): string {
 	return baseUrl.replace(/\/+$/, "");
 }
 
-async function responseBody(response: Response): Promise<unknown> {
-	const text = await response.text();
-	if (text.length === 0) return undefined;
-	try {
-		return JSON.parse(text);
-	} catch {
-		return text;
-	}
-}
-
-function errorMessage(body: unknown, fallback: string): string {
-	if (body && typeof body === "object") {
-		const record = body as Record<string, unknown>;
-		const message = record.error ?? record.message;
-		if (typeof message === "string" && message.length > 0) return message;
-	}
-	if (typeof body === "string" && body.length > 0) return body;
-	return fallback;
-}
-
+/** Map a non-OK Streams response onto the SDK error family. The server's
+ *  `{error, code}` envelope survives on `message`/`code`/`body`, the same way
+ *  it does on Index reads, so `err.code === "CURSOR_INVALID"` branches the
+ *  same whichever client raised it. */
 async function mapStreamsError(response: Response): Promise<never> {
-	const body = await responseBody(response);
+	const { message, code, body } = parseErrorEnvelope(await response.text());
 
 	if (response.status === 401) {
-		throw new AuthError(errorMessage(body, "API key invalid or expired."));
+		throw new AuthError(message ?? "API key invalid or expired.", body, code);
 	}
 
 	if (response.status === 429) {
 		const retryAfter = response.headers.get("Retry-After") ?? undefined;
 		throw new RateLimitError(
-			errorMessage(body, "Rate limited. Try again later."),
+			message ?? "Rate limited. Try again later.",
 			retryAfter,
+			body,
+			code,
 		);
 	}
 
 	if (response.status >= 500) {
 		throw new StreamsServerError(
-			errorMessage(body, `Streams server returned ${response.status}.`),
+			message ?? `Streams server returned ${response.status}.`,
 			response.status,
 			body,
+			code,
 		);
 	}
 
 	throw new ValidationError(
-		errorMessage(body, `Streams request returned ${response.status}.`),
+		message ?? `Streams request returned ${response.status}.`,
 		response.status,
 		body,
+		code,
 	);
+}
+
+/** Loopback hosts, where plain http carries no more exposure than the box
+ *  itself. Anywhere else, http means a network hop anyone on the path can
+ *  rewrite, key endpoint included. */
+function isLoopbackUrl(baseUrl: string): boolean {
+	try {
+		const { hostname } = new URL(baseUrl);
+		return (
+			hostname === "localhost" ||
+			hostname === "127.0.0.1" ||
+			hostname === "::1" ||
+			hostname === "[::1]" ||
+			hostname.startsWith("127.")
+		);
+	} catch {
+		return false;
+	}
 }
 
 export function createStreamsClient(
@@ -198,6 +209,19 @@ export function createStreamsClient(
 	// `verify: false` is off. An invalid signature always throws.
 	const verifyMode: "off" | "lenient" | "strict" =
 		verify === false ? "off" : verify === undefined ? "lenient" : "strict";
+	// Strict mode promises the response came from the holder of a known key.
+	// A key fetched over plain http from a host off the box is whatever the
+	// path served, so the promise only holds with a pinned PEM there.
+	if (
+		verify === true &&
+		baseUrl.startsWith("http:") &&
+		!isLoopbackUrl(baseUrl)
+	) {
+		throw new ValidationError(
+			`verify: true over plain http to ${baseUrl} fetches the signing key from the same unprotected path it verifies. Pin the key with verify: { publicKey } (see GET /public/streams/signing-key), or use https.`,
+			400,
+		);
+	}
 
 	// Lazily resolve and cache the verification key alongside its id, so a
 	// rotation (signalled by a changed `X-Signature-KeyId`) can be detected.
@@ -206,10 +230,13 @@ export function createStreamsClient(
 		publicKeyPem: string;
 		publicKey: ReturnType<typeof ed25519.loadEd25519PublicKey>;
 	};
+	// Only a successful fetch stays cached. A 5xx or a dropped socket on the
+	// key endpoint used to park a rejected promise here for the life of the
+	// client; now it surfaces as a retryable error and the next call refetches.
 	let keyPromise: Promise<VerificationKey> | null = null;
 	function loadKey(): Promise<VerificationKey> {
 		if (keyPromise) return keyPromise;
-		keyPromise = (async () => {
+		const pending = (async () => {
 			if (typeof verify === "object") {
 				return {
 					keyId: ed25519.ed25519KeyId(verify.publicKey),
@@ -217,8 +244,26 @@ export function createStreamsClient(
 					publicKey: ed25519.loadEd25519PublicKey(verify.publicKey),
 				};
 			}
-			const res = await fetchImpl(`${baseUrl}/public/streams/signing-key`);
+			let res: Response;
+			try {
+				res = await fetchImpl(`${baseUrl}/public/streams/signing-key`);
+			} catch {
+				throw new StreamsServerError(
+					`Could not reach the signing key at ${baseUrl}/public/streams/signing-key. Retryable.`,
+					0,
+					undefined,
+					"SIGNING_KEY_UNAVAILABLE",
+				);
+			}
 			if (!res.ok) {
+				if (res.status >= 500 || res.status === 429) {
+					throw new StreamsServerError(
+						`Could not fetch signing key (${res.status}). Retryable.`,
+						res.status,
+						undefined,
+						"SIGNING_KEY_UNAVAILABLE",
+					);
+				}
 				throw new StreamsSignatureError(
 					`Could not fetch signing key (${res.status}).`,
 				);
@@ -236,7 +281,35 @@ export function createStreamsClient(
 				publicKey: ed25519.loadEd25519PublicKey(body.public_key_pem),
 			};
 		})();
-		return keyPromise;
+		keyPromise = pending;
+		pending.catch(() => {
+			if (keyPromise === pending) keyPromise = null;
+		});
+		return pending;
+	}
+	/** Resolve the key a response claims to be signed with. A fetched key
+	 *  refreshes once on an unknown id; a pinned key never changes, so an
+	 *  unknown id is a failure either way. Shared by REST reads and SSE frames. */
+	async function loadKeyFor(
+		responseKeyId: string | null | undefined,
+	): Promise<VerificationKey> {
+		let key = await loadKey();
+		if (!responseKeyId || responseKeyId === key.keyId) return key;
+		if (typeof verify === "object") {
+			throw new StreamsSignatureError(
+				`Response signed with key '${responseKeyId}', expected pinned key '${key.keyId}'.`,
+			);
+		}
+		// Refresh once. A still-mismatched id (no re-loop) means the endpoint
+		// does not serve the signing key: fail closed.
+		keyPromise = null;
+		key = await loadKey();
+		if (responseKeyId !== key.keyId) {
+			throw new StreamsSignatureError(
+				`Response signed with key '${responseKeyId}' not served by the signing-key endpoint.`,
+			);
+		}
+		return key;
 	}
 
 	const dumps = createStreamsDumps({
@@ -261,26 +334,7 @@ export function createStreamsClient(
 					throw new StreamsSignatureError("Response is missing X-Signature.");
 				}
 			} else {
-				const responseKeyId = response.headers.get("X-Signature-KeyId");
-				let key = await loadKey();
-				// The server rotated to a key we haven't seen.
-				if (responseKeyId && responseKeyId !== key.keyId) {
-					if (typeof verify === "object") {
-						// Pinned key: a different id is never the pinned key — fail closed.
-						throw new StreamsSignatureError(
-							`Response signed with key '${responseKeyId}', expected pinned key '${key.keyId}'.`,
-						);
-					}
-					// Fetched key: refresh once. A still-mismatched id (no re-loop)
-					// means the endpoint doesn't serve the signing key — fail closed.
-					keyPromise = null;
-					key = await loadKey();
-					if (responseKeyId !== key.keyId) {
-						throw new StreamsSignatureError(
-							`Response signed with key '${responseKeyId}' not served by the signing-key endpoint.`,
-						);
-					}
-				}
+				const key = await loadKeyFor(response.headers.get("X-Signature-KeyId"));
 				// A signature is present, so verify it regardless of strict/lenient —
 				// an invalid signature always fails closed.
 				if (!ed25519.verifyEd25519(text, signature, key.publicKey)) {
@@ -471,7 +525,7 @@ export function createStreamsClient(
 					headers: authHeaders(),
 					fetchImpl,
 					verify: verifyMode,
-					loadKey,
+					loadKey: loadKeyFor,
 					params,
 				});
 			},

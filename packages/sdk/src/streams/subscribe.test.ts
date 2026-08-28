@@ -62,6 +62,7 @@ function sseFetch(chunks: string[]): FetchLike {
 }
 
 const loadKey = async () => ({
+	keyId: ed25519.ed25519KeyId(publicKeyPem),
 	publicKey: ed25519.loadEd25519PublicKey(publicKeyPem),
 });
 
@@ -174,5 +175,45 @@ describe("subscribeStreamsEvents", () => {
 		});
 		unsub();
 		expect(err).toBeInstanceOf(StreamsSignatureError);
+	});
+
+	test("a frame signed by a rotated key refreshes the key once and delivers", async () => {
+		const rotated = ed25519.generateEd25519KeyPair();
+		const rotatedPriv = ed25519.loadEd25519PrivateKey(rotated.privateKeyPem);
+		const rotatedId = ed25519.ed25519KeyId(rotated.publicKeyPem);
+		const frame = `data: ${JSON.stringify({
+			event: EVENT,
+			sig: ed25519.signEd25519(JSON.stringify(EVENT), rotatedPriv),
+			key_id: rotatedId,
+		})}\n\n`;
+		const asked: Array<string | null | undefined> = [];
+		const got: StreamsEvent[] = [];
+		let unsub = () => {};
+		await new Promise<void>((resolve) => {
+			unsub = subscribeStreamsEvents({
+				baseUrl: "https://streams.example",
+				fetchImpl: sseFetch([frame]),
+				verify: "strict",
+				// Stands in for the client's key resolver: the id the frame names
+				// is handed over, and the resolver answers with that key.
+				loadKey: async (keyId) => {
+					asked.push(keyId);
+					return {
+						keyId: rotatedId,
+						publicKey: ed25519.loadEd25519PublicKey(rotated.publicKeyPem),
+					};
+				},
+				params: {
+					onEvent: (e) => {
+						got.push(e);
+						resolve();
+					},
+					onError: (e) => resolve(Promise.reject(e) as never),
+				},
+			});
+		});
+		unsub();
+		expect(asked).toEqual([rotatedId]);
+		expect(got).toHaveLength(1);
 	});
 });

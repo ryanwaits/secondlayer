@@ -118,7 +118,7 @@ import type {
 } from "@secondlayer/sdk/subgraphs";
 ```
 
-The root `@secondlayer/sdk` re-exports everything above plus `SecondLayer`, `Index`, `Subgraphs`, `Subscriptions`, `ApiError`, `VersionConflictError`, `verifyWebhookSignature`, and all subscription/index/subgraph types.
+The root `@secondlayer/sdk` re-exports everything above plus `SecondLayer`, `Index`, `Subgraphs`, `Subscriptions`, `ApiError`, `verifyWebhookSignature`, and all subscription/index/subgraph types.
 
 ---
 
@@ -1262,7 +1262,7 @@ for (const row of dead) await sl.subscriptions.requeue(sub.id, row.id);
 
 All errors live in `@secondlayer/sdk`.
 
-### Instance API: `ApiError`, `VersionConflictError`
+### Instance API: `ApiError`
 
 Thrown by `sl.index.*`, `sl.subgraphs.*`, `sl.subscriptions.*`.
 
@@ -1271,36 +1271,31 @@ class ApiError extends Error {
   status: number;     // 0 for network/serialization failure
   body?: unknown;     // parsed JSON if available
   code?: string;      // stable machine code from server envelope, if any
-}
-
-class VersionConflictError extends ApiError {
-  status: 409;
-  currentVersion:  string;
-  expectedVersion: string;
+  retryable: boolean; // 429/5xx/network
+  retryAfterSeconds?: number;
 }
 ```
 
 Fires when:
 
-- `status === 0` — `fetch` rejected (network down) or the request body failed to serialize.
-- `status === 401` — missing/invalid `apiKey` on a write method.
-- `status === 429` — rate limited (`Retry-After` header reflected in `message`).
-- `status >= 500` — upstream server error.
-- `4xx` otherwise — the server's `{ error, code }` envelope is surfaced on `message`/`code`/`body`.
-- `VersionConflictError` — `subgraphs.deploy()` with optimistic `expectedVersion` that no longer matches.
+- `status === 0`: `fetch` rejected (network down), the request body failed to serialize, or `requestTimeoutMs` elapsed (`code: "REQUEST_TIMEOUT"`).
+- `status === 401`: missing/invalid `apiKey`; the server's `code` (e.g. `TOKEN_REVOKED`) is kept.
+- `status === 409`: `code: "OPERATION_IN_PROGRESS"` from `subgraphs.deploy/reindex/backfill` while another reindex or backfill runs; poll `subgraphs.operations(name)`.
+- `status === 429`: rate limited (`retryAfterSeconds` parsed from `Retry-After`).
+- `status >= 500`: upstream server error; the server's reason, `code`, and `Retry-After` are kept.
+- `4xx` otherwise: the server's `{ error, code }` envelope is surfaced on `message`/`code`/`body`.
 
 ```ts
-import { ApiError, VersionConflictError } from "@secondlayer/sdk";
+import { ApiError } from "@secondlayer/sdk";
 
 try {
   await sl.subgraphs.deploy(spec);
 } catch (err) {
-  if (err instanceof VersionConflictError) {
-    console.error(`expected ${err.expectedVersion}, server has ${err.currentVersion}`);
-  } else if (err instanceof ApiError) {
-    if (err.status === 401) await refreshApiKey();
-    if (err.status === 429) await wait(Number(err.message.match(/\d+/)?.[0] ?? 1) * 1000);
-    throw err;
+  if (err instanceof ApiError) {
+    if (err.code === "OPERATION_IN_PROGRESS") await waitForOperations(spec.name);
+    else if (err.status === 401) await refreshApiKey();
+    else if (err.retryable) await wait((err.retryAfterSeconds ?? 1) * 1000);
+    else throw err;
   }
 }
 ```

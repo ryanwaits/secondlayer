@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { verifyStreamsBulkManifestSignature } from "@secondlayer/shared/streams-bulk-manifest";
+import { defaultSleep, fetchPageWithRetry } from "./consumer.ts";
 import { StreamsServerError, StreamsSignatureError } from "./errors.ts";
 import type {
 	FetchLike,
@@ -80,7 +81,17 @@ export function createStreamsDumps(opts: {
 		return manifest;
 	}
 
+	/** Fetch one file and hash it as it arrives. Each chunk goes through the
+	 *  digest once and is kept once, so a multi-hundred-MB parquet costs its
+	 *  own size in memory rather than double. A dropped socket or 5xx retries
+	 *  the whole file under the same policy `consume()` uses for pages. */
 	async function download(file: StreamsDumpFile): Promise<Uint8Array> {
+		return fetchPageWithRetry(() => downloadOnce(file), {
+			sleep: defaultSleep,
+		});
+	}
+
+	async function downloadOnce(file: StreamsDumpFile): Promise<Uint8Array> {
 		const res = await opts.fetchImpl(fileUrl(file));
 		if (!res.ok) {
 			throw new StreamsServerError(
@@ -88,12 +99,44 @@ export function createStreamsDumps(opts: {
 				res.status,
 			);
 		}
-		const bytes = new Uint8Array(await res.arrayBuffer());
-		const digest = createHash("sha256").update(bytes).digest("hex");
+		if (!res.body) {
+			throw new StreamsServerError(
+				`Dump ${file.path} response has no body.`,
+				0,
+			);
+		}
+		const hash = createHash("sha256");
+		const chunks: Uint8Array[] = [];
+		let total = 0;
+		const reader = res.body.getReader();
+		try {
+			while (true) {
+				const { value, done } = await reader.read();
+				if (done) break;
+				hash.update(value);
+				chunks.push(value);
+				total += value.byteLength;
+			}
+		} catch {
+			// A body that dies mid-transfer is the same transient as a socket
+			// that never answered: let the retry policy take it.
+			throw new StreamsServerError(
+				`Download of dump ${file.path} was interrupted after ${total} bytes.`,
+				0,
+			);
+		}
+		const digest = hash.digest("hex");
 		if (digest !== file.sha256) {
 			throw new StreamsSignatureError(
 				`Dump ${file.path} sha256 mismatch (expected ${file.sha256}, got ${digest}).`,
 			);
+		}
+		if (chunks.length === 1 && chunks[0]) return chunks[0];
+		const bytes = new Uint8Array(total);
+		let offset = 0;
+		for (const chunk of chunks) {
+			bytes.set(chunk, offset);
+			offset += chunk.byteLength;
 		}
 		return bytes;
 	}

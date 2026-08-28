@@ -137,7 +137,13 @@ onDumpFile: async (file, { from }) => {
   the SELECT server-side; unrequested columns are absent from the row *and* the
   type. `cursor`, `block_height`, and `event_type` always come back.
 - **Errors**: everything derives from `SecondLayerError` — `code`, `retryable`,
-  `retryAfterSeconds`, `docsUrl`, and `walk(predicate)` to find a cause.
+  `retryAfterSeconds`, `docsUrl`, and `walk(predicate)` to find a cause. Every
+  failure status keeps the server's `{error, code}` envelope, Streams and Index
+  alike; a 409 `OPERATION_IN_PROGRESS` on deploy/reindex/backfill is a plain
+  `ApiError`. `context()` never throws: each field is `{ value, error? }`.
+- **Verification**: `verify: true` fetches the signing key once and caches
+  only a successful fetch (a 5xx there is a retryable `StreamsServerError`).
+  Over plain http off loopback it requires `verify: { publicKey }`.
 - **Retries**: `consume()` and `walk()` retry each page fetch on 429/5xx/network
   (`retryCount` default 3, `retryDelay` default 1000 ms, `Retry-After` honored);
   `onError` is a void observer, not a retry decision. One-shot reads (`list`,

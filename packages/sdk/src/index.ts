@@ -1,7 +1,9 @@
-export { SecondLayer } from "./client.ts";
+export { SecondLayer, contextField } from "./client.ts";
 export type {
 	ActiveSubgraphOperation,
 	ContextAccount,
+	ContextField,
+	ContextFieldError,
 	ContextSnapshot,
 } from "./client.ts";
 export type { RequestOptions, SecondLayerOptions } from "./base.ts";
@@ -171,7 +173,6 @@ export {
 export {
 	ApiError,
 	SecondLayerError,
-	VersionConflictError,
 	parseRetryAfter,
 } from "./errors.ts";
 export type { SecondLayerErrorOptions } from "./errors.ts";

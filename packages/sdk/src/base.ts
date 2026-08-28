@@ -1,4 +1,9 @@
-import { ApiError, AuthError, RateLimitError } from "./errors.ts";
+import {
+	ApiError,
+	AuthError,
+	RateLimitError,
+	parseRetryAfter,
+} from "./errors.ts";
 
 export type FetchLike = (
 	input: string | URL | Request,
@@ -146,6 +151,32 @@ export function buildQuery(
 	}
 	const query = search.toString();
 	return query ? `?${query}` : "";
+}
+
+/** Pull the message and code out of an API error body. The API answers every
+ *  failure with `{error, code}`; a proxy in front of it may answer with plain
+ *  text or nothing, so the body is kept whichever shape it took and the
+ *  message is left undefined when there is none worth surfacing. */
+export function parseErrorEnvelope(text: string): {
+	message?: string;
+	code?: string;
+	body: unknown;
+} {
+	if (text.length === 0) return { body: undefined };
+	try {
+		const json = JSON.parse(text);
+		let message: string | undefined;
+		let code: string | undefined;
+		if (json && typeof json === "object") {
+			const err = json.error ?? json.message;
+			if (typeof err === "string" && err.length > 0) message = err;
+			else if (err && typeof err === "object") message = JSON.stringify(err);
+			if (typeof json.code === "string") code = json.code;
+		}
+		return { message, code, body: json };
+	} catch {
+		return { message: text, body: text };
+	}
 }
 
 export abstract class BaseClient {
@@ -322,49 +353,55 @@ export abstract class BaseClient {
 		}
 
 		if (!response.ok) {
+			// Read the envelope once for every failure status. The API answers
+			// 401 and 503 with `{error, code}` too (a revoked token, an index
+			// still catching up), and that code is what a caller branches on.
+			const errorBody = signal
+				? await raceAbort(response.text(), signal)
+				: await response.text();
+			const envelope = parseErrorEnvelope(errorBody);
+			const retryAfter = response.headers.get("Retry-After") ?? undefined;
+
 			if (response.status === 401) {
-				throw new AuthError();
+				throw new AuthError(
+					envelope.message ?? "API key invalid or expired.",
+					envelope.body,
+					envelope.code,
+				);
 			}
 
 			if (response.status === 429) {
 				// The header is preserved as `retryAfterSeconds` (not just prose) so
 				// the consume loops can honor it.
-				const retryAfter = response.headers.get("Retry-After");
-				const msg = retryAfter
+				const fallback = retryAfter
 					? `Rate limited. Wait ${retryAfter} seconds.`
 					: "Rate limited. Try again later.";
-				throw new RateLimitError(msg, retryAfter ?? undefined);
-			}
-
-			if (response.status >= 500) {
-				throw new ApiError(
-					response.status,
-					`Server error. Try again or check status at ${this.baseUrl}/health`,
+				throw new RateLimitError(
+					envelope.message ?? fallback,
+					retryAfter,
+					envelope.body,
+					envelope.code,
 				);
 			}
 
-			const errorBody = signal
-				? await raceAbort(response.text(), signal)
-				: await response.text();
-			let message = `HTTP ${response.status}`;
-			let parsedBody: unknown = errorBody;
-			let code: string | undefined;
-			try {
-				const json = JSON.parse(errorBody);
-				parsedBody = json;
-				const err = json.error ?? json.message;
-				if (typeof err === "string") {
-					message = err;
-				} else if (err && typeof err === "object") {
-					message = JSON.stringify(err);
-				}
-				if (typeof json.code === "string") {
-					code = json.code;
-				}
-			} catch {
-				if (errorBody) message = errorBody;
+			if (response.status >= 500) {
+				const retryAfterSeconds = parseRetryAfter(retryAfter);
+				throw new ApiError(
+					response.status,
+					envelope.message ??
+						`Server error. Try again or check status at ${this.baseUrl}/health`,
+					envelope.body,
+					envelope.code,
+					retryAfterSeconds !== undefined ? { retryAfterSeconds } : {},
+				);
 			}
-			throw new ApiError(response.status, message, parsedBody, code);
+
+			throw new ApiError(
+				response.status,
+				envelope.message ?? `HTTP ${response.status}`,
+				envelope.body,
+				envelope.code,
+			);
 		}
 
 		return response;

@@ -211,7 +211,7 @@ describe("SecondLayer forwards verification options to Streams", () => {
 	test("verify: true makes sl.streams reject an unsigned response", async () => {
 		const sl = new SecondLayer({
 			apiKey: "sk-test",
-			baseUrl: "http://secondlayer.test",
+			baseUrl: "https://secondlayer.test",
 			verify: true,
 			fetchImpl: async () =>
 				new Response(

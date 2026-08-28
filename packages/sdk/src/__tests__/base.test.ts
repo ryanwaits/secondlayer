@@ -395,6 +395,67 @@ describe("BaseClient", () => {
 		});
 	});
 
+	describe("error envelope on every failure status", () => {
+		test("a 401 keeps the server's message and code", async () => {
+			globalThis.fetch = mockFetch({
+				ok: false,
+				status: 401,
+				body: { error: "Token revoked. Rotate it.", code: "TOKEN_REVOKED" },
+			});
+			try {
+				await client.doRequest("GET", "/test");
+				expect.unreachable("should have thrown");
+			} catch (err) {
+				expect((err as ApiError).status).toBe(401);
+				expect((err as ApiError).shortMessage).toBe(
+					"Token revoked. Rotate it.",
+				);
+				expect((err as ApiError).code).toBe("TOKEN_REVOKED");
+				expect((err as ApiError).body).toEqual({
+					error: "Token revoked. Rotate it.",
+					code: "TOKEN_REVOKED",
+				});
+			}
+		});
+
+		test("a 429 carries retryAfterSeconds as a number for the retry loop", async () => {
+			globalThis.fetch = mockFetch({
+				ok: false,
+				status: 429,
+				body: { error: "slow down", code: "RATE_LIMITED" },
+				headers: { "Retry-After": "12" },
+			});
+			try {
+				await client.doRequest("GET", "/test");
+				expect.unreachable("should have thrown");
+			} catch (err) {
+				expect((err as ApiError).retryAfterSeconds).toBe(12);
+				expect((err as ApiError).retryable).toBe(true);
+				expect((err as ApiError).code).toBe("RATE_LIMITED");
+				expect((err as ApiError).shortMessage).toBe("slow down");
+			}
+		});
+
+		test("a 503 surfaces the server's reason, code, and Retry-After", async () => {
+			globalThis.fetch = mockFetch({
+				ok: false,
+				status: 503,
+				body: { error: "indexer behind tip", code: "INDEX_NOT_READY" },
+				headers: { "Retry-After": "30" },
+			});
+			try {
+				await client.doRequest("GET", "/test");
+				expect.unreachable("should have thrown");
+			} catch (err) {
+				expect((err as ApiError).status).toBe(503);
+				expect((err as ApiError).shortMessage).toBe("indexer behind tip");
+				expect((err as ApiError).code).toBe("INDEX_NOT_READY");
+				expect((err as ApiError).retryAfterSeconds).toBe(30);
+				expect((err as ApiError).retryable).toBe(true);
+			}
+		});
+	});
+
 	describe("ApiError envelope extraction", () => {
 		test("populates ApiError.code from {error, code} JSON body", async () => {
 			globalThis.fetch = mockFetch({

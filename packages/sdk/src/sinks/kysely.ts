@@ -132,7 +132,8 @@ export function kyselySink<DB, T extends keyof DB & string>(
 			const col = await sql<{ ok: boolean }>`
 				SELECT EXISTS (
 					SELECT 1 FROM information_schema.columns
-					WHERE table_name = ${table} AND column_name = ${column}
+					WHERE table_schema = current_schema()
+						AND table_name = ${table} AND column_name = ${column}
 				) AS "ok"
 			`.execute(db);
 			return col.rows[0]?.ok ?? false;

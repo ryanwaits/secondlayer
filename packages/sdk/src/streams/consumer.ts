@@ -239,7 +239,10 @@ export type PageRetryOptions = {
 	) => void;
 };
 
-/** Retry-After above this is treated as "give up now, resume later". */
+/** Sleep clamp for a server `Retry-After`: the loop honors the header up to
+ *  five minutes per attempt and keeps retrying within `retryCount`. It never
+ *  gives up early on a long Retry-After; the tradeoff is a long wait, not a
+ *  dropped loop. Set `retryCount: 0` to surface the 429 immediately instead. */
 const MAX_RETRY_AFTER_MS = 300_000;
 
 function errRetryable(err: unknown): boolean {
@@ -297,16 +300,18 @@ export async function defaultSleep(
 	if (signal?.aborted) return;
 
 	await new Promise<void>((resolve) => {
-		const timeout = setTimeout(resolve, ms);
-		if (!signal) return;
-		signal.addEventListener(
-			"abort",
-			() => {
-				clearTimeout(timeout);
-				resolve();
-			},
-			{ once: true },
-		);
+		const onAbort = () => {
+			clearTimeout(timeout);
+			resolve();
+		};
+		// Detach on the timer path too: a tail at the tip sleeps once per
+		// empty poll, and each sleep that left its listener behind pinned a
+		// closure on the caller's long-lived signal until the process exited.
+		const timeout = setTimeout(() => {
+			signal?.removeEventListener("abort", onAbort);
+			resolve();
+		}, ms);
+		signal?.addEventListener("abort", onAbort, { once: true });
 	});
 }
 

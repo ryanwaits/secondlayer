@@ -187,8 +187,10 @@ export class Subgraphs extends BaseClient {
 
 	/**
 	 * Reindex always drops and rebuilds the whole subgraph, so it takes no
-	 * block range — the API rejects one with `REINDEX_RANGE_NOT_SUPPORTED`.
-	 * Use {@link backfill} to process a specific range.
+	 * block range; the API rejects one with `REINDEX_RANGE_NOT_SUPPORTED`.
+	 * Use {@link backfill} to process a specific range. While a reindex or
+	 * backfill is already running the API answers 409 with code
+	 * `OPERATION_IN_PROGRESS`; poll {@link operations} until it finishes.
 	 */
 	async reindex(name: string): Promise<ReindexResponse> {
 		return this.request<ReindexResponse>(
@@ -207,6 +209,8 @@ export class Subgraphs extends BaseClient {
 		}>("POST", `/api/subgraphs/${seg(name)}/stop`);
 	}
 
+	/** Process one block range. 409 `OPERATION_IN_PROGRESS` while another
+	 *  reindex or backfill runs on this subgraph. */
 	async backfill(
 		name: string,
 		options: { fromBlock: number; toBlock: number },
@@ -288,6 +292,9 @@ export class Subgraphs extends BaseClient {
 		);
 	}
 
+	/** Create or update a subgraph. A deploy that needs a rebuild queues one;
+	 *  if a reindex or backfill is already running the API answers 409 with
+	 *  code `OPERATION_IN_PROGRESS` (an `ApiError`, not a dedicated class). */
 	async deploy(data: DeploySubgraphRequest): Promise<DeploySubgraphResponse> {
 		return this.request<DeploySubgraphResponse>("POST", "/api/subgraphs", data);
 	}

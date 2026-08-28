@@ -8,6 +8,7 @@ import type {
 } from "./types.ts";
 
 type VerificationKey = {
+	keyId: string;
 	publicKey: ReturnType<typeof ed25519.loadEd25519PublicKey>;
 };
 
@@ -31,7 +32,10 @@ export function subscribeStreamsEvents(opts: {
 	 * always throws regardless of mode.
 	 */
 	verify: "off" | "lenient" | "strict";
-	loadKey: () => Promise<VerificationKey>;
+	/** Resolve the key a frame names by `key_id` (a fetched key refreshes once
+	 *  on an unknown id; a pinned key fails closed), or the cached key when
+	 *  the frame carries none. */
+	loadKey: (keyId?: string | null) => Promise<VerificationKey>;
 	reconnectDelayMs?: number;
 	params: StreamsEventsSubscribeParams;
 }): () => void {
@@ -70,7 +74,7 @@ export function subscribeStreamsEvents(opts: {
 					fetchImpl: opts.fetchImpl,
 					onFrame: async (frame) => {
 						if (frame.event === "ping" || !frame.data) return;
-						let parsed: { event?: StreamsEvent; sig?: string };
+						let parsed: { event?: StreamsEvent; sig?: string; key_id?: string };
 						try {
 							parsed = JSON.parse(frame.data);
 						} catch {
@@ -87,7 +91,10 @@ export function subscribeStreamsEvents(opts: {
 									);
 								}
 							} else {
-								const key = await opts.loadKey();
+								// The frame names its key, so a rotation mid-stream is a
+								// one-time refresh instead of a reconnect loop that fails
+								// every frame forever.
+								const key = await opts.loadKey(parsed.key_id);
 								// A signature is present, so verify it in either mode; an
 								// invalid signature always fails closed.
 								if (

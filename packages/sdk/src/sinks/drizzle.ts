@@ -201,7 +201,7 @@ export function drizzleSink<TDb extends DrizzleDatabaseLike, T extends Table>(
 			if (!heightCol) return false;
 			if (isPg) {
 				const found = (await rows(
-					sql`SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = ${table} AND column_name = ${heightCol}) AS "ok"`,
+					sql`SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = ${table} AND column_name = ${heightCol}) AS "ok"`,
 				)) as Array<{ ok: boolean }>;
 				return found[0]?.ok === true;
 			}
