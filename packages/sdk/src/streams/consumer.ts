@@ -324,7 +324,7 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 	/** Labelled filter groups, forwarded to the server verbatim. */
 	filters?: StreamsFilterMap;
 	fetchEvents: StreamsEventsFetcher;
-	/** `GET /v1/streams/reorgs` — polled on idle (empty) pages so a reorg
+	/** `GET /v1/streams/reorgs`, polled on idle (empty) pages so a reorg
 	 *  that lands while the consumer sits at the tip is still rolled back.
 	 *  Pages only carry reorgs overlapping their own span. */
 	fetchReorgs?: (params: {
@@ -427,7 +427,7 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 		// Reorgs: roll back each new fork at or below the checkpoint, then
 		// rewind to the lowest fork point and re-read the now-canonical run.
 		// Finalized data never reorgs, so `finalizedOnly` skips this entirely.
-		// A sink makes rollback UNCONDITIONAL — omitting `onReorg` used to skip
+		// A sink makes rollback UNCONDITIONAL: omitting `onReorg` used to skip
 		// reorgs silently.
 		const reorgsOn = !finalizedOnly && Boolean(opts.onReorg || opts.sink);
 		if (reorgsOn) {

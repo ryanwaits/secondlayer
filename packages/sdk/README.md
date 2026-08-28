@@ -182,7 +182,7 @@ for (const file of manifest.files) {
 Backfill then tail (`events.replay`).
 
 Backfills from bulk dumps, then tails live from the manifest's
-`latest_finalized_cursor` — no gap or dupe at the seam. `onDumpFile` hands you
+`latest_finalized_cursor`, with no gap or dupe at the seam. `onDumpFile` hands you
 each finalized file; `onBatch` receives live events after the seam.
 
 Dump delivery is file-granular and at-least-once: the file straddling `from`

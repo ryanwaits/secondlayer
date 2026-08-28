@@ -460,7 +460,7 @@ for (const f of manifest.files) {
 
 ### `sl.streams.events.replay(params)` — bulk backfill then live tail
 
-Backfills from bulk dumps, then tails live from the manifest's `latest_finalized_cursor` — no gap or dupe at the seam. `onDumpFile` hands you each finalized parquet file to process with your own tooling (the SDK doesn't decode parquet); `onBatch` receives live events after the seam. Dump delivery is file-granular and at-least-once: files ending at or below `from` are skipped, the file straddling `from` arrives whole, so drop rows at or below `ctx.from` (or key rows by `cursor`).
+Backfills from bulk dumps, then tails live from the manifest's `latest_finalized_cursor`, with no gap or dupe at the seam. `onDumpFile` hands you each finalized parquet file to process with your own tooling (the SDK doesn't decode parquet); `onBatch` receives live events after the seam. Dump delivery is file-granular and at-least-once: files ending at or below `from` are skipped, the file straddling `from` arrives whole, so drop rows at or below `ctx.from` (or key rows by `cursor`).
 
 ```ts
 type StreamsEventsReplayParams = {

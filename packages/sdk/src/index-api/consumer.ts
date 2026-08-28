@@ -188,7 +188,7 @@ export async function consumeIndexFeed<
 		// Reorgs: roll back each new fork at or below the checkpoint, then
 		// rewind to the lowest fork point and re-read the now-canonical run.
 		// Finalized data never reorgs, so `finalizedOnly` skips this entirely.
-		// A sink makes rollback UNCONDITIONAL — omitting `onReorg` used to skip
+		// A sink makes rollback UNCONDITIONAL: omitting `onReorg` used to skip
 		// reorgs silently. Index has no reorg list route, so a fork that lands
 		// while idling at the tip is only seen once a page overlaps it.
 		if (!finalizedOnly && (opts.onReorg || opts.sink)) {
