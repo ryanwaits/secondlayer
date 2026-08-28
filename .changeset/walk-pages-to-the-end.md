@@ -1,5 +1,0 @@
----
-"@secondlayer/sdk": minor
----
-
-`walk()` finishes the backfill it started. It no longer treats a short page as the end of the feed (the Index clamps oversized limits silently, so `batchSize: 5000` used to stop after one page); a walk ends only when the server stops advancing `next_cursor`, at the cost of one extra empty fetch on some feeds. `batchSize` above 1000 throws `ValidationError` up front, and PoX cycles walk with the same 200-row default as every other feed. Page fetches retry like `consume()` does (`retryCount`/`retryDelay`/`onError` on every `*WalkParams`), so one 429 or 5xx no longer aborts an hours-long sweep. Index and REST requests (`Index`, `Contracts`, `Subgraphs`) now run under `requestTimeoutMs` (default 30 s, exported as `DEFAULT_REQUEST_TIMEOUT_MS`) and reject with a retryable `ApiError` (`REQUEST_TIMEOUT`) when the socket hangs; Streams requests are not covered yet. `signal` cancels the in-flight request, and a walk rejects with the signal's reason whether the abort lands mid-request or between rows, so a walk that returns without throwing reached the end of the feed.

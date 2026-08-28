@@ -1,5 +1,15 @@
 # @secondlayer/scaffold
 
+## 1.5.5
+
+### Patch Changes
+
+- Updated dependencies [b1cad80]
+- Updated dependencies [54decd0]
+- Updated dependencies [0e443a3]
+  - @secondlayer/stacks@5.0.0
+  - @secondlayer/subgraphs@4.1.1
+
 ## 1.5.4
 
 ### Patch Changes

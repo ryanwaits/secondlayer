@@ -1,5 +1,18 @@
 # @secondlayer/shared
 
+## 11.2.0
+
+### Minor Changes
+
+- b16afa8: Add `@secondlayer/shared/archive/root-key`: the archive signing key compiled into each release so self-hosted instances verify manifests offline.
+
+### Patch Changes
+
+- Updated dependencies [b1cad80]
+- Updated dependencies [54decd0]
+- Updated dependencies [0e443a3]
+  - @secondlayer/stacks@5.0.0
+
 ## 11.1.0
 
 ### Minor Changes

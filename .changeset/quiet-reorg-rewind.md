@@ -1,5 +1,0 @@
----
-"@secondlayer/sdk": minor
----
-
-Consumer reorg correctness. `consume()` never rewinds forward: a fork above the checkpoint is noted, not rolled back, so the rows between the checkpoint and the fork are delivered instead of skipped. Every fork point is validated before the sink runs, and a rewind deeper than `maxRollbackDepth` (default 1000 blocks) throws `ValidationError`. The Streams loop polls `reorgs.list` on empty pages so a fork that lands while idling at the tip is rolled back too (one extra request per idle poll). Behavior change for handlers: `Cursor.atHeight(0)` is now `null` (pre-genesis), `onReorg` receives `ctx.cursor: string | null`, and `ConsumerSink.rollback` receives a `null` rewind cursor for a fork at genesis. Handlers that persist `ctx.cursor` must accept `null` (clear the checkpoint); a handler typed `(cursor: string)` still compiles but sees `null` at runtime on that edge. Drivers without `clearCursor` throw `ValidationError` there instead of writing a bad cursor. `events.replay()` passes `{ from }` to `onDumpFile` and drops files ending at or below it; delivery stays file-granular and at-least-once.

@@ -1,5 +1,51 @@
 # @secondlayer/cli
 
+## 14.0.0
+
+### Major Changes
+
+- 1d991e1: `secondlayer start` is removed. It needed a `DATABASE_URL` that `init` never wrote and printed a compose path that only exists inside a repo checkout; `secondlayer setup` brings the stack up, and a checkout runs `docker compose -f docker/oss/docker-compose.yml --env-file .env.local up -d` directly.
+
+  `setup` now writes `DATABASE_URL` into `.env` (the compose Postgres it just started, on the host port it actually bound) and passes it, with `ARCHIVE_SIGNING_PUBLIC_KEY`, `SL_API_URL`, and `INSTANCE_TOKEN`, to the `bootstrap` and `verify` it shells out to; before, those inherited the shell and restored into the shared dev database. A `SELECT 1` runs before bootstrap so a Postgres that is not up fails in one line, before any archive quote. An operator-edited `DATABASE_URL` survives re-runs; one setup generated itself is rebuilt from the port the re-run binds, so a remapped Postgres port never leaves bootstrap pointed at the old one. `--dir` defaults to `.`.
+
+  `init` reads the global `--api-url` instead of a local copy that Commander silently ignored; `subgraphs scaffold` drops its shadowed, unused `--api-key`. The network vocabulary is `mainnet|testnet|devnet` everywhere (`--help`, README, skill); an unknown `--network` exits 1 with one line, and `STACKS_NETWORK` values the config layer cannot map are named on stderr instead of dropped.
+
+  `uninstall` finds the stack `setup` wrote: `./docker-compose.yml` with `--env-file ./.env`, falling back to the repo compose file; the keys guard now sees `.env` as well as `.env.local`, and any existing env file counts as keys present even without `SECONDLAYER_SECRETS_KEY`, so `--purge --yes` in a setup directory still refuses without `--backup`. The dry run names the compose, env, and keys files it found.
+
+### Minor Changes
+
+- d8f23cd: `bootstrap` resumes a torn import per dataset: blocks, transactions, and events each keep their own high-water mark, so a run that died after the blocks pass loads the transactions and events it never reached instead of calling the restore complete, and a load that finished without writing progress is verified and finalized on re-run rather than refused. `--from-block` restores verify only the ranges they loaded, so a forward-only restore no longer exits divergent over history it declared out of scope. The post-load check now covers blocks, transactions, and events; `--verify blocks` opts down to block identity alone. Against the official archive, presigned URLs are issued in load order and re-issued before they expire, so a charge lands right before its bytes are used.
+
+  `repair --apply` rewrites a fixed block together with its transactions and events from the archive, in one transaction per partition, and re-verifies all three datasets. When the reference has no transactions or events partition for a height, the block is rewritten alone, the height is named with a `bootstrap --from-block H --to-block H` remedy, and the exit is 1, never "re-verified clean".
+
+- 819b66c: Every destructive or metered confirmation now runs through one gate: `-y` skips it, the prompt defaults to no, and without a TTY on stdin the command exits 1 naming `-y` instead of letting an empty pipe answer. `subgraphs deploy` puts its drop-and-reindex prompt behind that gate (before, `echo | deploy` accepted the drop); the uncommitted-source check reads stdin, not stdout. `--json` never stands in for `-y`: `bootstrap` and `repair` without `-y` print `{"code":"CONFIRMATION_REQUIRED","quote":…}` and exit 2 so a script can read the price first, and the `repair --json` report carries `metered`. `subscriptions create` defaults the runtime to `node` once any of `-s/-t/-u` or `--no-scaffold` is given and exits 1 without a TTY when a value would need a prompt, instead of rendering a menu and exiting 0 with nothing created. `subgraphs deploy` accepts a staged file (`git add` is enough); `create`'s `Next:` line and the quickstart show the `git add` step.
+- 3ff473b: `secondlayer context` and the `secondlayer://context` resource carry the reason a field is missing. The SDK snapshot now reports `{ value, error? }` per field; the CLI prints the flat snapshot plus an `errors` map with the API's code and status, and the MCP resource replaces a bare `unavailable` sentinel with the failure message when there is one, so an agent can tell an unreachable API from a rejected token.
+- 8f0fa33: Archive credits calls (`credits balance`, `credits refill`, and the metered `bootstrap` and `repair` quote and fetch) send the `secondlayer login --credits` session first, then an `sk-sl_` or `ss-sl_` env key; a bare `INSTANCE_TOKEN` is never sent off the box, and a 401 names `secondlayer login --credits` and says when an instance token was ignored. `login --credits` and `logout --credits` log in to and out of the credits API; `credits` and `whoami` target it. `~/.secondlayer/session.json` is now keyed by API URL (`{ sessions: { [url]: session } }`); an old flat file reads as the login for the default credits API. `HOME` is honored when locating the session file.
+- 6b253d0: `streams dumps` refuses a manifest path that is absolute, carries `..`, or resolves outside `--to`, streams each file into `<name>.part` while hashing, and renames into place only once the sha256 matches, so an interrupted download leaves a `.part` and never a truncated file under the final name. `backup` and `restore` move the database password out of `pg_dump`/`pg_restore` argv into `PGPASSWORD`, so it no longer shows in `ps`, and drain the child's stdout so a chatty dump cannot deadlock. `subscriptions create` writes `.env` owner-only (0600) on every branch, including when it is seeded from `.env.example`. Help for `--api-key`, `--auth-token`, `--signing-secret`, and `--passphrase` names the env form as the one to prefer, since a flag lands in shell history and `ps`.
+- b16afa8: `verify` and `repair` resolve the archive signing key the same way `bootstrap` does: `--public-key`, then `ARCHIVE_SIGNING_PUBLIC_KEY`, then (hosted mode only, over https) the key endpoint on api.secondlayer.tools, then the key built into the release. OSS mode never leaves the machine for a key. Plaintext `http://` key endpoints are never consulted. `latest.json` pointers must carry a snapshot digest, name a `snapshots/<sha256>.json` path, and verify their signature against the resolved key. Partition paths that leave the archive root are refused. `setup` and `init` always write `ARCHIVE_SIGNING_PUBLIC_KEY`.
+- 62f361b: `restore --apply` runs `pg_restore` in one transaction and stops on the first error, so a failed restore leaves the target as it was; after the load the canonical block range is checked against the manifest's scope and a short dump exits 1. Backup and restore hash the dump in fixed reads, so a multi-gigabyte bundle no longer needs to fit in one buffer.
+
+  Archive partition fetches in `bootstrap` and `repair` retry three times with backoff on connection resets, timeouts, 429 (honoring `Retry-After`) and 5xx. A link that stays down exits 1 with a re-run hint instead of 2 "refused"; the re-run resumes where the load stopped.
+
+  `streams consume` prints reorgs inline as `{"kind":"reorg",...}` lines and rewinds to the fork point, checkpoints from the loop's own cursor, and rejects a `--max-pages` that is not a positive integer with exit 1 rather than streaming nothing. `subgraphs status --watch` rides out three consecutive failed polls and exits on `sync.status`, not the lifecycle column. `subscriptions test --post --local` times out after 15s.
+
+### Patch Changes
+
+- Updated dependencies [a462d18]
+- Updated dependencies [b16afa8]
+- Updated dependencies [a7aaf15]
+- Updated dependencies [b1cad80]
+- Updated dependencies [54decd0]
+- Updated dependencies [3442bd5]
+- Updated dependencies [0e443a3]
+- Updated dependencies [3ff473b]
+- Updated dependencies [a04ec81]
+  - @secondlayer/sdk@10.0.0
+  - @secondlayer/shared@11.2.0
+  - @secondlayer/stacks@5.0.0
+  - @secondlayer/scaffold@1.5.5
+  - @secondlayer/subgraphs@4.1.1
+
 ## 13.0.3
 
 ### Patch Changes

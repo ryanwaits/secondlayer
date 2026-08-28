@@ -1,5 +1,28 @@
 # @secondlayer/mcp
 
+## 7.2.0
+
+### Minor Changes
+
+- 3ff473b: `secondlayer context` and the `secondlayer://context` resource carry the reason a field is missing. The SDK snapshot now reports `{ value, error? }` per field; the CLI prints the flat snapshot plus an `errors` map with the API's code and status, and the MCP resource replaces a bare `unavailable` sentinel with the failure message when there is one, so an agent can tell an unreachable API from a rejected token.
+
+### Patch Changes
+
+- Updated dependencies [a462d18]
+- Updated dependencies [b16afa8]
+- Updated dependencies [a7aaf15]
+- Updated dependencies [b1cad80]
+- Updated dependencies [54decd0]
+- Updated dependencies [3442bd5]
+- Updated dependencies [0e443a3]
+- Updated dependencies [3ff473b]
+- Updated dependencies [a04ec81]
+  - @secondlayer/sdk@10.0.0
+  - @secondlayer/shared@11.2.0
+  - @secondlayer/stacks@5.0.0
+  - @secondlayer/scaffold@1.5.5
+  - @secondlayer/subgraphs@4.1.1
+
 ## 7.1.0
 
 ### Minor Changes

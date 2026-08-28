@@ -6,6 +6,48 @@ keys, `402` past the free window. That service is withdrawn; on a self-hosted
 instance reads are yours and unmetered, and only archive
 bootstrap/backfill/reindex draws [credits](/docs/authentication#archive-credits).
 
+## CLI — August 2026
+
+### Setup that lands in the right database, and a bootstrap that finishes
+
+`secondlayer setup` writes `DATABASE_URL` into `.env` and hands it, with the archive key and instance token, to the `bootstrap` and `verify` it runs, so a fresh box restores into the Postgres it just started instead of whatever your shell pointed at. `bootstrap` resumes a torn import per dataset (blocks, transactions, events each keep their own mark), `--from-block` restores verify only what they loaded, and `repair --apply` rewrites a fixed block together with its transactions and events. `secondlayer start` is gone; `setup` brings the stack up.
+
+### Verify offline with a key that ships in the release
+
+`verify`, `repair`, and `bootstrap` resolve the archive signing key the same way: `--public-key`, then `ARCHIVE_SIGNING_PUBLIC_KEY`, then the key compiled into the CLI. A self-hosted instance never leaves the machine for a key, `http://` key endpoints are never consulted, and `latest.json` pointers must carry a digest and a valid signature. The tradeoff: rotating the built-in key takes a CLI release until the key ceremony lands.
+
+### One confirmation gate, and credits that log in as you
+
+Every destructive or metered prompt defaults to no, `-y` skips it, and without a TTY the command exits 1 naming `-y` instead of letting a pipe answer. `--json` never stands in for `-y`: `bootstrap` and `repair` print the quote as `CONFIRMATION_REQUIRED` and exit 2 so a script can read the price first. Archive credits send your `secondlayer login --credits` session, never the instance token, so a logged-in operator can quote and fetch. Dumps stay under `--to` and land via `.part`, the Postgres password rides in `PGPASSWORD`, scaffolded `.env` files are owner-only, and archive fetches retry transient failures with a re-run hint instead of a refusal.
+
+## SDK — August 2026
+
+### Consumers never skip rows on a reorg
+
+`consume()` no longer rewinds forward: a fork above your checkpoint is noted, not rolled back, so the rows between the checkpoint and the fork are delivered instead of silently dropped. Fork points are validated before your sink runs, rewinds deeper than `maxRollbackDepth` (1000 blocks) throw, and the Streams loop polls `reorgs.list` on empty pages so a fork that lands while you idle at the tip is rolled back too. `Cursor.atHeight(0)` is now `null`, and `onReorg` can hand you a `null` cursor at genesis.
+
+### Subgraph `subscribe()` works on a token-gated instance
+
+Typed `subscribe()` is a fetch-based SSE reader that carries your bearer token, reads `/v1` keyless on loopback, and reconnects from the last delivered block height. Every path segment you supply is percent-encoded. `typed()` knows your declared columns, so a table with its own `id` column filters on your `id`, not the system row id. `new SecondLayer({ verify, verifyDumpsManifest, origin })` reaches `sl.streams`.
+
+### `walk()` finishes, Streams errors keep their envelope, `VersionConflictError` is gone
+
+`walk()` ends only when the server stops advancing `next_cursor`, retries page fetches like `consume()`, and rejects `batchSize` above 1000 up front. Index and REST requests run under `requestTimeoutMs` (30 s) and accept `signal`. Every failure status keeps the server's `{ error, code }`, Streams and Index alike; the signing key is cached only after a successful fetch, and a `key_id` rotation mid-stream refreshes it once. `streams.events.subscribe` redelivers an event whose handler threw, backs off with jitter, reopens a stale socket, and stops (through `onError` and a new `done` promise) on a 401 or bad signature. Breaking: `VersionConflictError` is removed (nothing threw it; the real 409 is `ApiError` with `code: "OPERATION_IN_PROGRESS"`), and `context()` fields are `{ value, error? }` so a `null` says why.
+
+## Stacks SDK — August 2026
+
+### `/tools` is deprecated; use `@secondlayer/mcp`
+
+`@secondlayer/stacks/tools` and `/tools/btc` still import until the next major but get no new tools. `ai` and `zod` are optional peer dependencies now, so a project that only reads contracts installs neither. While they last, `readContract` and `getTransaction` return Clarity values through `cvToJSON` instead of crashing on a bigint, and every model-supplied principal, txid, and hash is validated and percent-encoded before a request is built.
+
+### Transport timeouts cover the body, nonces come back on a failed send
+
+One `timeout` covers headers and body, a stalled response rejects with `TimeoutError`, `RequestOptions.signal` cancels from your side, and broadcasts go out once. `NonceStore.release` hands a nonce back when a send fails before the node accepts it, so `FeeTooLow` no longer strands every later transaction. `multicall` caps reads in flight. Breaking: `indexSource`/`indexTxSource` go through the client transport, default `baseUrl` to the transport URL (no hosted default), and send `Authorization: Bearer`.
+
+### Tuples hash like the chain, principals and units fail loudly
+
+Tuple fields serialize in the node's byte order so SIP-018 hashes match `to-consensus-buff?`. The deserializer caps nesting and checks declared counts against the bytes left. `Cl.principal` and `parseContractId` reject undecodable addresses, `parseUnits` refuses exponent-form numbers and silent rounding, and a legacy Bitcoin address with a bad base58check checksum is refused before it becomes a PoX reward address. `apiKey` no longer appears on `transport.config`.
+
 ## Index — August 2026
 
 ### Optional `/extended` JSON on :3999
