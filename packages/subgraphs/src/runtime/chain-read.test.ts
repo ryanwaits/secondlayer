@@ -31,7 +31,7 @@ const TOKEN_ABI = {
 	non_fungible_tokens: [],
 } as const;
 
-const CONTRACT = "SP1.token";
+const CONTRACT = "SP000000000000000000002Q6VF78.token";
 const IBH = "0xaaaa";
 
 /** A node that answers `(ok u6)` and counts how many times it was asked. */
