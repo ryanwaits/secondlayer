@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import { parseInstanceNetwork } from "../lib/instance-init.ts";
+import { instanceNetworkFromEnv } from "../lib/instance-init.ts";
 import {
 	defaultObserverEndpoint,
 	parseObserverMode,
@@ -40,9 +40,7 @@ export function registerObserverCommand(program: Command): void {
 				recovery?: string;
 			}) => {
 				const mode = parseObserverMode(opts.mode);
-				const network = parseInstanceNetwork(
-					process.env.STACKS_NETWORK ?? "mainnet",
-				);
+				const network = instanceNetworkFromEnv();
 				const endpoint = opts.endpoint ?? defaultObserverEndpoint(network);
 				const recovery = opts.recovery
 					? parseRecoverySource(opts.recovery)

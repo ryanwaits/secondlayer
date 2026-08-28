@@ -180,3 +180,43 @@ export function formatKeyValue(pairs: [string, string][]): string {
 		.map(([key, value]) => `${dim(key.padEnd(maxKeyLen))}  ${value}`)
 		.join("\n");
 }
+
+/**
+ * The one confirmation gate for anything that destroys data or spends money.
+ *
+ * - `yes` (the `-y/--yes` flag) short-circuits: no prompt, `true`.
+ * - Without a TTY on stdin the command exits 1 instead of prompting. An
+ *   empty pipe (`echo |`) would otherwise feed a newline into the prompt and
+ *   accept it; a closed stdin would hang. Scripts and agents pass `-y`.
+ * - The prompt defaults to "no", so Enter alone never destroys anything.
+ * - A prompt closed by Ctrl-C exits 1 with the same remedy.
+ *
+ * Returns `false` when the reader declines; the caller decides what to print
+ * and which exit code that is.
+ */
+export async function confirmDestructive(opts: {
+	message: string;
+	yes?: boolean;
+}): Promise<boolean> {
+	if (opts.yes) return true;
+	if (!process.stdin.isTTY) {
+		error(
+			"Interactive prompt unavailable (stdin is not a TTY). Re-run with -y to skip confirmation.",
+		);
+		process.exit(1);
+	}
+	const { confirm } = await import("@inquirer/prompts");
+	try {
+		return await confirm({ message: opts.message, default: false });
+	} catch (promptErr) {
+		const m =
+			promptErr instanceof Error ? promptErr.message : String(promptErr);
+		if (m.includes("ExitPromptError") || m.includes("force closed")) {
+			error(
+				"Interactive prompt unavailable. Re-run with -y to skip confirmation.",
+			);
+			process.exit(1);
+		}
+		throw promptErr;
+	}
+}

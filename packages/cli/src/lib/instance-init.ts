@@ -1,9 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { ARCHIVE_ROOT_PUBLIC_KEY_PEM } from "@secondlayer/shared/archive/root-key";
 import { generateEd25519KeyPair } from "@secondlayer/shared/crypto/ed25519";
 import { INSTANCE_NETWORKS } from "@secondlayer/shared/db/queries/instance";
 import type { InstanceNetwork } from "@secondlayer/shared/db/queries/instance";
+import { printError } from "./output.ts";
 
 export const INSTANCE_ENV_FILE = ".env.local";
 
@@ -20,7 +22,10 @@ export type InstanceEnv = {
 	 *  emitted so existing setups that export it keep working; clients prefer
 	 *  INSTANCE_TOKEN. */
 	SL_API_KEY: string;
-	ARCHIVE_SIGNING_PUBLIC_KEY?: string;
+	/** The key `bootstrap`, `verify`, and `repair` check archive manifests
+	 *  against. Always written, so the instance verifies offline; an existing
+	 *  value is kept so an operator's own pin survives re-runs. */
+	ARCHIVE_SIGNING_PUBLIC_KEY: string;
 };
 
 export function parseInstanceNetwork(value: string): InstanceNetwork {
@@ -29,6 +34,25 @@ export function parseInstanceNetwork(value: string): InstanceNetwork {
 		return network as InstanceNetwork;
 	}
 	throw new Error(`network must be mainnet, testnet, or devnet (got ${value})`);
+}
+
+/**
+ * The network a command runs against, from the global `--network` flag (which
+ * `cli.ts` funnels into `STACKS_NETWORK`) or the environment. An unknown value
+ * is a one-line error and exit 1, not a stack trace: `local` is not a network
+ * this CLI knows, and a script that passed it should learn that from the
+ * first line of stderr.
+ */
+export function instanceNetworkFromEnv(fallback = "mainnet"): InstanceNetwork {
+	const raw = process.env.STACKS_NETWORK ?? fallback;
+	try {
+		return parseInstanceNetwork(raw);
+	} catch (err) {
+		printError(err instanceof Error ? err.message : String(err), {
+			hint: "Pass --network mainnet, --network testnet, or --network devnet.",
+		});
+		process.exit(1);
+	}
 }
 
 export function generateInstanceToken(): string {
@@ -75,6 +99,9 @@ export function buildInstanceEnv(input: {
 	network: InstanceNetwork;
 	existing?: Partial<Record<keyof InstanceEnv, string | null>>;
 	apiUrl?: string;
+	/** Resolved archive key (see `resolveArchivePublicKey`); falls back to the
+	 *  key compiled into this release. */
+	archivePublicKeyPem?: string;
 }): InstanceEnv {
 	const token =
 		input.existing?.INSTANCE_TOKEN ||
@@ -87,7 +114,10 @@ export function buildInstanceEnv(input: {
 		input.existing?.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY ||
 		generateSigningPrivateKey();
 	const apiUrl = input.apiUrl ?? "http://127.0.0.1:3800";
-	const archiveKey = input.existing?.ARCHIVE_SIGNING_PUBLIC_KEY;
+	const archiveKey =
+		input.existing?.ARCHIVE_SIGNING_PUBLIC_KEY ||
+		input.archivePublicKeyPem ||
+		ARCHIVE_ROOT_PUBLIC_KEY_PEM;
 	return {
 		INSTANCE_MODE: "oss",
 		STACKS_NETWORK: input.network,
@@ -98,7 +128,7 @@ export function buildInstanceEnv(input: {
 		ALLOW_UNSIGNED_WEBHOOKS: "false",
 		SL_API_URL: input.existing?.SL_API_URL || apiUrl,
 		SL_API_KEY: token,
-		...(archiveKey ? { ARCHIVE_SIGNING_PUBLIC_KEY: archiveKey } : {}),
+		ARCHIVE_SIGNING_PUBLIC_KEY: archiveKey,
 	};
 }
 
@@ -119,12 +149,12 @@ export function renderInstanceEnv(env: InstanceEnv): string {
 		"# INSTANCE_TOKEN wins if the two ever disagree.",
 		`SL_API_KEY=${env.SL_API_KEY}`,
 	];
-	if (env.ARCHIVE_SIGNING_PUBLIC_KEY) {
-		lines.push(
-			`ARCHIVE_SIGNING_PUBLIC_KEY=${escapeEnvValue(env.ARCHIVE_SIGNING_PUBLIC_KEY)}`,
-		);
-	}
-	lines.push("");
+	lines.push(
+		"# Archive trust root: bootstrap, verify, and repair check manifests",
+		"# against this key. Replace it to pin a different archive.",
+		`ARCHIVE_SIGNING_PUBLIC_KEY=${escapeEnvValue(env.ARCHIVE_SIGNING_PUBLIC_KEY)}`,
+		"",
+	);
 	return lines.join("\n");
 }
 

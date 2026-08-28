@@ -1,10 +1,16 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { createHash } from "node:crypto";
+import { mkdir, open, rename } from "node:fs/promises";
+import { dirname, isAbsolute, resolve, sep } from "node:path";
 import { createStreamsClient } from "@secondlayer/sdk";
 import type {
+	StreamsBatchContext,
 	StreamsCanonicalBlock,
+	StreamsDumpFile,
+	StreamsEvent,
 	StreamsEventType,
 	StreamsEventsEnvelope,
+	StreamsReorg,
+	StreamsReorgContext,
 	StreamsReorgsListEnvelope,
 	StreamsTip,
 } from "@secondlayer/sdk";
@@ -43,6 +49,77 @@ function dumpsClient(
 	});
 }
 
+/**
+ * Where a manifest entry lands on disk. The manifest is signed, but the key
+ * that signs it comes from whatever `SL_API_URL` names, so a path in it is
+ * still input: absolute paths, `..` segments, and anything that resolves
+ * outside `to` are refused before a byte is written.
+ */
+export function resolveDumpDest(to: string, filePath: string): string {
+	const root = resolve(to);
+	const segments = filePath.split(/[\\/]/);
+	if (
+		filePath.length === 0 ||
+		isAbsolute(filePath) ||
+		filePath.includes("\\") ||
+		segments.some((s) => s === "..")
+	) {
+		throw new Error(
+			`refusing dump path "${filePath}": paths must be relative and stay under ${root}`,
+		);
+	}
+	const dest = resolve(root, filePath);
+	if (!dest.startsWith(root + sep)) {
+		throw new Error(
+			`refusing dump path "${filePath}": resolves outside ${root}`,
+		);
+	}
+	return dest;
+}
+
+/**
+ * Stream one dump file into `<dest>.part`, hashing as it lands, and rename
+ * into place only once the digest matches the manifest. A crash or a bad
+ * digest leaves the `.part` behind and never a truncated file under the
+ * final name.
+ */
+export async function downloadDumpTo(
+	file: StreamsDumpFile,
+	dest: string,
+	fetchImpl: typeof fetch,
+	url: string,
+): Promise<number> {
+	const res = await fetchImpl(url);
+	if (!res.ok || !res.body) {
+		throw new Error(`could not download dump ${file.path} (${res.status})`);
+	}
+	await mkdir(dirname(dest), { recursive: true });
+	const part = `${dest}.part`;
+	const hash = createHash("sha256");
+	let bytes = 0;
+	const handle = await open(part, "w");
+	try {
+		const reader = res.body.getReader();
+		for (;;) {
+			const { value, done } = await reader.read();
+			if (done) break;
+			hash.update(value);
+			bytes += value.byteLength;
+			await handle.write(value);
+		}
+	} finally {
+		await handle.close();
+	}
+	const digest = hash.digest("hex");
+	if (digest !== file.sha256) {
+		throw new Error(
+			`dump ${file.path} sha256 mismatch (expected ${file.sha256}, got ${digest}); partial file left at ${part}`,
+		);
+	}
+	await rename(part, dest);
+	return bytes;
+}
+
 function parseTypes(
 	value?: string,
 	flag = "--types",
@@ -77,6 +154,52 @@ function parseLimit(value?: string): number | undefined {
 		throw new Error("--limit must be an integer between 1 and 1000");
 	}
 	return n;
+}
+
+/** `--max-pages` bounds a run; a value that is not a count would otherwise
+ *  make the loop stop before its first page and exit 0 with nothing
+ *  streamed, which reads as success. */
+export function parseMaxPages(value?: string): number | undefined {
+	if (value === undefined) return undefined;
+	const n = Number.parseInt(value, 10);
+	if (!Number.isFinite(n) || n < 1 || String(n) !== value.trim()) {
+		throw new Error("--max-pages must be a positive integer");
+	}
+	return n;
+}
+
+/**
+ * What `streams consume` writes per page and per reorg. Events go to stdout
+ * one per line; a reorg is one more line on the same stream, shaped
+ * `{"kind":"reorg",...}`, so a reader tailing the file learns that rows at or
+ * above `fork_point_height` are no longer canonical and the loop rewinds to
+ * re-deliver the canonical ones. The checkpoint printed to stderr is
+ * `ctx.cursor`, the position the loop itself resumes from, never the
+ * envelope's `next_cursor`.
+ */
+export function consumeHandlers(io: {
+	stdout: (line: string) => void;
+	stderr: (line: string) => void;
+}): {
+	onBatch: (
+		events: StreamsEvent[],
+		envelope: StreamsEventsEnvelope,
+		ctx: StreamsBatchContext,
+	) => void;
+	onReorg: (reorg: StreamsReorg, ctx: StreamsReorgContext) => void;
+} {
+	return {
+		onBatch: (events, _envelope, ctx) => {
+			for (const e of events) io.stdout(JSON.stringify(e));
+			if (ctx.cursor) io.stderr(`# next_cursor=${ctx.cursor}`);
+		},
+		onReorg: (reorg, ctx) => {
+			io.stdout(JSON.stringify({ kind: "reorg", ...reorg }));
+			io.stderr(
+				`# reorg at ${reorg.fork_point_height}; rewinding to ${ctx.cursor}`,
+			);
+		},
+	};
 }
 
 function parseHeight(
@@ -222,12 +345,14 @@ Examples:
 			}) => {
 				try {
 					const batchSize = parseLimit(options.batchSize) ?? 100;
-					const maxPages = options.maxPages
-						? Number.parseInt(options.maxPages, 10)
-						: undefined;
+					const maxPages = parseMaxPages(options.maxPages);
 					note(
-						"# streaming events to stdout (jsonl); next_cursor printed to stderr",
+						'# streaming events to stdout (jsonl); reorgs appear inline as {"kind":"reorg"}; next_cursor printed to stderr',
 					);
+					const handlers = consumeHandlers({
+						stdout: (line) => process.stdout.write(`${line}\n`),
+						stderr: (line) => process.stderr.write(`${line}\n`),
+					});
 					await client().events.consume({
 						fromCursor: options.cursor,
 						types: parseTypes(options.types),
@@ -238,15 +363,8 @@ Examples:
 						batchSize,
 						mode: "tail",
 						maxPages,
-						onBatch: (events, envelope) => {
-							for (const e of events) {
-								process.stdout.write(`${JSON.stringify(e)}\n`);
-							}
-							if (envelope.next_cursor) {
-								process.stderr.write(`# next_cursor=${envelope.next_cursor}\n`);
-							}
-							return envelope.next_cursor;
-						},
+						onBatch: handlers.onBatch,
+						onReorg: handlers.onReorg,
 					});
 				} catch (err) {
 					logError(err instanceof Error ? err.message : String(err));
@@ -300,12 +418,15 @@ Examples:
 			}
 			note(`# downloading ${files.length} file(s) to ${options.to}`);
 			for (const file of files) {
-				const bytes = await dumps.download(file);
-				const dest = join(options.to, file.path);
-				await mkdir(dirname(dest), { recursive: true });
-				await writeFile(dest, bytes);
+				const dest = resolveDumpDest(options.to, file.path);
+				const bytes = await downloadDumpTo(
+					file,
+					dest,
+					fetch,
+					dumps.fileUrl(file),
+				);
 				process.stderr.write(
-					`# ${file.path} (${file.row_count} rows, ${bytes.byteLength} bytes)\n`,
+					`# ${file.path} (${file.row_count} rows, ${bytes} bytes)\n`,
 				);
 			}
 			writeData(

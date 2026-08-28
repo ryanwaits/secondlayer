@@ -1,4 +1,3 @@
-import { confirm } from "@inquirer/prompts";
 import type { SecondLayer } from "@secondlayer/sdk";
 import { sign } from "@secondlayer/shared/crypto/standard-webhooks";
 import type { SubgraphDetail } from "@secondlayer/shared/schemas/subgraphs";
@@ -14,8 +13,8 @@ import { handleApiError } from "../lib/api-client.ts";
 import { parseSubscriptionFilter } from "../lib/filter-params.ts";
 import {
 	blue,
+	confirmDestructive,
 	dim,
-	error,
 	formatKeyValue,
 	formatTable,
 	green,
@@ -554,35 +553,9 @@ function printDead(rows: DeadRow[]): void {
 }
 
 async function confirmOrExit(message: string, yes?: boolean): Promise<boolean> {
-	if (yes) return true;
-	// Refuse to prompt on non-TTY stdin. An empty pipe (e.g. `echo |`) would
-	// otherwise feed a newline into @inquirer/prompts.confirm and auto-accept
-	// the destructive default — silent destruction is worse than crashing.
-	if (!process.stdin.isTTY) {
-		error(
-			"Interactive prompt unavailable (stdin is not a TTY). Re-run with -y to skip confirmation.",
-		);
-		process.exit(1);
-	}
-	let ok = false;
-	try {
-		ok = await confirm({ message });
-	} catch (promptErr) {
-		const m =
-			promptErr instanceof Error ? promptErr.message : String(promptErr);
-		if (m.includes("ExitPromptError") || m.includes("force closed")) {
-			error(
-				"Interactive prompt unavailable. Re-run with -y to skip confirmation.",
-			);
-			process.exit(1);
-		}
-		throw promptErr;
-	}
-	if (!ok) {
-		info("Cancelled");
-		return false;
-	}
-	return true;
+	const ok = await confirmDestructive({ message, yes });
+	if (!ok) info("Cancelled");
+	return ok;
 }
 
 export function registerSubscriptionsCommand(program: Command): void {
@@ -653,7 +626,10 @@ export function registerSubscriptionsCommand(program: Command): void {
 		.description("Update subscription config")
 		.option("--name <name>", "Rename subscription")
 		.option("--url <url>", "Webhook URL")
-		.option("--auth-token <token>", "Set bearer token auth config")
+		.option(
+			"--auth-token <token>",
+			"Set bearer token auth config; a flag lands in shell history and ps, so pass it here only for a throwaway token",
+		)
 		.option(
 			"--format <format>",
 			"standard-webhooks | inngest | trigger | cloudflare | cloudevents | raw",
@@ -944,7 +920,7 @@ Examples:
 		)
 		.option(
 			"--signing-secret <secret>",
-			"Signing secret override (--local only)",
+			"Signing secret override (--local only); prefer SIGNING_SECRET in env, a flag lands in shell history and ps",
 		)
 		.option(
 			"--post",
@@ -983,10 +959,13 @@ Examples:
 
 				let postResult: { status: number; body: string } | null = null;
 				if (options.post && options.local) {
+					// A receiver that never answers would otherwise hold this command
+					// open forever; 15s is longer than any healthy webhook takes.
 					const res = await fetch(detail.url, {
 						method: "POST",
 						headers: fixture.headers,
 						body: fixture.body,
+						signal: AbortSignal.timeout(15_000),
 					});
 					postResult = {
 						status: res.status,

@@ -20,7 +20,6 @@ import {
 	registerRepairCommand,
 	registerRestoreCommand,
 	registerSetupCommand,
-	registerStartCommand,
 	registerStatusCommand,
 	registerStreamsCommand,
 	registerSubgraphsCommand,
@@ -37,10 +36,10 @@ program
 	.alias("sl")
 	.description("Secondlayer CLI — run a Stacks index on your own hardware")
 	.version(version)
-	.option("--network <network>", "Override network (local, testnet, mainnet)")
+	.option("--network <network>", "Override network (mainnet, testnet, devnet)")
 	.option(
 		"--api-key <key>",
-		"Instance or archive credential (overrides INSTANCE_TOKEN)",
+		"Instance or archive credential; prefer INSTANCE_TOKEN in env, a flag lands in shell history and ps",
 	)
 	.option("--api-url <url>", "API endpoint (overrides SL_API_URL)")
 	.showSuggestionAfterError(true)
@@ -67,7 +66,8 @@ program.addHelpText(
 Quickstart:
   $ secondlayer setup
   $ secondlayer subgraphs create my-watcher --from-contract SP....my-contract
-  $ secondlayer subgraphs deploy subgraphs/my-watcher.ts
+  $ git add subgraphs/my-watcher.ts
+  $ secondlayer subgraphs deploy subgraphs/my-watcher.ts   # or --allow-uncommitted
 
 Manual / scripted setup, one step at a time:
   $ secondlayer init --network mainnet
@@ -81,7 +81,6 @@ registerSetupCommand(program);
 registerInitCommand(program);
 registerBootstrapCommand(program);
 registerObserverCommand(program);
-registerStartCommand(program);
 registerConsoleCommand(program);
 registerLoginCommand(program);
 registerLogoutCommand(program);

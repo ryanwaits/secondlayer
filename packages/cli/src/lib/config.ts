@@ -180,11 +180,20 @@ export async function loadConfig(): Promise<Config> {
 function applyEnvOverrides(config: Config): Config {
 	const result = { ...config };
 
-	// STACKS_NETWORK
+	// STACKS_NETWORK. The CLI's vocabulary is mainnet|testnet|devnet; this
+	// config file predates it and still spells the local network "local", so
+	// devnet maps onto it. Anything else is named once on stderr instead of
+	// being dropped silently and leaving the command on the mainnet default.
 	if (process.env.STACKS_NETWORK) {
 		const net = process.env.STACKS_NETWORK;
 		if (net === "local" || net === "testnet" || net === "mainnet") {
 			result.network = net;
+		} else if (net === "devnet") {
+			result.network = "local";
+		} else {
+			console.error(
+				`Warning: STACKS_NETWORK=${net} is not mainnet, testnet, or devnet; using ${result.network}`,
+			);
 		}
 	}
 

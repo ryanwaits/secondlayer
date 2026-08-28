@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import {
+	ARCHIVE_LOGIN_COMMAND,
 	CliHttpError,
 	httpArchiveOps,
 	httpArchiveOpsAnon,
@@ -68,7 +69,7 @@ async function runBuy(opts: {
 			console.log(res.url);
 			console.log(
 				dim(
-					"After payment: SL_API_URL=https://api.secondlayer.tools secondlayer login && secondlayer credits balance",
+					`After payment: ${ARCHIVE_LOGIN_COMMAND} && secondlayer credits balance`,
 				),
 			);
 		},

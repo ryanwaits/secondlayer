@@ -7,7 +7,6 @@
  * restore refuses before writing anything if the key the instance will actually
  * use is not the key the data was encrypted with.
  */
-import { createHash } from "node:crypto";
 import {
 	chmodSync,
 	existsSync,
@@ -28,6 +27,7 @@ import {
 	sealKeyCanary,
 } from "@secondlayer/shared/runtime";
 import type { Command } from "commander";
+import { sha256File } from "../lib/fs.ts";
 import { note, output, printError, success, warn } from "../lib/output.ts";
 
 export const BACKUP_EXIT = { OK: 0, FAILED: 1, REFUSED: 2 } as const;
@@ -58,10 +58,6 @@ function readSecretsKey(): string | undefined {
 	return key ? key : undefined;
 }
 
-function sha256File(path: string): string {
-	return createHash("sha256").update(readFileSync(path)).digest("hex");
-}
-
 async function readScope(): Promise<{
 	network: string;
 	fromHeight: number;
@@ -89,12 +85,119 @@ function requireDatabaseUrl(): string {
 	return url;
 }
 
+/**
+ * Split the password out of a Postgres URL so it rides in `PGPASSWORD`, which
+ * libpq reads, instead of in argv, which every local user reads via `ps`.
+ * A URL with no password comes back untouched.
+ */
+export function pgConnection(databaseUrl: string): {
+	url: string;
+	env: Record<string, string>;
+} {
+	let parsed: URL;
+	try {
+		parsed = new URL(databaseUrl);
+	} catch {
+		return { url: databaseUrl, env: {} };
+	}
+	if (!parsed.password) return { url: databaseUrl, env: {} };
+	const password = decodeURIComponent(parsed.password);
+	parsed.password = "";
+	return { url: parsed.toString(), env: { PGPASSWORD: password } };
+}
+
+/** argv + env for `pg_dump` of `databaseUrl` into `dumpPath`, password off argv. */
+export function pgDumpInvocation(
+	databaseUrl: string,
+	dumpPath: string,
+): { cmd: string[]; env: Record<string, string> } {
+	const conn = pgConnection(databaseUrl);
+	return {
+		cmd: ["pg_dump", "-Fc", "--no-owner", "--no-acl", "-f", dumpPath, conn.url],
+		env: conn.env,
+	};
+}
+
+/**
+ * argv + env for `pg_restore` of `dumpPath` into `databaseUrl`, password off
+ * argv. `--single-transaction` plus `--exit-on-error` make the restore all or
+ * nothing: a disk that fills mid-COPY rolls the target back to what it held
+ * before, instead of leaving half the tables replaced. The tradeoff is no
+ * parallel restore (`-j` needs per-object transactions).
+ */
+export function pgRestoreInvocation(
+	databaseUrl: string,
+	dumpPath: string,
+): { cmd: string[]; env: Record<string, string> } {
+	const conn = pgConnection(databaseUrl);
+	return {
+		cmd: [
+			"pg_restore",
+			"--no-owner",
+			"--no-acl",
+			"--clean",
+			"--if-exists",
+			"--single-transaction",
+			"--exit-on-error",
+			"-d",
+			conn.url,
+			dumpPath,
+		],
+		env: conn.env,
+	};
+}
+
+/**
+ * Compare what the target holds after pg_restore with what the manifest
+ * promised. A dump that loaded cleanly but stops short of the scope's tip is
+ * how a truncated bundle passes its digest check and still leaves an
+ * instance behind: the digest proves the bytes, only the row bounds prove
+ * the data.
+ */
+export function checkRestoredScope(
+	manifest: Pick<BackupManifest, "scope">,
+	restored: { fromHeight: number; toHeight: number | null },
+): { ok: true } | { ok: false; reason: string } {
+	const want = manifest.scope;
+	if (want.to_height === null && restored.toHeight === null) {
+		// The backup was taken from a database with no canonical blocks, so an
+		// empty target is exactly what the manifest promised.
+		return { ok: true };
+	}
+	if (restored.toHeight === null) {
+		return {
+			ok: false,
+			reason: `the restore finished but the target holds no canonical blocks; the manifest promised ${want.from_height} through ${want.to_height ?? "?"}`,
+		};
+	}
+	if (
+		restored.fromHeight !== want.from_height ||
+		(want.to_height !== null && restored.toHeight !== want.to_height)
+	) {
+		return {
+			ok: false,
+			reason: `the restore finished with blocks ${restored.fromHeight} through ${restored.toHeight}, but the manifest promised ${want.from_height} through ${want.to_height ?? "?"}; the dump does not carry the scope it claims`,
+		};
+	}
+	return { ok: true };
+}
+
 async function runProcess(
 	cmd: string[],
 	label: string,
+	env: Record<string, string> = {},
 ): Promise<{ ok: boolean; stderr: string }> {
-	const proc = Bun.spawn(cmd, { stdout: "pipe", stderr: "pipe" });
-	const stderr = await new Response(proc.stderr).text();
+	const proc = Bun.spawn(cmd, {
+		stdout: "pipe",
+		stderr: "pipe",
+		env: { ...process.env, ...env },
+	});
+	// Drain both pipes together: a child that fills stdout while we wait on
+	// stderr alone blocks on write and never exits.
+	const [stderr] = await Promise.all([
+		new Response(proc.stderr).text(),
+		new Response(proc.stdout).text(),
+	]);
 	const code = await proc.exited;
 	if (code !== 0) {
 		return { ok: false, stderr: `${label} exited ${code}: ${stderr.trim()}` };
@@ -107,7 +210,7 @@ export function attachBackupCommand(cmd: Command): Command {
 		.requiredOption("--out <dir>", "directory to write the bundle into")
 		.option(
 			"--passphrase <passphrase>",
-			"encrypt bundled secrets (or set SECONDLAYER_BACKUP_PASSPHRASE)",
+			"encrypt bundled secrets; prefer SECONDLAYER_BACKUP_PASSPHRASE in env, a flag lands in shell history and ps",
 		)
 		.option("--no-secrets", "omit keys; the bundle restores data only")
 		.option("--json", "Output as JSON")
@@ -162,10 +265,8 @@ async function runBackup(opts: {
 
 	console.error("dumping database…");
 	const dumpPath = join(outDir, DB_FILE);
-	const dump = await runProcess(
-		["pg_dump", "-Fc", "--no-owner", "--no-acl", "-f", dumpPath, databaseUrl],
-		"pg_dump",
-	);
+	const dumpCmd = pgDumpInvocation(databaseUrl, dumpPath);
+	const dump = await runProcess(dumpCmd.cmd, "pg_dump", dumpCmd.env);
 	if (!dump.ok) {
 		printError(dump.stderr);
 		process.exit(BACKUP_EXIT.FAILED);
@@ -175,7 +276,7 @@ async function runBackup(opts: {
 		...plan.manifest,
 		db: {
 			file: DB_FILE,
-			sha256: sha256File(dumpPath),
+			sha256: await sha256File(dumpPath),
 			bytes: statSync(dumpPath).size,
 			format: "pg_dump-custom",
 		},
@@ -225,7 +326,7 @@ export function attachRestoreCommand(cmd: Command): Command {
 		.requiredOption("--from <dir>", "bundle directory to restore from")
 		.option(
 			"--passphrase <passphrase>",
-			"decrypt bundled secrets (or set SECONDLAYER_BACKUP_PASSPHRASE)",
+			"decrypt bundled secrets; prefer SECONDLAYER_BACKUP_PASSPHRASE in env, a flag lands in shell history and ps",
 		)
 		.option("--apply", "actually restore (default is a dry run)")
 		.option("--force", "restore over a database that already holds chain data")
@@ -260,7 +361,7 @@ async function runRestore(opts: {
 	) as BackupManifest;
 
 	const dumpPath = join(dir, manifest.db?.file ?? DB_FILE);
-	if (manifest.db && sha256File(dumpPath) !== manifest.db.sha256) {
+	if (manifest.db && (await sha256File(dumpPath)) !== manifest.db.sha256) {
 		printError(
 			"the database dump does not match the digest in the manifest; this bundle is corrupt or truncated",
 		);
@@ -355,21 +456,21 @@ async function runRestore(opts: {
 	}
 
 	console.error("restoring database…");
+	const restoreCmd = pgRestoreInvocation(databaseUrl, dumpPath);
 	const restore = await runProcess(
-		[
-			"pg_restore",
-			"--no-owner",
-			"--no-acl",
-			"--clean",
-			"--if-exists",
-			"-d",
-			databaseUrl,
-			dumpPath,
-		],
+		restoreCmd.cmd,
 		"pg_restore",
+		restoreCmd.env,
 	);
 	if (!restore.ok) {
 		printError(restore.stderr);
+		process.exit(BACKUP_EXIT.FAILED);
+	}
+
+	const restored = await readScope();
+	const scopeCheck = checkRestoredScope(manifest, restored);
+	if (!scopeCheck.ok) {
+		printError(scopeCheck.reason);
 		process.exit(BACKUP_EXIT.FAILED);
 	}
 

@@ -29,16 +29,20 @@ bun add -g @secondlayer/cli
 secondlayer setup
 
 secondlayer subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts
+git add subgraphs/my-contract.ts   # deploy refuses an unstaged file; or pass --allow-uncommitted
 secondlayer subgraphs deploy subgraphs/my-contract.ts --start-block <recent-block>
 secondlayer subgraphs query my-contract <table> --sort _block_height --order desc
 ```
 
 `secondlayer setup` is a guided wizard: it picks network + node mode (with the
 RAM/disk floor shown live), generates secrets, writes `docker-compose.yml` and
-`.env` into a target directory, brings the stack up, prints the observer
-stanza for an external node, and restores + verifies history from the
-archive — the one-command replacement for `init` → hand-copy secrets →
-`docker compose up` → `observer` → `bootstrap` → `verify`. Without a TTY (or
+`.env` (including the `DATABASE_URL` every later `bootstrap`/`verify`/`repair`
+in that directory connects with) into a target directory, brings the stack up,
+prints the observer stanza for an external node, and restores + verifies
+history from the archive: the one-command replacement for `init` → hand-copy
+secrets → `docker compose up` → `observer` → `bootstrap` → `verify`. `setup`
+is also the only way to bring the stack up: the old `secondlayer start`, which
+printed a compose line for a monorepo checkout, is gone. Without a TTY (or
 with `--yes`), it skips the interactive prompts and runs from flags instead;
 `--network` and `--node-mode` are then required, and `--against` is required
 unless you pass `--skip-bootstrap`:
@@ -61,12 +65,11 @@ No account. Writes `.env.local`, restores history, prints the Stacks observer st
 | Command | What it does |
 |---|---|
 | `secondlayer setup [--network …] [--node-mode external\|stacks\|full] [--api-port <spec>] [--dir <path>] [--against <manifest>] [--skip-bootstrap] [--skip-verify] [--yes] [--force]` | Guided self-host onboarding — secrets, compose + `.env`, docker up, observer stanza, bootstrap, verify. TUI when interactive; flags-only (no prompts) with `--yes` or no TTY |
-| `secondlayer init [--network mainnet\|testnet\|devnet] [--api-url <url>] [--force]` | Write `.env.local` (token, secrets key, webhook signing key). Idempotent |
-| `secondlayer start [--print]` | Validate one-box config and print `docker compose up` |
-| `secondlayer bootstrap --against <manifest> [--to-block <n>] [--public-key <pem>] [-y] [--json]` | Restore chain history from a verified archive into an empty database. Exit `0` restored, `1` diverged, `2` refused |
+| `secondlayer init [--network mainnet\|testnet\|devnet] [--api-url <url>] [--force]` | Write `.env.local` (token, secrets key, webhook signing key). `--network` and `--api-url` are the global flags. Idempotent |
+| `secondlayer bootstrap --against <manifest> [--from-block <n>] [--to-block <n>] [--verify all\|blocks] [--public-key <pem>] [-y] [--json]` | Restore chain history from a verified archive into an empty database. A run that died mid-way resumes per dataset on re-run. After the load, digests for blocks, transactions, and events are checked over the restored range (`--verify blocks` skips the child datasets and the minutes they cost). Partition fetches retry three times with backoff on resets, timeouts, 429 (honoring `Retry-After`) and 5xx; a link that stays down exits `1` with a re-run hint, and the re-run resumes. Exit `0` restored, `1` diverged or interrupted, `2` refused |
 | `secondlayer observer [--mode indexer\|signer-shared] [--endpoint host:port] [--recovery journal\|archive] [--network …]` | Print the `[[events_observer]]` stanza. Signer-shared requires `--recovery` |
 | `secondlayer verify [all\|raw\|decode:<name>\|subgraph:<name>] --against <manifest> [--quick\|--deep\|--anchor]` | Compare local data to a signed archive. Default target `raw`. Exit `0` clean, `1` diverged, `2` unanchored |
-| `secondlayer repair --against <archive> [--apply] [-y]` | Plan (default) or apply an archive repair |
+| `secondlayer repair --against <archive> [--apply] [-y]` | Plan (default) or apply an archive repair. A fixed block is rewritten with its transactions and events from the archive; when the reference has no child partition for a height, the block is rewritten alone, the height is named with a `bootstrap --from-block H --to-block H` remedy, and the exit is `1`. Partition fetches retry like `bootstrap`; a link that stays down exits `1` with a re-run hint, and heights already repaired are kept |
 
 Bootstrap and repair against the official hosted archive (`archive.secondlayer.tools`)
 are metered per partition; against any other manifest (a mirror, a teammate's
@@ -92,7 +95,11 @@ Against the official host, both commands quote before they charge:
 3. You confirm, or pass `-y` to skip the prompt. `-y` never skips the quote
    or the balance check: if the balance is short, the command exits before
    any partition is fetched and prints the shortfall and
-   `secondlayer credits buy`.
+   `secondlayer credits buy`. `--json` never stands in for `-y`: without
+   `-y` it prints `{"code":"CONFIRMATION_REQUIRED","quote":…}` to stdout
+   and exits 2 so a script can read the price, then re-run with `-y`.
+   Without a TTY on stdin every confirmation exits 1 rather than letting an
+   empty pipe answer it.
 4. Only then does the command fetch, and only the partitions it actually
    reads are charged.
 
@@ -111,7 +118,7 @@ points at.
 |---|---|
 | `secondlayer subgraphs create <name>` | Scaffold a definition file |
 | `secondlayer subgraphs scaffold <SP...::contract> [-o <path>] [--no-install]` | Generate a subgraph from a deployed contract |
-| `secondlayer subgraphs deploy <file> [--start-block <n>]` | Deploy; `--start-block` overrides the definition |
+| `secondlayer subgraphs deploy <file> [--start-block <n>] [-y] [--allow-uncommitted]` | Deploy; `--start-block` overrides the definition. The file must be staged or committed (`git add`), or pass `--allow-uncommitted` |
 | `secondlayer subgraphs list` | List deployments (`ls` alias) |
 | `secondlayer subgraphs dev <file>` | Watch + hot-redeploy |
 | `secondlayer subgraphs query <name> <table>` | Query a table with filters, sort, pagination |
@@ -126,7 +133,7 @@ points at.
 | Command | What it does |
 |---|---|
 | `secondlayer index ft-transfers` / `nft-transfers` / `events --event-type <t>` / `contract-calls` | Decoded Index layer. Anonymous reads OK |
-| `secondlayer streams tip` / `events` / `consume` / `reorgs` / `canonical <h>` / `dumps` | Raw chain event firehose. **Requires `INSTANCE_TOKEN` past loopback** |
+| `secondlayer streams tip` / `events` / `consume` / `reorgs` / `canonical <h>` / `dumps` | Raw chain event firehose. `consume` emits one event per line; a reorg appears inline as `{"kind":"reorg","fork_point_height":…}` and the loop rewinds to re-deliver the canonical run, so a reader drops rows at or above the fork point when it sees one. `--max-pages` must be a positive integer. **Requires `INSTANCE_TOKEN` past loopback** |
 
 Reads emit JSON to stdout (`--json` accepted across all read commands); `-o/--output` is a file path, not a format.
 
@@ -134,7 +141,7 @@ Reads emit JSON to stdout (`--json` accepted across all read commands); `-o/--ou
 
 | Command | What it does |
 |---|---|
-| `secondlayer subscriptions create <name> --subgraph <name> --table <name> [--runtime <inngest\|trigger\|cloudflare\|node>] [--url <url>]` | Subgraph subscription (optional local receiver scaffold) |
+| `secondlayer subscriptions create <name> --subgraph <name> --table <name> [--runtime <inngest\|trigger\|cloudflare\|node>] [--url <url>]` | Subgraph subscription (optional local receiver scaffold). Runtime defaults to `node` once any of `-s/-t/-u` or `--no-scaffold` is given; the menu only appears in a terminal with no flags |
 | `secondlayer subscriptions create <name> --url <url> --trigger '<json>'` | Chain subscription (repeat `--trigger` or pass `--triggers-file`) |
 | `secondlayer subscriptions list` / `get <id\|name>` | List or show config + delivery state |
 | `secondlayer subscriptions update <id\|name> --url <url> [--filter key.gte=value]` | Patch URL, filter, format, retry, etc. |
@@ -146,7 +153,7 @@ Reads emit JSON to stdout (`--json` accepted across all read commands); `-o/--ou
 | `secondlayer subscriptions doctor/test <id\|name>` | Health check / signed fixture |
 
 Read/action commands support `--json`. Destructive commands prompt unless
-`-y` / `--yes`. Filters are schema-aware: unknown tables/columns, bad operators,
+`-y` / `--yes`, default to no, and exit 1 when stdin is not a TTY. Filters are schema-aware: unknown tables/columns, bad operators,
 and non-scalar columns are rejected before the API call.
 
 Subscriptions are **subgraph** (a table's rows) or **chain** (raw events, no
@@ -172,7 +179,8 @@ operates on both kinds.
 | `SL_API_KEY` | Legacy alias of `INSTANCE_TOKEN` |
 | `SL_API_URL` | Instance API. Default `http://127.0.0.1:3800` |
 | `SL_PLATFORM_API_URL` | Alias of `SL_API_URL` |
-| `STACKS_NETWORK` | Default network (also via `--network <local\|testnet\|mainnet>`) |
+| `STACKS_NETWORK` | Default network (also via `--network <mainnet\|testnet\|devnet>`) |
+| `DATABASE_URL` | Postgres that `bootstrap`, `verify`, `repair`, and `backup` connect to. `secondlayer setup` writes it into `.env` pointing at the compose Postgres; unset, the shared dev URL `postgres://postgres:postgres@localhost:5432/secondlayer_dev` is used |
 | `HIRO_API_KEY` | Used by `secondlayer codegen contracts` for remote contract fetches |
 
 ## Code generation (`secondlayer codegen contracts`)

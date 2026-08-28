@@ -121,7 +121,7 @@ The Streams errors do **not** extend `ApiError` — check them separately when w
 
 | Error | Hint |
 |---|---|
-| Can't reach `/public/status` | `secondlayer start --print` and bring the one-box container up |
+| Can't reach `/public/status` | `docker compose ps` in the `secondlayer setup` directory; bring the container up |
 | `401` on any call | Export `INSTANCE_TOKEN` from `.env.local` (`SL_API_KEY` is the legacy alias), or pass `--api-key`. Writes always need it, loopback included; reads need it once the API is published past loopback. There is no `secondlayer login` — one instance, one token |
 | Empty history | `secondlayer bootstrap --against <manifest>`. Against the official archive this quotes a price in credits and waits for confirmation; your own mirror is free |
 

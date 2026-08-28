@@ -1,12 +1,14 @@
 # Secondlayer CLI (`secondlayer`) Reference
 
-The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlayer — dedicated Stacks indexing + real-time subgraphs. Install globally with `bun add -g @secondlayer/cli`. The binary is named `secondlayer`; `secondlayer` is a Commander alias for the same entry point. All commands accept a global `--network <network>` flag (`local`, `testnet`, `mainnet`) which is equivalent to setting `STACKS_NETWORK` before the call.
+The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlayer: dedicated Stacks indexing + real-time subgraphs. Install globally with `bun add -g @secondlayer/cli`. The binary is named `secondlayer`; `secondlayer` is a Commander alias for the same entry point. All commands accept a global `--network <network>` flag (`mainnet`, `testnet`, `devnet`) which is equivalent to setting `STACKS_NETWORK` before the call. `init`, `observer`, and `setup` exit 1 on any other value with a one-line error; other commands warn on stderr and keep the config default (`mainnet`).
 
 ## Global flags
 
 | Flag | Description |
 | --- | --- |
-| `--network <network>` | Override network for this invocation (sets `STACKS_NETWORK`). Values: `local`, `testnet`, `mainnet`. |
+| `--network <network>` | Override network for this invocation (sets `STACKS_NETWORK`). Values: `mainnet`, `testnet`, `devnet`. |
+| `--api-key <key>` | Instance credential for this invocation (sets `INSTANCE_TOKEN`). Prefer the env var: a flag lands in shell history and `ps`. |
+| `--api-url <url>` | Instance API for this invocation (sets `SL_API_URL`). Also what `init` writes as `SL_API_URL`. |
 | `--version` | Print CLI version. |
 | `--help` | Show help. |
 
@@ -20,11 +22,11 @@ The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlay
 | `INSTANCE_TOKEN` | writes, MCP, SDK | The token `secondlayer init` writes. The instance's only credential. Required for every write, and for every read once the API is published past loopback; loopback reads need no value. |
 | `SL_API_KEY` | legacy alias of `INSTANCE_TOKEN` | Same value; `INSTANCE_TOKEN` wins when both are set. |
 | `SL_PLATFORM_API_URL` | legacy alias of `SL_API_URL` | Same default: `http://127.0.0.1:3800`. |
-| `HIRO_API_KEY` / `STACKS_NODE_API_KEY` | subgraphs scaffold, codegen contracts | API key passed to Hiro Stacks RPC when fetching contract ABIs. |
+| `HIRO_API_KEY` / `STACKS_NODE_API_KEY` | codegen contracts | API key passed to Hiro Stacks RPC when fetching contract ABIs. |
 | `SIGNING_SECRET` | subscriptions test | Standard-Webhooks signing secret used to sign test fixtures. |
 | `STACKS_NETWORK` | global | Network override (set by `--network`). |
 | `SL_STREAMS_DUMPS_URL` | streams dumps | Public bulk-dump bucket base URL (dumps are public — no API key). Alternative to `--dumps-url`. |
-| `DATABASE_URL` | local db | Postgres URL for local indexer DB; defaults to `postgres://postgres:postgres@localhost:5432/secondlayer_dev`. |
+| `DATABASE_URL` | bootstrap, verify, repair, backup, local db | Postgres URL. `secondlayer setup` writes it into `.env` pointing at the compose Postgres and passes it to the bootstrap/verify it runs; unset, it defaults to `postgres://postgres:postgres@localhost:5432/secondlayer_dev`. |
 | `INDEXER_URL` | local db resync --backfill | Local indexer URL; defaults to `http://localhost:<config.ports.indexer>`. |
 | `DEBUG` | codegen contracts | When set, prints stack traces on failure. |
 
@@ -32,7 +34,7 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 
 ## Table of contents
 
-- [Local runtime](#local-runtime) — `setup`, `init`, `start`, `console`, `bootstrap`, `observer`, `verify`, `repair`, `backup`, `restore`, `uninstall`
+- [Local runtime](#local-runtime): `setup`, `init`, `console`, `bootstrap`, `observer`, `verify`, `repair`, `backup`, `restore`, `uninstall`
 - [Credits](#credits) — `credits buy|balance|refill`
 - [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `source`, `reindex`, `backfill`, `stop`, `operations`, `gaps`, `query`, `delete`, `scaffold`
 - [Subscriptions](#subscriptions) — `create`, `list`, `get`, `update`, `pause`, `resume`, `delete`, `rotate-secret`, `deliveries`, `dead`, `requeue`, `replay`, `doctor`, `test`
@@ -81,23 +83,13 @@ Usage: `secondlayer init [--network <network>] [--api-url <url>] [--force]`
 
 | Flag | Default | Description |
 | --- | --- | --- |
-| `--network <network>` | `STACKS_NETWORK` or `mainnet` | `mainnet`, `testnet`, or `devnet`. |
-| `--api-url <url>` | `http://127.0.0.1:3800` | Local API URL written as `SL_API_URL`. |
+| `--network <network>` | `STACKS_NETWORK` or `mainnet` | Global flag. `mainnet`, `testnet`, or `devnet`. |
+| `--api-url <url>` | `SL_API_URL` or `http://127.0.0.1:3800` | Global flag. Local API URL written as `SL_API_URL`. |
 | `--force` | off | Overwrite generated values even if `.env.local` exists. |
 
 Does **not** write `secondlayer.config.ts` — that file is for `secondlayer codegen contracts`.
 
 Example: `secondlayer init --network mainnet`
-
-### secondlayer start
-
-Validate one-box config and print the compose command.
-
-Usage: `secondlayer start [--print]`
-
-Requires `NETWORK`, `DATABASE_URL`, `NODE_MODE` (`external` | `stacks` | `full`). Defaults: `DATA_DIR=/data`, `API_PORT=3800`, `INDEXER_PORT=3700`.
-
-Example: `secondlayer start --print`
 
 ### secondlayer console
 
@@ -114,23 +106,27 @@ Loopback is open; anything past it takes `CONSOLE_TOKEN`, which falls back to `I
 
 ### secondlayer bootstrap
 
-Restore chain history from a verified archive into an empty database. Refuses a non-empty target — use `secondlayer repair` instead.
+Restore chain history from a verified archive into an empty database. Refuses a target that already holds a completed bootstrap (`index_progress` present); use `secondlayer repair` for that. A run that died mid-way is resumed on re-run: each of blocks, transactions, and events keeps its own high-water mark, a torn partition is truncated and reloaded, sealed partitions are skipped, and a load that finished but never wrote progress is verified and finalized.
 
-Usage: `secondlayer bootstrap --against <manifest> [--to-block <n>] [--public-key <pem>] [-y] [--json]`
+Usage: `secondlayer bootstrap --against <manifest> [--from-block <n>] [--to-block <n>] [--verify all|blocks] [--public-key <pem>] [-y] [--json]`
 
 | Flag | Default | Description |
 | --- | --- | --- |
 | `--against <manifest>` | required | Archive manifest: https URL or local file path. |
+| `--from-block <n>` | genesis | Forward-only restore from this height; earlier history is declared out of scope, and only ranges at or above it are verified. |
 | `--to-block <n>` | archive tip | Stop at this height. |
+| `--verify <datasets>` | `all` | Digests checked after the load. `all` covers blocks, transactions, and events and adds minutes on a full chain; `blocks` checks block identity only. |
 | `--public-key <pem>` | resolved | Pin the signing key instead of fetching it. |
 | `-y, --yes` | off | Skip the confirmation prompt. |
-| `--json` | off | Machine output. |
+| `--json` | off | Machine output. Not consent: without `-y` it prints `{"code":"CONFIRMATION_REQUIRED","quote":…}` and exits 2. |
 
 Exit codes: `0` restored and verified, `1` restore completed but verification diverged, `2` refused (non-empty target or untrusted reference).
 
 OSS never fetches `api.secondlayer.tools` for the public key.
 
-Against the official archive, the confirm prompt quotes partitions, dollars, and your credit balance before anything is charged; your own mirrors and local archives never touch the gate. See [Credits](#credits).
+Against the official archive, the confirm prompt quotes partitions, dollars, and your credit balance before anything is charged; your own mirrors and local archives never touch the gate. Presigned URLs are issued in load order (blocks, then transactions, then events) in batches of 16, so a charge lands right before its bytes are used, and a URL with under a minute left is re-issued before download. See [Credits](#credits).
+
+The JSON report carries `verified_datasets`, `ranges_verified`, `divergent_ranges`, and `divergent` (the ranges by dataset).
 
 Example: `secondlayer bootstrap --against ./snapshot.json --to-block 4000000 --yes`
 
@@ -176,9 +172,9 @@ Example: `secondlayer verify decode:ft_transfer --against ./snapshot.json --deep
 
 ### secondlayer repair
 
-Replace local chain data that diverges from a signed archive. Dry-run by default.
+Replace local chain data that diverges from a signed archive. Dry-run by default. With `--apply`, a fixed block is rewritten together with its transactions and events from the archive's partitions for that height, in one transaction per partition, and all three datasets are re-verified. When the reference carries no transactions or events partition for a height, the block is rewritten alone, the run names the height with the remedy `secondlayer bootstrap --from-block H --to-block H`, and it exits 1; the stale rows underneath stay in place rather than becoming an unnamed hole.
 
-Usage: `secondlayer repair --against <archive> [--apply] [--from-block <n>] [--to-block <n>] [--public-key <pem>] [--json]`
+Usage: `secondlayer repair --against <archive> [--apply] [--from-block <n>] [--to-block <n>] [--public-key <pem>] [-y] [--json]`
 
 | Flag | Default | Description |
 | --- | --- | --- |
@@ -186,9 +182,12 @@ Usage: `secondlayer repair --against <archive> [--apply] [--from-block <n>] [--t
 | `--apply` | off | Write the repair. Without it, print the plan only. |
 | `--from-block <n>` / `--to-block <n>` | full archive | Limit the repaired range. |
 | `--public-key <pem>` | resolved | Pin the signing key. |
-| `--json` | off | Machine output. |
+| `-y, --yes` | off | Skip the confirmation prompt for a metered fetch. |
+| `--json` | off | Machine output; the report carries `metered`. Not consent: a metered fetch without `-y` prints `{"code":"CONFIRMATION_REQUIRED","quote":…}` and exits 2. |
 
-Exit codes: `0` ok, `1` divergence remains, `2` unanchored.
+Exit codes: `0` ok, `1` divergence remains (or transactions/events at some height could not be rewritten), `2` unanchored.
+
+The JSON report carries `rows_written` (per dataset), `datasets_rewritten`, `heights_missing_child_partitions`, and `remaining_by_dataset`.
 
 Example: `secondlayer repair --against ./snapshot.json` then `secondlayer repair --against ./snapshot.json --apply`
 
@@ -199,7 +198,7 @@ Example: `secondlayer repair --against ./snapshot.json` then `secondlayer repair
 Usage: `secondlayer backup --out <dir> [--passphrase <p>] [--no-secrets] [--json]`
 Usage: `secondlayer restore --from <dir> [--passphrase <p>] [--apply] [--force] [--json]`
 
-`restore` is a dry run until `--apply`, and refuses a database that already holds chain data unless `--force`. `SECONDLAYER_BACKUP_PASSPHRASE` substitutes for `--passphrase`.
+`restore` is a dry run until `--apply`, and refuses a database that already holds chain data unless `--force`. `SECONDLAYER_BACKUP_PASSPHRASE` substitutes for `--passphrase`, and is the form to prefer since a flag lands in shell history and `ps`. The database password rides in `PGPASSWORD`, never in the `pg_dump`/`pg_restore` argv.
 
 ### secondlayer uninstall
 
@@ -207,7 +206,7 @@ Stop the stack and leave the data. Containers, networks, and the handler cache c
 
 Usage: `secondlayer uninstall [--apply] [--compose <file>] [--purge --backup <dir>] [--yes] [--json]`
 
-Dry run by default — prints the plan and changes nothing until `--apply`. `--purge` also destroys the volumes and refuses to run unless `--backup <dir>` points at a bundle proving your keys exist elsewhere.
+Dry run by default: prints the plan and changes nothing until `--apply`. Run it from the directory `secondlayer setup` wrote: `--compose` defaults to `./docker-compose.yml` with `--env-file ./.env`, falling back to the repo's `docker/oss/docker-compose.yml` for a hand-run checkout. The dry run names the compose file, env file, and the file the keys were found in (`.env` or `.env.local`). `--purge` also destroys the volumes and refuses to run unless `--backup <dir>` points at a bundle proving your keys exist elsewhere.
 
 ---
 
@@ -255,7 +254,7 @@ Usage: `secondlayer subgraphs create <name>`
 | `--from-contract <contractId>` | — | Generate sources/schema/handlers from the contract's observed print events (requires network). |
 | `--table-per-topic` | off | With `--from-contract`: one table per print topic instead of a single wide table. |
 
-With no flags it writes an empty starter. Writes to `subgraphs/<name>.ts` (creates `subgraphs/` if missing). Errors if the file already exists.
+With no flags it writes an empty starter. Writes to `subgraphs/<name>.ts` (creates `subgraphs/` if missing). Errors if the file already exists. The `Next:` line is `git add subgraphs/<name>.ts && secondlayer subgraphs deploy subgraphs/<name>.ts`; deploy refuses an unstaged file unless `--allow-uncommitted`.
 
 Example: `secondlayer subgraphs create my-watcher --from-contract SP3....my-contract`
 
@@ -282,11 +281,11 @@ Usage: `secondlayer subgraphs deploy <file>`
 | `--dry-run` | false | Validate and preview without writing. |
 | `-y, --yes` | false | Skip confirmation prompt for reindex operations (DROP + reindex). |
 | `--strict` | false | Run `bunx tsc --noEmit` on handler before deploy. |
-| `--allow-uncommitted` | false | Deploy a definition file that is untracked or dirty in git. |
+| `--allow-uncommitted` | false | Deploy a definition file that is untracked or has unstaged edits in git. |
 
 Deploy bundles the handler via `@secondlayer/bundler` and POSTs it to the instance. Server returns one of `unchanged`, `handler_updated`, `created`, `updated`, `reindexed`. **Destructive (`reindexed`) deploys prompt for confirmation** unless `-y` is set. Local deploy: writes to local DB via `deploySchema()`.
 
-Deploy refuses a definition file that isn't committed to git — a prompt in a terminal, a hard failure in CI — because a deployed definition whose source isn't in version control exists only as a database row. `--allow-uncommitted` overrides it and prints a line saying so. Deploys from outside a git repo, and `--dry-run`, are unaffected.
+Deploy refuses a definition file that isn't staged or committed in git (a prompt in a terminal, a hard failure in CI) because a deployed definition whose source isn't in version control exists only as a database row. `git add <file>` is enough; a staged copy is recoverable. `--allow-uncommitted` overrides it and prints a line saying so. Deploys from outside a git repo, and `--dry-run`, are unaffected. The reindex prompt gates on stdin: without a TTY and without `-y` it exits 1 before any request, so a pipe can never answer it.
 
 Deploys are open on any instance: no trial, no quota, and no visibility flag. Reads on `/v1/subgraphs/*` follow the same rule as Index and Streams — keyless while the API is published on loopback, `INSTANCE_TOKEN` past it. Who can reach the instance is your publish spec and your reverse proxy, not a per-subgraph setting.
 
@@ -448,7 +447,6 @@ Usage: `secondlayer subgraphs scaffold [contractAddress]`
 | `-o, --output <path>` | yes | Output file path. |
 | `--functions <a,b>` | no | Index these public functions as typed `contract_call` tables (positional arg decode) instead of the generic `calls` table. |
 | `--trait <std>` | no | Scaffold a **trait-scoped** source (`sip-009\|sip-010\|sip-013`) that indexes every conforming contract — no `<contractAddress>` needed. |
-| `--api-key <key>` | no | Stacks API key (fallback to `STACKS_NODE_API_KEY` / `HIRO_API_KEY`). |
 | `--no-install` | no | Skip `bun install` in output directory. |
 
 Examples:
@@ -476,10 +474,10 @@ Usage: `secondlayer subscriptions create <name>`
 
 | Flag | Description |
 | --- | --- |
-| `-r, --runtime <runtime>` | `inngest` \| `trigger` \| `cloudflare` \| `node`. Prompts if omitted. |
-| `-s, --subgraph <name>` | Subgraph to subscribe to. Prompts if omitted. |
-| `-t, --table <name>` | Table to subscribe to. Prompts if omitted. |
-| `-u, --url <url>` | Webhook URL. Prompts if omitted. Must be http/https. |
+| `-r, --runtime <runtime>` | `inngest` \| `trigger` \| `cloudflare` \| `node`. Defaults to `node` once any of `-s/-t/-u` or `--no-scaffold` is given; prompts only in a terminal with no flags. |
+| `-s, --subgraph <name>` | Subgraph to subscribe to. Prompts if omitted (exit 1 without a TTY). |
+| `-t, --table <name>` | Table to subscribe to. Prompts if omitted (exit 1 without a TTY). |
+| `-u, --url <url>` | Webhook URL. Prompts if omitted (exit 1 without a TTY). Must be http/https. |
 | `--auth-token <token>` | Bearer token for receiver-side auth. |
 | `--filter <kv...>` | Repeatable. `key=value` with `.eq/.neq/.gt/.gte/.lt/.lte` suffixes. |
 | `--api-key <key>` | `INSTANCE_TOKEN` override. |
@@ -1154,7 +1152,7 @@ Usage: `secondlayer status`
 | --- | --- |
 | `--json` | Output as JSON. |
 
-GETs `/public/status` on this instance. Prints liveness and tip. On failure: check `secondlayer start --print` and that the one-box container is up.
+GETs `/public/status` on this instance. Prints liveness and tip. On failure: check `docker compose ps` in the `secondlayer setup` directory and that the container is up.
 
 ---
 

@@ -70,7 +70,7 @@ Equal row counts with differing data means the same heights hold different block
 | `--from-block <n>` / `--to-block <n>` | Limit the checked range. |
 | `--counts` | Also compare transaction and event row counts. Slower. |
 | `--semantic` | Alias of `--deep`. |
-| `--public-key <pem>` | Pin the signing key instead of fetching it. |
+| `--public-key <pem>` | Pin a signing key. Default is the archive key built into the CLI release, or `ARCHIVE_SIGNING_PUBLIC_KEY` when set. |
 | `--insecure` | Compare without verifying the signature. Result is unverified. |
 | `--json` | Machine-readable report on stdout. |
 

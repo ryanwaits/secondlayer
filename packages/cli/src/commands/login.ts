@@ -1,6 +1,7 @@
 import { confirm, input } from "@inquirer/prompts";
 import type { Command } from "commander";
-import { CliHttpError, httpPlatform, httpPlatformAnon } from "../lib/http.ts";
+import { resolveApiUrl, resolveArchiveOpsUrl } from "../lib/api-url.ts";
+import { CliHttpError, httpAt } from "../lib/http.ts";
 import { dim, info, error as logError, success } from "../lib/output.ts";
 import { readSession, writeSession } from "../lib/session.ts";
 
@@ -15,12 +16,26 @@ async function readStdin(): Promise<string> {
 	return Buffer.concat(chunks).toString("utf8").trim();
 }
 
+export interface LoginOptions {
+	force?: boolean;
+	/**
+	 * Log in to the archive credits merchant instead of the instance API.
+	 * Sessions are stored per URL, so this never touches the instance login.
+	 */
+	credits?: boolean;
+}
+
+/** Which server a login talks to, and the session slot it writes. */
+export function loginTarget(opts: LoginOptions): string {
+	return opts.credits ? resolveArchiveOpsUrl() : resolveApiUrl();
+}
+
 /**
  * Non-interactive login: read an API key from stdin, verify it against the
  * account endpoint, and persist it as the stored credential. For CI/headless
  * use, e.g. `echo "$INSTANCE_TOKEN" | secondlayer login --with-token`.
  */
-async function runTokenLogin(): Promise<void> {
+async function runTokenLogin(opts: LoginOptions): Promise<void> {
 	const token = await readStdin();
 	if (!token) {
 		logError(
@@ -29,20 +44,18 @@ async function runTokenLogin(): Promise<void> {
 		process.exit(1);
 	}
 
-	// Verify by hitting the account endpoint with the provided key. Both
-	// credential vars are set so the piped token beats anything already
-	// exported, whichever name it was exported under.
-	process.env.INSTANCE_TOKEN = token;
-	process.env.SL_API_KEY = token;
+	const target = loginTarget(opts);
 	let account: { id: string; email: string };
 	try {
-		account = await httpPlatform<{ id: string; email: string }>(
+		account = await httpAt<{ id: string; email: string }>(
+			target,
 			"/api/accounts/me",
+			{ bearer: token },
 		);
 	} catch (err) {
 		logError(
 			err instanceof CliHttpError
-				? `Token rejected: ${err.message}`
+				? `Token rejected by ${target}: ${err.message}`
 				: err instanceof Error
 					? err.message
 					: String(err),
@@ -50,13 +63,16 @@ async function runTokenLogin(): Promise<void> {
 		process.exit(1);
 	}
 
-	await writeSession({
-		token,
-		email: account.email,
-		accountId: account.id,
-		expiresAt: sessionExpiry(),
-	});
-	success(`Logged in as ${account.email}`);
+	await writeSession(
+		{
+			token,
+			email: account.email,
+			accountId: account.id,
+			expiresAt: sessionExpiry(),
+		},
+		target,
+	);
+	success(`Logged in as ${account.email} (${target})`);
 }
 
 /**
@@ -66,13 +82,12 @@ async function runTokenLogin(): Promise<void> {
  * /api/auth/verify → write session. Server auto-extends session on every
  * subsequent request (sliding window), so no refresh logic here.
  */
-export async function runLoginFlow(
-	options: { force?: boolean } = {},
-): Promise<void> {
+export async function runLoginFlow(options: LoginOptions = {}): Promise<void> {
+	const target = loginTarget(options);
 	if (!options.force) {
-		const existing = await readSession();
+		const existing = await readSession(target);
 		if (existing) {
-			info(`Already logged in as ${existing.email}.`);
+			info(`Already logged in as ${existing.email} (${target}).`);
 			if (!process.stdin.isTTY) {
 				info(
 					dim(
@@ -107,11 +122,11 @@ export async function runLoginFlow(
 	});
 
 	try {
-		const res = await httpPlatformAnon<{
+		const res = await httpAt<{
 			message: string;
 			token?: string;
 			code?: string;
-		}>("/api/auth/magic-link", {
+		}>(target, "/api/auth/magic-link", {
 			method: "POST",
 			body: { email },
 		});
@@ -134,22 +149,31 @@ export async function runLoginFlow(
 	});
 
 	try {
-		const verified = await httpPlatformAnon<{
+		const verified = await httpAt<{
 			sessionToken: string;
 			account: { id: string; email: string };
-		}>("/api/auth/verify", {
+		}>(target, "/api/auth/verify", {
 			method: "POST",
 			body: { email, code },
 		});
 
-		await writeSession({
-			token: verified.sessionToken,
-			email: verified.account.email,
-			accountId: verified.account.id,
-			expiresAt: sessionExpiry(),
-		});
+		await writeSession(
+			{
+				token: verified.sessionToken,
+				email: verified.account.email,
+				accountId: verified.account.id,
+				expiresAt: sessionExpiry(),
+			},
+			target,
+		);
 		success(`Logged in as ${verified.account.email}`);
-		info(dim("Run 'secondlayer whoami' to see your account status."));
+		info(
+			dim(
+				options.credits
+					? "Run 'secondlayer credits balance' to see your archive credits."
+					: "Run 'secondlayer whoami' to see your account status.",
+			),
+		);
 	} catch (err) {
 		if (err instanceof CliHttpError) {
 			logError(err.message);
@@ -166,14 +190,21 @@ export function registerLoginCommand(program: Command): void {
 		.description("Log in to Secondlayer (magic-link email)")
 		.option("--force", "Skip the already-logged-in check and re-run the flow")
 		.option("--with-token", "Read an API key from stdin (non-interactive)")
+		.option(
+			"--credits",
+			"Log in to the archive credits account used by bootstrap, repair, and credits",
+		)
 		.addHelpText(
 			"after",
 			`
 Examples:
-  $ secondlayer login
+  $ secondlayer login --credits
   $ echo "$INSTANCE_TOKEN" | secondlayer login --with-token`,
 		)
-		.action((opts: { force?: boolean; withToken?: boolean }) =>
-			opts.withToken ? runTokenLogin() : runLoginFlow({ force: opts.force }),
+		.action(
+			(opts: { force?: boolean; withToken?: boolean; credits?: boolean }) =>
+				opts.withToken
+					? runTokenLogin({ credits: opts.credits })
+					: runLoginFlow({ force: opts.force, credits: opts.credits }),
 		);
 }

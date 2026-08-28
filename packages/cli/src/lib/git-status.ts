@@ -2,8 +2,8 @@
  * Git status inspection for subgraph source files.
  *
  * Used to warn/refuse deploying a subgraph definition whose source isn't
- * committed — the deployed definition would then exist only as a database
- * row, with no recoverable copy.
+ * staged or committed: the deployed definition would then exist only as a
+ * database row, with no recoverable copy.
  */
 
 import { execFileSync } from "node:child_process";
@@ -34,7 +34,7 @@ function runGit(args: string[], cwd: string): string | null {
  * deploy is invoked with an absolute path from anywhere.
  *
  * Never throws: any unexpected git failure resolves to `not-a-repo`, the
- * permissive outcome — a broken git invocation must not block a deploy.
+ * permissive outcome, since a broken git invocation must not block a deploy.
  */
 export function inspectSourceGitState(absPath: string): SourceGitState {
 	const cwd = dirname(absPath);
@@ -49,13 +49,17 @@ export function inspectSourceGitState(absPath: string): SourceGitState {
 		return { kind: "untracked" };
 	}
 
-	const status = runGit(["status", "--porcelain", "--", absPath], cwd);
-	if (status === null) {
-		// git is present and the repo is valid, but the status call itself
-		// failed unexpectedly — fall back to the permissive outcome.
+	// Worktree vs index: a staged copy (`git add`) lives in git's object store
+	// and is recoverable, so only edits that are not yet staged count as
+	// modified. That is what lets `create` → `git add` → `deploy` work
+	// without a commit in between.
+	const unstaged = runGit(["diff", "--name-only", "--", absPath], cwd);
+	if (unstaged === null) {
+		// git is present and the repo is valid, but the diff call itself
+		// failed unexpectedly, so fall back to the permissive outcome.
 		return { kind: "not-a-repo" };
 	}
-	if (status.length > 0) {
+	if (unstaged.length > 0) {
 		return { kind: "modified" };
 	}
 

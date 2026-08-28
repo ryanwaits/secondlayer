@@ -14,7 +14,6 @@ The binary is `secondlayer`. `sl` is a short alias.
 
 ```bash
 secondlayer init --network mainnet
-secondlayer start --print
 secondlayer bootstrap --against <manifest>
 secondlayer observer
 secondlayer subgraphs create --from-contract <id>
@@ -52,7 +51,6 @@ secondlayer observer --mode indexer
 | `secondlayer init` | `--network` | `STACKS_NETWORK` or `mainnet` | `mainnet`, `testnet`, or `devnet` |
 | | `--api-url` | `http://127.0.0.1:3800` | Local API |
 | | `--force` | off | Overwrite generated values in `.env.local` |
-| `secondlayer start` | `--print` | off | Validate runtime config; `--print` emits the compose invocation only |
 | `secondlayer status` | `--json` | off | Local instance health from `/public/status` |
 | `secondlayer bootstrap` | `--against` | required | Manifest URL or file |
 | | `--to-block` | archive tip | Stop early |

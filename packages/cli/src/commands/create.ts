@@ -1,4 +1,5 @@
 import {
+	chmodSync,
 	copyFileSync,
 	existsSync,
 	mkdirSync,
@@ -144,6 +145,42 @@ export function parseTriggersInput(
 	});
 }
 
+/**
+ * Pick the runtime without a menu whenever the reader has already said what
+ * they want. Any of `-s/-t/-u` or `--no-scaffold` means a scripted call, and
+ * a scripted call gets `node` (a plain HTTP receiver, `standard-webhooks`
+ * format): the one runtime that needs no third-party account. An explicit
+ * `--runtime` always wins. Returns `undefined` only when nothing was given,
+ * which is the interactive case.
+ */
+export function resolveRuntime(
+	opts: Pick<
+		CreateSubscriptionOptions,
+		"runtime" | "subgraph" | "table" | "url" | "scaffold"
+	>,
+): Runtime | undefined {
+	if (opts.runtime) return opts.runtime;
+	const scripted =
+		opts.subgraph !== undefined ||
+		opts.table !== undefined ||
+		opts.url !== undefined ||
+		opts.scaffold === false;
+	return scripted ? "node" : undefined;
+}
+
+/**
+ * Refuse to open a prompt when stdin is not a TTY: a closed stdin renders
+ * the menu and then exits 0 with nothing created, which reads as success.
+ * Name the flag that was missing so the next run is a one-line fix.
+ */
+function requireTtyFor(flag: string): void {
+	if (process.stdin.isTTY) return;
+	error(
+		`${flag} is required when stdin is not a TTY (no prompt can run). Pass it, or run from a terminal.`,
+	);
+	process.exit(1);
+}
+
 async function promptFor(
 	_name: string,
 	opts: CreateSubscriptionOptions,
@@ -153,30 +190,37 @@ async function promptFor(
 	table: string;
 	url: string;
 }> {
-	const runtime =
-		opts.runtime ??
-		((await select({
+	let runtime = resolveRuntime(opts);
+	if (runtime === undefined) {
+		requireTtyFor("--runtime");
+		runtime = (await select({
 			message: "Runtime?",
 			choices: RUNTIMES.map((r) => ({ name: r, value: r })),
-		})) as Runtime);
+		})) as Runtime;
+	}
 
-	const subgraph =
-		opts.subgraph ??
-		(await input({
+	let subgraph = opts.subgraph;
+	if (subgraph === undefined) {
+		requireTtyFor("--subgraph");
+		subgraph = await input({
 			message: "Subgraph name (must already be deployed):",
 			validate: (v) => (v.trim().length > 0 ? true : "required"),
-		}));
+		});
+	}
 
-	const table =
-		opts.table ??
-		(await input({
+	let table = opts.table;
+	if (table === undefined) {
+		requireTtyFor("--table");
+		table = await input({
 			message: "Table to subscribe to:",
 			validate: (v) => (v.trim().length > 0 ? true : "required"),
-		}));
+		});
+	}
 
-	const url =
-		opts.url ??
-		(await input({
+	let url = opts.url;
+	if (url === undefined) {
+		requireTtyFor("--url");
+		url = await input({
 			message:
 				runtime === "inngest"
 					? "Inngest event endpoint URL (e.g. https://inn.gs/e/<KEY> or http://localhost:8288/e/<KEY>):"
@@ -189,7 +233,8 @@ async function promptFor(
 				v.startsWith("http://") || v.startsWith("https://")
 					? true
 					: "must be http(s) URL",
-		}));
+		});
+	}
 
 	return { runtime, subgraph, table, url };
 }
@@ -203,6 +248,39 @@ export function buildSubscriptionAuthConfig(
 		throw new Error("--auth-token must not be empty");
 	}
 	return { authType: "bearer", token };
+}
+
+/**
+ * Write SIGNING_SECRET into `<targetDir>/.env`, seeding from `.env.example`
+ * when present. The file holds a secret, so it is owner-only on every branch
+ * (copyFileSync keeps the template's mode, hence the chmod after the copy).
+ */
+export function writeSigningSecretEnv(
+	targetDir: string,
+	signingSecret: string,
+): string {
+	const envTarget = join(targetDir, ".env");
+	const envExample = join(targetDir, ".env.example");
+	if (existsSync(envExample) && !existsSync(envTarget)) {
+		copyFileSync(envExample, envTarget);
+		chmodSync(envTarget, 0o600);
+	}
+	if (!existsSync(envTarget)) {
+		writeFileSync(envTarget, `SIGNING_SECRET=${signingSecret}\n`, {
+			mode: 0o600,
+		});
+	} else {
+		const cur = readFileSync(envTarget, "utf8");
+		writeFileSync(
+			envTarget,
+			cur.match(/^SIGNING_SECRET=/m)
+				? cur.replace(/^SIGNING_SECRET=.*/m, `SIGNING_SECRET=${signingSecret}`)
+				: `${cur}\nSIGNING_SECRET=${signingSecret}\n`,
+			{ mode: 0o600 },
+		);
+		chmodSync(envTarget, 0o600);
+	}
+	return envTarget;
 }
 
 export async function createSubscription(
@@ -244,7 +322,7 @@ export async function createSubscription(
 
 	const eventName = `${subgraph}.${table}.created`;
 	const targetDir = resolve(process.cwd(), name);
-	if (!opts.scaffold === false) {
+	if (opts.scaffold !== false) {
 		if (existsSync(targetDir)) {
 			error(`Directory already exists: ${relative(process.cwd(), targetDir)}`);
 			process.exit(1);
@@ -309,26 +387,8 @@ export async function createSubscription(
 			// best-effort; don't block on read-back
 		}
 	}
-	if (signingSecret && !opts.scaffold === false) {
-		const envTarget = join(targetDir, ".env");
-		const envExample = join(targetDir, ".env.example");
-		if (existsSync(envExample) && !existsSync(envTarget)) {
-			copyFileSync(envExample, envTarget);
-		}
-		if (!existsSync(envTarget)) {
-			writeFileSync(envTarget, `SIGNING_SECRET=${signingSecret}\n`);
-		} else {
-			const cur = readFileSync(envTarget, "utf8");
-			writeFileSync(
-				envTarget,
-				cur.match(/^SIGNING_SECRET=/m)
-					? cur.replace(
-							/^SIGNING_SECRET=.*/m,
-							`SIGNING_SECRET=${signingSecret}`,
-						)
-					: `${cur}\nSIGNING_SECRET=${signingSecret}\n`,
-			);
-		}
+	if (signingSecret && opts.scaffold !== false) {
+		const envTarget = writeSigningSecretEnv(targetDir, signingSecret);
 		success(`Signing secret written to ${relative(process.cwd(), envTarget)}`);
 	} else if (signingSecret && opts.scaffold === false) {
 		// No scaffold dir to write to — surface the secret so the user can store it.
@@ -437,11 +497,17 @@ function addSubscriptionScaffold(
 	parent
 		.command(commandSpec)
 		.description(opts.description)
-		.option("-r, --runtime <runtime>", "inngest | trigger | cloudflare | node")
+		.option(
+			"-r, --runtime <runtime>",
+			"inngest | trigger | cloudflare | node (default: node once -s/-t/-u or --no-scaffold is given; prompts only in a terminal with no flags)",
+		)
 		.option("-s, --subgraph <name>", "Subgraph to subscribe to")
 		.option("-t, --table <name>", "Table to subscribe to")
 		.option("-u, --url <url>", "Webhook URL")
-		.option("--auth-token <token>", "Bearer token for receiver API auth")
+		.option(
+			"--auth-token <token>",
+			"Bearer token for receiver API auth; a flag lands in shell history and ps, so set it in the receiver's env and pass it here only for a throwaway token",
+		)
 		.option(
 			"--filter <kv...>",
 			"Filter as key=value (supports .eq/.neq/.gt/.gte/.lt/.lte suffixes)",

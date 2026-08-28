@@ -10,11 +10,13 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { planUninstall, uninstallCommand } from "@secondlayer/shared/runtime";
 import type { Command } from "commander";
+import { readEnvValue } from "../lib/instance-init.ts";
 import { note, output, printError, success, warn } from "../lib/output.ts";
 
 export const UNINSTALL_EXIT = { OK: 0, FAILED: 1, REFUSED: 2 } as const;
 
-const DEFAULT_COMPOSE = "docker/oss/docker-compose.yml";
+/** The monorepo checkout's compose file, for a stack brought up by hand. */
+const REPO_COMPOSE = "docker/oss/docker-compose.yml";
 
 /** A bundle counts only if it actually carries keys. */
 function bundleHasKeys(bundleDir: string): boolean {
@@ -30,11 +32,81 @@ function bundleHasKeys(bundleDir: string): boolean {
 	}
 }
 
+export interface UninstallLayout {
+	composeFile: string;
+	/** Passed to `docker compose --env-file` so the same interpolated values
+	 *  (volume names, ports) that brought the stack up also take it down. */
+	envFile?: string;
+	/** Which env file, if any, holds the keys: the one carrying
+	 *  `SECONDLAYER_SECRETS_KEY`, else the first env file that exists. */
+	secretsFile?: string;
+}
+
+/**
+ * Where this stack lives. `secondlayer setup` writes `docker-compose.yml` +
+ * `.env` into its target directory; a hand-run checkout uses the repo's
+ * compose file and `secondlayer init`'s `.env.local`. Both are checked for
+ * secrets so a setup directory can never purge past the keys guard just
+ * because the guard only knew the other layout.
+ */
+export function resolveUninstallLayout(
+	dir: string,
+	composeOverride?: string,
+): UninstallLayout {
+	const setupCompose = resolve(dir, "docker-compose.yml");
+	const setupEnv = resolve(dir, ".env");
+	const initEnv = resolve(dir, ".env.local");
+	// Any env file counts as keys present, not only one that holds the
+	// secrets key: a purge that guesses wrong here destroys the volumes, so
+	// a hand-written `.env.local` gets the same refusal as a generated one.
+	const secretsFile =
+		[setupEnv, initEnv].find(
+			(file) => readEnvValue(file, "SECONDLAYER_SECRETS_KEY") !== null,
+		) ?? [setupEnv, initEnv].find((file) => existsSync(file));
+	if (composeOverride) {
+		const composeFile = resolve(dir, composeOverride);
+		const sibling = resolve(composeFile, "..", ".env");
+		return {
+			composeFile,
+			envFile: existsSync(sibling) ? sibling : undefined,
+			secretsFile,
+		};
+	}
+	if (existsSync(setupCompose)) {
+		return {
+			composeFile: setupCompose,
+			envFile: existsSync(setupEnv) ? setupEnv : undefined,
+			secretsFile,
+		};
+	}
+	return { composeFile: resolve(dir, REPO_COMPOSE), secretsFile };
+}
+
+/** `uninstallCommand` from shared plus the `--env-file` compose needs to
+ *  resolve the same project name and volumes it was started with. */
+export function composeDownArgs(
+	plan: Parameters<typeof uninstallCommand>[0],
+	layout: UninstallLayout,
+): string[] {
+	const base = uninstallCommand(plan, layout.composeFile);
+	if (!layout.envFile) return base;
+	const fileFlagEnd = base.indexOf("-f") + 2;
+	return [
+		...base.slice(0, fileFlagEnd),
+		"--env-file",
+		layout.envFile,
+		...base.slice(fileFlagEnd),
+	];
+}
+
 export function registerUninstallCommand(program: Command): void {
 	program
 		.command("uninstall")
 		.description("Stop the stack; the index, chainstate, and keys survive")
-		.option("--compose <file>", "compose file to tear down", DEFAULT_COMPOSE)
+		.option(
+			"--compose <file>",
+			`compose file to tear down (default: ./docker-compose.yml from setup, else ${REPO_COMPOSE})`,
+		)
 		.option("--purge", "also destroy the volumes (wipes the index)")
 		.option("--yes", "confirm a purge")
 		.option(
@@ -45,7 +117,7 @@ export function registerUninstallCommand(program: Command): void {
 		.option("--json", "Output as JSON")
 		.action(
 			async (opts: {
-				compose: string;
+				compose?: string;
 				purge?: boolean;
 				yes?: boolean;
 				backup?: string;
@@ -53,9 +125,9 @@ export function registerUninstallCommand(program: Command): void {
 				json?: boolean;
 			}) => {
 				const dataDir = process.env.DATA_DIR ?? "./data";
+				const layout = resolveUninstallLayout(process.cwd(), opts.compose);
 				const secretsPresent =
-					!!process.env.SECONDLAYER_SECRETS_KEY ||
-					existsSync(resolve(process.cwd(), ".env.local"));
+					!!process.env.SECONDLAYER_SECRETS_KEY || !!layout.secretsFile;
 				const keysBackedUp = opts.backup
 					? bundleHasKeys(resolve(opts.backup))
 					: false;
@@ -69,18 +141,32 @@ export function registerUninstallCommand(program: Command): void {
 				});
 
 				if (!decision.ok) {
-					printError(decision.reason);
+					printError(decision.reason, {
+						hint: layout.secretsFile
+							? `keys found in ${layout.secretsFile}`
+							: undefined,
+					});
 					process.exit(UNINSTALL_EXIT.REFUSED);
 				}
 
-				const cmd = uninstallCommand(decision.plan, opts.compose);
+				const cmd = composeDownArgs(decision.plan, layout);
 
 				if (!opts.apply) {
 					output({
 						json: opts.json,
-						data: { dryRun: true, plan: decision.plan, command: cmd },
+						data: {
+							dryRun: true,
+							plan: decision.plan,
+							command: cmd,
+							composeFile: layout.composeFile,
+							envFile: layout.envFile ?? null,
+							secretsFile: layout.secretsFile ?? null,
+						},
 						human: () => {
 							note("dry run — nothing removed. Pass --apply to proceed.");
+							note(`compose: ${layout.composeFile}`);
+							if (layout.envFile) note(`env: ${layout.envFile}`);
+							if (layout.secretsFile) note(`keys: ${layout.secretsFile}`);
 							note(`would run: docker ${cmd.join(" ")}`);
 							for (const p of decision.plan.preserves) {
 								note(`preserved · ${p.what}: ${p.detail}`);
@@ -101,7 +187,12 @@ export function registerUninstallCommand(program: Command): void {
 
 				output({
 					json: opts.json,
-					data: { removed: true, plan: decision.plan },
+					data: {
+						removed: true,
+						plan: decision.plan,
+						composeFile: layout.composeFile,
+						envFile: layout.envFile ?? null,
+					},
 					human: () => {
 						success("stack removed");
 						for (const w of decision.warnings) warn(w);

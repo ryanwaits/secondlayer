@@ -1,5 +1,13 @@
 import { resolveApiKey } from "@secondlayer/sdk";
+import { resolveApiUrl } from "./api-url.ts";
 import { readSession } from "./session.ts";
+
+export {
+	ARCHIVE_OPS_API_URL,
+	LOCAL_API_URL,
+	resolveApiUrl,
+	resolveArchiveOpsUrl,
+} from "./api-url.ts";
 
 export interface ResolvedAuth {
 	apiUrl: string;
@@ -7,22 +15,6 @@ export interface ResolvedAuth {
 	ephemeralKey: string;
 	/** `true` when the credential came from an env var rather than the session. */
 	fromEnv: boolean;
-}
-
-export const LOCAL_API_URL = "http://127.0.0.1:3800";
-export const ARCHIVE_OPS_API_URL = "https://api.secondlayer.tools";
-
-/**
- * Resolve the API endpoint. Independent of the credential: setting only
- * SL_API_URL redirects the endpoint while keeping the session token.
- * Default is the local one-box API.
- */
-export function resolveApiUrl(): string {
-	return (
-		process.env.SL_API_URL ??
-		process.env.SL_PLATFORM_API_URL ??
-		LOCAL_API_URL
-	).replace(/\/+$/, "");
 }
 
 /**

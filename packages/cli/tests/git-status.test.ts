@@ -50,6 +50,24 @@ describe("inspectSourceGitState", () => {
 		expect(inspectSourceGitState(path)).toEqual({ kind: "clean" });
 	});
 
+	test("a new file that is staged but not yet committed is clean, since git holds a recoverable copy", () => {
+		const dir = tempRepo();
+		commitFile(dir, "README.md", "seed\n");
+		const path = join(dir, "subgraph.ts");
+		writeFileSync(path, "export default {};\n");
+		execFileSync("git", ["add", "subgraph.ts"], { cwd: dir });
+		expect(inspectSourceGitState(path)).toEqual({ kind: "clean" });
+	});
+
+	test("a staged file with further unstaged edits is modified", () => {
+		const dir = tempRepo();
+		const path = commitFile(dir, "subgraph.ts", "export default {};\n");
+		writeFileSync(path, "export default { staged: true };\n");
+		execFileSync("git", ["add", "subgraph.ts"], { cwd: dir });
+		writeFileSync(path, "export default { staged: true, dirty: true };\n");
+		expect(inspectSourceGitState(path)).toEqual({ kind: "modified" });
+	});
+
 	test("a committed file with uncommitted edits is modified", () => {
 		const dir = tempRepo();
 		const path = commitFile(dir, "subgraph.ts", "export default {};\n");

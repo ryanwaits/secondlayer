@@ -176,17 +176,38 @@ export function formatQuoteValue(
 }
 
 /**
- * Whether the interactive confirmation prompt should run before a gated
- * fetch proceeds. The quote itself is computed and printed UNCONDITIONALLY,
- * before this is ever consulted — `-y` and `--json` only ever skip the
- * prompt, never the quote print or the sufficiency check (DX contract #1:
- * quote before charge, always).
+ * Whether confirmation is still owed before a gated fetch proceeds. The
+ * quote itself is computed and printed UNCONDITIONALLY, before this is ever
+ * consulted; only `-y` skips the prompt, never the quote print or the
+ * sufficiency check (DX contract #1: quote before charge, always).
+ *
+ * `--json` changes the output shape, not consent: without `-y` a JSON caller
+ * gets a `CONFIRMATION_REQUIRED` payload (`confirmationRequiredPayload`) and
+ * exit 2 instead of a charge.
  */
-export function shouldPromptForGatedFetch(opts: {
-	yes?: boolean;
-	json?: boolean;
-}): boolean {
-	return !opts.yes && !opts.json;
+export function shouldPromptForGatedFetch(opts: { yes?: boolean }): boolean {
+	return !opts.yes;
+}
+
+/** Exit code every command uses when `--json` without `-y` needs consent. */
+export const CONFIRMATION_REQUIRED_EXIT = 2;
+
+/**
+ * The stdout payload for `--json` without `-y`: the quote the reader would
+ * have been asked to approve, so a script can inspect the price and re-run
+ * with `-y`. `quote` is `null` for an unmetered archive.
+ */
+export function confirmationRequiredPayload(quote: ArchiveQuote | null): {
+	code: "CONFIRMATION_REQUIRED";
+	message: string;
+	quote: ArchiveQuote | null;
+} {
+	return {
+		code: "CONFIRMATION_REQUIRED",
+		message:
+			"Nothing was fetched. Re-run with -y to approve this fetch; --json never stands in for -y.",
+		quote,
+	};
 }
 
 /**
@@ -206,17 +227,30 @@ export type ArchiveGate = {
  *  restores show URL expiry churn, lower this further. */
 const FETCH_BATCH_SIZE = 16;
 
+/** A cached URL with less than this long to live is re-issued before it is
+ *  handed out, so a slow COPY never starts a download on a URL that expires
+ *  mid-transfer. Re-issue is free inside the server's 24h window. */
+export const PRESIGN_REFRESH_MARGIN_MS = 60_000;
+
+type CachedUrl = { url: string; expiresAt: number | null };
+
 /**
  * Build a lazy, paged URL source over `paths`: the first `getUrl` for an
  * un-fetched batch of 16 triggers that batch's charge+presign; every other
  * path in the batch is then served from cache with no further network call.
+ *
+ * `paths` must be in consumption order. The batches are contiguous slices,
+ * so a caller that lists paths the way it loads them gets each batch charged
+ * right before its bytes are used, and no URL sits expiring behind a
+ * long-running earlier batch.
  */
 export function createGatedFetcher(
 	paths: string[],
 	flow: ArchiveFlow,
 	deps: ArchiveGateDeps = defaultDeps,
+	now: () => number = Date.now,
 ): ArchiveGate {
-	const cache = new Map<string, string>();
+	const cache = new Map<string, CachedUrl>();
 	const batchOf = new Map<string, number>();
 	for (const [index, path] of paths.entries()) {
 		batchOf.set(path, Math.floor(index / FETCH_BATCH_SIZE));
@@ -229,26 +263,36 @@ export function createGatedFetcher(
 			"/api/archive/fetch",
 			{ method: "POST", body: { paths: batchPaths, flow } },
 		);
-		for (const u of body.urls) cache.set(u.path, u.url);
+		for (const u of body.urls) {
+			const parsed = Date.parse(u.expires_at);
+			cache.set(u.path, {
+				url: u.url,
+				expiresAt: Number.isFinite(parsed) ? parsed : null,
+			});
+		}
+	}
+
+	async function reissue(path: string, why: string): Promise<string> {
+		// Re-issuing is free within the server's 24h re-issue window for an
+		// already-charged path, so this never double-charges. It is noisy,
+		// not costly, which is why churn gets a debug line rather than a
+		// warning.
+		if (process.env.DEBUG) {
+			console.error(`[archive-gate] re-issuing ${why} URL for ${path}`);
+		}
+		await fetchAndCache([path]);
+		const fresh = cache.get(path);
+		if (!fresh) {
+			throw new Error(`archive gate: no URL returned for ${path}`);
+		}
+		return fresh.url;
 	}
 
 	return {
 		async getUrl(path, opts) {
 			if (opts?.forceRefresh) {
-				// Expiry recovery: the cached URL 403'd downstream. Re-issuing is
-				// free within the server's 24h re-issue window for an
-				// already-charged path, so this never double-charges — it is
-				// noisy, not costly, which is why churn gets a debug line rather
-				// than a warning.
-				if (process.env.DEBUG) {
-					console.error(`[archive-gate] re-issuing expired URL for ${path}`);
-				}
-				await fetchAndCache([path]);
-				const fresh = cache.get(path);
-				if (!fresh) {
-					throw new Error(`archive gate: no URL returned for ${path}`);
-				}
-				return fresh;
+				// Expiry recovery: the cached URL 403'd downstream.
+				return reissue(path, "expired");
 			}
 
 			const batchIndex = batchOf.get(path);
@@ -266,9 +310,17 @@ export function createGatedFetcher(
 				}
 				await inflight;
 			}
-			const url = cache.get(path);
-			if (!url) throw new Error(`archive gate: no URL returned for ${path}`);
-			return url;
+			const cached = cache.get(path);
+			if (!cached) {
+				throw new Error(`archive gate: no URL returned for ${path}`);
+			}
+			if (
+				cached.expiresAt !== null &&
+				cached.expiresAt - now() < PRESIGN_REFRESH_MARGIN_MS
+			) {
+				return reissue(path, "expiring");
+			}
+			return cached.url;
 		},
 	};
 }

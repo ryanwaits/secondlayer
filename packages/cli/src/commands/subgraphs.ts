@@ -50,12 +50,14 @@ import { parseQueryFilters } from "../lib/filter-params.ts";
 import { writeTextFile } from "../lib/fs.ts";
 import { inspectSourceGitState } from "../lib/git-status.ts";
 import {
+	confirmDestructive,
 	dim,
 	error,
 	formatKeyValue,
 	formatTable,
 	green,
 	info,
+	note,
 	output,
 	red,
 	success,
@@ -75,6 +77,9 @@ import { inferNetwork } from "../utils/network.ts";
 /** Import the handler file; if it fails with ERR_MODULE_NOT_FOUND for
  *  `@secondlayer/subgraphs` (the required SDK), offer to install it before
  *  giving up. Other errors bubble. */
+/** Consecutive failed polls `status --watch` rides out before giving up. */
+const WATCH_TRANSIENT_FAILURE_LIMIT = 3;
+
 async function loadSubgraphWithDepCheck(
 	absPath: string,
 ): Promise<{ default?: SubgraphDefinition } & SubgraphDefinition> {
@@ -820,7 +825,12 @@ Examples:
 						`Schema inferred from ${opts.fromContract} print events (${opts.tablePerTopic ? "table per topic" : "single wide table"})`,
 					);
 				}
-				info(`Next: secondlayer subgraphs deploy subgraphs/${name}.ts`);
+				info(
+					`Next: git add subgraphs/${name}.ts && secondlayer subgraphs deploy subgraphs/${name}.ts`,
+				);
+				note(
+					"  deploy refuses an unstaged file unless you pass --allow-uncommitted: a staged copy is the one git can recover.",
+				);
 			},
 		);
 
@@ -936,11 +946,11 @@ Examples:
 		)
 		.option(
 			"--allow-uncommitted",
-			"Deploy even though the source file is not committed to git (the deployed definition will exist only in the database)",
+			"Deploy even though the source file is not staged or committed in git (the deployed definition will exist only in the database)",
 		)
 		.addHelpText(
 			"after",
-			"\nBy default the source file must be committed to git — otherwise the\ndeployed definition's only copy is the row in the database. Pass\n--allow-uncommitted to deploy anyway.",
+			"\nBy default the source file must be staged or committed in git (`git add <file>`),\notherwise the deployed definition's only copy is the row in the database. Pass\n--allow-uncommitted to deploy anyway.",
 		)
 		.action(
 			async (
@@ -972,18 +982,23 @@ Examples:
 									gitState.kind === "untracked"
 										? "not tracked by git"
 										: "modified with uncommitted changes";
-								const message = `${file} is ${reason}. If you deploy it, the only copy of this definition will be a row in the database — this has already caused two production recoveries.`;
-								if (process.stdout.isTTY) {
+								const message = `${file} is ${reason}. Deploy it and the only copy of this definition is a row in the database.`;
+								// Gate on stdin, the stream the prompt reads: a piped stdin
+								// with a TTY stdout would otherwise answer the prompt itself.
+								if (process.stdin.isTTY) {
 									warn(message);
 									const confirmed = await confirm({
 										message: "Deploy anyway?",
+										default: false,
 									});
 									if (!confirmed) {
-										info("Aborted.");
+										info("Nothing was deployed.");
 										process.exit(0);
 									}
 								} else {
-									error(`${message} Commit it, or pass --allow-uncommitted.`);
+									error(
+										`${message} Stage it with \`git add ${file}\`, or pass --allow-uncommitted.`,
+									);
 									process.exit(1);
 								}
 							}
@@ -1100,12 +1115,13 @@ Examples:
 											`startBlock change (${existingStart ?? "unset"} → ${deployStartBlock}) forces a reindex.`,
 										);
 									}
-									const confirmed = await confirm({
+									const confirmed = await confirmDestructive({
 										message:
-											"⚠  This will drop all data and reindex from scratch. Continue?",
+											"This will drop all data and reindex from scratch. Continue?",
+										yes: options.yes,
 									});
 									if (!confirmed) {
-										info("Aborted — nothing was deployed.");
+										info("Nothing was deployed.");
 										process.exit(0);
 									}
 								}
@@ -1324,8 +1340,11 @@ Examples:
 		.description("Show detailed subgraph status")
 		.option("-w, --watch", "Refresh every 2s until synced or Ctrl-C")
 		.action(async (name: string, options: { watch?: boolean }) => {
-			const renderOnce = async () => {
+			const renderOnce = async (opts: { clearScreen?: boolean } = {}) => {
 				const subgraph = await getSubgraphApi(name);
+				// Clear only once the poll has answered, so a failed poll leaves
+				// the last good snapshot on screen instead of a blank terminal.
+				if (opts.clearScreen) process.stdout.write("\x1Bc");
 
 				const rowCounts =
 					Object.entries(subgraph.tables)
@@ -1405,14 +1424,29 @@ Examples:
 					await renderOnce();
 					return;
 				}
+				// A watch runs through deploys and restarts of the instance it
+				// polls, so one failed poll is a warning, not the end. Three in a
+				// row means the instance is gone, and the error surfaces.
+				let consecutiveFailures = 0;
 				// eslint-disable-next-line no-constant-condition
 				while (true) {
-					// Clear screen so the latest snapshot replaces the previous one
-					// instead of accumulating noise.
-					process.stdout.write("\x1Bc");
-					const sg = await renderOnce();
-					if (sg && sg.status === "synced") {
-						console.log(dim("\nSynced — exiting watch."));
+					let sg: Awaited<ReturnType<typeof renderOnce>>;
+					try {
+						sg = await renderOnce({ clearScreen: true });
+						consecutiveFailures = 0;
+					} catch (err) {
+						consecutiveFailures += 1;
+						if (consecutiveFailures > WATCH_TRANSIENT_FAILURE_LIMIT) throw err;
+						console.log(
+							dim(
+								`poll failed (${consecutiveFailures}/${WATCH_TRANSIENT_FAILURE_LIMIT}): ${err instanceof Error ? err.message : String(err)}; retrying`,
+							),
+						);
+						await new Promise((res) => setTimeout(res, 2000));
+						continue;
+					}
+					if (sg?.sync?.status === "synced") {
+						console.log(dim("\nSynced, exiting watch."));
 						return;
 					}
 					await new Promise((res) => setTimeout(res, 2000));
@@ -1533,37 +1567,13 @@ Examples:
 				},
 			) => {
 				try {
-					if (!options.yes) {
-						if (!process.stdin.isTTY) {
-							error(
-								"Interactive prompt unavailable (stdin is not a TTY). Re-run with -y to skip confirmation.",
-							);
-							process.exit(1);
-						}
-						const { confirm } = await import("@inquirer/prompts");
-						let ok = false;
-						try {
-							ok = await confirm({
-								message: `Reindex subgraph "${name}"? ALL of its data will be dropped and rebuilt from its start block. This cannot be undone.`,
-								default: false,
-							});
-						} catch (promptErr) {
-							const m =
-								promptErr instanceof Error
-									? promptErr.message
-									: String(promptErr);
-							if (m.includes("ExitPromptError") || m.includes("force closed")) {
-								error(
-									"Interactive prompt unavailable. Re-run with -y to skip confirmation.",
-								);
-								process.exit(1);
-							}
-							throw promptErr;
-						}
-						if (!ok) {
-							info("Cancelled.");
-							return;
-						}
+					const ok = await confirmDestructive({
+						message: `Reindex subgraph "${name}"? ALL of its data will be dropped and rebuilt from its start block. This cannot be undone.`,
+						yes: options.yes,
+					});
+					if (!ok) {
+						info("Cancelled.");
+						return;
 					}
 
 					info(`Reindexing subgraph "${name}"...`);
@@ -1949,39 +1959,13 @@ Examples:
 		.action(
 			async (name: string, options: { yes?: boolean; force?: boolean }) => {
 				try {
-					if (!options.yes && !options.force) {
-						// Refuse to prompt on non-TTY stdin. An empty pipe (`echo |`)
-						// would otherwise feed a newline into confirm() and auto-accept
-						// the destructive default.
-						if (!process.stdin.isTTY) {
-							error(
-								"Interactive prompt unavailable (stdin is not a TTY). Re-run with -y to skip confirmation.",
-							);
-							process.exit(1);
-						}
-						const { confirm } = await import("@inquirer/prompts");
-						let ok = false;
-						try {
-							ok = await confirm({
-								message: `Delete subgraph "${name}" and all its data? This cannot be undone.`,
-							});
-						} catch (promptErr) {
-							const m =
-								promptErr instanceof Error
-									? promptErr.message
-									: String(promptErr);
-							if (m.includes("ExitPromptError") || m.includes("force closed")) {
-								error(
-									"Interactive prompt unavailable. Re-run with -y to skip confirmation.",
-								);
-								process.exit(1);
-							}
-							throw promptErr;
-						}
-						if (!ok) {
-							info("Cancelled");
-							return;
-						}
+					const ok = await confirmDestructive({
+						message: `Delete subgraph "${name}" and all its data? This cannot be undone.`,
+						yes: options.yes || options.force,
+					});
+					if (!ok) {
+						info("Cancelled");
+						return;
 					}
 
 					try {
@@ -2012,7 +1996,10 @@ Examples:
 			"Generate a defineSubgraph() file from a contract ABI or trait (start with: subgraphs create)",
 		)
 		.option("-o, --output <path>", "Output file path (required)")
-		.option("-k, --api-key <key>", "Stacks node API key for direct RPC URLs")
+		// No command-local `--api-key`: the global one on `program` shadows it
+		// (Commander binds a repeated flag to the ancestor), and the ABI comes
+		// from this instance's contract registry, which takes the instance
+		// credential the global flag / INSTANCE_TOKEN already carry.
 		.option(
 			"--functions <names>",
 			"Comma-separated public functions to index as typed contract_call tables",
@@ -2042,7 +2029,6 @@ Examples:
 				contractAddress: string | undefined,
 				options: {
 					output?: string;
-					apiKey?: string;
 					functions?: string;
 					trait?: string;
 					install?: boolean;
@@ -2078,8 +2064,7 @@ Examples:
 					} else {
 						const address = contractAddress as string;
 						const network = inferNetwork(address) ?? "mainnet";
-						const apiKey = options.apiKey ?? process.env.STACKS_NODE_API_KEY;
-						const client = new StacksApiClient(network, apiKey);
+						const client = new StacksApiClient(network);
 						info(
 							`Fetching ABI for ${address} via ${client.describeContractInfoSource()}...`,
 						);

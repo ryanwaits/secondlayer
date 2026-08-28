@@ -135,11 +135,7 @@ export function registerSetupCommand(program: Command): void {
 		// preAction hook writes it to STACKS_NETWORK before this action runs.
 		.option("--node-mode <mode>", "external, stacks, or full (required)")
 		.option("--api-port <spec>", "API publish spec", "127.0.0.1:3800")
-		.option(
-			"--dir <path>",
-			"Target directory for compose + .env",
-			process.cwd(),
-		)
+		.option("--dir <path>", "Target directory for compose + .env", ".")
 		.option(
 			"--against <manifest>",
 			`Archive manifest to bootstrap from (suggested default: ${DEFAULT_ARCHIVE_MANIFEST})`,

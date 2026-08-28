@@ -1,22 +1,21 @@
 import { createHash } from "node:crypto";
-import { unlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { ParquetReader } from "@dsnp/parquetjs";
-import { confirm } from "@inquirer/prompts";
 import {
 	type ArchiveDataset,
-	type ArchiveRow,
 	copyStatement,
 	writeRowsToCopyStream,
 } from "@secondlayer/shared/archive/copy-loader";
-import { computeRangeDigest } from "@secondlayer/shared/archive/range-digest";
+import {
+	type RangeDigestDataset,
+	computeRangeDigest,
+} from "@secondlayer/shared/archive/range-digest";
 import { getDb, getRawClient, sql } from "@secondlayer/shared/db";
 import { upsertSyncScope } from "@secondlayer/shared/db/queries/sync-scope";
 import type { Command } from "commander";
 import {
 	ARCHIVE_GATE_NOT_CONFIGURED_MESSAGE,
 	type ArchiveGate,
+	type ArchiveQuote,
+	confirmationRequiredPayload,
 	createGatedFetcher,
 	formatInsufficientMessage,
 	formatQuoteValue,
@@ -25,6 +24,7 @@ import {
 	shouldPromptForGatedFetch,
 } from "../lib/archive-gate.ts";
 import {
+	ArchiveFetchError,
 	type ArchiveManifest,
 	type ArchivePartition,
 	type LoadedReference,
@@ -33,9 +33,15 @@ import {
 	loadReference,
 	resolveArchivePublicKey,
 } from "../lib/archive-reference.ts";
-import { partitionIsLoaded, planTornImport } from "../lib/bootstrap-resume.ts";
+import {
+	type DatasetHighWater,
+	RESUME_DATASETS,
+	partitionIsLoaded,
+	planTornImport,
+} from "../lib/bootstrap-resume.ts";
 import {
 	bold,
+	confirmDestructive,
 	dim,
 	formatKeyValue,
 	note,
@@ -43,7 +49,9 @@ import {
 	printError,
 	success,
 	warn,
+	writeData,
 } from "../lib/output.ts";
+import { readPartitionRows } from "../lib/parquet-rows.ts";
 import { isOssMode } from "../lib/resolve-auth.ts";
 
 /**
@@ -136,31 +144,6 @@ function formatDuration(seconds: number): string {
 	return `${(seconds / 86_400).toFixed(1)} days`;
 }
 
-async function* readPartitionRows(
-	bytes: Buffer,
-	label: string,
-): AsyncGenerator<ArchiveRow> {
-	const path = join(tmpdir(), `sl-bootstrap-${label}-${process.pid}.parquet`);
-	await writeFile(path, bytes);
-	try {
-		const reader = await ParquetReader.openFile(path);
-		try {
-			const cursor = reader.getCursor();
-			for (
-				let row = (await cursor.next()) as ArchiveRow | null;
-				row;
-				row = (await cursor.next()) as ArchiveRow | null
-			) {
-				yield row;
-			}
-		} finally {
-			await reader.close();
-		}
-	} finally {
-		await unlink(path).catch(() => {});
-	}
-}
-
 async function loadPartition(
 	reference: LoadedReference,
 	partition: ArchivePartition,
@@ -187,6 +170,82 @@ async function loadPartition(
 	return written;
 }
 
+/** FK order is not optional: transactions reference blocks, events
+ *  reference transactions. */
+const LOAD_ORDER: readonly ArchiveDataset[] = [
+	"blocks",
+	"transactions",
+	"events",
+];
+
+/**
+ * Partitions in the exact order the load consumes them: dataset by dataset,
+ * ascending height. The gate's quote and presign batches follow this order so
+ * a charge lands right before its bytes are used.
+ */
+export function loadOrder<T extends { dataset: string; from_block: number }>(
+	partitions: readonly T[],
+): T[] {
+	return LOAD_ORDER.flatMap((dataset) =>
+		partitions
+			.filter((p) => p.dataset === dataset)
+			.sort((a, b) => a.from_block - b.from_block),
+	);
+}
+
+/** Which datasets the post-load digest pass covers. `all` is the default:
+ *  a blocks-only check cannot see a transactions partition that never
+ *  landed. */
+export function parseVerifyDatasets(value: unknown): RangeDigestDataset[] {
+	if (value === undefined || value === "all") {
+		return ["blocks", "transactions", "events"];
+	}
+	if (value === "blocks") return ["blocks"];
+	throw new Error(`--verify must be "all" or "blocks", got "${String(value)}"`);
+}
+
+/** Per-dataset high-water marks; the resume planner needs all three because
+ *  the load runs dataset by dataset and a crash lands between them. */
+async function readHighWater(
+	db: ReturnType<typeof getDb>,
+): Promise<DatasetHighWater> {
+	const asMark = (value: unknown) =>
+		value === null || value === undefined ? null : Number(value);
+	const blocks = await db
+		.selectFrom("blocks")
+		.select(({ fn }) => fn.max("height").as("max"))
+		.executeTakeFirst();
+	const transactions = await db
+		.selectFrom("transactions")
+		.select(({ fn }) => fn.max("block_height").as("max"))
+		.executeTakeFirst();
+	const events = await db
+		.selectFrom("events")
+		.select(({ fn }) => fn.max("block_height").as("max"))
+		.executeTakeFirst();
+	return {
+		blocks: asMark(blocks?.max),
+		transactions: asMark(transactions?.max),
+		events: asMark(events?.max),
+	};
+}
+
+async function truncateDatasetFrom(
+	db: ReturnType<typeof getDb>,
+	dataset: ArchiveDataset,
+	from: number,
+): Promise<void> {
+	if (dataset === "blocks") {
+		await sql`DELETE FROM blocks WHERE height >= ${from}`.execute(db);
+	} else if (dataset === "transactions") {
+		await sql`DELETE FROM transactions WHERE block_height >= ${from}`.execute(
+			db,
+		);
+	} else {
+		await sql`DELETE FROM events WHERE block_height >= ${from}`.execute(db);
+	}
+}
+
 export function attachBootstrapCommand(cmd: Command): Command {
 	return cmd
 		.requiredOption(
@@ -198,7 +257,15 @@ export function attachBootstrapCommand(cmd: Command): Command {
 			"--from-block <n>",
 			"forward-only: restore from this height instead of genesis; earlier history is declared out of scope",
 		)
-		.option("--public-key <pem>", "pin the signing key instead of fetching it")
+		.option(
+			"--public-key <pem>",
+			"pin a signing key; default is the archive key built into this release",
+		)
+		.option(
+			"--verify <datasets>",
+			"digests checked after the load: all (blocks, transactions, events; adds minutes on a full chain) or blocks",
+			"all",
+		)
 		.option("-y, --yes", "skip the confirmation prompt")
 		.option("--json", "Output as JSON")
 		.addHelpText(
@@ -216,13 +283,16 @@ Exit codes:
 		)
 		.action(async (opts) => {
 			try {
-				const reference = await loadReference(opts.against);
+				const verifyDatasets = parseVerifyDatasets(opts.verify);
 				const publicKey = await resolveArchivePublicKey({
 					explicitPem: opts.publicKey,
 					envPem:
 						process.env.ARCHIVE_SIGNING_PUBLIC_KEY ??
 						process.env.STREAMS_SIGNING_PUBLIC_KEY,
 					allowHostedApi: !isOssMode(),
+				});
+				const reference = await loadReference(opts.against, {
+					publicKeyPem: publicKey,
 				});
 				const signature = checkSignature(reference.manifest, publicKey, false);
 				// No --insecure here. Bootstrap writes an entire chain history into a
@@ -243,14 +313,7 @@ Exit codes:
 					.selectFrom("index_progress")
 					.select("network")
 					.executeTakeFirst();
-				const maxHeightRow = await db
-					.selectFrom("blocks")
-					.select(({ fn }) => fn.max("height").as("max"))
-					.executeTakeFirst();
-				const maxBlockHeight =
-					maxHeightRow?.max === null || maxHeightRow?.max === undefined
-						? null
-						: Number(maxHeightRow.max);
+				const highWater = await readHighWater(db);
 
 				const toBlock =
 					opts.toBlock === undefined ? undefined : Number(opts.toBlock);
@@ -264,9 +327,15 @@ Exit codes:
 						(toBlock === undefined || p.to_block <= toBlock) &&
 						(fromBlock === undefined || p.from_block >= fromBlock),
 				);
+				if (declared.length === 0) {
+					printError("The archive has no partitions for that range.", {
+						hint: "Check --from-block and --to-block against the manifest's coverage.",
+					});
+					process.exit(BOOTSTRAP_EXIT.REFUSED);
+				}
 				const resume = planTornImport({
 					hasIndexProgress: !!progress,
-					maxBlockHeight,
+					highWater,
 					partitions: declared,
 				});
 				if (resume.action === "refuse") {
@@ -275,22 +344,28 @@ Exit codes:
 					});
 					process.exit(BOOTSTRAP_EXIT.REFUSED);
 				}
-				if (resume.action === "resume" && resume.truncateFrom !== null) {
-					await sql`DELETE FROM events WHERE block_height >= ${resume.truncateFrom}`.execute(
-						db,
-					);
-					await sql`DELETE FROM transactions WHERE block_height >= ${resume.truncateFrom}`.execute(
-						db,
-					);
-					await sql`DELETE FROM blocks WHERE height >= ${resume.truncateFrom}`.execute(
-						db,
+				if (resume.action === "resume") {
+					// Children first: events reference transactions, which reference
+					// blocks. The planner already cascaded the heights.
+					const truncated: string[] = [];
+					for (const dataset of [...RESUME_DATASETS].reverse()) {
+						const from = resume.truncateFrom[dataset];
+						if (from === null) continue;
+						await truncateDatasetFrom(db, dataset, from);
+						truncated.push(`${dataset} from ${from.toLocaleString()}`);
+					}
+					if (truncated.length > 0) {
+						note(`Resuming torn import: truncated ${truncated.join(", ")}.`);
+					}
+					const sealed = RESUME_DATASETS.filter(
+						(d) => resume.skipThrough[d] > 0,
+					).map(
+						(d) => `${d} through ${resume.skipThrough[d].toLocaleString()}`,
 					);
 					note(
-						`Resuming torn import: truncated from height ${resume.truncateFrom}.`,
-					);
-				} else if (resume.action === "resume") {
-					note(
-						`Resuming import after sealed height ${resume.skipThrough.toLocaleString()}.`,
+						sealed.length > 0
+							? `Resuming import after sealed partitions: ${sealed.join(", ")}.`
+							: "Resuming import: no partition finished, so the load starts over from the first.",
 					);
 				}
 				const partitions = declared.filter(
@@ -299,10 +374,13 @@ Exit codes:
 						!partitionIsLoaded(p, resume.skipThrough),
 				);
 				if (partitions.length === 0) {
-					printError("The archive has no partitions for that range.", {
-						hint: "Check --to-block against the manifest's coverage.",
-					});
-					process.exit(BOOTSTRAP_EXIT.REFUSED);
+					// Every partition landed but the run died before it wrote
+					// index_progress and the scope. Refusing here would strand the
+					// instance: nothing left to load means bootstrap could never
+					// finish it. Verify what is there and finalize.
+					note(
+						"All partitions are already loaded; verifying and finalizing the import.",
+					);
 				}
 
 				// Bounds come from everything the run declares, not the resume
@@ -312,7 +390,7 @@ Exit codes:
 
 				const totalRows = partitions.reduce((sum, p) => sum + p.row_count, 0);
 				const totalBytes = partitions.reduce((sum, p) => sum + p.byte_size, 0);
-				const tipHeight = Math.max(...partitions.map((p) => p.to_block));
+				const tipHeight = scopeBounds?.tip_height ?? 0;
 				const restoreSeconds = totalRows / RESTORE_ROWS_PER_SECOND;
 				const genesisSeconds = (tipHeight / BLOCKS_PER_DAY_ESTIMATE) * 86_400;
 
@@ -322,9 +400,14 @@ Exit codes:
 				// designed, not a billing leak.
 				const gated = isOfficialArchive(reference);
 				let quoteLine: string | undefined;
+				let quote: ArchiveQuote | null = null;
 				let gate: ArchiveGate | undefined;
-				if (gated) {
-					const paths = partitions.map((p) => p.path);
+				if (gated && partitions.length > 0) {
+					// Paths in the order the load consumes them, so each 16-path
+					// charge+presign batch is used up before the next one is issued
+					// and no presigned URL for events sits expiring while blocks
+					// are still being copied.
+					const paths = loadOrder(partitions).map((p) => p.path);
 					const result = await quoteArchiveFetch(paths, "bootstrap");
 					if (!result.ok) {
 						printError(
@@ -338,6 +421,7 @@ Exit codes:
 						printError(formatInsufficientMessage(result.quote));
 						process.exit(BOOTSTRAP_EXIT.REFUSED);
 					}
+					quote = result.quote;
 					quoteLine = formatQuoteValue(result.quote, "bootstrap");
 					gate = createGatedFetcher(paths, "bootstrap");
 				}
@@ -370,10 +454,20 @@ Exit codes:
 					console.error("");
 				}
 
-				if (shouldPromptForGatedFetch(opts)) {
-					const proceed = await confirm({
+				// Nothing left to fetch or write means nothing to consent to: the
+				// confirm guards the restore, and a zero-row restore is not one.
+				if (partitions.length > 0 && shouldPromptForGatedFetch(opts)) {
+					if (opts.json) {
+						// `--json` shapes the output; it never stands in for `-y`. The
+						// quote goes to stderr as chrome and to stdout as data, so a
+						// script sees the price before anything is charged or written.
+						if (quoteLine) note(`  metered: ${quoteLine}`);
+						writeData(JSON.stringify(confirmationRequiredPayload(quote)));
+						process.exit(BOOTSTRAP_EXIT.REFUSED);
+					}
+					const proceed = await confirmDestructive({
 						message: "Restore from the verified archive?",
-						default: true,
+						yes: opts.yes,
 					});
 					if (!proceed) {
 						note("Nothing was written.");
@@ -386,17 +480,14 @@ Exit codes:
 				// the chain was when we started, not where it ends up.
 				const nodeTipAtStart = await readNodeTip();
 
-				// FK order is not optional: transactions reference blocks, events
-				// reference transactions.
-				const order: ArchiveDataset[] = ["blocks", "transactions", "events"];
 				const rawClient = getRawClient("source");
 				const loaded = { blocks: 0, transactions: 0, events: 0 };
 				const startedAt = Date.now();
 
-				for (const dataset of order) {
-					const datasetPartitions = partitions
-						.filter((p) => p.dataset === dataset)
-						.sort((a, b) => a.from_block - b.from_block);
+				for (const dataset of LOAD_ORDER) {
+					const datasetPartitions = loadOrder(partitions).filter(
+						(p) => p.dataset === dataset,
+					);
 					for (const [index, partition] of datasetPartitions.entries()) {
 						loaded[dataset] += await loadPartition(
 							reference,
@@ -415,14 +506,26 @@ Exit codes:
 				}
 
 				// A restore that is not verified is just a copy with good intentions.
+				// Only ranges inside what this run declared count: a forward-only
+				// restore never loaded anything below --from-block, and a digest
+				// over those empty rows would read as divergence, not as scope.
 				const referenceDigests = (
 					reference.manifest.range_digests ?? []
-				).filter((d) => d.dataset === "blocks" && d.to_block <= tipHeight);
-				let divergent = 0;
+				).filter(
+					(d) =>
+						verifyDatasets.includes(d.dataset) &&
+						d.from_block >= startHeight &&
+						d.to_block <= tipHeight,
+				);
+				const divergentRanges: Array<{
+					dataset: string;
+					from_block: number;
+					to_block: number;
+				}> = [];
 				for (const range of referenceDigests) {
 					const actual = await computeRangeDigest(
 						db,
-						"blocks",
+						range.dataset,
 						range.from_block,
 						range.to_block,
 					);
@@ -430,9 +533,14 @@ Exit codes:
 						actual.digest !== range.digest ||
 						actual.row_count !== range.row_count
 					) {
-						divergent++;
+						divergentRanges.push({
+							dataset: range.dataset,
+							from_block: range.from_block,
+							to_block: range.to_block,
+						});
 					}
 				}
+				const divergent = divergentRanges.length;
 
 				// Hand the indexer its resume point. Without this the instance holds
 				// millions of blocks while `index_progress` says nothing, and the
@@ -493,8 +601,10 @@ Exit codes:
 					start_height: startHeight,
 					tip_height: tipHeight,
 					rows: loaded,
+					verified_datasets: verifyDatasets,
 					ranges_verified: referenceDigests.length,
 					divergent_ranges: divergent,
+					divergent: divergentRanges,
 					elapsed_seconds: Math.round(elapsed),
 					resume_from: tipHeight + 1,
 					node_tip_at_start: nodeTipAtStart,
@@ -512,11 +622,11 @@ Exit codes:
 							);
 							if (referenceDigests.length > 0) {
 								note(
-									`  verified ${referenceDigests.length} ranges against the archive`,
+									`  verified ${referenceDigests.length} ${verifyDatasets.join("/")} ranges against the archive`,
 								);
 							} else {
 								warn(
-									"  archive published no block digests — restore is unverified",
+									"  archive published no digests for the restored range; the restore is unverified",
 								);
 							}
 							console.error("");
@@ -554,8 +664,14 @@ Exit codes:
 								);
 							}
 						} else {
+							const byDataset = verifyDatasets
+								.map(
+									(d) =>
+										`${divergentRanges.filter((r) => r.dataset === d).length} ${d}`,
+								)
+								.join(", ");
 							warn(
-								`Restored ${loaded.blocks.toLocaleString()} blocks but ${divergent} ranges do not match the archive.`,
+								`Restored ${loaded.blocks.toLocaleString()} blocks but ${divergent} ranges do not match the archive (${byDataset}).`,
 							);
 							console.error(
 								dim(
@@ -571,11 +687,24 @@ Exit codes:
 				);
 			} catch (err) {
 				const message = err instanceof Error ? err.message : String(err);
-				const hint = /failed verification/.test(message)
-					? "An archive object does not match its signed digest — re-download and retry."
-					: /could not fetch/.test(message)
-						? "Check the archive URL and your network connection."
-						: "Set DATABASE_URL to the (empty) instance you want to bootstrap.";
+				if (err instanceof ArchiveFetchError && err.transient) {
+					// The network gave out, not the archive. Everything loaded so far
+					// is on disk with its progress marker, so the remedy is a re-run,
+					// and the exit code says "unfinished", not "refused".
+					printError(message, {
+						hint: "The archive could not be reached. Re-run the same command to resume; datasets already loaded are kept.",
+					});
+					process.exit(BOOTSTRAP_EXIT.INCOMPLETE);
+				}
+				const hint = /^--verify must be/.test(message)
+					? "Pass --verify all (default) or --verify blocks."
+					: /pointer|leave the archive root/.test(message)
+						? "The archive pointer failed its integrity check. Pass --against the snapshot URL directly, and report this if the pointer is the official latest.json."
+						: /failed verification/.test(message)
+							? "An archive object does not match its signed digest. Re-download and retry."
+							: /could not fetch/.test(message)
+								? "Check the archive URL and your network connection."
+								: "Set DATABASE_URL to the (empty) instance you want to bootstrap.";
 				printError(message, { hint });
 				process.exit(BOOTSTRAP_EXIT.REFUSED);
 			}

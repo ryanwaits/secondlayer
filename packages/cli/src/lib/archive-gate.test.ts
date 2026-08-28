@@ -1,15 +1,21 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { loadOrder } from "../commands/bootstrap.ts";
 import {
 	type ArchiveGateDeps,
 	type ArchiveQuote,
 	OFFICIAL_ARCHIVE_HOST,
+	confirmationRequiredPayload,
 	createGatedFetcher,
 	formatInsufficientMessage,
 	formatQuoteValue,
 	isOfficialArchive,
 	quoteArchiveFetch,
+	shouldPromptForGatedFetch,
 } from "./archive-gate.ts";
-import { CliHttpError } from "./http.ts";
+import { ARCHIVE_LOGIN_COMMAND, CliHttpError } from "./http.ts";
 
 /**
  * Pure-logic coverage for the CLI's archive gate client: the official-host
@@ -140,6 +146,41 @@ describe("quoteArchiveFetch", () => {
 		});
 	});
 
+	test("a merchant 401 through the real HTTP seam tells the reader to run the credits login, so bootstrap exits refused with the fix on screen", async () => {
+		const server = Bun.serve({
+			port: 0,
+			fetch: () =>
+				Response.json({ error: "Invalid token format" }, { status: 401 }),
+		});
+		const saved = {
+			SL_CREDITS_API_URL: process.env.SL_CREDITS_API_URL,
+			SL_API_KEY: process.env.SL_API_KEY,
+			INSTANCE_TOKEN: process.env.INSTANCE_TOKEN,
+			HOME: process.env.HOME,
+		};
+		// Isolated HOME so the developer's real session file never picks the bearer.
+		const home = await mkdtemp(join(tmpdir(), "sl-archive-gate-"));
+		process.env.HOME = home;
+		process.env.SL_CREDITS_API_URL = `http://127.0.0.1:${server.port}`;
+		process.env.SL_API_KEY = "sk-sl_stale";
+		Reflect.deleteProperty(process.env, "INSTANCE_TOKEN");
+		try {
+			const result = await quoteArchiveFetch(["a"], "bootstrap");
+			expect(result.ok).toBe(false);
+			if (result.ok) return;
+			expect(result.kind).toBe("not_authed");
+			if (result.kind !== "not_authed") return;
+			expect(result.message).toContain(ARCHIVE_LOGIN_COMMAND);
+		} finally {
+			server.stop(true);
+			await rm(home, { recursive: true, force: true });
+			for (const [k, v] of Object.entries(saved)) {
+				if (v === undefined) Reflect.deleteProperty(process.env, k);
+				else process.env[k] = v;
+			}
+		}
+	});
+
 	test("any other HTTP error maps to a generic typed error", async () => {
 		const deps = stubDeps(async () => {
 			throw new CliHttpError(400, "HTTP_400", {}, "malformed archive path(s)");
@@ -169,7 +210,7 @@ describe("createGatedFetcher — batch paging", () => {
 			urls: (opts as { body: { paths: string[] } }).body.paths.map((path) => ({
 				path,
 				url: `https://fake.r2.example/${path}?sig=x`,
-				expires_at: "2026-08-16T12:15:00.000Z",
+				expires_at: new Date(Date.now() + 900_000).toISOString(),
 				charged_usd_micros: 50_000,
 			})),
 			charged_total_usd_micros: 800_000,
@@ -191,7 +232,7 @@ describe("createGatedFetcher — batch paging", () => {
 			urls: (opts as { body: { paths: string[] } }).body.paths.map((path) => ({
 				path,
 				url: `https://fake.r2.example/${path}?sig=x`,
-				expires_at: "2026-08-16T12:15:00.000Z",
+				expires_at: new Date(Date.now() + 900_000).toISOString(),
 				charged_usd_micros: 50_000,
 			})),
 			charged_total_usd_micros: 0,
@@ -218,7 +259,7 @@ describe("createGatedFetcher — batch paging", () => {
 			urls: (opts as { body: { paths: string[] } }).body.paths.map((path) => ({
 				path,
 				url: `https://fake.r2.example/${path}?sig=x`,
-				expires_at: "2026-08-16T12:15:00.000Z",
+				expires_at: new Date(Date.now() + 900_000).toISOString(),
 				charged_usd_micros: 50_000,
 			})),
 			charged_total_usd_micros: 0,
@@ -243,7 +284,7 @@ describe("createGatedFetcher — batch paging", () => {
 				urls: requested.map((path) => ({
 					path,
 					url: `https://fake.r2.example/${path}?sig=${callCount}`,
-					expires_at: "2026-08-16T12:15:00.000Z",
+					expires_at: new Date(Date.now() + 900_000).toISOString(),
 					charged_usd_micros: 0,
 				})),
 				charged_total_usd_micros: 0,
@@ -264,6 +305,80 @@ describe("createGatedFetcher — batch paging", () => {
 		expect(
 			(deps.calls[1]?.opts as { body: { paths: string[] } }).body.paths,
 		).toEqual(["blocks/0.parquet"]);
+	});
+
+	test("a cached URL with under a minute to live is re-issued before it is handed out", async () => {
+		const paths = ["blocks/0.parquet", "blocks/1.parquet"];
+		let clock = 1_000_000;
+		let callCount = 0;
+		const deps = stubDeps(async (_p, opts) => {
+			callCount++;
+			const requested = (opts as { body: { paths: string[] } }).body.paths;
+			return {
+				urls: requested.map((path) => ({
+					path,
+					// Every issue lasts 900s from the moment the stub answers.
+					url: `https://fake.r2.example/${path}?sig=${callCount}`,
+					expires_at: new Date(clock + 900_000).toISOString(),
+					charged_usd_micros: 0,
+				})),
+				charged_total_usd_micros: 0,
+				balance_after_usd_micros: 0,
+			};
+		});
+		const fetcher = createGatedFetcher(paths, "bootstrap", deps, () => clock);
+
+		const first = await fetcher.getUrl("blocks/0.parquet");
+		expect(first).toBe("https://fake.r2.example/blocks/0.parquet?sig=1");
+		expect(deps.calls).toHaveLength(1);
+
+		// 30s left on the batch's URLs: too little for a slow COPY.
+		clock += 870_000;
+		const refreshed = await fetcher.getUrl("blocks/1.parquet");
+		expect(refreshed).toBe("https://fake.r2.example/blocks/1.parquet?sig=2");
+		expect(deps.calls).toHaveLength(2);
+		expect(
+			(deps.calls[1]?.opts as { body: { paths: string[] } }).body.paths,
+		).toEqual(["blocks/1.parquet"]);
+
+		// The re-issued URL is fresh, so the next call serves it from cache.
+		expect(await fetcher.getUrl("blocks/1.parquet")).toBe(refreshed);
+		expect(deps.calls).toHaveLength(2);
+	});
+
+	test("the first batch charged for a bootstrap holds only blocks paths when paths arrive in load order", async () => {
+		// 20 of each dataset, interleaved the way a manifest lists them; the
+		// batch size is 16 so an unordered list would mix datasets.
+		const manifestOrder = Array.from({ length: 20 }, (_, i) => i).flatMap(
+			(i) => [
+				{ dataset: "events", from_block: i * 10, path: `events/${i}.parquet` },
+				{ dataset: "blocks", from_block: i * 10, path: `blocks/${i}.parquet` },
+				{
+					dataset: "transactions",
+					from_block: i * 10,
+					path: `transactions/${i}.parquet`,
+				},
+			],
+		);
+		const paths = loadOrder(manifestOrder).map((p) => p.path);
+		const deps = stubDeps(async (_p, opts) => ({
+			urls: (opts as { body: { paths: string[] } }).body.paths.map((path) => ({
+				path,
+				url: `https://fake.r2.example/${path}?sig=x`,
+				expires_at: new Date(Date.now() + 900_000).toISOString(),
+				charged_usd_micros: 0,
+			})),
+			charged_total_usd_micros: 0,
+			balance_after_usd_micros: 0,
+		}));
+		const fetcher = createGatedFetcher(paths, "bootstrap", deps);
+
+		await fetcher.getUrl("blocks/0.parquet");
+		expect(deps.calls).toHaveLength(1);
+		const charged = (deps.calls[0]?.opts as { body: { paths: string[] } }).body
+			.paths;
+		expect(charged).toHaveLength(16);
+		expect(charged.every((p) => p.startsWith("blocks/"))).toBe(true);
 	});
 
 	test("a path outside the quoted batch throws rather than silently fetching everything", async () => {
@@ -324,5 +439,34 @@ describe("quote/insufficient message formatting", () => {
 		expect(message).toBe(
 			"Insufficient archive credits: quote $44.00, balance $10.00, short $34.00. Buy more with `secondlayer credits buy`.",
 		);
+	});
+});
+
+describe("consent is owed until -y says otherwise", () => {
+	test("--json alone still requires confirmation; only -y waives it", () => {
+		const jsonOnly: { yes?: boolean; json: boolean } = { json: true };
+		expect(shouldPromptForGatedFetch({})).toBe(true);
+		expect(shouldPromptForGatedFetch(jsonOnly)).toBe(true);
+		expect(shouldPromptForGatedFetch({ yes: true })).toBe(false);
+		expect(shouldPromptForGatedFetch({ ...jsonOnly, yes: true })).toBe(false);
+	});
+
+	test("the JSON refusal carries the quote and names -y as the remedy", () => {
+		const quote: ArchiveQuote = {
+			partitions: 3,
+			bundles: 1,
+			usd: "0.75",
+			usdMicros: 750_000,
+			balanceUsdMicros: 5_000_000,
+			sufficient: true,
+			freeAllowanceAppliedMicros: 0,
+			allowanceRemainingBundles: 0,
+		};
+		const payload = confirmationRequiredPayload(quote);
+		expect(payload.code).toBe("CONFIRMATION_REQUIRED");
+		expect(payload.quote).toBe(quote);
+		expect(payload.message).toMatch(/-y/);
+		expect(payload.message).not.toMatch(/—/);
+		expect(confirmationRequiredPayload(null).quote).toBeNull();
 	});
 });

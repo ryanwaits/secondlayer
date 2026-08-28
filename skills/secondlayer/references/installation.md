@@ -51,12 +51,11 @@ secondlayer setup --yes \
   --against https://archive.secondlayer.tools/latest.json
 ```
 
-For manual, one-step-at-a-time control instead:
+For manual, one-step-at-a-time control instead (from a repo checkout):
 
 ```bash
 secondlayer init --network mainnet
-secondlayer start --print
-# docker compose -f docker/oss/docker-compose.yml up -d
+docker compose -f docker/oss/docker-compose.yml --env-file .env.local up -d
 ```
 
 `secondlayer init` writes `.env.local` (`INSTANCE_TOKEN`, secrets key, webhook signing key). Your instance has this one token — there are no accounts, logins, or per-user keys. Loopback reads need no token. For writes, and for any instance that has the token configured:
@@ -77,9 +76,9 @@ Writes (`/api/subgraphs`, `/api/subscriptions`, `/api/node`, `/status`) send `Au
 | `SL_API_URL` | All SDK + CLI calls | Override instance API. Default: `http://127.0.0.1:3800`. |
 | `INSTANCE_TOKEN` | CLI writes, MCP, SDK | The token `secondlayer init` writes — the instance's only credential. Loopback reads need no value. |
 | `SL_API_KEY` | legacy alias | Same value as `INSTANCE_TOKEN`, which wins when both are set. |
-| `HIRO_API_KEY` | `secondlayer codegen contracts`, `secondlayer subgraphs scaffold` | Stacks node API key for ABI fetches against Hiro RPC. |
+| `HIRO_API_KEY` | `secondlayer codegen contracts` | Stacks node API key for ABI fetches against Hiro RPC. |
 | `SIGNING_SECRET` | `secondlayer subscriptions test` fallback | If `--signing-secret` not passed. |
-| `STACKS_NETWORK` | `secondlayer codegen contracts` and some local commands | `local`, `testnet`, or `mainnet`. |
+| `STACKS_NETWORK` | `secondlayer codegen contracts` and some local commands | `mainnet`, `testnet`, or `devnet` (`devnet` maps to the config file's `local`). |
 
 ## SDK quickstart
 
