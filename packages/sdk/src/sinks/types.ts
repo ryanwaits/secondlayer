@@ -117,8 +117,11 @@ export interface ConsumerSink<Tx = unknown> {
 	 * same `rewindCursor` (the lowest fork point) but its own
 	 * `forkPointHeight` — scope the undo by `forkPointHeight` only (contract
 	 * invariant #11), and expect re-application after a crash (#10).
+	 *
+	 * `rewindCursor` is `null` only for a fork at genesis: clear the
+	 * checkpoint so the next run starts from the first event.
 	 */
-	rollback(forkPointHeight: number, rewindCursor: string): Promise<void>;
+	rollback(forkPointHeight: number, rewindCursor: string | null): Promise<void>;
 }
 
 /** The transaction type a sink hands to `onBatch` (`ctx.tx`). */

@@ -3,6 +3,7 @@ import {
 	type StreamsEvent,
 	type StreamsEventsEnvelope,
 	type StreamsReorg,
+	ValidationError,
 	createStreamsClient,
 } from "../index.ts";
 
@@ -192,9 +193,11 @@ describe("client.events.consume", () => {
 		// rewind silently dropped.
 		const rewind = "4:2147483647";
 		const byCursor: Record<string, StreamsEventsEnvelope> = {
-			null: {
-				events: [event("6:0", 0)],
-				next_cursor: "6:0",
+			// Checkpoint at 9:0 sits ABOVE the fork, so the fork is a real
+			// rollback of rows already written.
+			"9:0": {
+				events: [event("10:0", 0, { block_height: 10 })],
+				next_cursor: "10:0",
 				tip: TIP,
 				reorgs: [r],
 			},
@@ -214,16 +217,20 @@ describe("client.events.consume", () => {
 		const client = createStreamsClient({
 			apiKey: "sk-test",
 			fetchImpl: async (input) => {
-				const c = new URL(input.toString()).searchParams.get("cursor");
+				const url = new URL(input.toString());
+				if (url.pathname.endsWith("/streams/reorgs")) {
+					return jsonResponse({ reorgs: [], next_since: null });
+				}
+				const c = url.searchParams.get("cursor");
 				requestedCursors.push(c);
 				return jsonResponse(byCursor[c ?? "null"]);
 			},
 		});
 
-		const rollbacks: Array<{ fork: number; cursor: string }> = [];
+		const rollbacks: Array<{ fork: number; cursor: string | null }> = [];
 		const applied: string[] = [];
 		const result = await client.events.consume({
-			fromCursor: null,
+			fromCursor: "9:0",
 			batchSize: 10,
 			emptyBackoffMs: 0,
 			maxEmptyPolls: 1,
@@ -243,8 +250,264 @@ describe("client.events.consume", () => {
 		// Page that carried the fresh reorg is skipped; the re-read is applied —
 		// and it INCLUDES the fork-point's first event (5:0).
 		expect(applied).toEqual(["5:0", "6:0", "7:0"]);
-		expect(requestedCursors).toEqual([null, rewind, "7:0"]);
+		expect(requestedCursors).toEqual(["9:0", rewind, "7:0"]);
 		expect(result.cursor).toBe("7:0");
+	});
+
+	test("a fork above the checkpoint never rewinds: the page is delivered and the cursor stays put", async () => {
+		// Ported from the audit repro: checkpoint 100:5, page 101..200 reporting
+		// a fork at 150. Rewinding to 149 would move the cursor FORWARD and skip
+		// rows 101..149 for good.
+		const fork = reorg({
+			fork_point_height: 150,
+			orphaned_range: { from: "150:0", to: "160:0" },
+			new_canonical_tip: "161:0",
+		});
+		const tip = { ...TIP, block_height: 200 };
+		const requestedCursors: Array<string | null> = [];
+		let served = 0;
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			fetchImpl: async (input) => {
+				const url = new URL(input.toString());
+				if (url.pathname.endsWith("/streams/reorgs")) {
+					return jsonResponse({ reorgs: [fork], next_since: "t~id" });
+				}
+				requestedCursors.push(url.searchParams.get("cursor"));
+				served++;
+				if (served === 1) {
+					return jsonResponse({
+						events: Array.from({ length: 100 }, (_, k) =>
+							event(`${101 + k}:0`, k, { block_height: 101 + k }),
+						),
+						next_cursor: "200:0",
+						tip,
+						reorgs: [fork],
+					});
+				}
+				return jsonResponse({
+					events: [],
+					next_cursor: "200:0",
+					tip,
+					reorgs: [fork],
+				});
+			},
+		});
+
+		const rollbacks: number[] = [];
+		const delivered: string[] = [];
+		const result = await client.events.consume({
+			fromCursor: "100:5",
+			batchSize: 100,
+			mode: "bounded",
+			onBatch: (events) => {
+				delivered.push(...events.map((e) => e.cursor));
+			},
+			onReorg: (r) => {
+				rollbacks.push(r.fork_point_height);
+			},
+		});
+
+		expect(rollbacks).toEqual([]);
+		expect(delivered).toHaveLength(100);
+		expect(delivered[0]).toBe("101:0");
+		expect(delivered.at(-1)).toBe("200:0");
+		expect(requestedCursors).toEqual(["100:5", "200:0"]);
+		expect(result.cursor).toBe("200:0");
+	});
+
+	test("an idle empty page asks the reorg list and rolls back a fork below the checkpoint", async () => {
+		const fork = reorg({
+			fork_point_height: 9,
+			orphaned_range: { from: "9:0", to: "10:0" },
+			new_canonical_tip: "9:0",
+		});
+		const rewind = "8:2147483647";
+		const requests: string[] = [];
+		const byCursor: Record<string, StreamsEventsEnvelope> = {
+			"10:0": { events: [], next_cursor: "10:0", tip: TIP, reorgs: [] },
+			[rewind]: {
+				events: [event("9:0", 0, { block_height: 9 })],
+				next_cursor: "9:0",
+				tip: TIP,
+				reorgs: [],
+			},
+			"9:0": { events: [], next_cursor: "9:0", tip: TIP, reorgs: [] },
+		};
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			fetchImpl: async (input) => {
+				const url = new URL(input.toString());
+				if (url.pathname.endsWith("/streams/reorgs")) {
+					const since = url.searchParams.get("since") ?? "";
+					requests.push(`reorgs?since=${since}`);
+					// Seeded from the checkpoint cursor; the token then advances.
+					return jsonResponse(
+						since === "10:0"
+							? { reorgs: [fork], next_since: "t~id" }
+							: { reorgs: [], next_since: null },
+					);
+				}
+				const c = url.searchParams.get("cursor");
+				requests.push(`events?cursor=${c}`);
+				return jsonResponse(byCursor[c ?? "null"]);
+			},
+		});
+
+		const rollbacks: Array<{ fork: number; cursor: string | null }> = [];
+		const applied: string[] = [];
+		const result = await client.events.consume({
+			fromCursor: "10:0",
+			batchSize: 10,
+			emptyBackoffMs: 0,
+			maxEmptyPolls: 1,
+			onBatch: (events) => {
+				applied.push(...events.map((e) => e.cursor));
+			},
+			onReorg: (r, ctx) => {
+				rollbacks.push({ fork: r.fork_point_height, cursor: ctx.cursor });
+			},
+		});
+
+		expect(rollbacks).toEqual([{ fork: 9, cursor: rewind }]);
+		expect(applied).toEqual(["9:0"]);
+		expect(requests).toEqual([
+			"events?cursor=10:0",
+			"reorgs?since=10:0",
+			`events?cursor=${rewind}`,
+			"events?cursor=9:0",
+			"reorgs?since=t~id",
+		]);
+		expect(result.cursor).toBe("9:0");
+	});
+
+	test("the reorg list is not consulted without a reorg handler or a sink", async () => {
+		const paths: string[] = [];
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			fetchImpl: async (input) => {
+				paths.push(new URL(input.toString()).pathname);
+				return jsonResponse({
+					events: [],
+					next_cursor: "10:0",
+					tip: TIP,
+					reorgs: [],
+				});
+			},
+		});
+		await client.events.consume({
+			fromCursor: "10:0",
+			emptyBackoffMs: 0,
+			maxEmptyPolls: 2,
+			onBatch: () => undefined,
+		});
+		expect(paths.every((p) => p.endsWith("/streams/events"))).toBe(true);
+	});
+
+	test("a malformed fork point is refused before any rollback runs", async () => {
+		for (const fork_point_height of [Number.NaN, -1, 1.5]) {
+			let served = 0;
+			const client = createStreamsClient({
+				apiKey: "sk-test",
+				fetchImpl: async () => {
+					served++;
+					return jsonResponse({
+						events: [],
+						next_cursor: "10:0",
+						tip: TIP,
+						reorgs: [reorg({ fork_point_height })],
+					});
+				},
+			});
+			const rollbacks: number[] = [];
+			await expect(
+				client.events.consume({
+					fromCursor: "10:0",
+					maxPages: 2,
+					onBatch: () => undefined,
+					onReorg: (r) => {
+						rollbacks.push(r.fork_point_height);
+					},
+				}),
+			).rejects.toBeInstanceOf(ValidationError);
+			expect(rollbacks).toEqual([]);
+			expect(served).toBe(1);
+		}
+	});
+
+	test("a rewind deeper than maxRollbackDepth is refused before the sink deletes anything", async () => {
+		const deep = reorg({
+			fork_point_height: 10,
+			orphaned_range: { from: "10:0", to: "5000:0" },
+			new_canonical_tip: "10:0",
+		});
+		const clientFor = () =>
+			createStreamsClient({
+				apiKey: "sk-test",
+				fetchImpl: async () =>
+					jsonResponse({
+						events: [],
+						next_cursor: "5000:3",
+						tip: { ...TIP, block_height: 5000 },
+						reorgs: [deep],
+					}),
+			});
+
+		const rollbacks: number[] = [];
+		await expect(
+			clientFor().events.consume({
+				fromCursor: "5000:3",
+				maxPages: 2,
+				onBatch: () => undefined,
+				onReorg: (r) => {
+					rollbacks.push(r.fork_point_height);
+				},
+			}),
+		).rejects.toThrow(/maxRollbackDepth/);
+		expect(rollbacks).toEqual([]);
+
+		// Raising the ceiling is the opt-in.
+		await clientFor().events.consume({
+			fromCursor: "5000:3",
+			maxPages: 1,
+			maxRollbackDepth: 5000,
+			onBatch: () => undefined,
+			onReorg: (r) => {
+				rollbacks.push(r.fork_point_height);
+			},
+		});
+		expect(rollbacks).toEqual([10]);
+	});
+
+	test("a fork at genesis rewinds to null, the pre-genesis position", async () => {
+		let served = 0;
+		const requestedCursors: Array<string | null> = [];
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			fetchImpl: async (input) => {
+				requestedCursors.push(
+					new URL(input.toString()).searchParams.get("cursor"),
+				);
+				served++;
+				return jsonResponse({
+					events: [],
+					next_cursor: served === 1 ? "3:0" : null,
+					tip: TIP,
+					reorgs: served === 1 ? [reorg({ fork_point_height: 0 })] : [],
+				});
+			},
+		});
+		const rewinds: Array<string | null> = [];
+		await client.events.consume({
+			fromCursor: "3:0",
+			maxPages: 2,
+			onBatch: () => undefined,
+			onReorg: (_r, ctx) => {
+				rewinds.push(ctx.cursor);
+			},
+		});
+		expect(rewinds).toEqual([null]);
+		expect(requestedCursors).toEqual(["3:0", null]);
 	});
 
 	test("finalizedOnly emits only finalized events, checkpointing the last one", async () => {

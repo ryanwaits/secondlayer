@@ -29,13 +29,14 @@ export const Cursor = {
 	 * every reorg. The sentinel is int4 max (the `event_index`/`tx_index` column
 	 * type), larger than any real index, so nothing at `height - 1` survives the
 	 * keyset and the next returned row is exactly `(height, 0)`.
+	 *
+	 * `atHeight(0)` is `null`: the pre-genesis position both consume loops
+	 * accept as "read everything from the first event". There is no string
+	 * cursor below `0:0`, and `0:0` itself is exclusive, so returning it here
+	 * skipped the genesis event.
 	 */
-	atHeight(height: number): string {
-		// Genesis can't reorg; degenerate-guard so `height - 1` never goes negative
-		// (the cursor parsers reject negative components).
-		if (height <= 0) {
-			return encodeStreamsCursor({ block_height: 0, event_index: 0 });
-		}
+	atHeight(height: number): string | null {
+		if (height <= 0) return null;
 		return encodeStreamsCursor(blockEndCursor(height - 1));
 	},
 

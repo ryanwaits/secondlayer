@@ -10,16 +10,16 @@ Loopback needs no token; an API published past loopback needs `INSTANCE_TOKEN` o
 
 ## Build an indexer on it
 
-`events.consume` is the checkpointed consumer with automatic reorg rewind; see [Index](/docs/index#build-your-index-on-it). Reorgs rewind to the fork point and re-deliver, inclusive of the fork block; delivery is at-least-once, so keep writes idempotent.
+`events.consume` is the checkpointed consumer with automatic reorg rewind; see [Index](/docs/index#build-your-index-on-it). Reorgs rewind to the fork point and re-deliver, inclusive of the fork block; delivery is at-least-once, so keep writes idempotent. Only forks at or below your checkpoint roll back (a fork above it has nothing to undo), a rewind deeper than `maxRollbackDepth` (default 1000 blocks) is refused before anything is deleted, and on empty pages the loop polls `reorgs.list` so a fork that lands while idle at the tip is caught too, at the cost of one extra request per idle poll. A fork at genesis hands `onReorg` a `null` cursor.
 
 For cold history, `events.replay` backfills from the signed bulk dumps, then tails live from the manifest's `latest_finalized_cursor`, no gap or dupe at the seam:
 
 ```ts
 await streams.events.replay({
   from: "genesis",
-  async onDumpFile(file) {
+  async onDumpFile(file, { from }) {
     const bytes = await streams.dumps.download(file); // sha256-verified
-    await ingestParquet(bytes);
+    await ingestParquet(bytes, { after: from }); // file-granular, at-least-once: skip rows at or below `from`
   },
   async onBatch(events, envelope) {
     await db.insertEvents(events);

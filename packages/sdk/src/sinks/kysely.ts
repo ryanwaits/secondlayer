@@ -114,6 +114,12 @@ export function kyselySink<DB, T extends keyof DB & string>(
 			`.execute(tx);
 		},
 
+		async clearCursor(tx) {
+			await sql`DELETE FROM ${sql.raw(cp)} WHERE id = ${options.id}`.execute(
+				tx,
+			);
+		},
+
 		async deleteAtOrAbove(tx, table, height) {
 			// Identifiers via validated sql.raw; the height bound as a parameter.
 			await sql`

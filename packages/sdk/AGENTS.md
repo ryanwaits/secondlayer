@@ -49,9 +49,29 @@ consistent.
 ```ts
 onReorg: async (reorg, ctx) => {
   await tx.deleteFrom("my_rows").where("height", ">=", reorg.fork_point_height).execute();
-  await saveCursor(tx, ctx.cursor);
+  await saveCursor(tx, ctx.cursor); // string, or null for a fork at genesis
 },
 ```
+
+Three more reorg facts the loop enforces so you do not have to:
+
+- **Never rewinds forward.** A page read from below a fork still reports that
+  fork. Nothing past it has been written, so the loop skips the rollback and
+  delivers the page; `onReorg` fires only for forks at or below the checkpoint.
+- **Idle tip is covered (Streams).** A page only reports reorgs overlapping its
+  own span, so on every empty page the Streams loop also calls
+  `reorgs.list` (one extra request per idle poll) and rolls back anything it
+  finds. Index has no reorg list; a fork while idling is seen once a page
+  overlaps it.
+- **Rollback depth is capped.** The fork point is server supplied and drives a
+  `DELETE ... >= fork` on every declared table, so a rewind more than
+  `maxRollbackDepth` blocks (default 1000) below the checkpoint throws a
+  `ValidationError` before the sink runs. Raise it only for a source you trust.
+- **Rollback is at-least-once across restarts.** Applied reorgs are deduped in
+  memory only. A consumer restarted at a checkpoint below a recent fork's
+  orphaned tip sees that fork again, fires `onReorg` again, and re-reads.
+  Correct (the rollback is idempotent, the re-read is a no-op on keyed rows)
+  but not free: persist a checkpoint above the fork to stop it.
 
 ## 4. Rows and the cursor commit in ONE transaction
 
@@ -81,6 +101,20 @@ transaction as the row writes.
 reorgs and does not rewind. Anything writing durable state off the tip belongs
 in `consume()` with `onReorg` (or a sink). Use `walk()` for history that is
 already final.
+
+## 6. `replay()` dump delivery is file-granular, at-least-once
+
+`events.replay({ from })` hands `onDumpFile` every dump file ending above
+`from`, whole. The file that straddles `from` includes rows at or below it, so
+skip those with `ctx.from` (the same cursor) or key rows by `cursor` so a
+re-run is a no-op. Files ending at or below `from` are not delivered.
+
+```ts
+onDumpFile: async (file, { from }) => {
+  const rows = await readParquet(await streams.dumps.download(file));
+  await insert(rows.filter((r) => from === null || isAfter(r.cursor, from)));
+},
+```
 
 ---
 

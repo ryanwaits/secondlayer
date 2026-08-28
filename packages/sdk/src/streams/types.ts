@@ -247,7 +247,10 @@ export type StreamsBatchContext = ConsumerBatchContext;
  * The checkpoint for a reorg rollback. Persist `cursor` (the rewind position)
  * inside the same transaction as your rollback so the two commit atomically.
  */
-export type StreamsReorgContext = { cursor: string };
+/** `cursor` is the rewind position the loop resumes from after `onReorg`:
+ *  the foot of the fork point, or `null` for a fork at genesis. Persist it
+ *  in the same transaction as the rollback. */
+export type StreamsReorgContext = { cursor: string | null };
 
 export type StreamsEventsConsumeParams<
 	TTx = never,
@@ -337,15 +340,26 @@ export type StreamsEventsConsumeParams<
 		| Promise<string | null | undefined>;
 	/**
 	 * Roll your projection back to `reorg.fork_point_height`, persisting
-	 * `ctx.cursor` in the same transaction. Called once per *new* reorg
-	 * (deduped in-memory, fork-ascending) before the SDK rewinds and re-reads the
-	 * now-canonical events. Omit it to ignore reorgs (events stay canonical, but
-	 * stale rows from an orphaned fork are left in place).
+	 * `ctx.cursor` in the same transaction. Called once per *new* reorg at or
+	 * below the checkpoint (deduped in-memory, fork-ascending) before the SDK
+	 * rewinds and re-reads the now-canonical events. A reorg whose fork sits
+	 * above the checkpoint is not a rollback (nothing past it was written) and
+	 * is skipped. Omit it to ignore reorgs (events stay canonical, but stale
+	 * rows from an orphaned fork are left in place).
+	 *
+	 * With `onReorg` or a `sink` attached, every empty page also polls
+	 * `reorgs.list` (one extra request per idle poll) so a fork that lands
+	 * while the consumer idles at the tip is rolled back too.
 	 */
 	onReorg?: (
 		reorg: StreamsReorg,
 		ctx: StreamsReorgContext,
 	) => Promise<void> | void;
+	/** Deepest rewind one reorg may make below the checkpoint before the loop
+	 *  refuses with `ValidationError`. Default 1000 blocks. The fork point is
+	 *  server supplied and drives a delete on every declared table, so raise
+	 *  this only for a source you trust. */
+	maxRollbackDepth?: number;
 	/** Page-fetch retries after the first failure (429/5xx/network only —
 	 *  4xx and handler throws always propagate). Default 3; `0` disables. */
 	retryCount?: number;
@@ -411,8 +425,17 @@ export type StreamsEventsReplayParams = {
 	 * Called once per finalized dump file, in block order, before live tailing.
 	 * Process the parquet with your own tooling (e.g. DuckDB) — the SDK does not
 	 * decode parquet. Use `client.dumps.download(file)` to fetch + verify bytes.
+	 *
+	 * Delivery is file-granular and at-least-once: a file whose range straddles
+	 * `from` is handed over whole. `ctx.from` is that cursor (`null` from
+	 * genesis); skip rows at or below it, or key rows by `cursor` so a re-run
+	 * is an idempotent no-op. Files ending at or below `from` are not handed
+	 * over at all.
 	 */
-	onDumpFile: (file: StreamsDumpFile) => Promise<void> | void;
+	onDumpFile: (
+		file: StreamsDumpFile,
+		ctx: { from: string | null },
+	) => Promise<void> | void;
 	/** Called per live page after the dump phase, like `consume`. */
 	onBatch: (
 		events: StreamsEvent[],

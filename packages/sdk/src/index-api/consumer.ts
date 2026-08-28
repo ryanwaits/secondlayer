@@ -2,6 +2,7 @@ import type { ConsumerSink, WithSinkTx } from "../sinks/types.ts";
 import {
 	type PageRetryOptions,
 	type Sleep,
+	applyReorgs,
 	assertFinalizedCheckpoint,
 	assertSinkModeCompatible,
 	batchContext,
@@ -9,7 +10,6 @@ import {
 	fetchPageWithRetry,
 	resumeHeight,
 } from "../streams/consumer.ts";
-import { Cursor } from "../streams/cursor.ts";
 import type { ConsumerBatchContext } from "../streams/types.ts";
 import type { IndexReorg, IndexTip } from "./client.ts";
 
@@ -79,10 +79,19 @@ export type IndexConsumeOptions<
 		| undefined
 		| Promise<void>
 		| Promise<string | null | undefined>;
+	/** Called once per new reorg at or below the checkpoint, before the loop
+	 *  rewinds to `ctx.cursor` (`null` = pre-genesis) and re-reads. A reorg
+	 *  whose fork sits ABOVE the checkpoint is not a rollback: nothing past
+	 *  it was written, so it is noted and the page is read as normal. */
 	onReorg?: (
 		reorg: IndexReorg,
-		ctx: { cursor: string },
+		ctx: { cursor: string | null },
 	) => Promise<void> | void;
+	/** Deepest rewind one reorg may make below the checkpoint before the loop
+	 *  refuses with `ValidationError`. Default 1000 blocks. The fork point is
+	 *  server supplied and drives a delete on every declared table, so raise
+	 *  this only for a source you trust. */
+	maxRollbackDepth?: number;
 	sleep?: Sleep;
 	emptyBackoffMs?: number;
 	maxPages?: number;
@@ -176,31 +185,28 @@ export async function consumeIndexFeed<
 		);
 		pages++;
 
-		// Reorgs: roll back each new fork, then rewind to the lowest fork point
-		// and re-read the now-canonical run. Finalized data never reorgs, so
-		// `finalizedOnly` skips this entirely. A sink makes rollback
-		// UNCONDITIONAL — omitting `onReorg` used to skip reorgs silently.
+		// Reorgs: roll back each new fork at or below the checkpoint, then
+		// rewind to the lowest fork point and re-read the now-canonical run.
+		// Finalized data never reorgs, so `finalizedOnly` skips this entirely.
+		// A sink makes rollback UNCONDITIONAL — omitting `onReorg` used to skip
+		// reorgs silently. Index has no reorg list route, so a fork that lands
+		// while idling at the tip is only seen once a page overlaps it.
 		if (!finalizedOnly && (opts.onReorg || opts.sink)) {
-			const fresh = envelope.reorgs
-				.filter((reorg) => !handledReorgs.has(reorg.id))
-				.sort((a, b) => a.fork_point_height - b.fork_point_height);
-			if (fresh.length > 0) {
-				const forkPoint = Math.min(
-					...fresh.map((reorg) => reorg.fork_point_height),
-				);
-				const rewind = Cursor.atHeight(forkPoint);
-				for (const reorg of fresh) {
-					// Sink first: rollback + rewound cursor commit atomically.
-					// A user onReorg (if any) runs after, for observability.
-					await opts.sink?.rollback(reorg.fork_point_height, rewind);
-					await opts.onReorg?.(reorg, { cursor: rewind });
-					handledReorgs.add(reorg.id);
-				}
-				cursor = rewind;
+			const rewound = await applyReorgs({
+				reorgs: envelope.reorgs,
+				cursor,
+				handled: handledReorgs,
+				keyOf: (reorg) => reorg.id,
+				sink: opts.sink,
+				onReorg: opts.onReorg,
+				maxRollbackDepth: opts.maxRollbackDepth,
+			});
+			if (rewound) {
+				cursor = rewound.cursor;
 				// Everything at and above the fork is no longer canonical, so the
 				// reached height rolls back with it — including the verified
 				// position: the new chain above the fork is unread.
-				height = forkPoint > 0 ? forkPoint - 1 : null;
+				height = rewound.forkPoint > 0 ? rewound.forkPoint - 1 : null;
 				scanned = height;
 				emptyPolls = 0;
 				continue;

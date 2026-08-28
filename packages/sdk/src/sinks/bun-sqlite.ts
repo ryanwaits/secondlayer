@@ -89,6 +89,10 @@ export function bunSqliteSink(
 			).run(options.id, cursor);
 		},
 
+		async clearCursor(tx) {
+			tx.query(`DELETE FROM ${cp} WHERE id = ?`).run(options.id);
+		},
+
 		async deleteAtOrAbove(tx, table, height) {
 			tx.query(
 				`DELETE FROM ${quoteIdent(table)} WHERE ${quoteIdent(options.height)} >= ?`,

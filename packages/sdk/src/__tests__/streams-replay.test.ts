@@ -146,6 +146,70 @@ describe("events.replay", () => {
 		expect(reorgForks).toEqual([19998]);
 	});
 
+	test("a mid-file `from` hands over the straddling file once, with the cursor to skip below, and drops files ending at or below it", async () => {
+		const seen: Array<{ from_block: number; ctxFrom: string | null }> = [];
+		const liveCursors: (string | null)[] = [];
+		const clientFor = () =>
+			createStreamsClient({
+				apiKey: "sk-test",
+				baseUrl: "http://secondlayer.test",
+				dumpsBaseUrl: DUMPS_BASE,
+				verifyDumpsManifest: false,
+				fetchImpl: (async (input: string | URL | Request) => {
+					const url = String(input);
+					if (url.endsWith("/manifest/latest.json")) {
+						return new Response(JSON.stringify(manifest), { status: 200 });
+					}
+					liveCursors.push(new URL(url).searchParams.get("cursor"));
+					return new Response(
+						JSON.stringify({
+							events: [],
+							next_cursor: null,
+							tip: {
+								block_height: 20000,
+								block_hash: "0x01",
+								burn_block_height: 30000,
+								finalized_height: 19999,
+								lag_seconds: 0,
+							},
+							reorgs: [],
+						}),
+						{ status: 200 },
+					);
+				}) as never,
+			});
+
+		// Checkpoint inside the first file: that file is handed over whole
+		// (file-granular, at-least-once) with the cursor the handler must skip
+		// at or below; the second file follows.
+		await clientFor().events.replay({
+			from: "5000:3",
+			mode: "bounded",
+			onDumpFile: (file, ctx) => {
+				seen.push({ from_block: file.from_block, ctxFrom: ctx.from });
+			},
+			onBatch: () => undefined,
+		});
+		expect(seen).toEqual([
+			{ from_block: 0, ctxFrom: "5000:3" },
+			{ from_block: 10000, ctxFrom: "5000:3" },
+		]);
+
+		// Checkpoint exactly at the first file's last row: nothing in it is new.
+		seen.length = 0;
+		await clientFor().events.replay({
+			from: "9999:5",
+			mode: "bounded",
+			onDumpFile: (file, ctx) => {
+				seen.push({ from_block: file.from_block, ctxFrom: ctx.from });
+			},
+			onBatch: () => undefined,
+		});
+		expect(seen).toEqual([{ from_block: 10000, ctxFrom: "9999:5" }]);
+		// The live tail still starts past the dumped coverage.
+		expect(liveCursors.every((c) => c === "19999:2")).toBe(true);
+	});
+
 	test("rejects a malformed `from` cursor instead of silently dropping dumps", async () => {
 		const client = createStreamsClient({
 			apiKey: "sk-test",

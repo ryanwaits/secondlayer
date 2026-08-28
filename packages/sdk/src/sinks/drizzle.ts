@@ -178,6 +178,13 @@ export function drizzleSink<TDb extends DrizzleDatabaseLike, T extends Table>(
 			);
 		},
 
+		async clearCursor(tx) {
+			await exec(
+				tx as unknown as DrizzleDatabaseLike,
+				sql`DELETE FROM ${sql.raw(cp)} WHERE id = ${options.id}`,
+			);
+		},
+
 		async deleteAtOrAbove(tx, table, height) {
 			const heightCol = heightByTable.get(table);
 			if (!heightCol) return;

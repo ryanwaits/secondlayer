@@ -31,6 +31,10 @@ export interface SinkDriver<Tx> {
 	readCursor(): Promise<string | null>;
 	/** Upsert this sink's cursor row inside `tx`. */
 	writeCursor(tx: Tx, cursor: string): Promise<void>;
+	/** Delete this sink's cursor row inside `tx`: a rewind to pre-genesis
+	 *  (fork at block 0). Optional for drivers written before it existed;
+	 *  without it a genesis rewind throws instead of writing a bad cursor. */
+	clearCursor?(tx: Tx): Promise<void>;
 	/** Delete rows with `height column >= height` from `table`, inside `tx`. */
 	deleteAtOrAbove(tx: Tx, table: string, height: number): Promise<void>;
 	/** Whether `table` exists AND carries `column` — the first-use check that
@@ -140,7 +144,17 @@ export function createSink<Tx>(
 				for (const table of options.tables) {
 					await driver.deleteAtOrAbove(tx, table, forkPointHeight);
 				}
-				await driver.writeCursor(tx, rewindCursor);
+				if (rewindCursor === null) {
+					if (!driver.clearCursor) {
+						throw new ValidationError(
+							`${label}: this driver has no clearCursor, so a rewind to pre-genesis cannot be committed. Add clearCursor to the driver, or resume with an explicit fromCursor.`,
+							400,
+						);
+					}
+					await driver.clearCursor(tx);
+				} else {
+					await driver.writeCursor(tx, rewindCursor);
+				}
 			});
 		},
 	};

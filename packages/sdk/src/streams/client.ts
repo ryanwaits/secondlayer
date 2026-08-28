@@ -286,6 +286,18 @@ export function createStreamsClient(
 	// this is checked by the compiler rather than by a hand-copied destructure.
 	const fetchEvents: StreamsEventsFetcher = listEvents;
 
+	function listReorgs(params: StreamsReorgsListParams) {
+		return request<StreamsReorgsListEnvelope>(
+			`/v1/streams/reorgs${buildQuery({
+				since: params.since,
+				limit: params.limit,
+			})}`,
+		);
+	}
+	// Idle-tip reorg detection for the consume loop (one request per empty
+	// page); the public `reorgs.list` is the same call.
+	const fetchReorgs = (params: { since: string }) => listReorgs(params);
+
 	function encodeFilters(filters: StreamsFilterMap | undefined) {
 		return filters ? JSON.stringify(filters) : undefined;
 	}
@@ -397,8 +409,10 @@ export function createStreamsClient(
 			...streamsFilters(params),
 			batchSize: params.batchSize ?? 100,
 			fetchEvents,
+			fetchReorgs,
 			onBatch,
 			onReorg: params.onReorg,
+			maxRollbackDepth: params.maxRollbackDepth,
 			emptyBackoffMs: params.emptyBackoffMs,
 			maxPages: params.maxPages,
 			maxEmptyPolls: params.maxEmptyPolls,
@@ -458,15 +472,24 @@ export function createStreamsClient(
 				const fromBlock = fromCursor ? cursorTuple(fromCursor)[0] : 0;
 				const manifest = await dumps.list();
 
-				// Hydrate finalized history from dumps, in block order.
+				// Hydrate finalized history from dumps, in block order. Files
+				// ending at or below `from` carry nothing new; a file straddling
+				// it is handed over whole, with `from` so the handler can skip
+				// the rows at or below the checkpoint (file-granular delivery).
 				const files = manifest.files
 					.filter((file) => file.to_block >= fromBlock)
+					.filter(
+						(file) =>
+							fromCursor === null ||
+							file.max_cursor === null ||
+							maxCursor(fromCursor, file.max_cursor) !== fromCursor,
+					)
 					.sort(
 						(a, b) => a.from_block - b.from_block || a.to_block - b.to_block,
 					);
 				for (const file of files) {
 					if (params.signal?.aborted) break;
-					await params.onDumpFile(file);
+					await params.onDumpFile(file, { from: fromCursor });
 				}
 
 				// Seam: tail live from just past the dumped coverage. Cursor input is
@@ -498,16 +521,7 @@ export function createStreamsClient(
 				);
 			},
 		},
-		reorgs: {
-			list(params: StreamsReorgsListParams) {
-				return request<StreamsReorgsListEnvelope>(
-					`/v1/streams/reorgs${buildQuery({
-						since: params.since,
-						limit: params.limit,
-					})}`,
-				);
-			},
-		},
+		reorgs: { list: listReorgs },
 		dumps,
 		canonical(height: number) {
 			return request<StreamsCanonicalBlock>(`/v1/streams/canonical/${height}`);

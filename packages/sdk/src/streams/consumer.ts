@@ -10,11 +10,106 @@ import type {
 	StreamsFilterMap,
 	StreamsFilterValue,
 	StreamsReorg,
+	StreamsReorgsListEnvelope,
 } from "./types.ts";
 
 /** Stable identity of a reorg, for in-memory dedup across re-reported pages. */
 function reorgKey(reorg: StreamsReorg): string {
 	return `${reorg.detected_at}|${reorg.fork_point_height}|${reorg.new_canonical_tip}`;
+}
+
+/** Default ceiling on how far below the checkpoint one reorg may rewind. */
+export const DEFAULT_MAX_ROLLBACK_DEPTH = 1000;
+
+/** What one call to {@link applyReorgs} did. `null` when nothing rewound. */
+export type ReorgRewind = {
+	/** Lowest fork point rolled back. */
+	forkPoint: number;
+	/** Cursor to resume from: the foot of `forkPoint`, or `null` (pre-genesis). */
+	cursor: string | null;
+};
+
+/**
+ * Apply a page's (or the reorg list's) reorgs against the consumer's position.
+ * Shared by the Streams and Index loops so the two cannot drift on the one
+ * rule that decides data loss: NEVER rewind forward.
+ *
+ * A reorg is only actionable when its fork point is at or below the height
+ * the cursor has reached (`fork_point_height <= resumeHeight(cursor)`).
+ * Servers attach every reorg whose orphaned span intersects the page span, so
+ * a page read from below the fork carries a reorg the consumer has not
+ * written past yet. Rewinding to it would move the cursor FORWARD and skip
+ * every row between the checkpoint and the fork, durably once a sink commits
+ * the rewound cursor. Those reorgs are marked handled and left alone: the
+ * page itself is already the canonical chain.
+ *
+ * Every fresh reorg is validated BEFORE the sink sees any of them: the fork
+ * point must be a non-negative safe integer, and the rewind may not reach
+ * more than `maxRollbackDepth` blocks below the checkpoint unless the caller
+ * raised the ceiling. `fork_point_height` drives a `DELETE ... >= fork` on
+ * every declared table, so a malformed or hostile value is refused loudly
+ * rather than executed.
+ */
+export async function applyReorgs<
+	TReorg extends { fork_point_height: number },
+>(opts: {
+	reorgs: readonly TReorg[];
+	cursor: string | null;
+	/** In-memory dedup across re-reported pages; mutated. */
+	handled: Set<string>;
+	keyOf: (reorg: TReorg) => string;
+	sink?: Pick<ConsumerSink<unknown>, "rollback">;
+	onReorg?: (
+		reorg: TReorg,
+		ctx: { cursor: string | null },
+	) => Promise<void> | void;
+	maxRollbackDepth?: number;
+}): Promise<ReorgRewind | null> {
+	const fresh = opts.reorgs.filter(
+		(reorg) => !opts.handled.has(opts.keyOf(reorg)),
+	);
+	if (fresh.length === 0) return null;
+
+	for (const reorg of fresh) {
+		const fork = reorg.fork_point_height;
+		if (!Number.isSafeInteger(fork) || fork < 0) {
+			throw new ValidationError(
+				`Reorg fork_point_height ${String(fork)} is not a non-negative integer. Rollback deletes every row at or above the fork from every declared table, so a malformed fork point is refused before the sink runs.`,
+				400,
+			);
+		}
+	}
+
+	const position = resumeHeight(opts.cursor);
+	const applicable = fresh
+		.filter((reorg) => position !== null && reorg.fork_point_height <= position)
+		.sort((a, b) => a.fork_point_height - b.fork_point_height);
+	// Fork above the checkpoint: nothing at or past it has been written, and
+	// the page being read is already the new chain. Remember it, do not move.
+	for (const reorg of fresh) {
+		if (!applicable.includes(reorg)) opts.handled.add(opts.keyOf(reorg));
+	}
+	if (applicable.length === 0 || position === null) return null;
+
+	const forkPoint = applicable[0]?.fork_point_height ?? position;
+	const depth = position - forkPoint;
+	const maxDepth = opts.maxRollbackDepth ?? DEFAULT_MAX_ROLLBACK_DEPTH;
+	if (depth > maxDepth) {
+		throw new ValidationError(
+			`Reorg at fork ${forkPoint} rewinds ${depth} blocks below the checkpoint at height ${position}, past maxRollbackDepth (${maxDepth}). A rollback this deep deletes every row at or above the fork from every declared table. Confirm the source is trusted, then pass maxRollbackDepth: ${depth} or higher to allow it.`,
+			400,
+		);
+	}
+
+	const rewind = Cursor.atHeight(forkPoint);
+	for (const reorg of applicable) {
+		// Sink first: rollback + rewound cursor commit atomically. A user
+		// onReorg (if any) runs after, for observability.
+		await opts.sink?.rollback(reorg.fork_point_height, rewind);
+		await opts.onReorg?.(reorg, { cursor: rewind });
+		opts.handled.add(opts.keyOf(reorg));
+	}
+	return { forkPoint, cursor: rewind };
 }
 
 type StreamsEventsFetchParams = {
@@ -229,6 +324,12 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 	/** Labelled filter groups, forwarded to the server verbatim. */
 	filters?: StreamsFilterMap;
 	fetchEvents: StreamsEventsFetcher;
+	/** `GET /v1/streams/reorgs` — polled on idle (empty) pages so a reorg
+	 *  that lands while the consumer sits at the tip is still rolled back.
+	 *  Pages only carry reorgs overlapping their own span. */
+	fetchReorgs?: (params: {
+		since: string;
+	}) => Promise<StreamsReorgsListEnvelope>;
 	/** Destination adapter owning checkpoint + rollback (see IndexConsumeOptions.sink). */
 	sink?: ConsumerSink<TTx>;
 	/** Fires once per page, before `onBatch` and any early return. */
@@ -246,8 +347,10 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 		| Promise<string | null | undefined>;
 	onReorg?: (
 		reorg: StreamsReorg,
-		ctx: { cursor: string },
+		ctx: { cursor: string | null },
 	) => Promise<void> | void;
+	/** Deepest rewind one reorg may make below the checkpoint. Default 1000. */
+	maxRollbackDepth?: number;
 	sleep?: Sleep;
 	emptyBackoffMs?: number;
 	maxPages?: number;
@@ -276,6 +379,9 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 	// In-memory only: rollback is idempotent, so a crash before the rewind is
 	// re-detected and re-applied harmlessly on restart — no need to persist.
 	const handledReorgs = new Set<string>();
+	// Resume token for the idle-tip reorg list; `null` until the first idle
+	// poll with a checkpoint to seed it from.
+	let reorgSince: string | null = null;
 	let pages = 0;
 	let emptyPolls = 0;
 	// Highest block reached, carried across empty pages so a caught-up tail
@@ -318,32 +424,73 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 		);
 		pages++;
 
-		// Reorgs: roll back each new fork, then rewind to the lowest fork point
-		// and re-read the now-canonical run. Finalized data never reorgs, so
-		// `finalizedOnly` skips this entirely. A sink makes rollback
-		// UNCONDITIONAL — omitting `onReorg` used to skip reorgs silently.
-		if (!finalizedOnly && (opts.onReorg || opts.sink)) {
-			const fresh = envelope.reorgs
-				.filter((reorg) => !handledReorgs.has(reorgKey(reorg)))
-				.sort((a, b) => a.fork_point_height - b.fork_point_height);
-			if (fresh.length > 0) {
-				const forkPoint = Math.min(
-					...fresh.map((reorg) => reorg.fork_point_height),
-				);
-				const rewind = Cursor.atHeight(forkPoint);
-				for (const reorg of fresh) {
-					await opts.sink?.rollback(reorg.fork_point_height, rewind);
-					await opts.onReorg?.(reorg, { cursor: rewind });
-					handledReorgs.add(reorgKey(reorg));
-				}
-				cursor = rewind;
+		// Reorgs: roll back each new fork at or below the checkpoint, then
+		// rewind to the lowest fork point and re-read the now-canonical run.
+		// Finalized data never reorgs, so `finalizedOnly` skips this entirely.
+		// A sink makes rollback UNCONDITIONAL — omitting `onReorg` used to skip
+		// reorgs silently.
+		const reorgsOn = !finalizedOnly && Boolean(opts.onReorg || opts.sink);
+		if (reorgsOn) {
+			const rewound = await applyReorgs({
+				reorgs: envelope.reorgs,
+				cursor,
+				handled: handledReorgs,
+				keyOf: reorgKey,
+				sink: opts.sink,
+				onReorg: opts.onReorg,
+				maxRollbackDepth: opts.maxRollbackDepth,
+			});
+			if (rewound) {
+				cursor = rewound.cursor;
 				// Everything at and above the fork is no longer canonical, so the
 				// reached height rolls back with it — including the verified
 				// position: the new chain above the fork is unread.
-				height = forkPoint > 0 ? forkPoint - 1 : null;
+				height = rewound.forkPoint > 0 ? rewound.forkPoint - 1 : null;
 				scanned = height;
 				emptyPolls = 0;
 				continue;
+			}
+		}
+
+		// Idle tip: a page only reports reorgs overlapping its own span, so a
+		// fork that lands while the consumer sits at the tip (orphaning rows
+		// BELOW the next non-empty page) is never on a page. On an empty page
+		// ask the reorg list instead: one extra request per idle poll. Seeded
+		// from the checkpoint cursor (the API reads a cursor as "reorgs that
+		// orphaned anything at or above this position"), then advanced by the
+		// list's own `next_since` token.
+		if (reorgsOn && opts.fetchReorgs && envelope.events.length === 0) {
+			reorgSince ??= cursor;
+			if (reorgSince !== null) {
+				const since: string = reorgSince;
+				const fetchReorgs = opts.fetchReorgs;
+				const listed: StreamsReorgsListEnvelope = await fetchPageWithRetry(
+					() => fetchReorgs({ since }),
+					{
+						retryCount: opts.retryCount,
+						retryDelay: opts.retryDelay,
+						onError: opts.onError,
+						sleep,
+						signal: opts.signal,
+					},
+				);
+				if (listed.next_since !== null) reorgSince = listed.next_since;
+				const rewound = await applyReorgs({
+					reorgs: listed.reorgs,
+					cursor,
+					handled: handledReorgs,
+					keyOf: reorgKey,
+					sink: opts.sink,
+					onReorg: opts.onReorg,
+					maxRollbackDepth: opts.maxRollbackDepth,
+				});
+				if (rewound) {
+					cursor = rewound.cursor;
+					height = rewound.forkPoint > 0 ? rewound.forkPoint - 1 : null;
+					scanned = height;
+					emptyPolls = 0;
+					continue;
+				}
 			}
 		}
 

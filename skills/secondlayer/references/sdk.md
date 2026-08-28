@@ -277,8 +277,9 @@ type StreamsEventsConsumeParams = {
   ) => void | string | null | undefined | Promise<void | string | null | undefined>;
   onReorg?: (
     reorg: StreamsReorg,
-    ctx: { cursor: string },         // rewind cursor to persist with the rollback
+    ctx: { cursor: string | null },  // rewind cursor to persist with the rollback; null = fork at genesis
   ) => void | Promise<void>;
+  maxRollbackDepth?: number;        // default 1000; a deeper rewind throws ValidationError before the sink runs
   emptyBackoffMs?: number;          // default 500
   maxPages?: number;
   maxEmptyPolls?: number;
@@ -315,6 +316,8 @@ await sl.streams.events.consume({
 ```
 
 Omit `onReorg` only if you don't store reorg-eligible (unfinalized) data — events stay canonical, but stale rows from an orphaned fork are left in place.
+
+Three rules the loop enforces: it never rewinds forward (`onReorg` fires only for forks at or below your checkpoint; a fork above it has nothing to undo, so the page is delivered instead of skipped); on every empty page it also polls `reorgs.list` so a fork that lands while idle at the tip is rolled back too (one extra request per idle poll); and a rewind deeper than `maxRollbackDepth` throws `ValidationError` before anything is deleted. Reorg dedup is in memory only, so a restart can re-fire `onReorg` for a fork already applied: keep the rollback idempotent.
 
 `finalizedOnly: true` is the zero-reorg path — it emits only immutable events and checkpoints at the last finalized one (so `ctx.cursor` is always safe to persist and `onReorg` is never needed), trading finality lag for simplicity:
 
@@ -457,12 +460,12 @@ for (const f of manifest.files) {
 
 ### `sl.streams.events.replay(params)` — bulk backfill then live tail
 
-Backfills from bulk dumps, then tails live from the manifest's `latest_finalized_cursor` — no gap or dupe at the seam. `onDumpFile` hands you each finalized parquet file to process with your own tooling (the SDK doesn't decode parquet); `onBatch` receives live events after the seam.
+Backfills from bulk dumps, then tails live from the manifest's `latest_finalized_cursor` — no gap or dupe at the seam. `onDumpFile` hands you each finalized parquet file to process with your own tooling (the SDK doesn't decode parquet); `onBatch` receives live events after the seam. Dump delivery is file-granular and at-least-once: files ending at or below `from` are skipped, the file straddling `from` arrives whole, so drop rows at or below `ctx.from` (or key rows by `cursor`).
 
 ```ts
 type StreamsEventsReplayParams = {
   from?: "genesis" | string;                     // "genesis" (default) or a start cursor
-  onDumpFile: (file: StreamsDumpFile) => Promise<void> | void;
+  onDumpFile: (file: StreamsDumpFile, ctx: { from: string | null }) => Promise<void> | void;
   onBatch: (
     events: StreamsEvent[],
     envelope: StreamsEventsEnvelope,
@@ -475,9 +478,9 @@ replay(params: StreamsEventsReplayParams): Promise<StreamsEventsConsumeResult>
 ```ts
 await streams.events.replay({
   from: lastCheckpoint,
-  async onDumpFile(file) {
+  async onDumpFile(file, { from }) {
     const bytes = await streams.dumps.download(file);
-    await ingestParquet(bytes);            // your tooling
+    await ingestParquet(bytes, { after: from }); // your tooling; skip rows at or below `from`
   },
   async onBatch(events, envelope) {
     for (const ev of events) await handle(ev);

@@ -179,12 +179,17 @@ Backfills from bulk dumps, then tails live from the manifest's
 `latest_finalized_cursor` — no gap or dupe at the seam. `onDumpFile` hands you
 each finalized file; `onBatch` receives live events after the seam.
 
+Dump delivery is file-granular and at-least-once: the file straddling `from`
+arrives whole, with `ctx.from` so you can skip rows at or below the checkpoint
+(or key rows by `cursor` and let the upsert dedupe). Files ending at or below
+`from` are not delivered.
+
 ```typescript
 await streams.events.replay({
   from: lastCheckpoint,
-  async onDumpFile(file) {
+  async onDumpFile(file, { from }) {
     const bytes = await streams.dumps.download(file);
-    await ingestParquet(bytes); // your tooling
+    await ingestParquet(bytes, { skipAtOrBelow: from }); // your tooling
   },
   async onBatch(events, envelope) {
     for (const event of events) await handle(event);
@@ -244,9 +249,12 @@ Checkpointed consumer — build your app index.
 
 `index.events.consume` / `index.contractCalls.consume` is the same contract as
 the Streams consumer: write your rows inside `onBatch`, return the cursor you
-committed, and reorgs rewind automatically to the fork point. `finalizedOnly`
-holds delivery to rows at or below `tip.finalized_height` (Index rows carry no
-per-event flag). Full runnable example: `examples/sales-index/`.
+committed, and reorgs rewind automatically to the fork point. Only forks at or
+below your checkpoint roll back (a fork above it has nothing to undo), and a
+rewind deeper than `maxRollbackDepth` (default 1000 blocks) is refused before
+anything is deleted. `finalizedOnly` holds delivery to rows at or below
+`tip.finalized_height` (Index rows carry no per-event flag). Walkthrough:
+[docs/index](https://www.secondlayer.tools/docs/index#build-your-index-on-it).
 
 ```typescript
 await sl.index.contractCalls.consume({
