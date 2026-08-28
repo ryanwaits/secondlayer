@@ -198,7 +198,10 @@ export function attachBootstrapCommand(cmd: Command): Command {
 			"--from-block <n>",
 			"forward-only: restore from this height instead of genesis; earlier history is declared out of scope",
 		)
-		.option("--public-key <pem>", "pin the signing key instead of fetching it")
+		.option(
+			"--public-key <pem>",
+			"pin a signing key; default is the archive key built into this release",
+		)
 		.option("-y, --yes", "skip the confirmation prompt")
 		.option("--json", "Output as JSON")
 		.addHelpText(
@@ -216,13 +219,15 @@ Exit codes:
 		)
 		.action(async (opts) => {
 			try {
-				const reference = await loadReference(opts.against);
 				const publicKey = await resolveArchivePublicKey({
 					explicitPem: opts.publicKey,
 					envPem:
 						process.env.ARCHIVE_SIGNING_PUBLIC_KEY ??
 						process.env.STREAMS_SIGNING_PUBLIC_KEY,
 					allowHostedApi: !isOssMode(),
+				});
+				const reference = await loadReference(opts.against, {
+					publicKeyPem: publicKey,
 				});
 				const signature = checkSignature(reference.manifest, publicKey, false);
 				// No --insecure here. Bootstrap writes an entire chain history into a
@@ -571,11 +576,13 @@ Exit codes:
 				);
 			} catch (err) {
 				const message = err instanceof Error ? err.message : String(err);
-				const hint = /failed verification/.test(message)
-					? "An archive object does not match its signed digest — re-download and retry."
-					: /could not fetch/.test(message)
-						? "Check the archive URL and your network connection."
-						: "Set DATABASE_URL to the (empty) instance you want to bootstrap.";
+				const hint = /pointer|leave the archive root/.test(message)
+					? "The archive pointer failed its integrity check. Pass --against the snapshot URL directly, and report this if the pointer is the official latest.json."
+					: /failed verification/.test(message)
+						? "An archive object does not match its signed digest. Re-download and retry."
+						: /could not fetch/.test(message)
+							? "Check the archive URL and your network connection."
+							: "Set DATABASE_URL to the (empty) instance you want to bootstrap.";
 				printError(message, { hint });
 				process.exit(BOOTSTRAP_EXIT.REFUSED);
 			}

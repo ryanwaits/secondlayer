@@ -41,6 +41,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/runtime/index.ts",
 		"src/archive/copy-loader.ts",
 		"src/archive/key-registry.ts",
+		"src/archive/root-key.ts",
 		"src/archive/status.ts",
 		"src/archive/progress.ts",
 		"src/archive/disk-guard.ts",

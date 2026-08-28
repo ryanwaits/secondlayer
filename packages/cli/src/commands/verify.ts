@@ -20,7 +20,7 @@ import type { Command } from "commander";
 import {
 	checkSignature,
 	loadReference,
-	resolvePublicKey,
+	resolveArchivePublicKey,
 } from "../lib/archive-reference.ts";
 import {
 	dim,
@@ -34,6 +34,7 @@ import {
 	warn,
 	yellow,
 } from "../lib/output.ts";
+import { isOssMode } from "../lib/resolve-auth.ts";
 
 /**
  * `secondlayer verify` — compare local chain data against a signed archive manifest.
@@ -100,7 +101,10 @@ export function registerVerifyCommand(program: Command): void {
 			"--semantic",
 			"also recompute per-partition semantic digests locally and compare (slow: full re-stream)",
 		)
-		.option("--public-key <pem>", "pin the signing key instead of fetching it")
+		.option(
+			"--public-key <pem>",
+			"pin a signing key; default is the archive key built into this release",
+		)
 		.option("--insecure", "skip the manifest signature check (not recommended)")
 		.option("--json", "Output as JSON")
 		.addHelpText(
@@ -138,11 +142,16 @@ Exit codes:
 					throw new Error("--to-block must be >= --from-block");
 				}
 
-				const { manifest, origin } = await loadReference(opts.against);
-				const publicKey = await resolvePublicKey(
-					opts.publicKey,
-					process.env.SL_API_URL ?? "https://api.secondlayer.tools",
-				);
+				const publicKey = await resolveArchivePublicKey({
+					explicitPem: opts.publicKey,
+					envPem:
+						process.env.ARCHIVE_SIGNING_PUBLIC_KEY ??
+						process.env.STREAMS_SIGNING_PUBLIC_KEY,
+					allowHostedApi: !isOssMode(),
+				});
+				const { manifest, origin } = await loadReference(opts.against, {
+					publicKeyPem: publicKey,
+				});
 				const signature = checkSignature(manifest, publicKey, !!opts.insecure);
 
 				if (!signature.verified && !opts.insecure) {
@@ -363,9 +372,13 @@ Exit codes:
 					diverged.length === 0 ? VERIFY_EXIT.CLEAN : VERIFY_EXIT.DIVERGED,
 				);
 			} catch (err) {
-				printError(err instanceof Error ? err.message : String(err), {
-					hint: "Set DATABASE_URL to the instance you want to verify.",
-				});
+				const message = err instanceof Error ? err.message : String(err);
+				const hint = /pointer|leave the archive root/.test(message)
+					? "The archive pointer failed its integrity check. Pass --against the snapshot URL directly, and report this if the pointer is the official latest.json."
+					: /could not fetch/.test(message)
+						? "Check the archive URL and your network connection."
+						: "Set DATABASE_URL to the instance you want to verify.";
+				printError(message, { hint });
 				process.exit(VERIFY_EXIT.UNANCHORED);
 			}
 		});

@@ -2,10 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { ARCHIVE_ROOT_PUBLIC_KEY_PEM } from "@secondlayer/shared/archive/root-key";
 import {
 	buildInstanceEnv,
 	loadExistingInstanceEnv,
 	parseInstanceNetwork,
+	renderInstanceEnv,
 	writeInstanceEnv,
 } from "./instance-init.ts";
 
@@ -33,6 +35,31 @@ describe("instance init", () => {
 		);
 		expect(env.ALLOW_UNSIGNED_WEBHOOKS).toBe("false");
 		expect(env.STACKS_NETWORK).toBe("devnet");
+	});
+
+	test("always writes the archive trust key, keeping an operator's own pin across re-runs", () => {
+		const fresh = buildInstanceEnv({ network: "mainnet" });
+		expect(fresh.ARCHIVE_SIGNING_PUBLIC_KEY).toBe(ARCHIVE_ROOT_PUBLIC_KEY_PEM);
+		expect(renderInstanceEnv(fresh)).toContain("ARCHIVE_SIGNING_PUBLIC_KEY=");
+
+		const resolved = buildInstanceEnv({
+			network: "mainnet",
+			archivePublicKeyPem: "resolved-key",
+		});
+		expect(resolved.ARCHIVE_SIGNING_PUBLIC_KEY).toBe("resolved-key");
+
+		const pinned = buildInstanceEnv({
+			network: "mainnet",
+			existing: { ARCHIVE_SIGNING_PUBLIC_KEY: "operator-pin" },
+			archivePublicKeyPem: "resolved-key",
+		});
+		expect(pinned.ARCHIVE_SIGNING_PUBLIC_KEY).toBe("operator-pin");
+
+		const dir = mkdtempSync(join(tmpdir(), "sl-init-key-"));
+		writeInstanceEnv(dir, fresh);
+		expect(loadExistingInstanceEnv(dir).ARCHIVE_SIGNING_PUBLIC_KEY).toBe(
+			ARCHIVE_ROOT_PUBLIC_KEY_PEM,
+		);
 	});
 
 	test("writes a 0600 env file and survives a restart", () => {

@@ -89,6 +89,12 @@ secondlayer repair --against <manifest> --apply
 
 [Verified archive](/docs/archive#flags) owns flags and exit codes.
 
+### Archive trust root
+
+Every archive manifest is checked against one key before `bootstrap`, `verify`, or `repair` act on it. The key comes from, in order: `--public-key`, `ARCHIVE_SIGNING_PUBLIC_KEY` in your env, and the key compiled into the CLI release. `setup` and `init` write that resolved key into `.env` so the instance verifies with no path to any Secondlayer host. Plaintext `http://` key sources are never consulted, and a signed `latest.json` pointer has to verify against the same key before its snapshot is followed.
+
+The tradeoff: rotating the archive key means a CLI release until a key ceremony lands. To pin a different archive, replace `ARCHIVE_SIGNING_PUBLIC_KEY` in `.env`; a value you set there survives `setup` re-runs.
+
 ## Upgrade
 
 ```bash

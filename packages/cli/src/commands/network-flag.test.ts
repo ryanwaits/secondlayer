@@ -37,14 +37,20 @@ afterEach(() => {
 });
 
 describe("global --network reaches `init`, positioned after the subcommand", () => {
-	test("secondlayer init --network testnet actually writes testnet, not the mainnet default", () => {
+	test("secondlayer init --network testnet actually writes testnet, not the mainnet default", async () => {
 		const dir = mkdtempSync(join(tmpdir(), "sl-init-network-"));
 		const cwd = process.cwd();
 		process.chdir(dir);
 		try {
 			const program = buildProgram();
 			registerInitCommand(program);
-			program.parse(["node", "secondlayer", "init", "--network", "testnet"]);
+			await program.parseAsync([
+				"node",
+				"secondlayer",
+				"init",
+				"--network",
+				"testnet",
+			]);
 			const body = readFileSync(join(dir, ".env.local"), "utf8");
 			expect(body).toContain("STACKS_NETWORK=testnet");
 			expect(body).not.toContain("STACKS_NETWORK=mainnet");
@@ -54,14 +60,14 @@ describe("global --network reaches `init`, positioned after the subcommand", () 
 		}
 	});
 
-	test("no --network still defaults to mainnet", () => {
+	test("no --network still defaults to mainnet", async () => {
 		const dir = mkdtempSync(join(tmpdir(), "sl-init-network-"));
 		const cwd = process.cwd();
 		process.chdir(dir);
 		try {
 			const program = buildProgram();
 			registerInitCommand(program);
-			program.parse(["node", "secondlayer", "init"]);
+			await program.parseAsync(["node", "secondlayer", "init"]);
 			const body = readFileSync(join(dir, ".env.local"), "utf8");
 			expect(body).toContain("STACKS_NETWORK=mainnet");
 		} finally {

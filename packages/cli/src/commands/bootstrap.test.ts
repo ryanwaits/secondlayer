@@ -1,5 +1,20 @@
 import { describe, expect, test } from "bun:test";
+import { ARCHIVE_ROOT_PUBLIC_KEY_PEM } from "@secondlayer/shared/archive/root-key";
+import { resolveArchivePublicKey } from "../lib/archive-reference.ts";
 import { archiveScopeBounds } from "./bootstrap.ts";
+
+describe("bootstrap trust root", () => {
+	test("a self-hosted instance with no key in env still resolves the compiled archive key", async () => {
+		// The exact call bootstrap.ts makes in OSS mode with a bare environment:
+		// no --public-key, no ARCHIVE_SIGNING_PUBLIC_KEY, no hosted lookup.
+		const key = await resolveArchivePublicKey({
+			explicitPem: undefined,
+			envPem: undefined,
+			allowHostedApi: false,
+		});
+		expect(key).toBe(ARCHIVE_ROOT_PUBLIC_KEY_PEM);
+	});
+});
 
 describe("archiveScopeBounds", () => {
 	test("start is the archive's lowest partition, not its high-water mark", () => {

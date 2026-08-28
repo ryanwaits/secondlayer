@@ -31,6 +31,7 @@ import { join, resolve as resolvePath } from "node:path";
 import type { InstanceNetwork } from "@secondlayer/shared/db/queries/instance";
 import { FLOORS, diskFloorGb } from "@secondlayer/shared/runtime";
 import type { NodeMode } from "@secondlayer/shared/runtime";
+import { resolveArchivePublicKey } from "./archive-reference.ts";
 import {
 	type InstanceEnv,
 	buildInstanceEnv,
@@ -50,6 +51,7 @@ import {
 	buildOssCompose,
 	buildOssStacksConfigToml,
 } from "./oss-compose.ts";
+import { isOssMode } from "./resolve-auth.ts";
 
 export const SETUP_NODE_MODES = ["external", "stacks", "full"] as const;
 
@@ -322,6 +324,7 @@ export function resolveSecrets(config: {
 	network: InstanceNetwork;
 	apiPort: string;
 	force: boolean;
+	archivePublicKeyPem?: string;
 }): SetupSecrets {
 	const envPath = join(config.dir, ".env");
 	const existing =
@@ -342,6 +345,7 @@ export function resolveSecrets(config: {
 			ARCHIVE_SIGNING_PUBLIC_KEY: existing.ARCHIVE_SIGNING_PUBLIC_KEY,
 		},
 		apiUrl: `http://${normalizeLoopbackHost(config.apiPort)}`,
+		archivePublicKeyPem: config.archivePublicKeyPem,
 	});
 
 	return {
@@ -415,11 +419,11 @@ function renderSetupEnv(
 		`SL_API_KEY=${i.SL_API_KEY}`,
 		`SL_API_URL=${i.SL_API_URL}`,
 	];
-	if (i.ARCHIVE_SIGNING_PUBLIC_KEY) {
-		lines.push(
-			`ARCHIVE_SIGNING_PUBLIC_KEY=${escapeEnvValue(i.ARCHIVE_SIGNING_PUBLIC_KEY)}`,
-		);
-	}
+	lines.push(
+		"# Archive trust root: bootstrap, verify, and repair check manifests",
+		"# against this key. Replace it to pin a different archive.",
+		`ARCHIVE_SIGNING_PUBLIC_KEY=${escapeEnvValue(i.ARCHIVE_SIGNING_PUBLIC_KEY)}`,
+	);
 	if (config.nodeMode === "full") {
 		lines.push(
 			"BITCOIN_RPC_USER=stacks",
@@ -746,6 +750,12 @@ export async function runSetup(
 		network: config.network,
 		apiPort: config.apiPort,
 		force: config.force,
+		archivePublicKeyPem: await resolveArchivePublicKey({
+			envPem:
+				process.env.ARCHIVE_SIGNING_PUBLIC_KEY ??
+				process.env.STREAMS_SIGNING_PUBLIC_KEY,
+			allowHostedApi: !isOssMode(),
+		}),
 	});
 	emit({ type: "step-done", step: "secrets" });
 

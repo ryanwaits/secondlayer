@@ -14,6 +14,8 @@ describe("OSS offline posture", () => {
 	const envExample = read("docker/oss/.env.example");
 	const createApp = read("packages/api/src/create-app.ts");
 	const bootstrap = read("packages/cli/src/commands/bootstrap.ts");
+	const verify = read("packages/cli/src/commands/verify.ts");
+	const repair = read("packages/cli/src/commands/repair.ts");
 
 	test("compose does not require Stripe, Redis, Slack, email, or R2", () => {
 		expect(compose).not.toMatch(/STRIPE_/);
@@ -42,11 +44,12 @@ describe("OSS offline posture", () => {
 		expect(createApp).toContain("billingRouter");
 	});
 
-	test("bootstrap does not fetch the hosted API in OSS", () => {
-		expect(bootstrap).toContain("resolveArchivePublicKey");
-		expect(bootstrap).toContain("allowHostedApi: !isOssMode()");
-		expect(bootstrap).not.toMatch(
-			/resolvePublicKey\(\s*opts\.publicKey,\s*process\.env\.SL_API_URL/,
-		);
+	test("bootstrap, verify, and repair share one key resolver and never fetch the hosted API in OSS", () => {
+		for (const source of [bootstrap, verify, repair]) {
+			expect(source).toContain("resolveArchivePublicKey");
+			expect(source).toContain("allowHostedApi: !isOssMode()");
+			expect(source).not.toMatch(/resolvePublicKey\(/);
+			expect(source).not.toMatch(/SL_API_URL/);
+		}
 	});
 });

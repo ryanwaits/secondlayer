@@ -26,7 +26,7 @@ import {
 	checkSignature,
 	fetchVerifiedPartition,
 	loadReference,
-	resolvePublicKey,
+	resolveArchivePublicKey,
 } from "../lib/archive-reference.ts";
 import {
 	dim,
@@ -37,6 +37,7 @@ import {
 	success,
 	warn,
 } from "../lib/output.ts";
+import { isOssMode } from "../lib/resolve-auth.ts";
 
 /**
  * `secondlayer repair` — replace local chain data that diverges from a signed archive.
@@ -243,7 +244,10 @@ export function registerRepairCommand(program: Command): void {
 		.option("--from-block <n>", "first height to consider")
 		.option("--to-block <n>", "last height to consider")
 		.option("--apply", "write the repair (default is a dry-run plan)")
-		.option("--public-key <pem>", "pin the signing key instead of fetching it")
+		.option(
+			"--public-key <pem>",
+			"pin a signing key; default is the archive key built into this release",
+		)
 		.option("-y, --yes", "skip the confirmation prompt for a metered fetch")
 		.option("--json", "Output as JSON")
 		.addHelpText(
@@ -270,11 +274,16 @@ Exit codes:
 						? undefined
 						: parseHeight(opts.toBlock, "--to-block");
 
-				const reference = await loadReference(opts.against);
-				const publicKey = await resolvePublicKey(
-					opts.publicKey,
-					process.env.SL_API_URL ?? "https://api.secondlayer.tools",
-				);
+				const publicKey = await resolveArchivePublicKey({
+					explicitPem: opts.publicKey,
+					envPem:
+						process.env.ARCHIVE_SIGNING_PUBLIC_KEY ??
+						process.env.STREAMS_SIGNING_PUBLIC_KEY,
+					allowHostedApi: !isOssMode(),
+				});
+				const reference = await loadReference(opts.against, {
+					publicKeyPem: publicKey,
+				});
 				const signature = checkSignature(reference.manifest, publicKey, false);
 				// Repair writes to a live database. Unlike verify, there is no
 				// --insecure escape hatch: unverified data must never be written.
@@ -522,11 +531,13 @@ Exit codes:
 				// The hint has to match the failure or it sends people the wrong way:
 				// a digest mismatch is a corrupt/tampered archive, not a misconfigured
 				// connection string.
-				const hint = /failed verification/.test(message)
-					? "The archive object does not match its signed digest — re-download it, and report this if it persists."
-					: /could not fetch/.test(message)
-						? "Check the archive URL and your network connection."
-						: "Set DATABASE_URL to the instance you want to repair.";
+				const hint = /pointer|leave the archive root/.test(message)
+					? "The archive pointer failed its integrity check. Pass --against the snapshot URL directly, and report this if the pointer is the official latest.json."
+					: /failed verification/.test(message)
+						? "The archive object does not match its signed digest. Re-download it, and report this if it persists."
+						: /could not fetch/.test(message)
+							? "Check the archive URL and your network connection."
+							: "Set DATABASE_URL to the instance you want to repair.";
 				printError(message, { hint });
 				process.exit(REPAIR_EXIT.UNANCHORED);
 			}

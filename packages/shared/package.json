@@ -133,6 +133,10 @@
 			"types": "./dist/src/archive/status.d.ts",
 			"import": "./dist/src/archive/status.js"
 		},
+		"./archive/root-key": {
+			"types": "./dist/src/archive/root-key.d.ts",
+			"import": "./dist/src/archive/root-key.js"
+		},
 		"./archive/key-registry": {
 			"types": "./dist/src/archive/key-registry.d.ts",
 			"import": "./dist/src/archive/key-registry.js"

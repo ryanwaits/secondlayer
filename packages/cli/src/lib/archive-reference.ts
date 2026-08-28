@@ -1,13 +1,8 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
-import {
-	type KeyRegistry,
-	checkKeyTrust,
-	publicKeyFor,
-	verifyRegistry,
-} from "@secondlayer/shared/archive/key-registry";
+import { dirname, join, resolve, sep } from "node:path";
 import type { RangeDigest } from "@secondlayer/shared/archive/range-digest";
+import { ARCHIVE_ROOT_PUBLIC_KEY_PEM } from "@secondlayer/shared/archive/root-key";
 import type { PartitionSemanticDigest } from "@secondlayer/shared/archive/semantic-digest";
 import { verifyStreamsBulkManifestSignature } from "@secondlayer/shared/streams-bulk-manifest";
 
@@ -60,6 +55,8 @@ export type LoadedReference = {
 type LatestPointer = {
 	snapshot_path?: string;
 	snapshot_digest?: string;
+	signature?: string;
+	key_id?: string;
 };
 
 function isLatestPointer(value: ArchiveManifest): boolean {
@@ -68,6 +65,39 @@ function isLatestPointer(value: ArchiveManifest): boolean {
 		typeof pointer.snapshot_path === "string" &&
 		(value.partitions === undefined || value.partitions.length === 0)
 	);
+}
+
+/** The publisher names snapshots by their content digest and nothing else
+ *  (`packages/indexer/src/archive/promote-snapshot.ts`). Anything looser is
+ *  a pointer someone rewrote, and it must not steer a fetch. */
+const SNAPSHOT_PATH_PATTERN = /^snapshots\/[0-9a-f]{64}\.json$/;
+
+/**
+ * Every path the archive hands us is resolved against `root`. A manifest that
+ * says `../../etc/x` or `/abs/path` would otherwise read outside the archive
+ * on disk, or off-origin over the network, with the digest check arriving
+ * too late to matter for a local read.
+ */
+export function assertPathWithinRoot(path: string, root?: string): void {
+	const segments = path.split("/");
+	const leaves =
+		path.startsWith("/") ||
+		path.includes("\\") ||
+		/^[a-z][a-z0-9+.-]*:/i.test(path) ||
+		// Percent-encoding, query, and fragment characters are joined into a
+		// remote URL verbatim; `%2e%2e` is `..` once the server decodes it.
+		/[%?#]/.test(path) ||
+		segments.some((part) => part === "" || part === "." || part === "..");
+	if (leaves) {
+		throw new Error(`archive path ${path} would leave the archive root`);
+	}
+	if (root !== undefined) {
+		const base = resolve(root);
+		const target = resolve(base, path);
+		if (target !== base && !target.startsWith(base + sep)) {
+			throw new Error(`archive path ${path} would leave the archive root`);
+		}
+	}
 }
 
 async function fetchJson(url: string): Promise<unknown> {
@@ -80,7 +110,18 @@ async function fetchJson(url: string): Promise<unknown> {
 	return response.json();
 }
 
-export async function loadReference(source: string): Promise<LoadedReference> {
+export type LoadReferenceOptions = {
+	/** Key used to verify a signed `latest.json` pointer. The pointer names
+	 *  which snapshot is current, so without this an attacker holding only
+	 *  bucket write access could roll every reader back to an older, still
+	 *  validly signed, snapshot. */
+	publicKeyPem?: string;
+};
+
+export async function loadReference(
+	source: string,
+	options: LoadReferenceOptions = {},
+): Promise<LoadedReference> {
 	const isRemote = /^https?:\/\//.test(source);
 	let manifest: ArchiveManifest;
 	let root: string;
@@ -109,6 +150,41 @@ export async function loadReference(source: string): Promise<LoadedReference> {
 	// signed — snapshot, which is a downgrade attack rather than a forgery.
 	const pointer = manifest as ArchiveManifest & LatestPointer;
 	const snapshotPath = pointer.snapshot_path as string;
+	if (!SNAPSHOT_PATH_PATTERN.test(snapshotPath)) {
+		throw new Error(
+			`pointer names an invalid snapshot path: ${snapshotPath} (expected snapshots/<sha256>.json)`,
+		);
+	}
+	if (
+		typeof pointer.snapshot_digest !== "string" ||
+		!/^[0-9a-f]{64}$/.test(pointer.snapshot_digest)
+	) {
+		throw new Error(
+			"pointer carries no snapshot_digest, so it cannot prove which snapshot is current",
+		);
+	}
+	if (pointer.signature !== undefined) {
+		if (!options.publicKeyPem) {
+			throw new Error(
+				"pointer is signed but no public key is available to verify it",
+			);
+		}
+		let verified = false;
+		try {
+			verified = verifyStreamsBulkManifestSignature(
+				pointer as Record<string, unknown>,
+				options.publicKeyPem,
+			);
+		} catch {
+			verified = false;
+		}
+		if (!verified) {
+			throw new Error(
+				"pointer signature did not verify against the archive key",
+			);
+		}
+	}
+
 	const resolved = isRemote
 		? ((await fetchJson(
 				`${root.replace(/\/$/, "")}/${snapshotPath}`,
@@ -117,21 +193,19 @@ export async function loadReference(source: string): Promise<LoadedReference> {
 				await readFile(join(root, snapshotPath), "utf8"),
 			) as ArchiveManifest);
 
-	if (pointer.snapshot_digest) {
-		const digest = createHash("sha256")
-			.update(
-				JSON.stringify(
-					(({ signature: _s, key_id: _k, ...rest }) => rest)(
-						resolved as Record<string, unknown>,
-					),
+	const digest = createHash("sha256")
+		.update(
+			JSON.stringify(
+				(({ signature: _s, key_id: _k, ...rest }) => rest)(
+					resolved as Record<string, unknown>,
 				),
-			)
-			.digest("hex");
-		if (digest !== pointer.snapshot_digest) {
-			throw new Error(
-				`pointer/snapshot mismatch: latest.json names ${pointer.snapshot_digest}, resolved manifest hashes to ${digest}`,
-			);
-		}
+			),
+		)
+		.digest("hex");
+	if (digest !== pointer.snapshot_digest) {
+		throw new Error(
+			`pointer/snapshot mismatch: latest.json names ${pointer.snapshot_digest}, resolved manifest hashes to ${digest}`,
+		);
 	}
 
 	return { manifest: resolved, origin: source, root, isRemote };
@@ -176,109 +250,50 @@ export function checkSignature(
 	}
 }
 
-const HOSTED_API = "https://api.secondlayer.tools";
+const HOSTED_SIGNING_KEY_URL =
+	"https://api.secondlayer.tools/public/streams/signing-key";
 
-export function isHostedApiUrl(url: string): boolean {
+async function fetchHostedKey(url: string): Promise<string | undefined> {
+	// A key fetched over plaintext is whoever sits on the wire, not a key.
+	if (!url.startsWith("https://")) return undefined;
 	try {
-		return new URL(url).hostname === "api.secondlayer.tools";
-	} catch {
-		return false;
-	}
-}
-
-export async function resolvePublicKey(
-	explicitPem: string | undefined,
-	apiUrl: string,
-): Promise<string | undefined> {
-	if (explicitPem) return explicitPem;
-	try {
-		const response = await fetch(
-			`${apiUrl.replace(/\/$/, "")}/public/streams/signing-key`,
-			{ signal: AbortSignal.timeout(10_000) },
-		);
+		const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
 		if (!response.ok) return undefined;
 		const body = (await response.json()) as { public_key_pem?: string };
-		return body.public_key_pem;
+		return typeof body.public_key_pem === "string"
+			? body.public_key_pem
+			: undefined;
 	} catch {
-		// Offline is a legitimate state, reported as `unanchored` by the caller.
+		// Offline is a legitimate state; the compiled root key still applies.
 		return undefined;
 	}
 }
 
 /**
- * Archive verify key. OSS never fetches api.secondlayer.tools — pin
- * `--public-key` or ARCHIVE_SIGNING_PUBLIC_KEY after the first verify.
+ * Which key a manifest is checked against, in trust order: an explicit
+ * `--public-key`, then `ARCHIVE_SIGNING_PUBLIC_KEY` / `STREAMS_SIGNING_PUBLIC_KEY`
+ * from the environment, then the hosted key endpoint over https (never in OSS
+ * mode, which must work with no path to api.secondlayer.tools), and finally the
+ * key compiled into this release. The compiled key means a fresh self-hosted
+ * instance can bootstrap offline; the tradeoff is that rotating it is a CLI
+ * release. Plaintext `http://` key sources are never consulted.
  */
 export async function resolveArchivePublicKey(input: {
 	explicitPem?: string;
 	envPem?: string;
 	allowHostedApi?: boolean;
-}): Promise<string | undefined> {
+	/** Test seam for the hosted endpoint; production callers leave it unset. */
+	hostedKeyUrl?: string;
+}): Promise<string> {
 	if (input.explicitPem) return input.explicitPem;
 	if (input.envPem) return input.envPem;
 	if (input.allowHostedApi) {
-		return resolvePublicKey(undefined, HOSTED_API);
+		const hosted = await fetchHostedKey(
+			input.hostedKeyUrl ?? HOSTED_SIGNING_KEY_URL,
+		);
+		if (hosted) return hosted;
 	}
-	return undefined;
-}
-
-/**
- * Resolve a manifest's signing key through the archive's root-signed key
- * registry, when one is published.
- *
- * This is stronger than fetching a bare signing key over HTTPS: that only
- * proves whoever serves the endpoint chose the key. The registry is signed by
- * an offline root, so a compromised publishing host cannot nominate its own
- * signer, and a leaked key can be marked compromised without waiting for
- * consumers to update.
- *
- * Returns null when no registry is published, so callers fall back to the
- * existing behaviour rather than hard-failing an archive that predates it.
- */
-export async function resolveKeyThroughRegistry(params: {
-	root: string;
-	isRemote: boolean;
-	keyId: string | undefined;
-	signedAt: string | undefined;
-	rootPublicKeyPem: string | undefined;
-}): Promise<{ publicKeyPem: string; trusted: true } | SignatureResult | null> {
-	if (!params.keyId || !params.rootPublicKeyPem) return null;
-	let registry: KeyRegistry;
-	try {
-		if (params.isRemote) {
-			const response = await fetch(
-				`${params.root.replace(/\/$/, "")}/keys/registry.json`,
-				{ signal: AbortSignal.timeout(10_000) },
-			);
-			if (!response.ok) return null;
-			registry = (await response.json()) as KeyRegistry;
-		} else {
-			registry = JSON.parse(
-				await readFile(join(params.root, "keys", "registry.json"), "utf8"),
-			) as KeyRegistry;
-		}
-	} catch {
-		// No registry published (or unreachable) — not an error yet.
-		return null;
-	}
-
-	const rootCheck = verifyRegistry(registry, params.rootPublicKeyPem);
-	if (!rootCheck.trusted) {
-		return { verified: false, reason: rootCheck.detail };
-	}
-	const trust = checkKeyTrust(
-		registry,
-		params.keyId,
-		params.signedAt ?? new Date().toISOString(),
-	);
-	if (!trust.trusted) {
-		return { verified: false, reason: trust.detail };
-	}
-	const pem = publicKeyFor(registry, params.keyId);
-	if (!pem) {
-		return { verified: false, reason: `key ${params.keyId} has no public key` };
-	}
-	return { publicKeyPem: pem, trusted: true };
+	return ARCHIVE_ROOT_PUBLIC_KEY_PEM;
 }
 
 /**
@@ -337,6 +352,10 @@ export async function fetchVerifiedPartition(
 	partition: ArchivePartition,
 	gate?: ArchiveFetchGate,
 ): Promise<Buffer> {
+	assertPathWithinRoot(
+		partition.path,
+		reference.isRemote ? undefined : reference.root,
+	);
 	let bytes: Buffer;
 	if (gate) {
 		bytes = await fetchViaGate(gate, partition, false);

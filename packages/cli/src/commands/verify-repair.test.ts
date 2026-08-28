@@ -123,32 +123,49 @@ describe("archive reference trust boundary", () => {
 		expect(reference.root).toBe(dir);
 	});
 
-	test("a latest.json pointer is followed to its snapshot manifest", async () => {
+	const snapshotFixture = {
+		partitions: [
+			{
+				dataset: "blocks",
+				from_block: 0,
+				to_block: 9,
+				path: "blocks/x.parquet",
+				row_count: 10,
+				byte_size: 1,
+				sha256: "s",
+			},
+		],
+		range_digests: [{ dataset: "blocks", from_block: 0, to_block: 9 }],
+	};
+
+	/** Writes `snapshots/<digest>.json` the way the publisher does and returns
+	 *  the digest the pointer must carry. */
+	async function writeSnapshot(
+		root: string,
+		snapshot: Record<string, unknown> = snapshotFixture,
+	): Promise<string> {
 		const { mkdir } = await import("node:fs/promises");
-		await mkdir(join(dir, "snapshots"), { recursive: true });
-		const snapshot = {
-			partitions: [
-				{
-					dataset: "blocks",
-					from_block: 0,
-					to_block: 9,
-					path: "blocks/x.parquet",
-					row_count: 10,
-					byte_size: 1,
-					sha256: "s",
-				},
-			],
-			range_digests: [{ dataset: "blocks", from_block: 0, to_block: 9 }],
-		};
+		await mkdir(join(root, "snapshots"), { recursive: true });
+		const digest = createHash("sha256")
+			.update(JSON.stringify(snapshot))
+			.digest("hex");
 		await writeFile(
-			join(dir, "snapshots", "abc.json"),
+			join(root, "snapshots", `${digest}.json`),
 			JSON.stringify(snapshot),
 		);
+		return digest;
+	}
+
+	test("a latest.json pointer is followed to its snapshot manifest", async () => {
+		const digest = await writeSnapshot(dir);
 		// The pointer is the only URL a user can be expected to know, so passing
 		// it must work rather than erroring about missing digests.
 		await writeFile(
 			join(dir, "latest.json"),
-			JSON.stringify({ snapshot_path: "snapshots/abc.json" }),
+			JSON.stringify({
+				snapshot_path: `snapshots/${digest}.json`,
+				snapshot_digest: digest,
+			}),
 		);
 
 		const reference = await loadReference(join(dir, "latest.json"));
@@ -158,24 +175,210 @@ describe("archive reference trust boundary", () => {
 	});
 
 	test("a pointer that names a different snapshot than it resolves is refused", async () => {
-		const { mkdir } = await import("node:fs/promises");
-		await mkdir(join(dir, "snapshots"), { recursive: true });
-		await writeFile(
-			join(dir, "snapshots", "abc.json"),
-			JSON.stringify({ partitions: [{ dataset: "blocks" }] }),
-		);
-		// A tampered pointer redirecting to a different — possibly still validly
-		// signed — snapshot is a downgrade attack, not a forgery.
+		const digest = await writeSnapshot(dir);
+		// A tampered pointer redirecting to a different, possibly still validly
+		// signed, snapshot is a downgrade attack, not a forgery.
 		await writeFile(
 			join(dir, "latest.json"),
 			JSON.stringify({
-				snapshot_path: "snapshots/abc.json",
+				snapshot_path: `snapshots/${digest}.json`,
 				snapshot_digest: "0".repeat(64),
 			}),
 		);
-		expect(loadReference(join(dir, "latest.json"))).rejects.toThrow(
+		await expect(loadReference(join(dir, "latest.json"))).rejects.toThrow(
 			/pointer\/snapshot mismatch/,
 		);
+	});
+
+	test("a pointer without a snapshot digest is refused rather than followed on faith", async () => {
+		const digest = await writeSnapshot(dir);
+		// Stripping the digest is the cheapest downgrade: no key needed, the
+		// pointer simply stops proving which snapshot is current.
+		await writeFile(
+			join(dir, "latest.json"),
+			JSON.stringify({ snapshot_path: `snapshots/${digest}.json` }),
+		);
+		await expect(loadReference(join(dir, "latest.json"))).rejects.toThrow(
+			/no snapshot_digest/,
+		);
+	});
+
+	test("a pointer whose snapshot path is not a content digest is refused", async () => {
+		const { mkdir } = await import("node:fs/promises");
+		await mkdir(join(dir, "snapshots"), { recursive: true });
+		for (const snapshotPath of [
+			"snapshots/../latest.json",
+			"/etc/passwd",
+			"snapshots/abc.json",
+			"https://evil.example/snapshots/x.json",
+		]) {
+			await writeFile(
+				join(dir, "latest.json"),
+				JSON.stringify({
+					snapshot_path: snapshotPath,
+					snapshot_digest: "0".repeat(64),
+				}),
+			);
+			await expect(loadReference(join(dir, "latest.json"))).rejects.toThrow(
+				/invalid snapshot path/,
+			);
+		}
+	});
+
+	test("a signed pointer must verify against the archive key it was loaded with", async () => {
+		const legit = signingKeys();
+		const attacker = signingKeys();
+		const { signStreamsBulkManifest } = await import(
+			"@secondlayer/shared/streams-bulk-manifest"
+		);
+		const digest = await writeSnapshot(dir);
+		const pointer = {
+			snapshot_path: `snapshots/${digest}.json`,
+			snapshot_digest: digest,
+		};
+
+		await writeFile(
+			join(dir, "latest.json"),
+			JSON.stringify(signStreamsBulkManifest(pointer, attacker.privatePem)),
+		);
+		await expect(
+			loadReference(join(dir, "latest.json"), {
+				publicKeyPem: legit.publicPem,
+			}),
+		).rejects.toThrow(/pointer signature did not verify/);
+		// A signed pointer with no key to check it against is not "unsigned";
+		// it is unverifiable, and the reader must say so.
+		await expect(loadReference(join(dir, "latest.json"))).rejects.toThrow(
+			/no public key is available/,
+		);
+
+		await writeFile(
+			join(dir, "latest.json"),
+			JSON.stringify(signStreamsBulkManifest(pointer, legit.privatePem)),
+		);
+		const reference = await loadReference(join(dir, "latest.json"), {
+			publicKeyPem: legit.publicPem,
+		});
+		expect(reference.manifest.partitions).toHaveLength(1);
+	});
+
+	test("a manifest signed by whoever answers the key endpoint does not verify against the pinned key", async () => {
+		// The pinned key is the trust root. A key server, hosted or spoofed over
+		// plain http, cannot substitute its own signer.
+		const legit = signingKeys();
+		const attacker = signingKeys();
+		const { signStreamsBulkManifest } = await import(
+			"@secondlayer/shared/streams-bulk-manifest"
+		);
+		const { resolveArchivePublicKey } = await import(
+			"../lib/archive-reference.ts"
+		);
+		const server = Bun.serve({
+			port: 0,
+			fetch: () => Response.json({ public_key_pem: attacker.publicPem }),
+		});
+		try {
+			const manifest = signStreamsBulkManifest(
+				{ coverage: { from_block: 0, to_block: 9 } },
+				attacker.privatePem,
+			);
+			const key = await resolveArchivePublicKey({
+				envPem: legit.publicPem,
+				allowHostedApi: true,
+				hostedKeyUrl: `http://127.0.0.1:${server.port}/public/streams/signing-key`,
+			});
+			expect(key).toBe(legit.publicPem);
+			expect(checkSignature(manifest, key, false).verified).toBe(false);
+		} finally {
+			server.stop(true);
+		}
+	});
+
+	test("a partition path that escapes the archive root is refused before any read", async () => {
+		const { mkdir } = await import("node:fs/promises");
+		await mkdir(join(dir, "blocks"), { recursive: true });
+		const reference = {
+			manifest: {},
+			origin: join(dir, "latest.json"),
+			root: dir,
+			isRemote: false,
+		};
+		for (const path of [
+			"../outside.parquet",
+			"/etc/passwd",
+			"blocks/../../x",
+			"blocks/%2e%2e/x",
+			"blocks/a.parquet?x=1",
+			"blocks/a.parquet#frag",
+		]) {
+			await expect(
+				fetchVerifiedPartition(reference, {
+					dataset: "blocks",
+					from_block: 0,
+					to_block: 9,
+					path,
+					row_count: 1,
+					byte_size: 1,
+					sha256: "0".repeat(64),
+				}),
+			).rejects.toThrow(/leave the archive root/);
+		}
+		const remote = {
+			...reference,
+			root: "https://example.com/a",
+			isRemote: true,
+		};
+		await expect(
+			fetchVerifiedPartition(remote, {
+				dataset: "blocks",
+				from_block: 0,
+				to_block: 9,
+				path: "https://evil.example/x.parquet",
+				row_count: 1,
+				byte_size: 1,
+				sha256: "0".repeat(64),
+			}),
+		).rejects.toThrow(/leave the archive root/);
+	});
+
+	test("verify exits unanchored with the pointer hint when latest.json carries no snapshot digest", async () => {
+		// The command-level contract: a pointer that cannot prove which snapshot
+		// is current must stop before any database is touched, with exit code 2
+		// and a hint that names the pointer rather than DATABASE_URL.
+		const digest = await writeSnapshot(dir);
+		await writeFile(
+			join(dir, "latest.json"),
+			JSON.stringify({ snapshot_path: `snapshots/${digest}.json` }),
+		);
+		const proc = Bun.spawn(
+			[
+				process.execPath,
+				"run",
+				join(import.meta.dir, "../cli.ts"),
+				"verify",
+				"--against",
+				join(dir, "latest.json"),
+			],
+			{
+				env: {
+					...process.env,
+					SL_API_URL: "http://127.0.0.1:1",
+					DATABASE_URL: "",
+				},
+				stdout: "pipe",
+				stderr: "pipe",
+			},
+		);
+		const [stdout, stderr, exitCode] = await Promise.all([
+			new Response(proc.stdout).text(),
+			new Response(proc.stderr).text(),
+			proc.exited,
+		]);
+		const printed = stdout + stderr;
+		expect(exitCode).toBe(2);
+		expect(printed).toMatch(/no snapshot_digest/);
+		expect(printed).toMatch(/archive pointer failed its integrity check/);
+		expect(printed).not.toMatch(/Set DATABASE_URL/);
 	});
 
 	test("a remote reference strips the snapshots path segment", async () => {
@@ -447,7 +650,7 @@ describe("archive fetch gate — case 4: expired presigned URL recovers once", (
 				root: "https://archive.secondlayer.tools",
 				isRemote: true,
 			};
-			expect(
+			await expect(
 				fetchVerifiedPartition(reference, partition, gate),
 			).rejects.toThrow(/failed verification/);
 		} finally {

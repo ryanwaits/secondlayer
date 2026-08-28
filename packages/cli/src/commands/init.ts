@@ -1,4 +1,5 @@
 import type { Command } from "commander";
+import { resolveArchivePublicKey } from "../lib/archive-reference.ts";
 import {
 	INSTANCE_ENV_FILE,
 	buildInstanceEnv,
@@ -7,6 +8,7 @@ import {
 	writeInstanceEnv,
 } from "../lib/instance-init.ts";
 import { formatKeyValue, note, success } from "../lib/output.ts";
+import { isOssMode } from "../lib/resolve-auth.ts";
 
 export function registerInitCommand(program: Command): void {
 	program
@@ -31,7 +33,7 @@ export function registerInitCommand(program: Command): void {
 \`secondlayer --help\`) — default mainnet, same as before.
 `,
 		)
-		.action((opts: { apiUrl: string; force?: boolean }) => {
+		.action(async (opts: { apiUrl: string; force?: boolean }) => {
 			const network = parseInstanceNetwork(
 				process.env.STACKS_NETWORK ?? "mainnet",
 			);
@@ -40,6 +42,12 @@ export function registerInitCommand(program: Command): void {
 				network,
 				existing,
 				apiUrl: opts.apiUrl,
+				archivePublicKeyPem: await resolveArchivePublicKey({
+					envPem:
+						process.env.ARCHIVE_SIGNING_PUBLIC_KEY ??
+						process.env.STREAMS_SIGNING_PUBLIC_KEY,
+					allowHostedApi: !isOssMode(),
+				}),
 			});
 			const path = writeInstanceEnv(process.cwd(), env);
 			success(`Wrote ${INSTANCE_ENV_FILE}`);
