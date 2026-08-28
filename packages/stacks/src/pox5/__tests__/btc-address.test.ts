@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { base58 } from "@scure/base";
 import { serializeCVBytes } from "../../clarity/serialize.ts";
 import { Cl } from "../../clarity/values.ts";
 import { POX_ADDRESS_VERSION } from "../../pox/constants.ts";
@@ -133,6 +134,12 @@ describe("parseBtcAddress / stringifyBtcAddress", () => {
 				"mainnet",
 			),
 		).toThrow(/Unknown PoX address version/);
+	});
+
+	test("rejects a legacy address with a bad checksum", () => {
+		const decoded = base58.decode(P2PKH_MAINNET);
+		decoded[24] ^= 1;
+		expect(() => parseBtcAddress(base58.encode(decoded))).toThrow(/checksum/);
 	});
 });
 

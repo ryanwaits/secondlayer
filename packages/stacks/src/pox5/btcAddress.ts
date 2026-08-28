@@ -3,7 +3,7 @@ import { BITCOIN_NETWORK_PARAMS } from "../bitcoin/address.ts";
 import type { BitcoinNetwork } from "../bitcoin/constants.ts";
 import { doubleSha256 } from "../bitcoin/serialize.ts";
 import { POX_ADDRESS_VERSION } from "../pox/constants.ts";
-import { concatBytes, hexToBytes } from "../utils/encoding.ts";
+import { concatBytes } from "../utils/encoding.ts";
 
 /**
  * SIP-005 PoX `pox-addr` tuple, decoded from a Bitcoin address. `version` is
@@ -15,32 +15,6 @@ export type BtcAddressRepr = {
 	version: number;
 	hashbytes: Uint8Array;
 };
-
-const BASE58_ALPHABET =
-	"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-
-function base58Decode(str: string): Uint8Array {
-	let num = 0n;
-	for (const char of str) {
-		const idx = BASE58_ALPHABET.indexOf(char);
-		if (idx === -1) throw new Error(`Invalid base58 character: ${char}`);
-		num = num * 58n + BigInt(idx);
-	}
-
-	const hex = num.toString(16).padStart(2, "0");
-	const padded = hex.length % 2 ? `0${hex}` : hex;
-	const rawBytes = hexToBytes(padded);
-
-	let leadingZeros = 0;
-	for (const char of str) {
-		if (char === "1") leadingZeros++;
-		else break;
-	}
-
-	const result = new Uint8Array(leadingZeros + rawBytes.length);
-	result.set(rawBytes, leadingZeros);
-	return result;
-}
 
 function base58CheckEncode(version: number, payload: Uint8Array): string {
 	const data = concatBytes(Uint8Array.of(version), payload);
@@ -125,7 +99,7 @@ function parseSegwitAddress(address: string): BtcAddressRepr {
 }
 
 function parseLegacyAddress(address: string): BtcAddressRepr {
-	const decoded = base58Decode(address);
+	const decoded = base58.decode(address);
 
 	if (decoded.length !== 25) {
 		throw new Error(`Invalid legacy address length: ${decoded.length}`);
@@ -134,6 +108,12 @@ function parseLegacyAddress(address: string): BtcAddressRepr {
 	const versionByte = decoded[0];
 	if (versionByte === undefined) {
 		throw new Error("Invalid legacy address: missing version byte");
+	}
+	const payload = decoded.slice(0, 21);
+	const checksum = decoded.slice(21);
+	const expected = doubleSha256(payload).slice(0, 4);
+	if (checksum.length !== 4 || expected.some((b, i) => b !== checksum[i])) {
+		throw new Error("Invalid legacy address checksum");
 	}
 	const hashbytes = decoded.slice(1, 21);
 
