@@ -66,7 +66,8 @@ program.addHelpText(
 Quickstart:
   $ secondlayer setup
   $ secondlayer subgraphs create my-watcher --from-contract SP....my-contract
-  $ secondlayer subgraphs deploy subgraphs/my-watcher.ts
+  $ git add subgraphs/my-watcher.ts
+  $ secondlayer subgraphs deploy subgraphs/my-watcher.ts   # or --allow-uncommitted
 
 Manual / scripted setup, one step at a time:
   $ secondlayer init --network mainnet

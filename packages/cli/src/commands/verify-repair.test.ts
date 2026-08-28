@@ -660,16 +660,19 @@ describe("archive fetch gate — case 4: expired presigned URL recovers once", (
 });
 
 describe("archive fetch gate — case 5: -y skips only the prompt, never the quote", () => {
-	test("shouldPromptForGatedFetch is false only for -y or --json, independent of quoting", () => {
+	test("only -y waives confirmation; --json still owes consent", () => {
 		// The quote line and the sufficiency check run unconditionally, above
 		// and before this decision is even consulted (see bootstrap.ts/
 		// repair.ts: `quoteArchiveFetch` + `formatQuoteValue` are called before
 		// this guard, never inside it) — this function controls ONLY whether
-		// the interactive confirm() prompt itself runs.
+		// confirmation is still owed. `--json` is not consent: the command
+		// then emits `confirmationRequiredPayload` and exits instead of
+		// charging.
 		expect(shouldPromptForGatedFetch({})).toBe(true);
 		expect(shouldPromptForGatedFetch({ yes: true })).toBe(false);
-		expect(shouldPromptForGatedFetch({ json: true })).toBe(false);
-		expect(shouldPromptForGatedFetch({ yes: true, json: true })).toBe(false);
+		const jsonOnly: { yes?: boolean; json: boolean } = { json: true };
+		expect(shouldPromptForGatedFetch(jsonOnly)).toBe(true);
+		expect(shouldPromptForGatedFetch({ ...jsonOnly, yes: true })).toBe(false);
 	});
 });
 

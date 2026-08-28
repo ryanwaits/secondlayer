@@ -3,7 +3,6 @@ import { unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ParquetReader } from "@dsnp/parquetjs";
-import { confirm } from "@inquirer/prompts";
 import {
 	type ArchiveDataset,
 	type ArchiveRow,
@@ -17,6 +16,8 @@ import type { Command } from "commander";
 import {
 	ARCHIVE_GATE_NOT_CONFIGURED_MESSAGE,
 	type ArchiveGate,
+	type ArchiveQuote,
+	confirmationRequiredPayload,
 	createGatedFetcher,
 	formatInsufficientMessage,
 	formatQuoteValue,
@@ -36,6 +37,7 @@ import {
 import { partitionIsLoaded, planTornImport } from "../lib/bootstrap-resume.ts";
 import {
 	bold,
+	confirmDestructive,
 	dim,
 	formatKeyValue,
 	note,
@@ -43,6 +45,7 @@ import {
 	printError,
 	success,
 	warn,
+	writeData,
 } from "../lib/output.ts";
 import { isOssMode } from "../lib/resolve-auth.ts";
 
@@ -327,6 +330,7 @@ Exit codes:
 				// designed, not a billing leak.
 				const gated = isOfficialArchive(reference);
 				let quoteLine: string | undefined;
+				let quote: ArchiveQuote | null = null;
 				let gate: ArchiveGate | undefined;
 				if (gated) {
 					const paths = partitions.map((p) => p.path);
@@ -343,6 +347,7 @@ Exit codes:
 						printError(formatInsufficientMessage(result.quote));
 						process.exit(BOOTSTRAP_EXIT.REFUSED);
 					}
+					quote = result.quote;
 					quoteLine = formatQuoteValue(result.quote, "bootstrap");
 					gate = createGatedFetcher(paths, "bootstrap");
 				}
@@ -376,9 +381,17 @@ Exit codes:
 				}
 
 				if (shouldPromptForGatedFetch(opts)) {
-					const proceed = await confirm({
+					if (opts.json) {
+						// `--json` shapes the output; it never stands in for `-y`. The
+						// quote goes to stderr as chrome and to stdout as data, so a
+						// script sees the price before anything is charged or written.
+						if (quoteLine) note(`  metered: ${quoteLine}`);
+						writeData(JSON.stringify(confirmationRequiredPayload(quote)));
+						process.exit(BOOTSTRAP_EXIT.REFUSED);
+					}
+					const proceed = await confirmDestructive({
 						message: "Restore from the verified archive?",
-						default: true,
+						yes: opts.yes,
 					});
 					if (!proceed) {
 						note("Nothing was written.");

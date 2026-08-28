@@ -29,6 +29,7 @@ bun add -g @secondlayer/cli
 secondlayer setup
 
 secondlayer subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts
+git add subgraphs/my-contract.ts   # deploy refuses an unstaged file; or pass --allow-uncommitted
 secondlayer subgraphs deploy subgraphs/my-contract.ts --start-block <recent-block>
 secondlayer subgraphs query my-contract <table> --sort _block_height --order desc
 ```
@@ -94,7 +95,11 @@ Against the official host, both commands quote before they charge:
 3. You confirm, or pass `-y` to skip the prompt. `-y` never skips the quote
    or the balance check: if the balance is short, the command exits before
    any partition is fetched and prints the shortfall and
-   `secondlayer credits buy`.
+   `secondlayer credits buy`. `--json` never stands in for `-y`: without
+   `-y` it prints `{"code":"CONFIRMATION_REQUIRED","quote":…}` to stdout
+   and exits 2 so a script can read the price, then re-run with `-y`.
+   Without a TTY on stdin every confirmation exits 1 rather than letting an
+   empty pipe answer it.
 4. Only then does the command fetch, and only the partitions it actually
    reads are charged.
 
@@ -113,7 +118,7 @@ points at.
 |---|---|
 | `secondlayer subgraphs create <name>` | Scaffold a definition file |
 | `secondlayer subgraphs scaffold <SP...::contract> [-o <path>] [--no-install]` | Generate a subgraph from a deployed contract |
-| `secondlayer subgraphs deploy <file> [--start-block <n>]` | Deploy; `--start-block` overrides the definition |
+| `secondlayer subgraphs deploy <file> [--start-block <n>] [-y] [--allow-uncommitted]` | Deploy; `--start-block` overrides the definition. The file must be staged or committed (`git add`), or pass `--allow-uncommitted` |
 | `secondlayer subgraphs list` | List deployments (`ls` alias) |
 | `secondlayer subgraphs dev <file>` | Watch + hot-redeploy |
 | `secondlayer subgraphs query <name> <table>` | Query a table with filters, sort, pagination |
@@ -136,7 +141,7 @@ Reads emit JSON to stdout (`--json` accepted across all read commands); `-o/--ou
 
 | Command | What it does |
 |---|---|
-| `secondlayer subscriptions create <name> --subgraph <name> --table <name> [--runtime <inngest\|trigger\|cloudflare\|node>] [--url <url>]` | Subgraph subscription (optional local receiver scaffold) |
+| `secondlayer subscriptions create <name> --subgraph <name> --table <name> [--runtime <inngest\|trigger\|cloudflare\|node>] [--url <url>]` | Subgraph subscription (optional local receiver scaffold). Runtime defaults to `node` once any of `-s/-t/-u` or `--no-scaffold` is given; the menu only appears in a terminal with no flags |
 | `secondlayer subscriptions create <name> --url <url> --trigger '<json>'` | Chain subscription (repeat `--trigger` or pass `--triggers-file`) |
 | `secondlayer subscriptions list` / `get <id\|name>` | List or show config + delivery state |
 | `secondlayer subscriptions update <id\|name> --url <url> [--filter key.gte=value]` | Patch URL, filter, format, retry, etc. |
@@ -148,7 +153,7 @@ Reads emit JSON to stdout (`--json` accepted across all read commands); `-o/--ou
 | `secondlayer subscriptions doctor/test <id\|name>` | Health check / signed fixture |
 
 Read/action commands support `--json`. Destructive commands prompt unless
-`-y` / `--yes`. Filters are schema-aware: unknown tables/columns, bad operators,
+`-y` / `--yes`, default to no, and exit 1 when stdin is not a TTY. Filters are schema-aware: unknown tables/columns, bad operators,
 and non-scalar columns are rejected before the API call.
 
 Subscriptions are **subgraph** (a table's rows) or **chain** (raw events, no

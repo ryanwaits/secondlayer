@@ -50,12 +50,14 @@ import { parseQueryFilters } from "../lib/filter-params.ts";
 import { writeTextFile } from "../lib/fs.ts";
 import { inspectSourceGitState } from "../lib/git-status.ts";
 import {
+	confirmDestructive,
 	dim,
 	error,
 	formatKeyValue,
 	formatTable,
 	green,
 	info,
+	note,
 	output,
 	red,
 	success,
@@ -820,7 +822,12 @@ Examples:
 						`Schema inferred from ${opts.fromContract} print events (${opts.tablePerTopic ? "table per topic" : "single wide table"})`,
 					);
 				}
-				info(`Next: secondlayer subgraphs deploy subgraphs/${name}.ts`);
+				info(
+					`Next: git add subgraphs/${name}.ts && secondlayer subgraphs deploy subgraphs/${name}.ts`,
+				);
+				note(
+					"  deploy refuses an unstaged file unless you pass --allow-uncommitted: a staged copy is the one git can recover.",
+				);
 			},
 		);
 
@@ -936,11 +943,11 @@ Examples:
 		)
 		.option(
 			"--allow-uncommitted",
-			"Deploy even though the source file is not committed to git (the deployed definition will exist only in the database)",
+			"Deploy even though the source file is not staged or committed in git (the deployed definition will exist only in the database)",
 		)
 		.addHelpText(
 			"after",
-			"\nBy default the source file must be committed to git — otherwise the\ndeployed definition's only copy is the row in the database. Pass\n--allow-uncommitted to deploy anyway.",
+			"\nBy default the source file must be staged or committed in git (`git add <file>`),\notherwise the deployed definition's only copy is the row in the database. Pass\n--allow-uncommitted to deploy anyway.",
 		)
 		.action(
 			async (
@@ -972,18 +979,23 @@ Examples:
 									gitState.kind === "untracked"
 										? "not tracked by git"
 										: "modified with uncommitted changes";
-								const message = `${file} is ${reason}. If you deploy it, the only copy of this definition will be a row in the database — this has already caused two production recoveries.`;
-								if (process.stdout.isTTY) {
+								const message = `${file} is ${reason}. Deploy it and the only copy of this definition is a row in the database.`;
+								// Gate on stdin, the stream the prompt reads: a piped stdin
+								// with a TTY stdout would otherwise answer the prompt itself.
+								if (process.stdin.isTTY) {
 									warn(message);
 									const confirmed = await confirm({
 										message: "Deploy anyway?",
+										default: false,
 									});
 									if (!confirmed) {
-										info("Aborted.");
+										info("Nothing was deployed.");
 										process.exit(0);
 									}
 								} else {
-									error(`${message} Commit it, or pass --allow-uncommitted.`);
+									error(
+										`${message} Stage it with \`git add ${file}\`, or pass --allow-uncommitted.`,
+									);
 									process.exit(1);
 								}
 							}
@@ -1100,12 +1112,13 @@ Examples:
 											`startBlock change (${existingStart ?? "unset"} → ${deployStartBlock}) forces a reindex.`,
 										);
 									}
-									const confirmed = await confirm({
+									const confirmed = await confirmDestructive({
 										message:
-											"⚠  This will drop all data and reindex from scratch. Continue?",
+											"This will drop all data and reindex from scratch. Continue?",
+										yes: options.yes,
 									});
 									if (!confirmed) {
-										info("Aborted — nothing was deployed.");
+										info("Nothing was deployed.");
 										process.exit(0);
 									}
 								}
@@ -1533,37 +1546,13 @@ Examples:
 				},
 			) => {
 				try {
-					if (!options.yes) {
-						if (!process.stdin.isTTY) {
-							error(
-								"Interactive prompt unavailable (stdin is not a TTY). Re-run with -y to skip confirmation.",
-							);
-							process.exit(1);
-						}
-						const { confirm } = await import("@inquirer/prompts");
-						let ok = false;
-						try {
-							ok = await confirm({
-								message: `Reindex subgraph "${name}"? ALL of its data will be dropped and rebuilt from its start block. This cannot be undone.`,
-								default: false,
-							});
-						} catch (promptErr) {
-							const m =
-								promptErr instanceof Error
-									? promptErr.message
-									: String(promptErr);
-							if (m.includes("ExitPromptError") || m.includes("force closed")) {
-								error(
-									"Interactive prompt unavailable. Re-run with -y to skip confirmation.",
-								);
-								process.exit(1);
-							}
-							throw promptErr;
-						}
-						if (!ok) {
-							info("Cancelled.");
-							return;
-						}
+					const ok = await confirmDestructive({
+						message: `Reindex subgraph "${name}"? ALL of its data will be dropped and rebuilt from its start block. This cannot be undone.`,
+						yes: options.yes,
+					});
+					if (!ok) {
+						info("Cancelled.");
+						return;
 					}
 
 					info(`Reindexing subgraph "${name}"...`);
@@ -1949,39 +1938,13 @@ Examples:
 		.action(
 			async (name: string, options: { yes?: boolean; force?: boolean }) => {
 				try {
-					if (!options.yes && !options.force) {
-						// Refuse to prompt on non-TTY stdin. An empty pipe (`echo |`)
-						// would otherwise feed a newline into confirm() and auto-accept
-						// the destructive default.
-						if (!process.stdin.isTTY) {
-							error(
-								"Interactive prompt unavailable (stdin is not a TTY). Re-run with -y to skip confirmation.",
-							);
-							process.exit(1);
-						}
-						const { confirm } = await import("@inquirer/prompts");
-						let ok = false;
-						try {
-							ok = await confirm({
-								message: `Delete subgraph "${name}" and all its data? This cannot be undone.`,
-							});
-						} catch (promptErr) {
-							const m =
-								promptErr instanceof Error
-									? promptErr.message
-									: String(promptErr);
-							if (m.includes("ExitPromptError") || m.includes("force closed")) {
-								error(
-									"Interactive prompt unavailable. Re-run with -y to skip confirmation.",
-								);
-								process.exit(1);
-							}
-							throw promptErr;
-						}
-						if (!ok) {
-							info("Cancelled");
-							return;
-						}
+					const ok = await confirmDestructive({
+						message: `Delete subgraph "${name}" and all its data? This cannot be undone.`,
+						yes: options.yes || options.force,
+					});
+					if (!ok) {
+						info("Cancelled");
+						return;
 					}
 
 					try {

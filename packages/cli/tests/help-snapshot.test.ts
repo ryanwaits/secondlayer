@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { join } from "node:path";
 import { Command } from "commander";
 import { registerBootstrapCommand } from "../src/commands/bootstrap.ts";
 import { registerCodegenCommand } from "../src/commands/codegen.ts";
@@ -164,4 +165,28 @@ describe("CLI help snapshot", () => {
 			"--watch",
 		]);
 	});
+
+	test("the quickstart stages the created file before deploy, since deploy refuses an unstaged one", async () => {
+		const proc = Bun.spawn(
+			[
+				process.execPath,
+				"run",
+				join(import.meta.dir, "../src/cli.ts"),
+				"--help",
+			],
+			{ stdout: "pipe", stderr: "pipe" },
+		);
+		const [help, exitCode] = await Promise.all([
+			new Response(proc.stdout).text(),
+			proc.exited,
+		]);
+		expect(exitCode).toBe(0);
+		const create = help.indexOf("subgraphs create my-watcher");
+		const add = help.indexOf("git add subgraphs/my-watcher.ts");
+		const deploy = help.indexOf("subgraphs deploy subgraphs/my-watcher.ts");
+		expect(create).toBeGreaterThan(-1);
+		expect(add).toBeGreaterThan(create);
+		expect(deploy).toBeGreaterThan(add);
+		expect(help).toMatch(/--allow-uncommitted/);
+	}, 30_000);
 });

@@ -13,9 +13,11 @@ import {
 import { detectStacksNodes } from "../lib/detect.ts";
 import {
 	blue,
+	confirmDestructive,
 	dim,
 	error,
 	green,
+	info,
 	note,
 	success,
 	warn,
@@ -92,9 +94,12 @@ Examples:
 		.action(async (opts: { yes?: boolean }) => {
 			try {
 				if (
-					!opts.yes &&
-					!(await confirmDestructive("Reset configuration to defaults?"))
+					!(await confirmDestructive({
+						message: "Reset configuration to defaults?",
+						yes: opts.yes,
+					}))
 				) {
+					info("Cancelled.");
 					return;
 				}
 				await resetConfig();
@@ -112,9 +117,12 @@ Examples:
 		.action(async (opts: { yes?: boolean }) => {
 			try {
 				if (
-					!opts.yes &&
-					!(await confirmDestructive("Delete the config file?"))
+					!(await confirmDestructive({
+						message: "Delete the config file?",
+						yes: opts.yes,
+					}))
 				) {
+					info("Cancelled.");
 					return;
 				}
 				await clearConfig();
@@ -124,31 +132,6 @@ Examples:
 				process.exit(1);
 			}
 		});
-}
-
-async function confirmDestructive(message: string): Promise<boolean> {
-	if (!process.stdin.isTTY) {
-		error(
-			"Interactive prompt unavailable (stdin is not a TTY). Re-run with -y to skip confirmation.",
-		);
-		process.exit(1);
-	}
-	const { confirm } = await import("@inquirer/prompts");
-	try {
-		const ok = await confirm({ message, default: false });
-		if (!ok) console.log("Cancelled.");
-		return ok;
-	} catch (promptErr) {
-		const m =
-			promptErr instanceof Error ? promptErr.message : String(promptErr);
-		if (m.includes("ExitPromptError") || m.includes("force closed")) {
-			error(
-				"Interactive prompt unavailable. Re-run with -y to skip confirmation.",
-			);
-			process.exit(1);
-		}
-		throw promptErr;
-	}
 }
 
 async function printConfigTree(cfg: Config): Promise<void> {

@@ -116,7 +116,7 @@ Usage: `secondlayer bootstrap --against <manifest> [--to-block <n>] [--public-ke
 | `--to-block <n>` | archive tip | Stop at this height. |
 | `--public-key <pem>` | resolved | Pin the signing key instead of fetching it. |
 | `-y, --yes` | off | Skip the confirmation prompt. |
-| `--json` | off | Machine output. |
+| `--json` | off | Machine output. Not consent: without `-y` it prints `{"code":"CONFIRMATION_REQUIRED","quote":…}` and exits 2. |
 
 Exit codes: `0` restored and verified, `1` restore completed but verification diverged, `2` refused (non-empty target or untrusted reference).
 
@@ -170,7 +170,7 @@ Example: `secondlayer verify decode:ft_transfer --against ./snapshot.json --deep
 
 Replace local chain data that diverges from a signed archive. Dry-run by default.
 
-Usage: `secondlayer repair --against <archive> [--apply] [--from-block <n>] [--to-block <n>] [--public-key <pem>] [--json]`
+Usage: `secondlayer repair --against <archive> [--apply] [--from-block <n>] [--to-block <n>] [--public-key <pem>] [-y] [--json]`
 
 | Flag | Default | Description |
 | --- | --- | --- |
@@ -178,7 +178,8 @@ Usage: `secondlayer repair --against <archive> [--apply] [--from-block <n>] [--t
 | `--apply` | off | Write the repair. Without it, print the plan only. |
 | `--from-block <n>` / `--to-block <n>` | full archive | Limit the repaired range. |
 | `--public-key <pem>` | resolved | Pin the signing key. |
-| `--json` | off | Machine output. |
+| `-y, --yes` | off | Skip the confirmation prompt for a metered fetch. |
+| `--json` | off | Machine output; the report carries `metered`. Not consent: a metered fetch without `-y` prints `{"code":"CONFIRMATION_REQUIRED","quote":…}` and exits 2. |
 
 Exit codes: `0` ok, `1` divergence remains, `2` unanchored.
 
@@ -247,7 +248,7 @@ Usage: `secondlayer subgraphs create <name>`
 | `--from-contract <contractId>` | — | Generate sources/schema/handlers from the contract's observed print events (requires network). |
 | `--table-per-topic` | off | With `--from-contract`: one table per print topic instead of a single wide table. |
 
-With no flags it writes an empty starter. Writes to `subgraphs/<name>.ts` (creates `subgraphs/` if missing). Errors if the file already exists.
+With no flags it writes an empty starter. Writes to `subgraphs/<name>.ts` (creates `subgraphs/` if missing). Errors if the file already exists. The `Next:` line is `git add subgraphs/<name>.ts && secondlayer subgraphs deploy subgraphs/<name>.ts`; deploy refuses an unstaged file unless `--allow-uncommitted`.
 
 Example: `secondlayer subgraphs create my-watcher --from-contract SP3....my-contract`
 
@@ -274,11 +275,11 @@ Usage: `secondlayer subgraphs deploy <file>`
 | `--dry-run` | false | Validate and preview without writing. |
 | `-y, --yes` | false | Skip confirmation prompt for reindex operations (DROP + reindex). |
 | `--strict` | false | Run `bunx tsc --noEmit` on handler before deploy. |
-| `--allow-uncommitted` | false | Deploy a definition file that is untracked or dirty in git. |
+| `--allow-uncommitted` | false | Deploy a definition file that is untracked or has unstaged edits in git. |
 
 Deploy bundles the handler via `@secondlayer/bundler` and POSTs it to the instance. Server returns one of `unchanged`, `handler_updated`, `created`, `updated`, `reindexed`. **Destructive (`reindexed`) deploys prompt for confirmation** unless `-y` is set. Local deploy: writes to local DB via `deploySchema()`.
 
-Deploy refuses a definition file that isn't committed to git — a prompt in a terminal, a hard failure in CI — because a deployed definition whose source isn't in version control exists only as a database row. `--allow-uncommitted` overrides it and prints a line saying so. Deploys from outside a git repo, and `--dry-run`, are unaffected.
+Deploy refuses a definition file that isn't staged or committed in git — a prompt in a terminal, a hard failure in CI — because a deployed definition whose source isn't in version control exists only as a database row. `git add <file>` is enough; a staged copy is recoverable. `--allow-uncommitted` overrides it and prints a line saying so. Deploys from outside a git repo, and `--dry-run`, are unaffected. The reindex prompt gates on stdin: without a TTY and without `-y` it exits 1 before any request, so a pipe can never answer it.
 
 Deploys are open on any instance: no trial, no quota, and no visibility flag. Reads on `/v1/subgraphs/*` follow the same rule as Index and Streams — keyless while the API is published on loopback, `INSTANCE_TOKEN` past it. Who can reach the instance is your publish spec and your reverse proxy, not a per-subgraph setting.
 
@@ -467,10 +468,10 @@ Usage: `secondlayer subscriptions create <name>`
 
 | Flag | Description |
 | --- | --- |
-| `-r, --runtime <runtime>` | `inngest` \| `trigger` \| `cloudflare` \| `node`. Prompts if omitted. |
-| `-s, --subgraph <name>` | Subgraph to subscribe to. Prompts if omitted. |
-| `-t, --table <name>` | Table to subscribe to. Prompts if omitted. |
-| `-u, --url <url>` | Webhook URL. Prompts if omitted. Must be http/https. |
+| `-r, --runtime <runtime>` | `inngest` \| `trigger` \| `cloudflare` \| `node`. Defaults to `node` once any of `-s/-t/-u` or `--no-scaffold` is given; prompts only in a terminal with no flags. |
+| `-s, --subgraph <name>` | Subgraph to subscribe to. Prompts if omitted (exit 1 without a TTY). |
+| `-t, --table <name>` | Table to subscribe to. Prompts if omitted (exit 1 without a TTY). |
+| `-u, --url <url>` | Webhook URL. Prompts if omitted (exit 1 without a TTY). Must be http/https. |
 | `--auth-token <token>` | Bearer token for receiver-side auth. |
 | `--filter <kv...>` | Repeatable. `key=value` with `.eq/.neq/.gt/.gte/.lt/.lte` suffixes. |
 | `--api-key <key>` | `INSTANCE_TOKEN` override. |

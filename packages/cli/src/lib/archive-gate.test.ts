@@ -6,11 +6,13 @@ import {
 	type ArchiveGateDeps,
 	type ArchiveQuote,
 	OFFICIAL_ARCHIVE_HOST,
+	confirmationRequiredPayload,
 	createGatedFetcher,
 	formatInsufficientMessage,
 	formatQuoteValue,
 	isOfficialArchive,
 	quoteArchiveFetch,
+	shouldPromptForGatedFetch,
 } from "./archive-gate.ts";
 import { ARCHIVE_LOGIN_COMMAND, CliHttpError } from "./http.ts";
 
@@ -362,5 +364,34 @@ describe("quote/insufficient message formatting", () => {
 		expect(message).toBe(
 			"Insufficient archive credits: quote $44.00, balance $10.00, short $34.00. Buy more with `secondlayer credits buy`.",
 		);
+	});
+});
+
+describe("consent is owed until -y says otherwise", () => {
+	test("--json alone still requires confirmation; only -y waives it", () => {
+		const jsonOnly: { yes?: boolean; json: boolean } = { json: true };
+		expect(shouldPromptForGatedFetch({})).toBe(true);
+		expect(shouldPromptForGatedFetch(jsonOnly)).toBe(true);
+		expect(shouldPromptForGatedFetch({ yes: true })).toBe(false);
+		expect(shouldPromptForGatedFetch({ ...jsonOnly, yes: true })).toBe(false);
+	});
+
+	test("the JSON refusal carries the quote and names -y as the remedy", () => {
+		const quote: ArchiveQuote = {
+			partitions: 3,
+			bundles: 1,
+			usd: "0.75",
+			usdMicros: 750_000,
+			balanceUsdMicros: 5_000_000,
+			sufficient: true,
+			freeAllowanceAppliedMicros: 0,
+			allowanceRemainingBundles: 0,
+		};
+		const payload = confirmationRequiredPayload(quote);
+		expect(payload.code).toBe("CONFIRMATION_REQUIRED");
+		expect(payload.quote).toBe(quote);
+		expect(payload.message).toMatch(/-y/);
+		expect(payload.message).not.toMatch(/—/);
+		expect(confirmationRequiredPayload(null).quote).toBeNull();
 	});
 });

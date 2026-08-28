@@ -176,17 +176,38 @@ export function formatQuoteValue(
 }
 
 /**
- * Whether the interactive confirmation prompt should run before a gated
- * fetch proceeds. The quote itself is computed and printed UNCONDITIONALLY,
- * before this is ever consulted — `-y` and `--json` only ever skip the
- * prompt, never the quote print or the sufficiency check (DX contract #1:
- * quote before charge, always).
+ * Whether confirmation is still owed before a gated fetch proceeds. The
+ * quote itself is computed and printed UNCONDITIONALLY, before this is ever
+ * consulted; only `-y` skips the prompt, never the quote print or the
+ * sufficiency check (DX contract #1: quote before charge, always).
+ *
+ * `--json` changes the output shape, not consent: without `-y` a JSON caller
+ * gets a `CONFIRMATION_REQUIRED` payload (`confirmationRequiredPayload`) and
+ * exit 2 instead of a charge.
  */
-export function shouldPromptForGatedFetch(opts: {
-	yes?: boolean;
-	json?: boolean;
-}): boolean {
-	return !opts.yes && !opts.json;
+export function shouldPromptForGatedFetch(opts: { yes?: boolean }): boolean {
+	return !opts.yes;
+}
+
+/** Exit code every command uses when `--json` without `-y` needs consent. */
+export const CONFIRMATION_REQUIRED_EXIT = 2;
+
+/**
+ * The stdout payload for `--json` without `-y`: the quote the reader would
+ * have been asked to approve, so a script can inspect the price and re-run
+ * with `-y`. `quote` is `null` for an unmetered archive.
+ */
+export function confirmationRequiredPayload(quote: ArchiveQuote | null): {
+	code: "CONFIRMATION_REQUIRED";
+	message: string;
+	quote: ArchiveQuote | null;
+} {
+	return {
+		code: "CONFIRMATION_REQUIRED",
+		message:
+			"Nothing was fetched. Re-run with -y to approve this fetch; --json never stands in for -y.",
+		quote,
+	};
 }
 
 /**

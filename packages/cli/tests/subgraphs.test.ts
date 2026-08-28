@@ -319,3 +319,91 @@ describe("subgraphs command surface", () => {
 		);
 	});
 });
+
+describe("subgraphs deploy refuses to let a pipe answer the drop-and-reindex prompt", () => {
+	it("a breaking schema change with piped stdin and no -y exits 1 before any deploy request", async () => {
+		// `echo |` used to auto-accept: @inquirer/confirm reads the newline as
+		// "yes" and the server dropped every row. The only network call
+		// allowed here is the preflight read of the existing definition.
+		const requests: string[] = [];
+		const server = Bun.serve({
+			port: 0,
+			fetch(req) {
+				const url = new URL(req.url);
+				requests.push(`${req.method} ${url.pathname}`);
+				if (req.method === "GET" && url.pathname === "/api/subgraphs/drop-me") {
+					return Response.json({
+						name: "drop-me",
+						definition: {
+							name: "drop-me",
+							schema: {
+								rows: { columns: { a: { type: "text" }, b: { type: "text" } } },
+							},
+						},
+					});
+				}
+				return Response.json({ error: "unexpected" }, { status: 500 });
+			},
+		});
+		// The definition must import @secondlayer/subgraphs, so it lives under
+		// this package (workspace resolution) rather than the OS tmpdir. That
+		// puts it inside this repo, untracked, so --allow-uncommitted skips the
+		// git gate and the drop-and-reindex prompt is the only gate left.
+		const dir = mkdtempSync(join(import.meta.dir, "deploy-pipe-.tmp"));
+		const home = mkdtempSync(join(tmpdir(), "sl-deploy-home-"));
+		try {
+			const file = join(dir, "drop-me.ts");
+			writeFileSync(
+				file,
+				[
+					'import { defineSubgraph } from "@secondlayer/subgraphs";',
+					"export default defineSubgraph({",
+					'  name: "drop-me",',
+					'  sources: { calls: { type: "contract_call", contractId: "SP123.contract" } },',
+					'  schema: { rows: { columns: { a: { type: "text" } } } },',
+					"  handlers: { calls: () => {} },",
+					"});",
+					"",
+				].join("\n"),
+			);
+			const proc = Bun.spawn(
+				[
+					process.execPath,
+					"run",
+					join(import.meta.dir, "../src/cli.ts"),
+					"subgraphs",
+					"deploy",
+					file,
+					"--allow-uncommitted",
+				],
+				{
+					cwd: dir,
+					env: {
+						...process.env,
+						HOME: home,
+						SL_API_URL: `http://127.0.0.1:${server.port}`,
+						INSTANCE_TOKEN: "a".repeat(64),
+						STACKS_NETWORK: "mainnet",
+					},
+					stdin: new Blob(["\n"]),
+					stdout: "pipe",
+					stderr: "pipe",
+				},
+			);
+			const [stdout, stderr, exitCode] = await Promise.all([
+				new Response(proc.stdout).text(),
+				new Response(proc.stderr).text(),
+				proc.exited,
+			]);
+			const printed = stdout + stderr;
+			expect(exitCode).toBe(1);
+			expect(printed).toMatch(/Breaking changes detected/);
+			expect(printed).toMatch(/stdin is not a TTY.*-y/);
+			expect(requests).toEqual(["GET /api/subgraphs/drop-me"]);
+		} finally {
+			server.stop(true);
+			rmSync(dir, { recursive: true, force: true });
+			rmSync(home, { recursive: true, force: true });
+		}
+	}, 30_000);
+});

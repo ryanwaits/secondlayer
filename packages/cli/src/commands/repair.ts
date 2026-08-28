@@ -2,7 +2,6 @@ import { unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ParquetReader } from "@dsnp/parquetjs";
-import { confirm } from "@inquirer/prompts";
 import {
 	type RangeDigest,
 	compareRangeDigests,
@@ -13,6 +12,7 @@ import type { Command } from "commander";
 import {
 	ARCHIVE_GATE_NOT_CONFIGURED_MESSAGE,
 	type ArchiveGate,
+	confirmationRequiredPayload,
 	createGatedFetcher,
 	formatInsufficientMessage,
 	formatQuoteValue,
@@ -29,6 +29,7 @@ import {
 	resolveArchivePublicKey,
 } from "../lib/archive-reference.ts";
 import {
+	confirmDestructive,
 	dim,
 	formatTable,
 	note,
@@ -36,6 +37,7 @@ import {
 	printError,
 	success,
 	warn,
+	writeData,
 } from "../lib/output.ts";
 import { isOssMode } from "../lib/resolve-auth.ts";
 
@@ -361,6 +363,7 @@ Exit codes:
 				// build the plan even in dry-run, so the gate engages here, before
 				// any partition is read — not only when `--apply` writes.
 				let gate: ArchiveGate | undefined;
+				let quoteLine: string | undefined;
 				if (isOfficialArchive(reference)) {
 					const paths = partitions.map((p) => p.path);
 					const result = await quoteArchiveFetch(paths, "repair");
@@ -376,11 +379,19 @@ Exit codes:
 						printError(formatInsufficientMessage(result.quote));
 						process.exit(REPAIR_EXIT.UNANCHORED);
 					}
-					note(`  metered: ${formatQuoteValue(result.quote, "repair")}`);
+					quoteLine = formatQuoteValue(result.quote, "repair");
+					note(`  metered: ${quoteLine}`);
 					if (shouldPromptForGatedFetch(opts)) {
-						const proceed = await confirm({
+						if (opts.json) {
+							// `--json` shapes the output; it never stands in for `-y`.
+							writeData(
+								JSON.stringify(confirmationRequiredPayload(result.quote)),
+							);
+							process.exit(REPAIR_EXIT.UNANCHORED);
+						}
+						const proceed = await confirmDestructive({
 							message: `Fetch ${partitions.length} partition(s) from the archive?`,
-							default: true,
+							yes: opts.yes,
 						});
 						if (!proceed) {
 							note("Nothing was fetched.");
@@ -452,6 +463,7 @@ Exit codes:
 					local_only_heights: allExtra,
 					applied,
 					fixes: allFixes,
+					metered: quoteLine ?? null,
 				};
 
 				output({
