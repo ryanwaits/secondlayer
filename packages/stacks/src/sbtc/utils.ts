@@ -1,50 +1,15 @@
-import { bech32, bech32m } from "@scure/base";
-
+import { base58, bech32, bech32m } from "@scure/base";
 import { BITCOIN_NETWORK_PARAMS } from "../bitcoin/address.ts";
 import type { BitcoinNetwork } from "../bitcoin/constants.ts";
-import { bytesToHex, hexToBytes } from "../utils/encoding.ts";
+import { doubleSha256 } from "../bitcoin/serialize.ts";
+import { bytesToHex, concatBytes, hexToBytes } from "../utils/encoding.ts";
 import { SBTC_BTC_ADDRESS_VERSION } from "./constants.ts";
 import type { SbtcBtcRecipient } from "./types.ts";
 
-const BASE58_ALPHABET =
-	"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-
-function base58Encode(bytes: Uint8Array): string {
-	let num = 0n;
-	for (const byte of bytes) num = num * 256n + BigInt(byte);
-
-	let str = "";
-	while (num > 0n) {
-		const r = num % 58n;
-		str = BASE58_ALPHABET[Number(r)] + str;
-		num /= 58n;
-	}
-	for (const byte of bytes) {
-		if (byte === 0) str = `1${str}`;
-		else break;
-	}
-	return str;
-}
-
-function sha256(bytes: Uint8Array): Uint8Array {
-	const hasher = new Bun.CryptoHasher("sha256");
-	hasher.update(bytes);
-	return hasher.digest() as Uint8Array;
-}
-
-function doubleSha256(bytes: Uint8Array): Uint8Array {
-	return sha256(sha256(bytes));
-}
-
 function base58CheckEncode(version: number, hashbytes: Uint8Array): string {
-	const payload = new Uint8Array(1 + hashbytes.length);
-	payload[0] = version;
-	payload.set(hashbytes, 1);
-	const checksum = doubleSha256(payload).slice(0, 4);
-	const full = new Uint8Array(payload.length + 4);
-	full.set(payload, 0);
-	full.set(checksum, payload.length);
-	return base58Encode(full);
+	const data = concatBytes(Uint8Array.of(version), hashbytes);
+	const checksum = doubleSha256(data).slice(0, 4);
+	return base58.encode(concatBytes(data, checksum));
 }
 
 /**
