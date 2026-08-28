@@ -50,7 +50,9 @@ describe("bitcoinVerifier.verifyMerkleProof", () => {
 	test("sends the native flat 5-arg vector in internal order, returns the bool", async () => {
 		const calls: { fnName: string; args: ClarityValue[] }[] = [];
 		const client = mockReadClient(() => Cl.bool(true), calls);
-		const verifier = bitcoinVerifier(client, { contract: "SP000.spv-adapter" });
+		const verifier = bitcoinVerifier(client, {
+			contract: "SP000000000000000000002Q6VF78.spv-adapter",
+		});
 
 		const ok = await verifier.verifyMerkleProof({
 			leaf: txids[1] as Uint8Array,
@@ -80,7 +82,9 @@ describe("bitcoinVerifier.verifyMerkleProof", () => {
 
 	test("returns false when the contract says false", async () => {
 		const client = mockReadClient(() => Cl.bool(false));
-		const verifier = bitcoinVerifier(client, { contract: "SP000.spv-adapter" });
+		const verifier = bitcoinVerifier(client, {
+			contract: "SP000000000000000000002Q6VF78.spv-adapter",
+		});
 		expect(
 			await verifier.verifyMerkleProof({
 				leaf: txids[1] as Uint8Array,
@@ -103,7 +107,9 @@ describe("bitcoinVerifier.getTxOutput", () => {
 				}),
 			),
 		);
-		const verifier = bitcoinVerifier(client, { contract: "SP000.spv-adapter" });
+		const verifier = bitcoinVerifier(client, {
+			contract: "SP000000000000000000002Q6VF78.spv-adapter",
+		});
 		const out = await verifier.getTxOutput(hexToBytes("00".repeat(10)), 0);
 		expect(bytesToHex(out.script)).toBe(scriptHex);
 		expect(out.amount).toBe(1234n);
@@ -112,7 +118,9 @@ describe("bitcoinVerifier.getTxOutput", () => {
 
 	test("throws when the built-in returns an err", async () => {
 		const client = mockReadClient(() => Cl.error(Cl.uint(2)));
-		const verifier = bitcoinVerifier(client, { contract: "SP000.spv-adapter" });
+		const verifier = bitcoinVerifier(client, {
+			contract: "SP000000000000000000002Q6VF78.spv-adapter",
+		});
 		await expect(verifier.getTxOutput(hexToBytes("00"), 9)).rejects.toThrow();
 	});
 });

@@ -6,6 +6,7 @@ import { Cl } from "../../../clarity/values.ts";
 import { createPublicClient } from "../../../clients/createPublicClient.ts";
 import { createWalletClient } from "../../../clients/createWalletClient.ts";
 import type { Client } from "../../../clients/types.ts";
+import { HttpRequestError } from "../../../errors/http.ts";
 import {
 	TransactionAbortedError,
 	TransactionDroppedError,
@@ -14,6 +15,8 @@ import {
 import { buildTokenTransfer } from "../../../transactions/build.ts";
 import { signTransactionWithAccount } from "../../../transactions/signer.ts";
 import { custom } from "../../../transports/custom.ts";
+import { http } from "../../../transports/http.ts";
+import type { RequestOptions } from "../../../transports/types.ts";
 import { sendTransaction } from "../../wallet/sendTransaction.ts";
 import { getTransaction } from "../getTransaction.ts";
 import { indexTxSource } from "../txSources.ts";
@@ -159,31 +162,43 @@ describe("waitForTransactionReceipt", () => {
 	});
 });
 
+/** Client whose transport IS the instance: index routes answer from `handler`. */
+function instanceClient(
+	handler: (path: string, options?: RequestOptions) => unknown,
+	url = "http://instance.test",
+): Client {
+	const transport = custom({
+		request: async (path: string, options?: RequestOptions) =>
+			handler(path, options),
+	})({});
+	return createPublicClient({
+		chain: mainnet,
+		transport: () => ({ ...transport, config: { url } }),
+	}) as unknown as Client;
+}
+
+const minedIndexResponse = {
+	transaction: {
+		tx_id: TXID,
+		block_height: 100,
+		status: "success",
+		contract_call: { result_hex: OK_RESULT_HEX },
+	},
+	tip: { block_height: 103 },
+};
+
 describe("indexTxSource", () => {
 	it("confirms with a single response using the embedded tip", async () => {
 		let calls = 0;
-		const fetchImpl = (async () => {
+		const client = instanceClient((path) => {
+			expect(path).toBe(`/v1/index/transactions/${TXID}`);
 			calls++;
-			return new Response(
-				JSON.stringify({
-					transaction: {
-						tx_id: TXID,
-						block_height: 100,
-						status: "success",
-						contract_call: { result_hex: OK_RESULT_HEX },
-					},
-					tip: { block_height: 103 },
-				}),
-				{ status: 200, headers: { "content-type": "application/json" } },
-			);
-		}) as unknown as typeof fetch;
-
-		// client whose transport must never be hit — tip comes from the source
-		const client = scriptedClient([]);
+			return minedIndexResponse;
+		});
 		const receipt = await waitForTransactionReceipt(client, {
 			txid: TXID,
 			confirmations: 3,
-			source: indexTxSource({ baseUrl: "https://idx.test", fetchImpl }),
+			source: indexTxSource(),
 			...FAST,
 		});
 		expect(receipt.status).toBe("success");
@@ -191,15 +206,110 @@ describe("indexTxSource", () => {
 		expect(calls).toBe(1);
 	});
 
-	it("treats 404 as unknown (pending-compatible)", async () => {
-		const fetchImpl = (async () =>
-			new Response("{}", { status: 404 })) as unknown as typeof fetch;
-		const source = indexTxSource({ baseUrl: "https://idx.test", fetchImpl });
-		const snapshot = await source.get({
-			client: scriptedClient([]),
-			txid: TXID,
+	it("treats a 404 from the transport as unknown (pending-compatible)", async () => {
+		const client = instanceClient(() => {
+			throw new HttpRequestError(404, { details: "{}" });
 		});
+		const snapshot = await indexTxSource().get({ client, txid: TXID });
 		expect(snapshot.receipt).toBeNull();
+	});
+
+	it("sends the instance token as a Bearer authorization header", async () => {
+		let seen: Record<string, string> | undefined;
+		const client = instanceClient((_path, options) => {
+			seen = options?.headers;
+			return minedIndexResponse;
+		});
+		await indexTxSource({ apiKey: "tok" }).get({ client, txid: TXID });
+		expect(seen?.authorization).toBe("Bearer tok");
+	});
+
+	it("throws a descriptive error when neither baseUrl nor a transport URL names the instance", async () => {
+		const client = createPublicClient({
+			chain: mainnet,
+			transport: custom({ request: async () => ({}) }),
+		}) as unknown as Client;
+		await expect(indexTxSource().get({ client, txid: TXID })).rejects.toThrow(
+			/baseUrl/,
+		);
+	});
+
+	it("throws a descriptive error when the transport is a Hiro host", async () => {
+		const client = createPublicClient({
+			chain: mainnet,
+			transport: http("https://api.mainnet.hiro.so", { retryCount: 0 }),
+		}) as unknown as Client;
+		await expect(indexTxSource().get({ client, txid: TXID })).rejects.toThrow(
+			/Hiro host/,
+		);
+	});
+
+	it("throws a config error on a non-JSON 404, since that host does not serve /v1/index", async () => {
+		const client = instanceClient(() => {
+			throw new HttpRequestError(404, {
+				details: "404 Not Found",
+				url: `http://instance.test/v1/index/transactions/${TXID}`,
+			});
+		});
+		await expect(indexTxSource().get({ client, txid: TXID })).rejects.toThrow(
+			/does not serve \/v1\/index/,
+		);
+	});
+
+	it("binds only the transport's retry and timeout policy to a different baseUrl, never its credentials", async () => {
+		const original = globalThis.fetch;
+		const urls: string[] = [];
+		globalThis.fetch = (async (input: string | URL, init?: RequestInit) => {
+			urls.push(input.toString());
+			const headers = init?.headers as Record<string, string>;
+			expect(headers?.authorization).toBe("Bearer tok");
+			expect(headers?.["x-api-key"]).toBeUndefined();
+			expect(headers?.["x-node-auth"]).toBeUndefined();
+			return new Response(JSON.stringify(minedIndexResponse), {
+				status: 200,
+				headers: { "content-type": "application/json" },
+			});
+		}) as unknown as typeof fetch;
+		try {
+			const client = createPublicClient({
+				chain: mainnet,
+				transport: http("http://node.test", {
+					retryCount: 0,
+					apiKey: "node-key",
+					fetchOptions: { headers: { "x-node-auth": "node-secret" } },
+				}),
+			}) as unknown as Client;
+			const snapshot = await indexTxSource({
+				baseUrl: "http://instance.test/",
+				apiKey: "tok",
+			}).get({ client, txid: TXID });
+			expect(snapshot.tip).toBe(103);
+			expect(urls).toEqual([
+				`http://instance.test/v1/index/transactions/${TXID}`,
+			]);
+		} finally {
+			globalThis.fetch = original;
+		}
+	});
+
+	it("a canonical-only source waits the full timeout before calling a tx dropped", async () => {
+		let polls = 0;
+		const client = instanceClient(() => {
+			polls++;
+			if (polls < 4) throw new HttpRequestError(404, { details: "{}" });
+			return minedIndexResponse;
+		});
+		// Default grace (30s) would be far above this timeout; the source's
+		// canonicalOnly flag stretches grace to the timeout, so the tx that
+		// mines on poll 4 is returned rather than reported dropped on poll 1.
+		const receipt = await waitForTransactionReceipt(client, {
+			txid: TXID,
+			source: indexTxSource(),
+			pollingInterval: 1,
+			timeout: 2_000,
+		});
+		expect(receipt.blockHeight).toBe(100);
+		expect(polls).toBe(4);
 	});
 });
 

@@ -1,3 +1,4 @@
+import { SerializationError } from "../errors/transaction.ts";
 import { bytesToHex } from "./encoding.ts";
 
 export class BytesReader {
@@ -8,28 +9,44 @@ export class BytesReader {
 		this.data = data;
 	}
 
+	/** Bytes left after the cursor. */
+	remaining(): number {
+		return this.data.length - this.offset;
+	}
+
+	private ensure(length: number): void {
+		if (this.offset + length > this.data.length) {
+			throw new SerializationError(
+				`Buffer underflow: need ${length} bytes at offset ${this.offset}, have ${this.data.length}`,
+			);
+		}
+	}
+
 	readUInt8(): number {
-		// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
+		this.ensure(1);
+		// biome-ignore lint/style/noNonNullAssertion: bounds checked by ensure()
 		return this.data[this.offset++]!;
 	}
 
 	readUInt16BE(): number {
+		this.ensure(2);
 		const val =
-			// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
+			// biome-ignore lint/style/noNonNullAssertion: bounds checked by ensure()
 			((this.data[this.offset]! << 8) | this.data[this.offset + 1]!) >>> 0;
 		this.offset += 2;
 		return val;
 	}
 
 	readUInt32BE(): number {
+		this.ensure(4);
 		const val =
-			// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
+			// biome-ignore lint/style/noNonNullAssertion: bounds checked by ensure()
 			((this.data[this.offset]! << 24) |
-				// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
+				// biome-ignore lint/style/noNonNullAssertion: bounds checked by ensure()
 				(this.data[this.offset + 1]! << 16) |
-				// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
+				// biome-ignore lint/style/noNonNullAssertion: bounds checked by ensure()
 				(this.data[this.offset + 2]! << 8) |
-				// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
+				// biome-ignore lint/style/noNonNullAssertion: bounds checked by ensure()
 				this.data[this.offset + 3]!) >>>
 			0;
 		this.offset += 4;
@@ -37,11 +54,7 @@ export class BytesReader {
 	}
 
 	readBytes(length: number): Uint8Array {
-		if (this.offset + length > this.data.length) {
-			throw new Error(
-				`Buffer underflow: need ${length} bytes at offset ${this.offset}, have ${this.data.length}`,
-			);
-		}
+		this.ensure(length);
 		const slice = this.data.slice(this.offset, this.offset + length);
 		this.offset += length;
 		return slice;

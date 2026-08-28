@@ -46,7 +46,8 @@ beforeAll(async () => {
 		options?: any,
 	) => {
 		if (path.includes("/v2/accounts/")) return { nonce: 0 };
-		if (path.includes("/v2/fees/")) return { estimations: [{ fee: 200 }] };
+		if (path.includes("/v2/fees/"))
+			return { estimations: [{ fee_rate: 1, fee: 200 }] };
 		if (path.includes("/v2/transactions")) {
 			const tx = deserializeTransaction(hexToBytes(options.body.tx));
 			captured.push(tx.payload as ContractCallPayload);

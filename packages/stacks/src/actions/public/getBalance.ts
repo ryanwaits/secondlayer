@@ -9,9 +9,12 @@ export async function getBalance(
 	client: Client,
 	params: GetBalanceParams,
 ): Promise<bigint> {
-	const data = await client.request(`/v2/accounts/${params.address}`, {
-		method: "GET",
-	});
+	const data = await client.request(
+		`/v2/accounts/${encodeURIComponent(params.address)}`,
+		{
+			method: "GET",
+		},
+	);
 	const balance = (data as { balance?: unknown })?.balance;
 	if (typeof balance !== "string" && typeof balance !== "number") {
 		throw new MalformedResponseError(

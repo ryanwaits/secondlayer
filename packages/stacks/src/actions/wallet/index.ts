@@ -18,7 +18,9 @@ export {
 export {
 	type FeeParam,
 	type FeeTier,
+	type ResolvedFee,
 	isFeeTier,
+	isNoEstimateAvailable,
 	isProviderAccount,
 	minimumFee,
 	resolveFee,

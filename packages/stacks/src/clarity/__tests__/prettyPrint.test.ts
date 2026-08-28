@@ -3,6 +3,7 @@ import {
 	cvToBigInt,
 	cvToBoolean,
 	cvToBuffer,
+	cvToJSON,
 	cvToPrincipal,
 	cvToString,
 } from "../prettyPrint.ts";
@@ -37,6 +38,22 @@ describe("cvToString", () => {
 		expect(() => cvToString(Cl.uint(1))).toThrow(
 			"cvToString: expected ascii or utf8, got uint",
 		);
+	});
+});
+
+describe("cvToJSON buffer", () => {
+	it("reports the byte length and one 0x prefix", () => {
+		expect(cvToJSON(Cl.bufferFromHex("0xdeadbeef"))).toEqual({
+			type: "(buff 4)",
+			value: "0xdeadbeef",
+		});
+	});
+
+	it("a hand-built buffer value that already carries 0x is not double-prefixed or miscounted", () => {
+		expect(cvToJSON({ type: "buffer", value: "0xdeadbeef" })).toEqual({
+			type: "(buff 4)",
+			value: "0xdeadbeef",
+		});
 	});
 });
 

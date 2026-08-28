@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type { ToolCallOptions } from "ai";
+import type { z } from "zod";
+import { Cl } from "../../clarity/index.ts";
+import { serializeCV } from "../../clarity/serialize.ts";
 import type { StacksReadClient } from "../client.ts";
-import { createStacksTools } from "../index.ts";
+import { createStacksTools, getStxBalance } from "../index.ts";
 
 /**
  * The AI SDK types `Tool.execute` as optional and two-argument
@@ -39,6 +42,44 @@ function mockClient(response: unknown): StacksReadClient {
 	} as unknown as StacksReadClient;
 }
 
+/** Client that records every request path, so a test can prove no request was made. */
+function recordingClient(response: unknown): {
+	client: StacksReadClient;
+	paths: string[];
+} {
+	const paths: string[] = [];
+	const client = {
+		request: async (path: string) => {
+			paths.push(path);
+			return response;
+		},
+		chain: { network: "mainnet" },
+	} as unknown as StacksReadClient;
+	return { client, paths };
+}
+
+function parseInput(tool: { inputSchema: unknown }, input: unknown) {
+	return (tool.inputSchema as z.ZodType).safeParse(input);
+}
+
+/**
+ * The AI SDK gate: validate against `inputSchema`, call `execute` only when
+ * validation passes. Returns whether the call reached `execute`.
+ */
+async function runValidated(
+	tool: {
+		inputSchema: unknown;
+		execute?: (input: unknown, options: ToolCallOptions) => unknown;
+	},
+	input: unknown,
+): Promise<boolean> {
+	const parsed = parseInput(tool, input);
+	if (!parsed.success) return false;
+	if (!tool.execute) throw new Error("tool has no execute");
+	await tool.execute(parsed.data, TOOL_CALL_OPTIONS);
+	return true;
+}
+
 describe("getStxBalance", () => {
 	test("returns microStx balance", async () => {
 		const tools = createStacksTools(mockClient({ balance: "1000" }));
@@ -67,11 +108,21 @@ describe("getBlock", () => {
 		expect(result).toEqual(block);
 	});
 
-	test("returns latest block when no args", async () => {
+	test("latest block is unwrapped to the same single-block shape as a height lookup", async () => {
 		const block = { hash: "0xdef", height: 999 };
 		const tools = createStacksTools(mockClient({ results: [block] }));
 		const result = await runTool(tools.getBlock, {});
-		expect(result).toEqual({ results: [block] });
+		expect(result).toEqual(block);
+	});
+
+	test("rejects a hash that is not 32 bytes of hex before any request", () => {
+		const tools = createStacksTools(mockClient({}));
+		expect(parseInput(tools.getBlock, { hash: "../v2/info" }).success).toBe(
+			false,
+		);
+		expect(
+			parseInput(tools.getBlock, { hash: `0x${"ab".repeat(32)}` }).success,
+		).toBe(true);
 	});
 });
 
@@ -84,13 +135,75 @@ describe("getBlockHeight", () => {
 });
 
 describe("readContract", () => {
-	test("returns JSON stringified result", async () => {
+	test("returns the decoded value as JSON", async () => {
 		const tools = createStacksTools(mockClient({ okay: true, result: "0x03" }));
 		const result = await runTool(tools.readContract, {
 			contract: `${PRINCIPAL}.contract`,
 			functionName: "is-active",
 		});
-		expect(result).toEqual({ result: '{"type":"true"}' });
+		expect(result).toEqual({ result: { type: "bool", value: true } });
+	});
+
+	test("a uint result serializes as a decimal string instead of crashing on bigint", async () => {
+		const tools = createStacksTools(
+			mockClient({ okay: true, result: serializeCV(Cl.uint(42n)) }),
+		);
+		const result = (await runTool(tools.readContract, {
+			contract: `${PRINCIPAL}.pox-4`,
+			functionName: "get-stacking-minimum",
+		})) as { result: { type: string; value: string } };
+		expect(result.result).toEqual({ type: "uint", value: "42" });
+		expect(() => JSON.stringify(result)).not.toThrow();
+	});
+
+	test("a tuple containing uints round-trips through JSON", async () => {
+		const tools = createStacksTools(
+			mockClient({
+				okay: true,
+				result: serializeCV(
+					Cl.ok(Cl.tuple({ total: Cl.uint(1000n), cycle: Cl.uint(7n) })),
+				),
+			}),
+		);
+		const result = await runTool(tools.readContract, {
+			contract: `${PRINCIPAL}.pool`,
+			functionName: "get-totals",
+		});
+		expect(JSON.parse(JSON.stringify(result))).toEqual({
+			result: {
+				type: "(response)",
+				success: true,
+				value: {
+					type: "(tuple)",
+					value: {
+						total: { type: "uint", value: "1000" },
+						cycle: { type: "uint", value: "7" },
+					},
+				},
+			},
+		});
+	});
+
+	test("rejects a contract id or function name that would leave the call-read route", () => {
+		const tools = createStacksTools(mockClient({}));
+		expect(
+			parseInput(tools.readContract, {
+				contract: `${PRINCIPAL}.contract/../../v2/info`,
+				functionName: "f",
+			}).success,
+		).toBe(false);
+		expect(
+			parseInput(tools.readContract, {
+				contract: `${PRINCIPAL}.contract`,
+				functionName: "f#x",
+			}).success,
+		).toBe(false);
+		expect(
+			parseInput(tools.readContract, {
+				contract: `${PRINCIPAL}.contract`,
+				functionName: "get-balance",
+			}).success,
+		).toBe(true);
 	});
 });
 
@@ -108,10 +221,31 @@ describe("estimateFee", () => {
 		const result = await runTool(tools.estimateFee, {
 			serializedTxHex: VALID_TX_HEX,
 		});
-		expect(result).toEqual({ low: 100, medium: 200, high: 300 });
+		expect(result).toEqual({
+			low: 100,
+			medium: 200,
+			high: 300,
+			source: "node",
+			tiers: 3,
+		});
 	});
 
-	test("happy path with valid hex (0x prefix)", async () => {
+	test("no node estimate falls back to the relay minimum and says so", async () => {
+		const tools = createStacksTools(mockClient({ estimations: [] }));
+		const result = await runTool(tools.estimateFee, {
+			serializedTxHex: VALID_TX_HEX,
+		});
+		const min = VALID_TX_HEX.length / 2;
+		expect(result).toEqual({
+			low: min,
+			medium: min,
+			high: min,
+			source: "min",
+			tiers: 0,
+		});
+	});
+
+	test("a single node estimate (0x-prefixed input) fills every tier instead of reporting zero fees, and tiers says only one was live", async () => {
 		const tools = createStacksTools(
 			mockClient({
 				estimations: [{ fee_rate: 5, fee: 500 }],
@@ -120,7 +254,13 @@ describe("estimateFee", () => {
 		const result = await runTool(tools.estimateFee, {
 			serializedTxHex: `0x${VALID_TX_HEX}`,
 		});
-		expect(result).toEqual({ low: 500, medium: 0, high: 0 });
+		expect(result).toEqual({
+			low: 500,
+			medium: 500,
+			high: 500,
+			source: "node",
+			tiers: 1,
+		});
 	});
 
 	test("odd-length hex throws a clear message", async () => {
@@ -190,6 +330,94 @@ describe("getTransaction", () => {
 			blockHeight: 100,
 			events: [],
 		});
+	});
+
+	test("a uint transaction result serializes as JSON instead of leaking a bigint", async () => {
+		const tx = {
+			tx_status: "success",
+			block_height: 100,
+			block_hash: "0xabc",
+			tx_result: { hex: serializeCV(Cl.ok(Cl.uint(1000n))) },
+			events: [],
+		};
+		const tools = createStacksTools(mockClient(tx));
+		const result = await runTool(tools.getTransaction, {
+			txId: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+		});
+		expect(() => JSON.stringify(result)).not.toThrow();
+		expect(result).toMatchObject({
+			result: {
+				type: "(response)",
+				success: true,
+				value: { type: "uint", value: "1000" },
+			},
+		});
+	});
+
+	test("rejects a txId that is not a 32-byte hex string before any request", () => {
+		const tools = createStacksTools(mockClient({}));
+		expect(
+			parseInput(tools.getTransaction, { txId: "../v2/info" }).success,
+		).toBe(false);
+		expect(parseInput(tools.getTransaction, { txId: "0xabc" }).success).toBe(
+			false,
+		);
+	});
+});
+
+describe("principal inputs", () => {
+	test("a path-shaped principal is rejected by the schema, so the validate-then-execute gate never fetches it", async () => {
+		const { client, paths } = recordingClient({ balance: "1" });
+		const tools = createStacksTools(client);
+		for (const t of [
+			tools.getStxBalance,
+			tools.getAccountInfo,
+			tools.bnsReverse,
+			tools.getAccountHistory,
+			tools.getNftHoldings,
+		]) {
+			expect(await runValidated(t, { principal: "../v2/info" })).toBe(false);
+		}
+		expect(paths).toEqual([]);
+		expect(
+			await runValidated(tools.getStxBalance, { principal: PRINCIPAL }),
+		).toBe(true);
+		expect(
+			await runValidated(tools.getStxBalance, {
+				principal: `${PRINCIPAL}.pox-4`,
+			}),
+		).toBe(true);
+		expect(paths).toHaveLength(2);
+	});
+
+	test("the action boundary percent-encodes a function name so a Clarity-legal slash cannot add path segments", async () => {
+		const { client, paths } = recordingClient({ okay: true, result: "0x03" });
+		const tools = createStacksTools(client);
+		await runTool(tools.readContract, {
+			contract: `${PRINCIPAL}.contract`,
+			functionName: "a/../b",
+		});
+		expect(paths).toEqual([
+			`/v2/contracts/call-read/${PRINCIPAL}/contract/a%2F..%2Fb`,
+		]);
+	});
+
+	test("the action boundary percent-encodes a principal so it cannot add path segments", async () => {
+		const { client, paths } = recordingClient({ balance: "1" });
+		const tools = createStacksTools(client);
+		await runTool(tools.getStxBalance, { principal: "../v2/info?x=1" });
+		expect(paths).toEqual(["/v2/accounts/..%2Fv2%2Finfo%3Fx%3D1"]);
+	});
+});
+
+describe("bare exports", () => {
+	test("share the factory's schemas, so the default client gets the same input validation", () => {
+		expect(parseInput(getStxBalance, { principal: "../v2/info" }).success).toBe(
+			false,
+		);
+		expect(parseInput(getStxBalance, { principal: PRINCIPAL }).success).toBe(
+			true,
+		);
 	});
 });
 

@@ -60,6 +60,8 @@ const config: DefineConfigItem[] = defineConfig([
 		sourcemap: "linked",
 		minify: false,
 	},
+	// `ai` and `zod` are optional peers: the two tools entries are the only
+	// importers, and they stay external so the root entry never pulls them.
 	{
 		name: "tools",
 		clean: false,
@@ -70,7 +72,7 @@ const config: DefineConfigItem[] = defineConfig([
 		splitting: false,
 		sourcemap: "linked",
 		minify: false,
-		external: ["ai", "zod", "@stacks/transactions"],
+		external: ["ai", "zod"],
 	},
 	{
 		name: "tools-btc",

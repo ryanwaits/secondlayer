@@ -29,7 +29,7 @@ describe("getDataVar", () => {
 		const hex = with0x(bytesToHex(serializeCVBytes(Cl.bool(true))));
 		const client = mockClient({ data: hex });
 		const result = await getDataVar(client, {
-			contract: "SP123.foo",
+			contract: "SP000000000000000000002Q6VF78.foo",
 			varName: "rewards-paused",
 		});
 		expect(result).toEqual(Cl.bool(true));
@@ -39,7 +39,7 @@ describe("getDataVar", () => {
 		const client = mockClient({});
 		await expect(
 			getDataVar(client, {
-				contract: "SP123.foo",
+				contract: "SP000000000000000000002Q6VF78.foo",
 				varName: "bond-admin",
 			}),
 		).rejects.toThrow(MalformedResponseError);
@@ -49,9 +49,11 @@ describe("getDataVar", () => {
 		const hex = with0x(bytesToHex(serializeCVBytes(Cl.bool(true))));
 		const { client, paths } = capturingClient({ data: hex });
 		await getDataVar(client, {
-			contract: "SP123.pox-5",
+			contract: "SP000000000000000000002Q6VF78.pox-5",
 			varName: "bond-admin",
 		});
-		expect(paths).toEqual(["/v2/data_var/SP123/pox-5/bond-admin?proof=0"]);
+		expect(paths).toEqual([
+			"/v2/data_var/SP000000000000000000002Q6VF78/pox-5/bond-admin?proof=0",
+		]);
 	});
 });

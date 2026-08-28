@@ -10,19 +10,25 @@ describe("getContractSource", () => {
 	it("returns the parsed source response", async () => {
 		const resp = { source: "(define-public ...)", publish_height: 100 };
 		expect(
-			await getContractSource(mockClient(resp), { contract: "SP123.foo" }),
+			await getContractSource(mockClient(resp), {
+				contract: "SP000000000000000000002Q6VF78.foo",
+			}),
 		).toEqual(resp);
 	});
 
 	it("returns null when the source field is absent", async () => {
 		expect(
-			await getContractSource(mockClient({}), { contract: "SP123.foo" }),
+			await getContractSource(mockClient({}), {
+				contract: "SP000000000000000000002Q6VF78.foo",
+			}),
 		).toBeNull();
 	});
 
 	it("returns null when the response is undefined", async () => {
 		expect(
-			await getContractSource(mockClient(undefined), { contract: "SP123.foo" }),
+			await getContractSource(mockClient(undefined), {
+				contract: "SP000000000000000000002Q6VF78.foo",
+			}),
 		).toBeNull();
 	});
 });

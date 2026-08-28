@@ -34,6 +34,14 @@ export type NonceStore = {
 	/** Forget tracked state for `key` so the next reserve re-syncs from the floor. */
 	reset(key: string): void | Promise<void>;
 	/**
+	 * Hand back a nonce that {@link NonceStore.reserve} issued but that never
+	 * reached the mempool. Rolls the counter back ONLY when `nonce` is the
+	 * most recently issued value (`next - 1`); a stale release, or one that
+	 * races a newer reservation, is a no-op. Optional: stores that omit it
+	 * leave the gap for {@link reconcileNonce} to heal.
+	 */
+	release?(key: string, nonce: bigint): void | Promise<void>;
+	/**
 	 * Return the next nonce that {@link NonceStore.reserve} would hand out for
 	 * `key` WITHOUT consuming it, or `undefined` if `key` is untracked. Used by
 	 * {@link reconcileNonce} to detect drift. Optional — stores that omit it
@@ -46,6 +54,15 @@ export type NonceStore = {
 export type NonceManager = {
 	consume(params: { client: Client; address: string }): Promise<bigint>;
 	reset(params: { client: Client; address: string }): void | Promise<void>;
+	/**
+	 * Give back a nonce from {@link NonceManager.consume} whose transaction
+	 * was never accepted by the node. No-op unless it is the latest issued.
+	 */
+	release(params: {
+		client: Client;
+		address: string;
+		nonce: bigint;
+	}): void | Promise<void>;
 	/** Next nonce that {@link NonceManager.consume} would return without consuming it, or `undefined` if untracked. */
 	peek(params: {
 		client: Client;
@@ -100,6 +117,11 @@ export function memoryStore(): NonceStore {
 		reset(key) {
 			next.delete(key);
 		},
+		release(key, nonce) {
+			return withLock(key, async () => {
+				if (next.get(key) === nonce + 1n) next.set(key, nonce);
+			});
+		},
 		peek(key) {
 			return next.get(key);
 		},
@@ -132,6 +154,9 @@ export function createNonceManager(
 		reset({ client, address }) {
 			return store.reset(nonceKey(client, address));
 		},
+		release({ client, address, nonce }) {
+			return store.release?.(nonceKey(client, address), nonce);
+		},
 		async peek({ client, address }) {
 			return store.peek?.(nonceKey(client, address));
 		},
@@ -146,6 +171,24 @@ export async function resolveNonce(
 	if (client.nonceManager)
 		return client.nonceManager.consume({ client, address });
 	return getNonce(client, { address });
+}
+
+/**
+ * Return `nonce` to the client's nonce manager after a send that never
+ * reached the mempool. No-op without a manager. Never throws: a failed
+ * release must not mask the error that caused it.
+ */
+export async function releaseNonce(
+	client: Client,
+	address: string,
+	nonce: bigint,
+): Promise<void> {
+	if (!client.nonceManager) return;
+	try {
+		await client.nonceManager.release({ client, address, nonce });
+	} catch {
+		// The store is unreachable; the reconciler heals the gap later.
+	}
 }
 
 export type ReconcileNonceParams = {

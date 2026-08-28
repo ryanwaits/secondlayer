@@ -72,6 +72,7 @@ export {
 export {
 	extendedApiSource,
 	indexTxSource,
+	IndexSourceConfigError,
 	type IndexTxSourceParams,
 	type TransactionReceipt,
 	type TransactionSnapshot,
@@ -151,8 +152,6 @@ export {
 	BroadcastError,
 	SerializationError,
 	SigningError,
-	ContractCallError,
-	ReadOnlyCallError,
 	WebSocketError,
 	SimulationError,
 	TransactionAbortedError,
@@ -160,5 +159,6 @@ export {
 	WaitForTransactionTimeoutError,
 	type TxRejectionReason,
 	HttpRequestError,
+	TimeoutError,
 	MalformedResponseError,
 } from "./errors/index.ts";

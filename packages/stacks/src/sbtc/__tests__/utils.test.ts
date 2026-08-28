@@ -38,7 +38,7 @@ describe("formatBtcAddress", () => {
 				version: 0x99,
 				hashbytes: new Uint8Array(20),
 			}),
-		).toThrow(/Unknown BTC address version/);
+		).toThrow(/Unknown PoX address version/);
 	});
 });
 

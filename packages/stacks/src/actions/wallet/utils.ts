@@ -1,5 +1,6 @@
 import type { ProviderAccount } from "../../accounts/types.ts";
 import type { Account, Client } from "../../clients/types.ts";
+import { HttpRequestError } from "../../errors/http.ts";
 import type { StacksTransaction } from "../../transactions/types.ts";
 import {
 	clearTxCache,
@@ -41,31 +42,62 @@ export function minimumFee(transaction: StacksTransaction): bigint {
 	return BigInt(serializeTransaction(transaction).length);
 }
 
+/** Outcome of {@link resolveFee}: the amount and which tier produced it. */
+export type ResolvedFee = {
+	fee: bigint;
+	/**
+	 * Tier the amount came from. `'min'` when the estimator had no estimate
+	 * and the relay floor was used instead. Absent when the caller passed an
+	 * exact amount.
+	 */
+	tier?: FeeTier;
+};
+
+/**
+ * True when the node answered `POST /v2/fees/transaction` with 400
+ * `NoEstimateAvailable`: it is healthy but has no fee history for this
+ * payload (fresh devnet, quiet chain). Every other failure means the
+ * estimate was never obtained and must surface to the caller.
+ */
+export function isNoEstimateAvailable(error: unknown): boolean {
+	return (
+		error instanceof HttpRequestError &&
+		error.status === 400 &&
+		(error.details?.includes("NoEstimateAvailable") ?? false)
+	);
+}
+
 /**
  * Resolve a fee param to a concrete amount. Numeric input passes through.
  * Tiers `'low' | 'mid' | 'high'` index the node's estimations (nearest
- * available when fewer than three are returned); `'min'` — and any estimation
- * failure (e.g. NoEstimateAvailable) — resolves to {@link minimumFee}, which
- * needs no network round-trip.
+ * available when fewer than three are returned); `'min'` resolves to
+ * {@link minimumFee}, which needs no network round-trip.
+ *
+ * The relay floor is the fallback ONLY when the node reports
+ * `NoEstimateAvailable` or returns no estimations. A transport timeout, 5xx,
+ * or auth failure rethrows: silently under-paying because the node was
+ * unreachable would strand the transaction in the mempool.
  */
 export async function resolveFee(
 	client: Client,
 	transaction: StacksTransaction,
 	fee: FeeParam | undefined,
-): Promise<bigint> {
-	if (fee !== undefined && !isFeeTier(fee)) return intToBigInt(fee);
+): Promise<ResolvedFee> {
+	if (fee !== undefined && !isFeeTier(fee)) return { fee: intToBigInt(fee) };
 
 	const tier = fee ?? "mid";
-	if (tier === "min") return minimumFee(transaction);
+	if (tier === "min") return { fee: minimumFee(transaction), tier };
 
+	let estimates: Awaited<ReturnType<typeof estimateFee>>;
 	try {
-		const estimates = await estimateFee(client, { transaction });
-		const pick = estimates[TIER_INDEX[tier]] ?? estimates[estimates.length - 1];
-		if (pick) return BigInt(pick.fee);
-	} catch {
-		// Node could not produce an estimate — fall through to the relay floor.
+		estimates = await estimateFee(client, { transaction });
+	} catch (error) {
+		if (!isNoEstimateAvailable(error)) throw error;
+		return { fee: minimumFee(transaction), tier: "min" };
 	}
-	return minimumFee(transaction);
+	const pick = estimates[TIER_INDEX[tier]] ?? estimates[estimates.length - 1];
+	if (pick) return { fee: BigInt(pick.fee), tier };
+	return { fee: minimumFee(transaction), tier: "min" };
 }
 
 /** Set the resolved fee on an unsigned transaction's origin spending condition. */

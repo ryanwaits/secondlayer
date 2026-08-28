@@ -57,11 +57,13 @@ export function parsePrincipal(
 	return { address, contractName };
 }
 
+/** Split `address.name` into its parts. Throws on anything `parsePrincipal`
+ *  rejects, and on a bare address with no contract name. */
 export function parseContractId(contractId: string): [string, string] {
-	const [address, name] = contractId.split(".");
-	if (!address || !name)
+	const parsed = parsePrincipal(contractId);
+	if (!parsed?.contractName)
 		throw new Error(`Invalid contract identifier: ${contractId}`);
-	return [address, name];
+	return [parsed.address, parsed.contractName];
 }
 
 export function isClarityName(name: string): boolean {

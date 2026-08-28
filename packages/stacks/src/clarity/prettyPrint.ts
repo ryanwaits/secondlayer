@@ -3,6 +3,7 @@ import {
 	bytesToAscii,
 	hexToBytes,
 	utf8ToBytes,
+	without0x,
 } from "../utils/encoding.ts";
 import type { ClarityValue } from "./types.ts";
 
@@ -61,11 +62,13 @@ export function cvToJSON(val: ClarityValue): any {
 			return { type: "int", value: val.value.toString() };
 		case "uint":
 			return { type: "uint", value: val.value.toString() };
-		case "buffer":
+		case "buffer": {
+			const hex = without0x(val.value);
 			return {
-				type: `(buff ${Math.ceil(val.value.length / 2)})`,
-				value: `0x${val.value}`,
+				type: `(buff ${Math.ceil(hex.length / 2)})`,
+				value: `0x${hex}`,
 			};
+		}
 		case "none":
 			return { type: "(optional none)", value: null };
 		case "some":

@@ -2,6 +2,8 @@ import { deserializeCVBytes } from "../../clarity/deserialize.ts";
 import type { ClarityValue } from "../../clarity/types.ts";
 import type { Client } from "../../clients/types.ts";
 import { HttpRequestError } from "../../errors/http.ts";
+import { buildRequestFn } from "../../transports/createTransport.ts";
+import type { RequestFn } from "../../transports/types.ts";
 
 /**
  * Pluggable transaction-status sources for {@link getTransaction} /
@@ -13,9 +15,9 @@ import { HttpRequestError } from "../../errors/http.ts";
  *
  *   - {@link extendedApiSource} — default; `/extended/v1/tx/{txid}` on the
  *     client's transport host (Hiro API or any extended-API-compatible host).
- *   - {@link indexTxSource} — Secondlayer's `/v1/index/transactions/{txid}`;
- *     returns the chain tip in the same response, so N-confirmation waits
- *     need no second request.
+ *   - {@link indexTxSource}: a Secondlayer instance's
+ *     `/v1/index/transactions/{txid}`; returns the chain tip in the same
+ *     response, so N-confirmation waits need no second request.
  */
 
 export type TransactionStatus =
@@ -48,15 +50,104 @@ export type TransactionSnapshot = {
 
 export type TransactionStatusSource = {
 	get(args: { client: Client; txid: string }): Promise<TransactionSnapshot>;
+	/**
+	 * True when the source only knows mined transactions and reports
+	 * `receipt: null` for the whole mempool life of a tx. The wait action
+	 * then stretches its dropped-grace window to the full timeout, since
+	 * "unknown" cannot mean "dropped" until the deadline.
+	 */
+	canonicalOnly?: boolean;
 };
 
-type FetchImpl = typeof globalThis.fetch;
+/**
+ * Thrown when an index-backed source cannot reach a Secondlayer instance
+ * because of how it was configured (no URL, a Hiro host, a bare node).
+ * Sources that degrade on transient failures let this one through: a
+ * misconfiguration would otherwise degrade silently on every read.
+ */
+export class IndexSourceConfigError extends Error {
+	override name = "IndexSourceConfigError";
+}
 
-function resolveFetch(fetchImpl?: FetchImpl): FetchImpl {
-	const f = fetchImpl ?? globalThis.fetch;
-	if (!f)
-		throw new Error("No fetch implementation available; pass `fetchImpl`");
-	return f;
+/** Hosts that serve Hiro's API, never a Secondlayer instance. */
+function isHiroHost(url: string, client: Client): boolean {
+	let hostname: string;
+	try {
+		hostname = new URL(url).hostname;
+	} catch {
+		return false;
+	}
+	if (hostname === "hiro.so" || hostname.endsWith(".hiro.so")) return true;
+	const defaults = client.chain?.rpcUrls?.default?.http ?? [];
+	return defaults.some((d) => {
+		try {
+			return new URL(d).hostname === hostname && hostname !== "localhost";
+		} catch {
+			return false;
+		}
+	});
+}
+
+/**
+ * Pick the request function for a Secondlayer index route. With no
+ * `baseUrl` the client's transport URL is taken to be the instance and
+ * `client.request` carries its retries, timeout and auth; a transport
+ * pointed at a Hiro host throws instead of polling routes it cannot serve.
+ * A different `baseUrl` gets the transport's retry and timeout policy
+ * bound to that host. Only policy crosses over: the transport's `apiKey`
+ * and `fetchOptions` were issued for the transport host and never travel
+ * to another one.
+ */
+export function indexRequestFn(
+	client: Client,
+	baseUrl: string | undefined,
+	sourceName: string,
+): RequestFn {
+	const transportUrl = client.transport.config.url?.replace(/\/$/, "");
+	if (baseUrl === undefined) {
+		if (!transportUrl) {
+			throw new IndexSourceConfigError(
+				`${sourceName} needs the URL of your Secondlayer instance: pass baseUrl, or use an http() transport pointed at the instance`,
+			);
+		}
+		if (isHiroHost(transportUrl, client)) {
+			throw new IndexSourceConfigError(
+				`${sourceName} reads /v1/index on a Secondlayer instance, and ${transportUrl} is a Hiro host: pass baseUrl with the URL of your instance`,
+			);
+		}
+		return client.request;
+	}
+	const target = baseUrl.replace(/\/$/, "");
+	if (target === transportUrl) return client.request;
+	const { timeout, retryCount, retryDelay } = client.transport.config;
+	return buildRequestFn(target, { timeout, retryCount, retryDelay });
+}
+
+/**
+ * An instance answers an unknown tx with a JSON 404.
+ * A 404 with a non-JSON body comes from a host that does not serve
+ * `/v1/index` at all (a bare stacks-node, an unmatched route), so it is a
+ * configuration error rather than "not mined yet".
+ */
+export function indexNotFound(
+	error: unknown,
+	sourceName: string,
+): error is HttpRequestError {
+	if (!(error instanceof HttpRequestError) || error.status !== 404) {
+		return false;
+	}
+	const body = error.details;
+	if (body !== undefined) {
+		try {
+			JSON.parse(body);
+		} catch {
+			throw new IndexSourceConfigError(
+				`${sourceName} got a non-JSON 404 from ${error.url ?? "the transport host"}: it does not serve /v1/index, pass baseUrl with the URL of your Secondlayer instance`,
+				{ cause: error },
+			);
+		}
+	}
+	return true;
 }
 
 function normalizeTxid(txid: string): string {
@@ -99,9 +190,10 @@ export function extendedApiSource(): TransactionStatusSource {
 		async get({ client, txid }) {
 			let data: Awaited<ReturnType<Client["request"]>>;
 			try {
-				data = await client.request(`/extended/v1/tx/${normalizeTxid(txid)}`, {
-					method: "GET",
-				});
+				data = await client.request(
+					`/extended/v1/tx/${encodeURIComponent(normalizeTxid(txid))}`,
+					{ method: "GET" },
+				);
 			} catch (error) {
 				if (error instanceof HttpRequestError && error.status === 404) {
 					return { receipt: null };
@@ -135,44 +227,39 @@ export function extendedApiSource(): TransactionStatusSource {
 }
 
 export type IndexTxSourceParams = {
-	/** Base URL of a Secondlayer-shaped index API. */
+	/**
+	 * URL of your Secondlayer instance. Without it the client's transport
+	 * URL is assumed to be the instance: a transport on a Hiro host throws
+	 * up front, and a host that answers `/v1/index` with a non-JSON 404
+	 * (a bare stacks-node) throws on the first read. Pass it whenever the
+	 * transport is not the instance.
+	 */
 	baseUrl?: string;
+	/** Instance token, sent as `Authorization: Bearer`. */
 	apiKey?: string;
-	fetchImpl?: FetchImpl;
 };
 
 /**
- * Source backed by Secondlayer's `/v1/index/transactions/{txid}`. The response
- * embeds the chain tip, so N-confirmation math needs no extra request. The
- * index only returns canonical (mined) transactions — while a tx is in the
- * mempool this source reports `receipt: null`, and the wait action's grace
- * window carries it until inclusion.
+ * Source backed by a Secondlayer instance's `/v1/index/transactions/{txid}`.
+ * The response embeds the chain tip, so N-confirmation math needs no extra
+ * request. Requests go through the transport layer: same retries, timeout
+ * and typed errors as every other read. The index only returns canonical
+ * (mined) transactions; while a tx is in the mempool this source reports
+ * `receipt: null`, and the wait action's grace window carries it until
+ * inclusion.
  */
 export function indexTxSource(
 	params: IndexTxSourceParams = {},
 ): TransactionStatusSource {
-	const baseUrl = (params.baseUrl ?? "https://api.secondlayer.tools").replace(
-		/\/$/,
-		"",
-	);
-	const fetchImpl = resolveFetch(params.fetchImpl);
+	const headers = params.apiKey
+		? { authorization: `Bearer ${params.apiKey}` }
+		: undefined;
 
 	return {
-		async get({ txid }) {
-			const res = await fetchImpl(
-				`${baseUrl}/v1/index/transactions/${normalizeTxid(txid)}`,
-				{
-					headers: params.apiKey ? { "x-api-key": params.apiKey } : undefined,
-				},
-			);
-			if (res.status === 404) {
-				return { receipt: null };
-			}
-			if (!res.ok) {
-				throw new Error(`indexTxSource: /v1/index/transactions ${res.status}`);
-			}
-
-			const data = (await res.json()) as {
+		canonicalOnly: true,
+		async get({ client, txid }) {
+			const request = indexRequestFn(client, params.baseUrl, "indexTxSource");
+			let data: {
 				transaction?: {
 					tx_id: string;
 					block_height: number;
@@ -181,6 +268,15 @@ export function indexTxSource(
 				};
 				tip?: { block_height: number };
 			};
+			try {
+				data = await request(`/v1/index/transactions/${normalizeTxid(txid)}`, {
+					method: "GET",
+					headers,
+				});
+			} catch (error) {
+				if (indexNotFound(error, "indexTxSource")) return { receipt: null };
+				throw error;
+			}
 			const tx = data.transaction;
 			const tip = data.tip?.block_height;
 			if (!tx) return { receipt: null, tip };

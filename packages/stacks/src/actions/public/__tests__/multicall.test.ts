@@ -22,9 +22,18 @@ function createMockClient(
 
 describe("multicall", () => {
 	const calls = [
-		{ contract: "SP1.contract-a", functionName: "get-x" },
-		{ contract: "SP2.contract-b", functionName: "get-y" },
-		{ contract: "SP3.contract-c", functionName: "get-z" },
+		{
+			contract: "SP000000000000000000002Q6VF78.contract-a",
+			functionName: "get-x",
+		},
+		{
+			contract: "SP000000000000000000002Q6VF78.contract-b",
+			functionName: "get-y",
+		},
+		{
+			contract: "SP000000000000000000002Q6VF78.contract-c",
+			functionName: "get-z",
+		},
 	];
 
 	it("allowFailure:true returns mixed success/failure results", async () => {
@@ -105,5 +114,53 @@ describe("multicall", () => {
 		for (const r of results) {
 			expect(r).toBeDefined();
 		}
+	});
+
+	it("keeps at most `concurrency` reads in flight (default 8) and preserves order", async () => {
+		let inFlight = 0;
+		let peak = 0;
+		const client = createMockClient(async (_path, init) => {
+			inFlight++;
+			peak = Math.max(peak, inFlight);
+			await new Promise((r) => setTimeout(r, 2));
+			inFlight--;
+			const n = BigInt(init.body.arguments.length);
+			return { okay: true, result: Cl.serialize(Cl.uint(n)) };
+		});
+		const many = Array.from({ length: 30 }, (_, i) => ({
+			contract: "SP000000000000000000002Q6VF78.contract-a",
+			functionName: "get-x",
+			args: Array.from({ length: i }, () => Cl.uint(0n)),
+		}));
+		const results = await multicall(client, {
+			calls: many,
+			allowFailure: false,
+		});
+		expect(peak).toBeLessThanOrEqual(8);
+		expect(peak).toBeGreaterThan(1);
+		expect(results.map((r) => (r as { value: bigint }).value)).toEqual(
+			many.map((_, i) => BigInt(i)),
+		);
+	});
+
+	it("honors an explicit concurrency of 1", async () => {
+		let inFlight = 0;
+		let peak = 0;
+		const client = createMockClient(async () => {
+			inFlight++;
+			peak = Math.max(peak, inFlight);
+			await new Promise((r) => setTimeout(r, 1));
+			inFlight--;
+			return { okay: true, result: Cl.serialize(Cl.uint(1n)) };
+		});
+		await multicall(client, { calls, concurrency: 1 });
+		expect(peak).toBe(1);
+	});
+
+	it("rejects a non-positive concurrency", async () => {
+		const client = createMockClient(async () => ({}));
+		await expect(multicall(client, { calls, concurrency: 0 })).rejects.toThrow(
+			RangeError,
+		);
 	});
 });

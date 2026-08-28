@@ -12,15 +12,33 @@ export type RequestOptions = {
 	method?: "GET" | "POST" | "PUT" | "DELETE";
 	body?: unknown;
 	headers?: Record<string, string>;
+	/**
+	 * Cancel the request from the caller's side. An aborted signal rejects
+	 * with the signal's reason immediately and never retries; it is combined
+	 * with the transport's own per-attempt timeout.
+	 */
+	signal?: AbortSignal;
+	/**
+	 * Override the transport's retry budget for this one request. Broadcasts
+	 * pass `0`: re-sending a transaction the node may already hold trades a
+	 * transient failure for a confusing nonce conflict.
+	 */
+	retryCount?: number;
 };
 
 /** Shared configuration for all transport types. */
 export type TransportConfig = {
 	url?: string;
+	/**
+	 * Per-attempt deadline in ms covering headers AND body. A stalled body
+	 * rejects with `TimeoutError` instead of hanging. Default 30_000.
+	 */
 	timeout?: number;
 	retryCount?: number;
 	retryDelay?: number;
 	fetchOptions?: RequestInit;
+	/** Sent as `x-api-key`. Held in the request closure and stripped from
+	 *  `Transport.config` so it never prints with the client. */
 	apiKey?: string;
 };
 

@@ -46,8 +46,8 @@ The mental model is viem: a `Client` carries `{ chain, transport, account? }` an
 | `@secondlayer/stacks/utils` | All encoding/hash/address/keys/signature utilities + constants. |
 | `@secondlayer/stacks/connect` | Browser wallet provider (`connect`, `getProvider`, `setProvider`, `isWalletInstalled`, `request`). |
 | `@secondlayer/stacks/connect/walletconnect` | `WalletConnectProvider` for WalletConnect v2. |
-| `@secondlayer/stacks/tools` | Vercel AI SDK tools (`createStacksTools` factory + bare exports). |
-| `@secondlayer/stacks/tools/btc` | Bitcoin-flavored AI SDK tools. |
+| `@secondlayer/stacks/tools` | **Deprecated**, use `@secondlayer/mcp`. Vercel AI SDK tools (`createStacksTools` factory + bare exports); still imports until the next major, no new tools. Needs `ai` and `zod` installed (optional peers). |
+| `@secondlayer/stacks/tools/btc` | **Deprecated**, use `@secondlayer/mcp`. Bitcoin-flavored AI SDK tools; same peer requirement. |
 | `@secondlayer/stacks/bns` | BNS extension — see `stacks-extensions.md`. |
 | `@secondlayer/stacks/pox` | PoX-4 extension — see `stacks-extensions.md`. |
 | `@secondlayer/stacks/sbtc` | sBTC extension — see `stacks-extensions.md`. |
@@ -430,7 +430,7 @@ All methods are on the `PublicActions` shape attached by `publicActions` decorat
 | `getNonce` | `(p: { address: string }) => Promise<bigint>` | Account nonce from `/v2/accounts/{addr}`. |
 | `getBalance` | `(p: { address: string }) => Promise<bigint>` | STX balance (micro-STX). |
 | `getAccountInfo` | `(p: { address: string }) => Promise<AccountInfo>` | Balance + nonce + proofs (`?proof=1`). |
-| `getBlock` | `(p?: { height?: number; hash?: string }) => Promise<any>` | Block by height/hash, or latest if neither. |
+| `getBlock` | `(p?: { height?: number; hash?: string }) => Promise<any>` | One block object by height/hash, or the chain tip if neither (the tip read unwraps the extended API's `results` list; `null` when empty). |
 | `getBlockHeight` | `() => Promise<number>` | Current `stacks_tip_height` from `/v2/info`. |
 | `readContract` | `(p: { contract, functionName, args?, sender? }) => Promise<ClarityValue>` | Read-only contract call. Throws on failure. |
 | `getContractAbi` | `(p: { contract: string }) => Promise<any>` | Raw ABI JSON from `/v2/contracts/interface`. |
@@ -989,12 +989,15 @@ All extend `BaseError`. Shape:
 
 ```ts
 class BaseError extends Error {
+  code: string; // stable, derived from `name`: TimeoutError gives "TIMEOUT_ERROR"
   shortMessage: string;
   details?: string;
-  constructor(shortMessage: string, options?: { cause?: Error; details?: string });
-  toJSON(): { name, message, shortMessage, details, cause };
+  constructor(shortMessage: string, options?: { cause?: Error; details?: string; code?: string });
+  toJSON(): { name, code, message, shortMessage, details, cause };
 }
 ```
+
+Branch on `code`, never on `message` text. Codes survive message rewording and minified class names.
 
 | Class | When it fires |
 | --- | --- |
@@ -1003,8 +1006,6 @@ class BaseError extends Error {
 | `BroadcastError` | `/v2/transactions` rejected. Extra fields: `txid?`, `reason?`. Thrown by `sendTransaction`. |
 | `SerializationError` | Wire encode/decode failure. |
 | `SigningError` | Signing-step failure (signature derivation, hash mismatch). |
-| `ContractCallError` | Failure during a contract call action (non-network). |
-| `ReadOnlyCallError` | `/v2/contracts/call-read` returned `okay: false` (also surfaced as a plain error by `readContract`). |
 | `WebSocketError` | WS connect / subscribe / RPC error or disconnect. Thrown by `watch*` if transport is HTTP. |
 | `SimulationError` | `simulateCall` failure. Extra field: `writesDetected: boolean` — `true` when the contract function mutates state and cannot be simulated read-only. |
 
@@ -1021,13 +1022,17 @@ try {
 }
 ```
 
-Note: `getContract` read methods throw `ContractResponseError` (exported from `@secondlayer/stacks/actions`) on `(err …)` responses with `errorValue` populated.
+Note: `getContract` read methods throw `ContractResponseError` (exported from `@secondlayer/stacks/actions`) on `(err …)` responses with `errorValue` populated. `readContract` throws a plain `Error` when `/v2/contracts/call-read` returns `okay: false`.
 
-## 17. AI tools — `@secondlayer/stacks/tools`
+Wallet errors (`@secondlayer/stacks/connect`): `ConnectError` (`code = "CONNECT_ERROR"`) and `JsonRpcError` (`code = "JSON_RPC_ERROR"`). `JsonRpcError.rpcCode` is the wallet's numeric JSON-RPC code (e.g. `4001` user rejected); `code` on every SDK error is always the string identifier.
+
+## 17. AI tools: `@secondlayer/stacks/tools` (deprecated)
+
+**Deprecated.** New agent integrations use `@secondlayer/mcp`; this entry still imports until the next major but gets no new tools. `ai` and `zod` are optional peers, so a project that imports `/tools` or `/tools/btc` installs both itself.
 
 Vercel AI SDK (`ai@^6`) compatible read tools. Two usage modes.
 
-**Bare exports** — use the default public client, which reads `STACKS_RPC_URL` and `STACKS_CHAIN` env vars:
+**Bare exports**: the factory bound to a default public client. Network: `STACKS_NETWORK`, then `STACKS_CHAIN` (`testnet` selects testnet, anything else mainnet). RPC host: `STACKS_NODE_RPC_URL`, then `SL_API_URL`, then `STACKS_RPC_URL`; unset means the chain's default host.
 
 ```ts
 import { generateText } from "ai";
@@ -1055,7 +1060,9 @@ await generateText({ model, tools: stacks, prompt: "..." });
 
 Available tools (factory + bare): `getStxBalance`, `getAccountInfo`, `getBlock`, `getBlockHeight`, `readContract`, `estimateFee`, `bnsResolve`, `bnsReverse`, `getTransaction`, `getAccountHistory`, `getMempoolStats`, `getNftHoldings`.
 
-A Bitcoin-flavored set lives at `@secondlayer/stacks/tools/btc`.
+Tool outputs are JSON-safe: Clarity results go through `cvToJSON` (uint/int as decimal strings). Principal, contract id, function name, txid and block hash inputs are validated by the schema before any request. `estimateFee` returns `{ low, medium, high, source: "node" | "min", tiers }`; `tiers` is how many estimates the node returned, and missing tiers repeat the nearest lower one.
+
+A Bitcoin-flavored set lives at `@secondlayer/stacks/tools/btc` (also deprecated).
 
 ## 18. Connect (browser wallet)
 

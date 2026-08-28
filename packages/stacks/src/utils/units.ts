@@ -28,8 +28,27 @@ export function formatUnits(
  * @example parseUnits("1.5", 6) → 1500000n
  * @example parseUnits("1", 6) → 1000000n
  */
+const DECIMAL_STRING = /^-?\d+(\.\d+)?$/;
+
 export function parseUnits(value: string | number, decimals: number): bigint {
-	let str = typeof value === "number" ? value.toString() : value;
+	if (typeof value === "number" && !Number.isFinite(value)) {
+		throw new RangeError(`Cannot parse ${value} as a decimal amount`);
+	}
+	// Numbers small or large enough to print in exponent form (1e-7, 1e21)
+	// go through toFixed so the digits survive. A number the fixed form
+	// cannot hold exactly (too many decimals, or too small for one unit) is
+	// refused rather than rounded, so amounts never shrink silently.
+	let str = typeof value === "number" ? value.toFixed(decimals) : value.trim();
+	if (!DECIMAL_STRING.test(str)) {
+		throw new RangeError(
+			`Cannot parse "${value}" as a decimal amount: expected digits with an optional fraction, like "1.5"`,
+		);
+	}
+	if (typeof value === "number" && Number(str) !== value) {
+		throw new RangeError(
+			`Cannot parse ${value} with ${decimals} decimals: pass the amount as a string to keep every digit`,
+		);
+	}
 
 	const negative = str.startsWith("-");
 	if (negative) str = str.slice(1);

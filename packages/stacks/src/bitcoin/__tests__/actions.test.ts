@@ -109,7 +109,7 @@ describe("verifyBitcoinPayment", () => {
 		const result = await verifyBitcoinPayment(adapterClient({}), {
 			source: block170Source(),
 			txid: BLOCK_170.coinbaseTxid,
-			contract: "SP000.spv-adapter",
+			contract: "SP000000000000000000002Q6VF78.spv-adapter",
 			vout: 0,
 			expect: { amount: BLOCK_170.coinbaseValueSats },
 		});
@@ -124,7 +124,7 @@ describe("verifyBitcoinPayment", () => {
 		const result = await verifyBitcoinPayment(adapterClient({}), {
 			source: block170Source(),
 			txid: BLOCK_170.coinbaseTxid,
-			contract: "SP000.spv-adapter",
+			contract: "SP000000000000000000002Q6VF78.spv-adapter",
 			vout: 0,
 			expect: { amount: 1n },
 		});
@@ -138,7 +138,7 @@ describe("verifyBitcoinPayment", () => {
 			{
 				source: block170Source(),
 				txid: BLOCK_170.coinbaseTxid,
-				contract: "SP000.spv-adapter",
+				contract: "SP000000000000000000002Q6VF78.spv-adapter",
 				vout: 0,
 			},
 		);
@@ -152,7 +152,7 @@ describe("verifyBitcoinPayment", () => {
 			{
 				source: block170Source(),
 				txid: BLOCK_170.coinbaseTxid,
-				contract: "SP000.spv-adapter",
+				contract: "SP000000000000000000002Q6VF78.spv-adapter",
 				vout: 0,
 			},
 		);
@@ -205,7 +205,7 @@ describe("verifyBitcoinPayment", () => {
 			{
 				source: block170Source(),
 				txid: BLOCK_170.coinbaseTxid,
-				contract: "SP000.spv-adapter",
+				contract: "SP000000000000000000002Q6VF78.spv-adapter",
 				vout: 0,
 				authenticateHeader: false,
 			},

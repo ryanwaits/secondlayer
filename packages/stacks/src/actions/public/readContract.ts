@@ -29,9 +29,9 @@ export async function readContract<T extends ClarityValue = ClarityValue>(
 		with0x(bytesToHex(serializeCVBytes(arg))),
 	);
 
-	const path = `/v2/contracts/call-read/${address}/${name}/${params.functionName}`;
+	const path = `/v2/contracts/call-read/${encodeURIComponent(address)}/${encodeURIComponent(name)}/${encodeURIComponent(params.functionName)}`;
 	const data = await client.request(
-		params.tip ? `${path}?tip=${params.tip}` : path,
+		params.tip ? `${path}?tip=${encodeURIComponent(params.tip)}` : path,
 		{
 			method: "POST",
 			body: {

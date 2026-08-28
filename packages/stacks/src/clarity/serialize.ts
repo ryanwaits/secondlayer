@@ -97,7 +97,12 @@ export function serializeCVBytes(value: ClarityValue): Uint8Array {
 		}
 
 		case "tuple": {
-			const keys = Object.keys(value.value).sort((a, b) => a.localeCompare(b));
+			// Clarity orders tuple fields as a BTreeMap over the raw name bytes.
+			// Code-unit comparison equals byte order for the ASCII name grammar;
+			// localeCompare does not, and would change the SIP-018 hash.
+			const keys = Object.keys(value.value).sort((a, b) =>
+				a < b ? -1 : a > b ? 1 : 0,
+			);
 			const parts: Uint8Array[] = [writeUInt32BE(keys.length)];
 			for (const key of keys) {
 				parts.push(serializeLPString(key));

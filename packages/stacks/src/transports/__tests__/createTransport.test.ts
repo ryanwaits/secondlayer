@@ -90,3 +90,28 @@ describe("fetchWithRetry", () => {
 		expect(fetchMock).toHaveBeenCalledTimes(3);
 	});
 });
+
+describe("HttpRequestError details budget", () => {
+	it("truncates a response body larger than 4KB and says how much was cut", async () => {
+		const body = "x".repeat(100_000);
+		setFetchMock(async () => new Response(body, { status: 400 }));
+		let caught: unknown;
+		try {
+			await fetchWithRetry("http://x", {}, 0, 1, 1000);
+		} catch (e) {
+			caught = e;
+		}
+		expect(caught).toBeInstanceOf(HttpRequestError);
+		const details = (caught as HttpRequestError).details ?? "";
+		expect(details.length).toBeLessThan(4200);
+		expect(details).toContain("truncated 95904 bytes");
+		expect((caught as HttpRequestError).message.length).toBeLessThan(4300);
+	});
+
+	it("keeps a short body intact", async () => {
+		setFetchMock(async () => new Response("nope", { status: 400 }));
+		await expect(fetchWithRetry("http://x", {}, 0, 1, 1000)).rejects.toThrow(
+			/nope$/,
+		);
+	});
+});

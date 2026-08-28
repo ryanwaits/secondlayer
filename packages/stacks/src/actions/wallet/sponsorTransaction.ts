@@ -8,7 +8,7 @@ import {
 } from "../../transactions/types.ts";
 import type { IntegerType } from "../../utils/encoding.ts";
 import { intToBigInt } from "../../utils/encoding.ts";
-import { resolveNonce } from "./nonceManager.ts";
+import { releaseNonce, resolveNonce } from "./nonceManager.ts";
 import { type FeeParam, isProviderAccount, resolveFee } from "./utils.ts";
 
 export type SponsorTransactionParams = {
@@ -35,14 +35,22 @@ export async function sponsorTransaction(
 	}
 
 	// Resolve sponsor nonce
+	const managed = params.nonce == null && client.nonceManager !== undefined;
 	const nonce =
 		params.nonce != null
 			? intToBigInt(params.nonce)
 			: await resolveNonce(client, account.address);
 
-	// Resolve sponsor fee. Estimation failure falls back to the minimum relay
-	// fee instead of 0 (a 0-fee tx would be rejected at broadcast).
-	const fee = await resolveFee(client, transaction, params.fee);
+	// Resolve sponsor fee. `NoEstimateAvailable` falls back to the minimum
+	// relay fee instead of 0 (a 0-fee tx would be rejected at broadcast);
+	// any other estimator failure surfaces and hands the nonce back.
+	let fee: bigint;
+	try {
+		({ fee } = await resolveFee(client, transaction, params.fee));
+	} catch (error) {
+		if (managed) await releaseNonce(client, account.address, nonce);
+		throw error;
+	}
 
 	// Create sponsor spending condition
 	const sponsorCondition = createSingleSigSpendingCondition(

@@ -15,8 +15,12 @@ export const BITCOIN_NETWORK_PARAMS = {
 
 const NETWORK_PARAMS = BITCOIN_NETWORK_PARAMS;
 
-/** Base58Check-encode a versioned 20-byte payload (legacy P2PKH / P2SH). */
-function base58Check(version: number, payload: Uint8Array): string {
+/** Base58Check-encode a versioned 20-byte payload (legacy P2PKH / P2SH).
+ *  The one encoder for the package; pox5 and sbtc address code import it. */
+export function base58CheckEncode(
+	version: number,
+	payload: Uint8Array,
+): string {
 	const data = concatBytes(Uint8Array.of(version), payload);
 	const checksum = doubleSha256(data).slice(0, 4);
 	return base58.encode(concatBytes(data, checksum));
@@ -37,9 +41,9 @@ export function formatBitcoinAddress(
 	if (!hash) return undefined;
 	switch (parsed.type) {
 		case "p2pkh":
-			return base58Check(params.p2pkh, hash);
+			return base58CheckEncode(params.p2pkh, hash);
 		case "p2sh":
-			return base58Check(params.p2sh, hash);
+			return base58CheckEncode(params.p2sh, hash);
 		case "p2wpkh":
 		case "p2wsh":
 			return bech32.encode(params.hrp, [0, ...bech32.toWords(hash)]);

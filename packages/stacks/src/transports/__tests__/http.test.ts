@@ -98,3 +98,19 @@ describe("Retry-After honoring", () => {
 		expect(calls).toBe(2);
 	});
 });
+
+describe("http() transport credential handling", () => {
+	it("sends the api key as a header but keeps it off transport.config", async () => {
+		const fetchMock = setFetchMock(async () => jsonResponse(200, {}));
+
+		const transport = http("http://x", { apiKey: "sk-secret" })({});
+		await transport.request("/v2/info");
+
+		const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+		expect((init.headers as Record<string, string>)["x-api-key"]).toBe(
+			"sk-secret",
+		);
+		expect("apiKey" in transport.config).toBe(false);
+		expect(JSON.stringify(transport)).not.toContain("sk-secret");
+	});
+});
