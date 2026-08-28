@@ -1,6 +1,6 @@
 # Secondlayer CLI (`secondlayer`) Reference
 
-The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlayer — dedicated Stacks indexing + real-time subgraphs. Install globally with `bun add -g @secondlayer/cli`. The binary is named `secondlayer`; `secondlayer` is a Commander alias for the same entry point. All commands accept a global `--network <network>` flag (`mainnet`, `testnet`, `devnet`) which is equivalent to setting `STACKS_NETWORK` before the call. `init`, `observer`, and `setup` exit 1 on any other value with a one-line error; other commands warn on stderr and keep the config default (`mainnet`).
+The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlayer: dedicated Stacks indexing + real-time subgraphs. Install globally with `bun add -g @secondlayer/cli`. The binary is named `secondlayer`; `secondlayer` is a Commander alias for the same entry point. All commands accept a global `--network <network>` flag (`mainnet`, `testnet`, `devnet`) which is equivalent to setting `STACKS_NETWORK` before the call. `init`, `observer`, and `setup` exit 1 on any other value with a one-line error; other commands warn on stderr and keep the config default (`mainnet`).
 
 ## Global flags
 
@@ -34,7 +34,7 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 
 ## Table of contents
 
-- [Local runtime](#local-runtime) — `setup`, `init`, `console`, `bootstrap`, `observer`, `verify`, `repair`, `backup`, `restore`, `uninstall`
+- [Local runtime](#local-runtime): `setup`, `init`, `console`, `bootstrap`, `observer`, `verify`, `repair`, `backup`, `restore`, `uninstall`
 - [Credits](#credits) — `credits buy|balance|refill`
 - [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `source`, `reindex`, `backfill`, `stop`, `operations`, `gaps`, `query`, `delete`, `scaffold`
 - [Subscriptions](#subscriptions) — `create`, `list`, `get`, `update`, `pause`, `resume`, `delete`, `rotate-secret`, `deliveries`, `dead`, `requeue`, `replay`, `doctor`, `test`
@@ -206,7 +206,7 @@ Stop the stack and leave the data. Containers, networks, and the handler cache c
 
 Usage: `secondlayer uninstall [--apply] [--compose <file>] [--purge --backup <dir>] [--yes] [--json]`
 
-Dry run by default — prints the plan and changes nothing until `--apply`. Run it from the directory `secondlayer setup` wrote: `--compose` defaults to `./docker-compose.yml` with `--env-file ./.env`, falling back to the repo's `docker/oss/docker-compose.yml` for a hand-run checkout. The dry run names the compose file, env file, and the file the keys were found in (`.env` or `.env.local`). `--purge` also destroys the volumes and refuses to run unless `--backup <dir>` points at a bundle proving your keys exist elsewhere.
+Dry run by default: prints the plan and changes nothing until `--apply`. Run it from the directory `secondlayer setup` wrote: `--compose` defaults to `./docker-compose.yml` with `--env-file ./.env`, falling back to the repo's `docker/oss/docker-compose.yml` for a hand-run checkout. The dry run names the compose file, env file, and the file the keys were found in (`.env` or `.env.local`). `--purge` also destroys the volumes and refuses to run unless `--backup <dir>` points at a bundle proving your keys exist elsewhere.
 
 ---
 
@@ -285,7 +285,7 @@ Usage: `secondlayer subgraphs deploy <file>`
 
 Deploy bundles the handler via `@secondlayer/bundler` and POSTs it to the instance. Server returns one of `unchanged`, `handler_updated`, `created`, `updated`, `reindexed`. **Destructive (`reindexed`) deploys prompt for confirmation** unless `-y` is set. Local deploy: writes to local DB via `deploySchema()`.
 
-Deploy refuses a definition file that isn't staged or committed in git — a prompt in a terminal, a hard failure in CI — because a deployed definition whose source isn't in version control exists only as a database row. `git add <file>` is enough; a staged copy is recoverable. `--allow-uncommitted` overrides it and prints a line saying so. Deploys from outside a git repo, and `--dry-run`, are unaffected. The reindex prompt gates on stdin: without a TTY and without `-y` it exits 1 before any request, so a pipe can never answer it.
+Deploy refuses a definition file that isn't staged or committed in git (a prompt in a terminal, a hard failure in CI) because a deployed definition whose source isn't in version control exists only as a database row. `git add <file>` is enough; a staged copy is recoverable. `--allow-uncommitted` overrides it and prints a line saying so. Deploys from outside a git repo, and `--dry-run`, are unaffected. The reindex prompt gates on stdin: without a TTY and without `-y` it exits 1 before any request, so a pipe can never answer it.
 
 Deploys are open on any instance: no trial, no quota, and no visibility flag. Reads on `/v1/subgraphs/*` follow the same rule as Index and Streams — keyless while the API is published on loopback, `INSTANCE_TOKEN` past it. Who can reach the instance is your publish spec and your reverse proxy, not a per-subgraph setting.
 

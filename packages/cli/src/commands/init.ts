@@ -20,7 +20,7 @@ export function registerInitCommand(program: Command): void {
 		)
 		// --network and --api-url are deliberately NOT declared here: cli.ts
 		// already registers both as global options on `program`, and Commander
-		// resolves a repeated flag onto the ancestor that declared it first — a
+		// resolves a repeated flag onto the ancestor that declared it first; a
 		// second, command-local copy would silently receive `undefined` instead
 		// of the value the operator passed, and fall back to its own default
 		// every time (that happened here, first for --network, then again for

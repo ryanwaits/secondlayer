@@ -2,7 +2,7 @@
  * Git status inspection for subgraph source files.
  *
  * Used to warn/refuse deploying a subgraph definition whose source isn't
- * staged or committed — the deployed definition would then exist only as a
+ * staged or committed: the deployed definition would then exist only as a
  * database row, with no recoverable copy.
  */
 
@@ -34,7 +34,7 @@ function runGit(args: string[], cwd: string): string | null {
  * deploy is invoked with an absolute path from anywhere.
  *
  * Never throws: any unexpected git failure resolves to `not-a-repo`, the
- * permissive outcome — a broken git invocation must not block a deploy.
+ * permissive outcome, since a broken git invocation must not block a deploy.
  */
 export function inspectSourceGitState(absPath: string): SourceGitState {
 	const cwd = dirname(absPath);
@@ -56,7 +56,7 @@ export function inspectSourceGitState(absPath: string): SourceGitState {
 	const unstaged = runGit(["diff", "--name-only", "--", absPath], cwd);
 	if (unstaged === null) {
 		// git is present and the repo is valid, but the diff call itself
-		// failed unexpectedly — fall back to the permissive outcome.
+		// failed unexpectedly, so fall back to the permissive outcome.
 		return { kind: "not-a-repo" };
 	}
 	if (unstaged.length > 0) {
