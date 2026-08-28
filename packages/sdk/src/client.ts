@@ -1,5 +1,5 @@
 import type { SubgraphSummary } from "@secondlayer/shared/schemas";
-import { BaseClient, resolveApiKey } from "./base.ts";
+import { BaseClient } from "./base.ts";
 import type { SecondLayerOptions } from "./base.ts";
 import { Contracts } from "./contracts/client.ts";
 import { Index } from "./index-api/client.ts";
@@ -47,10 +47,15 @@ export class SecondLayer extends BaseClient {
 	constructor(options: Partial<SecondLayerOptions> = {}) {
 		super(options);
 		this.streams = createStreamsClient({
-			apiKey: resolveApiKey(options.apiKey),
+			// Already resolved by BaseClient (an explicit "" stays keyless), so the
+			// env precedence runs, and warns, once per client.
+			apiKey: this.apiKey,
+			origin: this.origin,
 			baseUrl: options.baseUrl,
 			fetchImpl: options.fetchImpl,
 			dumpsBaseUrl: options.dumpsBaseUrl,
+			verify: options.verify,
+			verifyDumpsManifest: options.verifyDumpsManifest,
 		});
 		this.index = new Index(options);
 		this.contracts = new Contracts(options);

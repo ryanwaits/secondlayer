@@ -1,5 +1,5 @@
 import { ed25519 } from "@secondlayer/shared";
-import { buildQuery, resolveBaseUrl } from "../base.ts";
+import { buildQuery, resolveApiKey, resolveBaseUrl } from "../base.ts";
 import type { IndexEvent } from "../index-api/client.ts";
 import type { ConsumerSink } from "../sinks/types.ts";
 import {
@@ -85,6 +85,8 @@ function streamsFilters(params: {
 export type CreateStreamsClientOptions = {
 	apiKey?: string;
 	baseUrl?: string;
+	/** Deploy origin label sent as `x-sl-origin` (telemetry). Defaults to `cli`. */
+	origin?: "cli" | "mcp" | "session";
 	fetchImpl?: FetchLike;
 	/**
 	 * Public base URL for bulk parquet dumps (the R2/CDN bucket root). Required
@@ -177,6 +179,15 @@ export function createStreamsClient(
 	options: CreateStreamsClientOptions,
 ): StreamsClient {
 	const baseUrl = normalizeBaseUrl(resolveBaseUrl(options.baseUrl));
+	// Same credential precedence as every other client (explicit option, then
+	// INSTANCE_TOKEN, then SL_API_KEY), so the same code authenticates the same
+	// way whether it enters through `new SecondLayer()` or here.
+	const apiKey = resolveApiKey(options.apiKey);
+	const origin = options.origin ?? "cli";
+	const authHeaders = (): Record<string, string> => ({
+		"x-sl-origin": origin,
+		...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+	});
 	const fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
 	const verify = options.verify;
 	// On by default, but lenient: the hosted API signs every response, while a
@@ -237,9 +248,7 @@ export function createStreamsClient(
 
 	async function request<T>(path: string): Promise<T> {
 		const response = await fetchImpl(`${baseUrl}${path}`, {
-			headers: options.apiKey
-				? { Authorization: `Bearer ${options.apiKey}` }
-				: {},
+			headers: authHeaders(),
 		});
 		if (!response.ok) await mapStreamsError(response);
 		const text = await response.text();
@@ -459,7 +468,7 @@ export function createStreamsClient(
 			subscribe(params: StreamsEventsSubscribeParams) {
 				return subscribeStreamsEvents({
 					baseUrl,
-					apiKey: options.apiKey,
+					headers: authHeaders(),
 					fetchImpl,
 					verify: verifyMode,
 					loadKey,

@@ -21,7 +21,8 @@ type VerificationKey = {
  */
 export function subscribeStreamsEvents(opts: {
 	baseUrl: string;
-	apiKey?: string;
+	/** Request headers for every connection (bearer token, `x-sl-origin`). */
+	headers?: Record<string, string>;
 	fetchImpl: FetchLike;
 	/**
 	 * `off` skips verification; `lenient` (default) verifies a frame when it
@@ -62,60 +63,50 @@ export function subscribeStreamsEvents(opts: {
 					// no POST-and-stream variant of this route.
 					filters: params.filters ? JSON.stringify(params.filters) : undefined,
 				})}`;
-				const res = await opts.fetchImpl(url, {
-					headers: {
-						...(opts.apiKey ? { Authorization: `Bearer ${opts.apiKey}` } : {}),
-						Accept: "text/event-stream",
-					},
+				await readSse({
+					url,
+					headers: opts.headers ?? {},
 					signal: controller.signal,
-				});
-				if (!res.ok) {
-					throw new StreamsServerError(
-						`Streams SSE returned ${res.status}.`,
-						res.status,
-					);
-				}
-				if (!res.body) {
-					throw new StreamsServerError("Streams SSE response has no body.", 0);
-				}
-				for await (const frame of parseSseFrames(res.body, controller.signal)) {
-					if (frame.event === "ping" || !frame.data) continue;
-					let parsed: { event?: StreamsEvent; sig?: string };
-					try {
-						parsed = JSON.parse(frame.data);
-					} catch {
-						continue; // ignore non-JSON frames
-					}
-					if (!parsed.event) continue;
-					if (opts.verify !== "off") {
-						if (!parsed.sig) {
-							// Strict requires a signed frame; lenient (default) delivers an
-							// unsigned frame (e.g. self-host with no signing key).
-							if (opts.verify === "strict") {
-								throw new StreamsSignatureError(
-									"Streams SSE frame signature is missing.",
-								);
-							}
-						} else {
-							const key = await opts.loadKey();
-							// A signature is present, so verify it in either mode — an
-							// invalid signature always fails closed.
-							if (
-								!ed25519.verifyEd25519(
-									JSON.stringify(parsed.event),
-									parsed.sig,
-									key.publicKey,
-								)
-							) {
-								throw new StreamsSignatureError(
-									"Streams SSE frame signature is invalid.",
-								);
+					fetchImpl: opts.fetchImpl,
+					onFrame: async (frame) => {
+						if (frame.event === "ping" || !frame.data) return;
+						let parsed: { event?: StreamsEvent; sig?: string };
+						try {
+							parsed = JSON.parse(frame.data);
+						} catch {
+							return; // ignore non-JSON frames
+						}
+						if (!parsed.event) return;
+						if (opts.verify !== "off") {
+							if (!parsed.sig) {
+								// Strict requires a signed frame; lenient (default) delivers an
+								// unsigned frame (e.g. self-host with no signing key).
+								if (opts.verify === "strict") {
+									throw new StreamsSignatureError(
+										"Streams SSE frame signature is missing.",
+									);
+								}
+							} else {
+								const key = await opts.loadKey();
+								// A signature is present, so verify it in either mode; an
+								// invalid signature always fails closed.
+								if (
+									!ed25519.verifyEd25519(
+										JSON.stringify(parsed.event),
+										parsed.sig,
+										key.publicKey,
+									)
+								) {
+									throw new StreamsSignatureError(
+										"Streams SSE frame signature is invalid.",
+									);
+								}
 							}
 						}
-					}
-					cursor = (parsed.event as { cursor?: string }).cursor ?? cursor;
-					await params.onEvent(parsed.event);
-				}
+						cursor = (parsed.event as { cursor?: string }).cursor ?? cursor;
+						await params.onEvent(parsed.event);
+					},
+				});
 				// Clean end (server closed the stream): reconnect from `cursor`.
 			} catch (err) {
 				if (controller.signal.aborted) return;
@@ -126,6 +117,41 @@ export function subscribeStreamsEvents(opts: {
 	};
 	void run();
 	return () => controller.abort();
+}
+
+/** One parsed `text/event-stream` frame. */
+export type SseFrame = { event?: string; data?: string };
+
+/**
+ * Open one SSE connection and hand every frame to `onFrame` until the server
+ * closes the stream or `signal` aborts. Fetch-based rather than `EventSource`
+ * so the request can carry `Authorization`. A non-OK response throws
+ * `StreamsServerError`; a thrown `onFrame` propagates and cancels the body.
+ * Reconnecting is the caller's job, so each surface keeps its own cursor rule.
+ */
+export async function readSse(opts: {
+	url: string;
+	headers?: Record<string, string>;
+	signal: AbortSignal;
+	fetchImpl: FetchLike;
+	onFrame: (frame: SseFrame) => void | Promise<void>;
+}): Promise<void> {
+	const res = await opts.fetchImpl(opts.url, {
+		headers: { ...(opts.headers ?? {}), Accept: "text/event-stream" },
+		signal: opts.signal,
+	});
+	if (!res.ok) {
+		throw new StreamsServerError(
+			`Streams SSE returned ${res.status}.`,
+			res.status,
+		);
+	}
+	if (!res.body) {
+		throw new StreamsServerError("Streams SSE response has no body.", 0);
+	}
+	for await (const frame of parseSseFrames(res.body, opts.signal)) {
+		await opts.onFrame(frame);
+	}
 }
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
@@ -146,7 +172,7 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
 async function* parseSseFrames(
 	body: ReadableStream<Uint8Array>,
 	signal: AbortSignal,
-): AsyncGenerator<{ event?: string; data?: string }> {
+): AsyncGenerator<SseFrame> {
 	const reader = body.getReader();
 	const decoder = new TextDecoder();
 	let buffer = "";
@@ -171,7 +197,7 @@ async function* parseSseFrames(
 	}
 }
 
-function parseFrame(raw: string): { event?: string; data?: string } {
+function parseFrame(raw: string): SseFrame {
 	let event: string | undefined;
 	const data: string[] = [];
 	for (const line of raw.split("\n")) {

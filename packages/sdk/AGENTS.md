@@ -4,20 +4,24 @@ Five facts that are load-bearing. Everything else you can infer from the types;
 these you cannot, and getting them wrong produces code that looks correct and
 silently loses or corrupts data.
 
-## 1. Reads need no key
+## 1. `/v1` reads are open on loopback; `/api` needs the token
 
-`/v1/index/*` and the public subgraph reads are open. Construct the client with
-no credentials and start reading:
+`sl.index.*`, `sl.streams.*`, `sl.subgraphs.rows`, and the typed `subscribe`
+read `/v1`, open on loopback. Construct the client with no credentials and start reading:
 
 ```ts
-import { Index } from "@secondlayer/sdk";
+import { SecondLayer } from "@secondlayer/sdk";
 
-const sl = new Index();
-const { events } = await sl.events.list({ eventType: "ft_transfer" });
+const sl = new SecondLayer();
+const { events } = await sl.index.events.list({ eventType: "ft_transfer" });
 ```
 
-Keys are for Streams, writes, and higher rate limits. Do not invent an
-`apiKey` requirement or send a placeholder — an empty Bearer is worse than none.
+Everything else under `sl.subgraphs.*` and all of `sl.subscriptions.*` calls
+`/api`, which needs `INSTANCE_TOKEN` as soon as one is configured, loopback
+included, and `secondlayer init` always configures one. `/v1` needs it too once
+the API is bound beyond loopback. Every client reads `INSTANCE_TOKEN` from the
+env when `apiKey` is omitted, so the golden path is: omit `apiKey`, export the
+token. Do not send a placeholder; an empty Bearer is worse than none.
 
 ## 2. Cursors are opaque
 
@@ -28,7 +32,7 @@ arithmetically. Pass back exactly what you were handed:
 ```ts
 let cursor: string | null = null;
 for (;;) {
-  const page = await sl.events.list({ eventType: "ft_transfer", cursor });
+  const page = await sl.index.events.list({ eventType: "ft_transfer", cursor });
   if (page.events.length === 0) break;
   cursor = page.next_cursor;      // ✓
   // cursor = `${lastHeight}:0`;  // ✗ — skips events, silently

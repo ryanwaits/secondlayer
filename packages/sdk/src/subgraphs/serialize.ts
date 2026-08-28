@@ -1,22 +1,41 @@
 /**
- * Maps camelCase system column names (with or without `_` prefix) to the
- * actual snake_case DB column names used in query params.
+ * The canonical row shape names its system columns `_id`, `_blockHeight`,
+ * `_txId`, `_createdAt`. These map to the snake_case DB columns the query
+ * params use.
  */
 const SYSTEM_COLUMN_MAP: Record<string, string> = {
-	// underscore-prefixed camelCase (canonical row shape)
 	_blockHeight: "_block_height",
 	_txId: "_tx_id",
 	_createdAt: "_created_at",
 	_id: "_id",
-	// no-prefix aliases
+};
+
+/**
+ * Unprefixed shorthands for the same system columns. They are a convenience,
+ * not reserved names: a subgraph is free to declare its own `id` or
+ * `blockHeight` column, and when it does, the shorthand means that column.
+ */
+const SYSTEM_COLUMN_ALIASES: Record<string, string> = {
 	blockHeight: "_block_height",
 	txId: "_tx_id",
 	createdAt: "_created_at",
 	id: "_id",
 };
 
-function resolveColumn(col: string): string {
-	return SYSTEM_COLUMN_MAP[col] ?? col;
+/** The declared column names of one table, when the caller knows them. */
+export type DeclaredColumns = ReadonlySet<string>;
+
+/**
+ * Resolve a where/orderBy key to the DB column name. Canonical `_x` names
+ * always map. An unprefixed alias maps only when the table does not declare a
+ * column of that name; with no declared column set (an untyped call) the
+ * alias still maps, which is the pre-existing behavior.
+ */
+function resolveColumn(col: string, columns?: DeclaredColumns): string {
+	const canonical = SYSTEM_COLUMN_MAP[col];
+	if (canonical) return canonical;
+	if (columns?.has(col)) return col;
+	return SYSTEM_COLUMN_ALIASES[col] ?? col;
 }
 
 /**
@@ -25,17 +44,19 @@ function resolveColumn(col: string): string {
  *
  * Scalar values → `{ column: "value" }`
  * Comparison objects → `{ "column.gte": "100", "column.lt": "200" }`
- * System column aliases → `blockHeight` / `_blockHeight` both → `_block_height`
+ * System columns → `_blockHeight` always → `_block_height`; the unprefixed
+ * `blockHeight` too, unless `columns` declares a user column of that name.
  */
 export function serializeWhere(
 	where: Record<string, unknown>,
+	columns?: DeclaredColumns,
 ): Record<string, string> {
 	const filters: Record<string, string> = {};
 
 	for (const [column, value] of Object.entries(where)) {
 		if (value === null || value === undefined) continue;
 
-		const col = resolveColumn(column);
+		const col = resolveColumn(column, columns);
 
 		if (typeof value === "object" && !Array.isArray(value)) {
 			const ops = value as Record<string, unknown>;
@@ -61,8 +82,12 @@ export function serializeWhere(
 }
 
 /**
- * Resolves an orderBy column name (either alias or canonical) to the DB column name.
+ * Resolves an orderBy column name (either alias or canonical) to the DB column
+ * name, with the same declared-column rule as {@link serializeWhere}.
  */
-export function resolveOrderByColumn(col: string): string {
-	return resolveColumn(col);
+export function resolveOrderByColumn(
+	col: string,
+	columns?: DeclaredColumns,
+): string {
+	return resolveColumn(col, columns);
 }

@@ -253,4 +253,221 @@ describe("Subgraphs", () => {
 		const calledUrl = fetchMock.mock.calls[0][0] as string;
 		expect(calledUrl).toBe(`${BASE_URL}/api/subgraphs/my-subgraph/docs.md`);
 	});
+
+	describe("path segments", () => {
+		test("a name with path and query characters is percent-encoded so it cannot retarget the request", async () => {
+			globalThis.fetch = mockFetch({ ok: true, status: 200, body: {} });
+			const hostile = "a/../b?x#y";
+			const encoded = encodeURIComponent(hostile);
+
+			await subgraphs.status(hostile);
+			await subgraphs.queryTable(hostile, hostile);
+			await subgraphs.rows(hostile, hostile);
+			await subgraphs.getOperation(hostile, hostile);
+
+			const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
+			const urls = fetchMock.mock.calls.map((c) => c[0] as string);
+			expect(urls[0]).toBe(`${BASE_URL}/api/subgraphs/${encoded}`);
+			expect(urls[1]).toBe(`${BASE_URL}/api/subgraphs/${encoded}/${encoded}`);
+			expect(urls[2]).toBe(`${BASE_URL}/v1/subgraphs/${encoded}/${encoded}`);
+			expect(urls[3]).toBe(
+				`${BASE_URL}/api/subgraphs/${encoded}/operations/${encoded}`,
+			);
+			for (const url of urls) {
+				expect(url).not.toContain("/..");
+				expect(url).not.toContain("?");
+				expect(url).not.toContain("#");
+			}
+		});
+	});
+
+	describe("typed() where aliases", () => {
+		const def = {
+			name: "tokens",
+			schema: {
+				listings: {
+					columns: { id: { type: "uint" }, amount: { type: "uint" } },
+				},
+				transfers: { columns: { amount: { type: "uint" } } },
+			},
+		} as const;
+
+		test("where id targets the user id column when the table declares one", async () => {
+			globalThis.fetch = mockFetch({ ok: true, status: 200, body: [] });
+			const typed = subgraphs.typed(def);
+			await typed.listings.findMany({ where: { id: 7 } as never });
+			const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
+			const url = new URL(fetchMock.mock.calls[0][0] as string);
+			expect(url.searchParams.get("id")).toBe("7");
+			expect(url.searchParams.get("_id")).toBeNull();
+		});
+
+		test("where id targets the system _id column when the table declares none", async () => {
+			globalThis.fetch = mockFetch({ ok: true, status: 200, body: [] });
+			const typed = subgraphs.typed(def);
+			await typed.transfers.findMany({ where: { id: 7 } as never });
+			const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
+			const url = new URL(fetchMock.mock.calls[0][0] as string);
+			expect(url.searchParams.get("_id")).toBe("7");
+			expect(url.searchParams.get("id")).toBeNull();
+		});
+	});
+
+	describe("typed() subscribe", () => {
+		/** A token-gated SSE mock: 401 without the bearer, otherwise streams
+		 *  the frames for that connection (by request ordinal, last entry
+		 *  repeats) and stays open until the request aborts, or closes cleanly
+		 *  right after its frames when `closeAfterFrames` is set. */
+		function gatedSse(
+			frames: string[] | string[][],
+			seen: Request[],
+			closeAfterFrames = false,
+		) {
+			return (async (input: string | URL | Request, init?: RequestInit) => {
+				const request =
+					input instanceof Request
+						? input
+						: new Request(input.toString(), init);
+				seen.push(request);
+				if (request.headers.get("Authorization") !== `Bearer ${API_KEY}`) {
+					return new Response("unauthorized", { status: 401 });
+				}
+				const perConnection = Array.isArray(frames[0])
+					? (frames as string[][])
+					: [frames as string[]];
+				const mine =
+					perConnection[Math.min(seen.length - 1, perConnection.length - 1)];
+				const signal = init?.signal;
+				const stream = new ReadableStream<Uint8Array>({
+					start(controller) {
+						const enc = new TextEncoder();
+						for (const f of mine) controller.enqueue(enc.encode(f));
+						const close = () => {
+							try {
+								controller.close();
+							} catch {
+								// already closed
+							}
+						};
+						if (closeAfterFrames || signal?.aborted) close();
+						else signal?.addEventListener("abort", close, { once: true });
+					},
+				});
+				return new Response(stream, {
+					status: 200,
+					headers: { "content-type": "text/event-stream" },
+				});
+			}) as typeof fetch;
+		}
+
+		/** Rows arrive in the server's wire shape: raw column names, bigint
+		 *  columns as strings. */
+		const WIRE_ROW = { _id: 1, _block_height: "10", amount: "5" };
+
+		test("sends the bearer token and origin so a token-gated instance streams rows instead of 401", async () => {
+			const seen: Request[] = [];
+			const client = new Subgraphs({
+				baseUrl: BASE_URL,
+				apiKey: API_KEY,
+				origin: "mcp",
+				fetchImpl: gatedSse(
+					["event: ping\ndata: \n\n", `data: ${JSON.stringify(WIRE_ROW)}\n\n`],
+					seen,
+				),
+			});
+			const typed = client.typed({
+				name: "my subgraph",
+				schema: { transfers: { columns: { amount: { type: "uint" } } } },
+			} as const);
+			const rows: unknown[] = [];
+			const errors: unknown[] = [];
+			let unsubscribe = () => {};
+			await new Promise<void>((resolve) => {
+				unsubscribe = typed.transfers.subscribe(
+					(row) => {
+						rows.push(row);
+						resolve();
+					},
+					{
+						where: { amount: { gte: "1" } } as never,
+						since: 5,
+						onError: (e) => errors.push(e),
+					},
+				);
+			});
+			unsubscribe();
+
+			expect(rows).toEqual([WIRE_ROW]);
+			expect(errors).toEqual([]);
+			expect(seen).toHaveLength(1);
+			const url = new URL(seen[0].url);
+			expect(url.pathname).toBe("/v1/subgraphs/my%20subgraph/transfers/stream");
+			expect(url.searchParams.get("amount.gte")).toBe("1");
+			expect(url.searchParams.get("since")).toBe("5");
+			expect(seen[0].headers.get("Accept")).toBe("text/event-stream");
+			expect(seen[0].headers.get("x-sl-origin")).toBe("mcp");
+		});
+
+		test("a dropped connection reconnects from the last delivered row's block height", async () => {
+			const seen: Request[] = [];
+			const client = new Subgraphs({
+				baseUrl: BASE_URL,
+				apiKey: API_KEY,
+				fetchImpl: gatedSse(
+					[
+						// First connection: one wire-shaped row, then a clean close.
+						[`data: ${JSON.stringify({ _id: 7, _block_height: "42" })}\n\n`],
+						// Reconnect: another row, then close again.
+						[`data: ${JSON.stringify({ _id: 8, _block_height: "43" })}\n\n`],
+					],
+					seen,
+					true,
+				),
+			});
+			const typed = client.typed({
+				name: "s",
+				schema: { t: { columns: {} } },
+			} as const);
+			const rows: unknown[] = [];
+			let unsubscribe = () => {};
+			await new Promise<void>((resolve) => {
+				unsubscribe = typed.t.subscribe((row) => {
+					rows.push(row);
+					if (rows.length === 2) resolve();
+				});
+			});
+			unsubscribe();
+
+			expect(rows.map((r) => (r as { _id: number })._id)).toEqual([7, 8]);
+			expect(seen.length).toBeGreaterThanOrEqual(2);
+			expect(new URL(seen[0].url).searchParams.get("since")).toBeNull();
+			expect(new URL(seen[1].url).searchParams.get("since")).toBe("42");
+		});
+
+		test("a 401 reaches onError and the stream keeps retrying until unsubscribed", async () => {
+			const seen: Request[] = [];
+			const client = new Subgraphs({
+				baseUrl: BASE_URL,
+				apiKey: "wrong-key",
+				fetchImpl: gatedSse([], seen),
+			});
+			const typed = client.typed({
+				name: "s",
+				schema: { t: { columns: {} } },
+			} as const);
+			const errors: unknown[] = [];
+			let unsubscribe = () => {};
+			await new Promise<void>((resolve) => {
+				unsubscribe = typed.t.subscribe(() => {}, {
+					onError: (e) => {
+						errors.push(e);
+						resolve();
+					},
+				});
+			});
+			unsubscribe();
+			expect(errors).toHaveLength(1);
+			expect((errors[0] as { status?: number }).status).toBe(401);
+		});
+	});
 });

@@ -72,7 +72,7 @@ describe("subscribeStreamsEvents", () => {
 		await new Promise<void>((resolve) => {
 			unsub = subscribeStreamsEvents({
 				baseUrl: "https://streams.example",
-				apiKey: "sk-sl_test",
+				headers: { Authorization: "Bearer sk-sl_test" },
 				fetchImpl: sseFetch(["event: ping\ndata: \n\n", signedFrame(EVENT)]),
 				verify: "off",
 				loadKey,
@@ -95,7 +95,7 @@ describe("subscribeStreamsEvents", () => {
 		await new Promise<void>((resolve) => {
 			unsub = subscribeStreamsEvents({
 				baseUrl: "https://streams.example",
-				apiKey: "sk-sl_test",
+				headers: { Authorization: "Bearer sk-sl_test" },
 				fetchImpl: sseFetch([signedFrame(EVENT)]),
 				verify: "strict",
 				loadKey,
@@ -120,7 +120,7 @@ describe("subscribeStreamsEvents", () => {
 		await new Promise<void>((resolve) => {
 			unsub = subscribeStreamsEvents({
 				baseUrl: "https://streams.example",
-				apiKey: "sk-sl_test",
+				headers: { Authorization: "Bearer sk-sl_test" },
 				fetchImpl: sseFetch([unsignedFrame]),
 				verify: "lenient",
 				loadKey,
@@ -141,7 +141,7 @@ describe("subscribeStreamsEvents", () => {
 		const err = await new Promise<unknown>((resolve) => {
 			unsub = subscribeStreamsEvents({
 				baseUrl: "https://streams.example",
-				apiKey: "sk-sl_test",
+				headers: { Authorization: "Bearer sk-sl_test" },
 				fetchImpl: sseFetch([signedFrame(EVENT, "not-a-real-signature")]),
 				verify: "lenient",
 				loadKey,
@@ -161,7 +161,7 @@ describe("subscribeStreamsEvents", () => {
 		const err = await new Promise<unknown>((resolve) => {
 			unsub = subscribeStreamsEvents({
 				baseUrl: "https://streams.example",
-				apiKey: "sk-sl_test",
+				headers: { Authorization: "Bearer sk-sl_test" },
 				fetchImpl: sseFetch([signedFrame(EVENT, "not-a-real-signature")]),
 				verify: "strict",
 				loadKey,
