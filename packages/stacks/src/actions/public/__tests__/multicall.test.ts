@@ -22,9 +22,18 @@ function createMockClient(
 
 describe("multicall", () => {
 	const calls = [
-		{ contract: "SP1.contract-a", functionName: "get-x" },
-		{ contract: "SP2.contract-b", functionName: "get-y" },
-		{ contract: "SP3.contract-c", functionName: "get-z" },
+		{
+			contract: "SP000000000000000000002Q6VF78.contract-a",
+			functionName: "get-x",
+		},
+		{
+			contract: "SP000000000000000000002Q6VF78.contract-b",
+			functionName: "get-y",
+		},
+		{
+			contract: "SP000000000000000000002Q6VF78.contract-c",
+			functionName: "get-z",
+		},
 	];
 
 	it("allowFailure:true returns mixed success/failure results", async () => {

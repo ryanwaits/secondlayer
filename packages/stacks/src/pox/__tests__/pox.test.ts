@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { base58 } from "@scure/base";
 import { mainnet } from "../../chains/index.ts";
 import { createPublicClient } from "../../clients/createPublicClient.ts";
 import { http } from "../../transports/http.ts";
@@ -69,6 +70,14 @@ describe("PoX Extension", () => {
 			test("throws on invalid address", () => {
 				expect(() => parseBtcAddress("invalid")).toThrow();
 				expect(() => parseBtcAddress("")).toThrow();
+			});
+
+			test("rejects a legacy address whose checksum does not match", () => {
+				const decoded = base58.decode("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa");
+				decoded[24] ^= 1;
+				expect(() => parseBtcAddress(base58.encode(decoded))).toThrow(
+					/checksum/,
+				);
 			});
 		});
 

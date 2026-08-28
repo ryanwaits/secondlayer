@@ -1,4 +1,4 @@
-import { isClarityName } from "../utils/address.ts";
+import { isClarityName, parsePrincipal } from "../utils/address.ts";
 import { c32address, c32addressDecode } from "../utils/c32.ts";
 import {
 	type IntegerType,
@@ -157,9 +157,11 @@ export const Cl: {
 	uint: uintCV,
 	bool: boolCV,
 	principal(address: string): StandardPrincipalCV | ContractPrincipalCV {
-		const [addr, name] = address.split(".");
-		if (!addr) throw new Error("Invalid principal address");
-		return name ? contractPrincipalCV(addr, name) : standardPrincipalCV(addr);
+		const parsed = parsePrincipal(address);
+		if (!parsed) throw new Error(`Invalid principal: ${address}`);
+		return parsed.contractName
+			? contractPrincipalCV(parsed.address, parsed.contractName)
+			: standardPrincipalCV(parsed.address);
 	},
 	address(address: string): StandardPrincipalCV | ContractPrincipalCV {
 		return Cl.principal(address);

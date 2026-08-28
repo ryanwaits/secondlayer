@@ -1,9 +1,11 @@
 import { base58, bech32, bech32m } from "@scure/base";
-import { BITCOIN_NETWORK_PARAMS } from "../bitcoin/address.ts";
+import {
+	BITCOIN_NETWORK_PARAMS,
+	base58CheckEncode,
+} from "../bitcoin/address.ts";
 import type { BitcoinNetwork } from "../bitcoin/constants.ts";
 import { doubleSha256 } from "../bitcoin/serialize.ts";
 import { POX_ADDRESS_VERSION } from "../pox/constants.ts";
-import { concatBytes } from "../utils/encoding.ts";
 
 /**
  * SIP-005 PoX `pox-addr` tuple, decoded from a Bitcoin address. `version` is
@@ -15,12 +17,6 @@ export type BtcAddressRepr = {
 	version: number;
 	hashbytes: Uint8Array;
 };
-
-function base58CheckEncode(version: number, payload: Uint8Array): string {
-	const data = concatBytes(Uint8Array.of(version), payload);
-	const checksum = doubleSha256(data).slice(0, 4);
-	return base58.encode(concatBytes(data, checksum));
-}
 
 function expectedHashLen(version: number): number {
 	if (!Number.isInteger(version) || version < 0x00 || version > 0x06) {

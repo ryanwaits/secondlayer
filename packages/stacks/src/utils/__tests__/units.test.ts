@@ -61,6 +61,29 @@ describe("parseUnits", () => {
 	test("throws on excess decimals", () => {
 		expect(() => parseUnits("1.1234567", 6)).toThrow("Too many decimal places");
 	});
+
+	test("names the problem when a number would print in exponent form", () => {
+		expect(() => parseUnits(1e-7, 6)).toThrow(RangeError);
+		expect(() => parseUnits(1e-7, 6)).toThrow(/pass the amount as a string/);
+		expect(() => parseUnits(1e21, 6)).toThrow(RangeError);
+		expect(() => parseUnits(1e21, 6)).toThrow(/decimal amount/);
+		expect(() => parseUnits(1.1234567, 6)).toThrow(RangeError);
+		expect(() => parseUnits(Number.NaN, 6)).toThrow(RangeError);
+		expect(() => parseUnits(Number.POSITIVE_INFINITY, 6)).toThrow(RangeError);
+	});
+
+	test("rejects empty and non-decimal strings instead of returning 0n", () => {
+		expect(() => parseUnits("", 6)).toThrow(RangeError);
+		expect(() => parseUnits("1e5", 6)).toThrow(/decimal amount/);
+		expect(() => parseUnits("1.", 6)).toThrow(/decimal amount/);
+		expect(() => parseUnits("abc", 6)).toThrow(/decimal amount/);
+	});
+
+	test("parses large string amounts exactly", () => {
+		expect(parseUnits("1000000000000000000000", 6)).toBe(
+			1_000_000_000_000_000_000_000_000_000n,
+		);
+	});
 });
 
 describe("formatStx / parseStx roundtrip", () => {

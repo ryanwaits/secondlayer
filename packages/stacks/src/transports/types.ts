@@ -21,6 +21,8 @@ export type TransportConfig = {
 	retryCount?: number;
 	retryDelay?: number;
 	fetchOptions?: RequestInit;
+	/** Sent as `x-api-key`. Held in the request closure and stripped from
+	 *  `Transport.config` so it never prints with the client. */
 	apiKey?: string;
 };
 

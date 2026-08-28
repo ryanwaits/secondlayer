@@ -351,11 +351,13 @@ export function webSocket(
 		};
 
 		const channel = new WebSocketChannel(wsUrl, config);
+		// Same rule as createTransport: the key stays in the request closure.
+		const { apiKey: _apiKey, ...exposedConfig } = resolvedHttpConfig;
 
 		const transport: WebSocketTransport = {
 			type: "webSocket",
 			request: buildRequestFn(httpUrl, resolvedHttpConfig),
-			config: resolvedHttpConfig,
+			config: exposedConfig,
 			subscribe: (subParams, callback) =>
 				channel.subscribe(subParams, callback),
 			destroy: () => channel.destroy(),

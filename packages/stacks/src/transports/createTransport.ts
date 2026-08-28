@@ -6,15 +6,34 @@ import type {
 	TransportConfig,
 } from "./types.ts";
 
+/** Bind a request function into a transport. The exposed `config` never
+ *  carries `apiKey`: the key lives in the request closure, so logging a
+ *  client or inspecting `client.transport.config` does not print it. */
 export function createTransport(
 	type: string,
 	config: TransportConfig & { request: RequestFn },
 ): Transport {
+	const { request, apiKey: _apiKey, ...exposed } = config;
 	return {
 		type,
-		request: config.request,
-		config,
+		request,
+		config: exposed,
 	};
+}
+
+/** Longest response body kept on `HttpRequestError.details`. The body is
+ *  untrusted and lands in `error.message`, so a runaway HTML page or a
+ *  hostile reply must not become a multi-megabyte log line. */
+export const MAX_ERROR_DETAILS_BYTES = 4096;
+
+function capDetails(body: string | undefined): string | undefined {
+	if (body === undefined) return undefined;
+	const bytes = new TextEncoder().encode(body);
+	if (bytes.length <= MAX_ERROR_DETAILS_BYTES) return body;
+	const head = new TextDecoder().decode(
+		bytes.subarray(0, MAX_ERROR_DETAILS_BYTES),
+	);
+	return `${head}... [truncated ${bytes.length - MAX_ERROR_DETAILS_BYTES} bytes]`;
 }
 
 /** 5xx and 429 are transient — worth a retry. Every other status is not. */
@@ -77,7 +96,7 @@ export async function fetchWithRetry(
 		const retryable = isRetryableStatus(response.status);
 		if (!retryable || attempt === retryCount) {
 			throw new HttpRequestError(response.status, {
-				details: await response.text().catch(() => undefined),
+				details: capDetails(await response.text().catch(() => undefined)),
 			});
 		}
 

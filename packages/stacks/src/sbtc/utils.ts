@@ -1,16 +1,7 @@
-import { base58, bech32, bech32m } from "@scure/base";
-import { BITCOIN_NETWORK_PARAMS } from "../bitcoin/address.ts";
 import type { BitcoinNetwork } from "../bitcoin/constants.ts";
-import { doubleSha256 } from "../bitcoin/serialize.ts";
-import { bytesToHex, concatBytes, hexToBytes } from "../utils/encoding.ts";
-import { SBTC_BTC_ADDRESS_VERSION } from "./constants.ts";
+import { stringifyBtcAddress } from "../pox5/btcAddress.ts";
+import { bytesToHex, hexToBytes } from "../utils/encoding.ts";
 import type { SbtcBtcRecipient } from "./types.ts";
-
-function base58CheckEncode(version: number, hashbytes: Uint8Array): string {
-	const data = concatBytes(Uint8Array.of(version), hashbytes);
-	const checksum = doubleSha256(data).slice(0, 4);
-	return base58.encode(concatBytes(data, checksum));
-}
 
 /**
  * Format a `(buff 1) + (buff 32)` BTC recipient tuple into a canonical
@@ -18,34 +9,15 @@ function base58CheckEncode(version: number, hashbytes: Uint8Array): string {
  * for testnet/regtest version bytes and hrp.
  *
  * Used to decode the `recipient` field of `withdrawal-create` events
- * into a human-readable address. Mirrors the reverse direction of the
- * `parseBtcAddress` helper in `pox/utils.ts`.
+ * into a human-readable address. The sBTC version bytes are the SIP-005
+ * PoX bytes, so this is `stringifyBtcAddress` from `pox5` under an
+ * sBTC-shaped name; unknown versions and hash lengths throw there.
  */
 export function formatBtcAddress(
 	recipient: SbtcBtcRecipient,
 	network: BitcoinNetwork = "mainnet",
 ): string {
-	const { version, hashbytes } = recipient;
-	const params = BITCOIN_NETWORK_PARAMS[network];
-	switch (version) {
-		case SBTC_BTC_ADDRESS_VERSION.p2pkh:
-			return base58CheckEncode(params.p2pkh, hashbytes);
-		case SBTC_BTC_ADDRESS_VERSION.p2sh:
-		case SBTC_BTC_ADDRESS_VERSION.p2sh_p2wpkh:
-		case SBTC_BTC_ADDRESS_VERSION.p2sh_p2wsh:
-			return base58CheckEncode(params.p2sh, hashbytes);
-		case SBTC_BTC_ADDRESS_VERSION.p2wpkh:
-		case SBTC_BTC_ADDRESS_VERSION.p2wsh: {
-			const words = bech32.toWords(hashbytes);
-			return bech32.encode(params.hrp, [0, ...words]);
-		}
-		case SBTC_BTC_ADDRESS_VERSION.p2tr: {
-			const words = bech32m.toWords(hashbytes);
-			return bech32m.encode(params.hrp, [1, ...words]);
-		}
-		default:
-			throw new Error(`Unknown BTC address version: ${version}`);
-	}
+	return stringifyBtcAddress(recipient, network);
 }
 
 /**

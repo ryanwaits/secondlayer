@@ -15,7 +15,7 @@ describe("getMapEntry", () => {
 		const hex = with0x(bytesToHex(serializeCVBytes(Cl.uint(7))));
 		const client = mockClient({ data: hex });
 		const result = await getMapEntry(client, {
-			contract: "SP123.foo",
+			contract: "SP000000000000000000002Q6VF78.foo",
 			mapName: "balances",
 			key: Cl.uint(1),
 		});
@@ -26,7 +26,7 @@ describe("getMapEntry", () => {
 		const client = mockClient({});
 		await expect(
 			getMapEntry(client, {
-				contract: "SP123.foo",
+				contract: "SP000000000000000000002Q6VF78.foo",
 				mapName: "balances",
 				key: Cl.uint(1),
 			}),

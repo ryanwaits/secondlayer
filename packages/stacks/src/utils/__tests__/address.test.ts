@@ -5,6 +5,7 @@ import {
 	getContractAddress,
 	isAddressEqual,
 	isValidAddress,
+	parseContractId,
 	publicKeyToAddress,
 	validateStacksAddress,
 } from "../address.ts";
@@ -124,5 +125,29 @@ describe("publicKeyToAddress", () => {
 		const testnet = publicKeyToAddress(account.publicKey, "testnet");
 		expect(addressToVersion(testnet)).toBe(AddressVersion.TestnetSingleSig);
 		expect(testnet).not.toBe(account.address);
+	});
+});
+
+describe("parseContractId", () => {
+	test("splits a valid contract id", () => {
+		expect(parseContractId("SP000000000000000000002Q6VF78.pox-4")).toEqual([
+			"SP000000000000000000002Q6VF78",
+			"pox-4",
+		]);
+	});
+
+	test("rejects extra dot segments instead of dropping them", () => {
+		expect(() => parseContractId("SP000000000000000000002Q6VF78.a.b")).toThrow(
+			/Invalid contract identifier/,
+		);
+	});
+
+	test("rejects a bare address and an address that does not decode", () => {
+		expect(() => parseContractId("SP000000000000000000002Q6VF78")).toThrow(
+			/Invalid contract identifier/,
+		);
+		expect(() => parseContractId("SP123.foo")).toThrow(
+			/Invalid contract identifier/,
+		);
 	});
 });

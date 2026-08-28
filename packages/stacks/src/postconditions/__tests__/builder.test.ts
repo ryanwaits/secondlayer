@@ -261,6 +261,6 @@ describe("Pc validation errors", () => {
 			Pc.principal(ADDR)
 				.willSendAsset()
 				.nft("invalid.contract", "token", Cl.uint(1)),
-		).toThrow(/Invalid contract address/);
+		).toThrow(/Invalid contract/);
 	});
 });
