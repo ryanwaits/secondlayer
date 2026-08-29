@@ -161,7 +161,11 @@ export function indexEventTypesForFilterTypes(filterTypes: string[]): string[] {
 	return [...types];
 }
 
-function referencedIndexEventTypes(subgraph: SubgraphDefinition): string[] {
+/** Index event_types a subgraph's sources require. Empty when sources are absent. */
+export function referencedIndexEventTypes(
+	subgraph: SubgraphDefinition,
+): string[] {
+	if (!subgraph.sources) return [];
 	return indexEventTypesForFilterTypes(
 		sourceFilters(subgraph).map((f) => f.type),
 	);

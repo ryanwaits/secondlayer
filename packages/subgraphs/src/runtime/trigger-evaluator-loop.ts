@@ -5,6 +5,7 @@ import { listActiveChainSubscriptions } from "@secondlayer/shared/db/queries/sub
 import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
 import { buildChainBlockSource } from "./block-source.ts";
+import { boundSourceTip } from "./decoder-bound.ts";
 import {
 	buildSourcesMap,
 	buildTraitContracts,
@@ -12,6 +13,7 @@ import {
 	emitSbtcOutbox,
 	emitSbtcSettlementOutbox,
 	evaluateBlock,
+	referencedDecoderNames,
 	referencedEventTypes,
 } from "./trigger-evaluator.ts";
 
@@ -123,8 +125,26 @@ export async function runEvaluatorOnce(
 	let emitted = await emitSbtcSettlementOutbox(db, chainSubs);
 
 	const source = buildChainBlockSource(referencedEventTypes(chainSubs));
-	const tip = await source.getTip();
-	if (tip <= 0) return emitted;
+	const rawTip = await source.getTip();
+	if (rawTip <= 0) return emitted;
+
+	const bound = await boundSourceTip(rawTip, referencedDecoderNames(chainSubs));
+	if (!bound.ok) {
+		logger.warn("Chain evaluator stalled: missing decoder checkpoint", {
+			event: "chain_evaluator_decoder_stall",
+			missing: bound.missing,
+		});
+		return emitted;
+	}
+	if (bound.floor !== null && bound.floor < rawTip) {
+		logger.debug("Chain evaluator tip bounded by decoder progress", {
+			event: "chain_evaluator_decoder_floor",
+			rawTip,
+			floor: bound.floor,
+			tip: bound.tip,
+		});
+	}
+	const tip = bound.tip;
 
 	const cursor = await readCursor(db);
 	// Forward-looking: uninitialized cursor or no subscriptions → jump to tip so

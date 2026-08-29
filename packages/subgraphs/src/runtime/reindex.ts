@@ -28,6 +28,7 @@ import {
 	resolveBlockSource,
 } from "./block-source.ts";
 import { withSubgraphBlockWriteLock } from "./catchup.ts";
+import { boundSourceTip, decoderNamesForSubgraph } from "./decoder-bound.ts";
 import { notifyReindexComplete } from "./reindex-notify.ts";
 import { StatsAccumulator } from "./stats.ts";
 
@@ -542,7 +543,28 @@ export async function resolveBlockRange(
 		opts?.startBlockFloor != null
 			? Math.max(definitionStart, opts.startBlockFloor)
 			: definitionStart;
-	return { fromBlock, toBlock: await source.getTip() };
+	const rawTip = await source.getTip();
+	const bound = await boundSourceTip(rawTip, decoderNamesForSubgraph(def));
+	if (!bound.ok) {
+		logger.warn("Reindex stalled: missing decoder checkpoint", {
+			event: "subgraph_reindex_decoder_stall",
+			subgraph: def.name,
+			missing: bound.missing,
+		});
+		throw new Error(
+			`Reindex stalled: missing decoder checkpoint (${bound.missing.join(", ")})`,
+		);
+	}
+	if (bound.floor !== null && bound.floor < rawTip) {
+		logger.debug("Reindex tip bounded by decoder progress", {
+			event: "subgraph_reindex_decoder_floor",
+			subgraph: def.name,
+			rawTip,
+			floor: bound.floor,
+			tip: bound.tip,
+		});
+	}
+	return { fromBlock, toBlock: bound.tip };
 }
 
 /**

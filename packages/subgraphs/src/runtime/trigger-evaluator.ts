@@ -18,6 +18,7 @@ import type { Kysely, Selectable } from "kysely";
 import type { SubgraphFilter } from "../types.ts";
 import type { BlockData } from "./batch-loader.ts";
 import { indexEventTypesForFilterTypes } from "./block-source.ts";
+import { decoderNamesForIndexEventTypes } from "./decoder-bound.ts";
 import {
 	type MatchedTx,
 	type TraitContracts,
@@ -147,6 +148,11 @@ export function referencedEventTypes(chainSubs: Subscription[]): string[] {
 		}
 	}
 	return indexEventTypesForFilterTypes([...filterTypes]);
+}
+
+/** Decoder checkpoint names feeding the event types these chain subs read. */
+export function referencedDecoderNames(chainSubs: Subscription[]): string[] {
+	return decoderNamesForIndexEventTypes(referencedEventTypes(chainSubs));
 }
 
 /** Distinct traits referenced across all chain triggers. */
