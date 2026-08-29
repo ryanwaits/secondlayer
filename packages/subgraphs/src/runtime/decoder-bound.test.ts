@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
 import { EMPTY_RANGE_EVENT_INDEX_SENTINEL } from "@secondlayer/shared";
 import type { Subscription } from "@secondlayer/shared/db";
 import type { SubgraphDefinition } from "../types.ts";
@@ -8,6 +8,7 @@ import {
 	decoderBoundTip,
 	decoderNameForEventType,
 	decoderNamesForSubgraph,
+	usesDecodedIndexPlane,
 } from "./decoder-bound.ts";
 import { referencedDecoderNames } from "./trigger-evaluator.ts";
 
@@ -92,6 +93,35 @@ describe("decoder name mapping", () => {
 
 	test("decoderNameForEventType follows decode.<type>.v1", () => {
 		expect(decoderNameForEventType("print")).toBe("decode.print.v1");
+	});
+});
+
+describe("usesDecodedIndexPlane", () => {
+	const prev = process.env.SUBGRAPH_SOURCE;
+	const printSg = subgraphDef({ prints: { type: "print_event" } });
+
+	afterAll(() => {
+		if (prev === undefined) delete process.env.SUBGRAPH_SOURCE;
+		else process.env.SUBGRAPH_SOURCE = prev;
+	});
+
+	test("postgres tap (default) is not decoded-index", () => {
+		delete process.env.SUBGRAPH_SOURCE;
+		expect(usesDecodedIndexPlane(printSg)).toBe(false);
+	});
+
+	test("streams-index eligible subgraph is decoded-index", () => {
+		process.env.SUBGRAPH_SOURCE = "streams-index";
+		expect(usesDecodedIndexPlane(printSg)).toBe(true);
+	});
+
+	test("streams-index array-style sources stay on the postgres tap", () => {
+		process.env.SUBGRAPH_SOURCE = "streams-index";
+		const arraySg = {
+			name: "t",
+			sources: [{ type: "print_event" }],
+		} as unknown as SubgraphDefinition;
+		expect(usesDecodedIndexPlane(arraySg)).toBe(false);
 	});
 });
 

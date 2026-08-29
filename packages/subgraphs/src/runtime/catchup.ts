@@ -9,7 +9,11 @@ import {
 } from "./block-processor.ts";
 import { resolveBlockSource } from "./block-source.ts";
 import { isCatchUpLeader } from "./catchup-leader.ts";
-import { boundSourceTip, decoderNamesForSubgraph } from "./decoder-bound.ts";
+import {
+	boundSourceTip,
+	decoderNamesForSubgraph,
+	usesDecodedIndexPlane,
+} from "./decoder-bound.ts";
 import { StatsAccumulator } from "./stats.ts";
 
 const LOG_INTERVAL = 1000;
@@ -283,34 +287,38 @@ export async function catchUpSubgraph(
 		if (!subgraphRow) return 0;
 		const lastProcessedBlock = Number(subgraphRow.last_processed_block);
 
-		// Chain tip comes from the block source, then bounded by the decoders
-		// this subgraph actually reads — Index tip tracks ft_transfer, so a
-		// print subgraph that walked to it would skip heights print has not
-		// committed and never revisit them.
+		// Chain tip comes from the block source. On the decoded Index plane
+		// (streams-index) bound it by the decoders this subgraph reads —
+		// Index tip tracks ft_transfer, so a print subgraph that walked to it
+		// would skip heights print has not committed. Postgres tap reads raw
+		// events at ingest and must not wait on decode.
 		const rawTip = await source.getTip();
 		if (rawTip <= 0) return 0;
-		const bound = await boundSourceTip(
-			rawTip,
-			decoderNamesForSubgraph(subgraph),
-		);
-		if (!bound.ok) {
-			logger.warn("Subgraph catch-up stalled: missing decoder checkpoint", {
-				event: "subgraph_catchup_decoder_stall",
-				subgraph: subgraphName,
-				missing: bound.missing,
-			});
-			return 0;
-		}
-		if (bound.floor !== null && bound.floor < rawTip) {
-			logger.debug("Subgraph catch-up tip bounded by decoder progress", {
-				event: "subgraph_catchup_decoder_floor",
-				subgraph: subgraphName,
+		let chainTip = rawTip;
+		if (usesDecodedIndexPlane(subgraph)) {
+			const bound = await boundSourceTip(
 				rawTip,
-				floor: bound.floor,
-				tip: bound.tip,
-			});
+				decoderNamesForSubgraph(subgraph),
+			);
+			if (!bound.ok) {
+				logger.warn("Subgraph catch-up stalled: missing decoder checkpoint", {
+					event: "subgraph_catchup_decoder_stall",
+					subgraph: subgraphName,
+					missing: bound.missing,
+				});
+				return 0;
+			}
+			if (bound.floor !== null && bound.floor < rawTip) {
+				logger.debug("Subgraph catch-up tip bounded by decoder progress", {
+					event: "subgraph_catchup_decoder_floor",
+					subgraph: subgraphName,
+					rawTip,
+					floor: bound.floor,
+					tip: bound.tip,
+				});
+			}
+			chainTip = bound.tip;
 		}
-		const chainTip = bound.tip;
 		if (chainTip <= 0 || lastProcessedBlock >= chainTip) return 0;
 
 		const subgraphStart = Number(subgraphRow.start_block) || 1;

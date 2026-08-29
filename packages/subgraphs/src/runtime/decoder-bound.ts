@@ -2,7 +2,10 @@ import { decodeStreamsCursor, isEmptyRangeCursor } from "@secondlayer/shared";
 import { type Database, getSourceDb } from "@secondlayer/shared/db";
 import type { Kysely } from "kysely";
 import type { SubgraphDefinition } from "../types.ts";
-import { referencedIndexEventTypes } from "./block-source.ts";
+import {
+	isStreamsIndexEligible,
+	referencedIndexEventTypes,
+} from "./block-source.ts";
 
 /**
  * Decoder-progress bound for consumers that read decoded Index rows.
@@ -32,6 +35,18 @@ export function decoderNamesForSubgraph(
 	subgraph: SubgraphDefinition,
 ): string[] {
 	return decoderNamesForIndexEventTypes(referencedIndexEventTypes(subgraph));
+}
+
+/**
+ * True when catch-up/reindex will load decoded Index rows (the race).
+ * Postgres tap reads raw `events` at ingest and must not wait on decode.
+ * Mirrors `resolveBlockSource`'s streams-index branch.
+ */
+export function usesDecodedIndexPlane(subgraph: SubgraphDefinition): boolean {
+	return (
+		process.env.SUBGRAPH_SOURCE === "streams-index" &&
+		isStreamsIndexEligible(subgraph)
+	);
 }
 
 /**

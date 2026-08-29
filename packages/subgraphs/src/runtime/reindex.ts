@@ -28,7 +28,11 @@ import {
 	resolveBlockSource,
 } from "./block-source.ts";
 import { withSubgraphBlockWriteLock } from "./catchup.ts";
-import { boundSourceTip, decoderNamesForSubgraph } from "./decoder-bound.ts";
+import {
+	boundSourceTip,
+	decoderNamesForSubgraph,
+	usesDecodedIndexPlane,
+} from "./decoder-bound.ts";
 import { notifyReindexComplete } from "./reindex-notify.ts";
 import { StatsAccumulator } from "./stats.ts";
 
@@ -544,6 +548,9 @@ export async function resolveBlockRange(
 			? Math.max(definitionStart, opts.startBlockFloor)
 			: definitionStart;
 	const rawTip = await source.getTip();
+	if (!usesDecodedIndexPlane(def)) {
+		return { fromBlock, toBlock: rawTip };
+	}
 	const bound = await boundSourceTip(rawTip, decoderNamesForSubgraph(def));
 	if (!bound.ok) {
 		logger.warn("Reindex stalled: missing decoder checkpoint", {
