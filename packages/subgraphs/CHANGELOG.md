@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 4.1.2
+
+### Patch Changes
+
+- 5630b96: Bound the chain-evaluator, subgraph catch-up, and reindex tips by the slowest referenced decoder checkpoint so a lagging print decoder cannot skip heights the forward-only cursor will never revisit.
+
 ## 4.1.1
 
 ### Patch Changes
