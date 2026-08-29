@@ -149,6 +149,85 @@ export function referencedEventTypes(chainSubs: Subscription[]): string[] {
 	return indexEventTypesForFilterTypes([...filterTypes]);
 }
 
+/**
+ * Decoder-progress floor for the chain evaluator.
+ *
+ * Each decoded event type is produced by an INDEPENDENT decoder with its own
+ * `decoder_checkpoints` cursor, and they advance at different rates — `print`
+ * is heavier to decode (arbitrary Clarity payloads) and routinely trails
+ * `ft_transfer` by a beat. The evaluator's block source tip tracks block
+ * INGESTION, which runs ahead of decode. If the evaluator processes a height
+ * before the decoder feeding an event type its subscriptions read has committed
+ * that height, the events aren't in `decoded_events` yet, the match is missed,
+ * and the forward-only cursor never revisits it (the print-subscription miss
+ * this module was hardened against).
+ *
+ * So the evaluator bounds its tip by the MIN checkpoint over ONLY the decoders
+ * feeding the event types its active subscriptions actually read — NOT over all
+ * decoders. A decoder no subscription reads (e.g. a stalled/defunct `pox4`)
+ * must never gate deliveries.
+ *
+ * The decoded-event decoders are named `decode.<event_type>.v1` uniformly (see
+ * `DECODER_EVENT_TYPES` in the indexer's decode/storage). Deriving the name
+ * keeps the runtime free of a dependency on the indexer package.
+ */
+function decoderNameForEventType(indexEventType: string): string {
+	return `decode.${indexEventType}.v1`;
+}
+
+/** Decoder names feeding the event types these chain subs read. */
+export function referencedDecoderNames(chainSubs: Subscription[]): string[] {
+	return referencedEventTypes(chainSubs).map(decoderNameForEventType);
+}
+
+/** Parse the block height out of a `height:event_index` decoder cursor. */
+function decoderCursorHeight(cursor: string | null | undefined): number | null {
+	if (!cursor) return null;
+	const [height] = cursor.split(":");
+	if (!height || !/^(0|[1-9]\d*)$/.test(height)) return null;
+	return Number(height);
+}
+
+/**
+ * Lowest committed height across a set of decoder cursors — pure, so the min
+ * logic is unit-testable without a DB. Cursors that are absent/unparseable (a
+ * decoder that has not checkpointed yet) are skipped; returns null when none are
+ * usable, so the caller falls back to the unbounded tip rather than stalling.
+ */
+export function lowestDecoderHeight(
+	cursors: ReadonlyArray<string | null | undefined>,
+): number | null {
+	let min: number | null = null;
+	for (const c of cursors) {
+		const h = decoderCursorHeight(c);
+		if (h === null) continue;
+		if (min === null || h < min) min = h;
+	}
+	return min;
+}
+
+/**
+ * The height at/below which every decoder in `decoderNames` has committed —
+ * the data-availability floor for exactly the event types the evaluator reads.
+ * Reads the SOURCE-plane `decoder_checkpoints` (same rationale as
+ * `buildTraitContracts`: the evaluator runs on the TARGET handle where those
+ * rows are empty). Returns null when no name has a usable cursor, so the caller
+ * falls back to the raw tip.
+ */
+export async function decoderFloorHeight(
+	decoderNames: string[],
+	opts?: { sourceDb?: Kysely<Database> },
+): Promise<number | null> {
+	if (decoderNames.length === 0) return null;
+	const sourceDb = opts?.sourceDb ?? getSourceDb();
+	const rows = await sourceDb
+		.selectFrom("decoder_checkpoints")
+		.select("last_cursor")
+		.where("decoder_name", "in", decoderNames)
+		.execute();
+	return lowestDecoderHeight(rows.map((r) => r.last_cursor));
+}
+
 /** Distinct traits referenced across all chain triggers. */
 export function referencedTraits(chainSubs: Subscription[]): string[] {
 	const traits = new Set<string>();

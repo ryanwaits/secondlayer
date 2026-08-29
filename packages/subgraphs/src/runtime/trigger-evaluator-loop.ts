@@ -8,10 +8,12 @@ import { buildChainBlockSource } from "./block-source.ts";
 import {
 	buildSourcesMap,
 	buildTraitContracts,
+	decoderFloorHeight,
 	emitChainOutbox,
 	emitSbtcOutbox,
 	emitSbtcSettlementOutbox,
 	evaluateBlock,
+	referencedDecoderNames,
 	referencedEventTypes,
 } from "./trigger-evaluator.ts";
 
@@ -123,7 +125,20 @@ export async function runEvaluatorOnce(
 	let emitted = await emitSbtcSettlementOutbox(db, chainSubs);
 
 	const source = buildChainBlockSource(referencedEventTypes(chainSubs));
-	const tip = await source.getTip();
+	const rawTip = await source.getTip();
+	if (rawTip <= 0) return emitted;
+
+	// The block-source tip tracks block INGESTION, which runs ahead of decode.
+	// Each event type is decoded by an independent, differently-paced decoder, so
+	// processing a height before the decoder feeding a referenced event type
+	// (e.g. print, which trails ft_transfer) has committed it would drop the match
+	// against the forward-only cursor. Bound the tip by the MIN checkpoint over
+	// ONLY the decoders these subscriptions read — a stalled decoder nobody
+	// subscribes to (e.g. a defunct pox4) is excluded and can't block deliveries.
+	// Null floor (no referenced decoders / none checkpointed) → fall back to the
+	// raw tip rather than stalling.
+	const floor = await decoderFloorHeight(referencedDecoderNames(chainSubs));
+	const tip = floor === null ? rawTip : Math.min(rawTip, floor);
 	if (tip <= 0) return emitted;
 
 	const cursor = await readCursor(db);
