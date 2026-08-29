@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 4.1.3
+
+### Patch Changes
+
+- 5478fb8: Bound subgraph catch-up and reindex tips by decoder progress only on the decoded Index (streams-index) plane. The Postgres tap reads raw events at ingest and must not stall on missing decoder checkpoints.
+
 ## 4.1.2
 
 ### Patch Changes
