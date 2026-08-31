@@ -5592,50 +5592,6 @@ html.force-dark .shiki span {
 	font-weight: 500;
 }
 
-/* Subtle entrance when arriving at docs: the top nav fades in and the sidebar
-   groups stagger in from the left, while the wordmark stays as the anchor.
-   Plays once on docs-layout mount (not on page-to-page docs nav). */
-@keyframes docs-chrome-in {
-	from {
-		opacity: 0;
-		transform: translateY(-4px);
-	}
-	to {
-		opacity: 1;
-		transform: none;
-	}
-}
-@keyframes docs-rail-in {
-	from {
-		opacity: 0;
-		transform: translateX(-8px);
-	}
-	to {
-		opacity: 1;
-		transform: none;
-	}
-}
-.docs-topnav {
-	animation: docs-chrome-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-.docs-nav-group {
-	animation: docs-rail-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-.docs-nav-group:nth-child(2) {
-	animation-delay: 0.03s;
-}
-.docs-nav-group:nth-child(3) {
-	animation-delay: 0.08s;
-}
-.docs-nav-group:nth-child(4) {
-	animation-delay: 0.13s;
-}
-@media (prefers-reduced-motion: reduce) {
-	.docs-topnav,
-	.docs-nav-group {
-		animation: none;
-	}
-}
 .docs-nav {
 	/* fixed on the left — does not scroll or rubber-band with the content */
 	position: fixed;
@@ -5658,7 +5614,7 @@ html.force-dark .shiki span {
 	height: 48px;
 	margin: 0 0 22px 8px;
 	font-family: var(--font-heading-stack);
-	font-weight: 600;
+	font-weight: 500;
 	font-size: 0.9375rem;
 	color: var(--text-main);
 	text-decoration: none;
@@ -5669,7 +5625,7 @@ html.force-dark .shiki span {
 .docs-nav-grouplabel {
 	font-family: var(--font-mono-stack);
 	font-size: 10px;
-	font-weight: 600;
+	font-weight: 400;
 	letter-spacing: 0.1em;
 	text-transform: uppercase;
 	color: color-mix(in srgb, var(--text-muted) 70%, transparent);
@@ -6132,14 +6088,13 @@ html.force-dark .shiki span {
 		-webkit-backdrop-filter: blur(8px);
 		backdrop-filter: blur(8px);
 		border-bottom: 1px solid var(--border);
-		animation: docs-chrome-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
 	}
 	.docs-mobilebar-brand {
 		display: inline-flex;
 		align-items: center;
 		gap: 8px;
 		font-family: var(--font-heading-stack);
-		font-weight: 600;
+		font-weight: 500;
 		font-size: 0.9375rem;
 		color: var(--text-main);
 		text-decoration: none;
@@ -8200,7 +8155,6 @@ html.force-dark .shiki span {
 	background: color-mix(in srgb, var(--bg) 85%, transparent);
 	-webkit-backdrop-filter: blur(12px);
 	backdrop-filter: blur(12px);
-	border-bottom: 1px solid var(--border);
 	transition: background-color 200ms var(--ease-snappy);
 }
 /* pages with the marketing bar start content below it (docs renders no
@@ -9203,7 +9157,7 @@ body:has(.marketing-nav) .auth-bar {
 .home-hero h1 {
 	margin-top: 32px;
 	font-family: var(--font-heading-stack);
-	font-weight: 520;
+	font-weight: 500;
 	/* Marketing hero ceiling. 4rem across the board (was 5rem) — /archive
 	   rides this same rule via .home-hero.archive-hero. */
 	font-size: clamp(3rem, 8.5vw, 4rem);
@@ -9211,6 +9165,17 @@ body:has(.marketing-nav) .auth-bar {
 	letter-spacing: -0.02em;
 	text-wrap: balance;
 	font-style: normal;
+}
+.home-hero h1 span {
+	font-weight: 400;
+	font-style: italic;
+	/* ink on the yellow mark, including dark theme */
+	color: #0a0a0a;
+}
+@media (max-width: 768px) {
+	.home-hero svg.rough-annotation {
+		display: block !important;
+	}
 }
 @media (max-width: 640px) {
 	.home-hero h1 {
@@ -9233,10 +9198,6 @@ body:has(.marketing-nav) .auth-bar {
 	.home-hero-links a::after {
 		margin-left: 5px;
 	}
-}
-.home-h1-dim {
-	color: var(--ink-demoted);
-	font-weight: 500;
 }
 .home-sub {
 	margin-top: 24px;
@@ -9531,7 +9492,7 @@ body:has(.marketing-nav) .auth-bar {
 .site-footer-col h5 {
 	font-family: var(--font-mono-stack);
 	font-size: 0.625rem;
-	font-weight: 560;
+	font-weight: 400;
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
 	color: var(--text-muted);
@@ -15680,43 +15641,24 @@ input[type="range"].fig-range {
 	font-size: 13px;
 	line-height: 1;
 	color: color-mix(in srgb, var(--text-main) 40%, transparent);
-	padding-top: 6px;
+	padding-top: 14px;
 }
 .home-qs-body {
 	min-width: 0;
 }
-.home-qs-step h3 {
-	margin: 0;
-	font-family: var(--font-sans-stack);
-	font-weight: 500;
-	font-size: 1.0625rem;
-	line-height: 1.5;
-	letter-spacing: 0;
-	display: flex;
-	align-items: baseline;
-	gap: 12px;
-	flex-wrap: wrap;
-}
-.home-qs-step h3 small {
-	font-weight: 400;
-	font-size: 0.875rem;
-	color: color-mix(in srgb, var(--text-main) 45%, transparent);
-}
 .home-qs-blurb {
-	margin: 6px 0 14px;
+	margin: 0 0 14px;
 	max-width: 60ch;
 	font-size: 0.9375rem;
 	line-height: 1.625;
 	color: color-mix(in srgb, var(--text-main) 45%, transparent);
 	text-wrap: pretty;
 }
-/* picker sits in the h3 row on wide screens */
 .home-qs-pick {
 	display: inline-flex;
 	gap: 2px;
 	padding: 2px;
-	margin-top: -30px;
-	float: right;
+	margin: 0 0 12px;
 	border: 1px solid var(--border);
 	border-radius: 999px;
 }
@@ -15749,10 +15691,6 @@ input[type="range"].fig-range {
 	.home-qs-step {
 		grid-template-columns: minmax(0, 1fr);
 		gap: 6px;
-	}
-	.home-qs-pick {
-		float: none;
-		margin: 8px 0 0;
 	}
 }
 
@@ -15806,35 +15744,4 @@ input[type="range"].fig-range {
 	top: 6px;
 	right: 8px;
 	background: transparent;
-}
-/* what the skill ran under a prompt */
-.home-qs-ran {
-	list-style: none;
-	margin: 10px 0 0;
-	padding: 0;
-	font-family: var(--font-mono-stack);
-	font-size: 13px;
-	line-height: 1.7;
-	color: color-mix(in srgb, var(--text-main) 45%, transparent);
-	overflow-wrap: anywhere;
-}
-.home-qs-ran li::before {
-	content: "↳ ";
-	color: color-mix(in srgb, var(--text-main) 25%, transparent);
-}
-.home-qs-ran li[data-ok] {
-	color: var(--green);
-}
-.home-qs-foot {
-	margin-top: 56px;
-	display: flex;
-	gap: 24px;
-	flex-wrap: wrap;
-	font-size: 0.875rem;
-	line-height: 1.625;
-}
-.home-qs-foot a {
-	color: var(--text-main);
-	text-decoration: none;
-	border-bottom: 1px solid var(--border-hover, var(--border));
 }

@@ -1,5 +1,6 @@
 import { AgentQuickstart } from "@/components/home/agent-quickstart";
 import { CtaPill } from "@/components/home/cta-pill";
+import { Notation } from "@/components/notation";
 import { socialMeta } from "@/lib/og";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -23,7 +24,15 @@ export function HomeView() {
 				<h1>
 					Decoded chain data,
 					<br />
-					<span className="home-h1-dim">in your own database.</span>
+					<Notation
+						type="highlight"
+						color="#FFD54F"
+						multiline
+						animationDuration={800}
+						delay={400}
+					>
+						on your own infra.
+					</Notation>
 				</h1>
 				<p className="home-sub">
 					Any serious app needs data a general-purpose API can&rsquo;t serve,

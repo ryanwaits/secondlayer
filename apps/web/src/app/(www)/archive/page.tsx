@@ -52,7 +52,7 @@ export default function ArchivePage() {
 				<h1>
 					The verified
 					<br />
-					<span className="home-h1-dim">Stacks archive.</span>
+					<span>Stacks archive.</span>
 				</h1>
 				<p className="home-sub">
 					Signed, contiguous from genesis, and served in the open. Checking your

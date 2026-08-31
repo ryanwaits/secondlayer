@@ -28,7 +28,6 @@ const SIZE = { width: 1200, height: 630 };
 // palette — DESIGN.md tokens (quiet install page)
 const PAPER = "#ffffff";
 const INK = "#0a0a0a";
-const MUTED2 = "#7d8187"; // headline second beat (the one picked gray)
 const HAIR = "rgba(10,10,10,0.1)";
 const ACCENT = "#ff5c0a"; // sunset
 // artifact (dimmed, recedes behind the headline) — ink alpha ramp, monochrome
@@ -806,9 +805,9 @@ function Frame(spec: CardSpec) {
 					<span
 						style={{
 							fontFamily: "Sora",
-							fontWeight: 500,
+							fontWeight: 400,
 							fontSize: size,
-							color: spec.mutedLine2 ? MUTED2 : INK,
+							color: INK,
 							lineHeight: 1.04,
 							letterSpacing: -size * 0.025,
 						}}
