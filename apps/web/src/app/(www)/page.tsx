@@ -30,6 +30,7 @@ export function HomeView() {
 						multiline
 						animationDuration={800}
 						delay={400}
+						coverage={0.72}
 					>
 						on your own infra.
 					</Notation>
