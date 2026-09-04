@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 14.0.3
+
+### Patch Changes
+
+- 0ef8483: `secondlayer index events` validates `--event-type` against the shared decoded event vocabulary locally (and lists those types in `--help`) instead of sending a typo or a missing type to the API.
+
 ## 14.0.2
 
 ### Patch Changes
