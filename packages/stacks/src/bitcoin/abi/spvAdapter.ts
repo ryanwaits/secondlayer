@@ -34,6 +34,13 @@ export const SPV_ADAPTER_ABI = {
 			},
 		},
 		{
+			// (slice? header u36 u68) → optional 32-byte merkle root
+			name: "header-merkle-root",
+			access: "read-only",
+			args: [{ name: "header", type: { buff: { length: 80 } } }],
+			outputs: { optional: { buff: { length: 32 } } },
+		},
+		{
 			// (verify-merkle-proof leaf-hash root-hash tx-index tx-count sibling-hashes)
 			name: "verify-merkle",
 			access: "read-only",

@@ -49,4 +49,17 @@ describe("root entry import graph", () => {
 		expect(bare.has("ai")).toBe(true);
 		expect(bare.has("zod")).toBe(true);
 	});
+
+	test("root never loads clarinet-sdk; /simnet only pulls @stacks/transactions", async () => {
+		const root = await importGraph(resolve(import.meta.dir, "../index.ts"));
+		expect(root.has("@stacks/clarinet-sdk")).toBe(false);
+		expect(root.has("@stacks/transactions")).toBe(false);
+		const simnet = await importGraph(
+			resolve(import.meta.dir, "../simnet/index.ts"),
+		);
+		// Simnet is a type-only import from clarinet-sdk; the caller constructs
+		// the session. Runtime conversion uses @stacks/transactions CVs.
+		expect(simnet.has("@stacks/clarinet-sdk")).toBe(false);
+		expect(simnet.has("@stacks/transactions")).toBe(true);
+	});
 });

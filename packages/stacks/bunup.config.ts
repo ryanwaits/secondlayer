@@ -86,5 +86,17 @@ const config: DefineConfigItem[] = defineConfig([
 		minify: false,
 		external: ["ai", "zod"],
 	},
+	{
+		name: "simnet",
+		clean: false,
+		entry: ["src/simnet/index.ts"],
+		outDir: "dist/src/simnet",
+		format: ["esm", "cjs"],
+		dts: true,
+		splitting: false,
+		sourcemap: "linked",
+		minify: false,
+		external: ["@stacks/clarinet-sdk", "@stacks/transactions"],
+	},
 ]) as DefineConfigItem[];
 export default config;

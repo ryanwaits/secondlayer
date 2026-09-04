@@ -113,6 +113,11 @@
 			"types": "./dist/src/filters/index.d.ts",
 			"import": "./dist/src/filters/index.js",
 			"require": "./dist/src/filters/index.cjs"
+		},
+		"./simnet": {
+			"types": "./dist/src/simnet/index.d.ts",
+			"import": "./dist/src/simnet/index.js",
+			"require": "./dist/src/simnet/index.cjs"
 		}
 	},
 	"files": ["dist"],
@@ -133,11 +138,19 @@
 		"zod": "^4.3.6"
 	},
 	"peerDependencies": {
+		"@stacks/clarinet-sdk": "^3",
+		"@stacks/transactions": "^7",
 		"ai": "^6",
 		"typescript": "^5",
 		"zod": "^4"
 	},
 	"peerDependenciesMeta": {
+		"@stacks/clarinet-sdk": {
+			"optional": true
+		},
+		"@stacks/transactions": {
+			"optional": true
+		},
 		"ai": {
 			"optional": true
 		},

@@ -40,6 +40,7 @@ const balance = await client.getBalance({
 | `@secondlayer/stacks/pox5` | PoX-5 Bitcoin Staking (SIP-045) — bonds, staking, lockup scripts, signer grants |
 | `@secondlayer/stacks/sbtc` | `sbtc()` client extension: sBTC deposits, balances, withdrawals |
 | `@secondlayer/stacks/filters` | Event and transaction filter builders, re-exported from the root |
+| `@secondlayer/stacks/simnet` | Clarinet simnet transport — same `getContract` client against an in-process VM |
 
 ### Frozen modules
 
