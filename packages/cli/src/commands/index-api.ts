@@ -1,5 +1,9 @@
 import { resolve } from "node:path";
 import { Index } from "@secondlayer/sdk";
+import {
+	DECODED_EVENT_TYPES,
+	type DecodedEventType,
+} from "@secondlayer/shared";
 import type { Command } from "commander";
 import { writeTextFile } from "../lib/fs.ts";
 import {
@@ -10,6 +14,39 @@ import {
 	writeData,
 } from "../lib/output.ts";
 import { resolveApiUrl, resolveEnvKey } from "../lib/resolve-auth.ts";
+
+// Single-sourced from @secondlayer/shared so the CLI can't advertise a stale
+// subset of the Index event vocab (drift test in index-vocab.test.ts).
+export const VALID_INDEX_TYPES: readonly DecodedEventType[] =
+	DECODED_EVENT_TYPES;
+
+/** One decoded event type for `index events`. Index pagination is keyed per
+ *  type, so a comma list is refused (use `streams events` for a multi-type feed). */
+export function parseIndexEventType(
+	eventType?: string,
+	types?: string,
+): DecodedEventType {
+	if (eventType !== undefined && types !== undefined) {
+		throw new Error("--event-type and --types are mutually exclusive");
+	}
+	const raw = (eventType ?? types)?.trim();
+	if (!raw) {
+		throw new Error(
+			`--event-type is required (one of: ${VALID_INDEX_TYPES.join(", ")})`,
+		);
+	}
+	if (raw.includes(",")) {
+		throw new Error(
+			"--types takes ONE value on Index reads. Pagination is keyed per event type; make one request per type (or use `secondlayer streams events` for a multi-type feed)",
+		);
+	}
+	if (!VALID_INDEX_TYPES.includes(raw as DecodedEventType)) {
+		throw new Error(
+			`invalid --event-type "${raw}"; expected one of: ${VALID_INDEX_TYPES.join(", ")}`,
+		);
+	}
+	return raw as DecodedEventType;
+}
 
 /**
  * Index reads are keyless on /v1. Pass a key when present so the request
@@ -157,7 +194,10 @@ export function registerIndexCommand(program: Command): void {
 		.description(
 			"List decoded events by type (stx_*, ft/nft mint/burn, print, …)",
 		)
-		.option("--event-type <type>", "Decoded event type")
+		.option(
+			"--event-type <type>",
+			`decoded event type (${VALID_INDEX_TYPES.join(", ")})`,
+		)
 		.option(
 			"--types <type>",
 			"alias for --event-type, ONE value (the Streams spelling)",
@@ -169,8 +209,7 @@ export function registerIndexCommand(program: Command): void {
 			try {
 				emit(
 					await client().events.list({
-						// biome-ignore lint/suspicious/noExplicitAny: event_type is validated server-side
-						eventType: (o.eventType ?? o.types) as any,
+						eventType: parseIndexEventType(o.eventType, o.types),
 						...rangeParams(o),
 						sender: o.sender,
 						recipient: o.recipient,
