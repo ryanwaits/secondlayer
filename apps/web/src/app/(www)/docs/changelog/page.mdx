@@ -6,6 +6,18 @@ keys, `402` past the free window. That service is withdrawn; on a self-hosted
 instance reads are yours and unmetered, and only archive
 bootstrap/backfill/reindex draws [credits](/docs/authentication#archive-credits).
 
+## Stacks SDK — September 2026
+
+### Same `getContract` client on Clarinet simnet
+
+Point `createPublicClient` at a Clarinet session with `simnet()` from `@secondlayer/stacks/simnet` and keep using `getContract` the way you do on mainnet. The root SDK still does not load clarinet-sdk; that entry is the only one that talks to the VM.
+
+## CLI — September 2026
+
+### `testing()` is gone; simnet is a client
+
+`testing()` no longer generates Clarinet helpers. Import `@secondlayer/stacks/simnet`, hand it your session, and call `getContract`. `clarinet()` now depends on `@stacks/clarinet-sdk`.
+
 ## CLI — August 2026
 
 ### Setup that lands in the right database, and a bootstrap that finishes

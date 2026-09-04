@@ -1,5 +1,16 @@
 # @secondlayer/cli
 
+## 14.1.0
+
+### Minor Changes
+
+- 5362b71: Remove the `testing()` codegen plugin. Clarinet simnet tests use `getContract` with `@secondlayer/stacks/simnet`. The `clarinet()` plugin now depends on `@stacks/clarinet-sdk`.
+
+### Patch Changes
+
+- Updated dependencies [d2889e1]
+  - @secondlayer/stacks@5.1.0
+
 ## 14.0.3
 
 ### Patch Changes
