@@ -161,4 +161,5 @@ export {
 	HttpRequestError,
 	TimeoutError,
 	MalformedResponseError,
+	ReadContractError,
 } from "./errors/index.ts";

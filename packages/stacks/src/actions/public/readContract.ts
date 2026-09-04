@@ -2,6 +2,10 @@ import { deserializeCVBytes } from "../../clarity/deserialize.ts";
 import { serializeCVBytes } from "../../clarity/serialize.ts";
 import type { ClarityValue } from "../../clarity/types.ts";
 import type { Client } from "../../clients/types.ts";
+import {
+	MalformedResponseError,
+	ReadContractError,
+} from "../../errors/response.ts";
 import { parseContractId } from "../../utils/address.ts";
 import { bytesToHex, with0x } from "../../utils/encoding.ts";
 
@@ -42,7 +46,12 @@ export async function readContract<T extends ClarityValue = ClarityValue>(
 	);
 
 	if (data.okay) {
+		if (typeof data.result !== "string") {
+			throw new MalformedResponseError(
+				`readContract: /v2/contracts/call-read response is missing "result"`,
+			);
+		}
 		return deserializeCVBytes<T>(data.result);
 	}
-	throw new Error(data.cause ?? "Read-only call failed");
+	throw new ReadContractError(data.cause ?? "Read-only call failed");
 }

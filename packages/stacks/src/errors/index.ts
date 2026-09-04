@@ -11,6 +11,6 @@ export {
 } from "./transaction.ts";
 export { HttpRequestError } from "./http.ts";
 export { TimeoutError } from "./transport.ts";
-export { MalformedResponseError } from "./response.ts";
+export { MalformedResponseError, ReadContractError } from "./response.ts";
 export { WebSocketError } from "./websocket.ts";
 export { SimulationError } from "./simulation.ts";

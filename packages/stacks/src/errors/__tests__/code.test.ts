@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { BaseError } from "../base.ts";
 import { HttpRequestError } from "../http.ts";
-import { MalformedResponseError } from "../response.ts";
+import { MalformedResponseError, ReadContractError } from "../response.ts";
 import { TimeoutError } from "../transport.ts";
 
 describe("error codes", () => {
@@ -14,6 +14,7 @@ describe("error codes", () => {
 		expect(new MalformedResponseError("x").code).toBe(
 			"MALFORMED_RESPONSE_ERROR",
 		);
+		expect(new ReadContractError("x").code).toBe("READ_CONTRACT_ERROR");
 		expect(new BaseError("x").code).toBe("STACKS_ERROR");
 	});
 
