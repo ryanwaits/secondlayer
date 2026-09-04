@@ -54,9 +54,17 @@
 		"smol-toml": "^1.6.1",
 		"zod": "^4.3.6"
 	},
+	"peerDependencies": {
+		"@stacks/clarinet-sdk": "^3"
+	},
+	"peerDependenciesMeta": {
+		"@stacks/clarinet-sdk": {
+			"optional": true
+		}
+	},
 	"devDependencies": {
 		"@antfu/ni": "^24.4.0",
-		"@hirosystems/clarinet-sdk": "^3.0.2",
+		"@stacks/clarinet-sdk": "3.21.1",
 		"@tanstack/react-query": "^5.77.0",
 		"@types/bun": "^1.1.14",
 		"@types/react": "^19.1.5",

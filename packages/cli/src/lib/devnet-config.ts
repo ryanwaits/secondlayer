@@ -4,7 +4,7 @@ import { parse as parseToml } from "smol-toml";
 
 /**
  * Helpers for wiring a developer's Clarinet project to a local Secondlayer
- * indexer. We never depend on `@hirosystems/clarinet-sdk` here — the only
+ * indexer. We never depend on `@stacks/clarinet-sdk` here — the only
  * touch-point is reading `Clarinet.toml` to locate the project and editing
  * `settings/Devnet.toml` so the devnet's stacks-node forwards block events to
  * our indexer's event observer.

@@ -83,6 +83,3 @@ export type { ClarinetPluginOptions } from "./clarinet/index";
 
 export { react } from "./react/index";
 export type { ReactPluginOptions } from "./react/index";
-
-export { testing } from "./testing/index";
-export type { TestingPluginOptions } from "./testing/index";

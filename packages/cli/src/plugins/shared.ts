@@ -11,8 +11,8 @@ export interface ContractFilterOptions {
 }
 
 /**
- * Exact-match include/exclude filter used by the clarinet, actions, and
- * testing plugins to scope which contracts they process.
+ * Exact-match include/exclude filter used by the clarinet and react
+ * plugins to scope which contracts they process.
  */
 export function matchesContractFilters(
 	name: string,

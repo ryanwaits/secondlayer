@@ -3,9 +3,9 @@
  * Generates type-safe contract interfaces from local Clarity contracts using Clarinet SDK
  */
 
-import { initSimnet } from "@hirosystems/clarinet-sdk";
 import { toCamelCase } from "@secondlayer/stacks/clarity";
 import { normalizeAbi } from "@secondlayer/stacks/clarity";
+import { initSimnet } from "@stacks/clarinet-sdk";
 import { generateContractInterface } from "../../generators/contract";
 import type {
 	GenerateContext,

@@ -8,7 +8,7 @@ const sharedConfig = {
 		"esbuild",
 		"@biomejs/js-api",
 		"@biomejs/wasm-nodejs",
-		"@hirosystems/clarinet-sdk",
+		"@stacks/clarinet-sdk",
 		"@secondlayer/clarity-types",
 		// OpenTUI's core is a native (Zig) addon loaded from node_modules at
 		// runtime — bundling it would break the addon's own path resolution.
