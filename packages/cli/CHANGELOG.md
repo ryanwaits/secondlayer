@@ -1,5 +1,13 @@
 # @secondlayer/cli
 
+## 14.0.1
+
+### Patch Changes
+
+- Read Clarity source with a real s-expression parser. `codegen contracts <file.clar>` previously captured only a function's first argument and defaulted unknown types to `uint128`; it now reads every argument with its declared type, keeps real `buff`/`string-ascii`/`string-utf8` lengths, handles nested `optional`/`list`/`response`/`tuple` and trait references, and picks up `define-map`, `define-data-var`, and token definitions. Return types are not written down in Clarity source, so they now generate as `any` instead of a fabricated `bool` — use a deployed contract id or the `clarinet()` plugin for exact returns.
+- Updated dependencies
+  - @secondlayer/stacks@5.0.1
+
 ## 14.0.0
 
 ### Major Changes

@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 5.0.1
+
+### Patch Changes
+
+- `normalizeAbi` no longer drops `fungible_tokens`, `non_fungible_tokens`, `implemented_traits`, or `defined_traits`. Losing them meant a scaffolded SIP-010/SIP-009 subgraph fell back to a bare contract id for `assetIdentifier`, which matches zero rows, and left the token/trait type extractors resolving to `never`.
+
 ## 5.0.0
 
 ### Major Changes
