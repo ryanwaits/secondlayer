@@ -65,6 +65,36 @@ describe("standard-aware scaffolder", () => {
 		expect(out).toContain(`${CID}::token`);
 	});
 
+	test("uppercase after a hyphen still yields valid identifiers and runner-matching keys", async () => {
+		// Clarity allows uppercase in names (`transfer-STX`). Source and handler
+		// keys have to be valid JS, and `event.input.*` has to match the key the
+		// runner builds — both come from @secondlayer/stacks' toCamelCase.
+		const abi: AbiContract = {
+			functions: [
+				{
+					name: "transfer-STX",
+					access: "public",
+					args: [
+						{ name: "amount", type: "uint128" },
+						{ name: "to-BTC-addr", type: "principal" },
+					],
+					outputs: "bool",
+				},
+			],
+		};
+		const out = await generateSubgraphScaffold({
+			contractId: "SP1.bridge",
+			abi,
+			functions: ["transfer-STX"],
+		});
+
+		expect(out).toContain("transferSTX:");
+		expect(out).toContain("event.input.toBTCAddr");
+		// The old local camelizer left the hyphen in place, which does not parse.
+		expect(out).not.toContain("transfer-STX:");
+		expect(out).not.toContain("event.input.to-");
+	});
+
 	test("--functions → typed table per named function", async () => {
 		const out = await generateSubgraphScaffold({
 			contractId: CID,

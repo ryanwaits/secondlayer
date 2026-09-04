@@ -1,6 +1,6 @@
 import { generateTraitSubgraph } from "@secondlayer/scaffold";
 import type { AbiContract, SipStandard } from "@secondlayer/stacks/clarity";
-import { classifyContract } from "@secondlayer/stacks/clarity";
+import { classifyContract, toCamelCase } from "@secondlayer/stacks/clarity";
 import { formatCode } from "../utils/format.ts";
 import { clarityTypeToSubgraphColumn } from "./clarity-to-subgraph.ts";
 
@@ -17,10 +17,6 @@ export interface SubgraphScaffoldInput {
 	functions?: string[];
 	/** Trait-scoped scaffold: index every contract conforming to this standard. */
 	trait?: ScaffoldTrait;
-}
-
-function toCamelCase(str: string): string {
-	return str.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
 }
 
 function snake(str: string): string {
