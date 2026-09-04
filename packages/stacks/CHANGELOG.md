@@ -1,5 +1,12 @@
 # @secondlayer/stacks
 
+## 5.1.1
+
+### Patch Changes
+
+- 1c840af: `getNonce` percent-encodes the address and throws `MalformedResponseError` when `/v2/accounts` omits `nonce`, matching `getBalance` / `getAccountInfo`.
+- 12c57a6: `readContract` throws `ReadContractError` (`code: READ_CONTRACT_ERROR`) when `/v2/contracts/call-read` answers `okay: false`, and `MalformedResponseError` when `okay` is true but `result` is missing. Same message as before (the node cause). Exported from `@secondlayer/stacks`.
+
 ## 5.1.0
 
 ### Minor Changes

@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/stacks",
-	"version": "5.1.0",
+	"version": "5.1.1",
 	"description": "Typed Stacks client for TypeScript: read contracts, decode Clarity, build and send transactions.",
 	"license": "MIT",
 	"repository": {
