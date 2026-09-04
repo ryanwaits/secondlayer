@@ -118,9 +118,8 @@ export default defineConfig({
 |---|---|
 | `clarinet()` | Real ABIs from your Clarinet project via Simnet; typed clients for `[project.requirements]` dependency contracts too (`includeRequirements: false` to opt out) |
 | `react()` | Typed React hooks per contract |
-| `testing()` | Clarinet SDK test helpers |
 
-Named aliases per function (`TokenTransferArgs`) plus a `TypedAbi` const. Feed it to `getContract` from [`@secondlayer/stacks`](/docs/stacks#also-in-the-box).
+Named aliases per function (`TokenTransferArgs`) plus a `TypedAbi` const. Feed it to `getContract` from [`@secondlayer/stacks`](/docs/stacks#also-in-the-box); Clarinet tests use the [simnet transport](/docs/stacks#test-against-clarinet-simnet).
 
 ## Frozen features
 

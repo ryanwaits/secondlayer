@@ -185,6 +185,11 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 			"Bound pox-5 staking calls before Epoch 4.0.",
 			"/secondlayer Show me how to attach `staking-postcondition` (bound the STX a `stake`/`register-for-bond` call may lock) and `pox-postcondition` (`will-not-perform` on other PoX state) from `@secondlayer/stacks@2.10.0`, and explain what activates at the Epoch 4.0 fork vs what I can ship today.",
 		),
+		card(
+			"Same client on Clarinet simnet",
+			"getContract against an in-process VM.",
+			"/secondlayer Wire `@secondlayer/stacks/simnet`: `initSimnet`, `createPublicClient({ chain: simnetChain, transport: simnet(session) })`, then `getContract` for a typed read. Note no `/extended`, watches throw, fees fall back to `'min'`.",
+		),
 	],
 
 	"/docs/pox5": [
@@ -255,12 +260,12 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Run it on-chain in simnet",
 			"Exercise the SIP-044 built-ins with no node.",
-			"/secondlayer Help me exercise the SIP-044 built-ins locally with no node: set up a Clarinet ≥ 3.21 project (boots simnet at Epoch 4.0), add a read-only `spv-adapter` contract that wraps `get-bitcoin-tx-output?` / `verify-merkle-proof` at `clarity_version = 6`, then drive it from TypeScript with `@stacks/clarinet-sdk` plus this module's `encodeMerkleProofArgs` and `decodeTxOutput`.",
+			'/secondlayer Help me exercise the SIP-044 built-ins locally with no node: Clarinet ≥ 3.21 (boots simnet at Epoch 4.0), add a read-only `spv-adapter` at `clarity_version = 6` / `epoch = "4.0"`, then `createPublicClient({ chain: simnetChain, transport: simnet(session) })` from `@secondlayer/stacks/simnet` and `getContract` with `SPV_ADAPTER_ABI` from `@secondlayer/stacks/bitcoin`.',
 		),
 		card(
 			"Scaffold a Clarinet harness",
 			"Have an agent stand up the whole simnet flow.",
-			'/secondlayer Assuming Clarinet ≥ 3.21 is installed, scaffold a local SPV harness for me: run `clarinet new spv-demo` and `clarinet contract new spv-adapter`, set that contract to `clarity_version = 6` / `epoch = "4.0"` in `Clarinet.toml`, and make it a read-only wrapper over `get-bitcoin-tx-output?` / `verify-merkle-proof`. Then write a `bun` script that builds a real Bitcoin proof with `@secondlayer/stacks/bitcoin` (`buildTxProof` + `encodeMerkleProofArgs`) and verifies it in simnet via `@stacks/clarinet-sdk` — mirror the sbtc-l1-proof example.',
+			'/secondlayer Assuming Clarinet ≥ 3.21 is installed, scaffold a local SPV harness: `clarinet new spv-demo`, `clarinet contract new spv-adapter`, set `clarity_version = 6` / `epoch = "4.0"` in `Clarinet.toml`, and wrap `get-bitcoin-tx-output?` / `verify-merkle-proof`. Then a `bun` script that builds a Bitcoin proof with `@secondlayer/stacks/bitcoin` (`buildTxProof` + `encodeMerkleProofArgs`) and verifies it via `@secondlayer/stacks/simnet` + `getContract` with `SPV_ADAPTER_ABI`.',
 		),
 	],
 

@@ -225,7 +225,7 @@ export default defineConfig({
 | `clarinet()` | Parse local Clarinet project — includes `[project.requirements]` dependency contracts too (`includeRequirements: false` to opt out) |
 | `react()` | Typed React Query hooks |
 
-For Clarinet simnet tests, use `getContract` with `@secondlayer/stacks/simnet` rather than generated helpers.
+Clarinet tests: `getContract` with `@secondlayer/stacks/simnet`.
 
 Generated output includes named per-function type aliases (`TokenTransferArgs`,
 `TokenTransferResult`), a `TokenTypes` bundle, and a `tokenAbi` const branded

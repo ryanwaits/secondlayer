@@ -36,6 +36,38 @@ const txid = await client.callContract({
 
 Fees estimated, nonces managed.
 
+## Test against Clarinet simnet
+
+Same `getContract` client against an in-process Clarinet VM (`@stacks/clarinet-sdk` is an optional peer of `@secondlayer/stacks/simnet`).
+
+```ts
+import { initSimnet } from "@stacks/clarinet-sdk";
+import { createPublicClient } from "@secondlayer/stacks";
+import { getContract } from "@secondlayer/stacks/actions";
+import { SIP010_ABI } from "@secondlayer/stacks/clarity";
+import { simnet, simnetChain } from "@secondlayer/stacks/simnet";
+
+const session = await initSimnet("./Clarinet.toml");
+const client = createPublicClient({
+  chain: simnetChain,
+  transport: simnet(session),
+});
+const deployer = session.getAccounts().get("deployer")!;
+const token = getContract({
+  client,
+  address: deployer,
+  name: "usda-token",
+  abi: SIP010_ABI,
+});
+await token.read.getBalance({ account: deployer });
+```
+
+| Limit | Behavior |
+| --- | --- |
+| `/extended` | not served |
+| watches | throw `SimnetUnsupportedError` |
+| fees | `NoEstimateAvailable`; wallet actions use `'min'` |
+
 ## Post-conditions
 
 On-chain assertions the network enforces: move more than you allowed and the transaction aborts instead of settling. Attach `postConditions` to any `callContract`, `transferStx`, or `deployContract` call (mode defaults to `deny`).
