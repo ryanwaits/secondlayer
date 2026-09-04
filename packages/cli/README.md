@@ -196,6 +196,12 @@ secondlayer codegen contracts "./contracts/*.clar" -o ./src/generated.ts
 secondlayer codegen contracts --watch   # regenerate on .clar / config / Clarinet.toml changes
 ```
 
+Where the types come from matters. A bare `.clar` path is read as source, and
+source only declares argument, map, and data-var types — a function's return
+type comes out of Clarity's type checker, so it generates as `any`. A deployed
+contract id or the `clarinet()` plugin (below) carries a real ABI, so returns
+are exact too. Prefer those where you can.
+
 Config-driven:
 
 ```bash

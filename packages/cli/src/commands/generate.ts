@@ -115,6 +115,16 @@ async function buildConfigFromInputs(
 		);
 	}
 
+	// Return types are not written down in Clarity source — they come out of the
+	// type checker — so reading a .clar file can only report `any` for them.
+	if (parsedInputs.files.length > 0) {
+		console.warn(
+			chalk.yellow(
+				"⚠️  Return types can't be read from Clarity source and will be `any`.\n   Use the clarinet() plugin or a deployed contract id for exact types.",
+			),
+		);
+	}
+
 	// Process local .clar files
 	for (const file of parsedInputs.files) {
 		const abi = await parseClarityFile(file);
