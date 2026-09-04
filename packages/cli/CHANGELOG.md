@@ -1,5 +1,13 @@
 # @secondlayer/cli
 
+## 14.0.2
+
+### Patch Changes
+
+- `subgraphs scaffold` now camelizes identifiers with the same helper the subgraph runner uses. It previously used a private copy of the runner's data-key regex, which left the hyphen in place for names carrying an uppercase letter after one (`transfer-STX`, `get-BTC-price`) and did not guard a leading digit. That emitted source/handler keys and `event.input.*` accesses that were not valid JavaScript, and the formatter passed them through, so the command wrote a broken file and exited 0.
+- Updated dependencies
+  - @secondlayer/shared@11.2.1
+
 ## 14.0.1
 
 ### Patch Changes

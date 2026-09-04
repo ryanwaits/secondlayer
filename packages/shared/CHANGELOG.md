@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 11.2.1
+
+### Patch Changes
+
+- Add `requireInternalIndexApiKey()` to `@secondlayer/shared/index-internal-auth`, mirroring the existing Streams guard. A missing internal Index credential is not an error on its own — the read just goes out anonymously — so on a platform-mode instance it stays invisible until a consumer's cursor falls out of the 24h free window and every read starts returning 402. Callers that seek older history can now fail at startup instead.
+
 ## 11.2.0
 
 ### Minor Changes
