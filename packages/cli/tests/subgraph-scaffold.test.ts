@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { SIP009_ABI, SIP010_ABI } from "@secondlayer/stacks/clarity";
+import {
+	SIP009_ABI,
+	SIP010_ABI,
+	normalizeAbi,
+} from "@secondlayer/stacks/clarity";
 import type { AbiContract } from "@secondlayer/stacks/clarity";
 import { generateSubgraphScaffold } from "../src/generators/subgraph-scaffold.ts";
 
@@ -43,6 +47,22 @@ describe("standard-aware scaffolder", () => {
 		expect(out).toContain("ft_transfer");
 		expect(out).toContain("sip-010");
 		expect(out).not.toContain("contractId"); // no fixed contract
+	});
+
+	test("asset id survives the fetched-ABI path, which goes through normalizeAbi", async () => {
+		// `subgraphs scaffold <contract-id>` fetches a raw ABI and normalizes it.
+		// A bare contract id here is not a valid asset identifier and matches
+		// zero rows, so the `::asset` suffix has to survive normalization.
+		const raw = {
+			functions: SIP010_ABI.functions,
+			fungible_tokens: [{ name: "token" }],
+		};
+		const out = await generateSubgraphScaffold({
+			contractId: CID,
+			abi: normalizeAbi(raw),
+		});
+
+		expect(out).toContain(`${CID}::token`);
 	});
 
 	test("--functions → typed table per named function", async () => {

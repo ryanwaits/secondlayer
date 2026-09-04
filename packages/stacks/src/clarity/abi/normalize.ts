@@ -17,7 +17,11 @@
 import type {
 	AbiContract,
 	AbiFunction,
+	AbiFungibleToken,
 	AbiMap,
+	AbiNonFungibleToken,
+	AbiTraitDefinition,
+	AbiTraitFunction,
 	AbiVariable,
 } from "./contract.ts";
 import type { AbiType } from "./types.ts";
@@ -189,6 +193,44 @@ export function normalizeVariable(
 }
 
 /**
+ * Normalize a fungible-token definition. Only the name is carried on the wire.
+ */
+export function normalizeFungibleToken(
+	token: Record<string, unknown>,
+): AbiFungibleToken {
+	return { name: token.name as string };
+}
+
+/**
+ * Normalize a non-fungible-token definition, including its identifier type.
+ */
+export function normalizeNonFungibleToken(
+	token: Record<string, unknown>,
+): AbiNonFungibleToken {
+	return { name: token.name as string, type: normalizeType(token.type) };
+}
+
+/**
+ * Normalize a `define-trait` definition. A trait cannot declare private
+ * functions, so any that show up are dropped rather than cast through.
+ */
+export function normalizeTraitDefinition(
+	trait: Record<string, unknown>,
+): AbiTraitDefinition {
+	const rawFunctions = Array.isArray(trait.functions) ? trait.functions : [];
+	const functions: AbiTraitFunction[] = [];
+
+	for (const func of rawFunctions) {
+		if (typeof func !== "object" || func === null) continue;
+		const normalized = normalizeFunction(func as Record<string, unknown>);
+		if (normalized.access === "private") continue;
+		functions.push(normalized as AbiTraitFunction);
+	}
+
+	return { name: trait.name as string, functions };
+}
+
+/**
  * Normalize an entire ABI from various sources to consistent internal format
  *
  * This handles ABIs from:
@@ -206,6 +248,10 @@ export function normalizeAbi(abi: unknown): AbiContract {
 	const functions: AbiFunction[] = [];
 	const maps: AbiMap[] = [];
 	const variables: AbiVariable[] = [];
+	const fungibleTokens: AbiFungibleToken[] = [];
+	const nonFungibleTokens: AbiNonFungibleToken[] = [];
+	const implementedTraits: string[] = [];
+	const definedTraits: AbiTraitDefinition[] = [];
 
 	// Normalize functions
 	if (Array.isArray(abiObj.functions)) {
@@ -234,9 +280,57 @@ export function normalizeAbi(abi: unknown): AbiContract {
 		}
 	}
 
+	// Token and trait definitions are declarations, not shapes to convert — but
+	// dropping them makes a normalized ABI lossy, and callers do read them (an
+	// `ft_transfer` filter needs `contract::asset`, not just the contract).
+	if (Array.isArray(abiObj.fungible_tokens)) {
+		for (const token of abiObj.fungible_tokens) {
+			if (typeof token === "object" && token !== null) {
+				fungibleTokens.push(
+					normalizeFungibleToken(token as Record<string, unknown>),
+				);
+			}
+		}
+	}
+
+	if (Array.isArray(abiObj.non_fungible_tokens)) {
+		for (const token of abiObj.non_fungible_tokens) {
+			if (typeof token === "object" && token !== null) {
+				nonFungibleTokens.push(
+					normalizeNonFungibleToken(token as Record<string, unknown>),
+				);
+			}
+		}
+	}
+
+	// Neither the Clarinet SDK's `IContractInterface` nor the Hiro interface
+	// response carries traits today; these two branches keep an ABI that does
+	// have them (a hand-written config, a source-read ABI) round-tripping.
+	if (Array.isArray(abiObj.implemented_traits)) {
+		for (const trait of abiObj.implemented_traits) {
+			if (typeof trait === "string") implementedTraits.push(trait);
+		}
+	}
+
+	if (Array.isArray(abiObj.defined_traits)) {
+		for (const trait of abiObj.defined_traits) {
+			if (typeof trait === "object" && trait !== null) {
+				definedTraits.push(
+					normalizeTraitDefinition(trait as Record<string, unknown>),
+				);
+			}
+		}
+	}
+
 	return {
 		functions,
 		maps: maps.length > 0 ? maps : undefined,
 		variables: variables.length > 0 ? variables : undefined,
+		fungible_tokens: fungibleTokens.length > 0 ? fungibleTokens : undefined,
+		non_fungible_tokens:
+			nonFungibleTokens.length > 0 ? nonFungibleTokens : undefined,
+		implemented_traits:
+			implementedTraits.length > 0 ? implementedTraits : undefined,
+		defined_traits: definedTraits.length > 0 ? definedTraits : undefined,
 	};
 }
