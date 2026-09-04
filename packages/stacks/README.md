@@ -115,10 +115,10 @@ Status reads are pluggable, like nonce sources: the default reads `/extended/v1/
 
 ## Errors
 
-The HTTP transport throws a typed `HttpRequestError` (`.status`, `.url`, `.method` attached) on any non-2xx response instead of handing back the error body as if it were a successful result, and it retries `429`s, not just `5xx`/network errors. One `timeout` covers each attempt end to end, headers and body, so a stalled response rejects with `TimeoutError` (`.url`, `.method`, `.timeout`, `.attempt`) instead of hanging. Pass `signal` on any request to cancel from your side; a caller abort is never retried. Broadcasts are sent once (`retryCount: 0`): re-posting a transaction the node may already hold would surface as a nonce conflict, so a timed-out broadcast checks whether the node knows the tx before failing. `MalformedResponseError` throws from `getBalance`, `getAccountInfo`, `getMapEntry`, `getBlockHeight`, and `getBurnBlockHeight` when the node's response is missing an expected field, instead of failing with an opaque native error (`BigInt(undefined)` and friends). Both are exported from `@secondlayer/stacks`. Every error carries a stable `code` (`HTTP_REQUEST_ERROR`, `TIMEOUT_ERROR`, `MALFORMED_RESPONSE_ERROR`, ...) that also appears in `toJSON()`, so a handler can branch on it without an `instanceof` chain and without parsing a message that may be reworded.
+The HTTP transport throws a typed `HttpRequestError` (`.status`, `.url`, `.method` attached) on any non-2xx response instead of handing back the error body as if it were a successful result, and it retries `429`s, not just `5xx`/network errors. One `timeout` covers each attempt end to end, headers and body, so a stalled response rejects with `TimeoutError` (`.url`, `.method`, `.timeout`, `.attempt`) instead of hanging. Pass `signal` on any request to cancel from your side; a caller abort is never retried. Broadcasts are sent once (`retryCount: 0`): re-posting a transaction the node may already hold would surface as a nonce conflict, so a timed-out broadcast checks whether the node knows the tx before failing. `MalformedResponseError` throws from `getBalance`, `getAccountInfo`, `getNonce`, `getMapEntry`, `getBlockHeight`, `getBurnBlockHeight`, and `readContract` when the node's response is missing an expected field, instead of failing with an opaque native error (`BigInt(undefined)` and friends). `readContract` (and `getContract().read`) throws `ReadContractError` when the node answers `okay: false`; the message is the node's cause. Both are exported from `@secondlayer/stacks`. Every error carries a stable `code` (`HTTP_REQUEST_ERROR`, `TIMEOUT_ERROR`, `MALFORMED_RESPONSE_ERROR`, `READ_CONTRACT_ERROR`, ...) that also appears in `toJSON()`, so a handler can branch on it without an `instanceof` chain and without parsing a message that may be reworded.
 
 ```ts
-import { BaseError, HttpRequestError, MalformedResponseError, TimeoutError } from "@secondlayer/stacks";
+import { BaseError, HttpRequestError, MalformedResponseError, ReadContractError, TimeoutError } from "@secondlayer/stacks";
 
 try {
   await client.getBalance({ address });
@@ -126,6 +126,7 @@ try {
   if (e instanceof HttpRequestError) e.status; // non-2xx from the node/API
   if (e instanceof TimeoutError) e.url; // headers or body did not arrive in time
   if (e instanceof MalformedResponseError) { /* response shape didn't match */ }
+  if (e instanceof ReadContractError) e.shortMessage; // call-read okay: false, node cause
   if (e instanceof BaseError) e.code; // "TIMEOUT_ERROR", stable across releases and minification (derived from `name`, not the class)
 }
 ```

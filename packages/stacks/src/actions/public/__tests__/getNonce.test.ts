@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { Client } from "../../../clients/types.ts";
+import { MalformedResponseError } from "../../../errors/response.ts";
 import { getNonce } from "../getNonce.ts";
 
 function mockClient(resp: unknown): Client {
@@ -17,14 +18,25 @@ describe("getNonce", () => {
 			await getNonce(mockClient({ nonce: "7" }), { address: "SP..." }),
 		).toBe(7n);
 	});
-	it("throws a clear error on a missing nonce", async () => {
+	it("throws MalformedResponseError when nonce is missing", async () => {
 		await expect(
 			getNonce(mockClient({}), { address: "SP..." }),
-		).rejects.toThrow(/getNonce:/);
+		).rejects.toThrow(MalformedResponseError);
 	});
-	it("throws a clear error on a null nonce", async () => {
+	it("throws MalformedResponseError when nonce is null", async () => {
 		await expect(
 			getNonce(mockClient({ nonce: null }), { address: "SP..." }),
-		).rejects.toThrow(/getNonce:/);
+		).rejects.toThrow(MalformedResponseError);
+	});
+	it("percent-encodes the address in the path", async () => {
+		const paths: string[] = [];
+		const client = {
+			request: async (path: string) => {
+				paths.push(path);
+				return { nonce: 1 };
+			},
+		} as unknown as Client;
+		await getNonce(client, { address: "SP../admin" });
+		expect(paths).toEqual([`/v2/accounts/${encodeURIComponent("SP../admin")}`]);
 	});
 });

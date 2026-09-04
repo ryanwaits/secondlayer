@@ -427,12 +427,12 @@ All methods are on the `PublicActions` shape attached by `publicActions` decorat
 
 | Method | Signature | Description |
 | --- | --- | --- |
-| `getNonce` | `(p: { address: string }) => Promise<bigint>` | Account nonce from `/v2/accounts/{addr}`. |
+| `getNonce` | `(p: { address: string }) => Promise<bigint>` | Account nonce from `/v2/accounts/{addr}`. Throws `MalformedResponseError` if `nonce` is missing. |
 | `getBalance` | `(p: { address: string }) => Promise<bigint>` | STX balance (micro-STX). |
 | `getAccountInfo` | `(p: { address: string }) => Promise<AccountInfo>` | Balance + nonce + proofs (`?proof=1`). |
 | `getBlock` | `(p?: { height?: number; hash?: string }) => Promise<any>` | One block object by height/hash, or the chain tip if neither (the tip read unwraps the extended API's `results` list; `null` when empty). |
 | `getBlockHeight` | `() => Promise<number>` | Current `stacks_tip_height` from `/v2/info`. |
-| `readContract` | `(p: { contract, functionName, args?, sender? }) => Promise<ClarityValue>` | Read-only contract call. Throws on failure. |
+| `readContract` | `(p: { contract, functionName, args?, sender? }) => Promise<ClarityValue>` | Read-only contract call. Throws `ReadContractError` on `okay: false`, `MalformedResponseError` if `result` is missing. |
 | `getContractAbi` | `(p: { contract: string }) => Promise<any>` | Raw ABI JSON from `/v2/contracts/interface`. |
 | `getMapEntry` | `(p: { contract, mapName, key }) => Promise<ClarityValue>` | Reads `(map-get?)`-style value. |
 | `estimateFee` | `(p: { transaction }) => Promise<FeeEstimation[]>` | Returns `[low, medium, high]` (`{ feeRate, fee }`). |
@@ -1008,6 +1008,8 @@ Branch on `code`, never on `message` text. Codes survive message rewording and m
 | `SigningError` | Signing-step failure (signature derivation, hash mismatch). |
 | `WebSocketError` | WS connect / subscribe / RPC error or disconnect. Thrown by `watch*` if transport is HTTP. |
 | `SimulationError` | `simulateCall` failure. Extra field: `writesDetected: boolean` — `true` when the contract function mutates state and cannot be simulated read-only. |
+| `MalformedResponseError` | Node/API response missing an expected field (`getBalance`, `getAccountInfo`, `getNonce`, `getMapEntry`, `getBlockHeight`, `readContract`, …). |
+| `ReadContractError` | `/v2/contracts/call-read` answered `okay: false`. Message is the node cause. Thrown by `readContract` / `getContract().read` / `multicall`. |
 
 ```ts
 import { BroadcastError } from "@secondlayer/stacks";
@@ -1022,7 +1024,7 @@ try {
 }
 ```
 
-Note: `getContract` read methods throw `ContractResponseError` (exported from `@secondlayer/stacks/actions`) on `(err …)` responses with `errorValue` populated. `readContract` throws a plain `Error` when `/v2/contracts/call-read` returns `okay: false`.
+Note: `getContract` read methods throw `ContractResponseError` (exported from `@secondlayer/stacks/actions`) on `(err …)` responses with `errorValue` populated. RPC-level failure (`okay: false`) is `ReadContractError` from the root.
 
 Wallet errors (`@secondlayer/stacks/connect`): `ConnectError` (`code = "CONNECT_ERROR"`) and `JsonRpcError` (`code = "JSON_RPC_ERROR"`). `JsonRpcError.rpcCode` is the wallet's numeric JSON-RPC code (e.g. `4001` user rejected); `code` on every SDK error is always the string identifier.
 
