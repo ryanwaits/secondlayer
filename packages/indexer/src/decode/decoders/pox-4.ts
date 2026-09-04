@@ -6,6 +6,7 @@ import {
 	createInternalIndexHttpClient,
 } from "@secondlayer/shared/index-http";
 import { logger } from "@secondlayer/shared/logger";
+import { isPlatformMode } from "@secondlayer/shared/mode";
 import { cvToValue, deserializeCV } from "@secondlayer/stacks/clarity";
 import { POX_CONTRACTS } from "@secondlayer/stacks/pox";
 import { formatBtcAddress } from "@secondlayer/stacks/sbtc";
@@ -16,6 +17,7 @@ import {
 	failureFromFaults,
 	planGenericDecoderReceipts,
 } from "../generic-commit.ts";
+import { requireInternalIndexApiKey } from "../internal-auth.ts";
 import {
 	POX4_DECODER_NAME,
 	type Pox4CallRow,
@@ -61,6 +63,18 @@ function pox4BackfillFromHeight(override?: number): number {
 		: DEFAULT_POX4_BACKFILL_FROM_HEIGHT;
 }
 
+/**
+ * This decoder is the only Index-over-HTTP reader in the decoder container —
+ * every other decoder goes through the Streams client. It always seeks history
+ * (pox-4 is a closed era; the cursor sits far below the tip), so on a
+ * platform-mode instance a keyless read is guaranteed to 402 once the 24h free
+ * window passes the cursor. Fail at startup instead of ticking into it.
+ */
+function createCredentialedIndexClient(): IndexHttpClient {
+	if (isPlatformMode()) requireInternalIndexApiKey();
+	return createInternalIndexHttpClient();
+}
+
 export type ConsumePox4Options = {
 	indexClient?: IndexHttpClient;
 	targetDb?: Kysely<Database>;
@@ -91,7 +105,7 @@ export type Pox4TxRow = {
 export async function consumePox4DecodedEvents(
 	opts: ConsumePox4Options = {},
 ): Promise<{ cursor: string | null; pages: number; decoded: number }> {
-	const indexClient = opts.indexClient ?? createInternalIndexHttpClient();
+	const indexClient = opts.indexClient ?? createCredentialedIndexClient();
 	const targetDb = opts.targetDb ?? getSourceDb();
 	const decoderName = opts.decoderName ?? POX4_DECODER_NAME;
 	const batchSize = opts.batchSize ?? 500;

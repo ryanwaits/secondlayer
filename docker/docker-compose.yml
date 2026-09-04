@@ -145,6 +145,11 @@ services:
       SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY}
       INDEXER_URL: ${INDEXER_URL:-http://indexer:3700}
       STREAMS_INTERNAL_API_KEY: ${STREAMS_INTERNAL_API_KEY:-}
+      # First-party Index reads. Unset → consumers read /v1/index anonymously,
+      # which the platform-mode free window caps at the last 24h; any seek into
+      # older history then 402s. The api seeds this key as an unmetered internal
+      # tenant (api/src/index/auth.ts), so it must be set on BOTH sides.
+      INDEX_INTERNAL_API_KEY: ${INDEX_INTERNAL_API_KEY:-}
       STREAMS_SIGNING_PRIVATE_KEY: ${STREAMS_SIGNING_PRIVATE_KEY:-}
       STREAMS_BULK_PUBLIC_BASE_URL: ${STREAMS_BULK_PUBLIC_BASE_URL:-}
       # Archive fetch gate: presigning needs the same R2 credentials the publisher uses.
@@ -161,7 +166,9 @@ services:
       # enabled decoder, not just ft+nft. Mirror the values set on the
       # decoder service.
       SBTC_DECODER_ENABLED: ${SBTC_DECODER_ENABLED:-true}
-      POX4_DECODER_ENABLED: ${POX4_DECODER_ENABLED:-true}
+      # Default-OFF: the pox-4 era closed at PoX-5 activation. See the decoder
+      # service for the full rationale — these two defaults must stay in step.
+      POX4_DECODER_ENABLED: ${POX4_DECODER_ENABLED:-false}
       BNS_DECODER_ENABLED: ${BNS_DECODER_ENABLED:-false}
       # Surfaced on /health so deploy drift is detectable without docker ps.
       # Set by the Deploy workflow + persisted into .env by deploy.sh's
@@ -285,6 +292,11 @@ services:
       TARGET_DATABASE_URL: ${TARGET_DATABASE_URL:-}
       STREAMS_API_URL: http://api:3800
       STREAMS_INTERNAL_API_KEY: ${STREAMS_INTERNAL_API_KEY:-}
+      # First-party Index reads. Unset → consumers read /v1/index anonymously,
+      # which the platform-mode free window caps at the last 24h; any seek into
+      # older history then 402s. The api seeds this key as an unmetered internal
+      # tenant (api/src/index/auth.ts), so it must be set on BOTH sides.
+      INDEX_INTERNAL_API_KEY: ${INDEX_INTERNAL_API_KEY:-}
       PORT: 3710
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
@@ -298,7 +310,13 @@ services:
       SBTC_DECODER_ENABLED: ${SBTC_DECODER_ENABLED:-true}
       # PoX-4 transaction-result decoder. Mainnet-only; auto-seeds checkpoint
       # to tip on first enable (no historical replay).
-      POX4_DECODER_ENABLED: ${POX4_DECODER_ENABLED:-true}
+      # Default-OFF since PoX-5 activation closed the pox-4 era: there is
+      # nothing left to decode, so the checkpoint parks at the last pox-4 block
+      # while the tip moves on. Left enabled it re-reads that fixed cursor
+      # forever, and once the free window passes it every read 402s and the
+      # container reports unhealthy. Enable only for a historical backfill, and
+      # only with INDEX_INTERNAL_API_KEY set.
+      POX4_DECODER_ENABLED: ${POX4_DECODER_ENABLED:-false}
       POX4_DECODER_INTERVAL_MS: ${POX4_DECODER_INTERVAL_MS:-30000}
       POX4_DECODER_BATCH_SIZE: ${POX4_DECODER_BATCH_SIZE:-500}
       # BNS-V2 print-event decoder. Subscribes to BNS-V2 contract prints,

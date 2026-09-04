@@ -3,6 +3,7 @@ import {
 	defaultInternalIndexApiKey,
 	defaultInternalIndexBaseUrl,
 	defaultInternalStreamsApiKey,
+	requireInternalIndexApiKey,
 	requireInternalStreamsApiKey,
 } from "./index-internal-auth.ts";
 
@@ -88,6 +89,30 @@ describe("internal Index/Streams credentials", () => {
 		expect(
 			requireInternalStreamsApiKey({
 				STREAMS_INTERNAL_API_KEY: "",
+				INSTANCE_TOKEN: "instance-token",
+			}),
+		).toBe("instance-token");
+	});
+
+	test("requireInternalIndexApiKey throws when both empty", () => {
+		expect(() => requireInternalIndexApiKey({})).toThrow(
+			/INDEX_INTERNAL_API_KEY.*INSTANCE_TOKEN/,
+		);
+	});
+
+	test("requireInternalIndexApiKey names the 24h window in its message", () => {
+		expect(() =>
+			requireInternalIndexApiKey({
+				INDEX_INTERNAL_API_KEY: "",
+				INSTANCE_TOKEN: "",
+			}),
+		).toThrow(/24h/);
+	});
+
+	test("requireInternalIndexApiKey returns INSTANCE_TOKEN when internal env is empty", () => {
+		expect(
+			requireInternalIndexApiKey({
+				INDEX_INTERNAL_API_KEY: "",
 				INSTANCE_TOKEN: "instance-token",
 			}),
 		).toBe("instance-token");
