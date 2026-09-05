@@ -47,6 +47,26 @@ export type UnwrapResponse<T> = T extends { ok: infer O }
 		? never
 		: T;
 
+/**
+ * True for a structural empty mapped type (`{}`) and for codegen's
+ * `Record<string, never>`. `keyof Record<string, never>` is `string`, so the
+ * first check alone is not enough.
+ */
+type IsEmptyArgs<A> = [keyof A & string] extends [never]
+	? true
+	: Record<string, never> extends A
+		? true
+		: false;
+
+/** No-arg ABI functions may omit the dummy `{}`. Functions with args stay required. */
+type ContractMethod<
+	A,
+	R,
+	Extra extends unknown[] = [],
+> = IsEmptyArgs<A> extends true
+	? (args?: A, ...extra: Extra) => R
+	: (args: A, ...extra: Extra) => R;
+
 type ReadMethodReturn<
 	C extends AbiContract,
 	N extends ExtractReadOnlyFunctions<C>,
@@ -62,18 +82,20 @@ type ReadMethodReturn<
 type TypedReadMethods<T extends ContractTypes> = {
 	[K in keyof T["functions"] as T["functions"][K]["access"] extends "read-only"
 		? K
-		: never]: (
-		args: T["functions"][K]["args"],
-	) => Promise<UnwrapResponse<T["functions"][K]["ret"]>>;
+		: never]: ContractMethod<
+		T["functions"][K]["args"],
+		Promise<UnwrapResponse<T["functions"][K]["ret"]>>
+	>;
 };
 
 type TypedCallMethods<T extends ContractTypes> = {
 	[K in keyof T["functions"] as T["functions"][K]["access"] extends "public"
 		? K
-		: never]: (
-		args: T["functions"][K]["args"],
-		options?: ContractCallOptions,
-	) => Promise<string>;
+		: never]: ContractMethod<
+		T["functions"][K]["args"],
+		Promise<string>,
+		[options?: ContractCallOptions]
+	>;
 };
 
 type TypedMapMethods<T extends ContractTypes> = {
@@ -84,18 +106,20 @@ type TypedMapMethods<T extends ContractTypes> = {
 
 type ReadMethods<C extends AbiContract> = [AbiTypesOf<C>] extends [never]
 	? {
-			[N in ExtractReadOnlyFunctions<C> as ToCamelCase<N>]: (
-				args: ExtractFunctionArgs<C, N>,
-			) => Promise<ReadMethodReturn<C, N>>;
+			[N in ExtractReadOnlyFunctions<C> as ToCamelCase<N>]: ContractMethod<
+				ExtractFunctionArgs<C, N>,
+				Promise<ReadMethodReturn<C, N>>
+			>;
 		}
 	: TypedReadMethods<AbiTypesOf<C>>;
 
 type CallMethods<C extends AbiContract> = [AbiTypesOf<C>] extends [never]
 	? {
-			[N in ExtractPublicFunctions<C> as ToCamelCase<N>]: (
-				args: ExtractFunctionArgs<C, N>,
-				options?: ContractCallOptions,
-			) => Promise<string>;
+			[N in ExtractPublicFunctions<C> as ToCamelCase<N>]: ContractMethod<
+				ExtractFunctionArgs<C, N>,
+				Promise<string>,
+				[options?: ContractCallOptions]
+			>;
 		}
 	: TypedCallMethods<AbiTypesOf<C>>;
 
@@ -130,18 +154,20 @@ export type ContractBuildCallOptions = ContractCallOptions & {
 type TypedBuildCallMethods<T extends ContractTypes> = {
 	[K in keyof T["functions"] as T["functions"][K]["access"] extends "public"
 		? K
-		: never]: (
-		args: T["functions"][K]["args"],
-		options?: ContractBuildCallOptions,
-	) => Promise<StacksTransaction>;
+		: never]: ContractMethod<
+		T["functions"][K]["args"],
+		Promise<StacksTransaction>,
+		[options?: ContractBuildCallOptions]
+	>;
 };
 
 type BuildCallMethods<C extends AbiContract> = [AbiTypesOf<C>] extends [never]
 	? {
-			[N in ExtractPublicFunctions<C> as ToCamelCase<N>]: (
-				args: ExtractFunctionArgs<C, N>,
-				options?: ContractBuildCallOptions,
-			) => Promise<StacksTransaction>;
+			[N in ExtractPublicFunctions<C> as ToCamelCase<N>]: ContractMethod<
+				ExtractFunctionArgs<C, N>,
+				Promise<StacksTransaction>,
+				[options?: ContractBuildCallOptions]
+			>;
 		}
 	: TypedBuildCallMethods<AbiTypesOf<C>>;
 
@@ -196,7 +222,7 @@ export function getContract<const TAbi extends AbiContract>(
 			const fn = fnByName.get(fnName);
 			if (!fn || fn.access !== "read-only") return undefined;
 
-			return async (args: Record<string, unknown>) => {
+			return async (args: Record<string, unknown> = {}) => {
 				const clarityArgs = buildFunctionArgs(fn, args);
 				const result = await readContract(client, {
 					contract: contractId,
@@ -228,7 +254,7 @@ export function getContract<const TAbi extends AbiContract>(
 			if (!fn || fn.access !== "public") return undefined;
 
 			return async (
-				args: Record<string, unknown>,
+				args: Record<string, unknown> = {},
 				options?: ContractCallOptions,
 			) => {
 				const clarityArgs = buildFunctionArgs(fn, args);
@@ -249,7 +275,7 @@ export function getContract<const TAbi extends AbiContract>(
 			if (!fn || fn.access !== "public") return undefined;
 
 			return async (
-				args: Record<string, unknown>,
+				args: Record<string, unknown> = {},
 				options?: ContractBuildCallOptions,
 			) => {
 				const publicKey = options?.publicKey ?? client.account?.publicKey;
@@ -343,7 +369,7 @@ export function resolveNetworkContract<
  */
 export function buildFunctionArgs(
 	fn: AbiFunction,
-	args: Record<string, unknown>,
+	args: Record<string, unknown> = {},
 ): ClarityValue[] {
 	return fn.args.map((arg) => {
 		const camelKey = toCamelCase(arg.name);

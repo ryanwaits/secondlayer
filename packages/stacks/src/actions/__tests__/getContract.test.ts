@@ -88,6 +88,24 @@ describe("getContract", () => {
 				memo: Uint8Array | null;
 			}>();
 		});
+
+		it("makes the args object optional on no-arg methods and required otherwise", () => {
+			const contract = getContract({
+				client: createMockClient(async () => ({})),
+				address: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+				name: "my-token",
+				abi: TEST_ABI,
+			});
+
+			expectTypeOf(contract.read.getName).toBeCallableWith();
+			expectTypeOf(contract.read.getName).toBeCallableWith({});
+			expectTypeOf(contract.read.getBalance).toBeCallableWith({
+				account: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+			});
+			expectTypeOf(contract.read.getBalance)
+				.parameter(0)
+				.toEqualTypeOf<{ account: string }>();
+		});
 	});
 
 	describe("read methods", () => {
@@ -149,6 +167,64 @@ describe("getContract", () => {
 
 			const name = await contract.read.getName({});
 			expect(name).toBe("TestToken");
+		});
+
+		it("allows omitting the args object on no-arg reads", async () => {
+			const mockClient = createMockClient(async () => ({
+				okay: true,
+				result: Cl.serialize(Cl.ok(Cl.stringAscii("TestToken"))),
+			}));
+
+			const contract = getContract({
+				client: mockClient,
+				address: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+				name: "my-token",
+				abi: TEST_ABI,
+			});
+
+			const name = await contract.read.getName();
+			expect(name).toBe("TestToken");
+		});
+	});
+
+	describe("no-arg public functions", () => {
+		const CLAIM_ABI = {
+			functions: [
+				{
+					name: "claim",
+					access: "public" as const,
+					args: [],
+					outputs: { response: { ok: "bool", error: "uint128" } },
+				},
+			],
+		} as const satisfies AbiContract;
+
+		it("allows omitting the args object on no-arg call/buildCall", async () => {
+			const mockClient = createMockClient(async () => ({}));
+			const contract = getContract({
+				client: mockClient,
+				address: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+				name: "rewards",
+				abi: CLAIM_ABI,
+			});
+
+			expectTypeOf(contract.call.claim).toBeCallableWith();
+			expectTypeOf(contract.buildCall.claim).toBeCallableWith();
+
+			const tx = await contract.buildCall.claim(
+				{},
+				{
+					publicKey:
+						"02e3af144cc2a3f8f3f7be8f6e3a951c2f4ce9dcd1f26e279c7f8bbcf9e2b6e2d5",
+					fee: 200n,
+					nonce: 7n,
+				},
+			);
+			expect(tx.payload.payloadType).toBe(2);
+			// biome-ignore lint/suspicious/noExplicitAny: asserting on wire payload shape
+			expect((tx.payload as any).functionName).toBe("claim");
+			// biome-ignore lint/suspicious/noExplicitAny: asserting on wire payload shape
+			expect((tx.payload as any).functionArgs).toHaveLength(0);
 		});
 	});
 
@@ -370,6 +446,8 @@ describe("getContract", () => {
 			expectTypeOf(contract.read.getBalance).returns.toEqualTypeOf<
 				Promise<bigint>
 			>();
+			expectTypeOf(contract.read.getName).toBeCallableWith();
+			expectTypeOf(contract.read.getName).toBeCallableWith({});
 			expectTypeOf(contract.call.transfer)
 				.parameter(0)
 				.toEqualTypeOf<TransferArgs>();
