@@ -1,5 +1,12 @@
 # @secondlayer/web
 
+## 0.6.35
+
+### Patch Changes
+
+- Updated dependencies [eb787f8]
+  - @secondlayer/stacks@5.1.2
+
 ## 0.6.34
 
 ### Patch Changes

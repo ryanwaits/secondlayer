@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 5.1.2
+
+### Patch Changes
+
+- eb787f8: `getContract` no-arg read/call/buildCall methods no longer require a dummy `{}`.
+
 ## 5.1.1
 
 ### Patch Changes

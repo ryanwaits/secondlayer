@@ -1,5 +1,13 @@
 # @secondlayer/subgraphs
 
+## 4.1.4
+
+### Patch Changes
+
+- f53b4fc: No-arg `ctx.client.contract(…).read` methods no longer require a dummy `{}`.
+- Updated dependencies [eb787f8]
+  - @secondlayer/stacks@5.1.2
+
 ## 4.1.3
 
 ### Patch Changes
