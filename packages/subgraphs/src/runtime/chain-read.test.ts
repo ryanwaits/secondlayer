@@ -76,6 +76,18 @@ describe("createChainReadClient — pinning", () => {
 		).rejects.toThrow(/no index_block_hash/);
 	});
 
+	test("allows omitting the args object on no-arg reads", async () => {
+		const client = createChainReadClient({
+			blockHeight: 42,
+			indexBlockHash: null,
+			rpcUrl: "http://localhost:1",
+		});
+
+		await expect(
+			client.contract(CONTRACT, TOKEN_ABI).read.getDecimals(),
+		).rejects.toThrow(/no index_block_hash/);
+	});
+
 	test("refuses a function the ABI marks public", async () => {
 		const client = createChainReadClient({
 			blockHeight: 42,

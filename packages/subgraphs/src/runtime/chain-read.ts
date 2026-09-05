@@ -82,15 +82,33 @@ export interface ChainReadClient {
 }
 
 /**
+ * True for a structural empty mapped type (`{}`) and for codegen's
+ * `Record<string, never>`. `keyof Record<string, never>` is `string`, so the
+ * first check alone is not enough. Local copy of the `getContract` helper —
+ * importing `ContractInstance<C>["read"]` would re-enter the codegen-brand
+ * conditional this type exists to avoid.
+ */
+type IsEmptyArgs<A> = [keyof A & string] extends [never]
+	? true
+	: Record<string, never> extends A
+		? true
+		: false;
+
+type ChainReadMethod<A, R> = IsEmptyArgs<A> extends true
+	? (args?: A) => R
+	: (args: A) => R;
+
+/**
  * The camelCased read methods of an ABI. Spelled out rather than reused from
  * `ContractInstance<C>["read"]`: that type is a conditional over the codegen
  * brand, and evaluating it wherever a subgraph definition is structurally
  * compared pushes TS past its instantiation depth.
  */
 export type ChainReadMethods<C extends AbiContract> = {
-	[N in ExtractReadOnlyFunctions<C> as ToCamelCase<N>]: (
-		args: ExtractFunctionArgs<C, N>,
-	) => Promise<UnwrapResponse<ExtractFunctionOutput<C, N>>>;
+	[N in ExtractReadOnlyFunctions<C> as ToCamelCase<N>]: ChainReadMethod<
+		ExtractFunctionArgs<C, N>,
+		Promise<UnwrapResponse<ExtractFunctionOutput<C, N>>>
+	>;
 };
 
 /**
@@ -118,7 +136,7 @@ export interface ErasedChainReadClient {
  * const token = readContractAt(ctx, contractId, SIP010_ABI, {
  *   cache: "contract-constant",
  * });
- * const decimals = await token.read.getDecimals({}); // bigint
+ * const decimals = await token.read.getDecimals(); // bigint
  * ```
  */
 export function readContractAt<const C extends AbiContract>(
