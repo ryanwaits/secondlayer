@@ -96,6 +96,13 @@ await sl.streams.events.consume({
 });
 ```
 
+Folds (balances, counters, last-wins owner) do not go in `tables`. Invert or
+recompute them in the sink's `onRollback`, same transaction, before the
+fact-table delete. Doomed rows are still visible; remaining facts are
+`height < forkPointHeight`. A throw aborts the rewind. Consume `onReorg`
+runs after that transaction and must not mutate. Derive undo from the doomed
+rows so a re-applied rollback is a no-op.
+
 Hand-rolling it is allowed, but the checkpoint write must be inside the same
 transaction as the row writes.
 

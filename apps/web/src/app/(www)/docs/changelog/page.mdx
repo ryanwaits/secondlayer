@@ -6,6 +6,12 @@ keys, `402` past the free window. That service is withdrawn; on a self-hosted
 instance reads are yours and unmetered, and only archive
 bootstrap/backfill/reindex draws [credits](/docs/authentication#archive-credits).
 
+## SDK — September 2026
+
+### Running balances survive a reorg
+
+You keep event rows append-only and fold running balances in `onRollback` on the sink. Same transaction as the rewind: doomed rows are still there, a throw aborts the delete. Remaining facts are `height < fork`.
+
 ## Stacks SDK — September 2026
 
 ### Same `getContract` client on Clarinet simnet

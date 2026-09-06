@@ -75,7 +75,7 @@ await index.events.consume({
 | `signal` | Checked at the top of the loop, so the in-flight batch always commits; see [Deploy](/docs/deploy#handle-sigterm) |
 | `index.contractCalls.consume()` | Same loop for decoded calls; already carries `sender`/`function_name`, so it needs no `txContext` |
 
-Where to run it: [Deploy](/docs/deploy).
+Where to run it: [Deploy](/docs/deploy). Running balances: invert them in a sink's `onRollback` ([Sinks](/docs/sinks#rollback-is-height-stamped)).
 
 ### Progress on every batch
 

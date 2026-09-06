@@ -2,21 +2,28 @@ import type { Database } from "bun:sqlite";
 import {
 	DEFAULT_CHECKPOINT_TABLE,
 	type SinkDriver,
+	type SinkRollbackContext,
 	createSink,
 	quoteIdent,
 } from "./core.ts";
 import type { ConsumerSink } from "./types.ts";
 
+export type { SinkRollbackContext };
+
 export interface BunSqliteSinkOptions {
 	/** Checkpoint identity: the cursor row's primary key. */
 	id: string;
-	/** Rollback scope — every table the handler writes (see kyselySink). */
+	/** Rollback scope — fact tables the handler writes (see kyselySink).
+	 *  Invert folds (balances) in `onRollback`, do not declare them here. */
 	tables: readonly string[];
 	/** The block-height stamp column, present on every declared table
 	 *  (first-use checked). Append-only projections only. */
 	height: string;
 	/** Checkpoint table name. Default `sl_consumer_checkpoints`. */
 	checkpointTable?: string;
+	/** Same transaction as the fact-table delete, before it. Doomed rows are
+	 *  still visible; a throw aborts the rewind. */
+	onRollback?: (tx: Database, ctx: SinkRollbackContext) => Promise<void> | void;
 }
 
 /**
@@ -113,5 +120,6 @@ export function bunSqliteSink(
 		tables: options.tables,
 		height: options.height,
 		checkpointTable,
+		onRollback: options.onRollback,
 	});
 }

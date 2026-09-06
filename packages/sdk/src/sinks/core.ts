@@ -46,16 +46,25 @@ export interface SinkDriver<Tx> {
 	acquireLock?(tx: Tx): Promise<void>;
 }
 
+/** Context handed to {@link CreateSinkOptions.onRollback}. `forkPointHeight`
+ *  is the undo range (inclusive `>=`); `rewindCursor` is what the checkpoint
+ *  will become after this transaction — `null` only for a fork at genesis. */
+export type SinkRollbackContext = {
+	forkPointHeight: number;
+	rewindCursor: string | null;
+};
+
 /** Options for {@link createSink} — the policy inputs, driver-agnostic.
  *  Concrete sinks re-expose these with schema-typed `tables`/`height`. */
-export interface CreateSinkOptions {
+export interface CreateSinkOptions<Tx = unknown> {
 	/** Error-message prefix naming the concrete sink (e.g. `"kyselySink"`),
 	 *  so a thrown guard points at the thing the user actually constructed. */
 	label: string;
 	/** Checkpoint identity AND concurrency key. */
 	id: string;
 	/** Rollback scope: on a reorg, rows at/above the fork point are deleted
-	 *  from exactly these tables. */
+	 *  from exactly these tables. Fact tables only — a fold (balances,
+	 *  counters) does not belong here; invert it in `onRollback`. */
 	tables: readonly string[];
 	/** The block-height stamp column, present on every declared table. */
 	height: string;
@@ -63,6 +72,13 @@ export interface CreateSinkOptions {
 	checkpointTable?: string;
 	/** Forwarded to {@link ConsumerSink.capabilities}. */
 	capabilities?: ConsumerSink["capabilities"];
+	/** Runs inside the rollback transaction after the lock, before any
+	 *  `DELETE … height >= fork`. Doomed fact rows are still visible.
+	 *  Remaining facts are `height < forkPointHeight`. A throw aborts the
+	 *  whole rewind (no delete, no cursor write). Called on every
+	 *  `rollback`, including re-application after a crash — derive undo
+	 *  from the doomed rows so a second pass is a no-op. */
+	onRollback?: (tx: Tx, ctx: SinkRollbackContext) => Promise<void> | void;
 }
 
 /** Throw unless `name` is a bare SQL identifier (letters, digits,
@@ -86,8 +102,9 @@ export function quoteIdent(name: string): string {
  * Build a {@link ConsumerSink} from a {@link SinkDriver}: the portable ~90
  * lines every SQL sink otherwise re-implements — and re-risks. Owns the two
  * transaction sequences (begin → lock → write rows → write cursor;
- * begin → lock → delete `>=` fork → write rewound cursor), the empty-`tables`
- * guard, identifier validation, and the first-use height-column check.
+ * begin → lock → onRollback? → delete `>=` fork → write rewound cursor), the
+ * empty-`tables` guard, identifier validation, and the first-use height-column
+ * check.
  *
  * A driver implemented against this base cannot violate contract invariants
  * #4, #5, #8, #9, or #11 (see {@link ConsumerSink}) without breaking
@@ -95,7 +112,7 @@ export function quoteIdent(name: string): string {
  */
 export function createSink<Tx>(
 	driver: SinkDriver<Tx>,
-	options: CreateSinkOptions,
+	options: CreateSinkOptions<Tx>,
 ): ConsumerSink<Tx> {
 	const { label } = options;
 	const checkpointTable = options.checkpointTable ?? DEFAULT_CHECKPOINT_TABLE;
@@ -139,6 +156,9 @@ export function createSink<Tx>(
 		async rollback(forkPointHeight, rewindCursor) {
 			await driver.transact(async (tx) => {
 				await driver.acquireLock?.(tx);
+				// Folds (balances, last-wins) invert/recompute here, while doomed
+				// fact rows are still visible. A throw aborts the rewind.
+				await options.onRollback?.(tx, { forkPointHeight, rewindCursor });
 				// INCLUSIVE of the fork block: the new canonical chain re-supplies
 				// it, and the consumer rewinds to re-read from `fork:0`.
 				for (const table of options.tables) {

@@ -76,6 +76,8 @@ export function postgresJsSink(
 }
 ```
 
+`createSink` also takes `onRollback`: same transaction, before the delete. Fold pattern: [Sinks](/docs/sinks#rollback-is-height-stamped).
+
 Identifiers arrive pre-validated (`[A-Za-z_][A-Za-z0-9_]*`), safe to interpolate after `quoteIdent`. Values stay bound parameters. `acquireLock` is the optional seventh method: throw when another writer holds your id.
 
 ## Prove it

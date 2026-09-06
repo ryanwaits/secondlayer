@@ -55,9 +55,9 @@ the sink owns the cursor.
 
 <Callout type="warning" title="A sink without reorg handling would be a no-op">
 
-The consume loop gates all reorg handling on `onReorg` being present. A sink
-injects its own, so rollback happens whether or not you wrote one. Pass your
-own and yours runs instead.
+A sink makes rollback unconditional: omitting `onReorg` no longer skips reorgs.
+`onReorg` still runs after the sink transaction commits. Fold current-state
+(balances) in the sink's `onRollback`, not there.
 
 </Callout>
 
@@ -83,14 +83,44 @@ dependency-free.
 
 ## Rollback is height-stamped
 
-v1 rolls back by deleting rows at `height >= fork_point_height`. That is correct
-for append-only projections, and it is why `height` is required. A declared
-table missing that column fails before the first batch: a type error when your
-Kysely schema knows it, a loud throw on the first cursor load otherwise.
+v1 deletes `height >= fork_point_height` from every declared table. That is
+correct for one-row-per-event tables, which is why `height` is required.
 
-Aggregates like running balances are not append-only, so a delete cannot
-reverse them. Use a [Subgraph](/docs/subgraphs) instead: its runtime journals
-pre-images and restores them on rewind.
+A running balance is a fold of those rows, not a row to delete. Keep it off
+`tables` and invert (or recompute) in `onRollback`, same transaction, while
+the doomed facts are still visible. Remaining facts are `height < fork`.
+Throwing aborts the rewind. A [subgraph](/docs/subgraphs) still owns this
+if you do not want to keep the events.
+
+```ts
+import { sql } from "kysely";
+import { kyselySink } from "@secondlayer/sdk/sinks/kysely";
+
+kyselySink(db, {
+  id: "sbtc",
+  tables: ["transfers"],
+  height: "block_height",
+  onRollback: async (tx, { forkPointHeight }) => {
+    const doomed = await tx
+      .selectFrom("transfers")
+      .where("block_height", ">=", forkPointHeight)
+      .selectAll()
+      .execute();
+    for (const e of doomed) {
+      await tx
+        .updateTable("balances")
+        .set({ amount: sql`amount - ${e.amount}::numeric` })
+        .where("holder", "=", e.recipient)
+        .execute();
+      await tx
+        .updateTable("balances")
+        .set({ amount: sql`amount + ${e.amount}::numeric` })
+        .where("holder", "=", e.sender)
+        .execute();
+    }
+  },
+});
+```
 
 ## Resuming
 

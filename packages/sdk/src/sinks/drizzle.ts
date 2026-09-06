@@ -3,11 +3,14 @@ import { ValidationError } from "../errors.ts";
 import {
 	DEFAULT_CHECKPOINT_TABLE,
 	type SinkDriver,
+	type SinkRollbackContext,
 	assertSqlIdentifier,
 	createSink,
 	quoteIdent,
 } from "./core.ts";
 import type { ConsumerSink } from "./types.ts";
+
+export type { SinkRollbackContext };
 
 /**
  * Structural slice of a drizzle database. Postgres databases expose
@@ -36,10 +39,11 @@ export type DrizzleTx<TDb> = TDb extends {
  *  compile error at the `height:` option (same trick as kyselySink). */
 type CommonColumnKey<T extends Table> = keyof T["_"]["columns"] & string;
 
-export interface DrizzleSinkOptions<T extends Table> {
+export interface DrizzleSinkOptions<T extends Table, TTx = unknown> {
 	/** Checkpoint identity AND (on Postgres) advisory-lock key. */
 	id: string;
-	/** Rollback scope: the drizzle table objects the handler writes. */
+	/** Rollback scope: the drizzle table objects the handler writes. Fact
+	 *  tables only — invert folds (balances) in `onRollback`. */
 	tables: readonly T[];
 	/** The block-height stamp column KEY (the TypeScript property, e.g.
 	 *  `blockHeight` for `blockHeight: integer("block_height")`) — resolved
@@ -48,6 +52,9 @@ export interface DrizzleSinkOptions<T extends Table> {
 	height: CommonColumnKey<T>;
 	/** Checkpoint table name. Default `sl_consumer_checkpoints`. */
 	checkpointTable?: string;
+	/** Same transaction as the fact-table delete, before it. Doomed rows are
+	 *  still visible; a throw aborts the rewind. */
+	onRollback?: (tx: TTx, ctx: SinkRollbackContext) => Promise<void> | void;
 }
 
 /**
@@ -78,7 +85,7 @@ export interface DrizzleSinkOptions<T extends Table> {
  */
 export function drizzleSink<TDb extends DrizzleDatabaseLike, T extends Table>(
 	db: TDb,
-	options: DrizzleSinkOptions<T>,
+	options: DrizzleSinkOptions<T, DrizzleTx<TDb>>,
 ): ConsumerSink<DrizzleTx<TDb>> {
 	const checkpointTable = options.checkpointTable ?? DEFAULT_CHECKPOINT_TABLE;
 	const cp = quoteIdent(checkpointTable);
@@ -242,5 +249,6 @@ export function drizzleSink<TDb extends DrizzleDatabaseLike, T extends Table>(
 		tables: tableNames,
 		height: options.height,
 		checkpointTable,
+		onRollback: options.onRollback,
 	});
 }

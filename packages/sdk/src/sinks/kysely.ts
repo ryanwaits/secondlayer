@@ -3,10 +3,13 @@ import { ValidationError } from "../errors.ts";
 import {
 	DEFAULT_CHECKPOINT_TABLE,
 	type SinkDriver,
+	type SinkRollbackContext,
 	createSink,
 	quoteIdent,
 } from "./core.ts";
 import type { ConsumerSink } from "./types.ts";
+
+export type { SinkRollbackContext };
 
 /**
  * Column present on EVERY declared table — `keyof` a union of row types is
@@ -26,18 +29,25 @@ export interface KyselySinkOptions<DB, T extends keyof DB & string> {
 	id: string;
 	/** Rollback scope. On a reorg, rows AT OR ABOVE the fork point are deleted
 	 *  from exactly these tables (inclusive `>=` — the new chain re-supplies
-	 *  the fork block). A table you write but don't declare keeps orphaned
-	 *  rows forever, so declare everything the handler touches. */
+	 *  the fork block). Fact tables only: a fold (balances, counters) does
+	 *  not belong here — invert it in `onRollback`. A table you write but
+	 *  don't declare keeps orphaned rows forever. */
 	tables: readonly T[];
 	/** The block-height stamp column, present on every declared table (compile
 	 *  and first-use checked). Height-stamp rollback is correct for
-	 *  APPEND-ONLY projections (one row per event/call); aggregates that
-	 *  mutate rows (balances, counters) can't be rolled back this way — use a
-	 *  subgraph for those. */
+	 *  append-only projections (one row per event/call). */
 	height: CommonColumn<DB, T>;
 	/** Checkpoint table name. Default `sl_consumer_checkpoints` (created on
 	 *  first use). */
 	checkpointTable?: string;
+	/** Same transaction as the fact-table delete, before it. Doomed rows are
+	 *  still visible; remaining facts are `height < forkPointHeight`. A throw
+	 *  aborts the rewind. Derive undo from the doomed rows so a re-applied
+	 *  rollback is a no-op. */
+	onRollback?: (
+		tx: Transaction<DB>,
+		ctx: SinkRollbackContext,
+	) => Promise<void> | void;
 }
 
 /**
@@ -51,9 +61,10 @@ export interface KyselySinkOptions<DB, T extends keyof DB & string> {
  * - rows AND cursor committed in ONE transaction per batch — a handler
  *   throw aborts both, so a crashed batch is re-read on restart with no
  *   gaps and no double-writes;
- * - reorg rollback: delete `>= fork_point_height` from every declared table
- *   and commit the rewound cursor atomically (the crash-between-the-two-
- *   writes gap is unrepresentable);
+ * - reorg rollback: `onRollback` (doomed facts still visible), then delete
+ *   `>= fork_point_height` from every declared table, then the rewound
+ *   cursor — one transaction (the crash-between-the-two-writes gap is
+ *   unrepresentable);
  * - a per-id advisory lock, so two replicas of the same consumer can't
  *   interleave commits.
  *
@@ -161,5 +172,6 @@ export function kyselySink<DB, T extends keyof DB & string>(
 		tables: options.tables,
 		height: options.height as string,
 		checkpointTable,
+		onRollback: options.onRollback,
 	});
 }

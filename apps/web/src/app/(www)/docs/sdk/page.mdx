@@ -75,7 +75,7 @@ await sl.index.contractCalls.consume({
 });
 ```
 
-Reorgs rewind the cursor to the fork point and fire `onReorg`. `finalizedOnly` holds delivery to rows at or below `tip.finalized_height`, and `fromHeight: 0` backfills as far as your instance holds ([archive restore](/docs/authentication#archive-credits) is metered past that). Full options and the batch envelope: [Index](/docs/index#build-your-index-on-it).
+Reorgs rewind the cursor to the fork point and fire `onReorg`. Fold running balances in a sink's `onRollback`, not there: [Sinks](/docs/sinks#rollback-is-height-stamped). `finalizedOnly` holds delivery to rows at or below `tip.finalized_height`, and `fromHeight: 0` backfills as far as your instance holds ([archive restore](/docs/authentication#archive-credits) is metered past that). Full options and the batch envelope: [Index](/docs/index#build-your-index-on-it).
 
 ## Verifying responses
 

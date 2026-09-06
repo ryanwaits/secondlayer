@@ -301,7 +301,8 @@ export type StreamsEventsConsumeParams<
 	 * the loop resumes from the sink's committed cursor, `onBatch` receives
 	 * `ctx.tx` and must write ONLY through it (rows and cursor commit in one
 	 * transaction), reorg rollback is automatic, and `onBatch`'s return value
-	 * is ignored.
+	 * is ignored. Folds (balances) invert in the sink's `onRollback`, not in
+	 * `onReorg`.
 	 */
 	sink?: ConsumerSink<TTx>;
 	/** Fires once per page, before `onBatch` and before any early return. */

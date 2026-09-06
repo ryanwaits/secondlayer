@@ -24,6 +24,10 @@ interface Database {
 		block_height: number;
 		buyer: string;
 	};
+	sink_test_balances: {
+		holder: string;
+		amount: number;
+	};
 	sl_consumer_checkpoints: { id: string; cursor: string };
 }
 
@@ -159,10 +163,15 @@ beforeEach(async () => {
 	if (!dbUp) return;
 	await sql`
 		DROP TABLE IF EXISTS sink_test_sales;
+		DROP TABLE IF EXISTS sink_test_balances;
 		CREATE TABLE sink_test_sales (
 			cursor text PRIMARY KEY,
 			block_height integer NOT NULL,
 			buyer text NOT NULL
+		);
+		CREATE TABLE sink_test_balances (
+			holder text PRIMARY KEY,
+			amount integer NOT NULL
 		);
 		CREATE TABLE IF NOT EXISTS sl_consumer_checkpoints (id text PRIMARY KEY, cursor text NOT NULL);
 		DELETE FROM sl_consumer_checkpoints WHERE id = 'sink-test-sales';
@@ -172,6 +181,7 @@ beforeEach(async () => {
 afterAll(async () => {
 	if (dbUp) {
 		await sql`DROP TABLE IF EXISTS sink_test_sales`.execute(db);
+		await sql`DROP TABLE IF EXISTS sink_test_balances`.execute(db);
 	}
 	await db.destroy();
 });
@@ -318,6 +328,133 @@ describe.skipIf(!dbUp)("kyselySink acceptance (fork at block 102)", () => {
 			height: "block_height" as any,
 		});
 		await expect(sink.loadCursor()).rejects.toThrow(/height/);
+	});
+
+	test("onRollback inverts a fold before the fact-table delete", async () => {
+		const client = new Index({ fetchImpl: forkScriptFetch() });
+
+		const sink = kyselySink(db, {
+			id: "sink-test-sales",
+			tables: ["sink_test_sales"],
+			height: "block_height",
+			onRollback: async (tx, { forkPointHeight }) => {
+				const doomed = await tx
+					.selectFrom("sink_test_sales")
+					.where("block_height", ">=", forkPointHeight)
+					.select("buyer")
+					.execute();
+				for (const row of doomed) {
+					await tx
+						.updateTable("sink_test_balances")
+						.set({ amount: sql`amount - 1` })
+						.where("holder", "=", row.buyer)
+						.execute();
+				}
+			},
+		});
+
+		await client.events.consume({
+			eventType: "ft_transfer",
+			fromHeight: 100,
+			sink,
+			maxEmptyPolls: 1,
+			emptyBackoffMs: 0,
+			onBatch: async (events, _envelope, ctx) => {
+				if (events.length === 0) return;
+				await ctx.tx
+					.insertInto("sink_test_sales")
+					.values(
+						events.map((e) => ({
+							cursor: e.cursor,
+							block_height: e.block_height,
+							buyer: e.recipient,
+						})),
+					)
+					.onConflict((oc) => oc.column("cursor").doNothing())
+					.execute();
+				for (const e of events) {
+					await ctx.tx
+						.insertInto("sink_test_balances")
+						.values({ holder: e.recipient, amount: 1 })
+						.onConflict((oc) =>
+							oc.column("holder").doUpdateSet({
+								amount: sql`sink_test_balances.amount + 1`,
+							}),
+						)
+						.execute();
+				}
+			},
+		});
+
+		expect(await rows()).toEqual([
+			{ block_height: 100, buyer: "ALICE" },
+			{ block_height: 101, buyer: "BOB" },
+			{ block_height: 102, buyer: "ERIN" },
+		]);
+		const balances = await db
+			.selectFrom("sink_test_balances")
+			.select(["holder", "amount"])
+			.orderBy("holder")
+			.execute();
+		expect(balances).toEqual([
+			{ holder: "ALICE", amount: 1 },
+			{ holder: "BOB", amount: 1 },
+			{ holder: "CAROL", amount: 0 },
+			{ holder: "DAVE", amount: 0 },
+			{ holder: "ERIN", amount: 1 },
+		]);
+	});
+
+	test("onRollback invert is a no-op on re-application once facts are gone", async () => {
+		const sink = kyselySink(db, {
+			id: "sink-test-sales",
+			tables: ["sink_test_sales"],
+			height: "block_height",
+			onRollback: async (tx, { forkPointHeight }) => {
+				const doomed = await tx
+					.selectFrom("sink_test_sales")
+					.where("block_height", ">=", forkPointHeight)
+					.select("buyer")
+					.execute();
+				for (const row of doomed) {
+					await tx
+						.updateTable("sink_test_balances")
+						.set({ amount: sql`amount - 1` })
+						.where("holder", "=", row.buyer)
+						.execute();
+				}
+			},
+		});
+		await sink.loadCursor();
+		await sink.commitBatch("102:0", async (tx) => {
+			await tx
+				.insertInto("sink_test_sales")
+				.values([
+					{ cursor: "101:0", block_height: 101, buyer: "BOB" },
+					{ cursor: "102:0", block_height: 102, buyer: "CAROL" },
+				])
+				.execute();
+			await tx
+				.insertInto("sink_test_balances")
+				.values([
+					{ holder: "BOB", amount: 1 },
+					{ holder: "CAROL", amount: 1 },
+				])
+				.execute();
+		});
+		await sink.rollback(102, "101:2147483647");
+		await sink.rollback(102, "101:2147483647");
+		expect(await rows()).toEqual([{ block_height: 101, buyer: "BOB" }]);
+		expect(
+			await db
+				.selectFrom("sink_test_balances")
+				.select(["holder", "amount"])
+				.orderBy("holder")
+				.execute(),
+		).toEqual([
+			{ holder: "BOB", amount: 1 },
+			{ holder: "CAROL", amount: 0 },
+		]);
 	});
 
 	test("a second consumer with the same id fails loudly instead of interleaving", async () => {
