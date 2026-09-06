@@ -1,5 +1,11 @@
 # @secondlayer/sdk
 
+## 10.1.0
+
+### Minor Changes
+
+- a88cc70: Sink `onRollback` inverts folds (balances) in the rollback transaction before the fact-table delete.
+
 ## 10.0.0
 
 ### Major Changes

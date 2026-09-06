@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "10.0.0",
+	"version": "10.1.0",
 	"areas": [
 		{
 			"name": "Client",
@@ -184,7 +184,7 @@
 					"summary": "Checkpointed pull loop over a cursor-paginated Index feed — the Index port of `consumeStreamsEvents`, sharing its contract: at-least-once delivery, client-owned checkpoints (`onBatch` may return th…",
 					"signature": "consumeIndexFeed(opts: object): object",
 					"file": "src/index-api/consumer.ts",
-					"line": 121
+					"line": 122
 				},
 				{
 					"name": "ContractCallsConsumeParams",
@@ -1386,7 +1386,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 500
+					"line": 501
 				},
 				{
 					"name": "FtTransferEvent",
@@ -1514,7 +1514,7 @@
 					"summary": "One yielded page from {@link StreamsClient.consume} — the `GET /v1/streams/events` envelope verbatim, with `next_cursor` renamed to `cursor` (the checkpoint to persist and resume from).",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 416
+					"line": 417
 				},
 				{
 					"name": "StreamsBatchContext",
@@ -1538,7 +1538,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 548
+					"line": 549
 				},
 				{
 					"name": "StreamsConsumeParams",
@@ -1546,7 +1546,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 426
+					"line": 427
 				},
 				{
 					"name": "StreamsDumpFile",
@@ -1554,7 +1554,7 @@
 					"summary": "One bulk parquet file in the dumps manifest.",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 507
+					"line": 508
 				},
 				{
 					"name": "StreamsDumps",
@@ -1562,7 +1562,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 539
+					"line": 540
 				},
 				{
 					"name": "StreamsDumpsManifest",
@@ -1570,7 +1570,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 520
+					"line": 521
 				},
 				{
 					"name": "StreamsEvent",
@@ -1602,7 +1602,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 446
+					"line": 447
 				},
 				{
 					"name": "StreamsEventsEnvelope",
