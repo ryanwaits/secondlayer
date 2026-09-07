@@ -1,23 +1,23 @@
 #!/bin/bash
 # Nightly Docker image + build-cache cleanup.
 #
-# Problem: `$COMPOSE up -d --build` during deploys leaves dangling images
-# and a growing build cache. Without this, root disk climbs ~1-2GB/week
-# until secondlayer-agent auto-prunes reactively at 85% usage.
+# Every deploy tags a new SHA on 5+ images. Those tags keep the layers
+# alive forever. `docker image prune` (dangling only) reclaims nothing
+# once everything is tagged — which is how ~3,500 SHA tags accumulated
+# and the archive exporter died at 91GB free against a 100GB disk-guard
+# (2026-09-06). Disk was climbing ~3GB/day; nightly prune logged 0B.
 #
 # Policy:
-#   - `docker image prune -f`: remove dangling images only (images not
-#     tagged and not referenced by any container). Safe — does NOT touch
-#     images tagged for running or stopped services.
-#   - `docker builder prune -f --reserved-space 2gb`: trim buildkit cache
-#     older than the 2GB cap. Keeps recent cache warm for fast rebuilds.
-#     (`--keep-storage` is the old alias, deprecated in newer docker.)
+#   - `docker image prune -f`: dangling (untagged) images. Safe.
+#   - `docker image prune -a -f --filter until=168h`: unused tagged
+#     images older than 7 days. Running/stopped containers keep their
+#     images. Rollback only needs `current` + `previous` (hours old);
+#     GHCR still holds older SHAs if a deeper rollback is ever required.
+#   - `docker builder prune -f --reserved-space 2gb`: trim buildkit cache.
 #
 # What this does NOT do:
-#   - `docker system prune -a` (deletes ALL unused images, including
-#     tagged ones a stopped service might need on restart).
-#   - `docker volume prune` (would nuke postgres data volume — never
-#     safe on a data-bearing host).
+#   - `docker volume prune` (would nuke postgres data — never).
+#   - Unused images younger than 7 days (recent rollback window).
 #
 # Usage: prune-docker-images.sh
 # Cron:  0 2 * * * /opt/secondlayer/docker/scripts/prune-docker-images.sh >> /opt/secondlayer/data/backups/prune-docker.log 2>&1
@@ -31,6 +31,12 @@ df -h / | tail -1
 
 log "Dangling images:"
 docker image prune -f 2>&1 | sed 's/^/  /'
+
+# 7 days. Rollback reads /opt/secondlayer/data/deploy/previous (the last
+# successful SHA). Keeping a week of unused tags is the buffer; keeping
+# every SHA is how the disk-guard trips.
+log "Unused tagged images older than 7d:"
+docker image prune -a -f --filter "until=168h" 2>&1 | sed 's/^/  /'
 
 log "Build cache (reserved-space 2gb):"
 docker builder prune -f --reserved-space 2gb 2>&1 | sed 's/^/  /'
