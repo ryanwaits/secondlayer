@@ -44,8 +44,10 @@ export interface InferredTopicSchema {
 }
 
 /**
- * Kebab-case → camelCase using the exact runner regex, so `camel_name`
- * matches what handlers see on `e.data` (runner.ts camelizeKeys).
+ * Kebab-case → camelCase for print tuple keys. Canonical: the runner uses
+ * this on `event.data`, and `camel_name` in inferred print schema is the
+ * same function. Distinct from ABI `toCamelCase` (`transfer-STX` stays
+ * `transfer-STX` here, becomes `transferSTX` there).
  */
 export function camelizeDataKey(str: string): string {
 	return str.replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase());

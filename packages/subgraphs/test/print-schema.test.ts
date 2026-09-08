@@ -3,6 +3,7 @@ import {
 	Cl,
 	type ClarityValue,
 	serializeCV,
+	toCamelCase,
 } from "@secondlayer/stacks/clarity";
 import {
 	type PrintSample,
@@ -43,6 +44,16 @@ test("camelizeDataKey matches runner camelization", () => {
 	expect(camelizeDataKey("bitcoin-txid")).toBe("bitcoinTxid");
 	expect(camelizeDataKey("pox-4-cycle")).toBe("pox4Cycle");
 	expect(camelizeDataKey("amount")).toBe("amount");
+});
+
+test("print camelization is intentionally not ABI toCamelCase", () => {
+	// Lowercase kebab with digits happens to agree (`pox-4-cycle` → pox4Cycle).
+	// Uppercase-after-hyphen and leading digits do not — those are why the
+	// runner must not switch onto the ABI helper.
+	expect(camelizeDataKey("transfer-STX")).toBe("transfer-STX");
+	expect(toCamelCase("transfer-STX")).toBe("transferSTX");
+	expect(camelizeDataKey("2-cycle")).toBe("2Cycle");
+	expect(toCamelCase("2-cycle")).toBe("_2Cycle");
 });
 
 test("none + some(uint) unifies to (optional uint)", () => {
