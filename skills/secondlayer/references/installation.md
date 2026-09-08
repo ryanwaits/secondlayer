@@ -76,7 +76,6 @@ Writes (`/api/subgraphs`, `/api/subscriptions`, `/api/node`, `/status`) send `Au
 | `SL_API_URL` | All SDK + CLI calls | Override instance API. Default: `http://127.0.0.1:3800`. |
 | `INSTANCE_TOKEN` | CLI writes, MCP, SDK | The token `secondlayer init` writes — the instance's only credential. Loopback reads need no value. |
 | `SL_API_KEY` | legacy alias | Same value as `INSTANCE_TOKEN`, which wins when both are set. |
-| `HIRO_API_KEY` | `secondlayer codegen contracts` | Stacks node API key for ABI fetches against Hiro RPC. |
 | `SIGNING_SECRET` | `secondlayer subscriptions test` fallback | If `--signing-secret` not passed. |
 | `STACKS_NETWORK` | `secondlayer codegen contracts` and some local commands | `mainnet`, `testnet`, or `devnet` (`devnet` maps to the config file's `local`). |
 

@@ -1,10 +1,10 @@
 import path from "node:path";
 import { getErrorMessage } from "@secondlayer/shared";
 import { toCamelCase } from "@secondlayer/stacks/clarity";
-import chalk from "chalk";
 import fg from "fast-glob";
 import { PluginManager } from "../core/plugin-manager";
 import { generateContractInterface } from "../generators/contract";
+import { info, note, printError, success, warn } from "../lib/output.ts";
 import { parseApiResponse, parseClarityFile } from "../parsers/clarity";
 import type { SecondLayerConfig } from "../types/config";
 import type { ContractConfig, ResolvedConfig } from "../types/plugin";
@@ -21,7 +21,6 @@ import { inferNetwork } from "../utils/network";
 export interface GenerateOptions {
 	config?: string;
 	out?: string;
-	apiKey?: string;
 	watch?: boolean;
 }
 
@@ -100,7 +99,6 @@ const DEFAULT_DEVNET_ADDRESS = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM";
 async function buildConfigFromInputs(
 	parsedInputs: ParsedInputs,
 	outPath: string,
-	apiKey: string | undefined,
 	defaultAddress?: string,
 ): Promise<SecondLayerConfig> {
 	const contracts = [];
@@ -108,20 +106,16 @@ async function buildConfigFromInputs(
 
 	// Warn about placeholder address for local files
 	if (parsedInputs.files.length > 0 && !defaultAddress) {
-		console.warn(
-			chalk.yellow(
-				`⚠️  Using placeholder address (${deployer}) for local contracts.\n   Generated contract addresses won't match deployed addresses.\n   Set defaultAddress in config or use deployed contract addresses.`,
-			),
+		warn(
+			`Using placeholder address (${deployer}) for local contracts. Generated contract addresses won't match deployed addresses. Set defaultAddress in config or use deployed contract addresses.`,
 		);
 	}
 
 	// Return types are not written down in Clarity source — they come out of the
 	// type checker — so reading a .clar file can only report `any` for them.
 	if (parsedInputs.files.length > 0) {
-		console.warn(
-			chalk.yellow(
-				"⚠️  Return types can't be read from Clarity source and will be `any`.\n   Use the clarinet() plugin or a deployed contract id for exact types.",
-			),
+		warn(
+			"Return types can't be read from Clarity source and will be `any`. Use the clarinet() plugin or a deployed contract id for exact types.",
 		);
 	}
 
@@ -144,7 +138,7 @@ async function buildConfigFromInputs(
 		const network = inferNetwork(address) ?? "mainnet";
 
 		try {
-			const apiClient = new StacksApiClient(network, apiKey);
+			const apiClient = new StacksApiClient(network);
 			const contractInfo = await apiClient.getContractInfo(contractId);
 			const abi = parseApiResponse(contractInfo);
 			const name = toCamelCase(contractName);
@@ -191,24 +185,17 @@ async function runGenerate(
 		if (files && files.length > 0) {
 			// Require -o/--out when using direct inputs
 			if (!options.out) {
-				console.error(chalk.red("✗ Output path required"));
-				console.error(
-					chalk.red(
-						"\nWhen using direct inputs, you must specify an output path with -o/--out",
-					),
+				printError("Output path required", {
+					hint: "When using direct inputs, pass -o/--output.",
+				});
+				note(
+					"  secondlayer codegen contracts ./contracts/*.clar -o ./src/generated.ts",
 				);
-				console.log(chalk.gray("\nExamples:"));
-				console.log(
-					chalk.gray(
-						"  secondlayer generate ./contracts/*.clar -o ./src/generated.ts",
-					),
+				note(
+					"  secondlayer codegen contracts SP2C2YFP12AJZB1M6DY7SF9A3PRHWKGYGVWQKW3.my-token -o ./src/generated.ts",
 				);
-				console.log(
-					chalk.gray(
-						"  secondlayer generate SP2C2YFP12AJZB1M6DY7SF9A3PRHWKGYGVWQKW3.my-token -o ./src/generated.ts",
-					),
-				);
-				process.exit(1);
+				if (exitOnError) process.exit(1);
+				return;
 			}
 
 			// Parse inputs to separate files from contract addresses
@@ -217,19 +204,14 @@ async function runGenerate(
 				parsedInputs.files.length + parsedInputs.contractIds.length;
 
 			if (totalInputs === 0) {
-				console.error(chalk.red("✗ No valid inputs found"));
-				console.error(
-					chalk.red(
-						"\nNo .clar files or contract addresses matched the provided inputs",
-					),
-				);
-				process.exit(1);
+				printError("No valid inputs found", {
+					hint: "No .clar files or contract addresses matched the provided inputs.",
+				});
+				if (exitOnError) process.exit(1);
+				return;
 			}
 
-			// Get API key for direct RPC URLs from option or environment variable
-			const apiKey = options.apiKey || process.env.STACKS_NODE_API_KEY;
-
-			config = await buildConfigFromInputs(parsedInputs, options.out, apiKey);
+			config = await buildConfigFromInputs(parsedInputs, options.out);
 		} else {
 			// Use config file (existing behavior)
 			config = await loadConfig(options.config);
@@ -277,10 +259,9 @@ async function runGenerate(
 		);
 
 		if (processedContracts.length === 0) {
-			console.log(chalk.yellow("⚠ No contracts found to generate"));
-			console.log("\nTo get started:");
-			console.log("  • Add contracts to your config file, or");
-			console.log("  • Use plugins like clarinet() for local contracts");
+			warn("No contracts found to generate");
+			note("  Add contracts to your config file, or");
+			note("  Use plugins like clarinet() for local contracts");
 			return;
 		}
 
@@ -311,14 +292,9 @@ async function runGenerate(
 
 		const contractCount = processedContracts.length;
 		const contractWord = contractCount === 1 ? "contract" : "contracts";
-		console.log(
-			chalk.green(
-				`✓ Generated \`${config.out}\` for ${contractCount} ${contractWord}`,
-			),
-		);
+		success(`Generated \`${config.out}\` for ${contractCount} ${contractWord}`);
 	} catch (error) {
-		console.error(chalk.red("✗ Generation failed"));
-		console.error(chalk.red(`\n${getErrorMessage(error)}`));
+		printError(`Generation failed: ${getErrorMessage(error)}`);
 		if (process.env.DEBUG && error instanceof Error) {
 			console.error(error.stack);
 		}
@@ -406,16 +382,12 @@ async function watchAndRegenerate(files: string[], options: GenerateOptions) {
 	const targets = await collectWatchTargets(files, options);
 
 	if (targets.length === 0) {
-		console.log(
-			chalk.yellow("⚠ Nothing to watch — no local inputs were found"),
-		);
+		warn("Nothing to watch — no local inputs were found");
 		return;
 	}
 
-	console.log(
-		chalk.cyan(
-			`👀 Watching ${targets.length} ${targets.length === 1 ? "location" : "locations"} for changes — press Ctrl+C to stop`,
-		),
+	info(
+		`Watching ${targets.length} ${targets.length === 1 ? "location" : "locations"} for changes — press Ctrl+C to stop`,
 	);
 
 	let timer: ReturnType<typeof setTimeout> | undefined;
@@ -428,10 +400,8 @@ async function watchAndRegenerate(files: string[], options: GenerateOptions) {
 			return;
 		}
 		running = true;
-		console.log(
-			chalk.gray(
-				`↻ ${changed ? `${changed} changed` : "Change detected"} — regenerating...`,
-			),
+		note(
+			`${changed ? `${changed} changed` : "Change detected"} — regenerating...`,
 		);
 		await runGenerate(files, options, { exitOnError: false });
 		running = false;
@@ -454,7 +424,7 @@ async function watchAndRegenerate(files: string[], options: GenerateOptions) {
 				onEvent(filename),
 			);
 		} catch {
-			console.warn(chalk.yellow(`⚠ Could not watch ${target.path}`));
+			warn(`Could not watch ${target.path}`);
 		}
 	}
 

@@ -22,7 +22,6 @@ The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlay
 | `INSTANCE_TOKEN` | writes, MCP, SDK | The token `secondlayer init` writes. The instance's only credential. Required for every write, and for every read once the API is published past loopback; loopback reads need no value. |
 | `SL_API_KEY` | legacy alias of `INSTANCE_TOKEN` | Same value; `INSTANCE_TOKEN` wins when both are set. |
 | `SL_PLATFORM_API_URL` | legacy alias of `SL_API_URL` | Same default: `http://127.0.0.1:3800`. |
-| `HIRO_API_KEY` / `STACKS_NODE_API_KEY` | codegen contracts | API key passed to Hiro Stacks RPC when fetching contract ABIs. |
 | `SIGNING_SECRET` | subscriptions test | Standard-Webhooks signing secret used to sign test fixtures. |
 | `STACKS_NETWORK` | global | Network override (set by `--network`). |
 | `SL_STREAMS_DUMPS_URL` | streams dumps | Public bulk-dump bucket base URL (dumps are public — no API key). Alternative to `--dumps-url`. |
@@ -1187,8 +1186,9 @@ Usage: `secondlayer codegen contracts [files...]`
 | --- | --- |
 | `-c, --config <path>` | Path to config file (default `secondlayer.config.ts`). |
 | `-o, --output <path>` | Output file path. **Required** when using direct file/contract inputs (not config-based). |
-| `-k, --api-key <key>` | Stacks node API key for direct RPC. Falls back to `STACKS_NODE_API_KEY` / `HIRO_API_KEY`. |
 | `-w, --watch` | Watch for changes. |
+
+ABI fetch for a deployed contract id uses this instance's registry (`resolveAuth()` / `INSTANCE_TOKEN`). Global `--api-key` is the instance credential, not a Hiro RPC key.
 
 Accepts `.clar` file paths, glob patterns, or deployed contract IDs (`SP…/ST…/SM…/SN….<name>`). When invoked with no positional args, reads `secondlayer.config.ts`.
 

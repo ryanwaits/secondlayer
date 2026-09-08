@@ -67,10 +67,13 @@ describe("CLI help snapshot", () => {
 	test("flags that the global options already own are not redeclared on subcommands", () => {
 		// A command-local copy of a global flag is bound by Commander to the
 		// ancestor, so the subcommand reads undefined and silently falls back
-		// to its own default. init --api-url and scaffold --api-key both did.
+		// to its own default. init --api-url and scaffold --api-key both did;
+		// codegen contracts --api-key was the same class (and would clobber
+		// INSTANCE_TOKEN via the global preAction funnel).
 		const program = new Command().name("sl");
 		registerInitCommand(program);
 		registerSubgraphsCommand(program);
+		registerCodegenCommand(program);
 		const init = program.commands.find((c) => c.name() === "init");
 		expect(init?.options.map((o) => o.long)).not.toContain("--api-url");
 		expect(init?.options.map((o) => o.long)).not.toContain("--network");
@@ -78,6 +81,10 @@ describe("CLI help snapshot", () => {
 			.find((c) => c.name() === "subgraphs")
 			?.commands.find((c) => c.name() === "scaffold");
 		expect(scaffold?.options.map((o) => o.long)).not.toContain("--api-key");
+		const contracts = program.commands
+			.find((c) => c.name() === "codegen")
+			?.commands.find((c) => c.name() === "contracts");
+		expect(contracts?.options.map((o) => o.long)).not.toContain("--api-key");
 	});
 
 	test("renamed verbs advertise the canonical name and hide the old spelling", () => {
@@ -156,10 +163,9 @@ describe("CLI help snapshot", () => {
 		]);
 
 		const contracts = codegen?.commands.find((c) => c.name() === "contracts");
-		// The retired `contracts generate` accepted these four flags; the
-		// canonical verb has to cover all of them or the removal drops a feature.
+		// `--api-key` is global (instance credential). A local copy was shadowed
+		// by Commander and never reached StacksApiClient.
 		expect(contracts?.options.map((o) => o.long).sort()).toEqual([
-			"--api-key",
 			"--config",
 			"--output",
 			"--watch",

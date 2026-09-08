@@ -20,7 +20,9 @@ export function registerCodegenCommand(program: Command): void {
 		.description("Generate TypeScript interfaces from Clarity contracts")
 		.option("-c, --config <path>", "Path to config file")
 		.option("-o, --output <path>", "Output file path")
-		.option("-k, --api-key <key>", "Stacks node API key for direct RPC URLs")
+		// No command-local `--api-key`: the global one on `program` shadows it
+		// (Commander binds a repeated flag to the ancestor), and ABI fetch uses
+		// `resolveAuth()` / INSTANCE_TOKEN — same as `subgraphs scaffold`.
 		.option("-w, --watch", "Watch for changes")
 		.action(async (files: string[], options: { output?: string }) => {
 			const { generate } = await import("./generate.ts");
