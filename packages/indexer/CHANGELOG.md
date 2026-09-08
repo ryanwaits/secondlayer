@@ -1,5 +1,11 @@
 # @secondlayer/indexer
 
+## 1.14.3
+
+### Patch Changes
+
+- 0d44328: BNS decoder writes `block_time` from the Streams event `ts` instead of wall-clock at decode time.
+
 ## 1.14.2
 
 ### Patch Changes
