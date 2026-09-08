@@ -171,8 +171,9 @@ export function reconstructEvent(e: IndexEventRow): Event {
 				type: "contract_event",
 				data: {
 					topic: e.payload.topic,
-					// Matcher + runner read `contract_identifier` (the raw node field).
-					contract_identifier: e.contract_id,
+					// Index serves `contract_id`. Matcher + runner also accept
+					// legacy `contract_identifier`; emit the current field.
+					contract_id: e.contract_id,
 					value: e.payload.value,
 					raw_value: e.payload.raw_value,
 				},

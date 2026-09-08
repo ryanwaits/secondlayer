@@ -109,6 +109,24 @@ function assetContract(assetId: string | undefined): string | undefined {
 	return assetId?.split("::")[0];
 }
 
+/**
+ * Contract on a print payload. Legacy `smart_contract_event` rows use
+ * `contract_identifier`; current `contract_event` rows use `contract_id`.
+ * Matcher and runner must share this — a print that matches on `contract_id`
+ * otherwise reaches the handler with `event.contractId === ""`.
+ */
+export function printContractId(
+	data: Record<string, unknown> | null | undefined,
+): string | undefined {
+	if (!data) return undefined;
+	const id =
+		(typeof data.contract_identifier === "string"
+			? data.contract_identifier
+			: undefined) ??
+		(typeof data.contract_id === "string" ? data.contract_id : undefined);
+	return id || undefined;
+}
+
 // ── Per-filter-type matchers ────────────────────────────────────────
 
 function matchFilter(
@@ -332,23 +350,13 @@ function matchFilter(
 					if (!data) return false;
 					if (data.topic !== "print") return false;
 
-					// Contract filter — events store the contract under either
-					// `contract_identifier` (legacy smart_contract_event payload)
-					// or `contract_id` (current contract_event payload). Mirror
-					// the streams query which checks both shapes.
-					const printContractId =
-						(data.contract_identifier as string | undefined) ??
-						(data.contract_id as string | undefined);
+					const contractId = printContractId(data);
 					if (filter.contractId) {
-						if (
-							!printContractId ||
-							!matchAny(printContractId, filter.contractId)
-						)
+						if (!contractId || !matchAny(contractId, filter.contractId))
 							return false;
 					}
-					if (!traitAllows(filter, printContractId, traitContracts))
-						return false;
-					if (!factoryAllows(filter, printContractId, factoryContracts))
+					if (!traitAllows(filter, contractId, traitContracts)) return false;
+					if (!factoryAllows(filter, contractId, factoryContracts))
 						return false;
 					// Topic filter — check the decoded Clarity value's topic field
 					// At this stage data.value is still raw hex; topic filtering happens

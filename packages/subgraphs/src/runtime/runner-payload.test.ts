@@ -51,3 +51,36 @@ describe("buildEventPayload nft tokenId", () => {
 		expect(payload.tokenId).toEqual({ UInt: 223 });
 	});
 });
+
+describe("buildEventPayload print contractId", () => {
+	const filter = { type: "print_event" } as SubgraphFilter;
+
+	test("falls back to data.contract_id when contract_identifier is absent", () => {
+		const payload = buildEventPayload(filter, tx, {
+			type: "contract_event",
+			event_index: 0,
+			tx_id: tx.tx_id,
+			id: "e1",
+			data: {
+				topic: "print",
+				contract_id: "SP.foo",
+			},
+		} as unknown as MatchedTx["events"][0]);
+		expect(payload.contractId).toBe("SP.foo");
+	});
+
+	test("prefers contract_identifier over contract_id", () => {
+		const payload = buildEventPayload(filter, tx, {
+			type: "smart_contract_event",
+			event_index: 0,
+			tx_id: tx.tx_id,
+			id: "e1",
+			data: {
+				topic: "print",
+				contract_identifier: "SP.legacy",
+				contract_id: "SP.current",
+			},
+		} as unknown as MatchedTx["events"][0]);
+		expect(payload.contractId).toBe("SP.legacy");
+	});
+});

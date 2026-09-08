@@ -5,6 +5,7 @@ import {
 	deserializeCV,
 	toCamelCase,
 } from "@secondlayer/stacks/clarity";
+import { camelizeDataKey } from "../print-schema.ts";
 import type {
 	ContractCallFilter,
 	SubgraphDefinition,
@@ -13,7 +14,7 @@ import type {
 import { decodeClarityValue, decodeEventData } from "./clarity.ts";
 import type { SubgraphContext } from "./context.ts";
 import { validatePrintPayload } from "./print-validate.ts";
-import type { MatchedTx } from "./source-matcher.ts";
+import { type MatchedTx, printContractId } from "./source-matcher.ts";
 
 /** Max consecutive handler errors before marking subgraph as error */
 const DEFAULT_ERROR_THRESHOLD = 50;
@@ -27,19 +28,15 @@ export interface RunResult {
 	skipped?: number;
 }
 
-/** Convert kebab-case to camelCase: "bitcoin-txid" → "bitcoinTxid" */
-function camelCase(str: string): string {
-	return str.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
-}
-
-/** Recursively camelize all object keys */
+/** Recursively camelize object keys with the print-payload helper (not ABI
+ *  `toCamelCase` — that one strips `-STX` and prefixes leading digits). */
 function camelizeKeys(obj: unknown): unknown {
 	if (obj === null || obj === undefined) return obj;
 	if (typeof obj !== "object") return obj;
 	if (Array.isArray(obj)) return obj.map(camelizeKeys);
 	const result: Record<string, unknown> = {};
 	for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
-		result[camelCase(k)] = camelizeKeys(v);
+		result[camelizeDataKey(k)] = camelizeKeys(v);
 	}
 	return result;
 }
@@ -305,8 +302,7 @@ export function buildEventPayload(
 						? rawValue
 						: {};
 			return {
-				contractId:
-					(decoded.contract_identifier as string) ?? tx.contract_id ?? "",
+				contractId: printContractId(decoded) ?? tx.contract_id ?? "",
 				topic,
 				data: data ?? {},
 				tx: txMeta,
