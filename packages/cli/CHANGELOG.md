@@ -1,5 +1,16 @@
 # @secondlayer/cli
 
+## 14.1.1
+
+### Patch Changes
+
+- 5f9afe7: `codegen contracts` no longer redeclares global `--api-key` (Commander bound it to the ancestor, so a Hiro-looking key overwrote INSTANCE_TOKEN). ABI fetch already uses `resolveAuth()`. The missing-output path names `secondlayer codegen contracts … -o/--output`, not the unregistered `generate` verb.
+- Updated dependencies [22f8f41]
+- Updated dependencies [05b8700]
+- Updated dependencies [026c5c4]
+  - @secondlayer/sdk@10.1.1
+  - @secondlayer/subgraphs@4.1.5
+
 ## 14.1.0
 
 ### Minor Changes

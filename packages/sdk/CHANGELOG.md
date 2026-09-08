@@ -1,5 +1,14 @@
 # @secondlayer/sdk
 
+## 10.1.1
+
+### Patch Changes
+
+- 22f8f41: Security override bumps to clear HIGH-severity `bun audit` findings: `fast-uri` 3.1.5 → 3.1.7 (host confusion / SSRF, GHSA-5jgf-p345-68v8 and siblings), plus in-range moderate pins `qs` 6.15.2 → 6.16.0 and `@hono/node-server` 1.19.13 → 1.19.17. No source changes.
+- Updated dependencies [05b8700]
+- Updated dependencies [026c5c4]
+  - @secondlayer/subgraphs@4.1.5
+
 ## 10.1.0
 
 ### Minor Changes

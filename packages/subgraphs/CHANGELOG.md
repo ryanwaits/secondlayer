@@ -1,5 +1,12 @@
 # @secondlayer/subgraphs
 
+## 4.1.5
+
+### Patch Changes
+
+- 05b8700: Print-event key camelization is single-sourced on `camelizeDataKey`. The runner (and its test double) no longer keep a private copy of the regex, so print-lint `camel_name` and handler `event.data` cannot drift. ABI `toCamelCase` is unchanged — `transfer-STX` stays hyphenated on print payloads and becomes `transferSTX` on contract-call args.
+- 026c5c4: Print handlers read `event.contractId` from either payload shape (`contract_identifier` or `contract_id`). The matcher already accepted both; the runner now uses the same helper, so a `contract_event` row no longer reaches the handler with an empty contract id.
+
 ## 4.1.4
 
 ### Patch Changes
