@@ -99,6 +99,7 @@ describe("decodeNameEvent", () => {
 		expect(row?.preordered_by).toBe(OWNER);
 		expect(row?.hashed_salted_fqn_preorder).toBe(`0x${"11".repeat(32)}`);
 		expect(row?.cursor).toBe("100:7");
+		expect(row?.block_time).toEqual(new Date("2026-05-05T12:34:56.000Z"));
 	});
 
 	test("transfer-name updates owner, retains namespace+name", () => {

@@ -343,7 +343,7 @@ export function decodeNameEvent(
 	return {
 		cursor: event.cursor,
 		block_height: cursorParsed.block_height,
-		block_time: streamsTimestampToDate(event),
+		block_time: new Date(event.ts),
 		tx_id: event.tx_id,
 		tx_index: event.tx_index ?? 0,
 		event_index: cursorParsed.event_index,
@@ -402,7 +402,7 @@ export function decodeNamespaceEvent(
 	return {
 		cursor: event.cursor,
 		block_height: cursorParsed.block_height,
-		block_time: streamsTimestampToDate(event),
+		block_time: new Date(event.ts),
 		tx_id: event.tx_id,
 		tx_index: event.tx_index ?? 0,
 		event_index: cursorParsed.event_index,
@@ -449,7 +449,7 @@ export function decodeMarketplaceEvent(
 	return {
 		cursor: event.cursor,
 		block_height: cursorParsed.block_height,
-		block_time: streamsTimestampToDate(event),
+		block_time: new Date(event.ts),
 		tx_id: event.tx_id,
 		tx_index: event.tx_index ?? 0,
 		event_index: cursorParsed.event_index,
@@ -599,15 +599,6 @@ function parseStreamsCursor(
 		block_height: Number.parseInt(match[1] ?? "0", 10),
 		event_index: Number.parseInt(match[2] ?? "0", 10),
 	};
-}
-
-function streamsTimestampToDate(event: StreamsEvent): Date {
-	const ts = (event as unknown as { block_time?: string | number | Date })
-		.block_time;
-	if (ts instanceof Date) return ts;
-	if (typeof ts === "string") return new Date(ts);
-	if (typeof ts === "number") return new Date(ts * 1000);
-	return new Date();
 }
 
 function jsonReplacer(_key: string, value: unknown): unknown {
