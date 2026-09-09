@@ -200,13 +200,18 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		),
 		card(
 			"Build an L1 lockup",
-			"Lockup address today, proven registration at the fork.",
+			"Build the P2WSH lockup, then registerForBond.",
 			"/secondlayer Help me build a PoX-5 L1 BTC lockup: `buildDefaultStakerUnlockBytes` from my pubkey, `buildLockupAddress` for the P2WSH address, then `buildTxProof` from `@secondlayer/stacks/bitcoin` to produce the SPV proof fields `registerForBond`'s `l1Outputs` path needs.",
 		),
 		card(
 			"Sign a signer grant",
 			"SIP-018 grant hash, RSV signature, on-chain grant.",
 			"/secondlayer Walk me through PoX-5 signer-key grants: `computeSignerGrantHash({ signerManager, authId, chainId })`, `signSignerGrant` for the 65-byte RSV signature `grant-signer-key` expects, verify locally with `verifySignerGrant`, then broadcast `client.pox5.grantSignerKey(...)`.",
+		),
+		card(
+			"Read bond prints",
+			"Index feed filtered by register-for-bond.",
+			"/secondlayer Show me how to read PoX-5 protocol-bond registrations from Index: GET /v1/index/pox5/events?topic=register-for-bond, and a chain subscription trigger print_event on SP000000000000000000002Q6VF78.pox-5 with that topic. Point at /docs/pox5 and /docs/subscriptions.",
 		),
 	],
 
