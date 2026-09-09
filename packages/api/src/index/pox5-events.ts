@@ -64,6 +64,7 @@ export const POX5_EVENT_FIELDS = [
 	"first_reward_cycle",
 	"unlock_cycle",
 	"unlock_burn_height",
+	"is_l1_lock",
 	"signer_key",
 	"data",
 ] as const;

@@ -83,6 +83,29 @@ describe("PoX-5 events helpers", () => {
 		expect(seen[0]?.topic).toBe("register-for-bond");
 	});
 
+	test("fields=is_l1_lock is an accepted projection", async () => {
+		const seen: ReadPox5EventsParams[] = [];
+		await getPox5EventsResponse({
+			query: eventsParams("?from_height=0&fields=is_l1_lock"),
+			tip: TIP,
+			readPox5Events: async (params) => {
+				seen.push(params);
+				return { events: [], next_cursor: null };
+			},
+		});
+		expect(seen[0]?.fields).toEqual(expect.arrayContaining(["is_l1_lock"]));
+	});
+
+	test("unknown fields= value names is_l1_lock among available", async () => {
+		await expect(
+			getPox5EventsResponse({
+				query: eventsParams("?from_height=0&fields=is_l1_lok"),
+				tip: TIP,
+				readPox5Events: EMPTY_EVENTS,
+			}),
+		).rejects.toThrow(/unknown field: is_l1_lok.*is_l1_lock/);
+	});
+
 	test("?confirmed=true clamps to_height to finalized_height", async () => {
 		const seen: ReadPox5EventsParams[] = [];
 		await getPox5EventsResponse({
