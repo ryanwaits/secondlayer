@@ -1294,6 +1294,7 @@ function platformSpec(): typeof OPENAPI_SPEC {
 		if (isWorkloadPath(key)) continue;
 		paths[key] = key.startsWith("/v1/streams") ? keyedOperations(value) : value;
 	}
+	Object.assign(paths, platformMeterPaths());
 	return {
 		...OPENAPI_SPEC,
 		info: {
@@ -1301,10 +1302,21 @@ function platformSpec(): typeof OPENAPI_SPEC {
 			description:
 				"The metered public archive. Index and Subgraph reads are open; Streams requires a key on every request. Credentials are account API keys (`sk-sl_*`) sent as `Authorization: Bearer`. The workload plane (`/api/subgraphs`, `/api/subscriptions`, `/api/node`) is not served here — deploying and running handler code is what a self-hosted instance is for.",
 		},
-		tags: OPENAPI_SPEC.tags.filter(
-			(tag) =>
-				!WORKLOAD_TAGS.includes(tag.name as (typeof WORKLOAD_TAGS)[number]),
-		),
+		tags: [
+			...OPENAPI_SPEC.tags.filter(
+				(tag) =>
+					!WORKLOAD_TAGS.includes(tag.name as (typeof WORKLOAD_TAGS)[number]),
+			),
+			{
+				name: "archive",
+				description:
+					"Signed canonical archive fetch gate. Quote is free; fetch charges prepaid credits and returns presigned GET URLs.",
+			},
+			{
+				name: "credits",
+				description: "Prepaid archive credits.",
+			},
+		],
 		components: {
 			...OPENAPI_SPEC.components,
 			securitySchemes: {
@@ -1319,6 +1331,173 @@ function platformSpec(): typeof OPENAPI_SPEC {
 		},
 		paths,
 	} as typeof OPENAPI_SPEC;
+}
+
+/** Metered archive + credits routes. Mounted only in platformSpec so the OSS
+ *  document never advertises endpoints a self-hosted instance 404s. */
+function platformMeterPaths(): Record<string, unknown> {
+	const archiveBody = jsonBody({
+		type: "object",
+		required: ["paths", "flow"],
+		properties: {
+			paths: {
+				type: "array",
+				items: { type: "string" },
+				description:
+					"Manifest partition paths. Dataset is derived from each path; do not send a dataset field.",
+			},
+			flow: { type: "string", enum: ["bootstrap", "repair"] },
+		},
+	});
+	return {
+		"/api/archive/quote": {
+			post: {
+				tags: ["archive"],
+				summary: "Quote a gated archive fetch",
+				description:
+					"Free, idempotent price preview. Never debits. Bearer is an account API key (`sk-sl_*`).",
+				security: WRITE_SECURITY,
+				requestBody: archiveBody,
+				responses: {
+					"200": json200({
+						type: "object",
+						properties: {
+							partitions: { type: "integer" },
+							bundles: { type: "number" },
+							usd_micros: { type: "integer" },
+							usd: { type: "string" },
+							free_allowance_applied_micros: { type: "integer" },
+							allowance_remaining_bundles: { type: "integer" },
+							balance_usd_micros: { type: "integer" },
+							sufficient: { type: "boolean" },
+						},
+					}),
+					"400": jsonError(),
+					"401": jsonError(),
+					"503": jsonError("Archive gate is not configured"),
+				},
+			},
+		},
+		"/api/archive/fetch": {
+			post: {
+				tags: ["archive"],
+				summary: "Charge and presign archive partitions",
+				description:
+					"Charges prepaid credits and returns presigned GET URLs. Max 64 paths per call; the SDK pages internally.",
+				security: WRITE_SECURITY,
+				requestBody: archiveBody,
+				responses: {
+					"200": json200({
+						type: "object",
+						properties: {
+							urls: {
+								type: "array",
+								items: {
+									type: "object",
+									properties: {
+										path: { type: "string" },
+										url: { type: "string" },
+										expires_at: { type: "string", format: "date-time" },
+										charged_usd_micros: { type: "integer" },
+									},
+								},
+							},
+							charged_total_usd_micros: { type: "integer" },
+							balance_after_usd_micros: { type: "integer" },
+						},
+					}),
+					"400": jsonError(),
+					"401": jsonError(),
+					"402": jsonError("Insufficient archive credits"),
+					"413": jsonError("Batch exceeds 64 paths"),
+					"503": jsonError("Archive gate is not configured"),
+				},
+			},
+		},
+		"/api/billing/status": {
+			get: {
+				tags: ["credits"],
+				summary: "Prepaid credits balance and refill config",
+				security: WRITE_SECURITY,
+				responses: {
+					"200": json200({
+						type: "object",
+						properties: {
+							stripeCustomerId: { type: ["string", "null"] },
+							creditsUsdMicros: { type: "string" },
+							creditsSpentThisMonthUsdMicros: { type: "string" },
+							refill: {
+								type: "object",
+								properties: {
+									belowUsd: { type: ["number", "null"] },
+									packUsd: { type: ["integer", "null"] },
+									lastAt: { type: ["string", "null"], format: "date-time" },
+								},
+							},
+							subscription: { type: "null" },
+						},
+					}),
+					"401": jsonError(),
+					"404": jsonError(),
+				},
+			},
+		},
+		"/api/billing/refill": {
+			post: {
+				tags: ["credits"],
+				summary: "Set auto-refill threshold",
+				security: WRITE_SECURITY,
+				requestBody: jsonBody({
+					type: "object",
+					required: ["belowUsd"],
+					properties: {
+						belowUsd: {
+							type: ["number", "null"],
+							description: "Trigger USD; `null` turns auto-refill off.",
+						},
+						packUsd: { type: "integer", enum: [10, 25, 50, 100] },
+					},
+				}),
+				responses: {
+					"200": json200({
+						type: "object",
+						properties: {
+							belowUsd: { type: ["number", "null"] },
+							packUsd: { type: ["integer", "null"] },
+							lastAt: { type: ["string", "null"], format: "date-time" },
+						},
+					}),
+					"400": jsonError(),
+					"401": jsonError(),
+				},
+			},
+		},
+		"/api/public/credits/checkout": {
+			post: {
+				tags: ["credits"],
+				summary: "Guest credits checkout",
+				description:
+					"No bearer. Email is the identity; returns a Stripe Checkout URL.",
+				security: [],
+				requestBody: jsonBody({
+					type: "object",
+					required: ["email", "amount"],
+					properties: {
+						email: { type: "string" },
+						amount: { type: "integer", enum: [10, 25, 50, 100] },
+					},
+				}),
+				responses: {
+					"200": json200({
+						type: "object",
+						properties: { url: { type: "string" } },
+					}),
+					"400": jsonError(),
+					"503": jsonError("Billing is not configured"),
+				},
+			},
+		},
+	};
 }
 
 /** Tags that only exist on the write plane. */
@@ -1451,6 +1630,13 @@ function writeResponses(extra: Record<string, unknown> = {}) {
 function jsonBody(schema: Record<string, unknown>) {
 	return {
 		required: true,
+		content: { "application/json": { schema } },
+	};
+}
+
+function json200(schema: Record<string, unknown>, description = "OK") {
+	return {
+		description,
 		content: { "application/json": { schema } },
 	};
 }

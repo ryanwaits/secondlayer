@@ -214,6 +214,13 @@ describe("route manifest", () => {
 	test("platform OpenAPI drops the workload plane and keeps Streams keyed", () => {
 		const spec = openapiSpec("platform");
 		for (const path of Object.keys(spec.paths)) {
+			if (
+				path.startsWith("/api/archive") ||
+				path.startsWith("/api/billing") ||
+				path.startsWith("/api/public/credits")
+			) {
+				continue;
+			}
 			expect(path.startsWith("/api/"), path).toBe(false);
 		}
 		expect(spec.paths["/v1/index/events"]).toBeDefined();
@@ -226,6 +233,19 @@ describe("route manifest", () => {
 			{ bearerAuth: [] },
 		]);
 		expect(OPENAPI_SPEC.paths["/api/subgraphs"]).toBeDefined();
+	});
+
+	test("platform OpenAPI documents the archive gate; OSS does not", () => {
+		const platform = openapiSpec("platform");
+		const oss = openapiSpec("oss");
+		expect(platform.paths["/api/archive/quote"]).toBeDefined();
+		expect(platform.paths["/api/archive/fetch"]).toBeDefined();
+		expect(platform.paths["/api/billing/status"]).toBeDefined();
+		expect(platform.paths["/api/billing/refill"]).toBeDefined();
+		expect(platform.paths["/api/public/credits/checkout"]).toBeDefined();
+		expect(oss.paths["/api/archive/quote"]).toBeUndefined();
+		expect(oss.paths["/api/archive/fetch"]).toBeUndefined();
+		expect(OPENAPI_SPEC.paths["/api/archive/quote"]).toBeUndefined();
 	});
 
 	/**
