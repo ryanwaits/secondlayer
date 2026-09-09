@@ -1,6 +1,12 @@
+import type { InstanceDiagnosis } from "@secondlayer/shared/archive/instance-diagnosis";
 import type { SubgraphSummary } from "@secondlayer/shared/schemas";
 import { createArchiveClient } from "./archive/client.ts";
-import type { ArchiveClient } from "./archive/types.ts";
+import {
+	type InstanceClient,
+	createArchiveVerify,
+	createInstanceClient,
+} from "./archive/instance.ts";
+import type { SecondLayerArchive } from "./archive/types.ts";
 import { BaseClient } from "./base.ts";
 import type { SecondLayerOptions } from "./base.ts";
 import { Contracts } from "./contracts/client.ts";
@@ -64,6 +70,8 @@ export interface ContextSnapshot {
 	}>;
 	/** In-flight reindex operations (bounded to subgraphs reporting `reindexing`). */
 	activeOperations: ContextField<ActiveSubgraphOperation[]>;
+	/** Decoder lag / empty-index from `GET /status`. */
+	instance: ContextField<InstanceDiagnosis>;
 }
 
 /** Fold one read into a {@link ContextField}: the value, or `null` with the
@@ -105,7 +113,8 @@ export class SecondLayer extends BaseClient {
 	readonly contracts: Contracts;
 	readonly subgraphs: Subgraphs;
 	readonly subscriptions: Subscriptions;
-	readonly archive: ArchiveClient;
+	readonly archive: SecondLayerArchive;
+	readonly instance: InstanceClient;
 
 	constructor(options: Partial<SecondLayerOptions> = {}) {
 		super(options);
@@ -124,12 +133,18 @@ export class SecondLayer extends BaseClient {
 		this.contracts = new Contracts(options);
 		this.subgraphs = new Subgraphs(options);
 		this.subscriptions = new Subscriptions(options);
-		this.archive = createArchiveClient({
-			apiKey: this.apiKey,
-			fetchImpl: options.fetchImpl,
-			archiveBaseUrl: options.archiveBaseUrl,
-			archiveOpsUrl: options.archiveOpsUrl,
-		});
+		const request = <T>(method: string, path: string, body?: unknown) =>
+			this.request<T>(method, path, body);
+		this.archive = {
+			...createArchiveClient({
+				apiKey: this.apiKey,
+				fetchImpl: options.fetchImpl,
+				archiveBaseUrl: options.archiveBaseUrl,
+				archiveOpsUrl: options.archiveOpsUrl,
+			}),
+			verify: createArchiveVerify(request),
+		};
+		this.instance = createInstanceClient(request);
 	}
 
 	/**
@@ -154,14 +169,21 @@ export class SecondLayer extends BaseClient {
 	 * on its field rather than rejecting the whole snapshot.
 	 */
 	async context(): Promise<ContextSnapshot> {
-		const [account, streamsTip, indexEnv, subgraphsRes, subscriptionsRes] =
-			await Promise.all([
-				contextField(this.request<ContextAccount>("GET", "/api/accounts/me")),
-				contextField(this.streams.tip()),
-				contextField(this.index.canonical.list({ limit: 1 })),
-				contextField(this.subgraphs.list()),
-				contextField(this.subscriptions.list()),
-			]);
+		const [
+			account,
+			streamsTip,
+			indexEnv,
+			subgraphsRes,
+			subscriptionsRes,
+			instance,
+		] = await Promise.all([
+			contextField(this.request<ContextAccount>("GET", "/api/accounts/me")),
+			contextField(this.streams.tip()),
+			contextField(this.index.canonical.list({ limit: 1 })),
+			contextField(this.subgraphs.list()),
+			contextField(this.subscriptions.list()),
+			contextField(this.instance.diagnose()),
+		]);
 
 		const subgraphs: ContextField<SubgraphSummary[]> = {
 			value: subgraphsRes.value?.data ?? null,
@@ -228,6 +250,7 @@ export class SecondLayer extends BaseClient {
 			subgraphs,
 			subscriptions,
 			activeOperations,
+			instance,
 		};
 	}
 }

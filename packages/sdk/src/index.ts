@@ -6,6 +6,19 @@ export type {
 	ContextFieldError,
 	ContextSnapshot,
 } from "./client.ts";
+export type {
+	ArchiveVerifyInput,
+	ArchiveVerifyRangeStatus,
+	ArchiveVerifyResult,
+	InstanceClient,
+	InstanceStatus,
+} from "./archive/instance.ts";
+export type {
+	InstanceDiagnosis,
+	InstanceIssue,
+	InstanceState,
+	PublicStatus,
+} from "@secondlayer/shared/archive/instance-diagnosis";
 export type { RequestOptions, SecondLayerOptions } from "./base.ts";
 export {
 	CREDENTIAL_ENV_VARS,
@@ -194,6 +207,7 @@ export type {
 	ArchivePartition,
 	ArchiveQuote,
 	LoadedArchive,
+	SecondLayerArchive,
 } from "./archive/types.ts";
 export {
 	verifyWebhookSignature,

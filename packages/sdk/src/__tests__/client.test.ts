@@ -32,6 +32,8 @@ describe("SecondLayer root client", () => {
 		expect(sl.index.nftTransfers).toBeDefined();
 		expect(sl.subgraphs).toBeDefined();
 		expect(sl.archive).toBeDefined();
+		expect(sl.archive.verify).toBeDefined();
+		expect(sl.instance).toBeDefined();
 
 		await sl.streams.canonical(100);
 		expect(new URL(requests[0]?.url ?? "").pathname).toBe(
@@ -247,5 +249,45 @@ describe("SecondLayer forwards verification options to Streams", () => {
 		});
 		const tip = await sl.streams.tip();
 		expect(tip.block_height).toBe(1);
+	});
+});
+
+describe("SecondLayer.context() instance diagnosis", () => {
+	test("mocked /status empty-index fills context().instance", async () => {
+		const sl = new SecondLayer({
+			baseUrl: "http://127.0.0.1:3800",
+			fetchImpl: async (input) => {
+				const url =
+					typeof input === "string"
+						? input
+						: input instanceof URL
+							? input.toString()
+							: input.url;
+				const path = new URL(url).pathname;
+				if (path === "/status") {
+					return new Response(
+						JSON.stringify({
+							status: "degraded",
+							chainTip: null,
+							chainIntegrity: { ok: true, maxHeight: 0, reason: null },
+							index: {
+								status: "unavailable",
+								decoders: [
+									{ decoder: "decode.ft_transfer.v1", status: "unavailable" },
+								],
+							},
+							services: [{ name: "api", status: "ok" }],
+						}),
+						{ status: 200, headers: { "Content-Type": "application/json" } },
+					);
+				}
+				return new Response("{}", { status: 404 });
+			},
+		});
+		const snap = await sl.context();
+		expect(snap.instance.value?.state).toBe("empty-index");
+		expect(snap.instance.value?.issues[0]?.nextSteps.join("\n")).toContain(
+			"secondlayer bootstrap --against <manifest>",
+		);
 	});
 });

@@ -59,6 +59,14 @@ describe("SecondLayer.context()", () => {
 						{ status: "paused" },
 					],
 				});
+			if (p === "/status")
+				return json({
+					status: "healthy",
+					chainTip: 100,
+					chainIntegrity: { ok: true, maxHeight: 100 },
+					index: { status: "ok", decoders: [] },
+					services: [{ name: "api", status: "ok" }],
+				});
 			throw new Error(`unexpected path ${p}`);
 		}) as typeof fetch;
 
@@ -80,6 +88,7 @@ describe("SecondLayer.context()", () => {
 				progress: 0.4,
 			},
 		]);
+		expect(snap.instance.value?.state).toBe("healthy");
 	});
 
 	test("a failed read lands as null plus the error that produced it", async () => {

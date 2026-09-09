@@ -1,4 +1,5 @@
 import type { RangeDigest } from "@secondlayer/shared/archive/range-digest";
+import type { ArchiveVerifyInput, ArchiveVerifyResult } from "./instance.ts";
 
 export type ArchiveDataset = "blocks" | "transactions" | "events";
 export type ArchiveFlow = "bootstrap" | "repair";
@@ -100,4 +101,9 @@ export type ArchiveClient = {
 			input: { belowUsd: number; packUsd: 10 | 25 | 50 | 100 } | { off: true },
 		): Promise<{ belowUsd: number | null; packUsd: number | null }>;
 	};
+};
+
+/** Hosted archive client plus instance `verify`. `status()` is still the public archive tree. */
+export type SecondLayerArchive = ArchiveClient & {
+	verify(input: ArchiveVerifyInput): Promise<ArchiveVerifyResult>;
 };

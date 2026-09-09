@@ -46,6 +46,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/archive/status.ts",
 		"src/archive/progress.ts",
 		"src/archive/disk-guard.ts",
+		"src/archive/instance-diagnosis.ts",
 		"src/errors.ts",
 		"src/constants.ts",
 		"src/crypto/hmac.ts",
