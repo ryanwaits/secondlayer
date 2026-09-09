@@ -73,6 +73,7 @@ export const RETAINED_ROUTE_FIXTURES = [
 	{ method: "GET", path: "/v1" },
 	{ method: "GET", path: "/v1/openapi.json" },
 	{ method: "GET", path: "/v1/index" },
+	{ method: "POST", path: "/v1/archive/verify" },
 	{ method: "GET", path: "/v1/streams" },
 	{ method: "GET", path: "/v1/subgraphs" },
 	{ method: "GET", path: "/v1/contracts" },

@@ -66,6 +66,11 @@ export const OPENAPI_SPEC = {
 				"Reads over deployed subgraphs — rows, counts, aggregates, generated schema and docs",
 		},
 		{
+			name: "archive",
+			description:
+				"Compare this instance against a signed archive. Read-only; nothing is uploaded but the manifest URL. Identity digests only.",
+		},
+		{
 			name: "deployments",
 			description:
 				"Deploy, reindex, backfill, stop, and delete subgraphs on this instance (write plane, `/api`)",
@@ -173,6 +178,105 @@ export const OPENAPI_SPEC = {
 					"Up to 10 `/v1` reads in one round trip. Body: `{ requests: [{ path, params? }] }`. Each item keeps its own auth semantics; a forwarded credential applies to every item; results return in order with per-item status. Read-only, so the `/api` JSON content-type guard does not apply.",
 				security: READ_SECURITY,
 				responses: ok(),
+			},
+		},
+		"/v1/archive/verify": {
+			post: {
+				tags: ["archive"],
+				summary: "Verify this instance against a signed archive",
+				description:
+					"Read-only compare of local chain identity digests against a signed archive manifest. Nothing is uploaded but the manifest URL. Identity/`raw` only — semantic replay is CLI. Without `from_block`/`to_block`, at most 40 ranges are verified. Signature failure is 200 `unanchored`, never 500 and never `clean`.",
+				security: READ_SECURITY,
+				requestBody: jsonBody({
+					type: "object",
+					required: ["against"],
+					properties: {
+						against: {
+							type: "string",
+							format: "uri",
+							description:
+								"https URL of `latest.json` or a snapshot manifest. Local filesystem paths are rejected.",
+						},
+						target: {
+							type: "string",
+							description:
+								"all | raw | decode:<name> | subgraph:<name>. Default raw.",
+						},
+						from_block: {
+							type: "integer",
+							minimum: 0,
+							description:
+								"First height to check. Required (with `to_block`) when the manifest publishes more than 40 matching ranges.",
+						},
+						to_block: {
+							type: "integer",
+							minimum: 0,
+							description: "Last height to check.",
+						},
+						insecure: {
+							type: "boolean",
+							description:
+								"Compare without a verified signature. signature.verified stays false.",
+						},
+						public_key_pem: {
+							type: "string",
+							description:
+								"Pin the archive signing key. When set, the instance does not fetch the hosted key.",
+						},
+					},
+				}),
+				responses: {
+					"200": json200({
+						type: "object",
+						properties: {
+							status: {
+								type: "string",
+								enum: ["clean", "diverged", "unanchored"],
+							},
+							target: { type: "string" },
+							against: { type: "string" },
+							signature: {
+								type: "object",
+								properties: {
+									verified: { type: "boolean" },
+									reason: { type: "string" },
+								},
+							},
+							coverage: {
+								type: "object",
+								properties: {
+									from_block: { type: "integer" },
+									to_block: { type: "integer" },
+								},
+							},
+							ranges: {
+								type: "array",
+								items: {
+									type: "object",
+									properties: {
+										dataset: { type: "string" },
+										from_block: { type: "integer" },
+										to_block: { type: "integer" },
+										status: {
+											type: "string",
+											enum: [
+												"match",
+												"digest-mismatch",
+												"count-mismatch",
+												"missing",
+											],
+										},
+										expected_digest: { type: ["string", "null"] },
+										actual_digest: { type: ["string", "null"] },
+									},
+								},
+							},
+							reason: { type: "string" },
+						},
+					}),
+					"400": jsonError(),
+					"401": jsonError(),
+				},
 			},
 		},
 		"/v1/openapi.json": {
@@ -1305,7 +1409,8 @@ function platformSpec(): typeof OPENAPI_SPEC {
 		tags: [
 			...OPENAPI_SPEC.tags.filter(
 				(tag) =>
-					!WORKLOAD_TAGS.includes(tag.name as (typeof WORKLOAD_TAGS)[number]),
+					!WORKLOAD_TAGS.includes(tag.name as (typeof WORKLOAD_TAGS)[number]) &&
+					tag.name !== "archive",
 			),
 			{
 				name: "archive",

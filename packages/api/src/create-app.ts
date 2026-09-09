@@ -8,6 +8,7 @@ import { requireJsonWrites } from "./middleware/csrf.ts";
 import { errorHandler } from "./middleware/error.ts";
 import { requestLogger } from "./middleware/logging.ts";
 import accountsRouter from "./routes/accounts.ts";
+import archiveVerifyRouter from "./routes/archive-verify.ts";
 import archiveRouter from "./routes/archive.ts";
 import authRouter from "./routes/auth.ts";
 import { createBatchRouter } from "./routes/batch.ts";
@@ -153,6 +154,7 @@ export function createApiApp(mode: InstanceMode): Hono {
 	app.route("/v1/openapi.json", openApiRouter);
 	app.route("/v1/streams", streamsRouter);
 	app.route("/v1/index", indexRouter);
+	app.route("/v1/archive", archiveVerifyRouter);
 	app.route("/v1/subgraphs", v1SubgraphsRouter);
 	app.route("/v1/contracts", contractsRouter);
 	app.route(
