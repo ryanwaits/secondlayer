@@ -134,7 +134,7 @@ describe("archive.verify + instance.status", () => {
 		expect(urls.some((u) => u.includes("api.secondlayer.tools"))).toBe(false);
 	});
 
-	test("instance.status() GETs /status on the instance", async () => {
+	test("instance.status() GETs /public/status on the instance", async () => {
 		const urls: string[] = [];
 		const sl = new SecondLayer({
 			baseUrl: "http://127.0.0.1:3800",
@@ -145,7 +145,7 @@ describe("archive.verify + instance.status", () => {
 			},
 		});
 		const status = await sl.instance.status();
-		expect(urls).toEqual(["http://127.0.0.1:3800/status"]);
+		expect(urls).toEqual(["http://127.0.0.1:3800/public/status"]);
 		expect(status.status).toBe("degraded");
 		expect(status.chainTip).toBeNull();
 	});

@@ -4,7 +4,7 @@ import {
 	diagnoseInstanceStatus,
 } from "@secondlayer/shared/archive/instance-diagnosis";
 
-/** Structural `/status` payload. Extra fields are ignored by diagnosis. */
+/** Structural `/public/status` payload. Extra fields are ignored by diagnosis. */
 export type InstanceStatus = PublicStatus;
 
 export type InstanceClient = {
@@ -67,7 +67,7 @@ export function createArchiveVerify(
 
 export function createInstanceClient(request: RequestFn): InstanceClient {
 	async function status(): Promise<InstanceStatus> {
-		return request("GET", "/status");
+		return request("GET", "/public/status");
 	}
 	async function diagnose(): Promise<InstanceDiagnosis> {
 		return diagnoseInstanceStatus(await status());

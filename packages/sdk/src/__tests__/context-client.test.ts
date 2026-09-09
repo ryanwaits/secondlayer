@@ -59,7 +59,7 @@ describe("SecondLayer.context()", () => {
 						{ status: "paused" },
 					],
 				});
-			if (p === "/status")
+			if (p === "/public/status")
 				return json({
 					status: "healthy",
 					chainTip: 100,

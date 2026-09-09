@@ -70,7 +70,7 @@ export interface ContextSnapshot {
 	}>;
 	/** In-flight reindex operations (bounded to subgraphs reporting `reindexing`). */
 	activeOperations: ContextField<ActiveSubgraphOperation[]>;
-	/** Decoder lag / empty-index from `GET /status`. */
+	/** Decoder lag / empty-index from `GET /public/status`. */
 	instance: ContextField<InstanceDiagnosis>;
 }
 

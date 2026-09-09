@@ -253,7 +253,7 @@ describe("SecondLayer forwards verification options to Streams", () => {
 });
 
 describe("SecondLayer.context() instance diagnosis", () => {
-	test("mocked /status empty-index fills context().instance", async () => {
+	test("mocked /public/status empty-index fills context().instance", async () => {
 		const sl = new SecondLayer({
 			baseUrl: "http://127.0.0.1:3800",
 			fetchImpl: async (input) => {
@@ -264,7 +264,7 @@ describe("SecondLayer.context() instance diagnosis", () => {
 							? input.toString()
 							: input.url;
 				const path = new URL(url).pathname;
-				if (path === "/status") {
+				if (path === "/public/status") {
 					return new Response(
 						JSON.stringify({
 							status: "degraded",
