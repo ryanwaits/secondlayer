@@ -21,6 +21,12 @@ export interface SecondLayerOptions {
 	 *  Required for `streams.dumps.*`; without it the dumps client falls back to
 	 *  its built-in default. */
 	dumpsBaseUrl?: string;
+	/** Public base URL for the signed canonical archive tree. Defaults to
+	 *  `https://archive.secondlayer.tools`. Reaches `sl.archive`. */
+	archiveBaseUrl?: string;
+	/** Credits and fetch-gate API. Defaults to `https://api.secondlayer.tools`,
+	 *  not `baseUrl`. Reaches `sl.archive` quote/fetch/credits. */
+	archiveOpsUrl?: string;
 	/** Deploy origin label sent as `x-sl-origin` (telemetry). Defaults to `cli`. */
 	origin?: "cli" | "mcp" | "session";
 	/** Check the ed25519 signature on every Streams read. Omit for lenient

@@ -234,6 +234,36 @@ await streams.events.replay({
 });
 ```
 
+Archive.
+
+Signed canonical partitions (`blocks` / `transactions` / `events`), distinct
+from Streams dumps. `latest` follows `latest.json` and verifies the ed25519
+manifest (default on). `quote` and `fetch` need an account key (`sk-sl_*`)
+against `api.secondlayer.tools`, not the instance `baseUrl`. `download`
+returns sha256-verified bytes; it does not decode parquet. Verify, repair,
+and bootstrap remain CLI.
+
+```typescript
+const sl = new SecondLayer({
+  apiKey: process.env.SL_API_KEY, // account key sk-sl_* for quote/fetch/credits
+});
+
+const ref = await sl.archive.latest();
+const partitions = sl.archive.partitions(ref, { dataset: "blocks" });
+const quote = await sl.archive.quote({
+  paths: partitions.map((p) => p.path),
+  flow: "bootstrap",
+});
+const fetched = await sl.archive.fetch({
+  paths: partitions.map((p) => p.path),
+  flow: "bootstrap",
+});
+for (const item of fetched.urls) {
+  const partition = partitions.find((p) => p.path === item.path)!;
+  const bytes = await sl.archive.download(partition, { url: item.url });
+}
+```
+
 Decoder helper.
 
 ```typescript

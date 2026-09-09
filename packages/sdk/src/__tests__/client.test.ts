@@ -31,6 +31,7 @@ describe("SecondLayer root client", () => {
 		expect(sl.index.ftTransfers).toBeDefined();
 		expect(sl.index.nftTransfers).toBeDefined();
 		expect(sl.subgraphs).toBeDefined();
+		expect(sl.archive).toBeDefined();
 
 		await sl.streams.canonical(100);
 		expect(new URL(requests[0]?.url ?? "").pathname).toBe(

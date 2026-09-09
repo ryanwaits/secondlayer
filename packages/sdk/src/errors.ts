@@ -196,6 +196,46 @@ export class ValidationError extends ApiError {
 	}
 }
 
+/** Thrown when an archive manifest signature is missing or does not verify. */
+export class ArchiveSignatureError extends SecondLayerError {
+	constructor(message = "Archive manifest signature is missing or invalid.") {
+		super(message, { code: "ARCHIVE_SIGNATURE", retryable: false });
+		this.name = "ArchiveSignatureError";
+	}
+}
+
+/** Thrown on a 401 from the archive ops host (quote/fetch/credits). */
+export class ArchiveAuthError extends SecondLayerError {
+	constructor(message = "Archive ops request was not authenticated.") {
+		super(message, { code: "ARCHIVE_AUTH", retryable: false });
+		this.name = "ArchiveAuthError";
+	}
+}
+
+/** Thrown on a 402 from archive fetch — prepaid credits do not cover the quote. */
+export class InsufficientArchiveCreditsError extends SecondLayerError {
+	shortfallUsdMicros?: number;
+	constructor(
+		message = "Insufficient archive credits.",
+		shortfallUsdMicros?: number,
+	) {
+		super(message, {
+			code: "INSUFFICIENT_ARCHIVE_CREDITS",
+			retryable: false,
+		});
+		this.name = "InsufficientArchiveCreditsError";
+		this.shortfallUsdMicros = shortfallUsdMicros;
+	}
+}
+
+/** Thrown on a 503 when the archive fetch gate is unconfigured. */
+export class ArchiveGateNotConfiguredError extends SecondLayerError {
+	constructor(message = "The archive gate is not configured on the server.") {
+		super(message, { code: "ARCHIVE_GATE_NOT_CONFIGURED", retryable: false });
+		this.name = "ArchiveGateNotConfiguredError";
+	}
+}
+
 /** Parse a `Retry-After` header: delta-seconds or an HTTP-date. */
 export function parseRetryAfter(value?: string | null): number | undefined {
 	if (!value) return undefined;

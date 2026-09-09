@@ -174,8 +174,27 @@ export {
 	ApiError,
 	SecondLayerError,
 	parseRetryAfter,
+	ArchiveSignatureError,
+	ArchiveAuthError,
+	InsufficientArchiveCreditsError,
+	ArchiveGateNotConfiguredError,
 } from "./errors.ts";
 export type { SecondLayerErrorOptions } from "./errors.ts";
+export { createArchiveClient } from "./archive/client.ts";
+export type { CreateArchiveClientOptions } from "./archive/client.ts";
+export type {
+	ArchiveClient,
+	ArchiveCreditsBalance,
+	ArchiveDataset,
+	ArchiveFetchItem,
+	ArchiveFetchResult,
+	ArchiveFlow,
+	ArchiveLoadOptions,
+	ArchiveManifest,
+	ArchivePartition,
+	ArchiveQuote,
+	LoadedArchive,
+} from "./archive/types.ts";
 export {
 	verifyWebhookSignature,
 	verifySecondlayerSignature,
