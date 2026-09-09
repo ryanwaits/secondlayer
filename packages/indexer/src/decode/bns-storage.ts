@@ -250,6 +250,70 @@ export async function upsertBnsNamespace(
 		.execute();
 }
 
+async function reconvergeBnsName(
+	client: Kysely<Database>,
+	fqn: string,
+): Promise<void> {
+	await deleteBnsName(fqn, { db: client });
+	const latest = await client
+		.selectFrom("bns_name_events")
+		.selectAll()
+		.where("fqn", "=", fqn)
+		.orderBy("block_height", "desc")
+		.orderBy("event_index", "desc")
+		.limit(1)
+		.executeTakeFirst();
+	if (!latest || latest.topic === "burn-name" || latest.owner === null) return;
+	await upsertBnsName(
+		{
+			fqn: latest.fqn,
+			namespace: latest.namespace,
+			name: latest.name,
+			owner: latest.owner,
+			bns_id: latest.bns_id,
+			registered_at: latest.registered_at,
+			renewal_height: latest.renewal_height,
+			last_event_cursor: latest.cursor,
+			last_event_at: latest.block_time,
+		},
+		{ db: client },
+	);
+}
+
+async function reconvergeBnsNamespace(
+	client: Kysely<Database>,
+	namespace: string,
+): Promise<void> {
+	const latest = await client
+		.selectFrom("bns_namespace_events")
+		.selectAll()
+		.where("namespace", "=", namespace)
+		.orderBy("block_height", "desc")
+		.orderBy("event_index", "desc")
+		.limit(1)
+		.executeTakeFirst();
+	if (!latest) {
+		await client
+			.deleteFrom("bns_namespaces")
+			.where("namespace", "=", namespace)
+			.execute();
+		return;
+	}
+	await upsertBnsNamespace(
+		{
+			namespace: latest.namespace,
+			manager: latest.manager,
+			manager_frozen: latest.manager_frozen ?? false,
+			price_frozen: latest.price_frozen ?? false,
+			lifetime: latest.lifetime,
+			launched_at: latest.launched_at,
+			last_event_cursor: latest.cursor,
+			last_event_at: latest.block_time,
+		},
+		{ db: client },
+	);
+}
+
 // ── Reorg handling ──────────────────────────────────────────────────────────
 
 /**
@@ -261,15 +325,34 @@ export async function upsertBnsNamespace(
  * a later re-derive. The single BNS decoder owns all three tables; one
  * checkpoint rewind re-derives the new fork.
  *
- * NOTE: projections (bns_names, bns_namespaces) are NOT rolled back here — the
- * decoder re-converges them on the forward pass over the new canonical events,
- * and API reads from the projection are eventually-consistent.
+ * Projections (`bns_names`, `bns_namespaces`) are reconverged from remaining
+ * events in this same call. Leaving them for the live decoder to rebuild is
+ * not safe: consume start used to rewrite `last_cursor` to the cursor it
+ * already held, clobbering this rewind, and a name whose only event sat in
+ * the orphaned window stayed in `bns_names` with a dangling cursor.
  */
 export async function handleBnsReorg(
 	blockHeight: number,
 	opts?: { db?: Kysely<Database> },
 ): Promise<{ deleted: number; checkpoint: string | null }> {
 	const client = db(opts?.db);
+
+	const affectedFqns = (
+		await client
+			.selectFrom("bns_name_events")
+			.select("fqn")
+			.distinct()
+			.where("block_height", ">=", blockHeight)
+			.execute()
+	).map((row) => row.fqn);
+	const affectedNamespaces = (
+		await client
+			.selectFrom("bns_namespace_events")
+			.select("namespace")
+			.distinct()
+			.where("block_height", ">=", blockHeight)
+			.execute()
+	).map((row) => row.namespace);
 
 	const nameResult = await client
 		.deleteFrom("bns_name_events")
@@ -285,6 +368,13 @@ export async function handleBnsReorg(
 		.deleteFrom("bns_marketplace_events")
 		.where("block_height", ">=", blockHeight)
 		.executeTakeFirst();
+
+	for (const fqn of affectedFqns) {
+		await reconvergeBnsName(client, fqn);
+	}
+	for (const namespace of affectedNamespaces) {
+		await reconvergeBnsNamespace(client, namespace);
+	}
 
 	// One decoder feeds all three tables. Rewind to the last source event before
 	// the fork; names span all history, so bns_name_events is the safe anchor

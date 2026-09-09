@@ -23,7 +23,11 @@ import {
 	type Pox4CallRow,
 	writePox4Calls,
 } from "../pox4-storage.ts";
-import { readDecoderCheckpoint, writeDecoderCheckpoint } from "../storage.ts";
+import {
+	bumpDecoderCheckpoint,
+	readDecoderCheckpoint,
+	writeDecoderCheckpoint,
+} from "../storage.ts";
 
 export { POX4_DECODER_NAME };
 
@@ -129,7 +133,7 @@ export async function consumePox4DecodedEvents(
 		// the first tick. A null checkpoint means a fresh backfill — the first
 		// fetch anchors at `backfillFrom` via from_height (no pre-seed).
 		if (cursor !== null) {
-			await writeDecoderCheckpoint({ db: targetDb, decoderName, cursor });
+			await bumpDecoderCheckpoint({ db: targetDb, decoderName });
 		}
 	}
 

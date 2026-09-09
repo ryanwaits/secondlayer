@@ -29,7 +29,11 @@ import {
 	planGenericDecoderReceipts,
 } from "../generic-commit.ts";
 import { requireInternalStreamsApiKey } from "../internal-auth.ts";
-import { readDecoderCheckpoint, writeDecoderCheckpoint } from "../storage.ts";
+import {
+	bumpDecoderCheckpoint,
+	readDecoderCheckpoint,
+	writeDecoderCheckpoint,
+} from "../storage.ts";
 
 export { BNS_DECODER_NAME };
 
@@ -108,10 +112,10 @@ export async function consumeBnsDecodedEvents(
 			});
 		}
 	} else {
-		// Subsequent runs: bump checkpoint updated_at so health endpoint
-		// reports `checkpoint_recent: true` immediately on container restart,
-		// even before the streams subscription delivers its first batch.
-		await writeDecoderCheckpoint({ db, decoderName, cursor: startCursor });
+		// Subsequent runs: bump updated_at so health reports checkpoint_recent
+		// immediately on container restart. Must not rewrite last_cursor — that
+		// clobbers a concurrent reorg rewind from the indexer process.
+		await bumpDecoderCheckpoint({ db, decoderName });
 	}
 	let decoded = 0;
 
