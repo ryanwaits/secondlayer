@@ -1,5 +1,11 @@
 # @secondlayer/indexer
 
+## 1.14.6
+
+### Patch Changes
+
+- 26c9f6f: In-flight decoder onBatch commits abort if a concurrent reorg rewound the checkpoint, instead of stamping next_cursor over the rewind.
+
 ## 1.14.5
 
 ### Patch Changes
