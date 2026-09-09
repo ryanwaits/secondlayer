@@ -236,8 +236,12 @@ describe("route manifest", () => {
 	});
 
 	test("platform OpenAPI documents the archive gate; OSS does not", () => {
-		const platform = openapiSpec("platform");
-		const oss = openapiSpec("oss");
+		const platform = openapiSpec("platform") as unknown as {
+			paths: Record<string, unknown>;
+		};
+		const oss = openapiSpec("oss") as unknown as {
+			paths: Record<string, unknown>;
+		};
 		expect(platform.paths["/api/archive/quote"]).toBeDefined();
 		expect(platform.paths["/api/archive/fetch"]).toBeDefined();
 		expect(platform.paths["/api/billing/status"]).toBeDefined();
@@ -245,7 +249,9 @@ describe("route manifest", () => {
 		expect(platform.paths["/api/public/credits/checkout"]).toBeDefined();
 		expect(oss.paths["/api/archive/quote"]).toBeUndefined();
 		expect(oss.paths["/api/archive/fetch"]).toBeUndefined();
-		expect(OPENAPI_SPEC.paths["/api/archive/quote"]).toBeUndefined();
+		expect(
+			(OPENAPI_SPEC.paths as Record<string, unknown>)["/api/archive/quote"],
+		).toBeUndefined();
 	});
 
 	/**
