@@ -1,5 +1,11 @@
 # @secondlayer/indexer
 
+## 1.14.5
+
+### Patch Changes
+
+- e922ba7: BNS reorg reconverges name/namespace projections from remaining events. BNS and PoX-4 consume ticks no longer clobber a concurrent checkpoint rewind.
+
 ## 1.14.4
 
 ### Patch Changes
