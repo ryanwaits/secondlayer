@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { readApiKey } from "./client.ts";
+import {
+	HOSTED_KEY_HINT,
+	getArchiveOpsClient,
+	readApiKey,
+	readArchiveApiKey,
+} from "./client.ts";
 
 describe("MCP credential resolution", () => {
 	const originalToken = process.env.INSTANCE_TOKEN;
@@ -38,5 +43,34 @@ describe("MCP credential resolution", () => {
 		expect(readApiKey()).toBeUndefined();
 		process.env.SL_API_KEY = "";
 		expect(readApiKey()).toBeUndefined();
+	});
+});
+
+describe("hosted archive ops credentials", () => {
+	const originalArchiveKey = process.env.SL_ARCHIVE_API_KEY;
+	const originalToken = process.env.INSTANCE_TOKEN;
+
+	beforeEach(() => {
+		delete process.env.SL_ARCHIVE_API_KEY;
+		delete process.env.INSTANCE_TOKEN;
+	});
+
+	afterEach(() => {
+		if (originalArchiveKey === undefined) delete process.env.SL_ARCHIVE_API_KEY;
+		else process.env.SL_ARCHIVE_API_KEY = originalArchiveKey;
+		if (originalToken === undefined) delete process.env.INSTANCE_TOKEN;
+		else process.env.INSTANCE_TOKEN = originalToken;
+	});
+
+	it("does not treat INSTANCE_TOKEN as the hosted bearer", () => {
+		process.env.INSTANCE_TOKEN = "instance-token";
+		expect(readArchiveApiKey()).toBeUndefined();
+		expect(() => getArchiveOpsClient()).toThrow(HOSTED_KEY_HINT);
+	});
+
+	it("reads SL_ARCHIVE_API_KEY only", () => {
+		process.env.INSTANCE_TOKEN = "instance-token";
+		process.env.SL_ARCHIVE_API_KEY = "sk-sl_credits";
+		expect(readArchiveApiKey()).toBe("sk-sl_credits");
 	});
 });

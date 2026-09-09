@@ -2,6 +2,12 @@ import { SecondLayer, resolveApiKey } from "@secondlayer/sdk";
 
 let instance: SecondLayer | null = null;
 
+/** Hosted archive ops (credits/quote/latest). Never INSTANCE_TOKEN. */
+export const HOSTED_KEY_HINT =
+	"set SL_ARCHIVE_API_KEY (sk-sl_*) for credits; INSTANCE_TOKEN is the instance";
+
+const DEFAULT_ARCHIVE_OPS_URL = "https://api.secondlayer.tools";
+
 /**
  * Read the credential from env: `INSTANCE_TOKEN` first, then its legacy alias
  * `SL_API_KEY`. Delegated to the SDK so the MCP server, CLI, and SDK resolve
@@ -34,6 +40,33 @@ export function getClient(): SecondLayer {
 		});
 	}
 	return instance;
+}
+
+/** `sk-sl_*` for api.secondlayer.tools. Empty/unset is missing — never fall
+ *  back to INSTANCE_TOKEN. */
+export function readArchiveApiKey(): string | undefined {
+	const key = process.env.SL_ARCHIVE_API_KEY;
+	return key && key.length > 0 ? key : undefined;
+}
+
+/**
+ * Separate client for hosted archive ops. `archiveOpsUrl` defaults to
+ * `https://api.secondlayer.tools`. Bearer is `SL_ARCHIVE_API_KEY` only.
+ */
+export function getArchiveOpsClient(): SecondLayer {
+	const apiKey = readArchiveApiKey();
+	if (!apiKey) {
+		throw new Error(HOSTED_KEY_HINT);
+	}
+	const archiveOpsUrl =
+		process.env.SL_CREDITS_API_URL ||
+		process.env.ARCHIVE_OPS_API_URL ||
+		DEFAULT_ARCHIVE_OPS_URL;
+	return new SecondLayer({
+		apiKey,
+		origin: "mcp",
+		archiveOpsUrl,
+	});
 }
 
 // Appended to 401/403 errors raised on keyless requests — the operation needs

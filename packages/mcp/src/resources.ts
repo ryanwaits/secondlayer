@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ContextField } from "@secondlayer/sdk";
 import { CHAIN_TRIGGER_FIELDS } from "@secondlayer/shared";
+import { BOOTSTRAP_STEP } from "@secondlayer/shared/archive/instance-diagnosis";
 import { TRAIT_STANDARDS } from "@secondlayer/stacks/clarity";
 import { filterFieldsByType } from "@secondlayer/subgraphs";
 import { TYPE_MAP } from "@secondlayer/subgraphs/schema";
@@ -72,6 +73,10 @@ const PRODUCT_BLURBS: Record<string, string> = {
 	subscriptions: "webhook delivery on subgraph rows or raw chain events",
 	account: "identity and self-provisioned API keys",
 	codegen: "ORM schemas for the tables you read",
+	instance: "decoder health and empty-index diagnosis",
+	archive: "signed archive verify, bootstrap/repair, quote, latest pointer",
+	setup: "one-command self-host onboarding",
+	credits: "archive credits balance at api.secondlayer.tools",
 };
 
 const PRODUCT_ORDER = [
@@ -82,6 +87,10 @@ const PRODUCT_ORDER = [
 	"subscriptions",
 	"account",
 	"codegen",
+	"instance",
+	"archive",
+	"setup",
+	"credits",
 ];
 
 /**
@@ -93,7 +102,8 @@ const PRODUCT_ORDER = [
 export function buildCapabilities() {
 	const byPrefix = new Map<string, string[]>();
 	for (const name of getRegisteredToolNames()) {
-		const prefix = name.slice(0, name.indexOf("_"));
+		const sep = name.indexOf("_");
+		const prefix = sep === -1 ? name : name.slice(0, sep);
 		const tools = byPrefix.get(prefix) ?? [];
 		tools.push(name);
 		byPrefix.set(prefix, tools);
@@ -155,6 +165,10 @@ export async function buildContext(
 		.context()
 		.catch(() => null);
 
+	const instance = snap?.instance?.value
+		? snap.instance.value
+		: orNull(snap?.instance);
+
 	return {
 		authState: {
 			apiKeySet: Boolean(readApiKey()),
@@ -168,9 +182,13 @@ export async function buildContext(
 				: orNull(snap?.subgraphs),
 			subscriptions: orNull(snap?.subscriptions),
 			activeOperations: orNull(snap?.activeOperations),
+			instance,
 		},
 		whatYouCanDo: buildCapabilities(),
 		readAuthTiers: READ_AUTH_TIERS,
+		...(snap?.instance?.value?.state === "empty-index"
+			? { nextStep: BOOTSTRAP_STEP }
+			: {}),
 	};
 }
 

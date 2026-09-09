@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { BOOTSTRAP_STEP } from "@secondlayer/shared/archive/instance-diagnosis";
 import { TYPE_MAP } from "@secondlayer/subgraphs/schema";
 import {
 	SubgraphFilterSchema,
@@ -129,6 +130,38 @@ describe("secondlayer://context", () => {
 		);
 		expect(ctx.whatExists.account).toBe("unavailable: set INSTANCE_TOKEN");
 		expect(ctx.whatExists.streamsTip).toBe("unavailable: fetch failed");
+	});
+
+	it("includes BOOTSTRAP_STEP when instance is empty-index", async () => {
+		const client = {
+			context: async () => ({
+				account: { value: null },
+				streamsTip: { value: null },
+				indexTip: { value: null },
+				subgraphs: { value: [] },
+				subscriptions: { value: null },
+				activeOperations: { value: [] },
+				instance: {
+					value: {
+						state: "empty-index",
+						overall: "degraded",
+						issues: [
+							{
+								title: "No blocks indexed yet",
+								nextSteps: [BOOTSTRAP_STEP],
+							},
+						],
+					},
+				},
+			}),
+		} as unknown as Client;
+
+		const ctx = await buildContext({ clientProvider: () => client });
+		expect(JSON.stringify(ctx)).toContain(BOOTSTRAP_STEP);
+		expect((ctx as { nextStep?: string }).nextStep).toBe(BOOTSTRAP_STEP);
+		expect(
+			(ctx.whatExists as { instance?: { state?: string } }).instance?.state,
+		).toBe("empty-index");
 	});
 });
 
@@ -283,6 +316,15 @@ const GOLDEN_PATH_TOOLS = [
 	"subscriptions_rotate_secret",
 	"subscriptions_test",
 	"subscriptions_update",
+	// instance / archive bootstrap
+	"archive_bootstrap",
+	"archive_latest",
+	"archive_quote",
+	"archive_repair",
+	"archive_verify",
+	"credits_balance",
+	"instance_status",
+	"setup",
 ];
 
 describe("capabilities ↔ tool registry", () => {
@@ -299,9 +341,10 @@ describe("capabilities ↔ tool registry", () => {
 	});
 
 	it("registers exactly the golden-path tool set", () => {
-		expect([...getRegisteredToolNames()].sort()).toEqual(
-			[...GOLDEN_PATH_TOOLS].sort(),
-		);
+		const names = [...getRegisteredToolNames()].sort();
+		expect(names).toEqual([...GOLDEN_PATH_TOOLS].sort());
+		expect(names).not.toContain("consume");
+		expect(names.some((n) => n.includes("consume"))).toBe(false);
 	});
 });
 

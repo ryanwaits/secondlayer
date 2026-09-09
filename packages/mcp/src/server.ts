@@ -5,10 +5,13 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { isHostedArchiveUrl } from "./lib/hosted.ts";
 import { registerResources } from "./resources.ts";
 import { registerAccountTools } from "./tools/account.ts";
+import { registerArchiveTools } from "./tools/archive.ts";
 import { registerCodegenTools } from "./tools/codegen.ts";
 import { registerContractTools } from "./tools/contracts.ts";
 import { registerIndexTools } from "./tools/index.ts";
+import { registerInstanceTools } from "./tools/instance.ts";
 import { registerScaffoldTools } from "./tools/scaffold.ts";
+import { registerSetupTools } from "./tools/setup.ts";
 import { registerStreamsTools } from "./tools/streams.ts";
 import { registerSubgraphTools } from "./tools/subgraphs.ts";
 import { registerSubscriptionTools } from "./tools/subscriptions.ts";
@@ -31,6 +34,9 @@ export function createServer(): McpServer {
 	registerStreamsTools(server);
 	registerContractTools(server);
 	registerCodegenTools(server);
+	registerInstanceTools(server);
+	registerArchiveTools(server);
+	registerSetupTools(server);
 	const baseUrl =
 		process.env.SECONDLAYER_API_URL ||
 		process.env.SL_API_URL ||
