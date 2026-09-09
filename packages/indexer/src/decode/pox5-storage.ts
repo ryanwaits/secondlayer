@@ -84,11 +84,6 @@ export async function handlePox5Reorg(
 ): Promise<{ deleted: number; checkpoint: string | null }> {
 	const client = db(opts?.db);
 
-	const result = await client
-		.deleteFrom("pox5_events")
-		.where("block_height", ">=", blockHeight)
-		.executeTakeFirst();
-
 	const checkpoint =
 		(
 			await client
@@ -105,6 +100,11 @@ export async function handlePox5Reorg(
 		db: opts?.db,
 		decoderName: POX5_DECODER_NAME,
 	});
+
+	const result = await client
+		.deleteFrom("pox5_events")
+		.where("block_height", ">=", blockHeight)
+		.executeTakeFirst();
 
 	return {
 		deleted: Number(result.numDeletedRows ?? 0),

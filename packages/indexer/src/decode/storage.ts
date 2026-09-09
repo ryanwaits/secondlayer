@@ -127,6 +127,60 @@ export async function writeDecoderCheckpoint(opts: {
 }
 
 /**
+ * Thrown when an in-flight consume finds `last_cursor` is no longer the
+ * value it started this batch from — the indexer reorg path rewound it.
+ * The batch must not persist output or stamp `next_cursor` over the rewind.
+ */
+export class DecoderCheckpointRewoundError extends Error {
+	readonly name = "DecoderCheckpointRewoundError";
+	constructor(
+		readonly decoderName: string,
+		readonly expected: string | null,
+		readonly current: string | null,
+	) {
+		super(
+			`decoder checkpoint rewound under in-flight consume (${decoderName}: ${expected} -> ${current})`,
+		);
+	}
+}
+
+/**
+ * SELECT FOR UPDATE the checkpoint row. Throws if `last_cursor` is not
+ * `expected` (the cursor this consume believes is stored). Identity, not
+ * `< startedFrom`: a rewind to a cursor ≥ the original start must still
+ * abort. Must run inside the same transaction that would write output +
+ * the new checkpoint. Seeds a missing row so FOR UPDATE has a lock target.
+ */
+export async function assertCheckpointUnmoved(opts: {
+	db: Kysely<Database>;
+	decoderName: string;
+	expected: string | null;
+}): Promise<void> {
+	await opts.db
+		.insertInto("decoder_checkpoints")
+		.values({
+			decoder_name: opts.decoderName,
+			last_cursor: opts.expected,
+		})
+		.onConflict((oc) => oc.column("decoder_name").doNothing())
+		.execute();
+	const row = await opts.db
+		.selectFrom("decoder_checkpoints")
+		.select("last_cursor")
+		.where("decoder_name", "=", opts.decoderName)
+		.forUpdate()
+		.executeTakeFirst();
+	const current = row?.last_cursor ?? null;
+	if (current !== opts.expected) {
+		throw new DecoderCheckpointRewoundError(
+			opts.decoderName,
+			opts.expected,
+			current,
+		);
+	}
+}
+
+/**
  * Bump `updated_at` on a decoder checkpoint without touching `last_cursor`.
  * Used as a liveness signal — the runDecoder loop calls this every poll so
  * the health endpoint can tell "decoder process alive but no new work" apart
@@ -236,24 +290,9 @@ export async function handleDecodedEventsReorg(
 	// 57 stale rows + a +152,062-sat sBTC over-count exactly this way; see
 	// docs/internal/audits/decoded-events-reorg-reconciliation-2026-06-15.md). The
 	// decoder owns the whole table, so an unscoped delete-by-height is correct.
-	// Safe against the live decoder: this runs inside the leader-gated reorg tx and
-	// the checkpoints are rewound to < blockHeight in the same tx, so the next
-	// decode re-derives the new fork from a clean slate at the now-sole cursors.
-	const result = await db
-		.deleteFrom("decoded_events")
-		.where("block_height", ">=", blockHeight)
-		.executeTakeFirst();
-
-	// Coverage receipts/segments for the orphaned fork must not stay green.
-	await db
-		.deleteFrom("stage_block_receipts")
-		.where("block_height", ">=", blockHeight)
-		.execute();
-	await db
-		.deleteFrom("coverage_segments")
-		.where("to_height", ">=", blockHeight)
-		.execute();
-
+	// Rewind checkpoints before deleting output so FOR UPDATE on the consume
+	// side serializes on the same row the reorg writes — lock order matches
+	// in-flight onBatch (checkpoint, then decoded_events).
 	const checkpoints = {} as Record<DecoderName, string | null>;
 	for (const decoderName of decoderNames) {
 		const checkpoint = await readCanonicalCheckpointBeforeBlock(
@@ -269,6 +308,21 @@ export async function handleDecodedEventsReorg(
 			decoderName,
 		});
 	}
+
+	const result = await db
+		.deleteFrom("decoded_events")
+		.where("block_height", ">=", blockHeight)
+		.executeTakeFirst();
+
+	// Coverage receipts/segments for the orphaned fork must not stay green.
+	await db
+		.deleteFrom("stage_block_receipts")
+		.where("block_height", ">=", blockHeight)
+		.execute();
+	await db
+		.deleteFrom("coverage_segments")
+		.where("to_height", ">=", blockHeight)
+		.execute();
 
 	return {
 		deleted: Number(result.numDeletedRows ?? 0),

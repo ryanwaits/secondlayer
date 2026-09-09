@@ -155,17 +155,8 @@ export async function handleSbtcReorg(
 }> {
 	const client = db(opts?.db);
 
-	const eventsResult = await client
-		.deleteFrom("sbtc_events")
-		.where("block_height", ">=", blockHeight)
-		.executeTakeFirst();
-
-	const tokenResult = await client
-		.deleteFrom("sbtc_token_events")
-		.where("block_height", ">=", blockHeight)
-		.executeTakeFirst();
-
-	// Each table maps to its own decoder/checkpoint; rewind both.
+	// Each table maps to its own decoder/checkpoint; rewind both before
+	// deleting so consume-side FOR UPDATE serializes on the checkpoint row.
 	const registryCheckpoint =
 		(
 			await client
@@ -198,6 +189,16 @@ export async function handleSbtcReorg(
 		db: opts?.db,
 		decoderName: SBTC_TOKEN_DECODER_NAME,
 	});
+
+	const eventsResult = await client
+		.deleteFrom("sbtc_events")
+		.where("block_height", ">=", blockHeight)
+		.executeTakeFirst();
+
+	const tokenResult = await client
+		.deleteFrom("sbtc_token_events")
+		.where("block_height", ">=", blockHeight)
+		.executeTakeFirst();
 
 	// Drop settlement rows orphaned by the accept-row delete above. Runs in the
 	// same reorg tx so settlements stay consistent with canonical sbtc_events.

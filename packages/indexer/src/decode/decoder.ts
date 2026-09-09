@@ -88,6 +88,7 @@ async function consumeDecodedEvents(
 		opts?.fromCursor !== undefined
 			? opts.fromCursor
 			: await readDecoderCheckpoint({ db, decoderName });
+	let expectedCheckpoint = startCursor;
 	let decoded = 0;
 
 	const result = await streamsClient.events.consume({
@@ -165,7 +166,9 @@ async function consumeDecodedEvents(
 					rows,
 					receipts: planGenericDecoderReceipts(clockEvents),
 					failure: failureFromFaults(faults),
+					startedFrom: expectedCheckpoint,
 				});
+				expectedCheckpoint = envelope.next_cursor;
 			}
 			decoded += rows.length;
 			await opts?.onProgress?.({

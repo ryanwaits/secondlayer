@@ -32,7 +32,10 @@ import {
 	consumeSbtcSettlements,
 	getSettlementConfirmerHealth,
 } from "./settlement.ts";
-import { bumpDecoderCheckpoint } from "./storage.ts";
+import {
+	DecoderCheckpointRewoundError,
+	bumpDecoderCheckpoint,
+} from "./storage.ts";
 
 const PORT = Number.parseInt(process.env.PORT || "3710", 10);
 const controller = new AbortController();
@@ -174,11 +177,19 @@ async function runDecoder(
 			});
 		} catch (error) {
 			if (controller.signal.aborted) return;
-			logger.error("decoder.error", {
-				decoder: decoderName,
-				error: String(error),
-			});
-			await sleep(5_000, controller.signal);
+			if (error instanceof DecoderCheckpointRewoundError) {
+				logger.warn("decoder.checkpoint_rewound", {
+					decoder: decoderName,
+					expected: error.expected,
+					current: error.current,
+				});
+			} else {
+				logger.error("decoder.error", {
+					decoder: decoderName,
+					error: String(error),
+				});
+				await sleep(5_000, controller.signal);
+			}
 		} finally {
 			// Liveness ping: bump checkpoint updated_at every iteration so the
 			// health endpoint can tell "process alive, no new events" apart

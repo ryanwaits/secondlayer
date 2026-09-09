@@ -13,7 +13,7 @@ import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { DecodedEventRow } from "@secondlayer/shared/streams-rows";
 import type { Kysely } from "kysely";
-import { writeDecodedEvents } from "./storage.ts";
+import { assertCheckpointUnmoved, writeDecodedEvents } from "./storage.ts";
 
 export const GENERIC_DECODER_PRODUCER_VERSION = "v1";
 
@@ -97,6 +97,9 @@ export async function commitDecoderStageBatch(opts: {
 	receipts: readonly DecoderAdapterReceipt[];
 	failure?: DecoderAdapterFailure | null;
 	writeOutput: (tx: Kysely<Database>) => Promise<void>;
+	/** Cursor this consume believes is stored. Identity-checked FOR UPDATE
+	 *  before output; a reorg rewind aborts so we do not stamp next_cursor. */
+	startedFrom: string | null;
 }): Promise<void> {
 	const db = opts.db ?? getSourceDb();
 	await commitDecoderAdapter(db, {
@@ -105,7 +108,14 @@ export async function commitDecoderStageBatch(opts: {
 		checkpoint_cursor: opts.checkpointCursor,
 		receipts: opts.receipts,
 		failure: opts.failure ?? null,
-		writeOutput: (tx) => opts.writeOutput(tx as unknown as Kysely<Database>),
+		writeOutput: async (tx) => {
+			await assertCheckpointUnmoved({
+				db: tx as unknown as Kysely<Database>,
+				decoderName: opts.decoderName,
+				expected: opts.startedFrom,
+			});
+			await opts.writeOutput(tx as unknown as Kysely<Database>);
+		},
 	});
 }
 
@@ -116,6 +126,7 @@ export async function commitGenericDecoderBatch(opts: {
 	rows: readonly DecodedEventRow[];
 	receipts: readonly DecoderAdapterReceipt[];
 	failure?: DecoderAdapterFailure | null;
+	startedFrom: string | null;
 }): Promise<void> {
 	await commitDecoderStageBatch({
 		db: opts.db,
@@ -123,6 +134,7 @@ export async function commitGenericDecoderBatch(opts: {
 		checkpointCursor: opts.checkpointCursor,
 		receipts: opts.receipts,
 		failure: opts.failure,
+		startedFrom: opts.startedFrom,
 		writeOutput: (tx) =>
 			writeDecodedEvents(opts.rows, {
 				db: tx as unknown as Kysely<Database>,

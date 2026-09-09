@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
+import { commitGenericDecoderBatch } from "./generic-commit.ts";
 import {
+	DecoderCheckpointRewoundError,
 	FT_TRANSFER_DECODER_NAME,
 	NFT_TRANSFER_DECODER_NAME,
+	assertCheckpointUnmoved,
 	getEnabledDecoderNames,
 	handleDecodedEventsReorg,
 	writeDecodedEvents,
+	writeDecoderCheckpoint,
 } from "./storage.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -255,7 +259,144 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 			value: "0x0100000000000000000000000000000001",
 		});
 	});
+
+	test("assertCheckpointUnmoved throws when last_cursor moved", async () => {
+		if (!db) throw new Error("missing db");
+		await writeDecoderCheckpoint({
+			db,
+			decoderName: FT_TRANSFER_DECODER_NAME,
+			cursor: "100:0",
+		});
+		await expect(
+			db.transaction().execute((tx) =>
+				assertCheckpointUnmoved({
+					db: tx,
+					decoderName: FT_TRANSFER_DECODER_NAME,
+					expected: "90:0",
+				}),
+			),
+		).rejects.toBeInstanceOf(DecoderCheckpointRewoundError);
+	});
+
+	test("assertCheckpointUnmoved passes when last_cursor matches", async () => {
+		if (!db) throw new Error("missing db");
+		await writeDecoderCheckpoint({
+			db,
+			decoderName: FT_TRANSFER_DECODER_NAME,
+			cursor: "100:0",
+		});
+		await db.transaction().execute((tx) =>
+			assertCheckpointUnmoved({
+				db: tx,
+				decoderName: FT_TRANSFER_DECODER_NAME,
+				expected: "100:0",
+			}),
+		);
+	});
+
+	test("assertCheckpointUnmoved is identity, not a less-than check", async () => {
+		if (!db) throw new Error("missing db");
+		await writeDecoderCheckpoint({
+			db,
+			decoderName: FT_TRANSFER_DECODER_NAME,
+			cursor: "105:0",
+		});
+		await expect(
+			db.transaction().execute((tx) =>
+				assertCheckpointUnmoved({
+					db: tx,
+					decoderName: FT_TRANSFER_DECODER_NAME,
+					expected: "100:0",
+				}),
+			),
+		).rejects.toMatchObject({
+			name: "DecoderCheckpointRewoundError",
+			expected: "100:0",
+			current: "105:0",
+		});
+	});
+
+	test("commitGenericDecoderBatch aborts output when checkpoint was rewound", async () => {
+		if (!db) throw new Error("missing db");
+		await writeDecoderCheckpoint({
+			db,
+			decoderName: FT_TRANSFER_DECODER_NAME,
+			cursor: "90:0",
+		});
+		await expect(
+			commitGenericDecoderBatch({
+				db,
+				decoderName: FT_TRANSFER_DECODER_NAME,
+				checkpointCursor: "110:0",
+				startedFrom: "100:0",
+				rows: [ftRow("110:0", 110)],
+				receipts: [],
+			}),
+		).rejects.toBeInstanceOf(DecoderCheckpointRewoundError);
+
+		const checkpoint = await db
+			.selectFrom("decoder_checkpoints")
+			.select("last_cursor")
+			.where("decoder_name", "=", FT_TRANSFER_DECODER_NAME)
+			.executeTakeFirst();
+		expect(checkpoint?.last_cursor).toBe("90:0");
+		const written = await db
+			.selectFrom("decoded_events")
+			.select("cursor")
+			.where("cursor", "=", "110:0")
+			.execute();
+		expect(written).toEqual([]);
+	});
+
+	test("commitGenericDecoderBatch writes when checkpoint is unmoved", async () => {
+		if (!db) throw new Error("missing db");
+		await writeDecoderCheckpoint({
+			db,
+			decoderName: FT_TRANSFER_DECODER_NAME,
+			cursor: "100:0",
+		});
+		await commitGenericDecoderBatch({
+			db,
+			decoderName: FT_TRANSFER_DECODER_NAME,
+			checkpointCursor: "110:0",
+			startedFrom: "100:0",
+			rows: [ftRow("110:0", 110)],
+			receipts: [],
+		});
+		const checkpoint = await db
+			.selectFrom("decoder_checkpoints")
+			.select("last_cursor")
+			.where("decoder_name", "=", FT_TRANSFER_DECODER_NAME)
+			.executeTakeFirst();
+		expect(checkpoint?.last_cursor).toBe("110:0");
+		const inserted = await db
+			.selectFrom("decoded_events")
+			.select("cursor")
+			.where("cursor", "=", "110:0")
+			.executeTakeFirst();
+		expect(inserted?.cursor).toBe("110:0");
+	});
 });
+
+function ftRow(cursor: string, blockHeight: number) {
+	return {
+		cursor,
+		block_height: blockHeight,
+		tx_id: `tx-${cursor}`,
+		tx_index: 0,
+		event_index: Number(cursor.split(":")[1]),
+		event_type: "ft_transfer" as const,
+		decoded_payload: {
+			contract_id: "SP1.token",
+			asset_identifier: "SP1.token::token",
+			token_name: "token",
+			sender: "SP1",
+			recipient: "SP2",
+			amount: "1",
+		},
+		source_cursor: cursor,
+	};
+}
 
 function row(cursor: string, blockHeight: number, canonical: boolean) {
 	return {

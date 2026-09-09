@@ -117,6 +117,7 @@ export async function consumeBnsDecodedEvents(
 		// clobbers a concurrent reorg rewind from the indexer process.
 		await bumpDecoderCheckpoint({ db, decoderName });
 	}
+	let expectedCheckpoint = startCursor;
 	let decoded = 0;
 
 	const result = await streamsClient.events.consume({
@@ -245,6 +246,7 @@ export async function consumeBnsDecodedEvents(
 				checkpointCursor: envelope.next_cursor,
 				receipts: planGenericDecoderReceipts(clock),
 				failure: failureFromFaults(faults),
+				startedFrom: expectedCheckpoint,
 				writeOutput: async (tx) => {
 					if (nameRows.length > 0)
 						await writeBnsNameEvents(nameRows, { db: tx });
@@ -261,6 +263,7 @@ export async function consumeBnsDecodedEvents(
 						await applyNamespaceProjection(row, tx);
 				},
 			});
+			expectedCheckpoint = envelope.next_cursor;
 
 			decoded +=
 				nameRows.length + namespaceRows.length + marketplaceRows.length;

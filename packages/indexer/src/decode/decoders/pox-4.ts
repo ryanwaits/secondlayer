@@ -23,11 +23,7 @@ import {
 	type Pox4CallRow,
 	writePox4Calls,
 } from "../pox4-storage.ts";
-import {
-	bumpDecoderCheckpoint,
-	readDecoderCheckpoint,
-	writeDecoderCheckpoint,
-} from "../storage.ts";
+import { bumpDecoderCheckpoint, readDecoderCheckpoint } from "../storage.ts";
 
 export { POX4_DECODER_NAME };
 
@@ -136,6 +132,7 @@ export async function consumePox4DecodedEvents(
 			await bumpDecoderCheckpoint({ db: targetDb, decoderName });
 		}
 	}
+	let expectedCheckpoint = cursor;
 
 	let pages = 0;
 	let decoded = 0;
@@ -158,8 +155,15 @@ export async function consumePox4DecodedEvents(
 			// int4 max — tx_index is a Postgres `integer`; a larger sentinel
 			// overflows when this cursor is used in the transactions `after` query.
 			const tipCursor = encodePox4Cursor(toHeight, 2_147_483_647);
-			if (tipCursor !== cursor) cursor = tipCursor;
-			await writeDecoderCheckpoint({ db: targetDb, decoderName, cursor });
+			await commitDecoderStageBatch({
+				db: targetDb,
+				decoderName,
+				checkpointCursor: tipCursor,
+				receipts: [],
+				startedFrom: expectedCheckpoint,
+				writeOutput: async () => {},
+			});
+			cursor = tipCursor;
 			break;
 		}
 
@@ -210,19 +214,25 @@ export async function consumePox4DecodedEvents(
 
 		const last = rows[rows.length - 1];
 		if (!last) break;
-		cursor = encodePox4Cursor(Number(last.block_height), Number(last.tx_index));
+		const nextCursor = encodePox4Cursor(
+			Number(last.block_height),
+			Number(last.tx_index),
+		);
 
 		await commitDecoderStageBatch({
 			db: targetDb,
 			decoderName,
-			checkpointCursor: cursor,
+			checkpointCursor: nextCursor,
 			receipts: planGenericDecoderReceipts(clock),
 			failure: failureFromFaults(faults),
+			startedFrom: expectedCheckpoint,
 			writeOutput: async (tx) => {
 				if (decodedRows.length > 0)
 					await writePox4Calls(decodedRows, { db: tx });
 			},
 		});
+		cursor = nextCursor;
+		expectedCheckpoint = nextCursor;
 		decoded += decodedRows.length;
 		pages += 1;
 

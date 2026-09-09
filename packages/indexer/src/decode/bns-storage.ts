@@ -354,6 +354,28 @@ export async function handleBnsReorg(
 			.execute()
 	).map((row) => row.namespace);
 
+	// One decoder feeds all three tables. Rewind to the last source event before
+	// the fork; names span all history, so bns_name_events is the safe anchor
+	// (rewinding slightly early only re-upserts surviving < H rows idempotently,
+	// never skips a >= H event). Checkpoint first so consume-side FOR UPDATE
+	// serializes on the same row.
+	const checkpoint =
+		(
+			await client
+				.selectFrom("bns_name_events")
+				.select("source_cursor")
+				.where("block_height", "<", blockHeight)
+				.orderBy("block_height", "desc")
+				.orderBy("event_index", "desc")
+				.limit(1)
+				.executeTakeFirst()
+		)?.source_cursor ?? null;
+	await writeDecoderCheckpoint({
+		cursor: checkpoint,
+		db: opts?.db,
+		decoderName: BNS_DECODER_NAME,
+	});
+
 	const nameResult = await client
 		.deleteFrom("bns_name_events")
 		.where("block_height", ">=", blockHeight)
@@ -375,27 +397,6 @@ export async function handleBnsReorg(
 	for (const namespace of affectedNamespaces) {
 		await reconvergeBnsNamespace(client, namespace);
 	}
-
-	// One decoder feeds all three tables. Rewind to the last source event before
-	// the fork; names span all history, so bns_name_events is the safe anchor
-	// (rewinding slightly early only re-upserts surviving < H rows idempotently,
-	// never skips a >= H event).
-	const checkpoint =
-		(
-			await client
-				.selectFrom("bns_name_events")
-				.select("source_cursor")
-				.where("block_height", "<", blockHeight)
-				.orderBy("block_height", "desc")
-				.orderBy("event_index", "desc")
-				.limit(1)
-				.executeTakeFirst()
-		)?.source_cursor ?? null;
-	await writeDecoderCheckpoint({
-		cursor: checkpoint,
-		db: opts?.db,
-		decoderName: BNS_DECODER_NAME,
-	});
 
 	return {
 		deleted:

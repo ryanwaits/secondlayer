@@ -75,6 +75,7 @@ export async function consumePox5DecodedEvents(
 		opts.fromCursor !== undefined
 			? opts.fromCursor
 			: await readDecoderCheckpoint({ db, decoderName });
+	let expectedCheckpoint = startCursor;
 	let decoded = 0;
 
 	const result = await streamsClient.events.consume({
@@ -151,10 +152,12 @@ export async function consumePox5DecodedEvents(
 				checkpointCursor: envelope.next_cursor,
 				receipts: planGenericDecoderReceipts(clock),
 				failure: failureFromFaults(faults),
+				startedFrom: expectedCheckpoint,
 				writeOutput: async (tx) => {
 					if (rows.length > 0) await writePox5Events(rows, { db: tx });
 				},
 			});
+			expectedCheckpoint = envelope.next_cursor;
 			decoded += rows.length;
 			await opts.onProgress?.({
 				decoded: rows.length,

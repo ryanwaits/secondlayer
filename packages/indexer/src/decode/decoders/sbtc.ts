@@ -108,6 +108,7 @@ export async function consumeSbtcRegistryDecodedEvents(
 		opts.fromCursor !== undefined
 			? opts.fromCursor
 			: await readDecoderCheckpoint({ db, decoderName });
+	let expectedCheckpoint = startCursor;
 	let decoded = 0;
 
 	const result = await streamsClient.events.consume({
@@ -185,10 +186,12 @@ export async function consumeSbtcRegistryDecodedEvents(
 				checkpointCursor: envelope.next_cursor,
 				receipts: planGenericDecoderReceipts(clock),
 				failure: failureFromFaults(faults),
+				startedFrom: expectedCheckpoint,
 				writeOutput: async (tx) => {
 					if (rows.length > 0) await writeSbtcEvents(rows, { db: tx });
 				},
 			});
+			expectedCheckpoint = envelope.next_cursor;
 			decoded += rows.length;
 			await opts.onProgress?.({
 				decoded: rows.length,
@@ -217,6 +220,7 @@ export async function consumeSbtcTokenDecodedEvents(
 		opts.fromCursor !== undefined
 			? opts.fromCursor
 			: await readDecoderCheckpoint({ db, decoderName });
+	let expectedCheckpoint = startCursor;
 	let decoded = 0;
 
 	const result = await streamsClient.events.consume({
@@ -295,10 +299,12 @@ export async function consumeSbtcTokenDecodedEvents(
 				checkpointCursor: envelope.next_cursor,
 				receipts: planGenericDecoderReceipts(clock),
 				failure: failureFromFaults(faults),
+				startedFrom: expectedCheckpoint,
 				writeOutput: async (tx) => {
 					if (rows.length > 0) await writeSbtcTokenEvents(rows, { db: tx });
 				},
 			});
+			expectedCheckpoint = envelope.next_cursor;
 			decoded += rows.length;
 			await opts.onProgress?.({
 				decoded: rows.length,
