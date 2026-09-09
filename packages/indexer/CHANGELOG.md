@@ -1,5 +1,11 @@
 # @secondlayer/indexer
 
+## 1.14.4
+
+### Patch Changes
+
+- 804f52f: Ops script rewrites BNS `block_time` / `last_event_at` from `blocks.timestamp` (dry-run default; skips timestamp=0 husks).
+
 ## 1.14.3
 
 ### Patch Changes
