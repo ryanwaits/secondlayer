@@ -28,6 +28,7 @@ import {
 	registerVerifyCommand,
 	registerWhoamiCommand,
 } from "./commands/index.ts";
+import { applyApiKeyFlag } from "./lib/resolve-auth.ts";
 
 const { version } = pkg;
 
@@ -39,25 +40,23 @@ program
 	.option("--network <network>", "Override network (mainnet, testnet, devnet)")
 	.option(
 		"--api-key <key>",
-		"Instance or archive credential; prefer INSTANCE_TOKEN in env, a flag lands in shell history and ps",
+		"Credential for this invocation: INSTANCE_TOKEN (hex) for the instance, or sk-sl_* for hosted/archive. Prefer env. A flag lands in shell history and ps",
 	)
-	.option("--api-url <url>", "API endpoint (overrides SL_API_URL)")
+	.option("--api-url <url>", "API endpoint (overrides SECONDLAYER_API_URL)")
 	.showSuggestionAfterError(true)
 	.showHelpAfterError("(run `secondlayer --help` to see available commands)");
 
 // Funnel global flags into the env vars the auth/network layers already read,
 // so a flag transparently takes precedence over its env var for every command.
-// `--api-key` writes BOTH credential vars: the flag must win regardless of the
-// INSTANCE_TOKEN > SL_API_KEY precedence, and writing the same value to both
-// keeps the SDK's conflict warning quiet.
+// `--api-key` shape-routes: hex → INSTANCE_TOKEN, sk-sl_*/ss-sl_* → hosted key.
 program.hook("preAction", (thisCommand) => {
 	const { network, apiKey, apiUrl } = thisCommand.opts();
 	if (network) process.env.STACKS_NETWORK = network;
-	if (apiKey) {
-		process.env.INSTANCE_TOKEN = apiKey;
-		process.env.SL_API_KEY = apiKey;
+	if (apiKey) applyApiKeyFlag(apiKey);
+	if (apiUrl) {
+		process.env.SECONDLAYER_API_URL = apiUrl;
+		process.env.SL_API_URL = apiUrl;
 	}
-	if (apiUrl) process.env.SL_API_URL = apiUrl;
 });
 
 program.addHelpText(

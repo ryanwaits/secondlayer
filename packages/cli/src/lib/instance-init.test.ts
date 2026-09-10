@@ -27,7 +27,8 @@ describe("instance init", () => {
 			},
 		});
 		expect(env.INSTANCE_TOKEN).toBe("tok");
-		expect(env.SL_API_KEY).toBe("tok");
+		expect(env.SL_API_KEY).toBeUndefined();
+		expect(env.SECONDLAYER_API_KEY).toBeUndefined();
 		expect(env.SECONDLAYER_SECRETS_KEY).toBe("a".repeat(64));
 		expect(env.STREAMS_SIGNING_PRIVATE_KEY).toContain("BEGIN PRIVATE KEY");
 		expect(env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY).toBe(
@@ -35,6 +36,44 @@ describe("instance init", () => {
 		);
 		expect(env.ALLOW_UNSIGNED_WEBHOOKS).toBe("false");
 		expect(env.STACKS_NETWORK).toBe("devnet");
+	});
+
+	test("fresh env renders INSTANCE_TOKEN and omits hex hosted-key lines", () => {
+		const fresh = buildInstanceEnv({ network: "mainnet" });
+		const body = renderInstanceEnv(fresh);
+		expect(body).toContain("INSTANCE_TOKEN=");
+		expect(body).toContain("SECONDLAYER_API_URL=");
+		expect(body).not.toMatch(/SL_API_KEY=[0-9a-f]{64}/);
+		expect(body).not.toMatch(/SECONDLAYER_API_KEY=[0-9a-f]{64}/);
+		expect(body).not.toContain("SL_API_KEY=");
+		expect(body).not.toContain("SECONDLAYER_API_KEY=");
+		expect(fresh.INSTANCE_TOKEN).toHaveLength(64);
+	});
+
+	test("recovers INSTANCE_TOKEN from hex SL_API_KEY and stops writing the alias", () => {
+		const hex = "b".repeat(64);
+		const env = buildInstanceEnv({
+			network: "mainnet",
+			existing: { SL_API_KEY: hex },
+		});
+		expect(env.INSTANCE_TOKEN).toBe(hex);
+		expect(env.SL_API_KEY).toBeUndefined();
+		expect(renderInstanceEnv(env)).not.toContain("SL_API_KEY=");
+	});
+
+	test("preserves an existing sk-sl_* hosted key as SECONDLAYER_API_KEY", () => {
+		const env = buildInstanceEnv({
+			network: "mainnet",
+			existing: {
+				INSTANCE_TOKEN: "tok",
+				SL_API_KEY: "sk-sl_keep",
+			},
+		});
+		expect(env.INSTANCE_TOKEN).toBe("tok");
+		expect(env.SECONDLAYER_API_KEY).toBe("sk-sl_keep");
+		const body = renderInstanceEnv(env);
+		expect(body).toContain("SECONDLAYER_API_KEY=sk-sl_keep");
+		expect(body).toContain("SL_API_KEY=sk-sl_keep");
 	});
 
 	test("always writes the archive trust key, keeping an operator's own pin across re-runs", () => {
@@ -71,6 +110,8 @@ describe("instance init", () => {
 		expect(body).toContain(`INSTANCE_TOKEN=${env.INSTANCE_TOKEN}`);
 		expect(body).toContain("ALLOW_UNSIGNED_WEBHOOKS=false");
 		expect(body).toContain("STREAMS_SIGNING_PRIVATE_KEY=");
+		expect(body).toContain("SECONDLAYER_API_URL=");
+		expect(body).not.toContain("SL_API_KEY=");
 		expect(env.INSTANCE_TOKEN).toHaveLength(64);
 		expect(env.SECONDLAYER_SECRETS_KEY).toHaveLength(64);
 

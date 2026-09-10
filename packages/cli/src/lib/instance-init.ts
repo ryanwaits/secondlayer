@@ -9,6 +9,10 @@ import { printError } from "./output.ts";
 
 export const INSTANCE_ENV_FILE = ".env.local";
 
+function isHostedAccountKey(value: string): boolean {
+	return value.startsWith("sk-sl_") || value.startsWith("ss-sl_");
+}
+
 export type InstanceEnv = {
 	INSTANCE_MODE: "oss";
 	STACKS_NETWORK: InstanceNetwork;
@@ -17,11 +21,15 @@ export type InstanceEnv = {
 	STREAMS_SIGNING_PRIVATE_KEY: string;
 	SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY: string;
 	ALLOW_UNSIGNED_WEBHOOKS: "false";
+	/** Lead instance URL name. */
+	SECONDLAYER_API_URL: string;
+	/** One-release fallback of SECONDLAYER_API_URL (same value). */
 	SL_API_URL: string;
-	/** Legacy alias of INSTANCE_TOKEN, written with the same value. Still
-	 *  emitted so existing setups that export it keep working; clients prefer
-	 *  INSTANCE_TOKEN. */
-	SL_API_KEY: string;
+	/** Hosted account key for archive credits — only when the operator already
+	 *  had a `sk-sl_*` / `ss-sl_*` in the file. Never the instance hex. */
+	SECONDLAYER_API_KEY?: string;
+	/** One-release fallback of SECONDLAYER_API_KEY (same hosted value). */
+	SL_API_KEY?: string;
 	/** The key `bootstrap`, `verify`, and `repair` check archive manifests
 	 *  against. Always written, so the instance verifies offline; an existing
 	 *  value is kept so an operator's own pin survives re-runs. */
@@ -103,9 +111,14 @@ export function buildInstanceEnv(input: {
 	 *  key compiled into this release. */
 	archivePublicKeyPem?: string;
 }): InstanceEnv {
+	const existingAlias = input.existing?.SL_API_KEY;
+	const aliasIsHex =
+		existingAlias &&
+		!existingAlias.startsWith("sk-sl_") &&
+		!existingAlias.startsWith("ss-sl_");
 	const token =
 		input.existing?.INSTANCE_TOKEN ||
-		input.existing?.SL_API_KEY ||
+		(aliasIsHex ? existingAlias : undefined) ||
 		generateInstanceToken();
 	const secrets =
 		input.existing?.SECONDLAYER_SECRETS_KEY || generateSecretsKey();
@@ -113,11 +126,25 @@ export function buildInstanceEnv(input: {
 		input.existing?.STREAMS_SIGNING_PRIVATE_KEY ||
 		input.existing?.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY ||
 		generateSigningPrivateKey();
-	const apiUrl = input.apiUrl ?? "http://127.0.0.1:3800";
+	const apiUrl =
+		input.existing?.SECONDLAYER_API_URL ||
+		input.existing?.SL_API_URL ||
+		input.apiUrl ||
+		"http://127.0.0.1:3800";
 	const archiveKey =
 		input.existing?.ARCHIVE_SIGNING_PUBLIC_KEY ||
 		input.archivePublicKeyPem ||
 		ARCHIVE_ROOT_PUBLIC_KEY_PEM;
+
+	const hostedCandidate =
+		input.existing?.SECONDLAYER_API_KEY ||
+		input.existing?.SL_API_KEY ||
+		undefined;
+	const hostedKey =
+		hostedCandidate && isHostedAccountKey(hostedCandidate)
+			? hostedCandidate
+			: undefined;
+
 	return {
 		INSTANCE_MODE: "oss",
 		STACKS_NETWORK: input.network,
@@ -126,8 +153,11 @@ export function buildInstanceEnv(input: {
 		STREAMS_SIGNING_PRIVATE_KEY: signing,
 		SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY: signing,
 		ALLOW_UNSIGNED_WEBHOOKS: "false",
-		SL_API_URL: input.existing?.SL_API_URL || apiUrl,
-		SL_API_KEY: token,
+		SECONDLAYER_API_URL: apiUrl,
+		SL_API_URL: apiUrl,
+		...(hostedKey
+			? { SECONDLAYER_API_KEY: hostedKey, SL_API_KEY: hostedKey }
+			: {}),
 		ARCHIVE_SIGNING_PUBLIC_KEY: archiveKey,
 	};
 }
@@ -144,11 +174,16 @@ export function renderInstanceEnv(env: InstanceEnv): string {
 		`STREAMS_SIGNING_PRIVATE_KEY=${escapeEnvValue(env.STREAMS_SIGNING_PRIVATE_KEY)}`,
 		`SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY=${escapeEnvValue(env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY)}`,
 		`ALLOW_UNSIGNED_WEBHOOKS=${env.ALLOW_UNSIGNED_WEBHOOKS}`,
+		`SECONDLAYER_API_URL=${env.SECONDLAYER_API_URL}`,
 		`SL_API_URL=${env.SL_API_URL}`,
-		"# Legacy alias of INSTANCE_TOKEN, same value. Kept for existing setups;",
-		"# INSTANCE_TOKEN wins if the two ever disagree.",
-		`SL_API_KEY=${env.SL_API_KEY}`,
 	];
+	if (env.SECONDLAYER_API_KEY) {
+		lines.push(
+			"# Hosted account key for archive credits (sk-sl_*).",
+			`SECONDLAYER_API_KEY=${env.SECONDLAYER_API_KEY}`,
+			`SL_API_KEY=${env.SL_API_KEY ?? env.SECONDLAYER_API_KEY}`,
+		);
+	}
 	lines.push(
 		"# Archive trust root: bootstrap, verify, and repair check manifests",
 		"# against this key. Replace it to pin a different archive.",
@@ -184,7 +219,9 @@ export function loadExistingInstanceEnv(
 			path,
 			"SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY",
 		),
+		SECONDLAYER_API_URL: readEnvValue(path, "SECONDLAYER_API_URL"),
 		SL_API_URL: readEnvValue(path, "SL_API_URL"),
+		SECONDLAYER_API_KEY: readEnvValue(path, "SECONDLAYER_API_KEY"),
 		SL_API_KEY: readEnvValue(path, "SL_API_KEY"),
 		ARCHIVE_SIGNING_PUBLIC_KEY: readEnvValue(
 			path,

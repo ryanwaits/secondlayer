@@ -18,20 +18,34 @@ export interface ResolvedAuth {
 }
 
 /**
- * Resolve an env-provided credential. Precedence, highest first:
+ * Resolve an env-provided *instance* credential. Precedence, highest first:
  *
- *   1. the global `--api-key` flag, which `cli.ts` funnels into both env vars
- *      below so it beats whatever is already exported;
- *   2. `INSTANCE_TOKEN` — the canonical credential var, written by
- *      `secondlayer init` and validated by the instance API;
- *   3. `SL_API_KEY` — legacy alias for the same value.
+ *   1. the global `--api-key` flag when it is hex, which `cli.ts` funnels into
+ *      `INSTANCE_TOKEN` so it beats whatever is already exported;
+ *   2. `INSTANCE_TOKEN` — the canonical instance credential, written by
+ *      `secondlayer init` and validated by the instance API.
  *
- * Empty values count as unset. Delegated to the SDK's `resolveApiKey` so the
- * CLI, SDK, and MCP server can never disagree about which var wins; that helper
- * also warns when the two env vars hold different values.
+ * Does not read `SL_API_KEY` / `SECONDLAYER_API_KEY` (those are the hosted
+ * account key). Empty values count as unset. Delegated to the SDK's
+ * `resolveApiKey` so the CLI, SDK, and MCP server can never disagree.
  */
 export function resolveEnvKey(): string | undefined {
 	return resolveApiKey();
+}
+
+/**
+ * Shape-route a `--api-key` flag value into the correct env var(s). Hex →
+ * `INSTANCE_TOKEN`; `sk-sl_*` / `ss-sl_*` → `SECONDLAYER_API_KEY` (+ one-release
+ * `SL_API_KEY` alias). Exported for tests; `cli.ts` preAction calls the same
+ * rules inline.
+ */
+export function applyApiKeyFlag(apiKey: string): void {
+	if (/^s[ks]-sl_/.test(apiKey)) {
+		process.env.SECONDLAYER_API_KEY = apiKey;
+		process.env.SL_API_KEY = apiKey;
+	} else {
+		process.env.INSTANCE_TOKEN = apiKey;
+	}
 }
 
 export async function resolveAuth(): Promise<ResolvedAuth> {

@@ -1,5 +1,6 @@
+import { resolveAccountKey, resolveApiKey } from "@secondlayer/sdk";
 import { resolveApiUrl, resolveArchiveOpsUrl } from "./api-url.ts";
-import { isOssMode, resolveAuth, resolveEnvKey } from "./resolve-auth.ts";
+import { isOssMode, resolveAuth } from "./resolve-auth.ts";
 import { readSession } from "./session.ts";
 
 export { resolveArchiveOpsUrl } from "./api-url.ts";
@@ -164,7 +165,7 @@ export type ArchiveOpsBearer = {
  * ignored here on purpose.
  */
 export async function resolveArchiveOpsBearer(): Promise<ArchiveOpsBearer> {
-	const envKey = resolveEnvKey();
+	const envKey = resolveAccountKey();
 	const session = await readSession(resolveArchiveOpsUrl());
 	if (session) {
 		return {
@@ -179,7 +180,7 @@ export async function resolveArchiveOpsBearer(): Promise<ArchiveOpsBearer> {
 	return {
 		bearer: undefined,
 		source: null,
-		ignoredEnvKey: envKey !== undefined,
+		ignoredEnvKey: resolveApiKey() !== undefined && envKey === undefined,
 	};
 }
 

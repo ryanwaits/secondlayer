@@ -33,7 +33,7 @@ export function loginTarget(opts: LoginOptions): string {
 /**
  * Non-interactive login: read an API key from stdin, verify it against the
  * account endpoint, and persist it as the stored credential. For CI/headless
- * use, e.g. `echo "$INSTANCE_TOKEN" | secondlayer login --with-token`.
+ * use, e.g. `echo "$SECONDLAYER_API_KEY" | secondlayer login --with-token`.
  */
 async function runTokenLogin(opts: LoginOptions): Promise<void> {
 	const token = await readStdin();
@@ -199,7 +199,7 @@ export function registerLoginCommand(program: Command): void {
 			`
 Examples:
   $ secondlayer login --credits
-  $ echo "$INSTANCE_TOKEN" | secondlayer login --with-token`,
+  $ echo "$SECONDLAYER_API_KEY" | secondlayer login --with-token`,
 		)
 		.action(
 			(opts: { force?: boolean; withToken?: boolean; credits?: boolean }) =>

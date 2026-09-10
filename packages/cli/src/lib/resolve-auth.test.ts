@@ -1,13 +1,15 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { resolveEnvKey } from "./resolve-auth.ts";
+import { applyApiKeyFlag, resolveEnvKey } from "./resolve-auth.ts";
 
 describe("resolveEnvKey credential precedence", () => {
 	const originalToken = process.env.INSTANCE_TOKEN;
 	const originalLegacy = process.env.SL_API_KEY;
+	const originalAccount = process.env.SECONDLAYER_API_KEY;
 
 	beforeEach(() => {
 		delete process.env.INSTANCE_TOKEN;
 		delete process.env.SL_API_KEY;
+		delete process.env.SECONDLAYER_API_KEY;
 	});
 
 	afterEach(() => {
@@ -15,6 +17,8 @@ describe("resolveEnvKey credential precedence", () => {
 		else process.env.INSTANCE_TOKEN = originalToken;
 		if (originalLegacy === undefined) delete process.env.SL_API_KEY;
 		else process.env.SL_API_KEY = originalLegacy;
+		if (originalAccount === undefined) delete process.env.SECONDLAYER_API_KEY;
+		else process.env.SECONDLAYER_API_KEY = originalAccount;
 	});
 
 	test("reads INSTANCE_TOKEN on its own", () => {
@@ -22,21 +26,26 @@ describe("resolveEnvKey credential precedence", () => {
 		expect(resolveEnvKey()).toBe("token-from-init");
 	});
 
-	test("still reads the legacy SL_API_KEY alias on its own", () => {
-		process.env.SL_API_KEY = "legacy-key";
-		expect(resolveEnvKey()).toBe("legacy-key");
+	test("does not read SL_API_KEY (hosted account key, not instance)", () => {
+		process.env.SL_API_KEY = "sk-sl_legacy";
+		expect(resolveEnvKey()).toBeUndefined();
 	});
 
-	test("prefers INSTANCE_TOKEN when both are set", () => {
+	test("does not read SECONDLAYER_API_KEY", () => {
+		process.env.SECONDLAYER_API_KEY = "sk-sl_account";
+		expect(resolveEnvKey()).toBeUndefined();
+	});
+
+	test("INSTANCE_TOKEN wins; SL_API_KEY is ignored even when both set", () => {
 		process.env.INSTANCE_TOKEN = "token-from-init";
-		process.env.SL_API_KEY = "legacy-key";
+		process.env.SL_API_KEY = "sk-sl_legacy";
 		expect(resolveEnvKey()).toBe("token-from-init");
 	});
 
-	test("treats an empty INSTANCE_TOKEN as unset and falls through", () => {
+	test("treats an empty INSTANCE_TOKEN as unset", () => {
 		process.env.INSTANCE_TOKEN = "";
-		process.env.SL_API_KEY = "legacy-key";
-		expect(resolveEnvKey()).toBe("legacy-key");
+		process.env.SL_API_KEY = "sk-sl_legacy";
+		expect(resolveEnvKey()).toBeUndefined();
 	});
 
 	test("resolves to undefined when neither is set", () => {
@@ -49,14 +58,21 @@ describe("resolveEnvKey credential precedence", () => {
 		expect(resolveEnvKey()).toBeUndefined();
 	});
 
-	// `--api-key` is funnelled into both vars by cli.ts precisely so the flag
-	// beats an already-exported INSTANCE_TOKEN.
-	test("the --api-key funnel beats an exported INSTANCE_TOKEN", () => {
+	test("hex --api-key funnel sets INSTANCE_TOKEN only", () => {
 		process.env.INSTANCE_TOKEN = "exported-token";
-		process.env.SL_API_KEY = "exported-token";
-		const fromFlag = "flag-key";
-		process.env.INSTANCE_TOKEN = fromFlag;
-		process.env.SL_API_KEY = fromFlag;
-		expect(resolveEnvKey()).toBe(fromFlag);
+		applyApiKeyFlag("a".repeat(64));
+		expect(process.env.INSTANCE_TOKEN).toBe("a".repeat(64));
+		expect(process.env.SECONDLAYER_API_KEY).toBeUndefined();
+		expect(process.env.SL_API_KEY).toBeUndefined();
+		expect(resolveEnvKey()).toBe("a".repeat(64));
+	});
+
+	test("sk-sl_* --api-key funnel sets SECONDLAYER_API_KEY, not INSTANCE_TOKEN", () => {
+		process.env.INSTANCE_TOKEN = "exported-token";
+		applyApiKeyFlag("sk-sl_from_flag");
+		expect(process.env.SECONDLAYER_API_KEY).toBe("sk-sl_from_flag");
+		expect(process.env.SL_API_KEY).toBe("sk-sl_from_flag");
+		expect(process.env.INSTANCE_TOKEN).toBe("exported-token");
+		expect(resolveEnvKey()).toBe("exported-token");
 	});
 });
