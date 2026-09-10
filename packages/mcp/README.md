@@ -16,7 +16,7 @@ bun add @secondlayer/mcp
 
 ## Auth
 
-Most reads are public: `index_*` and `contracts_find` work with no key. Subgraph tools need an `INSTANCE_TOKEN` past loopback; separately, **public** subgraphs are anon-readable over HTTP at `GET /v1/subgraphs/<name>/<table>` (`{ rows, next_cursor, tip }` cursor envelope), while private ones need the instance token (anon → 404). `streams_dumps` needs no key: the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. Every other `streams_*` tool is key-mandatory (keyless → 401). Writes (deploy, reindex, delete, subscriptions) need a key: set `INSTANCE_TOKEN` from `secondlayer init`. `SL_API_KEY` is a legacy alias of `INSTANCE_TOKEN`. Read `secondlayer://context` first: it reports auth state and read-auth tiers.
+Most reads are public: `index_*` and `contracts_find` work with no key. Subgraph tools need an `INSTANCE_TOKEN` past loopback; separately, **public** subgraphs are anon-readable over HTTP at `GET /v1/subgraphs/<name>/<table>` (`{ rows, next_cursor, tip }` cursor envelope), while private ones need the instance token (anon → 404). `streams_dumps` needs no key: the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. Every other `streams_*` tool is key-mandatory (keyless → 401). Writes (deploy, reindex, delete, subscriptions) need a key: set `INSTANCE_TOKEN` from `secondlayer init`. Hosted credits/quote use `SECONDLAYER_API_KEY` (`sk-sl_*`). Read `secondlayer://context` first: it reports auth state and read-auth tiers.
 
 ## Quick Start — Stdio (IDE)
 
@@ -51,10 +51,9 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `INSTANCE_TOKEN` | Writes only | — | From `secondlayer init`. Required for write tools; reads are public. `SL_API_KEY` is a legacy alias. Not valid for hosted credits. |
-| `SL_ARCHIVE_API_KEY` | Hosted credits/quote/latest | — | `sk-sl_*` for `api.secondlayer.tools`. `INSTANCE_TOKEN` is the instance. |
-| `SL_API_URL` | No | `http://127.0.0.1:3800` | Instance API. |
-| `SECONDLAYER_API_URL` | No | — | Overrides `SL_API_URL`. |
+| `INSTANCE_TOKEN` | Writes only | — | From `secondlayer init`. Required for write tools; reads are public. Not valid for hosted credits. |
+| `SECONDLAYER_API_KEY` | Hosted credits/quote/latest | — | `sk-sl_*` for `api.secondlayer.tools`. `SL_API_KEY` / `SL_ARCHIVE_API_KEY` are one-release fallbacks. |
+| `SECONDLAYER_API_URL` | No | `http://127.0.0.1:3800` | Instance API. `SL_API_URL` is a one-release fallback. |
 | `SECONDLAYER_BIN` | CLI tools | `secondlayer` on PATH | Path to the CLI binary (`setup`, `bootstrap`, `repair`). |
 | `SECONDLAYER_CWD` | CLI tools | process cwd | Compose project directory. |
 | `SECONDLAYER_MCP_PORT` | No | `3100` | HTTP transport port. |
@@ -72,7 +71,7 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 | **Instance** (1) | `instance_status` |
 | **Archive** (5) | `archive_verify`, `archive_bootstrap`, `archive_repair`, `archive_latest`, `archive_quote` |
 | **Setup** (1) | `setup` |
-| **Credits** (1) | `credits_balance` (needs `SL_ARCHIVE_API_KEY`) |
+| **Credits** (1) | `credits_balance` (needs `SECONDLAYER_API_KEY`) |
 | **Account** (2) | `account_whoami`, `account_create_key` (only when pointed at `https://api.secondlayer.tools`) |
 
 Verify after mutating: `subgraphs_operations` for deploy/reindex/backfill/stop,
@@ -84,7 +83,7 @@ Periphery surfaces (single block/tx lookups, mempool, stacking, proofs,
 credits/caps, live Streams SSE) are REST-only: see the OpenAPI spec at the API
 host. Following the chain over MCP means polling `streams_events` with a cursor.
 
-Point the server at your instance with `SL_API_URL` (default
+Point the server at your instance with `SECONDLAYER_API_URL` (default
 `http://127.0.0.1:3800`). Writes use `INSTANCE_TOKEN` from
 `secondlayer init`. `account_*` tools appear only when the server is pointed at
 `https://api.secondlayer.tools`.

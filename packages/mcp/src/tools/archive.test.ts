@@ -31,12 +31,18 @@ const against = "https://archive.secondlayer.tools/latest.json";
 describe("archive MCP tools", () => {
 	const originalArchiveKey = process.env.SL_ARCHIVE_API_KEY;
 	const originalToken = process.env.INSTANCE_TOKEN;
+	const originalLegacy = process.env.SL_API_KEY;
+	const originalAccount = process.env.SECONDLAYER_API_KEY;
 
 	afterEach(() => {
 		if (originalArchiveKey === undefined) delete process.env.SL_ARCHIVE_API_KEY;
 		else process.env.SL_ARCHIVE_API_KEY = originalArchiveKey;
 		if (originalToken === undefined) delete process.env.INSTANCE_TOKEN;
 		else process.env.INSTANCE_TOKEN = originalToken;
+		if (originalLegacy === undefined) delete process.env.SL_API_KEY;
+		else process.env.SL_API_KEY = originalLegacy;
+		if (originalAccount === undefined) delete process.env.SECONDLAYER_API_KEY;
+		else process.env.SECONDLAYER_API_KEY = originalAccount;
 	});
 
 	it("archive_verify returns unanchored JSON without throwing", async () => {
@@ -87,6 +93,8 @@ describe("archive MCP tools", () => {
 
 	it("credits_balance errors when only INSTANCE_TOKEN is set", async () => {
 		delete process.env.SL_ARCHIVE_API_KEY;
+		delete process.env.SL_API_KEY;
+		delete process.env.SECONDLAYER_API_KEY;
 		process.env.INSTANCE_TOKEN = "instance-token";
 
 		const tools: RegisteredTool[] = [];

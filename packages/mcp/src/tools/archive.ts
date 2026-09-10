@@ -53,7 +53,7 @@ export function registerArchiveTools(
 	defineTool<{ against?: string }>(
 		server,
 		"archive_latest",
-		"Signed pointer to the official archive tree (hosted). Needs SL_ARCHIVE_API_KEY (sk-sl_*), not INSTANCE_TOKEN. Use the returned origin as --against for archive_bootstrap. Do not download parquet.",
+		"Signed pointer to the official archive tree (hosted). Needs SECONDLAYER_API_KEY (sk-sl_*), not INSTANCE_TOKEN. Use the returned origin as --against for archive_bootstrap. Do not download parquet.",
 		{
 			against: z
 				.string()
@@ -67,7 +67,7 @@ export function registerArchiveTools(
 	defineTool<{ paths: string[]; flow: (typeof FLOW)[number] }>(
 		server,
 		"archive_quote",
-		"Price a hosted archive fetch (metered). Needs SL_ARCHIVE_API_KEY (sk-sl_*), not INSTANCE_TOKEN. Quote happens here; bootstrap/repair also quote inside the CLI. Do not download parquet.",
+		"Price a hosted archive fetch (metered). Needs SECONDLAYER_API_KEY (sk-sl_*), not INSTANCE_TOKEN. Quote happens here; bootstrap/repair also quote inside the CLI. Do not download parquet.",
 		{
 			paths: z.array(z.string()).describe("Partition paths to price"),
 			flow: z.enum(FLOW).describe("bootstrap or repair"),
@@ -81,7 +81,7 @@ export function registerArchiveTools(
 	defineTool<Record<string, never>>(
 		server,
 		"credits_balance",
-		"Archive credits balance at api.secondlayer.tools. Needs SL_ARCHIVE_API_KEY (sk-sl_*); INSTANCE_TOKEN is the instance.",
+		"Archive credits balance at api.secondlayer.tools. Needs SECONDLAYER_API_KEY (sk-sl_*); INSTANCE_TOKEN is the instance.",
 		{},
 		async () =>
 			jsonResponse(await archiveOpsClientProvider().archive.credits.balance()),
