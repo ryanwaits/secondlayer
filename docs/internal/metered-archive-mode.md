@@ -43,6 +43,7 @@ platform mode does once Slices B+D strip plans/tenancy out of the code. So:
 ## Consequence for P2/P6.10 language
 
 "Withdraw hosted compute" is already true in substance after B+D: no plans, no
-tenancy, no hosted subgraph deploys, no hosted console — what remains public is
-the metered archive API + static docs + R2, which is the strategy's stated
-endstate. The sprint plan's flip vocabulary should be read as this rename.
+tenancy, no hosted subgraph deploys. What remains public is the metered archive
+on R2, static docs, and a keyed Index/Streams query API at
+`api.secondlayer.tools` on the same prepaid credits. The sprint plan's flip
+vocabulary should be read as this rename.

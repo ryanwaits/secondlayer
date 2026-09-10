@@ -22,8 +22,9 @@ Deploys happen via GH Actions → `appleboy/ssh-action` → `docker compose recr
 ## Pre-launch (T-24h)
 
 ```bash
-# 1. Index returning data
-curl -s "https://api.secondlayer.tools/v1/index/events?event_type=ft_transfer&limit=1" \
+# 1. Index returning data (hosted /v1 is keyed)
+curl -s -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
+  "https://api.secondlayer.tools/v1/index/events?event_type=ft_transfer&limit=1" \
   | jq -r '"index events: \((.events // []) | length) row(s)"'
 
 # 2. Streams live

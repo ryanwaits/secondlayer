@@ -81,8 +81,8 @@ const SUBSCRIPTIONS_INTRO =
 export const AGENT_SETUP = `Ensure setup once, skipping any step already done:
 - Skill: \`bunx skills add ryanwaits/secondlayer --skill secondlayer -y\`
 - CLI: \`bun add -g @secondlayer/cli\`
-- Auth: \`secondlayer login\` then \`secondlayer whoami\`
-- Plan: \`secondlayer billing\`; if there is no active plan or trial, start one from the Billing page`;
+- Instance: \`secondlayer init\` writes \`INSTANCE_TOKEN\`. Loopback \`/v1\` reads need no key.
+- Hosted/archive: export \`SECONDLAYER_API_KEY\` (\`sk-sl_*\`) or \`secondlayer login --credits\`, then \`secondlayer whoami\``;
 
 function withSetup(body: string): string {
 	return `${AGENT_SETUP}
@@ -286,7 +286,7 @@ Inspect the account state first. If the subgraph and table are already clear, as
 		tags: ["mcp", "subgraphs", "subscriptions"],
 		build: () =>
 			withSetup(
-				"/secondlayer Install the Secondlayer MCP server for my agent. Generate the `bunx @secondlayer/mcp` config using `INSTANCE_TOKEN` for the instance, then verify tool availability for subgraphs and subscriptions: list, get, query, deploy, create, update, pause, resume, rotate-secret, deliveries, dead, requeue, and replay.",
+				"/secondlayer Install the Secondlayer MCP server for my agent. Generate the `bunx @secondlayer/mcp` config with `SECONDLAYER_API_URL` (or `SL_API_URL`) and `INSTANCE_TOKEN` for the instance. For hosted archive/credits tools also set `SECONDLAYER_API_KEY`. Then verify tool availability for subgraphs and subscriptions: list, get, query, deploy, create, update, pause, resume, rotate-secret, deliveries, dead, requeue, and replay.",
 			),
 	},
 	{
@@ -299,7 +299,7 @@ Inspect the account state first. If the subgraph and table are already clear, as
 		tags: ["sdk", "subgraphs", "subscriptions"],
 		build: () =>
 			withSetup(
-				"/secondlayer Wire `@secondlayer/sdk` into my app: create a `SecondLayer({ apiKey })` client, read public subgraph rows with `sl.subgraphs.rows(name, table, opts)` → `{ rows, next_cursor, tip }`, get a typed table client via `sl.subgraphs.typed(def)`, and verify webhook deliveries with `verifyWebhookSignature` before trusting them. Use concrete names from my project when available.",
+				"/secondlayer Wire `@secondlayer/sdk` into my app: create a `SecondLayer({ apiKey: process.env.INSTANCE_TOKEN })` client against my instance, read subgraph rows with `sl.subgraphs.rows(name, table, opts)` → `{ rows, next_cursor, tip }`, get a typed table client via `sl.subgraphs.typed(def)`, and verify webhook deliveries with `verifyWebhookSignature` before trusting them. Hosted Index/Streams/archive use `accountKey` / `SECONDLAYER_API_KEY`. Use concrete names from my project when available.",
 			),
 	},
 ];

@@ -177,6 +177,8 @@ Precedence is now an explicit `apiKey` option, then `INSTANCE_TOKEN`, then `SL_A
 
 `SL_API_KEY` still works, nothing breaks, but following the docs now works too. Setting both to different values warns once on stderr and `INSTANCE_TOKEN` wins; `secondlayer init` writes identical values, so it never warns.
 
+September 2026 inverted that alias: `SL_API_KEY` is a one-release hosted alias of `SECONDLAYER_API_KEY`, not of `INSTANCE_TOKEN`. `init` no longer writes the hex token there.
+
 ## Agents — August 2026
 
 ### MCP
@@ -185,7 +187,7 @@ Deprecated tool aliases are gone and `subgraphs_get` is renamed, every tool name
 
 `INSTANCE_TOKEN` is also read as your primary credential here, see the SDK entry above, the precedence change applies wherever the MCP server resolves a token.
 
-Account tools (`account_whoami`, `account_create_key`) register only when the server is pointed at `https://api.secondlayer.tools`. A self-hosted instance does not show them. Docs and client examples lead with `INSTANCE_TOKEN`; `SL_API_KEY` remains a legacy alias.
+Account tools (`account_whoami`, `account_create_key`) register only when the server is pointed at `https://api.secondlayer.tools`. A self-hosted instance does not show them. Docs and client examples lead with `INSTANCE_TOKEN`. September 2026: `SL_API_KEY` is a hosted alias of `SECONDLAYER_API_KEY`, not of the instance token.
 
 `POST /api/keys` from an API key always mints an `account` key. Requesting `streams` or `index` on that path is a 400. Dashboard sessions can still mint scoped keys. Existing scoped rows still authenticate.
 
@@ -199,7 +201,7 @@ Account tools (`account_whoami`, `account_create_key`) register only when the se
 
 ### Pay-per-call is gone
 
-The x402 rail is removed. Reads on your instance were never metered by us, and the rail shipped a hardcoded price list you couldn't override, the opposite of "you are the merchant." Removed from the SDK: `withX402`, `createX402Client`, `payAndRetry`, `buildSignedX402Payment`, `readX402Challenge`, `readX402Receipt`, `selectOffer`, `resolveAccountNonce`, `X402SpendGuardError`, and the `@secondlayer/sdk/x402` subpath. Also gone: `@secondlayer/stacks/x402`, `@secondlayer/shared/x402`, the `/v1/x402/*` routes, and wallet-owned deploys with their 7-day expiry. Archive credits are unchanged and remain the only thing that costs money.
+The x402 rail is removed. Reads on your instance were never metered by us, and the rail shipped a hardcoded price list you couldn't override, the opposite of "you are the merchant." Removed from the SDK: `withX402`, `createX402Client`, `payAndRetry`, `buildSignedX402Payment`, `readX402Challenge`, `readX402Receipt`, `selectOffer`, `resolveAccountNonce`, `X402SpendGuardError`, and the `@secondlayer/sdk/x402` subpath. Also gone: `@secondlayer/stacks/x402`, `@secondlayer/shared/x402`, the `/v1/x402/*` routes, and wallet-owned deploys with their 7-day expiry. Archive credits are unchanged. Hosted Index/Streams reads at `api.secondlayer.tools` later draw the same prepaid balance.
 
 ## CLI — August 2026
 
@@ -244,7 +246,7 @@ An instance now records where its history starts. If you never bootstrapped gene
 
 ### One account model: yours
 
-Plans, tiers, projects, and API-key tiers are gone from every surface. Deploys are open on any instance (no trial, no quota, no visibility flag), and the only thing that costs money is archive data: bootstrapping, backfilling, or reading history beyond the recent window, drawn from prepaid [archive credits](/docs/authentication#archive-credits). Removed with them: `client.apiKeys`, `client.projects`, `index.usage()`, `subgraphs.publish()`, and BYO `databaseUrl` deploys (typed ORM codegen for drizzle/prisma/kysely stays). Your schema, your Postgres, your instance: the SDK now assumes nothing else.
+Plans, tiers, projects, and API-key tiers are gone from every surface. Deploys are open on any instance (no trial, no quota, no visibility flag), and archive bootstrap/backfill draws prepaid [archive credits](/docs/authentication#archive-credits). Hosted Index/Streams reads at `api.secondlayer.tools` later use that same balance. Removed with them: `client.apiKeys`, `client.projects`, `index.usage()`, `subgraphs.publish()`, and BYO `databaseUrl` deploys (typed ORM codegen for drizzle/prisma/kysely stays). Your schema, your Postgres, your instance: the SDK now assumes nothing else.
 
 ## CLI — August 2026
 

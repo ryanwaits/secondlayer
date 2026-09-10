@@ -4,7 +4,7 @@ Decoded rows you sweep into your own tables. You write the loop; the decoding, t
 
 <Callout type="note" title="History">
 
-Reads hit your own Postgres: no meter, no rate limit. `from_height=0` reaches whatever history your instance holds; restoring more from the signed archive is metered ([archive credits](/docs/authentication#archive-credits)).
+Reads hit your own Postgres: no meter, no rate limit. `from_height=0` reaches whatever history your instance holds; restoring more from the signed archive is metered ([archive credits](/docs/authentication#archive-credits)). Loopback needs no token; hosted `api.secondlayer.tools` is keyed ([Authentication](/docs/authentication)).
 
 </Callout>
 
@@ -225,5 +225,5 @@ MCP exposes the same families as tools: `index_events`, `index_transactions`, `i
 export const metadata = {
 	title: "Index — Secondlayer Docs",
 	description:
-		"Decoded Stacks data, kept indexed: sweep it into your own tables with a checkpointed consumer, cursors, reorg rewind, and codegen, or read it keyless.",
+		"Decoded Stacks data, kept indexed: sweep it into your own tables with a checkpointed consumer, cursors, reorg rewind, and codegen.",
 };

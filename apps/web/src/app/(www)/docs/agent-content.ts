@@ -75,7 +75,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Query decoded events",
 			"Filter every event type + contract calls by contract, principal, or block.",
-			"/secondlayer Help me query the Index API. Ask me for an event_type (ft_transfer, stx_transfer, print, …) or contract calls, plus any contract/principal/block-range filter, then build the cursor-paginated request against `/v1/index/events` or `/v1/index/contract-calls` and explain the response envelope.",
+			"/secondlayer Help me query the Index API. Ask me for an event_type (ft_transfer, stx_transfer, print, …) or contract calls, plus any contract/principal/block-range filter, then build the cursor-paginated request against `/v1/index/events` or `/v1/index/contract-calls` on my instance (loopback needs no key; hosted `api.secondlayer.tools` needs `SECONDLAYER_API_KEY`) and explain the response envelope.",
 		),
 		card(
 			"Build a mirror index",
@@ -119,7 +119,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Tail the firehose",
 			"Cursor-paginate the raw event stream.",
-			"/secondlayer Help me read the Streams firehose from my instance's `/v1/streams/events` (add `Authorization: Bearer $INSTANCE_TOKEN` off loopback): filter by `types` / `contract_id` / `sender`, page forward with `next_cursor`, and loop to stay live (deliveries are idempotent).",
+			"/secondlayer Help me read the Streams firehose from my instance's `/v1/streams/events` (add `Authorization: Bearer $INSTANCE_TOKEN` off loopback; hosted `api.secondlayer.tools` uses `SECONDLAYER_API_KEY`): filter by `types` / `contract_id` / `sender`, page forward with `next_cursor`, and loop to stay live (deliveries are idempotent).",
 		),
 		card(
 			"Build an indexer from zero",
@@ -150,7 +150,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Wire the SDK",
 			"One client, typed reads across every surface.",
-			'/secondlayer Help me wire `@secondlayer/sdk` into my app: create a `SecondLayer({ baseUrl: "http://127.0.0.1:3800" })` client pointed at my instance, read subgraph rows with `sl.subgraphs.rows(name, table, opts)` → `{ rows, next_cursor, tip }`, and get a typed table client via `sl.subgraphs.typed(def)`.',
+			'/secondlayer Help me wire `@secondlayer/sdk` into my app: create a `SecondLayer({ baseUrl: "http://127.0.0.1:3800", apiKey: process.env.INSTANCE_TOKEN })` client pointed at my instance, read subgraph rows with `sl.subgraphs.rows(name, table, opts)` → `{ rows, next_cursor, tip }`, and get a typed table client via `sl.subgraphs.typed(def)`. Hosted Index/Streams/archive use `accountKey` / `SECONDLAYER_API_KEY`.',
 		),
 		card(
 			"Verify webhooks",

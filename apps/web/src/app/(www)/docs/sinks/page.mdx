@@ -25,8 +25,12 @@ nothing errors; you keep rows from a chain that no longer exists.
 ## With a sink
 
 ```ts
-import { Streams } from "@secondlayer/sdk";
+import { SecondLayer } from "@secondlayer/sdk";
 import { kyselySink } from "@secondlayer/sdk/sinks/kysely";
+
+const sl = new SecondLayer({
+  apiKey: process.env.INSTANCE_TOKEN,
+});
 
 await sl.streams.events.consume({
   types: ["ft_transfer"],
