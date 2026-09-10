@@ -1,4 +1,11 @@
-import { afterAll, beforeEach, describe, expect, test } from "bun:test";
+import {
+	afterAll,
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	test,
+} from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { hashToken } from "../src/auth/keys.ts";
@@ -8,13 +15,13 @@ import v1SubgraphsRouter, {
 } from "../src/routes/v1-subgraphs.ts";
 
 /**
- * Anon `/v1/subgraphs` directory memoization: the anonymous directory body
- * (row counts + tip + per-subgraph summaries) is expensive to recompute and
- * only varies for authenticated callers, so anon hits within the TTL are
- * served from memory, including the 304 revalidation path.
+ * Anon `/v1/subgraphs` directory memoization is an OSS loopback feature.
+ * Hosted (`platform`) directory reads are keyed; anon is 401.
  */
 
 const SKIP = !process.env.DATABASE_URL;
+
+const ENV_KEYS = ["INSTANCE_MODE", "LISTEN_HOST", "API_PUBLISH_ADDR"] as const;
 
 function buildApp(): Hono {
 	const app = new Hono();
@@ -24,19 +31,67 @@ function buildApp(): Hono {
 }
 
 describe.skipIf(SKIP)("anon /v1/subgraphs directory cache", () => {
-	const createdAccountIds: string[] = [];
-	let apiKeyRaw: string;
-	const prevMode = process.env.INSTANCE_MODE;
-	process.env.INSTANCE_MODE = "platform";
+	const saved: Record<string, string | undefined> = {};
 
 	beforeEach(() => {
+		for (const k of ENV_KEYS) saved[k] = process.env[k];
+		process.env.INSTANCE_MODE = "oss";
+		process.env.LISTEN_HOST = "127.0.0.1";
+		delete process.env.API_PUBLISH_ADDR;
+		resetAnonDirectoryCache();
+	});
+
+	afterEach(() => {
+		for (const k of ENV_KEYS) {
+			if (saved[k] === undefined) delete process.env[k];
+			else process.env[k] = saved[k];
+		}
+	});
+
+	test("two anon requests within the TTL return byte-identical bodies and the same ETag", async () => {
+		const app = buildApp();
+		const first = await app.request("/");
+		const firstBody = await first.text();
+		const firstEtag = first.headers.get("etag");
+		expect(first.status).toBe(200);
+		expect(firstEtag).toBeTruthy();
+
+		const second = await app.request("/");
+		const secondBody = await second.text();
+		const secondEtag = second.headers.get("etag");
+
+		expect(secondBody).toBe(firstBody);
+		expect(secondEtag).toBe(firstEtag);
+	});
+
+	test("If-None-Match with the cached ETag returns 304", async () => {
+		const app = buildApp();
+		const first = await app.request("/");
+		const etag = first.headers.get("etag");
+		expect(etag).toBeTruthy();
+
+		const revalidated = await app.request("/", {
+			headers: { "if-none-match": String(etag) },
+		});
+		expect(revalidated.status).toBe(304);
+	});
+});
+
+describe.skipIf(SKIP)("hosted /v1/subgraphs directory", () => {
+	const createdAccountIds: string[] = [];
+	const saved: Record<string, string | undefined> = {};
+
+	beforeEach(() => {
+		for (const k of ENV_KEYS) saved[k] = process.env[k];
 		process.env.INSTANCE_MODE = "platform";
 		resetAnonDirectoryCache();
 	});
 
-	afterAll(() => {
-		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
-		else process.env.INSTANCE_MODE = prevMode;
+	afterEach(() => {
+		for (const k of ENV_KEYS) {
+			if (saved[k] === undefined) delete process.env[k];
+			else process.env[k] = saved[k];
+		}
 	});
 
 	afterAll(async () => {
@@ -71,49 +126,18 @@ describe.skipIf(SKIP)("anon /v1/subgraphs directory cache", () => {
 		return raw;
 	}
 
-	test("two anon requests within the TTL return byte-identical bodies and the same ETag", async () => {
+	test("anon GET is 401", async () => {
 		const app = buildApp();
-		const first = await app.request("/");
-		const firstBody = await first.text();
-		const firstEtag = first.headers.get("etag");
-		expect(first.status).toBe(200);
-		expect(firstEtag).toBeTruthy();
-
-		const second = await app.request("/");
-		const secondBody = await second.text();
-		const secondEtag = second.headers.get("etag");
-
-		expect(secondBody).toBe(firstBody);
-		expect(secondEtag).toBe(firstEtag);
+		expect((await app.request("/")).status).toBe(401);
 	});
 
-	test("If-None-Match with the cached ETag returns 304", async () => {
+	test("account key 200s without cache headers", async () => {
+		const apiKeyRaw = await makeApiKey();
 		const app = buildApp();
-		const first = await app.request("/");
-		const etag = first.headers.get("etag");
-		expect(etag).toBeTruthy();
-
-		const revalidated = await app.request("/", {
-			headers: { "if-none-match": String(etag) },
-		});
-		expect(revalidated.status).toBe(304);
-	});
-
-	test("an authenticated request during the same window bypasses the anon cache entirely", async () => {
-		apiKeyRaw = await makeApiKey();
-		const app = buildApp();
-
-		// Populate the anon cache first.
-		const anon = await app.request("/");
-		expect(anon.headers.get("etag")).toBeTruthy();
-		expect(anon.headers.get("cache-control")).toBeTruthy();
-
 		const authed = await app.request("/", {
 			headers: { authorization: `Bearer ${apiKeyRaw}` },
 		});
 		expect(authed.status).toBe(200);
-		// The keyed view never advertises caching — if it did, it would mean
-		// the authed branch fell through to the anon-cache path.
 		expect(authed.headers.get("etag")).toBeNull();
 		expect(authed.headers.get("cache-control")).toBeNull();
 	});
