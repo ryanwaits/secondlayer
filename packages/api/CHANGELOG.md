@@ -1,5 +1,25 @@
 # @secondlayer/api
 
+## 1.32.0
+
+### Minor Changes
+
+- e131d66: Add instance `POST /v1/archive/verify` — compare local chain data
+  against a signed archive manifest. Read-only; identity digests only.
+
+### Patch Changes
+
+- 8d45943: `?fields=is_l1_lock` is a valid projection on `/v1/index/pox5/events`. The column was already on the row.
+- 50589f8: Add `client.archive`: load a signed canonical manifest, quote/fetch
+  gated partitions, download+sha256, credits balance/checkout/refill.
+  OpenAPI documents the existing `/api/archive` and billing routes on
+  the platform spec only.
+- Updated dependencies [50589f8]
+- Updated dependencies [15adfe9]
+  - @secondlayer/sdk@10.2.0
+  - @secondlayer/shared@11.3.0
+  - @secondlayer/platform@0.2.6
+
 ## 1.31.3
 
 ### Patch Changes

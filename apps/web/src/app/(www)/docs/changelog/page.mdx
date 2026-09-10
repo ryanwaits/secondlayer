@@ -8,6 +8,14 @@ bootstrap/backfill/reindex draws [credits](/docs/authentication#archive-credits)
 
 ## SDK — September 2026
 
+### Signed archive from the SDK
+
+`sl.archive` loads the signed canonical tree, quotes and fetches gated partitions against `api.secondlayer.tools` with an account key, and downloads sha256-checked bytes. Quote and fetch never talk to your instance `baseUrl`. Verify, repair, and bootstrap stay CLI; `download` does not decode parquet.
+
+### Verify this instance, and name an empty index
+
+`sl.archive.verify` POSTs to your instance. A 200 with `unanchored` is data, not an exception. `sl.instance.status` and `diagnose` read `/public/status`, so a box with no blocks names bootstrap instead of a bare DEGRADED. MCP can run the same loop: `instance_status`, `archive_bootstrap`, `archive_verify`, then codegen. Hosted credits need `SL_ARCHIVE_API_KEY`, not the instance token.
+
 ### Running balances survive a reorg
 
 You keep event rows append-only and fold running balances in `onRollback` on the sink. Same transaction as the rewind: doomed rows are still there, a throw aborts the delete. Remaining facts are `height < fork`.
@@ -65,6 +73,12 @@ One `timeout` covers headers and body, a stalled response rejects with `TimeoutE
 ### Tuples hash like the chain, principals and units fail loudly
 
 Tuple fields serialize in the node's byte order so SIP-018 hashes match `to-consensus-buff?`. The deserializer caps nesting and checks declared counts against the bytes left. `Cl.principal` and `parseContractId` reject undecodable addresses, `parseUnits` refuses exponent-form numbers and silent rounding, and a legacy Bitcoin address with a bad base58check checksum is refused before it becomes a PoX reward address. `apiKey` no longer appears on `transport.config`.
+
+## Index — September 2026
+
+### `POST /v1/archive/verify`
+
+Your instance compares local identity digests to a signed manifest URL. Nothing is uploaded but the URL. Signature failure is 200 `unanchored`, never `clean`. Without `from_block`/`to_block` the route caps at 40 ranges.
 
 ## Index — August 2026
 

@@ -1,5 +1,20 @@
 # @secondlayer/mcp
 
+## 7.3.0
+
+### Minor Changes
+
+- 8de11c4: Add MCP tools for instance status, archive verify/bootstrap/repair,
+  setup, and hosted credits/quote/latest. Agents can restore Index
+  without a consume tool.
+
+### Patch Changes
+
+- Updated dependencies [50589f8]
+- Updated dependencies [15adfe9]
+  - @secondlayer/sdk@10.2.0
+  - @secondlayer/shared@11.3.0
+
 ## 7.2.1
 
 ### Patch Changes

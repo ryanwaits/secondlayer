@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "10.1.1",
+	"version": "10.2.0",
 	"areas": [
 		{
 			"name": "Client",
@@ -11,7 +11,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/client.ts",
-					"line": 18
+					"line": 26
 				},
 				{
 					"name": "ContextAccount",
@@ -19,7 +19,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/client.ts",
-					"line": 14
+					"line": 22
 				},
 				{
 					"name": "contextField",
@@ -27,7 +27,7 @@
 					"summary": "Fold one read into a {@link ContextField}: the value, or `null` with the failure described.",
 					"signature": "contextField(read: object): object",
 					"file": "src/client.ts",
-					"line": 70
+					"line": 80
 				},
 				{
 					"name": "ContextField",
@@ -35,7 +35,7 @@
 					"summary": "One snapshot field: the value, or `null` plus the error that produced it.",
 					"signature": null,
 					"file": "src/client.ts",
-					"line": 41
+					"line": 49
 				},
 				{
 					"name": "ContextFieldError",
@@ -43,7 +43,7 @@
 					"summary": "Why one snapshot field could not be read.",
 					"signature": null,
 					"file": "src/client.ts",
-					"line": 28
+					"line": 36
 				},
 				{
 					"name": "ContextSnapshot",
@@ -51,7 +51,7 @@
 					"summary": "A point-in-time orientation snapshot for an agent: the live tips and what this instance holds.",
 					"signature": null,
 					"file": "src/client.ts",
-					"line": 52
+					"line": 60
 				},
 				{
 					"name": "CREDENTIAL_ENV_VARS",
@@ -59,7 +59,7 @@
 					"summary": "Credential env vars, highest precedence first.",
 					"signature": null,
 					"file": "src/base.ts",
-					"line": 85
+					"line": 91
 				},
 				{
 					"name": "DEFAULT_REQUEST_TIMEOUT_MS",
@@ -67,7 +67,7 @@
 					"summary": "Default per-request budget.",
 					"signature": null,
 					"file": "src/base.ts",
-					"line": 42
+					"line": 48
 				},
 				{
 					"name": "LOCAL_API_URL",
@@ -75,7 +75,7 @@
 					"summary": "Product default: the local one-box API.",
 					"signature": null,
 					"file": "src/base.ts",
-					"line": 70
+					"line": 76
 				},
 				{
 					"name": "RequestOptions",
@@ -83,7 +83,7 @@
 					"summary": "Per-call options every `request*` method accepts.",
 					"signature": null,
 					"file": "src/base.ts",
-					"line": 45
+					"line": 51
 				},
 				{
 					"name": "resolveApiKey",
@@ -91,7 +91,7 @@
 					"summary": "Resolve the credential a client should use.",
 					"signature": "resolveApiKey(apiKey?: string): null | string",
 					"file": "src/base.ts",
-					"line": 110
+					"line": 116
 				},
 				{
 					"name": "resolveBaseUrl",
@@ -99,7 +99,7 @@
 					"summary": "",
 					"signature": "resolveBaseUrl(explicit?: string): string",
 					"file": "src/base.ts",
-					"line": 72
+					"line": 78
 				},
 				{
 					"name": "SecondLayer",
@@ -107,7 +107,7 @@
 					"summary": "",
 					"signature": "SecondLayer(options?: object): unknown",
 					"file": "src/client.ts",
-					"line": 100
+					"line": 110
 				},
 				{
 					"name": "SecondLayerOptions",
@@ -2172,6 +2172,30 @@
 					"line": 128
 				},
 				{
+					"name": "ArchiveAuthError",
+					"kind": "class",
+					"summary": "Thrown on a 401 from the archive ops host (quote/fetch/credits).",
+					"signature": "ArchiveAuthError(message?: string): unknown",
+					"file": "src/errors.ts",
+					"line": 208
+				},
+				{
+					"name": "ArchiveGateNotConfiguredError",
+					"kind": "class",
+					"summary": "Thrown on a 503 when the archive fetch gate is unconfigured.",
+					"signature": "ArchiveGateNotConfiguredError(message?: string): unknown",
+					"file": "src/errors.ts",
+					"line": 232
+				},
+				{
+					"name": "ArchiveSignatureError",
+					"kind": "class",
+					"summary": "Thrown when an archive manifest signature is missing or does not verify.",
+					"signature": "ArchiveSignatureError(message?: string): unknown",
+					"file": "src/errors.ts",
+					"line": 200
+				},
+				{
 					"name": "AuthError",
 					"kind": "class",
 					"summary": "Thrown on a 401 by both the instance clients and Streams.",
@@ -2180,12 +2204,20 @@
 					"line": 157
 				},
 				{
+					"name": "InsufficientArchiveCreditsError",
+					"kind": "class",
+					"summary": "Thrown on a 402 from archive fetch — prepaid credits do not cover the quote.",
+					"signature": "InsufficientArchiveCreditsError(message?: string, shortfallUsdMicros?: number): unknown",
+					"file": "src/errors.ts",
+					"line": 216
+				},
+				{
 					"name": "parseRetryAfter",
 					"kind": "function",
 					"summary": "Parse a `Retry-After` header: delta-seconds or an HTTP-date.",
 					"signature": "parseRetryAfter(value?: null | string): null | number",
 					"file": "src/errors.ts",
-					"line": 200
+					"line": 240
 				},
 				{
 					"name": "RateLimitError",
@@ -2270,6 +2302,110 @@
 			"name": "Other",
 			"exports": [
 				{
+					"name": "ArchiveClient",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/archive/types.ts",
+					"line": 73
+				},
+				{
+					"name": "ArchiveCreditsBalance",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/archive/types.ts",
+					"line": 60
+				},
+				{
+					"name": "ArchiveDataset",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/archive/types.ts",
+					"line": 4
+				},
+				{
+					"name": "ArchiveFetchItem",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/archive/types.ts",
+					"line": 47
+				},
+				{
+					"name": "ArchiveFetchResult",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/archive/types.ts",
+					"line": 54
+				},
+				{
+					"name": "ArchiveFlow",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/archive/types.ts",
+					"line": 5
+				},
+				{
+					"name": "ArchiveLoadOptions",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/archive/types.ts",
+					"line": 69
+				},
+				{
+					"name": "ArchiveManifest",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/archive/types.ts",
+					"line": 17
+				},
+				{
+					"name": "ArchivePartition",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/archive/types.ts",
+					"line": 7
+				},
+				{
+					"name": "ArchiveQuote",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/archive/types.ts",
+					"line": 36
+				},
+				{
+					"name": "ArchiveVerifyInput",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/archive/instance.ts",
+					"line": 15
+				},
+				{
+					"name": "ArchiveVerifyRangeStatus",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/archive/instance.ts",
+					"line": 24
+				},
+				{
+					"name": "ArchiveVerifyResult",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/archive/instance.ts",
+					"line": 30
+				},
+				{
 					"name": "consumerHealth",
 					"kind": "function",
 					"summary": "Liveness for a consume loop.",
@@ -2294,12 +2430,92 @@
 					"line": 78
 				},
 				{
+					"name": "createArchiveClient",
+					"kind": "function",
+					"summary": "",
+					"signature": "createArchiveClient(options?: CreateArchiveClientOptions): ArchiveClient",
+					"file": "src/archive/client.ts",
+					"line": 85
+				},
+				{
+					"name": "CreateArchiveClientOptions",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/archive/client.ts",
+					"line": 37
+				},
+				{
+					"name": "InstanceClient",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/archive/instance.ts",
+					"line": 10
+				},
+				{
+					"name": "InstanceDiagnosis",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/archive/instance-diagnosis.d.ts",
+					"line": 56
+				},
+				{
+					"name": "InstanceIssue",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/archive/instance-diagnosis.d.ts",
+					"line": 47
+				},
+				{
+					"name": "InstanceState",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/archive/instance-diagnosis.d.ts",
+					"line": 55
+				},
+				{
+					"name": "InstanceStatus",
+					"kind": "type",
+					"summary": "Structural `/public/status` payload.",
+					"signature": null,
+					"file": "src/archive/instance.ts",
+					"line": 8
+				},
+				{
+					"name": "LoadedArchive",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/archive/types.ts",
+					"line": 28
+				},
+				{
+					"name": "PublicStatus",
+					"kind": "interface",
+					"summary": "The subset of `/status` a diagnosis reads.",
+					"signature": null,
+					"file": "packages/shared/dist/src/archive/instance-diagnosis.d.ts",
+					"line": 24
+				},
+				{
 					"name": "SbtcEventTopic",
 					"kind": "type",
 					"summary": "",
 					"signature": null,
 					"file": "packages/stacks/dist/src/sbtc/index.d.ts",
 					"line": 187
+				},
+				{
+					"name": "SecondLayerArchive",
+					"kind": "type",
+					"summary": "Hosted archive client plus instance `verify`.",
+					"signature": null,
+					"file": "src/archive/types.ts",
+					"line": 107
 				},
 				{
 					"name": "shutdownSignal",

@@ -1,5 +1,18 @@
 # @secondlayer/shared
 
+## 11.3.0
+
+### Minor Changes
+
+- 50589f8: Add `client.archive`: load a signed canonical manifest, quote/fetch
+  gated partitions, download+sha256, credits balance/checkout/refill.
+  OpenAPI documents the existing `/api/archive` and billing routes on
+  the platform spec only.
+- 15adfe9: Add `sl.archive.verify` (instance `POST /v1/archive/verify`) and
+  `sl.instance.status`/`diagnose`. `context()` includes instance
+  diagnosis so an empty index names bootstrap. Diagnosis helpers move
+  to shared so CLI and SDK share the verdict.
+
 ## 11.2.1
 
 ### Patch Changes
