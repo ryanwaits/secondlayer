@@ -396,4 +396,105 @@ export default defineSubgraph({
 		expect(body.hint).toContain("tokenX");
 		expect(body.hint).toContain("do not invent fields");
 	});
+
+	function mixedPrintDeploySource(handlerBody: string): string {
+		return `import { defineSubgraph } from "@secondlayer/subgraphs";
+export default defineSubgraph({
+  name: "dex-test",
+  sources: {
+    prints: { type: "print_event", contractId: "SP.dex" },
+    deploys: { type: "contract_deploy" },
+  },
+  schema: { swaps: { columns: { token_x: { type: "text" } } } },
+  handlers: {
+    prints: (event, ctx) => {
+      ${handlerBody}
+    },
+    deploys: async () => {},
+  },
+});`;
+	}
+
+	it("subgraphs_test names skipped contract_deploy while print still writes", async () => {
+		const tools: RegisteredTool[] = [];
+		registerSubgraphTools(
+			fakeServer(tools),
+			() =>
+				({
+					index: {
+						events: {
+							list: async () => ({ events: [PRINT_ROW], next_cursor: null }),
+						},
+						contractCalls: { list: async () => ({ contract_calls: [] }) },
+					},
+				}) as never,
+		);
+
+		const tool = tools.find((t) => t.name === "subgraphs_test");
+		if (!tool) throw new Error("subgraphs_test not registered");
+
+		const result = await tool.handler({
+			code: mixedPrintDeploySource(`
+        const tokenX = event.data.tokenX;
+        if (tokenX == null) return;
+        ctx.insert("swaps", { token_x: tokenX });
+      `),
+			fromHeight: 10,
+			toHeight: 20,
+		});
+		expect(result.isError).toBeUndefined();
+		const body = JSON.parse(result.content[0]?.text ?? "{}") as {
+			ok: boolean;
+			written: number;
+			hint?: string;
+			skipped: Array<{ source: string; reason: string }>;
+		};
+		expect(body.ok).toBe(true);
+		expect(body.written).toBe(1);
+		expect(body.skipped).toHaveLength(1);
+		expect(body.skipped[0]?.source).toBe("deploys");
+		expect(body.skipped[0]?.reason).toContain("contract_deploy");
+		expect(body.hint).toContain("contract_deploy");
+	});
+
+	it("subgraphs_test returns NO_SOURCES with skipped when all sources unreadable", async () => {
+		const tools: RegisteredTool[] = [];
+		registerSubgraphTools(
+			fakeServer(tools),
+			() =>
+				({
+					index: {
+						events: {
+							list: async () => ({ events: [], next_cursor: null }),
+						},
+						contractCalls: { list: async () => ({ contract_calls: [] }) },
+					},
+				}) as never,
+		);
+
+		const tool = tools.find((t) => t.name === "subgraphs_test");
+		if (!tool) throw new Error("subgraphs_test not registered");
+
+		const result = await tool.handler({
+			code: `import { defineSubgraph } from "@secondlayer/subgraphs";
+export default defineSubgraph({
+  name: "dex-test",
+  sources: { deploys: { type: "contract_deploy" } },
+  schema: { swaps: { columns: { token_x: { type: "text" } } } },
+  handlers: { deploys: async () => {} },
+});`,
+			fromHeight: 10,
+			toHeight: 20,
+		});
+		expect(result.isError).toBe(true);
+		const body = JSON.parse(result.content[0]?.text ?? "{}") as {
+			ok: boolean;
+			code?: string;
+			skipped: Array<{ source: string; reason: string }>;
+		};
+		expect(body.ok).toBe(false);
+		expect(body.code).toBe("NO_SOURCES");
+		expect(body.skipped.length).toBeGreaterThan(0);
+		expect(body.skipped[0]?.reason).toContain("contract_deploy");
+	});
 });

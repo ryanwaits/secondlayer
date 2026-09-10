@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -22,6 +22,8 @@ import { defineTool } from "../lib/tool.ts";
 
 type SubgraphClientProvider = typeof getClient;
 
+type SkippedSource = { source: string; reason: string };
+
 /** Index event_type for a source filter, or null when unreadable. */
 function eventTypeFor(filter: { type: string }): DecodedEventType | null {
 	if (filter.type === "contract_deploy") return null;
@@ -31,6 +33,12 @@ function eventTypeFor(filter: { type: string }): DecodedEventType | null {
 		: null;
 }
 
+function skipReason(name: string, filter: { type: string }): string {
+	return filter.type === "contract_deploy"
+		? `source "${name}" (contract_deploy) has no Index list endpoint — skipped.`
+		: `source "${name}" (${filter.type}) is not readable from Index — skipped.`;
+}
+
 /** Stage bundled handler ESM and import the defineSubgraph default export. */
 async function loadBundledDefinition(handlerCode: string): Promise<{
 	handlers?: Record<string, unknown>;
@@ -38,19 +46,23 @@ async function loadBundledDefinition(handlerCode: string): Promise<{
 	sources?: Record<string, SubgraphTestSource>;
 }> {
 	const dir = await mkdtemp(join(tmpdir(), "sl-mcp-sg-test-"));
-	const file = join(
-		dir,
-		`handler-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`,
-	);
-	await writeFile(file, handlerCode);
-	const mod = (await import(pathToFileURL(file).href)) as {
-		default?: {
-			handlers?: Record<string, unknown>;
-			schema?: unknown;
-			sources?: Record<string, SubgraphTestSource>;
+	try {
+		const file = join(
+			dir,
+			`handler-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`,
+		);
+		await writeFile(file, handlerCode);
+		const mod = (await import(pathToFileURL(file).href)) as {
+			default?: {
+				handlers?: Record<string, unknown>;
+				schema?: unknown;
+				sources?: Record<string, SubgraphTestSource>;
+			};
 		};
-	};
-	return mod.default ?? {};
+		return mod.default ?? {};
+	} finally {
+		await rm(dir, { recursive: true, force: true });
+	}
 }
 
 export function registerSubgraphTools(
@@ -396,6 +408,7 @@ export function registerSubgraphTools(
 			const pageLimit = Math.min(limit ?? 50, 200);
 			const index = clientProvider().index;
 			const events: Record<string, unknown[]> = {};
+			const skipped: SkippedSource[] = [];
 			let sourcesTested = 0;
 
 			for (const [name, filter] of Object.entries(sources)) {
@@ -421,7 +434,10 @@ export function registerSubgraphTools(
 				}
 
 				const eventType = eventTypeFor(filter);
-				if (eventType === null) continue;
+				if (eventType === null) {
+					skipped.push({ source: name, reason: skipReason(name, filter) });
+					continue;
+				}
 				sourcesTested++;
 				const envelope = await index.events.list({
 					eventType,
@@ -448,6 +464,7 @@ export function registerSubgraphTools(
 						written: 0,
 						tables: [],
 						hint: "No sources were tested — every source is unreadable from Index.",
+						skipped,
 					},
 					true,
 				);
@@ -459,7 +476,12 @@ export function registerSubgraphTools(
 				sources,
 				events: events as Parameters<typeof runSubgraphTest>[0]["events"],
 			});
-			return jsonResponse(result, !result.ok);
+			const body: Record<string, unknown> = { ...result, skipped };
+			if (skipped.length > 0) {
+				const skipHints = skipped.map((s) => s.reason).join(" ");
+				body.hint = result.hint ? `${result.hint} ${skipHints}` : skipHints;
+			}
+			return jsonResponse(body, !result.ok);
 		},
 	);
 }
