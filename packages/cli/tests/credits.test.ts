@@ -24,7 +24,14 @@ import {
  * operator already did.
  */
 
-const ENV = ["INSTANCE_TOKEN", "SL_API_KEY", "SL_CREDITS_API_URL", "HOME"];
+const ENV = [
+	"INSTANCE_TOKEN",
+	"SECONDLAYER_API_KEY",
+	"SL_API_KEY",
+	"SL_ARCHIVE_API_KEY",
+	"SL_CREDITS_API_URL",
+	"HOME",
+];
 const SESSION = {
 	token: "ss-sl_valid",
 	email: "a@b.co",
@@ -64,7 +71,12 @@ afterAll(() => {
 beforeEach(async () => {
 	saved = {};
 	for (const k of ENV) saved[k] = process.env[k];
-	for (const k of ["INSTANCE_TOKEN", "SL_API_KEY"]) {
+	for (const k of [
+		"INSTANCE_TOKEN",
+		"SECONDLAYER_API_KEY",
+		"SL_API_KEY",
+		"SL_ARCHIVE_API_KEY",
+	]) {
 		Reflect.deleteProperty(process.env, k);
 	}
 	home = await mkdtemp(join(tmpdir(), "sl-credits-home-"));

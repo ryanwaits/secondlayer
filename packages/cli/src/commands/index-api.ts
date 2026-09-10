@@ -13,7 +13,11 @@ import {
 	success,
 	writeData,
 } from "../lib/output.ts";
-import { resolveApiUrl, resolveEnvKey } from "../lib/resolve-auth.ts";
+import {
+	isMerchantUrl,
+	resolveApiUrl,
+	resolveDataPlaneKey,
+} from "../lib/resolve-auth.ts";
 
 // Single-sourced from @secondlayer/shared so the CLI can't advertise a stale
 // subset of the Index event vocab (drift test in index-vocab.test.ts).
@@ -49,14 +53,14 @@ export function parseIndexEventType(
 }
 
 /**
- * Index reads are keyless on /v1. Pass a key when present so the request
- * shares the keyed rate limit; a 403 is an INSTANCE_TOKEN mismatch, not a
- * missing paid plan.
+ * Index reads are keyless on loopback /v1. Pass a key when present so the
+ * request shares the keyed rate limit; on the merchant host that key is the
+ * account key.
  */
 function client(): Index {
 	return new Index({
 		baseUrl: resolveApiUrl(),
-		apiKey: resolveEnvKey(),
+		apiKey: resolveDataPlaneKey(),
 	});
 }
 
@@ -64,7 +68,11 @@ function fail(action: string, err: unknown): never {
 	const message = err instanceof Error ? err.message : String(err);
 	logError(`Failed to ${action}: ${message}`);
 	if (/\b403\b/.test(message) || /forbidden/i.test(message)) {
-		note("The local API refused this read. Check INSTANCE_TOKEN.");
+		note(
+			isMerchantUrl()
+				? "The API refused this read. Check SECONDLAYER_API_KEY."
+				: "The local API refused this read. Check INSTANCE_TOKEN.",
+		);
 	}
 	process.exit(1);
 }

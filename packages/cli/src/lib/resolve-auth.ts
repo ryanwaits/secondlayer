@@ -1,10 +1,12 @@
-import { resolveApiKey } from "@secondlayer/sdk";
-import { resolveApiUrl } from "./api-url.ts";
+import { resolveAccountKey, resolveApiKey } from "@secondlayer/sdk";
+import { isMerchantUrl, resolveApiUrl } from "./api-url.ts";
 import { readSession } from "./session.ts";
 
 export {
 	ARCHIVE_OPS_API_URL,
 	LOCAL_API_URL,
+	assertInstanceUrl,
+	isMerchantUrl,
 	resolveApiUrl,
 	resolveArchiveOpsUrl,
 } from "./api-url.ts";
@@ -71,14 +73,18 @@ export async function resolveAuth(): Promise<ResolvedAuth> {
 }
 
 /**
- * `true` when the CLI is pointed at a custom endpoint via env (OSS / CI /
- * local devnet). Derived from the same SL_API_URL that `resolveAuth` honors,
- * so the two never disagree.
+ * `true` when the CLI is not pointed at the merchant hostname. Same refuse
+ * list as `isMerchantUrl` — one hostname check, not two.
  */
 export function isOssMode(): boolean {
-	try {
-		return new URL(resolveApiUrl()).hostname !== "api.secondlayer.tools";
-	} catch {
-		return true;
-	}
+	return !isMerchantUrl();
+}
+
+/**
+ * Credential for Index/Streams reads: account key on the merchant host,
+ * instance token everywhere else.
+ */
+export function resolveDataPlaneKey(): string | undefined {
+	if (isMerchantUrl()) return resolveAccountKey();
+	return resolveApiKey();
 }

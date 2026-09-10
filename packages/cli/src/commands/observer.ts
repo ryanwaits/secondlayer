@@ -7,6 +7,7 @@ import {
 	renderObserverStanza,
 } from "../lib/observer-stanza.ts";
 import { note, writeData } from "../lib/output.ts";
+import { assertInstanceUrl } from "../lib/resolve-auth.ts";
 
 export function registerObserverCommand(program: Command): void {
 	program
@@ -39,6 +40,7 @@ export function registerObserverCommand(program: Command): void {
 				endpoint?: string;
 				recovery?: string;
 			}) => {
+				assertInstanceUrl();
 				const mode = parseObserverMode(opts.mode);
 				const network = instanceNetworkFromEnv();
 				const endpoint = opts.endpoint ?? defaultObserverEndpoint(network);

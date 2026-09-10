@@ -3,6 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runLogout } from "../src/commands/logout";
+import { runWhoami } from "../src/commands/whoami";
 import { ARCHIVE_OPS_API_URL, LOCAL_API_URL } from "../src/lib/api-url";
 import { readSession, writeSession } from "../src/lib/session";
 
@@ -11,7 +12,16 @@ import { readSession, writeSession } from "../src/lib/session";
  * drop the credits slot and leave the instance slot alone, and vice versa.
  */
 
-const ENV = ["SL_API_URL", "SL_PLATFORM_API_URL", "SL_CREDITS_API_URL", "HOME"];
+const ENV = [
+	"SECONDLAYER_API_URL",
+	"SL_API_URL",
+	"SL_PLATFORM_API_URL",
+	"SL_CREDITS_API_URL",
+	"INSTANCE_TOKEN",
+	"SECONDLAYER_API_KEY",
+	"SL_API_KEY",
+	"HOME",
+];
 const session = (token: string) => ({
 	token,
 	email: "a@b.co",
@@ -107,5 +117,18 @@ describe("logout", () => {
 			"ss-sl_legacy",
 		);
 		expect(await readSession(LOCAL_API_URL)).toBeNull();
+	});
+});
+
+describe("whoami", () => {
+	it("exits cleanly with only an instance token (merchant missing is ok)", async () => {
+		process.env.INSTANCE_TOKEN = "a".repeat(64);
+		process.env.SECONDLAYER_API_URL = LOCAL_API_URL;
+		// Merchant URL points at a server that has no /api/accounts/me.
+		const result = await runWhoami();
+		expect(result.instance.status).toBe("set");
+		expect(result.instance.url).toBe(LOCAL_API_URL);
+		expect(result.merchant.status).toBe("missing");
+		expect(result.merchant.email).toBeNull();
 	});
 });

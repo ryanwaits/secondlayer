@@ -1,24 +1,35 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { applyApiKeyFlag, resolveEnvKey } from "./resolve-auth.ts";
+import {
+	applyApiKeyFlag,
+	resolveDataPlaneKey,
+	resolveEnvKey,
+} from "./resolve-auth.ts";
+
+const AUTH_ENV = [
+	"INSTANCE_TOKEN",
+	"SL_API_KEY",
+	"SECONDLAYER_API_KEY",
+	"SECONDLAYER_API_URL",
+	"SL_API_URL",
+	"SL_PLATFORM_API_URL",
+] as const;
 
 describe("resolveEnvKey credential precedence", () => {
-	const originalToken = process.env.INSTANCE_TOKEN;
-	const originalLegacy = process.env.SL_API_KEY;
-	const originalAccount = process.env.SECONDLAYER_API_KEY;
+	let saved: Record<string, string | undefined>;
 
 	beforeEach(() => {
-		delete process.env.INSTANCE_TOKEN;
-		delete process.env.SL_API_KEY;
-		delete process.env.SECONDLAYER_API_KEY;
+		saved = {};
+		for (const k of AUTH_ENV) {
+			saved[k] = process.env[k];
+			Reflect.deleteProperty(process.env, k);
+		}
 	});
 
 	afterEach(() => {
-		if (originalToken === undefined) delete process.env.INSTANCE_TOKEN;
-		else process.env.INSTANCE_TOKEN = originalToken;
-		if (originalLegacy === undefined) delete process.env.SL_API_KEY;
-		else process.env.SL_API_KEY = originalLegacy;
-		if (originalAccount === undefined) delete process.env.SECONDLAYER_API_KEY;
-		else process.env.SECONDLAYER_API_KEY = originalAccount;
+		for (const k of AUTH_ENV) {
+			if (saved[k] === undefined) Reflect.deleteProperty(process.env, k);
+			else process.env[k] = saved[k];
+		}
 	});
 
 	test("reads INSTANCE_TOKEN on its own", () => {
@@ -74,5 +85,42 @@ describe("resolveEnvKey credential precedence", () => {
 		expect(process.env.SL_API_KEY).toBe("sk-sl_from_flag");
 		expect(process.env.INSTANCE_TOKEN).toBe("exported-token");
 		expect(resolveEnvKey()).toBe("exported-token");
+	});
+});
+
+describe("resolveDataPlaneKey host routing", () => {
+	let saved: Record<string, string | undefined>;
+
+	beforeEach(() => {
+		saved = {};
+		for (const k of AUTH_ENV) {
+			saved[k] = process.env[k];
+			Reflect.deleteProperty(process.env, k);
+		}
+	});
+
+	afterEach(() => {
+		for (const k of AUTH_ENV) {
+			if (saved[k] === undefined) Reflect.deleteProperty(process.env, k);
+			else process.env[k] = saved[k];
+		}
+	});
+
+	test("merchant URL + only INSTANCE_TOKEN → undefined", () => {
+		process.env.SECONDLAYER_API_URL = "https://api.secondlayer.tools";
+		process.env.INSTANCE_TOKEN = "a".repeat(64);
+		expect(resolveDataPlaneKey()).toBeUndefined();
+	});
+
+	test("merchant URL + SECONDLAYER_API_KEY → that key", () => {
+		process.env.SECONDLAYER_API_URL = "https://api.secondlayer.tools";
+		process.env.SECONDLAYER_API_KEY = "sk-sl_x";
+		expect(resolveDataPlaneKey()).toBe("sk-sl_x");
+	});
+
+	test("loopback + INSTANCE_TOKEN → the hex", () => {
+		process.env.SECONDLAYER_API_URL = "http://127.0.0.1:3800";
+		process.env.INSTANCE_TOKEN = "b".repeat(64);
+		expect(resolveDataPlaneKey()).toBe("b".repeat(64));
 	});
 });

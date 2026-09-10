@@ -65,9 +65,11 @@ import {
 	writeData,
 	yellow,
 } from "../lib/output.ts";
-import { requireAuth } from "../lib/require-auth.ts";
-import { isOssMode, resolveApiUrl } from "../lib/resolve-auth.ts";
-import { resolveAuth } from "../lib/resolve-auth.ts";
+import {
+	assertInstanceUrl,
+	resolveApiUrl,
+	resolveAuth,
+} from "../lib/resolve-auth.ts";
 import { parseApiResponse } from "../parsers/clarity.ts";
 import { generateSubgraphStarter } from "../templates/subgraph.ts";
 import { StacksApiClient } from "../utils/api.ts";
@@ -731,6 +733,8 @@ export function registerSubgraphsCommand(program: Command): void {
 		.command("subgraphs")
 		.description("Manage materialized subgraphs");
 
+	subgraphs.hook("preAction", () => assertInstanceUrl());
+
 	// --- new ---
 	subgraphs
 		.command("create <name>")
@@ -1006,11 +1010,6 @@ Examples:
 					}
 
 					const config = await loadConfig();
-					if (config.network !== "local" && !isOssMode()) {
-						// Hosted deploys hit the platform API; prompt for login if no
-						// session rather than failing with a generic 401 mid-flow.
-						await requireAuth();
-					}
 					const dryRun = options.dryRun;
 					const startBlock = parseStartBlockOption(options.startBlock);
 					if (startBlock !== undefined) {

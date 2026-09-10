@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import { bold, dim, note, printError, success, warn } from "../lib/output.ts";
+import { assertInstanceUrl } from "../lib/resolve-auth.ts";
 import {
 	SetupCancelledError,
 	promptSetupConfig,
@@ -172,6 +173,7 @@ decision with no safe default (--network, --node-mode, and --against unless
 `,
 		)
 		.action(async (opts: SetupFlags) => {
+			assertInstanceUrl();
 			// --network arrives via the global flag (see the option comment
 			// above), landing on STACKS_NETWORK through cli.ts's preAction hook
 			// rather than on this command's own `opts`.

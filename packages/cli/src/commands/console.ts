@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import type { Command } from "commander";
 import { printError, success, writeData } from "../lib/output.ts";
-import { isOssMode } from "../lib/resolve-auth.ts";
+import { assertInstanceUrl, isOssMode } from "../lib/resolve-auth.ts";
 
 const DEFAULT_CONSOLE_URL = "http://localhost:3801/console";
 const CONSOLE_PORT = 3801;
@@ -61,6 +61,7 @@ export function registerConsoleCommand(program: Command): void {
 		.option("--url <url>", `Console URL (default ${DEFAULT_CONSOLE_URL})`)
 		.option("--no-open", "Print the console URL instead of opening a browser")
 		.action(async (options: { url?: string; open?: boolean }) => {
+			assertInstanceUrl();
 			const url = resolveConsoleUrl(options.url);
 			if (options.open === false) {
 				writeData(url);

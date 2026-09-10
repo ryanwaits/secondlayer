@@ -23,6 +23,7 @@ import {
 	warn,
 	yellow,
 } from "../lib/output.ts";
+import { assertInstanceUrl } from "../lib/resolve-auth.ts";
 import { validateSubscriptionTargetFromApi } from "../lib/subscription-validation.ts";
 import { addSubscriptionsCreateCommand } from "./create.ts";
 import {
@@ -563,6 +564,8 @@ export function registerSubscriptionsCommand(program: Command): void {
 		.command("subscriptions")
 		.alias("subs")
 		.description("Manage subgraph table subscriptions");
+
+	subscriptions.hook("preAction", () => assertInstanceUrl());
 
 	addSubscriptionsCreateCommand(subscriptions);
 

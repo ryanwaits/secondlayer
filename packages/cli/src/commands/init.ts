@@ -8,7 +8,7 @@ import {
 	writeInstanceEnv,
 } from "../lib/instance-init.ts";
 import { formatKeyValue, note, success } from "../lib/output.ts";
-import { isOssMode } from "../lib/resolve-auth.ts";
+import { assertInstanceUrl, isOssMode } from "../lib/resolve-auth.ts";
 
 const DEFAULT_INIT_API_URL = "http://127.0.0.1:3800";
 
@@ -36,6 +36,7 @@ flags (see \`secondlayer --help\`). Defaults: mainnet, http://127.0.0.1:3800.
 `,
 		)
 		.action(async (opts: { force?: boolean }) => {
+			assertInstanceUrl();
 			const network = instanceNetworkFromEnv();
 			const existing = opts.force ? {} : loadExistingInstanceEnv(process.cwd());
 			const env = buildInstanceEnv({

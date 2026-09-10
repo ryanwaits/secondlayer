@@ -29,6 +29,7 @@ import {
 import type { Command } from "commander";
 import { sha256File } from "../lib/fs.ts";
 import { note, output, printError, success, warn } from "../lib/output.ts";
+import { assertInstanceUrl } from "../lib/resolve-auth.ts";
 
 export const BACKUP_EXIT = { OK: 0, FAILED: 1, REFUSED: 2 } as const;
 
@@ -493,7 +494,8 @@ export function registerBackupCommand(program: Command): void {
 	attachBackupCommand(
 		program
 			.command("backup")
-			.description("Write a restorable bundle: index, keys, and scope"),
+			.description("Write a restorable bundle: index, keys, and scope")
+			.hook("preAction", () => assertInstanceUrl()),
 	);
 }
 
@@ -501,6 +503,7 @@ export function registerRestoreCommand(program: Command): void {
 	attachRestoreCommand(
 		program
 			.command("restore")
-			.description("Restore an instance from a backup bundle"),
+			.description("Restore an instance from a backup bundle")
+			.hook("preAction", () => assertInstanceUrl()),
 	);
 }

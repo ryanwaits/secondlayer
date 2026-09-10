@@ -12,6 +12,7 @@ import { planUninstall, uninstallCommand } from "@secondlayer/shared/runtime";
 import type { Command } from "commander";
 import { readEnvValue } from "../lib/instance-init.ts";
 import { note, output, printError, success, warn } from "../lib/output.ts";
+import { assertInstanceUrl } from "../lib/resolve-auth.ts";
 
 export const UNINSTALL_EXIT = { OK: 0, FAILED: 1, REFUSED: 2 } as const;
 
@@ -124,6 +125,7 @@ export function registerUninstallCommand(program: Command): void {
 				apply?: boolean;
 				json?: boolean;
 			}) => {
+				assertInstanceUrl();
 				const dataDir = process.env.DATA_DIR ?? "./data";
 				const layout = resolveUninstallLayout(process.cwd(), opts.compose);
 				const secretsPresent =

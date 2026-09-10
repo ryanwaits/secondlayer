@@ -381,6 +381,7 @@ describe("subgraphs deploy refuses to let a pipe answer the drop-and-reindex pro
 					env: {
 						...process.env,
 						HOME: home,
+						SECONDLAYER_API_URL: `http://127.0.0.1:${server.port}`,
 						SL_API_URL: `http://127.0.0.1:${server.port}`,
 						INSTANCE_TOKEN: "a".repeat(64),
 						STACKS_NETWORK: "mainnet",

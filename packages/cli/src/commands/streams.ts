@@ -17,7 +17,7 @@ import type {
 import { STREAMS_EVENT_TYPES } from "@secondlayer/shared";
 import type { Command } from "commander";
 import { error as logError, note, writeData } from "../lib/output.ts";
-import { resolveApiUrl, resolveEnvKey } from "../lib/resolve-auth.ts";
+import { resolveApiUrl, resolveDataPlaneKey } from "../lib/resolve-auth.ts";
 
 // Single-sourced from @secondlayer/shared so the CLI can't advertise a stale
 // subset of the Streams event vocab (drift test in streams.test.ts).
@@ -26,7 +26,7 @@ export const VALID_TYPES: readonly StreamsEventType[] = STREAMS_EVENT_TYPES;
 function client(): ReturnType<typeof createStreamsClient> {
 	return createStreamsClient({
 		baseUrl: resolveApiUrl(),
-		apiKey: resolveEnvKey() ?? "",
+		apiKey: resolveDataPlaneKey() ?? "",
 	});
 }
 
@@ -44,7 +44,7 @@ function dumpsClient(
 	}
 	return createStreamsClient({
 		baseUrl: resolveApiUrl(),
-		apiKey: resolveEnvKey() ?? "",
+		apiKey: resolveDataPlaneKey() ?? "",
 		dumpsBaseUrl,
 	});
 }
