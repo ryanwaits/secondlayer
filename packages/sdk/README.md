@@ -15,7 +15,7 @@ import { SecondLayer } from "@secondlayer/sdk";
 
 const sl = new SecondLayer({
   apiKey: process.env.INSTANCE_TOKEN, // from secondlayer init; read from the env when omitted
-  // default baseUrl: http://127.0.0.1:3800  (or SL_API_URL)
+  // default baseUrl: http://127.0.0.1:3800  (or SECONDLAYER_API_URL)
 });
 ```
 
@@ -245,8 +245,9 @@ and bootstrap remain CLI.
 
 ```typescript
 const sl = new SecondLayer({
-  apiKey: process.env.SL_API_KEY, // account key sk-sl_* for quote/fetch/credits
+  accountKey: process.env.SECONDLAYER_API_KEY,
 });
+// SECONDLAYER_API_KEY is the hosted account key (sk-sl_*). It is not the instance token.
 
 const ref = await sl.archive.latest();
 const partitions = sl.archive.partitions(ref, { dataset: "blocks" });

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { BaseClient, resolveApiKey } from "../base.ts";
+import { BaseClient, resolveAccountKey, resolveApiKey } from "../base.ts";
 import { ApiError } from "../errors.ts";
 
 const BASE_URL = "http://localhost:3800";
@@ -303,10 +303,14 @@ describe("BaseClient", () => {
 	describe("resolveApiKey", () => {
 		const originalLegacy = process.env.SL_API_KEY;
 		const originalToken = process.env.INSTANCE_TOKEN;
+		const originalAccount = process.env.SECONDLAYER_API_KEY;
+		const originalArchive = process.env.SL_ARCHIVE_API_KEY;
 
 		beforeEach(() => {
 			delete process.env.SL_API_KEY;
 			delete process.env.INSTANCE_TOKEN;
+			delete process.env.SECONDLAYER_API_KEY;
+			delete process.env.SL_ARCHIVE_API_KEY;
 		});
 
 		afterEach(() => {
@@ -314,84 +318,108 @@ describe("BaseClient", () => {
 			else process.env.SL_API_KEY = originalLegacy;
 			if (originalToken === undefined) delete process.env.INSTANCE_TOKEN;
 			else process.env.INSTANCE_TOKEN = originalToken;
+			if (originalAccount === undefined) delete process.env.SECONDLAYER_API_KEY;
+			else process.env.SECONDLAYER_API_KEY = originalAccount;
+			if (originalArchive === undefined) delete process.env.SL_ARCHIVE_API_KEY;
+			else process.env.SL_ARCHIVE_API_KEY = originalArchive;
 		});
 
 		test("falls back to INSTANCE_TOKEN when no apiKey is passed", () => {
-			process.env.INSTANCE_TOKEN = "sk-sl_instance_token";
-			expect(resolveApiKey()).toBe("sk-sl_instance_token");
-			expect(new TestClient().authHeader()).toBe("Bearer sk-sl_instance_token");
+			process.env.INSTANCE_TOKEN = "hex_instance_token";
+			expect(resolveApiKey()).toBe("hex_instance_token");
+			expect(new TestClient().authHeader()).toBe("Bearer hex_instance_token");
 		});
 
-		test("falls back to SL_API_KEY when no apiKey is passed", () => {
+		test("does not read SL_API_KEY or SECONDLAYER_API_KEY", () => {
 			process.env.SL_API_KEY = "sk-sl_from_env";
-			expect(resolveApiKey()).toBe("sk-sl_from_env");
-			expect(new TestClient().authHeader()).toBe("Bearer sk-sl_from_env");
+			process.env.SECONDLAYER_API_KEY = "sk-sl_account";
+			expect(resolveApiKey()).toBeUndefined();
 		});
 
-		test("INSTANCE_TOKEN wins when both env vars are set", () => {
-			process.env.INSTANCE_TOKEN = "sk-sl_instance_token";
+		test("INSTANCE_TOKEN wins; SL_API_KEY is ignored even when both set", () => {
+			process.env.INSTANCE_TOKEN = "hex_instance_token";
 			process.env.SL_API_KEY = "sk-sl_legacy_alias";
-			expect(resolveApiKey()).toBe("sk-sl_instance_token");
+			expect(resolveApiKey()).toBe("hex_instance_token");
 		});
 
-		test("an empty INSTANCE_TOKEN falls through to SL_API_KEY", () => {
-			process.env.INSTANCE_TOKEN = "";
-			process.env.SL_API_KEY = "sk-sl_from_env";
-			expect(resolveApiKey()).toBe("sk-sl_from_env");
-		});
-
-		test("an explicit apiKey wins over both env vars", () => {
-			process.env.INSTANCE_TOKEN = "sk-sl_instance_token";
-			process.env.SL_API_KEY = "sk-sl_from_env";
+		test("an explicit apiKey wins over INSTANCE_TOKEN", () => {
+			process.env.INSTANCE_TOKEN = "hex_instance_token";
 			expect(resolveApiKey("sk-sl_explicit")).toBe("sk-sl_explicit");
 		});
 
 		test("an explicit empty string opts back into keyless", () => {
-			process.env.INSTANCE_TOKEN = "sk-sl_instance_token";
+			process.env.INSTANCE_TOKEN = "hex_instance_token";
 			expect(resolveApiKey("")).toBe("");
 			expect(new TestClient({ apiKey: "" }).authHeader()).toBeUndefined();
 		});
 
-		test("resolves to undefined when both env vars are unset or empty", () => {
+		test("resolves to undefined when INSTANCE_TOKEN is unset or empty", () => {
 			expect(resolveApiKey()).toBeUndefined();
 			process.env.INSTANCE_TOKEN = "";
-			process.env.SL_API_KEY = "";
 			expect(resolveApiKey()).toBeUndefined();
 		});
+	});
 
-		test("warns once when both env vars are set to different values", () => {
-			const original = console.warn;
-			const warnings: string[] = [];
-			console.warn = (...args: unknown[]) => {
-				warnings.push(args.join(" "));
-			};
-			try {
-				process.env.INSTANCE_TOKEN = "sk-sl_conflict_token";
-				process.env.SL_API_KEY = "sk-sl_conflict_legacy";
-				resolveApiKey();
-				resolveApiKey();
-			} finally {
-				console.warn = original;
-			}
-			expect(warnings).toHaveLength(1);
-			expect(warnings[0]).toContain("INSTANCE_TOKEN");
-			expect(warnings[0]).toContain("SL_API_KEY");
+	describe("resolveAccountKey", () => {
+		const originalLegacy = process.env.SL_API_KEY;
+		const originalToken = process.env.INSTANCE_TOKEN;
+		const originalAccount = process.env.SECONDLAYER_API_KEY;
+		const originalArchive = process.env.SL_ARCHIVE_API_KEY;
+
+		beforeEach(() => {
+			delete process.env.SL_API_KEY;
+			delete process.env.INSTANCE_TOKEN;
+			delete process.env.SECONDLAYER_API_KEY;
+			delete process.env.SL_ARCHIVE_API_KEY;
 		});
 
-		test("stays quiet when both env vars agree", () => {
-			const original = console.warn;
-			const warnings: string[] = [];
-			console.warn = (...args: unknown[]) => {
-				warnings.push(args.join(" "));
-			};
-			try {
-				process.env.INSTANCE_TOKEN = "sk-sl_same_value";
-				process.env.SL_API_KEY = "sk-sl_same_value";
-				expect(resolveApiKey()).toBe("sk-sl_same_value");
-			} finally {
-				console.warn = original;
-			}
-			expect(warnings).toHaveLength(0);
+		afterEach(() => {
+			if (originalLegacy === undefined) delete process.env.SL_API_KEY;
+			else process.env.SL_API_KEY = originalLegacy;
+			if (originalToken === undefined) delete process.env.INSTANCE_TOKEN;
+			else process.env.INSTANCE_TOKEN = originalToken;
+			if (originalAccount === undefined) delete process.env.SECONDLAYER_API_KEY;
+			else process.env.SECONDLAYER_API_KEY = originalAccount;
+			if (originalArchive === undefined) delete process.env.SL_ARCHIVE_API_KEY;
+			else process.env.SL_ARCHIVE_API_KEY = originalArchive;
+		});
+
+		test("an explicit accountKey wins, including empty string", () => {
+			process.env.SECONDLAYER_API_KEY = "sk-sl_from_env";
+			expect(resolveAccountKey("sk-sl_explicit")).toBe("sk-sl_explicit");
+			expect(resolveAccountKey("")).toBe("");
+		});
+
+		test("reads SECONDLAYER_API_KEY from env", () => {
+			process.env.SECONDLAYER_API_KEY = "sk-sl_primary";
+			expect(resolveAccountKey()).toBe("sk-sl_primary");
+		});
+
+		test("falls back to SL_API_KEY when primary unset", () => {
+			process.env.SL_API_KEY = "sk-sl_alias";
+			expect(resolveAccountKey()).toBe("sk-sl_alias");
+		});
+
+		test("falls back to SL_ARCHIVE_API_KEY when both above unset", () => {
+			process.env.SL_ARCHIVE_API_KEY = "sk-sl_archive_alias";
+			expect(resolveAccountKey()).toBe("sk-sl_archive_alias");
+		});
+
+		test("SL_API_KEY wins over SL_ARCHIVE_API_KEY", () => {
+			process.env.SL_API_KEY = "sk-sl_alias";
+			process.env.SL_ARCHIVE_API_KEY = "sk-sl_archive_alias";
+			expect(resolveAccountKey()).toBe("sk-sl_alias");
+		});
+
+		test("SECONDLAYER_API_KEY wins over SL_API_KEY", () => {
+			process.env.SECONDLAYER_API_KEY = "sk-sl_primary";
+			process.env.SL_API_KEY = "sk-sl_alias";
+			expect(resolveAccountKey()).toBe("sk-sl_primary");
+		});
+
+		test("does not read INSTANCE_TOKEN", () => {
+			process.env.INSTANCE_TOKEN = "hex_instance_token";
+			expect(resolveAccountKey()).toBeUndefined();
 		});
 	});
 

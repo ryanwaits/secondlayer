@@ -13,8 +13,11 @@ export type FetchLike = (
 export interface SecondLayerOptions {
 	/** Base URL of the instance API (trailing slashes are stripped). */
 	baseUrl: string;
-	/** Bearer token for authenticated requests. */
+	/** Bearer token for authenticated instance requests (`INSTANCE_TOKEN`). */
 	apiKey?: string;
+	/** Hosted account key (`sk-sl_*`). Env `SECONDLAYER_API_KEY`. Used by
+	 *  `sl.archive` quote/fetch/credits, never by instance `/v1` or `/api`. */
+	accountKey?: string;
 	/** Fetch implementation. Tests and edge runtimes can provide their own. */
 	fetchImpl?: FetchLike;
 	/** Public base URL for Streams bulk parquet dumps (the cold backfill plane).
@@ -72,62 +75,71 @@ function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
 	});
 }
 
-/** Product default: the local one-box API. Override with `baseUrl` or `SL_API_URL`. */
+/** Product default: the local one-box API. Override with `baseUrl` or
+ *  `SECONDLAYER_API_URL`. */
 export const LOCAL_API_URL = "http://127.0.0.1:3800";
+
+/** Instance credential. `secondlayer init` writes this. */
+export const INSTANCE_TOKEN_ENV = "INSTANCE_TOKEN";
+
+/** Hosted account key (`sk-sl_*`) for api.secondlayer.tools. */
+export const ACCOUNT_KEY_ENV = "SECONDLAYER_API_KEY";
+
+let warnedUrlAlias = false;
 
 export function resolveBaseUrl(explicit?: string): string {
 	if (explicit && explicit.length > 0) return explicit.replace(/\/+$/, "");
 	if (typeof process !== "undefined") {
-		const fromEnv = process.env?.SL_API_URL || process.env?.SECONDLAYER_API_URL;
-		if (fromEnv) return fromEnv.replace(/\/+$/, "");
+		const primary = process.env?.SECONDLAYER_API_URL || undefined;
+		if (primary) return primary.replace(/\/+$/, "");
+		const legacy = process.env?.SL_API_URL || undefined;
+		if (legacy) {
+			if (!warnedUrlAlias) {
+				warnedUrlAlias = true;
+				console.warn(
+					"[secondlayer] SL_API_URL is a legacy alias of SECONDLAYER_API_URL; using the alias this once.",
+				);
+			}
+			return legacy.replace(/\/+$/, "");
+		}
 	}
 	return LOCAL_API_URL;
 }
 
-/** Credential env vars, highest precedence first. `INSTANCE_TOKEN` is the
- *  canonical name — it is what `secondlayer init` writes into `.env.local` and
- *  what the instance API validates bearer tokens against. `SL_API_KEY` is a
- *  legacy alias, kept working so existing exports and CI secrets don't break. */
-export const CREDENTIAL_ENV_VARS = ["INSTANCE_TOKEN", "SL_API_KEY"] as const;
-
-/** Conflicting pairs already warned about, so a process with a genuine
- *  misconfiguration says so once rather than on every client construction. */
-const warnedConflicts = new Set<string>();
-
-/** Resolve the credential a client should use. Precedence, highest first:
- *
- *   1. an explicit `apiKey` option — including an explicit `""`, which is how
- *      you opt a client back into keyless reads on a machine that has a key
- *      exported;
- *   2. `INSTANCE_TOKEN` — the canonical credential var, shared with the CLI
- *      and MCP server;
- *   3. `SL_API_KEY` — legacy alias for the same value.
- *
- *  Env values that are empty strings count as unset. Falling back to the env at
- *  all is what stops `new Index()` from silently running keyless and 402-ing on
- *  the first deep-history read.
- *
- *  When both env vars are set to *different* non-empty values there is no
- *  correct silent answer, so `INSTANCE_TOKEN` wins and we warn once on stderr —
- *  the whole point of this precedence is that a misconfigured credential should
- *  never authenticate as nobody without saying so.
- *
- *  Guarded for browsers and edge runtimes, where `process` is undefined. */
+/** Resolve the instance credential. Precedence: explicit `apiKey` (including
+ *  `""` for keyless) → `INSTANCE_TOKEN`. Does not read the hosted account key
+ *  env vars. Guarded for browsers and edge runtimes. */
 export function resolveApiKey(apiKey?: string): string | undefined {
 	if (apiKey !== undefined) return apiKey;
 	if (typeof process === "undefined") return undefined;
-	const instanceToken = process.env?.INSTANCE_TOKEN || undefined;
-	const legacyKey = process.env?.SL_API_KEY || undefined;
-	if (instanceToken && legacyKey && instanceToken !== legacyKey) {
-		const pair = `${instanceToken}\u0000${legacyKey}`;
-		if (!warnedConflicts.has(pair)) {
-			warnedConflicts.add(pair);
+	const token = process.env?.INSTANCE_TOKEN || undefined;
+	return token;
+}
+
+let warnedArchiveAlias = false;
+
+/** Resolve the hosted account key for archive quote/fetch/credits.
+ *  Precedence: explicit `accountKey` → `SECONDLAYER_API_KEY` → `SL_API_KEY` /
+ *  `SL_ARCHIVE_API_KEY` (one-release warn-fallbacks). Does not read
+ *  `INSTANCE_TOKEN`. */
+export function resolveAccountKey(accountKey?: string): string | undefined {
+	if (accountKey !== undefined) return accountKey;
+	if (typeof process === "undefined") return undefined;
+	const primary = process.env?.SECONDLAYER_API_KEY || undefined;
+	const slAlias = process.env?.SL_API_KEY || undefined;
+	const archiveAlias = process.env?.SL_ARCHIVE_API_KEY || undefined;
+	if (primary) return primary;
+	const legacy = slAlias ?? archiveAlias;
+	if (legacy) {
+		if (!warnedArchiveAlias) {
+			warnedArchiveAlias = true;
 			console.warn(
-				"[secondlayer] INSTANCE_TOKEN and SL_API_KEY are set to different values — using INSTANCE_TOKEN (SL_API_KEY is a legacy alias for it).",
+				"[secondlayer] SL_API_KEY / SL_ARCHIVE_API_KEY are legacy aliases of SECONDLAYER_API_KEY; using the alias this once.",
 			);
 		}
+		return legacy;
 	}
-	return instanceToken ?? legacyKey;
+	return undefined;
 }
 
 /** Percent-encode one URL path segment. Every caller-supplied identifier

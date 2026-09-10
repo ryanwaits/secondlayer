@@ -137,7 +137,7 @@ export class SecondLayer extends BaseClient {
 			this.request<T>(method, path, body);
 		this.archive = {
 			...createArchiveClient({
-				apiKey: this.apiKey,
+				accountKey: options.accountKey,
 				fetchImpl: options.fetchImpl,
 				archiveBaseUrl: options.archiveBaseUrl,
 				archiveOpsUrl: options.archiveOpsUrl,

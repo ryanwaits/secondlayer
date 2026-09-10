@@ -21,9 +21,11 @@ export type {
 } from "@secondlayer/shared/archive/instance-diagnosis";
 export type { RequestOptions, SecondLayerOptions } from "./base.ts";
 export {
-	CREDENTIAL_ENV_VARS,
+	ACCOUNT_KEY_ENV,
 	DEFAULT_REQUEST_TIMEOUT_MS,
+	INSTANCE_TOKEN_ENV,
 	LOCAL_API_URL,
+	resolveAccountKey,
 	resolveApiKey,
 	resolveBaseUrl,
 } from "./base.ts";

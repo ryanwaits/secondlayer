@@ -318,7 +318,7 @@ describe("archive", () => {
 		const urls: string[] = [];
 		const sl = new SecondLayer({
 			baseUrl: "http://127.0.0.1:3800",
-			apiKey: "sk-sl_test",
+			accountKey: "sk-sl_test",
 			fetchImpl: async (input) => {
 				urls.push(urlOf(input));
 				return new Response(JSON.stringify(quoteOk), { status: 200 });
@@ -334,7 +334,7 @@ describe("archive", () => {
 		const urls: string[] = [];
 		const sl = new SecondLayer({
 			baseUrl: "http://127.0.0.1:3800",
-			apiKey: "sk-sl_test",
+			accountKey: "sk-sl_test",
 			archiveOpsUrl: "https://ops.override.test",
 			fetchImpl: async (input) => {
 				urls.push(urlOf(input));
@@ -343,5 +343,53 @@ describe("archive", () => {
 		});
 		await sl.archive.quote({ paths: [partition.path], flow: "bootstrap" });
 		expect(new URL(urls[0] ?? "").hostname).toBe("ops.override.test");
+	});
+
+	test("hex accountKey throws ArchiveAuthError and does not send the request", async () => {
+		let calls = 0;
+		const c = createArchiveClient({
+			accountKey: "a".repeat(64),
+			archiveBaseUrl: ARCHIVE_BASE,
+			archiveOpsUrl: OPS_BASE,
+			fetchImpl: async () => {
+				calls++;
+				return new Response(JSON.stringify(quoteOk), { status: 200 });
+			},
+		});
+		await expect(
+			c.quote({ paths: [partition.path], flow: "bootstrap" }),
+		).rejects.toBeInstanceOf(ArchiveAuthError);
+		expect(calls).toBe(0);
+	});
+
+	test("hex from SL_API_KEY env throws ArchiveAuthError and does not send", async () => {
+		const original = process.env.SL_API_KEY;
+		const originalAccount = process.env.SECONDLAYER_API_KEY;
+		const originalArchive = process.env.SL_ARCHIVE_API_KEY;
+		delete process.env.SECONDLAYER_API_KEY;
+		delete process.env.SL_ARCHIVE_API_KEY;
+		process.env.SL_API_KEY = "b".repeat(64);
+		let calls = 0;
+		try {
+			const c = createArchiveClient({
+				archiveBaseUrl: ARCHIVE_BASE,
+				archiveOpsUrl: OPS_BASE,
+				fetchImpl: async () => {
+					calls++;
+					return new Response(JSON.stringify(quoteOk), { status: 200 });
+				},
+			});
+			await expect(
+				c.quote({ paths: [partition.path], flow: "bootstrap" }),
+			).rejects.toBeInstanceOf(ArchiveAuthError);
+			expect(calls).toBe(0);
+		} finally {
+			if (original === undefined) delete process.env.SL_API_KEY;
+			else process.env.SL_API_KEY = original;
+			if (originalAccount === undefined) delete process.env.SECONDLAYER_API_KEY;
+			else process.env.SECONDLAYER_API_KEY = originalAccount;
+			if (originalArchive === undefined) delete process.env.SL_ARCHIVE_API_KEY;
+			else process.env.SL_ARCHIVE_API_KEY = originalArchive;
+		}
 	});
 });

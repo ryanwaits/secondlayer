@@ -3,7 +3,11 @@ import {
 	checkSignature,
 	loadReference,
 } from "@secondlayer/shared/archive/reference";
-import { type FetchLike, parseErrorEnvelope, resolveApiKey } from "../base.ts";
+import {
+	type FetchLike,
+	parseErrorEnvelope,
+	resolveAccountKey,
+} from "../base.ts";
 import {
 	ApiError,
 	ArchiveAuthError,
@@ -34,8 +38,13 @@ const DEFAULT_ARCHIVE_BASE_URL = "https://archive.secondlayer.tools";
 const DEFAULT_ARCHIVE_OPS_URL = "https://api.secondlayer.tools";
 const MAX_FETCH_BATCH = 64;
 
+/** Match CLI: hosted account keys are `sk-sl_*` or `ss-sl_*`. */
+const ARCHIVE_CREDENTIAL_RE = /^s[ks]-sl_/;
+
 export type CreateArchiveClientOptions = {
+	/** @deprecated Prefer `accountKey`. Kept one release as an alias. */
 	apiKey?: string;
+	accountKey?: string;
 	fetchImpl?: FetchLike;
 	archiveBaseUrl?: string;
 	archiveOpsUrl?: string;
@@ -85,7 +94,7 @@ function stripSlash(url: string): string {
 export function createArchiveClient(
 	options: CreateArchiveClientOptions = {},
 ): ArchiveClient {
-	const apiKey = resolveApiKey(options.apiKey);
+	const accountKey = resolveAccountKey(options.accountKey ?? options.apiKey);
 	const fetchImpl: FetchLike =
 		options.fetchImpl ?? ((input, init) => fetch(input, init));
 	const archiveBaseUrl = stripSlash(
@@ -168,7 +177,14 @@ export function createArchiveClient(
 		const headers: Record<string, string> = {
 			"Content-Type": "application/json",
 		};
-		if (authed && apiKey) headers.Authorization = `Bearer ${apiKey}`;
+		if (authed && accountKey) {
+			if (!ARCHIVE_CREDENTIAL_RE.test(accountKey)) {
+				throw new ArchiveAuthError(
+					"archive ops need SECONDLAYER_API_KEY (sk-sl_*), not INSTANCE_TOKEN",
+				);
+			}
+			headers.Authorization = `Bearer ${accountKey}`;
+		}
 		const response = await fetchImpl(`${archiveOpsUrl}${path}`, {
 			method,
 			headers,

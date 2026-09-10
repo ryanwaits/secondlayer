@@ -74,10 +74,14 @@ describe("SecondLayer root client", () => {
 describe("credential precedence is the same at every entry point", () => {
 	const originalToken = process.env.INSTANCE_TOKEN;
 	const originalLegacy = process.env.SL_API_KEY;
+	const originalAccount = process.env.SECONDLAYER_API_KEY;
+	const originalArchive = process.env.SL_ARCHIVE_API_KEY;
 
 	beforeEach(() => {
 		delete process.env.SL_API_KEY;
-		process.env.INSTANCE_TOKEN = "sk-sl_from_env";
+		delete process.env.SECONDLAYER_API_KEY;
+		delete process.env.SL_ARCHIVE_API_KEY;
+		process.env.INSTANCE_TOKEN = "hex_from_env";
 	});
 
 	afterEach(() => {
@@ -85,6 +89,10 @@ describe("credential precedence is the same at every entry point", () => {
 		else process.env.INSTANCE_TOKEN = originalToken;
 		if (originalLegacy === undefined) delete process.env.SL_API_KEY;
 		else process.env.SL_API_KEY = originalLegacy;
+		if (originalAccount === undefined) delete process.env.SECONDLAYER_API_KEY;
+		else process.env.SECONDLAYER_API_KEY = originalAccount;
+		if (originalArchive === undefined) delete process.env.SL_ARCHIVE_API_KEY;
+		else process.env.SL_ARCHIVE_API_KEY = originalArchive;
 	});
 
 	test("createStreamsClient() with no apiKey sends INSTANCE_TOKEN as the bearer", async () => {
@@ -110,7 +118,7 @@ describe("credential precedence is the same at every entry point", () => {
 		});
 		await streams.tip();
 		expect(requests[0]?.headers.get("Authorization")).toBe(
-			"Bearer sk-sl_from_env",
+			"Bearer hex_from_env",
 		);
 	});
 
@@ -193,20 +201,53 @@ describe("credential precedence is the same at every entry point", () => {
 		expect(requests[0]?.headers.get("x-sl-origin")).toBe("cli");
 	});
 
-	test("new SecondLayer() resolves the credential once, so a conflicting SL_API_KEY warns once", () => {
-		process.env.INSTANCE_TOKEN = "sk-sl_a";
-		process.env.SL_API_KEY = "sk-sl_b";
-		const original = console.warn;
-		const warnings: unknown[] = [];
-		console.warn = (...args: unknown[]) => {
-			warnings.push(args);
-		};
-		try {
-			new SecondLayer({ baseUrl: "http://secondlayer.test" });
-		} finally {
-			console.warn = original;
-		}
-		expect(warnings.length).toBeLessThanOrEqual(1);
+	test("INSTANCE_TOKEN and SECONDLAYER_API_KEY stay on their planes", async () => {
+		process.env.INSTANCE_TOKEN = "hex_instance";
+		process.env.SECONDLAYER_API_KEY = "sk-sl_acct";
+		const instanceAuth: string[] = [];
+		const archiveAuth: string[] = [];
+		const sl = new SecondLayer({
+			baseUrl: "http://secondlayer.test",
+			archiveOpsUrl: "https://ops.test",
+			fetchImpl: async (input, init) => {
+				const request =
+					input instanceof Request
+						? input
+						: new Request(input.toString(), init);
+				const host = new URL(request.url).hostname;
+				const auth = request.headers.get("Authorization");
+				if (host === "ops.test") {
+					archiveAuth.push(auth ?? "");
+					return new Response(
+						JSON.stringify({
+							partitions: 1,
+							bundles: 1,
+							usd_micros: 0,
+							usd: "0",
+							free_allowance_applied_micros: 0,
+							allowance_remaining_bundles: 0,
+							balance_usd_micros: 0,
+							sufficient: true,
+						}),
+						{ status: 200, headers: { "Content-Type": "application/json" } },
+					);
+				}
+				instanceAuth.push(auth ?? "");
+				return new Response(
+					JSON.stringify({
+						block_height: 1,
+						block_hash: "0x01",
+						burn_block_height: 2,
+						lag_seconds: 0,
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			},
+		});
+		await sl.streams.tip();
+		await sl.archive.quote({ paths: ["blocks/0.parquet"], flow: "bootstrap" });
+		expect(instanceAuth[0]).toBe("Bearer hex_instance");
+		expect(archiveAuth[0]).toBe("Bearer sk-sl_acct");
 	});
 });
 
