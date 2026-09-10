@@ -302,6 +302,7 @@ const GOLDEN_PATH_TOOLS = [
 	"subgraphs_scaffold",
 	"subgraphs_spec",
 	"subgraphs_stop",
+	"subgraphs_test",
 	// subscriptions
 	"subscriptions_create",
 	"subscriptions_dead",

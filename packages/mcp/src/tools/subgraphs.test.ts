@@ -287,4 +287,113 @@ describe("subgraph MCP tools", () => {
 		expect(result.content[0]?.text).toContain('"dryRun": true');
 		expect(result.content[0]?.text).toContain("subgraph_dex");
 	});
+
+	const PRINT_ROW = {
+		cursor: "c1",
+		block_height: 10,
+		tx_id: "0x1",
+		tx_index: 0,
+		event_index: 0,
+		event_type: "print",
+		contract_id: "SP.dex",
+		payload: { topic: "swap", value: { "token-x": "SP.token" } },
+	};
+
+	function testSource(handlerBody: string): string {
+		return `import { defineSubgraph } from "@secondlayer/subgraphs";
+export default defineSubgraph({
+  name: "dex-test",
+  sources: { prints: { type: "print_event", contractId: "SP.dex" } },
+  schema: { swaps: { columns: { token_x: { type: "text" } } } },
+  handlers: {
+    prints: (event, ctx) => {
+      ${handlerBody}
+    },
+  },
+});`;
+	}
+
+	it("registers subgraphs_test", () => {
+		const tools: RegisteredTool[] = [];
+		registerSubgraphTools(fakeServer(tools), () => ({}) as never);
+		expect(tools.map((t) => t.name)).toContain("subgraphs_test");
+	});
+
+	it("subgraphs_test returns ok when the mapping writes rows", async () => {
+		const tools: RegisteredTool[] = [];
+		registerSubgraphTools(
+			fakeServer(tools),
+			() =>
+				({
+					index: {
+						events: {
+							list: async () => ({ events: [PRINT_ROW], next_cursor: null }),
+						},
+						contractCalls: { list: async () => ({ contract_calls: [] }) },
+					},
+				}) as never,
+		);
+
+		const tool = tools.find((t) => t.name === "subgraphs_test");
+		if (!tool) throw new Error("subgraphs_test not registered");
+
+		const result = await tool.handler({
+			code: testSource(`
+        const tokenX = event.data.tokenX;
+        if (tokenX == null) return;
+        ctx.insert("swaps", { token_x: tokenX });
+      `),
+			fromHeight: 10,
+			toHeight: 20,
+		});
+		expect(result.isError).toBeUndefined();
+		const body = JSON.parse(result.content[0]?.text ?? "{}") as {
+			ok: boolean;
+			written: number;
+			code?: string;
+		};
+		expect(body.ok).toBe(true);
+		expect(body.written).toBe(1);
+	});
+
+	it("subgraphs_test fail-closes EMPTY_MAPPING with observed keys", async () => {
+		const tools: RegisteredTool[] = [];
+		registerSubgraphTools(
+			fakeServer(tools),
+			() =>
+				({
+					index: {
+						events: {
+							list: async () => ({ events: [PRINT_ROW], next_cursor: null }),
+						},
+						contractCalls: { list: async () => ({ contract_calls: [] }) },
+					},
+				}) as never,
+		);
+
+		const tool = tools.find((t) => t.name === "subgraphs_test");
+		if (!tool) throw new Error("subgraphs_test not registered");
+
+		const result = await tool.handler({
+			code: testSource(`
+        const amountIn = event.data.amountIn;
+        if (amountIn == null) return;
+        ctx.insert("swaps", { token_x: amountIn });
+      `),
+			fromHeight: 10,
+			toHeight: 20,
+		});
+		expect(result.isError).toBe(true);
+		const body = JSON.parse(result.content[0]?.text ?? "{}") as {
+			ok: boolean;
+			code?: string;
+			hint?: string;
+			written: number;
+		};
+		expect(body.ok).toBe(false);
+		expect(body.code).toBe("EMPTY_MAPPING");
+		expect(body.written).toBe(0);
+		expect(body.hint).toContain("tokenX");
+		expect(body.hint).toContain("do not invent fields");
+	});
 });

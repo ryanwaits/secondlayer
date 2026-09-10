@@ -7,8 +7,14 @@ import {
 	DECODED_EVENT_TYPES,
 	type DecodedEventType,
 } from "@secondlayer/stacks/filters";
-import { camelizeKeys } from "@secondlayer/subgraphs";
+import {
+	runSubgraphTest as applySubgraphTest,
+	toContractCallPayload,
+	toHandlerPayload,
+} from "@secondlayer/subgraphs/testing";
 import { error, info, printError, success, warn } from "../lib/output.ts";
+
+export { toContractCallPayload, toHandlerPayload };
 
 /**
  * `secondlayer subgraphs test` — run a subgraph's handlers against real chain data
@@ -225,9 +231,6 @@ export async function runSubgraphTest(
 
 	const { readFile } = await import("node:fs/promises");
 	const { bundleSubgraphCode } = await import("@secondlayer/bundler");
-	const { createTestContext, buildEvent } = await import(
-		"@secondlayer/subgraphs/testing"
-	);
 
 	const source = await readFile(absPath, "utf8");
 	const bundled = await bundleSubgraphCode(source);
@@ -407,64 +410,27 @@ export async function runSubgraphTest(
 	}
 
 	// ── Run the LOCAL handlers ─────────────────────────────────────────
-	const ctx = createTestContext(
-		def.schema as Parameters<typeof createTestContext>[0],
-	);
-	let applied = 0;
-	let failed = 0;
-	const failures: string[] = [];
-
-	for (const [name, rows] of Object.entries(events)) {
+	for (const name of Object.keys(events)) {
 		const handler =
 			(def.handlers as Record<string, unknown>)[name] ??
 			(def.handlers as Record<string, unknown>)["*"];
 		if (typeof handler !== "function") {
 			warn(`source "${name}": no handler — skipped.`);
-			continue;
-		}
-		const filter = sources[name];
-		for (const row of rows) {
-			// Post-decode topic filter, exactly as the runner applies it.
-			const payload =
-				filter?.type === "contract_call"
-					? toContractCallPayload(row as IndexContractCall)
-					: toHandlerPayload(filter, row as IndexEvent);
-			if (
-				filter?.type === "print_event" &&
-				filter.topic &&
-				(payload as { topic?: string }).topic !== filter.topic
-			) {
-				continue;
-			}
-			try {
-				await (handler as (e: unknown, c: unknown) => unknown)(
-					buildEvent(
-						filter as Parameters<typeof buildEvent>[0],
-						payload as Record<string, unknown>,
-					),
-					ctx,
-				);
-				applied++;
-			} catch (err) {
-				failed++;
-				if (failures.length < 5) {
-					failures.push(
-						`  ${name} @ ${row.cursor}: ${err instanceof Error ? err.message : String(err)}`,
-					);
-				}
-			}
 		}
 	}
 
+	const result = await applySubgraphTest({
+		schema: def.schema as Parameters<typeof applySubgraphTest>[0]["schema"],
+		handlers: def.handlers as Record<string, unknown>,
+		sources,
+		events: events as Parameters<typeof applySubgraphTest>[0]["events"],
+	});
+
 	// ── Report ─────────────────────────────────────────────────────────
 	info("");
-	const tables = Object.keys(def.schema as Record<string, unknown>);
-	let totalRows = 0;
-	for (const table of tables) {
-		const rows = await ctx.rows(table as never);
-		totalRows += rows.length;
-		info(`  ${table.padEnd(24)} ${String(rows.length).padStart(6)} rows`);
-		const sample = rows[0];
+	for (const table of result.tables) {
+		info(`  ${table.name.padEnd(24)} ${String(table.rows).padStart(6)} rows`);
+		const sample = table.sampleRow;
 		if (sample) {
 			const preview = Object.entries(sample)
 				.filter(([k]) => !k.startsWith("_"))
@@ -475,79 +441,23 @@ export async function runSubgraphTest(
 		}
 	}
 	info("");
-	if (failed > 0) {
-		warn(`${failed} handler error${failed === 1 ? "" : "s"}:`);
-		for (const f of failures) warn(f);
-	}
 
-	const fetched = Object.values(events).reduce((n, r) => n + r.length, 0);
-	if (fetched === 0) {
-		// Nothing matched in this range — not a handler defect. Widen the range
-		// rather than reporting a failure that isn't one.
+	if (result.code === "NO_EVENTS") {
+		// Nothing matched in this range — not a handler defect.
 		warn(
-			`No events matched these sources in blocks ${fromHeight}–${toHeight}. Widen the range (--to) or check the source filters.`,
+			result.hint ??
+				`No events matched these sources in blocks ${fromHeight}–${toHeight}. Widen the range (--to) or check the source filters.`,
 		);
 		return;
 	}
-	// Events arrived and the handlers wrote nothing: that IS the bns-names
-	// failure mode (0 rows chain-wide while tailing happily at the tip).
-	if (totalRows === 0) {
+	if (result.code === "EMPTY_MAPPING" || !result.ok) {
 		error(
-			`${applied} event${applied === 1 ? "" : "s"} applied, but NO rows were written — the shape of the field-mapping bug that shipped a 0-row subgraph. Check your handler's field names against the payload.`,
+			result.hint ??
+				`${result.matched} event${result.matched === 1 ? "" : "s"} applied, but NO rows were written — the shape of the field-mapping bug that shipped a 0-row subgraph. Check your handler's field names against the payload.`,
 		);
 		process.exit(1);
 	}
 	success(
-		`${applied} event${applied === 1 ? "" : "s"} → ${totalRows} row${totalRows === 1 ? "" : "s"} across ${tables.length} table${tables.length === 1 ? "" : "s"} (blocks ${fromHeight}–${toHeight})`,
+		`${result.matched} event${result.matched === 1 ? "" : "s"} → ${result.written} row${result.written === 1 ? "" : "s"} across ${result.tables.length} table${result.tables.length === 1 ? "" : "s"} (blocks ${fromHeight}–${toHeight})`,
 	);
-}
-
-/** Map an Index event row onto the payload shape a handler expects. */
-export function toHandlerPayload(
-	_filter: { type: string } | undefined,
-	row: IndexEvent,
-): Record<string, unknown> {
-	if (row.event_type === "print") {
-		const payload = row.payload as { topic?: string | null; value?: unknown };
-		return {
-			contractId: row.contract_id ?? "",
-			topic: payload?.topic ?? "",
-			data: (camelizeKeys(payload?.value) as Record<string, unknown>) ?? {},
-		};
-	}
-	// Token/STX events: the Index row is already flat and camel-free; map the
-	// snake_case wire names onto the handler payload names.
-	const r = row as unknown as Record<string, unknown>;
-	return {
-		...(r.sender !== undefined ? { sender: r.sender } : {}),
-		...(r.recipient !== undefined ? { recipient: r.recipient } : {}),
-		...(r.amount !== undefined ? { amount: BigInt(String(r.amount)) } : {}),
-		...(r.asset_identifier !== undefined
-			? { assetIdentifier: r.asset_identifier }
-			: {}),
-		...(r.value !== undefined ? { tokenId: r.value } : {}),
-	};
-}
-
-/** Map an Index contract-call row onto the ContractCallEvent handler shape. */
-export function toContractCallPayload(
-	row: IndexContractCall,
-): Record<string, unknown> {
-	return {
-		type: "contract_call",
-		sender: row.sender,
-		contractId: row.contract_id ?? "",
-		functionName: row.function_name ?? "",
-		args: Array.isArray(row.args) ? row.args : [],
-		result: row.result ?? null,
-		resultHex: row.result_hex ?? null,
-		tx: {
-			txId: row.tx_id,
-			sender: row.sender,
-			type: "contract_call",
-			status: row.status,
-			contractId: row.contract_id ?? null,
-			functionName: row.function_name ?? null,
-		},
-	};
 }

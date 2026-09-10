@@ -1,5 +1,15 @@
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { bundleSubgraphCode } from "@secondlayer/bundler";
+import { DECODED_EVENT_TYPES } from "@secondlayer/shared";
+import type { DecodedEventType } from "@secondlayer/shared";
+import {
+	type SubgraphTestSource,
+	runSubgraphTest,
+} from "@secondlayer/subgraphs/testing";
 import { z } from "zod";
 import { getClient } from "../lib/client.ts";
 import {
@@ -11,6 +21,37 @@ import {
 import { defineTool } from "../lib/tool.ts";
 
 type SubgraphClientProvider = typeof getClient;
+
+/** Index event_type for a source filter, or null when unreadable. */
+function eventTypeFor(filter: { type: string }): DecodedEventType | null {
+	if (filter.type === "contract_deploy") return null;
+	const candidate = filter.type === "print_event" ? "print" : filter.type;
+	return DECODED_EVENT_TYPES.includes(candidate as DecodedEventType)
+		? (candidate as DecodedEventType)
+		: null;
+}
+
+/** Stage bundled handler ESM and import the defineSubgraph default export. */
+async function loadBundledDefinition(handlerCode: string): Promise<{
+	handlers?: Record<string, unknown>;
+	schema?: unknown;
+	sources?: Record<string, SubgraphTestSource>;
+}> {
+	const dir = await mkdtemp(join(tmpdir(), "sl-mcp-sg-test-"));
+	const file = join(
+		dir,
+		`handler-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`,
+	);
+	await writeFile(file, handlerCode);
+	const mod = (await import(pathToFileURL(file).href)) as {
+		default?: {
+			handlers?: Record<string, unknown>;
+			schema?: unknown;
+			sources?: Record<string, SubgraphTestSource>;
+		};
+	};
+	return mod.default ?? {};
+}
 
 export function registerSubgraphTools(
 	server: McpServer,
@@ -263,7 +304,7 @@ export function registerSubgraphTools(
 	}>(
 		server,
 		"subgraphs_deploy",
-		"Deploy a subgraph from TypeScript code. Pass the full defineSubgraph() source — it will be bundled, validated, and deployed. Optional startBlock overrides the source definition for this deploy. Set dryRun to validate and preview the schema/DDL without writing anything. Call `subgraphs_reindex` separately if you need a forced reindex.",
+		"Deploy a subgraph from TypeScript code. Pass the full defineSubgraph() source — it will be bundled, validated, and deployed. Optional startBlock overrides the source definition for this deploy. dryRun validates schema/DDL only and does not run handlers — call subgraphs_test first and deploy only when it returns ok: true with written >= 1. Call subgraphs_reindex separately if you need a forced reindex.",
 		{
 			code: z
 				.string()
@@ -278,7 +319,7 @@ export function registerSubgraphTools(
 				.boolean()
 				.optional()
 				.describe(
-					"Validate and preview the deploy (schema/DDL) without writing changes",
+					"Validate schema/DDL only — does not run handlers. Use subgraphs_test to prove a mapping writes rows.",
 				),
 		},
 		async ({ code, startBlock, dryRun }) => {
@@ -295,6 +336,130 @@ export function registerSubgraphTools(
 				...(dryRun !== undefined ? { dryRun } : {}),
 			});
 			return jsonResponse(result);
+		},
+	);
+
+	defineTool<{
+		code: string;
+		fromHeight: number;
+		toHeight?: number;
+		limit?: number;
+	}>(
+		server,
+		"subgraphs_test",
+		"Prove a subgraph mapping writes rows against Index data before deploy. Pass full defineSubgraph() source plus a height range. Returns ok/written/tables; EMPTY_MAPPING means events matched but 0 rows were written — read hint for observed event.data keys and do not invent fields. subgraphs_deploy dryRun is DDL only; do not deploy until ok: true with written >= 1.",
+		{
+			code: z
+				.string()
+				.describe("TypeScript source containing a defineSubgraph() call"),
+			fromHeight: z
+				.number()
+				.int()
+				.nonnegative()
+				.describe("Start block height (inclusive)"),
+			toHeight: z
+				.number()
+				.int()
+				.nonnegative()
+				.optional()
+				.describe("End block height (inclusive); default fromHeight+100"),
+			limit: z
+				.number()
+				.int()
+				.positive()
+				.max(200)
+				.optional()
+				.describe("Max Index rows per source (default 50, max 200)"),
+		},
+		async ({ code, fromHeight, toHeight, limit }) => {
+			const bundled = await bundleSubgraphCode(code);
+			const def = await loadBundledDefinition(bundled.handlerCode);
+			if (!def.handlers || !def.schema) {
+				return jsonResponse(
+					{
+						ok: false,
+						code: "NO_SOURCES",
+						matched: 0,
+						written: 0,
+						tables: [],
+						hint: "Bundled module must default-export defineSubgraph() with handlers and schema.",
+					},
+					true,
+				);
+			}
+
+			const sources = (bundled.sources ?? {}) as unknown as Record<
+				string,
+				SubgraphTestSource
+			>;
+			const to = toHeight ?? fromHeight + 100;
+			const pageLimit = Math.min(limit ?? 50, 200);
+			const index = clientProvider().index;
+			const events: Record<string, unknown[]> = {};
+			let sourcesTested = 0;
+
+			for (const [name, filter] of Object.entries(sources)) {
+				if (filter.type === "contract_call") {
+					sourcesTested++;
+					const envelope = await index.contractCalls.list({
+						...(filter.contractId
+							? {
+									contractId: Array.isArray(filter.contractId)
+										? filter.contractId
+										: filter.contractId,
+								}
+							: {}),
+						...(filter.functionName
+							? { functionName: filter.functionName }
+							: {}),
+						fromHeight,
+						toHeight: to,
+						limit: pageLimit,
+					});
+					events[name] = envelope.contract_calls;
+					continue;
+				}
+
+				const eventType = eventTypeFor(filter);
+				if (eventType === null) continue;
+				sourcesTested++;
+				const envelope = await index.events.list({
+					eventType,
+					...(filter.contractId
+						? {
+								contractId: Array.isArray(filter.contractId)
+									? filter.contractId
+									: filter.contractId,
+							}
+						: {}),
+					fromHeight,
+					toHeight: to,
+					limit: pageLimit,
+				});
+				events[name] = envelope.events;
+			}
+
+			if (sourcesTested === 0) {
+				return jsonResponse(
+					{
+						ok: false,
+						code: "NO_SOURCES",
+						matched: 0,
+						written: 0,
+						tables: [],
+						hint: "No sources were tested — every source is unreadable from Index.",
+					},
+					true,
+				);
+			}
+
+			const result = await runSubgraphTest({
+				schema: def.schema as Parameters<typeof runSubgraphTest>[0]["schema"],
+				handlers: def.handlers,
+				sources,
+				events: events as Parameters<typeof runSubgraphTest>[0]["events"],
+			});
+			return jsonResponse(result, !result.ok);
 		},
 	);
 }
