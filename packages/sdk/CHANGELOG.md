@@ -1,5 +1,18 @@
 # @secondlayer/sdk
 
+## 10.3.0
+
+### Minor Changes
+
+- 8ea1cff: Split instance `apiKey` (`INSTANCE_TOKEN`) from `accountKey`
+  (`SECONDLAYER_API_KEY`). Archive quote/fetch no longer send the instance token.
+  `SL_API_KEY` is no longer an alias of `INSTANCE_TOKEN`.
+
+### Patch Changes
+
+- Updated dependencies [99cc81d]
+  - @secondlayer/shared@11.4.0
+
 ## 10.2.0
 
 ### Minor Changes

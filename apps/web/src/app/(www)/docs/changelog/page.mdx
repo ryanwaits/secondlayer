@@ -2,11 +2,32 @@
 
 Notable changes to Secondlayer and its SDKs. Entries dated before August 2026
 describe the hosted service as it worked then: per-row read metering, API
-keys, `402` past the free window. That service is withdrawn; on a self-hosted
-instance reads are yours and unmetered, and only archive
-bootstrap/backfill/reindex draws [credits](/docs/authentication#archive-credits).
+keys, `402` past the free window. That service is withdrawn. On a self-hosted
+instance reads are yours and unmetered. Archive bootstrap/backfill/reindex
+and hosted Index/Streams reads at `api.secondlayer.tools` draw
+[credits](/docs/authentication#archive-credits).
+
+## Index — September 2026
+
+### Hosted Index is keyed
+
+Hosted `/v1` Index at `api.secondlayer.tools` takes an account key (`SECONDLAYER_API_KEY`, `sk-sl_*`). Same prepaid credits as archive bootstrap. Your instance on loopback stays keyless.
+
+### `POST /v1/archive/verify`
+
+Your instance compares local identity digests to a signed manifest URL. Nothing is uploaded but the URL. Signature failure is 200 `unanchored`, never `clean`. Without `from_block`/`to_block` the route caps at 40 ranges.
+
+## Streams — September 2026
+
+### Hosted Streams is keyed
+
+Hosted `/v1` Streams uses the same account key and the same prepaid balance. Scoped `streams`/`index` keys are revoked; mint `account`.
 
 ## SDK — September 2026
+
+### Two credentials on the client
+
+`apiKey` / `INSTANCE_TOKEN` is your instance. `accountKey` / `SECONDLAYER_API_KEY` is the hosted account key. Archive quote and fetch send the account key, never the instance token. `SL_API_KEY` is a one-release alias of the hosted key. MCP archive tools read the same env.
 
 ### Signed archive from the SDK
 
@@ -14,7 +35,7 @@ bootstrap/backfill/reindex draws [credits](/docs/authentication#archive-credits)
 
 ### Verify this instance, and name an empty index
 
-`sl.archive.verify` POSTs to your instance. A 200 with `unanchored` is data, not an exception. `sl.instance.status` and `diagnose` read `/public/status`, so a box with no blocks names bootstrap instead of a bare DEGRADED. MCP can run the same loop: `instance_status`, `archive_bootstrap`, `archive_verify`, then codegen. Hosted credits need `SL_ARCHIVE_API_KEY`, not the instance token.
+`sl.archive.verify` POSTs to your instance. A 200 with `unanchored` is data, not an exception. `sl.instance.status` and `diagnose` read `/public/status`, so a box with no blocks names bootstrap instead of a bare DEGRADED. MCP can run the same loop: `instance_status`, `archive_bootstrap`, `archive_verify`, then codegen. Hosted credits need `SECONDLAYER_API_KEY`, not the instance token.
 
 ### Running balances survive a reorg
 
@@ -27,6 +48,10 @@ You keep event rows append-only and fold running balances in `onRollback` on the
 Point `createPublicClient` at a Clarinet session with `simnet()` from `@secondlayer/stacks/simnet` and keep using `getContract` the way you do on mainnet. The root SDK still does not load clarinet-sdk; that entry is the only one that talks to the VM.
 
 ## CLI — September 2026
+
+### Instance commands stay on your box
+
+`setup`, `init`, `subgraphs`, and the other instance verbs refuse `api.secondlayer.tools`. `index` and `streams` send `SECONDLAYER_API_KEY` when pointed at us. `whoami` prints instance and merchant. `init` writes `INSTANCE_TOKEN` only.
 
 ### `testing()` is gone; simnet is a client
 
@@ -73,12 +98,6 @@ One `timeout` covers headers and body, a stalled response rejects with `TimeoutE
 ### Tuples hash like the chain, principals and units fail loudly
 
 Tuple fields serialize in the node's byte order so SIP-018 hashes match `to-consensus-buff?`. The deserializer caps nesting and checks declared counts against the bytes left. `Cl.principal` and `parseContractId` reject undecodable addresses, `parseUnits` refuses exponent-form numbers and silent rounding, and a legacy Bitcoin address with a bad base58check checksum is refused before it becomes a PoX reward address. `apiKey` no longer appears on `transport.config`.
-
-## Index — September 2026
-
-### `POST /v1/archive/verify`
-
-Your instance compares local identity digests to a signed manifest URL. Nothing is uploaded but the URL. Signature failure is 200 `unanchored`, never `clean`. Without `from_block`/`to_block` the route caps at 40 ranges.
 
 ## Index — August 2026
 

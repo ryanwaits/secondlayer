@@ -1,5 +1,18 @@
 # @secondlayer/mcp
 
+## 7.4.0
+
+### Minor Changes
+
+- d6f1b46: `SECONDLAYER_API_KEY` is the hosted account key for archive credits; `init` no longer writes `SL_API_KEY` as an alias of `INSTANCE_TOKEN`.
+
+### Patch Changes
+
+- Updated dependencies [99cc81d]
+- Updated dependencies [8ea1cff]
+  - @secondlayer/shared@11.4.0
+  - @secondlayer/sdk@10.3.0
+
 ## 7.3.0
 
 ### Minor Changes

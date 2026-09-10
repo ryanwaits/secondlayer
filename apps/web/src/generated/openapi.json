@@ -3,7 +3,7 @@
 	"info": {
 		"title": "Secondlayer Public API",
 		"version": "1.0.0",
-		"description": "This instance: Index (decoded chain events), Streams (raw firehose), Subgraphs (the schemas you deployed), and the `/api` write plane that deploys and drives them. Cursor format is `<block_height>:<event_index>` on Index/Streams; opaque on Subgraphs. Auth is one credential: the instance token minted by `secondlayer init` (`INSTANCE_TOKEN`; `SL_API_KEY`/`API_KEY` are legacy aliases), sent as `Authorization: Bearer $INSTANCE_TOKEN`. `/v1` reads need no credential while the API is reachable only over loopback and require the token on every request once it is published past loopback — one rule, identical on Index, Streams, and Subgraphs, which is why every read below lists bearer auth as optional. Writes under `/api` require the token whenever one is set, and must send `Content-Type: application/json` (anything else is refused with 415 `UNSUPPORTED_MEDIA_TYPE`)."
+		"description": "This instance: Index (decoded chain events), Streams (raw firehose), Subgraphs (the schemas you deployed), and the `/api` write plane that deploys and drives them. Cursor format is `<block_height>:<event_index>` on Index/Streams; opaque on Subgraphs. Auth on this instance is the token minted by `secondlayer init` (`INSTANCE_TOKEN`), sent as `Authorization: Bearer $INSTANCE_TOKEN`. `/v1` reads need no credential while the API is reachable only over loopback and require the token on every request once it is published past loopback: one rule, identical on Index, Streams, and Subgraphs, which is why every read below lists bearer auth as optional. Writes under `/api` require the token whenever one is set, and must send `Content-Type: application/json` (anything else is refused with 415 `UNSUPPORTED_MEDIA_TYPE`). Hosted `api.secondlayer.tools` uses an account key (`sk-sl_*`); see https://www.secondlayer.tools/docs/authentication."
 	},
 	"servers": [
 		{
@@ -51,7 +51,7 @@
 				"type": "http",
 				"scheme": "bearer",
 				"bearerFormat": "hex",
-				"description": "The instance token from `secondlayer init` — 32 random bytes, hex-encoded, read from `INSTANCE_TOKEN` (`SL_API_KEY`/`API_KEY` are legacy aliases). There is no signup and no second key type: one instance, one token. Optional on `/v1` reads served over a loopback bind, required on every request once the instance is reachable past loopback, and required on every `/api` write whenever a token is set."
+				"description": "The instance token from `secondlayer init`: 32 random bytes, hex-encoded, read from `INSTANCE_TOKEN`. Optional on `/v1` reads served over a loopback bind, required on every request once the instance is reachable past loopback, and required on every `/api` write whenever a token is set. Hosted `api.secondlayer.tools` uses an account key; see https://www.secondlayer.tools/docs/authentication."
 			}
 		},
 		"schemas": {

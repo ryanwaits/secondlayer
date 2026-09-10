@@ -1,5 +1,19 @@
 # @secondlayer/cli
 
+## 14.2.0
+
+### Minor Changes
+
+- c3dc7e7: `SECONDLAYER_API_KEY` is the hosted account key; `init` no longer writes `SL_API_KEY` as an alias of `INSTANCE_TOKEN`.
+- 65f370d: Instance commands refuse api.secondlayer.tools. index/streams send SECONDLAYER_API_KEY when pointed at us. whoami prints instance and merchant.
+
+### Patch Changes
+
+- Updated dependencies [99cc81d]
+- Updated dependencies [8ea1cff]
+  - @secondlayer/shared@11.4.0
+  - @secondlayer/sdk@10.3.0
+
 ## 14.1.2
 
 ### Patch Changes

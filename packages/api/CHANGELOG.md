@@ -1,5 +1,21 @@
 # @secondlayer/api
 
+## 1.33.0
+
+### Minor Changes
+
+- 99cc81d: Hosted /v1 Index, Streams, and subgraphs require an account key. Scoped
+  streams/index keys are revoked. INSTANCE_TOKEN does not authenticate the
+  archive host.
+
+### Patch Changes
+
+- Updated dependencies [99cc81d]
+- Updated dependencies [8ea1cff]
+  - @secondlayer/shared@11.4.0
+  - @secondlayer/sdk@10.3.0
+  - @secondlayer/platform@0.2.7
+
 ## 1.32.0
 
 ### Minor Changes

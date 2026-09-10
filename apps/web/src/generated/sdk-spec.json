@@ -1,10 +1,18 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "10.2.0",
+	"version": "10.3.0",
 	"areas": [
 		{
 			"name": "Client",
 			"exports": [
+				{
+					"name": "ACCOUNT_KEY_ENV",
+					"kind": "variable",
+					"summary": "Hosted account key (`sk-sl_*`) for api.secondlayer.tools.",
+					"signature": null,
+					"file": "src/base.ts",
+					"line": 86
+				},
 				{
 					"name": "ActiveSubgraphOperation",
 					"kind": "interface",
@@ -54,20 +62,20 @@
 					"line": 60
 				},
 				{
-					"name": "CREDENTIAL_ENV_VARS",
-					"kind": "variable",
-					"summary": "Credential env vars, highest precedence first.",
-					"signature": null,
-					"file": "src/base.ts",
-					"line": 91
-				},
-				{
 					"name": "DEFAULT_REQUEST_TIMEOUT_MS",
 					"kind": "variable",
 					"summary": "Default per-request budget.",
 					"signature": null,
 					"file": "src/base.ts",
-					"line": 48
+					"line": 51
+				},
+				{
+					"name": "INSTANCE_TOKEN_ENV",
+					"kind": "variable",
+					"summary": "Instance credential.",
+					"signature": null,
+					"file": "src/base.ts",
+					"line": 83
 				},
 				{
 					"name": "LOCAL_API_URL",
@@ -75,7 +83,7 @@
 					"summary": "Product default: the local one-box API.",
 					"signature": null,
 					"file": "src/base.ts",
-					"line": 76
+					"line": 80
 				},
 				{
 					"name": "RequestOptions",
@@ -83,15 +91,23 @@
 					"summary": "Per-call options every `request*` method accepts.",
 					"signature": null,
 					"file": "src/base.ts",
-					"line": 51
+					"line": 54
+				},
+				{
+					"name": "resolveAccountKey",
+					"kind": "function",
+					"summary": "Resolve the hosted account key for archive quote/fetch/credits.",
+					"signature": "resolveAccountKey(accountKey?: string): null | string",
+					"file": "src/base.ts",
+					"line": 125
 				},
 				{
 					"name": "resolveApiKey",
 					"kind": "function",
-					"summary": "Resolve the credential a client should use.",
+					"summary": "Resolve the instance credential.",
 					"signature": "resolveApiKey(apiKey?: string): null | string",
 					"file": "src/base.ts",
-					"line": 116
+					"line": 112
 				},
 				{
 					"name": "resolveBaseUrl",
@@ -99,7 +115,7 @@
 					"summary": "",
 					"signature": "resolveBaseUrl(explicit?: string): string",
 					"file": "src/base.ts",
-					"line": 78
+					"line": 90
 				},
 				{
 					"name": "SecondLayer",
@@ -2435,7 +2451,7 @@
 					"summary": "",
 					"signature": "createArchiveClient(options?: CreateArchiveClientOptions): ArchiveClient",
 					"file": "src/archive/client.ts",
-					"line": 85
+					"line": 94
 				},
 				{
 					"name": "CreateArchiveClientOptions",
@@ -2443,7 +2459,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/archive/client.ts",
-					"line": 37
+					"line": 44
 				},
 				{
 					"name": "InstanceClient",
