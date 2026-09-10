@@ -8,6 +8,7 @@ import {
 import {
 	type PrintSample,
 	camelizeDataKey,
+	camelizeKeys,
 	inferPrintTopics,
 } from "../src/print-schema.ts";
 import { validateSubgraphDefinition } from "../src/validate.ts";
@@ -44,6 +45,16 @@ test("camelizeDataKey matches runner camelization", () => {
 	expect(camelizeDataKey("bitcoin-txid")).toBe("bitcoinTxid");
 	expect(camelizeDataKey("pox-4-cycle")).toBe("pox4Cycle");
 	expect(camelizeDataKey("amount")).toBe("amount");
+});
+
+test("camelizeKeys recursively camelizes nested tuple keys", () => {
+	const out = camelizeKeys({
+		"bitcoin-txid": "0x",
+		nested: { "output-index": 1n },
+	}) as Record<string, unknown>;
+	expect(out.bitcoinTxid).toBe("0x");
+	expect((out.nested as Record<string, unknown>).outputIndex).toBe(1n);
+	expect(camelizeKeys({ bitcoinTxid: "0x" })).toEqual({ bitcoinTxid: "0x" });
 });
 
 test("print camelization is intentionally not ABI toCamelCase", () => {

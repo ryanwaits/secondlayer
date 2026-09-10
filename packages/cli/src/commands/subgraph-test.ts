@@ -2,11 +2,12 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { Index, resolveApiKey, resolveBaseUrl } from "@secondlayer/sdk";
-import type { IndexEvent } from "@secondlayer/sdk";
+import type { IndexContractCall, IndexEvent } from "@secondlayer/sdk";
 import {
 	DECODED_EVENT_TYPES,
 	type DecodedEventType,
 } from "@secondlayer/stacks/filters";
+import { camelizeKeys } from "@secondlayer/subgraphs";
 import { error, info, printError, success, warn } from "../lib/output.ts";
 
 /**
@@ -40,8 +41,11 @@ interface Cassette {
 	toHeight: number;
 	recordedAt: string;
 	/** Events per source name, in chain order. */
-	events: Record<string, IndexEvent[]>;
+	events: Record<string, CassetteRow[]>;
 }
+
+/** Index event or contract-call row stored in a cassette. */
+type CassetteRow = IndexEvent | IndexContractCall;
 
 export function filterHashOf(sources: Record<string, unknown>): string {
 	// Stable across key order so a cosmetic reshuffle doesn't invalidate.
@@ -95,8 +99,10 @@ export function loadCassette(
  * through to a 400 at runtime.
  */
 function eventTypeFor(filter: { type: string }): DecodedEventType | null {
-	if (filter.type === "contract_call" || filter.type === "contract_deploy") {
-		return null; // separate endpoint / not an events read
+	// contract_call uses index.contractCalls.list (handled in the fetch loop).
+	// contract_deploy has no Index list endpoint.
+	if (filter.type === "contract_deploy") {
+		return null;
 	}
 	const candidate = filter.type === "print_event" ? "print" : filter.type;
 	return DECODED_EVENT_TYPES.includes(candidate as DecodedEventType)
@@ -227,7 +233,12 @@ export async function runSubgraphTest(
 	const bundled = await bundleSubgraphCode(source);
 	const sources = (bundled.sources ?? {}) as Record<
 		string,
-		{ type: string; contractId?: string | string[]; topic?: string }
+		{
+			type: string;
+			contractId?: string | string[];
+			topic?: string;
+			functionName?: string;
+		}
 	>;
 	const filterHash = filterHashOf(sources);
 
@@ -250,7 +261,7 @@ export async function runSubgraphTest(
 	}
 	const usable = cached && !("stale" in cached) ? cached : null;
 
-	let events: Record<string, IndexEvent[]>;
+	let events: Record<string, CassetteRow[]>;
 	let fromHeight: number;
 	let toHeight: number;
 
@@ -286,14 +297,54 @@ export async function runSubgraphTest(
 
 		const index = new Index();
 		events = {};
+		let sourcesTested = 0;
 		for (const [name, filter] of Object.entries(sources)) {
+			if (filter.type === "contract_call") {
+				sourcesTested++;
+				info(
+					`Fetching ${name} (contract_call) blocks ${fromHeight}–${toHeight}…`,
+				);
+				try {
+					const envelope = await index.contractCalls.list({
+						...(filter.contractId
+							? {
+									contractId: Array.isArray(filter.contractId)
+										? filter.contractId
+										: filter.contractId,
+								}
+							: {}),
+						...(filter.functionName
+							? { functionName: filter.functionName }
+							: {}),
+						fromHeight,
+						toHeight,
+						limit,
+					});
+					events[name] = envelope.contract_calls;
+				} catch (err) {
+					const failure = indexReadFailure(err, {
+						source: name,
+						fromHeight,
+						toHeight,
+						apiUrl: indexApiUrl(),
+						file,
+					});
+					printError(failure.message, { hint: failure.hint });
+					process.exit(1);
+				}
+				continue;
+			}
+
 			const eventType = eventTypeFor(filter);
 			if (eventType === null) {
 				warn(
-					`source "${name}" (${filter.type}) is not readable from index.events — skipped.`,
+					filter.type === "contract_deploy"
+						? `source "${name}" (contract_deploy) has no Index list endpoint — skipped.`
+						: `source "${name}" (${filter.type}) is not readable from Index — skipped.`,
 				);
 				continue;
 			}
+			sourcesTested++;
 			info(`Fetching ${name} (${eventType}) blocks ${fromHeight}–${toHeight}…`);
 			try {
 				const envelope = await index.events.list({
@@ -326,6 +377,13 @@ export async function runSubgraphTest(
 				printError(failure.message, { hint: failure.hint });
 				process.exit(1);
 			}
+		}
+
+		if (sourcesTested === 0) {
+			error(
+				"No sources were tested — every source is unreadable from Index (e.g. contract_deploy has no list endpoint).",
+			);
+			process.exit(1);
 		}
 
 		if (options.record !== false) {
@@ -367,7 +425,10 @@ export async function runSubgraphTest(
 		const filter = sources[name];
 		for (const row of rows) {
 			// Post-decode topic filter, exactly as the runner applies it.
-			const payload = toHandlerPayload(filter, row);
+			const payload =
+				filter?.type === "contract_call"
+					? toContractCallPayload(row as IndexContractCall)
+					: toHandlerPayload(filter, row as IndexEvent);
 			if (
 				filter?.type === "print_event" &&
 				filter.topic &&
@@ -441,8 +502,8 @@ export async function runSubgraphTest(
 	);
 }
 
-/** Map an Index row onto the payload shape a handler expects. */
-function toHandlerPayload(
+/** Map an Index event row onto the payload shape a handler expects. */
+export function toHandlerPayload(
 	_filter: { type: string } | undefined,
 	row: IndexEvent,
 ): Record<string, unknown> {
@@ -451,7 +512,7 @@ function toHandlerPayload(
 		return {
 			contractId: row.contract_id ?? "",
 			topic: payload?.topic ?? "",
-			data: (payload?.value as Record<string, unknown>) ?? {},
+			data: (camelizeKeys(payload?.value) as Record<string, unknown>) ?? {},
 		};
 	}
 	// Token/STX events: the Index row is already flat and camel-free; map the
@@ -465,5 +526,28 @@ function toHandlerPayload(
 			? { assetIdentifier: r.asset_identifier }
 			: {}),
 		...(r.value !== undefined ? { tokenId: r.value } : {}),
+	};
+}
+
+/** Map an Index contract-call row onto the ContractCallEvent handler shape. */
+export function toContractCallPayload(
+	row: IndexContractCall,
+): Record<string, unknown> {
+	return {
+		type: "contract_call",
+		sender: row.sender,
+		contractId: row.contract_id ?? "",
+		functionName: row.function_name ?? "",
+		args: Array.isArray(row.args) ? row.args : [],
+		result: row.result ?? null,
+		resultHex: row.result_hex ?? null,
+		tx: {
+			txId: row.tx_id,
+			sender: row.sender,
+			type: "contract_call",
+			status: row.status,
+			contractId: row.contract_id ?? null,
+			functionName: row.function_name ?? null,
+		},
 	};
 }

@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { type IndexReadContext, indexReadFailure } from "./subgraph-test.ts";
+import type { IndexContractCall, IndexEvent } from "@secondlayer/sdk";
+import {
+	type IndexReadContext,
+	indexReadFailure,
+	toContractCallPayload,
+	toHandlerPayload,
+} from "./subgraph-test.ts";
 
 const ctx: IndexReadContext = {
 	source: "names",
@@ -80,5 +86,96 @@ describe("indexReadFailure", () => {
 		expect(message).toContain("ECONNREFUSED");
 		expect(message).toContain("http://127.0.0.1:3800");
 		expect(hint).toContain("secondlayer status");
+	});
+});
+
+describe("toHandlerPayload print camelization", () => {
+	function printRow(value: unknown): IndexEvent {
+		return {
+			cursor: "c1",
+			block_height: 1,
+			tx_id: "0x1",
+			tx_index: 0,
+			event_index: 0,
+			event_type: "print",
+			contract_id: "SP1.token",
+			payload: { topic: "completed-deposit", value },
+		} as IndexEvent;
+	}
+
+	test("kebab print keys become camelCase", () => {
+		const payload = toHandlerPayload(
+			{ type: "print_event" },
+			printRow({ "bitcoin-txid": "0xab", "output-index": 1 }),
+		);
+		expect(payload.data).toEqual({ bitcoinTxid: "0xab", outputIndex: 1 });
+	});
+
+	test("nested tuple keys camelize", () => {
+		const payload = toHandlerPayload(
+			{ type: "print_event" },
+			printRow({ nested: { "output-index": 2n } }),
+		);
+		expect(payload.data).toEqual({ nested: { outputIndex: 2n } });
+	});
+
+	test("already-camel keys stay camel (idempotent)", () => {
+		const payload = toHandlerPayload(
+			{ type: "print_event" },
+			printRow({ bitcoinTxid: "0xab", outputIndex: 1 }),
+		);
+		expect(payload.data).toEqual({ bitcoinTxid: "0xab", outputIndex: 1 });
+	});
+});
+
+describe("toContractCallPayload", () => {
+	test("maps an Index contract-call row onto the handler shape", () => {
+		const row: IndexContractCall = {
+			cursor: "c1",
+			block_height: 10,
+			tx_id: "0xabc",
+			tx_index: 1,
+			contract_id: "SP1.amm",
+			function_name: "swap",
+			sender: "SP2",
+			status: "success",
+			args: [1n, "SP3"],
+			result: true,
+			result_hex: "0x03",
+		};
+		expect(toContractCallPayload(row)).toEqual({
+			type: "contract_call",
+			sender: "SP2",
+			contractId: "SP1.amm",
+			functionName: "swap",
+			args: [1n, "SP3"],
+			result: true,
+			resultHex: "0x03",
+			tx: {
+				txId: "0xabc",
+				sender: "SP2",
+				type: "contract_call",
+				status: "success",
+				contractId: "SP1.amm",
+				functionName: "swap",
+			},
+		});
+	});
+
+	test("missing args become an empty array", () => {
+		const row = {
+			cursor: "c1",
+			block_height: 10,
+			tx_id: "0xabc",
+			tx_index: 1,
+			contract_id: "SP1.amm",
+			function_name: "swap",
+			sender: "SP2",
+			status: "success",
+			args: undefined,
+			result: null,
+			result_hex: null,
+		} as unknown as IndexContractCall;
+		expect(toContractCallPayload(row).args).toEqual([]);
 	});
 });

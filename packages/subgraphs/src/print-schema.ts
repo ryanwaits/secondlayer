@@ -53,6 +53,19 @@ export function camelizeDataKey(str: string): string {
 	return str.replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase());
 }
 
+/** Recursively camelize object keys with the print-payload helper (not ABI
+ *  `toCamelCase` — that one strips `-STX` and prefixes leading digits). */
+export function camelizeKeys(obj: unknown): unknown {
+	if (obj === null || obj === undefined) return obj;
+	if (typeof obj !== "object") return obj;
+	if (Array.isArray(obj)) return obj.map(camelizeKeys);
+	const result: Record<string, unknown> = {};
+	for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+		result[camelizeDataKey(k)] = camelizeKeys(v);
+	}
+	return result;
+}
+
 /**
  * Structural type tree. `null` inner = never observed (empty list, none-only
  * optional, one-sided response) and renders as "?".

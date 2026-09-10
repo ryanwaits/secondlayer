@@ -64,6 +64,7 @@ export {
 } from "./runtime/print-validate.ts";
 export {
 	camelizeDataKey,
+	camelizeKeys,
 	inferPrintTopics,
 	type InferredPrintField,
 	type InferredTopicSchema,

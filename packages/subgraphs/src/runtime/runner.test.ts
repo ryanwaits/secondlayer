@@ -7,23 +7,10 @@
  * 3. Contract call args: always {} → handler gets undefined for all fields
  */
 import { describe, expect, test } from "bun:test";
-import { camelizeDataKey } from "../print-schema.ts";
+import { camelizeKeys } from "../print-schema.ts";
 import { decodeEventData } from "./clarity.ts";
 
 // ── Simulate buildEventPayload internals ──────────────────────────────
-
-// This mirrors the runner's logic so we can see what the handler actually receives.
-
-function camelizeKeys(obj: unknown): unknown {
-	if (obj === null || obj === undefined) return obj;
-	if (typeof obj !== "object") return obj;
-	if (Array.isArray(obj)) return obj.map(camelizeKeys);
-	const result: Record<string, unknown> = {};
-	for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
-		result[camelizeDataKey(k)] = camelizeKeys(v);
-	}
-	return result;
-}
 
 // ── Test data ─────────────────────────────────────────────────────────
 

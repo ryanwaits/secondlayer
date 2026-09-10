@@ -5,7 +5,7 @@ import {
 	deserializeCV,
 	toCamelCase,
 } from "@secondlayer/stacks/clarity";
-import { camelizeDataKey } from "../print-schema.ts";
+import { camelizeKeys } from "../print-schema.ts";
 import type {
 	ContractCallFilter,
 	SubgraphDefinition,
@@ -26,19 +26,6 @@ export interface RunResult {
 	 *  source's declared `prints` schema. Never an error: skipping keeps the
 	 *  block committable, which the checkpoint model requires. */
 	skipped?: number;
-}
-
-/** Recursively camelize object keys with the print-payload helper (not ABI
- *  `toCamelCase` — that one strips `-STX` and prefixes leading digits). */
-function camelizeKeys(obj: unknown): unknown {
-	if (obj === null || obj === undefined) return obj;
-	if (typeof obj !== "object") return obj;
-	if (Array.isArray(obj)) return obj.map(camelizeKeys);
-	const result: Record<string, unknown> = {};
-	for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
-		result[camelizeDataKey(k)] = camelizeKeys(v);
-	}
-	return result;
 }
 
 /**
