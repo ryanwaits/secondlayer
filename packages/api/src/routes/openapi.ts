@@ -37,7 +37,7 @@ const READ_SECURITY = [{}, { bearerAuth: [] }];
 const WRITE_SECURITY = [{ bearerAuth: [] }];
 
 const AUTH_DESCRIPTION =
-	"Auth is one credential: the instance token minted by `secondlayer init` (`INSTANCE_TOKEN`; `SL_API_KEY`/`API_KEY` are legacy aliases), sent as `Authorization: Bearer $INSTANCE_TOKEN`. `/v1` reads need no credential while the API is reachable only over loopback and require the token on every request once it is published past loopback — one rule, identical on Index, Streams, and Subgraphs, which is why every read below lists bearer auth as optional. Writes under `/api` require the token whenever one is set, and must send `Content-Type: application/json` (anything else is refused with 415 `UNSUPPORTED_MEDIA_TYPE`).";
+	"Auth on this instance is the token minted by `secondlayer init` (`INSTANCE_TOKEN`), sent as `Authorization: Bearer $INSTANCE_TOKEN`. `/v1` reads need no credential while the API is reachable only over loopback and require the token on every request once it is published past loopback: one rule, identical on Index, Streams, and Subgraphs, which is why every read below lists bearer auth as optional. Writes under `/api` require the token whenever one is set, and must send `Content-Type: application/json` (anything else is refused with 415 `UNSUPPORTED_MEDIA_TYPE`). Hosted `api.secondlayer.tools` uses an account key (`sk-sl_*`); see https://www.secondlayer.tools/docs/authentication.";
 
 /** The public API description. Exported so the docs site can render it as the
  *  API reference instead of restating it by hand — `bun run openapi` in
@@ -92,7 +92,7 @@ export const OPENAPI_SPEC = {
 				scheme: "bearer",
 				bearerFormat: "hex",
 				description:
-					"The instance token from `secondlayer init` — 32 random bytes, hex-encoded, read from `INSTANCE_TOKEN` (`SL_API_KEY`/`API_KEY` are legacy aliases). There is no signup and no second key type: one instance, one token. Optional on `/v1` reads served over a loopback bind, required on every request once the instance is reachable past loopback, and required on every `/api` write whenever a token is set.",
+					"The instance token from `secondlayer init`: 32 random bytes, hex-encoded, read from `INSTANCE_TOKEN`. Optional on `/v1` reads served over a loopback bind, required on every request once the instance is reachable past loopback, and required on every `/api` write whenever a token is set. Hosted `api.secondlayer.tools` uses an account key; see https://www.secondlayer.tools/docs/authentication.",
 			},
 		},
 		schemas: {

@@ -41,8 +41,15 @@ For working code, see `examples/` — every file is copy-pasteable and verified.
 These are small enough to keep in the router. Everything else is in a reference file.
 
 - **Binary:** `secondlayer` (`sl` is a short alias). Install: `bun add -g @secondlayer/cli`.
-- **Default API:** `http://127.0.0.1:3800`. Override with `SL_API_URL`.
-- **One token, no accounts.** `secondlayer init` writes `INSTANCE_TOKEN` into `.env.local`. Loopback reads need no key; writes take it always, and every read takes it once the API is reachable past loopback. The CLI, MCP, and SDK read `INSTANCE_TOKEN` (`SL_API_KEY` is a legacy alias for the same value) or `--api-key`. There is no login, no project, no API-key tier.
+- **Default API:** `http://127.0.0.1:3800`. Override with `SECONDLAYER_API_URL`, then `SL_API_URL`.
+- **Two credentials.** Instance token opens your box; account key identifies you on the hosted API and archive.
+
+  | Plane | Credential | Env |
+  |---|---|---|
+  | Your instance (`/v1`, `/api`) | hex token from `secondlayer init` | `INSTANCE_TOKEN` |
+  | Hosted API + archive credits | `sk-sl_*` | `SECONDLAYER_API_KEY` (`SL_API_KEY` is a one-release hosted fallback) |
+
+  Loopback reads need no key; writes take `INSTANCE_TOKEN` always, and every read takes it past loopback. `--api-key` is shape-routed (hex → instance, `sk-sl_*` → account). Never mix the two values.
 - **Streams / Index:** local instance reads. Loopback needs no key. Public archive dumps (`secondlayer streams dumps`) are a separate signed bucket.
 - **Only archive fetches cost money.** `secondlayer bootstrap` / `repair` against the official archive draw prepaid credits and quote the price before charging; `secondlayer verify` is always free. Nothing you run yourself is metered.
 - **Package manager:** prefer `bun` and `bunx`. Most package.json files in user projects declare `bun` as `packageManager`.

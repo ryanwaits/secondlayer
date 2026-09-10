@@ -58,24 +58,24 @@ secondlayer init --network mainnet
 docker compose -f docker/oss/docker-compose.yml --env-file .env.local up -d
 ```
 
-`secondlayer init` writes `.env.local` (`INSTANCE_TOKEN`, secrets key, webhook signing key). Your instance has this one token — there are no accounts, logins, or per-user keys. Loopback reads need no token. For writes, and for any instance that has the token configured:
+`secondlayer init` writes `.env.local` (`INSTANCE_TOKEN`, secrets key, webhook signing key). Loopback reads need no token. For writes, and for any instance that has the token configured:
 
 ```bash
 export SL_API_URL=http://127.0.0.1:3800
-export INSTANCE_TOKEN=<token from .env.local>   # SL_API_KEY is the legacy alias
+export INSTANCE_TOKEN=<token from .env.local>
 ```
 
 Writes (`/api/subgraphs`, `/api/subscriptions`, `/api/node`, `/status`) send `Authorization: Bearer <INSTANCE_TOKEN>` whenever the instance has a token, loopback included. `/v1` reads send it once the API is published past loopback — mandatory there, since an instance that binds past loopback with no token refuses to start. `/health` and `/public/*` are always open.
 
-`--api-key <key>` and `--api-url <url>` are global flags available on every command, overriding `INSTANCE_TOKEN` / `SL_API_URL` for that one invocation.
+`--api-key <key>` is shape-routed: hex → instance token, `sk-sl_*` → hosted account key. `--api-url <url>` overrides `SECONDLAYER_API_URL` / `SL_API_URL` for that one invocation.
 
 ## Environment variables
 
 | Variable | Read by | Purpose |
 |---|---|---|
-| `SL_API_URL` | All SDK + CLI calls | Override instance API. Default: `http://127.0.0.1:3800`. |
-| `INSTANCE_TOKEN` | CLI writes, MCP, SDK | The token `secondlayer init` writes — the instance's only credential. Loopback reads need no value. |
-| `SL_API_KEY` | legacy alias | Same value as `INSTANCE_TOKEN`, which wins when both are set. |
+| `SECONDLAYER_API_URL` | All SDK + CLI calls | Override API base. Default: `http://127.0.0.1:3800`. `SL_API_URL` is a one-release fallback. |
+| `INSTANCE_TOKEN` | CLI writes, MCP, SDK | Hex token `secondlayer init` writes for your instance. Loopback reads need no value. |
+| `SECONDLAYER_API_KEY` | Hosted API, archive, credits | Account key (`sk-sl_*`). `SL_API_KEY` is a one-release hosted fallback, not an instance alias. |
 | `SIGNING_SECRET` | `secondlayer subscriptions test` fallback | If `--signing-secret` not passed. |
 | `STACKS_NETWORK` | `secondlayer codegen contracts` and some local commands | `mainnet`, `testnet`, or `devnet` (`devnet` maps to the config file's `local`). |
 
@@ -90,7 +90,7 @@ const tip = await sl.streams.tip();
 const { data } = await sl.subgraphs.list();
 ```
 
-Loopback reads need no key. History is whatever this instance has bootstrapped. Writes (`sl.subgraphs.deploy`, `sl.subscriptions.create`, …) pass `INSTANCE_TOKEN` as `apiKey` — either explicitly (`new SecondLayer({ apiKey: process.env.INSTANCE_TOKEN })`) or by exporting `INSTANCE_TOKEN`, which the SDK picks up (`SL_API_KEY` still works as the legacy alias). Public Streams dumps (`client.dumps`, `events.replay`) need no instance key.
+Loopback reads need no key. History is whatever this instance has bootstrapped. Writes (`sl.subgraphs.deploy`, `sl.subscriptions.create`, …) pass `INSTANCE_TOKEN` as `apiKey` — either explicitly (`new SecondLayer({ apiKey: process.env.INSTANCE_TOKEN })`) or by exporting `INSTANCE_TOKEN`, which the SDK picks up. Hosted archive/credits use `accountKey` / `SECONDLAYER_API_KEY`. Public Streams dumps (`client.dumps`, `events.replay`) need no instance key.
 
 ## Stacks client quickstart
 

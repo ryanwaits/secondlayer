@@ -7,8 +7,8 @@ The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlay
 | Flag | Description |
 | --- | --- |
 | `--network <network>` | Override network for this invocation (sets `STACKS_NETWORK`). Values: `mainnet`, `testnet`, `devnet`. |
-| `--api-key <key>` | Instance credential for this invocation (sets `INSTANCE_TOKEN`). Prefer the env var: a flag lands in shell history and `ps`. |
-| `--api-url <url>` | Instance API for this invocation (sets `SL_API_URL`). Also what `init` writes as `SL_API_URL`. |
+| `--api-key <key>` | Shape-routed credential for this invocation: hex → instance, `sk-sl_*` → hosted account. Prefer the env var: a flag lands in shell history and `ps`. |
+| `--api-url <url>` | API base for this invocation (`SECONDLAYER_API_URL` / `SL_API_URL`). Also what `init` writes. |
 | `--version` | Print CLI version. |
 | `--help` | Show help. |
 
@@ -18,9 +18,9 @@ The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlay
 
 | Var | Used by | Purpose |
 | --- | --- | --- |
-| `SL_API_URL` | every command that calls the instance | Override the instance API base URL. Default `http://127.0.0.1:3800`. |
-| `INSTANCE_TOKEN` | writes, MCP, SDK | The token `secondlayer init` writes. The instance's only credential. Required for every write, and for every read once the API is published past loopback; loopback reads need no value. |
-| `SL_API_KEY` | legacy alias of `INSTANCE_TOKEN` | Same value; `INSTANCE_TOKEN` wins when both are set. |
+| `SECONDLAYER_API_URL` | every command that calls an API | Override the API base URL. Default `http://127.0.0.1:3800`. `SL_API_URL` is a one-release fallback. |
+| `INSTANCE_TOKEN` | instance writes/reads past loopback | Hex token `secondlayer init` writes. Required for every write, and for every read once the API is published past loopback; loopback reads need no value. Instance commands refuse `api.secondlayer.tools`. |
+| `SECONDLAYER_API_KEY` | hosted API, archive, credits | Account key (`sk-sl_*`). `SL_API_KEY` is a one-release hosted fallback. |
 | `SL_PLATFORM_API_URL` | legacy alias of `SL_API_URL` | Same default: `http://127.0.0.1:3800`. |
 | `SIGNING_SECRET` | subscriptions test | Standard-Webhooks signing secret used to sign test fixtures. |
 | `STACKS_NETWORK` | global | Network override (set by `--network`). |
@@ -29,7 +29,7 @@ The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlay
 | `INDEXER_URL` | local db resync --backfill | Local indexer URL; defaults to `http://localhost:<config.ports.indexer>`. |
 | `DEBUG` | codegen contracts | When set, prints stack traces on failure. |
 
-Global flags `--api-key <key>` and `--api-url <url>` are available on every command and override `INSTANCE_TOKEN` / `SL_API_URL` for that invocation.
+Global flags `--api-key <key>` and `--api-url <url>` are available on every command and override the matching env for that invocation (`--api-key` is shape-routed).
 
 ## Table of contents
 
@@ -211,7 +211,7 @@ Dry run by default: prints the plan and changes nothing until `--apply`. Run it 
 
 ## Credits
 
-Archive fetches are the only thing that costs money. Credits are a prepaid card balance, not a credential: no account, no login. Verification is always free.
+Archive fetches are the only thing that costs money. Credits are a prepaid balance keyed by `SECONDLAYER_API_KEY` or `secondlayer login --credits`. Verification is always free.
 
 ### secondlayer credits buy
 

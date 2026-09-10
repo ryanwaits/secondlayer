@@ -1,14 +1,16 @@
-# Instance token & archive credits
+# Instance token and account key
 
-Your instance has one token, not accounts. Loopback reads need no key; writes, and every read once the API is published past loopback, use the `INSTANCE_TOKEN` from `secondlayer init`. Archive restore and backfill are a separate card credit.
+Two credentials. The instance token opens your box. The account key identifies you on the hosted API and the archive.
 
-| Surface | Key | Behavior |
+## Your instance
+
+| Surface | Credential | Behavior |
 | --- | --- | --- |
-| Index / Streams / subgraphs on `127.0.0.1` | None | Your Postgres: no meter, no rate limit |
-| Any `/v1` read past loopback | `INSTANCE_TOKEN` | Same rule on all three surfaces |
-| `/extended` reads | Same as `/v1` | Port 3999, off by default; [Extended view](/docs/extended) |
-| Writes (`subgraphs deploy`, subscriptions, node) | `INSTANCE_TOKEN` | Loopback included |
-| [Archive](/docs/archive) bootstrap / backfill | Card credits | `secondlayer credits buy` |
+| `/v1` on `127.0.0.1` | none | your Postgres, no meter |
+| `/v1` past loopback | `INSTANCE_TOKEN` | same header on Index, Streams, subgraphs |
+| Writes (`/api/subgraphs`, subscriptions, node) | `INSTANCE_TOKEN` | loopback included |
+
+`secondlayer init` writes `INSTANCE_TOKEN`. Send `Authorization: Bearer $INSTANCE_TOKEN`.
 
 ```bash
 # Local read — no key
@@ -19,22 +21,27 @@ curl -X POST http://127.0.0.1:3800/api/subgraphs/my-balances/reindex \
   -H "Authorization: Bearer $INSTANCE_TOKEN"
 ```
 
-Writes are not loopback-exempt. Once the instance has a token, `/api/subgraphs`, `/api/subscriptions`, `/api/node`, and `/status` require it on every call, including from the same box. Reads are the opposite: on loopback a token you send is used if it matches and ignored if it doesn't — presenting a key never turns a working read into a 401.
+Loopback is the publish spec (`API_PUBLISH_ADDR`), not the caller's address. On a keyless OSS read, a wrong key is ignored; a matching token is used.
 
-**What counts as loopback** is how the API port is published, not who is calling. Compose hands the API its own publish spec as `API_PUBLISH_ADDR` (default `127.0.0.1:3800`); outside a container it falls back to the listen host. Publish on any other address and every `/v1` request needs the token — and an instance that binds past loopback with no token refuses to start.
+## Hosted API and archive
 
-The CLI, MCP, and SDK all read `INSTANCE_TOKEN` (`SL_API_KEY` is a legacy alias, and the canonical name wins when both are set). The SDK also takes it explicitly: `new SecondLayer({ apiKey: process.env.INSTANCE_TOKEN })`. Default `baseUrl` is `http://127.0.0.1:3800` (`SL_API_URL` overrides).
+| Surface | Credential | Behavior |
+| --- | --- | --- |
+| `api.secondlayer.tools` `/v1` Index, Streams, subgraphs | `SECONDLAYER_API_KEY` (`sk-sl_*`) | required. Same prepaid credits as archive |
+| Archive quote / fetch / credits | `SECONDLAYER_API_KEY` or `secondlayer login --credits` | required |
+
+Never put `sk-sl_*` in `INSTANCE_TOKEN`. Never put the hex token in `SECONDLAYER_API_KEY`.
 
 ## Archive credits
 
-Bootstrap, backfill, and reindex from the [signed public archive](/docs/archive) draw credits per partition bundle fetched; verification is always free, no account needed. `bootstrap` and `repair` show the price, in dollars, against your balance in the same confirm prompt you already use, before anything is charged. Every partition arrives over a short-lived presigned URL and is digest-checked before a row is written. Your first six repair bundles each month are free. Packs are $10, $25, $50, or $100. The prepaid balance is the hard cap.
+Bootstrap, backfill, and reindex from the [signed public archive](/docs/archive) draw credits per partition bundle fetched; verification is always free. `bootstrap` and `repair` show the price against your balance before anything is charged. Every partition arrives over a short-lived presigned URL and is digest-checked before a row is written. Your first six repair bundles each month are free. Packs are $10, $25, $50, or $100. The prepaid balance is the hard cap.
 
 ```bash
 secondlayer credits buy --email you@example.com --pack 25
 secondlayer credits balance
 ```
 
-`credits buy` opens a one-time card checkout against [archive.secondlayer.tools](https://archive.secondlayer.tools), with no account and no login.
+`credits buy` opens a one-time card checkout against [archive.secondlayer.tools](https://archive.secondlayer.tools). `credits balance` and metered bootstrap need the account key or `secondlayer login --credits`.
 
 Auto-refill is off until you set it: `secondlayer credits refill --below 5 --pack 25`.
 
@@ -45,5 +52,5 @@ A **signing secret** (`whsec_…`) is per-subscription and verifies an incoming 
 export const metadata = {
 	title: "Authentication — Secondlayer Docs",
 	description:
-		"Instance tokens from secondlayer init, keyless loopback reads, and archive credits for bootstrap and backfill.",
+		"Instance token for your box, account key for the hosted API and archive, and prepaid credits for bootstrap.",
 };

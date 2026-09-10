@@ -8,7 +8,7 @@ export interface Account {
 }
 
 export type ApiKeyProduct = "account" | "streams" | "index";
-export type ApiKeyTier = "free" | "build" | "scale" | "enterprise";
+export type ApiKeyTier = "free";
 
 export interface ApiKey {
 	id: string;

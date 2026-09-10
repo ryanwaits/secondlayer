@@ -97,7 +97,7 @@ Contracts:
 - `contracts_find` — discover contracts conforming to a trait
 - `contracts_get_abi` — fetch one contract's metadata + full ABI
 
-Set `INSTANCE_TOKEN` (`SL_API_KEY` is the legacy alias) to the token `secondlayer init` wrote. It is required for every write, and for every read once the instance is reachable past loopback; Index, Streams, and subgraph reads on a loopback instance need none. Setting it always is safe — a token sent on a read that didn't need it is ignored, not rejected. There is no account tool surface: one instance, one token, no per-user keys to mint.
+Set `INSTANCE_TOKEN` to the token `secondlayer init` wrote for instance tools. It is required for every write, and for every read once the instance is reachable past loopback; Index, Streams, and subgraph reads on a loopback instance need none. Setting it always is safe — a token sent on a read that didn't need it is ignored, not rejected. Hosted archive/credits tools use `SECONDLAYER_API_KEY` (`sk-sl_*`).
 
 Resources:
 

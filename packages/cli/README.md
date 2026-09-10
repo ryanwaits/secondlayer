@@ -15,7 +15,8 @@ secondlayer --version
 Default API is `http://127.0.0.1:3800`. Override with `SL_API_URL`.
 
 Writes against a published bind use `INSTANCE_TOKEN` from `secondlayer init`.
-Loopback reads need no token. `SL_API_KEY` is a legacy alias of `INSTANCE_TOKEN`.
+Loopback reads need no token. Hosted API and archive credits use
+`SECONDLAYER_API_KEY` (`sk-sl_*`).
 
 ```bash
 export SL_API_URL=http://127.0.0.1:3800
@@ -176,7 +177,7 @@ operates on both kinds.
 | Var | Purpose |
 |---|---|
 | `INSTANCE_TOKEN` | From `secondlayer init` for writes. Loopback reads need no token |
-| `SL_API_KEY` | Legacy alias of `INSTANCE_TOKEN` |
+| `SECONDLAYER_API_KEY` | Hosted account key (`sk-sl_*`). `SL_API_KEY` is a one-release hosted fallback |
 | `SL_API_URL` | Instance API. Default `http://127.0.0.1:3800` |
 | `SL_PLATFORM_API_URL` | Alias of `SL_API_URL` |
 | `STACKS_NETWORK` | Default network (also via `--network <mainnet\|testnet\|devnet>`) |

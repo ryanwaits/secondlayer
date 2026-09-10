@@ -6,10 +6,8 @@ import { instanceTokenMatches, isLoopbackReachable } from "../instance-bind.ts";
 /**
  * One auth rule for the whole `/v1` read plane.
  *
- * A self-hosted instance has exactly one credential — `INSTANCE_TOKEN` from
- * `secondlayer init` (`SL_API_KEY`/`API_KEY` are legacy aliases). There are no
- * accounts and no minted product keys. The rule, identical on Index, Streams,
- * and subgraphs:
+ * A self-hosted instance uses `INSTANCE_TOKEN` from `secondlayer init`. The
+ * rule, identical on Index, Streams, and subgraphs:
  *
  *   - loopback bind  → reads are open, no credential
  *   - public bind    → every request needs the instance token
@@ -26,7 +24,7 @@ import { instanceTokenMatches, isLoopbackReachable } from "../instance-bind.ts";
 export const INSTANCE_TENANT_ID = "tenant_instance";
 
 const HINT =
-	"Self-hosted instances have one credential: INSTANCE_TOKEN from `secondlayer init` (SL_API_KEY/API_KEY are legacy aliases). Send it as `Authorization: Bearer $INSTANCE_TOKEN`. Reads over loopback need no key at all; a bind past loopback requires the token on every request.";
+	"Self-hosted instances use INSTANCE_TOKEN from `secondlayer init`. Send it as `Authorization: Bearer $INSTANCE_TOKEN`. Reads over loopback need no key at all; a bind past loopback requires the token on every request. Hosted api.secondlayer.tools uses SECONDLAYER_API_KEY (sk-sl_*); see https://www.secondlayer.tools/docs/authentication.";
 
 const HINT_DETAILS = {
 	hint: HINT,

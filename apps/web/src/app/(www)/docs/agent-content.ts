@@ -60,9 +60,9 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 
 	"/docs/authentication": [
 		card(
-			"Understand instance auth",
-			"One token; loopback reads need none.",
-			"/secondlayer Explain Secondlayer auth: `/v1` reads from loopback (`http://127.0.0.1:3800`) need no credential, past loopback they send `Authorization: Bearer $INSTANCE_TOKEN`, and writes (`/api/subgraphs`, `/api/subscriptions`, `/api/node`) send it always, loopback included — one token, written by `secondlayer init`. Help me wire it into my client and CI.",
+			"Understand the two credentials",
+			"Instance token for your box; account key for hosted API and archive.",
+			"/secondlayer Explain Secondlayer auth: two credentials. On my instance, `/v1` reads from loopback need no key, past loopback they send `Authorization: Bearer $INSTANCE_TOKEN`, and writes (`/api/subgraphs`, `/api/subscriptions`, `/api/node`) send it always. Hosted `api.secondlayer.tools` and archive credits use `SECONDLAYER_API_KEY` (`sk-sl_*`). Never mix them. Help me wire the right one into my client and CI.",
 		),
 		card(
 			"Rotate a token or secret",

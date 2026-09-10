@@ -87,7 +87,7 @@ secondlayer streams tip                      # baseline reachability
 
 | Symptom | Cause | Action |
 |---|---|---|
-| `401 Unauthorized` | The instance is reachable past loopback, so `/v1/streams` reads need the bearer, and the call carried none | Export `INSTANCE_TOKEN` from `.env.local` (`SL_API_KEY` is the legacy alias); or pass `createStreamsClient({ apiKey })`. On a loopback instance these reads need no key at all — a 401 there means the API is published on something other than `127.0.0.1`. |
+| `401 Unauthorized` | The instance is reachable past loopback, so `/v1/streams` reads need the bearer, and the call carried none | Export `INSTANCE_TOKEN` from `.env.local`; or pass `createStreamsClient({ apiKey })`. On a loopback instance these reads need no key at all — a 401 there means the API is published on something other than `127.0.0.1`. A 401 on hosted `api.secondlayer.tools` or archive needs `SECONDLAYER_API_KEY`. |
 | Empty / short history | Instance not bootstrapped to the height you asked for | `secondlayer bootstrap --against <manifest>` then `secondlayer verify all --against <manifest>`. |
 | `429 Too Many Requests` | Hit rate limit | SDK throws `RateLimitError` with `retryAfter`. Back off; use `events.consume` instead of polling `events.list`. |
 | Consumer stops processing | Aborted by signal OR `mode: "bounded"` reached end | Restart with last saved cursor. |
@@ -122,7 +122,8 @@ The Streams errors do **not** extend `ApiError` — check them separately when w
 | Error | Hint |
 |---|---|
 | Can't reach `/public/status` | `docker compose ps` in the `secondlayer setup` directory; bring the container up |
-| `401` on any call | Export `INSTANCE_TOKEN` from `.env.local` (`SL_API_KEY` is the legacy alias), or pass `--api-key`. Writes always need it, loopback included; reads need it once the API is published past loopback. There is no `secondlayer login` — one instance, one token |
+| `401` on instance call | Export `INSTANCE_TOKEN` from `.env.local`, or pass `--api-key` with the hex token. Writes always need it, loopback included; reads need it once the API is published past loopback |
+| `401` on hosted / archive / credits | Export `SECONDLAYER_API_KEY` (`sk-sl_*`), or run `secondlayer login --credits` |
 | Empty history | `secondlayer bootstrap --against <manifest>`. Against the official archive this quotes a price in credits and waits for confirmation; your own mirror is free |
 
 ## Stacks SDK: contract calls failing

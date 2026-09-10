@@ -2,9 +2,9 @@
 
 Source of truth: `packages/sdk/src/`. Function signatures below are copied verbatim — match them exactly when generating code.
 
-**Auth model:** default `baseUrl` is `http://127.0.0.1:3800` (or `SL_API_URL`). Loopback reads on `sl.contracts.*`, `sl.index.*`, `sl.streams.*`, and `sl.subgraphs.rows()` need no key. History is whatever this instance has bootstrapped. Writes (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) use `INSTANCE_TOKEN` from `secondlayer init` as `apiKey`. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no instance key.
+**Auth model:** default `baseUrl` is `http://127.0.0.1:3800` (or `SECONDLAYER_API_URL` / `SL_API_URL`). Loopback reads on `sl.contracts.*`, `sl.index.*`, `sl.streams.*`, and `sl.subgraphs.rows()` need no key. History is whatever this instance has bootstrapped. Writes (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) use `INSTANCE_TOKEN` from `secondlayer init` as `apiKey`. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no instance key.
 
-Your instance has one token, not accounts: there is no login, no project, no dashboard key, and no key tier. Pass `INSTANCE_TOKEN` as `apiKey`, or export `INSTANCE_TOKEN` and the client picks it up (`resolveApiKey`; `SL_API_KEY` is the legacy alias, and the canonical name wins when both are set). Writes always need it. Reads need it once the API is reachable past loopback — which is mandatory there, since an instance binding past loopback with no token refuses to start. Passing `apiKey` on a keyless loopback read is harmless: an unrecognized credential is ignored, not rejected.
+Two credentials: `apiKey` / `INSTANCE_TOKEN` for your instance; `accountKey` / `SECONDLAYER_API_KEY` (`sk-sl_*`) for hosted API and archive. Pass `INSTANCE_TOKEN` as `apiKey`, or export it and the client picks it up (`resolveApiKey`). Writes always need it. Reads need it once the API is reachable past loopback — which is mandatory there, since an instance binding past loopback with no token refuses to start. Passing `apiKey` on a keyless loopback read is harmless: an unrecognized credential is ignored, not rejected.
 
 ---
 

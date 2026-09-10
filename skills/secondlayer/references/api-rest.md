@@ -14,7 +14,7 @@ Override with `SL_API_URL` env var or `baseUrl` SDK option.
 
 ## Authentication
 
-Your instance has **one token, not accounts**: the `INSTANCE_TOKEN` that `secondlayer init` writes. Loopback reads need no key. Writes send it as `Authorization: Bearer`.
+Your instance uses `INSTANCE_TOKEN` from `secondlayer init`. Loopback reads need no key. Writes send it as `Authorization: Bearer`. Hosted `api.secondlayer.tools` uses `SECONDLAYER_API_KEY` (`sk-sl_*`).
 
 | Endpoint family | Reads | Writes | Header |
 |---|---|---|---|
@@ -35,7 +35,7 @@ An instance with no token set is fully open, and refuses to start if it binds pa
 
 Writes also have to declare their body: any `POST`/`PUT`/`PATCH`/`DELETE` under `/api` with a `Content-Type` other than `application/json` is refused `415 UNSUPPORTED_MEDIA_TYPE`. `curl -d` defaults to `application/x-www-form-urlencoded`, so always pass `-H 'Content-Type: application/json'`. A body-less action POST (`/stop`, `/pause`, `/rotate-secret`, `/reindex` with no options) may send no `Content-Type` at all.
 
-Archive credits are a separate prepaid card balance, not a credential — no account, no login, no header.
+Archive credits are a prepaid balance: send `SECONDLAYER_API_KEY` (`sk-sl_*`) or use `secondlayer login --credits`.
 
 ## Response envelopes
 

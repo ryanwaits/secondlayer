@@ -1,8 +1,8 @@
-# Beta Quickstart: Subgraphs + Subscriptions
+# Quickstart: Subgraphs + Subscriptions
 
-The shortest complete loop for a hosted beta user:
+The shortest complete loop on your instance:
 
-1. Log in.
+1. Point the CLI at your instance.
 2. Deploy a subgraph from a recent block so rows appear quickly.
 3. Query the generated table.
 4. Add a receiver subscription.
@@ -31,31 +31,17 @@ A **subscription** is a signed webhook delivery rule. It comes in two kinds:
 Both POST to your receiver with retries, circuit breaking, delivery logs,
 dead-letter requeue, and (subgraph) historical replay.
 
-## 1. Log In
+## 1. Point at your instance
 
 ```bash
 bun add -g @secondlayer/cli
 
-secondlayer login
-secondlayer whoami
+export SL_API_URL="http://127.0.0.1:3800"
+export INSTANCE_TOKEN="<from secondlayer init>"
 ```
 
-`secondlayer login` authenticates an interactive session; the CLI uses that session
-for all `secondlayer subgraphs` and `secondlayer subscriptions` commands.
-
-For machine, REST, or SDK access, create an API key (prefixed `sk-sl_`) in the
-account console at https://console.secondlayer.tools, then export it:
-
-```bash
-export SECONDLAYER_API_URL="https://api.secondlayer.tools"
-export SL_API_URL="$SECONDLAYER_API_URL"
-export SL_API_KEY="sk-sl_..."
-```
-
-Deploys default **public** — anon-readable on `/v1/subgraphs`, no key.
-Writes (deploy, manage, subscriptions) require an
-`sk-sl_` key. (`SECONDLAYER_API_KEY` is a deprecated alias of `SL_API_KEY`.)
-Rotate or revoke keys in the same console.
+Loopback reads need no token. Writes (deploy, manage, subscriptions) send
+`INSTANCE_TOKEN`. See [Authentication](https://www.secondlayer.tools/docs/authentication).
 
 ## 2. Create A Subgraph
 
@@ -225,15 +211,15 @@ Operational commands accept either subscription id or unique name and support
 
 ## SDK And MCP Setup
 
-Use the SDK when setup needs to live in application code. Pass your `sk-sl_` key
+Use the SDK when setup needs to live in application code. Pass `INSTANCE_TOKEN`
 via the `apiKey` option:
 
 ```ts
 import { SecondLayer } from "@secondlayer/sdk";
 
 const sl = new SecondLayer({
-  baseUrl: process.env.SECONDLAYER_API_URL!,
-  apiKey: process.env.SL_API_KEY!, // sk-sl_...
+  baseUrl: process.env.SL_API_URL ?? "http://127.0.0.1:3800",
+  apiKey: process.env.INSTANCE_TOKEN,
 });
 
 const { data } = await sl.subgraphs.queryTable("stx-transfers", "transfers", {
@@ -264,15 +250,15 @@ Use MCP when an agent should scaffold, deploy, query, and subscribe:
       "command": "bunx",
       "args": ["-p", "@secondlayer/mcp", "secondlayer-mcp"],
       "env": {
-        "SECONDLAYER_API_URL": "https://api.secondlayer.tools",
-        "SL_API_KEY": "sk-sl_..."
+        "SL_API_URL": "http://127.0.0.1:3800",
+        "INSTANCE_TOKEN": "..."
       }
     }
   }
 }
 ```
 
-The `subgraphs_deploy` tool also accepts `startBlock` for fast beta demos.
+The `subgraphs_deploy` tool also accepts `startBlock` for a fast first deploy.
 
 ## Filter Syntax
 
