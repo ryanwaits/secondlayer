@@ -11,7 +11,8 @@ Secondlayer is a self-hosted Stacks data runtime. Three capabilities — **Index
 (decoded chain data over REST), **Subgraphs** (your schema on your instance),
 and **Streams** (raw signed firehose + dumps) — plus features (Subscriptions,
 subgraph templates, Contract discovery, Verification) and channels (REST/OpenAPI,
-CLI, SDK, MCP). We publish a signed R2 archive and meter bootstrap/backfill.
+CLI, SDK, MCP). We publish a signed R2 archive and a hosted Index/Streams API. We meter
+bootstrap/backfill and hosted reads off the same prepaid credits.
 We do not host public subgraphs or an Explore catalog. `STRATEGY.md` wins
 taxonomy, pricing, and what's frozen.
 
@@ -64,7 +65,12 @@ request), supported, documented.
 
 ### Scope discipline
 
-- Reads are open in beta: keyless on `/v1`, keys gate writes. Don't add read auth.
+- OSS `/v1` reads are keyless on a loopback publish; `INSTANCE_TOKEN` gates
+  writes and every `/v1` request once the API is reachable past loopback.
+  Hosted `/v1` (api.secondlayer.tools) is keyed: `Authorization: Bearer`
+  with an account key (`sk-sl_*`, env `SECONDLAYER_API_KEY`). Same prepaid credits
+  as archive bootstrap. Do not add accounts on OSS. Do not add hosted
+  keyless reads.
 - Cursor format and public `/v1` envelope are 1.0 contracts; reorg/cursor tests
   are sacred.
 - The decoder service (`packages/indexer` l2 module) reads from Streams in production — dogfooding, do not break it.

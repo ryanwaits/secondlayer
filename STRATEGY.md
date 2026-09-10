@@ -8,8 +8,9 @@
 
 Secondlayer is a self-hosted Stacks data runtime: run it beside your node,
 bootstrap verified history, query decoded data, deploy TypeScript subgraphs.
-We operate one public utility — a signed canonical archive on R2 — and we
-sell metered access to the expensive bits: bootstrap, backfill, reindex.
+We operate a signed canonical archive on R2 and a hosted query API for
+Index and Streams at api.secondlayer.tools. Prepaid credits buy archive
+bootstrap/backfill and hosted reads. Same balance.
 
 That sentence is for us. What we say to a reader is in **Voice** below.
 
@@ -71,7 +72,8 @@ without writing decoders.
 
 **Subgraphs** — your schema on your instance. `defineSubgraph()` in one TypeScript
 file → deploy → Postgres tables behind the same `/v1` read API. We do not host
-subgraphs. Monetization is the archive work that fills them, not the query API.
+subgraphs. Monetization is archive bootstrap that fills a self-host instance,
+plus hosted Index/Streams reads. Not hosted subgraph compute.
 
 **Streams** — the raw signed event firehose + parquet dumps. The inputs, not our
 decoding: cursor-paginated REST, SSE tail, signed manifests, replay from any
@@ -121,7 +123,8 @@ This distinction is load-bearing; keep it crisp everywhere:
 Both are indexer products at different levels: Streams is raw, low-level
 indexing — Index is app-level indexing on decoded rows. Streams powers Index:
 our decoder is itself a Streams consumer. Subgraphs is the Index loop, on your
-machine. We sell archive bootstrap, not hosted compute.
+machine. We sell archive bootstrap and hosted Index/Streams reads. We do not
+sell hosted subgraph compute.
 
 One line for docs: *Reading decoded data? Index. Building your own app index on
 decoded rows? Also Index — walk + cursors + reorgs[]. Your schema on your
@@ -135,25 +138,31 @@ webhook. Forward-only from your own node is free and skips bootstrap.
 
 ## Pricing
 
-Not a monthly service. The runtime is MIT. We run the archive; we meter the
-bytes and rebuild work that come off it.
+Not a monthly service. The runtime is MIT. We run the archive and a hosted
+Index/Streams API. We meter archive bytes and hosted row reads off the same
+prepaid balance.
 
 | Billable | Not billable |
 | --- | --- |
 | Official-archive bootstrap (genesis or a large range) | Self-host runtime, compose, CLI |
 | Data-avail backfill / reindex that reads our archive | Forward-only indexing from the operator's node |
+| Hosted Index / Streams reads on `api.secondlayer.tools` | Self-host `/v1` reads (the operator's Postgres) |
 | | `secondlayer verify` / `secondlayer repair` against public manifests |
 
-Meter unit is the bundle: one height-range partition set (blocks, transactions,
-events for that range) fetched off the archive. Quotes, balances and the monthly
-free-repair allowance count bundles. Charge at fetch time with a gated archive
-URL; partitions stay content-addressed; unpaid clients do not get the objects.
+Archive meter unit is the bundle: one height-range partition set (blocks,
+transactions, events for that range) fetched off the archive. Hosted
+Index/Streams meter unit is the row read. Both debit the same prepaid
+`account_credits` balance. Quotes, balances, and the monthly free-repair
+allowance still count archive bundles. Charge archive bytes at fetch time
+with a gated URL. Charge hosted reads after the page is served. Unpaid
+callers do not get archive objects; hosted `/v1` without a key is 401.
+
 No $99/mo Pro SKU.
 
-We do not host public subgraphs, an Explore catalog, or a public query API.
-Leftover hosted deploys are not a product; do not add more. Do not delete
-billing code in Phase 6 if the archive meter still needs it; strip monthly-plan
-UX, keep a meter.
+We do not host public subgraphs or an Explore catalog. We do host a keyed
+query API for Index and Streams. Leftover hosted subgraph deploys are not
+a product; do not add more. Do not delete billing code if the archive
+meter still needs it; strip monthly-plan UX, keep a meter.
 
 ## x402 — deleted
 
