@@ -1,5 +1,4 @@
 import { getDb } from "@secondlayer/shared/db";
-import { ValidationError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
 import { z } from "zod";
 import { getClientIp } from "./http.ts";
@@ -8,20 +7,17 @@ import { assertCanMint, mintApiKey, resolveMintProduct } from "./mint.ts";
 
 // No tier field: every key mints at the single metered tier (see mint.ts).
 // A legacy `tier` in the body is silently stripped by zod.
-// `product` stays on the wire so old dashboard clients don't 400 on an
-// unknown field. Agents should omit it (schema defaults to account).
+// Account keys only — scoped streams/index products 400.
 export const CreateKeySchema = z.object({
 	name: z.string().max(255).optional(),
-	product: z.enum(["account", "streams", "index"]).default("account"),
+	product: z.enum(["account"]).default("account"),
 });
 
 const app = new Hono();
 
 // Create key (requires auth — tied to account). Owner-gated: only a dashboard
-// session or an account-product key may mint. Sessions may still mint
-// streams/index (dashboard). API-key callers mint account keys only —
-// agents should omit `product`. Requesting streams/index from a key is 400.
-// All keys mint at the single metered tier.
+// session or an account-product key may mint. All keys mint at the single
+// metered tier as product `account`.
 app.post("/", requireAuth(), async (c) => {
 	const body = await c.req.json().catch(() => ({}));
 	const parsed = CreateKeySchema.parse(body);
@@ -33,11 +29,6 @@ app.post("/", requireAuth(), async (c) => {
 		apiKeyProduct: ctx.get("apiKey")?.product ?? null,
 	};
 	assertCanMint(caller);
-	if (!caller.isSession && parsed.product !== "account") {
-		throw new ValidationError(
-			"API-key callers mint account keys only; omit product or pass account.",
-		);
-	}
 
 	const minted = await mintApiKey(getDb(), {
 		accountId,

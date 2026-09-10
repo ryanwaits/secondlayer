@@ -95,7 +95,7 @@ export function indexBearerAuth(opts?: {
 
 	return async (c, next) => {
 		// Same rule as Streams and subgraphs: open on a loopback bind, instance
-		// token past it. The metered archive keeps its open anon reads.
+		// token past it. Hosted (`platform`) is keyed.
 		const allowAnon = opts?.allowAnon ?? allowsAnonymousRead();
 		const apiKeyHeader = c.req.header("x-api-key");
 		const rawToken = bearerToken(c);

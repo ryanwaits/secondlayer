@@ -17,8 +17,9 @@ import { instanceTokenMatches, isLoopbackReachable } from "../instance-bind.ts";
  *     we recognize it and otherwise ignored — never fatal. Presenting a key
  *     must not turn a working read into a 401.
  *
- * The metered archive (`platform`) keeps its own per-plane posture; it is
- * passed in explicitly by each plane so the divergence stays visible.
+ * Hosted data planes (`platform`) are keyed: Index, Streams, and subgraphs
+ * require an account API key (`sk-sl_*`). OSS stays loopback-open / public-bind
+ * token. Callers may pass `{ platform: true }` only in tests.
  */
 
 /** Tenant id for a caller who authenticated with the instance's own token. */
@@ -54,12 +55,11 @@ export function invalidCredentialError(): AuthenticationError {
  * authoritative at call time, not at module load.
  */
 export function allowsAnonymousRead(opts?: {
-	/** Posture on the metered archive deployment, which is not loopback-bound.
-	 *  Index and subgraphs serve public anon reads there; Streams is keyed. */
+	/** Explicit pin. Tests use it. Production callers should omit it. */
 	platform?: boolean;
 	env?: NodeJS.ProcessEnv;
 }): boolean {
-	if (isPlatformMode()) return opts?.platform ?? true;
+	if (isPlatformMode()) return opts?.platform ?? false;
 	return isLoopbackReachable(opts?.env ?? process.env);
 }
 

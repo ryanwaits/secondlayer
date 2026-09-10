@@ -69,11 +69,11 @@ describe("allowsAnonymousRead", () => {
 		}
 	});
 
-	test("the metered archive keeps its own posture, not the bind's", () => {
+	test("the metered archive is keyed, regardless of bind", () => {
 		process.env.INSTANCE_MODE = "platform";
 		process.env.LISTEN_HOST = "0.0.0.0";
-		expect(allowsAnonymousRead()).toBe(true);
-		expect(allowsAnonymousRead({ platform: false })).toBe(false);
+		expect(allowsAnonymousRead()).toBe(false);
+		expect(allowsAnonymousRead({ platform: true })).toBe(true); // explicit pin
 	});
 });
 

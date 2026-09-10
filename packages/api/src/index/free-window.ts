@@ -7,11 +7,11 @@ import type { IndexEnv } from "./auth.ts";
 import type { IndexTipProvider } from "./tip.ts";
 
 /**
- * Free + keyless Index reads cover only the recent 24h window — the same
- * last-day default `parseIndexBaseQuery` already serves when no cursor /
- * from_height is given. Seeking deeper history is a paid/credited action, so a
- * free/anon caller that explicitly seeks below the window gets a 402. Paid
- * tiers (build/scale/enterprise) are unbounded.
+ * Free Index reads cover only the recent 24h window — the same last-day
+ * default `parseIndexBaseQuery` already serves when no cursor / from_height
+ * is given. Seeking deeper history is a credited action, so a free caller
+ * that explicitly seeks below the window gets a 402. Only `internal` and
+ * credited `free` skip the window.
  *
  * Mirrors the Streams retention gate (`streams/retention.ts`), but 402
  * (pay-to-unlock) rather than 403 — there's no separate cheaper-retention lane

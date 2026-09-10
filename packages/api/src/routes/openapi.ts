@@ -1388,15 +1388,22 @@ export const OPENAPI_SPEC = {
  *
  *  - the workload plane is not mounted there (it 404s — `route-manifest.ts`),
  *    so those paths are dropped;
- *  - Streams is keyed there whatever the bind (`streams/auth.ts` passes
- *    `platform: false`), so its bearer becomes required rather than optional;
+ *  - Index, Streams, and subgraphs are keyed (discovery GET `/v1/index` and
+ *    `/v1/streams` stay open), so their bearer becomes required rather than
+ *    optional;
  *  - the credential there is a minted account key, not an instance token.
  */
 function platformSpec(): typeof OPENAPI_SPEC {
+	const KEYED_PREFIXES = ["/v1/streams", "/v1/index", "/v1/subgraphs"];
 	const paths: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(OPENAPI_SPEC.paths)) {
 		if (isWorkloadPath(key)) continue;
-		paths[key] = key.startsWith("/v1/streams") ? keyedOperations(value) : value;
+		// Discovery GET `/v1/index` and `/v1/streams` stay open; key children.
+		const keyed =
+			key !== "/v1/index" &&
+			key !== "/v1/streams" &&
+			KEYED_PREFIXES.some((p) => key === p || key.startsWith(`${p}/`));
+		paths[key] = keyed ? keyedOperations(value) : value;
 	}
 	Object.assign(paths, platformMeterPaths());
 	return {
@@ -1404,7 +1411,7 @@ function platformSpec(): typeof OPENAPI_SPEC {
 		info: {
 			...OPENAPI_SPEC.info,
 			description:
-				"The metered public archive. Index and Subgraph reads are open; Streams requires a key on every request. Credentials are account API keys (`sk-sl_*`) sent as `Authorization: Bearer`. The workload plane (`/api/subgraphs`, `/api/subscriptions`, `/api/node`) is not served here — deploying and running handler code is what a self-hosted instance is for.",
+				"The metered public archive. Index, Streams, and Subgraph reads require an account API key (`sk-sl_*`) as `Authorization: Bearer`. Discovery GET `/v1/index` and `/v1/streams` stay open. The workload plane is not served here.",
 		},
 		tags: [
 			...OPENAPI_SPEC.tags.filter(
@@ -1430,7 +1437,7 @@ function platformSpec(): typeof OPENAPI_SPEC {
 					scheme: "bearer",
 					bearerFormat: "sk-sl_*",
 					description:
-						"Account API key minted by the archive. Required on Streams; optional elsewhere, where it identifies the account for metering.",
+						"Account API key minted by the archive. Required on Index, Streams, and Subgraphs.",
 				},
 			},
 		},

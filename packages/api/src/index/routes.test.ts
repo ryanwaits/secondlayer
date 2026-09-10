@@ -114,20 +114,35 @@ describe("Stacks Index gateway middleware", () => {
 		await _resetRateLimitStoreForTests();
 	});
 
-	test("anon GET ft-transfers returns 200 with bounded anon rate limit", async () => {
+	test("anon GET ft-transfers returns 401 on platform", async () => {
 		const app = createApp();
 		const res = await app.request("/v1/index/ft-transfers");
+		expect(res.status).toBe(401);
+	});
+
+	test("keyed GET ft-transfers returns 200 with free rate limit", async () => {
+		const app = createApp();
+		const res = await app.request("/v1/index/ft-transfers", {
+			headers: authHeaders(FREE_KEY),
+		});
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as { events: unknown[] };
 		expect(body.events).toEqual([]);
-		// Open beta: anon reads aren't auth-gated but are bounded by a shared
-		// global limit, so they always carry X-RateLimit-* headers.
-		expect(res.headers.get("X-RateLimit-Limit")).toBe("10");
+		expect(res.headers.get("X-RateLimit-Limit")).toBe(
+			String(INDEX_TIER_CONFIG.free.rateLimitPerSecond),
+		);
 		expect(res.headers.get("X-RateLimit-Remaining")).not.toBeNull();
 	});
 
-	test("anon GET nft-transfers returns 200", async () => {
+	test("anon GET nft-transfers returns 401 on platform", async () => {
 		const res = await createApp().request("/v1/index/nft-transfers");
+		expect(res.status).toBe(401);
+	});
+
+	test("keyed GET nft-transfers returns 200", async () => {
+		const res = await createApp().request("/v1/index/nft-transfers", {
+			headers: authHeaders(FREE_KEY),
+		});
 		expect(res.status).toBe(200);
 	});
 
@@ -260,7 +275,9 @@ describe("Stacks Index gateway middleware", () => {
 				readReorgs: async () => [],
 			}),
 		);
-		const res = await app.request("/v1/index/events");
+		const res = await app.request("/v1/index/events", {
+			headers: authHeaders(FREE_KEY),
+		});
 		expect(res.status).toBe(400);
 		const body = (await res.json()) as { error: string };
 		expect(body.error).toContain("event_type is required");
@@ -294,7 +311,9 @@ describe("Stacks Index gateway middleware", () => {
 				}),
 			}),
 		);
-		const res = await app.request("/v1/index/events?event_type=ft_transfer");
+		const res = await app.request("/v1/index/events?event_type=ft_transfer", {
+			headers: authHeaders(FREE_KEY),
+		});
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as {
 			events: Array<{ event_type: string }>;
@@ -332,7 +351,9 @@ describe("Stacks Index gateway middleware", () => {
 				}),
 			}),
 		);
-		const res = await app.request("/v1/index/contract-calls");
+		const res = await app.request("/v1/index/contract-calls", {
+			headers: authHeaders(FREE_KEY),
+		});
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as {
 			contract_calls: unknown[];
@@ -398,8 +419,10 @@ describe("Index PoX-5 events route", () => {
 		return app;
 	}
 
-	test("returns the envelope, keyless", async () => {
-		const res = await pox5App().request("/v1/index/pox5/events");
+	test("returns the envelope with an account key", async () => {
+		const res = await pox5App().request("/v1/index/pox5/events", {
+			headers: authHeaders(FREE_KEY),
+		});
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as {
 			events: Array<{ topic: string; data: unknown }>;
@@ -416,6 +439,11 @@ describe("Index PoX-5 events route", () => {
 		expect(body.reorgs).toEqual([]);
 	});
 
+	test("anon GET pox5/events returns 401 on platform", async () => {
+		const res = await pox5App().request("/v1/index/pox5/events");
+		expect(res.status).toBe(401);
+	});
+
 	test("is listed in the discovery doc", async () => {
 		const res = await pox5App().request("/v1/index");
 		const body = (await res.json()) as { routes: Array<{ path: string }> };
@@ -423,7 +451,9 @@ describe("Index PoX-5 events route", () => {
 	});
 
 	test("rejects an unknown query filter", async () => {
-		const res = await pox5App().request("/v1/index/pox5/events?sender=x");
+		const res = await pox5App().request("/v1/index/pox5/events?sender=x", {
+			headers: authHeaders(FREE_KEY),
+		});
 		expect(res.status).toBe(400);
 	});
 });

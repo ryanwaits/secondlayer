@@ -40,19 +40,21 @@ describe("resolveMintProduct", () => {
 	const session = { isSession: true };
 	const owner = { isSession: false, apiKeyProduct: "account" };
 
-	it("lets a session mint any product (incl. account)", () => {
+	it("session minting streams/index throws — account keys only", () => {
 		expect(resolveMintProduct(session, "account")).toBe("account");
-		expect(resolveMintProduct(session, "streams")).toBe("streams");
-		expect(resolveMintProduct(session, "index")).toBe("index");
 		expect(resolveMintProduct(session, undefined)).toBe("account");
+		expect(() => resolveMintProduct(session, "streams")).toThrow(
+			ValidationError,
+		);
+		expect(() => resolveMintProduct(session, "index")).toThrow(ValidationError);
 	});
 
-	it("non-session account key mints account keys only", () => {
+	it("owner always mints account", () => {
 		expect(resolveMintProduct(owner, undefined)).toBe("account");
 		expect(resolveMintProduct(owner, "account")).toBe("account");
 	});
 
-	it("rejects a non-session caller asking for streams/index", () => {
+	it("rejects any caller asking for streams/index", () => {
 		expect(() => resolveMintProduct(owner, "streams")).toThrow(ValidationError);
 		expect(() => resolveMintProduct(owner, "index")).toThrow(ValidationError);
 	});

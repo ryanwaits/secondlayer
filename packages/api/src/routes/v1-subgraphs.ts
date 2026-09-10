@@ -156,14 +156,14 @@ const app = new Hono<V1SubgraphsEnv>();
 // ── Auth ────────────────────────────────────────────────────────────────
 
 // Same rule as Index and Streams: open on a loopback bind, instance token
-// past it, and a credential we don't recognize is ignored rather than fatal
-// wherever anonymous access already works. (This plane used to skip auth
-// entirely off-platform, so a public bind served every local subgraph.)
+// past it; hosted (`platform`) requires an account key. A credential we
+// don't recognize is ignored rather than fatal wherever anonymous access
+// already works.
 app.use("*", async (c, next) => {
 	const allowAnon = allowsAnonymousRead();
 	const raw = bearerToken(c);
 
-	// The operator's own token reads everything this instance holds.
+	// The operator's own token reads everything this instance holds (OSS).
 	if (raw !== null && instanceTokenMatches(raw)) {
 		await next();
 		return;

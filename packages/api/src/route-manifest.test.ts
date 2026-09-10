@@ -211,7 +211,7 @@ describe("route manifest", () => {
 	// The document describes a self-hosted instance; the metered archive is
 	// derived from it. Two things must differ there, or the archive publishes a
 	// description of endpoints it 404s and an auth rule it does not follow.
-	test("platform OpenAPI drops the workload plane and keeps Streams keyed", () => {
+	test("platform OpenAPI drops the workload plane and keys Index/Streams/Subgraphs", () => {
 		const spec = openapiSpec("platform");
 		for (const path of Object.keys(spec.paths)) {
 			if (
@@ -225,6 +225,21 @@ describe("route manifest", () => {
 		}
 		expect(spec.paths["/v1/index/events"]).toBeDefined();
 		expect(spec.paths["/v1/streams/events"].get.security).toEqual([
+			{ bearerAuth: [] },
+		]);
+		expect(spec.paths["/v1/index/events"].get.security).toEqual([
+			{ bearerAuth: [] },
+		]);
+		expect(spec.paths["/v1/subgraphs"].get.security).toEqual([
+			{ bearerAuth: [] },
+		]);
+		// Discovery stays optional bearer.
+		expect(spec.paths["/v1/index"].get.security).toEqual([
+			{},
+			{ bearerAuth: [] },
+		]);
+		expect(spec.paths["/v1/streams"].get.security).toEqual([
+			{},
 			{ bearerAuth: [] },
 		]);
 		// Deriving the platform variant must not mutate the shared document.

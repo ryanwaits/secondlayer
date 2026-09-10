@@ -25,7 +25,7 @@ describe("POST /api/keys product (no DB)", () => {
 		expect(CreateKeySchema.parse({ name: "ops" }).product).toBe("account");
 	});
 
-	test("API-key caller with product streams → 400", async () => {
+	test("product streams → 400 (scoped keys retired)", async () => {
 		const res = await productApp({
 			isSession: false,
 			apiKeyProduct: "account",
@@ -35,18 +35,15 @@ describe("POST /api/keys product (no DB)", () => {
 			body: JSON.stringify({ product: "streams" }),
 		});
 		expect(res.status).toBe(400);
-		const body = (await res.json()) as { error: string };
-		expect(body.error).toContain("account");
 	});
 
-	test("session with product streams still mints streams", async () => {
+	test("session with product streams → 400", async () => {
 		const res = await productApp({ isSession: true }).request("/api/keys", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ product: "streams" }),
 		});
-		expect(res.status).toBe(201);
-		expect(await res.json()).toEqual({ product: "streams" });
+		expect(res.status).toBe(400);
 	});
 });
 

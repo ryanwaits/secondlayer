@@ -5,7 +5,7 @@ import {
 } from "@secondlayer/shared/errors";
 import { generateApiKey } from "./keys.ts";
 
-export type MintProduct = "account" | "streams" | "index";
+export type MintProduct = "account";
 
 /**
  * The single tier every minted key gets. Plan/tier selection is retired —
@@ -46,18 +46,16 @@ export function assertCanMint(caller: MintCaller): void {
 }
 
 /**
- * Product of the key to mint. Sessions (dashboard) may mint any product.
- * API-key callers mint `account` keys only — agents should omit `product`.
- * Requesting streams/index from a key is rejected so they notice.
+ * Product of the key to mint. Account keys only — scoped streams/index keys
+ * are retired. Sessions requesting them throw so clients notice.
  */
 export function resolveMintProduct(
-	caller: MintCaller,
-	requested: MintProduct | undefined,
+	_caller: MintCaller,
+	requested: MintProduct | string | undefined,
 ): MintProduct {
-	if (caller.isSession) return requested ?? "account";
 	if (requested === "streams" || requested === "index") {
 		throw new ValidationError(
-			"API-key callers mint account keys only; omit product or pass account.",
+			"mint account keys only; scoped streams/index keys are retired.",
 		);
 	}
 	return "account";

@@ -5,6 +5,11 @@ import { hashToken } from "./keys.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 
+function restoreEnv(key: string, prev: string | undefined): void {
+	if (prev === undefined) Reflect.deleteProperty(process.env, key);
+	else process.env[key] = prev;
+}
+
 const STATIC = new Map([
 	[
 		"sk-sl_static_seed",
@@ -43,6 +48,27 @@ describe("createApiKeyTokenStore", () => {
 		});
 		expect(await store.get("ss-sl_session_token")).toBeUndefined();
 		expect(called).toBe(false);
+	});
+
+	test("INSTANCE_TOKEN does not authenticate on platform", async () => {
+		const prevMode = process.env.INSTANCE_MODE;
+		const prevToken = process.env.INSTANCE_TOKEN;
+		process.env.INSTANCE_MODE = "platform";
+		process.env.INSTANCE_TOKEN = "deadbeefplatformhex";
+		try {
+			const store = createApiKeyTokenStore({
+				staticTokens: new Map(),
+				requiredScope: "index:read",
+				product: "index",
+				lookupApiKey: async () => {
+					throw new Error("db must not be hit for hex instance token");
+				},
+			});
+			expect(await store.get("deadbeefplatformhex")).toBeUndefined();
+		} finally {
+			restoreEnv("INSTANCE_MODE", prevMode);
+			restoreEnv("INSTANCE_TOKEN", prevToken);
+		}
 	});
 
 	describe.skipIf(!HAS_DB)(
@@ -84,7 +110,7 @@ describe("createApiKeyTokenStore", () => {
 						key_prefix: "sk-sl_legacy",
 						account_id: accountId,
 						ip_address: "test",
-						product: "streams",
+						product: "account",
 						// Legacy pin from before the paid ladder was retired. The DB
 						// column stays wide (out of scope for this plan) but the
 						// resolver must never treat it as authority.
@@ -100,6 +126,29 @@ describe("createApiKeyTokenStore", () => {
 				});
 				const tenant = await store.get(raw);
 				expect(tenant?.tier).toBe("free");
+			});
+
+			test("an active scoped streams key does not resolve", async () => {
+				const raw = "sk-sl_scoped_streams_retired_test";
+				await db
+					.insertInto("api_keys")
+					.values({
+						key_hash: hashToken(raw),
+						key_prefix: "sk-sl_scoped",
+						account_id: accountId,
+						ip_address: "test",
+						product: "streams",
+						tier: "free",
+						status: "active",
+					})
+					.execute();
+
+				const store = createApiKeyTokenStore({
+					staticTokens: new Map(),
+					requiredScope: "streams:read",
+					product: "streams",
+				});
+				expect(await store.get(raw)).toBeUndefined();
 			});
 		},
 	);

@@ -42,15 +42,16 @@ type ApiKeyTokenStoreOptions<TTenant extends ProductTenant> = {
 
 async function lookupAccountApiKey(
 	tokenHash: string,
-	product: ProductScope,
+	_product: ProductScope,
 	getDb: typeof defaultGetDb,
 ): Promise<ApiKeyRecord | null> {
 	const db = getDb();
+	// Account keys only — scoped streams/index rows are retired (auth-007).
 	const row = await db
 		.selectFrom("api_keys")
 		.select(["account_id", "status", "tier"])
 		.where("key_hash", "=", tokenHash)
-		.where("product", "in", ["account", product])
+		.where("product", "=", "account")
 		.executeTakeFirst();
 
 	if (!row) return null;
@@ -80,12 +81,12 @@ export function createApiKeyTokenStore<TTenant extends ProductTenant>(
 		async get(rawToken: string): Promise<TTenant | undefined> {
 			const seeded = await opts.staticTokens.get(rawToken);
 			if (seeded) return seeded;
-			// The instance's own token authenticates every plane. A self-hosted
-			// instance has one credential (bare hex from `secondlayer init`), not
-			// a per-product `sk-sl_` key, so it must be resolved before the
-			// prefix guard below — that guard is what made the documented token
-			// unusable against the whole `/v1` plane.
-			if (instanceTokenMatches(rawToken)) {
+			// OSS only: the instance's own token authenticates every plane. A
+			// self-hosted instance has one credential (bare hex from
+			// `secondlayer init`), not a per-product `sk-sl_` key, so it must
+			// be resolved before the prefix guard below. On platform, hex must
+			// not authenticate hosted `/v1` as unmetered `internal`.
+			if (!isPlatformMode() && instanceTokenMatches(rawToken)) {
 				return {
 					tenant_id: INSTANCE_TENANT_ID,
 					// No account_id: the operator's own reads are never metered

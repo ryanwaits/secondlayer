@@ -385,7 +385,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 						"Empirical per-topic print payload schemas for a contract, inferred from sampled canonical print events. Returns contract_id, topics[] ({topic, count, first_height, last_height, non_tuple, fields[] with name/camel_name/clarity_type/ts_type/column_type/always_present}), sample, tip. Anon ok, unmetered.",
 				},
 			],
-			auth: "optional bearer for higher rate-limit tier; anon allowed",
+			auth: "bearer required (account key sk-sl_*); discovery GET / is open",
 			cursor: {
 				format: "<block_height>:<event_index>",
 				semantics:
