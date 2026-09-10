@@ -220,11 +220,12 @@ else
 	echo "index ft/nft transfers (elevated key): skipped (INDEX_SMOKE_KEY unset — no paid tier ladder left to default to)"
 fi
 
-check_status "index ft transfers anon" "200" "/v1/index/ft-transfers?limit=1"
+# Index is key-mandatory on the hosted archive, same as Streams (auth-007).
+check_status "index ft transfers keyless → 401" "401" "/v1/index/ft-transfers?limit=1"
 check_status "index ft transfers free" "200" "/v1/index/ft-transfers?limit=1" "$INDEX_FREE_KEY"
 check_status "index ft transfers wrong scope" "403" "/v1/index/ft-transfers?limit=1" "$INDEX_WRONG_SCOPE_KEY"
 
-check_status "index nft transfers anon" "200" "/v1/index/nft-transfers?limit=1"
+check_status "index nft transfers keyless → 401" "401" "/v1/index/nft-transfers?limit=1"
 check_status "index nft transfers free" "200" "/v1/index/nft-transfers?limit=1" "$INDEX_FREE_KEY"
 check_status "index nft transfers wrong scope" "403" "/v1/index/nft-transfers?limit=1" "$INDEX_WRONG_SCOPE_KEY"
 

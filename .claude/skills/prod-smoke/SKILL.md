@@ -84,22 +84,21 @@ A `running` op whose cursor (subgraph `last_processed_block` for reindex, op `cu
 for backfill) is frozen across two checks ~15m apart = stuck → check processor logs for
 `halted at block` / `cursor race lost` floods (zombie runner — see PRODUCTION.md runbook).
 
-## Phase 3 — public API surfaces (no SSH; anon unless SL_API_KEY provided)
+## Phase 3 — public API surfaces (no SSH; hosted `/v1` is keyed)
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}' https://api.secondlayer.tools/v1/subgraphs        # 200
-curl -s 'https://api.secondlayer.tools/v1/index/events?event_type=ft_transfer&limit=1'   # events[0].block_height near tip
-curl -s https://api.secondlayer.tools/v1/x402/supported   # x402Version:2; enabled:false is CORRECT while the rail is dormant — do NOT flag; DO flag missing freeQuota/sessions/prepaid/paidWrites keys or a catalog without 5 surfaces (streams,index,subgraph-deploy,subgraph-renew,deposit)
-curl -s https://api.secondlayer.tools/.well-known/x402                                   # points at /v1/x402/supported
+# Discovery GET stays open. Data-plane Index/Streams/subgraphs need SECONDLAYER_API_KEY.
+curl -s -o /dev/null -w '%{http_code}' https://api.secondlayer.tools/v1/index            # 200 (discovery)
+curl -s -o /dev/null -w '%{http_code}' https://api.secondlayer.tools/v1/index/ft-transfers?limit=1  # 401 without a key
+curl -s -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
+  'https://api.secondlayer.tools/v1/index/events?event_type=ft_transfer&limit=1'   # events[0].block_height near tip
 curl -s -o /dev/null -w '%{http_code}' https://www.secondlayer.tools/llms.txt            # 200
-curl -s -o /dev/null -w '%{http_code}' https://www.secondlayer.tools/subgraphs/explore   # 200
 
-# Every PUBLIC subgraph: detail + ALL-table read. blocks_behind > 60 (~5 min) = flag
-# UNLESS sync.queue/sync.integrity says a reindex/backfill is in flight.
-# NOTE: subgraph table reads REQUIRE underscore-prefixed control params — `?_limit=1`.
-# A bare `?limit=1` is rejected 400 VALIDATION_ERROR by design; using it makes every
-# subgraph look broken. (/v1/index/events is the opposite — it takes a bare `limit`.)
-curl -s https://api.secondlayer.tools/v1/subgraphs | python3 -c "
+# Leftover hosted subgraphs are not a product. Directory is 401 without a key.
+# If SECONDLAYER_API_KEY is set, the loop below still works; otherwise skip it.
+# Table reads need underscore-prefixed control params (`?_limit=1`); a bare
+# `?limit=1` is 400 VALIDATION_ERROR. (/v1/index/events takes a bare `limit`.)
+curl -s -H "Authorization: Bearer $SECONDLAYER_API_KEY" https://api.secondlayer.tools/v1/subgraphs | python3 -c "
 import sys, json, urllib.request
 for sg in json.load(sys.stdin).get('subgraphs', []):
     name = sg['name']
