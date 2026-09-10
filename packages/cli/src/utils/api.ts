@@ -68,7 +68,7 @@ export class StacksApiClient {
 			if (statusCode === 401) {
 				throw new Error(
 					isOssMode()
-						? "Authentication required. Set INSTANCE_TOKEN from `secondlayer init` (SL_API_KEY is a legacy alias)."
+						? "Authentication required. Set INSTANCE_TOKEN from `secondlayer init`."
 						: "Authentication required. Run: secondlayer login",
 				);
 			}

@@ -62,7 +62,7 @@ export function handleApiError(err: unknown, action: string): never {
 	) {
 		printError("Authentication required.", {
 			hint: isOssMode()
-				? "Set INSTANCE_TOKEN from `secondlayer init` (SL_API_KEY is a legacy alias)."
+				? "Set INSTANCE_TOKEN from `secondlayer init`."
 				: "Run `secondlayer login` to re-authenticate.",
 		});
 		process.exit(1);
