@@ -102,6 +102,29 @@ describe("route manifest", () => {
 		expect(v1Res.status).not.toBe(404);
 	});
 
+	test("platform rejects INSTANCE_TOKEN hex on /v1/subgraphs", async () => {
+		const prevMode = process.env.INSTANCE_MODE;
+		const prevToken = process.env.INSTANCE_TOKEN;
+		process.env.INSTANCE_MODE = "platform";
+		process.env.INSTANCE_TOKEN = "deadbeefplatformhex";
+		try {
+			const app = createApiApp("platform");
+			expect((await app.request("/v1/subgraphs")).status).toBe(401);
+			expect(
+				(
+					await app.request("/v1/subgraphs", {
+						headers: { Authorization: "Bearer deadbeefplatformhex" },
+					})
+				).status,
+			).toBe(401);
+		} finally {
+			if (prevMode === undefined) delete process.env.INSTANCE_MODE;
+			else process.env.INSTANCE_MODE = prevMode;
+			if (prevToken === undefined) delete process.env.INSTANCE_TOKEN;
+			else process.env.INSTANCE_TOKEN = prevToken;
+		}
+	});
+
 	test("oss workload routes stay mounted", async () => {
 		process.env.INSTANCE_MODE = "oss";
 		const app = createApiApp("oss");

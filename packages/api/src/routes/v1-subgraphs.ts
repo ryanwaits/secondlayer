@@ -163,8 +163,9 @@ app.use("*", async (c, next) => {
 	const allowAnon = allowsAnonymousRead();
 	const raw = bearerToken(c);
 
-	// The operator's own token reads everything this instance holds (OSS).
-	if (raw !== null && instanceTokenMatches(raw)) {
+	// OSS only: the operator's own token reads everything this instance holds.
+	// Hosted hex must not authenticate as unmetered internal (auth-005/007).
+	if (raw !== null && !isPlatformMode() && instanceTokenMatches(raw)) {
 		await next();
 		return;
 	}
