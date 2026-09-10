@@ -34,16 +34,19 @@ describe("isBunRuntime", () => {
 	});
 
 	test("false under node — the exact case OpenTUI can't initialize in", () => {
-		// This is the regression this function exists to catch: the published
-		// CLI runs under node via its shebang, and OpenTUI's native FFI loader
-		// throws there. Spawn a real node process to prove the check agrees.
-		const src = `
-			const v = process.versions;
-			const isBun = typeof v === "object" && v !== null && typeof v.bun === "string";
-			process.stdout.write(String(isBun));
-		`;
-		const result = spawnSync("node", ["-e", src]);
-		expect(result.stdout?.toString()).toBe("false");
+		// Published CLI shebang is node. spawnSync defaults stdin to a pipe;
+		// node -e can sit on that until EOF, which is how this test burned
+		// the 5s bun timeout in CI. Ignore stdin and bound the wait.
+		const src =
+			"const v=process.versions;process.stdout.write(String(typeof v==='object'&&v!==null&&typeof v.bun==='string'))";
+		const result = spawnSync("node", ["-e", src], {
+			encoding: "utf8",
+			timeout: 2000,
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+		expect(result.error).toBeUndefined();
+		expect(result.status).toBe(0);
+		expect(result.stdout).toBe("false");
 	});
 });
 
