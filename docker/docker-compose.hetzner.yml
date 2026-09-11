@@ -146,6 +146,24 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  subgraph-processor:
+    environment:
+      SUBGRAPH_OPERATION_CONCURRENCY: "8"
+      SUBGRAPH_HEAVY_OP_BUDGET: "2"
+      SUBGRAPH_SOURCE: streams-index
+    depends_on:
+      api:
+        condition: service_healthy
+
+  subscription-processor:
+    environment:
+      SUBGRAPH_SOURCE: streams-index
+    depends_on:
+      api:
+        condition: service_healthy
+    deploy:
+      replicas: ${SUBSCRIPTION_PROCESSOR_REPLICAS:-1}
+
 volumes:
   caddy_data:
   caddy_config:
