@@ -7,6 +7,24 @@ instance reads are yours and unmetered. Archive bootstrap/backfill/reindex
 and hosted Index/Streams reads at `api.secondlayer.tools` draw
 [credits](/docs/authentication#archive-credits).
 
+## Subgraphs — September 2026
+
+### Identity maps have no handler
+
+You declare `materialize` on a pinned print source: snake columns `{ from: "tokenX" }`, `{ fromTx: "sender" }`. No `ctx.insert`. `--from-contract` and MCP scaffold emit that for named topics. A source is `materialize` or a handler, not both.
+
+### Pinned prints are required, and empty mappings refuse deploy
+
+A `print_event` with a contract id needs a `prints` map so `event.data` is typed. `contract_call` with `functionName` needs `abi`. Every other source needs a handler or `"*"`. Deploy and dryRun return `422 EMPTY_MAPPING` when dummy observed fields write 0 rows. Status `health.emptyMapping` is true only after processed events and empty tables.
+
+### Preview IN/OUT, and skipped prints are queryable
+
+`secondlayer subgraphs preview FILE --from H` prints per-event IN keys and OUT columns, and exits 1 on empty OUT. Print-validate skips persist to authed `GET /api/subgraphs/:name/violations` (not `/v1`). MCP `secondlayer://samples/{contractId}` is five camelCased prints plus the field list.
+
+### Create from a contract
+
+`subgraphs create` requires `--from-contract`, `--trait`, or `--blank` (native STX, not every FT). MCP `subgraphs_scaffold` prefers observed print-schema. `subgraphs add --from-contract` merges a second contract into the same file. `subgraphs_test` fail-closes the same way as the CLI; `dryRun` is DDL only.
+
 ## Index — September 2026
 
 ### Hosted Index is keyed
