@@ -38,11 +38,16 @@ function deployBody(name: string) {
 		prints: { tick: { amount: "uint" } },
 	};
 	const handlerCode = [
+		"function defineSubgraph(def) { return def; }",
 		"export default defineSubgraph({",
 		`  name: ${JSON.stringify(name)},`,
 		`  sources: { prints: ${JSON.stringify(source)} },`,
 		`  schema: ${JSON.stringify(schema)},`,
-		"  handlers: { prints: async (event, ctx) => {} },",
+		"  handlers: {",
+		"    prints: async (event, ctx) => {",
+		"      ctx.insert('rows', { amount: event.data?.amount ?? 0n });",
+		"    },",
+		"  },",
 		"});",
 	].join("\n");
 	return { name, sources: { prints: source }, schema, handlerCode };
