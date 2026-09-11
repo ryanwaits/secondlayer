@@ -1029,7 +1029,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/subgraphs/spec.d.ts",
-					"line": 92
+					"line": 94
 				},
 				{
 					"name": "SubgraphOperationStatus",
@@ -1053,7 +1053,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/subgraphs/spec.d.ts",
-					"line": 78
+					"line": 80
 				},
 				{
 					"name": "SubgraphSpecOptions",
@@ -1061,7 +1061,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/subgraphs/spec.d.ts",
-					"line": 79
+					"line": 81
 				}
 			]
 		},

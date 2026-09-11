@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 11.4.1
+
+### Patch Changes
+
+- 2bf7dfe: `subgraphs preview` shows per-event IN/OUT against Index samples; print-validate skips persist to `subgraph_violations` (authed GET + reorg clear); MCP `secondlayer://samples/{contractId}` serves camelCased print samples.
+
 ## 11.4.0
 
 ### Minor Changes

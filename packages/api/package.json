@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/api",
-	"version": "1.33.0",
+	"version": "1.33.1",
 	"private": true,
 	"type": "module",
 	"main": "./src/index.ts",
@@ -15,13 +15,13 @@
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.1042.0",
 		"@aws-sdk/s3-request-presigner": "3.1042.0",
-		"@secondlayer/bundler": "^0.5.1",
+		"@secondlayer/bundler": "^0.5.2",
 		"@secondlayer/indexer": "^1.14.2",
 		"@secondlayer/platform": "workspace:*",
 		"@secondlayer/sdk": "^10.3.0",
-		"@secondlayer/shared": "^11.4.0",
+		"@secondlayer/shared": "^11.4.1",
 		"@secondlayer/stacks": "^5.0.0",
-		"@secondlayer/subgraphs": "^4.1.1",
+		"@secondlayer/subgraphs": "^4.2.0",
 		"hono": "^4.0.0",
 		"stripe": "^22.0.2",
 		"zod": "^4.3.6"

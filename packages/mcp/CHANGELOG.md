@@ -1,5 +1,25 @@
 # @secondlayer/mcp
 
+## 7.4.1
+
+### Patch Changes
+
+- fd2e282: MCP subgraphs_scaffold prefers observed print-schema topics; falls back to SIP-010/009 token transfers then ABI contract_call. Token/trait scaffolds live in @secondlayer/scaffold (asset_identifier is text; optional balances via ctx.increment).
+- 6980e37: subgraphs_test reports skipped unreadable sources and deletes staged handler temp files.
+- bda7edb: MCP `subgraphs_test` runs handlers against Index with the same fail-closed EMPTY_MAPPING gate as the CLI; shared run lives in `@secondlayer/subgraphs/testing`.
+- 2bf7dfe: `subgraphs preview` shows per-event IN/OUT against Index samples; print-validate skips persist to `subgraph_violations` (authed GET + reorg clear); MCP `secondlayer://samples/{contractId}` serves camelCased print samples.
+- Updated dependencies [27cb488]
+- Updated dependencies [96a49d9]
+- Updated dependencies [fd2e282]
+- Updated dependencies [d27a2be]
+- Updated dependencies [1d02c9e]
+- Updated dependencies [bda7edb]
+- Updated dependencies [2bf7dfe]
+  - @secondlayer/subgraphs@4.2.0
+  - @secondlayer/scaffold@1.5.6
+  - @secondlayer/bundler@0.5.2
+  - @secondlayer/shared@11.4.1
+
 ## 7.4.0
 
 ### Minor Changes

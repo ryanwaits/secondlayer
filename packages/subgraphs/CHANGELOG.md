@@ -1,5 +1,21 @@
 # @secondlayer/subgraphs
 
+## 4.2.0
+
+### Minor Changes
+
+- 96a49d9: Print sources can declare a static `materialize` block (`{ from }` / `fromTx` / `fromBlock`) instead of a handler for 1:1 identity maps. Validate enforces materialize XOR handler, `from` keys ⊆ prints, and table/column existence. Runner and `probeHandlers` desugar materialize to inserts. Print-scaffold emits materialize (no `ctx.insert` handlers) for named topics.
+- d27a2be: Pinned `print_event` sources now require a non-empty `prints` map at validate and in types (trait/unpinned may omit). `contract_call` with `functionName` requires `abi`. Every source needs a handler or `"*"`. TypedHandlers keys are required. Print-field lint comment updated: declared-prints mismatches stay deploy errors; lookup failure still skips.
+
+### Patch Changes
+
+- 27cb488: Refuse deploys whose print samples write 0 rows (`EMPTY_MAPPING` 422) and surface `health.emptyMapping` on subgraph status after processing with empty tables.
+- 1d02c9e: subgraphs test camelizes print payloads to match the runtime and fetches contract_call rows from Index.
+- bda7edb: MCP `subgraphs_test` runs handlers against Index with the same fail-closed EMPTY_MAPPING gate as the CLI; shared run lives in `@secondlayer/subgraphs/testing`.
+- 2bf7dfe: `subgraphs preview` shows per-event IN/OUT against Index samples; print-validate skips persist to `subgraph_violations` (authed GET + reorg clear); MCP `secondlayer://samples/{contractId}` serves camelCased print samples.
+- Updated dependencies [2bf7dfe]
+  - @secondlayer/shared@11.4.1
+
 ## 4.1.5
 
 ### Patch Changes

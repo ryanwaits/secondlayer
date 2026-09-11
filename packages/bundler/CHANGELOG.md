@@ -1,5 +1,18 @@
 # @secondlayer/bundler
 
+## 0.5.2
+
+### Patch Changes
+
+- 96a49d9: Print sources can declare a static `materialize` block (`{ from }` / `fromTx` / `fromBlock`) instead of a handler for 1:1 identity maps. Validate enforces materialize XOR handler, `from` keys ⊆ prints, and table/column existence. Runner and `probeHandlers` desugar materialize to inserts. Print-scaffold emits materialize (no `ctx.insert` handlers) for named topics.
+- Updated dependencies [27cb488]
+- Updated dependencies [96a49d9]
+- Updated dependencies [d27a2be]
+- Updated dependencies [1d02c9e]
+- Updated dependencies [bda7edb]
+- Updated dependencies [2bf7dfe]
+  - @secondlayer/subgraphs@4.2.0
+
 ## 0.5.1
 
 ### Patch Changes

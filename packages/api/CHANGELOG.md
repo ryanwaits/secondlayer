@@ -1,5 +1,24 @@
 # @secondlayer/api
 
+## 1.33.1
+
+### Patch Changes
+
+- 27cb488: Refuse deploys whose print samples write 0 rows (`EMPTY_MAPPING` 422) and surface `health.emptyMapping` on subgraph status after processing with empty tables.
+- 8d1b0f4: OSS OpenAPI describes the instance token only. Hosted account keys stay on the platform spec and /docs/authentication.
+- d27a2be: Pinned `print_event` sources now require a non-empty `prints` map at validate and in types (trait/unpinned may omit). `contract_call` with `functionName` requires `abi`. Every source needs a handler or `"*"`. TypedHandlers keys are required. Print-field lint comment updated: declared-prints mismatches stay deploy errors; lookup failure still skips.
+- 2bf7dfe: `subgraphs preview` shows per-event IN/OUT against Index samples; print-validate skips persist to `subgraph_violations` (authed GET + reorg clear); MCP `secondlayer://samples/{contractId}` serves camelCased print samples.
+- Updated dependencies [27cb488]
+- Updated dependencies [96a49d9]
+- Updated dependencies [d27a2be]
+- Updated dependencies [1d02c9e]
+- Updated dependencies [bda7edb]
+- Updated dependencies [2bf7dfe]
+  - @secondlayer/subgraphs@4.2.0
+  - @secondlayer/bundler@0.5.2
+  - @secondlayer/shared@11.4.1
+  - @secondlayer/platform@0.2.8
+
 ## 1.33.0
 
 ### Minor Changes

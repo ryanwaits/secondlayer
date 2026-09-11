@@ -1,5 +1,25 @@
 # @secondlayer/cli
 
+## 14.2.1
+
+### Patch Changes
+
+- 0c35efe: subgraphs create requires --from-contract, --trait, or --blank (stx_transfer starter). New subgraphs add merges another contract's print sources into an existing static file.
+- 1d02c9e: subgraphs test camelizes print payloads to match the runtime and fetches contract_call rows from Index.
+- bda7edb: MCP `subgraphs_test` runs handlers against Index with the same fail-closed EMPTY_MAPPING gate as the CLI; shared run lives in `@secondlayer/subgraphs/testing`.
+- 2bf7dfe: `subgraphs preview` shows per-event IN/OUT against Index samples; print-validate skips persist to `subgraph_violations` (authed GET + reorg clear); MCP `secondlayer://samples/{contractId}` serves camelCased print samples.
+- Updated dependencies [27cb488]
+- Updated dependencies [96a49d9]
+- Updated dependencies [fd2e282]
+- Updated dependencies [d27a2be]
+- Updated dependencies [1d02c9e]
+- Updated dependencies [bda7edb]
+- Updated dependencies [2bf7dfe]
+  - @secondlayer/subgraphs@4.2.0
+  - @secondlayer/scaffold@1.5.6
+  - @secondlayer/bundler@0.5.2
+  - @secondlayer/shared@11.4.1
+
 ## 14.2.0
 
 ### Minor Changes

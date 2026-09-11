@@ -4445,6 +4445,66 @@
 				}
 			}
 		},
+		"/api/subgraphs/{name}/violations": {
+			"get": {
+				"tags": [
+					"deployments"
+				],
+				"summary": "Recent print-validate skips for this subgraph (last 100, newest first)",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "name",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						},
+						"description": "Page size, 1–100 (default 50)."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/api/subscriptions": {
 			"get": {
 				"tags": [

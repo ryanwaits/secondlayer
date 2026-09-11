@@ -1,5 +1,19 @@
 # @secondlayer/scaffold
 
+## 1.5.6
+
+### Patch Changes
+
+- 96a49d9: Print sources can declare a static `materialize` block (`{ from }` / `fromTx` / `fromBlock`) instead of a handler for 1:1 identity maps. Validate enforces materialize XOR handler, `from` keys ⊆ prints, and table/column existence. Runner and `probeHandlers` desugar materialize to inserts. Print-scaffold emits materialize (no `ctx.insert` handlers) for named topics.
+- fd2e282: MCP subgraphs_scaffold prefers observed print-schema topics; falls back to SIP-010/009 token transfers then ABI contract_call. Token/trait scaffolds live in @secondlayer/scaffold (asset_identifier is text; optional balances via ctx.increment).
+- Updated dependencies [27cb488]
+- Updated dependencies [96a49d9]
+- Updated dependencies [d27a2be]
+- Updated dependencies [1d02c9e]
+- Updated dependencies [bda7edb]
+- Updated dependencies [2bf7dfe]
+  - @secondlayer/subgraphs@4.2.0
+
 ## 1.5.5
 
 ### Patch Changes
