@@ -48,6 +48,10 @@ export interface PrintScaffoldInput {
 		oldest_height?: number | null;
 		newest_height?: number | null;
 	};
+	/** Source keys already taken (e.g. when merging via `subgraphs add`). */
+	reservedSourceKeys?: string[];
+	/** Table names already taken. */
+	reservedTableNames?: string[];
 }
 
 const IDENT_RE = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
@@ -105,7 +109,7 @@ function tableName(str: string): string {
  * Deterministic collision dedupe: first claimant keeps the base name, later
  * ones get `_2`, `_3`, … in input order. `reserved` names are never handed out.
  */
-function makeDeduper(reserved: string[] = []): (base: string) => string {
+export function makeDeduper(reserved: string[] = []): (base: string) => string {
 	const used = new Set(reserved);
 	return (base) => {
 		let candidate = base;
@@ -182,17 +186,18 @@ function wildcardScaffold(
 	name: string,
 	contractId: string,
 	table: string,
+	sourceKey: string,
 ): string {
 	return wrap(
 		name,
-		`    events: { type: 'print_event', contractId: ${str(contractId)} }`,
+		`    ${key(sourceKey)}: { type: 'print_event', contractId: ${str(contractId)} }`,
 		`    ${key(table)}: {
       columns: {
         topic: { type: 'text', indexed: true, nullable: true },
         value: { type: 'jsonb', nullable: true }
       }
     }`,
-		`    events: (event, ctx) => {
+		`    ${key(sourceKey)}: (event, ctx) => {
       ctx.insert(${str(table)}, { topic: event.topic ?? null, value: event.data ?? null });
     }`,
 	);
@@ -235,14 +240,16 @@ export function generatePrintSchemaSubgraph(input: PrintScaffoldInput): string {
 		throw new Error("print scaffold requires at least one topic");
 	}
 
-	const wideTable = tableName(contractName);
+	const dedupeTableName = makeDeduper(input.reservedTableNames ?? []);
+	const wideTable = dedupeTableName(tableName(contractName));
 	if (topics.length === 1 && topics[0]?.topic === "*") {
-		return wildcardScaffold(name, input.contractId, wideTable);
+		const src = makeDeduper(input.reservedSourceKeys ?? [])("events");
+		return wildcardScaffold(name, input.contractId, wideTable, src);
 	}
 
 	// Distinct topics can camelize to the same source key — suffix later ones
 	// so sources/handlers don't silently overwrite each other.
-	const dedupeSourceKey = makeDeduper();
+	const dedupeSourceKey = makeDeduper(input.reservedSourceKeys ?? []);
 	const sourceKeyByTopic = new Map<string, string>();
 	for (const t of topics) {
 		sourceKeyByTopic.set(t.topic, dedupeSourceKey(toCamelCase(t.topic)));
@@ -256,8 +263,8 @@ export function generatePrintSchemaSubgraph(input: PrintScaffoldInput): string {
 
 	if (input.tablePerTopic) {
 		// Resolve table + column names once so schema and handlers agree on
-		// collision suffixes.
-		const dedupeTable = makeDeduper();
+		// collision suffixes. Seed with reserved names so `add` does not clobber.
+		const dedupeTable = makeDeduper(input.reservedTableNames ?? []);
 		const perTopic = topics.map((t) => {
 			const table = dedupeTable(tableName(t.topic));
 			const dedupeCol = makeDeduper();

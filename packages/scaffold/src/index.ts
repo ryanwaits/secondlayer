@@ -17,12 +17,18 @@ export {
 } from "./print-payload-types.ts";
 export {
 	generatePrintSchemaSubgraph,
+	makeDeduper,
 	type PrintScaffoldField,
 	type PrintScaffoldInput,
 	type PrintScaffoldTopic,
 } from "./print-scaffold.ts";
 export { generateSubgraphCode } from "./subgraph.ts";
 export type { AbiFunction, AbiMap } from "./subgraph.ts";
+export {
+	generateTokenSubgraph,
+	generateTokenSubgraphFromAbi,
+	type TokenScaffoldInput,
+} from "./token-scaffold.ts";
 export {
 	generateTraitSubgraph,
 	type TraitScaffoldInput,
