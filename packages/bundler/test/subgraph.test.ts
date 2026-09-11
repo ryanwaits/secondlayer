@@ -9,7 +9,11 @@ describe("bundleSubgraphCode", () => {
 			export default defineSubgraph({
 				name: "bundle-smoke",
 				sources: {
-					events: { type: "print_event", contractId: "SP123.demo" },
+					events: {
+						type: "print_event",
+						contractId: "SP123.demo",
+						prints: { event: { amount: "uint" } },
+					},
 				},
 				schema: {
 					events: {
@@ -43,7 +47,19 @@ describe("bundleSubgraphCode", () => {
 					export default defineSubgraph({
 						name: "bad-indexes",
 						sources: {
-							transfers: { type: "contract_call", contractId: "SP123.demo", functionName: "transfer" },
+							transfers: {
+								type: "contract_call",
+								contractId: "SP123.demo",
+								functionName: "transfer",
+								abi: {
+									functions: [{
+										name: "transfer",
+										access: "public",
+										args: [],
+										outputs: "bool",
+									}],
+								},
+							},
 						},
 						schema: {
 							transfers: {
@@ -73,7 +89,11 @@ describe("bundleSubgraphCode", () => {
 				export default defineSubgraph({
 					name: "bundle-side-effect",
 					sources: {
-						events: { type: "print_event", contractId: "SP123.demo" },
+						events: {
+							type: "print_event",
+							contractId: "SP123.demo",
+							prints: { event: { txId: "text" } },
+						},
 					},
 					schema: {
 						events: {

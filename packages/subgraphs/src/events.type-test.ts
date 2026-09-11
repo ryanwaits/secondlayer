@@ -26,12 +26,12 @@ import type {
 
 // ── EventForFilter maps each source type to its payload ──────────────────
 
+// Unpinned PrintEventFilter member → untyped payload.
+type UnpinnedPrint = Extract<PrintEventFilter, { contractId?: undefined }>;
 expectTypeOf<
-	EventForFilter<PrintEventFilter>
+	EventForFilter<UnpinnedPrint>
 >().toEqualTypeOf<PrintEventPayload>();
-expectTypeOf<
-	EventForFilter<PrintEventFilter>["topic"]
->().toEqualTypeOf<string>();
+expectTypeOf<EventForFilter<UnpinnedPrint>["topic"]>().toEqualTypeOf<string>();
 
 expectTypeOf<
 	EventForFilter<FtTransferFilter>
@@ -65,7 +65,7 @@ expectTypeOf<
 
 // Negative: topic is a string, not a number.
 expectTypeOf<
-	EventForFilter<PrintEventFilter>["topic"]
+	EventForFilter<UnpinnedPrint>["topic"]
 >().not.toEqualTypeOf<number>();
 
 // ── End-to-end: inline handler `event` is inferred from its source ───────
@@ -73,7 +73,8 @@ expectTypeOf<
 defineSubgraph({
 	name: "type-test",
 	sources: {
-		print: { type: "print_event", contractId: "SP000.c" },
+		// Unpinned → untyped PrintEventPayload (pinned requires prints).
+		print: { type: "print_event" },
 		ftXfer: { type: "ft_transfer" },
 	},
 	schema: {
@@ -146,9 +147,9 @@ defineSubgraph({
 	},
 });
 
-// Undeclared `prints` falls back to the untyped payload (back-compat).
+// Undeclared `prints` (unpinned / no map on the type) → untyped payload.
 expectTypeOf<
-	PrintEventFor<{ type: "print_event"; contractId: string }>
+	PrintEventFor<{ type: "print_event" }>
 >().toEqualTypeOf<PrintEventPayload>();
 
 // ── Declared `abi` → typed, named `event.input` for contract_call ────────

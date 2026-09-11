@@ -316,8 +316,74 @@ const SubgraphFilterUnion = z.discriminatedUnion("type", [
 export const SubgraphFilterSchema: z.ZodType<SubgraphFilter> =
 	SubgraphFilterUnion as unknown as z.ZodType<SubgraphFilter>;
 
-export const SubgraphDefinitionSchema: z.ZodType<SubgraphDefinition> = z.object(
-	{
+/** Pinned contractId: a non-empty string or a non-empty array of ids. */
+function hasPinnedContractId(
+	contractId: string | readonly string[] | undefined,
+): boolean {
+	if (typeof contractId === "string") return contractId.length > 0;
+	if (Array.isArray(contractId)) return contractId.length > 0;
+	return false;
+}
+
+/**
+ * Deploy gates beyond the per-filter union: pinned print_event needs a
+ * non-empty `prints` map, contract_call+functionName needs `abi`, and every
+ * source needs a named handler or `"*"`.
+ *
+ * TODO(sg-006): `materialize` should count as a handler so identity maps
+ * need no function.
+ */
+function refineDeployGates(
+	def: {
+		sources: Record<string, SubgraphFilter>;
+		handlers: Record<string, unknown>;
+	},
+	ctx: z.RefinementCtx,
+): void {
+	for (const [name, filter] of Object.entries(def.sources)) {
+		if (filter.type === "print_event") {
+			// Trait / unpinned (no contractId) may omit prints — no single schema.
+			const pinned = hasPinnedContractId(filter.contractId) && !filter.trait;
+			if (pinned) {
+				const prints = filter.prints;
+				if (
+					prints === undefined ||
+					typeof prints !== "object" ||
+					Object.keys(prints).length === 0
+				) {
+					ctx.addIssue({
+						code: "custom",
+						path: ["sources", name, "prints"],
+						message: `print_event source "${name}" has no prints map — field names would be untyped and empty tables would typecheck. Declare prints from index_print_schema / create --from-contract.`,
+					});
+				}
+			}
+		}
+		if (filter.type === "contract_call" && filter.functionName !== undefined) {
+			if (filter.abi === undefined) {
+				ctx.addIssue({
+					code: "custom",
+					path: ["sources", name, "abi"],
+					message: `contract_call source "${name}" has functionName but no abi — pass a canonical ABI (normalizeAbi() from @secondlayer/stacks/clarity).`,
+				});
+			}
+		}
+	}
+
+	const hasCatchAll = def.handlers["*"] != null;
+	for (const name of Object.keys(def.sources)) {
+		if (def.handlers[name] == null && !hasCatchAll) {
+			ctx.addIssue({
+				code: "custom",
+				path: ["handlers", name],
+				message: `source "${name}" has no handler (and no "*") — events will be skipped and the table stay empty.`,
+			});
+		}
+	}
+}
+
+export const SubgraphDefinitionSchema: z.ZodType<SubgraphDefinition> = z
+	.object({
 		name: SubgraphNameSchema,
 		version: z.string().optional(),
 		description: z.string().optional(),
@@ -334,8 +400,16 @@ export const SubgraphDefinitionSchema: z.ZodType<SubgraphDefinition> = z.object(
 			),
 		schema: SubgraphSchemaSchema,
 		handlers: z.record(z.string(), z.any()),
-	},
-) as unknown as z.ZodType<SubgraphDefinition>;
+	})
+	.superRefine((def, ctx) => {
+		refineDeployGates(
+			def as {
+				sources: Record<string, SubgraphFilter>;
+				handlers: Record<string, unknown>;
+			},
+			ctx,
+		);
+	}) as unknown as z.ZodType<SubgraphDefinition>;
 
 /**
  * Validates a subgraph definition, returning the parsed result or throwing on failure.

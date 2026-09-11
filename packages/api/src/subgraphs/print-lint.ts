@@ -6,9 +6,13 @@ import type {
 /**
  * Deploy-time print-field lint: cross-check `.data.<field>` reads in
  * print_event handler code against the empirically observed print schema for
- * the source's contract. Purely advisory — deploys never fail on a warning,
- * and any schema-lookup failure silently skips the lint (the chain index may
- * lag or the contract may be brand new).
+ * the source's contract.
+ *
+ * Pinned print sources must declare `prints` (validate refuses otherwise), so
+ * findings against that map are deploy errors (`PRINT_FIELD_MISMATCH`). The
+ * undeclared path is advisory only (trait/unpinned sources). Schema-lookup
+ * failure still silently skips the lint — the chain index may lag or the
+ * contract may be brand new; empty index must not fail deploy.
  */
 
 /** Identifier after `.data.` — matches how handlers read decoded print fields. */

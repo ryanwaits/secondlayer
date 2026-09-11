@@ -108,7 +108,12 @@ type TraitScope = { trait?: string };
  *
  * ```ts
  * sources: {
- *   registry: { type: "print_event", contractId: REGISTRY, topic: "pool-created" },
+ *   registry: {
+ *     type: "print_event",
+ *     contractId: REGISTRY,
+ *     topic: "pool-created",
+ *     prints: { "pool-created": { pool: "principal" } },
+ *   },
  *   swaps: {
  *     type: "print_event",
  *     topic: "swap",
@@ -237,6 +242,9 @@ export interface ContractCallFilter extends TraitScope, FactoryScope {
 	 * decoded function arguments. Dev-provided; serialized into the deployed
 	 * definition and used at runtime to decode args by name. Omit to keep
 	 * `event.args` as a positional `unknown[]`.
+	 *
+	 * Deploy validation requires `abi` whenever `functionName` is set
+	 * (`normalizeAbi()` from `@secondlayer/stacks/clarity`).
 	 */
 	abi?: AbiContract;
 }
@@ -265,29 +273,58 @@ export type PrintField =
 	| { tuple: Record<string, PrintField> }
 	| { list: PrintField };
 
-export interface PrintEventFilter extends TraitScope, FactoryScope {
+/**
+ * Per-topic field schema for a print_event source. When declared, the handler's
+ * `event` is a discriminated union keyed by `topic` and `event.data` is typed
+ * per topic. Nested tuples, lists, and optional fields — see {@link PrintField}.
+ *
+ * Also opts the source into RUNTIME validation: a payload that does not match
+ * is skipped and logged rather than written as nulls.
+ */
+export type PrintEventPrints = Record<string, Record<string, PrintField>>;
+
+type PrintEventFields = FactoryScope & {
 	type: "print_event";
-	/** One contract id, or a set of them (max 20). Supports `*` wildcards.
-	 *  COMPOSES with `trait` — the matcher ANDs them, so the pair means
-	 *  "contracts conforming to this trait, narrowed to these ids". (The Index
-	 *  read API refuses the combination, but that is its query planner's
-	 *  constraint, not a semantic one.) */
-	contractId?: string | readonly string[];
 	topic?: string;
-	/**
-	 * Per-topic field schema. When declared, the handler's `event` is a
-	 * discriminated union keyed by `topic` and `event.data` is typed per topic
-	 * (e.g. `{ "completed-deposit": { amount: "uint", sender: "principal" } }`).
-	 * Nested tuples, lists, and optional fields are expressible — see
-	 * {@link PrintField}.
-	 *
-	 * Declaring `prints` also opts the source into RUNTIME validation: an
-	 * event whose decoded payload does not match is skipped and logged rather
-	 * than written as nulls (and the deploy-time field lint is promoted from
-	 * a warning to an error).
-	 */
-	prints?: Record<string, Record<string, PrintField>>;
-}
+};
+
+/**
+ * Pinned to one or more contract ids with no trait — `prints` is required so
+ * `event.data` is typed and empty-table handlers cannot typecheck.
+ */
+export type PinnedPrintEventFilter = PrintEventFields & {
+	contractId: string | readonly string[];
+	trait?: undefined;
+	prints: PrintEventPrints;
+};
+
+/**
+ * Trait-scoped print source (optionally narrowed by contractId). No single
+ * schema — `prints` stays optional.
+ */
+export type TraitPrintEventFilter = PrintEventFields & {
+	contractId?: string | readonly string[];
+	trait: string;
+	prints?: PrintEventPrints;
+};
+
+/**
+ * Unpinned / factory-only print source (no contractId). `prints` optional.
+ */
+export type UnpinnedPrintEventFilter = PrintEventFields & {
+	contractId?: undefined;
+	trait?: string;
+	prints?: PrintEventPrints;
+};
+
+/**
+ * Print-event filter. Pinned sources (contractId set, no trait) require
+ * `prints`; trait and unpinned sources may omit it.
+ */
+export type PrintEventFilter =
+	| PinnedPrintEventFilter
+	| TraitPrintEventFilter
+	| UnpinnedPrintEventFilter;
 
 /** All subgraph filter types — discriminated on `type` */
 export type SubgraphFilter =

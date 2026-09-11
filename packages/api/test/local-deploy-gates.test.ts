@@ -35,6 +35,7 @@ function deployBody(name: string) {
 		type: "print_event",
 		contractId: "SP123.local-gates",
 		topic: "tick",
+		prints: { tick: { amount: "uint" } },
 	};
 	const handlerCode = [
 		"export default defineSubgraph({",

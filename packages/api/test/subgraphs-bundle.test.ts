@@ -36,6 +36,7 @@ export default defineSubgraph({
 			type: "print_event",
 			contractId: "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01",
 			topic: "swap",
+			prints: { swap: { amount: "uint" } },
 		},
 	},
 	schema: {
@@ -63,6 +64,14 @@ export default defineSubgraph({
 			type: "contract_call",
 			contractId: "SP123.demo",
 			functionName: "transfer",
+			abi: {
+				functions: [{
+					name: "transfer",
+					access: "public",
+					args: [],
+					outputs: "bool",
+				}],
+			},
 		},
 	},
 	schema: {
@@ -141,6 +150,7 @@ export default defineSubgraph({
 			type: "print_event",
 			contractId: "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01",
 			topic: "swap",
+			prints: { swap: { amount: "uint" } },
 		},
 	},
 	schema: { swaps: { columns: { amount: { type: "uint" } } } },

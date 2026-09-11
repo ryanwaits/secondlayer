@@ -303,7 +303,13 @@ describe("subgraph MCP tools", () => {
 		return `import { defineSubgraph } from "@secondlayer/subgraphs";
 export default defineSubgraph({
   name: "dex-test",
-  sources: { prints: { type: "print_event", contractId: "SP.dex" } },
+  sources: {
+    prints: {
+      type: "print_event",
+      contractId: "SP.dex",
+      prints: { swap: { tokenX: "text" } },
+    },
+  },
   schema: { swaps: { columns: { token_x: { type: "text" } } } },
   handlers: {
     prints: (event, ctx) => {
@@ -402,7 +408,11 @@ export default defineSubgraph({
 export default defineSubgraph({
   name: "dex-test",
   sources: {
-    prints: { type: "print_event", contractId: "SP.dex" },
+    prints: {
+      type: "print_event",
+      contractId: "SP.dex",
+      prints: { swap: { tokenX: "text" } },
+    },
     deploys: { type: "contract_deploy" },
   },
   schema: { swaps: { columns: { token_x: { type: "text" } } } },

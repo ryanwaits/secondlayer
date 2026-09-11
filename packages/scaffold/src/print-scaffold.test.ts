@@ -176,11 +176,9 @@ describe("generatePrintSchemaSubgraph", () => {
 			contractId: CONTRACT,
 			topics: [{ topic: "*", non_tuple: true, fields: [] }],
 		});
-		expect(out).toContain(
-			`events: { type: 'print_event', contractId: '${CONTRACT}' }`,
-		);
+		expect(out).toContain(`contractId: '${CONTRACT}'`);
+		expect(out).toContain("prints: { '*': { value: 'jsonb' } }");
 		expect(out).toContain("value: { type: 'jsonb', nullable: true }");
-		expect(out).not.toContain("prints:");
 	});
 
 	test("conflicting column types across topics → jsonb wide column", () => {

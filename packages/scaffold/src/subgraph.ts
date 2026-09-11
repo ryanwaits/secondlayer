@@ -256,8 +256,21 @@ export function generateSubgraphCode(
 	if (hasEvents) {
 		for (const ev of events) {
 			const tableName = toSnake(ev.name);
+			const tupleFields = isAbiTuple(ev.value) ? ev.value.tuple : [];
+			const printsFields =
+				tupleFields.length === 0
+					? ""
+					: tupleFields
+							.map((arg) => {
+								const mapped = clarityTypeToSubgraphColumn(arg.type);
+								const decl = mapped.nullable
+									? `{ type: '${mapped.type}', optional: true }`
+									: `'${mapped.type}'`;
+								return `          ${toCamel(arg.name)}: ${decl}`;
+							})
+							.join(",\n");
 			sourceEntries.push(
-				`    ${tableName}: { type: 'print_event', contractId: '${contractId}', topic: '${ev.name}' }`,
+				`    ${tableName}: {\n      type: 'print_event',\n      contractId: '${contractId}',\n      topic: '${ev.name}',\n      prints: {\n        '${ev.name}': {${printsFields ? `\n${printsFields}\n        ` : ""}}\n      }\n    }`,
 			);
 			let insertCall: string;
 			if (isAbiTuple(ev.value)) {

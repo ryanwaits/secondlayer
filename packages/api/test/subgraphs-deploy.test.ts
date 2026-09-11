@@ -277,9 +277,12 @@ describe.skipIf(!HAS_DB)("deploy print-field lint (route)", () => {
 		type: "print_event",
 		contractId: LINT_CONTRACT,
 		topic: "completed-deposit",
+		prints: {
+			"completed-deposit": { amount: "uint", bitcoinTxid: "text" },
+		},
 	};
 
-	test("dry-run deploy surfaces unknown-field warnings", async () => {
+	test("dry-run deploy refuses unknown fields when prints are declared", async () => {
 		const res = await deploy(
 			deployBody({
 				name: "print-lint-dryrun-sg",
@@ -288,12 +291,10 @@ describe.skipIf(!HAS_DB)("deploy print-field lint (route)", () => {
 				dryRun: true,
 			}),
 		);
-		expect(res.status).toBe(200);
-		const body = (await res.json()) as { dryRun: boolean; warnings?: string[] };
-		expect(body.dryRun).toBe(true);
-		expect(body.warnings).toEqual([
-			`print_event source "prints": field "bogusField" never observed on topic(s) completed-deposit of ${LINT_CONTRACT}`,
-		]);
+		expect(res.status).toBe(422);
+		const body = (await res.json()) as { code?: string; error?: string };
+		expect(body.code).toBe("PRINT_FIELD_MISMATCH");
+		expect(body.error).toContain("bogusField");
 	});
 
 	test("dry-run deploy with only observed fields has no warnings", async () => {
@@ -328,7 +329,7 @@ describe.skipIf(!HAS_DB)("deploy print-field lint (route)", () => {
 		expect(body.warnings).toBeUndefined();
 	});
 
-	test("real deploy carries warnings on the success body", async () => {
+	test("real deploy refuses unknown fields when prints are declared", async () => {
 		const res = await deploy(
 			deployBody({
 				name: LIVE_SUBGRAPH,
@@ -336,14 +337,9 @@ describe.skipIf(!HAS_DB)("deploy print-field lint (route)", () => {
 				handlerExpr: "event.data.bogusField",
 			}),
 		);
-		expect(res.status).toBe(201);
-		const body = (await res.json()) as {
-			action: string;
-			warnings?: string[];
-		};
-		expect(body.action).toBe("created");
-		expect(body.warnings).toEqual([
-			`print_event source "prints": field "bogusField" never observed on topic(s) completed-deposit of ${LINT_CONTRACT}`,
-		]);
+		expect(res.status).toBe(422);
+		const body = (await res.json()) as { code?: string; error?: string };
+		expect(body.code).toBe("PRINT_FIELD_MISMATCH");
+		expect(body.error).toContain("bogusField");
 	});
 });

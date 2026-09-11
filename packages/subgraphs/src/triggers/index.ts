@@ -14,6 +14,7 @@ import type {
 	NftMintFilter,
 	NftTransferFilter,
 	PrintEventFilter,
+	PrintEventPrints,
 	StxBurnFilter,
 	StxLockFilter,
 	StxMintFilter,
@@ -166,9 +167,14 @@ export interface TriggerHelpers {
 	contractDeploy: (
 		f?: Omit<ContractDeployFilter, "type">,
 	) => TypedEventTrigger<ContractDeployEvent>;
-	printEvent: (
-		f?: Omit<PrintEventFilter, "type">,
-	) => TypedEventTrigger<PrintEventEvent>;
+	/** Subscription triggers are not subgraph deploys — prints not required. */
+	printEvent: (f?: {
+		contractId?: string | readonly string[];
+		topic?: string;
+		trait?: string;
+		factory?: { from: string; field: string };
+		prints?: PrintEventPrints;
+	}) => TypedEventTrigger<PrintEventEvent>;
 }
 
 export const on: TriggerHelpers = {
@@ -200,7 +206,11 @@ export const on: TriggerHelpers = {
 	contractDeploy: (f = {}) =>
 		make<ContractDeployEvent>({ type: "contract_deploy", ...f }),
 
-	printEvent: (f = {}) => make<PrintEventEvent>({ type: "print_event", ...f }),
+	printEvent: (f = {}) =>
+		make<PrintEventEvent>({
+			type: "print_event",
+			...f,
+		} as PrintEventFilter),
 };
 
 /** Extract the event payload type from a trigger. */

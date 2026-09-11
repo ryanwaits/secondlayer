@@ -102,7 +102,11 @@ describe("factory-scoped sources", () => {
 		const def = (factory: unknown) => ({
 			name: "factory-test",
 			sources: {
-				registry: { type: "print_event", contractId: REGISTRY },
+				registry: {
+					type: "print_event",
+					contractId: REGISTRY,
+					prints: { "pool-created": { pool: "principal" } },
+				},
 				swaps: { type: "print_event", factory },
 			},
 			schema: { t: { columns: { a: { type: "uint" } } } },

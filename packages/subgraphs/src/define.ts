@@ -10,16 +10,14 @@ import type {
  * Handlers keyed by source name. Each handler's `event` is typed from the
  * matching source's filter `type` (e.g. a `print_event` source → `event.topic`
  * is a `string`), and `ctx` is typed against the subgraph `schema` (table
- * names + row columns checked). The optional `"*"` catch-all receives any event.
- *
- * Handlers are optional per source (a source with no handler is skipped at
- * runtime), matching `handlers[name] ?? handlers["*"]` resolution.
+ * names + row columns checked). Every source key is required; the optional
+ * `"*"` catch-all receives any event (validate also accepts `*` alone).
  */
 export type TypedHandlers<
 	Sources extends Record<string, SubgraphFilter>,
 	S extends SubgraphSchema,
 > = {
-	[K in keyof Sources]?: (
+	[K in keyof Sources]-?: (
 		event: EventForFilter<Sources[K]>,
 		ctx: TypedSubgraphContext<S>,
 	) => void | Promise<void>;

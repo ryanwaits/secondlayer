@@ -403,3 +403,115 @@ test("trait and contractId compose (trait-scoped, narrowed to ids)", () => {
 		),
 	).not.toThrow();
 });
+
+// ── Deploy gates: prints, abi, handlers ──────────────────────────────
+
+test("pinned print_event without prints is refused", () => {
+	expect(() =>
+		validateSubgraphDefinition(
+			withSource({ type: "print_event", contractId: "SP1.registry" }),
+		),
+	).toThrow(/has no prints map/);
+	expect(() =>
+		validateSubgraphDefinition(
+			withSource({
+				type: "print_event",
+				contractId: ["SP1.a", "SP1.b"],
+				prints: {},
+			}),
+		),
+	).toThrow(/has no prints map/);
+});
+
+test("pinned print_event with a non-empty prints map passes", () => {
+	expect(() =>
+		validateSubgraphDefinition(
+			withSource({
+				type: "print_event",
+				contractId: "SP1.registry",
+				prints: { swap: { amount: "uint" } },
+			}),
+		),
+	).not.toThrow();
+});
+
+test("trait or unpinned print_event may omit prints", () => {
+	expect(() =>
+		validateSubgraphDefinition(
+			withSource({ type: "print_event", trait: "sip-xxx" }),
+		),
+	).not.toThrow();
+	expect(() =>
+		validateSubgraphDefinition(
+			withSource({
+				type: "print_event",
+				trait: "sip-xxx",
+				contractId: "SP1.token",
+			}),
+		),
+	).not.toThrow();
+	expect(() =>
+		validateSubgraphDefinition(withSource({ type: "print_event" })),
+	).not.toThrow();
+	expect(() =>
+		validateSubgraphDefinition(
+			withSource({
+				type: "print_event",
+				factory: { from: "registry", field: "data.pool" },
+			}),
+		),
+	).not.toThrow();
+});
+
+test("contract_call with functionName requires abi", () => {
+	expect(() =>
+		validateSubgraphDefinition(
+			withSource({
+				type: "contract_call",
+				contractId: "SP1.c",
+				functionName: "transfer",
+			}),
+		),
+	).toThrow(/has functionName but no abi/);
+	expect(() =>
+		validateSubgraphDefinition(
+			withSource({
+				type: "contract_call",
+				contractId: "SP1.c",
+				functionName: "transfer",
+				abi: CANONICAL_ABI,
+			}),
+		),
+	).not.toThrow();
+	// functionName omitted → abi optional
+	expect(() =>
+		validateSubgraphDefinition(
+			withSource({ type: "contract_call", contractId: "SP1.c" }),
+		),
+	).not.toThrow();
+});
+
+test("source without handler and without * is refused", () => {
+	expect(() =>
+		validateSubgraphDefinition({
+			name: "no-handler",
+			sources: { stx: { type: "stx_transfer" } },
+			schema: { t: { columns: { a: { type: "uint" } } } },
+			handlers: {},
+		}),
+	).toThrow(/has no handler/);
+});
+
+test("catch-all * covers all sources", () => {
+	expect(() =>
+		validateSubgraphDefinition({
+			name: "star-handler",
+			sources: {
+				a: { type: "stx_transfer" },
+				b: { type: "ft_transfer" },
+			},
+			schema: { t: { columns: { a: { type: "uint" } } } },
+			handlers: { "*": () => {} },
+		}),
+	).not.toThrow();
+});

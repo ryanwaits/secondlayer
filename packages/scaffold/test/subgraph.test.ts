@@ -128,6 +128,9 @@ describe("scaffold → validate round-trip", () => {
 			type: "print_event",
 			contractId: CONTRACT_ID,
 			topic: "swap-executed",
+			prints: {
+				"swap-executed": { poolId: "uint", trader: "principal" },
+			},
 		});
 	});
 

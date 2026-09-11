@@ -155,29 +155,29 @@ function sourceEntry(
 		`      contractId: ${str(contractId)},`,
 		`      topic: ${str(topic.topic)}`,
 	];
-	if (topic.fields.length > 0) {
-		// prints keys must match runtime event.data keys, so duplicates can't be
-		// suffixed — keep the first occurrence of a camel_name.
-		const seen = new Set<string>();
-		const fieldLines: string[] = [];
-		for (const f of topic.fields) {
-			if (seen.has(f.camel_name)) continue;
-			seen.add(f.camel_name);
-			// Honor always_present: a field seen on only SOME sampled events is
-			// declared optional, so `event.data.x` is `T | undefined` rather than
-			// a lie. This emitter used to drop the flag while `--payloads`
-			// honored it — the same schema, two different answers about
-			// optionality.
-			const declared = f.always_present
-				? str(f.column_type)
-				: `{ type: ${str(f.column_type)}, optional: true }`;
-			fieldLines.push(`          ${key(f.camel_name)}: ${declared}`);
-		}
-		lines[lines.length - 1] += ",";
-		lines.push(
-			`      prints: {\n        ${key(topic.topic)}: {\n${fieldLines.join(",\n")}\n        }\n      }`,
-		);
+	// Pinned print_event requires a non-empty prints map (even when the topic
+	// has no fields yet — empty topic object still declares the topic).
+	const seen = new Set<string>();
+	const fieldLines: string[] = [];
+	for (const f of topic.fields) {
+		if (seen.has(f.camel_name)) continue;
+		seen.add(f.camel_name);
+		// Honor always_present: a field seen on only SOME sampled events is
+		// declared optional, so `event.data.x` is `T | undefined` rather than
+		// a lie. This emitter used to drop the flag while `--payloads`
+		// honored it — the same schema, two different answers about
+		// optionality.
+		const declared = f.always_present
+			? str(f.column_type)
+			: `{ type: ${str(f.column_type)}, optional: true }`;
+		fieldLines.push(`          ${key(f.camel_name)}: ${declared}`);
 	}
+	lines[lines.length - 1] += ",";
+	lines.push(
+		fieldLines.length > 0
+			? `      prints: {\n        ${key(topic.topic)}: {\n${fieldLines.join(",\n")}\n        }\n      }`
+			: `      prints: {\n        ${key(topic.topic)}: {}\n      }`,
+	);
 	return `    ${key(srcKey)}: {\n${lines.join("\n")}\n    }`;
 }
 
@@ -190,7 +190,11 @@ function wildcardScaffold(
 ): string {
 	return wrap(
 		name,
-		`    ${key(sourceKey)}: { type: 'print_event', contractId: ${str(contractId)} }`,
+		`    ${key(sourceKey)}: {
+      type: 'print_event',
+      contractId: ${str(contractId)},
+      prints: { '*': { value: 'jsonb' } }
+    }`,
 		`    ${key(table)}: {
       columns: {
         topic: { type: 'text', indexed: true, nullable: true },

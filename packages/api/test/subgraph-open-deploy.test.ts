@@ -38,6 +38,7 @@ function deployBody(name: string, startBlock?: number) {
 		type: "print_event",
 		contractId: "SP123.open-deploy",
 		topic: "tick",
+		prints: { tick: { amount: "uint" } },
 	};
 	const handlerCode = [
 		"export default defineSubgraph({",
