@@ -64,6 +64,12 @@ export interface TestSubgraphContext<S extends SubgraphSchema>
 	commit(): Promise<void>;
 	/** Swap the transaction metadata handlers see (`ctx.tx`). */
 	setTx(tx: Partial<TxMeta>): void;
+	/** Insert ops queued since `opsCheckpoint()`, for preview IN/OUT traces. */
+	pendingInsertsSince(
+		checkpoint: number,
+	): Array<{ table: string; keys: string[]; row: Record<string, unknown> }>;
+	/** Length of the pending-ops queue (same as runtime `opsCheckpoint`). */
+	opsCheckpoint(): number;
 }
 
 /** The real context, backed by an in-memory row store instead of Postgres. */
@@ -139,6 +145,26 @@ class InMemorySubgraphContext extends SubgraphContext {
 		}
 		this.ops.length = 0;
 	}
+
+	insertsSince(
+		checkpoint: number,
+	): Array<{ table: string; keys: string[]; row: Record<string, unknown> }> {
+		const out: Array<{
+			table: string;
+			keys: string[];
+			row: Record<string, unknown>;
+		}> = [];
+		for (const op of this.ops.slice(Math.max(0, checkpoint))) {
+			if (op.kind !== "insert") continue;
+			const row = { ...op.data };
+			out.push({
+				table: op.table,
+				keys: Object.keys(row).filter((k) => !k.startsWith("_")),
+				row,
+			});
+		}
+		return out;
+	}
 }
 
 /** Loose value equality across the bigint/number/string boundary decoded
@@ -182,7 +208,13 @@ export function createTestContext<const S extends SubgraphSchema>(
 	const ctx = impl as unknown as TestSubgraphContext<S>;
 	ctx.rows = (table) => impl.rowsOf(table);
 	ctx.commit = () => impl.commitOps();
-	ctx.setTx = (tx) => impl.setTx(defaultTx(tx));
+	// Call through the prototype: assigning `ctx.setTx = () => impl.setTx(...)`
+	// would recurse because ctx === impl and the own property shadows the method.
+	ctx.setTx = (tx) => {
+		SubgraphContext.prototype.setTx.call(impl, defaultTx(tx));
+	};
+	ctx.pendingInsertsSince = (checkpoint) => impl.insertsSince(checkpoint);
+	// opsCheckpoint stays on the SubgraphContext prototype — do not overwrite.
 	return ctx;
 }
 

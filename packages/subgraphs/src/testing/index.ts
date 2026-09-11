@@ -33,6 +33,7 @@ export {
 	toHandlerPayload,
 } from "./run.ts";
 export type {
+	EventTrace,
 	IndexContractCallRow,
 	IndexEventRow,
 	IndexTestRow,

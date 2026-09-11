@@ -417,6 +417,7 @@ function createLocalSubgraphDetail(input: {
 			errorRate: 0,
 			lastError: null,
 			lastErrorAt: null,
+			emptyMapping: false,
 		},
 		sync: {
 			status: "synced",
@@ -1644,6 +1645,29 @@ Examples:
 			const { runSubgraphTest } = await import("./subgraph-test.ts");
 			await withErrorHandling(runSubgraphTest, {
 				action: `test ${file}`,
+			})(file, options);
+		});
+
+	// --- preview (per-event IN/OUT against a small Index sample) ---
+	subgraphs
+		.command("preview <file>")
+		.description(
+			"Show IN/OUT for a sample of real Index events without deploying",
+		)
+		.option("--from <height>", "Start block height (required)")
+		.option("--to <height>", "End block height (defaults to --from + 100)")
+		.option("--sample <n>", "Max events per source (default 10)", "10")
+		.addHelpText(
+			"after",
+			`
+Examples:
+  $ secondlayer subgraphs preview subgraphs/bns-names.ts --from 167484
+  $ secondlayer subgraphs preview subgraphs/bns-names.ts --from 167484 --sample 5`,
+		)
+		.action(async (file: string, options) => {
+			const { runSubgraphPreview } = await import("./subgraph-preview.ts");
+			await withErrorHandling(runSubgraphPreview, {
+				action: `preview ${file}`,
 			})(file, options);
 		});
 

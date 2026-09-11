@@ -47,6 +47,17 @@ export interface SubgraphTestSource {
 	functionName?: string;
 }
 
+/** Per-event IN/OUT trace for `subgraphs preview`. */
+export interface EventTrace {
+	source: string;
+	blockHeight?: number;
+	txId?: string;
+	/** Camelized event.data keys (or contract-call field names). */
+	inKeys: string[];
+	/** Tables written by this event; empty when the mapping wrote nothing. */
+	outs: Array<{ table: string; keys: string[] }>;
+}
+
 export interface SubgraphTestResult {
 	ok: boolean;
 	code?: "EMPTY_MAPPING" | "NO_EVENTS" | "NO_SOURCES";
@@ -59,6 +70,10 @@ export interface SubgraphTestResult {
 	}>;
 	firstEvent?: { source: string; data?: unknown };
 	hint?: string;
+	/** Present when `trace: true`. */
+	traces?: EventTrace[];
+	/** Keys present on every matched IN and never written to any OUT column. */
+	unusedInKeys?: string[];
 }
 
 export interface RunSubgraphTestInput {
@@ -66,6 +81,8 @@ export interface RunSubgraphTestInput {
 	handlers: Record<string, unknown>;
 	sources: Record<string, SubgraphTestSource>;
 	events: Record<string, IndexTestRow[]>;
+	/** Collect per-event IN/OUT traces (preview). */
+	trace?: boolean;
 }
 
 /** Map an Index event row onto the payload shape a handler expects. */
@@ -139,6 +156,56 @@ function dataKeysOf(data: unknown): string[] {
 	return [];
 }
 
+function rowMeta(row: IndexTestRow): {
+	blockHeight?: number;
+	txId?: string;
+} {
+	const r = row as Record<string, unknown>;
+	return {
+		...(typeof r.block_height === "number"
+			? { blockHeight: r.block_height }
+			: {}),
+		...(typeof r.tx_id === "string" ? { txId: r.tx_id } : {}),
+	};
+}
+
+function inKeysOf(
+	filter: SubgraphTestSource | undefined,
+	payload: Record<string, unknown>,
+): string[] {
+	if (filter?.type === "contract_call") {
+		return ["functionName", "args", "sender", "contractId"].filter(
+			(k) => payload[k] !== undefined,
+		);
+	}
+	return dataKeysOf(payload.data);
+}
+
+function unusedInKeysAcross(traces: EventTrace[]): string[] | undefined {
+	if (traces.length === 0) return undefined;
+	const alwaysIn = new Set(traces[0]?.inKeys ?? []);
+	for (const t of traces.slice(1)) {
+		const keys = new Set(t.inKeys);
+		for (const k of [...alwaysIn]) {
+			if (!keys.has(k)) alwaysIn.delete(k);
+		}
+	}
+	const outKeys = new Set<string>();
+	for (const t of traces) {
+		for (const o of t.outs) {
+			for (const k of o.keys) outKeys.add(k);
+		}
+	}
+	// Compare camel IN keys to snake OUT columns loosely: tokenX ↔ token_x.
+	const outNormalized = new Set(
+		[...outKeys].map((k) => k.replace(/_/g, "").toLowerCase()),
+	);
+	const unused = [...alwaysIn].filter(
+		(k) => !outNormalized.has(k.replace(/_/g, "").toLowerCase()),
+	);
+	return unused.length > 0 ? unused : undefined;
+}
+
 /**
  * Apply local handlers to Index rows in memory. Fail-closed: matched events
  * with zero written rows is EMPTY_MAPPING (the bns-names field-mapping shape).
@@ -146,7 +213,7 @@ function dataKeysOf(data: unknown): string[] {
 export async function runSubgraphTest(
 	input: RunSubgraphTestInput,
 ): Promise<SubgraphTestResult> {
-	const { schema, handlers, sources, events } = input;
+	const { schema, handlers, sources, events, trace } = input;
 	const sourceNames = Object.keys(sources);
 	if (sourceNames.length === 0) {
 		return {
@@ -162,11 +229,17 @@ export async function runSubgraphTest(
 	const ctx = createTestContext(schema);
 	let matched = 0;
 	let firstEvent: SubgraphTestResult["firstEvent"];
+	const traces: EventTrace[] = [];
 
 	for (const [name, rows] of Object.entries(events)) {
-		const handler = handlers[name] ?? handlers["*"];
-		if (typeof handler !== "function") continue;
 		const filter = sources[name];
+		const handler = handlers[name] ?? handlers["*"];
+		const materialize =
+			filter && "materialize" in filter && filter.materialize !== undefined
+				? (filter.materialize as MaterializeSpec)
+				: undefined;
+		if (typeof handler !== "function" && !materialize) continue;
+
 		for (const row of rows) {
 			const payload =
 				filter?.type === "contract_call"
@@ -193,16 +266,39 @@ export async function runSubgraphTest(
 				};
 			}
 			matched++;
+			const checkpoint = ctx.opsCheckpoint();
 			try {
-				await (handler as (e: unknown, c: unknown) => unknown)(
-					buildEvent(
-						filter as Parameters<typeof buildEvent>[0],
-						payload as Record<string, unknown>,
-					),
-					ctx,
+				const event = buildEvent(
+					filter as Parameters<typeof buildEvent>[0],
+					payload as Record<string, unknown>,
 				);
+				if (materialize) {
+					applyMaterializeInsert(
+						materialize,
+						event as unknown as Record<string, unknown>,
+						{
+							tx: ctx.tx,
+							block: ctx.block,
+							insert: (table, insertRow) => {
+								ctx.insert(table as never, insertRow as never);
+							},
+						},
+						schema,
+					);
+				} else {
+					await (handler as (e: unknown, c: unknown) => unknown)(event, ctx);
+				}
 			} catch {
 				// Counted as matched; rows may still be empty → EMPTY_MAPPING.
+			}
+			if (trace) {
+				const inserts = ctx.pendingInsertsSince(checkpoint);
+				traces.push({
+					source: name,
+					...rowMeta(row),
+					inKeys: inKeysOf(filter, payload),
+					outs: inserts.map((i) => ({ table: i.table, keys: i.keys })),
+				});
 			}
 		}
 	}
@@ -211,12 +307,12 @@ export async function runSubgraphTest(
 	const tables: SubgraphTestResult["tables"] = [];
 	let written = 0;
 	for (const table of tableNames) {
-		const rows = await ctx.rows(table as never);
-		written += rows.length;
-		const sample = rows[0];
+		const tableRows = await ctx.rows(table as never);
+		written += tableRows.length;
+		const sample = tableRows[0];
 		tables.push({
 			name: table,
-			rows: rows.length,
+			rows: tableRows.length,
 			...(sample
 				? { sampleRow: jsonSafe(sample) as Record<string, unknown> }
 				: {}),
@@ -224,6 +320,12 @@ export async function runSubgraphTest(
 	}
 
 	const fetched = Object.values(events).reduce((n, r) => n + r.length, 0);
+	const unusedInKeys = trace ? unusedInKeysAcross(traces) : undefined;
+	const traceFields = {
+		...(trace ? { traces } : {}),
+		...(unusedInKeys ? { unusedInKeys } : {}),
+	};
+
 	if (fetched === 0) {
 		return {
 			ok: false,
@@ -232,6 +334,7 @@ export async function runSubgraphTest(
 			written,
 			tables,
 			hint: "No events matched these sources in the given range. Widen the range or check the source filters.",
+			...traceFields,
 		};
 	}
 
@@ -253,6 +356,29 @@ export async function runSubgraphTest(
 				? { ...firstEvent, data: jsonSafe(firstEvent.data) }
 				: undefined,
 			hint: `${matched} event${matched === 1 ? "" : "s"} matched, but NO rows were written — the shape of the field-mapping bug that ships a 0-row subgraph.${keyPart} Map only observed keys; do not invent fields.`,
+			...traceFields,
+		};
+	}
+
+	// Preview fail-closed: any matched event with 0 OUT rows is EMPTY_MAPPING
+	// even when other events wrote (per-event empty mapping).
+	if (trace && traces.some((t) => t.outs.length === 0)) {
+		const empty = traces.find((t) => t.outs.length === 0);
+		const keyPart =
+			empty && empty.inKeys.length > 0
+				? ` Empty event (${empty.source}) IN keys: ${empty.inKeys.join(", ")}.`
+				: "";
+		return {
+			ok: false,
+			code: "EMPTY_MAPPING",
+			matched,
+			written,
+			tables,
+			firstEvent: firstEvent
+				? { ...firstEvent, data: jsonSafe(firstEvent.data) }
+				: undefined,
+			hint: `At least one matched event wrote 0 rows.${keyPart}`,
+			...traceFields,
 		};
 	}
 
@@ -264,6 +390,7 @@ export async function runSubgraphTest(
 		firstEvent: firstEvent
 			? { ...firstEvent, data: jsonSafe(firstEvent.data) }
 			: undefined,
+		...traceFields,
 	};
 }
 

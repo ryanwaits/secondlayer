@@ -102,6 +102,30 @@ describe("runSubgraphTest", () => {
 		expect(result.ok).toBe(false);
 		expect(result.code).toBe("NO_SOURCES");
 	});
+
+	test("trace: true emits per-event IN/OUT and fails on a zero-OUT event", async () => {
+		const result = await runSubgraphTest({
+			schema: swaps.schema,
+			handlers: swaps.handlers as Record<string, unknown>,
+			sources: swaps.sources as Record<string, { type: string }>,
+			events: {
+				prints: [
+					printRow({ "token-x": "SP.token" }),
+					printRow({ "amount-in": "1" }),
+				],
+			},
+			trace: true,
+		});
+		expect(result.ok).toBe(false);
+		expect(result.code).toBe("EMPTY_MAPPING");
+		expect(result.traces).toHaveLength(2);
+		expect(result.traces?.[0]?.outs[0]).toMatchObject({
+			table: "swaps",
+			keys: expect.arrayContaining(["token_x"]),
+		});
+		expect(result.traces?.[1]?.outs).toEqual([]);
+		expect(result.traces?.[1]?.inKeys).toContain("amountIn");
+	});
 });
 
 describe("toHandlerPayload print camelization", () => {
