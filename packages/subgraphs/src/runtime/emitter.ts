@@ -12,6 +12,7 @@ import { listen, targetListenerUrl } from "@secondlayer/shared/queue/listener";
 import type { SubscriptionTestResult } from "@secondlayer/shared/schemas/subscriptions";
 import { type Kysely, sql } from "kysely";
 import { buildForFormat } from "./formats/index.ts";
+import { meterDeliveryAttempt } from "./hosted-meter.ts";
 import { refreshMatcher } from "./subscription-state.ts";
 
 /**
@@ -390,6 +391,8 @@ async function dispatchOne(
 			duration_ms: r.durationMs,
 		})
 		.execute();
+
+	await meterDeliveryAttempt(sub.account_id);
 
 	return {
 		ok: r.ok,

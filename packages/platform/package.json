@@ -20,6 +20,10 @@
 			"types": "./dist/db/queries/archive-fetches.d.ts",
 			"import": "./dist/db/queries/archive-fetches.js"
 		},
+		"./hosted-meters": {
+			"types": "./dist/hosted-meters.d.ts",
+			"import": "./dist/hosted-meters.js"
+		},
 		"./schemas/accounts": {
 			"types": "./dist/schemas/accounts.d.ts",
 			"import": "./dist/schemas/accounts.js"

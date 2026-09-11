@@ -90,6 +90,7 @@ export const TABLE_TO_DB = {
 	x402_payments: "target",
 	x402_balances: "target",
 	account_credits: "target",
+	hosted_meter_days: "target",
 	// ── TARGET: archive fetch gate (design-f089) ──
 	archive_fetches: "target",
 	// ── BOTH ──

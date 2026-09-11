@@ -952,6 +952,7 @@ export interface Database {
 	processed_stripe_events: ProcessedStripeEventsTable;
 	account_spend_caps: AccountSpendCapsTable;
 	account_credits: AccountCreditsTable;
+	hosted_meter_days: HostedMeterDaysTable;
 	subscriptions: SubscriptionsTable;
 	subscription_outbox: SubscriptionOutboxTable;
 	subscription_deliveries: SubscriptionDeliveriesTable;
@@ -1072,6 +1073,20 @@ export interface AccountCreditsTable {
 export type AccountCredits = Selectable<AccountCreditsTable>;
 export type InsertAccountCredits = Insertable<AccountCreditsTable>;
 export type UpdateAccountCredits = Updateable<AccountCreditsTable>;
+
+/** Daily idempotency ledger for hosted subgraph running + storage meters. */
+export interface HostedMeterDaysTable {
+	day: string;
+	account_id: string;
+	subgraph_name: string;
+	kind: string;
+	usd_micros: string | number | bigint;
+	billed_at: Generated<Date>;
+}
+
+export type HostedMeterDay = Selectable<HostedMeterDaysTable>;
+export type InsertHostedMeterDay = Insertable<HostedMeterDaysTable>;
+export type UpdateHostedMeterDay = Updateable<HostedMeterDaysTable>;
 
 /**
  * Archive fetch charge log (design-f089 gate). Append-only: one row per

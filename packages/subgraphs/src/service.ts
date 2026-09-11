@@ -2,7 +2,9 @@
 // Run with: bun run packages/subgraphs/src/service.ts
 import { assertDbSplit, getDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
+import { isPlatformMode } from "@secondlayer/shared/mode";
 import { sql } from "kysely";
+import { setHostedMeterHooks } from "./runtime/hosted-meter.ts";
 import { startSubgraphProcessor } from "./runtime/processor.ts";
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
@@ -25,6 +27,24 @@ async function writeHeartbeat(): Promise<void> {
 }
 
 assertDbSplit();
+
+if (isPlatformMode()) {
+	try {
+		const spec = "@secondlayer/platform/hosted-meters";
+		const mod = (await import(spec)) as {
+			onBlocksProcessed: (accountId: string, blocks: number) => Promise<void>;
+			onDeliveryAttempt: (accountId: string) => Promise<void>;
+		};
+		setHostedMeterHooks({
+			onBlocksProcessed: mod.onBlocksProcessed,
+			onDeliveryAttempt: mod.onDeliveryAttempt,
+		});
+	} catch (err) {
+		logger.warn("hosted meters not installed; indexing unmetered", {
+			error: err instanceof Error ? err.message : String(err),
+		});
+	}
+}
 
 const processor = await startSubgraphProcessor({
 	concurrency: Number.parseInt(process.env.SUBGRAPH_CONCURRENCY ?? "5"),

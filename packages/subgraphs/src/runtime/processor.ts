@@ -31,6 +31,7 @@ import type { SubgraphDefinition } from "../types.ts";
 import { invalidateSubgraphRoute } from "./block-processor.ts";
 import { isCatchUpLeader, startCatchUpLeader } from "./catchup-leader.ts";
 import { catchUpSubgraph } from "./catchup.ts";
+import { meterBlocksProcessed } from "./hosted-meter.ts";
 import { backfillSubgraph, reindexSubgraph, resumeReindex } from "./reindex.ts";
 import { handleSubgraphReorg } from "./reorg.ts";
 import { startStreamsReorgPoll } from "./streams-reorg-poll.ts";
@@ -63,7 +64,8 @@ async function catchUpAll(
 				if (!sg) break;
 				try {
 					const def = await loadSubgraphDefinition(sg);
-					await catchUpSubgraph(def, sg.name);
+					const processed = await catchUpSubgraph(def, sg.name);
+					await meterBlocksProcessed(sg.account_id, processed);
 				} catch (err) {
 					const msg = getErrorMessage(err);
 					if (isHandlerNotFoundError(err)) {
@@ -210,6 +212,7 @@ async function runSubgraphOperation(
 	const def = await loadSubgraphDefinition(subgraph);
 	const schemaName = subgraph.schema_name ?? pgSchemaName(subgraph.name);
 
+	let processed = 0;
 	if (operation.kind === "backfill") {
 		if (operation.from_block == null || operation.to_block == null) {
 			throw new Error("Backfill operation is missing from_block or to_block");
@@ -229,35 +232,39 @@ async function runSubgraphOperation(
 			operationId: operation.id,
 			signal,
 		});
-		return result.processed;
+		processed = result.processed;
+	} else {
+		const hasResumeMetadata =
+			subgraph.status === "reindexing" &&
+			subgraph.reindex_from_block != null &&
+			subgraph.reindex_to_block != null;
+
+		if (hasResumeMetadata) {
+			const result = await resumeReindex(def, {
+				schemaName,
+				operationId: operation.id,
+				signal,
+			});
+			processed = result.processed;
+		} else {
+			const result = await reindexSubgraph(def, {
+				// Policy floor only — a reindex always rebuilds [start_block, chain tip].
+				// `operation.to_block` is progress/resume metadata, never a walk bound:
+				// bounding the walk while the drop stays unconditional is what destroyed
+				// sbtc-flows' history (f079).
+				startBlockFloor:
+					operation.from_block == null
+						? undefined
+						: Number(operation.from_block),
+				schemaName,
+				operationId: operation.id,
+				signal,
+			});
+			processed = result.processed;
+		}
 	}
-
-	const hasResumeMetadata =
-		subgraph.status === "reindexing" &&
-		subgraph.reindex_from_block != null &&
-		subgraph.reindex_to_block != null;
-
-	if (hasResumeMetadata) {
-		const result = await resumeReindex(def, {
-			schemaName,
-			operationId: operation.id,
-			signal,
-		});
-		return result.processed;
-	}
-
-	const result = await reindexSubgraph(def, {
-		// Policy floor only — a reindex always rebuilds [start_block, chain tip].
-		// `operation.to_block` is progress/resume metadata, never a walk bound:
-		// bounding the walk while the drop stays unconditional is what destroyed
-		// sbtc-flows' history (f079).
-		startBlockFloor:
-			operation.from_block == null ? undefined : Number(operation.from_block),
-		schemaName,
-		operationId: operation.id,
-		signal,
-	});
-	return result.processed;
+	await meterBlocksProcessed(subgraph.account_id, processed);
+	return processed;
 }
 
 export async function startSubgraphOperationRunner(opts?: {

@@ -81,6 +81,7 @@ CONTROL_TABLES=(
   x402_payments
   x402_balances
   account_credits
+  hosted_meter_days
   archive_fetches
 )
 
