@@ -8,9 +8,10 @@
 
 Secondlayer is a self-hosted Stacks data runtime: run it beside your node,
 bootstrap verified history, query decoded data, deploy TypeScript subgraphs.
-We operate a signed canonical archive on R2 and a hosted query API for
-Index and Streams at api.secondlayer.tools. Prepaid credits buy archive
-bootstrap/backfill and hosted reads. Same balance.
+We operate a signed canonical archive on R2 and a hosted API at
+api.secondlayer.tools for Index, Streams, hosted Subgraphs, and hosted
+subscription delivery. Prepaid credits buy archive bootstrap/backfill and
+hosted usage. Same balance.
 
 That sentence is for us. What we say to a reader is in **Voice** below.
 
@@ -70,10 +71,11 @@ rewind on reorg (`onReorg` rolls back your own rows), `walk()` sweeps,
 schema. Built on Streams (our decoder is a Streams consumer). App index
 without writing decoders.
 
-**Subgraphs** — your schema on your instance. `defineSubgraph()` in one TypeScript
-file → deploy → Postgres tables behind the same `/v1` read API. We do not host
-subgraphs. Monetization is archive bootstrap that fills a self-host instance,
-plus hosted Index/Streams reads. Not hosted subgraph compute.
+**Subgraphs** — your schema. `defineSubgraph()` in one TypeScript file →
+deploy → Postgres tables behind the same `/v1` read API. Self-host on
+your instance, or provision on ours. Hosted subgraphs meter off the
+same prepaid balance as archive and reads. We do not host a public
+Explore catalog of other people's subgraphs.
 
 **Streams** — the raw signed event firehose + parquet dumps. The inputs, not our
 decoding: cursor-paginated REST, SSE tail, signed manifests, replay from any
@@ -84,6 +86,8 @@ internal data plane the decoders and subgraphs ride.
 
 - **Subscriptions** — webhooks on any subgraph table or raw chain event. The
   push channel for the products. Keeps its name; never a nav-level product.
+  We host the matcher and the sender on the prepaid meter; they host the
+  receiver.
 - **Subgraph scaffolding** — `secondlayer subgraphs create --from-contract <id>`
   infers sources, schema, and handlers from a contract's observed print events.
   With no flag it emits one empty starter. The five hand-written templates and
@@ -123,8 +127,8 @@ This distinction is load-bearing; keep it crisp everywhere:
 Both are indexer products at different levels: Streams is raw, low-level
 indexing — Index is app-level indexing on decoded rows. Streams powers Index:
 our decoder is itself a Streams consumer. Subgraphs is the Index loop, on your
-machine. We sell archive bootstrap and hosted Index/Streams reads. We do not
-sell hosted subgraph compute.
+machine or on ours. We sell archive bootstrap and hosted usage (Index/Streams
+reads, subgraphs, subscription deliveries) off one prepaid balance.
 
 One line for docs: *Reading decoded data? Index. Building your own app index on
 decoded rows? Also Index — walk + cursors + reorgs[]. Your schema on your
@@ -136,33 +140,43 @@ instance? Subgraphs. Raw inputs? Streams.*
 `secondlayer subgraphs create` → deploy → curl your table on localhost → attach a
 webhook. Forward-only from your own node is free and skips bootstrap.
 
+Hosted (building): provision a subgraph and optional subscription on
+api.secondlayer.tools against a $10 play grant, no account. Claim is
+create an account plus the first top-up. Resources transfer. Same
+payload shapes as self-host. Until that path ships, hosted `/v1`
+without a key is 401.
+
 ## Pricing
 
 Not a monthly service. The runtime is MIT. We run the archive and a hosted
-Index/Streams API. We meter archive bytes and hosted row reads off the same
-prepaid balance.
+API. One prepaid `account_credits` balance, denominated in dollars, meters
+every hosted unit. No Pro SKU. No retention ladder. Enterprise is a custom
+door.
+
+Contract and prices live in `docs/internal/economics-metered-model.md`
+(founder-resolved 2026-09-11). Summary:
 
 | Billable | Not billable |
 | --- | --- |
 | Official-archive bootstrap (genesis or a large range) | Self-host runtime, compose, CLI |
 | Data-avail backfill / reindex that reads our archive | Forward-only indexing from the operator's node |
-| Hosted Index / Streams reads on `api.secondlayer.tools` | Self-host `/v1` reads (the operator's Postgres) |
-| | `secondlayer verify` / `secondlayer repair` against public manifests |
+| Hosted Index / Streams / subgraph table reads | Self-host `/v1` reads |
+| Hosted subgraph running ($3/mo prorated, paused = $0), storage ($0.50/GB-mo), indexing ($1/1M blocks) | `secondlayer verify` / `secondlayer repair` against public manifests |
+| Hosted subscription deliveries ($100/1M attempts, retries metered) | Their webhook receiver |
+| | Play-tier $10 grant (accountless, 30-day expiry) |
 
-Archive meter unit is the bundle: one height-range partition set (blocks,
-transactions, events for that range) fetched off the archive. Hosted
-Index/Streams meter unit is the row read. Both debit the same prepaid
-`account_credits` balance. Quotes, balances, and the monthly free-repair
-allowance still count archive bundles. Charge archive bytes at fetch time
-with a gated URL. Charge hosted reads after the page is served. Unpaid
-callers do not get archive objects; hosted `/v1` without a key is 401.
+Play is the product with a $10 balance. Claim is create an account plus
+the first top-up ($10 min pack). No usage gate beyond that.
 
-No $99/mo Pro SKU.
+Display unit is dollars. Charge archive bytes at fetch time with a gated
+URL. Charge hosted reads after the page is served. Charge subgraph
+running daily, storage periodically, indexing as blocks process,
+deliveries per attempt. Hosted `/v1` without a key is 401 until the
+accountless play path ships.
 
-We do not host public subgraphs or an Explore catalog. We do host a keyed
-query API for Index and Streams. Leftover hosted subgraph deploys are not
-a product; do not add more. Do not delete billing code if the archive
-meter still needs it; strip monthly-plan UX, keep a meter.
+We do not host a public Explore catalog. We do host subgraphs and
+subscription matching/sending on the metered balance. Do not
+reintroduce monthly-plan UX.
 
 ## x402 — deleted
 

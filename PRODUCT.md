@@ -40,7 +40,7 @@ The claim a neighbor cannot copy: the out-of-the-box products and the primitives
 
 - OSS self-host path: `secondlayer setup` beside a node, archive bootstrap, subgraph deploy, subscription against their instance.
 - Hosted path (strategy change, founder-approved in this thread): register subgraphs and subscriptions on our infra; they still run the webhook receiver.
-- Meter: archive bootstrap/backfill today; usage of Index/Streams primitives, and of hosted Subgraphs/Subscriptions, is the intended charge. Exact SKUs are open.
+- Meter: archive bootstrap/backfill today; usage of Index/Streams primitives, and of hosted Subgraphs/Subscriptions, is the intended charge. SKUs are the meters in `docs/internal/economics-metered-model.md` (founder-resolved 2026-09-11).
 - Golden path for an app team: scaffold their contract → table they query → optional webhook to a URL they own.
 - Docs, CLI, SDK, MCP are channels, not products.
 - `@secondlayer/stacks` is a viem-style chain client in the same org. Wallet half frozen except nonce coordination.
@@ -52,18 +52,16 @@ Confirmed:
 - Index, Streams, Subgraphs, Subscriptions already exist in the runtime.
 - We do not host their webhook endpoint. We send to it.
 - Same payload shapes on hosted and self-host so a team can fork later.
-- Reads on `/v1` are keyless in beta; keys gate writes.
+- OSS loopback `/v1` reads are keyless; hosted `/v1` is keyed (`Authorization: Bearer`, account key `sk-sl_*`). Keys gate hosted reads and all writes.
 - Voice: calm infrastructure. No exclamation points, no emoji, no hype, no competitor naming in public copy.
 - Team is 1–2 people. One Hetzner box today. Every product noun is a door and a parity tax; the family is three products, not a junk drawer.
 - We do not host a public Explore catalog of other people's subgraphs unless a later grant explicitly funds a protocol catalog (sBTC, PoX, BNS) as a public good.
 
 Open:
 
-- Hosted Subgraphs and hosted Subscriptions as billed products (this conversation). STRATEGY.md still says we do not host subgraphs and we sell archive bytes, not compute. Founder is rewriting that. Public copy must not ship until STRATEGY.md matches.
 - Product URLs: subdomains vs paths vs separate domains.
 - Whether "Labs" ever prints. Default: no. The account is Secondlayer.
 - Whether `@secondlayer/stacks` appears in the product switcher or stays a docs/npm package.
-- Grant vs usage-meter mix for hosted.
 
 ## Brand Commitments
 
