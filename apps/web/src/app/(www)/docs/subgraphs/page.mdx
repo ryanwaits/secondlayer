@@ -21,19 +21,15 @@ export default defineSubgraph({
   schema: {
     transfers: {
       columns: {
-        tx_id: { type: "string" },
-        block_height: { type: "uint" },
         amount: { type: "uint" },
-        sender: { type: "string" },
-        recipient: { type: "string" },
+        sender: { type: "principal" },
+        recipient: { type: "principal" },
       },
     },
   },
   handlers: {
     transfers: (event, ctx) => {
       ctx.insert("transfers", {
-        tx_id: ctx.tx.txId,
-        block_height: ctx.block.height,
         amount: event.amount,
         sender: event.sender,
         recipient: event.recipient,

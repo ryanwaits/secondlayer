@@ -1,11 +1,13 @@
 /**
- * The empty starter emitted by `secondlayer subgraphs create <name>` when no
- * `--from-contract` is given.
+ * The blank starter emitted by `secondlayer subgraphs create <name> --blank`.
  *
  * Deliberately ONE starter, and deliberately a single inline object literal:
  * `defineSubgraph()` metadata is read by AST extraction that never executes
  * user code (`packages/bundler/src/extract.ts`), so hoisted consts and helper
  * calls in the definition do not survive deploy. Keep it flat.
+ *
+ * Uses native `stx_transfer` (honest scope) — never an unscoped `ft_transfer`
+ * over the whole chain.
  */
 export function generateSubgraphStarter(name: string): string {
 	return `${nextStepsHeader(name)}${starter(name)}`;
@@ -27,6 +29,7 @@ function nextStepsHeader(name: string): string {
 //
 // Prefer generating from a real contract:
 //   secondlayer subgraphs create ${name} --from-contract SP....my-contract
+// Multi-contract: secondlayer subgraphs add ${name}.ts --from-contract SP....other
 // ───────────────────────────────────────────────────────────────────
 
 `;
@@ -52,7 +55,7 @@ export default defineSubgraph({
   //   { type: "stx_transfer", minAmount: 1000000n }
   //   { type: "nft_transfer", assetIdentifier: "SP...nft::nft-name" }
   sources: {
-    handler: { type: "ft_transfer" },
+    handler: { type: "stx_transfer" },
   },
 
   // Schema defines the tables this subgraph creates.
@@ -62,6 +65,7 @@ export default defineSubgraph({
     data: {
       columns: {
         sender: { type: "principal", indexed: true },
+        recipient: { type: "principal", indexed: true },
         amount: { type: "uint" },
         memo: { type: "text", nullable: true },
       },
@@ -70,15 +74,16 @@ export default defineSubgraph({
 
   // Handlers process matched events. Keys must match source names.
   // Context: ctx.insert(), ctx.update(), ctx.upsert(), ctx.patch(),
-  //          ctx.patchOrInsert(), ctx.findOne(), ctx.findMany()
+  //          ctx.patchOrInsert(), ctx.findOne(), ctx.findMany(), ctx.increment()
   handlers: {
     handler: (event, ctx) => {
-      // event is typed from the source — for ft_transfer: sender, recipient,
-      // amount (bigint), assetIdentifier. ctx.insert is checked against schema.
+      // event is typed from the source — for stx_transfer: sender, recipient,
+      // amount (bigint), memo. ctx.insert is checked against schema.
       ctx.insert("data", {
         sender: event.sender,
+        recipient: event.recipient,
         amount: event.amount,
-        memo: null,
+        memo: event.memo || null,
       });
     },
   },

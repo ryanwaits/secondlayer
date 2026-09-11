@@ -12,6 +12,7 @@ import { confirm } from "@inquirer/prompts";
 import {
 	generatePrintPayloadTypes,
 	generatePrintSchemaSubgraph,
+	generateTraitSubgraph,
 } from "@secondlayer/scaffold";
 import type { SubgraphDetail } from "@secondlayer/shared/schemas";
 import { TRAIT_STANDARDS } from "@secondlayer/stacks/clarity";
@@ -49,6 +50,7 @@ import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
 import { parseQueryFilters } from "../lib/filter-params.ts";
 import { writeTextFile } from "../lib/fs.ts";
 import { inspectSourceGitState } from "../lib/git-status.ts";
+import { mergePrintSchemaIntoFile } from "../lib/merge-print-subgraph.ts";
 import {
 	confirmDestructive,
 	dim,
@@ -746,34 +748,57 @@ export function registerSubgraphsCommand(program: Command): void {
 			"Generate sources/schema/handlers from the contract's observed print events (requires network)",
 		)
 		.option(
+			"--trait <std>",
+			"Trait-scoped source (sip-009|sip-010|sip-013) — no contract id",
+		)
+		.option(
+			"--blank",
+			"Write a minimal stx_transfer starter (native STX, not every FT)",
+		)
+		.option(
 			"--table-per-topic",
 			"With --from-contract: one table per print topic instead of a single wide table",
 		)
 		.addHelpText(
 			"after",
 			`
-create is the default way to start a subgraph. It writes subgraphs/<name>.ts —
-an empty starter, or with --from-contract a schema inferred from the print
-events that contract has already emitted into your index.
+create requires one of --from-contract, --trait, or --blank. Prefer
+--from-contract: it infers sources/schema/handlers from print events already
+in your index. Multi-contract: create from the first contract, then
+"secondlayer subgraphs add <file> --from-contract <id>".
 
-Use "secondlayer subgraphs scaffold" instead when you need what create cannot
-infer: typed contract_call tables generated from a contract's ABI (read from a
-Stacks node, so it works before your index holds that contract's history), or a
-trait-wide source with --trait sip-010.
+Use "secondlayer subgraphs scaffold" when you need typed contract_call tables
+from a contract ABI (works before your index holds that contract's history).
 
 Examples:
-  $ secondlayer subgraphs create my-graph
   $ secondlayer subgraphs create sbtc-flows --from-contract SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry
-  $ secondlayer subgraphs create sbtc-flows --from-contract SM3....sbtc-registry --table-per-topic`,
+  $ secondlayer subgraphs create sbtc-flows --from-contract SM3....sbtc-registry --table-per-topic
+  $ secondlayer subgraphs create all-ft --trait sip-010
+  $ secondlayer subgraphs create scratch --blank`,
 		)
 		.action(
 			async (
 				name: string,
 				opts: {
 					fromContract?: string;
+					trait?: string;
+					blank?: boolean;
 					tablePerTopic?: boolean;
 				},
 			) => {
+				const modeCount = [opts.fromContract, opts.trait, opts.blank].filter(
+					Boolean,
+				).length;
+				if (modeCount === 0) {
+					error(
+						"create requires one of --from-contract <id>, --trait <sip-0xx>, or --blank",
+					);
+					process.exit(1);
+				}
+				if (modeCount > 1) {
+					error("pass only one of --from-contract, --trait, or --blank");
+					process.exit(1);
+				}
 				if (opts.tablePerTopic && !opts.fromContract) {
 					error("--table-per-topic requires --from-contract");
 					process.exit(1);
@@ -798,7 +823,7 @@ Examples:
 					}
 					if (!schema || schema.topics.length === 0) {
 						error(
-							`No print events observed for ${opts.fromContract}.\nCheck the contract id, and that the contract has emitted print events (schemas are inferred from indexed on-chain events).`,
+							`No print events observed for ${opts.fromContract}.\nCheck the contract id, and that the contract has emitted print events (schemas are inferred from indexed on-chain events).\nTry --trait sip-010 or \`subgraphs scaffold ${opts.fromContract}\` for ABI calls.`,
 						);
 						process.exit(1);
 					}
@@ -813,6 +838,13 @@ Examples:
 							sample: schema.sample,
 						}),
 					);
+				} else if (opts.trait) {
+					const trait = opts.trait as (typeof TRAIT_STANDARDS)[number];
+					if (!(TRAIT_STANDARDS as readonly string[]).includes(trait)) {
+						error(`--trait must be one of: ${TRAIT_STANDARDS.join(", ")}`);
+						process.exit(1);
+					}
+					content = await formatCode(generateTraitSubgraph({ trait, name }));
 				} else {
 					content = generateSubgraphStarter(name);
 				}
@@ -834,6 +866,80 @@ Examples:
 				);
 				note(
 					"  deploy refuses an unstaged file unless you pass --allow-uncommitted: a staged copy is the one git can recover.",
+				);
+			},
+		);
+
+	// --- add ---
+	subgraphs
+		.command("add <file>")
+		.description(
+			"Merge another contract's observed print sources into an existing subgraph file",
+		)
+		.requiredOption(
+			"--from-contract <contractId>",
+			"Contract whose print schema to merge (requires network)",
+		)
+		.option(
+			"--table-per-topic",
+			"One table per print topic instead of a single wide table for the added contract",
+		)
+		.addHelpText(
+			"after",
+			`
+Adds sources/schema/handlers for a second (or Nth) contract into an existing
+static defineSubgraph file without clobbering the subgraph name or existing
+tables. Collision suffixes use the same deduper as print-scaffold (swap_2).
+
+Does not execute the file — non-static definitions exit 1; paste by hand.
+
+Examples:
+  $ secondlayer subgraphs add subgraphs/sbtc.ts --from-contract SM3....sbtc-token`,
+		)
+		.action(
+			async (
+				file: string,
+				opts: { fromContract: string; tablePerTopic?: boolean },
+			) => {
+				const absPath = resolve(file);
+				if (!existsSync(absPath)) {
+					error(`File not found: ${absPath}`);
+					process.exit(1);
+				}
+
+				info(`Fetching print schema for ${opts.fromContract}...`);
+				let schema: Awaited<ReturnType<typeof getContractPrintSchema>>;
+				try {
+					schema = await getContractPrintSchema(opts.fromContract);
+				} catch (err) {
+					handleApiError(err, "fetch contract print schema");
+				}
+				if (!schema || schema.topics.length === 0) {
+					error(
+						`No print events observed for ${opts.fromContract}.\nCheck the contract id, and that the contract has emitted print events.`,
+					);
+					process.exit(1);
+				}
+
+				const existing = readFileSync(absPath, "utf8");
+				let merged: string;
+				try {
+					merged = mergePrintSchemaIntoFile(existing, {
+						contractId: opts.fromContract,
+						topics: schema.topics,
+						tablePerTopic: opts.tablePerTopic,
+						sample: schema.sample,
+					});
+				} catch (err) {
+					error(err instanceof Error ? err.message : String(err));
+					process.exit(1);
+				}
+
+				const content = await formatCode(merged);
+				await writeTextFile(absPath, content);
+				success(`Updated ${absPath} with ${opts.fromContract}`);
+				info(
+					`Next: secondlayer subgraphs test ${file} then secondlayer subgraphs deploy ${file}`,
 				);
 			},
 		);
@@ -2007,21 +2113,26 @@ Examples:
 			"--trait <std>",
 			"Scaffold a trait-scoped source (sip-009|sip-010|sip-013) — no contract needed",
 		)
+		.option(
+			"--balances",
+			"With --trait: track per-holder balances via ctx.increment (FT only)",
+		)
 		.option("--no-install", "Skip bun install after writing package.json")
 		.addHelpText(
 			"after",
 			`
-"secondlayer subgraphs create <name>" is the documented starting point. Reach
-for scaffold when you need what create cannot infer: typed contract_call tables
-from the contract's ABI, or a trait-wide source (--trait sip-010). scaffold
-reads the ABI from a Stacks node, so it does not need your index to hold that
-contract's history yet, and it writes a package.json and installs dependencies
-next to the output file.
+"secondlayer subgraphs create <name> --from-contract" is the documented starting
+point. Reach for scaffold when you need what create cannot infer: typed
+contract_call tables from the contract's ABI, or a trait-wide source
+(--trait sip-010). scaffold reads the ABI from a Stacks node, so it does not
+need your index to hold that contract's history yet, and it writes a
+package.json and installs dependencies next to the output file.
 
 Examples:
   $ secondlayer subgraphs scaffold SP3D6PV2ACBPEKYJTCMH7HEN02KP87QSP8KTEH335.megapont-ape-club-nft -o subgraphs/apes.ts
   $ secondlayer subgraphs scaffold SP00...token --functions transfer,mint -o subgraphs/token.ts
-  $ secondlayer subgraphs scaffold --trait sip-010 -o subgraphs/all-ft.ts`,
+  $ secondlayer subgraphs scaffold --trait sip-010 -o subgraphs/all-ft.ts
+  $ secondlayer subgraphs scaffold --trait sip-010 --balances -o subgraphs/all-ft-balances.ts`,
 		)
 		.action(
 			async (
@@ -2030,6 +2141,7 @@ Examples:
 					output?: string;
 					functions?: string;
 					trait?: string;
+					balances?: boolean;
 					install?: boolean;
 				},
 			) => {
@@ -2048,6 +2160,10 @@ Examples:
 						error(`--trait must be one of: ${TRAIT_STANDARDS.join(", ")}`);
 						process.exit(1);
 					}
+					if (options.balances && !trait) {
+						error("--balances requires --trait");
+						process.exit(1);
+					}
 					if (!trait && !contractAddress) {
 						error("a <contractAddress> is required (or use --trait)");
 						process.exit(1);
@@ -2059,7 +2175,10 @@ Examples:
 					if (trait) {
 						// Trait mode — no contract to fetch.
 						info(`Generating trait-scoped scaffold for ${trait}...`);
-						content = await generateSubgraphScaffold({ trait });
+						content = await generateSubgraphScaffold({
+							trait,
+							balances: options.balances,
+						});
 					} else {
 						const address = contractAddress as string;
 						const network = inferNetwork(address) ?? "mainnet";

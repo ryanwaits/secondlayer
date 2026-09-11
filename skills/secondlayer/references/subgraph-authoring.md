@@ -941,12 +941,40 @@ const client = getSubgraph(mySubgraph, { apiKey: "sl_..." });
 
 ## 9. Common Patterns
 
-### 9.1 SIP-010 transfer indexer with per-holder balance upsert
+### 9.1 SIP-010 transfer indexer with per-holder balances
 
-Adapted from `tmp/preflight-cli/subgraphs/preflight-sbtc.ts`. Works for any SIP-010 token.
+Use `ctx.increment` (atomic deltas) — never findOne+upsert for balances.
 
 ```ts
-import { defineSubgraph } from "@secondlayer/subgraphs";
+import {
+  defineSchema,
+  defineSubgraph,
+  type TypedSubgraphContext,
+} from "@secondlayer/subgraphs";
+
+const schema = defineSchema({
+  balances: {
+    columns: {
+      asset_identifier: { type: "text", indexed: true, search: true },
+      holder: { type: "principal", indexed: true, search: true },
+      amount: { type: "uint" },
+    },
+    uniqueKeys: [["asset_identifier", "holder"]],
+  },
+});
+
+function credit(
+  ctx: TypedSubgraphContext<typeof schema>,
+  assetIdentifier: string,
+  holder: string,
+  delta: bigint,
+) {
+  ctx.increment(
+    "balances",
+    { asset_identifier: assetIdentifier, holder },
+    { amount: delta },
+  );
+}
 
 export default defineSubgraph({
   name: "sip010-balances",
@@ -954,49 +982,23 @@ export default defineSubgraph({
   description: "Per-token balance tracking for any SIP-010 asset",
   sources: {
     transfer: { type: "ft_transfer" },
-    mint:     { type: "ft_mint" },
-    burn:     { type: "ft_burn" },
+    mint: { type: "ft_mint" },
+    burn: { type: "ft_burn" },
   },
-  schema: {
-    balances: {
-      columns: {
-        asset_identifier: { type: "text", indexed: true, search: true },
-        holder:           { type: "principal", indexed: true, search: true },
-        amount:           { type: "uint" },
-      },
-      uniqueKeys: [["asset_identifier", "holder"]],
-    },
-  },
+  schema,
   handlers: {
-    transfer: async (event, ctx) => {
-      // ft_transfer event is typed: amount: bigint, sender/recipient: string.
-      await adjust(ctx, event.assetIdentifier, event.sender, -event.amount);
-      await adjust(ctx, event.assetIdentifier, event.recipient, event.amount);
+    transfer: (event, ctx) => {
+      credit(ctx, event.assetIdentifier, event.sender, -event.amount);
+      credit(ctx, event.assetIdentifier, event.recipient, event.amount);
     },
-    mint: async (event, ctx) => {
-      await adjust(ctx, event.assetIdentifier, event.recipient, event.amount);
+    mint: (event, ctx) => {
+      credit(ctx, event.assetIdentifier, event.recipient, event.amount);
     },
-    burn: async (event, ctx) => {
-      await adjust(ctx, event.assetIdentifier, event.sender, -event.amount);
+    burn: (event, ctx) => {
+      credit(ctx, event.assetIdentifier, event.sender, -event.amount);
     },
   },
 });
-
-async function adjust(
-  // biome-ignore lint/suspicious/noExplicitAny: subgraph runtime ctx
-  ctx: any,
-  assetIdentifier: string,
-  holder: string,
-  delta: bigint,
-): Promise<void> {
-  const existing = await ctx.findOne("balances", { asset_identifier: assetIdentifier, holder });
-  const current = existing ? BigInt(existing.amount) : 0n;
-  ctx.upsert(
-    "balances",
-    { asset_identifier: assetIdentifier, holder },
-    { asset_identifier: assetIdentifier, holder, amount: current + delta },
-  );
-}
 ```
 
 ### 9.2 Contract deployment tracker

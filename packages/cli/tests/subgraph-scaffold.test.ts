@@ -46,7 +46,18 @@ describe("standard-aware scaffolder", () => {
 		const out = await generateSubgraphScaffold({ trait: "sip-010" });
 		expect(out).toContain("ft_transfer");
 		expect(out).toContain("sip-010");
+		expect(out).toContain("asset_identifier: { type: 'text'");
 		expect(out).not.toContain("contractId"); // no fixed contract
+	});
+
+	test("--trait --balances → increment + uniqueKeys", async () => {
+		const out = await generateSubgraphScaffold({
+			trait: "sip-010",
+			balances: true,
+		});
+		expect(out).toContain("ctx.increment(");
+		expect(out).toContain("uniqueKeys:");
+		expect(out).not.toContain("ctx: any");
 	});
 
 	test("asset id survives the fetched-ABI path, which goes through normalizeAbi", async () => {

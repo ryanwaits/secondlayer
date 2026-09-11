@@ -5,6 +5,13 @@ description: Use Secondlayer to build on the Stacks blockchain — index on-chai
 
 # Secondlayer
 
+NEVER invent event.data / event.input / event.args field names.
+MUST call index_print_schema (prints) or contracts_get_abi (calls) before writing a handler.
+MUST declare `prints` on every pinned print_event source and `abi` on every contract_call source.
+MUST run subgraphs_test and see matched≥1, written≥1 before deploy.
+NEVER treat dryRun or tsc as proof of a mapping.
+event.data is camelCase; schema columns are snake_case; you are writing a projection.
+
 Secondlayer is a self-hosted Stacks data runtime. Postgres plus one container.
 
 | Surface | Package / Surface | What it does |

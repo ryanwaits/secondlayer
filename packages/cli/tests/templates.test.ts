@@ -68,4 +68,10 @@ describe("subgraph starter", () => {
 		expect(source).not.toContain("log in");
 		expect(source).not.toContain("hosted");
 	});
+
+	test("blank starter is stx_transfer, not unscoped ft_transfer", () => {
+		const source = generateSubgraphStarter("tmpl-test");
+		expect(source).toContain('type: "stx_transfer"');
+		expect(source).not.toMatch(/sources:\s*\{[^}]*type:\s*"ft_transfer"/);
+	});
 });

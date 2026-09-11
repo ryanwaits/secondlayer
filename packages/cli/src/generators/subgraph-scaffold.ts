@@ -1,6 +1,9 @@
-import { generateTraitSubgraph } from "@secondlayer/scaffold";
+import {
+	generateTokenSubgraphFromAbi,
+	generateTraitSubgraph,
+} from "@secondlayer/scaffold";
 import type { AbiContract, SipStandard } from "@secondlayer/stacks/clarity";
-import { classifyContract, toCamelCase } from "@secondlayer/stacks/clarity";
+import { toCamelCase } from "@secondlayer/stacks/clarity";
 import { formatCode } from "../utils/format.ts";
 import { clarityTypeToSubgraphColumn } from "./clarity-to-subgraph.ts";
 
@@ -17,6 +20,8 @@ export interface SubgraphScaffoldInput {
 	functions?: string[];
 	/** Trait-scoped scaffold: index every contract conforming to this standard. */
 	trait?: ScaffoldTrait;
+	/** With --trait: track balances via ctx.increment (FT only). */
+	balances?: boolean;
 }
 
 function snake(str: string): string {
@@ -67,36 +72,6 @@ function abiConstant(fns: AbiContract["functions"]): string {
 /** Trimmed contract ABI — \`as const\` is what types \`event.input\`. */
 const abi = ${json} as const;
 `;
-}
-
-/** ft/nft transfer source + transfers table + working handler. */
-function tokenScaffold(
-	name: string,
-	source: {
-		type: "ft_transfer" | "nft_transfer";
-		assetIdentifier?: string;
-	},
-): string {
-	const isFt = source.type === "ft_transfer";
-	const scope = `assetIdentifier: '${source.assetIdentifier}'`;
-	const cols = isFt
-		? `        sender: { type: 'principal' },
-        recipient: { type: 'principal' },
-        amount: { type: 'uint' },
-        asset_identifier: { type: 'principal', indexed: true }`
-		: `        sender: { type: 'principal' },
-        recipient: { type: 'principal' },
-        token_id: { type: 'text' },
-        asset_identifier: { type: 'principal', indexed: true }`;
-	const insert = isFt
-		? "{ sender: event.sender, recipient: event.recipient, amount: event.amount, asset_identifier: event.assetIdentifier }"
-		: "{ sender: event.sender, recipient: event.recipient, token_id: String(event.tokenId), asset_identifier: event.assetIdentifier }";
-	return wrap(
-		name,
-		`    transfers: { type: '${source.type}', ${scope} }`,
-		`    transfers: {\n      columns: {\n${cols}\n      }\n    }`,
-		`    transfers: (event, ctx) => {\n      ctx.insert('transfers', ${insert});\n    }`,
-	);
 }
 
 /** Single generic calls table for a non-token contract. */
@@ -182,7 +157,11 @@ export async function generateSubgraphScaffold(
 	// MCP scaffold_from_trait tool via @secondlayer/scaffold so output matches.
 	if (input.trait) {
 		return formatCode(
-			generateTraitSubgraph({ trait: input.trait, name: input.subgraphName }),
+			generateTraitSubgraph({
+				trait: input.trait,
+				name: input.subgraphName,
+				balances: input.balances,
+			}),
 		);
 	}
 
@@ -199,26 +178,9 @@ export async function generateSubgraphScaffold(
 		);
 	}
 
-	// Standard detection → the right event source for tokens.
-	const standards = classifyContract(abi);
-	if (standards.includes("sip-010")) {
-		const asset = abi.fungible_tokens?.[0]?.name;
-		return formatCode(
-			tokenScaffold(name, {
-				type: "ft_transfer",
-				assetIdentifier: asset ? `${contractId}::${asset}` : contractId,
-			}),
-		);
-	}
-	if (standards.includes("sip-009")) {
-		const asset = abi.non_fungible_tokens?.[0]?.name;
-		return formatCode(
-			tokenScaffold(name, {
-				type: "nft_transfer",
-				assetIdentifier: asset ? `${contractId}::${asset}` : contractId,
-			}),
-		);
-	}
+	// Standard detection → the right event source for tokens (shared with MCP).
+	const token = generateTokenSubgraphFromAbi({ contractId, abi, name });
+	if (token) return formatCode(token);
 
 	// Non-token → generic calls table.
 	return formatCode(genericCallsScaffold(name, contractId));
