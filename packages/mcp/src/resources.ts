@@ -1,9 +1,12 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+	type McpServer,
+	ResourceTemplate,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ContextField } from "@secondlayer/sdk";
 import { CHAIN_TRIGGER_FIELDS } from "@secondlayer/shared";
 import { BOOTSTRAP_STEP } from "@secondlayer/shared/archive/instance-diagnosis";
 import { TRAIT_STANDARDS } from "@secondlayer/stacks/clarity";
-import { filterFieldsByType } from "@secondlayer/subgraphs";
+import { camelizeKeys, filterFieldsByType } from "@secondlayer/subgraphs";
 import { TYPE_MAP } from "@secondlayer/subgraphs/schema";
 import type { ColumnType } from "@secondlayer/subgraphs/types";
 import { getClient, readApiKey } from "./lib/client.ts";
@@ -285,4 +288,96 @@ export function registerResources(server: McpServer) {
 			],
 		}),
 	);
+
+	// Template: 5 camelCased print samples + empirical field list. Host-loadable.
+	// Decoded camel data only — never raw_value hex dumps.
+	server.resource(
+		"samples",
+		new ResourceTemplate("secondlayer://samples/{contractId}", {
+			list: undefined,
+		}),
+		{
+			description:
+				"Decoded camelCase print samples for a contract (schema + up to 5 events). Use before writing a print_event handler.",
+		},
+		async (uri, variables) => {
+			const contractId = String(
+				Array.isArray(variables.contractId)
+					? variables.contractId[0]
+					: (variables.contractId ?? ""),
+			);
+			const body = await buildSamplesResource(contractId);
+			return {
+				contents: [
+					{
+						uri: uri.href,
+						mimeType: "application/json",
+						text: JSON.stringify(body, null, 2),
+					},
+				],
+			};
+		},
+	);
+}
+
+function jsonSafe(value: unknown): unknown {
+	if (typeof value === "bigint") return value.toString();
+	if (value === null || value === undefined) return value;
+	if (Array.isArray(value)) return value.map(jsonSafe);
+	if (typeof value === "object") {
+		const out: Record<string, unknown> = {};
+		for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+			out[k] = jsonSafe(v);
+		}
+		return out;
+	}
+	return value;
+}
+
+/** Build the samples resource body (exported for tests). */
+export async function buildSamplesResource(
+	contractId: string,
+	clientProvider: typeof getClient = getClient,
+): Promise<Record<string, unknown>> {
+	const client = clientProvider();
+	const printSchema = await client.index.printSchema(contractId);
+	const envelope = await client.index.events.list({
+		eventType: "print",
+		contractId,
+		limit: 5,
+	});
+
+	const schema =
+		printSchema?.topics.map((t) => ({
+			topic: t.topic,
+			fields: t.fields.map((f) => ({
+				camel: f.camel_name,
+				snake: f.name.replace(/-/g, "_"),
+				column_type: f.column_type,
+				always: f.always_present,
+			})),
+		})) ?? [];
+
+	const samples = (envelope.events ?? []).slice(0, 5).map((ev) => {
+		const payload = ev.payload as
+			| { topic?: string | null; value?: unknown }
+			| undefined;
+		const data = jsonSafe(camelizeKeys(payload?.value)) as Record<
+			string,
+			unknown
+		>;
+		return {
+			txId: ev.tx_id,
+			height: ev.block_height,
+			topic: payload?.topic ?? "",
+			data: data ?? {},
+		};
+	});
+
+	return {
+		contractId,
+		handlerShape: "event.data is camelCase; columns are snake_case",
+		schema,
+		samples,
+	};
 }

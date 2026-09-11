@@ -27,11 +27,39 @@ function captureResources(): RegisteredResource[] {
 	registerResources({
 		resource: (
 			_name: string,
-			uri: string,
+			uriOrTemplate: string | { uriTemplate?: { toString(): string } },
 			_opts: unknown,
-			read: RegisteredResource["read"],
+			read:
+				| RegisteredResource["read"]
+				| ((
+						uri: URL,
+						vars: Record<string, string>,
+				  ) => Promise<{ contents: Array<{ text: string }> }>),
 		) => {
-			resources.push({ uri, read });
+			if (typeof uriOrTemplate === "string") {
+				resources.push({
+					uri: uriOrTemplate,
+					read: read as RegisteredResource["read"],
+				});
+				return;
+			}
+			// ResourceTemplate — surface the template string so URI-list tests see it.
+			const template =
+				typeof uriOrTemplate.uriTemplate?.toString === "function"
+					? uriOrTemplate.uriTemplate.toString()
+					: String(uriOrTemplate);
+			resources.push({
+				uri: template,
+				read: async () =>
+					(
+						read as (
+							uri: URL,
+							vars: Record<string, string>,
+						) => Promise<{ contents: Array<{ text: string }> }>
+					)(new URL("secondlayer://samples/SP1.token"), {
+						contractId: "SP1.token",
+					}),
+			});
 		},
 	} as unknown as McpServer);
 	return resources;
@@ -215,6 +243,8 @@ describe("filters ↔ subgraphs SubgraphFilter validator", () => {
 				return { topic: { field: "uint" } };
 			case "factory":
 				return { from: "other", field: "data.pool" };
+			case "materialize":
+				return { table: "rows", columns: { col: { from: "field" } } };
 			case "contractId":
 				return "SP1.contract";
 			default:
@@ -367,5 +397,78 @@ describe("discovery resources", () => {
 		expect(text).toContain("sip-010");
 		expect(text).toContain("sip-009");
 		expect(text).toContain("sip-013");
+	});
+
+	it("registers the samples template URI", () => {
+		const uris = captureResources().map((r) => r.uri);
+		expect(uris.some((u) => u.includes("samples"))).toBe(true);
+	});
+});
+
+describe("secondlayer://samples/{contractId}", () => {
+	it("camelizes sample keys and omits raw hex dumps", async () => {
+		const { buildSamplesResource } = await import("./resources.ts");
+		const client = {
+			index: {
+				printSchema: async () => ({
+					contract_id: "SP1.token",
+					topics: [
+						{
+							topic: "completed-deposit",
+							count: 1,
+							first_height: 1,
+							last_height: 1,
+							non_tuple: false,
+							fields: [
+								{
+									name: "bitcoin-txid",
+									camel_name: "bitcoinTxid",
+									clarity_type: "(buff 32)",
+									ts_type: "string",
+									column_type: "text",
+									always_present: true,
+								},
+							],
+						},
+					],
+					sampled: false,
+					total_events: 1,
+					total_events_capped: false,
+					sample: { size: 1, newest_height: 1, oldest_height: 1 },
+					tip: { block_height: 1, finalized_height: 1, lag_seconds: 0 },
+				}),
+				events: {
+					list: async () => ({
+						events: [
+							{
+								cursor: "c1",
+								block_height: 10,
+								tx_id: "0xabc",
+								tx_index: 0,
+								event_index: 0,
+								event_type: "print",
+								contract_id: "SP1.token",
+								payload: {
+									topic: "completed-deposit",
+									value: {
+										"bitcoin-txid": "0xdead",
+										"output-index": 1,
+									},
+								},
+							},
+						],
+					}),
+				},
+			},
+		};
+		const body = await buildSamplesResource("SP1.token", () => client as never);
+		expect(body.handlerShape).toContain("camelCase");
+		const sample = (
+			body.samples as Array<{ data: Record<string, unknown> }>
+		)[0];
+		expect(sample?.data).toEqual({ bitcoinTxid: "0xdead", outputIndex: 1 });
+		expect(JSON.stringify(body)).not.toContain("raw_value");
+		expect(JSON.stringify(sample?.data)).toContain("bitcoinTxid");
+		expect(JSON.stringify(sample?.data)).not.toContain("bitcoin-txid");
 	});
 });

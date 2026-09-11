@@ -17,6 +17,7 @@ import type { SubgraphContext } from "./context.ts";
 import { applyMaterializeInsert } from "./materialize.ts";
 import { validatePrintPayload } from "./print-validate.ts";
 import { type MatchedTx, printContractId } from "./source-matcher.ts";
+import { recordPrintViolation } from "./violations.ts";
 
 /** Max consecutive handler errors before marking subgraph as error */
 const DEFAULT_ERROR_THRESHOLD = 50;
@@ -510,6 +511,18 @@ export async function runHandlers(
 						topic: printPayload.topic,
 						txId: tx.tx_id,
 						reason: verdict.reason,
+					});
+					// Persist for the authed violations GET — never throw.
+					void recordPrintViolation({
+						subgraphName: subgraph.name,
+						sourceName,
+						blockHeight: ctx.block.height,
+						txId: tx.tx_id,
+						reason: verdict.reason,
+						samplePayload: {
+							topic: printPayload.topic ?? "",
+							data: printPayload.data ?? {},
+						},
 					});
 					continue;
 				}

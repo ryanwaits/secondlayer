@@ -83,6 +83,7 @@ export const TABLE_TO_DB = {
 	subgraph_operations: "target",
 	subgraph_health_snapshots: "target",
 	subgraph_gaps: "target",
+	subgraph_violations: "target",
 	subgraph_processing_stats: "target",
 	subgraph_table_snapshots: "target",
 	// ── TARGET: x402 payment rail ──

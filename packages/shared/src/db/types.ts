@@ -215,6 +215,18 @@ export interface SubgraphGapsTable {
 	resolved_at: Date | null;
 }
 
+/** Print-validate skips persisted for the authed violations GET. Cap 100/subgraph. */
+export interface SubgraphViolationsTable {
+	id: Generated<string>;
+	subgraph_name: string;
+	source_name: string;
+	block_height: number;
+	tx_id: string;
+	reason: string;
+	sample_payload: Record<string, unknown>;
+	seen_at: Generated<Date>;
+}
+
 export type SubgraphOperationKind = "reindex" | "backfill";
 export type SubgraphOperationStatus =
 	| "queued"
@@ -935,6 +947,7 @@ export interface Database {
 	subgraph_processing_stats: SubgraphProcessingStatsTable;
 	subgraph_table_snapshots: SubgraphTableSnapshotsTable;
 	subgraph_gaps: SubgraphGapsTable;
+	subgraph_violations: SubgraphViolationsTable;
 	subgraph_operations: SubgraphOperationsTable;
 	processed_stripe_events: ProcessedStripeEventsTable;
 	account_spend_caps: AccountSpendCapsTable;

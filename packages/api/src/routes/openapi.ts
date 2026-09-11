@@ -1177,6 +1177,19 @@ export const OPENAPI_SPEC = {
 				responses: apiReadResponses({ "404": jsonError() }),
 			},
 		},
+		"/api/subgraphs/{name}/violations": {
+			get: {
+				tags: ["deployments"],
+				summary:
+					"Recent print-validate skips for this subgraph (last 100, newest first)",
+				security: WRITE_SECURITY,
+				parameters: [
+					pp("name"),
+					qp("limit", "integer", false, "Page size, 1–100 (default 50)."),
+				],
+				responses: apiReadResponses({ "404": jsonError() }),
+			},
+		},
 		"/api/subscriptions": {
 			get: {
 				tags: ["subscriptions"],

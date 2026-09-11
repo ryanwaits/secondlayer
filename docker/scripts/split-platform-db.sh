@@ -74,6 +74,7 @@ CONTROL_TABLES=(
   subgraph_operations
   subgraph_health_snapshots
   subgraph_gaps
+  subgraph_violations
   subgraph_usage_daily
   subgraph_processing_stats
   subgraph_table_snapshots

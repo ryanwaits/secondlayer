@@ -334,6 +334,7 @@ describe("route manifest", () => {
 				"/api/subgraphs/{name}/reindex",
 				"/api/subgraphs/{name}/backfill",
 				"/api/subgraphs/{name}/stop",
+				"/api/subgraphs/{name}/violations",
 				"/api/subscriptions",
 				"/api/subscriptions/{id}",
 			]),

@@ -197,6 +197,15 @@ async function reorgOneSubgraph(
 		END $$`,
 	);
 
+	// Print-validate skips live on the control plane (same DB as `subgraphs`),
+	// not in the per-subgraph schema. Clear orphan rows that would accuse the
+	// live chain of a mismatch that only existed on the rolled-back fork.
+	await targetDb
+		.deleteFrom("subgraph_violations")
+		.where("subgraph_name", "=", sg.name)
+		.where("block_height", ">=", blockHeight)
+		.execute();
+
 	// Emit revert events to dependent subscriptions so receivers
 	// know to roll back. Insert into subscription_outbox with a
 	// stable dedup_key keyed on (subscription, table, height,

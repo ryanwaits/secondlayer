@@ -1424,42 +1424,55 @@ app.get("/:subgraphName", async (c) => {
 	// Fetch live stats, COUNT queries, chain tip, gaps, and the active op
 	// (ETA/progress source) in parallel
 	const db = getDb();
-	const [countResults, liveRow, chainTip, gapResult, activeOpResult] =
-		await Promise.all([
-			Promise.allSettled(
-				schemaEntries.map(([tableName]) =>
-					query(
-						subgraph,
-						`SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`,
-					).then((r) => Number.parseInt(String(r[0]?.count ?? 0), 10)),
-				),
+	const [
+		countResults,
+		liveRow,
+		chainTip,
+		gapResult,
+		activeOpResult,
+		violationCount,
+	] = await Promise.all([
+		Promise.allSettled(
+			schemaEntries.map(([tableName]) =>
+				query(
+					subgraph,
+					`SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`,
+				).then((r) => Number.parseInt(String(r[0]?.count ?? 0), 10)),
 			),
-			db
-				.selectFrom("subgraphs")
-				.select([
-					"start_block",
-					"last_processed_block",
-					"total_processed",
-					"total_errors",
-					"status",
-					"last_error",
-					"last_error_at",
-					"updated_at",
-					"reindex_from_block",
-					"reindex_to_block",
-				])
-				.where("id", "=", subgraph.id)
-				.executeTakeFirst()
-				.catch(() => null),
-			getChainTip(),
-			findSubgraphGaps(db, subgraphName, {
-				limit: 10,
-				unresolvedOnly: true,
-			}).catch(() => ({ gaps: [], total: 0 })),
-			resolveActiveOpInfo(db, subgraph.id).catch(
-				() => ({}) as Awaited<ReturnType<typeof resolveActiveOpInfo>>,
-			),
-		]);
+		),
+		db
+			.selectFrom("subgraphs")
+			.select([
+				"start_block",
+				"last_processed_block",
+				"total_processed",
+				"total_errors",
+				"status",
+				"last_error",
+				"last_error_at",
+				"updated_at",
+				"reindex_from_block",
+				"reindex_to_block",
+			])
+			.where("id", "=", subgraph.id)
+			.executeTakeFirst()
+			.catch(() => null),
+		getChainTip(),
+		findSubgraphGaps(db, subgraphName, {
+			limit: 10,
+			unresolvedOnly: true,
+		}).catch(() => ({ gaps: [], total: 0 })),
+		resolveActiveOpInfo(db, subgraph.id).catch(
+			() => ({}) as Awaited<ReturnType<typeof resolveActiveOpInfo>>,
+		),
+		db
+			.selectFrom("subgraph_violations")
+			.select(db.fn.countAll<string>().as("count"))
+			.where("subgraph_name", "=", subgraph.name)
+			.executeTakeFirst()
+			.then((r) => Number(r?.count ?? 0))
+			.catch(() => 0),
+	]);
 
 	for (let i = 0; i < schemaEntries.length; i++) {
 		const [tableName, tableDef] = schemaEntries[i];
@@ -1551,6 +1564,7 @@ app.get("/:subgraphName", async (c) => {
 			lastError: live.last_error ?? null,
 			lastErrorAt: live.last_error_at?.toISOString() ?? null,
 			emptyMapping: isEmptyMappingHealth({ totalProcessed, totalRows }),
+			violationCount,
 		},
 		sync,
 		tables,
@@ -1635,6 +1649,62 @@ app.get("/:subgraphName/gaps", async (c) => {
 			totalMissingBlocks: totalMissing,
 			limit,
 			offset,
+		},
+	});
+});
+
+// ── Print-validate violations (control plane; not under /v1) ────────────
+// Declared before `/:subgraphName/:tableName` so "violations" is never
+// captured as a table name.
+
+app.get("/:subgraphName/violations", async (c) => {
+	const { subgraphName } = c.req.param();
+	const accountId = getAccountId(c);
+	getOwnedSubgraph(subgraphName, accountId);
+
+	const db = getDb();
+	const limit = Math.min(
+		Math.max(1, Number.parseInt(c.req.query("limit") ?? "50", 10) || 50),
+		100,
+	);
+
+	const rows = await db
+		.selectFrom("subgraph_violations")
+		.select([
+			"id",
+			"subgraph_name",
+			"source_name",
+			"block_height",
+			"tx_id",
+			"reason",
+			"sample_payload",
+			"seen_at",
+		])
+		.where("subgraph_name", "=", subgraphName)
+		.orderBy("seen_at", "desc")
+		.limit(limit)
+		.execute();
+
+	const countRow = await db
+		.selectFrom("subgraph_violations")
+		.select(db.fn.countAll<string>().as("count"))
+		.where("subgraph_name", "=", subgraphName)
+		.executeTakeFirst();
+
+	return c.json({
+		data: rows.map((r) => ({
+			id: r.id,
+			sourceName: r.source_name,
+			blockHeight: Number(r.block_height),
+			txId: r.tx_id,
+			reason: r.reason,
+			samplePayload: r.sample_payload,
+			seenAt:
+				r.seen_at instanceof Date ? r.seen_at.toISOString() : String(r.seen_at),
+		})),
+		meta: {
+			total: Number(countRow?.count ?? 0),
+			limit,
 		},
 	});
 });
