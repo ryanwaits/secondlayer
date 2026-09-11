@@ -5,6 +5,7 @@ import { runSubgraphTest, toHandlerPayload } from "../src/testing/index.ts";
 const printSource = {
 	type: "print_event" as const,
 	contractId: "SP.dex",
+	prints: { swap: { tokenX: "text" as const } },
 };
 
 const swaps = defineSubgraph({

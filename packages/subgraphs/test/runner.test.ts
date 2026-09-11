@@ -162,6 +162,7 @@ describe("runHandlers", () => {
 				print: {
 					type: "print_event",
 					contractId: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry",
+					prints: { "*": { value: "jsonb" } },
 				},
 			},
 		);

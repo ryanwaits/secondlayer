@@ -24,6 +24,12 @@ const bns = defineSubgraph({
 		bns: {
 			type: "print_event",
 			contractId: "SP2QEZ06AGJ3RKJPBV14SY1V5BBFNAW33D96YPGZF.BNS-V2",
+			prints: {
+				"name-register": {
+					name: { tuple: { name: "text", namespace: "text" } },
+					owner: "principal",
+				},
+			},
 		},
 	},
 	schema: {
@@ -81,10 +87,15 @@ describe("createTestContext", () => {
 			...bns,
 			handlers: {
 				bns: (event, ctx) => {
+					const data = event.data as unknown as {
+						name: string;
+						namespace: string;
+						owner: string;
+					};
 					ctx.insert("names", {
-						name: event.data.name as string,
-						namespace: event.data.namespace as string,
-						owner: event.data.owner as string,
+						name: data.name,
+						namespace: data.namespace,
+						owner: data.owner,
 					});
 				},
 			},
@@ -111,7 +122,9 @@ describe("the test context is the real context", () => {
 				uniqueKeys: [["holder"]],
 			},
 		},
-		handlers: {},
+		handlers: {
+			xfer: () => {},
+		},
 	});
 
 	test("increment deltas accumulate within a block (not last-write-wins)", async () => {

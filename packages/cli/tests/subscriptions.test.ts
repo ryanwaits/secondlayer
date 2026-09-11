@@ -143,6 +143,7 @@ describe("subscriptions command helpers", () => {
 					errorRate: 0,
 					lastError: null,
 					lastErrorAt: null,
+					emptyMapping: false,
 				},
 				sync: {
 					status: "catching_up",
@@ -219,6 +220,7 @@ describe("subscriptions command helpers", () => {
 					errorRate: 0,
 					lastError: null,
 					lastErrorAt: null,
+					emptyMapping: false,
 				},
 				sync: {
 					status: "synced",

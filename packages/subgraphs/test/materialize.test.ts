@@ -62,7 +62,13 @@ describe("materialize identity maps", () => {
 		const result = applyMaterializeInsert(
 			swapMaterialize,
 			event as Record<string, unknown>,
-			ctx,
+			{
+				tx: ctx.tx,
+				block: ctx.block,
+				insert: (table, row) => {
+					ctx.insert(table as "swaps", row as never);
+				},
+			},
 			swaps.schema,
 		);
 		expect(result.ok).toBe(true);
@@ -87,7 +93,13 @@ describe("materialize identity maps", () => {
 		applyMaterializeInsert(
 			swapMaterialize,
 			event as Record<string, unknown>,
-			ctx,
+			{
+				tx: ctx.tx,
+				block: ctx.block,
+				insert: (table, row) => {
+					ctx.insert(table as "swaps", row as never);
+				},
+			},
 			swaps.schema,
 		);
 		const rows = await ctx.rows("swaps");
@@ -103,7 +115,13 @@ describe("materialize identity maps", () => {
 		const result = applyMaterializeInsert(
 			swapMaterialize,
 			event as Record<string, unknown>,
-			ctx,
+			{
+				tx: ctx.tx,
+				block: ctx.block,
+				insert: (table, row) => {
+					ctx.insert(table as "swaps", row as never);
+				},
+			},
 			swaps.schema,
 		);
 		expect(result.ok).toBe(false);

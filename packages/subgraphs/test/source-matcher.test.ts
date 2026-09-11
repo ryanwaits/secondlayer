@@ -339,6 +339,7 @@ describe("matchSources", () => {
 			prints: {
 				type: "print_event",
 				contractId: "SP000.nft-marketplace",
+				prints: { "*": { value: "jsonb" } },
 			},
 		};
 		const matched = matchSources(sources, txs, events);
@@ -352,6 +353,7 @@ describe("matchSources", () => {
 			prints: {
 				type: "print_event",
 				contractId: "SP000.nft-marketplace",
+				prints: { "*": { value: "jsonb" } },
 			},
 		};
 		const indexedEvents = [
@@ -380,6 +382,7 @@ describe("matchSources", () => {
 			prints: {
 				type: "print_event",
 				contractId: "SP000.nft-marketplace",
+				prints: { "*": { value: "jsonb" } },
 			},
 		};
 		const indexedEvents = [
@@ -402,7 +405,11 @@ describe("matchSources", () => {
 
 	test("matches print_event with wildcard contractId", () => {
 		const sources: Record<string, SubgraphFilter> = {
-			allPrints: { type: "print_event", contractId: "SP000.*" },
+			allPrints: {
+				type: "print_event",
+				contractId: "SP000.*",
+				prints: { "*": { value: "jsonb" } },
+			},
 		};
 		const matched = matchSources(sources, txs, events);
 		expect(matched.length).toBe(1);
@@ -410,7 +417,11 @@ describe("matchSources", () => {
 
 	test("filters print_event by wrong contractId", () => {
 		const sources: Record<string, SubgraphFilter> = {
-			wrong: { type: "print_event", contractId: "SP999.unknown" },
+			wrong: {
+				type: "print_event",
+				contractId: "SP999.unknown",
+				prints: { "*": { value: "jsonb" } },
+			},
 		};
 		const matched = matchSources(sources, txs, events);
 		expect(matched.length).toBe(0);

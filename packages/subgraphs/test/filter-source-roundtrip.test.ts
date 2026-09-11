@@ -148,6 +148,7 @@ const FIXTURES: Array<{ name: string; filter: SubgraphFilter }> = [
 		filter: {
 			type: "print_event",
 			contractId: "SP2QEZ06AGJ3RKJPBV14SY1V5BBFNAW33D96YPGZF.BNS-V2",
+			prints: { "*": { value: "jsonb" } },
 		},
 	},
 	{
@@ -159,6 +160,7 @@ const FIXTURES: Array<{ name: string; filter: SubgraphFilter }> = [
 				"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-*",
 			],
 			topic: "completed-deposit",
+			prints: { "completed-deposit": { amount: "uint" } },
 		},
 	},
 ];
