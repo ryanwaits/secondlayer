@@ -515,3 +515,80 @@ test("catch-all * covers all sources", () => {
 		}),
 	).not.toThrow();
 });
+
+test("materialize without handler satisfies the handler gate", () => {
+	expect(() =>
+		validateSubgraphDefinition({
+			name: "identity-map",
+			sources: {
+				swap: {
+					type: "print_event",
+					contractId: "SP1.pool",
+					prints: { swap: { tokenX: "principal", dx: "uint" } },
+					materialize: {
+						table: "swaps",
+						columns: {
+							token_x: { from: "tokenX" },
+							amount_x: { from: "dx" },
+						},
+					},
+				},
+			},
+			schema: {
+				swaps: {
+					columns: {
+						token_x: { type: "principal" },
+						amount_x: { type: "uint" },
+					},
+				},
+			},
+			handlers: {},
+		}),
+	).not.toThrow();
+});
+
+test("materialize from unknown print field names known keys", () => {
+	expect(() =>
+		validateSubgraphDefinition({
+			name: "bad-from",
+			sources: {
+				swap: {
+					type: "print_event",
+					contractId: "SP1.pool",
+					prints: { swap: { tokenX: "principal" } },
+					materialize: {
+						table: "swaps",
+						columns: { amount_in: { from: "amountIn" } },
+					},
+				},
+			},
+			schema: {
+				swaps: { columns: { amount_in: { type: "uint" } } },
+			},
+			handlers: {},
+		}),
+	).toThrow(/known:.*tokenX/);
+});
+
+test("handler and materialize together are refused", () => {
+	expect(() =>
+		validateSubgraphDefinition({
+			name: "both",
+			sources: {
+				swap: {
+					type: "print_event",
+					contractId: "SP1.pool",
+					prints: { swap: { dx: "uint" } },
+					materialize: {
+						table: "swaps",
+						columns: { amount_x: { from: "dx" } },
+					},
+				},
+			},
+			schema: {
+				swaps: { columns: { amount_x: { type: "uint" } } },
+			},
+			handlers: { swap: () => {} },
+		}),
+	).toThrow(/both materialize and a handler/);
+});

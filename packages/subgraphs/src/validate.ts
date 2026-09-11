@@ -1,9 +1,12 @@
 import { z } from "zod";
 import type {
 	ColumnType,
+	MaterializeSpec,
+	PrintEventPrints,
 	SubgraphColumn,
 	SubgraphDefinition,
 	SubgraphFilter,
+	SubgraphSchema,
 	SubgraphTable,
 } from "./types.ts";
 
@@ -182,6 +185,19 @@ const amountRange = {
 	maxAmount: z.bigint().optional(),
 };
 
+const MaterializeColumnSchema = z.union([
+	z.object({ from: z.string().min(1) }).strict(),
+	z.object({ fromTx: z.enum(["sender", "txId"]) }).strict(),
+	z.object({ fromBlock: z.enum(["height", "hash", "timestamp"]) }).strict(),
+]);
+
+const MaterializeSpecSchema = z
+	.object({
+		table: z.string().min(1),
+		columns: z.record(z.string(), MaterializeColumnSchema),
+	})
+	.strict();
+
 /**
  * A REAL discriminated union — one member per source type, each `.strict()`
  * with only the fields that type actually supports.
@@ -300,6 +316,7 @@ const SubgraphFilterUnion = z.discriminatedUnion("type", [
 			prints: z
 				.record(z.string(), z.record(z.string(), PrintFieldSchema))
 				.optional(),
+			materialize: MaterializeSpecSchema.optional(),
 			...traitScope,
 			...factoryScope,
 		})
@@ -325,18 +342,71 @@ function hasPinnedContractId(
 	return false;
 }
 
+/** Camel keys declared across a prints map, plus `topic` (native payload). */
+function printMaterializeFromKeys(
+	prints: PrintEventPrints | undefined,
+): string[] {
+	const keys = new Set<string>(["topic"]);
+	if (prints) {
+		for (const fields of Object.values(prints)) {
+			for (const k of Object.keys(fields)) keys.add(k);
+		}
+	}
+	return [...keys].sort();
+}
+
+function refineMaterialize(
+	name: string,
+	filter: SubgraphFilter,
+	schema: SubgraphSchema,
+	ctx: z.RefinementCtx,
+): void {
+	if (!("materialize" in filter) || filter.materialize === undefined) return;
+	const spec = filter.materialize as MaterializeSpec;
+	const table = schema[spec.table];
+	if (!table) {
+		ctx.addIssue({
+			code: "custom",
+			path: ["sources", name, "materialize", "table"],
+			message: `materialize table "${spec.table}" is not in schema`,
+		});
+		return;
+	}
+	for (const col of Object.keys(spec.columns)) {
+		if (!(col in table.columns)) {
+			ctx.addIssue({
+				code: "custom",
+				path: ["sources", name, "materialize", "columns", col],
+				message: `materialize column "${col}" is not on schema table "${spec.table}"`,
+			});
+		}
+	}
+	if (filter.type === "print_event") {
+		const known = printMaterializeFromKeys(filter.prints);
+		const knownSet = new Set(known);
+		for (const [col, mapping] of Object.entries(spec.columns)) {
+			if (!("from" in mapping)) continue;
+			if (!knownSet.has(mapping.from)) {
+				ctx.addIssue({
+					code: "custom",
+					path: ["sources", name, "materialize", "columns", col, "from"],
+					message: `materialize from "${mapping.from}" is not a known print field — known: ${known.join(", ")}`,
+				});
+			}
+		}
+	}
+}
+
 /**
  * Deploy gates beyond the per-filter union: pinned print_event needs a
  * non-empty `prints` map, contract_call+functionName needs `abi`, and every
- * source needs a named handler or `"*"`.
- *
- * TODO(sg-006): `materialize` should count as a handler so identity maps
- * need no function.
+ * source needs a named handler, materialize, or `"*"`.
  */
 function refineDeployGates(
 	def: {
 		sources: Record<string, SubgraphFilter>;
 		handlers: Record<string, unknown>;
+		schema: SubgraphSchema;
 	},
 	ctx: z.RefinementCtx,
 ): void {
@@ -368,11 +438,23 @@ function refineDeployGates(
 				});
 			}
 		}
+		refineMaterialize(name, filter, def.schema, ctx);
 	}
 
 	const hasCatchAll = def.handlers["*"] != null;
-	for (const name of Object.keys(def.sources)) {
-		if (def.handlers[name] == null && !hasCatchAll) {
+	for (const [name, filter] of Object.entries(def.sources)) {
+		const hasMaterialize =
+			"materialize" in filter && filter.materialize !== undefined;
+		const hasHandler = def.handlers[name] != null;
+		if (hasMaterialize && hasHandler) {
+			ctx.addIssue({
+				code: "custom",
+				path: ["handlers", name],
+				message: `source "${name}" has both materialize and a handler — use one or the other`,
+			});
+			continue;
+		}
+		if (!hasHandler && !hasMaterialize && !hasCatchAll) {
 			ctx.addIssue({
 				code: "custom",
 				path: ["handlers", name],
@@ -406,6 +488,7 @@ export const SubgraphDefinitionSchema: z.ZodType<SubgraphDefinition> = z
 			def as {
 				sources: Record<string, SubgraphFilter>;
 				handlers: Record<string, unknown>;
+				schema: SubgraphSchema;
 			},
 			ctx,
 		);

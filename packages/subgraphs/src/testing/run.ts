@@ -1,5 +1,6 @@
 import { camelizeKeys } from "../print-schema.ts";
-import type { SubgraphSchema } from "../types.ts";
+import { applyMaterializeInsert } from "../runtime/materialize.ts";
+import type { MaterializeSpec, SubgraphSchema } from "../types.ts";
 import { buildEvent, createTestContext } from "./harness.ts";
 
 /**
@@ -293,10 +294,14 @@ export async function probeHandlers(
 	let firstEventKeys: string[] | undefined;
 
 	for (const sample of samples) {
-		const handler = def.handlers[sample.source] ?? def.handlers["*"];
-		if (typeof handler !== "function") continue;
 		const filter = def.sources[sample.source];
 		if (!filter) continue;
+		const handler = def.handlers[sample.source] ?? def.handlers["*"];
+		const materialize =
+			"materialize" in filter && filter.materialize !== undefined
+				? (filter.materialize as MaterializeSpec)
+				: undefined;
+		if (typeof handler !== "function" && !materialize) continue;
 
 		if (firstEventKeys === undefined) {
 			firstEventKeys = dataKeysOf(sample.event.data);
@@ -304,10 +309,26 @@ export async function probeHandlers(
 
 		matched++;
 		try {
-			await (handler as (e: unknown, c: unknown) => unknown)(
-				buildEvent(filter as Parameters<typeof buildEvent>[0], sample.event),
-				ctx,
+			const event = buildEvent(
+				filter as Parameters<typeof buildEvent>[0],
+				sample.event,
 			);
+			if (materialize) {
+				applyMaterializeInsert(
+					materialize,
+					event as unknown as Record<string, unknown>,
+					{
+						tx: ctx.tx,
+						block: ctx.block,
+						insert: (table, row) => {
+							ctx.insert(table as never, row as never);
+						},
+					},
+					def.schema,
+				);
+			} else {
+				await (handler as (e: unknown, c: unknown) => unknown)(event, ctx);
+			}
 		} catch {
 			// Counted as matched; rows may still be empty → EMPTY_MAPPING.
 		}

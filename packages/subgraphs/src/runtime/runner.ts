@@ -8,11 +8,13 @@ import {
 import { camelizeKeys } from "../print-schema.ts";
 import type {
 	ContractCallFilter,
+	MaterializeSpec,
 	SubgraphDefinition,
 	SubgraphFilter,
 } from "../types.ts";
 import { decodeClarityValue, decodeEventData } from "./clarity.ts";
 import type { SubgraphContext } from "./context.ts";
+import { applyMaterializeInsert } from "./materialize.ts";
 import { validatePrintPayload } from "./print-validate.ts";
 import { type MatchedTx, printContractId } from "./source-matcher.ts";
 
@@ -409,9 +411,14 @@ export async function runHandlers(
 			return { processed, errors, ...(skipped > 0 ? { skipped } : {}) };
 		}
 
+		const filter = filterLookup.get(sourceName);
+		const materialize: MaterializeSpec | undefined =
+			filter && "materialize" in filter && filter.materialize !== undefined
+				? filter.materialize
+				: undefined;
 		const handler =
 			subgraph.handlers[sourceName] ?? subgraph.handlers["*"] ?? null;
-		if (!handler) {
+		if (!handler && !materialize) {
 			logger.warn("No handler found for source", {
 				subgraph: subgraph.name,
 				sourceName,
@@ -428,8 +435,6 @@ export async function runHandlers(
 			contractId: tx.contract_id ?? null,
 			functionName: tx.function_name ?? null,
 		});
-
-		const filter = filterLookup.get(sourceName);
 
 		// Checkpoint the ops queue: a handler that throws mid-way must
 		// contribute nothing — a partial flush (e.g. a debit without its
@@ -510,8 +515,28 @@ export async function runHandlers(
 				}
 			}
 
-			await handler(payload, ctx);
-			processed++;
+			if (materialize) {
+				const result = applyMaterializeInsert(
+					materialize,
+					payload,
+					ctx,
+					subgraph.schema,
+				);
+				if (!result.ok) {
+					skipped++;
+					logger.warn("Materialize skipped: required field missing", {
+						subgraph: subgraph.name,
+						sourceName,
+						txId: tx.tx_id,
+						reason: result.reason,
+					});
+					continue;
+				}
+				processed++;
+			} else if (handler) {
+				await handler(payload, ctx);
+				processed++;
+			}
 		} catch (err) {
 			ctx.rollbackTo(checkpoint);
 			errors++;

@@ -283,9 +283,28 @@ export type PrintField =
  */
 export type PrintEventPrints = Record<string, Record<string, PrintField>>;
 
+/**
+ * One column in a static identity map. Literals only — the bundler never
+ * executes user code, so `{ from: "tokenX" }` is valid and `from("tokenX")`
+ * is not.
+ */
+export type MaterializeColumn =
+	| { from: string }
+	| { fromTx: "sender" | "txId" }
+	| { fromBlock: "height" | "hash" | "timestamp" };
+
+/** Static insert from a source event — replaces a 1:1 handler. */
+export interface MaterializeSpec {
+	table: string;
+	/** Keys = schema column names (snake). */
+	columns: Record<string, MaterializeColumn>;
+}
+
 type PrintEventFields = FactoryScope & {
 	type: "print_event";
 	topic?: string;
+	/** Identity map: insert without a handler function. XOR with handlers[name]. */
+	materialize?: MaterializeSpec;
 };
 
 /**

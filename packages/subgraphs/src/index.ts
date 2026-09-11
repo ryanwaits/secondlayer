@@ -2,6 +2,8 @@ export type {
 	ColumnType,
 	FactoryScope,
 	PrintField,
+	MaterializeColumn,
+	MaterializeSpec,
 	SubgraphColumn,
 	SubgraphTable,
 	SubgraphSchema,

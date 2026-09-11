@@ -54,6 +54,24 @@ defineSubgraph({
 	handlers: {},
 });
 
+// materialize sources may omit a handler entry.
+defineSubgraph({
+	name: "materialize-only",
+	sources: {
+		swap: {
+			type: "print_event",
+			contractId: "SP000.c",
+			prints: { swap: { dx: "uint" } },
+			materialize: {
+				table: "rows",
+				columns: { n: { from: "dx" } },
+			},
+		},
+	},
+	schema,
+	handlers: {},
+});
+
 // functionName⇒abi is enforced at validate (not in the filter type — a TS
 // conditional broke trigger helpers). Documented here as intentional.
 const _callWithFnNoAbi: {

@@ -1,26 +1,40 @@
 import type { AnyEvent, EventForFilter } from "./events.ts";
 import type { TypedSubgraphContext } from "./infer.ts";
 import type {
+	MaterializeSpec,
 	SubgraphDefinition,
 	SubgraphFilter,
 	SubgraphSchema,
 } from "./types.ts";
 
+type HandlerFn<F extends SubgraphFilter, S extends SubgraphSchema> = (
+	event: EventForFilter<F>,
+	ctx: TypedSubgraphContext<S>,
+) => void | Promise<void>;
+
+type SourceHasMaterialize<F> = F extends { materialize: MaterializeSpec }
+	? true
+	: false;
+
 /**
  * Handlers keyed by source name. Each handler's `event` is typed from the
  * matching source's filter `type` (e.g. a `print_event` source → `event.topic`
  * is a `string`), and `ctx` is typed against the subgraph `schema` (table
- * names + row columns checked). Every source key is required; the optional
- * `"*"` catch-all receives any event (validate also accepts `*` alone).
+ * names + row columns checked). Sources with `materialize` may omit a
+ * handler; every other source key is required. Optional `"*"` catch-all
+ * receives any event (validate also accepts `*` alone).
  */
 export type TypedHandlers<
 	Sources extends Record<string, SubgraphFilter>,
 	S extends SubgraphSchema,
 > = {
-	[K in keyof Sources]-?: (
-		event: EventForFilter<Sources[K]>,
-		ctx: TypedSubgraphContext<S>,
-	) => void | Promise<void>;
+	[K in keyof Sources as SourceHasMaterialize<Sources[K]> extends true
+		? never
+		: K]-?: HandlerFn<Sources[K], S>;
+} & {
+	[K in keyof Sources as SourceHasMaterialize<Sources[K]> extends true
+		? K
+		: never]?: HandlerFn<Sources[K], S>;
 } & {
 	"*"?: (event: AnyEvent, ctx: TypedSubgraphContext<S>) => void | Promise<void>;
 };

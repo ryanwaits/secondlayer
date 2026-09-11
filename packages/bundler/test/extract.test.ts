@@ -158,4 +158,63 @@ describe("extractSubgraphDefinition", () => {
 			"events",
 		]);
 	});
+
+	test("extracts materialize literals inside sources", () => {
+		const result = extractSubgraphDefinition(`
+			import { defineSubgraph } from "@secondlayer/subgraphs";
+
+			export default defineSubgraph({
+				name: "materialize-literal",
+				sources: {
+					swap: {
+						type: "print_event",
+						contractId: "SP123.pool",
+						prints: { swap: { tokenX: "principal" } },
+						materialize: {
+							table: "swaps",
+							columns: { token_x: { from: "tokenX" } },
+						},
+					},
+				},
+				schema: {
+					swaps: { columns: { token_x: { type: "principal" } } },
+				},
+				handlers: {},
+			});
+		`);
+		const sources = result.sources as Record<
+			string,
+			{ materialize?: { table: string; columns: Record<string, unknown> } }
+		>;
+		expect(sources.swap.materialize).toEqual({
+			table: "swaps",
+			columns: { token_x: { from: "tokenX" } },
+		});
+	});
+
+	test("rejects from() call inside materialize", () => {
+		expect(() =>
+			extractSubgraphDefinition(`
+				import { defineSubgraph } from "@secondlayer/subgraphs";
+
+				export default defineSubgraph({
+					name: "from-call",
+					sources: {
+						swap: {
+							type: "print_event",
+							contractId: "SP123.pool",
+							materialize: {
+								table: "swaps",
+								columns: { token_x: { from: from("tokenX") } },
+							},
+						},
+					},
+					schema: {
+						swaps: { columns: { token_x: { type: "principal" } } },
+					},
+					handlers: {},
+				});
+			`),
+		).toThrow(SubgraphNotStaticError);
+	});
 });
