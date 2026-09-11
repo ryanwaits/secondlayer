@@ -57,6 +57,7 @@ CONTROL_TABLES=(
   sessions
   magic_links
   claim_tokens
+  play_provisions
   usage_daily
   usage_snapshots
   account_insights

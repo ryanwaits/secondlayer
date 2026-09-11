@@ -60,6 +60,8 @@ export const RETAINED_METER_ROUTE_FIXTURES = [
 	{ method: "POST", path: "/api/billing/refill" },
 	{ method: "GET", path: "/api/billing/caps" },
 	{ method: "POST", path: "/api/public/credits/checkout" },
+	{ method: "POST", path: "/v1/play" },
+	{ method: "GET", path: "/v1/play" },
 	{ method: "POST", path: "/api/webhooks/stripe" },
 	{ method: "GET", path: "/api/keys" },
 	{ method: "GET", path: "/api/accounts/me" },

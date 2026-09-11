@@ -120,11 +120,6 @@ const nextConfig: NextConfig = {
 				destination: "/docs/sbtc-settlement",
 				permanent: true,
 			},
-			{
-				source: "/claim/:token",
-				destination: "/archive",
-				permanent: true,
-			},
 			// Hosted-era surfaces removed 2026-08: no plans to sell hosted, so
 			// pricing and status land on the archive (the paid surface).
 			{

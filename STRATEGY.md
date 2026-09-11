@@ -140,11 +140,10 @@ instance? Subgraphs. Raw inputs? Streams.*
 `secondlayer subgraphs create` → deploy → curl your table on localhost → attach a
 webhook. Forward-only from your own node is free and skips bootstrap.
 
-Hosted (building): provision a subgraph and optional subscription on
+Hosted: provision a subgraph and optional subscription on
 api.secondlayer.tools against a $10 play grant, no account. Claim is
 create an account plus the first top-up. Resources transfer. Same
-payload shapes as self-host. Until that path ships, hosted `/v1`
-without a key is 401.
+payload shapes as self-host.
 
 ## Pricing
 

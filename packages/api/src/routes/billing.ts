@@ -112,12 +112,18 @@ export async function createCreditsCheckoutSession(opts: {
 	usd: CreditPackUsd;
 	successUrl: string;
 	cancelUrl: string;
+	metadata?: Record<string, string>;
 }): Promise<string | null> {
 	const stripeCustomerId = await ensureStripeCustomer(
 		opts.stripe,
 		opts.db,
 		opts.account,
 	);
+	const metadata = {
+		secondlayer_account_id: opts.account.id,
+		kind: "credits_topup",
+		...opts.metadata,
+	};
 	const session = await opts.stripe.checkout.sessions.create({
 		mode: "payment",
 		customer: stripeCustomerId,
@@ -133,16 +139,10 @@ export async function createCreditsCheckoutSession(opts: {
 		],
 		success_url: opts.successUrl,
 		cancel_url: opts.cancelUrl,
-		metadata: {
-			secondlayer_account_id: opts.account.id,
-			kind: "credits_topup",
-		},
+		metadata,
 		payment_intent_data: {
 			setup_future_usage: "off_session",
-			metadata: {
-				secondlayer_account_id: opts.account.id,
-				kind: "credits_topup",
-			},
+			metadata,
 		},
 	});
 	return session.url;

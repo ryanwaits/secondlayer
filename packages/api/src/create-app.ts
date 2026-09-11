@@ -27,14 +27,15 @@ import streamsRouter from "./routes/streams.ts";
 import subgraphsRouter from "./routes/subgraphs.ts";
 import subscriptionsRouter from "./routes/subscriptions.ts";
 import v1IndexRouter from "./routes/v1-index.ts";
+import v1PlayRouter from "./routes/v1-play.ts";
 import v1SubgraphsRouter from "./routes/v1-subgraphs.ts";
 import webhooksStripeRouter from "./routes/webhooks-stripe.ts";
 import { apiTelemetry } from "./telemetry/api.ts";
 
-/** Routes that run an operator's workload — deploying and executing handler
- *  code, delivering webhooks. Self-host only: the archive deployment serves
- *  data, it does not run anyone's workload (STRATEGY.md, "We do not host
- *  public subgraphs"). */
+/** Routes that run an operator's workload: deploying and executing handler
+ *  code, delivering webhooks. Self-host only. Hosted does not mount
+ *  `/api/subgraphs` or `/api/subscriptions`; play (`POST /v1/play`) is the
+ *  exception: one subgraph per ghost account, 30-day expiry. */
 const WORKLOAD_PATHS = [
 	"/api/subgraphs",
 	"/api/subgraphs/*",
@@ -149,6 +150,9 @@ export function createApiApp(mode: InstanceMode): Hono {
 	app.route("/v1/instance", createInstanceCatalogRouter());
 	if (mode === "oss") {
 		app.get("/console", (c) => c.html(renderLocalConsole()));
+	}
+	if (mode === "platform") {
+		app.route("/v1/play", v1PlayRouter);
 	}
 	app.route("/v1", v1IndexRouter);
 	app.route("/v1/openapi.json", openApiRouter);

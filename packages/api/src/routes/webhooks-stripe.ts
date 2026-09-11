@@ -27,6 +27,7 @@ import {
 	getStripeOrNull,
 	getStripeWebhookSecretOrNull,
 } from "../lib/stripe.ts";
+import { transferPlayClaim } from "../play/claim.ts";
 
 const app = new Hono();
 
@@ -169,6 +170,10 @@ async function onCheckoutCompleted(
 		cents,
 		balanceUsdMicros: balance.toString(),
 	});
+	const tokenHash = session.metadata?.claim_token_hash;
+	if (tokenHash) {
+		await transferPlayClaim(db, { tokenHash, destAccountId: accountId });
+	}
 }
 
 /** Off-session auto-refill. Checkout top-ups stay on checkout.session.completed. */

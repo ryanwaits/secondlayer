@@ -336,6 +336,23 @@ export interface MagicLinksTable {
 	created_at: Generated<Date>;
 }
 
+/** One-shot hashed tokens that attach a play ghost to an email at claim. */
+export interface ClaimTokensTable {
+	id: Generated<string>;
+	account_id: string;
+	token_hash: string;
+	created_at: Generated<Date>;
+	expires_at: Date;
+	used_at: Date | null;
+}
+
+/** 3 play provisions per IP per UTC day. PK (ip_hash, day); `count` caps at 3. */
+export interface PlayProvisionsTable {
+	ip_hash: string;
+	day: string;
+	count: Generated<number>;
+}
+
 export interface SubgraphProcessingStatsTable {
 	id: Generated<string>;
 	subgraph_name: string;
@@ -943,6 +960,8 @@ export interface Database {
 	accounts: AccountsTable;
 	sessions: SessionsTable;
 	magic_links: MagicLinksTable;
+	claim_tokens: ClaimTokensTable;
+	play_provisions: PlayProvisionsTable;
 	subgraph_health_snapshots: SubgraphHealthSnapshotsTable;
 	subgraph_processing_stats: SubgraphProcessingStatsTable;
 	subgraph_table_snapshots: SubgraphTableSnapshotsTable;
@@ -1149,6 +1168,13 @@ export type InsertAccount = Insertable<AccountsTable>;
 
 export type MagicLink = Selectable<MagicLinksTable>;
 export type InsertMagicLink = Insertable<MagicLinksTable>;
+
+export type ClaimToken = Selectable<ClaimTokensTable>;
+export type InsertClaimToken = Insertable<ClaimTokensTable>;
+export type UpdateClaimToken = Updateable<ClaimTokensTable>;
+
+export type PlayProvision = Selectable<PlayProvisionsTable>;
+export type InsertPlayProvision = Insertable<PlayProvisionsTable>;
 
 export type Session = Selectable<SessionsTable>;
 export type InsertSession = Insertable<SessionsTable>;

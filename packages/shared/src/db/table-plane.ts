@@ -71,6 +71,8 @@ export const TABLE_TO_DB = {
 	api_keys: "target",
 	sessions: "target",
 	magic_links: "target",
+	claim_tokens: "target",
+	play_provisions: "target",
 	account_spend_caps: "target",
 	processed_stripe_events: "target",
 	// ── TARGET: subscriptions ──

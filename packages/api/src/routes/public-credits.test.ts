@@ -37,4 +37,19 @@ describe("POST /api/public/credits/checkout", () => {
 		const body = (await res.json()) as { error: string };
 		expect(body.error).toContain("10, 25, 50, 100");
 	});
+
+	test("rejects an empty claim_token", async () => {
+		const res = await app().request("/api/public/credits/checkout", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({
+				email: "dev@example.com",
+				amount: 10,
+				claim_token: "",
+			}),
+		});
+		expect(res.status).toBe(400);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toBe("invalid_claim_token");
+	});
 });

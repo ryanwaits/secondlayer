@@ -31,6 +31,7 @@ import {
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import {
+	type DeploySubgraphRequest,
 	DeploySubgraphRequestSchema,
 	type SubgraphDetail,
 } from "@secondlayer/shared/schemas/subgraphs";
@@ -375,18 +376,26 @@ export async function runSubgraphDeploy(
 		return c.json({ error: parsed.error.flatten().fieldErrors }, 400);
 	}
 
-	const { name, handlerCode } = parsed.data;
+	return executeSubgraphDeploy(c, parsed.data, identity);
+}
+
+export async function executeSubgraphDeploy(
+	c: Context,
+	data: DeploySubgraphRequest,
+	identity?: { accountId: string },
+): Promise<Response> {
+	const { name, handlerCode } = data;
 	const chainTip = await getChainTip();
 	if (
-		parsed.data.startBlock !== undefined &&
+		data.startBlock !== undefined &&
 		chainTip > 0 &&
-		parsed.data.startBlock > chainTip
+		data.startBlock > chainTip
 	) {
 		return c.json(
 			{
-				error: `startBlock past chain tip: ${parsed.data.startBlock} > ${chainTip}`,
+				error: `startBlock past chain tip: ${data.startBlock} > ${chainTip}`,
 				code: "START_BLOCK_PAST_TIP",
-				startBlock: parsed.data.startBlock,
+				startBlock: data.startBlock,
 				chainTip,
 			},
 			400,
@@ -414,7 +423,7 @@ export async function runSubgraphDeploy(
 				...extracted,
 				handlers: extracted.handlerSources,
 			} as unknown as SubgraphDefinition,
-			parsed.data.startBlock,
+			data.startBlock,
 		);
 	} catch (err) {
 		return c.json(
@@ -511,7 +520,7 @@ export async function runSubgraphDeploy(
 	const db = getDb();
 
 	// Dry run: return the DDL plan without touching anything.
-	if (parsed.data.dryRun) {
+	if (data.dryRun) {
 		const plan = renderDeployPlan(def, planSchemaName);
 		return c.json({
 			dryRun: true,
@@ -551,7 +560,7 @@ export async function runSubgraphDeploy(
 	// Tip-first history fills are backfill walks over already-live heights —
 	// delta handlers would double-apply (no op-scoped cursor yet). Covers new
 	// deploys, redeploys adding deltas, and blocking→concurrent flips.
-	if (tipFirst && hasNonReplayableWrites(handlerCode, parsed.data.sourceCode)) {
+	if (tipFirst && hasNonReplayableWrites(handlerCode, data.sourceCode)) {
 		return c.json(
 			{
 				error:
@@ -587,10 +596,10 @@ export async function runSubgraphDeploy(
 		apiKeyId,
 		accountId,
 		schemaName,
-		version: parsed.data.version,
-		handlerCode: parsed.data.handlerCode,
-		sourceCode: parsed.data.sourceCode,
-		forceReindex: parsed.data.startBlock !== undefined || startBlockChanged,
+		version: data.version,
+		handlerCode: data.handlerCode,
+		sourceCode: data.sourceCode,
+		forceReindex: data.startBlock !== undefined || startBlockChanged,
 	});
 
 	await cache.refresh();

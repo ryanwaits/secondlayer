@@ -1441,6 +1441,11 @@ function platformSpec(): typeof OPENAPI_SPEC {
 				name: "credits",
 				description: "Prepaid archive credits.",
 			},
+			{
+				name: "play",
+				description:
+					"Accountless hosted subgraph provision and claim. POST is unauthenticated; GET uses the play key.",
+			},
 		],
 		components: {
 			...OPENAPI_SPEC.components,
@@ -1610,6 +1615,11 @@ function platformMeterPaths(): Record<string, unknown> {
 					properties: {
 						email: { type: "string" },
 						amount: { type: "integer", enum: [10, 25, 50, 100] },
+						claim_token: {
+							type: "string",
+							description:
+								"Raw play claim token. Stored hashed on the Checkout session; never the raw value.",
+						},
 					},
 				}),
 				responses: {
@@ -1619,6 +1629,81 @@ function platformMeterPaths(): Record<string, unknown> {
 					}),
 					"400": jsonError(),
 					"503": jsonError("Billing is not configured"),
+				},
+			},
+		},
+		"/v1/play": {
+			post: {
+				tags: ["play"],
+				summary: "Provision a play subgraph",
+				description:
+					"Anonymous. Creates one subgraph and an optional subscription on a ghost account. Returns a read-only API key and a claim URL. Three provisions per IP per UTC day.",
+				security: [],
+				requestBody: jsonBody({
+					type: "object",
+					required: ["subgraph"],
+					properties: {
+						subgraph: {
+							type: "object",
+							description: "Same body as POST /api/subgraphs.",
+						},
+						subscription: {
+							type: "object",
+							description: "Optional. Same fields as POST /api/subscriptions.",
+						},
+					},
+				}),
+				responses: {
+					"201": json200({
+						type: "object",
+						properties: {
+							key: { type: "string" },
+							claim_url: { type: "string" },
+							claim_expires_at: { type: "string", format: "date-time" },
+							subgraph: {
+								type: "object",
+								properties: {
+									name: { type: "string" },
+									expires_at: { type: "string", format: "date-time" },
+								},
+							},
+						},
+					}),
+					"400": jsonError(),
+					"429": jsonError(),
+				},
+			},
+			get: {
+				tags: ["play"],
+				summary: "Play session status",
+				description:
+					"Bearer must be the play key. Returns 404 after the ghost is claimed.",
+				security: WRITE_SECURITY,
+				responses: {
+					"200": json200({
+						type: "object",
+						properties: {
+							subgraphs: {
+								type: "array",
+								items: {
+									type: "object",
+									properties: {
+										name: { type: "string" },
+										expires_at: {
+											type: ["string", "null"],
+											format: "date-time",
+										},
+									},
+								},
+							},
+							claim_expires_at: {
+								type: ["string", "null"],
+								format: "date-time",
+							},
+						},
+					}),
+					"401": jsonError(),
+					"404": jsonError(),
 				},
 			},
 		},
