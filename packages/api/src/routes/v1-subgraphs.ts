@@ -3,7 +3,7 @@ import type { Subgraph } from "@secondlayer/shared/db";
 import { RateLimitError, ValidationError } from "@secondlayer/shared/errors";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import { TYPE_MAP } from "@secondlayer/subgraphs/schema";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { sql } from "kysely";
 import { getClientIp } from "../auth/http.ts";
 import { hashToken } from "../auth/keys.ts";
@@ -15,6 +15,10 @@ import {
 	missingCredentialError,
 } from "../auth/read-plane.ts";
 import { instanceTokenMatches } from "../instance-bind.ts";
+import {
+	debitSubgraphCreditedRead,
+	subgraphCreditsGate,
+} from "../subgraphs/credits-gate.ts";
 import { resolveReadableSubgraph } from "../subgraphs/namespace.ts";
 import {
 	SubgraphNotFoundError,
@@ -145,9 +149,10 @@ function buildSortedKeysetPredicate(
  * The authed /api/subgraphs surface (dashboard, deploys, ops) is unchanged.
  */
 
-type V1SubgraphsEnv = {
+export type V1SubgraphsEnv = {
 	Variables: {
 		v1AccountId?: string;
+		credited?: { accountId: string; balance: bigint };
 	};
 };
 
@@ -206,6 +211,8 @@ app.use("*", async (c, next) => {
 	await next();
 });
 
+app.use("*", subgraphCreditsGate());
+
 // ── Rate limit ──────────────────────────────────────────────────────────
 
 const ANON_RATE_LIMIT_PER_SECOND = 100;
@@ -214,6 +221,10 @@ const WINDOW_MS = 1_000;
 
 app.use("*", async (c, next) => {
 	if (!isPlatformMode()) {
+		await next();
+		return;
+	}
+	if (c.get("credited")) {
 		await next();
 		return;
 	}
@@ -231,6 +242,12 @@ app.use("*", async (c, next) => {
 	}
 	await next();
 });
+
+async function meterRows(c: Context<V1SubgraphsEnv>, rows: { length: number }) {
+	if (!isPlatformMode()) return;
+	if (!c.get("v1AccountId") || rows.length === 0) return;
+	await debitSubgraphCreditedRead(c, rows.length);
+}
 
 // ── Resolution ──────────────────────────────────────────────────────────
 
@@ -498,14 +515,18 @@ app.get("/:subgraphName/:tableName/aggregate", async (c) => {
 app.get("/:subgraphName/:tableName/stream", (c) => {
 	const { subgraphName, tableName } = c.req.param();
 	const subgraph = requireReadableSubgraph(subgraphName, c.get("v1AccountId"));
-	return handleTableStream(c, subgraph, tableName);
+	return handleTableStream(c, subgraph, tableName, {
+		onBatch: (n) => meterRows(c, { length: n }),
+	});
 });
 
 app.get("/:subgraphName/:tableName/:id", async (c) => {
 	const { subgraphName, tableName, id } = c.req.param();
 	if (id === "count" || id === "stream" || id === "aggregate") return;
 	const subgraph = requireReadableSubgraph(subgraphName, c.get("v1AccountId"));
-	return handleRowById(c, subgraph, tableName, id);
+	const res = await handleRowById(c, subgraph, tableName, id);
+	if (res.status === 200) await meterRows(c, { length: 1 });
+	return res;
 });
 
 // ── Cursor-paginated rows ───────────────────────────────────────────────
@@ -695,6 +716,7 @@ app.get("/:subgraphName/:tableName", async (c) => {
 					});
 		const lastProcessed = Number(subgraph.last_processed_block) || 0;
 
+		await meterRows(c, emitted);
 		return c.json({
 			rows: emitted,
 			next_cursor: nextCursor,

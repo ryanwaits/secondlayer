@@ -231,12 +231,14 @@ export async function handleRowById(
  * monotonic `_id` cursor every ~1.5s and pushes each new row as an SSE message;
  * reuses the same filter query params as the REST list endpoints. Go-forward by
  * default; `?since=<block>` replays from a block then tails. No subscription
- * record is created — this is ephemeral.
+ * record is created — this is ephemeral. `opts.onBatch` fires after each
+ * non-empty batch (not on heartbeats).
  */
 export function handleTableStream(
 	c: Context,
 	subgraph: Subgraph,
 	tableName: string,
+	opts?: { onBatch?: (rows: number) => Promise<void> },
 ): Response {
 	const tableDef = getSubgraphSchema(subgraph)[tableName];
 	if (!tableDef) {
@@ -313,6 +315,7 @@ export function handleTableStream(
 			}
 			if (rows.length > 0) {
 				lastBeat = Date.now();
+				await opts?.onBatch?.(rows.length);
 			} else if (Date.now() - lastBeat > 20_000) {
 				// Heartbeat (custom event so SDK onmessage ignores it) keeps the
 				// connection + any proxies alive during idle stretches.
