@@ -54,6 +54,10 @@ interface EvaluatedDef {
 			contractId: string;
 			topic?: string;
 			prints?: Record<string, Record<string, string>>;
+			materialize?: {
+				table: string;
+				columns: Record<string, { from?: string }>;
+			};
 		}
 	>;
 	schema: Record<
@@ -122,17 +126,19 @@ describe("generatePrintSchemaSubgraph", () => {
 		);
 	});
 
-	test("wide table: handlers insert their topic's fields + discriminant", () => {
+	test("wide table: materialize maps topic fields + discriminant", () => {
 		const out = generatePrintSchemaSubgraph({
 			contractId: CONTRACT,
 			topics: TOPICS,
 		});
-		expect(out).toContain(
-			"ctx.insert('sbtc_registry', { topic: 'completed-deposit', amount: event.data.amount, bitcoin_txid: event.data.bitcoinTxid });",
-		);
-		expect(out).toContain(
-			"ctx.insert('sbtc_registry', { topic: 'withdrawal-create', amount: event.data.amount, sender: event.data.sender });",
-		);
+		expect(out).toContain("materialize: {");
+		expect(out).toContain("table: 'sbtc_registry'");
+		expect(out).toContain("topic: { from: 'topic' }");
+		expect(out).toContain("amount: { from: 'amount' }");
+		expect(out).toContain("bitcoin_txid: { from: 'bitcoinTxid' }");
+		expect(out).toContain("sender: { from: 'sender' }");
+		expect(out).not.toContain("ctx.insert");
+		expect(out).toContain("handlers: {");
 	});
 
 	test("tablePerTopic: one table per topic, only its columns", () => {
@@ -146,11 +152,12 @@ describe("generatePrintSchemaSubgraph", () => {
 		// always_present → not nullable; optional → nullable
 		expect(out).toContain("bitcoin_txid: { type: 'text' }");
 		expect(out).toContain("sender: { type: 'principal', nullable: true }");
-		// no topic discriminant column/insert in per-topic layout
+		// no topic discriminant column in per-topic layout
 		expect(out).not.toContain("topic: { type: 'text'");
-		expect(out).toContain(
-			"ctx.insert('completed_deposit', { amount: event.data.amount, bitcoin_txid: event.data.bitcoinTxid });",
-		);
+		expect(out).toContain("table: 'completed_deposit'");
+		expect(out).toContain("amount: { from: 'amount' }");
+		expect(out).toContain("bitcoin_txid: { from: 'bitcoinTxid' }");
+		expect(out).not.toContain("ctx.insert");
 	});
 
 	test("name override", () => {
@@ -270,18 +277,15 @@ describe("generatePrintSchemaSubgraph", () => {
 			expect(weird?.prints?.[topic]?.["bad'field"]).toBe("uint");
 		}
 		// Wide layout: weird topic also lands in a `// null except on topics:` comment
-		// and the handler row — evalScaffold above already proves neither broke syntax.
+		// and the materialize map — evalScaffold above already proves neither broke syntax.
 		const wide = evalScaffold(
 			generatePrintSchemaSubgraph({ contractId: CONTRACT, topics }),
 		);
-		const handlerKey = Object.keys(wide.handlers)[0] as string;
-		const rows: Array<[string, Record<string, unknown>]> = [];
-		wide.handlers[handlerKey]?.(
-			{ data: { "bad'field": 1n } },
-			{ insert: (t, r) => rows.push([t, r]) },
-		);
-		expect(rows[0]?.[1]?.topic).toBe(topic);
-		expect(rows[0]?.[1]?.["bad'field"]).toBe(1n);
+		const weirdSrc = Object.values(wide.sources).find((s) => s.topic === topic);
+		expect(weirdSrc?.materialize?.columns.topic).toEqual({ from: "topic" });
+		expect(weirdSrc?.materialize?.columns["bad'field"]).toEqual({
+			from: "bad'field",
+		});
 	});
 
 	test("topics that camelize identically get suffixed source keys", () => {
@@ -293,7 +297,10 @@ describe("generatePrintSchemaSubgraph", () => {
 			generatePrintSchemaSubgraph({ contractId: CONTRACT, topics: collide }),
 		);
 		expect(Object.keys(def.sources)).toEqual(["feeSet", "feeSet_2"]);
-		expect(Object.keys(def.handlers)).toEqual(["feeSet", "feeSet_2"]);
+		expect(Object.keys(def.handlers)).toEqual([]);
+		expect(def.sources.feeSet?.materialize?.columns.topic).toEqual({
+			from: "topic",
+		});
 		expect(def.sources.feeSet?.topic).toBe("fee-set");
 		expect(def.sources.feeSet_2?.topic).toBe("feeSet");
 	});
@@ -349,14 +356,10 @@ describe("generatePrintSchemaSubgraph", () => {
 			const table = Object.values(def.schema)[0];
 			expect(table?.columns.foo_bar?.type).toBe("uint");
 			expect(table?.columns.foo_bar_2?.type).toBe("text");
-			// handler maps each event.data key to its own (suffixed) column
-			const rows: Array<Record<string, unknown>> = [];
-			def.handlers.swap?.(
-				{ data: { fooBar: 7n, foo_bar: "x" } },
-				{ insert: (_t, r) => rows.push(r) },
-			);
-			expect(rows[0]?.foo_bar).toBe(7n);
-			expect(rows[0]?.foo_bar_2).toBe("x");
+			// materialize maps each event.data key to its own (suffixed) column
+			const cols = def.sources.swap?.materialize?.columns ?? {};
+			expect(cols.foo_bar).toEqual({ from: "fooBar" });
+			expect(cols.foo_bar_2).toEqual({ from: "foo_bar" });
 		}
 	});
 
@@ -392,12 +395,8 @@ describe("generatePrintSchemaSubgraph", () => {
 		const cols = def.schema.sbtc_registry?.columns ?? {};
 		expect(cols.topic?.indexed).toBe(true);
 		expect(cols.topic_2?.type).toBe("text");
-		const rows: Array<Record<string, unknown>> = [];
-		def.handlers.a?.(
-			{ data: { topic: "payload-topic" } },
-			{ insert: (_t, r) => rows.push(r) },
-		);
-		expect(rows[0]?.topic).toBe("a");
-		expect(rows[0]?.topic_2).toBe("payload-topic");
+		const mat = def.sources.a?.materialize?.columns ?? {};
+		expect(mat.topic).toEqual({ from: "topic" });
+		expect(mat.topic_2).toEqual({ from: "topic" });
 	});
 });

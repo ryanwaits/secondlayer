@@ -80,13 +80,6 @@ function key(k: string): string {
 	return IDENT_RE.test(k) ? k : str(k);
 }
 
-/** `event.data.<field>` access — bracket form for non-identifier keys. */
-function dataAccess(camel: string): string {
-	return IDENT_RE.test(camel)
-		? `event.data.${camel}`
-		: `event.data[${str(camel)}]`;
-}
-
 /** Kebab-case → camelCase, matching the runtime's `event.data` key camelization. */
 function toCamelCase(str: string): string {
 	return str.replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase());
@@ -144,11 +137,27 @@ ${handlers}
 `.trimStart();
 }
 
-/** Source entry: pinned print_event + per-topic `prints` map for typed `event.data`. */
+/** `materialize.columns` entry — `{ from: 'camel' }` literal. */
+function fromCol(camel: string): string {
+	return `{ from: ${str(camel)} }`;
+}
+
+function materializeBlock(
+	table: string,
+	columns: Array<{ snake: string; camel: string }>,
+): string {
+	const colLines = columns
+		.map((c) => `          ${key(c.snake)}: ${fromCol(c.camel)}`)
+		.join(",\n");
+	return `      materialize: {\n        table: ${str(table)},\n        columns: {\n${colLines}\n        }\n      }`;
+}
+
+/** Source entry: pinned print_event + prints + optional static materialize. */
 function sourceEntry(
 	srcKey: string,
 	contractId: string,
 	topic: PrintScaffoldTopic,
+	materialize?: string,
 ): string {
 	const lines = [
 		"      type: 'print_event',",
@@ -178,6 +187,10 @@ function sourceEntry(
 			? `      prints: {\n        ${key(topic.topic)}: {\n${fieldLines.join(",\n")}\n        }\n      }`
 			: `      prints: {\n        ${key(topic.topic)}: {}\n      }`,
 	);
+	if (materialize) {
+		lines[lines.length - 1] += ",";
+		lines.push(materialize);
+	}
 	return `    ${key(srcKey)}: {\n${lines.join("\n")}\n    }`;
 }
 
@@ -261,12 +274,8 @@ export function generatePrintSchemaSubgraph(input: PrintScaffoldInput): string {
 	const srcKey = (t: PrintScaffoldTopic): string =>
 		sourceKeyByTopic.get(t.topic) as string;
 
-	const sources = topics
-		.map((t) => sourceEntry(srcKey(t), input.contractId, t))
-		.join(",\n");
-
 	if (input.tablePerTopic) {
-		// Resolve table + column names once so schema and handlers agree on
+		// Resolve table + column names once so schema and materialize agree on
 		// collision suffixes. Seed with reserved names so `add` does not clobber.
 		const dedupeTable = makeDeduper(input.reservedTableNames ?? []);
 		const perTopic = topics.map((t) => {
@@ -280,6 +289,24 @@ export function generatePrintSchemaSubgraph(input: PrintScaffoldInput): string {
 			}
 			return { topic: t, table, snakeFor };
 		});
+
+		const sources = perTopic
+			.map(({ topic: t, table, snakeFor }) => {
+				// Empty-field topics need a handler (whole `event.data` jsonb) —
+				// materialize cannot express that passthrough.
+				const mat =
+					t.fields.length > 0
+						? materializeBlock(
+								table,
+								[...snakeFor.entries()].map(([camel, snake]) => ({
+									snake,
+									camel,
+								})),
+							)
+						: undefined;
+				return sourceEntry(srcKey(t), input.contractId, t, mat);
+			})
+			.join(",\n");
 
 		const schema = perTopic
 			.map(({ topic: t, table, snakeFor }) => {
@@ -296,14 +323,9 @@ export function generatePrintSchemaSubgraph(input: PrintScaffoldInput): string {
 			})
 			.join(",\n");
 		const handlers = perTopic
-			.map(({ topic: t, table, snakeFor }) => {
-				const row =
-					t.fields.length > 0
-						? [...snakeFor.entries()]
-								.map(([camel, snake]) => `${key(snake)}: ${dataAccess(camel)}`)
-								.join(", ")
-						: "value: event.data ?? null";
-				return `    ${key(srcKey(t))}: (event, ctx) => {\n      ctx.insert(${str(table)}, { ${row} });\n    }`;
+			.filter(({ topic: t }) => t.fields.length === 0)
+			.map(({ topic: t, table }) => {
+				return `    ${key(srcKey(t))}: (event, ctx) => {\n      ctx.insert(${str(table)}, { value: event.data ?? null });\n    }`;
 			})
 			.join(",\n\n");
 		return wrap(name, sources, schema, handlers, provenanceComment(input));
@@ -354,21 +376,26 @@ export function generatePrintSchemaSubgraph(input: PrintScaffoldInput): string {
 	].join("\n");
 	const schema = `    ${key(wideTable)}: {\n      columns: {\n${colLines}\n      }\n    }`;
 
-	const handlers = topics
+	const sources = topics
 		.map((t) => {
 			const seen = new Set<string>();
-			const fieldParts: string[] = [];
+			const matCols: Array<{ snake: string; camel: string }> = [
+				{ snake: "topic", camel: "topic" },
+			];
 			for (const f of t.fields) {
 				if (seen.has(f.camel_name)) continue;
 				seen.add(f.camel_name);
 				const snake = columns.get(f.camel_name)?.snake ?? f.camel_name;
-				fieldParts.push(`${key(snake)}: ${dataAccess(f.camel_name)}`);
+				matCols.push({ snake, camel: f.camel_name });
 			}
-			const fields = fieldParts.join(", ");
-			const row = `{ topic: ${str(t.topic)}${fields ? `, ${fields}` : ""} }`;
-			return `    ${key(srcKey(t))}: (event, ctx) => {\n      ctx.insert(${str(wideTable)}, ${row});\n    }`;
+			return sourceEntry(
+				srcKey(t),
+				input.contractId,
+				t,
+				materializeBlock(wideTable, matCols),
+			);
 		})
-		.join(",\n\n");
+		.join(",\n");
 
-	return wrap(name, sources, schema, handlers, provenanceComment(input));
+	return wrap(name, sources, schema, "", provenanceComment(input));
 }
