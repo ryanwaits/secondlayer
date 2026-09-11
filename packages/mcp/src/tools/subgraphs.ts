@@ -83,7 +83,7 @@ export function registerSubgraphTools(
 	defineTool<{ name: string }>(
 		server,
 		"subgraphs_status",
-		"Get full details of a subgraph including schema, health, and table columns.",
+		"Get full details of a subgraph including schema, health (incl. health.emptyMapping when processed events wrote 0 rows), and table columns.",
 		{ name: z.string().describe("Subgraph name") },
 		async ({ name }) => {
 			const detail = await clientProvider().subgraphs.status(name);

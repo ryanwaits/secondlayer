@@ -20,6 +20,7 @@ const detail: SubgraphDetail = {
 		errorRate: 0,
 		lastError: null,
 		lastErrorAt: null,
+		emptyMapping: false,
 	},
 	sync: {
 		status: "synced",

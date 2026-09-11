@@ -214,6 +214,8 @@ describe.skipIf(!HAS_DB)("deploy print-field lint (route)", () => {
 			"print-lint-dryrun-sg",
 			"print-lint-clean-sg",
 			"print-lint-trait-sg",
+			"empty-mapping-dryrun-sg",
+			"empty-mapping-ok-sg",
 			LIVE_SUBGRAPH,
 		]) {
 			pruneSubgraphHandlerFiles(
@@ -238,20 +240,25 @@ describe.skipIf(!HAS_DB)("deploy print-field lint (route)", () => {
 	function deployBody(input: {
 		name: string;
 		source: Record<string, unknown>;
-		handlerExpr: string;
+		handlerExpr?: string;
+		handlerBody?: string;
 		dryRun?: boolean;
 	}) {
 		const schema = { rows: { columns: { amount: { type: "uint" } } } };
-		// Wrapped in defineSubgraph(...) so the AST extractor (f059) can find it —
-		// the extractor never executes this, so the identifier need not resolve.
+		// defineSubgraph stub inlined so import() (empty-mapping probe) resolves —
+		// production bundles get the same stub from @secondlayer/bundler.
+		const handlerLines = input.handlerBody
+			? input.handlerBody
+			: `return ${input.handlerExpr ?? "undefined"};`;
 		const handlerCode = [
+			"function defineSubgraph(def) { return def; }",
 			"export default defineSubgraph({",
 			`  name: ${JSON.stringify(input.name)},`,
 			`  sources: { prints: ${JSON.stringify(input.source)} },`,
 			`  schema: ${JSON.stringify(schema)},`,
 			"  handlers: {",
 			"    prints: async (event, ctx) => {",
-			`      return ${input.handlerExpr};`,
+			`      ${handlerLines}`,
 			"    },",
 			"  },",
 			"});",
@@ -302,12 +309,13 @@ describe.skipIf(!HAS_DB)("deploy print-field lint (route)", () => {
 			deployBody({
 				name: "print-lint-clean-sg",
 				source: pinnedSource,
-				handlerExpr: "event.data.amount && event.data.topic",
+				handlerBody: "ctx.insert('rows', { amount: event.data.amount });",
 				dryRun: true,
 			}),
 		);
 		expect(res.status).toBe(200);
-		const body = (await res.json()) as { warnings?: string[] };
+		const body = (await res.json()) as { warnings?: string[]; code?: string };
+		expect(body.code).toBeUndefined();
 		expect(body.warnings).toBeUndefined();
 	});
 
@@ -341,5 +349,47 @@ describe.skipIf(!HAS_DB)("deploy print-field lint (route)", () => {
 		const body = (await res.json()) as { code?: string; error?: string };
 		expect(body.code).toBe("PRINT_FIELD_MISMATCH");
 		expect(body.error).toContain("bogusField");
+	});
+
+	test("dry-run refuses EMPTY_MAPPING when observed keys write 0 rows", async () => {
+		// Reads observed `amount` (uint dummy 1n) but only inserts on string —
+		// matched > 0, written === 0. Must not hit PRINT_FIELD_MISMATCH first.
+		const res = await deploy(
+			deployBody({
+				name: "empty-mapping-dryrun-sg",
+				source: pinnedSource,
+				handlerBody: [
+					"const v = event.data.amount;",
+					'if (typeof v === "string") ctx.insert("rows", { amount: 1n });',
+				].join(" "),
+				dryRun: true,
+			}),
+		);
+		expect(res.status).toBe(422);
+		const body = (await res.json()) as {
+			code?: string;
+			error?: string;
+			firstEventKeys?: string[];
+			hint?: string;
+		};
+		expect(body.code).toBe("EMPTY_MAPPING");
+		expect(body.error).toContain("0 rows");
+		expect(body.firstEventKeys).toContain("amount");
+		expect(body.hint).toContain("subgraphs_test");
+	});
+
+	test("dry-run allows handlers that insert observed dummy fields", async () => {
+		const res = await deploy(
+			deployBody({
+				name: "empty-mapping-ok-sg",
+				source: pinnedSource,
+				handlerBody: "ctx.insert('rows', { amount: event.data.amount });",
+				dryRun: true,
+			}),
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { code?: string; dryRun?: boolean };
+		expect(body.code).toBeUndefined();
+		expect(body.dryRun).toBe(true);
 	});
 });

@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { defineSubgraph } from "../src/define.ts";
-import { buildEvent, createTestContext } from "../src/testing/index.ts";
+import {
+	buildEvent,
+	createTestContext,
+	probeHandlers,
+} from "../src/testing/index.ts";
 
 /**
  * The test surface's own acceptance criteria:
@@ -147,5 +151,52 @@ describe("the test context is the real context", () => {
 		// dynamically-built table names.
 		// @ts-expect-error — "nope" is not a table in this schema
 		expect(() => ctx.insert("nope", { a: 1 })).toThrow();
+	});
+});
+
+describe("probeHandlers", () => {
+	test("bns nested-tuple fixture writes at least one row", async () => {
+		const result = await probeHandlers(
+			{
+				schema: bns.schema,
+				sources: bns.sources as Record<string, { type: string }>,
+				handlers: bns.handlers as Record<string, unknown>,
+			},
+			[{ source: "bns", event: REGISTER }],
+		);
+		expect(result.matched).toBe(1);
+		expect(result.written).toBeGreaterThanOrEqual(1);
+		expect(result.tables).toContain("names");
+		expect(result.firstEventKeys).toEqual(
+			expect.arrayContaining(["name", "owner"]),
+		);
+	});
+
+	test("handler that only reads a missing field writes 0 rows", async () => {
+		const empty = defineSubgraph({
+			...bns,
+			handlers: {
+				bns: (event, ctx) => {
+					const missing = (event.data as { missingField?: string })
+						.missingField;
+					if (missing == null) return;
+					ctx.insert("names", {
+						name: missing,
+						namespace: "x",
+						owner: "SP000000000000000000002Q6VF78",
+					});
+				},
+			},
+		});
+		const result = await probeHandlers(
+			{
+				schema: empty.schema,
+				sources: empty.sources as Record<string, { type: string }>,
+				handlers: empty.handlers as Record<string, unknown>,
+			},
+			[{ source: "bns", event: REGISTER }],
+		);
+		expect(result.matched).toBe(1);
+		expect(result.written).toBe(0);
 	});
 });

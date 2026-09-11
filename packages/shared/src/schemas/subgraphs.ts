@@ -155,6 +155,8 @@ export interface SubgraphDetail {
 		errorRate: number;
 		lastError: string | null;
 		lastErrorAt: string | null;
+		/** True after the processor matched work but user tables still have 0 rows. */
+		emptyMapping: boolean;
 	};
 	sync: SubgraphSyncInfo;
 	tables: Record<

@@ -265,3 +265,64 @@ export async function runSubgraphTest(
 			: undefined,
 	};
 }
+
+export interface ProbeHandlersDef {
+	schema: SubgraphSchema;
+	sources: Record<string, { type: string; [key: string]: unknown }>;
+	handlers: Record<string, unknown>;
+}
+
+export interface ProbeHandlersResult {
+	matched: number;
+	written: number;
+	tables: string[];
+	firstEventKeys?: string[];
+}
+
+/**
+ * Run handlers against pre-built sample payloads in memory (no Index, no
+ * Postgres). Deploy uses this with print-schema dummy events to refuse
+ * EMPTY_MAPPING before DDL apply.
+ */
+export async function probeHandlers(
+	def: ProbeHandlersDef,
+	samples: Array<{ source: string; event: Record<string, unknown> }>,
+): Promise<ProbeHandlersResult> {
+	const ctx = createTestContext(def.schema);
+	let matched = 0;
+	let firstEventKeys: string[] | undefined;
+
+	for (const sample of samples) {
+		const handler = def.handlers[sample.source] ?? def.handlers["*"];
+		if (typeof handler !== "function") continue;
+		const filter = def.sources[sample.source];
+		if (!filter) continue;
+
+		if (firstEventKeys === undefined) {
+			firstEventKeys = dataKeysOf(sample.event.data);
+		}
+
+		matched++;
+		try {
+			await (handler as (e: unknown, c: unknown) => unknown)(
+				buildEvent(filter as Parameters<typeof buildEvent>[0], sample.event),
+				ctx,
+			);
+		} catch {
+			// Counted as matched; rows may still be empty → EMPTY_MAPPING.
+		}
+	}
+
+	const tables = Object.keys(def.schema);
+	let written = 0;
+	for (const table of tables) {
+		written += (await ctx.rows(table as never)).length;
+	}
+
+	return {
+		matched,
+		written,
+		tables,
+		...(firstEventKeys !== undefined ? { firstEventKeys } : {}),
+	};
+}

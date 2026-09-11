@@ -27,6 +27,7 @@ export type {
 	TxMeta,
 } from "./harness.ts";
 export {
+	probeHandlers,
 	runSubgraphTest,
 	toContractCallPayload,
 	toHandlerPayload,
@@ -35,6 +36,8 @@ export type {
 	IndexContractCallRow,
 	IndexEventRow,
 	IndexTestRow,
+	ProbeHandlersDef,
+	ProbeHandlersResult,
 	RunSubgraphTestInput,
 	SubgraphTestResult,
 	SubgraphTestSource,

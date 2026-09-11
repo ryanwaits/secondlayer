@@ -49,6 +49,10 @@ import { deployAccountId, deploySchemaName } from "../subgraphs/namespace.ts";
 import { classifyOperationWeight } from "../subgraphs/operation-weight.ts";
 import { lintPrintFields } from "../subgraphs/print-lint.ts";
 import {
+	isEmptyMappingHealth,
+	probeEmptyMapping,
+} from "../subgraphs/probeEmptyMapping.ts";
+import {
 	SubgraphNotFoundError,
 	handleRowById,
 	handleTableAggregate,
@@ -460,6 +464,40 @@ export async function runSubgraphDeploy(
 				code: "PRINT_FIELD_MISMATCH",
 			},
 			422,
+		);
+	}
+
+	// Bound sample replay against print-schema dummy fields. Matched events
+	// that write 0 rows are EMPTY_MAPPING — same fail-closed shape as
+	// subgraphs_test. Runs before dryRun/DDL so a dead mapping never looks
+	// like a successful plan. Skips when there are no pinned print sources.
+	const emptyProbe = await probeEmptyMapping({
+		def,
+		handlerPath,
+		schemaLookup: (contractId) => getPrintSchemaBody({ contractId }),
+	});
+	if (!emptyProbe.ok && emptyProbe.code === "EMPTY_MAPPING") {
+		return c.json(
+			{
+				error: "Handlers ran against observed print fields and wrote 0 rows",
+				code: "EMPTY_MAPPING",
+				...(emptyProbe.firstEventKeys
+					? { firstEventKeys: emptyProbe.firstEventKeys }
+					: {}),
+				hint: "Field names on event.data must match the print schema. Run subgraphs_test.",
+			},
+			422,
+		);
+	}
+	if (!emptyProbe.ok && emptyProbe.code === "HANDLER_IMPORT_FAILED") {
+		// Same import path the processor uses — a bundle that cannot load
+		// here will not process either.
+		return c.json(
+			{
+				error: `Failed to load handler for empty-mapping probe: ${emptyProbe.error}`,
+				code: "HANDLER_IMPORT_FAILED",
+			},
+			400,
 		);
 	}
 
@@ -1243,6 +1281,10 @@ export async function buildSubgraphDetailFromRow(
 	const totalProcessed = live.total_processed;
 	const totalErrors = live.total_errors;
 	const errorRate = totalProcessed > 0 ? totalErrors / totalProcessed : 0;
+	const totalRows = Object.values(tables).reduce(
+		(sum, t) => sum + (t.rowCount ?? 0),
+		0,
+	);
 	const totalMissingBlocks = gapResult.gaps.reduce((sum, g) => sum + g.size, 0);
 	const hasGaps = gapResult.total > 0;
 	const { opInfo, activeOpKind } = await resolveActiveOpInfo(db, subgraph.id);
@@ -1290,6 +1332,7 @@ export async function buildSubgraphDetailFromRow(
 			errorRate: Number.parseFloat(errorRate.toFixed(4)),
 			lastError: live.last_error ?? null,
 			lastErrorAt: live.last_error_at?.toISOString() ?? null,
+			emptyMapping: isEmptyMappingHealth({ totalProcessed, totalRows }),
 		},
 		sync,
 		tables,
@@ -1454,6 +1497,10 @@ app.get("/:subgraphName", async (c) => {
 	const totalProcessed = live.total_processed;
 	const totalErrors = live.total_errors;
 	const errorRate = totalProcessed > 0 ? totalErrors / totalProcessed : 0;
+	const totalRows = Object.values(tables).reduce(
+		(sum, t) => sum + (t.rowCount ?? 0),
+		0,
+	);
 
 	// Build sync object
 	const totalMissingBlocks = gapResult.gaps.reduce((sum, g) => sum + g.size, 0);
@@ -1503,6 +1550,7 @@ app.get("/:subgraphName", async (c) => {
 			errorRate: Number.parseFloat(errorRate.toFixed(4)),
 			lastError: live.last_error ?? null,
 			lastErrorAt: live.last_error_at?.toISOString() ?? null,
+			emptyMapping: isEmptyMappingHealth({ totalProcessed, totalRows }),
 		},
 		sync,
 		tables,
