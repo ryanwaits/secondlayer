@@ -1,5 +1,18 @@
 # @secondlayer/worker
 
+## 1.2.56
+
+### Patch Changes
+
+- 5b5c9c8: Accountless play provision, claim-token transfer, and 30-day expiry sweep.
+- 135f5c9: Meter hosted subgraph running, storage, indexing, and subscription deliveries.
+- a60fd06: Credit a $10 play grant at provision and pause hosted subgraphs and subscriptions when the prepaid balance cannot cover a meter.
+- Updated dependencies [5b5c9c8]
+- Updated dependencies [135f5c9]
+- Updated dependencies [a60fd06]
+  - @secondlayer/shared@11.4.2
+  - @secondlayer/platform@0.2.9
+
 ## 1.2.55
 
 ### Patch Changes
