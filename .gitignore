@@ -24,6 +24,9 @@ repo.json
 .DS_Store
 Thumbs.db
 
+# API deploy/play tests write handler files here (DATA_DIR defaults to ./data)
+packages/api/data/
+
 # Local databases
 *.db
 
