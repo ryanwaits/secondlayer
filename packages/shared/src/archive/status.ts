@@ -10,18 +10,26 @@
  *
  * The distinction this file exists to protect:
  *
- *   lagging → the archive trails the chain tip because it only publishes below
- *             the finality boundary. This is CORRECT and permanent. An archive
- *             that reported `stale` for its own finality lag would be crying
- *             wolf forever, and consumers would learn to ignore it.
- *   stale   → publishing stopped. The lag exceeds what the finality rule can
- *             explain, so something is broken.
+ *   lagging → the archive trails the chain tip. This is CORRECT and permanent.
+ *             Two expected causes: twice-weekly publish (Wednesday and Sunday)
+ *             and the finality boundary. Cadence is the bulk of the gap;
+ *             finality is hours, not days. An archive that reported `stale`
+ *             for its own expected lag would be crying wolf forever, and
+ *             consumers would learn to ignore it.
+ *   stale   → publishing stopped. The lag exceeds what cadence and the
+ *             finality rule can explain, so something is broken.
  *
  * `state` is derived from measurements, never asserted by the publisher, and
  * every unhealthy state is reachable — an archive that can only report health
  * is decoration.
  */
 
+/**
+ * v1 is additive. `source.decoder_head` joined the object without a bump:
+ * it does not change the meaning of any existing field, and readers already
+ * ignore unknown keys. Bump only if a field is renamed, removed, or
+ * re-interpreted.
+ */
 export const ARCHIVE_STATUS_SCHEMA_VERSION = 1;
 
 export type ArchiveState =
@@ -50,6 +58,12 @@ export type ArchiveStatus = {
 		tip_height: number | null;
 		/** Highest height eligible to publish under the finality rule. */
 		finalized_height: number | null;
+		/**
+		 * Highest height the Index decoder (`decode.ft_transfer.v1`) has
+		 * committed. Null when the checkpoint cannot be read. Distinct from
+		 * `archive.coverage_to_block`, which is the last signed publish.
+		 */
+		decoder_head: number | null;
 	};
 	lag: {
 		/** Behind the FINALIZED height — the number that indicates a problem. */
@@ -75,6 +89,11 @@ export type StatusInputs = {
 	/** Null when the source could not be reached. */
 	sourceTipHeight: number | null;
 	finalizedHeight: number | null;
+	/**
+	 * Index decoder checkpoint height. Null when unread or unreachable.
+	 * Reported, never used to derive `state`.
+	 */
+	decoderHead?: number | null;
 	audit: { complete: boolean; checkedAt: string } | null;
 	now: Date;
 	/**
@@ -103,6 +122,39 @@ const DEFAULT_MAX_BLOCKS_BEHIND_FINALIZED = 60_000;
  * rather than the symptom.
  */
 const DEFAULT_MAX_SECONDS_SINCE_PROMOTION = 5 * 24 * 3_600;
+
+/** systemd `OnCalendar=Wed,Sun *-*-* 08:00:00`. Host is UTC. Job start, not promotion landing. */
+const PUBLISH_HOUR_UTC = 8;
+const PUBLISH_WEEKDAYS_UTC = new Set([0, 3]);
+
+/**
+ * Next twice-weekly publish fire strictly after `now`. Matches
+ * `secondlayer-archive-publish.timer`. Export duration means the promotion
+ * lands hours later; this is the scheduled start.
+ */
+export function nextScheduledArchivePublish(now: Date): Date {
+	for (let i = 0; i <= 7; i++) {
+		const candidate = new Date(
+			Date.UTC(
+				now.getUTCFullYear(),
+				now.getUTCMonth(),
+				now.getUTCDate() + i,
+				PUBLISH_HOUR_UTC,
+				0,
+				0,
+				0,
+			),
+		);
+		if (PUBLISH_WEEKDAYS_UTC.has(candidate.getUTCDay()) && candidate > now) {
+			return candidate;
+		}
+	}
+	throw new Error("nextScheduledArchivePublish: no fire in 7 days");
+}
+
+function publishWeekdayName(date: Date): "Sunday" | "Wednesday" {
+	return date.getUTCDay() === 0 ? "Sunday" : "Wednesday";
+}
 
 /**
  * Durations here run to days, and "beyond the 120h objective" makes a reader do
@@ -163,6 +215,7 @@ export function deriveArchiveStatus(inputs: StatusInputs): ArchiveStatus {
 		source: {
 			tip_height: inputs.sourceTipHeight,
 			finalized_height: inputs.finalizedHeight,
+			decoder_head: inputs.decoderHead ?? null,
 		},
 		lag: {
 			blocks_behind_finalized: behindFinalized,
@@ -218,13 +271,14 @@ export function deriveArchiveStatus(inputs: StatusInputs): ArchiveStatus {
 		};
 	}
 
-	// Behind the tip but within the finality boundary — correct, permanent, and
-	// explicitly NOT staleness.
+	// Behind the tip. CORRECT and permanent: twice-weekly publish plus the
+	// finality boundary. Cadence is the bulk of the gap. Do not call this stale.
 	if (behindTip !== null && behindTip > 0) {
+		const nextDay = publishWeekdayName(nextScheduledArchivePublish(inputs.now));
 		return {
 			...base,
 			state: "lagging",
-			detail: `${behindTip} blocks behind the chain tip, which is expected: only heights below the finality boundary are published`,
+			detail: `${behindTip} blocks behind the chain tip, which is expected: publishing is twice weekly (Wednesday and Sunday, next ${nextDay}) and stops at the finality boundary`,
 		};
 	}
 

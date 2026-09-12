@@ -3,6 +3,7 @@ import {
 	checkSignature,
 	loadReference,
 } from "@secondlayer/shared/archive/reference";
+import type { ArchiveStatus } from "@secondlayer/shared/archive/status";
 import {
 	type FetchLike,
 	parseErrorEnvelope,
@@ -228,7 +229,7 @@ export function createArchiveClient(
 		return load(against ?? `${archiveBaseUrl}/latest.json`, opts);
 	}
 
-	async function status(): Promise<unknown> {
+	async function status(): Promise<ArchiveStatus> {
 		const response = await fetchImpl(`${archiveBaseUrl}/status.json`);
 		if (!response.ok) {
 			throw new ApiError(
@@ -236,7 +237,7 @@ export function createArchiveClient(
 				`Could not fetch archive status (${response.status}).`,
 			);
 		}
-		return response.json();
+		return (await response.json()) as ArchiveStatus;
 	}
 
 	function partitions(

@@ -79,7 +79,8 @@ reported success.
 
 `status.json` calls the archive `stale` after 5 days without a promotion or
 60k blocks behind finalized. The publish timer runs Wed + Sun, so the longest
-healthy gap is 4 days.
+healthy gap is 4 days. `source.decoder_head` is the Index decoder checkpoint
+(`decode.ft_transfer.v1`) as of the hourly refresh; it is not `coverage_to_block`.
 
 **These two numbers are one setting.** A threshold below the cadence reports
 `stale` on a healthy week and trains everyone to ignore the field (2026-08-15:

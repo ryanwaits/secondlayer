@@ -1,5 +1,8 @@
 import type { RangeDigest } from "@secondlayer/shared/archive/range-digest";
+import type { ArchiveStatus } from "@secondlayer/shared/archive/status";
 import type { ArchiveVerifyInput, ArchiveVerifyResult } from "./instance.ts";
+
+export type { ArchiveStatus };
 
 export type ArchiveDataset = "blocks" | "transactions" | "events";
 export type ArchiveFlow = "bootstrap" | "repair";
@@ -73,7 +76,7 @@ export type ArchiveLoadOptions = {
 export type ArchiveClient = {
 	latest(against?: string, opts?: ArchiveLoadOptions): Promise<LoadedArchive>;
 	load(against: string, opts?: ArchiveLoadOptions): Promise<LoadedArchive>;
-	status(): Promise<unknown>;
+	status(): Promise<ArchiveStatus>;
 	partitions(
 		ref: LoadedArchive,
 		filter?: {

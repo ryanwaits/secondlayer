@@ -208,6 +208,7 @@ export type {
 	ArchiveManifest,
 	ArchivePartition,
 	ArchiveQuote,
+	ArchiveStatus,
 	LoadedArchive,
 	SecondLayerArchive,
 } from "./archive/types.ts";

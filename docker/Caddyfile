@@ -64,6 +64,11 @@ archive.{$BASE_DOMAIN:secondlayer.tools} {
 	@mutable path /latest.json /status.json
 	header @mutable Cache-Control "public, max-age=60"
 
+	# No Access-Control-Allow-Origin. The www site reads status.json
+	# server-side (apps/web/src/lib/archive-status.ts, revalidate 60). The
+	# object only refreshes hourly, so opening CORS for a client poll would
+	# not make a pulsing "live" dot honest.
+
 	@immutable not path /latest.json /status.json
 	header @immutable Cache-Control "public, max-age=31536000, immutable"
 

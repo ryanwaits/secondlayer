@@ -301,6 +301,23 @@ describe("archive", () => {
 		await expect(c.download(partition)).rejects.toThrow(/presigned URL/);
 	});
 
+	test("status() GETs status.json and returns the payload", async () => {
+		const body = {
+			schema_version: 1,
+			state: "lagging",
+			source: { decoder_head: 8_975_100, tip_height: 8_975_151 },
+		};
+		const c = createArchiveClient({
+			archiveBaseUrl: ARCHIVE_BASE,
+			archiveOpsUrl: OPS_BASE,
+			fetchImpl: async (input) => {
+				expect(urlOf(input)).toBe(`${ARCHIVE_BASE}/status.json`);
+				return new Response(JSON.stringify(body), { status: 200 });
+			},
+		});
+		expect(await c.status()).toMatchObject(body);
+	});
+
 	test("createArchiveClient performs zero fetches before a method", () => {
 		let calls = 0;
 		const c = createArchiveClient({

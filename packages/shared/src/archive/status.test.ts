@@ -3,6 +3,7 @@ import {
 	type StatusInputs,
 	deriveArchiveStatus,
 	isRestorable,
+	nextScheduledArchivePublish,
 } from "./status.ts";
 
 /**
@@ -45,7 +46,60 @@ describe("archive status", () => {
 		expect(status.lag.blocks_behind_tip).toBe(38);
 		expect(status.lag.blocks_behind_finalized).toBe(0);
 		expect(status.detail).toContain("expected");
+		expect(status.detail).toContain("twice weekly");
+		expect(status.detail).toContain("next Sunday");
 		expect(isRestorable(status.state)).toBe(true);
+	});
+
+	test("lagging detail names cadence as the dominant term, not only finality", () => {
+		// 26k behind is a healthy Wed→Sun gap, not a 6-confirmation window.
+		// The old string blamed finality for the whole number and sent operators
+		// looking for a bug.
+		const saturday = new Date("2026-08-15T12:00:00.000Z");
+		const status = deriveArchiveStatus(
+			inputs({
+				now: saturday,
+				coverageToBlock: 8_718_000,
+				sourceTipHeight: 8_745_460,
+				finalizedHeight: 8_745_400,
+			}),
+		);
+		expect(status.state).toBe("lagging");
+		expect(status.detail).toContain("Wednesday and Sunday");
+		expect(status.detail).toContain("next Sunday");
+		expect(status.detail).not.toMatch(
+			/only heights below the finality boundary are published$/,
+		);
+	});
+
+	test("after Sunday's scheduled start, lagging detail points at Wednesday", () => {
+		const sundayAfternoon = new Date("2026-08-16T12:00:00.000Z");
+		const status = deriveArchiveStatus(
+			inputs({
+				now: sundayAfternoon,
+				promotedAt: "2026-08-16T11:00:00.000Z",
+			}),
+		);
+		expect(status.state).toBe("lagging");
+		expect(status.detail).toContain("next Wednesday");
+	});
+
+	test("decoder_head is reported and does not affect archive state", () => {
+		const status = deriveArchiveStatus(inputs({ decoderHead: 8_745_460 }));
+		expect(status.source.decoder_head).toBe(8_745_460);
+		expect(status.state).toBe("lagging");
+		expect(status.archive.coverage_to_block).toBe(8_745_422);
+	});
+
+	test("unreachable decoder_head is null, not a state change", () => {
+		const status = deriveArchiveStatus(inputs({ decoderHead: null }));
+		expect(status.source.decoder_head).toBe(null);
+		expect(status.state).toBe("lagging");
+	});
+
+	test("decoder_head defaults to null when omitted", () => {
+		const status = deriveArchiveStatus(inputs());
+		expect(status.source.decoder_head).toBe(null);
 	});
 
 	test("far behind the FINALIZED height is stale", () => {
@@ -119,7 +173,20 @@ describe("archive status", () => {
 		);
 		expect(status.state).toBe("source-unavailable");
 		expect(status.detail).toContain("could not be reached");
+		expect(status.source.decoder_head).toBe(null);
 		expect(isRestorable(status.state)).toBe(false);
+	});
+
+	test("source-unavailable still reports a decoder_head when one was read", () => {
+		const status = deriveArchiveStatus(
+			inputs({
+				sourceTipHeight: null,
+				finalizedHeight: null,
+				decoderHead: 8_745_400,
+			}),
+		);
+		expect(status.state).toBe("source-unavailable");
+		expect(status.source.decoder_head).toBe(8_745_400);
 	});
 
 	test("the signing key in use is reported, so rotation is visible", () => {
@@ -144,5 +211,28 @@ describe("archive status", () => {
 			inputs({ coverageToBlock: 8_745_400, maxBlocksBehindFinalized: 10 }),
 		);
 		expect(status.state).toBe("stale");
+	});
+});
+
+describe("nextScheduledArchivePublish", () => {
+	test("Wednesday after 08:00 UTC fires next Sunday", () => {
+		const next = nextScheduledArchivePublish(
+			new Date("2026-08-12T12:00:00.000Z"),
+		);
+		expect(next.toISOString()).toBe("2026-08-16T08:00:00.000Z");
+	});
+
+	test("Sunday before 08:00 UTC fires later that morning", () => {
+		const next = nextScheduledArchivePublish(
+			new Date("2026-08-16T07:59:59.000Z"),
+		);
+		expect(next.toISOString()).toBe("2026-08-16T08:00:00.000Z");
+	});
+
+	test("exactly Sunday 08:00 UTC has already fired, so next is Wednesday", () => {
+		const next = nextScheduledArchivePublish(
+			new Date("2026-08-16T08:00:00.000Z"),
+		);
+		expect(next.toISOString()).toBe("2026-08-19T08:00:00.000Z");
 	});
 });

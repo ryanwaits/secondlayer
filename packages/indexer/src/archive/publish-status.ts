@@ -22,6 +22,7 @@ import {
 } from "@secondlayer/shared/archive/status";
 import { closeDb, getSourceDb } from "@secondlayer/shared/db";
 import { signStreamsBulkManifest } from "@secondlayer/shared/streams-bulk-manifest";
+import { FT_TRANSFER_DECODER_NAME } from "../decode/storage.ts";
 import {
 	createStreamsBulkS3Client,
 	getJsonObject,
@@ -74,6 +75,7 @@ export async function buildStatus(): Promise<ArchiveStatus> {
 	// Source measurements. Failure here is reported, not swallowed into health.
 	let sourceTipHeight: number | null = null;
 	let finalizedHeight: number | null = null;
+	let decoderHead: number | null = null;
 	try {
 		const db = getSourceDb();
 		const bound = await resolveFinalizedBound(db);
@@ -86,9 +88,13 @@ export async function buildStatus(): Promise<ArchiveStatus> {
 			.limit(1)
 			.executeTakeFirst();
 		sourceTipHeight = tip ? Number(tip.height) : null;
+		// Isolated: a missing checkpoint must not flip the archive to
+		// source-unavailable. The field is informational; state stays archive-derived.
+		decoderHead = await readDecoderHead(db);
 	} catch {
 		sourceTipHeight = null;
 		finalizedHeight = null;
+		decoderHead = null;
 	}
 
 	return deriveArchiveStatus({
@@ -99,9 +105,33 @@ export async function buildStatus(): Promise<ArchiveStatus> {
 		signingKeyId: pointer?.key_id ?? null,
 		sourceTipHeight,
 		finalizedHeight,
+		decoderHead,
 		audit: await readLatestAudit(),
 		now: new Date(),
 	});
+}
+
+/** Same cursor-height parse as Index `getTip` (`decode.ft_transfer.v1`). */
+function cursorBlockHeight(cursor: string | null): number | null {
+	if (!cursor) return null;
+	const [height] = cursor.split(":");
+	if (!height || !/^(0|[1-9]\d*)$/.test(height)) return null;
+	return Number(height);
+}
+
+async function readDecoderHead(
+	db: ReturnType<typeof getSourceDb>,
+): Promise<number | null> {
+	try {
+		const checkpoint = await db
+			.selectFrom("decoder_checkpoints")
+			.select("last_cursor")
+			.where("decoder_name", "=", FT_TRANSFER_DECODER_NAME)
+			.executeTakeFirst();
+		return cursorBlockHeight(checkpoint?.last_cursor ?? null);
+	} catch {
+		return null;
+	}
 }
 
 async function main(): Promise<void> {
