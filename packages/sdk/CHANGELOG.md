@@ -1,5 +1,13 @@
 # @secondlayer/sdk
 
+## 10.3.1
+
+### Patch Changes
+
+- b093538: Add `source.decoder_head` to archive `status.json` (the running Index decoder, distinct from last signed publish). Reword the `lagging` detail to name the Wednesday/Sunday publish cadence as the dominant expected lag.
+- Updated dependencies [b093538]
+  - @secondlayer/shared@11.4.3
+
 ## 10.3.0
 
 ### Minor Changes

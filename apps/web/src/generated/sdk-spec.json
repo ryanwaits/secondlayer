@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "10.3.0",
+	"version": "10.3.1",
 	"areas": [
 		{
 			"name": "Client",
@@ -2323,7 +2323,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/archive/types.ts",
-					"line": 73
+					"line": 76
 				},
 				{
 					"name": "ArchiveCreditsBalance",
@@ -2331,7 +2331,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/archive/types.ts",
-					"line": 60
+					"line": 63
 				},
 				{
 					"name": "ArchiveDataset",
@@ -2339,7 +2339,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/archive/types.ts",
-					"line": 4
+					"line": 7
 				},
 				{
 					"name": "ArchiveFetchItem",
@@ -2347,7 +2347,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/archive/types.ts",
-					"line": 47
+					"line": 50
 				},
 				{
 					"name": "ArchiveFetchResult",
@@ -2355,7 +2355,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/archive/types.ts",
-					"line": 54
+					"line": 57
 				},
 				{
 					"name": "ArchiveFlow",
@@ -2363,7 +2363,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/archive/types.ts",
-					"line": 5
+					"line": 8
 				},
 				{
 					"name": "ArchiveLoadOptions",
@@ -2371,7 +2371,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/archive/types.ts",
-					"line": 69
+					"line": 72
 				},
 				{
 					"name": "ArchiveManifest",
@@ -2379,7 +2379,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/archive/types.ts",
-					"line": 17
+					"line": 20
 				},
 				{
 					"name": "ArchivePartition",
@@ -2387,7 +2387,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/archive/types.ts",
-					"line": 7
+					"line": 10
 				},
 				{
 					"name": "ArchiveQuote",
@@ -2395,7 +2395,15 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/archive/types.ts",
-					"line": 36
+					"line": 39
+				},
+				{
+					"name": "ArchiveStatus",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/archive/status.d.ts",
+					"line": 34
 				},
 				{
 					"name": "ArchiveVerifyInput",
@@ -2451,7 +2459,7 @@
 					"summary": "",
 					"signature": "createArchiveClient(options?: CreateArchiveClientOptions): ArchiveClient",
 					"file": "src/archive/client.ts",
-					"line": 94
+					"line": 95
 				},
 				{
 					"name": "CreateArchiveClientOptions",
@@ -2459,7 +2467,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/archive/client.ts",
-					"line": 44
+					"line": 45
 				},
 				{
 					"name": "InstanceClient",
@@ -2507,7 +2515,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/archive/types.ts",
-					"line": 28
+					"line": 31
 				},
 				{
 					"name": "PublicStatus",
@@ -2531,7 +2539,7 @@
 					"summary": "Hosted archive client plus instance `verify`.",
 					"signature": null,
 					"file": "src/archive/types.ts",
-					"line": 107
+					"line": 110
 				},
 				{
 					"name": "shutdownSignal",
