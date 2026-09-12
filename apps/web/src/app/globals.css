@@ -9396,6 +9396,48 @@ body:has(.marketing-nav) .auth-bar {
 	color: var(--term-ok);
 }
 
+.home-final-btns {
+	margin-top: 36px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 14px;
+	flex-wrap: wrap;
+}
+.home-btn-solid,
+.home-btn-outline {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: 44px;
+	padding: 0 22px;
+	border-radius: 999px;
+	font-size: 0.9375rem;
+	font-weight: 500;
+	text-decoration: none;
+	transition: background-color 150ms ease-out, border-color 150ms ease-out;
+}
+.home-btn-solid {
+	background: var(--text-main);
+	color: var(--bg);
+}
+.home-btn-outline {
+	background: transparent;
+	color: var(--text-main);
+	border: 1px solid var(--border);
+}
+@media (hover: hover) {
+	.home-btn-solid:hover {
+		background: #1f2228;
+	}
+	.home-btn-outline:hover {
+		border-color: var(--border-hover);
+	}
+}
+.home-final .home-cmd {
+	margin-top: 24px;
+}
+
 /* ── Homepage rewrite: footer ──────────────────────────────────────── */
 
 .site-footer {
@@ -9545,6 +9587,41 @@ body:has(.marketing-nav) .auth-bar {
 	font-size: 0.62rem;
 	letter-spacing: 0.05em;
 	text-transform: uppercase;
+}
+
+/* final CTA */
+.home-final {
+	position: relative;
+	padding: 6rem 1.5rem 7rem;
+	text-align: center;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	max-width: 768px;
+	margin: 0 auto;
+}
+.home-final::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 50%;
+	transform: translateX(-50%);
+	width: min(1152px, calc(100vw - 3rem));
+	height: 1px;
+	background: var(--border);
+}
+.home-final h2 {
+	font-family: var(--font-heading-stack);
+	font-weight: 400;
+	font-size: clamp(1.875rem, 4vw, 3rem);
+	line-height: 1;
+	letter-spacing: -0.025em;
+	text-wrap: balance;
+	font-style: normal;
+}
+.home-final .home-sub {
+	margin-top: 1.5rem;
+	max-width: 52ch;
 }
 
 /* ── Ghost-key claim page ──────────────────────────────────────────── */
