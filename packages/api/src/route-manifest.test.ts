@@ -286,7 +286,9 @@ describe("route manifest", () => {
 		expect(platform.paths["/api/billing/refill"]).toBeDefined();
 		expect(platform.paths["/api/public/credits/checkout"]).toBeDefined();
 		expect(platform.paths["/v1/play"]).toBeDefined();
+		expect(platform.paths["/v1/play/estimate"]).toBeDefined();
 		expect(oss.paths["/v1/play"]).toBeUndefined();
+		expect(oss.paths["/v1/play/estimate"]).toBeUndefined();
 		expect(oss.paths["/api/archive/quote"]).toBeUndefined();
 		expect(oss.paths["/api/archive/fetch"]).toBeUndefined();
 		expect(

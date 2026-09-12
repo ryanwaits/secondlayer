@@ -1444,7 +1444,7 @@ function platformSpec(): typeof OPENAPI_SPEC {
 			{
 				name: "play",
 				description:
-					"Accountless hosted subgraph provision and claim. POST is unauthenticated; GET uses the play key.",
+					"Accountless hosted subgraph provision and claim. POST is unauthenticated; GET uses the play key; GET /v1/play/estimate uses X-Claim-Token.",
 			},
 		],
 		components: {
@@ -1703,6 +1703,48 @@ function platformMeterPaths(): Record<string, unknown> {
 						},
 					}),
 					"401": jsonError(),
+					"404": jsonError(),
+				},
+			},
+		},
+		"/v1/play/estimate": {
+			get: {
+				tags: ["play"],
+				summary: "Play session monthly cost estimate",
+				description:
+					"Authenticates with X-Claim-Token. Does not consume the token. Returns dollar strings for the claim page. Play-only; 404 after the ghost is claimed.",
+				security: [],
+				parameters: [
+					{
+						name: "X-Claim-Token",
+						in: "header",
+						required: true,
+						schema: { type: "string" },
+						description:
+							"Unused, unexpired play claim token. Lookup only; used_at is not set.",
+					},
+				],
+				responses: {
+					"200": json200({
+						type: "object",
+						properties: {
+							grant_remaining_usd: { type: "string" },
+							grant_spent_usd: { type: "string" },
+							projected_monthly_usd: { type: "string" },
+							lines: {
+								type: "array",
+								items: {
+									type: "object",
+									properties: {
+										meter: { type: "string" },
+										usd: { type: "string" },
+										one_shot: { type: "boolean" },
+									},
+								},
+							},
+						},
+					}),
+					"400": jsonError(),
 					"404": jsonError(),
 				},
 			},

@@ -2,9 +2,17 @@
 
 import { MarketingNav } from "@/components/marketing-nav";
 import { useParams, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const TOKEN_RE = /^[0-9a-f]{64}$/i;
+
+type EstimateLine = { meter: string; usd: string; one_shot: boolean };
+type PlayEstimate = {
+	grant_remaining_usd: string;
+	grant_spent_usd: string;
+	projected_monthly_usd: string;
+	lines: EstimateLine[];
+};
 
 export default function ClaimPage() {
 	const params = useParams<{ token: string }>();
@@ -16,6 +24,27 @@ export default function ClaimPage() {
 	const [email, setEmail] = useState("");
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [estimate, setEstimate] = useState<PlayEstimate | null>(null);
+
+	useEffect(() => {
+		if (!valid || paid) return;
+		let cancelled = false;
+		void (async () => {
+			try {
+				const res = await fetch("/api/v1/play/estimate", {
+					headers: { "X-Claim-Token": token },
+				});
+				if (!res.ok) return;
+				const data = (await res.json()) as PlayEstimate;
+				if (!cancelled) setEstimate(data);
+			} catch {
+				// Estimate is additive; the form still shows.
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [valid, paid, token]);
 
 	async function checkout() {
 		setBusy(true);
@@ -58,6 +87,31 @@ export default function ClaimPage() {
 						}}
 					>
 						<p className="login-title">Claim play resources</p>
+						{estimate ? (
+							<>
+								<p className="acr-note">
+									So far: ${estimate.grant_spent_usd} of $10 grant
+								</p>
+								<p className="acr-note">
+									To keep this running: ~${estimate.projected_monthly_usd}/mo
+								</p>
+								{estimate.lines.map((line) => {
+									if (line.meter === "running" && line.usd === "0.00") {
+										return (
+											<p key={line.meter} className="acr-note">
+												paused: $0
+											</p>
+										);
+									}
+									if (line.usd === "0.00") return null;
+									return (
+										<p key={line.meter} className="acr-note">
+											{line.meter}: ${line.usd}
+										</p>
+									);
+								})}
+							</>
+						) : null}
 						<p className="acr-note">
 							First $10 credit pack. Subgraph and key move to this email.
 						</p>
