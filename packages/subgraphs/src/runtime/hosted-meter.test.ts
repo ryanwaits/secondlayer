@@ -11,43 +11,52 @@ afterEach(() => {
 });
 
 describe("hosted-meter hooks", () => {
-	test("default no-op", async () => {
-		await meterBlocksProcessed("acc", 10);
-		await meterDeliveryAttempt("acc");
+	test("default no-op returns true", async () => {
+		expect(await meterBlocksProcessed("acc", 10, "sg")).toBe(true);
+		expect(await meterDeliveryAttempt("acc", "sub-1")).toBe(true);
 	});
 
 	test("calls mock after setHostedMeterHooks", async () => {
-		const onBlocksProcessed = mock(async () => {});
-		const onDeliveryAttempt = mock(async () => {});
+		const onBlocksProcessed = mock(async () => true);
+		const onDeliveryAttempt = mock(async () => true);
 		setHostedMeterHooks({ onBlocksProcessed, onDeliveryAttempt });
-		await meterBlocksProcessed("acc", 3);
-		await meterDeliveryAttempt("acc");
+		expect(await meterBlocksProcessed("acc", 3, "sg")).toBe(true);
+		expect(await meterDeliveryAttempt("acc", "sub-1")).toBe(true);
 		expect(onBlocksProcessed).toHaveBeenCalledTimes(1);
-		expect(onBlocksProcessed).toHaveBeenCalledWith("acc", 3);
+		expect(onBlocksProcessed).toHaveBeenCalledWith("acc", 3, "sg");
 		expect(onDeliveryAttempt).toHaveBeenCalledTimes(1);
-		expect(onDeliveryAttempt).toHaveBeenCalledWith("acc");
+		expect(onDeliveryAttempt).toHaveBeenCalledWith("acc", "sub-1");
 	});
 
 	test("empty accountId skipped", async () => {
-		const onBlocksProcessed = mock(async () => {});
-		const onDeliveryAttempt = mock(async () => {});
+		const onBlocksProcessed = mock(async () => true);
+		const onDeliveryAttempt = mock(async () => true);
 		setHostedMeterHooks({ onBlocksProcessed, onDeliveryAttempt });
-		await meterBlocksProcessed("", 3);
-		await meterBlocksProcessed(null, 3);
-		await meterBlocksProcessed(undefined, 3);
-		await meterBlocksProcessed("acc", 0);
-		await meterDeliveryAttempt("");
-		await meterDeliveryAttempt(null);
-		await meterDeliveryAttempt(undefined);
+		expect(await meterBlocksProcessed("", 3, "sg")).toBe(true);
+		expect(await meterBlocksProcessed(null, 3, "sg")).toBe(true);
+		expect(await meterBlocksProcessed(undefined, 3, "sg")).toBe(true);
+		expect(await meterBlocksProcessed("acc", 0, "sg")).toBe(true);
+		expect(await meterDeliveryAttempt("", "sub-1")).toBe(true);
+		expect(await meterDeliveryAttempt(null, "sub-1")).toBe(true);
+		expect(await meterDeliveryAttempt(undefined, "sub-1")).toBe(true);
 		expect(onBlocksProcessed).toHaveBeenCalledTimes(0);
 		expect(onDeliveryAttempt).toHaveBeenCalledTimes(0);
 	});
 
 	test("resetHostedMeterHooks restores no-op", async () => {
-		const onBlocksProcessed = mock(async () => {});
+		const onBlocksProcessed = mock(async () => false);
 		setHostedMeterHooks({ onBlocksProcessed });
 		resetHostedMeterHooks();
-		await meterBlocksProcessed("acc", 3);
+		expect(await meterBlocksProcessed("acc", 3, "sg")).toBe(true);
 		expect(onBlocksProcessed).toHaveBeenCalledTimes(0);
+	});
+
+	test("propagates false from hook", async () => {
+		setHostedMeterHooks({
+			onBlocksProcessed: async () => false,
+			onDeliveryAttempt: async () => false,
+		});
+		expect(await meterBlocksProcessed("acc", 3, "sg")).toBe(false);
+		expect(await meterDeliveryAttempt("acc", "sub-1")).toBe(false);
 	});
 });

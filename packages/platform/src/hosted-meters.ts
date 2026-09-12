@@ -1,10 +1,18 @@
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { type Database, getDb } from "@secondlayer/shared/db";
+import {
+	pauseSubgraph,
+	resumePausedSubgraphs,
+} from "@secondlayer/shared/db/queries/subgraphs";
+import { toggleSubscriptionStatus } from "@secondlayer/shared/db/queries/subscriptions";
 import type { Kysely } from "kysely";
 import {
 	debitCredits,
 	recordCreditsSpend,
 } from "./db/queries/account-credits.ts";
+
+/** $10 play grant, credited once at ghost provision. */
+export const PLAY_GRANT_USD_MICROS = 10_000_000n;
 
 /** $1 / 1M blocks. */
 export const INDEXING_USD_MICROS_PER_BLOCK = 1n;
@@ -55,22 +63,59 @@ export async function debitHostedMeter(
 export async function onBlocksProcessed(
 	accountId: string,
 	blocks: number,
-): Promise<void> {
+	subgraphName: string,
+): Promise<boolean> {
 	try {
-		await debitHostedMeter(getDb(), accountId, indexingCost(blocks));
+		const cost = indexingCost(blocks);
+		if (cost <= 0n) return true;
+		const db = getDb();
+		const ok = await debitHostedMeter(db, accountId, cost);
+		if (!ok) await pauseSubgraph(db, subgraphName, accountId);
+		return ok;
 	} catch (err) {
 		logger.warn("hosted indexing meter failed", {
 			error: getErrorMessage(err),
 		});
+		return true;
 	}
 }
 
-export async function onDeliveryAttempt(accountId: string): Promise<void> {
+export async function onDeliveryAttempt(
+	accountId: string,
+	subscriptionId: string,
+): Promise<boolean> {
 	try {
-		await debitHostedMeter(getDb(), accountId, deliveryCost(1));
+		const cost = deliveryCost(1);
+		if (cost <= 0n) return true;
+		const db = getDb();
+		const ok = await debitHostedMeter(db, accountId, cost);
+		if (!ok) {
+			await toggleSubscriptionStatus(db, accountId, subscriptionId, "paused");
+		}
+		return ok;
 	} catch (err) {
 		logger.warn("hosted delivery meter failed", {
 			error: getErrorMessage(err),
 		});
+		return true;
 	}
+}
+
+/** Unpause subgraphs and subscriptions after a successful creditCredits. */
+export async function resumeHostedResources(
+	db: Kysely<Database>,
+	accountId: string,
+): Promise<void> {
+	await resumePausedSubgraphs(db, accountId);
+	await db
+		.updateTable("subscriptions")
+		.set({
+			status: "active",
+			circuit_failures: 0,
+			circuit_opened_at: null,
+			updated_at: new Date(),
+		})
+		.where("account_id", "=", accountId)
+		.where("status", "=", "paused")
+		.execute();
 }

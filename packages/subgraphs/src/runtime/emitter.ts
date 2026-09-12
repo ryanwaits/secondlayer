@@ -392,7 +392,7 @@ async function dispatchOne(
 		})
 		.execute();
 
-	await meterDeliveryAttempt(sub.account_id);
+	await meterDeliveryAttempt(sub.account_id, sub.id);
 
 	return {
 		ok: r.ok,
@@ -671,6 +671,7 @@ async function drainForSub(
 	sub: Subscription,
 	rows: SubscriptionOutbox[],
 ): Promise<void> {
+	if (sub.status !== "active") return;
 	const cap = sub.concurrency || 4;
 	const counter = () => state.inFlightBySub.get(sub.id) ?? 0;
 	const inc = () => state.inFlightBySub.set(sub.id, counter() + 1);

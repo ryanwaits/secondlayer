@@ -155,6 +155,36 @@ export async function updateSubgraphStatus(
 		.execute();
 }
 
+/** Account-scoped pause. Only active/reindexing rows flip; name-only
+ *  {@link updateSubgraphStatus} is unsafe on platform (name, account_id). */
+export async function pauseSubgraph(
+	db: Kysely<Database>,
+	name: string,
+	accountId: string,
+): Promise<void> {
+	await db
+		.updateTable("subgraphs")
+		.set({ status: "paused", updated_at: new Date() })
+		.where("name", "=", name)
+		.where("account_id", "=", accountId)
+		.where("status", "in", ["active", "reindexing"])
+		.execute();
+}
+
+/** Resume every paused subgraph for an account (claim / Stripe top-up). */
+export async function resumePausedSubgraphs(
+	db: Kysely<Database>,
+	accountId: string,
+): Promise<number> {
+	const res = await db
+		.updateTable("subgraphs")
+		.set({ status: "active", updated_at: new Date() })
+		.where("account_id", "=", accountId)
+		.where("status", "=", "paused")
+		.executeTakeFirst();
+	return Number(res.numUpdatedRows ?? 0);
+}
+
 /** Live-walk ERROR write (f069): a block whose handlers ALL failed
  *  (`processed === 0 && errors > 0`, `block-processor.ts`'s `applyProgress`)
  *  is stamped 'error' and its height is recorded as processed, same as

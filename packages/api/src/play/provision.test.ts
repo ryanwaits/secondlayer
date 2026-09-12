@@ -6,6 +6,7 @@ import {
 	expect,
 	test,
 } from "bun:test";
+import { getCredits } from "@secondlayer/platform/db/queries/account-credits";
 import { getDb } from "@secondlayer/shared/db";
 import { sql } from "kysely";
 import { hashToken } from "../auth/keys.ts";
@@ -112,6 +113,10 @@ describe.skipIf(!HAS_DB)("POST /v1/play platform", () => {
 		}
 		if (seededAccountIds.length > 0) {
 			await db
+				.deleteFrom("account_credits")
+				.where("account_id", "in", seededAccountIds)
+				.execute();
+			await db
 				.deleteFrom("subscriptions")
 				.where("account_id", "in", seededAccountIds)
 				.execute();
@@ -176,6 +181,7 @@ describe.skipIf(!HAS_DB)("POST /v1/play platform", () => {
 			.executeTakeFirstOrThrow();
 		expect(account.ghost).toBe(true);
 		expect(account.email).toBeNull();
+		expect(await getCredits(db, keyRow.account_id)).toBe(10_000_000n);
 		const sg = await db
 			.selectFrom("subgraphs")
 			.select("expires_at")

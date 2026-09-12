@@ -1,6 +1,13 @@
 export type HostedMeterHooks = {
-	onBlocksProcessed?: (accountId: string, blocks: number) => Promise<void>;
-	onDeliveryAttempt?: (accountId: string) => Promise<void>;
+	onBlocksProcessed?: (
+		accountId: string,
+		blocks: number,
+		subgraphName: string,
+	) => Promise<boolean>;
+	onDeliveryAttempt?: (
+		accountId: string,
+		subscriptionId: string,
+	) => Promise<boolean>;
 };
 
 let hooks: HostedMeterHooks = {};
@@ -16,14 +23,18 @@ export function resetHostedMeterHooks(): void {
 export async function meterBlocksProcessed(
 	accountId: string | null | undefined,
 	blocks: number,
-): Promise<void> {
-	if (!accountId || blocks <= 0) return;
-	await hooks.onBlocksProcessed?.(accountId, blocks);
+	subgraphName: string,
+): Promise<boolean> {
+	if (!accountId || blocks <= 0) return true;
+	if (!hooks.onBlocksProcessed) return true;
+	return hooks.onBlocksProcessed(accountId, blocks, subgraphName);
 }
 
 export async function meterDeliveryAttempt(
 	accountId: string | null | undefined,
-): Promise<void> {
-	if (!accountId) return;
-	await hooks.onDeliveryAttempt?.(accountId);
+	subscriptionId: string,
+): Promise<boolean> {
+	if (!accountId) return true;
+	if (!hooks.onDeliveryAttempt) return true;
+	return hooks.onDeliveryAttempt(accountId, subscriptionId);
 }

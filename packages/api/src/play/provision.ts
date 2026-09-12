@@ -1,3 +1,5 @@
+import { creditCredits } from "@secondlayer/platform/db/queries/account-credits";
+import { PLAY_GRANT_USD_MICROS } from "@secondlayer/platform/hosted-meters";
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import {
@@ -156,6 +158,8 @@ export async function provisionPlay(c: Context): Promise<Response> {
 		.values({ email: null, ghost: true })
 		.returningAll()
 		.executeTakeFirstOrThrow();
+
+	await creditCredits(db, ghost.id, PLAY_GRANT_USD_MICROS);
 
 	const deployRes = await executeSubgraphDeploy(c, subgraph, {
 		accountId: ghost.id,

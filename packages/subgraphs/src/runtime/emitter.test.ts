@@ -299,4 +299,50 @@ describe("startEmitter end-to-end", () => {
 			await receiver.stop();
 		}
 	}, 12_000);
+
+	it("does not POST when subscription is paused", async () => {
+		const receiver = await startMockReceiver(() => "ok");
+		try {
+			const { subscription } = await createSubscription(db, {
+				accountId,
+				name: `paused-${randomUUID().slice(0, 8)}`,
+				subgraphName: "bitcoin",
+				tableName: "transfers",
+				url: receiver.url,
+				timeoutMs: 5_000,
+			});
+			await db
+				.updateTable("subscriptions")
+				.set({ status: "paused", updated_at: new Date() })
+				.where("id", "=", subscription.id)
+				.execute();
+
+			await db
+				.insertInto("subscription_outbox")
+				.values({
+					subscription_id: subscription.id,
+					subgraph_name: "bitcoin",
+					table_name: "transfers",
+					block_height: 4000,
+					tx_id: "0xpaused",
+					row_pk: { blockHeight: 4000, txId: "0xpaused", rowIndex: 0 },
+					event_type: "bitcoin.transfers.created",
+					payload: { sender: "SP1", recipient: "SP2", amount: "1" },
+					dedup_key: `test-paused-${randomUUID().slice(0, 12)}`,
+				})
+				.execute();
+
+			await new Promise((r) => setTimeout(r, 3_000));
+			expect(receiver.received.length).toBe(0);
+
+			const deliveries = await db
+				.selectFrom("subscription_deliveries")
+				.select("id")
+				.where("subscription_id", "=", subscription.id)
+				.execute();
+			expect(deliveries.length).toBe(0);
+		} finally {
+			await receiver.stop();
+		}
+	}, 8_000);
 });

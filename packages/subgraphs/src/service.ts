@@ -32,8 +32,15 @@ if (isPlatformMode()) {
 	try {
 		const spec = "@secondlayer/platform/hosted-meters";
 		const mod = (await import(spec)) as {
-			onBlocksProcessed: (accountId: string, blocks: number) => Promise<void>;
-			onDeliveryAttempt: (accountId: string) => Promise<void>;
+			onBlocksProcessed: (
+				accountId: string,
+				blocks: number,
+				subgraphName: string,
+			) => Promise<boolean>;
+			onDeliveryAttempt: (
+				accountId: string,
+				subscriptionId: string,
+			) => Promise<boolean>;
 		};
 		setHostedMeterHooks({
 			onBlocksProcessed: mod.onBlocksProcessed,

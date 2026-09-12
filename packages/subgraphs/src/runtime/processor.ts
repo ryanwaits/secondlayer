@@ -65,7 +65,7 @@ async function catchUpAll(
 				try {
 					const def = await loadSubgraphDefinition(sg);
 					const processed = await catchUpSubgraph(def, sg.name);
-					await meterBlocksProcessed(sg.account_id, processed);
+					await meterBlocksProcessed(sg.account_id, processed, sg.name);
 				} catch (err) {
 					const msg = getErrorMessage(err);
 					if (isHandlerNotFoundError(err)) {
@@ -208,6 +208,7 @@ async function runSubgraphOperation(
 		.executeTakeFirst();
 	if (!subgraph)
 		throw new Error(`Subgraph not found: ${operation.subgraph_id}`);
+	if (subgraph.status === "paused") return 0;
 
 	const def = await loadSubgraphDefinition(subgraph);
 	const schemaName = subgraph.schema_name ?? pgSchemaName(subgraph.name);
@@ -263,7 +264,7 @@ async function runSubgraphOperation(
 			processed = result.processed;
 		}
 	}
-	await meterBlocksProcessed(subgraph.account_id, processed);
+	await meterBlocksProcessed(subgraph.account_id, processed, subgraph.name);
 	return processed;
 }
 

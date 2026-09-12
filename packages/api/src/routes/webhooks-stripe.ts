@@ -17,6 +17,7 @@
  */
 
 import { creditCredits } from "@secondlayer/platform/db/queries/account-credits";
+import { resumeHostedResources } from "@secondlayer/platform/hosted-meters";
 import { logger } from "@secondlayer/shared";
 import type { Database } from "@secondlayer/shared/db";
 import { getDb } from "@secondlayer/shared/db";
@@ -174,6 +175,7 @@ async function onCheckoutCompleted(
 	if (tokenHash) {
 		await transferPlayClaim(db, { tokenHash, destAccountId: accountId });
 	}
+	await resumeHostedResources(db, accountId);
 }
 
 /** Off-session auto-refill. Checkout top-ups stay on checkout.session.completed. */
@@ -198,6 +200,7 @@ async function onPaymentIntentSucceeded(
 		cents,
 		balanceUsdMicros: balance.toString(),
 	});
+	await resumeHostedResources(db, accountId);
 }
 
 export default app;

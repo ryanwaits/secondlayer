@@ -3,9 +3,10 @@
  *
  * Running: $0.10/day for each subgraph with status active or reindexing
  * and a non-empty account_id. Storage: $0.50/GB-month prorated daily for
- * every subgraph that still holds disk (including error). Idempotent via
- * hosted_meter_days INSERT ON CONFLICT DO NOTHING. Insufficient balance
- * is a silent skip. No-op in non-platform mode.
+ * every subgraph that still holds disk (including error and paused).
+ * Idempotent via hosted_meter_days INSERT ON CONFLICT DO NOTHING.
+ * Running-fee shortfall pauses the subgraph. Storage shortfall is logged
+ * and skipped; disk is not deleted. No-op in non-platform mode.
  */
 
 import {
@@ -15,7 +16,10 @@ import {
 } from "@secondlayer/platform/hosted-meters";
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
-import { pgSchemaName } from "@secondlayer/shared/db/queries/subgraphs";
+import {
+	pauseSubgraph,
+	pgSchemaName,
+} from "@secondlayer/shared/db/queries/subgraphs";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import { sql } from "kysely";
 
@@ -76,7 +80,12 @@ export async function runHostedMeterDay(now = new Date()): Promise<void> {
 				.returning("subgraph_name")
 				.executeTakeFirst();
 			if (inserted) {
-				await debitHostedMeter(db, sg.account_id, RUNNING_USD_MICROS_PER_DAY);
+				const ok = await debitHostedMeter(
+					db,
+					sg.account_id,
+					RUNNING_USD_MICROS_PER_DAY,
+				);
+				if (!ok) await pauseSubgraph(db, sg.name, sg.account_id);
 			}
 		} catch (err) {
 			logger.warn("hosted running meter failed", {
@@ -124,8 +133,14 @@ export async function runHostedMeterDay(now = new Date()): Promise<void> {
 				)
 				.returning("subgraph_name")
 				.executeTakeFirst();
-			if (inserted) {
-				await debitHostedMeter(db, sg.account_id, cost);
+			if (inserted && cost > 0n) {
+				const ok = await debitHostedMeter(db, sg.account_id, cost);
+				if (!ok) {
+					logger.warn("hosted storage meter skipped (insufficient credits)", {
+						subgraph: sg.name,
+						accountId: sg.account_id,
+					});
+				}
 			}
 		} catch (err) {
 			logger.warn("hosted storage meter failed", {

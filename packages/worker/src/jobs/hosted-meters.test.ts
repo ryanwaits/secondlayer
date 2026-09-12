@@ -104,4 +104,34 @@ describe.skipIf(!HAS_DB)("runHostedMeterDay", () => {
 		await runHostedMeterDay(now);
 		expect(await getCredits(db, accountId)).toBe(afterFirst);
 	});
+
+	test("running fee debit fail pauses the subgraph", async () => {
+		const accountId = await makeAccount();
+		const name = `hosted-meter-${crypto.randomUUID().slice(0, 8)}`;
+		subgraphNames.push(name);
+		await db
+			.insertInto("subgraphs")
+			.values({
+				name,
+				status: "active",
+				definition: {},
+				schema_hash: "test",
+				handler_path: "test",
+				schema_name: `subgraph_hosted_meter_${crypto.randomUUID().slice(0, 8)}`,
+				account_id: accountId,
+				last_processed_block: 0,
+				database_url_enc: null,
+			})
+			.execute();
+
+		const now = new Date("2026-09-12T12:00:00Z");
+		await runHostedMeterDay(now);
+		const sg = await db
+			.selectFrom("subgraphs")
+			.select("status")
+			.where("name", "=", name)
+			.where("account_id", "=", accountId)
+			.executeTakeFirstOrThrow();
+		expect(sg.status).toBe("paused");
+	});
 });
