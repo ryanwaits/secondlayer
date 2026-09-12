@@ -32,6 +32,10 @@ import { mintApiKey } from "../auth/mint.ts";
 import { bearerToken } from "../auth/read-plane.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import { executeSubgraphDeploy } from "../routes/subgraphs.ts";
+import {
+	PLAY_MAX_CONCURRENT_PER_IP,
+	countConcurrentPlaySubgraphs,
+} from "./sybil.ts";
 import { CLAIM_TOKEN_TTL_MS, createClaimToken } from "./tokens.ts";
 
 export const PLAY_PROVISION_DAILY_LIMIT = 3;
@@ -142,6 +146,20 @@ export async function provisionPlay(c: Context): Promise<Response> {
 
 	const db = getDb();
 	const ip = getClientIp(c);
+	if (ip === "unknown") {
+		return c.json({ error: "ip_required", code: "PLAY_IP_UNKNOWN" }, 400);
+	}
+	const n = await countConcurrentPlaySubgraphs(db, ip);
+	if (n >= PLAY_MAX_CONCURRENT_PER_IP) {
+		return c.json(
+			{
+				error: "play_concurrency_limit",
+				code: "PLAY_CONCURRENCY",
+				limit: PLAY_MAX_CONCURRENT_PER_IP,
+			},
+			429,
+		);
+	}
 	const allowed = await consumePlayProvisionSlot(db, ip);
 	if (!allowed) {
 		return c.json(

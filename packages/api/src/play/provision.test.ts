@@ -11,6 +11,7 @@ import { getDb } from "@secondlayer/shared/db";
 import { sql } from "kysely";
 import { hashToken } from "../auth/keys.ts";
 import { createApiApp } from "../create-app.ts";
+import { PLAY_MAX_CONCURRENT_PER_IP } from "./sybil.ts";
 import { CLAIM_TOKEN_TTL_MS, createClaimToken } from "./tokens.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -215,6 +216,8 @@ describe.skipIf(!HAS_DB)("POST /v1/play platform", () => {
 			}),
 		});
 		expect(res.status).toBe(429);
+		const body = (await res.json()) as { code: string };
+		expect(body.code).toBe("RATE_LIMITED");
 	});
 
 	test("rolls back ghost and subgraph when subscription is invalid", async () => {
@@ -328,4 +331,181 @@ describe.skipIf(!HAS_DB)("POST /v1/play platform", () => {
 		});
 		expect(claimed.status).toBe(404);
 	});
+
+	async function seedPlayGhost(opts: {
+		ip: string;
+		expiresAt: Date | null;
+		ghost?: boolean;
+	}): Promise<{ accountId: string; name: string }> {
+		const account = await db
+			.insertInto("accounts")
+			.values({
+				email:
+					opts.ghost === false
+						? `claimed-${crypto.randomUUID().slice(0, 8)}@test.invalid`
+						: null,
+				ghost: opts.ghost ?? true,
+			})
+			.returning("id")
+			.executeTakeFirstOrThrow();
+		seededAccountIds.push(account.id);
+		const name = `play-${crypto.randomUUID().slice(0, 8)}`;
+		seededNames.push(name);
+		await db
+			.insertInto("subgraphs")
+			.values({
+				name,
+				status: "active",
+				definition: {},
+				schema_hash: "test",
+				handler_path: "test",
+				schema_name: `subgraph_play_${crypto.randomUUID().slice(0, 8)}`,
+				account_id: account.id,
+				last_processed_block: 0,
+				database_url_enc: null,
+				expires_at: opts.expiresAt,
+			})
+			.execute();
+		const playRaw = `sk-sl_${crypto.randomUUID().replace(/-/g, "").slice(0, 32)}`;
+		await db
+			.insertInto("api_keys")
+			.values({
+				key_hash: hashToken(playRaw),
+				key_prefix: "sk-sl_play",
+				account_id: account.id,
+				ip_address: opts.ip,
+				product: "account",
+				tier: "free",
+				status: "active",
+				name: "play",
+			})
+			.execute();
+		return { accountId: account.id, name };
+	}
+
+	async function trackProvisioned(res: Response, ip: string): Promise<void> {
+		seededIpHashes.push(hashToken(ip));
+		if (res.status !== 201) return;
+		const body = (await res.clone().json()) as { key: string };
+		const keyRow = await db
+			.selectFrom("api_keys")
+			.select("account_id")
+			.where("key_hash", "=", hashToken(body.key))
+			.executeTakeFirst();
+		if (keyRow) seededAccountIds.push(keyRow.account_id);
+	}
+
+	test("rejects a fourth concurrent play subgraph from the same IP", async () => {
+		const ip = "203.0.113.10";
+		const future = new Date(Date.now() + CLAIM_TOKEN_TTL_MS);
+		for (let i = 0; i < PLAY_MAX_CONCURRENT_PER_IP; i++) {
+			await seedPlayGhost({ ip, expiresAt: future });
+		}
+		const name = `play-${crypto.randomUUID().slice(0, 8)}`;
+		seededNames.push(name);
+		const app = createApiApp("platform");
+		const res = await app.request("/v1/play", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				"x-forwarded-for": ip,
+			},
+			body: JSON.stringify({ subgraph: deployBody(name) }),
+		});
+		await trackProvisioned(res, ip);
+		expect(res.status).toBe(429);
+		const body = (await res.json()) as { code: string; limit: number };
+		expect(body.code).toBe("PLAY_CONCURRENCY");
+		expect(body.limit).toBe(PLAY_MAX_CONCURRENT_PER_IP);
+	});
+
+	test("other IP can still provision while one IP is at the concurrent cap", async () => {
+		const blocked = "203.0.113.10";
+		const other = "203.0.113.11";
+		const future = new Date(Date.now() + CLAIM_TOKEN_TTL_MS);
+		for (let i = 0; i < PLAY_MAX_CONCURRENT_PER_IP; i++) {
+			await seedPlayGhost({ ip: blocked, expiresAt: future });
+		}
+		const name = `play-${crypto.randomUUID().slice(0, 8)}`;
+		seededNames.push(name);
+		const app = createApiApp("platform");
+		const res = await app.request("/v1/play", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				"x-forwarded-for": other,
+			},
+			body: JSON.stringify({ subgraph: deployBody(name) }),
+		});
+		await trackProvisioned(res, other);
+		expect(res.status).toBe(201);
+	}, 30_000);
+
+	test("claiming a slot lets the original IP provision again", async () => {
+		const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`;
+		const future = new Date(Date.now() + CLAIM_TOKEN_TTL_MS);
+		const seeded: Array<{ accountId: string; name: string }> = [];
+		for (let i = 0; i < PLAY_MAX_CONCURRENT_PER_IP; i++) {
+			seeded.push(await seedPlayGhost({ ip, expiresAt: future }));
+		}
+		const slot = seeded[0];
+		if (!slot) throw new Error("expected seeded play subgraph");
+		await db
+			.updateTable("accounts")
+			.set({ ghost: false })
+			.where("id", "=", slot.accountId)
+			.execute();
+		await db
+			.updateTable("subgraphs")
+			.set({ expires_at: null })
+			.where("account_id", "=", slot.accountId)
+			.execute();
+		const name = `play-${crypto.randomUUID().slice(0, 8)}`;
+		seededNames.push(name);
+		const app = createApiApp("platform");
+		const res = await app.request("/v1/play", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				"x-forwarded-for": ip,
+			},
+			body: JSON.stringify({ subgraph: deployBody(name) }),
+		});
+		await trackProvisioned(res, ip);
+		expect(res.status).toBe(201);
+	}, 30_000);
+
+	test("rejects provision without X-Forwarded-For", async () => {
+		const name = `play-${crypto.randomUUID().slice(0, 8)}`;
+		const app = createApiApp("platform");
+		const res = await app.request("/v1/play", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ subgraph: deployBody(name) }),
+		});
+		expect(res.status).toBe(400);
+		const body = (await res.json()) as { code: string };
+		expect(body.code).toBe("PLAY_IP_UNKNOWN");
+	});
+
+	test("expired play subgraphs do not count toward the concurrent cap", async () => {
+		const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`;
+		const past = new Date(Date.now() - 60_000);
+		for (let i = 0; i < PLAY_MAX_CONCURRENT_PER_IP; i++) {
+			await seedPlayGhost({ ip, expiresAt: past });
+		}
+		const name = `play-${crypto.randomUUID().slice(0, 8)}`;
+		seededNames.push(name);
+		const app = createApiApp("platform");
+		const res = await app.request("/v1/play", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				"x-forwarded-for": ip,
+			},
+			body: JSON.stringify({ subgraph: deployBody(name) }),
+		});
+		await trackProvisioned(res, ip);
+		expect(res.status).toBe(201);
+	}, 30_000);
 });
