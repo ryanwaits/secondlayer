@@ -429,12 +429,12 @@ describe.skipIf(SKIP)("Webhooks API dedicated scope", () => {
 });
 
 describe("webhook mount paths", () => {
-	test("GET /api/subscriptions is not mounted; GET /api/webhooks exists", async () => {
+	test("GET /api/subscriptions aliases GET /api/webhooks (same auth shape)", async () => {
 		const { createApiApp } = await import("../src/create-app.ts");
 		const app = createApiApp("oss");
 		const legacy = await app.request("/api/subscriptions");
-		expect(legacy.status).toBe(404);
 		const current = await app.request("/api/webhooks");
 		expect([200, 401]).toContain(current.status);
+		expect(legacy.status).toBe(current.status);
 	});
 });

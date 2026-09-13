@@ -377,6 +377,25 @@ describe("route manifest", () => {
 		expect(spec.paths["/v1/subgraphs"]).toBeDefined();
 	});
 
+	test("OSS OpenAPI mirrors every /api/webhooks path under /api/subscriptions", () => {
+		const spec = openapiSpec("oss");
+		const webhooks = Object.keys(spec.paths).filter((p) =>
+			p.startsWith("/api/webhooks"),
+		);
+		const subscriptions = Object.keys(spec.paths).filter((p) =>
+			p.startsWith("/api/subscriptions"),
+		);
+		expect(webhooks.length).toBe(10);
+		expect(subscriptions.length).toBe(webhooks.length);
+		for (const path of webhooks) {
+			const alias = path.replace("/api/webhooks", "/api/subscriptions");
+			expect(spec.paths[alias], alias).toBeDefined();
+		}
+		const platform = openapiSpec("platform");
+		expect(platform.paths["/api/subscriptions"]).toBeUndefined();
+		expect(platform.paths["/api/webhooks"]).toBeUndefined();
+	});
+
 	/**
 	 * The x402 rail was deleted, not gated. These loops would pass vacuously
 	 * against the now-empty HOSTED_OPENAPI_PATHS, so name the paths directly —
