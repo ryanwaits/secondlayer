@@ -16,6 +16,8 @@ await sl.streams.events.list(sbtcMints.toStreamsParams());
 await sl.webhooks.create({ trigger: sbtcMints.toChainTrigger(), url });
 ```
 
+`@secondlayer/stacks` is the typed chain client, documented at [stacks.secondlayer.tools](https://stacks.secondlayer.tools).
+
 ## Why not just spread it
 
 Because the four surfaces genuinely disagree, and a spread hides that:

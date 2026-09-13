@@ -68,7 +68,6 @@ describe("docs sidebar invariant", () => {
 		"Chain data",
 		"Operate",
 		"Reference",
-		"Stacks client (moves to its own site)",
 	] as const;
 
 	test("every docs page is reachable from the sidebar and vice versa", () => {

@@ -30,10 +30,8 @@ export interface DocsNavGroup {
  *   the nouns in Products.
  * - **Chain data** is Index data pages for named protocols (sBTC, PoX-5
  *   events, contract discovery) plus the Chainhook migration guide.
- * - **Stacks client (moves to its own site)** is a holding pen for the
- *   `@secondlayer/stacks` library pages until plan 012 moves them to
- *   stacks.secondlayer.tools.
  * - **Start / Operate / Reference** are onboarding, ops, and lookup.
+ *   Library pages for `@secondlayer/stacks` live at stacks.secondlayer.tools.
  */
 export const DOCS_NAV: DocsNavGroup[] = [
 	{
@@ -118,14 +116,6 @@ export const DOCS_NAV: DocsNavGroup[] = [
 			{ title: "API reference", href: "/docs/api-reference" },
 			{ title: "SDK reference", href: "/docs/sdk-reference" },
 			{ title: "Changelog", href: "/docs/changelog" },
-		],
-	},
-	{
-		label: "Stacks client (moves to its own site)",
-		items: [
-			{ title: "Stacks SDK", href: "/docs/stacks" },
-			{ title: "Bitcoin SPV", href: "/docs/bitcoin-spv" },
-			{ title: "PoX-5 staking", href: "/docs/pox5" },
 		],
 	},
 ];
