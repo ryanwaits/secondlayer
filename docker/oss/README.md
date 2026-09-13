@@ -54,7 +54,7 @@ token. `API_PORT` is a publish spec, and compose hands the API that same value
 as `API_PUBLISH_ADDR`, so with the default `127.0.0.1:3800` the `/v1` reads
 (index, streams, subgraphs alike) stay keyless, and setting `API_PORT` to
 `0.0.0.0:3800` makes each of them require `Authorization: Bearer
-$INSTANCE_TOKEN`. Writes — `/api/subgraphs`, `/api/subscriptions`,
+$INSTANCE_TOKEN`. Writes — `/api/subgraphs`, `/api/webhooks`,
 `/api/node`, `/status` — take the token either way, loopback included.
 
 ## Console (optional)

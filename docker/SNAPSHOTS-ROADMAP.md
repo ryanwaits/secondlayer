@@ -96,7 +96,7 @@ With snapshots: ~1000 blocks/sec (read pre-indexed events → run handler)
 1. **Phase 1: Internal ops** — Daily snapshots, restore runbook, staging refresh
 2. **Phase 2: Self-hosted support** — Public downloads, manifest API, docs
 3. **Phase 3: Client features** — Historical query API, fast reindex, bulk export
-4. **Phase 4: Advanced** — Read replicas, incremental snapshots, subscriptions
+4. **Phase 4: Advanced** — Read replicas, incremental snapshots, webhooks
 
 ---
 

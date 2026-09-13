@@ -30,7 +30,7 @@ services:
       TIP_FOLLOWER_ENABLED: "false"
 
   # Shared secrets key so the emitter can decrypt secrets the api encrypted
-  # (e.g. subscription signing secrets). OSS auto-generates a per-process key
+  # (e.g. webhook signing secrets). OSS auto-generates a per-process key
   # when unset — that splits api and processor. Local-dev fixed value.
   api:
     environment:
@@ -40,11 +40,11 @@ services:
     environment:
       NETWORK: testnet
       STACKS_NETWORK: testnet
-      # Allow subscription webhooks to reach a localhost receiver during local
+      # Allow webhooks to reach a localhost receiver during local
       # dev (the emitter blocks private/loopback egress by default).
       SECONDLAYER_ALLOW_PRIVATE_EGRESS: "true"
       # f072: deliberately NOT granted here (was a stale carry-over from
-      # before the delivery plane split into subscription-processor —
-      # service.ts/processor.ts never decrypts subscription secrets). This
+      # before the delivery plane split into webhook-processor —
+      # service.ts/processor.ts never decrypts webhook secrets). This
       # process runs untrusted handler code every block; see the same-named
       # comment in the base docker-compose.yml for the full rationale.

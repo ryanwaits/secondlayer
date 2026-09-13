@@ -163,14 +163,14 @@ HEALTHCHECK NONE
 CMD ["bun", "run", "packages/subgraphs/src/service.ts"]
 
 # =============================================================================
-# Subscription processor — the real-time delivery plane. Same payload as the api
+# Webhook processor — the real-time delivery plane. Same payload as the api
 # image, dedicated default CMD, no HTTP server (no healthcheck).
 # =============================================================================
-FROM api AS subscription-processor
+FROM api AS webhook-processor
 
 HEALTHCHECK NONE
 
-CMD ["bun", "run", "packages/subgraphs/src/subscription-service.ts"]
+CMD ["bun", "run", "packages/subgraphs/src/webhook-service.ts"]
 
 # =============================================================================
 # One-box self-host runtime — postgres is the only sibling.

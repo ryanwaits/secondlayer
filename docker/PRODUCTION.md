@@ -20,7 +20,7 @@ Compose project lives at `/opt/secondlayer/docker` on app-server.
 | `secondlayer-indexer-1` | Chain ingestion (event-observer receiver) + Streams bulk/R2 exports. |
 | `secondlayer-decoder-1` | Decodes raw events → `decoded_events` (the Index plane). Backfills via `packages/indexer/src/decode/BACKFILL.md`. |
 | `secondlayer-subgraph-processor-1` | Subgraph indexing: catch-up follower + operations runner (deploy/reindex/backfill ops). Sparse reindex + boot-time stranded-reindex sweep live here. |
-| `secondlayer-subscription-processor-1/-2` | Webhook delivery plane: leader-elected trigger evaluator + competing-consumer emitters. Replica 2 = failover + throughput. |
+| `secondlayer-webhook-processor-1/-2` | Webhook delivery plane: leader-elected trigger evaluator + competing-consumer emitters. Replica 2 = failover + throughput. |
 | `secondlayer-worker-1` | Crons: credits refill, spend-cap alerts. |
 | `secondlayer-redis-1` | Rate limits. |
 | `secondlayer-walg-backup-1` | WAL-G postgres backups (chain DB WAL archiving → `/opt/secondlayer/data/wal_archive`). |

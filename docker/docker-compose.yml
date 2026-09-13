@@ -390,14 +390,14 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # Subscription processor - evaluator + outbox emitter + chain-reorg rewind.
+  # Webhook processor - evaluator + outbox emitter + chain-reorg rewind.
   # Sole booter of that plane (subgraph-processor no longer starts it).
-  subscription-processor:
-    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-subscription-processor:${SUBSCRIPTION_PROCESSOR_IMAGE_TAG:-${DEPLOY_IMAGE_TAG:-latest}}
+  webhook-processor:
+    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-webhook-processor:${WEBHOOK_PROCESSOR_IMAGE_TAG:-${DEPLOY_IMAGE_TAG:-latest}}
     build:
       context: ..
       dockerfile: docker/Dockerfile
-      target: subscription-processor
+      target: webhook-processor
     environment:
       INSTANCE_MODE: ${INSTANCE_MODE:-platform}
       DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}

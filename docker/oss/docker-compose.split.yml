@@ -1,8 +1,8 @@
 # Secondlayer OSS — full self-hosted stack.
 #
-#   docker compose up -d postgres migrate api indexer decoder subgraph-processor subscription-processor
+#   docker compose up -d postgres migrate api indexer decoder subgraph-processor webhook-processor
 #   # decoder populates decoded_events (the semantic plane that powers
-#   # /v1/index and chain print_event/transfer subscriptions); subscription-processor
+#   # /v1/index and chain print_event/transfer webhooks); webhook-processor
 #   # is the webhook delivery plane. Omit both for raw-events-only indexing.
 #   # then, once you're ready to run a full Stacks node (takes 1-3 days to sync):
 #   docker compose up -d bitcoind
@@ -122,8 +122,8 @@ services:
   # Decoder service — reads raw events from the bundled api's internal Streams
   # endpoint and writes the semantic `decoded_events` table (ft/nft/stx
   # transfers, mints, burns, and contract PRINTS). This is what powers
-  # /v1/index/events and chain `print_event`/transfer subscriptions; without it
-  # decoded_events stays empty and chain subscriptions never match. Consumes
+  # /v1/index/events and chain `print_event`/transfer webhooks; without it
+  # decoded_events stays empty and chain webhooks never match. Consumes
   # live from postgres via the api (no R2/bulk-publisher needed).
   decoder:
     build:
@@ -193,17 +193,17 @@ services:
       disable: true
     restart: unless-stopped
 
-  # Subscription delivery plane — the chain-trigger evaluator + webhook emitter.
-  # The evaluator matches chain subscriptions (print_event, *_transfer) against
+  # Webhook delivery plane — the chain-trigger evaluator + webhook emitter.
+  # The evaluator matches chain webhooks (print_event, *_transfer) against
   # decoded_events (populated by decoder) and enqueues signed webhook
   # deliveries. SUBGRAPH_SOURCE=streams-index is what starts the evaluator;
-  # without this service no chain subscription ever fires.
-  subscription-processor:
+  # without this service no chain webhook ever fires.
+  webhook-processor:
     build:
       context: ../..
       dockerfile: docker/Dockerfile
-      target: subscription-processor
-    command: ["bun", "run", "packages/subgraphs/src/subscription-service.ts"]
+      target: webhook-processor
+    command: ["bun", "run", "packages/subgraphs/src/webhook-service.ts"]
     environment:
       INSTANCE_MODE: oss
       DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}
@@ -214,15 +214,15 @@ services:
       SUBGRAPH_SOURCE: ${SUBGRAPH_SOURCE:-streams-index}
       SUBGRAPH_INDEX_API_URL: http://api:3800
       STREAMS_INTERNAL_API_KEY: ${STREAMS_INTERNAL_API_KEY:-}
-      # Per-subscription secrets (signing secret + any auth_config bearer tokens)
+      # Per-webhook secrets (signing secret + any auth_config bearer tokens)
       # are encrypted at rest. The api ENCRYPTS them on create; this service
       # DECRYPTS them to deliver — so both MUST share the same key. OSS
       # auto-bootstrap writes a *different* key per container, so set this
-      # explicitly in .env to run subscriptions across both services.
+      # explicitly in .env to run webhooks across both services.
       SECONDLAYER_SECRETS_KEY: ${SECONDLAYER_SECRETS_KEY:-}
       # ed25519 key for the x-secondlayer-signature on every delivery. The boot
       # guard refuses to start in prod without it — set a key, or set
-      # ALLOW_UNSIGNED_WEBHOOKS=true to ship unsigned (per-subscription HMAC still
+      # ALLOW_UNSIGNED_WEBHOOKS=true to ship unsigned (per-webhook HMAC still
       # applies). Defaulted on here so `docker compose up` boots out of the box.
       STREAMS_SIGNING_PRIVATE_KEY: ${STREAMS_SIGNING_PRIVATE_KEY:-}
       SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY: ${SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY:-}

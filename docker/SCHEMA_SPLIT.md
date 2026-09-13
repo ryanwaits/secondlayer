@@ -46,7 +46,7 @@ Written by `api`, `worker`, `subgraph-processor`.
   `usage_daily`, `usage_snapshots`, `account_insights`, `account_agent_runs`,
   `processed_stripe_events`, `tenants`, `tenant_usage_monthly`,
   `tenant_compute_addons`, `account_spend_caps`, `provisioning_audit_log`,
-  `subscriptions`, `subscription_outbox`, `subscription_deliveries`,
+  `webhooks`, `webhook_outbox`, `webhook_deliveries`,
   `trigger_evaluator_state`, `projects`, `team_members`, `team_invitations`,
   `chat_sessions`, `chat_messages`
 - Subgraphs + per-tenant schemas: `subgraphs`, `subgraph_*`

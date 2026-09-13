@@ -155,14 +155,14 @@ services:
       api:
         condition: service_healthy
 
-  subscription-processor:
+  webhook-processor:
     environment:
       SUBGRAPH_SOURCE: streams-index
     depends_on:
       api:
         condition: service_healthy
     deploy:
-      replicas: ${SUBSCRIPTION_PROCESSOR_REPLICAS:-1}
+      replicas: ${WEBHOOK_PROCESSOR_REPLICAS:-1}
 
 volumes:
   caddy_data:
