@@ -11,7 +11,7 @@ import { validateBackfillRange } from "../../reindex-form";
 
 /**
  * Replay form — prompts for a block range, POSTs to
- * `/api/subscriptions/:id/replay`. The emitter drains replay outbox rows at
+ * `/api/webhooks/:id/replay`. The emitter drains replay outbox rows at
  * 10% of batch capacity so the live stream is never starved.
  *
  * The section heading lives on the page, not here — two components each
@@ -41,8 +41,8 @@ export function describeReplay(
 	if (scannedCount === 0) {
 		return {
 			tone: "none",
-			body: <>No rows in blocks {range} match this subscription's filter.</>,
-			hint: "Nothing to replay. Widen the range, or check the filter on this subscription.",
+			body: <>No rows in blocks {range} match this webhook's filter.</>,
+			hint: "Nothing to replay. Widen the range, or check the filter on this webhook.",
 		};
 	}
 	if (enqueuedCount === 0) {
@@ -80,7 +80,7 @@ export function describeReplay(
 	};
 }
 
-export function ReplayDialog({ subscriptionId }: { subscriptionId: string }) {
+export function ReplayDialog({ webhookId }: { webhookId: string }) {
 	const [fromBlock, setFromBlock] = useState("");
 	const [toBlock, setToBlock] = useState("");
 	const [busy, setBusy] = useState(false);
@@ -97,7 +97,7 @@ export function ReplayDialog({ subscriptionId }: { subscriptionId: string }) {
 		setOutcome(null);
 		try {
 			const res = await consoleFetch(
-				`/api/subscriptions/${encodeURIComponent(subscriptionId)}/replay`,
+				`/api/webhooks/${encodeURIComponent(webhookId)}/replay`,
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },

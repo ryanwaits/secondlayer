@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
  * head so the count stays live through requeues; the page renders the Replay
  * panel directly beneath it inside the same section.
  */
-export function Dlq({ subscriptionId }: { subscriptionId: string }) {
+export function Dlq({ webhookId }: { webhookId: string }) {
 	const [rows, setRows] = useState<DeadRow[] | null>(null);
 	const [err, setErr] = useState<string | null>(null);
 	const [busy, setBusy] = useState<string | null>(null);
@@ -17,7 +17,7 @@ export function Dlq({ subscriptionId }: { subscriptionId: string }) {
 	async function load() {
 		try {
 			const res = await consoleFetch(
-				`/api/subscriptions/${encodeURIComponent(subscriptionId)}/dead`,
+				`/api/webhooks/${encodeURIComponent(webhookId)}/dead`,
 			);
 			const body = (await res.json()) as { data?: DeadRow[]; error?: string };
 			if (!res.ok) {
@@ -31,16 +31,16 @@ export function Dlq({ subscriptionId }: { subscriptionId: string }) {
 		}
 	}
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: load is stable closure; only reload when subscription id changes
+	// biome-ignore lint/correctness/useExhaustiveDependencies: load is stable closure; only reload when webhook id changes
 	useEffect(() => {
 		void load();
-	}, [subscriptionId]);
+	}, [webhookId]);
 
 	async function requeue(outboxId: string) {
 		setBusy(outboxId);
 		try {
 			const res = await consoleFetch(
-				`/api/subscriptions/${encodeURIComponent(subscriptionId)}/dead/${encodeURIComponent(outboxId)}/requeue`,
+				`/api/webhooks/${encodeURIComponent(webhookId)}/dead/${encodeURIComponent(outboxId)}/requeue`,
 				{ method: "POST" },
 			);
 			if (res.ok) {

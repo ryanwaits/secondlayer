@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 /**
- * Subscription settings and the destructive action, split into two exported
+ * Webhook settings and the destructive action, split into two exported
  * blocks so the page can place them under their own headings. Neither renders
  * a heading itself — the page owns section structure.
  */
 
-function useSubscriptionCall() {
+function useWebhookCall() {
 	const [busy, setBusy] = useState(false);
 	const [err, setErr] = useState<string | null>(null);
 
@@ -36,7 +36,7 @@ function useSubscriptionCall() {
 	return { busy, err, call };
 }
 
-export function SubscriptionSettings({
+export function WebhookSettings({
 	id,
 	status,
 }: {
@@ -44,12 +44,12 @@ export function SubscriptionSettings({
 	status: "active" | "paused" | "error";
 }) {
 	const router = useRouter();
-	const { busy, err, call } = useSubscriptionCall();
+	const { busy, err, call } = useWebhookCall();
 	const [rotatedSecret, setRotatedSecret] = useState<string | null>(null);
 
 	async function onPauseResume() {
 		const target = status === "active" ? "pause" : "resume";
-		await call(`/api/subscriptions/${encodeURIComponent(id)}/${target}`);
+		await call(`/api/webhooks/${encodeURIComponent(id)}/${target}`);
 		router.refresh();
 	}
 
@@ -62,7 +62,7 @@ export function SubscriptionSettings({
 			return;
 		}
 		const body = await call(
-			`/api/subscriptions/${encodeURIComponent(id)}/rotate-secret`,
+			`/api/webhooks/${encodeURIComponent(id)}/rotate-secret`,
 		);
 		if (body?.signingSecret) {
 			setRotatedSecret(body.signingSecret);
@@ -127,7 +127,7 @@ export function SubscriptionSettings({
 	);
 }
 
-export function SubscriptionDangerZone({
+export function WebhookDangerZone({
 	id,
 	subgraphName,
 }: {
@@ -135,22 +135,22 @@ export function SubscriptionDangerZone({
 	subgraphName: string;
 }) {
 	const router = useRouter();
-	const { busy, err, call } = useSubscriptionCall();
+	const { busy, err, call } = useWebhookCall();
 
 	async function onDelete() {
 		if (
 			!confirm(
-				"Delete this subscription? Pending outbox entries will be cascade-deleted and cannot be recovered.",
+				"Delete this webhook? Pending outbox entries will be cascade-deleted and cannot be recovered.",
 			)
 		) {
 			return;
 		}
 		const body = await call(
-			`/api/subscriptions/${encodeURIComponent(id)}`,
+			`/api/webhooks/${encodeURIComponent(id)}`,
 			"DELETE",
 		);
 		if (body !== null) {
-			router.push(`/subgraphs/${subgraphName}/subscriptions`);
+			router.push(`/subgraphs/${subgraphName}/webhooks`);
 		}
 	}
 
@@ -158,7 +158,7 @@ export function SubscriptionDangerZone({
 		<div className="sg-danger">
 			<div className="sg-set-row">
 				<div className="sg-set-info">
-					<div className="sg-set-label">Delete subscription</div>
+					<div className="sg-set-label">Delete webhook</div>
 					<div className="sg-set-desc">
 						Pending outbox entries are cascade-deleted and cannot be recovered.
 					</div>

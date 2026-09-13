@@ -25,7 +25,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
 	{ href: "/", label: "Overview", icon: "overview" },
 	{ href: "/subgraphs", label: "Subgraphs", icon: "subgraph" },
-	{ href: "/subscriptions", label: "Subscriptions", icon: "subscription" },
+	{ href: "/webhooks", label: "Webhooks", icon: "webhook" },
 ];
 
 /** Instance surfaces — grouped under a mono-caps label, per the mock. */
@@ -65,7 +65,7 @@ const ICONS: Record<string, React.ReactNode> = {
 			<path d="M2 4.5h12M2 8h12M2 11.5h12" />
 		</svg>
 	),
-	subscription: (
+	webhook: (
 		<svg
 			width="16"
 			height="16"
@@ -123,8 +123,8 @@ const ICONS: Record<string, React.ReactNode> = {
 
 function isActive(pathname: string, href: string) {
 	if (href === "/") return pathname === "/";
-	// A subgraph's subscription screens live under /subgraphs/…, so they light
-	// the Subgraphs entry; /subscriptions only matches the global index.
+	// A subgraph's webhook screens live under /subgraphs/…, so they light
+	// the Subgraphs entry; /webhooks only matches the global index.
 	return pathname === href || pathname.startsWith(`${href}/`);
 }
 

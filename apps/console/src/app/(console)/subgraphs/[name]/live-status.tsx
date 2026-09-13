@@ -308,7 +308,7 @@ export function SubgraphLiveStatus({
 						</span>
 					</div>
 					<div className="lp-stat">
-						<span className="k">Subscriptions</span>
+						<span className="k">Webhooks</span>
 						<span className="v">{subsCount}</span>
 					</div>
 				</>

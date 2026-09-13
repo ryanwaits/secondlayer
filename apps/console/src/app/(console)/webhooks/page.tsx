@@ -1,7 +1,7 @@
 import { EmptyState } from "@/components/console/empty-state";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { apiRequest } from "@/lib/api";
-import type { SubscriptionSummary } from "@/lib/types";
+import type { WebhookSummary } from "@/lib/types";
 import Link from "next/link";
 
 function statusBadge(status: string) {
@@ -11,16 +11,14 @@ function statusBadge(status: string) {
 }
 
 /**
- * Instance-wide subscriptions index — the sidebar's third surface. Every row
+ * Instance-wide webhooks index — the sidebar's third surface. Every row
  * links into its subgraph-scoped detail screen, where the delivery log, DLQ,
  * diagnostics, and replay live.
  */
-export default async function SubscriptionsPage() {
-	let subs: SubscriptionSummary[] = [];
+export default async function WebhooksPage() {
+	let subs: WebhookSummary[] = [];
 	try {
-		const res = await apiRequest<{ data: SubscriptionSummary[] }>(
-			"/api/subscriptions",
-		);
+		const res = await apiRequest<{ data: WebhookSummary[] }>("/api/webhooks");
 		subs = res.data;
 	} catch {
 		subs = [];
@@ -28,25 +26,25 @@ export default async function SubscriptionsPage() {
 
 	return (
 		<>
-			<OverviewTopbar crumbs={[{ label: "subscriptions" }]} />
+			<OverviewTopbar crumbs={[{ label: "webhooks" }]} />
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">
 					<div className="index-header">
 						<div>
-							<span className="index-title">Subscriptions</span>
+							<span className="index-title">Webhooks</span>
 							<span className="index-count">
-								{subs.length} subscription{subs.length !== 1 ? "s" : ""}
+								{subs.length} webhook{subs.length !== 1 ? "s" : ""}
 							</span>
 						</div>
 					</div>
 
 					{subs.length === 0 ? (
 						<EmptyState
-							title="No subscriptions yet"
-							message="Subscriptions deliver typed subgraph events to webhooks — Inngest, Trigger.dev, Cloudflare Workflows, or any HTTPS endpoint."
-							command="secondlayer subscriptions create <name> --subgraph <subgraph> --runtime <inngest|trigger|cloudflare|node>"
-							docHref="https://www.secondlayer.tools/docs/subscriptions"
-							docLabel="Subscriptions guide →"
+							title="No webhooks yet"
+							message="Webhooks deliver typed subgraph events to webhooks — Inngest, Trigger.dev, Cloudflare Workflows, or any HTTPS endpoint."
+							command="secondlayer webhooks create <name> --subgraph <subgraph> --runtime <inngest|trigger|cloudflare|node>"
+							docHref="https://www.secondlayer.tools/docs/webhooks"
+							docLabel="Webhooks guide →"
 							ghostRows={3}
 						/>
 					) : (
@@ -66,7 +64,7 @@ export default async function SubscriptionsPage() {
 									<tr key={s.id}>
 										<td>
 											<Link
-												href={`/subgraphs/${s.subgraphName}/subscriptions/${s.id}`}
+												href={`/subgraphs/${s.subgraphName}/webhooks/${s.id}`}
 											>
 												{s.name}
 											</Link>

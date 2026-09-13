@@ -3,7 +3,7 @@ import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { ApiError, INSTANCE_API_URL, apiRequest } from "@/lib/api";
 import { timeAgo } from "@/lib/format";
 import { getDisplayStatus } from "@/lib/intelligence/subgraphs";
-import type { SubgraphDetail, SubscriptionSummary } from "@/lib/types";
+import type { SubgraphDetail, WebhookSummary } from "@/lib/types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SubgraphLiveStatus } from "./live-status";
@@ -34,10 +34,10 @@ export default async function SubgraphDetailPage({
 	}
 	const subgraph: SubgraphDetail = sgResult.value;
 
-	let subsForSubgraph: SubscriptionSummary[] = [];
+	let subsForSubgraph: WebhookSummary[] = [];
 	try {
-		const subsResult = await apiRequest<{ data: SubscriptionSummary[] }>(
-			"/api/subscriptions",
+		const subsResult = await apiRequest<{ data: WebhookSummary[] }>(
+			"/api/webhooks",
 		);
 		subsForSubgraph = subsResult.data.filter((s) => s.subgraphName === name);
 	} catch {
@@ -154,11 +154,11 @@ export default async function SubgraphDetailPage({
 						)}
 					</section>
 
-					{/* Subscriptions */}
+					{/* Webhooks */}
 					<section className="sg-sec">
 						<div className="sg-sec-head">
 							<span className="t">
-								Subscriptions
+								Webhooks
 								<span className="cnt">
 									{subsCount}
 									{subsCount > 0 ? ` · ${activeCount} active` : ""}
@@ -166,7 +166,7 @@ export default async function SubgraphDetailPage({
 							</span>
 							{subsCount > 0 && (
 								<Link
-									href={`/subgraphs/${name}/subscriptions`}
+									href={`/subgraphs/${name}/webhooks`}
 									className="ov-section-link"
 								>
 									View all &rarr;
@@ -175,11 +175,11 @@ export default async function SubgraphDetailPage({
 						</div>
 						{subsCount === 0 ? (
 							<EmptyState
-								title="No subscriptions yet"
-								message="Subscriptions push new rows to your endpoint as they're indexed — standard webhooks, Inngest, Trigger, or Cloudflare."
-								command={`secondlayer subscriptions create <name> --subgraph ${name}`}
-								docHref="https://www.secondlayer.tools/docs/subscriptions"
-								docLabel="Subscriptions guide →"
+								title="No webhooks yet"
+								message="Webhooks push new rows to your endpoint as they're indexed — standard webhooks, Inngest, Trigger, or Cloudflare."
+								command={`secondlayer webhooks create <name> --subgraph ${name}`}
+								docHref="https://www.secondlayer.tools/docs/webhooks"
+								docLabel="Webhooks guide →"
 								ghostRows={3}
 							/>
 						) : (
@@ -187,7 +187,7 @@ export default async function SubgraphDetailPage({
 								{subsForSubgraph.map((sub) => (
 									<Link
 										key={sub.id}
-										href={`/subgraphs/${name}/subscriptions/${sub.id}`}
+										href={`/subgraphs/${name}/webhooks/${sub.id}`}
 										className="sg-sub-row"
 									>
 										<div>

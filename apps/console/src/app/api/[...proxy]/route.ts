@@ -9,7 +9,7 @@ import { type NextRequest, NextResponse } from "next/server";
  * traversal before the request leaves the box.
  */
 
-const FORWARDED_ROOTS = new Set(["subgraphs", "subscriptions"]);
+const FORWARDED_ROOTS = new Set(["subgraphs", "webhooks", "subscriptions"]); // subscriptions: deprecated alias, removed in plan 015
 
 function upstreamPath(segments: string[], search: string): string {
 	const [root, ...rest] = segments;

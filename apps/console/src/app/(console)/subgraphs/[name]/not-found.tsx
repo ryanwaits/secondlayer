@@ -7,7 +7,7 @@ export default function SubgraphNotFound() {
 				<h1 className="dash-page-title">Not found</h1>
 			</div>
 			<EmptyState
-				message="This subgraph, table, or subscription does not exist on this instance — or it has been deleted."
+				message="This subgraph, table, or webhook does not exist on this instance — or it has been deleted."
 				action={{ label: "Back to subgraphs", href: "/subgraphs" }}
 			/>
 		</>

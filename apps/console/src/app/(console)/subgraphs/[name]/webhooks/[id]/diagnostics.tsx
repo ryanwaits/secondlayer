@@ -112,11 +112,11 @@ function formatDuration(ms: number): string {
 }
 
 export function Diagnostics({
-	subscriptionId,
+	webhookId,
 	subgraphName,
 	sourceLag,
 }: {
-	subscriptionId: string;
+	webhookId: string;
 	subgraphName: string;
 	/** Blocks the subgraph is behind the chain tip, when the fetch succeeded. */
 	sourceLag: { behind: number; tip: number } | null;
@@ -128,7 +128,7 @@ export function Diagnostics({
 		async function poll() {
 			try {
 				const res = await consoleFetch(
-					`/api/subscriptions/${encodeURIComponent(subscriptionId)}/deliveries`,
+					`/api/webhooks/${encodeURIComponent(webhookId)}/deliveries`,
 				);
 				if (!res.ok) return;
 				const body = (await res.json()) as { data?: DeliveryRow[] };
@@ -145,7 +145,7 @@ export function Diagnostics({
 			cancelled = true;
 			clearInterval(interval);
 		};
-	}, [subscriptionId]);
+	}, [webhookId]);
 
 	if (stats === null) {
 		return <p className="detail-desc">Loading…</p>;
@@ -155,7 +155,7 @@ export function Diagnostics({
 		return (
 			<p className="detail-desc">
 				Nothing delivered yet, so there's nothing to diagnose. Fire an event
-				matching this subscription's filter to start collecting attempts.
+				matching this webhook's filter to start collecting attempts.
 			</p>
 		);
 	}

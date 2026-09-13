@@ -14,7 +14,7 @@ export interface InstanceSummary {
 		start_block: number | null;
 		last_processed_block: number | null;
 	}[];
-	subscriptions: { name: string; status: string; kind: string }[];
+	webhooks: { name: string; status: string; kind: string }[];
 }
 
 export interface HealthInfo {
@@ -101,7 +101,7 @@ export interface SubgraphSummary {
 	lastError?: string | null;
 	lastErrorAt?: string | null;
 	updatedAt?: string | null;
-	subscriptionCount?: number;
+	webhookCount?: number;
 	createdAt: string;
 }
 
@@ -166,12 +166,12 @@ export interface SubgraphDetail {
 	updatedAt: string;
 }
 
-export type SubscriptionStatus = "active" | "paused" | "error";
+export type WebhookStatus = "active" | "paused" | "error";
 
-export interface SubscriptionSummary {
+export interface WebhookSummary {
 	id: string;
 	name: string;
-	status: SubscriptionStatus;
+	status: WebhookStatus;
 	subgraphName: string;
 	tableName: string;
 	format: string;
@@ -183,7 +183,7 @@ export interface SubscriptionSummary {
 	updatedAt: string;
 }
 
-export interface SubscriptionDetail extends SubscriptionSummary {
+export interface WebhookDetail extends WebhookSummary {
 	filter: Record<string, unknown>;
 	authConfig: Record<string, unknown>;
 	maxRetries: number;

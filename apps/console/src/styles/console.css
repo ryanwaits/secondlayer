@@ -3212,8 +3212,8 @@ html.force-light .tabbed-code-tab.active {
 	margin-left: 8px;
 }
 
-/* Subscription list table + status pills + detail descriptions. Mirrors
-   .dash-data-table / .dash-badge so subscription views render consistently
+/* Webhook list table + status pills + detail descriptions. Mirrors
+   .dash-data-table / .dash-badge so webhook views render consistently
    with the rest of the console. */
 .index-table {
 	width: 100%;
@@ -10498,7 +10498,7 @@ a.ov-card {
 }
 
 /* ════════════════════════════════════════════════
-   Diagnostics — evidence panel on subscription detail
+   Diagnostics — evidence panel on webhook detail
    ════════════════════════════════════════════════ */
 .sg-dx-strip {
 	display: flex;
@@ -10814,7 +10814,7 @@ a.ov-card {
 	font-size: 11px;
 }
 
-/* Meta cards (subscription header, status strip, settings identity) */
+/* Meta cards (webhook header, status strip, settings identity) */
 .meta {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));

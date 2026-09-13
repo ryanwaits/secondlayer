@@ -342,7 +342,7 @@ function SubgraphCard({
 	const inflight = ds === "syncing" || ds === "reindexing";
 	const isError = ds === "error" || ds === "stalled";
 	const progress = Math.max(0, Math.min(100, Math.round(sg.progress ?? 0)));
-	const subs = sg.subscriptionCount ?? 0;
+	const hooks = sg.webhookCount ?? 0;
 
 	return (
 		<Link
@@ -376,9 +376,9 @@ function SubgraphCard({
 			</div>
 			<div className="sg-card-ft">
 				<CardStatusLine sg={sg} ds={ds} progress={progress} />
-				{subs > 0 && (
+				{hooks > 0 && (
 					<span className="sg-card-subs">
-						{subs} sub{subs !== 1 ? "s" : ""}
+						{hooks} hook{hooks !== 1 ? "s" : ""}
 					</span>
 				)}
 			</div>

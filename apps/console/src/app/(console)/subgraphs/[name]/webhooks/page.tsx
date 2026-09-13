@@ -1,7 +1,7 @@
 import { EmptyState } from "@/components/console/empty-state";
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { apiRequest } from "@/lib/api";
-import type { SubscriptionSummary } from "@/lib/types";
+import type { WebhookSummary } from "@/lib/types";
 import Link from "next/link";
 
 function statusBadge(status: string) {
@@ -10,17 +10,17 @@ function statusBadge(status: string) {
 	return "error";
 }
 
-export default async function SubgraphSubscriptionsPage({
+export default async function SubgraphWebhooksPage({
 	params,
 }: {
 	params: Promise<{ name: string }>;
 }) {
 	const { name } = await params;
 
-	let subs: SubscriptionSummary[] = [];
+	let subs: WebhookSummary[] = [];
 
 	const [subsResult] = await Promise.allSettled([
-		apiRequest<{ data: SubscriptionSummary[] }>("/api/subscriptions"),
+		apiRequest<{ data: WebhookSummary[] }>("/api/webhooks"),
 	]);
 	if (subsResult.status === "fulfilled") {
 		subs = subsResult.value.data.filter((s) => s.subgraphName === name);
@@ -32,27 +32,27 @@ export default async function SubgraphSubscriptionsPage({
 				crumbs={[
 					{ label: "subgraphs", href: "/subgraphs" },
 					{ label: name, href: `/subgraphs/${name}` },
-					{ label: "subscriptions" },
+					{ label: "webhooks" },
 				]}
 			/>
 			<div style={{ flex: 1, overflowY: "auto" }}>
 				<div className="overview-inner">
 					<div className="index-header">
 						<div>
-							<span className="index-title">Subscriptions</span>
+							<span className="index-title">Webhooks</span>
 							<span className="index-count">
-								{subs.length} subscription{subs.length !== 1 ? "s" : ""}
+								{subs.length} webhook{subs.length !== 1 ? "s" : ""}
 							</span>
 						</div>
 					</div>
 
 					{subs.length === 0 ? (
 						<EmptyState
-							title="No subscriptions yet"
-							message="Subscriptions deliver typed subgraph events to webhooks — Inngest, Trigger.dev, Cloudflare Workflows, or any HTTPS endpoint."
-							command={`secondlayer subscriptions create <name> --subgraph ${name} --runtime <inngest|trigger|cloudflare|node>`}
-							docHref="https://www.secondlayer.tools/docs/subscriptions"
-							docLabel="Subscriptions guide →"
+							title="No webhooks yet"
+							message="Webhooks deliver typed subgraph events to webhooks — Inngest, Trigger.dev, Cloudflare Workflows, or any HTTPS endpoint."
+							command={`secondlayer webhooks create <name> --subgraph ${name} --runtime <inngest|trigger|cloudflare|node>`}
+							docHref="https://www.secondlayer.tools/docs/webhooks"
+							docLabel="Webhooks guide →"
 							ghostRows={3}
 						/>
 					) : (
@@ -71,7 +71,7 @@ export default async function SubgraphSubscriptionsPage({
 								{subs.map((s) => (
 									<tr key={s.id}>
 										<td>
-											<Link href={`/subgraphs/${name}/subscriptions/${s.id}`}>
+											<Link href={`/subgraphs/${name}/webhooks/${s.id}`}>
 												{s.name}
 											</Link>
 										</td>

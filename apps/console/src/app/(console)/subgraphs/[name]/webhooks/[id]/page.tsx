@@ -1,13 +1,9 @@
 import { OverviewTopbar } from "@/components/console/overview-topbar";
 import { ApiError, apiRequest } from "@/lib/api";
 import { timeAgo } from "@/lib/format";
-import type {
-	DeliveryRow,
-	SubgraphDetail,
-	SubscriptionDetail,
-} from "@/lib/types";
+import type { DeliveryRow, SubgraphDetail, WebhookDetail } from "@/lib/types";
 import { notFound } from "next/navigation";
-import { SubscriptionDangerZone, SubscriptionSettings } from "./actions";
+import { WebhookDangerZone, WebhookSettings } from "./actions";
 import { DeliveryLog } from "./delivery-log";
 import { Diagnostics } from "./diagnostics";
 import { Dlq } from "./dlq";
@@ -24,7 +20,7 @@ function trimUrl(url: string): string {
 	return url.replace(/^[a-z]+:\/\//i, "");
 }
 
-export default async function SubscriptionDetailPage({
+export default async function WebhookDetailPage({
 	params,
 }: {
 	params: Promise<{ name: string; id: string }>;
@@ -39,11 +35,9 @@ export default async function SubscriptionDetailPage({
 
 	const [detailResult, deliveriesResult, subgraphResult] =
 		await Promise.allSettled([
-			apiRequest<SubscriptionDetail>(
-				`/api/subscriptions/${encodeURIComponent(id)}`,
-			),
+			apiRequest<WebhookDetail>(`/api/webhooks/${encodeURIComponent(id)}`),
 			apiRequest<{ data: DeliveryRow[] }>(
-				`/api/subscriptions/${encodeURIComponent(id)}/deliveries`,
+				`/api/webhooks/${encodeURIComponent(id)}/deliveries`,
 			),
 			apiRequest<SubgraphDetail>(`/api/subgraphs/${encodeURIComponent(name)}`),
 		]);
@@ -56,7 +50,7 @@ export default async function SubscriptionDetailPage({
 		}
 		throw detailResult.reason;
 	}
-	const sub: SubscriptionDetail = detailResult.value;
+	const sub: WebhookDetail = detailResult.value;
 	if (sub.subgraphName !== name) notFound();
 	if (deliveriesResult.status === "fulfilled") {
 		lastDelivery = deliveriesResult.value.data[0] ?? null;
@@ -84,8 +78,8 @@ export default async function SubscriptionDetailPage({
 					{ label: "subgraphs", href: "/subgraphs" },
 					{ label: name, href: `/subgraphs/${name}` },
 					{
-						label: "subscriptions",
-						href: `/subgraphs/${name}/subscriptions`,
+						label: "webhooks",
+						href: `/subgraphs/${name}/webhooks`,
 					},
 					{ label: sub.name },
 				]}
@@ -132,18 +126,18 @@ export default async function SubscriptionDetailPage({
 							<span className="r">derived from the last 100 attempts</span>
 						</div>
 						<Diagnostics
-							subscriptionId={sub.id}
+							webhookId={sub.id}
 							subgraphName={sub.subgraphName}
 							sourceLag={sourceLag}
 						/>
 					</section>
 
 					{/* 4 — delivery log (owns its section head: live count) */}
-					<DeliveryLog subscriptionId={sub.id} />
+					<DeliveryLog webhookId={sub.id} />
 
 					{/* 5 — DLQ + replay, then pause/danger below */}
 					<section className="sg-sec">
-						<Dlq subscriptionId={sub.id} />
+						<Dlq webhookId={sub.id} />
 						<div className="panel">
 							<h4>Replay</h4>
 							<p>
@@ -152,7 +146,7 @@ export default async function SubscriptionDetailPage({
 								idempotent: dedup on the{" "}
 								<span className="mono">webhook-id</span> header.
 							</p>
-							<ReplayDialog subscriptionId={sub.id} />
+							<ReplayDialog webhookId={sub.id} />
 						</div>
 					</section>
 
@@ -160,14 +154,14 @@ export default async function SubscriptionDetailPage({
 						<div className="sg-sec-head">
 							<span className="t">Settings</span>
 						</div>
-						<SubscriptionSettings id={sub.id} status={sub.status} />
+						<WebhookSettings id={sub.id} status={sub.status} />
 					</section>
 
 					<section className="sg-sec">
 						<div className="sg-sec-head">
 							<span className="t">Danger zone</span>
 						</div>
-						<SubscriptionDangerZone id={sub.id} subgraphName={name} />
+						<WebhookDangerZone id={sub.id} subgraphName={name} />
 					</section>
 				</div>
 			</div>

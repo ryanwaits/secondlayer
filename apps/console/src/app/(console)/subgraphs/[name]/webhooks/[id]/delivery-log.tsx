@@ -13,7 +13,7 @@ function isOk(d: DeliveryRow): boolean {
  * The last 100 delivery attempts, polling every 5s. Owns its section chrome
  * so the head count tracks the live log rather than a stale server snapshot.
  */
-export function DeliveryLog({ subscriptionId }: { subscriptionId: string }) {
+export function DeliveryLog({ webhookId }: { webhookId: string }) {
 	const [rows, setRows] = useState<DeliveryRow[] | null>(null);
 	const [err, setErr] = useState<string | null>(null);
 
@@ -22,7 +22,7 @@ export function DeliveryLog({ subscriptionId }: { subscriptionId: string }) {
 		async function poll() {
 			try {
 				const res = await consoleFetch(
-					`/api/subscriptions/${encodeURIComponent(subscriptionId)}/deliveries`,
+					`/api/webhooks/${encodeURIComponent(webhookId)}/deliveries`,
 				);
 				const body = (await res.json()) as {
 					data?: DeliveryRow[];
@@ -45,7 +45,7 @@ export function DeliveryLog({ subscriptionId }: { subscriptionId: string }) {
 			cancelled = true;
 			clearInterval(interval);
 		};
-	}, [subscriptionId]);
+	}, [webhookId]);
 
 	let body: React.ReactNode;
 	if (err) {
@@ -55,8 +55,8 @@ export function DeliveryLog({ subscriptionId }: { subscriptionId: string }) {
 	} else if (rows.length === 0) {
 		body = (
 			<p className="detail-desc">
-				No deliveries yet. Fire an event matching this subscription's filter to
-				see attempts here.
+				No deliveries yet. Fire an event matching this webhook's filter to see
+				attempts here.
 			</p>
 		);
 	} else {
