@@ -156,6 +156,6 @@ export class Webhooks extends BaseClient {
 }
 
 /** @deprecated Use {@link Webhooks}. Removed in the next minor. */
-export const Subscriptions = Webhooks; // deprecated alias
+export const Subscriptions: typeof Webhooks = Webhooks; // deprecated alias
 /** @deprecated Use {@link Webhooks}. Removed in the next minor. */
 export type Subscriptions = Webhooks; // deprecated alias
