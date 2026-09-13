@@ -12,7 +12,7 @@ import { getInstanceMode } from "../mode.ts";
 
 /**
  * AES-256-GCM symmetric envelope for encrypted secrets at rest (tenant keys,
- * subscription signing secrets, etc.).
+ * webhook signing secrets, etc.).
  *
  * Ciphertext layout: `iv (12 bytes) || authTag (16 bytes) || ciphertext`
  *

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const SUBSCRIPTION_FORMATS = [
+export const WEBHOOK_FORMATS = [
 	"standard-webhooks",
 	"inngest",
 	"trigger",
@@ -9,16 +9,16 @@ export const SUBSCRIPTION_FORMATS = [
 	"raw",
 ] as const;
 
-export const SUBSCRIPTION_RUNTIMES = [
+export const WEBHOOK_RUNTIMES = [
 	"inngest",
 	"trigger",
 	"cloudflare",
 	"node",
 ] as const;
 
-export const SUBSCRIPTION_STATUSES = ["active", "paused", "error"] as const;
+export const WEBHOOK_STATUSES = ["active", "paused", "error"] as const;
 
-export const SUBSCRIPTION_FILTER_OPERATORS = [
+export const WEBHOOK_FILTER_OPERATORS = [
 	"eq",
 	"neq",
 	"gt",
@@ -40,46 +40,41 @@ const webhookUrl = z
 const name = z.string().trim().min(1).max(128);
 const resourceName = z.string().trim().min(1).max(128);
 
-export const SubscriptionStatusSchema: z.ZodType<SubscriptionStatus> = z.enum(
-	SUBSCRIPTION_STATUSES,
-);
-export const SubscriptionFormatSchema: z.ZodType<SubscriptionFormat> =
-	z.enum(SUBSCRIPTION_FORMATS);
-export const SubscriptionRuntimeSchema: z.ZodType<SubscriptionRuntime> = z.enum(
-	SUBSCRIPTION_RUNTIMES,
-);
+export const WebhookStatusSchema: z.ZodType<WebhookStatus> =
+	z.enum(WEBHOOK_STATUSES);
+export const WebhookFormatSchema: z.ZodType<WebhookFormat> =
+	z.enum(WEBHOOK_FORMATS);
+export const WebhookRuntimeSchema: z.ZodType<WebhookRuntime> =
+	z.enum(WEBHOOK_RUNTIMES);
 
-export const SubscriptionFilterPrimitiveSchema: z.ZodType<SubscriptionFilterPrimitive> =
+export const WebhookFilterPrimitiveSchema: z.ZodType<WebhookFilterPrimitive> =
 	z.union([z.string(), z.number().finite(), z.boolean()]);
 
-export const SubscriptionFilterOperatorSchema: z.ZodType<SubscriptionFilterOperator> =
+export const WebhookFilterOperatorSchema: z.ZodType<WebhookFilterOperator> =
 	z.union([
-		z.object({ eq: SubscriptionFilterPrimitiveSchema }).strict(),
-		z.object({ neq: SubscriptionFilterPrimitiveSchema }).strict(),
+		z.object({ eq: WebhookFilterPrimitiveSchema }).strict(),
+		z.object({ neq: WebhookFilterPrimitiveSchema }).strict(),
 		z.object({ gt: z.union([z.string(), z.number().finite()]) }).strict(),
 		z.object({ gte: z.union([z.string(), z.number().finite()]) }).strict(),
 		z.object({ lt: z.union([z.string(), z.number().finite()]) }).strict(),
 		z.object({ lte: z.union([z.string(), z.number().finite()]) }).strict(),
 		z
 			.object({
-				in: z.array(SubscriptionFilterPrimitiveSchema).min(1),
+				in: z.array(WebhookFilterPrimitiveSchema).min(1),
 			})
 			.strict(),
 	]);
 
-export const SubscriptionFilterClauseSchema: z.ZodType<SubscriptionFilterClause> =
-	z.union([
-		SubscriptionFilterPrimitiveSchema,
-		SubscriptionFilterOperatorSchema,
-	]);
+export const WebhookFilterClauseSchema: z.ZodType<WebhookFilterClause> =
+	z.union([WebhookFilterPrimitiveSchema, WebhookFilterOperatorSchema]);
 
-export const SubscriptionFilterSchema: z.ZodType<SubscriptionFilter> = z.record(
+export const WebhookFilterSchema: z.ZodType<WebhookFilter> = z.record(
 	z.string().min(1),
-	SubscriptionFilterClauseSchema,
+	WebhookFilterClauseSchema,
 );
 
-// --- Chain triggers (direct chain-level subscriptions) -----------------------
-// A chain subscription reacts to raw chain events matched directly off the
+// --- Chain triggers (direct chain-level webhooks) -----------------------
+// A chain webhook reacts to raw chain events matched directly off the
 // Index/Streams clock (no subgraph). `triggers` is an array of these filters —
 // the JSON mirror of the subgraph runtime's `SubgraphFilter` union. Defined
 // here (not imported from @secondlayer/subgraphs) to avoid a shared→subgraphs
@@ -289,19 +284,19 @@ export const CHAIN_TRIGGER_FIELDS: Record<string, string[]> =
 		}),
 	);
 
-export const CreateSubscriptionRequestSchema: z.ZodType<ParsedCreateSubscriptionRequest> =
+export const CreateWebhookRequestSchema: z.ZodType<ParsedCreateWebhookRequest> =
 	z
 		.object({
 			name,
 			// Subgraph mode (kind=subgraph): subgraphName + tableName + optional filter.
 			subgraphName: resourceName.optional(),
 			tableName: resourceName.optional(),
-			filter: SubscriptionFilterSchema.optional(),
+			filter: WebhookFilterSchema.optional(),
 			// Chain mode (kind=chain): triggers.
 			triggers: ChainTriggersSchema.optional(),
 			url: webhookUrl,
-			format: SubscriptionFormatSchema.default("standard-webhooks"),
-			runtime: SubscriptionRuntimeSchema.nullable().optional(),
+			format: WebhookFormatSchema.default("standard-webhooks"),
+			runtime: WebhookRuntimeSchema.nullable().optional(),
 			authConfig: z.record(z.string(), z.unknown()).optional(),
 			maxRetries: z.number().int().min(0).max(100).optional(),
 			timeoutMs: z.number().int().min(100).max(300_000).optional(),
@@ -319,62 +314,60 @@ export const CreateSubscriptionRequestSchema: z.ZodType<ParsedCreateSubscription
 			},
 			{
 				message:
-					"provide either { subgraphName, tableName } for a subgraph subscription OR { triggers } for a chain subscription — not both",
+					"provide either { subgraphName, tableName } for a subgraph webhook OR { triggers } for a chain webhook — not both",
 			},
 		)
 		.refine((v) => v.filter === undefined || v.triggers === undefined, {
 			message:
-				"`filter` applies to subgraph subscriptions; chain subscriptions use `triggers`",
+				"`filter` applies to subgraph webhooks; chain webhooks use `triggers`",
 			path: ["filter"],
 		});
 
-export const UpdateSubscriptionRequestSchema: z.ZodType<UpdateSubscriptionRequest> =
-	z
-		.object({
-			name: name.optional(),
-			url: webhookUrl.optional(),
-			filter: SubscriptionFilterSchema.optional(),
-			format: SubscriptionFormatSchema.optional(),
-			runtime: SubscriptionRuntimeSchema.nullable().optional(),
-			authConfig: z.record(z.string(), z.unknown()).optional(),
-			maxRetries: z.number().int().min(0).max(100).optional(),
-			timeoutMs: z.number().int().min(100).max(300_000).optional(),
-			concurrency: z.number().int().min(1).max(100).optional(),
-		})
-		.refine((value) => Object.keys(value).length > 0, {
-			message: "At least one field must be provided",
-		});
+export const UpdateWebhookRequestSchema: z.ZodType<UpdateWebhookRequest> = z
+	.object({
+		name: name.optional(),
+		url: webhookUrl.optional(),
+		filter: WebhookFilterSchema.optional(),
+		format: WebhookFormatSchema.optional(),
+		runtime: WebhookRuntimeSchema.nullable().optional(),
+		authConfig: z.record(z.string(), z.unknown()).optional(),
+		maxRetries: z.number().int().min(0).max(100).optional(),
+		timeoutMs: z.number().int().min(100).max(300_000).optional(),
+		concurrency: z.number().int().min(1).max(100).optional(),
+	})
+	.refine((value) => Object.keys(value).length > 0, {
+		message: "At least one field must be provided",
+	});
 
-export const ReplaySubscriptionRequestSchema: z.ZodType<ReplaySubscriptionRequest> =
-	z
-		.object({
-			fromBlock: z.number().int().nonnegative(),
-			toBlock: z.number().int().nonnegative(),
-			force: z.string().trim().min(1).max(64).optional(),
-		})
-		.refine((value) => value.fromBlock <= value.toBlock, {
-			message: "fromBlock must be less than or equal to toBlock",
-			path: ["toBlock"],
-		});
+export const ReplayWebhookRequestSchema: z.ZodType<ReplayWebhookRequest> = z
+	.object({
+		fromBlock: z.number().int().nonnegative(),
+		toBlock: z.number().int().nonnegative(),
+		force: z.string().trim().min(1).max(64).optional(),
+	})
+	.refine((value) => value.fromBlock <= value.toBlock, {
+		message: "fromBlock must be less than or equal to toBlock",
+		path: ["toBlock"],
+	});
 
-export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
-/** Polymorphic subscription mode (mirrors db/types `SubscriptionKind`). */
-export type SubscriptionKind = "subgraph" | "chain";
-export type SubscriptionFormat = (typeof SUBSCRIPTION_FORMATS)[number];
-export type SubscriptionRuntime = (typeof SUBSCRIPTION_RUNTIMES)[number];
-export type SubscriptionFilterPrimitive = string | number | boolean;
-export type SubscriptionFilterOperator =
-	| { eq: SubscriptionFilterPrimitive }
-	| { neq: SubscriptionFilterPrimitive }
+export type WebhookStatus = (typeof WEBHOOK_STATUSES)[number];
+/** Polymorphic webhook mode (mirrors db/types `WebhookKind`). */
+export type WebhookKind = "subgraph" | "chain";
+export type WebhookFormat = (typeof WEBHOOK_FORMATS)[number];
+export type WebhookRuntime = (typeof WEBHOOK_RUNTIMES)[number];
+export type WebhookFilterPrimitive = string | number | boolean;
+export type WebhookFilterOperator =
+	| { eq: WebhookFilterPrimitive }
+	| { neq: WebhookFilterPrimitive }
 	| { gt: string | number }
 	| { gte: string | number }
 	| { lt: string | number }
 	| { lte: string | number }
-	| { in: SubscriptionFilterPrimitive[] };
-export type SubscriptionFilterClause =
-	| SubscriptionFilterPrimitive
-	| SubscriptionFilterOperator;
-export type SubscriptionFilter = Record<string, SubscriptionFilterClause>;
+	| { in: WebhookFilterPrimitive[] };
+export type WebhookFilterClause =
+	| WebhookFilterPrimitive
+	| WebhookFilterOperator;
+export type WebhookFilter = Record<string, WebhookFilterClause>;
 
 export type ChainTriggerType = (typeof CHAIN_TRIGGER_TYPES)[number];
 /** Non-negative integer amount over JSON (string for uint128 safety, or number). */
@@ -481,11 +474,11 @@ type TriggerArgs<T extends ChainTrigger["type"]> = Omit<
 >;
 
 /**
- * Ergonomic chain-trigger constructors for `subscriptions.create({ triggers })`.
+ * Ergonomic chain-trigger constructors for `webhooks.create({ triggers })`.
  * Each returns a bare `ChainTrigger` (the wire shape the API expects):
  *
  * ```ts
- * client.subscriptions.create({
+ * client.webhooks.create({
  *   url: "https://my.app/webhook",
  *   triggers: [trigger.contractCall({ contractId: "SP....amm", functionName: "swap-*" })],
  * });
@@ -574,61 +567,61 @@ export const trigger = {
 	}),
 } as const;
 
-export interface CreateSubscriptionRequest {
+export interface CreateWebhookRequest {
 	name: string;
 	/** Subgraph mode. */
 	subgraphName?: string;
 	tableName?: string;
-	filter?: SubscriptionFilter;
+	filter?: WebhookFilter;
 	/** Chain mode. */
 	triggers?: ChainTrigger[];
 	url: string;
-	format?: SubscriptionFormat;
-	runtime?: SubscriptionRuntime | null;
+	format?: WebhookFormat;
+	runtime?: WebhookRuntime | null;
 	authConfig?: Record<string, unknown>;
 	maxRetries?: number;
 	timeoutMs?: number;
 	concurrency?: number;
 }
 
-export interface ParsedCreateSubscriptionRequest
-	extends Omit<CreateSubscriptionRequest, "format"> {
-	format: SubscriptionFormat;
+export interface ParsedCreateWebhookRequest
+	extends Omit<CreateWebhookRequest, "format"> {
+	format: WebhookFormat;
 }
 
-export interface UpdateSubscriptionRequest {
+export interface UpdateWebhookRequest {
 	name?: string;
 	url?: string;
-	filter?: SubscriptionFilter;
-	format?: SubscriptionFormat;
-	runtime?: SubscriptionRuntime | null;
+	filter?: WebhookFilter;
+	format?: WebhookFormat;
+	runtime?: WebhookRuntime | null;
 	authConfig?: Record<string, unknown>;
 	maxRetries?: number;
 	timeoutMs?: number;
 	concurrency?: number;
 }
 
-export type ParsedUpdateSubscriptionRequest = UpdateSubscriptionRequest;
+export type ParsedUpdateWebhookRequest = UpdateWebhookRequest;
 
-export interface ReplaySubscriptionRequest {
+export interface ReplayWebhookRequest {
 	fromBlock: number;
 	toBlock: number;
 	force?: string;
 }
 
-export type ParsedReplaySubscriptionRequest = ReplaySubscriptionRequest;
+export type ParsedReplayWebhookRequest = ReplayWebhookRequest;
 
-export interface SubscriptionSummary {
+export interface WebhookSummary {
 	id: string;
 	name: string;
-	status: SubscriptionStatus;
-	kind: SubscriptionKind;
-	/** Null for chain subscriptions. */
+	status: WebhookStatus;
+	kind: WebhookKind;
+	/** Null for chain webhooks. */
 	subgraphName: string | null;
-	/** Null for chain subscriptions. */
+	/** Null for chain webhooks. */
 	tableName: string | null;
-	format: SubscriptionFormat;
-	runtime: SubscriptionRuntime | null;
+	format: WebhookFormat;
+	runtime: WebhookRuntime | null;
 	url: string;
 	lastDeliveryAt: string | null;
 	lastSuccessAt: string | null;
@@ -636,9 +629,9 @@ export interface SubscriptionSummary {
 	updatedAt: string;
 }
 
-export interface SubscriptionDetail extends SubscriptionSummary {
+export interface WebhookDetail extends WebhookSummary {
 	filter: Record<string, unknown>;
-	/** Chain-trigger filters (chain subscriptions only). */
+	/** Chain-trigger filters (chain webhooks only). */
 	triggers: ChainTrigger[] | null;
 	authConfig: Record<string, unknown>;
 	maxRetries: number;
@@ -649,14 +642,14 @@ export interface SubscriptionDetail extends SubscriptionSummary {
 	lastError: string | null;
 }
 
-export interface CreateSubscriptionResponse {
-	subscription: SubscriptionDetail;
+export interface CreateWebhookResponse {
+	webhook: WebhookDetail;
 	/** Plaintext signing secret — surfaced ONCE. Store it server-side. */
 	signingSecret: string;
 }
 
 export interface RotateSecretResponse {
-	subscription: SubscriptionDetail;
+	webhook: WebhookDetail;
 	signingSecret: string;
 }
 
@@ -677,8 +670,8 @@ export interface ReplayResult {
 }
 
 /** Result of a one-off test delivery (`POST /:id/test`). Logged as a delivery
- *  row (with a null outbox_id) so it shows up under the subscription's deliveries. */
-export interface SubscriptionTestResult {
+ *  row (with a null outbox_id) so it shows up under the webhook's deliveries. */
+export interface WebhookTestResult {
 	ok: boolean;
 	statusCode: number | null;
 	error: string | null;
@@ -697,15 +690,15 @@ export interface DeadRow {
 	createdAt: string;
 }
 
-export interface SubscriptionSchemaColumn {
+export interface WebhookSchemaColumn {
 	type?: unknown;
 }
 
-export interface SubscriptionSchemaTable {
-	columns: Record<string, SubscriptionSchemaColumn>;
+export interface WebhookSchemaTable {
+	columns: Record<string, WebhookSchemaColumn>;
 }
 
-export type SubscriptionSchemaTables = Record<string, SubscriptionSchemaTable>;
+export type WebhookSchemaTables = Record<string, WebhookSchemaTable>;
 
 const SCALAR_COLUMN_TYPES = new Set([
 	"text",
@@ -722,24 +715,24 @@ function formatIssuePath(path: PropertyKey[]): string {
 	return path.length > 0 ? `${path.map(String).join(".")}: ` : "";
 }
 
-export function formatSubscriptionSchemaErrors(error: z.ZodError): string[] {
+export function formatWebhookSchemaErrors(error: z.ZodError): string[] {
 	return error.issues.map(
 		(issue) => `${formatIssuePath(issue.path)}${issue.message}`,
 	);
 }
 
-function operatorForClause(clause: SubscriptionFilterClause): string {
+function operatorForClause(clause: WebhookFilterClause): string {
 	if (clause === null || typeof clause !== "object" || Array.isArray(clause)) {
 		return "eq";
 	}
 	return Object.keys(clause)[0] ?? "eq";
 }
 
-export function validateSubscriptionFilterForTable(input: {
+export function validateWebhookFilterForTable(input: {
 	subgraphName?: string;
 	tableName: string;
 	filter?: unknown;
-	tables: SubscriptionSchemaTables;
+	tables: WebhookSchemaTables;
 }): string[] {
 	const errors: string[] = [];
 	const table = input.tables[input.tableName];
@@ -755,9 +748,9 @@ export function validateSubscriptionFilterForTable(input: {
 
 	if (input.filter === undefined) return errors;
 
-	const parsed = SubscriptionFilterSchema.safeParse(input.filter);
+	const parsed = WebhookFilterSchema.safeParse(input.filter);
 	if (!parsed.success) {
-		return formatSubscriptionSchemaErrors(parsed.error);
+		return formatWebhookSchemaErrors(parsed.error);
 	}
 
 	for (const [field, clause] of Object.entries(parsed.data)) {
@@ -773,7 +766,7 @@ export function validateSubscriptionFilterForTable(input: {
 			typeof column.type === "string" ? column.type.toLowerCase() : "";
 		if (!SCALAR_COLUMN_TYPES.has(columnType)) {
 			errors.push(
-				`Filter field "${field}" has unsupported type "${columnType || "unknown"}"; subscription filters require scalar columns.`,
+				`Filter field "${field}" has unsupported type "${columnType || "unknown"}"; webhook filters require scalar columns.`,
 			);
 			continue;
 		}

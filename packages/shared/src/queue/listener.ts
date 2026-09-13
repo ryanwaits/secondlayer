@@ -21,8 +21,8 @@ export function sourceListenerUrl(): string | undefined {
 }
 
 /**
- * LISTEN/NOTIFY connection for control-plane channels (`subscriptions:new_outbox`,
- * `subscriptions:changed`, subgraph operations) — they fire on the TARGET DB.
+ * LISTEN/NOTIFY connection for control-plane channels (`webhooks:new_outbox`,
+ * `webhooks:changed`, subgraph operations) — they fire on the TARGET DB.
  */
 export function targetListenerUrl(): string | undefined {
 	return process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL;

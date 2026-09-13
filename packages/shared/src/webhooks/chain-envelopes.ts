@@ -1,6 +1,6 @@
-import type { ChainTrigger } from "../schemas/subscriptions.ts";
+import type { ChainTrigger } from "../schemas/webhooks.ts";
 
-// Wire shapes delivered to a direct chain-event subscription's webhook. Canonical
+// Wire shapes delivered to a direct chain-event webhook's webhook. Canonical
 // here so the producer (subgraphs trigger evaluator + reorg handler) and consumers
 // (SDK webhook verify) share one definition and can't drift. The delivered body is
 // the envelope; `event` is the matched chain event (decoded shape varies by trigger).
@@ -80,7 +80,7 @@ export interface ChainReorgOrphanedEntry {
 }
 
 /**
- * Delivered once per affected subscription on a reorg
+ * Delivered once per affected webhook on a reorg
  * (`event_type: "chain.reorg.rollback"`). Lists the previously-delivered applies
  * at or above `fork_point_height` that are now orphaned, so the consumer can undo
  * them precisely. `orphaned` is capped (currently 500); `truncated` flags overflow.
@@ -92,7 +92,7 @@ export interface ChainReorgRollbackEnvelope {
 	truncated: boolean;
 }
 
-/** Any chain-subscription webhook body. Discriminate on `action`. */
+/** Any chain-webhook webhook body. Discriminate on `action`. */
 export type ChainWebhookEnvelope =
 	| ChainApplyEnvelope
 	| ChainReorgRollbackEnvelope;
@@ -248,28 +248,28 @@ export type ChainApplyDeliveryOf<
 	data: ChainApplyEnvelopeOf<TTrigger, TEvent>;
 };
 
-/** Delivered once per affected subscription on a reorg (`type: "chain.reorg.rollback"`). */
+/** Delivered once per affected webhook on a reorg (`type: "chain.reorg.rollback"`). */
 export interface ChainReorgRollbackDelivery {
 	type: "chain.reorg.rollback";
 	timestamp: string;
 	data: ChainReorgRollbackEnvelope;
 }
 
-/** The `POST /subscriptions/:id/test` ping (`type: "chain.test.apply"`) — not a real chain event. */
+/** The `POST /webhooks/:id/test` ping (`type: "chain.test.apply"`) — not a real chain event. */
 export interface ChainTestDelivery {
 	type: "chain.test.apply";
 	timestamp: string;
 	data: {
 		test: true;
 		message: string;
-		subscription_id: string;
+		webhook_id: string;
 		sent_at: string;
 	};
 }
 
 /**
- * The full wire body of a chain-subscription webhook delivery, as sent to a
- * `format: "standard-webhooks"` subscription (the default) — `{ type,
+ * The full wire body of a chain-webhook webhook delivery, as sent to a
+ * `format: "standard-webhooks"` webhook (the default) — `{ type,
  * timestamp, data }`. Discriminate on `data.trigger` (or the top-level `type`)
  * to narrow `data.event`:
  *
@@ -289,14 +289,14 @@ export interface ChainTestDelivery {
  *
  * NOTE: this is the DELIVERED webhook body, not a Streams/Index event — those
  * have an unrelated `{ event_type, payload }` shape (see `StreamsEvent` in
- * `@secondlayer/sdk`). Do not parse a chain-subscription delivery as a Streams
+ * `@secondlayer/sdk`). Do not parse a chain-webhook delivery as a Streams
  * event or vice versa — mixing them up is the exact bug this type exists to
  * prevent.
  *
- * Other subscription `format`s (`raw`, `cloudevents`, `inngest`, `trigger`,
+ * Other webhook `format`s (`raw`, `cloudevents`, `inngest`, `trigger`,
  * `cloudflare`) carry the same `data` value (a `ChainApplyEnvelope` /
  * `ChainReorgRollbackEnvelope`) under a different outer envelope — see the
- * "Chain subscription webhook payloads" doc.
+ * "Chain webhook webhook payloads" doc.
  */
 export type ChainWebhookDelivery =
 	| ChainApplyDeliveryOf<

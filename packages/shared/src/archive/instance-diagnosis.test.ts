@@ -134,14 +134,14 @@ const allNull = {
 	streamsTip: null,
 	indexTip: null,
 	subgraphs: null,
-	subscriptions: null,
+	webhooks: null,
 	activeOperations: null,
 };
 
 describe("explainContextNulls", () => {
 	test("a null account on a self-hosted instance is explained as normal", () => {
 		const { nulls } = explainContextNulls(
-			{ ...allNull, subgraphs: [], subscriptions: { count: 0, byStatus: {} } },
+			{ ...allNull, subgraphs: [], webhooks: { count: 0, byStatus: {} } },
 			{
 				apiUrl: "http://127.0.0.1:3800",
 				selfHosted: true,
@@ -236,7 +236,7 @@ describe("explainContextNulls", () => {
 				streamsTip: {},
 				indexTip: {},
 				subgraphs: [],
-				subscriptions: {},
+				webhooks: {},
 				activeOperations: [],
 			},
 			{

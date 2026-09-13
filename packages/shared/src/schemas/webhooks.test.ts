@@ -3,12 +3,12 @@ import {
 	CHAIN_TRIGGER_FIELDS,
 	CHAIN_TRIGGER_TYPES,
 	ChainTriggerSchema,
-	CreateSubscriptionRequestSchema,
-	ReplaySubscriptionRequestSchema,
-	SubscriptionFilterSchema,
-	UpdateSubscriptionRequestSchema,
-	validateSubscriptionFilterForTable,
-} from "./subscriptions.ts";
+	CreateWebhookRequestSchema,
+	ReplayWebhookRequestSchema,
+	UpdateWebhookRequestSchema,
+	WebhookFilterSchema,
+	validateWebhookFilterForTable,
+} from "./webhooks.ts";
 
 describe("CHAIN_TRIGGER_FIELDS", () => {
 	it("covers every chain trigger type", () => {
@@ -57,9 +57,9 @@ const tables = {
 	},
 } as const;
 
-describe("subscription schemas", () => {
+describe("webhook schemas", () => {
 	it("accepts supported formats, runtimes, and filters on create", () => {
-		const parsed = CreateSubscriptionRequestSchema.parse({
+		const parsed = CreateWebhookRequestSchema.parse({
 			name: "large-transfers",
 			subgraphName: "stx-transfers",
 			tableName: "transfers",
@@ -80,7 +80,7 @@ describe("subscription schemas", () => {
 	});
 
 	it("defaults create format to standard-webhooks", () => {
-		const parsed = CreateSubscriptionRequestSchema.parse({
+		const parsed = CreateWebhookRequestSchema.parse({
 			name: "default-format",
 			subgraphName: "stx-transfers",
 			tableName: "transfers",
@@ -92,7 +92,7 @@ describe("subscription schemas", () => {
 
 	it("rejects invalid create/update/replay payloads", () => {
 		expect(() =>
-			CreateSubscriptionRequestSchema.parse({
+			CreateWebhookRequestSchema.parse({
 				name: "bad",
 				subgraphName: "sg",
 				tableName: "transfers",
@@ -101,10 +101,10 @@ describe("subscription schemas", () => {
 			}),
 		).toThrow();
 
-		expect(() => UpdateSubscriptionRequestSchema.parse({})).toThrow();
+		expect(() => UpdateWebhookRequestSchema.parse({})).toThrow();
 
 		expect(() =>
-			ReplaySubscriptionRequestSchema.parse({
+			ReplayWebhookRequestSchema.parse({
 				fromBlock: 20,
 				toBlock: 10,
 			}),
@@ -113,19 +113,19 @@ describe("subscription schemas", () => {
 
 	it("rejects unsupported filter objects", () => {
 		expect(
-			SubscriptionFilterSchema.safeParse({ amount: { between: [1, 2] } }),
+			WebhookFilterSchema.safeParse({ amount: { between: [1, 2] } }),
 		).toMatchObject({ success: false });
 		expect(
-			SubscriptionFilterSchema.safeParse({ amount: { gt: 1, lt: 2 } }),
+			WebhookFilterSchema.safeParse({ amount: { gt: 1, lt: 2 } }),
 		).toMatchObject({ success: false });
-		expect(
-			SubscriptionFilterSchema.safeParse({ amount: [1, 2] }),
-		).toMatchObject({ success: false });
+		expect(WebhookFilterSchema.safeParse({ amount: [1, 2] })).toMatchObject({
+			success: false,
+		});
 	});
 
 	it("validates filters against subgraph table columns", () => {
 		expect(
-			validateSubscriptionFilterForTable({
+			validateWebhookFilterForTable({
 				subgraphName: "stx-transfers",
 				tableName: "transfers",
 				filter: { amount: { gte: "1000" }, sender: "SP1" },
@@ -134,7 +134,7 @@ describe("subscription schemas", () => {
 		).toEqual([]);
 
 		expect(
-			validateSubscriptionFilterForTable({
+			validateWebhookFilterForTable({
 				tableName: "missing",
 				filter: {},
 				tables,
@@ -142,7 +142,7 @@ describe("subscription schemas", () => {
 		).toContain('Unknown table "missing"');
 
 		expect(
-			validateSubscriptionFilterForTable({
+			validateWebhookFilterForTable({
 				tableName: "transfers",
 				filter: { unknown: "x" },
 				tables,
@@ -150,7 +150,7 @@ describe("subscription schemas", () => {
 		).toBe('Unknown filter field "unknown" on table "transfers".');
 
 		expect(
-			validateSubscriptionFilterForTable({
+			validateWebhookFilterForTable({
 				tableName: "transfers",
 				filter: { memo: { gt: "abc" } },
 				tables,
@@ -158,20 +158,20 @@ describe("subscription schemas", () => {
 		).toBe('Operator "gt" is not supported for text field "memo".');
 
 		expect(
-			validateSubscriptionFilterForTable({
+			validateWebhookFilterForTable({
 				tableName: "transfers",
 				filter: { metadata: "x" },
 				tables,
 			})[0],
 		).toBe(
-			'Filter field "metadata" has unsupported type "jsonb"; subscription filters require scalar columns.',
+			'Filter field "metadata" has unsupported type "jsonb"; webhook filters require scalar columns.',
 		);
 	});
 });
 
-describe("chain subscriptions (direct chain triggers)", () => {
-	it("accepts a chain subscription with triggers and no subgraph target", () => {
-		const parsed = CreateSubscriptionRequestSchema.parse({
+describe("chain webhooks (direct chain triggers)", () => {
+	it("accepts a chain webhook with triggers and no subgraph target", () => {
+		const parsed = CreateWebhookRequestSchema.parse({
 			name: "swaps",
 			url: "https://example.com/webhook",
 			triggers: [
@@ -189,7 +189,7 @@ describe("chain subscriptions (direct chain triggers)", () => {
 	});
 
 	it("accepts amounts as both string and number", () => {
-		const parsed = CreateSubscriptionRequestSchema.parse({
+		const parsed = CreateWebhookRequestSchema.parse({
 			name: "x",
 			url: "https://x.com/h",
 			triggers: [
@@ -204,7 +204,7 @@ describe("chain subscriptions (direct chain triggers)", () => {
 	});
 
 	it("rejects mixing subgraph target and triggers", () => {
-		const r = CreateSubscriptionRequestSchema.safeParse({
+		const r = CreateWebhookRequestSchema.safeParse({
 			name: "x",
 			url: "https://x.com/h",
 			subgraphName: "sg",
@@ -215,7 +215,7 @@ describe("chain subscriptions (direct chain triggers)", () => {
 	});
 
 	it("rejects neither mode (no subgraph target, no triggers)", () => {
-		const r = CreateSubscriptionRequestSchema.safeParse({
+		const r = CreateWebhookRequestSchema.safeParse({
 			name: "x",
 			url: "https://x.com/h",
 		});
@@ -223,7 +223,7 @@ describe("chain subscriptions (direct chain triggers)", () => {
 	});
 
 	it("rejects subgraph mode missing tableName", () => {
-		const r = CreateSubscriptionRequestSchema.safeParse({
+		const r = CreateWebhookRequestSchema.safeParse({
 			name: "x",
 			url: "https://x.com/h",
 			subgraphName: "sg",
@@ -232,7 +232,7 @@ describe("chain subscriptions (direct chain triggers)", () => {
 	});
 
 	it("rejects an unknown field on a trigger (strict)", () => {
-		const r = CreateSubscriptionRequestSchema.safeParse({
+		const r = CreateWebhookRequestSchema.safeParse({
 			name: "x",
 			url: "https://x.com/h",
 			triggers: [{ type: "contract_call", bogus: 1 }],
@@ -241,7 +241,7 @@ describe("chain subscriptions (direct chain triggers)", () => {
 	});
 
 	it("rejects an empty triggers array", () => {
-		const r = CreateSubscriptionRequestSchema.safeParse({
+		const r = CreateWebhookRequestSchema.safeParse({
 			name: "x",
 			url: "https://x.com/h",
 			triggers: [],
@@ -250,7 +250,7 @@ describe("chain subscriptions (direct chain triggers)", () => {
 	});
 
 	it("rejects an unknown trigger type", () => {
-		const r = CreateSubscriptionRequestSchema.safeParse({
+		const r = CreateWebhookRequestSchema.safeParse({
 			name: "x",
 			url: "https://x.com/h",
 			triggers: [{ type: "not_a_real_event" }],
@@ -259,7 +259,7 @@ describe("chain subscriptions (direct chain triggers)", () => {
 	});
 
 	it("rejects a non-integer amount string", () => {
-		const r = CreateSubscriptionRequestSchema.safeParse({
+		const r = CreateWebhookRequestSchema.safeParse({
 			name: "x",
 			url: "https://x.com/h",
 			triggers: [{ type: "stx_transfer", minAmount: "12.5" }],
@@ -268,7 +268,7 @@ describe("chain subscriptions (direct chain triggers)", () => {
 	});
 
 	it("rejects combining filter with triggers", () => {
-		const r = CreateSubscriptionRequestSchema.safeParse({
+		const r = CreateWebhookRequestSchema.safeParse({
 			name: "x",
 			url: "https://x.com/h",
 			triggers: [{ type: "contract_call" }],

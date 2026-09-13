@@ -70,6 +70,9 @@ CONTROL_TABLES=(
   subscriptions
   subscription_outbox
   subscription_deliveries
+  webhooks
+  webhook_outbox
+  webhook_deliveries
   trigger_evaluator_state
   subgraphs
   subgraph_operations

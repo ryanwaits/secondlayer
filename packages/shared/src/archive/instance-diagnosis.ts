@@ -178,7 +178,7 @@ const CONTEXT_FIELDS = [
 	"streamsTip",
 	"indexTip",
 	"subgraphs",
-	"subscriptions",
+	"webhooks",
 	"activeOperations",
 ] as const;
 
@@ -217,7 +217,7 @@ export function explainContextNulls(
 		: "Not authenticated — run `secondlayer login`, or export INSTANCE_TOKEN.";
 
 	// An empty index explains the chain tips and nothing else: the subgraph and
-	// subscription lists are control-plane reads that answer on a bare instance.
+	// webhook lists are control-plane reads that answer on a bare instance.
 	const listReason = unresolvedReadReason(probe, blocks);
 	const chainReason = emptyIndex
 		? `No blocks indexed yet — this instance holds 0 blocks, so there is no tip to report. ${BOOTSTRAP_STEP}`

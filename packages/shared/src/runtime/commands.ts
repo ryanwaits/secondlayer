@@ -10,11 +10,7 @@ export const MODULE_COMMANDS: Record<ModuleId, readonly string[]> = {
 	ingest: ["bun", "run", "packages/indexer/src/index.ts"],
 	decoder: ["bun", "run", "packages/indexer/src/decode/service.ts"],
 	subgraph: ["bun", "run", "packages/subgraphs/src/service.ts"],
-	notification: [
-		"bun",
-		"run",
-		"packages/subgraphs/src/subscription-service.ts",
-	],
+	notification: ["bun", "run", "packages/subgraphs/src/webhook-service.ts"],
 	verification: ["bun", "run", "packages/shared/src/runtime/verify-loop.ts"],
 	publisher: ["bun", "run", "packages/indexer/src/streams-bulk/scheduler.ts"],
 };

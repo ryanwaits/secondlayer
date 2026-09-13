@@ -4,7 +4,7 @@
  *
  * The canonical archive rebuilds `blocks`, `transactions`, and `events`
  * deterministically from R2 alone. Every stage downstream of those tables
- * (decoders, subgraphs, subscription delivery) has its own inputs, outputs,
+ * (decoders, subgraphs, webhook delivery) has its own inputs, outputs,
  * and rebuild requirements — and an operator restoring from the archive
  * needs to know exactly which of those it also needs to source, replay, or
  * re-derive.
@@ -33,7 +33,7 @@ export const DERIVED_STAGE_REPORT_SCHEMA_VERSION = 1 as const;
 export type ServiceKind =
 	| "decoder"
 	| "subgraph-runtime"
-	| "subscription-runtime"
+	| "webhook-runtime"
 	| "protocol-producer";
 
 export type CanonicalInput = "blocks" | "transactions" | "events";

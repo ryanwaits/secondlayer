@@ -28,8 +28,8 @@ describe("package exports", () => {
 		expect(mod).toBeDefined();
 	});
 
-	test("db/queries/subscriptions export", async () => {
-		const mod = await import("@secondlayer/shared/db/queries/subscriptions");
+	test("db/queries/webhooks export", async () => {
+		const mod = await import("@secondlayer/shared/db/queries/webhooks");
 		expect(mod).toBeDefined();
 	});
 
@@ -53,10 +53,10 @@ describe("package exports", () => {
 		expect(mod).toBeDefined();
 	});
 
-	test("schemas/subscriptions export", async () => {
-		const mod = await import("@secondlayer/shared/schemas/subscriptions");
+	test("schemas/webhooks export", async () => {
+		const mod = await import("@secondlayer/shared/schemas/webhooks");
 		expect(mod).toBeDefined();
-		expect(mod.CreateSubscriptionRequestSchema).toBeDefined();
+		expect(mod.CreateWebhookRequestSchema).toBeDefined();
 	});
 
 	test("logger export", async () => {

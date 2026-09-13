@@ -972,9 +972,9 @@ export interface Database {
 	account_spend_caps: AccountSpendCapsTable;
 	account_credits: AccountCreditsTable;
 	hosted_meter_days: HostedMeterDaysTable;
-	subscriptions: SubscriptionsTable;
-	subscription_outbox: SubscriptionOutboxTable;
-	subscription_deliveries: SubscriptionDeliveriesTable;
+	webhooks: WebhooksTable;
+	webhook_outbox: WebhookOutboxTable;
+	webhook_deliveries: WebhookDeliveriesTable;
 	trigger_evaluator_state: TriggerEvaluatorStateTable;
 	decoded_events: DecodedEventsTable;
 	decoder_checkpoints: DecoderCheckpointsTable;
@@ -1186,53 +1186,41 @@ export type InsertSubgraphHealthSnapshot =
 export type SubgraphGap = Selectable<SubgraphGapsTable>;
 export type InsertSubgraphGap = Insertable<SubgraphGapsTable>;
 
-// ── Subscriptions (subgraph event subscriptions) ─────────────────────
+// ── Webhooks (subgraph event webhooks) ─────────────────────
 
-export type SubscriptionStatus = "active" | "paused" | "error";
+export type WebhookStatus = "active" | "paused" | "error";
 
-/** Polymorphic subscription mode: `subgraph` reacts to processed table rows;
+/** Polymorphic webhook mode: `subgraph` reacts to processed table rows;
  *  `chain` reacts to raw chain events matched directly off the Index/Streams
  *  clock (no subgraph). See migration 0088. */
-export type SubscriptionKind = "subgraph" | "chain";
-export type SubscriptionFormat =
+export type WebhookKind = "subgraph" | "chain";
+export type WebhookFormat =
 	| "standard-webhooks"
 	| "inngest"
 	| "trigger"
 	| "cloudflare"
 	| "cloudevents"
 	| "raw";
-export type SubscriptionRuntime = "inngest" | "trigger" | "cloudflare" | "node";
+export type WebhookRuntime = "inngest" | "trigger" | "cloudflare" | "node";
 
-export interface SubscriptionsTable {
+export interface WebhooksTable {
 	id: Generated<string>;
 	account_id: string;
 	project_id: string | null;
 	name: string;
-	status: ColumnType<
-		SubscriptionStatus,
-		SubscriptionStatus | undefined,
-		SubscriptionStatus
-	>;
-	kind: ColumnType<
-		SubscriptionKind,
-		SubscriptionKind | undefined,
-		SubscriptionKind
-	>;
-	/** Null for chain subscriptions (CHECK subscriptions_kind_shape). */
+	status: ColumnType<WebhookStatus, WebhookStatus | undefined, WebhookStatus>;
+	kind: ColumnType<WebhookKind, WebhookKind | undefined, WebhookKind>;
+	/** Null for chain webhooks (CHECK webhooks_kind_shape). */
 	subgraph_name: string | null;
-	/** Null for chain subscriptions (CHECK subscriptions_kind_shape). */
+	/** Null for chain webhooks (CHECK webhooks_kind_shape). */
 	table_name: string | null;
 	/** Chain-trigger filter array (the `SubgraphFilter` shape, JSON). Null for
-	 *  subgraph subscriptions. Typed loosely here to avoid a shared→subgraphs
-	 *  import cycle; the Zod schema in schemas/subscriptions.ts owns the shape. */
+	 *  subgraph webhooks. Typed loosely here to avoid a shared→subgraphs
+	 *  import cycle; the Zod schema in schemas/webhooks.ts owns the shape. */
 	triggers: unknown | null;
 	filter: Generated<unknown>;
-	format: ColumnType<
-		SubscriptionFormat,
-		SubscriptionFormat | undefined,
-		SubscriptionFormat
-	>;
-	runtime: SubscriptionRuntime | null;
+	format: ColumnType<WebhookFormat, WebhookFormat | undefined, WebhookFormat>;
+	runtime: WebhookRuntime | null;
 	url: string;
 	signing_secret_enc: Buffer;
 	auth_config: Generated<unknown>;
@@ -1248,23 +1236,19 @@ export interface SubscriptionsTable {
 	updated_at: Generated<Date>;
 }
 
-export type Subscription = Selectable<SubscriptionsTable>;
-export type InsertSubscription = Insertable<SubscriptionsTable>;
-export type UpdateSubscription = Updateable<SubscriptionsTable>;
+export type Webhook = Selectable<WebhooksTable>;
+export type InsertWebhook = Insertable<WebhooksTable>;
+export type UpdateWebhook = Updateable<WebhooksTable>;
 
 export type OutboxStatus = "pending" | "delivered" | "dead";
 
-export interface SubscriptionOutboxTable {
+export interface WebhookOutboxTable {
 	id: Generated<string>;
-	subscription_id: string;
-	kind: ColumnType<
-		SubscriptionKind,
-		SubscriptionKind | undefined,
-		SubscriptionKind
-	>;
-	/** Null for chain-subscription rows. */
+	webhook_id: string;
+	kind: ColumnType<WebhookKind, WebhookKind | undefined, WebhookKind>;
+	/** Null for chain-webhook rows. */
 	subgraph_name: string | null;
-	/** Null for chain-subscription rows. */
+	/** Null for chain-webhook rows. */
 	table_name: string | null;
 	block_height: number | bigint;
 	tx_id: string | null;
@@ -1283,16 +1267,16 @@ export interface SubscriptionOutboxTable {
 	created_at: Generated<Date>;
 }
 
-export type SubscriptionOutbox = Selectable<SubscriptionOutboxTable>;
-export type InsertSubscriptionOutbox = Insertable<SubscriptionOutboxTable>;
-export type UpdateSubscriptionOutbox = Updateable<SubscriptionOutboxTable>;
+export type WebhookOutbox = Selectable<WebhookOutboxTable>;
+export type InsertWebhookOutbox = Insertable<WebhookOutboxTable>;
+export type UpdateWebhookOutbox = Updateable<WebhookOutboxTable>;
 
-export interface SubscriptionDeliveriesTable {
+export interface WebhookDeliveriesTable {
 	id: Generated<string>;
 	/** Nullable after migration 0077 — outbox row may be cleaned up while
 	 *  delivery telemetry is retained. */
 	outbox_id: string | null;
-	subscription_id: string;
+	webhook_id: string;
 	attempt: number;
 	status_code: number | null;
 	response_headers: unknown | null;
@@ -1302,12 +1286,11 @@ export interface SubscriptionDeliveriesTable {
 	dispatched_at: Generated<Date>;
 }
 
-export type SubscriptionDelivery = Selectable<SubscriptionDeliveriesTable>;
-export type InsertSubscriptionDelivery =
-	Insertable<SubscriptionDeliveriesTable>;
+export type WebhookDelivery = Selectable<WebhookDeliveriesTable>;
+export type InsertWebhookDelivery = Insertable<WebhookDeliveriesTable>;
 
 /** Single-row (id always TRUE) high-water mark for the chain-trigger evaluator.
- *  One loop serves all chain subscriptions, so the cursor is global. */
+ *  One loop serves all chain webhooks, so the cursor is global. */
 export interface TriggerEvaluatorStateTable {
 	id: Generated<boolean>;
 	last_processed_block: ColumnType<

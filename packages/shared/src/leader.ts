@@ -15,10 +15,10 @@ import { logger } from "./logger.ts";
 
 /** Advisory lock key for the indexer's singleton loops. */
 export const INDEXER_LEADER_LOCK_KEY = 770_2026;
-/** Advisory lock key for the chain-subscription trigger evaluator (+ its
+/** Advisory lock key for the chain-webhook trigger evaluator (+ its
  *  chain-reorg cursor rewind — they mutate the same `trigger_evaluator_state`
  *  row and so must share one lock). */
-export const SUBSCRIPTION_EVALUATOR_LOCK_KEY = 770_2027;
+export const WEBHOOK_EVALUATOR_LOCK_KEY = 770_2027;
 /** Advisory lock key for the subgraph catch-up driver. */
 export const SUBGRAPH_CATCHUP_LOCK_KEY = 770_2028;
 
@@ -49,7 +49,7 @@ function leaderDatabaseUrl(): string {
  * Postgres-backed advisory lock on a dedicated connection.
  *
  * Pass an explicit `url` to pin the lock to the DB that holds the serialized
- * row — after the source/target split, control-plane state (subscriptions,
+ * row — after the source/target split, control-plane state (webhooks,
  * subgraphs) lives on the target DB, so a lock on the default source DB would
  * guard nothing.
  */

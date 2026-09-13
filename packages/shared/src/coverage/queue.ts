@@ -1,5 +1,5 @@
 /**
- * Queue coverage — subscription decision, outbox, delivery, rollback,
+ * Queue coverage — webhook decision, outbox, delivery, rollback,
  * DLQ, and replay with cursor fences.
  */
 

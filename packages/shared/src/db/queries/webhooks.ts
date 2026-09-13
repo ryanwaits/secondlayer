@@ -4,36 +4,36 @@ import { decryptSecret, encryptSecret } from "../../crypto/secrets.ts";
 import { isPlatformMode } from "../../mode.ts";
 import type {
 	Database,
-	InsertSubscription,
-	Subscription,
-	SubscriptionFormat,
-	SubscriptionKind,
-	SubscriptionRuntime,
-	SubscriptionStatus,
-	UpdateSubscription,
+	InsertWebhook,
+	UpdateWebhook,
+	Webhook,
+	WebhookFormat,
+	WebhookKind,
+	WebhookRuntime,
+	WebhookStatus,
 } from "../types.ts";
 
 /**
- * Subscription CRUD. `signing_secret_enc` is transparently encrypted via
+ * Webhook CRUD. `signing_secret_enc` is transparently encrypted via
  * `encryptSecret`/`decryptSecret`. Plaintext secrets only leave via the
  * return value of `create` (one-time display) and `rotateSecret`.
  */
 
-export interface CreateSubscriptionInput {
+export interface CreateWebhookInput {
 	accountId: string;
 	projectId?: string | null;
 	name: string;
-	/** Defaults to "subgraph". Chain subscriptions set kind="chain" + triggers. */
-	kind?: SubscriptionKind;
-	/** Required for subgraph subscriptions; omitted for chain. */
+	/** Defaults to "subgraph". Chain webhooks set kind="chain" + triggers. */
+	kind?: WebhookKind;
+	/** Required for subgraph webhooks; omitted for chain. */
 	subgraphName?: string | null;
-	/** Required for subgraph subscriptions; omitted for chain. */
+	/** Required for subgraph webhooks; omitted for chain. */
 	tableName?: string | null;
-	/** Chain-trigger filter array. Required for chain subscriptions. */
+	/** Chain-trigger filter array. Required for chain webhooks. */
 	triggers?: unknown;
 	filter?: unknown;
-	format?: SubscriptionFormat;
-	runtime?: SubscriptionRuntime | null;
+	format?: WebhookFormat;
+	runtime?: WebhookRuntime | null;
 	url: string;
 	authConfig?: unknown;
 	maxRetries?: number;
@@ -41,19 +41,19 @@ export interface CreateSubscriptionInput {
 	concurrency?: number;
 }
 
-export interface CreateSubscriptionResult {
-	subscription: Subscription;
+export interface CreateWebhookResult {
+	webhook: Webhook;
 	/** Plaintext signing secret — surfaced once, never stored decrypted. */
 	signingSecret: string;
 }
 
-export async function createSubscription(
+export async function createWebhook(
 	db: Kysely<Database>,
-	input: CreateSubscriptionInput,
-): Promise<CreateSubscriptionResult> {
+	input: CreateWebhookInput,
+): Promise<CreateWebhookResult> {
 	const signingSecret = generateSecret();
-	const kind: SubscriptionKind = input.kind ?? "subgraph";
-	const row: InsertSubscription = {
+	const kind: WebhookKind = input.kind ?? "subgraph";
+	const row: InsertWebhook = {
 		account_id: isPlatformMode() ? input.accountId : "",
 		project_id: input.projectId ?? null,
 		name: input.name,
@@ -76,23 +76,20 @@ export async function createSubscription(
 			? { concurrency: input.concurrency }
 			: {}),
 	};
-	const subscription = await db
-		.insertInto("subscriptions")
+	const webhook = await db
+		.insertInto("webhooks")
 		.values(row)
 		.returningAll()
 		.executeTakeFirstOrThrow();
-	return { subscription, signingSecret };
+	return { webhook, signingSecret };
 }
 
-export async function listSubscriptions(
+export async function listWebhooks(
 	db: Kysely<Database>,
 	accountId: string,
 	opts?: { limit?: number; offset?: number },
-): Promise<Subscription[]> {
-	let q = db
-		.selectFrom("subscriptions")
-		.selectAll()
-		.orderBy("created_at", "desc");
+): Promise<Webhook[]> {
+	let q = db.selectFrom("webhooks").selectAll().orderBy("created_at", "desc");
 	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
 	if (opts?.limit !== undefined) q = q.limit(opts.limit);
 	if (opts?.offset !== undefined) q = q.offset(opts.offset);
@@ -100,46 +97,46 @@ export async function listSubscriptions(
 }
 
 /**
- * All active chain subscriptions across every account — the input to the global
- * trigger evaluator (one loop serves them all). Subgraph subscriptions are
+ * All active chain webhooks across every account — the input to the global
+ * trigger evaluator (one loop serves them all). Subgraph webhooks are
  * excluded; they emit via the subgraph flush path.
  */
-export async function listActiveChainSubscriptions(
+export async function listActiveChainWebhooks(
 	db: Kysely<Database>,
-): Promise<Subscription[]> {
+): Promise<Webhook[]> {
 	return db
-		.selectFrom("subscriptions")
+		.selectFrom("webhooks")
 		.selectAll()
 		.where("kind", "=", "chain")
 		.where("status", "=", "active")
 		.execute();
 }
 
-export async function getSubscription(
+export async function getWebhook(
 	db: Kysely<Database>,
 	accountId: string,
 	id: string,
-): Promise<Subscription | null> {
-	let q = db.selectFrom("subscriptions").selectAll().where("id", "=", id);
+): Promise<Webhook | null> {
+	let q = db.selectFrom("webhooks").selectAll().where("id", "=", id);
 	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
 	return (await q.executeTakeFirst()) ?? null;
 }
 
-export async function getSubscriptionByName(
+export async function getWebhookByName(
 	db: Kysely<Database>,
 	accountId: string,
 	name: string,
-): Promise<Subscription | null> {
-	let q = db.selectFrom("subscriptions").selectAll().where("name", "=", name);
+): Promise<Webhook | null> {
+	let q = db.selectFrom("webhooks").selectAll().where("name", "=", name);
 	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
 	return (await q.executeTakeFirst()) ?? null;
 }
 
-export interface UpdateSubscriptionInput {
+export interface UpdateWebhookInput {
 	name?: string;
 	filter?: unknown;
-	format?: SubscriptionFormat;
-	runtime?: SubscriptionRuntime | null;
+	format?: WebhookFormat;
+	runtime?: WebhookRuntime | null;
 	url?: string;
 	authConfig?: unknown;
 	maxRetries?: number;
@@ -147,13 +144,13 @@ export interface UpdateSubscriptionInput {
 	concurrency?: number;
 }
 
-export async function updateSubscription(
+export async function updateWebhook(
 	db: Kysely<Database>,
 	accountId: string,
 	id: string,
-	patch: UpdateSubscriptionInput,
-): Promise<Subscription | null> {
-	const update: UpdateSubscription = { updated_at: new Date() };
+	patch: UpdateWebhookInput,
+): Promise<Webhook | null> {
+	const update: UpdateWebhook = { updated_at: new Date() };
 	if (patch.name !== undefined) update.name = patch.name;
 	if (patch.filter !== undefined) update.filter = patch.filter;
 	if (patch.format !== undefined) update.format = patch.format;
@@ -164,19 +161,19 @@ export async function updateSubscription(
 	if (patch.timeoutMs !== undefined) update.timeout_ms = patch.timeoutMs;
 	if (patch.concurrency !== undefined) update.concurrency = patch.concurrency;
 
-	let q = db.updateTable("subscriptions").set(update).where("id", "=", id);
+	let q = db.updateTable("webhooks").set(update).where("id", "=", id);
 	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
 	return (await q.returningAll().executeTakeFirst()) ?? null;
 }
 
-export async function toggleSubscriptionStatus(
+export async function toggleWebhookStatus(
 	db: Kysely<Database>,
 	accountId: string,
 	id: string,
-	status: SubscriptionStatus,
-): Promise<Subscription | null> {
+	status: WebhookStatus,
+): Promise<Webhook | null> {
 	let q = db
-		.updateTable("subscriptions")
+		.updateTable("webhooks")
 		.set({
 			status,
 			updated_at: new Date(),
@@ -192,30 +189,30 @@ export async function toggleSubscriptionStatus(
 	return (await q.returningAll().executeTakeFirst()) ?? null;
 }
 
-export async function deleteSubscription(
+export async function deleteWebhook(
 	db: Kysely<Database>,
 	accountId: string,
 	id: string,
 ): Promise<boolean> {
-	let q = db.deleteFrom("subscriptions").where("id", "=", id);
+	let q = db.deleteFrom("webhooks").where("id", "=", id);
 	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
 	const res = await q.executeTakeFirst();
 	return Number(res.numDeletedRows ?? 0) > 0;
 }
 
 export interface RotateSecretResult {
-	subscription: Subscription;
+	webhook: Webhook;
 	signingSecret: string;
 }
 
-export async function rotateSubscriptionSecret(
+export async function rotateWebhookSecret(
 	db: Kysely<Database>,
 	accountId: string,
 	id: string,
 ): Promise<RotateSecretResult | null> {
 	const signingSecret = generateSecret();
 	let q = db
-		.updateTable("subscriptions")
+		.updateTable("webhooks")
 		.set({
 			signing_secret_enc: encryptSecret(signingSecret),
 			updated_at: new Date(),
@@ -224,20 +221,18 @@ export async function rotateSubscriptionSecret(
 	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
 	const row = await q.returningAll().executeTakeFirst();
 	if (!row) return null;
-	return { subscription: row, signingSecret };
+	return { webhook: row, signingSecret };
 }
 
-/** Decrypt a subscription's signing secret for HMAC signing at emit time. */
-export function getSubscriptionSigningSecret(sub: Subscription): string {
-	return decryptSecret(sub.signing_secret_enc);
+/** Decrypt a webhook's signing secret for HMAC signing at emit time. */
+export function getWebhookSigningSecret(webhook: Webhook): string {
+	return decryptSecret(webhook.signing_secret_enc);
 }
 
-/** Fire `subscriptions:changed` notify so the emitter hot-reloads its cache. */
-export async function notifySubscriptionsChanged(
+/** Fire `webhooks:changed` notify so the emitter hot-reloads its cache. */
+export async function notifyWebhooksChanged(
 	db: Kysely<Database>,
 	accountId: string,
 ): Promise<void> {
-	await sql`SELECT pg_notify('subscriptions:changed', ${accountId})`.execute(
-		db,
-	);
+	await sql`SELECT pg_notify('webhooks:changed', ${accountId})`.execute(db);
 }

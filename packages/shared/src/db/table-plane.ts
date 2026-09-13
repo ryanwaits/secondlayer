@@ -75,10 +75,10 @@ export const TABLE_TO_DB = {
 	play_provisions: "target",
 	account_spend_caps: "target",
 	processed_stripe_events: "target",
-	// ── TARGET: subscriptions ──
-	subscriptions: "target",
-	subscription_outbox: "target",
-	subscription_deliveries: "target",
+	// ── TARGET: webhooks ──
+	webhooks: "target",
+	webhook_outbox: "target",
+	webhook_deliveries: "target",
 	trigger_evaluator_state: "target",
 	// ── TARGET: subgraphs + metadata ──
 	subgraphs: "target",

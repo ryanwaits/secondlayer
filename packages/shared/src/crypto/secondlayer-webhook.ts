@@ -15,7 +15,7 @@ import {
  * Only the `standard-webhooks` format carries an HMAC; `raw`/`cloudevents`/etc.
  * carried no Secondlayer proof, so a receiver had no way to know a payload came
  * from us. This signs each delivery with a single platform ed25519 key so any
- * receiver verifies with the published public key — no per-subscription secret,
+ * receiver verifies with the published public key — no per-webhook secret,
  * and the body shape stays format-specific.
  *
  * Header names are lowercase to match the format builders' header maps (HTTP
@@ -74,7 +74,7 @@ export function resetSecondlayerWebhookSignerForTest(): void {
 
 /**
  * Boot-time guard for any service whose job is to DELIVER signed webhooks (the
- * subscription-processor). We market every delivery as carrying a verifiable
+ * webhook-processor). We market every delivery as carrying a verifiable
  * ed25519 signature; if no signing key is configured the signer is a silent
  * no-op and deliveries ship UNSIGNED. That's worse than a missing feature — a
  * partner's verify step fails on data we told them was signed.

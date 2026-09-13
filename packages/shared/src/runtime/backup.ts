@@ -9,7 +9,7 @@
  * ## Why there is a canary
  *
  * `SECONDLAYER_SECRETS_KEY` encrypts columns in the database — subgraph
- * connection strings, subscription signing secrets. In OSS mode, if that key is
+ * connection strings, webhook signing secrets. In OSS mode, if that key is
  * missing when something first needs it, the runtime GENERATES A NEW ONE and
  * persists it (see `crypto/secrets.ts`). That behaviour is right for a fresh
  * install and catastrophic for a restore: bring the database back without its

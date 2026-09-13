@@ -175,7 +175,7 @@ describe.skipIf(!HAS_DB)("migration upgrade parity", () => {
 	);
 
 	test(
-		"0126 rename: webhooks tables exist and subscription tables do not",
+		"0126 rename: webhooks tables exist and pre-rename tables do not",
 		async () => {
 			const fresh = await buildSchema("both");
 			expect(fresh["table webhooks"]).toBe("present");

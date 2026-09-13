@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { on } from "@secondlayer/stacks/filters";
-import { ChainTriggerSchema } from "../src/schemas/subscriptions.ts";
+import { ChainTriggerSchema } from "../src/schemas/webhooks.ts";
 
 /**
  * CI gate: the canonical filter vocabulary must project to triggers the
  * server actually accepts. `ChainTriggerSchema` members are `.strict()` —
- * one wrong field name or an unstripped `abi`/`prints` and the subscription
+ * one wrong field name or an unstripped `abi`/`prints` and the webhook
  * silently stops matching. Every member is exercised with EVERY field set.
  */
 
@@ -90,7 +90,7 @@ describe("filter → trigger round-trip (CI gate)", () => {
 		}
 	});
 
-	test("wildcard patterns survive the trigger projection (Subscriptions-only feature)", () => {
+	test("wildcard patterns survive the trigger projection (Webhooks-only feature)", () => {
 		const trigger = on
 			.ftTransfer({ assetIdentifier: `${CONTRACT}::*`, sender: "SP2QEZ*" })
 			.toChainTrigger();
