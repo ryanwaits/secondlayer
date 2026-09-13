@@ -3,8 +3,8 @@ import type { SecondLayer } from "@secondlayer/sdk";
 import type {
 	DeadRow,
 	DeliveryRow,
-	SubscriptionDetail,
-} from "@secondlayer/shared/schemas/subscriptions";
+	WebhookDetail as SubscriptionDetail,
+} from "@secondlayer/shared/schemas/webhooks";
 import {
 	buildDoctorReport,
 	buildSubscriptionTestFixture,

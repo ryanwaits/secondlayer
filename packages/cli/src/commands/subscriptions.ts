@@ -4,10 +4,10 @@ import type { SubgraphDetail } from "@secondlayer/shared/schemas/subgraphs";
 import type {
 	DeadRow,
 	DeliveryRow,
-	SubscriptionDetail,
-	SubscriptionSummary,
-	UpdateSubscriptionRequest,
-} from "@secondlayer/shared/schemas/subscriptions";
+	WebhookDetail as SubscriptionDetail,
+	WebhookSummary as SubscriptionSummary,
+	UpdateWebhookRequest as UpdateSubscriptionRequest,
+} from "@secondlayer/shared/schemas/webhooks";
 import type { Command } from "commander";
 import { handleApiError } from "../lib/api-client.ts";
 import { parseSubscriptionFilter } from "../lib/filter-params.ts";
@@ -759,7 +759,7 @@ Examples:
 				const res = await client.subscriptions.rotateSecret(id);
 				if (options.json) printJson(res);
 				else {
-					success(`Rotated signing secret for ${blue(res.subscription.name)}`);
+					success(`Rotated signing secret for ${blue(res.webhook.name)}`);
 					console.log(res.signingSecret);
 				}
 			} catch (err) {

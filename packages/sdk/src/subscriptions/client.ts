@@ -1,52 +1,49 @@
 import type {
-	CreateSubscriptionRequest,
-	CreateSubscriptionResponse,
+	CreateWebhookRequest as CreateSubscriptionRequest,
+	CreateWebhookResponse as CreateSubscriptionResponse,
 	DeadRow,
 	DeliveryRow,
 	ReplayResult,
 	RotateSecretResponse,
-	SubscriptionDetail,
-	SubscriptionSummary,
-	SubscriptionTestResult,
-	UpdateSubscriptionRequest,
-} from "@secondlayer/shared/schemas/subscriptions";
+	WebhookDetail as SubscriptionDetail,
+	WebhookSummary as SubscriptionSummary,
+	WebhookTestResult as SubscriptionTestResult,
+	UpdateWebhookRequest as UpdateSubscriptionRequest,
+} from "@secondlayer/shared/schemas/webhooks";
 import { BaseClient, seg } from "../base.ts";
 
 export type {
 	ChainTrigger,
 	ChainTriggerType,
-	CreateSubscriptionRequest,
-	CreateSubscriptionResponse,
+	CreateWebhookRequest as CreateSubscriptionRequest,
+	CreateWebhookResponse as CreateSubscriptionResponse,
 	DeadRow,
 	DeliveryRow,
 	ReplayResult,
 	RotateSecretResponse,
-	SubscriptionDetail,
-	SubscriptionFormat,
-	SubscriptionKind,
-	SubscriptionRuntime,
-	SubscriptionStatus,
-	SubscriptionSummary,
-	SubscriptionTestResult,
-	UpdateSubscriptionRequest,
-} from "@secondlayer/shared/schemas/subscriptions";
+	WebhookDetail as SubscriptionDetail,
+	WebhookFormat as SubscriptionFormat,
+	WebhookKind as SubscriptionKind,
+	WebhookRuntime as SubscriptionRuntime,
+	WebhookStatus as SubscriptionStatus,
+	WebhookSummary as SubscriptionSummary,
+	WebhookTestResult as SubscriptionTestResult,
+	UpdateWebhookRequest as UpdateSubscriptionRequest,
+} from "@secondlayer/shared/schemas/webhooks";
 // `trigger.*` chain-trigger builders for direct chain-level subscriptions
 // (`create({ triggers: [trigger.contractCall({ ... })] })`).
-export { trigger } from "@secondlayer/shared/schemas/subscriptions";
+export { trigger } from "@secondlayer/shared/schemas/webhooks";
 
 export class Subscriptions extends BaseClient {
 	async list(): Promise<{ data: SubscriptionSummary[] }> {
 		return this.request<{ data: SubscriptionSummary[] }>(
 			"GET",
-			"/api/subscriptions",
+			"/api/webhooks",
 		);
 	}
 
 	async get(id: string): Promise<SubscriptionDetail> {
-		return this.request<SubscriptionDetail>(
-			"GET",
-			`/api/subscriptions/${seg(id)}`,
-		);
+		return this.request<SubscriptionDetail>("GET", `/api/webhooks/${seg(id)}`);
 	}
 
 	async create(
@@ -54,7 +51,7 @@ export class Subscriptions extends BaseClient {
 	): Promise<CreateSubscriptionResponse> {
 		return this.request<CreateSubscriptionResponse>(
 			"POST",
-			"/api/subscriptions",
+			"/api/webhooks",
 			input,
 		);
 	}
@@ -65,7 +62,7 @@ export class Subscriptions extends BaseClient {
 	): Promise<SubscriptionDetail> {
 		return this.request<SubscriptionDetail>(
 			"PATCH",
-			`/api/subscriptions/${seg(id)}`,
+			`/api/webhooks/${seg(id)}`,
 			patch,
 		);
 	}
@@ -73,28 +70,25 @@ export class Subscriptions extends BaseClient {
 	async pause(id: string): Promise<SubscriptionDetail> {
 		return this.request<SubscriptionDetail>(
 			"POST",
-			`/api/subscriptions/${seg(id)}/pause`,
+			`/api/webhooks/${seg(id)}/pause`,
 		);
 	}
 
 	async resume(id: string): Promise<SubscriptionDetail> {
 		return this.request<SubscriptionDetail>(
 			"POST",
-			`/api/subscriptions/${seg(id)}/resume`,
+			`/api/webhooks/${seg(id)}/resume`,
 		);
 	}
 
 	async delete(id: string): Promise<{ ok: true }> {
-		return this.request<{ ok: true }>(
-			"DELETE",
-			`/api/subscriptions/${seg(id)}`,
-		);
+		return this.request<{ ok: true }>("DELETE", `/api/webhooks/${seg(id)}`);
 	}
 
 	async rotateSecret(id: string): Promise<RotateSecretResponse> {
 		return this.request<RotateSecretResponse>(
 			"POST",
-			`/api/subscriptions/${seg(id)}/rotate-secret`,
+			`/api/webhooks/${seg(id)}/rotate-secret`,
 		);
 	}
 
@@ -103,7 +97,7 @@ export class Subscriptions extends BaseClient {
 	async test(id: string): Promise<SubscriptionTestResult> {
 		return this.request<SubscriptionTestResult>(
 			"POST",
-			`/api/subscriptions/${seg(id)}/test`,
+			`/api/webhooks/${seg(id)}/test`,
 		);
 	}
 
@@ -112,7 +106,7 @@ export class Subscriptions extends BaseClient {
 	async deliveries(id: string): Promise<{ data: DeliveryRow[] }> {
 		return this.request<{ data: DeliveryRow[] }>(
 			"GET",
-			`/api/subscriptions/${seg(id)}/deliveries`,
+			`/api/webhooks/${seg(id)}/deliveries`,
 		);
 	}
 
@@ -122,7 +116,7 @@ export class Subscriptions extends BaseClient {
 	): Promise<ReplayResult> {
 		return this.request<ReplayResult>(
 			"POST",
-			`/api/subscriptions/${seg(id)}/replay`,
+			`/api/webhooks/${seg(id)}/replay`,
 			range,
 		);
 	}
@@ -130,7 +124,7 @@ export class Subscriptions extends BaseClient {
 	async dead(id: string): Promise<{ data: DeadRow[] }> {
 		return this.request<{ data: DeadRow[] }>(
 			"GET",
-			`/api/subscriptions/${seg(id)}/dead`,
+			`/api/webhooks/${seg(id)}/dead`,
 		);
 	}
 
@@ -139,7 +133,7 @@ export class Subscriptions extends BaseClient {
 	async requeue(id: string, outboxId: string): Promise<{ ok: true }> {
 		return this.request<{ ok: true }>(
 			"POST",
-			`/api/subscriptions/${seg(id)}/dead/${seg(outboxId)}/requeue`,
+			`/api/webhooks/${seg(id)}/dead/${seg(outboxId)}/requeue`,
 		);
 	}
 }

@@ -3,7 +3,7 @@
  *
  * The cap governs the only live variable spend: a free-tier account's prepaid
  * `account_credits` consumed per read this calendar month. (The earlier version
- * projected the Stripe *subscription* invoice — flat base price, since no
+ * projected the Stripe invoice — flat base price, since no
  * metered overage is emitted — so it could never trip; see the 2026-06-18
  * billing audit.) For each account with a `monthly_cap_cents` set:
  *   - Month's credit spend >= threshold_pct (default 80%) → send email + bump

@@ -1,8 +1,8 @@
 import type { SecondLayer } from "@secondlayer/sdk";
 import {
-	type SubscriptionSchemaTables,
-	validateSubscriptionFilterForTable,
-} from "@secondlayer/shared/schemas/subscriptions";
+	type WebhookSchemaTables as SubscriptionSchemaTables,
+	validateWebhookFilterForTable as validateSubscriptionFilterForTable,
+} from "@secondlayer/shared/schemas/webhooks";
 
 export async function validateSubscriptionTargetFromApi(
 	client: SecondLayer,

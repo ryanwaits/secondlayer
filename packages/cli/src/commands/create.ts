@@ -16,7 +16,7 @@ import type { CreateSubscriptionRequest } from "@secondlayer/sdk";
 import {
 	type ChainTrigger,
 	ChainTriggerSchema,
-} from "@secondlayer/shared/schemas/subscriptions";
+} from "@secondlayer/shared/schemas/webhooks";
 import type { Command } from "commander";
 import { parseSubscriptionFilter } from "../lib/filter-params.ts";
 import { blue, error, info, success, warn } from "../lib/output.ts";
@@ -360,7 +360,7 @@ export async function createSubscription(
 				...(authConfig ? { authConfig } : {}),
 			} as CreateSubscriptionRequest);
 			signingSecret = res.signingSecret;
-			success(`Subscription provisioned: ${blue(res.subscription.id)}`);
+			success(`Subscription provisioned: ${blue(res.webhook.id)}`);
 		} catch (err) {
 			provisioningFailed = true;
 			warn(
@@ -461,7 +461,7 @@ export async function createChainSubscription(
 				"standard-webhooks") as CreateSubscriptionRequest["format"],
 			...(authConfig ? { authConfig } : {}),
 		} as CreateSubscriptionRequest);
-		subscriptionId = res.subscription.id;
+		subscriptionId = res.webhook.id;
 		signingSecret = res.signingSecret;
 		success(`Chain subscription provisioned: ${blue(subscriptionId)}`);
 	} catch (err) {

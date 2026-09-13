@@ -57,7 +57,7 @@ export interface StxLockSpec {
 }
 
 /** Scope to contracts conforming to a trait/standard (e.g. "sip-010") instead
- *  of a fixed contract. Index + Subgraphs + Subscriptions; Streams has no
+ *  of a fixed contract. Index + Subgraphs + Webhooks; Streams has no
  *  trait resolution — `toStreamsParams()` throws if set. */
 type TraitScope = { trait?: string };
 
@@ -192,7 +192,7 @@ export type SpecFor<T extends ChainEventFilterType> = Extract<
 >;
 
 /** The members expressible as subgraph sources (everything but the
- *  Subscriptions-only sBTC lifecycle types). Instantiating
+ *  Webhooks-only sBTC lifecycle types). Instantiating
  *  `ChainEventFilter<SubgraphMemberType>` keeps `toSubgraphSource` present:
  *  the conditional in `ProjectionsFor` evaluates over this whole union
  *  (non-distributive at an instantiated site), and every member qualifies. */
@@ -210,7 +210,7 @@ export type SubgraphSourceSpec = Extract<
 
 // ── Projection output shapes ─────────────────────────────────────────────
 
-/** Wire shape of a chain trigger (Subscriptions), derived per member from
+/** Wire shape of a chain trigger (Webhooks), derived per member from
  *  the spec: same fields, with `bigint` amounts stringified (uint128 exceeds
  *  JS safe integers) and the type-only `abi`/`prints` decorations dropped.
  *  Structurally assignable to the SDK's `ChainTrigger` union. */
@@ -268,8 +268,8 @@ export type StreamsParamsShape = {
 //   (spelled `print`, projected from the canonical `print_event`).
 // - `contract_call` reads live on the separate `/v1/index/contract-calls`
 //   endpoint → `toContractCallsParams()`, not `toIndexParams()`.
-// - `contract_deploy` is Subgraphs + Subscriptions only.
-// - The five `sbtc_*` lifecycle types are Subscriptions-only.
+// - `contract_deploy` is Subgraphs + Webhooks only.
+// - The five `sbtc_*` lifecycle types are Webhooks-only.
 
 type DecodedMember =
 	| "stx_transfer"

@@ -4,7 +4,7 @@ import {
 	pauseSubgraph,
 	resumePausedSubgraphs,
 } from "@secondlayer/shared/db/queries/subgraphs";
-import { toggleSubscriptionStatus } from "@secondlayer/shared/db/queries/subscriptions";
+import { toggleWebhookStatus } from "@secondlayer/shared/db/queries/webhooks";
 import type { Kysely } from "kysely";
 import {
 	debitCredits,
@@ -82,7 +82,7 @@ export async function onBlocksProcessed(
 
 export async function onDeliveryAttempt(
 	accountId: string,
-	subscriptionId: string,
+	webhookId: string,
 ): Promise<boolean> {
 	try {
 		const cost = deliveryCost(1);
@@ -90,7 +90,7 @@ export async function onDeliveryAttempt(
 		const db = getDb();
 		const ok = await debitHostedMeter(db, accountId, cost);
 		if (!ok) {
-			await toggleSubscriptionStatus(db, accountId, subscriptionId, "paused");
+			await toggleWebhookStatus(db, accountId, webhookId, "paused");
 		}
 		return ok;
 	} catch (err) {
@@ -101,14 +101,14 @@ export async function onDeliveryAttempt(
 	}
 }
 
-/** Unpause subgraphs and subscriptions after a successful creditCredits. */
+/** Unpause subgraphs and webhooks after a successful creditCredits. */
 export async function resumeHostedResources(
 	db: Kysely<Database>,
 	accountId: string,
 ): Promise<void> {
 	await resumePausedSubgraphs(db, accountId);
 	await db
-		.updateTable("subscriptions")
+		.updateTable("webhooks")
 		.set({
 			status: "active",
 			circuit_failures: 0,
