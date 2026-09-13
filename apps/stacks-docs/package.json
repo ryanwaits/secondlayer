@@ -1,0 +1,19 @@
+{
+	"name": "@secondlayer/stacks-docs",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vocs dev",
+		"build": "vocs build",
+		"preview": "vocs preview",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"vocs": "1.4.1",
+		"react": "19.2.4",
+		"react-dom": "19.2.4"
+	},
+	"devDependencies": {
+		"typescript": "^5.3.3"
+	}
+}

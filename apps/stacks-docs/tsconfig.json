@@ -1,0 +1,11 @@
+{
+	"compilerOptions": {
+		"jsx": "react-jsx",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"noEmit": true,
+		"skipLibCheck": true,
+		"strict": true
+	},
+	"include": ["vocs.config.ts", "docs/**/*.ts", "docs/**/*.tsx"]
+}
