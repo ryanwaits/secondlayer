@@ -14,7 +14,7 @@ import { registerScaffoldTools } from "./tools/scaffold.ts";
 import { registerSetupTools } from "./tools/setup.ts";
 import { registerStreamsTools } from "./tools/streams.ts";
 import { registerSubgraphTools } from "./tools/subgraphs.ts";
-import { registerSubscriptionTools } from "./tools/subscriptions.ts";
+import { registerWebhookTools } from "./tools/webhooks.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(
@@ -29,7 +29,7 @@ export function createServer(): McpServer {
 
 	registerScaffoldTools(server);
 	registerSubgraphTools(server);
-	registerSubscriptionTools(server);
+	registerWebhookTools(server);
 	registerIndexTools(server);
 	registerStreamsTools(server);
 	registerContractTools(server);

@@ -1,9 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { registerSubscriptionTools } from "./subscriptions.ts";
+import { registerWebhookTools } from "./webhooks.ts";
 
 interface RegisteredTool {
 	name: string;
+	description: string;
 	handler: (args: Record<string, unknown>) => Promise<{
 		content: Array<{ type: "text"; text: string }>;
 		isError?: boolean;
@@ -14,35 +15,35 @@ function fakeServer(tools: RegisteredTool[]): McpServer {
 	return {
 		tool: (
 			name: string,
-			_description: string,
+			description: string,
 			_schema: Record<string, unknown>,
 			handler: RegisteredTool["handler"],
 		) => {
-			tools.push({ name, handler });
+			tools.push({ name, description, handler });
 		},
 	} as unknown as McpServer;
 }
 
-describe("subscription MCP tools", () => {
+describe("webhook MCP tools", () => {
 	it("registers the golden-path lifecycle and invokes SDK methods", async () => {
 		const tools: RegisteredTool[] = [];
 		const calls: string[] = [];
-		const subscription = {
+		const webhook = {
 			id: "sub-1",
 			name: "whale-alerts",
 			status: "active",
 		};
 		const client = {
-			subscriptions: {
-				list: async () => ({ data: [subscription] }),
+			webhooks: {
+				list: async () => ({ data: [webhook] }),
 				get: async (id: string) => {
 					calls.push(`get:${id}`);
-					return subscription;
+					return webhook;
 				},
-				create: async () => ({ subscription, signingSecret: "secret" }),
+				create: async () => ({ webhook, signingSecret: "secret" }),
 				update: async (id: string) => {
 					calls.push(`update:${id}`);
-					return subscription;
+					return webhook;
 				},
 				delete: async (id: string) => {
 					calls.push(`delete:${id}`);
@@ -59,9 +60,22 @@ describe("subscription MCP tools", () => {
 			},
 		};
 
-		registerSubscriptionTools(fakeServer(tools), () => client as never);
+		registerWebhookTools(fakeServer(tools), () => client as never);
 
 		expect(tools.map((tool) => tool.name)).toEqual([
+			"webhooks_list",
+			"webhooks_get",
+			"webhooks_create",
+			"webhooks_update",
+			"webhooks_delete",
+			"webhooks_test",
+			"webhooks_pause",
+			"webhooks_resume",
+			"webhooks_rotate_secret",
+			"webhooks_deliveries",
+			"webhooks_dead",
+			"webhooks_requeue",
+			"webhooks_replay",
 			"subscriptions_list",
 			"subscriptions_get",
 			"subscriptions_create",
@@ -76,22 +90,29 @@ describe("subscription MCP tools", () => {
 			"subscriptions_requeue",
 			"subscriptions_replay",
 		]);
+		for (const tool of tools.filter((t) =>
+			t.name.startsWith("subscriptions_"),
+		)) {
+			expect(tool.description.startsWith("Deprecated alias of webhooks_")).toBe(
+				true,
+			);
+		}
 
 		const byName = Object.fromEntries(
 			tools.map((tool) => [tool.name, tool.handler]),
 		);
-		await byName.subscriptions_get?.({ id: "sub-1" });
-		await byName.subscriptions_test?.({ id: "sub-1" });
-		await byName.subscriptions_delete?.({ id: "sub-1" });
+		await byName.webhooks_get?.({ id: "sub-1" });
+		await byName.webhooks_test?.({ id: "sub-1" });
+		await byName.webhooks_delete?.({ id: "sub-1" });
 
 		expect(calls).toEqual(["get:sub-1", "test:sub-1", "delete:sub-1"]);
 	});
 
-	it("pauses, resumes, and rotates the signing secret for one subscription", async () => {
+	it("pauses, resumes, and rotates the signing secret for one webhook", async () => {
 		const tools: RegisteredTool[] = [];
 		const calls: string[] = [];
 		const client = {
-			subscriptions: {
+			webhooks: {
 				pause: async (id: string) => {
 					calls.push(`pause:${id}`);
 					return { id, status: "paused" };
@@ -106,14 +127,14 @@ describe("subscription MCP tools", () => {
 				},
 			},
 		};
-		registerSubscriptionTools(fakeServer(tools), () => client as never);
+		registerWebhookTools(fakeServer(tools), () => client as never);
 		const byName = Object.fromEntries(
 			tools.map((tool) => [tool.name, tool.handler]),
 		);
 
-		const paused = await byName.subscriptions_pause?.({ id: "sub-1" });
-		const resumed = await byName.subscriptions_resume?.({ id: "sub-1" });
-		const rotated = await byName.subscriptions_rotate_secret?.({ id: "sub-1" });
+		const paused = await byName.webhooks_pause?.({ id: "sub-1" });
+		const resumed = await byName.webhooks_resume?.({ id: "sub-1" });
+		const rotated = await byName.webhooks_rotate_secret?.({ id: "sub-1" });
 
 		expect(calls).toEqual(["pause:sub-1", "resume:sub-1", "rotate:sub-1"]);
 		expect(paused?.content[0]?.text).toContain('"status": "paused"');
@@ -125,7 +146,7 @@ describe("subscription MCP tools", () => {
 		const tools: RegisteredTool[] = [];
 		const calls: string[] = [];
 		const client = {
-			subscriptions: {
+			webhooks: {
 				deliveries: async (id: string) => {
 					calls.push(`deliveries:${id}`);
 					return { data: [{ id: "d1", statusCode: 200, attempt: 1 }] };
@@ -140,14 +161,14 @@ describe("subscription MCP tools", () => {
 				},
 			},
 		};
-		registerSubscriptionTools(fakeServer(tools), () => client as never);
+		registerWebhookTools(fakeServer(tools), () => client as never);
 		const byName = Object.fromEntries(
 			tools.map((tool) => [tool.name, tool.handler]),
 		);
 
-		const deliveries = await byName.subscriptions_deliveries?.({ id: "sub-1" });
-		const dead = await byName.subscriptions_dead?.({ id: "sub-1" });
-		const requeued = await byName.subscriptions_requeue?.({
+		const deliveries = await byName.webhooks_deliveries?.({ id: "sub-1" });
+		const dead = await byName.webhooks_dead?.({ id: "sub-1" });
+		const requeued = await byName.webhooks_requeue?.({
 			id: "sub-1",
 			outboxId: "ob-1",
 		});
@@ -168,10 +189,10 @@ describe("subscription MCP tools", () => {
 		let updated: { id: string; patch: Record<string, unknown> } | undefined;
 		let replayed: { id: string; range: Record<string, unknown> } | undefined;
 		const client = {
-			subscriptions: {
+			webhooks: {
 				create: async (input: Record<string, unknown>) => {
 					created = input;
-					return { subscription: { id: "s1" }, signingSecret: "x" };
+					return { webhook: { id: "s1" }, signingSecret: "x" };
 				},
 				update: async (id: string, patch: Record<string, unknown>) => {
 					updated = { id, patch };
@@ -183,19 +204,19 @@ describe("subscription MCP tools", () => {
 				},
 			},
 		};
-		registerSubscriptionTools(fakeServer(tools), () => client as never);
+		registerWebhookTools(fakeServer(tools), () => client as never);
 		const byName = Object.fromEntries(
 			tools.map((tool) => [tool.name, tool.handler]),
 		);
 
-		await byName.subscriptions_create?.({
+		await byName.webhooks_create?.({
 			name: "hook",
 			url: "https://e.x/h",
 			authConfig: { type: "bearer", token: "t" },
 		});
 		expect(created?.authConfig).toEqual({ type: "bearer", token: "t" });
 
-		await byName.subscriptions_update?.({
+		await byName.webhooks_update?.({
 			id: "s1",
 			name: "renamed",
 			authConfig: { type: "bearer", token: "t2" },
@@ -205,7 +226,7 @@ describe("subscription MCP tools", () => {
 			patch: { name: "renamed", authConfig: { type: "bearer", token: "t2" } },
 		});
 
-		await byName.subscriptions_replay?.({
+		await byName.webhooks_replay?.({
 			id: "s1",
 			fromBlock: 1,
 			toBlock: 2,

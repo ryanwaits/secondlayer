@@ -3,7 +3,7 @@
 Gives your coding agent direct access to the Stacks data on your own instance —
 Index (decoded rows), Subgraphs (tables you define, served from your instance),
 and Streams (raw inputs). Exposes the golden-path tools only: Index reads, the
-subgraph lifecycle, subscriptions, contract discovery/scaffolding, instance
+subgraph lifecycle, webhooks, contract discovery/scaffolding, instance
 status, archive verify/bootstrap, and hosted credits/quote. Everything else
 (single-record lookups, mempool, stacking, proofs, live Streams reads) is
 available over REST `/v1` + OpenAPI. There is no `consume` tool.
@@ -16,7 +16,7 @@ bun add @secondlayer/mcp
 
 ## Auth
 
-Most reads are public: `index_*` and `contracts_find` work with no key. Subgraph tools need an `INSTANCE_TOKEN` past loopback; separately, **public** subgraphs are anon-readable over HTTP at `GET /v1/subgraphs/<name>/<table>` (`{ rows, next_cursor, tip }` cursor envelope), while private ones need the instance token (anon → 404). `streams_dumps` needs no key: the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. Every other `streams_*` tool is key-mandatory (keyless → 401). Writes (deploy, reindex, delete, subscriptions) need a key: set `INSTANCE_TOKEN` from `secondlayer init`. Hosted credits/quote use `SECONDLAYER_API_KEY` (`sk-sl_*`). Read `secondlayer://context` first: it reports auth state and read-auth tiers.
+Most reads are public: `index_*` and `contracts_find` work with no key. Subgraph tools need an `INSTANCE_TOKEN` past loopback; separately, **public** subgraphs are anon-readable over HTTP at `GET /v1/subgraphs/<name>/<table>` (`{ rows, next_cursor, tip }` cursor envelope), while private ones need the instance token (anon → 404). `streams_dumps` needs no key: the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. Every other `streams_*` tool is key-mandatory (keyless → 401). Writes (deploy, reindex, delete, webhooks) need a key: set `INSTANCE_TOKEN` from `secondlayer init`. Hosted credits/quote use `SECONDLAYER_API_KEY` (`sk-sl_*`). Read `secondlayer://context` first: it reports auth state and read-auth tiers.
 
 ## Quick Start — Stdio (IDE)
 
@@ -65,7 +65,7 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 | --- | --- |
 | **Index** (9) | `index_events`, `index_ft_transfers`, `index_nft_transfers`, `index_contract_calls`, `index_blocks`, `index_transactions`, `index_print_schema`, `index_discover`, `batch_query` |
 | **Subgraphs** (12) | `subgraphs_list`, `subgraphs_status`, `subgraphs_spec`, `subgraphs_scaffold`, `subgraphs_deploy`, `subgraphs_delete`, `subgraphs_query`, `subgraphs_backfill`, `subgraphs_reindex`, `subgraphs_stop`, `subgraphs_operations`, `subgraphs_gaps` |
-| **Subscriptions** (13) | `subscriptions_create`, `subscriptions_list`, `subscriptions_get`, `subscriptions_update`, `subscriptions_delete`, `subscriptions_test`, `subscriptions_pause`, `subscriptions_resume`, `subscriptions_rotate_secret`, `subscriptions_deliveries`, `subscriptions_dead`, `subscriptions_requeue`, `subscriptions_replay` |
+| **Webhooks** (13) | `webhooks_create`, `webhooks_list`, `webhooks_get`, `webhooks_update`, `webhooks_delete`, `webhooks_test`, `webhooks_pause`, `webhooks_resume`, `webhooks_rotate_secret`, `webhooks_deliveries`, `webhooks_dead`, `webhooks_requeue`, `webhooks_replay` |
 | **Streams** (7) | `streams_tip`, `streams_events`, `streams_events_by_tx`, `streams_block_events`, `streams_canonical`, `streams_reorgs`, `streams_dumps` |
 | **Contracts** (2) | `contracts_find`, `contracts_get_abi` |
 | **Instance** (1) | `instance_status` |
@@ -75,7 +75,7 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 | **Account** (2) | `account_whoami`, `account_create_key` (only when pointed at `https://api.secondlayer.tools`) |
 
 Verify after mutating: `subgraphs_operations` for deploy/reindex/backfill/stop,
-`subscriptions_deliveries` for create/test/replay. Empty index: `setup` or
+`webhooks_deliveries` for create/test/replay. Empty index: `setup` or
 `archive_bootstrap`, poll `instance_status` until decoders are ok, then
 `archive_verify`, then `codegen_index_schema`.
 
@@ -88,10 +88,10 @@ Point the server at your instance with `SECONDLAYER_API_URL` (default
 `secondlayer init`. `account_*` tools appear only when the server is pointed at
 `https://api.secondlayer.tools`.
 
-### `subscriptions_create` kinds
+### `webhooks_create` kinds
 
-Subscriptions are polymorphic. Pass `subgraphName` + `tableName` for a
-**subgraph** subscription, or a `triggers` array for a **chain** subscription —
+Webhooks are polymorphic. Pass `subgraphName` + `tableName` for a
+**subgraph** webhook, or a `triggers` array for a **chain** webhook —
 a webhook on raw chain events (contract / event / function / trait) with no
 subgraph (e.g. `[{ "type": "contract_call", "contractId": "SP....amm",
 "functionName": "swap-*" }]`).
@@ -107,11 +107,11 @@ subgraph (e.g. `[{ "type": "contract_call", "contractId": "SP....amm",
 
 | URI | Description |
 | --- | --- |
-| `secondlayer://context` | Live state — what exists (your subgraphs, subscriptions, account), what you can do, and read-auth tiers. Read first. |
+| `secondlayer://context` | Live state — what exists (your subgraphs, webhooks, account), what you can do, and read-auth tiers. Read first. |
 | `secondlayer://filters` | Subgraph source filter types and their fields |
 | `secondlayer://column-types` | Column type mappings and options |
 | `secondlayer://traits` | SIP trait standards (valid `trait` values) |
-| `secondlayer://chain-triggers` | Chain-subscription trigger types and fields |
+| `secondlayer://chain-triggers` | Chain-webhook trigger types and fields |
 
 ## Error Handling
 

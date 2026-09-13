@@ -73,7 +73,10 @@ const PRODUCT_BLURBS: Record<string, string> = {
 		"raw chain event firehose — cursor-paginated reads, tip/canonical/reorg checks, bulk parquet dumps",
 	contracts: "trait-based contract discovery and ABIs",
 	subgraphs: "author/scaffold/deploy/query custom indexes",
-	subscriptions: "webhook delivery on subgraph rows or raw chain events",
+	webhooks:
+		"a signed POST to a URL you run, on subgraph rows or raw chain events",
+	subscriptions:
+		"a signed POST to a URL you run, on subgraph rows or raw chain events", // deprecated alias key
 	account: "identity and self-provisioned API keys",
 	codegen: "ORM schemas for the tables you read",
 	instance: "decoder health and empty-index diagnosis",
@@ -87,7 +90,8 @@ const PRODUCT_ORDER = [
 	"streams",
 	"contracts",
 	"subgraphs",
-	"subscriptions",
+	"webhooks",
+	"subscriptions", // deprecated alias key
 	"account",
 	"codegen",
 	"instance",
@@ -145,7 +149,7 @@ type ContextDeps = {
 
 /**
  * Assemble the live agent context read at connect: who you are, the live
- * Streams/Index tips, what you own (subgraphs/subscriptions), any in-flight
+ * Streams/Index tips, what you own (subgraphs/webhooks), any in-flight
  * reindex operations, what the agent can do, and the read-auth tiers. The
  * snapshot comes from the SDK's `context()` (shared with non-MCP agents); each
  * field that couldn't be read becomes a sentinel string so the resource never
@@ -183,7 +187,8 @@ export async function buildContext(
 			subgraphs: snap?.subgraphs.value
 				? snap.subgraphs.value.map(formatSubgraphSummary)
 				: orNull(snap?.subgraphs),
-			subscriptions: orNull(snap?.subscriptions),
+			webhooks: orNull(snap?.webhooks),
+			subscriptions: orNull(snap?.webhooks), // deprecated alias
 			activeOperations: orNull(snap?.activeOperations),
 			instance,
 		},
@@ -201,7 +206,7 @@ export function registerResources(server: McpServer) {
 		"secondlayer://context",
 		{
 			description:
-				"Live agent context — what exists (your subgraphs, subscriptions, account), what you can do, and read-auth tiers. Read this first.",
+				"Live agent context — what exists (your subgraphs, webhooks, account), what you can do, and read-auth tiers. Read this first.",
 		},
 		async () => ({
 			contents: [
@@ -276,7 +281,7 @@ export function registerResources(server: McpServer) {
 		"secondlayer://chain-triggers",
 		{
 			description:
-				"Chain-subscription trigger types and the filter fields each accepts (for subscriptions_create triggers).",
+				"Chain-webhook trigger types and the filter fields each accepts (for webhooks_create triggers).",
 		},
 		async () => ({
 			contents: [

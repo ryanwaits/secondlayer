@@ -98,6 +98,9 @@ describe("secondlayer://context", () => {
 						},
 					],
 				},
+				webhooks: {
+					value: { count: 2, byStatus: { active: 1, paused: 1 } },
+				},
 				subscriptions: {
 					value: { count: 2, byStatus: { active: 1, paused: 1 } },
 				},
@@ -108,6 +111,10 @@ describe("secondlayer://context", () => {
 		const ctx = await buildContext({ clientProvider: () => client });
 
 		expect(Array.isArray(ctx.whatExists.subgraphs)).toBe(true);
+		expect(ctx.whatExists.webhooks).toEqual({
+			count: 2,
+			byStatus: { active: 1, paused: 1 },
+		});
 		expect(ctx.whatExists.subscriptions).toEqual({
 			count: 2,
 			byStatus: { active: 1, paused: 1 },
@@ -136,6 +143,15 @@ describe("secondlayer://context", () => {
 				},
 				indexTip: { value: null },
 				subgraphs: { value: [] },
+				webhooks: {
+					value: null,
+					error: {
+						message: "API key invalid or expired.",
+						code: "UNAUTHORIZED",
+						status: 401,
+						retryable: false,
+					},
+				},
 				subscriptions: {
 					value: null,
 					error: {
@@ -153,6 +169,9 @@ describe("secondlayer://context", () => {
 
 		expect(ctx.whatExists.subgraphs).toEqual([]);
 		// A field that failed says why; one that read nothing keeps the hint.
+		expect(ctx.whatExists.webhooks).toBe(
+			"unavailable: API key invalid or expired.",
+		);
 		expect(ctx.whatExists.subscriptions).toBe(
 			"unavailable: API key invalid or expired.",
 		);
@@ -333,7 +352,7 @@ const GOLDEN_PATH_TOOLS = [
 	"subgraphs_spec",
 	"subgraphs_stop",
 	"subgraphs_test",
-	// subscriptions
+	// webhooks (+ deprecated subscriptions_* aliases)
 	"subscriptions_create",
 	"subscriptions_dead",
 	"subscriptions_deliveries",
@@ -347,6 +366,19 @@ const GOLDEN_PATH_TOOLS = [
 	"subscriptions_rotate_secret",
 	"subscriptions_test",
 	"subscriptions_update",
+	"webhooks_create",
+	"webhooks_dead",
+	"webhooks_deliveries",
+	"webhooks_delete",
+	"webhooks_get",
+	"webhooks_list",
+	"webhooks_pause",
+	"webhooks_replay",
+	"webhooks_requeue",
+	"webhooks_resume",
+	"webhooks_rotate_secret",
+	"webhooks_test",
+	"webhooks_update",
 	// instance / archive bootstrap
 	"archive_bootstrap",
 	"archive_latest",
