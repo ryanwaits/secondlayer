@@ -77,7 +77,7 @@ function pickHeader(
 /**
  * Verify a Secondlayer webhook delivery signature.
  *
- * Every delivery whose subscription `format` is `"standard-webhooks"` (the
+ * Every delivery whose webhook `format` is `"standard-webhooks"` (the
  * default) carries three Standard Webhooks headers:
  *
  *   webhook-id         — UUID for the delivery (stable across retries; use as
@@ -86,7 +86,7 @@ function pickHeader(
  *   webhook-signature  — space-separated list of `v1,<base64-hmac>` tuples
  *
  * The signed content is `${id}.${timestamp}.${rawBody}` HMAC-SHA256 with the
- * signing secret. Secrets returned by `sl subscriptions create` (or
+ * signing secret. Secrets returned by `secondlayer webhooks create` (or
  * `rotate-secret`) are a bare 64-character hex string used directly as the
  * HMAC key (its UTF-8 bytes) — this helper handles that. A `whsec_`-prefixed
  * base64 secret (the Svix convention) is also accepted and base64-decoded after
@@ -107,7 +107,7 @@ function pickHeader(
  *                        a header value by name. Header name matching is
  *                        case-insensitive.
  * @param secret          The signing secret returned by
- *                        `sl subscriptions create` / `rotateSecret` (a bare
+ *                        `secondlayer webhooks create` / `rotateSecret` (a bare
  *                        64-char hex string). Pass it through verbatim — the
  *                        helper accepts both bare hex and `whsec_`-prefixed
  *                        base64 secrets.
@@ -178,7 +178,7 @@ export function verifyWebhookSignature(
  * Verify the universal Secondlayer authenticity signature that every delivery
  * carries, regardless of body format (`raw`, `cloudevents`, `standard-webhooks`,
  * …). This is the format-agnostic alternative to {@link verifyWebhookSignature}:
- * instead of a per-subscription HMAC secret, it checks an ed25519 signature over
+ * instead of a per-webhook HMAC secret, it checks an ed25519 signature over
  * `${webhook-id}.${rawBody}` against Secondlayer's published public key — so one
  * key proves authenticity for any format.
  *
@@ -214,18 +214,18 @@ export function verifySecondlayerSignature(
 }
 
 /**
- * Decode + narrow a chain-subscription webhook delivery body into a typed
+ * Decode + narrow a chain webhook delivery body into a typed
  * {@link ChainWebhookDelivery}. Verify the signature first with
  * {@link verifyWebhookSignature} (or {@link verifySecondlayerSignature}), then
  * decode the same raw body — this does not check authenticity, only shape.
  *
  * Only understands the `format: "standard-webhooks"` envelope (`{ type,
- * timestamp, data }`) — the subscription default, and the only format
+ * timestamp, data }`) — the webhook default, and the only format
  * `verifyWebhookSignature` covers. Other formats (`raw`, `cloudevents`, …)
  * carry the same `data` value under a different envelope; see the "Chain
- * subscription webhook payloads" doc for how to unwrap those.
+ * webhook payloads" doc for how to unwrap those.
  *
- * A chain-subscription delivery is NOT a Streams/Index event — do not run this
+ * A chain webhook delivery is NOT a Streams/Index event — do not run this
  * over a `StreamsEvent` body (`{ event_type, payload }`) or vice versa.
  *
  * @param rawBody The raw request body string (same bytes passed to
@@ -264,12 +264,12 @@ export function decodeChainWebhook(rawBody: string): ChainWebhookDelivery {
 		parsed.data === null
 	) {
 		throw new Error(
-			"decodeChainWebhook: not a chain-subscription delivery — expected { type, timestamp, data }",
+			"decodeChainWebhook: not a chain webhook delivery — expected { type, timestamp, data }",
 		);
 	}
 	if (!parsed.type.startsWith("chain.")) {
 		throw new Error(
-			`decodeChainWebhook: not a chain-subscription delivery (type "${parsed.type}")`,
+			`decodeChainWebhook: not a chain webhook delivery (type "${parsed.type}")`,
 		);
 	}
 

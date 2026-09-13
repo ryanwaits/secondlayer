@@ -33,10 +33,10 @@ secondlayer subgraphs deploy subgraphs/my-contract.ts --start-block <recent-bloc
 secondlayer subgraphs query my-contract <table> --sort _block_height --order desc
 ```
 
-A **chain** subscription fires on raw events with no subgraph:
+A **chain** webhook fires on raw events with no subgraph:
 
 ```bash
-secondlayer subscriptions create amm-swaps \
+secondlayer webhooks create amm-swaps \
   --url https://my-app.com/webhook \
   --trigger '{"type":"contract_call","contractId":"SP....amm","functionName":"swap-*"}'
 ```

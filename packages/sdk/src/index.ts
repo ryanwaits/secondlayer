@@ -157,7 +157,7 @@ export type {
 	SubgraphSpecFormat,
 	SubgraphSpecOptions,
 } from "@secondlayer/shared/subgraphs/spec";
-export { Webhooks, Subscriptions, trigger } from "./webhooks/client.ts";
+export { Webhooks, Subscriptions, trigger } from "./webhooks/client.ts"; // deprecated alias
 export type {
 	WebhookStatus,
 	WebhookFormat,
@@ -169,17 +169,17 @@ export type {
 	CreateWebhookRequest,
 	CreateWebhookResponse,
 	UpdateWebhookRequest,
-	SubscriptionStatus,
-	SubscriptionFormat,
-	SubscriptionRuntime,
-	SubscriptionKind,
-	SubscriptionSummary,
-	SubscriptionDetail,
+	SubscriptionStatus, // deprecated alias
+	SubscriptionFormat, // deprecated alias
+	SubscriptionRuntime, // deprecated alias
+	SubscriptionKind, // deprecated alias
+	SubscriptionSummary, // deprecated alias
+	SubscriptionDetail, // deprecated alias
 	ChainTrigger,
 	ChainTriggerType,
-	CreateSubscriptionRequest,
-	CreateSubscriptionResponse,
-	UpdateSubscriptionRequest,
+	CreateSubscriptionRequest, // deprecated alias
+	CreateSubscriptionResponse, // deprecated alias
+	UpdateSubscriptionRequest, // deprecated alias
 	RotateSecretResponse,
 	DeliveryRow,
 	ReplayResult,

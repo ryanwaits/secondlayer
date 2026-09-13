@@ -70,6 +70,7 @@ export interface ContextSnapshot {
 	}>;
 	/** @deprecated Use {@link ContextSnapshot.webhooks}. Removed next minor. */
 	subscriptions: ContextField<{
+		// deprecated alias
 		count: number;
 		byStatus: Record<string, number>;
 	}>;
@@ -123,6 +124,7 @@ export class SecondLayer extends BaseClient {
 
 	/** @deprecated Use `webhooks`. Removed next minor. */
 	get subscriptions(): Webhooks {
+		// deprecated alias
 		return this.webhooks;
 	}
 
@@ -253,7 +255,7 @@ export class SecondLayer extends BaseClient {
 			},
 			subgraphs,
 			webhooks,
-			subscriptions: webhooks,
+			subscriptions: webhooks, // deprecated alias
 			activeOperations,
 			instance,
 		};

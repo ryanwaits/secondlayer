@@ -22,7 +22,7 @@ The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlay
 | `INSTANCE_TOKEN` | instance writes/reads past loopback | Hex token `secondlayer init` writes. Required for every write, and for every read once the API is published past loopback; loopback reads need no value. Instance commands refuse `api.secondlayer.tools`. |
 | `SECONDLAYER_API_KEY` | hosted API, archive, credits | Account key (`sk-sl_*`). `SL_API_KEY` is a one-release hosted fallback. |
 | `SL_PLATFORM_API_URL` | legacy alias of `SL_API_URL` | Same default: `http://127.0.0.1:3800`. |
-| `SIGNING_SECRET` | subscriptions test | Standard-Webhooks signing secret used to sign test fixtures. |
+| `SIGNING_SECRET` | webhooks test | Standard-Webhooks signing secret used to sign test fixtures. |
 | `STACKS_NETWORK` | global | Network override (set by `--network`). |
 | `SL_STREAMS_DUMPS_URL` | streams dumps | Public bulk-dump bucket base URL (dumps are public — no API key). Alternative to `--dumps-url`. |
 | `DATABASE_URL` | bootstrap, verify, repair, backup, local db | Postgres URL. `secondlayer setup` writes it into `.env` pointing at the compose Postgres and passes it to the bootstrap/verify it runs; unset, it defaults to `postgres://postgres:postgres@localhost:5432/secondlayer_dev`. |
@@ -36,7 +36,7 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 - [Local runtime](#local-runtime): `setup`, `init`, `console`, `bootstrap`, `observer`, `verify`, `repair`, `backup`, `restore`, `uninstall`
 - [Credits](#credits) — `credits buy|balance|refill`
 - [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `source`, `reindex`, `backfill`, `stop`, `operations`, `gaps`, `query`, `delete`, `scaffold`
-- [Subscriptions](#subscriptions) — `create`, `list`, `get`, `update`, `pause`, `resume`, `delete`, `rotate-secret`, `deliveries`, `dead`, `requeue`, `replay`, `doctor`, `test`
+- [Webhooks](#webhooks) — `create`, `list`, `get`, `update`, `pause`, `resume`, `delete`, `rotate-secret`, `deliveries`, `dead`, `requeue`, `replay`, `doctor`, `test`
 - [Index](#index) — `ft-transfers`, `nft-transfers`, `events`, `contract-calls`
 - [Streams](#streams) — `tip`, `events`, `consume`, `reorgs`, `canonical`, `dumps`
 - [Local](#local) — `local up|down|restart|status|logs`, `local node …`, `local db …`
@@ -457,19 +457,21 @@ secondlayer subgraphs scaffold --trait sip-010 -o subgraphs/all-tokens.ts    # a
 
 ---
 
-## Subscriptions
+## Webhooks
 
-Manage subgraph table subscriptions (webhook deliveries). Alias: `subs`. All subcommands take the credential and endpoint from the global `--api-key` / `--api-url` flags, or from `INSTANCE_TOKEN` / `SL_API_URL` in the environment. These are writes, so they send the token even on loopback.
+Deprecated aliases (`subscriptions`, `sl.subscriptions`, `subscriptions_*`) keep working for one release cycle.
 
-Subscription references (`<idOrName>`) accept the subscription UUID or its name. Ambiguous names error out — use the ID.
+Manage subgraph table webhooks (webhook deliveries). Alias: `subs`. All subcommands take the credential and endpoint from the global `--api-key` / `--api-url` flags, or from `INSTANCE_TOKEN` / `SL_API_URL` in the environment. These are writes, so they send the token even on loopback.
 
-Subscriptions come in two kinds: **subgraph** (fires on subgraph table rows) and **chain** (fires on raw chain events, no subgraph). `create` here only makes subgraph subscriptions; all other subcommands (`list`, `get`, `update`, `pause`, `resume`, `delete`, `deliveries`, etc.) operate on both kinds.
+Webhook references (`<idOrName>`) accept the webhook UUID or its name. Ambiguous names error out — use the ID.
 
-### secondlayer subscriptions create
+Webhooks come in two kinds: **subgraph** (fires on subgraph table rows) and **chain** (fires on raw chain events, no subgraph). `create` here only makes subgraph webhooks; all other subcommands (`list`, `get`, `update`, `pause`, `resume`, `delete`, `deliveries`, etc.) operate on both kinds.
 
-Scaffold a subscription receiver for a runtime and provision the subscription via the API. **Creates subgraph subscriptions only** (fires on rows written to a subgraph table — `--subgraph` + `--table`). To create a **chain subscription** (raw chain events, no subgraph — `triggers`), use the SDK (`sl.subscriptions.create({ triggers: [...] })`, see `references/sdk.md`), REST (`POST /api/subscriptions` with `triggers`), or MCP (`subscriptions_create` with `triggers`). The CLI has no `--triggers` flag.
+### secondlayer webhooks create
 
-Usage: `secondlayer subscriptions create <name>`
+Scaffold a webhook receiver for a runtime and provision the webhook via the API. **Creates subgraph webhooks only** (fires on rows written to a subgraph table — `--subgraph` + `--table`). To create a **chain webhook** (raw chain events, no subgraph — `triggers`), use the SDK (`sl.webhooks.create({ triggers: [...] })`, see `references/sdk.md`), REST (`POST /api/webhooks` with `triggers`), or MCP (`webhooks_create` with `triggers`). The CLI has no `--triggers` flag.
+
+Usage: `secondlayer webhooks create <name>`
 
 | Flag | Description |
 | --- | --- |
@@ -481,26 +483,26 @@ Usage: `secondlayer subscriptions create <name>`
 | `--filter <kv...>` | Repeatable. `key=value` with `.eq/.neq/.gt/.gte/.lt/.lte` suffixes. |
 | `--api-key <key>` | `INSTANCE_TOKEN` override. |
 | `--api-url <url>` | `SL_API_URL` override. |
-| `--skip-api` | Copy template only; do NOT create the subscription via API. |
-| `--no-scaffold` | Skip the local runtime template directory (webhook-only setups — provisions subscription only). |
+| `--skip-api` | Copy template only; do NOT create the webhook via API. |
+| `--no-scaffold` | Skip the local runtime template directory (webhook-only setups — provisions webhook only). |
 
 Behavior:
 1. Validates target subgraph + table + filter via API (skipped with `--skip-api`).
 2. Copies template into `./<name>/` (skipped with `--no-scaffold`).
-3. POSTs `/api/subscriptions` to create the subscription with the matching `format`/`runtime`.
+3. POSTs `/api/webhooks` to create the webhook with the matching `format`/`runtime`.
 4. Writes returned `SIGNING_SECRET` into `./<name>/.env` (or prints if `--no-scaffold`).
 
 `format` is derived from `runtime`: `inngest`→`inngest`, `trigger`→`trigger`, `cloudflare`→`cloudflare`, `node`→`standard-webhooks`.
 
-Example: `secondlayer subscriptions create my-sub -r node -s my-watcher -t transfers -u https://app.example/webhook`
+Example: `secondlayer webhooks create my-sub -r node -s my-watcher -t transfers -u https://app.example/webhook`
 
-Webhook-only (no scaffold): `secondlayer subscriptions create notify --no-scaffold -r node -s my-watcher -t transfers -u https://app.example/webhook`
+Webhook-only (no scaffold): `secondlayer webhooks create notify --no-scaffold -r node -s my-watcher -t transfers -u https://app.example/webhook`
 
-### secondlayer subscriptions list
+### secondlayer webhooks list
 
-List subscriptions (alias: `ls`).
+List webhooks (alias: `ls`).
 
-Usage: `secondlayer subscriptions list`
+Usage: `secondlayer webhooks list`
 
 | Flag | Description |
 | --- | --- |
@@ -508,26 +510,26 @@ Usage: `secondlayer subscriptions list`
 | `--api-key <key>` | `INSTANCE_TOKEN` override. |
 | `--api-url <url>` | `SL_API_URL` override. |
 
-### secondlayer subscriptions get
+### secondlayer webhooks get
 
-Show subscription details.
+Show webhook details.
 
-Usage: `secondlayer subscriptions get <idOrName>`
+Usage: `secondlayer webhooks get <idOrName>`
 
 | Flag | Description |
 | --- | --- |
 | `--json` | Output as JSON. |
 | `--api-key <key>` / `--api-url <url>` | API auth overrides. |
 
-### secondlayer subscriptions update
+### secondlayer webhooks update
 
-Update subscription config (any subset of fields).
+Update webhook config (any subset of fields).
 
-Usage: `secondlayer subscriptions update <idOrName>`
+Usage: `secondlayer webhooks update <idOrName>`
 
 | Flag | Description |
 | --- | --- |
-| `--name <name>` | Rename subscription. |
+| `--name <name>` | Rename webhook. |
 | `--url <url>` | Webhook URL. |
 | `--auth-token <token>` | Set bearer-token auth config. |
 | `--format <format>` | `standard-webhooks` \| `inngest` \| `trigger` \| `cloudflare` \| `cloudevents` \| `raw`. |
@@ -536,36 +538,36 @@ Usage: `secondlayer subscriptions update <idOrName>`
 | `--clear-filter` | Replace filter with `{}`. Mutually exclusive with `--filter`. |
 | `--max-retries <n>` | Max delivery retries (integer ≥ 0). |
 | `--timeout-ms <n>` | Delivery timeout (ms, ≥ 100). |
-| `--concurrency <n>` | Per-subscription delivery concurrency (≥ 1). |
+| `--concurrency <n>` | Per-webhook delivery concurrency (≥ 1). |
 | `--json` | Output as JSON. |
 | `--api-key <key>` / `--api-url <url>` | API auth overrides. |
 
 If `--filter` is set, the new filter is validated against the target subgraph table before applying.
 
-### secondlayer subscriptions pause
+### secondlayer webhooks pause
 
-Pause a subscription.
+Pause a webhook.
 
-Usage: `secondlayer subscriptions pause <idOrName>`
+Usage: `secondlayer webhooks pause <idOrName>`
 
 | Flag | Description |
 | --- | --- |
 | `--json` | Output as JSON. |
 | `--api-key <key>` / `--api-url <url>` | API auth overrides. |
 
-### secondlayer subscriptions resume
+### secondlayer webhooks resume
 
-Resume a subscription.
+Resume a webhook.
 
-Usage: `secondlayer subscriptions resume <idOrName>`
+Usage: `secondlayer webhooks resume <idOrName>`
 
 Same flags as `pause`.
 
-### secondlayer subscriptions delete
+### secondlayer webhooks delete
 
-**DESTRUCTIVE.** Delete a subscription (pending outbox rows are removed).
+**DESTRUCTIVE.** Delete a webhook (pending outbox rows are removed).
 
-Usage: `secondlayer subscriptions delete <idOrName>`
+Usage: `secondlayer webhooks delete <idOrName>`
 
 | Flag | Description |
 | --- | --- |
@@ -575,11 +577,11 @@ Usage: `secondlayer subscriptions delete <idOrName>`
 
 Refuses prompt without a TTY. 404 is treated as "already deleted" (idempotent).
 
-### secondlayer subscriptions rotate-secret
+### secondlayer webhooks rotate-secret
 
 **DESTRUCTIVE.** Rotate the signing secret. Existing receivers using the old secret will fail verification.
 
-Usage: `secondlayer subscriptions rotate-secret <idOrName>`
+Usage: `secondlayer webhooks rotate-secret <idOrName>`
 
 | Flag | Description |
 | --- | --- |
@@ -589,33 +591,33 @@ Usage: `secondlayer subscriptions rotate-secret <idOrName>`
 
 Prints the new secret to stdout. Capture immediately.
 
-### secondlayer subscriptions deliveries
+### secondlayer webhooks deliveries
 
 Show recent delivery attempts.
 
-Usage: `secondlayer subscriptions deliveries <idOrName>`
+Usage: `secondlayer webhooks deliveries <idOrName>`
 
 | Flag | Description |
 | --- | --- |
 | `--json` | Output as JSON. |
 | `--api-key <key>` / `--api-url <url>` | API auth overrides. |
 
-### secondlayer subscriptions dead
+### secondlayer webhooks dead
 
 Show dead-letter outbox rows (deliveries past max retries).
 
-Usage: `secondlayer subscriptions dead <idOrName>`
+Usage: `secondlayer webhooks dead <idOrName>`
 
 | Flag | Description |
 | --- | --- |
 | `--json` | Output as JSON. |
 | `--api-key <key>` / `--api-url <url>` | API auth overrides. |
 
-### secondlayer subscriptions requeue
+### secondlayer webhooks requeue
 
 **DESTRUCTIVE.** Requeue one dead-letter row.
 
-Usage: `secondlayer subscriptions requeue <idOrName> <outboxId>`
+Usage: `secondlayer webhooks requeue <idOrName> <outboxId>`
 
 | Flag | Description |
 | --- | --- |
@@ -623,11 +625,11 @@ Usage: `secondlayer subscriptions requeue <idOrName> <outboxId>`
 | `--json` | Output as JSON. |
 | `--api-key <key>` / `--api-url <url>` | API auth overrides. |
 
-### secondlayer subscriptions replay
+### secondlayer webhooks replay
 
 **DESTRUCTIVE.** Replay a block range (re-emits matching rows to the receiver).
 
-Usage: `secondlayer subscriptions replay <idOrName> --from-block <n> --to-block <n>`
+Usage: `secondlayer webhooks replay <idOrName> --from-block <n> --to-block <n>`
 
 | Flag | Required | Description |
 | --- | --- | --- |
@@ -639,33 +641,33 @@ Usage: `secondlayer subscriptions replay <idOrName> --from-block <n> --to-block 
 
 Returns `replayId`, `enqueuedCount`, `scannedCount`.
 
-### secondlayer subscriptions doctor
+### secondlayer webhooks doctor
 
-Diagnose subscription health (delivery stats, dead rows, linked subgraph sync, hints).
+Diagnose webhook health (delivery stats, dead rows, linked subgraph sync, hints).
 
-Usage: `secondlayer subscriptions doctor <idOrName>`
+Usage: `secondlayer webhooks doctor <idOrName>`
 
 | Flag | Description |
 | --- | --- |
 | `--json` | Output as JSON. |
 | `--api-key <key>` / `--api-url <url>` | API auth overrides. |
 
-### secondlayer subscriptions test
+### secondlayer webhooks test
 
 Build (and optionally POST) a signed Standard-Webhooks fixture.
 
-Usage: `secondlayer subscriptions test <idOrName>`
+Usage: `secondlayer webhooks test <idOrName>`
 
 | Flag | Description |
 | --- | --- |
 | `--signing-secret <secret>` | Signing secret override (otherwise reads `SIGNING_SECRET`). Required if env unset. |
-| `--post` | Actually POST the fixture to the subscription URL. |
+| `--post` | Actually POST the fixture to the webhook URL. |
 | `--json` | Output as JSON (fixture + post result). |
 | `--api-key <key>` / `--api-url <url>` | API auth overrides. |
 
 Fetches a recent row from the target table (falls back to synthetic row by column type), signs body with the secret, prints body / headers / curl invocation. With `--post`, POSTs and prints the receiver's status + first 2000 chars of body.
 
-Example: `SIGNING_SECRET=whsec_… secondlayer subscriptions test my-sub --post`
+Example: `SIGNING_SECRET=whsec_… secondlayer webhooks test my-sub --post`
 
 ---
 
@@ -937,7 +939,7 @@ Then run your normal `clarinet devnet start` — deployed contracts and their ev
 SL_API_URL=http://localhost:3800 INSTANCE_TOKEN=dev-instance-token secondlayer subgraphs deploy ./subgraph.ts
 ```
 
-The generated compose publishes the api on `127.0.0.1` only and hands it that same spec as `API_PUBLISH_ADDR`, so `/v1` reads on a devnet are keyless. `dev-instance-token` is the stack's fixed local token: writes (deploys, subscriptions) send it, and the container needs it to boot at all, since it listens on `0.0.0.0` behind the loopback publish. The indexer is the one port published on every interface — the devnet's stacks-node container POSTs to `host.docker.internal:3700`, which is not loopback.
+The generated compose publishes the api on `127.0.0.1` only and hands it that same spec as `API_PUBLISH_ADDR`, so `/v1` reads on a devnet are keyless. `dev-instance-token` is the stack's fixed local token: writes (deploys, webhooks) send it, and the container needs it to boot at all, since it listens on `0.0.0.0` behind the loopback publish. The indexer is the one port published on every interface — the devnet's stacks-node container POSTs to `host.docker.internal:3700`, which is not loopback.
 
 To see rows appear you need a real contract-call transaction — `clarinet console` runs against simnet, not your running devnet, so it won't broadcast on-chain. Fire one with `@stacks/transactions` (uses the well-known devnet deployer key):
 
@@ -1004,21 +1006,21 @@ Usage: `secondlayer devnet logs [service]` — `service` is optional, one of `in
 | `-f, --follow` | false | Follow log output. |
 | `-n, --lines <n>` | `200` | Lines to show from the end of each log. |
 
-### Testing subscriptions locally
+### Testing webhooks locally
 
-`secondlayer local up --devnet` starts the subscription emitter and configures the stack to deliver webhooks locally: it shares one secrets key across the api and subgraph-processor (so the emitter can decrypt a subscription's signing secret) and sets `SECONDLAYER_ALLOW_PRIVATE_EGRESS` (so webhooks can reach a localhost receiver). To test:
+`secondlayer local up --devnet` starts the webhook emitter and configures the stack to deliver webhooks locally: it shares one secrets key across the api and subgraph-processor (so the emitter can decrypt a webhook's signing secret) and sets `SECONDLAYER_ALLOW_PRIVATE_EGRESS` (so webhooks can reach a localhost receiver). To test:
 
 1. Deploy a subgraph (`secondlayer subgraphs deploy ./subgraph.ts`), then start a local chain with `clarinet devnet start`.
-2. Create a subscription on the local API, pointing at a webhook receiver on your host. The emitter runs in a container, so use `host.docker.internal` instead of `localhost`:
+2. Create a webhook on the local API, pointing at a webhook receiver on your host. The emitter runs in a container, so use `host.docker.internal` instead of `localhost`:
 
 ```bash
-curl -X POST http://localhost:3800/api/subscriptions \
+curl -X POST http://localhost:3800/api/webhooks \
   -H 'Authorization: Bearer dev-instance-token' \
   -H 'Content-Type: application/json' \
   -d '{"name":"my-hook","subgraphName":"my-app","tableName":"counter_calls","url":"http://host.docker.internal:9999/hook"}'
 ```
 
-3. Fire a contract call. The matched row is delivered to your receiver as a signed Standard-Webhooks payload; inspect attempts with `secondlayer subscriptions deliveries my-hook`.
+3. Fire a contract call. The matched row is delivered to your receiver as a signed Standard-Webhooks payload; inspect attempts with `secondlayer webhooks deliveries my-hook`.
 
 ---
 

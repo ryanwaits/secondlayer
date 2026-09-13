@@ -42,7 +42,7 @@ The mental model is viem: a `Client` carries `{ chain, transport, account? }` an
 | `@secondlayer/stacks/actions` | `getContract` and standalone action functions (`readContract`, `getBalance`, etc.) for use without a decorator. |
 | `@secondlayer/stacks/postconditions` | `Pc` fluent builder + post-condition types. |
 | `@secondlayer/stacks/transactions` | Low-level tx primitives: `buildTokenTransfer`, `buildContractCall`, `buildContractDeploy`, signers, serializers, multi-sig helpers, enums, types. |
-| `@secondlayer/stacks/subscriptions` | Watch actions + notification types. |
+| `@secondlayer/stacks/webhooks` | Watch actions + notification types. |
 | `@secondlayer/stacks/utils` | All encoding/hash/address/keys/signature utilities + constants. |
 | `@secondlayer/stacks/connect` | Browser wallet provider (`connect`, `getProvider`, `setProvider`, `isWalletInstalled`, `request`). |
 | `@secondlayer/stacks/connect/walletconnect` | `WalletConnectProvider` for WalletConnect v2. |
@@ -439,12 +439,12 @@ All methods are on the `PublicActions` shape attached by `publicActions` decorat
 | `multicall` | `(p: MulticallParams) => Promise<MulticallResult>` | Batch of `readContract`. `allowFailure` (default `true`) returns `{ status, result/error }[]`. |
 | `simulateCall` | `(p: SimulateCallParams) => Promise<SimulateCallResult>` | Simulate a read-only call; reports `writesDetected` if the function mutates state. |
 | `simulateTransaction` | `(p: { transaction, sender?, tip? }) => Promise<SimulateTransactionResult>` | Simulate any tx + fee estimates. Discriminated by `type: "contract-call" \| "token-transfer" \| "contract-deploy"`. |
-| `watchBlocks` | `(p: { onBlock }) => Promise<Subscription>` | Requires WebSocket transport. |
-| `watchMempool` | `(p: { onTransaction }) => Promise<Subscription>` | Mempool stream. |
-| `watchTransaction` | `(p: { txId, onUpdate }) => Promise<Subscription>` | Watch one tx. |
-| `watchAddress` | `(p: { address, onTransaction }) => Promise<Subscription>` | Per-address tx updates. |
-| `watchAddressBalance` | `(p: { address, onBalance }) => Promise<Subscription>` | Per-address balance updates. |
-| `watchNftEvent` | `(p: { onEvent, assetIdentifier?, value? }) => Promise<Subscription>` | NFT events (asset, collection, or specific token). |
+| `watchBlocks` | `(p: { onBlock }) => Promise<Subscription> /* WebSocket watch handle, not a Webhooks product alias */` | Requires WebSocket transport. |
+| `watchMempool` | `(p: { onTransaction }) => Promise<Subscription> /* WebSocket watch handle, not a Webhooks product alias */` | Mempool stream. |
+| `watchTransaction` | `(p: { txId, onUpdate }) => Promise<Subscription> /* WebSocket watch handle, not a Webhooks product alias */` | Watch one tx. |
+| `watchAddress` | `(p: { address, onTransaction }) => Promise<Subscription> /* WebSocket watch handle, not a Webhooks product alias */` | Per-address tx updates. |
+| `watchAddressBalance` | `(p: { address, onBalance }) => Promise<Subscription> /* WebSocket watch handle, not a Webhooks product alias */` | Per-address balance updates. |
+| `watchNftEvent` | `(p: { onEvent, assetIdentifier?, value? }) => Promise<Subscription> /* WebSocket watch handle, not a Webhooks product alias */` | NFT events (asset, collection, or specific token). |
 
 Types:
 
@@ -904,12 +904,12 @@ isNonSequential(hashMode): boolean                         // SIP-027
 
 Enums and types also exported: `AuthType`, `PayloadType`, `ClarityVersion`, `AnchorMode`, `PostConditionModeWire`, `AddressHashMode`, `PubKeyEncoding`, `FungibleConditionCode`, `NonFungibleConditionCode`, `AssetType`, `AuthFieldType`, `TenureChangeCause`, plus type-only `StacksTransaction`, `Authorization`, `SpendingCondition`, `*Payload`, `PostConditionWire`, `TransactionAuthField`.
 
-## 14. Subscriptions (WebSocket)
+## 14. Webhooks (WebSocket)
 
-All require a `webSocket()` transport. Each returns a `Subscription` handle.
+All require a `webSocket()` transport. Each returns a WebSocket `Subscription` handle (not a Webhooks product alias).
 
 ```ts
-type Subscription = { unsubscribe: () => void };
+type Subscription = /* WebSocket watch handle, not a Webhooks product alias */ { unsubscribe: () => void };
 ```
 
 | Action | Params | Notification payload |
@@ -935,7 +935,7 @@ const sub = await client.watchAddress({
 sub.unsubscribe();
 ```
 
-The WebSocket channel auto-reconnects (exponential backoff up to `reconnectMaxAttempts`) and resubscribes on reconnect. Subscriptions are deduplicated by (event, tx_id, address, asset_identifier, value) — multiple callbacks against the same key share one upstream subscription.
+The WebSocket channel auto-reconnects (exponential backoff up to `reconnectMaxAttempts`) and resubscribes on reconnect. Webhooks are deduplicated by (event, tx_id, address, asset_identifier, value) — multiple callbacks against the same key share one upstream webhook.
 
 ## 15. Utils
 

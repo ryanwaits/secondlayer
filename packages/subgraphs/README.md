@@ -13,7 +13,7 @@ bun add @secondlayer/subgraphs
 ## Quick Start
 
 For the full hosted beta loop, including project setup, fast deploys with
-`--start-block`, querying, and subscriptions, start with
+`--start-block`, querying, and webhooks, start with
 [QUICKSTART.md](QUICKSTART.md).
 
 ```typescript
@@ -63,24 +63,24 @@ Deploy via CLI (`secondlayer subgraphs deploy path/to/definition.ts`), SDK (`sl.
 | `./validate` | Shape + filter validation for deploys |
 | `./triggers` | Typed `on.*` helpers for all `SubgraphFilter` variants |
 | `./runtime/source-matcher` | Pure fn: match txs+events against a `SubgraphFilter` — used by the processor hot path |
-| `./runtime/replay` | `replaySubscription({ accountId, subscriptionId, fromBlock, toBlock })` — re-enqueue historical rows as outbox entries |
+| `./runtime/replay` | `replayWebhook({ accountId, webhookId, fromBlock, toBlock })` — re-enqueue historical rows as outbox entries |
 
 ## Runtime components
 
 The runtime ships behind these entrypoints (import from the package root):
 
-- `startSubgraphProcessor(opts?)` — boots the block processor. LISTENs on `indexer:new_block`, matches sources, runs handlers, flushes writes inside a transaction, and emits outbox rows for matching subscriptions. Also boots the emitter worker.
+- `startSubgraphProcessor(opts?)` — boots the block processor. LISTENs on `indexer:new_block`, matches sources, runs handlers, flushes writes inside a transaction, and emits outbox rows for matching webhooks. Also boots the emitter worker.
 - `processBlock(subgraph, name, height, opts?)` — single-block entry point used by catch-up, reindex, and tests.
 - `catchUpSubgraph(def, name)` — drains pending blocks up to chain tip.
 - `reindexSubgraph(def, opts)` — drop + rebuild schema tables from a start block. Breaking schema changes trigger this automatically on deploy.
 
-## Subscription emitter
+## Webhook emitter
 
-Every row written through `ctx.insert()` / `ctx.upsert()` is atomically enqueued to `subscription_outbox` for every active subscription whose filter matches — inside the same transaction as the flush, so a processor crash rolls back both.
+Every row written through `ctx.insert()` / `ctx.upsert()` is atomically enqueued to `webhook_outbox` for every active webhook whose filter matches — inside the same transaction as the flush, so a processor crash rolls back both.
 
-The emitter drains the outbox via `LISTEN subscriptions:new_outbox` and `FOR UPDATE SKIP LOCKED` batch claims. Live deliveries win a 90/10 split over replays. Each row dispatches through the format builder matching the subscription's `format` column (`standard-webhooks`, `inngest`, `trigger`, `cloudflare`, `cloudevents`, `raw`). Retries follow `30s → 2m → 10m → 1h → 6h → 24h → 72h`. Twenty consecutive failures trips the per-sub circuit breaker and pauses the subscription.
+The emitter drains the outbox via `LISTEN webhooks:new_outbox` and `FOR UPDATE SKIP LOCKED` batch claims. Live deliveries win a 90/10 split over replays. Each row dispatches through the format builder matching the webhook's `format` column (`standard-webhooks`, `inngest`, `trigger`, `cloudflare`, `cloudevents`, `raw`). Retries follow `30s → 2m → 10m → 1h → 6h → 24h → 72h`. Twenty consecutive failures trips the per-sub circuit breaker and pauses the webhook.
 
-Delivery bodies and response previews land in `subscription_deliveries`. Rows whose retries exhaust mark `status = 'dead'` in the outbox and surface in the dashboard's dead-letter queue for one-click requeue.
+Delivery bodies and response previews land in `webhook_deliveries`. Rows whose retries exhaust mark `status = 'dead'` in the outbox and surface in the dashboard's dead-letter queue for one-click requeue.
 
 ## Environment
 
@@ -88,7 +88,7 @@ Delivery bodies and response previews land in `subscription_deliveries`. Rows wh
 | --- | --- | --- |
 | `SECONDLAYER_EMIT_OUTBOX` | `true` | Set `false` to bypass outbox emission on every block (kill-switch). |
 | `SECONDLAYER_ALLOW_PRIVATE_EGRESS` | `false` | Allow the emitter to deliver to private IP ranges (localhost, 10/8, 172.16/12, 192.168/16, link-local, v6 mapped). Leave off in production. |
-| `SECONDLAYER_SECRETS_KEY` | — | 32-byte hex key for the AES-GCM envelope around subscription signing secrets. OSS mode auto-generates + persists to `.env.local`. |
+| `SECONDLAYER_SECRETS_KEY` | — | 32-byte hex key for the AES-GCM envelope around webhook signing secrets. OSS mode auto-generates + persists to `.env.local`. |
 | `SUBGRAPH_REINDEX_BATCH_SIZE` | adaptive | Override the default historical block batch size used by reindex/backfill. |
 | `SUBGRAPH_REINDEX_MIN_BATCH_SIZE` | adaptive | Override the adaptive lower bound for reindex/backfill batches. |
 | `SUBGRAPH_REINDEX_MAX_BATCH_SIZE` | adaptive | Override the adaptive upper bound for reindex/backfill batches. |
@@ -132,7 +132,7 @@ populated. Discover the set via `GET /v1/contracts?trait=sip-010`.
 
 ## Postgres + pool mode
 
-The emitter holds a persistent `LISTEN` on `subscriptions:new_outbox` and `subscriptions:changed`, so it MUST connect through a session-mode pool. pgbouncer in transaction mode silently breaks it. Run the emitter against a session-mode port (`pool_mode = session`), or connect directly to Postgres as the default docker-compose setup does.
+The emitter holds a persistent `LISTEN` on `webhooks:new_outbox` and `webhooks:changed`, so it MUST connect through a session-mode pool. pgbouncer in transaction mode silently breaks it. Run the emitter against a session-mode port (`pool_mode = session`), or connect directly to Postgres as the default docker-compose setup does.
 
 ## License
 

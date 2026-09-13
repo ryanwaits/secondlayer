@@ -6,11 +6,11 @@ Everything you need to install one or more Secondlayer packages, stand up an ins
 
 | Package | Install | What it's for |
 |---|---|---|
-| `@secondlayer/cli` | `bun add -g @secondlayer/cli` | The `secondlayer` binary. Instance setup, archive bootstrap/verify, subgraph deploy/query, subscription CRUD, streams, local dev, codegen. |
-| `@secondlayer/sdk` | `bun add @secondlayer/sdk` | TypeScript client for your instance API: `sl.streams`, `sl.index`, `sl.subgraphs`, `sl.subscriptions`. Webhook signature verification. |
+| `@secondlayer/cli` | `bun add -g @secondlayer/cli` | The `secondlayer` binary. Instance setup, archive bootstrap/verify, subgraph deploy/query, webhook CRUD, streams, local dev, codegen. |
+| `@secondlayer/sdk` | `bun add @secondlayer/sdk` | TypeScript client for your instance API: `sl.streams`, `sl.index`, `sl.subgraphs`, `sl.webhooks`. Webhook signature verification. |
 | `@secondlayer/subgraphs` | `bun add @secondlayer/subgraphs` | Author-side library for writing subgraph definitions (`defineSubgraph`, types, triggers). |
 | `@secondlayer/stacks` | `bun add @secondlayer/stacks` | viem-style Stacks chain client. Reads + signs txs. `Cl`, `Pc`, `getContract`, BNS / PoX / sBTC / StackingDAO. |
-| `@secondlayer/mcp` | `bun add -d @secondlayer/mcp` | MCP server for agents to manage subgraphs/subscriptions without shelling out. |
+| `@secondlayer/mcp` | `bun add -d @secondlayer/mcp` | MCP server for agents to manage subgraphs/webhooks without shelling out. |
 
 Pick only the packages your task needs. They have no shared runtime — each is independently installable.
 
@@ -65,7 +65,7 @@ export SL_API_URL=http://127.0.0.1:3800
 export INSTANCE_TOKEN=<token from .env.local>
 ```
 
-Writes (`/api/subgraphs`, `/api/subscriptions`, `/api/node`, `/status`) send `Authorization: Bearer <INSTANCE_TOKEN>` whenever the instance has a token, loopback included. `/v1` reads send it once the API is published past loopback — mandatory there, since an instance that binds past loopback with no token refuses to start. `/health` and `/public/*` are always open.
+Writes (`/api/subgraphs`, `/api/webhooks`, `/api/node`, `/status`) send `Authorization: Bearer <INSTANCE_TOKEN>` whenever the instance has a token, loopback included. `/v1` reads send it once the API is published past loopback — mandatory there, since an instance that binds past loopback with no token refuses to start. `/health` and `/public/*` are always open.
 
 `--api-key <key>` is shape-routed: hex → instance token, `sk-sl_*` → hosted account key. `--api-url <url>` overrides `SECONDLAYER_API_URL` / `SL_API_URL` for that one invocation.
 
@@ -76,7 +76,7 @@ Writes (`/api/subgraphs`, `/api/subscriptions`, `/api/node`, `/status`) send `Au
 | `SECONDLAYER_API_URL` | All SDK + CLI calls | Override API base. Default: `http://127.0.0.1:3800`. `SL_API_URL` is a one-release fallback. |
 | `INSTANCE_TOKEN` | CLI writes, MCP, SDK | Hex token `secondlayer init` writes for your instance. Loopback reads need no value. |
 | `SECONDLAYER_API_KEY` | Hosted API, archive, credits | Account key (`sk-sl_*`). `SL_API_KEY` is a one-release hosted fallback, not an instance alias. |
-| `SIGNING_SECRET` | `secondlayer subscriptions test` fallback | If `--signing-secret` not passed. |
+| `SIGNING_SECRET` | `secondlayer webhooks test` fallback | If `--signing-secret` not passed. |
 | `STACKS_NETWORK` | `secondlayer codegen contracts` and some local commands | `mainnet`, `testnet`, or `devnet` (`devnet` maps to the config file's `local`). |
 
 ## SDK quickstart
@@ -90,7 +90,7 @@ const tip = await sl.streams.tip();
 const { data } = await sl.subgraphs.list();
 ```
 
-Loopback reads need no key. History is whatever this instance has bootstrapped. Writes (`sl.subgraphs.deploy`, `sl.subscriptions.create`, …) pass `INSTANCE_TOKEN` as `apiKey` — either explicitly (`new SecondLayer({ apiKey: process.env.INSTANCE_TOKEN })`) or by exporting `INSTANCE_TOKEN`, which the SDK picks up. Hosted archive/credits use `accountKey` / `SECONDLAYER_API_KEY`. Public Streams dumps (`client.dumps`, `events.replay`) need no instance key.
+Loopback reads need no key. History is whatever this instance has bootstrapped. Writes (`sl.subgraphs.deploy`, `sl.webhooks.create`, …) pass `INSTANCE_TOKEN` as `apiKey` — either explicitly (`new SecondLayer({ apiKey: process.env.INSTANCE_TOKEN })`) or by exporting `INSTANCE_TOKEN`, which the SDK picks up. Hosted archive/credits use `accountKey` / `SECONDLAYER_API_KEY`. Public Streams dumps (`client.dumps`, `events.replay`) need no instance key.
 
 ## Stacks client quickstart
 

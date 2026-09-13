@@ -4,8 +4,8 @@
 // `webhook-id` / `webhook-timestamp` / `webhook-signature` headers, checks
 // the timestamp is within tolerance, and HMAC-verifies a `v1` signature.
 //
-// Set SIGNING_SECRET to the value returned ONCE by `secondlayer subscriptions create`
-// or `secondlayer subscriptions rotate-secret`.
+// Set SIGNING_SECRET to the value returned ONCE by `secondlayer webhooks create`
+// or `secondlayer webhooks rotate-secret`.
 
 import { Hono } from "hono";
 import { verifyWebhookSignature } from "@secondlayer/sdk";
@@ -29,7 +29,8 @@ app.post("/webhook", async (c) => {
   // Dedup on `webhook-id` if your handler isn't idempotent — the same id
   // arrives on every retry.
   const deliveryId = c.req.header("webhook-id");
-  console.log(`[${payload.type}] delivery=${deliveryId}`, payload.data);
+  const webhookId = (payload.data as { webhook_id?: string }).webhook_id;
+  console.log(`[${payload.type}] delivery=${deliveryId} webhook=${webhookId}`, payload.data);
 
   // Return 2xx fast. Long work goes on a queue — Secondlayer retries on
   // 5xx / timeout with backoff 30s → 2m → 10m → 1h → 6h → 24h → 72h.

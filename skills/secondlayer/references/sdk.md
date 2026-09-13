@@ -2,7 +2,7 @@
 
 Source of truth: `packages/sdk/src/`. Function signatures below are copied verbatim — match them exactly when generating code.
 
-**Auth model:** default `baseUrl` is `http://127.0.0.1:3800` (or `SECONDLAYER_API_URL` / `SL_API_URL`). Loopback reads on `sl.contracts.*`, `sl.index.*`, `sl.streams.*`, and `sl.subgraphs.rows()` need no key. History is whatever this instance has bootstrapped. Writes (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.subscriptions.*`) use `INSTANCE_TOKEN` from `secondlayer init` as `apiKey`. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no instance key.
+**Auth model:** default `baseUrl` is `http://127.0.0.1:3800` (or `SECONDLAYER_API_URL` / `SL_API_URL`). Loopback reads on `sl.contracts.*`, `sl.index.*`, `sl.streams.*`, and `sl.subgraphs.rows()` need no key. History is whatever this instance has bootstrapped. Writes (`subgraphs.deploy/reindex/backfill/stop/delete/bundle`, all `sl.webhooks.*`) use `INSTANCE_TOKEN` from `secondlayer init` as `apiKey`. Bulk Streams dumps (`client.dumps`, `events.replay`, `GET /public/streams/dumps/manifest`) are **public** — no instance key.
 
 Two credentials: `apiKey` / `INSTANCE_TOKEN` for your instance; `accountKey` / `SECONDLAYER_API_KEY` (`sk-sl_*`) for hosted API and archive. Pass `INSTANCE_TOKEN` as `apiKey`, or export it and the client picks it up (`resolveApiKey`). Writes always need it. Reads need it once the API is reachable past loopback — which is mandatory there, since an instance binding past loopback with no token refuses to start. Passing `apiKey` on a keyless loopback read is harmless: an unrecognized credential is ignored, not rejected.
 
@@ -60,7 +60,7 @@ sl.streams        // StreamsClient
 sl.index          // Index
 sl.contracts      // Contracts — trait-based contract discovery
 sl.subgraphs      // Subgraphs
-sl.subscriptions  // Subscriptions
+sl.webhooks  // Webhooks
 ```
 
 Discover what exists at runtime: `sl.contracts.list({ trait: "sip-010" })` finds
@@ -118,7 +118,7 @@ import type {
 } from "@secondlayer/sdk/subgraphs";
 ```
 
-The root `@secondlayer/sdk` re-exports everything above plus `SecondLayer`, `Index`, `Subgraphs`, `Subscriptions`, `ApiError`, `verifyWebhookSignature`, and all subscription/index/subgraph types.
+The root `@secondlayer/sdk` re-exports everything above plus `SecondLayer`, `Index`, `Subgraphs`, `Webhooks`, `ApiError`, `verifyWebhookSignature`, and all webhook/index/subgraph types.
 
 ---
 
@@ -997,38 +997,39 @@ const client = getSubgraph(mySubgraph, { apiKey: process.env.INSTANCE_TOKEN });
 
 ---
 
-## 7. `sl.subscriptions` — webhook subscriptions
+## 7. `sl.webhooks` — webhook webhooks
 
 **All methods require `apiKey`.**
 
-A subscription is one of two **kinds** (mutually exclusive):
+A webhook is one of two **kinds** (mutually exclusive):
 - **`subgraph`** — fires on rows written to a deployed subgraph's table (`subgraphName` + `tableName` + column `filter`).
 - **`chain`** — fires on **raw chain events directly, no subgraph** (`triggers`). The turnkey "webhook on a contract / event-type / function-call (or any SIP-010/SIP-009/custom trait)". Built off the public Index/Streams clock; **forward-looking** (starts at chain tip, never backfills).
 
-Both kinds share the same delivery stack (retries, circuit breaker, 6 formats, per-subscription HMAC signing) and the same routes below.
+Both kinds share the same delivery stack (retries, circuit breaker, 6 formats, per-webhook HMAC signing) and the same routes below.
 
 ### Shared types
 
 ```ts
-type SubscriptionStatus  = "active" | "paused" | "error";
-type SubscriptionFormat  = "standard-webhooks" | "inngest" | "trigger" | "cloudflare" | "cloudevents" | "raw";
-type SubscriptionRuntime = "inngest" | "trigger" | "cloudflare" | "node";
+<!-- deprecated alias type names; prefer Webhook* -->
+type SubscriptionStatus /* deprecated alias */  = "active" | "paused" | "error";
+type SubscriptionFormat /* deprecated alias */  = "standard-webhooks" | "inngest" | "trigger" | "cloudflare" | "cloudevents" | "raw";
+type SubscriptionRuntime /* deprecated alias */ = "inngest" | "trigger" | "cloudflare" | "node";
 
-type SubscriptionFilterPrimitive = string | number | boolean;
-type SubscriptionFilterOperator =
-  | { eq: SubscriptionFilterPrimitive }
-  | { neq: SubscriptionFilterPrimitive }
+type SubscriptionFilter /* deprecated alias */Primitive = string | number | boolean;
+type SubscriptionFilter /* deprecated alias */Operator =
+  | { eq: SubscriptionFilterPrimitive } <!-- deprecated alias -->
+  | { neq: SubscriptionFilterPrimitive } <!-- deprecated alias -->
   | { gt:  string | number }
   | { gte: string | number }
   | { lt:  string | number }
   | { lte: string | number }
-  | { in:  SubscriptionFilterPrimitive[] };
-type SubscriptionFilterClause = SubscriptionFilterPrimitive | SubscriptionFilterOperator;
-type SubscriptionFilter = Record<string, SubscriptionFilterClause>;
+  | { in:  SubscriptionFilterPrimitive[] }; <!-- deprecated alias -->
+type SubscriptionFilter /* deprecated alias */Clause = SubscriptionFilterPrimitive | SubscriptionFilterOperator;
+type SubscriptionFilter /* deprecated alias */ = Record<string, SubscriptionFilterClause>;
 
-type SubscriptionKind = "subgraph" | "chain";
+type SubscriptionKind /* deprecated alias */ = "subgraph" | "chain";
 
-// Chain-trigger filter (the wire shape for chain subscriptions). Amounts are
+// Chain-trigger filter (the wire shape for chain webhooks). Amounts are
 // non-negative integer strings (uint128-safe) or numbers.
 type ChainTrigger =
   | { type: "stx_transfer"; sender?: string; recipient?: string; minAmount?: string | number; maxAmount?: string | number }
@@ -1042,15 +1043,15 @@ type ChainTrigger =
 // All string fields support `*` wildcards. `trait` scopes to contracts
 // conforming to a SIP/trait (e.g. "sip-010") — resolved from the contract registry.
 
-interface SubscriptionSummary {
+interface SubscriptionSummary /* deprecated alias */ {
   id: string;
   name: string;
-  status: SubscriptionStatus;
-  kind: SubscriptionKind;
-  subgraphName: string | null;   // null for chain subscriptions
-  tableName: string | null;      // null for chain subscriptions
-  format: SubscriptionFormat;
-  runtime: SubscriptionRuntime | null;
+  status: SubscriptionStatus; <!-- deprecated alias -->
+  kind: SubscriptionKind; <!-- deprecated alias -->
+  subgraphName: string | null;   // null for chain webhooks
+  tableName: string | null;      // null for chain webhooks
+  format: SubscriptionFormat; <!-- deprecated alias -->
+  runtime: SubscriptionRuntime | null; <!-- deprecated alias -->
   url: string;
   lastDeliveryAt: string | null;
   lastSuccessAt: string | null;
@@ -1058,9 +1059,9 @@ interface SubscriptionSummary {
   updatedAt: string;
 }
 
-interface SubscriptionDetail extends SubscriptionSummary {
+interface SubscriptionDetail /* deprecated alias */ extends SubscriptionSummary {
   filter: Record<string, unknown>;
-  triggers: ChainTrigger[] | null;  // chain subscriptions only
+  triggers: ChainTrigger[] | null;  // chain webhooks only
   authConfig: Record<string, unknown>;
   maxRetries: number;
   timeoutMs: number;
@@ -1071,7 +1072,7 @@ interface SubscriptionDetail extends SubscriptionSummary {
 }
 ```
 
-### Delivery envelope (chain subscriptions)
+### Delivery envelope (chain webhooks)
 
 Chain deliveries carry an **apply / rollback** envelope so consumers can reconcile reorgs:
 
@@ -1091,43 +1092,43 @@ Delivery is at-least-once. A tx that survives a reorg re-delivers an `apply` und
 ### `list()`, `get(id)`
 
 ```ts
-list(): Promise<{ data: SubscriptionSummary[] }>
-get(id: string): Promise<SubscriptionDetail>
+list(): Promise<{ data: SubscriptionSummary[] /* deprecated alias */ }>
+get(id: string): Promise<SubscriptionDetail> /* deprecated alias */
 ```
 
 ### `create(input)`
 
 ```ts
-interface CreateSubscriptionRequest {
+interface CreateSubscriptionRequest /* deprecated alias */ {
   name: string;
   url: string;                              // must start with http(s)://
-  // Provide EITHER a subgraph target (subgraph subscription) ...
+  // Provide EITHER a subgraph target (subgraph webhook) ...
   subgraphName?: string;
   tableName?: string;
-  filter?: SubscriptionFilter;
-  // ... OR triggers (chain subscription). Mutually exclusive.
+  filter?: SubscriptionFilter; <!-- deprecated alias -->
+  // ... OR triggers (chain webhook). Mutually exclusive.
   triggers?: ChainTrigger[];                // 1..50
-  format?: SubscriptionFormat;              // default "standard-webhooks"
-  runtime?: SubscriptionRuntime | null;
+  format?: SubscriptionFormat;              // default "standard-webhooks" <!-- deprecated alias -->
+  runtime?: SubscriptionRuntime | null; <!-- deprecated alias -->
   authConfig?: Record<string, unknown>;
   maxRetries?: number;                      // 0..100
   timeoutMs?: number;                       // 100..300_000
   concurrency?: number;                     // 1..100
 }
 
-interface CreateSubscriptionResponse {
-  subscription: SubscriptionDetail;
+interface CreateSubscriptionResponse /* deprecated alias */ {
+  webhook: SubscriptionDetail; <!-- deprecated alias -->
   /** Plaintext signing secret — surfaced ONCE. Persist it server-side. */
   signingSecret: string;
 }
 
-create(input: CreateSubscriptionRequest): Promise<CreateSubscriptionResponse>
+create(input: CreateSubscriptionRequest): Promise<CreateSubscriptionResponse> /* deprecated alias */
 ```
 
-**Subgraph subscription** — react to processed table rows:
+**Subgraph webhook** — react to processed table rows:
 
 ```ts
-const { subscription, signingSecret } = await sl.subscriptions.create({
+const { webhook, signingSecret } = await sl.webhooks.create({
   name: "whale-alerts",
   subgraphName: "sbtc",
   tableName: "transfers",
@@ -1141,15 +1142,15 @@ const { subscription, signingSecret } = await sl.subscriptions.create({
   timeoutMs: 10_000,
 });
 
-await secretStore.put(subscription.id, signingSecret); // store it NOW
+await secretStore.put(webhook.id, signingSecret); // store it NOW
 ```
 
-**Chain subscription** — react to raw chain events, no subgraph. Use the `trigger.*` builders:
+**Chain webhook** — react to raw chain events, no subgraph. Use the `trigger.*` builders:
 
 ```ts
 import { trigger } from "@secondlayer/sdk";
 
-const { subscription, signingSecret } = await sl.subscriptions.create({
+const { webhook, signingSecret } = await sl.webhooks.create({
   name: "amm-swaps",
   url: "https://example.com/webhooks/swaps",
   triggers: [
@@ -1159,31 +1160,31 @@ const { subscription, signingSecret } = await sl.subscriptions.create({
 });
 ```
 
-`trigger` exposes one builder per event type: `stxTransfer/stxMint/stxBurn/stxLock`, `ftTransfer/ftMint/ftBurn`, `nftTransfer/nftMint/nftBurn`, `contractCall`, `contractDeploy`, `printEvent`. `update()` cannot switch a subscription's kind.
+`trigger` exposes one builder per event type: `stxTransfer/stxMint/stxBurn/stxLock`, `ftTransfer/ftMint/ftBurn`, `nftTransfer/nftMint/nftBurn`, `contractCall`, `contractDeploy`, `printEvent`. `update()` cannot switch a webhook's kind.
 
 ### `update(id, patch)`
 
 ```ts
-interface UpdateSubscriptionRequest {
+interface UpdateSubscriptionRequest /* deprecated alias */ {
   name?: string;
   url?: string;
-  filter?: SubscriptionFilter;
-  format?: SubscriptionFormat;
-  runtime?: SubscriptionRuntime | null;
+  filter?: SubscriptionFilter; <!-- deprecated alias -->
+  format?: SubscriptionFormat; <!-- deprecated alias -->
+  runtime?: SubscriptionRuntime | null; <!-- deprecated alias -->
   authConfig?: Record<string, unknown>;
   maxRetries?: number;
   timeoutMs?: number;
   concurrency?: number;
 }
 
-update(id: string, patch: UpdateSubscriptionRequest): Promise<SubscriptionDetail>
+update(id: string, patch: UpdateSubscriptionRequest): Promise<SubscriptionDetail> /* deprecated alias */
 ```
 
 ### `pause`, `resume`, `delete`
 
 ```ts
-pause(id: string):  Promise<SubscriptionDetail>
-resume(id: string): Promise<SubscriptionDetail>
+pause(id: string):  Promise<SubscriptionDetail> /* deprecated alias */
+resume(id: string): Promise<SubscriptionDetail> /* deprecated alias */
 delete(id: string): Promise<{ ok: true }>
 ```
 
@@ -1191,7 +1192,7 @@ delete(id: string): Promise<{ ok: true }>
 
 ```ts
 interface RotateSecretResponse {
-  subscription: SubscriptionDetail;
+  webhook: SubscriptionDetail; <!-- deprecated alias -->
   signingSecret: string; // new plaintext — store immediately
 }
 
@@ -1239,7 +1240,7 @@ replay(id: string, range: { fromBlock: number; toBlock: number }): Promise<Repla
 ```
 
 ```ts
-const { enqueuedCount } = await sl.subscriptions.replay(sub.id, {
+const { enqueuedCount } = await sl.webhooks.replay(sub.id, {
   fromBlock: 170_000,
   toBlock:   170_500,
 });
@@ -1252,8 +1253,8 @@ requeue(id: string, outboxId: string): Promise<{ ok: true }>
 ```
 
 ```ts
-const { data: dead } = await sl.subscriptions.dead(sub.id);
-for (const row of dead) await sl.subscriptions.requeue(sub.id, row.id);
+const { data: dead } = await sl.webhooks.dead(sub.id);
+for (const row of dead) await sl.webhooks.requeue(sub.id, row.id);
 ```
 
 ---
@@ -1264,7 +1265,7 @@ All errors live in `@secondlayer/sdk`.
 
 ### Instance API: `ApiError`
 
-Thrown by `sl.index.*`, `sl.subgraphs.*`, `sl.subscriptions.*`.
+Thrown by `sl.index.*`, `sl.subgraphs.*`, `sl.webhooks.*`.
 
 ```ts
 class ApiError extends Error {
@@ -1357,7 +1358,7 @@ import { verifyWebhookSignature } from "@secondlayer/sdk";
 verifyWebhookSignature(
   rawBody: string,                     // raw request body (NOT JSON.stringify(req.body))
   headers: WebhookHeaderInput,         // see below
-  secret: string,                      // signing secret from subscriptions.create / rotateSecret
+  secret: string,                      // signing secret from webhooks.create / rotateSecret
   toleranceSeconds?: number,           // default 300
 ): boolean
 ```

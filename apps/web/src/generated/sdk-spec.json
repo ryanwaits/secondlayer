@@ -35,7 +35,7 @@
 					"summary": "Fold one read into a {@link ContextField}: the value, or `null` with the failure described.",
 					"signature": "contextField(read: object): object",
 					"file": "src/client.ts",
-					"line": 80
+					"line": 85
 				},
 				{
 					"name": "ContextField",
@@ -123,7 +123,7 @@
 					"summary": "",
 					"signature": "SecondLayer(options?: object): unknown",
 					"file": "src/client.ts",
-					"line": 110
+					"line": 115
 				},
 				{
 					"name": "SecondLayerOptions",
@@ -197,7 +197,7 @@
 				{
 					"name": "consumeIndexFeed",
 					"kind": "function",
-					"summary": "Checkpointed pull loop over a cursor-paginated Index feed — the Index port of `consumeStreamsEvents`, sharing its contract: at-least-once delivery, client-owned checkpoints (`onBatch` may return th…",
+					"summary": "Checkpointed pull loop over a cursor-paginated Index feed \u2014 the Index port of `consumeStreamsEvents`, sharing its contract: at-least-once delivery, client-owned checkpoints (`onBatch` may return th\u2026",
 					"signature": "consumeIndexFeed(opts: object): object",
 					"file": "src/index-api/consumer.ts",
 					"line": 122
@@ -293,7 +293,7 @@
 				{
 					"name": "FtTransfersResource",
 					"kind": "interface",
-					"summary": "`index.ftTransfers` — callable shorthand for `.list()`, with `.list`/`.walk` still available: `await sl.index.ftTransfers({ contractId })`.",
+					"summary": "`index.ftTransfers` \u2014 callable shorthand for `.list()`, with `.list`/`.walk` still available: `await sl.index.ftTransfers({ contractId })`.",
 					"signature": "FtTransfersResource(params: object): object",
 					"file": "src/index-api/client.ts",
 					"line": 1283
@@ -325,7 +325,7 @@
 				{
 					"name": "IndexAlwaysFields",
 					"kind": "type",
-					"summary": "Fields every read returns regardless of `fields` — the consume contract (`cursor`, `block_height`) plus the union discriminant.",
+					"summary": "Fields every read returns regardless of `fields` \u2014 the consume contract (`cursor`, `block_height`) plus the union discriminant.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
 					"line": 284
@@ -365,7 +365,7 @@
 				{
 					"name": "IndexDiscovery",
 					"kind": "type",
-					"summary": "The `GET /v1/index` discovery doc — live endpoint + filter vocabulary.",
+					"summary": "The `GET /v1/index` discovery doc \u2014 live endpoint + filter vocabulary.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
 					"line": 1380
@@ -397,7 +397,7 @@
 				{
 					"name": "IndexEventsResource",
 					"kind": "interface",
-					"summary": "`index.events` — callable shorthand for `.list()`; `eventType` is required.",
+					"summary": "`index.events` \u2014 callable shorthand for `.list()`; `eventType` is required.",
 					"signature": "IndexEventsResource(params: object): object",
 					"file": "src/index-api/client.ts",
 					"line": 1327
@@ -517,7 +517,7 @@
 				{
 					"name": "IndexPox5EventTopic",
 					"kind": "type",
-					"summary": "The decoded `pox-5` boot-contract print topics (SIP-045 Bitcoin Staking) — one source of truth in `@secondlayer/stacks/pox5` (already a dependency; the old \"SDK owns its own dependency surface\" rat…",
+					"summary": "The decoded `pox-5` boot-contract print topics (SIP-045 Bitcoin Staking) \u2014 one source of truth in `@secondlayer/stacks/pox5` (already a dependency; the old \"SDK owns its own dependency surface\" rat\u2026",
 					"signature": null,
 					"file": "src/index-api/client.ts",
 					"line": 1130
@@ -525,7 +525,7 @@
 				{
 					"name": "IndexPoxCycle",
 					"kind": "type",
-					"summary": "Aggregate stats for one PoX reward cycle — distinct from `index.stacking` (decoded per-call PoX-4 actions); this is the reward-cycle rollup.",
+					"summary": "Aggregate stats for one PoX reward cycle \u2014 distinct from `index.stacking` (decoded per-call PoX-4 actions); this is the reward-cycle rollup.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
 					"line": 1077
@@ -565,7 +565,7 @@
 				{
 					"name": "IndexSbtcDepositDetail",
 					"kind": "type",
-					"summary": "A deposit fetched by Bitcoin txid — always terminal, hence `status`.",
+					"summary": "A deposit fetched by Bitcoin txid \u2014 always terminal, hence `status`.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
 					"line": 762
@@ -573,7 +573,7 @@
 				{
 					"name": "IndexSbtcEvent",
 					"kind": "type",
-					"summary": "A raw decoded sBTC protocol-state event — the full `sbtc_events` row, one per event across all topics.",
+					"summary": "A raw decoded sBTC protocol-state event \u2014 the full `sbtc_events` row, one per event across all topics.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
 					"line": 826
@@ -581,7 +581,7 @@
 				{
 					"name": "IndexSbtcSummary",
 					"kind": "type",
-					"summary": "The peg \"scoreboard\" — a single all-time canonical aggregate.",
+					"summary": "The peg \"scoreboard\" \u2014 a single all-time canonical aggregate.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
 					"line": 856
@@ -725,7 +725,7 @@
 				{
 					"name": "NftTransfersResource",
 					"kind": "interface",
-					"summary": "`index.nftTransfers` — callable shorthand for `.list()` (see {@link FtTransfersResource}).",
+					"summary": "`index.nftTransfers` \u2014 callable shorthand for `.list()` (see {@link FtTransfersResource}).",
 					"signature": "NftTransfersResource(params: object): object",
 					"file": "src/index-api/client.ts",
 					"line": 1306
@@ -765,7 +765,7 @@
 				{
 					"name": "Pox5Resource",
 					"kind": "interface",
-					"summary": "`index.pox5` — decoded PoX-5 print events, the staking primitive from the epoch 4.0 hard fork onward (PoX-4's `index.stacking` stream ends there).",
+					"summary": "`index.pox5` \u2014 decoded PoX-5 print events, the staking primitive from the epoch 4.0 hard fork onward (PoX-4's `index.stacking` stream ends there).",
 					"signature": null,
 					"file": "src/index-api/client.ts",
 					"line": 1206
@@ -805,7 +805,7 @@
 				{
 					"name": "PoxResource",
 					"kind": "interface",
-					"summary": "`index.pox` — PoX reward-cycle aggregates.",
+					"summary": "`index.pox` \u2014 PoX reward-cycle aggregates.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
 					"line": 1116
@@ -893,7 +893,7 @@
 				{
 					"name": "SbtcResource",
 					"kind": "interface",
-					"summary": "`index.sbtc` — the decoded sBTC peg surface (deposits, withdrawals, raw events, scoreboard).",
+					"summary": "`index.sbtc` \u2014 the decoded sBTC peg surface (deposits, withdrawals, raw events, scoreboard).",
 					"signature": null,
 					"file": "src/index-api/client.ts",
 					"line": 1010
@@ -1095,7 +1095,7 @@
 				{
 					"name": "decode",
 					"kind": "function",
-					"summary": "Decode a raw Streams event into the SAME flat, `event_type`-discriminated row shape Index serves — so Streams consumption reads identically to Index consumption, with one call instead of eleven gua…",
+					"summary": "Decode a raw Streams event into the SAME flat, `event_type`-discriminated row shape Index serves \u2014 so Streams consumption reads identically to Index consumption, with one call instead of eleven gua\u2026",
 					"signature": "decode(event: StreamsEvent): IndexEvent",
 					"file": "src/streams/decode.ts",
 					"line": 25
@@ -1103,7 +1103,7 @@
 				{
 					"name": "decodeClarityValue",
 					"kind": "function",
-					"summary": "Decode a hex-encoded Clarity value to JSON-safe JS (uints as strings, buffers as `0x…` hex, tuples as objects).",
+					"summary": "Decode a hex-encoded Clarity value to JSON-safe JS (uints as strings, buffers as `0x\u2026` hex, tuples as objects).",
 					"signature": "decodeClarityValue(hex: string): object",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
 					"line": 6
@@ -1119,7 +1119,7 @@
 				{
 					"name": "DecodedEventRow",
 					"kind": "type",
-					"summary": "Union of every decoded DB-row shape the guard+decode pairs produce — exactly what the `decoded_events` table stores.",
+					"summary": "Union of every decoded DB-row shape the guard+decode pairs produce \u2014 exactly what the `decoded_events` table stores.",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
 					"line": 398
@@ -1527,7 +1527,7 @@
 				{
 					"name": "StreamsBatch",
 					"kind": "type",
-					"summary": "One yielded page from {@link StreamsClient.consume} — the `GET /v1/streams/events` envelope verbatim, with `next_cursor` renamed to `cursor` (the checkpoint to persist and resume from).",
+					"summary": "One yielded page from {@link StreamsClient.consume} \u2014 the `GET /v1/streams/events` envelope verbatim, with `next_cursor` renamed to `cursor` (the checkpoint to persist and resume from).",
 					"signature": null,
 					"file": "src/streams/types.ts",
 					"line": 417
@@ -1735,7 +1735,7 @@
 				{
 					"name": "toJsonSafe",
 					"kind": "function",
-					"summary": "Make a cvToValue result JSON-serializable: Clarity (u)ints decode to bigint, which JSON.stringify can't handle — convert recursively to strings.",
+					"summary": "Make a cvToValue result JSON-serializable: Clarity (u)ints decode to bigint, which JSON.stringify can't handle \u2014 convert recursively to strings.",
 					"signature": "toJsonSafe(value: object): object",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
 					"line": 3
@@ -1743,14 +1743,14 @@
 			]
 		},
 		{
-			"name": "Subscriptions and webhooks",
+			"name": "Subscriptions and webhooks (deprecated alias)",
 			"exports": [
 				{
 					"name": "ChainApplyDeliveryOf",
 					"kind": "type",
 					"summary": "One delivery body, generic over its trigger literal + matched-event shape.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 242
 				},
 				{
@@ -1758,7 +1758,7 @@
 					"kind": "interface",
 					"summary": "Delivered when a matched chain event lands in a canonical block (`event_type: \"chain.<trigger>.apply\"`).",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 58
 				},
 				{
@@ -1766,7 +1766,7 @@
 					"kind": "interface",
 					"summary": "One `apply` envelope, generic over its trigger literal + matched-event shape.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 228
 				},
 				{
@@ -1774,7 +1774,7 @@
 					"kind": "interface",
 					"summary": "Wrapper around an event-level trigger's matched event.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 200
 				},
 				{
@@ -1782,7 +1782,7 @@
 					"kind": "interface",
 					"summary": "`event.data` for an `ft_burn` delivery.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 154
 				},
 				{
@@ -1790,7 +1790,7 @@
 					"kind": "interface",
 					"summary": "`event.data` for an `ft_mint` delivery.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 148
 				},
 				{
@@ -1798,7 +1798,7 @@
 					"kind": "interface",
 					"summary": "`event.data` for an `ft_transfer` delivery.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 141
 				},
 				{
@@ -1806,7 +1806,7 @@
 					"kind": "interface",
 					"summary": "`event.data` for an `nft_burn` delivery.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 177
 				},
 				{
@@ -1814,7 +1814,7 @@
 					"kind": "interface",
 					"summary": "`event.data` for an `nft_mint` delivery.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 171
 				},
 				{
@@ -1822,7 +1822,7 @@
 					"kind": "interface",
 					"summary": "`event.data` for an `nft_transfer` delivery.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 164
 				},
 				{
@@ -1830,7 +1830,7 @@
 					"kind": "interface",
 					"summary": "`event.data` for a `print_event` delivery.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 187
 				},
 				{
@@ -1838,23 +1838,23 @@
 					"kind": "interface",
 					"summary": "One orphaned delivery recalled by a reorg rollback.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 76
 				},
 				{
 					"name": "ChainReorgRollbackDelivery",
 					"kind": "interface",
-					"summary": "Delivered once per affected subscription on a reorg (`type: \"chain.reorg.rollback\"`).",
+					"summary": "Delivered once per affected webhook on a reorg (`type: \"chain.reorg.rollback\"`).",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 252
 				},
 				{
 					"name": "ChainReorgRollbackEnvelope",
 					"kind": "interface",
-					"summary": "Delivered once per affected subscription on a reorg (`event_type: \"chain.reorg.rollback\"`).",
+					"summary": "Delivered once per affected webhook on a reorg (`event_type: \"chain.reorg.rollback\"`).",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 88
 				},
 				{
@@ -1862,7 +1862,7 @@
 					"kind": "interface",
 					"summary": "`event.data` for a `stx_burn` delivery.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 130
 				},
 				{
@@ -1870,7 +1870,7 @@
 					"kind": "interface",
 					"summary": "`event.data` for a `stx_lock` delivery.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 135
 				},
 				{
@@ -1878,7 +1878,7 @@
 					"kind": "interface",
 					"summary": "`event.data` for a `stx_mint` delivery.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 125
 				},
 				{
@@ -1886,15 +1886,15 @@
 					"kind": "interface",
 					"summary": "`event.data` for a `stx_transfer` delivery.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 117
 				},
 				{
 					"name": "ChainTestDelivery",
 					"kind": "interface",
-					"summary": "The `POST /subscriptions/:id/test` ping (`type: \"chain.test.apply\"`) — not a real chain event.",
+					"summary": "The `POST /webhooks/:id/test` ping (`type: \"chain.test.apply\"`) \u2014 not a real chain event.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 259
 				},
 				{
@@ -1902,7 +1902,7 @@
 					"kind": "type",
 					"summary": "JSON mirror of the subgraph runtime's `SubgraphFilter` union.",
 					"signature": null,
-					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
 					"line": 55
 				},
 				{
@@ -1910,47 +1910,47 @@
 					"kind": "type",
 					"summary": "",
 					"signature": null,
-					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
 					"line": 48
 				},
 				{
 					"name": "ChainTxLevelEvent",
 					"kind": "interface",
-					"summary": "A tx-level trigger's matched event (`contract_call` / `contract_deploy`) — flat, no nested `data` key.",
+					"summary": "A tx-level trigger's matched event (`contract_call` / `contract_deploy`) \u2014 flat, no nested `data` key.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 212
 				},
 				{
 					"name": "ChainWebhookDelivery",
 					"kind": "type",
-					"summary": "The full wire body of a chain-subscription webhook delivery, as sent to a `format: \"standard-webhooks\"` subscription (the default) — `{ type, timestamp, data }`.",
+					"summary": "The full wire body of a chain-webhook webhook delivery, as sent to a `format: \"standard-webhooks\"` webhook (the default) \u2014 `{ type, timestamp, data }`.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
-					"line": 301
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
+					"line": 303
 				},
 				{
 					"name": "ChainWebhookEnvelope",
 					"kind": "type",
-					"summary": "Any chain-subscription webhook body.",
+					"summary": "Any chain-webhook webhook body.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 96
 				},
 				{
-					"name": "CreateSubscriptionRequest",
+					"name": "CreateWebhookRequest",
 					"kind": "interface",
 					"summary": "",
 					"signature": null,
-					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
 					"line": 175
 				},
 				{
-					"name": "CreateSubscriptionResponse",
+					"name": "CreateWebhookResponse",
 					"kind": "interface",
 					"summary": "",
 					"signature": null,
-					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
 					"line": 241
 				},
 				{
@@ -1958,23 +1958,15 @@
 					"kind": "interface",
 					"summary": "",
 					"signature": null,
-					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
 					"line": 273
-				},
-				{
-					"name": "decodeChainWebhook",
-					"kind": "function",
-					"summary": "Decode + narrow a chain-subscription webhook delivery body into a typed {@link ChainWebhookDelivery}.",
-					"signature": "decodeChainWebhook(rawBody: string): ChainWebhookDelivery",
-					"file": "src/webhooks.ts",
-					"line": 254
 				},
 				{
 					"name": "DeliveryRow",
 					"kind": "interface",
 					"summary": "",
 					"signature": null,
-					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
 					"line": 250
 				},
 				{
@@ -1982,7 +1974,7 @@
 					"kind": "interface",
 					"summary": "",
 					"signature": null,
-					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
 					"line": 259
 				},
 				{
@@ -1990,7 +1982,7 @@
 					"kind": "interface",
 					"summary": "",
 					"signature": null,
-					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
 					"line": 246
 				},
 				{
@@ -1998,112 +1990,48 @@
 					"kind": "interface",
 					"summary": "Payload for `sbtc_deposit` (topic: completed-deposit).",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 14
 				},
 				{
 					"name": "SbtcWithdrawalEvent",
 					"kind": "interface",
-					"summary": "Payload for `sbtc_withdrawal_create`, `sbtc_withdrawal_accept`, `sbtc_withdrawal_reject` — the on-Stacks lifecycle events.",
+					"summary": "Payload for `sbtc_withdrawal_create`, `sbtc_withdrawal_accept`, `sbtc_withdrawal_reject` \u2014 the on-Stacks lifecycle events.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 27
 				},
 				{
 					"name": "SbtcWithdrawalSweptConfirmedEvent",
 					"kind": "interface",
-					"summary": "Payload for `sbtc_withdrawal_swept_confirmed` — fired once when a peg-out's committed BTC sweep crosses the confirmation threshold on Bitcoin.",
+					"summary": "Payload for `sbtc_withdrawal_swept_confirmed` \u2014 fired once when a peg-out's committed BTC sweep crosses the confirmation threshold on Bitcoin.",
 					"signature": null,
-					"file": "packages/shared/src/subscriptions/chain-envelopes.ts",
+					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
 					"line": 42
 				},
 				{
 					"name": "StandardWebhooksHeaders",
 					"kind": "interface",
-					"summary": "Standard Webhooks signing helpers — https://standardwebhooks.com",
+					"summary": "Standard Webhooks signing helpers \u2014 https://standardwebhooks.com",
 					"signature": null,
 					"file": "packages/shared/dist/src/crypto/standard-webhooks.d.ts",
 					"line": 14
 				},
 				{
-					"name": "SubscriptionDetail",
-					"kind": "interface",
-					"summary": "",
-					"signature": null,
-					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
-					"line": 229
-				},
-				{
-					"name": "SubscriptionFormat",
-					"kind": "type",
-					"summary": "",
-					"signature": null,
-					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
-					"line": 28
-				},
-				{
-					"name": "SubscriptionKind",
-					"kind": "type",
-					"summary": "Polymorphic subscription mode (mirrors db/types `SubscriptionKind`).",
-					"signature": null,
-					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
-					"line": 27
-				},
-				{
-					"name": "SubscriptionRuntime",
-					"kind": "type",
-					"summary": "",
-					"signature": null,
-					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
-					"line": 29
-				},
-				{
-					"name": "Subscriptions",
-					"kind": "class",
-					"summary": "",
-					"signature": "Subscriptions(options?: object): unknown",
-					"file": "src/subscriptions/client.ts",
-					"line": 37
-				},
-				{
-					"name": "SubscriptionStatus",
-					"kind": "type",
-					"summary": "",
-					"signature": null,
-					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
-					"line": 25
-				},
-				{
-					"name": "SubscriptionSummary",
-					"kind": "interface",
-					"summary": "",
-					"signature": null,
-					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
-					"line": 212
-				},
-				{
 					"name": "trigger",
 					"kind": "variable",
-					"summary": "Ergonomic chain-trigger constructors for `subscriptions.create({ triggers })`.",
+					"summary": "Ergonomic chain-trigger constructors for `webhooks.create({ triggers })`.",
 					"signature": null,
-					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
 					"line": 155
 				},
 				{
-					"name": "UpdateSubscriptionRequest",
+					"name": "UpdateWebhookRequest",
 					"kind": "interface",
 					"summary": "",
 					"signature": null,
-					"file": "packages/shared/dist/src/schemas/subscriptions.d.ts",
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
 					"line": 194
-				},
-				{
-					"name": "verifySecondlayerSignature",
-					"kind": "function",
-					"summary": "Verify the universal Secondlayer authenticity signature that every delivery carries, regardless of body format (`raw`, `cloudevents`, `standard-webhooks`, …).",
-					"signature": "verifySecondlayerSignature(rawBody: string, headers: WebhookHeaderInput, publicKeyPem: string): boolean",
-					"file": "src/webhooks.ts",
-					"line": 206
 				},
 				{
 					"name": "verifyStandardWebhooksHeaders",
@@ -2114,22 +2042,63 @@
 					"line": 32
 				},
 				{
-					"name": "verifyWebhookSignature",
-					"kind": "function",
-					"summary": "Verify a Secondlayer webhook delivery signature.",
-					"signature": "verifyWebhookSignature(rawBody: string, headers: WebhookHeaderInput, secret: string, toleranceSeconds?: number): boolean",
-					"file": "src/webhooks.ts",
-					"line": 155
+					"name": "WebhookDetail",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
+					"line": 229
 				},
 				{
-					"name": "WebhookHeaderInput",
+					"name": "WebhookFormat",
 					"kind": "type",
 					"summary": "",
 					"signature": null,
-					"file": "src/webhooks.ts",
-					"line": 41
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
+					"line": 28
+				},
+				{
+					"name": "WebhookKind",
+					"kind": "type",
+					"summary": "Polymorphic webhook mode (mirrors db/types `WebhookKind`).",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
+					"line": 27
+				},
+				{
+					"name": "WebhookRuntime",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
+					"line": 29
+				},
+				{
+					"name": "WebhookStatus",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
+					"line": 25
+				},
+				{
+					"name": "WebhookSummary",
+					"kind": "interface",
+					"summary": "",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
+					"line": 212
+				},
+				{
+					"name": "WebhookTestResult",
+					"kind": "interface",
+					"summary": "Result of a one-off test delivery (`POST /:id/test`).",
+					"signature": null,
+					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
+					"line": 266
 				}
-			]
+			],
+			"summary": " Deprecated alias."
 		},
 		{
 			"name": "Contracts",
@@ -2222,7 +2191,7 @@
 				{
 					"name": "InsufficientArchiveCreditsError",
 					"kind": "class",
-					"summary": "Thrown on a 402 from archive fetch — prepaid credits do not cover the quote.",
+					"summary": "Thrown on a 402 from archive fetch \u2014 prepaid credits do not cover the quote.",
 					"signature": "InsufficientArchiveCreditsError(message?: string, shortfallUsdMicros?: number): unknown",
 					"file": "src/errors.ts",
 					"line": 216
@@ -2275,7 +2244,7 @@
 				{
 					"name": "fetchRewardSet",
 					"kind": "function",
-					"summary": "Resolve a reward set directly from a stacks-node (`/v3/stacker_set/{cycle}`), so a caller can verify the consensus layer against a node IT trusts rather than the reward set Secondlayer embedded in …",
+					"summary": "Resolve a reward set directly from a stacks-node (`/v3/stacker_set/{cycle}`), so a caller can verify the consensus layer against a node IT trusts rather than the reward set Secondlayer embedded in \u2026",
 					"signature": "fetchRewardSet(opts: object): object",
 					"file": "src/proofs.ts",
 					"line": 84
@@ -2470,6 +2439,30 @@
 					"line": 45
 				},
 				{
+					"name": "CreateSubscriptionRequest (deprecated alias)",
+					"kind": "type",
+					"summary": " Deprecated alias.",
+					"signature": null,
+					"file": "src/webhooks/client.ts",
+					"line": 39
+				},
+				{
+					"name": "CreateSubscriptionResponse (deprecated alias)",
+					"kind": "type",
+					"summary": " Deprecated alias.",
+					"signature": null,
+					"file": "src/webhooks/client.ts",
+					"line": 41
+				},
+				{
+					"name": "decodeChainWebhook",
+					"kind": "function",
+					"summary": "Decode + narrow a chain webhook delivery body into a typed {@link ChainWebhookDelivery}.",
+					"signature": "decodeChainWebhook(rawBody: string): ChainWebhookDelivery",
+					"file": "src/webhooks/verify.ts",
+					"line": 254
+				},
+				{
 					"name": "InstanceClient",
 					"kind": "type",
 					"summary": "",
@@ -2558,9 +2551,105 @@
 					"line": 128
 				},
 				{
+					"name": "SubscriptionDetail (deprecated alias)",
+					"kind": "type",
+					"summary": " Deprecated alias.",
+					"signature": null,
+					"file": "src/webhooks/client.ts",
+					"line": 45
+				},
+				{
+					"name": "SubscriptionFormat (deprecated alias)",
+					"kind": "type",
+					"summary": " Deprecated alias.",
+					"signature": null,
+					"file": "src/webhooks/client.ts",
+					"line": 51
+				},
+				{
+					"name": "SubscriptionKind (deprecated alias)",
+					"kind": "type",
+					"summary": " Deprecated alias.",
+					"signature": null,
+					"file": "src/webhooks/client.ts",
+					"line": 53
+				},
+				{
+					"name": "SubscriptionRuntime (deprecated alias)",
+					"kind": "type",
+					"summary": " Deprecated alias.",
+					"signature": null,
+					"file": "src/webhooks/client.ts",
+					"line": 55
+				},
+				{
+					"name": "Subscriptions (deprecated alias)",
+					"kind": "class",
+					"summary": " Deprecated alias.",
+					"signature": null,
+					"file": "src/webhooks/client.ts",
+					"line": 159
+				},
+				{
+					"name": "SubscriptionStatus (deprecated alias)",
+					"kind": "type",
+					"summary": " Deprecated alias.",
+					"signature": null,
+					"file": "src/webhooks/client.ts",
+					"line": 57
+				},
+				{
+					"name": "SubscriptionSummary (deprecated alias)",
+					"kind": "type",
+					"summary": " Deprecated alias.",
+					"signature": null,
+					"file": "src/webhooks/client.ts",
+					"line": 47
+				},
+				{
+					"name": "UpdateSubscriptionRequest (deprecated alias)",
+					"kind": "type",
+					"summary": " Deprecated alias.",
+					"signature": null,
+					"file": "src/webhooks/client.ts",
+					"line": 43
+				},
+				{
+					"name": "verifySecondlayerSignature",
+					"kind": "function",
+					"summary": "Verify the universal Secondlayer authenticity signature that every delivery carries, regardless of body format (`raw`, `cloudevents`, `standard-webhooks`, \u2026).",
+					"signature": "verifySecondlayerSignature(rawBody: string, headers: WebhookHeaderInput, publicKeyPem: string): boolean",
+					"file": "src/webhooks/verify.ts",
+					"line": 206
+				},
+				{
+					"name": "verifyWebhookSignature",
+					"kind": "function",
+					"summary": "Verify a Secondlayer webhook delivery signature.",
+					"signature": "verifyWebhookSignature(rawBody: string, headers: WebhookHeaderInput, secret: string, toleranceSeconds?: number): boolean",
+					"file": "src/webhooks/verify.ts",
+					"line": 155
+				},
+				{
+					"name": "WebhookHeaderInput",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/webhooks/verify.ts",
+					"line": 41
+				},
+				{
+					"name": "Webhooks",
+					"kind": "class",
+					"summary": "",
+					"signature": "Webhooks(options?: object): unknown",
+					"file": "src/webhooks/client.ts",
+					"line": 63
+				},
+				{
 					"name": "WithSinkTx",
 					"kind": "type",
-					"summary": "`ctx` gains `tx` exactly when a sink is attached; without one the shape is unchanged (an intersection with `unknown` is an identity, so contextual typing of `onBatch` callbacks never degrades to a …",
+					"summary": "`ctx` gains `tx` exactly when a sink is attached; without one the shape is unchanged (an intersection with `unknown` is an identity, so contextual typing of `onBatch` callbacks never degrades to a \u2026",
 					"signature": null,
 					"file": "src/sinks/types.ts",
 					"line": 133

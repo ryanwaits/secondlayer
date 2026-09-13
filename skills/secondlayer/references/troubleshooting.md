@@ -37,44 +37,44 @@ secondlayer subgraphs spec <name> --format markdown    # at minimum shows curren
 
 Compare the deployed bundle to your local file. If you don't have the local file anymore, use the SDK's `getSource` to recover the canonical version.
 
-## Subscription: paused or failing
+## Webhook: paused or failing
 
 ```bash
-secondlayer subscriptions get <name>
-secondlayer subscriptions doctor <name>      # all-in-one diagnosis
-secondlayer subscriptions deliveries <name>  # last ~100 attempts
-secondlayer subscriptions dead <name>        # exhausted retries
+secondlayer webhooks get <name>
+secondlayer webhooks doctor <name>      # all-in-one diagnosis
+secondlayer webhooks deliveries <name>  # last ~100 attempts
+secondlayer webhooks dead <name>        # exhausted retries
 ```
 
-`doctor` checks: subscription status + circuit breaker state, recent delivery successes/failures, dead-letter count, linked subgraph status + gaps. Outputs next-step hints.
+`doctor` checks: webhook status + circuit breaker state, recent delivery successes/failures, dead-letter count, linked subgraph status + gaps. Outputs next-step hints.
 
 **Common causes:**
 
 | Symptom | Cause | Action |
 |---|---|---|
-| Subscription `paused` after deploy | 20 consecutive failures auto-paused it | Fix receiver → `secondlayer subscriptions resume <name>`. |
+| Webhook `paused` after deploy | 20 consecutive failures auto-paused it | Fix receiver → `secondlayer webhooks resume <name>`. |
 | All deliveries return 401 | Signature mismatch — wrong/outdated secret | Re-verify your secret. If rotated, deliveries with old secret 401. |
 | Receiver getting nothing | Filter too narrow OR linked subgraph not synced | Check `secondlayer subgraphs status <linked>`. Try widening or removing the filter temporarily. |
 | Receiver timing out | Doing work synchronously in the handler | Return 2xx immediately; queue the work. Retries fire 30s → 2m → 10m → 1h → 6h → 24h → 72h. |
 | Verification fails for all requests | Verifying re-stringified JSON, not raw body | Use the raw request body bytes/string for HMAC, not `JSON.stringify(req.body)`. |
 
-## Subscription: signature verification
+## Webhook: signature verification
 
 Use `verifyWebhookSignature(rawBody, headers, secret)` from `@secondlayer/sdk`. It reads the Standard Webhooks headers (`webhook-id` / `webhook-timestamp` / `webhook-signature`) from the request headers object and HMAC-verifies a `v1` signature. The most common failure mode is passing `JSON.stringify(req.body)` instead of the raw body — the framework's parsed JSON loses key ordering and whitespace, breaking the HMAC. Always grab the raw body bytes before any JSON parser touches it.
 
 If you're verifying from a non-TS language, see `references/api-rest.md` "Webhook verification" for a Python reference implementation.
 
-## Subscription: replays and dead letters
+## Webhook: replays and dead letters
 
 **Before replaying:** confirm exact block range with the user and verify delivery health. Replays drain at reduced capacity (10% of live throughput) to keep live delivery responsive — but a large replay still adds load.
 
 ```bash
 # Requeue one specific dead row after fixing receiver
-secondlayer subscriptions dead <name>
-secondlayer subscriptions requeue <name> <outbox-id>
+secondlayer webhooks dead <name>
+secondlayer webhooks requeue <name> <outbox-id>
 
 # Replay a historical range (max 100k blocks)
-secondlayer subscriptions replay <name> --from-block 180000 --to-block 181000
+secondlayer webhooks replay <name> --from-block 180000 --to-block 181000
 ```
 
 **Don't replay** until: you've inspected `deliveries` to confirm what failed, you've fixed the receiver, and the user has confirmed the exact block range.

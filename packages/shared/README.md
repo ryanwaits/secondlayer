@@ -22,13 +22,13 @@ DATABASE_URL=... bun run migrate
 
 | Path | Description |
 |------|-------------|
-| `@secondlayer/shared` | Core utilities (errors, logger, env, db layer, subgraph/subscription schemas) |
+| `@secondlayer/shared` | Core utilities (errors, logger, env, db layer, subgraph/webhook schemas) |
 | `@secondlayer/shared/db` | Kysely database layer |
 | `@secondlayer/shared/db/schema` | Database schema + row types |
-| `@secondlayer/shared/db/queries/*` | Query helpers (integrity, chain-reorgs, subgraphs, subgraph-gaps, subgraph-operations, subscriptions) |
-| `@secondlayer/shared/schemas` | Zod schemas (subgraphs, subscriptions) |
+| `@secondlayer/shared/db/queries/*` | Query helpers (integrity, chain-reorgs, subgraphs, subgraph-gaps, subgraph-operations, webhooks) |
+| `@secondlayer/shared/schemas` | Zod schemas (subgraphs, webhooks) |
 | `@secondlayer/shared/schemas/subgraphs` | Subgraph schemas |
-| `@secondlayer/shared/schemas/subscriptions` | Subscription schemas |
+| `@secondlayer/shared/schemas/webhooks` | Webhook schemas |
 | `@secondlayer/shared/subgraphs/spec` | Subgraph spec generation |
 | `@secondlayer/shared/queue/listener` | Postgres LISTEN/NOTIFY helper (used for block notifications) |
 | `@secondlayer/shared/logger` | Logger |

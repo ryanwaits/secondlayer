@@ -828,7 +828,7 @@ export interface TriggerHelpers {
 export type EventOf<T> = T extends TypedEventTrigger<infer E> ? E : never;
 ```
 
-**Note:** triggers are phantom-typed — they're used for type inference at consumer sites (Subscriptions API). For `defineSubgraph` sources you can either pass plain `{ type: "...", ... }` filters or use the triggers' runtime shape; the inference value-add is at the handler payload typing layer in subscription definitions.
+**Note:** triggers are phantom-typed — they're used for type inference at consumer sites (Webhooks API). For `defineSubgraph` sources you can either pass plain `{ type: "...", ... }` filters or use the triggers' runtime shape; the inference value-add is at the handler payload typing layer in webhook definitions.
 
 ---
 

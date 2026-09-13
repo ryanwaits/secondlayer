@@ -75,8 +75,8 @@ const PRODUCT_BLURBS: Record<string, string> = {
 	subgraphs: "author/scaffold/deploy/query custom indexes",
 	webhooks:
 		"a signed POST to a URL you run, on subgraph rows or raw chain events",
-	subscriptions:
-		"a signed POST to a URL you run, on subgraph rows or raw chain events", // deprecated alias key
+	subscriptions: // deprecated alias key
+		"a signed POST to a URL you run, on subgraph rows or raw chain events",
 	account: "identity and self-provisioned API keys",
 	codegen: "ORM schemas for the tables you read",
 	instance: "decoder health and empty-index diagnosis",

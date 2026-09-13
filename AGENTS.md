@@ -9,10 +9,10 @@ Operating instructions for AI coding agents working in this repo. Read this and
 
 Secondlayer is a self-hosted Stacks data runtime. Three capabilities — **Index**
 (decoded chain data over REST), **Subgraphs** (your schema, self-host or hosted),
-and **Streams** (raw signed firehose + dumps) — plus features (Subscriptions,
+and **Streams** (raw signed firehose + dumps) — plus features (Webhooks,
 subgraph templates, Contract discovery, Verification) and channels (REST/OpenAPI,
 CLI, SDK, MCP). We publish a signed R2 archive and a hosted API at
-api.secondlayer.tools (Index, Streams, Subgraphs, subscription delivery). We
+api.secondlayer.tools (Index, Streams, Subgraphs, webhook delivery). We
 meter bootstrap/backfill and hosted usage off the same prepaid credits.
 We do not host a public Explore catalog. `STRATEGY.md` wins
 taxonomy, pricing, and what's frozen.
@@ -58,7 +58,7 @@ speculatively hand-mirrored. Releases batch weekly via changesets.
 
 BYO database plane, multi-ORM codegen, aggregates, index proofs/stacking/mempool
 extras, CLI devnet/local/db, the stacks-SDK wallet half (except nonce
-coordination — supported, see packages/stacks/README.md), subscriptions format
+coordination — supported, see packages/stacks/README.md), webhooks format
 expansion. Shipped code stays; no new investment, no docs prominence. Delete on
 first maintenance touch. Unfreeze requires a named external request.
 Nonce coordination is the carved-out exception: demand-validated (named external

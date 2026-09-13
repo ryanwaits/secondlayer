@@ -23,7 +23,7 @@ Your instance uses `INSTANCE_TOKEN` from `secondlayer init`. Loopback reads need
 | `/v1/index/*` | Loopback open. History is whatever this instance has bootstrapped. | n/a | `Authorization: Bearer <INSTANCE_TOKEN>` past loopback |
 | `/v1/subgraphs/*` | Loopback open. No public/private flag. | n/a | `Authorization: Bearer <INSTANCE_TOKEN>` past loopback |
 | `/api/subgraphs/*` | `INSTANCE_TOKEN` | Yes | `Authorization: Bearer <INSTANCE_TOKEN>` |
-| `/api/subscriptions/*` | `INSTANCE_TOKEN` | Yes | `Authorization: Bearer <INSTANCE_TOKEN>` |
+| `/api/webhooks/*` | `INSTANCE_TOKEN` | Yes | `Authorization: Bearer <INSTANCE_TOKEN>` |
 | `/api/node/*`, `/status` | `INSTANCE_TOKEN` | Yes | `Authorization: Bearer <INSTANCE_TOKEN>` |
 
 Two rules, not one gate:
@@ -331,21 +331,21 @@ Returns bundled source code, version, deployment metadata. Useful for re-generat
 
 ---
 
-## `/api/subscriptions` — webhook subscriptions *(auth)*
+## `/api/webhooks` — webhook webhooks *(auth)*
 
-### `GET /api/subscriptions`
+### `GET /api/webhooks`
 
-List this instance's subscriptions.
+List this instance's webhooks.
 
-### `GET /api/subscriptions/{id}`
+### `GET /api/webhooks/{id}`
 
-`{id}` accepts either the UUID or the subscription's `name`.
+`{id}` accepts either the UUID or the webhook's `name`.
 
-### `POST /api/subscriptions`
+### `POST /api/webhooks`
 
-Create. A subscription is one of two **kinds** (mutually exclusive):
+Create. A webhook is one of two **kinds** (mutually exclusive):
 
-**Subgraph subscription** — fires on subgraph table rows (`subgraphName` + `tableName` + column `filter`):
+**Subgraph webhook** — fires on subgraph table rows (`subgraphName` + `tableName` + column `filter`):
 
 ```json
 {
@@ -360,7 +360,7 @@ Create. A subscription is one of two **kinds** (mutually exclusive):
 }
 ```
 
-**Chain subscription** — fires on raw chain events, **no subgraph** (`triggers`, 1..50). Forward-looking (starts at tip, no backfill):
+**Chain webhook** — fires on raw chain events, **no subgraph** (`triggers`, 1..50). Forward-looking (starts at tip, no backfill):
 
 ```json
 {
@@ -379,7 +379,7 @@ Response includes a one-time `signingSecret`:
 
 ```json
 {
-  "subscription": { ... },
+  "webhook": { ... },
   "signingSecret": "whsec_..."
 }
 ```
@@ -390,36 +390,36 @@ Response includes a one-time `signingSecret`:
 
 **Runtime options:** `inngest`, `trigger`, `cloudflare`, `node`. Determines payload framing for the receiver.
 
-### `PATCH /api/subscriptions/{id}`
+### `PATCH /api/webhooks/{id}`
 
 Update any of: `name`, `url`, `filter`, `format`, `runtime`, `authConfig`, `maxRetries`, `timeoutMs`, `concurrency`.
 
-### `POST /api/subscriptions/{id}/pause`
-### `POST /api/subscriptions/{id}/resume`
+### `POST /api/webhooks/{id}/pause`
+### `POST /api/webhooks/{id}/resume`
 
-### `POST /api/subscriptions/{id}/rotate-secret`
+### `POST /api/webhooks/{id}/rotate-secret`
 
 Returns new `signingSecret` (one-time). **Existing receivers using the old secret will reject deliveries** until updated.
 
-### `GET /api/subscriptions/{id}/deliveries`
+### `GET /api/webhooks/{id}/deliveries`
 
 Last ~100 delivery attempts with status, duration, response preview.
 
-### `GET /api/subscriptions/{id}/dead`
+### `GET /api/webhooks/{id}/dead`
 
 Dead-letter rows (failed all retries).
 
-### `POST /api/subscriptions/{id}/replay`
+### `POST /api/webhooks/{id}/replay`
 
 Body: `{ fromBlock: number, toBlock: number }`. Requeues historical rows. Max 100k blocks.
 
-### `POST /api/subscriptions/{id}/dead/{outboxId}/requeue`
+### `POST /api/webhooks/{id}/dead/{outboxId}/requeue`
 
 Requeue a single dead-letter row.
 
-### `DELETE /api/subscriptions/{id}`
+### `DELETE /api/webhooks/{id}`
 
-Delete subscription and any pending outbox rows.
+Delete webhook and any pending outbox rows.
 
 ---
 
@@ -508,7 +508,7 @@ Failed deliveries retry on this schedule:
 30s → 2m → 10m → 1h → 6h → 24h → 72h
 ```
 
-After 20 consecutive failures the subscription is auto-paused (circuit breaker). Use `POST /api/subscriptions/{id}/resume` to re-enable, but fix the receiver first.
+After 20 consecutive failures the webhook is auto-paused (circuit breaker). Use `POST /api/webhooks/{id}/resume` to re-enable, but fix the receiver first.
 
 Exhausted rows land in `/dead` and can be requeued individually.
 

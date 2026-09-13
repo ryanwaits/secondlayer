@@ -423,7 +423,7 @@ import {
 } from "@secondlayer/stacks/sbtc";
 ```
 
-Event-shape types (`CompletedDepositEvent`, `WithdrawalCreateEvent`, etc.) are re-exported for decoding `sbtc-registry` print events emitted on-chain — useful when watching the registry contract via Secondlayer subscriptions/subgraphs.
+Event-shape types (`CompletedDepositEvent`, `WithdrawalCreateEvent`, etc.) are re-exported for decoding `sbtc-registry` print events emitted on-chain — useful when watching the registry contract via Secondlayer webhooks/subgraphs.
 
 ---
 

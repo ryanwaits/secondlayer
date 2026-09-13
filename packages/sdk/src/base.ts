@@ -143,7 +143,7 @@ export function resolveAccountKey(accountKey?: string): string | undefined {
 }
 
 /** Percent-encode one URL path segment. Every caller-supplied identifier
- *  (subgraph name, table, subscription id) goes through this before it is
+ *  (subgraph name, table, webhook id) goes through this before it is
  *  interpolated into a path, so `..`, `/`, `?` and `#` in an id cannot
  *  retarget the authenticated request at a different route. */
 export function seg(value: string | number): string {

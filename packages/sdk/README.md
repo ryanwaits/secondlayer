@@ -21,7 +21,7 @@ const sl = new SecondLayer({
 
 Auth, once: `sl.index`, `sl.streams`, `sl.subgraphs.rows`, and the typed
 `subscribe` read `/v1`, which is open on loopback and needs `INSTANCE_TOKEN`
-once the API is bound beyond it. Everything under `sl.subgraphs.*` and `sl.subscriptions.*` calls
+once the API is bound beyond it. Everything under `sl.subgraphs.*` and `sl.webhooks.*` calls
 `/api`, which needs `INSTANCE_TOKEN` as soon as one is configured, loopback
 included, and `secondlayer init` always configures one. Every client, including
 `createStreamsClient`, reads `INSTANCE_TOKEN` from the env when `apiKey` is
@@ -412,7 +412,7 @@ Exported types: `TransactionProof`, `TransactionProofVerifyResult`, `RewardSet`.
 
 Deploy and query app-specific tables.
 
-Subgraphs and subscriptions live on the instance API alongside Streams and Index. Everything here except `rows` and the typed `subscribe` calls `/api`, which needs `INSTANCE_TOKEN` once one is configured (init always configures one), loopback included.
+Subgraphs and webhooks live on the instance API alongside Streams and Index. Everything here except `rows` and the typed `subscribe` calls `/api`, which needs `INSTANCE_TOKEN` once one is configured (init always configures one), loopback included.
 
 ```typescript
 // List
@@ -482,9 +482,11 @@ tail only. A dropped connection reconnects from the last delivered row's
 `_block_height`, so rows at that height can arrive twice: key durable writes
 by `_id`.
 
-## Subscriptions
+## Webhooks
 
-Signed HTTP webhooks. Subscriptions are polymorphic — pick one kind:
+Deprecated aliases (`sl.subscriptions`, `Subscriptions`) keep working for one release cycle.
+
+Signed HTTP POSTs. Webhooks are polymorphic — pick one kind:
 
 - **subgraph** — fires on rows written to a deployed subgraph table.
 - **chain** — fires on raw chain events with no subgraph. Forward-looking: it
@@ -493,12 +495,12 @@ Signed HTTP webhooks. Subscriptions are polymorphic — pick one kind:
 
 ```typescript
 // List / get
-const { data } = await sl.subscriptions.list();
-const sub = await sl.subscriptions.get(id);
+const { data } = await sl.webhooks.list();
+const hook = await sl.webhooks.get(id);
 
-// Create a SUBGRAPH subscription — sink a subgraph table to a signed endpoint.
+// Create a SUBGRAPH webhook — sink a subgraph table to a signed endpoint.
 // `signingSecret` is returned ONCE; store it in the receiver's env.
-const { subscription, signingSecret } = await sl.subscriptions.create({
+const { webhook, signingSecret } = await sl.webhooks.create({
   name: "whale-alerts",
   subgraphName: "transfers",
   tableName: "events",
@@ -507,7 +509,7 @@ const { subscription, signingSecret } = await sl.subscriptions.create({
 });
 ```
 
-### Chain subscriptions
+### Chain webhooks
 
 Pass `triggers` instead of `subgraphName`/`tableName`. The `trigger.*` builders
 are optional sugar — you can also pass raw objects (e.g.
@@ -521,7 +523,7 @@ import { SecondLayer, trigger } from "@secondlayer/sdk";
 
 const sl = new SecondLayer({ apiKey: process.env.INSTANCE_TOKEN });
 
-const { subscription, signingSecret } = await sl.subscriptions.create({
+const { webhook, signingSecret } = await sl.webhooks.create({
   name: "amm-swaps",
   url: "https://my-app.com/webhook",
   triggers: [
@@ -542,29 +544,29 @@ body `{ action: "apply", block_hash, block_height, tx_id, canonical, trigger,
 event }`. On reorg you get `chain.reorg.rollback` with `{ action: "rollback",
 fork_point_height, orphaned: [{ tx_id, event }] }`. Delivery is at-least-once: a
 tx surviving a reorg re-delivers an apply under its new `block_hash`, so key
-consumer state on `(tx_id, block_hash)`. Per-subscription HMAC signing (Standard
+consumer state on `(tx_id, block_hash)`. Per-webhook HMAC signing (Standard
 Webhooks) is unchanged for both kinds.
 
 ```typescript
 // Lifecycle (both kinds)
-await sl.subscriptions.update(id, { filter: { amount: { gte: "1000000" } } });
-await sl.subscriptions.pause(id);
-await sl.subscriptions.resume(id);
-await sl.subscriptions.rotateSecret(id); // returns new signing secret once
-const { data: deliveries } = await sl.subscriptions.deliveries(id);
+await sl.webhooks.update(id, { filter: { amount: { gte: "1000000" } } });
+await sl.webhooks.pause(id);
+await sl.webhooks.resume(id);
+await sl.webhooks.rotateSecret(id); // returns new signing secret once
+const { data: deliveries } = await sl.webhooks.deliveries(id);
 
 // Replay historical block range
-await sl.subscriptions.replay(id, { fromBlock: 180000, toBlock: 181000 });
+await sl.webhooks.replay(id, { fromBlock: 180000, toBlock: 181000 });
 
 // Dead-letter inspection + requeue
-const { data: dead } = await sl.subscriptions.dead(id);
-await sl.subscriptions.requeue(id, outboxId);
+const { data: dead } = await sl.webhooks.dead(id);
+await sl.webhooks.requeue(id, outboxId);
 ```
 
 ### Verifying deliveries
 
 Every delivery — any kind, any `format` — also carries a universal authenticity
-signature you can verify with one published key, no per-subscription secret. The
+signature you can verify with one published key, no per-webhook secret. The
 headers are `webhook-id`, `x-secondlayer-signature`, and
 `x-secondlayer-signature-keyid`; the signed content is `` `${webhook-id}.${rawBody}` ``
 (ed25519). Fetch the public key from `GET /public/streams/signing-key`.
@@ -590,7 +592,7 @@ verifySecondlayerSignature(
 ): boolean;
 ```
 
-Prefer the per-subscription HMAC (Standard Webhooks) secret instead? Use
+Prefer the per-webhook HMAC (Standard Webhooks) secret instead? Use
 `verifyWebhookSignature(rawBody, headers, secret)` — raw body first.
 
 ## x402 pay-per-call (accountless)

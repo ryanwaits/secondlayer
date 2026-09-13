@@ -10959,7 +10959,7 @@ html.force-dark .pp-walk-code .shiki .line.pp-line-on {
 	background: rgba(138, 167, 248, 0.16);
 }
 
-/* ---- subscriptions page ------------------------------------ */
+/* ---- webhooks page ------------------------------------ */
 /* Inline identifiers in product-page prose. The marketing pages had no
    inline-code rule (only .prose and .docs-article did), so <code> fell
    back to the browser's mono face at the wrong size. */

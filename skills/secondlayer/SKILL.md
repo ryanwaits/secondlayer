@@ -1,6 +1,6 @@
 ---
 name: secondlayer
-description: Use Secondlayer to build on the Stacks blockchain — index on-chain activity into typed Postgres tables (subgraphs), stream raw and decoded events (Streams + Index), deliver row-level webhooks (subscriptions), and call Clarity contracts from a viem-style TypeScript SDK. Invoke this skill whenever the user mentions Secondlayer, `secondlayer`, the `@secondlayer/*` packages, Stacks indexing, sBTC, BNS, PoX/stacking, Clarity contract reads/calls, post-conditions, webhook subscriptions on chain events, or asks how to query, watch, or react to anything happening on the Stacks chain — even if they don't name Secondlayer explicitly.
+description: Use Secondlayer to build on the Stacks blockchain — index on-chain activity into typed Postgres tables (subgraphs), stream raw and decoded events (Streams + Index), deliver row-level webhooks (webhooks), and call Clarity contracts from a viem-style TypeScript SDK. Invoke this skill whenever the user mentions Secondlayer, `secondlayer`, the `@secondlayer/*` packages, Stacks indexing, sBTC, BNS, PoX/stacking, Clarity contract reads/calls, post-conditions, webhooks on chain events, or asks how to query, watch, or react to anything happening on the Stacks chain — even if they don't name Secondlayer explicitly.
 ---
 
 # Secondlayer
@@ -19,7 +19,7 @@ Secondlayer is a self-hosted Stacks data runtime. Postgres plus one container.
 | **Raw (Streams)** | `@secondlayer/sdk` → `sl.streams` · REST `/v1/streams` · `secondlayer streams` | Cursor-paginated firehose of raw Stacks events (transfers, mints, burns, prints) with reorg awareness, Bitcoin-anchored finality (`finalized` per event, `finalized_height` on tip), `types`/`not_types` + `sender`/`recipient`/`contract_id` (single or comma-list) payload filters, signed responses (ed25519 `X-Signature`, opt-in SDK `verify`), and public bulk parquet dumps (`client.dumps` / `events.replay` / `secondlayer streams dumps`). |
 | **Decoded (Index)** | `@secondlayer/sdk` → `sl.index` · REST `/v1/index` · `secondlayer index` | Decoded SIP-010 (FT) and SIP-009 (NFT) transfers, all event types (`stx_*`, ft/nft mint/burn, print) via `events`, and decoded `contract-calls` — filtered by principal/contract/height. |
 | **Your schema (Subgraphs)** | `@secondlayer/subgraphs` + CLI · REST `/v1/subgraphs` (reads) · `/api/subgraphs` (writes) | TypeScript-authored indexers: declare filters + schema + handlers; the instance materializes Postgres tables and exposes REST. |
-| **Webhooks** | `sl.subscriptions` · REST `/api/subscriptions` · `secondlayer subscriptions` | Standard-Webhooks-signed deliveries. Two kinds: **subgraph** subscriptions fire on every row written by a subgraph; **chain** subscriptions fire on raw chain events directly (no subgraph) via `triggers` (contract call / event type / trait). |
+| **Webhooks** | `sl.webhooks` · REST `/api/webhooks` · `secondlayer webhooks` | Standard-Webhooks-signed deliveries. Two kinds: **subgraph** webhooks fire on every row written by a subgraph; **chain** webhooks fire on raw chain events directly (no subgraph) via `triggers` (contract call / event type / trait). |
 | **Chain client** | `@secondlayer/stacks` | viem-style SDK: public/wallet clients, `Cl.*`, `Pc.*`, `getContract`, BNS / PoX / sBTC / StackingDAO extensions. |
 | **CLI** | `@secondlayer/cli` (binary `secondlayer`) | Every one of the above is reachable from `secondlayer`. |
 
@@ -32,14 +32,14 @@ Before doing the task, load the smallest set of reference files that cover it. R
 | If the user wants to… | Load |
 |---|---|
 | Install the CLI, stand up an instance, set up env vars, install an SDK package | `references/installation.md` |
-| Run any `secondlayer` command (init, bootstrap, verify, subgraphs, subscriptions, streams, credits, local) | `references/cli.md` |
-| Call this instance from TypeScript (`new SecondLayer(...)`, `sl.streams`, `sl.subgraphs`, `sl.subscriptions`, `sl.index`) | `references/sdk.md` |
+| Run any `secondlayer` command (init, bootstrap, verify, subgraphs, webhooks, streams, credits, local) | `references/cli.md` |
+| Call this instance from TypeScript (`new SecondLayer(...)`, `sl.streams`, `sl.subgraphs`, `sl.webhooks`, `sl.index`) | `references/sdk.md` |
 | Write or edit a subgraph file (`defineSubgraph`, sources, schema, handlers, `ctx.*`) | `references/subgraph-authoring.md` |
 | Read or call a Clarity contract, sign STX/contract transactions, work with Clarity values, post-conditions, accounts, transports | `references/stacks.md` |
 | Use BNS, PoX/stacking, sBTC, or StackingDAO | `references/stacks-extensions.md` |
 | Hit the REST API from a language without an SDK (curl, Python, Go) | `references/api-rest.md` |
-| Set up MCP for an agent to manage subgraphs/subscriptions | `references/mcp.md` |
-| Diagnose a stalled subgraph, a paused/failing subscription, dead letters, replays | `references/troubleshooting.md` |
+| Set up MCP for an agent to manage subgraphs/webhooks | `references/mcp.md` |
+| Diagnose a stalled subgraph, a paused/failing webhook, dead letters, replays | `references/troubleshooting.md` |
 
 For working code, see `examples/` — every file is copy-pasteable and verified.
 
@@ -79,20 +79,20 @@ caller's address. A token sent where anonymous access already works is used if
 it matches and **ignored** if it doesn't — presenting a key never turns a
 working read into a 401.
 
-Writes are the other rule: `/api/subgraphs`, `/api/subscriptions`, `/api/node`,
+Writes are the other rule: `/api/subgraphs`, `/api/webhooks`, `/api/node`,
 and `/status` require the token whenever the instance has one, loopback
 included. An instance with no token set is fully open and may only bind
 loopback. Send the token whenever you have it.
 
 ## Default working loop
 
-0. **Discover what exists.** Don't assume — enumerate at runtime: `sl.contracts.list({ trait })` for contracts implementing a trait, and (over MCP) read `secondlayer://context` for this instance's subgraphs/subscriptions + capabilities.
+0. **Discover what exists.** Don't assume — enumerate at runtime: `sl.contracts.list({ trait })` for contracts implementing a trait, and (over MCP) read `secondlayer://context` for this instance's subgraphs/webhooks + capabilities.
 1. **Identify the surface.** Is this a subgraph (your schema)? A decoded-events query (`sl.index`)? A raw stream consumer? A direct contract call? Pick the right tool — don't reach for a subgraph when `sl.index.ftTransfers.list({ recipient })` does the job in one HTTP call.
-2. **Inspect first.** Before changing anything on the instance, run a read (`secondlayer subgraphs list`, `secondlayer subscriptions get …`). Confirms auth + state, prevents accidental overwrites.
-3. **Scaffold the smallest correct thing.** Use `secondlayer subgraphs scaffold <contract>` or `secondlayer subscriptions create <name>` rather than hand-writing boilerplate. Both generate code that's already 1:1 with current package APIs.
+2. **Inspect first.** Before changing anything on the instance, run a read (`secondlayer subgraphs list`, `secondlayer webhooks get …`). Confirms auth + state, prevents accidental overwrites.
+3. **Scaffold the smallest correct thing.** Use `secondlayer subgraphs scaffold <contract>` or `secondlayer webhooks create <name>` rather than hand-writing boilerplate. Both generate code that's already 1:1 with current package APIs.
 4. **Validate locally.** For subgraphs: `secondlayer subgraphs spec <file>` to preview generated schema and API without deploying. For SDK code: type-check.
-5. **Confirm before destructive actions.** Always pause to confirm: `secondlayer subgraphs delete`, `secondlayer subgraphs reindex` (drops + reprocesses), `secondlayer subscriptions rotate-secret`, `secondlayer subscriptions replay`, `secondlayer subscriptions requeue`. The CLI prompts by default; if running in non-TTY, pass `-y` only with explicit user consent.
-6. **Verify after.** `secondlayer subgraphs status <name>` after deploy. `secondlayer subscriptions deliveries <name>` after creating a subscription.
+5. **Confirm before destructive actions.** Always pause to confirm: `secondlayer subgraphs delete`, `secondlayer subgraphs reindex` (drops + reprocesses), `secondlayer webhooks rotate-secret`, `secondlayer webhooks replay`, `secondlayer webhooks requeue`. The CLI prompts by default; if running in non-TTY, pass `-y` only with explicit user consent.
+6. **Verify after.** `secondlayer subgraphs status <name>` after deploy. `secondlayer webhooks deliveries <name>` after creating a webhook.
 
 ## Code quality bar
 
@@ -107,10 +107,10 @@ loopback. Send the token whenever you have it.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Subgraph deploy errors `upsert requires unique key` | Schema declared `upsert` writes but `uniqueKeys` missing | Add `uniqueKeys: [["col_a", "col_b"]]` to the table |
-| Subscription paused after 20 failures | Receiver returning 4xx/5xx or timing out | `secondlayer subscriptions doctor <name>`; fix receiver; `secondlayer subscriptions resume <name>` |
+| Webhook paused after 20 failures | Receiver returning 4xx/5xx or timing out | `secondlayer webhooks doctor <name>`; fix receiver; `secondlayer webhooks resume <name>` |
 | `ApiError 401` from SDK | A write, or a read against an instance reachable past loopback, carried no bearer | Pass `INSTANCE_TOKEN` from `.env.local` as `apiKey`, or export it |
 | `tsc` errors after `getContract` upgrade | ABI shape changed, regenerate | `secondlayer codegen client <name> -o ...` or refresh ABI |
-| Webhook receiver getting unsigned bodies | `format` not set to `standard-webhooks` | `secondlayer subscriptions update <name> --format standard-webhooks` |
+| Webhook receiver getting unsigned bodies | `format` not set to `standard-webhooks` | `secondlayer webhooks update <name> --format standard-webhooks` |
 | Subgraph "stuck" right after deploy | Catching up from `startBlock` | Normal; watch `secondlayer subgraphs status <name> -w`. Use `--start-block` near tip for fast first deploy |
 
 When the user asks "why isn't this working" and the symptom isn't on this list, load `references/troubleshooting.md`.

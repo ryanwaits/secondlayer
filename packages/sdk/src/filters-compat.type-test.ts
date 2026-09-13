@@ -52,7 +52,7 @@ export function _filterCompatChecks(): void {
 	>();
 
 	// Triggers: every member's projection is a valid ChainTrigger — including
-	// the Subscriptions-only sBTC members.
+	// the Webhooks-only sBTC members.
 	expectTypeOf(ft.toChainTrigger()).toMatchTypeOf<ChainTrigger>();
 	expectTypeOf(
 		on.sbtcDeposit({ minAmount: 1n }).toChainTrigger(),

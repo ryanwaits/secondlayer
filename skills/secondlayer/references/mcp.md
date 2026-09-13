@@ -1,7 +1,7 @@
 # MCP
 
 `@secondlayer/mcp` exposes the golden-path Secondlayer tools to MCP-capable
-agents: Index reads, Streams reads, the subgraph lifecycle, subscriptions, and
+agents: Index reads, Streams reads, the subgraph lifecycle, webhooks, and
 contract discovery/scaffolding. Periphery surfaces (mempool, stacking, proofs)
 are REST-only — see the `/v1` OpenAPI spec.
 
@@ -67,20 +67,20 @@ Subgraphs:
 - `subgraphs_gaps`
 - `subgraphs_delete`
 
-Subscriptions:
+Webhooks:
 
-- `subscriptions_create` — creates either a subgraph subscription (`subgraphName` + `tableName`) or a **chain subscription** by passing `triggers` (array, 1..50) instead. Chain subs fire on raw chain events with no subgraph; see `references/sdk.md` for the trigger shapes (`contractCall`, `ftTransfer`, etc.).
-- `subscriptions_list`
-- `subscriptions_get`
-- `subscriptions_update`
-- `subscriptions_delete`
-- `subscriptions_test`
-- `subscriptions_replay`
-- `subscriptions_pause` / `subscriptions_resume` — stop/restart deliveries (resume also clears a tripped circuit); verify with `subscriptions_get`
-- `subscriptions_rotate_secret` — new `signingSecret`, returned once; old signatures stop verifying immediately
-- `subscriptions_deliveries` — recent attempts (status, error, duration); **the verify call** after create/test/replay
-- `subscriptions_dead` — dead-letter queue (exhausted retries) with each row's `outboxId`
-- `subscriptions_requeue` — retry one dead row by `outboxId`; fix the receiver first
+- `webhooks_create` — creates either a subgraph webhook (`subgraphName` + `tableName`) or a **chain webhook** by passing `triggers` (array, 1..50) instead. Chain subs fire on raw chain events with no subgraph; see `references/sdk.md` for the trigger shapes (`contractCall`, `ftTransfer`, etc.).
+- `webhooks_list`
+- `webhooks_get`
+- `webhooks_update`
+- `webhooks_delete`
+- `webhooks_test`
+- `webhooks_replay`
+- `webhooks_pause` / `webhooks_resume` — stop/restart deliveries (resume also clears a tripped circuit); verify with `webhooks_get`
+- `webhooks_rotate_secret` — new `signingSecret`, returned once; old signatures stop verifying immediately
+- `webhooks_deliveries` — recent attempts (status, error, duration); **the verify call** after create/test/replay
+- `webhooks_dead` — dead-letter queue (exhausted retries) with each row's `outboxId`
+- `webhooks_requeue` — retry one dead row by `outboxId`; fix the receiver first
 
 Streams (raw — loopback reads need no key, same as Index):
 
@@ -101,7 +101,7 @@ Set `INSTANCE_TOKEN` to the token `secondlayer init` wrote for instance tools. I
 
 Resources:
 
-- `secondlayer://context` — live state: this instance's subgraphs and subscriptions, what you can do, and which surfaces need the token (read first)
+- `secondlayer://context` — live state: this instance's subgraphs and webhooks, what you can do, and which surfaces need the token (read first)
 - `secondlayer://filters`
 - `secondlayer://column-types`
 - `secondlayer://traits`
@@ -110,7 +110,7 @@ Resources:
 ## Agent Rules
 
 - Inspect before mutating.
-- Verify after mutating: `subgraphs_operations` for deploy/reindex/backfill/stop, `subscriptions_deliveries` for create/test/replay.
+- Verify after mutating: `subgraphs_operations` for deploy/reindex/backfill/stop, `webhooks_deliveries` for create/test/replay.
 - Human-confirm delete, reindex, replay, and secret rotation.
 - Treat returned `signingSecret` values as one-time secrets.
 - Use `index_discover` / `contracts_find` to learn the vocabulary before querying.

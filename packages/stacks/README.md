@@ -75,7 +75,7 @@ multi-broadcast gap, which is why it lives here rather than being deferred to
 |---|---|
 | `@secondlayer/stacks/connect` | Wallet connection — browser extensions + `setProvider` |
 | `@secondlayer/stacks/connect/walletconnect` | WalletConnect v2 — native relay, QR, modal |
-| `@secondlayer/stacks/subscriptions` | `watchBlocks`, `watchMempool`, `watchTransaction` |
+| `@secondlayer/stacks/subscriptions` | WebSocket watch helpers (`watchBlocks`, `watchMempool`, `watchTransaction`) — not a Webhooks product alias |
 | `@secondlayer/stacks/bns` | BNS name registration, resolution, zonefiles |
 | `@secondlayer/stacks/pox` | PoX stacking — solo and delegated |
 | `@secondlayer/stacks/stackingdao` | StackingDAO liquid staking (STX/stSTX) |

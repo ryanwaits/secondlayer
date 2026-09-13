@@ -40,7 +40,7 @@ export interface SubgraphSummary {
 	lastError?: string | null;
 	lastErrorAt?: string | null;
 	updatedAt?: string | null;
-	subscriptionCount?: number;
+	webhookCount?: number;
 	createdAt: string;
 }
 
@@ -166,24 +166,24 @@ export interface SubgraphDetail {
 	updatedAt: string;
 }
 
-export type SubscriptionStatus = "active" | "paused" | "error";
-export type SubscriptionFormat =
+export type WebhookStatus = "active" | "paused" | "error";
+export type WebhookFormat =
 	| "standard-webhooks"
 	| "inngest"
 	| "trigger"
 	| "cloudflare"
 	| "cloudevents"
 	| "raw";
-export type SubscriptionRuntime = "inngest" | "trigger" | "cloudflare" | "node";
+export type WebhookRuntime = "inngest" | "trigger" | "cloudflare" | "node";
 
-export interface SubscriptionSummary {
+export interface WebhookSummary {
 	id: string;
 	name: string;
-	status: SubscriptionStatus;
+	status: WebhookStatus;
 	subgraphName: string;
 	tableName: string;
-	format: SubscriptionFormat;
-	runtime: SubscriptionRuntime | null;
+	format: WebhookFormat;
+	runtime: WebhookRuntime | null;
 	url: string;
 	lastDeliveryAt: string | null;
 	lastSuccessAt: string | null;
@@ -191,7 +191,7 @@ export interface SubscriptionSummary {
 	updatedAt: string;
 }
 
-export interface SubscriptionDetail extends SubscriptionSummary {
+export interface WebhookDetail extends WebhookSummary {
 	filter: Record<string, unknown>;
 	authConfig: Record<string, unknown>;
 	maxRetries: number;

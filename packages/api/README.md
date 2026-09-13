@@ -179,34 +179,34 @@ Formats:
 
 Pass `?server=<url>` to override the server URL embedded in generated docs.
 
-## Subscriptions
+## Webhooks
 
-Signed HTTP webhooks. Polymorphic — a subscription is either **subgraph** (fires
+Signed HTTP POSTs. Polymorphic — a webhook is either **subgraph** (fires
 on a deployed subgraph table's rows) or **chain** (fires on raw chain events,
 no subgraph; forward-looking — starts at the chain tip, never backfills).
 
 ```
-GET    /api/subscriptions                       # list
-POST   /api/subscriptions                       # create
-GET    /api/subscriptions/:id                   # get
-PATCH  /api/subscriptions/:id                   # update
-DELETE /api/subscriptions/:id                   # delete
-POST   /api/subscriptions/:id/pause             # pause
-POST   /api/subscriptions/:id/resume            # resume
-POST   /api/subscriptions/:id/rotate-secret     # rotate signing secret
-GET    /api/subscriptions/:id/deliveries        # recent delivery attempts
-GET    /api/subscriptions/:id/dead              # dead-letter outbox rows
-POST   /api/subscriptions/:id/dead/:outboxId/requeue
-POST   /api/subscriptions/:id/replay            # replay a block range
+GET    /api/webhooks                       # list
+POST   /api/webhooks                       # create
+GET    /api/webhooks/:id                   # get
+PATCH  /api/webhooks/:id                   # update
+DELETE /api/webhooks/:id                   # delete
+POST   /api/webhooks/:id/pause             # pause
+POST   /api/webhooks/:id/resume            # resume
+POST   /api/webhooks/:id/rotate-secret     # rotate signing secret
+GET    /api/webhooks/:id/deliveries        # recent delivery attempts
+GET    /api/webhooks/:id/dead              # dead-letter outbox rows
+POST   /api/webhooks/:id/dead/:outboxId/requeue
+POST   /api/webhooks/:id/replay            # replay a block range
 ```
 
-`POST /api/subscriptions` accepts a `triggers` array (1..50) for a **chain**
-subscription, OR `subgraphName` + `tableName` for a **subgraph** subscription —
+`POST /api/webhooks` accepts a `triggers` array (1..50) for a **chain**
+webhook, OR `subgraphName` + `tableName` for a **subgraph** webhook —
 mutually exclusive.
 
 ```bash
 curl -X POST -H "Authorization: Bearer sk-sl_..." \
-  http://127.0.0.1:3800/api/subscriptions \
+  http://127.0.0.1:3800/api/webhooks \
   -d '{
     "name": "amm-swaps",
     "url": "https://my-app.com/webhook",
@@ -237,7 +237,7 @@ Chain delivery envelope: each apply is `chain.{type}.apply` with body
 On reorg you get `chain.reorg.rollback` with `{ action: "rollback",
 fork_point_height, orphaned: [{ tx_id, event }] }`. Delivery is at-least-once: a
 tx surviving a reorg re-delivers an apply under its new `block_hash` — key
-consumer state on `(tx_id, block_hash)`. Per-subscription HMAC signing (Standard
+consumer state on `(tx_id, block_hash)`. Per-webhook HMAC signing (Standard
 Webhooks) applies to both kinds.
 
 ## Error Codes

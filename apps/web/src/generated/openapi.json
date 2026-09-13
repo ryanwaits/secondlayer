@@ -22,7 +22,7 @@
 		},
 		{
 			"name": "subgraphs",
-			"description": "Reads over deployed subgraphs — rows, counts, aggregates, generated schema and docs"
+			"description": "Reads over deployed subgraphs \u2014 rows, counts, aggregates, generated schema and docs"
 		},
 		{
 			"name": "archive",
@@ -33,8 +33,8 @@
 			"description": "Deploy, reindex, backfill, stop, and delete subgraphs on this instance (write plane, `/api`)"
 		},
 		{
-			"name": "subscriptions",
-			"description": "Webhook subscriptions: create, update, pause, replay, and inspect deliveries (write plane, `/api`)"
+			"name": "webhooks",
+			"description": "Webhooks: register a URL, we match, sign, retry and POST (write plane, `/api`)"
 		},
 		{
 			"name": "node",
@@ -269,7 +269,7 @@
 					"archive"
 				],
 				"summary": "Verify this instance against a signed archive",
-				"description": "Read-only compare of local chain identity digests against a signed archive manifest. Nothing is uploaded but the manifest URL. Identity/`raw` only — semantic replay is CLI. Without `from_block`/`to_block`, at most 40 ranges are verified. Signature failure is 200 `unanchored`, never 500 and never `clean`.",
+				"description": "Read-only compare of local chain identity digests against a signed archive manifest. Nothing is uploaded but the manifest URL. Identity/`raw` only \u2014 semantic replay is CLI. Without `from_block`/`to_block`, at most 40 ranges are verified. Signature failure is 200 `unanchored`, never 500 and never `clean`.",
 				"security": [
 					{},
 					{
@@ -756,7 +756,7 @@
 						"schema": {
 							"type": "integer"
 						},
-						"description": "Page size, 1–1000. Non-integers, 0, negatives, and values above 1000 are rejected (400), not clamped."
+						"description": "Page size, 1\u20131000. Non-integers, 0, negatives, and values above 1000 are rejected (400), not clamped."
 					},
 					{
 						"name": "cursor",
@@ -765,7 +765,7 @@
 						"schema": {
 							"type": "string"
 						},
-						"description": "Opaque; pass back the previous page's next_cursor verbatim. Its shape depends on whether _sort was used to fetch that page — do not hand-construct one, and don't replay a cursor from one _sort/_order under a different _sort/_order (400)."
+						"description": "Opaque; pass back the previous page's next_cursor verbatim. Its shape depends on whether _sort was used to fetch that page \u2014 do not hand-construct one, and don't replay a cursor from one _sort/_order under a different _sort/_order (400)."
 					},
 					{
 						"name": "_sort",
@@ -774,7 +774,7 @@
 						"schema": {
 							"type": "string"
 						},
-						"description": "Single column to sort by (no comma list — composite keyset pagination pairs it with the _id tiebreaker, which only works for one column). jsonb columns are rejected (no meaningful ordering). Omit to keep the default _id-only ordering."
+						"description": "Single column to sort by (no comma list \u2014 composite keyset pagination pairs it with the _id tiebreaker, which only works for one column). jsonb columns are rejected (no meaningful ordering). Omit to keep the default _id-only ordering."
 					},
 					{
 						"name": "_order",
@@ -783,7 +783,7 @@
 						"schema": {
 							"type": "string"
 						},
-						"description": "\"asc\" or \"desc\" — direction of the _id scan, or of the _sort column when _sort is present (any other value is rejected)."
+						"description": "\"asc\" or \"desc\" \u2014 direction of the _id scan, or of the _sort column when _sort is present (any other value is rejected)."
 					},
 					{
 						"name": "_fields",
@@ -2343,7 +2343,7 @@
 					"index"
 				],
 				"summary": "PoX-5 boot-contract events (decoded)",
-				"description": "Decoded print log of the pox-5 boot contract (SIP-045 Bitcoin Staking) — all 19 topics (stake, stake-update, register-signer, unstake, claim-rewards, etc.), one row per print. Starts at the epoch 4.0 hard fork, where /v1/index/stacking's pox-4 feed ends.",
+				"description": "Decoded print log of the pox-5 boot contract (SIP-045 Bitcoin Staking) \u2014 all 19 topics (stake, stake-update, register-signer, unstake, claim-rewards, etc.), one row per print. Starts at the epoch 4.0 hard fork, where /v1/index/stacking's pox-4 feed ends.",
 				"security": [
 					{},
 					{
@@ -2770,7 +2770,7 @@
 					"index"
 				],
 				"summary": "sBTC peg-outs (lifecycle, one per request_id)",
-				"description": "Peg-outs rolled up per request_id with derived status (REQUESTED→ACCEPTED|REJECTED) and the committed BTC sweep_txid. Never immutably cached (status mutates as later events land).",
+				"description": "Peg-outs rolled up per request_id with derived status (REQUESTED\u2192ACCEPTED|REJECTED) and the committed BTC sweep_txid. Never immutably cached (status mutates as later events land).",
 				"security": [
 					{},
 					{
@@ -3015,7 +3015,7 @@
 					"index"
 				],
 				"summary": "sBTC peg summary scoreboard",
-				"description": "One scalar aggregate over the whole bridge: lifecycle counts, net peg flow, locked sats, and circulating sBTC supply (mints − burns). All-time canonical totals; no params.",
+				"description": "One scalar aggregate over the whole bridge: lifecycle counts, net peg flow, locked sats, and circulating sBTC supply (mints \u2212 burns). All-time canonical totals; no params.",
 				"security": [
 					{},
 					{
@@ -3767,7 +3767,7 @@
 						}
 					},
 					"415": {
-						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -3848,7 +3848,7 @@
 						}
 					},
 					"415": {
-						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -3978,7 +3978,7 @@
 						}
 					},
 					"415": {
-						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -3996,7 +3996,7 @@
 					"deployments"
 				],
 				"summary": "Queue a full reindex (drops and rebuilds the schema)",
-				"description": "Always rebuilds the whole subgraph from its start block — a `fromBlock`/`toBlock` body is rejected with 400 `REINDEX_RANGE_NOT_SUPPORTED` rather than silently destroying everything outside the range; use `backfill` for a range. Returns an `operationId` to poll on `/api/subgraphs/{name}/operations`.",
+				"description": "Always rebuilds the whole subgraph from its start block \u2014 a `fromBlock`/`toBlock` body is rejected with 400 `REINDEX_RANGE_NOT_SUPPORTED` rather than silently destroying everything outside the range; use `backfill` for a range. Returns an `operationId` to poll on `/api/subgraphs/{name}/operations`.",
 				"security": [
 					{
 						"bearerAuth": []
@@ -4060,7 +4060,7 @@
 						}
 					},
 					"415": {
-						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -4164,7 +4164,7 @@
 						}
 					},
 					"415": {
-						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -4246,7 +4246,7 @@
 						}
 					},
 					"415": {
-						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -4395,7 +4395,7 @@
 						"schema": {
 							"type": "integer"
 						},
-						"description": "Page size, 1–1000."
+						"description": "Page size, 1\u20131000."
 					},
 					{
 						"name": "_offset",
@@ -4472,7 +4472,7 @@
 						"schema": {
 							"type": "integer"
 						},
-						"description": "Page size, 1–100 (default 50)."
+						"description": "Page size, 1\u2013100 (default 50)."
 					}
 				],
 				"responses": {
@@ -4505,12 +4505,12 @@
 				}
 			}
 		},
-		"/api/subscriptions": {
+		"/api/webhooks": {
 			"get": {
 				"tags": [
-					"subscriptions"
+					"webhooks"
 				],
-				"summary": "List webhook subscriptions",
+				"summary": "List webhooks",
 				"security": [
 					{
 						"bearerAuth": []
@@ -4524,7 +4524,7 @@
 						"schema": {
 							"type": "integer"
 						},
-						"description": "Page size, 1–200 (default 50)."
+						"description": "Page size, 1\u2013200 (default 50)."
 					},
 					{
 						"name": "_offset",
@@ -4556,10 +4556,10 @@
 			},
 			"post": {
 				"tags": [
-					"subscriptions"
+					"webhooks"
 				],
-				"summary": "Create a webhook subscription",
-				"description": "Two mutually exclusive modes: a subgraph subscription (`subgraphName` + `tableName`, optional column `filter`) or a chain subscription (`triggers`). Responds 201 with the signing secret — the only time it is returned in full.",
+				"summary": "Create a webhook",
+				"description": "Two mutually exclusive modes: a subgraph webhook (`subgraphName` + `tableName`, optional column `filter`) or a chain webhook (`triggers`). Responds 201 with the signing secret \u2014 the only time it is returned in full.",
 				"security": [
 					{
 						"bearerAuth": []
@@ -4667,7 +4667,7 @@
 						}
 					},
 					"409": {
-						"description": "A subscription with that name exists",
+						"description": "A webhook with that name exists",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -4677,7 +4677,7 @@
 						}
 					},
 					"415": {
-						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -4689,12 +4689,12 @@
 				}
 			}
 		},
-		"/api/subscriptions/{id}": {
+		"/api/webhooks/{id}": {
 			"get": {
 				"tags": [
-					"subscriptions"
+					"webhooks"
 				],
-				"summary": "Subscription detail",
+				"summary": "Webhook detail",
 				"security": [
 					{
 						"bearerAuth": []
@@ -4741,9 +4741,9 @@
 			},
 			"patch": {
 				"tags": [
-					"subscriptions"
+					"webhooks"
 				],
-				"summary": "Update a subscription",
+				"summary": "Update a webhook",
 				"security": [
 					{
 						"bearerAuth": []
@@ -4839,7 +4839,7 @@
 						}
 					},
 					"415": {
-						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -4852,9 +4852,9 @@
 			},
 			"delete": {
 				"tags": [
-					"subscriptions"
+					"webhooks"
 				],
-				"summary": "Delete a subscription",
+				"summary": "Delete a webhook",
 				"security": [
 					{
 						"bearerAuth": []
@@ -4908,7 +4908,7 @@
 						}
 					},
 					"415": {
-						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -4920,10 +4920,10 @@
 				}
 			}
 		},
-		"/api/subscriptions/{id}/pause": {
+		"/api/webhooks/{id}/pause": {
 			"post": {
 				"tags": [
-					"subscriptions"
+					"webhooks"
 				],
 				"summary": "Pause delivery (body-less)",
 				"security": [
@@ -4979,7 +4979,7 @@
 						}
 					},
 					"415": {
-						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -4991,10 +4991,10 @@
 				}
 			}
 		},
-		"/api/subscriptions/{id}/resume": {
+		"/api/webhooks/{id}/resume": {
 			"post": {
 				"tags": [
-					"subscriptions"
+					"webhooks"
 				],
 				"summary": "Resume delivery (body-less)",
 				"security": [
@@ -5050,7 +5050,7 @@
 						}
 					},
 					"415": {
-						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -5062,10 +5062,10 @@
 				}
 			}
 		},
-		"/api/subscriptions/{id}/rotate-secret": {
+		"/api/webhooks/{id}/rotate-secret": {
 			"post": {
 				"tags": [
-					"subscriptions"
+					"webhooks"
 				],
 				"summary": "Rotate the signing secret (body-less)",
 				"description": "Returns the new secret once. Deliveries signed with the old secret stop verifying immediately.",
@@ -5122,7 +5122,7 @@
 						}
 					},
 					"415": {
-						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -5134,13 +5134,13 @@
 				}
 			}
 		},
-		"/api/subscriptions/{id}/test": {
+		"/api/webhooks/{id}/test": {
 			"post": {
 				"tags": [
-					"subscriptions"
+					"webhooks"
 				],
 				"summary": "Send a one-off test delivery (body-less)",
-				"description": "Builds a sample event in the subscription's format, posts it to the configured URL through the SSRF guard, and records it under deliveries.",
+				"description": "Builds a sample event in the webhook's format, posts it to the configured URL through the SSRF guard, and records it under deliveries.",
 				"security": [
 					{
 						"bearerAuth": []
@@ -5194,7 +5194,7 @@
 						}
 					},
 					"415": {
-						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -5206,10 +5206,10 @@
 				}
 			}
 		},
-		"/api/subscriptions/{id}/deliveries": {
+		"/api/webhooks/{id}/deliveries": {
 			"get": {
 				"tags": [
-					"subscriptions"
+					"webhooks"
 				],
 				"summary": "Last 100 delivery attempts, newest first",
 				"security": [
@@ -5257,10 +5257,10 @@
 				}
 			}
 		},
-		"/api/subscriptions/{id}/dead": {
+		"/api/webhooks/{id}/dead": {
 			"get": {
 				"tags": [
-					"subscriptions"
+					"webhooks"
 				],
 				"summary": "Dead-letter queue: events that exhausted their retries",
 				"security": [
@@ -5308,10 +5308,10 @@
 				}
 			}
 		},
-		"/api/subscriptions/{id}/dead/{outbox_id}/requeue": {
+		"/api/webhooks/{id}/dead/{outbox_id}/requeue": {
 			"post": {
 				"tags": [
-					"subscriptions"
+					"webhooks"
 				],
 				"summary": "Requeue one dead event at live priority (body-less)",
 				"security": [
@@ -5375,7 +5375,7 @@
 						}
 					},
 					"415": {
-						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -5387,12 +5387,12 @@
 				}
 			}
 		},
-		"/api/subscriptions/{id}/replay": {
+		"/api/webhooks/{id}/replay": {
 			"post": {
 				"tags": [
-					"subscriptions"
+					"webhooks"
 				],
-				"summary": "Replay a block range through a subscription",
+				"summary": "Replay a block range through a webhook",
 				"description": "Queues historical events for redelivery; replays drain through a 10% share of the outbox so live traffic keeps priority. 202 on accept.",
 				"security": [
 					{
@@ -5479,7 +5479,1006 @@
 						}
 					},
 					"415": {
-						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subscriptions": {"description": "Deprecated alias of /api/webhooks. Removed in plan 015.",
+			"get": {
+				"tags": [
+					"webhooks"
+				],
+				"deprecated": true,
+				"summary": "Deprecated alias of /api/webhooks",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "_limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						},
+						"description": "Page size, 1\u2013200 (default 50)."
+					},
+					{
+						"name": "_offset",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"tags": [
+					"webhooks"
+				],
+				"deprecated": true,
+				"summary": "Deprecated alias of /api/webhooks",
+				"description": "Two mutually exclusive modes: a subgraph webhook (`subgraphName` + `tableName`, optional column `filter`) or a chain webhook (`triggers`). Responds 201 with the signing secret \u2014 the only time it is returned in full.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": [
+									"name",
+									"url"
+								],
+								"properties": {
+									"name": {
+										"type": "string"
+									},
+									"url": {
+										"type": "string",
+										"description": "HTTPS delivery target."
+									},
+									"subgraphName": {
+										"type": "string"
+									},
+									"tableName": {
+										"type": "string"
+									},
+									"filter": {
+										"type": "object",
+										"description": "Column filter on the subgraph table."
+									},
+									"triggers": {
+										"type": "array",
+										"items": {
+											"type": "object"
+										},
+										"description": "Chain-event triggers; mutually exclusive with `subgraphName`/`tableName`."
+									},
+									"format": {
+										"type": "string",
+										"default": "standard-webhooks"
+									},
+									"runtime": {
+										"type": [
+											"string",
+											"null"
+										]
+									},
+									"authConfig": {
+										"type": "object"
+									},
+									"maxRetries": {
+										"type": "integer",
+										"minimum": 0,
+										"maximum": 100
+									},
+									"timeoutMs": {
+										"type": "integer",
+										"minimum": 100,
+										"maximum": 300000
+									},
+									"concurrency": {
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 100
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"201": {
+						"description": "Created; body carries the signing secret once",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "A webhook with that name exists",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subscriptions/{id}": {"description": "Deprecated alias of /api/webhooks/{id}. Removed in plan 015.",
+			"get": {
+				"tags": [
+					"webhooks"
+				],
+				"deprecated": true,
+				"summary": "Deprecated alias of /api/webhooks/{id}",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"tags": [
+					"webhooks"
+				],
+				"deprecated": true,
+				"summary": "Deprecated alias of /api/webhooks/{id}",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"name": {
+										"type": "string"
+									},
+									"url": {
+										"type": "string"
+									},
+									"filter": {
+										"type": "object"
+									},
+									"format": {
+										"type": "string"
+									},
+									"runtime": {
+										"type": [
+											"string",
+											"null"
+										]
+									},
+									"authConfig": {
+										"type": "object"
+									},
+									"maxRetries": {
+										"type": "integer"
+									},
+									"timeoutMs": {
+										"type": "integer"
+									},
+									"concurrency": {
+										"type": "integer"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"tags": [
+					"webhooks"
+				],
+				"deprecated": true,
+				"summary": "Deprecated alias of /api/webhooks/{id}",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subscriptions/{id}/pause": {"description": "Deprecated alias of /api/webhooks/{id}/pause. Removed in plan 015.",
+			"post": {
+				"tags": [
+					"webhooks"
+				],
+				"deprecated": true,
+				"summary": "Deprecated alias of /api/webhooks/{id}/pause",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subscriptions/{id}/resume": {"description": "Deprecated alias of /api/webhooks/{id}/resume. Removed in plan 015.",
+			"post": {
+				"tags": [
+					"webhooks"
+				],
+				"deprecated": true,
+				"summary": "Deprecated alias of /api/webhooks/{id}/resume",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subscriptions/{id}/rotate-secret": {"description": "Deprecated alias of /api/webhooks/{id}/rotate-secret. Removed in plan 015.",
+			"post": {
+				"tags": [
+					"webhooks"
+				],
+				"deprecated": true,
+				"summary": "Deprecated alias of /api/webhooks/{id}/rotate-secret",
+				"description": "Returns the new secret once. Deliveries signed with the old secret stop verifying immediately.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subscriptions/{id}/test": {"description": "Deprecated alias of /api/webhooks/{id}/test. Removed in plan 015.",
+			"post": {
+				"tags": [
+					"webhooks"
+				],
+				"deprecated": true,
+				"summary": "Deprecated alias of /api/webhooks/{id}/test",
+				"description": "Builds a sample event in the webhook's format, posts it to the configured URL through the SSRF guard, and records it under deliveries.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subscriptions/{id}/deliveries": {"description": "Deprecated alias of /api/webhooks/{id}/deliveries. Removed in plan 015.",
+			"get": {
+				"tags": [
+					"webhooks"
+				],
+				"deprecated": true,
+				"summary": "Deprecated alias of /api/webhooks/{id}/deliveries",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subscriptions/{id}/dead": {"description": "Deprecated alias of /api/webhooks/{id}/dead. Removed in plan 015.",
+			"get": {
+				"tags": [
+					"webhooks"
+				],
+				"deprecated": true,
+				"summary": "Deprecated alias of /api/webhooks/{id}/dead",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subscriptions/{id}/dead/{outbox_id}/requeue": {"description": "Deprecated alias of /api/webhooks/{id}/dead/{outbox_id}/requeue. Removed in plan 015.",
+			"post": {
+				"tags": [
+					"webhooks"
+				],
+				"deprecated": true,
+				"summary": "Deprecated alias of /api/webhooks/{id}/dead/{outbox_id}/requeue",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "outbox_id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/subscriptions/{id}/replay": {"description": "Deprecated alias of /api/webhooks/{id}/replay. Removed in plan 015.",
+			"post": {
+				"tags": [
+					"webhooks"
+				],
+				"deprecated": true,
+				"summary": "Deprecated alias of /api/webhooks/{id}/replay",
+				"description": "Queues historical events for redelivery; replays drain through a 10% share of the outbox so live traffic keeps priority. 202 on accept.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": [
+									"fromBlock",
+									"toBlock"
+								],
+								"properties": {
+									"fromBlock": {
+										"type": "integer"
+									},
+									"toBlock": {
+										"type": "integer"
+									},
+									"force": {
+										"type": "string",
+										"description": "Suffix that makes the replay ids unique, so an already-replayed range can be sent again."
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"202": {
+						"description": "Replay queued",
+						"content": {
+							"application/json": {}
+						}
+					},
+					"400": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Error",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) \u2014 writes must send `Content-Type: application/json`",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -5558,7 +6557,7 @@
 					"instance"
 				],
 				"summary": "Local instance catalog",
-				"description": "Instance status, local subgraphs, subscriptions, and default features. No signup or pricing.",
+				"description": "Instance status, local subgraphs, webhooks, and default features. No signup or pricing.",
 				"security": [
 					{},
 					{
