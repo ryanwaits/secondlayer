@@ -173,4 +173,24 @@ describe.skipIf(!HAS_DB)("migration upgrade parity", () => {
 		},
 		BUILD_TIMEOUT_MS,
 	);
+
+	test(
+		"0126 rename: webhooks tables exist and subscription tables do not",
+		async () => {
+			const fresh = await buildSchema("both");
+			expect(fresh["table webhooks"]).toBe("present");
+			expect(fresh["table webhook_outbox"]).toBe("present");
+			expect(fresh["table webhook_deliveries"]).toBe("present");
+			expect(fresh["table subscriptions"]).toBeUndefined();
+			expect(fresh["table subscription_outbox"]).toBeUndefined();
+			expect(fresh["table subscription_deliveries"]).toBeUndefined();
+			expect(fresh["column webhook_outbox.webhook_id"]).toBeDefined();
+			expect(fresh["column webhook_deliveries.webhook_id"]).toBeDefined();
+			expect(fresh["column webhook_outbox.subscription_id"]).toBeUndefined();
+			expect(
+				fresh["column webhook_deliveries.subscription_id"],
+			).toBeUndefined();
+		},
+		BUILD_TIMEOUT_MS,
+	);
 });
