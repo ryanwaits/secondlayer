@@ -1,11 +1,8 @@
 import { afterAll, beforeEach, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { getDb } from "@secondlayer/shared/db";
-import type {
-	InsertSubscriptionOutbox,
-	OutboxStatus,
-} from "@secondlayer/shared/db";
-import { createSubscription } from "@secondlayer/shared/db/queries/subscriptions";
+import type { InsertWebhookOutbox, OutboxStatus } from "@secondlayer/shared/db";
+import { createWebhook } from "@secondlayer/shared/db/queries/webhooks";
 import { handleChainReorg } from "./chain-reorg.ts";
 
 process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
@@ -17,38 +14,32 @@ const db = getDb();
 const accountId = randomUUID();
 
 afterAll(async () => {
-	await db
-		.deleteFrom("subscriptions")
-		.where("account_id", "=", accountId)
-		.execute();
+	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
 });
 
 beforeEach(async () => {
-	await db
-		.deleteFrom("subscriptions")
-		.where("account_id", "=", accountId)
-		.execute();
+	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
 });
 
 async function makeSub(): Promise<string> {
-	const { subscription } = await createSubscription(db, {
+	const { webhook } = await createWebhook(db, {
 		accountId,
 		name: `reorg-${randomUUID()}`,
 		kind: "chain",
 		triggers: [{ type: "contract_call" }],
 		url: "https://webhook.site/reorg",
 	});
-	return subscription.id;
+	return webhook.id;
 }
 
 async function insertApply(
-	subscriptionId: string,
+	webhookId: string,
 	height: number,
 	txId: string,
 	status: OutboxStatus,
 ): Promise<void> {
-	const row: InsertSubscriptionOutbox = {
-		subscription_id: subscriptionId,
+	const row: InsertWebhookOutbox = {
+		webhook_id: webhookId,
 		kind: "chain",
 		subgraph_name: null,
 		table_name: null,
@@ -65,10 +56,10 @@ async function insertApply(
 			trigger: "contract_call",
 			event: { tx_id: txId, contract_id: "SP1.amm" },
 		},
-		dedup_key: `chain:${subscriptionId}:${txId}:-1:0x${height}`,
+		dedup_key: `chain:${webhookId}:${txId}:-1:0x${height}`,
 		status,
 	};
-	await db.insertInto("subscription_outbox").values(row).execute();
+	await db.insertInto("webhook_outbox").values(row).execute();
 }
 
 async function setCursor(height: number): Promise<void> {
@@ -88,11 +79,11 @@ async function cursor(): Promise<number> {
 	return Number(row.last_processed_block);
 }
 
-async function rows(subscriptionId: string) {
+async function rows(webhookId: string) {
 	return db
-		.selectFrom("subscription_outbox")
+		.selectFrom("webhook_outbox")
 		.selectAll()
-		.where("subscription_id", "=", subscriptionId)
+		.where("webhook_id", "=", webhookId)
 		.execute();
 }
 

@@ -2,28 +2,25 @@ import type {
 	ChainReorgOrphanedEntry,
 	ChainReorgRollbackEnvelope,
 } from "@secondlayer/shared";
-import type {
-	Database,
-	InsertSubscriptionOutbox,
-} from "@secondlayer/shared/db";
+import type { Database, InsertWebhookOutbox } from "@secondlayer/shared/db";
 import { getTargetDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
 import { bumpChainReorgGeneration } from "./trigger-evaluator-loop.ts";
 
 /**
- * Reorg handling for direct chain-level subscriptions.
+ * Reorg handling for direct chain-level webhooks.
  *
  * `forkHeight` is the shallowest height where the chain diverged; every block
  * `>= forkHeight` we previously processed is now orphaned. Orphaned blocks are
  * NOT re-fetchable from Index (it serves canonical only), so the chain
- * `subscription_outbox` rows we already wrote are the sole record of what we
+ * `webhook_outbox` rows we already wrote are the sole record of what we
  * delivered. We therefore:
  *
  *   1. drop still-pending apply rows `>= forkHeight` — never delivered, so no
  *      rollback is owed and we must not ship now-stale events;
  *   2. snapshot the DELIVERED apply rows `>= forkHeight` and emit one
- *      `chain.reorg.rollback` per affected subscription carrying those events so
+ *      `chain.reorg.rollback` per affected webhook carrying those events so
  *      the consumer can undo precisely;
  *   3. rewind the evaluator cursor to `forkHeight - 1` so apply re-fires for the
  *      new canonical blocks. Surviving txs re-deliver under their new block_hash
@@ -45,17 +42,17 @@ export async function handleChainReorg(
 
 	// 1. Drop undelivered applies for orphaned blocks.
 	await db
-		.deleteFrom("subscription_outbox")
+		.deleteFrom("webhook_outbox")
 		.where("kind", "=", "chain")
 		.where("block_height", ">=", forkHeight)
 		.where("status", "=", "pending")
 		.where("event_type", "like", "chain.%.apply")
 		.execute();
 
-	// 2. Snapshot delivered applies for orphaned blocks, grouped per subscription.
+	// 2. Snapshot delivered applies for orphaned blocks, grouped per webhook.
 	const delivered = await db
-		.selectFrom("subscription_outbox")
-		.select(["subscription_id", "tx_id", "payload"])
+		.selectFrom("webhook_outbox")
+		.select(["webhook_id", "tx_id", "payload"])
 		.where("kind", "=", "chain")
 		.where("block_height", ">=", forkHeight)
 		.where("status", "=", "delivered")
@@ -66,15 +63,15 @@ export async function handleChainReorg(
 
 	const bySub = new Map<string, ChainReorgOrphanedEntry[]>();
 	for (const row of delivered) {
-		const list = bySub.get(row.subscription_id) ?? [];
+		const list = bySub.get(row.webhook_id) ?? [];
 		const payload = row.payload as { event?: unknown };
 		list.push({ tx_id: row.tx_id, event: payload?.event ?? null });
-		bySub.set(row.subscription_id, list);
+		bySub.set(row.webhook_id, list);
 	}
 
 	if (bySub.size > 0) {
-		const rows: InsertSubscriptionOutbox[] = [];
-		for (const [subscriptionId, entries] of bySub) {
+		const rows: InsertWebhookOutbox[] = [];
+		for (const [webhookId, entries] of bySub) {
 			const truncated = entries.length > MAX_ORPHANED_PER_SUB;
 			const payload: ChainReorgRollbackEnvelope = {
 				action: "rollback",
@@ -83,7 +80,7 @@ export async function handleChainReorg(
 				truncated,
 			};
 			rows.push({
-				subscription_id: subscriptionId,
+				webhook_id: webhookId,
 				kind: "chain",
 				subgraph_name: null,
 				table_name: null,
@@ -92,21 +89,19 @@ export async function handleChainReorg(
 				row_pk: { fork_point_height: forkHeight },
 				event_type: "chain.reorg.rollback",
 				payload,
-				// One rollback per (subscription, fork) — re-applying the same reorg
+				// One rollback per (webhook, fork) — re-applying the same reorg
 				// is a no-op.
-				dedup_key: `chainreorg:${subscriptionId}:${forkHeight}`,
+				dedup_key: `chainreorg:${webhookId}:${forkHeight}`,
 			});
 		}
 		await db
-			.insertInto("subscription_outbox")
+			.insertInto("webhook_outbox")
 			.values(rows)
-			.onConflict((oc) =>
-				oc.columns(["subscription_id", "dedup_key"]).doNothing(),
-			)
+			.onConflict((oc) => oc.columns(["webhook_id", "dedup_key"]).doNothing())
 			.execute();
 		logger.info("Chain reorg — emitted rollbacks", {
 			forkPointHeight: forkHeight,
-			subscriptions: bySub.size,
+			webhooks: bySub.size,
 		});
 	}
 

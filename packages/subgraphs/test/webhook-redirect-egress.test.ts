@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import {
 	MAX_REDIRECT_HOPS,
 	__setDnsLookupForTest,
-	__postToSubscriptionForTest as postToSubscription,
+	__postToWebhookForTest as postToWebhook,
 } from "../src/runtime/emitter.ts";
 
 // Pure transport-layer tests: stub `fetch` and inject DNS resolution so no
@@ -60,7 +60,7 @@ describe("webhook redirect egress guard", () => {
 		]);
 		globalThis.fetch = fetch;
 
-		const result = await postToSubscription(
+		const result = await postToWebhook(
 			"http://public.example.test/hook",
 			"{}",
 			{},
@@ -83,7 +83,7 @@ describe("webhook redirect egress guard", () => {
 		]);
 		globalThis.fetch = fetch;
 
-		const result = await postToSubscription(
+		const result = await postToWebhook(
 			"http://public.example.test/hook",
 			"{}",
 			{},
@@ -108,7 +108,7 @@ describe("webhook redirect egress guard", () => {
 		const { fetch, calls } = stubFetch(responses);
 		globalThis.fetch = fetch;
 
-		const result = await postToSubscription(
+		const result = await postToWebhook(
 			"http://public-0.example.test/hook",
 			"{}",
 			{},
@@ -124,7 +124,7 @@ describe("webhook redirect egress guard", () => {
 		const { fetch, calls } = stubFetch([{ status: 200, body: "hello" }]);
 		globalThis.fetch = fetch;
 
-		const result = await postToSubscription(
+		const result = await postToWebhook(
 			"http://public.example.test/hook",
 			"{}",
 			{},

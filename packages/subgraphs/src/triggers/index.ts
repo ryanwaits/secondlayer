@@ -129,7 +129,7 @@ export interface PrintEventEvent {
 
 /**
  * Phantom-typed EventTrigger. Runtime shape is identical to `EventTrigger`;
- * the `__event` field only exists at the type level, letting subscription
+ * the `__event` field only exists at the type level, letting webhook
  * definitions infer the handler's `event` parameter from the filter.
  */
 export type TypedEventTrigger<TEvent> = EventTrigger & {
@@ -167,7 +167,7 @@ export interface TriggerHelpers {
 	contractDeploy: (
 		f?: Omit<ContractDeployFilter, "type">,
 	) => TypedEventTrigger<ContractDeployEvent>;
-	/** Subscription triggers are not subgraph deploys — prints not required. */
+	/** Webhook triggers are not subgraph deploys — prints not required. */
 	printEvent: (f?: {
 		contractId?: string | readonly string[];
 		topic?: string;

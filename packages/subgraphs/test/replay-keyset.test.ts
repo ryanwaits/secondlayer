@@ -2,9 +2,9 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { getDb, getRawClient } from "@secondlayer/shared/db";
 import { registerSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
-import { createSubscription } from "@secondlayer/shared/db/queries/subscriptions";
+import { createWebhook } from "@secondlayer/shared/db/queries/webhooks";
 import { sql } from "kysely";
-import { replaySubscription } from "../src/runtime/replay.ts";
+import { replayWebhook } from "../src/runtime/replay.ts";
 
 process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
 
@@ -38,9 +38,9 @@ const OTHER_BLOCK = 500002;
 const OTHER_ROWS = 7;
 const TOTAL_ROWS = TIE_ROWS + OTHER_ROWS;
 
-describe.skipIf(!HAS_DB)("replaySubscription pages by _id keyset", () => {
+describe.skipIf(!HAS_DB)("replayWebhook pages by _id keyset", () => {
 	let accountId: string;
-	let subscriptionId: string;
+	let webhookId: string;
 
 	beforeAll(async () => {
 		const db = getDb();
@@ -104,7 +104,7 @@ describe.skipIf(!HAS_DB)("replaySubscription pages by _id keyset", () => {
 		// real-world condition this fix guards against.
 		await client.unsafe(`ANALYZE ${PG_SCHEMA}.${TABLE_NAME}`);
 
-		const { subscription } = await createSubscription(db, {
+		const { webhook } = await createWebhook(db, {
 			accountId,
 			kind: "subgraph",
 			name: `replay-keyset-${randomUUID().slice(0, 8)}`,
@@ -112,19 +112,16 @@ describe.skipIf(!HAS_DB)("replaySubscription pages by _id keyset", () => {
 			tableName: TABLE_NAME,
 			url: "https://example.com/replay-keyset-webhook",
 		});
-		subscriptionId = subscription.id;
+		webhookId = webhook.id;
 	});
 
 	afterAll(async () => {
 		const db = getDb();
 		await db
-			.deleteFrom("subscription_outbox")
-			.where("subscription_id", "=", subscriptionId)
+			.deleteFrom("webhook_outbox")
+			.where("webhook_id", "=", webhookId)
 			.execute();
-		await db
-			.deleteFrom("subscriptions")
-			.where("id", "=", subscriptionId)
-			.execute();
+		await db.deleteFrom("webhooks").where("id", "=", webhookId).execute();
 		await sql.raw(`DROP SCHEMA IF EXISTS ${PG_SCHEMA} CASCADE`).execute(db);
 		await db
 			.deleteFrom("subgraphs")
@@ -133,9 +130,9 @@ describe.skipIf(!HAS_DB)("replaySubscription pages by _id keyset", () => {
 	});
 
 	test("replays a >BATCH_SIZE tie block plus a second block with zero skips", async () => {
-		const result = await replaySubscription({
+		const result = await replayWebhook({
 			accountId,
-			subscriptionId,
+			webhookId,
 			fromBlock: TIE_BLOCK,
 			toBlock: OTHER_BLOCK,
 		});
@@ -145,18 +142,18 @@ describe.skipIf(!HAS_DB)("replaySubscription pages by _id keyset", () => {
 
 		const db = getDb();
 		const outboxRows = await db
-			.selectFrom("subscription_outbox")
+			.selectFrom("webhook_outbox")
 			.select(["dedup_key"])
-			.where("subscription_id", "=", subscriptionId)
+			.where("webhook_id", "=", webhookId)
 			.execute();
 		expect(outboxRows).toHaveLength(TOTAL_ROWS);
 		expect(new Set(outboxRows.map((r) => r.dedup_key)).size).toBe(TOTAL_ROWS);
 	});
 
 	test("re-running the same replay range enqueues nothing new (idempotency holds)", async () => {
-		const result = await replaySubscription({
+		const result = await replayWebhook({
 			accountId,
-			subscriptionId,
+			webhookId,
 			fromBlock: TIE_BLOCK,
 			toBlock: OTHER_BLOCK,
 		});
@@ -166,9 +163,9 @@ describe.skipIf(!HAS_DB)("replaySubscription pages by _id keyset", () => {
 
 		const db = getDb();
 		const outboxRows = await db
-			.selectFrom("subscription_outbox")
+			.selectFrom("webhook_outbox")
 			.select(["dedup_key"])
-			.where("subscription_id", "=", subscriptionId)
+			.where("webhook_id", "=", webhookId)
 			.execute();
 		expect(outboxRows).toHaveLength(TOTAL_ROWS);
 	});

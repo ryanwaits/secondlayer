@@ -607,7 +607,7 @@ export class SubgraphContext {
 	 * Auto-populates _block_height, _tx_id, _created_at on inserts.
 	 *
 	 * Returns a {@link FlushManifest} describing every write so downstream
-	 * consumers (subscription emitter) can fan out outbox rows atomically
+	 * consumers (webhook emitter) can fan out outbox rows atomically
 	 * with the flush itself.
 	 */
 	async flush(): Promise<FlushManifest> {

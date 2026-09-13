@@ -2,11 +2,11 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { getDb } from "@secondlayer/shared/db";
 import type { Block, Database } from "@secondlayer/shared/db";
-import { createSubscription } from "@secondlayer/shared/db/queries/subscriptions";
+import { createWebhook } from "@secondlayer/shared/db/queries/webhooks";
 import type { Kysely } from "kysely";
 import type { BlockData } from "./batch-loader.ts";
 import type { BlockSource } from "./block-source.ts";
-import { replayChainSubscription } from "./replay.ts";
+import { replayChainWebhook } from "./replay.ts";
 
 process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
 process.env.DATABASE_URL =
@@ -46,19 +46,16 @@ beforeAll(() => {
 });
 
 afterAll(async () => {
-	await db
-		.deleteFrom("subscriptions")
-		.where("account_id", "=", accountId)
-		.execute();
+	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
 	await db
 		.deleteFrom("sbtc_events")
 		.where("tx_id", "=", "0xreplay-acc")
 		.execute();
 });
 
-describe("replayChainSubscription sBTC coverage", () => {
+describe("replayChainWebhook sBTC coverage", () => {
 	it("emits sBTC lifecycle webhooks over a replayed block range", async () => {
-		const { subscription } = await createSubscription(db, {
+		const { webhook } = await createWebhook(db, {
 			accountId,
 			kind: "chain",
 			name: `replay-sbtc-${randomUUID().slice(0, 8)}`,
@@ -82,12 +79,12 @@ describe("replayChainSubscription sBTC coverage", () => {
 			})
 			.execute();
 
-		const result = await replayChainSubscription(
+		const result = await replayChainWebhook(
 			db,
-			subscription,
+			webhook,
 			{
 				accountId,
-				subscriptionId: subscription.id,
+				webhookId: webhook.id,
 				fromBlock: BLOCK,
 				toBlock: BLOCK,
 			},
@@ -97,9 +94,9 @@ describe("replayChainSubscription sBTC coverage", () => {
 		expect(result.enqueuedCount).toBe(1);
 
 		const rows = await db
-			.selectFrom("subscription_outbox")
+			.selectFrom("webhook_outbox")
 			.select(["event_type", "is_replay"])
-			.where("subscription_id", "=", subscription.id)
+			.where("webhook_id", "=", webhook.id)
 			.execute();
 		expect(rows).toHaveLength(1);
 		expect(rows[0]?.is_replay).toBe(true);

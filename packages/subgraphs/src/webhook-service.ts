@@ -1,7 +1,7 @@
-// Subscription processor service entry point
-// Run with: bun run packages/subgraphs/src/subscription-service.ts
+// Webhook processor service entry point
+// Run with: bun run packages/subgraphs/src/webhook-service.ts
 //
-// Boots ONLY the real-time subscription delivery plane (chain-trigger evaluator,
+// Boots ONLY the real-time webhook delivery plane (chain-trigger evaluator,
 // outbox emitter, chain-reorg rewind) — isolated from subgraph indexing, so a
 // crash-looping or CPU-hot subgraph can't stall webhook delivery, and the plane
 // scales out on its own. This is the SOLE booter of the plane (the two-deploy
@@ -12,10 +12,10 @@ import { logger } from "@secondlayer/shared/logger";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import { sql } from "kysely";
 import { setHostedMeterHooks } from "./runtime/hosted-meter.ts";
-import { startSubscriptionPlane } from "./runtime/subscription-plane.ts";
+import { startWebhookPlane } from "./runtime/webhook-plane.ts";
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
-const SERVICE_NAME = "subscription-processor";
+const SERVICE_NAME = "webhook-processor";
 
 async function writeHeartbeat(): Promise<void> {
 	try {
@@ -27,7 +27,7 @@ async function writeHeartbeat(): Promise<void> {
 			)
 			.execute();
 	} catch (err) {
-		logger.warn("subscription-processor heartbeat write failed", {
+		logger.warn("webhook-processor heartbeat write failed", {
 			error: err instanceof Error ? err.message : String(err),
 		});
 	}
@@ -46,7 +46,7 @@ if (isPlatformMode()) {
 			) => Promise<boolean>;
 			onDeliveryAttempt: (
 				accountId: string,
-				subscriptionId: string,
+				webhookId: string,
 			) => Promise<boolean>;
 		};
 		setHostedMeterHooks({
@@ -65,13 +65,13 @@ if (isPlatformMode()) {
 // delivery ships unsigned). Override with ALLOW_UNSIGNED_WEBHOOKS=true.
 assertWebhookSigningConfigured();
 
-const stopPlane = await startSubscriptionPlane();
+const stopPlane = await startWebhookPlane();
 
 await writeHeartbeat();
 const heartbeatInterval = setInterval(writeHeartbeat, HEARTBEAT_INTERVAL_MS);
 
 const shutdown = async () => {
-	logger.info("Shutting down subscription processor...");
+	logger.info("Shutting down webhook processor...");
 	clearInterval(heartbeatInterval);
 	await stopPlane();
 	process.exit(0);

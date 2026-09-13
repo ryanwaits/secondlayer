@@ -7,7 +7,7 @@ import type { Subgraph } from "@secondlayer/shared/db";
  *
  *  - `SUBGRAPH_SANDBOX_WORKERS === "1"` (env, read at call time — mirrors
  *    the `SUBGRAPH_CONCURRENCY`/`SUBGRAPH_SOURCE` idiom in
- *    `service.ts`/`subscription-plane.ts`) — the global CAPABILITY switch.
+ *    `service.ts`/`webhook-plane.ts`) — the global CAPABILITY switch.
  *    Off by default; an operator must deliberately enable the sandbox
  *    machinery fleet-wide before any subgraph can use it.
  *  - `subgraphs.sandbox_workers` (per-row, migration 0109) — the per-tenant

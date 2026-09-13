@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { getDb } from "@secondlayer/shared/db";
-import { createSubscription } from "@secondlayer/shared/db/queries/subscriptions";
+import { createWebhook } from "@secondlayer/shared/db/queries/webhooks";
 import {
 	__setDnsLookupForTest,
 	checkEgressAllowed,
@@ -31,10 +31,7 @@ beforeAll(async () => {
 afterAll(async () => {
 	// Don't closeDb() — see emitter.test.ts comment.
 	await stopEmitter?.();
-	await db
-		.deleteFrom("subscriptions")
-		.where("account_id", "=", accountId)
-		.execute();
+	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
 	if (priorAllowEnv !== undefined) {
 		process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = priorAllowEnv;
 	}
@@ -83,18 +80,18 @@ describe("SSRF egress guard", () => {
 
 		const subs: string[] = [];
 		for (const c of cases) {
-			const { subscription } = await createSubscription(db, {
+			const { webhook } = await createWebhook(db, {
 				accountId,
 				name: c.name,
 				subgraphName: "bitcoin",
 				tableName: "transfers",
 				url: c.url,
 			});
-			subs.push(subscription.id);
+			subs.push(webhook.id);
 			await db
-				.insertInto("subscription_outbox")
+				.insertInto("webhook_outbox")
 				.values({
-					subscription_id: subscription.id,
+					webhook_id: webhook.id,
 					subgraph_name: "bitcoin",
 					table_name: "transfers",
 					block_height: 1,
@@ -112,19 +109,19 @@ describe("SSRF egress guard", () => {
 		let seen = 0;
 		while (seen < subs.length && Date.now() < deadline) {
 			const rows = await db
-				.selectFrom("subscription_deliveries")
-				.select("subscription_id")
-				.where("subscription_id", "in", subs)
+				.selectFrom("webhook_deliveries")
+				.select("webhook_id")
+				.where("webhook_id", "in", subs)
 				.execute();
-			seen = new Set(rows.map((r) => r.subscription_id)).size;
+			seen = new Set(rows.map((r) => r.webhook_id)).size;
 			if (seen >= subs.length) break;
 			await new Promise((r) => setTimeout(r, 100));
 		}
 
 		const rows = await db
-			.selectFrom("subscription_deliveries")
+			.selectFrom("webhook_deliveries")
 			.selectAll()
-			.where("subscription_id", "in", subs)
+			.where("webhook_id", "in", subs)
 			.execute();
 
 		expect(rows.length).toBeGreaterThanOrEqual(subs.length);
@@ -135,20 +132,20 @@ describe("SSRF egress guard", () => {
 	}, 10_000);
 });
 
-/** Poll `subscription_deliveries` for the first row belonging to `subscriptionId`. */
-async function waitForDeliveryRow(subscriptionId: string, timeoutMs = 5_000) {
+/** Poll `webhook_deliveries` for the first row belonging to `webhookId`. */
+async function waitForDeliveryRow(webhookId: string, timeoutMs = 5_000) {
 	const deadline = Date.now() + timeoutMs;
 	while (Date.now() < deadline) {
 		const row = await db
-			.selectFrom("subscription_deliveries")
+			.selectFrom("webhook_deliveries")
 			.selectAll()
-			.where("subscription_id", "=", subscriptionId)
+			.where("webhook_id", "=", webhookId)
 			.executeTakeFirst();
 		if (row) return row;
 		await new Promise((r) => setTimeout(r, 100));
 	}
 	throw new Error(
-		`no delivery row for subscription ${subscriptionId} after ${timeoutMs}ms`,
+		`no delivery row for webhook ${webhookId} after ${timeoutMs}ms`,
 	);
 }
 
@@ -167,7 +164,7 @@ describe("SSRF egress guard — DNS rebinding", () => {
 			throw new Error(`unexpected DNS lookup for ${host} in this test`);
 		});
 
-		const { subscription } = await createSubscription(db, {
+		const { webhook } = await createWebhook(db, {
 			accountId,
 			name: `rebind-${randomUUID().slice(0, 8)}`,
 			subgraphName: "bitcoin",
@@ -175,9 +172,9 @@ describe("SSRF egress guard — DNS rebinding", () => {
 			url: `http://${hostname}/hook`,
 		});
 		await db
-			.insertInto("subscription_outbox")
+			.insertInto("webhook_outbox")
 			.values({
-				subscription_id: subscription.id,
+				webhook_id: webhook.id,
 				subgraph_name: "bitcoin",
 				table_name: "transfers",
 				block_height: 1,
@@ -189,7 +186,7 @@ describe("SSRF egress guard — DNS rebinding", () => {
 			})
 			.execute();
 
-		const row = await waitForDeliveryRow(subscription.id);
+		const row = await waitForDeliveryRow(webhook.id);
 		expect(row.status_code).toBeNull();
 		expect(row.error_message).toContain("refused private egress");
 		expect(row.error_message).toContain("127.0.0.1");
@@ -204,7 +201,7 @@ describe("SSRF egress guard — DNS rebinding", () => {
 			throw new Error(`unexpected DNS lookup for ${host} in this test`);
 		});
 
-		const { subscription } = await createSubscription(db, {
+		const { webhook } = await createWebhook(db, {
 			accountId,
 			name: `metadata-${randomUUID().slice(0, 8)}`,
 			subgraphName: "bitcoin",
@@ -212,9 +209,9 @@ describe("SSRF egress guard — DNS rebinding", () => {
 			url: `http://${hostname}/hook`,
 		});
 		await db
-			.insertInto("subscription_outbox")
+			.insertInto("webhook_outbox")
 			.values({
-				subscription_id: subscription.id,
+				webhook_id: webhook.id,
 				subgraph_name: "bitcoin",
 				table_name: "transfers",
 				block_height: 1,
@@ -226,7 +223,7 @@ describe("SSRF egress guard — DNS rebinding", () => {
 			})
 			.execute();
 
-		const row = await waitForDeliveryRow(subscription.id);
+		const row = await waitForDeliveryRow(webhook.id);
 		expect(row.status_code).toBeNull();
 		expect(row.error_message).toContain("refused private egress");
 		expect(row.error_message).toContain("169.254.169.254");

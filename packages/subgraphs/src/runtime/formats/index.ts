@@ -1,5 +1,5 @@
 import { signSecondlayerWebhook } from "@secondlayer/shared/crypto/secondlayer-webhook";
-import type { Subscription, SubscriptionOutbox } from "@secondlayer/shared/db";
+import type { Webhook, WebhookOutbox } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import { buildCloudEvents } from "./cloudevents.ts";
 import { buildCloudflare } from "./cloudflare.ts";
@@ -14,8 +14,8 @@ export interface FormatBuildResult {
 }
 
 function buildBody(
-	outboxRow: SubscriptionOutbox,
-	sub: Subscription,
+	outboxRow: WebhookOutbox,
+	sub: Webhook,
 	signingSecret: string,
 ): FormatBuildResult {
 	switch (sub.format) {
@@ -32,19 +32,16 @@ function buildBody(
 		case "standard-webhooks":
 			return buildStandardWebhooks(outboxRow, signingSecret);
 		default:
-			logger.warn(
-				"Unknown subscription format, falling back to standard-webhooks",
-				{
-					format: sub.format,
-					subscriptionId: sub.id,
-				},
-			);
+			logger.warn("Unknown webhook format, falling back to standard-webhooks", {
+				format: sub.format,
+				webhookId: sub.id,
+			});
 			return buildStandardWebhooks(outboxRow, signingSecret);
 	}
 }
 
 /**
- * Dispatch an outbox row through the format matching the subscription's
+ * Dispatch an outbox row through the format matching the webhook's
  * `format` column. Unknown formats fall back to `standard-webhooks` with
  * a warning log — receivers always get something deliverable.
  *
@@ -55,8 +52,8 @@ function buildBody(
  * built here, so it must be attached after the body is final.
  */
 export function buildForFormat(
-	outboxRow: SubscriptionOutbox,
-	sub: Subscription,
+	outboxRow: WebhookOutbox,
+	sub: Webhook,
 	signingSecret: string,
 ): FormatBuildResult {
 	const result = buildBody(outboxRow, sub, signingSecret);

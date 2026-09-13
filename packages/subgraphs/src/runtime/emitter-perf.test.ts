@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { getDb } from "@secondlayer/shared/db";
-import { createSubscription } from "@secondlayer/shared/db/queries/subscriptions";
-import { SubscriptionMatcher } from "./emitter-matcher.ts";
+import { createWebhook } from "@secondlayer/shared/db/queries/webhooks";
+import { WebhookMatcher } from "./emitter-matcher.ts";
 import { startEmitter } from "./emitter.ts";
-import { emitSubscriptionOutbox } from "./outbox-emit.ts";
+import { emitWebhookOutbox } from "./outbox-emit.ts";
 
 /**
  * Emitter performance baseline — records p50/p95/p99 for:
@@ -59,10 +59,7 @@ beforeAll(async () => {
 afterAll(async () => {
 	// Don't closeDb() — see emitter.test.ts comment.
 	await stopEmitter?.();
-	await db
-		.deleteFrom("subscriptions")
-		.where("account_id", "=", accountId)
-		.execute();
+	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
 });
 
 describe("emitter perf", () => {
@@ -77,10 +74,10 @@ describe("emitter perf", () => {
 		});
 
 		try {
-			// Seed SUB_COUNT subscriptions pointing at the echo server.
+			// Seed SUB_COUNT webhooks pointing at the echo server.
 			const subs = [];
 			for (let i = 0; i < SUB_COUNT; i++) {
-				const { subscription } = await createSubscription(db, {
+				const { webhook } = await createWebhook(db, {
 					accountId,
 					name: `perf-${i}-${randomUUID().slice(0, 8)}`,
 					subgraphName: "perf",
@@ -88,10 +85,10 @@ describe("emitter perf", () => {
 					url: `http://127.0.0.1:${server.port}`,
 					timeoutMs: 2_000,
 				});
-				subs.push(subscription);
+				subs.push(webhook);
 			}
 
-			const matcher = new SubscriptionMatcher();
+			const matcher = new WebhookMatcher();
 			matcher.setAll(subs);
 
 			// Measure emitMs per simulated block.
@@ -110,7 +107,7 @@ describe("emitter perf", () => {
 				};
 				const start = performance.now();
 				await db.transaction().execute(async (tx) => {
-					await emitSubscriptionOutbox(tx, "perf", manifest, matcher, b);
+					await emitWebhookOutbox(tx, "perf", manifest, matcher, b);
 				});
 				emitSamples.push(performance.now() - start);
 			}
@@ -122,7 +119,7 @@ describe("emitter perf", () => {
 			let delivered = 0;
 			while (delivered < expectedDeliveries && Date.now() < deadline) {
 				const row = await db
-					.selectFrom("subscription_outbox")
+					.selectFrom("webhook_outbox")
 					.select((eb) =>
 						eb.fn
 							.count<number>("id")
@@ -130,7 +127,7 @@ describe("emitter perf", () => {
 							.as("c"),
 					)
 					.where(
-						"subscription_id",
+						"webhook_id",
 						"in",
 						subs.map((s) => s.id),
 					)
@@ -142,10 +139,10 @@ describe("emitter perf", () => {
 
 			// Pull per-delivery durations for percentile report.
 			const deliveries = await db
-				.selectFrom("subscription_deliveries")
+				.selectFrom("webhook_deliveries")
 				.select(["duration_ms"])
 				.where(
-					"subscription_id",
+					"webhook_id",
 					"in",
 					subs.map((s) => s.id),
 				)

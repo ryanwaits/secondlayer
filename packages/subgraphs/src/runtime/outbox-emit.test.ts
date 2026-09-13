@@ -2,11 +2,11 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { getDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db";
-import { createSubscription } from "@secondlayer/shared/db/queries/subscriptions";
+import { createWebhook } from "@secondlayer/shared/db/queries/webhooks";
 import type { Kysely } from "kysely";
-import { SubscriptionMatcher } from "./emitter-matcher.ts";
-import { emitSubscriptionOutbox } from "./outbox-emit.ts";
-import { refreshMatcher } from "./subscription-state.ts";
+import { WebhookMatcher } from "./emitter-matcher.ts";
+import { emitWebhookOutbox } from "./outbox-emit.ts";
+import { refreshMatcher } from "./webhook-state.ts";
 
 process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
 process.env.DATABASE_URL =
@@ -23,15 +23,12 @@ beforeAll(async () => {
 
 afterAll(async () => {
 	// Don't closeDb() — see emitter.test.ts comment. Per-suite cleanup only.
-	await db
-		.deleteFrom("subscriptions")
-		.where("account_id", "=", accountId)
-		.execute();
+	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
 });
 
-describe("emitSubscriptionOutbox", () => {
+describe("emitWebhookOutbox", () => {
 	it("emits created/updated/deleted for matching active subs, deduped across replays", async () => {
-		const { subscription } = await createSubscription(db, {
+		const { webhook } = await createWebhook(db, {
 			accountId,
 			name: `test-${randomUUID().slice(0, 8)}`,
 			subgraphName: "bitcoin",
@@ -40,11 +37,11 @@ describe("emitSubscriptionOutbox", () => {
 			filter: { amount: { gte: 100 } },
 		});
 
-		const matcher = new SubscriptionMatcher();
+		const matcher = new WebhookMatcher();
 		await refreshMatcher(db);
 		// Rehydrate our local matcher from the same DB state (the singleton
 		// is global but we need a scoped view for this test).
-		matcher.setAll([subscription]);
+		matcher.setAll([webhook]);
 
 		const manifest = {
 			count: 4,
@@ -77,22 +74,16 @@ describe("emitSubscriptionOutbox", () => {
 		};
 
 		await db.transaction().execute(async (tx) => {
-			const n = await emitSubscriptionOutbox(
-				tx,
-				"bitcoin",
-				manifest,
-				matcher,
-				1000,
-			);
+			const n = await emitWebhookOutbox(tx, "bitcoin", manifest, matcher, 1000);
 			// insert (matches) + update (matches) + delete (matches); the second
 			// insert fails the filter.
 			expect(n).toBe(3);
 		});
 
 		const rows = await db
-			.selectFrom("subscription_outbox")
+			.selectFrom("webhook_outbox")
 			.select("event_type")
-			.where("subscription_id", "=", subscription.id)
+			.where("webhook_id", "=", webhook.id)
 			.orderBy("event_type")
 			.execute();
 		expect(rows.map((r) => r.event_type)).toEqual([
@@ -103,18 +94,18 @@ describe("emitSubscriptionOutbox", () => {
 
 		// Replay: same manifest → ON CONFLICT DO NOTHING, no extra rows.
 		await db.transaction().execute(async (tx) => {
-			await emitSubscriptionOutbox(tx, "bitcoin", manifest, matcher, 1000);
+			await emitWebhookOutbox(tx, "bitcoin", manifest, matcher, 1000);
 		});
 		const after = await db
-			.selectFrom("subscription_outbox")
+			.selectFrom("webhook_outbox")
 			.select(sql<number>`count(*)::int`.as("c"))
-			.where("subscription_id", "=", subscription.id)
+			.where("webhook_id", "=", webhook.id)
 			.executeTakeFirstOrThrow();
 		expect(Number(after.c)).toBe(3);
 	});
 
 	it("kill-switch bypasses emission", async () => {
-		const { subscription } = await createSubscription(db, {
+		const { webhook } = await createWebhook(db, {
 			accountId,
 			name: `killswitch-${randomUUID().slice(0, 8)}`,
 			subgraphName: "bitcoin",
@@ -122,8 +113,8 @@ describe("emitSubscriptionOutbox", () => {
 			url: "https://webhook.site/xxx",
 		});
 
-		const matcher = new SubscriptionMatcher();
-		matcher.setAll([subscription]);
+		const matcher = new WebhookMatcher();
+		matcher.setAll([webhook]);
 
 		const manifest = {
 			count: 1,
@@ -140,7 +131,7 @@ describe("emitSubscriptionOutbox", () => {
 		process.env.SECONDLAYER_EMIT_OUTBOX = "false";
 		try {
 			await db.transaction().execute(async (tx) => {
-				const n = await emitSubscriptionOutbox(
+				const n = await emitWebhookOutbox(
 					tx,
 					"bitcoin",
 					manifest,
@@ -154,9 +145,9 @@ describe("emitSubscriptionOutbox", () => {
 		}
 
 		const rows = await db
-			.selectFrom("subscription_outbox")
+			.selectFrom("webhook_outbox")
 			.selectAll()
-			.where("subscription_id", "=", subscription.id)
+			.where("webhook_id", "=", webhook.id)
 			.execute();
 		expect(rows).toHaveLength(0);
 	});

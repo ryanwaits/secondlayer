@@ -15,7 +15,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 //      the identical fixture (same handler source, same block/tx input).
 //
 // `processBlock` doesn't expose its internal `FlushManifest` (it's consumed
-// by `emitSubscriptionOutbox` inside the same transaction and never
+// by `emitWebhookOutbox` inside the same transaction and never
 // returned) — so this test captures it the same way host-parity.test.ts
 // captures the sandbox side's, but at one layer up: a scoped, restored-in-
 // `finally` spy on `SubgraphContext.prototype.flush`, wrapped tightly around

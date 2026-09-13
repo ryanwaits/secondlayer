@@ -1,7 +1,7 @@
 import { getErrorMessage } from "@secondlayer/shared";
 import type { Database } from "@secondlayer/shared/db";
 import { getTargetDb } from "@secondlayer/shared/db";
-import { listActiveChainSubscriptions } from "@secondlayer/shared/db/queries/subscriptions";
+import { listActiveChainWebhooks } from "@secondlayer/shared/db/queries/webhooks";
 import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
 import { buildChainBlockSource } from "./block-source.ts";
@@ -21,14 +21,14 @@ const CHAIN_SUB_WARN_THRESHOLD = 5000; // observability only — not a cap.
 
 /**
  * The chain-trigger evaluator: a single global loop that drives direct
- * chain-level subscriptions. It reads canonical blocks off the public
+ * chain-level webhooks. It reads canonical blocks off the public
  * Index/Streams clock (the same `PublicApiBlockSource` the re-pointed subgraph
  * runtime uses), runs the shared matcher against every active chain
- * subscription, and writes apply-envelope rows to `subscription_outbox` — which
+ * webhook, and writes apply-envelope rows to `webhook_outbox` — which
  * the existing emitter then delivers, signed, unchanged.
  *
- * Forward-looking by design: a fresh cursor (or no chain subscriptions) fast-
- * forwards to tip, so subscriptions start at the chain head and never trigger a
+ * Forward-looking by design: a fresh cursor (or no chain webhooks) fast-
+ * forwards to tip, so webhooks start at the chain head and never trigger a
  * historical backfill. Reorgs rewind the cursor via `handleChainReorg`.
  */
 
@@ -44,8 +44,8 @@ const MAX_BLOCKS_PER_TICK =
 // computed before the rewind — so a stale advance could clobber the rewind
 // (under-delivery). This in-memory generation counter, bumped by handleChainReorg
 // BEFORE it rewinds, lets advanceCursor reject any advance snapshotted before the
-// reorg. In-process only: subscription-plane gates the evaluator and the reorg on
-// the same leader (see subscription-plane.ts). Mirrors f057's reorgEpoch in catchup.ts.
+// reorg. In-process only: webhook-plane gates the evaluator and the reorg on
+// the same leader (see webhook-plane.ts). Mirrors f057's reorgEpoch in catchup.ts.
 let chainReorgGeneration = 0;
 export function bumpChainReorgGeneration(): void {
 	chainReorgGeneration++;
@@ -100,7 +100,7 @@ export async function advanceCursor(
 
 /**
  * One catch-up pass: process new canonical blocks for all active chain
- * subscriptions and emit matches. Returns the number of outbox rows written.
+ * webhooks and emit matches. Returns the number of outbox rows written.
  * Extracted from the timer loop for testing.
  */
 export async function runEvaluatorOnce(
@@ -110,9 +110,9 @@ export async function runEvaluatorOnce(
 	// cursor read below still trips the guard on the next advanceCursor call
 	// (conservative — one wasted tick, never a clobber).
 	const generation = getChainReorgGeneration();
-	const chainSubs = await listActiveChainSubscriptions(db);
+	const chainSubs = await listActiveChainWebhooks(db);
 	if (chainSubs.length >= CHAIN_SUB_WARN_THRESHOLD) {
-		logger.warn("Active chain subscription count is high", {
+		logger.warn("Active chain webhook count is high", {
 			event: "chain_sub_load_high",
 			count: chainSubs.length,
 			threshold: CHAIN_SUB_WARN_THRESHOLD,
@@ -147,7 +147,7 @@ export async function runEvaluatorOnce(
 	const tip = bound.tip;
 
 	const cursor = await readCursor(db);
-	// Forward-looking: uninitialized cursor or no subscriptions → jump to tip so
+	// Forward-looking: uninitialized cursor or no webhooks → jump to tip so
 	// nothing backfills history.
 	if (cursor === 0 || chainSubs.length === 0) {
 		await advanceCursor(db, tip, generation);

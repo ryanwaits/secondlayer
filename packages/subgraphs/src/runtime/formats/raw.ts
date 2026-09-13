@@ -1,4 +1,4 @@
-import type { Subscription, SubscriptionOutbox } from "@secondlayer/shared/db";
+import type { Webhook, WebhookOutbox } from "@secondlayer/shared/db";
 
 /**
  * Raw JSON — the row payload, nothing else. User controls Content-Type +
@@ -14,8 +14,8 @@ import type { Subscription, SubscriptionOutbox } from "@secondlayer/shared/db";
  */
 
 export function buildRaw(
-	outboxRow: SubscriptionOutbox,
-	sub: Subscription,
+	outboxRow: WebhookOutbox,
+	sub: Webhook,
 ): { body: string; headers: Record<string, string> } {
 	const cfg = sub.auth_config as {
 		contentType?: string;

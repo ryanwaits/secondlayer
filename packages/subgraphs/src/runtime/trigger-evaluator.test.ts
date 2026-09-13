@@ -4,11 +4,11 @@ import { getDb } from "@secondlayer/shared/db";
 import type {
 	Block,
 	Event,
-	Subscription,
 	Transaction,
+	Webhook,
 } from "@secondlayer/shared/db";
-import { createSubscription } from "@secondlayer/shared/db/queries/subscriptions";
-import type { ChainTrigger } from "@secondlayer/shared/schemas/subscriptions";
+import { createWebhook } from "@secondlayer/shared/db/queries/webhooks";
+import type { ChainTrigger } from "@secondlayer/shared/schemas/webhooks";
 import type { BlockData } from "./batch-loader.ts";
 import type { TraitContracts } from "./source-matcher.ts";
 import {
@@ -25,14 +25,14 @@ process.env.DATABASE_URL =
 	process.env.DATABASE_URL ??
 	"postgresql://postgres:postgres@127.0.0.1:5440/secondlayer";
 
-function chainSub(triggers: ChainTrigger[], id = randomUUID()): Subscription {
+function chainSub(triggers: ChainTrigger[], id = randomUUID()): Webhook {
 	return {
 		id,
 		kind: "chain",
 		subgraph_name: null,
 		table_name: null,
 		triggers,
-	} as unknown as Subscription;
+	} as unknown as Webhook;
 }
 
 function tx(o: Partial<Transaction>): Transaction {
@@ -91,7 +91,7 @@ describe("buildSourcesMap", () => {
 		const { sources, keyMeta } = buildSourcesMap([sub]);
 		expect(Object.keys(sources)).toEqual([`${sub.id}#0`, `${sub.id}#1`]);
 		expect(keyMeta.get(`${sub.id}#1`)).toEqual({
-			subscriptionId: sub.id,
+			webhookId: sub.id,
 			triggerIndex: 1,
 			triggerType: "ft_transfer",
 		});
@@ -135,7 +135,7 @@ describe("evaluateBlock", () => {
 			new Map(),
 		);
 		expect(matches).toHaveLength(1);
-		expect(keyMeta.get(matches[0].sourceName)?.subscriptionId).toBe(sub.id);
+		expect(keyMeta.get(matches[0].sourceName)?.webhookId).toBe(sub.id);
 	});
 
 	it("honors trait scope via the injected trait→contracts map", () => {
@@ -170,34 +170,34 @@ describe("emitChainOutbox (DB)", () => {
 
 	afterAll(async () => {
 		await db
-			.deleteFrom("subscriptions")
+			.deleteFrom("webhooks")
 			.where("account_id", "=", accountId)
 			.execute();
 	});
 
 	beforeEach(async () => {
 		await db
-			.deleteFrom("subscriptions")
+			.deleteFrom("webhooks")
 			.where("account_id", "=", accountId)
 			.execute();
 	});
 
-	async function makeChainSub(triggers: ChainTrigger[]): Promise<Subscription> {
-		const { subscription } = await createSubscription(db, {
+	async function makeChainSub(triggers: ChainTrigger[]): Promise<Webhook> {
+		const { webhook } = await createWebhook(db, {
 			accountId,
 			name: `eval-${randomUUID()}`,
 			kind: "chain",
 			triggers,
 			url: "https://webhook.site/eval",
 		});
-		return subscription;
+		return webhook;
 	}
 
-	async function outboxRows(subscriptionId: string) {
+	async function outboxRows(webhookId: string) {
 		return db
-			.selectFrom("subscription_outbox")
+			.selectFrom("webhook_outbox")
 			.selectAll()
-			.where("subscription_id", "=", subscriptionId)
+			.where("webhook_id", "=", webhookId)
 			.execute();
 	}
 

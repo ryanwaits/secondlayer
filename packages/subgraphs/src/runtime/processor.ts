@@ -540,8 +540,8 @@ export async function startSubgraphProcessor(opts?: {
 
 	// Streams is the reorg authority for streams-index subgraphs (the public
 	// API path has no Postgres NOTIFY). Runs alongside the LISTEN above; both
-	// drive the idempotent subgraph-reorg handler. The chain-subscription reorg
-	// rewind runs on its own poll inside the subscription plane below.
+	// drive the idempotent subgraph-reorg handler. The chain-webhook reorg
+	// rewind runs on its own poll inside the webhook plane below.
 	const stopStreamsReorgPoll =
 		process.env.SUBGRAPH_SOURCE === "streams-index"
 			? startStreamsReorgPoll((forkHeight) =>
@@ -549,8 +549,8 @@ export async function startSubgraphProcessor(opts?: {
 				)
 			: undefined;
 
-	// The real-time subscription delivery plane (evaluator + emitter + chain-reorg)
-	// now runs in the dedicated subscription-processor service, isolated from
+	// The real-time webhook delivery plane (evaluator + emitter + chain-reorg)
+	// now runs in the dedicated webhook-processor service, isolated from
 	// subgraph indexing. This process handles subgraph ops + catch-up + the
 	// subgraph-reorg rewind only.
 

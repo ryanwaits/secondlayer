@@ -1,5 +1,5 @@
 import { decryptSecret } from "@secondlayer/shared/crypto/secrets";
-import type { Subscription, SubscriptionOutbox } from "@secondlayer/shared/db";
+import type { Webhook, WebhookOutbox } from "@secondlayer/shared/db";
 
 /**
  * Trigger.dev v3 task trigger — https://trigger.dev/docs/tasks/overview
@@ -15,7 +15,7 @@ import type { Subscription, SubscriptionOutbox } from "@secondlayer/shared/db";
  * `crypto/secrets`) or `sub.auth_config.token` (plaintext, dev only).
  */
 
-function resolveBearer(sub: Subscription): string | null {
+function resolveBearer(sub: Webhook): string | null {
 	const cfg = sub.auth_config as {
 		authType?: string;
 		token?: string;
@@ -32,8 +32,8 @@ function resolveBearer(sub: Subscription): string | null {
 }
 
 export function buildTrigger(
-	outboxRow: SubscriptionOutbox,
-	sub: Subscription,
+	outboxRow: WebhookOutbox,
+	sub: Webhook,
 ): { body: string; headers: Record<string, string> } {
 	const body = JSON.stringify({
 		payload: outboxRow.payload,

@@ -20,7 +20,7 @@ import {
 	SubgraphContext,
 	type TxMeta,
 } from "./context.ts";
-import { emitSubscriptionOutbox } from "./outbox-emit.ts";
+import { emitWebhookOutbox } from "./outbox-emit.ts";
 import { buildEventPayload, runHandlers } from "./runner.ts";
 import { sandboxEnabled } from "./sandbox/flag.ts";
 import { evictSandboxWorker, runHandlersSandboxed } from "./sandbox/host.ts";
@@ -30,7 +30,7 @@ import {
 	matchSources,
 	readPath,
 } from "./source-matcher.ts";
-import { matcher } from "./subscription-state.ts";
+import { matcher } from "./webhook-state.ts";
 
 /**
  * The data-plane route for a subgraph: which schema its tables live in and the
@@ -671,7 +671,7 @@ export async function processBlock(
 				const manifest = await ctx.flush();
 				flushedWrites = manifest.count > 0;
 				if (manifest.count > 0) {
-					await emitSubscriptionOutbox(
+					await emitWebhookOutbox(
 						tx,
 						subgraphName,
 						manifest,

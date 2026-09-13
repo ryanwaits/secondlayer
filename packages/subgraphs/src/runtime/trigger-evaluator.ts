@@ -6,14 +6,14 @@ import type {
 } from "@secondlayer/shared";
 import type {
 	Database,
-	InsertSubscriptionOutbox,
+	InsertWebhookOutbox,
 	SbtcEventTopic,
 	SbtcEventsTable,
-	Subscription,
+	Webhook,
 } from "@secondlayer/shared/db";
 import { getSourceDb } from "@secondlayer/shared/db";
 import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
-import type { ChainTrigger } from "@secondlayer/shared/schemas/subscriptions";
+import type { ChainTrigger } from "@secondlayer/shared/schemas/webhooks";
 import type { Kysely, Selectable } from "kysely";
 import type { SubgraphFilter } from "../types.ts";
 import type { BlockData } from "./batch-loader.ts";
@@ -60,21 +60,21 @@ const SBTC_TRIGGER_TO_TOPIC: Record<string, SbtcEventTopic> = {
 };
 
 /**
- * Pure matching core for direct chain-level subscriptions. A single evaluator
- * loop serves ALL chain subscriptions: it reads canonical blocks off the public
+ * Pure matching core for direct chain-level webhooks. A single evaluator
+ * loop serves ALL chain webhooks: it reads canonical blocks off the public
  * Index/Streams clock (via `PublicApiBlockSource`), runs the same
  * `matchSources` engine the subgraph runtime uses, and routes matches back to
- * the originating subscription. Everything here is pure/sync (DB only for trait
+ * the originating webhook. Everything here is pure/sync (DB only for trait
  * resolution) so it's trivially testable.
  *
- * Source keys are `"{subscriptionId}#{triggerIndex}"` — `matchSources` echoes
+ * Source keys are `"{webhookId}#{triggerIndex}"` — `matchSources` echoes
  * the key as `MatchedTx.sourceName`, letting the emitter recover which
- * subscription (and which trigger) matched. `keyMeta` carries the readable
+ * webhook (and which trigger) matched. `keyMeta` carries the readable
  * trigger type for the outbox `event_type` / payload.
  */
 
 export interface TriggerKeyMeta {
-	subscriptionId: string;
+	webhookId: string;
 	triggerIndex: number;
 	triggerType: ChainTrigger["type"];
 }
@@ -84,8 +84,8 @@ export interface ChainSourcesMap {
 	keyMeta: Map<string, TriggerKeyMeta>;
 }
 
-function sourceKey(subscriptionId: string, triggerIndex: number): string {
-	return `${subscriptionId}#${triggerIndex}`;
+function sourceKey(webhookId: string, triggerIndex: number): string {
+	return `${webhookId}#${triggerIndex}`;
 }
 
 function toAmount(v: string | number | undefined): bigint | undefined {
@@ -113,12 +113,12 @@ export function chainTriggerToFilter(trigger: ChainTrigger): SubgraphFilter {
 	return filter as unknown as SubgraphFilter;
 }
 
-function triggersOf(sub: Subscription): ChainTrigger[] {
+function triggersOf(sub: Webhook): ChainTrigger[] {
 	return (sub.triggers ?? []) as ChainTrigger[];
 }
 
-/** Build the `matchSources` input from every active chain subscription. */
-export function buildSourcesMap(chainSubs: Subscription[]): ChainSourcesMap {
+/** Build the `matchSources` input from every active chain webhook. */
+export function buildSourcesMap(chainSubs: Webhook[]): ChainSourcesMap {
 	const sources: Record<string, SubgraphFilter> = {};
 	const keyMeta = new Map<string, TriggerKeyMeta>();
 	for (const sub of chainSubs) {
@@ -129,7 +129,7 @@ export function buildSourcesMap(chainSubs: Subscription[]): ChainSourcesMap {
 			const key = sourceKey(sub.id, triggerIndex);
 			sources[key] = chainTriggerToFilter(trigger);
 			keyMeta.set(key, {
-				subscriptionId: sub.id,
+				webhookId: sub.id,
 				triggerIndex,
 				triggerType: trigger.type,
 			});
@@ -139,7 +139,7 @@ export function buildSourcesMap(chainSubs: Subscription[]): ChainSourcesMap {
 }
 
 /** The Index event types the loader must fetch to satisfy all chain triggers. */
-export function referencedEventTypes(chainSubs: Subscription[]): string[] {
+export function referencedEventTypes(chainSubs: Webhook[]): string[] {
 	const filterTypes = new Set<string>();
 	for (const sub of chainSubs) {
 		for (const trigger of triggersOf(sub)) {
@@ -151,12 +151,12 @@ export function referencedEventTypes(chainSubs: Subscription[]): string[] {
 }
 
 /** Decoder checkpoint names feeding the event types these chain subs read. */
-export function referencedDecoderNames(chainSubs: Subscription[]): string[] {
+export function referencedDecoderNames(chainSubs: Webhook[]): string[] {
 	return decoderNamesForIndexEventTypes(referencedEventTypes(chainSubs));
 }
 
 /** Distinct traits referenced across all chain triggers. */
-export function referencedTraits(chainSubs: Subscription[]): string[] {
+export function referencedTraits(chainSubs: Webhook[]): string[] {
 	const traits = new Set<string>();
 	for (const sub of chainSubs) {
 		for (const trigger of triggersOf(sub)) {
@@ -174,14 +174,14 @@ export function referencedTraits(chainSubs: Subscription[]): string[] {
  * grows, so the evaluator resolves this once per batch, not per block.
  */
 export async function buildTraitContracts(
-	chainSubs: Subscription[],
+	chainSubs: Webhook[],
 	asOfBlock: number,
 	opts?: { sourceDb?: Kysely<Database> },
 ): Promise<TraitContracts> {
 	// `contracts` is a SOURCE-plane table; the evaluator/replay run on the TARGET
 	// handle (an empty same-named copy exists there post-split). Read the registry
 	// from the source plane — reading off the target silently resolved zero trait
-	// members, so trait-scoped subscriptions never matched. Same class of bug as
+	// members, so trait-scoped webhooks never matched. Same class of bug as
 	// the old emitSbtcOutbox sbtc_events read.
 	const sourceDb = opts?.sourceDb ?? getSourceDb();
 	const resolved: TraitContracts = new Map();
@@ -208,7 +208,7 @@ export function evaluateBlock(
 // `ChainReorgRollbackEnvelope`, see `handleChainReorg`.
 
 /**
- * Stable dedup identity for a chain delivery — (subscription, tx, event,
+ * Stable dedup identity for a chain delivery — (webhook, tx, event,
  * block_hash). A tx-level match (contract_call/deploy) has no event, so
  * `eventIndex = -1`. `block_hash` is included so a tx that survives a reorg
  * (same tx_id, NEW canonical block) re-delivers an `apply` after its rollback,
@@ -216,13 +216,13 @@ export function evaluateBlock(
  * still idempotent (same hash → same key).
  */
 function chainDedupKey(
-	subscriptionId: string,
+	webhookId: string,
 	txId: string,
 	eventIndex: number,
 	blockHash: string,
 	replayId?: string,
 ): string {
-	const base = `chain:${subscriptionId}:${txId}:${eventIndex}:${blockHash}`;
+	const base = `chain:${webhookId}:${txId}:${eventIndex}:${blockHash}`;
 	// Replay keys are namespaced so a re-delivery doesn't collide with the
 	// already-emitted live apply row (whose outbox entry may be long gone), while
 	// re-running the SAME replay range stays idempotent (same replayId → same key).
@@ -237,7 +237,7 @@ function applyRow(
 	eventIndex: number,
 	event: Record<string, unknown>,
 	replayId?: string,
-): InsertSubscriptionOutbox {
+): InsertWebhookOutbox {
 	const payload: ChainApplyEnvelope = {
 		action: "apply",
 		block_hash: blockHash,
@@ -248,7 +248,7 @@ function applyRow(
 		event,
 	};
 	return {
-		subscription_id: meta.subscriptionId,
+		webhook_id: meta.webhookId,
 		kind: "chain",
 		subgraph_name: null,
 		table_name: null,
@@ -258,7 +258,7 @@ function applyRow(
 		event_type: `chain.${meta.triggerType}.apply`,
 		payload,
 		dedup_key: chainDedupKey(
-			meta.subscriptionId,
+			meta.webhookId,
 			txId,
 			eventIndex,
 			blockHash,
@@ -269,10 +269,10 @@ function applyRow(
 }
 
 /**
- * Turn one block's matches into `subscription_outbox` rows (apply envelope). For
+ * Turn one block's matches into `webhook_outbox` rows (apply envelope). For
  * tx-level triggers (contract_call/deploy) we emit ONE row per matched tx
  * (`event_index = -1`); for event-level triggers, one row per matched event.
- * The `(subscription_id, dedup_key)` unique constraint makes re-processing a
+ * The `(webhook_id, dedup_key)` unique constraint makes re-processing a
  * block idempotent, so the emitter never double-delivers. Returns rows written.
  */
 export async function emitChainOutbox(
@@ -284,7 +284,7 @@ export async function emitChainOutbox(
 	opts?: { replayId?: string },
 ): Promise<number> {
 	const replayId = opts?.replayId;
-	const rows: InsertSubscriptionOutbox[] = [];
+	const rows: InsertWebhookOutbox[] = [];
 	for (const match of matches) {
 		const meta = keyMeta.get(match.sourceName);
 		if (!meta) continue;
@@ -335,11 +335,9 @@ export async function emitChainOutbox(
 	// Net-inserted (not built) so callers count genuinely new deliveries — a
 	// re-processed block or a re-run replay returns 0.
 	const result = await db
-		.insertInto("subscription_outbox")
+		.insertInto("webhook_outbox")
 		.values(rows)
-		.onConflict((oc) =>
-			oc.columns(["subscription_id", "dedup_key"]).doNothing(),
-		)
+		.onConflict((oc) => oc.columns(["webhook_id", "dedup_key"]).doNothing())
 		.executeTakeFirst();
 	return Number(result.numInsertedOrUpdatedRows ?? 0);
 }
@@ -450,14 +448,14 @@ function buildSbtcEventPayload(
 }
 
 /**
- * Match active sBTC chain subscriptions against `sbtc_events` for one block
- * and write apply-envelope rows to `subscription_outbox`. Runs alongside
+ * Match active sBTC chain webhooks against `sbtc_events` for one block
+ * and write apply-envelope rows to `webhook_outbox`. Runs alongside
  * `emitChainOutbox` (which handles decoded_events). Same dedup-key scheme —
  * re-processing the same block is idempotent.
  */
 export async function emitSbtcOutbox(
 	db: Kysely<Database>,
-	chainSubs: Subscription[],
+	chainSubs: Webhook[],
 	blockHeight: number,
 	blockHash: string,
 	opts?: { replayId?: string; sourceDb?: Kysely<Database> },
@@ -487,13 +485,13 @@ export async function emitSbtcOutbox(
 	if (sbtcRows.length === 0) return 0;
 
 	const replayId = opts?.replayId;
-	const outboxRows: InsertSubscriptionOutbox[] = [];
+	const outboxRows: InsertWebhookOutbox[] = [];
 
 	for (const sub of sbtcSubs) {
 		triggersOf(sub).forEach((trigger, triggerIndex) => {
 			if (!isSbtcTriggerType(trigger.type)) return;
 			const meta: TriggerKeyMeta = {
-				subscriptionId: sub.id,
+				webhookId: sub.id,
 				triggerIndex,
 				triggerType: trigger.type,
 			};
@@ -517,11 +515,9 @@ export async function emitSbtcOutbox(
 
 	if (outboxRows.length === 0) return 0;
 	const result = await db
-		.insertInto("subscription_outbox")
+		.insertInto("webhook_outbox")
 		.values(outboxRows)
-		.onConflict((oc) =>
-			oc.columns(["subscription_id", "dedup_key"]).doNothing(),
-		)
+		.onConflict((oc) => oc.columns(["webhook_id", "dedup_key"]).doNothing())
 		.executeTakeFirst();
 	return Number(result.numInsertedOrUpdatedRows ?? 0);
 }
@@ -538,12 +534,12 @@ export async function emitSbtcOutbox(
  *   plane (`sbtc_settlements` is source), joined to the Stacks accept event +
  *   block for the envelope anchor.
  * - Per-sub forward-only (`confirmed_at > sub.created_at`) + optional
- *   requestId/sweepTxid filters; dedup on `(subscription_id, sweep_txid)` so a
+ *   requestId/sweepTxid filters; dedup on `(webhook_id, sweep_txid)` so a
  *   reorg→un-confirm→re-confirm never double-fires.
  */
 export async function emitSbtcSettlementOutbox(
 	db: Kysely<Database>,
-	chainSubs: Subscription[],
+	chainSubs: Webhook[],
 	opts?: { sourceDb?: Kysely<Database>; now?: Date },
 ): Promise<number> {
 	const settlementSubs = chainSubs.filter((sub) =>
@@ -601,7 +597,7 @@ export async function emitSbtcSettlementOutbox(
 
 	if (rows.length === 0) return 0;
 
-	const outboxRows: InsertSubscriptionOutbox[] = [];
+	const outboxRows: InsertWebhookOutbox[] = [];
 	let maxConfirmedAt = cursor;
 	for (const row of rows) {
 		const confirmedAt = row.confirmed_at;
@@ -633,11 +629,9 @@ export async function emitSbtcSettlementOutbox(
 
 	if (outboxRows.length > 0) {
 		await db
-			.insertInto("subscription_outbox")
+			.insertInto("webhook_outbox")
 			.values(outboxRows)
-			.onConflict((oc) =>
-				oc.columns(["subscription_id", "dedup_key"]).doNothing(),
-			)
+			.onConflict((oc) => oc.columns(["webhook_id", "dedup_key"]).doNothing())
 			.execute();
 	}
 
@@ -666,9 +660,9 @@ type SettlementScanRow = {
 };
 
 function settlementApplyRow(
-	subscriptionId: string,
+	webhookId: string,
 	row: SettlementScanRow,
-): InsertSubscriptionOutbox {
+): InsertWebhookOutbox {
 	const event: SbtcWithdrawalSweptConfirmedEvent = {
 		topic: "withdrawal-swept-confirmed",
 		request_id: Number(row.request_id),
@@ -689,7 +683,7 @@ function settlementApplyRow(
 		event,
 	};
 	return {
-		subscription_id: subscriptionId,
+		webhook_id: webhookId,
 		kind: "chain",
 		subgraph_name: null,
 		table_name: null,
@@ -700,6 +694,6 @@ function settlementApplyRow(
 		payload,
 		// Settlement fires on a Bitcoin confirmation, not a Stacks block — dedup on
 		// the sweep so a reorg→un-confirm→re-confirm cycle never re-delivers.
-		dedup_key: `settlement:${subscriptionId}:${row.sweep_txid}`,
+		dedup_key: `settlement:${webhookId}:${row.sweep_txid}`,
 	};
 }

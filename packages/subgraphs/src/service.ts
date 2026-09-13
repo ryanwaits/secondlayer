@@ -39,7 +39,7 @@ if (isPlatformMode()) {
 			) => Promise<boolean>;
 			onDeliveryAttempt: (
 				accountId: string,
-				subscriptionId: string,
+				webhookId: string,
 			) => Promise<boolean>;
 		};
 		setHostedMeterHooks({

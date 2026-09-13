@@ -1,5 +1,5 @@
 import { sign } from "@secondlayer/shared/crypto/standard-webhooks";
-import type { SubscriptionOutbox } from "@secondlayer/shared/db";
+import type { WebhookOutbox } from "@secondlayer/shared/db";
 
 /**
  * Build a Standard Webhooks POST body + headers for an outbox row.
@@ -27,7 +27,7 @@ export interface StandardWebhooksPayload {
 }
 
 export function buildStandardWebhooks(
-	outboxRow: SubscriptionOutbox,
+	outboxRow: WebhookOutbox,
 	signingSecret: string,
 ): { body: string; headers: Record<string, string> } {
 	const nowSeconds = Math.floor(Date.now() / 1000);

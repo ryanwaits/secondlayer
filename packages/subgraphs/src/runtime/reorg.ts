@@ -19,9 +19,9 @@ import { bumpReorgEpoch, withSubgraphBlockLock } from "./catchup.ts";
  * subgraph table, then reprocess `blockHeight` (subsequent heights will
  * be reprocessed as the indexer ingests new-chain blocks).
  *
- * Subscription receivers that already consumed the now-reverted events
+ * Webhook receivers that already consumed the now-reverted events
  * need to know about the rollback. We emit one `<table>.reverted` event
- * per affected table per subscription. The receiver is expected to
+ * per affected table per webhook. The receiver is expected to
  * reverse any side-effects keyed on the rolled-back rows; if they ignore
  * revert events, at least we provided the signal.
  */
@@ -110,7 +110,7 @@ async function reorgOneSubgraph(
 	const client = getRawClient("target");
 
 	// Snapshot affected rows BEFORE deletion so we can surface them
-	// to subscription receivers as revert events. Cap at 1k rows
+	// to webhook receivers as revert events. Cap at 1k rows
 	// per (table, reorg) to bound memory; deeper reverts are rare
 	// and at-volume the receiver should be reading from the table
 	// directly anyway.
@@ -206,16 +206,16 @@ async function reorgOneSubgraph(
 		.where("block_height", ">=", blockHeight)
 		.execute();
 
-	// Emit revert events to dependent subscriptions so receivers
-	// know to roll back. Insert into subscription_outbox with a
-	// stable dedup_key keyed on (subscription, table, height,
+	// Emit revert events to dependent webhooks so receivers
+	// know to roll back. Insert into webhook_outbox with a
+	// stable dedup_key keyed on (webhook, table, height,
 	// "revert") so a duplicate reorg notification is a no-op.
 	for (const [tableName, rows] of Object.entries(revertedByTable)) {
 		if (rows.length === 0) continue;
 		await targetDb
-			.insertInto("subscription_outbox")
+			.insertInto("webhook_outbox")
 			.columns([
-				"subscription_id",
+				"webhook_id",
 				"subgraph_name",
 				"table_name",
 				"block_height",
@@ -227,9 +227,9 @@ async function reorgOneSubgraph(
 			])
 			.expression((eb) =>
 				eb
-					.selectFrom("subscriptions")
+					.selectFrom("webhooks")
 					.select((eb2) => [
-						"id as subscription_id",
+						"id as webhook_id",
 						eb2.val(sg.name).as("subgraph_name"),
 						eb2.val(tableName).as("table_name"),
 						eb2.val(blockHeight).as("block_height"),
@@ -260,15 +260,13 @@ async function reorgOneSubgraph(
 					.where("table_name", "=", tableName)
 					.where("status", "=", "active"),
 			)
-			.onConflict((oc) =>
-				oc.columns(["subscription_id", "dedup_key"]).doNothing(),
-			)
+			.onConflict((oc) => oc.columns(["webhook_id", "dedup_key"]).doNothing())
 			.execute()
 			.catch((err) => {
 				// Don't fail the reorg cleanup if the revert event
-				// emission errors — subscriptions can't be more
+				// emission errors — webhooks can't be more
 				// broken than they were pre-reorg.
-				logger.error("Failed to emit revert event for subscriptions", {
+				logger.error("Failed to emit revert event for webhooks", {
 					event: "reorg_revert_emit_dropped",
 					subgraph: sg.name,
 					table: tableName,

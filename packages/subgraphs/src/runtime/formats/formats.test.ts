@@ -4,12 +4,12 @@ import {
 	resetSecondlayerWebhookSignerForTest,
 	verifySecondlayerSignatureValues,
 } from "@secondlayer/shared/crypto/secondlayer-webhook";
-import type { Subscription, SubscriptionOutbox } from "@secondlayer/shared/db";
+import type { Webhook, WebhookOutbox } from "@secondlayer/shared/db";
 import { buildForFormat } from "./index.ts";
 
 const FIXED_CREATED_AT = new Date("2026-04-23T17:00:00.000Z");
 
-function sub(overrides: Partial<Subscription>): Subscription {
+function sub(overrides: Partial<Webhook>): Webhook {
 	return {
 		id: "sub-00000000-0000-0000-0000-000000000001",
 		account_id: "acc-00000000-0000-0000-0000-000000000001",
@@ -40,10 +40,10 @@ function sub(overrides: Partial<Subscription>): Subscription {
 	};
 }
 
-function outbox(): SubscriptionOutbox {
+function outbox(): WebhookOutbox {
 	return {
 		id: "out-00000000-0000-0000-0000-000000000001",
-		subscription_id: "sub-00000000-0000-0000-0000-000000000001",
+		webhook_id: "sub-00000000-0000-0000-0000-000000000001",
 		kind: "subgraph",
 		subgraph_name: "bitcoin",
 		table_name: "transfers",
@@ -171,7 +171,7 @@ describe("format dispatcher", () => {
 
 	it("unknown format falls back to standard-webhooks", () => {
 		const s = sub({
-			format: "made-up" as unknown as Subscription["format"],
+			format: "made-up" as unknown as Webhook["format"],
 		});
 		const { headers } = buildForFormat(outbox(), s, "whsec_dGVzdA==");
 		expect(headers["webhook-signature"]).toMatch(/^v1,/);

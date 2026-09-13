@@ -4,7 +4,7 @@ import {
 	gateChainReorgOnLeader,
 	isEvaluatorLeader,
 	startTriggerEvaluatorLeader,
-} from "./subscription-leader.ts";
+} from "./webhook-leader.ts";
 
 /** One shared lock across "instances", simulating a single Postgres advisory lock. */
 function lockRegistry() {

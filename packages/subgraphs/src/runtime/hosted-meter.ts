@@ -6,7 +6,7 @@ export type HostedMeterHooks = {
 	) => Promise<boolean>;
 	onDeliveryAttempt?: (
 		accountId: string,
-		subscriptionId: string,
+		webhookId: string,
 	) => Promise<boolean>;
 };
 
@@ -32,9 +32,9 @@ export async function meterBlocksProcessed(
 
 export async function meterDeliveryAttempt(
 	accountId: string | null | undefined,
-	subscriptionId: string,
+	webhookId: string,
 ): Promise<boolean> {
 	if (!accountId) return true;
 	if (!hooks.onDeliveryAttempt) return true;
-	return hooks.onDeliveryAttempt(accountId, subscriptionId);
+	return hooks.onDeliveryAttempt(accountId, webhookId);
 }

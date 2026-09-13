@@ -1,4 +1,4 @@
-import type { Subscription, SubscriptionOutbox } from "@secondlayer/shared/db";
+import type { Webhook, WebhookOutbox } from "@secondlayer/shared/db";
 
 /**
  * CloudEvents 1.0 structured JSON — https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/formats/json-format.md
@@ -20,8 +20,8 @@ import type { Subscription, SubscriptionOutbox } from "@secondlayer/shared/db";
  */
 
 export function buildCloudEvents(
-	outboxRow: SubscriptionOutbox,
-	_sub: Subscription,
+	outboxRow: WebhookOutbox,
+	_sub: Webhook,
 ): { body: string; headers: Record<string, string> } {
 	const event = {
 		specversion: "1.0",

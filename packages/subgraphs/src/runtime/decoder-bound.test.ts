@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { EMPTY_RANGE_EVENT_INDEX_SENTINEL } from "@secondlayer/shared";
-import type { Subscription } from "@secondlayer/shared/db";
+import type { Webhook } from "@secondlayer/shared/db";
 import type { SubgraphDefinition } from "../types.ts";
 import {
 	boundSourceTip,
@@ -12,8 +12,8 @@ import {
 } from "./decoder-bound.ts";
 import { referencedDecoderNames } from "./trigger-evaluator.ts";
 
-function chainSub(triggers: Array<Record<string, unknown>>): Subscription {
-	return { kind: "chain", triggers } as unknown as Subscription;
+function chainSub(triggers: Array<Record<string, unknown>>): Webhook {
+	return { kind: "chain", triggers } as unknown as Webhook;
 }
 
 function subgraphDef(

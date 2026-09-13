@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { getDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db";
-import { createSubscription } from "@secondlayer/shared/db/queries/subscriptions";
+import { createWebhook } from "@secondlayer/shared/db/queries/webhooks";
 import type { Kysely } from "kysely";
 import { deliverTestEvent } from "./emitter.ts";
 
@@ -20,17 +20,14 @@ beforeAll(() => {
 });
 
 afterAll(async () => {
-	await db
-		.deleteFrom("subscriptions")
-		.where("account_id", "=", accountId)
-		.execute();
+	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
 });
 
 describe("deliverTestEvent", () => {
 	it("delivers a test webhook and logs a delivery row with null outbox_id", async () => {
 		// Non-routable URL → the attempt fails (SSRF refusal or connection error),
-		// but the full path runs: buildForFormat → postToSubscription → delivery log.
-		const { subscription } = await createSubscription(db, {
+		// but the full path runs: buildForFormat → postToWebhook → delivery log.
+		const { webhook } = await createWebhook(db, {
 			accountId,
 			name: `test-${randomUUID().slice(0, 8)}`,
 			subgraphName: "bitcoin",
@@ -39,17 +36,17 @@ describe("deliverTestEvent", () => {
 			filter: {},
 		});
 
-		const result = await deliverTestEvent(db, subscription);
+		const result = await deliverTestEvent(db, webhook);
 		expect(result.ok).toBe(false);
 		expect(result.error).toBeTruthy();
 		expect(result.deliveryId).toBeTruthy();
 
 		const row = await db
-			.selectFrom("subscription_deliveries")
+			.selectFrom("webhook_deliveries")
 			.selectAll()
 			.where("id", "=", result.deliveryId)
 			.executeTakeFirst();
-		expect(row?.subscription_id).toBe(subscription.id);
+		expect(row?.webhook_id).toBe(webhook.id);
 		// Test deliveries aren't tied to a queued outbox row.
 		expect(row?.outbox_id).toBeNull();
 	});

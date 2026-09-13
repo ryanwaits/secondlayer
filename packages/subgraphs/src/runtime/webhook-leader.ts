@@ -1,6 +1,6 @@
 import {
 	type LeaderBackend,
-	SUBSCRIPTION_EVALUATOR_LOCK_KEY,
+	WEBHOOK_EVALUATOR_LOCK_KEY,
 	createPostgresLeaderBackend,
 	withLeaderLock,
 } from "@secondlayer/shared/leader";
@@ -8,7 +8,7 @@ import { targetListenerUrl } from "@secondlayer/shared/queue/listener";
 import { startTriggerEvaluator } from "./trigger-evaluator-loop.ts";
 
 /**
- * Leader-gating for the chain-subscription real-time plane.
+ * Leader-gating for the chain-webhook real-time plane.
  *
  * The evaluator runs unconditionally per replica against one global cursor, so
  * N replicas mean N× redundant Index fetch+match every tick (correct via
@@ -16,7 +16,7 @@ import { startTriggerEvaluator } from "./trigger-evaluator-loop.ts";
  * leader lets the plane scale out while exactly one process drives the cursor.
  *
  * The lock lives on the target DB — `trigger_evaluator_state` and
- * `subscription_outbox` are control-plane state, which the source/target split
+ * `webhook_outbox` are control-plane state, which the source/target split
  * homes on the target. A lock on the default source DB would guard nothing.
  */
 
@@ -67,7 +67,7 @@ export function startTriggerEvaluatorLeader(
 ): () => Promise<void> {
 	const startWork = opts.startWork ?? startTriggerEvaluator;
 	return withLeaderLock(
-		SUBSCRIPTION_EVALUATOR_LOCK_KEY,
+		WEBHOOK_EVALUATOR_LOCK_KEY,
 		async () => {
 			evaluatorLeader = true;
 			const stop = await startWork();

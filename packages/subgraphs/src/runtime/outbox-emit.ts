@@ -3,11 +3,11 @@ import type { Database } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import type { Transaction } from "kysely";
 import type { FlushManifest } from "./context.ts";
-import type { SubscriptionMatcher } from "./emitter-matcher.ts";
+import type { WebhookMatcher } from "./emitter-matcher.ts";
 
 /**
- * Emit subscription outbox rows for every flushed write that matches an
- * active subscription. Inserted inside the caller's transaction — the
+ * Emit webhook outbox rows for every flushed write that matches an
+ * active webhook. Inserted inside the caller's transaction — the
  * outbox write commits (or rolls back) atomically with the subgraph row
  * writes. Zero outbox inserts if no subs match or the kill-switch is set.
  *
@@ -39,7 +39,7 @@ function dedupKey(
 	row: Record<string, unknown>,
 ): string {
 	// Hash of row content + position → stable across replays of the same
-	// block (unique constraint on (subscription_id, dedup_key) catches
+	// block (unique constraint on (webhook_id, dedup_key) catches
 	// duplicate emits if the block is reprocessed).
 	const canonical = `${subgraphName}:${tableName}:${blockHeight}:${txId}:${rowIndex}:${stableStringify(row)}`;
 	return createHash("sha256").update(canonical).digest("hex").slice(0, 32);
@@ -55,11 +55,11 @@ function stableStringify(obj: Record<string, unknown>): string {
 	);
 }
 
-export async function emitSubscriptionOutbox(
+export async function emitWebhookOutbox(
 	tx: Transaction<Database>,
 	subgraphName: string,
 	manifest: FlushManifest,
-	matcher: SubscriptionMatcher,
+	matcher: WebhookMatcher,
 	blockHeight: number,
 ): Promise<number> {
 	if (!isEmitOutboxEnabled()) {
@@ -74,7 +74,7 @@ export async function emitSubscriptionOutbox(
 	if (manifest.count === 0 || matcher.size() === 0) return 0;
 
 	type OutboxInsert = {
-		subscription_id: string;
+		webhook_id: string;
 		subgraph_name: string;
 		table_name: string;
 		block_height: number;
@@ -93,7 +93,7 @@ export async function emitSubscriptionOutbox(
 		const eventType = `${subgraphName}.${write.table}.${OP_VERB[write.op]}`;
 		for (const s of subs) {
 			rows.push({
-				subscription_id: s.id,
+				webhook_id: s.id,
 				subgraph_name: subgraphName,
 				table_name: write.table,
 				block_height: blockHeight,
@@ -117,14 +117,12 @@ export async function emitSubscriptionOutbox(
 
 	if (rows.length === 0) return 0;
 
-	// Bulk INSERT with ON CONFLICT DO NOTHING on (subscription_id, dedup_key)
+	// Bulk INSERT with ON CONFLICT DO NOTHING on (webhook_id, dedup_key)
 	// so a replayed block is a no-op instead of an error.
 	await tx
-		.insertInto("subscription_outbox")
+		.insertInto("webhook_outbox")
 		.values(rows)
-		.onConflict((oc) =>
-			oc.columns(["subscription_id", "dedup_key"]).doNothing(),
-		)
+		.onConflict((oc) => oc.columns(["webhook_id", "dedup_key"]).doNothing())
 		.execute();
 
 	return rows.length;

@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { getDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db";
-import { createSubscription } from "@secondlayer/shared/db/queries/subscriptions";
+import { createWebhook } from "@secondlayer/shared/db/queries/webhooks";
 import type { Kysely } from "kysely";
 import { emitSbtcSettlementOutbox } from "./trigger-evaluator.ts";
 
@@ -83,21 +83,18 @@ async function seedConfirmedSweep(confirmedAt: Date): Promise<void> {
 }
 
 async function makeSub() {
-	const { subscription } = await createSubscription(db, {
+	const { webhook } = await createWebhook(db, {
 		accountId,
 		kind: "chain",
 		name: `swept-${randomUUID().slice(0, 8)}`,
 		url: "https://webhook.site/xxx",
 		triggers: [{ type: "sbtc_withdrawal_swept_confirmed" }],
 	});
-	return subscription;
+	return webhook;
 }
 
 beforeEach(async () => {
-	await db
-		.deleteFrom("subscriptions")
-		.where("account_id", "=", accountId)
-		.execute();
+	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
 	await db
 		.deleteFrom("sbtc_settlements")
 		.where("sweep_txid", "=", SWEEP)
@@ -107,10 +104,7 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
-	await db
-		.deleteFrom("subscriptions")
-		.where("account_id", "=", accountId)
-		.execute();
+	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
 	await db
 		.deleteFrom("sbtc_settlements")
 		.where("sweep_txid", "=", SWEEP)
@@ -141,9 +135,9 @@ describe("emitSbtcSettlementOutbox", () => {
 		expect(n).toBe(1);
 
 		const rows = await db
-			.selectFrom("subscription_outbox")
+			.selectFrom("webhook_outbox")
 			.select(["event_type", "dedup_key"])
-			.where("subscription_id", "=", sub.id)
+			.where("webhook_id", "=", sub.id)
 			.execute();
 		expect(rows).toHaveLength(1);
 		expect(rows[0]?.event_type).toBe(
@@ -152,7 +146,7 @@ describe("emitSbtcSettlementOutbox", () => {
 		expect(rows[0]?.dedup_key).toBe(`settlement:${sub.id}:${SWEEP}`);
 	});
 
-	it("forward-only: skips a sweep confirmed before the subscription existed", async () => {
+	it("forward-only: skips a sweep confirmed before the webhook existed", async () => {
 		await setCursor(new Date(Date.now() - 86_400_000));
 		const sub = await makeSub();
 		// confirmed BEFORE the sub was created → must not deliver
@@ -161,9 +155,9 @@ describe("emitSbtcSettlementOutbox", () => {
 		const n = await emitSbtcSettlementOutbox(db, [sub]);
 		expect(n).toBe(0);
 		const rows = await db
-			.selectFrom("subscription_outbox")
+			.selectFrom("webhook_outbox")
 			.selectAll()
-			.where("subscription_id", "=", sub.id)
+			.where("webhook_id", "=", sub.id)
 			.execute();
 		expect(rows).toHaveLength(0);
 	});
@@ -181,9 +175,9 @@ describe("emitSbtcSettlementOutbox", () => {
 		await setCursor(new Date(Date.now() - 86_400_000));
 		await emitSbtcSettlementOutbox(db, [sub]);
 		const count = await db
-			.selectFrom("subscription_outbox")
+			.selectFrom("webhook_outbox")
 			.select((eb) => eb.fn.countAll<number>().as("c"))
-			.where("subscription_id", "=", sub.id)
+			.where("webhook_id", "=", sub.id)
 			.executeTakeFirstOrThrow();
 		expect(Number(count.c)).toBe(1);
 	});

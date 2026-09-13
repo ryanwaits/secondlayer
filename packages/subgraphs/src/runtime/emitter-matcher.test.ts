@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { Subscription } from "@secondlayer/shared/db";
-import { SubscriptionMatcher, matchesFilter } from "./emitter-matcher.ts";
+import type { Webhook } from "@secondlayer/shared/db";
+import { WebhookMatcher, matchesFilter } from "./emitter-matcher.ts";
 
-function sub(overrides: Partial<Subscription>): Subscription {
-	const base: Subscription = {
+function sub(overrides: Partial<Webhook>): Webhook {
+	const base: Webhook = {
 		id: "00000000-0000-0000-0000-000000000001",
 		account_id: "00000000-0000-0000-0000-000000000001",
 		project_id: null,
@@ -133,9 +133,9 @@ describe("matchesFilter", () => {
 	});
 });
 
-describe("SubscriptionMatcher cache", () => {
+describe("WebhookMatcher cache", () => {
 	it("indexes active subs by (subgraph,table) and returns matches", () => {
-		const m = new SubscriptionMatcher();
+		const m = new WebhookMatcher();
 		m.setAll([
 			sub({
 				id: "a",

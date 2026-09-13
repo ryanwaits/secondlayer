@@ -12,9 +12,9 @@ const STARTUP_MARGIN_MS = 60 * 60 * 1000;
 
 type ReorgLister = Pick<IndexHttpClient, "listReorgs">;
 
-/** Per-fork handler. Each plane (subgraph rewind, chain-subscription rewind)
+/** Per-fork handler. Each plane (subgraph rewind, chain-webhook rewind)
  *  runs its own poll with its own handler, so they can live in separate
- *  processes once the subscription plane is extracted. */
+ *  processes once the webhook plane is extracted. */
 export type OnReorg = (forkHeight: number) => Promise<void>;
 
 /**

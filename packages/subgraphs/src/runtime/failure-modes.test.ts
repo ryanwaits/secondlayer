@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { sign, verify } from "@secondlayer/shared/crypto/standard-webhooks";
 import { getDb } from "@secondlayer/shared/db";
-import { createSubscription } from "@secondlayer/shared/db/queries/subscriptions";
+import { createWebhook } from "@secondlayer/shared/db/queries/webhooks";
 import { startEmitter } from "./emitter.ts";
 
 process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
@@ -22,10 +22,7 @@ beforeAll(async () => {
 afterAll(async () => {
 	// Don't closeDb() — see emitter.test.ts comment.
 	await stopEmitter?.();
-	await db
-		.deleteFrom("subscriptions")
-		.where("account_id", "=", accountId)
-		.execute();
+	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
 });
 
 describe("failure modes", () => {
@@ -43,7 +40,7 @@ describe("failure modes", () => {
 			},
 		});
 		try {
-			const { subscription } = await createSubscription(db, {
+			const { webhook } = await createWebhook(db, {
 				accountId,
 				name: `killmid-${randomUUID().slice(0, 8)}`,
 				subgraphName: "bitcoin",
@@ -53,7 +50,7 @@ describe("failure modes", () => {
 			});
 			const total = 5;
 			const rows = Array.from({ length: total }, (_, i) => ({
-				subscription_id: subscription.id,
+				webhook_id: webhook.id,
 				subgraph_name: "bitcoin",
 				table_name: "transfers",
 				block_height: 100 + i,
@@ -63,15 +60,15 @@ describe("failure modes", () => {
 				payload: { i },
 				dedup_key: `killmid-${randomUUID()}`,
 			}));
-			await db.insertInto("subscription_outbox").values(rows).execute();
+			await db.insertInto("webhook_outbox").values(rows).execute();
 
 			// Wait for deliveries to settle (or at least all rows touched).
 			const deadline = Date.now() + 8_000;
 			while (Date.now() < deadline) {
 				const outbox = await db
-					.selectFrom("subscription_outbox")
+					.selectFrom("webhook_outbox")
 					.select(["status", "attempt"])
-					.where("subscription_id", "=", subscription.id)
+					.where("webhook_id", "=", webhook.id)
 					.execute();
 				const allTouched = outbox.every(
 					(r) => r.status === "delivered" || r.attempt >= 1,
@@ -81,9 +78,9 @@ describe("failure modes", () => {
 			}
 
 			const outbox = await db
-				.selectFrom("subscription_outbox")
+				.selectFrom("webhook_outbox")
 				.selectAll()
-				.where("subscription_id", "=", subscription.id)
+				.where("webhook_id", "=", webhook.id)
 				.execute();
 			expect(outbox.length).toBe(total);
 			// No row is stranded in an intermediate state — each was attempted.
@@ -97,7 +94,7 @@ describe("failure modes", () => {
 	}, 15_000);
 
 	it("tx rollback: outbox inserts within a rolled-back tx leave zero rows", async () => {
-		const { subscription } = await createSubscription(db, {
+		const { webhook } = await createWebhook(db, {
 			accountId,
 			name: `rollback-${randomUUID().slice(0, 8)}`,
 			subgraphName: "bitcoin",
@@ -109,9 +106,9 @@ describe("failure modes", () => {
 		try {
 			await db.transaction().execute(async (tx) => {
 				await tx
-					.insertInto("subscription_outbox")
+					.insertInto("webhook_outbox")
 					.values({
-						subscription_id: subscription.id,
+						webhook_id: webhook.id,
 						subgraph_name: "bitcoin",
 						table_name: "transfers",
 						block_height: 999_999,
@@ -133,9 +130,9 @@ describe("failure modes", () => {
 			expect((e as Error).message).toBe("SIGKILL");
 		}
 		const outbox = await db
-			.selectFrom("subscription_outbox")
+			.selectFrom("webhook_outbox")
 			.selectAll()
-			.where("subscription_id", "=", subscription.id)
+			.where("webhook_id", "=", webhook.id)
 			.where("block_height", "=", 999_999)
 			.execute();
 		expect(outbox.length).toBe(0);

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { verify } from "@secondlayer/shared/crypto/standard-webhooks";
 import { getDb } from "@secondlayer/shared/db";
-import { createSubscription } from "@secondlayer/shared/db/queries/subscriptions";
+import { createWebhook } from "@secondlayer/shared/db/queries/webhooks";
 import { startEmitter } from "./emitter.ts";
 
 // Per-suite afterAll only cleans up its own data. Never call `closeDb()` —
@@ -59,17 +59,14 @@ beforeAll(async () => {
 
 afterAll(async () => {
 	await stopEmitter?.();
-	await db
-		.deleteFrom("subscriptions")
-		.where("account_id", "=", accountId)
-		.execute();
+	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
 });
 
 describe("startEmitter end-to-end", () => {
 	it("delivers outbox row to receiver with valid SW signature", async () => {
 		const receiver = await startMockReceiver(() => "ok");
 		try {
-			const { subscription, signingSecret } = await createSubscription(db, {
+			const { webhook, signingSecret } = await createWebhook(db, {
 				accountId,
 				name: `ok-${randomUUID().slice(0, 8)}`,
 				subgraphName: "bitcoin",
@@ -81,9 +78,9 @@ describe("startEmitter end-to-end", () => {
 			// Seed an outbox row directly — the block-processor hook is exercised
 			// elsewhere; here we want to prove the emitter drains + delivers.
 			await db
-				.insertInto("subscription_outbox")
+				.insertInto("webhook_outbox")
 				.values({
-					subscription_id: subscription.id,
+					webhook_id: webhook.id,
 					subgraph_name: "bitcoin",
 					table_name: "transfers",
 					block_height: 1000,
@@ -134,9 +131,9 @@ describe("startEmitter end-to-end", () => {
 			// touched by settleFailed(), so it's unambiguous.
 			const settleStart = Date.now();
 			let outboxRow = await db
-				.selectFrom("subscription_outbox")
+				.selectFrom("webhook_outbox")
 				.selectAll()
-				.where("subscription_id", "=", subscription.id)
+				.where("webhook_id", "=", webhook.id)
 				.executeTakeFirst();
 			while (
 				outboxRow?.delivered_at == null &&
@@ -144,18 +141,18 @@ describe("startEmitter end-to-end", () => {
 			) {
 				await new Promise((r) => setTimeout(r, 100));
 				outboxRow = await db
-					.selectFrom("subscription_outbox")
+					.selectFrom("webhook_outbox")
 					.selectAll()
-					.where("subscription_id", "=", subscription.id)
+					.where("webhook_id", "=", webhook.id)
 					.executeTakeFirst();
 			}
 			expect(outboxRow?.status).toBe("delivered");
 			expect(outboxRow?.delivered_at).not.toBeNull();
 
 			const delivery = await db
-				.selectFrom("subscription_deliveries")
+				.selectFrom("webhook_deliveries")
 				.selectAll()
-				.where("subscription_id", "=", subscription.id)
+				.where("webhook_id", "=", webhook.id)
 				.executeTakeFirst();
 			expect(delivery?.status_code).toBe(200);
 			expect(delivery?.duration_ms).not.toBeNull();
@@ -167,7 +164,7 @@ describe("startEmitter end-to-end", () => {
 	it("schedules backoff + trips circuit on repeat 500s", async () => {
 		const receiver = await startMockReceiver(() => "fail");
 		try {
-			const { subscription } = await createSubscription(db, {
+			const { webhook } = await createWebhook(db, {
 				accountId,
 				name: `fail-${randomUUID().slice(0, 8)}`,
 				subgraphName: "bitcoin",
@@ -177,9 +174,9 @@ describe("startEmitter end-to-end", () => {
 			});
 
 			await db
-				.insertInto("subscription_outbox")
+				.insertInto("webhook_outbox")
 				.values({
-					subscription_id: subscription.id,
+					webhook_id: webhook.id,
 					subgraph_name: "bitcoin",
 					table_name: "transfers",
 					block_height: 2000,
@@ -201,17 +198,17 @@ describe("startEmitter end-to-end", () => {
 			// (we don't wait the full 30s — just check the intermediate state).
 			await new Promise((r) => setTimeout(r, 300));
 			const sub = await db
-				.selectFrom("subscriptions")
+				.selectFrom("webhooks")
 				.selectAll()
-				.where("id", "=", subscription.id)
+				.where("id", "=", webhook.id)
 				.executeTakeFirstOrThrow();
 			expect(sub.circuit_failures).toBe(1);
 			expect(sub.last_error).not.toBeNull();
 
 			const row = await db
-				.selectFrom("subscription_outbox")
+				.selectFrom("webhook_outbox")
 				.selectAll()
-				.where("subscription_id", "=", subscription.id)
+				.where("webhook_id", "=", webhook.id)
 				.executeTakeFirstOrThrow();
 			expect(row.status).toBe("pending");
 			expect(row.attempt).toBe(1);
@@ -224,7 +221,7 @@ describe("startEmitter end-to-end", () => {
 	it("opens the circuit after 20 real failing outbox deliveries", async () => {
 		const receiver = await startMockReceiver(() => "fail");
 		try {
-			const { subscription } = await createSubscription(db, {
+			const { webhook } = await createWebhook(db, {
 				accountId,
 				name: `circuit-${randomUUID().slice(0, 8)}`,
 				subgraphName: "bitcoin",
@@ -235,10 +232,10 @@ describe("startEmitter end-to-end", () => {
 			});
 
 			await db
-				.insertInto("subscription_outbox")
+				.insertInto("webhook_outbox")
 				.values(
 					Array.from({ length: 20 }, (_, rowIndex) => ({
-						subscription_id: subscription.id,
+						webhook_id: webhook.id,
 						subgraph_name: "bitcoin",
 						table_name: "transfers",
 						block_height: 3000 + rowIndex,
@@ -270,9 +267,9 @@ describe("startEmitter end-to-end", () => {
 				| undefined;
 			while (Date.now() - start < 10_000) {
 				sub = await db
-					.selectFrom("subscriptions")
+					.selectFrom("webhooks")
 					.select(["status", "circuit_failures", "circuit_opened_at"])
-					.where("id", "=", subscription.id)
+					.where("id", "=", webhook.id)
 					.executeTakeFirstOrThrow();
 				if (
 					sub.status === "paused" &&
@@ -289,9 +286,9 @@ describe("startEmitter end-to-end", () => {
 			expect(sub?.circuit_opened_at).not.toBeNull();
 
 			const deliveryCount = await db
-				.selectFrom("subscription_deliveries")
+				.selectFrom("webhook_deliveries")
 				.select(db.fn.countAll<number>().as("count"))
-				.where("subscription_id", "=", subscription.id)
+				.where("webhook_id", "=", webhook.id)
 				.where("status_code", "=", 500)
 				.executeTakeFirstOrThrow();
 			expect(Number(deliveryCount.count)).toBeGreaterThanOrEqual(20);
@@ -300,10 +297,10 @@ describe("startEmitter end-to-end", () => {
 		}
 	}, 12_000);
 
-	it("does not POST when subscription is paused", async () => {
+	it("does not POST when webhook is paused", async () => {
 		const receiver = await startMockReceiver(() => "ok");
 		try {
-			const { subscription } = await createSubscription(db, {
+			const { webhook } = await createWebhook(db, {
 				accountId,
 				name: `paused-${randomUUID().slice(0, 8)}`,
 				subgraphName: "bitcoin",
@@ -312,15 +309,15 @@ describe("startEmitter end-to-end", () => {
 				timeoutMs: 5_000,
 			});
 			await db
-				.updateTable("subscriptions")
+				.updateTable("webhooks")
 				.set({ status: "paused", updated_at: new Date() })
-				.where("id", "=", subscription.id)
+				.where("id", "=", webhook.id)
 				.execute();
 
 			await db
-				.insertInto("subscription_outbox")
+				.insertInto("webhook_outbox")
 				.values({
-					subscription_id: subscription.id,
+					webhook_id: webhook.id,
 					subgraph_name: "bitcoin",
 					table_name: "transfers",
 					block_height: 4000,
@@ -336,9 +333,9 @@ describe("startEmitter end-to-end", () => {
 			expect(receiver.received.length).toBe(0);
 
 			const deliveries = await db
-				.selectFrom("subscription_deliveries")
+				.selectFrom("webhook_deliveries")
 				.select("id")
-				.where("subscription_id", "=", subscription.id)
+				.where("webhook_id", "=", webhook.id)
 				.execute();
 			expect(deliveries.length).toBe(0);
 		} finally {

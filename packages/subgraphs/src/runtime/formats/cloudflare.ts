@@ -1,5 +1,5 @@
 import { decryptSecret } from "@secondlayer/shared/crypto/secrets";
-import type { Subscription, SubscriptionOutbox } from "@secondlayer/shared/db";
+import type { Webhook, WebhookOutbox } from "@secondlayer/shared/db";
 
 /**
  * Cloudflare Workflows — https://developers.cloudflare.com/workflows/build/events-and-parameters/
@@ -12,7 +12,7 @@ import type { Subscription, SubscriptionOutbox } from "@secondlayer/shared/db";
  * so Workflows can dedupe on replays.
  */
 
-function resolveBearer(sub: Subscription): string | null {
+function resolveBearer(sub: Webhook): string | null {
 	const cfg = sub.auth_config as { token?: string; tokenEnc?: string };
 	if (cfg.tokenEnc) {
 		// Let decrypt errors propagate — see trigger.ts comment.
@@ -22,8 +22,8 @@ function resolveBearer(sub: Subscription): string | null {
 }
 
 export function buildCloudflare(
-	outboxRow: SubscriptionOutbox,
-	sub: Subscription,
+	outboxRow: WebhookOutbox,
+	sub: Webhook,
 ): { body: string; headers: Record<string, string> } {
 	const body = JSON.stringify({
 		params: {

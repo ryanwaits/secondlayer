@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { type Database, getTargetDb } from "@secondlayer/shared/db";
-import type { Subscription } from "@secondlayer/shared/db";
-import { getSubscription } from "@secondlayer/shared/db/queries/subscriptions";
+import type { Webhook } from "@secondlayer/shared/db";
+import { getWebhook } from "@secondlayer/shared/db/queries/webhooks";
 import { logger } from "@secondlayer/shared/logger";
 import { type Kysely, sql } from "kysely";
 import { pgSchemaName as defaultSchemaName } from "../schema/utils.ts";
@@ -21,13 +21,13 @@ import {
 
 /**
  * Replay historical subgraph rows as new outbox entries for a single
- * subscription. Rows are marked `is_replay=TRUE` so the emitter can
+ * webhook. Rows are marked `is_replay=TRUE` so the emitter can
  * prioritize live deliveries (90/10 split) and the delivery log can
  * tag replays distinctly.
  *
- * Idempotency: `replayId` is deterministic over `(subscription_id,
+ * Idempotency: `replayId` is deterministic over `(webhook_id,
  * fromBlock, toBlock)`, so re-running the same replay range is a no-op
- * thanks to the unique `(subscription_id, dedup_key)` constraint. A
+ * thanks to the unique `(webhook_id, dedup_key)` constraint. A
  * user who actually wants to re-deliver the same range passes a
  * distinct `replayIdSuffix` (e.g. a timestamp) to get a fresh key.
  */
@@ -56,7 +56,7 @@ function stableStringify(obj: Record<string, unknown>): string {
 
 export interface ReplayInput {
 	accountId: string;
-	subscriptionId: string;
+	webhookId: string;
 	fromBlock: number;
 	toBlock: number;
 	/** Force re-delivery by appending a unique suffix to the replay id. */
@@ -64,12 +64,12 @@ export interface ReplayInput {
 }
 
 function deterministicReplayId(
-	subscriptionId: string,
+	webhookId: string,
 	fromBlock: number,
 	toBlock: number,
 	suffix?: string,
 ): string {
-	const canonical = `${subscriptionId}:${fromBlock}:${toBlock}${suffix ? `:${suffix}` : ""}`;
+	const canonical = `${webhookId}:${fromBlock}:${toBlock}${suffix ? `:${suffix}` : ""}`;
 	return createHash("sha256").update(canonical).digest("hex").slice(0, 16);
 }
 
@@ -96,9 +96,7 @@ async function resolveSchemaName(
 	return row.schema_name ?? defaultSchemaName(subgraphName);
 }
 
-export async function replaySubscription(
-	input: ReplayInput,
-): Promise<ReplayResult> {
+export async function replayWebhook(input: ReplayInput): Promise<ReplayResult> {
 	if (input.fromBlock > input.toBlock) {
 		throw new Error("fromBlock must be <= toBlock");
 	}
@@ -107,22 +105,20 @@ export async function replaySubscription(
 	}
 
 	const db = getTargetDb();
-	const sub = await getSubscription(db, input.accountId, input.subscriptionId);
-	if (!sub) throw new Error("Subscription not found");
+	const sub = await getWebhook(db, input.accountId, input.webhookId);
+	if (!sub) throw new Error("Webhook not found");
 
 	// Chain subs have no processed table — they react to raw chain events. Replay
 	// re-runs the pure matcher over the canonical block range instead of scanning
 	// rows.
 	if (sub.kind === "chain") {
-		return replayChainSubscription(db, sub, input);
+		return replayChainWebhook(db, sub, input);
 	}
 
 	const subgraphName = sub.subgraph_name;
 	const tableName = sub.table_name;
 	if (sub.kind !== "subgraph" || !subgraphName || !tableName) {
-		throw new Error(
-			"replay is only supported for subgraph or chain subscriptions",
-		);
+		throw new Error("replay is only supported for subgraph or chain webhooks");
 	}
 
 	const schema = await resolveSchemaName(db, subgraphName);
@@ -156,7 +152,7 @@ export async function replaySubscription(
 		scanned += rows.length;
 
 		const inserts = rows.map((row) => ({
-			subscription_id: sub.id,
+			webhook_id: sub.id,
 			subgraph_name: subgraphName,
 			table_name: tableName,
 			block_height: Number(row._block_height),
@@ -173,11 +169,9 @@ export async function replaySubscription(
 		}));
 
 		const result = await db
-			.insertInto("subscription_outbox")
+			.insertInto("webhook_outbox")
 			.values(inserts)
-			.onConflict((oc) =>
-				oc.columns(["subscription_id", "dedup_key"]).doNothing(),
-			)
+			.onConflict((oc) => oc.columns(["webhook_id", "dedup_key"]).doNothing())
 			.executeTakeFirst();
 		enqueued += Number(result.numInsertedOrUpdatedRows ?? 0);
 
@@ -186,7 +180,7 @@ export async function replaySubscription(
 	}
 
 	logger.info("Replay enqueued", {
-		subscription: sub.name,
+		webhook: sub.name,
 		replayId,
 		scanned,
 		enqueued,
@@ -200,7 +194,7 @@ export async function replaySubscription(
 const CHAIN_REPLAY_BATCH = 200;
 
 /**
- * Replay a chain subscription by re-running the pure matcher over a historical
+ * Replay a chain webhook by re-running the pure matcher over a historical
  * canonical block range and emitting fresh apply rows. Unlike subgraph replay
  * there is no processed table to scan — the matcher is range-driven, so we
  * reload canonical blocks off the public Index/Streams clock and re-match.
@@ -209,9 +203,9 @@ const CHAIN_REPLAY_BATCH = 200;
  * critically — this never advances `trigger_evaluator_state`: replay is
  * historical and must not move the live forward cursor.
  */
-export async function replayChainSubscription(
+export async function replayChainWebhook(
 	db: Kysely<Database>,
-	sub: Subscription,
+	sub: Webhook,
 	input: ReplayInput,
 	opts?: { source?: BlockSource },
 ): Promise<ReplayResult> {
@@ -267,7 +261,7 @@ export async function replayChainSubscription(
 	}
 
 	logger.info("Chain replay enqueued", {
-		subscription: sub.name,
+		webhook: sub.name,
 		replayId,
 		scanned,
 		enqueued,

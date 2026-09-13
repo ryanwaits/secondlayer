@@ -2,25 +2,25 @@ import { randomUUID } from "node:crypto";
 import { lookup as dnsLookup } from "node:dns/promises";
 import {
 	type Database,
-	type Subscription,
-	type SubscriptionOutbox,
+	type Webhook,
+	type WebhookOutbox,
 	getTargetDb,
 } from "@secondlayer/shared/db";
-import { getSubscriptionSigningSecret } from "@secondlayer/shared/db/queries/subscriptions";
+import { getWebhookSigningSecret } from "@secondlayer/shared/db/queries/webhooks";
 import { logger } from "@secondlayer/shared/logger";
 import { listen, targetListenerUrl } from "@secondlayer/shared/queue/listener";
-import type { SubscriptionTestResult } from "@secondlayer/shared/schemas/subscriptions";
+import type { WebhookTestResult } from "@secondlayer/shared/schemas/webhooks";
 import { type Kysely, sql } from "kysely";
 import { buildForFormat } from "./formats/index.ts";
 import { meterDeliveryAttempt } from "./hosted-meter.ts";
-import { refreshMatcher } from "./subscription-state.ts";
+import { refreshMatcher } from "./webhook-state.ts";
 
 /**
- * Subscription emitter — drains `subscription_outbox` and POSTs deliveries.
+ * Webhook emitter — drains `webhook_outbox` and POSTs deliveries.
  *
- * Hot path: LISTEN on `subscriptions:new_outbox` and `subscriptions:changed`.
+ * Hot path: LISTEN on `webhooks:new_outbox` and `webhooks:changed`.
  * On notify, claim a batch with `FOR UPDATE SKIP LOCKED LIMIT 50`, dispatch
- * each row via HTTP, write a `subscription_deliveries` attempt row, then
+ * each row via HTTP, write a `webhook_deliveries` attempt row, then
  * either mark `status='delivered'` or schedule the next attempt.
  *
  * Backoff schedule (attempt → wait):
@@ -31,7 +31,7 @@ import { refreshMatcher } from "./subscription-state.ts";
  * `paused` with `circuit_opened_at=NOW()`. Manual /resume drains backlog.
  *
  * Per-sub concurrency cap: in-memory semaphore, default 4 in-flight HTTP
- * requests per subscription. Sprint-4 adds SSRF allowlist.
+ * requests per webhook. Sprint-4 adds SSRF allowlist.
  */
 
 const BATCH_SIZE = 50;
@@ -46,10 +46,10 @@ const CIRCUIT_THRESHOLD = 20;
  *
  * Must exceed the maximum possible in-flight delivery time so a slow-but-alive
  * receiver's row is never re-claimed mid-delivery (duplicate dispatch). The max
- * subscription timeout is 300_000ms (see shared/schemas/subscriptions.ts:307).
+ * webhook timeout is 300_000ms (see shared/schemas/webhooks.ts:307).
  */
-export const MAX_SUBSCRIPTION_TIMEOUT_MS = 300_000;
-export const LOCK_WINDOW_MS: number = MAX_SUBSCRIPTION_TIMEOUT_MS + 60_000; // 6 min: max timeout + settle margin
+export const MAX_WEBHOOK_TIMEOUT_MS = 300_000;
+export const LOCK_WINDOW_MS: number = MAX_WEBHOOK_TIMEOUT_MS + 60_000; // 6 min: max timeout + settle margin
 
 interface RunningState {
 	running: boolean;
@@ -254,21 +254,21 @@ interface PostResult {
  * Bound on redirect hops honored while delivering a webhook. `fetch` is
  * called with `redirect: "manual"` so a 3xx never auto-follows — each hop's
  * target is re-validated through `checkEgressAllowed` before it is fetched
- * (see `postToSubscription`), otherwise a `Location` header pointing at a
+ * (see `postToWebhook`), otherwise a `Location` header pointing at a
  * private/metadata address would bypass the egress guard entirely. Counts
  * every fetch issued (the initial request plus each redirect), so this is
  * also the max number of `fetch` calls one delivery attempt can make.
  */
 export const MAX_REDIRECT_HOPS: number = 3;
 
-/** POST a pre-built body to a subscription URL with the SSRF guard + timeout.
+/** POST a pre-built body to a webhook URL with the SSRF guard + timeout.
  *  Pure transport: returns the attempt result; the caller logs the delivery row.
  *  Follows redirects manually (up to `MAX_REDIRECT_HOPS`), re-running the
  *  egress guard against every hop's target — the guard only protects the
  *  first request otherwise, and a webhook target can redirect to a private/
  *  metadata address to read back the response after f053 pinned the guard to
  *  just the original URL. */
-async function postToSubscription(
+async function postToWebhook(
 	url: string,
 	body: string,
 	headers: Record<string, string>,
@@ -348,22 +348,22 @@ async function postToSubscription(
 }
 
 /**
- * Test-only seam: exposes `postToSubscription` (otherwise module-private) so
+ * Test-only seam: exposes `postToWebhook` (otherwise module-private) so
  * redirect/egress behavior can be exercised directly against a stubbed
  * `fetch` + injected DNS lookup, without standing up the DB-backed emitter
  * loop. Production code never calls this — only tests do.
  */
-export const __postToSubscriptionForTest: (
+export const __postToWebhookForTest: (
 	url: string,
 	body: string,
 	headers: Record<string, string>,
 	timeoutMs: number,
-) => Promise<PostResult> = postToSubscription;
+) => Promise<PostResult> = postToWebhook;
 
 async function dispatchOne(
 	db: Kysely<Database>,
-	outboxRow: SubscriptionOutbox,
-	sub: Subscription,
+	outboxRow: WebhookOutbox,
+	sub: Webhook,
 ): Promise<{
 	ok: boolean;
 	statusCode: number | null;
@@ -373,16 +373,16 @@ async function dispatchOne(
 	const { body, headers } = buildForFormat(
 		outboxRow,
 		sub,
-		getSubscriptionSigningSecret(sub),
+		getWebhookSigningSecret(sub),
 	);
-	const r = await postToSubscription(sub.url, body, headers, sub.timeout_ms);
+	const r = await postToWebhook(sub.url, body, headers, sub.timeout_ms);
 
 	const attempt = outboxRow.attempt + 1;
 	await db
-		.insertInto("subscription_deliveries")
+		.insertInto("webhook_deliveries")
 		.values({
 			outbox_id: outboxRow.id,
-			subscription_id: outboxRow.subscription_id,
+			webhook_id: outboxRow.webhook_id,
 			attempt,
 			status_code: r.statusCode,
 			response_headers: r.responseHeaders,
@@ -403,12 +403,12 @@ async function dispatchOne(
 }
 
 /** A representative (non-persisted) outbox row for a test delivery, shaped to the
- *  subscription's kind so `buildForFormat` produces a realistic body. */
-function buildTestOutboxRow(sub: Subscription): SubscriptionOutbox {
+ *  webhook's kind so `buildForFormat` produces a realistic body. */
+function buildTestOutboxRow(sub: Webhook): WebhookOutbox {
 	const now = new Date();
 	return {
 		id: randomUUID(),
-		subscription_id: sub.id,
+		webhook_id: sub.id,
 		kind: sub.kind,
 		subgraph_name: sub.subgraph_name ?? null,
 		table_name: sub.table_name ?? null,
@@ -441,25 +441,25 @@ function buildTestOutboxRow(sub: Subscription): SubscriptionOutbox {
 /**
  * Build a representative webhook for `sub`'s configured format, POST it (same
  * SSRF guard + timeout + signing as a real delivery), and log a delivery row
- * with a null `outbox_id` so it appears under the subscription's deliveries
+ * with a null `outbox_id` so it appears under the webhook's deliveries
  * without being tied to a queued event. Powers `POST /:id/test`.
  */
 export async function deliverTestEvent(
 	db: Kysely<Database>,
-	sub: Subscription,
-): Promise<SubscriptionTestResult> {
+	sub: Webhook,
+): Promise<WebhookTestResult> {
 	const testRow = buildTestOutboxRow(sub);
 	const { body, headers } = buildForFormat(
 		testRow,
 		sub,
-		getSubscriptionSigningSecret(sub),
+		getWebhookSigningSecret(sub),
 	);
-	const r = await postToSubscription(sub.url, body, headers, sub.timeout_ms);
+	const r = await postToWebhook(sub.url, body, headers, sub.timeout_ms);
 	const inserted = await db
-		.insertInto("subscription_deliveries")
+		.insertInto("webhook_deliveries")
 		.values({
 			outbox_id: null,
-			subscription_id: sub.id,
+			webhook_id: sub.id,
 			attempt: 1,
 			status_code: r.statusCode,
 			response_headers: r.responseHeaders,
@@ -480,11 +480,11 @@ export async function deliverTestEvent(
 
 async function settleDelivered(
 	db: Kysely<Database>,
-	outboxRow: SubscriptionOutbox,
+	outboxRow: WebhookOutbox,
 ): Promise<void> {
 	await db.transaction().execute(async (tx) => {
 		await tx
-			.updateTable("subscription_outbox")
+			.updateTable("webhook_outbox")
 			.set({
 				status: "delivered",
 				delivered_at: new Date(),
@@ -495,7 +495,7 @@ async function settleDelivered(
 			.where("id", "=", outboxRow.id)
 			.execute();
 		await tx
-			.updateTable("subscriptions")
+			.updateTable("webhooks")
 			.set({
 				last_delivery_at: new Date(),
 				last_success_at: new Date(),
@@ -503,15 +503,15 @@ async function settleDelivered(
 				last_error: null,
 				updated_at: new Date(),
 			})
-			.where("id", "=", outboxRow.subscription_id)
+			.where("id", "=", outboxRow.webhook_id)
 			.execute();
 	});
 }
 
 async function settleFailed(
 	db: Kysely<Database>,
-	outboxRow: SubscriptionOutbox,
-	sub: Subscription,
+	outboxRow: WebhookOutbox,
+	sub: Webhook,
 	errText: string,
 ): Promise<void> {
 	const attempt = outboxRow.attempt + 1;
@@ -522,7 +522,7 @@ async function settleFailed(
 
 	await db.transaction().execute(async (tx) => {
 		await tx
-			.updateTable("subscription_outbox")
+			.updateTable("webhook_outbox")
 			.set({
 				attempt,
 				next_attempt_at: nextAt ?? new Date(),
@@ -538,7 +538,7 @@ async function settleFailed(
 		// `RETURNING circuit_failures` gives us the post-increment value to
 		// decide whether this failure tripped the circuit.
 		const incResult = await sql<{ circuit_failures: number }>`
-			UPDATE subscriptions
+			UPDATE webhooks
 			SET circuit_failures = circuit_failures + 1,
 				last_delivery_at = NOW(),
 				last_error = ${errText.slice(0, 500)},
@@ -555,7 +555,7 @@ async function settleFailed(
 			// the threshold — additional failures in-flight harmlessly
 			// re-set the same fields.
 			await tx
-				.updateTable("subscriptions")
+				.updateTable("webhooks")
 				.set({
 					status: "paused",
 					circuit_opened_at: new Date(),
@@ -564,9 +564,9 @@ async function settleFailed(
 				.where("id", "=", sub.id)
 				.execute();
 			logger.warn(
-				"Subscription circuit tripped — paused after consecutive failures",
+				"Webhook circuit tripped — paused after consecutive failures",
 				{
-					subscription: sub.name,
+					webhook: sub.name,
 					failures: newFailures,
 				},
 			);
@@ -587,8 +587,8 @@ async function claimAndDrain(
 		const liveLimit = Math.max(1, Math.round(BATCH_SIZE * LIVE_SHARE));
 		const replayLimit = BATCH_SIZE - liveLimit;
 		const claimed = await db.transaction().execute(async (tx) => {
-			const live = await sql<SubscriptionOutbox>`
-					SELECT * FROM subscription_outbox
+			const live = await sql<WebhookOutbox>`
+					SELECT * FROM webhook_outbox
 					WHERE status = 'pending'
 						AND next_attempt_at <= NOW()
 						AND is_replay = FALSE
@@ -596,8 +596,8 @@ async function claimAndDrain(
 					FOR UPDATE SKIP LOCKED
 					LIMIT ${sql.lit(liveLimit)}
 				`.execute(tx);
-			const replay = await sql<SubscriptionOutbox>`
-					SELECT * FROM subscription_outbox
+			const replay = await sql<WebhookOutbox>`
+					SELECT * FROM webhook_outbox
 					WHERE status = 'pending'
 						AND next_attempt_at <= NOW()
 						AND is_replay = TRUE
@@ -618,7 +618,7 @@ async function claimAndDrain(
 			const now = new Date();
 			const lockUntil = new Date(now.getTime() + LOCK_WINDOW_MS);
 			await tx
-				.updateTable("subscription_outbox")
+				.updateTable("webhook_outbox")
 				.set({
 					locked_by: emitterId,
 					locked_until: lockUntil,
@@ -637,16 +637,16 @@ async function claimAndDrain(
 
 		// Hydrate each claimed row's sub once, then dispatch with per-sub
 		// concurrency cap enforced via in-memory semaphore.
-		const bySubId = new Map<string, SubscriptionOutbox[]>();
+		const bySubId = new Map<string, WebhookOutbox[]>();
 		for (const row of claimed) {
-			const arr = bySubId.get(row.subscription_id);
+			const arr = bySubId.get(row.webhook_id);
 			if (arr) arr.push(row);
-			else bySubId.set(row.subscription_id, [row]);
+			else bySubId.set(row.webhook_id, [row]);
 		}
 
 		const subIds = Array.from(bySubId.keys());
 		const subs = await db
-			.selectFrom("subscriptions")
+			.selectFrom("webhooks")
 			.selectAll()
 			.where("id", "in", subIds)
 			.execute();
@@ -668,8 +668,8 @@ async function claimAndDrain(
 async function drainForSub(
 	db: Kysely<Database>,
 	state: RunningState,
-	sub: Subscription,
-	rows: SubscriptionOutbox[],
+	sub: Webhook,
+	rows: WebhookOutbox[],
 ): Promise<void> {
 	if (sub.status !== "active") return;
 	const cap = sub.concurrency || 4;
@@ -727,15 +727,15 @@ export interface StartEmitterOptions {
 async function runRetention(db: Kysely<Database>): Promise<void> {
 	// delivered outbox >7d, deliveries >30d, dead outbox >90d
 	await sql`
-		DELETE FROM subscription_outbox
+		DELETE FROM webhook_outbox
 		WHERE status = 'delivered' AND delivered_at < NOW() - interval '7 days'
 	`.execute(db);
 	await sql`
-		DELETE FROM subscription_deliveries
+		DELETE FROM webhook_deliveries
 		WHERE dispatched_at < NOW() - interval '30 days'
 	`.execute(db);
 	await sql`
-		DELETE FROM subscription_outbox
+		DELETE FROM webhook_outbox
 		WHERE status = 'dead' AND failed_at < NOW() - interval '90 days'
 	`.execute(db);
 }
@@ -758,7 +758,7 @@ export async function startEmitter(
 	// Bootstrap matcher from active subs. Retry with backoff — if this
 	// stays broken, fail loud rather than run with an empty matcher (which
 	// would silently drop every block's outbox emissions until the next
-	// subscription CRUD fired `subscriptions:changed`).
+	// webhook CRUD fired `webhooks:changed`).
 	const MATCHER_BOOT_ATTEMPTS = 5;
 	let lastErr: unknown = null;
 	for (let i = 0; i < MATCHER_BOOT_ATTEMPTS; i++) {
@@ -786,11 +786,11 @@ export async function startEmitter(
 	}
 
 	// LISTEN on new outbox + sub changes. Both channels fire on the TARGET DB
-	// (subscription_outbox + subscriptions are control-plane tables), so bind the
+	// (webhook_outbox + webhooks are control-plane tables), so bind the
 	// listener there — under the split it is NOT `DATABASE_URL`.
 	const listenUrl = targetListenerUrl();
 	const stopNew = await listen(
-		"subscriptions:new_outbox",
+		"webhooks:new_outbox",
 		() => {
 			if (!state.running) return;
 			void claimAndDrain(db, state, emitterId).catch((err) =>
@@ -802,7 +802,7 @@ export async function startEmitter(
 		{ connectionString: listenUrl },
 	);
 	const stopChanged = await listen(
-		"subscriptions:changed",
+		"webhooks:changed",
 		() => {
 			if (!state.running) return;
 			void refreshMatcher(db).catch((err) =>
