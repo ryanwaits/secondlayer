@@ -1,5 +1,8 @@
 import { describe, expect, mock, test } from "bun:test";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
+import { DOCS_NAV, docsNavPages } from "./docs/nav";
 
 mock.module("@/components/home/cta-pill", () => ({
 	CtaPill: () => (
@@ -53,5 +56,42 @@ describe("www marketing routes", () => {
 		expect(html).not.toContain("our REST");
 		expect(html).not.toContain("our API");
 		expect(html).not.toContain("hosted indexer");
+	});
+});
+
+describe("docs sidebar invariant", () => {
+	const docsRoot = join(import.meta.dir, "docs");
+	const expectedGroups = [
+		"Start",
+		"Products",
+		"Channels",
+		"Chain data",
+		"Operate",
+		"Reference",
+		"Stacks client (moves to its own site)",
+	] as const;
+
+	test("every docs page is reachable from the sidebar and vice versa", () => {
+		expect(DOCS_NAV.map((g) => g.label)).toEqual([...expectedGroups]);
+
+		const navHrefs = new Set(docsNavPages().map((p) => p.href));
+
+		for (const href of navHrefs) {
+			const rel =
+				href === "/docs"
+					? "page.mdx"
+					: `${href.slice("/docs/".length)}/page.mdx`;
+			expect(existsSync(join(docsRoot, rel))).toBe(true);
+		}
+
+		const glob = new Bun.Glob("**/page.mdx");
+		for (const path of glob.scanSync({ cwd: docsRoot })) {
+			if (path === "changelog/archive/page.mdx") continue;
+			const href =
+				path === "page.mdx"
+					? "/docs"
+					: `/docs/${path.replace(/\/page\.mdx$/, "")}`;
+			expect(navHrefs.has(href)).toBe(true);
+		}
 	});
 });
