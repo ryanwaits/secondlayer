@@ -63,7 +63,7 @@ export const RETAINED_METER_ROUTE_FIXTURES = [
 	{ method: "POST", path: "/v1/play" },
 	{ method: "GET", path: "/v1/play" },
 	{ method: "GET", path: "/v1/play/estimate" },
-	{ method: "POST", path: "/api/webhooks/stripe" },
+	{ method: "POST", path: "/api/billing/stripe" },
 	{ method: "GET", path: "/api/keys" },
 	{ method: "GET", path: "/api/accounts/me" },
 	{ method: "POST", path: "/api/archive/quote" },
@@ -99,7 +99,7 @@ export const EXTENDED_VIEW_FIXTURES = [
 export const WORKLOAD_ROUTE_FIXTURES = [
 	{ method: "GET", path: "/api/subgraphs" },
 	{ method: "POST", path: "/api/subgraphs/bundle" },
-	{ method: "GET", path: "/api/subscriptions" },
+	{ method: "GET", path: "/api/webhooks" },
 	{ method: "GET", path: "/api/node" },
 ] as const;
 
@@ -113,6 +113,6 @@ export const HOSTED_OPENAPI_PATHS = [] as const;
  */
 export const WORKLOAD_OPENAPI_PREFIXES = [
 	"/api/subgraphs",
-	"/api/subscriptions",
+	"/api/webhooks",
 	"/api/node",
 ] as const;

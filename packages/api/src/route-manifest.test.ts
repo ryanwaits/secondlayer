@@ -66,7 +66,7 @@ describe("route manifest", () => {
 		}
 	});
 
-	// Workload routes (subgraphs, subscriptions, node) deploy and execute
+	// Workload routes (subgraphs, webhooks, node) deploy and execute
 	// customer-authored handler code and drive outbound webhook delivery. The
 	// archive deployment serves data and does not run anyone's workload
 	// (STRATEGY.md, "We do not host public subgraphs"), so these must 404
@@ -154,7 +154,7 @@ describe("route manifest", () => {
 		expect(paths).toContain("/api/billing/refill");
 		expect(paths).toContain("/api/billing/caps");
 		expect(paths).toContain("/api/public/credits/checkout");
-		expect(paths).toContain("/api/webhooks/stripe");
+		expect(paths).toContain("/api/billing/stripe");
 		expect(paths).toContain("/api/keys");
 		expect(paths).toContain("/api/accounts/me");
 		// Retired billing plan routes must never reappear in any fixture list.
@@ -339,8 +339,8 @@ describe("route manifest", () => {
 				"/api/subgraphs/{name}/backfill",
 				"/api/subgraphs/{name}/stop",
 				"/api/subgraphs/{name}/violations",
-				"/api/subscriptions",
-				"/api/subscriptions/{id}",
+				"/api/webhooks",
+				"/api/webhooks/{id}",
 			]),
 		);
 		for (const [path, item] of writes) {

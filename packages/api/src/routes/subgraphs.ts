@@ -1067,7 +1067,7 @@ app.get("/", async (c) => {
 		getChainTip(),
 		getGapSummaryBySubgraph(db).catch(() => []),
 		db
-			.selectFrom("subscriptions")
+			.selectFrom("webhooks")
 			.select("subgraph_name")
 			.select((eb) => eb.fn.count<number>("id").as("count"))
 			.where("account_id", "=", accountId ?? "")
@@ -1140,7 +1140,7 @@ app.get("/", async (c) => {
 				lastError: live?.last_error ?? null,
 				lastErrorAt: live?.last_error_at?.toISOString() ?? null,
 				updatedAt: (live?.updated_at ?? v.updated_at)?.toISOString() ?? null,
-				subscriptionCount: subCountMap.get(v.name) ?? 0,
+				webhookCount: subCountMap.get(v.name) ?? 0,
 				createdAt: v.created_at.toISOString(),
 			};
 		}),
@@ -1867,7 +1867,7 @@ app.get("/:subgraphName/:tableName/aggregate", async (c) => {
 // monotonic `_id` cursor every ~1.5s and pushes each new row as an SSE message;
 // reuses the same filter query params as the REST list endpoint. Go-forward by
 // default; `?since=<block>` replays from a block then tails. Open auth (matches
-// the read endpoints). No subscription record is created — this is ephemeral.
+// the read endpoints). No webhook record is created — this is ephemeral.
 // Registered before the `/:id` route so a static `stream` segment wins over the
 // row-id param (`return;` does not fall through in Hono).
 app.get("/:subgraphName/:tableName/stream", (c) => {

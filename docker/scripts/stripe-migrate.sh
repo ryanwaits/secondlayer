@@ -20,7 +20,7 @@
 #   docker/scripts/stripe-migrate.sh
 #
 #   # override profile / webhook URL:
-#   PROFILE=default WEBHOOK_URL=https://api.secondlayer.tools/api/webhooks/stripe \
+#   PROFILE=default WEBHOOK_URL=https://api.secondlayer.tools/api/billing/stripe \
 #     docker/scripts/stripe-migrate.sh
 #
 #   # live mode — you must pass a live key (CLI masks rk_live in config):
@@ -29,7 +29,7 @@
 set -euo pipefail
 
 PROFILE="${PROFILE:-default}"
-WEBHOOK_URL="${WEBHOOK_URL:-https://api.secondlayer.tools/api/webhooks/stripe}"
+WEBHOOK_URL="${WEBHOOK_URL:-https://api.secondlayer.tools/api/billing/stripe}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 LIVE_FLAG=()

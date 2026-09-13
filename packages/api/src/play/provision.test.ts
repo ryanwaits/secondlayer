@@ -118,7 +118,7 @@ describe.skipIf(!HAS_DB)("POST /v1/play platform", () => {
 				.where("account_id", "in", seededAccountIds)
 				.execute();
 			await db
-				.deleteFrom("subscriptions")
+				.deleteFrom("webhooks")
 				.where("account_id", "in", seededAccountIds)
 				.execute();
 			await db
@@ -220,7 +220,7 @@ describe.skipIf(!HAS_DB)("POST /v1/play platform", () => {
 		expect(body.code).toBe("RATE_LIMITED");
 	});
 
-	test("rolls back ghost and subgraph when subscription is invalid", async () => {
+	test("rolls back ghost and subgraph when webhook is invalid", async () => {
 		const name = `play-${crypto.randomUUID().slice(0, 8)}`;
 		seededNames.push(name);
 		const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`;
@@ -234,7 +234,7 @@ describe.skipIf(!HAS_DB)("POST /v1/play platform", () => {
 			},
 			body: JSON.stringify({
 				subgraph: deployBody(name),
-				subscription: {
+				webhook: {
 					name: "play-hook",
 					url: "https://example.com/hook",
 					subgraphName: "does-not-exist",

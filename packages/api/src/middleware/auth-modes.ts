@@ -38,7 +38,7 @@ export function noAuth(): MiddlewareHandler {
  * Shared instance token. Unset → open (only legal on a loopback bind).
  * `API_KEY` is accepted as an alias of `INSTANCE_TOKEN`.
  *
- * Mounted on the write plane (`/api/subgraphs`, `/api/subscriptions`,
+ * Mounted on the write plane (`/api/subgraphs`, `/api/webhooks`,
  * `/api/node`) and `/status`, never on `/v1` — the read plane's rule lives in
  * `auth/read-plane.ts` and keeps loopback reads keyless.
  */

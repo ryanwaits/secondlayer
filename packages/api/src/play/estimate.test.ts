@@ -202,7 +202,7 @@ describe.skipIf(!HAS_DB)("GET /v1/play/estimate platform", () => {
 				.where("account_id", "in", seededAccountIds)
 				.execute();
 			await db
-				.deleteFrom("subscriptions")
+				.deleteFrom("webhooks")
 				.where("account_id", "in", seededAccountIds)
 				.execute();
 			await db

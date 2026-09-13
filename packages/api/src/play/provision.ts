@@ -9,21 +9,21 @@ import {
 	updateSubgraphExpiry,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import {
-	createSubscription,
-	getSubscriptionByName,
-	notifySubscriptionsChanged,
-} from "@secondlayer/shared/db/queries/subscriptions";
+	createWebhook,
+	getWebhookByName,
+	notifyWebhooksChanged,
+} from "@secondlayer/shared/db/queries/webhooks";
 import {
 	type DeploySubgraphRequest,
 	DeploySubgraphRequestSchema,
 } from "@secondlayer/shared/schemas/subgraphs";
 import {
-	CreateSubscriptionRequestSchema,
-	type ParsedCreateSubscriptionRequest,
-	type SubscriptionSchemaTables,
-	formatSubscriptionSchemaErrors,
-	validateSubscriptionFilterForTable,
-} from "@secondlayer/shared/schemas/subscriptions";
+	CreateWebhookRequestSchema,
+	type ParsedCreateWebhookRequest,
+	type WebhookSchemaTables,
+	formatWebhookSchemaErrors,
+	validateWebhookFilterForTable,
+} from "@secondlayer/shared/schemas/webhooks";
 import type { Context } from "hono";
 import { sql } from "kysely";
 import { getClientIp } from "../auth/http.ts";
@@ -50,15 +50,15 @@ function utcDay(now = new Date()): string {
 
 function getDefinitionSchema(subgraph: {
 	definition: Record<string, unknown>;
-}): SubscriptionSchemaTables {
+}): WebhookSchemaTables {
 	const schema = subgraph.definition.schema;
 	if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
 		return {};
 	}
-	return schema as SubscriptionSchemaTables;
+	return schema as WebhookSchemaTables;
 }
 
-async function validateSubscriptionTarget(input: {
+async function validateWebhookTarget(input: {
 	accountId: string;
 	subgraphName: string;
 	tableName: string;
@@ -72,7 +72,7 @@ async function validateSubscriptionTarget(input: {
 	if (!subgraph) {
 		return [`Subgraph not found: ${input.subgraphName}`];
 	}
-	return validateSubscriptionFilterForTable({
+	return validateWebhookFilterForTable({
 		subgraphName: input.subgraphName,
 		tableName: input.tableName,
 		filter: input.filter,
@@ -107,10 +107,7 @@ async function rollbackPlay(
 	if (subgraphName) {
 		await deleteSubgraph(db, subgraphName, ghostId);
 	}
-	await db
-		.deleteFrom("subscriptions")
-		.where("account_id", "=", ghostId)
-		.execute();
+	await db.deleteFrom("webhooks").where("account_id", "=", ghostId).execute();
 	await db.deleteFrom("accounts").where("id", "=", ghostId).execute();
 }
 
@@ -122,7 +119,7 @@ export async function provisionPlay(c: Context): Promise<Response> {
 		return c.json({ error: "Invalid body" }, 400);
 	}
 
-	const record = body as { subgraph?: unknown; subscription?: unknown };
+	const record = body as { subgraph?: unknown; webhook?: unknown };
 	const subgraphParsed = DeploySubgraphRequestSchema.safeParse(record.subgraph);
 	if (!subgraphParsed.success) {
 		return c.json({ error: subgraphParsed.error.flatten().fieldErrors }, 400);
@@ -132,16 +129,14 @@ export async function provisionPlay(c: Context): Promise<Response> {
 		return c.json({ error: "dryRun is not supported on /v1/play" }, 400);
 	}
 
-	let subscription: ParsedCreateSubscriptionRequest | undefined;
-	if (record.subscription !== undefined) {
-		const subParsed = CreateSubscriptionRequestSchema.safeParse(
-			record.subscription,
-		);
+	let webhook: ParsedCreateWebhookRequest | undefined;
+	if (record.webhook !== undefined) {
+		const subParsed = CreateWebhookRequestSchema.safeParse(record.webhook);
 		if (!subParsed.success) {
-			const details = formatSubscriptionSchemaErrors(subParsed.error);
+			const details = formatWebhookSchemaErrors(subParsed.error);
 			return c.json({ error: details.join("; "), details }, 400);
 		}
-		subscription = subParsed.data;
+		webhook = subParsed.data;
 	}
 
 	const db = getDb();
@@ -190,15 +185,15 @@ export async function provisionPlay(c: Context): Promise<Response> {
 	const expiresAt = new Date(Date.now() + CLAIM_TOKEN_TTL_MS);
 	await updateSubgraphExpiry(db, subgraph.name, ghost.id, expiresAt);
 
-	if (subscription) {
+	if (webhook) {
 		try {
-			const isChain = subscription.triggers !== undefined;
+			const isChain = webhook.triggers !== undefined;
 			if (!isChain) {
-				const validationErrors = await validateSubscriptionTarget({
+				const validationErrors = await validateWebhookTarget({
 					accountId: ghost.id,
-					subgraphName: subscription.subgraphName as string,
-					tableName: subscription.tableName as string,
-					filter: subscription.filter,
+					subgraphName: webhook.subgraphName as string,
+					tableName: webhook.tableName as string,
+					filter: webhook.filter,
 				});
 				if (validationErrors.length > 0) {
 					await rollbackPlay(db, ghost.id, subgraph.name);
@@ -211,41 +206,37 @@ export async function provisionPlay(c: Context): Promise<Response> {
 					);
 				}
 			}
-			const existing = await getSubscriptionByName(
-				db,
-				ghost.id,
-				subscription.name,
-			);
+			const existing = await getWebhookByName(db, ghost.id, webhook.name);
 			if (existing) {
 				await rollbackPlay(db, ghost.id, subgraph.name);
 				return c.json(
-					{ error: `Subscription "${subscription.name}" already exists` },
+					{ error: `Webhook "${webhook.name}" already exists` },
 					400,
 				);
 			}
-			await createSubscription(db, {
+			await createWebhook(db, {
 				accountId: ghost.id,
-				name: subscription.name,
+				name: webhook.name,
 				kind: isChain ? "chain" : "subgraph",
-				subgraphName: isChain ? null : subscription.subgraphName,
-				tableName: isChain ? null : subscription.tableName,
-				triggers: isChain ? subscription.triggers : undefined,
-				url: subscription.url,
-				format: subscription.format,
-				runtime: subscription.runtime ?? null,
-				filter: isChain ? {} : (subscription.filter ?? {}),
-				authConfig: subscription.authConfig ?? {},
-				maxRetries: subscription.maxRetries,
-				timeoutMs: subscription.timeoutMs,
-				concurrency: subscription.concurrency,
+				subgraphName: isChain ? null : webhook.subgraphName,
+				tableName: isChain ? null : webhook.tableName,
+				triggers: isChain ? webhook.triggers : undefined,
+				url: webhook.url,
+				format: webhook.format,
+				runtime: webhook.runtime ?? null,
+				filter: isChain ? {} : (webhook.filter ?? {}),
+				authConfig: webhook.authConfig ?? {},
+				maxRetries: webhook.maxRetries,
+				timeoutMs: webhook.timeoutMs,
+				concurrency: webhook.concurrency,
 			});
-			await notifySubscriptionsChanged(db, ghost.id);
+			await notifyWebhooksChanged(db, ghost.id);
 		} catch (err) {
-			logger.error("play subscription create failed", {
+			logger.error("play webhook create failed", {
 				error: getErrorMessage(err),
 			});
 			await rollbackPlay(db, ghost.id, subgraph.name);
-			return c.json({ error: "Invalid subscription" }, 400);
+			return c.json({ error: "Invalid webhook" }, 400);
 		}
 	}
 

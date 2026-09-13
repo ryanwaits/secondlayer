@@ -43,13 +43,13 @@ export const UNSUPPORTED_MEDIA_TYPE = "UNSUPPORTED_MEDIA_TYPE";
 const GUARDED_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 /**
- * `POST /api/webhooks/stripe` is called by Stripe, not by a browser and not by
+ * `POST /api/billing/stripe` is called by Stripe, not by a browser and not by
  * us. It authenticates with an HMAC over the raw bytes (`stripe-signature`),
  * which is a strictly stronger check than any header shape, and its
  * Content-Type is Stripe's to choose. Guarding it would buy nothing and risk
  * dropping paid events.
  */
-const EXEMPT_PREFIXES = ["/api/webhooks"];
+const EXEMPT_PREFIXES = ["/api/billing/stripe"];
 
 export class UnsupportedMediaTypeError extends Error {
 	readonly code = UNSUPPORTED_MEDIA_TYPE;
@@ -115,7 +115,7 @@ export function requireJsonWrites(): MiddlewareHandler {
 		//
 		//  - it sent a payload as bytes (`body: new Uint8Array(...)` sets no
 		//    header and still parses as JSON server-side), or
-		//  - it sent a body-less action POST — `/subscriptions/:id/test` fires an
+		//  - it sent a body-less action POST — `/webhooks/:id/test` fires an
 		//    outbound request to a caller-chosen URL and reads no body at all.
 		//
 		// The first is caught by "carries a payload". The second is caught by the

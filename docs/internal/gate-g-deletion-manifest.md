@@ -94,7 +94,7 @@ keep but scope it to `ghost=true` rows only (it must never touch checkout
 accounts); (2) consolidate the kept auth/billing surface (§1 refactor: strip
 plans/tiers, slim billing + webhook); (3) repoint `route-manifest.ts` — reclassify
 the KEPT surface (`/api/auth/*`, `/api/billing/{status,topup,refill,caps}`,
-`/api/public/credits/*`, `/api/webhooks/stripe`, `/api/keys`, `/api/accounts/me`)
+`/api/public/credits/*`, `/api/billing/stripe`, `/api/keys`, `/api/accounts/me`)
 as RETAINED-METER and fix `route-manifest.test.ts` (the P6.1/P6.2 validation
 instrument — update before the scans); (4) slim `packages/platform` to the meter
 package (delete `usage.ts`, `projects.ts`, `pricing.ts`); (5) worker keeps

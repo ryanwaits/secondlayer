@@ -101,15 +101,11 @@ async function deliveriesLast24h(
 ): Promise<number> {
 	const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
 	const row = await db
-		.selectFrom("subscription_deliveries")
-		.innerJoin(
-			"subscriptions",
-			"subscriptions.id",
-			"subscription_deliveries.subscription_id",
-		)
+		.selectFrom("webhook_deliveries")
+		.innerJoin("webhooks", "webhooks.id", "webhook_deliveries.webhook_id")
 		.select((eb) => eb.fn.countAll<string>().as("n"))
-		.where("subscriptions.account_id", "=", accountId)
-		.where("subscription_deliveries.dispatched_at", ">", since)
+		.where("webhooks.account_id", "=", accountId)
+		.where("webhook_deliveries.dispatched_at", ">", since)
 		.executeTakeFirst();
 	return Number(row?.n ?? 0);
 }

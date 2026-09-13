@@ -27,7 +27,7 @@ const RETAINED_SURFACES = [
 		name: "instance",
 		path: "/v1/instance",
 		description:
-			"Local catalog: instance status, subgraphs, subscriptions, and default features. No signup or pricing.",
+			"Local catalog: instance status, subgraphs, webhooks, and default features. No signup or pricing.",
 		auth: "open on this instance",
 	},
 ] as const;

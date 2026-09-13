@@ -3,7 +3,7 @@ import { getDb, sql } from "@secondlayer/shared/db";
 import type Stripe from "stripe";
 import { hashToken } from "../auth/keys.ts";
 import { createClaimToken } from "../play/tokens.ts";
-import { processStripeEvent } from "./webhooks-stripe.ts";
+import { processStripeEvent } from "./billing-stripe.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 

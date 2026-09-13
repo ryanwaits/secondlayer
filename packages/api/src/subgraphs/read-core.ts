@@ -230,7 +230,7 @@ export async function handleRowById(
  * SSE: stream rows as they're indexed. Poll-based — tails the table by a
  * monotonic `_id` cursor every ~1.5s and pushes each new row as an SSE message;
  * reuses the same filter query params as the REST list endpoints. Go-forward by
- * default; `?since=<block>` replays from a block then tails. No subscription
+ * default; `?since=<block>` replays from a block then tails. No webhook
  * record is created — this is ephemeral. `opts.onBatch` fires after each
  * non-empty batch (not on heartbeats).
  */

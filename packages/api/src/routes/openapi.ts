@@ -76,9 +76,9 @@ export const OPENAPI_SPEC = {
 				"Deploy, reindex, backfill, stop, and delete subgraphs on this instance (write plane, `/api`)",
 		},
 		{
-			name: "subscriptions",
+			name: "webhooks",
 			description:
-				"Webhook subscriptions: create, update, pause, replay, and inspect deliveries (write plane, `/api`)",
+				"Webhooks: register a URL, we match, sign, retry and POST (write plane, `/api`)",
 		},
 		{
 			name: "node",
@@ -1190,10 +1190,10 @@ export const OPENAPI_SPEC = {
 				responses: apiReadResponses({ "404": jsonError() }),
 			},
 		},
-		"/api/subscriptions": {
+		"/api/webhooks": {
 			get: {
-				tags: ["subscriptions"],
-				summary: "List webhook subscriptions",
+				tags: ["webhooks"],
+				summary: "List webhook webhooks",
 				security: WRITE_SECURITY,
 				parameters: [
 					qp("_limit", "integer", false, "Page size, 1–200 (default 50)."),
@@ -1202,10 +1202,10 @@ export const OPENAPI_SPEC = {
 				responses: apiReadResponses(),
 			},
 			post: {
-				tags: ["subscriptions"],
-				summary: "Create a webhook subscription",
+				tags: ["webhooks"],
+				summary: "Create a webhook webhook",
 				description:
-					"Two mutually exclusive modes: a subgraph subscription (`subgraphName` + `tableName`, optional column `filter`) or a chain subscription (`triggers`). Responds 201 with the signing secret — the only time it is returned in full.",
+					"Two mutually exclusive modes: a subgraph webhook (`subgraphName` + `tableName`, optional column `filter`) or a chain webhook (`triggers`). Responds 201 with the signing secret — the only time it is returned in full.",
 				security: WRITE_SECURITY,
 				requestBody: jsonBody({
 					type: "object",
@@ -1241,21 +1241,21 @@ export const OPENAPI_SPEC = {
 						description: "Created; body carries the signing secret once",
 						content: { "application/json": {} },
 					},
-					"409": jsonError("A subscription with that name exists"),
+					"409": jsonError("A webhook with that name exists"),
 				}),
 			},
 		},
-		"/api/subscriptions/{id}": {
+		"/api/webhooks/{id}": {
 			get: {
-				tags: ["subscriptions"],
-				summary: "Subscription detail",
+				tags: ["webhooks"],
+				summary: "Webhook detail",
 				security: WRITE_SECURITY,
 				parameters: [pp("id")],
 				responses: apiReadResponses({ "404": jsonError() }),
 			},
 			patch: {
-				tags: ["subscriptions"],
-				summary: "Update a subscription",
+				tags: ["webhooks"],
+				summary: "Update a webhook",
 				security: WRITE_SECURITY,
 				parameters: [pp("id")],
 				requestBody: jsonBody({
@@ -1275,34 +1275,34 @@ export const OPENAPI_SPEC = {
 				responses: writeResponses({ "404": jsonError() }),
 			},
 			delete: {
-				tags: ["subscriptions"],
-				summary: "Delete a subscription",
+				tags: ["webhooks"],
+				summary: "Delete a webhook",
 				security: WRITE_SECURITY,
 				parameters: [pp("id")],
 				responses: writeResponses({ "404": jsonError() }),
 			},
 		},
-		"/api/subscriptions/{id}/pause": {
+		"/api/webhooks/{id}/pause": {
 			post: {
-				tags: ["subscriptions"],
+				tags: ["webhooks"],
 				summary: "Pause delivery (body-less)",
 				security: WRITE_SECURITY,
 				parameters: [pp("id")],
 				responses: writeResponses({ "404": jsonError() }),
 			},
 		},
-		"/api/subscriptions/{id}/resume": {
+		"/api/webhooks/{id}/resume": {
 			post: {
-				tags: ["subscriptions"],
+				tags: ["webhooks"],
 				summary: "Resume delivery (body-less)",
 				security: WRITE_SECURITY,
 				parameters: [pp("id")],
 				responses: writeResponses({ "404": jsonError() }),
 			},
 		},
-		"/api/subscriptions/{id}/rotate-secret": {
+		"/api/webhooks/{id}/rotate-secret": {
 			post: {
-				tags: ["subscriptions"],
+				tags: ["webhooks"],
 				summary: "Rotate the signing secret (body-less)",
 				description:
 					"Returns the new secret once. Deliveries signed with the old secret stop verifying immediately.",
@@ -1311,48 +1311,48 @@ export const OPENAPI_SPEC = {
 				responses: writeResponses({ "404": jsonError() }),
 			},
 		},
-		"/api/subscriptions/{id}/test": {
+		"/api/webhooks/{id}/test": {
 			post: {
-				tags: ["subscriptions"],
+				tags: ["webhooks"],
 				summary: "Send a one-off test delivery (body-less)",
 				description:
-					"Builds a sample event in the subscription's format, posts it to the configured URL through the SSRF guard, and records it under deliveries.",
+					"Builds a sample event in the webhook's format, posts it to the configured URL through the SSRF guard, and records it under deliveries.",
 				security: WRITE_SECURITY,
 				parameters: [pp("id")],
 				responses: writeResponses({ "404": jsonError() }),
 			},
 		},
-		"/api/subscriptions/{id}/deliveries": {
+		"/api/webhooks/{id}/deliveries": {
 			get: {
-				tags: ["subscriptions"],
+				tags: ["webhooks"],
 				summary: "Last 100 delivery attempts, newest first",
 				security: WRITE_SECURITY,
 				parameters: [pp("id")],
 				responses: apiReadResponses({ "404": jsonError() }),
 			},
 		},
-		"/api/subscriptions/{id}/dead": {
+		"/api/webhooks/{id}/dead": {
 			get: {
-				tags: ["subscriptions"],
+				tags: ["webhooks"],
 				summary: "Dead-letter queue: events that exhausted their retries",
 				security: WRITE_SECURITY,
 				parameters: [pp("id")],
 				responses: apiReadResponses({ "404": jsonError() }),
 			},
 		},
-		"/api/subscriptions/{id}/dead/{outbox_id}/requeue": {
+		"/api/webhooks/{id}/dead/{outbox_id}/requeue": {
 			post: {
-				tags: ["subscriptions"],
+				tags: ["webhooks"],
 				summary: "Requeue one dead event at live priority (body-less)",
 				security: WRITE_SECURITY,
 				parameters: [pp("id"), pp("outbox_id")],
 				responses: writeResponses({ "404": jsonError() }),
 			},
 		},
-		"/api/subscriptions/{id}/replay": {
+		"/api/webhooks/{id}/replay": {
 			post: {
-				tags: ["subscriptions"],
-				summary: "Replay a block range through a subscription",
+				tags: ["webhooks"],
+				summary: "Replay a block range through a webhook",
 				description:
 					"Queues historical events for redelivery; replays drain through a 10% share of the outbox so live traffic keeps priority. 202 on accept.",
 				security: WRITE_SECURITY,
@@ -1564,7 +1564,7 @@ function platformMeterPaths(): Record<string, unknown> {
 									lastAt: { type: ["string", "null"], format: "date-time" },
 								},
 							},
-							subscription: { type: "null" },
+							webhook: { type: "null" },
 						},
 					}),
 					"401": jsonError(),
@@ -1637,7 +1637,7 @@ function platformMeterPaths(): Record<string, unknown> {
 				tags: ["play"],
 				summary: "Provision a play subgraph",
 				description:
-					"Anonymous. Creates one subgraph and an optional subscription on a ghost account. Returns a read-only API key and a claim URL. Three provisions per IP per UTC day.",
+					"Anonymous. Creates one subgraph and an optional webhook on a ghost account. Returns a read-only API key and a claim URL. Three provisions per IP per UTC day.",
 				security: [],
 				requestBody: jsonBody({
 					type: "object",
@@ -1647,9 +1647,9 @@ function platformMeterPaths(): Record<string, unknown> {
 							type: "object",
 							description: "Same body as POST /api/subgraphs.",
 						},
-						subscription: {
+						webhook: {
 							type: "object",
-							description: "Optional. Same fields as POST /api/subscriptions.",
+							description: "Optional. Same fields as POST /api/webhooks.",
 						},
 					},
 				}),
@@ -1753,7 +1753,7 @@ function platformMeterPaths(): Record<string, unknown> {
 }
 
 /** Tags that only exist on the write plane. */
-const WORKLOAD_TAGS = ["deployments", "subscriptions", "node"] as const;
+const WORKLOAD_TAGS = ["deployments", "webhooks", "node"] as const;
 
 function isWorkloadPath(path: string): boolean {
 	return WORKLOAD_OPENAPI_PREFIXES.some((prefix) => path.startsWith(prefix));
@@ -1786,7 +1786,7 @@ export function openapiSpec(
 			tags: ["instance"],
 			summary: "Local instance catalog",
 			description:
-				"Instance status, local subgraphs, subscriptions, and default features. No signup or pricing.",
+				"Instance status, local subgraphs, webhooks, and default features. No signup or pricing.",
 			security: READ_SECURITY,
 			responses: ok(),
 		},

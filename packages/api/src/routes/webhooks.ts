@@ -1,48 +1,48 @@
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
-import type { Subscription } from "@secondlayer/shared/db";
+import type { Webhook } from "@secondlayer/shared/db";
 import { getSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
 import {
-	createSubscription,
-	deleteSubscription,
-	getSubscription,
-	getSubscriptionByName,
-	listSubscriptions,
-	notifySubscriptionsChanged,
-	rotateSubscriptionSecret,
-	toggleSubscriptionStatus,
-	updateSubscription,
-} from "@secondlayer/shared/db/queries/subscriptions";
+	createWebhook,
+	deleteWebhook,
+	getWebhook,
+	getWebhookByName,
+	listWebhooks,
+	notifyWebhooksChanged,
+	rotateWebhookSecret,
+	toggleWebhookStatus,
+	updateWebhook,
+} from "@secondlayer/shared/db/queries/webhooks";
 import {
 	type ChainTrigger,
-	CreateSubscriptionRequestSchema,
-	ReplaySubscriptionRequestSchema,
-	type SubscriptionSchemaTables,
-	UpdateSubscriptionRequestSchema,
-	formatSubscriptionSchemaErrors,
-	validateSubscriptionFilterForTable,
-} from "@secondlayer/shared/schemas/subscriptions";
+	CreateWebhookRequestSchema,
+	ReplayWebhookRequestSchema,
+	UpdateWebhookRequestSchema,
+	type WebhookSchemaTables,
+	formatWebhookSchemaErrors,
+	validateWebhookFilterForTable,
+} from "@secondlayer/shared/schemas/webhooks";
 import { deliverTestEvent } from "@secondlayer/subgraphs/runtime/emitter";
-import { replaySubscription } from "@secondlayer/subgraphs/runtime/replay";
+import { replayWebhook } from "@secondlayer/subgraphs/runtime/replay";
 import { Hono } from "hono";
 import { getTenantScopedAccountId } from "../lib/request-scope.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
 /**
- * Subscription CRUD routes. Platform mode scopes by accountId from auth.
+ * Webhook CRUD routes. Platform mode scopes by accountId from auth.
  * Tenant/OSS modes use the local tenant DB namespace, where subgraphs and
- * subscriptions are stored with the empty account id.
+ * webhooks are stored with the empty account id.
  */
 const app = new Hono();
 
-// Known, user-facing errors `replaySubscription` throws (see
+// Known, user-facing errors `replayWebhook` throws (see
 // packages/subgraphs/src/runtime/replay.ts). Anything else may carry raw
 // DB/driver detail, so it's genericized before reaching the client — the
-// "Subscription not found" sentinel is handled separately (-> 404).
+// "Webhook not found" sentinel is handled separately (-> 404).
 const KNOWN_REPLAY_ERRORS = [
 	"fromBlock must be <= toBlock",
 	"replay range exceeds 100k blocks",
-	"replay is only supported for subgraph or chain subscriptions",
+	"replay is only supported for subgraph or chain webhooks",
 ];
 const SUBGRAPH_NOT_REGISTERED_RE =
 	/^Subgraph ".*" not registered — cannot replay its rows\. Deploy the subgraph first\.$/;
@@ -53,7 +53,7 @@ function isKnownReplayError(msg: string): boolean {
 	);
 }
 
-function toSummary(sub: Subscription) {
+function toSummary(sub: Webhook) {
 	return {
 		id: sub.id,
 		name: sub.name,
@@ -74,7 +74,7 @@ function toSummary(sub: Subscription) {
 	};
 }
 
-function toDetail(sub: Subscription) {
+function toDetail(sub: Webhook) {
 	return {
 		...toSummary(sub),
 		filter: sub.filter as Record<string, unknown>,
@@ -90,15 +90,15 @@ function toDetail(sub: Subscription) {
 
 function getDefinitionSchema(subgraph: {
 	definition: Record<string, unknown>;
-}): SubscriptionSchemaTables {
+}): WebhookSchemaTables {
 	const schema = subgraph.definition.schema;
 	if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
 		return {};
 	}
-	return schema as SubscriptionSchemaTables;
+	return schema as WebhookSchemaTables;
 }
 
-async function validateSubscriptionTarget(input: {
+async function validateWebhookTarget(input: {
 	accountId: string;
 	subgraphName: string;
 	tableName: string;
@@ -112,7 +112,7 @@ async function validateSubscriptionTarget(input: {
 	if (!subgraph) {
 		return [`Subgraph not found: ${input.subgraphName}`];
 	}
-	return validateSubscriptionFilterForTable({
+	return validateWebhookFilterForTable({
 		subgraphName: input.subgraphName,
 		tableName: input.tableName,
 		filter: input.filter,
@@ -120,7 +120,7 @@ async function validateSubscriptionTarget(input: {
 	});
 }
 
-// ── GET /api/subscriptions ──────────────────────────────────────────────
+// ── GET /api/webhooks ──────────────────────────────────────────────
 
 app.get("/", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
@@ -135,11 +135,11 @@ app.get("/", async (c) => {
 		Number.parseInt(c.req.query("_offset") ?? "0", 10) || 0,
 		0,
 	);
-	const rows = await listSubscriptions(getDb(), accountId, { limit, offset });
+	const rows = await listWebhooks(getDb(), accountId, { limit, offset });
 	return c.json({ data: rows.map(toSummary) });
 });
 
-// ── POST /api/subscriptions ─────────────────────────────────────────────
+// ── POST /api/webhooks ─────────────────────────────────────────────
 
 app.post("/", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
@@ -154,19 +154,19 @@ app.post("/", async (c) => {
 		throw new InvalidJSONError();
 	}
 
-	const parsed = CreateSubscriptionRequestSchema.safeParse(body);
+	const parsed = CreateWebhookRequestSchema.safeParse(body);
 	if (!parsed.success) {
-		const details = formatSubscriptionSchemaErrors(parsed.error);
+		const details = formatWebhookSchemaErrors(parsed.error);
 		return c.json({ error: details.join("; "), details }, 400);
 	}
 	const input = parsed.data;
 	// The schema guarantees exactly one mode: chain (triggers) XOR subgraph
-	// (subgraphName + tableName). Chain subscriptions match raw chain events and
+	// (subgraphName + tableName). Chain webhooks match raw chain events and
 	// have no subgraph table to validate a column filter against.
 	const isChain = input.triggers !== undefined;
 
 	if (!isChain) {
-		const validationErrors = await validateSubscriptionTarget({
+		const validationErrors = await validateWebhookTarget({
 			accountId,
 			// Non-chain mode guarantees both are present (schema refine).
 			subgraphName: input.subgraphName as string,
@@ -181,16 +181,13 @@ app.post("/", async (c) => {
 		}
 	}
 
-	const existing = await getSubscriptionByName(getDb(), accountId, input.name);
+	const existing = await getWebhookByName(getDb(), accountId, input.name);
 	if (existing) {
-		return c.json(
-			{ error: `Subscription "${input.name}" already exists` },
-			409,
-		);
+		return c.json({ error: `Webhook "${input.name}" already exists` }, 409);
 	}
 
 	try {
-		const { subscription, signingSecret } = await createSubscription(getDb(), {
+		const { webhook, signingSecret } = await createWebhook(getDb(), {
 			accountId,
 			name: input.name,
 			kind: isChain ? "chain" : "subgraph",
@@ -206,10 +203,10 @@ app.post("/", async (c) => {
 			timeoutMs: input.timeoutMs,
 			concurrency: input.concurrency,
 		});
-		await notifySubscriptionsChanged(getDb(), accountId);
-		return c.json({ subscription: toDetail(subscription), signingSecret }, 201);
+		await notifyWebhooksChanged(getDb(), accountId);
+		return c.json({ webhook: toDetail(webhook), signingSecret }, 201);
 	} catch (err) {
-		logger.error("createSubscription failed", { error: getErrorMessage(err) });
+		logger.error("createWebhook failed", { error: getErrorMessage(err) });
 		return c.json(
 			{ error: "Internal Server Error", code: "INTERNAL_ERROR" },
 			500,
@@ -217,7 +214,7 @@ app.post("/", async (c) => {
 	}
 });
 
-// ── GET /api/subscriptions/:id ──────────────────────────────────────────
+// ── GET /api/webhooks/:id ──────────────────────────────────────────
 
 app.get("/:id", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
@@ -225,12 +222,12 @@ app.get("/:id", async (c) => {
 		return c.json({ error: "Unauthorized" }, 401);
 	}
 	const id = c.req.param("id");
-	const sub = await getSubscription(getDb(), accountId, id);
-	if (!sub) return c.json({ error: "Subscription not found" }, 404);
+	const sub = await getWebhook(getDb(), accountId, id);
+	if (!sub) return c.json({ error: "Webhook not found" }, 404);
 	return c.json(toDetail(sub));
 });
 
-// ── PATCH /api/subscriptions/:id ────────────────────────────────────────
+// ── PATCH /api/webhooks/:id ────────────────────────────────────────
 
 app.patch("/:id", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
@@ -244,24 +241,24 @@ app.patch("/:id", async (c) => {
 		throw new InvalidJSONError();
 	}
 
-	const parsed = UpdateSubscriptionRequestSchema.safeParse(body);
+	const parsed = UpdateWebhookRequestSchema.safeParse(body);
 	if (!parsed.success) {
-		const details = formatSubscriptionSchemaErrors(parsed.error);
+		const details = formatWebhookSchemaErrors(parsed.error);
 		return c.json({ error: details.join("; "), details }, 400);
 	}
 	const patch = parsed.data;
 
 	if (patch.filter !== undefined) {
-		const current = await getSubscription(getDb(), accountId, id);
-		if (!current) return c.json({ error: "Subscription not found" }, 404);
-		// `filter` is a subgraph-table column filter; chain subscriptions use
+		const current = await getWebhook(getDb(), accountId, id);
+		if (!current) return c.json({ error: "Webhook not found" }, 404);
+		// `filter` is a subgraph-table column filter; chain webhooks use
 		// `triggers` instead, so there's nothing to validate against a table here.
 		if (
 			current.kind === "subgraph" &&
 			current.subgraph_name &&
 			current.table_name
 		) {
-			const validationErrors = await validateSubscriptionTarget({
+			const validationErrors = await validateWebhookTarget({
 				accountId,
 				subgraphName: current.subgraph_name,
 				tableName: current.table_name,
@@ -276,7 +273,7 @@ app.patch("/:id", async (c) => {
 		}
 	}
 
-	const updated = await updateSubscription(getDb(), accountId, id, {
+	const updated = await updateWebhook(getDb(), accountId, id, {
 		name: patch.name,
 		url: patch.url,
 		format: patch.format,
@@ -287,86 +284,86 @@ app.patch("/:id", async (c) => {
 		timeoutMs: patch.timeoutMs,
 		concurrency: patch.concurrency,
 	});
-	if (!updated) return c.json({ error: "Subscription not found" }, 404);
-	await notifySubscriptionsChanged(getDb(), accountId);
+	if (!updated) return c.json({ error: "Webhook not found" }, 404);
+	await notifyWebhooksChanged(getDb(), accountId);
 	return c.json(toDetail(updated));
 });
 
-// ── POST /api/subscriptions/:id/pause ───────────────────────────────────
+// ── POST /api/webhooks/:id/pause ───────────────────────────────────
 
 app.post("/:id/pause", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
-	const sub = await toggleSubscriptionStatus(
+	const sub = await toggleWebhookStatus(
 		getDb(),
 		accountId,
 		c.req.param("id"),
 		"paused",
 	);
-	if (!sub) return c.json({ error: "Subscription not found" }, 404);
-	await notifySubscriptionsChanged(getDb(), accountId);
+	if (!sub) return c.json({ error: "Webhook not found" }, 404);
+	await notifyWebhooksChanged(getDb(), accountId);
 	return c.json(toDetail(sub));
 });
 
-// ── POST /api/subscriptions/:id/resume ──────────────────────────────────
+// ── POST /api/webhooks/:id/resume ──────────────────────────────────
 
 app.post("/:id/resume", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
-	const sub = await toggleSubscriptionStatus(
+	const sub = await toggleWebhookStatus(
 		getDb(),
 		accountId,
 		c.req.param("id"),
 		"active",
 	);
-	if (!sub) return c.json({ error: "Subscription not found" }, 404);
-	await notifySubscriptionsChanged(getDb(), accountId);
+	if (!sub) return c.json({ error: "Webhook not found" }, 404);
+	await notifyWebhooksChanged(getDb(), accountId);
 	return c.json(toDetail(sub));
 });
 
-// ── POST /api/subscriptions/:id/rotate-secret ───────────────────────────
+// ── POST /api/webhooks/:id/rotate-secret ───────────────────────────
 
 app.post("/:id/rotate-secret", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
-	const result = await rotateSubscriptionSecret(
+	const result = await rotateWebhookSecret(
 		getDb(),
 		accountId,
 		c.req.param("id"),
 	);
-	if (!result) return c.json({ error: "Subscription not found" }, 404);
-	await notifySubscriptionsChanged(getDb(), accountId);
+	if (!result) return c.json({ error: "Webhook not found" }, 404);
+	await notifyWebhooksChanged(getDb(), accountId);
 	return c.json({
-		subscription: toDetail(result.subscription),
+		webhook: toDetail(result.webhook),
 		signingSecret: result.signingSecret,
 	});
 });
 
-// Send a one-off test webhook to the subscription's URL (built for its configured
+// Send a one-off test webhook to the webhook's URL (built for its configured
 // format, SSRF-guarded) and log it as a delivery row (null outbox_id) so it shows
-// up under the subscription's deliveries.
+// up under the webhook's deliveries.
 app.post("/:id/test", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
-	const sub = await getSubscription(getDb(), accountId, c.req.param("id"));
-	if (!sub) return c.json({ error: "Subscription not found" }, 404);
+	const sub = await getWebhook(getDb(), accountId, c.req.param("id"));
+	if (!sub) return c.json({ error: "Webhook not found" }, 404);
 	const result = await deliverTestEvent(getDb(), sub);
 	return c.json(result);
 });
 
-// ── GET /api/subscriptions/:id/deliveries ───────────────────────────────
+// ── GET /api/webhooks/:id/deliveries ───────────────────────────────
 
 app.get("/:id/deliveries", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
-	const sub = await getSubscription(getDb(), accountId, c.req.param("id"));
-	if (!sub) return c.json({ error: "Subscription not found" }, 404);
+	const sub = await getWebhook(getDb(), accountId, c.req.param("id"));
+	if (!sub) return c.json({ error: "Webhook not found" }, 404);
 
 	const db = getDb();
 	const [rows, totalRow] = await Promise.all([
 		db
-			.selectFrom("subscription_deliveries as d")
-			.leftJoin("subscription_outbox as o", "o.id", "d.outbox_id")
+			.selectFrom("webhook_deliveries as d")
+			.leftJoin("webhook_outbox as o", "o.id", "d.outbox_id")
 			.select([
 				"d.id",
 				"d.attempt",
@@ -377,14 +374,14 @@ app.get("/:id/deliveries", async (c) => {
 				"d.dispatched_at",
 				"o.block_height",
 			])
-			.where("d.subscription_id", "=", sub.id)
+			.where("d.webhook_id", "=", sub.id)
 			.orderBy("d.dispatched_at", "desc")
 			.limit(100)
 			.execute(),
 		db
-			.selectFrom("subscription_deliveries")
+			.selectFrom("webhook_deliveries")
 			.select(db.fn.countAll<string>().as("n"))
-			.where("subscription_id", "=", sub.id)
+			.where("webhook_id", "=", sub.id)
 			.executeTakeFirst(),
 	]);
 	// `seq` numbers deliveries newest-first from the lifetime total, so the log
@@ -407,18 +404,18 @@ app.get("/:id/deliveries", async (c) => {
 	});
 });
 
-// ── GET /api/subscriptions/:id/dead — DLQ preview ──────────────────────
+// ── GET /api/webhooks/:id/dead — DLQ preview ──────────────────────
 
 app.get("/:id/dead", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
-	const sub = await getSubscription(getDb(), accountId, c.req.param("id"));
-	if (!sub) return c.json({ error: "Subscription not found" }, 404);
+	const sub = await getWebhook(getDb(), accountId, c.req.param("id"));
+	if (!sub) return c.json({ error: "Webhook not found" }, 404);
 
 	const rows = await getDb()
-		.selectFrom("subscription_outbox")
+		.selectFrom("webhook_outbox")
 		.selectAll()
-		.where("subscription_id", "=", sub.id)
+		.where("webhook_id", "=", sub.id)
 		.where("status", "=", "dead")
 		.orderBy("failed_at", "desc")
 		.limit(100)
@@ -437,16 +434,16 @@ app.get("/:id/dead", async (c) => {
 	});
 });
 
-// ── POST /api/subscriptions/:id/dead/:outboxId/requeue ─────────────────
+// ── POST /api/webhooks/:id/dead/:outboxId/requeue ─────────────────
 
 app.post("/:id/dead/:outboxId/requeue", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
-	const sub = await getSubscription(getDb(), accountId, c.req.param("id"));
-	if (!sub) return c.json({ error: "Subscription not found" }, 404);
+	const sub = await getWebhook(getDb(), accountId, c.req.param("id"));
+	if (!sub) return c.json({ error: "Webhook not found" }, 404);
 
 	const res = await getDb()
-		.updateTable("subscription_outbox")
+		.updateTable("webhook_outbox")
 		.set({
 			status: "pending",
 			attempt: 0,
@@ -459,7 +456,7 @@ app.post("/:id/dead/:outboxId/requeue", async (c) => {
 			is_replay: false,
 		})
 		.where("id", "=", c.req.param("outboxId"))
-		.where("subscription_id", "=", sub.id)
+		.where("webhook_id", "=", sub.id)
 		.where("status", "=", "dead")
 		.executeTakeFirst();
 	const ok = Number(res.numUpdatedRows ?? 0) > 0;
@@ -467,7 +464,7 @@ app.post("/:id/dead/:outboxId/requeue", async (c) => {
 	return c.json({ ok: true });
 });
 
-// ── POST /api/subscriptions/:id/replay ──────────────────────────────────
+// ── POST /api/webhooks/:id/replay ──────────────────────────────────
 
 app.post("/:id/replay", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
@@ -479,17 +476,17 @@ app.post("/:id/replay", async (c) => {
 	} catch {
 		throw new InvalidJSONError();
 	}
-	const parsed = ReplaySubscriptionRequestSchema.safeParse(body);
+	const parsed = ReplayWebhookRequestSchema.safeParse(body);
 	if (!parsed.success) {
-		const details = formatSubscriptionSchemaErrors(parsed.error);
+		const details = formatWebhookSchemaErrors(parsed.error);
 		return c.json({ error: details.join("; "), details }, 400);
 	}
 	const { fromBlock, toBlock, force } = parsed.data;
 
 	try {
-		const result = await replaySubscription({
+		const result = await replayWebhook({
 			accountId,
-			subscriptionId: c.req.param("id"),
+			webhookId: c.req.param("id"),
 			fromBlock,
 			toBlock,
 			replayIdSuffix: force,
@@ -497,13 +494,13 @@ app.post("/:id/replay", async (c) => {
 		return c.json(result, 202);
 	} catch (err) {
 		const msg = getErrorMessage(err);
-		if (msg === "Subscription not found") {
+		if (msg === "Webhook not found") {
 			return c.json({ error: msg }, 404);
 		}
 		if (isKnownReplayError(msg)) {
 			return c.json({ error: msg }, 400);
 		}
-		logger.error("replaySubscription failed", { error: msg });
+		logger.error("replayWebhook failed", { error: msg });
 		return c.json(
 			{ error: "Internal Server Error", code: "INTERNAL_ERROR" },
 			500,
@@ -511,14 +508,14 @@ app.post("/:id/replay", async (c) => {
 	}
 });
 
-// ── DELETE /api/subscriptions/:id ───────────────────────────────────────
+// ── DELETE /api/webhooks/:id ───────────────────────────────────────
 
 app.delete("/:id", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
-	const ok = await deleteSubscription(getDb(), accountId, c.req.param("id"));
-	if (!ok) return c.json({ error: "Subscription not found" }, 404);
-	await notifySubscriptionsChanged(getDb(), accountId);
+	const ok = await deleteWebhook(getDb(), accountId, c.req.param("id"));
+	if (!ok) return c.json({ error: "Webhook not found" }, 404);
+	await notifyWebhooksChanged(getDb(), accountId);
 	return c.json({ ok: true });
 });
 

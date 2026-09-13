@@ -8,9 +8,9 @@
  *   GET   /api/billing/caps     monthly spend cap + alert threshold
  *   PATCH /api/billing/caps
  *
- * Subscription plumbing (/upgrade, /resolve, /cancel, /portal and the
- * subscription half of /status) was removed with the plan/tier retirement —
- * credits are the only paid rail (gate-g-deletion-manifest.md §1).
+ * Plan plumbing (/upgrade, /resolve, /cancel, /portal) was removed with the
+ * plan/tier retirement — credits are the only paid rail
+ * (gate-g-deletion-manifest.md §1).
  */
 
 import {
@@ -152,7 +152,7 @@ export async function createCreditsCheckoutSession(opts: {
  * POST /api/billing/topup   body: { amount: 10 | 25 | 50 | 100 }
  *
  * One-time prepaid dev-credit top-up. Returns a Stripe Checkout Session URL in
- * `mode: "payment"` (not a subscription) with an inline price for the chosen
+ * `mode: "payment"` (one-shot Checkout, not a recurring price) with an inline price for the chosen
  * pack. The balance is credited by the `checkout.session.completed` webhook —
  * never here — so credit only lands on confirmed payment.
  */
@@ -199,10 +199,6 @@ app.post("/topup", async (c) => {
  * Read-only snapshot of the account's credits state — prepaid balance,
  * this month's PAYG draw-down, and the auto-refill config. Pure DB read;
  * never talks to Stripe, so it can never block or 500 on Stripe weather.
- *
- * `subscription` is always null — subscriptions were retired with plans;
- * the field is kept so existing clients (CLI `credits balance`) keep
- * parsing.
  */
 app.get("/status", async (c) => {
 	const accountId = getAccountId(c);
@@ -228,7 +224,6 @@ app.get("/status", async (c) => {
 			packUsd: refill.packUsd,
 			lastAt: refill.lastAt?.toISOString() ?? null,
 		},
-		subscription: null,
 	});
 });
 

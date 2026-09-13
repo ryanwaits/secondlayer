@@ -27,10 +27,10 @@ const JSON_CT = { "content-type": "application/json" } as const;
 const DANGEROUS_WRITES = [
 	["deploy a subgraph", "/api/subgraphs"],
 	["reindex a subgraph", "/api/subgraphs/demo/reindex"],
-	["create a subscription", "/api/subscriptions"],
+	["create a webhook", "/api/webhooks"],
 	[
 		"fire a test delivery",
-		"/api/subscriptions/3f8c1a2e-0000-4000-8000-00000000ab01/test",
+		"/api/webhooks/3f8c1a2e-0000-4000-8000-00000000ab01/test",
 	],
 ] as const;
 
@@ -113,12 +113,12 @@ describe("write plane content-type guard", () => {
 			expect(res.status).toBe(415);
 		});
 
-		// `/subscriptions/:id/test` reads no body, so "carries a payload" cannot
+		// `/webhooks/:id/test` reads no body, so "carries a payload" cannot
 		// catch it. The Origin header can: the Fetch spec requires it on every
 		// request whose method is not GET/HEAD, so a browser cannot omit it.
 		test("a body-less action POST carrying an Origin is rejected", async () => {
 			const res = await tokenlessApp().request(
-				"/api/subscriptions/3f8c1a2e-0000-4000-8000-00000000ab01/test",
+				"/api/webhooks/3f8c1a2e-0000-4000-8000-00000000ab01/test",
 				{
 					method: "POST",
 					headers: { origin: "https://evil.example" },
@@ -162,13 +162,13 @@ describe("write plane content-type guard", () => {
 		test.each([
 			["POST", "/api/subgraphs/demo/reindex"],
 			["POST", "/api/subgraphs/demo/stop"],
-			["POST", "/api/subscriptions/3f8c1a2e-0000-4000-8000-00000000ab01/pause"],
+			["POST", "/api/webhooks/3f8c1a2e-0000-4000-8000-00000000ab01/pause"],
 			[
 				"POST",
-				"/api/subscriptions/3f8c1a2e-0000-4000-8000-00000000ab01/rotate-secret",
+				"/api/webhooks/3f8c1a2e-0000-4000-8000-00000000ab01/rotate-secret",
 			],
 			["DELETE", "/api/subgraphs/demo"],
-			["DELETE", "/api/subscriptions/3f8c1a2e-0000-4000-8000-00000000ab01"],
+			["DELETE", "/api/webhooks/3f8c1a2e-0000-4000-8000-00000000ab01"],
 		])("a body-less server-side %s %s still passes", async (method, path) => {
 			const res = await tokenlessApp().request(path, { method });
 			expect(res.status).not.toBe(415);
@@ -181,7 +181,7 @@ describe("write plane content-type guard", () => {
 	describe("methods the CORS preflight already gates", () => {
 		test("a PATCH with a text/plain body is still rejected", async () => {
 			const res = await tokenlessApp().request(
-				"/api/subscriptions/3f8c1a2e-0000-4000-8000-00000000ab01",
+				"/api/webhooks/3f8c1a2e-0000-4000-8000-00000000ab01",
 				{
 					method: "PATCH",
 					headers: { "content-type": "text/plain;charset=UTF-8" },
@@ -193,7 +193,7 @@ describe("write plane content-type guard", () => {
 
 		test("a PATCH with a JSON body passes", async () => {
 			const res = await tokenlessApp().request(
-				"/api/subscriptions/3f8c1a2e-0000-4000-8000-00000000ab01",
+				"/api/webhooks/3f8c1a2e-0000-4000-8000-00000000ab01",
 				{
 					method: "PATCH",
 					headers: JSON_CT,
@@ -288,7 +288,7 @@ describe("the Stripe webhook is exempt", () => {
 	])(
 		"a webhook delivered with %s reaches the signature check",
 		async (_name, contentType) => {
-			const res = await platformApp().request("/api/webhooks/stripe", {
+			const res = await platformApp().request("/api/billing/stripe", {
 				method: "POST",
 				headers: contentType ? { "content-type": contentType } : undefined,
 				body: JSON.stringify({

@@ -12,6 +12,7 @@ import archiveVerifyRouter from "./routes/archive-verify.ts";
 import archiveRouter from "./routes/archive.ts";
 import authRouter from "./routes/auth.ts";
 import { createBatchRouter } from "./routes/batch.ts";
+import webhooksStripeRouter from "./routes/billing-stripe.ts";
 import billingRouter from "./routes/billing.ts";
 import contractsRouter from "./routes/contracts.ts";
 import indexRouter from "./routes/index.ts";
@@ -25,22 +26,21 @@ import publicCreditsRouter from "./routes/public-credits.ts";
 import statusRouter from "./routes/status.ts";
 import streamsRouter from "./routes/streams.ts";
 import subgraphsRouter from "./routes/subgraphs.ts";
-import subscriptionsRouter from "./routes/subscriptions.ts";
 import v1IndexRouter from "./routes/v1-index.ts";
 import v1PlayRouter from "./routes/v1-play.ts";
 import v1SubgraphsRouter from "./routes/v1-subgraphs.ts";
-import webhooksStripeRouter from "./routes/webhooks-stripe.ts";
+import webhooksRouter from "./routes/webhooks.ts";
 import { apiTelemetry } from "./telemetry/api.ts";
 
 /** Routes that run an operator's workload: deploying and executing handler
  *  code, delivering webhooks. Self-host only. Hosted does not mount
- *  `/api/subgraphs` or `/api/subscriptions`; play (`POST /v1/play`) is the
+ *  `/api/subgraphs` or `/api/webhooks`; play (`POST /v1/play`) is the
  *  exception: one subgraph per ghost account, 30-day expiry. */
 const WORKLOAD_PATHS = [
 	"/api/subgraphs",
 	"/api/subgraphs/*",
-	"/api/subscriptions",
-	"/api/subscriptions/*",
+	"/api/webhooks",
+	"/api/webhooks/*",
 	"/api/node",
 	"/api/node/*",
 ];
@@ -126,7 +126,7 @@ export function createApiApp(mode: InstanceMode): Hono {
 		app.route("/api/keys", keysRouter);
 		app.use("/api/auth/*", ipRateLimit(10));
 		app.route("/api/auth", authRouter);
-		app.route("/api/webhooks/stripe", webhooksStripeRouter);
+		app.route("/api/billing/stripe", webhooksStripeRouter);
 		app.use("/api/public/credits/*", ipRateLimit(20));
 		app.route("/api/public/credits", publicCreditsRouter);
 	}
@@ -136,7 +136,7 @@ export function createApiApp(mode: InstanceMode): Hono {
 	if (mode !== "platform") {
 		for (const path of WORKLOAD_PATHS) app.use(path, resourceAuth);
 		app.route("/api/subgraphs", subgraphsRouter);
-		app.route("/api/subscriptions", subscriptionsRouter);
+		app.route("/api/webhooks", webhooksRouter);
 		app.route("/api/node", nodeRouter);
 	}
 

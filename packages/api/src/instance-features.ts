@@ -12,7 +12,6 @@ export const INSTANCE_FEATURE_MANIFEST = {
 	rawSse: true,
 	index: true,
 	subgraphs: true,
-	subscriptions: true,
 	webhooks: true,
 	contractDiscovery: true,
 	verification: true,

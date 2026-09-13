@@ -29,7 +29,7 @@ export async function transferPlayClaim(
 		.where("account_id", "=", ghostId)
 		.execute();
 	await db
-		.updateTable("subscriptions")
+		.updateTable("webhooks")
 		.set({ account_id: opts.destAccountId })
 		.where("account_id", "=", ghostId)
 		.execute();

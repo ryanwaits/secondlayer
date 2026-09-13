@@ -20,7 +20,7 @@ export class GhostKeyReadOnlyError extends Error {
 	code = "GHOST_KEY_READ_ONLY";
 	constructor() {
 		super(
-			"Ghost keys are read-only. Claim your account to unlock writes (deploys, subscriptions, key management).",
+			"Ghost keys are read-only. Claim your account to unlock writes (deploys, webhooks, key management).",
 		);
 		this.name = "GhostKeyReadOnlyError";
 	}

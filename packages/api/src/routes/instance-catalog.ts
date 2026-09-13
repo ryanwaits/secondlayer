@@ -46,7 +46,7 @@ export function createInstanceCatalogRouter() {
 		try {
 			const [counts, dead] = await Promise.all([
 				db
-					.selectFrom("subscription_deliveries")
+					.selectFrom("webhook_deliveries")
 					.select([
 						db.fn.countAll<string>().as("total"),
 						db.fn
@@ -58,7 +58,7 @@ export function createInstanceCatalogRouter() {
 					.where("dispatched_at", ">", sql<Date>`NOW() - INTERVAL '24 hours'`)
 					.executeTakeFirst(),
 				db
-					.selectFrom("subscription_outbox")
+					.selectFrom("webhook_outbox")
 					.select(db.fn.countAll<string>().as("n"))
 					.where("status", "=", "dead")
 					.executeTakeFirst(),
@@ -114,8 +114,8 @@ export function createInstanceCatalogRouter() {
 				.select(["name", "status", "last_processed_block", "start_block"])
 				.orderBy("name")
 				.execute();
-			const subscriptions = await db
-				.selectFrom("subscriptions")
+			const webhooks = await db
+				.selectFrom("webhooks")
 				.select(["name", "status", "kind"])
 				.orderBy("name")
 				.execute();
@@ -143,7 +143,7 @@ export function createInstanceCatalogRouter() {
 					start_block: row.start_block,
 					last_processed_block: row.last_processed_block,
 				})),
-				subscriptions: subscriptions.map((row) => ({
+				webhooks: webhooks.map((row) => ({
 					name: row.name,
 					status: row.status,
 					kind: row.kind,
@@ -162,7 +162,7 @@ export function createInstanceCatalogRouter() {
 				features,
 				scope: null,
 				subgraphs: [],
-				subscriptions: [],
+				webhooks: [],
 				console: {
 					signup: false,
 					pricing: false,
@@ -208,7 +208,7 @@ export function renderLocalConsole(): string {
       el.innerHTML =
         "<p>Network <code>" + data.network + "</code> · mode <code>" + data.mode + "</code></p>" +
         "<h2>Subgraphs</h2>" + rows(data.subgraphs, ["name", "status", "last_processed_block"]) +
-        "<h2>Subscriptions</h2>" + rows(data.subscriptions, ["name", "status", "kind"]) +
+        "<h2>Webhooks</h2>" + rows(data.webhooks, ["name", "status", "kind"]) +
         "<p class=\\"muted\\">JSON: <a href=\\"/v1/instance\\"><code>/v1/instance</code></a></p>";
     }).catch(err => {
       document.getElementById("root").textContent = String(err);

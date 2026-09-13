@@ -51,8 +51,8 @@ export function getStripeWebhookSecret(): string {
 	const secret = process.env.STRIPE_WEBHOOK_SECRET;
 	if (!secret) {
 		throw new Error(
-			"STRIPE_WEBHOOK_SECRET is required for /api/webhooks/stripe. " +
-				"For local dev run `stripe listen --forward-to localhost:3800/api/webhooks/stripe` " +
+			"STRIPE_WEBHOOK_SECRET is required for /api/billing/stripe. " +
+				"For local dev run `stripe listen --forward-to localhost:3800/api/billing/stripe` " +
 				"and paste the printed whsec_... into your .env.",
 		);
 	}
@@ -64,9 +64,9 @@ export function getStripeWebhookSecretOrNull(): string | null {
 }
 
 /**
- * Find the customer's active subscription + the line item we manage
+ * Find the customer's active Stripe subscription + the line item we manage
  * (the recurring tier price). Returns null when the customer has no
- * active subscription — Hobby tenants and freshly-cancelled ones.
+ * active Stripe subscription — Hobby tenants and freshly-cancelled ones.
  *
  * "Item we manage" = the first item whose price has a recurring usage_type
  * of `licensed`. Metered overage items (storage, AI eval) are skipped so
