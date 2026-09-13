@@ -22,17 +22,18 @@ export interface DocsNavGroup {
 /**
  * Sidebar information architecture for the docs site.
  *
- * Ordered by what a reader does, not by what we built:
- *
- * - **Start** gets them running. Devnet used to sit here in slot 4, ahead of
- *   the instance token — it's a local-development concern, so it moved to
- *   Operate.
- * - **Build** is the three surfaces in fork order (keep your own API → take the
- *   generated one → decode it yourself), with Webhooks last because it's a
- *   delivery mode over the first two, never a fourth peer.
- * - **Tools** are the ways you reach those surfaces. SDK concepts (Sinks,
- *   Filters) sit with the SDK rather than competing with the surfaces in Build.
- * - **Operate / Reference / Chain** are lookup, not learning.
+ * - **Products** is the five nouns by altitude: Archive (signed history) →
+ *   Streams (raw) → Index (decoded) → Subgraphs (your schema) → Webhooks
+ *   (push). Order is load-bearing; keep it.
+ * - **Channels** are how you reach them (REST, CLI, SDK, MCP, Console). SDK
+ *   concepts (Sinks, Filters) sit with the SDK rather than competing with
+ *   the nouns in Products.
+ * - **Chain data** is Index data pages for named protocols (sBTC, PoX-5
+ *   events, contract discovery) plus the Chainhook migration guide.
+ * - **Stacks client (moves to its own site)** is a holding pen for the
+ *   `@secondlayer/stacks` library pages until plan 012 moves them to
+ *   stacks.secondlayer.tools.
+ * - **Start / Operate / Reference** are onboarding, ops, and lookup.
  */
 export const DOCS_NAV: DocsNavGroup[] = [
 	{
@@ -45,8 +46,10 @@ export const DOCS_NAV: DocsNavGroup[] = [
 		],
 	},
 	{
-		label: "Build",
+		label: "Products",
 		items: [
+			{ title: "Archive", href: "/docs/archive" },
+			{ title: "Streams", href: "/docs/streams" },
 			{ title: "Index", href: "/docs/index" },
 			{
 				title: "Subgraphs",
@@ -56,7 +59,6 @@ export const DOCS_NAV: DocsNavGroup[] = [
 					{ title: "Reading rows", href: "/docs/subgraphs/reading" },
 				],
 			},
-			{ title: "Streams", href: "/docs/streams" },
 			{
 				title: "Webhooks",
 				href: "/docs/webhooks",
@@ -71,24 +73,35 @@ export const DOCS_NAV: DocsNavGroup[] = [
 		],
 	},
 	{
-		label: "Tools",
+		label: "Channels",
 		items: [
-			{ title: "SDK", href: "/docs/sdk" },
-			{
-				title: "Sinks",
-				href: "/docs/sinks",
-				items: [{ title: "Write your own", href: "/docs/sinks/custom" }],
-			},
-			{ title: "Filters", href: "/docs/filters" },
+			{ title: "REST API", href: "/docs/rest-api" },
 			{ title: "CLI", href: "/docs/cli" },
+			{
+				title: "SDK",
+				href: "/docs/sdk",
+				items: [
+					{ title: "Sinks", href: "/docs/sinks" },
+					{ title: "Write your own sink", href: "/docs/sinks/custom" },
+					{ title: "Filters", href: "/docs/filters" },
+				],
+			},
 			{ title: "MCP", href: "/docs/mcp" },
 			{ title: "Console", href: "/docs/console" },
 		],
 	},
 	{
+		label: "Chain data",
+		items: [
+			{ title: "sBTC settlement", href: "/docs/sbtc-settlement" },
+			{ title: "PoX-5 events", href: "/docs/pox5-events" },
+			{ title: "Contract discovery", href: "/docs/contracts" },
+			{ title: "Migrating from Chainhook", href: "/docs/migrate-chainhook" },
+		],
+	},
+	{
 		label: "Operate",
 		items: [
-			{ title: "Verified archive", href: "/docs/archive" },
 			{ title: "Verification", href: "/docs/verification" },
 			{
 				title: "Deploy your app",
@@ -102,21 +115,17 @@ export const DOCS_NAV: DocsNavGroup[] = [
 	{
 		label: "Reference",
 		items: [
-			{ title: "REST API", href: "/docs/rest-api" },
 			{ title: "API reference", href: "/docs/api-reference" },
 			{ title: "SDK reference", href: "/docs/sdk-reference" },
 			{ title: "Changelog", href: "/docs/changelog" },
 		],
 	},
 	{
-		label: "Chain",
+		label: "Stacks client (moves to its own site)",
 		items: [
-			{ title: "Bitcoin SPV", href: "/docs/bitcoin-spv" },
-			{ title: "sBTC settlement", href: "/docs/sbtc-settlement" },
-			{ title: "PoX-5 staking", href: "/docs/pox5" },
-			{ title: "Contract discovery", href: "/docs/contracts" },
 			{ title: "Stacks SDK", href: "/docs/stacks" },
-			{ title: "Migrating from Chainhook", href: "/docs/migrate-chainhook" },
+			{ title: "Bitcoin SPV", href: "/docs/bitcoin-spv" },
+			{ title: "PoX-5 staking", href: "/docs/pox5" },
 		],
 	},
 ];
