@@ -244,8 +244,8 @@ function ArtIndex() {
 	);
 }
 
-/** Subscriptions: the receiver above, the delivery log (with a fork) below. */
-function ArtSubscriptions() {
+/** Webhooks: the receiver above, the delivery log (with a fork) below. */
+function ArtWebhooks() {
 	return (
 		<div
 			style={{
@@ -862,12 +862,12 @@ const CARDS: CardSpec[] = [
 		artifact: <ArtSubgraphs />,
 	},
 	{
-		file: "subscriptions.png",
-		eyebrow: "SUBSCRIPTIONS",
+		file: "webhooks.png",
+		eyebrow: "WEBHOOKS",
 		line1: "Only what matches.",
 		line2: "On our infra or yours.",
 		mutedLine2: true,
-		artifact: <ArtSubscriptions />,
+		artifact: <ArtWebhooks />,
 	},
 	{
 		file: "pricing.png",
