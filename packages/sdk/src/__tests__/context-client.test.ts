@@ -51,7 +51,7 @@ describe("SecondLayer.context()", () => {
 						{ id: "op-1", kind: "reindex", status: "running", progress: 0.4 },
 					],
 				});
-			if (p === "/api/subscriptions")
+			if (p === "/api/webhooks")
 				return json({
 					data: [
 						{ status: "active" },

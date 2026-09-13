@@ -36,7 +36,7 @@ describe("Subscriptions delivery log", () => {
 
 		expect(res.data[0]?.id).toBe("dlv_1");
 		expect(requests[0]?.url).toBe(
-			"http://localhost:3800/api/subscriptions/sub_1/deliveries",
+			"http://localhost:3800/api/webhooks/sub_1/deliveries",
 		);
 		expect(requests[0]?.method).toBe("GET");
 	});
@@ -64,7 +64,7 @@ describe("Subscriptions dead-letter requeue", () => {
 
 		expect(res.ok).toBe(true);
 		expect(requests[0]?.url).toBe(
-			"http://localhost:3800/api/subscriptions/sub_1/dead/out_9/requeue",
+			"http://localhost:3800/api/webhooks/sub_1/dead/out_9/requeue",
 		);
 		expect(requests[0]?.method).toBe("POST");
 	});
@@ -91,10 +91,10 @@ describe("Subscriptions path segments", () => {
 		await sl.subscriptions.requeue(hostile, hostile);
 
 		expect(new URL(requests[0].url).pathname).toBe(
-			`/api/subscriptions/${encoded}/pause`,
+			`/api/webhooks/${encoded}/pause`,
 		);
 		expect(new URL(requests[1].url).pathname).toBe(
-			`/api/subscriptions/${encoded}/dead/${encoded}/requeue`,
+			`/api/webhooks/${encoded}/dead/${encoded}/requeue`,
 		);
 	});
 });
