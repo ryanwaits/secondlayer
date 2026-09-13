@@ -1,0 +1,8 @@
+# Fee tiers
+
+Every send action takes `fee` as an exact amount **or a named tier**: `'min' | 'low' | 'mid' | 'high'`. Tiers map to the node's three estimations; `'min'` is the minimum relay fee (1 uSTX per serialized byte), computed offline with no round-trip. Omitting `fee` estimates mid. When the node answers `NoEstimateAvailable` (a quiet chain or fresh devnet with no fee history), the SDK falls back to `'min'` instead of failing; `resolveFee` returns `{ fee, tier }` so you can see which happened. Any other estimator failure (timeout, 5xx, auth) throws rather than silently under-paying, and the nonce reserved for that send is handed back.
+
+```ts
+await client.transferStx({ to, amount: 1000n, fee: "low" });
+await client.callContract({ contract, functionName: "mint", fee: "min" });
+```
