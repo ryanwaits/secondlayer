@@ -34,6 +34,7 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 ## Table of contents
 
 - [Local runtime](#local-runtime): `setup`, `init`, `console`, `bootstrap`, `observer`, `verify`, `repair`, `backup`, `restore`, `uninstall`
+- [Archive](#archive) — `archive latest|quote|bootstrap|verify|repair` (top-level bootstrap/verify/repair are the same commands)
 - [Credits](#credits) — `credits buy|balance|refill`
 - [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `source`, `reindex`, `backfill`, `stop`, `operations`, `gaps`, `query`, `delete`, `scaffold`
 - [Webhooks](#webhooks) — `create`, `list`, `get`, `update`, `pause`, `resume`, `delete`, `rotate-secret`, `deliveries`, `dead`, `requeue`, `replay`, `doctor`, `test`
@@ -189,6 +190,41 @@ Exit codes: `0` ok, `1` divergence remains (or transactions/events at some heigh
 The JSON report carries `rows_written` (per dataset), `datasets_rewritten`, `heights_missing_child_partitions`, and `remaining_by_dataset`.
 
 Example: `secondlayer repair --against ./snapshot.json` then `secondlayer repair --against ./snapshot.json --apply`
+
+## Archive
+
+`secondlayer archive` is the noun-grouped surface for the history plane. The
+subcommands `bootstrap`, `verify`, and `repair` are the same implementations as
+the top-level verbs (golden path keeps those). `latest` and `quote` are group-only.
+
+### secondlayer archive latest
+
+Show the official archive tip (coverage, origin, signature). Needs
+`SECONDLAYER_API_KEY` (`sk-sl_*`).
+
+Usage: `secondlayer archive latest [--against <url>] [--json]`
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--against <url>` | official `latest.json` | Override the pointer URL. |
+| `--json` | off | Machine output. |
+
+### secondlayer archive quote
+
+Price a hosted archive fetch without charging. Needs `SECONDLAYER_API_KEY`.
+
+Usage: `secondlayer archive quote --against <manifest> [--from-block <n>] [--to-block <n>] [--flow bootstrap\|repair] [--json]`
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--against <manifest>` | required | Archive manifest https URL. |
+| `--from-block <n>` / `--to-block <n>` | full manifest | Limit the priced range. |
+| `--flow <bootstrap\|repair>` | `bootstrap` | Pricing flow. |
+| `--json` | off | Machine output. |
+
+Exit codes: `0` sufficient, `1` auth/config/empty range, `2` insufficient credits.
+
+Example: `secondlayer archive quote --against https://archive.secondlayer.tools/latest.json --flow bootstrap`
 
 ### secondlayer backup / restore
 
