@@ -169,47 +169,6 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		),
 	],
 
-	"/docs/stacks": [
-		card(
-			"Call a contract",
-			"Wallet client, typed args, broadcast.",
-			"/secondlayer Help me wire `@secondlayer/stacks` into my app: `createWalletClient` with `privateKeyToAccount`, build `functionArgs` with `Cl.*`, then `client.callContract(...)` with fee estimation and nonce management handled for me.",
-		),
-		card(
-			"Protect a transfer",
-			"Post-conditions so a call can't overspend.",
-			'/secondlayer Add post-conditions to my contract call with `Pc` from `@secondlayer/stacks/postconditions` — e.g. `Pc.origin().willSendLte(n).ft(contractId, token)` — explain `deny` mode, and show the plain-object form (`{ type: "stx-postcondition", ... }`) too.',
-		),
-		card(
-			"SIP-045 staking guards",
-			"Bound pox-5 staking calls before Epoch 4.0.",
-			"/secondlayer Show me how to attach `staking-postcondition` (bound the STX a `stake`/`register-for-bond` call may lock) and `pox-postcondition` (`will-not-perform` on other PoX state) from `@secondlayer/stacks@2.10.0`, and explain what activates at the Epoch 4.0 fork vs what I can ship today.",
-		),
-		card(
-			"Same client on Clarinet simnet",
-			"getContract against an in-process VM.",
-			"/secondlayer Wire `@secondlayer/stacks/simnet`: `initSimnet`, `createPublicClient({ chain: simnetChain, transport: simnet(session) })`, then `getContract` for a typed read. Note no `/extended`, watches throw, fees fall back to `'min'`.",
-		),
-	],
-
-	"/docs/pox5": [
-		card(
-			"Stake STX",
-			"Extend the client, gate on activation, stake.",
-			"/secondlayer Wire PoX-5 staking into my app with `@secondlayer/stacks/pox5`: `.extend(pox5())`, gate on `client.pox5.isActive()` (it reads the chain's `/v2/pox`, no hardcoded heights), then `client.pox5.stake({ signerManager, amountUstx, numCycles, startBurnHeight, fee: 'low' })` and `waitForTransactionReceipt`.",
-		),
-		card(
-			"Build an L1 lockup",
-			"Build the P2WSH lockup, then registerForBond.",
-			"/secondlayer Help me build a PoX-5 L1 BTC lockup: `buildDefaultStakerUnlockBytes` from my pubkey, `buildLockupAddress` for the P2WSH address, then `buildTxProof` from `@secondlayer/stacks/bitcoin` to produce the SPV proof fields `registerForBond`'s `l1Outputs` path needs.",
-		),
-		card(
-			"Sign a signer grant",
-			"SIP-018 grant hash, RSV signature, on-chain grant.",
-			"/secondlayer Walk me through PoX-5 signer-key grants: `computeSignerGrantHash({ signerManager, authId, chainId })`, `signSignerGrant` for the 65-byte RSV signature `grant-signer-key` expects, verify locally with `verifySignerGrant`, then broadcast `client.pox5.grantSignerKey(...)`.",
-		),
-	],
-
 	"/docs/pox5-events": [
 		card(
 			"Read bond prints",
@@ -256,29 +215,6 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 			"Handle proof errors",
 			"React to 404/503 proof responses.",
 			"/secondlayer Help me handle the proof endpoint's error cases — `404 PROOF_UNAVAILABLE`, the fail-safe `503 PROOF_TX_SET_INCOMPLETE`, and the retryable `503 PROOF_NODE_UNAVAILABLE` — by writing a fetch wrapper that retries the node-unavailable case with backoff.",
-		),
-	],
-
-	"/docs/bitcoin-spv": [
-		card(
-			"Verify a Bitcoin payment",
-			"Prove a BTC payment inside a Stacks contract.",
-			"/secondlayer Help me prove a Bitcoin payment on-chain with `@secondlayer/stacks/bitcoin`: build a proof with `buildTxProof(source, { txid, vout })` from an `esploraSource`, then call `verifyBitcoinPayment(client, { proof, vout, expect: { address, amount } })` and explain `verified` vs `mined`. On mainnet `contract` is optional — it resolves the reference `spv-adapter` from `SPV_ADAPTER_CONTRACTS`; explain when I'd still pass my own.",
-		),
-		card(
-			"Build a proof off-chain",
-			"Trustless proof construction, today, on live BTC.",
-			"/secondlayer Show me the trustless proof sources in `@secondlayer/stacks/bitcoin`: wire `fallbackProofSource([bitcoinRpcSource({ url, auth }), esploraSource({ url })])`, run `buildTxProof` against live Bitcoin data, and explain how it re-verifies every claim — txid hashes, txIndex, fold to the header merkle root — so a wrong or hostile source fails loudly.",
-		),
-		card(
-			"Run it on-chain in simnet",
-			"Exercise the SIP-044 built-ins with no node.",
-			'/secondlayer Help me exercise the SIP-044 built-ins locally with no node: Clarinet ≥ 3.21 (boots simnet at Epoch 4.0), add a read-only `spv-adapter` at `clarity_version = 6` / `epoch = "4.0"`, then `createPublicClient({ chain: simnetChain, transport: simnet(session) })` from `@secondlayer/stacks/simnet` and `getContract` with `SPV_ADAPTER_ABI` from `@secondlayer/stacks/bitcoin`.',
-		),
-		card(
-			"Scaffold a Clarinet harness",
-			"Have an agent stand up the whole simnet flow.",
-			'/secondlayer Assuming Clarinet ≥ 3.21 is installed, scaffold a local SPV harness: `clarinet new spv-demo`, `clarinet contract new spv-adapter`, set `clarity_version = 6` / `epoch = "4.0"` in `Clarinet.toml`, and wrap `get-bitcoin-tx-output?` / `verify-merkle-proof`. Then a `bun` script that builds a Bitcoin proof with `@secondlayer/stacks/bitcoin` (`buildTxProof` + `encodeMerkleProofArgs`) and verifies it via `@secondlayer/stacks/simnet` + `getContract` with `SPV_ADAPTER_ABI`.',
 		),
 	],
 

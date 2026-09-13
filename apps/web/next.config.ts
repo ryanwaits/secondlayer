@@ -205,6 +205,22 @@ const nextConfig: NextConfig = {
 				destination: "/migration/v1-to-v2",
 				permanent: true,
 			},
+			// Library pages moved to stacks.secondlayer.tools (plan 012).
+			{
+				source: "/docs/stacks",
+				destination: "https://stacks.secondlayer.tools/",
+				permanent: true,
+			},
+			{
+				source: "/docs/bitcoin-spv",
+				destination: "https://stacks.secondlayer.tools/guide/bitcoin-spv",
+				permanent: true,
+			},
+			{
+				source: "/docs/pox5",
+				destination: "https://stacks.secondlayer.tools/guide/pox5",
+				permanent: true,
+			},
 		];
 	},
 };

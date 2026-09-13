@@ -8,7 +8,7 @@
 		"url": "git+https://github.com/ryanwaits/secondlayer.git",
 		"directory": "packages/stacks"
 	},
-	"homepage": "https://github.com/ryanwaits/secondlayer/tree/main/packages/stacks#readme",
+	"homepage": "https://stacks.secondlayer.tools",
 	"type": "module",
 	"main": "./dist/src/index.cjs",
 	"module": "./dist/src/index.js",
