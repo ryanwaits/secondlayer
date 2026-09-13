@@ -1,0 +1,37 @@
+# PoX-5 events
+
+Decoded `pox-5` bond prints on your instance, and a webhook when a registration lands.
+
+<Banner label="SIP-045 / Epoch 4.0" title="Live. Protocol-bond registrations are a pox-5 print.">
+
+Epoch 4.0 activated at Bitcoin block **960,230**. `register-for-bond` prints (L1 lockups and sBTC) are on `/v1/index/pox5/events`.
+
+</Banner>
+
+## Read decoded bond prints
+
+Protocol-bond registrations are prints on `pox-5`. Filter the Index feed by topic.
+
+```bash
+curl "http://127.0.0.1:3800/v1/index/pox5/events?topic=register-for-bond&limit=5"
+```
+
+Each row has `bond_index`, `amount_sats`, `is_l1_lock`, and `data.btc-lockup` (L1 txids). This is the print log, not a position scoreboard. Envelope, cursors, `?confirmed=true`: [Index](/docs/index).
+
+## Get a webhook on registrations
+
+A chain webhook POSTs matching prints to your URL.
+
+```bash
+secondlayer webhooks create pox5-bonds \
+  --url https://example.com/webhook \
+  --trigger '{"type":"print_event","contractId":"SP000000000000000000002Q6VF78.pox-5","topic":"register-for-bond"}'
+```
+
+Same shape for `bond-distribution` when payouts start. Trigger grammar and signatures: [Webhooks](/docs/webhooks). Bond-level tables (positions, allowlist, payouts) are a subgraph you deploy: [Subgraphs](/docs/subgraphs).
+
+export const metadata = {
+	title: "PoX-5 events — Secondlayer Docs",
+	description:
+		"Decoded pox-5 bond prints on Index, and a webhook when a registration lands.",
+};

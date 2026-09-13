@@ -1,34 +1,12 @@
 # PoX-5 Bitcoin Staking
 
-Stake STX, register for BTC-paired bonds, build L1 lockup scripts, and manage signer-key grants against `pox-5` (SIP-045).
+Reading bond prints from your instance is on [PoX-5 events](/docs/pox5-events). This page is the wallet and proof side, from `@secondlayer/stacks`.
 
-<Banner label="SIP-045 / Epoch 4.0" title="Live. Protocol-bond registrations are a pox-5 print.">
+<Banner label="SIP-045 / Epoch 4.0" title="Wallet actions gate on chain-reported activation.">
 
-Epoch 4.0 activated at Bitcoin block **960,230**. `register-for-bond` prints (L1 lockups and sBTC) are on `/v1/index/pox5/events`. Wallet actions still gate on `client.pox5.isActive()`, which reads the chain, not a hardcoded height.
+`client.pox5.isActive()` reads `/v2/pox`, not a hardcoded height. Epoch 4.0 activated at Bitcoin block **960,230**.
 
 </Banner>
-
-## Read decoded bond prints
-
-Protocol-bond registrations are prints on `pox-5`. Filter the Index feed by topic.
-
-```bash
-curl "http://127.0.0.1:3800/v1/index/pox5/events?topic=register-for-bond&limit=5"
-```
-
-Each row has `bond_index`, `amount_sats`, `is_l1_lock`, and `data.btc-lockup` (L1 txids). This is the print log, not a position scoreboard. Envelope, cursors, `?confirmed=true`: [Index](/docs/index).
-
-## Get a webhook on registrations
-
-A chain webhook POSTs matching prints to your URL.
-
-```bash
-secondlayer webhooks create pox5-bonds \
-  --url https://example.com/webhook \
-  --trigger '{"type":"print_event","contractId":"SP000000000000000000002Q6VF78.pox-5","topic":"register-for-bond"}'
-```
-
-Same shape for `bond-distribution` when payouts start. Trigger grammar and signatures: [Webhooks](/docs/webhooks). Bond-level tables (positions, allowlist, payouts) are a subgraph you deploy: [Subgraphs](/docs/subgraphs).
 
 ## Install
 
