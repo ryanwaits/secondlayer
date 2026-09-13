@@ -8,7 +8,7 @@ import type { Webhook, WebhookOutbox } from "@secondlayer/shared/db";
  * Authorization: Bearer <CF_API_TOKEN>
  *
  * Body: `{ params }` — the workflow entrypoint receives this as the
- * `event.payload` object. We slip the outbox id into `params._subscriptionId`
+ * `event.payload` object. We slip the outbox id into `params._outboxId`
  * so Workflows can dedupe on replays.
  */
 

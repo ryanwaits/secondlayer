@@ -50,4 +50,37 @@ describe("deliverTestEvent", () => {
 		// Test deliveries aren't tied to a queued outbox row.
 		expect(row?.outbox_id).toBeNull();
 	});
+
+	it("test-ping payload dual-emits webhook_id and subscription_id", async () => {
+		let captured: string | null = null;
+		const server = Bun.serve({
+			port: 0,
+			fetch: async (req) => {
+				captured = await req.text();
+				return new Response("ok", { status: 200 });
+			},
+		});
+		try {
+			const { webhook } = await createWebhook(db, {
+				accountId,
+				name: `dual-${randomUUID().slice(0, 8)}`,
+				subgraphName: "bitcoin",
+				tableName: "transfers",
+				url: `http://127.0.0.1:${server.port}/hook`,
+				filter: {},
+			});
+			const result = await deliverTestEvent(db, webhook);
+			expect(result.ok).toBe(true);
+			expect(captured).toBeTruthy();
+			if (!captured) throw new Error("expected captured body");
+			const body = JSON.parse(captured) as {
+				data?: { webhook_id?: string; subscription_id?: string };
+			};
+			expect(body.data?.webhook_id).toBe(webhook.id);
+			expect(body.data?.subscription_id).toBe(webhook.id);
+			expect(body.data?.webhook_id).toBe(body.data?.subscription_id);
+		} finally {
+			server.stop(true);
+		}
+	});
 });

@@ -422,7 +422,8 @@ function buildTestOutboxRow(sub: Webhook): WebhookOutbox {
 		payload: {
 			test: true,
 			message: "Secondlayer test delivery",
-			subscription_id: sub.id,
+			webhook_id: sub.id,
+			subscription_id: sub.id, // deprecated alias, removed in plan 015
 			sent_at: now.toISOString(),
 		},
 		dedup_key: `test:${sub.id}:${now.getTime()}`,
