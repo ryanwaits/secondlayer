@@ -1,10 +1,10 @@
 import type { SecondLayer } from "@secondlayer/sdk";
 import {
-	type WebhookSchemaTables as SubscriptionSchemaTables,
-	validateWebhookFilterForTable as validateSubscriptionFilterForTable,
+	type WebhookSchemaTables,
+	validateWebhookFilterForTable,
 } from "@secondlayer/shared/schemas/webhooks";
 
-export async function validateSubscriptionTargetFromApi(
+export async function validateWebhookTargetFromApi(
 	client: SecondLayer,
 	input: {
 		subgraphName: string;
@@ -13,11 +13,11 @@ export async function validateSubscriptionTargetFromApi(
 	},
 ): Promise<void> {
 	const subgraph = await client.subgraphs.status(input.subgraphName);
-	const errors = validateSubscriptionFilterForTable({
+	const errors = validateWebhookFilterForTable({
 		subgraphName: input.subgraphName,
 		tableName: input.tableName,
 		filter: input.filter,
-		tables: subgraph.tables as SubscriptionSchemaTables,
+		tables: subgraph.tables as WebhookSchemaTables,
 	});
 	if (errors.length > 0) {
 		throw new Error(errors.join("\n"));

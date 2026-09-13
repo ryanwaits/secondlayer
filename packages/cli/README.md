@@ -1,7 +1,7 @@
 # @secondlayer/cli
 
 The Secondlayer CLI — one binary for Stacks indexing, real-time subgraphs,
-subscriptions, and Clarity code generation.
+webhooks, and Clarity code generation.
 
 ```bash
 bun add -g @secondlayer/cli
@@ -138,29 +138,29 @@ points at.
 
 Reads emit JSON to stdout (`--json` accepted across all read commands); `-o/--output` is a file path, not a format.
 
-### Subscriptions
+### Webhooks
 
 | Command | What it does |
 |---|---|
-| `secondlayer subscriptions create <name> --subgraph <name> --table <name> [--runtime <inngest\|trigger\|cloudflare\|node>] [--url <url>]` | Subgraph subscription (optional local receiver scaffold). Runtime defaults to `node` once any of `-s/-t/-u` or `--no-scaffold` is given; the menu only appears in a terminal with no flags |
-| `secondlayer subscriptions create <name> --url <url> --trigger '<json>'` | Chain subscription (repeat `--trigger` or pass `--triggers-file`) |
-| `secondlayer subscriptions list` / `get <id\|name>` | List or show config + delivery state |
-| `secondlayer subscriptions update <id\|name> --url <url> [--filter key.gte=value]` | Patch URL, filter, format, retry, etc. |
-| `secondlayer subscriptions pause/resume <id\|name>` | Stop or restart delivery |
-| `secondlayer subscriptions rotate-secret <id\|name>` | Rotate signing secret (printed once) |
-| `secondlayer subscriptions deliveries/dead <id\|name>` | Recent attempts / dead-letter rows |
-| `secondlayer subscriptions requeue <id\|name> <outboxId>` | Requeue one dead-letter row |
-| `secondlayer subscriptions replay <id\|name> --from-block <n> --to-block <n>` | Enqueue a historical block range |
-| `secondlayer subscriptions doctor/test <id\|name>` | Health check / signed fixture |
+| `secondlayer webhooks create <name> --subgraph <name> --table <name> [--runtime <inngest\|trigger\|cloudflare\|node>] [--url <url>]` | Subgraph webhook (optional local receiver scaffold). Runtime defaults to `node` once any of `-s/-t/-u` or `--no-scaffold` is given; the menu only appears in a terminal with no flags |
+| `secondlayer webhooks create <name> --url <url> --trigger '<json>'` | Chain webhook (repeat `--trigger` or pass `--triggers-file`) |
+| `secondlayer webhooks list` / `get <id\|name>` | List or show config + delivery state |
+| `secondlayer webhooks update <id\|name> --url <url> [--filter key.gte=value]` | Patch URL, filter, format, retry, etc. |
+| `secondlayer webhooks pause/resume <id\|name>` | Stop or restart delivery |
+| `secondlayer webhooks rotate-secret <id\|name>` | Rotate signing secret (printed once) |
+| `secondlayer webhooks deliveries/dead <id\|name>` | Recent attempts / dead-letter rows |
+| `secondlayer webhooks requeue <id\|name> <outboxId>` | Requeue one dead-letter row |
+| `secondlayer webhooks replay <id\|name> --from-block <n> --to-block <n>` | Enqueue a historical block range |
+| `secondlayer webhooks doctor/test <id\|name>` | Health check / signed fixture |
 
 Read/action commands support `--json`. Destructive commands prompt unless
 `-y` / `--yes`, default to no, and exit 1 when stdin is not a TTY. Filters are schema-aware: unknown tables/columns, bad operators,
 and non-scalar columns are rejected before the API call.
 
-Subscriptions are **subgraph** (a table's rows) or **chain** (raw events, no
-subgraph). `secondlayer subscriptions create` with `--subgraph`/`--table` makes the
+Webhooks are **subgraph** (a table's rows) or **chain** (raw events, no
+subgraph). `secondlayer webhooks create` with `--subgraph`/`--table` makes the
 first. Pass `--trigger` or `--triggers-file` for the second. SDK, REST, and
-MCP take the same `triggers` array. Every other `secondlayer subscriptions` command
+MCP take the same `triggers` array. Every other `secondlayer webhooks` command
 operates on both kinds.
 
 ### Other
@@ -168,7 +168,7 @@ operates on both kinds.
 | Command | What it does |
 |---|---|
 | `secondlayer codegen contracts [files...]` | Generate TS interfaces from Clarity contracts |
-| `secondlayer context` | Instance snapshot — Streams + Index tips, subgraphs, subscriptions |
+| `secondlayer context` | Instance snapshot — Streams + Index tips, subgraphs, webhooks |
 | `secondlayer doctor` / `secondlayer status` | Reachability + health checks |
 | `secondlayer config get/set/reset/delete` | Inspect or reset local config |
 

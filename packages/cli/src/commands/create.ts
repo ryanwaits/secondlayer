@@ -12,22 +12,22 @@ import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { input, select } from "@inquirer/prompts";
 import { SecondLayer } from "@secondlayer/sdk";
-import type { CreateSubscriptionRequest } from "@secondlayer/sdk";
+import type { CreateWebhookRequest } from "@secondlayer/sdk";
 import {
 	type ChainTrigger,
 	ChainTriggerSchema,
 } from "@secondlayer/shared/schemas/webhooks";
 import type { Command } from "commander";
-import { parseSubscriptionFilter } from "../lib/filter-params.ts";
+import { parseWebhookFilter } from "../lib/filter-params.ts";
 import { blue, error, info, success, warn } from "../lib/output.ts";
 import { resolveAuth } from "../lib/resolve-auth.ts";
-import { validateSubscriptionTargetFromApi } from "../lib/subscription-validation.ts";
+import { validateWebhookTargetFromApi } from "../lib/webhook-validation.ts";
 
 /**
- * `secondlayer subscriptions create <name> --runtime <runtime>`
+ * `secondlayer webhooks create <name> --runtime <runtime>`
  *
  * Copies a runtime template into `./{name}/`, string-replaces the template
- * variables, and provisions the subscription via the SDK so the emitter
+ * variables, and provisions the webhook via the SDK so the emitter
  * starts pushing events to the dev server the moment the user boots it.
  */
 
@@ -47,9 +47,9 @@ function templatesRoot(): string {
 	//   - Bundle: `dist/index.js` → package root is one level up
 	//   - Source (bun run): `src/commands/create.ts` → package root is two up
 	const here = dirname(fileURLToPath(import.meta.url));
-	const candidateDist = resolve(here, "..", "templates", "subscriptions");
+	const candidateDist = resolve(here, "..", "templates", "webhooks");
 	if (existsSync(candidateDist)) return candidateDist;
-	return resolve(here, "..", "..", "templates", "subscriptions");
+	return resolve(here, "..", "..", "templates", "webhooks");
 }
 
 function copyTemplate(
@@ -79,7 +79,7 @@ function copyTemplate(
 	}
 }
 
-export interface CreateSubscriptionOptions {
+export interface CreateWebhookOptions {
 	runtime?: Runtime;
 	subgraph?: string;
 	table?: string;
@@ -90,7 +90,7 @@ export interface CreateSubscriptionOptions {
 	// true by default and becomes false when --no-scaffold is passed.
 	scaffold?: boolean;
 	filter?: string[];
-	// Chain-subscription mode: a `triggers` array instead of a subgraph table.
+	// Chain-webhook mode: a `triggers` array instead of a subgraph table.
 	trigger?: string[];
 	triggersFile?: string;
 	format?: string;
@@ -103,7 +103,7 @@ export interface CreateSubscriptionOptions {
  * so a typo'd `type` fails here with a clear message, not server-side later.
  */
 export function parseTriggersInput(
-	opts: Pick<CreateSubscriptionOptions, "trigger" | "triggersFile">,
+	opts: Pick<CreateWebhookOptions, "trigger" | "triggersFile">,
 ): ChainTrigger[] {
 	const raw: unknown[] = [];
 
@@ -155,7 +155,7 @@ export function parseTriggersInput(
  */
 export function resolveRuntime(
 	opts: Pick<
-		CreateSubscriptionOptions,
+		CreateWebhookOptions,
 		"runtime" | "subgraph" | "table" | "url" | "scaffold"
 	>,
 ): Runtime | undefined {
@@ -183,7 +183,7 @@ function requireTtyFor(flag: string): void {
 
 async function promptFor(
 	_name: string,
-	opts: CreateSubscriptionOptions,
+	opts: CreateWebhookOptions,
 ): Promise<{
 	runtime: Runtime;
 	subgraph: string;
@@ -239,7 +239,7 @@ async function promptFor(
 	return { runtime, subgraph, table, url };
 }
 
-export function buildSubscriptionAuthConfig(
+export function buildWebhookAuthConfig(
 	authToken?: string,
 ): Record<string, unknown> | undefined {
 	if (authToken === undefined) return undefined;
@@ -283,9 +283,9 @@ export function writeSigningSecretEnv(
 	return envTarget;
 }
 
-export async function createSubscription(
+export async function createWebhook(
 	name: string,
-	opts: CreateSubscriptionOptions,
+	opts: CreateWebhookOptions,
 ): Promise<void> {
 	// Validate runtime BEFORE touching the filesystem. The template-dir lookup
 	// at copyTemplate() would otherwise throw `template dir missing` after
@@ -298,8 +298,8 @@ export async function createSubscription(
 	let filter: Record<string, unknown> | undefined;
 	let authConfig: Record<string, unknown> | undefined;
 	try {
-		filter = parseSubscriptionFilter(opts.filter);
-		authConfig = buildSubscriptionAuthConfig(opts.authToken);
+		filter = parseWebhookFilter(opts.filter);
+		authConfig = buildWebhookAuthConfig(opts.authToken);
 	} catch (err) {
 		error(err instanceof Error ? err.message : String(err));
 		process.exit(1);
@@ -308,8 +308,8 @@ export async function createSubscription(
 	let sl: SecondLayer | null = null;
 	if (!opts.skipApi) {
 		try {
-			sl = await getSubscriptionClient();
-			await validateSubscriptionTargetFromApi(sl, {
+			sl = await getWebhookClient();
+			await validateWebhookTargetFromApi(sl, {
 				subgraphName: subgraph,
 				tableName: table,
 				filter,
@@ -338,14 +338,14 @@ export async function createSubscription(
 		});
 	}
 
-	// Provision the subscription via SDK unless --skip-api was passed (useful
+	// Provision the webhook via SDK unless --skip-api was passed (useful
 	// for offline template scaffolding while the user sets up auth first).
 	let signingSecret: string | null = null;
 	let provisioningFailed = false;
 	if (!opts.skipApi) {
 		try {
-			if (!sl) sl = await getSubscriptionClient();
-			const res = await sl.subscriptions.create({
+			if (!sl) sl = await getWebhookClient();
+			const res = await sl.webhooks.create({
 				name,
 				subgraphName: subgraph,
 				tableName: table,
@@ -358,31 +358,31 @@ export async function createSubscription(
 				runtime,
 				...(filter ? { filter } : {}),
 				...(authConfig ? { authConfig } : {}),
-			} as CreateSubscriptionRequest);
+			} as CreateWebhookRequest);
 			signingSecret = res.signingSecret;
-			success(`Subscription provisioned: ${blue(res.webhook.id)}`);
+			success(`Webhook provisioned: ${blue(res.webhook.id)}`);
 		} catch (err) {
 			provisioningFailed = true;
 			warn(
-				`Subscription provisioning failed: ${err instanceof Error ? err.message : String(err)}`,
+				`Webhook provisioning failed: ${err instanceof Error ? err.message : String(err)}`,
 			);
 			info(
-				"Template copied, but the subscription was not created. Fix the API error, remove the template directory, and rerun.",
+				"Template copied, but the webhook was not created. Fix the API error, remove the template directory, and rerun.",
 			);
 		}
 	}
 
 	// Write the signing secret to .env (creates if missing — all 4 templates
 	// now ship .env.example; even if a template doesn't, we still write).
-	let subscriptionStatus: string | undefined;
+	let webhookStatus: string | undefined;
 	if (sl) {
 		try {
-			const list = await sl.subscriptions.list();
+			const list = await sl.webhooks.list();
 			const rows =
 				(list as { data?: Array<{ name: string; id: string; status: string }> })
 					.data ?? [];
 			const created = rows.find((s) => s.name === name);
-			subscriptionStatus = created?.status;
+			webhookStatus = created?.status;
 		} catch {
 			// best-effort; don't block on read-back
 		}
@@ -397,32 +397,32 @@ export async function createSubscription(
 
 	console.log();
 	if (provisioningFailed) {
-		error("Subscription was not created.");
+		error("Webhook was not created.");
 		process.exit(1);
 	}
 
 	const pausedLine =
-		subscriptionStatus === "paused"
-			? `Subscription is paused. Resume:\n  secondlayer subscriptions resume ${name}\n  `
+		webhookStatus === "paused"
+			? `Webhook is paused. Resume:\n  secondlayer webhooks resume ${name}\n  `
 			: "";
 	const runHint =
 		opts.scaffold === false
-			? `View deliveries:\n  secondlayer subscriptions get ${name}`
+			? `View deliveries:\n  secondlayer webhooks get ${name}`
 			: `cd ${name}\n  bun install\n  bun run dev`;
 	success(`Done. Next:\n  ${pausedLine}${runHint}`);
 }
 
 /**
- * `secondlayer subscriptions create <name> --url <url> --trigger '<json>'`
+ * `secondlayer webhooks create <name> --url <url> --trigger '<json>'`
  *
- * Chain-subscription path: no subgraph, no scaffold — provisions a direct
- * chain-level subscription (a `triggers` array) over the session-authed SDK.
- * Branched before `createSubscription`'s subgraph prompts so it never touches
+ * Chain-webhook path: no subgraph, no scaffold — provisions a direct
+ * chain-level webhook (a `triggers` array) over the session-authed SDK.
+ * Branched before `createWebhook`'s subgraph prompts so it never touches
  * the filesystem or the subgraph/table flow.
  */
-export async function createChainSubscription(
+export async function createChainWebhook(
 	name: string,
-	opts: CreateSubscriptionOptions,
+	opts: CreateWebhookOptions,
 ): Promise<void> {
 	for (const [flag, value] of [
 		["--subgraph", opts.subgraph],
@@ -435,7 +435,7 @@ export async function createChainSubscription(
 		}
 	}
 	if (!opts.url) {
-		error("--url is required when creating a chain subscription");
+		error("--url is required when creating a chain webhook");
 		process.exit(1);
 	}
 
@@ -443,30 +443,30 @@ export async function createChainSubscription(
 	let authConfig: Record<string, unknown> | undefined;
 	try {
 		triggers = parseTriggersInput(opts);
-		authConfig = buildSubscriptionAuthConfig(opts.authToken);
+		authConfig = buildWebhookAuthConfig(opts.authToken);
 	} catch (err) {
 		error(err instanceof Error ? err.message : String(err));
 		process.exit(1);
 	}
 
-	const sl = await getSubscriptionClient();
-	let subscriptionId: string;
+	const sl = await getWebhookClient();
+	let webhookId: string;
 	let signingSecret: string;
 	try {
-		const res = await sl.subscriptions.create({
+		const res = await sl.webhooks.create({
 			name,
 			url: opts.url,
 			triggers,
 			format: (opts.format ??
-				"standard-webhooks") as CreateSubscriptionRequest["format"],
+				"standard-webhooks") as CreateWebhookRequest["format"],
 			...(authConfig ? { authConfig } : {}),
-		} as CreateSubscriptionRequest);
-		subscriptionId = res.webhook.id;
+		} as CreateWebhookRequest);
+		webhookId = res.webhook.id;
 		signingSecret = res.signingSecret;
-		success(`Chain subscription provisioned: ${blue(subscriptionId)}`);
+		success(`Chain webhook provisioned: ${blue(webhookId)}`);
 	} catch (err) {
 		error(
-			`Subscription provisioning failed: ${err instanceof Error ? err.message : String(err)}`,
+			`Webhook provisioning failed: ${err instanceof Error ? err.message : String(err)}`,
 		);
 		process.exit(1);
 	}
@@ -475,21 +475,21 @@ export async function createChainSubscription(
 
 	console.log();
 	success(
-		`Done. Next:\n  View deliveries:\n  secondlayer subscriptions get ${name}`,
+		`Done. Next:\n  View deliveries:\n  secondlayer webhooks get ${name}`,
 	);
 }
 
-export async function getSubscriptionClient(): Promise<SecondLayer> {
+export async function getWebhookClient(): Promise<SecondLayer> {
 	const { apiUrl, ephemeralKey } = await resolveAuth();
 	return new SecondLayer({ baseUrl: apiUrl, apiKey: ephemeralKey });
 }
 
 /**
- * Register the subscription-receiver scaffolder onto `parent` under
- * `commandSpec`. Shared so it can mount as both `subscriptions create` (canonical)
- * and the deprecated `create subscription`.
+ * Register the webhook-receiver scaffolder onto `parent` under
+ * `commandSpec`. Shared so it can mount as both `webhooks create` (canonical)
+ * and the deprecated `create webhook`.
  */
-function addSubscriptionScaffold(
+function addWebhookScaffold(
 	parent: Command,
 	commandSpec: string,
 	opts: { description: string; examplePrefix: string },
@@ -514,11 +514,11 @@ function addSubscriptionScaffold(
 		)
 		.option(
 			"--trigger <json...>",
-			'Chain-subscription trigger as JSON (repeatable), e.g. \'{"type":"sbtc_deposit"}\'',
+			'Chain-webhook trigger as JSON (repeatable), e.g. \'{"type":"sbtc_deposit"}\'',
 		)
 		.option(
 			"--triggers-file <path>",
-			"Chain-subscription triggers as a JSON array file",
+			"Chain-webhook triggers as a JSON array file",
 		)
 		.option(
 			"--format <format>",
@@ -537,21 +537,21 @@ Examples:
   $ ${opts.examplePrefix} my-sub -s my-graph -t balances -r inngest --filter amount.gte=1000
   $ ${opts.examplePrefix} my-hook -u https://example.com/webhook --trigger '{"type":"sbtc_deposit"}'`,
 		)
-		.action(async (name: string, options: CreateSubscriptionOptions) => {
+		.action(async (name: string, options: CreateWebhookOptions) => {
 			// Chain mode: a `triggers` array, no subgraph/scaffold. Branch here so the
-			// subgraph-oriented prompts in createSubscription are never reached.
+			// subgraph-oriented prompts in createWebhook are never reached.
 			if (options.trigger?.length || options.triggersFile) {
-				await createChainSubscription(name, options);
+				await createChainWebhook(name, options);
 				return;
 			}
-			await createSubscription(name, options);
+			await createWebhook(name, options);
 		});
 }
 
-/** Canonical home: `secondlayer subscriptions create <name>`. */
-export function addSubscriptionsCreateCommand(subscriptions: Command): void {
-	addSubscriptionScaffold(subscriptions, "create <name>", {
-		description: "Create a subscription receiver for a runtime",
-		examplePrefix: "secondlayer subscriptions create",
+/** Canonical home: `secondlayer webhooks create <name>`. */
+export function addWebhooksCreateCommand(parent: Command): void {
+	addWebhookScaffold(parent, "create <name>", {
+		description: "Create a webhook receiver for a runtime",
+		examplePrefix: "secondlayer webhooks create",
 	});
 }

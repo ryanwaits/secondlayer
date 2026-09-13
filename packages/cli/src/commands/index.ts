@@ -4,7 +4,7 @@ export { registerConfigCommand } from "./config.ts";
 export { registerConsoleCommand } from "./console.ts";
 export { registerContextCommand } from "./context.ts";
 export { registerStatusCommand } from "./status.ts";
-export { registerSubscriptionsCommand } from "./subscriptions.ts";
+export { registerWebhooksCommand } from "./webhooks.ts";
 export { registerDevnetCommand } from "./devnet.ts";
 export { registerSubgraphsCommand } from "./subgraphs.ts";
 export { registerStreamsCommand } from "./streams.ts";

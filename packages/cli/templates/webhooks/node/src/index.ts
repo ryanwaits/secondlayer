@@ -4,8 +4,8 @@ import { Hono } from "hono";
 /**
  * Minimal Standard Webhooks receiver.
  *
- * The signing secret was shown ONCE when you ran `secondlayer subscriptions create`.
- * If you lost it: secondlayer subscriptions rotate-secret {{NAME}}
+ * The signing secret was shown ONCE when you ran `secondlayer webhooks create`.
+ * If you lost it: secondlayer webhooks rotate-secret {{NAME}}
  */
 
 const SIGNING_SECRET = process.env.SIGNING_SECRET;

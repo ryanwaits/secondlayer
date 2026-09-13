@@ -21,7 +21,7 @@ export function registerContextCommand(program: Command): void {
 	program
 		.command("context")
 		.description(
-			"Print an agent orientation snapshot: account, live Streams/Index tips, your subgraphs/subscriptions, and in-flight reindex operations",
+			"Print an agent orientation snapshot: account, live Streams/Index tips, your subgraphs/webhooks, and in-flight reindex operations",
 		)
 		.option("--json", "Print as JSON (default)")
 		.action(async (o: { json?: boolean }) => {

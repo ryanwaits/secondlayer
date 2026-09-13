@@ -221,7 +221,7 @@ export async function connect(options: ConnectOptions): Promise<void> {
 	);
 	console.log(
 		dim(
-			`\nThe api is published on 127.0.0.1 only: /v1 reads need no credential.\nWrites (deploys, subscriptions) send INSTANCE_TOKEN=${DEV_INSTANCE_TOKEN}.`,
+			`\nThe api is published on 127.0.0.1 only: /v1 reads need no credential.\nWrites (deploys, webhooks) send INSTANCE_TOKEN=${DEV_INSTANCE_TOKEN}.`,
 		),
 	);
 	console.log(dim("\nStop with: secondlayer devnet down"));

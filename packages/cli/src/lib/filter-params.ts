@@ -70,7 +70,7 @@ export function parseQueryFilters(
 	return Object.keys(filters).length > 0 ? filters : undefined;
 }
 
-export function parseSubscriptionFilter(
+export function parseWebhookFilter(
 	args?: string[],
 ): Record<string, unknown> | undefined {
 	const filters: Record<string, unknown> = {};
@@ -79,12 +79,12 @@ export function parseSubscriptionFilter(
 	for (const filter of parseFilterArgs(args)) {
 		if (filter.operator === "like") {
 			throw new Error(
-				`Subscription filters do not support ".like". Supported operators: ${FILTER_OPERATORS.join(", ")}.`,
+				`Webhook filters do not support ".like". Supported operators: ${FILTER_OPERATORS.join(", ")}.`,
 			);
 		}
 		if (seenFields.has(filter.field)) {
 			throw new Error(
-				`Subscription filters support one condition per field; got multiple filters for "${filter.field}".`,
+				`Webhook filters support one condition per field; got multiple filters for "${filter.field}".`,
 			);
 		}
 		seenFields.add(filter.field);

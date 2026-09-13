@@ -1279,7 +1279,7 @@ Examples:
 								);
 								if (firstTable) {
 									info(
-										`  Webhook:   secondlayer subscriptions create ${effectiveDef.name}-hook --subgraph ${effectiveDef.name} --table ${firstTable} --url <your-endpoint>`,
+										`  Webhook:   secondlayer webhooks create ${effectiveDef.name}-hook --subgraph ${effectiveDef.name} --table ${firstTable} --url <your-endpoint>`,
 									);
 								}
 							} catch {

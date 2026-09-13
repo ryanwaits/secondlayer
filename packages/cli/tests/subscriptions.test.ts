@@ -3,19 +3,19 @@ import type { SecondLayer } from "@secondlayer/sdk";
 import type {
 	DeadRow,
 	DeliveryRow,
-	WebhookDetail as SubscriptionDetail,
+	WebhookDetail,
 } from "@secondlayer/shared/schemas/webhooks";
 import {
 	buildDoctorReport,
-	buildSubscriptionTestFixture,
 	buildSyntheticRow,
-	buildUpdatePatch,
+	buildWebhookTestFixture,
+	buildWebhookUpdatePatch,
 	resolveSigningSecret,
-	resolveSubscriptionRef,
-} from "../src/commands/subscriptions.ts";
-import { validateSubscriptionTargetFromApi } from "../src/lib/subscription-validation.ts";
+	resolveWebhookRef,
+} from "../src/commands/webhooks.ts";
+import { validateWebhookTargetFromApi } from "../src/lib/webhook-validation.ts";
 
-const baseDetail: SubscriptionDetail = {
+const baseDetail: WebhookDetail = {
 	id: "sub-1",
 	name: "whale-alerts",
 	status: "active",
@@ -61,12 +61,12 @@ const deadRow: DeadRow = {
 	createdAt: "2026-04-23T00:00:00.000Z",
 };
 
-describe("subscriptions command helpers", () => {
+describe("webhooks command helpers", () => {
 	it("resolves refs by id and name, falls back to get for UUIDs, rejects unknown refs", async () => {
 		const calls: string[] = [];
-		// Partial mock — `resolveSubscriptionRef` only calls list + get.
+		// Partial mock — `resolveWebhookRef` only calls list + get.
 		const client = {
-			subscriptions: {
+			webhooks: {
 				list: async () => ({
 					data: [
 						{ ...baseDetail, id: "sub-1", name: "one" },
@@ -78,24 +78,24 @@ describe("subscriptions command helpers", () => {
 					return { ...baseDetail, id, name: id };
 				},
 			},
-		} as unknown as Pick<SecondLayer, "subscriptions">;
+		} as unknown as Pick<SecondLayer, "webhooks">;
 
 		const UUID = "00000000-0000-0000-0000-000000000009";
 
-		expect((await resolveSubscriptionRef(client, "sub-1")).id).toBe("sub-1");
-		expect((await resolveSubscriptionRef(client, "two")).id).toBe("sub-2");
+		expect((await resolveWebhookRef(client, "sub-1")).id).toBe("sub-1");
+		expect((await resolveWebhookRef(client, "two")).id).toBe("sub-2");
 		// A UUID absent from the list is assumed to be a real id → direct get.
-		expect((await resolveSubscriptionRef(client, UUID)).id).toBe(UUID);
-		// A non-UUID ref matching no name can't be a valid subscription id.
-		await expect(resolveSubscriptionRef(client, "sub-missing")).rejects.toThrow(
-			'Subscription "sub-missing" not found.',
+		expect((await resolveWebhookRef(client, UUID)).id).toBe(UUID);
+		// A non-UUID ref matching no name can't be a valid webhook id.
+		await expect(resolveWebhookRef(client, "sub-missing")).rejects.toThrow(
+			'Webhook "sub-missing" not found.',
 		);
 		expect(calls).toEqual(["sub-1", "sub-2", UUID]);
 	});
 
 	it("builds update payloads and rejects ambiguous filter flags", () => {
 		expect(
-			buildUpdatePatch({
+			buildWebhookUpdatePatch({
 				url: "https://example.com/next",
 				authToken: "receiver-token",
 				runtime: "none",
@@ -115,7 +115,7 @@ describe("subscriptions command helpers", () => {
 		});
 
 		expect(() =>
-			buildUpdatePatch({
+			buildWebhookUpdatePatch({
 				filter: ["amount=1"],
 				clearFilter: true,
 			}),
@@ -124,7 +124,7 @@ describe("subscriptions command helpers", () => {
 
 	it("generates doctor hints for paused/error/DLQ/gap states", () => {
 		const report = buildDoctorReport({
-			subscription: {
+			webhook: {
 				...baseDetail,
 				status: "paused",
 				lastError: "receiver 500",
@@ -177,8 +177,8 @@ describe("subscriptions command helpers", () => {
 	});
 
 	it("builds signed Standard Webhooks test fixtures", () => {
-		const fixture = buildSubscriptionTestFixture({
-			subscription: baseDetail,
+		const fixture = buildWebhookTestFixture({
+			webhook: baseDetail,
 			row: { amount: "1000" },
 			signingSecret: "whsec_dGVzdA==",
 			nowSeconds: 1_700_000_000,
@@ -275,7 +275,7 @@ describe("subscriptions command helpers", () => {
 		} as unknown as SecondLayer;
 
 		await expect(
-			validateSubscriptionTargetFromApi(client, {
+			validateWebhookTargetFromApi(client, {
 				subgraphName: "token-transfers",
 				tableName: "transfers",
 				filter: { amount: { gte: "1000" } },
@@ -283,7 +283,7 @@ describe("subscriptions command helpers", () => {
 		).resolves.toBeUndefined();
 
 		await expect(
-			validateSubscriptionTargetFromApi(client, {
+			validateWebhookTargetFromApi(client, {
 				subgraphName: "token-transfers",
 				tableName: "transfers",
 				filter: { memo: { gt: "x" } },

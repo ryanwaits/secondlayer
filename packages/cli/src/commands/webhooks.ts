@@ -4,13 +4,13 @@ import type { SubgraphDetail } from "@secondlayer/shared/schemas/subgraphs";
 import type {
 	DeadRow,
 	DeliveryRow,
-	WebhookDetail as SubscriptionDetail,
-	WebhookSummary as SubscriptionSummary,
-	UpdateWebhookRequest as UpdateSubscriptionRequest,
+	UpdateWebhookRequest,
+	WebhookDetail,
+	WebhookSummary,
 } from "@secondlayer/shared/schemas/webhooks";
 import type { Command } from "commander";
 import { handleApiError } from "../lib/api-client.ts";
-import { parseSubscriptionFilter } from "../lib/filter-params.ts";
+import { parseWebhookFilter } from "../lib/filter-params.ts";
 import {
 	blue,
 	confirmDestructive,
@@ -24,12 +24,9 @@ import {
 	yellow,
 } from "../lib/output.ts";
 import { assertInstanceUrl } from "../lib/resolve-auth.ts";
-import { validateSubscriptionTargetFromApi } from "../lib/subscription-validation.ts";
-import { addSubscriptionsCreateCommand } from "./create.ts";
-import {
-	buildSubscriptionAuthConfig,
-	getSubscriptionClient,
-} from "./create.ts";
+import { validateWebhookTargetFromApi } from "../lib/webhook-validation.ts";
+import { addWebhooksCreateCommand } from "./create.ts";
+import { buildWebhookAuthConfig, getWebhookClient } from "./create.ts";
 
 interface CommonOptions {
 	json?: boolean;
@@ -55,12 +52,12 @@ interface TestOptions extends CommonOptions {
 	local?: boolean;
 }
 
-export interface ResolvedSubscription {
+export interface ResolvedWebhook {
 	id: string;
-	detail: SubscriptionDetail;
+	detail: WebhookDetail;
 }
 
-type SubscriptionClientLike = Pick<SecondLayer, "subscriptions">;
+type WebhookClientLike = Pick<SecondLayer, "webhooks">;
 
 function parseIntegerOption(
 	value: string | undefined,
@@ -100,72 +97,66 @@ function printJson(value: unknown): void {
 	console.log(JSON.stringify(value, null, 2));
 }
 
-export async function resolveSubscriptionRef(
-	client: SubscriptionClientLike,
+export async function resolveWebhookRef(
+	client: WebhookClientLike,
 	ref: string,
-): Promise<ResolvedSubscription> {
-	const { data } = await client.subscriptions.list();
-	const idMatch = data.find((sub: SubscriptionSummary) => sub.id === ref);
+): Promise<ResolvedWebhook> {
+	const { data } = await client.webhooks.list();
+	const idMatch = data.find((sub: WebhookSummary) => sub.id === ref);
 	if (idMatch) {
 		return {
 			id: idMatch.id,
-			detail: await client.subscriptions.get(idMatch.id),
+			detail: await client.webhooks.get(idMatch.id),
 		};
 	}
 
-	const nameMatches = data.filter(
-		(sub: SubscriptionSummary) => sub.name === ref,
-	);
+	const nameMatches = data.filter((sub: WebhookSummary) => sub.name === ref);
 	if (nameMatches.length > 1) {
-		throw new Error(
-			`Subscription name "${ref}" is ambiguous; use the subscription id.`,
-		);
+		throw new Error(`Webhook name "${ref}" is ambiguous; use the webhook id.`);
 	}
 	if (nameMatches[0]) {
 		return {
 			id: nameMatches[0].id,
-			detail: await client.subscriptions.get(nameMatches[0].id),
+			detail: await client.webhooks.get(nameMatches[0].id),
 		};
 	}
 
-	// Non-UUID ref not matched by name → it can't be a valid subscription ID.
+	// Non-UUID ref not matched by name → it can't be a valid webhook ID.
 	const UUID_RE =
 		/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 	if (!UUID_RE.test(ref)) {
-		throw new Error(`Subscription "${ref}" not found.`);
+		throw new Error(`Webhook "${ref}" not found.`);
 	}
 	return {
 		id: ref,
-		detail: await client.subscriptions.get(ref),
+		detail: await client.webhooks.get(ref),
 	};
 }
 
-export function buildUpdatePatch(
+export function buildWebhookUpdatePatch(
 	options: UpdateOptions,
-): UpdateSubscriptionRequest {
-	const patch: UpdateSubscriptionRequest = {};
+): UpdateWebhookRequest {
+	const patch: UpdateWebhookRequest = {};
 	if (options.name) patch.name = options.name;
 	if (options.url) patch.url = options.url;
-	const authConfig = buildSubscriptionAuthConfig(options.authToken);
+	const authConfig = buildWebhookAuthConfig(options.authToken);
 	if (authConfig) patch.authConfig = authConfig;
 	if (options.format) {
-		patch.format = options.format as UpdateSubscriptionRequest["format"];
+		patch.format = options.format as UpdateWebhookRequest["format"];
 	}
 	if (options.runtime !== undefined) {
 		patch.runtime =
 			options.runtime === "none" || options.runtime === "null"
 				? null
-				: (options.runtime as NonNullable<
-						UpdateSubscriptionRequest["runtime"]
-					>);
+				: (options.runtime as NonNullable<UpdateWebhookRequest["runtime"]>);
 	}
 	if (options.clearFilter) patch.filter = {};
 	if (options.filter) {
 		if (options.clearFilter) {
 			throw new Error("Use either --filter or --clear-filter, not both");
 		}
-		patch.filter = (parseSubscriptionFilter(options.filter) ??
-			{}) as UpdateSubscriptionRequest["filter"];
+		patch.filter = (parseWebhookFilter(options.filter) ??
+			{}) as UpdateWebhookRequest["filter"];
 	}
 	const maxRetries = parseIntegerOption(options.maxRetries, "--max-retries", 0);
 	if (maxRetries !== undefined) patch.maxRetries = maxRetries;
@@ -185,7 +176,7 @@ export function buildUpdatePatch(
 	return patch;
 }
 
-function printSubscriptionDetail(sub: SubscriptionDetail): void {
+function printWebhookDetail(sub: WebhookDetail): void {
 	console.log(
 		formatKeyValue([
 			["ID", sub.id],
@@ -217,7 +208,7 @@ function printSubscriptionDetail(sub: SubscriptionDetail): void {
 }
 
 export interface DoctorReport {
-	subscription: SubscriptionDetail;
+	webhook: WebhookDetail;
 	deliverySummary: {
 		total: number;
 		successful: number;
@@ -238,7 +229,7 @@ export interface DoctorReport {
 }
 
 export function buildDoctorReport(input: {
-	subscription: SubscriptionDetail;
+	webhook: WebhookDetail;
 	deliveries: DeliveryRow[];
 	dead: DeadRow[];
 	subgraph?: SubgraphDetail | null;
@@ -258,32 +249,29 @@ export function buildDoctorReport(input: {
 		: null;
 
 	const hints: string[] = [];
-	if (input.subscription.status === "paused") {
+	if (input.webhook.status === "paused") {
 		hints.push(
-			`Resume when the receiver is healthy: secondlayer subscriptions resume ${input.subscription.id}`,
+			`Resume when the receiver is healthy: secondlayer webhooks resume ${input.webhook.id}`,
 		);
 	}
-	if (input.subscription.lastError) {
+	if (input.webhook.lastError) {
 		hints.push(
-			"Run secondlayer subscriptions test to reproduce the receiver request.",
+			"Run secondlayer webhooks test to reproduce the receiver request.",
 		);
 	}
-	if (
-		input.subscription.circuitOpenedAt ||
-		input.subscription.circuitFailures > 0
-	) {
+	if (input.webhook.circuitOpenedAt || input.webhook.circuitFailures > 0) {
 		hints.push(
 			"Circuit breaker has failures; inspect receiver logs and delivery status codes.",
 		);
 	}
 	if (input.dead.length > 0) {
 		hints.push(
-			`Dead-letter rows exist; inspect with secondlayer subscriptions dead ${input.subscription.id} and requeue selected rows.`,
+			`Dead-letter rows exist; inspect with secondlayer webhooks dead ${input.webhook.id} and requeue selected rows.`,
 		);
 	}
 	if (subgraph?.gapCount && subgraph.gapCount > 0) {
 		hints.push(
-			`Linked subgraph has gaps; run secondlayer subgraphs gaps ${input.subscription.subgraphName}.`,
+			`Linked subgraph has gaps; run secondlayer subgraphs gaps ${input.webhook.subgraphName}.`,
 		);
 	}
 	if (subgraph?.syncStatus === "catching_up") {
@@ -301,7 +289,7 @@ export function buildDoctorReport(input: {
 	}
 
 	return {
-		subscription: input.subscription,
+		webhook: input.webhook,
 		deliverySummary: {
 			total: input.deliveries.length,
 			successful,
@@ -315,10 +303,10 @@ export function buildDoctorReport(input: {
 }
 
 function printDoctorReport(report: DoctorReport): void {
-	const sub = report.subscription;
+	const sub = report.webhook;
 	console.log(
 		formatKeyValue([
-			["Subscription", `${sub.name} (${sub.id})`],
+			["Webhook", `${sub.name} (${sub.id})`],
 			["Status", sub.status],
 			["Target", `${sub.subgraphName}.${sub.tableName}`],
 			["Format", sub.format],
@@ -422,9 +410,9 @@ function shellQuote(value: string): string {
 	return `'${value.replace(/'/g, "'\\''")}'`;
 }
 
-export function buildSubscriptionTestFixture(input: {
-	subscription: Pick<
-		SubscriptionDetail,
+export function buildWebhookTestFixture(input: {
+	webhook: Pick<
+		WebhookDetail,
 		"id" | "kind" | "subgraphName" | "tableName" | "triggers" | "url"
 	>;
 	row: Record<string, unknown>;
@@ -433,7 +421,7 @@ export function buildSubscriptionTestFixture(input: {
 	id?: string;
 }): { body: string; headers: Record<string, string>; curl: string } {
 	const nowSeconds = input.nowSeconds ?? Math.floor(Date.now() / 1000);
-	const sub = input.subscription;
+	const sub = input.webhook;
 	const isChain = sub.kind === "chain";
 	// Chain subs deliver an apply envelope keyed `chain.{type}.apply`; subgraph
 	// subs deliver `{subgraph}.{table}.{created|updated|deleted}` (verb per row
@@ -460,7 +448,7 @@ export function buildSubscriptionTestFixture(input: {
 	const headers = {
 		"content-type": "application/json",
 		...sign(body, input.signingSecret, {
-			id: input.id ?? `test-${input.subscription.id}`,
+			id: input.id ?? `test-${input.webhook.id}`,
 			timestampSeconds: nowSeconds,
 		}),
 	};
@@ -468,7 +456,7 @@ export function buildSubscriptionTestFixture(input: {
 		.map(([key, value]) => `  -H ${shellQuote(`${key}: ${value}`)} \\`)
 		.join("\n");
 	const curl = [
-		`curl -X POST ${shellQuote(input.subscription.url)} \\`,
+		`curl -X POST ${shellQuote(input.webhook.url)} \\`,
 		headerArgs,
 		`  --data ${shellQuote(body)}`,
 	].join("\n");
@@ -478,10 +466,10 @@ export function buildSubscriptionTestFixture(input: {
 
 async function representativeRow(
 	client: SecondLayer,
-	sub: SubscriptionDetail,
+	sub: WebhookDetail,
 	subgraph: SubgraphDetail | null,
 ): Promise<Record<string, unknown>> {
-	// Chain subscriptions have no subgraph table to sample — use a synthetic
+	// Chain webhooks have no subgraph table to sample — use a synthetic
 	// chain event keyed off the first trigger.
 	if (sub.kind === "chain" || !sub.subgraphName || !sub.tableName) {
 		return {
@@ -559,31 +547,24 @@ async function confirmOrExit(message: string, yes?: boolean): Promise<boolean> {
 	return ok;
 }
 
-export function registerSubscriptionsCommand(program: Command): void {
-	const subscriptions = program
-		.command("subscriptions")
-		.alias("subs")
-		.description("Manage subgraph table subscriptions");
+function attachWebhookSubcommands(parent: Command): void {
+	addWebhooksCreateCommand(parent);
 
-	subscriptions.hook("preAction", () => assertInstanceUrl());
-
-	addSubscriptionsCreateCommand(subscriptions);
-
-	subscriptions
+	parent
 		.command("list")
 		.alias("ls")
-		.description("List subscriptions")
+		.description("List webhooks")
 		.option("--json", "Output as JSON")
 		.action(async (options: CommonOptions) => {
 			try {
-				const client = await getSubscriptionClient();
-				const { data } = await client.subscriptions.list();
+				const client = await getWebhookClient();
+				const { data } = await client.webhooks.list();
 				if (options.json) {
 					printJson(data);
 					return;
 				}
 				if (data.length === 0) {
-					console.log(dim("No subscriptions"));
+					console.log(dim("No webhooks"));
 					return;
 				}
 				console.log(
@@ -603,31 +584,31 @@ export function registerSubscriptionsCommand(program: Command): void {
 						]),
 					),
 				);
-				console.log(dim(`\n${data.length} subscription(s) total`));
+				console.log(dim(`\n${data.length} webhook(s) total`));
 			} catch (err) {
-				handleApiError(err, "list subscriptions");
+				handleApiError(err, "list webhooks");
 			}
 		});
 
-	subscriptions
+	parent
 		.command("get <idOrName>")
-		.description("Show subscription details")
+		.description("Show webhook details")
 		.option("--json", "Output as JSON")
 		.action(async (idOrName: string, options: CommonOptions) => {
 			try {
-				const client = await getSubscriptionClient();
-				const { detail } = await resolveSubscriptionRef(client, idOrName);
+				const client = await getWebhookClient();
+				const { detail } = await resolveWebhookRef(client, idOrName);
 				if (options.json) printJson(detail);
-				else printSubscriptionDetail(detail);
+				else printWebhookDetail(detail);
 			} catch (err) {
-				handleApiError(err, "get subscription");
+				handleApiError(err, "get webhook");
 			}
 		});
 
-	subscriptions
+	parent
 		.command("update <idOrName>")
-		.description("Update subscription config")
-		.option("--name <name>", "Rename subscription")
+		.description("Update webhook config")
+		.option("--name <name>", "Rename webhook")
 		.option("--url <url>", "Webhook URL")
 		.option(
 			"--auth-token <token>",
@@ -648,73 +629,73 @@ export function registerSubscriptionsCommand(program: Command): void {
 		.option("--clear-filter", "Replace filter with {}")
 		.option("--max-retries <n>", "Maximum delivery retries")
 		.option("--timeout-ms <n>", "Delivery timeout in milliseconds")
-		.option("--concurrency <n>", "Per-subscription delivery concurrency")
+		.option("--concurrency <n>", "Per-webhook delivery concurrency")
 		.option("--json", "Output as JSON")
 		.addHelpText(
 			"after",
 			`
 Examples:
-  $ secondlayer subscriptions update my-sub --url https://example.com/hook
-  $ secondlayer subscriptions update my-sub --filter amount.gte=1000 --max-retries 5
-  $ secondlayer subscriptions update my-sub --clear-filter`,
+  $ secondlayer webhooks update my-sub --url https://example.com/hook
+  $ secondlayer webhooks update my-sub --filter amount.gte=1000 --max-retries 5
+  $ secondlayer webhooks update my-sub --clear-filter`,
 		)
 		.action(async (idOrName: string, options: UpdateOptions) => {
 			try {
-				const client = await getSubscriptionClient();
-				const patch = buildUpdatePatch(options);
-				const { id, detail } = await resolveSubscriptionRef(client, idOrName);
+				const client = await getWebhookClient();
+				const patch = buildWebhookUpdatePatch(options);
+				const { id, detail } = await resolveWebhookRef(client, idOrName);
 				if (
 					patch.filter !== undefined &&
 					detail.subgraphName &&
 					detail.tableName
 				) {
-					await validateSubscriptionTargetFromApi(client, {
+					await validateWebhookTargetFromApi(client, {
 						subgraphName: detail.subgraphName,
 						tableName: detail.tableName,
 						filter: patch.filter,
 					});
 				}
-				const updated = await client.subscriptions.update(id, patch);
+				const updated = await client.webhooks.update(id, patch);
 				if (options.json) printJson(updated);
-				else success(`Updated subscription ${blue(updated.name)}`);
+				else success(`Updated webhook ${blue(updated.name)}`);
 			} catch (err) {
-				handleApiError(err, "update subscription");
+				handleApiError(err, "update webhook");
 			}
 		});
 
 	for (const action of ["pause", "resume"] as const) {
-		subscriptions
+		parent
 			.command(`${action} <idOrName>`)
-			.description(`${action === "pause" ? "Pause" : "Resume"} a subscription`)
+			.description(`${action === "pause" ? "Pause" : "Resume"} a webhook`)
 			.option("--json", "Output as JSON")
 			.action(async (idOrName: string, options: CommonOptions) => {
 				try {
-					const client = await getSubscriptionClient();
-					const { id } = await resolveSubscriptionRef(client, idOrName);
-					const updated = await client.subscriptions[action](id);
+					const client = await getWebhookClient();
+					const { id } = await resolveWebhookRef(client, idOrName);
+					const updated = await client.webhooks[action](id);
 					if (options.json) printJson(updated);
 					else
 						success(
 							`${action === "pause" ? "Paused" : "Resumed"} ${blue(updated.name)}`,
 						);
 				} catch (err) {
-					handleApiError(err, `${action} subscription`);
+					handleApiError(err, `${action} webhook`);
 				}
 			});
 	}
 
-	subscriptions
+	parent
 		.command("delete <idOrName>")
 		.alias("rm")
-		.description("Delete a subscription")
+		.description("Delete a webhook")
 		.option("-y, --yes", "Skip confirmation")
 		.option("--json", "Output as JSON")
 		.action(async (idOrName: string, options: CommonOptions) => {
 			try {
-				const client = await getSubscriptionClient();
-				let resolved: ResolvedSubscription | null = null;
+				const client = await getWebhookClient();
+				let resolved: ResolvedWebhook | null = null;
 				try {
-					resolved = await resolveSubscriptionRef(client, idOrName);
+					resolved = await resolveWebhookRef(client, idOrName);
 				} catch (err) {
 					const msg = err instanceof Error ? err.message : String(err);
 					const status = (err as { status?: number } | undefined)?.status;
@@ -722,76 +703,75 @@ Examples:
 						// Idempotent: second delete is a no-op, not a 500.
 						if (options.json)
 							printJson({ deleted: false, reason: "not_found" });
-						else
-							info(`Subscription "${idOrName}" not found (already deleted?)`);
+						else info(`Webhook "${idOrName}" not found (already deleted?)`);
 						return;
 					}
 					throw err;
 				}
 				const { id, detail } = resolved;
 				const ok = await confirmOrExit(
-					`Delete subscription "${detail.name}"? Pending outbox rows will be removed.`,
+					`Delete webhook "${detail.name}"? Pending outbox rows will be removed.`,
 					options.yes,
 				);
 				if (!ok) return;
-				const res = await client.subscriptions.delete(id);
+				const res = await client.webhooks.delete(id);
 				if (options.json) printJson(res);
-				else success(`Deleted subscription ${blue(detail.name)}`);
+				else success(`Deleted webhook ${blue(detail.name)}`);
 			} catch (err) {
-				handleApiError(err, "delete subscription");
+				handleApiError(err, "delete webhook");
 			}
 		});
 
-	subscriptions
+	parent
 		.command("rotate-secret <idOrName>")
 		.description("Rotate the signing secret")
 		.option("-y, --yes", "Skip confirmation")
 		.option("--json", "Output as JSON")
 		.action(async (idOrName: string, options: CommonOptions) => {
 			try {
-				const client = await getSubscriptionClient();
-				const { id, detail } = await resolveSubscriptionRef(client, idOrName);
+				const client = await getWebhookClient();
+				const { id, detail } = await resolveWebhookRef(client, idOrName);
 				const ok = await confirmOrExit(
 					`Rotate signing secret for "${detail.name}"? Existing receivers using the old secret will fail verification.`,
 					options.yes,
 				);
 				if (!ok) return;
-				const res = await client.subscriptions.rotateSecret(id);
+				const res = await client.webhooks.rotateSecret(id);
 				if (options.json) printJson(res);
 				else {
 					success(`Rotated signing secret for ${blue(res.webhook.name)}`);
 					console.log(res.signingSecret);
 				}
 			} catch (err) {
-				handleApiError(err, "rotate subscription secret");
+				handleApiError(err, "rotate webhook secret");
 			}
 		});
 
-	subscriptions
+	parent
 		.command("deliveries <idOrName>")
 		.description("Show recent delivery attempts")
 		.option("--json", "Output as JSON")
 		.action(async (idOrName: string, options: CommonOptions) => {
 			try {
-				const client = await getSubscriptionClient();
-				const { id } = await resolveSubscriptionRef(client, idOrName);
-				const { data } = await client.subscriptions.deliveries(id);
+				const client = await getWebhookClient();
+				const { id } = await resolveWebhookRef(client, idOrName);
+				const { data } = await client.webhooks.deliveries(id);
 				if (options.json) printJson(data);
 				else printDeliveries(data);
 			} catch (err) {
-				handleApiError(err, "list subscription deliveries");
+				handleApiError(err, "list webhook deliveries");
 			}
 		});
 
-	subscriptions
+	parent
 		.command("dead <idOrName>")
 		.description("Show dead-letter outbox rows")
 		.option("--json", "Output as JSON")
 		.action(async (idOrName: string, options: CommonOptions) => {
 			try {
-				const client = await getSubscriptionClient();
-				const { id } = await resolveSubscriptionRef(client, idOrName);
-				const { data } = await client.subscriptions.dead(id);
+				const client = await getWebhookClient();
+				const { id } = await resolveWebhookRef(client, idOrName);
+				const { data } = await client.webhooks.dead(id);
 				if (options.json) printJson(data);
 				else printDead(data);
 			} catch (err) {
@@ -799,7 +779,7 @@ Examples:
 			}
 		});
 
-	subscriptions
+	parent
 		.command("requeue <idOrName> <outboxId>")
 		.description("Requeue one dead-letter row")
 		.option("-y, --yes", "Skip confirmation")
@@ -807,14 +787,14 @@ Examples:
 		.action(
 			async (idOrName: string, outboxId: string, options: CommonOptions) => {
 				try {
-					const client = await getSubscriptionClient();
-					const { id, detail } = await resolveSubscriptionRef(client, idOrName);
+					const client = await getWebhookClient();
+					const { id, detail } = await resolveWebhookRef(client, idOrName);
 					const ok = await confirmOrExit(
 						`Requeue ${outboxId} for "${detail.name}"?`,
 						options.yes,
 					);
 					if (!ok) return;
-					const res = await client.subscriptions.requeue(id, outboxId);
+					const res = await client.webhooks.requeue(id, outboxId);
 					if (options.json) printJson(res);
 					else success(`Requeued ${blue(outboxId)}`);
 				} catch (err) {
@@ -823,7 +803,7 @@ Examples:
 			},
 		);
 
-	subscriptions
+	parent
 		.command("replay <idOrName>")
 		.description("Replay a block range")
 		.requiredOption("--from-block <n>", "Start block height")
@@ -834,7 +814,7 @@ Examples:
 			"after",
 			`
 Examples:
-  $ secondlayer subscriptions replay my-sub --from-block 150000 --to-block 160000 -y`,
+  $ secondlayer webhooks replay my-sub --from-block 150000 --to-block 160000 -y`,
 		)
 		.action(
 			async (
@@ -850,8 +830,8 @@ Examples:
 					if (fromBlock > toBlock) {
 						throw new Error("--from-block must be <= --to-block");
 					}
-					const client = await getSubscriptionClient();
-					const { id, detail } = await resolveSubscriptionRef(client, idOrName);
+					const client = await getWebhookClient();
+					const { id, detail } = await resolveWebhookRef(client, idOrName);
 					// Settlement (`swept_confirmed`) fires on Bitcoin confirmations, not
 					// Stacks blocks — it's cursor/confirmed_at driven and forward-only, so
 					// a block-range replay never re-emits it. Warn instead of silently
@@ -870,7 +850,7 @@ Examples:
 						options.yes,
 					);
 					if (!ok) return;
-					const res = await client.subscriptions.replay(id, {
+					const res = await client.webhooks.replay(id, {
 						fromBlock,
 						toBlock,
 					});
@@ -882,28 +862,28 @@ Examples:
 						);
 					}
 				} catch (err) {
-					handleApiError(err, "replay subscription");
+					handleApiError(err, "replay webhook");
 				}
 			},
 		);
 
-	subscriptions
+	parent
 		.command("doctor <idOrName>")
-		.description("Diagnose subscription health and next steps")
+		.description("Diagnose webhook health and next steps")
 		.option("--json", "Output as JSON")
 		.action(async (idOrName: string, options: CommonOptions) => {
 			try {
-				const client = await getSubscriptionClient();
-				const { id, detail } = await resolveSubscriptionRef(client, idOrName);
+				const client = await getWebhookClient();
+				const { id, detail } = await resolveWebhookRef(client, idOrName);
 				const [deliveries, dead, subgraph] = await Promise.allSettled([
-					client.subscriptions.deliveries(id),
-					client.subscriptions.dead(id),
+					client.webhooks.deliveries(id),
+					client.webhooks.dead(id),
 					detail.subgraphName
 						? client.subgraphs.status(detail.subgraphName)
 						: Promise.resolve(null),
 				]);
 				const report = buildDoctorReport({
-					subscription: detail,
+					webhook: detail,
 					deliveries:
 						deliveries.status === "fulfilled" ? deliveries.value.data : [],
 					dead: dead.status === "fulfilled" ? dead.value.data : [],
@@ -912,11 +892,11 @@ Examples:
 				if (options.json) printJson(report);
 				else printDoctorReport(report);
 			} catch (err) {
-				handleApiError(err, "diagnose subscription");
+				handleApiError(err, "diagnose webhook");
 			}
 		});
 
-	subscriptions
+	parent
 		.command("test <idOrName>")
 		.description(
 			"Inspect a webhook fixture; --post sends a logged test delivery via the server (--local POSTs client-side instead)",
@@ -934,14 +914,14 @@ Examples:
 		.action(async (idOrName: string, options: TestOptions) => {
 			try {
 				const signingSecret = resolveSigningSecret(options);
-				const client = await getSubscriptionClient();
-				const { detail } = await resolveSubscriptionRef(client, idOrName);
+				const client = await getWebhookClient();
+				const { detail } = await resolveWebhookRef(client, idOrName);
 				const subgraph = detail.subgraphName
 					? await client.subgraphs.status(detail.subgraphName).catch(() => null)
 					: null;
 				const row = await representativeRow(client, detail, subgraph);
-				const fixture = buildSubscriptionTestFixture({
-					subscription: detail,
+				const fixture = buildWebhookTestFixture({
+					webhook: detail,
 					row,
 					signingSecret,
 				});
@@ -950,7 +930,7 @@ Examples:
 				// and LOGS the delivery. --local: legacy client-side POST (no log,
 				// standard-webhooks fixture only).
 				if (options.post && !options.local) {
-					const result = await client.subscriptions.test(detail.id);
+					const result = await client.webhooks.test(detail.id);
 					if (options.json) {
 						printJson(result);
 						return;
@@ -991,7 +971,28 @@ Examples:
 					if (postResult.body) console.log(postResult.body);
 				}
 			} catch (err) {
-				handleApiError(err, "test subscription");
+				handleApiError(err, "test webhook");
 			}
 		});
+}
+
+export function registerWebhooksCommand(program: Command): void {
+	const webhooks = program
+		.command("webhooks")
+		.alias("hooks")
+		.description("Manage webhooks: a signed POST to a URL you run");
+	webhooks.hook("preAction", () => assertInstanceUrl());
+	attachWebhookSubcommands(webhooks);
+
+	const legacy = program
+		.command("subscriptions", { hidden: true }) // deprecated alias; removed in plan 015
+		.alias("subs")
+		.description("Deprecated alias of `secondlayer webhooks`");
+	legacy.hook("preAction", () => {
+		process.stderr.write(
+			"secondlayer subscriptions is deprecated; use secondlayer webhooks\n",
+		);
+		assertInstanceUrl();
+	});
+	attachWebhookSubcommands(legacy);
 }

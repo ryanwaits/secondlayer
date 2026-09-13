@@ -22,7 +22,7 @@ export { toContractCallPayload, toHandlerPayload };
  *
  * The verb is `test`, not `replay`: `replay` already means "re-deliver
  * historical rows to a webhook" in two places in this CLI
- * (`secondlayer subscriptions replay`, `@secondlayer/subgraphs/runtime/replay`), and
+ * (`secondlayer webhooks replay`, `@secondlayer/subgraphs/runtime/replay`), and
  * overloading it would be a third meaning for the same word.
  *
  * Until now the only feedback loop was production, and it showed: three of

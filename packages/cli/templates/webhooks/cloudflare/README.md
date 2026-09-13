@@ -23,11 +23,11 @@ https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/workflows/{{NAME}}/in
 Provision the subscription with bearer auth:
 
 ```bash
-secondlayer subscriptions create {{NAME}} --runtime cloudflare --auth-token <CF_API_TOKEN>
+secondlayer webhooks create {{NAME}} --runtime cloudflare --auth-token <CF_API_TOKEN>
 ```
 
 You can also patch an existing subscription with
-`secondlayer subscriptions update {{NAME}} --auth-token <CF_API_TOKEN>`.
+`secondlayer webhooks update {{NAME}} --auth-token <CF_API_TOKEN>`.
 
 The token must have `Workflows: Edit` scope.
 

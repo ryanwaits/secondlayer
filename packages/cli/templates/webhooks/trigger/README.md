@@ -21,11 +21,11 @@ https://api.trigger.dev/api/v1/tasks/{{TASK_ID}}/trigger
 Provision the subscription with bearer auth:
 
 ```bash
-secondlayer subscriptions create {{NAME}} --runtime trigger --auth-token tr_secret_abc...
+secondlayer webhooks create {{NAME}} --runtime trigger --auth-token tr_secret_abc...
 ```
 
 You can also patch an existing subscription with
-`secondlayer subscriptions update {{NAME}} --auth-token tr_secret_abc...`.
+`secondlayer webhooks update {{NAME}} --auth-token tr_secret_abc...`.
 
 ## Signature verification
 

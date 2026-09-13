@@ -23,9 +23,9 @@ import {
 	registerStatusCommand,
 	registerStreamsCommand,
 	registerSubgraphsCommand,
-	registerSubscriptionsCommand,
 	registerUninstallCommand,
 	registerVerifyCommand,
+	registerWebhooksCommand,
 	registerWhoamiCommand,
 } from "./commands/index.ts";
 import { applyApiKeyFlag } from "./lib/resolve-auth.ts";
@@ -88,7 +88,7 @@ registerWhoamiCommand(program);
 // Your data — the three surfaces, plus webhook delivery over them.
 program.commandsGroup("Your data:");
 registerSubgraphsCommand(program);
-registerSubscriptionsCommand(program);
+registerWebhooksCommand(program);
 registerStreamsCommand(program);
 registerIndexCommand(program);
 

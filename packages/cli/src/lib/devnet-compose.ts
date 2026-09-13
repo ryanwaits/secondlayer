@@ -26,7 +26,7 @@ export const DEFAULT_IMAGE_TAG = "latest";
  * can reach it otherwise) and the boot guard reads the *listen* host, so a
  * tokenless container refuses to start. It is not what gates reads — the API
  * is published on loopback, so `/v1` is keyless — it is the credential every
- * write (`/api/subgraphs`, `/api/subscriptions`, `/api/node`) must send. The
+ * write (`/api/subgraphs`, `/api/webhooks`, `/api/node`) must send. The
  * compose file and the "next steps" hint share this value so they can't drift.
  */
 export const DEV_INSTANCE_TOKEN = "dev-instance-token";
@@ -108,7 +108,7 @@ services:
       NODE_ENV: production
       DATA_DIR: /data
       # Shared across api + subgraph-processor so the secret the api encrypts
-      # (e.g. a subscription's signing secret) can be decrypted by the emitter.
+      # (e.g. a webhook's signing secret) can be decrypted by the emitter.
       # OSS auto-generates a per-process key when unset — that splits them.
       # Local-dev fixed value; not a production secret.
       SECONDLAYER_SECRETS_KEY: ${DEV_SECRETS_KEY}

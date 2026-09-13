@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
 	parseQueryFilters,
-	parseSubscriptionFilter,
+	parseWebhookFilter,
 } from "../src/lib/filter-params.ts";
 
 describe("CLI filter params", () => {
@@ -35,10 +35,10 @@ describe("CLI filter params", () => {
 		});
 	});
 
-	describe("parseSubscriptionFilter", () => {
+	describe("parseWebhookFilter", () => {
 		it("converts CLI filters to subscription filter JSON", () => {
 			expect(
-				parseSubscriptionFilter([
+				parseWebhookFilter([
 					"sender=SP123",
 					"amount.gte=1000000",
 					"recipient.neq=SP999",
@@ -53,22 +53,22 @@ describe("CLI filter params", () => {
 		});
 
 		it("treats explicit .eq the same as bare equality", () => {
-			expect(parseSubscriptionFilter(["sender.eq=SP123"])).toEqual({
+			expect(parseWebhookFilter(["sender.eq=SP123"])).toEqual({
 				sender: "SP123",
 			});
 		});
 
 		it("returns undefined when no filters are provided", () => {
-			expect(parseSubscriptionFilter()).toBeUndefined();
-			expect(parseSubscriptionFilter([])).toBeUndefined();
+			expect(parseWebhookFilter()).toBeUndefined();
+			expect(parseWebhookFilter([])).toBeUndefined();
 		});
 
 		it("rejects query-only and ambiguous subscription filters", () => {
-			expect(() => parseSubscriptionFilter(["memo.like=swap"])).toThrow(
+			expect(() => parseWebhookFilter(["memo.like=swap"])).toThrow(
 				"do not support",
 			);
 			expect(() =>
-				parseSubscriptionFilter(["amount.gte=100", "amount.lt=200"]),
+				parseWebhookFilter(["amount.gte=100", "amount.lt=200"]),
 			).toThrow("one condition per field");
 		});
 	});

@@ -3,19 +3,19 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-	buildSubscriptionAuthConfig,
+	buildWebhookAuthConfig,
 	parseTriggersInput,
 	resolveRuntime,
 } from "../src/commands/create.ts";
 
 describe("create subscription tenant resolution", () => {
 	it("builds bearer auth config from --auth-token", () => {
-		expect(buildSubscriptionAuthConfig(" tr_secret_abc ")).toEqual({
+		expect(buildWebhookAuthConfig(" tr_secret_abc ")).toEqual({
 			authType: "bearer",
 			token: "tr_secret_abc",
 		});
-		expect(buildSubscriptionAuthConfig()).toBeUndefined();
-		expect(() => buildSubscriptionAuthConfig("   ")).toThrow(
+		expect(buildWebhookAuthConfig()).toBeUndefined();
+		expect(() => buildWebhookAuthConfig("   ")).toThrow(
 			"--auth-token must not be empty",
 		);
 	});
@@ -79,7 +79,7 @@ describe("parseTriggersInput", () => {
 	});
 });
 
-describe("subscriptions create picks a runtime without a menu once flags are given", () => {
+describe("webhooks create picks a runtime without a menu once flags are given", () => {
 	it("an explicit --runtime always wins", () => {
 		expect(resolveRuntime({ runtime: "inngest", subgraph: "g" })).toBe(
 			"inngest",
@@ -108,7 +108,7 @@ async function runCreate(
 			process.execPath,
 			"run",
 			join(import.meta.dir, "../src/cli.ts"),
-			"subscriptions",
+			"webhooks",
 			"create",
 			...args,
 		],
@@ -128,7 +128,7 @@ async function runCreate(
 	return { exitCode, printed: stdout + stderr };
 }
 
-describe("subscriptions create without a TTY", () => {
+describe("webhooks create without a TTY", () => {
 	it("the documented flags-only example scaffolds a node receiver and exits 0, no menu", async () => {
 		const dir = mkdtempSync(join(tmpdir(), "sl-create-notty-"));
 		try {
