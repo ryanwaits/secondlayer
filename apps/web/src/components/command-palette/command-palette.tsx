@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /**
  * Command center v1: navigation + discovery only. Fuzzy search over nav
- * routes, your subgraphs/subscriptions, public subgraphs, and docs pages.
+ * routes, your subgraphs/webhooks, public subgraphs, and docs pages.
  * Selecting a result opens its page — no verbs, no writes, no remote
  * search, no loading states (docs/specs/command-center.spec.md).
  */

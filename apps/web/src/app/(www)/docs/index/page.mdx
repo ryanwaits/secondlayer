@@ -203,15 +203,15 @@ Built on [Streams](/docs/streams): the decoder on your instance reads the same r
 
 ## Get told when it changes
 
-A `consume()` loop pulls. To be pushed instead, into a queue or a serverless function, a subscription POSTs matching chain events to your URL as they land:
+A `consume()` loop pulls. To be pushed instead, into a queue or a serverless function, a webhook POSTs matching chain events to your URL as they land:
 
 ```bash
-secondlayer subscriptions create amm-swaps \
+secondlayer webhooks create amm-swaps \
   --url https://my-app.com/webhook \
   --trigger '{"type":"contract_call","contractId":"SP....amm","functionName":"swap-*"}'
 ```
 
-Deliveries are signed, retried, and land in a dead-letter queue you can inspect and requeue. Full trigger grammar and the delivery envelope: [Subscriptions](/docs/subscriptions).
+Deliveries are signed, retried, and land in a dead-letter queue you can inspect and requeue. Full trigger grammar and the delivery envelope: [Webhooks](/docs/webhooks).
 
 ## From the CLI and MCP
 

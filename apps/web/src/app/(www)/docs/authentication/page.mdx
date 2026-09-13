@@ -8,7 +8,7 @@ Two credentials. The instance token opens your box. The account key identifies y
 | --- | --- | --- |
 | `/v1` on `127.0.0.1` | none | your Postgres, no meter |
 | `/v1` past loopback | `INSTANCE_TOKEN` | same header on Index, Streams, subgraphs |
-| Writes (`/api/subgraphs`, subscriptions, node) | `INSTANCE_TOKEN` | loopback included |
+| Writes (`/api/subgraphs`, webhooks, node) | `INSTANCE_TOKEN` | loopback included |
 
 `secondlayer init` writes `INSTANCE_TOKEN`. Send `Authorization: Bearer $INSTANCE_TOKEN`.
 
@@ -47,7 +47,7 @@ Auto-refill is off until you set it: `secondlayer credits refill --below 5 --pac
 
 ## Webhook signing secrets
 
-A **signing secret** (`whsec_…`) is per-subscription and verifies an incoming webhook came from your instance (`verifyWebhookSignature`); see [Subscriptions](/docs/subscriptions). Never in `Authorization`. Rotate with `secondlayer subscriptions rotate-secret`.
+A **signing secret** (`whsec_…`) is per-webhook and verifies an incoming webhook came from your instance (`verifyWebhookSignature`); see [Webhooks](/docs/webhooks). Never in `Authorization`. Rotate with `secondlayer webhooks rotate-secret`.
 
 export const metadata = {
 	title: "Authentication — Secondlayer Docs",

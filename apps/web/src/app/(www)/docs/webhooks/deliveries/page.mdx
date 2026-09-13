@@ -4,7 +4,7 @@ Check the signature, decode the body, and undo anything a reorg orphans.
 
 ## Verify the signature
 
-On the default `standard-webhooks` format, every delivery carries a per-subscription HMAC. Pass the **raw body first**.
+On the default `standard-webhooks` format, every delivery carries a per-webhook HMAC. Pass the **raw body first**.
 
 ```ts
 import { verifyWebhookSignature } from "@secondlayer/sdk";
@@ -68,7 +68,7 @@ Other formats carry the exact same `data` value under a different key:
 
 <Callout type="warning" title="This is not a Streams event">
 
-A chain-subscription delivery and a [Streams](/docs/streams) event are structurally unrelated, so don't parse one as the other. Streams events are `{ event_type, payload, cursor, block_height, … }`; a chain-subscription delivery is `{ type, timestamp, data: { trigger, event } }`.
+A chain-webhook delivery and a [Streams](/docs/streams) event are structurally unrelated, so don't parse one as the other. Streams events are `{ event_type, payload, cursor, block_height, … }`; a chain-webhook delivery is `{ type, timestamp, data: { trigger, event } }`.
 
 </Callout>
 
@@ -109,7 +109,7 @@ if ("trigger" in delivery.data) {
 
 Delivery is at-least-once. Key your state on `(tx_id, event_index, block_hash)`: one tx can fire multiple event-level deliveries sharing a `tx_id`, so `event_index` (`-1` for tx-level triggers) keeps them distinct.
 
-Per-trigger shapes for `data.event`: [Event shapes](/docs/subscriptions/event-shapes).
+Per-trigger shapes for `data.event`: [Event shapes](/docs/webhooks/event-shapes).
 
 ## Reorg rollback
 
@@ -132,7 +132,7 @@ A reorg delivers `chain.reorg.rollback` so you can undo anything committed off a
 
 <Callout type="warning" title="orphaned is capped at 500">
 
-`orphaned` is capped at 500 entries per subscription. If `truncated` is `true`, treat everything you committed at or above `fork_point_height` as orphaned rather than relying on the list. Entries carry no `trigger` tag, because a rollback lists every previously-delivered apply regardless of which trigger matched, so you must know what you subscribed to in order to read an entry's shape.
+`orphaned` is capped at 500 entries per webhook. If `truncated` is `true`, treat everything you committed at or above `fork_point_height` as orphaned rather than relying on the list. Entries carry no `trigger` tag, because a rollback lists every previously-delivered apply regardless of which trigger matched, so you must know what you configured in order to read an entry's shape.
 
 </Callout>
 

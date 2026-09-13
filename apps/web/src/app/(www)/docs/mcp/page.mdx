@@ -30,7 +30,7 @@ An HTTP transport (`@secondlayer/mcp-http`) adds session management and optional
 | Surface | Reads | Writes |
 | --- | --- | --- |
 | Index, Streams, Contracts, Scaffold | Open on loopback | — |
-| Subgraphs, Subscriptions | Open on loopback | `INSTANCE_TOKEN` |
+| Subgraphs, Webhooks | Open on loopback | `INSTANCE_TOKEN` |
 
 A token sent on a loopback read that did not need it is ignored, never rejected.
 
@@ -40,11 +40,11 @@ Read these **resources** before calling tools:
 
 | Resource | What it returns |
 | --- | --- |
-| `secondlayer://context` | Live snapshot: your subgraphs, subscriptions, chain tips, auth state, and what you can do. **Read first.** |
+| `secondlayer://context` | Live snapshot: your subgraphs, webhooks, chain tips, auth state, and what you can do. **Read first.** |
 | `secondlayer://filters` | Event filter types and the fields each accepts |
 | `secondlayer://column-types` | Subgraph column types, SQL mappings, and options |
 | `secondlayer://traits` | SIP standards you can classify and scaffold against (sip-009/010/013) |
-| `secondlayer://chain-triggers` | Chain-subscription trigger types and their filter fields |
+| `secondlayer://chain-triggers` | Chain-webhook trigger types and their filter fields |
 
 For Index specifically, call `index_discover` to learn every event type, its columns, and the filters it accepts before building queries.
 
@@ -86,17 +86,17 @@ Reads are cursor-paginated; writes that kick off work (reindex, backfill, replay
 | --- | --- |
 | `streams_dumps` | List the signed bulk dumps manifest (cold backfill). Live Streams reads are REST-only at `/v1/streams/*`. |
 
-### Subscriptions: webhooks
+### Webhooks: webhooks
 
 | Tool | What it does |
 | --- | --- |
-| `subscriptions_create` | Create a subgraph- or chain-triggered webhook (returns `signingSecret` once) |
-| `subscriptions_list` | List subscriptions |
-| `subscriptions_get` | Full detail: filter, auth, retry, circuit state |
-| `subscriptions_update` | Patch url, filter, auth, retry, timeout, concurrency |
-| `subscriptions_test` | Send a one-off SSRF-guarded test delivery |
-| `subscriptions_replay` | Replay a block range |
-| `subscriptions_delete` | Delete a subscription |
+| `webhooks_create` | Create a subgraph- or chain-triggered webhook (returns `signingSecret` once) |
+| `webhooks_list` | List webhooks |
+| `webhooks_get` | Full detail: filter, auth, retry, circuit state |
+| `webhooks_update` | Patch url, filter, auth, retry, timeout, concurrency |
+| `webhooks_test` | Send a one-off SSRF-guarded test delivery |
+| `webhooks_replay` | Replay a block range |
+| `webhooks_delete` | Delete a webhook |
 
 ### Contracts & scaffold
 
@@ -108,7 +108,7 @@ Reads are cursor-paginated; writes that kick off work (reindex, backfill, replay
 
 ## Notes
 
-- **One-time secrets.** `subscriptions_create` returns its signing secret exactly once: forward it to the user.
+- **One-time secrets.** `webhooks_create` returns its signing secret exactly once: forward it to the user.
 - **Cursors are opaque** and per-keyspace: contract-call cursors are not interchangeable with event cursors.
 - **Tail without streaming.** For subgraph tables, sort `_id` desc for the latest, then poll forward with `{"_id.gt": "<last id>"}`, order asc.
 - See the [REST API](/docs/rest-api) for the underlying endpoints.
@@ -116,5 +116,5 @@ Reads are cursor-paginated; writes that kick off work (reindex, backfill, replay
 export const metadata = {
 	title: "MCP — Secondlayer Docs",
 	description:
-		"The Secondlayer MCP server: stdio and HTTP transports, resources, and tools for Index, Subgraphs, Streams, Subscriptions, and contracts.",
+		"The Secondlayer MCP server: stdio and HTTP transports, resources, and tools for Index, Subgraphs, Streams, Webhooks, and contracts.",
 };

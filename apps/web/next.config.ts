@@ -112,7 +112,17 @@ const nextConfig: NextConfig = {
 			},
 			{
 				source: "/subscriptions",
-				destination: "/docs/subscriptions",
+				destination: "/docs/webhooks",
+				permanent: true,
+			},
+			{
+				source: "/docs/subscriptions",
+				destination: "/docs/webhooks",
+				permanent: true,
+			},
+			{
+				source: "/docs/subscriptions/:path*",
+				destination: "/docs/webhooks/:path*",
 				permanent: true,
 			},
 			{
@@ -167,22 +177,22 @@ const nextConfig: NextConfig = {
 			},
 			{
 				source: "/workflows",
-				destination: "/docs/subscriptions",
+				destination: "/docs/webhooks",
 				permanent: true,
 			},
 			{
 				source: "/workflows/:path*",
-				destination: "/docs/subscriptions",
+				destination: "/docs/webhooks",
 				permanent: true,
 			},
 			{
 				source: "/sentries",
-				destination: "/docs/subscriptions",
+				destination: "/docs/webhooks",
 				permanent: true,
 			},
 			{
 				source: "/sentries/:path*",
-				destination: "/docs/subscriptions",
+				destination: "/docs/webhooks",
 				permanent: true,
 			},
 			{

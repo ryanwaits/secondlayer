@@ -7,6 +7,12 @@ instance reads are yours and unmetered. Archive bootstrap/backfill/reindex
 and hosted Index/Streams reads at `api.secondlayer.tools` draw
 [credits](/docs/authentication#archive-credits).
 
+## Webhooks — September 2026
+
+### Renamed from Subscriptions
+
+The product name is Webhooks. Canonical surfaces are `secondlayer webhooks`, `sl.webhooks`, `webhooks_*` MCP tools, and `/api/webhooks`. The old `subscriptions` names keep working for one release cycle and print a deprecation notice. Test-ping deliveries carry `webhook_id`; `subscription_id` is still sent this cycle.
+
 ## Subgraphs — September 2026
 
 ### Identity maps have no handler
@@ -211,9 +217,9 @@ Account tools (`account_whoami`, `account_create_key`) register only when the se
 
 ## Subgraphs — August 2026
 
-### Hosted subgraphs and subscriptions are retired
+### Hosted subgraphs and webhooks are retired
 
-`/api/subgraphs` and `/api/subscriptions` now 404 wherever the archive used to run them. Deploying handler code and delivering webhooks was never something a shared box should have been doing on your behalf. Self-host and nothing changes: it's still your subgraph, your subscription, your infrastructure end to end.
+`/api/subgraphs` and `/api/webhooks` now 404 wherever the archive used to run them. Deploying handler code and delivering webhooks was never something a shared box should have been doing on your behalf. Self-host and nothing changes: it's still your subgraph, your subscription, your infrastructure end to end.
 
 ## SDK — August 2026
 
@@ -1031,7 +1037,7 @@ await new Index().contractCalls.consume({
 
 One chain event used to be spelled differently on every surface: `eventType`
 on Index, `types` arrays on Streams, a `sources` entry on subgraphs, a
-trigger object on subscriptions, with three incompatible `minAmount` types
+trigger object on webhooks, with three incompatible `minAmount` types
 among them. The new `@secondlayer/stacks/filters` module is the single
 spelling, projected explicitly to each surface:
 
@@ -1042,7 +1048,7 @@ const usdc = on.ftTransfer({ assetIdentifier: USDC, minAmount: 1_000_000n });
 
 sl.index.events.list(usdc.toIndexParams({ limit: 100 }));
 sl.streams.events.consume({ ...usdc.toStreamsParams(), onBatch });
-sl.subscriptions.create({ name, url, triggers: [usdc.toChainTrigger()] });
+sl.webhooks.create({ name, url, triggers: [usdc.toChainTrigger()] });
 defineSubgraph({ sources: { usdc: usdc.toSubgraphSource() } });
 ```
 

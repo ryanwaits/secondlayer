@@ -13,7 +13,7 @@ interface Surface {
 
 /** The three surfaces of a self-hosted instance, in fork order: keep your own
  *  API, take the generated one, or decode it yourself. Each card leads with the
- *  call you write, not the endpoint you hit. Subscriptions is deliberately not
+ *  call you write, not the endpoint you hit. Webhooks is deliberately not
  *  here — it's a delivery mode both Index and Subgraphs use, documented inside
  *  each, never a fourth peer. */
 const SURFACES: Surface[] = [

@@ -46,7 +46,7 @@ export function QuickstartGuide() {
 				<strong>That&rsquo;s a live table.</strong>
 				<p>
 					Next: write your first <Link href="/docs/subgraphs">handler</Link>, or
-					wire up <Link href="/docs/subscriptions">push delivery</Link>.
+					wire up <Link href="/docs/webhooks">push delivery</Link>.
 				</p>
 			</div>
 		</>

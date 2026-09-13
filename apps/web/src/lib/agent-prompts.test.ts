@@ -10,8 +10,8 @@ describe("agent prompt registry", () => {
 		}
 	});
 
-	test("subscription prompt uses contextual subgraph and tables", () => {
-		const text = getAgentPrompt("subscription-create", {
+	test("webhook prompt uses contextual subgraph and tables", () => {
+		const text = getAgentPrompt("webhook-create", {
 			subgraphName: "alex-swaps",
 			tables: ["swaps", "traders"],
 		});
@@ -22,9 +22,9 @@ describe("agent prompt registry", () => {
 	});
 
 	test("test fixture prompt forbids stored secret recovery and posting", () => {
-		const text = getAgentPrompt("subscription-test", {
-			subscriptionName: "whale-alerts",
-			subscriptionId: "sub-1",
+		const text = getAgentPrompt("webhook-test", {
+			webhookName: "whale-alerts",
+			webhookId: "sub-1",
 		});
 		expect(text).toContain("whale-alerts");
 		expect(text).toContain(

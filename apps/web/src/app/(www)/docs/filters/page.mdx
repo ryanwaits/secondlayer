@@ -1,7 +1,7 @@
 # Filters
 
 Describe a chain event once and get the exact shape Index, Streams,
-Subscriptions, and Subgraphs each expect.
+Webhooks, and Subgraphs each expect.
 
 ```ts
 import { on } from "@secondlayer/stacks/filters";
@@ -13,7 +13,7 @@ const sbtcMints = on.ftMint({
 
 await sl.index.events.list(sbtcMints.toIndexParams({ limit: 50 }));
 await sl.streams.events.list(sbtcMints.toStreamsParams());
-await sl.subscriptions.create({ trigger: sbtcMints.toChainTrigger(), url });
+await sl.webhooks.create({ trigger: sbtcMints.toChainTrigger(), url });
 ```
 
 ## Why not just spread it
@@ -23,7 +23,7 @@ Because the four surfaces genuinely disagree, and a spread hides that:
 - Index spells the print event `print`; Subgraphs spell it `print_event`.
 - `contract_call` and `contract_deploy` live on a different Index endpoint than
   events do.
-- Subscriptions take amounts as **strings**: a `bigint` in a
+- Webhooks take amounts as **strings**: a `bigint` in a
   `JSON.stringify` body throws at runtime, not at compile time.
 - `trait` scoping exists on Index and Subgraphs, not on Streams.
 
@@ -41,7 +41,7 @@ on.sbtcDeposit({}).toIndexParams();    // ✗ Property 'toIndexParams' does not 
 
 "Property does not exist" names the problem; a `never` parameter does not. Field
 gating comes second: `trait` is absent from `toStreamsParams()`, wildcards are
-Subscriptions/Subgraphs-only.
+Webhooks/Subgraphs-only.
 
 ## Principals are validated
 
@@ -80,10 +80,10 @@ await sl.index.events.list(source.toIndexParams({ limit: 10 }));
 
 The round-trip is a CI gate: every production subgraph's sources must survive
 `toSubgraphSource(fromSubgraphSource(f)) === f`, and every filter's
-`toChainTrigger()` must satisfy the Subscriptions schema.
+`toChainTrigger()` must satisfy the Webhooks schema.
 
 export const metadata = {
 	title: "Filters — Secondlayer Docs",
 	description:
-		"One typed way to describe a chain event, projected onto Index, Streams, Subscriptions, and Subgraphs.",
+		"One typed way to describe a chain event, projected onto Index, Streams, Webhooks, and Subgraphs.",
 };

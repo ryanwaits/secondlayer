@@ -4,7 +4,7 @@
 
 export type AgentPromptTag =
 	| "subgraphs"
-	| "subscriptions"
+	| "webhooks"
 	| "mcp"
 	| "sdk"
 	| "cli"
@@ -19,18 +19,18 @@ export type AgentPromptSurface =
 export interface AgentPromptContext {
 	subgraphName?: string;
 	tables?: string[];
-	subscriptionId?: string;
-	subscriptionName?: string;
+	webhookId?: string;
+	webhookName?: string;
 	/**
-	 * Facts the console can already see about the subscription. Appended to
+	 * Facts the console can already see about the webhook. Appended to
 	 * diagnosis-shaped prompts so the agent starts from evidence rather than
 	 * re-deriving it, and so the operator can read exactly what state is being
 	 * handed over.
 	 */
-	observed?: ObservedSubscriptionState;
+	observed?: ObservedWebhookState;
 }
 
-export interface ObservedSubscriptionState {
+export interface ObservedWebhookState {
 	status?: string;
 	url?: string;
 	format?: string;
@@ -65,9 +65,9 @@ export interface AgentPromptDefinition {
 export type AgentPromptId =
 	| "subgraph-create"
 	| "subgraph-alex-swaps"
-	| "subscription-create"
-	| "subscription-diagnose"
-	| "subscription-test"
+	| "webhook-create"
+	| "webhook-diagnose"
+	| "webhook-test"
 	| "cli-operate"
 	| "mcp-install"
 	| "sdk-wire";
@@ -75,8 +75,8 @@ export type AgentPromptId =
 const SUBGRAPHS_INTRO =
 	"Subgraphs are declarative SQL tables that auto-index Stacks blockchain activity into queryable Postgres tables. Define named sources, a typed schema, and handlers in TypeScript, then deploy and query.";
 
-const SUBSCRIPTIONS_INTRO =
-	"Subscriptions deliver inserted subgraph table rows to HTTPS receivers with signed payloads, retries, replay, delivery logs, and a dead-letter queue.";
+const WEBHOOKS_INTRO =
+	"Webhooks deliver a signed POST to a URL you run whenever a subgraph row is written or a chain event you named happens.";
 
 export const AGENT_SETUP = `Ensure setup once, skipping any step already done:
 - Skill: \`bunx skills add ryanwaits/secondlayer --skill secondlayer -y\`
@@ -100,7 +100,7 @@ function formatTables(tables?: string[]): string {
  * console couldn't read, so the agent is never handed a confident-looking
  * "unknown" it might reason from.
  */
-function formatObserved(observed?: ObservedSubscriptionState): string {
+function formatObserved(observed?: ObservedWebhookState): string {
 	if (!observed) return "";
 	const lines: string[] = [];
 
@@ -170,13 +170,13 @@ Observed state${stamp}:
 ${lines.join("\n")}`;
 }
 
-function subscriptionRef(context?: AgentPromptContext): string {
-	if (context?.subscriptionName && context.subscriptionId) {
-		return `"${context.subscriptionName}" (${context.subscriptionId})`;
+function webhookRef(context?: AgentPromptContext): string {
+	if (context?.webhookName && context.webhookId) {
+		return `"${context.webhookName}" (${context.webhookId})`;
 	}
-	if (context?.subscriptionName) return `"${context.subscriptionName}"`;
-	if (context?.subscriptionId) return context.subscriptionId;
-	return "the target subscription";
+	if (context?.webhookName) return `"${context.webhookName}"`;
+	if (context?.webhookId) return context.webhookId;
+	return "the target webhook";
 }
 
 export const AGENT_PROMPTS: AgentPromptDefinition[] = [
@@ -186,12 +186,12 @@ export const AGENT_PROMPTS: AgentPromptDefinition[] = [
 		audience: "Developers indexing a Stacks contract",
 		surface: "marketing",
 		description:
-			"Scaffold, refine, deploy, query, and offer a webhook subscription.",
-		tags: ["subgraphs", "subscriptions"],
+			"Scaffold, refine, deploy, query, and offer a webhook webhook.",
+		tags: ["subgraphs", "webhooks"],
 		build: () =>
 			withSetup(`${SUBGRAPHS_INTRO}
 
-/secondlayer Help me create a subgraph from a Stacks contract. Ask me for the contract id and the events or function calls I care about. Scaffold with \`secondlayer subgraphs scaffold\` so the module package and dependencies are prepared, explain the generated named sources and tables, let me review or customize the handlers, deploy with \`secondlayer subgraphs deploy\`, query recent rows, then ask whether I want a subscription webhook.`),
+/secondlayer Help me create a subgraph from a Stacks contract. Ask me for the contract id and the events or function calls I care about. Scaffold with \`secondlayer subgraphs scaffold\` so the module package and dependencies are prepared, explain the generated named sources and tables, let me review or customize the handlers, deploy with \`secondlayer subgraphs deploy\`, query recent rows, then ask whether I want a webhook webhook.`),
 	},
 	{
 		id: "subgraph-alex-swaps",
@@ -200,56 +200,56 @@ export const AGENT_PROMPTS: AgentPromptDefinition[] = [
 		surface: "dashboard",
 		description:
 			"Scaffold a swap subgraph, deploy it, query rows, then offer a webhook.",
-		tags: ["subgraphs", "subscriptions"],
+		tags: ["subgraphs", "webhooks"],
 		build: () =>
 			withSetup(`${SUBGRAPHS_INTRO}
 
-/secondlayer Scaffold a subgraph that indexes swap events from \`SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01\`. Use named object sources and \`event.data\` fields, deploy it, query recent swaps, then offer to create a webhook subscription.`),
+/secondlayer Scaffold a subgraph that indexes swap events from \`SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01\`. Use named object sources and \`event.data\` fields, deploy it, query recent swaps, then offer to create a webhook webhook.`),
 	},
 	{
-		id: "subscription-create",
-		title: "Create a receiver + subscription",
+		id: "webhook-create",
+		title: "Create a receiver + webhook",
 		audience: "Developers wiring a subgraph table to a webhook",
 		surface: "platform-empty-state",
 		description:
-			"Create a runtime receiver and subscription for a known subgraph table.",
-		tags: ["subscriptions", "subgraphs"],
+			"Create a runtime receiver and webhook for a known subgraph table.",
+		tags: ["webhooks", "subgraphs"],
 		build: (context) => {
 			const subgraph = context?.subgraphName
 				? `"${context.subgraphName}"`
 				: "the subgraph I choose";
-			return withSetup(`${SUBSCRIPTIONS_INTRO}
+			return withSetup(`${WEBHOOKS_INTRO}
 
-/secondlayer Create a subscription webhook for subgraph ${subgraph}. ${formatTables(context?.tables)}
+/secondlayer Create a webhook webhook for subgraph ${subgraph}. ${formatTables(context?.tables)}
 
-Inspect the account state first. If the subgraph and table are already clear, ask me only for the receiver runtime (\`node\`, \`inngest\`, \`trigger\`, or \`cloudflare\`) and the HTTPS receiver URL. Then create the subscription, show the one-time signing secret, and generate a signed test fixture only after I provide that secret.`);
+Inspect the account state first. If the subgraph and table are already clear, ask me only for the receiver runtime (\`node\`, \`inngest\`, \`trigger\`, or \`cloudflare\`) and the HTTPS receiver URL. Then create the webhook, show the one-time signing secret, and generate a signed test fixture only after I provide that secret.`);
 		},
 	},
 	{
-		id: "subscription-diagnose",
+		id: "webhook-diagnose",
 		title: "Diagnose delivery failure",
 		audience: "Developers recovering a failing webhook",
 		surface: "platform-detail",
 		description:
 			"Inspect detail, deliveries, DLQ, linked subgraph health, and next steps.",
-		tags: ["subscriptions", "recovery"],
+		tags: ["webhooks", "recovery"],
 		build: (context) =>
-			withSetup(`${SUBSCRIPTIONS_INTRO}
+			withSetup(`${WEBHOOKS_INTRO}
 
-/secondlayer Diagnose ${subscriptionRef(context)}. Inspect subscription detail, recent deliveries, dead-letter rows, and the linked subgraph state. Return the highest-priority findings first. If dead rows exist, propose inspecting them before requeueing selected rows. Do not replay a block range until I confirm exact from/to blocks.${formatObserved(context?.observed)}`),
+/secondlayer Diagnose ${webhookRef(context)}. Inspect webhook detail, recent deliveries, dead-letter rows, and the linked subgraph state. Return the highest-priority findings first. If dead rows exist, propose inspecting them before requeueing selected rows. Do not replay a block range until I confirm exact from/to blocks.${formatObserved(context?.observed)}`),
 	},
 	{
-		id: "subscription-test",
+		id: "webhook-test",
 		title: "Generate signed test curl",
 		audience: "Developers testing a webhook receiver",
 		surface: "platform-detail",
 		description:
 			"Generate Standard Webhooks body, headers, and curl without posting.",
-		tags: ["subscriptions", "recovery"],
+		tags: ["webhooks", "recovery"],
 		build: (context) =>
-			withSetup(`${SUBSCRIPTIONS_INTRO}
+			withSetup(`${WEBHOOKS_INTRO}
 
-/secondlayer Generate a signed Standard Webhooks test fixture for ${subscriptionRef(context)}. Use only the signing secret I provide in chat; never request or recover the stored platform secret. Produce the JSON body, headers, and curl. Do not POST it.${formatObserved(
+/secondlayer Generate a signed Standard Webhooks test fixture for ${webhookRef(context)}. Use only the signing secret I provide in chat; never request or recover the stored platform secret. Produce the JSON body, headers, and curl. Do not POST it.${formatObserved(
 				context?.observed
 					? {
 							// The fixture only needs the receiver's shape — delivery
@@ -269,11 +269,11 @@ Inspect the account state first. If the subgraph and table are already clear, as
 		audience: "Developers who want terminal-first workflows",
 		surface: "marketing",
 		description:
-			"Use `secondlayer` to init a runtime, deploy subgraphs, and manage subscriptions.",
-		tags: ["cli", "subgraphs", "subscriptions"],
+			"Use `secondlayer` to init a runtime, deploy subgraphs, and manage webhooks.",
+		tags: ["cli", "subgraphs", "webhooks"],
 		build: () =>
 			withSetup(
-				"/secondlayer Operate this project through the `secondlayer` CLI. For a local instance start with `secondlayer init`, `secondlayer bootstrap`, and `secondlayer observer`. After restore, `secondlayer verify all --against <manifest>` (or `raw` / `decode:<name>` / `subgraph:<name>`) compares local data to the signed archive — `--deep` for semantic digests. Inspect subgraphs and subscriptions with JSON output first. Then help me run the exact `secondlayer` commands for the task, including human confirmation before delete, reindex, rotate-secret, replay, or requeue.",
+				"/secondlayer Operate this project through the `secondlayer` CLI. For a local instance start with `secondlayer init`, `secondlayer bootstrap`, and `secondlayer observer`. After restore, `secondlayer verify all --against <manifest>` (or `raw` / `decode:<name>` / `subgraph:<name>`) compares local data to the signed archive — `--deep` for semantic digests. Inspect subgraphs and webhooks with JSON output first. Then help me run the exact `secondlayer` commands for the task, including human confirmation before delete, reindex, rotate-secret, replay, or requeue.",
 			),
 	},
 	{
@@ -281,12 +281,11 @@ Inspect the account state first. If the subgraph and table are already clear, as
 		title: "Install MCP server",
 		audience: "Developers connecting Secondlayer to an MCP agent",
 		surface: "marketing",
-		description:
-			"Configure the MCP server and verify subgraph/subscription tools.",
-		tags: ["mcp", "subgraphs", "subscriptions"],
+		description: "Configure the MCP server and verify subgraph/webhook tools.",
+		tags: ["mcp", "subgraphs", "webhooks"],
 		build: () =>
 			withSetup(
-				"/secondlayer Install the Secondlayer MCP server for my agent. Generate the `bunx @secondlayer/mcp` config with `SECONDLAYER_API_URL` (or `SL_API_URL`) and `INSTANCE_TOKEN` for the instance. For hosted archive/credits tools also set `SECONDLAYER_API_KEY`. Then verify tool availability for subgraphs and subscriptions: list, get, query, deploy, create, update, pause, resume, rotate-secret, deliveries, dead, requeue, and replay.",
+				"/secondlayer Install the Secondlayer MCP server for my agent. Generate the `bunx @secondlayer/mcp` config with `SECONDLAYER_API_URL` (or `SL_API_URL`) and `INSTANCE_TOKEN` for the instance. For hosted archive/credits tools also set `SECONDLAYER_API_KEY`. Then verify tool availability for subgraphs and webhooks: list, get, query, deploy, create, update, pause, resume, rotate-secret, deliveries, dead, requeue, and replay.",
 			),
 	},
 	{
@@ -296,7 +295,7 @@ Inspect the account state first. If the subgraph and table are already clear, as
 		surface: "marketing",
 		description:
 			"One client for typed subgraph reads and webhook verification.",
-		tags: ["sdk", "subgraphs", "subscriptions"],
+		tags: ["sdk", "subgraphs", "webhooks"],
 		build: () =>
 			withSetup(
 				"/secondlayer Wire `@secondlayer/sdk` into my app: create a `SecondLayer({ apiKey: process.env.INSTANCE_TOKEN })` client against my instance, read subgraph rows with `sl.subgraphs.rows(name, table, opts)` → `{ rows, next_cursor, tip }`, get a typed table client via `sl.subgraphs.typed(def)`, and verify webhook deliveries with `verifyWebhookSignature` before trusting them. Hosted Index/Streams/archive use `accountKey` / `SECONDLAYER_API_KEY`. Use concrete names from my project when available.",
@@ -331,6 +330,4 @@ export const MARKETING_SUBGRAPHS_PROMPT = getAgentPrompt("subgraph-create");
 // Homepage "hand it to your agent" card reuses the canonical setup prompt so
 // the agent-onboarding steps stay single-sourced with the subgraphs page.
 export const MARKETING_HOME_PROMPT = getAgentPrompt("subgraph-create");
-export const MARKETING_SUBSCRIPTIONS_PROMPT = getAgentPrompt(
-	"subscription-create",
-);
+export const MARKETING_WEBHOOKS_PROMPT = getAgentPrompt("webhook-create");

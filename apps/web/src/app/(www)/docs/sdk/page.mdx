@@ -27,7 +27,7 @@ Hosted Index, Streams, and archive use `accountKey` / `SECONDLAYER_API_KEY`. See
 - `sl.index`: decoded rows: FT/NFT transfers, all event types, contract calls, and `printSchema(contractId)`.
 - `sl.contracts`: find deployed contracts by trait (SIP-009/010/013).
 - `sl.subgraphs`: your app-specific tables, plus open `/v1` reads (`rows`).
-- `sl.subscriptions`: create and manage webhook subscriptions (subgraph rows or raw chain events).
+- `sl.webhooks`: create and manage webhook webhooks (subgraph rows or raw chain events).
 
 ```ts
 const tip = await sl.streams.tip();
@@ -42,9 +42,9 @@ Each surface documents its own calls:
 
 | Task | Call | Documented in |
 | --- | --- | --- |
-| Webhook on raw chain events | `sl.subscriptions.create({ name, url, triggers })` | [Subscriptions](/docs/subscriptions#direct-chain-subscriptions-no-subgraph) |
-| Re-deliver history | `sl.subscriptions.replay(id, { fromBlock, toBlock })` | [Replay](/docs/subscriptions#replay) |
-| Check a delivery signature | `verifyWebhookSignature`, `verifySecondlayerSignature` | [Receiving deliveries](/docs/subscriptions/deliveries#verify-the-signature) |
+| Webhook on raw chain events | `sl.webhooks.create({ name, url, triggers })` | [Webhooks](/docs/webhooks#direct-chain-webhooks-no-subgraph) |
+| Re-deliver history | `sl.webhooks.replay(id, { fromBlock, toBlock })` | [Replay](/docs/webhooks#replay) |
+| Check a delivery signature | `verifyWebhookSignature`, `verifySecondlayerSignature` | [Receiving deliveries](/docs/webhooks/deliveries#verify-the-signature) |
 | Prove a tx is in a block | `verifyTransactionProof`, `fetchRewardSet` | [Verification](/docs/verification) |
 | Tail the live firehose | `sl.streams.events.subscribe(opts)` | [Streams](/docs/streams#real-time-firehose-sse) |
 | Read subgraph tables | `sl.subgraphs.rows`, `sl.subgraphs.typed` | [Subgraphs](/docs/subgraphs#read-your-table) |
@@ -53,7 +53,7 @@ Each surface documents its own calls:
 
 <Callout type="warning" title="trigger.* is not on.*">
 
-`trigger.*` (from `@secondlayer/sdk`) configures chain subscriptions. `on.*` (from `@secondlayer/stacks`) configures subgraph sources in a handler config. They configure different things.
+`trigger.*` (from `@secondlayer/sdk`) configures chain webhooks. `on.*` (from `@secondlayer/stacks`) configures subgraph sources in a handler config. They configure different things.
 
 </Callout>
 
@@ -99,5 +99,5 @@ Reorgs rewind the cursor to the fork point and fire `onReorg`. Fold running bala
 export const metadata = {
 	title: "SDK — Secondlayer Docs",
 	description:
-		"Typed TypeScript client for every Secondlayer surface: signatures, proofs, consumers, and subscriptions.",
+		"Typed TypeScript client for every Secondlayer surface: signatures, proofs, consumers, and webhooks.",
 };

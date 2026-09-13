@@ -28,7 +28,7 @@ export interface DocsNavGroup {
  *   the instance token — it's a local-development concern, so it moved to
  *   Operate.
  * - **Build** is the three surfaces in fork order (keep your own API → take the
- *   generated one → decode it yourself), with Subscriptions last because it's a
+ *   generated one → decode it yourself), with Webhooks last because it's a
  *   delivery mode over the first two, never a fourth peer.
  * - **Tools** are the ways you reach those surfaces. SDK concepts (Sinks,
  *   Filters) sit with the SDK rather than competing with the surfaces in Build.
@@ -58,14 +58,14 @@ export const DOCS_NAV: DocsNavGroup[] = [
 			},
 			{ title: "Streams", href: "/docs/streams" },
 			{
-				title: "Subscriptions",
-				href: "/docs/subscriptions",
+				title: "Webhooks",
+				href: "/docs/webhooks",
 				items: [
 					{
 						title: "Receiving deliveries",
-						href: "/docs/subscriptions/deliveries",
+						href: "/docs/webhooks/deliveries",
 					},
-					{ title: "Event shapes", href: "/docs/subscriptions/event-shapes" },
+					{ title: "Event shapes", href: "/docs/webhooks/event-shapes" },
 				],
 			},
 		],

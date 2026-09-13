@@ -10,7 +10,7 @@ import { actions } from "@/lib/actions/registry";
 export type CommandGroup =
 	| "navigation"
 	| "your subgraphs"
-	| "subscriptions"
+	| "webhooks"
 	| "public subgraphs"
 	| "docs";
 
@@ -18,7 +18,7 @@ export type CommandGroup =
 export const GROUP_ORDER: CommandGroup[] = [
 	"navigation",
 	"your subgraphs",
-	"subscriptions",
+	"webhooks",
 	"public subgraphs",
 	"docs",
 ];
@@ -50,7 +50,7 @@ export const NAV_ITEMS: CommandItem[] = actions.map((a) => ({
 
 /** Vocabulary users reach for that page titles don't carry. */
 const DOCS_KEYWORDS: Record<string, string[]> = {
-	"/docs/subscriptions": ["webhook", "webhooks", "push"],
+	"/docs/webhooks": ["webhook", "webhooks", "push"],
 	"/docs/index": ["events", "transfers", "decoded"],
 	"/docs/streams": ["firehose", "dumps", "raw"],
 	"/docs/subgraphs": ["indexer", "deploy", "tables"],

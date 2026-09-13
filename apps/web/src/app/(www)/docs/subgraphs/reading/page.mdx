@@ -41,17 +41,17 @@ It uses the global `EventSource`, so browser or **Node ≥ 22** only. Wire contr
 
 ## Get told when it changes
 
-SSE holds a connection open, which is fine for a browser and wrong for a queue or a serverless function. To have rows delivered instead, point a subscription at any table in the subgraph:
+SSE holds a connection open, which is fine for a browser and wrong for a queue or a serverless function. To have rows delivered instead, point a webhook at any table in the subgraph:
 
 ```bash
-secondlayer subscriptions create sbtc-webhook \
+secondlayer webhooks create sbtc-webhook \
   --no-scaffold \
   --subgraph sbtc-flows \
   --table transfers \
   --url https://your-app.com/webhooks/sbtc
 ```
 
-Deliveries are signed, retried, and land in a dead-letter queue you can inspect and requeue. Full options, the delivery envelope, and signature verification: [Subscriptions](/docs/subscriptions).
+Deliveries are signed, retried, and land in a dead-letter queue you can inspect and requeue. Full options, the delivery envelope, and signature verification: [Webhooks](/docs/webhooks).
 
 ## Typed ORM schemas (codegen)
 

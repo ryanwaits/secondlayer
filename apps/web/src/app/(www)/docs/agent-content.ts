@@ -34,7 +34,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Get oriented",
 			"Pick the right surface for what you're building.",
-			"/secondlayer I'm new to Secondlayer. Explain the surfaces — Index, Subgraphs, Subscriptions, Streams — and recommend which one fits my use case. Ask what I'm building, then point me at the next step.",
+			"/secondlayer I'm new to Secondlayer. Explain the surfaces — Index, Subgraphs, Webhooks, Streams — and recommend which one fits my use case. Ask what I'm building, then point me at the next step.",
 		),
 		card(
 			"Sweep it into my database",
@@ -62,12 +62,12 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Understand the two credentials",
 			"Instance token for your box; account key for hosted API and archive.",
-			"/secondlayer Explain Secondlayer auth: two credentials. On my instance, `/v1` reads from loopback need no key, past loopback they send `Authorization: Bearer $INSTANCE_TOKEN`, and writes (`/api/subgraphs`, `/api/subscriptions`, `/api/node`) send it always. Hosted `api.secondlayer.tools` and archive credits use `SECONDLAYER_API_KEY` (`sk-sl_*`). Never mix them. Help me wire the right one into my client and CI.",
+			"/secondlayer Explain Secondlayer auth: two credentials. On my instance, `/v1` reads from loopback need no key, past loopback they send `Authorization: Bearer $INSTANCE_TOKEN`, and writes (`/api/subgraphs`, `/api/webhooks`, `/api/node`) send it always. Hosted `api.secondlayer.tools` and archive credits use `SECONDLAYER_API_KEY` (`sk-sl_*`). Never mix them. Help me wire the right one into my client and CI.",
 		),
 		card(
 			"Rotate a token or secret",
 			"Rotate the instance token or a webhook signing secret safely.",
-			"/secondlayer Help me rotate a secret. The instance token comes from `secondlayer init` — regenerate it and update every non-loopback caller. For a webhook signing secret run `secondlayer subscriptions rotate-secret`. Then confirm nothing still references the old value.",
+			"/secondlayer Help me rotate a secret. The instance token comes from `secondlayer init` — regenerate it and update every non-loopback caller. For a webhook signing secret run `secondlayer webhooks rotate-secret`. Then confirm nothing still references the old value.",
 		),
 	],
 
@@ -104,15 +104,15 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		),
 	],
 
-	"/docs/subscriptions": [
-		variant("subscription-create"),
+	"/docs/webhooks": [
+		variant("webhook-create"),
 		card(
-			"Subscribe to chain events",
+			"Webhook on chain events",
 			"Webhook on raw chain activity, no subgraph.",
-			"/secondlayer Help me create a chain subscription (no subgraph) with the SDK: build a `triggers` array with `trigger.*` factories — e.g. `trigger.contractCall({ contractId, functionName })` and `trigger.ftTransfer({ assetIdentifier, minAmount })` — pass it to `sl.subscriptions.create`, and explain the `chain.{type}.apply` / `chain.reorg.rollback` delivery envelope. (Chain subs are SDK/REST/MCP, not the CLI's subgraph-only create.)",
+			"/secondlayer Help me create a chain webhook (no subgraph) with the SDK: build a `triggers` array with `trigger.*` factories — e.g. `trigger.contractCall({ contractId, functionName })` and `trigger.ftTransfer({ assetIdentifier, minAmount })` — pass it to `sl.webhooks.create`, and explain the `chain.{type}.apply` / `chain.reorg.rollback` delivery envelope. (Chain subs are SDK/REST/MCP, not the CLI's subgraph-only create.)",
 		),
-		variant("subscription-diagnose"),
-		variant("subscription-test"),
+		variant("webhook-diagnose"),
+		variant("webhook-test"),
 	],
 
 	"/docs/streams": [
@@ -211,7 +211,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Read bond prints",
 			"Index feed filtered by register-for-bond.",
-			"/secondlayer Show me how to read PoX-5 protocol-bond registrations from Index: GET /v1/index/pox5/events?topic=register-for-bond, and a chain subscription trigger print_event on SP000000000000000000002Q6VF78.pox-5 with that topic. Point at /docs/pox5 and /docs/subscriptions.",
+			"/secondlayer Show me how to read PoX-5 protocol-bond registrations from Index: GET /v1/index/pox5/events?topic=register-for-bond, and a chain webhook trigger print_event on SP000000000000000000002Q6VF78.pox-5 with that topic. Point at /docs/pox5 and /docs/webhooks.",
 		),
 	],
 
@@ -288,7 +288,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Get notified when a sweep confirms",
 			"Webhook the moment a peg-out settles on Bitcoin.",
-			"/secondlayer Help me subscribe to sBTC settlement webhooks: `client.subscriptions.create({ url, triggers: [trigger.sbtcWithdrawalSweptConfirmed()] })`. Explain that it fires once per sweep when `btc_confirmations` crosses the threshold (default 6), is forward-only (only settlements confirmed after I subscribe), and never double-fires on a reorg→un-confirm→re-confirm. Show the `chain.sbtc_withdrawal_swept_confirmed.apply` envelope shape and how to verify the signature.",
+			"/secondlayer Help me set up sBTC settlement webhooks: `client.webhooks.create({ url, triggers: [trigger.sbtcWithdrawalSweptConfirmed()] })`. Explain that it fires once per sweep when `btc_confirmations` crosses the threshold (default 6), is forward-only (only settlements confirmed after I create it), and never double-fires on a reorg→un-confirm→re-confirm. Show the `chain.sbtc_withdrawal_swept_confirmed.apply` envelope shape and how to verify the signature.",
 		),
 	],
 
@@ -325,7 +325,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Deploy and subscribe",
 			"Subgraph and webhook lifecycle as tools.",
-			"/secondlayer Use `subgraphs_deploy` (run `dryRun` first to preview the DDL) for the contract I name, then `subscriptions_create` for a webhook on a table — and capture the one-time `signingSecret` it returns.",
+			"/secondlayer Use `subgraphs_deploy` (run `dryRun` first to preview the DDL) for the contract I name, then `webhooks_create` for a webhook on a table — and capture the one-time `signingSecret` it returns.",
 		),
 	],
 
@@ -333,12 +333,12 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"What changed since",
 			"Catch up from your last integrated version.",
-			"/secondlayer Read the Secondlayer changelog at https://secondlayer.tools/docs/changelog and tell me what shipped since the version I'm on — ask my `@secondlayer/sdk` or `cli` version, or the date I last integrated. Group by surface (Index, Subgraphs, Subscriptions, Streams) and flag anything affecting my current code.",
+			"/secondlayer Read the Secondlayer changelog at https://secondlayer.tools/docs/changelog and tell me what shipped since the version I'm on — ask my `@secondlayer/sdk` or `cli` version, or the date I last integrated. Group by surface (Index, Subgraphs, Webhooks, Streams) and flag anything affecting my current code.",
 		),
 		card(
 			"Adopt a new feature",
 			"Migrate onto a recent capability.",
-			"/secondlayer From the latest Secondlayer changelog, help me adopt one new capability — e.g. Index `consume()` consumers, chain subscriptions via `triggers[]`, subgraph `/aggregate`, or Streams `events.replay({ from: 'genesis' })`. Ask which I want, then wire it in with the exact SDK/CLI calls.",
+			"/secondlayer From the latest Secondlayer changelog, help me adopt one new capability — e.g. Index `consume()` consumers, chain webhooks via `triggers[]`, subgraph `/aggregate`, or Streams `events.replay({ from: 'genesis' })`. Ask which I want, then wire it in with the exact SDK/CLI calls.",
 		),
 	],
 
@@ -457,13 +457,13 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 	"/docs/migrate-chainhook": [
 		card(
 			"Convert my predicate",
-			"Map a Chainhook predicate to subscription triggers.",
-			"/secondlayer I'm moving from Hiro Chainhook to Secondlayer subscriptions. I'll paste my predicate JSON — map each `if_this` scope to the matching `trigger.*` factory (`contract_call`→`trigger.contractCall`, `print_event`→`trigger.printEvent`, `ft_event`/`nft_event`/`stx_event`→the mint/transfer/burn factories, `contract_deployment`→`trigger.contractDeploy`), carry over `contract_identifier`/`method`/wildcards and any `trait` scope, and build one `sl.subscriptions.create({ name, url, triggers })` call. Flag any scope with no direct trigger — like `txid`, which I query on `/v1/index` instead.",
+			"Map a Chainhook predicate to webhook triggers.",
+			"/secondlayer I'm moving from Hiro Chainhook to Secondlayer webhooks. I'll paste my predicate JSON — map each `if_this` scope to the matching `trigger.*` factory (`contract_call`→`trigger.contractCall`, `print_event`→`trigger.printEvent`, `ft_event`/`nft_event`/`stx_event`→the mint/transfer/burn factories, `contract_deployment`→`trigger.contractDeploy`), carry over `contract_identifier`/`method`/wildcards and any `trait` scope, and build one `sl.webhooks.create({ name, url, triggers })` call. Flag any scope with no direct trigger — like `txid`, which I query on `/v1/index` instead.",
 		),
 		card(
 			"Backfill predicate history",
 			"Replace a predicate's start_block with replay.",
-			"/secondlayer Chainhook predicates scan from a `start_block`; a Secondlayer subscription starts at the chain tip. Help me deliver the history I'm missing with `replay` over an existing subscription — explain that it's idempotent, capped at 100,000 blocks, and never moves the live cursor — then give me the exact call for the block range I name.",
+			"/secondlayer Chainhook predicates scan from a `start_block`; a Secondlayer webhook starts at the chain tip. Help me deliver the history I'm missing with `replay` over an existing webhook — explain that it's idempotent, capped at 100,000 blocks, and never moves the live cursor — then give me the exact call for the block range I name.",
 		),
 		card(
 			"Verify deliveries",
@@ -473,7 +473,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Move a self-hosted v1 stack",
 			"Run the indexer against your own node, same API.",
-			"/secondlayer I was running self-hosted Chainhook (v1). Help me stand up the Secondlayer indexer against my own Stacks node instead: point the node's `events_observer` at the indexer on `:3700`, then create subscriptions with the same `sl.subscriptions.create` API. Same triggers, my infrastructure.",
+			"/secondlayer I was running self-hosted Chainhook (v1). Help me stand up the Secondlayer indexer against my own Stacks node instead: point the node's `events_observer` at the indexer on `:3700`, then create webhooks with the same `sl.webhooks.create` API. Same triggers, my infrastructure.",
 		),
 	],
 };

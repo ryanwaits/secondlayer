@@ -69,7 +69,7 @@ Subscribe to `sbtc_withdrawal_swept_confirmed` and skip the polling.
 ```ts
 import { trigger } from "@secondlayer/sdk";
 
-await client.subscriptions.create({
+await client.webhooks.create({
   url: "https://your-app.com/webhooks/sbtc-settlement",
   triggers: [trigger.sbtcWithdrawalSweptConfirmed()],
 });
@@ -99,7 +99,7 @@ Delivery is the standard `chain.{type}.apply` envelope; `event` carries the sett
 }
 ```
 
-See [Subscriptions](/docs/subscriptions) for delivery formats, signature verification, and the full trigger list.
+See [Webhooks](/docs/webhooks) for delivery formats, signature verification, and the full trigger list.
 
 <Callout type="info" title="What this proves, and what it doesn't">
 

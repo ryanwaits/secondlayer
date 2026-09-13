@@ -20,15 +20,15 @@ Each row has `bond_index`, `amount_sats`, `is_l1_lock`, and `data.btc-lockup` (L
 
 ## Get a webhook on registrations
 
-A chain subscription POSTs matching prints to your URL.
+A chain webhook POSTs matching prints to your URL.
 
 ```bash
-secondlayer subscriptions create pox5-bonds \
+secondlayer webhooks create pox5-bonds \
   --url https://example.com/webhook \
   --trigger '{"type":"print_event","contractId":"SP000000000000000000002Q6VF78.pox-5","topic":"register-for-bond"}'
 ```
 
-Same shape for `bond-distribution` when payouts start. Trigger grammar and signatures: [Subscriptions](/docs/subscriptions). Bond-level tables (positions, allowlist, payouts) are a subgraph you deploy: [Subgraphs](/docs/subgraphs).
+Same shape for `bond-distribution` when payouts start. Trigger grammar and signatures: [Webhooks](/docs/webhooks). Bond-level tables (positions, allowlist, payouts) are a subgraph you deploy: [Subgraphs](/docs/subgraphs).
 
 ## Install
 
