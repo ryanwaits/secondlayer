@@ -57,6 +57,20 @@ secondlayer setup --yes \
 `secondlayer subgraphs scaffold` writes the definition file, creates/updates
 `package.json`, and runs `bun install` (pass `--no-install` to skip).
 
+## Archive
+
+`secondlayer archive` groups the history-plane verbs. `archive bootstrap`,
+`archive verify`, and `archive repair` are the same commands as the top-level
+`bootstrap` / `verify` / `repair` (golden-path aliases stay). `archive latest`
+shows the official tip; `archive quote --against <manifest>` prices a fetch
+without charging.
+
+```bash
+secondlayer archive latest
+secondlayer archive quote --against https://archive.secondlayer.tools/latest.json
+secondlayer archive bootstrap --against https://archive.secondlayer.tools/latest.json
+```
+
 ## Commands
 
 ### Local runtime

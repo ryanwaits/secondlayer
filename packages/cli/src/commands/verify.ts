@@ -80,12 +80,8 @@ function statusLabel(status: RangeComparison["status"]): string {
 	return yellow("missing");
 }
 
-export function registerVerifyCommand(program: Command): void {
-	program
-		.command("verify")
-		.description(
-			"Compare local chain data against a signed archive (read-only; nothing is uploaded)",
-		)
+export function attachVerifyCommand(cmd: Command): Command {
+	return cmd
 		.argument("[target]", "all | raw | decode:<name> | subgraph:<name>", "raw")
 		.option("--quick", "coverage/identity only (default)")
 		.option("--deep", "include semantic / scratch replay where available")
@@ -382,4 +378,14 @@ Exit codes:
 				process.exit(VERIFY_EXIT.UNANCHORED);
 			}
 		});
+}
+
+export function registerVerifyCommand(program: Command): void {
+	attachVerifyCommand(
+		program
+			.command("verify")
+			.description(
+				"Compare local chain data against a signed archive (read-only; nothing is uploaded)",
+			),
+	);
 }

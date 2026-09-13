@@ -2,6 +2,7 @@
 import { program } from "commander";
 import pkg from "../package.json" with { type: "json" };
 import {
+	registerArchiveCommand,
 	registerBackupCommand,
 	registerBootstrapCommand,
 	registerCodegenCommand,
@@ -118,5 +119,6 @@ registerUninstallCommand(program);
 // Archive — the history plane. Credits pay for pulling it.
 program.commandsGroup("Archive:");
 registerCreditsCommand(program);
+registerArchiveCommand(program);
 
 program.parse();

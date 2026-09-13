@@ -443,12 +443,8 @@ async function reverify(
 	return remaining;
 }
 
-export function registerRepairCommand(program: Command): void {
-	program
-		.command("repair")
-		.description(
-			"Replace local chain data that diverges from a signed archive (dry-run by default)",
-		)
+export function attachRepairCommand(cmd: Command): Command {
+	return cmd
 		.requiredOption(
 			"--against <manifest>",
 			"archive manifest: an https URL or a local file path",
@@ -850,4 +846,14 @@ Exit codes:
 				process.exit(REPAIR_EXIT.UNANCHORED);
 			}
 		});
+}
+
+export function registerRepairCommand(program: Command): void {
+	attachRepairCommand(
+		program
+			.command("repair")
+			.description(
+				"Replace local chain data that diverges from a signed archive (dry-run by default)",
+			),
+	);
 }
