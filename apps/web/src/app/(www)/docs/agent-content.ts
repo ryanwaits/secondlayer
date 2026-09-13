@@ -208,10 +208,18 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 			"SIP-018 grant hash, RSV signature, on-chain grant.",
 			"/secondlayer Walk me through PoX-5 signer-key grants: `computeSignerGrantHash({ signerManager, authId, chainId })`, `signSignerGrant` for the 65-byte RSV signature `grant-signer-key` expects, verify locally with `verifySignerGrant`, then broadcast `client.pox5.grantSignerKey(...)`.",
 		),
+	],
+
+	"/docs/pox5-events": [
 		card(
 			"Read bond prints",
 			"Index feed filtered by register-for-bond.",
-			"/secondlayer Show me how to read PoX-5 protocol-bond registrations from Index: GET /v1/index/pox5/events?topic=register-for-bond, and a chain webhook trigger print_event on SP000000000000000000002Q6VF78.pox-5 with that topic. Point at /docs/pox5 and /docs/webhooks.",
+			"/secondlayer Show me how to read PoX-5 protocol-bond registrations from Index: GET /v1/index/pox5/events?topic=register-for-bond, and a chain webhook trigger print_event on SP000000000000000000002Q6VF78.pox-5 with that topic. Point at /docs/pox5-events and /docs/webhooks.",
+		),
+		card(
+			"Webhook on bond registrations",
+			"Chain webhook for register-for-bond prints.",
+			"/secondlayer Create a PoX-5 bond-registration webhook with `secondlayer webhooks create`: trigger print_event on SP000000000000000000002Q6VF78.pox-5 topic register-for-bond. Point at /docs/pox5-events and /docs/webhooks.",
 		),
 	],
 
