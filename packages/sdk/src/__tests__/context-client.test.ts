@@ -75,9 +75,10 @@ describe("SecondLayer.context()", () => {
 		expect(snap.account).toEqual({ value: { email: "a@b.com" } });
 		expect(snap.streamsTip.value?.block_height).toBe(100);
 		expect(snap.indexTip.value?.block_height).toBe(99);
-		expect(snap.subscriptions).toEqual({
+		expect(snap.webhooks).toEqual({
 			value: { count: 3, byStatus: { active: 2, paused: 1 } },
 		});
+		expect(snap.subscriptions).toBe(snap.webhooks);
 		// Only the reindexing subgraph is probed for an in-flight operation.
 		expect(snap.activeOperations.value).toEqual([
 			{

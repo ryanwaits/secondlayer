@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { sign } from "@secondlayer/shared/crypto/standard-webhooks";
-import { decodeChainWebhook, verifyWebhookSignature } from "../webhooks.ts";
+import {
+	decodeChainWebhook,
+	verifyWebhookSignature,
+} from "../webhooks/verify.ts";
 
 describe("verifyWebhookSignature", () => {
 	const secret = "whsec_dGVzdC1zZWNyZXQtdmFsdWUtMzItYnl0ZXMtbG9uZw==";

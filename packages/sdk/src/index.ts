@@ -157,8 +157,18 @@ export type {
 	SubgraphSpecFormat,
 	SubgraphSpecOptions,
 } from "@secondlayer/shared/subgraphs/spec";
-export { Subscriptions, trigger } from "./subscriptions/client.ts";
+export { Webhooks, Subscriptions, trigger } from "./webhooks/client.ts";
 export type {
+	WebhookStatus,
+	WebhookFormat,
+	WebhookRuntime,
+	WebhookKind,
+	WebhookSummary,
+	WebhookDetail,
+	WebhookTestResult,
+	CreateWebhookRequest,
+	CreateWebhookResponse,
+	UpdateWebhookRequest,
 	SubscriptionStatus,
 	SubscriptionFormat,
 	SubscriptionRuntime,
@@ -174,7 +184,7 @@ export type {
 	DeliveryRow,
 	ReplayResult,
 	DeadRow,
-} from "./subscriptions/client.ts";
+} from "./webhooks/client.ts";
 export type {
 	ConsumerSink,
 	SinkTx,
@@ -217,7 +227,7 @@ export {
 	verifySecondlayerSignature,
 	verifyStandardWebhooksHeaders,
 	decodeChainWebhook,
-} from "./webhooks.ts";
+} from "./webhooks/verify.ts";
 export type {
 	ChainApplyDeliveryOf,
 	ChainApplyEnvelope,
@@ -246,7 +256,7 @@ export type {
 	SbtcWithdrawalSweptConfirmedEvent,
 	StandardWebhooksHeaders,
 	WebhookHeaderInput,
-} from "./webhooks.ts";
+} from "./webhooks/verify.ts";
 export {
 	type TransactionProof,
 	type TransactionProofVerifyResult,

@@ -98,3 +98,18 @@ describe("Subscriptions path segments", () => {
 		);
 	});
 });
+
+describe("Webhooks namespace aliases", () => {
+	test("sl.subscriptions is the same object as sl.webhooks", () => {
+		const sl = new SecondLayer({
+			baseUrl: "http://localhost:3800",
+			apiKey: "sk-test",
+		});
+		expect(sl.subscriptions).toBe(sl.webhooks);
+	});
+
+	test("Subscriptions is an alias of Webhooks", async () => {
+		const { Subscriptions, Webhooks } = await import("../webhooks/client.ts");
+		expect(Subscriptions).toBe(Webhooks);
+	});
+});

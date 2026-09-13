@@ -17,7 +17,7 @@ import { createStreamsClient } from "./streams/client.ts";
 import type { StreamsClient, StreamsTip } from "./streams/types.ts";
 import { Subgraphs } from "./subgraphs/client.ts";
 import type { SubgraphOperationStatus } from "./subgraphs/client.ts";
-import { Subscriptions } from "./subscriptions/client.ts";
+import { Webhooks } from "./webhooks/client.ts";
 
 export interface ContextAccount {
 	email: string;
@@ -64,6 +64,11 @@ export interface ContextSnapshot {
 	streamsTip: ContextField<StreamsTip>;
 	indexTip: ContextField<IndexTip>;
 	subgraphs: ContextField<SubgraphSummary[]>;
+	webhooks: ContextField<{
+		count: number;
+		byStatus: Record<string, number>;
+	}>;
+	/** @deprecated Use {@link ContextSnapshot.webhooks}. Removed next minor. */
 	subscriptions: ContextField<{
 		count: number;
 		byStatus: Record<string, number>;
@@ -112,9 +117,14 @@ export class SecondLayer extends BaseClient {
 	readonly index: Index;
 	readonly contracts: Contracts;
 	readonly subgraphs: Subgraphs;
-	readonly subscriptions: Subscriptions;
+	readonly webhooks: Webhooks;
 	readonly archive: SecondLayerArchive;
 	readonly instance: InstanceClient;
+
+	/** @deprecated Use `webhooks`. Removed next minor. */
+	get subscriptions(): Webhooks {
+		return this.webhooks;
+	}
 
 	constructor(options: Partial<SecondLayerOptions> = {}) {
 		super(options);
@@ -132,7 +142,7 @@ export class SecondLayer extends BaseClient {
 		this.index = new Index(options);
 		this.contracts = new Contracts(options);
 		this.subgraphs = new Subgraphs(options);
-		this.subscriptions = new Subscriptions(options);
+		this.webhooks = new Webhooks(options);
 		const request = <T>(method: string, path: string, body?: unknown) =>
 			this.request<T>(method, path, body);
 		this.archive = {
@@ -169,38 +179,32 @@ export class SecondLayer extends BaseClient {
 	 * on its field rather than rejecting the whole snapshot.
 	 */
 	async context(): Promise<ContextSnapshot> {
-		const [
-			account,
-			streamsTip,
-			indexEnv,
-			subgraphsRes,
-			subscriptionsRes,
-			instance,
-		] = await Promise.all([
-			contextField(this.request<ContextAccount>("GET", "/api/accounts/me")),
-			contextField(this.streams.tip()),
-			contextField(this.index.canonical.list({ limit: 1 })),
-			contextField(this.subgraphs.list()),
-			contextField(this.subscriptions.list()),
-			contextField(this.instance.diagnose()),
-		]);
+		const [account, streamsTip, indexEnv, subgraphsRes, webhooksRes, instance] =
+			await Promise.all([
+				contextField(this.request<ContextAccount>("GET", "/api/accounts/me")),
+				contextField(this.streams.tip()),
+				contextField(this.index.canonical.list({ limit: 1 })),
+				contextField(this.subgraphs.list()),
+				contextField(this.webhooks.list()),
+				contextField(this.instance.diagnose()),
+			]);
 
 		const subgraphs: ContextField<SubgraphSummary[]> = {
 			value: subgraphsRes.value?.data ?? null,
 			...(subgraphsRes.error ? { error: subgraphsRes.error } : {}),
 		};
 
-		const subscriptions: ContextSnapshot["subscriptions"] = {
+		const webhooks: ContextSnapshot["webhooks"] = {
 			value: null,
-			...(subscriptionsRes.error ? { error: subscriptionsRes.error } : {}),
+			...(webhooksRes.error ? { error: webhooksRes.error } : {}),
 		};
-		if (subscriptionsRes.value) {
+		if (webhooksRes.value) {
 			const byStatus: Record<string, number> = {};
-			for (const s of subscriptionsRes.value.data) {
+			for (const s of webhooksRes.value.data) {
 				byStatus[s.status] = (byStatus[s.status] ?? 0) + 1;
 			}
-			subscriptions.value = {
-				count: subscriptionsRes.value.data.length,
+			webhooks.value = {
+				count: webhooksRes.value.data.length,
 				byStatus,
 			};
 		}
@@ -248,7 +252,8 @@ export class SecondLayer extends BaseClient {
 				...(indexEnv.error ? { error: indexEnv.error } : {}),
 			},
 			subgraphs,
-			subscriptions,
+			webhooks,
+			subscriptions: webhooks,
 			activeOperations,
 			instance,
 		};

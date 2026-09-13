@@ -16,7 +16,7 @@ import type {
 	StreamsEventsConsumeParams,
 	StreamsEventsListParams,
 } from "./streams/types.ts";
-import type { ChainTrigger } from "./subscriptions/client.ts";
+import type { ChainTrigger } from "./webhooks/client.ts";
 
 export function _filterCompatChecks(): void {
 	const ft = on.ftTransfer({
