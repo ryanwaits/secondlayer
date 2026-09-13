@@ -1,0 +1,195 @@
+# Bitcoin SPV
+
+Prove a Bitcoin payment happened inside a Stacks contract, with no oracle.
+
+:::info[On-chain at Epoch 4.0, Bitcoin block 960,230]
+
+Proof construction, Clarity codecs, and byte handling work **today** against live Bitcoin. The on-chain calls hit the SIP-044 built-ins, which exist once **Clarity 6 / Stacks Epoch 4.0** activates on mainnet. Run the round-trip locally any time in **Clarinet ≥ 3.21 simnet**, no node.
+
+:::
+
+## The two halves
+
+- **On-chain (the node):** `get-bitcoin-tx-output?` parses one output of a serialized BTC tx; `verify-merkle-proof` proves it committed in a block.
+- **Off-chain (`@secondlayer/stacks/bitcoin`):** shape the data those built-ins demand (right merkle proof, internal byte order, witness stripped) and decode the results.
+
+Unlocks:
+
+| Use case | Why native SPV |
+| --- | --- |
+| BTC-settled escrow / OTC | Release on proof, no oracle |
+| BTC-L1 collateral | Prove the lock without bridging |
+| Atomic BTC ↔ sBTC/Runes swaps | Uncapped, unlike `clarity-bitcoin` |
+| Trust-minimized sBTC deposits | SIP-028 |
+| Proof-of-payment receipts | Verifiable on-chain |
+
+## Install
+
+```bash
+bun add @secondlayer/stacks
+```
+
+Subpath import; tree-shakes out if unused.
+
+```ts
+import { buildTxProof, verifyBitcoinPayment } from "@secondlayer/stacks/bitcoin";
+```
+
+## Verify a Bitcoin payment
+
+`verifyBitcoinPayment` composes the flow: build the proof, decode the funded output, run the on-chain check, assert your expectations.
+
+```ts
+import { createPublicClient, http } from "@secondlayer/stacks";
+import { mainnet } from "@secondlayer/stacks/chains";
+import {
+  buildTxProof,
+  bitcoinRpcSource,
+  esploraSource,
+  fallbackProofSource,
+  verifyBitcoinPayment,
+} from "@secondlayer/stacks/bitcoin";
+
+const client = createPublicClient({ chain: mainnet, transport: http() });
+
+// Trustless by default: your own node first, hosted fallback second.
+const source = fallbackProofSource([
+  bitcoinRpcSource({ url: "http://127.0.0.1:8332", auth: { username: "u", password: "p" } }),
+  esploraSource({ url: "https://blockstream.info/api" }),
+]);
+
+// "release only when a real BTC payment to <addr> for <amount> is proven on-chain"
+const result = await verifyBitcoinPayment(client, {
+  txid: "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+  source,
+  vout: 0,
+  expect: { address: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", amount: 5_000_000_000n },
+});
+// → { verified, mined, output, proof }
+```
+
+`verified` is `true` when the tx is `mined` **and** every `expect` field matches. Pass `proof` instead of `txid + source` if you already have one.
+
+:::note[`contract` is optional on mainnet]
+
+Omit it and the reference adapter resolves automatically. Pass it to use your own verifier, or on any network without a published adapter, where the call throws until you do.
+
+:::
+
+## Build a proof
+
+`buildTxProof` re-verifies every claim a source makes: txids hash correctly, the index points at the tx, the proof folds to the header's root. A hostile source fails loudly.
+
+```ts
+import { buildTxProof, esploraSource } from "@secondlayer/stacks/bitcoin";
+
+const source = esploraSource({ url: "https://blockstream.info/api" });
+const proof = await buildTxProof(source, {
+  txid: "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+  vout: 0,
+});
+// proof: { rawTx, txidInternal, vout, merkle: { siblings, txIndex, txCount }, header, height }
+```
+
+| Source | Use |
+| --- | --- |
+| `bitcoinRpcSource({ url, auth })` | Your own Bitcoin Core node (`-txindex`). Trustless, the default. |
+| `esploraSource({ url })` | Any Esplora REST endpoint: blockstream, mempool.space, self-hosted. Hosted fallback. |
+| `fallbackProofSource([primary, …])` | Chain them: try your node, fall back to hosted. |
+
+Also exported: `parseBitcoinTx`, `parseBlockHeader`, `stripWitness`, `doubleSha256`, `reverseBytes`, `buildMerkleProof`, `merkleRoot`.
+
+## Encode for Clarity
+
+Internal byte order, flat args, `tx-count` (not tree depth): the foot-gun this module absorbs.
+
+```ts
+import {
+  encodeMerkleProofArgs,
+  decodeTxOutput,
+  parseOutputScript,
+} from "@secondlayer/stacks/bitcoin";
+
+// `(leaf, root, tx-index, tx-count, (list 24 (buff 32)))` — never reversed, never a tuple.
+const args = encodeMerkleProofArgs({ leaf: proof.txidInternal, root, proof: proof.merkle });
+
+// Decode `get-bitcoin-tx-output?`'s `{ script, amount, txid }` tuple, then read the script.
+const out = decodeTxOutput(resultCV);          // { script, amount: bigint, txid }
+const spk = parseOutputScript(out.script);     // { type: "p2pkh" | "p2wpkh" | "p2tr" | …, address?, data? }
+```
+
+## The reference adapter
+
+Built-ins are callable only from *inside* a contract, never over RPC. The reference [`spv-adapter`](https://github.com/ryanwaits/secondlayer/blob/main/contracts/contracts/spv-adapter.clar) wraps them: read-only, no state, no custody, at `clarity_version = 6` / `epoch = "4.0"`. Copy it, or ship your own with the same shape.
+
+| Network | Adapter |
+| --- | --- |
+| Mainnet | `SP2M1DE95TS0QBM4K893X6ST49FFJ53CCX9CYWNVY.spv-adapter`, live at Epoch 4.0 |
+| Testnet | None: testnet has no Epoch 4.0, so the built-ins don't exist. Pass your own `contract`. |
+| Devnet | Deploy it yourself; set `epoch_4_0` in `settings/Devnet.toml`. |
+
+`SPV_ADAPTER_CONTRACTS` and `getSpvAdapter(network)` expose the principal to pin it yourself.
+
+| Function | Wraps |
+| --- | --- |
+| `get-tx-output` | `get-bitcoin-tx-output?`, parses one output |
+| `verify-merkle` | `verify-merkle-proof`, membership under a supplied root |
+| `header-merkle-root` | slice the merkle root out of an 80-byte header |
+| `was-tx-mined` | composed: authenticate the header against `get-burn-block-info?`, then prove inclusion, atomically |
+
+`was-tx-mined` returns:
+
+| Result | Meaning |
+| --- | --- |
+| `(ok true)` | header canonical **and** tx included (mined) |
+| `(ok false)` | header canonical, tx not included |
+| `(err u1)` | header isn't the canonical block at `height` |
+| `(err u2)` | malformed header length |
+
+```ts
+import { bitcoinVerifier } from "@secondlayer/stacks/bitcoin";
+
+const verifier = bitcoinVerifier(client, {
+  contract: "SP2M1DE95TS0QBM4K893X6ST49FFJ53CCX9CYWNVY.spv-adapter",
+});
+const mined = await verifier.wasTxMined(proof);
+```
+
+To gate value on a proof, call the same built-ins from a `define-public` in your own contract, which is consensus-enforced rather than a read-only query.
+
+## Run it in Clarinet simnet
+
+[Clarinet](https://github.com/hirosystems/clarinet) **≥ 3.21** boots simnet at Epoch 4.0, so the built-ins resolve locally. Register your verifier in `Clarinet.toml`:
+
+```toml
+[contracts.spv-adapter]
+path = "contracts/spv-adapter.clar"
+clarity_version = 6
+epoch = "4.0"
+```
+
+Drive it with [`getContract` + `simnet()`](/guide/transactions#test-against-clarinet-simnet).
+
+## Gate on activation
+
+SIP-044 rides the same Epoch 4.0 fork as `pox-5`: Bitcoin block **960,230** on mainnet, exported as `EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET`. `isClarity6Active` compares the node's burn height against it.
+
+```ts
+import { isClarity6Active } from "@secondlayer/stacks/bitcoin";
+
+// Mainnet client: the height is known, nothing to pass.
+const live = await isClarity6Active(client);
+
+// Any other network has no fixed height — supply one.
+const onDevnet = await isClarity6Active(devnetClient, { activationBurnHeight: 120 });
+```
+
+## What it proves
+
+:::note[SPV trust-minimizes verification, not custody]
+
+Both prove a Bitcoin fact to a contract; neither moves or guards funds. Out-of-range heights (before the chain launched, or newer than the node's last-processed burn block) also return `(err u1)`, so a very recent tx may need to wait. Flash blocks (Bitcoin blocks with no Stacks block) are *not* a gap: `get-burn-block-info? header-hash` is indexed by burn height.
+
+:::
+
+See also [Verification](https://secondlayer.tools/docs/verification) for inclusion proofs on the *Stacks* side, and the [SDK](https://secondlayer.tools/docs/sdk).

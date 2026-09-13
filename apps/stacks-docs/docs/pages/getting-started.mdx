@@ -1,0 +1,178 @@
+# Getting started
+
+Install `@secondlayer/stacks` and create a client against a Stacks network.
+
+```bash
+bun add @secondlayer/stacks
+```
+
+```ts
+import { createPublicClient, http } from "@secondlayer/stacks";
+import { mainnet } from "@secondlayer/stacks/chains";
+
+const client = createPublicClient({
+  chain: mainnet,
+  transport: http(),
+});
+
+const balance = await client.getBalance({
+  address: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+});
+```
+
+Clients and transports live at the package root (not separate export subpaths). The sections below are the module notes for each.
+
+## Clients
+
+Client factories and composable action decorators.
+
+## Public Client (Read-Only)
+
+```typescript
+import { createPublicClient, http, mainnet } from "@secondlayer/stacks";
+
+const client = createPublicClient({
+  chain: mainnet,
+  transport: http(),
+});
+
+const balance = await client.getBalance({ address: "SP2J6..." });
+const height = await client.getBlockHeight();
+```
+
+## Wallet Client
+
+```typescript
+import { createWalletClient, http, mainnet } from "@secondlayer/stacks";
+import { privateKeyToAccount } from "@secondlayer/stacks/accounts";
+
+const client = createWalletClient({
+  account: privateKeyToAccount("0x..."),
+  chain: mainnet,
+  transport: http(),
+});
+
+const { txid } = await client.sendTransaction({ transaction: signedTx });
+```
+
+## Multi-Sig Client
+
+```typescript
+import { createMultiSigClient, http, mainnet } from "@secondlayer/stacks";
+
+const client = createMultiSigClient({
+  publicKeys: [pk1, pk2, pk3],
+  signaturesRequired: 2,
+  chain: mainnet,
+  transport: http(),
+});
+```
+
+## Extending with Extensions
+
+```typescript
+import { bns } from "@secondlayer/stacks/bns";
+import { pox } from "@secondlayer/stacks/pox";
+
+const client = createPublicClient({
+  chain: mainnet,
+  transport: http(),
+}).extend(bns()).extend(pox());
+
+await client.bns.resolveName("alice.btc");
+await client.pox.getPoxInfo();
+```
+
+## Custom Decorators
+
+```typescript
+const myActions = (client) => ({
+  myCustomAction: () => client.readContract({ ... }),
+});
+
+const client = createPublicClient({ ... }).extend(myActions);
+```
+
+
+## Transports
+
+Transport layer for communicating with Stacks nodes.
+
+## HTTP (Default)
+
+```typescript
+import { http } from "@secondlayer/stacks";
+
+// Uses chain's default RPC URL
+const transport = http();
+
+// Custom URL
+const transport = http("https://my-node.example.com");
+
+// With options
+const transport = http("https://my-node.example.com", {
+  apiKey: "my-api-key",
+  timeout: 30_000,
+  retryCount: 3,
+  retryDelay: 1_000,
+});
+```
+
+Non-2xx responses throw a typed `HttpRequestError` (`.status` attached) instead of resolving with the error body — check `e.status` rather than reading `client.request(...)`'s return value for failure. Retries cover `5xx`, network errors, and `429`.
+
+## WebSocket
+
+```typescript
+import { webSocket } from "@secondlayer/stacks";
+
+const transport = webSocket();
+
+// Custom URL
+const transport = webSocket("wss://my-node.example.com");
+```
+
+## Fallback
+
+Tries transports in order, falls back on failure.
+
+```typescript
+import { fallback, http } from "@secondlayer/stacks";
+
+const transport = fallback([
+  http("https://primary-node.com"),
+  http("https://backup-node.com"),
+]);
+```
+
+## Simnet
+
+Separate entry. `@stacks/clarinet-sdk` is an optional peer of that entry only.
+
+```typescript
+import { initSimnet } from "@stacks/clarinet-sdk";
+import { createPublicClient } from "@secondlayer/stacks";
+import { simnet, simnetChain } from "@secondlayer/stacks/simnet";
+
+const session = await initSimnet("./Clarinet.toml");
+const client = createPublicClient({
+  chain: simnetChain,
+  transport: simnet(session),
+});
+```
+
+## Custom
+
+```typescript
+import { custom } from "@secondlayer/stacks";
+
+const transport = custom({
+  async request(path, options) {
+    const response = await fetch(`https://my-api.com${path}`, {
+      method: options?.method ?? "GET",
+      body: options?.body ? JSON.stringify(options.body) : undefined,
+    });
+    return response.json();
+  },
+});
+```
+

@@ -1,0 +1,14 @@
+# Wait for confirmation
+
+`waitForTransactionReceipt` polls until a transaction is mined (optionally N confirmations deep) and returns a normalized receipt with the decoded Clarity result. It rejects with typed errors when the tx aborts (`TransactionAbortedError`, receipt attached), drops from the mempool (`TransactionDroppedError`), or times out — and it re-reads block placement every cycle, so reorgs don't strand the wait.
+
+```ts
+const txid = await client.callContract({ contract, functionName: "mint" });
+const receipt = await client.waitForTransactionReceipt({ txid, confirmations: 2 });
+receipt.result; // decoded ClarityValue
+
+// or in one step:
+const { receipt } = await sendTransaction(client, { transaction, wait: 2 });
+```
+
+Status reads are pluggable, like nonce sources: the default reads `/extended/v1/tx` on your transport host; `indexTxSource()` reads `/v1/index/transactions` on your Secondlayer instance, which returns the chain tip in the same response, so N-confirmation waits cost one request per poll. The index only knows mined transactions, so with this source the dropped-grace window defaults to the full `timeout` instead of 30s. Without `baseUrl` the transport URL is assumed to be your instance: a Hiro transport throws up front, and a host that answers `/v1/index` with a non-JSON 404 (a bare stacks-node) throws on the first poll instead of waiting out the timeout. A `baseUrl` other than the transport host reuses the transport's retry and timeout policy only; the transport's `apiKey` and `fetchOptions` stay with the transport host. Rejection reasons are typed too: `BroadcastError.reason` is a literal union of all 26 stacks-node rejection strings (with `reasonData` and `txid` attached).

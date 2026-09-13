@@ -1,0 +1,25 @@
+# WalletConnect v2
+
+Native WC v2 implementation — X25519 ECDH, AES-256-GCM envelope encryption, Ed25519 JWT relay auth. Zero cost if you don't import it, tree-shakes completely.
+
+```ts
+import { connect, setProvider } from "@secondlayer/stacks/connect";
+import { WalletConnectProvider, showModal } from "@secondlayer/stacks/connect/walletconnect";
+
+const wc = new WalletConnectProvider({
+  projectId: "your-reown-project-id", // from cloud.reown.com
+  metadata: { name: "My App", description: "...", url: "https://myapp.com", icons: [] },
+});
+
+// Restore existing session or pair new one
+if (!wc.restore()) {
+  const { uri, approval } = await wc.pair();
+  showModal({ wcUri: uri, onClose: () => {} });
+  await approval;
+}
+
+setProvider(wc);
+const { addresses } = await connect();
+```
+
+The built-in modal shows browser extension wallets alongside the WC QR code — users pick whichever they prefer.
