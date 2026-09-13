@@ -175,7 +175,7 @@ describe.skipIf(!HAS_DB)("migration upgrade parity", () => {
 	);
 
 	test(
-		"0126 rename: webhooks tables exist and pre-rename tables do not",
+		"0126/0127 rename: webhooks tables and catalog names, no subscription leftovers",
 		async () => {
 			const fresh = await buildSchema("both");
 			expect(fresh["table webhooks"]).toBe("present");
@@ -190,6 +190,30 @@ describe.skipIf(!HAS_DB)("migration upgrade parity", () => {
 			expect(
 				fresh["column webhook_deliveries.subscription_id"],
 			).toBeUndefined();
+			expect(fresh["constraint webhooks.webhooks_pkey"]).toBeDefined();
+			expect(
+				fresh["constraint webhooks.webhooks_account_id_name_key"],
+			).toBeDefined();
+			expect(
+				fresh["constraint webhook_outbox.webhook_outbox_pkey"],
+			).toBeDefined();
+			expect(
+				fresh["constraint webhook_outbox.webhook_outbox_webhook_id_fkey"],
+			).toBeDefined();
+			expect(
+				fresh[
+					"constraint webhook_outbox.webhook_outbox_webhook_id_dedup_key_key"
+				],
+			).toBeDefined();
+			expect(
+				fresh["constraint webhook_deliveries.webhook_deliveries_pkey"],
+			).toBeDefined();
+			const leftover = Object.keys(fresh).filter(
+				(key) =>
+					(key.startsWith("constraint ") || key.startsWith("index ")) &&
+					key.includes("subscription"),
+			);
+			expect(leftover).toEqual([]);
 		},
 		BUILD_TIMEOUT_MS,
 	);
