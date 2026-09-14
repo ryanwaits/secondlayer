@@ -1,5 +1,17 @@
 # @secondlayer/shared
 
+## 11.5.0
+
+### Minor Changes
+
+- 3a4193d: The subscription plane is now the webhook plane: tables, types, service and image names renamed. Migration 0126 renames tables in place (no data copy). Migration 0127 renames the leftover auto-generated constraint names (`subscriptions_pkey` and kin). The compose service is `webhook-processor`; the Stripe receiver moved to `/api/billing/stripe`. Public CLI/SDK/MCP names follow in the next release.
+
+### Patch Changes
+
+- 5f5a61d: Webhooks is the product name for what was Subscriptions. `secondlayer webhooks`, `sl.webhooks`, `webhooks_*` MCP tools and `/api/webhooks` are canonical; the old names keep working for one release cycle and print a deprecation notice. Test-ping deliveries carry `webhook_id`; `subscription_id` is still sent this cycle.
+- Updated dependencies [d1fdf46]
+  - @secondlayer/stacks@5.1.3
+
 ## 11.4.3
 
 ### Patch Changes

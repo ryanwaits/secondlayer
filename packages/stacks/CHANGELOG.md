@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 5.1.3
+
+### Patch Changes
+
+- d1fdf46: Docs moved to stacks.secondlayer.tools.
+
 ## 5.1.2
 
 ### Patch Changes

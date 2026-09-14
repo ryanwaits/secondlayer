@@ -1,5 +1,20 @@
 # @secondlayer/sdk
 
+## 10.4.0
+
+### Minor Changes
+
+- 5f5a61d: Webhooks is the product name for what was Subscriptions. `secondlayer webhooks`, `sl.webhooks`, `webhooks_*` MCP tools and `/api/webhooks` are canonical; the old names keep working for one release cycle and print a deprecation notice. Test-ping deliveries carry `webhook_id`; `subscription_id` is still sent this cycle.
+
+### Patch Changes
+
+- Updated dependencies [d1fdf46]
+- Updated dependencies [3a4193d]
+- Updated dependencies [5f5a61d]
+  - @secondlayer/stacks@5.1.3
+  - @secondlayer/shared@11.5.0
+  - @secondlayer/subgraphs@4.3.0
+
 ## 10.3.1
 
 ### Patch Changes
