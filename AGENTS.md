@@ -39,7 +39,6 @@ secondlayer/
 ├── contracts/         ← reference Clarity contracts (Clarinet project; e.g. spv-adapter)
 ├── docker/            ← Dockerfiles, compose stacks, Caddy (dev + Hetzner prod)
 ├── scripts/           ← ops/dev/CI one-offs (seeds, backfills, dry-runs)
-├── tools/             ← non-workspace internal tooling (tools/ops/konsole)
 ├── bench/             ← throwaway benchmarking subgraphs
 └── release-hold/      ← changesets parked out of the next release on purpose (see its README)
 ```

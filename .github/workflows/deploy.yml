@@ -19,8 +19,6 @@ on:
       - "docker/docs/**"
       - "packages/*/README.md"
       - "packages/*/CHANGELOG.md"
-      - "tools/ops/*/README.md"
-      - "tools/ops/*/CHANGELOG.md"
       - "plans/**"
       - "skills/**"
       - "LICENSE"
