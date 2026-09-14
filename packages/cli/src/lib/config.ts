@@ -366,7 +366,7 @@ export function getDefaultConfig(): Config {
 export async function requireLocalNetwork(): Promise<Config> {
 	const config = await loadConfig();
 	if (config.network !== "local") {
-		console.error(`Error: 'secondlayer local' commands require local mode.`);
+		console.error("Error: this command requires local mode.");
 		console.error(`  Current context: ${config.network} (hosted)`);
 		console.error("");
 		console.error("  To check system status, use: secondlayer status");

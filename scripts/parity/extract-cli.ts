@@ -26,7 +26,6 @@ import {
 	registerDoctorCommand,
 	registerIndexCommand,
 	registerInitCommand,
-	registerLocalCommand,
 	registerLoginCommand,
 	registerLogoutCommand,
 	registerObserverCommand,
@@ -73,7 +72,6 @@ function buildProgram(): Command {
 	registerStreamsCommand(program);
 	registerIndexCommand(program);
 	registerCodegenCommand(program);
-	registerLocalCommand(program);
 	registerDevnetCommand(program);
 	registerStatusCommand(program);
 	registerDoctorCommand(program);
