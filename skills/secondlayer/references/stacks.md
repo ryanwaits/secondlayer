@@ -46,12 +46,12 @@ The mental model is viem: a `Client` carries `{ chain, transport, account? }` an
 | `@secondlayer/stacks/utils` | All encoding/hash/address/keys/signature utilities + constants. |
 | `@secondlayer/stacks/connect` | Browser wallet provider (`connect`, `getProvider`, `setProvider`, `isWalletInstalled`, `request`). |
 | `@secondlayer/stacks/connect/walletconnect` | `WalletConnectProvider` for WalletConnect v2. |
-| `@secondlayer/stacks/tools` | **Deprecated**, use `@secondlayer/mcp`. Vercel AI SDK tools (`createStacksTools` factory + bare exports); still imports until the next major, no new tools. Needs `ai` and `zod` installed (optional peers). |
-| `@secondlayer/stacks/tools/btc` | **Deprecated**, use `@secondlayer/mcp`. Bitcoin-flavored AI SDK tools; same peer requirement. |
 | `@secondlayer/stacks/bns` | BNS extension — see `stacks-extensions.md`. |
 | `@secondlayer/stacks/pox` | PoX-4 extension — see `stacks-extensions.md`. |
 | `@secondlayer/stacks/sbtc` | sBTC extension — see `stacks-extensions.md`. |
 | `@secondlayer/stacks/stackingdao` | StackingDAO extension — see `stacks-extensions.md`. |
+
+Agent Stacks reads go through `@secondlayer/mcp`.
 
 ## 3. Clients
 
@@ -1028,45 +1028,7 @@ Note: `getContract` read methods throw `ContractResponseError` (exported from `@
 
 Wallet errors (`@secondlayer/stacks/connect`): `ConnectError` (`code = "CONNECT_ERROR"`) and `JsonRpcError` (`code = "JSON_RPC_ERROR"`). `JsonRpcError.rpcCode` is the wallet's numeric JSON-RPC code (e.g. `4001` user rejected); `code` on every SDK error is always the string identifier.
 
-## 17. AI tools: `@secondlayer/stacks/tools` (deprecated)
-
-**Deprecated.** New agent integrations use `@secondlayer/mcp`; this entry still imports until the next major but gets no new tools. `ai` and `zod` are optional peers, so a project that imports `/tools` or `/tools/btc` installs both itself.
-
-Vercel AI SDK (`ai@^6`) compatible read tools. Two usage modes.
-
-**Bare exports**: the factory bound to a default public client. Network: `STACKS_NETWORK`, then `STACKS_CHAIN` (`testnet` selects testnet, anything else mainnet). RPC host: `STACKS_NODE_RPC_URL`, then `SL_API_URL`, then `STACKS_RPC_URL`; unset means the chain's default host.
-
-```ts
-import { generateText } from "ai";
-import { getStxBalance, bnsReverse, getBlockHeight } from "@secondlayer/stacks/tools";
-
-await generateText({
-  model,
-  tools: { getStxBalance, bnsReverse, getBlockHeight },
-  prompt: "What's the balance of SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7?",
-});
-```
-
-**Factory** — bind to an explicit client (testnet, custom RPC):
-
-```ts
-import { createPublicClient, http, testnet } from "@secondlayer/stacks";
-import { createStacksTools } from "@secondlayer/stacks/tools";
-
-const stacks = createStacksTools(
-  createPublicClient({ chain: testnet, transport: http() }),
-);
-
-await generateText({ model, tools: stacks, prompt: "..." });
-```
-
-Available tools (factory + bare): `getStxBalance`, `getAccountInfo`, `getBlock`, `getBlockHeight`, `readContract`, `estimateFee`, `bnsResolve`, `bnsReverse`, `getTransaction`, `getAccountHistory`, `getMempoolStats`, `getNftHoldings`.
-
-Tool outputs are JSON-safe: Clarity results go through `cvToJSON` (uint/int as decimal strings). Principal, contract id, function name, txid and block hash inputs are validated by the schema before any request. `estimateFee` returns `{ low, medium, high, source: "node" | "min", tiers }`; `tiers` is how many estimates the node returned, and missing tiers repeat the nearest lower one.
-
-A Bitcoin-flavored set lives at `@secondlayer/stacks/tools/btc` (also deprecated).
-
-## 18. Connect (browser wallet)
+## 17. Connect (browser wallet)
 
 `@secondlayer/stacks/connect` wraps the `window.StacksProvider` (Leather, Xverse, Hiro Wallet) using the SIP-030 RPC API.
 
@@ -1123,7 +1085,7 @@ setProvider(wc);              // now connect/getProvider use WalletConnect
 
 Exports: `WalletConnectProvider`, `WcSession`, `WcRelay`, `qrSvg`, `showModal`, `hideModal`, types `WcProviderConfig`, `WcMetadata`, `WcPairResult`, `WcSessionSettled`, `WcSessionData`.
 
-## 19. Extensions
+## 18. Extensions
 
 Domain logic ships as composable extensions, documented separately in **`stacks-extensions.md`**:
 
