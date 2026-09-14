@@ -79,55 +79,8 @@ multi-broadcast gap, which is why it lives here rather than being deferred to
 | `@secondlayer/stacks/pox` | PoX stacking — solo and delegated |
 | `@secondlayer/stacks/stackingdao` | StackingDAO liquid staking (STX/stSTX) |
 
-### Deprecated: `/tools` and `/tools/btc`
 
-Give your agent Stacks reads through [`@secondlayer/mcp`](https://www.npmjs.com/package/@secondlayer/mcp) instead. The two AI SDK tool entries below still import, and stay until the next major, but they get no new tools. The tradeoff of keeping them: `ai` and `zod` are now optional peer dependencies, so a project that imports either entry installs both itself; a project that only reads contracts installs neither.
-
-| Module | Description |
-|---|---|
-| `@secondlayer/stacks/tools` | **Deprecated.** AI SDK `tool()` set for Stacks reads. Bare exports read `STACKS_NETWORK` (or `STACKS_CHAIN`) and `STACKS_NODE_RPC_URL`, `SL_API_URL` or `STACKS_RPC_URL`; `createStacksTools(client)` binds your own client |
-| `@secondlayer/stacks/tools/btc` | **Deprecated.** AI SDK `tool()` set for Bitcoin reads via mempool.space (`BTC_MEMPOOL_URL` overrides the host) |
-
-
-## Frozen modules
-
-These ship and work but get no further investment — they may be removed in a
-future major. Prefer Hiro's maintained `@stacks/*` ecosystem for wallet-side
-work; Secondlayer is a data-infrastructure company, not a wallet SDK vendor.
-
-Nonce coordination (below) is the exception — it is supported and maintained:
-it's mempool-aware (built on Secondlayer's data plane) and solves a real
-multi-broadcast gap, which is why it lives here rather than being deferred to
-`@stacks/*`.
-
-| Module | Description |
-|---|---|
-| `@secondlayer/stacks/connect` | Wallet connection — browser extensions + `setProvider` |
-| `@secondlayer/stacks/connect/walletconnect` | WalletConnect v2 — native relay, QR, modal |
-| `@secondlayer/stacks/subscriptions` | WebSocket watch helpers (`watchBlocks`, `watchMempool`, `watchTransaction`) — not a Webhooks product alias |
-| `@secondlayer/stacks/bns` | BNS name registration, resolution, zonefiles |
-| `@secondlayer/stacks/pox` | PoX stacking — solo and delegated |
-| `@secondlayer/stacks/stackingdao` | StackingDAO liquid staking (STX/stSTX) |
-
-### Deprecated: `/tools` and `/tools/btc`
-
-Give your agent Stacks reads through [`@secondlayer/mcp`](https://www.npmjs.com/package/@secondlayer/mcp) instead. The two AI SDK tool entries below still import, and stay until the next major, but they get no new tools. The tradeoff of keeping them: `ai` and `zod` are now optional peer dependencies, so a project that imports either entry installs both itself; a project that only reads contracts installs neither.
-
-| Module | Description |
-|---|---|
-| `@secondlayer/stacks/tools` | **Deprecated.** AI SDK `tool()` set for Stacks reads. Bare exports read `STACKS_NETWORK` (or `STACKS_CHAIN`) and `STACKS_NODE_RPC_URL`, `SL_API_URL` or `STACKS_RPC_URL`; `createStacksTools(client)` binds your own client |
-| `@secondlayer/stacks/tools/btc` | **Deprecated.** AI SDK `tool()` set for Bitcoin reads via mempool.space (`BTC_MEMPOOL_URL` overrides the host) |
-
-
-## Deprecated: `/tools` and `/tools/btc`
-
-Give your agent Stacks reads through [`@secondlayer/mcp`](https://www.npmjs.com/package/@secondlayer/mcp) instead. The two AI SDK tool entries below still import, and stay until the next major, but they get no new tools. The tradeoff of keeping them: `ai` and `zod` are now optional peer dependencies, so a project that imports either entry installs both itself; a project that only reads contracts installs neither.
-
-| Module | Description |
-|---|---|
-| `@secondlayer/stacks/tools` | **Deprecated.** AI SDK `tool()` set for Stacks reads. Bare exports read `STACKS_NETWORK` (or `STACKS_CHAIN`) and `STACKS_NODE_RPC_URL`, `SL_API_URL` or `STACKS_RPC_URL`; `createStacksTools(client)` binds your own client |
-| `@secondlayer/stacks/tools/btc` | **Deprecated.** AI SDK `tool()` set for Bitcoin reads via mempool.space (`BTC_MEMPOOL_URL` overrides the host) |
-
+Agent Stacks reads go through [`@secondlayer/mcp`](https://www.npmjs.com/package/@secondlayer/mcp).
 
 ## Guides
 
@@ -161,7 +114,7 @@ Polyfills needed                      none       Buffer, crypto
 Packages to install                      1                  5+
 ```
 
-8 runtime deps, all `@noble`/`@scure`: `@noble/hashes`, `@noble/secp256k1`, `@noble/curves`, `@noble/ciphers`, `@scure/base`, `@scure/bip32`, `@scure/bip39`, `@scure/btc-signer`. `ai` and `zod` are optional peers, pulled in only by the deprecated `/tools` entries.
+8 runtime deps, all `@noble`/`@scure`: `@noble/hashes`, `@noble/secp256k1`, `@noble/curves`, `@noble/ciphers`, `@scure/base`, `@scure/bip32`, `@scure/bip39`, `@scure/btc-signer`.
 
 Connect and WalletConnect are separate entry points — import only what you use. An app that just reads contracts pays 23.8 KB. Full wallet connection + WC v2 pays 46.1 KB. The equivalent stacks.js setup is 536 KB regardless.
 

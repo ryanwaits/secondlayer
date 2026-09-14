@@ -2,12 +2,12 @@ import { type DefineConfigItem, defineConfig } from "bunup";
 
 // Every entry sets `clean: false` and the build script wipes `dist/` once up
 // front. bunup runs these builds in PARALLEL and the outDirs are nested — the
-// root build owns `dist/`, which physically contains `dist/src/connect` and
-// `dist/src/tools`, which in turn contain `.../walletconnect` and `.../btc`.
-// With per-build cleaning, a parent can wipe a child's directory mid-write:
-// CI failed with `ENOENT: mkdir dist/src/connect/walletconnect` doing exactly
-// that. Cleaning once, before anything writes, removes the race by
-// construction rather than by winning it.
+// root build owns `dist/`, which physically contains `dist/src/connect`, which
+// in turn contains `.../walletconnect`. With per-build cleaning, a parent can
+// wipe a child's directory mid-write: CI failed with
+// `ENOENT: mkdir dist/src/connect/walletconnect` doing exactly that. Cleaning
+// once, before anything writes, removes the race by construction rather than
+// by winning it.
 const config: DefineConfigItem[] = defineConfig([
 	{
 		name: "stacks",
@@ -59,32 +59,6 @@ const config: DefineConfigItem[] = defineConfig([
 		splitting: false,
 		sourcemap: "linked",
 		minify: false,
-	},
-	// `ai` and `zod` are optional peers: the two tools entries are the only
-	// importers, and they stay external so the root entry never pulls them.
-	{
-		name: "tools",
-		clean: false,
-		entry: ["src/tools/index.ts"],
-		outDir: "dist/src/tools",
-		format: ["esm", "cjs"],
-		dts: true,
-		splitting: false,
-		sourcemap: "linked",
-		minify: false,
-		external: ["ai", "zod"],
-	},
-	{
-		name: "tools-btc",
-		clean: false,
-		entry: ["src/tools/btc/index.ts"],
-		outDir: "dist/src/tools/btc",
-		format: ["esm", "cjs"],
-		dts: true,
-		splitting: false,
-		sourcemap: "linked",
-		minify: false,
-		external: ["ai", "zod"],
 	},
 	{
 		name: "simnet",

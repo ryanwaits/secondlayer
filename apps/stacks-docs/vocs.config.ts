@@ -57,8 +57,6 @@ export default defineConfig({
 				{ text: "simnet", link: "/reference/simnet" },
 				{ text: "stackingdao", link: "/reference/stackingdao" },
 				{ text: "subscriptions", link: "/reference/subscriptions" },
-				{ text: "tools", link: "/reference/tools" },
-				{ text: "tools/btc", link: "/reference/tools-btc" },
 				{ text: "transactions", link: "/reference/transactions" },
 				{ text: "utils", link: "/reference/utils" },
 			],

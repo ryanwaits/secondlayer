@@ -64,14 +64,7 @@ multi-broadcast gap, which is why it lives here rather than being deferred to
 | `@secondlayer/stacks/pox` | PoX stacking — solo and delegated |
 | `@secondlayer/stacks/stackingdao` | StackingDAO liquid staking (STX/stSTX) |
 
-### Deprecated: `/tools` and `/tools/btc`
-
-Give your agent Stacks reads through [`@secondlayer/mcp`](https://www.npmjs.com/package/@secondlayer/mcp) instead. The two AI SDK tool entries below still import, and stay until the next major, but they get no new tools. The tradeoff of keeping them: `ai` and `zod` are now optional peer dependencies, so a project that imports either entry installs both itself; a project that only reads contracts installs neither.
-
-| Module | Description |
-|---|---|
-| `@secondlayer/stacks/tools` | **Deprecated.** AI SDK `tool()` set for Stacks reads. Bare exports read `STACKS_NETWORK` (or `STACKS_CHAIN`) and `STACKS_NODE_RPC_URL`, `SL_API_URL` or `STACKS_RPC_URL`; `createStacksTools(client)` binds your own client |
-| `@secondlayer/stacks/tools/btc` | **Deprecated.** AI SDK `tool()` set for Bitcoin reads via mempool.space (`BTC_MEMPOOL_URL` overrides the host) |
+Agent Stacks reads go through [`@secondlayer/mcp`](https://www.npmjs.com/package/@secondlayer/mcp).
 
 ## Guides
 

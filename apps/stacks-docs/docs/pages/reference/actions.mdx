@@ -12,7 +12,7 @@ const nonce = await getNonce(client, { address: "SP2J6..." });
 const height = await getBlockHeight(client);
 ```
 
-`getAccountHistory`, `getMempoolStats`, and `getNftHoldings` cover paginated tx history, mempool stats, and NFT holdings — same actions the AI-tools layer (`@secondlayer/stacks/tools`) is built on, promoted here as first-class, standalone-importable actions.
+`getAccountHistory`, `getMempoolStats`, and `getNftHoldings` cover paginated tx history, mempool stats, and NFT holdings as first-class, standalone-importable actions.
 
 ## Node-Only Reads
 

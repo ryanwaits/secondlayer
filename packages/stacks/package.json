@@ -99,16 +99,6 @@
 			"import": "./dist/src/connect/walletconnect/index.js",
 			"require": "./dist/src/connect/walletconnect/index.cjs"
 		},
-		"./tools": {
-			"types": "./dist/src/tools/index.d.ts",
-			"import": "./dist/src/tools/index.js",
-			"require": "./dist/src/tools/index.cjs"
-		},
-		"./tools/btc": {
-			"types": "./dist/src/tools/btc/index.d.ts",
-			"import": "./dist/src/tools/btc/index.js",
-			"require": "./dist/src/tools/btc/index.cjs"
-		},
 		"./filters": {
 			"types": "./dist/src/filters/index.d.ts",
 			"import": "./dist/src/filters/index.js",
@@ -133,28 +123,18 @@
 	"devDependencies": {
 		"@stacks/clarinet-sdk": "3.21.1",
 		"@stacks/transactions": "7.0.6",
-		"@types/bun": "latest",
-		"ai": "6.0.167",
-		"zod": "^4.3.6"
+		"@types/bun": "latest"
 	},
 	"peerDependencies": {
 		"@stacks/clarinet-sdk": "^3",
 		"@stacks/transactions": "^7",
-		"ai": "^6",
-		"typescript": "^5",
-		"zod": "^4"
+		"typescript": "^5"
 	},
 	"peerDependenciesMeta": {
 		"@stacks/clarinet-sdk": {
 			"optional": true
 		},
 		"@stacks/transactions": {
-			"optional": true
-		},
-		"ai": {
-			"optional": true
-		},
-		"zod": {
 			"optional": true
 		}
 	},
