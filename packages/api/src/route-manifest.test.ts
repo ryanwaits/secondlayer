@@ -377,7 +377,7 @@ describe("route manifest", () => {
 		expect(spec.paths["/v1/subgraphs"]).toBeDefined();
 	});
 
-	test("OSS OpenAPI mirrors every /api/webhooks path under /api/subscriptions", () => {
+	test("OSS OpenAPI has zero /api/subscriptions paths", () => {
 		const spec = openapiSpec("oss");
 		const webhooks = Object.keys(spec.paths).filter((p) =>
 			p.startsWith("/api/webhooks"),
@@ -386,14 +386,16 @@ describe("route manifest", () => {
 			p.startsWith("/api/subscriptions"),
 		);
 		expect(webhooks.length).toBe(10);
-		expect(subscriptions.length).toBe(webhooks.length);
-		for (const path of webhooks) {
-			const alias = path.replace("/api/webhooks", "/api/subscriptions");
-			expect(spec.paths[alias], alias).toBeDefined();
-		}
+		expect(subscriptions).toEqual([]);
 		const platform = openapiSpec("platform");
-		expect(platform.paths["/api/subscriptions"]).toBeUndefined();
-		expect(platform.paths["/api/webhooks"]).toBeUndefined();
+		expect(
+			Object.keys(platform.paths).filter((p) =>
+				p.startsWith("/api/subscriptions"),
+			),
+		).toEqual([]);
+		expect(
+			Object.keys(platform.paths).filter((p) => p.startsWith("/api/webhooks")),
+		).toEqual([]);
 	});
 
 	/**

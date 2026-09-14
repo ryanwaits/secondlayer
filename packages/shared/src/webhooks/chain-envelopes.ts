@@ -263,8 +263,6 @@ export interface ChainTestDelivery {
 		test: true;
 		message: string;
 		webhook_id: string;
-		/** @deprecated Use webhook_id. Removed next minor. */
-		subscription_id?: string;
 		sent_at: string;
 	};
 }

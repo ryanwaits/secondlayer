@@ -76,27 +76,7 @@ describe("webhook MCP tools", () => {
 			"webhooks_dead",
 			"webhooks_requeue",
 			"webhooks_replay",
-			"subscriptions_list",
-			"subscriptions_get",
-			"subscriptions_create",
-			"subscriptions_update",
-			"subscriptions_delete",
-			"subscriptions_test",
-			"subscriptions_pause",
-			"subscriptions_resume",
-			"subscriptions_rotate_secret",
-			"subscriptions_deliveries",
-			"subscriptions_dead",
-			"subscriptions_requeue",
-			"subscriptions_replay",
 		]);
-		for (const tool of tools.filter((t) =>
-			t.name.startsWith("subscriptions_"),
-		)) {
-			expect(tool.description.startsWith("Deprecated alias of webhooks_")).toBe(
-				true,
-			);
-		}
 
 		const byName = Object.fromEntries(
 			tools.map((tool) => [tool.name, tool.handler]),

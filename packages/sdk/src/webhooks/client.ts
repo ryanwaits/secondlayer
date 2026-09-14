@@ -7,10 +7,6 @@ import type {
 	RotateSecretResponse,
 	UpdateWebhookRequest,
 	WebhookDetail,
-	WebhookFormat,
-	WebhookKind,
-	WebhookRuntime,
-	WebhookStatus,
 	WebhookSummary,
 	WebhookTestResult,
 } from "@secondlayer/shared/schemas/webhooks";
@@ -34,27 +30,6 @@ export type {
 	WebhookTestResult,
 	UpdateWebhookRequest,
 } from "@secondlayer/shared/schemas/webhooks";
-
-/** @deprecated Use webhook type. Removed next minor. */
-export type CreateSubscriptionRequest = CreateWebhookRequest; // deprecated alias
-/** @deprecated Use webhook type. Removed next minor. */
-export type CreateSubscriptionResponse = CreateWebhookResponse; // deprecated alias
-/** @deprecated Use webhook type. Removed next minor. */
-export type UpdateSubscriptionRequest = UpdateWebhookRequest; // deprecated alias
-/** @deprecated Use webhook type. Removed next minor. */
-export type SubscriptionDetail = WebhookDetail; // deprecated alias
-/** @deprecated Use webhook type. Removed next minor. */
-export type SubscriptionSummary = WebhookSummary; // deprecated alias
-/** @deprecated Use webhook type. Removed next minor. */
-export type SubscriptionTestResult = WebhookTestResult; // deprecated alias
-/** @deprecated Use webhook type. Removed next minor. */
-export type SubscriptionFormat = WebhookFormat; // deprecated alias
-/** @deprecated Use webhook type. Removed next minor. */
-export type SubscriptionKind = WebhookKind; // deprecated alias
-/** @deprecated Use webhook type. Removed next minor. */
-export type SubscriptionRuntime = WebhookRuntime; // deprecated alias
-/** @deprecated Use webhook type. Removed next minor. */
-export type SubscriptionStatus = WebhookStatus; // deprecated alias
 
 // `trigger.*` chain-trigger builders for chain webhooks
 // (`create({ triggers: [trigger.contractCall({ ... })] })`).
@@ -154,8 +129,3 @@ export class Webhooks extends BaseClient {
 		);
 	}
 }
-
-/** @deprecated Use {@link Webhooks}. Removed in the next minor. */
-export const Subscriptions: typeof Webhooks = Webhooks; // deprecated alias
-/** @deprecated Use {@link Webhooks}. Removed in the next minor. */
-export type Subscriptions = Webhooks; // deprecated alias

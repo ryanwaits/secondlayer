@@ -33,12 +33,13 @@ describe("webhooks command aliases", () => {
 		expect(stdout + stderr).toMatch(/List webhooks/);
 	});
 
-	it("subscriptions list still parses and prints a deprecation notice", async () => {
-		const { stderr } = await runCli(["subscriptions", "list"]);
-		expect(stderr).toMatch(/deprecated; use secondlayer webhooks/);
+	it("subscriptions list is unknown", async () => {
+		const { exitCode, stderr } = await runCli(["subscriptions", "list"]);
+		expect(exitCode).not.toBe(0);
+		expect(stderr).not.toMatch(/deprecated; use secondlayer webhooks/);
 	});
 
-	it("root --help does not list subscriptions", async () => {
+	it("root --help lists webhooks, not subscriptions", async () => {
 		const { exitCode, stdout, stderr } = await runCli(["--help"]);
 		expect(exitCode).toBe(0);
 		const text = stdout + stderr;

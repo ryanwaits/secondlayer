@@ -263,7 +263,6 @@ describe("decodeChainWebhook", () => {
 				test: true,
 				message: "Secondlayer test delivery",
 				webhook_id: "sub-00000000-0000-0000-0000-000000000001",
-				subscription_id: "sub-00000000-0000-0000-0000-000000000001",
 				sent_at: "2026-05-01T12:00:00.000Z",
 			},
 		});

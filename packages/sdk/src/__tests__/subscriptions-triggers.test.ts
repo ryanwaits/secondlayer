@@ -27,8 +27,8 @@ describe("trigger.* chain-trigger builders", () => {
 	});
 });
 
-describe("Subscriptions.create with triggers", () => {
-	test("POSTs a chain subscription body with triggers and no subgraph target", async () => {
+describe("Webhooks.create with triggers", () => {
+	test("POSTs a chain webhook body with triggers and no subgraph target", async () => {
 		const bodies: unknown[] = [];
 		globalThis.fetch = (async (input, init) => {
 			const request =
@@ -36,7 +36,7 @@ describe("Subscriptions.create with triggers", () => {
 			bodies.push(await request.clone().json());
 			return new Response(
 				JSON.stringify({
-					subscription: { id: "sub_1" },
+					webhook: { id: "sub_1" },
 					signingSecret: "whsec_x",
 				}),
 				{ status: 201, headers: { "Content-Type": "application/json" } },
@@ -44,7 +44,7 @@ describe("Subscriptions.create with triggers", () => {
 		}) as typeof fetch;
 
 		const sl = new SecondLayer({ apiKey: "sk-test" });
-		const res = await sl.subscriptions.create({
+		const res = await sl.webhooks.create({
 			name: "amm-swaps",
 			url: "https://my.app/webhook",
 			triggers: [trigger.contractCall({ contractId: "SP1.amm" })],

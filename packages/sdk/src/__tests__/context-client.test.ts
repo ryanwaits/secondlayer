@@ -78,7 +78,6 @@ describe("SecondLayer.context()", () => {
 		expect(snap.webhooks).toEqual({
 			value: { count: 3, byStatus: { active: 2, paused: 1 } },
 		});
-		expect(snap.subscriptions).toBe(snap.webhooks);
 		// Only the reindexing subgraph is probed for an in-flight operation.
 		expect(snap.activeOperations.value).toEqual([
 			{

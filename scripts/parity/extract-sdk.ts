@@ -21,7 +21,7 @@ import { SecondLayer } from "../../packages/sdk/src/client.ts";
 import * as sdkErrors from "../../packages/sdk/src/errors.ts";
 import { consumeIndexFeed } from "../../packages/sdk/src/index-api/index.ts";
 import { getSubgraph } from "../../packages/sdk/src/subgraphs/index.ts";
-import { trigger } from "../../packages/sdk/src/subscriptions/client.ts";
+import { trigger } from "../../packages/sdk/src/webhooks/client.ts";
 
 interface SurfaceItem {
 	id: string;
@@ -37,7 +37,7 @@ const GENERATED_FROM = [
 	"packages/sdk/src/streams/client.ts",
 	"packages/sdk/src/contracts/client.ts",
 	"packages/sdk/src/subgraphs/client.ts",
-	"packages/sdk/src/subscriptions/client.ts",
+	"packages/sdk/src/webhooks/client.ts",
 	"packages/sdk/package.json",
 ];
 
@@ -48,7 +48,7 @@ const CLASS_SOURCES = [
 	"index-api/client.ts",
 	"contracts/client.ts",
 	"subgraphs/client.ts",
-	"subscriptions/client.ts",
+	"webhooks/client.ts",
 ];
 
 /** Prototypes that are plumbing, not capability surface. */
@@ -166,13 +166,13 @@ function extract(nonPublic: Set<string>): SurfaceItem[] {
 		}
 	}
 
-	// Namespaces: streams, index, contracts, subgraphs, subscriptions.
+	// Namespaces: streams, index, contracts, subgraphs, webhooks.
 	const namespaces = [
 		"streams",
 		"index",
 		"contracts",
 		"subgraphs",
-		"subscriptions",
+		"webhooks",
 	] as const;
 	for (const namespace of namespaces) {
 		walk(client[namespace], namespace, namespace, push, seen, nonPublic);
@@ -189,12 +189,12 @@ function extract(nonPublic: Set<string>): SurfaceItem[] {
 	// Standalone helper exports.
 	push({ id: "consumeIndexFeed", group: "index", kind: "export" });
 	push({ id: "getSubgraph", group: "subgraphs", kind: "export" });
-	push({ id: "trigger", group: "subscriptions", kind: "export" });
+	push({ id: "trigger", group: "webhooks", kind: "export" });
 	for (const [key, value] of Object.entries(trigger).sort(([a], [b]) =>
 		a.localeCompare(b),
 	)) {
 		if (typeof value === "function" && isPublicName(key)) {
-			push({ id: `trigger.${key}`, group: "subscriptions", kind: "export" });
+			push({ id: `trigger.${key}`, group: "webhooks", kind: "export" });
 		}
 	}
 

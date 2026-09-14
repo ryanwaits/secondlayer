@@ -115,10 +115,6 @@ describe("secondlayer://context", () => {
 			count: 2,
 			byStatus: { active: 1, paused: 1 },
 		});
-		expect(ctx.whatExists.subscriptions).toEqual({
-			count: 2,
-			byStatus: { active: 1, paused: 1 },
-		});
 		expect(ctx.whatExists.account).toEqual({ email: "a@b.com" });
 		expect(ctx.whatExists.streamsTip).toEqual({
 			block_height: 100,
@@ -152,15 +148,6 @@ describe("secondlayer://context", () => {
 						retryable: false,
 					},
 				},
-				subscriptions: {
-					value: null,
-					error: {
-						message: "API key invalid or expired.",
-						code: "UNAUTHORIZED",
-						status: 401,
-						retryable: false,
-					},
-				},
 				activeOperations: { value: null },
 			}),
 		} as unknown as Client;
@@ -170,9 +157,6 @@ describe("secondlayer://context", () => {
 		expect(ctx.whatExists.subgraphs).toEqual([]);
 		// A field that failed says why; one that read nothing keeps the hint.
 		expect(ctx.whatExists.webhooks).toBe(
-			"unavailable: API key invalid or expired.",
-		);
-		expect(ctx.whatExists.subscriptions).toBe(
 			"unavailable: API key invalid or expired.",
 		);
 		expect(ctx.whatExists.account).toBe("unavailable: set INSTANCE_TOKEN");
@@ -352,20 +336,7 @@ const GOLDEN_PATH_TOOLS = [
 	"subgraphs_spec",
 	"subgraphs_stop",
 	"subgraphs_test",
-	// webhooks (+ deprecated subscriptions_* aliases)
-	"subscriptions_create",
-	"subscriptions_dead",
-	"subscriptions_deliveries",
-	"subscriptions_delete",
-	"subscriptions_get",
-	"subscriptions_list",
-	"subscriptions_pause",
-	"subscriptions_replay",
-	"subscriptions_requeue",
-	"subscriptions_resume",
-	"subscriptions_rotate_secret",
-	"subscriptions_test",
-	"subscriptions_update",
+	// webhooks
 	"webhooks_create",
 	"webhooks_dead",
 	"webhooks_deliveries",

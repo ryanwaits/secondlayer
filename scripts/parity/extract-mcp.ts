@@ -22,7 +22,7 @@ import { registerIndexTools } from "../../packages/mcp/src/tools/index.ts";
 import { registerScaffoldTools } from "../../packages/mcp/src/tools/scaffold.ts";
 import { registerStreamsTools } from "../../packages/mcp/src/tools/streams.ts";
 import { registerSubgraphTools } from "../../packages/mcp/src/tools/subgraphs.ts";
-import { registerSubscriptionTools } from "../../packages/mcp/src/tools/subscriptions.ts";
+import { registerWebhookTools } from "../../packages/mcp/src/tools/webhooks.ts";
 
 interface ParityItem {
 	id: string;
@@ -73,7 +73,7 @@ const GROUPS: Array<[group: string, register: (server: McpServer) => void]> = [
 	["account", registerAccountTools],
 	["scaffold", registerScaffoldTools],
 	["subgraphs", registerSubgraphTools],
-	["subscriptions", registerSubscriptionTools],
+	["webhooks", registerWebhookTools],
 	["index", registerIndexTools],
 	["streams", registerStreamsTools],
 	["contracts", registerContractTools],
@@ -132,7 +132,7 @@ const surface: ParitySurface = {
 		"packages/mcp/src/server.ts",
 		"packages/mcp/src/tools/scaffold.ts",
 		"packages/mcp/src/tools/subgraphs.ts",
-		"packages/mcp/src/tools/subscriptions.ts",
+		"packages/mcp/src/tools/webhooks.ts",
 		"packages/mcp/src/tools/index.ts",
 		"packages/mcp/src/tools/streams.ts",
 		"packages/mcp/src/tools/contracts.ts",

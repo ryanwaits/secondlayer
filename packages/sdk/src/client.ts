@@ -68,12 +68,6 @@ export interface ContextSnapshot {
 		count: number;
 		byStatus: Record<string, number>;
 	}>;
-	/** @deprecated Use {@link ContextSnapshot.webhooks}. Removed next minor. */
-	subscriptions: ContextField<{
-		// deprecated alias
-		count: number;
-		byStatus: Record<string, number>;
-	}>;
 	/** In-flight reindex operations (bounded to subgraphs reporting `reindexing`). */
 	activeOperations: ContextField<ActiveSubgraphOperation[]>;
 	/** Decoder lag / empty-index from `GET /public/status`. */
@@ -121,12 +115,6 @@ export class SecondLayer extends BaseClient {
 	readonly webhooks: Webhooks;
 	readonly archive: SecondLayerArchive;
 	readonly instance: InstanceClient;
-
-	/** @deprecated Use `webhooks`. Removed next minor. */
-	get subscriptions(): Webhooks {
-		// deprecated alias
-		return this.webhooks;
-	}
 
 	constructor(options: Partial<SecondLayerOptions> = {}) {
 		super(options);
@@ -255,7 +243,6 @@ export class SecondLayer extends BaseClient {
 			},
 			subgraphs,
 			webhooks,
-			subscriptions: webhooks, // deprecated alias
 			activeOperations,
 			instance,
 		};

@@ -51,7 +51,7 @@ describe("deliverTestEvent", () => {
 		expect(row?.outbox_id).toBeNull();
 	});
 
-	it("test-ping payload dual-emits webhook_id and subscription_id", async () => {
+	it("test-ping payload has webhook_id only", async () => {
 		let captured: string | null = null;
 		const server = Bun.serve({
 			port: 0,
@@ -77,8 +77,7 @@ describe("deliverTestEvent", () => {
 				data?: { webhook_id?: string; subscription_id?: string };
 			};
 			expect(body.data?.webhook_id).toBe(webhook.id);
-			expect(body.data?.subscription_id).toBe(webhook.id);
-			expect(body.data?.webhook_id).toBe(body.data?.subscription_id);
+			expect(body.data?.subscription_id).toBeUndefined();
 		} finally {
 			server.stop(true);
 		}
