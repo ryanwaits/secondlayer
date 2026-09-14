@@ -1,7 +1,12 @@
 import { camelizeKeys } from "../print-schema.ts";
 import { applyMaterializeInsert } from "../runtime/materialize.ts";
 import type { MaterializeSpec, SubgraphSchema } from "../types.ts";
-import { buildEvent, createTestContext } from "./harness.ts";
+import {
+	type TxMeta,
+	buildEvent,
+	createTestContext,
+	defaultTx,
+} from "./harness.ts";
 
 /**
  * Shared subgraph test run — payload map + in-memory handlers + fail-closed
@@ -85,17 +90,33 @@ export interface RunSubgraphTestInput {
 	trace?: boolean;
 }
 
+/** Tx fields the live runner copies onto `ctx.tx` / `event.tx` from an Index row. */
+function txFromRow(row: IndexTestRow): Partial<TxMeta> {
+	const r = row as Record<string, unknown>;
+	return {
+		...(typeof r.tx_id === "string" ? { txId: r.tx_id } : {}),
+		...(typeof r.sender === "string" ? { sender: r.sender } : {}),
+		...(typeof r.status === "string" ? { status: r.status } : {}),
+		...(typeof r.contract_id === "string" ? { contractId: r.contract_id } : {}),
+		...(typeof r.function_name === "string"
+			? { functionName: r.function_name }
+			: {}),
+	};
+}
+
 /** Map an Index event row onto the payload shape a handler expects. */
 export function toHandlerPayload(
 	_filter: { type: string } | undefined,
 	row: IndexEventRow,
 ): Record<string, unknown> {
+	const tx = defaultTx(txFromRow(row));
 	if (row.event_type === "print") {
 		const payload = row.payload as { topic?: string | null; value?: unknown };
 		return {
 			contractId: row.contract_id ?? "",
 			topic: payload?.topic ?? "",
 			data: (camelizeKeys(payload?.value) as Record<string, unknown>) ?? {},
+			tx,
 		};
 	}
 	// Token/STX events: the Index row is already flat and camel-free; map the
@@ -109,6 +130,7 @@ export function toHandlerPayload(
 			? { assetIdentifier: r.asset_identifier }
 			: {}),
 		...(r.value !== undefined ? { tokenId: r.value } : {}),
+		tx,
 	};
 }
 
@@ -268,9 +290,11 @@ export async function runSubgraphTest(
 			matched++;
 			const checkpoint = ctx.opsCheckpoint();
 			try {
+				ctx.setTx(txFromRow(row));
 				const event = buildEvent(
 					filter as Parameters<typeof buildEvent>[0],
 					payload as Record<string, unknown>,
+					{ tx: ctx.tx },
 				);
 				if (materialize) {
 					applyMaterializeInsert(

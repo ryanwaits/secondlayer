@@ -127,6 +127,45 @@ describe("runSubgraphTest", () => {
 		expect(result.traces?.[1]?.outs).toEqual([]);
 		expect(result.traces?.[1]?.inKeys).toContain("amountIn");
 	});
+
+	test("stamps ctx.tx and event.tx from the Index row", async () => {
+		let seen: { ctx?: string; event?: string; sender?: string } = {};
+		const result = await runSubgraphTest({
+			schema: swaps.schema,
+			handlers: {
+				prints: (
+					event: { tx: { txId: string } },
+					ctx: {
+						tx: { txId: string; sender: string };
+						insert: (t: string, r: Record<string, unknown>) => void;
+					},
+				) => {
+					seen = {
+						ctx: ctx.tx.txId,
+						event: event.tx.txId,
+						sender: ctx.tx.sender,
+					};
+					ctx.insert("swaps", { token_x: "SP.token" });
+				},
+			},
+			sources: swaps.sources as Record<string, { type: string }>,
+			events: {
+				prints: [
+					{
+						...printRow({ "token-x": "SP.token" }),
+						tx_id: "0xabc",
+						sender: "SP2",
+					},
+				],
+			},
+		});
+		expect(result.ok).toBe(true);
+		expect(seen).toEqual({
+			ctx: "0xabc",
+			event: "0xabc",
+			sender: "SP2",
+		});
+	});
 });
 
 describe("toHandlerPayload print camelization", () => {
@@ -136,5 +175,17 @@ describe("toHandlerPayload print camelization", () => {
 			printRow({ "bitcoin-txid": "0xab", "output-index": 1 }),
 		);
 		expect(payload.data).toEqual({ bitcoinTxid: "0xab", outputIndex: 1 });
+	});
+
+	test("attaches tx from Index row fields", () => {
+		const payload = toHandlerPayload(
+			{ type: "print_event" },
+			{
+				...printRow({ "token-x": "SP.token" }),
+				tx_id: "0xabc",
+				sender: "SP2",
+			},
+		);
+		expect(payload.tx).toMatchObject({ txId: "0xabc", sender: "SP2" });
 	});
 });

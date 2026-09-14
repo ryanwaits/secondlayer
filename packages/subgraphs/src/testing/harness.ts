@@ -38,7 +38,7 @@ function defaultBlock(overrides: Partial<BlockMeta> = {}): BlockMeta {
 	};
 }
 
-function defaultTx(overrides: Partial<TxMeta> = {}): TxMeta {
+export function defaultTx(overrides: Partial<TxMeta> = {}): TxMeta {
 	return {
 		txId: "0xtest-tx",
 		sender: "SP000000000000000000002Q6VF78",
