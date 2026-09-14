@@ -101,8 +101,10 @@ export const capabilities: Capability[] = [
 		surfaces: {
 			cli: "streams events",
 			sdk: "streams.events.list",
-			mcp: "streams_events",
 			http: "GET /v1/streams/events",
+		},
+		naReason: {
+			mcp: "live Streams list reads are REST-only (`GET /v1/streams/events`); MCP keeps `streams_tip` and `streams_dumps`",
 		},
 	},
 	{
@@ -112,8 +114,10 @@ export const capabilities: Capability[] = [
 		surfaces: {
 			cli: "streams events by-tx",
 			sdk: "streams.events.byTxId",
-			mcp: "streams_events_by_tx",
 			http: "GET /v1/streams/events/:tx_id",
+		},
+		naReason: {
+			mcp: "live Streams list reads are REST-only (`GET /v1/streams/events`); MCP keeps `streams_tip` and `streams_dumps`",
 		},
 	},
 	{
@@ -132,7 +136,7 @@ export const capabilities: Capability[] = [
 			http: "GET /v1/streams/events/stream",
 		},
 		naReason: {
-			mcp: "a tool call cannot hold a stream open; agents poll streams_events with a cursor",
+			mcp: "a tool call cannot hold a stream open; live Streams list reads are REST-only (`GET /v1/streams/events`)",
 		},
 	},
 	{
@@ -142,8 +146,10 @@ export const capabilities: Capability[] = [
 		surfaces: {
 			cli: "streams reorgs",
 			sdk: "streams.reorgs.list",
-			mcp: "streams_reorgs",
 			http: "GET /v1/streams/reorgs",
+		},
+		naReason: {
+			mcp: "live Streams list reads are REST-only (`GET /v1/streams/events`); MCP keeps `streams_tip` and `streams_dumps`",
 		},
 	},
 	{
@@ -153,8 +159,10 @@ export const capabilities: Capability[] = [
 		surfaces: {
 			cli: "streams canonical",
 			sdk: "streams.canonical",
-			mcp: "streams_canonical",
 			http: "GET /v1/streams/canonical/:height",
+		},
+		naReason: {
+			mcp: "live Streams list reads are REST-only (`GET /v1/streams/events`); MCP keeps `streams_tip` and `streams_dumps`",
 		},
 	},
 	{
@@ -164,8 +172,10 @@ export const capabilities: Capability[] = [
 		surfaces: {
 			cli: "streams block-events",
 			sdk: "streams.blocks.events",
-			mcp: "streams_block_events",
 			http: "GET /v1/streams/blocks/:heightOrHash/events",
+		},
+		naReason: {
+			mcp: "live Streams list reads are REST-only (`GET /v1/streams/events`); MCP keeps `streams_tip` and `streams_dumps`",
 		},
 	},
 	{

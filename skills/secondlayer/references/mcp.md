@@ -1,9 +1,9 @@
 # MCP
 
 `@secondlayer/mcp` exposes the golden-path Secondlayer tools to MCP-capable
-agents: Index reads, Streams reads, the subgraph lifecycle, webhooks, and
-contract discovery/scaffolding. Periphery surfaces (mempool, stacking, proofs)
-are REST-only — see the `/v1` OpenAPI spec.
+agents: Index reads, Streams tip/dumps, the subgraph lifecycle, webhooks, and
+contract discovery/scaffolding. Periphery surfaces (mempool, stacking, proofs,
+live Streams list reads) are REST-only — see the `/v1` OpenAPI spec.
 
 ## Stdio Setup
 
@@ -82,15 +82,11 @@ Webhooks:
 - `webhooks_dead` — dead-letter queue (exhausted retries) with each row's `outboxId`
 - `webhooks_requeue` — retry one dead row by `outboxId`; fix the receiver first
 
-Streams (raw — loopback reads need no key, same as Index):
+Streams (raw — tip/dumps; live list reads are REST):
 
 - `streams_tip` — chain tip, finalized height, retention floor
-- `streams_events` — one page of raw events; poll with `cursor` = prior `next_cursor` to follow the chain (no open-stream tool; SSE is REST-only). Always narrow — an unfiltered page is the firehose, and paging it is your Postgres doing the work
-- `streams_events_by_tx` — every event from one transaction
-- `streams_block_events` — every event in one block (height or hash)
-- `streams_canonical` — canonical block at a height; confirm a consumed height wasn't reorged
-- `streams_reorgs` — reorgs since a timestamp/token; resume with `next_since`
 - `streams_dumps` — bulk parquet dumps manifest (cold backfill path)
+- Live Streams list reads are REST `GET /v1/streams/events` (and siblings)
 
 Contracts:
 
