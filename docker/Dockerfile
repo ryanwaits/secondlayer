@@ -209,8 +209,20 @@ CMD ["bun", "run", "packages/shared/src/runtime/serve.ts"]
 # =============================================================================
 # Console builder — the console app has no workspace deps, so it gets its own
 # minimal install instead of the server-side deps/builder chain.
+#
+# Builds on node, not the bun base: in oven/bun images `node` is a symlink to
+# bun, so `next build` runs its server-side page-data collection under Bun.
+# Next ≥16.3 ships a next-server runtime bundle that Bun 1.3.x cannot load
+# ("Expected CommonJS module to have a function wrapper", then SIGSEGV).
+# The console image serves the standalone output with node anyway, so
+# building with the same node keeps builder and runtime consistent. Bun is
+# copied in only for `bun install` against the workspace lockfile.
 # =============================================================================
-FROM base AS console-builder
+FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS console-builder
+
+WORKDIR /app
+
+COPY --from=base /usr/local/bin/bun /usr/local/bin/bun
 
 COPY package.json bun.lock ./
 COPY apps/console/package.json ./apps/console/
