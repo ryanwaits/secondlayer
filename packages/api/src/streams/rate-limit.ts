@@ -26,8 +26,8 @@ export function streamsRateLimit(): MiddlewareHandler<StreamsEnv> {
 		}
 		const tenant = c.get("streamsTenant");
 		if (!tenant) {
-			// x402-paid accountless reads: per-IP bucket so one caller can't 429
-			// every other accountless caller (headers reflect that caller).
+			// Accountless reads: per-IP bucket so one caller can't 429 every
+			// other accountless caller (headers reflect that caller).
 			const anonLimit = STREAMS_ANON_RATE_LIMIT_PER_SECOND;
 			const anon = await getRateLimitStore().check(
 				`streams:anon:${getClientIp(c)}`,

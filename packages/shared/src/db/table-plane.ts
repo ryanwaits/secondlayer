@@ -88,9 +88,6 @@ export const TABLE_TO_DB = {
 	subgraph_violations: "target",
 	subgraph_processing_stats: "target",
 	subgraph_table_snapshots: "target",
-	// ── TARGET: x402 payment rail ──
-	x402_payments: "target",
-	x402_balances: "target",
 	account_credits: "target",
 	hosted_meter_days: "target",
 	// ── TARGET: archive fetch gate (design-f089) ──

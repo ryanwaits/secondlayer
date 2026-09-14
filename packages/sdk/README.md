@@ -595,52 +595,6 @@ verifySecondlayerSignature(
 Prefer the per-webhook HMAC (Standard Webhooks) secret instead? Use
 `verifyWebhookSignature(rawBody, headers, secret)` — raw body first.
 
-## x402 pay-per-call (accountless)
-
-Call the public `/v1/*` reads with **no API key, no account, no Stripe** — pay a
-few hundredths of a cent per request from a Stacks wallet. Payment is **gasless**
-(you sign; we sponsor the STX fee) and uses standard **x402 v2** on `stacks:1`.
-Supported assets: **sBTC** (default), **USDCx**, **STX**.
-
-> Keyed (`INSTANCE_TOKEN`) requests skip x402. The rail is for accountless
-> callers on an instance that has it enabled.
-
-Drop-in `fetch` that pays on `402` automatically:
-
-```typescript
-import { withX402, readX402Receipt } from "@secondlayer/sdk";
-import { privateKeyToAccount } from "@secondlayer/stacks/accounts";
-
-const x402fetch = withX402(fetch, {
-  account: privateKeyToAccount(process.env.AGENT_STACKS_KEY!), // funded with sBTC/USDCx
-  preferAssets: ["sBTC", "USDCx", "STX"],   // optional (this is the default)
-  maxAmountPerCall: { sBTC: 2000n },        // optional spend guard (atomic units)
-});
-
-const res = await x402fetch(
-  "http://127.0.0.1:3800/v1/index/events?event_type=ft_transfer",
-);
-const data = await res.json();
-readX402Receipt(res); // { success, txid, payer, network } | null
-```
-
-Or a small client returning `{ data, payment }`:
-
-```typescript
-import { createX402Client } from "@secondlayer/sdk";
-
-const sl = createX402Client({ account }); // baseUrl defaults to http://127.0.0.1:3800
-const { data, payment } = await sl.get("/v1/index/events", {
-  query: { event_type: "ft_transfer" },
-});
-```
-
-The SDK selects an offer by `preferAssets` (skipping any over `maxAmountPerCall`,
-else throws `X402SpendGuardError`), auto-resolves your account nonce, signs
-origin-only, and retries. A paid call settles on-chain before returning
-(confirmed-tier today, ~seconds; near-instant optimistic serve for Index/Streams
-is rolling out). Discover capabilities at `GET /x402/supported`.
-
 ## Error Handling
 
 ```typescript

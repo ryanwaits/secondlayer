@@ -29,7 +29,7 @@ Run each signal through all five. One signal can yield multiple opportunities un
    can index live to show "look how fast secondlayer ships a working view"? Output: a public
    subgraph in Explore, a demo dashboard, a tutorial, a one-command quickstart.
 5. **Marketing / narrative** — Does this map to a story that positions secondlayer (Bitcoin-native
-   data, decoded-where-others-won't, agent-native via MCP/x402, verifiable delivery)? Output: a
+   data, decoded-where-others-won't, agent-native via MCP, verifiable delivery)? Output: a
    blog post, thread, comparison, or launch tie-in. Must still anchor to a real capability.
 
 ## Signal → opportunity mapping
@@ -68,11 +68,10 @@ Monetization map — which capability actually bills (from `secondlayer-capabili
 - **Subgraphs** — the revenue core (paid tiers; genesis backfill is Pro). Most "direct revenue" and
   "enterprise" plays route here.
 - **Streams** — Build+ tier (paid bearer token). Data/infra-engineer revenue.
-- **x402** — pay-per-call (sBTC/USDCx/STX), agent-native, no signup. Revenue from agent/copilot traffic.
 - **Index (keyless)** — free; **top-of-funnel**, not direct revenue. Drives signups + exposure, then
   upsell to Subgraphs/Streams. A keyless-only play is a funnel/exposure play, not a revenue play.
 - **CLI / SDK / @secondlayer/stacks / MCP** — adoption surfaces, not directly billed; they widen the
-  funnel and unlock partnership/enterprise integrations (MCP+x402 is the agent-revenue wedge).
+  funnel and unlock partnership/enterprise integrations (MCP is the agent wedge).
 
 Be honest about timeline: self-serve revenue is fast and small; partnership/enterprise is slow and
 large. When two opportunities tie on score, prefer the one with a **direct revenue or named

@@ -53,7 +53,7 @@ export function isOverMonthlyCreditCap(
 /**
  * A free-tier account with enough prepaid balance → pay-as-you-go, else
  * undefined. Only free-tier account-backed callers qualify: internal
- * (first-party service) callers already have unmetered headroom; anon / x402
+ * (first-party service) callers already have unmetered headroom; anon
  * callers have no account credits.
  *
  * Spend cap: once this month's credit spend reaches the account's monthly cap,

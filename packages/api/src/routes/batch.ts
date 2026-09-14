@@ -6,11 +6,10 @@ import { getClientIp } from "../auth/http.ts";
  * `POST /v1/batch` — up to 10 public reads in one round trip.
  *
  * Built for LLM agents, which pay per round trip in both latency and tokens.
- * Each item re-dispatches through the full app pipeline (auth, quotas, x402,
+ * Each item re-dispatches through the full app pipeline (auth, quotas,
  * rate limits all apply per item), so this is purely a transport optimization
- * — no payment or permission semantics change. Forwarded credentials
- * (Authorization, PAYMENT-BALANCE, PAYMENT-SESSION) apply to every item;
- * a prepaid balance token makes the whole batch settle off the tab.
+ * — no payment or permission semantics change. Forwarded Authorization
+ * applies to every item.
  */
 
 export const BATCH_MAX_ITEMS = 10;
@@ -20,14 +19,9 @@ const ALLOWED_PREFIXES = [
 	"/v1/subgraphs",
 	"/v1/streams/",
 	"/v1/contracts",
-	"/v1/x402/supported",
 ];
 
-const FORWARDED_HEADERS = [
-	"authorization",
-	"payment-balance",
-	"payment-session",
-] as const;
+const FORWARDED_HEADERS = ["authorization"] as const;
 
 type BatchItem = {
 	path: string;

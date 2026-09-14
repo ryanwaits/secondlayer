@@ -463,7 +463,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		const tenant = c.get("streamsTenant");
 		// Advertise the seekable floor so consumers know how far back the live API
 		// serves before they must fall to the cold dumps lane. null = unlimited
-		// (also the x402-paid accountless case — no tenant tier to bound it).
+		// (also the accountless case — no tenant tier to bound it).
 		const oldest = tenant
 			? getStreamsRetentionCutoff(tenant.tier, tip.block_height)
 			: null;

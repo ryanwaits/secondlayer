@@ -14,10 +14,10 @@ import type { StreamsTipProvider } from "./tip.ts";
  * Post-read retention guard for point-lookup routes (`/events/:tx_id`,
  * `/blocks/:h/events`) that carry no seekable query param for the
  * `streamsRetentionWindow` middleware to inspect — the height is only known
- * once the row is read. Mirrors that middleware's policy exactly: x402
- * accountless reads and unlimited-retention tiers pass, credited free accounts
- * pay-as-you-go and bypass, and a height below the tier cutoff 403s with the
- * cold-dumps pointer.
+ * once the row is read. Mirrors that middleware's policy exactly: accountless
+ * reads and unlimited-retention tiers pass, credited free accounts pay-as-you-go
+ * and bypass, and a height below the tier cutoff 403s with the cold-dumps
+ * pointer.
  */
 export function assertStreamsHeightWithinRetention(
 	c: Context<StreamsEnv>,

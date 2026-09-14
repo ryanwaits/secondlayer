@@ -302,7 +302,7 @@ export interface AccountsTable {
 	email: string | null;
 	/** True for anonymous self-serve accounts until claimed via magic link. */
 	ghost: Generated<boolean>;
-	/** Stacks principal owning a wallet-ghost account (x402-paid deploys). */
+	/** Stacks principal owning a wallet-ghost account. */
 	wallet_principal: string | null;
 	display_name: string | null;
 	bio: string | null;
@@ -995,8 +995,6 @@ export interface Database {
 	bns_names: BnsNamesTable;
 	bns_namespaces: BnsNamespacesTable;
 	service_heartbeats: ServiceHeartbeatsTable;
-	x402_payments: X402PaymentsTable;
-	x402_balances: X402BalancesTable;
 	chain_read_cache: ChainReadCacheTable;
 	pending_fork_blocks: PendingForkBlocksTable;
 	observer_journal: ObserverJournalTable;
@@ -1009,47 +1007,9 @@ export interface Database {
 	archive_fetches: ArchiveFetchesTable;
 }
 
-/** Prepaid x402 credit — one running USD-micros balance per payer principal. */
-export interface X402BalancesTable {
-	principal: string;
-	balance_usd_micros: Generated<string | number | bigint>;
-	/** Month bucket ("YYYY-MM") the spend counter applies to. */
-	spent_month: string | null;
-	spent_month_usd_micros: Generated<string | number | bigint>;
-	updated_at: Generated<Date>;
-}
-
 export interface ServiceHeartbeatsTable {
 	name: string;
 	updated_at: Generated<Date>;
-}
-
-/** x402 pay-per-request ledger (control plane). One row per settled payment,
- *  keyed by challenge nonce + settled txid. `state` tracks confirmed-tier
- *  settlement and post-serve reorg reversal. */
-export interface X402PaymentsTable {
-	id: Generated<string>;
-	nonce: string;
-	txid: string;
-	asset: string;
-	amount: string;
-	payer: string;
-	surface: string;
-	state: Generated<"pending" | "confirmed" | "reverted">;
-	created_at: Generated<Date>;
-	updated_at: Generated<Date>;
-	/** "payment" = per-call settle; "deposit" = prepaid balance top-up. */
-	kind: Generated<string>;
-	/** Linked claimed account once the paying wallet is attached (continuity). */
-	account_id: string | null;
-	/** USD-micros to credit on confirmation, for deposit rows the reconciler
-	 *  settles asynchronously. NULL for per-call settles (credit nothing). */
-	credit_usd_micros: string | null;
-	/** Idempotency key: stamped exactly once when this row's credit is applied.
-	 *  NULL means never credited (or not a credit-bearing row). Pre-migration
-	 *  non-pending deposit rows are backfilled to a non-null sentinel so the
-	 *  reconciler's heal path can never double-credit them. */
-	credited_at: Generated<Date> | null;
 }
 
 // --- Account spend caps (soft cap + threshold alerts) ---
@@ -1075,7 +1035,7 @@ export type AccountSpendCap = Selectable<AccountSpendCapsTable>;
 export type InsertAccountSpendCap = Insertable<AccountSpendCapsTable>;
 export type UpdateAccountSpendCap = Updateable<AccountSpendCapsTable>;
 
-/** Prepaid dev credits — card-funded balance per account (peer to x402_balances). */
+/** Prepaid dev credits — card-funded balance per account. */
 export interface AccountCreditsTable {
 	account_id: string;
 	balance_usd_micros: Generated<string | number | bigint>;

@@ -78,7 +78,6 @@ const AREAS: Array<[RegExp, string]> = [
 	[/^src\/subgraphs\/|^src\/get-subgraph/, "Subgraphs"],
 	[/^src\/subscriptions\/|^src\/webhooks\.ts/, "Subscriptions and webhooks"],
 	[/^src\/proofs\.ts/, "Proofs"],
-	[/^src\/x402\.ts/, "x402"],
 	[/^src\/contracts\//, "Contracts"],
 	[/^src\/(api-keys|projects)\//, "Account"],
 	[/^src\/clarity\.ts/, "Clarity"],

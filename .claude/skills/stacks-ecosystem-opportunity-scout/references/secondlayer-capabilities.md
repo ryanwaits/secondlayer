@@ -96,5 +96,4 @@ API → that is a **top-tier opportunity** (proven demand + clear differentiatio
 - Polymorphic signed webhooks (subgraph rows OR raw events; ed25519 + HMAC)
 - Automatic reorg rollback (checkpointed `consume()` / `walk()` loops)
 - Verified delivery (signed manifests, signed SSE frames, signed webhooks) — provenance/audit story
-- x402 (experimental) — pay-per-call with sBTC/USDCx/STX, agent-native, no signup
 - Clarity codegen — contracts → typed TS interfaces + React hooks
