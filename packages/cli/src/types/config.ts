@@ -3,6 +3,7 @@
  */
 
 import type { AbiContract } from "@secondlayer/stacks/clarity";
+import type { ClarinetOptions } from "../plugins/clarinet/index";
 
 /** Supported Stacks network identifiers for contract resolution. */
 export type NetworkName = "mainnet" | "testnet" | "devnet";
@@ -23,12 +24,17 @@ export interface ContractSource {
 	 * Optional name to use in generated code
 	 */
 	name?: string;
+
+	/**
+	 * Pre-resolved ABI (from Clarinet simnet or direct input)
+	 */
+	abi?: AbiContract;
 }
 
-/** Configuration for the `@secondlayer/cli` code generator. Defines which contracts to process, output paths, network settings, and plugins. */
+/** Configuration for the `@secondlayer/cli` code generator. */
 export interface SecondLayerConfig {
 	/**
-	 * Contracts to generate interfaces for (optional - plugins can provide these)
+	 * Contracts to generate interfaces for (optional — Clarinet can provide these)
 	 */
 	contracts?: ContractSource[];
 
@@ -38,10 +44,11 @@ export interface SecondLayerConfig {
 	out: string;
 
 	/**
-	 * Plugins to use for generation
+	 * Load contracts from a local Clarinet project via simnet.
+	 * `true` uses defaults; pass options for path / include / exclude / requirements.
+	 * Skips silently when Clarinet.toml is missing.
 	 */
-	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-	plugins?: any[]; // Will be properly typed when plugins are imported
+	clarinet?: boolean | ClarinetOptions;
 
 	/**
 	 * Network to use for fetching contracts
@@ -75,3 +82,5 @@ export interface ResolvedContract {
 
 // Helper function type
 export type ConfigDefiner = (config: SecondLayerConfig) => SecondLayerConfig;
+
+export type { ClarinetOptions };

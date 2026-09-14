@@ -214,8 +214,8 @@ secondlayer codegen contracts --watch   # regenerate on .clar / config / Clarine
 Where the types come from matters. A bare `.clar` path is read as source, and
 source only declares argument, map, and data-var types — a function's return
 type comes out of Clarity's type checker, so it generates as `any`. A deployed
-contract id or the `clarinet()` plugin (below) carries a real ABI, so returns
-are exact too. Prefer those where you can.
+contract id or `clarinet: true` (below) carries a real ABI, so returns are
+exact too. Prefer those where you can.
 
 Config-driven:
 
@@ -227,17 +227,16 @@ secondlayer codegen contracts  # regenerates from the config
 ```typescript
 // secondlayer.config.ts
 import { defineConfig } from "@secondlayer/cli"
-import { clarinet } from "@secondlayer/cli/plugins"
 
 export default defineConfig({
   out: "src/generated.ts",
-  plugins: [clarinet()],
+  clarinet: true, // or { path, include, exclude, includeRequirements }
 })
 ```
 
-| Plugin | What it adds |
-|---|---|
-| `clarinet()` | Parse local Clarinet project — includes `[project.requirements]` dependency contracts too (`includeRequirements: false` to opt out) |
+`clarinet: true` loads ABIs from your Clarinet project via simnet, including
+`[project.requirements]` dependency contracts (`includeRequirements: false`
+to opt out). Skips silently when `Clarinet.toml` is missing.
 
 Clarinet tests: `getContract` with `@secondlayer/stacks/simnet`.
 

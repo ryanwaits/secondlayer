@@ -23,8 +23,8 @@ import { normalizeAbi } from "@secondlayer/stacks/clarity";
  * `any`. An honest `any` fails at the call site; a guess (this used to answer
  * `bool` for every function) compiles and then fails on chain.
  *
- * For exact return types, point codegen at a deployed contract id or use the
- * `clarinet()` plugin, which pulls real ABIs out of simnet.
+ * For exact return types, point codegen at a deployed contract id or set
+ * `clarinet: true`, which pulls real ABIs out of simnet.
  */
 
 // ---------------------------------------------------------------------------

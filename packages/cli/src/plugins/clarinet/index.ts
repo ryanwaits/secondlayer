@@ -1,22 +1,16 @@
 /**
- * Clarinet Plugin for @secondlayer/cli
- * Generates type-safe contract interfaces from local Clarity contracts using Clarinet SDK
+ * Clarinet contract source for @secondlayer/cli
+ * Loads simnet ABIs from a local Clarinet project.
  */
 
 import { toCamelCase } from "@secondlayer/stacks/clarity";
 import { normalizeAbi } from "@secondlayer/stacks/clarity";
+import type { AbiContract } from "@secondlayer/stacks/clarity";
 import { initSimnet } from "@stacks/clarinet-sdk";
-import { generateContractInterface } from "../../generators/contract";
-import type {
-	GenerateContext,
-	PluginFactory,
-	UserConfig,
-} from "../../types/plugin";
 import { DEFAULT_SENDER_ADDRESS } from "../../utils/constants";
 import { parseContractId } from "../../utils/contract-id";
-import { matchesContractFilters } from "../shared";
 
-export interface ClarinetPluginOptions {
+export interface ClarinetOptions {
 	/** Path to Clarinet.toml file */
 	path?: string;
 
@@ -36,11 +30,32 @@ export interface ClarinetPluginOptions {
 	debug?: boolean;
 }
 
+/** Contract loaded from Clarinet simnet, ready to merge into config.contracts */
+export interface ClarinetLoadedContract {
+	name: string;
+	address: string;
+	abi: AbiContract;
+	_clarinetSource: true;
+}
+
 /**
  * Sanitize contract name to be a valid JavaScript identifier using camelCase
  */
 function sanitizeContractName(name: string): string {
 	return toCamelCase(name);
+}
+
+function matchesContractFilters(
+	name: string,
+	options: Pick<ClarinetOptions, "include" | "exclude">,
+): boolean {
+	if (options.include && !options.include.includes(name)) {
+		return false;
+	}
+	if (options.exclude?.includes(name)) {
+		return false;
+	}
+	return true;
 }
 
 /** @internal exported for tests */
@@ -133,120 +148,66 @@ export function classifyContract(
 }
 
 /**
- * Clarinet plugin factory
+ * Load contract ABIs from a Clarinet project via simnet.
+ * Skips silently when no manifest exists (deployed-id-only configs).
  */
-export const clarinet: PluginFactory<ClarinetPluginOptions> = (
-	options = {},
-) => {
+export async function loadClarinetContracts(
+	options: ClarinetOptions = {},
+): Promise<ClarinetLoadedContract[]> {
 	const manifestPath = options.path || "./Clarinet.toml";
-	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-	let simnet: any;
 
-	return {
-		name: "@secondlayer/cli/plugin-clarinet",
-		version: "1.0.0",
+	try {
+		const simnet = await initSimnet(manifestPath);
+		const contractInterfaces = simnet.getContractsInterfaces();
+		const contracts: ClarinetLoadedContract[] = [];
+		const manifest = await readManifestInfo(manifestPath);
+		const includeRequirements = options.includeRequirements ?? true;
 
-		async transformConfig(config: UserConfig): Promise<UserConfig> {
-			try {
-				// Initialize simnet to extract contract ABIs
-				simnet = await initSimnet(manifestPath);
+		for (const [contractId, abi] of contractInterfaces) {
+			const { contractName } = parseContractId(contractId);
+			const kind = classifyContract(contractId, manifest);
 
-				// Get contract interfaces from Clarinet
-				const contractInterfaces = simnet.getContractsInterfaces();
-				const contracts = [];
-				const manifest = await readManifestInfo(manifestPath);
-				const includeRequirements = options.includeRequirements ?? true;
-
-				for (const [contractId, abi] of contractInterfaces) {
-					const { contractName } = parseContractId(contractId);
-
-					const kind = classifyContract(contractId, manifest);
-
-					// Skip system/boot contracts, and requirements when opted out
-					if (
-						kind === "system" ||
-						(kind === "requirement" && !includeRequirements)
-					) {
-						if (options.debug) {
-							console.log(`🚫 Skipping ${kind} contract: ${contractId}`);
-						}
-						continue;
-					}
-
-					// Apply user filters
-					if (!matchesContractFilters(contractName, options)) {
-						continue;
-					}
-
-					// Sanitize the contract name for JavaScript export
-					const sanitizedName = sanitizeContractName(contractName);
-
-					// Don't set source field to avoid conflict with file resolution
-					// Instead, we'll track this in metadata during processing
-					contracts.push({
-						name: sanitizedName,
-						address: contractId,
-						abi: normalizeAbi(abi),
-						// Remove source field - this was causing the path resolution issue
-						_clarinetSource: true, // Internal flag for our plugin
-					});
-				}
-
+			if (
+				kind === "system" ||
+				(kind === "requirement" && !includeRequirements)
+			) {
 				if (options.debug) {
-					console.log(
-						`🔍 Clarinet plugin found ${contracts.length} user-defined contracts`,
-					);
+					console.log(`🚫 Skipping ${kind} contract: ${contractId}`);
 				}
-
-				return {
-					...config,
-					contracts: [...(config.contracts || []), ...contracts],
-				};
-			} catch (error) {
-				const err = error as Error;
-				if (await hasClarinetProject(manifestPath)) {
-					// Manifest exists but loading failed — always surface it
-					console.warn(
-						`⚠️  Clarinet plugin: found ${manifestPath} but failed to load contracts: ${err.message}`,
-					);
-				} else if (options.debug) {
-					console.warn(
-						`⚠️  Clarinet plugin: no manifest at ${manifestPath}, skipping`,
-					);
-				}
-				return config;
-			}
-		},
-
-		async generate(context: GenerateContext): Promise<void> {
-			// Filter contracts that came from Clarinet
-			const clarinetContracts = context.contracts.filter(
-				(contract) => contract.metadata?.source === "clarinet",
-			);
-
-			if (clarinetContracts.length === 0) {
-				return;
+				continue;
 			}
 
-			if (options.debug) {
-				context.logger.debug(
-					`Generating interfaces for ${clarinetContracts.length} Clarinet contracts`,
-				);
+			if (!matchesContractFilters(contractName, options)) {
+				continue;
 			}
 
-			// Generate the main contracts file using existing generator
-			const contractsCode = await generateContractInterface(clarinetContracts);
-
-			context.addOutput("contracts", {
-				path: context.config.out,
-				content: contractsCode,
-				type: "contracts",
+			contracts.push({
+				name: sanitizeContractName(contractName),
+				address: contractId,
+				abi: normalizeAbi(abi),
+				_clarinetSource: true,
 			});
+		}
 
-			// Don't log success here - let the main command handle it
-		},
-	};
-};
+		if (options.debug) {
+			console.log(
+				`🔍 Clarinet found ${contracts.length} user-defined contracts`,
+			);
+		}
+
+		return contracts;
+	} catch (error) {
+		const err = error as Error;
+		if (await hasClarinetProject(manifestPath)) {
+			console.warn(
+				`⚠️  Clarinet: found ${manifestPath} but failed to load contracts: ${err.message}`,
+			);
+		} else if (options.debug) {
+			console.warn(`⚠️  Clarinet: no manifest at ${manifestPath}, skipping`);
+		}
+		return [];
+	}
+}
 
 /**
  * Utility function to check if a Clarinet project exists

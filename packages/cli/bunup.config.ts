@@ -24,12 +24,7 @@ const sharedConfig = {
 };
 
 const config: DefineConfigItem | DefineConfigItem[] = defineConfig({
-	entry: [
-		"src/index.ts",
-		"src/cli.ts",
-		"src/plugins/index.ts",
-		"src/core/plugin-manager.ts",
-	],
+	entry: ["src/index.ts", "src/cli.ts"],
 	format: ["esm"],
 	dts: true,
 	...sharedConfig,

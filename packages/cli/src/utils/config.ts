@@ -4,9 +4,8 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { PluginManager } from "../core/plugin-manager";
+import { loadClarinetContracts } from "../plugins/clarinet/index";
 import type { ConfigDefiner, SecondLayerConfig } from "../types/config";
-import type { ResolvedConfig } from "../types/plugin";
 
 /**
  * Config file utilities
@@ -31,7 +30,9 @@ export async function findConfigFile(cwd: string): Promise<string | null> {
 	return null;
 }
 
-export async function loadConfig(configPath?: string): Promise<ResolvedConfig> {
+export async function loadConfig(
+	configPath?: string,
+): Promise<SecondLayerConfig> {
 	const cwd = process.cwd();
 
 	const resolvedPath = configPath
@@ -108,19 +109,19 @@ export async function loadConfig(configPath?: string): Promise<ResolvedConfig> {
 
 	validateConfig(config);
 
-	// Process plugins if they exist
-	const pluginManager = new PluginManager();
-
-	if (config.plugins && Array.isArray(config.plugins)) {
-		for (const plugin of config.plugins) {
-			pluginManager.register(plugin);
-		}
+	if (
+		config.clarinet === true ||
+		(config.clarinet && typeof config.clarinet === "object")
+	) {
+		const options = config.clarinet === true ? {} : config.clarinet;
+		const loaded = await loadClarinetContracts(options);
+		config = {
+			...config,
+			contracts: [...(config.contracts || []), ...loaded],
+		};
 	}
 
-	// Transform config through plugins
-	const resolvedConfig = await pluginManager.transformConfig(config);
-
-	return resolvedConfig;
+	return config;
 }
 
 export function validateConfig(
@@ -133,7 +134,6 @@ export function validateConfig(
 	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	const c = config as any;
 
-	// Contracts are optional now since plugins can provide them
 	if (c.contracts && !Array.isArray(c.contracts)) {
 		throw new Error("Config contracts must be an array");
 	}
@@ -142,18 +142,20 @@ export function validateConfig(
 		throw new Error("Config out must be a string path");
 	}
 
-	// Validate contracts if they exist
 	if (c.contracts) {
 		for (const contract of c.contracts) {
-			if (!contract.address && !contract.source) {
+			if (!contract.address && !contract.source && !contract.abi) {
 				throw new Error("Each contract must have either an address or source");
 			}
 		}
 	}
 
-	// Validate plugins if they exist
-	if (c.plugins && !Array.isArray(c.plugins)) {
-		throw new Error("Config plugins must be an array");
+	if (
+		c.clarinet !== undefined &&
+		typeof c.clarinet !== "boolean" &&
+		(typeof c.clarinet !== "object" || c.clarinet === null)
+	) {
+		throw new Error("Config clarinet must be true or an options object");
 	}
 }
 

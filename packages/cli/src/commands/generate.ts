@@ -1,13 +1,12 @@
+import { promises as fs } from "node:fs";
 import path from "node:path";
 import { getErrorMessage } from "@secondlayer/shared";
 import { toCamelCase } from "@secondlayer/stacks/clarity";
 import fg from "fast-glob";
-import { PluginManager } from "../core/plugin-manager";
 import { generateContractInterface } from "../generators/contract";
 import { info, note, printError, success, warn } from "../lib/output.ts";
 import { parseApiResponse, parseClarityFile } from "../parsers/clarity";
-import type { SecondLayerConfig } from "../types/config";
-import type { ContractConfig, ResolvedConfig } from "../types/plugin";
+import type { ResolvedContract, SecondLayerConfig } from "../types/config";
 import { StacksApiClient } from "../utils/api";
 import { findConfigFile, loadConfig } from "../utils/config";
 import { parseContractId } from "../utils/contract-id";
@@ -115,7 +114,7 @@ async function buildConfigFromInputs(
 	// type checker — so reading a .clar file can only report `any` for them.
 	if (parsedInputs.files.length > 0) {
 		warn(
-			"Return types can't be read from Clarity source and will be `any`. Use the clarinet() plugin or a deployed contract id for exact types.",
+			"Return types can't be read from Clarity source and will be `any`. Use `clarinet: true` or a deployed contract id for exact types.",
 		);
 	}
 
@@ -159,7 +158,37 @@ async function buildConfigFromInputs(
 	return {
 		out: outPath,
 		contracts,
-		plugins: [],
+	};
+}
+
+/** Convert a config contract with an ABI into a ResolvedContract */
+function toResolvedContract(
+	// biome-ignore lint/suspicious/noExplicitAny: config contracts carry optional plugin-era flags
+	contract: any,
+): ResolvedContract | null {
+	if (!contract.abi) return null;
+
+	const addressStr =
+		typeof contract.address === "string" ? contract.address : "";
+	let address = "unknown";
+	let contractName = contract.name || "unknown";
+
+	if (addressStr.includes(".")) {
+		const parsed = parseContractId(addressStr);
+		address = parsed.address;
+		contractName = parsed.contractName || contractName;
+	} else if (addressStr) {
+		address = addressStr;
+	}
+
+	const isLocal = Boolean(contract._clarinetSource || contract._directFile);
+
+	return {
+		name: contract.name || contractName || "unknown",
+		address,
+		contractName,
+		abi: contract.abi,
+		source: isLocal ? "local" : "api",
 	};
 }
 
@@ -217,75 +246,23 @@ async function runGenerate(
 			config = await loadConfig(options.config);
 		}
 
-		// Get plugin manager from config loading
-		const pluginManager = new PluginManager();
-
-		// Register plugins from config
-		if (config.plugins) {
-			for (const plugin of config.plugins) {
-				pluginManager.register(plugin);
-			}
+		const processedContracts: ResolvedContract[] = [];
+		for (const contract of config.contracts || []) {
+			const resolved = toResolvedContract(contract);
+			if (resolved) processedContracts.push(resolved);
 		}
-
-		// Create resolved config with typed plugins
-		const resolvedConfig: ResolvedConfig = {
-			...config,
-			plugins: pluginManager.getPlugins(),
-		};
-
-		// Execute configResolved hooks
-		await pluginManager.executeHook("configResolved", resolvedConfig);
-
-		// Convert existing contracts to ContractConfig format (if any)
-		// Use the resolved config which includes contracts added by plugins
-		const contractConfigs: ContractConfig[] = (config.contracts || []).map(
-			(contract) => ({
-				name: contract.name,
-				address: contract.address,
-				source: contract.source,
-				// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-				abi: (contract as any).abi, // Include ABI if it exists (from plugins)
-				// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-				_clarinetSource: (contract as any)._clarinetSource, // Include plugin flags
-				// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
-				_directFile: (contract as any)._directFile, // Include direct file flag
-			}),
-		);
-
-		// Transform contracts through plugins (plugins can add more contracts)
-		const processedContracts = await pluginManager.transformContracts(
-			contractConfigs,
-			resolvedConfig,
-		);
 
 		if (processedContracts.length === 0) {
 			warn("No contracts found to generate");
 			note("  Add contracts to your config file, or");
-			note("  Use plugins like clarinet() for local contracts");
+			note("  Set `clarinet: true` for local Clarinet projects");
 			return;
 		}
 
-		// Execute generation through plugin system
-		const outputs = await pluginManager.executeGeneration(
-			processedContracts,
-			resolvedConfig,
-		);
-
-		// If no plugins generated the main contracts output, generate it using the existing generator
-		if (!outputs.has("contracts") && processedContracts.length > 0) {
-			const contractsCode = await generateContractInterface(processedContracts);
-			outputs.set("contracts", {
-				path: config.out,
-				content: contractsCode,
-				type: "contracts",
-			});
-		}
-
-		// Transform outputs through plugins
-		const transformedOutputs = await pluginManager.transformOutputs(outputs);
-
-		// Write all outputs to disk
-		await pluginManager.writeOutputs(transformedOutputs);
+		const contractsCode = await generateContractInterface(processedContracts);
+		const outPath = path.resolve(process.cwd(), config.out);
+		await fs.mkdir(path.dirname(outPath), { recursive: true });
+		await fs.writeFile(outPath, contractsCode, "utf-8");
 
 		// Check if @secondlayer/stacks is installed and warn if not
 		await checkBaseDependencies(process.cwd());
@@ -326,7 +303,6 @@ async function collectWatchTargets(
 	files: string[],
 	options: GenerateOptions,
 ): Promise<{ path: string; recursive: boolean }[]> {
-	const { promises: fs } = await import("node:fs");
 	const dirs = new Map<string, boolean>(); // path → recursive
 	const addParentDir = (filePath: string) => {
 		const dir = path.dirname(path.resolve(process.cwd(), filePath));

@@ -106,17 +106,14 @@ Deployed contract ids fetch the ABI (address prefix picks the network). Config-d
 ```ts
 // secondlayer.config.ts
 import { defineConfig } from "@secondlayer/cli";
-import { clarinet } from "@secondlayer/cli/plugins";
 
 export default defineConfig({
   out: "./src/generated/contracts.ts",
-  plugins: [clarinet()],
+  clarinet: true, // or { path, include, exclude, includeRequirements }
 });
 ```
 
-| Plugin | What it adds |
-|---|---|
-| `clarinet()` | Real ABIs from your Clarinet project via Simnet; typed clients for `[project.requirements]` dependency contracts too (`includeRequirements: false` to opt out) |
+`clarinet: true` loads real ABIs from your Clarinet project via Simnet, including typed clients for `[project.requirements]` dependency contracts (`includeRequirements: false` to opt out). Skips silently when `Clarinet.toml` is missing.
 
 Named aliases per function (`TokenTransferArgs`) plus a `TypedAbi` const. Feed it to `getContract` from [`@secondlayer/stacks`](https://stacks.secondlayer.tools); Clarinet tests use the [simnet transport](https://stacks.secondlayer.tools/guide/simnet).
 
