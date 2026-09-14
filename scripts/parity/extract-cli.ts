@@ -14,6 +14,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type Command, Command as CommanderCommand } from "commander";
 import {
+	registerArchiveCommand,
 	registerBackupCommand,
 	registerBootstrapCommand,
 	registerCodegenCommand,
@@ -34,9 +35,9 @@ import {
 	registerStatusCommand,
 	registerStreamsCommand,
 	registerSubgraphsCommand,
-	registerSubscriptionsCommand,
 	registerUninstallCommand,
 	registerVerifyCommand,
+	registerWebhooksCommand,
 	registerWhoamiCommand,
 } from "../../packages/cli/src/commands/index.ts";
 
@@ -68,7 +69,7 @@ function buildProgram(): Command {
 	registerLogoutCommand(program);
 	registerWhoamiCommand(program);
 	registerSubgraphsCommand(program);
-	registerSubscriptionsCommand(program);
+	registerWebhooksCommand(program);
 	registerStreamsCommand(program);
 	registerIndexCommand(program);
 	registerCodegenCommand(program);
@@ -84,6 +85,7 @@ function buildProgram(): Command {
 	registerRestoreCommand(program);
 	registerUninstallCommand(program);
 	registerCreditsCommand(program);
+	registerArchiveCommand(program);
 
 	return program;
 }

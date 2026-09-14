@@ -100,7 +100,6 @@ export const WORKLOAD_ROUTE_FIXTURES = [
 	{ method: "GET", path: "/api/subgraphs" },
 	{ method: "POST", path: "/api/subgraphs/bundle" },
 	{ method: "GET", path: "/api/webhooks" },
-	{ method: "GET", path: "/api/subscriptions" },
 	{ method: "GET", path: "/api/node" },
 ] as const;
 
@@ -115,6 +114,5 @@ export const HOSTED_OPENAPI_PATHS = [] as const;
 export const WORKLOAD_OPENAPI_PREFIXES = [
 	"/api/subgraphs",
 	"/api/webhooks",
-	"/api/subscriptions",
 	"/api/node",
 ] as const;

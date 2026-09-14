@@ -983,16 +983,4 @@ export function registerWebhooksCommand(program: Command): void {
 		.description("Manage webhooks: a signed POST to a URL you run");
 	webhooks.hook("preAction", () => assertInstanceUrl());
 	attachWebhookSubcommands(webhooks);
-
-	const legacy = program
-		.command("subscriptions", { hidden: true }) // deprecated alias; removed in plan 015
-		.alias("subs")
-		.description("Deprecated alias of `secondlayer webhooks`");
-	legacy.hook("preAction", () => {
-		process.stderr.write(
-			"secondlayer subscriptions is deprecated; use secondlayer webhooks\n",
-		);
-		assertInstanceUrl();
-	});
-	attachWebhookSubcommands(legacy);
 }

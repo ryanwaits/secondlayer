@@ -41,8 +41,6 @@ const WORKLOAD_PATHS = [
 	"/api/subgraphs/*",
 	"/api/webhooks",
 	"/api/webhooks/*",
-	"/api/subscriptions",
-	"/api/subscriptions/*",
 	"/api/node",
 	"/api/node/*",
 ];
@@ -139,8 +137,6 @@ export function createApiApp(mode: InstanceMode): Hono {
 		for (const path of WORKLOAD_PATHS) app.use(path, resourceAuth);
 		app.route("/api/subgraphs", subgraphsRouter);
 		app.route("/api/webhooks", webhooksRouter);
-		// Deprecated alias, removed in plan 015.
-		app.route("/api/subscriptions", webhooksRouter);
 		app.route("/api/node", nodeRouter);
 	}
 

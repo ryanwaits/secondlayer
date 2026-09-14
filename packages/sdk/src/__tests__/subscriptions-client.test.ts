@@ -22,8 +22,8 @@ function recordRequests(body: unknown): Request[] {
 	return requests;
 }
 
-describe("Subscriptions delivery log", () => {
-	test("deliveries reads the delivery log for a subscription", async () => {
+describe("Webhooks delivery log", () => {
+	test("deliveries reads the delivery log for a webhook", async () => {
 		const requests = recordRequests({
 			data: [{ id: "dlv_1", attempt: 1, statusCode: 200 }],
 		});
@@ -32,7 +32,7 @@ describe("Subscriptions delivery log", () => {
 			baseUrl: "http://localhost:3800",
 			apiKey: "sk-test",
 		});
-		const res = await sl.subscriptions.deliveries("sub_1");
+		const res = await sl.webhooks.deliveries("sub_1");
 
 		expect(res.data[0]?.id).toBe("dlv_1");
 		expect(requests[0]?.url).toBe(
@@ -47,12 +47,12 @@ describe("Subscriptions delivery log", () => {
 			apiKey: "sk-test",
 		});
 		expect(
-			(sl.subscriptions as unknown as Record<string, unknown>).recentDeliveries,
+			(sl.webhooks as unknown as Record<string, unknown>).recentDeliveries,
 		).toBeUndefined();
 	});
 });
 
-describe("Subscriptions dead-letter requeue", () => {
+describe("Webhooks dead-letter requeue", () => {
 	test("requeue POSTs the outbox row back onto the delivery queue", async () => {
 		const requests = recordRequests({ ok: true });
 
@@ -60,7 +60,7 @@ describe("Subscriptions dead-letter requeue", () => {
 			baseUrl: "http://localhost:3800",
 			apiKey: "sk-test",
 		});
-		const res = await sl.subscriptions.requeue("sub_1", "out_9");
+		const res = await sl.webhooks.requeue("sub_1", "out_9");
 
 		expect(res.ok).toBe(true);
 		expect(requests[0]?.url).toBe(
@@ -75,20 +75,20 @@ describe("Subscriptions dead-letter requeue", () => {
 			apiKey: "sk-test",
 		});
 		expect(
-			(sl.subscriptions as unknown as Record<string, unknown>).requeueDead,
+			(sl.webhooks as unknown as Record<string, unknown>).requeueDead,
 		).toBeUndefined();
 	});
 });
 
-describe("Subscriptions path segments", () => {
-	test("a subscription id with path and query characters is percent-encoded", async () => {
+describe("Webhooks path segments", () => {
+	test("a webhook id with path and query characters is percent-encoded", async () => {
 		const requests = recordRequests({ ok: true });
 		const sl = new SecondLayer({ baseUrl: "http://sl.test", apiKey: "k" });
 		const hostile = "a/../b?x#y";
 		const encoded = encodeURIComponent(hostile);
 
-		await sl.subscriptions.pause(hostile);
-		await sl.subscriptions.requeue(hostile, hostile);
+		await sl.webhooks.pause(hostile);
+		await sl.webhooks.requeue(hostile, hostile);
 
 		expect(new URL(requests[0].url).pathname).toBe(
 			`/api/webhooks/${encoded}/pause`,
@@ -96,20 +96,5 @@ describe("Subscriptions path segments", () => {
 		expect(new URL(requests[1].url).pathname).toBe(
 			`/api/webhooks/${encoded}/dead/${encoded}/requeue`,
 		);
-	});
-});
-
-describe("Webhooks namespace aliases", () => {
-	test("sl.subscriptions is the same object as sl.webhooks", () => {
-		const sl = new SecondLayer({
-			baseUrl: "http://localhost:3800",
-			apiKey: "sk-test",
-		});
-		expect(sl.subscriptions).toBe(sl.webhooks);
-	});
-
-	test("Subscriptions is an alias of Webhooks", async () => {
-		const { Subscriptions, Webhooks } = await import("../webhooks/client.ts");
-		expect(Subscriptions).toBe(Webhooks);
 	});
 });
