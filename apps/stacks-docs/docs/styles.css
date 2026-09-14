@@ -1,0 +1,65 @@
+/* Code blocks: the platform docs CodeBlock rules (apps/web globals.css
+   `.docs-content .code-block-wrapper pre`) applied to Vocs's markup.
+   Elevated surface, hairline border, 12px radius, 18/22 padding, Fira Code
+   14 over 1.7, copy button revealed on hover. Token colors come from
+   docs/syntax-theme.ts, not from here. Site-wide theme is a later session;
+   only the code surface is touched. */
+
+:root {
+	--vocs-color_codeBlockBackground: #fffdf8;
+	--vocs-color_codeInlineBorder: rgba(28, 26, 22, 0.12);
+	--vocs-color_lineNumber: #9a938a;
+	--vocs-fontFamily_mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+	--vocs-fontSize_codeBlock: 0.875rem;
+	--vocs-lineHeight_code: 1.7;
+}
+
+:root.dark {
+	--vocs-color_codeBlockBackground: #1a1815;
+	--vocs-color_codeInlineBorder: rgba(242, 237, 229, 0.14);
+	--vocs-color_lineNumber: #7a7369;
+}
+
+.vocs_CodeBlock {
+	border-radius: 12px;
+	overflow: hidden;
+}
+
+.vocs_CodeBlock pre {
+	border-radius: 12px;
+	padding: 18px 0;
+}
+
+.vocs_CodeBlock .line {
+	padding: 0 22px;
+}
+
+/* Keyword weight step: the theme carries no bold, so the one weight step
+   for keywords rides here. Shiki emits keyword spans with the ink color;
+   match on it rather than a scope class, which Shiki does not emit. */
+.vocs_CodeBlock pre span[style*="color:#1c1a16" i],
+:root.dark .vocs_CodeBlock pre span[style*="--shiki-dark:#f2ede5" i] {
+	font-weight: 500;
+}
+
+/* Copy button: borderless, sits on the block surface, hover-revealed. */
+.vocs_CopyButton {
+	border: none;
+	background-color: var(--vocs-color_codeBlockBackground);
+	backdrop-filter: none;
+	color: rgba(28, 26, 22, 0.3);
+	top: 10px;
+	right: 10px;
+	height: 28px;
+	width: 28px;
+}
+:root.dark .vocs_CopyButton {
+	color: rgba(242, 237, 229, 0.3);
+}
+.vocs_CopyButton:hover {
+	background-color: var(--vocs-color_codeBlockBackground);
+	color: rgba(28, 26, 22, 0.55);
+}
+:root.dark .vocs_CopyButton:hover {
+	color: rgba(242, 237, 229, 0.55);
+}

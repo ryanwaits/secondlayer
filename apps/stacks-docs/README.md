@@ -6,7 +6,11 @@ Docs site for `@secondlayer/stacks` at [stacks.secondlayer.tools](https://stacks
 
 **Vocs 1.4.1** (not 2.x). Peers are `react` / `react-dom` `^19` only. Vocs 2.x peers `vite ^8` + `waku` and defaults to a Node SSR server; 1.4.1 static-exports to `docs/dist/` for a plain Vercel static deploy.
 
-Pages live under `docs/pages/**/*.mdx`. Config: `vocs.config.ts`. Footer: `docs/footer.tsx`. No theme customization in this scaffold — design is a later session.
+Pages live under `docs/pages/**/*.mdx`. Config: `vocs.config.ts`. Footer: `docs/footer.tsx`.
+
+## Code blocks
+
+Code blocks reuse the platform docs CodeBlock rules (elevated surface, hairline border, 12px radius, Fira Code 14/1.7, hover copy button) via `docs/styles.css`, and a library-specific shiki theme in `docs/syntax-theme.ts`: the platform's monotone ink ramp, warm-tinted for the egg-white / warm-dark grounds, with gold on literals only (strings, numbers, JSON values). Keywords are ink at weight 500; nothing is bold. Site-wide theme (grounds, nav, gold accent on chrome) is still a later session.
 
 ## Local
 

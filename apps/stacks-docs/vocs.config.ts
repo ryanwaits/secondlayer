@@ -1,8 +1,17 @@
 import { defineConfig } from "vocs";
+import { stacksGold, stacksGoldDark } from "./docs/syntax-theme";
 
 export default defineConfig({
 	title: "stacks",
 	description: "Typed Stacks client for TypeScript. By secondlayer.",
+	font: {
+		mono: { google: "Fira Code" },
+	},
+	markdown: {
+		code: {
+			themes: { light: stacksGold, dark: stacksGoldDark },
+		},
+	},
 	sidebar: [
 		{
 			text: "Getting started",
