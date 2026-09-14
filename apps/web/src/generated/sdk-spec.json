@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "10.4.0",
+	"version": "10.4.1",
 	"areas": [
 		{
 			"name": "Client",
@@ -35,7 +35,7 @@
 					"summary": "Fold one read into a {@link ContextField}: the value, or `null` with the failure described.",
 					"signature": "contextField(read: object): object",
 					"file": "src/client.ts",
-					"line": 86
+					"line": 80
 				},
 				{
 					"name": "ContextField",
@@ -123,7 +123,7 @@
 					"summary": "",
 					"signature": "SecondLayer(options?: object): unknown",
 					"file": "src/client.ts",
-					"line": 116
+					"line": 110
 				},
 				{
 					"name": "SecondLayerOptions",
@@ -1927,7 +1927,7 @@
 					"summary": "The full wire body of a chain-webhook webhook delivery, as sent to a `format: \"standard-webhooks\"` webhook (the default) — `{ type, timestamp, data }`.",
 					"signature": null,
 					"file": "packages/shared/src/webhooks/chain-envelopes.ts",
-					"line": 303
+					"line": 301
 				},
 				{
 					"name": "ChainWebhookEnvelope",
@@ -2438,22 +2438,6 @@
 					"line": 45
 				},
 				{
-					"name": "CreateSubscriptionRequest",
-					"kind": "type",
-					"summary": "",
-					"signature": null,
-					"file": "src/webhooks/client.ts",
-					"line": 39
-				},
-				{
-					"name": "CreateSubscriptionResponse",
-					"kind": "type",
-					"summary": "",
-					"signature": null,
-					"file": "src/webhooks/client.ts",
-					"line": 41
-				},
-				{
 					"name": "decodeChainWebhook",
 					"kind": "function",
 					"summary": "Decode + narrow a chain webhook delivery body into a typed {@link ChainWebhookDelivery}.",
@@ -2550,70 +2534,6 @@
 					"line": 128
 				},
 				{
-					"name": "SubscriptionDetail",
-					"kind": "type",
-					"summary": "",
-					"signature": null,
-					"file": "src/webhooks/client.ts",
-					"line": 45
-				},
-				{
-					"name": "SubscriptionFormat",
-					"kind": "type",
-					"summary": "",
-					"signature": null,
-					"file": "src/webhooks/client.ts",
-					"line": 51
-				},
-				{
-					"name": "SubscriptionKind",
-					"kind": "type",
-					"summary": "",
-					"signature": null,
-					"file": "src/webhooks/client.ts",
-					"line": 53
-				},
-				{
-					"name": "SubscriptionRuntime",
-					"kind": "type",
-					"summary": "",
-					"signature": null,
-					"file": "src/webhooks/client.ts",
-					"line": 55
-				},
-				{
-					"name": "Subscriptions",
-					"kind": "class",
-					"summary": "",
-					"signature": null,
-					"file": "src/webhooks/client.ts",
-					"line": 159
-				},
-				{
-					"name": "SubscriptionStatus",
-					"kind": "type",
-					"summary": "",
-					"signature": null,
-					"file": "src/webhooks/client.ts",
-					"line": 57
-				},
-				{
-					"name": "SubscriptionSummary",
-					"kind": "type",
-					"summary": "",
-					"signature": null,
-					"file": "src/webhooks/client.ts",
-					"line": 47
-				},
-				{
-					"name": "UpdateSubscriptionRequest",
-					"kind": "type",
-					"summary": "",
-					"signature": null,
-					"file": "src/webhooks/client.ts",
-					"line": 43
-				},
-				{
 					"name": "verifySecondlayerSignature",
 					"kind": "function",
 					"summary": "Verify the universal Secondlayer authenticity signature that every delivery carries, regardless of body format (`raw`, `cloudevents`, `standard-webhooks`, …).",
@@ -2643,7 +2563,7 @@
 					"summary": "",
 					"signature": "Webhooks(options?: object): unknown",
 					"file": "src/webhooks/client.ts",
-					"line": 63
+					"line": 38
 				},
 				{
 					"name": "WithSinkTx",

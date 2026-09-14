@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 11.5.1
+
+### Patch Changes
+
+- e9a4e09: Removed one-cycle Subscriptions aliases. `secondlayer webhooks`, `sl.webhooks`, `webhooks_*`, and `/api/webhooks` are the only names.
+
 ## 11.5.0
 
 ### Minor Changes

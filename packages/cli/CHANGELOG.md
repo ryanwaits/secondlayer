@@ -1,5 +1,15 @@
 # @secondlayer/cli
 
+## 14.3.1
+
+### Patch Changes
+
+- e9a4e09: Removed one-cycle Subscriptions aliases. `secondlayer webhooks`, `sl.webhooks`, `webhooks_*`, and `/api/webhooks` are the only names.
+- Updated dependencies [e9a4e09]
+  - @secondlayer/sdk@10.4.1
+  - @secondlayer/subgraphs@4.3.1
+  - @secondlayer/shared@11.5.1
+
 ## 14.3.0
 
 ### Minor Changes
