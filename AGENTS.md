@@ -22,7 +22,7 @@ secondlayer/
 ├── STRATEGY.md        ← what we build and why (wins all contradictions)
 ├── AGENTS.md          ← this file
 ├── docs/              ← audits, specs, guides, sprints (historical)
-├── packages/          ← the 13 workspace packages (all of them)
+├── packages/          ← the 12 workspace packages (all of them)
 │   ├── indexer/       ← block follower, decoders; writes raw + decoded planes
 │   ├── api/           ← public HTTPS surface (/v1: index, subgraphs, streams)
 │   ├── subgraphs/     ← subgraph compiler + runtime
@@ -31,11 +31,11 @@ secondlayer/
 │   ├── mcp/ sdk/ cli/ ← clients (golden-path surface only — see parity firewall)
 │   ├── scaffold/      ← generates a subgraph definition from a contract ABI (powers `secondlayer subgraphs scaffold`)
 │   ├── bundler/       ← compiles a subgraph definition into one deployable artifact (powers `secondlayer subgraphs deploy`)
-│   ├── clarity-docs/  ← ClarityDoc comment standard + tooling for Clarity contracts
 │   ├── stacks/        ← chain primitives SDK (/clarity load-bearing; nonce coordination supported; rest of wallet half frozen)
 │   └── shared/        ← db, schemas, vocab single-sourcing
-├── apps/web/          ← www marketing + docs + /platform console
-├── subgraphs/         ← example subgraph templates (sBTC, PoX, BNS, …). Not hosted.
+├── apps/web/          ← www marketing + docs
+├── apps/console/      ← instance console
+├── apps/stacks-docs/  ← Stacks ecosystem docs site
 ├── contracts/         ← reference Clarity contracts (Clarinet project; e.g. spv-adapter)
 ├── docker/            ← Dockerfiles, compose stacks, Caddy (dev + Hetzner prod)
 ├── scripts/           ← ops/dev/CI one-offs (seeds, backfills, dry-runs)

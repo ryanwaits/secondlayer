@@ -10,7 +10,7 @@
 
 - Postgres error alerting. Covered by scheduled staging health when `STAGING_STATUS_API_KEY` or `STAGING_DATABASE_URL` is configured.
 - block.timestamp=0 alerting. Covered by scheduled staging health when `STAGING_DATABASE_URL` is configured.
-- L2 lag alerting. Covered by scheduled staging health via `/public/status`.
+- Decoder lag alerting. Covered by scheduled staging health via `/public/status`.
 - Auto-rollback on smoke failure
 
 ## Tier C - Deferred

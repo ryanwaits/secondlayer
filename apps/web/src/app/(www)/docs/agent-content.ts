@@ -32,11 +32,6 @@ function card(title: string, description: string, body: string): DocsAgentCard {
 export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 	"/docs": [
 		card(
-			"Get oriented",
-			"Pick the right surface for what you're building.",
-			"/secondlayer I'm new to Secondlayer. Explain the surfaces — Index, Subgraphs, Webhooks, Streams — and recommend which one fits my use case. Ask what I'm building, then point me at the next step.",
-		),
-		card(
 			"Sweep it into my database",
 			"Stand up a checkpointed consumer end to end.",
 			"/secondlayer Help me build my own index on Secondlayer: run `secondlayer codegen index --target kysely` for the mirror schema, write a `consume()` loop that commits rows and the checkpoint in one transaction, handle `onReorg` by deleting from `fork_point_height` up, then point me at a deploy target.",
