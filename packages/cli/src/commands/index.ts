@@ -11,7 +11,6 @@ export { registerSubgraphsCommand } from "./subgraphs.ts";
 export { registerStreamsCommand } from "./streams.ts";
 export { registerIndexCommand } from "./index-api.ts";
 export { registerDoctorCommand } from "./doctor.ts";
-export { registerLocalCommand } from "./local.ts";
 export { registerWhoamiCommand } from "./whoami.ts";
 export { registerLoginCommand } from "./login.ts";
 export { registerLogoutCommand } from "./logout.ts";

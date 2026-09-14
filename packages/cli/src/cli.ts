@@ -14,7 +14,6 @@ import {
 	registerDoctorCommand,
 	registerIndexCommand,
 	registerInitCommand,
-	registerLocalCommand,
 	registerLoginCommand,
 	registerLogoutCommand,
 	registerObserverCommand,
@@ -97,11 +96,9 @@ registerIndexCommand(program);
 program.commandsGroup("Project & codegen:");
 registerCodegenCommand(program);
 
-// Local development. `devnet` (Clarinet devnet → local Secondlayer stack) is the
-// supported local loop and renders here; `local` stays frozen — hidden, prints a
-// deprecation notice on use (see lib/frozen.ts).
+// Local development. `devnet` (Clarinet → local Secondlayer stack) is the
+// supported Clarinet loop.
 program.commandsGroup("Local development:");
-registerLocalCommand(program);
 registerDevnetCommand(program);
 
 // Diagnostics

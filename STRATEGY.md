@@ -247,7 +247,7 @@ belongs behind a named external request, with the operator as the merchant.
   ONLY. SDK/CLI/MCP wrappers are added on first external request, generated not
   hand-mirrored. Releases batch weekly.
 - **Frozen periphery** — shipped-but-unused surfaces (BYO plane, multi-ORM
-  codegen, aggregates, proofs, CLI devnet/local, stacks-SDK wallet half (except
+  codegen, aggregates, proofs, stacks-SDK wallet half (except
   supported nonce coordination)) stay shipped, lose docs prominence, and get
   zero further investment. Delete on first maintenance touch.
 - **Demand before supply** — features unfreeze on a named external request, not

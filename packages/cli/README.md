@@ -261,16 +261,10 @@ await makeContractCall({
 const supply = await token.vars.totalSupply.get()
 ```
 
-## Frozen commands
+## Local development
 
-Local-dev periphery: still functional, hidden from `secondlayer --help`, no further
-investment — may be removed in a future major. `secondlayer subgraphs
-create/deploy` against your own instance is the supported path.
-
-- `secondlayer local up/down/start/stop/restart/status/logs` — local stack + dev services
-- `secondlayer local node ...` — local Stacks node management
-- `secondlayer local db ...` — local source DB inspection
-- `secondlayer devnet connect/down/status/logs` — Clarinet devnet integration
+`secondlayer setup` brings up a self-hosted stack. For Clarinet, use
+`secondlayer devnet connect` / `status` / `logs` / `down` (and `devnet faucet`).
 
 ## Docs
 

@@ -25,8 +25,8 @@ The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlay
 | `SIGNING_SECRET` | webhooks test | Standard-Webhooks signing secret used to sign test fixtures. |
 | `STACKS_NETWORK` | global | Network override (set by `--network`). |
 | `SL_STREAMS_DUMPS_URL` | streams dumps | Public bulk-dump bucket base URL (dumps are public — no API key). Alternative to `--dumps-url`. |
-| `DATABASE_URL` | bootstrap, verify, repair, backup, local db | Postgres URL. `secondlayer setup` writes it into `.env` pointing at the compose Postgres and passes it to the bootstrap/verify it runs; unset, it defaults to `postgres://postgres:postgres@localhost:5432/secondlayer_dev`. |
-| `INDEXER_URL` | local db resync --backfill | Local indexer URL; defaults to `http://localhost:<config.ports.indexer>`. |
+| `DATABASE_URL` | bootstrap, verify, repair, backup | Postgres URL. `secondlayer setup` writes it into `.env` pointing at the compose Postgres and passes it to the bootstrap/verify it runs; unset, it defaults to `postgres://postgres:postgres@localhost:5432/secondlayer_dev`. |
+| `INDEXER_URL` | doctor, status | Local indexer URL; defaults to `http://localhost:3700`. |
 | `DEBUG` | codegen contracts | When set, prints stack traces on failure. |
 
 Global flags `--api-key <key>` and `--api-url <url>` are available on every command and override the matching env for that invocation (`--api-key` is shape-routed).
@@ -40,8 +40,7 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 - [Webhooks](#webhooks) — `create`, `list`, `get`, `update`, `pause`, `resume`, `delete`, `rotate-secret`, `deliveries`, `dead`, `requeue`, `replay`, `doctor`, `test`
 - [Index](#index) — `ft-transfers`, `nft-transfers`, `events`, `contract-calls`
 - [Streams](#streams) — `tip`, `events`, `consume`, `reorgs`, `canonical`, `dumps`
-- [Local](#local) — `local up|down|restart|status|logs`, `local node …`, `local db …`
-- [Devnet](#devnet) — `local up --devnet` / `local down --devnet`, `devnet status|logs` (run services against a Clarinet devnet)
+- [Devnet](#devnet) — `devnet connect|down|status|logs|faucet` (Clarinet → local Secondlayer stack)
 - [Config](#config) — `config get|set|reset|delete`
 - [Status](#status) — top-level `status`
 - [Doctor](#doctor) — top-level `doctor`
@@ -815,152 +814,15 @@ Example: `secondlayer streams dumps --to ./dumps --dumps-url https://dumps.secon
 
 ---
 
-## Local
-
-Manage local development environment. All `local` subcommands require `network=local` (set via `--network local` or `secondlayer config set network local`).
-
-### secondlayer local up
-
-Start all local dev services (API, indexer, worker, subgraphs).
-
-Usage: `secondlayer local up`
-
-| Flag | Default | Description |
-| --- | --- | --- |
-| `--indexer-port <port>` | `3700` | Indexer port. |
-| `--api-port <port>` | `3800` | API port. |
-| `--no-worker` | (worker on) | Skip worker service. |
-| `--stacks-node` | false | Use port 3701 for indexer (avoids conflict with `stacks-blockchain-api`). |
-| `-f, --foreground` | false | Run in foreground (blocking). Default is background. |
-
-### secondlayer local down
-
-Stop all local dev services.
-
-Usage: `secondlayer local down`
-
-No flags.
-
-### secondlayer local restart
-
-Restart dev services (preserves Docker containers).
-
-Usage: `secondlayer local restart`
-
-No flags.
-
-### secondlayer local status
-
-Show local environment status (dev services + node summary if running).
-
-Usage: `secondlayer local status`
-
-No flags.
-
-### secondlayer local logs
-
-View local service logs (dev + node).
-
-Usage: `secondlayer local logs`
-
-| Flag | Default | Description |
-| --- | --- | --- |
-| `-s, --service <name>` | (all) | Filter by service: `api`, `indexer`, `worker`, `subgraphs`, `node`. |
-| `-f, --follow` | false | Follow log output. |
-| `-n, --lines <n>` | `50` | Number of lines to show. |
-| `-q, --quiet` | false | Filter out common noise. |
-
-### secondlayer local node setup
-
-Interactive setup wizard for Stacks node.
-
-Usage: `secondlayer local node setup`
-
-No flags.
-
-### secondlayer local node start
-
-Start the Stacks node.
-
-Usage: `secondlayer local node start`
-
-| Flag | Description |
-| --- | --- |
-| `-p, --path <path>` | Path to `stacks-blockchain-docker` (overrides config). |
-| `--with-indexer` | Also start indexer. |
-
-### secondlayer local node stop
-
-Stop the Stacks node.
-
-Usage: `secondlayer local node stop`
-
-| Flag | Description |
-| --- | --- |
-| `-p, --path <path>` | Path to `stacks-blockchain-docker`. |
-| `-f, --force` | Skip confirmation. |
-| `--wait` | Wait for in-flight work to drain first. |
-
-### secondlayer local node restart
-
-Restart the Stacks node (stop then start). Same flags as `stop`.
-
-Usage: `secondlayer local node restart`
-
-### secondlayer local node status
-
-Show Stacks node status.
-
-Usage: `secondlayer local node status`
-
-| Flag | Description |
-| --- | --- |
-| `-p, --path <path>` | Path override. |
-| `--json` | Output as JSON. |
-
-### secondlayer local node config
-
-Show node configuration.
-
-Usage: `secondlayer local node config`
-
-| Flag | Description |
-| --- | --- |
-| `--edit` | Run setup wizard interactively. |
-
-### secondlayer local node config-check
-
-Show events-observer configuration block to paste into `Config.toml`.
-
-Usage: `secondlayer local node config-check`
-
-| Flag | Default | Description |
-| --- | --- | --- |
-| `--indexer-port <port>` | `3700` | Indexer port to display. |
-
-### secondlayer local node logs
-
-Shortcut for `secondlayer local logs --service node`.
-
-Usage: `secondlayer local node logs`
-
-| Flag | Default | Description |
-| --- | --- | --- |
-| `-f, --follow` | false | Follow log output. |
-| `-n, --lines <n>` | `50` | Number of lines. |
-| `-q, --quiet` | false | Filter noise. |
-
----
-
 ## Devnet
 
-Run Secondlayer services against a local [Clarinet](https://docs.hiro.so/stacks/clarinet) devnet. Unlike `secondlayer local up` (which runs the services from source for contributors), `secondlayer local up --devnet` pulls the published OSS Docker images, so it works for any developer with a clarinet project — no repo checkout required. Requires Docker (Docker Desktop or OrbStack) and `clarinet` installed.
+Run Secondlayer services against a local [Clarinet](https://docs.hiro.so/stacks/clarinet) devnet. `secondlayer devnet connect` pulls the published OSS Docker images, so it works for any developer with a clarinet project — no repo checkout required. Requires Docker (Docker Desktop or OrbStack) and `clarinet` installed. For self-host without Clarinet, use `secondlayer setup`.
 
-### secondlayer local up --devnet
+### secondlayer devnet connect
 
 Point your clarinet project's devnet at a local Secondlayer stack and start it. Detects the nearest `Clarinet.toml`, adds the indexer to `settings/Devnet.toml`'s `stacks_node_events_observers` (idempotent; preserves your comments), writes `.secondlayer/docker-compose.yml`, and runs `docker compose up -d`.
 
-Usage: `secondlayer local up --devnet`
+Usage: `secondlayer devnet connect`
 
 | Flag | Default | Description |
 | --- | --- | --- |
@@ -1008,11 +870,11 @@ console.log(await broadcastTransaction({ transaction: tx, network: "devnet" }));
 
 The row shows up at `GET http://localhost:3800/v1/subgraphs/<name>/<table>` within ~5s — no `Authorization` header needed.
 
-### secondlayer local down --devnet
+### secondlayer devnet down
 
-Stop the local Secondlayer stack started by `secondlayer local up --devnet`.
+Stop the local Secondlayer stack started by `secondlayer devnet connect`.
 
-Usage: `secondlayer local down --devnet`
+Usage: `secondlayer devnet down`
 
 | Flag | Default | Description |
 | --- | --- | --- |
@@ -1042,9 +904,13 @@ Usage: `secondlayer devnet logs [service]` — `service` is optional, one of `in
 | `-f, --follow` | false | Follow log output. |
 | `-n, --lines <n>` | `200` | Lines to show from the end of each log. |
 
+### secondlayer devnet faucet
+
+Mint STX (or call a SIP-010 faucet) on the connected Clarinet network. See `secondlayer devnet faucet --help`.
+
 ### Testing webhooks locally
 
-`secondlayer local up --devnet` starts the webhook emitter and configures the stack to deliver webhooks locally: it shares one secrets key across the api and subgraph-processor (so the emitter can decrypt a webhook's signing secret) and sets `SECONDLAYER_ALLOW_PRIVATE_EGRESS` (so webhooks can reach a localhost receiver). To test:
+`secondlayer devnet connect` starts the webhook emitter and configures the stack to deliver webhooks locally: it shares one secrets key across the api and subgraph-processor (so the emitter can decrypt a webhook's signing secret) and sets `SECONDLAYER_ALLOW_PRIVATE_EGRESS` (so webhooks can reach a localhost receiver). To test:
 
 1. Deploy a subgraph (`secondlayer subgraphs deploy ./subgraph.ts`), then start a local chain with `clarinet devnet start`.
 2. Create a webhook on the local API, pointing at a webhook receiver on your host. The emitter runs in a container, so use `host.docker.internal` instead of `localhost`:
@@ -1057,79 +923,6 @@ curl -X POST http://localhost:3800/api/webhooks \
 ```
 
 3. Fire a contract call. The matched row is delivered to your receiver as a signed Standard-Webhooks payload; inspect attempts with `secondlayer webhooks deliveries my-hook`.
-
----
-
-## Local DB
-
-Inspect the local indexer Postgres database. Nested under `local` (requires `network=local`). Defaults `DATABASE_URL` to `postgres://postgres:postgres@localhost:5432/secondlayer_dev` if unset.
-
-### secondlayer local db (overview)
-
-Show overview (counts + latest block).
-
-Usage: `secondlayer local db`
-
-No flags.
-
-### secondlayer local db blocks
-
-Show recent blocks.
-
-Usage: `secondlayer local db blocks`
-
-| Flag | Default | Description |
-| --- | --- | --- |
-| `--limit <n>` | `10` | Number of rows. |
-| `--json` | false | Output as JSON. |
-
-### secondlayer local db txs
-
-Show recent transactions.
-
-Usage: `secondlayer local db txs`
-
-Same flags as `blocks`.
-
-### secondlayer local db events
-
-Show recent events.
-
-Usage: `secondlayer local db events`
-
-Same flags as `blocks`.
-
-### secondlayer local db gaps
-
-Show gaps in indexed block data.
-
-Usage: `secondlayer local db gaps`
-
-| Flag | Default | Description |
-| --- | --- | --- |
-| `--limit <n>` | `50` | Number of gaps to show. |
-| `--json` | false | Output as JSON. |
-
-### secondlayer local db truncate
-
-**DESTRUCTIVE.** Truncate all indexed data (`blocks`, `transactions`, `events`, `index_progress`). Subgraph configs preserved.
-
-Usage: `secondlayer local db truncate`
-
-| Flag | Description |
-| --- | --- |
-| `-y, --yes` | Skip confirmation. |
-
-### secondlayer local db resync
-
-**DESTRUCTIVE.** Reset DB and restart indexer for fresh sync.
-
-Usage: `secondlayer local db resync`
-
-| Flag | Description |
-| --- | --- |
-| `-y, --yes` | Skip confirmation. |
-| `--backfill` | After reset, fetch all blocks from node and POST them to `${INDEXER_URL}/new_block` (concurrency 5). |
 
 ---
 
