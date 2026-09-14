@@ -88,7 +88,6 @@ describe.skipIf(!HAS_DB)("sweepExpiredPlay", () => {
 					schema_name: schemaName,
 					account_id: ghost.id,
 					last_processed_block: 0,
-					database_url_enc: null,
 					expires_at: new Date(Date.now() - 1000),
 				})
 				.execute();

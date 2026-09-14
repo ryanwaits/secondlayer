@@ -242,10 +242,10 @@ belongs behind a named external request, with the operator as the merchant.
 - **Parity firewall** — a new capability ships as a REST route + OpenAPI entry
   ONLY. SDK/CLI/MCP wrappers are added on first external request, generated not
   hand-mirrored. Releases batch weekly.
-- **Frozen periphery** — shipped-but-unused surfaces (BYO plane, multi-ORM
-  codegen, aggregates, proofs, stacks-SDK wallet half (except
-  supported nonce coordination)) stay shipped, lose docs prominence, and get
-  zero further investment. Delete on first maintenance touch.
+- **Frozen periphery** — shipped-but-unused surfaces (multi-ORM codegen,
+  aggregates, proofs, stacks-SDK wallet half (except supported nonce
+  coordination)) stay shipped, lose docs prominence, and get zero further
+  investment. Delete on first maintenance touch.
 - **Demand before supply** — features unfreeze on a named external request, not
   on taxonomy or completeness arguments.
 - **GTM is founder-led** — the prospect universe is ~30-80 funded Stacks teams.

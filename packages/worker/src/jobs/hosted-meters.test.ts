@@ -91,7 +91,6 @@ describe.skipIf(!HAS_DB)("runHostedMeterDay", () => {
 				schema_name: `subgraph_hosted_meter_${crypto.randomUUID().slice(0, 8)}`,
 				account_id: accountId,
 				last_processed_block: 0,
-				database_url_enc: null,
 			})
 			.execute();
 		await creditCredits(db, accountId, 1_000_000n);
@@ -120,7 +119,6 @@ describe.skipIf(!HAS_DB)("runHostedMeterDay", () => {
 				schema_name: `subgraph_hosted_meter_${crypto.randomUUID().slice(0, 8)}`,
 				account_id: accountId,
 				last_processed_block: 0,
-				database_url_enc: null,
 			})
 			.execute();
 

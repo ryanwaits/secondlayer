@@ -63,7 +63,6 @@ export async function registerSubgraph(
 		source_code: data.sourceCode ?? null,
 		schema_name: data.schemaName ?? null,
 		start_block: data.startBlock ?? 0,
-		database_url_enc: null,
 	};
 	const updateSet = {
 		version: data.version,
@@ -74,7 +73,6 @@ export async function registerSubgraph(
 		source_code: data.sourceCode ?? null,
 		schema_name: data.schemaName ?? null,
 		start_block: data.startBlock ?? 0,
-		database_url_enc: null,
 		updated_at: new Date(),
 	};
 

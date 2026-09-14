@@ -56,11 +56,11 @@ speculatively hand-mirrored. Releases batch weekly via changesets.
 
 ### Frozen periphery
 
-BYO database plane, multi-ORM codegen, aggregates, index proofs/stacking/mempool
-extras, the stacks-SDK wallet half (except nonce
-coordination — supported, see packages/stacks/README.md), webhooks format
-expansion. Shipped code stays; no new investment, no docs prominence. Delete on
-first maintenance touch. Unfreeze requires a named external request.
+multi-ORM codegen, aggregates, index proofs/stacking/mempool extras, the
+stacks-SDK wallet half (except nonce coordination — supported, see
+packages/stacks/README.md), webhooks format expansion. Shipped code stays; no
+new investment, no docs prominence. Delete on first maintenance touch. Unfreeze
+requires a named external request.
 Nonce coordination is the carved-out exception: demand-validated (named external
 request), supported, documented.
 

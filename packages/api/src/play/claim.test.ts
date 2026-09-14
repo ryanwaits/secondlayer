@@ -60,7 +60,6 @@ describe.skipIf(!HAS_DB)("transferPlayClaim", () => {
 				schema_name: `subgraph_play_claim_${crypto.randomUUID().slice(0, 8)}`,
 				account_id: ghost.id,
 				last_processed_block: 0,
-				database_url_enc: null,
 				expires_at: new Date(Date.now() + 86_400_000),
 			})
 			.execute();

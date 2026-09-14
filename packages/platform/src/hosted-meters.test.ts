@@ -60,7 +60,6 @@ async function insertSubgraph(
 			schema_name: `subgraph_hosted_meter_${crypto.randomUUID().slice(0, 8)}`,
 			account_id: accountId,
 			last_processed_block: 0,
-			database_url_enc: null,
 		})
 		.execute();
 	return name;

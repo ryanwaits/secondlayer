@@ -255,7 +255,6 @@ describe.skipIf(!HAS_DB)("processStripeEvent", () => {
 				schema_name: `subgraph_webhook_${crypto.randomUUID().slice(0, 8)}`,
 				account_id: accountId,
 				last_processed_block: 0,
-				database_url_enc: null,
 			})
 			.execute();
 
@@ -304,7 +303,6 @@ describe.skipIf(!HAS_DB)("processStripeEvent", () => {
 				schema_name: `subgraph_webhook_${crypto.randomUUID().slice(0, 8)}`,
 				account_id: ghost.id,
 				last_processed_block: 0,
-				database_url_enc: null,
 			})
 			.execute();
 		const claim = await createClaimToken(db, ghost.id);

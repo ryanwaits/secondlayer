@@ -14,7 +14,7 @@ const DEFAULT_URL =
 interface PoolEntry {
 	db: Kysely<Database>;
 	rawClient: ReturnType<typeof postgres>;
-	/** Last access (ms) — drives LRU eviction of BYO pools. */
+	/** Last access (ms) — drives LRU eviction of extra pools. */
 	lastUsed: number;
 	/** Monotonic counter as a tiebreaker; Date.now() can repeat under load. */
 	seq: number;
@@ -26,9 +26,9 @@ interface PoolEntry {
  * this is the single-DB backward-compat contract: when only `DATABASE_URL`
  * is set, `getSourceDb() === getTargetDb()` (zero regression vs. pre-dual-DB).
  *
- * The BYO data plane adds one pool per user-owned DB. To stop N user DBs from
- * exhausting connections/FDs, the map is bounded (`DATABASE_MAX_POOLS`, default
- * 25) with LRU eviction — the hot source/target pools are never evicted.
+ * Extra pools (e.g. setup-wizard via getRawClientFor) are bounded
+ * (`DATABASE_MAX_POOLS`, default 25) with LRU eviction — the hot source/target
+ * pools are never evicted.
  */
 const pools = new Map<string, PoolEntry>();
 let poolSeq = 0;
@@ -247,8 +247,8 @@ function getOrCreatePool(url: string): PoolEntry {
 	const isLocal =
 		host === "localhost" || host === "127.0.0.1" || !host.includes(".");
 	const poolMax = Number.parseInt(process.env.DATABASE_POOL_MAX ?? "20", 10);
-	// Close idle connections so a fleet of BYO pools doesn't pin connections it
-	// no longer needs (0 = never; postgres.js default).
+	// Close idle connections so extra pools don't pin connections they no
+	// longer need (0 = never; postgres.js default).
 	const idleTimeout = Number.parseInt(
 		process.env.DATABASE_IDLE_TIMEOUT ?? "300",
 		10,
@@ -334,9 +334,9 @@ export function getRawClient(
 
 /**
  * Raw postgres.js client for an arbitrary connection string (cached by URL).
- * Used by the BYO data plane to run DDL / serving queries against a
- * user-owned Postgres. Distinct from {@link getRawClient}, which only knows the
- * source/target roles resolved from env.
+ * Used by the CLI setup-wizard and similar one-off tooling. Distinct from
+ * {@link getRawClient}, which only knows the source/target roles resolved
+ * from env.
  */
 export function getRawClientFor(url: string): ReturnType<typeof postgres> {
 	return getOrCreatePool(url).rawClient;

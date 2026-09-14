@@ -174,14 +174,6 @@ export interface SubgraphsTable {
 	expires_at: Date | null;
 	/** (event type, contract) probe pairs persisted at deploy for weight classification. */
 	sparse_probe_targets: unknown | null;
-	// BYO data plane: AES-GCM envelope (iv‖tag‖ciphertext) of the user-owned
-	// Postgres connection string. Null = managed (writes/serving use the target
-	// DB). Encrypted via crypto/secrets.ts; never returned in API responses.
-	database_url_enc: ColumnType<
-		Buffer | null,
-		Buffer | null | undefined,
-		Buffer | null
-	>;
 	// f071 Stage 2a: per-subgraph opt-in for the sandboxed (Bun Worker) handler
 	// path. Default false; combined with the global SUBGRAPH_SANDBOX_WORKERS
 	// env flag (both must be true) via runtime/sandbox/flag.ts's

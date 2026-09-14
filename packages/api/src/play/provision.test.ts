@@ -308,7 +308,6 @@ describe.skipIf(!HAS_DB)("POST /v1/play platform", () => {
 				schema_name: `subgraph_play_${crypto.randomUUID().slice(0, 8)}`,
 				account_id: ghost.id,
 				last_processed_block: 0,
-				database_url_enc: null,
 				expires_at: new Date(Date.now() + CLAIM_TOKEN_TTL_MS),
 			})
 			.execute();
@@ -362,7 +361,6 @@ describe.skipIf(!HAS_DB)("POST /v1/play platform", () => {
 				schema_name: `subgraph_play_${crypto.randomUUID().slice(0, 8)}`,
 				account_id: account.id,
 				last_processed_block: 0,
-				database_url_enc: null,
 				expires_at: opts.expiresAt,
 			})
 			.execute();

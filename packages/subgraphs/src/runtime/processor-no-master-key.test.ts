@@ -199,7 +199,6 @@ describe("managed subgraphs are unaffected by the processor holding no master ke
 				schema_name: pgSchema,
 				account_id: accountId,
 				last_processed_block: 0,
-				database_url_enc: null,
 			})
 			.execute();
 
