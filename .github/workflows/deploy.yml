@@ -116,7 +116,6 @@ jobs:
           - indexer
           - worker
           - decoder
-          - console
           - subgraph-processor
           - webhook-processor
         # Thin targets (FROM api / FROM indexer) reuse the base image's build
