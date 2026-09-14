@@ -1,5 +1,22 @@
 # @secondlayer/cli
 
+## 14.3.0
+
+### Minor Changes
+
+- 0cbd1d7: Add `secondlayer archive` command group with `latest` and `quote`, wrapping the existing bootstrap/verify/repair verbs under the Archive noun.
+- 5f5a61d: Webhooks is the product name for what was Subscriptions. `secondlayer webhooks`, `sl.webhooks`, `webhooks_*` MCP tools and `/api/webhooks` are canonical; the old names keep working for one release cycle and print a deprecation notice. Test-ping deliveries carry `webhook_id`; `subscription_id` is still sent this cycle.
+
+### Patch Changes
+
+- Updated dependencies [d1fdf46]
+- Updated dependencies [3a4193d]
+- Updated dependencies [5f5a61d]
+  - @secondlayer/stacks@5.1.3
+  - @secondlayer/shared@11.5.0
+  - @secondlayer/subgraphs@4.3.0
+  - @secondlayer/sdk@10.4.0
+
 ## 14.2.1
 
 ### Patch Changes

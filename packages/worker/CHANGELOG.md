@@ -1,5 +1,18 @@
 # @secondlayer/worker
 
+## 1.3.0
+
+### Minor Changes
+
+- 3a4193d: The subscription plane is now the webhook plane: tables, types, service and image names renamed. Migration 0126 renames tables in place (no data copy). Migration 0127 renames the leftover auto-generated constraint names (`subscriptions_pkey` and kin). The compose service is `webhook-processor`; the Stripe receiver moved to `/api/billing/stripe`. Public CLI/SDK/MCP names follow in the next release.
+
+### Patch Changes
+
+- Updated dependencies [3a4193d]
+- Updated dependencies [5f5a61d]
+  - @secondlayer/shared@11.5.0
+  - @secondlayer/platform@0.2.11
+
 ## 1.2.57
 
 ### Patch Changes

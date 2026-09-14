@@ -73,6 +73,10 @@ Point `createPublicClient` at a Clarinet session with `simnet()` from `@secondla
 
 ## CLI — September 2026
 
+### `secondlayer archive`
+
+Price a fetch and read the official tip without running bootstrap. `archive latest` and `archive quote` sit with the same verify / repair / bootstrap verbs. Top-level `bootstrap`, `verify`, and `repair` stay.
+
 ### Instance commands stay on your box
 
 `setup`, `init`, `subgraphs`, and the other instance verbs refuse `api.secondlayer.tools`. `index` and `streams` send `SECONDLAYER_API_KEY` when pointed at us. `whoami` prints instance and merchant. `init` writes `INSTANCE_TOKEN` only.
