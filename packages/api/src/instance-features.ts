@@ -3,7 +3,6 @@ import {
 	isPox4DecoderEnabled,
 	isSbtcDecoderEnabled,
 } from "@secondlayer/shared";
-import { isExtendedViewEnabled } from "./extended/listen.ts";
 
 /** Default modules on a standard OSS instance. Idle flags consume no work. */
 
@@ -24,7 +23,6 @@ export const INSTANCE_FEATURE_MANIFEST = {
 	pricing: false,
 	publicDirectory: false,
 	unsignedWebhooks: process.env.ALLOW_UNSIGNED_WEBHOOKS === "true",
-	extendedView: isExtendedViewEnabled(),
 } as const;
 
 export type InstanceFeatureManifest = typeof INSTANCE_FEATURE_MANIFEST;

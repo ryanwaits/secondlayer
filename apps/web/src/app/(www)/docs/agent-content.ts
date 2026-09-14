@@ -380,24 +380,6 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		),
 	],
 
-	"/docs/extended": [
-		card(
-			"Turn the view on",
-			"Enable the optional /extended listener.",
-			"/secondlayer Help me enable the optional `/extended` JSON view on my instance: set `EXTENDED_VIEW=1` (only that value turns it on), keep `/v1` on :3800, and curl `http://127.0.0.1:3999/extended/v1/status`. Explain that compose already publishes `127.0.0.1:3999` and the port refuses until the flag is set.",
-		),
-		card(
-			"Keep /v1 and /extended apart",
-			"Do not mount /extended on :3800.",
-			"/secondlayer Explain the isolation contract: `/extended` is a separate listener on :3999, `:3800/extended` 404s with the `/v1` `{ code: NOT_FOUND }` body, and errors on :3999 are `{ error }` with no `code`, `path`, or `next_cursor`. Confirm I should not point `/v1` clients at 3999 or `/extended` clients at 3800.",
-		),
-		card(
-			"Query blocks and txs",
-			"Offset pages on :3999; keep node RPC on the node.",
-			"/secondlayer I have a client that talks `/extended` and `/v2`. Point `/extended` reads at `http://127.0.0.1:3999` once `EXTENDED_VIEW=1`: `GET /extended/v1/status`, `/block`, `/tx`, `/tx/:tx_id/events` (JSON array), `/address/:principal/transactions`, `/address/:principal/stx` (decoded totals, no nonce), `/ft`, `/nft`, `/tokens/nft/transfers`. Lists are `{ limit, offset, total, results }` (`limit` default 20, max 30, max 50 on nft transfers; `cursor` is 400). BNS (`/names`) is empty until `BNS_DECODER_ENABLED=true`. Keep nonce, `call-read`, and broadcast on the Stacks node (`:20443`).",
-		),
-	],
-
 	"/docs/migrate-chainhook": [
 		card(
 			"Convert my predicate",

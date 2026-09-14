@@ -176,6 +176,11 @@ const nextConfig: NextConfig = {
 				permanent: true,
 			},
 			{
+				source: "/docs/extended",
+				destination: "/docs/rest-api",
+				permanent: true,
+			},
+			{
 				source: "/workflows",
 				destination: "/docs/webhooks",
 				permanent: true,

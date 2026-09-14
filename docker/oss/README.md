@@ -23,8 +23,6 @@ The runtime enforces these floors at start and refuses to boot below them.
 `SECONDLAYER_ALLOW_UNDERSIZED=true` downgrades the refusal to a warning, so a
 box that is already undersized can still be restarted.
 
-Optional `/extended` JSON on :3999 (`EXTENDED_VIEW=1`). Same Postgres. Node `/v2` stays on the node.
-
 ## Quick start
 
 ```bash
