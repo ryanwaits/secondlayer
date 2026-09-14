@@ -13,14 +13,6 @@ export const BASE_DEPENDENCIES = {
 } as const;
 
 /**
- * Required dependencies for React hooks
- */
-export const HOOKS_DEPENDENCIES = {
-	dependencies: ["react", "@tanstack/react-query", "@secondlayer/stacks"],
-	devDependencies: ["@types/react"],
-} as const;
-
-/**
  * Get the package manager used in the project
  */
 export async function getPackageManager(
@@ -98,16 +90,6 @@ export async function getMissingDependenciesFor(
 		dependencies: missingDeps,
 		devDependencies: missingDevDeps,
 	};
-}
-
-/**
- * Check which dependencies are missing (for hooks - backwards compatible)
- */
-export async function getMissingDependencies(targetDir: string): Promise<{
-	dependencies: string[];
-	devDependencies: string[];
-}> {
-	return getMissingDependenciesFor(targetDir, HOOKS_DEPENDENCIES);
 }
 
 /**
@@ -205,47 +187,4 @@ export async function installDependencies(
 			throw error;
 		}
 	}
-}
-
-/**
- * Check and install missing dependencies for hooks
- */
-export async function ensureHooksDependencies(
-	targetDir: string,
-): Promise<void> {
-	const missing = await getMissingDependencies(targetDir);
-
-	if (
-		missing.dependencies.length === 0 &&
-		missing.devDependencies.length === 0
-	) {
-		console.log(
-			chalk.green("✓ All required dependencies are already installed"),
-		);
-		return;
-	}
-
-	console.log(
-		chalk.yellow("\n📦 Installing missing dependencies for React hooks..."),
-	);
-
-	if (missing.dependencies.length > 0) {
-		console.log(
-			chalk.gray(`Missing dependencies: ${missing.dependencies.join(", ")}`),
-		);
-	}
-
-	if (missing.devDependencies.length > 0) {
-		console.log(
-			chalk.gray(
-				`Missing dev dependencies: ${missing.devDependencies.join(", ")}`,
-			),
-		);
-	}
-
-	await installDependencies(
-		targetDir,
-		missing.dependencies,
-		missing.devDependencies,
-	);
 }

@@ -227,18 +227,17 @@ secondlayer codegen contracts  # regenerates from the config
 ```typescript
 // secondlayer.config.ts
 import { defineConfig } from "@secondlayer/cli"
-import { clarinet, react } from "@secondlayer/cli/plugins"
+import { clarinet } from "@secondlayer/cli/plugins"
 
 export default defineConfig({
   out: "src/generated.ts",
-  plugins: [clarinet(), react()],
+  plugins: [clarinet()],
 })
 ```
 
 | Plugin | What it adds |
 |---|---|
 | `clarinet()` | Parse local Clarinet project — includes `[project.requirements]` dependency contracts too (`includeRequirements: false` to opt out) |
-| `react()` | Typed React Query hooks |
 
 Clarinet tests: `getContract` with `@secondlayer/stacks/simnet`.
 

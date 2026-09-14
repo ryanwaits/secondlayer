@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { AbiType } from "@secondlayer/stacks/clarity";
-import { clarityTypeToTS } from "../src/plugins/react/generators/utils";
+import { clarityTypeToTS } from "../src/utils/type-mapping";
 
 describe("Type Safety - clarityTypeToTS", () => {
 	describe("Primitive Types", () => {

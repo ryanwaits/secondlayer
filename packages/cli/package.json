@@ -65,7 +65,6 @@
 	"devDependencies": {
 		"@antfu/ni": "^24.4.0",
 		"@stacks/clarinet-sdk": "3.21.1",
-		"@tanstack/react-query": "^5.77.0",
 		"@types/bun": "^1.1.14",
 		"@types/react": "^19.1.5",
 		"chalk": "^5.3.0",
