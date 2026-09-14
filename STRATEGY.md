@@ -10,7 +10,7 @@ Secondlayer is a self-hosted Stacks data runtime: run it beside your node,
 bootstrap verified history, query decoded data, deploy TypeScript subgraphs.
 We operate a signed canonical archive on R2 and a hosted API at
 api.secondlayer.tools for Index, Streams, hosted Subgraphs, and hosted
-subscription delivery. Prepaid credits buy archive bootstrap/backfill and
+webhook delivery. Prepaid credits buy archive bootstrap/backfill and
 hosted usage. Same balance.
 
 That sentence is for us. What we say to a reader is in **Voice** below.
@@ -59,9 +59,53 @@ on the page about price.
 Tooling that applies this: the `write-docs` skill (docs pages) and the
 `writing` skill (blog). Both defer to this section.
 
-## Three products
+## Brand architecture (founder-resolved 2026-09-12)
 
-Everything we market is one of these three. Everything else is a feature of them.
+One brand: **Secondlayer**. One visual world (DESIGN.md), one accent, one
+docs tree, one account. Everything on the plane is a descriptive noun inside
+that brand, never a sub-brand: no per-product hue, logo, or site.
+
+**The account test** decides what inherits the brand and what may stand
+apart: if adopting a thing needs a Secondlayer account, balance, or runtime,
+it inherits fully. If it is adopted by `npm install` alone and works without
+us, it may carry its own identity, endorsed "by secondlayer". Only
+`@secondlayer/stacks` passes. It lives at `stacks.secondlayer.tools` (the
+subdomain is the lockup), on its own shell (viem-style, gold), never in a
+product switcher. Own domain only if outside maintainers join or a second
+account-free library ships.
+
+Five nouns on the plane: **Archive · Streams · Index · Subgraphs · Webhooks**.
+Two altitudes: primitives (Archive, Streams, Index) and opinionated products
+(Subgraphs = pull, a table you own; Webhooks = push, a signed POST to a URL
+you run). Product identity budget is one mono tag and one verb; each product
+has its own job, not its own world. Product pages are paths under
+`secondlayer.tools`, never subdomains. "Labs" is a GitHub org and legal
+entity only; it prints nowhere. Console is the platform's app surface, not a
+product. Scenario study and rationale: PRODUCT.md, Brand Commitments.
+
+**Deployments** (grant-funded and one-off work, added 2026-09-13). Things we
+run on the plane for a third party or as a public good, such as the sBTC
+inclusion check in the Q3 2026 Endowment application, are a fourth tier:
+not products, not features, not channels. A deployment is built with the
+products (a subgraph table, webhook alerts, a status page), so it fails the
+account test and inherits the brand. Rules: named by its job ("sBTC inclusion
+check"), never a product noun or a sub-brand; lives at a path under
+`secondlayer.tools`; carries one mono tag ("public good", "grant-funded") and
+a "built on Subgraphs and Webhooks" line; its verifier is open source and
+runnable on the operator's own instance; its hosted table is a
+`visibility: public` subgraph under our account. This is the protocol-catalog
+exception below, applied one deployment at a time; it is not a public
+Explore catalog. Paid follow-ons (paged alerts, private destinations, SLA)
+go through the Enterprise custom door, never a SKU. Deployments are evidence
+for the brand, the same way our own instance is. Placement decision and
+per-deployment checklist: `docs/internal/deployments.md`.
+
+## Products
+
+Everything we market is one of the nouns below. Everything else is a feature
+of them. Archive is the history primitive (signed canonical archive; verify,
+repair, bootstrap; the only line billed today). It is a noun on the plane and
+a step in the golden path, same as Streams.
 
 **Index** — decoded chain data on your instance. Query events, transfers,
 blocks, transactions over REST with a cursor envelope — or build your own app
@@ -82,12 +126,21 @@ decoding: cursor-paginated REST, SSE tail, signed manifests, replay from any
 height. For data/infra engineers building their own indexer or ETL. Also the
 internal data plane the decoders and subgraphs ride.
 
+**Webhooks** — a signed POST to a URL you run, on any subgraph table or raw
+chain event. The push product, the pull product's twin. The row you register
+is still a *subscription* internally (product noun Webhooks, object
+subscription, the Stripe/Alchemy shape). Renamed from "Subscriptions"
+2026-09-12: that word collides with "not a monthly service" and every
+comparable product says Webhooks. Public rename with aliases:
+`plans/rename-webhooks.md`. We host the matcher and the sender on the prepaid
+meter; they host the receiver.
+
+**Archive** — the signed canonical history Index and Streams bootstrap from.
+`secondlayer verify`, `repair`, `bootstrap`. Free against public manifests;
+official-archive bootstrap and backfill are the billed lines.
+
 ### Features (not products)
 
-- **Subscriptions** — webhooks on any subgraph table or raw chain event. The
-  push channel for the products. Keeps its name; never a nav-level product.
-  We host the matcher and the sender on the prepaid meter; they host the
-  receiver.
 - **Subgraph scaffolding** — `secondlayer subgraphs create --from-contract <id>`
   infers sources, schema, and handlers from a contract's observed print events.
   With no flag it emits one empty starter. The five hand-written templates and
@@ -128,11 +181,12 @@ Both are indexer products at different levels: Streams is raw, low-level
 indexing — Index is app-level indexing on decoded rows. Streams powers Index:
 our decoder is itself a Streams consumer. Subgraphs is the Index loop, on your
 machine or on ours. We sell archive bootstrap and hosted usage (Index/Streams
-reads, subgraphs, subscription deliveries) off one prepaid balance.
+reads, subgraphs, webhook deliveries) off one prepaid balance.
 
 One line for docs: *Reading decoded data? Index. Building your own app index on
 decoded rows? Also Index — walk + cursors + reorgs[]. Your schema on your
-instance? Subgraphs. Raw inputs? Streams.*
+instance? Subgraphs. Raw inputs? Streams. A POST when it happens? Webhooks.
+Verified history? Archive.*
 
 ## The golden path
 
@@ -140,7 +194,7 @@ instance? Subgraphs. Raw inputs? Streams.*
 `secondlayer subgraphs create` → deploy → curl your table on localhost → attach a
 webhook. Forward-only from your own node is free and skips bootstrap.
 
-Hosted: provision a subgraph and optional subscription on
+Hosted: provision a subgraph and optional webhook on
 api.secondlayer.tools against a $10 play grant, no account. Claim is
 create an account plus the first top-up. Resources transfer. Same
 payload shapes as self-host.
@@ -161,7 +215,7 @@ Contract and prices live in `docs/internal/economics-metered-model.md`
 | Data-avail backfill / reindex that reads our archive | Forward-only indexing from the operator's node |
 | Hosted Index / Streams / subgraph table reads | Self-host `/v1` reads |
 | Hosted subgraph running ($3/mo prorated, paused = $0), storage ($0.50/GB-mo), indexing ($1/1M blocks) | `secondlayer verify` / `secondlayer repair` against public manifests |
-| Hosted subscription deliveries ($100/1M attempts, retries metered) | Their webhook receiver |
+| Hosted webhook deliveries ($100/1M attempts, retries metered) | Their webhook receiver |
 | | Play-tier $10 grant (accountless, 30-day expiry) |
 
 Play is the product with a $10 balance. Claim is create an account plus
@@ -174,7 +228,7 @@ deliveries per attempt. Hosted `/v1` without a key is 401 until the
 accountless play path ships.
 
 We do not host a public Explore catalog. We do host subgraphs and
-subscription matching/sending on the metered balance. Do not
+webhook matching/sending on the metered balance. Do not
 reintroduce monthly-plan UX.
 
 ## x402 — deleted
