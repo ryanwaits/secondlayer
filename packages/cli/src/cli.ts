@@ -7,7 +7,6 @@ import {
 	registerBootstrapCommand,
 	registerCodegenCommand,
 	registerConfigCommand,
-	registerConsoleCommand,
 	registerContextCommand,
 	registerCreditsCommand,
 	registerDevnetCommand,
@@ -80,7 +79,6 @@ registerSetupCommand(program);
 registerInitCommand(program);
 registerBootstrapCommand(program);
 registerObserverCommand(program);
-registerConsoleCommand(program);
 registerLoginCommand(program);
 registerLogoutCommand(program);
 registerWhoamiCommand(program);

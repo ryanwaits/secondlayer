@@ -94,7 +94,6 @@ export const DOCS_NAV: DocsNavGroup[] = [
 				],
 			},
 			{ title: "MCP", href: "/docs/mcp" },
-			{ title: "Console", href: "/docs/console" },
 		],
 	},
 	{

@@ -33,7 +33,7 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 
 ## Table of contents
 
-- [Local runtime](#local-runtime): `setup`, `init`, `console`, `bootstrap`, `observer`, `verify`, `repair`, `backup`, `restore`, `uninstall`
+- [Local runtime](#local-runtime): `setup`, `init`, `bootstrap`, `observer`, `verify`, `repair`, `backup`, `restore`, `uninstall`
 - [Archive](#archive) — `archive latest|quote|bootstrap|verify|repair` (top-level bootstrap/verify/repair are the same commands)
 - [Credits](#credits) — `credits buy|balance|refill`
 - [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `source`, `reindex`, `backfill`, `stop`, `operations`, `gaps`, `query`, `delete`, `scaffold`
@@ -89,19 +89,6 @@ Usage: `secondlayer init [--network <network>] [--api-url <url>] [--force]`
 Does **not** write `secondlayer.config.ts` — that file is for `secondlayer codegen contracts`.
 
 Example: `secondlayer init --network mainnet`
-
-### secondlayer console
-
-Open the instance's web console (a container behind the `console` compose profile — `docker compose --profile console up -d`).
-
-Usage: `secondlayer console [--url <url>] [--no-open]`
-
-| Flag | Default | Description |
-| --- | --- | --- |
-| `--url <url>` | `http://localhost:3801/console` | Console URL. |
-| `--no-open` | (opens a browser) | Print the URL instead. |
-
-Loopback is open; anything past it takes `CONSOLE_TOKEN`, which falls back to `INSTANCE_TOKEN`. There are no per-user console logins — one instance, one token.
 
 ### secondlayer bootstrap
 

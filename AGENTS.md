@@ -34,7 +34,6 @@ secondlayer/
 │   ├── stacks/        ← chain primitives SDK (/clarity load-bearing; nonce coordination supported; rest of wallet half frozen)
 │   └── shared/        ← db, schemas, vocab single-sourcing
 ├── apps/web/          ← www marketing + docs
-├── apps/console/      ← instance console
 ├── apps/stacks-docs/  ← Stacks ecosystem docs site
 ├── contracts/         ← reference Clarity contracts (Clarinet project; e.g. spv-adapter)
 ├── docker/            ← Dockerfiles, compose stacks, Caddy (dev + Hetzner prod)

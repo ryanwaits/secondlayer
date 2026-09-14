@@ -154,17 +154,6 @@ secondlayer subgraphs deploy ./my-subgraph.ts
 
 `subgraphs deploy` is a write, so it sends `INSTANCE_TOKEN` even here on loopback. Keep `POSTGRES_PORT` / `INDEXER_PORT` on loopback. Consumers running elsewhere: [Deploy](/docs/deploy).
 
-## Console (optional)
-
-A web UI for your instance, off by default:
-
-```bash
-docker compose --profile console up -d
-secondlayer console   # opens http://localhost:3801/console
-```
-
-Screens, the token gate, and reverse-proxy recipes: [Console](/docs/console).
-
 ## Not in the box
 
 - Multi-tenant catalog

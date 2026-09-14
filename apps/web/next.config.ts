@@ -181,6 +181,11 @@ const nextConfig: NextConfig = {
 				permanent: true,
 			},
 			{
+				source: "/docs/console",
+				destination: "/docs/self-host",
+				permanent: true,
+			},
+			{
 				source: "/workflows",
 				destination: "/docs/webhooks",
 				permanent: true,
