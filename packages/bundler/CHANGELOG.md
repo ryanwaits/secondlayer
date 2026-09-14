@@ -1,5 +1,13 @@
 # @secondlayer/bundler
 
+## 0.5.3
+
+### Patch Changes
+
+- d80f5f1: Patch high/critical bun audit findings: next 16.3.5, sharp 0.35.4, js-yaml 3.15.2, smol-toml 1.8.0, esbuild 0.28.2, hono 4.13.7, toml 4.2.0.
+- Updated dependencies [d80f5f1]
+  - @secondlayer/subgraphs@4.3.4
+
 ## 0.5.2
 
 ### Patch Changes

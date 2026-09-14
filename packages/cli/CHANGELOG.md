@@ -1,5 +1,27 @@
 # @secondlayer/cli
 
+## 15.0.0
+
+### Major Changes
+
+- cdaa969: Remove the plugin API (`@secondlayer/cli/plugins`, `plugins: [clarinet()]`). Set `clarinet: true` (or options) on the config. `codegen contracts` still loads Clarinet simnet ABIs.
+- fd3172e: Remove frozen `secondlayer local`. Use `secondlayer devnet` for Clarinet, `secondlayer setup` for self-host.
+- a6c7dbd: Remove `react()` from `@secondlayer/cli/plugins`. `clarinet()` remains.
+
+### Patch Changes
+
+- d80f5f1: Patch high/critical bun audit findings: next 16.3.5, sharp 0.35.4, js-yaml 3.15.2, smol-toml 1.8.0, esbuild 0.28.2, hono 4.13.7, toml 4.2.0.
+- Updated dependencies [d80f5f1]
+- Updated dependencies [c0c6bf8]
+- Updated dependencies [8fe0a89]
+- Updated dependencies [1026a01]
+  - @secondlayer/bundler@0.5.3
+  - @secondlayer/subgraphs@4.3.4
+  - @secondlayer/shared@11.6.0
+  - @secondlayer/sdk@10.4.2
+  - @secondlayer/stacks@6.0.0
+  - @secondlayer/scaffold@1.5.7
+
 ## 14.3.1
 
 ### Patch Changes

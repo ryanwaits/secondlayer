@@ -1,5 +1,17 @@
 # @secondlayer/shared
 
+## 11.6.0
+
+### Minor Changes
+
+- c0c6bf8: Drop unused subgraphs.database_url_enc (BYO plane already gone; column was always null).
+- 8fe0a89: Remove leftover x402 docs, batch prefix, and unused payment tables. The rail already 404s.
+
+### Patch Changes
+
+- Updated dependencies [1026a01]
+  - @secondlayer/stacks@6.0.0
+
 ## 11.5.1
 
 ### Patch Changes

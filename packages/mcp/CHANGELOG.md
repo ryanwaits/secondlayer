@@ -1,5 +1,24 @@
 # @secondlayer/mcp
 
+## 8.0.0
+
+### Major Changes
+
+- 2911f16: Remove live Streams list tools (`streams_events` and siblings). Use REST `/v1/streams`. `streams_tip` and `streams_dumps` stay.
+
+### Patch Changes
+
+- Updated dependencies [d80f5f1]
+- Updated dependencies [c0c6bf8]
+- Updated dependencies [8fe0a89]
+- Updated dependencies [1026a01]
+  - @secondlayer/bundler@0.5.3
+  - @secondlayer/subgraphs@4.3.4
+  - @secondlayer/shared@11.6.0
+  - @secondlayer/sdk@10.4.2
+  - @secondlayer/stacks@6.0.0
+  - @secondlayer/scaffold@1.5.7
+
 ## 7.5.1
 
 ### Patch Changes

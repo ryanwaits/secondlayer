@@ -1,5 +1,18 @@
 # @secondlayer/sdk
 
+## 10.4.2
+
+### Patch Changes
+
+- 8fe0a89: Remove leftover x402 docs, batch prefix, and unused payment tables. The rail already 404s.
+- Updated dependencies [d80f5f1]
+- Updated dependencies [c0c6bf8]
+- Updated dependencies [8fe0a89]
+- Updated dependencies [1026a01]
+  - @secondlayer/subgraphs@4.3.4
+  - @secondlayer/shared@11.6.0
+  - @secondlayer/stacks@6.0.0
+
 ## 10.4.1
 
 ### Patch Changes

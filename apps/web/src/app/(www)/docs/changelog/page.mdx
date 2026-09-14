@@ -7,6 +7,12 @@ instance reads are yours and unmetered. Archive bootstrap/backfill/reindex
 and hosted Index/Streams reads at `api.secondlayer.tools` draw
 [credits](/docs/authentication#archive-credits).
 
+## MCP — September 2026
+
+### Live Streams reads stay on REST
+
+MCP keeps `streams_tip` and `streams_dumps`. List and follow tools (`streams_events` and siblings) are gone; call `GET /v1/streams/events`.
+
 ## Webhooks — September 2026
 
 ### Renamed from Subscriptions
@@ -33,6 +39,10 @@ A `print_event` with a contract id needs a `prints` map so `event.data` is typed
 
 ## Index — September 2026
 
+### `/extended` is gone
+
+The optional Hiro-JSON listener on :3999 is removed. `/v1` is the contract. Old `/docs/extended` redirects to the REST guide.
+
 ### Hosted Index is keyed
 
 Hosted `/v1` Index at `api.secondlayer.tools` takes an account key (`SECONDLAYER_API_KEY`, `sk-sl_*`). Same prepaid credits as archive bootstrap. Your instance on loopback stays keyless.
@@ -42,6 +52,10 @@ Hosted `/v1` Index at `api.secondlayer.tools` takes an account key (`SECONDLAYER
 Your instance compares local identity digests to a signed manifest URL. Nothing is uploaded but the URL. Signature failure is 200 `unanchored`, never `clean`. Without `from_block`/`to_block` the route caps at 40 ranges.
 
 ## Streams — September 2026
+
+### Live list reads stay on REST
+
+MCP no longer wraps `streams_events` and siblings. `GET /v1/streams/events` is the live page. `streams_tip` and dumps stay on MCP.
 
 ### Hosted Streams is keyed
 
@@ -67,11 +81,23 @@ You keep event rows append-only and fold running balances in `onRollback` on the
 
 ## Stacks SDK — September 2026
 
+### `/tools` AI SDK entry is gone
+
+`@secondlayer/stacks/tools` and `/tools/btc` no longer ship. Agent reads go through `@secondlayer/mcp`. `ai` and `zod` are not peers of the package.
+
 ### Same `getContract` client on Clarinet simnet
 
 Point `createPublicClient` at a Clarinet session with `simnet()` from `@secondlayer/stacks/simnet` and keep using `getContract` the way you do on mainnet. The root SDK still does not load clarinet-sdk; that entry is the only one that talks to the VM.
 
 ## CLI — September 2026
+
+### Codegen reads Clarinet from config, not a plugin API
+
+`secondlayer.config.ts` takes `clarinet: true` (or `{ path, include, exclude }`). `@secondlayer/cli/plugins` and `plugins: [clarinet()]` are gone. `codegen contracts` still loads simnet ABIs. The `react()` hook generator is gone too.
+
+### `secondlayer local` is gone
+
+The frozen local stack group is removed. Use `secondlayer setup` for self-host and `secondlayer devnet` for Clarinet.
 
 ### `secondlayer archive`
 

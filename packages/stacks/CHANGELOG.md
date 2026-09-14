@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 6.0.0
+
+### Major Changes
+
+- 1026a01: Remove `@secondlayer/stacks/tools` and `/tools/btc`. Use `@secondlayer/mcp`.
+
 ## 5.1.3
 
 ### Patch Changes

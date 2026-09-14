@@ -1,5 +1,17 @@
 # @secondlayer/web
 
+## 0.6.43
+
+### Patch Changes
+
+- d80f5f1: Patch high/critical bun audit findings: next 16.3.5, sharp 0.35.4, js-yaml 3.15.2, smol-toml 1.8.0, esbuild 0.28.2, hono 4.13.7, toml 4.2.0.
+- 3439d22: Remove the unused optional `/extended` Hiro JSON docs surface.
+- 5301efc: Remove docs SurfaceCards and stale agent/sprint maps.
+- Updated dependencies [8fe0a89]
+- Updated dependencies [1026a01]
+  - @secondlayer/sdk@10.4.2
+  - @secondlayer/stacks@6.0.0
+
 ## 0.6.42
 
 ### Patch Changes
