@@ -1,6 +1,6 @@
 # Index API Quickstart
 
-The **Index API** is a read-only, fully-decoded view of the Stacks chain — canonical blocks, full transaction documents, and decoded PoX-4 stacking actions — served over plain HTTP `GET`. Loopback reads need no key, every endpoint uses `snake_case` query params, and every response is a standard cursor envelope. Finalized pages are aggressively cacheable (immutable + ETag), so syncing the chain is cheap.
+The **Index API** is the decoded primitive: canonical blocks, transactions, events, and a checkpointed `consume()` / `walk()` loop so you write your own tables without writing a decoder. Boot-contract feeds (PoX-4 stacking, pox-5, sBTC) use the same envelope; they are evidence the primitive works, not extra products. Loopback reads need no key, every endpoint uses `snake_case` query params, and every response is a standard cursor envelope. Finalized pages are aggressively cacheable (immutable + ETag), so syncing the chain is cheap.
 
 This guide is runnable against a local instance (`secondlayer init` + `docker/oss`). History is whatever this instance has bootstrapped.
 
@@ -174,9 +174,9 @@ if (one && one.transaction.tx_type === "contract_call") {
 
 ---
 
-## 4. Stacking (`/v1/index/stacking`)
+## 4. Boot-contract example: stacking (`/v1/index/stacking`)
 
-Decoded PoX-4 stacking actions — every call to the PoX contract, decoded into typed fields. Filter by `function_name` (e.g. `stack-stx`, `delegate-stx`, `delegate-stack-stx`, `revoke-delegate-stx`), `stacker`, or `caller`. Each row carries `caller`, `stacker`, `delegate_to`, `amount_ustx`, `lock_period`, `pox_addr {version, hashbytes, btc}`, `start_cycle` / `end_cycle` / `reward_cycle`, `signer_key`, and `result_ok`. Fields that don't apply to a given function (or that come from a failed call) are `null`. Full history is backfilled — 134k+ actions back to block 147,294.
+Same Index verbs on the PoX-4 boot contract, not a stacking product. Decoded stacking actions — every call to the PoX contract, decoded into typed fields. Live era is `/v1/index/pox5/events`. Your protocol stays in `consume()` or a subgraph. Filter by `function_name` (e.g. `stack-stx`, `delegate-stx`, `delegate-stack-stx`, `revoke-delegate-stx`), `stacker`, or `caller`. Each row carries `caller`, `stacker`, `delegate_to`, `amount_ustx`, `lock_period`, `pox_addr {version, hashbytes, btc}`, `start_cycle` / `end_cycle` / `reward_cycle`, `signer_key`, and `result_ok`. Fields that don't apply to a given function (or that come from a failed call) are `null`. Full history is backfilled — 134k+ actions back to block 147,294.
 
 ```bash
 curl -s "http://127.0.0.1:3800/v1/index/stacking?function_name=delegate-stack-stx&from_height=7184000&to_height=7185000&limit=1"

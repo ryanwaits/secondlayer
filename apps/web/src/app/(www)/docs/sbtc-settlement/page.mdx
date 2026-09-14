@@ -1,5 +1,7 @@
 # sBTC settlement
 
+Index on the sBTC peg contracts, plus Bitcoin confirmation of sweeps. Same `consume()` / `walk()` loop as any other decoded feed. Not an sBTC product.
+
 Accepted isn't received. A `withdrawal-accept` event only means the signers *committed* to a Bitcoin sweep; your instance verifies that `sweep_txid` against your bitcoind (the bundled full-node profile or an external `BITCOIN_RPC`) and surfaces the result on the decoded sBTC feed.
 
 Deposits need no such check: `completed-deposit` fires only after the signers see the BTC confirmations.

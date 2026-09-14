@@ -113,7 +113,9 @@ index on the same rows: a checkpointed `consume()` loop with automatic cursor
 rewind on reorg (`onReorg` rolls back your own rows), `walk()` sweeps,
 `from_height=0` backfill, `/canonical`, `secondlayer codegen index` for your mirror
 schema. Built on Streams (our decoder is a Streams consumer). App index
-without writing decoders.
+without writing decoders. Boot-contract tables (pox-5, sBTC, stacking) are
+the same primitive on contracts everyone shares, not a catalog. New protocols
+go in the operator's `consume()` loop or a subgraph.
 
 **Subgraphs** — your schema. `defineSubgraph()` in one TypeScript file →
 deploy → Postgres tables behind the same `/v1` read API. Self-host on

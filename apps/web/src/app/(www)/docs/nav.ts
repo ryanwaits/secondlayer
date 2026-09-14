@@ -28,8 +28,10 @@ export interface DocsNavGroup {
  * - **Channels** are how you reach them (REST, CLI, SDK, MCP, Console). SDK
  *   concepts (Sinks, Filters) sit with the SDK rather than competing with
  *   the nouns in Products.
- * - **Chain data** is Index data pages for named protocols (sBTC, PoX-5
- *   events, contract discovery) plus the Chainhook migration guide.
+ * - **Boot-contract pages** (PoX-5, sBTC) hang under Index. They are
+ *   the decoded primitive on contracts everyone shares, not extra products
+ *   and not a catalog. New protocols belong in the operator's consume()
+ *   loop or a subgraph. Contract discovery + Chainhook stay in Chain data.
  * - **Start / Operate / Reference** are onboarding, ops, and lookup.
  *   Library pages for `@secondlayer/stacks` live at stacks.secondlayer.tools.
  */
@@ -48,7 +50,14 @@ export const DOCS_NAV: DocsNavGroup[] = [
 		items: [
 			{ title: "Archive", href: "/docs/archive" },
 			{ title: "Streams", href: "/docs/streams" },
-			{ title: "Index", href: "/docs/index" },
+			{
+				title: "Index",
+				href: "/docs/index",
+				items: [
+					{ title: "PoX-5 events", href: "/docs/pox5-events" },
+					{ title: "sBTC settlement", href: "/docs/sbtc-settlement" },
+				],
+			},
 			{
 				title: "Subgraphs",
 				href: "/docs/subgraphs",
@@ -91,8 +100,6 @@ export const DOCS_NAV: DocsNavGroup[] = [
 	{
 		label: "Chain data",
 		items: [
-			{ title: "sBTC settlement", href: "/docs/sbtc-settlement" },
-			{ title: "PoX-5 events", href: "/docs/pox5-events" },
 			{ title: "Contract discovery", href: "/docs/contracts" },
 			{ title: "Migrating from Chainhook", href: "/docs/migrate-chainhook" },
 		],
