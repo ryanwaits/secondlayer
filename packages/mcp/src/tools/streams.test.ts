@@ -39,73 +39,10 @@ function register(tools: RegisteredTool[], client: unknown) {
 }
 
 describe("streams MCP tools", () => {
-	it("registers the cursor-paginated reads and the dumps manifest, but no live-follow tool", () => {
+	it("registers tip and dumps only — live Streams reads are REST", () => {
 		const tools: RegisteredTool[] = [];
 		register(tools, {});
-		expect(tools.map((t) => t.name)).toEqual([
-			"streams_tip",
-			"streams_events",
-			"streams_events_by_tx",
-			"streams_block_events",
-			"streams_canonical",
-			"streams_reorgs",
-			"streams_dumps",
-		]);
-	});
-
-	it("streams_events advertises every filter the HTTP route supports", () => {
-		const tools: RegisteredTool[] = [];
-		register(tools, {});
-		const schema = tools.find((t) => t.name === "streams_events")?.schema;
-		expect(Object.keys(schema ?? {}).sort()).toEqual([
-			"assetIdentifier",
-			"contractId",
-			"cursor",
-			"fromHeight",
-			"limit",
-			"notTypes",
-			"recipient",
-			"sender",
-			"toHeight",
-			"types",
-		]);
-	});
-
-	it("streams_events forwards filters and returns the cursor envelope", async () => {
-		const tools: RegisteredTool[] = [];
-		let captured: unknown;
-		const byName = register(tools, {
-			streams: {
-				events: {
-					list: async (params: unknown) => {
-						captured = params;
-						return {
-							events: [{ cursor: "150000:3", event_type: "stx_transfer" }],
-							next_cursor: "150000:4",
-							tip: { block_height: 150001 },
-							reorgs: [],
-						};
-					},
-				},
-			},
-		});
-
-		const res = await byName.streams_events?.({
-			types: ["stx_transfer"],
-			sender: ["SP1", "SP2"],
-			cursor: "150000:0",
-			fromHeight: 150000,
-			limit: 50,
-		});
-		expect(res?.isError).toBeUndefined();
-		expect(captured).toEqual({
-			types: ["stx_transfer"],
-			sender: ["SP1", "SP2"],
-			cursor: "150000:0",
-			fromHeight: 150000,
-			limit: 50,
-		});
-		expect(res?.content[0]?.text).toContain('"next_cursor": "150000:4"');
+		expect(tools.map((t) => t.name)).toEqual(["streams_tip", "streams_dumps"]);
 	});
 
 	it("streams_tip returns the tip and its seekable floor", async () => {
@@ -122,78 +59,6 @@ describe("streams MCP tools", () => {
 		const res = await byName.streams_tip?.({});
 		expect(res?.isError).toBeUndefined();
 		expect(res?.content[0]?.text).toContain('"oldest_seekable_height": 100000');
-	});
-
-	it("streams_events_by_tx returns one transaction's events", async () => {
-		const tools: RegisteredTool[] = [];
-		let requestedTxId: string | undefined;
-		const byName = register(tools, {
-			streams: {
-				events: {
-					byTxId: async (txId: string) => {
-						requestedTxId = txId;
-						return { events: [{ tx_id: txId, event_index: 0 }], tip: {} };
-					},
-				},
-			},
-		});
-		const res = await byName.streams_events_by_tx?.({ txId: "0xabc" });
-		expect(requestedTxId).toBe("0xabc");
-		expect(res?.content[0]?.text).toContain("0xabc");
-	});
-
-	it("streams_block_events accepts a height or a block hash", async () => {
-		const tools: RegisteredTool[] = [];
-		const requested: unknown[] = [];
-		const byName = register(tools, {
-			streams: {
-				blocks: {
-					events: async (heightOrHash: number | string) => {
-						requested.push(heightOrHash);
-						return { events: [], tip: {} };
-					},
-				},
-			},
-		});
-		await byName.streams_block_events?.({ heightOrHash: 150000 });
-		await byName.streams_block_events?.({ heightOrHash: "0xdeadbeef" });
-		expect(requested).toEqual([150000, "0xdeadbeef"]);
-	});
-
-	it("streams_canonical reports whether a height is still canonical", async () => {
-		const tools: RegisteredTool[] = [];
-		const byName = register(tools, {
-			streams: {
-				canonical: async (height: number) => ({
-					block_height: height,
-					block_hash: "0xabc",
-					is_canonical: true,
-				}),
-			},
-		});
-		const res = await byName.streams_canonical?.({ height: 150000 });
-		expect(res?.content[0]?.text).toContain('"is_canonical": true');
-	});
-
-	it("streams_reorgs forwards since and omits an unset limit", async () => {
-		const tools: RegisteredTool[] = [];
-		const captured: unknown[] = [];
-		const byName = register(tools, {
-			streams: {
-				reorgs: {
-					list: async (params: unknown) => {
-						captured.push(params);
-						return { reorgs: [], next_since: null };
-					},
-				},
-			},
-		});
-		await byName.streams_reorgs?.({ since: "2026-08-01T00:00:00Z" });
-		await byName.streams_reorgs?.({ since: "2026-08-01T00:00:00Z", limit: 10 });
-		expect(captured).toEqual([
-			{ since: "2026-08-01T00:00:00Z" },
-			{ since: "2026-08-01T00:00:00Z", limit: 10 },
-		]);
 	});
 
 	it("streams_dumps returns the bulk parquet manifest", async () => {

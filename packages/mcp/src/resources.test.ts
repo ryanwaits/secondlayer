@@ -315,12 +315,7 @@ const GOLDEN_PATH_TOOLS = [
 	"contracts_find",
 	"contracts_get_abi",
 	// streams
-	"streams_block_events",
-	"streams_canonical",
 	"streams_dumps",
-	"streams_events",
-	"streams_events_by_tx",
-	"streams_reorgs",
 	"streams_tip",
 	// subgraphs lifecycle
 	"subgraphs_backfill",

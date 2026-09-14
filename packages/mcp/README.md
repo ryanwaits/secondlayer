@@ -16,7 +16,7 @@ bun add @secondlayer/mcp
 
 ## Auth
 
-Most reads are public: `index_*` and `contracts_find` work with no key. Subgraph tools need an `INSTANCE_TOKEN` past loopback; separately, **public** subgraphs are anon-readable over HTTP at `GET /v1/subgraphs/<name>/<table>` (`{ rows, next_cursor, tip }` cursor envelope), while private ones need the instance token (anon → 404). `streams_dumps` needs no key: the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. Every other `streams_*` tool is key-mandatory (keyless → 401). Writes (deploy, reindex, delete, webhooks) need a key: set `INSTANCE_TOKEN` from `secondlayer init`. Hosted credits/quote use `SECONDLAYER_API_KEY` (`sk-sl_*`). Read `secondlayer://context` first: it reports auth state and read-auth tiers.
+Most reads are public: `index_*` and `contracts_find` work with no key. Subgraph tools need an `INSTANCE_TOKEN` past loopback; separately, **public** subgraphs are anon-readable over HTTP at `GET /v1/subgraphs/<name>/<table>` (`{ rows, next_cursor, tip }` cursor envelope), while private ones need the instance token (anon → 404). `streams_dumps` needs no key: the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. `streams_tip` is key-mandatory (keyless → 401). Live Streams list reads are REST-only (`GET /v1/streams/*`). Writes (deploy, reindex, delete, webhooks) need a key: set `INSTANCE_TOKEN` from `secondlayer init`. Hosted credits/quote use `SECONDLAYER_API_KEY` (`sk-sl_*`). Read `secondlayer://context` first: it reports auth state and read-auth tiers.
 
 ## Quick Start — Stdio (IDE)
 
@@ -66,7 +66,7 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 | **Index** (9) | `index_events`, `index_ft_transfers`, `index_nft_transfers`, `index_contract_calls`, `index_blocks`, `index_transactions`, `index_print_schema`, `index_discover`, `batch_query` |
 | **Subgraphs** (12) | `subgraphs_list`, `subgraphs_status`, `subgraphs_spec`, `subgraphs_scaffold`, `subgraphs_deploy`, `subgraphs_delete`, `subgraphs_query`, `subgraphs_backfill`, `subgraphs_reindex`, `subgraphs_stop`, `subgraphs_operations`, `subgraphs_gaps` |
 | **Webhooks** (13) | `webhooks_create`, `webhooks_list`, `webhooks_get`, `webhooks_update`, `webhooks_delete`, `webhooks_test`, `webhooks_pause`, `webhooks_resume`, `webhooks_rotate_secret`, `webhooks_deliveries`, `webhooks_dead`, `webhooks_requeue`, `webhooks_replay` |
-| **Streams** (7) | `streams_tip`, `streams_events`, `streams_events_by_tx`, `streams_block_events`, `streams_canonical`, `streams_reorgs`, `streams_dumps` |
+| **Streams** (2) | `streams_tip`, `streams_dumps` |
 | **Contracts** (2) | `contracts_find`, `contracts_get_abi` |
 | **Instance** (1) | `instance_status` |
 | **Archive** (5) | `archive_verify`, `archive_bootstrap`, `archive_repair`, `archive_latest`, `archive_quote` |
@@ -80,8 +80,8 @@ Verify after mutating: `subgraphs_operations` for deploy/reindex/backfill/stop,
 `archive_verify`, then `codegen_index_schema`.
 
 Periphery surfaces (single block/tx lookups, mempool, stacking, proofs,
-credits/caps, live Streams SSE) are REST-only: see the OpenAPI spec at the API
-host. Following the chain over MCP means polling `streams_events` with a cursor.
+credits/caps, live Streams reads/SSE) are REST-only: see the OpenAPI spec at
+the API host. Live Streams list reads use `GET /v1/streams/events`.
 
 Point the server at your instance with `SECONDLAYER_API_URL` (default
 `http://127.0.0.1:3800`). Writes use `INSTANCE_TOKEN` from
