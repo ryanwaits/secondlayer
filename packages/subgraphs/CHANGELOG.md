@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 4.3.3
+
+### Patch Changes
+
+- 90c76b1: Stamp Index-row tx metadata onto `runSubgraphTest` ctx/event so preview and MCP see the same `event.tx` / `ctx.tx` the live runner builds.
+
 ## 4.3.2
 
 ### Patch Changes
