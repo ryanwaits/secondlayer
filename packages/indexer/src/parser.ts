@@ -2,6 +2,7 @@ import type {
 	InsertBlock,
 	InsertEvent,
 	InsertTransaction,
+	InsertVmEvent,
 } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
 import { serializeCV } from "@secondlayer/stacks/clarity";
@@ -17,6 +18,8 @@ import type {
 	NewBlockPayload,
 	TransactionEvent,
 	TransactionPayload,
+	VmNodeEventType,
+	VmTraceEvent,
 } from "./types/node-events.ts";
 
 // Stacks API URL for fallback tx lookups (opt-in via ENABLE_TX_DECODE_FALLBACK=true).
@@ -281,6 +284,18 @@ export async function parseTransaction(
 	};
 }
 
+/** Node JSON `type` → Secondlayer stored `type`. Inner calls are not `contract_call`. */
+export const VM_NODE_TO_STORED_TYPE = {
+	contract_call_event: "nested_contract_call",
+	var_set_event: "var_set",
+	map_set_event: "map_set",
+	map_insert_event: "map_insert",
+	map_delete_event: "map_delete",
+} as const satisfies Record<VmNodeEventType, string>;
+
+export type VmStoredEventType =
+	(typeof VM_NODE_TO_STORED_TYPE)[keyof typeof VM_NODE_TO_STORED_TYPE];
+
 export function parseEvent(
 	txEvent: TransactionEvent,
 	blockHeight: number,
@@ -301,6 +316,39 @@ export function parseEvent(
 		block_height: blockHeight,
 		event_index: event_index,
 		type,
+		data: eventData,
+	};
+}
+
+export function parseVmEvent(
+	vmEvent: VmTraceEvent,
+	blockHeight: number,
+): InsertVmEvent | null {
+	const { txid, vm_event_index, type } = vmEvent;
+	if (!txid || !type) return null;
+	if (
+		typeof vm_event_index !== "number" ||
+		!Number.isInteger(vm_event_index) ||
+		vm_event_index < 0
+	) {
+		return null;
+	}
+
+	const storedType =
+		type in VM_NODE_TO_STORED_TYPE ? VM_NODE_TO_STORED_TYPE[type] : undefined;
+	if (!storedType) {
+		logger.warn("Unknown vm_event type, skipping", { type, txid });
+		return null;
+	}
+
+	const eventData =
+		(vmEvent as unknown as Record<string, unknown>)[type] ?? vmEvent;
+
+	return {
+		tx_id: txid,
+		block_height: blockHeight,
+		vm_event_index,
+		type: storedType,
 		data: eventData,
 	};
 }

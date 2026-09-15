@@ -54,6 +54,10 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 	beforeEach(async () => {
 		if (!db) return;
 		await db
+			.deleteFrom("vm_events")
+			.where("block_height", "in", [H, H + 1])
+			.execute();
+		await db
 			.deleteFrom("events")
 			.where("block_height", "in", [H, H + 1])
 			.execute();
@@ -75,6 +79,10 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 			.execute();
 		await db
 			.deleteFrom("transactions_archive")
+			.where("block_height", "in", [H, H + 1])
+			.execute();
+		await db
+			.deleteFrom("vm_events_archive")
 			.where("block_height", "in", [H, H + 1])
 			.execute();
 	});
@@ -191,5 +199,103 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 			.where("block_height", "=", H + 1)
 			.execute();
 		expect(strandedAtHPlus1).toHaveLength(0);
+	});
+
+	test("absent vm_events leaves the second clock empty and classic events intact", async () => {
+		if (!db) throw new Error("missing db");
+		await persistBlock(db, payload("0xblockA", "0xtxA"));
+
+		const classic = await db
+			.selectFrom("events")
+			.select(["event_index", "type"])
+			.where("block_height", "=", H)
+			.execute();
+		const vm = await db
+			.selectFrom("vm_events")
+			.selectAll()
+			.where("block_height", "=", H)
+			.execute();
+
+		expect(classic).toEqual([{ event_index: 0, type: "stx_transfer_event" }]);
+		expect(vm).toHaveLength(0);
+	});
+
+	test("present vm_events persist remapped types on vm_event_index", async () => {
+		if (!db) throw new Error("missing db");
+		const input = payload("0xblockA", "0xtxA");
+		input.vmEvts = [
+			{
+				tx_id: "0xtxA",
+				block_height: H,
+				vm_event_index: 0,
+				type: "nested_contract_call",
+				data: { function_name: "set-value" },
+			},
+			{
+				tx_id: "0xtxA",
+				block_height: H,
+				vm_event_index: 1,
+				type: "map_set",
+				data: { map_name: "store" },
+			},
+		];
+		await persistBlock(db, input);
+
+		const classic = await db
+			.selectFrom("events")
+			.select(["event_index", "type"])
+			.where("block_height", "=", H)
+			.execute();
+		const vm = await db
+			.selectFrom("vm_events")
+			.select(["vm_event_index", "type"])
+			.where("block_height", "=", H)
+			.orderBy("vm_event_index", "asc")
+			.execute();
+		const mixed = await db
+			.selectFrom("events")
+			.select(["type"])
+			.where("block_height", "=", H)
+			.where("type", "in", ["nested_contract_call", "map_set"])
+			.execute();
+
+		expect(classic).toEqual([{ event_index: 0, type: "stx_transfer_event" }]);
+		expect(vm).toEqual([
+			{ vm_event_index: 0, type: "nested_contract_call" },
+			{ vm_event_index: 1, type: "map_set" },
+		]);
+		expect(mixed).toHaveLength(0);
+	});
+
+	test("reorg archives vm_events instead of destroying them", async () => {
+		if (!db) throw new Error("missing db");
+		const first = payload("0xblockA", "0xtxA");
+		first.vmEvts = [
+			{
+				tx_id: "0xtxA",
+				block_height: H,
+				vm_event_index: 0,
+				type: "map_set",
+				data: { map_name: "store" },
+			},
+		];
+		await persistBlock(db, first);
+		await persistBlock(db, payload("0xblockB", "0xtxB"));
+
+		const live = await db
+			.selectFrom("vm_events")
+			.select(["tx_id"])
+			.where("block_height", "=", H)
+			.execute();
+		const archived = await db
+			.selectFrom("vm_events_archive")
+			.select(["tx_id", "orphaned_block_hash", "vm_event_index"])
+			.where("block_height", "=", H)
+			.execute();
+
+		expect(live).toHaveLength(0);
+		expect(archived).toEqual([
+			{ tx_id: "0xtxA", orphaned_block_hash: "0xblockA", vm_event_index: 0 },
+		]);
 	});
 });

@@ -12,6 +12,8 @@ export type PersistBlockInput = {
 	block: Insertable<Database["blocks"]>;
 	txs: Insertable<Database["transactions"]>[];
 	evts: Insertable<Database["events"]>[];
+	/** Second clock. Empty when the `/new_block` body had no `vm_events` field. */
+	vmEvts?: Insertable<Database["vm_events"]>[];
 	blockHeight: number;
 	/** Defaults to STACKS_NETWORK env (or "mainnet"). */
 	network?: string;
@@ -61,6 +63,16 @@ async function archiveOrphanedHeight(
 			${orphanedHash}
 		FROM events WHERE block_height = ${blockHeight}
 	`.execute(tx);
+
+	await sql`
+		INSERT INTO vm_events_archive (
+			id, tx_id, block_height, vm_event_index, type, data, created_at,
+			orphaned_block_hash
+		)
+		SELECT id, tx_id, block_height, vm_event_index, type, data, created_at,
+			${orphanedHash}
+		FROM vm_events WHERE block_height = ${blockHeight}
+	`.execute(tx);
 }
 
 export async function persistBlock(
@@ -68,6 +80,7 @@ export async function persistBlock(
 	input: PersistBlockInput,
 ): Promise<void> {
 	const { block, txs, evts, blockHeight } = input;
+	const vmEvts = input.vmEvts ?? [];
 	const network = input.network ?? process.env.STACKS_NETWORK ?? "mainnet";
 
 	await db.transaction().execute(async (tx) => {
@@ -118,6 +131,22 @@ export async function persistBlock(
 		// Two statements, not one OR'd predicate: an OR across block_height and
 		// tx_id defeats both indexes and seq-scans the whole events table
 		// (~105M rows) on every block. Split, each side uses its own index.
+		// vm_events also FKs transactions.tx_id — drop them before the parent.
+		await tx
+			.deleteFrom("vm_events")
+			.where("block_height", "=", blockHeight)
+			.execute();
+		await tx
+			.deleteFrom("vm_events")
+			.where(
+				"tx_id",
+				"in",
+				tx
+					.selectFrom("transactions")
+					.select("tx_id")
+					.where("block_height", "=", blockHeight),
+			)
+			.execute();
 		await tx
 			.deleteFrom("events")
 			.where("block_height", "=", blockHeight)
@@ -159,6 +188,15 @@ export async function persistBlock(
 				// belt-and-suspenders on redelivery of the same height. (A targeted
 				// onConflict.columns(...) would hard-require the index and throw on
 				// every insert until it exists — see persist/backfill deploy ordering.)
+				// biome-ignore lint/suspicious/noExplicitAny: kysely onConflict builder
+				.onConflict((oc: any) => oc.doNothing())
+				.execute();
+		}
+
+		for (let i = 0; i < vmEvts.length; i += EVT_CHUNK_SIZE) {
+			await tx
+				.insertInto("vm_events")
+				.values(vmEvts.slice(i, i + EVT_CHUNK_SIZE))
 				// biome-ignore lint/suspicious/noExplicitAny: kysely onConflict builder
 				.onConflict((oc: any) => oc.doNothing())
 				.execute();

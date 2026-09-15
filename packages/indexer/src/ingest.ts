@@ -12,6 +12,7 @@ import {
 	parseBlock,
 	parseEvent,
 	parseTransaction,
+	parseVmEvent,
 	stripNullBytes,
 } from "./parser.ts";
 import { persistBlock } from "./persist.ts";
@@ -98,6 +99,7 @@ export type IngestResult = {
 
 export async function ingestNewBlock(
 	payload: NewBlockPayload,
+	options?: { network?: string },
 ): Promise<IngestResult> {
 	const db = getSourceDb();
 
@@ -258,6 +260,13 @@ export async function ingestNewBlock(
 		.filter((evt): evt is NonNullable<typeof evt> => evt !== null)
 		.map((evt) => stripNullBytes(evt) as typeof evt);
 
+	const vmEvts = Array.isArray(payload.vm_events)
+		? payload.vm_events
+				.map((evt) => parseVmEvent(evt, payload.block_height))
+				.filter((evt): evt is NonNullable<typeof evt> => evt !== null)
+				.map((evt) => stripNullBytes(evt) as typeof evt)
+		: [];
+
 	// Persist block + txs/events atomically. Replace-per-height inside (deletes
 	// stale rows at this height before insert) keeps reorged heights free of
 	// orphaned duplicates — see persistBlock / #46.
@@ -265,7 +274,9 @@ export async function ingestNewBlock(
 		block,
 		txs,
 		evts,
+		vmEvts,
 		blockHeight: payload.block_height,
+		network: options?.network,
 	});
 
 	if (STREAMS_PAYLOAD_VALIDATION_ENABLED) {
@@ -276,6 +287,7 @@ export async function ingestNewBlock(
 		height: payload.block_height,
 		transactions: txs.length,
 		events: evts.length,
+		vmEvents: vmEvts.length,
 	});
 
 	return {

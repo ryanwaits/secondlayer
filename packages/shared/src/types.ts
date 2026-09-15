@@ -5,6 +5,8 @@ export type {
 	InsertTransaction,
 	Event,
 	InsertEvent,
+	VmEvent,
+	InsertVmEvent,
 	IndexProgress,
 	InsertIndexProgress,
 } from "./db/schema.ts";

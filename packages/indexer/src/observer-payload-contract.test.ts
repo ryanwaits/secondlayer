@@ -104,4 +104,25 @@ describe("observer payload contract", () => {
 			expect(block.height).toBe(payload.block_height);
 		});
 	}
+
+	test("`*` body omits vm_events", async () => {
+		const { payload } = await loadFixture("new_block.star.json");
+		expect("vm_events" in payload).toBe(false);
+		expect(payload.events).toHaveLength(1);
+		expect(payload.events[0]?.event_index).toBe(0);
+	});
+
+	test("opt-in body has vm_events with vm_event_index, no event_index on traces", async () => {
+		const { payload } = await loadFixture("new_block.vm_events.json");
+		expect(payload.vm_events).toHaveLength(2);
+		expect(payload.events[0]?.event_index).toBe(0);
+		expect(payload.vm_events?.map((e) => e.type)).toEqual([
+			"contract_call_event",
+			"map_set_event",
+		]);
+		for (const trace of payload.vm_events ?? []) {
+			expect(trace.vm_event_index).toBeGreaterThanOrEqual(0);
+			expect("event_index" in trace).toBe(false);
+		}
+	});
 });
