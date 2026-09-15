@@ -178,5 +178,30 @@ export function reconstructEvent(e: IndexEventRow): Event {
 					raw_value: e.payload.raw_value,
 				},
 			} as Event;
+
+		case "nested_contract_call":
+		case "var_set":
+		case "map_set":
+		case "map_insert":
+		case "map_delete":
+			return {
+				...base,
+				type: e.event_type,
+				data: {
+					contract_identifier: e.contract_id,
+					...("payload" in e && e.payload && typeof e.payload === "object"
+						? (e.payload as Record<string, unknown>)
+						: {}),
+					sender: "sender" in e ? e.sender : undefined,
+					caller: "caller" in e ? e.caller : undefined,
+					function_name: "function_name" in e ? e.function_name : undefined,
+					function_args: "function_args" in e ? e.function_args : undefined,
+					raw_result: "raw_result" in e ? e.raw_result : undefined,
+					map_name: "map" in e ? e.map : undefined,
+					var_name: "var_name" in e ? e.var_name : undefined,
+					raw_key: "raw_key" in e ? e.raw_key : undefined,
+					raw_value: "raw_value" in e ? e.raw_value : undefined,
+				},
+			} as Event;
 	}
 }

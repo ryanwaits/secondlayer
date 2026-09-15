@@ -100,6 +100,30 @@ export type IndexEventRow = IndexEventCommon &
 					raw_value: string | null;
 				};
 		  }
+		| {
+				event_type: "nested_contract_call";
+				sender?: string | null;
+				caller: string;
+				function_name: string;
+				function_args?: unknown;
+				raw_result?: string | null;
+		  }
+		| {
+				event_type: "var_set";
+				var_name: string;
+				raw_value?: string | null;
+		  }
+		| {
+				event_type: "map_set" | "map_insert";
+				map: string;
+				raw_key?: string | null;
+				raw_value?: string | null;
+		  }
+		| {
+				event_type: "map_delete";
+				map: string;
+				raw_key?: string | null;
+		  }
 	);
 
 export type IndexTransactionRow = {

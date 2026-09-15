@@ -107,6 +107,11 @@ const EVENT_FILTER_TO_INDEX_TYPE: Record<string, string> = {
 	nft_mint: "nft_mint",
 	nft_burn: "nft_burn",
 	print_event: "print",
+	nested_contract_call: "nested_contract_call",
+	var_set: "var_set",
+	map_set: "map_set",
+	map_insert: "map_insert",
+	map_delete: "map_delete",
 };
 
 // Tx-level source types — matched against /v1/index/transactions, not events.

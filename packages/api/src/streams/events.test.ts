@@ -310,6 +310,29 @@ describe("Streams events route helpers", () => {
 	});
 });
 
+describe("parseStreamsEventsQuery — clock=vm", () => {
+	test("accepts vm types only on clock=vm", () => {
+		const parsed = parseStreamsEventsQuery(
+			params("?clock=vm&types=nested_contract_call,map_set"),
+			TIP,
+		);
+		expect(parsed.clock).toBe("vm");
+		expect(parsed.types).toEqual(["nested_contract_call", "map_set"]);
+	});
+
+	test("rejects classic types on clock=vm", () => {
+		expect(() =>
+			parseStreamsEventsQuery(params("?clock=vm&types=print"), TIP),
+		).toThrow(/Unknown vm Streams event type/);
+	});
+
+	test("rejects vm types on classic clock", () => {
+		expect(() =>
+			parseStreamsEventsQuery(params("?types=nested_contract_call"), TIP),
+		).toThrow(/Unknown Streams event type/);
+	});
+});
+
 describe("parseStreamsEventsQuery — event_type alias", () => {
 	test("event_type=<single> folds into types (the Index spelling)", () => {
 		const parsed = parseStreamsEventsQuery(params("?event_type=print"), TIP);

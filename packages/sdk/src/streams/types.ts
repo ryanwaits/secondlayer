@@ -1,6 +1,7 @@
 // Canonical event primitives (StreamsEvent, payload types, event-type vocab)
 // live in @secondlayer/shared/streams-rows; re-exported here so the public
 // Streams surface is unchanged.
+import type { VmEventType } from "@secondlayer/shared";
 import {
 	STREAMS_EVENT_TYPES,
 	type StreamsEvent,
@@ -132,9 +133,11 @@ export type StreamsEventsListParams = {
 	cursor?: string | null;
 	fromHeight?: number;
 	toHeight?: number;
-	types?: readonly StreamsEventType[];
+	/** `vm` reads vm_event_index. Omit for Streams 1.0. */
+	clock?: "classic" | "vm";
+	types?: readonly (StreamsEventType | VmEventType)[];
 	/** Event types to exclude (applied after `types`). */
-	notTypes?: readonly StreamsEventType[];
+	notTypes?: readonly (StreamsEventType | VmEventType)[];
 	contractId?: StreamsFilterValue;
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;

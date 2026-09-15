@@ -44,6 +44,23 @@ describe("on.* factories", () => {
 		});
 	});
 
+	test("nested_contract_call is Index+Streams vm clock, not outer contract_call", () => {
+		const f = on.nestedCall({
+			contractId: TOKEN_CONTRACT,
+			functionName: "transfer",
+		});
+		expect(f.type).toBe("nested_contract_call");
+		expect(f.toIndexParams().eventType).toBe("nested_contract_call");
+		expect(f.toStreamsParams()).toEqual({
+			types: ["nested_contract_call"],
+			clock: "vm",
+			contractId: TOKEN_CONTRACT,
+			functionName: "transfer",
+		});
+		expect(f.toChainTrigger().type).toBe("nested_contract_call");
+		expect("toContractCallsParams" in f).toBe(false);
+	});
+
 	test("canonical print_event projects to Index/Streams as print", () => {
 		const f = on.print({ contractId: TOKEN_CONTRACT });
 		expect(f.type).toBe("print_event");

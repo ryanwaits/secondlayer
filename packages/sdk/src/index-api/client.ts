@@ -1,3 +1,4 @@
+import type { VmEventType } from "@secondlayer/shared";
 import type { Pox5EventTopic } from "@secondlayer/stacks/pox5";
 import type { SbtcEventTopic } from "@secondlayer/stacks/sbtc";
 import type { InferredTopicSchema } from "@secondlayer/subgraphs";
@@ -308,9 +309,8 @@ export type IndexEventOf<T extends IndexEventType> = Extract<
 >;
 
 export type EventsListParams<T extends IndexEventType = IndexEventType> = {
-	/** Required. One of the decoded event types. Passing a literal narrows the
-	 *  rows every surface hands back to that event's own shape. */
-	eventType: T;
+	/** Decoded types or VM types (`nested_contract_call`, `map_set`, …). */
+	eventType: T | VmEventType;
 	cursor?: string | null;
 	fromCursor?: string | null;
 	limit?: number;
@@ -320,6 +320,10 @@ export type EventsListParams<T extends IndexEventType = IndexEventType> = {
 	assetIdentifier?: string;
 	sender?: string;
 	recipient?: string;
+	functionName?: string;
+	caller?: string;
+	map?: string;
+	varName?: string;
 	fromHeight?: number;
 	toHeight?: number;
 	/** Restrict to contracts conforming to a trait/standard (e.g. "sip-010").

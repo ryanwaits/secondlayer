@@ -33,8 +33,8 @@ import {
 } from "../index/contract-calls.ts";
 import { debitCreditedRead, indexCreditsGate } from "../index/credits-gate.ts";
 import {
+	ALL_INDEX_EVENT_TYPES,
 	INDEX_EVENT_CONFIG,
-	INDEX_EVENT_TYPES,
 	type IndexEventsReader,
 	getIndexEventsResponse,
 } from "../index/events.ts";
@@ -113,6 +113,7 @@ import {
 	getTransactionsResponse,
 	readTransactionById,
 } from "../index/transactions.ts";
+import { VM_INDEX_EVENT_CONFIG } from "../index/vm-events.ts";
 import { validateQueryParams } from "../middleware/validation.ts";
 import {
 	DEFAULT_STREAMS_REORGS_READER,
@@ -131,7 +132,16 @@ const INDEX_COMMON = [
 ] as const;
 const FT_ALLOWED = [...INDEX_COMMON, "asset_identifier", "fields"] as const;
 const NFT_ALLOWED = [...INDEX_COMMON, "asset_identifier", "fields"] as const;
-const EVENTS_ALLOWED = [...INDEX_COMMON, "event_type", "asset_identifier"];
+const EVENTS_ALLOWED = [
+	...INDEX_COMMON,
+	"event_type",
+	"asset_identifier",
+	"function_name",
+	"map",
+	"var_name",
+	"caller",
+	"tx_id",
+];
 
 export type IndexRouterOptions = {
 	tokens?: IndexTokenStore;
@@ -218,16 +228,19 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					description:
 						"Decoded chain events for a chosen event_type, filterable + cursor-paginated. Returns events[], next_cursor, tip, reorgs[].",
 					required: ["event_type"],
-					event_types: INDEX_EVENT_TYPES,
+					event_types: ALL_INDEX_EVENT_TYPES,
 					filters: EVENTS_ALLOWED,
 					// Allowed filters vary by event_type — this map is the precise,
 					// machine-readable vocabulary (generated from the event registry, so
 					// it can't drift from what the endpoint actually accepts).
 					event_type_filters: Object.fromEntries(
-						INDEX_EVENT_TYPES.map((t) => {
-							const cfg = INDEX_EVENT_CONFIG[t];
-							// `trait` is accepted for contract-keyed types (those with a
-							// contract_id equality filter) — mirror the parser's rule.
+						ALL_INDEX_EVENT_TYPES.map((t) => {
+							const cfg =
+								t in INDEX_EVENT_CONFIG
+									? INDEX_EVENT_CONFIG[t as keyof typeof INDEX_EVENT_CONFIG]
+									: VM_INDEX_EVENT_CONFIG[
+											t as keyof typeof VM_INDEX_EVENT_CONFIG
+										];
 							const traitSupported = (
 								cfg.equalityFilters as readonly string[]
 							).includes("contract_id");

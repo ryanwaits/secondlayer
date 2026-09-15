@@ -17,6 +17,10 @@
 			"types": "./src/streams-events.ts",
 			"import": "./src/streams-events.ts"
 		},
+		"./vm-streams-events": {
+			"types": "./src/vm-streams-events.ts",
+			"import": "./src/vm-streams-events.ts"
+		},
 		"./decode/decoder": {
 			"types": "./src/decode/decoder.ts",
 			"import": "./src/decode/decoder.ts"

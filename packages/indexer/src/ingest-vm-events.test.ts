@@ -94,4 +94,37 @@ describe.skipIf(!HAS_DB)("ingest vm_events", () => {
 			{ vm_event_index: 1, type: "map_set" },
 		]);
 	});
+
+	test("opt-in empty vm_events array writes nothing", async () => {
+		if (!db) throw new Error("missing db");
+		const payload = await loadFixture("new_block.vm_events.empty.json");
+		expect(payload.vm_events).toEqual([]);
+		await ingestNewBlock(payload, { network: NETWORK });
+		const vm = await db
+			.selectFrom("vm_events")
+			.selectAll()
+			.where("block_height", "=", H)
+			.execute();
+		expect(vm).toHaveLength(0);
+	});
+
+	test("all five types persist; index gap kept; sender null", async () => {
+		if (!db) throw new Error("missing db");
+		const payload = await loadFixture("new_block.vm_events.all_types.json");
+		await ingestNewBlock(payload, { network: NETWORK });
+		const vm = await db
+			.selectFrom("vm_events")
+			.select(["vm_event_index", "type", "data"])
+			.where("block_height", "=", H)
+			.orderBy("vm_event_index", "asc")
+			.execute();
+		expect(vm.map((r) => [Number(r.vm_event_index), r.type])).toEqual([
+			[0, "nested_contract_call"],
+			[2, "var_set"],
+			[3, "map_insert"],
+			[4, "map_set"],
+			[5, "map_delete"],
+		]);
+		expect((vm[0]?.data as { sender: string | null }).sender).toBeNull();
+	});
 });

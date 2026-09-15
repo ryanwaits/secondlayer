@@ -19,6 +19,19 @@ export const DECODED_EVENT_TYPES = [
 
 export type DecodedEventType = (typeof DECODED_EVENT_TYPES)[number];
 
+/** Opt-in node vm_events, stored names. Parallel to DECODED_EVENT_TYPES — not
+ *  the decoded_events / Streams 1.0 vocab. Cursor second component is
+ *  vm_event_index. Inner calls are never `contract_call`. */
+export const VM_EVENT_TYPES = [
+	"nested_contract_call",
+	"var_set",
+	"map_set",
+	"map_insert",
+	"map_delete",
+] as const;
+
+export type VmEventType = (typeof VM_EVENT_TYPES)[number];
+
 /** Every chain-event filter member across all four surfaces: the 10 decoded
  *  token/STX types, the three contract-shaped types (spelled as subgraphs and
  *  triggers spell them — Index/Streams project `print_event` → `print`), and
@@ -37,6 +50,11 @@ export const CHAIN_EVENT_FILTER_TYPES = [
 	"contract_call",
 	"contract_deploy",
 	"print_event",
+	"nested_contract_call",
+	"var_set",
+	"map_set",
+	"map_insert",
+	"map_delete",
 	"sbtc_deposit",
 	"sbtc_withdrawal_create",
 	"sbtc_withdrawal_accept",

@@ -7,6 +7,8 @@ import {
 	type StreamsLabelledFilter,
 	readCanonicalStreamsEvents,
 } from "@secondlayer/indexer/streams-events";
+import { readCanonicalVmEvents } from "@secondlayer/indexer/vm-streams-events";
+import { VM_EVENT_TYPES, type VmEventType } from "@secondlayer/shared";
 import { ValidationError } from "@secondlayer/shared/errors";
 import { parseCursor, parseNonNegativeInteger } from "../parse-query.ts";
 import type { StreamsCursorInput } from "./cursor.ts";
@@ -26,6 +28,8 @@ export type StreamsEventsReader = (
 ) => Promise<ReadCanonicalStreamsEventsResult>;
 
 export type StreamsEventsQuery = {
+	/** `vm` reads vm_events / vm_event_index. Default classic is Streams 1.0. */
+	clock: "classic" | "vm";
 	/**
 	 * Explicit cursor wins over the server default window. `from_cursor=0:0`
 	 * and `cursor=0:0` start at genesis, subject to tier retention.
@@ -39,8 +43,8 @@ export type StreamsEventsQuery = {
 	 */
 	fromHeight?: number;
 	toHeight: number;
-	types?: readonly StreamsEventType[];
-	notTypes?: readonly StreamsEventType[];
+	types?: readonly (StreamsEventType | VmEventType)[];
+	notTypes?: readonly (StreamsEventType | VmEventType)[];
 	contractId?: string | string[];
 	sender?: string | string[];
 	recipient?: string | string[];
@@ -74,6 +78,7 @@ export function markFinalized(
 }
 
 const STREAMS_EVENT_TYPE_SET = new Set<string>(STREAMS_EVENT_TYPES);
+const VM_EVENT_TYPE_SET = new Set<string>(VM_EVENT_TYPES);
 
 function parseLimit(value: string | undefined): number {
 	if (value === undefined) return 100;
@@ -84,18 +89,30 @@ function parseLimit(value: string | undefined): number {
 	return Math.min(1000, parsed);
 }
 
+function parseClock(value: string | undefined): "classic" | "vm" {
+	if (value === undefined || value === "classic") return "classic";
+	if (value === "vm") return "vm";
+	throw new ValidationError("clock must be classic or vm");
+}
+
 function parseTypes(
 	value: string | undefined,
-): readonly StreamsEventType[] | undefined {
+	clock: "classic" | "vm",
+): readonly (StreamsEventType | VmEventType)[] | undefined {
 	if (value === undefined) return undefined;
 	const types = value.split(",").map((part) => part.trim());
 	if (types.length === 0 || types.some((type) => type.length === 0)) {
 		throw new ValidationError("types must be a comma-separated list");
 	}
 
-	const unknown = types.filter((type) => !STREAMS_EVENT_TYPE_SET.has(type));
+	const allowed = clock === "vm" ? VM_EVENT_TYPE_SET : STREAMS_EVENT_TYPE_SET;
+	const unknown = types.filter((type) => !allowed.has(type));
 	if (unknown.length > 0) {
-		throw new ValidationError(`Unknown Streams event type: ${unknown[0]}`);
+		throw new ValidationError(
+			clock === "vm"
+				? `Unknown vm Streams event type: ${unknown[0]} (use nested_contract_call, var_set, map_set, map_insert, map_delete)`
+				: `Unknown Streams event type: ${unknown[0]}`,
+		);
 	}
 
 	return types as StreamsEventType[];
@@ -223,7 +240,8 @@ function parseFilters(
 		parsed[label] = {
 			types: parseTypes(
 				joinFilterValue(record.types, `filters.${label}.types`),
-			),
+				"classic",
+			) as StreamsLabelledFilter["types"],
 			contractId: parseListFilter(
 				joinFilterValue(record.contractId, `filters.${label}.contractId`),
 				`filters.${label}.contractId`,
@@ -321,13 +339,21 @@ export function parseStreamsEventsQuery(
 				)
 			: undefined;
 
+	const clock = parseClock(query.get("clock") ?? undefined);
+	if (clock === "vm" && query.get("filters") !== null) {
+		throw new ValidationError(
+			"filters is classic Streams 1.0 only; drop it for clock=vm",
+		);
+	}
+
 	return {
+		clock,
 		cursor,
 		cursorRaw,
 		fromHeight: fromHeight ?? defaultFromHeight,
 		toHeight,
-		types: parseTypes(resolveTypesParam(query)),
-		notTypes: parseTypes(query.get("not_types") ?? undefined),
+		types: parseTypes(resolveTypesParam(query), clock),
+		notTypes: parseTypes(query.get("not_types") ?? undefined, clock),
 		contractId: parseListFilter(
 			query.get("contract_id") ?? undefined,
 			"contract_id",
@@ -365,13 +391,17 @@ export async function getStreamsEventsResponse(opts: {
 		};
 	}
 
-	const readEvents = opts.readEvents ?? readCanonicalStreamsEvents;
+	const readEvents =
+		opts.readEvents ??
+		(parsed.clock === "vm"
+			? readCanonicalVmEvents
+			: readCanonicalStreamsEvents);
 	const result = await readEvents({
 		after: parsed.cursor,
 		fromHeight: parsed.fromHeight,
 		toHeight: parsed.toHeight,
-		types: parsed.types,
-		notTypes: parsed.notTypes,
+		types: parsed.types as ReadCanonicalStreamsEventsParams["types"],
+		notTypes: parsed.notTypes as ReadCanonicalStreamsEventsParams["notTypes"],
 		contractId: parsed.contractId,
 		sender: parsed.sender,
 		recipient: parsed.recipient,

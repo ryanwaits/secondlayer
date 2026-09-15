@@ -8,7 +8,9 @@ import type { DecodedEventType } from "@secondlayer/stacks/filters";
 
 export {
 	DECODED_EVENT_TYPES,
+	VM_EVENT_TYPES,
 	type DecodedEventType,
+	type VmEventType,
 } from "@secondlayer/stacks/filters";
 
 /** Alias kept for the Streams surface (identical to {@link DECODED_EVENT_TYPES}).

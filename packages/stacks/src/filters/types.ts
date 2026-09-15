@@ -1,5 +1,9 @@
 import type { AbiContract } from "../clarity/abi/contract.ts";
-import type { ChainEventFilterType, DecodedEventType } from "./event-types.ts";
+import type {
+	ChainEventFilterType,
+	DecodedEventType,
+	VmEventType,
+} from "./event-types.ts";
 import type { AssetIdentifier } from "./validate.ts";
 
 // ── Canonical filter specs ───────────────────────────────────────────────
@@ -126,6 +130,38 @@ export interface ContractDeploySpec {
 	deployer?: string;
 	contractName?: string;
 }
+export interface NestedContractCallSpec extends TraitScope, FactoryScope {
+	type: "nested_contract_call";
+	contractId?: string | readonly string[];
+	functionName?: string;
+	caller?: string;
+	sender?: string;
+}
+
+export interface VarSetSpec extends TraitScope, FactoryScope {
+	type: "var_set";
+	contractId?: string | readonly string[];
+	varName?: string;
+}
+
+export interface MapSetSpec extends TraitScope, FactoryScope {
+	type: "map_set";
+	contractId?: string | readonly string[];
+	map?: string;
+}
+
+export interface MapInsertSpec extends TraitScope, FactoryScope {
+	type: "map_insert";
+	contractId?: string | readonly string[];
+	map?: string;
+}
+
+export interface MapDeleteSpec extends TraitScope, FactoryScope {
+	type: "map_delete";
+	contractId?: string | readonly string[];
+	map?: string;
+}
+
 export interface PrintEventSpec extends TraitScope, FactoryScope {
 	type: "print_event";
 	/** One contract id, or a set of them (max 20). */
@@ -179,6 +215,11 @@ export type ChainEventFilterSpec =
 	| NftBurnSpec
 	| ContractCallSpec
 	| ContractDeploySpec
+	| NestedContractCallSpec
+	| VarSetSpec
+	| MapSetSpec
+	| MapInsertSpec
+	| MapDeleteSpec
 	| PrintEventSpec
 	| SbtcDepositSpec
 	| SbtcWithdrawalCreateSpec
@@ -230,12 +271,16 @@ export type ChainTriggerShape = ChainTriggerOf<ChainEventFilterSpec>;
 
 /** Params fragment for `index.events.*` (spread into list/walk/consume). */
 export type IndexEventsParamsShape = {
-	eventType: DecodedEventType;
+	eventType: DecodedEventType | VmEventType;
 	/** A spec's contract set passes through verbatim (the API takes up to 20). */
 	contractId?: string | readonly string[];
 	assetIdentifier?: AssetIdentifier;
 	sender?: string;
 	recipient?: string;
+	functionName?: string;
+	caller?: string;
+	map?: string;
+	varName?: string;
 	trait?: string;
 };
 
@@ -252,11 +297,17 @@ export type ContractCallsParamsShape = {
 
 /** Params fragment for `streams.events.*`. */
 export type StreamsParamsShape = {
-	types: readonly DecodedEventType[];
+	types: readonly (DecodedEventType | VmEventType)[];
+	/** `vm` reads vm_event_index. Omit / `classic` is Streams 1.0. */
+	clock?: "classic" | "vm";
 	contractId?: string | readonly string[];
 	sender?: string;
 	recipient?: string;
 	assetIdentifier?: AssetIdentifier;
+	functionName?: string;
+	caller?: string;
+	map?: string;
+	varName?: string;
 };
 
 // ── Member → projection capability ───────────────────────────────────────
@@ -264,12 +315,21 @@ export type StreamsParamsShape = {
 // "Property 'toIndexParams' does not exist" beats "argument of type never".
 //
 // Reality being encoded:
-// - Index `events.*` and Streams cover exactly the 11 DECODED_EVENT_TYPES
+// - Index `events.*` and Streams cover the 11 DECODED_EVENT_TYPES
 //   (spelled `print`, projected from the canonical `print_event`).
+// - The five VM_EVENT_TYPES are a second clock (`vm_event_index`).
+//   Index/Streams project them with clock=vm on Streams.
 // - `contract_call` reads live on the separate `/v1/index/contract-calls`
 //   endpoint → `toContractCallsParams()`, not `toIndexParams()`.
 // - `contract_deploy` is Subgraphs + Webhooks only.
 // - The five `sbtc_*` lifecycle types are Webhooks-only.
+
+type VmMember =
+	| "nested_contract_call"
+	| "var_set"
+	| "map_set"
+	| "map_insert"
+	| "map_delete";
 
 type DecodedMember =
 	| "stx_transfer"
@@ -288,7 +348,7 @@ export type ProjectionsFor<T extends ChainEventFilterType, S> = {
 	/** Wire trigger for `webhooks.create({ triggers: [...] })`. BigInt
 	 *  amounts become strings here — the one sanctioned boundary. */
 	toChainTrigger(): ChainTriggerOf<S>;
-} & (T extends DecodedMember
+} & (T extends DecodedMember | VmMember
 	? {
 			/** Params for `index.events.list/walk/consume` (merge your own
 			 *  `limit`/`fromHeight`/`txContext` etc. on top). */
