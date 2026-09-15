@@ -116,9 +116,19 @@ const EVENT_FILTER_TO_INDEX_TYPE: Record<string, string> = {
 
 // Tx-level source types — matched against /v1/index/transactions, not events.
 const TX_SOURCE_TYPES = new Set(["contract_call", "contract_deploy"]);
-const ALL_INDEX_EVENT_TYPES = [
+// Second clock (vm_event_index). Never part of a tx's classic event set: a
+// contract_call/contract_deploy source fetches every CLASSIC type, and vm
+// types are fetched only when a vm source names them.
+const VM_INDEX_EVENT_TYPES = new Set([
+	"nested_contract_call",
+	"var_set",
+	"map_set",
+	"map_insert",
+	"map_delete",
+]);
+const CLASSIC_INDEX_EVENT_TYPES = [
 	...new Set(Object.values(EVENT_FILTER_TO_INDEX_TYPE)),
-];
+].filter((t) => !VM_INDEX_EVENT_TYPES.has(t));
 
 function sourceFilters(subgraph: SubgraphDefinition): SubgraphFilter[] {
 	const sources = subgraph.sources;
@@ -150,15 +160,16 @@ function synthesizeTxsFromEvents(events: IndexEventRow[]): Transaction[] {
 /**
  * The Index event_types the loader must fetch for a set of source filter types.
  * A contract_call/contract_deploy source matches a tx and hands its FULL event
- * set to the handler, so when one is present we fetch every event type (the
- * matched tx's events must be complete); otherwise just the referenced types.
+ * set to the handler, so when one is present we fetch every classic event type
+ * (the matched tx's events must be complete); otherwise just the referenced
+ * types. VM types ride a second clock and are fetched only when referenced.
  * Shared by the subgraph loader and the chain-trigger evaluator.
  */
 export function indexEventTypesForFilterTypes(filterTypes: string[]): string[] {
-	if (filterTypes.some((t) => TX_SOURCE_TYPES.has(t))) {
-		return ALL_INDEX_EVENT_TYPES;
-	}
 	const types = new Set<string>();
+	if (filterTypes.some((t) => TX_SOURCE_TYPES.has(t))) {
+		for (const t of CLASSIC_INDEX_EVENT_TYPES) types.add(t);
+	}
 	for (const t of filterTypes) {
 		const indexType = EVENT_FILTER_TO_INDEX_TYPE[t];
 		if (indexType) types.add(indexType);

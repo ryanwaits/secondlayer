@@ -3,12 +3,37 @@ import type { IndexHttpClient } from "@secondlayer/shared/index-http";
 import type { SubgraphDefinition } from "../types.ts";
 import {
 	PublicApiBlockSource,
+	indexEventTypesForFilterTypes,
 	isStreamsIndexEligible,
 } from "./block-source.ts";
 
 function def(sources: Record<string, unknown>): SubgraphDefinition {
 	return { name: "t", sources } as unknown as SubgraphDefinition;
 }
+
+const VM_TYPES = [
+	"nested_contract_call",
+	"var_set",
+	"map_set",
+	"map_insert",
+	"map_delete",
+];
+
+describe("indexEventTypesForFilterTypes — vm types are a second clock", () => {
+	test("a contract_call source fans out to classic types only", () => {
+		const types = indexEventTypesForFilterTypes(["contract_call"]);
+		expect(types).toContain("print");
+		expect(types).toContain("ft_transfer");
+		for (const vm of VM_TYPES) expect(types).not.toContain(vm);
+	});
+	test("a vm source is fetched only when referenced", () => {
+		expect(indexEventTypesForFilterTypes(["map_set"])).toEqual(["map_set"]);
+		const mixed = indexEventTypesForFilterTypes(["contract_call", "map_set"]);
+		expect(mixed).toContain("map_set");
+		expect(mixed).toContain("print");
+		expect(mixed).not.toContain("nested_contract_call");
+	});
+});
 
 describe("isStreamsIndexEligible", () => {
 	test("all event-type sources, no trait → eligible", () => {

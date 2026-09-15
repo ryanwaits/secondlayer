@@ -50,13 +50,24 @@ describe("on.* factories", () => {
 			functionName: "transfer",
 		});
 		expect(f.type).toBe("nested_contract_call");
-		expect(f.toIndexParams().eventType).toBe("nested_contract_call");
-		expect(f.toStreamsParams()).toEqual({
-			types: ["nested_contract_call"],
-			clock: "vm",
+		expect(f.toIndexParams()).toEqual({
+			eventType: "nested_contract_call",
 			contractId: TOKEN_CONTRACT,
 			functionName: "transfer",
 		});
+		// Streams clock=vm narrows by types + contractId only; a payload
+		// predicate the surface cannot apply throws instead of being dropped.
+		expect(() => f.toStreamsParams()).toThrow(/functionName/);
+		expect(
+			on.nestedCall({ contractId: TOKEN_CONTRACT }).toStreamsParams(),
+		).toEqual({
+			types: ["nested_contract_call"],
+			clock: "vm",
+			contractId: TOKEN_CONTRACT,
+		});
+		expect(() =>
+			on.mapSet({ contractId: TOKEN_CONTRACT, map: "store" }).toStreamsParams(),
+		).toThrow(/map/);
 		expect(f.toChainTrigger().type).toBe("nested_contract_call");
 		expect("toContractCallsParams" in f).toBe(false);
 	});

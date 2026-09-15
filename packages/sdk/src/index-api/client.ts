@@ -1822,6 +1822,11 @@ export class Index extends BaseClient {
 				asset_identifier: params.assetIdentifier,
 				sender: params.sender,
 				recipient: params.recipient,
+				// vm types (second clock): accepted per event_type by the server.
+				function_name: params.functionName,
+				caller: params.caller,
+				map: params.map,
+				var_name: params.varName,
 				trait: params.trait,
 				tx_context: params.txContext ? "true" : undefined,
 			})}`,

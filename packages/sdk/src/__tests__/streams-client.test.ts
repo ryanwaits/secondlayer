@@ -122,6 +122,41 @@ describe("createStreamsClient", () => {
 		expect(url.searchParams.get("contract_id")).toBe("SP1.a,SP2.b");
 		expect(url.searchParams.get("sender")).toBe("SP1,SP2");
 		expect(url.searchParams.get("recipient")).toBe("SP3");
+		// Classic reads never send clock (server default is Streams 1.0).
+		expect(url.searchParams.has("clock")).toBe(false);
+	});
+
+	test("clock=vm is sent with vm types; classic never sends clock", async () => {
+		const requests: Request[] = [];
+		const client = createStreamsClient({
+			apiKey: "sk-test",
+			baseUrl: "http://secondlayer.test",
+			fetchImpl: async (input, init) => {
+				requests.push(
+					input instanceof Request
+						? input
+						: new Request(input.toString(), init),
+				);
+				return jsonResponse({
+					events: [],
+					next_cursor: null,
+					tip: TIP,
+					reorgs: [],
+				});
+			},
+		});
+
+		await client.events.list({
+			clock: "vm",
+			types: ["nested_contract_call", "map_set"],
+		});
+		await client.events.list({ clock: "classic", types: ["print"] });
+
+		const vm = new URL(requests[0]?.url ?? "");
+		expect(vm.searchParams.get("clock")).toBe("vm");
+		expect(vm.searchParams.get("types")).toBe("nested_contract_call,map_set");
+		const classic = new URL(requests[1]?.url ?? "");
+		expect(classic.searchParams.has("clock")).toBe(false);
 	});
 
 	test("builds convenience endpoint URLs with auth", async () => {

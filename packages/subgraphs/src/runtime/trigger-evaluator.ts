@@ -221,12 +221,34 @@ function chainDedupKey(
 	eventIndex: number,
 	blockHash: string,
 	replayId?: string,
+	clock: DeliveryClock = "classic",
 ): string {
-	const base = `chain:${webhookId}:${txId}:${eventIndex}:${blockHash}`;
+	// vm rows are keyed by vm_event_index — a second clock. Namespace them so
+	// a print at event_index N and a map_set at vm_event_index N in the same
+	// tx are two deliveries, not one suppressed by the dedup constraint.
+	// Classic keys are byte-identical to before (existing rows stay idempotent).
+	const ordinal = clock === "vm" ? `vm:${eventIndex}` : `${eventIndex}`;
+	const base = `chain:${webhookId}:${txId}:${ordinal}:${blockHash}`;
 	// Replay keys are namespaced so a re-delivery doesn't collide with the
 	// already-emitted live apply row (whose outbox entry may be long gone), while
 	// re-running the SAME replay range stays idempotent (same replayId → same key).
 	return replayId ? `replay:${replayId}:${base}` : base;
+}
+
+/** Which ordinal `event_index` carries: classic `events.event_index` or the
+ *  opt-in `vm_events.vm_event_index`. Never mixed. */
+type DeliveryClock = "classic" | "vm";
+
+const VM_TRIGGER_TYPES = new Set<string>([
+	"nested_contract_call",
+	"var_set",
+	"map_set",
+	"map_insert",
+	"map_delete",
+]);
+
+function clockFor(triggerType: string): DeliveryClock {
+	return VM_TRIGGER_TYPES.has(triggerType) ? "vm" : "classic";
 }
 
 function applyRow(
@@ -238,6 +260,7 @@ function applyRow(
 	event: Record<string, unknown>,
 	replayId?: string,
 ): InsertWebhookOutbox {
+	const clock = clockFor(meta.triggerType);
 	const payload: ChainApplyEnvelope = {
 		action: "apply",
 		block_hash: blockHash,
@@ -254,7 +277,10 @@ function applyRow(
 		table_name: null,
 		block_height: blockHeight,
 		tx_id: txId,
-		row_pk: { tx_id: txId, event_index: eventIndex },
+		row_pk:
+			clock === "vm"
+				? { tx_id: txId, event_index: eventIndex, clock }
+				: { tx_id: txId, event_index: eventIndex },
 		event_type: `chain.${meta.triggerType}.apply`,
 		payload,
 		dedup_key: chainDedupKey(
@@ -263,6 +289,7 @@ function applyRow(
 			eventIndex,
 			blockHash,
 			replayId,
+			clock,
 		),
 		...(replayId ? { is_replay: true } : {}),
 	};

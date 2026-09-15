@@ -326,6 +326,27 @@ describe("parseStreamsEventsQuery — clock=vm", () => {
 		).toThrow(/Unknown vm Streams event type/);
 	});
 
+	test("rejects classic payload filters on clock=vm instead of ignoring them", () => {
+		for (const q of [
+			"?clock=vm&sender=SP1",
+			"?clock=vm&recipient=SP1",
+			"?clock=vm&asset_identifier=SP.t::x",
+			`?clock=vm&filters=${encodeURIComponent(JSON.stringify({ a: { types: ["print"] } }))}`,
+		]) {
+			expect(() => parseStreamsEventsQuery(params(q), TIP)).toThrow(
+				/classic Streams 1.0 only/,
+			);
+		}
+	});
+
+	test("not_types on clock=vm parses against the vm vocab", () => {
+		const parsed = parseStreamsEventsQuery(
+			params("?clock=vm&not_types=map_set"),
+			TIP,
+		);
+		expect(parsed.notTypes).toEqual(["map_set"]);
+	});
+
 	test("rejects vm types on classic clock", () => {
 		expect(() =>
 			parseStreamsEventsQuery(params("?types=nested_contract_call"), TIP),

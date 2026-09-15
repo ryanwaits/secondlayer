@@ -187,6 +187,14 @@ const VM_MEMBERS = new Set<ChainEventFilterType>([
 	"map_delete",
 ]);
 
+const VM_INDEX_ONLY_FIELDS = new Set([
+	"functionName",
+	"caller",
+	"sender",
+	"map",
+	"varName",
+]);
+
 function toStreamsParams(
 	spec: ChainEventFilterSpec,
 	extra: Record<string, unknown> = {},
@@ -195,9 +203,19 @@ function toStreamsParams(
 	const out: Record<string, unknown> = {
 		types: [spec.type === "print_event" ? "print" : spec.type],
 	};
-	if (VM_MEMBERS.has(spec.type)) out.clock = "vm";
+	const isVm = VM_MEMBERS.has(spec.type);
+	if (isVm) out.clock = "vm";
 	for (const [key, value] of specEntries(spec)) {
 		if (DECORATIVE_FIELDS.has(key)) continue;
+		// Streams clock=vm has no payload predicates beyond contract_id (the
+		// server rejects sender on clock=vm; function/map/var live on Index).
+		if (isVm && VM_INDEX_ONLY_FIELDS.has(key)) {
+			unsupported(
+				"Streams",
+				key,
+				"vm payload predicates are Index/Subgraphs/Subscriptions-only; Streams clock=vm narrows by types and contractId",
+			);
+		}
 		if (key === "factory") {
 			unsupported(
 				"Streams",

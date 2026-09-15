@@ -30,6 +30,19 @@ describe("Index vm_events query parse", () => {
 		).toThrow("unknown event_type");
 	});
 
+	test("every allowed vm filter lands in filters (none silently ignored)", () => {
+		const parsed = parseIndexEventsQuery(
+			params(
+				"?event_type=nested_contract_call&sender=SP1&caller=SP.wrapper&function_name=transfer&tx_id=0xab",
+			),
+			TIP,
+		);
+		expect(parsed.filters.sender).toBe("SP1");
+		expect(parsed.filters.caller).toBe("SP.wrapper");
+		expect(parsed.filters.function_name).toBe("transfer");
+		expect(parsed.filters.tx_id).toBe("0xab");
+	});
+
 	test("map filter is accepted for map_set", () => {
 		const parsed = parseIndexEventsQuery(
 			params("?event_type=map_set&map=store"),

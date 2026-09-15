@@ -40,10 +40,14 @@ export const VM_INDEX_EVENT_CONFIG = {
 			"raw_result",
 		],
 		requiredNonNull: ["contract_id", "caller", "function_name"],
+		// Every allowed filter must also be an equality filter: the parser only
+		// collects equalityFilters, so an allowed-but-not-equality key is accepted
+		// and silently ignored (returns the unfiltered feed).
 		equalityFilters: [
 			"contract_id",
 			"function_name",
 			"caller",
+			"sender",
 			"tx_id",
 		] as const satisfies readonly VmIndexEqualityFilter[],
 		allowedFilters: [...VM_COMMON, "function_name", "caller", "sender"],

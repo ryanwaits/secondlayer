@@ -340,10 +340,16 @@ export function parseStreamsEventsQuery(
 			: undefined;
 
 	const clock = parseClock(query.get("clock") ?? undefined);
-	if (clock === "vm" && query.get("filters") !== null) {
-		throw new ValidationError(
-			"filters is classic Streams 1.0 only; drop it for clock=vm",
-		);
+	if (clock === "vm") {
+		// The vm reader has no payload predicates for these; accepting them would
+		// return an unfiltered page under a filter the caller believes applied.
+		for (const key of ["filters", "sender", "recipient", "asset_identifier"]) {
+			if (query.get(key) !== null) {
+				throw new ValidationError(
+					`${key} is classic Streams 1.0 only; drop it for clock=vm`,
+				);
+			}
+		}
 	}
 
 	return {

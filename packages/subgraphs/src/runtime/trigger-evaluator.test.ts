@@ -261,6 +261,65 @@ describe("emitChainOutbox (DB)", () => {
 		expect(rows[0].event_type).toBe("chain.ft_transfer.apply");
 	});
 
+	it("a vm trigger and a classic trigger at the same tx ordinal are two deliveries", async () => {
+		// print at event_index 0 and map_set at vm_event_index 0 in one tx: two
+		// clocks. Without a clock namespace the second row collides on
+		// (webhook_id, dedup_key) and is silently dropped.
+		const sub = await makeChainSub([
+			{ type: "print_event", contractId: "SP1.store" },
+			{ type: "map_set", contractId: "SP1.store", map: "store" },
+		]);
+		const { sources, keyMeta } = buildSourcesMap([sub]);
+		const b = block(
+			[tx({ tx_id: "0xc", type: "contract_call" })],
+			[
+				ev({
+					tx_id: "0xc",
+					event_index: 0,
+					type: "smart_contract_event",
+					data: {
+						contract_identifier: "SP1.store",
+						topic: "print",
+						raw_value: "0x0d0000000568656c6c6f",
+					},
+				}),
+				ev({
+					id: "0xc#vm0",
+					tx_id: "0xc",
+					event_index: 0,
+					type: "map_set",
+					data: {
+						contract_identifier: "SP1.store",
+						map_name: "store",
+						raw_key: "0x0a",
+						raw_value: "0x0b",
+					},
+				}),
+			],
+		);
+		const matches = evaluateBlock(b, sources, new Map());
+		expect(matches).toHaveLength(2);
+
+		const n = await emitChainOutbox(db, matches, keyMeta, 100, "0xblock");
+		expect(n).toBe(2);
+		const rows = await outboxRows(sub.id);
+		const keys = rows.map((r) => r.dedup_key).sort();
+		expect(keys).toEqual([
+			`chain:${sub.id}:0xc:0:0xblock`,
+			`chain:${sub.id}:0xc:vm:0:0xblock`,
+		]);
+		const vmRow = rows.find((r) => r.event_type === "chain.map_set.apply");
+		expect(vmRow?.row_pk).toEqual({
+			tx_id: "0xc",
+			event_index: 0,
+			clock: "vm",
+		});
+		const classicRow = rows.find(
+			(r) => r.event_type === "chain.print_event.apply",
+		);
+		expect(classicRow?.row_pk).toEqual({ tx_id: "0xc", event_index: 0 });
+	});
+
 	it("replay emits is_replay rows with namespaced keys, coexisting with live, idempotent", async () => {
 		const sub = await makeChainSub([
 			{ type: "contract_call", contractId: "SP1.amm" },

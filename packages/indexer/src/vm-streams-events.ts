@@ -32,8 +32,9 @@ export async function readCanonicalVmEvents(
 	params: ReadCanonicalStreamsEventsParams,
 ): Promise<ReadCanonicalStreamsEventsResult> {
 	const db = params.db ?? getSourceDb();
-	const types = (params.types ?? VM_EVENT_TYPES).filter((t) =>
-		VM_TYPE_SET.has(t),
+	const notTypes = new Set<string>(params.notTypes ?? []);
+	const types = (params.types ?? VM_EVENT_TYPES).filter(
+		(t) => VM_TYPE_SET.has(t) && !notTypes.has(t),
 	) as VmEventType[];
 	if (types.length === 0) return { events: [], next_cursor: null };
 
