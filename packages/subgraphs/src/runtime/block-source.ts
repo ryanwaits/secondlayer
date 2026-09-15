@@ -284,13 +284,23 @@ export class PublicApiBlockSource implements BlockSource {
 		}
 		for (const list of eventLists) {
 			for (const e of list) {
-				map.get(e.block_height)?.events.push(reconstructEvent(e));
+				const bd = map.get(e.block_height);
+				if (!bd) continue;
+				// vm rows ride their own clock: never merged into `events`, whose
+				// order is classic event_index.
+				if (VM_INDEX_EVENT_TYPES.has(e.event_type)) {
+					bd.vmEvents ??= [];
+					bd.vmEvents.push(reconstructEvent(e));
+				} else {
+					bd.events.push(reconstructEvent(e));
+				}
 			}
 		}
-		// Canonical ordering — multi-type event walks merge here.
+		// Canonical ordering — multi-type event walks merge here, per clock.
 		for (const bd of map.values()) {
 			bd.txs.sort((a, b) => a.tx_index - b.tx_index);
 			bd.events.sort((a, b) => a.event_index - b.event_index);
+			bd.vmEvents?.sort((a, b) => a.event_index - b.event_index);
 		}
 		return map;
 	}

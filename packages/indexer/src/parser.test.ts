@@ -251,6 +251,23 @@ describe("parseVmEvent", () => {
 		).toBe("var_set");
 	});
 
+	test("skips a trace whose typed body is missing instead of storing the envelope", () => {
+		// `data` must be the body under the type key. Falling back to the
+		// envelope would persist {txid, vm_event_index, committed, type} and
+		// surface as an Index row with no contract_identifier.
+		expect(
+			parseVmEvent(
+				{
+					txid: TX,
+					vm_event_index: 0,
+					committed: true,
+					type: "map_set_event",
+				} as unknown as VmTraceEvent,
+				100,
+			),
+		).toBeNull();
+	});
+
 	test("skips unknown types and missing ordinal", () => {
 		expect(
 			parseVmEvent(

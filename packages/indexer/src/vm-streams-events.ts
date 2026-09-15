@@ -9,7 +9,7 @@ import type { Kysely, RawBuilder } from "kysely";
 import type {
 	ReadCanonicalStreamsEventsParams,
 	ReadCanonicalStreamsEventsResult,
-	StreamsEvent,
+	VmStreamsEvent,
 } from "./streams-events.ts";
 
 const VM_TYPE_SET = new Set<string>(VM_EVENT_TYPES);
@@ -88,7 +88,7 @@ export async function readCanonicalVmEvents(
 
 	const page = rows.slice(0, params.limit);
 	const last = page.at(-1);
-	const events: StreamsEvent[] = page.map((row) => {
+	const events: VmStreamsEvent[] = page.map((row) => {
 		const eventIndex = Number(row.vm_event_index);
 		const height = Number(row.block_height);
 		return {
@@ -102,7 +102,7 @@ export async function readCanonicalVmEvents(
 			tx_id: row.tx_id,
 			tx_index: Number(row.tx_index),
 			event_index: eventIndex,
-			event_type: row.event_type as StreamsEvent["event_type"],
+			event_type: row.event_type,
 			contract_id: row.contract_id,
 			payload:
 				row.payload && typeof row.payload === "object"

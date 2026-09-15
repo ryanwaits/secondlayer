@@ -12,9 +12,11 @@ export {
 	CHAIN_EVENT_FILTER_TYPES,
 	DECODED_EVENT_TYPES,
 	VM_EVENT_TYPES,
+	VM_NODE_TO_STORED_TYPE,
 	type ChainEventFilterType,
 	type DecodedEventType,
 	type VmEventType,
+	type VmNodeEventType,
 } from "./event-types.ts";
 export {
 	fromSubgraphSource,

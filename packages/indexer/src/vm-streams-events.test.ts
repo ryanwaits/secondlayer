@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { getSourceDb } from "@secondlayer/shared/db";
 import { readCanonicalVmEvents } from "./vm-streams-events.ts";
 
@@ -9,11 +9,19 @@ const TX = "0xvm-streams-tx";
 describe.skipIf(!HAS_DB)("Streams clock=vm reader", () => {
 	const db = HAS_DB ? getSourceDb() : null;
 
-	beforeEach(async () => {
+	async function cleanup(): Promise<void> {
 		if (!db) return;
 		await db.deleteFrom("vm_events").where("block_height", "=", H).execute();
 		await db.deleteFrom("transactions").where("block_height", "=", H).execute();
 		await db.deleteFrom("blocks").where("height", "=", H).execute();
+	}
+
+	// Leave no canonical block behind: other suites assert the DB tip.
+	afterAll(cleanup);
+
+	beforeEach(async () => {
+		if (!db) return;
+		await cleanup();
 		await db
 			.insertInto("blocks")
 			.values({
@@ -66,11 +74,7 @@ describe.skipIf(!HAS_DB)("Streams clock=vm reader", () => {
 			limit: 10,
 			db,
 		});
-		// StreamsEvent.event_type is still the classic union (the vm reader casts);
-		// compare as strings until the row vocab is widened.
-		expect(
-			all.events.map((e) => [String(e.event_type), e.event_index]),
-		).toEqual([
+		expect(all.events.map((e) => [e.event_type, e.event_index])).toEqual([
 			["nested_contract_call", 0],
 			["map_set", 1],
 		]);
@@ -80,10 +84,10 @@ describe.skipIf(!HAS_DB)("Streams clock=vm reader", () => {
 			fromHeight: H,
 			toHeight: H,
 			limit: 10,
-			notTypes: ["map_set"] as never,
+			notTypes: ["map_set"],
 			db,
 		});
-		expect(noMaps.events.map((e) => String(e.event_type))).toEqual([
+		expect(noMaps.events.map((e) => e.event_type)).toEqual([
 			"nested_contract_call",
 		]);
 	});

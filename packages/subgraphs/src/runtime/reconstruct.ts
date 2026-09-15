@@ -4,6 +4,7 @@ import type {
 	IndexEventRow,
 	IndexTransactionRow,
 } from "@secondlayer/shared/index-http";
+import { vmEventId } from "./batch-loader.ts";
 
 export type {
 	IndexBlockRow,
@@ -184,8 +185,12 @@ export function reconstructEvent(e: IndexEventRow): Event {
 		case "map_set":
 		case "map_insert":
 		case "map_delete":
+			// Second clock: `event_index` here is vm_event_index. Distinct id +
+			// `clock` so it never dedupes or sorts against a classic row.
 			return {
 				...base,
+				id: vmEventId(e.tx_id, e.event_index),
+				clock: "vm",
 				type: e.event_type,
 				data: {
 					contract_identifier: e.contract_id,

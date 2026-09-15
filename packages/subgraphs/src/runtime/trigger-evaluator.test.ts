@@ -66,8 +66,12 @@ function ev(o: Partial<Event>): Event {
 	} as Event;
 }
 
-function block(txs: Transaction[], events: Event[]): BlockData {
-	return { block: { hash: "0xblock" } as Block, txs, events };
+function block(
+	txs: Transaction[],
+	events: Event[],
+	vmEvents: Event[] = [],
+): BlockData {
+	return { block: { hash: "0xblock" } as Block, txs, events, vmEvents };
 }
 
 describe("chainTriggerToFilter", () => {
@@ -283,8 +287,10 @@ describe("emitChainOutbox (DB)", () => {
 						raw_value: "0x0d0000000568656c6c6f",
 					},
 				}),
+			],
+			[
 				ev({
-					id: "0xc#vm0",
+					id: "0xc#vm:0",
 					tx_id: "0xc",
 					event_index: 0,
 					type: "map_set",

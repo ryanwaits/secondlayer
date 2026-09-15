@@ -17,6 +17,9 @@ export type {
 	FtBurnPayload,
 	FtMintPayload,
 	FtTransferPayload,
+	MapDeletePayload,
+	MapWritePayload,
+	NestedContractCallPayload,
 	NftBurnPayload,
 	NftMintPayload,
 	NftTransferPayload,
@@ -26,10 +29,13 @@ export type {
 	StreamsEventBase,
 	StreamsEventPayload,
 	StreamsEventType,
+	StreamsWireEvent,
 	StxBurnPayload,
 	StxLockPayload,
 	StxMintPayload,
 	StxTransferPayload,
+	VarSetPayload,
+	VmStreamsEvent,
 } from "./events.ts";
 export { STREAMS_EVENT_TYPES } from "./events.ts";
 export {

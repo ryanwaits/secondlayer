@@ -6,15 +6,26 @@ import {
 	STREAMS_EVENT_TYPES,
 	type StreamsEvent,
 	type StreamsEventType,
+	type VmStreamsEvent,
 } from "@secondlayer/shared/streams-rows";
 import type { IndexEvent } from "../index-api/client.ts";
 import type { ConsumerSink, WithSinkTx } from "../sinks/types.ts";
 
-export { STREAMS_EVENT_TYPES, type StreamsEvent, type StreamsEventType };
+export {
+	STREAMS_EVENT_TYPES,
+	type StreamsEvent,
+	type StreamsEventType,
+	type VmStreamsEvent,
+};
 export type {
 	FtBurnPayload,
 	FtMintPayload,
 	FtTransferPayload,
+	MapDeletePayload,
+	MapWritePayload,
+	NestedContractCallPayload,
+	VarSetPayload,
+	StreamsWireEvent,
 	NftBurnPayload,
 	NftMintPayload,
 	NftTransferPayload,
@@ -571,6 +582,11 @@ export type StreamsClient = {
 	): AsyncIterableIterator<StreamsBatch<StreamsEventOfTypes<T>>>;
 	consume(params?: StreamsConsumeParams): AsyncIterableIterator<StreamsBatch>;
 	events: {
+		/** `clock: "vm"` pages carry vm rows only (a parallel vocabulary,
+		 *  `event_index` = `vm_event_index`). Never `StreamsEvent`. */
+		list(
+			params: StreamsEventsListParams & { clock: "vm" },
+		): Promise<StreamsEventsEnvelope<VmStreamsEvent>>;
 		/** Narrowing overload, matching `consume`. */
 		list<const T extends readonly StreamsEventType[]>(
 			params: StreamsEventsListParams & { types: T },

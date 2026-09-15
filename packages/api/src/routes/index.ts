@@ -113,7 +113,10 @@ import {
 	getTransactionsResponse,
 	readTransactionById,
 } from "../index/transactions.ts";
-import { VM_INDEX_EVENT_CONFIG } from "../index/vm-events.ts";
+import {
+	VM_INDEX_EVENT_CONFIG,
+	VM_INDEX_EVENT_TYPES,
+} from "../index/vm-events.ts";
 import { validateQueryParams } from "../middleware/validation.ts";
 import {
 	DEFAULT_STREAMS_REORGS_READER,
@@ -229,6 +232,12 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 						"Decoded chain events for a chosen event_type, filterable + cursor-paginated. Returns events[], next_cursor, tip, reorgs[].",
 					required: ["event_type"],
 					event_types: ALL_INDEX_EVENT_TYPES,
+					// Opt-in node traces: not in `*`, not in old archives. Discovery
+					// must not read as "mainnet inner-call history exists".
+					vm_event_types: {
+						types: VM_INDEX_EVENT_TYPES,
+						note: "Present only from the height this instance's node subscribed to the storage / contract_calls observer keys. No earlier history. Cursor second component is vm_event_index.",
+					},
 					filters: EVENTS_ALLOWED,
 					// Allowed filters vary by event_type — this map is the precise,
 					// machine-readable vocabulary (generated from the event registry, so

@@ -330,6 +330,8 @@ export type {
 	StreamsDumpsManifest,
 	StreamsEvent,
 	StreamsEventPayload,
+	StreamsWireEvent,
+	VmStreamsEvent,
 	StreamsEventsConsumeParams,
 	StreamsEventsConsumeResult,
 	StreamsEventsEnvelope,

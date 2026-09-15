@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { getSourceDb } from "@secondlayer/shared/db";
 import { parseIndexEventsQuery, readIndexEvents } from "./events.ts";
 import type { IndexTip } from "./tip.ts";
@@ -56,12 +56,16 @@ describe.skipIf(!HAS_DB)("Index vm_events read", () => {
 	const db = HAS_DB ? getSourceDb() : null;
 	const txId = "0xvm-index-tx";
 
-	beforeEach(async () => {
+	async function cleanup(): Promise<void> {
 		if (!db) return;
 		await db.deleteFrom("vm_events").where("block_height", "=", H).execute();
 		await db.deleteFrom("transactions").where("block_height", "=", H).execute();
 		await db.deleteFrom("blocks").where("height", "=", H).execute();
-	});
+	}
+
+	beforeEach(cleanup);
+	// Leave no canonical block behind: other suites assert the DB tip.
+	afterAll(cleanup);
 
 	async function seed() {
 		if (!db) throw new Error("missing db");
@@ -146,6 +150,30 @@ describe.skipIf(!HAS_DB)("Index vm_events read", () => {
 		expect(maps.events).toHaveLength(1);
 		expect(maps.events[0]?.event_index).toBe(1);
 		expect(maps.events[0]?.map).toBe("store");
+	});
+
+	test("a row without contract_identifier never reaches a page (requiredNonNull parity)", async () => {
+		await seed();
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("vm_events")
+			.values({
+				tx_id: txId,
+				block_height: H,
+				vm_event_index: 2,
+				type: "map_set",
+				// Envelope-shaped garbage: no contract_identifier / map_name.
+				data: { txid: txId, committed: true, type: "map_set_event" },
+			})
+			.execute();
+		const maps = await readIndexEvents({
+			eventType: "map_set",
+			fromHeight: H,
+			toHeight: H,
+			limit: 25,
+			db,
+		});
+		expect(maps.events.map((e) => e.event_index)).toEqual([1]);
 	});
 
 	test("empty vm_events table yields empty Index pages", async () => {

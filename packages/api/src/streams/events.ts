@@ -2,9 +2,9 @@ import {
 	type ReadCanonicalStreamsEventsParams,
 	type ReadCanonicalStreamsEventsResult,
 	STREAMS_EVENT_TYPES,
-	type StreamsEvent,
 	type StreamsEventType,
 	type StreamsLabelledFilter,
+	type StreamsWireEvent,
 	readCanonicalStreamsEvents,
 } from "@secondlayer/indexer/streams-events";
 import { readCanonicalVmEvents } from "@secondlayer/indexer/vm-streams-events";
@@ -58,7 +58,7 @@ export type StreamsEventsQuery = {
  * Wire event: the indexer event plus `finalized`, true when the event's block
  * is at or below the tip's burn-confirmation finality boundary (immutable).
  */
-export type StreamsEventEnvelope = StreamsEvent & { finalized: boolean };
+export type StreamsEventEnvelope = StreamsWireEvent & { finalized: boolean };
 
 export type StreamsEventsResponse = {
 	events: StreamsEventEnvelope[];
@@ -68,7 +68,7 @@ export type StreamsEventsResponse = {
 };
 
 export function markFinalized(
-	events: readonly StreamsEvent[],
+	events: readonly StreamsWireEvent[],
 	finalizedHeight: number,
 ): StreamsEventEnvelope[] {
 	return events.map((event) => ({
@@ -406,8 +406,8 @@ export async function getStreamsEventsResponse(opts: {
 		after: parsed.cursor,
 		fromHeight: parsed.fromHeight,
 		toHeight: parsed.toHeight,
-		types: parsed.types as ReadCanonicalStreamsEventsParams["types"],
-		notTypes: parsed.notTypes as ReadCanonicalStreamsEventsParams["notTypes"],
+		types: parsed.types,
+		notTypes: parsed.notTypes,
 		contractId: parsed.contractId,
 		sender: parsed.sender,
 		recipient: parsed.recipient,

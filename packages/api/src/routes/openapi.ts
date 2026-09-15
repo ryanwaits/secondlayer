@@ -408,6 +408,8 @@ export const OPENAPI_SPEC = {
 			get: {
 				tags: ["index"],
 				summary: "Decoded events by event_type",
+				description:
+					"One event_type per request. The vm types (nested_contract_call, var_set, map_set, map_insert, map_delete) are opt-in node traces: rows exist only from the height the instance's node subscribed to the storage / contract_calls observer keys. There is no earlier history and none in the `*`-shaped archive. For these types the cursor's second component is vm_event_index, a separate ordinal from event_index.",
 				security: READ_SECURITY,
 				parameters: [
 					{
@@ -929,7 +931,12 @@ export const OPENAPI_SPEC = {
 					qp("from_height", "integer"),
 					qp("to_height", "integer"),
 					qp("types", "string"),
-					qp("clock", "string"),
+					qp(
+						"clock",
+						"string",
+						false,
+						"classic (default) is Streams 1.0 on event_index. vm reads opt-in node vm_events on vm_event_index — a second cursor; rows exist only from the height the node subscribed to storage / contract_calls. types must then be vm types; sender, recipient, asset_identifier and filters are rejected.",
+					),
 					qp("contract_id", "string"),
 				],
 				responses: envelope(),

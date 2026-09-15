@@ -6,6 +6,7 @@ import type {
 } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
 import { serializeCV } from "@secondlayer/stacks/clarity";
+import { VM_NODE_TO_STORED_TYPE } from "@secondlayer/stacks/filters";
 import {
 	AddressHashMode,
 	type ContractCallPayload,
@@ -18,7 +19,6 @@ import type {
 	NewBlockPayload,
 	TransactionEvent,
 	TransactionPayload,
-	VmNodeEventType,
 	VmTraceEvent,
 } from "./types/node-events.ts";
 
@@ -284,14 +284,10 @@ export async function parseTransaction(
 	};
 }
 
-/** Node JSON `type` → Secondlayer stored `type`. Inner calls are not `contract_call`. */
-export const VM_NODE_TO_STORED_TYPE = {
-	contract_call_event: "nested_contract_call",
-	var_set_event: "var_set",
-	map_set_event: "map_set",
-	map_insert_event: "map_insert",
-	map_delete_event: "map_delete",
-} as const satisfies Record<VmNodeEventType, string>;
+/** Node JSON `type` → Secondlayer stored `type`. Single-sourced in
+ *  `@secondlayer/stacks/filters` next to VM_EVENT_TYPES; re-exported here for
+ *  the ingest side. Inner calls are not `contract_call`. */
+export { VM_NODE_TO_STORED_TYPE };
 
 export type VmStoredEventType =
 	(typeof VM_NODE_TO_STORED_TYPE)[keyof typeof VM_NODE_TO_STORED_TYPE];
@@ -341,8 +337,18 @@ export function parseVmEvent(
 		return null;
 	}
 
-	const eventData =
-		(vmEvent as unknown as Record<string, unknown>)[type] ?? vmEvent;
+	// The body lives under a key named after the node type. No fallback to the
+	// envelope: storing `{txid, vm_event_index, committed, type}` as `data`
+	// would surface as a row with no contract_identifier.
+	const eventData = (vmEvent as unknown as Record<string, unknown>)[type];
+	if (!eventData || typeof eventData !== "object") {
+		logger.warn("vm_event body missing for type, skipping", {
+			type,
+			txid,
+			vm_event_index,
+		});
+		return null;
+	}
 
 	return {
 		tx_id: txid,

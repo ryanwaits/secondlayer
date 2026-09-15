@@ -393,6 +393,16 @@ secondlayer subscriptions create listing-writes \
 
 Reorg: existing `chain.reorg.rollback` / `orphaned` list. `vm_event_index` rows need the same apply/rollback pairing. Don’t invent a second webhook product for that.
 
+Delivery identity is per clock. A vm apply row keys `chain:<webhook>:<tx>:vm:<vm_event_index>:<block_hash>` with `row_pk.clock = "vm"`; classic keys are unchanged. A print at `event_index 0` and a `map_set` at `vm_event_index 0` in one tx are two deliveries.
+
+### Subgraph runtime — two clocks, never merged
+
+`BlockData` carries `events` (classic) and `vmEvents` (vm clock) separately on every source: the Postgres tap reads `vm_events`, the Streams+Index source routes vm walks into `vmEvents`, the observer-HTTP source maps `/new_block.vm_events`. A vm source matches only `vmEvents`; a `contract_call` / `contract_deploy` source fans out to classic types only and never sees vm rows. Runtime ids are `tx#vm:<index>`; the runner orders a tx’s classic events first, then its vm events (the ordinals are not comparable).
+
+### Reorg envelope — vm ordinal (known gap)
+
+`GET /v1/streams/reorgs` reports one `to` ordinal per orphaned height, computed from classic `events` (`reorg.ts`). A `clock=vm` consumer gets no vm-clock upper bound from that envelope. Correct today because the vm table is empty on every deployed node; before a collecting node ships, either add a `vm_to` ordinal to the reorg row or document that vm consumers must rewind by height, not ordinal.
+
 **Don’t.** A billed “phishing detector” SKU. It’s a subgraph + a chain webhook.
 
 ### Archive — end-user DX

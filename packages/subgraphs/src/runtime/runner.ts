@@ -393,9 +393,13 @@ export async function runHandlers(
 			for (const event of events) units.push({ tx, sourceName, event });
 		}
 	}
+	// Within a tx the classic clock runs first, then the vm clock: the two
+	// ordinals are not comparable, so they are never interleaved.
+	const clockRank = (e: DispatchUnit["event"]) => (e?.clock === "vm" ? 1 : 0);
 	units.sort(
 		(a, b) =>
 			(a.tx.tx_index ?? 0) - (b.tx.tx_index ?? 0) ||
+			clockRank(a.event) - clockRank(b.event) ||
 			(a.event?.event_index ?? -1) - (b.event?.event_index ?? -1),
 	);
 

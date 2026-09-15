@@ -205,6 +205,12 @@ export async function readVmIndexEvents(
 		sql`vm.type = ${params.eventType}`,
 		sql`vm.block_height >= ${params.fromHeight}`,
 		sql`vm.block_height <= ${params.toHeight}`,
+		// Parity with the classic reader: the rows this event_type guarantees.
+		// A malformed `data` (no contract_identifier) never reaches a page.
+		...config.requiredNonNull.map(
+			(column) =>
+				sql`${FILTER_EXPR[column as VmIndexEqualityFilter]} IS NOT NULL`,
+		),
 	];
 
 	if (params.after) {

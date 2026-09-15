@@ -198,7 +198,14 @@ export function evaluateBlock(
 	sources: Record<string, SubgraphFilter>,
 	traitContracts: TraitContracts,
 ): MatchedTx[] {
-	return matchSources(sources, block.txs, block.events, traitContracts);
+	return matchSources(
+		sources,
+		block.txs,
+		block.events,
+		traitContracts,
+		new Map(),
+		block.vmEvents ?? [],
+	);
 }
 
 // ── Outbox emission ─────────────────────────────────────────────────────────
