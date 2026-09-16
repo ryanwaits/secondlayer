@@ -1,9 +1,14 @@
-/* Code blocks: the platform docs CodeBlock rules (apps/web globals.css
-   `.docs-content .code-block-wrapper pre`) applied to Vocs's markup.
-   Elevated surface, hairline border, 12px radius, 18/22 padding, Fira Code
-   14 over 1.7, copy button revealed on hover. Token colors come from
-   docs/syntax-theme.ts, not from here. Site-wide theme is a later session;
-   only the code surface is touched. */
+/* Site chrome for the viem.sh shell on Vocs 1.4.1.
+
+   Colors come from vocs.config.tsx (theme.variables.color), so this file
+   only carries structure: the raised content panel, sidebar, top nav,
+   outline rail, headings, and the landing page. Vocs maps `background` to
+   the content panel and `backgroundDark` to the page ground.
+
+   Code blocks keep the platform docs CodeBlock rules (apps/web globals.css
+   `.docs-content .code-block-wrapper pre`): elevated surface, hairline
+   border, 12px radius, 18/22 padding, Fira Code 14 over 1.7, copy button
+   revealed on hover. Token colors come from docs/syntax-theme.ts. */
 
 :root {
 	--vocs-color_codeBlockBackground: #fffdf8;
@@ -12,13 +17,222 @@
 	--vocs-fontFamily_mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
 	--vocs-fontSize_codeBlock: 0.875rem;
 	--vocs-lineHeight_code: 1.7;
+
+	--sl-font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
+	--sl-gold-wash: rgba(227, 177, 23, 0.14);
+	--sl-panel-radius: 16px;
 }
 
 :root.dark {
 	--vocs-color_codeBlockBackground: #1a1815;
 	--vocs-color_codeInlineBorder: rgba(242, 237, 229, 0.14);
 	--vocs-color_lineNumber: #7a7369;
+	--sl-gold-wash: rgba(240, 196, 48, 0.12);
 }
+
+/* ---------------------------------------------------------------- ground */
+
+html {
+	background-color: var(--vocs-color_backgroundDark);
+}
+
+.vocs_H1,
+.vocs_H2,
+.vocs_H3,
+.vocs_H4,
+.vocs_NavLogo_title {
+	font-family: var(--sl-font-display);
+	font-weight: 500;
+}
+
+/* No theme toggle: the site follows the OS (initializeTheme.iife.js). */
+.vocs_ThemeToggle {
+	display: none;
+}
+
+/* Co-brand after the wordmark, in sidebar and landing top nav. */
+.vocs_NavLogo_title {
+	letter-spacing: -0.02em;
+}
+.vocs_NavLogo_title::after {
+	content: "by secondlayer";
+	color: var(--vocs-color_text3);
+	font-family: var(--vocs-fontFamily_default);
+	font-size: 0.75rem;
+	font-weight: 400;
+	letter-spacing: 0;
+	margin-left: 0.5rem;
+}
+
+/* ----------------------------------------------------------- content panel
+   viem's Vocs 2 shell: the content + outline area is one raised panel with
+   a hairline on its left and top edges and a 16px top-left radius, fixed
+   under the top nav and bleeding to the bottom/right. Drawn as a fixed
+   pseudo-element so the panel does not scroll with the page. */
+
+@media screen and (min-width: 1081px) {
+	.vocs_DocsLayout[data-layout="docs"]::before {
+		content: "";
+		background-color: var(--vocs-color_background);
+		border-left: 1px solid var(--vocs-color_border);
+		border-top: 1px solid var(--vocs-color_border);
+		border-top-left-radius: var(--sl-panel-radius);
+		bottom: 0;
+		left: var(--vocs_DocsLayout_leftGutterWidth);
+		pointer-events: none;
+		position: fixed;
+		right: 0;
+		top: calc(var(--vocs-topNav_height) + var(--vocs_Banner_bannerHeight, 0px));
+		z-index: 0;
+	}
+	.vocs_DocsLayout[data-layout="docs"] .vocs_DocsLayout_content,
+	.vocs_DocsLayout[data-layout="docs"] .vocs_Content {
+		background-color: transparent;
+		position: relative;
+		z-index: 1;
+	}
+	.vocs_DocsLayout[data-layout="docs"] .vocs_DocsLayout_gutterRight {
+		z-index: 1;
+	}
+}
+
+/* Top nav sits on the ground in every layout; no curtain gradient. */
+.vocs_DocsLayout_gutterTop {
+	background-color: var(--vocs-color_backgroundDark);
+}
+.vocs_DesktopTopNav_curtain {
+	display: none;
+}
+
+/* Landing keeps the flat ground; its content sits directly on it. */
+.vocs_DocsLayout[data-layout="landing"] .vocs_DocsLayout_content,
+.vocs_DocsLayout[data-layout="landing"] .vocs_Content {
+	background-color: var(--vocs-color_backgroundDark);
+}
+
+/* ---------------------------------------------------------------- sidebar */
+
+.vocs_Sidebar_footer {
+	background-color: var(--vocs-color_backgroundDark);
+}
+.vocs_Sidebar_footerCurtain {
+	background: linear-gradient(transparent, var(--vocs-color_backgroundDark) 80%);
+}
+
+.vocs_Sidebar_items {
+	gap: 2px;
+}
+.vocs_Sidebar_item {
+	border-radius: 6px;
+	margin-left: -0.5rem;
+	padding: 0.3rem 0.5rem;
+	width: calc(100% + 1rem);
+}
+.vocs_Sidebar_item[data-active="true"] {
+	background-color: var(--sl-gold-wash);
+	color: var(--vocs-color_textAccent);
+}
+.vocs_Sidebar_navigation
+	> .vocs_Sidebar_group
+	> .vocs_Sidebar_section
+	+ .vocs_Sidebar_section {
+	border-top: 0;
+	margin-top: 0.75rem;
+}
+
+/* Reference labels are bare module paths; set them in mono. */
+.vocs_Sidebar_item[href^="/reference/"] {
+	font-family: var(--vocs-fontFamily_mono);
+	font-size: 0.8125rem;
+}
+
+/* ---------------------------------------------------------------- top nav */
+
+.vocs_NavigationMenu_link[data-active="true"] {
+	color: var(--vocs-color_title);
+}
+.vocs_NavigationMenu_link[data-active="true"]::after {
+	content: "";
+	background-color: var(--vocs-color_borderAccent);
+	bottom: 0;
+	height: 2px;
+	left: 0;
+	position: absolute;
+	right: 0;
+}
+.vocs_DesktopTopNav_item {
+	position: relative;
+}
+
+.sl-version {
+	align-items: center;
+	border: 1px solid var(--vocs-color_border);
+	border-radius: 999px;
+	color: var(--vocs-color_text2);
+	display: inline-flex;
+	font-family: var(--vocs-fontFamily_mono);
+	font-size: 0.75rem;
+	height: 1.625rem;
+	margin-left: 0.5rem;
+	padding: 0 0.625rem;
+	transition: color 0.1s, border-color 0.1s;
+}
+.sl-version:hover {
+	border-color: var(--vocs-color_border2);
+	color: var(--vocs-color_title);
+}
+
+/* ---------------------------------------------------------------- outline */
+
+.vocs_Outline_nav {
+	border-left: 0;
+	padding-left: 0;
+}
+.vocs_Outline_heading {
+	font-family: var(--vocs-fontFamily_default);
+	font-weight: 500;
+	letter-spacing: 0;
+}
+.vocs_Outline_item {
+	border-left: 1px solid var(--vocs-color_border);
+	margin-bottom: 0;
+	padding: 0.25rem 0 0.25rem 0.875rem;
+}
+.vocs_Outline_item:has(> .vocs_Outline_link[data-active="true"]) {
+	border-left: 2px solid var(--vocs-color_borderAccent);
+	padding-left: calc(0.875rem - 1px);
+}
+.vocs_Outline_items .vocs_Outline_items {
+	padding-left: 0;
+}
+.vocs_Outline_items .vocs_Outline_items .vocs_Outline_item {
+	padding-left: 1.75rem;
+}
+.vocs_Outline_link {
+	font-weight: 400;
+}
+
+/* --------------------------------------------------------------- headings
+   Gold section numbers on docs H2s, carried over from the datasheet
+   direction. Counted per page; landing pages stay unnumbered. */
+
+.vocs_DocsLayout[data-layout="docs"] .vocs_Content {
+	counter-reset: sl-section;
+}
+.vocs_DocsLayout[data-layout="docs"] .vocs_Content .vocs_H2 {
+	counter-increment: sl-section;
+}
+.vocs_DocsLayout[data-layout="docs"] .vocs_Content .vocs_H2::before {
+	content: "§" counter(sl-section);
+	color: var(--vocs-color_textAccent);
+	font-family: var(--vocs-fontFamily_mono);
+	font-size: 0.75rem;
+	font-weight: 500;
+	margin-right: 0.625rem;
+	vertical-align: middle;
+}
+
+/* -------------------------------------------------------------- code blocks */
 
 .vocs_CodeBlock {
 	border-radius: 12px;
@@ -62,4 +276,165 @@
 }
 :root.dark .vocs_CopyButton:hover {
 	color: rgba(242, 237, 229, 0.55);
+}
+
+/* ---------------------------------------------------------------- landing */
+
+.sl-hero {
+	align-items: start;
+	display: grid;
+	gap: 3rem;
+	grid-template-columns: 1.1fr 1fr;
+	margin: 0 auto;
+	max-width: 1180px;
+	padding: 6rem 2rem 2.5rem;
+}
+.sl-hero-name {
+	font-family: var(--sl-font-display);
+	font-size: clamp(3.5rem, 8vw, 5.5rem);
+	font-weight: 500;
+	letter-spacing: -0.04em;
+	line-height: 0.9;
+	margin: 0;
+}
+.sl-hero-name span {
+	color: var(--vocs-color_textAccent);
+}
+.sl-hero-by {
+	color: var(--vocs-color_text3);
+	font-size: 0.875rem;
+	margin-top: 0.875rem;
+}
+.sl-hero-tagline {
+	color: var(--vocs-color_text2);
+	font-size: 1.375rem;
+	line-height: 1.4;
+	margin: 1.75rem 0 0;
+	max-width: 30ch;
+}
+.sl-hero-tagline b {
+	color: var(--vocs-color_title);
+	font-weight: 500;
+}
+.sl-hero-ctas {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.625rem;
+	margin-top: 2rem;
+}
+.sl-btn {
+	align-items: center;
+	border: 1px solid var(--vocs-color_border);
+	border-radius: 8px;
+	color: var(--vocs-color_title);
+	display: inline-flex;
+	font-size: 0.875rem;
+	font-weight: 500;
+	height: 2.5rem;
+	padding: 0 1.125rem;
+	transition: border-color 0.1s, background-color 0.1s;
+}
+.sl-btn:hover {
+	border-color: var(--vocs-color_border2);
+}
+.sl-btn-gold {
+	background-color: var(--vocs-color_backgroundAccent);
+	border-color: transparent;
+	color: var(--vocs-color_backgroundAccentText);
+}
+.sl-btn-gold:hover {
+	background-color: var(--vocs-color_backgroundAccentHover);
+	border-color: transparent;
+}
+
+.sl-install {
+	background-color: var(--vocs-color_codeBlockBackground);
+	border: 1px solid var(--vocs-color_codeInlineBorder);
+	border-radius: 12px;
+	overflow: hidden;
+}
+.sl-install-tabs {
+	border-bottom: 1px solid var(--vocs-color_border);
+	display: flex;
+	gap: 1.125rem;
+	height: 2.75rem;
+	padding: 0 1.125rem;
+}
+.sl-install-tab {
+	background: none;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	color: var(--vocs-color_text3);
+	cursor: pointer;
+	font: inherit;
+	font-size: 0.8125rem;
+	margin-bottom: -1px;
+	padding: 0;
+	transition: color 0.1s;
+}
+.sl-install-tab:hover {
+	color: var(--vocs-color_text);
+}
+.sl-install-tab[aria-selected="true"] {
+	border-bottom-color: var(--vocs-color_borderAccent);
+	color: var(--vocs-color_title);
+	font-weight: 500;
+}
+.sl-install-command {
+	color: var(--vocs-color_title);
+	font-family: var(--vocs-fontFamily_mono);
+	font-size: var(--vocs-fontSize_codeBlock);
+	line-height: var(--vocs-lineHeight_code);
+	margin: 0;
+	padding: 1.375rem 1.125rem;
+}
+
+.sl-cards {
+	display: grid;
+	gap: 0.875rem;
+	grid-template-columns: repeat(3, 1fr);
+	margin: 0 auto;
+	max-width: 1180px;
+	padding: 0 2rem 3.5rem;
+}
+.sl-card {
+	background-color: var(--vocs-color_background);
+	border: 1px solid var(--vocs-color_border);
+	border-radius: 12px;
+	padding: 1.375rem;
+}
+.sl-card h4 {
+	font-family: var(--sl-font-display);
+	font-size: 1.0625rem;
+	font-weight: 500;
+	letter-spacing: -0.01em;
+	margin: 0 0 0.5rem;
+}
+.sl-card p {
+	color: var(--vocs-color_text2);
+	font-size: 0.875rem;
+	line-height: 1.55;
+	margin: 0;
+}
+
+.sl-narrow {
+	margin: 0 auto;
+	max-width: 760px;
+	padding: 0 1.5rem 4.5rem;
+}
+.sl-narrow > * + * {
+	margin-top: 1.5rem;
+}
+.sl-narrow .vocs_H2 {
+	font-size: 1.75rem;
+}
+
+@media screen and (max-width: 900px) {
+	.sl-hero {
+		grid-template-columns: 1fr;
+		padding-top: 4rem;
+	}
+	.sl-cards {
+		grid-template-columns: 1fr;
+	}
 }

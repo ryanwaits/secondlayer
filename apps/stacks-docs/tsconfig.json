@@ -4,8 +4,9 @@
 		"module": "ESNext",
 		"moduleResolution": "bundler",
 		"noEmit": true,
+		"resolveJsonModule": true,
 		"skipLibCheck": true,
 		"strict": true
 	},
-	"include": ["vocs.config.ts", "docs/**/*.ts", "docs/**/*.tsx"]
+	"include": ["vocs.config.tsx", "docs/**/*.ts", "docs/**/*.tsx"]
 }
