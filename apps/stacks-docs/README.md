@@ -14,6 +14,10 @@ viem.sh's docs shell reproduced on Vocs 1.4.1: sidebar on the page ground, conte
 
 `vite.define` in the config shims `process.platform` / `process.env`: Vocs 1.4.1 bundles picomatch into the client and it reads `process` at module init, which otherwise throws in the browser and aborts hydration (no outline, search, tabs, copy buttons).
 
+## Icons + OG
+
+Favicon: `docs/public/icon-{light,dark}.svg` (secondlayer mark in ink). OG card: `docs/public/og.png`, a 1200×630 capture of `docs/og-card.html` (`agent-browser open file://…/og-card.html`, viewport 1200×630, screenshot). Re-render when the tagline changes.
+
 ## Code blocks
 
 Code blocks reuse the platform docs CodeBlock rules (elevated surface, hairline border, 12px radius, Fira Code 14/1.7, hover copy button) via `docs/styles.css`, and a library-specific shiki theme in `docs/syntax-theme.ts`: the platform's monotone ink ramp, warm-tinted for the egg-white / warm-dark grounds, with gold on literals only (strings, numbers, JSON values). Keywords are ink at weight 500; nothing is bold.

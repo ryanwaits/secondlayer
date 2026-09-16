@@ -26,6 +26,14 @@ export default defineConfig({
 	title: "stacks",
 	description: "Typed Stacks client for TypeScript. By secondlayer.",
 	aiCta: false,
+	baseUrl: "https://stacks.secondlayer.tools",
+	/* Favicon: the secondlayer mark in ink, one per scheme. OG card:
+	   docs/public/og.png, rendered from docs/og-card.html at 1200×630
+	   (agent-browser screenshot); re-render when the tagline changes. */
+	iconUrl: { light: "/icon-light.svg", dark: "/icon-dark.svg" },
+	/* Path-map form on purpose: Vocs 1.4.1's useOgImageUrl returns nothing
+	   for a plain string. "/" matches every route. */
+	ogImageUrl: { "/": "https://stacks.secondlayer.tools/og.png" },
 	vite: {
 		/* Vocs 1.4.1 ships picomatch in the client bundle and it reads
 		   `process.platform` at module init, which throws in the browser
