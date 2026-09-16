@@ -95,6 +95,11 @@ function draw(canvas: HTMLCanvasElement) {
 	fadeRight.addColorStop(1, "rgba(0,0,0,1)");
 	g.fillStyle = fadeRight;
 	g.fillRect(W - 240, 0, 240, H);
+	const fadeBottom = g.createLinearGradient(0, H - 280, 0, H);
+	fadeBottom.addColorStop(0, "rgba(0,0,0,0)");
+	fadeBottom.addColorStop(1, "rgba(0,0,0,1)");
+	g.fillStyle = fadeBottom;
+	g.fillRect(0, H - 280, W, 280);
 	g.globalCompositeOperation = "source-over";
 }
 

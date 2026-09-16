@@ -306,7 +306,6 @@ html {
 
 /* Landing top block: strata texture behind hero + cards. */
 .sl-top {
-	overflow: hidden;
 	position: relative;
 }
 .sl-top > * {
@@ -314,11 +313,16 @@ html {
 }
 .sl-strata {
 	left: 50%;
+	overflow: hidden;
 	pointer-events: none;
 	position: absolute !important;
 	top: 0;
 	transform: translateX(-50%);
 	width: min(1400px, 100vw);
+	z-index: 0;
+}
+.sl-narrow {
+	position: relative;
 }
 .sl-strata canvas {
 	display: block;
