@@ -399,9 +399,11 @@ Delivery identity is per clock. A vm apply row keys `chain:<webhook>:<tx>:vm:<vm
 
 `BlockData` carries `events` (classic) and `vmEvents` (vm clock) separately on every source: the Postgres tap reads `vm_events`, the Streams+Index source routes vm walks into `vmEvents`, the observer-HTTP source maps `/new_block.vm_events`. A vm source matches only `vmEvents`; a `contract_call` / `contract_deploy` source fans out to classic types only and never sees vm rows. Runtime ids are `tx#vm:<index>`; the runner orders a tx’s classic events first, then its vm events (the ordinals are not comparable).
 
-### Reorg envelope — vm ordinal (known gap)
+### Reorg envelope — rewind VM consumers by height
 
-`GET /v1/streams/reorgs` reports one `to` ordinal per orphaned height, computed from classic `events` (`reorg.ts`). A `clock=vm` consumer gets no vm-clock upper bound from that envelope. Correct today because the vm table is empty on every deployed node; before a collecting node ships, either add a `vm_to` ordinal to the reorg row or document that vm consumers must rewind by height, not ordinal.
+`GET /v1/streams/reorgs` reports a `to` ordinal computed from classic `events` (`reorg.ts`). It is not a VM upper bound. VM consumers roll back rows at or above `fork_point_height` and resume from the foot of that height. Never compare the envelope's classic ordinal with `vm_event_index`.
+
+VM Index and Streams pages include reorgs overlapping the resume height, even when the replacement has no matching events, the next match is at a later height, or the source tip has rewound below the checkpoint. For independent `/v1/streams/reorgs` polling, use its timestamp/`next_since` tokens, not a VM event cursor. The endpoint's event-cursor form belongs to the classic clock.
 
 **Don’t.** A billed “phishing detector” SKU. It’s a subgraph + a chain webhook.
 
