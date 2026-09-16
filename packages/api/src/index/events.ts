@@ -751,12 +751,18 @@ export async function getIndexEventsResponse(opts: {
 	const parsed = parseIndexEventsQuery(opts.query, opts.tip);
 
 	const tip = indexReadTip(opts.tip, parsed.eventType);
+	const vmClock = isVmIndexEventType(parsed.eventType);
 	if (parsed.cursorPastTip) {
 		return {
 			events: [],
 			next_cursor: parsed.cursorRaw ?? null,
 			tip,
-			reorgs: [],
+			reorgs:
+				vmClock && parsed.cursor
+					? await readReorgsForEvents([parsed.cursor], opts.readReorgs, {
+							overlap: "height",
+						})
+					: [],
 		};
 	}
 
@@ -776,11 +782,22 @@ export async function getIndexEventsResponse(opts: {
 	// Prefer the raw span (survives a projection that dropped event_index).
 	// VM pages key on vm_event_index — overlap by height so a page at H:5
 	// still surfaces a classic reorg that ended at H:0.
-	const reorgs = await readReorgsForEvents(
-		result.span ? [result.span.from, result.span.to] : result.events,
-		opts.readReorgs,
-		{ overlap: isVmIndexEventType(parsed.eventType) ? "height" : "cursor" },
-	);
+	let reorgSpan = result.span
+		? [result.span.from, result.span.to]
+		: result.events;
+	// A resumed VM feed must report a rollback even if the replacement block
+	// has no matching event, or the next match is at a later height. Returned
+	// rows alone cannot establish that the consumer's checkpoint is canonical.
+	if (vmClock && parsed.cursor) {
+		const end = reorgSpan.at(-1) ?? {
+			block_height: Math.max(parsed.cursor.block_height, parsed.toHeight),
+			event_index: 0,
+		};
+		reorgSpan = [parsed.cursor, end];
+	}
+	const reorgs = await readReorgsForEvents(reorgSpan, opts.readReorgs, {
+		overlap: vmClock ? "height" : "cursor",
+	});
 
 	return {
 		events: result.events,

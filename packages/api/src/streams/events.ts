@@ -390,14 +390,27 @@ export async function getStreamsEventsResponse(opts: {
 	readReorgs?: StreamsReorgsReader;
 }): Promise<StreamsEventsResponse> {
 	const parsed = parseStreamsEventsQuery(opts.query, opts.tip);
+	const readReorgs = opts.readReorgs ?? EMPTY_STREAMS_REORGS_READER;
+	const byHeight = parsed.clock === "vm";
 
 	if (parsed.cursorPastTip) {
 		return {
 			events: [],
 			next_cursor: parsed.cursorRaw ?? null,
 			tip: opts.tip,
-			// reorgs stays empty until reorg detection lands; see PRD 0001 reorg endpoint task.
-			reorgs: [],
+			reorgs:
+				byHeight && parsed.cursor
+					? await readReorgs({
+							from: {
+								block_height: parsed.cursor.block_height,
+								event_index: 0,
+							},
+							to: {
+								block_height: parsed.cursor.block_height,
+								event_index: EMPTY_RANGE_EVENT_INDEX_SENTINEL,
+							},
+						})
+					: [],
 		};
 	}
 
@@ -419,24 +432,31 @@ export async function getStreamsEventsResponse(opts: {
 		filters: parsed.filters,
 		limit: parsed.limit,
 	});
-	const readReorgs = opts.readReorgs ?? EMPTY_STREAMS_REORGS_READER;
 	const firstEvent = result.events.at(0);
 	const lastEvent = result.events.at(-1);
 	// VM pages live on vm_event_index. Classic reorg bounds are event_index.
-	// Overlap by height so a page at H:5 still surfaces a reorg ending at H:0.
-	const byHeight = parsed.clock === "vm";
+	// Include the resume height even when the replacement has no matches.
+	const reorgFrom = byHeight ? (parsed.cursor ?? firstEvent) : firstEvent;
+	const reorgTo =
+		lastEvent ??
+		(byHeight && parsed.cursor
+			? {
+					block_height: Math.max(parsed.cursor.block_height, parsed.toHeight),
+					event_index: 0,
+				}
+			: undefined);
 	const reorgs =
-		firstEvent && lastEvent
+		reorgFrom && reorgTo
 			? await readReorgs({
 					from: {
-						block_height: firstEvent.block_height,
-						event_index: byHeight ? 0 : firstEvent.event_index,
+						block_height: reorgFrom.block_height,
+						event_index: byHeight ? 0 : reorgFrom.event_index,
 					},
 					to: {
-						block_height: lastEvent.block_height,
+						block_height: reorgTo.block_height,
 						event_index: byHeight
 							? EMPTY_RANGE_EVENT_INDEX_SENTINEL
-							: lastEvent.event_index,
+							: reorgTo.event_index,
 					},
 				})
 			: [];

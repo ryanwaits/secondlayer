@@ -355,6 +355,57 @@ describe("parseStreamsEventsQuery — clock=vm", () => {
 });
 
 describe("getStreamsEventsResponse — clock=vm reorg overlap", () => {
+	for (const scenario of ["empty", "later match", "tip rewound"] as const) {
+		test(`includes the checkpoint's rollback with ${scenario}`, async () => {
+			const response = await getStreamsEventsResponse({
+				query: params("?clock=vm&cursor=100:5"),
+				tip: { ...TIP, block_height: scenario === "tip rewound" ? 99 : 200 },
+				readEvents: async () => {
+					if (scenario === "tip rewound")
+						throw new Error("reader ran past tip");
+					return {
+						events:
+							scenario === "later match"
+								? [
+										{
+											cursor: "110:0",
+											block_height: 110,
+											block_hash: "0xnew",
+											burn_block_height: 20,
+											tx_id: "0xnew",
+											tx_index: 0,
+											event_index: 0,
+											event_type: "map_set",
+											contract_id: "SP.store",
+											payload: {},
+											ts: "2026-09-15T00:00:00Z",
+											canonical: true,
+										},
+									]
+								: [],
+						next_cursor:
+							scenario === "later match" ? "110:0" : "190:2147483647",
+					};
+				},
+				readReorgs: async (range) =>
+					range.from.block_height <= 100 && range.to.block_height >= 100
+						? [
+								{
+									id: "orphaned-map",
+									detected_at: "2026-09-15T00:00:00Z",
+									fork_point_height: 100,
+									old_index_block_hash: "0xold",
+									new_index_block_hash: "0xnew",
+									orphaned_range: { from: "100:0", to: "100:0" },
+									new_canonical_tip: "100:0",
+								},
+							]
+						: [],
+			});
+			expect(response.reorgs.map((r) => r.id)).toEqual(["orphaned-map"]);
+		});
+	}
+
 	test("overlaps reorgs by height so a page at H:5 still sees a reorg at H:0", async () => {
 		let seenRange:
 			| { from: { event_index: number }; to: { event_index: number } }
