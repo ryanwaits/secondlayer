@@ -1,11 +1,166 @@
-# bitcoin
+# Bitcoin SPV
 
-API surface of `@secondlayer/stacks/bitcoin`.
+Trust-minimized Bitcoin verification for Stacks contracts (SIP-044): build an inclusion proof from your own node, encode it for Clarity, and prove a payment was mined without trusting a third party.
 
-Trust-minimized Bitcoin SPV — proof construction, Clarity codecs, verifier (SIP-044).
+The [Bitcoin SPV guide](/guide/bitcoin-spv) covers the model and the reference adapter. This page is the surface.
 
-## Exports
+## Verify a Payment
 
-`parseBitcoinTx`, `parseBlockHeader`, `stripWitness`, `doubleSha256`, `reverseBytes`, `bitcoinTxid`, `blockHash`, `BtcReader`, `buildTxProof`, `bitcoinRpcSource`, `esploraSource`, `fallbackProofSource`, `buildMerkleProof`, `merkleRoot`, `rootFromProof`, `encodeMerkleProofArgs`, `decodeTxOutput`, `parseOutputScript`, `SPV_ADAPTER_CONTRACTS`, `getSpvAdapter`, `spvAdapterPrincipal`, `SPV_ADAPTER_ABI`, `isClarity6Active`, `getBurnBlockHeight`, `EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET`, `bitcoinVerifier`, `formatBitcoinAddress`, `publicKeyToP2trAddress`, `publicKeyToP2wpkhAddress`, `taprootTweakPubkey`, `verifyBitcoinPayment`, and related types.
+`verifyBitcoinPayment` composes the whole flow: build the proof, prove the tx is mined via the adapter's `was-tx-mined`, decode the target output, assert your expectations.
 
-See [Bitcoin SPV guide](/guide/bitcoin-spv).
+```typescript
+import { createPublicClient, http } from "@secondlayer/stacks";
+import { mainnet } from "@secondlayer/stacks/chains";
+import { verifyBitcoinPayment, esploraSource } from "@secondlayer/stacks/bitcoin";
+
+const client = createPublicClient({ chain: mainnet, transport: http() });
+
+const result = await verifyBitcoinPayment(client, {
+  txid: "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+  source: esploraSource({ url: "https://blockstream.info/api" }),
+  vout: 0,
+  expect: { address: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", amount: 5_000_000_000n },
+});
+// { verified: true, mined: true, output: { vout, script, amount, type, address }, proof }
+```
+
+| Param | |
+| --- | --- |
+| `txid` + `source`, or `proof` | Where the proof comes from, or a prepared `SpvProof` |
+| `vout` | Output index to decode and check |
+| `expect?` | `{ address?, amount? }`; `verified` is true only when mined and every expectation matches |
+| `contract?` | Adapter principal. Optional on mainnet (reference adapter resolves); required elsewhere |
+| `network?` | For address formatting; defaults from `client.chain` |
+| `authenticateHeader?` | Default `true`: header checked against `get-burn-block-info?`. `false` proves membership only |
+
+## Proof Sources
+
+Where proof inputs come from. `buildTxProof` re-checks every claim a source makes, so a wrong or hostile source fails loudly.
+
+```typescript
+import { bitcoinRpcSource, esploraSource, fallbackProofSource } from "@secondlayer/stacks/bitcoin";
+
+const source = fallbackProofSource([
+  bitcoinRpcSource({ url: "http://127.0.0.1:8332", auth: { username: "u", password: "p" } }),
+  esploraSource({ url: "https://mempool.space/api" }),
+]);
+```
+
+| Source | |
+| --- | --- |
+| `bitcoinRpcSource({ url, auth?, fetch? })` | Your Bitcoin Core node over JSON-RPC (needs `-txindex`). Trustless; the default |
+| `esploraSource({ url, fetch? })` | Any Esplora-compatible REST API, self-hosted or hosted |
+| `fallbackProofSource([...])` | Try each in order, return the first success, throw the last error |
+
+Both satisfy `ProofSource`; implement it yourself for another backend.
+
+## Build a Proof
+
+```typescript
+import { buildTxProof } from "@secondlayer/stacks/bitcoin";
+
+const proof = await buildTxProof(source, { txid: "f418...9e16", vout: 0 });
+// {
+//   rawTx,          // Uint8Array, witness stripped
+//   txidInternal,   // 32 bytes, internal byte order
+//   vout,
+//   merkle: { siblings, txIndex, txCount },
+//   header,         // 80 bytes
+//   height,
+// }
+```
+
+Checks performed before returning: the raw tx hashes to `txid`, `txIndex` points at that txid in the block, and the merkle proof folds back to the header's root. Hashes are internal byte order throughout.
+
+## Encode for Clarity
+
+The SIP-044 built-ins want flat arguments in internal byte order with `tx-count`, not tree depth. These absorb that.
+
+```typescript
+import { encodeMerkleProofArgs, decodeTxOutput, parseOutputScript } from "@secondlayer/stacks/bitcoin";
+
+// (leaf, root, tx-index, tx-count, (list 24 (buff 32)))
+const args = encodeMerkleProofArgs({ leaf: proof.txidInternal, root, proof: proof.merkle });
+
+// get-bitcoin-tx-output? result → { script, amount, txid }
+const out = decodeTxOutput(resultCV);
+
+const spk = parseOutputScript(out.script);
+// { type: "p2pkh" | "p2sh" | "p2wpkh" | "p2wsh" | "p2tr" | "op_return" | "unknown", data? }
+```
+
+## Verifier
+
+Bind to a deployed adapter contract and call its read-onlys with typed proofs. The built-ins only exist at Clarity 6 / Epoch 4.0, so calls succeed on mainnet after activation or a local Clarity-6 devnet.
+
+```typescript
+import { bitcoinVerifier, getSpvAdapter, spvAdapterPrincipal } from "@secondlayer/stacks/bitcoin";
+
+const adapter = getSpvAdapter("mainnet")!;             // { address, name }
+const verifier = bitcoinVerifier(client, { contract: spvAdapterPrincipal(adapter) });
+
+await verifier.wasTxMined(proof);                      // true | false; throws on non-canonical header
+```
+
+`SPV_ADAPTER_CONTRACTS` pins the reference deployment (`SP2M1DE95TS0QBM4K893X6ST49FFJ53CCX9CYWNVY.spv-adapter` on mainnet, none on testnet). `SPV_ADAPTER_ABI` is exported `as const`.
+
+## Activation
+
+```typescript
+import { isClarity6Active, getBurnBlockHeight, EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET } from "@secondlayer/stacks/bitcoin";
+
+await isClarity6Active(client);                                   // mainnet: height known
+await isClarity6Active(devnetClient, { activationBurnHeight: 120 }); // elsewhere: supply it
+await getBurnBlockHeight(client);                                 // /v2/info burn_block_height
+EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET;                           // 960230
+```
+
+## Addresses
+
+```typescript
+import {
+  formatBitcoinAddress,
+  publicKeyToP2wpkhAddress,
+  publicKeyToP2trAddress,
+  taprootTweakPubkey,
+} from "@secondlayer/stacks/bitcoin";
+
+formatBitcoinAddress(parseOutputScript(script), "mainnet"); // "bc1q..." | undefined for op_return / unknown
+publicKeyToP2wpkhAddress(compressedPubkey);                  // "bc1q..."
+publicKeyToP2trAddress(compressedPubkey, "testnet");         // "tb1p..." (BIP-86 tweak)
+taprootTweakPubkey(xonly);                                   // 32-byte tweaked x-only key
+```
+
+## Serialization
+
+Low-level parsers shared by everything above. Use them to inspect a raw tx or header without a proof.
+
+```typescript
+import {
+  parseBitcoinTx, stripWitness, bitcoinTxid,
+  parseBlockHeader, blockHash,
+  doubleSha256, reverseBytes, BtcReader,
+} from "@secondlayer/stacks/bitcoin";
+
+const tx = parseBitcoinTx(rawTx);        // { version, hasWitness, inputs, outputs, locktime }
+const legacy = stripWitness(rawTx);      // bytes the txid is computed over
+bitcoinTxid(rawTx);                      // internal order
+bitcoinTxid(rawTx, { display: true });   // explorer order
+
+const header = parseBlockHeader(headerBytes); // { version, prevBlock, merkleRoot, time, bits, nonce }
+blockHash(headerBytes, { display: true });
+```
+
+## Merkle
+
+```typescript
+import { buildMerkleProof, merkleRoot, rootFromProof } from "@secondlayer/stacks/bitcoin";
+
+const root = merkleRoot(txidsInternal);
+const merkle = buildMerkleProof(txidsInternal, txIndex);   // { siblings, txIndex, txCount }
+rootFromProof(txidsInternal[txIndex], merkle);            // equals root
+```
+
+## PoX-5
+
+`spvProofToL1LockupOutput` and `buildPox5LockProof` in [pox5](/reference/pox5#lock-proofs) map these proofs onto `register-for-bond`'s lockup shape.

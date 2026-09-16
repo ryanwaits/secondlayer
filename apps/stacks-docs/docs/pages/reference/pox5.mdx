@@ -1,11 +1,270 @@
-# pox5
+# PoX-5 Bitcoin Staking
 
-API surface of `@secondlayer/stacks/pox5`.
+`pox5()` client extension for SIP-045 Bitcoin Staking: activation gating, staker reads, every `pox-5` public function as a typed wallet action, plus the pure helpers the contract's math and scripts depend on.
 
-PoX-5 Bitcoin Staking (SIP-045) — bonds, staking, lockup scripts, signer grants.
+The [PoX-5 guide](/guide/pox5) walks the flows end to end. This page is the surface.
 
-## Exports
+## Setup
 
-`pox5` client extension, `isPox5Active`, `getPox5Activation`, `getPoxInfo`, `assertPox5Active`, cycle math (`burnHeightToRewardCycle`, `bondPhaseAtHeight`, …), lockup scripts (`buildLockupScript`, `buildLockupAddress`, …), signer grants (`computeSignerGrantHash`, `signSignerGrant`, `verifySignerGrant`), eligibility helpers, `POX5_ABI`, error helpers, and related constants/types.
+```typescript
+import { createPublicClient, createWalletClient, http, mainnet } from "@secondlayer/stacks";
+import { privateKeyToAccount } from "@secondlayer/stacks/accounts";
+import { pox5 } from "@secondlayer/stacks/pox5";
 
-See [PoX-5 guide](/guide/pox5).
+const client = createPublicClient({
+  chain: mainnet,
+  transport: http(),
+}).extend(pox5());
+
+const wallet = createWalletClient({
+  account: privateKeyToAccount("0x..."),
+  chain: mainnet,
+  transport: http(),
+}).extend(pox5());
+```
+
+## Activation
+
+Reads `/v2/pox` `contract_versions`, so the same code is right on mainnet, testnet, and a devnet with a custom activation height.
+
+```typescript
+await client.pox5.isActive();        // true once the burnchain passes the activation height
+await client.pox5.getActivation();   // { contractId, activationBurnchainBlockHeight, firstRewardCycleId } | undefined
+await client.pox5.getPoxInfo();      // /v2/pox, typed: cycle length, prepare length, current burn height, ...
+client.pox5.contractId();            // "SP000000000000000000002Q6VF78.pox-5" on mainnet
+```
+
+Standalone equivalents take a client: `isPox5Active(client)`, `getPox5Activation(client)`, `getPoxInfo(client)`, and `assertPox5Active(client)`, which throws naming the activation height (`POX5_ACTIVATION_BURN_HEIGHT_MAINNET`, Bitcoin block 960,230).
+
+## Reads
+
+`getStakerState` batches the four reads a UI needs into one request.
+
+```typescript
+const state = await client.pox5.getStakerState("SP2J6...");
+// { stakerInfo, bondMembership, custodiedSbtc, currentCycle }
+
+const info = await client.pox5.getStakerInfo("SP2J6...");           // null when not staking
+const bond = await client.pox5.getProtocolBond(0);
+const membership = await client.pox5.getBondMembership("SP2J6...");
+const custodied = await client.pox5.getStakerCustodiedSbtc("SP2J6...");
+const total = await client.pox5.getTotalSbtcStakedForBond(0);
+
+const cycle = await client.pox5.getCurrentRewardCycle();
+const first = await client.pox5.getFirstRewardCycle();
+const earned = await client.pox5.getEarned({ signer: "SP2J6...", rewardCycle: cycle });
+```
+
+Also: `getBondAllowance`, `hasAnnouncedL1EarlyExit`, `getBondL1UnlockHeight`, `getSignerInfo`, `verifySignerKeyGrant`, `getEarnedStakerRewards`, `getLastRewardComputeHeight`, `getTotalSharesStakedForCycle`. Optional records return `null`; nothing throws on a missing row.
+
+## Eligibility
+
+Pre-flight checks that mirror the contract's asserts, so a doomed transaction never burns a fee. Each returns `{ ok: true }` or `{ ok: false, reasons: [Pox5ErrorCode, ...] }`.
+
+```typescript
+const check = await client.pox5.eligibleStake({
+  staker: "SP2J6...",
+  signerManager: "SP2J6....signer-mgr",
+  amountUstx: 100_000_000_000n,
+  numCycles: 12,
+  startBurnHeight: 960_231,
+});
+
+if (!check.ok) {
+  for (const code of check.reasons) console.log(describePox5Error(code)?.name);
+  // e.g. "ERR_UNAUTHORIZED"
+}
+```
+
+One per action: `eligibleStake`, `eligibleRegisterForBond`, `eligibleUnstake`, `eligibleUnstakeSbtc`, `eligibleClaimRewards`, `eligibleGrantSignerKey`, `eligibleSetBondAdmin`, `eligiblePauseRewards`. Pure versions with the same names take a client as the first argument.
+
+## Wallet Actions
+
+Every `pox-5` public function. All accept `fee` (`min` | `low` | `mid` | `high` or a microSTX amount), `nonce`, `postConditions`, `postConditionMode`; all return a txid.
+
+```typescript
+const txid = await wallet.pox5.stake({
+  signerManager: "SP2J6....signer-mgr",
+  amountUstx: 100_000_000_000n,   // 100,000 STX
+  numCycles: 12,
+  startBurnHeight: 960_231,
+  fee: "low",
+});
+await wallet.waitForTransactionReceipt({ txid, confirmations: 1 });
+```
+
+| Action | Contract call |
+| --- | --- |
+| `setupBond` | `setup-bond` |
+| `registerForBond` | `register-for-bond` |
+| `updateBondRegistration` | `update-bond-registration` |
+| `stake` | `stake` |
+| `stakeUpdate` | `stake-update` |
+| `unstake` | `unstake` |
+| `unstakeSbtc` | `unstake-sbtc` |
+| `announceL1EarlyExit` | `announce-l1-early-exit` |
+| `calculateRewards` | `calculate-rewards` |
+| `claimRewards` | `claim-rewards` |
+| `claimStakerRewardsForSigner` | `claim-staker-rewards-for-signer` |
+| `grantSignerKey` | `grant-signer-key` |
+| `revokeSignerGrant` | `revoke-signer-grant` |
+| `setBondAdmin` | `set-bond-admin` |
+| `setPauseAdmin` | `set-pause-admin` |
+| `pauseRewards` | `pause-rewards` |
+
+`registerForBond` takes the BTC side as a union: custodied sBTC, or SPV-proven L1 lockup outputs.
+
+```typescript
+// custodied sBTC
+await wallet.pox5.registerForBond({
+  bondIndex: 0,
+  signerManager: "SP2J6....signer-mgr",
+  amountUstx: 500_000_000_000n,
+  btcLockup: { sbtcSats: 100_000_000n },
+});
+
+// proven L1 lockup, proof built by buildLockProof (below)
+await wallet.pox5.registerForBond({
+  bondIndex: 0,
+  signerManager: "SP2J6....signer-mgr",
+  amountUstx: 500_000_000_000n,
+  btcLockup: { l1Outputs: [output], stakerUnlockBytes },
+});
+```
+
+## Lock Proofs
+
+Map a SIP-044 SPV proof onto the `L1LockupOutput` shape `register-for-bond` verifies on-chain. Witness data is stripped and the lockup vout is resolved against the P2WSH of your lock script.
+
+```typescript
+import { esploraSource } from "@secondlayer/stacks/bitcoin";
+
+const output = await wallet.pox5.buildLockProof({
+  source: esploraSource({ url: "https://blockstream.info/api" }),
+  txid: "f418...9e16",
+  lockScript,                    // the witness script from buildLockupScript
+  unlockBurnHeight: 987_530n,
+});
+```
+
+`spvProofToL1LockupOutput` does the mapping for a proof you already hold; `buildPox5LockProof` is the standalone fetch-and-map.
+
+## Lockup Scripts
+
+Byte-for-byte ports of the contract's `construct-lockup-script`. The contract compares your L1 output against exactly these bytes.
+
+```typescript
+import {
+  buildDefaultStakerUnlockBytes,
+  buildLockupScript,
+  buildLockupOutputScript,
+  buildLockupAddress,
+  stakerPreimage,
+} from "@secondlayer/stacks/pox5";
+
+const stakerUnlockBytes = buildDefaultStakerUnlockBytes(compressedPubkey); // <pubkey> OP_CHECKSIG
+
+const opts = {
+  stxAddress: "SP2J6...",
+  unlockBurnHeight: 987_530,
+  stakerUnlockBytes,
+  earlyUnlockBytes,            // from the bond's protocol-bonds.early-unlock-bytes
+};
+
+const script = buildLockupScript(opts);            // witness script: CLTV branch + early-exit branch
+const spk = buildLockupOutputScript(opts);         // 0x0020 || sha256(script)
+const address = buildLockupAddress(opts, "mainnet"); // bc1q...; also "testnet" | "regtest"
+const preimage = stakerPreimage("SP2J6...");        // 32 bytes the early-exit branch must reveal
+```
+
+Lower-level pieces (`pushScriptBytes`, `pushCScriptNum`, `serializeCScriptNum`, `stakerConsensusBuff`, `buildRegisterMetadata`) are exported for custom script tails.
+
+## Reclaiming a Lockup
+
+Spend a P2WSH lockup back out once it unlocks (`"locktime"` path) or after `announce-l1-early-exit` with the bond cosigner (`"early-exit"` path, which also needs `cosignerPrivateKey` and `stxAddress`). Builds a complete PSBT; nothing here broadcasts.
+
+```typescript
+import { reclaim, buildReclaim, computeReclaimSighash, finalizeReclaim } from "@secondlayer/stacks/pox5";
+
+const opts = {
+  path: "locktime" as const,
+  network: "mainnet" as const,
+  utxo: { txid: "ab12...", vout: 0, value: 100_000_000n },
+  output: { address: "bc1q...", feeSats: 1_200n },  // sweeps value - feeSats
+  lockScript,                                       // the witness script you funded
+};
+
+// in-process BTC key: one shot
+const { txHex, txid } = reclaim({ ...opts, stakerPrivateKey });
+
+// HSM / MPC: build, sign the digest elsewhere, finalize
+const tx = buildReclaim(opts);
+const sighash = computeReclaimSighash(tx);          // sign externally, then tx.addPartialSig / signIdx
+const { txHex: hex } = finalizeReclaim({ path: "locktime", tx });
+```
+
+## Signer Grants
+
+SIP-018 structured-data signatures authorizing a signer-manager contract to use a signer key. `signSignerGrant` returns RSV order, the `(buff 65)` layout `grant-signer-key` expects.
+
+```typescript
+import { computeSignerGrantHash, signSignerGrant, verifySignerGrant } from "@secondlayer/stacks/pox5";
+
+const opts = { signerManager: "SP2J6....signer-mgr", authId: 1n, chainId: mainnet.id };
+
+const signerSig = await signSignerGrant(signerAccount, opts);
+verifySignerGrant({ ...opts, publicKey: signerPubkey, signature: signerSig }); // true
+computeSignerGrantHash(opts); // byte-identical to get-signer-grant-message-hash
+```
+
+`buildSignerCalldata` / `parseSignerCalldata` pack and unpack the calldata a signer-manager contract receives.
+
+## Cycle Math
+
+Pure mirrors of the contract's cycle read-onlys. Pass chain parameters from `getPoxInfo()` and `getActivation()`.
+
+```typescript
+import {
+  burnHeightToRewardCycle,
+  rewardCycleToBurnHeight,
+  bondPhaseAtHeight,
+  bondStatusAtHeight,
+  isInPreparePhase,
+  computeBondUnlockHeight,
+} from "@secondlayer/stacks/pox5";
+
+const params = { firstBurnchainBlockHeight: 666_050, rewardCycleLength: 2_100 };
+
+burnHeightToRewardCycle(960_231, params);                            // cycle number
+rewardCycleToBurnHeight(140, params);                                // first burn height of a cycle
+bondPhaseAtHeight(0, 960_231, { ...params, firstBondPeriodCycle }); // "too-early" | "open" | "locked" | "unlocked"
+isInPreparePhase(960_231, { ...params, prepareCycleLength: 100 });
+```
+
+Also: `bondPeriodToRewardCycle`, `bondPeriodToBurnHeight`, `bondUnlockCycle`, `burnHeightToDistributionIndex`, `currentDistributionCycle`, `distributionCycleToBurnHeight`. Constants: `BOND_LENGTH_CYCLES` (12), `BOND_GAP_CYCLES` (2), `MAX_NUM_CYCLES` (96).
+
+## Bitcoin Addresses
+
+The PoX `(version, hashbytes)` tuple in both directions.
+
+```typescript
+import { parseBtcAddress, stringifyBtcAddress, BtcAddress } from "@secondlayer/stacks/pox5";
+
+parseBtcAddress("bc1q...");                      // { version: 4, hashbytes }
+stringifyBtcAddress({ version: 6, hashbytes }, "mainnet"); // "bc1p..."
+BtcAddress.parse === parseBtcAddress;            // namespaced aliases
+```
+
+## Errors
+
+Every `pox-5` error code, named and described. `parsePox5Error` reads the code out of an `(err uN)` result.
+
+```typescript
+import { parsePox5Error, describePox5Error, Pox5ErrorCode } from "@secondlayer/stacks/pox5";
+
+const code = parsePox5Error(result);   // 1
+describePox5Error(code!);              // { code: 1, name: "ERR_UNAUTHORIZED", description: "..." }
+Pox5ErrorCode.CannotSetupBondTooSoon;  // 2
+```
+
+`POX5_ABI` is the curated `as const` ABI for `getContract` and typed `contract_call` subgraph sources; `POX5_EVENT_TOPICS` lists the print topics.

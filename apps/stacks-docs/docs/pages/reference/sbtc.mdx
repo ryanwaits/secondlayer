@@ -1,9 +1,127 @@
-# sbtc
+# sBTC
 
-API surface of `@secondlayer/stacks/sbtc`.
+`sbtc()` client extension for the sBTC protocol: token reads, signer-set lookups, unit conversion, and the event types the registry emits.
 
-`sbtc()` client extension: sBTC deposits, balances, withdrawals.
+The protocol runs three contracts on mainnet and testnet: `sbtc-token` (SIP-010), `sbtc-deposit` (deposit completion entry point), and `sbtc-registry` (every protocol-state print event). This module pins the current deployments; the testnet address changed in the 2026-08 reset and the old one 404s.
 
-## Exports
+## Setup
 
-`sbtc` extension (`getTotalSupply`, `getBalance`, `getName`, `getSymbol`, `getDecimals`, `getTokenUri`, `getSignersPublicKey`, `getSignersAddress`), `SBTC_CONTRACTS`, `SBTC_TOKEN_ABI`, `satsToSbtc`, `sbtcToSats`, `formatBtcAddress`, `bitcoinTxidFromHex`, `bitcoinTxidToHex`, `validateBitcoinTxid`, event topic constants, and related types.
+```typescript
+import { createPublicClient, http, mainnet } from "@secondlayer/stacks";
+import { sbtc } from "@secondlayer/stacks/sbtc";
+
+const client = createPublicClient({
+  chain: mainnet,
+  transport: http(),
+}).extend(sbtc());
+```
+
+Network resolves from `client.chain`: a testnet client reads the testnet contracts without any extra configuration.
+
+## Token Reads
+
+All SIP-010 read-onlys on `sbtc-token`. Amounts are satoshis as `bigint`; sBTC has 8 decimals like BTC.
+
+```typescript
+const supply = await client.sbtc.getTotalSupply();        // 5_000_000_000n
+const balance = await client.sbtc.getBalance("SP2J6...");  // 12_500_000n
+
+await client.sbtc.getName();      // "sBTC"
+await client.sbtc.getSymbol();    // "sBTC"
+await client.sbtc.getDecimals();  // 8n
+await client.sbtc.getTokenUri();  // string | null
+```
+
+## Signer Set
+
+The current signer set from `sbtc-registry`. The taproot address is where deposits go; it rotates on `key-rotation`, so read it at deposit time rather than caching it.
+
+```typescript
+const pubkey = await client.sbtc.getSignersPublicKey(); // Uint8Array, 33-byte compressed aggregate key
+const address = await client.sbtc.getSignersAddress();  // "bc1p..." on mainnet, "tb1p..." on testnet
+```
+
+## Units
+
+```typescript
+import { satsToSbtc, sbtcToSats } from "@secondlayer/stacks/sbtc";
+
+satsToSbtc(150_000_000n);  // "1.5"
+satsToSbtc(1n);            // "0.00000001"
+sbtcToSats("1.5");         // 150_000_000n
+sbtcToSats("0.123456789"); // throws: more than 8 decimal places
+```
+
+`satsToSbtc` returns a decimal string, never a float, so it is safe to display or store as-is.
+
+## Bitcoin Identifiers
+
+Registry events carry Bitcoin txids as 32-byte buffers and BTC recipients as `(version, hashbytes)` tuples. These decode them.
+
+```typescript
+import {
+  bitcoinTxidToHex,
+  bitcoinTxidFromHex,
+  validateBitcoinTxid,
+  formatBtcAddress,
+} from "@secondlayer/stacks/sbtc";
+
+const hex = bitcoinTxidToHex(event.bitcoinTxid);   // 64-char hex; throws if not 32 bytes
+const buf = bitcoinTxidFromHex(hex);               // Uint8Array(32)
+validateBitcoinTxid(buf);                          // throws on wrong length
+
+// withdrawal-create `recipient` tuple → address string
+const to = formatBtcAddress(event.recipient);             // mainnet
+const toTest = formatBtcAddress(event.recipient, "testnet");
+```
+
+Version bytes follow the SIP-005 PoX map (`SBTC_BTC_ADDRESS_VERSION`): `p2pkh` 0x00 through `p2tr` 0x06.
+
+## Contracts and Constants
+
+```typescript
+import {
+  SBTC_CONTRACTS,
+  sbtcContractId,
+  SBTC_ASSET_IDENTIFIER_MAINNET,
+  SBTC_EVENT_TOPICS,
+  SBTC_DECIMALS,
+} from "@secondlayer/stacks/sbtc";
+
+SBTC_CONTRACTS.mainnet.address;          // "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4"
+sbtcContractId("mainnet", "registry");   // "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry"
+SBTC_ASSET_IDENTIFIER_MAINNET;           // "SM3V....sbtc-token::sbtc-token", for post-conditions and filters
+SBTC_EVENT_TOPICS;                       // ["completed-deposit", "withdrawal-create", ...]
+SBTC_DECIMALS;                           // 8
+```
+
+`SBTC_TOKEN_ABI` is exported `as const` for `getContract` and typed subgraph sources.
+
+## Event Types
+
+Typed shapes for every `sbtc-registry` print topic and every `sbtc-token` SIP-005 event, for code that consumes decoded events from Index, Streams, or a subgraph handler.
+
+| Type | Topic | Fields |
+| --- | --- | --- |
+| `CompletedDepositEvent` | `completed-deposit` | `bitcoinTxid`, `outputIndex`, `amount`, `burnHash`, `burnHeight`, `sweepTxid` |
+| `WithdrawalCreateEvent` | `withdrawal-create` | `requestId`, `amount`, `sender`, `recipient`, `blockHeight`, `maxFee` |
+| `WithdrawalAcceptEvent` | `withdrawal-accept` | `requestId`, `bitcoinTxid`, `signerBitmap`, `outputIndex`, `fee`, `burnHash`, `burnHeight`, `sweepTxid` |
+| `WithdrawalRejectEvent` | `withdrawal-reject` | `requestId`, `signerBitmap` |
+| `KeyRotationEvent` | `key-rotation` | `newKeys`, `newAddress`, `newAggregatePubkey`, `newSignatureThreshold` |
+| `UpdateProtocolContractEvent` | `update-protocol-contract` | `contractType`, `newContract` |
+
+`SbtcRegistryEvent` is the union, discriminated on `topic`; `SbtcEventByTopic<"withdrawal-create">` picks one. Token events are `SbtcTokenTransferEvent`, `SbtcTokenMintEvent`, `SbtcTokenBurnEvent`, discriminated on `type`.
+
+```typescript
+import type { SbtcRegistryEvent } from "@secondlayer/stacks/sbtc";
+
+function onEvent(event: SbtcRegistryEvent) {
+  if (event.topic === "withdrawal-create") {
+    console.log(formatBtcAddress(event.recipient), satsToSbtc(event.amount));
+  }
+}
+```
+
+## Subscribing to sBTC Events
+
+Filtering the sBTC lifecycle across Index, Streams, Webhooks, and Subgraphs is the [filters](/reference/filters) module's job: `on.sbtcDeposit`, `on.sbtcWithdrawalCreate`, and friends. Deposits and withdrawals themselves are initiated on Bitcoin and by the signer set; this extension reads state, it does not broadcast.

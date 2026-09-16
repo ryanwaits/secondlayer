@@ -1,9 +1,129 @@
-# filters
+# Filters
 
-API surface of `@secondlayer/stacks/filters`.
+One chain-event filter vocabulary for Index, Streams, Webhooks, and Subgraphs.
 
-Canonical chain-event filter vocabulary shared across Index, Streams, Subgraphs, and Webhooks.
+Each product used to spell the same event differently (three incompatible `minAmount` types among them). `@secondlayer/stacks/filters` is the single spelling; every surface's wire shape is a projection of it. A field a surface cannot express throws at projection time instead of silently widening the match.
 
-## Exports
+## Build a Filter
 
-`CHAIN_EVENT_FILTER_TYPES`, `DECODED_EVENT_TYPES`, `fromSubgraphSource`, `makeChainEventFilter`, `on`, `assertAssetIdentifier`, `assetId`, `assertContractId`, `assertPrincipalish`, `hasWildcard`, `isPrincipal`, and filter/spec types (`ChainEventFilter`, `FtTransferSpec`, `PrintEventSpec`, `SbtcDepositSpec`, …).
+`on.*` has one factory per event type. Fields are validated on construction: principals, contract ids, and asset identifiers that are malformed throw immediately.
+
+```typescript
+import { on } from "@secondlayer/stacks/filters";
+
+const USDC = "SP3Y2ZSH8P7D50B0VBTSX11S7XSG24M1VB9YFQA4K.token-aeusdc::aeUSDC";
+
+const usdc = on.ftTransfer({ assetIdentifier: USDC, minAmount: 1_000_000n });
+const prints = on.print({ contractId: "SP3Y2...token-aeusdc", topic: "transfer" });
+const calls = on.contractCall({ contractId: "SP3Y2...token-aeusdc", functionName: "transfer" });
+const deposits = on.sbtcDeposit({ minAmount: 100_000n });
+```
+
+`makeChainEventFilter(type, fields)` is the generic form; `on.ftTransfer(f)` is `makeChainEventFilter("ft_transfer", f)`.
+
+## Project to a Surface
+
+The same filter feeds all four products.
+
+```typescript
+sl.index.events.list(usdc.toIndexParams({ limit: 100 }));               // pull
+sl.streams.events.consume({ ...usdc.toStreamsParams(), onBatch });      // firehose
+sl.subscriptions.create({ name, url, triggers: [usdc.toChainTrigger()] }); // webhook
+defineSubgraph({ sources: { usdc: usdc.toSubgraphSource() }, schema, handlers });
+```
+
+| Projection | Output | Notes |
+| --- | --- | --- |
+| `toIndexParams(extra?)` | `{ eventType, ...fields, ...extra }` | `print_event` becomes `print` |
+| `toStreamsParams(extra?)` | `{ types: [type], ...fields, ...extra }` | `print_event` becomes `print` |
+| `toChainTrigger()` | `{ type, ...fields }` | `bigint` amounts stringified for JSON |
+| `toSubgraphSource()` | the spec, `bigint` preserved | keeps `abi` / `prints` literals for handler typing |
+
+A surface a member cannot reach is a missing method, which is a compile error, not a runtime surprise:
+
+```typescript
+const sbtc = on.sbtcDeposit({ minAmount: 100_000n });
+sbtc.toChainTrigger();   // ok: { type: "sbtc_deposit", minAmount: "100000" }
+sbtc.toIndexParams();    // type error: sBTC lifecycle events are Webhooks-only
+```
+
+## What Throws Where
+
+A field the target cannot express throws at projection time, naming the surface that can.
+
+```typescript
+const usdc = on.ftTransfer({ assetIdentifier: USDC, minAmount: 1_000_000n });
+usdc.toIndexParams();
+// Error: minAmount cannot be expressed on Index events — amount predicates are
+// Subscriptions/Subgraphs-only; filter client-side on the decoded rows.
+```
+
+| Field | Index | Streams | Webhooks | Subgraphs |
+| --- | --- | --- | --- | --- |
+| `minAmount` / `maxAmount` | throws | throws | ok | ok |
+| `topic` (print) | throws | throws | ok | ok |
+| wildcard `*` in a principal or asset | throws | throws | ok | ok |
+| `trait` | ok, not with `contractId` | throws | ok | ok, ANDed with `contractId` |
+| `contractId` as a set | ok | ok | throws | ok |
+| `factory` | throws | throws | throws | ok |
+| `caller` | throws (use `index.contractCalls`) | ok | ok | ok |
+
+## Event Types
+
+```typescript
+import { CHAIN_EVENT_FILTER_TYPES, DECODED_EVENT_TYPES } from "@secondlayer/stacks/filters";
+```
+
+`DECODED_EVENT_TYPES` is the ten-member set Index and Streams share: `stx_transfer`, `stx_mint`, `stx_burn`, `stx_lock`, `ft_transfer`, `ft_mint`, `ft_burn`, `nft_transfer`, `nft_mint`, `nft_burn`, `print`.
+
+`CHAIN_EVENT_FILTER_TYPES` adds the contract-shaped members (`contract_call`, `contract_deploy`, `print_event`) and the five sBTC lifecycle members (`sbtc_deposit`, `sbtc_withdrawal_create`, `sbtc_withdrawal_accept`, `sbtc_withdrawal_reject`, `sbtc_withdrawal_swept_confirmed`).
+
+## Spec Fields
+
+| Factory | Fields |
+| --- | --- |
+| `on.stxTransfer` | `sender`, `recipient`, `minAmount`, `maxAmount` |
+| `on.stxMint` / `on.stxBurn` / `on.stxLock` | `recipient` / `sender` / `lockedAddress`, `minAmount` |
+| `on.ftTransfer` | `assetIdentifier`, `sender`, `recipient`, `minAmount`, `trait` |
+| `on.ftMint` / `on.ftBurn` | `assetIdentifier`, `recipient` / `sender`, `minAmount`, `trait` |
+| `on.nftTransfer` / `on.nftMint` / `on.nftBurn` | `assetIdentifier`, `sender`, `recipient`, `trait` |
+| `on.contractCall` | `contractId` (one or up to 20), `functionName`, `caller`, `abi`, `trait`, `factory` |
+| `on.contractDeploy` | `deployer`, `contractName` |
+| `on.print` | `contractId` (one or up to 20), `topic`, `prints`, `trait`, `factory` |
+| `on.sbtcDeposit` | `sender`, `minAmount`, `maxAmount`, `bitcoinTxid`, `requestId` |
+| `on.sbtcWithdrawalCreate` | `sender`, `minAmount`, `maxAmount`, `requestId` |
+| `on.sbtcWithdrawalAccept` / `SweptConfirmed` | `requestId`, `sweepTxid` |
+| `on.sbtcWithdrawalReject` | `requestId` |
+
+`abi` and `prints` are type-only decorations: `on.contractCall({ abi })` keeps `event.input` typed inside `defineSubgraph`, and `on.print({ prints })` narrows `event.data` per topic. Both are dropped from every projection except `toSubgraphSource`.
+
+## Validation
+
+The same validators the factories use, for form and config code.
+
+```typescript
+import {
+  assetId,
+  isPrincipal,
+  hasWildcard,
+  assertPrincipalish,
+  assertContractId,
+  assertAssetIdentifier,
+} from "@secondlayer/stacks/filters";
+
+assetId("SP3Y2...token-aeusdc::aeUSDC");   // narrows to AssetIdentifier, throws if malformed
+isPrincipal("SP2QEZ06AGJ3RKJPBV14SY1V5BBFNAW33D96YPGZF"); // true
+hasWildcard("SP3Y2*");                      // true; wildcards skip validation and are Webhooks/Subgraphs-only
+assertContractId("contractId", "SP3Y2...token-aeusdc::aeUSDC"); // throws: that is an asset id, not a contract id
+```
+
+## Round-Tripping Subgraph Sources
+
+`fromSubgraphSource` rebuilds a filter from a subgraph-source object. `toSubgraphSource(fromSubgraphSource(s))` deep-equals `s` for every production source, which is how existing subgraph definitions migrate onto the shared vocabulary.
+
+```typescript
+import { fromSubgraphSource } from "@secondlayer/stacks/filters";
+
+const filter = fromSubgraphSource({ type: "ft_transfer", assetIdentifier: USDC, minAmount: 1_000_000n });
+filter.toChainTrigger(); // now also a webhook trigger
+```
