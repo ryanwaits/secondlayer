@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PoweredBy } from "./PoweredBy";
 
 const managers = [
 	{ id: "bun", command: "bun add @secondlayer/stacks" },
@@ -41,10 +42,13 @@ export function Hero() {
 				<h1 className="sl-hero-name">
 					stacks<span>.</span>
 				</h1>
-				<div className="sl-hero-by">by secondlayer</div>
+				<div className="sl-hero-by">
+					<PoweredBy label="by" />
+				</div>
 				<p className="sl-hero-tagline">
-					Typed Stacks client for TypeScript. One package, <b>zero polyfills</b>
-					, <b>full tree-shaking</b>.
+					Build reliable apps &amp; libraries with <b>lightweight</b>,{" "}
+					<b>composable</b>, and <b>type-safe</b> modules that interface with
+					Stacks and Bitcoin
 				</p>
 				<div className="sl-hero-ctas">
 					<a className="sl-btn sl-btn-gold" href="/getting-started">

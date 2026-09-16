@@ -21,6 +21,9 @@
 	--sl-font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
 	--sl-gold-wash: rgba(227, 177, 23, 0.14);
 	--sl-panel-radius: 16px;
+	/* secondlayer mark (apps/web logo), ink per theme; used by the nav
+	   co-brand pseudo-element, which cannot hold inline SVG. */
+	--sl-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='6 9 36 24' fill='none'%3E%3Cpolygon points='8,23 28,15 40,23 20,31' fill='%231c1a16' opacity='0.24'/%3E%3Cpolygon points='8,19 28,11 40,19 20,27' fill='%231c1a16'/%3E%3C/svg%3E");
 }
 
 :root.dark {
@@ -28,6 +31,7 @@
 	--vocs-color_codeInlineBorder: rgba(242, 237, 229, 0.14);
 	--vocs-color_lineNumber: #7a7369;
 	--sl-gold-wash: rgba(240, 196, 48, 0.12);
+	--sl-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='6 9 36 24' fill='none'%3E%3Cpolygon points='8,23 28,15 40,23 20,31' fill='%23f2ede5' opacity='0.24'/%3E%3Cpolygon points='8,19 28,11 40,19 20,27' fill='%23f2ede5'/%3E%3C/svg%3E");
 }
 
 /* ---------------------------------------------------------------- ground */
@@ -50,18 +54,40 @@ html {
 	display: none;
 }
 
-/* Co-brand after the wordmark, in sidebar and landing top nav. */
+/* Co-brand after the wordmark, in sidebar and landing top nav: the
+   secondlayer mark + name, same lockup as runsentinel.app. */
 .vocs_NavLogo_title {
 	letter-spacing: -0.02em;
 }
 .vocs_NavLogo_title::after {
-	content: "by secondlayer";
-	color: var(--vocs-color_text3);
+	content: "secondlayer";
+	background: var(--sl-mark) no-repeat left center / 15px 10px;
+	color: var(--vocs-color_text2);
 	font-family: var(--vocs-fontFamily_default);
 	font-size: 0.75rem;
-	font-weight: 400;
+	font-weight: 500;
 	letter-spacing: 0;
-	margin-left: 0.5rem;
+	margin-left: 0.625rem;
+	padding-left: 1.25rem;
+}
+
+/* Powered-by lockup (footer, hero). */
+.sl-powered {
+	align-items: center;
+	color: var(--vocs-color_text3);
+	display: inline-flex;
+	font-size: 0.875rem;
+	gap: 0.375rem;
+}
+.sl-powered-name {
+	color: var(--vocs-color_title);
+	font-weight: 500;
+}
+.sl-mark polygon {
+	fill: var(--vocs-color_title);
+}
+.sl-footer {
+	display: flex;
 }
 
 /* ----------------------------------------------------------- content panel
@@ -140,12 +166,6 @@ html {
 	margin-top: 0.75rem;
 }
 
-/* Reference labels are bare module paths; set them in mono. */
-.vocs_Sidebar_item[href^="/reference/"] {
-	font-family: var(--vocs-fontFamily_mono);
-	font-size: 0.8125rem;
-}
-
 /* ---------------------------------------------------------------- top nav */
 
 .vocs_NavigationMenu_link[data-active="true"] {
@@ -184,7 +204,8 @@ html {
 
 /* ---------------------------------------------------------------- outline */
 
-.vocs_Outline_nav {
+.vocs_Outline_nav,
+.vocs_DocsLayout_gutterRight .vocs_Outline_nav {
 	border-left: 0;
 	padding-left: 0;
 }
@@ -290,6 +311,7 @@ html {
 	padding: 6rem 2rem 2.5rem;
 }
 .sl-hero-name {
+	color: var(--vocs-color_title);
 	font-family: var(--sl-font-display);
 	font-size: clamp(3.5rem, 8vw, 5.5rem);
 	font-weight: 500;
@@ -301,8 +323,6 @@ html {
 	color: var(--vocs-color_textAccent);
 }
 .sl-hero-by {
-	color: var(--vocs-color_text3);
-	font-size: 0.875rem;
 	margin-top: 0.875rem;
 }
 .sl-hero-tagline {
