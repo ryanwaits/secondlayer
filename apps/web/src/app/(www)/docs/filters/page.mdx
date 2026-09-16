@@ -13,7 +13,7 @@ const sbtcMints = on.ftMint({
 
 await sl.index.events.list(sbtcMints.toIndexParams({ limit: 50 }));
 await sl.streams.events.list(sbtcMints.toStreamsParams());
-await sl.webhooks.create({ trigger: sbtcMints.toChainTrigger(), url });
+await sl.webhooks.create({ name: "sbtc-mints", url, triggers: [sbtcMints.toChainTrigger()] });
 ```
 
 `@secondlayer/stacks` is the typed chain client, documented at [stacks.secondlayer.tools](https://stacks.secondlayer.tools).
