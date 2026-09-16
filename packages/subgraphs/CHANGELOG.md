@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 4.3.5
+
+### Patch Changes
+
+- 474fe3f: Additive deploy now creates the `/v1` keyset `(col, _id)` sort index when a column is added or flipped `indexed`, matching genesis DDL.
+
 ## 4.3.4
 
 ### Patch Changes
