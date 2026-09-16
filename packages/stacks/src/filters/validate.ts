@@ -17,7 +17,7 @@ export type Principal = string & { readonly __principal: unique symbol };
  * A value that is only known at runtime (config, env) is not narrow enough on
  * purpose; run it through {@link assetId} once, which validates and narrows.
  *
- * Wildcard patterns (Subscriptions/Subgraphs-only) are admitted by the second arm — they
+ * Wildcard patterns (Webhooks/Subgraphs-only) are admitted by the second arm — they
  * are legitimately not full identifiers (`SPB.*`), and the runtime validator
  * short-circuits on them for the same reason.
  */
@@ -41,7 +41,7 @@ export function isPrincipal(value: string): value is Principal {
 	return parsePrincipal(value) !== null;
 }
 
-/** Subscriptions and Subgraph sources match `*` wildcards in
+/** Webhooks and Subgraph sources match `*` wildcards in
  *  principal/identifier patterns; every
  *  other surface treats the value literally. */
 export function hasWildcard(value: string): boolean {

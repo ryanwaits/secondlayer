@@ -84,7 +84,7 @@ describe("on.* factories", () => {
 		});
 	});
 
-	test("wildcards are Subscriptions/Subgraphs-only", () => {
+	test("wildcards are Webhooks/Subgraphs-only", () => {
 		const wild = on.stxTransfer({ sender: "SP2QEZ*" });
 		expect(wild.toChainTrigger()).toEqual({
 			type: "stx_transfer",

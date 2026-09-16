@@ -22,7 +22,7 @@ export type DecodedEventType = (typeof DECODED_EVENT_TYPES)[number];
 /** Every chain-event filter member across all four surfaces: the 10 decoded
  *  token/STX types, the three contract-shaped types (spelled as subgraphs and
  *  triggers spell them — Index/Streams project `print_event` → `print`), and
- *  the five sBTC lifecycle types (Subscriptions-only). */
+ *  the five sBTC lifecycle types (Webhooks-only). */
 export const CHAIN_EVENT_FILTER_TYPES = [
 	"stx_transfer",
 	"stx_mint",

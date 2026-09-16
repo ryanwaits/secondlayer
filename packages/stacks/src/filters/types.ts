@@ -285,7 +285,7 @@ type DecodedMember =
 	| "print_event";
 
 export type ProjectionsFor<T extends ChainEventFilterType, S> = {
-	/** Wire trigger for `subscriptions.create({ triggers: [...] })`. BigInt
+	/** Wire trigger for `webhooks.create({ triggers: [...] })`. BigInt
 	 *  amounts become strings here — the one sanctioned boundary. */
 	toChainTrigger(): ChainTriggerOf<S>;
 } & (T extends DecodedMember

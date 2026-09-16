@@ -73,7 +73,7 @@ function assertNoWildcards(surface: string, spec: ChainEventFilterSpec): void {
 				unsupported(
 					surface,
 					`${key} wildcard "${candidate}"`,
-					"wildcard patterns are Subscriptions/Subgraphs-only",
+					"wildcard patterns are Webhooks/Subgraphs-only",
 				);
 			}
 		}
@@ -107,7 +107,7 @@ function toChainTrigger(spec: ChainEventFilterSpec): ChainTriggerShape {
 		if (DECORATIVE_FIELDS.has(key)) continue;
 		if (key === "factory") {
 			unsupported(
-				"Subscriptions",
+				"Webhooks",
 				"factory",
 				"dynamic factory discovery is a Subgraphs-only concept — a trigger targets addresses known when it is created",
 			);
@@ -117,7 +117,7 @@ function toChainTrigger(spec: ChainEventFilterSpec): ChainTriggerShape {
 			// a fraction of what the filter says. Create one subscription per
 			// contract instead.
 			unsupported(
-				"Subscriptions",
+				"Webhooks",
 				`${key} set`,
 				"a chain trigger targets ONE contract — create one subscription per contract, or use Index/Subgraphs which accept the set",
 			);
@@ -151,14 +151,14 @@ function toIndexParams(
 			unsupported(
 				"Index events",
 				key,
-				"amount predicates are Subscriptions/Subgraphs-only; filter client-side on the decoded rows",
+				"amount predicates are Webhooks/Subgraphs-only; filter client-side on the decoded rows",
 			);
 		}
 		if (key === "topic") {
 			unsupported(
 				"Index events",
 				"topic",
-				"per-topic reads are Subgraphs/Subscriptions-only (or read the contract's print feed and switch on topic)",
+				"per-topic reads are Subgraphs/Webhooks-only (or read the contract's print feed and switch on topic)",
 			);
 		}
 		if (key === "lockedAddress") {
@@ -200,7 +200,7 @@ function toStreamsParams(
 			unsupported(
 				"Streams",
 				key,
-				"amount predicates are Subscriptions/Subgraphs-only",
+				"amount predicates are Webhooks/Subgraphs-only",
 			);
 		}
 		if (key === "trait") {
@@ -214,14 +214,14 @@ function toStreamsParams(
 			unsupported(
 				"Streams",
 				"topic",
-				"per-topic filtering is Subgraphs/Subscriptions-only",
+				"per-topic filtering is Subgraphs/Webhooks-only",
 			);
 		}
 		if (key === "lockedAddress") {
 			unsupported(
 				"Streams",
 				"lockedAddress",
-				"stx_lock address filtering is Subscriptions/Subgraphs-only",
+				"stx_lock address filtering is Webhooks/Subgraphs-only",
 			);
 		}
 		out[key] = value;
@@ -364,7 +364,7 @@ export interface OnNamespace {
 	contractDeploy(
 		fields?: Fields<"contract_deploy">,
 	): ChainEventFilter<"contract_deploy">;
-	/** Canonical member is `print_event` (as Subgraphs and Subscriptions spell
+	/** Canonical member is `print_event` (as Subgraphs and Webhooks spell
 	 *  it); `toIndexParams`/`toStreamsParams` project to `print`. `prints`
 	 *  literals are preserved (`const P`) for per-topic `event.data` narrowing. */
 	print<
@@ -409,7 +409,7 @@ export interface OnNamespace {
  *
  * sl.index.events.list(usdc.toIndexParams({ limit: 100 }));   // pull
  * sl.streams.events.consume({ ...usdc.toStreamsParams(), onBatch });
- * sl.subscriptions.create({ name, url, triggers: [usdc.toChainTrigger()] });
+ * sl.webhooks.create({ name, url, triggers: [usdc.toChainTrigger()] });
  * defineSubgraph({ sources: { usdc: usdc.toSubgraphSource() }, schema, handlers });
  * ```
  *
@@ -443,7 +443,7 @@ export const on: OnNamespace = {
 	) => makeChainEventFilter("contract_call", fields),
 	contractDeploy: (fields: Fields<"contract_deploy"> = {}) =>
 		makeChainEventFilter("contract_deploy", fields),
-	/** Canonical member is `print_event` (as Subgraphs and Subscriptions spell
+	/** Canonical member is `print_event` (as Subgraphs and Webhooks spell
 	 *  it); `toIndexParams`/`toStreamsParams` project to `print`. */
 	print: <
 		const P extends
