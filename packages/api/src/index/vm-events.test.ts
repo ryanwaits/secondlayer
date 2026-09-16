@@ -1,6 +1,10 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { getSourceDb } from "@secondlayer/shared/db";
-import { parseIndexEventsQuery, readIndexEvents } from "./events.ts";
+import {
+	getIndexEventsResponse,
+	parseIndexEventsQuery,
+	readIndexEvents,
+} from "./events.ts";
 import type { IndexTip } from "./tip.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -10,6 +14,61 @@ const TIP: IndexTip = {
 	finalized_height: H - 6,
 	lag_seconds: 1,
 };
+
+describe("Index VM resume reorgs", () => {
+	for (const scenario of ["empty", "later match", "tip rewound"] as const) {
+		test(`reports the checkpoint's orphaned height with ${scenario}`, async () => {
+			const response = await getIndexEventsResponse({
+				query: new URLSearchParams("event_type=map_set&cursor=100:5"),
+				tip: {
+					block_height: 90,
+					source_block_height: scenario === "tip rewound" ? 99 : 110,
+					finalized_height: 80,
+					lag_seconds: 0,
+				},
+				readEvents: async () => {
+					if (scenario === "tip rewound") {
+						throw new Error("must not read past the source tip");
+					}
+					return {
+						events:
+							scenario === "later match"
+								? [
+										{
+											cursor: "110:0",
+											block_height: 110,
+											block_time: null,
+											tx_id: "0xnew",
+											tx_index: 0,
+											event_index: 0,
+											event_type: "map_set",
+											contract_id: "SP.store",
+											map: "balances",
+										},
+									]
+								: [],
+						next_cursor: scenario === "later match" ? "110:0" : null,
+					};
+				},
+				readReorgs: async (range) =>
+					range.from.block_height <= 100 && range.to.block_height >= 100
+						? [
+								{
+									id: "orphaned-map",
+									detected_at: "2026-09-15T00:00:00Z",
+									fork_point_height: 100,
+									old_index_block_hash: "0xold",
+									new_index_block_hash: "0xnew",
+									orphaned_range: { from: "100:0", to: "100:0" },
+									new_canonical_tip: "100:0",
+								},
+							]
+						: [],
+			});
+			expect(response.reorgs.map((r) => r.id)).toEqual(["orphaned-map"]);
+		});
+	}
+});
 
 describe("Index vm_events query parse", () => {
 	function params(query: string) {
