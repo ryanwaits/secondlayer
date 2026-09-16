@@ -91,4 +91,17 @@ describe.skipIf(!HAS_DB)("Streams clock=vm reader", () => {
 			"nested_contract_call",
 		]);
 	});
+
+	test("filtered-empty range returns the bounded empty sentinel, not null", async () => {
+		if (!db) throw new Error("missing db");
+		const page = await readCanonicalVmEvents({
+			fromHeight: H,
+			toHeight: H,
+			limit: 10,
+			contractId: "SP.missing",
+			db,
+		});
+		expect(page.events).toEqual([]);
+		expect(page.next_cursor).toBe(`${H}:2147483647`);
+	});
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { DECODED_EVENT_TYPES, VM_EVENT_TYPES } from "@secondlayer/shared";
+import { openapiSpec } from "../routes/openapi.ts";
 import { INDEX_EVENT_CONFIG } from "./events.ts";
 import { VM_INDEX_EVENT_CONFIG } from "./vm-events.ts";
 
@@ -18,5 +19,32 @@ describe("Index event vocabulary", () => {
 		expect(Object.keys(VM_INDEX_EVENT_CONFIG).sort()).toEqual(
 			[...VM_EVENT_TYPES].sort(),
 		);
+	});
+
+	it("OpenAPI /v1/index/events declares every registry filter", () => {
+		const spec = openapiSpec("oss") as {
+			paths: {
+				"/v1/index/events": {
+					get: { parameters: Array<{ name?: string; $ref?: string }> };
+				};
+			};
+		};
+		const names = new Set(
+			spec.paths["/v1/index/events"].get.parameters.map((p) => {
+				if (p.name) return p.name;
+				if (p.$ref?.endsWith("/Limit")) return "limit";
+				if (p.$ref?.endsWith("/Cursor")) return "cursor";
+				return p.$ref ?? "";
+			}),
+		);
+		const registry = [
+			...Object.values(INDEX_EVENT_CONFIG),
+			...Object.values(VM_INDEX_EVENT_CONFIG),
+		];
+		for (const cfg of registry) {
+			for (const filter of cfg.allowedFilters) {
+				expect(names.has(filter), filter).toBe(true);
+			}
+		}
 	});
 });

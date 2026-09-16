@@ -32,6 +32,7 @@ describe("Index tip provider", () => {
 			block_height: 29_900,
 			finalized_height: 29_994,
 			lag_seconds: 3,
+			source_block_height: 30_000,
 		});
 	});
 
@@ -65,6 +66,7 @@ describe("Index tip provider", () => {
 		const tip = await provider();
 		expect(tip.block_height).toBe(30_000);
 		expect(tip.finalized_height).toBe(29_994);
+		expect(tip.source_block_height).toBe(30_000);
 	});
 
 	test("throws when no canonical block and empty tip is disallowed (platform)", async () => {
@@ -84,6 +86,7 @@ describe("Index tip provider", () => {
 			block_height: 0,
 			finalized_height: 0,
 			lag_seconds: 0,
+			source_block_height: 0,
 		});
 	});
 

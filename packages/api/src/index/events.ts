@@ -635,7 +635,7 @@ export function parseIndexEventsQuery(
 		...(traitSupported ? ["trait"] : []),
 	]);
 
-	const base = parseIndexBaseQuery(query, tip);
+	const base = parseIndexBaseQuery(query, indexReadTip(tip, eventTypeRaw));
 	const filters: Partial<Record<IndexEqualityFilter, string>> = {};
 	let contractIds: string[] | undefined;
 	for (const filter of config.equalityFilters) {
@@ -675,6 +675,18 @@ export function parseIndexEventsQuery(
 		withTx,
 		fields,
 	};
+}
+
+/** VM Index reads clamp to the source tip: `vm_events` land with the block. */
+export function indexReadTip(
+	tip: IndexTip,
+	eventType: IndexEventType | VmEventType,
+): IndexTip {
+	if (!isVmIndexEventType(eventType) || tip.source_block_height === undefined) {
+		return tip;
+	}
+	if (tip.source_block_height === tip.block_height) return tip;
+	return { ...tip, block_height: tip.source_block_height };
 }
 
 /** Universal columns every decoded event carries. */
@@ -738,11 +750,12 @@ export async function getIndexEventsResponse(opts: {
 }): Promise<IndexEventsResponse> {
 	const parsed = parseIndexEventsQuery(opts.query, opts.tip);
 
+	const tip = indexReadTip(opts.tip, parsed.eventType);
 	if (parsed.cursorPastTip) {
 		return {
 			events: [],
 			next_cursor: parsed.cursorRaw ?? null,
-			tip: opts.tip,
+			tip,
 			reorgs: [],
 		};
 	}
@@ -761,15 +774,18 @@ export async function getIndexEventsResponse(opts: {
 		fields: parsed.fields,
 	});
 	// Prefer the raw span (survives a projection that dropped event_index).
+	// VM pages key on vm_event_index — overlap by height so a page at H:5
+	// still surfaces a classic reorg that ended at H:0.
 	const reorgs = await readReorgsForEvents(
 		result.span ? [result.span.from, result.span.to] : result.events,
 		opts.readReorgs,
+		{ overlap: isVmIndexEventType(parsed.eventType) ? "height" : "cursor" },
 	);
 
 	return {
 		events: result.events,
 		next_cursor: result.next_cursor,
-		tip: opts.tip,
+		tip,
 		reorgs,
 	};
 }

@@ -1,4 +1,5 @@
 import {
+	EMPTY_RANGE_EVENT_INDEX_SENTINEL,
 	VM_EVENT_TYPES,
 	type VmEventType,
 	encodeStreamsCursor,
@@ -120,7 +121,10 @@ export async function readCanonicalVmEvents(
 					block_height: Number(last.block_height),
 					event_index: Number(last.vm_event_index),
 				})
-			: null,
+			: encodeStreamsCursor({
+					block_height: params.toHeight,
+					event_index: EMPTY_RANGE_EVENT_INDEX_SENTINEL,
+				}),
 	};
 }
 

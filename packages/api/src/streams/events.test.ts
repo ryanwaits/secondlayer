@@ -354,6 +354,53 @@ describe("parseStreamsEventsQuery — clock=vm", () => {
 	});
 });
 
+describe("getStreamsEventsResponse — clock=vm reorg overlap", () => {
+	test("overlaps reorgs by height so a page at H:5 still sees a reorg at H:0", async () => {
+		let seenRange:
+			| { from: { event_index: number }; to: { event_index: number } }
+			| undefined;
+		const body = await getStreamsEventsResponse({
+			query: params("?clock=vm&from_height=0"),
+			tip: TIP,
+			readEvents: async () => ({
+				events: [
+					{
+						cursor: "10:5",
+						block_height: 10,
+						block_hash: TIP.block_hash,
+						burn_block_height: TIP.burn_block_height,
+						tx_id: "0x01",
+						tx_index: 0,
+						event_index: 5,
+						event_type: "map_set",
+						contract_id: "SP.store",
+						payload: {},
+						ts: "2026-05-02T21:43:00.000Z",
+					},
+				],
+				next_cursor: "10:5",
+			}),
+			readReorgs: async (range) => {
+				seenRange = range;
+				return [
+					{
+						id: "reorg-h0",
+						detected_at: "2026-05-03T12:30:00.000Z",
+						fork_point_height: 10,
+						old_index_block_hash: "0xold",
+						new_index_block_hash: "0xnew",
+						orphaned_range: { from: "10:0", to: "10:0" },
+						new_canonical_tip: "10:0",
+					},
+				];
+			},
+		});
+		expect(seenRange?.from.event_index).toBe(0);
+		expect(seenRange?.to.event_index).toBe(2_147_483_647);
+		expect(body.reorgs.map((r) => r.id)).toEqual(["reorg-h0"]);
+	});
+});
+
 describe("parseStreamsEventsQuery — event_type alias", () => {
 	test("event_type=<single> folds into types (the Index spelling)", () => {
 		const parsed = parseStreamsEventsQuery(params("?event_type=print"), TIP);

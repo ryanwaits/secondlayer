@@ -10,18 +10,24 @@ import type {
 	ContractDeployPayload,
 	EventForFilter,
 	FtTransferPayload,
+	MapDeletePayload,
+	MapWritePayload,
+	NestedContractCallPayload,
 	PrintEventFor,
 	PrintEventPayload,
 	StxTransferPayload,
+	VarSetPayload,
 } from "./events.ts";
 import type { ContractCallEvent } from "./types.ts";
 import type {
 	ContractCallFilter,
 	ContractDeployFilter,
 	FtTransferFilter,
+	NestedContractCallFilter,
 	NftTransferFilter,
 	PrintEventFilter,
 	StxTransferFilter,
+	VarSetFilter,
 } from "./types.ts";
 
 // ── EventForFilter maps each source type to its payload ──────────────────
@@ -62,6 +68,20 @@ expectTypeOf<EventForFilter<ContractCallFilter>["args"]>().toEqualTypeOf<
 expectTypeOf<
 	EventForFilter<ContractDeployFilter>
 >().toEqualTypeOf<ContractDeployPayload>();
+
+expectTypeOf<
+	EventForFilter<NestedContractCallFilter>
+>().toEqualTypeOf<NestedContractCallPayload>();
+expectTypeOf<EventForFilter<VarSetFilter>>().toEqualTypeOf<VarSetPayload>();
+expectTypeOf<
+	EventForFilter<{ type: "map_set" }>
+>().toEqualTypeOf<MapWritePayload>();
+expectTypeOf<
+	EventForFilter<{ type: "map_delete" }>
+>().toEqualTypeOf<MapDeletePayload>();
+expectTypeOf<
+	EventForFilter<{ type: "map_set" }>["rawKey"]
+>().toEqualTypeOf<string>();
 
 // Negative: topic is a string, not a number.
 expectTypeOf<
@@ -193,6 +213,28 @@ defineSubgraph({
 			expectTypeOf(event.args).toEqualTypeOf<unknown[]>();
 			// @ts-expect-error no typed `input` without a declared abi
 			void event.input;
+		},
+	},
+});
+
+defineSubgraph({
+	name: "vm-type-test",
+	sources: {
+		maps: { type: "map_set", contractId: "SP.store", map: "store" },
+		nested: { type: "nested_contract_call", contractId: "SP.store" },
+	},
+	schema: { rows: { columns: { k: { type: "text" } } } },
+	handlers: {
+		maps: (event, ctx) => {
+			expectTypeOf(event.rawKey).toEqualTypeOf<string>();
+			expectTypeOf(event.rawValue).toEqualTypeOf<string>();
+			expectTypeOf(event.map).toEqualTypeOf<string>();
+			ctx.insert("rows", { k: event.rawKey });
+		},
+		nested: (event) => {
+			expectTypeOf(event.functionName).toEqualTypeOf<string>();
+			expectTypeOf(event.arguments).toEqualTypeOf<string[]>();
+			expectTypeOf(event.rawResult).toEqualTypeOf<string>();
 		},
 	},
 });

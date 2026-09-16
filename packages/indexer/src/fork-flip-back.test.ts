@@ -53,6 +53,12 @@ describe.skipIf(!HAS_DB)("fork flip-back", () => {
 		await sql`DELETE FROM events WHERE block_height BETWEEN ${H - 1} AND ${H + 3}`.execute(
 			db,
 		);
+		await sql`DELETE FROM vm_events WHERE block_height BETWEEN ${H - 1} AND ${H + 3}`.execute(
+			db,
+		);
+		await sql`DELETE FROM vm_events_archive WHERE block_height BETWEEN ${H - 1} AND ${H + 3}`.execute(
+			db,
+		);
 		await sql`DELETE FROM transactions WHERE block_height BETWEEN ${H - 1} AND ${H + 3}`.execute(
 			db,
 		);
@@ -139,5 +145,78 @@ describe.skipIf(!HAS_DB)("fork flip-back", () => {
 			["0xoriginal", "0xcontender"],
 			["0xcontender", "0xoriginal"],
 		]);
+	});
+
+	test("A → B → A restores original vm_events with original ordinals", async () => {
+		if (!db) throw new Error("missing db");
+
+		function withVm(
+			height: number,
+			hash: string,
+			parent: string,
+			txId: string,
+			vmIndex: number,
+			mapName: string,
+		): NewBlockPayload {
+			return {
+				...payload(height, hash, parent),
+				transactions: [
+					{
+						txid: txId,
+						raw_tx: "0x00",
+						status: "success",
+						tx_index: 0,
+					},
+				],
+				vm_events: [
+					{
+						txid: txId,
+						vm_event_index: vmIndex,
+						committed: true,
+						type: "map_set_event",
+						map_set_event: {
+							contract_identifier: "SP.store",
+							map_name: mapName,
+							raw_key: "0x0a",
+							raw_value: "0x0b",
+						},
+					},
+				],
+			};
+		}
+
+		await ingestNewBlock(payload(H - 1, "0xbase", "0xancestor"));
+		await ingestNewBlock(
+			withVm(H, "0xoriginal", "0xbase", "0xtx-orig", 3, "orig-map"),
+		);
+		await ingestNewBlock(
+			withVm(H, "0xcontender", "0xbase", "0xtx-cont", 0, "cont-map"),
+		);
+		await ingestNewBlock(payload(H + 1, "0xchild-of-contender", "0xcontender"));
+
+		const duringB = await db
+			.selectFrom("vm_events")
+			.select(["vm_event_index", "type", "data"])
+			.where("block_height", "=", H)
+			.execute();
+		expect(duringB.map((r) => Number(r.vm_event_index))).toEqual([0]);
+		expect((duringB[0]?.data as { map_name: string }).map_name).toBe(
+			"cont-map",
+		);
+
+		await ingestNewBlock(payload(H + 1, "0xchild-of-original", "0xoriginal"));
+		await ingestNewBlock(payload(H + 2, "0xgrandchild", "0xchild-of-original"));
+
+		expect((await canonicalRow(H))?.hash).toBe("0xoriginal");
+		const restored = await db
+			.selectFrom("vm_events")
+			.select(["vm_event_index", "data"])
+			.where("block_height", "=", H)
+			.orderBy("vm_event_index", "asc")
+			.execute();
+		expect(restored.map((r) => Number(r.vm_event_index))).toEqual([3]);
+		expect((restored[0]?.data as { map_name: string }).map_name).toBe(
+			"orig-map",
+		);
 	});
 });

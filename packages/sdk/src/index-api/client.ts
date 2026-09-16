@@ -1,4 +1,3 @@
-import type { VmEventType } from "@secondlayer/shared";
 import type { Pox5EventTopic } from "@secondlayer/stacks/pox5";
 import type { SbtcEventTopic } from "@secondlayer/stacks/sbtc";
 import type { InferredTopicSchema } from "@secondlayer/subgraphs";
@@ -264,6 +263,37 @@ export type IndexPrint = IndexEventBase & {
 	payload: { topic: string | null; value: unknown; raw_value: string | null };
 };
 
+export type IndexNestedContractCall = IndexEventBase & {
+	event_type: "nested_contract_call";
+	sender: string | null;
+	caller: string;
+	function_name: string;
+	function_args: unknown;
+	raw_result: string | null;
+};
+export type IndexVarSet = IndexEventBase & {
+	event_type: "var_set";
+	var_name: string;
+	raw_value: string;
+};
+export type IndexMapSet = IndexEventBase & {
+	event_type: "map_set";
+	map: string;
+	raw_key: string;
+	raw_value: string;
+};
+export type IndexMapInsert = IndexEventBase & {
+	event_type: "map_insert";
+	map: string;
+	raw_key: string;
+	raw_value: string;
+};
+export type IndexMapDelete = IndexEventBase & {
+	event_type: "map_delete";
+	map: string;
+	raw_key: string;
+};
+
 /** Decoded chain event, discriminated by `event_type`. */
 export type IndexEvent =
 	| IndexFtTransfer
@@ -276,7 +306,12 @@ export type IndexEvent =
 	| IndexFtBurn
 	| IndexNftMint
 	| IndexNftBurn
-	| IndexPrint;
+	| IndexPrint
+	| IndexNestedContractCall
+	| IndexVarSet
+	| IndexMapSet
+	| IndexMapInsert
+	| IndexMapDelete;
 
 export type IndexEventType = IndexEvent["event_type"];
 
@@ -310,7 +345,7 @@ export type IndexEventOf<T extends IndexEventType> = Extract<
 
 export type EventsListParams<T extends IndexEventType = IndexEventType> = {
 	/** Decoded types or VM types (`nested_contract_call`, `map_set`, …). */
-	eventType: T | VmEventType;
+	eventType: T;
 	cursor?: string | null;
 	fromCursor?: string | null;
 	limit?: number;
@@ -324,6 +359,8 @@ export type EventsListParams<T extends IndexEventType = IndexEventType> = {
 	caller?: string;
 	map?: string;
 	varName?: string;
+	/** Restrict to one transaction. */
+	txId?: string;
 	fromHeight?: number;
 	toHeight?: number;
 	/** Restrict to contracts conforming to a trait/standard (e.g. "sip-010").
@@ -1827,6 +1864,7 @@ export class Index extends BaseClient {
 				caller: params.caller,
 				map: params.map,
 				var_name: params.varName,
+				tx_id: params.txId,
 				trait: params.trait,
 				tx_context: params.txContext ? "true" : undefined,
 			})}`,

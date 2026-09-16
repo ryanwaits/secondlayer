@@ -132,6 +132,51 @@ export type ContractCallPayload<F> = F extends {
 		: ContractCallEvent
 	: ContractCallEvent;
 
+// ── VM events (opt-in `vm_events` clock) ─────────────────────────────────
+// Raw hex fields stay strings. The runner must not run them through
+// recursive Clarity decoding — uint hex becomes bigint, short boolean hex
+// stays a string, and handlers cannot round-trip the node body.
+
+export interface NestedContractCallPayload {
+	contractId: string;
+	sender: string | null;
+	caller: string;
+	functionName: string;
+	/** Decoded `function_args`. */
+	args: unknown[];
+	/** Original hex `function_args`, preserved. */
+	arguments: string[];
+	rawResult: string;
+	result: unknown;
+	tx: TxMeta;
+}
+
+export interface VarSetPayload {
+	contractId: string;
+	varName: string;
+	rawValue: string;
+	value: unknown;
+	tx: TxMeta;
+}
+
+export interface MapWritePayload {
+	contractId: string;
+	map: string;
+	rawKey: string;
+	key: unknown;
+	rawValue: string;
+	value: unknown;
+	tx: TxMeta;
+}
+
+export interface MapDeletePayload {
+	contractId: string;
+	map: string;
+	rawKey: string;
+	key: unknown;
+	tx: TxMeta;
+}
+
 // ── Filter → payload mapping ─────────────────────────────────────────────
 
 /**
@@ -213,7 +258,20 @@ export type EventForFilter<F extends SubgraphFilter> = F extends {
 												? ContractCallPayload<F>
 												: F extends { type: "contract_deploy" }
 													? ContractDeployPayload
-													: never;
+													: F extends { type: "nested_contract_call" }
+														? NestedContractCallPayload
+														: F extends { type: "var_set" }
+															? VarSetPayload
+															: F extends {
+																		type: infer T extends
+																			| "map_set"
+																			| "map_insert"
+																			| "map_delete";
+																	}
+																? T extends "map_delete"
+																	? MapDeletePayload
+																	: MapWritePayload
+																: never;
 
 /** Union of every event payload — the `"*"` catch-all handler receives this. */
 export type AnyEvent =
@@ -229,4 +287,8 @@ export type AnyEvent =
 	| StxLockPayload
 	| PrintEventPayload
 	| ContractCallEvent
-	| ContractDeployPayload;
+	| ContractDeployPayload
+	| NestedContractCallPayload
+	| VarSetPayload
+	| MapWritePayload
+	| MapDeletePayload;

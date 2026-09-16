@@ -141,10 +141,20 @@ describe.skipIf(!HAS_DB)("ingest vm_events", () => {
 				.execute(),
 		).toHaveLength(0);
 
-		// bootstrap's `blocks` dataset truncation deletes the block outright
-		// (transactions already cascade from blocks); vm rows must go with it.
+		// Sweeps delete events then transactions then the block. Re-ingest of a
+		// still-canonical block is a duplicate no-op — drop the leftover block
+		// so persist writes rows again, then assert they exist before deletion.
+		await db.deleteFrom("blocks").where("height", "=", H).execute();
 		await ingestNewBlock(payload, { network: NETWORK });
+		expect(
+			await db
+				.selectFrom("vm_events")
+				.selectAll()
+				.where("block_height", "=", H)
+				.execute(),
+		).toHaveLength(2);
 		await db.deleteFrom("events").where("block_height", "=", H).execute();
+		await db.deleteFrom("transactions").where("block_height", "=", H).execute();
 		await db.deleteFrom("blocks").where("height", "=", H).execute();
 		expect(
 			await db

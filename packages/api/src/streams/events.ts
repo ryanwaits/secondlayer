@@ -8,7 +8,11 @@ import {
 	readCanonicalStreamsEvents,
 } from "@secondlayer/indexer/streams-events";
 import { readCanonicalVmEvents } from "@secondlayer/indexer/vm-streams-events";
-import { VM_EVENT_TYPES, type VmEventType } from "@secondlayer/shared";
+import {
+	EMPTY_RANGE_EVENT_INDEX_SENTINEL,
+	VM_EVENT_TYPES,
+	type VmEventType,
+} from "@secondlayer/shared";
 import { ValidationError } from "@secondlayer/shared/errors";
 import { parseCursor, parseNonNegativeInteger } from "../parse-query.ts";
 import type { StreamsCursorInput } from "./cursor.ts";
@@ -418,16 +422,21 @@ export async function getStreamsEventsResponse(opts: {
 	const readReorgs = opts.readReorgs ?? EMPTY_STREAMS_REORGS_READER;
 	const firstEvent = result.events.at(0);
 	const lastEvent = result.events.at(-1);
+	// VM pages live on vm_event_index. Classic reorg bounds are event_index.
+	// Overlap by height so a page at H:5 still surfaces a reorg ending at H:0.
+	const byHeight = parsed.clock === "vm";
 	const reorgs =
 		firstEvent && lastEvent
 			? await readReorgs({
 					from: {
 						block_height: firstEvent.block_height,
-						event_index: firstEvent.event_index,
+						event_index: byHeight ? 0 : firstEvent.event_index,
 					},
 					to: {
 						block_height: lastEvent.block_height,
-						event_index: lastEvent.event_index,
+						event_index: byHeight
+							? EMPTY_RANGE_EVENT_INDEX_SENTINEL
+							: lastEvent.event_index,
 					},
 				})
 			: [];

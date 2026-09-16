@@ -57,6 +57,9 @@ export function streamsEventsCachePlan(
 		!parsed.cursorPastTip && parsed.toHeight <= tip.finalized_height;
 	const cacheKey = fullyFinalized
 		? JSON.stringify({
+				// Two clocks, two tables. Omitting this collapsed `clock=vm` onto
+				// the classic page whenever `types` was also omitted.
+				ck: parsed.clock,
 				f: parsed.fromHeight ?? null,
 				t: parsed.toHeight,
 				ty: parsed.types ? [...parsed.types].sort() : null,
