@@ -10,7 +10,7 @@ Secondlayer today already does instance queries on what `"*"` emits: outer `cont
 
 Cursor 1.0 stays. `vm_events` is a **new Index type / Streams type**, never mixed into `(block_height, event_index)`.
 
-Assume the current node design lands. This file is the product map. First slice is persist + types, not a new product.
+Assume the current node design lands. This file is the product map. First slice is persist + types, not a new product. Local parse/persist/read step-through: [vm-events-walkthrough.md](./vm-events-walkthrough.md).
 
 ---
 
