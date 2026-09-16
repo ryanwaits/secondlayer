@@ -92,6 +92,27 @@ describe.skipIf(!HAS_DB)("Streams clock=vm reader", () => {
 		]);
 	});
 
+	test("inverted range (cursor past toHeight) returns null, not a rewind sentinel", async () => {
+		if (!db) throw new Error("missing db");
+		const pastCursor = await readCanonicalVmEvents({
+			after: { block_height: 100, event_index: 7 },
+			toHeight: 90,
+			limit: 10,
+			db,
+		});
+		expect(pastCursor.events).toEqual([]);
+		expect(pastCursor.next_cursor).toBeNull();
+
+		const invertedFrom = await readCanonicalVmEvents({
+			fromHeight: 100,
+			toHeight: 90,
+			limit: 10,
+			db,
+		});
+		expect(invertedFrom.events).toEqual([]);
+		expect(invertedFrom.next_cursor).toBeNull();
+	});
+
 	test("filtered-empty range returns the bounded empty sentinel, not null", async () => {
 		if (!db) throw new Error("missing db");
 		const page = await readCanonicalVmEvents({
