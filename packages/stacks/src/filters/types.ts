@@ -302,19 +302,16 @@ type VmMember =
 	| "map_insert"
 	| "map_delete";
 
-/** Params fragment for `streams.events.*`. */
+/** Params fragment for classic `streams.events.*` (Streams 1.0). VM members
+ *  project to {@link StreamsVmParamsShape} instead — mixing the vocabularies
+ *  here makes `events.consume({ ...on.ftTransfer().toStreamsParams(), onBatch })`
+ *  fail type-check. */
 export type StreamsParamsShape = {
-	types: readonly (DecodedEventType | VmEventType)[];
-	/** `vm` reads vm_event_index. Omit / `classic` is Streams 1.0. */
-	clock?: "classic" | "vm";
+	types: readonly DecodedEventType[];
 	contractId?: string | readonly string[];
 	sender?: string;
 	recipient?: string;
 	assetIdentifier?: AssetIdentifier;
-	functionName?: string;
-	caller?: string;
-	map?: string;
-	varName?: string;
 };
 
 /** VM member projection: `clock` is the `"vm"` literal so SDK overload 1 matches. */

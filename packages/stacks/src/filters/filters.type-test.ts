@@ -4,6 +4,7 @@
  * live in a `.type-test.ts`), never bundled nor run.
  */
 import { expectTypeOf } from "expect-type";
+import type { DecodedEventType } from "./event-types.ts";
 import { on } from "./factories.ts";
 import { assetId } from "./validate.ts";
 
@@ -31,6 +32,21 @@ export function _filterTypeChecks(): void {
 	expectTypeOf(ft).toHaveProperty("toStreamsParams");
 	expectTypeOf(ft).toHaveProperty("toSubgraphSource");
 	expectTypeOf(ft).not.toHaveProperty("toContractCallsParams");
+
+	// Classic projection stays Streams 1.0 vocab — no clock, no VM types.
+	const classicParams = on
+		.ftTransfer({
+			assetIdentifier:
+				"SP3Y2ZSH8P7D50B0VBTSX11S7XSG24M1VB9YFQA4K.token-aeusdc::aeUSDC",
+		})
+		.toStreamsParams();
+	expectTypeOf(classicParams.types).toEqualTypeOf<
+		readonly DecodedEventType[]
+	>();
+	expectTypeOf(classicParams).toMatchTypeOf<{
+		types: readonly DecodedEventType[];
+		assetIdentifier?: string;
+	}>();
 
 	const maps = on.mapSet({ contractId: "SP.store" });
 	expectTypeOf(maps.toStreamsParams()).toMatchTypeOf<{

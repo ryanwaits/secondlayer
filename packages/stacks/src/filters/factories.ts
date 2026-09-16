@@ -10,6 +10,7 @@ import type {
 	PrintFieldType,
 	SpecFor,
 	StreamsParamsShape,
+	StreamsVmParamsShape,
 } from "./types.ts";
 import {
 	assertAssetIdentifier,
@@ -198,7 +199,7 @@ const VM_INDEX_ONLY_FIELDS = new Set([
 function toStreamsParams(
 	spec: ChainEventFilterSpec,
 	extra: Record<string, unknown> = {},
-): StreamsParamsShape {
+): StreamsParamsShape | StreamsVmParamsShape {
 	assertNoWildcards("Streams", spec);
 	const out: Record<string, unknown> = {
 		types: [spec.type === "print_event" ? "print" : spec.type],
@@ -253,7 +254,7 @@ function toStreamsParams(
 		}
 		out[key] = value;
 	}
-	return { ...out, ...extra } as StreamsParamsShape;
+	return { ...out, ...extra } as StreamsParamsShape | StreamsVmParamsShape;
 }
 
 function toContractCallsParams(
