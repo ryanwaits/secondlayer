@@ -1,9 +1,9 @@
-import { PoweredBy } from "./components/PoweredBy";
-
 export default function Footer() {
 	return (
 		<div className="sl-footer">
-			<PoweredBy />
+			<a href="https://secondlayer.tools" rel="noreferrer" target="_blank">
+				by secondlayer
+			</a>
 		</div>
 	);
 }

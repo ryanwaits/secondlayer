@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Badges } from "./Badges";
-import { PoweredBy } from "./PoweredBy";
 
 const managers = [
 	{ id: "bun", command: "bun add @secondlayer/stacks" },
@@ -43,9 +42,6 @@ export function Hero() {
 				<h1 className="sl-hero-name">
 					stacks<span>.</span>
 				</h1>
-				<div className="sl-hero-by">
-					<PoweredBy label="by" />
-				</div>
 				<p className="sl-hero-tagline">
 					Build reliable apps &amp; libraries with <b>lightweight</b>,{" "}
 					<b>composable</b>, and <b>type-safe</b> modules that interface with
