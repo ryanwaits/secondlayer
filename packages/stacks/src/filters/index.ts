@@ -55,6 +55,7 @@ export type {
 	SubgraphMemberType,
 	SubgraphSourceSpec,
 	StreamsParamsShape,
+	StreamsVmParamsShape,
 	StxBurnSpec,
 	StxLockSpec,
 	StxMintSpec,

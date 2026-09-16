@@ -1,3 +1,4 @@
+import { on } from "@secondlayer/stacks/filters";
 import { expectTypeOf } from "expect-type";
 import type { IndexEvent } from "./index-api/client.ts";
 import type {
@@ -5,6 +6,7 @@ import type {
 	StreamsEvent,
 	StreamsEventForFilter,
 	StreamsEventOfTypes,
+	VmStreamsEvent,
 } from "./streams/types.ts";
 
 type FtTransfer = Extract<StreamsEvent, { event_type: "ft_transfer" }>;
@@ -58,6 +60,10 @@ declare const client: StreamsClient;
 	expectTypeOf(page.events).toEqualTypeOf<FtTransfer[]>();
 	const wide = await client.events.list({});
 	expectTypeOf(wide.events).toEqualTypeOf<StreamsEvent[]>();
+	const vmPage = await client.events.list(
+		on.mapSet({ contractId: "SP.store" }).toStreamsParams(),
+	);
+	expectTypeOf(vmPage.events).toEqualTypeOf<VmStreamsEvent[]>();
 	for await (const batch of client.consume({ types: ["stx_transfer"] })) {
 		expectTypeOf(batch.events).toEqualTypeOf<StxTransfer[]>();
 	}

@@ -124,6 +124,7 @@ describe("PublicApiBlockSource — vm walks land in vmEvents", () => {
 			return [];
 		},
 		getIndexTip: async () => 1,
+		getIndexSourceTip: async () => 1,
 	} as unknown as IndexHttpClient;
 
 	test("print stays in events, map_set goes to vmEvents with a vm id", async () => {

@@ -55,6 +55,26 @@ describe("Index transactions helpers", () => {
 		expect(parsed.cursor).toEqual({ block_height: 9000, tx_index: 3 });
 	});
 
+	test("windows clamp to source_block_height; envelope tip stays decoded", async () => {
+		const lagged: IndexTip = {
+			block_height: 100,
+			finalized_height: 90,
+			lag_seconds: 0,
+			source_block_height: 200,
+		};
+		let seenTo: number | undefined;
+		const response = await getTransactionsResponse({
+			query: params("?from_cursor=150:0"),
+			tip: lagged,
+			readTransactions: async (p) => {
+				seenTo = p.toHeight;
+				return { transactions: [], next_cursor: null };
+			},
+		});
+		expect(seenTo).toBe(200);
+		expect(response.tip.block_height).toBe(100);
+	});
+
 	test("forwards filters to the reader; empty page → no reorg lookup", async () => {
 		const seen: Array<{ type?: string }> = [];
 		let reorgLookups = 0;

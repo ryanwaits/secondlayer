@@ -32,6 +32,13 @@ export function _filterTypeChecks(): void {
 	expectTypeOf(ft).toHaveProperty("toSubgraphSource");
 	expectTypeOf(ft).not.toHaveProperty("toContractCallsParams");
 
+	const maps = on.mapSet({ contractId: "SP.store" });
+	expectTypeOf(maps.toStreamsParams()).toMatchTypeOf<{
+		clock: "vm";
+		types: readonly ["map_set"];
+	}>();
+	expectTypeOf(maps.toStreamsParams().clock).toEqualTypeOf<"vm">();
+
 	// Amounts are bigint in the canonical vocabulary — a raw number is refused.
 	// @ts-expect-error — minAmount must be bigint, not number
 	on.ftTransfer({ minAmount: 1_000_000 });

@@ -47,4 +47,31 @@ describe("Index event vocabulary", () => {
 			}
 		}
 	});
+
+	it("tx_id is VM-only in the registry and OpenAPI copy", () => {
+		for (const [type, cfg] of Object.entries(INDEX_EVENT_CONFIG)) {
+			expect(
+				(cfg.allowedFilters as readonly string[]).includes("tx_id"),
+				type,
+			).toBe(false);
+		}
+		for (const [type, cfg] of Object.entries(VM_INDEX_EVENT_CONFIG)) {
+			expect(
+				(cfg.allowedFilters as readonly string[]).includes("tx_id"),
+				type,
+			).toBe(true);
+		}
+		const spec = openapiSpec("oss") as {
+			paths: {
+				"/v1/index/events": {
+					get: { parameters: Array<{ name?: string; description?: string }> };
+				};
+			};
+		};
+		const txId = spec.paths["/v1/index/events"].get.parameters.find(
+			(p) => p.name === "tx_id",
+		);
+		expect(txId?.description).toMatch(/VM types only/i);
+		expect(txId?.description?.toLowerCase()).not.toContain("all event types");
+	});
 });

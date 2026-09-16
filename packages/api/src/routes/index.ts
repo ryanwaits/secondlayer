@@ -99,6 +99,7 @@ import {
 	type IndexTip,
 	type IndexTipProvider,
 	getIndexTip,
+	indexSourceWindowTip,
 } from "../index/tip.ts";
 import {
 	IncompleteBlockTxSetError,
@@ -440,7 +441,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			readEvents: opts.readEvents,
 			readReorgs,
 		});
-		const notModified = applyIndexCache(c, query, tip, {
+		const notModified = applyIndexCache(c, query, response.tip, {
 			events: response.events,
 			next_cursor: response.next_cursor,
 			reorgs: response.reorgs,
@@ -501,7 +502,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			tip,
 			readBlocks: opts.readBlocks,
 		});
-		const notModified = applyIndexCache(c, query, tip, {
+		const notModified = applyIndexCache(c, query, indexSourceWindowTip(tip), {
 			blocks: response.blocks,
 			next_cursor: response.next_cursor,
 		});
@@ -542,7 +543,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			readTransactions: opts.readTransactions,
 			readReorgs: (range) => readChainReorgsForHeightRange(range),
 		});
-		const notModified = applyIndexCache(c, query, tip, {
+		const notModified = applyIndexCache(c, query, indexSourceWindowTip(tip), {
 			transactions: response.transactions,
 			next_cursor: response.next_cursor,
 			reorgs: response.reorgs,

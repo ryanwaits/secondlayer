@@ -451,7 +451,7 @@ export const OPENAPI_SPEC = {
 						"tx_id",
 						"string",
 						false,
-						"Transaction id. All event types, including vm types.",
+						"Transaction id. VM types only: nested_contract_call, var_set, map_set, map_insert, map_delete.",
 					),
 					qp("function_name", "string", false, "nested_contract_call only."),
 					qp("caller", "string", false, "nested_contract_call only."),

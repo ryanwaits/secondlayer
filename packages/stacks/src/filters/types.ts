@@ -295,6 +295,13 @@ export type ContractCallsParamsShape = {
 	trait?: string;
 };
 
+type VmMember =
+	| "nested_contract_call"
+	| "var_set"
+	| "map_set"
+	| "map_insert"
+	| "map_delete";
+
 /** Params fragment for `streams.events.*`. */
 export type StreamsParamsShape = {
 	types: readonly (DecodedEventType | VmEventType)[];
@@ -310,6 +317,13 @@ export type StreamsParamsShape = {
 	varName?: string;
 };
 
+/** VM member projection: `clock` is the `"vm"` literal so SDK overload 1 matches. */
+export type StreamsVmParamsShape<T extends VmMember = VmMember> = {
+	types: readonly [T];
+	clock: "vm";
+	contractId?: string | readonly string[];
+};
+
 // ── Member → projection capability ───────────────────────────────────────
 // A surface a member doesn't reach is a MISSING METHOD, not a runtime error:
 // "Property 'toIndexParams' does not exist" beats "argument of type never".
@@ -323,13 +337,6 @@ export type StreamsParamsShape = {
 //   endpoint → `toContractCallsParams()`, not `toIndexParams()`.
 // - `contract_deploy` is Subgraphs + Webhooks only.
 // - The five `sbtc_*` lifecycle types are Webhooks-only.
-
-type VmMember =
-	| "nested_contract_call"
-	| "var_set"
-	| "map_set"
-	| "map_insert"
-	| "map_delete";
 
 type DecodedMember =
 	| "stx_transfer"
@@ -358,9 +365,13 @@ export type ProjectionsFor<T extends ChainEventFilterType, S> = {
 			/** Params for `streams.events.list/consume/stream`. Throws if the
 			 *  filter uses `trait` (Streams has no trait resolution) or a
 			 *  min/max amount (Streams filters have no amount predicates). */
-			toStreamsParams<Extra extends Record<string, unknown>>(
+			toStreamsParams<
+				Extra extends Record<string, unknown> = Record<string, never>,
+			>(
 				extra?: Extra,
-			): StreamsParamsShape & Extra;
+			): T extends VmMember
+				? StreamsVmParamsShape<T> & Extra
+				: StreamsParamsShape & Extra;
 		}
 	: // biome-ignore lint/complexity/noBannedTypes: intersection identity
 		{}) &

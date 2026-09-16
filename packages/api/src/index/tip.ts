@@ -39,6 +39,16 @@ const EMPTY_INDEX_TIP: IndexTip = {
 	source_block_height: 0,
 };
 
+/**
+ * Window clamp for source-plane Index reads (`/blocks`, `/transactions`).
+ * Envelope `block_height` stays the decoded tip; only the parse window moves.
+ */
+export function indexSourceWindowTip(tip: IndexTip): IndexTip {
+	if (tip.source_block_height === undefined) return tip;
+	if (tip.source_block_height === tip.block_height) return tip;
+	return { ...tip, block_height: tip.source_block_height };
+}
+
 export type IndexFinalizedHeightReader = (
 	finalizedBurnHeight: number,
 ) => Promise<number>;

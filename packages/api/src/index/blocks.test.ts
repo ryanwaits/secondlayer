@@ -51,6 +51,42 @@ describe("Index blocks helpers", () => {
 		expect(response.blocks).toEqual([]);
 		expect(response.next_cursor).toBe("40000:0");
 	});
+
+	test("windows clamp to source_block_height; envelope tip stays decoded", async () => {
+		const lagged: IndexTip = {
+			block_height: 100,
+			finalized_height: 90,
+			lag_seconds: 0,
+			source_block_height: 200,
+		};
+		let seenTo: number | undefined;
+		const response = await getBlocksResponse({
+			query: params("?from_cursor=150:0"),
+			tip: lagged,
+			readBlocks: async (p) => {
+				seenTo = p.toHeight;
+				return {
+					blocks: [
+						{
+							cursor: "150:0",
+							block_height: 150,
+							block_hash: "0x150",
+							parent_hash: "0x149",
+							burn_block_height: 1,
+							burn_block_hash: null,
+							index_block_hash: null,
+							block_time: null,
+							canonical: true,
+						},
+					],
+					next_cursor: "150:0",
+				};
+			},
+		});
+		expect(seenTo).toBe(200);
+		expect(response.tip.block_height).toBe(100);
+		expect(response.blocks).toHaveLength(1);
+	});
 });
 
 describe.skipIf(!HAS_DB)("Index blocks DB reads", () => {

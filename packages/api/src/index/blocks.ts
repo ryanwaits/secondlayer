@@ -6,7 +6,7 @@ import {
 	parseIndexBaseQuery,
 	toIsoOrNull,
 } from "./_shared.ts";
-import type { IndexTip } from "./tip.ts";
+import { type IndexTip, indexSourceWindowTip } from "./tip.ts";
 
 /** Window/pagination params the blocks list accepts. Blocks carry no content
  *  filters — height is the only axis. */
@@ -158,7 +158,7 @@ export async function getBlocksResponse(opts: {
 	tip: IndexTip;
 	readBlocks?: BlocksReader;
 }): Promise<BlocksResponse> {
-	const base = parseIndexBaseQuery(opts.query, opts.tip);
+	const base = parseIndexBaseQuery(opts.query, indexSourceWindowTip(opts.tip));
 
 	if (base.cursorPastTip) {
 		return { blocks: [], next_cursor: base.cursorRaw ?? null, tip: opts.tip };

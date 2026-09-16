@@ -121,31 +121,22 @@ export async function persistBlock(
 		// transactions.tx_id with no ON DELETE CASCADE, so dropping the parent
 		// rows first would violate the FK.
 		//
-		// Height alone is not enough. `transactions.tx_id` is a PK, so a
-		// transaction re-mined at a new height across a fork keeps its
-		// first-seen `block_height` (the insert below is onConflict-doNothing)
-		// while its events are written at each delivered height. Those stragglers
-		// survive a delete-by-height and then block the transaction delete —
-		// which halted mainnet ingest for 8h on 2026-08-16 over two rows.
+		// Height alone is not enough for leftover desync: a tx that still
+		// lives at H while events linger at H+1 would block the transaction
+		// delete (events_tx_id_fkey; 8h mainnet halt 2026-08-16). Incoming
+		// persist now claims the tx (`excluded.block_height`), so a re-mine
+		// moves T to H+1 and replace-H no longer sees it. The tx_id-scoped
+		// events delete stays as halt-prevention for rows that never got claimed.
+		// vm_events are height-only: leftover desync at another height follows
+		// the tx via ON DELETE CASCADE, so a tx_id wipe would also drop live
+		// H+1 VM rows of a re-mined tx still listed at H.
 		//
 		// Two statements, not one OR'd predicate: an OR across block_height and
 		// tx_id defeats both indexes and seq-scans the whole events table
 		// (~105M rows) on every block. Split, each side uses its own index.
-		// vm_events also FKs transactions.tx_id — drop them before the parent.
 		await tx
 			.deleteFrom("vm_events")
 			.where("block_height", "=", blockHeight)
-			.execute();
-		await tx
-			.deleteFrom("vm_events")
-			.where(
-				"tx_id",
-				"in",
-				tx
-					.selectFrom("transactions")
-					.select("tx_id")
-					.where("block_height", "=", blockHeight),
-			)
 			.execute();
 		await tx
 			.deleteFrom("events")
@@ -171,8 +162,25 @@ export async function persistBlock(
 			await tx
 				.insertInto("transactions")
 				.values(txs.slice(i, i + TX_CHUNK_SIZE))
+				// Last-writer-wins on tx_id: a re-mined tx is owned by the
+				// incoming block. doNothing left T at H while events/vm landed
+				// at H+1 — Index returned the stale tx_index, the Postgres
+				// loader missed T at H+1, and replace-H cascaded H+1 vm rows.
 				// biome-ignore lint/suspicious/noExplicitAny: kysely onConflict builder
-				.onConflict((oc: any) => oc.doNothing())
+				.onConflict((oc: any) =>
+					oc.column("tx_id").doUpdateSet({
+						block_height: sql`excluded.block_height`,
+						tx_index: sql`excluded.tx_index`,
+						type: sql`excluded.type`,
+						sender: sql`excluded.sender`,
+						status: sql`excluded.status`,
+						contract_id: sql`excluded.contract_id`,
+						function_name: sql`excluded.function_name`,
+						function_args: sql`excluded.function_args`,
+						raw_result: sql`excluded.raw_result`,
+						raw_tx: sql`excluded.raw_tx`,
+					}),
+				)
 				.execute();
 		}
 

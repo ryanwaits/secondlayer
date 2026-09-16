@@ -372,11 +372,22 @@ export class IndexHttpClient {
 	 * process past it, even if the Streams clock is ahead.
 	 */
 	async getIndexTip(): Promise<number> {
-		const env = await this.get<{ tip: { block_height: number } }>(
-			`${this.indexBaseUrl}/v1/index/blocks?limit=1`,
-			this.indexApiKey,
-		);
+		const env = await this.getIndexTipEnvelope();
 		return Number(env.tip?.block_height) || 0;
+	}
+
+	/** Ingest tip. VM rows land with the block; decoded `block_height` can lag. */
+	async getIndexSourceTip(): Promise<number> {
+		const env = await this.getIndexTipEnvelope();
+		return Number(env.tip?.source_block_height ?? env.tip?.block_height) || 0;
+	}
+
+	private async getIndexTipEnvelope(): Promise<{
+		tip: { block_height: number; source_block_height?: number };
+	}> {
+		return this.get<{
+			tip: { block_height: number; source_block_height?: number };
+		}>(`${this.indexBaseUrl}/v1/index/blocks?limit=1`, this.indexApiKey);
 	}
 
 	/** Reorgs since a resume token (wall-clock `detected_at`-keyed). */

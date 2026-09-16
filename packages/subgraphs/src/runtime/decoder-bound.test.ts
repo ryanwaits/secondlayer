@@ -85,6 +85,12 @@ describe("decoder name mapping", () => {
 		).toEqual([]);
 	});
 
+	test("map_set chain sub references no event decoders", () => {
+		expect(referencedDecoderNames([chainSub([{ type: "map_set" }])])).toEqual(
+			[],
+		);
+	});
+
 	test("print subgraph maps to decode.print.v1", () => {
 		expect(
 			decoderNamesForSubgraph(subgraphDef({ prints: { type: "print_event" } })),
@@ -93,6 +99,23 @@ describe("decoder name mapping", () => {
 
 	test("decoderNameForEventType follows decode.<type>.v1", () => {
 		expect(decoderNameForEventType("print")).toBe("decode.print.v1");
+	});
+
+	test("vm-only subgraph references no event decoders", () => {
+		expect(
+			decoderNamesForSubgraph(subgraphDef({ maps: { type: "map_set" } })),
+		).toEqual([]);
+	});
+
+	test("mixed print + map_set stays on the print decoder", () => {
+		expect(
+			decoderNamesForSubgraph(
+				subgraphDef({
+					prints: { type: "print_event" },
+					maps: { type: "map_set" },
+				}),
+			),
+		).toEqual(["decode.print.v1"]);
 	});
 });
 

@@ -152,22 +152,54 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 		expect(archivedTxs).toHaveLength(0);
 	});
 
-	test("a reorg replace at a height whose tx was re-mined elsewhere does not violate events_tx_id_fkey", async () => {
+	test("a re-mined tx is owned by the incoming block; replace-H leaves H+1 intact", async () => {
 		if (!db) throw new Error("missing db");
 
-		// T is first seen at H.
-		await persistBlock(db, payload("0xblockA", "0xtxT", H));
-		// T is re-mined at H+1. Its tx row hits onConflict-doNothing and keeps
-		// block_height = H, but its new events are written at H+1.
-		await persistBlock(db, payload("0xblockC", "0xtxT", H + 1));
+		const first = payload("0xblockA", "0xtxT", H);
+		first.vmEvts = [
+			{
+				tx_id: "0xtxT",
+				block_height: H,
+				vm_event_index: 0,
+				type: "map_set",
+				data: { map_name: "orig" },
+			},
+		];
+		await persistBlock(db, first);
 
-		// Precondition: confirm the desync actually exists before relying on it.
+		const remine = payload("0xblockC", "0xtxT", H + 1);
+		const remineTx = remine.txs[0];
+		if (!remineTx) throw new Error("payload tx");
+		remine.txs = [{ ...remineTx, tx_index: 3 }];
+		remine.vmEvts = [
+			{
+				tx_id: "0xtxT",
+				block_height: H + 1,
+				vm_event_index: 1,
+				type: "map_set",
+				data: { map_name: "remine" },
+			},
+		];
+		await persistBlock(db, remine);
+
 		const txT = await db
 			.selectFrom("transactions")
-			.select(["tx_id", "block_height"])
+			.select(["tx_id", "block_height", "tx_index"])
 			.where("tx_id", "=", "0xtxT")
 			.executeTakeFirst();
-		expect(Number(txT?.block_height)).toBe(H);
+		expect(Number(txT?.block_height)).toBe(H + 1);
+		expect(Number(txT?.tx_index)).toBe(3);
+
+		await persistBlock(db, payload("0xblockB", "0xtxOther", H));
+
+		const moved = await db
+			.selectFrom("transactions")
+			.select(["block_height", "tx_index"])
+			.where("tx_id", "=", "0xtxT")
+			.executeTakeFirst();
+		expect(Number(moved?.block_height)).toBe(H + 1);
+		expect(Number(moved?.tx_index)).toBe(3);
+
 		const evtsAtHPlus1 = await db
 			.selectFrom("events")
 			.select(["tx_id"])
@@ -176,29 +208,61 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 			.execute();
 		expect(evtsAtHPlus1).toHaveLength(1);
 
-		// Reorg replace at H: must not throw events_tx_id_fkey even though T's
-		// row at H has events lingering at H+1.
-		await persistBlock(db, payload("0xblockB", "0xtxOther", H));
-
-		const remaining = await db
-			.selectFrom("transactions")
-			.select(["tx_id"])
-			.where("tx_id", "=", "0xtxT")
-			.where("block_height", "=", H)
-			.execute();
-		expect(remaining).toHaveLength(0);
-
-		// Documented trade-off: the delete is scoped by tx identity, so replacing
-		// H also removes T's events at H+1. That is what stops the FK violation,
-		// and it is why a production reorg recovery must re-ingest the
-		// neighbouring height rather than assume it is intact.
-		const strandedAtHPlus1 = await db
-			.selectFrom("events")
-			.select(["tx_id"])
+		const vmAtHPlus1 = await db
+			.selectFrom("vm_events")
+			.select(["vm_event_index", "data"])
 			.where("tx_id", "=", "0xtxT")
 			.where("block_height", "=", H + 1)
 			.execute();
-		expect(strandedAtHPlus1).toHaveLength(0);
+		expect(vmAtHPlus1).toHaveLength(1);
+		expect(Number(vmAtHPlus1[0]?.vm_event_index)).toBe(1);
+		expect((vmAtHPlus1[0]?.data as { map_name: string }).map_name).toBe(
+			"remine",
+		);
+
+		const archivedHPlus1 = await db
+			.selectFrom("vm_events_archive")
+			.select("tx_id")
+			.where("block_height", "=", H + 1)
+			.execute();
+		expect(archivedHPlus1).toHaveLength(0);
+	});
+
+	test("leftover events at another height for a tx still at H do not halt ingest", async () => {
+		if (!db) throw new Error("missing db");
+		await persistBlock(db, payload("0xblockA", "0xtxT", H));
+		await db
+			.insertInto("blocks")
+			.values({
+				height: H + 1,
+				hash: "0xstray",
+				parent_hash: "0xblockA",
+				burn_block_height: 1,
+				timestamp: 1_700_000_001,
+				canonical: true,
+			})
+			.execute();
+		// Desync the old way: events at H+1, tx row still at H.
+		await db
+			.insertInto("events")
+			.values({
+				tx_id: "0xtxT",
+				block_height: H + 1,
+				event_index: 0,
+				type: "stx_transfer_event",
+				data: { amount: "1" },
+			})
+			.execute();
+
+		await persistBlock(db, payload("0xblockB", "0xtxOther", H));
+
+		expect(
+			await db
+				.selectFrom("transactions")
+				.select("tx_id")
+				.where("tx_id", "=", "0xtxT")
+				.execute(),
+		).toHaveLength(0);
 	});
 
 	test("absent vm_events leaves the second clock empty and classic events intact", async () => {

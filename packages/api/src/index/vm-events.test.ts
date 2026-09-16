@@ -43,6 +43,12 @@ describe("Index vm_events query parse", () => {
 		expect(parsed.filters.tx_id).toBe("0xab");
 	});
 
+	test("tx_id is rejected for classic event types", () => {
+		expect(() =>
+			parseIndexEventsQuery(params("?event_type=ft_transfer&tx_id=0xab"), TIP),
+		).toThrow(/unknown query param: tx_id/);
+	});
+
 	test("map filter is accepted for map_set", () => {
 		const parsed = parseIndexEventsQuery(
 			params("?event_type=map_set&map=store"),
