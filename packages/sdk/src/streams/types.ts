@@ -6,6 +6,7 @@ import {
 	STREAMS_EVENT_TYPES,
 	type StreamsEvent,
 	type StreamsEventType,
+	type StreamsWireEvent,
 	type VmStreamsEvent,
 } from "@secondlayer/shared/streams-rows";
 import type { IndexEvent } from "../index-api/client.ts";
@@ -587,11 +588,27 @@ export type StreamsClient = {
 		list(
 			params: StreamsEventsListParams & { clock: "vm" },
 		): Promise<StreamsEventsEnvelope<VmStreamsEvent>>;
-		/** Narrowing overload, matching `consume`. */
+		/** Narrowing overload, matching `consume`. Classic clock only —
+		 *  `clock: "vm"` is overload 1, and a general `StreamsEventsListParams`
+		 *  variable (clock unresolved) is the wire-union fallback. */
 		list<const T extends readonly StreamsEventType[]>(
-			params: StreamsEventsListParams & { types: T },
+			params: Omit<StreamsEventsListParams, "clock" | "types" | "notTypes"> & {
+				types: T;
+				notTypes?: readonly StreamsEventType[];
+				clock?: "classic";
+			},
 		): Promise<StreamsEventsEnvelope<StreamsEventOfTypes<T>>>;
-		list(params?: StreamsEventsListParams): Promise<StreamsEventsEnvelope>;
+		list(
+			params?: Omit<StreamsEventsListParams, "clock" | "types" | "notTypes"> & {
+				types?: readonly StreamsEventType[];
+				notTypes?: readonly StreamsEventType[];
+				clock?: "classic";
+			},
+		): Promise<StreamsEventsEnvelope>;
+		/** Unresolved `clock` on a general params variable: the wire union. */
+		list(
+			params: StreamsEventsListParams,
+		): Promise<StreamsEventsEnvelope<StreamsWireEvent>>;
 		byTxId(txId: string): Promise<StreamsEventsListEnvelope>;
 		/**
 		 * Pull pages from Streams and call `onBatch` after each page.
