@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Badges } from "./Badges";
 import { PoweredBy } from "./PoweredBy";
 
 const managers = [
@@ -64,7 +65,10 @@ export function Hero() {
 					</a>
 				</div>
 			</div>
-			<Install />
+			<div>
+				<Install />
+				<Badges />
+			</div>
 		</section>
 	);
 }

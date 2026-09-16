@@ -21,6 +21,8 @@
 	--sl-font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
 	--sl-gold-wash: rgba(227, 177, 23, 0.14);
 	--sl-panel-radius: 16px;
+	/* ink as an rgb triplet for alpha washes and the canvas texture */
+	--sl-ink-rgb: 28, 26, 22;
 	/* secondlayer mark (apps/web logo), ink per theme; used by the nav
 	   co-brand pseudo-element, which cannot hold inline SVG. */
 	--sl-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='6 9 36 24' fill='none'%3E%3Cpolygon points='8,23 28,15 40,23 20,31' fill='%231c1a16' opacity='0.24'/%3E%3Cpolygon points='8,19 28,11 40,19 20,27' fill='%231c1a16'/%3E%3C/svg%3E");
@@ -31,6 +33,7 @@
 	--vocs-color_codeInlineBorder: rgba(242, 237, 229, 0.14);
 	--vocs-color_lineNumber: #7a7369;
 	--sl-gold-wash: rgba(240, 196, 48, 0.12);
+	--sl-ink-rgb: 242, 237, 229;
 	--sl-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='6 9 36 24' fill='none'%3E%3Cpolygon points='8,23 28,15 40,23 20,31' fill='%23f2ede5' opacity='0.24'/%3E%3Cpolygon points='8,19 28,11 40,19 20,27' fill='%23f2ede5'/%3E%3C/svg%3E");
 }
 
@@ -301,6 +304,59 @@ html {
 
 /* ---------------------------------------------------------------- landing */
 
+/* Landing top block: strata texture behind hero + cards. */
+.sl-top {
+	overflow: hidden;
+	position: relative;
+}
+.sl-top > * {
+	position: relative;
+}
+.sl-strata {
+	left: 50%;
+	pointer-events: none;
+	position: absolute !important;
+	top: 0;
+	transform: translateX(-50%);
+	width: min(1400px, 100vw);
+}
+.sl-strata canvas {
+	display: block;
+	height: auto;
+	max-width: none;
+	width: 100%;
+}
+
+.sl-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin-top: 1.375rem;
+}
+.sl-badge {
+	background-color: rgba(var(--sl-ink-rgb), 0.03);
+	border: 1px solid var(--vocs-color_border);
+	border-radius: 8px;
+	color: var(--vocs-color_title);
+	display: inline-flex;
+	font-size: 0.8125rem;
+	font-weight: 500;
+	overflow: hidden;
+	transition: border-color 0.1s;
+}
+.sl-badge:hover {
+	border-color: var(--vocs-color_border2);
+}
+.sl-badge span {
+	padding: 0.5rem 0.75rem;
+}
+.sl-badge span:first-child {
+	background-color: var(--vocs-color_background);
+	border-right: 1px solid var(--vocs-color_border);
+	color: var(--vocs-color_text3);
+	font-weight: 400;
+}
+
 .sl-hero {
 	align-items: start;
 	display: grid;
@@ -418,7 +474,12 @@ html {
 	padding: 0 2rem 3.5rem;
 }
 .sl-card {
-	background-color: var(--vocs-color_background);
+	backdrop-filter: blur(2px);
+	background-color: color-mix(
+		in srgb,
+		var(--vocs-color_background) 72%,
+		transparent
+	);
 	border: 1px solid var(--vocs-color_border);
 	border-radius: 12px;
 	padding: 1.375rem;

@@ -1,5 +1,9 @@
 import { defineConfig } from "vocs";
+import pkg from "../../packages/stacks/package.json";
+import { getStars } from "./docs/stats";
 import { stacksGold, stacksGoldDark } from "./docs/syntax-theme";
+
+const stars = await getStars();
 
 /* Grounds + ink. Light = egg white, dark = warm near-black; one gold
    accent in both. Vocs maps `background` to the content panel and
@@ -31,6 +35,9 @@ export default defineConfig({
 			"process.platform": JSON.stringify("browser"),
 			"process.version": JSON.stringify(""),
 			"process.env": "{}",
+			/* Landing badge row (docs/components/Badges.tsx). */
+			__SL_STARS__: JSON.stringify(stars),
+			__SL_LICENSE__: JSON.stringify(pkg.license),
 		},
 	},
 	font: {

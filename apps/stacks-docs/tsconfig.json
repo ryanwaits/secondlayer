@@ -6,7 +6,8 @@
 		"noEmit": true,
 		"resolveJsonModule": true,
 		"skipLibCheck": true,
-		"strict": true
+		"strict": true,
+		"target": "ES2022"
 	},
 	"include": ["vocs.config.tsx", "docs/**/*.ts", "docs/**/*.tsx"]
 }
