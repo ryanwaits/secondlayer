@@ -553,7 +553,10 @@ rm /tmp/snapshot.tar.zst
 ### Indexer not receiving blocks
 
 1. Check stacks-node logs on node server for event observer errors
-2. Verify `events_keys = ["*"]` in node server `Config.toml`
+2. Verify `events_keys = ["*"]` in node server `Config.toml`. Leave it there
+   until a collecting node binary is deployed. `"storage"` / `"contract_calls"`
+   add `vm_events`; unknown keys panic on start. Do not flip as a “fix” for
+   empty `vm_events`.
 3. Check firewall: app server port 3700 must be open from node server IP
 4. `disable_retries = false` in Config.toml — node retries failed deliveries. Integrity loop fills any remaining gaps via Hiro API
 

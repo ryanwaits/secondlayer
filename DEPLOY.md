@@ -117,6 +117,11 @@ events_keys = ["*"]
 timeout_ms = 30000
 ```
 
+Keep `events_keys = ["*"]` until the node binary accepts `"storage"` /
+`"contract_calls"` (unknown keys panic). Those keys are what fill `vm_events`.
+Old `"*"` archives cannot reconstruct inner calls — see
+`docs/internal/runbook/canonical-archive.md`.
+
 ---
 
 ## Deploy on Render
