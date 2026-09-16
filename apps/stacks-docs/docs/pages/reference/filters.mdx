@@ -1,8 +1,23 @@
 # Filters
 
-One chain-event filter vocabulary for Index, Streams, Webhooks, and Subgraphs.
+One chain-event filter vocabulary for the four Secondlayer data surfaces.
 
-Each product used to spell the same event differently (three incompatible `minAmount` types among them). `@secondlayer/stacks/filters` is the single spelling; every surface's wire shape is a projection of it. A field a surface cannot express throws at projection time instead of silently widening the match.
+Each surface used to spell the same event differently (three incompatible `minAmount` types among them). `@secondlayer/stacks/filters` is the single spelling; every surface's wire shape is a projection of it. A field a surface cannot express throws at projection time instead of silently widening the match.
+
+## The Four Surfaces
+
+This module is only useful alongside a Secondlayer instance. The surfaces it projects to are products of the [Secondlayer platform](https://secondlayer.tools/docs), consumed through the `@secondlayer/sdk` client (`sl` below):
+
+| Surface | What it is | SDK entry | Docs |
+| --- | --- | --- | --- |
+| **Index** | Query decoded historical events over HTTP: paginated, filterable, cursor-based | `sl.index.events.list(...)` | [secondlayer.tools/docs/index](https://secondlayer.tools/docs/index) |
+| **Streams** | Consume events as they land: an ordered, resumable firehose with reorg handling | `sl.streams.events.consume(...)` | [secondlayer.tools/docs/streams](https://secondlayer.tools/docs/streams) |
+| **Webhooks** | Push matching events to your URL; a chain trigger is the filter half of a webhook | `sl.webhooks.create(...)` | [secondlayer.tools/docs/webhooks](https://secondlayer.tools/docs/webhooks) |
+| **Subgraphs** | Declare event sources plus handlers that build a queryable dataset | `defineSubgraph(...)` from `@secondlayer/subgraphs` | [secondlayer.tools/docs/subgraphs](https://secondlayer.tools/docs/subgraphs) |
+
+`@secondlayer/stacks` is the leaf of the dependency graph, so the vocabulary lives here and the SDK, subgraphs runtime, and platform all import it. The platform-side write-up is at [secondlayer.tools/docs/filters](https://secondlayer.tools/docs/filters).
+
+If you only use `@secondlayer/stacks` as a chain client, you can skip this module entirely.
 
 ## Build a Filter
 
@@ -23,13 +38,18 @@ const deposits = on.sbtcDeposit({ minAmount: 100_000n });
 
 ## Project to a Surface
 
-The same filter feeds all four products.
+The same filter feeds all four surfaces.
 
 ```typescript
-sl.index.events.list(usdc.toIndexParams({ limit: 100 }));               // pull
-sl.streams.events.consume({ ...usdc.toStreamsParams(), onBatch });      // firehose
-sl.subscriptions.create({ name, url, triggers: [usdc.toChainTrigger()] }); // webhook
-defineSubgraph({ sources: { usdc: usdc.toSubgraphSource() }, schema, handlers });
+import { SecondLayer } from "@secondlayer/sdk";
+import { defineSubgraph } from "@secondlayer/subgraphs";
+
+const sl = new SecondLayer({ baseUrl: "https://your-instance.example" });
+
+await sl.index.events.list(usdc.toIndexParams({ limit: 100 }));                 // pull history
+await sl.streams.events.consume({ ...usdc.toStreamsParams(), onBatch });        // live firehose
+await sl.webhooks.create({ name: "usdc", url, triggers: [usdc.toChainTrigger()] }); // push
+defineSubgraph({ sources: { usdc: usdc.toSubgraphSource() }, schema, handlers }); // dataset
 ```
 
 | Projection | Output | Notes |
@@ -44,7 +64,7 @@ A surface a member cannot reach is a missing method, which is a compile error, n
 ```typescript
 const sbtc = on.sbtcDeposit({ minAmount: 100_000n });
 sbtc.toChainTrigger();   // ok: { type: "sbtc_deposit", minAmount: "100000" }
-sbtc.toIndexParams();    // type error: sBTC lifecycle events are Webhooks-only
+sbtc.toIndexParams();    // type error: sBTC lifecycle filters are Webhooks-only
 ```
 
 ## What Throws Where
@@ -55,7 +75,7 @@ A field the target cannot express throws at projection time, naming the surface 
 const usdc = on.ftTransfer({ assetIdentifier: USDC, minAmount: 1_000_000n });
 usdc.toIndexParams();
 // Error: minAmount cannot be expressed on Index events — amount predicates are
-// Subscriptions/Subgraphs-only; filter client-side on the decoded rows.
+// Webhooks/Subgraphs-only; filter client-side on the decoded rows.
 ```
 
 | Field | Index | Streams | Webhooks | Subgraphs |
