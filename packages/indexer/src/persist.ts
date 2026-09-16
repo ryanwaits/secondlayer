@@ -75,6 +75,36 @@ async function archiveOrphanedHeight(
 	`.execute(tx);
 }
 
+/** Copy a re-mined tx's current row (block hash + execution fields) into
+ *  `transactions_archive` before last-writer-wins moves it. Height-scoped
+ *  {@link archiveOrphanedHeight} never sees the old row once ownership has
+ *  moved, so orphan VM/event rows would otherwise archive without a matching
+ *  transaction. */
+async function archiveReminedTransactions(
+	tx: Kysely<Database>,
+	txIds: string[],
+	incomingHeight: number,
+): Promise<void> {
+	if (txIds.length === 0) return;
+	await sql`
+		INSERT INTO transactions_archive (
+			tx_id, block_height, tx_index, type, sender, status, contract_id,
+			function_name, function_args, raw_result, raw_tx, created_at,
+			orphaned_block_hash
+		)
+		SELECT t.tx_id, t.block_height, t.tx_index, t.type, t.sender, t.status,
+			t.contract_id, t.function_name, t.function_args, t.raw_result, t.raw_tx,
+			t.created_at, b.hash
+		FROM transactions t
+		LEFT JOIN blocks b ON b.height = t.block_height
+		WHERE t.tx_id IN (${sql.join(
+			txIds.map((id) => sql`${id}`),
+			sql`, `,
+		)})
+			AND t.block_height <> ${incomingHeight}
+	`.execute(tx);
+}
+
 export async function persistBlock(
 	db: Kysely<Database>,
 	input: PersistBlockInput,
@@ -159,9 +189,15 @@ export async function persistBlock(
 			.execute();
 
 		for (let i = 0; i < txs.length; i += TX_CHUNK_SIZE) {
+			const chunk = txs.slice(i, i + TX_CHUNK_SIZE);
+			await archiveReminedTransactions(
+				tx,
+				chunk.map((row) => row.tx_id as string),
+				blockHeight,
+			);
 			await tx
 				.insertInto("transactions")
-				.values(txs.slice(i, i + TX_CHUNK_SIZE))
+				.values(chunk)
 				// Last-writer-wins on tx_id: a re-mined tx is owned by the
 				// incoming block. doNothing left T at H while events/vm landed
 				// at H+1 — Index returned the stale tx_index, the Postgres

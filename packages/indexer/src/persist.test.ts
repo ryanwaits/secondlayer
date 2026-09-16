@@ -190,6 +190,32 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 		expect(Number(txT?.block_height)).toBe(H + 1);
 		expect(Number(txT?.tx_index)).toBe(3);
 
+		// Old ownership is archived before the move — not after H is replaced,
+		// when the live row is already gone.
+		const archivedAtMove = await db
+			.selectFrom("transactions_archive")
+			.select([
+				"tx_id",
+				"block_height",
+				"tx_index",
+				"type",
+				"sender",
+				"status",
+				"function_name",
+				"orphaned_block_hash",
+			])
+			.where("tx_id", "=", "0xtxT")
+			.execute();
+		expect(archivedAtMove).toHaveLength(1);
+		expect(archivedAtMove[0]?.tx_id).toBe("0xtxT");
+		expect(Number(archivedAtMove[0]?.block_height)).toBe(H);
+		expect(Number(archivedAtMove[0]?.tx_index)).toBe(0);
+		expect(archivedAtMove[0]?.type).toBe("contract_call");
+		expect(archivedAtMove[0]?.sender).toBe("SP1");
+		expect(archivedAtMove[0]?.status).toBe("success");
+		expect(archivedAtMove[0]?.function_name).toBe("f");
+		expect(archivedAtMove[0]?.orphaned_block_hash).toBe("0xblockA");
+
 		await persistBlock(db, payload("0xblockB", "0xtxOther", H));
 
 		const moved = await db
@@ -226,6 +252,23 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 			.where("block_height", "=", H + 1)
 			.execute();
 		expect(archivedHPlus1).toHaveLength(0);
+
+		const archivedVmAtH = await db
+			.selectFrom("vm_events_archive")
+			.select(["tx_id", "orphaned_block_hash"])
+			.where("block_height", "=", H)
+			.where("tx_id", "=", "0xtxT")
+			.execute();
+		expect(archivedVmAtH).toEqual([
+			{ tx_id: "0xtxT", orphaned_block_hash: "0xblockA" },
+		]);
+		const archivedTxAtH = await db
+			.selectFrom("transactions_archive")
+			.select("tx_id")
+			.where("tx_id", "=", "0xtxT")
+			.where("block_height", "=", H)
+			.execute();
+		expect(archivedTxAtH).toHaveLength(1);
 	});
 
 	test("leftover events at another height for a tx still at H do not halt ingest", async () => {
