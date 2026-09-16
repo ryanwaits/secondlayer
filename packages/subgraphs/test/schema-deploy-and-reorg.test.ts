@@ -188,6 +188,107 @@ describe.skipIf(SKIP)("Deploy with breaking changes", () => {
 		const colNames = cols.map((r: Record<string, unknown>) => r.column_name);
 		expect(colNames).toContain("memo");
 	});
+
+	test("additive indexed column creates the /v1 keyset composite, not just the plain index", async () => {
+		const db = getDb();
+		await deploySchema(db, baseDef, "/tmp/handler.ts");
+
+		const additiveDef: SubgraphDefinition = {
+			...baseDef,
+			version: "1.1.0",
+			schema: {
+				transfers: {
+					columns: {
+						sender: { type: "principal" },
+						amount: { type: "uint" },
+						recipient: { type: "principal", indexed: true },
+					},
+				},
+			},
+		};
+
+		const result = await deploySchema(db, additiveDef, "/tmp/handler.ts");
+		expect(result.action).toBe("updated");
+
+		const client = getRawClient();
+		const indexes = await client.unsafe(
+			`SELECT indexname FROM pg_indexes
+       WHERE schemaname = '${PG_SCHEMA}' AND tablename = 'transfers'
+       ORDER BY indexname`,
+		);
+		const names = indexes.map((r: Record<string, unknown>) => r.indexname);
+		expect(names).toContain(
+			"idx_subgraph_deploy_reorg_test_transfers_recipient",
+		);
+		expect(names).toContain(
+			"idx_subgraph_deploy_reorg_test_transfers_recipient_id",
+		);
+	});
+
+	test("flipping indexed on a populated column creates both indexes; flipping off drops both", async () => {
+		const db = getDb();
+		await deploySchema(db, baseDef, "/tmp/handler.ts");
+		const client = getRawClient();
+		await client.unsafe(
+			`INSERT INTO ${PG_SCHEMA}.transfers ("_block_height", "_tx_id", "sender", "amount") VALUES (1, 'tx1', 'SP_A', 100)`,
+		);
+
+		const indexedOn: SubgraphDefinition = {
+			...baseDef,
+			version: "1.1.0",
+			schema: {
+				transfers: {
+					columns: {
+						sender: { type: "principal", indexed: true },
+						amount: { type: "uint" },
+					},
+				},
+			},
+		};
+		expect((await deploySchema(db, indexedOn, "/tmp/handler.ts")).action).toBe(
+			"updated",
+		);
+
+		const afterOn = await client.unsafe(
+			`SELECT indexname FROM pg_indexes
+       WHERE schemaname = '${PG_SCHEMA}' AND tablename = 'transfers'`,
+		);
+		const onNames = afterOn.map((r: Record<string, unknown>) => r.indexname);
+		expect(onNames).toContain(
+			"idx_subgraph_deploy_reorg_test_transfers_sender",
+		);
+		expect(onNames).toContain(
+			"idx_subgraph_deploy_reorg_test_transfers_sender_id",
+		);
+
+		const indexedOff: SubgraphDefinition = {
+			...baseDef,
+			version: "1.2.0",
+			schema: {
+				transfers: {
+					columns: {
+						sender: { type: "principal" },
+						amount: { type: "uint" },
+					},
+				},
+			},
+		};
+		expect((await deploySchema(db, indexedOff, "/tmp/handler.ts")).action).toBe(
+			"updated",
+		);
+
+		const afterOff = await client.unsafe(
+			`SELECT indexname FROM pg_indexes
+       WHERE schemaname = '${PG_SCHEMA}' AND tablename = 'transfers'`,
+		);
+		const offNames = afterOff.map((r: Record<string, unknown>) => r.indexname);
+		expect(offNames).not.toContain(
+			"idx_subgraph_deploy_reorg_test_transfers_sender",
+		);
+		expect(offNames).not.toContain(
+			"idx_subgraph_deploy_reorg_test_transfers_sender_id",
+		);
+	});
 });
 
 // ── Reorg propagation ───────────────────────────────────────────────────

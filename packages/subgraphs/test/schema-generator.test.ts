@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import {
 	emitForeignKeyDDL,
+	emitIndexedColumnIndexDDL,
 	emitTableDDL,
 	generateSubgraphSQL,
 } from "../src/schema/generator.ts";
@@ -66,6 +67,35 @@ test("generates indexes for indexed columns", () => {
 // ── Composite `(col, _id)` sort index ────────────────────────────────────
 // `/v1`'s `?_sort=<col>` keyset predicate compares `(col, "_id")` and orders
 // by `col, "_id"` — see generator.ts's single-column loop.
+
+test("emitIndexedColumnIndexDDL create matches emitTableDDL for an indexed column", () => {
+	const fromTable = emitTableDDL("subgraph_x", "transfers", {
+		columns: { recipient: { type: "principal", indexed: true } },
+	}).filter((s) => s.includes("CREATE INDEX") && s.includes("recipient"));
+	const { create } = emitIndexedColumnIndexDDL(
+		"subgraph_x",
+		"transfers",
+		"recipient",
+	);
+	expect(create).toEqual(fromTable);
+	expect(create[0]).toContain("(recipient)");
+	expect(create[1]).toContain("(recipient, _id)");
+});
+
+test("emitIndexedColumnIndexDDL concurrently inserts CONCURRENTLY on create and drop", () => {
+	const { create, drop } = emitIndexedColumnIndexDDL(
+		"subgraph_x",
+		"transfers",
+		"sender",
+		{ concurrently: true },
+	);
+	expect(create[0]).toMatch(/^CREATE INDEX CONCURRENTLY IF NOT EXISTS /);
+	expect(create[1]).toContain("(sender, _id)");
+	expect(drop).toHaveLength(2);
+	expect(drop[0]).toMatch(/^DROP INDEX CONCURRENTLY IF EXISTS /);
+	expect(drop[0]).toContain("idx_subgraph_x_transfers_sender");
+	expect(drop[1]).toContain("idx_subgraph_x_transfers_sender_id");
+});
 
 test("an indexed column emits both the single-column and the (col, _id) composite index", () => {
 	const { statements } = generateSubgraphSQL(baseDef);

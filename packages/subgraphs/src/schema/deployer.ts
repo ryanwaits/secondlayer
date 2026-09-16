@@ -9,6 +9,7 @@ import { validateSubgraphDefinition } from "../validate.ts";
 import {
 	TYPE_MAP,
 	emitForeignKeyDDL,
+	emitIndexedColumnIndexDDL,
 	emitTableDDL,
 	generateSubgraphSQL,
 	tableNeedsTrgm,
@@ -447,11 +448,13 @@ export async function deploySchema(
 						)
 						.execute(ddlDb);
 					if (col.indexed) {
-						await sql
-							.raw(
-								`CREATE INDEX IF NOT EXISTS idx_${schemaName}_${tableName}_${colName} ON ${qualifiedName} (${colName})`,
-							)
-							.execute(ddlDb);
+						for (const stmt of emitIndexedColumnIndexDDL(
+							schemaName,
+							tableName,
+							colName,
+						).create) {
+							await sql.raw(stmt).execute(ddlDb);
+						}
 					}
 					if (col.search) {
 						await sql
@@ -488,20 +491,21 @@ export async function deploySchema(
 					const was = existingSchema[tableName]?.columns[colName];
 					const now = def.schema[tableName]?.columns[colName];
 					if (!now) continue;
-					const plainIdx = `idx_${schemaName}_${tableName}_${colName}`;
 					const trgmIdx = `idx_${schemaName}_${tableName}_${colName}_trgm`;
+					const indexedIdx = emitIndexedColumnIndexDDL(
+						schemaName,
+						tableName,
+						colName,
+						{ concurrently: true },
+					);
 					if (now.indexed && !was?.indexed) {
-						await sql
-							.raw(
-								`CREATE INDEX CONCURRENTLY IF NOT EXISTS ${plainIdx} ON ${qualifiedName} (${colName})`,
-							)
-							.execute(ddlDb);
+						for (const stmt of indexedIdx.create) {
+							await sql.raw(stmt).execute(ddlDb);
+						}
 					} else if (!now.indexed && was?.indexed) {
-						await sql
-							.raw(
-								`DROP INDEX CONCURRENTLY IF EXISTS ${schemaName}.${plainIdx}`,
-							)
-							.execute(ddlDb);
+						for (const stmt of indexedIdx.drop) {
+							await sql.raw(stmt).execute(ddlDb);
+						}
 					}
 					if (now.search && !was?.search) {
 						await sql

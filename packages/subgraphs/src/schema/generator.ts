@@ -37,6 +37,38 @@ function safeIndexName(name: string): string {
 	return `${name.slice(0, MAX_IDENT_BYTES - hash.length - 1)}_${hash}`;
 }
 
+/**
+ * Plain equality index + `/v1` keyset composite `(col, _id)` for one
+ * `indexed` column. Single source for {@link emitTableDDL} and additive
+ * deploy — a missing composite on the add/flag-flip path made deep
+ * `?_sort=` pages Filter/re-sort instead of an index-only scan.
+ */
+export function emitIndexedColumnIndexDDL(
+	schemaName: string,
+	tableName: string,
+	colName: string,
+	opts?: { concurrently?: boolean },
+): { create: string[]; drop: string[] } {
+	const concurrently = opts?.concurrently ? " CONCURRENTLY" : "";
+	const qualified = `${quotePgIdent(schemaName)}.${quotePgIdent(tableName)}`;
+	const plain = `idx_${schemaName}_${tableName}_${colName}`;
+	const composite = safeIndexName(
+		`idx_${schemaName}_${tableName}_${colName}_id`,
+	);
+	const col = quotePgIdent(colName);
+	const id = quotePgIdent("_id");
+	return {
+		create: [
+			`CREATE INDEX${concurrently} IF NOT EXISTS ${quotePgIdent(plain)} ON ${qualified} (${col})`,
+			`CREATE INDEX${concurrently} IF NOT EXISTS ${quotePgIdent(composite)} ON ${qualified} (${col}, ${id})`,
+		],
+		drop: [
+			`DROP INDEX${concurrently} IF EXISTS ${quotePgIdent(schemaName)}.${quotePgIdent(plain)}`,
+			`DROP INDEX${concurrently} IF EXISTS ${quotePgIdent(schemaName)}.${quotePgIdent(composite)}`,
+		],
+	};
+}
+
 function escapeLiteralDefault(value: unknown): string {
 	if (value === null || value === undefined) return "NULL";
 	if (typeof value === "number" || typeof value === "bigint")
@@ -108,10 +140,7 @@ export function emitTableDDL(
 	for (const [colName, col] of Object.entries(tableDef.columns)) {
 		if (col.indexed) {
 			statements.push(
-				`CREATE INDEX IF NOT EXISTS ${quotePgIdent(`idx_${schemaName}_${tableName}_${colName}`)} ON ${qualifiedName} (${quotePgIdent(colName)})`,
-			);
-			statements.push(
-				`CREATE INDEX IF NOT EXISTS ${quotePgIdent(safeIndexName(`idx_${schemaName}_${tableName}_${colName}_id`))} ON ${qualifiedName} (${quotePgIdent(colName)}, ${quotePgIdent("_id")})`,
+				...emitIndexedColumnIndexDDL(schemaName, tableName, colName).create,
 			);
 		}
 	}
