@@ -1,6 +1,10 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { getSourceDb } from "@secondlayer/shared/db";
 import {
+	insertChainReorg,
+	readChainReorgsForRange,
+} from "@secondlayer/shared/db/queries/chain-reorgs";
+import {
 	getIndexEventsResponse,
 	parseIndexEventsQuery,
 	readIndexEvents,
@@ -263,5 +267,31 @@ describe.skipIf(!HAS_DB)("Index vm_events read", () => {
 		});
 		expect(nested.events).toHaveLength(0);
 		expect(nested.next_cursor).toBeNull();
+	});
+
+	test("an empty resumed SQL page reports a reorg with a lower classic ordinal", async () => {
+		await seed();
+		if (!db) throw new Error("missing db");
+		const reorg = await insertChainReorg({
+			db,
+			forkPointHeight: H,
+			oldIndexBlockHash: "0xvm-orphan",
+			newIndexBlockHash: "0xvm-index",
+			orphanedFrom: { block_height: H, event_index: 0 },
+			orphanedTo: { block_height: H, event_index: 0 },
+			newCanonicalTip: { block_height: H, event_index: 0 },
+		});
+		try {
+			const response = await getIndexEventsResponse({
+				query: new URLSearchParams(`event_type=map_set&cursor=${H}:5`),
+				tip: TIP,
+				readEvents: (p) => readIndexEvents({ ...p, db }),
+				readReorgs: (range) => readChainReorgsForRange({ ...range, db }),
+			});
+			expect(response.events).toEqual([]);
+			expect(response.reorgs.map((r) => r.id)).toContain(reorg.id);
+		} finally {
+			await db.deleteFrom("chain_reorgs").where("id", "=", reorg.id).execute();
+		}
 	});
 });
