@@ -12,6 +12,9 @@
 # once per incident, not every day, and posts an all-clear when it recovers.
 set -uo pipefail
 
+# shellcheck source=lib/post-slack.sh
+. "$(dirname "$0")/lib/post-slack.sh"
+
 COMPOSE_DIR="${COMPOSE_DIR:-/opt/secondlayer/docker}"
 DECODER_CONTAINER="${DECODER_CONTAINER:-secondlayer-decoder-1}"
 AUDIT_CMD="${FLOOR_AUDIT_CMD:-bun run packages/indexer/src/decode/floor-audit.ts}"
@@ -19,16 +22,6 @@ AUDIT_CMD="${FLOOR_AUDIT_CMD:-bun run packages/indexer/src/decode/floor-audit.ts
 # wrapper exits non-zero (124) and pages, rather than blocking forever.
 AUDIT_TIMEOUT="${FLOOR_AUDIT_TIMEOUT:-300}"
 STATE_FILE="${FLOOR_AUDIT_STATE_FILE:-/var/run/secondlayer-floor-audit.state}"
-WEBHOOK="${SLACK_WEBHOOK_URL:-}"
-
-post_slack() {
-  [ -n "$WEBHOOK" ] || return 0
-  local text="$1"
-  local payload
-  payload=$(python3 -c "import json,sys; print(json.dumps({'text': sys.argv[1]}))" "$text" 2>/dev/null \
-    || echo "{\"text\":\"secondlayer floor-audit alert\"}")
-  curl -s -X POST -H 'Content-Type: application/json' -d "$payload" "$WEBHOOK" >/dev/null || true
-}
 
 # Run the audit inside the live decoder container (lighter than `compose run`,
 # and it already has the source-DB env). Fall back to a throwaway container if
@@ -51,7 +44,7 @@ if [ "$status" -eq 0 ]; then
   # Genesis-complete. If we previously alerted, send the all-clear once.
   if [ -f "$STATE_FILE" ]; then
     rm -f "$STATE_FILE"
-    post_slack "✅ secondlayer floor-audit recovered — all decoders genesis-complete again"
+    post_slack "✅ secondlayer floor-audit recovered — all decoders genesis-complete again" --recovery
   fi
   exit 0
 fi

@@ -13,6 +13,9 @@
 # and posts an all-clear when the audit passes again.
 set -uo pipefail
 
+# shellcheck source=lib/post-slack.sh
+. "$(dirname "$0")/lib/post-slack.sh"
+
 COMPOSE_DIR="${COMPOSE_DIR:-/opt/secondlayer/docker}"
 INDEXER_CONTAINER="${INDEXER_CONTAINER:-secondlayer-indexer-1}"
 AUDIT_CMD="${CANONICAL_AUDIT_CMD:-bun run packages/indexer/src/archive/canonical-audit.ts}"
@@ -25,16 +28,6 @@ STATE_FILE="${CANONICAL_AUDIT_STATE_FILE:-/var/run/secondlayer-canonical-audit.s
 # audit. A directory the container cannot see makes `failed-audit` unreachable,
 # which is the one state this whole object exists to report.
 REPORT_DIR="${CANONICAL_AUDIT_REPORT_DIR:-/opt/secondlayer/data/archive/audits}"
-WEBHOOK="${SLACK_WEBHOOK_URL:-}"
-
-post_slack() {
-  [ -n "$WEBHOOK" ] || return 0
-  local text="$1"
-  local payload
-  payload=$(python3 -c "import json,sys; print(json.dumps({'text': sys.argv[1]}))" "$text" 2>/dev/null \
-    || echo "{\"text\":\"secondlayer canonical-audit alert\"}")
-  curl -s -X POST -H 'Content-Type: application/json' -d "$payload" "$WEBHOOK" >/dev/null || true
-}
 
 # Run inside the live indexer container (it has the source-DB env). Fall back
 # to a throwaway container if the live one isn't up.
@@ -65,7 +58,7 @@ if [ "$status" -eq 0 ]; then
   # Complete genesis→finalized. If we previously alerted, send the all-clear.
   if [ -f "$STATE_FILE" ]; then
     rm -f "$STATE_FILE"
-    post_slack "✅ secondlayer canonical-audit recovered — chain complete genesis→finalized again"
+    post_slack "✅ secondlayer canonical-audit recovered — chain complete genesis→finalized again" --recovery
   fi
   exit 0
 fi

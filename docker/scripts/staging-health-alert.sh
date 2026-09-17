@@ -17,13 +17,15 @@
 # posts an all-clear on recovery.
 set -uo pipefail
 
+# shellcheck source=lib/post-slack.sh
+. "$(dirname "$0")/lib/post-slack.sh"
+
 REPO_DIR="${REPO_DIR:-/opt/secondlayer}"
 HEALTH_SCRIPT="${STAGING_HEALTH_SCRIPT:-scripts/ci/staging-health.ts}"
 # Hard cap so a hung probe can never wedge the systemd oneshot — on timeout the
 # wrapper exits non-zero (124) and pages, rather than blocking forever.
 HEALTH_TIMEOUT="${STAGING_HEALTH_RUN_TIMEOUT:-120}"
 STATE_FILE="${STAGING_HEALTH_STATE_FILE:-/var/run/secondlayer-staging-health.state}"
-WEBHOOK="${SLACK_WEBHOOK_URL:-}"
 BUN_BIN="${BUN_BIN:-}"
 
 if [ -z "$BUN_BIN" ]; then
@@ -35,14 +37,7 @@ if [ -z "$BUN_BIN" ]; then
   fi
 fi
 
-post_slack() {
-  [ -n "$WEBHOOK" ] || return 0
-  local text="$1"
-  local payload
-  payload=$(python3 -c "import json,sys; print(json.dumps({'text': sys.argv[1]}))" "$text" 2>/dev/null \
-    || echo "{\"text\":\"secondlayer staging-health alert\"}")
-  curl -s -X POST -H 'Content-Type: application/json' -d "$payload" "$WEBHOOK" >/dev/null || true
-}
+
 
 # The zero-timestamp check needs a host-reachable SOURCE DB. docker/.env ships
 # DATABASE_URL empty (the containers get theirs from compose) and POSTGRES_PORT
@@ -74,7 +69,7 @@ if [ "$status" -eq 0 ]; then
   # Healthy. If we previously alerted, send the all-clear once.
   if [ -f "$STATE_FILE" ]; then
     rm -f "$STATE_FILE"
-    post_slack "✅ secondlayer staging-health recovered — tip data fresh and well-shaped again"
+    post_slack "✅ secondlayer staging-health recovered — tip data fresh and well-shaped again" --recovery
   fi
   exit 0
 fi

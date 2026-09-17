@@ -17,11 +17,14 @@
 # Requires SLACK_WEBHOOK_URL (read from /opt/secondlayer/docker/.env via the
 # systemd unit's EnvironmentFile). Two state files, one per tier, so a
 # standing WARN and a standing CRITICAL are tracked and cleared independently.
+# WARN pages go through slack-gate (Jev). CRITICAL stall pages --force.
 set -uo pipefail
+
+# shellcheck source=lib/post-slack.sh
+. "$(dirname "$0")/lib/post-slack.sh"
 
 COMPOSE_DIR="${COMPOSE_DIR:-/opt/secondlayer/docker}"
 STATUS_URL="${HEALTH_STATUS_URL:-https://api.secondlayer.tools/public/status}"
-WEBHOOK="${SLACK_WEBHOOK_URL:-}"
 
 HEALTH_STATE_DIR="${HEALTH_STATE_DIR:-/var/run}"
 WARN_STATE_FILE="${HEALTH_WARN_STATE_FILE:-$HEALTH_STATE_DIR/secondlayer-health-alert-warn.state}"
@@ -35,15 +38,6 @@ CRITICAL_REPAGE_SECONDS=1800
 INDEXER_CONTAINER="${INDEXER_CONTAINER:-secondlayer-indexer-1}"
 NODE_CONTAINER="${NODE_CONTAINER:-secondlayer-stacks-node-1}"
 PG_SERVICE="${PG_SERVICE:-postgres}"
-
-post_slack() {
-  [ -n "$WEBHOOK" ] || return 0
-  local text="$1"
-  local payload
-  payload=$(python3 -c "import json,sys; print(json.dumps({'text': sys.argv[1]}))" "$text" 2>/dev/null \
-    || echo "{\"text\":\"secondlayer health-alert\"}")
-  curl -s -X POST -H 'Content-Type: application/json' -d "$payload" "$WEBHOOK" >/dev/null || true
-}
 
 state_get() {
   local file="$1" key="$2"
@@ -83,7 +77,7 @@ warn_exit=0
 if [ ${#problems[@]} -eq 0 ]; then
   if [ -f "$WARN_STATE_FILE" ]; then
     rm -f "$WARN_STATE_FILE"
-    post_slack "✅ secondlayer prod recovered — status 200, all containers healthy"
+    post_slack "✅ secondlayer prod recovered — status 200, all containers healthy" --recovery
   fi
 else
   warn_exit=1
@@ -152,7 +146,7 @@ Archive, decoders, and /v1 are frozen behind it."
 First checks: docker logs $INDEXER_CONTAINER --tail 50
               docker logs $NODE_CONTAINER --tail 20"
       echo "$(date -u +%FT%TZ) $critical_msg"
-      post_slack "$critical_msg"
+      post_slack "$critical_msg" --force
       state_write "$CRITICAL_STATE_FILE" "$tip_value" "$first_seen_epoch" "$now_epoch"
     else
       state_write "$CRITICAL_STATE_FILE" "$tip_value" "$first_seen_epoch" "$prev_last_page"
@@ -171,7 +165,7 @@ else
     recovered_minutes=$(( (now_epoch - baseline) / 60 ))
     allclear_msg="✅ secondlayer chain ingest recovered — canonical tip advancing again (was stalled ${recovered_minutes}m, now at $tip_value)"
     echo "$(date -u +%FT%TZ) $allclear_msg"
-    post_slack "$allclear_msg"
+    post_slack "$allclear_msg" --recovery
   fi
   rm -f "$CRITICAL_STATE_FILE" 2>/dev/null || true
   state_write "$CRITICAL_STATE_FILE" "$tip_value" "$now_epoch" 0

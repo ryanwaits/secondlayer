@@ -21,6 +21,9 @@
 # Requires SLACK_WEBHOOK_URL via the systemd unit's EnvironmentFile.
 set -uo pipefail
 
+# shellcheck source=lib/post-slack.sh
+. "$(dirname "$0")/lib/post-slack.sh"
+
 COMPOSE_DIR="${COMPOSE_DIR:-/opt/secondlayer/docker}"
 INDEXER_CONTAINER="${INDEXER_CONTAINER:-secondlayer-indexer-1}"
 # Container-side path passed to the exporter.
@@ -38,16 +41,6 @@ HOST_STAGING_DIR="${ARCHIVE_HOST_STAGING_DIR:-/opt/secondlayer/data/archive/cano
 EXPORT_TIMEOUT="${ARCHIVE_EXPORT_TIMEOUT:-21600}"
 UPLOAD_TIMEOUT="${ARCHIVE_UPLOAD_TIMEOUT:-7200}"
 STATE_FILE="${ARCHIVE_PUBLISH_STATE_FILE:-/var/run/secondlayer-archive-publish.state}"
-WEBHOOK="${SLACK_WEBHOOK_URL:-}"
-
-post_slack() {
-  [ -n "$WEBHOOK" ] || return 0
-  local text="$1"
-  local payload
-  payload=$(python3 -c "import json,sys; print(json.dumps({'text': sys.argv[1]}))" "$text" 2>/dev/null \
-    || echo "{\"text\":\"secondlayer archive publish alert\"}")
-  curl -s -X POST -H 'Content-Type: application/json' -d "$payload" "$WEBHOOK" >/dev/null || true
-}
 
 fail() {
   local stage="$1" detail="$2"
@@ -151,7 +144,7 @@ echo "$(date -u +%FT%TZ) archive-publish OK (state=${STATE}, through ${COVERAGE}
 # Recovery all-clear, once.
 if [ -f "$STATE_FILE" ]; then
   rm -f "$STATE_FILE"
-  post_slack "✅ secondlayer archive publish recovered — published through ${COVERAGE} (${STATE})"
+  post_slack "✅ secondlayer archive publish recovered — published through ${COVERAGE} (${STATE})" --recovery
 fi
 
 # A cycle that succeeds but leaves the archive unhealthy is worth saying out

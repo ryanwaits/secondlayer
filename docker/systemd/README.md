@@ -44,6 +44,10 @@ workflow is now manual-dispatch only.
 Each service sources `/opt/secondlayer/docker/.env` for `DATA_DIR`,
 `STORAGEBOX_USER`, `STORAGEBOX_HOST`, `STORAGEBOX_PATH`, `STORAGEBOX_PORT`, and
 `SLACK_WEBHOOK_URL` (health-alert + floor-audit + staging-health).
+Alert scripts post through `scripts/ops/slack-gate.ts` (Jev). Pages only when
+`page_now >= 0.8` and `severity >= 3`, except health-alert CRITICAL (`--force`)
+and all-clears (`--recovery`). Set `AI_GATEWAY_API_KEY` in `.env`; unset fails
+open (posts). GitHub deploy Slack fires only on deploy or smoke *failure*.
 `staging-health` additionally builds a host-reachable SOURCE DB URL from
 `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` (override the target with
 `STAGING_HEALTH_DB_HOSTPORT`, default `127.0.0.1:5432`) and reads the optional

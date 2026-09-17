@@ -10,19 +10,12 @@
 # writes archive data, so it is safe to run often and safe to fail.
 set -uo pipefail
 
+# shellcheck source=lib/post-slack.sh
+. "$(dirname "$0")/lib/post-slack.sh"
+
 INDEXER_CONTAINER="${INDEXER_CONTAINER:-secondlayer-indexer-1}"
 STATUS_TIMEOUT="${ARCHIVE_STATUS_TIMEOUT:-300}"
 STATE_FILE="${ARCHIVE_STATUS_STATE_FILE:-/var/run/secondlayer-archive-status.state}"
-WEBHOOK="${SLACK_WEBHOOK_URL:-}"
-
-post_slack() {
-  [ -n "$WEBHOOK" ] || return 0
-  local text="$1"
-  local payload
-  payload=$(python3 -c "import json,sys; print(json.dumps({'text': sys.argv[1]}))" "$text" 2>/dev/null \
-    || echo "{\"text\":\"secondlayer archive status alert\"}")
-  curl -s -X POST -H 'Content-Type: application/json' -d "$payload" "$WEBHOOK" >/dev/null || true
-}
 
 if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$INDEXER_CONTAINER"; then
   echo "$(date -u +%FT%TZ) archive-status: container not running"
@@ -50,7 +43,7 @@ case "$STATE" in
   fresh|lagging)
     if [ -f "$STATE_FILE" ]; then
       rm -f "$STATE_FILE"
-      post_slack "✅ secondlayer archive healthy again (${STATE})"
+      post_slack "✅ secondlayer archive healthy again (${STATE})" --recovery
     fi
     ;;
   *)
