@@ -1,5 +1,12 @@
 # @secondlayer/shared
 
+## 11.6.1
+
+### Patch Changes
+
+- 4bdb751: Delete unused CLI local leftovers, shared constants, and dead web exports.
+- 77c9f72: Drop four empty unused tables that were never written.
+
 ## 11.6.0
 
 ### Minor Changes

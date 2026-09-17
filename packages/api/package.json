@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/api",
-	"version": "1.34.2",
+	"version": "1.34.3",
 	"private": true,
 	"type": "module",
 	"main": "./src/index.ts",
@@ -19,7 +19,7 @@
 		"@secondlayer/indexer": "^1.14.7",
 		"@secondlayer/platform": "workspace:*",
 		"@secondlayer/sdk": "^10.4.2",
-		"@secondlayer/shared": "^11.6.0",
+		"@secondlayer/shared": "^11.6.1",
 		"@secondlayer/stacks": "^6.0.0",
 		"@secondlayer/subgraphs": "^4.3.4",
 		"hono": "^4.0.0",

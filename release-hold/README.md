@@ -8,9 +8,8 @@ normally; a parked one does not drag a version bump along with them.
 
 ## Currently parked
 
-Nothing. (The Bitcoin SPV changeset that lived here was released in
-`@secondlayer/stacks@2.9.0`/`2.9.1`; the `./bitcoin` module is published and
-runtime-gated by `isClarity6Active`.)
+- `remove-instance-console.md` — CLI major (`secondlayer console` removal).
+  Parked so unused-code patch releases do not consume it.
 
 ## How to park / un-park a changeset
 

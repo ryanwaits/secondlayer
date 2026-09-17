@@ -1,5 +1,13 @@
 # @secondlayer/web
 
+## 0.6.44
+
+### Patch Changes
+
+- 781c459: Delete unused product-page OG share cards.
+- 4bdb751: Delete unused CLI local leftovers, shared constants, and dead web exports.
+- 14a0e0b: Delete unused CSS for retired product and console surfaces.
+
 ## 0.6.43
 
 ### Patch Changes

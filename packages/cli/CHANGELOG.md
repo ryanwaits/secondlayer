@@ -1,5 +1,14 @@
 # @secondlayer/cli
 
+## 15.0.1
+
+### Patch Changes
+
+- 4bdb751: Delete unused CLI local leftovers, shared constants, and dead web exports.
+- Updated dependencies [4bdb751]
+- Updated dependencies [77c9f72]
+  - @secondlayer/shared@11.6.1
+
 ## 15.0.0
 
 ### Major Changes
