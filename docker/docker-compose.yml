@@ -249,6 +249,10 @@ services:
       # key the api signs live responses with) so the cold lane carries the same
       # ed25519 authenticity proof. Unset → manifests export unsigned (legacy).
       STREAMS_SIGNING_PRIVATE_KEY: ${STREAMS_SIGNING_PRIVATE_KEY:-}
+      # Integrity unfillable-gap pages (`packages/indexer/src/alerts.ts`). Host
+      # systemd timers already read this from `.env`; the indexer container does
+      # not unless compose forwards it. Unset → sendSlackAlert no-ops.
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
     ports:
       # Published on 0.0.0.0 so the remote Stacks node can deliver events. The
       # ingest endpoints have no app-layer auth, so public access is gated at
