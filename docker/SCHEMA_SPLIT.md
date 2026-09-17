@@ -29,9 +29,8 @@ Written by the `indexer` and `decoder` services. Read by the public API.
 - Coverage: `stage_registry`, `stage_runs`, `stage_block_receipts`,
   `coverage_segments`, `stage_failures`
 - Decoded: `decoded_events`, `decoder_checkpoints`, `pox4_calls`,
-  `pox4_cycles_daily`, `pox4_signers_daily`, `burn_block_rewards`,
-  `burn_block_reward_slots`, `sbtc_events`, `sbtc_token_events`,
-  `sbtc_supply_snapshots`, `bns_name_events`, `bns_namespace_events`,
+  `burn_block_rewards`, `burn_block_reward_slots`, `sbtc_events`,
+  `sbtc_token_events`, `bns_name_events`, `bns_namespace_events`,
   `bns_marketplace_events`, `bns_names`, `bns_namespaces`
 
 Decoded tables live on SOURCE (not TARGET): they are chain-derived, written by

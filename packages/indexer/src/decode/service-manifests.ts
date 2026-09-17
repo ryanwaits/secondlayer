@@ -62,7 +62,6 @@ export const SBTC_SERVICE_MANIFEST: ServiceManifest = {
 			target: "sbtc_token_events",
 			verification: "row-count + semantic-digest per (tx_id, event_index)",
 		},
-		{ target: "sbtc_supply_snapshots", verification: "row-count per block" },
 		{
 			target: "sbtc_settlements",
 			verification:
@@ -78,7 +77,7 @@ export const POX4_SERVICE_MANIFEST: ServiceManifest = {
 	name: "decode:pox4",
 	kind: "protocol-producer",
 	description:
-		"PoX-4 contract-call decoder — stack/delegate/aggregation-commit lifecycle plus per-cycle and per-signer daily aggregates",
+		"PoX-4 contract-call decoder — stack/delegate/aggregation-commit lifecycle",
 	canonical_inputs: [...CANONICAL_ALL],
 	external_inputs: [
 		STREAMS_API_INPUT,
@@ -99,16 +98,6 @@ export const POX4_SERVICE_MANIFEST: ServiceManifest = {
 		{
 			target: "pox4_calls",
 			verification: "row-count + semantic-digest per (tx_id)",
-		},
-		{
-			target: "pox4_cycles_daily",
-			verification:
-				"row-count per (cycle, day) — an aggregate over pox4_calls, checkable by re-derivation",
-		},
-		{
-			target: "pox4_signers_daily",
-			verification:
-				"row-count per (cycle, signer, day) — same re-derivation invariant",
 		},
 	],
 	r2_alone_can_rebuild: false,

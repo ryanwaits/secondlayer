@@ -362,15 +362,6 @@ export interface SubgraphProcessingStatsTable {
 	created_at: Generated<Date>;
 }
 
-export interface SubgraphTableSnapshotsTable {
-	id: Generated<string>;
-	subgraph_name: string;
-	api_key_id: string | null;
-	table_name: string;
-	row_count: number | null;
-	created_at: Generated<Date>;
-}
-
 export interface SubgraphHealthSnapshotsTable {
 	id: Generated<string>;
 	subgraph_id: string;
@@ -479,28 +470,6 @@ export interface Pox4CallsTable {
 	canonical: Generated<boolean>;
 	source_cursor: string;
 	created_at: Generated<Date>;
-}
-
-export interface Pox4CyclesDailyTable {
-	date: string;
-	reward_cycle: number;
-	total_stacked_ustx: Generated<string>;
-	solo_stackers: Generated<number>;
-	delegated_principals: Generated<number>;
-	unique_pools: Generated<number>;
-	unique_signers: Generated<number>;
-	calls_today: Generated<number>;
-	updated_at: Generated<Date>;
-}
-
-export interface Pox4SignersDailyTable {
-	date: string;
-	reward_cycle: number;
-	signer_key: string;
-	weight_ustx: Generated<string>;
-	stacker_count: Generated<number>;
-	aggregation_calls: Generated<number>;
-	updated_at: Generated<Date>;
 }
 
 export type Pox5EventTopic =
@@ -658,18 +627,6 @@ export interface SbtcSettlementsTable {
 	last_checked_at: Generated<Date>;
 	/** Set once, when `settlement_confirmed` first flips true. */
 	confirmed_at: Date | null;
-	updated_at: Generated<Date>;
-}
-
-export interface SbtcSupplySnapshotsTable {
-	date: string;
-	total_supply: Generated<string>;
-	mints_today: Generated<string>;
-	burns_today: Generated<string>;
-	deposit_count: Generated<number>;
-	withdrawal_create_count: Generated<number>;
-	withdrawal_accept_count: Generated<number>;
-	withdrawal_reject_count: Generated<number>;
 	updated_at: Generated<Date>;
 }
 
@@ -956,7 +913,6 @@ export interface Database {
 	play_provisions: PlayProvisionsTable;
 	subgraph_health_snapshots: SubgraphHealthSnapshotsTable;
 	subgraph_processing_stats: SubgraphProcessingStatsTable;
-	subgraph_table_snapshots: SubgraphTableSnapshotsTable;
 	subgraph_gaps: SubgraphGapsTable;
 	subgraph_violations: SubgraphViolationsTable;
 	subgraph_operations: SubgraphOperationsTable;
@@ -972,15 +928,12 @@ export interface Database {
 	decoder_checkpoints: DecoderCheckpointsTable;
 	chain_reorgs: ChainReorgsTable;
 	pox4_calls: Pox4CallsTable;
-	pox4_cycles_daily: Pox4CyclesDailyTable;
-	pox4_signers_daily: Pox4SignersDailyTable;
 	pox5_events: Pox5EventsTable;
 	burn_block_rewards: BurnBlockRewardsTable;
 	burn_block_reward_slots: BurnBlockRewardSlotsTable;
 	sbtc_events: SbtcEventsTable;
 	sbtc_token_events: SbtcTokenEventsTable;
 	sbtc_settlements: SbtcSettlementsTable;
-	sbtc_supply_snapshots: SbtcSupplySnapshotsTable;
 	bns_name_events: BnsNameEventsTable;
 	bns_namespace_events: BnsNamespaceEventsTable;
 	bns_marketplace_events: BnsMarketplaceEventsTable;
