@@ -31,15 +31,3 @@ export const actions: Action[] = [
 		category: "Account",
 	},
 ];
-
-export function getActionsByCategory(
-	filtered: Action[],
-): Map<string, Action[]> {
-	const map = new Map<string, Action[]>();
-	for (const action of filtered) {
-		const list = map.get(action.category) || [];
-		list.push(action);
-		map.set(action.category, list);
-	}
-	return map;
-}

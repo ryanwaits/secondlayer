@@ -55,14 +55,6 @@ export async function upsertCaps(
 		.executeTakeFirstOrThrow();
 }
 
-/** Mark an account frozen at the current time (cap just tripped). */
-export async function freezeAccount(
-	db: Kysely<Database>,
-	accountId: string,
-): Promise<void> {
-	await upsertCaps(db, accountId, { frozen_at: new Date() });
-}
-
 /**
  * Clear the frozen + alert state — called on `invoice.paid` webhook at
  * cycle rollover (new billing period starts fresh) OR when the user
@@ -76,16 +68,4 @@ export async function clearFreeze(
 		frozen_at: null,
 		alert_sent_at: null,
 	});
-}
-
-/** Is this account currently cap-frozen? Bulk-checked by metering crons. */
-export async function listFrozenAccountIds(
-	db: Kysely<Database>,
-): Promise<Set<string>> {
-	const rows = await db
-		.selectFrom("account_spend_caps")
-		.select("account_id")
-		.where("frozen_at", "is not", null)
-		.execute();
-	return new Set(rows.map((r) => r.account_id));
 }

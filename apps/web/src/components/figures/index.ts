@@ -5,7 +5,7 @@
  * put client figures on every docs bundle).
  */
 export { FigShell } from "./fig-shell";
-export { mergeMarkers, resolveEndLabels, clampTooltipX } from "./collide";
+export { mergeMarkers } from "./collide";
 
 // A — text-first
 export { StatTile, type StatTileItem } from "./stat-tile";

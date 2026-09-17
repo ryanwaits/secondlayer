@@ -6,7 +6,6 @@ export type AgentPromptTag =
 	| "subgraphs"
 	| "webhooks"
 	| "mcp"
-	| "sdk"
 	| "cli"
 	| "recovery";
 
@@ -69,8 +68,7 @@ export type AgentPromptId =
 	| "webhook-diagnose"
 	| "webhook-test"
 	| "cli-operate"
-	| "mcp-install"
-	| "sdk-wire";
+	| "mcp-install";
 
 const SUBGRAPHS_INTRO =
 	"Subgraphs are declarative SQL tables that auto-index Stacks blockchain activity into queryable Postgres tables. Define named sources, a typed schema, and handlers in TypeScript, then deploy and query.";
@@ -288,19 +286,6 @@ Inspect the account state first. If the subgraph and table are already clear, as
 				"/secondlayer Install the Secondlayer MCP server for my agent. Generate the `bunx @secondlayer/mcp` config with `SECONDLAYER_API_URL` (or `SL_API_URL`) and `INSTANCE_TOKEN` for the instance. For hosted archive/credits tools also set `SECONDLAYER_API_KEY`. Then verify tool availability for subgraphs and webhooks: list, get, query, deploy, create, update, pause, resume, rotate-secret, deliveries, dead, requeue, and replay.",
 			),
 	},
-	{
-		id: "sdk-wire",
-		title: "Wire SDK into an app",
-		audience: "App developers using typed reads and webhooks",
-		surface: "marketing",
-		description:
-			"One client for typed subgraph reads and webhook verification.",
-		tags: ["sdk", "subgraphs", "webhooks"],
-		build: () =>
-			withSetup(
-				"/secondlayer Wire `@secondlayer/sdk` into my app: create a `SecondLayer({ apiKey: process.env.INSTANCE_TOKEN })` client against my instance, read subgraph rows with `sl.subgraphs.rows(name, table, opts)` → `{ rows, next_cursor, tip }`, get a typed table client via `sl.subgraphs.typed(def)`, and verify webhook deliveries with `verifyWebhookSignature` before trusting them. Hosted Index/Streams/archive use `accountKey` / `SECONDLAYER_API_KEY`. Use concrete names from my project when available.",
-			),
-	},
 ];
 
 export const AGENT_PROMPT_REGISTRY = Object.fromEntries(
@@ -319,15 +304,3 @@ export function getAgentPromptDefinition(
 ): AgentPromptDefinition {
 	return AGENT_PROMPT_REGISTRY[id];
 }
-
-// ── Backward-compatible prompt exports ───────────────────────────
-
-export const SUBGRAPHS_EMPTY_PROMPT = getAgentPrompt("subgraph-create");
-export const QUICK_SUBGRAPH_PROMPT = getAgentPrompt("subgraph-alex-swaps");
-export const DROPDOWN_DEPLOY_SUBGRAPH = getAgentPrompt("subgraph-create");
-export const DASHBOARD_SUBGRAPHS_PROMPT = getAgentPrompt("subgraph-create");
-export const MARKETING_SUBGRAPHS_PROMPT = getAgentPrompt("subgraph-create");
-// Homepage "hand it to your agent" card reuses the canonical setup prompt so
-// the agent-onboarding steps stay single-sourced with the subgraphs page.
-export const MARKETING_HOME_PROMPT = getAgentPrompt("subgraph-create");
-export const MARKETING_WEBHOOKS_PROMPT = getAgentPrompt("webhook-create");

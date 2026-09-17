@@ -75,16 +75,3 @@ export function activeHref(pathname: string): string | null {
 	}
 	return best;
 }
-
-export function activeGroupIndex(pathname: string): number {
-	const active = activeHref(pathname);
-	if (!active) return -1;
-	return NAV.findIndex(
-		(entry) => isGroup(entry) && entry.items.some((i) => i.href === active),
-	);
-}
-
-export interface NavSubgraph {
-	name: string;
-	rows: string;
-}
