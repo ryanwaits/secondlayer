@@ -130,7 +130,13 @@ export type TriageSummary = {
 
 /** State an operator would see when paged. The recorded class is deliberately
  *  not included — including it would leak the label we ask Jev to reproduce. */
-export function buildTriageState(row: FaultRow): Record<string, unknown> {
+export function buildTriageState(row: FaultRow): {
+	component: string;
+	error: string | null;
+	block_range: { from: number | null; to: number | null } | null;
+	retries_so_far: number;
+	context: string;
+} {
 	return {
 		component: row.stage_id,
 		error:
@@ -326,6 +332,11 @@ function parseArgs(argv: string[]): Args {
 	return args;
 }
 
+function toIsoTimestamp(value: unknown): string {
+	if (value instanceof Date) return value.toISOString();
+	return String(value);
+}
+
 function parseSince(v: string): number {
 	const m = /^(\d+)d$/.exec(v);
 	if (!m) throw new Error(`--since expects e.g. 30d, got: ${v}`);
@@ -351,10 +362,7 @@ async function fetchFaultRows(dbUrl: string, args: Args): Promise<FaultRow[]> {
 			...r,
 			from_height: r.from_height === null ? null : Number(r.from_height),
 			to_height: r.to_height === null ? null : Number(r.to_height),
-			created_at:
-				r.created_at instanceof Date
-					? r.created_at.toISOString()
-					: String(r.created_at),
+			created_at: toIsoTimestamp(r.created_at),
 		}));
 	} finally {
 		await client.end();
