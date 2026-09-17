@@ -245,7 +245,7 @@ jobs:
 
   notify:
     needs: [typecheck, deploy, post-deploy-smoke]
-    if: always()
+    if: always() && (needs.deploy.result == 'failure' || needs.post-deploy-smoke.result == 'failure')
     runs-on: ubuntu-latest
     steps:
       - name: Slack notification
