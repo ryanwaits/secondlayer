@@ -3,9 +3,9 @@ import type { Metadata } from "next";
 type SocialMetaInput = {
 	title: string;
 	description: string;
-	/** Path to the 1200x630 share card under /public, e.g. "/og/streams.png" */
+	/** Path to the 1200x630 share card under /public, e.g. "/og/archive.png" */
 	image: string;
-	/** Canonical route path, e.g. "/streams" */
+	/** Canonical route path, e.g. "/archive" */
 	path: string;
 };
 
