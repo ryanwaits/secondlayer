@@ -8,6 +8,9 @@ Compose project lives at `/opt/secondlayer/docker` on app-server.
 - **app-server** — everything below.
 - **node-server** (37.27.171.220) — the stacks-node. Pushes the event-observer
   firehose to `indexer`; also serves RPC (`:20443`) for tx-proof endpoints.
+  Today `events_keys = ["*"]`. Flip `"storage"` / `"contract_calls"` only
+  after this host runs the eval-hook fork image; collapse procedure:
+  [genesis-feeder.md](../docs/internal/runbook/genesis-feeder.md#after-catch-up-collapse-to-one-hooked-follower).
 
 ## Containers (all required unless noted)
 
@@ -97,3 +100,25 @@ transaction as their rows; a resumed/requeued op starts at `cursor_block + 1`.
   place — the safe re-run is a full `reindex` (schema-dropping, exactly-once).
 - `skippedByCursor` in reindex progress logs counts replay-guard skips — a
   nonzero value after a crash-resume is the system working as intended.
+
+## vm_events / fork image (node-server)
+
+Prod `docker/node-server/Config.toml` stays `events_keys = ["*"]` until
+node-server's stacks-node image is the eval-hook fork. Unknown keys panic
+on start. Miners/signers never get `"storage"` / `"contract_calls"`.
+
+When that image is deployed, full historical `vm_events` is still **not**
+"flip the keys on the current disk." Hiro/archive chainstate skips Clarity
+execution; the hook never sees that history.
+
+1. Run a dedicated empty-disk feeder (fork binary, keys on,
+   `vm_trace_max_bytes = 0`) at the indexer until tip.
+2. Snapshot feeder chainstate **and** the indexer DB together.
+3. Restore that pair onto node-server (the live observer). Keep the keys on
+   for new blocks. History stays in Postgres. Retire the IBD box.
+
+Do not extract a Hiro chainstate tarball into the collecting node's
+`STACKS_DATA_DIR`. Unhooked `/v2` RPC can be a different machine.
+
+Canonical steps:
+[docs/internal/runbook/genesis-feeder.md](../docs/internal/runbook/genesis-feeder.md).

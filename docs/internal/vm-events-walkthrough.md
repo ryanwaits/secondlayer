@@ -153,7 +153,9 @@ source tip rewound below the cursor.
 Local compose is **postgres only** (`127.0.0.1:5440`). OSS/stacks-node compose
 and indexer-mode `observer-stanza` use
 `events_keys = ["*", "storage", "contract_calls"]`. Prod `node-server` stays
-`["*"]` until that image is the eval-hook binary.
+`["*"]` until that image is the eval-hook binary. Full-history feeder:
+[runbook/genesis-feeder.md](./runbook/genesis-feeder.md) — empty disk, never a
+Hiro snapshot, `vm_trace_max_bytes = 0`.
 
 Do **not** POST a 990k fixture height into an indexer that is following
 mainnet — integrity/tip-follower will treat 1..990000 as a hole. Use the test

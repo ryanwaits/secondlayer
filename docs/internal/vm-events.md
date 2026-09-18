@@ -461,3 +461,4 @@ VM Index and Streams pages include reorgs overlapping the resume height, even wh
 
 - This repo: `STRATEGY.md` (five nouns), `docs/internal/charter/index-vs-streams.md`, `docs/internal/charter/index-vs-subgraphs.md`, `packages/subgraphs/src/validate.ts` (`VALID_FILTER_TYPES`)
 - Operator compose for a collecting fork: `events_keys = ["*", "storage", "contract_calls"]` (`docker/oss/Config.toml`, `docker/stacks-node/Config.toml`, indexer-mode `observer-stanza`). Stock `stacks-core` panics on those keys — prod `docker/node-server/Config.toml` stays `["*"]` until that image is the eval-hook binary. Ingest assigns the second clock from `vm_events` array order; the node does not send `ordinal`.
+- Full history: empty-disk genesis feeder, never a Hiro snapshot. Runbook: [runbook/genesis-feeder.md](./runbook/genesis-feeder.md). Leave `vm_trace_max_bytes = 0`. A `truncated` marker is dropped writes, not a cursor.
