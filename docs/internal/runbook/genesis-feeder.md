@@ -28,6 +28,34 @@ A `truncated` marker is not a cursor. It means that tx's later traces were
 discarded. Indexer skips it (warn) and those writes are gone. Feeder must
 never emit one.
 
+## This deployment
+
+Dry-run / not started — disk gate. node-server `/` had 477G free of 2.0T
+(need ≥ 1.2T). Do not `mkdir` `/data/stacks-feeder` or
+`/opt/secondlayer/data/postgres-feeder` until that passes. Do not put the
+feeder on `/home` (bitcoind). Do not start compose.
+
+| | |
+|---|---|
+| Image | `ghcr.io/ryanwaits/stacks-core:441e595` (`sha256:a9a881bd4193ea431902e429f41a3605c95ef6a2bf7d0591031f702c097f9f11`) |
+| Feeder data | `/data/stacks-feeder` → `/stacks-blockchain/data` (empty; never `/data/stacks`) |
+| Scratch DB | `DATABASE_URL` name `secondlayer_feeder`; bind `/opt/secondlayer/data/postgres-feeder` |
+| Ports | feeder RPC `21443` / P2P `21444`; scratch indexer `3711` |
+| Observer | `app-server:3711` (65.21.135.94). Not `event-proxy:3700` |
+| Compose | `docker/feeder/` project `secondlayer-feeder`. Not in `deploy.sh` APP_SERVICES |
+
+```bash
+# app-server first (scratch), from docker/feeder — not docker/ (prod COMPOSE_FILE)
+docker compose -f docker-compose.scratch.yml up -d
+
+# then node-server, same directory
+docker compose up -d
+```
+
+Restrict host `:3711` to node-server `37.27.171.220` (DOCKER-USER; Docker
+bypasses UFW). Copy `BITCOIN_RPC_PASSWORD` from node-server `.env` into
+`docker/feeder/Config.toml` on the host; do not commit it.
+
 ## Bring-up
 
 1. Wipe the stacks working dir. Do not copy chainstate from Hiro or R2.

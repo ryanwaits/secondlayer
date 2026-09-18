@@ -1,0 +1,40 @@
+# Isolated eval-hook feeder stacks-node (node-server).
+#
+#   cd docker/feeder && docker compose up -d
+#
+# Project name is pinned. Do not merge with docker/node-server/docker-compose.yml
+# or the app-server hetzner overlay. Do not add this file to deploy.sh.
+#
+# Disk: bind /data/stacks-feeder (empty). Never /data/stacks. Never a Hiro tarball.
+# Observer: app-server:3711 (scratch). Never event-proxy or :3700.
+
+name: secondlayer-feeder
+
+services:
+  stacks-feeder:
+    image: ghcr.io/ryanwaits/stacks-core:441e595@sha256:a9a881bd4193ea431902e429f41a3605c95ef6a2bf7d0591031f702c097f9f11
+    volumes:
+      - ${STACKS_FEEDER_DATA_DIR:-/data/stacks-feeder}:/stacks-blockchain/data
+      - ./Config.toml:/stacks-blockchain/Config.toml:ro
+    ports:
+      - "21443:20443"
+      - "21444:20444"
+    extra_hosts:
+      - "app-server:${APP_SERVER_IP:-65.21.135.94}"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    networks:
+      - default
+      - bitcoin
+    deploy:
+      resources:
+        limits:
+          memory: 32G
+    restart: unless-stopped
+    command: ["stacks-node", "start", "--config", "/stacks-blockchain/Config.toml"]
+
+networks:
+  bitcoin:
+    name: secondlayer_default
+    external: true
