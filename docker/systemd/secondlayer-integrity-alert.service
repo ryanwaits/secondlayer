@@ -1,0 +1,11 @@
+[Unit]
+Description=Secondlayer live integrity (unfillable/unlinked) Slack page
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/opt/secondlayer/docker/.env
+ExecStart=/opt/secondlayer/docker/scripts/integrity-alert.sh
+StandardOutput=append:/var/log/secondlayer-integrity-alert.log
+StandardError=append:/var/log/secondlayer-integrity-alert.log

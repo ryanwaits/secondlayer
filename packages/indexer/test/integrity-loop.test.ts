@@ -32,7 +32,7 @@ describe.skipIf(!CAN_RUN)("Integrity health endpoint (Sprint 4)", () => {
 		expect(progress).toHaveProperty("inProgress");
 	});
 
-	test("status is 'healthy', 'degraded', 'gaps_detected', or 'gaps_unfillable'", async () => {
+	test("status is 'healthy', 'degraded', 'gaps_detected', 'gaps_unfillable', or 'chain_unlinked'", async () => {
 		const res = await fetch(`${INDEXER_URL}/health/integrity`);
 		const data = (await res.json()) as { status: string };
 		expect([
@@ -40,6 +40,7 @@ describe.skipIf(!CAN_RUN)("Integrity health endpoint (Sprint 4)", () => {
 			"degraded",
 			"gaps_detected",
 			"gaps_unfillable",
+			"chain_unlinked",
 		]).toContain(data.status);
 	});
 });

@@ -8,7 +8,6 @@ import {
 import type { Gap } from "@secondlayer/shared/db/queries/integrity";
 import { logger } from "@secondlayer/shared/logger";
 import { LocalClient } from "@secondlayer/shared/node/local-client";
-import { sendSlackAlert } from "./alerts.ts";
 import { pruneStagedForks } from "./fork-choice.ts";
 import { ingestNewBlock } from "./ingest.ts";
 import type { NewBlockPayload } from "./types/node-events.ts";
@@ -38,11 +37,6 @@ function gapKey(gap: Gap): string {
 }
 
 async function runIntegrityCheck() {
-	// Captured before this cycle touches state, so we can detect the
-	// unfillable -> resolved / resolved -> unfillable edge below and alert
-	// exactly once per transition instead of every 5-min cycle.
-	const wasUnfillable = integrityState.autoBackfillUnfillable.length > 0;
-
 	try {
 		const db = getSourceDb();
 		const gaps = await findGaps(db, 100);
@@ -77,11 +71,6 @@ async function runIntegrityCheck() {
 		if (gaps.length === 0) {
 			gapFirstSeen.clear();
 			integrityState.autoBackfillUnfillable = [];
-			if (wasUnfillable) {
-				await sendSlackAlert(
-					"✅ Indexer: previously-unfillable gap resolved — fully caught up, 0 gaps remaining",
-				);
-			}
 			logger.debug("Integrity check: no gaps");
 			return;
 		}
@@ -111,13 +100,6 @@ async function runIntegrityCheck() {
 		// Task 4.2: Auto-backfill if enabled
 		if (integrityState.autoBackfillEnabled) {
 			await autoBackfill(gaps);
-		}
-
-		if (!wasUnfillable && integrityState.autoBackfillUnfillable.length > 0) {
-			const heights = integrityState.autoBackfillUnfillable;
-			await sendSlackAlert(
-				`🚨 Indexer: ${heights.length} block(s) confirmed unfillable from local DB (${heights[0]}-${heights[heights.length - 1]}) — needs manual repair, see packages/indexer/REPAIR-GUIDE.md / bulk-backfill.ts`,
-			);
 		}
 	} catch (err) {
 		logger.error("Integrity check failed", { error: err });
