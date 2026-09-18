@@ -327,6 +327,16 @@ export function parseVmEvent(
 		return null;
 	}
 
+	if (type === "truncated") {
+		logger.warn("vm_event truncated by node cap, skipping (writes dropped)", {
+			type,
+			txid,
+			dropped: vmEvent.truncated?.dropped,
+			arrayIndex,
+		});
+		return null;
+	}
+
 	const storedType =
 		type in VM_NODE_TO_STORED_TYPE ? VM_NODE_TO_STORED_TYPE[type] : undefined;
 	if (!storedType) {

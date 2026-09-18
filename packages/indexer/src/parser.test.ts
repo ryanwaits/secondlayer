@@ -264,6 +264,21 @@ describe("parseVmEvent", () => {
 		).toBeNull();
 	});
 
+	test("skips truncated marker (cap dropped writes; not a stored type)", () => {
+		expect(
+			parseVmEvent(
+				{
+					txid: TX,
+					committed: true,
+					type: "truncated",
+					truncated: { dropped: 4 },
+				},
+				100,
+				2,
+			),
+		).toBeNull();
+	});
+
 	test("skips unknown types; uses array index not a node ordinal", () => {
 		expect(
 			parseVmEvent(

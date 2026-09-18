@@ -276,7 +276,8 @@ export type VmNodeEventType =
 	| "var_set_event"
 	| "map_set_event"
 	| "map_insert_event"
-	| "map_delete_event";
+	| "map_delete_event"
+	| "truncated";
 
 export interface VmContractCallEventData {
 	contract_identifier: string;
@@ -315,6 +316,8 @@ export interface VmTraceEvent {
 	map_set_event?: VmMapWriteEventData;
 	map_insert_event?: VmMapWriteEventData;
 	map_delete_event?: VmMapDeleteEventData;
+	/** Emergency cap only. Not a stored type; ingest skips it. */
+	truncated?: { dropped: number };
 }
 
 // Matured miner rewards
