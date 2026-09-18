@@ -336,7 +336,7 @@ export function createStreamsClient(
 				asset_identifier: params.assetIdentifier,
 				types: params.types,
 				not_types: params.notTypes,
-				// `vm` reads vm_event_index; omitted = Streams 1.0 (server default).
+				// `vm` reads ordinal; omitted = Streams 1.0 (server default).
 				clock: params.clock === "vm" ? "vm" : undefined,
 				filters: encodeFilters(params.filters),
 			})}`,

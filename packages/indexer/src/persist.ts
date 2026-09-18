@@ -66,10 +66,10 @@ async function archiveOrphanedHeight(
 
 	await sql`
 		INSERT INTO vm_events_archive (
-			id, tx_id, block_height, vm_event_index, type, data, created_at,
+			id, tx_id, block_height, ordinal, type, data, created_at,
 			orphaned_block_hash
 		)
-		SELECT id, tx_id, block_height, vm_event_index, type, data, created_at,
+		SELECT id, tx_id, block_height, ordinal, type, data, created_at,
 			${orphanedHash}
 		FROM vm_events WHERE block_height = ${blockHeight}
 	`.execute(tx);

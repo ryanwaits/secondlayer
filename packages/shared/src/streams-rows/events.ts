@@ -135,7 +135,7 @@ export type StreamsEvent =
 
 // ── clock=vm rows (opt-in node vm_events) ─────────────────────────────────
 // A parallel vocabulary, not part of `StreamsEvent`: `event_index` here is
-// `vm_event_index`, a second ordinal that never mixes with Streams 1.0.
+// `ordinal`, a second ordinal that never mixes with Streams 1.0.
 
 export type NestedContractCallPayload = {
 	contract_identifier: string;
@@ -172,7 +172,7 @@ type VmStreamsEventOf<T extends VmEventType, P> = StreamsEventBase & {
 
 /** A Streams `clock=vm` row. Same envelope as {@link StreamsEvent}; the
  *  discriminator is one of the five VM_EVENT_TYPES and `event_index` is
- *  `vm_event_index`. */
+ *  `ordinal`. */
 export type VmStreamsEvent =
 	| VmStreamsEventOf<"nested_contract_call", NestedContractCallPayload>
 	| VmStreamsEventOf<"var_set", VarSetPayload>

@@ -328,7 +328,7 @@ export type StreamsVmParamsShape<T extends VmMember = VmMember> = {
 // Reality being encoded:
 // - Index `events.*` and Streams cover the 11 DECODED_EVENT_TYPES
 //   (spelled `print`, projected from the canonical `print_event`).
-// - The five VM_EVENT_TYPES are a second clock (`vm_event_index`).
+// - The five VM_EVENT_TYPES are a second clock (`ordinal`).
 //   Index/Streams project them with clock=vm on Streams.
 // - `contract_call` reads live on the separate `/v1/index/contract-calls`
 //   endpoint → `toContractCallsParams()`, not `toIndexParams()`.

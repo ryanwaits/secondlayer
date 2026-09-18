@@ -6,11 +6,11 @@ import {
 import { reconstructVmEventsForReplay } from "./local-client.ts";
 
 describe("reconstructVmEventsForReplay", () => {
-	test("emits node-shaped traces with original ordinals", () => {
+	test("emits node-shaped traces sorted into array order", () => {
 		const reconstructed = reconstructVmEventsForReplay([
 			{
 				tx_id: "0xtx",
-				vm_event_index: 3,
+				ordinal: 3,
 				type: "map_set",
 				data: {
 					contract_identifier: "SP.store",
@@ -21,7 +21,7 @@ describe("reconstructVmEventsForReplay", () => {
 			},
 			{
 				tx_id: "0xtx",
-				vm_event_index: 0,
+				ordinal: 0,
 				type: "nested_contract_call",
 				data: {
 					contract_identifier: "SP.store",
@@ -32,17 +32,18 @@ describe("reconstructVmEventsForReplay", () => {
 				},
 			},
 		]);
-		expect(reconstructed.map((e) => [e.type, e.vm_event_index])).toEqual([
-			["map_set_event", 3],
-			["contract_call_event", 0],
+		expect(reconstructed.map((e) => e.type)).toEqual([
+			"contract_call_event",
+			"map_set_event",
 		]);
-		expect(reconstructed[0]?.map_set_event).toEqual({
+		expect(reconstructed.every((e) => !("ordinal" in e))).toBe(true);
+		expect(reconstructed[1]?.map_set_event).toEqual({
 			contract_identifier: "SP.store",
 			map_name: "store",
 			raw_key: "0x0a",
 			raw_value: "0x0b",
 		});
-		expect(reconstructed[1]?.contract_call_event).toMatchObject({
+		expect(reconstructed[0]?.contract_call_event).toMatchObject({
 			function_name: "set-value",
 		});
 	});
@@ -52,7 +53,7 @@ describe("reconstructVmEventsForReplay", () => {
 			reconstructVmEventsForReplay([
 				{
 					tx_id: "0xtx",
-					vm_event_index: 1,
+					ordinal: 1,
 					type: "not-a-vm-type",
 					data: {},
 				},

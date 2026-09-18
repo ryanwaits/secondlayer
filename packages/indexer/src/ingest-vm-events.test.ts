@@ -91,15 +91,15 @@ describe.skipIf(!HAS_DB)("ingest vm_events", () => {
 			.execute();
 		const vm = await db
 			.selectFrom("vm_events")
-			.select(["vm_event_index", "type"])
+			.select(["ordinal", "type"])
 			.where("block_height", "=", H)
-			.orderBy("vm_event_index", "asc")
+			.orderBy("ordinal", "asc")
 			.execute();
 
 		expect(classic).toEqual([{ event_index: 0, type: "smart_contract_event" }]);
 		expect(vm).toEqual([
-			{ vm_event_index: 0, type: "nested_contract_call" },
-			{ vm_event_index: 1, type: "map_set" },
+			{ ordinal: 0, type: "nested_contract_call" },
+			{ ordinal: 1, type: "map_set" },
 		]);
 	});
 
@@ -172,22 +172,22 @@ describe.skipIf(!HAS_DB)("ingest vm_events", () => {
 		).toHaveLength(0);
 	});
 
-	test("all five types persist; index gap kept; sender null", async () => {
+	test("all five types persist; array order is dense; sender null", async () => {
 		if (!db) throw new Error("missing db");
 		const payload = await loadFixture("new_block.vm_events.all_types.json");
 		await ingestNewBlock(payload, { network: NETWORK });
 		const vm = await db
 			.selectFrom("vm_events")
-			.select(["vm_event_index", "type", "data"])
+			.select(["ordinal", "type", "data"])
 			.where("block_height", "=", H)
-			.orderBy("vm_event_index", "asc")
+			.orderBy("ordinal", "asc")
 			.execute();
-		expect(vm.map((r) => [Number(r.vm_event_index), r.type])).toEqual([
+		expect(vm.map((r) => [Number(r.ordinal), r.type])).toEqual([
 			[0, "nested_contract_call"],
-			[2, "var_set"],
-			[3, "map_insert"],
-			[4, "map_set"],
-			[5, "map_delete"],
+			[1, "var_set"],
+			[2, "map_insert"],
+			[3, "map_set"],
+			[4, "map_delete"],
 		]);
 		expect((vm[0]?.data as { sender: string | null }).sender).toBeNull();
 	});

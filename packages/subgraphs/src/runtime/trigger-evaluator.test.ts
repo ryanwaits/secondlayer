@@ -266,7 +266,7 @@ describe("emitChainOutbox (DB)", () => {
 	});
 
 	it("a vm trigger and a classic trigger at the same tx ordinal are two deliveries", async () => {
-		// print at event_index 0 and map_set at vm_event_index 0 in one tx: two
+		// print at event_index 0 and map_set at ordinal 0 in one tx: two
 		// clocks. Without a clock namespace the second row collides on
 		// (webhook_id, dedup_key) and is silently dropped.
 		const sub = await makeChainSub([

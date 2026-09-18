@@ -108,13 +108,13 @@ export interface EventsArchiveTable {
 	archived_at: Generated<Date>;
 }
 
-// Opt-in VM traces (migration 0130). Second clock: `vm_event_index`, never
-// mixed into `events.event_index`. Stored `type` is the Secondlayer name.
+// Opt-in VM traces (migration 0131). Second clock: `ordinal` (array position
+// in `/new_block.vm_events`). Never mixed into `events.event_index`.
 export interface VmEventsTable {
 	id: Generated<string>;
 	tx_id: string;
 	block_height: number;
-	vm_event_index: number;
+	ordinal: number;
 	type: string;
 	data: unknown;
 	created_at: Generated<Date>;
@@ -125,7 +125,7 @@ export interface VmEventsArchiveTable {
 	id: string;
 	tx_id: string;
 	block_height: number;
-	vm_event_index: number;
+	ordinal: number;
 	type: string;
 	data: unknown;
 	created_at: Date;

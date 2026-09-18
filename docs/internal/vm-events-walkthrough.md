@@ -39,7 +39,7 @@ Read
     → reorg overlap by height; resume includes the checkpoint even if empty
 
   Streams GET /v1/streams/events?clock=vm&types=map_set
-    → readCanonicalVmEvents (vm_event_index as cursor second component)
+    → readCanonicalVmEvents (ordinal as cursor second component)
     → inverted range (cursor past to_height) → next_cursor null
     → empty-but-valid range → toHeight:2147483647 sentinel
 
@@ -54,7 +54,7 @@ Read
 
 Classic rows live in `events` / `decoded_events`. Cursor is `height:event_index`.
 
-VM rows live in `vm_events`. Cursor is `height:vm_event_index`. Same wire
+VM rows live in `vm_events`. Cursor is `height:ordinal`. Same wire
 envelope, different ordinal. A page never mixes them.
 
 This is important — `nested_contract_call` is **not** Index `contract_call`.
@@ -78,10 +78,10 @@ export const VM_NODE_TO_STORED_TYPE = {
 
 ## Parse
 
-`packages/indexer/src/parser.ts` `parseVmEvent`. Skip unknown types, skip
-missing `vm_event_index`, skip a missing body-under-type-key. We do **not**
-fall back to the envelope — storing `{txid, type, committed}` as `data` would
-yield rows with no `contract_identifier`.
+`packages/indexer/src/parser.ts` `parseVmEvent`. Skip unknown types, skip a
+missing body-under-type-key. Array position is the ordinal (derived on
+insert). We do **not** fall back to the envelope — storing `{txid, type,
+committed}` as `data` would yield rows with no `contract_identifier`.
 
 `ingest.ts` treats a missing field as empty, not an error:
 
@@ -119,7 +119,7 @@ can lag.
 
 Streams: `clock=vm` plus `types` + `contract_id`. No `sender` / `recipient` /
 `asset_identifier` / labelled `filters` — those 400 rather than silently
-widen. Cursor second component is `vm_event_index`.
+widen. Cursor second component is `ordinal`.
 
 SDK: `events.list` is the VM read. `consume` / `stream` stay classic (no
 `clock`). Classic `on.ftTransfer().toStreamsParams()` has no `clock` and no VM
@@ -140,7 +140,7 @@ comparable.
 ## Reorgs
 
 `GET /v1/streams/reorgs` `to` is a **classic** ordinal. VM consumers rewind by
-`fork_point_height`, never by comparing that ordinal to `vm_event_index`.
+`fork_point_height`, never by comparing that ordinal to `ordinal`.
 
 A VM Index/Streams resume reports reorgs overlapping the checkpoint height even
 when the replacement has no matching event, the next match is later, or the
@@ -150,10 +150,14 @@ source tip rewound below the cursor.
 
 ## How to test it
 
-Local compose is **postgres only** (`127.0.0.1:5440`). No stacks-node, no
-collecting observer. `docker/*/Config.toml` is still `events_keys = ["*"]`. You
-will not see live `vm_events` from a node until that stanza becomes
-`["*", "storage", "contract_calls"]`.
+Local compose is **postgres only** (`127.0.0.1:5440`). OSS/stacks-node compose
+and indexer-mode `observer-stanza` use
+`events_keys = ["*", "storage", "contract_calls"]`. Prod `node-server` stays
+`["*"]` until that image is the eval-hook binary.
+
+Do **not** POST a 990k fixture height into an indexer that is following
+mainnet — integrity/tip-follower will treat 1..990000 as a hole. Use the test
+DB + `bun test`, an empty migrated DB, or mocknet from height 1.
 
 Do **not** POST a 990k fixture height into an indexer that is following
 mainnet — integrity/tip-follower will treat 1..990000 as a hole. Use the test
@@ -182,9 +186,9 @@ This is the local write path. Fixtures in
 | file | what |
 |---|---|
 | `new_block.star.json` | `"*"` body, **no** `vm_events` field |
-| `new_block.vm_events.json` | nested call + map_set on `vm_event_index` 0, 1 |
+| `new_block.vm_events.json` | nested call + map_set on `ordinal` 0, 1 |
 | `new_block.vm_events.empty.json` | `"vm_events": []` |
-| `new_block.vm_events.all_types.json` | all five types; index 1 is a gap |
+| `new_block.vm_events.all_types.json` | all five types; dense ordinal 0–4 |
 
 ```bash
 DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5440/secondlayer \
@@ -201,8 +205,8 @@ classic `smart_contract_event` in `events`.
 After a test (or skip cleanup by commenting `afterAll` once):
 
 ```sql
-SELECT vm_event_index, type, data->>'contract_identifier'
-FROM vm_events WHERE block_height = 990201 ORDER BY vm_event_index;
+SELECT ordinal, type, data->>'contract_identifier'
+FROM vm_events WHERE block_height = 990201 ORDER BY ordinal;
 
 SELECT event_index, type FROM events WHERE block_height = 990201;
 ```
@@ -278,7 +282,34 @@ curl -sS 'http://127.0.0.1:3800/v1/streams/events?clock=vm&types=map_set,nested_
 
 Classic `?types=print` must not return the map_set row.
 
-### 9. SDK type path
+### 9. Live mocknet (eval-hook `stacks-node`)
+
+From `stacks-core` on `feat/vm-eval-hook-trace`:
+
+```bash
+# rustc 1.98 (repo toolchain)
+cargo build -p stacks-node --release
+```
+
+Secondlayer indexer first, then the node (observer blocks on 3700):
+
+```bash
+# secondlayer
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5440/secondlayer \
+  TIP_FOLLOWER_ENABLED=false \
+  bun run --filter @secondlayer/indexer start
+
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5440/secondlayer \
+  DEV_MODE=true bun run --filter @secondlayer/api dev
+
+# stacks-core
+rm -rf /tmp/stacks-mocknet-eval-hook
+./target/release/stacks-node start --config=sample/conf/mocknet-eval-hook.toml
+```
+
+Expect indexer logs `vmEvents` > 0 on contract publish / `contract-call?`. Then the same curls as §8. `"*"`-only observer must omit the `vm_events` field.
+
+### 10. SDK type path
 
 Compile-time: `packages/sdk/src/streams-filters.type-test.ts`.
 

@@ -51,27 +51,30 @@ interface ReplayEventPayload {
 }
 
 /** Node-shaped `/new_block.vm_events[]` row. Body lives under the node type
- *  key so `parseVmEvent` can re-ingest it on fork restoration. */
+ *  key so `parseVmEvent` can re-ingest it on fork restoration. Array order
+ *  is the index (sorted by stored `ordinal`). */
 export interface ReplayVmEventPayload {
 	txid: string;
-	vm_event_index: number;
 	committed: boolean;
 	type: VmNodeEventType;
 	[key: string]: unknown;
 }
 
-/** Rebuild node-shaped vm traces from stored rows. Original `vm_event_index`
- *  is preserved — the second clock must not be rewritten on flip-back. */
+/** Rebuild node-shaped vm traces from stored rows. Sorted so re-ingest
+ *  array order matches the stored second clock. */
 export function reconstructVmEventsForReplay(
 	rows: ReadonlyArray<{
 		tx_id: string;
-		vm_event_index: number | string;
+		ordinal: number | string;
 		type: string;
 		data: unknown;
 	}>,
 ): ReplayVmEventPayload[] {
+	const sorted = [...rows].sort(
+		(a, b) => Number(a.ordinal) - Number(b.ordinal),
+	);
 	const out: ReplayVmEventPayload[] = [];
-	for (const row of rows) {
+	for (const row of sorted) {
 		const nodeType =
 			row.type in VM_STORED_TO_NODE_TYPE
 				? VM_STORED_TO_NODE_TYPE[row.type as VmEventType]
@@ -79,7 +82,6 @@ export function reconstructVmEventsForReplay(
 		if (!nodeType) continue;
 		out.push({
 			txid: row.tx_id,
-			vm_event_index: Number(row.vm_event_index),
 			committed: true,
 			type: nodeType,
 			[nodeType]: row.data,
@@ -122,9 +124,9 @@ export class LocalClient {
 
 		const vmRows = await db
 			.selectFrom("vm_events")
-			.select(["tx_id", "vm_event_index", "type", "data"])
+			.select(["tx_id", "ordinal", "type", "data"])
 			.where("block_height", "=", height)
-			.orderBy("vm_event_index", "asc")
+			.orderBy("ordinal", "asc")
 			.execute();
 		const vm_events = reconstructVmEventsForReplay(vmRows);
 

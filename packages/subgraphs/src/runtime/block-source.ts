@@ -116,7 +116,7 @@ const EVENT_FILTER_TO_INDEX_TYPE: Record<string, string> = {
 
 // Tx-level source types — matched against /v1/index/transactions, not events.
 const TX_SOURCE_TYPES = new Set(["contract_call", "contract_deploy"]);
-// Second clock (vm_event_index). Never part of a tx's classic event set: a
+// Second clock (ordinal). Never part of a tx's classic event set: a
 // contract_call/contract_deploy source fetches every CLASSIC type, and vm
 // types are fetched only when a vm source names them.
 export const VM_INDEX_EVENT_TYPES: ReadonlySet<string> = new Set([

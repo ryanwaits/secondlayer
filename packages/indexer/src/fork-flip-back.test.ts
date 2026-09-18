@@ -155,7 +155,6 @@ describe.skipIf(!HAS_DB)("fork flip-back", () => {
 			hash: string,
 			parent: string,
 			txId: string,
-			vmIndex: number,
 			mapName: string,
 		): NewBlockPayload {
 			return {
@@ -171,7 +170,6 @@ describe.skipIf(!HAS_DB)("fork flip-back", () => {
 				vm_events: [
 					{
 						txid: txId,
-						vm_event_index: vmIndex,
 						committed: true,
 						type: "map_set_event",
 						map_set_event: {
@@ -187,19 +185,19 @@ describe.skipIf(!HAS_DB)("fork flip-back", () => {
 
 		await ingestNewBlock(payload(H - 1, "0xbase", "0xancestor"));
 		await ingestNewBlock(
-			withVm(H, "0xoriginal", "0xbase", "0xtx-orig", 3, "orig-map"),
+			withVm(H, "0xoriginal", "0xbase", "0xtx-orig", "orig-map"),
 		);
 		await ingestNewBlock(
-			withVm(H, "0xcontender", "0xbase", "0xtx-cont", 0, "cont-map"),
+			withVm(H, "0xcontender", "0xbase", "0xtx-cont", "cont-map"),
 		);
 		await ingestNewBlock(payload(H + 1, "0xchild-of-contender", "0xcontender"));
 
 		const duringB = await db
 			.selectFrom("vm_events")
-			.select(["vm_event_index", "type", "data"])
+			.select(["ordinal", "type", "data"])
 			.where("block_height", "=", H)
 			.execute();
-		expect(duringB.map((r) => Number(r.vm_event_index))).toEqual([0]);
+		expect(duringB.map((r) => Number(r.ordinal))).toEqual([0]);
 		expect((duringB[0]?.data as { map_name: string }).map_name).toBe(
 			"cont-map",
 		);
@@ -210,11 +208,11 @@ describe.skipIf(!HAS_DB)("fork flip-back", () => {
 		expect((await canonicalRow(H))?.hash).toBe("0xoriginal");
 		const restored = await db
 			.selectFrom("vm_events")
-			.select(["vm_event_index", "data"])
+			.select(["ordinal", "data"])
 			.where("block_height", "=", H)
-			.orderBy("vm_event_index", "asc")
+			.orderBy("ordinal", "asc")
 			.execute();
-		expect(restored.map((r) => Number(r.vm_event_index))).toEqual([3]);
+		expect(restored.map((r) => Number(r.ordinal))).toEqual([0]);
 		expect((restored[0]?.data as { map_name: string }).map_name).toBe(
 			"orig-map",
 		);

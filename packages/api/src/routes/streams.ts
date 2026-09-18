@@ -89,7 +89,7 @@ const STREAMS_EVENTS_FILTER_SPEC = [
 	{
 		name: "clock",
 		type: "classic | vm",
-		description: "classic is Streams 1.0 (event_index). vm is vm_event_index.",
+		description: "classic is Streams 1.0 (event_index). vm is ordinal.",
 	},
 	{
 		name: "not_types",

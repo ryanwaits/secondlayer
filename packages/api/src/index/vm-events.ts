@@ -185,7 +185,7 @@ function normalizeVmRow(
 	return event;
 }
 
-/** Index read over vm_events. Cursor second component is vm_event_index. */
+/** Index read over vm_events. Cursor second component is ordinal. */
 export async function readVmIndexEvents(
 	params: ReadIndexEventsParams,
 ): Promise<ReadIndexEventsResult> {
@@ -215,7 +215,7 @@ export async function readVmIndexEvents(
 
 	if (params.after) {
 		predicates.push(
-			sql`(vm.block_height, vm.vm_event_index) > (${params.after.block_height}, ${params.after.event_index})`,
+			sql`(vm.block_height, vm.ordinal) > (${params.after.block_height}, ${params.after.event_index})`,
 		);
 	}
 
@@ -274,9 +274,9 @@ export async function readVmIndexEvents(
 
 	const { rows } = await sql<VmIndexRow>`
 		SELECT
-			vm.block_height::text || ':' || vm.vm_event_index::text AS cursor,
+			vm.block_height::text || ':' || vm.ordinal::text AS cursor,
 			vm.block_height,
-			vm.vm_event_index AS event_index,
+			vm.ordinal AS event_index,
 			vm.type AS event_type,
 			vm.tx_id,
 			COALESCE(t.tx_index, 0) AS tx_index,
@@ -288,7 +288,7 @@ export async function readVmIndexEvents(
 		LEFT JOIN transactions t
 			ON t.tx_id = vm.tx_id
 		WHERE ${sql.join(predicates, sql` AND `)}
-		ORDER BY vm.block_height ASC, vm.vm_event_index ASC
+		ORDER BY vm.block_height ASC, vm.ordinal ASC
 		LIMIT ${params.limit + 1}
 	`.execute(db);
 

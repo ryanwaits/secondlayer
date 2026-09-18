@@ -118,7 +118,7 @@ describe("observer payload contract", () => {
 		expect(payload.vm_events).toEqual([]);
 	});
 
-	test("all five node types, sender null, index gap", async () => {
+	test("all five node types, sender null, array order", async () => {
 		const { payload } = await loadFixture("new_block.vm_events.all_types.json");
 		expect(payload.vm_events?.map((e) => e.type)).toEqual([
 			"contract_call_event",
@@ -127,16 +127,14 @@ describe("observer payload contract", () => {
 			"map_set_event",
 			"map_delete_event",
 		]);
-		expect(payload.vm_events?.map((e) => e.vm_event_index)).toEqual([
-			0, 2, 3, 4, 5,
-		]);
 		expect(payload.vm_events?.[0]?.contract_call_event?.sender).toBeNull();
 		for (const trace of payload.vm_events ?? []) {
 			expect("event_index" in trace).toBe(false);
+			expect("vm_event_index" in trace).toBe(false);
 		}
 	});
 
-	test("opt-in body has vm_events with vm_event_index, no event_index on traces", async () => {
+	test("opt-in body has vm_events with no event_index on traces", async () => {
 		const { payload } = await loadFixture("new_block.vm_events.json");
 		expect(payload.vm_events).toHaveLength(2);
 		expect(payload.events[0]?.event_index).toBe(0);
@@ -145,8 +143,8 @@ describe("observer payload contract", () => {
 			"map_set_event",
 		]);
 		for (const trace of payload.vm_events ?? []) {
-			expect(trace.vm_event_index).toBeGreaterThanOrEqual(0);
 			expect("event_index" in trace).toBe(false);
+			expect("vm_event_index" in trace).toBe(false);
 		}
 	});
 });

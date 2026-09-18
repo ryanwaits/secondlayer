@@ -21,7 +21,7 @@ export type DecodedEventType = (typeof DECODED_EVENT_TYPES)[number];
 
 /** Opt-in node vm_events, stored names. Parallel to DECODED_EVENT_TYPES — not
  *  the decoded_events / Streams 1.0 vocab. Cursor second component is
- *  vm_event_index. Inner calls are never `contract_call`. */
+ *  ordinal. Inner calls are never `contract_call`. */
 export const VM_EVENT_TYPES = [
 	"nested_contract_call",
 	"var_set",

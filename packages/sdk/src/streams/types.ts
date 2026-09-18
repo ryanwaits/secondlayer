@@ -145,7 +145,7 @@ export type StreamsEventsListParams = {
 	cursor?: string | null;
 	fromHeight?: number;
 	toHeight?: number;
-	/** `vm` reads vm_event_index. Omit for Streams 1.0. */
+	/** `vm` reads ordinal. Omit for Streams 1.0. */
 	clock?: "classic" | "vm";
 	types?: readonly (StreamsEventType | VmEventType)[];
 	/** Event types to exclude (applied after `types`). */
@@ -584,7 +584,7 @@ export type StreamsClient = {
 	consume(params?: StreamsConsumeParams): AsyncIterableIterator<StreamsBatch>;
 	events: {
 		/** `clock: "vm"` pages carry vm rows only (a parallel vocabulary,
-		 *  `event_index` = `vm_event_index`). Never `StreamsEvent`. */
+		 *  `event_index` = `ordinal`). Never `StreamsEvent`. */
 		list(
 			params: StreamsEventsListParams & { clock: "vm" },
 		): Promise<StreamsEventsEnvelope<VmStreamsEvent>>;

@@ -20,7 +20,7 @@ bootstrap_node = "02196f005965cebe6ddc3901b7b1cc1aa7a88f305bb8c5893456b8f9a60592
 # risk, set disable_retries = false and raise timeout_ms.
 [[events_observer]]
 endpoint = "indexer:3700"
-events_keys = ["*"]
+events_keys = ["*", "storage", "contract_calls"]
 timeout_ms = 500
 disable_retries = true
 

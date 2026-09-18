@@ -237,7 +237,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					// must not read as "mainnet inner-call history exists".
 					vm_event_types: {
 						types: VM_INDEX_EVENT_TYPES,
-						note: "Present only from the height this instance's node subscribed to the storage / contract_calls observer keys. No earlier history. Cursor second component is vm_event_index.",
+						note: "Present only from the height this instance's node subscribed to the storage / contract_calls observer keys. No earlier history. Cursor second component is ordinal.",
 					},
 					filters: EVENTS_ALLOWED,
 					// Allowed filters vary by event_type — this map is the precise,

@@ -31,7 +31,6 @@
 	"vm_events": [
 		{
 			"txid": "0x03346e2e50cdd34c253d960bde16d397c27f9c47fa47b435510a50d9f5b14378",
-			"vm_event_index": 0,
 			"committed": true,
 			"type": "contract_call_event",
 			"contract_call_event": {
@@ -45,7 +44,6 @@
 		},
 		{
 			"txid": "0x03346e2e50cdd34c253d960bde16d397c27f9c47fa47b435510a50d9f5b14378",
-			"vm_event_index": 1,
 			"committed": true,
 			"type": "map_set_event",
 			"map_set_event": {

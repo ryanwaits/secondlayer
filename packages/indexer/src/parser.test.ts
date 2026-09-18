@@ -160,10 +160,9 @@ describe("parseVmEvent", () => {
 		expect(VM_NODE_TO_STORED_TYPE.map_delete_event).toBe("map_delete");
 	});
 
-	test("parses nested contract_call_event onto vm_event_index", () => {
+	test("parses nested contract_call_event onto array index", () => {
 		const evt: VmTraceEvent = {
 			txid: TX,
-			vm_event_index: 0,
 			committed: true,
 			type: "contract_call_event",
 			contract_call_event: {
@@ -175,11 +174,11 @@ describe("parseVmEvent", () => {
 				raw_result: "0x0703",
 			},
 		};
-		const parsed = parseVmEvent(evt, 100);
+		const parsed = parseVmEvent(evt, 100, 0);
 		expect(parsed).toEqual({
 			tx_id: TX,
 			block_height: 100,
-			vm_event_index: 0,
+			ordinal: 0,
 			type: "nested_contract_call",
 			data: evt.contract_call_event,
 		});
@@ -191,7 +190,6 @@ describe("parseVmEvent", () => {
 			parseVmEvent(
 				{
 					txid: TX,
-					vm_event_index: 1,
 					type: "map_set_event",
 					map_set_event: {
 						contract_identifier: "ST.store",
@@ -201,13 +199,13 @@ describe("parseVmEvent", () => {
 					},
 				},
 				100,
+				1,
 			)?.type,
 		).toBe("map_set");
 		expect(
 			parseVmEvent(
 				{
 					txid: TX,
-					vm_event_index: 2,
 					type: "map_insert_event",
 					map_insert_event: {
 						contract_identifier: "ST.store",
@@ -217,13 +215,13 @@ describe("parseVmEvent", () => {
 					},
 				},
 				100,
+				2,
 			)?.type,
 		).toBe("map_insert");
 		expect(
 			parseVmEvent(
 				{
 					txid: TX,
-					vm_event_index: 3,
 					type: "map_delete_event",
 					map_delete_event: {
 						contract_identifier: "ST.store",
@@ -232,13 +230,13 @@ describe("parseVmEvent", () => {
 					},
 				},
 				100,
+				3,
 			)?.type,
 		).toBe("map_delete");
 		expect(
 			parseVmEvent(
 				{
 					txid: TX,
-					vm_event_index: 4,
 					type: "var_set_event",
 					var_set_event: {
 						contract_identifier: "ST.store",
@@ -247,52 +245,50 @@ describe("parseVmEvent", () => {
 					},
 				},
 				100,
+				4,
 			)?.type,
 		).toBe("var_set");
 	});
 
 	test("skips a trace whose typed body is missing instead of storing the envelope", () => {
-		// `data` must be the body under the type key. Falling back to the
-		// envelope would persist {txid, vm_event_index, committed, type} and
-		// surface as an Index row with no contract_identifier.
 		expect(
 			parseVmEvent(
 				{
 					txid: TX,
-					vm_event_index: 0,
 					committed: true,
 					type: "map_set_event",
 				} as unknown as VmTraceEvent,
 				100,
+				0,
 			),
 		).toBeNull();
 	});
 
-	test("skips unknown types and missing ordinal", () => {
+	test("skips unknown types; uses array index not a node ordinal", () => {
 		expect(
 			parseVmEvent(
 				{
 					txid: TX,
-					vm_event_index: 0,
 					type: "not_a_vm_event",
 				} as unknown as VmTraceEvent,
 				100,
+				0,
 			),
 		).toBeNull();
-		expect(
-			parseVmEvent(
-				{
-					txid: TX,
-					type: "map_set_event",
-					map_set_event: {
-						contract_identifier: "ST.store",
-						map_name: "store",
-						raw_key: "0x0a",
-						raw_value: "0x0b",
-					},
-				} as unknown as VmTraceEvent,
-				100,
-			),
-		).toBeNull();
+		const parsed = parseVmEvent(
+			{
+				txid: TX,
+				type: "map_set_event",
+				map_set_event: {
+					contract_identifier: "ST.store",
+					map_name: "store",
+					raw_key: "0x0a",
+					raw_value: "0x0b",
+				},
+			},
+			100,
+			7,
+		);
+		expect(parsed?.ordinal).toBe(7);
 	});
 });

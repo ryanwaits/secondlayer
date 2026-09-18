@@ -24,7 +24,7 @@ export type EventRecord = {
 	id: string;
 	tx_id: string;
 	type: string;
-	/** Classic `event_index`, or `vm_event_index` when `clock === "vm"`. */
+	/** Classic `event_index`, or `ordinal` when `clock === "vm"`. */
 	event_index: number;
 	data: unknown;
 	/** Set on opt-in `vm_events` rows. Two clocks never sort or dedupe together. */

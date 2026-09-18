@@ -89,7 +89,6 @@ type ObserverNewBlockPayload = {
 
 type ObserverVmTrace = {
 	txid?: string;
-	vm_event_index?: number;
 	committed?: boolean;
 	type?: string;
 	[key: string]: unknown;
@@ -189,7 +188,7 @@ export function mapNewBlockPayloadToBlockData(payload: unknown): BlockData {
 	// Opt-in `vm_events` (present only when the observer subscribed to
 	// `storage` / `contract_calls`). Node type → stored name; own clock.
 	const vmEvents: RuntimeEvent[] = [];
-	for (const trace of p.vm_events ?? []) {
+	for (const [i, trace] of (p.vm_events ?? []).entries()) {
 		const nodeType = trace.type;
 		if (typeof nodeType !== "string" || !(nodeType in VM_NODE_TO_STORED_TYPE))
 			continue;
@@ -197,7 +196,7 @@ export function mapNewBlockPayloadToBlockData(payload: unknown): BlockData {
 		const body = trace[nodeType];
 		if (!body || typeof body !== "object") continue;
 		const txId = trace.txid ?? "";
-		const vmIndex = trace.vm_event_index ?? 0;
+		const vmIndex = i;
 		vmEvents.push({
 			id: vmEventId(txId, vmIndex),
 			tx_id: txId,

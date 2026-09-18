@@ -7,7 +7,7 @@
 "@secondlayer/sdk": patch
 ---
 
-Persist opt-in node `vm_events` on `vm_event_index`. Index/Streams/subgraphs/webhooks take the five stored types. Classic Streams 1.0 cursor unchanged. Inner calls are `nested_contract_call`.
+Persist opt-in node `vm_events`. Index/Streams/subgraphs/webhooks take the five stored types. The node array order is the second clock (`ordinal` column is derived on insert). Classic Streams 1.0 cursor unchanged. Inner calls are `nested_contract_call`.
 
 Clock isolation: Streams cache keys include the resolved clock; VM Index reads clamp to the source tip; empty VM scans return the bounded empty-range sentinel; VM pages overlap reorgs by height; fork flip-back reconstructs node-shaped vm_events. Typed subgraph VM payloads preserve raw hex. SDK infers VM row types and forwards `txId`. OpenAPI declares the new Index filters.
 

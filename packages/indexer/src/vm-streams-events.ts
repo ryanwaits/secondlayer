@@ -21,14 +21,14 @@ type VmRow = {
 	burn_block_height: string | number;
 	tx_id: string;
 	tx_index: string | number;
-	vm_event_index: string | number;
+	ordinal: string | number;
 	event_type: VmEventType;
 	contract_id: string | null;
 	payload: unknown;
 	ts: Date | string | null;
 };
 
-/** Streams clock=vm: filter-invariant over vm_events.vm_event_index. */
+/** Streams clock=vm: filter-invariant over vm_events.ordinal. */
 export async function readCanonicalVmEvents(
 	params: ReadCanonicalStreamsEventsParams,
 ): Promise<ReadCanonicalStreamsEventsResult> {
@@ -56,7 +56,7 @@ export async function readCanonicalVmEvents(
 	}
 	if (params.after) {
 		predicates.push(
-			sql`(vm.block_height, vm.vm_event_index) > (${params.after.block_height}, ${params.after.event_index})`,
+			sql`(vm.block_height, vm.ordinal) > (${params.after.block_height}, ${params.after.event_index})`,
 		);
 	}
 	if (params.contractId) {
@@ -78,7 +78,7 @@ export async function readCanonicalVmEvents(
 			b.burn_block_height,
 			vm.tx_id,
 			COALESCE(t.tx_index, 0) AS tx_index,
-			vm.vm_event_index,
+			vm.ordinal,
 			vm.type AS event_type,
 			vm.data->>'contract_identifier' AS contract_id,
 			vm.data AS payload,
@@ -87,14 +87,14 @@ export async function readCanonicalVmEvents(
 		INNER JOIN blocks b ON b.height = vm.block_height
 		LEFT JOIN transactions t ON t.tx_id = vm.tx_id
 		WHERE ${sql.join(predicates, sql` AND `)}
-		ORDER BY vm.block_height ASC, vm.vm_event_index ASC
+		ORDER BY vm.block_height ASC, vm.ordinal ASC
 		LIMIT ${params.limit + 1}
 	`.execute(db);
 
 	const page = rows.slice(0, params.limit);
 	const last = page.at(-1);
 	const events: VmStreamsEvent[] = page.map((row) => {
-		const eventIndex = Number(row.vm_event_index);
+		const eventIndex = Number(row.ordinal);
 		const height = Number(row.block_height);
 		return {
 			cursor: encodeStreamsCursor({
@@ -123,7 +123,7 @@ export async function readCanonicalVmEvents(
 		next_cursor: last
 			? encodeStreamsCursor({
 					block_height: Number(last.block_height),
-					event_index: Number(last.vm_event_index),
+					event_index: Number(last.ordinal),
 				})
 			: encodeStreamsCursor({
 					block_height: params.toHeight,

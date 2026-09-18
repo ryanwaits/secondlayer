@@ -185,7 +185,7 @@ export function reconstructEvent(e: IndexEventRow): Event {
 		case "map_set":
 		case "map_insert":
 		case "map_delete":
-			// Second clock: `event_index` here is vm_event_index. Distinct id +
+			// Second clock: `event_index` here is ordinal. Distinct id +
 			// `clock` so it never dedupes or sorts against a classic row.
 			return {
 				...base,

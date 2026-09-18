@@ -32,7 +32,7 @@ export type StreamsEventsReader = (
 ) => Promise<ReadCanonicalStreamsEventsResult>;
 
 export type StreamsEventsQuery = {
-	/** `vm` reads vm_events / vm_event_index. Default classic is Streams 1.0. */
+	/** `vm` reads vm_events / ordinal. Default classic is Streams 1.0. */
 	clock: "classic" | "vm";
 	/**
 	 * Explicit cursor wins over the server default window. `from_cursor=0:0`
@@ -434,7 +434,7 @@ export async function getStreamsEventsResponse(opts: {
 	});
 	const firstEvent = result.events.at(0);
 	const lastEvent = result.events.at(-1);
-	// VM pages live on vm_event_index. Classic reorg bounds are event_index.
+	// VM pages live on ordinal. Classic reorg bounds are event_index.
 	// Include the resume height even when the replacement has no matches.
 	const reorgFrom = byHeight ? (parsed.cursor ?? firstEvent) : firstEvent;
 	const reorgTo =

@@ -780,7 +780,7 @@ export async function getIndexEventsResponse(opts: {
 		fields: parsed.fields,
 	});
 	// Prefer the raw span (survives a projection that dropped event_index).
-	// VM pages key on vm_event_index — overlap by height so a page at H:5
+	// VM pages key on ordinal — overlap by height so a page at H:5
 	// still surfaces a classic reorg that ended at H:0.
 	let reorgSpan = result.span
 		? [result.span.from, result.span.to]

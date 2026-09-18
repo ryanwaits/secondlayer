@@ -188,7 +188,7 @@ export function parseIndexBaseQuery<
  *  Empty page → no reorg lookup.
  *
  *  `overlap: "height"` ignores event_index (int4-max on the page's last
- *  height). VM pages key on `vm_event_index`, a second clock; comparing
+ *  height). VM pages key on `ordinal`, a second clock; comparing
  *  those ordinals to classic reorg bounds hides a reorg that ended at
  *  classic `H:0` from a VM page at `H:5`. */
 export async function readReorgsForEvents(

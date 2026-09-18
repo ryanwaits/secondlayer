@@ -319,14 +319,11 @@ export function parseEvent(
 export function parseVmEvent(
 	vmEvent: VmTraceEvent,
 	blockHeight: number,
+	arrayIndex: number,
 ): InsertVmEvent | null {
-	const { txid, vm_event_index, type } = vmEvent;
+	const { txid, type } = vmEvent;
 	if (!txid || !type) return null;
-	if (
-		typeof vm_event_index !== "number" ||
-		!Number.isInteger(vm_event_index) ||
-		vm_event_index < 0
-	) {
+	if (!Number.isInteger(arrayIndex) || arrayIndex < 0) {
 		return null;
 	}
 
@@ -338,14 +335,14 @@ export function parseVmEvent(
 	}
 
 	// The body lives under a key named after the node type. No fallback to the
-	// envelope: storing `{txid, vm_event_index, committed, type}` as `data`
-	// would surface as a row with no contract_identifier.
+	// envelope: storing `{txid, committed, type}` as `data` would surface as a
+	// row with no contract_identifier.
 	const eventData = (vmEvent as unknown as Record<string, unknown>)[type];
 	if (!eventData || typeof eventData !== "object") {
 		logger.warn("vm_event body missing for type, skipping", {
 			type,
 			txid,
-			vm_event_index,
+			arrayIndex,
 		});
 		return null;
 	}
@@ -353,7 +350,7 @@ export function parseVmEvent(
 	return {
 		tx_id: txid,
 		block_height: blockHeight,
-		vm_event_index,
+		ordinal: arrayIndex,
 		type: storedType,
 		data: eventData,
 	};

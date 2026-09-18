@@ -230,8 +230,8 @@ function chainDedupKey(
 	replayId?: string,
 	clock: DeliveryClock = "classic",
 ): string {
-	// vm rows are keyed by vm_event_index — a second clock. Namespace them so
-	// a print at event_index N and a map_set at vm_event_index N in the same
+	// vm rows are keyed by ordinal — a second clock. Namespace them so
+	// a print at event_index N and a map_set at ordinal N in the same
 	// tx are two deliveries, not one suppressed by the dedup constraint.
 	// Classic keys are byte-identical to before (existing rows stay idempotent).
 	const ordinal = clock === "vm" ? `vm:${eventIndex}` : `${eventIndex}`;
@@ -243,7 +243,7 @@ function chainDedupKey(
 }
 
 /** Which ordinal `event_index` carries: classic `events.event_index` or the
- *  opt-in `vm_events.vm_event_index`. Never mixed. */
+ *  opt-in `vm_events.ordinal`. Never mixed. */
 type DeliveryClock = "classic" | "vm";
 
 const VM_TRIGGER_TYPES = new Set<string>([

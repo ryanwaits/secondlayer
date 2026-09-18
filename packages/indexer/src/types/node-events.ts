@@ -269,8 +269,8 @@ export interface TransactionEvent {
 }
 
 // Opt-in VM traces (`"storage"` / `"contract_calls"`). Not in `"*"`.
-// Delivered on `/new_block.vm_events`, never in `events[]`. Indexed by
-// `vm_event_index` — a second clock. Classic `event_index` does not move.
+// Delivered on `/new_block.vm_events`, never in `events[]`. Order in the
+// array is the index. Classic `event_index` does not move.
 export type VmNodeEventType =
 	| "contract_call_event"
 	| "var_set_event"
@@ -308,7 +308,6 @@ export interface VmMapDeleteEventData {
 
 export interface VmTraceEvent {
 	txid: string;
-	vm_event_index: number;
 	committed?: boolean;
 	type: VmNodeEventType;
 	contract_call_event?: VmContractCallEventData;

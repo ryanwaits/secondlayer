@@ -262,7 +262,7 @@ export async function ingestNewBlock(
 
 	const vmEvts = Array.isArray(payload.vm_events)
 		? payload.vm_events
-				.map((evt) => parseVmEvent(evt, payload.block_height))
+				.map((evt, i) => parseVmEvent(evt, payload.block_height, i))
 				.filter((evt): evt is NonNullable<typeof evt> => evt !== null)
 				.map((evt) => stripNullBytes(evt) as typeof evt)
 		: [];

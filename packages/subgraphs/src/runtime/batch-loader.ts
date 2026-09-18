@@ -7,7 +7,7 @@ import type {
 import type { Kysely } from "kysely";
 
 /** A runtime event row. `clock: "vm"` marks an opt-in `vm_events` row whose
- *  `event_index` is `vm_event_index` — a second ordinal that never sorts or
+ *  `event_index` is `ordinal` — a second ordinal that never sorts or
  *  dedupes against classic `events.event_index`. */
 export type RuntimeEvent = Event & { clock?: "vm" };
 
@@ -22,7 +22,7 @@ export interface BlockData {
 }
 
 /** Stable synthetic id for a vm row. Distinct from the classic `tx#index`
- *  so a print at event_index N and a map_set at vm_event_index N never share
+ *  so a print at event_index N and a map_set at ordinal N never share
  *  an identity. */
 export function vmEventId(txId: string, vmEventIndex: number): string {
 	return `${txId}#vm:${vmEventIndex}`;
@@ -62,7 +62,7 @@ export async function loadBlockRange(
 			.selectAll()
 			.where("block_height", ">=", fromHeight)
 			.where("block_height", "<=", toHeight)
-			.orderBy("vm_event_index", "asc")
+			.orderBy("ordinal", "asc")
 			.execute(),
 	]);
 
@@ -88,10 +88,10 @@ export async function loadBlockRange(
 		const h = Number(row.block_height);
 		const list = vmByHeight.get(h) ?? [];
 		list.push({
-			id: vmEventId(row.tx_id, Number(row.vm_event_index)),
+			id: vmEventId(row.tx_id, Number(row.ordinal)),
 			tx_id: row.tx_id,
 			block_height: h,
-			event_index: Number(row.vm_event_index),
+			event_index: Number(row.ordinal),
 			type: row.type,
 			data: row.data,
 			created_at: row.created_at,

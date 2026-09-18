@@ -190,7 +190,7 @@ bootstrap_node = "02196f005965cebe6ddc3901b7b1cc1aa7a88f305bb8c5893456b8f9a60592
 # co-located signer of block_proposal events. See docker/oss/Config.toml.
 [[events_observer]]
 endpoint = "secondlayer:3700"
-events_keys = ["*"]
+events_keys = ["*", "storage", "contract_calls"]
 timeout_ms = 500
 disable_retries = true
 

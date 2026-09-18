@@ -167,7 +167,7 @@ describe.skipIf(!HAS_DB)("Index vm_events read", () => {
 				{
 					tx_id: txId,
 					block_height: H,
-					vm_event_index: 0,
+					ordinal: 0,
 					type: "nested_contract_call",
 					data: {
 						contract_identifier: "SP.store",
@@ -181,7 +181,7 @@ describe.skipIf(!HAS_DB)("Index vm_events read", () => {
 				{
 					tx_id: txId,
 					block_height: H,
-					vm_event_index: 1,
+					ordinal: 1,
 					type: "map_set",
 					data: {
 						contract_identifier: "SP.store",
@@ -194,7 +194,7 @@ describe.skipIf(!HAS_DB)("Index vm_events read", () => {
 			.execute();
 	}
 
-	test("reads remapped nested call + map_set on vm_event_index cursor", async () => {
+	test("reads remapped nested call + map_set on ordinal cursor", async () => {
 		await seed();
 		const nested = await readIndexEvents({
 			eventType: "nested_contract_call",
@@ -229,7 +229,7 @@ describe.skipIf(!HAS_DB)("Index vm_events read", () => {
 			.values({
 				tx_id: txId,
 				block_height: H,
-				vm_event_index: 2,
+				ordinal: 2,
 				type: "map_set",
 				// Envelope-shaped garbage: no contract_identifier / map_name.
 				data: { txid: txId, committed: true, type: "map_set_event" },

@@ -51,14 +51,14 @@ describe.skipIf(!HAS_DB)("Streams clock=vm reader", () => {
 				{
 					tx_id: TX,
 					block_height: H,
-					vm_event_index: 0,
+					ordinal: 0,
 					type: "nested_contract_call",
 					data: { contract_identifier: "SP.store", caller: "SP.c" },
 				},
 				{
 					tx_id: TX,
 					block_height: H,
-					vm_event_index: 1,
+					ordinal: 1,
 					type: "map_set",
 					data: { contract_identifier: "SP.store", map_name: "store" },
 				},
@@ -66,7 +66,7 @@ describe.skipIf(!HAS_DB)("Streams clock=vm reader", () => {
 			.execute();
 	});
 
-	test("not_types excludes a vm type; cursor is vm_event_index", async () => {
+	test("not_types excludes a vm type; cursor is ordinal", async () => {
 		if (!db) throw new Error("missing db");
 		const all = await readCanonicalVmEvents({
 			fromHeight: H,

@@ -54,7 +54,7 @@ export type StreamsEvent = {
 };
 
 /** A `clock=vm` row: same envelope, `event_type` from VM_EVENT_TYPES, and
- *  `event_index` is `vm_event_index`. Never mixed into a classic page. */
+ *  `event_index` is `ordinal`. Never mixed into a classic page. */
 export type VmStreamsEvent = Omit<StreamsEvent, "event_type"> & {
 	event_type: VmEventType;
 };

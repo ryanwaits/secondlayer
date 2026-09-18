@@ -286,7 +286,7 @@ describe("Index /events response", () => {
 		expect(response.reorgs.map((reorg) => reorg.id)).toEqual(["reorg-1"]);
 	});
 
-	test("VM pages overlap reorgs by height, not vm_event_index", async () => {
+	test("VM pages overlap reorgs by height, not ordinal", async () => {
 		let seenRange:
 			| { from: { event_index: number }; to: { event_index: number } }
 			| undefined;

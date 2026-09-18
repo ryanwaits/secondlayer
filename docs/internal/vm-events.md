@@ -80,7 +80,7 @@ nested_contract_call          # node: contract_call_event
   function_args
   raw_result
   txid
-  vm_event_index
+  ordinal
 ```
 
 Lives on the **caller’s** batch. Inner `(err …)`: writes gone, call event kept if the caller committed. That’s “attempted drain, aborted.”
@@ -135,7 +135,7 @@ Summary:
 
 | Noun | Today | After | Don’t |
 |---|---|---|---|
-| **Streams** | All-types firehose, one cursor (`stream_event_index` over classic events) | Five new types on a **second** ordinal (`vm_event_index`). Filter-invariant cursor stays, on that ordinal | Interleave into classic `event_index` |
+| **Streams** | All-types firehose, one cursor (`stream_event_index` over classic events) | Five new types on a **second** ordinal (`ordinal`). Filter-invariant cursor stays, on that ordinal | Interleave into classic `event_index` |
 | **Index** | One `event_type` per seek | Same rule, new types. `GET /v1/index/events?event_type=nested_contract_call&contract_id=` | Fold into `contract_call` |
 | **Subgraphs** | `VALID_FILTER_TYPES` = stx/ft/nft/print/`contract_call`/deploy | Add the five; `trait` + `factory` compose like print | RPC hydrate in handlers |
 | **Webhooks** | `chain.contract_call.apply` = outer tx | `chain.nested_contract_call.apply`, `chain.map_set.apply`, … | A “security product” SKU |
@@ -160,12 +160,12 @@ await sl.streams.events.consume({
 });
 ```
 
-**After.** Do not put `map_set` on that cursor. New consume (or a `clock: "vm"`) over `vm_event_index`. Two checkpoints if you want both logs and storage. That is the cost of not renumbering Hiro/Secondlayer 1.0.
+**After.** Do not put `map_set` on that cursor. New consume (or a `clock: "vm"`) over `ordinal`. Two checkpoints if you want both logs and storage. That is the cost of not renumbering Hiro/Secondlayer 1.0.
 
 ```ts
 await sl.streams.events.consume({
   types: ["map_set", "map_delete", "nested_contract_call"],
-  clock: "vm", // vm_event_index, not stream_event_index
+  clock: "vm", // ordinal, not stream_event_index
   cursor: savedVm,
   onEvent: (e) => {
     if (e.event_type === "nested_contract_call") {
@@ -391,9 +391,9 @@ secondlayer subscriptions create listing-writes \
   --trigger '{"type":"map_set","contractId":"SP.marketplace","map":"listings"}'
 ```
 
-Reorg: existing `chain.reorg.rollback` / `orphaned` list. `vm_event_index` rows need the same apply/rollback pairing. Don’t invent a second webhook product for that.
+Reorg: existing `chain.reorg.rollback` / `orphaned` list. `ordinal` rows need the same apply/rollback pairing. Don’t invent a second webhook product for that.
 
-Delivery identity is per clock. A vm apply row keys `chain:<webhook>:<tx>:vm:<vm_event_index>:<block_hash>` with `row_pk.clock = "vm"`; classic keys are unchanged. A print at `event_index 0` and a `map_set` at `vm_event_index 0` in one tx are two deliveries.
+Delivery identity is per clock. A vm apply row keys `chain:<webhook>:<tx>:vm:<ordinal>:<block_hash>` with `row_pk.clock = "vm"`; classic keys are unchanged. A print at `event_index 0` and a `map_set` at `ordinal 0` in one tx are two deliveries.
 
 ### Subgraph runtime — two clocks, never merged
 
@@ -401,7 +401,7 @@ Delivery identity is per clock. A vm apply row keys `chain:<webhook>:<tx>:vm:<vm
 
 ### Reorg envelope — rewind VM consumers by height
 
-`GET /v1/streams/reorgs` reports a `to` ordinal computed from classic `events` (`reorg.ts`). It is not a VM upper bound. VM consumers roll back rows at or above `fork_point_height` and resume from the foot of that height. Never compare the envelope's classic ordinal with `vm_event_index`.
+`GET /v1/streams/reorgs` reports a `to` ordinal computed from classic `events` (`reorg.ts`). It is not a VM upper bound. VM consumers roll back rows at or above `fork_point_height` and resume from the foot of that height. Never compare the envelope's classic ordinal with `ordinal`.
 
 VM Index and Streams pages include reorgs overlapping the resume height, even when the replacement has no matching events, the next match is at a later height, or the source tip has rewound below the checkpoint. For independent `/v1/streams/reorgs` polling, use its timestamp/`next_since` tokens, not a VM event cursor. The endpoint's event-cursor form belongs to the classic clock.
 
@@ -459,6 +459,5 @@ VM Index and Streams pages include reorgs overlapping the resume height, even wh
 
 ## Pointers
 
-- Node PR: [stacks-network/stacks-core#7630](https://github.com/stacks-network/stacks-core/pull/7630). Operator docs: stacks-core `docs/event-dispatcher.md`.
 - This repo: `STRATEGY.md` (five nouns), `docs/internal/charter/index-vs-streams.md`, `docs/internal/charter/index-vs-subgraphs.md`, `packages/subgraphs/src/validate.ts` (`VALID_FILTER_TYPES`)
-- Operator compose: `docker/**/Config.toml` and `packages/cli/src/lib/observer-stanza.ts` — still `events_keys = ["*"]`. Do not flip until the node binary understands `"storage"` / `"contract_calls"` (unknown keys panic on start).
+- Operator compose for a collecting fork: `events_keys = ["*", "storage", "contract_calls"]` (`docker/oss/Config.toml`, `docker/stacks-node/Config.toml`, indexer-mode `observer-stanza`). Stock `stacks-core` panics on those keys — prod `docker/node-server/Config.toml` stays `["*"]` until that image is the eval-hook binary. Ingest assigns the second clock from `vm_events` array order; the node does not send `ordinal`.

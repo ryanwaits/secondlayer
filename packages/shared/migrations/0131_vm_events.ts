@@ -3,9 +3,9 @@ import { onChainPlane } from "../src/db/migration-role.ts";
 
 /**
  * Opt-in node vm_events (`"storage"` / `"contract_calls"`). Second clock:
- * `vm_event_index` is dense across the block and is never mixed into
- * `events.event_index` / Streams 1.0. `"*"` payloads omit the field; this
- * table stays empty until a collecting node is wired.
+ * ingest assigns `ordinal` from `/new_block.vm_events` array order.
+ * Never mixed into `events.event_index` / Streams 1.0. `"*"` payloads omit
+ * the field; this table stays empty until a collecting node is wired.
  *
  * Stored `type` uses Secondlayer names (nested_contract_call, var_set,
  * map_set, map_insert, map_delete) — not the node's `*_event` labels, and
@@ -20,7 +20,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 				tx_id TEXT NOT NULL REFERENCES transactions (tx_id),
 				block_height BIGINT NOT NULL REFERENCES blocks (height),
-				vm_event_index INTEGER NOT NULL,
+				ordinal INTEGER NOT NULL,
 				type TEXT NOT NULL,
 				data JSONB NOT NULL,
 				created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -36,7 +36,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
 		await sql`
 			CREATE UNIQUE INDEX IF NOT EXISTS vm_events_logical_id_uniq
-			ON vm_events (block_height, vm_event_index)
+			ON vm_events (block_height, ordinal)
 		`.execute(db);
 		await sql`
 			CREATE INDEX IF NOT EXISTS vm_events_block_height_idx
@@ -57,7 +57,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 				id TEXT NOT NULL,
 				tx_id TEXT NOT NULL,
 				block_height BIGINT NOT NULL,
-				vm_event_index INTEGER NOT NULL,
+				ordinal INTEGER NOT NULL,
 				type TEXT NOT NULL,
 				data JSONB,
 				created_at TIMESTAMPTZ NOT NULL,

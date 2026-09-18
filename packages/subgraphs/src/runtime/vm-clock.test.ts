@@ -7,7 +7,7 @@ import { PublicApiBlockSource } from "./block-source.ts";
 import { mapNewBlockPayloadToBlockData } from "./observer-http-source.ts";
 import { type EventRecord, matchSources } from "./source-matcher.ts";
 
-// vm_events ride a second clock (vm_event_index). These tests pin the seams
+// vm_events ride a second clock (ordinal). These tests pin the seams
 // that keep it apart from classic event_index: loader, sources, matcher.
 
 const TX = {
@@ -222,7 +222,7 @@ describe.skipIf(!HAS_DB)(
 				.values({
 					tx_id: "0xvm-tap-tx",
 					block_height: H,
-					vm_event_index: 0,
+					ordinal: 0,
 					type: "var_set",
 					data: { contract_identifier: "SP.store", var_name: "n" },
 				})

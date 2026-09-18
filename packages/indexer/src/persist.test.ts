@@ -160,7 +160,7 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 			{
 				tx_id: "0xtxT",
 				block_height: H,
-				vm_event_index: 0,
+				ordinal: 0,
 				type: "map_set",
 				data: { map_name: "orig" },
 			},
@@ -175,7 +175,7 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 			{
 				tx_id: "0xtxT",
 				block_height: H + 1,
-				vm_event_index: 1,
+				ordinal: 1,
 				type: "map_set",
 				data: { map_name: "remine" },
 			},
@@ -236,12 +236,12 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 
 		const vmAtHPlus1 = await db
 			.selectFrom("vm_events")
-			.select(["vm_event_index", "data"])
+			.select(["ordinal", "data"])
 			.where("tx_id", "=", "0xtxT")
 			.where("block_height", "=", H + 1)
 			.execute();
 		expect(vmAtHPlus1).toHaveLength(1);
-		expect(Number(vmAtHPlus1[0]?.vm_event_index)).toBe(1);
+		expect(Number(vmAtHPlus1[0]?.ordinal)).toBe(1);
 		expect((vmAtHPlus1[0]?.data as { map_name: string }).map_name).toBe(
 			"remine",
 		);
@@ -327,21 +327,21 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 		expect(vm).toHaveLength(0);
 	});
 
-	test("present vm_events persist remapped types on vm_event_index", async () => {
+	test("present vm_events persist remapped types on ordinal", async () => {
 		if (!db) throw new Error("missing db");
 		const input = payload("0xblockA", "0xtxA");
 		input.vmEvts = [
 			{
 				tx_id: "0xtxA",
 				block_height: H,
-				vm_event_index: 0,
+				ordinal: 0,
 				type: "nested_contract_call",
 				data: { function_name: "set-value" },
 			},
 			{
 				tx_id: "0xtxA",
 				block_height: H,
-				vm_event_index: 1,
+				ordinal: 1,
 				type: "map_set",
 				data: { map_name: "store" },
 			},
@@ -355,9 +355,9 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 			.execute();
 		const vm = await db
 			.selectFrom("vm_events")
-			.select(["vm_event_index", "type"])
+			.select(["ordinal", "type"])
 			.where("block_height", "=", H)
-			.orderBy("vm_event_index", "asc")
+			.orderBy("ordinal", "asc")
 			.execute();
 		const mixed = await db
 			.selectFrom("events")
@@ -368,8 +368,8 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 
 		expect(classic).toEqual([{ event_index: 0, type: "stx_transfer_event" }]);
 		expect(vm).toEqual([
-			{ vm_event_index: 0, type: "nested_contract_call" },
-			{ vm_event_index: 1, type: "map_set" },
+			{ ordinal: 0, type: "nested_contract_call" },
+			{ ordinal: 1, type: "map_set" },
 		]);
 		expect(mixed).toHaveLength(0);
 	});
@@ -381,7 +381,7 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 			{
 				tx_id: "0xtxA",
 				block_height: H,
-				vm_event_index: 0,
+				ordinal: 0,
 				type: "map_set",
 				data: { map_name: "store" },
 			},
@@ -396,13 +396,13 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 			.execute();
 		const archived = await db
 			.selectFrom("vm_events_archive")
-			.select(["tx_id", "orphaned_block_hash", "vm_event_index"])
+			.select(["tx_id", "orphaned_block_hash", "ordinal"])
 			.where("block_height", "=", H)
 			.execute();
 
 		expect(live).toHaveLength(0);
 		expect(archived).toEqual([
-			{ tx_id: "0xtxA", orphaned_block_hash: "0xblockA", vm_event_index: 0 },
+			{ tx_id: "0xtxA", orphaned_block_hash: "0xblockA", ordinal: 0 },
 		]);
 	});
 });
