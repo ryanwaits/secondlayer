@@ -3,7 +3,9 @@
 A signed POST to a URL you run, whenever a row you care about is written or a chain event you named happens.
 
 <Callout type="note" title="Renamed from Subscriptions">
-`secondlayer subscriptions`, `sl.subscriptions`, `subscriptions_*` MCP tools, and `/api/subscriptions` keep working for one release cycle as deprecated aliases of `secondlayer webhooks`, `sl.webhooks`, `webhooks_*`, and `/api/webhooks`. Test-ping bodies also still send deprecated `subscription_id` alongside `webhook_id`.
+
+The product name is Webhooks: `secondlayer webhooks`, `sl.webhooks`, `webhooks_*`, and `/api/webhooks`. The old `subscriptions` names are gone. Tables were renamed in place on [upgrade](/docs/self-host/upgrade); rows stay. Test-ping bodies send `webhook_id`.
+
 </Callout>
 
 ## Create a webhook

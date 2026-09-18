@@ -1,0 +1,78 @@
+# Upgrade a self-hosted instance
+
+Move from the image you run (X) to a later tag or commit (Y), keeping the database and the keys.
+
+## Name X and Y
+
+X is the image running now; Y is a later `v*` tag, or a git commit if you build from source.
+
+```bash
+curl -s http://127.0.0.1:3800/health
+docker compose images
+secondlayer --version
+```
+
+Published images are `ghcr.io/ryanwaits/secondlayer-runtime:<tag>` ([releases](https://github.com/ryanwaits/secondlayer/releases)); `latest` moves, so pin a `v*` tag. One jump to Y; read every [changelog](/docs/changelog) entry dated after X before you pull (that page owns what broke). The CLI is a separate npm version (`secondlayer --version`); bump it so commands match the instance you land on.
+
+## What stays
+
+The index can be rebuilt from the [archive](/docs/archive). The keys cannot.
+
+| Keep | Why |
+| --- | --- |
+| `postgres_data` volume | chain, subgraph tables, webhook rows |
+| `subgraphs_data` volume | compiled handlers |
+| `SECONDLAYER_SECRETS_KEY` | decrypts webhook signing secrets in Postgres |
+| `INSTANCE_TOKEN` | callers; required at boot |
+| `STREAMS_SIGNING_PRIVATE_KEY`, `SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY` | platform signature on deliveries |
+| `POSTGRES_PASSWORD` | the volume already uses it |
+
+Per-webhook HMAC secrets (`whsec_…`) live encrypted in the database, so you do not export them separately. Losing `SECONDLAYER_SECRETS_KEY` makes every existing `whsec_` unreadable; rotate each webhook rather than minting a new master key. See [Authentication](/docs/authentication#webhook-signing-secrets).
+
+## Backup
+
+[`secondlayer backup`](/docs/self-host#backup) writes the index plus those keys, encrypted under a passphrase.
+
+A full dump of a mainnet index takes hours. A filesystem snapshot of the volume is the faster backup if the host can take one. Copy `.env` somewhere the database backups are not; the upgrade itself is minutes.
+
+<Callout type="danger" title="Do not wipe the volume">
+
+`docker compose down -v` deletes `postgres_data`, and `secondlayer setup --force` mints a new secrets key that leaves existing webhook secrets unreadable. Stop with `docker compose down` (no `-v`). `setup` is not an upgrade: bootstrap refuses a database that already has blocks.
+
+</Callout>
+
+## Move to Y
+
+Pin Y, then restart. `pull` when compose already lists a `secondlayer` image; `git checkout` and `--build` when this directory is a checkout.
+
+```bash
+# published image: set image to .../secondlayer-runtime:<Y>
+docker compose pull
+docker compose up -d --remove-orphans
+```
+
+```bash
+git fetch
+git checkout <Y>
+docker compose down --remove-orphans
+docker compose up -d --build --remove-orphans
+```
+
+`--remove-orphans` stops services Y's compose file no longer lists. Migrations run at boot under an advisory lock, forward-only.
+
+## After
+
+Confirm `/health` is ok, then verify against the archive.
+
+```bash
+curl http://127.0.0.1:3800/health
+secondlayer verify all --against <manifest>
+```
+
+To roll back, pin X again. A migrated schema stays migrated, so roll back the image, not the database.
+
+export const metadata = {
+	title: "Upgrade — Secondlayer Docs",
+	description:
+		"Upgrade a self-hosted instance from the image you run to a later tag: keep the database and keys, pin Y, migrate forward.",
+};

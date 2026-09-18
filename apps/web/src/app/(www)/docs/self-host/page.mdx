@@ -97,12 +97,7 @@ The tradeoff: rotating the archive key means a CLI release until a key ceremony 
 
 ## Upgrade
 
-```bash
-docker compose pull && docker compose up -d
-curl http://localhost:3800/health
-```
-
-Migrations run at start under an advisory lock, and are forward-only. To roll back, pin the previous image tag: a migrated schema stays migrated, so roll back the image, not the database.
+Name the image you run (X), pick a later tag or commit (Y), keep the database and the keys. [Upgrade](/docs/self-host/upgrade).
 
 ## Backup
 
@@ -120,7 +115,7 @@ A restore is all or nothing: `pg_restore` runs in one transaction and stops on t
 
 The bundle carries `INSTANCE_TOKEN`, `SECONDLAYER_SECRETS_KEY`, and `STREAMS_SIGNING_PRIVATE_KEY`. Losing those costs you more than losing the index, because the index can be rebuilt from the [archive](/docs/archive), the keys cannot. Store the bundle somewhere your Postgres backups are not.
 
-Confirm any restore with `secondlayer verify all --against <manifest>` before trusting the result.
+Confirm any restore with `secondlayer verify all --against <manifest>` before trusting the result. Take a backup before you [upgrade](/docs/self-host/upgrade).
 
 ## Guardrails
 

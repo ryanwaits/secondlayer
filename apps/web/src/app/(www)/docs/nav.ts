@@ -40,7 +40,11 @@ export const DOCS_NAV: DocsNavGroup[] = [
 		label: "Start",
 		items: [
 			{ title: "Introduction", href: "/docs" },
-			{ title: "Run Secondlayer", href: "/docs/self-host" },
+			{
+				title: "Run Secondlayer",
+				href: "/docs/self-host",
+				items: [{ title: "Upgrade", href: "/docs/self-host/upgrade" }],
+			},
 			{ title: "Quickstart", href: "/docs/quickstart" },
 			{ title: "Instance token and account key", href: "/docs/authentication" },
 		],

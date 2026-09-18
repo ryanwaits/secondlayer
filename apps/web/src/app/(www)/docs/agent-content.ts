@@ -357,6 +357,24 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		),
 	],
 
+	"/docs/self-host/upgrade": [
+		card(
+			"Upgrade X to Y",
+			"Name the running image, pick a later tag, pull.",
+			"/secondlayer Help me upgrade my self-hosted Secondlayer instance from X to Y. First identify X: `curl -s http://127.0.0.1:3800/health`, `docker compose images`, `secondlayer --version`. Ask me for Y (a `v*` tag from GitHub releases, or a git commit if I build from source). Read changelog entries dated after X at https://www.secondlayer.tools/docs/changelog. Keep `postgres_data` and `.env` (`SECONDLAYER_SECRETS_KEY`, `INSTANCE_TOKEN`). Never `docker compose down -v`, never `secondlayer setup --force`. Then pin Y and restart: published image `docker compose pull && docker compose up -d --remove-orphans`; git checkout `git checkout <Y>` then `docker compose down --remove-orphans` and `up -d --build --remove-orphans`. Confirm `curl http://127.0.0.1:3800/health` and `secondlayer verify all --against <manifest>`.",
+		),
+		card(
+			"What to keep",
+			"Database volume and the keys that decrypt it.",
+			"/secondlayer Tell me exactly what to preserve before an upgrade: the `postgres_data` volume (chain, subgraphs, webhook rows), `subgraphs_data`, `SECONDLAYER_SECRETS_KEY` (decrypts `whsec_` secrets in Postgres), `INSTANCE_TOKEN`, and the webhook signing private keys. Explain that minting a new secrets key makes existing webhook HMAC secrets unreadable, and that `secondlayer backup` bundles the index plus those keys.",
+		),
+		card(
+			"Pin Y and roll back to X",
+			"Forward-only schema; roll back the image.",
+			"/secondlayer I want to pin a specific Secondlayer image tag Y (`ghcr.io/ryanwaits/secondlayer-runtime:<tag>`), not `latest`. Show me where that tag goes in docker-compose.yml, how to `docker compose pull` it, and how to roll back by pinning X again. Schema migrations are forward-only: rolling back the image leaves a migrated database, so only roll back if X can still read Y's schema.",
+		),
+	],
+
 	"/docs/devnet": [
 		card(
 			"Spin up local devnet",
