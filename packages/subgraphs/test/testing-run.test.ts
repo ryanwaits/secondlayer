@@ -177,6 +177,26 @@ describe("toHandlerPayload print camelization", () => {
 		expect(payload.data).toEqual({ bitcoinTxid: "0xab", outputIndex: 1 });
 	});
 
+	test("maps Index var_set onto handler varName", () => {
+		const payload = toHandlerPayload(
+			{ type: "var_set" },
+			{
+				cursor: "19:0",
+				event_type: "var_set",
+				contract_id: "ST.failer",
+				var_name: "n",
+				raw_value: "0x01",
+				tx_id: "0x1",
+				sender: "ST1",
+			},
+		);
+		expect(payload).toMatchObject({
+			contractId: "ST.failer",
+			varName: "n",
+			rawValue: "0x01",
+		});
+	});
+
 	test("attaches tx from Index row fields", () => {
 		const payload = toHandlerPayload(
 			{ type: "print_event" },
