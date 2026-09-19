@@ -144,7 +144,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 470
+					"line": 511
 				},
 				{
 					"name": "BlocksEnvelope",
@@ -152,7 +152,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 464
+					"line": 505
 				},
 				{
 					"name": "BlocksListParams",
@@ -160,7 +160,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 475
+					"line": 516
 				},
 				{
 					"name": "BlocksWalkParams",
@@ -168,7 +168,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 483
+					"line": 524
 				},
 				{
 					"name": "CanonicalEnvelope",
@@ -176,7 +176,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 432
+					"line": 473
 				},
 				{
 					"name": "CanonicalListParams",
@@ -184,7 +184,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 438
+					"line": 479
 				},
 				{
 					"name": "CanonicalWalkParams",
@@ -192,7 +192,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 446
+					"line": 487
 				},
 				{
 					"name": "consumeIndexFeed",
@@ -208,7 +208,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 412
+					"line": 453
 				},
 				{
 					"name": "ContractCallsEnvelope",
@@ -216,7 +216,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 385
+					"line": 426
 				},
 				{
 					"name": "ContractCallsListParams",
@@ -224,7 +224,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 393
+					"line": 434
 				},
 				{
 					"name": "ContractCallsWalkParams",
@@ -232,7 +232,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 409
+					"line": 450
 				},
 				{
 					"name": "EventsConsumeParams",
@@ -240,7 +240,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 356
+					"line": 397
 				},
 				{
 					"name": "EventsEnvelope",
@@ -248,7 +248,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 292
+					"line": 328
 				},
 				{
 					"name": "EventsListParams",
@@ -256,7 +256,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 310
+					"line": 346
 				},
 				{
 					"name": "EventsWalkParams",
@@ -264,7 +264,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 350
+					"line": 391
 				},
 				{
 					"name": "FtTransfer",
@@ -296,7 +296,7 @@
 					"summary": "`index.ftTransfers` — callable shorthand for `.list()`, with `.list`/`.walk` still available: `await sl.index.ftTransfers({ contractId })`.",
 					"signature": "FtTransfersResource(params: object): object",
 					"file": "src/index-api/client.ts",
-					"line": 1283
+					"line": 1324
 				},
 				{
 					"name": "FtTransfersWalkParams",
@@ -312,7 +312,7 @@
 					"summary": "",
 					"signature": "Index(options?: object): unknown",
 					"file": "src/index-api/client.ts",
-					"line": 1385
+					"line": 1426
 				},
 				{
 					"name": "INDEX_MAX_PAGE_SIZE",
@@ -328,7 +328,7 @@
 					"summary": "Fields every read returns regardless of `fields` — the consume contract (`cursor`, `block_height`) plus the union discriminant.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 284
+					"line": 320
 				},
 				{
 					"name": "IndexBlock",
@@ -336,7 +336,7 @@
 					"summary": "A block resource.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 453
+					"line": 494
 				},
 				{
 					"name": "IndexCanonicalBlock",
@@ -344,7 +344,7 @@
 					"summary": "One canonical block in the sync map.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 423
+					"line": 464
 				},
 				{
 					"name": "IndexConsumeOptions",
@@ -360,7 +360,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 370
+					"line": 411
 				},
 				{
 					"name": "IndexDiscovery",
@@ -368,7 +368,7 @@
 					"summary": "The `GET /v1/index` discovery doc — live endpoint + filter vocabulary.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1380
+					"line": 1421
 				},
 				{
 					"name": "IndexEvent",
@@ -376,7 +376,7 @@
 					"summary": "Decoded chain event, discriminated by `event_type`.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 267
+					"line": 298
 				},
 				{
 					"name": "IndexEventFields",
@@ -384,7 +384,7 @@
 					"summary": "An event row narrowed to a `fields` selection (plus what always ships).",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 287
+					"line": 323
 				},
 				{
 					"name": "IndexEventOf",
@@ -392,7 +392,7 @@
 					"summary": "The single decoded-event member matching one `event_type` literal.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 305
+					"line": 341
 				},
 				{
 					"name": "IndexEventsResource",
@@ -400,7 +400,7 @@
 					"summary": "`index.events` — callable shorthand for `.list()`; `eventType` is required.",
 					"signature": "IndexEventsResource(params: object): object",
 					"file": "src/index-api/client.ts",
-					"line": 1327
+					"line": 1368
 				},
 				{
 					"name": "IndexEventType",
@@ -408,7 +408,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 280
+					"line": 316
 				},
 				{
 					"name": "IndexEventTypeFilters",
@@ -416,7 +416,7 @@
 					"summary": "Per-event-type filter vocabulary in the {@link IndexDiscovery} doc.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1370
+					"line": 1411
 				},
 				{
 					"name": "IndexFeedEnvelope",
@@ -467,12 +467,44 @@
 					"line": 200
 				},
 				{
+					"name": "IndexMapDelete",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 291
+				},
+				{
+					"name": "IndexMapInsert",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 285
+				},
+				{
+					"name": "IndexMapSet",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 279
+				},
+				{
 					"name": "IndexMempoolTransaction",
 					"kind": "type",
 					"summary": "A pending (unconfirmed) transaction.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 666
+					"line": 707
+				},
+				{
+					"name": "IndexNestedContractCall",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 266
 				},
 				{
 					"name": "IndexNftBurn",
@@ -504,7 +536,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 490
+					"line": 531
 				},
 				{
 					"name": "IndexPox5Event",
@@ -512,7 +544,7 @@
 					"summary": "A raw decoded PoX-5 print event.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1135
+					"line": 1176
 				},
 				{
 					"name": "IndexPox5EventTopic",
@@ -520,7 +552,7 @@
 					"summary": "The decoded `pox-5` boot-contract print topics (SIP-045 Bitcoin Staking) — one source of truth in `@secondlayer/stacks/pox5` (already a dependency; the old \"SDK owns its own dependency surface\" rat…",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1130
+					"line": 1171
 				},
 				{
 					"name": "IndexPoxCycle",
@@ -528,7 +560,7 @@
 					"summary": "Aggregate stats for one PoX reward cycle — distinct from `index.stacking` (decoded per-call PoX-4 actions); this is the reward-cycle rollup.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1077
+					"line": 1118
 				},
 				{
 					"name": "IndexPoxFunctionCount",
@@ -536,7 +568,7 @@
 					"summary": "Per-function action count within a reward cycle.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1070
+					"line": 1111
 				},
 				{
 					"name": "IndexPrint",
@@ -560,7 +592,7 @@
 					"summary": "A completed sBTC peg-in, keyed by `bitcoin_txid` (deposits carry no `request_id`).",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 746
+					"line": 787
 				},
 				{
 					"name": "IndexSbtcDepositDetail",
@@ -568,7 +600,7 @@
 					"summary": "A deposit fetched by Bitcoin txid — always terminal, hence `status`.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 762
+					"line": 803
 				},
 				{
 					"name": "IndexSbtcEvent",
@@ -576,7 +608,7 @@
 					"summary": "A raw decoded sBTC protocol-state event — the full `sbtc_events` row, one per event across all topics.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 826
+					"line": 867
 				},
 				{
 					"name": "IndexSbtcSummary",
@@ -584,7 +616,7 @@
 					"summary": "The peg \"scoreboard\" — a single all-time canonical aggregate.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 856
+					"line": 897
 				},
 				{
 					"name": "IndexSbtcWithdrawal",
@@ -592,7 +624,7 @@
 					"summary": "A peg-out collapsed to one row per `request_id`, with lifecycle `status` derived from the latest accept/reject.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 766
+					"line": 807
 				},
 				{
 					"name": "IndexSbtcWithdrawalDetail",
@@ -600,7 +632,7 @@
 					"summary": "A single peg-out's full assembled lifecycle, fetched by `request_id`.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 797
+					"line": 838
 				},
 				{
 					"name": "IndexSbtcWithdrawalPhase",
@@ -608,7 +640,7 @@
 					"summary": "One phase of a withdrawal's lifecycle (the on-Stacks event that drove it).",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 789
+					"line": 830
 				},
 				{
 					"name": "IndexStackingAction",
@@ -616,7 +648,7 @@
 					"summary": "A decoded PoX-4 stacking action (one per stacking contract call).",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 612
+					"line": 653
 				},
 				{
 					"name": "IndexStxBurn",
@@ -664,7 +696,15 @@
 					"summary": "Full transaction document: columnar fields plus `raw_tx`-decoded enrichment.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 534
+					"line": 575
+				},
+				{
+					"name": "IndexVarSet",
+					"kind": "type",
+					"summary": "",
+					"signature": null,
+					"file": "src/index-api/client.ts",
+					"line": 274
 				},
 				{
 					"name": "MempoolEnvelope",
@@ -672,7 +712,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 689
+					"line": 730
 				},
 				{
 					"name": "MempoolListParams",
@@ -680,7 +720,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 700
+					"line": 741
 				},
 				{
 					"name": "MempoolTransactionEnvelope",
@@ -688,7 +728,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 695
+					"line": 736
 				},
 				{
 					"name": "MempoolWalkParams",
@@ -696,7 +736,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 712
+					"line": 753
 				},
 				{
 					"name": "NftTransfer",
@@ -728,7 +768,7 @@
 					"summary": "`index.nftTransfers` — callable shorthand for `.list()` (see {@link FtTransfersResource}).",
 					"signature": "NftTransfersResource(params: object): object",
 					"file": "src/index-api/client.ts",
-					"line": 1306
+					"line": 1347
 				},
 				{
 					"name": "NftTransfersWalkParams",
@@ -744,7 +784,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1161
+					"line": 1202
 				},
 				{
 					"name": "Pox5EventsListParams",
@@ -752,7 +792,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1179
+					"line": 1220
 				},
 				{
 					"name": "Pox5EventsWalkParams",
@@ -760,7 +800,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1201
+					"line": 1242
 				},
 				{
 					"name": "Pox5Resource",
@@ -768,7 +808,7 @@
 					"summary": "`index.pox5` — decoded PoX-5 print events, the staking primitive from the epoch 4.0 hard fork onward (PoX-4's `index.stacking` stream ends there).",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1206
+					"line": 1247
 				},
 				{
 					"name": "PoxCycleEnvelope",
@@ -776,7 +816,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1100
+					"line": 1141
 				},
 				{
 					"name": "PoxCyclesEnvelope",
@@ -784,7 +824,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1091
+					"line": 1132
 				},
 				{
 					"name": "PoxCyclesListParams",
@@ -792,7 +832,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1106
+					"line": 1147
 				},
 				{
 					"name": "PoxCyclesWalkParams",
@@ -800,7 +840,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1112
+					"line": 1153
 				},
 				{
 					"name": "PoxResource",
@@ -808,7 +848,7 @@
 					"summary": "`index.pox` — PoX reward-cycle aggregates.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1116
+					"line": 1157
 				},
 				{
 					"name": "PrintSchemaResponse",
@@ -816,7 +856,7 @@
 					"summary": "Empirical per-topic print payload schema for a contract, inferred from sampled on-chain events.",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 721
+					"line": 762
 				},
 				{
 					"name": "SbtcDepositEnvelope",
@@ -824,7 +864,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 876
+					"line": 917
 				},
 				{
 					"name": "SbtcDepositsConsumeParams",
@@ -832,7 +872,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 997
+					"line": 1038
 				},
 				{
 					"name": "SbtcDepositsEnvelope",
@@ -840,7 +880,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 866
+					"line": 907
 				},
 				{
 					"name": "SbtcDepositsListParams",
@@ -848,7 +888,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 908
+					"line": 949
 				},
 				{
 					"name": "SbtcDepositsWalkParams",
@@ -856,7 +896,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 935
+					"line": 976
 				},
 				{
 					"name": "SbtcEventsConsumeParams",
@@ -864,7 +904,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 991
+					"line": 1032
 				},
 				{
 					"name": "SbtcEventsEnvelope",
@@ -872,7 +912,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 894
+					"line": 935
 				},
 				{
 					"name": "SbtcEventsListParams",
@@ -880,7 +920,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 975
+					"line": 1016
 				},
 				{
 					"name": "SbtcEventsWalkParams",
@@ -888,7 +928,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 988
+					"line": 1029
 				},
 				{
 					"name": "SbtcResource",
@@ -896,7 +936,7 @@
 					"summary": "`index.sbtc` — the decoded sBTC peg surface (deposits, withdrawals, raw events, scoreboard).",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 1010
+					"line": 1051
 				},
 				{
 					"name": "SbtcSummaryEnvelope",
@@ -904,7 +944,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 902
+					"line": 943
 				},
 				{
 					"name": "SbtcWithdrawalEnvelope",
@@ -912,7 +952,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 889
+					"line": 930
 				},
 				{
 					"name": "SbtcWithdrawalsEnvelope",
@@ -920,7 +960,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 881
+					"line": 922
 				},
 				{
 					"name": "SbtcWithdrawalsListParams",
@@ -928,7 +968,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 948
+					"line": 989
 				},
 				{
 					"name": "SbtcWithdrawalStatus",
@@ -936,7 +976,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 742
+					"line": 783
 				},
 				{
 					"name": "SbtcWithdrawalsWalkParams",
@@ -944,7 +984,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 969
+					"line": 1010
 				},
 				{
 					"name": "StackingEnvelope",
@@ -952,7 +992,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 637
+					"line": 678
 				},
 				{
 					"name": "StackingListParams",
@@ -960,7 +1000,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 647
+					"line": 688
 				},
 				{
 					"name": "StackingWalkParams",
@@ -968,7 +1008,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 658
+					"line": 699
 				},
 				{
 					"name": "TransactionEnvelope",
@@ -976,7 +1016,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 575
+					"line": 616
 				},
 				{
 					"name": "TransactionsEnvelope",
@@ -984,7 +1024,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 567
+					"line": 608
 				},
 				{
 					"name": "TransactionsListParams",
@@ -992,7 +1032,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 589
+					"line": 630
 				},
 				{
 					"name": "TransactionsWalkParams",
@@ -1000,7 +1040,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/index-api/client.ts",
-					"line": 606
+					"line": 647
 				},
 				{
 					"name": "WalkOptions",
@@ -1074,7 +1114,7 @@
 					"summary": "What the loop knows at the end of a page, handed to `onBatch`.",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 239
+					"line": 254
 				},
 				{
 					"name": "createStreamsClient",
@@ -1114,7 +1154,7 @@
 					"summary": "Superset of the columns the decoded_events table holds.",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 124
+					"line": 166
 				},
 				{
 					"name": "DecodedEventRow",
@@ -1122,7 +1162,7 @@
 					"summary": "Union of every decoded DB-row shape the guard+decode pairs produce — exactly what the `decoded_events` table stores.",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 398
+					"line": 440
 				},
 				{
 					"name": "DecodedFtBurn",
@@ -1130,7 +1170,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 336
+					"line": 378
 				},
 				{
 					"name": "DecodedFtBurnPayload",
@@ -1138,7 +1178,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 329
+					"line": 371
 				},
 				{
 					"name": "DecodedFtMint",
@@ -1146,7 +1186,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 319
+					"line": 361
 				},
 				{
 					"name": "DecodedFtMintPayload",
@@ -1154,7 +1194,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 312
+					"line": 354
 				},
 				{
 					"name": "DecodedFtTransfer",
@@ -1162,7 +1202,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 172
+					"line": 214
 				},
 				{
 					"name": "DecodedFtTransferPayload",
@@ -1170,7 +1210,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 164
+					"line": 206
 				},
 				{
 					"name": "DecodedNftBurn",
@@ -1178,7 +1218,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 370
+					"line": 412
 				},
 				{
 					"name": "DecodedNftBurnPayload",
@@ -1186,7 +1226,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 363
+					"line": 405
 				},
 				{
 					"name": "DecodedNftMint",
@@ -1194,7 +1234,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 353
+					"line": 395
 				},
 				{
 					"name": "DecodedNftMintPayload",
@@ -1202,7 +1242,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 346
+					"line": 388
 				},
 				{
 					"name": "DecodedNftTransfer",
@@ -1210,7 +1250,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 195
+					"line": 237
 				},
 				{
 					"name": "DecodedNftTransferPayload",
@@ -1218,7 +1258,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 187
+					"line": 229
 				},
 				{
 					"name": "DecodedPrint",
@@ -1226,7 +1266,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 221
+					"line": 263
 				},
 				{
 					"name": "DecodedPrintPayload",
@@ -1234,7 +1274,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 217
+					"line": 259
 				},
 				{
 					"name": "DecodedPrintValue",
@@ -1242,7 +1282,7 @@
 					"summary": "Decoded form of a Clarity `print` event: - `topic`: the print topic, when the contract emits a `{ topic, ...",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 212
+					"line": 254
 				},
 				{
 					"name": "DecodedStxBurn",
@@ -1250,7 +1290,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 269
+					"line": 311
 				},
 				{
 					"name": "DecodedStxBurnPayload",
@@ -1258,7 +1298,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 265
+					"line": 307
 				},
 				{
 					"name": "DecodedStxLock",
@@ -1266,7 +1306,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 298
+					"line": 340
 				},
 				{
 					"name": "DecodedStxLockPayload",
@@ -1274,7 +1314,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 291
+					"line": 333
 				},
 				{
 					"name": "DecodedStxMint",
@@ -1282,7 +1322,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 255
+					"line": 297
 				},
 				{
 					"name": "DecodedStxMintPayload",
@@ -1290,7 +1330,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 251
+					"line": 293
 				},
 				{
 					"name": "DecodedStxTransfer",
@@ -1298,7 +1338,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 241
+					"line": 283
 				},
 				{
 					"name": "DecodedStxTransferPayload",
@@ -1306,7 +1346,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 235
+					"line": 277
 				},
 				{
 					"name": "decodeFtBurn",
@@ -1314,7 +1354,7 @@
 					"summary": "",
 					"signature": "decodeFtBurn(event: StreamsEvent): DecodedFtBurn",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 387
+					"line": 429
 				},
 				{
 					"name": "decodeFtMint",
@@ -1322,7 +1362,7 @@
 					"summary": "",
 					"signature": "decodeFtMint(event: StreamsEvent): DecodedFtMint",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 383
+					"line": 425
 				},
 				{
 					"name": "decodeFtTransfer",
@@ -1330,7 +1370,7 @@
 					"summary": "",
 					"signature": "decodeFtTransfer(event: StreamsEvent): DecodedFtTransfer",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 183
+					"line": 225
 				},
 				{
 					"name": "decodeNftBurn",
@@ -1338,7 +1378,7 @@
 					"summary": "",
 					"signature": "decodeNftBurn(event: StreamsEvent): DecodedNftBurn",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 395
+					"line": 437
 				},
 				{
 					"name": "decodeNftMint",
@@ -1346,7 +1386,7 @@
 					"summary": "",
 					"signature": "decodeNftMint(event: StreamsEvent): DecodedNftMint",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 391
+					"line": 433
 				},
 				{
 					"name": "decodeNftTransfer",
@@ -1354,7 +1394,7 @@
 					"summary": "",
 					"signature": "decodeNftTransfer(event: StreamsEvent): DecodedNftTransfer",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 206
+					"line": 248
 				},
 				{
 					"name": "decodePrint",
@@ -1362,7 +1402,7 @@
 					"summary": "",
 					"signature": "decodePrint(event: StreamsEvent): DecodedPrint",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 234
+					"line": 276
 				},
 				{
 					"name": "decodeStxBurn",
@@ -1370,7 +1410,7 @@
 					"summary": "",
 					"signature": "decodeStxBurn(event: StreamsEvent): DecodedStxBurn",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 290
+					"line": 332
 				},
 				{
 					"name": "decodeStxLock",
@@ -1378,7 +1418,7 @@
 					"summary": "",
 					"signature": "decodeStxLock(event: StreamsEvent): DecodedStxLock",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 311
+					"line": 353
 				},
 				{
 					"name": "decodeStxMint",
@@ -1386,7 +1426,7 @@
 					"summary": "",
 					"signature": "decodeStxMint(event: StreamsEvent): DecodedStxMint",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 286
+					"line": 328
 				},
 				{
 					"name": "decodeStxTransfer",
@@ -1394,7 +1434,7 @@
 					"summary": "",
 					"signature": "decodeStxTransfer(event: StreamsEvent): DecodedStxTransfer",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 282
+					"line": 324
 				},
 				{
 					"name": "FetchLike",
@@ -1402,7 +1442,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 501
+					"line": 516
 				},
 				{
 					"name": "FtTransferEvent",
@@ -1410,7 +1450,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 161
+					"line": 203
 				},
 				{
 					"name": "FtTransferPayload",
@@ -1418,7 +1458,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 39
+					"line": 40
 				},
 				{
 					"name": "isFtBurn",
@@ -1426,7 +1466,7 @@
 					"summary": "",
 					"signature": "isFtBurn(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 384
+					"line": 426
 				},
 				{
 					"name": "isFtMint",
@@ -1434,7 +1474,7 @@
 					"summary": "",
 					"signature": "isFtMint(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 380
+					"line": 422
 				},
 				{
 					"name": "isFtTransfer",
@@ -1442,7 +1482,7 @@
 					"summary": "",
 					"signature": "isFtTransfer(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 182
+					"line": 224
 				},
 				{
 					"name": "isNftBurn",
@@ -1450,7 +1490,7 @@
 					"summary": "",
 					"signature": "isNftBurn(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 392
+					"line": 434
 				},
 				{
 					"name": "isNftMint",
@@ -1458,7 +1498,7 @@
 					"summary": "",
 					"signature": "isNftMint(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 388
+					"line": 430
 				},
 				{
 					"name": "isNftTransfer",
@@ -1466,7 +1506,7 @@
 					"summary": "",
 					"signature": "isNftTransfer(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 205
+					"line": 247
 				},
 				{
 					"name": "isPrint",
@@ -1474,7 +1514,7 @@
 					"summary": "",
 					"signature": "isPrint(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 231
+					"line": 273
 				},
 				{
 					"name": "isStxBurn",
@@ -1482,7 +1522,7 @@
 					"summary": "",
 					"signature": "isStxBurn(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 287
+					"line": 329
 				},
 				{
 					"name": "isStxLock",
@@ -1490,7 +1530,7 @@
 					"summary": "",
 					"signature": "isStxLock(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 308
+					"line": 350
 				},
 				{
 					"name": "isStxMint",
@@ -1498,7 +1538,7 @@
 					"summary": "",
 					"signature": "isStxMint(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 283
+					"line": 325
 				},
 				{
 					"name": "isStxTransfer",
@@ -1506,7 +1546,7 @@
 					"summary": "",
 					"signature": "isStxTransfer(event: StreamsEvent): boolean",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 279
+					"line": 321
 				},
 				{
 					"name": "NftTransferEvent",
@@ -1514,7 +1554,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 184
+					"line": 226
 				},
 				{
 					"name": "NftTransferPayload",
@@ -1522,7 +1562,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 55
+					"line": 56
 				},
 				{
 					"name": "StreamsBatch",
@@ -1530,7 +1570,7 @@
 					"summary": "One yielded page from {@link StreamsClient.consume} — the `GET /v1/streams/events` envelope verbatim, with `next_cursor` renamed to `cursor` (the checkpoint to persist and resume from).",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 417
+					"line": 432
 				},
 				{
 					"name": "StreamsBatchContext",
@@ -1538,7 +1578,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 275
+					"line": 290
 				},
 				{
 					"name": "StreamsCanonicalBlock",
@@ -1546,7 +1586,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 50
+					"line": 63
 				},
 				{
 					"name": "StreamsClient",
@@ -1554,7 +1594,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 549
+					"line": 564
 				},
 				{
 					"name": "StreamsConsumeParams",
@@ -1562,7 +1602,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 427
+					"line": 442
 				},
 				{
 					"name": "StreamsDumpFile",
@@ -1570,7 +1610,7 @@
 					"summary": "One bulk parquet file in the dumps manifest.",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 508
+					"line": 523
 				},
 				{
 					"name": "StreamsDumps",
@@ -1578,7 +1618,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 540
+					"line": 555
 				},
 				{
 					"name": "StreamsDumpsManifest",
@@ -1586,7 +1626,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 521
+					"line": 536
 				},
 				{
 					"name": "StreamsEvent",
@@ -1594,7 +1634,7 @@
 					"summary": "A raw Streams event.",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 120
+					"line": 121
 				},
 				{
 					"name": "StreamsEventPayload",
@@ -1602,7 +1642,7 @@
 					"summary": "Union of every Streams payload shape, discriminated by `event_type` on the parent `StreamsEvent`.",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 83
+					"line": 84
 				},
 				{
 					"name": "StreamsEventsConsumeParams",
@@ -1610,7 +1650,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 286
+					"line": 301
 				},
 				{
 					"name": "StreamsEventsConsumeResult",
@@ -1618,7 +1658,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 447
+					"line": 462
 				},
 				{
 					"name": "StreamsEventsEnvelope",
@@ -1626,7 +1666,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 71
+					"line": 84
 				},
 				{
 					"name": "StreamsEventsListEnvelope",
@@ -1634,7 +1674,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 78
+					"line": 91
 				},
 				{
 					"name": "StreamsEventsListParams",
@@ -1642,7 +1682,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 131
+					"line": 144
 				},
 				{
 					"name": "StreamsEventsStreamParams",
@@ -1650,7 +1690,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 151
+					"line": 166
 				},
 				{
 					"name": "StreamsEventsSubscribeParams",
@@ -1658,7 +1698,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 168
+					"line": 183
 				},
 				{
 					"name": "StreamsEventType",
@@ -1666,7 +1706,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
-					"line": 13
+					"line": 14
 				},
 				{
 					"name": "StreamsReorg",
@@ -1674,7 +1714,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 58
+					"line": 71
 				},
 				{
 					"name": "StreamsReorgContext",
@@ -1682,7 +1722,7 @@
 					"summary": "`cursor` is the rewind position the loop resumes from after `onReorg`: the foot of the fork point, or `null` for a fork at genesis.",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 284
+					"line": 299
 				},
 				{
 					"name": "StreamsReorgsListEnvelope",
@@ -1690,7 +1730,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 93
+					"line": 106
 				},
 				{
 					"name": "StreamsReorgsListParams",
@@ -1698,7 +1738,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 88
+					"line": 101
 				},
 				{
 					"name": "StreamsServerError",
@@ -1722,7 +1762,7 @@
 					"summary": "Handle for a live subscription: call it to unsubscribe.",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 214
+					"line": 229
 				},
 				{
 					"name": "StreamsTip",
@@ -1730,7 +1770,15 @@
 					"summary": "",
 					"signature": null,
 					"file": "src/streams/types.ts",
-					"line": 30
+					"line": 43
+				},
+				{
+					"name": "StreamsWireEvent",
+					"kind": "type",
+					"summary": "Anything `GET /v1/streams/events` can return: Streams 1.0 rows on the classic clock, or vm rows on `clock=vm`.",
+					"signature": null,
+					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+					"line": 162
 				},
 				{
 					"name": "toJsonSafe",
@@ -1739,6 +1787,14 @@
 					"signature": "toJsonSafe(value: object): object",
 					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
 					"line": 3
+				},
+				{
+					"name": "VmStreamsEvent",
+					"kind": "type",
+					"summary": "A Streams `clock=vm` row.",
+					"signature": null,
+					"file": "packages/shared/dist/src/streams-rows/index.d.ts",
+					"line": 159
 				}
 			]
 		},
@@ -1943,7 +1999,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 175
+					"line": 197
 				},
 				{
 					"name": "CreateWebhookResponse",
@@ -1951,7 +2007,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 241
+					"line": 263
 				},
 				{
 					"name": "DeadRow",
@@ -1959,7 +2015,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 273
+					"line": 295
 				},
 				{
 					"name": "DeliveryRow",
@@ -1967,7 +2023,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 250
+					"line": 272
 				},
 				{
 					"name": "ReplayResult",
@@ -1975,7 +2031,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 259
+					"line": 281
 				},
 				{
 					"name": "RotateSecretResponse",
@@ -1983,7 +2039,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 246
+					"line": 268
 				},
 				{
 					"name": "SbtcDepositEvent",
@@ -2023,7 +2079,7 @@
 					"summary": "Ergonomic chain-trigger constructors for `webhooks.create({ triggers })`.",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 155
+					"line": 177
 				},
 				{
 					"name": "UpdateWebhookRequest",
@@ -2031,7 +2087,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 194
+					"line": 216
 				},
 				{
 					"name": "verifyStandardWebhooksHeaders",
@@ -2047,7 +2103,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 229
+					"line": 251
 				},
 				{
 					"name": "WebhookFormat",
@@ -2087,7 +2143,7 @@
 					"summary": "",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 212
+					"line": 234
 				},
 				{
 					"name": "WebhookTestResult",
@@ -2095,7 +2151,7 @@
 					"summary": "Result of a one-off test delivery (`POST /:id/test`).",
 					"signature": null,
 					"file": "packages/shared/dist/src/schemas/webhooks.d.ts",
-					"line": 266
+					"line": 288
 				}
 			]
 		},

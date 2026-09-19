@@ -103,4 +103,4 @@ Audit: public pool create + hostile pool trait + core `as-contract` → inner `s
 1. **ALEX `0xe8b2ac70…daf`** — Hiro title `swap-x-for-y` vs our inner `transfer` (confirmed theft, `sender === caller`).
 2. **100proof `list-in-ustx`** — synthetic or live collection; `sender !== caller`; map-only (the PC miss).
 3. **Bitflow-shaped lab** — `as-contract` admin, unexploited, same vault-class signal as Charisma/ALEX without needing unpublished Charisma hashes.
-4. Charisma — tell the **propose-on-deploy vs Hiro callee history** story; do not fake a `tx_id`.
+4. Charisma — tell the **propose-on-deploy / Hiro callee-history** story; do not fake a `tx_id`.
