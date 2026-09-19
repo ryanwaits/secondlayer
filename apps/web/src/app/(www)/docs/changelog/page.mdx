@@ -7,6 +7,12 @@ instance reads are yours and unmetered. Archive bootstrap/backfill/reindex
 and hosted Index/Streams reads at `api.secondlayer.tools` draw
 [credits](/docs/authentication#archive-credits).
 
+## CLI — September 2026
+
+### Instance web console is gone
+
+The compose `--profile console` container and `secondlayer console` are removed. Operate with CLI, REST, and MCP. Old `/docs/console` redirects to [Run Secondlayer](/docs/self-host).
+
 ## MCP — September 2026
 
 ### Live Streams reads stay on REST
@@ -303,10 +309,6 @@ An instance now records where its history starts. If you never bootstrapped gene
 Plans, tiers, projects, and API-key tiers are gone from every surface. Deploys are open on any instance (no trial, no quota, no visibility flag), and archive bootstrap/backfill draws prepaid [archive credits](/docs/authentication#archive-credits). Hosted Index/Streams reads at `api.secondlayer.tools` later use that same balance. Removed with them: `client.apiKeys`, `client.projects`, `index.usage()`, `subgraphs.publish()`, and BYO `databaseUrl` deploys (typed ORM codegen for drizzle/prisma/kysely stays). Your schema, your Postgres, your instance: the SDK now assumes nothing else.
 
 ## CLI — August 2026
-
-### A console for your instance
-
-Your instance gets a web console (fleet health, subgraph detail, table browsing, webhook delivery logs) as one more container in your compose. `docker compose --profile console up -d` starts it; `secondlayer console` opens it. Loopback is open; anything past it takes your instance token, and serving it on your own domain is a reverse-proxy block away. See [Run Secondlayer](/docs/self-host#console-optional).
 
 ### Buy archive credits from the CLI
 

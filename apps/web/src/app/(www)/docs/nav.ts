@@ -25,7 +25,7 @@ export interface DocsNavGroup {
  * - **Products** is the five nouns by altitude: Archive (signed history) →
  *   Streams (raw) → Index (decoded) → Subgraphs (your schema) → Webhooks
  *   (push). Order is load-bearing; keep it.
- * - **Channels** are how you reach them (REST, CLI, SDK, MCP, Console). SDK
+ * - **Channels** are how you reach them (REST, CLI, SDK, MCP). SDK
  *   concepts (Sinks, Filters) sit with the SDK rather than competing with
  *   the nouns in Products.
  * - **Boot-contract pages** (PoX-5, sBTC) hang under Index. They are

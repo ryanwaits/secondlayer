@@ -220,7 +220,7 @@ surfaces prefer `ink/8`–`ink/10` alpha over `dove`; `dove` is for scrollbar th
   only as state.
 - Traffic dots, exact: red `#ff5f57`, yellow `#febc2e`, green `#28c840`, 9px circles.
 
-### Semantic (console + states only)
+### Semantic (states only)
 success `#22c55e` · warning `#eab308` · error `#ef4444`. Paired with 8%-alpha backgrounds;
 never decorative.
 
@@ -381,11 +381,11 @@ radial wash top-right. Same tokens as the site — an OG card is a page in minia
 ## 7. Registers
 
 - **Brand register** (`app/(www)`, landing, docs shells): everything above.
-- **Product register** (`app/platform`, console): keeps its density and data-table DNA, adopts
-  the new palette (paper/ink/alpha ramp) and the two-weight rule. Console tables:
+- **Product register** (data tables): keeps its density and data-table DNA, adopts
+  the new palette (paper/ink/alpha ramp) and the two-weight rule. Tables:
   12px Fira Code rows, 10px caps headers at `ink/40` with 0.06em tracking, hairline `ink/8`
   dividers, hover wash `ink/2`. Density never leaks into brand; whitespace never leaks into
-  console.
+  tables.
 
 ## 8. Do's and Don'ts
 

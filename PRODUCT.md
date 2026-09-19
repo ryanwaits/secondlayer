@@ -34,7 +34,7 @@ One Secondlayer account. One brand. Five nouns on one plane. Different jobs.
 
 Brand architecture (founder-resolved 2026-09-12, scenario C of the positioning study): platform plus one endorsed library. Presentation analogue: Vercel / Next.js and Prisma ORM / Pulse. The platform is a branded house (Alchemy, Goldsky shape): descriptive nouns, one world. The library stands apart because it is adopted without us. Not a studio portfolio. Not a homepage that lists five nouns; the nouns are answers to one fork, not a menu.
 
-The Grok / Grok Build / Grok CLI analogue is retired. Those differ in modality (chat, IDE, terminal); Subgraphs and Webhooks share one CLI, one TypeScript file, one console and one balance, so a second visual world there is cost a reader cannot feel.
+The Grok / Grok Build / Grok CLI analogue is retired. Those differ in modality (chat, IDE, terminal); Subgraphs and Webhooks share one CLI, one TypeScript file, and one balance, so a second visual world there is cost a reader cannot feel.
 
 Organizational analogue (not visual): Fungible Systems, a small Stacks-era group that shipped libraries (micro-stacks), wallet infra, and product work under one shop. We ship libraries and infra the same way. We do not copy that site's look.
 
@@ -75,7 +75,7 @@ Resolved 2026-09-12 (was open):
 - Subgraphs stays Subgraphs. It is a category noun now, it implies the right category, and "Views" collides with SQL views. Subscriptions became Webhooks (pricing collision; every comparable product says Webhooks). One rename, not three.
 - Naming tiers: Parent (Secondlayer) → Product (noun) → Package (`@secondlayer/*`, provenance not brand) → Command (`secondlayer <noun>`).
 - Deployments (grant-funded, one-off, public goods such as the sBTC inclusion check): a fourth tier. Built with the products, so they inherit the brand. Named by job, path under `secondlayer.tools`, one mono tag, "built on Subgraphs and Webhooks" line, open-source verifier, public-visibility subgraph under our account. Never a sub-brand, never a product noun, never a catalog. See STRATEGY.md "Deployments".
-- One visual world for everything on the plane: DESIGN.md (Sora, ink-on-paper, terminal as the product stage, sunset accent). Products have their own job, not their own world. Console inherits it with its own color rules (no sunset, beige actives).
+- One visual world for everything on the plane: DESIGN.md (Sora, ink-on-paper, terminal as the product stage, sunset accent). Products have their own job, not their own world.
 - The library's world: `stacks.secondlayer.tools`, viem-style shell, egg-white / gold, wordmark "stacks · by secondlayer". Endorsement in wordmark and footer, never a second Secondlayer hero.
 - Homepage: jobs-first hero, then one fork the reader can answer about themselves (need rows to query, or already have an API layer). Subgraphs and Webhooks are the two answers. Archive, Index, Streams appear once, in a footer band, as what the answers are built on.
 - Fungible Systems (https://fungible.systems/) is an organizational analogue only. Do not copy script wordmark, iridescent NFT case-study hero, or 2021 web3 studio gloss.

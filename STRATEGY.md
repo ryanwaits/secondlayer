@@ -80,8 +80,7 @@ Two altitudes: primitives (Archive, Streams, Index) and opinionated products
 you run). Product identity budget is one mono tag and one verb; each product
 has its own job, not its own world. Product pages are paths under
 `secondlayer.tools`, never subdomains. "Labs" is a GitHub org and legal
-entity only; it prints nowhere. Console is the platform's app surface, not a
-product. Scenario study and rationale: PRODUCT.md, Brand Commitments.
+entity only; it prints nowhere. Scenario study and rationale: PRODUCT.md, Brand Commitments.
 
 **Deployments** (grant-funded and one-off work, added 2026-09-13). Things we
 run on the plane for a third party or as a public good, such as the sBTC

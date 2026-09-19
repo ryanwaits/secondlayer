@@ -60,7 +60,6 @@ secondlayer codegen contracts ./contracts/*.clar -o src/generated.ts   # Clarity
 - `/api/*` — authed control plane (deploy/manage/admin)
 - Webhooks `POST /webhooks` — signed (Standard Webhooks HMAC + universal ed25519)
 - OpenAPI at `/v1/openapi.json` + per-subgraph specs
-- Console at **secondlayer.tools** (Next.js): keys, projects, subscriptions, billing
 
 ## Domain concepts handled
 
