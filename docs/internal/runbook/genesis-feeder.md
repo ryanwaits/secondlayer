@@ -30,48 +30,61 @@ never emit one.
 
 ## This deployment
 
-Temporary Hetzner Cloud box in Falkenstein. Stacks-node and the scratch
-indexer are **not started**. Prod `node-server` is still
-`ghcr.io/stacks-network/stacks-core:4.0.1`. Do not run `docker/feeder/`
-as-is; those files still assume the feeder lives on node-server.
+Temporary Hetzner Cloud box in Falkenstein. One compose project
+`secondlayer-feeder` on this VM (not node-server, not app-server). Prod
+`node-server` stays `ghcr.io/stacks-network/stacks-core:4.0.1` with
+`events_keys = ["*"]`. IBD is running.
 
 | | |
 |---|---|
 | Host | `stacks-feeder` (`166546682`). SKU `cpx62` (16 vCPU / 32 GB / x86). Location `fsn1`. Label `role=eval-hook-feeder`. |
 | IPv4 | `49.13.117.132` |
-| Volume | `feeder-data` (`106907790`), 1024 GB ext4. Automount `/mnt/HC_Volume_106907790`, bind `/data/feeder`. |
-| Data | `/data/feeder/stacks` and `/data/feeder/postgres` (empty except `stacks/.keep`). Never `/data/stacks` on prod. |
-| Image | `ghcr.io/ryanwaits/stacks-core:441e595` (`sha256:a9a881bd4193ea431902e429f41a3605c95ef6a2bf7d0591031f702c097f9f11`) linux/amd64. Pulled. Not running. |
 | SSH | `ssh -i ~/.ssh/id_ed25519_prod root@49.13.117.132` (Cloud key `macbook-prod`) |
-| Cloud firewall | `stacks-feeder` (`11648111`): TCP 22 from operator `136.62.99.163/32`; TCP 20444 open. Scratch indexer 3700 is not published. |
-| Bitcoin RPC | node-server `:8332` allowlist: app-server `65.21.135.94` and this IPv4. Not `0.0.0.0/0`. |
+| Runtime | `/opt/secondlayer-feeder` (compose + host `Config.toml` + `.env`). Git template is `docker/feeder/`. |
+| Volume | `feeder-data` (`106907790`), 1024 GB ext4. Automount `/mnt/HC_Volume_106907790`, bind `/data/feeder`. |
+| Data | `/data/feeder/stacks` and `/data/feeder/postgres`. Never prod chainstate or prod Postgres. |
+| Node image | `ghcr.io/ryanwaits/stacks-core:441e595@sha256:a9a881bd4193ea431902e429f41a3605c95ef6a2bf7d0591031f702c097f9f11` linux/amd64. `mem_limit` 24G. |
+| Indexer image | `secondlayer-indexer:feat-eval-hook` built on this box from `feat/eval-hook-vm-events` (has `0131_vm_events.ts`). Not GHCR `:latest`. |
+| Scratch DB | compose DNS `postgres-feeder:5432`, db/user `secondlayer_feeder` / `secondlayer`. Password only in host `.env`. |
+| Observer | compose DNS `indexer-feeder:3700`. Host bind `127.0.0.1:3700` only. Not prod indexer. |
+| Node RPC | `127.0.0.1:20443`. P2P `20444` (cloud firewall open). |
+| Bitcoin RPC | `peer_host = "37.27.171.220"` port 8332. Allowlist: app-server `65.21.135.94` and this IPv4. Not `0.0.0.0/0`. |
+| Cloud firewall | `stacks-feeder` (`11648111`): TCP 22 from operator `136.62.99.163/32`; TCP 20444 open. 3700 not published. |
 
 `ccx43` (64 GB) failed with dedicated-core quota; `cpx62` is the fallback.
-Cap stacks-node at 24G when it starts so scratch Postgres fits on 32 GB.
+Stacks-node is capped at 24G so scratch Postgres + indexer fit on 32 GB.
 Cloud volume quota is 1 TB (`2048` GB create was `resource_limit_exceeded`).
-Raise that limit before IBD if chainstate needs ≥1.2T, then
+IBD may exhaust 1T; raise that limit before chainstate needs ≥1.2T, then
 `hcloud volume resize feeder-data --size 2048` and grow the ext4 filesystem.
 
-Copy `BITCOIN_RPC_PASSWORD` from node-server `.env` into the feeder
-`Config.toml` on the host; do not commit it.
+Host `Config.toml` has `BITCOIN_RPC_PASSWORD` from node-server `.env`; git
+keeps `CHANGE_ME`. `vm_trace_max_bytes = 0`.
+`events_keys = ["*", "storage", "contract_calls"]`.
+`OBSERVER_JOURNAL_ENABLED=false` (genesis `/new_block` ~80MB).
+
+First scratch `vm_events` landed at height 9 (`map_set`). Height 0 is
+genesis classic events only. Catch-up is days–weeks.
 
 ## Bring-up
 
-1. Wipe the stacks working dir. Do not copy chainstate from Hiro or R2.
-2. Point bitcoind at a full-history source; wait until it has genesis.
-3. Start indexer (empty migrated Postgres) **before** stacks-node.
-4. Start this fork's `stacks-node` with the sample follower config, observer
-   `endpoint` at the indexer (`indexer:3700` in compose, `127.0.0.1:3700` on
-   the host).
+1. Empty `/data/feeder/stacks`. Do not copy chainstate from Hiro or R2.
+2. Bitcoin RPC is node-server (full-history). Feeder must be on the `:8332` allowlist.
+3. Build `secondlayer-indexer:feat-eval-hook` on the box (confirm `0131` in the image).
+4. `docker compose up -d postgres-feeder` → migrate → `indexer-feeder` healthy → `stacks-feeder`.
 5. Catch-up is days–weeks. `/new_block` at height 0 is ~80MB; later blocks
-   add `vm_events`. Raise any reverse-proxy body limit.
-6. Confirm ingest: `vm_events` rows from height 1 onward (boot contracts),
-   not only after you flipped keys at tip.
+   add `vm_events`. Raise any reverse-proxy body limit on this box only.
+6. Confirm ingest: `vm_events.min` genesis-adjacent (first executed; 9 on
+   this run), `count(*) > 0`. `min` near 9M means the wrong node.
 
 ```bash
-# indexer first
-# then, from stacks-core:
-stacks-node start --config sample/conf/mainnet-eval-hook-follower.toml
+cd /opt/secondlayer-feeder
+docker compose up -d postgres-feeder
+docker compose up migrate-feeder
+docker compose up -d indexer-feeder
+docker compose up -d stacks-feeder
+curl -s localhost:20443/v2/info | jq .stacks_tip_height
+docker compose exec -T postgres-feeder psql -U secondlayer -d secondlayer_feeder \
+  -c 'SELECT min(block_height), count(*) FROM vm_events'
 ```
 
 Compose `docker/oss/Config.toml` / `docker/stacks-node/Config.toml` already
