@@ -107,6 +107,28 @@ describe("streamsEventsCachePlan — key coverage", () => {
 		expect(withExclusion).not.toBe(key("from_height=1&to_height=800"));
 	});
 
+	test("resolved clock forks the key when types is omitted", () => {
+		const classic = key("from_height=1&to_height=800");
+		const vm = key("from_height=1&to_height=800&clock=vm");
+		expect(classic).not.toBeNull();
+		expect(vm).not.toBeNull();
+		expect(classic).not.toBe(vm);
+	});
+
+	test("clock isolation does not depend on request order", () => {
+		const classicThenVm = [
+			key("from_height=1&to_height=800"),
+			key("from_height=1&to_height=800&clock=vm"),
+		];
+		const vmThenClassic = [
+			key("from_height=1&to_height=800&clock=vm"),
+			key("from_height=1&to_height=800"),
+		];
+		expect(classicThenVm[0]).toBe(vmThenClassic[1]);
+		expect(classicThenVm[1]).toBe(vmThenClassic[0]);
+		expect(classicThenVm[0]).not.toBe(classicThenVm[1]);
+	});
+
 	test("a labelled filter map forks the key", () => {
 		const filters = encodeURIComponent(
 			JSON.stringify({ peg: { types: ["ft_transfer"] } }),

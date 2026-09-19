@@ -1,6 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { parseBlock, parseTransaction } from "./parser";
-import type { NewBlockPayload, TransactionPayload } from "./types/node-events";
+import {
+	VM_NODE_TO_STORED_TYPE,
+	parseBlock,
+	parseTransaction,
+	parseVmEvent,
+} from "./parser";
+import type {
+	NewBlockPayload,
+	TransactionPayload,
+	VmTraceEvent,
+} from "./types/node-events";
 
 function blockPayload(overrides: Partial<NewBlockPayload>): NewBlockPayload {
 	return {
@@ -134,5 +143,167 @@ describe("parseTransaction", () => {
 			"SP3YBY0BH4ANC0Q35QB6PD163F943FVFVDFM1SH7S.gl-api",
 		);
 		expect(result?.function_name).toBe("open");
+	});
+});
+
+describe("parseVmEvent", () => {
+	const TX =
+		"0x03346e2e50cdd34c253d960bde16d397c27f9c47fa47b435510a50d9f5b14378";
+
+	test("maps node types to Secondlayer stored names", () => {
+		expect(VM_NODE_TO_STORED_TYPE.contract_call_event).toBe(
+			"nested_contract_call",
+		);
+		expect(VM_NODE_TO_STORED_TYPE.var_set_event).toBe("var_set");
+		expect(VM_NODE_TO_STORED_TYPE.map_set_event).toBe("map_set");
+		expect(VM_NODE_TO_STORED_TYPE.map_insert_event).toBe("map_insert");
+		expect(VM_NODE_TO_STORED_TYPE.map_delete_event).toBe("map_delete");
+	});
+
+	test("parses nested contract_call_event onto array index", () => {
+		const evt: VmTraceEvent = {
+			txid: TX,
+			committed: true,
+			type: "contract_call_event",
+			contract_call_event: {
+				contract_identifier: "ST.store",
+				sender: "ST",
+				caller: "ST.caller",
+				function_name: "set-value",
+				function_args: ["0x0d"],
+				raw_result: "0x0703",
+			},
+		};
+		const parsed = parseVmEvent(evt, 100, 0);
+		expect(parsed).toEqual({
+			tx_id: TX,
+			block_height: 100,
+			ordinal: 0,
+			type: "nested_contract_call",
+			data: evt.contract_call_event,
+		});
+		expect("event_index" in (parsed ?? {})).toBe(false);
+	});
+
+	test("parses map_set / map_insert / map_delete / var_set", () => {
+		expect(
+			parseVmEvent(
+				{
+					txid: TX,
+					type: "map_set_event",
+					map_set_event: {
+						contract_identifier: "ST.store",
+						map_name: "store",
+						raw_key: "0x0a",
+						raw_value: "0x0b",
+					},
+				},
+				100,
+				1,
+			)?.type,
+		).toBe("map_set");
+		expect(
+			parseVmEvent(
+				{
+					txid: TX,
+					type: "map_insert_event",
+					map_insert_event: {
+						contract_identifier: "ST.store",
+						map_name: "store",
+						raw_key: "0x0a",
+						raw_value: "0x0b",
+					},
+				},
+				100,
+				2,
+			)?.type,
+		).toBe("map_insert");
+		expect(
+			parseVmEvent(
+				{
+					txid: TX,
+					type: "map_delete_event",
+					map_delete_event: {
+						contract_identifier: "ST.store",
+						map_name: "store",
+						raw_key: "0x0a",
+					},
+				},
+				100,
+				3,
+			)?.type,
+		).toBe("map_delete");
+		expect(
+			parseVmEvent(
+				{
+					txid: TX,
+					type: "var_set_event",
+					var_set_event: {
+						contract_identifier: "ST.store",
+						var_name: "count",
+						raw_value: "0x01",
+					},
+				},
+				100,
+				4,
+			)?.type,
+		).toBe("var_set");
+	});
+
+	test("skips a trace whose typed body is missing instead of storing the envelope", () => {
+		expect(
+			parseVmEvent(
+				{
+					txid: TX,
+					committed: true,
+					type: "map_set_event",
+				} as unknown as VmTraceEvent,
+				100,
+				0,
+			),
+		).toBeNull();
+	});
+
+	test("skips truncated marker (cap dropped writes; not a stored type)", () => {
+		expect(
+			parseVmEvent(
+				{
+					txid: TX,
+					committed: true,
+					type: "truncated",
+					truncated: { dropped: 4 },
+				},
+				100,
+				2,
+			),
+		).toBeNull();
+	});
+
+	test("skips unknown types; uses array index not a node ordinal", () => {
+		expect(
+			parseVmEvent(
+				{
+					txid: TX,
+					type: "not_a_vm_event",
+				} as unknown as VmTraceEvent,
+				100,
+				0,
+			),
+		).toBeNull();
+		const parsed = parseVmEvent(
+			{
+				txid: TX,
+				type: "map_set_event",
+				map_set_event: {
+					contract_identifier: "ST.store",
+					map_name: "store",
+					raw_key: "0x0a",
+					raw_value: "0x0b",
+				},
+			},
+			100,
+			7,
+		);
+		expect(parsed?.ordinal).toBe(7);
 	});
 });

@@ -3,12 +3,37 @@ import type { IndexHttpClient } from "@secondlayer/shared/index-http";
 import type { SubgraphDefinition } from "../types.ts";
 import {
 	PublicApiBlockSource,
+	indexEventTypesForFilterTypes,
 	isStreamsIndexEligible,
 } from "./block-source.ts";
 
 function def(sources: Record<string, unknown>): SubgraphDefinition {
 	return { name: "t", sources } as unknown as SubgraphDefinition;
 }
+
+const VM_TYPES = [
+	"nested_contract_call",
+	"var_set",
+	"map_set",
+	"map_insert",
+	"map_delete",
+];
+
+describe("indexEventTypesForFilterTypes — vm types are a second clock", () => {
+	test("a contract_call source fans out to classic types only", () => {
+		const types = indexEventTypesForFilterTypes(["contract_call"]);
+		expect(types).toContain("print");
+		expect(types).toContain("ft_transfer");
+		for (const vm of VM_TYPES) expect(types).not.toContain(vm);
+	});
+	test("a vm source is fetched only when referenced", () => {
+		expect(indexEventTypesForFilterTypes(["map_set"])).toEqual(["map_set"]);
+		const mixed = indexEventTypesForFilterTypes(["contract_call", "map_set"]);
+		expect(mixed).toContain("map_set");
+		expect(mixed).toContain("print");
+		expect(mixed).not.toContain("nested_contract_call");
+	});
+});
 
 describe("isStreamsIndexEligible", () => {
 	test("all event-type sources, no trait → eligible", () => {
@@ -92,7 +117,73 @@ describe("PublicApiBlockSource.loadBlockRange", () => {
 					]
 				: [],
 		getIndexTip: async () => 2,
+		getIndexSourceTip: async () => 2,
 	} as unknown as IndexHttpClient;
+
+	test("ft_transfer getTip uses decoded Index tip", async () => {
+		let sourceCalls = 0;
+		const http = {
+			...fakeHttp,
+			getIndexTip: async () => 100,
+			getIndexSourceTip: async () => {
+				sourceCalls++;
+				return 200;
+			},
+		} as unknown as IndexHttpClient;
+		const src = new PublicApiBlockSource(http, ["ft_transfer"]);
+		expect(await src.getTip()).toBe(100);
+		expect(sourceCalls).toBe(0);
+	});
+
+	test("map_set getTip uses the ingest tip", async () => {
+		const http = {
+			...fakeHttp,
+			getIndexTip: async () => 100,
+			getIndexSourceTip: async () => 200,
+		} as unknown as IndexHttpClient;
+		const src = new PublicApiBlockSource(http, ["map_set"]);
+		expect(await src.getTip()).toBe(200);
+	});
+
+	test("map_set at source height 200 lands when walkBlocks includes that height", async () => {
+		const http = {
+			walkBlocks: async () => [
+				{
+					block_height: 200,
+					block_hash: "0xh200",
+					parent_hash: "0xh199",
+					burn_block_height: 300,
+					burn_block_hash: null,
+					block_time: "2026-01-01T00:00:00.000Z",
+				},
+			],
+			walkTransactions: async () => [],
+			walkEvents: async (type: string) =>
+				type === "map_set"
+					? [
+							{
+								event_type: "map_set",
+								block_height: 200,
+								tx_id: "0xt200",
+								tx_index: 3,
+								event_index: 5,
+								contract_id: "SP.store",
+								map: "store",
+								raw_key: "0x0a",
+								raw_value: "0x0b",
+							},
+						]
+					: [],
+			getIndexTip: async () => 100,
+			getIndexSourceTip: async () => 200,
+		} as unknown as IndexHttpClient;
+		const src = new PublicApiBlockSource(http, ["map_set"], undefined, false);
+		const bd = (await src.loadBlockRange(200, 200)).get(200);
+		expect(bd?.block.hash).toBe("0xh200");
+		expect(bd?.vmEvents?.map((e) => [e.type, e.event_index])).toEqual([
+			["map_set", 5],
+		]);
+	});
 
 	test("assembles canonical BlockData incl. empty blocks, txs, events", async () => {
 		const src = new PublicApiBlockSource(fakeHttp, ["ft_transfer"]);

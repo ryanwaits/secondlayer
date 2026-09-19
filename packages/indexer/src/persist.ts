@@ -12,6 +12,8 @@ export type PersistBlockInput = {
 	block: Insertable<Database["blocks"]>;
 	txs: Insertable<Database["transactions"]>[];
 	evts: Insertable<Database["events"]>[];
+	/** Second clock. Empty when the `/new_block` body had no `vm_events` field. */
+	vmEvts?: Insertable<Database["vm_events"]>[];
 	blockHeight: number;
 	/** Defaults to STACKS_NETWORK env (or "mainnet"). */
 	network?: string;
@@ -61,6 +63,46 @@ async function archiveOrphanedHeight(
 			${orphanedHash}
 		FROM events WHERE block_height = ${blockHeight}
 	`.execute(tx);
+
+	await sql`
+		INSERT INTO vm_events_archive (
+			id, tx_id, block_height, ordinal, type, data, created_at,
+			orphaned_block_hash
+		)
+		SELECT id, tx_id, block_height, ordinal, type, data, created_at,
+			${orphanedHash}
+		FROM vm_events WHERE block_height = ${blockHeight}
+	`.execute(tx);
+}
+
+/** Copy a re-mined tx's current row (block hash + execution fields) into
+ *  `transactions_archive` before last-writer-wins moves it. Height-scoped
+ *  {@link archiveOrphanedHeight} never sees the old row once ownership has
+ *  moved, so orphan VM/event rows would otherwise archive without a matching
+ *  transaction. */
+async function archiveReminedTransactions(
+	tx: Kysely<Database>,
+	txIds: string[],
+	incomingHeight: number,
+): Promise<void> {
+	if (txIds.length === 0) return;
+	await sql`
+		INSERT INTO transactions_archive (
+			tx_id, block_height, tx_index, type, sender, status, contract_id,
+			function_name, function_args, raw_result, raw_tx, created_at,
+			orphaned_block_hash
+		)
+		SELECT t.tx_id, t.block_height, t.tx_index, t.type, t.sender, t.status,
+			t.contract_id, t.function_name, t.function_args, t.raw_result, t.raw_tx,
+			t.created_at, b.hash
+		FROM transactions t
+		LEFT JOIN blocks b ON b.height = t.block_height
+		WHERE t.tx_id IN (${sql.join(
+			txIds.map((id) => sql`${id}`),
+			sql`, `,
+		)})
+			AND t.block_height <> ${incomingHeight}
+	`.execute(tx);
 }
 
 export async function persistBlock(
@@ -68,6 +110,7 @@ export async function persistBlock(
 	input: PersistBlockInput,
 ): Promise<void> {
 	const { block, txs, evts, blockHeight } = input;
+	const vmEvts = input.vmEvts ?? [];
 	const network = input.network ?? process.env.STACKS_NETWORK ?? "mainnet";
 
 	await db.transaction().execute(async (tx) => {
@@ -108,16 +151,23 @@ export async function persistBlock(
 		// transactions.tx_id with no ON DELETE CASCADE, so dropping the parent
 		// rows first would violate the FK.
 		//
-		// Height alone is not enough. `transactions.tx_id` is a PK, so a
-		// transaction re-mined at a new height across a fork keeps its
-		// first-seen `block_height` (the insert below is onConflict-doNothing)
-		// while its events are written at each delivered height. Those stragglers
-		// survive a delete-by-height and then block the transaction delete —
-		// which halted mainnet ingest for 8h on 2026-08-16 over two rows.
+		// Height alone is not enough for leftover desync: a tx that still
+		// lives at H while events linger at H+1 would block the transaction
+		// delete (events_tx_id_fkey; 8h mainnet halt 2026-08-16). Incoming
+		// persist now claims the tx (`excluded.block_height`), so a re-mine
+		// moves T to H+1 and replace-H no longer sees it. The tx_id-scoped
+		// events delete stays as halt-prevention for rows that never got claimed.
+		// vm_events are height-only: leftover desync at another height follows
+		// the tx via ON DELETE CASCADE, so a tx_id wipe would also drop live
+		// H+1 VM rows of a re-mined tx still listed at H.
 		//
 		// Two statements, not one OR'd predicate: an OR across block_height and
 		// tx_id defeats both indexes and seq-scans the whole events table
 		// (~105M rows) on every block. Split, each side uses its own index.
+		await tx
+			.deleteFrom("vm_events")
+			.where("block_height", "=", blockHeight)
+			.execute();
 		await tx
 			.deleteFrom("events")
 			.where("block_height", "=", blockHeight)
@@ -139,11 +189,34 @@ export async function persistBlock(
 			.execute();
 
 		for (let i = 0; i < txs.length; i += TX_CHUNK_SIZE) {
+			const chunk = txs.slice(i, i + TX_CHUNK_SIZE);
+			await archiveReminedTransactions(
+				tx,
+				chunk.map((row) => row.tx_id as string),
+				blockHeight,
+			);
 			await tx
 				.insertInto("transactions")
-				.values(txs.slice(i, i + TX_CHUNK_SIZE))
+				.values(chunk)
+				// Last-writer-wins on tx_id: a re-mined tx is owned by the
+				// incoming block. doNothing left T at H while events/vm landed
+				// at H+1 — Index returned the stale tx_index, the Postgres
+				// loader missed T at H+1, and replace-H cascaded H+1 vm rows.
 				// biome-ignore lint/suspicious/noExplicitAny: kysely onConflict builder
-				.onConflict((oc: any) => oc.doNothing())
+				.onConflict((oc: any) =>
+					oc.column("tx_id").doUpdateSet({
+						block_height: sql`excluded.block_height`,
+						tx_index: sql`excluded.tx_index`,
+						type: sql`excluded.type`,
+						sender: sql`excluded.sender`,
+						status: sql`excluded.status`,
+						contract_id: sql`excluded.contract_id`,
+						function_name: sql`excluded.function_name`,
+						function_args: sql`excluded.function_args`,
+						raw_result: sql`excluded.raw_result`,
+						raw_tx: sql`excluded.raw_tx`,
+					}),
+				)
 				.execute();
 		}
 
@@ -159,6 +232,15 @@ export async function persistBlock(
 				// belt-and-suspenders on redelivery of the same height. (A targeted
 				// onConflict.columns(...) would hard-require the index and throw on
 				// every insert until it exists — see persist/backfill deploy ordering.)
+				// biome-ignore lint/suspicious/noExplicitAny: kysely onConflict builder
+				.onConflict((oc: any) => oc.doNothing())
+				.execute();
+		}
+
+		for (let i = 0; i < vmEvts.length; i += EVT_CHUNK_SIZE) {
+			await tx
+				.insertInto("vm_events")
+				.values(vmEvts.slice(i, i + EVT_CHUNK_SIZE))
 				// biome-ignore lint/suspicious/noExplicitAny: kysely onConflict builder
 				.onConflict((oc: any) => oc.doNothing())
 				.execute();

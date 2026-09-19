@@ -113,9 +113,13 @@ Point your external stacks-node's `Config.toml` at the indexer:
 ```toml
 [[events_observer]]
 endpoint = "your-server:3700"
-events_keys = ["*"]
+events_keys = ["*", "storage", "contract_calls"]
 timeout_ms = 30000
 ```
+
+Those extra keys require the eval-hook `stacks-node` fork (stock binaries panic
+on unknown keys). `"*"`-only archives cannot reconstruct inner calls — see
+`docs/internal/runbook/canonical-archive.md`.
 
 ---
 

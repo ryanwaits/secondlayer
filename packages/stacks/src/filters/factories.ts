@@ -10,6 +10,7 @@ import type {
 	PrintFieldType,
 	SpecFor,
 	StreamsParamsShape,
+	StreamsVmParamsShape,
 } from "./types.ts";
 import {
 	assertAssetIdentifier,
@@ -167,11 +168,11 @@ function toIndexParams(
 			out.sender = value;
 			continue;
 		}
-		if (key === "caller") {
+		if (key === "caller" && spec.type !== "nested_contract_call") {
 			unsupported(
 				"Index events",
 				"caller",
-				"contract-call fields live on index.contractCalls",
+				"outer contract-call fields live on index.contractCalls",
 			);
 		}
 		out[key] = value;
@@ -179,16 +180,43 @@ function toIndexParams(
 	return { ...out, ...extra } as IndexEventsParamsShape;
 }
 
+const VM_MEMBERS = new Set<ChainEventFilterType>([
+	"nested_contract_call",
+	"var_set",
+	"map_set",
+	"map_insert",
+	"map_delete",
+]);
+
+const VM_INDEX_ONLY_FIELDS = new Set([
+	"functionName",
+	"caller",
+	"sender",
+	"map",
+	"varName",
+]);
+
 function toStreamsParams(
 	spec: ChainEventFilterSpec,
 	extra: Record<string, unknown> = {},
-): StreamsParamsShape {
+): StreamsParamsShape | StreamsVmParamsShape {
 	assertNoWildcards("Streams", spec);
 	const out: Record<string, unknown> = {
 		types: [spec.type === "print_event" ? "print" : spec.type],
 	};
+	const isVm = VM_MEMBERS.has(spec.type);
+	if (isVm) out.clock = "vm";
 	for (const [key, value] of specEntries(spec)) {
 		if (DECORATIVE_FIELDS.has(key)) continue;
+		// Streams clock=vm has no payload predicates beyond contract_id (the
+		// server rejects sender on clock=vm; function/map/var live on Index).
+		if (isVm && VM_INDEX_ONLY_FIELDS.has(key)) {
+			unsupported(
+				"Streams",
+				key,
+				"vm payload predicates are Index/Subgraphs/Subscriptions-only; Streams clock=vm narrows by types and contractId",
+			);
+		}
 		if (key === "factory") {
 			unsupported(
 				"Streams",
@@ -226,7 +254,7 @@ function toStreamsParams(
 		}
 		out[key] = value;
 	}
-	return { ...out, ...extra } as StreamsParamsShape;
+	return { ...out, ...extra } as StreamsParamsShape | StreamsVmParamsShape;
 }
 
 function toContractCallsParams(
@@ -296,7 +324,7 @@ export function makeChainEventFilter<
 
 	const filter = { ...spec } as unknown as Record<string, unknown>;
 	filter.toChainTrigger = () => toChainTrigger(spec);
-	if (DECODED_MEMBERS.has(type)) {
+	if (DECODED_MEMBERS.has(type) || VM_MEMBERS.has(type)) {
 		filter.toIndexParams = (extra?: Record<string, unknown>) =>
 			toIndexParams(spec, extra);
 		filter.toStreamsParams = (extra?: Record<string, unknown>) =>
@@ -382,6 +410,13 @@ export interface OnNamespace {
 				prints?: P;
 			}
 	>;
+	nestedCall(
+		fields?: Fields<"nested_contract_call">,
+	): ChainEventFilter<"nested_contract_call">;
+	varSet(fields?: Fields<"var_set">): ChainEventFilter<"var_set">;
+	mapSet(fields?: Fields<"map_set">): ChainEventFilter<"map_set">;
+	mapInsert(fields?: Fields<"map_insert">): ChainEventFilter<"map_insert">;
+	mapDelete(fields?: Fields<"map_delete">): ChainEventFilter<"map_delete">;
 	sbtcDeposit(
 		fields?: Fields<"sbtc_deposit">,
 	): ChainEventFilter<"sbtc_deposit">;
@@ -454,6 +489,16 @@ export const on: OnNamespace = {
 			prints?: P;
 		} = {},
 	) => makeChainEventFilter("print_event", fields),
+	nestedCall: (fields: Fields<"nested_contract_call"> = {}) =>
+		makeChainEventFilter("nested_contract_call", fields),
+	varSet: (fields: Fields<"var_set"> = {}) =>
+		makeChainEventFilter("var_set", fields),
+	mapSet: (fields: Fields<"map_set"> = {}) =>
+		makeChainEventFilter("map_set", fields),
+	mapInsert: (fields: Fields<"map_insert"> = {}) =>
+		makeChainEventFilter("map_insert", fields),
+	mapDelete: (fields: Fields<"map_delete"> = {}) =>
+		makeChainEventFilter("map_delete", fields),
 	sbtcDeposit: (fields: Fields<"sbtc_deposit"> = {}) =>
 		makeChainEventFilter("sbtc_deposit", fields),
 	sbtcWithdrawalCreate: (fields: Fields<"sbtc_withdrawal_create"> = {}) =>

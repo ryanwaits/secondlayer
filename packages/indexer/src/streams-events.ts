@@ -6,6 +6,7 @@ import {
 	STREAMS_TO_DB_EVENT_TYPES,
 	type StreamsDbEventType,
 	type StreamsEventType,
+	type VmEventType,
 	encodeStreamsCursor,
 } from "@secondlayer/shared";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
@@ -52,15 +53,26 @@ export type StreamsEvent = {
 	matched?: string[];
 };
 
+/** A `clock=vm` row: same envelope, `event_type` from VM_EVENT_TYPES, and
+ *  `event_index` is `ordinal`. Never mixed into a classic page. */
+export type VmStreamsEvent = Omit<StreamsEvent, "event_type"> & {
+	event_type: VmEventType;
+};
+
+/** What a Streams events read returns: one clock per page. */
+export type StreamsWireEvent = StreamsEvent | VmStreamsEvent;
+
 export type ReadCanonicalStreamsEventsParams = {
 	after?: StreamsEventCursor;
 	fromHeight?: number;
 	toHeight: number;
-	types?: readonly StreamsEventType[];
+	/** Classic types on the default clock; VM_EVENT_TYPES only on `clock=vm`.
+	 *  Each reader keeps its own vocabulary — a page never mixes clocks. */
+	types?: readonly (StreamsEventType | VmEventType)[];
 	/** Event types to exclude. Applied after `types`, so `not_types` narrows the
 	 *  included set further (an empty result is a no-op page that still advances
 	 *  the cursor). */
-	notTypes?: readonly StreamsEventType[];
+	notTypes?: readonly (StreamsEventType | VmEventType)[];
 	/** Inclusion filters on the raw event payload (`events.data`). A list matches
 	 *  any of its values (`IN`). Event types that lack the field simply never
 	 *  match — the firehose narrows naturally. */
@@ -77,7 +89,7 @@ export type ReadCanonicalStreamsEventsParams = {
 };
 
 export type ReadCanonicalStreamsEventsResult = {
-	events: StreamsEvent[];
+	events: StreamsWireEvent[];
 	next_cursor: string | null;
 };
 
@@ -220,10 +232,13 @@ export async function readCanonicalStreamsEvents(
 	// has to be wide enough for every group, and each group's own `types` is
 	// then re-applied exactly inside its OR branch. Without the union a
 	// two-label request would silently drop one label's events.
+	// This reader is the classic clock: vm names never reach the DB type map
+	// (the route rejects them without clock=vm; the vm reader owns that vocab).
+	const classicTypes = params.types?.filter(isClassicStreamsType);
 	const requestedStreamsTypes =
 		labels.length > 0
-			? unionTypes(params.filters ?? {}, params.types)
-			: (params.types ?? STREAMS_EVENT_TYPES);
+			? unionTypes(params.filters ?? {}, classicTypes)
+			: (classicTypes ?? STREAMS_EVENT_TYPES);
 	if (labels.length > 0 && requestedStreamsTypes.length === 0) {
 		return { events: [], next_cursor: null };
 	}
@@ -422,6 +437,13 @@ function labelledFilterPredicate(
 
 /** Union of every group's event types (a group without `types` inherits the
  *  request-level `types`, or the full firehose vocabulary). */
+const CLASSIC_TYPE_SET: ReadonlySet<string> = new Set(STREAMS_EVENT_TYPES);
+function isClassicStreamsType(
+	type: StreamsEventType | VmEventType,
+): type is StreamsEventType {
+	return CLASSIC_TYPE_SET.has(type);
+}
+
 function unionTypes(
 	filters: Readonly<Record<string, StreamsLabelledFilter>>,
 	requestTypes: readonly StreamsEventType[] | undefined,

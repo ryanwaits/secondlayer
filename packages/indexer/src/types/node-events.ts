@@ -268,6 +268,58 @@ export interface TransactionEvent {
 	};
 }
 
+// Opt-in VM traces (`"storage"` / `"contract_calls"`). Not in `"*"`.
+// Delivered on `/new_block.vm_events`, never in `events[]`. Order in the
+// array is the index. Classic `event_index` does not move.
+export type VmNodeEventType =
+	| "contract_call_event"
+	| "var_set_event"
+	| "map_set_event"
+	| "map_insert_event"
+	| "map_delete_event"
+	| "truncated";
+
+export interface VmContractCallEventData {
+	contract_identifier: string;
+	sender: string | null;
+	caller: string;
+	function_name: string;
+	function_args: string[];
+	raw_result: string;
+}
+
+export interface VmVarSetEventData {
+	contract_identifier: string;
+	var_name: string;
+	raw_value: string;
+}
+
+export interface VmMapWriteEventData {
+	contract_identifier: string;
+	map_name: string;
+	raw_key: string;
+	raw_value: string;
+}
+
+export interface VmMapDeleteEventData {
+	contract_identifier: string;
+	map_name: string;
+	raw_key: string;
+}
+
+export interface VmTraceEvent {
+	txid: string;
+	committed?: boolean;
+	type: VmNodeEventType;
+	contract_call_event?: VmContractCallEventData;
+	var_set_event?: VmVarSetEventData;
+	map_set_event?: VmMapWriteEventData;
+	map_insert_event?: VmMapWriteEventData;
+	map_delete_event?: VmMapDeleteEventData;
+	/** Emergency cap only. Not a stored type; ingest skips it. */
+	truncated?: { dropped: number };
+}
+
 // Matured miner rewards
 export interface MaturedMinerReward {
 	from_stacks_block_hash: string;
@@ -295,6 +347,8 @@ export interface NewBlockPayload {
 	timestamp?: number;
 	transactions: TransactionPayload[];
 	events: TransactionEvent[];
+	/** Present only when this observer opted into `"storage"` / `"contract_calls"`. Omitted on `"*"` bodies. */
+	vm_events?: VmTraceEvent[];
 	matured_miner_rewards?: MaturedMinerReward[];
 }
 

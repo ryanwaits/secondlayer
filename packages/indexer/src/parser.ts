@@ -2,9 +2,11 @@ import type {
 	InsertBlock,
 	InsertEvent,
 	InsertTransaction,
+	InsertVmEvent,
 } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
 import { serializeCV } from "@secondlayer/stacks/clarity";
+import { VM_NODE_TO_STORED_TYPE } from "@secondlayer/stacks/filters";
 import {
 	AddressHashMode,
 	type ContractCallPayload,
@@ -17,6 +19,7 @@ import type {
 	NewBlockPayload,
 	TransactionEvent,
 	TransactionPayload,
+	VmTraceEvent,
 } from "./types/node-events.ts";
 
 // Stacks API URL for fallback tx lookups (opt-in via ENABLE_TX_DECODE_FALLBACK=true).
@@ -281,6 +284,14 @@ export async function parseTransaction(
 	};
 }
 
+/** Node JSON `type` → Secondlayer stored `type`. Single-sourced in
+ *  `@secondlayer/stacks/filters` next to VM_EVENT_TYPES; re-exported here for
+ *  the ingest side. Inner calls are not `contract_call`. */
+export { VM_NODE_TO_STORED_TYPE };
+
+export type VmStoredEventType =
+	(typeof VM_NODE_TO_STORED_TYPE)[keyof typeof VM_NODE_TO_STORED_TYPE];
+
 export function parseEvent(
 	txEvent: TransactionEvent,
 	blockHeight: number,
@@ -301,6 +312,56 @@ export function parseEvent(
 		block_height: blockHeight,
 		event_index: event_index,
 		type,
+		data: eventData,
+	};
+}
+
+export function parseVmEvent(
+	vmEvent: VmTraceEvent,
+	blockHeight: number,
+	arrayIndex: number,
+): InsertVmEvent | null {
+	const { txid, type } = vmEvent;
+	if (!txid || !type) return null;
+	if (!Number.isInteger(arrayIndex) || arrayIndex < 0) {
+		return null;
+	}
+
+	if (type === "truncated") {
+		logger.warn("vm_event truncated by node cap, skipping (writes dropped)", {
+			type,
+			txid,
+			dropped: vmEvent.truncated?.dropped,
+			arrayIndex,
+		});
+		return null;
+	}
+
+	const storedType =
+		type in VM_NODE_TO_STORED_TYPE ? VM_NODE_TO_STORED_TYPE[type] : undefined;
+	if (!storedType) {
+		logger.warn("Unknown vm_event type, skipping", { type, txid });
+		return null;
+	}
+
+	// The body lives under a key named after the node type. No fallback to the
+	// envelope: storing `{txid, committed, type}` as `data` would surface as a
+	// row with no contract_identifier.
+	const eventData = (vmEvent as unknown as Record<string, unknown>)[type];
+	if (!eventData || typeof eventData !== "object") {
+		logger.warn("vm_event body missing for type, skipping", {
+			type,
+			txid,
+			arrayIndex,
+		});
+		return null;
+	}
+
+	return {
+		tx_id: txid,
+		block_height: blockHeight,
+		ordinal: arrayIndex,
+		type: storedType,
 		data: eventData,
 	};
 }

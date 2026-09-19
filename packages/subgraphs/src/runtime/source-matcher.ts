@@ -24,8 +24,11 @@ export type EventRecord = {
 	id: string;
 	tx_id: string;
 	type: string;
+	/** Classic `event_index`, or `ordinal` when `clock === "vm"`. */
 	event_index: number;
 	data: unknown;
+	/** Set on opt-in `vm_events` rows. Two clocks never sort or dedupe together. */
+	clock?: "vm";
 };
 
 // ── Wildcard matching (shared with v1) ──────────────────────────────
@@ -135,6 +138,7 @@ function matchFilter(
 	eventsByTx: Map<string, EventRecord[]>,
 	traitContracts: TraitContracts,
 	factoryContracts: FactoryContracts = new Map(),
+	vmEventsByTx: Map<string, EventRecord[]> = new Map(),
 ): { tx: TxRecord; events: EventRecord[] }[] {
 	const results: { tx: TxRecord; events: EventRecord[] }[] = [];
 
@@ -339,6 +343,76 @@ function matchFilter(
 			break;
 		}
 
+		case "nested_contract_call":
+		case "var_set":
+		case "map_set":
+		case "map_insert":
+		case "map_delete": {
+			// vm sources read the vm clock only. A classic tx-level source never
+			// sees these rows, and a vm source never sees `events[]`.
+			for (const tx of transactions) {
+				const txEvents = vmEventsByTx.get(tx.tx_id) ?? [];
+				const matched = txEvents.filter((e) => {
+					if (e.type !== filter.type) return false;
+					const data = e.data as Record<string, unknown> | null;
+					if (!data) return false;
+					const contractId = printContractId(data);
+					if ("contractId" in filter && filter.contractId) {
+						if (!contractId || !matchAny(contractId, filter.contractId))
+							return false;
+					}
+					if (!traitAllows(filter, contractId, traitContracts)) return false;
+					if (!factoryAllows(filter, contractId, factoryContracts))
+						return false;
+					if (filter.type === "nested_contract_call") {
+						if (filter.functionName) {
+							if (
+								typeof data.function_name !== "string" ||
+								!matchPattern(data.function_name, filter.functionName)
+							)
+								return false;
+						}
+						if (filter.caller) {
+							if (
+								typeof data.caller !== "string" ||
+								!matchPattern(data.caller, filter.caller)
+							)
+								return false;
+						}
+						if (filter.sender) {
+							if (
+								typeof data.sender !== "string" ||
+								!matchPattern(data.sender, filter.sender)
+							)
+								return false;
+						}
+					}
+					if (filter.type === "var_set" && filter.varName) {
+						if (
+							typeof data.var_name !== "string" ||
+							!matchPattern(data.var_name, filter.varName)
+						)
+							return false;
+					}
+					if (
+						(filter.type === "map_set" ||
+							filter.type === "map_insert" ||
+							filter.type === "map_delete") &&
+						filter.map
+					) {
+						if (
+							typeof data.map_name !== "string" ||
+							!matchPattern(data.map_name, filter.map)
+						)
+							return false;
+					}
+					return true;
+				});
+				if (matched.length > 0) results.push({ tx, events: matched });
+			}
+			break;
+		}
+
 		// ── Print event ──
 		case "print_event": {
 			for (const tx of transactions) {
@@ -386,13 +460,21 @@ export function matchSources(
 	events: EventRecord[],
 	traitContracts: TraitContracts = new Map(),
 	factoryContracts: FactoryContracts = new Map(),
+	/** Opt-in `vm_events` rows (second clock). Only vm-typed sources read them. */
+	vmEvents: EventRecord[] = [],
 ): MatchedTx[] {
-	// Index events by txId
+	// Index events by txId — one map per clock.
 	const eventsByTx = new Map<string, EventRecord[]>();
 	for (const event of events) {
 		const list = eventsByTx.get(event.tx_id) ?? [];
 		list.push(event);
 		eventsByTx.set(event.tx_id, list);
+	}
+	const vmEventsByTx = new Map<string, EventRecord[]>();
+	for (const event of vmEvents) {
+		const list = vmEventsByTx.get(event.tx_id) ?? [];
+		list.push(event);
+		vmEventsByTx.set(event.tx_id, list);
 	}
 
 	const seen = new Set<string>();
@@ -405,6 +487,7 @@ export function matchSources(
 			eventsByTx,
 			traitContracts,
 			factoryContracts,
+			vmEventsByTx,
 		);
 		for (const match of matches) {
 			const dedupeKey = `${match.tx.tx_id}:${sourceName}`;

@@ -520,6 +520,8 @@ rm /tmp/hiro-api-pg.dump
 
 Bootstrap stacks-node from Hiro's archive (~800-900 GB) instead of syncing from scratch. Note: still need a backfill strategy for the indexer DB.
 
+**Not for the `vm_events` observer.** A Hiro restore skips Clarity execution, so the eval-hook never sees that history. When node-server runs the fork image and collects `"storage"` / `"contract_calls"`, its `STACKS_DATA_DIR` must be the genesis-feeder's own chainstate (or empty disk). Collapse after IBD: [genesis-feeder.md](../../docs/internal/runbook/genesis-feeder.md#after-catch-up-collapse-to-one-hooked-follower). Unhooked `/v2` RPC may still use a Hiro snapshot on a **different** node.
+
 ```bash
 ssh node-server
 
@@ -553,7 +555,12 @@ rm /tmp/snapshot.tar.zst
 ### Indexer not receiving blocks
 
 1. Check stacks-node logs on node server for event observer errors
-2. Verify `events_keys = ["*"]` in node server `Config.toml`
+2. Verify `events_keys` in node server `Config.toml`. Stock / pre-fork image:
+   leave `["*"]` — `"storage"` / `"contract_calls"` panic on start. After the
+   eval-hook image is on this host, those keys add `vm_events`; flipping them
+   on a Hiro-restored disk does **not** backfill history. Feeder then collapse:
+   [genesis-feeder.md](../../docs/internal/runbook/genesis-feeder.md). Do not
+   flip the keys as a “fix” for empty `vm_events`.
 3. Check firewall: app server port 3700 must be open from node server IP
 4. `disable_retries = false` in Config.toml — node retries failed deliveries. Integrity loop fills any remaining gaps via Hiro API
 

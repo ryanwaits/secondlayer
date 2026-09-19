@@ -341,7 +341,9 @@ async function processBlockRange(
 				// cannot take this shortcut: its no-match path still writes the
 				// cursor, which is exactly what the lock protects there.)
 				const mayWrite =
-					blockData.txs.length > 0 || blockData.events.length > 0;
+					blockData.txs.length > 0 ||
+					blockData.events.length > 0 ||
+					(blockData.vmEvents?.length ?? 0) > 0;
 				const runBlock = () =>
 					processBlockWithRetry(def, subgraphName, height, {
 						skipProgressUpdate: true,

@@ -1,0 +1,32 @@
+{
+	"block_hash": "0xaaa111",
+	"block_height": 100,
+	"index_block_hash": "0xbbb222",
+	"parent_block_hash": "0xccc333",
+	"parent_index_block_hash": "0xddd444",
+	"burn_block_hash": "0xeee555",
+	"burn_block_height": 200,
+	"miner_txid": "0xfff666",
+	"timestamp": 1700000000,
+	"transactions": [
+		{
+			"txid": "0x03346e2e50cdd34c253d960bde16d397c27f9c47fa47b435510a50d9f5b14378",
+			"raw_tx": "0x00",
+			"status": "success",
+			"tx_index": 0
+		}
+	],
+	"events": [
+		{
+			"txid": "0x03346e2e50cdd34c253d960bde16d397c27f9c47fa47b435510a50d9f5b14378",
+			"event_index": 0,
+			"type": "smart_contract_event",
+			"smart_contract_event": {
+				"contract_identifier": "ST3FEXKRAY93SR2MERXNSAXWGV9XSDNM1MVEFY5TH.store",
+				"topic": "print",
+				"value": "0x0d0000000568656c6c6f"
+			}
+		}
+	],
+	"vm_events": []
+}

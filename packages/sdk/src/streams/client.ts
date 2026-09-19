@@ -336,6 +336,8 @@ export function createStreamsClient(
 				asset_identifier: params.assetIdentifier,
 				types: params.types,
 				not_types: params.notTypes,
+				// `vm` reads ordinal; omitted = Streams 1.0 (server default).
+				clock: params.clock === "vm" ? "vm" : undefined,
 				filters: encodeFilters(params.filters),
 			})}`,
 		);
@@ -454,7 +456,8 @@ export function createStreamsClient(
 			});
 		},
 		events: {
-			list: listEvents,
+			// One wire call; the overloads narrow the row type by `clock`/`types`.
+			list: listEvents as StreamsClient["events"]["list"],
 			byTxId(txId: string) {
 				return request<StreamsEventsListEnvelope>(
 					`/v1/streams/events/${encodeURIComponent(txId)}`,

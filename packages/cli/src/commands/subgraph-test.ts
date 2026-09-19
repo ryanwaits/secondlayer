@@ -6,6 +6,8 @@ import type { IndexContractCall, IndexEvent } from "@secondlayer/sdk";
 import {
 	DECODED_EVENT_TYPES,
 	type DecodedEventType,
+	VM_EVENT_TYPES,
+	type VmEventType,
 } from "@secondlayer/stacks/filters";
 import {
 	runSubgraphTest as applySubgraphTest,
@@ -104,16 +106,23 @@ export function loadCassette(
  * `as any`, so a source type the Index API doesn't serve would have sailed
  * through to a 400 at runtime.
  */
-function eventTypeFor(filter: { type: string }): DecodedEventType | null {
+function eventTypeFor(filter: { type: string }):
+	| DecodedEventType
+	| VmEventType
+	| null {
 	// contract_call uses index.contractCalls.list (handled in the fetch loop).
 	// contract_deploy has no Index list endpoint.
 	if (filter.type === "contract_deploy") {
 		return null;
 	}
 	const candidate = filter.type === "print_event" ? "print" : filter.type;
-	return DECODED_EVENT_TYPES.includes(candidate as DecodedEventType)
-		? (candidate as DecodedEventType)
-		: null;
+	if (DECODED_EVENT_TYPES.includes(candidate as DecodedEventType)) {
+		return candidate as DecodedEventType;
+	}
+	if (VM_EVENT_TYPES.includes(candidate as VmEventType)) {
+		return candidate as VmEventType;
+	}
+	return null;
 }
 
 /** Where the metered reads this command makes actually go. Resolved through

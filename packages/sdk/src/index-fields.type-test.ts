@@ -8,7 +8,11 @@
  * side. Reading one must be a compile error, not `undefined` at runtime.
  */
 import { expectTypeOf } from "expect-type";
-import type { Index, IndexFtTransfer } from "./index-api/client.ts";
+import type {
+	Index,
+	IndexFtTransfer,
+	IndexMapSet,
+} from "./index-api/client.ts";
 
 export async function _indexFieldsChecks(index: Index): Promise<void> {
 	const narrowed = await index.events.list({
@@ -41,6 +45,9 @@ export async function _indexFieldsChecks(index: Index): Promise<void> {
 	// Without `fields`, the full row is unchanged.
 	const full = await index.events.list({ eventType: "ft_transfer" });
 	expectTypeOf(full.events).toEqualTypeOf<IndexFtTransfer[]>();
+
+	const maps = await index.events.list({ eventType: "map_set" });
+	expectTypeOf(maps.events).toEqualTypeOf<IndexMapSet[]>();
 }
 
 // `walk` forwards `fields` to the wire exactly as `list` does, so it must

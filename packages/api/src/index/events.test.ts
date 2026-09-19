@@ -286,6 +286,97 @@ describe("Index /events response", () => {
 		expect(response.reorgs.map((reorg) => reorg.id)).toEqual(["reorg-1"]);
 	});
 
+	test("VM pages overlap reorgs by height, not ordinal", async () => {
+		let seenRange:
+			| { from: { event_index: number }; to: { event_index: number } }
+			| undefined;
+		const response = await getIndexEventsResponse({
+			query: params("?event_type=map_set&from_height=0"),
+			tip: TIP,
+			readEvents: async () => ({
+				events: [
+					{
+						cursor: "10:5",
+						block_height: 10,
+						tx_id: "0x01",
+						tx_index: 0,
+						event_index: 5,
+						event_type: "map_set",
+						contract_id: "SP.store",
+						map: "store",
+						raw_key: "0x0a",
+						raw_value: "0x0b",
+					},
+				],
+				next_cursor: "10:5",
+				span: {
+					from: { block_height: 10, event_index: 5 },
+					to: { block_height: 10, event_index: 5 },
+				},
+			}),
+			readReorgs: async (range) => {
+				seenRange = range;
+				return [
+					{
+						id: "reorg-h0",
+						detected_at: "2026-05-03T12:30:00.000Z",
+						fork_point_height: 10,
+						old_index_block_hash: "0xold",
+						new_index_block_hash: "0xnew",
+						orphaned_range: { from: "10:0", to: "10:0" },
+						new_canonical_tip: "10:0",
+					},
+				];
+			},
+		});
+		expect(seenRange?.from.event_index).toBe(0);
+		expect(seenRange?.to.event_index).toBe(2_147_483_647);
+		expect(response.reorgs.map((r) => r.id)).toEqual(["reorg-h0"]);
+	});
+
+	test("VM reads clamp to source_block_height, not the decoded tip", async () => {
+		let seenToHeight: number | undefined;
+		let readerRan = false;
+		const lagged: IndexTip = {
+			block_height: 100,
+			finalized_height: 90,
+			lag_seconds: 0,
+			source_block_height: 200,
+		};
+		const response = await getIndexEventsResponse({
+			query: params("?event_type=map_set&from_cursor=150:0"),
+			tip: lagged,
+			readEvents: async (p) => {
+				readerRan = true;
+				seenToHeight = p.toHeight;
+				return { events: [], next_cursor: null };
+			},
+		});
+		expect(readerRan).toBe(true);
+		expect(seenToHeight).toBe(200);
+		expect(response.tip.block_height).toBe(200);
+		expect(response.events).toEqual([]);
+	});
+
+	test("classic reads still short-circuit on the decoded tip", async () => {
+		const lagged: IndexTip = {
+			block_height: 100,
+			finalized_height: 90,
+			lag_seconds: 0,
+			source_block_height: 200,
+		};
+		const response = await getIndexEventsResponse({
+			query: params("?event_type=ft_transfer&from_cursor=150:0"),
+			tip: lagged,
+			readEvents: async () => {
+				throw new Error("classic reader must not run past decoded tip");
+			},
+		});
+		expect(response.events).toEqual([]);
+		expect(response.next_cursor).toBe("150:0");
+		expect(response.tip.block_height).toBe(100);
+	});
+
 	test("cursor past tip short-circuits with the raw cursor echoed back", async () => {
 		const response = await getIndexEventsResponse({
 			query: params(

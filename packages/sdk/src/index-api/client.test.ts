@@ -40,6 +40,30 @@ describe("Index trait filter + discover", () => {
 		expect(urls[0]).toContain("trait=sip-010");
 	});
 
+	test("events.list forwards vm filters (function_name, caller, map, var_name, txId)", async () => {
+		const urls = recorder({
+			events: [],
+			next_cursor: null,
+			tip: {},
+			reorgs: [],
+		});
+		const index = new Index({ baseUrl: BASE_URL });
+		await index.events.list({
+			eventType: "nested_contract_call",
+			functionName: "transfer",
+			caller: "SP.wrapper",
+			txId: "0xab",
+		});
+		await index.events.list({ eventType: "map_set", map: "store" });
+		await index.events.list({ eventType: "var_set", varName: "n" });
+		expect(urls[0]).toContain("event_type=nested_contract_call");
+		expect(urls[0]).toContain("function_name=transfer");
+		expect(urls[0]).toContain("caller=SP.wrapper");
+		expect(urls[0]).toContain("tx_id=0xab");
+		expect(urls[1]).toContain("map=store");
+		expect(urls[2]).toContain("var_name=n");
+	});
+
 	test("contractCalls.list forwards trait", async () => {
 		const urls = recorder({
 			contract_calls: [],

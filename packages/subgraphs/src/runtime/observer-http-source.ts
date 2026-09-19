@@ -1,5 +1,13 @@
+import {
+	VM_NODE_TO_STORED_TYPE,
+	type VmNodeEventType,
+} from "@secondlayer/shared";
 import type { Block, Event, Transaction } from "@secondlayer/shared/db";
-import type { BlockData } from "./batch-loader.ts";
+import {
+	type BlockData,
+	type RuntimeEvent,
+	vmEventId,
+} from "./batch-loader.ts";
 import type { BlockSource } from "./block-source.ts";
 
 /** Duplicated from indexer — do not import `@secondlayer/indexer` (cycle). */
@@ -75,6 +83,15 @@ type ObserverNewBlockPayload = {
 	burn_block_timestamp?: number;
 	transactions?: ObserverTx[];
 	events?: ObserverEvent[];
+	/** Opt-in traces; omitted on `"*"` bodies. */
+	vm_events?: ObserverVmTrace[];
+};
+
+type ObserverVmTrace = {
+	txid?: string;
+	committed?: boolean;
+	type?: string;
+	[key: string]: unknown;
 };
 
 function stripTrailingSlash(url: string): string {
@@ -168,7 +185,31 @@ export function mapNewBlockPayloadToBlockData(payload: unknown): BlockData {
 		} as Event;
 	});
 
-	return { block, txs, events };
+	// Opt-in `vm_events` (present only when the observer subscribed to
+	// `storage` / `contract_calls`). Node type → stored name; own clock.
+	const vmEvents: RuntimeEvent[] = [];
+	for (const [i, trace] of (p.vm_events ?? []).entries()) {
+		const nodeType = trace.type;
+		if (typeof nodeType !== "string" || !(nodeType in VM_NODE_TO_STORED_TYPE))
+			continue;
+		const stored = VM_NODE_TO_STORED_TYPE[nodeType as VmNodeEventType];
+		const body = trace[nodeType];
+		if (!body || typeof body !== "object") continue;
+		const txId = trace.txid ?? "";
+		const vmIndex = i;
+		vmEvents.push({
+			id: vmEventId(txId, vmIndex),
+			tx_id: txId,
+			block_height: height,
+			event_index: vmIndex,
+			type: stored,
+			data: body,
+			created_at: new Date(0),
+			clock: "vm",
+		} as RuntimeEvent);
+	}
+
+	return { block, txs, events, vmEvents };
 }
 
 /**

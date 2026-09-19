@@ -2,11 +2,17 @@ import {
 	type ReadCanonicalStreamsEventsParams,
 	type ReadCanonicalStreamsEventsResult,
 	STREAMS_EVENT_TYPES,
-	type StreamsEvent,
 	type StreamsEventType,
 	type StreamsLabelledFilter,
+	type StreamsWireEvent,
 	readCanonicalStreamsEvents,
 } from "@secondlayer/indexer/streams-events";
+import { readCanonicalVmEvents } from "@secondlayer/indexer/vm-streams-events";
+import {
+	EMPTY_RANGE_EVENT_INDEX_SENTINEL,
+	VM_EVENT_TYPES,
+	type VmEventType,
+} from "@secondlayer/shared";
 import { ValidationError } from "@secondlayer/shared/errors";
 import { parseCursor, parseNonNegativeInteger } from "../parse-query.ts";
 import type { StreamsCursorInput } from "./cursor.ts";
@@ -26,6 +32,8 @@ export type StreamsEventsReader = (
 ) => Promise<ReadCanonicalStreamsEventsResult>;
 
 export type StreamsEventsQuery = {
+	/** `vm` reads vm_events / ordinal. Default classic is Streams 1.0. */
+	clock: "classic" | "vm";
 	/**
 	 * Explicit cursor wins over the server default window. `from_cursor=0:0`
 	 * and `cursor=0:0` start at genesis, subject to tier retention.
@@ -39,8 +47,8 @@ export type StreamsEventsQuery = {
 	 */
 	fromHeight?: number;
 	toHeight: number;
-	types?: readonly StreamsEventType[];
-	notTypes?: readonly StreamsEventType[];
+	types?: readonly (StreamsEventType | VmEventType)[];
+	notTypes?: readonly (StreamsEventType | VmEventType)[];
 	contractId?: string | string[];
 	sender?: string | string[];
 	recipient?: string | string[];
@@ -54,7 +62,7 @@ export type StreamsEventsQuery = {
  * Wire event: the indexer event plus `finalized`, true when the event's block
  * is at or below the tip's burn-confirmation finality boundary (immutable).
  */
-export type StreamsEventEnvelope = StreamsEvent & { finalized: boolean };
+export type StreamsEventEnvelope = StreamsWireEvent & { finalized: boolean };
 
 export type StreamsEventsResponse = {
 	events: StreamsEventEnvelope[];
@@ -64,7 +72,7 @@ export type StreamsEventsResponse = {
 };
 
 export function markFinalized(
-	events: readonly StreamsEvent[],
+	events: readonly StreamsWireEvent[],
 	finalizedHeight: number,
 ): StreamsEventEnvelope[] {
 	return events.map((event) => ({
@@ -74,6 +82,7 @@ export function markFinalized(
 }
 
 const STREAMS_EVENT_TYPE_SET = new Set<string>(STREAMS_EVENT_TYPES);
+const VM_EVENT_TYPE_SET = new Set<string>(VM_EVENT_TYPES);
 
 function parseLimit(value: string | undefined): number {
 	if (value === undefined) return 100;
@@ -84,18 +93,30 @@ function parseLimit(value: string | undefined): number {
 	return Math.min(1000, parsed);
 }
 
+function parseClock(value: string | undefined): "classic" | "vm" {
+	if (value === undefined || value === "classic") return "classic";
+	if (value === "vm") return "vm";
+	throw new ValidationError("clock must be classic or vm");
+}
+
 function parseTypes(
 	value: string | undefined,
-): readonly StreamsEventType[] | undefined {
+	clock: "classic" | "vm",
+): readonly (StreamsEventType | VmEventType)[] | undefined {
 	if (value === undefined) return undefined;
 	const types = value.split(",").map((part) => part.trim());
 	if (types.length === 0 || types.some((type) => type.length === 0)) {
 		throw new ValidationError("types must be a comma-separated list");
 	}
 
-	const unknown = types.filter((type) => !STREAMS_EVENT_TYPE_SET.has(type));
+	const allowed = clock === "vm" ? VM_EVENT_TYPE_SET : STREAMS_EVENT_TYPE_SET;
+	const unknown = types.filter((type) => !allowed.has(type));
 	if (unknown.length > 0) {
-		throw new ValidationError(`Unknown Streams event type: ${unknown[0]}`);
+		throw new ValidationError(
+			clock === "vm"
+				? `Unknown vm Streams event type: ${unknown[0]} (use nested_contract_call, var_set, map_set, map_insert, map_delete)`
+				: `Unknown Streams event type: ${unknown[0]}`,
+		);
 	}
 
 	return types as StreamsEventType[];
@@ -223,7 +244,8 @@ function parseFilters(
 		parsed[label] = {
 			types: parseTypes(
 				joinFilterValue(record.types, `filters.${label}.types`),
-			),
+				"classic",
+			) as StreamsLabelledFilter["types"],
 			contractId: parseListFilter(
 				joinFilterValue(record.contractId, `filters.${label}.contractId`),
 				`filters.${label}.contractId`,
@@ -321,13 +343,27 @@ export function parseStreamsEventsQuery(
 				)
 			: undefined;
 
+	const clock = parseClock(query.get("clock") ?? undefined);
+	if (clock === "vm") {
+		// The vm reader has no payload predicates for these; accepting them would
+		// return an unfiltered page under a filter the caller believes applied.
+		for (const key of ["filters", "sender", "recipient", "asset_identifier"]) {
+			if (query.get(key) !== null) {
+				throw new ValidationError(
+					`${key} is classic Streams 1.0 only; drop it for clock=vm`,
+				);
+			}
+		}
+	}
+
 	return {
+		clock,
 		cursor,
 		cursorRaw,
 		fromHeight: fromHeight ?? defaultFromHeight,
 		toHeight,
-		types: parseTypes(resolveTypesParam(query)),
-		notTypes: parseTypes(query.get("not_types") ?? undefined),
+		types: parseTypes(resolveTypesParam(query), clock),
+		notTypes: parseTypes(query.get("not_types") ?? undefined, clock),
 		contractId: parseListFilter(
 			query.get("contract_id") ?? undefined,
 			"contract_id",
@@ -354,18 +390,35 @@ export async function getStreamsEventsResponse(opts: {
 	readReorgs?: StreamsReorgsReader;
 }): Promise<StreamsEventsResponse> {
 	const parsed = parseStreamsEventsQuery(opts.query, opts.tip);
+	const readReorgs = opts.readReorgs ?? EMPTY_STREAMS_REORGS_READER;
+	const byHeight = parsed.clock === "vm";
 
 	if (parsed.cursorPastTip) {
 		return {
 			events: [],
 			next_cursor: parsed.cursorRaw ?? null,
 			tip: opts.tip,
-			// reorgs stays empty until reorg detection lands; see PRD 0001 reorg endpoint task.
-			reorgs: [],
+			reorgs:
+				byHeight && parsed.cursor
+					? await readReorgs({
+							from: {
+								block_height: parsed.cursor.block_height,
+								event_index: 0,
+							},
+							to: {
+								block_height: parsed.cursor.block_height,
+								event_index: EMPTY_RANGE_EVENT_INDEX_SENTINEL,
+							},
+						})
+					: [],
 		};
 	}
 
-	const readEvents = opts.readEvents ?? readCanonicalStreamsEvents;
+	const readEvents =
+		opts.readEvents ??
+		(parsed.clock === "vm"
+			? readCanonicalVmEvents
+			: readCanonicalStreamsEvents);
 	const result = await readEvents({
 		after: parsed.cursor,
 		fromHeight: parsed.fromHeight,
@@ -379,19 +432,31 @@ export async function getStreamsEventsResponse(opts: {
 		filters: parsed.filters,
 		limit: parsed.limit,
 	});
-	const readReorgs = opts.readReorgs ?? EMPTY_STREAMS_REORGS_READER;
 	const firstEvent = result.events.at(0);
 	const lastEvent = result.events.at(-1);
+	// VM pages live on ordinal. Classic reorg bounds are event_index.
+	// Include the resume height even when the replacement has no matches.
+	const reorgFrom = byHeight ? (parsed.cursor ?? firstEvent) : firstEvent;
+	const reorgTo =
+		lastEvent ??
+		(byHeight && parsed.cursor
+			? {
+					block_height: Math.max(parsed.cursor.block_height, parsed.toHeight),
+					event_index: 0,
+				}
+			: undefined);
 	const reorgs =
-		firstEvent && lastEvent
+		reorgFrom && reorgTo
 			? await readReorgs({
 					from: {
-						block_height: firstEvent.block_height,
-						event_index: firstEvent.event_index,
+						block_height: reorgFrom.block_height,
+						event_index: byHeight ? 0 : reorgFrom.event_index,
 					},
 					to: {
-						block_height: lastEvent.block_height,
-						event_index: lastEvent.event_index,
+						block_height: reorgTo.block_height,
+						event_index: byHeight
+							? EMPTY_RANGE_EVENT_INDEX_SENTINEL
+							: reorgTo.event_index,
 					},
 				})
 			: [];

@@ -90,11 +90,12 @@ export function renderObserverStanza(input: ObserverStanzaInput): string {
 	const comment = indexer
 		? "# Pure indexer: retry delivery. A slow observer can stall the node."
 		: "# Signer-shared: do not retry. Missed blocks refill from the journal/archive.";
+	const eventsKeys = indexer ? '["*", "storage", "contract_calls"]' : '["*"]';
 	return [
 		comment,
 		"[[events_observer]]",
 		`endpoint = "${endpoint}"`,
-		'events_keys = ["*"]',
+		`events_keys = ${eventsKeys}`,
 		`timeout_ms = ${timeoutMs}`,
 		`disable_retries = ${disableRetries}`,
 		"",

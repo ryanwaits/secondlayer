@@ -108,6 +108,31 @@ export interface EventsArchiveTable {
 	archived_at: Generated<Date>;
 }
 
+// Opt-in VM traces (migration 0131). Second clock: `ordinal` (array position
+// in `/new_block.vm_events`). Never mixed into `events.event_index`.
+export interface VmEventsTable {
+	id: Generated<string>;
+	tx_id: string;
+	block_height: number;
+	ordinal: number;
+	type: string;
+	data: unknown;
+	created_at: Generated<Date>;
+}
+
+export interface VmEventsArchiveTable {
+	archive_id: Generated<string>;
+	id: string;
+	tx_id: string;
+	block_height: number;
+	ordinal: number;
+	type: string;
+	data: unknown;
+	created_at: Date;
+	orphaned_block_hash: string | null;
+	archived_at: Generated<Date>;
+}
+
 // Dead-letter log (see migration 0085): events whose decoded payload failed
 // schema validation on ingest. Append-only diagnostic; the event still lands in
 // `events`, so chain data is never lost.
@@ -897,8 +922,10 @@ export interface Database {
 	blocks: BlocksTable;
 	transactions: TransactionsTable;
 	events: EventsTable;
+	vm_events: VmEventsTable;
 	transactions_archive: TransactionsArchiveTable;
 	events_archive: EventsArchiveTable;
+	vm_events_archive: VmEventsArchiveTable;
 	dead_letter_events: DeadLetterEventsTable;
 	mempool_transactions: MempoolTransactionsTable;
 	index_progress: IndexProgressTable;
@@ -1047,6 +1074,10 @@ export type InsertMempoolTransaction = Insertable<MempoolTransactionsTable>;
 export type Event = Selectable<EventsTable>;
 export type InsertEvent = Insertable<EventsTable>;
 export type UpdateEvent = Updateable<EventsTable>;
+
+export type VmEvent = Selectable<VmEventsTable>;
+export type InsertVmEvent = Insertable<VmEventsTable>;
+export type UpdateVmEvent = Updateable<VmEventsTable>;
 
 export type IndexProgress = Selectable<IndexProgressTable>;
 export type InsertIndexProgress = Insertable<IndexProgressTable>;

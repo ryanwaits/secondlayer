@@ -66,6 +66,14 @@ function decodeRawResult(raw: unknown): unknown {
 	return null;
 }
 
+/** Decode a hex Clarity value without mutating the original string field. */
+function decodeRawHex(hex: string): unknown {
+	if (hex.startsWith("0x") && hex.length > 2) {
+		return decodeClarityValue(hex);
+	}
+	return hex;
+}
+
 /** Safely convert a value to BigInt. Handles string, number, bigint. Returns 0n on failure. */
 function safeBigInt(val: unknown): bigint {
 	if (typeof val === "bigint") return val;
@@ -335,6 +343,64 @@ export function buildEventPayload(
 				tx: txMeta,
 			};
 
+		// ── VM traces: preserve raw hex. Generic decodeEventData would turn
+		// a long uint hex into bigint and leave a short boolean hex a string.
+		case "nested_contract_call": {
+			const data = (event.data ?? {}) as Record<string, unknown>;
+			const argsHex = Array.isArray(data.function_args)
+				? data.function_args.filter((a): a is string => typeof a === "string")
+				: [];
+			return {
+				contractId: printContractId(data) ?? "",
+				sender: typeof data.sender === "string" ? data.sender : null,
+				caller: typeof data.caller === "string" ? data.caller : "",
+				functionName:
+					typeof data.function_name === "string" ? data.function_name : "",
+				args: decodeFunctionArgs(argsHex),
+				arguments: argsHex,
+				rawResult: typeof data.raw_result === "string" ? data.raw_result : "",
+				result: decodeRawResult(data.raw_result),
+				tx: txMeta,
+			};
+		}
+		case "var_set": {
+			const data = (event.data ?? {}) as Record<string, unknown>;
+			const rawValue = typeof data.raw_value === "string" ? data.raw_value : "";
+			return {
+				contractId: printContractId(data) ?? "",
+				varName: typeof data.var_name === "string" ? data.var_name : "",
+				rawValue,
+				value: decodeRawHex(rawValue),
+				tx: txMeta,
+			};
+		}
+		case "map_set":
+		case "map_insert": {
+			const data = (event.data ?? {}) as Record<string, unknown>;
+			const rawKey = typeof data.raw_key === "string" ? data.raw_key : "";
+			const rawValue = typeof data.raw_value === "string" ? data.raw_value : "";
+			return {
+				contractId: printContractId(data) ?? "",
+				map: typeof data.map_name === "string" ? data.map_name : "",
+				rawKey,
+				key: decodeRawHex(rawKey),
+				rawValue,
+				value: decodeRawHex(rawValue),
+				tx: txMeta,
+			};
+		}
+		case "map_delete": {
+			const data = (event.data ?? {}) as Record<string, unknown>;
+			const rawKey = typeof data.raw_key === "string" ? data.raw_key : "";
+			return {
+				contractId: printContractId(data) ?? "",
+				map: typeof data.map_name === "string" ? data.map_name : "",
+				rawKey,
+				key: decodeRawHex(rawKey),
+				tx: txMeta,
+			};
+		}
+
 		default:
 			// Fallback: spread decoded data with tx metadata
 			return {
@@ -393,9 +459,13 @@ export async function runHandlers(
 			for (const event of events) units.push({ tx, sourceName, event });
 		}
 	}
+	// Within a tx the classic clock runs first, then the vm clock: the two
+	// ordinals are not comparable, so they are never interleaved.
+	const clockRank = (e: DispatchUnit["event"]) => (e?.clock === "vm" ? 1 : 0);
 	units.sort(
 		(a, b) =>
 			(a.tx.tx_index ?? 0) - (b.tx.tx_index ?? 0) ||
+			clockRank(a.event) - clockRank(b.event) ||
 			(a.event?.event_index ?? -1) - (b.event?.event_index ?? -1),
 	);
 

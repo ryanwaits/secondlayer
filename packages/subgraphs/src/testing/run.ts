@@ -119,9 +119,51 @@ export function toHandlerPayload(
 			tx,
 		};
 	}
+	const r = row as Record<string, unknown>;
+	if (row.event_type === "var_set") {
+		const rawValue = typeof r.raw_value === "string" ? r.raw_value : "";
+		return {
+			contractId: row.contract_id ?? "",
+			varName: typeof r.var_name === "string" ? r.var_name : "",
+			rawValue,
+			value: rawValue,
+			tx,
+		};
+	}
+	if (row.event_type === "nested_contract_call") {
+		const argsHex = Array.isArray(r.function_args)
+			? r.function_args.filter((a): a is string => typeof a === "string")
+			: [];
+		return {
+			contractId: row.contract_id ?? "",
+			sender: typeof r.sender === "string" ? r.sender : null,
+			caller: typeof r.caller === "string" ? r.caller : "",
+			functionName: typeof r.function_name === "string" ? r.function_name : "",
+			args: argsHex,
+			arguments: argsHex,
+			rawResult: typeof r.raw_result === "string" ? r.raw_result : "",
+			result: null,
+			tx,
+		};
+	}
+	if (
+		row.event_type === "map_set" ||
+		row.event_type === "map_insert" ||
+		row.event_type === "map_delete"
+	) {
+		const rawKey = typeof r.raw_key === "string" ? r.raw_key : "";
+		const rawValue = typeof r.raw_value === "string" ? r.raw_value : "";
+		return {
+			contractId: row.contract_id ?? "",
+			map: typeof r.map === "string" ? r.map : "",
+			rawKey,
+			key: rawKey,
+			...(row.event_type === "map_delete" ? {} : { rawValue, value: rawValue }),
+			tx,
+		};
+	}
 	// Token/STX events: the Index row is already flat and camel-free; map the
 	// snake_case wire names onto the handler payload names.
-	const r = row as Record<string, unknown>;
 	return {
 		...(r.sender !== undefined ? { sender: r.sender } : {}),
 		...(r.recipient !== undefined ? { recipient: r.recipient } : {}),

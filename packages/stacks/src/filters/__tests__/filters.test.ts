@@ -44,6 +44,34 @@ describe("on.* factories", () => {
 		});
 	});
 
+	test("nested_contract_call is Index+Streams vm clock, not outer contract_call", () => {
+		const f = on.nestedCall({
+			contractId: TOKEN_CONTRACT,
+			functionName: "transfer",
+		});
+		expect(f.type).toBe("nested_contract_call");
+		expect(f.toIndexParams()).toEqual({
+			eventType: "nested_contract_call",
+			contractId: TOKEN_CONTRACT,
+			functionName: "transfer",
+		});
+		// Streams clock=vm narrows by types + contractId only; a payload
+		// predicate the surface cannot apply throws instead of being dropped.
+		expect(() => f.toStreamsParams()).toThrow(/functionName/);
+		expect(
+			on.nestedCall({ contractId: TOKEN_CONTRACT }).toStreamsParams(),
+		).toEqual({
+			types: ["nested_contract_call"],
+			clock: "vm",
+			contractId: TOKEN_CONTRACT,
+		});
+		expect(() =>
+			on.mapSet({ contractId: TOKEN_CONTRACT, map: "store" }).toStreamsParams(),
+		).toThrow(/map/);
+		expect(f.toChainTrigger().type).toBe("nested_contract_call");
+		expect("toContractCallsParams" in f).toBe(false);
+	});
+
 	test("canonical print_event projects to Index/Streams as print", () => {
 		const f = on.print({ contractId: TOKEN_CONTRACT });
 		expect(f.type).toBe("print_event");

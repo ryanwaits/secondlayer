@@ -1,0 +1,86 @@
+# Isolated eval-hook feeder (cloud VM). One project: stacks-node + scratch
+# postgres + feat indexer. Do not run on node-server or app-server. Do not
+# add this file to deploy.sh.
+#
+#   cd docker/feeder && docker compose up -d postgres-feeder
+#   docker compose up -d migrate-feeder
+#   docker compose up -d indexer-feeder
+#   docker compose up -d stacks-feeder
+#
+# Disk: /data/feeder/stacks and /data/feeder/postgres. Never a Hiro tarball.
+# Observer: indexer-feeder:3700 (compose DNS). Never prod indexer.
+# Indexer image: feat build with 0131. Do not use GHCR :latest.
+
+name: secondlayer-feeder
+
+services:
+  stacks-feeder:
+    image: ghcr.io/ryanwaits/stacks-core:441e595@sha256:a9a881bd4193ea431902e429f41a3605c95ef6a2bf7d0591031f702c097f9f11
+    volumes:
+      - ${STACKS_FEEDER_DATA_DIR:-/data/feeder/stacks}:/stacks-blockchain/data
+      - ./Config.toml:/stacks-blockchain/Config.toml:ro
+    ports:
+      - "127.0.0.1:20443:20443"
+      - "20444:20444"
+    depends_on:
+      indexer-feeder:
+        condition: service_healthy
+    mem_limit: 24g
+    deploy:
+      resources:
+        limits:
+          memory: 24G
+    restart: unless-stopped
+    command: ["stacks-node", "start", "--config", "/stacks-blockchain/Config.toml"]
+
+  postgres-feeder:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-secondlayer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secondlayer}
+      POSTGRES_DB: ${POSTGRES_DB:-secondlayer_feeder}
+    volumes:
+      - ${POSTGRES_FEEDER_DATA_DIR:-/data/feeder/postgres}:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-secondlayer} -d ${POSTGRES_DB:-secondlayer_feeder}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  migrate-feeder:
+    image: ${INDEXER_IMAGE:-secondlayer-indexer:feat-eval-hook}
+    pull_policy: never
+    command: ["bun", "run", "packages/shared/src/db/migrate.ts"]
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres-feeder:5432/${POSTGRES_DB:-secondlayer_feeder}
+    depends_on:
+      postgres-feeder:
+        condition: service_healthy
+    restart: "no"
+
+  indexer-feeder:
+    image: ${INDEXER_IMAGE:-secondlayer-indexer:feat-eval-hook}
+    pull_policy: never
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres-feeder:5432/${POSTGRES_DB:-secondlayer_feeder}
+      PORT: 3700
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NODE_ENV: production
+      OBSERVER_JOURNAL_ENABLED: "false"
+      TIP_FOLLOWER_ENABLED: "true"
+      STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-http://stacks-feeder:20443}
+    ports:
+      - "127.0.0.1:3700:3700"
+    depends_on:
+      migrate-feeder:
+        condition: service_completed_successfully
+      postgres-feeder:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3700/health"]
+      interval: 30s
+      timeout: 3s
+      start_period: 30s
+      retries: 3
+    restart: unless-stopped

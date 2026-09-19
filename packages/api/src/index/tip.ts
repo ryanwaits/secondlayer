@@ -23,6 +23,12 @@ export type IndexTip = {
 	 */
 	finalized_height: number;
 	lag_seconds: number;
+	/**
+	 * Canonical source (ingest) tip. VM Index reads clamp here: `vm_events`
+	 * land with the block, not with the decoder. Omitted in tests that do not
+	 * distinguish the two clocks.
+	 */
+	source_block_height?: number;
 };
 
 /** Zero tip served when no canonical block exists yet (oss/self-host only). */
@@ -30,7 +36,18 @@ const EMPTY_INDEX_TIP: IndexTip = {
 	block_height: 0,
 	finalized_height: 0,
 	lag_seconds: 0,
+	source_block_height: 0,
 };
+
+/**
+ * Window clamp for source-plane Index reads (`/blocks`, `/transactions`).
+ * Envelope `block_height` stays the decoded tip; only the parse window moves.
+ */
+export function indexSourceWindowTip(tip: IndexTip): IndexTip {
+	if (tip.source_block_height === undefined) return tip;
+	if (tip.source_block_height === tip.block_height) return tip;
+	return { ...tip, block_height: tip.source_block_height };
+}
 
 export type IndexFinalizedHeightReader = (
 	finalizedBurnHeight: number,
@@ -165,6 +182,7 @@ export function createIndexTipProvider(opts?: {
 			block_height: tipBlock.block_height,
 			finalized_height,
 			lag_seconds: getIndexLagSeconds(tipBlock.ts, nowMs),
+			source_block_height: sourceTip.block_height,
 		};
 
 		cache = { expiresAt: nowMs + cacheTtlMs, value };

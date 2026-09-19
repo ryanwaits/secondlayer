@@ -1,3 +1,4 @@
+import type { VmEventType } from "@secondlayer/shared";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
 import type { Database } from "@secondlayer/shared/db/schema";
@@ -15,6 +16,12 @@ import {
 	toIsoOrNull,
 } from "./_shared.ts";
 import type { IndexTip } from "./tip.ts";
+import {
+	VM_INDEX_EVENT_CONFIG,
+	VM_INDEX_EVENT_TYPES,
+	isVmIndexEventType,
+	readVmIndexEvents,
+} from "./vm-events.ts";
 
 /** Pagination/window params every Index read endpoint accepts. */
 const PAGINATION_FILTERS = [
@@ -35,13 +42,18 @@ const INDEX_COMMON_FILTERS = [
 
 /** Equality filters a decoded-event type may expose. Each also drives the
  *  ORDER BY (the first provided filter, in config order, leads the sort). */
-type IndexEqualityFilter =
+export type IndexEqualityFilter =
 	| "contract_id"
 	| "asset_identifier"
 	| "sender"
-	| "recipient";
+	| "recipient"
+	| "function_name"
+	| "map"
+	| "var_name"
+	| "caller"
+	| "tx_id";
 
-type IndexEventConfig = {
+export type IndexEventConfig = {
 	/** Type-specific columns selected beyond the universal base, in SELECT order. */
 	columns: readonly string[];
 	/** Columns constrained to NOT NULL — the rows this event type guarantees. */
@@ -168,8 +180,24 @@ export const INDEX_EVENT_TYPES = Object.keys(
 	INDEX_EVENT_CONFIG,
 ) as IndexEventType[];
 
+export const ALL_INDEX_EVENT_TYPES = [
+	...INDEX_EVENT_TYPES,
+	...VM_INDEX_EVENT_TYPES,
+] as const;
+
 export function isIndexEventType(value: string): value is IndexEventType {
 	return value in INDEX_EVENT_CONFIG;
+}
+
+export function isAnyIndexEventType(
+	value: string,
+): value is IndexEventType | VmEventType {
+	return isIndexEventType(value) || isVmIndexEventType(value);
+}
+
+function configFor(eventType: IndexEventType | VmEventType): IndexEventConfig {
+	if (isVmIndexEventType(eventType)) return VM_INDEX_EVENT_CONFIG[eventType];
+	return INDEX_EVENT_CONFIG[eventType];
 }
 
 /** A decoded event in flat form, discriminated by `event_type`. Type-specific
@@ -182,7 +210,7 @@ export type IndexEvent = {
 	tx_id: string;
 	tx_index: number;
 	event_index: number;
-	event_type: IndexEventType;
+	event_type: IndexEventType | VmEventType;
 	contract_id: string | null;
 	asset_identifier?: string | null;
 	sender?: string | null;
@@ -191,6 +219,14 @@ export type IndexEvent = {
 	value?: string | null;
 	memo?: string | null;
 	payload?: unknown;
+	function_name?: string | null;
+	caller?: string | null;
+	function_args?: unknown;
+	raw_result?: string | null;
+	map?: string | null;
+	var_name?: string | null;
+	raw_key?: string | null;
+	raw_value?: string | null;
 	/** Submitting-transaction context, present only when `tx_context=true`. The
 	 *  real tx sender — distinct from a transfer event's asset `sender`, and the
 	 *  only place a print event's sender is available. Lets the subgraph runtime
@@ -209,7 +245,7 @@ type IndexEventRow = {
 	tx_id: string;
 	tx_index: string | number;
 	event_index: string | number;
-	event_type: IndexEventType;
+	event_type: IndexEventType | VmEventType;
 	contract_id: string | null;
 	asset_identifier?: string | null;
 	sender?: string | null;
@@ -226,7 +262,7 @@ type IndexEventRow = {
 };
 
 export type IndexEventsQuery = {
-	eventType: IndexEventType;
+	eventType: IndexEventType | VmEventType;
 	cursor?: IndexCursorInput;
 	cursorRaw?: string;
 	fromHeight: number;
@@ -252,7 +288,7 @@ export type IndexEventsResponse = {
 };
 
 export type ReadIndexEventsParams = {
-	eventType: IndexEventType;
+	eventType: IndexEventType | VmEventType;
 	after?: IndexCursorInput;
 	fromHeight: number;
 	toHeight: number;
@@ -367,6 +403,10 @@ export async function readIndexEvents(
 ): Promise<ReadIndexEventsResult> {
 	if (params.toHeight < params.fromHeight) {
 		return { events: [], next_cursor: null };
+	}
+
+	if (isVmIndexEventType(params.eventType)) {
+		return readVmIndexEvents(params);
 	}
 
 	const config = INDEX_EVENT_CONFIG[params.eventType];
@@ -571,16 +611,16 @@ export function parseIndexEventsQuery(
 	}
 	if (eventTypeRaw === undefined) {
 		throw new ValidationError(
-			`event_type is required (one of: ${INDEX_EVENT_TYPES.join(", ")})`,
+			`event_type is required (one of: ${ALL_INDEX_EVENT_TYPES.join(", ")})`,
 		);
 	}
-	if (!isIndexEventType(eventTypeRaw)) {
+	if (!isAnyIndexEventType(eventTypeRaw)) {
 		throw new ValidationError(
-			`unknown event_type: ${eventTypeRaw} (one of: ${INDEX_EVENT_TYPES.join(", ")})`,
+			`unknown event_type: ${eventTypeRaw} (one of: ${ALL_INDEX_EVENT_TYPES.join(", ")})`,
 		);
 	}
 
-	const config = INDEX_EVENT_CONFIG[eventTypeRaw];
+	const config = configFor(eventTypeRaw);
 	// Trait scoping applies only to event types keyed by a contract (those with a
 	// contract_id equality filter) — not the STX events.
 	const traitSupported = (config.equalityFilters as readonly string[]).includes(
@@ -595,7 +635,7 @@ export function parseIndexEventsQuery(
 		...(traitSupported ? ["trait"] : []),
 	]);
 
-	const base = parseIndexBaseQuery(query, tip);
+	const base = parseIndexBaseQuery(query, indexReadTip(tip, eventTypeRaw));
 	const filters: Partial<Record<IndexEqualityFilter, string>> = {};
 	let contractIds: string[] | undefined;
 	for (const filter of config.equalityFilters) {
@@ -635,6 +675,18 @@ export function parseIndexEventsQuery(
 		withTx,
 		fields,
 	};
+}
+
+/** VM Index reads clamp to the source tip: `vm_events` land with the block. */
+export function indexReadTip(
+	tip: IndexTip,
+	eventType: IndexEventType | VmEventType,
+): IndexTip {
+	if (!isVmIndexEventType(eventType) || tip.source_block_height === undefined) {
+		return tip;
+	}
+	if (tip.source_block_height === tip.block_height) return tip;
+	return { ...tip, block_height: tip.source_block_height };
 }
 
 /** Universal columns every decoded event carries. */
@@ -698,12 +750,19 @@ export async function getIndexEventsResponse(opts: {
 }): Promise<IndexEventsResponse> {
 	const parsed = parseIndexEventsQuery(opts.query, opts.tip);
 
+	const tip = indexReadTip(opts.tip, parsed.eventType);
+	const vmClock = isVmIndexEventType(parsed.eventType);
 	if (parsed.cursorPastTip) {
 		return {
 			events: [],
 			next_cursor: parsed.cursorRaw ?? null,
-			tip: opts.tip,
-			reorgs: [],
+			tip,
+			reorgs:
+				vmClock && parsed.cursor
+					? await readReorgsForEvents([parsed.cursor], opts.readReorgs, {
+							overlap: "height",
+						})
+					: [],
 		};
 	}
 
@@ -721,15 +780,29 @@ export async function getIndexEventsResponse(opts: {
 		fields: parsed.fields,
 	});
 	// Prefer the raw span (survives a projection that dropped event_index).
-	const reorgs = await readReorgsForEvents(
-		result.span ? [result.span.from, result.span.to] : result.events,
-		opts.readReorgs,
-	);
+	// VM pages key on ordinal — overlap by height so a page at H:5
+	// still surfaces a classic reorg that ended at H:0.
+	let reorgSpan = result.span
+		? [result.span.from, result.span.to]
+		: result.events;
+	// A resumed VM feed must report a rollback even if the replacement block
+	// has no matching event, or the next match is at a later height. Returned
+	// rows alone cannot establish that the consumer's checkpoint is canonical.
+	if (vmClock && parsed.cursor) {
+		const end = reorgSpan.at(-1) ?? {
+			block_height: Math.max(parsed.cursor.block_height, parsed.toHeight),
+			event_index: 0,
+		};
+		reorgSpan = [parsed.cursor, end];
+	}
+	const reorgs = await readReorgsForEvents(reorgSpan, opts.readReorgs, {
+		overlap: vmClock ? "height" : "cursor",
+	});
 
 	return {
 		events: result.events,
 		next_cursor: result.next_cursor,
-		tip: opts.tip,
+		tip,
 		reorgs,
 	};
 }

@@ -22,6 +22,25 @@ container `/data/archive/canonical-v1-staging`, host
 | Nightly continuity audit | `docker/scripts/canonical-audit-alert.sh` |
 | Key ceremony | [archive-key-ceremony.md](./archive-key-ceremony.md) |
 
+## vm_events collection (do not invent history)
+
+Prod `events_keys` is still `["*"]` (`docker/node-server/Config.toml`). That
+omits `/new_block.vm_events`. Do not add `"storage"` / `"contract_calls"` until
+the **node binary** on node-server understands those keys — unknown keys panic
+on start. Product map: [vm-events.md](../vm-events.md).
+
+Published snapshots are `"*"`-shaped. Inner calls and map/var writes **cannot**
+be reconstructed from them. Historical VM coverage starts the day a collecting
+node is wired, or after a re-observe with those keys. Do not claim genesis
+backfill from the current R2 archive. Bootstrap from an old snapshot: classic
+`events` only; `vm_events` stays empty until live tip on a collecting node.
+
+Full `vm_events` history is a genesis-hooked follower on empty disk — see
+[genesis-feeder.md](./genesis-feeder.md). Do not restore a Hiro chainstate
+snapshot into that `working_dir`. After catch-up, collapse to one hooked
+follower (feeder chainstate + indexer DB); do not keep a spare IBD box.
+That cutover waits on the eval-hook image on node-server.
+
 All `bun run packages/indexer/src/archive/…` invocations run **inside** the
 indexer container (`cwd /app`).
 

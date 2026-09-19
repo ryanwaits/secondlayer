@@ -2,7 +2,7 @@
 // event primitives shared by the SDK's Streams surface and the indexer's
 // decoders — the SDK re-exports these unchanged (`StreamsEvent`,
 // `StreamsEventType`, payload types), so the public API is unmoved.
-import type { StreamsEventType } from "../event-types.ts";
+import type { StreamsEventType, VmEventType } from "../event-types.ts";
 
 export { STREAMS_EVENT_TYPES, type StreamsEventType } from "../event-types.ts";
 
@@ -132,3 +132,54 @@ export type StreamsEvent =
 	| StreamsEventOf<"nft_mint", NftMintPayload>
 	| StreamsEventOf<"nft_burn", NftBurnPayload>
 	| StreamsEventOf<"print", PrintPayload>;
+
+// ── clock=vm rows (opt-in node vm_events) ─────────────────────────────────
+// A parallel vocabulary, not part of `StreamsEvent`: `event_index` here is
+// `ordinal`, a second ordinal that never mixes with Streams 1.0.
+
+export type NestedContractCallPayload = {
+	contract_identifier: string;
+	/** tx-sender (the signer). `null` when the VM had none. */
+	sender: string | null;
+	/** The contract that issued `contract-call?`. */
+	caller: string;
+	function_name: string;
+	/** Clarity hex per argument. */
+	function_args: string[];
+	raw_result: string;
+};
+export type VarSetPayload = {
+	contract_identifier: string;
+	var_name: string;
+	raw_value: string;
+};
+export type MapWritePayload = {
+	contract_identifier: string;
+	map_name: string;
+	raw_key: string;
+	raw_value: string;
+};
+export type MapDeletePayload = {
+	contract_identifier: string;
+	map_name: string;
+	raw_key: string;
+};
+
+type VmStreamsEventOf<T extends VmEventType, P> = StreamsEventBase & {
+	event_type: T;
+	payload: P;
+};
+
+/** A Streams `clock=vm` row. Same envelope as {@link StreamsEvent}; the
+ *  discriminator is one of the five VM_EVENT_TYPES and `event_index` is
+ *  `ordinal`. */
+export type VmStreamsEvent =
+	| VmStreamsEventOf<"nested_contract_call", NestedContractCallPayload>
+	| VmStreamsEventOf<"var_set", VarSetPayload>
+	| VmStreamsEventOf<"map_set", MapWritePayload>
+	| VmStreamsEventOf<"map_insert", MapWritePayload>
+	| VmStreamsEventOf<"map_delete", MapDeletePayload>;
+
+/** Anything `GET /v1/streams/events` can return: Streams 1.0 rows on the
+ *  classic clock, or vm rows on `clock=vm`. A response never mixes the two. */
+export type StreamsWireEvent = StreamsEvent | VmStreamsEvent;

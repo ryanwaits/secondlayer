@@ -59,6 +59,10 @@ export type {
 	PrintDataOf,
 	PrintFieldToTS,
 	ContractDeployPayload,
+	NestedContractCallPayload,
+	VarSetPayload,
+	MapWritePayload,
+	MapDeletePayload,
 } from "./events.ts";
 export {
 	filterFieldsByType,

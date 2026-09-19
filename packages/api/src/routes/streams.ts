@@ -70,6 +70,7 @@ const STREAMS_EVENTS_ALLOWED = [
 	"asset_identifier",
 	"filters",
 	"limit",
+	"clock",
 ] as const;
 const STREAMS_REORGS_ALLOWED = ["since", "limit"] as const;
 
@@ -84,6 +85,11 @@ const STREAMS_EVENTS_FILTER_SPEC = [
 		name: "types",
 		type: "event_type[]",
 		description: "Event types to include",
+	},
+	{
+		name: "clock",
+		type: "classic | vm",
+		description: "classic is Streams 1.0 (event_index). vm is ordinal.",
 	},
 	{
 		name: "not_types",

@@ -310,6 +310,148 @@ describe("Streams events route helpers", () => {
 	});
 });
 
+describe("parseStreamsEventsQuery — clock=vm", () => {
+	test("accepts vm types only on clock=vm", () => {
+		const parsed = parseStreamsEventsQuery(
+			params("?clock=vm&types=nested_contract_call,map_set"),
+			TIP,
+		);
+		expect(parsed.clock).toBe("vm");
+		expect(parsed.types).toEqual(["nested_contract_call", "map_set"]);
+	});
+
+	test("rejects classic types on clock=vm", () => {
+		expect(() =>
+			parseStreamsEventsQuery(params("?clock=vm&types=print"), TIP),
+		).toThrow(/Unknown vm Streams event type/);
+	});
+
+	test("rejects classic payload filters on clock=vm instead of ignoring them", () => {
+		for (const q of [
+			"?clock=vm&sender=SP1",
+			"?clock=vm&recipient=SP1",
+			"?clock=vm&asset_identifier=SP.t::x",
+			`?clock=vm&filters=${encodeURIComponent(JSON.stringify({ a: { types: ["print"] } }))}`,
+		]) {
+			expect(() => parseStreamsEventsQuery(params(q), TIP)).toThrow(
+				/classic Streams 1.0 only/,
+			);
+		}
+	});
+
+	test("not_types on clock=vm parses against the vm vocab", () => {
+		const parsed = parseStreamsEventsQuery(
+			params("?clock=vm&not_types=map_set"),
+			TIP,
+		);
+		expect(parsed.notTypes).toEqual(["map_set"]);
+	});
+
+	test("rejects vm types on classic clock", () => {
+		expect(() =>
+			parseStreamsEventsQuery(params("?types=nested_contract_call"), TIP),
+		).toThrow(/Unknown Streams event type/);
+	});
+});
+
+describe("getStreamsEventsResponse — clock=vm reorg overlap", () => {
+	for (const scenario of ["empty", "later match", "tip rewound"] as const) {
+		test(`includes the checkpoint's rollback with ${scenario}`, async () => {
+			const response = await getStreamsEventsResponse({
+				query: params("?clock=vm&cursor=100:5"),
+				tip: { ...TIP, block_height: scenario === "tip rewound" ? 99 : 200 },
+				readEvents: async () => {
+					if (scenario === "tip rewound")
+						throw new Error("reader ran past tip");
+					return {
+						events:
+							scenario === "later match"
+								? [
+										{
+											cursor: "110:0",
+											block_height: 110,
+											block_hash: "0xnew",
+											burn_block_height: 20,
+											tx_id: "0xnew",
+											tx_index: 0,
+											event_index: 0,
+											event_type: "map_set",
+											contract_id: "SP.store",
+											payload: {},
+											ts: "2026-09-15T00:00:00Z",
+											canonical: true,
+										},
+									]
+								: [],
+						next_cursor:
+							scenario === "later match" ? "110:0" : "190:2147483647",
+					};
+				},
+				readReorgs: async (range) =>
+					range.from.block_height <= 100 && range.to.block_height >= 100
+						? [
+								{
+									id: "orphaned-map",
+									detected_at: "2026-09-15T00:00:00Z",
+									fork_point_height: 100,
+									old_index_block_hash: "0xold",
+									new_index_block_hash: "0xnew",
+									orphaned_range: { from: "100:0", to: "100:0" },
+									new_canonical_tip: "100:0",
+								},
+							]
+						: [],
+			});
+			expect(response.reorgs.map((r) => r.id)).toEqual(["orphaned-map"]);
+		});
+	}
+
+	test("overlaps reorgs by height so a page at H:5 still sees a reorg at H:0", async () => {
+		let seenRange:
+			| { from: { event_index: number }; to: { event_index: number } }
+			| undefined;
+		const body = await getStreamsEventsResponse({
+			query: params("?clock=vm&from_height=0"),
+			tip: TIP,
+			readEvents: async () => ({
+				events: [
+					{
+						cursor: "10:5",
+						block_height: 10,
+						block_hash: TIP.block_hash,
+						burn_block_height: TIP.burn_block_height,
+						tx_id: "0x01",
+						tx_index: 0,
+						event_index: 5,
+						event_type: "map_set",
+						contract_id: "SP.store",
+						payload: {},
+						ts: "2026-05-02T21:43:00.000Z",
+					},
+				],
+				next_cursor: "10:5",
+			}),
+			readReorgs: async (range) => {
+				seenRange = range;
+				return [
+					{
+						id: "reorg-h0",
+						detected_at: "2026-05-03T12:30:00.000Z",
+						fork_point_height: 10,
+						old_index_block_hash: "0xold",
+						new_index_block_hash: "0xnew",
+						orphaned_range: { from: "10:0", to: "10:0" },
+						new_canonical_tip: "10:0",
+					},
+				];
+			},
+		});
+		expect(seenRange?.from.event_index).toBe(0);
+		expect(seenRange?.to.event_index).toBe(2_147_483_647);
+		expect(body.reorgs.map((r) => r.id)).toEqual(["reorg-h0"]);
+	});
+});
+
 describe("parseStreamsEventsQuery — event_type alias", () => {
 	test("event_type=<single> folds into types (the Index spelling)", () => {
 		const parsed = parseStreamsEventsQuery(params("?event_type=print"), TIP);

@@ -3,6 +3,7 @@ import { type Database, getSourceDb } from "@secondlayer/shared/db";
 import type { Kysely } from "kysely";
 import type { SubgraphDefinition } from "../types.ts";
 import {
+	VM_INDEX_EVENT_TYPES,
 	isStreamsIndexEligible,
 	referencedIndexEventTypes,
 } from "./block-source.ts";
@@ -28,7 +29,9 @@ export function decoderNameForEventType(indexEventType: string): string {
 }
 
 export function decoderNamesForIndexEventTypes(eventTypes: string[]): string[] {
-	return eventTypes.map(decoderNameForEventType);
+	return eventTypes
+		.filter((t) => !VM_INDEX_EVENT_TYPES.has(t))
+		.map(decoderNameForEventType);
 }
 
 export function decoderNamesForSubgraph(

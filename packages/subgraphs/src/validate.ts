@@ -163,6 +163,11 @@ export const VALID_FILTER_TYPES = [
 	"contract_call",
 	"contract_deploy",
 	"print_event",
+	"nested_contract_call",
+	"var_set",
+	"map_set",
+	"map_insert",
+	"map_delete",
 ] as const;
 
 /** A contract id, or a set of them (max 20, matching the Index API cap). */
@@ -317,6 +322,53 @@ const SubgraphFilterUnion = z.discriminatedUnion("type", [
 				.record(z.string(), z.record(z.string(), PrintFieldSchema))
 				.optional(),
 			materialize: MaterializeSpecSchema.optional(),
+			...traitScope,
+			...factoryScope,
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal("nested_contract_call"),
+			contractId: contractIdField.optional(),
+			functionName: z.string().optional(),
+			caller: z.string().optional(),
+			sender: z.string().optional(),
+			...traitScope,
+			...factoryScope,
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal("var_set"),
+			contractId: contractIdField.optional(),
+			varName: z.string().optional(),
+			...traitScope,
+			...factoryScope,
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal("map_set"),
+			contractId: contractIdField.optional(),
+			map: z.string().optional(),
+			...traitScope,
+			...factoryScope,
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal("map_insert"),
+			contractId: contractIdField.optional(),
+			map: z.string().optional(),
+			...traitScope,
+			...factoryScope,
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal("map_delete"),
+			contractId: contractIdField.optional(),
+			map: z.string().optional(),
 			...traitScope,
 			...factoryScope,
 		})

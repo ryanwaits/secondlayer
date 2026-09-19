@@ -131,6 +131,7 @@ export async function resolveFactoryContracts(
 	db: Kysely<Database>,
 	txs: TxRecord[],
 	evts: EventRecord[],
+	vmEvts: EventRecord[] = [],
 ): Promise<{
 	resolved: Map<string, ReadonlySet<string>>;
 	discovered: Array<{ sourceName: string; address: string }>;
@@ -172,6 +173,7 @@ export async function resolveFactoryContracts(
 				evts,
 				new Map(),
 				new Map(),
+				vmEvts,
 			);
 			for (const match of matches) {
 				for (const event of match.events ?? []) {
@@ -259,6 +261,8 @@ export interface PreloadedBlockData {
 	block: import("@secondlayer/shared/db").Block;
 	txs: import("@secondlayer/shared/db").Transaction[];
 	events: import("@secondlayer/shared/db").Event[];
+	/** Opt-in `vm_events` rows on the vm clock; see `BlockData.vmEvents`. */
+	vmEvents?: import("./batch-loader.ts").RuntimeEvent[];
 }
 
 export interface ProcessBlockOptions {
@@ -409,10 +413,12 @@ export async function processBlock(
 	let block: PreloadedBlockData["block"] | undefined;
 	let txs: PreloadedBlockData["txs"];
 	let evts: PreloadedBlockData["events"];
+	let vmEvts: NonNullable<PreloadedBlockData["vmEvents"]>;
 	if (opts?.preloaded) {
 		block = opts.preloaded.block;
 		txs = opts.preloaded.txs;
 		evts = opts.preloaded.events;
+		vmEvts = opts.preloaded.vmEvents ?? [];
 	} else {
 		// The block source returns canonical blocks only, so a missing entry
 		// means the block is absent or non-canonical — skip either way.
@@ -433,6 +439,7 @@ export async function processBlock(
 		block = data.block;
 		txs = data.txs;
 		evts = data.events;
+		vmEvts = data.vmEvents ?? [];
 	}
 
 	// 3. Match source. Trait-scoped sources ({ trait: "sip-010" }) resolve to the
@@ -459,6 +466,7 @@ export async function processBlock(
 			targetDb,
 			txs,
 			evts,
+			vmEvts,
 		);
 	const matched = matchSources(
 		subgraph.sources,
@@ -466,6 +474,7 @@ export async function processBlock(
 		evts,
 		traitContracts,
 		factoryContracts,
+		vmEvts,
 	);
 	result.matched = matched.length;
 

@@ -1,3 +1,4 @@
+import { EMPTY_RANGE_EVENT_INDEX_SENTINEL } from "@secondlayer/shared";
 import { ValidationError } from "@secondlayer/shared/errors";
 import { parseCursor, parseNonNegativeInteger } from "../parse-query.ts";
 import {
@@ -184,23 +185,32 @@ export function parseIndexBaseQuery<
 }
 
 /** Resolve overlapping reorgs for the [first, last] event range of a page.
- *  Empty page → no reorg lookup. */
+ *  Empty page → no reorg lookup.
+ *
+ *  `overlap: "height"` ignores event_index (int4-max on the page's last
+ *  height). VM pages key on `ordinal`, a second clock; comparing
+ *  those ordinals to classic reorg bounds hides a reorg that ended at
+ *  classic `H:0` from a VM page at `H:5`. */
 export async function readReorgsForEvents(
 	events: ReadonlyArray<{ block_height: number; event_index: number }>,
 	readReorgs?: StreamsReorgsReader,
+	opts?: { overlap?: "cursor" | "height" },
 ): Promise<StreamsReorg[]> {
 	const reader = readReorgs ?? EMPTY_STREAMS_REORGS_READER;
 	const firstEvent = events.at(0);
 	const lastEvent = events.at(-1);
 	if (!firstEvent || !lastEvent) return [];
+	const byHeight = opts?.overlap === "height";
 	return reader({
 		from: {
 			block_height: firstEvent.block_height,
-			event_index: firstEvent.event_index,
+			event_index: byHeight ? 0 : firstEvent.event_index,
 		},
 		to: {
 			block_height: lastEvent.block_height,
-			event_index: lastEvent.event_index,
+			event_index: byHeight
+				? EMPTY_RANGE_EVENT_INDEX_SENTINEL
+				: lastEvent.event_index,
 		},
 	});
 }

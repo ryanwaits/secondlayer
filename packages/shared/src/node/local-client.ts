@@ -7,6 +7,11 @@
 
 import type { Kysely } from "kysely";
 import type { Database } from "../db/types.ts";
+import {
+	VM_STORED_TO_NODE_TYPE,
+	type VmEventType,
+	type VmNodeEventType,
+} from "../event-types.ts";
 
 /** Matches the NewBlockPayload shape expected by the indexer's /new_block endpoint */
 export interface ReplayBlockPayload {
@@ -22,6 +27,8 @@ export interface ReplayBlockPayload {
 	timestamp: number;
 	transactions: ReplayTransactionPayload[];
 	events: ReplayEventPayload[];
+	/** Node-shaped opt-in traces. Omitted when the height has none. */
+	vm_events?: ReplayVmEventPayload[];
 }
 
 interface ReplayTransactionPayload {
@@ -41,6 +48,46 @@ interface ReplayEventPayload {
 	committed: boolean;
 	type: string;
 	[key: string]: unknown;
+}
+
+/** Node-shaped `/new_block.vm_events[]` row. Body lives under the node type
+ *  key so `parseVmEvent` can re-ingest it on fork restoration. Array order
+ *  is the index (sorted by stored `ordinal`). */
+export interface ReplayVmEventPayload {
+	txid: string;
+	committed: boolean;
+	type: VmNodeEventType;
+	[key: string]: unknown;
+}
+
+/** Rebuild node-shaped vm traces from stored rows. Sorted so re-ingest
+ *  array order matches the stored second clock. */
+export function reconstructVmEventsForReplay(
+	rows: ReadonlyArray<{
+		tx_id: string;
+		ordinal: number | string;
+		type: string;
+		data: unknown;
+	}>,
+): ReplayVmEventPayload[] {
+	const sorted = [...rows].sort(
+		(a, b) => Number(a.ordinal) - Number(b.ordinal),
+	);
+	const out: ReplayVmEventPayload[] = [];
+	for (const row of sorted) {
+		const nodeType =
+			row.type in VM_STORED_TO_NODE_TYPE
+				? VM_STORED_TO_NODE_TYPE[row.type as VmEventType]
+				: undefined;
+		if (!nodeType) continue;
+		out.push({
+			txid: row.tx_id,
+			committed: true,
+			type: nodeType,
+			[nodeType]: row.data,
+		});
+	}
+	return out;
 }
 
 export class LocalClient {
@@ -74,6 +121,14 @@ export class LocalClient {
 			.where("block_height", "=", height)
 			.orderBy("event_index", "asc")
 			.execute();
+
+		const vmRows = await db
+			.selectFrom("vm_events")
+			.select(["tx_id", "ordinal", "type", "data"])
+			.where("block_height", "=", height)
+			.orderBy("ordinal", "asc")
+			.execute();
+		const vm_events = reconstructVmEventsForReplay(vmRows);
 
 		return {
 			block_hash: block.hash,
@@ -129,6 +184,7 @@ export class LocalClient {
 
 				return payload;
 			}),
+			...(vm_events.length > 0 ? { vm_events } : {}),
 		};
 	}
 

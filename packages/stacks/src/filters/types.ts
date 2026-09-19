@@ -1,5 +1,9 @@
 import type { AbiContract } from "../clarity/abi/contract.ts";
-import type { ChainEventFilterType, DecodedEventType } from "./event-types.ts";
+import type {
+	ChainEventFilterType,
+	DecodedEventType,
+	VmEventType,
+} from "./event-types.ts";
 import type { AssetIdentifier } from "./validate.ts";
 
 // ── Canonical filter specs ───────────────────────────────────────────────
@@ -126,6 +130,38 @@ export interface ContractDeploySpec {
 	deployer?: string;
 	contractName?: string;
 }
+export interface NestedContractCallSpec extends TraitScope, FactoryScope {
+	type: "nested_contract_call";
+	contractId?: string | readonly string[];
+	functionName?: string;
+	caller?: string;
+	sender?: string;
+}
+
+export interface VarSetSpec extends TraitScope, FactoryScope {
+	type: "var_set";
+	contractId?: string | readonly string[];
+	varName?: string;
+}
+
+export interface MapSetSpec extends TraitScope, FactoryScope {
+	type: "map_set";
+	contractId?: string | readonly string[];
+	map?: string;
+}
+
+export interface MapInsertSpec extends TraitScope, FactoryScope {
+	type: "map_insert";
+	contractId?: string | readonly string[];
+	map?: string;
+}
+
+export interface MapDeleteSpec extends TraitScope, FactoryScope {
+	type: "map_delete";
+	contractId?: string | readonly string[];
+	map?: string;
+}
+
 export interface PrintEventSpec extends TraitScope, FactoryScope {
 	type: "print_event";
 	/** One contract id, or a set of them (max 20). */
@@ -179,6 +215,11 @@ export type ChainEventFilterSpec =
 	| NftBurnSpec
 	| ContractCallSpec
 	| ContractDeploySpec
+	| NestedContractCallSpec
+	| VarSetSpec
+	| MapSetSpec
+	| MapInsertSpec
+	| MapDeleteSpec
 	| PrintEventSpec
 	| SbtcDepositSpec
 	| SbtcWithdrawalCreateSpec
@@ -230,12 +271,16 @@ export type ChainTriggerShape = ChainTriggerOf<ChainEventFilterSpec>;
 
 /** Params fragment for `index.events.*` (spread into list/walk/consume). */
 export type IndexEventsParamsShape = {
-	eventType: DecodedEventType;
+	eventType: DecodedEventType | VmEventType;
 	/** A spec's contract set passes through verbatim (the API takes up to 20). */
 	contractId?: string | readonly string[];
 	assetIdentifier?: AssetIdentifier;
 	sender?: string;
 	recipient?: string;
+	functionName?: string;
+	caller?: string;
+	map?: string;
+	varName?: string;
 	trait?: string;
 };
 
@@ -250,7 +295,17 @@ export type ContractCallsParamsShape = {
 	trait?: string;
 };
 
-/** Params fragment for `streams.events.*`. */
+type VmMember =
+	| "nested_contract_call"
+	| "var_set"
+	| "map_set"
+	| "map_insert"
+	| "map_delete";
+
+/** Params fragment for classic `streams.events.*` (Streams 1.0). VM members
+ *  project to {@link StreamsVmParamsShape} instead — mixing the vocabularies
+ *  here makes `events.consume({ ...on.ftTransfer().toStreamsParams(), onBatch })`
+ *  fail type-check. */
 export type StreamsParamsShape = {
 	types: readonly DecodedEventType[];
 	contractId?: string | readonly string[];
@@ -259,13 +314,22 @@ export type StreamsParamsShape = {
 	assetIdentifier?: AssetIdentifier;
 };
 
+/** VM member projection: `clock` is the `"vm"` literal so SDK overload 1 matches. */
+export type StreamsVmParamsShape<T extends VmMember = VmMember> = {
+	types: readonly [T];
+	clock: "vm";
+	contractId?: string | readonly string[];
+};
+
 // ── Member → projection capability ───────────────────────────────────────
 // A surface a member doesn't reach is a MISSING METHOD, not a runtime error:
 // "Property 'toIndexParams' does not exist" beats "argument of type never".
 //
 // Reality being encoded:
-// - Index `events.*` and Streams cover exactly the 11 DECODED_EVENT_TYPES
+// - Index `events.*` and Streams cover the 11 DECODED_EVENT_TYPES
 //   (spelled `print`, projected from the canonical `print_event`).
+// - The five VM_EVENT_TYPES are a second clock (`ordinal`).
+//   Index/Streams project them with clock=vm on Streams.
 // - `contract_call` reads live on the separate `/v1/index/contract-calls`
 //   endpoint → `toContractCallsParams()`, not `toIndexParams()`.
 // - `contract_deploy` is Subgraphs + Webhooks only.
@@ -288,7 +352,7 @@ export type ProjectionsFor<T extends ChainEventFilterType, S> = {
 	/** Wire trigger for `webhooks.create({ triggers: [...] })`. BigInt
 	 *  amounts become strings here — the one sanctioned boundary. */
 	toChainTrigger(): ChainTriggerOf<S>;
-} & (T extends DecodedMember
+} & (T extends DecodedMember | VmMember
 	? {
 			/** Params for `index.events.list/walk/consume` (merge your own
 			 *  `limit`/`fromHeight`/`txContext` etc. on top). */
@@ -298,9 +362,13 @@ export type ProjectionsFor<T extends ChainEventFilterType, S> = {
 			/** Params for `streams.events.list/consume/stream`. Throws if the
 			 *  filter uses `trait` (Streams has no trait resolution) or a
 			 *  min/max amount (Streams filters have no amount predicates). */
-			toStreamsParams<Extra extends Record<string, unknown>>(
+			toStreamsParams<
+				Extra extends Record<string, unknown> = Record<string, never>,
+			>(
 				extra?: Extra,
-			): StreamsParamsShape & Extra;
+			): T extends VmMember
+				? StreamsVmParamsShape<T> & Extra
+				: StreamsParamsShape & Extra;
 		}
 	: // biome-ignore lint/complexity/noBannedTypes: intersection identity
 		{}) &

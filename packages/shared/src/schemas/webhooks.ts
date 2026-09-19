@@ -95,6 +95,11 @@ export const CHAIN_TRIGGER_TYPES = [
 	"contract_call",
 	"contract_deploy",
 	"print_event",
+	"nested_contract_call",
+	"var_set",
+	"map_set",
+	"map_insert",
+	"map_delete",
 	"sbtc_deposit",
 	"sbtc_withdrawal_create",
 	"sbtc_withdrawal_accept",
@@ -218,6 +223,48 @@ export const ChainTriggerSchema: z.ZodType<ChainTrigger> = z.discriminatedUnion(
 				type: z.literal("print_event"),
 				contractId: triggerPattern.optional(),
 				topic: triggerPattern.optional(),
+				trait: trait.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("nested_contract_call"),
+				contractId: triggerPattern.optional(),
+				functionName: triggerPattern.optional(),
+				caller: triggerPattern.optional(),
+				sender: triggerPattern.optional(),
+				trait: trait.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("var_set"),
+				contractId: triggerPattern.optional(),
+				varName: triggerPattern.optional(),
+				trait: trait.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("map_set"),
+				contractId: triggerPattern.optional(),
+				map: triggerPattern.optional(),
+				trait: trait.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("map_insert"),
+				contractId: triggerPattern.optional(),
+				map: triggerPattern.optional(),
+				trait: trait.optional(),
+			})
+			.strict(),
+		z
+			.object({
+				type: z.literal("map_delete"),
+				contractId: triggerPattern.optional(),
+				map: triggerPattern.optional(),
 				trait: trait.optional(),
 			})
 			.strict(),
@@ -439,6 +486,33 @@ export type ChainTrigger =
 			type: "print_event";
 			contractId?: string;
 			topic?: string;
+	  } & TraitScoped)
+	| ({
+			type: "nested_contract_call";
+			contractId?: string;
+			functionName?: string;
+			caller?: string;
+			sender?: string;
+	  } & TraitScoped)
+	| ({
+			type: "var_set";
+			contractId?: string;
+			varName?: string;
+	  } & TraitScoped)
+	| ({
+			type: "map_set";
+			contractId?: string;
+			map?: string;
+	  } & TraitScoped)
+	| ({
+			type: "map_insert";
+			contractId?: string;
+			map?: string;
+	  } & TraitScoped)
+	| ({
+			type: "map_delete";
+			contractId?: string;
+			map?: string;
 	  } & TraitScoped)
 	| {
 			type: "sbtc_deposit";

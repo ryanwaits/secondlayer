@@ -84,3 +84,59 @@ describe("buildEventPayload print contractId", () => {
 		expect(payload.contractId).toBe("SP.legacy");
 	});
 });
+
+describe("buildEventPayload VM traces preserve raw hex", () => {
+	const uintHex = "0x0100000000000000000000000000000001";
+	const boolHex = "0x03";
+
+	test("map_set keeps raw_key/raw_value as strings regardless of hex length", () => {
+		const payload = buildEventPayload(
+			{ type: "map_set" } as SubgraphFilter,
+			tx,
+			{
+				type: "map_set",
+				event_index: 3,
+				tx_id: tx.tx_id,
+				id: "vm1",
+				data: {
+					contract_identifier: "SP.store",
+					map_name: "store",
+					raw_key: uintHex,
+					raw_value: boolHex,
+				},
+			} as unknown as MatchedTx["events"][0],
+		);
+		expect(payload.rawKey).toBe(uintHex);
+		expect(payload.rawValue).toBe(boolHex);
+		expect(typeof payload.rawKey).toBe("string");
+		expect(typeof payload.rawValue).toBe("string");
+		expect(payload.key).toBe(1n);
+		expect(payload.map).toBe("store");
+	});
+
+	test("nested_contract_call keeps arguments and rawResult as hex", () => {
+		const payload = buildEventPayload(
+			{ type: "nested_contract_call" } as SubgraphFilter,
+			tx,
+			{
+				type: "nested_contract_call",
+				event_index: 0,
+				tx_id: tx.tx_id,
+				id: "vm0",
+				data: {
+					contract_identifier: "SP.store",
+					sender: null,
+					caller: "SP.c",
+					function_name: "set-value",
+					function_args: [uintHex, boolHex],
+					raw_result: uintHex,
+				},
+			} as unknown as MatchedTx["events"][0],
+		);
+		expect(payload.arguments).toEqual([uintHex, boolHex]);
+		expect(payload.rawResult).toBe(uintHex);
+		expect((payload.args as unknown[])[0]).toBe(1n);
+		expect(payload.functionName).toBe("set-value");
+		expect(payload.sender).toBeNull();
+	});
+});

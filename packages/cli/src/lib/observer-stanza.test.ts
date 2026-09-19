@@ -19,6 +19,9 @@ describe("observer stanza", () => {
 		});
 		expect(indexer).toContain("disable_retries = false");
 		expect(indexer).toContain("timeout_ms = 2000");
+		expect(indexer).toContain(
+			'events_keys = ["*", "storage", "contract_calls"]',
+		);
 
 		const signer = renderObserverStanza({
 			mode: "signer-shared",
@@ -28,6 +31,8 @@ describe("observer stanza", () => {
 		});
 		expect(signer).toContain("disable_retries = true");
 		expect(signer).toContain("timeout_ms = 500");
+		expect(signer).toContain('events_keys = ["*"]');
+		expect(signer).not.toContain("storage");
 	});
 
 	test("refuses loopback on mainnet and URLs", () => {

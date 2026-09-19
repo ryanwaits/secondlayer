@@ -6,14 +6,30 @@ import type {
 } from "@secondlayer/shared/db";
 import type { Kysely } from "kysely";
 
+/** A runtime event row. `clock: "vm"` marks an opt-in `vm_events` row whose
+ *  `event_index` is `ordinal` — a second ordinal that never sorts or
+ *  dedupes against classic `events.event_index`. */
+export type RuntimeEvent = Event & { clock?: "vm" };
+
 export interface BlockData {
 	block: Block;
 	txs: Transaction[];
+	/** Classic `events` rows (Streams 1.0 clock). */
 	events: Event[];
+	/** Opt-in `vm_events` rows on their own clock. Absent/empty on `"*"`
+	 *  nodes and on archives collected without `storage`/`contract_calls`. */
+	vmEvents?: RuntimeEvent[];
+}
+
+/** Stable synthetic id for a vm row. Distinct from the classic `tx#index`
+ *  so a print at event_index N and a map_set at ordinal N never share
+ *  an identity. */
+export function vmEventId(txId: string, vmEventIndex: number): string {
+	return `${txId}#vm:${vmEventIndex}`;
 }
 
 /**
- * Load a range of blocks with their transactions and events in 3 parallel queries.
+ * Load a range of blocks with their transactions and events in 4 parallel queries.
  * Returns a Map keyed by block height. Non-canonical blocks are excluded.
  */
 export async function loadBlockRange(
@@ -21,7 +37,7 @@ export async function loadBlockRange(
 	fromHeight: number,
 	toHeight: number,
 ): Promise<Map<number, BlockData>> {
-	const [blocks, txs, events] = await Promise.all([
+	const [blocks, txs, events, vmRows] = await Promise.all([
 		db
 			.selectFrom("blocks")
 			.selectAll()
@@ -40,6 +56,13 @@ export async function loadBlockRange(
 			.selectAll()
 			.where("block_height", ">=", fromHeight)
 			.where("block_height", "<=", toHeight)
+			.execute(),
+		db
+			.selectFrom("vm_events")
+			.selectAll()
+			.where("block_height", ">=", fromHeight)
+			.where("block_height", "<=", toHeight)
+			.orderBy("ordinal", "asc")
 			.execute(),
 	]);
 
@@ -60,6 +83,23 @@ export async function loadBlockRange(
 		eventsByHeight.set(h, list);
 	}
 
+	const vmByHeight = new Map<number, RuntimeEvent[]>();
+	for (const row of vmRows) {
+		const h = Number(row.block_height);
+		const list = vmByHeight.get(h) ?? [];
+		list.push({
+			id: vmEventId(row.tx_id, Number(row.ordinal)),
+			tx_id: row.tx_id,
+			block_height: h,
+			event_index: Number(row.ordinal),
+			type: row.type,
+			data: row.data,
+			created_at: row.created_at,
+			clock: "vm",
+		} as RuntimeEvent);
+		vmByHeight.set(h, list);
+	}
+
 	const result = new Map<number, BlockData>();
 	for (const block of blocks) {
 		const h = Number(block.height);
@@ -67,6 +107,7 @@ export async function loadBlockRange(
 			block,
 			txs: txsByHeight.get(h) ?? [],
 			events: eventsByHeight.get(h) ?? [],
+			vmEvents: vmByHeight.get(h) ?? [],
 		});
 	}
 

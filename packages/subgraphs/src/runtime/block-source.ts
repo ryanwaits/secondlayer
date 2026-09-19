@@ -107,13 +107,28 @@ const EVENT_FILTER_TO_INDEX_TYPE: Record<string, string> = {
 	nft_mint: "nft_mint",
 	nft_burn: "nft_burn",
 	print_event: "print",
+	nested_contract_call: "nested_contract_call",
+	var_set: "var_set",
+	map_set: "map_set",
+	map_insert: "map_insert",
+	map_delete: "map_delete",
 };
 
 // Tx-level source types — matched against /v1/index/transactions, not events.
 const TX_SOURCE_TYPES = new Set(["contract_call", "contract_deploy"]);
-const ALL_INDEX_EVENT_TYPES = [
+// Second clock (ordinal). Never part of a tx's classic event set: a
+// contract_call/contract_deploy source fetches every CLASSIC type, and vm
+// types are fetched only when a vm source names them.
+export const VM_INDEX_EVENT_TYPES: ReadonlySet<string> = new Set([
+	"nested_contract_call",
+	"var_set",
+	"map_set",
+	"map_insert",
+	"map_delete",
+]);
+const CLASSIC_INDEX_EVENT_TYPES = [
 	...new Set(Object.values(EVENT_FILTER_TO_INDEX_TYPE)),
-];
+].filter((t) => !VM_INDEX_EVENT_TYPES.has(t));
 
 function sourceFilters(subgraph: SubgraphDefinition): SubgraphFilter[] {
 	const sources = subgraph.sources;
@@ -145,15 +160,16 @@ function synthesizeTxsFromEvents(events: IndexEventRow[]): Transaction[] {
 /**
  * The Index event_types the loader must fetch for a set of source filter types.
  * A contract_call/contract_deploy source matches a tx and hands its FULL event
- * set to the handler, so when one is present we fetch every event type (the
- * matched tx's events must be complete); otherwise just the referenced types.
+ * set to the handler, so when one is present we fetch every classic event type
+ * (the matched tx's events must be complete); otherwise just the referenced
+ * types. VM types ride a second clock and are fetched only when referenced.
  * Shared by the subgraph loader and the chain-trigger evaluator.
  */
 export function indexEventTypesForFilterTypes(filterTypes: string[]): string[] {
-	if (filterTypes.some((t) => TX_SOURCE_TYPES.has(t))) {
-		return ALL_INDEX_EVENT_TYPES;
-	}
 	const types = new Set<string>();
+	if (filterTypes.some((t) => TX_SOURCE_TYPES.has(t))) {
+		for (const t of CLASSIC_INDEX_EVENT_TYPES) types.add(t);
+	}
 	for (const t of filterTypes) {
 		const indexType = EVENT_FILTER_TO_INDEX_TYPE[t];
 		if (indexType) types.add(indexType);
@@ -224,8 +240,11 @@ export class PublicApiBlockSource implements BlockSource {
 	}
 
 	getTip(): Promise<number> {
-		// Bound advancement to what the Index data plane can serve — never
-		// process past it even if the Streams clock is ahead.
+		// VM rows land with ingest. Decoded Index tip can lag; use the source
+		// field when this loader fetches any vm type.
+		if (this.eventTypes.some((t) => VM_INDEX_EVENT_TYPES.has(t))) {
+			return this.http.getIndexSourceTip();
+		}
 		return this.http.getIndexTip();
 	}
 
@@ -268,13 +287,23 @@ export class PublicApiBlockSource implements BlockSource {
 		}
 		for (const list of eventLists) {
 			for (const e of list) {
-				map.get(e.block_height)?.events.push(reconstructEvent(e));
+				const bd = map.get(e.block_height);
+				if (!bd) continue;
+				// vm rows ride their own clock: never merged into `events`, whose
+				// order is classic event_index.
+				if (VM_INDEX_EVENT_TYPES.has(e.event_type)) {
+					bd.vmEvents ??= [];
+					bd.vmEvents.push(reconstructEvent(e));
+				} else {
+					bd.events.push(reconstructEvent(e));
+				}
 			}
 		}
-		// Canonical ordering — multi-type event walks merge here.
+		// Canonical ordering — multi-type event walks merge here, per clock.
 		for (const bd of map.values()) {
 			bd.txs.sort((a, b) => a.tx_index - b.tx_index);
 			bd.events.sort((a, b) => a.event_index - b.event_index);
+			bd.vmEvents?.sort((a, b) => a.event_index - b.event_index);
 		}
 		return map;
 	}

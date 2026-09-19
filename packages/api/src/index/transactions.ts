@@ -12,7 +12,7 @@ import {
 	toIsoOrNull,
 } from "./_shared.ts";
 import { parseFields, projectRow } from "./field-projection.ts";
-import type { IndexTip } from "./tip.ts";
+import { type IndexTip, indexSourceWindowTip } from "./tip.ts";
 import { type DecodedTx, decodeTransaction } from "./transaction-decode.ts";
 
 /**
@@ -284,7 +284,11 @@ export function parseTransactionsQuery(
 	tip: IndexTip,
 ): TransactionsQuery {
 	return {
-		...parseIndexBaseQuery(query, tip, parseTxIndexCursor),
+		...parseIndexBaseQuery(
+			query,
+			indexSourceWindowTip(tip),
+			parseTxIndexCursor,
+		),
 		type: parseFilter(query.get("type") ?? undefined, "type"),
 		sender: parseFilter(query.get("sender") ?? undefined, "sender"),
 		contractId: parseFilter(

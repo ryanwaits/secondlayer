@@ -253,6 +253,23 @@ export interface ContractDeployFilter {
 	deployer?: string;
 	contractName?: string;
 }
+export interface NestedContractCallFilter extends TraitScope, FactoryScope {
+	type: "nested_contract_call";
+	contractId?: string | readonly string[];
+	functionName?: string;
+	caller?: string;
+	sender?: string;
+}
+export interface VarSetFilter extends TraitScope, FactoryScope {
+	type: "var_set";
+	contractId?: string | readonly string[];
+	varName?: string;
+}
+export interface MapWriteFilter extends TraitScope, FactoryScope {
+	type: "map_set" | "map_insert" | "map_delete";
+	contractId?: string | readonly string[];
+	map?: string;
+}
 /**
  * One declared field of a print payload.
  *
@@ -359,7 +376,10 @@ export type SubgraphFilter =
 	| NftBurnFilter
 	| ContractCallFilter
 	| ContractDeployFilter
-	| PrintEventFilter;
+	| PrintEventFilter
+	| NestedContractCallFilter
+	| VarSetFilter
+	| MapWriteFilter;
 
 /** Transaction metadata available in handlers */
 export interface TxMeta {

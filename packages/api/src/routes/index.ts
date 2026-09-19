@@ -33,8 +33,8 @@ import {
 } from "../index/contract-calls.ts";
 import { debitCreditedRead, indexCreditsGate } from "../index/credits-gate.ts";
 import {
+	ALL_INDEX_EVENT_TYPES,
 	INDEX_EVENT_CONFIG,
-	INDEX_EVENT_TYPES,
 	type IndexEventsReader,
 	getIndexEventsResponse,
 } from "../index/events.ts";
@@ -99,6 +99,7 @@ import {
 	type IndexTip,
 	type IndexTipProvider,
 	getIndexTip,
+	indexSourceWindowTip,
 } from "../index/tip.ts";
 import {
 	IncompleteBlockTxSetError,
@@ -113,6 +114,10 @@ import {
 	getTransactionsResponse,
 	readTransactionById,
 } from "../index/transactions.ts";
+import {
+	VM_INDEX_EVENT_CONFIG,
+	VM_INDEX_EVENT_TYPES,
+} from "../index/vm-events.ts";
 import { validateQueryParams } from "../middleware/validation.ts";
 import {
 	DEFAULT_STREAMS_REORGS_READER,
@@ -131,7 +136,16 @@ const INDEX_COMMON = [
 ] as const;
 const FT_ALLOWED = [...INDEX_COMMON, "asset_identifier", "fields"] as const;
 const NFT_ALLOWED = [...INDEX_COMMON, "asset_identifier", "fields"] as const;
-const EVENTS_ALLOWED = [...INDEX_COMMON, "event_type", "asset_identifier"];
+const EVENTS_ALLOWED = [
+	...INDEX_COMMON,
+	"event_type",
+	"asset_identifier",
+	"function_name",
+	"map",
+	"var_name",
+	"caller",
+	"tx_id",
+];
 
 export type IndexRouterOptions = {
 	tokens?: IndexTokenStore;
@@ -218,16 +232,25 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					description:
 						"Decoded chain events for a chosen event_type, filterable + cursor-paginated. Returns events[], next_cursor, tip, reorgs[].",
 					required: ["event_type"],
-					event_types: INDEX_EVENT_TYPES,
+					event_types: ALL_INDEX_EVENT_TYPES,
+					// Opt-in node traces: not in `*`, not in old archives. Discovery
+					// must not read as "mainnet inner-call history exists".
+					vm_event_types: {
+						types: VM_INDEX_EVENT_TYPES,
+						note: "Present only from the height this instance's node subscribed to the storage / contract_calls observer keys. No earlier history. Cursor second component is ordinal.",
+					},
 					filters: EVENTS_ALLOWED,
 					// Allowed filters vary by event_type — this map is the precise,
 					// machine-readable vocabulary (generated from the event registry, so
 					// it can't drift from what the endpoint actually accepts).
 					event_type_filters: Object.fromEntries(
-						INDEX_EVENT_TYPES.map((t) => {
-							const cfg = INDEX_EVENT_CONFIG[t];
-							// `trait` is accepted for contract-keyed types (those with a
-							// contract_id equality filter) — mirror the parser's rule.
+						ALL_INDEX_EVENT_TYPES.map((t) => {
+							const cfg =
+								t in INDEX_EVENT_CONFIG
+									? INDEX_EVENT_CONFIG[t as keyof typeof INDEX_EVENT_CONFIG]
+									: VM_INDEX_EVENT_CONFIG[
+											t as keyof typeof VM_INDEX_EVENT_CONFIG
+										];
 							const traitSupported = (
 								cfg.equalityFilters as readonly string[]
 							).includes("contract_id");
@@ -418,7 +441,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			readEvents: opts.readEvents,
 			readReorgs,
 		});
-		const notModified = applyIndexCache(c, query, tip, {
+		const notModified = applyIndexCache(c, query, response.tip, {
 			events: response.events,
 			next_cursor: response.next_cursor,
 			reorgs: response.reorgs,
@@ -479,7 +502,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			tip,
 			readBlocks: opts.readBlocks,
 		});
-		const notModified = applyIndexCache(c, query, tip, {
+		const notModified = applyIndexCache(c, query, indexSourceWindowTip(tip), {
 			blocks: response.blocks,
 			next_cursor: response.next_cursor,
 		});
@@ -520,7 +543,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			readTransactions: opts.readTransactions,
 			readReorgs: (range) => readChainReorgsForHeightRange(range),
 		});
-		const notModified = applyIndexCache(c, query, tip, {
+		const notModified = applyIndexCache(c, query, indexSourceWindowTip(tip), {
 			transactions: response.transactions,
 			next_cursor: response.next_cursor,
 			reorgs: response.reorgs,

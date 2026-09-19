@@ -1,19 +1,32 @@
 // Canonical event primitives (StreamsEvent, payload types, event-type vocab)
 // live in @secondlayer/shared/streams-rows; re-exported here so the public
 // Streams surface is unchanged.
+import type { VmEventType } from "@secondlayer/shared";
 import {
 	STREAMS_EVENT_TYPES,
 	type StreamsEvent,
 	type StreamsEventType,
+	type StreamsWireEvent,
+	type VmStreamsEvent,
 } from "@secondlayer/shared/streams-rows";
 import type { IndexEvent } from "../index-api/client.ts";
 import type { ConsumerSink, WithSinkTx } from "../sinks/types.ts";
 
-export { STREAMS_EVENT_TYPES, type StreamsEvent, type StreamsEventType };
+export {
+	STREAMS_EVENT_TYPES,
+	type StreamsEvent,
+	type StreamsEventType,
+	type VmStreamsEvent,
+};
 export type {
 	FtBurnPayload,
 	FtMintPayload,
 	FtTransferPayload,
+	MapDeletePayload,
+	MapWritePayload,
+	NestedContractCallPayload,
+	VarSetPayload,
+	StreamsWireEvent,
 	NftBurnPayload,
 	NftMintPayload,
 	NftTransferPayload,
@@ -132,9 +145,11 @@ export type StreamsEventsListParams = {
 	cursor?: string | null;
 	fromHeight?: number;
 	toHeight?: number;
-	types?: readonly StreamsEventType[];
+	/** `vm` reads ordinal. Omit for Streams 1.0. */
+	clock?: "classic" | "vm";
+	types?: readonly (StreamsEventType | VmEventType)[];
 	/** Event types to exclude (applied after `types`). */
-	notTypes?: readonly StreamsEventType[];
+	notTypes?: readonly (StreamsEventType | VmEventType)[];
 	contractId?: StreamsFilterValue;
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
@@ -568,11 +583,32 @@ export type StreamsClient = {
 	): AsyncIterableIterator<StreamsBatch<StreamsEventOfTypes<T>>>;
 	consume(params?: StreamsConsumeParams): AsyncIterableIterator<StreamsBatch>;
 	events: {
-		/** Narrowing overload, matching `consume`. */
+		/** `clock: "vm"` pages carry vm rows only (a parallel vocabulary,
+		 *  `event_index` = `ordinal`). Never `StreamsEvent`. */
+		list(
+			params: StreamsEventsListParams & { clock: "vm" },
+		): Promise<StreamsEventsEnvelope<VmStreamsEvent>>;
+		/** Narrowing overload, matching `consume`. Classic clock only —
+		 *  `clock: "vm"` is overload 1, and a general `StreamsEventsListParams`
+		 *  variable (clock unresolved) is the wire-union fallback. */
 		list<const T extends readonly StreamsEventType[]>(
-			params: StreamsEventsListParams & { types: T },
+			params: Omit<StreamsEventsListParams, "clock" | "types" | "notTypes"> & {
+				types: T;
+				notTypes?: readonly StreamsEventType[];
+				clock?: "classic";
+			},
 		): Promise<StreamsEventsEnvelope<StreamsEventOfTypes<T>>>;
-		list(params?: StreamsEventsListParams): Promise<StreamsEventsEnvelope>;
+		list(
+			params?: Omit<StreamsEventsListParams, "clock" | "types" | "notTypes"> & {
+				types?: readonly StreamsEventType[];
+				notTypes?: readonly StreamsEventType[];
+				clock?: "classic";
+			},
+		): Promise<StreamsEventsEnvelope>;
+		/** Unresolved `clock` on a general params variable: the wire union. */
+		list(
+			params: StreamsEventsListParams,
+		): Promise<StreamsEventsEnvelope<StreamsWireEvent>>;
 		byTxId(txId: string): Promise<StreamsEventsListEnvelope>;
 		/**
 		 * Pull pages from Streams and call `onBatch` after each page.

@@ -246,6 +246,53 @@ const FINALIZED =
 	"/v1/index/events?event_type=ft_transfer&from_height=0&to_height=9994";
 const TIP_SPANNING = "/v1/index/events?event_type=ft_transfer&from_height=0";
 
+describe("Index VM events caching uses the source-backed response tip", () => {
+	test("a VM page past decoded tip is mutable even when finalized_height is above decoded tip", async () => {
+		const lagged: IndexTip = {
+			block_height: 100,
+			finalized_height: 180,
+			lag_seconds: 0,
+			source_block_height: 200,
+		};
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/index",
+			createIndexRouter({
+				getTip: () => lagged,
+				readEvents: async () => ({
+					events: [
+						{
+							cursor: "200:5",
+							block_height: 200,
+							tx_id: "0xvm",
+							tx_index: 0,
+							event_index: 5,
+							event_type: "map_set",
+							contract_id: "SP.store",
+							map: "store",
+							raw_key: "0x0a",
+							raw_value: "0x0b",
+						},
+					],
+					next_cursor: "200:5",
+				}),
+				readReorgs: async () => [],
+			}),
+		);
+		const res = await app.request(
+			"/v1/index/events?event_type=map_set&from_height=200",
+		);
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Cache-Control")).toBe(MUTABLE_CACHE_CONTROL);
+		expect(res.headers.get("ETag")).toBeNull();
+		const body = (await res.json()) as {
+			events: Array<{ block_height: number }>;
+		};
+		expect(body.events[0]?.block_height).toBe(200);
+	});
+});
+
 describe("Index events caching", () => {
 	test("a finalized range is immutable and carries an ETag", async () => {
 		const res = await createApp().request(FINALIZED);
