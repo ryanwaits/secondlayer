@@ -10,7 +10,7 @@ Secondlayer today already does instance queries on what `"*"` emits: outer `cont
 
 Cursor 1.0 stays. `vm_events` is a **new Index type / Streams type**, never mixed into `(block_height, event_index)`.
 
-Assume the current node design lands. This file is the product map. First slice is persist + types, not a new product. Local parse/persist/read step-through: [vm-events-walkthrough.md](./vm-events-walkthrough.md).
+Assume the current node design lands. This file is the product map. First slice is persist + types, not a new product. Local parse/persist/read step-through: [vm-events-walkthrough.md](./vm-events-walkthrough.md). What this is vs MARF / “any Clarity value”: [clarity-state-positioning.md](./clarity-state-positioning.md).
 
 ---
 
@@ -411,7 +411,7 @@ VM Index and Streams pages include reorgs overlapping the resume height, even wh
 
 **Today.** Signed canonical `/new_block` history. Bootstrap/repair from R2. Metered. Payloads are `"*"`-shaped: no `vm_events`.
 
-**After.** New archive generations (or a side object) include `vm_events` only if the producing node had the keys. `secondlayer setup` / bootstrap docs: if you want storage/inner-call history, the archive you pull must have been collected with `"storage"` / `"contract_calls"`.
+**After 032 (tip, `vm_events` in our Postgres).** Same archive machine as classic chain data — not a side door. Today `CanonicalDataset` is `"blocks" | "transactions" | "events"` (`export-snapshot.ts` / `restore-snapshot.ts`); bootstrap/repair/verify and metering already run on those partitions. Add `"vm_events"` as a fourth dataset (parquet by `block_height`, FK after `transactions`), same signed snapshot, same `secondlayer bootstrap` / `verify` / `repair`, same prepaid credits. v1 snapshots that lack that dataset stay classic-only. A snapshot **with** `vm_events` only exists after a collecting node filled the table (032), then a publish. Until that gen is promoted, self-host `bootstrap` still cannot invent inner calls.
 
 ```
 # self-host after keys flip: live ingest has vm_events
@@ -430,7 +430,7 @@ VM Index and Streams pages include reorgs overlapping the resume height, even wh
 
 **C. tx-sender phishing detector.** Subgraph: inner call, `sender !== caller`, callee is SIP-009/010 `transfer` / `list-in-ustx`. Alert webhook. [100proof.org NFT listing](https://100proof.org/a-questionable-design-choice.html) is this query. Trigger is the **callee**.
 
-**D. Failed inner attempt.** `raw_result` is `(err …)`, no matching `map_set` (rolled back). “Tried to drain, Clarity said no.” Prints often omit this.
+**D. Failed inner attempt.** Outer tx **committed**. Inner `contract-call?` returned `(err …)` and the caller handled it. Log: `nested_contract_call.raw_result` is `(err …)`; **no** inner `map_set` (that batch was dropped, not written-then-undone). If the outer tx aborted, there is no row. `try!` of inner err is usually the abort path.
 
 **E. Protocol scoreboards.** pox-5 / sBTC / BNS maps → subgraph tables. Index stays prints + primitives. Charter: scoreboard is Subgraphs.
 
