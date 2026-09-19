@@ -30,31 +30,30 @@ never emit one.
 
 ## This deployment
 
-Dry-run / not started — disk gate. node-server `/` had 477G free of 2.0T
-(need ≥ 1.2T). Do not `mkdir` `/data/stacks-feeder` or
-`/opt/secondlayer/data/postgres-feeder` until that passes. Do not put the
-feeder on `/home` (bitcoind). Do not start compose.
+Temporary Hetzner Cloud box in Falkenstein. Stacks-node and the scratch
+indexer are **not started**. Prod `node-server` is still
+`ghcr.io/stacks-network/stacks-core:4.0.1`. Do not run `docker/feeder/`
+as-is; those files still assume the feeder lives on node-server.
 
 | | |
 |---|---|
-| Image | `ghcr.io/ryanwaits/stacks-core:441e595` (`sha256:a9a881bd4193ea431902e429f41a3605c95ef6a2bf7d0591031f702c097f9f11`) |
-| Feeder data | `/data/stacks-feeder` → `/stacks-blockchain/data` (empty; never `/data/stacks`) |
-| Scratch DB | `DATABASE_URL` name `secondlayer_feeder`; bind `/opt/secondlayer/data/postgres-feeder` |
-| Ports | feeder RPC `21443` / P2P `21444`; scratch indexer `3711` |
-| Observer | `app-server:3711` (65.21.135.94). Not `event-proxy:3700` |
-| Compose | `docker/feeder/` project `secondlayer-feeder`. Not in `deploy.sh` APP_SERVICES |
+| Host | `stacks-feeder` (`166546682`). SKU `cpx62` (16 vCPU / 32 GB / x86). Location `fsn1`. Label `role=eval-hook-feeder`. |
+| IPv4 | `49.13.117.132` |
+| Volume | `feeder-data` (`106907790`), 1024 GB ext4. Automount `/mnt/HC_Volume_106907790`, bind `/data/feeder`. |
+| Data | `/data/feeder/stacks` and `/data/feeder/postgres` (empty except `stacks/.keep`). Never `/data/stacks` on prod. |
+| Image | `ghcr.io/ryanwaits/stacks-core:441e595` (`sha256:a9a881bd4193ea431902e429f41a3605c95ef6a2bf7d0591031f702c097f9f11`) linux/amd64. Pulled. Not running. |
+| SSH | `ssh -i ~/.ssh/id_ed25519_prod root@49.13.117.132` (Cloud key `macbook-prod`) |
+| Cloud firewall | `stacks-feeder` (`11648111`): TCP 22 from operator `136.62.99.163/32`; TCP 20444 open. Scratch indexer 3700 is not published. |
+| Bitcoin RPC | node-server `:8332` allowlist: app-server `65.21.135.94` and this IPv4. Not `0.0.0.0/0`. |
 
-```bash
-# app-server first (scratch), from docker/feeder — not docker/ (prod COMPOSE_FILE)
-docker compose -f docker-compose.scratch.yml up -d
+`ccx43` (64 GB) failed with dedicated-core quota; `cpx62` is the fallback.
+Cap stacks-node at 24G when it starts so scratch Postgres fits on 32 GB.
+Cloud volume quota is 1 TB (`2048` GB create was `resource_limit_exceeded`).
+Raise that limit before IBD if chainstate needs ≥1.2T, then
+`hcloud volume resize feeder-data --size 2048` and grow the ext4 filesystem.
 
-# then node-server, same directory
-docker compose up -d
-```
-
-Restrict host `:3711` to node-server `37.27.171.220` (DOCKER-USER; Docker
-bypasses UFW). Copy `BITCOIN_RPC_PASSWORD` from node-server `.env` into
-`docker/feeder/Config.toml` on the host; do not commit it.
+Copy `BITCOIN_RPC_PASSWORD` from node-server `.env` into the feeder
+`Config.toml` on the host; do not commit it.
 
 ## Bring-up
 
