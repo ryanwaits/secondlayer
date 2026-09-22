@@ -99,6 +99,7 @@ async function cmdParityDecode(args: string[]): Promise<void> {
 
 	const heights = parseBlockSpec(blocksSpec);
 	const rpc = bitcoinRpcClientFromEnv();
+	const concurrency = Number(process.env.PARITY_DECODE_CONCURRENCY ?? "12");
 
 	let checked = 0;
 	const mismatches: Array<{
@@ -108,15 +109,32 @@ async function cmdParityDecode(args: string[]): Promise<void> {
 		ord: unknown;
 	}> = [];
 
+	async function runPool<T>(
+		items: T[],
+		worker: (item: T) => Promise<void>,
+	): Promise<void> {
+		let next = 0;
+		async function runner(): Promise<void> {
+			while (next < items.length) {
+				const item = items[next++] as T;
+				await worker(item);
+			}
+		}
+		await Promise.all(
+			Array.from({ length: Math.min(concurrency, items.length) }, runner),
+		);
+	}
+
 	for (const height of heights) {
 		const hash = await rpc.getblockhash(height);
 		const hex = await rpc.getblock(hash);
 		const block = parseBlock(hex);
 		const candidateTxids = new Set(txidsWithRunestoneMarker(block));
+		const candidates = block.txs.filter((tx) => candidateTxids.has(tx.txid));
 
-		for (const tx of block.txs) {
-			if (!candidateTxids.has(tx.txid)) continue;
-			checked += 1;
+		checked += candidates.length;
+
+		await runPool(candidates, async (tx) => {
 			const mismatch = await diffOne(tx, ordUrl);
 			if (mismatch) {
 				mismatches.push({
@@ -127,9 +145,10 @@ async function cmdParityDecode(args: string[]): Promise<void> {
 				});
 				console.error(`❌ mismatch at height ${height}, tx ${mismatch.txid}`);
 			}
-		}
+		});
+
 		console.log(
-			`checked height ${height}: ${candidateTxids.size} candidate tx(s)`,
+			`checked height ${height}: ${candidates.length} candidate tx(s)`,
 		);
 	}
 
