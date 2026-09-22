@@ -26,7 +26,7 @@ Brief: https://claude.ai/artifact/DsN9iEsNpFuVhX3jr27Zoq
 | Spike host | `stacks-feeder` (Hetzner Cloud `cpx62`, FSN, 4T volume), shared with Stacks genesis IBD |
 | Bitcoin source | node-server bitcoind `37.27.171.220:8332` (full, txindex), feeder IP already allowlisted |
 | Prod impact | none. No prod box changes in Phase 0 |
-| Last updated | 2026-09-22 (D8, D12, D14, D16 locked) |
+| Last updated | 2026-09-22 (D4, D5, D6, D8, D12, D14, D16 locked; demand go) |
 
 ## Phases and gates
 
@@ -43,7 +43,7 @@ Brief: https://claude.ai/artifact/DsN9iEsNpFuVhX3jr27Zoq
 
 | Gate | Pass means | Result |
 |---|---|---|
-| 0 | `ord` Runes index at tip with size + time recorded; RPC benchmark recorded; demand threshold (D14) met; D4, D6 decided | pending |
+| 0 | `ord` Runes index at tip with size + time recorded; RPC benchmark recorded; demand threshold (D14) met; D4, D6 decided | **partial (2026-09-22):** demand MET (founder confirms users, go); benchmark recorded; D4/D5/D6 LOCKED; contention clear. Remaining: `ord` at tip + size/time + rune counts |
 | 1 | Zero rune-entry and balance digest divergence vs `ord` at every checkpoint 840,000 → tip; backfill wall time + PG size recorded; decoder fails closed on divergence | pending |
 | 2 | ≥14 days at tip, continuous parity green, one reorg handled (live or injected on regtest), oss compose profile boots from empty and reaches tip | pending |
 | 3 | Prod host at tip with parity green; digests match feeder at the same height; routing switched; Bitcoin containers removed from feeder | pending |
@@ -59,9 +59,9 @@ the named gate), **OPEN** (needs founder call).
 | D2 | 2026-09-22 | Runes and inscriptions are Index tier (one standard, one reference impl). Protocol decoders on top are noted and deferred | LOCKED |
 | D3 | 2026-09-22 | Runes before inscriptions | LOCKED |
 | D7 | 2026-09-22 | Phase 0–2 run on `stacks-feeder`, reading node-server bitcoind remotely. No prod box changes | LOCKED |
-| D5 | 2026-09-22 | `ord` is the parity reference, never the serving path. Our decoder serves; `ord` checks | PROPOSED (Gate 0) |
-| D4 | 2026-09-22 | Decoder in TS/Bun (one stack), not a runehook (Rust) fork | PROPOSED (Gate 0) |
-| D6 | 2026-09-22 | Fetch raw blocks (`getblock` verbosity 0) and parse in TS; verbosity 2/3 JSON only if the benchmark says parsing is the bottleneck | PROPOSED (Gate 0, benchmark) |
+| D5 | 2026-09-22 | `ord` is the parity reference, never the serving path. Our decoder serves; `ord` checks | LOCKED (2026-09-22, founder) |
+| D4 | 2026-09-22 | Decoder in TS/Bun (one stack), not a runehook (Rust) fork | LOCKED (2026-09-22, founder) |
+| D6 | 2026-09-22 | Fetch raw blocks (`getblock` verbosity 0) and parse in TS; verbosity 2/3 JSON only if the benchmark says parsing is the bottleneck | LOCKED (2026-09-22, founder; bench: verbosity 0 ~3x blocks/s of verbosity 2, parse ~1ms/block) |
 | D9 | 2026-09-22 | Bitcoin Streams is a thin reorg-aware reader over bitcoind. Do not mirror raw Bitcoin blocks/txs into Postgres | PROPOSED (Gate 1) |
 | D10 | 2026-09-22 | Reorg handling: per-block undo journal ≥12 blocks deep; deeper reorg halts ingest and pages (fail closed) | PROPOSED (Gate 1) |
 | D11 | 2026-09-22 | Inscription content is not served; metadata only until a takedown process exists | PROPOSED (Phase 4) |
@@ -136,6 +136,8 @@ Observed values only. Fill as Phase 0 runs.
 | Rune count / rune-bearing UTXO count at tip | not yet measured — ord not at tip this run | | |
 | Feeder Stacks IBD baseline rate (pre-`ord`, short-window) | 26 blocks / ~11.6 min ≈ 134 blocks/h (noisy, <1h window — see caveat above) | 2026-09-22 | derived, readings 1–2 |
 | Feeder Stacks IBD rate during `ord` sync (step 5 check) | 37 blocks / ~17.4 min ≈ 128 blocks/h (tip 10151→10188, 20:51:11Z→21:08:35Z) ≈ 95% of the pre-`ord` short-window rate — well above the 80% floor | 2026-09-22 | derived, feeder `/v2/info` + `progress.log` |
+| Contention check 2 | feeder Stacks tip 10188→10267 over 34.5 min ≈ 137 blocks/h (≥ baseline); feeder load 0.25; prod burn 968192 = bitcoind tip 968192; node-server load 1.30 (15-min); disk 1% | 2026-09-22T21:43Z | feeder `/v2/info`, node-server `uptime`/`getblockcount` |
+| `ord` early sync rate | 0→34,999 in ~46 min (near-empty early blocks; not predictive of tip ETA) | 2026-09-22T21:39Z | `progress.log` |
 | Step 5 contention check (single reading, ~21:09Z) | feeder load 1.47/1.01/0.60 (transient spike, taken right after the verbosity-2/concurrency-8 bench burst); node-server load 2.00/1.57/1.30 (15-min avg 1.30 ≈ baseline ~1.1–1.3, so not sustained); prod burn 968185 = bitcoind tip 968185 (no lag); disk 1% used | 2026-09-22 | feeder `/proc/loadavg`+`df`, node-server `uptime`+`/v2/info`, bitcoind `getblockcount` |
 | D6 recommendation (benchmark evidence, decision left PROPOSED for founder) | Verbosity 0 wins at every concurrency: ~2.7–3.1x more blocks/s than verbosity 2 (9.62 vs 3.59 @c1; 29.12 vs 9.63 @c4; 36.85 vs 11.79 @c8), despite verbosity 2 moving more MB/s (bigger JSON, more bitcoind-side serialization cost). TS parse cost on verbosity 0 is negligible (avg ~1–1.5ms/block, p95 ~2.7–3.2ms) vs fetch latency (p50 104–208ms) — parsing is nowhere near the bottleneck. Recommend confirming D6 as written (raw fetch verbosity 0 + TS parse) at Gate 0 | 2026-09-22 | derived from the RPC fetch rows above |
 
@@ -170,3 +172,5 @@ met (5 above). The **≥1 willing to pay or self-host** half is **not met** by
 public sourcing alone — every "would pay/self-host" cell above is an
 inference from public product surfaces, not a stated commitment; only
 founder-led outreach (out of scope for this research pass) can confirm it.
+
+**2026-09-22 founder call:** D14 met. "We have the users, it's a go." Pay/self-host commitments are held founder-side, not recorded here.
