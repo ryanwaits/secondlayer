@@ -20,6 +20,7 @@ describe("parseBlock", () => {
 		const block = parseBlock(hex);
 
 		expect(block.prevHash).toBe("0".repeat(64));
+		expect(block.time).toBe(1231006505); // 2009-01-03T18:15:05Z, the well-known genesis timestamp
 		expect(block.txs).toHaveLength(1);
 		expect(block.txs[0]?.txid).toBe(
 			"4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b",

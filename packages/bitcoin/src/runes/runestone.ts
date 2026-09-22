@@ -57,13 +57,19 @@ export interface TxLike {
 	outputs: TxOutputLike[];
 }
 
-type ScriptInstruction =
+export type ScriptInstruction =
 	| { kind: "op"; opcode: number }
 	| { kind: "push"; bytes: Uint8Array }
 	| { kind: "error" };
 
-/** Mirrors rust-bitcoin's `Script::instructions()` push/opcode classification. */
-function* scriptInstructions(script: Uint8Array): Generator<ScriptInstruction> {
+/**
+ * Mirrors rust-bitcoin's `Script::instructions()` push/opcode classification.
+ * Exported for reuse by `updater.ts`'s tapscript commitment scan
+ * (`tx_commits_to_rune` in `rune_updater.rs` also walks pushdata instructions).
+ */
+export function* scriptInstructions(
+	script: Uint8Array,
+): Generator<ScriptInstruction> {
 	let i = 0;
 	while (i < script.length) {
 		const opcode = script[i] as number;

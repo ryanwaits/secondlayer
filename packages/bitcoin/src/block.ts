@@ -40,6 +40,8 @@ export interface ParsedBlock {
 	hash: string;
 	/** Big-endian (display order) previous block hash. */
 	prevHash: string;
+	/** Unix timestamp (block header `time` field, seconds). */
+	time: number;
 	txs: ParsedTx[];
 }
 
@@ -269,7 +271,7 @@ export function parseBlock(hex: string): ParsedBlock {
 	r.bytes(4); // version
 	const prevHashInternal = Uint8Array.from(r.bytes(32));
 	r.bytes(32); // merkle root
-	r.bytes(4); // time
+	const time = r.u32le();
 	r.bytes(4); // bits
 	r.bytes(4); // nonce
 	const header = buf.subarray(headerStart, r.offset);
@@ -282,5 +284,5 @@ export function parseBlock(hex: string): ParsedBlock {
 		txs.push(parseTx(r));
 	}
 
-	return { hash, prevHash, txs };
+	return { hash, prevHash, time, txs };
 }
