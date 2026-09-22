@@ -21,7 +21,7 @@ Brief: https://claude.ai/artifact/DsN9iEsNpFuVhX3jr27Zoq
 
 | Field | Value |
 |---|---|
-| Phase | **0: measure + demand — Phase 0 in progress: ord syncing** |
+| Phase | **0: measure + demand** (in progress: ord syncing from genesis) |
 | Executor plan | `plans/036-bitcoin-phase-0.md` |
 | Spike host | `stacks-feeder` (Hetzner Cloud `cpx62`, FSN, 4T volume), shared with Stacks genesis IBD |
 | Bitcoin source | node-server bitcoind `37.27.171.220:8332` (full, txindex), feeder IP already allowlisted |

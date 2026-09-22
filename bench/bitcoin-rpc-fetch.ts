@@ -1,12 +1,13 @@
 #!/usr/bin/env bun
 // ───────────────────────────────────────────────────────────────────
-// Bitcoin RPC fetch benchmark (plan 036, Bitcoin Phase 0).
+// Bitcoin RPC fetch benchmark.
 //
 // Measures the cost of pulling blocks from a remote bitcoind over
 // getblockhash + getblock, at verbosity 0 (raw hex) vs 2 (full JSON),
-// across concurrency levels. This is the D6 measurement: fetch raw and
-// parse in TS, or let bitcoind do verbosity 2/3 JSON — decided from
-// whichever wins blocks/s once parse cost is included.
+// across concurrency levels. Answers whether to fetch raw blocks and
+// parse in TS, or let bitcoind return verbosity 2/3 JSON — decided from
+// whichever wins blocks/s once parse cost is included. See
+// docs/internal/bitcoin-runtime.md for the resulting decision.
 //
 // For verbosity 0, also times a TS parse of the raw block hex (tx count +
 // output count) so fetch cost and parse cost are reported separately.
