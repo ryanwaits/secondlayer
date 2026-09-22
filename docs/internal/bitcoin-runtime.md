@@ -44,7 +44,7 @@ Brief: https://claude.ai/artifact/DsN9iEsNpFuVhX3jr27Zoq
 | Gate | Pass means | Result |
 |---|---|---|
 | 0 | `ord` Runes index at tip with size + time recorded; RPC benchmark recorded; demand threshold (D14) met; D4, D6 decided | **partial (2026-09-22):** demand MET (founder confirms users, go); benchmark recorded; D4/D5/D6 LOCKED; contention clear. Remaining: `ord` at tip + size/time + rune counts |
-| 1 | Zero rune-entry and balance digest divergence vs `ord` at every checkpoint 840,000 → tip; backfill wall time + PG size recorded; decoder fails closed on divergence | pending |
+| 1 | Decode diff 0 mismatches on the sample; entry + balance diff 0 at C1, C2, C3 (D17); supply invariant holds at every flush 840,000 → C3; backfill wall time + PG size recorded; fail-closed tests pass (invariant break, prev-hash break) | pending |
 | 2 | ≥14 days at tip, continuous parity green, one reorg handled (live or injected on regtest), oss compose profile boots from empty and reaches tip | pending |
 | 3 | Prod host at tip with parity green; digests match feeder at the same height; routing switched; Bitcoin containers removed from feeder | pending |
 
@@ -63,7 +63,7 @@ the named gate), **OPEN** (needs founder call).
 | D4 | 2026-09-22 | Decoder in TS/Bun (one stack), not a runehook (Rust) fork | LOCKED (2026-09-22, founder) |
 | D6 | 2026-09-22 | Fetch raw blocks (`getblock` verbosity 0) and parse in TS; verbosity 2/3 JSON only if the benchmark says parsing is the bottleneck | LOCKED (2026-09-22, founder; bench: verbosity 0 ~3x blocks/s of verbosity 2, parse ~1ms/block) |
 | D9 | 2026-09-22 | Bitcoin Streams is a thin reorg-aware reader over bitcoind. Do not mirror raw Bitcoin blocks/txs into Postgres | PROPOSED (Gate 1) |
-| D10 | 2026-09-22 | Reorg handling: per-block undo journal ≥12 blocks deep; deeper reorg halts ingest and pages (fail closed) | PROPOSED (Gate 1) |
+| D10 | 2026-09-22 | Reorg handling: per-block undo journal ≥12 blocks deep; deeper reorg halts ingest and pages (fail closed) | PARTIAL (spike halts on prev-hash mismatch; undo journal in Phase 2) |
 | D11 | 2026-09-22 | Inscription content is not served; metadata only until a takedown process exists | PROPOSED (Phase 4) |
 | D8 | 2026-09-22 | Prod topology mirrors today's split: node-server stays the node layer (bitcoind, stacks-node); Bitcoin app layer (ord, decoders, Bitcoin PG, API) goes on a **new dedicated box with extra local NVMe**, app-server-shaped, reading node-server bitcoind over the DC network. Not co-located on node-server | LOCKED |
 | D12 | 2026-09-22 | Tip following via ZMQ (`hashblock` + `rawblock`) on node-server bitcoind, no polling. Needs a prod bitcoind config change + restart (brief burn-feed gap for prod stacks-node; schedule a window). ZMQ is unauthenticated: publish only on the private allowlist, same DOCKER-USER pattern as `:8332`, never `0.0.0.0/0`. Lands as its own step in the Phase 1 plan | LOCKED |
@@ -71,6 +71,8 @@ the named gate), **OPEN** (needs founder call).
 | D14 | 2026-09-22 | Gate 0 demand threshold: ≥3 named builders with a concrete Runes use, ≥1 willing to pay or self-host in production | LOCKED |
 | D15 | 2026-09-22 | Brand: Bitcoin as data on the existing plane (default per PRODUCT.md principle 5) vs an endorsed library at `bitcoin.secondlayer.tools` for the account-free SDK half | OPEN (Gate 2) |
 | D16 | 2026-09-22 | Rotate the bitcoind RPC credential in the D12 ZMQ restart window (one prod bitcoind restart for both), and move bitcoind RPC + ZMQ traffic off the public network (Hetzner vSwitch, WireGuard, or TLS) before Phase 3. Trigger: credential appeared in argv/`systemctl status` during the first execute run; RPC basic auth already crosses the public network in cleartext from app-server and the feeder | LOCKED |
+| D17 | 2026-09-22 | Parity method: ord has no historical state, so parity runs at frozen heights. ord is held at H with --height-limit H+1, then `ord runes` + `ord balances` are diffed against our state at H. Checkpoints C1=841,000, C2=900,000, C3=ord tip. Plus a decode diff (our runestone decipher vs ord /decode/{txid}) and our own supply invariant at every flush | LOCKED |
+| D18 | 2026-09-22 | Spike package packages/bitcoin is self-contained (npm deps only, no @secondlayer/* imports) so it installs standalone on any box; integrating with shared/indexer is a Phase 2 decision | LOCKED |
 
 ## Hosting and migration strategy
 
