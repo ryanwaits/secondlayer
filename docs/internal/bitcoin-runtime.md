@@ -21,12 +21,12 @@ Brief: https://claude.ai/artifact/DsN9iEsNpFuVhX3jr27Zoq
 
 | Field | Value |
 |---|---|
-| Phase | **0: measure + demand** (not started) |
+| Phase | **0: measure + demand — Phase 0 in progress: ord syncing** |
 | Executor plan | `plans/036-bitcoin-phase-0.md` |
 | Spike host | `stacks-feeder` (Hetzner Cloud `cpx62`, FSN, 4T volume), shared with Stacks genesis IBD |
 | Bitcoin source | node-server bitcoind `37.27.171.220:8332` (full, txindex), feeder IP already allowlisted |
 | Prod impact | none. No prod box changes in Phase 0 |
-| Last updated | 2026-09-22 (D8, D12, D14 locked) |
+| Last updated | 2026-09-22 (D8, D12, D14, D16 locked) |
 
 ## Phases and gates
 
@@ -70,6 +70,7 @@ the named gate), **OPEN** (needs founder call).
 | D13 | 2026-09-22 | Pricing for hosted Bitcoin Index reads (credit meter vs separate) | OPEN (Gate 2) |
 | D14 | 2026-09-22 | Gate 0 demand threshold: ≥3 named builders with a concrete Runes use, ≥1 willing to pay or self-host in production | LOCKED |
 | D15 | 2026-09-22 | Brand: Bitcoin as data on the existing plane (default per PRODUCT.md principle 5) vs an endorsed library at `bitcoin.secondlayer.tools` for the account-free SDK half | OPEN (Gate 2) |
+| D16 | 2026-09-22 | Rotate the bitcoind RPC credential in the D12 ZMQ restart window (one prod bitcoind restart for both), and move bitcoind RPC + ZMQ traffic off the public network (Hetzner vSwitch, WireGuard, or TLS) before Phase 3. Trigger: credential appeared in argv/`systemctl status` during the first execute run; RPC basic auth already crosses the public network in cleartext from app-server and the feeder | LOCKED |
 
 ## Hosting and migration strategy
 
@@ -124,17 +125,48 @@ Observed values only. Fill as Phase 0 runs.
 | Feeder Stacks IBD baseline | tip 10,039, load 0.24 | 2026-09-22 | feeder `/v2/info` |
 | node-server free disk | ~1TB (`/` 470G, `/home` 555G) | 2026-09-22 | `df` |
 | app-server free disk | 131G (85% used) | 2026-09-22 | `df` |
-| `ord` 0.29.0 Runes index size | | | |
-| `ord` Runes sync wall time | | | |
-| RPC fetch, verbosity 0 (blocks/s, MB/s) | | | |
-| RPC fetch, verbosity 2 (blocks/s, MB/s) | | | |
-| Rune count / rune-bearing UTXO count at tip | | | |
-| Feeder Stacks IBD rate during `ord` sync | | | |
+| Step 1 baseline reading 1 (pre-ord) | feeder tip 10125, load 0.30/0.28/0.25; node-server load 1.29/1.19/1.11; prod burn 968180 / stacks tip 9044724 | 2026-09-22T20:39:36Z | feeder `/v2/info`+`/proc/loadavg`, node-server `uptime`+`/v2/info` |
+| Step 1 baseline reading 2 (pre-ord) | feeder tip 10151, load 0.31/0.23/0.23; node-server load 1.00/1.13/1.11; prod burn 968181 / stacks tip 9044767 | 2026-09-22T20:51:11Z | feeder `/v2/info`+`/proc/loadavg`, node-server `uptime`+`/v2/info`. **Caveat: only ~12 min after reading 1, not the ≥1h gap the plan step asks for; rate below is a noisy short-window sample, not the IBD baseline rate** |
+| Feeder Stacks IBD baseline rate (short-window, noisy) | 26 blocks / ~11.6 min ≈ 134 blocks/h | 2026-09-22 | derived from readings 1–2 above |
+| `ord-runes` start height | began fetching from block 0 (genesis), not 840,000 — first index commit (commit-interval=5000) landed at height 4999 within ~5 min of service start | 2026-09-22 | `curl localhost:8089/status` on feeder, `journalctl -u ord-runes` |
+| `ord` 0.29.0 Runes index size | in progress, not yet at tip (this run only measures early sync; Phase 0 continuation records final size) | 2026-09-22 | `du -sh /data/feeder/ord` |
+| `ord` Runes sync wall time | in progress, not yet at tip | 2026-09-22 | `progress.log` |
+| RPC fetch, verbosity 0 (blocks/s, MB/s) | c1: 9.62 blk/s, 12.11 MB/s, p50 104.6ms, p95 120.8ms, parse avg 1.50ms/p95 3.18ms · c4: 29.12 blk/s, 36.67 MB/s, p50 134.3ms, p95 188.6ms, parse avg 1.06ms/p95 2.83ms · c8: 36.85 blk/s, 46.40 MB/s, p50 208.3ms, p95 367.8ms, parse avg 0.92ms/p95 2.71ms | 2026-09-22 | `bench/bitcoin-rpc-fetch.ts` on feeder, `FROM=900000 COUNT=500`, TS parse (tx+output count) included |
+| RPC fetch, verbosity 2 (blocks/s, MB/s) | c1: 3.59 blk/s, 27.52 MB/s, p50 297.4ms, p95 376.6ms · c4: 9.63 blk/s, 73.90 MB/s, p50 454.7ms, p95 583.1ms · c8: 11.79 blk/s, 90.49 MB/s, p50 573.7ms, p95 1373.5ms | 2026-09-22 | `bench/bitcoin-rpc-fetch.ts` on feeder, `FROM=900000 COUNT=500` |
+| Rune count / rune-bearing UTXO count at tip | not yet measured — ord not at tip this run | | |
+| Feeder Stacks IBD baseline rate (pre-`ord`, short-window) | 26 blocks / ~11.6 min ≈ 134 blocks/h (noisy, <1h window — see caveat above) | 2026-09-22 | derived, readings 1–2 |
+| Feeder Stacks IBD rate during `ord` sync (step 5 check) | 37 blocks / ~17.4 min ≈ 128 blocks/h (tip 10151→10188, 20:51:11Z→21:08:35Z) ≈ 95% of the pre-`ord` short-window rate — well above the 80% floor | 2026-09-22 | derived, feeder `/v2/info` + `progress.log` |
+| Step 5 contention check (single reading, ~21:09Z) | feeder load 1.47/1.01/0.60 (transient spike, taken right after the verbosity-2/concurrency-8 bench burst); node-server load 2.00/1.57/1.30 (15-min avg 1.30 ≈ baseline ~1.1–1.3, so not sustained); prod burn 968185 = bitcoind tip 968185 (no lag); disk 1% used | 2026-09-22 | feeder `/proc/loadavg`+`df`, node-server `uptime`+`/v2/info`, bitcoind `getblockcount` |
+| D6 recommendation (benchmark evidence, decision left PROPOSED for founder) | Verbosity 0 wins at every concurrency: ~2.7–3.1x more blocks/s than verbosity 2 (9.62 vs 3.59 @c1; 29.12 vs 9.63 @c4; 36.85 vs 11.79 @c8), despite verbosity 2 moving more MB/s (bigger JSON, more bitcoind-side serialization cost). TS parse cost on verbosity 0 is negligible (avg ~1–1.5ms/block, p95 ~2.7–3.2ms) vs fetch latency (p50 104–208ms) — parsing is nowhere near the bottleneck. Recommend confirming D6 as written (raw fetch verbosity 0 + TS parse) at Gate 0 | 2026-09-22 | derived from the RPC fetch rows above |
 
 ## Demand ledger
 
 Named builders only. Source link required. Outreach is founder-led.
 
+Sweep notes: `hirosystems/runehook` and `hirosystems/ordinals-api` are
+archived/deprecated (redirect to `hirosystems/bitcoin-indexer`), decommissioned
+2026-03-09 per Hiro's own announcement — the "largest neutral provider shut
+down" event STRATEGY.md's Bitcoin section references. `hirosystems/bitcoin-indexer`
+has zero issues created after 2025-11-03 (confirmed via GitHub GraphQL,
+`issues.totalCount`=221, all 221 fetched and none newer) — the GitHub-issue
+migration-pain channel is quiet; no fresh named asks found there. Hiro's own
+deprecation post names the gap directly: Xverse (their recommended alternative)
+does not cover "block-level [Runes] activity and global etching lists," which
+"require application-layer aggregation" — i.e. exactly what a self-hosted
+Runes index would serve. Named builders below were found via the Stacks
+Runes-on-L2 ecosystem (Bitflow/Pontis Runes AMM launch), not via GitHub issues.
+
 | Who | Use | Source | Would pay / self-host | Status |
 |---|---|---|---|---|
-| | | | | |
+| Bitflow Finance | Runs the first Runes AMM on Stacks (Bitflow app); needs live Rune balance/activity data for BILLION•DOLLAR•CAT, DOG•GO•TO•THE•MOON, LIQUIDIUM•TOKEN pools | [PRNewswire, 2024-12-18](https://www.prnewswire.com/news-releases/bitflow-and-pontis-launch-first-bitcoin-runes-amm-on-bitcoin-l2-stacks-enhancing-bitcoin-asset-trading-302335805.html) | Not publicly stated — needs founder outreach | Named, unconfirmed |
+| Pontis (bridge) | Federated bridge moving BTC/Runes/BRC-20 onto Stacks and back; needs Rune UTXO/balance verification for mint/burn | [same PRNewswire release](https://www.prnewswire.com/news-releases/bitflow-and-pontis-launch-first-bitcoin-runes-amm-on-bitcoin-l2-stacks-enhancing-bitcoin-asset-trading-302335805.html); [Pontis GitBook](https://pontis.gitbook.io/about) | Not publicly stated — needs founder outreach | Named, unconfirmed |
+| Liquidium | Described as "the largest DeFi protocol on Runes"; Runes-collateralized lending needs Rune balance/price data; Pontis bridge signer | [OrdinalsBot/Sulu integration writeup](https://nftnow.com/guides/ordinalsbot-ultimate-guide-bitcoin-runes-brc20-trio/) | Not publicly stated — needs founder outreach | Named, unconfirmed |
+| OrdinalsBot | Ordinals/Runes inscription service; Pontis bridge signer; needs Ordinals + Runes indexing for inscription/mint workflows | [nftnow OrdinalsBot guide](https://nftnow.com/guides/ordinalsbot-ultimate-guide-bitcoin-runes-brc20-trio/) | Not publicly stated — needs founder outreach | Named, unconfirmed |
+| Asigna | "Smart custody layer for Bitcoin"; wraps Runes/Ordinals assets in bridge contracts (`asigna-ordinals-nft.clar`, `asigna-bridge-ft.clar` for psBTC+Runes); Pontis bridge signer | [stacksgov/critical-bounties#22](https://github.com/stacksgov/critical-bounties/issues/22) (2024, bounty spec); [PRNewswire release](https://www.prnewswire.com/news-releases/bitflow-and-pontis-launch-first-bitcoin-runes-amm-on-bitcoin-l2-stacks-enhancing-bitcoin-asset-trading-302335805.html) (signer role) | Not publicly stated — needs founder outreach | Named, unconfirmed |
+
+D14 threshold (≥3 named builders with a concrete Runes use, ≥1 willing to
+pay/self-host in prod): the **≥3 named-builders-with-concrete-use** half is
+met (5 above). The **≥1 willing to pay or self-host** half is **not met** by
+public sourcing alone — every "would pay/self-host" cell above is an
+inference from public product surfaces, not a stated commitment; only
+founder-led outreach (out of scope for this research pass) can confirm it.
