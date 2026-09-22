@@ -1,0 +1,48 @@
+# Bitcoin Runes decoder spike (plan 037). Isolated stack on stacks-feeder:
+# a separate Postgres (btc-pg) plus a bare Bun runner for the @secondlayer/bitcoin
+# package's CLI (migrate / backfill / parity-*). Not the Stacks feeder stack —
+# a separate compose project so it doesn't touch /data/feeder/{stacks,postgres}.
+# Do not run on node-server or app-server. Do not add this file to deploy.sh.
+#
+#   cd docker/bitcoin-spike && docker compose up -d btc-pg
+#   docker compose run --rm runes bun install
+#   docker compose run --rm runes bun run src/cli.ts migrate
+#   docker compose run -d --name runes-backfill runes bun run src/cli.ts backfill --to <H>
+#
+# Disk: /data/feeder/btc-pg (separate Postgres instance, not a schema in the
+# Stacks scratch PG — plan 031 pair-restores that PG onto prod and Bitcoin
+# rows must not ride along). Credentials: /etc/secondlayer-btc/btc.env (mode
+# 600, root), built by piping from /etc/ord/rpc.env — never printed.
+
+name: secondlayer-btc-spike
+
+services:
+  btc-pg:
+    image: postgres:17-alpine@sha256:d4bb0a8c1b7bb2e29f976d099e7bfb9a5d8858cffe9e46b35cd302cd1f1f8168
+    environment:
+      POSTGRES_USER: btc
+      POSTGRES_PASSWORD: btc
+      POSTGRES_DB: btc
+    volumes:
+      - ${BTC_PG_DATA_DIR:-/data/feeder/btc-pg}:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5441:5432"
+    mem_limit: 3g
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U btc"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  runes:
+    image: oven/bun:1.3.10
+    network_mode: host
+    working_dir: /opt/secondlayer-btc/packages/bitcoin
+    volumes:
+      - /opt/secondlayer-btc:/opt/secondlayer-btc
+    env_file:
+      - /etc/secondlayer-btc/btc.env
+    mem_limit: 6g
+    cpus: 6
+    restart: "no"
