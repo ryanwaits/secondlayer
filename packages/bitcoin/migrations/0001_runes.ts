@@ -5,26 +5,26 @@ export async function up(db: Kysely<any>): Promise<void> {
 	await db.schema
 		.createTable("rune_entries")
 		.addColumn("rune_id", "text", (col) => col.primaryKey())
-		.addColumn("block", "numeric(20,0)", (col) => col.notNull())
-		.addColumn("tx", "numeric(10,0)", (col) => col.notNull())
-		.addColumn("number", "numeric(20,0)", (col) => col.notNull())
-		.addColumn("rune", "numeric(39,0)", (col) => col.notNull())
+		.addColumn("block", sql`numeric(20,0)`, (col) => col.notNull())
+		.addColumn("tx", sql`numeric(10,0)`, (col) => col.notNull())
+		.addColumn("number", sql`numeric(20,0)`, (col) => col.notNull())
+		.addColumn("rune", sql`numeric(39,0)`, (col) => col.notNull())
 		.addColumn("spaced_rune", "text", (col) => col.notNull())
 		.addColumn("spacers", "integer", (col) => col.notNull())
 		.addColumn("divisibility", "integer", (col) => col.notNull())
 		.addColumn("symbol", "text")
-		.addColumn("premine", "numeric(39,0)", (col) => col.notNull())
-		.addColumn("terms_amount", "numeric(39,0)")
-		.addColumn("terms_cap", "numeric(39,0)")
-		.addColumn("terms_height_start", "numeric(20,0)")
-		.addColumn("terms_height_end", "numeric(20,0)")
-		.addColumn("terms_offset_start", "numeric(20,0)")
-		.addColumn("terms_offset_end", "numeric(20,0)")
+		.addColumn("premine", sql`numeric(39,0)`, (col) => col.notNull())
+		.addColumn("terms_amount", sql`numeric(39,0)`)
+		.addColumn("terms_cap", sql`numeric(39,0)`)
+		.addColumn("terms_height_start", sql`numeric(20,0)`)
+		.addColumn("terms_height_end", sql`numeric(20,0)`)
+		.addColumn("terms_offset_start", sql`numeric(20,0)`)
+		.addColumn("terms_offset_end", sql`numeric(20,0)`)
 		.addColumn("turbo", "boolean", (col) => col.notNull())
 		.addColumn("etching_txid", "text", (col) => col.notNull())
-		.addColumn("timestamp", "numeric(20,0)", (col) => col.notNull())
-		.addColumn("mints", "numeric(39,0)", (col) => col.notNull())
-		.addColumn("burned", "numeric(39,0)", (col) => col.notNull())
+		.addColumn("timestamp", sql`numeric(20,0)`, (col) => col.notNull())
+		.addColumn("mints", sql`numeric(39,0)`, (col) => col.notNull())
+		.addColumn("burned", sql`numeric(39,0)`, (col) => col.notNull())
 		.execute();
 
 	await db.schema
@@ -32,7 +32,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn("txid", "text", (col) => col.notNull())
 		.addColumn("vout", "integer", (col) => col.notNull())
 		.addColumn("rune_id", "text", (col) => col.notNull())
-		.addColumn("amount", "numeric(39,0)", (col) => col.notNull())
+		.addColumn("amount", sql`numeric(39,0)`, (col) => col.notNull())
 		.addPrimaryKeyConstraint("rune_balances_pk", ["txid", "vout", "rune_id"])
 		.execute();
 
@@ -44,7 +44,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn("txid", "text", (col) => col.notNull())
 		.addColumn("kind", "text", (col) => col.notNull())
 		.addColumn("rune_id", "text", (col) => col.notNull())
-		.addColumn("amount", "numeric(39,0)", (col) => col.notNull())
+		.addColumn("amount", sql`numeric(39,0)`, (col) => col.notNull())
 		.addColumn("vout", "integer")
 		.addCheckConstraint(
 			"rune_events_kind_check",
