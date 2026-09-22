@@ -6,12 +6,13 @@
 
 ## The product, one sentence
 
-Secondlayer is a self-hosted Stacks data runtime: run it beside your node,
-bootstrap verified history, query decoded data, deploy TypeScript subgraphs.
-We operate a signed canonical archive on R2 and a hosted API at
-api.secondlayer.tools for Index, Streams, hosted Subgraphs, and hosted
-webhook delivery. Prepaid credits buy archive bootstrap/backfill and
-hosted usage. Same balance.
+Secondlayer is a self-hosted data runtime for Bitcoin and its L2s, starting
+with Stacks: run it beside your node, bootstrap verified history, query
+decoded data, deploy TypeScript subgraphs. We operate a signed canonical
+archive on R2 and a hosted API at api.secondlayer.tools for Index, Streams,
+hosted Subgraphs, and hosted webhook delivery. Prepaid credits buy archive
+bootstrap/backfill and hosted usage. Same balance. Bitcoin Runes and
+inscriptions are next, gated on demand (see **Bitcoin**).
 
 That sentence is for us. What we say to a reader is in **Voice** below.
 
@@ -116,6 +117,16 @@ without writing decoders. Boot-contract tables (pox-5, sBTC, stacking) are
 the same primitive on contracts everyone shares, not a catalog. New protocols
 go in the operator's `consume()` loop or a subgraph.
 
+**Decoder tiers** (founder-resolved 2026-09-22). Generic decoding is always
+hosted. It powers hosted Index, Subgraphs (`SUBGRAPH_SOURCE=streams-index`)
+and webhook chain triggers, so it never retires. The test: if reading it
+needs only the base standard (one format for every instance, no app rules),
+it is Index. If it needs one app's or community's rules on top, it is a
+protocol decoder, and it earns its place with a tight L2 reason or a named
+customer. Today's protocol decoders: sBTC, pox-5 (BNS and pox-4 stay, do not
+grow; pox-4 is off in hosted). Archive stays raw-only; decoded data is always
+re-derivable from it.
+
 **Subgraphs** — your schema. `defineSubgraph()` in one TypeScript file →
 deploy → Postgres tables behind the same `/v1` read API. Self-host on
 your instance, or provision on ours. Hosted subgraphs meter off the
@@ -185,6 +196,38 @@ decoded rows? Also Index — walk + cursors + reorgs[]. Your schema on your
 instance? Subgraphs. Raw inputs? Streams. A POST when it happens? Webhooks.
 Verified history? Archive.*
 
+## Bitcoin (planned, gated 2026-09-22)
+
+Same runtime, same five nouns, a second chain. No new product noun, no
+sub-brand. Why now: the largest neutral provider shut down its Ordinals,
+Runes and BRC-20 APIs on 2026-03-09 and pointed users at a wallet company's
+API, leaving its open-source indexers orphaned. Nobody else offers an open,
+self-hostable, parity-verified runtime covering Stacks and Bitcoin.
+
+| Tier | Stacks | Bitcoin |
+|---|---|---|
+| Streams (raw) | blocks, txs, events | blocks, txs |
+| Index (generic decode) | ft / nft / stx / print | Runes, inscriptions (metadata) |
+| Protocol decoders | sBTC, pox-5 | none yet |
+
+- **Runes first, inscriptions second.** Both have one standard and one
+  reference implementation (`ord`), so both are Index, the Bitcoin
+  equivalents of `ft_transfer` and `nft_mint`.
+- **Parity is the product.** `ord` runs beside our indexer as a reference;
+  we continuously digest-compare and publish the result. The verified-history
+  wedge, applied to a second chain.
+- **Out of scope:** L1 address/UTXO/balance indexing (multi-TB, served free
+  elsewhere), EVM "Bitcoin L2s", inscription content serving (legal risk;
+  metadata only until a takedown process exists).
+- **Protocol decoders, noted and deferred** until a named customer asks:
+  BRC-20 (rules disputed, needs versioned rulesets), sats names and Bitmap,
+  Alkanes, marketplace sales, rare sats, collections.
+- **Gate:** Phase 0 measures `ord` index size and sync time on our node and
+  counts real demand. No Runes build before that count.
+
+Brief: https://claude.ai/artifact/DsN9iEsNpFuVhX3jr27Zoq
+Roadmap, decision log, gates, hosting: `docs/internal/bitcoin-runtime.md`.
+
 ## The golden path
 
 `docker compose up` → `secondlayer bootstrap` from the official archive →
@@ -251,9 +294,12 @@ belongs behind a named external request, with the operator as the merchant.
   on taxonomy or completeness arguments.
 - **GTM is founder-led** — the prospect universe is ~30-80 funded Stacks teams.
   Templates of *their* contracts, run on their instance, are the outbound asset.
+  Bitcoin adds builders stranded by the 2026-03 L1 API shutdown, once the
+  Phase 0 count says they exist.
 
 ## Team & infra reality
 
-1-2 people. One Hetzner box (+ own stacks-node), docker compose, push-to-main
-deploys. Every product noun costs a which-door decision for every user and a
+1-2 people. Two Hetzner boxes: node-server (stacks-node, bitcoind full +
+txindex, spare cores) and app-server (Postgres, API, decoders; disk is the
+constraint for new chain data). Docker compose, push-to-main deploys. Every product noun costs a which-door decision for every user and a
 parity tax on us; the default answer to new surface area is no.

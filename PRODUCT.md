@@ -12,13 +12,15 @@ Primary: a funded Stacks app team (roughly 2–8 people) whose contract is live 
 
 Secondary: a data/infra engineer who wants the signed raw or decoded plane so they can build their own indexer, subgraph runtime, or webhook sender. They may compete with our out-of-the-box products. They still pay for the plane.
 
+Planned (gated on Phase 0 demand, 2026-09-22): a Bitcoin app team (wallet, marketplace, launchpad, portfolio tool) that needs Runes balances and inscription ownership, hosted or on their own node, and lost its neutral provider when the largest one shut down its L1 APIs in 2026-03.
+
 Tertiary: a TypeScript engineer who wants a typed Stacks client (`@secondlayer/stacks`). They are a package audience, not the first marketing door.
 
 ## Product Purpose
 
-Secondlayer is one account that sells Stacks chain data at two altitudes.
+Secondlayer is one account that sells chain data for Bitcoin and its L2s at two altitudes. Stacks today. Bitcoin Runes and inscriptions next, as Index data on the same plane (STRATEGY.md, Bitcoin).
 
-**Index and Streams** are the metered primitives. Index is decoded rows. Streams is the signed raw firehose and dumps. An operator can self-host the runtime beside a node, or consume the primitives from us. Either way, this is the atomic layer: enough to build your own subgraphs, your own webhooks, or anything else. We still charge for that usage. SDK and tooling exist so someone can compete with our opinionated products and remain a customer.
+**Index and Streams** are the metered primitives. Index is decoded rows (Stacks events today; Runes and inscriptions once shipped). Streams is the signed raw firehose and dumps. An operator can self-host the runtime beside a node, or consume the primitives from us. Either way, this is the atomic layer: enough to build your own subgraphs, your own webhooks, or anything else. We still charge for that usage. SDK and tooling exist so someone can compete with our opinionated products and remain a customer.
 
 **Subgraphs** is a product on that plane: one TypeScript file becomes a schema, tables, and a REST API. We fill it from Index/Streams. Hosted or on their instance.
 
@@ -58,7 +60,9 @@ Confirmed:
 - Same payload shapes on hosted and self-host so a team can fork later.
 - OSS loopback `/v1` reads are keyless; hosted `/v1` is keyed (`Authorization: Bearer`, account key `sk-sl_*`). Keys gate hosted reads and all writes.
 - Voice: calm infrastructure. No exclamation points, no emoji, no hype, no competitor naming in public copy.
-- Team is 1–2 people. One Hetzner box today. Every product noun is a door and a parity tax; the family is five nouns, not a junk drawer.
+- Hosted decoded reads stay. Generic decoders power hosted Index, Subgraphs and webhook triggers. Protocol decoders (sBTC, pox-5 today) earn their place; on Bitcoin, BRC-20, sats names, Alkanes and similar are noted and deferred until a customer asks.
+- Bitcoin scope excludes L1 address/UTXO indexing and inscription content serving. `ord` is the parity reference for Runes and inscriptions.
+- Team is 1–2 people. Two Hetzner boxes today (node-server with stacks-node and bitcoind, app-server). Every product noun is a door and a parity tax; the family is five nouns, not a junk drawer.
 - We do not host a public Explore catalog of other people's subgraphs unless a later grant explicitly funds a protocol catalog (sBTC, PoX, BNS) as a public good.
 
 Resolved 2026-09-12 (was open):
@@ -96,4 +100,5 @@ Resolved 2026-09-12 (was open):
 2. The opinionated products are powered by the primitives; the primitives are for sale even to people who will compete with the opinionated products.
 3. We send. They receive. We never imply we host their webhook URL.
 4. Each product has its own job, in one world. Subgraphs is a table you own. Webhooks is a signed POST leaving the building. The job shows in the copy, the verb and the terminal demo, never in a second palette.
-5. Do not make the reader pick a door until they already know which job they have. The switcher is for people who already have an account, not a homepage menu of architecture nouns.
+5. A new chain is more data on the same plane, never a new noun or a new world.
+6. Do not make the reader pick a door until they already know which job they have. The switcher is for people who already have an account, not a homepage menu of architecture nouns.
