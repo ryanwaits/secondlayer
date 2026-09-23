@@ -261,20 +261,25 @@ export async function repairEntries(
 		await repairRows(rows, fetcher, concurrency);
 
 	// Batched updates via `unnest`, one round trip per chunk — same pattern as
-	// the balance-delete batching in ./db/store.ts.
+	// the balance-delete batching in ./db/store.ts. `has_terms` travels as
+	// int[] (0/1), not bool[]: postgres.js sends a JS boolean array with a
+	// scalar `boolean` type oid instead of `_bool`, which Postgres then
+	// refuses to cast to `bool[]` ("cannot cast type boolean to boolean[]",
+	// reproduced live against btc-pg) — int[] round-trips correctly, and `<>
+	// 0` converts it back to boolean in the query itself.
 	for (const batch of chunk(outcomes, REPAIR_UPDATE_CHUNK_SIZE)) {
 		const runeIds = batch.map((o) => o.runeId);
 		const symbolCodepoints = batch.map((o) => o.symbolCodepoint);
-		const hasTermsFlags = batch.map((o) => o.hasTerms);
+		const hasTermsFlags = batch.map((o) => (o.hasTerms ? 1 : 0));
 		await sql`
 			update rune_entries r
 			set symbol_codepoint = d.symbol_codepoint,
-				has_terms = d.has_terms,
+				has_terms = d.has_terms <> 0,
 				repaired_at = now()
 			from unnest(
 				${sql.val(runeIds)}::text[],
 				${sql.val(symbolCodepoints)}::int[],
-				${sql.val(hasTermsFlags)}::bool[]
+				${sql.val(hasTermsFlags)}::int[]
 			) as d(rune_id, symbol_codepoint, has_terms)
 			where r.rune_id = d.rune_id
 		`.execute(db);
