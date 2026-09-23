@@ -185,12 +185,11 @@ export default function RobinhoodPage() {
 
 				<section className="rh-stage">
 					<div className="rh-copy">
-						<p className="rh-eyebrow">One round trip</p>
-						<h2>Your token doesn't change. It gets a twin on another chain.</h2>
+						<p className="rh-eyebrow">1:1 backing</p>
+						<h2>Every ERC-20 is backed by a locked SIP-010.</h2>
 						<p>
-							The original sits in a locker contract on Stacks. The ERC-20 on
-							Robinhood Chain only exists while it's there. Burn the twin and
-							the locker pays the original back out.
+							The locker on Stacks holds the original, and supply on Robinhood
+							Chain matches it 1:1. No lock, no mint. No burn, no release.
 						</p>
 						<dl className="rh-facts">
 							<div>
@@ -285,10 +284,10 @@ export default function RobinhoodPage() {
 						<p className="rh-eyebrow">Waitlist</p>
 						<h2>Want your token on Robinhood Chain?</h2>
 						<p>
-							The waitlist decides which tokens bridge first. Tell us the token
-							and how to reach you, and we'll contact you when it can join a
-							test round. Issuers and teams get first pick for phase 1. Holders
-							show us where the demand is.
+							Tokens are added one at a time. Each gets its own registry entry
+							once we've checked its supply can't be minted around the bridge.
+							The waitlist sets the order. Issuers and teams go first for phase
+							1; holders show us where the demand is.
 						</p>
 					</div>
 					<WaitlistForm />
