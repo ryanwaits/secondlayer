@@ -38,7 +38,13 @@ const nav = new Map<
 	string,
 	Array<{ anchor: string; method: string; title: string }>
 >(spec.tags.map((t) => [t.name, []]));
-for (const item of Object.values(spec.paths) as Record<string, NavOp>[]) {
+// openapiSpec() stamps an operationId on every operation (withOperationIds in
+// routes/openapi.ts), but its declared return type is the static spec, which
+// predates that. Hence the cast through unknown.
+for (const item of Object.values(spec.paths) as unknown as Record<
+	string,
+	NavOp | undefined
+>[]) {
 	for (const method of METHODS) {
 		const op = item[method];
 		if (!op) continue;
