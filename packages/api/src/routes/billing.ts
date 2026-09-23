@@ -187,8 +187,10 @@ app.post("/topup", async (c) => {
 		db,
 		account,
 		usd,
-		successUrl: `${dashboardBaseUrl()}/archive?topup=success`,
-		cancelUrl: `${dashboardBaseUrl()}/archive?topup=cancelled`,
+		// Signed-in top-ups start on /account, so the reader lands back there
+		// with the new balance showing.
+		successUrl: `${dashboardBaseUrl()}/account?topup=success`,
+		cancelUrl: `${dashboardBaseUrl()}/account?topup=cancelled`,
 	});
 	return c.json({ url });
 });
