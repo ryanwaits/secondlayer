@@ -54,12 +54,13 @@ secondlayer observer --mode indexer
 | `secondlayer status` | `--json` | off | Local instance health from `/public/status` |
 | `secondlayer bootstrap` | `--against` | required | Manifest URL or file |
 | | `--to-block` | archive tip | Stop early |
+| | `--from-block` | genesis | Forward-only: start here, history below is out of scope |
+| | `--verify` | `all` | Post-load digests: `all` or `blocks` |
 | | `--public-key` | resolved | Pin the signing key |
 | | `-y, --yes` | off | Skip confirm |
 | | `--json` | off | Machine output |
 | `secondlayer observer` | `--mode` | `indexer` | `indexer` retries; `signer-shared` does not |
 | | `--endpoint` | `indexer:3700` (`127.0.0.1:3700` on devnet) | `host:port` only, no URL |
-| | `--recovery` | required for signer-shared | `journal` or `archive` |
 | | `--network` | `STACKS_NETWORK` or `mainnet` | Loopback refused except devnet |
 
 `secondlayer bootstrap` refuses a non-empty database. Fix an existing instance with [`secondlayer repair`](/docs/archive). Exit `0` restored, `1` diverged, `2` refused.
@@ -68,7 +69,7 @@ secondlayer observer --mode indexer
 
 <Callout type="note" title="Signer-shared nodes skip retries">
 
-`--mode signer-shared` requires `--recovery journal` or `--recovery archive`. Missed blocks refill from that source.
+A block the node fails to deliver stays a gap. `secondlayer repair` fetches it from the archive with [archive credits](/docs/authentication#archive-credits). The full stanza: [Connect your node](/docs/self-host#connect-your-node).
 
 </Callout>
 

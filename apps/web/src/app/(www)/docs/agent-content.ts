@@ -285,7 +285,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Stand up a local runtime",
 			"Guided setup, or init, bootstrap, print the observer stanza.",
-			"/secondlayer Help me run a local Secondlayer instance — no account, there are none: `secondlayer setup` walks through network/node-mode, writes secrets + docker-compose + .env, brings the stack up, restores verified history, and verifies it — or step by step, `secondlayer init --network mainnet` writes `.env.local`, `secondlayer bootstrap --against <manifest>` restores verified history into an empty database, and `secondlayer observer --mode indexer` prints the `[[events_observer]]` stanza, then `secondlayer verify all --against <manifest>` checks the restore. Explain flags, exit codes, and when to use `--mode signer-shared --recovery journal`.",
+			"/secondlayer Help me run a local Secondlayer instance — no account, there are none: `secondlayer setup` walks through network/node-mode, writes secrets + docker-compose + .env, brings the stack up, restores verified history, and verifies it — or step by step, `secondlayer init --network mainnet` writes `.env.local`, `secondlayer bootstrap --against <manifest>` restores verified history into an empty database, and `secondlayer observer --mode indexer` prints the `[[events_observer]]` stanza, then `secondlayer verify all --against <manifest>` checks the restore. Explain flags, exit codes, and when to use `--mode signer-shared`.",
 		),
 		variant("cli-operate"),
 		card(

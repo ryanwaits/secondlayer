@@ -117,6 +117,8 @@ signature  verified
 
 Refuses a database that already holds blocks; use `secondlayer repair` for an existing instance. `--to-block <n>` stops early; `-y` skips the prompt.
 
+`--from-block <n>` restores forward-only: whole partitions starting at or after `n`, with everything below declared out of scope rather than missing, so `verify` doesn't read it as divergence. The tradeoff: the disk floor at boot is still the full-history one.
+
 ## Credits
 
 Bootstrap, backfill, and reindex fetch from the archive metered per partition bundle, quoted against your balance before anything is charged; verification is free. Buy with `secondlayer credits buy`; packs, balance, and how the quote/confirm flow works: [archive credits](/docs/authentication#archive-credits).

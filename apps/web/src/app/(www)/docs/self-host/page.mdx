@@ -61,6 +61,41 @@ docker compose --profile full-node up -d
 
 `NODE_MODE` is `external` | `stacks` | `full`. `full` needs `BITCOIN_RPC_PASSWORD` and runs the `full-node` profile above. `stacks` behaves like `external` — bring your own Stacks node — there's no bundled-stacks-only profile, since a bundled node needs Bitcoin data from somewhere and we don't wire a public RPC default for it.
 
+### Connect your node
+
+With `NODE_MODE=external`, this entry in your node's `Config.toml` sends Secondlayer every block.
+
+```toml
+[[events_observer]]
+endpoint = "10.0.0.5:3700"
+events_keys = ["*"]
+timeout_ms = 500
+disable_retries = true
+```
+
+`secondlayer observer --mode signer-shared --endpoint 10.0.0.5:3700` prints it.
+
+| Field | `indexer` | `signer-shared` | Effect |
+| --- | --- | --- | --- |
+| `endpoint` | `host:port` | `host:port` | Where the node posts blocks. No scheme. |
+| `events_keys` | `["*"]` | `["*"]` | Every standard event. Unknown keys stop a stock node from starting. |
+| `timeout_ms` | `2000` | `500` | How long the node waits on each delivery. |
+| `disable_retries` | `false` | `true` | `false` retries until delivered, holding up the node meanwhile. |
+
+Node on another host:
+
+| Setting | Value | Why |
+| --- | --- | --- |
+| `INDEXER_PORT` in `.env` | `10.0.0.5:3700` | The default `127.0.0.1:3700` is unreachable off-box. |
+| `STACKS_NODE_RPC_URL` in `.env` | `http://<node-ip>:20443` | Polled for the tip when pushes stop. |
+| Firewall | `3700` open to the node's IP only | The observer port takes unauthenticated posts. |
+
+<Callout type="warning" title="Signer on the same node">
+
+Use `signer-shared`, so a stalled Secondlayer can't hold up the signer. Tradeoff: a missed block stays a gap until `secondlayer repair` pays [archive credits](/docs/authentication#archive-credits) to fetch it.
+
+</Callout>
+
 ## Config
 
 Six required non-secrets, plus one compose derives for you. Secrets come from `secondlayer init`.
@@ -72,7 +107,7 @@ Six required non-secrets, plus one compose derives for you. Secrets come from `s
 | `NODE_MODE` | `external` | `external`, `stacks`, `full` |
 | `DATA_DIR` | `/data` | Handler + runtime files |
 | `API_PORT` | `127.0.0.1:3800` | Publish spec for the API port |
-| `INDEXER_PORT` | `3700` | Observer bind |
+| `INDEXER_PORT` | `127.0.0.1:3700` | Publish spec for the observer port |
 | `API_PUBLISH_ADDR` | compose | Injected from the same `API_PORT` value the port is published with |
 
 Unknown keys and contradictions fail before ingest. From a checkout, `docker compose -f docker/oss/docker-compose.yml --env-file .env.local up -d` brings the stack up; `secondlayer setup` writes its own compose file and `.env` and runs the same command for you.
