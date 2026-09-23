@@ -2,10 +2,12 @@
 
 import { type FormEvent, useState } from "react";
 
+// First option is preselected. Issuer goes last so the "team" tag on the
+// public demand board only comes from someone who picked it on purpose.
 const ROLES = [
-	{ value: "issuer", label: "Token issuer or team" },
 	{ value: "builder", label: "Builder" },
 	{ value: "holder", label: "Holder" },
+	{ value: "issuer", label: "Token issuer or team" },
 ] as const;
 
 type Status =
