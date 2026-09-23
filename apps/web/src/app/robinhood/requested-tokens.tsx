@@ -37,10 +37,15 @@ export async function RequestedTokens() {
 							<i style={{ width: `${(t.requests / top) * 100}%` }} />
 						</span>
 						<span className="rh-demand-n">{t.requests}</span>
-						<span
-							className={t.team ? "rh-demand-team" : "rh-demand-team is-none"}
-						>
-							{t.team ? "team" : ""}
+						<span className="rh-demand-issuer">
+							{t.team && (
+								<span className="rh-badge">
+									<svg viewBox="0 0 12 12" aria-hidden="true">
+										<path d="M2.5 6.2 5 8.5l4.5-5" />
+									</svg>
+									issuer
+								</span>
+							)}
 						</span>
 					</li>
 				))}
