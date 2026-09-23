@@ -54,6 +54,11 @@ describe("parseSignup", () => {
 		});
 	});
 
+	test("stores the token symbol in caps", () => {
+		const parsed = parseSignup({ ...valid, token: "welsh" });
+		expect("ok" in parsed && parsed.ok.answers.token).toBe("WELSH");
+	});
+
 	test("drops fields the list does not ask for", () => {
 		const parsed = parseSignup({ ...valid, admin: true });
 		expect(parsed).not.toHaveProperty("error");

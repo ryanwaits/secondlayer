@@ -14,6 +14,16 @@ type Status =
 	| { kind: "error"; message: string }
 	| { kind: "done"; token: string; contact: string };
 
+/** Token symbols are all caps; uppercase as they type, keeping the caret. */
+function upperCaseInPlace(e: FormEvent<HTMLInputElement>) {
+	const input = e.currentTarget;
+	const upper = input.value.toUpperCase();
+	if (upper === input.value) return;
+	const { selectionStart, selectionEnd } = input;
+	input.value = upper;
+	input.setSelectionRange(selectionStart, selectionEnd);
+}
+
 export function WaitlistForm() {
 	const [status, setStatus] = useState<Status>({ kind: "idle" });
 
@@ -120,6 +130,9 @@ export function WaitlistForm() {
 						maxLength={64}
 						placeholder="WELSH, LEO, PEPE…"
 						autoComplete="off"
+						autoCapitalize="characters"
+						spellCheck={false}
+						onInput={upperCaseInPlace}
 					/>
 				</div>
 				<div className="rh-field">

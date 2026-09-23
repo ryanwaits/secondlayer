@@ -40,7 +40,8 @@ function parseRobinhoodAnswers(body: Record<string, unknown>): Parsed<Answers> {
 	) {
 		return { error: `role must be one of ${ROBINHOOD_ROLES.join(", ")}` };
 	}
-	const token = text(body.token, 64);
+	// Symbols are all caps; store them that way whatever the client sent.
+	const token = text(body.token, 64)?.toUpperCase();
 	if (!token) return { error: "token is required (64 characters max)" };
 	const contract = text(body.contract, 160);
 	if (contract === undefined) return { error: "contract is too long" };
