@@ -29,7 +29,11 @@ import {
 	createRuneState,
 	getBalance,
 } from "../runes/state.ts";
-import { CHECKPOINT_NAME, type Database } from "./types.ts";
+import {
+	CHECKPOINT_NAME,
+	type Database,
+	type RuneEntriesTable,
+} from "./types.ts";
 
 function n(value: string): bigint {
 	return BigInt(value);
@@ -42,6 +46,53 @@ function s(value: bigint): string {
 }
 function sOpt(value: bigint | undefined): string | null {
 	return value === undefined ? null : value.toString();
+}
+
+/**
+ * `entry.symbol` is a single Unicode scalar value straight off the chain
+ * (a Runestone etching's `Symbol` tag accepts any u32 codepoint, including
+ * 0) — but Postgres's `text` type rejects a raw NUL byte outright
+ * (`22021 invalid byte sequence for encoding "UTF8": 0x00`), a Postgres
+ * limitation, not a UTF-8 one. Storing `null` for that one degenerate value
+ * is indistinguishable, on reload, from "no symbol" — an accepted, narrow
+ * loss of fidelity in the SQL row only; the in-memory `RuneEntry.symbol` this
+ * was read from (and everything derived from it before this write, including
+ * the digest chain, which already turns it into a codepoint number) is
+ * unaffected. Caught live during plan 039 step 7 (backfill 841,000→900,000).
+ */
+export function symbolForDb(symbol: string | undefined): string | null {
+	if (symbol === undefined || symbol === "\u0000") return null;
+	return symbol;
+}
+
+export function entryToRow(runeId: string, entry: RuneEntry): RuneEntriesTable {
+	const { block, tx } = runeIdFromString(runeId);
+	return {
+		rune_id: runeId,
+		block: s(block),
+		tx: s(tx),
+		number: s(entry.number),
+		rune: s(entry.rune),
+		spaced_rune: spacedRuneToString({
+			rune: { n: entry.rune },
+			spacers: entry.spacers,
+		}),
+		spacers: entry.spacers,
+		divisibility: entry.divisibility,
+		symbol: symbolForDb(entry.symbol),
+		premine: s(entry.premine),
+		terms_amount: sOpt(entry.terms?.amount),
+		terms_cap: sOpt(entry.terms?.cap),
+		terms_height_start: sOpt(entry.terms?.height[0]),
+		terms_height_end: sOpt(entry.terms?.height[1]),
+		terms_offset_start: sOpt(entry.terms?.offset[0]),
+		terms_offset_end: sOpt(entry.terms?.offset[1]),
+		turbo: entry.turbo,
+		etching_txid: entry.etching,
+		timestamp: s(entry.timestamp),
+		mints: s(entry.mints),
+		burned: s(entry.burned),
+	};
 }
 
 /** Postgres's hard limit on bind parameters in a single extended-protocol statement. */
@@ -282,37 +333,7 @@ export async function flush(
 		for (const batch of chunk(dirtyEntryRows, ENTRY_CHUNK_SIZE)) {
 			await trx
 				.insertInto("rune_entries")
-				.values(
-					batch.map(({ runeId, entry }) => {
-						const { block, tx } = runeIdFromString(runeId);
-						return {
-							rune_id: runeId,
-							block: s(block),
-							tx: s(tx),
-							number: s(entry.number),
-							rune: s(entry.rune),
-							spaced_rune: spacedRuneToString({
-								rune: { n: entry.rune },
-								spacers: entry.spacers,
-							}),
-							spacers: entry.spacers,
-							divisibility: entry.divisibility,
-							symbol: entry.symbol ?? null,
-							premine: s(entry.premine),
-							terms_amount: sOpt(entry.terms?.amount),
-							terms_cap: sOpt(entry.terms?.cap),
-							terms_height_start: sOpt(entry.terms?.height[0]),
-							terms_height_end: sOpt(entry.terms?.height[1]),
-							terms_offset_start: sOpt(entry.terms?.offset[0]),
-							terms_offset_end: sOpt(entry.terms?.offset[1]),
-							turbo: entry.turbo,
-							etching_txid: entry.etching,
-							timestamp: s(entry.timestamp),
-							mints: s(entry.mints),
-							burned: s(entry.burned),
-						};
-					}),
-				)
+				.values(batch.map(({ runeId, entry }) => entryToRow(runeId, entry)))
 				.onConflict((oc) =>
 					oc.column("rune_id").doUpdateSet((eb) => ({
 						mints: eb.ref("excluded.mints"),

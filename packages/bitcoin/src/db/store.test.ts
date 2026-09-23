@@ -5,6 +5,7 @@
 // Runes launch window. `computeBalanceChanges` is the fix's core: it decides,
 // from in-memory state alone, exactly which rows need a write.
 import { describe, expect, test } from "bun:test";
+import type { RuneEntry } from "../runes/entry.ts";
 import { createRuneState, setBalance } from "../runes/state.ts";
 import {
 	DELETE_CHUNK_SIZE,
@@ -16,6 +17,8 @@ import {
 	RUNE_EVENTS_PARAMS_PER_ROW,
 	UPSERT_CHUNK_SIZE,
 	computeBalanceChanges,
+	entryToRow,
+	symbolForDb,
 } from "./store.ts";
 
 const U128_MAX = (1n << 128n) - 1n;
@@ -138,5 +141,50 @@ describe("flush chunk sizes stay under Postgres's parameter limit", () => {
 	test("delete batch size is a sane bound (unnest arrays are 1 param each, not per-row)", () => {
 		expect(DELETE_CHUNK_SIZE).toBeGreaterThan(0);
 		expect(3).toBeLessThanOrEqual(POSTGRES_MAX_PARAMETERS);
+	});
+});
+
+// Reviewer-caught defect (plan 039 step 7, live backfill 841,000->900,000): a
+// Runestone etching's Symbol tag accepts any u32 codepoint, including 0. An
+// entry whose symbol is U+0000 crashed the flush transaction with Postgres
+// error 22021 ("invalid byte sequence for encoding UTF8: 0x00") — text
+// columns reject a raw NUL byte outright, independent of UTF-8 validity.
+describe("symbolForDb", () => {
+	test("passes a normal symbol through unchanged", () => {
+		expect(symbolForDb("⧉")).toBe("⧉");
+	});
+
+	test("maps an absent symbol to null", () => {
+		expect(symbolForDb(undefined)).toBeNull();
+	});
+
+	test("maps U+0000 to null (Postgres text columns reject a raw NUL byte)", () => {
+		expect(symbolForDb("\u0000")).toBeNull();
+	});
+});
+
+describe("entryToRow", () => {
+	function baseEntry(overrides: Partial<RuneEntry> = {}): RuneEntry {
+		return {
+			block: 842_000n,
+			burned: 0n,
+			divisibility: 0,
+			etching: "a".repeat(64),
+			mints: 0n,
+			number: 5n,
+			premine: 0n,
+			rune: 123n,
+			spacers: 0,
+			symbol: undefined,
+			terms: undefined,
+			timestamp: 1_700_000_000n,
+			turbo: false,
+			...overrides,
+		};
+	}
+
+	test("an entry etched with a U+0000 symbol produces an insertable row (does not throw)", () => {
+		const row = entryToRow("842000:1", baseEntry({ symbol: "\u0000" }));
+		expect(row.symbol).toBeNull();
 	});
 });
