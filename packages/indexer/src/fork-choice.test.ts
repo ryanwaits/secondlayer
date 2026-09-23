@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import {
-	clearStagedForks,
+	clearAdoptedContender,
 	findSettledFork,
-	pruneStagedForks,
 	stageForkContender,
 } from "./fork-choice.ts";
 
@@ -126,22 +125,15 @@ describe.skipIf(!HAS_DB)("fork choice", () => {
 		expect(rows).toHaveLength(1);
 	});
 
-	test("clearing a height drops its contenders", async () => {
+	test("adopting a contender clears only that contender", async () => {
 		if (!db) throw new Error("missing db");
 		await seedCanonical(H, "0xincumbent", "0xparent");
-		await stage("0xcontender", "0xparent", "0xincumbent");
-		await clearStagedForks(db, H);
-		expect(await findSettledFork(db, H + 1, "0xcontender")).toBeNull();
-	});
-
-	test("contenders too far below the tip are written off", async () => {
-		if (!db) throw new Error("missing db");
-		await seedCanonical(H, "0xincumbent", "0xparent");
-		await stage("0xcontender", "0xparent", "0xincumbent");
-
-		// No future block can name a fork this far back.
-		const removed = await pruneStagedForks(db, H + 500);
-		expect(removed).toBeGreaterThanOrEqual(1);
-		expect(await findSettledFork(db, H + 1, "0xcontender")).toBeNull();
+		await stage("0xadopted", "0xparent", "0xincumbent");
+		await stage("0xother", "0xparent", "0xincumbent");
+		await clearAdoptedContender(db, H, "0xadopted");
+		expect(await findSettledFork(db, H + 1, "0xadopted")).toBeNull();
+		expect((await findSettledFork(db, H + 1, "0xother"))?.blockHash).toBe(
+			"0xother",
+		);
 	});
 });

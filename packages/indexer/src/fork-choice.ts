@@ -1,4 +1,4 @@
-import { getSourceDb, jsonb } from "@secondlayer/shared/db";
+import { jsonb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
@@ -20,9 +20,6 @@ import type { Kysely } from "kysely";
  * Cost is one block of latency on a genuine reorg (~5s under Nakamoto) against
  * a wrong adoption that persists until someone notices.
  */
-
-/** How far below the tip a staged contender is kept before it is written off. */
-const STAGED_RETENTION_BLOCKS = 100;
 
 export type StagedFork = {
 	height: number;
@@ -101,6 +98,22 @@ export async function findSettledFork(
 		.executeTakeFirst();
 	if (incumbent?.hash === staged.block_hash) return null;
 
+	// A losing branch keeps growing its own blocks, so naming the contender is
+	// only a verdict when nothing we hold already extends the incumbent. If a
+	// canonical block at the child's height builds on the incumbent, this child
+	// is a rival at that height, not proof about the one below: adopting it here
+	// put the losing block under a canonical child that never named it.
+	if (incumbent) {
+		const incumbentChild = await db
+			.selectFrom("blocks")
+			.select("hash")
+			.where("height", "=", childHeight)
+			.where("canonical", "=", true)
+			.where("parent_hash", "=", incumbent.hash)
+			.executeTakeFirst();
+		if (incumbentChild) return null;
+	}
+
 	return {
 		height: Number(staged.height),
 		blockHash: staged.block_hash,
@@ -110,44 +123,21 @@ export async function findSettledFork(
 	};
 }
 
-/** Drop every staged contender at a height (the fork there is decided). */
-export async function clearStagedForks(
+/**
+ * Drop the contender that was just adopted: it is the canonical row now.
+ * Every other contender at the height stays. Losers are kept indefinitely
+ * because the node sends a block's events once; if fork choice ever keeps the
+ * wrong block, the staged payload is the only copy of the right one, and
+ * deleting it made 17 early heights unrepairable on a collecting node.
+ */
+export async function clearAdoptedContender(
 	db: Kysely<Database>,
 	height: number,
+	blockHash: string,
 ): Promise<void> {
 	await db
 		.deleteFrom("pending_fork_blocks")
 		.where("height", "=", height)
+		.where("block_hash", "=", blockHash)
 		.execute();
-}
-
-/**
- * Write off contenders far enough below the tip that no future block can name
- * them. Without this a fork that simply lost would sit in the table forever.
- */
-export async function pruneStagedForks(
-	db: Kysely<Database> = getSourceDb(),
-	tipHeight?: number,
-): Promise<number> {
-	const tip =
-		tipHeight ??
-		Number(
-			(
-				await db
-					.selectFrom("blocks")
-					.select(({ fn }) => fn.max("height").as("h"))
-					.executeTakeFirst()
-			)?.h ?? 0,
-		);
-	if (tip <= STAGED_RETENTION_BLOCKS) return 0;
-
-	const result = await db
-		.deleteFrom("pending_fork_blocks")
-		.where("height", "<", tip - STAGED_RETENTION_BLOCKS)
-		.executeTakeFirst();
-	const removed = Number(result?.numDeletedRows ?? 0);
-	if (removed > 0) {
-		logger.info("Pruned fork contenders that never won", { count: removed });
-	}
-	return removed;
 }

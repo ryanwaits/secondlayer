@@ -4,7 +4,7 @@ import { logger } from "@secondlayer/shared/logger";
 import { LocalClient } from "@secondlayer/shared/node/local-client";
 import type { Kysely } from "kysely";
 import {
-	clearStagedForks,
+	clearAdoptedContender,
 	findSettledFork,
 	stageForkContender,
 } from "./fork-choice.ts";
@@ -136,7 +136,7 @@ export async function ingestNewBlock(
 			settled.height,
 		);
 		await handleReorg(settled.height, settled.incumbentHash, settled.blockHash);
-		await clearStagedForks(db, settled.height);
+		await clearAdoptedContender(db, settled.height, settled.blockHash);
 		if (deposed && deposed.block_hash === settled.incumbentHash) {
 			await stageForkContender(db, {
 				height: settled.height,

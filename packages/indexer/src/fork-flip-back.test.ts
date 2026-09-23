@@ -91,8 +91,17 @@ describe.skipIf(!HAS_DB)("fork flip-back", () => {
 
 		expect((await canonicalRow(H))?.hash).toBe("0xcontender");
 		// The block we just deposed must be recoverable if the chain flips back.
+		// A sibling of the stored child cannot settle that flip on its own (that
+		// is a rival at H+1); its descendant does, via the staged row here.
+		const deposed = await db
+			.selectFrom("pending_fork_blocks")
+			.select(["block_hash", "incumbent_hash"])
+			.where("height", "=", H)
+			.where("block_hash", "=", "0xoriginal")
+			.executeTakeFirst();
+		expect(deposed?.incumbent_hash).toBe("0xcontender");
+		await sql`DELETE FROM blocks WHERE height = ${H + 1}`.execute(db);
 		const flipBack = await findSettledFork(db, H + 1, "0xoriginal");
-		expect(flipBack).not.toBeNull();
 		expect(flipBack?.blockHash).toBe("0xoriginal");
 		expect(flipBack?.incumbentHash).toBe("0xcontender");
 	});
@@ -145,6 +154,56 @@ describe.skipIf(!HAS_DB)("fork flip-back", () => {
 			["0xoriginal", "0xcontender"],
 			["0xcontender", "0xoriginal"],
 		]);
+	});
+
+	test("a losing branch's own child does not depose an incumbent that already has a canonical child", async () => {
+		if (!db) throw new Error("missing db");
+		await ingestNewBlock(payload(H - 1, "0xbase", "0xancestor"));
+		// The winning chain arrives first and is already two blocks deep.
+		await ingestNewBlock(payload(H, "0xwinner", "0xbase"));
+		await ingestNewBlock(payload(H + 1, "0xwinner-child", "0xwinner"));
+		// Then the losing branch: its fork point (staged), and a block built on
+		// it. That child names the staged contender as parent, but it is a rival
+		// of a block we already hold at H+1, not a verdict on H.
+		await ingestNewBlock(payload(H, "0xloser", "0xbase"));
+		await ingestNewBlock(payload(H + 1, "0xloser-child", "0xloser"));
+		await ingestNewBlock(
+			payload(H + 2, "0xwinner-grandchild", "0xwinner-child"),
+		);
+
+		expect((await canonicalRow(H))?.hash).toBe("0xwinner");
+		expect((await canonicalRow(H + 1))?.hash).toBe("0xwinner-child");
+		expect((await canonicalRow(H + 2))?.parent_hash).toBe("0xwinner-child");
+
+		// Both losers stay staged, so a later flip can still be applied.
+		const staged = await db
+			.selectFrom("pending_fork_blocks")
+			.select(["height", "block_hash"])
+			.where("height", ">=", H)
+			.where("height", "<=", H + 1)
+			.orderBy("height")
+			.execute();
+		expect(staged.map((r) => [Number(r.height), r.block_hash])).toEqual([
+			[H, "0xloser"],
+			[H + 1, "0xloser-child"],
+		]);
+	});
+
+	test("a losing branch that overtakes the incumbent's branch is adopted all the way down", async () => {
+		if (!db) throw new Error("missing db");
+		await ingestNewBlock(payload(H - 1, "0xbase", "0xancestor"));
+		await ingestNewBlock(payload(H, "0xfirst", "0xbase"));
+		await ingestNewBlock(payload(H + 1, "0xfirst-child", "0xfirst"));
+		await ingestNewBlock(payload(H, "0xrival", "0xbase"));
+		await ingestNewBlock(payload(H + 1, "0xrival-child", "0xrival"));
+		// The rival branch reaches a height the first branch never did: that is
+		// the chain's verdict, and it must unwind both heights below it.
+		await ingestNewBlock(payload(H + 2, "0xrival-grandchild", "0xrival-child"));
+
+		expect((await canonicalRow(H))?.hash).toBe("0xrival");
+		expect((await canonicalRow(H + 1))?.hash).toBe("0xrival-child");
+		expect((await canonicalRow(H + 1))?.parent_hash).toBe("0xrival");
+		expect((await canonicalRow(H + 2))?.parent_hash).toBe("0xrival-child");
 	});
 
 	test("A → B → A restores original vm_events with original ordinals", async () => {
