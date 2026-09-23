@@ -59,6 +59,8 @@ export interface BitcoinRpcClient {
 		txid: string,
 		verbose: true,
 	): Promise<RawTransactionVerbose>;
+	/** Raw tx hex (verbosity 0) — used by `cli.ts repair-entries` (plan 040), which parses it itself instead of trusting bitcoind's decode. */
+	getrawtransaction(txid: string, verbose: false): Promise<string>;
 }
 
 /** Build a JSON-RPC client bound to a bitcoind endpoint. */
@@ -110,8 +112,11 @@ export function bitcoinRpcClient(config: BitcoinRpcConfig): BitcoinRpcClient {
 		getblock: (hash: string) => rpc<string>("getblock", [hash, 0]),
 		getblockheader: (hash: string) =>
 			rpc<BlockHeader>("getblockheader", [hash, true]),
-		getrawtransaction: (txid: string, verbose: true) =>
-			rpc<RawTransactionVerbose>("getrawtransaction", [txid, verbose]),
+		getrawtransaction: ((txid: string, verbose: boolean) =>
+			rpc<RawTransactionVerbose | string>("getrawtransaction", [
+				txid,
+				verbose,
+			])) as BitcoinRpcClient["getrawtransaction"],
 	};
 }
 

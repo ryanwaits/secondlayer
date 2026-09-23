@@ -314,3 +314,13 @@ export function parseBlock(hex: string): ParsedBlock {
 
 	return { hash, prevHash, merkleRootBytes, time, txs };
 }
+
+/**
+ * Parses a single raw transaction (the hex `getrawtransaction <txid> false`
+ * returns — no block header, no other txs). Used by `cli.ts repair-entries`
+ * (plan 040 step 2) to re-decipher an etching tx fetched on its own, outside
+ * `parseBlock`'s per-block loop.
+ */
+export function parseTransaction(hex: string): ParsedTx {
+	return parseTx(new ByteReader(hexToBytes(hex)));
+}

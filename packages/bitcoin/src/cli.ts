@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // `migrate | backfill --to <H> | parity-decode --blocks <list|range> |
 // parity-state --height <H> --ord-runes <file> --ord-balances <file> |
-// digests --from <A> --to <B> | state-hash`.
+// repair-entries | digests --from <A> --to <B> | state-hash`.
 
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { runBackfill } from "./backfill.ts";
@@ -19,6 +19,7 @@ import {
 	normalizeOurEntries,
 	runeIdByName,
 } from "./parity/state.ts";
+import { repairEntries } from "./repair.ts";
 import { bitcoinRpcClientFromEnv } from "./rpc.ts";
 
 function requireEnv(name: string): string {
@@ -251,6 +252,21 @@ async function cmdParityState(args: string[]): Promise<void> {
 	}
 }
 
+async function cmdRepairEntries(): Promise<void> {
+	const db = openStore(requireEnv("BITCOIN_DATABASE_URL"));
+	const rpc = bitcoinRpcClientFromEnv();
+
+	const stats = await repairEntries(db, {
+		getRawTx: (txid) => rpc.getrawtransaction(txid, false),
+	});
+	await db.destroy();
+
+	console.log(
+		`repair-entries: scanned=${stats.rowsScanned} noRpc=${stats.rowsRepairedNoRpc} ` +
+			`viaRpc=${stats.rowsRepairedViaRpc} rpcCalls=${stats.rpcCalls} ms=${stats.ms.toFixed(0)}`,
+	);
+}
+
 async function cmdDigests(args: string[]): Promise<void> {
 	const fromStr = parseFlag(args, "--from");
 	const toStr = parseFlag(args, "--to");
@@ -298,13 +314,15 @@ async function main(): Promise<void> {
 			return cmdParityDecode(args);
 		case "parity-state":
 			return cmdParityState(args);
+		case "repair-entries":
+			return cmdRepairEntries();
 		case "digests":
 			return cmdDigests(args);
 		case "state-hash":
 			return cmdStateHash();
 		default:
 			console.error(
-				"usage: cli.ts migrate | backfill --to <H> | parity-decode --blocks <list|range> | parity-state --height <H> --ord-runes <file> --ord-balances <file> | digests --from <A> --to <B> | state-hash",
+				"usage: cli.ts migrate | backfill --to <H> | parity-decode --blocks <list|range> | parity-state --height <H> --ord-runes <file> --ord-balances <file> | repair-entries | digests --from <A> --to <B> | state-hash",
 			);
 			process.exit(1);
 	}
