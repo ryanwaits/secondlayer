@@ -85,10 +85,16 @@ describe.skipIf(!HAS_DB)("findBrokenLinks", () => {
 			{ height: BASE + 2, hash: "0xc", parent: "0xwinning" },
 		]);
 
-		// A window that stops short of BASE, as the 10k default does once the
-		// tip moves on, cannot see it.
+		// A window that stops short of BASE+2, as the 10k default does once the
+		// tip moves on, cannot see it. Sized from the live max so the result does
+		// not depend on what other suites seeded above BASE.
+		const maxRow = await getSourceDb()
+			.selectFrom("blocks")
+			.select(({ fn }) => fn.max("height").as("max_height"))
+			.where("canonical", "=", true)
+			.executeTakeFirst();
 		const recent = await findBrokenLinks(getSourceDb(), {
-			window: (await windowCovering(BASE)) - 20,
+			window: Number(maxRow?.max_height) - (BASE + 2),
 		});
 		expect(recent.find((b) => b.height === BASE + 2)).toBeUndefined();
 
