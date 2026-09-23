@@ -1,5 +1,6 @@
 import { AuthBar } from "@/components/auth-bar";
 import { LazyCommandPalette } from "@/components/command-palette/lazy";
+import { FastAnchorScroll } from "@/components/fast-anchor-scroll";
 import { AuthProvider } from "@/lib/auth";
 import type { Metadata, Viewport } from "next";
 import { Caveat, Fira_Code, Public_Sans, Sora } from "next/font/google";
@@ -69,6 +70,7 @@ export default function RootLayout({
 					{children}
 					<AuthBar />
 					<LazyCommandPalette />
+					<FastAnchorScroll />
 				</AuthProvider>
 			</body>
 		</html>
