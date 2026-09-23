@@ -6912,9 +6912,7 @@ body:has(.marketing-nav) .auth-bar {
 }
 .apiref-field:target {
 	background: var(--accent-bg);
-	box-shadow:
-		-12px 0 0 var(--accent-bg),
-		12px 0 0 var(--accent-bg);
+	box-shadow: -12px 0 0 var(--accent-bg), 12px 0 0 var(--accent-bg);
 }
 .apiref-field-head {
 	display: flex;
