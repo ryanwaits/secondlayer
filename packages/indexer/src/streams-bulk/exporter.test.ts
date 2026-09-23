@@ -191,7 +191,9 @@ describe.skipIf(!HAS_DB)("exportStreamsBulkRange", () => {
 	});
 
 	afterEach(async () => {
-		process.env.STREAMS_SIGNING_PRIVATE_KEY = savedSigningKey;
+		if (savedSigningKey === undefined)
+			delete process.env.STREAMS_SIGNING_PRIVATE_KEY;
+		else process.env.STREAMS_SIGNING_PRIVATE_KEY = savedSigningKey;
 		if (tempDir) await rm(tempDir, { recursive: true, force: true });
 		tempDir = null;
 	});

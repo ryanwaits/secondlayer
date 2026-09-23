@@ -183,7 +183,8 @@ describe("DEFAULT_URL fallthrough warning", () => {
 		if (savedNodeEnv === undefined) {
 			delete process.env.NODE_ENV;
 		} else {
-			process.env.NODE_ENV = savedNodeEnv;
+			if (savedNodeEnv === undefined) delete process.env.NODE_ENV;
+			else process.env.NODE_ENV = savedNodeEnv;
 		}
 	});
 

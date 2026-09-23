@@ -45,7 +45,8 @@ describe("GET /events/stream (SSE)", () => {
 		resetStreamsSignerForTest();
 	});
 	afterAll(() => {
-		process.env.STREAMS_SIGNING_PRIVATE_KEY = savedKey;
+		if (savedKey === undefined) delete process.env.STREAMS_SIGNING_PRIVATE_KEY;
+		else process.env.STREAMS_SIGNING_PRIVATE_KEY = savedKey;
 		resetStreamsSignerForTest();
 	});
 

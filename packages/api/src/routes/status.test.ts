@@ -212,7 +212,9 @@ describe("/status and /public/status subgraph_processor gating", () => {
 		if (ORIGINAL_INSTANCE_MODE === undefined) {
 			delete process.env.INSTANCE_MODE;
 		} else {
-			process.env.INSTANCE_MODE = ORIGINAL_INSTANCE_MODE;
+			if (ORIGINAL_INSTANCE_MODE === undefined)
+				delete process.env.INSTANCE_MODE;
+			else process.env.INSTANCE_MODE = ORIGINAL_INSTANCE_MODE;
 		}
 	});
 

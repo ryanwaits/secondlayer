@@ -187,7 +187,9 @@ describe("universal Secondlayer signature", () => {
 		resetSecondlayerWebhookSignerForTest();
 	});
 	afterAll(() => {
-		process.env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY = saved;
+		if (saved === undefined)
+			delete process.env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY;
+		else process.env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY = saved;
 		resetSecondlayerWebhookSignerForTest();
 	});
 

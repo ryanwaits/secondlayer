@@ -72,7 +72,8 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		if (originalInstanceMode === undefined) {
 			Reflect.deleteProperty(process.env, "INSTANCE_MODE");
 		} else {
-			process.env.INSTANCE_MODE = originalInstanceMode;
+			if (originalInstanceMode === undefined) delete process.env.INSTANCE_MODE;
+			else process.env.INSTANCE_MODE = originalInstanceMode;
 		}
 		const db = getDb();
 		await db.deleteFrom("webhook_deliveries").execute();
@@ -306,7 +307,8 @@ describe.skipIf(SKIP)("Webhooks API pagination", () => {
 		if (originalInstanceMode === undefined) {
 			Reflect.deleteProperty(process.env, "INSTANCE_MODE");
 		} else {
-			process.env.INSTANCE_MODE = originalInstanceMode;
+			if (originalInstanceMode === undefined) delete process.env.INSTANCE_MODE;
+			else process.env.INSTANCE_MODE = originalInstanceMode;
 		}
 		const db = getDb();
 		await db
@@ -391,7 +393,8 @@ describe.skipIf(SKIP)("Webhooks API dedicated scope", () => {
 		if (originalInstanceMode === undefined) {
 			Reflect.deleteProperty(process.env, "INSTANCE_MODE");
 		} else {
-			process.env.INSTANCE_MODE = originalInstanceMode;
+			if (originalInstanceMode === undefined) delete process.env.INSTANCE_MODE;
+			else process.env.INSTANCE_MODE = originalInstanceMode;
 		}
 		const db = getDb();
 		await db.deleteFrom("webhook_deliveries").execute();

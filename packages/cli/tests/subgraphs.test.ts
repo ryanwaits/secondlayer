@@ -143,7 +143,8 @@ printf '{"cwd":"%s","args":"%s"}\\n' "$PWD" "$*" > "${callsPath}"
 			const call = JSON.parse(readFileSync(callsPath, "utf8"));
 			expect(call).toEqual({ cwd: realpathSync(dir), args: "install" });
 		} finally {
-			process.env.PATH = originalPath;
+			if (originalPath === undefined) delete process.env.PATH;
+			else process.env.PATH = originalPath;
 			rmSync(dir, { recursive: true, force: true });
 			rmSync(binDir, { recursive: true, force: true });
 		}
@@ -169,7 +170,8 @@ exit 42
 				"bun install exited with code 42",
 			);
 		} finally {
-			process.env.PATH = originalPath;
+			if (originalPath === undefined) delete process.env.PATH;
+			else process.env.PATH = originalPath;
 			rmSync(dir, { recursive: true, force: true });
 			rmSync(binDir, { recursive: true, force: true });
 		}

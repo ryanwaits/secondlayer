@@ -59,7 +59,9 @@ describe.skipIf(!HAS_DB)("L2 ft_transfer decoder dogfoods Streams", () => {
 		if (originalReorgMargin === undefined) {
 			Reflect.deleteProperty(process.env, "STREAMS_TIP_REORG_MARGIN_BLOCKS");
 		} else {
-			process.env.STREAMS_TIP_REORG_MARGIN_BLOCKS = originalReorgMargin;
+			if (originalReorgMargin === undefined)
+				delete process.env.STREAMS_TIP_REORG_MARGIN_BLOCKS;
+			else process.env.STREAMS_TIP_REORG_MARGIN_BLOCKS = originalReorgMargin;
 		}
 	});
 

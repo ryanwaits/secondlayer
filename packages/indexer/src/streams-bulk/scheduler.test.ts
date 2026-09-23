@@ -17,7 +17,9 @@ describe("startStreamsBulkPublisher gating", () => {
 			stop();
 		} finally {
 			if (previous !== undefined) {
-				process.env.STREAMS_BULK_PUBLISHER_ENABLED = previous;
+				if (previous === undefined)
+					delete process.env.STREAMS_BULK_PUBLISHER_ENABLED;
+				else process.env.STREAMS_BULK_PUBLISHER_ENABLED = previous;
 			}
 		}
 	});
@@ -33,7 +35,9 @@ describe("startStreamsBulkPublisher gating", () => {
 			if (previous === undefined) {
 				delete process.env.STREAMS_BULK_PUBLISHER_ENABLED;
 			} else {
-				process.env.STREAMS_BULK_PUBLISHER_ENABLED = previous;
+				if (previous === undefined)
+					delete process.env.STREAMS_BULK_PUBLISHER_ENABLED;
+				else process.env.STREAMS_BULK_PUBLISHER_ENABLED = previous;
 			}
 		}
 	});

@@ -33,7 +33,9 @@ afterAll(async () => {
 	await stopEmitter?.();
 	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
 	if (priorAllowEnv !== undefined) {
-		process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = priorAllowEnv;
+		if (priorAllowEnv === undefined)
+			delete process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
+		else process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = priorAllowEnv;
 	}
 });
 

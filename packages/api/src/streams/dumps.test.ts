@@ -69,7 +69,9 @@ describe("streamsDumpsPublicBaseUrl + manifestUrl", () => {
 		if (previous === undefined) {
 			delete process.env.STREAMS_BULK_PUBLIC_BASE_URL;
 		} else {
-			process.env.STREAMS_BULK_PUBLIC_BASE_URL = previous;
+			if (previous === undefined)
+				delete process.env.STREAMS_BULK_PUBLIC_BASE_URL;
+			else process.env.STREAMS_BULK_PUBLIC_BASE_URL = previous;
 		}
 	});
 
@@ -103,7 +105,9 @@ describe("getStreamsBulkManifest", () => {
 		if (previousEnv === undefined) {
 			delete process.env.STREAMS_BULK_PUBLIC_BASE_URL;
 		} else {
-			process.env.STREAMS_BULK_PUBLIC_BASE_URL = previousEnv;
+			if (previousEnv === undefined)
+				delete process.env.STREAMS_BULK_PUBLIC_BASE_URL;
+			else process.env.STREAMS_BULK_PUBLIC_BASE_URL = previousEnv;
 		}
 	});
 

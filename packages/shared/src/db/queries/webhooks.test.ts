@@ -187,7 +187,8 @@ describe("webhooks local namespace (oss)", () => {
 	const prevMode = process.env.INSTANCE_MODE;
 
 	afterAll(() => {
-		process.env.INSTANCE_MODE = prevMode;
+		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
+		else process.env.INSTANCE_MODE = prevMode;
 	});
 
 	it("get/list/delete by name without an account", async () => {
