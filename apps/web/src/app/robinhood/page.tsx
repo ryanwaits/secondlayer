@@ -1,6 +1,7 @@
 import { socialMeta } from "@/lib/og";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { RequestedTokens } from "./requested-tokens";
 import { StacksSymbol } from "./stacks-symbol";
 import { WaitlistForm } from "./waitlist-form";
 
@@ -291,6 +292,7 @@ export default function RobinhoodPage() {
 							The waitlist sets the order. Issuers and teams go first for Phase
 							1; holders show us where the demand is.
 						</p>
+						<RequestedTokens />
 					</div>
 					<WaitlistForm />
 				</section>

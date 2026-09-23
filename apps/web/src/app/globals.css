@@ -10884,6 +10884,72 @@ html.force-dark .rh-page h1 em {
 	font-weight: 500;
 }
 
+/* Public demand board: aggregates only (see requested-tokens.tsx). */
+.rh-demand {
+	margin-top: 28px;
+	max-width: 30em;
+}
+.rh-demand-head {
+	display: flex;
+	justify-content: space-between;
+	padding-bottom: 10px;
+	border-bottom: 1px solid var(--rh-line);
+	font: 400 12px / 1 var(--font-mono-stack);
+	color: var(--rh-ink-40);
+}
+.rh-demand-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+.rh-demand-list li {
+	display: grid;
+	grid-template-columns: 76px 1fr 28px 56px;
+	gap: 14px;
+	align-items: center;
+	padding-block: 11px;
+	border-bottom: 1px solid var(--rh-line);
+}
+.rh-demand-sym {
+	font: 500 14px / 1 var(--font-mono-stack);
+	overflow-wrap: anywhere;
+}
+.rh-demand-bar {
+	height: 6px;
+	border-radius: 2px;
+	background: color-mix(in srgb, var(--text-main) 6%, transparent);
+	overflow: hidden;
+}
+.rh-demand-bar i {
+	display: block;
+	height: 100%;
+	border-radius: 2px;
+	background: var(--text-main);
+}
+.rh-demand-n {
+	font: 500 13px / 1 var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+.rh-demand-team {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font: 400 11px / 1 var(--font-mono-stack);
+	color: var(--term-ok);
+}
+.rh-demand-team:not(.is-none)::before {
+	content: "";
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: currentColor;
+}
+.rh-copy .rh-demand-others {
+	margin: 10px 0 0;
+	font: 400 12px / 1.4 var(--font-mono-stack);
+	color: var(--rh-ink-40);
+}
 .rh-form {
 	display: grid;
 	gap: 20px;
