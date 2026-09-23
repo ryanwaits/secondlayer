@@ -11,6 +11,13 @@ import {
 const SIG_HEADER = "x-secondlayer-signature";
 const ID_HEADER = "webhook-id";
 
+// Assigning `undefined` to a process.env key stores the string "undefined"
+// (Node, and Bun >=1.4), so an unset original must be restored by deleting.
+function restoreEnv(key: string, value: string | undefined) {
+	if (value === undefined) delete process.env[key];
+	else process.env[key] = value;
+}
+
 describe("secondlayer webhook signing", () => {
 	const { privateKeyPem, publicKeyPem } = generateEd25519KeyPair();
 	const savedWebhookKey = process.env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY;
@@ -18,13 +25,13 @@ describe("secondlayer webhook signing", () => {
 
 	beforeEach(() => {
 		process.env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY = privateKeyPem;
-		process.env.STREAMS_SIGNING_PRIVATE_KEY = undefined;
+		delete process.env.STREAMS_SIGNING_PRIVATE_KEY;
 		resetSecondlayerWebhookSignerForTest();
 	});
 
 	afterEach(() => {
-		process.env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY = savedWebhookKey;
-		process.env.STREAMS_SIGNING_PRIVATE_KEY = savedStreamsKey;
+		restoreEnv("SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY", savedWebhookKey);
+		restoreEnv("STREAMS_SIGNING_PRIVATE_KEY", savedStreamsKey);
 		resetSecondlayerWebhookSignerForTest();
 	});
 
@@ -85,15 +92,15 @@ describe("secondlayer webhook signing", () => {
 	});
 
 	test("falls back to the streams key when no dedicated webhook key is set", () => {
-		process.env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY = undefined;
+		delete process.env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY;
 		process.env.STREAMS_SIGNING_PRIVATE_KEY = privateKeyPem;
 		resetSecondlayerWebhookSignerForTest();
 		expect(getSecondlayerWebhookSigner()).not.toBeNull();
 	});
 
 	test("returns null (unsigned) when no key is configured", () => {
-		process.env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY = undefined;
-		process.env.STREAMS_SIGNING_PRIVATE_KEY = undefined;
+		delete process.env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY;
+		delete process.env.STREAMS_SIGNING_PRIVATE_KEY;
 		resetSecondlayerWebhookSignerForTest();
 		expect(getSecondlayerWebhookSigner()).toBeNull();
 		expect(signSecondlayerWebhook("evt", "body")).toBeNull();
@@ -108,17 +115,17 @@ describe("assertWebhookSigningConfigured (boot guard)", () => {
 	const savedAllow = process.env.ALLOW_UNSIGNED_WEBHOOKS;
 
 	beforeEach(() => {
-		process.env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY = undefined;
-		process.env.STREAMS_SIGNING_PRIVATE_KEY = undefined;
-		process.env.ALLOW_UNSIGNED_WEBHOOKS = undefined;
+		delete process.env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY;
+		delete process.env.STREAMS_SIGNING_PRIVATE_KEY;
+		delete process.env.ALLOW_UNSIGNED_WEBHOOKS;
 		resetSecondlayerWebhookSignerForTest();
 	});
 
 	afterEach(() => {
-		process.env.SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY = savedWebhookKey;
-		process.env.STREAMS_SIGNING_PRIVATE_KEY = savedStreamsKey;
-		process.env.NODE_ENV = savedNodeEnv;
-		process.env.ALLOW_UNSIGNED_WEBHOOKS = savedAllow;
+		restoreEnv("SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY", savedWebhookKey);
+		restoreEnv("STREAMS_SIGNING_PRIVATE_KEY", savedStreamsKey);
+		restoreEnv("NODE_ENV", savedNodeEnv);
+		restoreEnv("ALLOW_UNSIGNED_WEBHOOKS", savedAllow);
 		resetSecondlayerWebhookSignerForTest();
 	});
 

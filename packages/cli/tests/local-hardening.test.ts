@@ -71,10 +71,16 @@ describe("streams dumps writes through a .part file", () => {
 				if (path === "/wrong") return new Response("different bytes");
 				if (path === "/cut") {
 					// Declare more than we send, then drop the connection mid-body.
+					// The error fires on a later tick: an error inside start() fails
+					// the response before headers flush (Bun >=1.4), which would test
+					// a refused request rather than a cut body.
 					const stream = new ReadableStream<Uint8Array>({
 						start(controller) {
 							controller.enqueue(body.subarray(0, 8));
-							controller.error(new Error("connection reset"));
+							setTimeout(
+								() => controller.error(new Error("connection reset")),
+								20,
+							);
 						},
 					});
 					return new Response(stream, {

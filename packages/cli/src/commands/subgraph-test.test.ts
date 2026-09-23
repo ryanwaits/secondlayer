@@ -20,7 +20,7 @@ describe("indexReadFailure", () => {
 	const savedLegacy = process.env.SL_API_KEY;
 
 	beforeEach(() => {
-		process.env.INSTANCE_TOKEN = undefined;
+		delete process.env.INSTANCE_TOKEN;
 		delete process.env.INSTANCE_TOKEN;
 		delete process.env.SL_API_KEY;
 	});

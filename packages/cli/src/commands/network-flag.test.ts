@@ -36,9 +36,9 @@ function buildProgram(): Command {
 const originalNetwork = process.env.STACKS_NETWORK;
 const originalApiUrl = process.env.SL_API_URL;
 afterEach(() => {
-	if (originalNetwork === undefined) process.env.STACKS_NETWORK = undefined;
+	if (originalNetwork === undefined) delete process.env.STACKS_NETWORK;
 	else process.env.STACKS_NETWORK = originalNetwork;
-	if (originalApiUrl === undefined) process.env.SL_API_URL = undefined;
+	if (originalApiUrl === undefined) delete process.env.SL_API_URL;
 	else process.env.SL_API_URL = originalApiUrl;
 });
 

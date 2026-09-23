@@ -120,7 +120,7 @@ process.exit(0);
 `;
 
 describe("sandbox isolation regression — documents that the Bun Worker substrate does NOT isolate", () => {
-	test("env:{} + resolver lockdown block only globalThis.process.env / Bun.env / node imports; bare process.env and globalThis.Bun leak", async () => {
+	test("env:{} + resolver lockdown block process.env / Bun.env / node imports; globalThis.Bun (spawn, file) still leaks", async () => {
 		const dir = mkdtempSync(join(tmpdir(), "sg-iso-"));
 		const harnessFile = join(dir, "harness.ts");
 		writeFileSync(harnessFile, HARNESS);
@@ -147,13 +147,18 @@ describe("sandbox isolation regression — documents that the Bun Worker substra
 		// The parts that DO hold (kept as positive locks):
 		expect(report.globEnv).toBe("<absent>"); // globalThis.process.env scrubbed
 		expect(report.bunEnv).toBe("<absent>"); // Bun.env scrubbed
+		// Bare process.env leaked through Bun 1.3.x and is scrubbed from 1.4.
+		expect(report.bareEnv).toBe(
+			Bun.semver.satisfies(Bun.version, ">=1.4.0")
+				? "<absent>"
+				: "<leaked-fake>",
+		);
 		expect(report.fsBlocked).toBe(true); // node:fs bundle-locked
 		expect(report.cpBlocked).toBe(true); // node:child_process bundle-locked
 
 		// The BREAK this test exists to lock in (STOPPED state — see spike §10).
 		// If any of these ever flips to a blocked/absent value, the Bun Worker
 		// substrate may have become viable — re-evaluate before trusting it.
-		expect(report.bareEnv).toBe("<leaked-fake>"); // bare process.env leaks
 		expect(report.bunSpawn).toBe("<leaked-fake>"); // Bun.spawnSync reaches host environ
 		expect(report.bunFile).toBe("readable"); // Bun.file = arbitrary FS read
 	}, 30_000);

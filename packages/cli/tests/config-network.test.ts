@@ -3,7 +3,7 @@ import { loadConfig } from "../src/lib/config.ts";
 
 const original = process.env.STACKS_NETWORK;
 afterEach(() => {
-	if (original === undefined) process.env.STACKS_NETWORK = undefined;
+	if (original === undefined) delete process.env.STACKS_NETWORK;
 	else process.env.STACKS_NETWORK = original;
 });
 

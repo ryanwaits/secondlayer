@@ -24,7 +24,7 @@ let priorAllowEnv: string | undefined;
 
 beforeAll(async () => {
 	priorAllowEnv = process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
-	process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = undefined;
+	delete process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
 	stopEmitter = await startEmitter({ pollIntervalMs: 500 });
 });
 

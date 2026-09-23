@@ -530,6 +530,10 @@ answer, for a Bun `Worker`, is **no**.
   lock that asserts the break** (proves `env: {}` + resolver lockdown do NOT
   contain `globalThis.Bun` / bare `process.env`), so the finding stays
   enforced in CI and nobody re-adopts the substrate assuming it isolates.
+  Bun 1.4.2 re-run (2026-09-23): bare `process.env` is now scrubbed under
+  `env: {}`, but `Bun.spawnSync` still reaches the host environ and
+  `Bun.file` still reads arbitrary paths. The substrate still does not
+  isolate; the lock now asserts the remaining two leaks.
 - The dark `sandbox_workers` column + `sandboxEnabled` resolver (migration
   0109) remain as control-plane opt-in prep — reusable by any redesigned
   sandbox — but are wired to nothing.

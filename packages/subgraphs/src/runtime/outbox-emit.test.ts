@@ -141,7 +141,7 @@ describe("emitWebhookOutbox", () => {
 				expect(n).toBe(0);
 			});
 		} finally {
-			process.env.SECONDLAYER_EMIT_OUTBOX = undefined;
+			delete process.env.SECONDLAYER_EMIT_OUTBOX;
 		}
 
 		const rows = await db

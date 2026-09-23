@@ -40,7 +40,7 @@ describe("SubgraphRegistryCache visibility resolution (platform mode)", () => {
 	});
 
 	afterEach(() => {
-		if (prevMode === undefined) process.env.INSTANCE_MODE = undefined;
+		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
 		else process.env.INSTANCE_MODE = prevMode;
 	});
 
