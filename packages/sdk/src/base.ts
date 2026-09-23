@@ -44,6 +44,46 @@ export interface SecondLayerOptions {
 	 *  retry policy instead of stalling a walk or consume loop forever. `0`
 	 *  disables the timeout. */
 	requestTimeoutMs?: number;
+	/** Where GET responses carrying an `ETag` are kept, so a repeat read sends
+	 *  `If-None-Match` and a finalized page comes back as a free `304`.
+	 *  Defaults to an in-memory store of the last 64 pages. Pass your own to
+	 *  keep it across processes (a file, a KV), or `false` to turn it off. */
+	etagCache?: EtagCache | false;
+}
+
+/** One cached GET response: its validator and the body it validated. */
+export type EtagEntry = { etag: string; body: string };
+
+/** Storage for `etagCache`. Keys are full request URLs. Either method may be
+ *  async, so a disk or KV store works as well as a Map. */
+export interface EtagCache {
+	get(key: string): EtagEntry | undefined | Promise<EtagEntry | undefined>;
+	set(key: string, entry: EtagEntry): void | Promise<void>;
+}
+
+/** Bounded in-memory `EtagCache`. Evicts the least recently used page, so a
+ *  long walk can't hold more than `limit` page bodies. */
+export class MemoryEtagCache implements EtagCache {
+	private entries = new Map<string, EtagEntry>();
+	constructor(private readonly limit = 64) {}
+
+	get(key: string): EtagEntry | undefined {
+		const entry = this.entries.get(key);
+		if (entry) {
+			this.entries.delete(key);
+			this.entries.set(key, entry);
+		}
+		return entry;
+	}
+
+	set(key: string, entry: EtagEntry): void {
+		this.entries.delete(key);
+		this.entries.set(key, entry);
+		if (this.entries.size > this.limit) {
+			const oldest = this.entries.keys().next().value;
+			if (oldest !== undefined) this.entries.delete(oldest);
+		}
+	}
 }
 
 /** Default per-request budget. Long enough for a 1000-row filtered page on a
@@ -203,6 +243,7 @@ export abstract class BaseClient {
 	protected origin: "cli" | "mcp" | "session";
 	protected fetchImpl: FetchLike;
 	protected requestTimeoutMs: number;
+	protected etagCache: EtagCache | null;
 
 	constructor(options: Partial<SecondLayerOptions> = {}) {
 		this.baseUrl = resolveBaseUrl(options.baseUrl);
@@ -213,6 +254,10 @@ export abstract class BaseClient {
 		// Bind the global so a bare `fetch` reference doesn't lose its Request
 		// context on runtimes where fetch is a method (workerd, older Node).
 		this.fetchImpl = options.fetchImpl ?? ((...args) => fetch(...args));
+		this.etagCache =
+			options.etagCache === false
+				? null
+				: (options.etagCache ?? new MemoryEtagCache());
 	}
 
 	static authHeaders(apiKey?: string): Record<string, string> {
@@ -232,11 +277,37 @@ export abstract class BaseClient {
 		opts: RequestOptions = {},
 	): Promise<T> {
 		return this.withRequestBudget(opts.signal, async (signal) => {
-			const response = await this.fetchResponse(method, path, body, signal);
+			// Only GETs are revalidated: a write's response is never a copy of
+			// something the caller already holds.
+			const cacheKey =
+				method === "GET" && this.etagCache ? `${this.baseUrl}${path}` : null;
+			const cached = cacheKey ? await this.etagCache?.get(cacheKey) : undefined;
+			const response = await this.fetchResponse(
+				method,
+				path,
+				body,
+				signal,
+				cached ? { "If-None-Match": cached.etag } : undefined,
+			);
 			if (response.status === 204) {
 				return undefined as T;
 			}
-			return (await raceAbort(response.json(), signal)) as T;
+			if (response.status === 304) {
+				// The server only answers 304 to a validator we sent, and it meters
+				// nothing for it. The page is the one we already hold; its `tip`
+				// field is as of the first read, since the ETag excludes the tip.
+				if (!cached) {
+					throw new ApiError(304, "Not Modified without a cached copy");
+				}
+				return JSON.parse(cached.body) as T;
+			}
+			const etag = cacheKey ? response.headers.get("ETag") : null;
+			if (!cacheKey || !etag) {
+				return (await raceAbort(response.json(), signal)) as T;
+			}
+			const text = await raceAbort(response.text(), signal);
+			await this.etagCache?.set(cacheKey, { etag, body: text });
+			return JSON.parse(text) as T;
 		});
 	}
 
@@ -317,9 +388,13 @@ export abstract class BaseClient {
 		path: string,
 		body?: unknown,
 		signal?: AbortSignal,
+		extraHeaders?: Record<string, string>,
 	): Promise<Response> {
 		const url = `${this.baseUrl}${path}`;
-		const headers = BaseClient.authHeaders(this.apiKey);
+		const headers = {
+			...BaseClient.authHeaders(this.apiKey),
+			...extraHeaders,
+		};
 		headers["x-sl-origin"] = this.origin;
 
 		// Serialize the body BEFORE the network try so a body-encoding error
@@ -369,6 +444,9 @@ export abstract class BaseClient {
 				{ retryable: true, cause: err instanceof Error ? err : undefined },
 			);
 		}
+
+		// A 304 is an answer to our own If-None-Match, not a failure.
+		if (response.status === 304) return response;
 
 		if (!response.ok) {
 			// Read the envelope once for every failure status. The API answers

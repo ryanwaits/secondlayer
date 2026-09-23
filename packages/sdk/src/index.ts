@@ -19,12 +19,18 @@ export type {
 	InstanceState,
 	PublicStatus,
 } from "@secondlayer/shared/archive/instance-diagnosis";
-export type { RequestOptions, SecondLayerOptions } from "./base.ts";
+export type {
+	EtagCache,
+	EtagEntry,
+	RequestOptions,
+	SecondLayerOptions,
+} from "./base.ts";
 export {
 	ACCOUNT_KEY_ENV,
 	DEFAULT_REQUEST_TIMEOUT_MS,
 	INSTANCE_TOKEN_ENV,
 	LOCAL_API_URL,
+	MemoryEtagCache,
 	resolveAccountKey,
 	resolveApiKey,
 	resolveBaseUrl,

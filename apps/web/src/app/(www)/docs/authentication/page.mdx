@@ -32,6 +32,16 @@ Loopback is the publish spec (`API_PUBLISH_ADDR`), not the caller's address. On 
 
 Never put `sk-sl_*` in `INSTANCE_TOKEN`. Never put the hex token in `SECONDLAYER_API_KEY`.
 
+Hosted reads:
+
+| Rows | Cost |
+| --- | --- |
+| Last 17,280 blocks (about a day) | free, with or without credits |
+| Older history | $5 per 1M rows, $2 per 1M past $50 in a month |
+| `304` on `If-None-Match` for a finalized page | free |
+
+The SDK sends `If-None-Match` for you. Its cache holds the last 64 pages in memory; pass `etagCache` to keep one across runs.
+
 ## Archive credits
 
 Bootstrap, backfill, and reindex from the [signed public archive](/docs/archive) draw credits per partition bundle fetched; verification is always free. `bootstrap` and `repair` show the price against your balance before anything is charged. Every partition arrives over a short-lived presigned URL and is digest-checked before a row is written. Your first six repair bundles each month are free. Packs are $10, $25, $50, or $100. The prepaid balance is the hard cap.
