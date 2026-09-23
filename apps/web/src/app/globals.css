@@ -11586,22 +11586,27 @@ html.force-dark .rh-page h1 em {
 	font: 400 12px / 1 var(--font-mono-stack);
 	color: var(--rh-ink-40);
 }
+/* Rows share one column grid (subgrid), so the symbol column grows to the
+   longest ticker on the board and every bar still starts at the same x. */
 .rh-demand-list {
+	display: grid;
+	grid-template-columns: minmax(76px, max-content) 1fr 28px 56px;
+	column-gap: 14px;
 	list-style: none;
 	margin: 0;
 	padding: 0;
 }
 .rh-demand-list li {
 	display: grid;
-	grid-template-columns: 76px 1fr 28px 56px;
-	gap: 14px;
+	grid-column: 1 / -1;
+	grid-template-columns: subgrid;
 	align-items: center;
 	padding-block: 11px;
 	border-bottom: 1px solid var(--rh-line);
 }
 .rh-demand-sym {
 	font: 500 14px / 1 var(--font-mono-stack);
-	overflow-wrap: anywhere;
+	white-space: nowrap;
 }
 .rh-demand-bar {
 	height: 6px;
