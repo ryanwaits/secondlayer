@@ -2,12 +2,18 @@
 
 import { KeysSection } from "@/components/account/keys-panel";
 import { takeHandedOverKey } from "@/lib/new-key";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function AccountKeysPage() {
-	// Sign-in mints a first key and hands it over to show here, once.
+	// Sign-in (or the card's expand) hands a new key over to show here, once.
+	// Taking it clears it, so guard against effects running twice.
 	const [handedOver, setHandedOver] = useState<string | null>(null);
-	useEffect(() => setHandedOver(takeHandedOverKey()), []);
+	const taken = useRef(false);
+	useEffect(() => {
+		if (taken.current) return;
+		taken.current = true;
+		setHandedOver(takeHandedOverKey());
+	}, []);
 
 	return (
 		<>

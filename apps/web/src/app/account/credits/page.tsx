@@ -2,12 +2,18 @@
 
 import { CreditsSection } from "@/components/account/credits-panel";
 import { type TopupReturn, takeTopupReturn } from "@/lib/account-data";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function AccountCreditsPage() {
-	// Stripe returns here with ?topup=success|cancelled; read it once.
+	// Stripe returns here with ?topup=success|cancelled. Reading it clears
+	// it, so guard against effects running twice.
 	const [ret, setRet] = useState<TopupReturn | null>(null);
-	useEffect(() => setRet(takeTopupReturn()), []);
+	const taken = useRef(false);
+	useEffect(() => {
+		if (taken.current) return;
+		taken.current = true;
+		setRet(takeTopupReturn());
+	}, []);
 
 	return (
 		<>
