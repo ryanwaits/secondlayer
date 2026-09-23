@@ -1,21 +1,21 @@
 #!/usr/bin/env bun
-// `migrate | backfill --to <H> | parity-decode --blocks <list|range>`.
-//
-// NOT implemented: `parity-state --height <H> --ord-runes <file> --ord-balances
-// <file>` (plan design's fourth subcommand). It diffs our state against ord's
-// `runes`/`balances` CLI output at a frozen height (step 7) — this run only
-// ran the backfill itself and explicitly skipped the ord freeze/compare part
-// of step 7 (ord was still syncing, nowhere near 841,000). Building it
-// against no real ord output to verify against would be unverified code
-// pretending to be done; the reviewer should add it against a real frozen
-// height. `parity/decode.ts`'s `normalizeOrdDecode`/`json-bigint.ts` are
-// already shaped to be reused for it directly.
+// `migrate | backfill --to <H> | parity-decode --blocks <list|range> |
+// parity-state --height <H> --ord-runes <file> --ord-balances <file>`.
 
 import { runBackfill } from "./backfill.ts";
 import { parseBlock } from "./block.ts";
 import { migrateToLatest } from "./db/migrate.ts";
-import { openStore } from "./db/store.ts";
+import { loadState, openStore } from "./db/store.ts";
 import { diffOne, txidsWithRunestoneMarker } from "./parity/decode.ts";
+import { parseJsonPreservingBigInts } from "./parity/json-bigint.ts";
+import {
+	buildStateDiffReport,
+	normalizeOrdBalancesJson,
+	normalizeOrdRunesJson,
+	normalizeOurBalances,
+	normalizeOurEntries,
+	runeIdByName,
+} from "./parity/state.ts";
 import { bitcoinRpcClientFromEnv } from "./rpc.ts";
 
 function requireEnv(name: string): string {
@@ -189,6 +189,62 @@ async function cmdParityDecode(args: string[]): Promise<void> {
 	if (mismatches.length > 0) process.exitCode = 1;
 }
 
+async function cmdParityState(args: string[]): Promise<void> {
+	const heightStr = parseFlag(args, "--height");
+	const ordRunesPath = parseFlag(args, "--ord-runes");
+	const ordBalancesPath = parseFlag(args, "--ord-balances");
+	if (!heightStr || !ordRunesPath || !ordBalancesPath) {
+		throw new Error(
+			"parity-state requires --height <H> --ord-runes <file> --ord-balances <file>",
+		);
+	}
+	const height = Number(heightStr);
+
+	const ordRunesJson = parseJsonPreservingBigInts(
+		await Bun.file(ordRunesPath).text(),
+	);
+	const ordBalancesJson = parseJsonPreservingBigInts(
+		await Bun.file(ordBalancesPath).text(),
+	);
+	const ordEntries = normalizeOrdRunesJson(ordRunesJson);
+	const ordBalances = normalizeOrdBalancesJson(
+		ordBalancesJson,
+		runeIdByName(ordEntries),
+	);
+
+	const db = openStore(requireEnv("BITCOIN_DATABASE_URL"));
+	const state = await loadState(db);
+	const ourEntries = normalizeOurEntries(state);
+	const ourBalances = normalizeOurBalances(state);
+	await db.destroy();
+
+	const report = buildStateDiffReport(
+		height,
+		ourEntries,
+		ordEntries,
+		ourBalances,
+		ordBalances,
+	);
+
+	const outDir = process.env.PARITY_REPORT_DIR ?? process.cwd();
+	const outPath = `${outDir}/${height}-diff.json`;
+	await Bun.write(outPath, JSON.stringify(report, null, 2));
+
+	console.log(
+		`runes ours=${report.runeCounts.ours} ord=${report.runeCounts.ord}; ` +
+			`outpoints ours=${report.outpointCounts.ours} ord=${report.outpointCounts.ord}; ` +
+			`entry mismatches=${report.entryMismatches.length}; ` +
+			`balance mismatches=${report.balanceMismatches.length}. Report: ${outPath}`,
+	);
+
+	if (
+		report.entryMismatches.length > 0 ||
+		report.balanceMismatches.length > 0
+	) {
+		process.exitCode = 1;
+	}
+}
+
 async function main(): Promise<void> {
 	const [command, ...args] = process.argv.slice(2);
 
@@ -199,9 +255,11 @@ async function main(): Promise<void> {
 			return cmdBackfill(args);
 		case "parity-decode":
 			return cmdParityDecode(args);
+		case "parity-state":
+			return cmdParityState(args);
 		default:
 			console.error(
-				"usage: cli.ts migrate | backfill --to <H> | parity-decode --blocks <list|range>",
+				"usage: cli.ts migrate | backfill --to <H> | parity-decode --blocks <list|range> | parity-state --height <H> --ord-runes <file> --ord-balances <file>",
 			);
 			process.exit(1);
 	}

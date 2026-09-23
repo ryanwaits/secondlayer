@@ -1,0 +1,26 @@
+{
+	"runes": {
+		"UNCOMMONGOODS": {
+			"block": 1,
+			"burned": 0,
+			"divisibility": 0,
+			"etching": "0000000000000000000000000000000000000000000000000000000000000000",
+			"id": "1:0",
+			"mints": 0,
+			"number": 0,
+			"premine": 0,
+			"rune": "UNCOMMON•GOODS",
+			"supply": 0,
+			"symbol": "⧉",
+			"terms": {
+				"amount": 1,
+				"cap": 340282366920938463463374607431768211455,
+				"height": [840000, 1050000],
+				"offset": [null, null]
+			},
+			"timestamp": "1970-01-01T00:00:00Z",
+			"turbo": true,
+			"tx": 0
+		}
+	}
+}
