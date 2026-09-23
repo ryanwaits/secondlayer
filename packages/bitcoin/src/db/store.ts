@@ -15,9 +15,11 @@
 // batched into chunked multi-row statements instead of one round trip per
 // row.
 
+import { hexToBytes } from "@noble/hashes/utils.js";
 import { Kysely, sql } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
+import { GENESIS_DIGEST, computeBlockDigests } from "../integrity/digest.ts";
 import type { RuneEntry } from "../runes/entry.ts";
 import { runeIdFromString } from "../runes/rune_id.ts";
 import { spacedRuneToString } from "../runes/spaced_rune.ts";
@@ -140,6 +142,20 @@ export async function loadState(db: Kysely<Database>): Promise<RuneState> {
 	if (checkpoint) {
 		state.height = checkpoint.height;
 		state.hash = checkpoint.hash;
+
+		const digestRow = await db
+			.selectFrom("rune_block_digests")
+			.select("digest")
+			.where("height", "=", checkpoint.height)
+			.executeTakeFirst();
+		// A checkpoint with no matching digest row means a run predating the
+		// digest chain (plan 039) reached this height; resuming it starts a
+		// fresh chain from GENESIS_DIGEST rather than failing closed, since the
+		// chain only ever needs to prove agreement between two runs made AFTER
+		// it existed.
+		state.digest = digestRow
+			? Uint8Array.from(hexToBytes(digestRow.digest))
+			: GENESIS_DIGEST;
 	}
 
 	return state;
@@ -251,6 +267,16 @@ export async function flush(
 		.filter(
 			(r): r is { runeId: string; entry: RuneEntry } => r.entry !== undefined,
 		);
+	// Computed before the transaction (pure, no DB access) so a mid-transaction
+	// failure never advances the chain — `state.digest` is only overwritten
+	// after a successful commit, below.
+	const startDigest = state.digest ?? GENESIS_DIGEST;
+	const digestRows = computeBlockDigests(
+		startDigest,
+		blocks,
+		state.events,
+		state,
+	);
 
 	await db.transaction().execute(async (trx) => {
 		for (const batch of chunk(dirtyEntryRows, ENTRY_CHUNK_SIZE)) {
@@ -359,6 +385,18 @@ export async function flush(
 		}
 
 		await trx
+			.insertInto("rune_block_digests")
+			.values(
+				digestRows.map((row) => ({
+					height: row.height,
+					block_hash: row.blockHash,
+					digest: row.digest,
+					event_count: row.eventCount,
+				})),
+			)
+			.execute();
+
+		await trx
 			.insertInto("runes_checkpoint")
 			.values({
 				name: CHECKPOINT_NAME,
@@ -394,6 +432,8 @@ export async function flush(
 	state.dirtyBalanceKeys.clear();
 	state.events = [];
 	state.height = last.height;
+	// biome-ignore lint/style/noNonNullAssertion: digestRows has one entry per block in `blocks`, and `flush` already threw above when `blocks` is empty
+	state.digest = Uint8Array.from(hexToBytes(digestRows.at(-1)!.digest));
 	state.hash = last.hash;
 
 	return {

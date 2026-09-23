@@ -86,6 +86,8 @@ export interface RuneState {
 	events: RuneEvent[];
 	height?: number;
 	hash?: string;
+	/** The block digest chain's running value (`d_height`, see ../integrity/digest.ts), `GENESIS_DIGEST` when `height` is undefined. */
+	digest?: Uint8Array;
 }
 
 export function createRuneState(): RuneState {

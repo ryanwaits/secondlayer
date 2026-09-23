@@ -60,12 +60,20 @@ export interface RunesCheckpointTable {
 	updated_at: Date;
 }
 
+export interface RuneBlockDigestsTable {
+	height: number;
+	block_hash: string;
+	digest: string;
+	event_count: number;
+}
+
 export interface Database {
 	rune_entries: RuneEntriesTable;
 	rune_balances: RuneBalancesTable;
 	rune_events: RuneEventsTable;
 	btc_blocks: BtcBlocksTable;
 	runes_checkpoint: RunesCheckpointTable;
+	rune_block_digests: RuneBlockDigestsTable;
 }
 
 export const CHECKPOINT_NAME = "runes";

@@ -1,11 +1,14 @@
 #!/usr/bin/env bun
 // `migrate | backfill --to <H> | parity-decode --blocks <list|range> |
-// parity-state --height <H> --ord-runes <file> --ord-balances <file>`.
+// parity-state --height <H> --ord-runes <file> --ord-balances <file> |
+// digests --from <A> --to <B> | state-hash`.
 
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { runBackfill } from "./backfill.ts";
 import { parseBlock } from "./block.ts";
 import { migrateToLatest } from "./db/migrate.ts";
 import { loadState, openStore } from "./db/store.ts";
+import { computeStateHash } from "./integrity/digest.ts";
 import { diffOne, txidsWithRunestoneMarker } from "./parity/decode.ts";
 import { parseJsonPreservingBigInts } from "./parity/json-bigint.ts";
 import {
@@ -245,6 +248,41 @@ async function cmdParityState(args: string[]): Promise<void> {
 	}
 }
 
+async function cmdDigests(args: string[]): Promise<void> {
+	const fromStr = parseFlag(args, "--from");
+	const toStr = parseFlag(args, "--to");
+	if (!fromStr || !toStr) {
+		throw new Error("digests requires --from <A> --to <B>");
+	}
+	const from = Number(fromStr);
+	const to = Number(toStr);
+
+	const db = openStore(requireEnv("BITCOIN_DATABASE_URL"));
+	const rows = await db
+		.selectFrom("rune_block_digests")
+		.selectAll()
+		.where("height", ">=", from)
+		.where("height", "<=", to)
+		.orderBy("height", "asc")
+		.execute();
+	await db.destroy();
+
+	for (const row of rows) {
+		console.log(
+			`${row.height}\t${row.block_hash}\t${row.digest}\t${row.event_count}`,
+		);
+	}
+}
+
+async function cmdStateHash(): Promise<void> {
+	const db = openStore(requireEnv("BITCOIN_DATABASE_URL"));
+	const state = await loadState(db);
+	await db.destroy();
+
+	const hash = bytesToHex(computeStateHash(state));
+	console.log(`${state.height}\t${hash}`);
+}
+
 async function main(): Promise<void> {
 	const [command, ...args] = process.argv.slice(2);
 
@@ -257,9 +295,13 @@ async function main(): Promise<void> {
 			return cmdParityDecode(args);
 		case "parity-state":
 			return cmdParityState(args);
+		case "digests":
+			return cmdDigests(args);
+		case "state-hash":
+			return cmdStateHash();
 		default:
 			console.error(
-				"usage: cli.ts migrate | backfill --to <H> | parity-decode --blocks <list|range> | parity-state --height <H> --ord-runes <file> --ord-balances <file>",
+				"usage: cli.ts migrate | backfill --to <H> | parity-decode --blocks <list|range> | parity-state --height <H> --ord-runes <file> --ord-balances <file> | digests --from <A> --to <B> | state-hash",
 			);
 			process.exit(1);
 	}
