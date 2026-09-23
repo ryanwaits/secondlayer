@@ -4901,7 +4901,7 @@
 					},
 					"event_index": {
 						"type": "integer",
-						"description": "The event's position among the block's Streams events, from 0. On `clock=vm`, the vm ordinal."
+						"description": "The event's position among the block's Streams events, from 0."
 					},
 					"event_type": {
 						"type": "string",
@@ -4916,14 +4916,9 @@
 							"nft_transfer",
 							"nft_mint",
 							"nft_burn",
-							"print",
-							"nested_contract_call",
-							"var_set",
-							"map_set",
-							"map_insert",
-							"map_delete"
+							"print"
 						],
-						"description": "Classic types on the default clock, vm types on `clock=vm`. A page never mixes them."
+						"description": "The event's type."
 					},
 					"contract_id": {
 						"type": [
@@ -9299,51 +9294,6 @@
 						"description": "Receiving principal. Types with a recipient only."
 					},
 					{
-						"name": "tx_id",
-						"in": "query",
-						"required": false,
-						"schema": {
-							"type": "string"
-						},
-						"description": "Transaction id. VM types only: nested_contract_call, var_set, map_set, map_insert, map_delete."
-					},
-					{
-						"name": "function_name",
-						"in": "query",
-						"required": false,
-						"schema": {
-							"type": "string"
-						},
-						"description": "nested_contract_call only."
-					},
-					{
-						"name": "caller",
-						"in": "query",
-						"required": false,
-						"schema": {
-							"type": "string"
-						},
-						"description": "nested_contract_call only."
-					},
-					{
-						"name": "map",
-						"in": "query",
-						"required": false,
-						"schema": {
-							"type": "string"
-						},
-						"description": "map_set, map_insert, map_delete. Matches map_name."
-					},
-					{
-						"name": "var_name",
-						"in": "query",
-						"required": false,
-						"schema": {
-							"type": "string"
-						},
-						"description": "var_set only."
-					},
-					{
 						"name": "tx_context",
 						"in": "query",
 						"required": false,
@@ -12702,16 +12652,11 @@
 									"nft_transfer",
 									"nft_mint",
 									"nft_burn",
-									"print",
-									"nested_contract_call",
-									"var_set",
-									"map_set",
-									"map_insert",
-									"map_delete"
+									"print"
 								]
 							}
 						},
-						"description": "Comma-separated event types to include. Default: every classic type. With `clock=vm`, only vm types (`nested_contract_call`, `var_set`, `map_set`, `map_insert`, `map_delete`) are accepted; without it, only classic types."
+						"description": "Comma-separated event types to include. Default: all of them."
 					},
 					{
 						"name": "event_type",
@@ -12730,12 +12675,7 @@
 								"nft_transfer",
 								"nft_mint",
 								"nft_burn",
-								"print",
-								"nested_contract_call",
-								"var_set",
-								"map_set",
-								"map_insert",
-								"map_delete"
+								"print"
 							]
 						},
 						"description": "One event type, as an alias for `types`. Mutually exclusive with `types`; a set must use `types`."
@@ -12761,12 +12701,7 @@
 									"nft_transfer",
 									"nft_mint",
 									"nft_burn",
-									"print",
-									"nested_contract_call",
-									"var_set",
-									"map_set",
-									"map_insert",
-									"map_delete"
+									"print"
 								]
 							}
 						},
@@ -12789,7 +12724,7 @@
 						"schema": {
 							"type": "string"
 						},
-						"description": "Principal, or a comma-separated set, matched against the payload's `sender`. Event types without a sender never match. Classic clock only."
+						"description": "Principal, or a comma-separated set, matched against the payload's `sender`. Event types without a sender never match."
 					},
 					{
 						"name": "recipient",
@@ -12798,7 +12733,7 @@
 						"schema": {
 							"type": "string"
 						},
-						"description": "Principal, or a comma-separated set, matched against the payload's `recipient`. Classic clock only."
+						"description": "Principal, or a comma-separated set, matched against the payload's `recipient`."
 					},
 					{
 						"name": "asset_identifier",
@@ -12808,7 +12743,7 @@
 							"type": "string",
 							"example": "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.age000-governance-token::alex"
 						},
-						"description": "Exact `<contract>::<asset>` match on the payload. Classic clock only."
+						"description": "Exact `<contract>::<asset>` match on the payload."
 					},
 					{
 						"name": "filters",
@@ -12818,21 +12753,7 @@
 							"type": "string",
 							"example": "{\"alex\":{\"types\":[\"ft_transfer\"],\"contractId\":\"SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.age000-governance-token\"},\"stx\":{\"types\":\"stx_transfer\"}}"
 						},
-						"description": "JSON object of up to 8 labelled filter groups: `{ \"<label>\": { types?, contractId?, sender?, recipient?, assetIdentifier? } }`. Each value is a string or array of strings. Groups OR together, fields inside a group AND, and the flat filters above still apply to the whole scan. Each event lists the labels it matched in `matched`. Labels are letters, digits, `-` and `_`, 32 characters at most. Classic clock only."
-					},
-					{
-						"name": "clock",
-						"in": "query",
-						"required": false,
-						"schema": {
-							"type": "string",
-							"enum": [
-								"classic",
-								"vm"
-							],
-							"default": "classic"
-						},
-						"description": "`classic` (default) reads Streams 1.0, where the cursor's second part is the event's position in the block. `vm` reads the node's opt-in vm events, where it is the vm ordinal: a separate cursor space, with rows only from the height the node started emitting them. With `vm`, `sender`, `recipient`, `asset_identifier` and `filters` are refused."
+						"description": "JSON object of up to 8 labelled filter groups: `{ \"<label>\": { types?, contractId?, sender?, recipient?, assetIdentifier? } }`. Each value is a string or array of strings. Groups OR together, fields inside a group AND, and the flat filters above still apply to the whole scan. Each event lists the labels it matched in `matched`. Labels are letters, digits, `-` and `_`, 32 characters at most."
 					}
 				],
 				"responses": {
@@ -13039,16 +12960,11 @@
 									"nft_transfer",
 									"nft_mint",
 									"nft_burn",
-									"print",
-									"nested_contract_call",
-									"var_set",
-									"map_set",
-									"map_insert",
-									"map_delete"
+									"print"
 								]
 							}
 						},
-						"description": "Comma-separated event types to include. Default: every classic type. With `clock=vm`, only vm types (`nested_contract_call`, `var_set`, `map_set`, `map_insert`, `map_delete`) are accepted; without it, only classic types."
+						"description": "Comma-separated event types to include. Default: all of them."
 					},
 					{
 						"name": "event_type",
@@ -13067,12 +12983,7 @@
 								"nft_transfer",
 								"nft_mint",
 								"nft_burn",
-								"print",
-								"nested_contract_call",
-								"var_set",
-								"map_set",
-								"map_insert",
-								"map_delete"
+								"print"
 							]
 						},
 						"description": "One event type, as an alias for `types`. Mutually exclusive with `types`; a set must use `types`."
@@ -13098,12 +13009,7 @@
 									"nft_transfer",
 									"nft_mint",
 									"nft_burn",
-									"print",
-									"nested_contract_call",
-									"var_set",
-									"map_set",
-									"map_insert",
-									"map_delete"
+									"print"
 								]
 							}
 						},
@@ -13126,7 +13032,7 @@
 						"schema": {
 							"type": "string"
 						},
-						"description": "Principal, or a comma-separated set, matched against the payload's `sender`. Event types without a sender never match. Classic clock only."
+						"description": "Principal, or a comma-separated set, matched against the payload's `sender`. Event types without a sender never match."
 					},
 					{
 						"name": "recipient",
@@ -13135,7 +13041,7 @@
 						"schema": {
 							"type": "string"
 						},
-						"description": "Principal, or a comma-separated set, matched against the payload's `recipient`. Classic clock only."
+						"description": "Principal, or a comma-separated set, matched against the payload's `recipient`."
 					},
 					{
 						"name": "asset_identifier",
@@ -13145,7 +13051,7 @@
 							"type": "string",
 							"example": "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.age000-governance-token::alex"
 						},
-						"description": "Exact `<contract>::<asset>` match on the payload. Classic clock only."
+						"description": "Exact `<contract>::<asset>` match on the payload."
 					},
 					{
 						"name": "filters",
@@ -13155,21 +13061,7 @@
 							"type": "string",
 							"example": "{\"alex\":{\"types\":[\"ft_transfer\"],\"contractId\":\"SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.age000-governance-token\"},\"stx\":{\"types\":\"stx_transfer\"}}"
 						},
-						"description": "JSON object of up to 8 labelled filter groups: `{ \"<label>\": { types?, contractId?, sender?, recipient?, assetIdentifier? } }`. Each value is a string or array of strings. Groups OR together, fields inside a group AND, and the flat filters above still apply to the whole scan. Each event lists the labels it matched in `matched`. Labels are letters, digits, `-` and `_`, 32 characters at most. Classic clock only."
-					},
-					{
-						"name": "clock",
-						"in": "query",
-						"required": false,
-						"schema": {
-							"type": "string",
-							"enum": [
-								"classic",
-								"vm"
-							],
-							"default": "classic"
-						},
-						"description": "`classic` (default) reads Streams 1.0, where the cursor's second part is the event's position in the block. `vm` reads the node's opt-in vm events, where it is the vm ordinal: a separate cursor space, with rows only from the height the node started emitting them. With `vm`, `sender`, `recipient`, `asset_identifier` and `filters` are refused."
+						"description": "JSON object of up to 8 labelled filter groups: `{ \"<label>\": { types?, contractId?, sender?, recipient?, assetIdentifier? } }`. Each value is a string or array of strings. Groups OR together, fields inside a group AND, and the flat filters above still apply to the whole scan. Each event lists the labels it matched in `matched`. Labels are letters, digits, `-` and `_`, 32 characters at most."
 					}
 				],
 				"responses": {

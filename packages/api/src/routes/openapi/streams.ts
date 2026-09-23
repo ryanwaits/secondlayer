@@ -1,7 +1,4 @@
-import {
-	DECODED_EVENT_TYPES,
-	VM_EVENT_TYPES,
-} from "@secondlayer/stacks/filters";
+import { DECODED_EVENT_TYPES } from "@secondlayer/stacks/filters";
 import {
 	STREAMS_ANON_RATE_LIMIT_PER_SECOND,
 	STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS,
@@ -15,7 +12,10 @@ import { ERROR_401, READ_SECURITY, envelope, jsonError, qp } from "./shared.ts";
  * `streams/*.ts`). Rows are `StreamsEventEnvelope` (`streams/events.ts`).
  */
 
-const EVENT_TYPES = [...DECODED_EVENT_TYPES, ...VM_EVENT_TYPES];
+// Released event types only. The vm types need an unreleased stacks-core node;
+// the route accepts them (with `clock=vm`), the public reference doesn't list
+// them until that node ships.
+const EVENT_TYPES = [...DECODED_EVENT_TYPES];
 
 const FREE_TIER = STREAMS_TIER_CONFIG.free;
 
@@ -115,7 +115,7 @@ const FILTER_PARAMS = [
 	),
 	eventTypesParam(
 		"types",
-		"Comma-separated event types to include. Default: every classic type. With `clock=vm`, only vm types (`nested_contract_call`, `var_set`, `map_set`, `map_insert`, `map_delete`) are accepted; without it, only classic types.",
+		"Comma-separated event types to include. Default: all of them.",
 	),
 	{
 		...qp(
@@ -147,20 +147,20 @@ const FILTER_PARAMS = [
 		"sender",
 		"string",
 		false,
-		"Principal, or a comma-separated set, matched against the payload's `sender`. Event types without a sender never match. Classic clock only.",
+		"Principal, or a comma-separated set, matched against the payload's `sender`. Event types without a sender never match.",
 	),
 	qp(
 		"recipient",
 		"string",
 		false,
-		"Principal, or a comma-separated set, matched against the payload's `recipient`. Classic clock only.",
+		"Principal, or a comma-separated set, matched against the payload's `recipient`.",
 	),
 	{
 		...qp(
 			"asset_identifier",
 			"string",
 			false,
-			"Exact `<contract>::<asset>` match on the payload. Classic clock only.",
+			"Exact `<contract>::<asset>` match on the payload.",
 		),
 		schema: {
 			type: "string",
@@ -173,22 +173,13 @@ const FILTER_PARAMS = [
 			"filters",
 			"string",
 			false,
-			'JSON object of up to 8 labelled filter groups: `{ "<label>": { types?, contractId?, sender?, recipient?, assetIdentifier? } }`. Each value is a string or array of strings. Groups OR together, fields inside a group AND, and the flat filters above still apply to the whole scan. Each event lists the labels it matched in `matched`. Labels are letters, digits, `-` and `_`, 32 characters at most. Classic clock only.',
+			'JSON object of up to 8 labelled filter groups: `{ "<label>": { types?, contractId?, sender?, recipient?, assetIdentifier? } }`. Each value is a string or array of strings. Groups OR together, fields inside a group AND, and the flat filters above still apply to the whole scan. Each event lists the labels it matched in `matched`. Labels are letters, digits, `-` and `_`, 32 characters at most.',
 		),
 		schema: {
 			type: "string",
 			example:
 				'{"alex":{"types":["ft_transfer"],"contractId":"SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.age000-governance-token"},"stx":{"types":"stx_transfer"}}',
 		},
-	},
-	{
-		...qp(
-			"clock",
-			"string",
-			false,
-			"`classic` (default) reads Streams 1.0, where the cursor's second part is the event's position in the block. `vm` reads the node's opt-in vm events, where it is the vm ordinal: a separate cursor space, with rows only from the height the node started emitting them. With `vm`, `sender`, `recipient`, `asset_identifier` and `filters` are refused.",
-		),
-		schema: { type: "string", enum: ["classic", "vm"], default: "classic" },
 	},
 ];
 
@@ -486,13 +477,12 @@ export const streamsSchemas = {
 			event_index: {
 				type: "integer",
 				description:
-					"The event's position among the block's Streams events, from 0. On `clock=vm`, the vm ordinal.",
+					"The event's position among the block's Streams events, from 0.",
 			},
 			event_type: {
 				type: "string",
 				enum: EVENT_TYPES,
-				description:
-					"Classic types on the default clock, vm types on `clock=vm`. A page never mixes them.",
+				description: "The event's type.",
 			},
 			contract_id: {
 				type: ["string", "null"],

@@ -21,34 +21,58 @@ describe("Index event vocabulary", () => {
 		);
 	});
 
-	it("OpenAPI /v1/index/events declares every registry filter", () => {
+	/** `/v1/index/events` params as the public spec declares them. */
+	function specParams(): Map<string, { description?: string }> {
 		const spec = openapiSpec("oss") as {
 			paths: {
 				"/v1/index/events": {
-					get: { parameters: Array<{ name?: string; $ref?: string }> };
+					get: {
+						parameters: Array<{
+							name?: string;
+							$ref?: string;
+							description?: string;
+						}>;
+					};
 				};
 			};
 		};
-		const names = new Set(
+		return new Map(
 			spec.paths["/v1/index/events"].get.parameters.map((p) => {
-				if (p.name) return p.name;
-				if (p.$ref?.endsWith("/Limit")) return "limit";
-				if (p.$ref?.endsWith("/Cursor")) return "cursor";
-				return p.$ref ?? "";
+				if (p.name) return [p.name, p];
+				if (p.$ref?.endsWith("/Limit")) return ["limit", p];
+				if (p.$ref?.endsWith("/Cursor")) return ["cursor", p];
+				return [p.$ref ?? "", p];
 			}),
 		);
-		const registry = [
-			...Object.values(INDEX_EVENT_CONFIG),
-			...Object.values(VM_INDEX_EVENT_CONFIG),
-		];
-		for (const cfg of registry) {
+	}
+
+	it("OpenAPI /v1/index/events declares every released event type's filters", () => {
+		const names = specParams();
+		for (const cfg of Object.values(INDEX_EVENT_CONFIG)) {
 			for (const filter of cfg.allowedFilters) {
 				expect(names.has(filter), filter).toBe(true);
 			}
 		}
 	});
 
-	it("tx_id is VM-only in the registry and OpenAPI copy", () => {
+	// VM event types need an unreleased stacks-core node. Their filters are
+	// accepted by the route but stay out of the public reference until it ships.
+	it("OpenAPI /v1/index/events keeps VM-only filters out of the public reference", () => {
+		const names = specParams();
+		const released = new Set(
+			Object.values(INDEX_EVENT_CONFIG).flatMap(
+				(cfg) => cfg.allowedFilters as readonly string[],
+			),
+		);
+		for (const cfg of Object.values(VM_INDEX_EVENT_CONFIG)) {
+			for (const filter of cfg.allowedFilters) {
+				if (released.has(filter)) continue;
+				expect(names.has(filter), filter).toBe(false);
+			}
+		}
+	});
+
+	it("tx_id is a VM-only filter in the registry", () => {
 		for (const [type, cfg] of Object.entries(INDEX_EVENT_CONFIG)) {
 			expect(
 				(cfg.allowedFilters as readonly string[]).includes("tx_id"),
@@ -61,17 +85,5 @@ describe("Index event vocabulary", () => {
 				type,
 			).toBe(true);
 		}
-		const spec = openapiSpec("oss") as {
-			paths: {
-				"/v1/index/events": {
-					get: { parameters: Array<{ name?: string; description?: string }> };
-				};
-			};
-		};
-		const txId = spec.paths["/v1/index/events"].get.parameters.find(
-			(p) => p.name === "tx_id",
-		);
-		expect(txId?.description).toMatch(/VM types only/i);
-		expect(txId?.description?.toLowerCase()).not.toContain("all event types");
 	});
 });
