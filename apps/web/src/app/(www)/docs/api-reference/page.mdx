@@ -1,19 +1,19 @@
-import { SpecView } from "./spec-view";
+import { ApiReference } from "./api-reference";
 
 # API reference
 
-Every public endpoint, generated from the API's own OpenAPI description.
+Every endpoint, parameter, and field, generated from the API's own OpenAPI description, with a link you can share for each one.
 
-<Callout type="note" title="The SDK is the shorter path">
+<Callout type="note" title="Start here">
 
-Cursor walking, checkpointing, and reorg rewind are already solved in [`@secondlayer/sdk`](/docs/sdk); reach for HTTP when you're not writing TypeScript. Envelope, cursor, and filter grammar live in [REST API](/docs/rest-api).
+The [SDK](/docs/sdk) already walks cursors, checkpoints, and rewinds reorgs. Credentials: [Authentication](/docs/authentication). Envelope, cursors, and filter grammar: [REST API](/docs/rest-api). Each endpoint's markdown is at `/docs/api-reference/<anchor>.md`, e.g. [`list-pox5-events.md`](/docs/api-reference/list-pox5-events.md).
 
 </Callout>
 
-<SpecView />
+<ApiReference />
 
 export const metadata = {
 	title: "API reference — Secondlayer Docs",
 	description:
-		"Every public Secondlayer endpoint with its parameters and response codes, generated from the API's OpenAPI description.",
+		"Every Secondlayer endpoint with parameters, objects, and example requests and responses, generated from the API's OpenAPI description.",
 };

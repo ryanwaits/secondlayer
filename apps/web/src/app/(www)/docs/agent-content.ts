@@ -310,14 +310,24 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 
 	"/docs/api-reference": [
 		card(
-			"Call it over HTTP",
-			"Build a request against the real parameter set.",
-			"/secondlayer I'm not using TypeScript. Help me build a raw HTTP request against a Secondlayer endpoint: pick the right route, list its required and optional query params, show the response envelope, and explain how to page with `next_cursor` and react to `reorgs[]`.",
+			"Find the right endpoint",
+			"Map what I need to a route and its fields.",
+			"/secondlayer Read https://secondlayer.tools/docs/api-reference.md (every endpoint and object, generated from the OpenAPI spec). Tell me which endpoint serves what I'm after, which filters narrow it, which object fields I'll read, and link the exact section as https://secondlayer.tools/docs/api-reference#<anchor>.",
+		),
+		card(
+			"Call one endpoint",
+			"Build a real request from its own page.",
+			"/secondlayer Fetch the endpoint's markdown at https://secondlayer.tools/docs/api-reference/<anchor>.md, where <anchor> is its operationId in kebab case (e.g. list-pox5-events). Build the request for my base URL (hosted needs `SECONDLAYER_API_KEY`; a loopback instance needs no key), then page it by passing `next_cursor` back as `cursor` and undo rows named in `reorgs[]`.",
+		),
+		card(
+			"Generate a client from the spec",
+			"Typed calls in my language, from the live spec.",
+			"/secondlayer Pull the OpenAPI description from my instance at `GET /v1/openapi.json` (or http://127.0.0.1:3800/v1/openapi.json) and generate a typed client in my language. Keep the operationIds as method names, since they are stable, and wire auth as the spec's optional bearer.",
 		),
 		card(
 			"Use the SDK instead",
 			"Swap hand-rolled HTTP for the typed client.",
-			"/secondlayer I've been calling `/v1` by hand with my own paging loop. Show me the `@secondlayer/sdk` equivalent — `walk()` for cursor following, `consume()` for a checkpointed sweep — and what my code stops having to handle.",
+			"/secondlayer I've been calling `/v1` by hand with my own paging loop. Show me the `@secondlayer/sdk` equivalent: `walk()` for cursor following, `consume()` for a checkpointed sweep, and what my code stops having to handle.",
 		),
 	],
 

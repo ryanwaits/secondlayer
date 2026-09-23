@@ -6668,86 +6668,443 @@ body:has(.marketing-nav) .auth-bar {
 }
 
 /* ════════════════════════════════════════════════
-   Docs — API reference (rendered from openapi.json)
+   Docs — API reference (generated from openapi.json)
+   Two columns per section: prose + parameters left, request + response right.
    ════════════════════════════════════════════════ */
-.apiref-base {
-	font-family: var(--font-mono-stack);
-	font-size: 12px;
-	color: var(--text-muted);
+.docs-shell:has(.apiref) {
+	grid-template-columns: minmax(0, 1fr);
+	max-width: none;
 }
-.apiref-op {
-	margin: 20px 0 28px;
-	padding: 16px 18px;
-	border: 1px solid var(--border);
-	border-radius: 10px;
-	background: var(--bg-elevated);
+.docs-article:has(.apiref) {
+	max-width: 1320px;
 }
-.apiref-op-head {
+.apiref {
+	--apiref-gap: clamp(32px, 4vw, 56px);
+	margin-top: 8px;
+}
+.apiref-toolbar {
 	display: flex;
+	justify-content: flex-end;
+	position: sticky;
+	top: 56px;
+	z-index: 5;
+	margin-bottom: 8px;
+}
+.apiref-base {
+	display: inline-flex;
 	align-items: center;
 	gap: 10px;
+	padding: 6px 8px 6px 12px;
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	background: var(--bg);
+	font-size: 13px;
+	color: var(--text-muted);
+}
+.apiref-base select {
+	font-family: var(--font-mono-stack);
+	font-size: 12.5px;
+	color: var(--text-main);
+	background: transparent;
+	border: 0;
+	padding: 4px 2px;
+}
+/* Both base-URL variants are rendered; the root's data-base picks one. */
+.apiref[data-base="hosted"] .apiref-when-local,
+.apiref[data-base="local"] .apiref-when-hosted {
+	display: none;
+}
+.apiref-tag {
+	border-top: 1px solid var(--border);
+	padding-top: 32px;
+	margin-top: 32px;
+}
+.docs-article .apiref-tag-title {
+	font-family: var(--font-heading-stack);
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	margin: 0 0 6px;
+	scroll-margin-top: 110px;
+}
+.apiref-tag-desc {
+	margin: 0 0 8px;
+	color: var(--docs-prose);
+	max-width: 60ch;
+}
+.apiref-section {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	column-gap: var(--apiref-gap);
+	padding: 40px 0;
+	border-bottom: 1px solid var(--border);
+	scroll-margin-top: 100px;
+}
+.apiref-main {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	min-width: 0;
+}
+.apiref-aside {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	min-width: 0;
+	position: sticky;
+	top: 110px;
+	align-self: start;
+	max-height: calc(100vh - 130px);
+	overflow: auto;
+}
+.apiref-eyebrow {
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+.docs-article .apiref-title {
+	margin: -6px 0 0;
+	font-family: var(--font-heading-stack);
+	font-size: clamp(22px, 2.4vw, 28px);
+	font-weight: var(--w-heading);
+	letter-spacing: -0.015em;
+	line-height: 1.2;
+}
+/* The title is its own permalink; it reads as a heading, not a link. One
+   underline color, shown on hover, with none of the docs link fade. */
+.docs-article .apiref-title a {
+	color: inherit;
+	text-decoration: underline;
+	text-decoration-color: transparent;
+	text-underline-offset: 5px;
+	transition: none;
+}
+.docs-article .apiref-title a:hover {
+	text-decoration-color: var(--link-underline);
+}
+.apiref-field-link {
+	font-family: var(--font-mono-stack);
+	color: var(--text-muted);
+	text-decoration: none;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+}
+.apiref-field-link:hover {
+	color: var(--text-main);
+	border-color: var(--border-hover);
+}
+.apiref-actions {
+	display: flex;
 	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 16px;
+	font-size: 13px;
+}
+.apiref-actions button,
+.apiref-actions a {
+	font: inherit;
+	color: var(--text-main);
+	background: none;
+	border: 0;
+	padding: 0;
+	cursor: pointer;
+	text-decoration: none;
+}
+.apiref-actions button:hover,
+.apiref-actions a:hover {
+	text-decoration: underline;
+	text-decoration-color: var(--link-underline-hover);
+	text-underline-offset: 3px;
+}
+.apiref-route {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
 }
 .apiref-verb {
 	font-family: var(--font-mono-stack);
-	font-size: 11px;
+	font-size: 11.5px;
 	font-weight: 600;
-	letter-spacing: 0.04em;
-	padding: 2px 7px;
+	letter-spacing: 0.03em;
 	border-radius: 5px;
-	color: var(--accent);
-	background: color-mix(in srgb, var(--accent) 12%, transparent);
+	padding: 2px 7px;
+	color: var(--accent-blue);
+	background: var(--accent-blue-bg);
+	border: 1px solid var(--accent-blue-border);
 }
-/* Every mutating verb reads as ink; only GET keeps the accent, so the write
-   plane is distinguishable at a glance from the reads it sits beside. */
+/* Writes read as ink so a scan tells reads from writes; deletes read as red. */
 .apiref-verb-post,
 .apiref-verb-put,
-.apiref-verb-patch,
+.apiref-verb-patch {
+	color: var(--text-main);
+	background: color-mix(in srgb, var(--text-main) 8%, transparent);
+	border-color: var(--border-hover);
+}
 .apiref-verb-delete {
-	color: var(--text);
-	background: color-mix(in srgb, var(--text) 10%, transparent);
+	color: var(--red);
+	background: var(--red-bg);
+	border-color: color-mix(in srgb, var(--red) 30%, transparent);
 }
 .apiref-path {
 	font-family: var(--font-mono-stack);
-	font-size: 13px;
+	font-size: 14px;
 	word-break: break-all;
 }
-.apiref-auth {
-	margin-left: auto;
+.apiref-pill {
+	font-size: 12px;
+	color: var(--text-muted);
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	padding: 2px 9px;
+}
+.apiref-desc,
+.apiref-returned-by {
+	margin: 0;
+	font-size: 15px;
+	line-height: 1.7;
+	color: var(--docs-prose);
+}
+.apiref-returned-by {
+	font-size: 13.5px;
+	color: var(--text-muted);
+}
+.apiref-desc code,
+.apiref-field-desc code,
+.apiref-statuses code,
+.apiref-tag-desc code {
 	font-family: var(--font-mono-stack);
-	font-size: 11px;
+	font-size: 0.88em;
+	background: var(--code-bg);
+	border-radius: 4px;
+	padding: 1px 5px;
+}
+.apiref-group {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 10px;
+}
+.docs-article .apiref-group-title {
+	margin: 0;
+	font-family: var(--font-sans-stack);
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
 	color: var(--text-muted);
 }
-.apiref-summary {
-	margin: 10px 0 0;
+.apiref-fields {
+	display: flex;
+	flex-direction: column;
+}
+.apiref-field {
+	border-top: 1px solid var(--border);
+	padding: 14px 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	scroll-margin-top: 110px;
+}
+.apiref-field:target {
+	background: var(--accent-bg);
+	box-shadow:
+		-12px 0 0 var(--accent-bg),
+		12px 0 0 var(--accent-bg);
+}
+.apiref-field-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 4px 10px;
+}
+.apiref-field-name {
+	font-family: var(--font-mono-stack);
 	font-size: 14px;
+	font-weight: 600;
 }
-.apiref-muted {
+.apiref-field-type {
+	font-size: 12.5px;
 	color: var(--text-muted);
 }
-.docs-article .apiref-params {
-	margin: 14px 0 0;
+.apiref-field-req {
+	font-size: 11.5px;
+	color: var(--text-main);
+	border: 1px solid var(--border-hover);
+	border-radius: 4px;
+	padding: 0 6px;
+}
+.apiref-field-link {
+	margin-left: auto;
+	font-size: 11px;
+	padding: 0 6px;
+	opacity: 0;
+	transition: opacity var(--duration-snappy) var(--ease-snappy);
+}
+.apiref-field:hover .apiref-field-link,
+.apiref-field-link:focus-visible {
+	opacity: 1;
+}
+.apiref-field-desc {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.65;
+	color: var(--docs-prose);
+}
+.apiref-enum {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	overflow: hidden;
 	font-size: 13px;
 }
-.apiref-type {
+.apiref-enum summary {
+	cursor: pointer;
+	padding: 8px 12px;
+	background: var(--bg-chrome);
+	font-weight: 500;
+}
+.apiref-enum-values {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 6px 12px;
+	padding: 12px;
+}
+.apiref-enum-values code {
+	justify-self: start;
 	font-family: var(--font-mono-stack);
 	font-size: 12px;
-	color: var(--text-muted);
+	background: var(--code-bg);
+	border-radius: 4px;
+	padding: 2px 6px;
 }
-.apiref-required {
-	margin-left: 6px;
-	font-size: 10px;
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
-	color: var(--accent);
+.apiref-statuses {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	overflow: hidden;
 }
-.apiref-codes {
-	margin: 12px 0 0;
+.apiref-statuses li {
+	display: flex;
+	align-items: baseline;
+	gap: 12px;
+	padding: 10px 14px;
+	font-size: 14px;
+	color: var(--docs-prose);
+}
+.apiref-statuses li + li {
+	border-top: 1px solid var(--border);
+}
+.apiref-status {
+	flex-shrink: 0;
+	font-family: var(--font-mono-stack);
 	font-size: 12px;
-	color: var(--text-muted);
+	font-weight: 600;
+	border-radius: 4px;
+	padding: 1px 7px;
 }
-.apiref-codes code {
-	margin-right: 6px;
+.apiref-status-ok {
+	color: var(--term-ok);
+	background: var(--green-bg);
+}
+.apiref-status-warn {
+	color: color-mix(in srgb, var(--yellow) 70%, var(--text-main));
+	background: var(--yellow-bg);
+}
+.apiref-status-bad {
+	color: var(--red);
+	background: var(--red-bg);
+}
+.apiref-request,
+.apiref-response {
+	border: 1px solid var(--term-border);
+	border-radius: 12px;
+	overflow: hidden;
+	background: var(--term-bg);
+}
+.apiref-request-bar,
+.apiref-response-bar {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 6px 8px 6px 10px;
+	background: var(--term-raise);
+	border-bottom: 1px solid var(--term-border);
+}
+.apiref-response-bar {
+	gap: 10px;
+	padding: 9px 14px;
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--term-bright);
+}
+.apiref-tab {
+	font: inherit;
+	font-size: 12.5px;
+	font-weight: 500;
+	border: 0;
+	border-radius: 6px;
+	padding: 5px 11px;
+	background: transparent;
+	color: var(--term-muted);
+	cursor: pointer;
+}
+.apiref-tab[aria-selected="true"] {
+	background: color-mix(in srgb, var(--term-bright) 12%, transparent);
+	color: var(--term-bright);
+}
+.apiref-request-copy {
+	margin-left: auto;
+	width: 30px;
+	height: 28px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border: 0;
+	background: transparent;
+	color: var(--term-muted);
+	cursor: pointer;
+}
+.apiref-request-copy:hover {
+	color: var(--term-bright);
+}
+.apiref-code pre {
+	margin: 0;
+	padding: 14px 16px;
+	overflow-x: auto;
+	font-size: 12.5px;
+	line-height: 1.7;
+	background: transparent !important;
+}
+.apiref-response .apiref-code pre {
+	max-height: 560px;
+	overflow: auto;
+}
+/* Sidebar: the endpoint tree under "API reference" reuses the nav's item and
+   rail classes; only the disclosure needs styling. */
+.apiref-nav-group > summary {
+	cursor: pointer;
+	list-style: none;
+}
+.apiref-nav-group > summary::-webkit-details-marker {
+	display: none;
+}
+@media (max-width: 1100px) {
+	.apiref-section {
+		grid-template-columns: minmax(0, 1fr);
+		row-gap: 20px;
+	}
+	.apiref-aside {
+		position: static;
+		max-height: none;
+	}
 }
 
 /* ════════════════════════════════════════════════

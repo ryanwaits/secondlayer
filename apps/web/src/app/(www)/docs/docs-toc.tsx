@@ -98,6 +98,9 @@ export function DocsToc() {
 
 	// Agent mode has its own layout — no right rail.
 	if (mode === "agent") return null;
+	// The API reference carries its own endpoint tree in the sidebar and needs
+	// the rail's width for its two-column sections.
+	if (pathname === "/docs/api-reference") return null;
 	if (heads.length === 0) return <aside className="docs-toc" />;
 
 	return (

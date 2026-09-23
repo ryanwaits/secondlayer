@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { referenceMarkdown } from "@/app/(www)/docs/api-reference/spec";
 import { docsNavPages } from "@/app/(www)/docs/nav";
 
 /**
@@ -59,7 +60,12 @@ export async function readDocsMarkdown(href: string): Promise<string | null> {
 	if (!page) return null;
 	try {
 		const source = await readFile(sourcePath(href), "utf8");
-		return mdxToMarkdown(source);
+		const markdown = mdxToMarkdown(source);
+		// The reference's body is a component, which mdxToMarkdown strips; its
+		// markdown comes from the same spec the page renders.
+		return href === "/docs/api-reference"
+			? `${markdown}\n\n${referenceMarkdown()}`
+			: markdown;
 	} catch {
 		return null;
 	}
