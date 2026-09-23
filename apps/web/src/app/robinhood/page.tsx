@@ -20,7 +20,7 @@ const PHASES: {
 	status?: string;
 }[] = [
 	{
-		key: "phase 0 · now",
+		key: "Phase 0 · now",
 		title: "2-of-2 custodian",
 		body: "Demo token only. Proves the asset moves end to end.",
 		now: true,
@@ -28,22 +28,22 @@ const PHASES: {
 		status: "grant requested",
 	},
 	{
-		key: "phase 1",
+		key: "Phase 1",
 		title: "2-of-3 federation",
 		body: "A signer who isn't the builder. Timeout so a lost key can't freeze the locker.",
 	},
 	{
-		key: "phase 2",
+		key: "Phase 2",
 		title: "Bond + challenge",
 		body: "A watcher can stop a bad release. Still keyed.",
 	},
 	{
-		key: "phase 3",
+		key: "Phase 3",
 		title: "Trustless release",
 		body: "Ethereum light client in Clarity checks the burn.",
 	},
 	{
-		key: "phase 4",
+		key: "Phase 4",
 		title: "Trustless mint",
 		body: "A Bitcoin relay on Ethereum checks the Stacks lock.",
 	},
@@ -272,7 +272,7 @@ export default function RobinhoodPage() {
 						))}
 					</ol>
 					<p className="rh-note">
-						<strong>Don't bridge value on phase 0.</strong> The signers hold the
+						<strong>Don't bridge value on Phase 0.</strong> The signers hold the
 						locker. Phase 1 is the earliest point a community token should move
 						for real. Phase 0 is up for a Stacks Endowment grant, requested
 						September 2026 and under review.
@@ -286,7 +286,9 @@ export default function RobinhoodPage() {
 						<p>
 							Tokens are added one at a time. Each gets its own registry entry
 							once we've checked its supply can't be minted around the bridge.
-							The waitlist sets the order. Issuers and teams go first for phase
+						</p>
+						<p>
+							The waitlist sets the order. Issuers and teams go first for Phase
 							1; holders show us where the demand is.
 						</p>
 					</div>
