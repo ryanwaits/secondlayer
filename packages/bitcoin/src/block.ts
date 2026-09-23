@@ -203,10 +203,17 @@ function parseTx(r: ByteReader): ParsedTx {
 	const inputCount = r.compactSize();
 	const inputs: RawInput[] = [];
 	for (let i = 0; i < inputCount; i++) {
-		const prevTxidInternal = Uint8Array.from(r.bytes(32));
+		// A view into `buf`, not a copy: `buf` is a fresh, never-reused array
+		// allocated once per `parseBlock` call (from `hexToBytes`), so nothing
+		// ever mutates it out from under a live subarray. Removing the
+		// `Uint8Array.from(...)` copy here (and at every other `r.bytes(...)`
+		// call site below) cuts one allocation + one byte-copy per field, per
+		// tx — measured as a meaningful share of self time in the plan 039
+		// step 4 CPU profile (`subarray`/`get buffer` native frames).
+		const prevTxidInternal = r.bytes(32);
 		const prevVout = r.u32le();
 		const scriptSigLen = r.compactSize();
-		const scriptSig = Uint8Array.from(r.bytes(scriptSigLen));
+		const scriptSig = r.bytes(scriptSigLen);
 		const sequence = r.u32le();
 		inputs.push({
 			prevTxidInternal,
@@ -222,7 +229,7 @@ function parseTx(r: ByteReader): ParsedTx {
 	for (let i = 0; i < outputCount; i++) {
 		const value = r.u64le();
 		const scriptLen = r.compactSize();
-		const script = Uint8Array.from(r.bytes(scriptLen));
+		const script = r.bytes(scriptLen);
 		outputs.push({ value, script });
 	}
 
@@ -232,7 +239,7 @@ function parseTx(r: ByteReader): ParsedTx {
 			const items: Uint8Array[] = [];
 			for (let i = 0; i < itemCount; i++) {
 				const len = r.compactSize();
-				items.push(Uint8Array.from(r.bytes(len)));
+				items.push(r.bytes(len));
 			}
 			input.witness = items;
 		}
@@ -290,8 +297,8 @@ export function parseBlock(hex: string): ParsedBlock {
 	// Header (80 bytes): version(4) + prevBlockHash(32) + merkleRoot(32) + time(4) + bits(4) + nonce(4).
 	const headerStart = r.offset;
 	r.bytes(4); // version
-	const prevHashInternal = Uint8Array.from(r.bytes(32));
-	const merkleRootBytes = Uint8Array.from(r.bytes(32));
+	const prevHashInternal = r.bytes(32); // view, not a copy — see the parseTx comment above
+	const merkleRootBytes = r.bytes(32);
 	const time = r.u32le();
 	r.bytes(4); // bits
 	r.bytes(4); // nonce
