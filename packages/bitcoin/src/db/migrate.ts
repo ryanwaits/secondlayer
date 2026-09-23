@@ -4,7 +4,13 @@
 
 import { promises as fs } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { FileMigrationProvider, Kysely, Migrator, sql } from "kysely";
+import {
+	FileMigrationProvider,
+	Kysely,
+	Migrator,
+	NO_MIGRATIONS,
+	sql,
+} from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
 
@@ -54,7 +60,7 @@ export async function migrateDown(): Promise<void> {
 	const db = openDb();
 	const migrator = new Migrator({ db, provider: fileMigrationProvider() });
 
-	const { error, results } = await migrator.migrateTo("NO_MIGRATIONS");
+	const { error, results } = await migrator.migrateTo(NO_MIGRATIONS);
 
 	for (const r of results ?? []) {
 		if (r.status === "Success") console.log(`✅ reverted ${r.migrationName}`);
