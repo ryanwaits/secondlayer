@@ -2494,16 +2494,18 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 }
 
 /* /account/keys and /account/credits */
+/* Same horizontal edges as .marketing-nav, so the side nav lines up under
+   the logo and the page ends under the account chip. */
 .acct-page {
 	display: flex;
 	gap: 56px;
-	max-width: 1040px;
-	margin: 0 auto;
-	padding: 48px 24px 96px;
+	padding: 48px max(1.5rem, calc((100vw - 1200px) / 2 + 1.5rem)) 96px;
 }
 .acct-side {
 	flex: none;
 	width: 200px;
+	/* Link text, not its hover pill, starts at the logo's edge. */
+	margin-left: -12px;
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
@@ -2549,7 +2551,6 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 .acct-main {
 	flex: 1;
 	min-width: 0;
-	max-width: 720px;
 	display: flex;
 	flex-direction: column;
 	gap: 16px;

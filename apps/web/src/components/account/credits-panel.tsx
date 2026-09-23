@@ -86,10 +86,13 @@ function AmountPicker({ co, wide = false }: { co: Checkout; wide?: boolean }) {
 }
 
 /** Go to Stripe for the picked amount. Stripe brings the reader back after. */
-function CheckoutAction({ co }: { co: Checkout }) {
+function CheckoutAction({
+	co,
+	wide = false,
+}: { co: Checkout; wide?: boolean }) {
 	return (
 		<>
-			<div className="acct-checkout">
+			<div className={wide ? "acct-checkout wide" : "acct-checkout"}>
 				<button
 					type="button"
 					className="acct-btn solid"
@@ -253,7 +256,7 @@ export function CreditsSection({ ret }: { ret: TopupReturn | null }) {
 			{st?.kind === "landed" ? null : <BalanceStats billing={billing} />}
 			<h2 className="acct-h2">Add credits</h2>
 			<AmountPicker co={co} wide />
-			<CheckoutAction co={co} />
+			<CheckoutAction co={co} wide />
 			<PricingNote />
 		</>
 	);
