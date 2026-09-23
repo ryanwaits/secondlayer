@@ -35,11 +35,19 @@ export async function isBootstrapSpoolMode(): Promise<boolean> {
 	return !(await hasIndexProgress());
 }
 
-export async function consumeBootstrapSpool(): Promise<void> {
-	if (!isOssIndexer()) return;
+export type SpoolOutcome = "not_oss" | "waiting" | "consumed" | "refused";
+
+/**
+ * Ingest what the observer journaled while the archive import ran. It must run
+ * before the first live block is ingested: live ingest moves
+ * `last_indexed_block`, and this reads that value as the archive tip, so a late
+ * run would skip every spooled block as an archive duplicate.
+ */
+export async function consumeBootstrapSpool(): Promise<SpoolOutcome> {
+	if (!isOssIndexer()) return "not_oss";
 	if (!(await hasIndexProgress())) {
 		logger.info("Bootstrap spool: waiting for archive import");
-		return;
+		return "waiting";
 	}
 
 	const db = getSourceDb();
@@ -48,7 +56,7 @@ export async function consumeBootstrapSpool(): Promise<void> {
 		.select(["last_indexed_block"])
 		.where("network", "=", NETWORK)
 		.executeTakeFirst();
-	if (!progress) return;
+	if (!progress) return "waiting";
 
 	const archiveTip = Number(progress.last_indexed_block);
 	const tipRow = await db
@@ -87,7 +95,17 @@ export async function consumeBootstrapSpool(): Promise<void> {
 
 	if (plan.status !== "ready") {
 		logger.error("Bootstrap spool consume refused", plan);
-		return;
+		return "refused";
+	}
+
+	for (const gap of plan.gaps) {
+		// Neither the archive nor the journal holds these blocks, and the indexer
+		// never fetches history on its own. Only a repair from a later archive
+		// publish fills them.
+		logger.warn("Bootstrap spool: gap not in the archive or the journal", {
+			...gap,
+			hint: `after the next archive publish covers it: secondlayer repair --against <manifest> --from-block ${gap.from} --to-block ${gap.to} --apply`,
+		});
 	}
 
 	for (const event of plan.skip) {
@@ -128,6 +146,32 @@ export async function consumeBootstrapSpool(): Promise<void> {
 	logger.info("Bootstrap spool consumed", {
 		skipped: plan.skip.length,
 		ingested: plan.consume.length,
+		gaps: plan.gaps.length,
 		archiveTip,
 	});
+	return "consumed";
+}
+
+let settled: Promise<SpoolOutcome> | null = null;
+
+/**
+ * `consumeBootstrapSpool`, once per process after the import has landed.
+ * Concurrent callers share one run; "waiting" is not remembered, so the next
+ * call checks again. Called ahead of every live ingest so the spool is always
+ * drained before the first live block moves the tip.
+ */
+export function ensureBootstrapSpoolConsumed(): Promise<SpoolOutcome> {
+	if (settled) return settled;
+	const run = consumeBootstrapSpool().then(
+		(outcome) => {
+			if (outcome === "waiting") settled = null;
+			return outcome;
+		},
+		(error) => {
+			settled = null;
+			throw error;
+		},
+	);
+	settled = run;
+	return run;
 }

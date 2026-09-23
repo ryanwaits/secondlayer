@@ -4,7 +4,12 @@
  * During a multi-hour import the indexer journals observer POSTs and does
  * not write blocks. After the archive lands, this planner decides which
  * journaled blocks to ingest, which to skip as archive duplicates, and
- * when to refuse (gap, wrong fork, stale archive).
+ * when to refuse (wrong fork, stale archive).
+ *
+ * A gap is not a refusal. Blocks missing from both the archive and the journal
+ * can only come from a later archive repair; holding back the journaled blocks
+ * past the gap would only widen it, since the indexer goes live either way.
+ * The plan names each gap so the caller can surface it.
  */
 
 export type SpoolEvent = {
@@ -14,9 +19,15 @@ export type SpoolEvent = {
 	parentHash: string;
 };
 
+export type SeamGap = { from: number; to: number };
+
 export type SeamPlan =
-	| { status: "ready"; consume: SpoolEvent[]; skip: SpoolEvent[] }
-	| { status: "gap"; from: number; to: number }
+	| {
+			status: "ready";
+			consume: SpoolEvent[];
+			skip: SpoolEvent[];
+			gaps: SeamGap[];
+	  }
 	| {
 			status: "wrong_fork";
 			expectedParent: string;
@@ -65,12 +76,13 @@ export function planBootstrapSeam(input: {
 	}
 
 	if (consume.length === 0) {
-		return { status: "ready", consume, skip };
+		return { status: "ready", consume, skip, gaps: [] };
 	}
 
+	const gaps: SeamGap[] = [];
 	const first = consume[0];
 	if (first.height > input.archiveTip + 1) {
-		return { status: "gap", from: input.archiveTip + 1, to: first.height - 1 };
+		gaps.push({ from: input.archiveTip + 1, to: first.height - 1 });
 	}
 
 	if (
@@ -91,9 +103,9 @@ export function planBootstrapSeam(input: {
 		const curr = consume[i];
 		if (curr.height === prev.height) continue;
 		if (curr.height > prev.height + 1) {
-			return { status: "gap", from: prev.height + 1, to: curr.height - 1 };
+			gaps.push({ from: prev.height + 1, to: curr.height - 1 });
 		}
 	}
 
-	return { status: "ready", consume, skip };
+	return { status: "ready", consume, skip, gaps };
 }

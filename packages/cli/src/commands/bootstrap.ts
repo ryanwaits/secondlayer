@@ -643,24 +643,34 @@ Exit codes:
 								);
 							}
 							if (seam) {
-								// The chain kept moving during the restore. Naming the gap
-								// is the difference between "start the indexer" and knowing
-								// whether anything was missed.
+								// The node was already past the archive tip when the restore
+								// started. Those blocks are in neither the archive nor the
+								// observer journal, and the indexer never fetches history on
+								// its own, so this range is a gap until a repair fills it.
 								console.error(
 									dim(
-										`The chain advanced to ${seam.nodeTip.toLocaleString()} while restoring — ${seam.gap.toLocaleString()} blocks to catch up.`,
+										`Your node was at ${seam.nodeTip.toLocaleString()} when the restore started, ${seam.gap.toLocaleString()} blocks past the archive tip.`,
 									),
 								);
 								console.error(
 									dim(
-										"  Start the indexer; it backfills that range before following the tip.",
+										`  The index has a gap from ${(tipHeight + 1).toLocaleString()} to ${seam.nodeTip.toLocaleString()}. Blocks your node sent during the restore are ingested; nothing fills the gap on its own.`,
+									),
+								);
+								console.error(
+									dim(
+										`  After the next archive publish covers it: secondlayer repair --against ${opts.against} --from-block ${tipHeight + 1} --to-block ${seam.nodeTip} --apply`,
+									),
+								);
+							} else if (nodeTipAtStart === null) {
+								console.error(
+									dim(
+										"  Start the indexer to continue from there. Node unreachable, so any gap past the archive tip is unknown; `secondlayer verify` finds it once the archive covers it.",
 									),
 								);
 							} else {
 								console.error(
-									dim(
-										"  Start the indexer to continue from there. (Node unreachable — catch-up range unknown.)",
-									),
+									dim("  Start the indexer to continue from there."),
 								);
 							}
 						} else {

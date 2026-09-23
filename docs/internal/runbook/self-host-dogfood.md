@@ -170,7 +170,12 @@ Forward-only questions to answer:
 - How big is the DB at the end? The boot floor ignores `--from-block` and
   still demands 600 GB (`guardrails.ts` keys on mode + network only). If the
   real size is far under, that's the case for a lower floor in this mode.
-- Does live ingest join the restored tip with no gap?
+- Keep the observer connected during the restore. Blocks the node sends
+  meanwhile are journaled and drained before the first live block. Check the
+  `Bootstrap spool consumed` log: `ingested` > 0.
+- The only gap should be archive tip + 1 to the node's tip when the restore
+  started, as the CLI prints. Repair it after the next archive publish, then
+  `verify raw` over it exits 0.
 
 Pass: exit 0 on both, live tip joins the restored range.
 

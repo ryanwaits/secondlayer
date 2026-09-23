@@ -15,7 +15,7 @@ import {
 import { logger } from "@secondlayer/shared/logger";
 import { sql } from "kysely";
 import {
-	consumeBootstrapSpool,
+	ensureBootstrapSpoolConsumed,
 	isBootstrapSpoolMode,
 } from "./consume-spool.ts";
 import {
@@ -251,7 +251,7 @@ async function runStartupIntegrityCheck() {
 }
 
 await runStartupIntegrityCheck();
-await consumeBootstrapSpool();
+await ensureBootstrapSpoolConsumed();
 
 assertDbSplit();
 logger.info("Starting indexer service", { port: PORT });
@@ -399,6 +399,12 @@ const server = Bun.serve({
 					const source = req.headers.get("X-Source");
 					if (!source) recordBlockReceived();
 
+					// Drain the bootstrap spool before this block is journaled or
+					// ingested: the drain reads received journal rows, and this
+					// block must not be one of them.
+					const spooling = await isBootstrapSpoolMode();
+					if (!spooling) await ensureBootstrapSpoolConsumed();
+
 					receipt = OBSERVER_JOURNAL_ENABLED
 						? await captureObserverRequest(
 								req,
@@ -409,7 +415,7 @@ const server = Bun.serve({
 					const payload = receipt
 						? parseObserverBody<NewBlockPayload>(receipt.body)
 						: ((await req.json()) as NewBlockPayload);
-					if (await isBootstrapSpoolMode()) {
+					if (spooling) {
 						if (!receipt) {
 							return Response.json(
 								{
