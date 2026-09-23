@@ -1,18 +1,16 @@
+import { socialMeta } from "@/lib/og";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { StacksSymbol } from "./stacks-symbol";
 import { WaitlistForm } from "./waitlist-form";
 
-const TITLE = "Stacks to Robinhood Chain";
-const DESCRIPTION =
-	"Bridge a SIP-010 token from Stacks to Robinhood Chain and back. Join the waitlist for the first test rounds.";
-
-export const metadata: Metadata = {
-	title: `${TITLE} · secondlayer`,
-	description: DESCRIPTION,
-	openGraph: { title: TITLE, description: DESCRIPTION },
-	twitter: { title: TITLE, description: DESCRIPTION },
-};
+export const metadata: Metadata = socialMeta({
+	title: "Stacks to Robinhood Chain · secondlayer",
+	description:
+		"Bridge your Stacks token to Robinhood Chain and back. Join the waitlist for the first test rounds.",
+	image: "/og/robinhood.png",
+	path: "/robinhood",
+});
 
 const PHASES: {
 	key: string;

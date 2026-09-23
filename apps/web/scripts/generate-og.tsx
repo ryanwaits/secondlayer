@@ -11,17 +11,21 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
+import { STACKS_SYMBOL_PATH } from "../src/app/robinhood/stacks-symbol";
 import { POSTS } from "../src/lib/writing";
 
 const FONT_DIR = join(process.cwd(), "src/assets/og-fonts");
 const OUT_DIR = join(process.cwd(), "public/og");
 
-const [sora, soraMed, fira, firaMed] = await Promise.all([
+const [sora, soraMed, fira, firaMed, feather] = await Promise.all([
 	readFile(join(FONT_DIR, "Sora-SemiBold.ttf")),
 	readFile(join(FONT_DIR, "Sora-Medium.woff")),
 	readFile(join(FONT_DIR, "FiraCode-Regular.ttf")),
 	readFile(join(FONT_DIR, "FiraCode-Medium.ttf")),
+	// Official Robinhood Chain feather avatar (black on Robin Neon), unmodified.
+	readFile(join(process.cwd(), "public/robinhood-chain/feather.jpg")),
 ]);
+const FEATHER_SRC = `data:image/jpeg;base64,${feather.toString("base64")}`;
 
 const SIZE = { width: 1200, height: 630 };
 
@@ -244,6 +248,213 @@ function ArtHome() {
 	);
 }
 
+// The /robinhood round trip: the original SIP-010 and its ERC-20 twin, linked
+// 1:1 — the same twin cards as the page, full strength, since they are the
+// point of the card rather than background texture.
+const NEON = "#ccff00"; // Robin Neon, headline highlight only
+
+function TwinToken({
+	coin,
+	meta,
+	state,
+	stateColor,
+}: {
+	coin: React.ReactNode;
+	meta: string;
+	state: string;
+	stateColor: string;
+}) {
+	return (
+		<div
+			style={{
+				display: "flex",
+				alignItems: "center",
+				gap: 20,
+				padding: "24px 26px",
+				background: PAPER,
+				border: "1.5px solid rgba(10,10,10,0.13)",
+				borderRadius: 18,
+				boxShadow: CARD_SHADOW,
+			}}
+		>
+			{coin}
+			<div
+				style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}
+			>
+				{/* name ↔ amount on top; chain line ↔ state underneath */}
+				<div
+					style={{
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "space-between",
+					}}
+				>
+					<span
+						style={{
+							fontFamily: "Sora",
+							fontWeight: 500,
+							fontSize: 30,
+							color: INK,
+						}}
+					>
+						DEMO
+					</span>
+					<span
+						style={{
+							fontFamily: "Fira Code",
+							fontWeight: 500,
+							fontSize: 30,
+							color: INK,
+						}}
+					>
+						1,000
+					</span>
+				</div>
+				<div
+					style={{
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "space-between",
+					}}
+				>
+					<span
+						style={{
+							fontFamily: "Fira Code",
+							fontSize: 18,
+							color: "rgba(10,10,10,0.42)",
+						}}
+					>
+						{meta.replace(/ /g, NB)}
+					</span>
+					<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+						<div
+							style={{
+								width: 10,
+								height: 10,
+								borderRadius: 5,
+								background: stateColor,
+							}}
+						/>
+						<span
+							style={{
+								fontFamily: "Fira Code",
+								fontSize: 18,
+								color: stateColor,
+							}}
+						>
+							{state}
+						</span>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function ArtRobinhood() {
+	return (
+		<div
+			style={{
+				position: "absolute",
+				top: 150,
+				left: 720,
+				width: 420,
+				display: "flex",
+				flexDirection: "column",
+			}}
+		>
+			<TwinToken
+				coin={
+					<div
+						style={{
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
+							width: 60,
+							height: 60,
+							borderRadius: 30,
+							background: "#f8f6f2",
+							border: "1.5px solid rgba(10,10,10,0.13)",
+						}}
+					>
+						<svg
+							viewBox="0 0 82 83"
+							width="30"
+							height="30"
+							role="img"
+							aria-label="Stacks"
+						>
+							<path
+								fillRule="evenodd"
+								clipRule="evenodd"
+								d={STACKS_SYMBOL_PATH}
+								fill={INK}
+							/>
+						</svg>
+					</div>
+				}
+				meta="SIP-010 · Stacks"
+				state="locked"
+				stateColor={ACCENT}
+			/>
+			<div
+				style={{
+					display: "flex",
+					alignItems: "center",
+					height: 104,
+					paddingLeft: 55,
+					gap: 40,
+				}}
+			>
+				<div
+					style={{
+						width: 2,
+						height: 104,
+						backgroundImage:
+							"linear-gradient(to bottom, rgba(10,10,10,0.25) 50%, rgba(10,10,10,0) 50%)",
+						backgroundSize: "2px 12px",
+					}}
+				/>
+				<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+					<span
+						style={{
+							fontFamily: "Fira Code",
+							fontWeight: 500,
+							fontSize: 24,
+							color: INK,
+						}}
+					>
+						{"1 : 1".replace(/ /g, NB)}
+					</span>
+					<span
+						style={{
+							fontFamily: "Fira Code",
+							fontSize: 18,
+							color: "rgba(10,10,10,0.45)",
+						}}
+					>
+						{"burn the twin to unlock".replace(/ /g, NB)}
+					</span>
+				</div>
+			</div>
+			<TwinToken
+				coin={
+					<img
+						src={FEATHER_SRC}
+						width={60}
+						height={60}
+						style={{ borderRadius: 30 }}
+						alt=""
+					/>
+				}
+				meta="ERC-20 · chain 4663"
+				state="live"
+				stateColor="#15803d"
+			/>
+		</div>
+	);
+}
+
 // ── frame ────────────────────────────────────────────────────────────────────
 
 type CardSpec = {
@@ -253,6 +464,8 @@ type CardSpec = {
 	line2: string;
 	mutedLine2: boolean;
 	artifact: React.ReactNode;
+	/** Marker-style highlight behind line 2 (the page's headline treatment). */
+	highlightLine2?: string;
 };
 
 // Size the headline so the longest beat fits the left column (~640px) before
@@ -386,6 +599,12 @@ function Frame(spec: CardSpec) {
 							color: INK,
 							lineHeight: 1.04,
 							letterSpacing: -size * 0.025,
+							...(spec.highlightLine2
+								? {
+										alignSelf: "flex-start",
+										backgroundImage: `linear-gradient(to bottom, rgba(0,0,0,0) 60%, ${spec.highlightLine2} 60%, ${spec.highlightLine2} 92%, rgba(0,0,0,0) 92%)`,
+									}
+								: {}),
 						}}
 					>
 						{spec.line2}
@@ -412,6 +631,15 @@ const CARDS: CardSpec[] = [
 		line2: "Stacks archive.",
 		mutedLine2: true,
 		artifact: <ArtArchive />,
+	},
+	{
+		file: "robinhood.png",
+		eyebrow: "WAITLIST · SIP-010",
+		line1: "Don't mint a copy.",
+		line2: "Bridge the original.",
+		mutedLine2: false,
+		highlightLine2: NEON,
+		artifact: <ArtRobinhood />,
 	},
 ];
 
