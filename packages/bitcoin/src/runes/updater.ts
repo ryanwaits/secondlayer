@@ -26,12 +26,53 @@ import {
 	takeOutpointBalances,
 } from "./state.ts";
 
+/**
+ * Per-flush phase timers (plan 039 step 4 profiling), accumulated across the
+ * blocks in one flush window then reset. `backfill.ts` owns `fetchWaitMs` and
+ * `integrityMs` directly; this module only ever adds to `decipherMs`,
+ * `applyMs`, `commitRpcMs` and `commitRpcCount`. Optional so existing tests
+ * that build an `UpdaterContext` without one are unaffected.
+ */
+export interface FlushPhaseTimers {
+	fetchWaitMs: number;
+	integrityMs: number;
+	decipherMs: number;
+	applyMs: number;
+	commitRpcMs: number;
+	commitRpcCount: number;
+}
+
+export function createFlushPhaseTimers(): FlushPhaseTimers {
+	return {
+		fetchWaitMs: 0,
+		integrityMs: 0,
+		decipherMs: 0,
+		applyMs: 0,
+		commitRpcMs: 0,
+		commitRpcCount: 0,
+	};
+}
+
 export interface UpdaterContext {
 	height: number;
 	blockTime: number;
 	/** `Rune::minimum_at_height(Network::Bitcoin, Height(height))`. */
 	minimum: Rune;
 	rpc: BitcoinRpcClient;
+	timers?: FlushPhaseTimers;
+}
+
+/** Times an RPC call into `ctx.timers.commitRpcMs`/`commitRpcCount` — a no-op wrapper when `ctx.timers` is unset. */
+async function timedRpc<T>(
+	ctx: UpdaterContext,
+	fn: () => Promise<T>,
+): Promise<T> {
+	if (!ctx.timers) return fn();
+	const start = performance.now();
+	const result = await fn();
+	ctx.timers.commitRpcMs += performance.now() - start;
+	ctx.timers.commitRpcCount += 1;
+	return result;
 }
 
 const OP_RETURN = 0x6a;
@@ -92,7 +133,9 @@ async function txCommitsToRune(
 			if (instruction.kind !== "push") continue;
 			if (!bytesEqual(instruction.bytes, commitment)) continue;
 
-			const prevTxInfo = await ctx.rpc.getrawtransaction(input.prevTxid, true);
+			const prevTxInfo = await timedRpc(ctx, () =>
+				ctx.rpc.getrawtransaction(input.prevTxid, true),
+			);
 			const prevOut = prevTxInfo.vout[input.prevVout];
 			if (!prevOut) {
 				throw new Error(
@@ -106,7 +149,10 @@ async function txCommitsToRune(
 				// Unconfirmed commit tx can't have reached COMMIT_CONFIRMATIONS.
 				continue;
 			}
-			const header = await ctx.rpc.getblockheader(prevTxInfo.blockhash);
+			const header = await timedRpc(ctx, () =>
+				// biome-ignore lint/style/noNonNullAssertion: guarded by the `!prevTxInfo.blockhash` check above
+				ctx.rpc.getblockheader(prevTxInfo.blockhash!),
+			);
 			const commitTxHeight = header.height;
 
 			const confirmations = ctx.height - commitTxHeight + 1;
@@ -294,7 +340,13 @@ export async function applyTransaction(
 	ctx: UpdaterContext,
 	blockBurned: Map<string, bigint>,
 ): Promise<void> {
+	const timers = ctx.timers;
+	const txStart = timers ? performance.now() : 0;
+
 	const artifact = runestoneDecipher(tx);
+	const decipherMs = timers ? performance.now() - txStart : 0;
+	if (timers) timers.decipherMs += decipherMs;
+	const commitRpcMsBefore = timers ? timers.commitRpcMs : 0;
 
 	const unallocatedBalances = unallocated(state, tx);
 	const allocated: Map<string, bigint>[] = tx.outputs.map(() => new Map());
@@ -502,6 +554,12 @@ export async function applyTransaction(
 			runeId,
 			amount,
 		});
+	}
+
+	if (timers) {
+		const totalMs = performance.now() - txStart;
+		const commitRpcMsDelta = timers.commitRpcMs - commitRpcMsBefore;
+		timers.applyMs += totalMs - decipherMs - commitRpcMsDelta;
 	}
 }
 

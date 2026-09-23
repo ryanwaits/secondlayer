@@ -13,9 +13,11 @@ import { checkInvariant } from "./runes/invariant.ts";
 import { Network, runeMinimumAtHeight } from "./runes/rune.ts";
 import { type RuneState, seedGenesis } from "./runes/state.ts";
 import {
+	type FlushPhaseTimers,
 	type UpdaterContext,
 	applyBlockBurns,
 	applyTransaction,
+	createFlushPhaseTimers,
 } from "./runes/updater.ts";
 
 export const GENESIS_HEIGHT = 840_000;
@@ -71,11 +73,12 @@ export interface BackfillOptions {
 	flushInterval?: number;
 	/** Called after every flush with row-count/timing stats plus how many blocks were in this window and the wall-clock ms since the previous flush (for a blocks/s log line). */
 	onFlush?: (
-		stats: FlushStats & {
-			hash: string;
-			blocksInWindow: number;
-			windowMs: number;
-		},
+		stats: FlushStats &
+			FlushPhaseTimers & {
+				hash: string;
+				blocksInWindow: number;
+				windowMs: number;
+			},
 	) => void;
 	/** Directory to write `invariant-<height>.json` to on a fail-closed invariant break. Defaults to cwd. */
 	invariantReportDir?: string;
@@ -147,6 +150,8 @@ export async function runBackfill(
 	let pendingBlocks: Array<{ height: number; hash: string }> = [];
 	let sinceFlush = 0;
 	let windowStart = performance.now();
+	let timers = createFlushPhaseTimers();
+	let fetchWaitStart = performance.now();
 
 	for await (const { height, block } of fetchBlocksInOrder(
 		options.rpc,
@@ -154,7 +159,12 @@ export async function runBackfill(
 		options.toHeight,
 		options.fetchConcurrency,
 	)) {
+		timers.fetchWaitMs += performance.now() - fetchWaitStart;
+
+		const integrityStart = performance.now();
 		verifyBlockIntegrity(block);
+		timers.integrityMs += performance.now() - integrityStart;
+
 		checkContinuity(height, block, previousHash);
 
 		const minimum = runeMinimumAtHeight(Network.Bitcoin, height);
@@ -163,6 +173,7 @@ export async function runBackfill(
 			blockTime: block.time,
 			minimum,
 			rpc: options.rpc,
+			timers,
 		};
 
 		const blockBurned = new Map<string, bigint>();
@@ -188,6 +199,7 @@ export async function runBackfill(
 			const windowMs = performance.now() - windowStart;
 			options.onFlush?.({
 				...stats,
+				...timers,
 				hash: block.hash,
 				blocksInWindow,
 				windowMs,
@@ -195,7 +207,10 @@ export async function runBackfill(
 			pendingBlocks = [];
 			sinceFlush = 0;
 			windowStart = performance.now();
+			timers = createFlushPhaseTimers();
 		}
+
+		fetchWaitStart = performance.now();
 	}
 
 	return state;

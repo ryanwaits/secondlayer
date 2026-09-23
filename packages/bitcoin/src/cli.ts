@@ -94,7 +94,10 @@ async function cmdBackfill(args: string[]): Promise<void> {
 				`✅ flush height=${stats.height} hash=${stats.hash} blocks/s=${blocksPerSec} ` +
 					`balances(+${stats.balancesUpserted}/-${stats.balancesDeleted}) ` +
 					`entries=${stats.entriesUpserted} events=${stats.eventsInserted} ` +
-					`flushMs=${stats.ms.toFixed(0)} rssMB=${rssMb} — ${elapsedS}s elapsed`,
+					`flushMs=${stats.ms.toFixed(0)} rssMB=${rssMb} — ${elapsedS}s elapsed ` +
+					`[fetchWaitMs=${stats.fetchWaitMs.toFixed(0)} integrityMs=${stats.integrityMs.toFixed(0)} ` +
+					`decipherMs=${stats.decipherMs.toFixed(0)} applyMs=${stats.applyMs.toFixed(0)} ` +
+					`commitRpcMs=${stats.commitRpcMs.toFixed(0)} commitRpcCount=${stats.commitRpcCount}]`,
 			);
 		},
 	});
