@@ -41,7 +41,7 @@ Temporary Hetzner Cloud box in Falkenstein. One compose project
 | IPv4 | `49.13.117.132` |
 | SSH | `ssh -i ~/.ssh/id_ed25519_prod root@49.13.117.132` (Cloud key `macbook-prod`) |
 | Runtime | `/opt/secondlayer-feeder` (compose + host `Config.toml` + `.env`). Git template is `docker/feeder/`. |
-| Volume | `feeder-data` (`106907790`), 1024 GB ext4. Automount `/mnt/HC_Volume_106907790`, bind `/data/feeder`. |
+| Volume | `feeder-data` (`106907790`), 4 TB ext4 (resized from 1 TB). Automount `/mnt/HC_Volume_106907790`, bind `/data/feeder`. |
 | Data | `/data/feeder/stacks` and `/data/feeder/postgres`. Never prod chainstate or prod Postgres. |
 | Node image | `ghcr.io/ryanwaits/stacks-core:441e595@sha256:a9a881bd4193ea431902e429f41a3605c95ef6a2bf7d0591031f702c097f9f11` linux/amd64. `mem_limit` 24G. |
 | Indexer image | `secondlayer-indexer:feat-eval-hook` built on this box from `feat/eval-hook-vm-events` (has `0131_vm_events.ts`). Not GHCR `:latest`. |
@@ -53,9 +53,8 @@ Temporary Hetzner Cloud box in Falkenstein. One compose project
 
 `ccx43` (64 GB) failed with dedicated-core quota; `cpx62` is the fallback.
 Stacks-node is capped at 24G so scratch Postgres + indexer fit on 32 GB.
-Cloud volume quota is 1 TB (`2048` GB create was `resource_limit_exceeded`).
-IBD may exhaust 1T; raise that limit before chainstate needs ≥1.2T, then
-`hcloud volume resize feeder-data --size 2048` and grow the ext4 filesystem.
+Volume is 4 TB (quota raised, resized, ext4 grown). Upstream reports mainnet
+chainstate ~1 TB (Mar 2026) growing ~2.5 GB/day, so 4 TB covers IBD.
 
 Host `Config.toml` has `BITCOIN_RPC_PASSWORD` from node-server `.env`; git
 keeps `CHANGE_ME`. `vm_trace_max_bytes = 0`.
