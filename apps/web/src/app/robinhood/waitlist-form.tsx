@@ -92,8 +92,18 @@ export function WaitlistForm() {
 			<output className="rh-done">
 				<span className="rh-done-title">You're on the list.</span>
 				<span className="rh-done-body">
-					We'll reach out on <code>{status.contact}</code> when{" "}
-					{status.token.toUpperCase()} can join a test round.
+					Got your details. We'll reach out soon.
+				</span>
+				{/* What we captured, so a typo in the handle is caught here. */}
+				<span className="rh-done-captured">
+					<span>
+						<span className="rh-done-key">Token</span>
+						{status.token.toUpperCase()}
+					</span>
+					<span>
+						<span className="rh-done-key">Contact</span>
+						{status.contact}
+					</span>
 				</span>
 			</output>
 		);

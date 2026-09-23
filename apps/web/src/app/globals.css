@@ -10851,7 +10851,7 @@ html.force-dark .rh-page h1 em {
 	border: 1px solid var(--rh-line);
 	border-radius: 12px;
 	padding: 28px;
-	background: var(--bg-chrome);
+	background: var(--bg);
 }
 .rh-done-title {
 	display: block;
@@ -10863,6 +10863,21 @@ html.force-dark .rh-page h1 em {
 	display: block;
 	margin: 0;
 	color: var(--text-muted);
+}
+.rh-done-captured {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 28px;
+	margin-top: 20px;
+	padding-top: 16px;
+	border-top: 1px solid var(--rh-line);
+	font: 400 13px / 1.4 var(--font-mono-stack);
+	color: var(--text-main);
+	overflow-wrap: anywhere;
+}
+.rh-done-key {
+	margin-right: 10px;
+	color: var(--rh-ink-40);
 }
 .rh-done code,
 .rh-mono {
