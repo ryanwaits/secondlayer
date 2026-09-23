@@ -213,11 +213,11 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 	 * credit debit is the only per-row consequence left. No-op for anonymous
 	 * callers and empty pages. Call AFTER the cache check — a 304 must not debit.
 	 */
-	const meterRows = async (c: Context<IndexEnv>, rows: { length: number }) => {
+	const meterRows = async (c: Context<IndexEnv>, rows: readonly unknown[]) => {
 		if (!isPlatformMode()) return;
 		const accountId = c.get("indexTenant")?.account_id;
 		if (!accountId || rows.length === 0) return;
-		await debitCreditedRead(c, rows.length);
+		await debitCreditedRead(c, rows);
 	};
 
 	const router = new Hono<IndexEnv>();

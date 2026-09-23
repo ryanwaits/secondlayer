@@ -10,11 +10,49 @@ import {
 	COMMIT_TIER_MONTHLY_USD_MICROS,
 	CREDIT_USD_MICROS_PER_ROW,
 	CREDIT_USD_MICROS_PER_ROW_VOLUME,
+	FREE_READ_WINDOW_BLOCKS,
+	billableRowCount,
 	debitCreditedRows,
 	isOverMonthlyCreditCap,
 } from "./read-credits.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
+
+describe("billableRowCount", () => {
+	const tip = 1_000_000;
+	const cutoff = tip - FREE_READ_WINDOW_BLOCKS;
+
+	test("rows inside the free window cost nothing", () => {
+		const rows = [{ block_height: tip }, { block_height: cutoff }];
+		expect(billableRowCount(rows, tip)).toBe(0);
+	});
+
+	test("only rows below the window are charged", () => {
+		const rows = [
+			{ block_height: cutoff - 1 },
+			{ block_height: cutoff },
+			{ block_height: tip },
+		];
+		expect(billableRowCount(rows, tip)).toBe(1);
+	});
+
+	test("string heights and a bare height field both count", () => {
+		const rows = [{ block_height: String(cutoff - 5) }, { height: cutoff - 1 }];
+		expect(billableRowCount(rows, tip)).toBe(2);
+	});
+
+	test("rows with no height are current, so free", () => {
+		expect(billableRowCount([{ tx_id: "0x01" }], tip)).toBe(0);
+	});
+
+	test("unknown tip charges every row rather than guessing a cutoff", () => {
+		expect(billableRowCount([{ block_height: tip }, {}], undefined)).toBe(2);
+	});
+
+	test("a young chain clamps the cutoff at genesis", () => {
+		expect(billableRowCount([{ block_height: 0 }], 100)).toBe(0);
+	});
+});
 
 describe("isOverMonthlyCreditCap", () => {
 	test("no cap (null) is never over", () => {

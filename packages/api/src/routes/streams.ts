@@ -251,7 +251,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		}
 		const accountId = c.get("streamsTenant")?.account_id;
 		if (accountId && response.events.length > 0) {
-			await debitStreamsCreditedRead(c, response.events.length);
+			await debitStreamsCreditedRead(c, response.events);
 		}
 		return respondSignedJson(c, response);
 	});
@@ -310,7 +310,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 				}
 				if (response.events.length > 0) {
 					if (accountId) {
-						await debitStreamsCreditedRead(c, response.events.length);
+						await debitStreamsCreditedRead(c, response.events);
 					}
 					lastBeat = Date.now();
 					// Resume strictly after the last delivered cursor (input-exclusive).
@@ -388,7 +388,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		);
 		const accountId = c.get("streamsTenant")?.account_id;
 		if (accountId) {
-			await debitStreamsCreditedRead(c, result.events.length);
+			await debitStreamsCreditedRead(c, result.events);
 		}
 		return respondSignedJson(c, {
 			events: markFinalized(result.events, tip.finalized_height),
@@ -443,7 +443,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		);
 		const accountId = c.get("streamsTenant")?.account_id;
 		if (accountId) {
-			await debitStreamsCreditedRead(c, result.events.length);
+			await debitStreamsCreditedRead(c, result.events);
 		}
 		return respondSignedJson(c, {
 			events: markFinalized(result.events, tip.finalized_height),

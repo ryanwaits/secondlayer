@@ -1,5 +1,6 @@
 import type { Context, MiddlewareHandler } from "hono";
 import {
+	billableRowCount,
 	debitCreditedRows,
 	resolveCreditedAccount,
 } from "../lib/read-credits.ts";
@@ -28,10 +29,14 @@ export function indexCreditsGate(): MiddlewareHandler<IndexEnv> {
 	};
 }
 
-/** Post-read debit for a credited caller — no-op when not credited. */
+/** Post-read debit for a credited caller — no-op when not credited. Rows
+ *  inside the free window are not charged. */
 export async function debitCreditedRead(
 	c: Context<IndexEnv>,
-	rows: number,
+	rows: readonly unknown[],
 ): Promise<void> {
-	await debitCreditedRows(c.get("credited"), rows);
+	await debitCreditedRows(
+		c.get("credited"),
+		billableRowCount(rows, c.get("indexTip")?.block_height),
+	);
 }

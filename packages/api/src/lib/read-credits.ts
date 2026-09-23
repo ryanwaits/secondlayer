@@ -7,6 +7,7 @@ import {
 import { getCaps } from "@secondlayer/platform/db/queries/account-spend-caps";
 import { getDb } from "@secondlayer/shared/db";
 import { isPlatformMode } from "@secondlayer/shared/mode";
+import { STREAMS_BLOCKS_PER_DAY } from "../streams/tiers.ts";
 
 /**
  * Shared pay-as-you-go read metering for Index + Streams. A free-tier account
@@ -32,6 +33,44 @@ export const COMMIT_TIER_MONTHLY_USD_MICROS = 50_000_000n;
 export const MIN_CREDITED_USD_MICROS = 5_000n;
 
 export type Credited = { accountId: string; balance: bigint };
+
+/**
+ * The last day of blocks is free on both surfaces: the Index free window and
+ * the Streams free retention are this same span. Topping up credits must never
+ * make those rows cost money, so the debit counts only rows below it.
+ */
+export const FREE_READ_WINDOW_BLOCKS = STREAMS_BLOCKS_PER_DAY;
+
+/**
+ * Rows a credited caller pays for: those at a height below `tip - window`.
+ * A row with no height (mempool) is current by definition, so it is free.
+ * No known tip charges every row, the pre-window behavior, rather than
+ * guessing a cutoff.
+ */
+export function billableRowCount(
+	rows: readonly unknown[],
+	tipHeight: number | undefined,
+): number {
+	if (tipHeight === undefined) return rows.length;
+	const cutoff = Math.max(0, tipHeight - FREE_READ_WINDOW_BLOCKS);
+	let billable = 0;
+	for (const row of rows) {
+		const height = rowHeight(row);
+		if (height !== null && height < cutoff) billable++;
+	}
+	return billable;
+}
+
+function rowHeight(row: unknown): number | null {
+	if (typeof row !== "object" || row === null) return null;
+	const raw =
+		(row as { block_height?: unknown }).block_height ??
+		(row as { height?: unknown }).height;
+	const height = Number(raw);
+	return raw === undefined || raw === null || !Number.isFinite(height)
+		? null
+		: height;
+}
 
 /** Stripe/cap dimensions are stored in cents; credit spend in USD-micros. */
 const USD_MICROS_PER_CENT = 10_000n;
