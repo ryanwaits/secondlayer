@@ -16,6 +16,7 @@ import {
 	normalizeOrdRunesJson,
 	normalizeOurBalances,
 	normalizeOurEntries,
+	normalizeOurEntry,
 	runeIdByName,
 } from "./state.ts";
 
@@ -157,6 +158,45 @@ describe("diffEntries", () => {
 		expect(mismatches).toHaveLength(1);
 		expect(mismatches[0]?.kind).toBe("missing-in-ord");
 		expect((mismatches[0] as { runeId: string }).runeId).toBe("1:0");
+	});
+});
+
+// Plan 040 (e): a `Terms` present with every field undefined (the shape
+// `rowToEntry` builds from `has_terms=true` and all-null terms_* columns,
+// see ../db/store.test.ts case (c)) must normalize to ord's exact JSON shape
+// for an empty terms object, or the C1 comparison flags a false mismatch
+// (caught live at 841,000, rune 840257:557: ord had
+// `terms: {amount:null,cap:null,height:[null,null],offset:[null,null]}`, we
+// had `terms: null`).
+describe("normalizeOurEntry: terms present with every field undefined", () => {
+	test("normalizes to ord's all-null terms object shape, not null", () => {
+		const info = normalizeOurEntry("840257:557", {
+			block: 840_257n,
+			burned: 0n,
+			divisibility: 0,
+			etching: "a".repeat(64),
+			mints: 0n,
+			number: 1n,
+			premine: 0n,
+			rune: 999n,
+			spacers: 0,
+			symbol: undefined,
+			terms: {
+				amount: undefined,
+				cap: undefined,
+				height: [undefined, undefined],
+				offset: [undefined, undefined],
+			},
+			timestamp: 1_700_000_000n,
+			turbo: false,
+		});
+
+		expect(info.terms).toEqual({
+			amount: null,
+			cap: null,
+			height: [null, null],
+			offset: [null, null],
+		});
 	});
 });
 

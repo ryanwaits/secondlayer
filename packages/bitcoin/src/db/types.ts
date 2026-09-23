@@ -16,6 +16,8 @@ export interface RuneEntriesTable {
 	spacers: number;
 	divisibility: number;
 	symbol: string | null;
+	/** Raw Unicode scalar of the etched symbol (survives U+0000, unlike `symbol`); source of truth for `loadState`/parity, see migration 0003. */
+	symbol_codepoint: number | null;
 	premine: string;
 	terms_amount: string | null;
 	terms_cap: string | null;
@@ -23,11 +25,15 @@ export interface RuneEntriesTable {
 	terms_height_end: string | null;
 	terms_offset_start: string | null;
 	terms_offset_end: string | null;
+	/** Whether `RuneEntry.terms` was ever set, even with every field unset (survives that case, unlike the `terms_*` null-check); source of truth for `loadState`/parity, see migration 0003. */
+	has_terms: boolean;
 	turbo: boolean;
 	etching_txid: string;
 	timestamp: string;
 	mints: string;
 	burned: string;
+	/** Set by `cli.ts repair-entries` once a row's `symbol_codepoint`/`has_terms` are known correct; not read by `loadState`. */
+	repaired_at: Date | null;
 }
 
 export interface RuneBalancesTable {

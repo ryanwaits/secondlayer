@@ -80,6 +80,9 @@ export function entryToRow(runeId: string, entry: RuneEntry): RuneEntriesTable {
 		spacers: entry.spacers,
 		divisibility: entry.divisibility,
 		symbol: symbolForDb(entry.symbol),
+		// The raw Unicode scalar, unlike `symbol` (text): survives U+0000, which
+		// Postgres `text` can't store at all. Source of truth for `loadState`.
+		symbol_codepoint: entry.symbol?.codePointAt(0) ?? null,
 		premine: s(entry.premine),
 		terms_amount: sOpt(entry.terms?.amount),
 		terms_cap: sOpt(entry.terms?.cap),
@@ -87,11 +90,21 @@ export function entryToRow(runeId: string, entry: RuneEntry): RuneEntriesTable {
 		terms_height_end: sOpt(entry.terms?.height[1]),
 		terms_offset_start: sOpt(entry.terms?.offset[0]),
 		terms_offset_end: sOpt(entry.terms?.offset[1]),
+		// Whether `entry.terms` was ever set, even with every field left unset
+		// (ord's "terms present, all fields empty" case) — unlike checking the
+		// `terms_*` columns for "any non-null", which can't tell that case apart
+		// from "no terms". Source of truth for `loadState`.
+		has_terms: entry.terms !== undefined,
 		turbo: entry.turbo,
 		etching_txid: entry.etching,
 		timestamp: s(entry.timestamp),
 		mints: s(entry.mints),
 		burned: s(entry.burned),
+		// A row written here (from the in-memory `RuneEntry`, the source of
+		// truth) is correct by construction — never a candidate for
+		// `cli.ts repair-entries`, which only touches pre-migration-0003 rows
+		// where this is NULL.
+		repaired_at: new Date(),
 	};
 }
 
@@ -114,6 +127,47 @@ export function openStore(databaseUrl: string): Kysely<Database> {
 }
 
 /**
+ * The `entryToRow` inverse — rebuilds the in-memory `RuneEntry` from a
+ * `rune_entries` row. Pure (no DB access) so the round trip is directly
+ * unit-testable; `loadState` is its only caller.
+ */
+export function rowToEntry(row: RuneEntriesTable): RuneEntry {
+	return {
+		block: n(row.block),
+		burned: n(row.burned),
+		divisibility: row.divisibility,
+		etching: row.etching_txid,
+		mints: n(row.mints),
+		number: n(row.number),
+		premine: n(row.premine),
+		rune: n(row.rune),
+		spacers: row.spacers,
+		// `symbol_codepoint`, not the `symbol` text column: the latter can't
+		// represent an etched U+0000 symbol (Postgres text rejects the raw NUL
+		// byte, see `symbolForDb`), which reads back indistinguishable from
+		// "no symbol". `symbol_codepoint` survives it.
+		symbol:
+			row.symbol_codepoint !== null
+				? String.fromCodePoint(row.symbol_codepoint)
+				: undefined,
+		// `has_terms`, not "any terms_* column is non-null": a Terms with every
+		// field unset (ord: all-null terms object) is a real "terms present"
+		// case the column-non-null check can't tell apart from "no terms at
+		// all" — caught in the C1 comparison at 841,000 (840257:557).
+		terms: row.has_terms
+			? {
+					amount: nOpt(row.terms_amount),
+					cap: nOpt(row.terms_cap),
+					height: [nOpt(row.terms_height_start), nOpt(row.terms_height_end)],
+					offset: [nOpt(row.terms_offset_start), nOpt(row.terms_offset_end)],
+				}
+			: undefined,
+		timestamp: n(row.timestamp),
+		turbo: row.turbo,
+	};
+}
+
+/**
  * Rebuilds `RuneState` from Postgres. Returns a fresh state (no checkpoint)
  * when `runes_checkpoint` has no row — the caller then calls `seedGenesis`
  * and starts the backfill from 840,000.
@@ -123,40 +177,7 @@ export async function loadState(db: Kysely<Database>): Promise<RuneState> {
 
 	const entries = await db.selectFrom("rune_entries").selectAll().execute();
 	for (const row of entries) {
-		const entry: RuneEntry = {
-			block: n(row.block),
-			burned: n(row.burned),
-			divisibility: row.divisibility,
-			etching: row.etching_txid,
-			mints: n(row.mints),
-			number: n(row.number),
-			premine: n(row.premine),
-			rune: n(row.rune),
-			spacers: row.spacers,
-			symbol: row.symbol ?? undefined,
-			terms:
-				row.terms_amount !== null ||
-				row.terms_cap !== null ||
-				row.terms_height_start !== null ||
-				row.terms_height_end !== null ||
-				row.terms_offset_start !== null ||
-				row.terms_offset_end !== null
-					? {
-							amount: nOpt(row.terms_amount),
-							cap: nOpt(row.terms_cap),
-							height: [
-								nOpt(row.terms_height_start),
-								nOpt(row.terms_height_end),
-							],
-							offset: [
-								nOpt(row.terms_offset_start),
-								nOpt(row.terms_offset_end),
-							],
-						}
-					: undefined,
-			timestamp: n(row.timestamp),
-			turbo: row.turbo,
-		};
+		const entry = rowToEntry(row);
 		state.entries.set(row.rune_id, entry);
 		state.runeToId.set(entry.rune.toString(), row.rune_id);
 	}
@@ -276,12 +297,13 @@ export function computeBalanceChanges(state: RuneState): {
 // table's real column count so a future column addition fails loudly.
 export const RUNE_BALANCES_PARAMS_PER_ROW = 4; // txid, vout, rune_id, amount
 export const RUNE_EVENTS_PARAMS_PER_ROW = 7; // height, tx_index, txid, kind, rune_id, amount, vout
-export const RUNE_ENTRIES_PARAMS_PER_ROW = 21;
+// 21 original columns + symbol_codepoint, has_terms, repaired_at (migration 0003).
+export const RUNE_ENTRIES_PARAMS_PER_ROW = 24;
 
 export const DELETE_CHUNK_SIZE = 10_000; // unnest arrays are 1 param each regardless of row count — not parameter-bound, just a sane batch size
 export const UPSERT_CHUNK_SIZE = 5_000; // 4 params/row -> 20,000/chunk
 export const EVENT_CHUNK_SIZE = 5_000; // 7 params/row -> 35,000/chunk
-export const ENTRY_CHUNK_SIZE = 1_000; // 21 params/row -> 21,000/chunk
+export const ENTRY_CHUNK_SIZE = 1_000; // 24 params/row -> 24,000/chunk
 
 export interface FlushStats {
 	height: number;
