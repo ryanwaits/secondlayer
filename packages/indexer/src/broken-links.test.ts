@@ -78,6 +78,24 @@ describe.skipIf(!HAS_DB)("findBrokenLinks", () => {
 		expect(hit?.expectedParent).toBe("0xlosing");
 	});
 
+	test("a whole-chain scan still reports a break the recent window has scrolled past", async () => {
+		await seed([
+			{ height: BASE, hash: "0xa", parent: "0x0" },
+			{ height: BASE + 1, hash: "0xlosing", parent: "0xa" },
+			{ height: BASE + 2, hash: "0xc", parent: "0xwinning" },
+		]);
+
+		// A window that stops short of BASE, as the 10k default does once the
+		// tip moves on, cannot see it.
+		const recent = await findBrokenLinks(getSourceDb(), {
+			window: (await windowCovering(BASE)) - 20,
+		});
+		expect(recent.find((b) => b.height === BASE + 2)).toBeUndefined();
+
+		const whole = await findBrokenLinks(getSourceDb(), { window: null });
+		expect(whole.find((b) => b.height === BASE + 2)).toBeDefined();
+	});
+
 	test("a properly linked chain reports nothing", async () => {
 		await seed([
 			{ height: BASE, hash: "0xa", parent: "0x0" },

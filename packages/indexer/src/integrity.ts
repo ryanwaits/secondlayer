@@ -8,7 +8,6 @@ import {
 import type { Gap } from "@secondlayer/shared/db/queries/integrity";
 import { logger } from "@secondlayer/shared/logger";
 import { LocalClient } from "@secondlayer/shared/node/local-client";
-import { pruneStagedForks } from "./fork-choice.ts";
 import { ingestNewBlock } from "./ingest.ts";
 import type { NewBlockPayload } from "./types/node-events.ts";
 
@@ -29,6 +28,14 @@ export const integrityState = {
 	brokenLinks: [] as number[],
 };
 
+// The windowed broken-link query only sees the last 10k blocks, so a break
+// further down used to scroll out of view unrepaired. Scan the whole chain on
+// start and then every FULL_SCAN_EVERY cycles (~hourly), and keep reporting
+// what it found in between.
+const FULL_SCAN_EVERY = 12;
+let integrityRuns = 0;
+let fullScanLinks: number[] = [];
+
 // Track when gaps were first seen (for 5-min cooldown)
 const gapFirstSeen = new Map<string, Date>();
 
@@ -43,16 +50,21 @@ async function runIntegrityCheck() {
 		const missing = await countMissingBlocks(db);
 		// Every height can be present while the chain still does not join up —
 		// that is exactly how a losing-fork adoption hides. Ask separately.
-		// Contenders far below the tip can no longer be named by any future
-		// block; clear them so an unresolved fork does not accumulate.
-		await pruneStagedForks(db);
+		if (integrityRuns % FULL_SCAN_EVERY === 0) {
+			fullScanLinks = (await findBrokenLinks(db, { window: null })).map(
+				(l) => l.height,
+			);
+		}
+		integrityRuns++;
 		const brokenLinks = await findBrokenLinks(db, { limit: 20 });
-		integrityState.brokenLinks = brokenLinks.map((l) => l.height);
-		if (brokenLinks.length > 0) {
+		integrityState.brokenLinks = [
+			...new Set([...fullScanLinks, ...brokenLinks.map((l) => l.height)]),
+		].sort((a, b) => a - b);
+		if (integrityState.brokenLinks.length > 0) {
 			const first = brokenLinks[0];
 			logger.error("Integrity: canonical chain does not link", {
-				count: brokenLinks.length,
-				heights: integrityState.brokenLinks,
+				count: integrityState.brokenLinks.length,
+				heights: integrityState.brokenLinks.slice(0, 20),
 				firstHeight: first?.height,
 				storedParent: first?.storedParent,
 				expectedParent: first?.expectedParent,

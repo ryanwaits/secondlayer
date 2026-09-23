@@ -154,10 +154,15 @@ export type BrokenLink = {
  */
 export async function findBrokenLinks(
 	db: Kysely<Database>,
-	opts: { window?: number; limit?: number } = {},
+	/** Heights below the tip to scan; `null` scans the whole chain. */
+	opts: { window?: number | null; limit?: number } = {},
 ): Promise<BrokenLink[]> {
-	const windowSize = opts.window ?? 10_000;
+	const windowSize = opts.window === undefined ? 10_000 : opts.window;
 	const limitClause = opts.limit ? sql`LIMIT ${opts.limit}` : sql``;
+	const windowClause =
+		windowSize === null
+			? sql``
+			: sql`AND height > (SELECT MAX(height) - ${windowSize} FROM blocks WHERE canonical = true)`;
 	const { rows } = await sql<{
 		height: string | number;
 		hash: string;
@@ -168,7 +173,7 @@ export async function findBrokenLinks(
 			SELECT height, hash, parent_hash
 			FROM blocks
 			WHERE canonical = true
-				AND height > (SELECT MAX(height) - ${windowSize} FROM blocks WHERE canonical = true)
+				${windowClause}
 		)
 		SELECT b.height, b.hash, p.hash AS expected_parent, b.parent_hash AS stored_parent
 		FROM recent b
