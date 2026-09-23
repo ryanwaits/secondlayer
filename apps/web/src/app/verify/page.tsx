@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth";
+import { handOverNewKey } from "@/lib/new-key";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
@@ -16,8 +17,9 @@ function VerifyContent() {
 		attempted.current = true;
 
 		try {
-			await verify(token);
-			window.location.href = "/";
+			const { apiKey } = await verify(token);
+			handOverNewKey(apiKey);
+			window.location.href = "/account";
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Verification failed");
 		}

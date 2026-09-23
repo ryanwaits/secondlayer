@@ -1807,6 +1807,153 @@ a mark {
 	text-decoration-color: var(--accent);
 }
 
+/* /account: the signed-in key page, on the login card. */
+.account-card {
+	max-width: 560px;
+}
+.account-newkey {
+	margin: 18px 0 8px;
+	padding: 14px;
+	border: 1px solid var(--accent-border);
+	background: var(--accent-bg);
+	border-radius: 10px;
+}
+.account-newkey-title {
+	font-weight: 600;
+	margin: 0 0 4px;
+}
+.account-newkey-row {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	margin-top: 10px;
+}
+.account-newkey-row code,
+.account-key code,
+.account-snippet {
+	font-family: var(--font-mono-stack);
+	font-size: 12.5px;
+}
+.account-newkey-row code {
+	flex: 1;
+	min-width: 0;
+	overflow-wrap: anywhere;
+	padding: 8px 10px;
+	background: var(--bg);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+}
+.account-copy {
+	flex-shrink: 0;
+	font: inherit;
+	font-size: 13px;
+	padding: 8px 12px;
+	border: 1px solid var(--border-hover);
+	border-radius: 6px;
+	background: var(--bg);
+	color: var(--text-main);
+	cursor: pointer;
+}
+.account-snippet {
+	margin: 10px 0 0;
+	padding: 8px 10px;
+	overflow-x: auto;
+	background: var(--bg);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+}
+.account-keys {
+	margin: 16px 0;
+	display: flex;
+	flex-direction: column;
+}
+.account-key {
+	display: grid;
+	grid-template-columns: auto 1fr auto;
+	align-items: center;
+	gap: 2px 12px;
+	padding: 10px 0;
+	border-top: 1px solid var(--border);
+	font-size: 14px;
+}
+.account-key-meta {
+	grid-column: 1 / -1;
+	font-size: 12.5px;
+	color: var(--text-muted);
+}
+.account-next {
+	margin-top: 16px;
+}
+.account-revoke,
+.account-pack {
+	font: inherit;
+	font-size: 13px;
+	padding: 6px 12px;
+	border: 1px solid var(--border-hover);
+	border-radius: 6px;
+	background: var(--bg);
+	color: var(--text-main);
+	cursor: pointer;
+}
+.account-revoke:hover {
+	color: var(--red);
+	border-color: color-mix(in srgb, var(--red) 40%, transparent);
+}
+.account-pack:hover {
+	border-color: var(--text-muted);
+}
+.account-revoke:disabled,
+.account-pack:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+.account-section-title {
+	margin: 28px 0 10px;
+	padding-top: 20px;
+	border-top: 1px solid var(--border);
+	font-size: 15px;
+	font-weight: 600;
+}
+.account-notice {
+	margin: 0 0 12px;
+	padding: 10px 12px;
+	border-radius: 8px;
+	background: var(--green-bg);
+	font-size: 14px;
+}
+.account-balance {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+	margin-bottom: 10px;
+}
+.account-balance > div {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 12px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+}
+.account-balance-label {
+	font-size: 12px;
+	color: var(--text-muted);
+}
+.account-balance-value {
+	font-family: var(--font-mono-stack);
+	font-size: 18px;
+}
+.account-packs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 12px;
+}
+.account-link-button {
+	display: block;
+	text-align: center;
+	text-decoration: none;
+}
 .login-disclaimer {
 	margin-top: 12px;
 	font-size: 13px;

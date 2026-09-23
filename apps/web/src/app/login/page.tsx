@@ -2,11 +2,12 @@
 
 import { MarketingNav } from "@/components/marketing-nav";
 import { useAuth } from "@/lib/auth";
+import { handOverNewKey } from "@/lib/new-key";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 export default function LoginPage() {
-	const { login, verify } = useAuth();
+	const { login, verify, account } = useAuth();
 	const router = useRouter();
 	const [email, setEmail] = useState("");
 	const [code, setCode] = useState("");
@@ -16,6 +17,11 @@ export default function LoginPage() {
 	const [devToken, setDevToken] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [verifyError, setVerifyError] = useState<string | null>(null);
+
+	// Already signed in: the account page is where the keys are.
+	useEffect(() => {
+		if (account) router.replace("/account");
+	}, [account, router]);
 
 	const handleInputEsc = useCallback(
 		(e: React.KeyboardEvent<HTMLInputElement>, clear: () => void) => {
@@ -67,8 +73,9 @@ export default function LoginPage() {
 			if (code.length !== 6) return;
 			setVerifyError(null);
 			try {
-				await verify(code, email);
-				window.location.href = "/";
+				const { apiKey } = await verify(code, email);
+				handOverNewKey(apiKey);
+				window.location.href = "/account";
 			} catch {
 				setVerifyError("Invalid or expired code. Try again.");
 			}
