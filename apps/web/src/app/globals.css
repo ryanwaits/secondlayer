@@ -10606,7 +10606,8 @@ html.force-dark .rh-page h1 em {
 	padding-inline: 18px;
 }
 /* The 1:1 link as marching ants flowing from the locked original down to
-   the minted twin: every other dash in Robin Neon, the rest muted ink.
+   the minted twin, in two grays: the token cards' border color and the
+   lighter hairline, so the rail reads as part of the cards.
    Still for reduced motion. */
 .rh-tok-rail {
 	justify-self: center;
@@ -10618,9 +10619,9 @@ html.force-dark .rh-page h1 em {
 	   period boundary and a moving dash never overlaps the next. */
 	background-image: linear-gradient(
 		to bottom,
-		var(--rh-neon) 0 4px,
+		var(--rh-line) 0 4px,
 		transparent 4px 7px,
-		var(--text-dim) 7px 11px,
+		var(--rh-line-2) 7px 11px,
 		transparent 11px 14px
 	);
 	background-size: 100% 14px;
