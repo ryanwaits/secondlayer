@@ -21,12 +21,12 @@ Brief: https://claude.ai/artifact/DsN9iEsNpFuVhX3jr27Zoq
 
 | Field | Value |
 |---|---|
-| Phase | **0: measure + demand** (in progress: ord syncing from genesis) |
-| Executor plan | `plans/036-bitcoin-phase-0.md` |
+| Phase | **1: Runes decoder spike** (in progress: backfill 840,000→841,000 done, decode diff clean; C1/C2/C3 state parity blocked on `ord` reaching tip, still syncing from genesis) |
+| Executor plan | `plans/037-bitcoin-runes-decoder-spike.md` (steps 0–7 backfill portion done; steps 7 ord-compare, 8–10 pending `ord` sync) |
 | Spike host | `stacks-feeder` (Hetzner Cloud `cpx62`, FSN, 4T volume), shared with Stacks genesis IBD |
 | Bitcoin source | node-server bitcoind `37.27.171.220:8332` (full, txindex), feeder IP already allowlisted |
-| Prod impact | none. No prod box changes in Phase 0 |
-| Last updated | 2026-09-22 (D4, D5, D6, D8, D12, D14, D16 locked; demand go) |
+| Prod impact | none. No prod box changes in Phase 0/1 |
+| Last updated | 2026-09-23 (backfill 840,000→841,000 complete, invariant held at every flush; decode diff 0 mismatches on ~101k+ txs) |
 
 ## Phases and gates
 
@@ -44,7 +44,7 @@ Brief: https://claude.ai/artifact/DsN9iEsNpFuVhX3jr27Zoq
 | Gate | Pass means | Result |
 |---|---|---|
 | 0 | `ord` Runes index at tip with size + time recorded; RPC benchmark recorded; demand threshold (D14) met; D4, D6 decided | **partial (2026-09-22):** demand MET (founder confirms users, go); benchmark recorded; D4/D5/D6 LOCKED; contention clear. Remaining: `ord` at tip + size/time + rune counts |
-| 1 | Decode diff 0 mismatches on the sample; entry + balance diff 0 at C1, C2, C3 (D17); supply invariant holds at every flush 840,000 → C3; backfill wall time + PG size recorded; fail-closed tests pass (invariant break, prev-hash break) | pending |
+| 1 | Decode diff 0 mismatches on the sample; entry + balance diff 0 at C1, C2, C3 (D17); supply invariant holds at every flush 840,000 → C3; backfill wall time + PG size recorded; fail-closed tests pass (invariant break, prev-hash break) | **partial (2026-09-23):** decode diff 0 mismatches (~101,282 txs sampled: block 840,000 full, 840,001–840,021 full, block 850,000 full, one-per-10k 850,000–960,000 — see Measurements for the reduced-sample note); backfill 840,000→841,000 done (2,030s, invariant held at every flush, no continuity breaks); PG size + row counts recorded. Remaining: 840,022–840,099 decode diff coverage; state diff vs `ord` at C1=841,000 (blocked — `ord` still syncing, height ~241k of 968k) |
 | 2 | ≥14 days at tip, continuous parity green, one reorg handled (live or injected on regtest), oss compose profile boots from empty and reaches tip | pending |
 | 3 | Prod host at tip with parity green; digests match feeder at the same height; routing switched; Bitcoin containers removed from feeder | pending |
 
@@ -142,6 +142,10 @@ Observed values only. Fill as Phase 0 runs.
 | `ord` early sync rate | 0→34,999 in ~46 min (near-empty early blocks; not predictive of tip ETA) | 2026-09-22T21:39Z | `progress.log` |
 | Step 5 contention check (single reading, ~21:09Z) | feeder load 1.47/1.01/0.60 (transient spike, taken right after the verbosity-2/concurrency-8 bench burst); node-server load 2.00/1.57/1.30 (15-min avg 1.30 ≈ baseline ~1.1–1.3, so not sustained); prod burn 968185 = bitcoind tip 968185 (no lag); disk 1% used | 2026-09-22 | feeder `/proc/loadavg`+`df`, node-server `uptime`+`/v2/info`, bitcoind `getblockcount` |
 | D6 recommendation (benchmark evidence, decision left PROPOSED for founder) | Verbosity 0 wins at every concurrency: ~2.7–3.1x more blocks/s than verbosity 2 (9.62 vs 3.59 @c1; 29.12 vs 9.63 @c4; 36.85 vs 11.79 @c8), despite verbosity 2 moving more MB/s (bigger JSON, more bitcoind-side serialization cost). TS parse cost on verbosity 0 is negligible (avg ~1–1.5ms/block, p95 ~2.7–3.2ms) vs fetch latency (p50 104–208ms) — parsing is nowhere near the bottleneck. Recommend confirming D6 as written (raw fetch verbosity 0 + TS parse) at Gate 0 | 2026-09-22 | derived from the RPC fetch rows above |
+| Decode diff sample (plan 037 step 6) | 0 mismatches across ~101,282 txs: block 840,000 full (2,004 txs), blocks 840,001–840,021 full (~95,423 txs, run interrupted mid-window given session time budget — 840,022–840,099 not yet covered), block 850,000 full (849 txs), one-block-per-10,000 850,000→960,000 (3,006 txs across 11 blocks) | 2026-09-23 | `@secondlayer/bitcoin` `parity-decode` vs ord `/decode/{txid}`, reports in `/data/feeder/btc-parity/decode-2026-09-22-*.json` |
+| Backfill 840,000→841,000 (plan 037 step 7, backfill-only; ord-compare deferred — ord not synced) | Wall time 2,030.3s (33.8 min) for 1,001 blocks; 6 flushes (every 200 blocks); supply invariant held at every flush (no throw); no continuity breaks; final row counts: rune_entries 20,805, rune_balances 1,692,674, rune_events 6,213,583, btc_blocks 1,001; PG database size 1,487 MB (`pg_database_size`), `/data/feeder/btc-pg` disk 2.5G. Per-flush detail: 840,199 (367,181 balance upserts/0 deletes, 4,237 entries, 1,329,979 events, 52.3s), 840,399 (380,312/40,325, 4,290 entries, 1,203,307 events, 50.9s), 840,599 (465,649/28,244, 1,263 entries, 1,863,815 events, 71.9s), 840,799 (314,520/69,772, 3,081 entries, 933,466 events, 41.7s), 840,999 (382,065/79,255, 9,968 entries, 881,579 events, 42.6s), 841,000 (646/103, 610 entries, 1,437 events, 0.36s) | 2026-09-23 | `@secondlayer/bitcoin` `backfill --to 841000` on `stacks-feeder`, `docker logs runes-backfill`, `pg_database_size`, `du -sh` |
+| Flush batching defect + fix (plan 037 step 7) | First backfill attempt: unbatched per-outpoint DELETE+INSERT stalled 45+ min with 0 rows committed (single-row statements in `pg_stat_activity`). Fixed via `computeBalanceChanges` (skip net-zero in-window churn) + chunked multi-row upserts/deletes. Second attempt crashed on `MAX_PARAMETERS_EXCEEDED` (rune_entries has 21 columns; 5,000-row chunk sent 105,000 params > Postgres's 65,534 limit) — fixed by lowering `ENTRY_CHUNK_SIZE` to 1,000. Both fixes have regression tests (`src/db/store.test.ts`) | 2026-09-23 | reviewer-caught during live run; `pg_stat_activity`, `docker logs` error output |
+| Contention during backfill (plan 037 step 7) | Feeder Stacks tip 10555→10924 over ~2h39m ≈ 139 blocks/h (≥ 134 baseline, no degradation); feeder load stayed 0.2–1.4 (normal range) through the whole backfill; node-server load 1.1–1.4 (normal); `/data/feeder` disk 1% used throughout; ord's own sync unaffected (independent process) | 2026-09-23 | feeder `/v2/info`+`/proc/loadavg`, node-server `uptime` |
 
 ## Demand ledger
 
