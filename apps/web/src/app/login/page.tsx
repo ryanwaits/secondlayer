@@ -20,7 +20,7 @@ export default function LoginPage() {
 
 	// Already signed in: the account page is where the keys are.
 	useEffect(() => {
-		if (account) router.replace("/account");
+		if (account) router.replace("/account/keys");
 	}, [account, router]);
 
 	const handleInputEsc = useCallback(
@@ -75,7 +75,7 @@ export default function LoginPage() {
 			try {
 				const { apiKey } = await verify(code, email);
 				handOverNewKey(apiKey);
-				window.location.href = "/account";
+				window.location.href = "/account/keys";
 			} catch {
 				setVerifyError("Invalid or expired code. Try again.");
 			}

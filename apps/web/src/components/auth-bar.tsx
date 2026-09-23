@@ -31,7 +31,7 @@ export function AuthBar() {
 	if (account) {
 		return (
 			<div className="auth-bar">
-				<Link href="/account" className="auth-bar-nav-link">
+				<Link href="/account/keys" className="auth-bar-nav-link">
 					<span className="auth-bar-nav-label">Account</span>
 				</Link>
 				<button

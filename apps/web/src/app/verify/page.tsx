@@ -19,7 +19,7 @@ function VerifyContent() {
 		try {
 			const { apiKey } = await verify(token);
 			handOverNewKey(apiKey);
-			window.location.href = "/account";
+			window.location.href = "/account/keys";
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Verification failed");
 		}

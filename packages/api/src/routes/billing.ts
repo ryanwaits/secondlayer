@@ -187,10 +187,10 @@ app.post("/topup", async (c) => {
 		db,
 		account,
 		usd,
-		// Signed-in top-ups start on /account, so the reader lands back there
-		// with the new balance showing.
-		successUrl: `${dashboardBaseUrl()}/account?topup=success`,
-		cancelUrl: `${dashboardBaseUrl()}/account?topup=cancelled`,
+		// Signed-in top-ups land back on /account/credits, which confirms the
+		// top-up once Stripe's webhook moves the balance.
+		successUrl: `${dashboardBaseUrl()}/account/credits?topup=success`,
+		cancelUrl: `${dashboardBaseUrl()}/account/credits?topup=cancelled`,
 	});
 	return c.json({ url });
 });
