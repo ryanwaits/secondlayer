@@ -25,6 +25,7 @@
  */
 export const HOSTED_ROUTE_FIXTURES = [
 	{ method: "POST", path: "/api/public/waitlist" },
+	{ method: "GET", path: "/api/public/waitlist/robinhood/demand" },
 ] as const;
 
 /** Gate-g Slice D deletions + the x402 rail — 404 in oss and platform alike. */

@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
-import publicWaitlistRouter, { parseSignup } from "./public-waitlist.ts";
+import publicWaitlistRouter, {
+	parseSignup,
+	summarizeDemand,
+} from "./public-waitlist.ts";
 
 function post(body: unknown): Promise<Response> {
 	const h = new Hono();
@@ -105,4 +109,108 @@ describe("POST /api/public/waitlist", () => {
 		const res = await post(["robinhood"]);
 		expect(res.status).toBe(400);
 	});
+});
+
+describe("summarizeDemand", () => {
+	const row = (symbol: string, requests: number, team = false) => ({
+		symbol,
+		requests,
+		team,
+	});
+
+	test("shows a token only once two different people asked for it", () => {
+		const out = summarizeDemand([row("WELSH", 2), row("LEO", 1)]);
+		expect(out.tokens.map((t) => t.symbol)).toEqual(["WELSH"]);
+		expect(out.others).toBe(1);
+	});
+
+	test("never prints free text that isn't ticker-shaped, however popular", () => {
+		const out = summarizeDemand([
+			row("BUY NOW AT SCAM.XYZ", 9),
+			row("<SCRIPT>", 9),
+			row("PEPE", 3),
+		]);
+		expect(out.tokens.map((t) => t.symbol)).toEqual(["PEPE"]);
+		expect(out.others).toBe(2);
+	});
+
+	test("ranks by requests, then symbol, and caps the board at eight", () => {
+		const rows = Array.from({ length: 10 }, (_, i) =>
+			row(`T${String(i).padStart(2, "0")}`, 10 - (i % 3)),
+		);
+		const out = summarizeDemand(rows);
+		expect(out.tokens).toHaveLength(8);
+		expect(out.others).toBe(2);
+		expect(out.tokens[0]).toEqual(row("T00", 10));
+		expect(out.tokens[1]).toEqual(row("T03", 10));
+	});
+
+	test("carries the team flag through without any contact", () => {
+		const out = summarizeDemand([row("DIKO", 4, true)]);
+		expect(out.tokens[0]).toEqual({ symbol: "DIKO", requests: 4, team: true });
+	});
+});
+
+describe("GET /api/public/waitlist/:list/demand", () => {
+	function get(list: string): Promise<Response> {
+		const h = new Hono();
+		h.route("/api/public/waitlist", publicWaitlistRouter);
+		return Promise.resolve(h.request(`/api/public/waitlist/${list}/demand`));
+	}
+
+	test("404s a list that doesn't exist, before touching the database", async () => {
+		expect((await get("anything")).status).toBe(404);
+		expect((await get("toString")).status).toBe(404);
+	});
+
+	const HAS_DB = !!process.env.DATABASE_URL;
+	test.skipIf(!HAS_DB)(
+		"aggregates signups per token and never returns a contact",
+		async () => {
+			const db = getDb();
+			const contacts = ["@demand-a", "@DEMAND-A", "@demand-b", "@demand-c"];
+			try {
+				await db
+					.insertInto("waitlist_signups")
+					.values([
+						{
+							list: "robinhood",
+							contact: contacts[0],
+							answers: { role: "holder", token: "ZZTEST" },
+						},
+						{
+							list: "robinhood",
+							contact: contacts[2],
+							answers: { role: "issuer", token: "ZZTEST" },
+						},
+						{
+							list: "robinhood",
+							contact: contacts[3],
+							answers: { role: "holder", token: "ZZSOLO" },
+						},
+					])
+					.execute();
+				const res = await get("robinhood");
+				expect(res.status).toBe(200);
+				const text = await res.text();
+				for (const c of contacts) {
+					expect(text.toLowerCase()).not.toContain(c.toLowerCase());
+				}
+				const body = JSON.parse(text) as {
+					tokens: { symbol: string; requests: number; team: boolean }[];
+				};
+				expect(body.tokens.find((t) => t.symbol === "ZZTEST")).toEqual({
+					symbol: "ZZTEST",
+					requests: 2,
+					team: true,
+				});
+				expect(body.tokens.some((t) => t.symbol === "ZZSOLO")).toBe(false);
+			} finally {
+				await db
+					.deleteFrom("waitlist_signups")
+					.where("contact", "in", contacts)
+					.execute();
+			}
+		},
+	);
 });

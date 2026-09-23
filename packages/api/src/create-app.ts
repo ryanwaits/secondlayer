@@ -131,6 +131,7 @@ export function createApiApp(mode: InstanceMode): Hono {
 		app.use("/api/public/credits/*", ipRateLimit(20));
 		app.route("/api/public/credits", publicCreditsRouter);
 		app.use("/api/public/waitlist", ipRateLimit(20));
+		app.use("/api/public/waitlist/*", ipRateLimit(60));
 		app.route("/api/public/waitlist", publicWaitlistRouter);
 	}
 

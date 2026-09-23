@@ -2,6 +2,7 @@
  * Public waitlist signup. No session — the contact field is the identity.
  *
  *   POST /api/public/waitlist  { list, contact, ...answers }
+ *   GET  /api/public/waitlist/:list/demand
  *
  * Mounted only in platform mode. A list takes signups when it has a row in
  * `waitlists` with `closed_at` null AND an answer parser below; the parser
@@ -10,7 +11,7 @@
  * never tells a stranger who signed up.
  */
 
-import { getDb } from "@secondlayer/shared/db";
+import { getDb, sql } from "@secondlayer/shared/db";
 import type { InsertWaitlistSignup } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { InvalidJSONError } from "../middleware/error.ts";
@@ -108,6 +109,55 @@ app.post("/", async (c) => {
 		.execute();
 
 	return c.json({ ok: true });
+});
+
+/** A ticker, not free text: what the public board is allowed to print. */
+const SYMBOL_RE = /^[A-Z0-9][A-Z0-9.$-]{0,11}$/;
+/** A token needs this many different people behind it to be shown. */
+const MIN_REQUESTS = 2;
+const MAX_SHOWN = 8;
+
+export type DemandRow = { symbol: string; requests: number; team: boolean };
+
+/**
+ * The public demand board from per-token aggregates: only ticker-shaped
+ * symbols that at least MIN_REQUESTS different people asked for, so one
+ * person cannot put arbitrary text on the page. Everything else is only
+ * counted, as `others`. Contacts never reach this function.
+ */
+export function summarizeDemand(rows: readonly DemandRow[]): {
+	tokens: DemandRow[];
+	others: number;
+} {
+	const shown = rows
+		.filter((r) => r.requests >= MIN_REQUESTS && SYMBOL_RE.test(r.symbol))
+		.sort((a, b) => b.requests - a.requests || a.symbol.localeCompare(b.symbol))
+		.slice(0, MAX_SHOWN);
+	return { tokens: shown, others: rows.length - shown.length };
+}
+
+app.get("/:list/demand", async (c) => {
+	const list = c.req.param("list");
+	if (!Object.prototype.hasOwnProperty.call(WAITLIST_ANSWERS, list)) {
+		return c.json({ error: "unknown waitlist" }, 404);
+	}
+	const rows = await getDb()
+		.selectFrom("waitlist_signups")
+		.select((eb) => [
+			sql<string>`upper(${eb.ref("answers")}->>'token')`.as("symbol"),
+			sql<number>`count(distinct lower(${eb.ref("contact")}))::int`.as(
+				"requests",
+			),
+			sql<boolean>`coalesce(bool_or(${eb.ref("answers")}->>'role' = 'issuer'), false)`.as(
+				"team",
+			),
+		])
+		.where("list", "=", list)
+		.groupBy(sql`upper(answers->>'token')`)
+		.execute();
+
+	c.header("Cache-Control", "public, max-age=60");
+	return c.json(summarizeDemand(rows));
 });
 
 export default app;
