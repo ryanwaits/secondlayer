@@ -72,6 +72,15 @@ export function MarketingNav({ stars = null }: { stars?: number | null }) {
 			>
 				Blog
 			</Link>
+			<Link
+				href="/login"
+				className="mnav-plain"
+				aria-current={
+					pathname === "/login" || pathname === "/account" ? "page" : undefined
+				}
+			>
+				Sign in
+			</Link>
 			<a
 				href={GITHUB_URL}
 				className="mnav-pill line mnav-gh"
@@ -135,6 +144,7 @@ export function MarketingNav({ stars = null }: { stars?: number | null }) {
 					<Link href="/archive">Archive</Link>
 					<Link href="/docs">Docs</Link>
 					<Link href="/writing">Blog</Link>
+					<Link href="/login">Sign in</Link>
 					<a
 						href={GITHUB_URL}
 						target="_blank"

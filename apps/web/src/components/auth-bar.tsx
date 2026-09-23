@@ -1,29 +1,14 @@
 "use client";
 
 import { useAuth } from "@/lib/auth";
-import { appHostname } from "@/lib/urls";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-
-const PLATFORM_PATHS = ["/platform", "/billing"];
-const DUAL_PATHS = ["/subgraphs"];
 
 export function AuthBar() {
 	const { account, loading, logout } = useAuth();
 	const pathname = usePathname();
 	const router = useRouter();
-
-	const isDualPath = DUAL_PATHS.some(
-		(p) => pathname === p || pathname.startsWith(`${p}/`),
-	);
-	const appHost = appHostname();
-	const isAppHost =
-		appHost === null ||
-		(typeof window !== "undefined" && window.location.host === appHost);
-	const isPlatform =
-		(isAppHost && (pathname === "/" || isDualPath) && !!account) ||
-		PLATFORM_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 	useEffect(() => {
 		function onKeyDown(e: KeyboardEvent) {
@@ -40,13 +25,15 @@ export function AuthBar() {
 	}, [router]);
 
 	if (loading) return null;
-	if (isPlatform) return null;
 	// The docs shell's top strip already carries Home/Docs/Archive/Blog/GitHub.
 	if (pathname.startsWith("/docs")) return null;
 
 	if (account) {
 		return (
 			<div className="auth-bar">
+				<Link href="/account" className="auth-bar-nav-link">
+					<span className="auth-bar-nav-label">Account</span>
+				</Link>
 				<button
 					type="button"
 					className="auth-bar-login"

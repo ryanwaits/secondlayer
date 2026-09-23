@@ -54,6 +54,7 @@ export const DOCS_STRIP: NavLink[] = [
 	{ label: "Archive", href: "/archive" },
 	{ label: "Docs", href: "/docs" },
 	{ label: "Blog", href: "/writing" },
+	{ label: "Sign in", href: "/login" },
 ];
 
 function matches(pathname: string, href: string): boolean {
