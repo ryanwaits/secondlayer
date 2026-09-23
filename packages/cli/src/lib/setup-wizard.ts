@@ -153,7 +153,7 @@ export function resolveNonInteractiveConfig(
 	if (!flags.against && !flags.skipBootstrap) {
 		throw new MissingSetupFlagError(
 			"--against",
-			"Missing --against <manifest-url>. Pass an archive manifest to bootstrap from, or --skip-bootstrap to sync from genesis instead.",
+			"Missing --against <manifest-url>. Pass an archive manifest to bootstrap from, or --skip-bootstrap to index only what your node sends from now on.",
 		);
 	}
 

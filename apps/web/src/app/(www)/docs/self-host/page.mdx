@@ -21,8 +21,9 @@ secondlayer setup --yes \
 ```
 
 `--network` and `--node-mode` are always required in that mode — there's no
-safe default for either. `--skip-bootstrap` syncs from genesis instead of
-restoring an archive; `--skip-verify` skips the post-bootstrap check.
+safe default for either. `--skip-bootstrap` skips the archive: the index then
+holds only what your node sends from now on, full history only if the node
+itself syncs from genesis. `--skip-verify` skips the post-bootstrap check.
 
 API: `http://127.0.0.1:3800`. Health: `curl http://localhost:3800/health`.
 

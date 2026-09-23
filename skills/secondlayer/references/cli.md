@@ -65,7 +65,7 @@ Usage: `secondlayer setup [--network mainnet|testnet|devnet] [--node-mode extern
 | `--api-port <spec>` | `127.0.0.1:3800` | API publish spec, matching `docker/oss/docker-compose.yml`'s default. |
 | `--dir <path>` | cwd | Target directory for `docker-compose.yml` and `.env`. |
 | `--against <manifest>` | suggested: `https://archive.secondlayer.tools/latest.json` | Archive manifest to bootstrap from. Required unless `--skip-bootstrap`. |
-| `--skip-bootstrap` | off | Sync from genesis instead of restoring an archive. |
+| `--skip-bootstrap` | off | Skip the archive restore. The index holds only what your node sends from now on (full history only if the node itself syncs from genesis). |
 | `--skip-verify` | off | Skip the post-bootstrap verify pass. |
 | `--yes` | off | Skip the interactive TUI; run from flags only, never prompt. Also implied by a non-TTY stdout (piped, CI, an agent). |
 | `--force` | off | Regenerate secrets even if a `.env` already exists in `--dir`. |

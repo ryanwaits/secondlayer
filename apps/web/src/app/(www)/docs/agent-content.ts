@@ -353,7 +353,7 @@ export const DOCS_AGENT_CARDS: Record<string, DocsAgentCard[]> = {
 		card(
 			"Sync from genesis",
 			"Backfill, then deploy against your instance.",
-			"/secondlayer Walk me through a genesis sync: start with `TIP_FOLLOWER_ENABLED=false`, track progress via `curl http://localhost:3700/health | jq .block_height` against the chain tip, re-enable the tip follower, `secondlayer verify all --against <manifest>`, then deploy a subgraph against my local instance with `SL_API_URL=http://localhost:3800` and `secondlayer subgraphs deploy`.",
+			"/secondlayer Walk me through a genesis sync with a Stacks node that is itself syncing from genesis (an already-synced node only sends new blocks): start with `TIP_FOLLOWER_ENABLED=false`, track progress via `curl http://localhost:3700/health | jq .block_height` against the chain tip, re-enable the tip follower, `secondlayer verify all --against <manifest>`, then deploy a subgraph against my local instance with `SL_API_URL=http://localhost:3800` and `secondlayer subgraphs deploy`.",
 		),
 	],
 

@@ -143,7 +143,7 @@ export function registerSetupCommand(program: Command): void {
 		)
 		.option(
 			"--skip-bootstrap",
-			"Sync from genesis instead of restoring an archive",
+			"Skip the archive restore; index only what your node sends from now on",
 		)
 		.option("--skip-verify", "Skip the post-bootstrap verify pass")
 		.option(

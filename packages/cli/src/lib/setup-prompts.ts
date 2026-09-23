@@ -112,9 +112,9 @@ export async function promptSetupConfig(
 					description: "Enter your own",
 				},
 				{
-					name: "Sync from genesis",
+					name: "Skip the archive",
 					value: "skip",
-					description: "Skip bootstrap — slower, no download",
+					description: "Index only what your node sends from now on",
 				},
 			],
 		});
@@ -154,7 +154,7 @@ export async function promptSetupConfig(
 	console.error(`  dir          ${config.dir}`);
 	console.error(`  api port     ${config.apiPort}`);
 	console.error(
-		`  bootstrap    ${config.skipBootstrap ? "skip (sync from genesis)" : config.against}`,
+		`  bootstrap    ${config.skipBootstrap ? "skip (from the node's tip)" : config.against}`,
 	);
 	console.error("");
 
