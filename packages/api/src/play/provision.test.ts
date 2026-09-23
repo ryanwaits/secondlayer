@@ -21,6 +21,15 @@ const seededAccountIds: string[] = [];
 const seededNames: string[] = [];
 const seededIpHashes: string[] = [];
 
+// Each test that needs a fresh IP gets its own address. Random picks from one
+// /24 collided with each other and with the fixed 203.0.113.10/.11 cap tests,
+// turning an expected 400 into a 429 about once per 200 runs.
+let ipSeq = 0;
+function freshIp(): string {
+	ipSeq += 1;
+	return `198.51.100.${ipSeq}`;
+}
+
 function deployBody(name: string) {
 	const schema = { rows: { columns: { amount: { type: "uint" } } } };
 	const source = {
@@ -145,7 +154,7 @@ describe.skipIf(!HAS_DB)("POST /v1/play platform", () => {
 	test("provisions a ghost, key, claim url, and expiry", async () => {
 		const name = `play-${crypto.randomUUID().slice(0, 8)}`;
 		seededNames.push(name);
-		const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`;
+		const ip = freshIp();
 		seededIpHashes.push(hashToken(ip));
 		const app = createApiApp("platform");
 		const res = await app.request("/v1/play", {
@@ -193,7 +202,7 @@ describe.skipIf(!HAS_DB)("POST /v1/play platform", () => {
 	}, 30_000);
 
 	test("rejects a fourth provision from the same IP", async () => {
-		const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`;
+		const ip = freshIp();
 		const ipHash = hashToken(ip);
 		seededIpHashes.push(ipHash);
 		await db
@@ -223,7 +232,7 @@ describe.skipIf(!HAS_DB)("POST /v1/play platform", () => {
 	test("rolls back ghost and subgraph when webhook is invalid", async () => {
 		const name = `play-${crypto.randomUUID().slice(0, 8)}`;
 		seededNames.push(name);
-		const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`;
+		const ip = freshIp();
 		seededIpHashes.push(hashToken(ip));
 		const app = createApiApp("platform");
 		const res = await app.request("/v1/play", {
@@ -440,7 +449,7 @@ describe.skipIf(!HAS_DB)("POST /v1/play platform", () => {
 	}, 30_000);
 
 	test("claiming a slot lets the original IP provision again", async () => {
-		const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`;
+		const ip = freshIp();
 		const future = new Date(Date.now() + CLAIM_TOKEN_TTL_MS);
 		const seeded: Array<{ accountId: string; name: string }> = [];
 		for (let i = 0; i < PLAY_MAX_CONCURRENT_PER_IP; i++) {
@@ -487,7 +496,7 @@ describe.skipIf(!HAS_DB)("POST /v1/play platform", () => {
 	});
 
 	test("expired play subgraphs do not count toward the concurrent cap", async () => {
-		const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`;
+		const ip = freshIp();
 		const past = new Date(Date.now() - 60_000);
 		for (let i = 0; i < PLAY_MAX_CONCURRENT_PER_IP; i++) {
 			await seedPlayGhost({ ip, expiresAt: past });
