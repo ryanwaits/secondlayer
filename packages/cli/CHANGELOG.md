@@ -1,5 +1,20 @@
 # @secondlayer/cli
 
+## 16.0.0
+
+### Major Changes
+
+- `secondlayer observer` drops `--recovery`. Both modes print `events_keys = ["*"]`, the only set a stock stacks-core accepts. A block the node fails to deliver stays a gap until `secondlayer repair` fills it from the archive.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies [b8528a0]
+  - @secondlayer/stacks@6.1.0
+  - @secondlayer/shared@11.7.0
+  - @secondlayer/subgraphs@4.4.0
+  - @secondlayer/sdk@10.4.3
+
 ## 15.0.1
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @secondlayer/worker
 
+## 1.3.4
+
+### Patch Changes
+
+- Run on Bun 1.4.2. Bun 1.3.10 held `Connection: close` sockets open for its ~12s idle timeout when a handler awaited, so the node waited ~12s per observer POST. `@secondlayer/stacks` builds CJS without code splitting (Bun 1.4 rejects it); exports are unchanged.
+- Updated dependencies [b8528a0]
+  - @secondlayer/shared@11.7.0
+  - @secondlayer/platform@0.2.15
+
 ## 1.3.3
 
 ### Patch Changes

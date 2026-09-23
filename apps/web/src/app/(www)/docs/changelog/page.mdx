@@ -9,6 +9,10 @@ and hosted Index/Streams reads at `api.secondlayer.tools` draw
 
 ## CLI — September 2026
 
+### Observer stanzas work on a stock node
+
+`secondlayer observer` prints `events_keys = ["*"]` in both modes, the only set a stock stacks-core starts with. `--recovery` is gone. A block your node fails to deliver stays a gap until `secondlayer repair` fills it from the archive.
+
 ### Instance web console is gone
 
 The compose `--profile console` container and `secondlayer console` are removed. Operate with CLI, REST, and MCP. Old `/docs/console` redirects to [Run Secondlayer](/docs/self-host).

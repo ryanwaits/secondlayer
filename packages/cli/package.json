@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/cli",
-	"version": "15.0.1",
+	"version": "16.0.0",
 	"description": "Run a Stacks index on your own hardware — set it up, restore verified history, and keep it current.",
 	"repository": {
 		"type": "git",
@@ -41,10 +41,10 @@
 		"@opentui/react": "^0.5.3",
 		"@secondlayer/bundler": "^0.5.3",
 		"@secondlayer/scaffold": "^1.5.7",
-		"@secondlayer/sdk": "^10.4.2",
-		"@secondlayer/shared": "^11.6.1",
-		"@secondlayer/stacks": "^6.0.0",
-		"@secondlayer/subgraphs": "^4.3.4",
+		"@secondlayer/sdk": "^10.4.3",
+		"@secondlayer/shared": "^11.7.0",
+		"@secondlayer/stacks": "^6.1.0",
+		"@secondlayer/subgraphs": "^4.4.0",
 		"esbuild": "^0.28.2",
 		"react": "^19.1.0",
 		"smol-toml": "^1.8.0",
