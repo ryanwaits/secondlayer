@@ -13,13 +13,22 @@ process.env.DATABASE_URL =
 
 let db: Kysely<Database>;
 let accountId: string;
+let priorAllowEnv: string | undefined;
 
+// The delivery case posts to a local server, so it needs the private-egress
+// opt-in. It used to inherit that from whichever emitter suite loaded first in
+// the same process, which made it pass or fail on file order.
 beforeAll(() => {
 	db = getDb();
 	accountId = randomUUID();
+	priorAllowEnv = process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
+	process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = "true";
 });
 
 afterAll(async () => {
+	if (priorAllowEnv === undefined)
+		delete process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS;
+	else process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = priorAllowEnv;
 	await db.deleteFrom("webhooks").where("account_id", "=", accountId).execute();
 });
 
