@@ -5,7 +5,7 @@
 
 import type { Kysely } from "kysely";
 import { type ParsedBlock, parseBlock } from "./block.ts";
-import { flush, loadState } from "./db/store.ts";
+import { type FlushStats, flush, loadState } from "./db/store.ts";
 import type { Database } from "./db/types.ts";
 import type { BitcoinRpcClient } from "./rpc.ts";
 import { checkInvariant } from "./runes/invariant.ts";
@@ -68,8 +68,14 @@ export interface BackfillOptions {
 	toHeight: number;
 	fetchConcurrency: number;
 	flushInterval?: number;
-	/** Called on every flush (for logging/metrics — e.g. wall-time + row-count reporting). */
-	onFlush?: (info: { height: number; hash: string }) => void;
+	/** Called after every flush with row-count/timing stats plus how many blocks were in this window and the wall-clock ms since the previous flush (for a blocks/s log line). */
+	onFlush?: (
+		stats: FlushStats & {
+			hash: string;
+			blocksInWindow: number;
+			windowMs: number;
+		},
+	) => void;
 	/** Directory to write `invariant-<height>.json` to on a fail-closed invariant break. Defaults to cwd. */
 	invariantReportDir?: string;
 }
@@ -139,6 +145,7 @@ export async function runBackfill(
 	let previousHash = state.height === undefined ? undefined : state.hash;
 	let pendingBlocks: Array<{ height: number; hash: string }> = [];
 	let sinceFlush = 0;
+	let windowStart = performance.now();
 
 	for await (const { height, block } of fetchBlocksInOrder(
 		options.rpc,
@@ -168,15 +175,24 @@ export async function runBackfill(
 
 		const isFinal = height === options.toHeight;
 		if (sinceFlush >= flushInterval || isFinal) {
+			const blocksInWindow = pendingBlocks.length;
+			let stats: FlushStats;
 			try {
-				await flush(options.db, state, pendingBlocks, checkInvariant);
+				stats = await flush(options.db, state, pendingBlocks, checkInvariant);
 			} catch (error) {
 				await writeInvariantReport(options.invariantReportDir, height, error);
 				throw error;
 			}
-			options.onFlush?.({ height, hash: block.hash });
+			const windowMs = performance.now() - windowStart;
+			options.onFlush?.({
+				...stats,
+				hash: block.hash,
+				blocksInWindow,
+				windowMs,
+			});
 			pendingBlocks = [];
 			sinceFlush = 0;
+			windowStart = performance.now();
 		}
 	}
 

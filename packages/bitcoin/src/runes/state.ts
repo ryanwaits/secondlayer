@@ -63,10 +63,26 @@ export interface RuneState {
 	statisticReservedRunes: bigint;
 	/** Dirty rune IDs since the last flush — upserted and invariant-checked at flush time. */
 	dirtyRuneIds: Set<string>;
-	/** Outpoints spent since the last flush — deleted from `rune_balances` at flush time. */
-	dirtySpentOutpoints: Set<string>;
-	/** Outpoints with a new/changed balance since the last flush — upserted at flush time. */
-	dirtyOutpoints: Set<string>;
+	/**
+	 * `(outpoint, ruleId)` pairs touched since the last flush, as
+	 * `"${outpoint}|${ruleId}"`. This is every pair the flush needs to
+	 * *consider*, not every pair it needs to write — see `dbBalanceKeys`,
+	 * whose comparison against this set is what lets the flush skip a pair
+	 * that was created and fully spent within the same window (never
+	 * persisted, so it needs neither an insert nor a delete). Without that
+	 * comparison, a dense window (e.g. the Runes launch block) turns into one
+	 * DB round trip per touched pair — the flush performance defect this
+	 * field exists to fix (see db/store.ts's `computeBalanceChanges`).
+	 */
+	dirtyBalanceKeys: Set<string>;
+	/**
+	 * `(outpoint, ruleId)` pairs the flush believes are CURRENTLY persisted in
+	 * `rune_balances` — loaded once in `loadState` and kept in sync after
+	 * every successful flush. Not ord's concept (ord's redb table has no such
+	 * shadow); it exists purely so `computeBalanceChanges` can tell "existed
+	 * before, now empty -> delete" apart from "never existed -> no-op".
+	 */
+	dbBalanceKeys: Set<string>;
 	events: RuneEvent[];
 	height?: number;
 	hash?: string;
@@ -81,10 +97,15 @@ export function createRuneState(): RuneState {
 		statisticRunes: 0n,
 		statisticReservedRunes: 0n,
 		dirtyRuneIds: new Set(),
-		dirtySpentOutpoints: new Set(),
-		dirtyOutpoints: new Set(),
+		dirtyBalanceKeys: new Set(),
+		dbBalanceKeys: new Set(),
 		events: [],
 	};
+}
+
+/** `"${outpoint}|${ruleId}"` — the composite key used by `dirtyBalanceKeys`/`dbBalanceKeys`. Neither half can contain `|` (txid is hex, vout/ruleId are digits and `:`). */
+export function balanceKey(outpoint: string, ruleId: string): string {
+	return `${outpoint}|${ruleId}`;
 }
 
 export function getBalance(
@@ -124,7 +145,7 @@ export function setBalance(
 		byRune.set(outpoint, amount);
 	}
 
-	state.dirtyOutpoints.add(outpoint);
+	state.dirtyBalanceKeys.add(balanceKey(outpoint, ruleId));
 	state.dirtyRuneIds.add(ruleId);
 }
 
@@ -140,7 +161,6 @@ export function takeOutpointBalances(
 	for (const ruleId of snapshot.keys()) {
 		setBalance(state, outpoint, ruleId, 0n);
 	}
-	state.dirtySpentOutpoints.add(outpoint);
 	return snapshot;
 }
 

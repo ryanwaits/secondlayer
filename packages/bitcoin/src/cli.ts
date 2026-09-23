@@ -66,6 +66,9 @@ async function cmdBackfill(args: string[]): Promise<void> {
 	const db = openStore(requireEnv("BITCOIN_DATABASE_URL"));
 	const rpc = bitcoinRpcClientFromEnv();
 	const fetchConcurrency = Number(process.env.FETCH_CONCURRENCY ?? "8");
+	const flushInterval = process.env.FLUSH_INTERVAL
+		? Number(process.env.FLUSH_INTERVAL)
+		: undefined;
 
 	const start = Date.now();
 	let lastFlushHeight = -1;
@@ -75,11 +78,20 @@ async function cmdBackfill(args: string[]): Promise<void> {
 		rpc,
 		toHeight,
 		fetchConcurrency,
-		onFlush: (info) => {
-			lastFlushHeight = info.height;
+		flushInterval,
+		onFlush: (stats) => {
+			lastFlushHeight = stats.height;
 			const elapsedS = ((Date.now() - start) / 1000).toFixed(1);
+			const blocksPerSec = (
+				stats.blocksInWindow /
+				(stats.windowMs / 1000)
+			).toFixed(2);
+			const rssMb = (process.memoryUsage().rss / (1024 * 1024)).toFixed(0);
 			console.log(
-				`✅ flushed through height ${info.height} (hash ${info.hash}) — ${elapsedS}s elapsed`,
+				`✅ flush height=${stats.height} hash=${stats.hash} blocks/s=${blocksPerSec} ` +
+					`balances(+${stats.balancesUpserted}/-${stats.balancesDeleted}) ` +
+					`entries=${stats.entriesUpserted} events=${stats.eventsInserted} ` +
+					`flushMs=${stats.ms.toFixed(0)} rssMB=${rssMb} — ${elapsedS}s elapsed`,
 			);
 		},
 	});
