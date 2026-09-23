@@ -33,6 +33,45 @@ import {
 const COMMIT_CONFIRMATIONS = 6;
 
 /**
+ * Bounds total concurrent commitment-resolution RPC calls across every
+ * in-flight block fetch. Without this, `FETCH_CONCURRENCY` blocks fetching in
+ * parallel, each fanning out one RPC pair per candidate commitment input,
+ * spikes to hundreds of simultaneous requests — measured live against
+ * node-server bitcoind as an HTTP 503 (its RPC work queue overflowing) that
+ * crashed the backfill outright. A module-wide semaphore (shared across every
+ * `resolveBlockCommitments` call, not one per block) keeps the real
+ * concurrency bounded regardless of how many blocks are in flight.
+ */
+class Semaphore {
+	private available: number;
+	private readonly waiters: Array<() => void> = [];
+
+	constructor(limit: number) {
+		this.available = limit;
+	}
+
+	async run<T>(fn: () => Promise<T>): Promise<T> {
+		if (this.available <= 0) {
+			await new Promise<void>((resolve) => {
+				this.waiters.push(resolve);
+			});
+		}
+		this.available -= 1;
+		try {
+			return await fn();
+		} finally {
+			this.available += 1;
+			const next = this.waiters.shift();
+			if (next) next();
+		}
+	}
+}
+
+const commitmentRpcLimit = new Semaphore(
+	Number(process.env.COMMIT_RPC_CONCURRENCY ?? "8"),
+);
+
+/**
  * Resolves, in parallel, every candidate commitment input in `block` — "is
  * `prevTxid:prevVout` a taproot output confirmed `>= COMMIT_CONFIRMATIONS`
  * blocks before `height`?" — ahead of the sequential apply loop (plan 039
@@ -62,7 +101,7 @@ async function resolveBlockCommitments(
 	function getTx(prevTxid: string): Promise<RawTransactionVerbose> {
 		let p = txCache.get(prevTxid);
 		if (!p) {
-			p = rpc.getrawtransaction(prevTxid, true);
+			p = commitmentRpcLimit.run(() => rpc.getrawtransaction(prevTxid, true));
 			txCache.set(prevTxid, p);
 		}
 		return p;
@@ -70,7 +109,7 @@ async function resolveBlockCommitments(
 	function getHeader(blockhash: string): Promise<BlockHeader> {
 		let p = headerCache.get(blockhash);
 		if (!p) {
-			p = rpc.getblockheader(blockhash);
+			p = commitmentRpcLimit.run(() => rpc.getblockheader(blockhash));
 			headerCache.set(blockhash, p);
 		}
 		return p;
