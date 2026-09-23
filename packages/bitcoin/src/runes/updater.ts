@@ -147,17 +147,17 @@ function runeIdIsDefault(id: RuneId): boolean {
 /** `RuneUpdater::mint`. */
 function mint(
 	state: RuneState,
-	ruleId: string,
+	runeId: string,
 	height: bigint,
 ): bigint | undefined {
-	const entry = state.entries.get(ruleId);
+	const entry = state.entries.get(runeId);
 	if (!entry) return undefined;
 
 	const result = runeEntryMintable(entry, height);
 	if ("err" in result) return undefined;
 
 	entry.mints += 1n;
-	state.dirtyRuneIds.add(ruleId);
+	state.dirtyRuneIds.add(runeId);
 
 	return result.ok;
 }
@@ -258,9 +258,13 @@ function createRuneEntry(
 	state.events.push({
 		kind: "etch",
 		height: ctx.height,
-		txIndex: 0, // caller doesn't have tx_index here in ord either — RuneEtched carries no tx index field
+		// `id.tx` is the etching tx's index within the block (RuneId is
+		// `{block, tx}` where `tx` == the etching tx's own index for a real
+		// etching, or the tx index the reserved-rune name was minted at
+		// otherwise — either way it's the correct tx_index for this event).
+		txIndex: Number(id.tx),
 		txid,
-		ruleId: idKey,
+		runeId: idKey,
 	});
 }
 
@@ -270,8 +274,8 @@ function unallocated(state: RuneState, tx: ParsedTx): Map<string, bigint> {
 	for (const input of tx.inputs) {
 		const outpoint = `${input.prevTxid}:${input.prevVout}`;
 		const held = takeOutpointBalances(state, outpoint);
-		for (const [ruleId, amount] of held) {
-			result.set(ruleId, (result.get(ruleId) ?? 0n) + amount);
+		for (const [runeId, amount] of held) {
+			result.set(runeId, (result.get(runeId) ?? 0n) + amount);
 		}
 	}
 	return result;
@@ -310,7 +314,7 @@ export async function applyTransaction(
 					height: ctx.height,
 					txIndex,
 					txid: tx.txid,
-					ruleId: mintIdKey,
+					runeId: mintIdKey,
 					amount,
 				});
 			}
@@ -412,8 +416,8 @@ export async function applyTransaction(
 	const burned = new Map<string, bigint>();
 
 	if (artifact?.type === "cenotaph") {
-		for (const [ruleId, balance] of unallocatedBalances) {
-			burned.set(ruleId, (burned.get(ruleId) ?? 0n) + balance);
+		for (const [runeId, balance] of unallocatedBalances) {
+			burned.set(runeId, (burned.get(runeId) ?? 0n) + balance);
 		}
 	} else {
 		const pointer =
@@ -434,15 +438,15 @@ export async function applyTransaction(
 
 		if (vout !== undefined) {
 			const targetMap = allocated[vout] as Map<string, bigint>;
-			for (const [ruleId, balance] of unallocatedBalances) {
+			for (const [runeId, balance] of unallocatedBalances) {
 				if (balance > 0n) {
-					targetMap.set(ruleId, (targetMap.get(ruleId) ?? 0n) + balance);
+					targetMap.set(runeId, (targetMap.get(runeId) ?? 0n) + balance);
 				}
 			}
 		} else {
-			for (const [ruleId, balance] of unallocatedBalances) {
+			for (const [runeId, balance] of unallocatedBalances) {
 				if (balance > 0n) {
-					burned.set(ruleId, (burned.get(ruleId) ?? 0n) + balance);
+					burned.set(runeId, (burned.get(runeId) ?? 0n) + balance);
 				}
 			}
 		}
@@ -457,8 +461,8 @@ export async function applyTransaction(
 		if (!output) continue;
 
 		if (isOpReturn(output.script)) {
-			for (const [ruleId, balance] of balances) {
-				burned.set(ruleId, (burned.get(ruleId) ?? 0n) + balance);
+			for (const [runeId, balance] of balances) {
+				burned.set(runeId, (burned.get(runeId) ?? 0n) + balance);
 			}
 			continue;
 		}
@@ -468,19 +472,19 @@ export async function applyTransaction(
 			runeIdCompare(runeIdFromKey(a), runeIdFromKey(b)),
 		);
 
-		for (const [ruleId, balance] of sorted) {
+		for (const [runeId, balance] of sorted) {
 			setBalance(
 				state,
 				outpoint,
-				ruleId,
-				getBalance(state, outpoint, ruleId) + balance,
+				runeId,
+				getBalance(state, outpoint, runeId) + balance,
 			);
 			state.events.push({
 				kind: "transfer",
 				height: ctx.height,
 				txIndex,
 				txid: tx.txid,
-				ruleId,
+				runeId,
 				amount: balance,
 				vout,
 			});
@@ -488,14 +492,14 @@ export async function applyTransaction(
 	}
 
 	// accumulate burns for the block (folded into entry.burned by applyBlock)
-	for (const [ruleId, amount] of burned) {
-		blockBurned.set(ruleId, (blockBurned.get(ruleId) ?? 0n) + amount);
+	for (const [runeId, amount] of burned) {
+		blockBurned.set(runeId, (blockBurned.get(runeId) ?? 0n) + amount);
 		state.events.push({
 			kind: "burn",
 			height: ctx.height,
 			txIndex,
 			txid: tx.txid,
-			ruleId,
+			runeId,
 			amount,
 		});
 	}
@@ -514,12 +518,12 @@ export function applyBlockBurns(
 	state: RuneState,
 	blockBurned: Map<string, bigint>,
 ): void {
-	for (const [ruleId, amount] of blockBurned) {
-		const entry = state.entries.get(ruleId);
+	for (const [runeId, amount] of blockBurned) {
+		const entry = state.entries.get(runeId);
 		if (!entry) {
-			throw new Error(`applyBlockBurns: no entry for rune ${ruleId}`);
+			throw new Error(`applyBlockBurns: no entry for rune ${runeId}`);
 		}
 		entry.burned += amount;
-		state.dirtyRuneIds.add(ruleId);
+		state.dirtyRuneIds.add(runeId);
 	}
 }

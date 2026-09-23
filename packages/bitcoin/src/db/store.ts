@@ -148,13 +148,13 @@ export async function loadState(db: Kysely<Database>): Promise<RuneState> {
 export interface BalanceRow {
 	txid: string;
 	vout: number;
-	ruleId: string;
+	runeId: string;
 	amount: bigint;
 }
 export interface BalanceRowKey {
 	txid: string;
 	vout: number;
-	ruleId: string;
+	runeId: string;
 }
 
 function splitOutpoint(outpoint: string): { txid: string; vout: number } {
@@ -182,16 +182,16 @@ export function computeBalanceChanges(state: RuneState): {
 	for (const key of state.dirtyBalanceKeys) {
 		const sep = key.lastIndexOf("|");
 		const outpoint = key.slice(0, sep);
-		const ruleId = key.slice(sep + 1);
+		const runeId = key.slice(sep + 1);
 		const { txid, vout } = splitOutpoint(outpoint);
 
-		const amount = getBalance(state, outpoint, ruleId);
+		const amount = getBalance(state, outpoint, runeId);
 		const wasInDb = state.dbBalanceKeys.has(key);
 
 		if (amount > 0n) {
-			toUpsert.push({ txid, vout, ruleId, amount });
+			toUpsert.push({ txid, vout, runeId, amount });
 		} else if (wasInDb) {
-			toDelete.push({ txid, vout, ruleId });
+			toDelete.push({ txid, vout, runeId });
 		}
 		// else: created and fully spent within this flush window — never
 		// touched the DB, so it needs neither a delete nor an insert.
@@ -237,7 +237,7 @@ export async function flush(
 	db: Kysely<Database>,
 	state: RuneState,
 	blocks: Array<{ height: number; hash: string }>,
-	checkInvariant: (state: RuneState, ruleIds: Iterable<string>) => void,
+	checkInvariant: (state: RuneState, runeIds: Iterable<string>) => void,
 ): Promise<FlushStats> {
 	if (blocks.length === 0) {
 		throw new Error("flush: no blocks to flush");
@@ -247,9 +247,9 @@ export async function flush(
 
 	const { toUpsert, toDelete } = computeBalanceChanges(state);
 	const dirtyEntryRows = [...state.dirtyRuneIds]
-		.map((ruleId) => ({ ruleId, entry: state.entries.get(ruleId) }))
+		.map((runeId) => ({ runeId, entry: state.entries.get(runeId) }))
 		.filter(
-			(r): r is { ruleId: string; entry: RuneEntry } => r.entry !== undefined,
+			(r): r is { runeId: string; entry: RuneEntry } => r.entry !== undefined,
 		);
 
 	await db.transaction().execute(async (trx) => {
@@ -257,10 +257,10 @@ export async function flush(
 			await trx
 				.insertInto("rune_entries")
 				.values(
-					batch.map(({ ruleId, entry }) => {
-						const { block, tx } = runeIdFromString(ruleId);
+					batch.map(({ runeId, entry }) => {
+						const { block, tx } = runeIdFromString(runeId);
 						return {
-							rune_id: ruleId,
+							rune_id: runeId,
 							block: s(block),
 							tx: s(tx),
 							number: s(entry.number),
@@ -303,10 +303,10 @@ export async function flush(
 		for (const batch of chunk(toDelete, DELETE_CHUNK_SIZE)) {
 			const txids = batch.map((r) => r.txid);
 			const vouts = batch.map((r) => r.vout);
-			const ruleIds = batch.map((r) => r.ruleId);
+			const runeIds = batch.map((r) => r.runeId);
 			await sql`
 				delete from rune_balances b
-				using unnest(${sql.val(txids)}::text[], ${sql.val(vouts)}::int[], ${sql.val(ruleIds)}::text[])
+				using unnest(${sql.val(txids)}::text[], ${sql.val(vouts)}::int[], ${sql.val(runeIds)}::text[])
 					as d(txid, vout, rune_id)
 				where b.txid = d.txid and b.vout = d.vout and b.rune_id = d.rune_id
 			`.execute(trx);
@@ -322,7 +322,7 @@ export async function flush(
 					batch.map((r) => ({
 						txid: r.txid,
 						vout: r.vout,
-						rune_id: r.ruleId,
+						rune_id: r.runeId,
 						amount: s(r.amount),
 					})),
 				)
@@ -343,7 +343,7 @@ export async function flush(
 						tx_index: event.txIndex,
 						txid: event.txid,
 						kind: event.kind,
-						rune_id: event.ruleId,
+						rune_id: event.runeId,
 						amount: s("amount" in event ? event.amount : 0n),
 						vout: "vout" in event ? event.vout : null,
 					})),
@@ -381,11 +381,11 @@ export async function flush(
 	});
 
 	for (const row of toUpsert) {
-		state.dbBalanceKeys.add(balanceKey(`${row.txid}:${row.vout}`, row.ruleId));
+		state.dbBalanceKeys.add(balanceKey(`${row.txid}:${row.vout}`, row.runeId));
 	}
 	for (const row of toDelete) {
 		state.dbBalanceKeys.delete(
-			balanceKey(`${row.txid}:${row.vout}`, row.ruleId),
+			balanceKey(`${row.txid}:${row.vout}`, row.runeId),
 		);
 	}
 

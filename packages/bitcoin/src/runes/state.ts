@@ -15,14 +15,14 @@ export type RuneEvent =
 			height: number;
 			txIndex: number;
 			txid: string;
-			ruleId: string;
+			runeId: string;
 	  }
 	| {
 			kind: "mint";
 			height: number;
 			txIndex: number;
 			txid: string;
-			ruleId: string;
+			runeId: string;
 			amount: bigint;
 	  }
 	| {
@@ -30,7 +30,7 @@ export type RuneEvent =
 			height: number;
 			txIndex: number;
 			txid: string;
-			ruleId: string;
+			runeId: string;
 			amount: bigint;
 			vout: number;
 	  }
@@ -39,7 +39,7 @@ export type RuneEvent =
 			height: number;
 			txIndex: number;
 			txid: string;
-			ruleId: string;
+			runeId: string;
 			amount: bigint;
 	  };
 
@@ -64,8 +64,8 @@ export interface RuneState {
 	/** Dirty rune IDs since the last flush — upserted and invariant-checked at flush time. */
 	dirtyRuneIds: Set<string>;
 	/**
-	 * `(outpoint, ruleId)` pairs touched since the last flush, as
-	 * `"${outpoint}|${ruleId}"`. This is every pair the flush needs to
+	 * `(outpoint, runeId)` pairs touched since the last flush, as
+	 * `"${outpoint}|${runeId}"`. This is every pair the flush needs to
 	 * *consider*, not every pair it needs to write — see `dbBalanceKeys`,
 	 * whose comparison against this set is what lets the flush skip a pair
 	 * that was created and fully spent within the same window (never
@@ -76,7 +76,7 @@ export interface RuneState {
 	 */
 	dirtyBalanceKeys: Set<string>;
 	/**
-	 * `(outpoint, ruleId)` pairs the flush believes are CURRENTLY persisted in
+	 * `(outpoint, runeId)` pairs the flush believes are CURRENTLY persisted in
 	 * `rune_balances` — loaded once in `loadState` and kept in sync after
 	 * every successful flush. Not ord's concept (ord's redb table has no such
 	 * shadow); it exists purely so `computeBalanceChanges` can tell "existed
@@ -103,50 +103,50 @@ export function createRuneState(): RuneState {
 	};
 }
 
-/** `"${outpoint}|${ruleId}"` — the composite key used by `dirtyBalanceKeys`/`dbBalanceKeys`. Neither half can contain `|` (txid is hex, vout/ruleId are digits and `:`). */
-export function balanceKey(outpoint: string, ruleId: string): string {
-	return `${outpoint}|${ruleId}`;
+/** `"${outpoint}|${runeId}"` — the composite key used by `dirtyBalanceKeys`/`dbBalanceKeys`. Neither half can contain `|` (txid is hex, vout/runeId are digits and `:`). */
+export function balanceKey(outpoint: string, runeId: string): string {
+	return `${outpoint}|${runeId}`;
 }
 
 export function getBalance(
 	state: RuneState,
 	outpoint: string,
-	ruleId: string,
+	runeId: string,
 ): bigint {
-	return state.balances.get(outpoint)?.get(ruleId) ?? 0n;
+	return state.balances.get(outpoint)?.get(runeId) ?? 0n;
 }
 
 /** Sets a balance (0 deletes it), keeping `balances`/`balancesByRune` and the dirty sets in sync. */
 export function setBalance(
 	state: RuneState,
 	outpoint: string,
-	ruleId: string,
+	runeId: string,
 	amount: bigint,
 ): void {
 	let byOutpoint = state.balances.get(outpoint);
-	let byRune = state.balancesByRune.get(ruleId);
+	let byRune = state.balancesByRune.get(runeId);
 
 	if (amount === 0n) {
-		byOutpoint?.delete(ruleId);
+		byOutpoint?.delete(runeId);
 		if (byOutpoint?.size === 0) state.balances.delete(outpoint);
 		byRune?.delete(outpoint);
-		if (byRune?.size === 0) state.balancesByRune.delete(ruleId);
+		if (byRune?.size === 0) state.balancesByRune.delete(runeId);
 	} else {
 		if (!byOutpoint) {
 			byOutpoint = new Map();
 			state.balances.set(outpoint, byOutpoint);
 		}
-		byOutpoint.set(ruleId, amount);
+		byOutpoint.set(runeId, amount);
 
 		if (!byRune) {
 			byRune = new Map();
-			state.balancesByRune.set(ruleId, byRune);
+			state.balancesByRune.set(runeId, byRune);
 		}
 		byRune.set(outpoint, amount);
 	}
 
-	state.dirtyBalanceKeys.add(balanceKey(outpoint, ruleId));
-	state.dirtyRuneIds.add(ruleId);
+	state.dirtyBalanceKeys.add(balanceKey(outpoint, runeId));
+	state.dirtyRuneIds.add(runeId);
 }
 
 /** Removes every rune balance held at `outpoint` (spending it), returning what it held. */
@@ -158,16 +158,16 @@ export function takeOutpointBalances(
 	if (!held || held.size === 0) return new Map();
 
 	const snapshot = new Map(held);
-	for (const ruleId of snapshot.keys()) {
-		setBalance(state, outpoint, ruleId, 0n);
+	for (const runeId of snapshot.keys()) {
+		setBalance(state, outpoint, runeId, 0n);
 	}
 	return snapshot;
 }
 
-/** Sum of every live balance of `ruleId` across all outpoints — the invariant's `sum(balances)` term. */
-export function sumRuneBalance(state: RuneState, ruleId: string): bigint {
+/** Sum of every live balance of `runeId` across all outpoints — the invariant's `sum(balances)` term. */
+export function sumRuneBalance(state: RuneState, runeId: string): bigint {
 	let total = 0n;
-	for (const amount of state.balancesByRune.get(ruleId)?.values() ?? []) {
+	for (const amount of state.balancesByRune.get(runeId)?.values() ?? []) {
 		total += amount;
 	}
 	return total;

@@ -208,13 +208,13 @@ async function writeInvariantReport(
 	const { join } = await import("node:path");
 	const path = join(dir ?? process.cwd(), `invariant-${height}.json`);
 	const message = error instanceof Error ? error.message : String(error);
-	const ruleId =
-		error && typeof error === "object" && "ruleId" in error
-			? (error as { ruleId: string }).ruleId
+	const runeId =
+		error && typeof error === "object" && "runeId" in error
+			? (error as { runeId: string }).runeId
 			: undefined;
 	await writeFile(
 		path,
-		JSON.stringify({ height, message, ruleId }, null, 2),
+		JSON.stringify({ height, message, runeId }, null, 2),
 		"utf8",
 	);
 }

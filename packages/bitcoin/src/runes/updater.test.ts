@@ -104,23 +104,57 @@ describe("applyTransaction", () => {
 		await applyTransaction(state, tx, 0, ctx(840_000), blockBurned);
 		applyBlockBurns(state, blockBurned);
 
-		const ruleId = runeIdToString({ block: 840_000n, tx: 0n });
-		const entry = state.entries.get(ruleId);
+		const runeId = runeIdToString({ block: 840_000n, tx: 0n });
+		const entry = state.entries.get(runeId);
 		expect(entry).toBeDefined();
 		expect(entry?.premine).toBe(1000n);
 		expect(entry?.mints).toBe(0n);
 		expect(entry?.burned).toBe(0n);
 
 		const outpoint = `${tx.txid}:0`;
-		expect(getBalance(state, outpoint, ruleId)).toBe(1000n);
+		expect(getBalance(state, outpoint, runeId)).toBe(1000n);
 
-		checkInvariant(state, [ruleId]);
+		checkInvariant(state, [runeId]);
+	});
+
+	test("an etch at tx index 3 records the etch event's txIndex as 3, not 0", async () => {
+		const state = createRuneState();
+
+		const script = runestoneScript([
+			BigInt(Tag.Flags),
+			flagMask(Flag.Etching),
+			BigInt(Tag.Premine),
+			1000n,
+			BigInt(Tag.Pointer),
+			0n,
+		]);
+
+		const tx: ParsedTx = {
+			txid: "b".repeat(64),
+			inputs: [],
+			outputs: [
+				{ value: 0n, script: placeholderScript() },
+				{ value: 0n, script },
+			],
+		};
+
+		const blockBurned = new Map<string, bigint>();
+		await applyTransaction(state, tx, 3, ctx(840_000), blockBurned);
+		applyBlockBurns(state, blockBurned);
+
+		const runeId = runeIdToString({ block: 840_000n, tx: 3n });
+		expect(state.entries.get(runeId)).toBeDefined();
+
+		const etchEvent = state.events.find((e) => e.kind === "etch");
+		expect(etchEvent).toBeDefined();
+		expect(etchEvent?.txIndex).toBe(3);
+		expect(etchEvent?.runeId).toBe(runeId);
 	});
 
 	test("mint within terms increments mints; a mint after the cap does not", async () => {
 		const state = createRuneState();
-		const ruleId = runeIdToString({ block: 800_000n, tx: 1n });
-		state.entries.set(ruleId, {
+		const runeId = runeIdToString({ block: 800_000n, tx: 1n });
+		state.entries.set(runeId, {
 			block: 800_000n,
 			burned: 0n,
 			divisibility: 0,
@@ -160,8 +194,8 @@ describe("applyTransaction", () => {
 		await applyTransaction(state, mintTx, 0, ctx(800_001), blockBurned1);
 		applyBlockBurns(state, blockBurned1);
 
-		expect(state.entries.get(ruleId)?.mints).toBe(1n);
-		expect(getBalance(state, `${mintTx.txid}:0`, ruleId)).toBe(500n);
+		expect(state.entries.get(runeId)?.mints).toBe(1n);
+		expect(getBalance(state, `${mintTx.txid}:0`, runeId)).toBe(500n);
 
 		// second mint attempt, same rune — cap already reached, must not increment
 		const mintTx2: ParsedTx = {
@@ -176,10 +210,10 @@ describe("applyTransaction", () => {
 		await applyTransaction(state, mintTx2, 0, ctx(800_002), blockBurned2);
 		applyBlockBurns(state, blockBurned2);
 
-		expect(state.entries.get(ruleId)?.mints).toBe(1n);
-		expect(getBalance(state, `${mintTx2.txid}:0`, ruleId)).toBe(0n);
+		expect(state.entries.get(runeId)?.mints).toBe(1n);
+		expect(getBalance(state, `${mintTx2.txid}:0`, runeId)).toBe(0n);
 
-		checkInvariant(state, [ruleId]);
+		checkInvariant(state, [runeId]);
 	});
 
 	test("edict to an OP_RETURN output increments burned", async () => {
@@ -212,21 +246,21 @@ describe("applyTransaction", () => {
 		await applyTransaction(state, tx, 0, ctx(840_000), blockBurned);
 		applyBlockBurns(state, blockBurned);
 
-		const ruleId = runeIdToString({ block: 840_000n, tx: 0n });
-		const entry = state.entries.get(ruleId);
+		const runeId = runeIdToString({ block: 840_000n, tx: 0n });
+		const entry = state.entries.get(runeId);
 		expect(entry?.burned).toBe(100n);
 		expect(entry?.premine).toBe(100n);
-		expect(getBalance(state, `${tx.txid}:1`, ruleId)).toBe(0n); // burned, not held as a balance
-		expect(getBalance(state, `${tx.txid}:0`, ruleId)).toBe(0n); // nothing left to reach the default output
+		expect(getBalance(state, `${tx.txid}:1`, runeId)).toBe(0n); // burned, not held as a balance
+		expect(getBalance(state, `${tx.txid}:0`, runeId)).toBe(0n); // nothing left to reach the default output
 
-		checkInvariant(state, [ruleId]);
+		checkInvariant(state, [runeId]);
 	});
 
 	test("a cenotaph burns all input runes", async () => {
 		const state = createRuneState();
 
-		const ruleId = runeIdToString({ block: 700_000n, tx: 3n });
-		state.entries.set(ruleId, {
+		const runeId = runeIdToString({ block: 700_000n, tx: 3n });
+		state.entries.set(runeId, {
 			block: 700_000n,
 			burned: 0n,
 			divisibility: 0,
@@ -243,7 +277,7 @@ describe("applyTransaction", () => {
 		});
 
 		const prevTxid = "1".repeat(64);
-		setBalance(state, `${prevTxid}:0`, ruleId, 50n);
+		setBalance(state, `${prevTxid}:0`, runeId, 50n);
 		// setBalance marks the entry dirty for the invariant check, which is fine —
 		// it also marks the outpoint dirty, which flush() would upsert; harmless here.
 
@@ -260,18 +294,18 @@ describe("applyTransaction", () => {
 		await applyTransaction(state, tx, 0, ctx(700_010), blockBurned);
 		applyBlockBurns(state, blockBurned);
 
-		expect(state.entries.get(ruleId)?.burned).toBe(50n);
-		expect(getBalance(state, `${prevTxid}:0`, ruleId)).toBe(0n);
+		expect(state.entries.get(runeId)?.burned).toBe(50n);
+		expect(getBalance(state, `${prevTxid}:0`, runeId)).toBe(0n);
 
-		checkInvariant(state, [ruleId]);
+		checkInvariant(state, [runeId]);
 	});
 });
 
 describe("checkInvariant", () => {
 	test("throws when sum(balances) + burned is off by one", () => {
 		const state = createRuneState();
-		const ruleId = runeIdToString({ block: 900_000n, tx: 0n });
-		state.entries.set(ruleId, {
+		const runeId = runeIdToString({ block: 900_000n, tx: 0n });
+		state.entries.set(runeId, {
 			block: 900_000n,
 			burned: 0n,
 			divisibility: 0,
@@ -286,9 +320,9 @@ describe("checkInvariant", () => {
 			timestamp: 0n,
 			turbo: false,
 		});
-		setBalance(state, `${"4".repeat(64)}:0`, ruleId, 99n); // should be 100 to match premine
+		setBalance(state, `${"4".repeat(64)}:0`, runeId, 99n); // should be 100 to match premine
 
-		expect(() => checkInvariant(state, [ruleId])).toThrow(
+		expect(() => checkInvariant(state, [runeId])).toThrow(
 			InvariantViolationError,
 		);
 	});

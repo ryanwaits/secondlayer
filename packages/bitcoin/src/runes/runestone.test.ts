@@ -28,7 +28,7 @@ import { encode } from "./varint.ts";
 
 const OP_RETURN = 0x6a;
 
-function ruleId(tx: number): RuneId {
+function runeId(tx: number): RuneId {
 	return { block: 1n, tx: BigInt(tx) };
 }
 
@@ -200,7 +200,7 @@ describe("Runestone", () => {
 		expect(decipher([BigInt(Tag.Body), 1n, 1n, 2n, 0n])).toEqual(
 			artifactRunestone({
 				...defaultRunestone(),
-				edicts: [{ id: ruleId(1), amount: 2n, output: 0 }],
+				edicts: [{ id: runeId(1), amount: 2n, output: 0 }],
 			}),
 		);
 	});
@@ -219,7 +219,7 @@ describe("Runestone", () => {
 		).toEqual(
 			artifactRunestone({
 				...defaultRunestone(),
-				edicts: [{ id: ruleId(1), amount: 2n, output: 0 }],
+				edicts: [{ id: runeId(1), amount: 2n, output: 0 }],
 				etching: defaultEtching(),
 			}),
 		);
@@ -241,7 +241,7 @@ describe("Runestone", () => {
 		).toEqual(
 			artifactRunestone({
 				...defaultRunestone(),
-				edicts: [{ id: ruleId(1), amount: 2n, output: 0 }],
+				edicts: [{ id: runeId(1), amount: 2n, output: 0 }],
 				etching: { ...defaultEtching(), rune: rune(4n) },
 			}),
 		);
@@ -321,7 +321,7 @@ describe("Runestone", () => {
 		).toEqual(
 			artifactRunestone({
 				...defaultRunestone(),
-				edicts: [{ id: ruleId(1), amount: 2n, output: 0 }],
+				edicts: [{ id: runeId(1), amount: 2n, output: 0 }],
 				etching: {
 					...defaultEtching(),
 					terms: {
@@ -351,7 +351,7 @@ describe("Runestone", () => {
 		).toEqual(
 			artifactRunestone({
 				...defaultRunestone(),
-				edicts: [{ id: ruleId(1), amount: 2n, output: 0 }],
+				edicts: [{ id: runeId(1), amount: 2n, output: 0 }],
 				etching: {
 					...defaultEtching(),
 					terms: {
@@ -416,7 +416,7 @@ describe("Runestone", () => {
 		).toEqual(
 			artifactRunestone({
 				...defaultRunestone(),
-				edicts: [{ id: ruleId(1), amount: 2n, output: 0 }],
+				edicts: [{ id: runeId(1), amount: 2n, output: 0 }],
 				etching: { ...defaultEtching(), rune: undefined, divisibility: 4 },
 			}),
 		);
@@ -428,7 +428,7 @@ describe("Runestone", () => {
 		).toEqual(
 			artifactRunestone({
 				...defaultRunestone(),
-				edicts: [{ id: ruleId(1), amount: 2n, output: 0 }],
+				edicts: [{ id: runeId(1), amount: 2n, output: 0 }],
 			}),
 		);
 	});
@@ -488,7 +488,7 @@ describe("Runestone", () => {
 				i === 0
 					? artifactRunestone({
 							...defaultRunestone(),
-							edicts: [{ id: ruleId(1), amount: 2n, output: 0 }],
+							edicts: [{ id: runeId(1), amount: 2n, output: 0 }],
 						})
 					: artifactCenotaph({ flaw: Flaw.TrailingIntegers });
 			expect(decipher(integers)).toEqual(expected);
@@ -514,7 +514,7 @@ describe("Runestone", () => {
 		).toEqual(
 			artifactRunestone({
 				...defaultRunestone(),
-				edicts: [{ id: ruleId(1), amount: 2n, output: 0 }],
+				edicts: [{ id: runeId(1), amount: 2n, output: 0 }],
 				etching: { ...defaultEtching(), rune: rune(4n), divisibility: 5 },
 			}),
 		);
@@ -538,7 +538,7 @@ describe("Runestone", () => {
 		).toEqual(
 			artifactRunestone({
 				...defaultRunestone(),
-				edicts: [{ id: ruleId(1), amount: 2n, output: 0 }],
+				edicts: [{ id: runeId(1), amount: 2n, output: 0 }],
 				etching: { ...defaultEtching(), rune: rune(4n) },
 			}),
 		);
@@ -560,7 +560,7 @@ describe("Runestone", () => {
 		).toEqual(
 			artifactRunestone({
 				...defaultRunestone(),
-				edicts: [{ id: ruleId(1), amount: 2n, output: 0 }],
+				edicts: [{ id: runeId(1), amount: 2n, output: 0 }],
 				etching: defaultEtching(),
 			}),
 		);
@@ -584,7 +584,7 @@ describe("Runestone", () => {
 		).toEqual(
 			artifactRunestone({
 				...defaultRunestone(),
-				edicts: [{ id: ruleId(1), amount: 2n, output: 0 }],
+				edicts: [{ id: runeId(1), amount: 2n, output: 0 }],
 				etching: { ...defaultEtching(), rune: rune(4n), symbol: "a" },
 			}),
 		);
@@ -625,7 +625,7 @@ describe("Runestone", () => {
 			]),
 		).toEqual(
 			artifactRunestone({
-				edicts: [{ id: ruleId(1), amount: 2n, output: 0 }],
+				edicts: [{ id: runeId(1), amount: 2n, output: 0 }],
 				etching: {
 					divisibility: 1,
 					premine: 8n,
@@ -672,7 +672,7 @@ describe("Runestone", () => {
 		).toEqual(
 			artifactRunestone({
 				...defaultRunestone(),
-				edicts: [{ id: ruleId(1), amount: 2n, output: 0 }],
+				edicts: [{ id: runeId(1), amount: 2n, output: 0 }],
 				etching: {
 					...defaultEtching(),
 					rune: rune(4n),
@@ -699,7 +699,7 @@ describe("Runestone", () => {
 		).toEqual(
 			artifactRunestone({
 				...defaultRunestone(),
-				edicts: [{ id: ruleId(1), amount: 2n, output: 0 }],
+				edicts: [{ id: runeId(1), amount: 2n, output: 0 }],
 				etching: { ...defaultEtching(), divisibility: 0 },
 			}),
 		);
@@ -712,8 +712,8 @@ describe("Runestone", () => {
 			artifactRunestone({
 				...defaultRunestone(),
 				edicts: [
-					{ id: ruleId(1), amount: 2n, output: 0 },
-					{ id: ruleId(4), amount: 5n, output: 0 },
+					{ id: runeId(1), amount: 2n, output: 0 },
+					{ id: runeId(4), amount: 5n, output: 0 },
 				],
 			}),
 		);
@@ -751,7 +751,7 @@ describe("Runestone", () => {
 		expect(runestoneDecipher(tx)).toEqual(
 			artifactRunestone({
 				...defaultRunestone(),
-				edicts: [{ id: ruleId(1), amount: 2n, output: 0 }],
+				edicts: [{ id: runeId(1), amount: 2n, output: 0 }],
 				etching: { ...defaultEtching(), divisibility: 5 },
 			}),
 		);
@@ -768,7 +768,7 @@ describe("Runestone", () => {
 		expect(runestoneDecipher(tx)).toEqual(
 			artifactRunestone({
 				...defaultRunestone(),
-				edicts: [{ id: ruleId(1), amount: 2n, output: 0 }],
+				edicts: [{ id: runeId(1), amount: 2n, output: 0 }],
 			}),
 		);
 	});
@@ -786,7 +786,7 @@ describe("Runestone", () => {
 		expect(runestoneDecipher(tx)).toEqual(
 			artifactRunestone({
 				...defaultRunestone(),
-				edicts: [{ id: ruleId(1), amount: 2n, output: 0 }],
+				edicts: [{ id: runeId(1), amount: 2n, output: 0 }],
 			}),
 		);
 	});

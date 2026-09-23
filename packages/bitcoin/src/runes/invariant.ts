@@ -10,12 +10,12 @@ import { type RuneState, sumRuneBalance } from "./state.ts";
 
 export class InvariantViolationError extends Error {
 	constructor(
-		readonly ruleId: string,
+		readonly runeId: string,
 		readonly expected: bigint,
 		readonly actual: bigint,
 	) {
 		super(
-			`rune ${ruleId} supply invariant violated: sum(balances)+burned=${actual} != premine+mints*amount=${expected}`,
+			`rune ${runeId} supply invariant violated: sum(balances)+burned=${actual} != premine+mints*amount=${expected}`,
 		);
 		this.name = "InvariantViolationError";
 	}
@@ -23,27 +23,27 @@ export class InvariantViolationError extends Error {
 
 /**
  * Checks `sum(balances) + burned == premine + mints * (terms.amount ?? 0)`
- * for every rune in `ruleIds`. Throws `InvariantViolationError` on the first
+ * for every rune in `runeIds`. Throws `InvariantViolationError` on the first
  * mismatch (fail closed, per plan design) — callers should treat this as a
  * decoder bug, not a data condition to recover from.
  */
 export function checkInvariant(
 	state: RuneState,
-	ruleIds: Iterable<string>,
+	runeIds: Iterable<string>,
 ): void {
-	for (const ruleId of ruleIds) {
-		const entry = state.entries.get(ruleId);
+	for (const runeId of runeIds) {
+		const entry = state.entries.get(runeId);
 		if (!entry) {
 			// A rune with dirty balance/entry activity must have an entry by the
 			// time a flush runs; a missing entry is itself a bug, not a valid state.
-			throw new InvariantViolationError(ruleId, 0n, 0n);
+			throw new InvariantViolationError(runeId, 0n, 0n);
 		}
 
 		const expected = runeEntrySupply(entry);
-		const actual = sumRuneBalance(state, ruleId) + entry.burned;
+		const actual = sumRuneBalance(state, runeId) + entry.burned;
 
 		if (actual !== expected) {
-			throw new InvariantViolationError(ruleId, expected, actual);
+			throw new InvariantViolationError(runeId, expected, actual);
 		}
 	}
 }
