@@ -1,14 +1,10 @@
 export const OBSERVER_MODES = ["indexer", "signer-shared"] as const;
 export type ObserverMode = (typeof OBSERVER_MODES)[number];
 
-export const RECOVERY_SOURCES = ["journal", "archive"] as const;
-export type RecoverySource = (typeof RECOVERY_SOURCES)[number];
-
 export type ObserverStanzaInput = {
 	mode: ObserverMode;
 	endpoint: string;
 	network: "mainnet" | "testnet" | "devnet";
-	recovery?: RecoverySource;
 };
 
 export class UnsupportedObserverError extends Error {
@@ -22,16 +18,6 @@ export function parseObserverMode(value: string): ObserverMode {
 	}
 	throw new UnsupportedObserverError(
 		`observer mode must be indexer or signer-shared (got ${value})`,
-	);
-}
-
-export function parseRecoverySource(value: string): RecoverySource {
-	const source = value.trim().toLowerCase();
-	if ((RECOVERY_SOURCES as readonly string[]).includes(source)) {
-		return source as RecoverySource;
-	}
-	throw new UnsupportedObserverError(
-		`recovery source must be journal or archive (got ${value})`,
 	);
 }
 
@@ -68,11 +54,6 @@ export function validateObserverStanza(input: ObserverStanzaInput): {
 			`loopback observer endpoint is not container-visible on ${input.network}; use a docker DNS name such as indexer:3700`,
 		);
 	}
-	if (input.mode === "signer-shared" && !input.recovery) {
-		throw new UnsupportedObserverError(
-			"signer-shared mode requires --recovery journal or --recovery archive",
-		);
-	}
 	return { endpoint };
 }
 
@@ -80,7 +61,11 @@ export function validateObserverStanza(input: ObserverStanzaInput): {
  * Stacks node [[events_observer]] stanza.
  *
  * Pure indexer: retry until delivered (completeness). Signer-shared: skip
- * retries so a stuck indexer cannot starve the signer.
+ * retries so a stuck indexer cannot starve the signer; a skipped block stays a
+ * gap until `secondlayer repair` fills it from the archive.
+ *
+ * `events_keys = ["*"]` in both modes: it is the only key set a stock
+ * stacks-core accepts, and an unknown key panics the node on start.
  */
 export function renderObserverStanza(input: ObserverStanzaInput): string {
 	const { endpoint } = validateObserverStanza(input);
@@ -89,13 +74,12 @@ export function renderObserverStanza(input: ObserverStanzaInput): string {
 	const disableRetries = !indexer;
 	const comment = indexer
 		? "# Pure indexer: retry delivery. A slow observer can stall the node."
-		: "# Signer-shared: do not retry. Missed blocks refill from the journal/archive.";
-	const eventsKeys = indexer ? '["*", "storage", "contract_calls"]' : '["*"]';
+		: "# Signer-shared: do not retry. A missed block stays a gap until `secondlayer repair`.";
 	return [
 		comment,
 		"[[events_observer]]",
 		`endpoint = "${endpoint}"`,
-		`events_keys = ${eventsKeys}`,
+		'events_keys = ["*"]',
 		`timeout_ms = ${timeoutMs}`,
 		`disable_retries = ${disableRetries}`,
 		"",

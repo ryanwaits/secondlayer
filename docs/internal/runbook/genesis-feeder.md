@@ -87,10 +87,11 @@ docker compose exec -T postgres-feeder psql -U secondlayer -d secondlayer_feeder
   -c 'SELECT min(block_height), count(*) FROM vm_events'
 ```
 
-Compose `docker/oss/Config.toml` / `docker/stacks-node/Config.toml` already
-have the keys. They still ship `timeout_ms = 500` and `disable_retries =
-true` (signer-safe). For a feeder, override those two plus
-`vm_trace_max_bytes = 0` and `event_dispatcher_blocking = true`. Wipe the
+Start from `docker/feeder/Config.toml`, not the operator configs
+(`docker/oss/`, `docker/stacks-node/`): those stay stock-safe with
+`events_keys = ["*"]`, `timeout_ms = 500`, `disable_retries = true`. The feeder
+needs the vm_events keys, `vm_trace_max_bytes = 0`, and
+`event_dispatcher_blocking = true`. Wipe the
 volume if it ever held a snapshot.
 
 ## After catch-up (collapse to one hooked follower)

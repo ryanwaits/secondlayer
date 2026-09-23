@@ -4,8 +4,8 @@ Postgres + one Secondlayer container. Optional bundled Stacks / Bitcoin.
 
 ## App services (external node)
 
-- Mainnet, full history: 8 GB RAM, 600 GB SSD
-- Testnet/devnet: 8 GB RAM, 100 GB SSD
+- Mainnet, full history: 4 GB RAM, 600 GB SSD
+- Testnet/devnet: 4 GB RAM, 80 GB SSD
 
 Mainnet is the large one: the reference index measures ~500 GB at 8.77M blocks
 (~250 GB of blocks/transactions/events, the rest decoded). Budget ~3 GB per
@@ -40,7 +40,6 @@ API: `http://127.0.0.1:3800`. Observer: `127.0.0.1:3700`.
 | Profile | Command |
 | --- | --- |
 | External Stacks node | `docker compose up -d` |
-| Bundled Stacks, public Bitcoin | `docker compose --profile stacks-node up -d` |
 | Bundled Stacks + bitcoind | `docker compose --profile full-node up -d` |
 
 Required non-secrets: `NETWORK`, `DATABASE_URL` (compose sets it), `NODE_MODE`, `DATA_DIR`, `API_PORT`, `INDEXER_PORT`. Secrets come from `secondlayer init`.

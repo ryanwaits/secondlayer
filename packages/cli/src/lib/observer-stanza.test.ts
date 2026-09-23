@@ -19,20 +19,16 @@ describe("observer stanza", () => {
 		});
 		expect(indexer).toContain("disable_retries = false");
 		expect(indexer).toContain("timeout_ms = 2000");
-		expect(indexer).toContain(
-			'events_keys = ["*", "storage", "contract_calls"]',
-		);
+		expect(indexer).toContain('events_keys = ["*"]');
 
 		const signer = renderObserverStanza({
 			mode: "signer-shared",
 			endpoint: "indexer:3700",
 			network: "mainnet",
-			recovery: "journal",
 		});
 		expect(signer).toContain("disable_retries = true");
 		expect(signer).toContain("timeout_ms = 500");
 		expect(signer).toContain('events_keys = ["*"]');
-		expect(signer).not.toContain("storage");
 	});
 
 	test("refuses loopback on mainnet and URLs", () => {
@@ -52,14 +48,16 @@ describe("observer stanza", () => {
 		).toThrow(/host:port/);
 	});
 
-	test("signer-shared requires a recovery source", () => {
-		expect(() =>
-			validateObserverStanza({
-				mode: "signer-shared",
+	test("both modes emit only keys a stock stacks-core accepts", () => {
+		for (const mode of ["indexer", "signer-shared"] as const) {
+			const stanza = renderObserverStanza({
+				mode,
 				endpoint: "indexer:3700",
 				network: "mainnet",
-			}),
-		).toThrow(/recovery/);
+			});
+			expect(stanza).not.toContain("storage");
+			expect(stanza).not.toContain("contract_calls");
+		}
 	});
 
 	test("devnet may use loopback", () => {

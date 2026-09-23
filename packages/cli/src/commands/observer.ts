@@ -3,7 +3,6 @@ import { instanceNetworkFromEnv } from "../lib/instance-init.ts";
 import {
 	defaultObserverEndpoint,
 	parseObserverMode,
-	parseRecoverySource,
 	renderObserverStanza,
 } from "../lib/observer-stanza.ts";
 import { note, writeData } from "../lib/output.ts";
@@ -19,10 +18,6 @@ export function registerObserverCommand(program: Command): void {
 			"indexer",
 		)
 		.option("--endpoint <host:port>", "Observer callback the node will POST to")
-		.option(
-			"--recovery <source>",
-			"Required for signer-shared: journal or archive",
-		)
 		// --network is deliberately NOT declared here — see the identical note
 		// in commands/init.ts: it collides with cli.ts's global `--network`,
 		// which silently wins and leaves a command-local option `undefined`.
@@ -38,21 +33,17 @@ export function registerObserverCommand(program: Command): void {
 			(opts: {
 				mode: string;
 				endpoint?: string;
-				recovery?: string;
 			}) => {
 				assertInstanceUrl();
 				const mode = parseObserverMode(opts.mode);
 				const network = instanceNetworkFromEnv();
 				const endpoint = opts.endpoint ?? defaultObserverEndpoint(network);
-				const recovery = opts.recovery
-					? parseRecoverySource(opts.recovery)
-					: undefined;
 				if (mode === "signer-shared") {
 					note(
-						"Signer-shared nodes skip observer retries. Pair with a journal or archive for completeness.",
+						"Signer-shared nodes skip observer retries. A missed block stays a gap until `secondlayer repair` fills it from the archive.",
 					);
 				}
-				writeData(renderObserverStanza({ mode, endpoint, network, recovery }));
+				writeData(renderObserverStanza({ mode, endpoint, network }));
 			},
 		);
 }

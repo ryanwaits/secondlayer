@@ -120,13 +120,12 @@ Example: `secondlayer bootstrap --against ./snapshot.json --to-block 4000000 --y
 
 Print the Stacks `[[events_observer]]` stanza.
 
-Usage: `secondlayer observer [--mode indexer|signer-shared] [--endpoint host:port] [--recovery journal|archive] [--network <network>]`
+Usage: `secondlayer observer [--mode indexer|signer-shared] [--endpoint host:port] [--network <network>]`
 
 | Flag | Default | Description |
 | --- | --- | --- |
-| `--mode <mode>` | `indexer` | `indexer` retries delivery (`timeout_ms = 2000`). `signer-shared` skips retries (`timeout_ms = 500`, `disable_retries = true`). |
+| `--mode <mode>` | `indexer` | `indexer` retries delivery (`timeout_ms = 2000`). `signer-shared` skips retries (`timeout_ms = 500`, `disable_retries = true`); a missed block stays a gap until `secondlayer repair`. Both emit `events_keys = ["*"]`. |
 | `--endpoint <host:port>` | `indexer:3700` (`127.0.0.1:3700` on devnet) | Node callback. `host:port` only — no URL, no unix socket. Loopback refused except on `devnet`. |
-| `--recovery <source>` | required for signer-shared | `journal` or `archive`. |
 | `--network <network>` | `STACKS_NETWORK` or `mainnet` | `mainnet`, `testnet`, or `devnet`. |
 
 Example: `secondlayer observer --mode indexer --endpoint indexer:3700`
