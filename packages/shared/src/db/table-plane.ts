@@ -90,6 +90,9 @@ export const TABLE_TO_DB = {
 	hosted_meter_days: "target",
 	// ── TARGET: archive fetch gate (design-f089) ──
 	archive_fetches: "target",
+	// ── TARGET: public waitlist pages ──
+	waitlists: "target",
+	waitlist_signups: "target",
 	// ── BOTH ──
 	service_heartbeats: "both",
 } satisfies Record<keyof Database, DbPlane>;

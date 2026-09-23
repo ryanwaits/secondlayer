@@ -5,9 +5,8 @@
  * Platform keeps both.
  *
  * Five fixture classes:
- *  - HOSTED_ROUTE_FIXTURES — hosted-only surface. Empty since the x402
- *    pay-per-call rail was deleted; kept as a named seam so a future
- *    hosted-only route has somewhere to land.
+ *  - HOSTED_ROUTE_FIXTURES — hosted-only surface: public waitlist
+ *    signups (the x402 pay-per-call rail that once lived here is deleted).
  *  - DELETED_ROUTE_FIXTURES — hosted-control surface removed by gate-g
  *    Slice D, plus the x402 rail and the subgraph public-namespace
  *    (publish/unpublish) claim. Must 404 in EVERY mode, forever —
@@ -24,7 +23,9 @@
  *    workload. Not a deletion candidate — deletion scans must treat it as
  *    retained.
  */
-export const HOSTED_ROUTE_FIXTURES = [] as const;
+export const HOSTED_ROUTE_FIXTURES = [
+	{ method: "POST", path: "/api/public/waitlist" },
+] as const;
 
 /** Gate-g Slice D deletions + the x402 rail — 404 in oss and platform alike. */
 export const DELETED_ROUTE_FIXTURES = [

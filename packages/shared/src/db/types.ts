@@ -977,6 +977,8 @@ export interface Database {
 	coverage_segments: CoverageSegmentsTable;
 	stage_failures: StageFailuresTable;
 	archive_fetches: ArchiveFetchesTable;
+	waitlists: WaitlistsTable;
+	waitlist_signups: WaitlistSignupsTable;
 }
 
 export interface ServiceHeartbeatsTable {
@@ -1245,3 +1247,30 @@ export interface TriggerEvaluatorStateTable {
 }
 
 export type TriggerEvaluatorState = Selectable<TriggerEvaluatorStateTable>;
+
+/** A public waitlist page: what it is for and whether it takes signups. */
+export interface WaitlistsTable {
+	slug: string;
+	title: string;
+	description: string;
+	url: string;
+	opened_at: Generated<Date>;
+	/** Null while the list is open. */
+	closed_at: Date | null;
+}
+
+/**
+ * One signup per (list, contact, token). `answers` holds the list's own
+ * questions, validated per list by the API before insert.
+ */
+export interface WaitlistSignupsTable {
+	id: Generated<string>;
+	list: string;
+	contact: string;
+	answers: Record<string, unknown>;
+	created_at: Generated<Date>;
+}
+
+export type Waitlist = Selectable<WaitlistsTable>;
+export type WaitlistSignup = Selectable<WaitlistSignupsTable>;
+export type InsertWaitlistSignup = Insertable<WaitlistSignupsTable>;

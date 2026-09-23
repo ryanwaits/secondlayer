@@ -23,6 +23,7 @@ import {
 import nodeRouter from "./routes/node.ts";
 import openApiRouter from "./routes/openapi.ts";
 import publicCreditsRouter from "./routes/public-credits.ts";
+import publicWaitlistRouter from "./routes/public-waitlist.ts";
 import statusRouter from "./routes/status.ts";
 import streamsRouter from "./routes/streams.ts";
 import subgraphsRouter from "./routes/subgraphs.ts";
@@ -129,6 +130,8 @@ export function createApiApp(mode: InstanceMode): Hono {
 		app.route("/api/billing/stripe", webhooksStripeRouter);
 		app.use("/api/public/credits/*", ipRateLimit(20));
 		app.route("/api/public/credits", publicCreditsRouter);
+		app.use("/api/public/waitlist", ipRateLimit(20));
+		app.route("/api/public/waitlist", publicWaitlistRouter);
 	}
 
 	app.use("/status", resourceAuth);
